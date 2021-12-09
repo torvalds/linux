@@ -253,7 +253,6 @@ struct gfs2_lkstats {
 enum {
 	/* States */
 	HIF_HOLDER		= 6,  /* Set for gh that "holds" the glock */
-	HIF_FIRST		= 7,
 	HIF_WAIT		= 10,
 };
 
@@ -768,6 +767,7 @@ struct gfs2_sbd {
 	struct gfs2_glock *sd_jinode_gl;
 
 	struct gfs2_holder sd_sc_gh;
+	struct buffer_head *sd_sc_bh;
 	struct gfs2_holder sd_qc_gh;
 
 	struct completion sd_journal_ready;

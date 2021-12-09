@@ -41,6 +41,8 @@
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_fourcc.h>
 
+#include "gem/i915_gem_lmem.h"
+
 #include "i915_drv.h"
 #include "intel_display_types.h"
 #include "intel_fbdev.h"
@@ -137,14 +139,22 @@ static int intelfb_alloc(struct drm_fb_helper *helper,
 	size = mode_cmd.pitches[0] * mode_cmd.height;
 	size = PAGE_ALIGN(size);
 
-	/* If the FB is too big, just don't use it since fbdev is not very
-	 * important and we should probably use that space with FBC or other
-	 * features. */
 	obj = ERR_PTR(-ENODEV);
-	if (size * 2 < dev_priv->stolen_usable_size)
-		obj = i915_gem_object_create_stolen(dev_priv, size);
-	if (IS_ERR(obj))
-		obj = i915_gem_object_create_shmem(dev_priv, size);
+	if (HAS_LMEM(dev_priv)) {
+		obj = i915_gem_object_create_lmem(dev_priv, size,
+						  I915_BO_ALLOC_CONTIGUOUS);
+	} else {
+		/*
+		 * If the FB is too big, just don't use it since fbdev is not very
+		 * important and we should probably use that space with FBC or other
+		 * features.
+		 */
+		if (size * 2 < dev_priv->stolen_usable_size)
+			obj = i915_gem_object_create_stolen(dev_priv, size);
+		if (IS_ERR(obj))
+			obj = i915_gem_object_create_shmem(dev_priv, size);
+	}
+
 	if (IS_ERR(obj)) {
 		drm_err(&dev_priv->drm, "failed to allocate framebuffer\n");
 		return PTR_ERR(obj);
@@ -178,6 +188,7 @@ static int intelfb_create(struct drm_fb_helper *helper,
 	unsigned long flags = 0;
 	bool prealloc = false;
 	void __iomem *vaddr;
+	struct drm_i915_gem_object *obj;
 	int ret;
 
 	if (intel_fb &&
@@ -232,13 +243,27 @@ static int intelfb_create(struct drm_fb_helper *helper,
 	info->fbops = &intelfb_ops;
 
 	/* setup aperture base/size for vesafb takeover */
-	info->apertures->ranges[0].base = ggtt->gmadr.start;
-	info->apertures->ranges[0].size = ggtt->mappable_end;
+	obj = intel_fb_obj(&intel_fb->base);
+	if (i915_gem_object_is_lmem(obj)) {
+		struct intel_memory_region *mem = obj->mm.region;
 
-	/* Our framebuffer is the entirety of fbdev's system memory */
-	info->fix.smem_start =
-		(unsigned long)(ggtt->gmadr.start + vma->node.start);
-	info->fix.smem_len = vma->node.size;
+		info->apertures->ranges[0].base = mem->io_start;
+		info->apertures->ranges[0].size = mem->total;
+
+		/* Use fbdev's framebuffer from lmem for discrete */
+		info->fix.smem_start =
+			(unsigned long)(mem->io_start +
+					i915_gem_object_get_dma_address(obj, 0));
+		info->fix.smem_len = obj->base.size;
+	} else {
+		info->apertures->ranges[0].base = ggtt->gmadr.start;
+		info->apertures->ranges[0].size = ggtt->mappable_end;
+
+		/* Our framebuffer is the entirety of fbdev's system memory */
+		info->fix.smem_start =
+			(unsigned long)(ggtt->gmadr.start + vma->node.start);
+		info->fix.smem_len = vma->node.size;
+	}
 
 	vaddr = i915_vma_pin_iomap(vma);
 	if (IS_ERR(vaddr)) {
@@ -310,32 +335,43 @@ static void intel_fbdev_destroy(struct intel_fbdev *ifbdev)
  * fbcon), so we just find the biggest and use that.
  */
 static bool intel_fbdev_init_bios(struct drm_device *dev,
-				 struct intel_fbdev *ifbdev)
+				  struct intel_fbdev *ifbdev)
 {
 	struct drm_i915_private *i915 = to_i915(dev);
 	struct intel_framebuffer *fb = NULL;
-	struct drm_crtc *crtc;
-	struct intel_crtc *intel_crtc;
+	struct intel_crtc *crtc;
 	unsigned int max_size = 0;
 
 	/* Find the largest fb */
-	for_each_crtc(dev, crtc) {
+	for_each_intel_crtc(dev, crtc) {
+		struct intel_crtc_state *crtc_state =
+			to_intel_crtc_state(crtc->base.state);
+		struct intel_plane *plane =
+			to_intel_plane(crtc->base.primary);
+		struct intel_plane_state *plane_state =
+			to_intel_plane_state(plane->base.state);
 		struct drm_i915_gem_object *obj =
-			intel_fb_obj(crtc->primary->state->fb);
-		intel_crtc = to_intel_crtc(crtc);
+			intel_fb_obj(plane_state->uapi.fb);
 
-		if (!crtc->state->active || !obj) {
+		if (!crtc_state->uapi.active) {
 			drm_dbg_kms(&i915->drm,
-				    "pipe %c not active or no fb, skipping\n",
-				    pipe_name(intel_crtc->pipe));
+				    "[CRTC:%d:%s] not active, skipping\n",
+				    crtc->base.base.id, crtc->base.name);
+			continue;
+		}
+
+		if (!obj) {
+			drm_dbg_kms(&i915->drm,
+				    "[PLANE:%d:%s] no fb, skipping\n",
+				    plane->base.base.id, plane->base.name);
 			continue;
 		}
 
 		if (obj->base.size > max_size) {
 			drm_dbg_kms(&i915->drm,
-				    "found possible fb from plane %c\n",
-				    pipe_name(intel_crtc->pipe));
-			fb = to_intel_framebuffer(crtc->primary->state->fb);
+				    "found possible fb from [PLANE:%d:%s]\n",
+				    plane->base.base.id, plane->base.name);
+			fb = to_intel_framebuffer(plane_state->uapi.fb);
 			max_size = obj->base.size;
 		}
 	}
@@ -347,60 +383,62 @@ static bool intel_fbdev_init_bios(struct drm_device *dev,
 	}
 
 	/* Now make sure all the pipes will fit into it */
-	for_each_crtc(dev, crtc) {
+	for_each_intel_crtc(dev, crtc) {
+		struct intel_crtc_state *crtc_state =
+			to_intel_crtc_state(crtc->base.state);
+		struct intel_plane *plane =
+			to_intel_plane(crtc->base.primary);
 		unsigned int cur_size;
 
-		intel_crtc = to_intel_crtc(crtc);
-
-		if (!crtc->state->active) {
+		if (!crtc_state->uapi.active) {
 			drm_dbg_kms(&i915->drm,
-				    "pipe %c not active, skipping\n",
-				    pipe_name(intel_crtc->pipe));
+				    "[CRTC:%d:%s] not active, skipping\n",
+				    crtc->base.base.id, crtc->base.name);
 			continue;
 		}
 
-		drm_dbg_kms(&i915->drm, "checking plane %c for BIOS fb\n",
-			    pipe_name(intel_crtc->pipe));
+		drm_dbg_kms(&i915->drm, "checking [PLANE:%d:%s] for BIOS fb\n",
+			    plane->base.base.id, plane->base.name);
 
 		/*
 		 * See if the plane fb we found above will fit on this
 		 * pipe.  Note we need to use the selected fb's pitch and bpp
 		 * rather than the current pipe's, since they differ.
 		 */
-		cur_size = crtc->state->adjusted_mode.crtc_hdisplay;
+		cur_size = crtc_state->uapi.adjusted_mode.crtc_hdisplay;
 		cur_size = cur_size * fb->base.format->cpp[0];
 		if (fb->base.pitches[0] < cur_size) {
 			drm_dbg_kms(&i915->drm,
-				    "fb not wide enough for plane %c (%d vs %d)\n",
-				    pipe_name(intel_crtc->pipe),
+				    "fb not wide enough for [PLANE:%d:%s] (%d vs %d)\n",
+				    plane->base.base.id, plane->base.name,
 				    cur_size, fb->base.pitches[0]);
 			fb = NULL;
 			break;
 		}
 
-		cur_size = crtc->state->adjusted_mode.crtc_vdisplay;
+		cur_size = crtc_state->uapi.adjusted_mode.crtc_vdisplay;
 		cur_size = intel_fb_align_height(&fb->base, 0, cur_size);
 		cur_size *= fb->base.pitches[0];
 		drm_dbg_kms(&i915->drm,
-			    "pipe %c area: %dx%d, bpp: %d, size: %d\n",
-			    pipe_name(intel_crtc->pipe),
-			    crtc->state->adjusted_mode.crtc_hdisplay,
-			    crtc->state->adjusted_mode.crtc_vdisplay,
+			    "[CRTC:%d:%s] area: %dx%d, bpp: %d, size: %d\n",
+			    crtc->base.base.id, crtc->base.name,
+			    crtc_state->uapi.adjusted_mode.crtc_hdisplay,
+			    crtc_state->uapi.adjusted_mode.crtc_vdisplay,
 			    fb->base.format->cpp[0] * 8,
 			    cur_size);
 
 		if (cur_size > max_size) {
 			drm_dbg_kms(&i915->drm,
-				    "fb not big enough for plane %c (%d vs %d)\n",
-				    pipe_name(intel_crtc->pipe),
+				    "fb not big enough for [PLANE:%d:%s] (%d vs %d)\n",
+				    plane->base.base.id, plane->base.name,
 				    cur_size, max_size);
 			fb = NULL;
 			break;
 		}
 
 		drm_dbg_kms(&i915->drm,
-			    "fb big enough for plane %c (%d >= %d)\n",
-			    pipe_name(intel_crtc->pipe),
+			    "fb big enough [PLANE:%d:%s] (%d >= %d)\n",
+			    plane->base.base.id, plane->base.name,
 			    max_size, cur_size);
 	}
 
@@ -416,15 +454,20 @@ static bool intel_fbdev_init_bios(struct drm_device *dev,
 	drm_framebuffer_get(&ifbdev->fb->base);
 
 	/* Final pass to check if any active pipes don't have fbs */
-	for_each_crtc(dev, crtc) {
-		intel_crtc = to_intel_crtc(crtc);
+	for_each_intel_crtc(dev, crtc) {
+		struct intel_crtc_state *crtc_state =
+			to_intel_crtc_state(crtc->base.state);
+		struct intel_plane *plane =
+			to_intel_plane(crtc->base.primary);
+		struct intel_plane_state *plane_state =
+			to_intel_plane_state(plane->base.state);
 
-		if (!crtc->state->active)
+		if (!crtc_state->uapi.active)
 			continue;
 
-		drm_WARN(dev, !crtc->primary->state->fb,
-			 "re-used BIOS config but lost an fb on crtc %d\n",
-			 crtc->base.id);
+		drm_WARN(dev, !plane_state->uapi.fb,
+			 "re-used BIOS config but lost an fb on [PLANE:%d:%s]\n",
+			 plane->base.base.id, plane->base.name);
 	}
 
 

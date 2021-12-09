@@ -60,6 +60,7 @@ struct mlx5e_neigh_update_table {
 struct mlx5_tc_ct_priv;
 struct mlx5e_rep_bond;
 struct mlx5e_tc_tun_encap;
+struct mlx5e_post_act;
 
 struct mlx5_rep_uplink_priv {
 	/* Filters DB - instantiated by the uplink representor and shared by
@@ -88,8 +89,9 @@ struct mlx5_rep_uplink_priv {
 	/* maps tun_enc_opts to a unique id*/
 	struct mapping_ctx *tunnel_enc_opts_mapping;
 
+	struct mlx5e_post_act *post_act;
 	struct mlx5_tc_ct_priv *ct_priv;
-	struct mlx5_esw_psample *esw_psample;
+	struct mlx5e_tc_psample *tc_psample;
 
 	/* support eswitch vports bonding */
 	struct mlx5e_rep_bond *bond;
@@ -146,7 +148,7 @@ struct mlx5e_neigh_hash_entry {
 	 */
 	refcount_t refcnt;
 
-	/* Save the last reported time offloaded trafic pass over one of the
+	/* Save the last reported time offloaded traffic pass over one of the
 	 * neigh hash entry flows. Use it to periodically update the neigh
 	 * 'used' value and avoid neigh deleting by the kernel.
 	 */
@@ -207,6 +209,8 @@ struct mlx5e_encap_entry {
 
 struct mlx5e_rep_sq {
 	struct mlx5_flow_handle	*send_to_vport_rule;
+	struct mlx5_flow_handle *send_to_vport_rule_peer;
+	u32 sqn;
 	struct list_head	 list;
 };
 
@@ -231,9 +235,9 @@ void mlx5e_remove_sqs_fwd_rules(struct mlx5e_priv *priv);
 
 void mlx5e_rep_queue_neigh_stats_work(struct mlx5e_priv *priv);
 
-bool mlx5e_eswitch_vf_rep(struct net_device *netdev);
-bool mlx5e_eswitch_uplink_rep(struct net_device *netdev);
-static inline bool mlx5e_eswitch_rep(struct net_device *netdev)
+bool mlx5e_eswitch_vf_rep(const struct net_device *netdev);
+bool mlx5e_eswitch_uplink_rep(const struct net_device *netdev);
+static inline bool mlx5e_eswitch_rep(const struct net_device *netdev)
 {
 	return mlx5e_eswitch_vf_rep(netdev) ||
 	       mlx5e_eswitch_uplink_rep(netdev);

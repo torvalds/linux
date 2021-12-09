@@ -85,7 +85,6 @@ available subsections can be seen below.
    io-mapping
    io_ordering
    generic-counter
-   lightnvm-pblk
    memory-devices/index
    men-chameleon-bus
    ntb

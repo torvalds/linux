@@ -35,7 +35,7 @@
 
 #define NOF_ACQ_REGS                              12
 
-// Register id's of MMIO slave accesible registers
+// Register id's of MMIO slave accessible registers
 #define ACQ_START_ADDR_REG_ID                     0
 #define ACQ_MEM_REGION_SIZE_REG_ID                1
 #define ACQ_NUM_MEM_REGIONS_REG_ID                2

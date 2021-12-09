@@ -45,59 +45,11 @@ static void blk_mq_hw_sysfs_release(struct kobject *kobj)
 	kfree(hctx);
 }
 
-struct blk_mq_ctx_sysfs_entry {
-	struct attribute attr;
-	ssize_t (*show)(struct blk_mq_ctx *, char *);
-	ssize_t (*store)(struct blk_mq_ctx *, const char *, size_t);
-};
-
 struct blk_mq_hw_ctx_sysfs_entry {
 	struct attribute attr;
 	ssize_t (*show)(struct blk_mq_hw_ctx *, char *);
 	ssize_t (*store)(struct blk_mq_hw_ctx *, const char *, size_t);
 };
-
-static ssize_t blk_mq_sysfs_show(struct kobject *kobj, struct attribute *attr,
-				 char *page)
-{
-	struct blk_mq_ctx_sysfs_entry *entry;
-	struct blk_mq_ctx *ctx;
-	struct request_queue *q;
-	ssize_t res;
-
-	entry = container_of(attr, struct blk_mq_ctx_sysfs_entry, attr);
-	ctx = container_of(kobj, struct blk_mq_ctx, kobj);
-	q = ctx->queue;
-
-	if (!entry->show)
-		return -EIO;
-
-	mutex_lock(&q->sysfs_lock);
-	res = entry->show(ctx, page);
-	mutex_unlock(&q->sysfs_lock);
-	return res;
-}
-
-static ssize_t blk_mq_sysfs_store(struct kobject *kobj, struct attribute *attr,
-				  const char *page, size_t length)
-{
-	struct blk_mq_ctx_sysfs_entry *entry;
-	struct blk_mq_ctx *ctx;
-	struct request_queue *q;
-	ssize_t res;
-
-	entry = container_of(attr, struct blk_mq_ctx_sysfs_entry, attr);
-	ctx = container_of(kobj, struct blk_mq_ctx, kobj);
-	q = ctx->queue;
-
-	if (!entry->store)
-		return -EIO;
-
-	mutex_lock(&q->sysfs_lock);
-	res = entry->store(ctx, page, length);
-	mutex_unlock(&q->sysfs_lock);
-	return res;
-}
 
 static ssize_t blk_mq_hw_sysfs_show(struct kobject *kobj,
 				    struct attribute *attr, char *page)
@@ -198,23 +150,16 @@ static struct attribute *default_hw_ctx_attrs[] = {
 };
 ATTRIBUTE_GROUPS(default_hw_ctx);
 
-static const struct sysfs_ops blk_mq_sysfs_ops = {
-	.show	= blk_mq_sysfs_show,
-	.store	= blk_mq_sysfs_store,
-};
-
 static const struct sysfs_ops blk_mq_hw_sysfs_ops = {
 	.show	= blk_mq_hw_sysfs_show,
 	.store	= blk_mq_hw_sysfs_store,
 };
 
 static struct kobj_type blk_mq_ktype = {
-	.sysfs_ops	= &blk_mq_sysfs_ops,
 	.release	= blk_mq_sysfs_release,
 };
 
 static struct kobj_type blk_mq_ctx_ktype = {
-	.sysfs_ops	= &blk_mq_sysfs_ops,
 	.release	= blk_mq_ctx_sysfs_release,
 };
 

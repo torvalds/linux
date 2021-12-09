@@ -162,6 +162,8 @@ extern void __percpu *efi_sve_state;
 DEFINE_PER_CPU(bool, fpsimd_context_busy);
 EXPORT_PER_CPU_SYMBOL(fpsimd_context_busy);
 
+static void fpsimd_bind_task_to_cpu(void);
+
 static void __get_cpu_fpsimd_context(void)
 {
 	bool busy = __this_cpu_xchg(fpsimd_context_busy, true);
@@ -511,19 +513,13 @@ size_t sve_state_size(struct task_struct const *task)
 void sve_alloc(struct task_struct *task)
 {
 	if (task->thread.sve_state) {
-		memset(task->thread.sve_state, 0, sve_state_size(current));
+		memset(task->thread.sve_state, 0, sve_state_size(task));
 		return;
 	}
 
 	/* This is a small allocation (maximum ~8KB) and Should Not Fail. */
 	task->thread.sve_state =
 		kzalloc(sve_state_size(task), GFP_KERNEL);
-
-	/*
-	 * If future SVE revisions can have larger vectors though,
-	 * this may cease to be true:
-	 */
-	BUG_ON(!task->thread.sve_state);
 }
 
 
@@ -943,6 +939,10 @@ void do_sve_acc(unsigned int esr, struct pt_regs *regs)
 	}
 
 	sve_alloc(current);
+	if (!current->thread.sve_state) {
+		force_sig(SIGKILL);
+		return;
+	}
 
 	get_cpu_fpsimd_context();
 
@@ -957,8 +957,10 @@ void do_sve_acc(unsigned int esr, struct pt_regs *regs)
 	 * disabling the trap, otherwise update our in-memory copy.
 	 */
 	if (!test_thread_flag(TIF_FOREIGN_FPSTATE)) {
-		sve_set_vq(sve_vq_from_vl(current->thread.sve_vl) - 1);
-		sve_flush_live();
+		unsigned long vq_minus_one =
+			sve_vq_from_vl(current->thread.sve_vl) - 1;
+		sve_set_vq(vq_minus_one);
+		sve_flush_live(vq_minus_one);
 		fpsimd_bind_task_to_cpu();
 	} else {
 		fpsimd_to_sve(current);
@@ -1110,7 +1112,7 @@ void fpsimd_signal_preserve_current_state(void)
  * The caller must have ownership of the cpu FPSIMD context before calling
  * this function.
  */
-void fpsimd_bind_task_to_cpu(void)
+static void fpsimd_bind_task_to_cpu(void)
 {
 	struct fpsimd_last_state_struct *last =
 		this_cpu_ptr(&fpsimd_last_state);

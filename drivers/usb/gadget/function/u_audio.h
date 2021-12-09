@@ -11,18 +11,41 @@
 
 #include <linux/usb/composite.h>
 
+/*
+ * Same maximum frequency deviation on the slower side as in
+ * sound/usb/endpoint.c. Value is expressed in per-mil deviation.
+ * The maximum deviation on the faster side will be provided as
+ * parameter, as it impacts the endpoint required bandwidth.
+ */
+#define FBACK_SLOW_MAX	250
+
+/* Feature Unit parameters */
+struct uac_fu_params {
+	int id;			/* Feature Unit ID */
+
+	bool mute_present;	/* mute control enable */
+
+	bool volume_present;	/* volume control enable */
+	s16 volume_min;		/* min volume in 1/256 dB */
+	s16 volume_max;		/* max volume in 1/256 dB */
+	s16 volume_res;		/* volume resolution in 1/256 dB */
+};
+
 struct uac_params {
 	/* playback */
 	int p_chmask;	/* channel mask */
 	int p_srate;	/* rate in Hz */
 	int p_ssize;	/* sample size */
+	struct uac_fu_params p_fu;	/* Feature Unit parameters */
 
 	/* capture */
 	int c_chmask;	/* channel mask */
 	int c_srate;	/* rate in Hz */
 	int c_ssize;	/* sample size */
+	struct uac_fu_params c_fu;	/* Feature Unit parameters */
 
 	int req_number; /* number of preallocated requests */
+	int fb_max;	/* upper frequency drift feedback limit per-mil */
 };
 
 struct g_audio {
@@ -30,12 +53,18 @@ struct g_audio {
 	struct usb_gadget *gadget;
 
 	struct usb_ep *in_ep;
+
 	struct usb_ep *out_ep;
+	/* feedback IN endpoint corresponding to out_ep */
+	struct usb_ep *in_ep_fback;
 
 	/* Max packet size for all in_ep possible speeds */
 	unsigned int in_ep_maxpsize;
 	/* Max packet size for all out_ep possible speeds */
 	unsigned int out_ep_maxpsize;
+
+	/* Notify UAC driver about control change */
+	int (*notify)(struct g_audio *g_audio, int unit_id, int cs);
 
 	/* The ALSA Sound Card it represents on the USB-Client side */
 	struct snd_uac_chip *uac;
@@ -81,5 +110,10 @@ int u_audio_start_capture(struct g_audio *g_audio);
 void u_audio_stop_capture(struct g_audio *g_audio);
 int u_audio_start_playback(struct g_audio *g_audio);
 void u_audio_stop_playback(struct g_audio *g_audio);
+
+int u_audio_get_volume(struct g_audio *g_audio, int playback, s16 *val);
+int u_audio_set_volume(struct g_audio *g_audio, int playback, s16 val);
+int u_audio_get_mute(struct g_audio *g_audio, int playback, int *val);
+int u_audio_set_mute(struct g_audio *g_audio, int playback, int val);
 
 #endif /* __U_AUDIO_H */

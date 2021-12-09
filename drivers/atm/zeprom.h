@@ -12,7 +12,7 @@
 #define ZEPROM_V1_REG	PCI_VENDOR_ID	/* PCI register */
 #define ZEPROM_V2_REG	0x40
 
-/* Bits in contol register */
+/* Bits in control register */
 
 #define ZEPROM_SK	0x80000000	/* strobe (probably on raising edge) */
 #define ZEPROM_CS	0x40000000	/* Chip Select */

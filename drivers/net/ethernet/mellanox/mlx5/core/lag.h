@@ -39,7 +39,10 @@ struct lag_tracker {
  */
 struct mlx5_lag {
 	u8                        flags;
+	int			  mode_changes_in_progress;
+	bool			  shared_fdb;
 	u8                        v2p_map[MLX5_MAX_PORTS];
+	struct kref               ref;
 	struct lag_func           pf[MLX5_MAX_PORTS];
 	struct lag_tracker        tracker;
 	struct workqueue_struct   *wq;
@@ -49,7 +52,7 @@ struct mlx5_lag {
 };
 
 static inline struct mlx5_lag *
-mlx5_lag_dev_get(struct mlx5_core_dev *dev)
+mlx5_lag_dev(struct mlx5_core_dev *dev)
 {
 	return dev->priv.lag;
 }
@@ -70,7 +73,8 @@ void mlx5_modify_lag(struct mlx5_lag *ldev,
 		     struct lag_tracker *tracker);
 int mlx5_activate_lag(struct mlx5_lag *ldev,
 		      struct lag_tracker *tracker,
-		      u8 flags);
+		      u8 flags,
+		      bool shared_fdb);
 int mlx5_lag_dev_get_netdev_idx(struct mlx5_lag *ldev,
 				struct net_device *ndev);
 

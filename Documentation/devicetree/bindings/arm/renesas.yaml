@@ -238,17 +238,29 @@ properties:
           - const: renesas,r8a77961
 
       - description: Kingfisher (SBEV-RCAR-KF-M03)
-        items:
-          - const: shimafuji,kingfisher
-          - enum:
-              - renesas,h3ulcb
-              - renesas,m3ulcb
-              - renesas,m3nulcb
-          - enum:
-              - renesas,r8a7795
-              - renesas,r8a7796
-              - renesas,r8a77961
-              - renesas,r8a77965
+        oneOf:
+          - items:
+              - const: shimafuji,kingfisher
+              - enum:
+                  - renesas,h3ulcb
+                  - renesas,m3ulcb
+                  - renesas,m3nulcb
+              - enum:
+                  - renesas,r8a7795
+                  - renesas,r8a7796
+                  - renesas,r8a77961
+                  - renesas,r8a77965
+          - items:
+              - const: shimafuji,kingfisher
+              - enum:
+                  - renesas,h3ulcb
+                  - renesas,m3ulcb
+              - enum:
+                  - renesas,r8a779m1
+                  - renesas,r8a779m3
+              - enum:
+                  - renesas,r8a7795
+                  - renesas,r8a77961
 
       - description: R-Car M3-N (R8A77965)
         items:
@@ -296,11 +308,45 @@ properties:
           - const: renesas,falcon-cpu
           - const: renesas,r8a779a0
 
+      - description: R-Car H3e-2G (R8A779M1)
+        items:
+          - enum:
+              - renesas,h3ulcb      # H3ULCB (R-Car Starter Kit Premier)
+              - renesas,salvator-xs # Salvator-XS (Salvator-X 2nd version)
+          - const: renesas,r8a779m1
+          - const: renesas,r8a7795
+
+      - description: R-Car M3e-2G (R8A779M3)
+        items:
+          - enum:
+              - renesas,m3ulcb      # M3ULCB (R-Car Starter Kit Pro)
+              - renesas,salvator-xs # Salvator-XS (Salvator-X 2nd version)
+          - const: renesas,r8a779m3
+          - const: renesas,r8a77961
+
       - description: RZ/N1D (R9A06G032)
         items:
           - enum:
               - renesas,rzn1d400-db # RZN1D-DB (RZ/N1D Demo Board for the RZ/N1D 400 pins package)
           - const: renesas,r9a06g032
+
+      - description: RZ/G2UL (R9A07G043)
+        items:
+          - enum:
+              - renesas,r9a07g043u11 # RZ/G2UL Type-1
+              - renesas,r9a07g043u12 # RZ/G2UL Type-2
+          - const: renesas,r9a07g043
+
+      - description: RZ/G2{L,LC} (R9A07G044)
+        items:
+          - enum:
+              - renesas,smarc-evk # SMARC EVK
+          - enum:
+              - renesas,r9a07g044c1 # Single Cortex-A55 RZ/G2LC
+              - renesas,r9a07g044c2 # Dual Cortex-A55 RZ/G2LC
+              - renesas,r9a07g044l1 # Single Cortex-A55 RZ/G2L
+              - renesas,r9a07g044l2 # Dual Cortex-A55 RZ/G2L
+          - const: renesas,r9a07g044
 
 additionalProperties: true
 

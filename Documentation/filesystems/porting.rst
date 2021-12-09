@@ -890,3 +890,21 @@ been called or returned with non -EIOCBQUEUED code.
 
 mnt_want_write_file() can now only be paired with mnt_drop_write_file(),
 whereas previously it could be paired with mnt_drop_write() as well.
+
+---
+
+**mandatory**
+
+iov_iter_copy_from_user_atomic() is gone; use copy_page_from_iter_atomic().
+The difference is copy_page_from_iter_atomic() advances the iterator and
+you don't need iov_iter_advance() after it.  However, if you decide to use
+only a part of obtained data, you should do iov_iter_revert().
+
+---
+
+**mandatory**
+
+Calling conventions for file_open_root() changed; now it takes struct path *
+instead of passing mount and dentry separately.  For callers that used to
+pass <mnt, mnt->mnt_root> pair (i.e. the root of given mount), a new helper
+is provided - file_open_root_mnt().  In-tree users adjusted.

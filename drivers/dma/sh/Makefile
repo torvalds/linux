@@ -3,7 +3,7 @@
 # DMA Engine Helpers
 #
 
-obj-$(CONFIG_SH_DMAE_BASE) += shdma-base.o shdma-of.o
+obj-$(CONFIG_SH_DMAE_BASE) += shdma-base.o
 
 #
 # DMA Controllers
@@ -15,3 +15,4 @@ obj-$(CONFIG_SH_DMAE) += shdma.o
 
 obj-$(CONFIG_RCAR_DMAC) += rcar-dmac.o
 obj-$(CONFIG_RENESAS_USB_DMAC) += usb-dmac.o
+obj-$(CONFIG_RZ_DMAC) += rz-dmac.o

@@ -73,12 +73,14 @@ static inline void imx_scu_map_io(void) {}
 static inline void imx_smp_prepare(void) {}
 #endif
 void imx_src_init(void);
+void imx7_src_init(void);
 void imx_gpc_pre_suspend(bool arm_power_off);
 void imx_gpc_post_resume(void);
 void imx_gpc_mask_all(void);
 void imx_gpc_restore_all(void);
 void imx_gpc_hwirq_mask(unsigned int hwirq);
 void imx_gpc_hwirq_unmask(unsigned int hwirq);
+void imx_gpcv2_set_core1_pdn_pup_by_software(bool pdn);
 void imx_anatop_init(void);
 void imx_anatop_pre_suspend(void);
 void imx_anatop_post_resume(void);
@@ -131,6 +133,7 @@ static inline void imx_init_l2cache(void) {}
 #endif
 
 extern const struct smp_operations imx_smp_ops;
+extern const struct smp_operations imx7_smp_ops;
 extern const struct smp_operations ls1021a_smp_ops;
 
 #endif

@@ -1516,7 +1516,7 @@ static int mlx5_fpga_esp_modify_xfrm(struct mlx5_accel_esp_xfrm *xfrm,
 	mutex_lock(&fpga_xfrm->lock);
 
 	if (!fpga_xfrm->sa_ctx)
-		/* Unbounded xfrm, chane only sw attrs */
+		/* Unbounded xfrm, change only sw attrs */
 		goto change_sw_xfrm_attrs;
 
 	/* copy original hw sa */

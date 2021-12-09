@@ -209,7 +209,8 @@ void __init setup_cpuinfo(void)
 }
 
 /**
- * or32_early_setup
+ * or1k_early_setup
+ * @fdt: pointer to the start of the device tree in memory or NULL
  *
  * Handles the pointer to the device tree that this kernel is to use
  * for establishing the available platform devices.
@@ -217,7 +218,7 @@ void __init setup_cpuinfo(void)
  * Falls back on built-in device tree in case null pointer is passed.
  */
 
-void __init or32_early_setup(void *fdt)
+void __init or1k_early_setup(void *fdt)
 {
 	if (fdt)
 		pr_info("FDT at %p\n", fdt);
@@ -241,21 +242,6 @@ static inline unsigned long extract_value(unsigned long reg, unsigned long mask)
 		mask = mask >> 1;
 	}
 	return mask & reg;
-}
-
-void __init detect_unit_config(unsigned long upr, unsigned long mask,
-			       char *text, void (*func) (void))
-{
-	if (text != NULL)
-		printk("%s", text);
-
-	if (upr & mask) {
-		if (func != NULL)
-			func();
-		else
-			printk("present\n");
-	} else
-		printk("not present\n");
 }
 
 /*
@@ -293,10 +279,7 @@ void __init setup_arch(char **cmdline_p)
 #endif
 
 	/* process 1's initial memory region is the kernel code/data */
-	init_mm.start_code = (unsigned long)_stext;
-	init_mm.end_code = (unsigned long)_etext;
-	init_mm.end_data = (unsigned long)_edata;
-	init_mm.brk = (unsigned long)_end;
+	setup_initial_init_mm(_stext, _etext, _edata, _end);
 
 #ifdef CONFIG_BLK_DEV_INITRD
 	if (initrd_start == initrd_end) {

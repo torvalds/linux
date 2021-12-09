@@ -105,8 +105,8 @@ void crash_ipi_callback(struct pt_regs *regs)
 static void crash_kexec_prepare_cpus(int cpu)
 {
 	unsigned int msecs;
-	unsigned int ncpus = num_online_cpus() - 1;/* Excluding the panic cpu */
-	int tries = 0;
+	volatile unsigned int ncpus = num_online_cpus() - 1;/* Excluding the panic cpu */
+	volatile int tries = 0;
 	int (*old_handler)(struct pt_regs *regs);
 
 	printk(KERN_EMERG "Sending IPI to other CPUs\n");
@@ -313,7 +313,7 @@ void default_machine_crash_shutdown(struct pt_regs *regs)
 	int (*old_handler)(struct pt_regs *regs);
 
 	/* Avoid hardlocking with irresponsive CPU holding logbuf_lock */
-	printk_nmi_enter();
+	printk_deferred_enter();
 
 	/*
 	 * This function is only called after the system

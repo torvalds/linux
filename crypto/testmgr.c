@@ -4451,6 +4451,12 @@ static const struct alg_test_desc alg_test_descs[] = {
 			.hash = __VECS(aes_cbcmac_tv_template)
 		}
 	}, {
+		.alg = "cbcmac(sm4)",
+		.test = alg_test_hash,
+		.suite = {
+			.hash = __VECS(sm4_cbcmac_tv_template)
+		}
+	}, {
 		.alg = "ccm(aes)",
 		.generic_driver = "ccm_base(ctr(aes-generic),cbcmac(aes-generic))",
 		.test = alg_test_aead,
@@ -4458,6 +4464,16 @@ static const struct alg_test_desc alg_test_descs[] = {
 		.suite = {
 			.aead = {
 				____VECS(aes_ccm_tv_template),
+				.einval_allowed = 1,
+			}
+		}
+	}, {
+		.alg = "ccm(sm4)",
+		.generic_driver = "ccm_base(ctr(sm4-generic),cbcmac(sm4-generic))",
+		.test = alg_test_aead,
+		.suite = {
+			.aead = {
+				____VECS(sm4_ccm_tv_template),
 				.einval_allowed = 1,
 			}
 		}
@@ -4493,6 +4509,12 @@ static const struct alg_test_desc alg_test_descs[] = {
 		.test = alg_test_hash,
 		.suite = {
 			.hash = __VECS(des3_ede_cmac64_tv_template)
+		}
+	}, {
+		.alg = "cmac(sm4)",
+		.test = alg_test_hash,
+		.suite = {
+			.hash = __VECS(sm4_cmac128_tv_template)
 		}
 	}, {
 		.alg = "compress_null",
@@ -4686,8 +4708,11 @@ static const struct alg_test_desc alg_test_descs[] = {
 		.test = alg_test_null,
 	}, {
 		.alg = "drbg_nopr_hmac_sha512",
-		.test = alg_test_null,
+		.test = alg_test_drbg,
 		.fips_allowed = 1,
+		.suite = {
+			.drbg = __VECS(drbg_nopr_hmac_sha512_tv_template)
+		}
 	}, {
 		.alg = "drbg_nopr_sha1",
 		.fips_allowed = 1,
@@ -4899,20 +4924,24 @@ static const struct alg_test_desc alg_test_descs[] = {
 		}
 	}, {
 #endif
-#ifndef CONFIG_CRYPTO_FIPS
 		.alg = "ecdh-nist-p192",
 		.test = alg_test_kpp,
-		.fips_allowed = 1,
 		.suite = {
 			.kpp = __VECS(ecdh_p192_tv_template)
 		}
 	}, {
-#endif
 		.alg = "ecdh-nist-p256",
 		.test = alg_test_kpp,
 		.fips_allowed = 1,
 		.suite = {
 			.kpp = __VECS(ecdh_p256_tv_template)
+		}
+	}, {
+		.alg = "ecdh-nist-p384",
+		.test = alg_test_kpp,
+		.fips_allowed = 1,
+		.suite = {
+			.kpp = __VECS(ecdh_p384_tv_template)
 		}
 	}, {
 		.alg = "ecdsa-nist-p192",
@@ -4959,6 +4988,13 @@ static const struct alg_test_desc alg_test_descs[] = {
 		.fips_allowed = 1,
 		.suite = {
 			.aead = __VECS(aes_gcm_tv_template)
+		}
+	}, {
+		.alg = "gcm(sm4)",
+		.generic_driver = "gcm_base(ctr(sm4-generic),ghash-generic)",
+		.test = alg_test_aead,
+		.suite = {
+			.aead = __VECS(sm4_gcm_tv_template)
 		}
 	}, {
 		.alg = "ghash",

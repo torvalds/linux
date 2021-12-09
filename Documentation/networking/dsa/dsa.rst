@@ -93,14 +93,15 @@ A tagging protocol may tag all packets with switch tags of the same length, or
 the tag length might vary (for example packets with PTP timestamps might
 require an extended switch tag, or there might be one tag length on TX and a
 different one on RX). Either way, the tagging protocol driver must populate the
-``struct dsa_device_ops::overhead`` with the length in octets of the longest
-switch frame header. The DSA framework will automatically adjust the MTU of the
-master interface to accomodate for this extra size in order for DSA user ports
-to support the standard MTU (L2 payload length) of 1500 octets. The ``overhead``
-is also used to request from the network stack, on a best-effort basis, the
-allocation of packets with a ``needed_headroom`` or ``needed_tailroom``
-sufficient such that the act of pushing the switch tag on transmission of a
-packet does not cause it to reallocate due to lack of memory.
+``struct dsa_device_ops::needed_headroom`` and/or ``struct dsa_device_ops::needed_tailroom``
+with the length in octets of the longest switch frame header/trailer. The DSA
+framework will automatically adjust the MTU of the master interface to
+accommodate for this extra size in order for DSA user ports to support the
+standard MTU (L2 payload length) of 1500 octets. The ``needed_headroom`` and
+``needed_tailroom`` properties are also used to request from the network stack,
+on a best-effort basis, the allocation of packets with enough extra space such
+that the act of pushing the switch tag on transmission of a packet does not
+cause it to reallocate due to lack of memory.
 
 Even though applications are not expected to parse DSA-specific frame headers,
 the format on the wire of the tagging protocol represents an Application Binary
@@ -169,8 +170,8 @@ The job of this method is to prepare the skb in a way that the switch will
 understand what egress port the packet is for (and not deliver it towards other
 ports). Typically this is fulfilled by pushing a frame header. Checking for
 insufficient size in the skb headroom or tailroom is unnecessary provided that
-the ``overhead`` and ``tail_tag`` properties were filled out properly, because
-DSA ensures there is enough space before calling this method.
+the ``needed_headroom`` and ``needed_tailroom`` properties were filled out
+properly, because DSA ensures there is enough space before calling this method.
 
 The reception of a packet goes through the tagger's ``rcv`` function. The
 passed ``struct sk_buff *skb`` has ``skb->data`` pointing at
@@ -198,19 +199,6 @@ tagging protocol may require the DSA master to operate in promiscuous mode, to
 receive all frames regardless of the value of the MAC DA. This can be done by
 setting the ``promisc_on_master`` property of the ``struct dsa_device_ops``.
 Note that this assumes a DSA-unaware master driver, which is the norm.
-
-Hardware manufacturers are strongly discouraged to do this, but some tagging
-protocols might not provide source port information on RX for all packets, but
-e.g. only for control traffic (link-local PDUs). In this case, by implementing
-the ``filter`` method of ``struct dsa_device_ops``, the tagger might select
-which packets are to be redirected on RX towards the virtual DSA user network
-interfaces, and which are to be left in the DSA master's RX data path.
-
-It might also happen (although silicon vendors are strongly discouraged to
-produce hardware like this) that a tagging protocol splits the switch-specific
-information into a header portion and a tail portion, therefore not falling
-cleanly into any of the above 3 categories. DSA does not support this
-configuration.
 
 Master network devices
 ----------------------
@@ -661,6 +649,22 @@ Bridge layer
   learning should be statically enabled (if supported by the hardware) on the
   CPU port, and flooding towards the CPU port should also be enabled, due to a
   lack of an explicit address filtering mechanism in the DSA core.
+
+- ``port_bridge_tx_fwd_offload``: bridge layer function invoked after
+  ``port_bridge_join`` when a driver sets ``ds->num_fwd_offloading_bridges`` to
+  a non-zero value. Returning success in this function activates the TX
+  forwarding offload bridge feature for this port, which enables the tagging
+  protocol driver to inject data plane packets towards the bridging domain that
+  the port is a part of. Data plane packets are subject to FDB lookup, hardware
+  learning on the CPU port, and do not override the port STP state.
+  Additionally, replication of data plane packets (multicast, flooding) is
+  handled in hardware and the bridge driver will transmit a single skb for each
+  packet that needs replication. The method is provided as a configuration
+  point for drivers that need to configure the hardware for enabling this
+  feature.
+
+- ``port_bridge_tx_fwd_unoffload``: bridge layer function invoken when a driver
+  leaves a bridge port which had the TX forwarding offload feature enabled.
 
 Bridge VLAN filtering
 ---------------------

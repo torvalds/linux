@@ -21,6 +21,7 @@
 #include <linux/earlycpio.h>
 #include <linux/initrd.h>
 #include <linux/security.h>
+#include <linux/kmemleak.h>
 #include "internal.h"
 
 #ifdef CONFIG_ACPI_CUSTOM_DSDT
@@ -39,6 +40,7 @@ static int acpi_apic_instance __initdata;
 enum acpi_subtable_type {
 	ACPI_SUBTABLE_COMMON,
 	ACPI_SUBTABLE_HMAT,
+	ACPI_SUBTABLE_PRMT,
 };
 
 struct acpi_subtable_entry {
@@ -222,6 +224,8 @@ acpi_get_entry_type(struct acpi_subtable_entry *entry)
 		return entry->hdr->common.type;
 	case ACPI_SUBTABLE_HMAT:
 		return entry->hdr->hmat.type;
+	case ACPI_SUBTABLE_PRMT:
+		return 0;
 	}
 	return 0;
 }
@@ -234,6 +238,8 @@ acpi_get_entry_length(struct acpi_subtable_entry *entry)
 		return entry->hdr->common.length;
 	case ACPI_SUBTABLE_HMAT:
 		return entry->hdr->hmat.length;
+	case ACPI_SUBTABLE_PRMT:
+		return entry->hdr->prmt.length;
 	}
 	return 0;
 }
@@ -246,6 +252,8 @@ acpi_get_subtable_header_length(struct acpi_subtable_entry *entry)
 		return sizeof(entry->hdr->common);
 	case ACPI_SUBTABLE_HMAT:
 		return sizeof(entry->hdr->hmat);
+	case ACPI_SUBTABLE_PRMT:
+		return sizeof(entry->hdr->prmt);
 	}
 	return 0;
 }
@@ -255,6 +263,8 @@ acpi_get_subtable_type(char *id)
 {
 	if (strncmp(id, ACPI_SIG_HMAT, 4) == 0)
 		return ACPI_SUBTABLE_HMAT;
+	if (strncmp(id, ACPI_SIG_PRMT, 4) == 0)
+		return ACPI_SUBTABLE_PRMT;
 	return ACPI_SUBTABLE_COMMON;
 }
 
@@ -574,8 +584,8 @@ void __init acpi_table_upgrade(void)
 	}
 
 	acpi_tables_addr =
-		memblock_find_in_range(0, ACPI_TABLE_UPGRADE_MAX_PHYS,
-				       all_tables_size, PAGE_SIZE);
+		memblock_phys_alloc_range(all_tables_size, PAGE_SIZE,
+					  0, ACPI_TABLE_UPGRADE_MAX_PHYS);
 	if (!acpi_tables_addr) {
 		WARN_ON(1);
 		return;
@@ -590,8 +600,9 @@ void __init acpi_table_upgrade(void)
 	 * Both memblock_reserve and e820__range_add (via arch_reserve_mem_area)
 	 * works fine.
 	 */
-	memblock_reserve(acpi_tables_addr, all_tables_size);
 	arch_reserve_mem_area(acpi_tables_addr, all_tables_size);
+
+	kmemleak_ignore_phys(acpi_tables_addr);
 
 	/*
 	 * early_ioremap only can remap 256k one time. If we map all

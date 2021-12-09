@@ -100,6 +100,7 @@
 #define HIDPP_DEVICE_TYPE_MASK			GENMASK(3, 0)
 #define HIDPP_LINK_STATUS_MASK			BIT(6)
 #define HIDPP_MANUFACTURER_MASK			BIT(7)
+#define HIDPP_27MHZ_SECURE_MASK			BIT(7)
 
 #define HIDPP_DEVICE_TYPE_KEYBOARD		1
 #define HIDPP_DEVICE_TYPE_MOUSE			2
@@ -984,6 +985,13 @@ static void logi_hidpp_dev_conn_notif_27mhz(struct hid_device *hdev,
 		workitem->reports_supported |= STD_MOUSE | HIDPP;
 		break;
 	case 3: /* Index 3 is always the keyboard */
+		if (hidpp_report->params[HIDPP_PARAM_DEVICE_INFO] & HIDPP_27MHZ_SECURE_MASK) {
+			hid_info(hdev, "Keyboard connection is encrypted\n");
+		} else {
+			hid_warn(hdev, "Keyboard events are send over the air in plain-text / unencrypted\n");
+			hid_warn(hdev, "See: https://gitlab.freedesktop.org/jwrdegoede/logitech-27mhz-keyboard-encryption-setup/\n");
+		}
+		fallthrough;
 	case 4: /* Index 4 is used for an optional separate numpad */
 		workitem->device_type = HIDPP_DEVICE_TYPE_KEYBOARD;
 		workitem->reports_supported |= STD_KEYBOARD | MULTIMEDIA |
@@ -1489,6 +1497,13 @@ static void logi_dj_ll_stop(struct hid_device *hid)
 	dbg_hid("%s\n", __func__);
 }
 
+static bool logi_dj_ll_may_wakeup(struct hid_device *hid)
+{
+	struct dj_device *djdev = hid->driver_data;
+	struct dj_receiver_dev *djrcv_dev = djdev->dj_receiver_dev;
+
+	return hid_hw_may_wakeup(djrcv_dev->hidpp);
+}
 
 static struct hid_ll_driver logi_dj_ll_driver = {
 	.parse = logi_dj_ll_parse,
@@ -1497,6 +1512,7 @@ static struct hid_ll_driver logi_dj_ll_driver = {
 	.open = logi_dj_ll_open,
 	.close = logi_dj_ll_close,
 	.raw_request = logi_dj_ll_raw_request,
+	.may_wakeup = logi_dj_ll_may_wakeup,
 };
 
 static int logi_dj_dj_event(struct hid_device *hdev,

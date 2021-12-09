@@ -51,6 +51,9 @@ properties:
   interconnect-names:
     const: qup-core
 
+  iommus:
+    maxItems: 1
+
 required:
   - compatible
   - reg
@@ -164,7 +167,6 @@ patternProperties:
 
       interrupts:
         minItems: 1
-        maxItems: 2
         items:
           - description: UART core irq
           - description: Wakeup irq (RX GPIO)

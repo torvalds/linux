@@ -432,6 +432,15 @@
 			reg = <0 0x28330000 0 0x1000>;
 			status = "disabled";
 		};
+
+		pwm: pwm@241c0000 {
+			compatible = "toshiba,visconti-pwm";
+			reg = <0 0x241c0000 0 0x1000>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pwm_mux>;
+			#pwm-cells = <2>;
+			status = "disabled";
+		};
 	};
 };
 

@@ -68,6 +68,29 @@ struct mt7915_mcu_rxd {
 	u8 s2d_index;
 };
 
+struct mt7915_mcu_thermal_ctrl {
+	u8 ctrl_id;
+	u8 band_idx;
+	union {
+		struct {
+			u8 protect_type; /* 1: duty admit, 2: radio off */
+			u8 trigger_type; /* 0: low, 1: high */
+		} __packed type;
+		struct {
+			u8 duty_level;	/* level 0~3 */
+			u8 duty_cycle;
+		} __packed duty;
+	};
+} __packed;
+
+struct mt7915_mcu_thermal_notify {
+	struct mt7915_mcu_rxd rxd;
+
+	struct mt7915_mcu_thermal_ctrl ctrl;
+	__le32 temperature;
+	u8 rsv[8];
+} __packed;
+
 struct mt7915_mcu_csa_notify {
 	struct mt7915_mcu_rxd rxd;
 
@@ -193,6 +216,19 @@ struct mt7915_mcu_phy_rx_info {
 #define MT_RA_RATE_DCM_EN		BIT(4)
 #define MT_RA_RATE_BW			GENMASK(14, 13)
 
+struct mt7915_mcu_mib {
+	__le32 band;
+	__le32 offs;
+	__le64 data;
+} __packed;
+
+enum mt7915_chan_mib_offs {
+	MIB_BUSY_TIME = 14,
+	MIB_TX_TIME = 81,
+	MIB_RX_TIME,
+	MIB_OBSS_AIRTIME = 86
+};
+
 struct edca {
 	u8 queue;
 	u8 set;
@@ -262,6 +298,7 @@ enum {
 	MCU_EXT_CMD_FW_LOG_2_HOST = 0x13,
 	MCU_EXT_CMD_TXBF_ACTION = 0x1e,
 	MCU_EXT_CMD_EFUSE_BUFFER_MODE = 0x21,
+	MCU_EXT_CMD_THERMAL_PROT = 0x23,
 	MCU_EXT_CMD_STA_REC_UPDATE = 0x25,
 	MCU_EXT_CMD_BSS_INFO_UPDATE = 0x26,
 	MCU_EXT_CMD_EDCA_UPDATE = 0x27,
@@ -277,6 +314,7 @@ enum {
 	MCU_EXT_CMD_MUAR_UPDATE = 0x48,
 	MCU_EXT_CMD_SET_RX_PATH = 0x4e,
 	MCU_EXT_CMD_TX_POWER_FEATURE_CTRL = 0x58,
+	MCU_EXT_CMD_GET_MIB_INFO = 0x5a,
 	MCU_EXT_CMD_MWDS_SUPPORT = 0x80,
 	MCU_EXT_CMD_SET_SER_TRIGGER = 0x81,
 	MCU_EXT_CMD_SCS_CTRL = 0x82,
@@ -919,7 +957,7 @@ struct sta_rec_ra {
 	u8 op_vht_rx_nss;
 	u8 op_vht_rx_nss_type;
 
-	__le32 sta_status;
+	__le32 sta_cap;
 
 	struct ra_phy phy;
 } __packed;
@@ -1034,18 +1072,18 @@ enum {
 	STA_REC_MAX_NUM
 };
 
-enum mt7915_cipher_type {
-	MT_CIPHER_NONE,
-	MT_CIPHER_WEP40,
-	MT_CIPHER_WEP104,
-	MT_CIPHER_WEP128,
-	MT_CIPHER_TKIP,
-	MT_CIPHER_AES_CCMP,
-	MT_CIPHER_CCMP_256,
-	MT_CIPHER_GCMP,
-	MT_CIPHER_GCMP_256,
-	MT_CIPHER_WAPI,
-	MT_CIPHER_BIP_CMAC_128,
+enum mcu_cipher_type {
+	MCU_CIPHER_NONE = 0,
+	MCU_CIPHER_WEP40,
+	MCU_CIPHER_WEP104,
+	MCU_CIPHER_WEP128,
+	MCU_CIPHER_TKIP,
+	MCU_CIPHER_AES_CCMP,
+	MCU_CIPHER_CCMP_256,
+	MCU_CIPHER_GCMP,
+	MCU_CIPHER_GCMP_256,
+	MCU_CIPHER_WAPI,
+	MCU_CIPHER_BIP_CMAC_128,
 };
 
 enum {
@@ -1067,8 +1105,25 @@ enum {
 };
 
 enum {
+	THERMAL_PROTECT_PARAMETER_CTRL,
+	THERMAL_PROTECT_BASIC_INFO,
+	THERMAL_PROTECT_ENABLE,
+	THERMAL_PROTECT_DISABLE,
+	THERMAL_PROTECT_DUTY_CONFIG,
+	THERMAL_PROTECT_MECH_INFO,
+	THERMAL_PROTECT_DUTY_INFO,
+	THERMAL_PROTECT_STATE_ACT,
+};
+
+enum {
 	MT_EBF = BIT(0),	/* explicit beamforming */
 	MT_IBF = BIT(1)		/* implicit beamforming */
+};
+
+enum {
+	MT_BF_SOUNDING_ON = 1,
+	MT_BF_TYPE_UPDATE = 20,
+	MT_BF_MODULE_UPDATE = 25
 };
 
 #define MT7915_WTBL_UPDATE_MAX_SIZE	(sizeof(struct wtbl_req_hdr) +	\

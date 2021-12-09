@@ -362,15 +362,17 @@ static int scaler_commit(struct exynos_drm_ipp *ipp,
 	struct drm_exynos_ipp_task_rect *src_pos = &task->src.rect;
 	struct drm_exynos_ipp_task_rect *dst_pos = &task->dst.rect;
 	const struct scaler_format *src_fmt, *dst_fmt;
+	int ret = 0;
 
 	src_fmt = scaler_get_format(task->src.buf.fourcc);
 	dst_fmt = scaler_get_format(task->dst.buf.fourcc);
 
-	pm_runtime_get_sync(scaler->dev);
-	if (scaler_reset(scaler)) {
-		pm_runtime_put(scaler->dev);
+	ret = pm_runtime_resume_and_get(scaler->dev);
+	if (ret < 0)
+		return ret;
+
+	if (scaler_reset(scaler))
 		return -EIO;
-	}
 
 	scaler->task = task;
 
@@ -483,7 +485,6 @@ static const struct component_ops scaler_component_ops = {
 static int scaler_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct resource	*regs_res;
 	struct scaler_context *scaler;
 	int irq;
 	int ret, i;
@@ -496,8 +497,7 @@ static int scaler_probe(struct platform_device *pdev)
 		(struct scaler_data *)of_device_get_match_data(dev);
 
 	scaler->dev = dev;
-	regs_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	scaler->regs = devm_ioremap_resource(dev, regs_res);
+	scaler->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(scaler->regs))
 		return PTR_ERR(scaler->regs);
 

@@ -19,11 +19,6 @@ struct hi6421_spmi_pmic {
 	struct resource				*res;
 	struct device				*dev;
 	void __iomem				*regs;
-	spinlock_t				lock;
-	struct irq_domain			*domain;
-	int					irq;
-	int					gpio;
-	unsigned int				*irqs;
 	struct regmap				*regmap;
 };
 

@@ -5,6 +5,7 @@
  */
 #include "lkdtm.h"
 #include <linux/slab.h>
+#include <linux/vmalloc.h>
 #include <linux/sched.h>
 
 static struct kmem_cache *double_free_cache;
@@ -12,17 +13,43 @@ static struct kmem_cache *a_cache;
 static struct kmem_cache *b_cache;
 
 /*
+ * Using volatile here means the compiler cannot ever make assumptions
+ * about this value. This means compile-time length checks involving
+ * this variable cannot be performed; only run-time checks.
+ */
+static volatile int __offset = 1;
+
+/*
+ * If there aren't guard pages, it's likely that a consecutive allocation will
+ * let us overflow into the second allocation without overwriting something real.
+ */
+void lkdtm_VMALLOC_LINEAR_OVERFLOW(void)
+{
+	char *one, *two;
+
+	one = vzalloc(PAGE_SIZE);
+	two = vzalloc(PAGE_SIZE);
+
+	pr_info("Attempting vmalloc linear overflow ...\n");
+	memset(one, 0xAA, PAGE_SIZE + __offset);
+
+	vfree(two);
+	vfree(one);
+}
+
+/*
  * This tries to stay within the next largest power-of-2 kmalloc cache
  * to avoid actually overwriting anything important if it's not detected
  * correctly.
  */
-void lkdtm_OVERWRITE_ALLOCATION(void)
+void lkdtm_SLAB_LINEAR_OVERFLOW(void)
 {
 	size_t len = 1020;
 	u32 *data = kmalloc(len, GFP_KERNEL);
 	if (!data)
 		return;
 
+	pr_info("Attempting slab linear overflow ...\n");
 	data[1024 / sizeof(u32)] = 0x12345678;
 	kfree(data);
 }
@@ -89,9 +116,10 @@ void lkdtm_READ_AFTER_FREE(void)
 	if (saw != *val) {
 		/* Good! Poisoning happened, so declare a win. */
 		pr_info("Memory correctly poisoned (%x)\n", saw);
-		BUG();
+	} else {
+		pr_err("FAIL: Memory was not poisoned!\n");
+		pr_expected_config_param(CONFIG_INIT_ON_FREE_DEFAULT_ON, "init_on_free");
 	}
-	pr_info("Memory was not poisoned\n");
 
 	kfree(val);
 }
@@ -145,11 +173,77 @@ void lkdtm_READ_BUDDY_AFTER_FREE(void)
 	if (saw != *val) {
 		/* Good! Poisoning happened, so declare a win. */
 		pr_info("Memory correctly poisoned (%x)\n", saw);
-		BUG();
+	} else {
+		pr_err("FAIL: Buddy page was not poisoned!\n");
+		pr_expected_config_param(CONFIG_INIT_ON_FREE_DEFAULT_ON, "init_on_free");
 	}
-	pr_info("Buddy page was not poisoned\n");
 
 	kfree(val);
+}
+
+void lkdtm_SLAB_INIT_ON_ALLOC(void)
+{
+	u8 *first;
+	u8 *val;
+
+	first = kmalloc(512, GFP_KERNEL);
+	if (!first) {
+		pr_info("Unable to allocate 512 bytes the first time.\n");
+		return;
+	}
+
+	memset(first, 0xAB, 512);
+	kfree(first);
+
+	val = kmalloc(512, GFP_KERNEL);
+	if (!val) {
+		pr_info("Unable to allocate 512 bytes the second time.\n");
+		return;
+	}
+	if (val != first) {
+		pr_warn("Reallocation missed clobbered memory.\n");
+	}
+
+	if (memchr(val, 0xAB, 512) == NULL) {
+		pr_info("Memory appears initialized (%x, no earlier values)\n", *val);
+	} else {
+		pr_err("FAIL: Slab was not initialized\n");
+		pr_expected_config_param(CONFIG_INIT_ON_ALLOC_DEFAULT_ON, "init_on_alloc");
+	}
+	kfree(val);
+}
+
+void lkdtm_BUDDY_INIT_ON_ALLOC(void)
+{
+	u8 *first;
+	u8 *val;
+
+	first = (u8 *)__get_free_page(GFP_KERNEL);
+	if (!first) {
+		pr_info("Unable to allocate first free page\n");
+		return;
+	}
+
+	memset(first, 0xAB, PAGE_SIZE);
+	free_page((unsigned long)first);
+
+	val = (u8 *)__get_free_page(GFP_KERNEL);
+	if (!val) {
+		pr_info("Unable to allocate second free page\n");
+		return;
+	}
+
+	if (val != first) {
+		pr_warn("Reallocation missed clobbered memory.\n");
+	}
+
+	if (memchr(val, 0xAB, PAGE_SIZE) == NULL) {
+		pr_info("Memory appears initialized (%x, no earlier values)\n", *val);
+	} else {
+		pr_err("FAIL: Slab was not initialized\n");
+		pr_expected_config_param(CONFIG_INIT_ON_ALLOC_DEFAULT_ON, "init_on_alloc");
+	}
+	free_page((unsigned long)val);
 }
 
 void lkdtm_SLAB_FREE_DOUBLE(void)

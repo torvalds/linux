@@ -150,7 +150,7 @@ struct lance_memory {
 struct lance_private {
 	volatile unsigned short	*iobase;
 	struct lance_memory	*mem;
-     	int new_rx, new_tx;	/* The next free ring entry */
+	int new_rx, new_tx;	/* The next free ring entry */
 	int old_tx, old_rx;     /* ring entry to be processed */
 /* These two must be longs for set_bit() */
 	long	    tx_full;
@@ -245,7 +245,7 @@ static void set_multicast_list( struct net_device *dev );
 
 /************************* End of Prototypes **************************/
 
-struct net_device * __init sun3lance_probe(int unit)
+static struct net_device * __init sun3lance_probe(void)
 {
 	struct net_device *dev;
 	static int found;
@@ -272,10 +272,6 @@ struct net_device * __init sun3lance_probe(int unit)
 	dev = alloc_etherdev(sizeof(struct lance_private));
 	if (!dev)
 		return ERR_PTR(-ENOMEM);
-	if (unit >= 0) {
-		sprintf(dev->name, "eth%d", unit);
-		netdev_boot_setup_check(dev);
-	}
 
 	if (!lance_probe(dev))
 		goto out;
@@ -465,7 +461,7 @@ static void lance_init_ring( struct net_device *dev )
 	for( i = 0; i < TX_RING_SIZE; i++ ) {
 		MEM->tx_head[i].base = dvma_vtob(MEM->tx_data[i]);
 		MEM->tx_head[i].flag = 0;
- 		MEM->tx_head[i].base_hi =
+		MEM->tx_head[i].base_hi =
 			(dvma_vtob(MEM->tx_data[i])) >>16;
 		MEM->tx_head[i].length = 0;
 		MEM->tx_head[i].misc = 0;
@@ -581,8 +577,8 @@ lance_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	AREG = CSR0;
-  	DPRINTK( 2, ( "%s: lance_start_xmit() called, csr0 %4.4x.\n",
-  				  dev->name, DREG ));
+	DPRINTK( 2, ( "%s: lance_start_xmit() called, csr0 %4.4x.\n",
+				  dev->name, DREG ));
 
 #ifdef CONFIG_SUN3X
 	/* this weirdness doesn't appear on sun3... */
@@ -636,8 +632,8 @@ lance_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	/* Trigger an immediate send poll. */
 	REGA(CSR0) = CSR0_INEA | CSR0_TDMD | CSR0_STRT;
 	AREG = CSR0;
-  	DPRINTK( 2, ( "%s: lance_start_xmit() exiting, csr0 %4.4x.\n",
-  				  dev->name, DREG ));
+	DPRINTK( 2, ( "%s: lance_start_xmit() exiting, csr0 %4.4x.\n",
+				  dev->name, DREG ));
 	dev_kfree_skb(skb);
 
 	lp->lock = 0;
@@ -924,17 +920,16 @@ static void set_multicast_list( struct net_device *dev )
 }
 
 
-#ifdef MODULE
-
 static struct net_device *sun3lance_dev;
 
-int __init init_module(void)
+static int __init sun3lance_init(void)
 {
-	sun3lance_dev = sun3lance_probe(-1);
+	sun3lance_dev = sun3lance_probe();
 	return PTR_ERR_OR_ZERO(sun3lance_dev);
 }
+module_init(sun3lance_init);
 
-void __exit cleanup_module(void)
+static void __exit sun3lance_cleanup(void)
 {
 	unregister_netdev(sun3lance_dev);
 #ifdef CONFIG_SUN3
@@ -942,6 +937,4 @@ void __exit cleanup_module(void)
 #endif
 	free_netdev(sun3lance_dev);
 }
-
-#endif /* MODULE */
-
+module_exit(sun3lance_cleanup);

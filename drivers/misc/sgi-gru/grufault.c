@@ -49,8 +49,8 @@ struct vm_area_struct *gru_find_vma(unsigned long vaddr)
 {
 	struct vm_area_struct *vma;
 
-	vma = find_vma(current->mm, vaddr);
-	if (vma && vma->vm_start <= vaddr && vma->vm_ops == &gru_vm_ops)
+	vma = vma_lookup(current->mm, vaddr);
+	if (vma && vma->vm_ops == &gru_vm_ops)
 		return vma;
 	return NULL;
 }

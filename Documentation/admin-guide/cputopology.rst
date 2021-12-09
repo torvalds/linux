@@ -2,87 +2,10 @@
 How CPU topology info is exported via sysfs
 ===========================================
 
-Export CPU topology info via sysfs. Items (attributes) are similar
-to /proc/cpuinfo output of some architectures.  They reside in
-/sys/devices/system/cpu/cpuX/topology/:
-
-physical_package_id:
-
-	physical package id of cpuX. Typically corresponds to a physical
-	socket number, but the actual value is architecture and platform
-	dependent.
-
-die_id:
-
-	the CPU die ID of cpuX. Typically it is the hardware platform's
-	identifier (rather than the kernel's).  The actual value is
-	architecture and platform dependent.
-
-core_id:
-
-	the CPU core ID of cpuX. Typically it is the hardware platform's
-	identifier (rather than the kernel's).  The actual value is
-	architecture and platform dependent.
-
-book_id:
-
-	the book ID of cpuX. Typically it is the hardware platform's
-	identifier (rather than the kernel's).	The actual value is
-	architecture and platform dependent.
-
-drawer_id:
-
-	the drawer ID of cpuX. Typically it is the hardware platform's
-	identifier (rather than the kernel's).	The actual value is
-	architecture and platform dependent.
-
-core_cpus:
-
-	internal kernel map of CPUs within the same core.
-	(deprecated name: "thread_siblings")
-
-core_cpus_list:
-
-	human-readable list of CPUs within the same core.
-	(deprecated name: "thread_siblings_list");
-
-package_cpus:
-
-	internal kernel map of the CPUs sharing the same physical_package_id.
-	(deprecated name: "core_siblings")
-
-package_cpus_list:
-
-	human-readable list of CPUs sharing the same physical_package_id.
-	(deprecated name: "core_siblings_list")
-
-die_cpus:
-
-	internal kernel map of CPUs within the same die.
-
-die_cpus_list:
-
-	human-readable list of CPUs within the same die.
-
-book_siblings:
-
-	internal kernel map of cpuX's hardware threads within the same
-	book_id.
-
-book_siblings_list:
-
-	human-readable list of cpuX's hardware threads within the same
-	book_id.
-
-drawer_siblings:
-
-	internal kernel map of cpuX's hardware threads within the same
-	drawer_id.
-
-drawer_siblings_list:
-
-	human-readable list of cpuX's hardware threads within the same
-	drawer_id.
+CPU topology info is exported via sysfs. Items (attributes) are similar
+to /proc/cpuinfo output of some architectures. They reside in
+/sys/devices/system/cpu/cpuX/topology/. Please refer to the ABI file:
+Documentation/ABI/stable/sysfs-devices-system-cpu.
 
 Architecture-neutral, drivers/base/topology.c, exports these attributes.
 However, the book and drawer related sysfs files will only be created if
@@ -135,9 +58,9 @@ source for the output is in brackets ("[]").
 		[NR_CPUS-1]
 
     offline:	CPUs that are not online because they have been
-		HOTPLUGGED off (see cpu-hotplug.txt) or exceed the limit
-		of CPUs allowed by the kernel configuration (kernel_max
-		above). [~cpu_online_mask + cpus >= NR_CPUS]
+		HOTPLUGGED off or exceed the limit of CPUs allowed by the
+		kernel configuration (kernel_max above).
+		[~cpu_online_mask + cpus >= NR_CPUS]
 
     online:	CPUs that are online and being scheduled [cpu_online_mask]
 
@@ -173,5 +96,5 @@ online.)::
        possible: 0-127
         present: 0-3
 
-See cpu-hotplug.txt for the possible_cpus=NUM kernel start parameter
-as well as more information on the various cpumasks.
+See Documentation/core-api/cpu_hotplug.rst for the possible_cpus=NUM
+kernel start parameter as well as more information on the various cpumasks.

@@ -168,10 +168,8 @@ TRACE_EVENT(s390_cio_tpi,
 			memset(&__entry->tpi_info, 0, sizeof(struct tpi_info));
 		else if (addr)
 			__entry->tpi_info = *addr;
-		else {
-			memcpy(&__entry->tpi_info, &S390_lowcore.subchannel_id,
-			       sizeof(struct tpi_info));
-		}
+		else
+			__entry->tpi_info = S390_lowcore.tpi_info;
 		__entry->cssid = __entry->tpi_info.schid.cssid;
 		__entry->ssid = __entry->tpi_info.schid.ssid;
 		__entry->schno = __entry->tpi_info.schid.sch_no;

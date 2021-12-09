@@ -46,7 +46,7 @@ properties:
                               AM437x family of SoCs,
                               AM57xx family of SoCs
                               66AK2G family of SoCs
-      Use "ti,icssg-intc" for K3 AM65x & J721E family of SoCs
+      Use "ti,icssg-intc" for K3 AM65x, J721E and AM64x family of SoCs
 
   reg:
     maxItems: 1
@@ -95,6 +95,8 @@ properties:
             - AM65x and J721E SoCs have "host_intr5", "host_intr6" and
               "host_intr7" interrupts connected to MPU, and other ICSSG
               instances.
+            - AM64x SoCs have all the 8 host interrupts connected to various
+              other SoC entities
 
 required:
   - compatible
@@ -134,7 +136,7 @@ examples:
     /* AM4376 PRU-ICSS */
     #include <dt-bindings/interrupt-controller/arm-gic.h>
     pruss@0 {
-        compatible = "ti,am4376-pruss";
+        compatible = "ti,am4376-pruss1";
         reg = <0x0 0x40000>;
         #address-cells = <1>;
         #size-cells = <1>;

@@ -45,14 +45,24 @@ static void req_retry(struct rxe_qp *qp)
 	unsigned int mask;
 	int npsn;
 	int first = 1;
+	struct rxe_queue *q = qp->sq.queue;
+	unsigned int cons;
+	unsigned int prod;
 
-	qp->req.wqe_index	= consumer_index(qp->sq.queue);
+	if (qp->is_user) {
+		cons = consumer_index(q, QUEUE_TYPE_FROM_USER);
+		prod = producer_index(q, QUEUE_TYPE_FROM_USER);
+	} else {
+		cons = consumer_index(q, QUEUE_TYPE_KERNEL);
+		prod = producer_index(q, QUEUE_TYPE_KERNEL);
+	}
+
+	qp->req.wqe_index	= cons;
 	qp->req.psn		= qp->comp.psn;
 	qp->req.opcode		= -1;
 
-	for (wqe_index = consumer_index(qp->sq.queue);
-		wqe_index != producer_index(qp->sq.queue);
-		wqe_index = next_index(qp->sq.queue, wqe_index)) {
+	for (wqe_index = cons; wqe_index != prod;
+			wqe_index = next_index(q, wqe_index)) {
 		wqe = addr_from_index(qp->sq.queue, wqe_index);
 		mask = wr_opcode_mask(wqe->wr.opcode, qp);
 
@@ -104,8 +114,22 @@ void rnr_nak_timer(struct timer_list *t)
 
 static struct rxe_send_wqe *req_next_wqe(struct rxe_qp *qp)
 {
-	struct rxe_send_wqe *wqe = queue_head(qp->sq.queue);
+	struct rxe_send_wqe *wqe;
 	unsigned long flags;
+	struct rxe_queue *q = qp->sq.queue;
+	unsigned int index = qp->req.wqe_index;
+	unsigned int cons;
+	unsigned int prod;
+
+	if (qp->is_user) {
+		wqe = queue_head(q, QUEUE_TYPE_FROM_USER);
+		cons = consumer_index(q, QUEUE_TYPE_FROM_USER);
+		prod = producer_index(q, QUEUE_TYPE_FROM_USER);
+	} else {
+		wqe = queue_head(q, QUEUE_TYPE_KERNEL);
+		cons = consumer_index(q, QUEUE_TYPE_KERNEL);
+		prod = producer_index(q, QUEUE_TYPE_KERNEL);
+	}
 
 	if (unlikely(qp->req.state == QP_STATE_DRAIN)) {
 		/* check to see if we are drained;
@@ -120,8 +144,7 @@ static struct rxe_send_wqe *req_next_wqe(struct rxe_qp *qp)
 				break;
 			}
 
-			if (wqe && ((qp->req.wqe_index !=
-				consumer_index(qp->sq.queue)) ||
+			if (wqe && ((index != cons) ||
 				(wqe->state != wqe_state_posted))) {
 				/* comp not done yet */
 				spin_unlock_irqrestore(&qp->state_lock,
@@ -144,10 +167,10 @@ static struct rxe_send_wqe *req_next_wqe(struct rxe_qp *qp)
 		} while (0);
 	}
 
-	if (qp->req.wqe_index == producer_index(qp->sq.queue))
+	if (index == prod)
 		return NULL;
 
-	wqe = addr_from_index(qp->sq.queue, qp->req.wqe_index);
+	wqe = addr_from_index(q, index);
 
 	if (unlikely((qp->req.state == QP_STATE_DRAIN ||
 		      qp->req.state == QP_STATE_DRAINED) &&
@@ -155,7 +178,7 @@ static struct rxe_send_wqe *req_next_wqe(struct rxe_qp *qp)
 		return NULL;
 
 	if (unlikely((wqe->wr.send_flags & IB_SEND_FENCE) &&
-		     (qp->req.wqe_index != consumer_index(qp->sq.queue)))) {
+						     (index != cons))) {
 		qp->req.wait_fence = 1;
 		return NULL;
 	}
@@ -439,16 +462,13 @@ static struct sk_buff *init_req_packet(struct rxe_qp *qp,
 	return skb;
 }
 
-static int fill_packet(struct rxe_qp *qp, struct rxe_send_wqe *wqe,
+static int finish_packet(struct rxe_qp *qp, struct rxe_send_wqe *wqe,
 		       struct rxe_pkt_info *pkt, struct sk_buff *skb,
 		       int paylen)
 {
-	struct rxe_dev *rxe = to_rdev(qp->ibqp.device);
-	u32 crc = 0;
-	u32 *p;
 	int err;
 
-	err = rxe_prepare(pkt, skb, &crc);
+	err = rxe_prepare(pkt, skb);
 	if (err)
 		return err;
 
@@ -456,7 +476,6 @@ static int fill_packet(struct rxe_qp *qp, struct rxe_send_wqe *wqe,
 		if (wqe->wr.send_flags & IB_SEND_INLINE) {
 			u8 *tmp = &wqe->dma.inline_data[wqe->dma.sge_offset];
 
-			crc = rxe_crc32(rxe, crc, tmp, paylen);
 			memcpy(payload_addr(pkt), tmp, paylen);
 
 			wqe->dma.resid -= paylen;
@@ -464,8 +483,7 @@ static int fill_packet(struct rxe_qp *qp, struct rxe_send_wqe *wqe,
 		} else {
 			err = copy_data(qp->pd, 0, &wqe->dma,
 					payload_addr(pkt), paylen,
-					from_mr_obj,
-					&crc);
+					RXE_FROM_MR_OBJ);
 			if (err)
 				return err;
 		}
@@ -473,12 +491,8 @@ static int fill_packet(struct rxe_qp *qp, struct rxe_send_wqe *wqe,
 			u8 *pad = payload_addr(pkt) + paylen;
 
 			memset(pad, 0, bth_pad(pkt));
-			crc = rxe_crc32(rxe, crc, pad, bth_pad(pkt));
 		}
 	}
-	p = payload_addr(pkt) + paylen + bth_pad(pkt);
-
-	*p = ~crc;
 
 	return 0;
 }
@@ -555,6 +569,60 @@ static void update_state(struct rxe_qp *qp, struct rxe_send_wqe *wqe,
 			  jiffies + qp->qp_timeout_jiffies);
 }
 
+static int rxe_do_local_ops(struct rxe_qp *qp, struct rxe_send_wqe *wqe)
+{
+	u8 opcode = wqe->wr.opcode;
+	struct rxe_mr *mr;
+	u32 rkey;
+	int ret;
+
+	switch (opcode) {
+	case IB_WR_LOCAL_INV:
+		rkey = wqe->wr.ex.invalidate_rkey;
+		if (rkey_is_mw(rkey))
+			ret = rxe_invalidate_mw(qp, rkey);
+		else
+			ret = rxe_invalidate_mr(qp, rkey);
+
+		if (unlikely(ret)) {
+			wqe->status = IB_WC_LOC_QP_OP_ERR;
+			return ret;
+		}
+		break;
+	case IB_WR_REG_MR:
+		mr = to_rmr(wqe->wr.wr.reg.mr);
+		rxe_add_ref(mr);
+		mr->state = RXE_MR_STATE_VALID;
+		mr->access = wqe->wr.wr.reg.access;
+		mr->ibmr.lkey = wqe->wr.wr.reg.key;
+		mr->ibmr.rkey = wqe->wr.wr.reg.key;
+		mr->iova = wqe->wr.wr.reg.mr->iova;
+		rxe_drop_ref(mr);
+		break;
+	case IB_WR_BIND_MW:
+		ret = rxe_bind_mw(qp, wqe);
+		if (unlikely(ret)) {
+			wqe->status = IB_WC_MW_BIND_ERR;
+			return ret;
+		}
+		break;
+	default:
+		pr_err("Unexpected send wqe opcode %d\n", opcode);
+		wqe->status = IB_WC_LOC_QP_OP_ERR;
+		return -EINVAL;
+	}
+
+	wqe->state = wqe_state_done;
+	wqe->status = IB_WC_SUCCESS;
+	qp->req.wqe_index = next_index(qp->sq.queue, qp->req.wqe_index);
+
+	if ((wqe->wr.send_flags & IB_SEND_SIGNALED) ||
+	    qp->sq_sig_type == IB_SIGNAL_ALL_WR)
+		rxe_run_task(&qp->comp.task, 1);
+
+	return 0;
+}
+
 int rxe_requester(void *arg)
 {
 	struct rxe_qp *qp = (struct rxe_qp *)arg;
@@ -568,6 +636,7 @@ int rxe_requester(void *arg)
 	int ret;
 	struct rxe_send_wqe rollback_wqe;
 	u32 rollback_psn;
+	struct rxe_queue *q = qp->sq.queue;
 
 	rxe_add_ref(qp);
 
@@ -576,7 +645,7 @@ next_wqe:
 		goto exit;
 
 	if (unlikely(qp->req.state == QP_STATE_RESET)) {
-		qp->req.wqe_index = consumer_index(qp->sq.queue);
+		qp->req.wqe_index = consumer_index(q, q->type);
 		qp->req.opcode = -1;
 		qp->req.need_rd_atomic = 0;
 		qp->req.wait_psn = 0;
@@ -593,43 +662,12 @@ next_wqe:
 	if (unlikely(!wqe))
 		goto exit;
 
-	if (wqe->mask & WR_REG_MASK) {
-		if (wqe->wr.opcode == IB_WR_LOCAL_INV) {
-			struct rxe_dev *rxe = to_rdev(qp->ibqp.device);
-			struct rxe_mr *rmr;
-
-			rmr = rxe_pool_get_index(&rxe->mr_pool,
-						 wqe->wr.ex.invalidate_rkey >> 8);
-			if (!rmr) {
-				pr_err("No mr for key %#x\n",
-				       wqe->wr.ex.invalidate_rkey);
-				wqe->state = wqe_state_error;
-				wqe->status = IB_WC_MW_BIND_ERR;
-				goto exit;
-			}
-			rmr->state = RXE_MR_STATE_FREE;
-			rxe_drop_ref(rmr);
-			wqe->state = wqe_state_done;
-			wqe->status = IB_WC_SUCCESS;
-		} else if (wqe->wr.opcode == IB_WR_REG_MR) {
-			struct rxe_mr *rmr = to_rmr(wqe->wr.wr.reg.mr);
-
-			rmr->state = RXE_MR_STATE_VALID;
-			rmr->access = wqe->wr.wr.reg.access;
-			rmr->ibmr.lkey = wqe->wr.wr.reg.key;
-			rmr->ibmr.rkey = wqe->wr.wr.reg.key;
-			rmr->iova = wqe->wr.wr.reg.mr->iova;
-			wqe->state = wqe_state_done;
-			wqe->status = IB_WC_SUCCESS;
-		} else {
-			goto exit;
-		}
-		if ((wqe->wr.send_flags & IB_SEND_SIGNALED) ||
-		    qp->sq_sig_type == IB_SIGNAL_ALL_WR)
-			rxe_run_task(&qp->comp.task, 1);
-		qp->req.wqe_index = next_index(qp->sq.queue,
-						qp->req.wqe_index);
-		goto next_wqe;
+	if (wqe->mask & WR_LOCAL_OP_MASK) {
+		ret = rxe_do_local_ops(qp, wqe);
+		if (unlikely(ret))
+			goto err;
+		else
+			goto next_wqe;
 	}
 
 	if (unlikely(qp_type(qp) == IB_QPT_RC &&
@@ -687,11 +725,17 @@ next_wqe:
 	skb = init_req_packet(qp, wqe, opcode, payload, &pkt);
 	if (unlikely(!skb)) {
 		pr_err("qp#%d Failed allocating skb\n", qp_num(qp));
+		wqe->status = IB_WC_LOC_QP_OP_ERR;
 		goto err;
 	}
 
-	if (fill_packet(qp, wqe, &pkt, skb, payload)) {
-		pr_debug("qp#%d Error during fill packet\n", qp_num(qp));
+	ret = finish_packet(qp, wqe, &pkt, skb, payload);
+	if (unlikely(ret)) {
+		pr_debug("qp#%d Error during finish packet\n", qp_num(qp));
+		if (ret == -EFAULT)
+			wqe->status = IB_WC_LOC_PROT_ERR;
+		else
+			wqe->status = IB_WC_LOC_QP_OP_ERR;
 		kfree_skb(skb);
 		goto err;
 	}
@@ -716,6 +760,7 @@ next_wqe:
 			goto exit;
 		}
 
+		wqe->status = IB_WC_LOC_QP_OP_ERR;
 		goto err;
 	}
 
@@ -724,7 +769,6 @@ next_wqe:
 	goto next_wqe;
 
 err:
-	wqe->status = IB_WC_LOC_PROT_ERR;
 	wqe->state = wqe_state_error;
 	__rxe_do_task(&qp->comp.task);
 

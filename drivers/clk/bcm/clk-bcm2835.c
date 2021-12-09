@@ -805,11 +805,10 @@ static int bcm2835_pll_divider_is_on(struct clk_hw *hw)
 	return !(cprman_read(cprman, data->a2w_reg) & A2W_PLL_CHANNEL_DISABLE);
 }
 
-static long bcm2835_pll_divider_round_rate(struct clk_hw *hw,
-					   unsigned long rate,
-					   unsigned long *parent_rate)
+static int bcm2835_pll_divider_determine_rate(struct clk_hw *hw,
+					      struct clk_rate_request *req)
 {
-	return clk_divider_ops.round_rate(hw, rate, parent_rate);
+	return clk_divider_ops.determine_rate(hw, req);
 }
 
 static unsigned long bcm2835_pll_divider_get_rate(struct clk_hw *hw,
@@ -901,7 +900,7 @@ static const struct clk_ops bcm2835_pll_divider_clk_ops = {
 	.unprepare = bcm2835_pll_divider_off,
 	.recalc_rate = bcm2835_pll_divider_get_rate,
 	.set_rate = bcm2835_pll_divider_set_rate,
-	.round_rate = bcm2835_pll_divider_round_rate,
+	.determine_rate = bcm2835_pll_divider_determine_rate,
 	.debug_init = bcm2835_pll_divider_debug_init,
 };
 

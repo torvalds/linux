@@ -5,6 +5,7 @@
 
 #include <linux/list.h>
 #include <linux/mutex.h>
+#include <linux/scatterlist.h>
 #include <linux/usb.h>
 #include <linux/workqueue.h>
 #include <uapi/drm/drm_fourcc.h>
@@ -26,6 +27,7 @@ struct gud_device {
 	unsigned int bulk_pipe;
 	void *bulk_buf;
 	size_t bulk_len;
+	struct sg_table bulk_sgt;
 
 	u8 compression;
 	void *lz4_comp_mem;
@@ -86,7 +88,7 @@ static inline u8 gud_from_fourcc(u32 fourcc)
 		return GUD_PIXEL_FORMAT_XRGB8888;
 	case DRM_FORMAT_ARGB8888:
 		return GUD_PIXEL_FORMAT_ARGB8888;
-	};
+	}
 
 	return 0;
 }
@@ -104,7 +106,7 @@ static inline u32 gud_to_fourcc(u8 format)
 		return DRM_FORMAT_XRGB8888;
 	case GUD_PIXEL_FORMAT_ARGB8888:
 		return DRM_FORMAT_ARGB8888;
-	};
+	}
 
 	return 0;
 }

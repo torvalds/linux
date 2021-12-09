@@ -189,7 +189,6 @@ static int iqs620_pwm_probe(struct platform_device *pdev)
 	if (!iqs620_pwm)
 		return -ENOMEM;
 
-	platform_set_drvdata(pdev, iqs620_pwm);
 	iqs620_pwm->iqs62x = iqs62x;
 
 	ret = regmap_read(iqs62x->regmap, IQS620_PWR_SETTINGS, &val);
@@ -224,21 +223,9 @@ static int iqs620_pwm_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	ret = pwmchip_add(&iqs620_pwm->chip);
+	ret = devm_pwmchip_add(&pdev->dev, &iqs620_pwm->chip);
 	if (ret)
 		dev_err(&pdev->dev, "Failed to add device: %d\n", ret);
-
-	return ret;
-}
-
-static int iqs620_pwm_remove(struct platform_device *pdev)
-{
-	struct iqs620_pwm_private *iqs620_pwm = platform_get_drvdata(pdev);
-	int ret;
-
-	ret = pwmchip_remove(&iqs620_pwm->chip);
-	if (ret)
-		dev_err(&pdev->dev, "Failed to remove device: %d\n", ret);
 
 	return ret;
 }
@@ -248,7 +235,6 @@ static struct platform_driver iqs620_pwm_platform_driver = {
 		.name = "iqs620a-pwm",
 	},
 	.probe = iqs620_pwm_probe,
-	.remove = iqs620_pwm_remove,
 };
 module_platform_driver(iqs620_pwm_platform_driver);
 

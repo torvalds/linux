@@ -17,11 +17,15 @@
 #include <linux/string.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
+#include <asm/bug.h>
 
-void perf_evsel__init(struct perf_evsel *evsel, struct perf_event_attr *attr)
+void perf_evsel__init(struct perf_evsel *evsel, struct perf_event_attr *attr,
+		      int idx)
 {
 	INIT_LIST_HEAD(&evsel->node);
 	evsel->attr = *attr;
+	evsel->idx  = idx;
+	evsel->leader = evsel;
 }
 
 struct perf_evsel *perf_evsel__new(struct perf_event_attr *attr)
@@ -29,7 +33,7 @@ struct perf_evsel *perf_evsel__new(struct perf_event_attr *attr)
 	struct perf_evsel *evsel = zalloc(sizeof(*evsel));
 
 	if (evsel != NULL)
-		perf_evsel__init(evsel, attr);
+		perf_evsel__init(evsel, attr, 0);
 
 	return evsel;
 }
@@ -39,7 +43,7 @@ void perf_evsel__delete(struct perf_evsel *evsel)
 	free(evsel);
 }
 
-#define FD(e, x, y) (*(int *) xyarray__entry(e->fd, x, y))
+#define FD(e, x, y) ((int *) xyarray__entry(e->fd, x, y))
 #define MMAP(e, x, y) (e->mmap ? ((struct perf_mmap *) xyarray__entry(e->mmap, x, y)) : NULL)
 
 int perf_evsel__alloc_fd(struct perf_evsel *evsel, int ncpus, int nthreads)
@@ -50,7 +54,10 @@ int perf_evsel__alloc_fd(struct perf_evsel *evsel, int ncpus, int nthreads)
 		int cpu, thread;
 		for (cpu = 0; cpu < ncpus; cpu++) {
 			for (thread = 0; thread < nthreads; thread++) {
-				FD(evsel, cpu, thread) = -1;
+				int *fd = FD(evsel, cpu, thread);
+
+				if (fd)
+					*fd = -1;
 			}
 		}
 	}
@@ -71,6 +78,32 @@ sys_perf_event_open(struct perf_event_attr *attr,
 		    unsigned long flags)
 {
 	return syscall(__NR_perf_event_open, attr, pid, cpu, group_fd, flags);
+}
+
+static int get_group_fd(struct perf_evsel *evsel, int cpu, int thread, int *group_fd)
+{
+	struct perf_evsel *leader = evsel->leader;
+	int *fd;
+
+	if (evsel == leader) {
+		*group_fd = -1;
+		return 0;
+	}
+
+	/*
+	 * Leader must be already processed/open,
+	 * if not it's a bug.
+	 */
+	if (!leader->fd)
+		return -ENOTCONN;
+
+	fd = FD(leader, cpu, thread);
+	if (fd == NULL || *fd == -1)
+		return -EBADF;
+
+	*group_fd = *fd;
+
+	return 0;
 }
 
 int perf_evsel__open(struct perf_evsel *evsel, struct perf_cpu_map *cpus,
@@ -108,16 +141,24 @@ int perf_evsel__open(struct perf_evsel *evsel, struct perf_cpu_map *cpus,
 
 	for (cpu = 0; cpu < cpus->nr; cpu++) {
 		for (thread = 0; thread < threads->nr; thread++) {
-			int fd;
+			int fd, group_fd, *evsel_fd;
+
+			evsel_fd = FD(evsel, cpu, thread);
+			if (evsel_fd == NULL)
+				return -EINVAL;
+
+			err = get_group_fd(evsel, cpu, thread, &group_fd);
+			if (err < 0)
+				return err;
 
 			fd = sys_perf_event_open(&evsel->attr,
 						 threads->map[thread].pid,
-						 cpus->map[cpu], -1, 0);
+						 cpus->map[cpu], group_fd, 0);
 
 			if (fd < 0)
 				return -errno;
 
-			FD(evsel, cpu, thread) = fd;
+			*evsel_fd = fd;
 		}
 	}
 
@@ -129,9 +170,12 @@ static void perf_evsel__close_fd_cpu(struct perf_evsel *evsel, int cpu)
 	int thread;
 
 	for (thread = 0; thread < xyarray__max_y(evsel->fd); ++thread) {
-		if (FD(evsel, cpu, thread) >= 0)
-			close(FD(evsel, cpu, thread));
-		FD(evsel, cpu, thread) = -1;
+		int *fd = FD(evsel, cpu, thread);
+
+		if (fd && *fd >= 0) {
+			close(*fd);
+			*fd = -1;
+		}
 	}
 }
 
@@ -175,13 +219,12 @@ void perf_evsel__munmap(struct perf_evsel *evsel)
 
 	for (cpu = 0; cpu < xyarray__max_x(evsel->fd); cpu++) {
 		for (thread = 0; thread < xyarray__max_y(evsel->fd); thread++) {
-			int fd = FD(evsel, cpu, thread);
-			struct perf_mmap *map = MMAP(evsel, cpu, thread);
+			int *fd = FD(evsel, cpu, thread);
 
-			if (fd < 0)
+			if (fd == NULL || *fd < 0)
 				continue;
 
-			perf_mmap__munmap(map);
+			perf_mmap__munmap(MMAP(evsel, cpu, thread));
 		}
 	}
 
@@ -205,15 +248,16 @@ int perf_evsel__mmap(struct perf_evsel *evsel, int pages)
 
 	for (cpu = 0; cpu < xyarray__max_x(evsel->fd); cpu++) {
 		for (thread = 0; thread < xyarray__max_y(evsel->fd); thread++) {
-			int fd = FD(evsel, cpu, thread);
-			struct perf_mmap *map = MMAP(evsel, cpu, thread);
+			int *fd = FD(evsel, cpu, thread);
+			struct perf_mmap *map;
 
-			if (fd < 0)
+			if (fd == NULL || *fd < 0)
 				continue;
 
+			map = MMAP(evsel, cpu, thread);
 			perf_mmap__init(map, NULL, false, NULL);
 
-			ret = perf_mmap__mmap(map, &mp, fd, cpu);
+			ret = perf_mmap__mmap(map, &mp, *fd, cpu);
 			if (ret) {
 				perf_evsel__munmap(evsel);
 				return ret;
@@ -226,7 +270,9 @@ int perf_evsel__mmap(struct perf_evsel *evsel, int pages)
 
 void *perf_evsel__mmap_base(struct perf_evsel *evsel, int cpu, int thread)
 {
-	if (FD(evsel, cpu, thread) < 0 || MMAP(evsel, cpu, thread) == NULL)
+	int *fd = FD(evsel, cpu, thread);
+
+	if (fd == NULL || *fd < 0 || MMAP(evsel, cpu, thread) == NULL)
 		return NULL;
 
 	return MMAP(evsel, cpu, thread)->base;
@@ -261,17 +307,18 @@ int perf_evsel__read(struct perf_evsel *evsel, int cpu, int thread,
 		     struct perf_counts_values *count)
 {
 	size_t size = perf_evsel__read_size(evsel);
+	int *fd = FD(evsel, cpu, thread);
 
 	memset(count, 0, sizeof(*count));
 
-	if (FD(evsel, cpu, thread) < 0)
+	if (fd == NULL || *fd < 0)
 		return -EINVAL;
 
 	if (MMAP(evsel, cpu, thread) &&
 	    !perf_mmap__read_self(MMAP(evsel, cpu, thread), count))
 		return 0;
 
-	if (readn(FD(evsel, cpu, thread), count->values, size) <= 0)
+	if (readn(*fd, count->values, size) <= 0)
 		return -errno;
 
 	return 0;
@@ -284,8 +331,13 @@ static int perf_evsel__run_ioctl(struct perf_evsel *evsel,
 	int thread;
 
 	for (thread = 0; thread < xyarray__max_y(evsel->fd); thread++) {
-		int fd = FD(evsel, cpu, thread),
-		    err = ioctl(fd, ioc, arg);
+		int err;
+		int *fd = FD(evsel, cpu, thread);
+
+		if (fd == NULL || *fd < 0)
+			return -1;
+
+		err = ioctl(*fd, ioc, arg);
 
 		if (err)
 			return err;

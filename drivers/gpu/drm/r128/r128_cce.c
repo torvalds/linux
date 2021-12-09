@@ -37,10 +37,9 @@
 #include <linux/slab.h>
 #include <linux/uaccess.h>
 
-#include <drm/drm_agpsupport.h>
 #include <drm/drm_device.h>
 #include <drm/drm_file.h>
-#include <drm/drm_irq.h>
+#include <drm/drm_legacy.h>
 #include <drm/drm_print.h>
 #include <drm/r128_drm.h>
 
@@ -603,7 +602,7 @@ int r128_do_cleanup_cce(struct drm_device *dev)
 	 * is freed, it's too late.
 	 */
 	if (dev->irq_enabled)
-		drm_irq_uninstall(dev);
+		drm_legacy_irq_uninstall(dev);
 
 	if (dev->dev_private) {
 		drm_r128_private_t *dev_priv = dev->dev_private;

@@ -27,12 +27,12 @@
 #include <linux/cpu.h>
 #include <linux/pci.h>
 #include <linux/sched_clock.h>
+#include <linux/soc/ixp4xx/cpu.h>
 #include <linux/irqchip/irq-ixp4xx.h>
 #include <linux/platform_data/timer-ixp4xx.h>
 #include <linux/dma-map-ops.h>
 #include <mach/udc.h>
 #include <mach/hardware.h>
-#include <mach/io.h>
 #include <linux/uaccess.h>
 #include <asm/page.h>
 #include <asm/exception.h>
@@ -43,6 +43,27 @@
 #include <asm/mach/time.h>
 
 #include "irqs.h"
+
+u32 ixp4xx_read_feature_bits(void)
+{
+	u32 val = ~__raw_readl(IXP4XX_EXP_CFG2);
+
+	if (cpu_is_ixp42x_rev_a0())
+		return IXP42X_FEATURE_MASK & ~(IXP4XX_FEATURE_RCOMP |
+					       IXP4XX_FEATURE_AES);
+	if (cpu_is_ixp42x())
+		return val & IXP42X_FEATURE_MASK;
+	if (cpu_is_ixp43x())
+		return val & IXP43X_FEATURE_MASK;
+	return val & IXP46X_FEATURE_MASK;
+}
+EXPORT_SYMBOL(ixp4xx_read_feature_bits);
+
+void ixp4xx_write_feature_bits(u32 value)
+{
+	__raw_writel(~value, IXP4XX_EXP_CFG2);
+}
+EXPORT_SYMBOL(ixp4xx_write_feature_bits);
 
 #define IXP4XX_TIMER_FREQ 66666000
 
@@ -215,6 +236,27 @@ static struct resource ixp46x_i2c_resources[] = {
 	}
 };
 
+/* A single 32-bit register on IXP46x */
+#define IXP4XX_HWRANDOM_BASE_PHYS	0x70002100
+
+static struct resource ixp46x_hwrandom_resource[] = {
+	{
+		.start = IXP4XX_HWRANDOM_BASE_PHYS,
+		.end = IXP4XX_HWRANDOM_BASE_PHYS + 0x3,
+		.flags = IORESOURCE_MEM,
+	},
+};
+
+static struct platform_device ixp46x_hwrandom_device = {
+	.name           = "ixp4xx-hwrandom",
+	.id             = -1,
+	.dev = {
+		.coherent_dma_mask      = DMA_BIT_MASK(32),
+	},
+	.resource = ixp46x_hwrandom_resource,
+	.num_resources  = ARRAY_SIZE(ixp46x_hwrandom_resource),
+};
+
 /*
  * I2C controller. The IXP46x uses the same block as the IOP3xx, so
  * we just use the same device name.
@@ -226,18 +268,59 @@ static struct platform_device ixp46x_i2c_controller = {
 	.resource	= ixp46x_i2c_resources
 };
 
+static struct resource ixp46x_ptp_resources[] = {
+	DEFINE_RES_MEM(IXP4XX_TIMESYNC_BASE_PHYS, SZ_4K),
+	DEFINE_RES_IRQ_NAMED(IRQ_IXP4XX_GPIO8, "master"),
+	DEFINE_RES_IRQ_NAMED(IRQ_IXP4XX_GPIO7, "slave"),
+};
+
+static struct platform_device ixp46x_ptp = {
+	.name		= "ptp-ixp46x",
+	.id		= -1,
+	.resource	= ixp46x_ptp_resources,
+	.num_resources	= ARRAY_SIZE(ixp46x_ptp_resources),
+};
+
 static struct platform_device *ixp46x_devices[] __initdata = {
-	&ixp46x_i2c_controller
+	&ixp46x_hwrandom_device,
+	&ixp46x_i2c_controller,
+	&ixp46x_ptp,
 };
 
 unsigned long ixp4xx_exp_bus_size;
 EXPORT_SYMBOL(ixp4xx_exp_bus_size);
+
+static struct platform_device_info ixp_dev_info __initdata = {
+	.name		= "ixp4xx_crypto",
+	.id		= 0,
+	.dma_mask	= DMA_BIT_MASK(32),
+};
+
+static int __init ixp_crypto_register(void)
+{
+	struct platform_device *pdev;
+
+	if (!(~(*IXP4XX_EXP_CFG2) & (IXP4XX_FEATURE_HASH |
+				IXP4XX_FEATURE_AES | IXP4XX_FEATURE_DES))) {
+		printk(KERN_ERR "ixp_crypto: No HW crypto available\n");
+		return -ENODEV;
+	}
+
+	pdev = platform_device_register_full(&ixp_dev_info);
+	if (IS_ERR(pdev))
+		return PTR_ERR(pdev);
+
+	return 0;
+}
 
 void __init ixp4xx_sys_init(void)
 {
 	ixp4xx_exp_bus_size = SZ_16M;
 
 	platform_add_devices(ixp4xx_devices, ARRAY_SIZE(ixp4xx_devices));
+
+	if (IS_ENABLED(CONFIG_CRYPTO_DEV_IXP4XX))
+		ixp_crypto_register();
 
 	if (cpu_is_ixp46x()) {
 		int region;

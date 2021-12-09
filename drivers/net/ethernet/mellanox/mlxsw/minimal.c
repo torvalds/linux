@@ -112,10 +112,23 @@ mlxsw_m_get_module_eeprom(struct net_device *netdev, struct ethtool_eeprom *ee,
 					   ee, data);
 }
 
+static int
+mlxsw_m_get_module_eeprom_by_page(struct net_device *netdev,
+				  const struct ethtool_module_eeprom *page,
+				  struct netlink_ext_ack *extack)
+{
+	struct mlxsw_m_port *mlxsw_m_port = netdev_priv(netdev);
+	struct mlxsw_core *core = mlxsw_m_port->mlxsw_m->core;
+
+	return mlxsw_env_get_module_eeprom_by_page(core, mlxsw_m_port->module,
+						   page, extack);
+}
+
 static const struct ethtool_ops mlxsw_m_port_ethtool_ops = {
 	.get_drvinfo		= mlxsw_m_module_get_drvinfo,
 	.get_module_info	= mlxsw_m_get_module_info,
 	.get_module_eeprom	= mlxsw_m_get_module_eeprom,
+	.get_module_eeprom_by_page = mlxsw_m_get_module_eeprom_by_page,
 };
 
 static int
@@ -234,6 +247,7 @@ static void mlxsw_m_port_remove(struct mlxsw_m *mlxsw_m, u8 local_port)
 static int mlxsw_m_port_module_map(struct mlxsw_m *mlxsw_m, u8 local_port,
 				   u8 *last_module)
 {
+	unsigned int max_ports = mlxsw_core_max_ports(mlxsw_m->core);
 	u8 module, width;
 	int err;
 
@@ -249,6 +263,9 @@ static int mlxsw_m_port_module_map(struct mlxsw_m *mlxsw_m, u8 local_port,
 	if (module == *last_module)
 		return 0;
 	*last_module = module;
+
+	if (WARN_ON_ONCE(module >= max_ports))
+		return -EINVAL;
 	mlxsw_m->module_to_port[module] = ++mlxsw_m->max_ports;
 
 	return 0;

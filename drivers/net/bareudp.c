@@ -71,12 +71,18 @@ static int bareudp_udp_encap_recv(struct sock *sk, struct sk_buff *skb)
 		family = AF_INET6;
 
 	if (bareudp->ethertype == htons(ETH_P_IP)) {
-		struct iphdr *iphdr;
+		__u8 ipversion;
 
-		iphdr = (struct iphdr *)(skb->data + BAREUDP_BASE_HLEN);
-		if (iphdr->version == 4) {
-			proto = bareudp->ethertype;
-		} else if (bareudp->multi_proto_mode && (iphdr->version == 6)) {
+		if (skb_copy_bits(skb, BAREUDP_BASE_HLEN, &ipversion,
+				  sizeof(ipversion))) {
+			bareudp->dev->stats.rx_dropped++;
+			goto drop;
+		}
+		ipversion >>= 4;
+
+		if (ipversion == 4) {
+			proto = htons(ETH_P_IP);
+		} else if (ipversion == 6 && bareudp->multi_proto_mode) {
 			proto = htons(ETH_P_IPV6);
 		} else {
 			bareudp->dev->stats.rx_dropped++;
@@ -133,6 +139,7 @@ static int bareudp_udp_encap_recv(struct sock *sk, struct sk_buff *skb)
 	skb->dev = bareudp->dev;
 	oiph = skb_network_header(skb);
 	skb_reset_network_header(skb);
+	skb_reset_mac_header(skb);
 
 	if (!IS_ENABLED(CONFIG_IPV6) || family == AF_INET)
 		err = IP_ECN_decapsulate(oiph, skb);

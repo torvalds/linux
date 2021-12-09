@@ -53,7 +53,7 @@ static int  cyberjack_open(struct tty_struct *tty,
 static void cyberjack_close(struct usb_serial_port *port);
 static int cyberjack_write(struct tty_struct *tty,
 	struct usb_serial_port *port, const unsigned char *buf, int count);
-static int cyberjack_write_room(struct tty_struct *tty);
+static unsigned int cyberjack_write_room(struct tty_struct *tty);
 static void cyberjack_read_int_callback(struct urb *urb);
 static void cyberjack_read_bulk_callback(struct urb *urb);
 static void cyberjack_write_bulk_callback(struct urb *urb);
@@ -240,7 +240,7 @@ static int cyberjack_write(struct tty_struct *tty,
 	return count;
 }
 
-static int cyberjack_write_room(struct tty_struct *tty)
+static unsigned int cyberjack_write_room(struct tty_struct *tty)
 {
 	/* FIXME: .... */
 	return CYBERJACK_LOCAL_BUF_SIZE;

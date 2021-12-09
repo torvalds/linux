@@ -38,7 +38,6 @@ struct section {
 	Elf_Data *data;
 	char *name;
 	int idx;
-	unsigned int len;
 	bool changed, text, rodata, noinstr;
 };
 
@@ -83,12 +82,20 @@ struct elf {
 	int fd;
 	bool changed;
 	char *name;
+	unsigned int text_size;
 	struct list_head sections;
-	DECLARE_HASHTABLE(symbol_hash, ELF_HASH_BITS);
-	DECLARE_HASHTABLE(symbol_name_hash, ELF_HASH_BITS);
-	DECLARE_HASHTABLE(section_hash, ELF_HASH_BITS);
-	DECLARE_HASHTABLE(section_name_hash, ELF_HASH_BITS);
-	DECLARE_HASHTABLE(reloc_hash, ELF_HASH_BITS);
+
+	int symbol_bits;
+	int symbol_name_bits;
+	int section_bits;
+	int section_name_bits;
+	int reloc_bits;
+
+	struct hlist_head *symbol_hash;
+	struct hlist_head *symbol_name_hash;
+	struct hlist_head *section_hash;
+	struct hlist_head *section_name_hash;
+	struct hlist_head *reloc_hash;
 };
 
 #define OFFSET_STRIDE_BITS	4

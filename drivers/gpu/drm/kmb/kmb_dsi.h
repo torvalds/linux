@@ -380,7 +380,7 @@ int kmb_dsi_host_bridge_init(struct device *dev);
 struct kmb_dsi *kmb_dsi_init(struct platform_device *pdev);
 void kmb_dsi_host_unregister(struct kmb_dsi *kmb_dsi);
 int kmb_dsi_mode_set(struct kmb_dsi *kmb_dsi, struct drm_display_mode *mode,
-		     int sys_clk_mhz);
+		     int sys_clk_mhz, struct drm_atomic_state *old_state);
 int kmb_dsi_map_mmio(struct kmb_dsi *kmb_dsi);
 int kmb_dsi_clk_init(struct kmb_dsi *kmb_dsi);
 int kmb_dsi_encoder_init(struct drm_device *dev, struct kmb_dsi *kmb_dsi);

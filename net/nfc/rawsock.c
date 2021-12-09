@@ -49,7 +49,7 @@ static void rawsock_report_error(struct sock *sk, int err)
 
 	sk->sk_shutdown = SHUTDOWN_MASK;
 	sk->sk_err = -err;
-	sk->sk_error_report(sk);
+	sk_error_report(sk);
 
 	rawsock_write_queue_purge(sk);
 }
@@ -140,7 +140,7 @@ static void rawsock_data_exchange_complete(void *context, struct sk_buff *skb,
 {
 	struct sock *sk = (struct sock *) context;
 
-	BUG_ON(in_irq());
+	BUG_ON(in_hardirq());
 
 	pr_debug("sk=%p err=%d\n", sk, err);
 

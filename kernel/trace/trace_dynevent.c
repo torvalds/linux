@@ -13,10 +13,48 @@
 #include <linux/tracefs.h>
 
 #include "trace.h"
+#include "trace_output.h"	/* for trace_event_sem */
 #include "trace_dynevent.h"
 
 static DEFINE_MUTEX(dyn_event_ops_mutex);
 static LIST_HEAD(dyn_event_ops_list);
+
+bool trace_event_dyn_try_get_ref(struct trace_event_call *dyn_call)
+{
+	struct trace_event_call *call;
+	bool ret = false;
+
+	if (WARN_ON_ONCE(!(dyn_call->flags & TRACE_EVENT_FL_DYNAMIC)))
+		return false;
+
+	down_read(&trace_event_sem);
+	list_for_each_entry(call, &ftrace_events, list) {
+		if (call == dyn_call) {
+			atomic_inc(&dyn_call->refcnt);
+			ret = true;
+		}
+	}
+	up_read(&trace_event_sem);
+	return ret;
+}
+
+void trace_event_dyn_put_ref(struct trace_event_call *call)
+{
+	if (WARN_ON_ONCE(!(call->flags & TRACE_EVENT_FL_DYNAMIC)))
+		return;
+
+	if (WARN_ON_ONCE(atomic_read(&call->refcnt) <= 0)) {
+		atomic_set(&call->refcnt, 0);
+		return;
+	}
+
+	atomic_dec(&call->refcnt);
+}
+
+bool trace_event_dyn_busy(struct trace_event_call *call)
+{
+	return atomic_read(&call->refcnt) != 0;
+}
 
 int dyn_event_register(struct dyn_event_operations *ops)
 {

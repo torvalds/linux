@@ -299,13 +299,13 @@ static inline unsigned char __flogr(unsigned long word)
 		}
 		return bit;
 	} else {
-		register unsigned long bit asm("4") = word;
-		register unsigned long out asm("5");
+		union register_pair rp;
 
+		rp.even = word;
 		asm volatile(
-			"       flogr   %[bit],%[bit]\n"
-			: [bit] "+d" (bit), [out] "=d" (out) : : "cc");
-		return bit;
+			"       flogr   %[rp],%[rp]\n"
+			: [rp] "+d" (rp.pair) : : "cc");
+		return rp.even;
 	}
 }
 

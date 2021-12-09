@@ -22,6 +22,7 @@
 #include <linux/xattr.h>
 #include <linux/export.h>
 #include <linux/user_namespace.h>
+#include <linux/namei.h>
 
 static struct posix_acl **acl_by_type(struct inode *inode, int type)
 {
@@ -56,7 +57,17 @@ EXPORT_SYMBOL(get_cached_acl);
 
 struct posix_acl *get_cached_acl_rcu(struct inode *inode, int type)
 {
-	return rcu_dereference(*acl_by_type(inode, type));
+	struct posix_acl *acl = rcu_dereference(*acl_by_type(inode, type));
+
+	if (acl == ACL_DONT_CACHE) {
+		struct posix_acl *ret;
+
+		ret = inode->i_op->get_acl(inode, type, LOOKUP_RCU);
+		if (!IS_ERR(ret))
+			acl = ret;
+	}
+
+	return acl;
 }
 EXPORT_SYMBOL(get_cached_acl_rcu);
 
@@ -138,7 +149,7 @@ struct posix_acl *get_acl(struct inode *inode, int type)
 		set_cached_acl(inode, type, NULL);
 		return NULL;
 	}
-	acl = inode->i_op->get_acl(inode, type);
+	acl = inode->i_op->get_acl(inode, type, false);
 
 	if (IS_ERR(acl)) {
 		/*

@@ -21,10 +21,10 @@
 /*
  * Information for this driver was pulled from the following datasheets.
  *
- *  https://www.nxp.com/documents/data_sheet/PCF85063A.pdf
- *  https://www.nxp.com/documents/data_sheet/PCF85063TP.pdf
+ *  https://www.nxp.com/docs/en/data-sheet/PCF85063A.pdf
+ *  https://www.nxp.com/docs/en/data-sheet/PCF85063TP.pdf
  *
- *  PCF85063A -- Rev. 6 — 18 November 2015
+ *  PCF85063A -- Rev. 7 — 30 March 2018
  *  PCF85063TP -- Rev. 4 — 6 May 2015
  *
  *  https://www.microcrystal.com/fileadmin/Media/Products/RTC/App.Manual/RV-8263-C7_App-Manual.pdf

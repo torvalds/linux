@@ -629,18 +629,34 @@ static int b53_srab_probe(struct platform_device *pdev)
 static int b53_srab_remove(struct platform_device *pdev)
 {
 	struct b53_device *dev = platform_get_drvdata(pdev);
-	struct b53_srab_priv *priv = dev->priv;
 
-	b53_srab_intr_set(priv, false);
-	if (dev)
-		b53_switch_remove(dev);
+	if (!dev)
+		return 0;
+
+	b53_srab_intr_set(dev->priv, false);
+	b53_switch_remove(dev);
+
+	platform_set_drvdata(pdev, NULL);
 
 	return 0;
+}
+
+static void b53_srab_shutdown(struct platform_device *pdev)
+{
+	struct b53_device *dev = platform_get_drvdata(pdev);
+
+	if (!dev)
+		return;
+
+	b53_switch_shutdown(dev);
+
+	platform_set_drvdata(pdev, NULL);
 }
 
 static struct platform_driver b53_srab_driver = {
 	.probe = b53_srab_probe,
 	.remove = b53_srab_remove,
+	.shutdown = b53_srab_shutdown,
 	.driver = {
 		.name = "b53-srab-switch",
 		.of_match_table = b53_srab_of_match,

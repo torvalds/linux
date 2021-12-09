@@ -479,13 +479,13 @@ static int iTCO_wdt_probe(struct platform_device *pdev)
 		if (!devm_request_region(dev, p->smi_res->start,
 					 resource_size(p->smi_res),
 					 pdev->name)) {
-			pr_err("I/O address 0x%04llx already in use, device disabled\n",
+			dev_err(dev, "I/O address 0x%04llx already in use, device disabled\n",
 			       (u64)SMI_EN(p));
 			return -EBUSY;
 		}
 	} else if (iTCO_vendorsupport ||
 		   turn_SMI_watchdog_clear_off >= p->iTCO_version) {
-		pr_err("SMI I/O resource is missing\n");
+		dev_err(dev, "SMI I/O resource is missing\n");
 		return -ENODEV;
 	}
 

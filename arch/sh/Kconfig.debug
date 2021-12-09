@@ -1,8 +1,5 @@
 # SPDX-License-Identifier: GPL-2.0
 
-config TRACE_IRQFLAGS_SUPPORT
-	def_bool y
-
 config SH_STANDARD_BIOS
 	bool "Use LinuxSH standard BIOS"
 	help

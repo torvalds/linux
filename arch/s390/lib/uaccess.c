@@ -61,11 +61,11 @@ static inline int copy_with_mvcos(void)
 static inline unsigned long copy_from_user_mvcos(void *x, const void __user *ptr,
 						 unsigned long size)
 {
-	register unsigned long reg0 asm("0") = 0x81UL;
 	unsigned long tmp1, tmp2;
 
 	tmp1 = -4096UL;
 	asm volatile(
+		"   lghi  0,%[spec]\n"
 		"0: .insn ss,0xc80000000000,0(%0,%2),0(%1),0\n"
 		"6: jz    4f\n"
 		"1: algr  %0,%3\n"
@@ -84,7 +84,8 @@ static inline unsigned long copy_from_user_mvcos(void *x, const void __user *ptr
 		"5:\n"
 		EX_TABLE(0b,2b) EX_TABLE(3b,5b) EX_TABLE(6b,2b) EX_TABLE(7b,5b)
 		: "+a" (size), "+a" (ptr), "+a" (x), "+a" (tmp1), "=a" (tmp2)
-		: "d" (reg0) : "cc", "memory");
+		: [spec] "K" (0x81UL)
+		: "cc", "memory", "0");
 	return size;
 }
 
@@ -133,11 +134,11 @@ EXPORT_SYMBOL(raw_copy_from_user);
 static inline unsigned long copy_to_user_mvcos(void __user *ptr, const void *x,
 					       unsigned long size)
 {
-	register unsigned long reg0 asm("0") = 0x810000UL;
 	unsigned long tmp1, tmp2;
 
 	tmp1 = -4096UL;
 	asm volatile(
+		"   llilh 0,%[spec]\n"
 		"0: .insn ss,0xc80000000000,0(%0,%1),0(%2),0\n"
 		"6: jz    4f\n"
 		"1: algr  %0,%3\n"
@@ -156,7 +157,8 @@ static inline unsigned long copy_to_user_mvcos(void __user *ptr, const void *x,
 		"5:\n"
 		EX_TABLE(0b,2b) EX_TABLE(3b,5b) EX_TABLE(6b,2b) EX_TABLE(7b,5b)
 		: "+a" (size), "+a" (ptr), "+a" (x), "+a" (tmp1), "=a" (tmp2)
-		: "d" (reg0) : "cc", "memory");
+		: [spec] "K" (0x81UL)
+		: "cc", "memory", "0");
 	return size;
 }
 
@@ -202,75 +204,13 @@ unsigned long raw_copy_to_user(void __user *to, const void *from, unsigned long 
 }
 EXPORT_SYMBOL(raw_copy_to_user);
 
-static inline unsigned long copy_in_user_mvcos(void __user *to, const void __user *from,
-					       unsigned long size)
-{
-	register unsigned long reg0 asm("0") = 0x810081UL;
-	unsigned long tmp1, tmp2;
-
-	tmp1 = -4096UL;
-	/* FIXME: copy with reduced length. */
-	asm volatile(
-		"0: .insn ss,0xc80000000000,0(%0,%1),0(%2),0\n"
-		"   jz	  2f\n"
-		"1: algr  %0,%3\n"
-		"   slgr  %1,%3\n"
-		"   slgr  %2,%3\n"
-		"   j	  0b\n"
-		"2:slgr  %0,%0\n"
-		"3: \n"
-		EX_TABLE(0b,3b)
-		: "+a" (size), "+a" (to), "+a" (from), "+a" (tmp1), "=a" (tmp2)
-		: "d" (reg0) : "cc", "memory");
-	return size;
-}
-
-static inline unsigned long copy_in_user_mvc(void __user *to, const void __user *from,
-					     unsigned long size)
-{
-	unsigned long tmp1;
-
-	asm volatile(
-		"   sacf  256\n"
-		"   aghi  %0,-1\n"
-		"   jo	  5f\n"
-		"   bras  %3,3f\n"
-		"0: aghi  %0,257\n"
-		"1: mvc	  0(1,%1),0(%2)\n"
-		"   la	  %1,1(%1)\n"
-		"   la	  %2,1(%2)\n"
-		"   aghi  %0,-1\n"
-		"   jnz	  1b\n"
-		"   j	  5f\n"
-		"2: mvc	  0(256,%1),0(%2)\n"
-		"   la	  %1,256(%1)\n"
-		"   la	  %2,256(%2)\n"
-		"3: aghi  %0,-256\n"
-		"   jnm	  2b\n"
-		"4: ex	  %0,1b-0b(%3)\n"
-		"5: slgr  %0,%0\n"
-		"6: sacf  768\n"
-		EX_TABLE(1b,6b) EX_TABLE(2b,0b) EX_TABLE(4b,0b)
-		: "+a" (size), "+a" (to), "+a" (from), "=a" (tmp1)
-		: : "cc", "memory");
-	return size;
-}
-
-unsigned long raw_copy_in_user(void __user *to, const void __user *from, unsigned long n)
-{
-	if (copy_with_mvcos())
-		return copy_in_user_mvcos(to, from, n);
-	return copy_in_user_mvc(to, from, n);
-}
-EXPORT_SYMBOL(raw_copy_in_user);
-
 static inline unsigned long clear_user_mvcos(void __user *to, unsigned long size)
 {
-	register unsigned long reg0 asm("0") = 0x810000UL;
 	unsigned long tmp1, tmp2;
 
 	tmp1 = -4096UL;
 	asm volatile(
+		"   llilh 0,%[spec]\n"
 		"0: .insn ss,0xc80000000000,0(%0,%1),0(%4),0\n"
 		"   jz	  4f\n"
 		"1: algr  %0,%2\n"
@@ -288,7 +228,8 @@ static inline unsigned long clear_user_mvcos(void __user *to, unsigned long size
 		"5:\n"
 		EX_TABLE(0b,2b) EX_TABLE(3b,5b)
 		: "+a" (size), "+a" (to), "+a" (tmp1), "=a" (tmp2)
-		: "a" (empty_zero_page), "d" (reg0) : "cc", "memory");
+		: "a" (empty_zero_page), [spec] "K" (0x81UL)
+		: "cc", "memory", "0");
 	return size;
 }
 
@@ -334,54 +275,3 @@ unsigned long __clear_user(void __user *to, unsigned long size)
 	return clear_user_xc(to, size);
 }
 EXPORT_SYMBOL(__clear_user);
-
-static inline unsigned long strnlen_user_srst(const char __user *src,
-					      unsigned long size)
-{
-	register unsigned long reg0 asm("0") = 0;
-	unsigned long tmp1, tmp2;
-
-	asm volatile(
-		"   la    %2,0(%1)\n"
-		"   la    %3,0(%0,%1)\n"
-		"   slgr  %0,%0\n"
-		"   sacf  256\n"
-		"0: srst  %3,%2\n"
-		"   jo    0b\n"
-		"   la    %0,1(%3)\n"	/* strnlen_user results includes \0 */
-		"   slgr  %0,%1\n"
-		"1: sacf  768\n"
-		EX_TABLE(0b,1b)
-		: "+a" (size), "+a" (src), "=a" (tmp1), "=a" (tmp2)
-		: "d" (reg0) : "cc", "memory");
-	return size;
-}
-
-unsigned long __strnlen_user(const char __user *src, unsigned long size)
-{
-	if (unlikely(!size))
-		return 0;
-	return strnlen_user_srst(src, size);
-}
-EXPORT_SYMBOL(__strnlen_user);
-
-long __strncpy_from_user(char *dst, const char __user *src, long size)
-{
-	size_t done, len, offset, len_str;
-
-	if (unlikely(size <= 0))
-		return 0;
-	done = 0;
-	do {
-		offset = (size_t)src & (L1_CACHE_BYTES - 1);
-		len = min(size - done, L1_CACHE_BYTES - offset);
-		if (copy_from_user(dst, src, len))
-			return -EFAULT;
-		len_str = strnlen(dst, len);
-		done += len_str;
-		src += len_str;
-		dst += len_str;
-	} while ((len_str == len) && (done < size));
-	return done;
-}
-EXPORT_SYMBOL(__strncpy_from_user);

@@ -157,8 +157,18 @@ try_again:
 		if (vma) {
 			ret = -EBUSY;
 			if (flags & I915_GEM_OBJECT_UNBIND_ACTIVE ||
-			    !i915_vma_is_active(vma))
-				ret = i915_vma_unbind(vma);
+			    !i915_vma_is_active(vma)) {
+				if (flags & I915_GEM_OBJECT_UNBIND_VM_TRYLOCK) {
+					if (mutex_trylock(&vma->vm->mutex)) {
+						ret = __i915_vma_unbind(vma);
+						mutex_unlock(&vma->vm->mutex);
+					} else {
+						ret = -EBUSY;
+					}
+				} else {
+					ret = i915_vma_unbind(vma);
+				}
+			}
 
 			__i915_vma_put(vma);
 		}
@@ -432,7 +442,7 @@ i915_gem_pread_ioctl(struct drm_device *dev, void *data,
 	/* PREAD is disallowed for all platforms after TGL-LP.  This also
 	 * covers all platforms with local memory.
 	 */
-	if (INTEL_GEN(i915) >= 12 && !IS_TIGERLAKE(i915))
+	if (GRAPHICS_VER(i915) >= 12 && !IS_TIGERLAKE(i915))
 		return -EOPNOTSUPP;
 
 	if (args->size == 0)
@@ -453,12 +463,6 @@ i915_gem_pread_ioctl(struct drm_device *dev, void *data,
 	}
 
 	trace_i915_gem_object_pread(obj, args->offset, args->size);
-	ret = -ENODEV;
-	if (obj->ops->pread)
-		ret = obj->ops->pread(obj, args);
-	if (ret != -ENODEV)
-		goto out;
-
 	ret = -ENODEV;
 	if (obj->ops->pread)
 		ret = obj->ops->pread(obj, args);
@@ -712,7 +716,7 @@ i915_gem_pwrite_ioctl(struct drm_device *dev, void *data,
 	/* PWRITE is disallowed for all platforms after TGL-LP.  This also
 	 * covers all platforms with local memory.
 	 */
-	if (INTEL_GEN(i915) >= 12 && !IS_TIGERLAKE(i915))
+	if (GRAPHICS_VER(i915) >= 12 && !IS_TIGERLAKE(i915))
 		return -EOPNOTSUPP;
 
 	if (args->size == 0)
@@ -995,8 +999,11 @@ i915_gem_madvise_ioctl(struct drm_device *dev, void *data,
 		}
 	}
 
-	if (obj->mm.madv != __I915_MADV_PURGED)
+	if (obj->mm.madv != __I915_MADV_PURGED) {
 		obj->mm.madv = args->madv;
+		if (obj->ops->adjust_lru)
+			obj->ops->adjust_lru(obj);
+	}
 
 	if (i915_gem_object_has_pages(obj)) {
 		unsigned long flags;
@@ -1098,6 +1105,7 @@ err_unlock:
 	}
 
 	i915_gem_drain_freed_objects(dev_priv);
+
 	return ret;
 }
 
@@ -1189,58 +1197,6 @@ int i915_gem_open(struct drm_i915_private *i915, struct drm_file *file)
 	ret = i915_gem_context_open(i915, file);
 	if (ret)
 		kfree(file_priv);
-
-	return ret;
-}
-
-void i915_gem_ww_ctx_init(struct i915_gem_ww_ctx *ww, bool intr)
-{
-	ww_acquire_init(&ww->ctx, &reservation_ww_class);
-	INIT_LIST_HEAD(&ww->obj_list);
-	ww->intr = intr;
-	ww->contended = NULL;
-}
-
-static void i915_gem_ww_ctx_unlock_all(struct i915_gem_ww_ctx *ww)
-{
-	struct drm_i915_gem_object *obj;
-
-	while ((obj = list_first_entry_or_null(&ww->obj_list, struct drm_i915_gem_object, obj_link))) {
-		list_del(&obj->obj_link);
-		i915_gem_object_unlock(obj);
-	}
-}
-
-void i915_gem_ww_unlock_single(struct drm_i915_gem_object *obj)
-{
-	list_del(&obj->obj_link);
-	i915_gem_object_unlock(obj);
-}
-
-void i915_gem_ww_ctx_fini(struct i915_gem_ww_ctx *ww)
-{
-	i915_gem_ww_ctx_unlock_all(ww);
-	WARN_ON(ww->contended);
-	ww_acquire_fini(&ww->ctx);
-}
-
-int __must_check i915_gem_ww_ctx_backoff(struct i915_gem_ww_ctx *ww)
-{
-	int ret = 0;
-
-	if (WARN_ON(!ww->contended))
-		return -EINVAL;
-
-	i915_gem_ww_ctx_unlock_all(ww);
-	if (ww->intr)
-		ret = dma_resv_lock_slow_interruptible(ww->contended->base.resv, &ww->ctx);
-	else
-		dma_resv_lock_slow(ww->contended->base.resv, &ww->ctx);
-
-	if (!ret)
-		list_add_tail(&ww->contended->obj_link, &ww->obj_list);
-
-	ww->contended = NULL;
 
 	return ret;
 }

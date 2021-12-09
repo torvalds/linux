@@ -76,6 +76,9 @@ static int smc_chan_setup(struct scmi_chan_info *cinfo, struct device *dev,
 		return -ENOMEM;
 
 	np = of_parse_phandle(cdev->of_node, "shmem", 0);
+	if (!of_device_is_compatible(np, "arm,scmi-shmem"))
+		return -ENXIO;
+
 	ret = of_address_to_resource(np, 0, &res);
 	of_node_put(np);
 	if (ret) {
@@ -151,7 +154,8 @@ static int smc_send_message(struct scmi_chan_info *cinfo,
 	if (scmi_info->irq)
 		wait_for_completion(&scmi_info->tx_complete);
 
-	scmi_rx_callback(scmi_info->cinfo, shmem_read_header(scmi_info->shmem));
+	scmi_rx_callback(scmi_info->cinfo,
+			 shmem_read_header(scmi_info->shmem), NULL);
 
 	mutex_unlock(&scmi_info->shmem_lock);
 

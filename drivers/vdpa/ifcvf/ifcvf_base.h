@@ -19,32 +19,11 @@
 #include <uapi/linux/virtio_config.h>
 #include <uapi/linux/virtio_pci.h>
 
-#define N3000_VENDOR_ID		0x1AF4
 #define N3000_DEVICE_ID		0x1041
-#define N3000_SUBSYS_VENDOR_ID	0x8086
 #define N3000_SUBSYS_DEVICE_ID	0x001A
 
-#define C5000X_PL_VENDOR_ID		0x1AF4
-#define C5000X_PL_DEVICE_ID		0x1000
-#define C5000X_PL_SUBSYS_VENDOR_ID	0x8086
-#define C5000X_PL_SUBSYS_DEVICE_ID	0x0001
-
-#define C5000X_PL_BLK_VENDOR_ID		0x1AF4
-#define C5000X_PL_BLK_DEVICE_ID		0x1001
-#define C5000X_PL_BLK_SUBSYS_VENDOR_ID	0x8086
-#define C5000X_PL_BLK_SUBSYS_DEVICE_ID	0x0002
-
-#define IFCVF_NET_SUPPORTED_FEATURES \
-		((1ULL << VIRTIO_NET_F_MAC)			| \
-		 (1ULL << VIRTIO_F_ANY_LAYOUT)			| \
-		 (1ULL << VIRTIO_F_VERSION_1)			| \
-		 (1ULL << VIRTIO_NET_F_STATUS)			| \
-		 (1ULL << VIRTIO_F_ORDER_PLATFORM)		| \
-		 (1ULL << VIRTIO_F_ACCESS_PLATFORM)		| \
-		 (1ULL << VIRTIO_NET_F_MRG_RXBUF))
-
-/* Only one queue pair for now. */
-#define IFCVF_MAX_QUEUE_PAIRS	1
+/* Max 8 data queue pairs(16 queues) and one control vq for now. */
+#define IFCVF_MAX_QUEUES	17
 
 #define IFCVF_QUEUE_ALIGNMENT	PAGE_SIZE
 #define IFCVF_QUEUE_MAX		32768
@@ -63,8 +42,6 @@
 #define ifcvf_private_to_vf(adapter) \
 	(&((struct ifcvf_adapter *)adapter)->vf)
 
-#define IFCVF_MAX_INTR (IFCVF_MAX_QUEUE_PAIRS * 2 + 1)
-
 struct vring_info {
 	u64 desc;
 	u64 avail;
@@ -73,6 +50,7 @@ struct vring_info {
 	u16 last_avail_idx;
 	bool ready;
 	void __iomem *notify_addr;
+	phys_addr_t notify_pa;
 	u32 irq;
 	struct vdpa_callback cb;
 	char msix_name[256];
@@ -87,13 +65,14 @@ struct ifcvf_hw {
 	u8 notify_bar;
 	/* Notificaiton bar address */
 	void __iomem *notify_base;
+	phys_addr_t notify_base_pa;
 	u32 notify_off_multiplier;
 	u64 req_features;
 	u64 hw_features;
 	u32 dev_type;
 	struct virtio_pci_common_cfg __iomem *common_cfg;
 	void __iomem *net_cfg;
-	struct vring_info vring[IFCVF_MAX_QUEUE_PAIRS * 2];
+	struct vring_info vring[IFCVF_MAX_QUEUES];
 	void __iomem * const *base;
 	char config_msix_name[256];
 	struct vdpa_callback config_cb;
@@ -113,7 +92,13 @@ struct ifcvf_vring_lm_cfg {
 
 struct ifcvf_lm_cfg {
 	u8 reserved[IFCVF_LM_RING_STATE_OFFSET];
-	struct ifcvf_vring_lm_cfg vring_lm_cfg[IFCVF_MAX_QUEUE_PAIRS];
+	struct ifcvf_vring_lm_cfg vring_lm_cfg[IFCVF_MAX_QUEUES];
+};
+
+struct ifcvf_vdpa_mgmt_dev {
+	struct vdpa_mgmt_dev mdev;
+	struct ifcvf_adapter *adapter;
+	struct pci_dev *pdev;
 };
 
 int ifcvf_init_hw(struct ifcvf_hw *hw, struct pci_dev *dev);

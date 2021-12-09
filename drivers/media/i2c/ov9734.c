@@ -60,6 +60,12 @@
 #define OV9734_TEST_PATTERN_ENABLE	BIT(7)
 #define OV9734_TEST_PATTERN_BAR_SHIFT	2
 
+/* Group Access */
+#define OV9734_REG_GROUP_ACCESS		0x3208
+#define OV9734_GROUP_HOLD_START		0x0
+#define OV9734_GROUP_HOLD_END		0x10
+#define OV9734_GROUP_HOLD_LAUNCH	0xa0
+
 enum {
 	OV9734_LINK_FREQ_180MHZ_INDEX,
 };
@@ -433,6 +439,11 @@ static int ov9734_update_digital_gain(struct ov9734 *ov9734, u32 d_gain)
 {
 	int ret;
 
+	ret = ov9734_write_reg(ov9734, OV9734_REG_GROUP_ACCESS, 1,
+			       OV9734_GROUP_HOLD_START);
+	if (ret)
+		return ret;
+
 	ret = ov9734_write_reg(ov9734, OV9734_REG_MWB_R_GAIN, 2, d_gain);
 	if (ret)
 		return ret;
@@ -441,7 +452,18 @@ static int ov9734_update_digital_gain(struct ov9734 *ov9734, u32 d_gain)
 	if (ret)
 		return ret;
 
-	return ov9734_write_reg(ov9734, OV9734_REG_MWB_B_GAIN, 2, d_gain);
+	ret = ov9734_write_reg(ov9734, OV9734_REG_MWB_B_GAIN, 2, d_gain);
+	if (ret)
+		return ret;
+
+	ret = ov9734_write_reg(ov9734, OV9734_REG_GROUP_ACCESS, 1,
+			       OV9734_GROUP_HOLD_END);
+	if (ret)
+		return ret;
+
+	ret = ov9734_write_reg(ov9734, OV9734_REG_GROUP_ACCESS, 1,
+			       OV9734_GROUP_HOLD_LAUNCH);
+	return ret;
 }
 
 static int ov9734_test_pattern(struct ov9734 *ov9734, u32 pattern)
@@ -644,9 +666,8 @@ static int ov9734_set_stream(struct v4l2_subdev *sd, int enable)
 	}
 
 	if (enable) {
-		ret = pm_runtime_get_sync(&client->dev);
+		ret = pm_runtime_resume_and_get(&client->dev);
 		if (ret < 0) {
-			pm_runtime_put_noidle(&client->dev);
 			mutex_unlock(&ov9734->mutex);
 			return ret;
 		}
@@ -706,7 +727,7 @@ exit:
 }
 
 static int ov9734_set_format(struct v4l2_subdev *sd,
-			     struct v4l2_subdev_pad_config *cfg,
+			     struct v4l2_subdev_state *sd_state,
 			     struct v4l2_subdev_format *fmt)
 {
 	struct ov9734 *ov9734 = to_ov9734(sd);
@@ -721,7 +742,7 @@ static int ov9734_set_format(struct v4l2_subdev *sd,
 	mutex_lock(&ov9734->mutex);
 	ov9734_update_pad_format(mode, &fmt->format);
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
-		*v4l2_subdev_get_try_format(sd, cfg, fmt->pad) = fmt->format;
+		*v4l2_subdev_get_try_format(sd, sd_state, fmt->pad) = fmt->format;
 	} else {
 		ov9734->cur_mode = mode;
 		__v4l2_ctrl_s_ctrl(ov9734->link_freq, mode->link_freq_index);
@@ -747,14 +768,15 @@ static int ov9734_set_format(struct v4l2_subdev *sd,
 }
 
 static int ov9734_get_format(struct v4l2_subdev *sd,
-			     struct v4l2_subdev_pad_config *cfg,
+			     struct v4l2_subdev_state *sd_state,
 			     struct v4l2_subdev_format *fmt)
 {
 	struct ov9734 *ov9734 = to_ov9734(sd);
 
 	mutex_lock(&ov9734->mutex);
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY)
-		fmt->format = *v4l2_subdev_get_try_format(&ov9734->sd, cfg,
+		fmt->format = *v4l2_subdev_get_try_format(&ov9734->sd,
+							  sd_state,
 							  fmt->pad);
 	else
 		ov9734_update_pad_format(ov9734->cur_mode, &fmt->format);
@@ -765,7 +787,7 @@ static int ov9734_get_format(struct v4l2_subdev *sd,
 }
 
 static int ov9734_enum_mbus_code(struct v4l2_subdev *sd,
-				 struct v4l2_subdev_pad_config *cfg,
+				 struct v4l2_subdev_state *sd_state,
 				 struct v4l2_subdev_mbus_code_enum *code)
 {
 	if (code->index > 0)
@@ -777,7 +799,7 @@ static int ov9734_enum_mbus_code(struct v4l2_subdev *sd,
 }
 
 static int ov9734_enum_frame_size(struct v4l2_subdev *sd,
-				  struct v4l2_subdev_pad_config *cfg,
+				  struct v4l2_subdev_state *sd_state,
 				  struct v4l2_subdev_frame_size_enum *fse)
 {
 	if (fse->index >= ARRAY_SIZE(supported_modes))
@@ -800,7 +822,7 @@ static int ov9734_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 
 	mutex_lock(&ov9734->mutex);
 	ov9734_update_pad_format(&supported_modes[0],
-				 v4l2_subdev_get_try_format(sd, fh->pad, 0));
+				 v4l2_subdev_get_try_format(sd, fh->state, 0));
 	mutex_unlock(&ov9734->mutex);
 
 	return 0;

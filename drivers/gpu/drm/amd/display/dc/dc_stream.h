@@ -179,6 +179,9 @@ struct dc_stream_state {
 
 	bool use_vsc_sdp_for_colorimetry;
 	bool ignore_msa_timing_param;
+
+	bool freesync_on_desktop;
+
 	bool converter_disable_audio;
 	uint8_t qs_bit;
 	uint8_t qy_bit;
@@ -461,6 +464,10 @@ bool dc_stream_set_cursor_position(
 bool dc_stream_adjust_vmin_vmax(struct dc *dc,
 				struct dc_stream_state *stream,
 				struct dc_crtc_timing_adjust *adjust);
+
+bool dc_stream_get_last_used_drr_vtotal(struct dc *dc,
+		struct dc_stream_state *stream,
+		uint32_t *refresh_rate);
 
 bool dc_stream_get_crtc_position(struct dc *dc,
 				 struct dc_stream_state **stream,

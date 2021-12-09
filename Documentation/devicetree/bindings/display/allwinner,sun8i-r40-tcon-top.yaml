@@ -48,7 +48,6 @@ properties:
 
   clocks:
     minItems: 2
-    maxItems: 6
     items:
       - description: The TCON TOP interface clock
       - description: The TCON TOP TV0 clock
@@ -59,7 +58,6 @@ properties:
 
   clock-names:
     minItems: 2
-    maxItems: 6
     items:
       - const: bus
       - const: tcon-tv0

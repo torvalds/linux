@@ -21,8 +21,6 @@
 #define CR0_INTERRUPT_KEY_SUBMASK	BIT(63 - 57)
 #define CR0_MEASUREMENT_ALERT_SUBMASK	BIT(63 - 58)
 
-#define CR2_GUARDED_STORAGE		BIT(63 - 59)
-
 #define CR14_UNUSED_32			BIT(63 - 32)
 #define CR14_UNUSED_33			BIT(63 - 33)
 #define CR14_CHANNEL_REPORT_SUBMASK	BIT(63 - 35)
@@ -110,6 +108,23 @@ union ctlreg2 {
 		unsigned long	    : 1;
 		unsigned long tds   : 1;
 		unsigned long tdc   : 2;
+	};
+};
+
+union ctlreg5 {
+	unsigned long val;
+	struct {
+		unsigned long	    : 33;
+		unsigned long pasteo: 25;
+		unsigned long	    : 6;
+	};
+};
+
+union ctlreg15 {
+	unsigned long val;
+	struct {
+		unsigned long lsea  : 61;
+		unsigned long	    : 3;
 	};
 };
 

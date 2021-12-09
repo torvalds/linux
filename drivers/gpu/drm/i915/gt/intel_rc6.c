@@ -62,20 +62,25 @@ static void gen11_rc6_enable(struct intel_rc6 *rc6)
 	u32 pg_enable;
 	int i;
 
-	/* 2b: Program RC6 thresholds.*/
-	set(uncore, GEN6_RC6_WAKE_RATE_LIMIT, 54 << 16 | 85);
-	set(uncore, GEN10_MEDIA_WAKE_RATE_LIMIT, 150);
+	/*
+	 * With GuCRC, these parameters are set by GuC
+	 */
+	if (!intel_uc_uses_guc_rc(&gt->uc)) {
+		/* 2b: Program RC6 thresholds.*/
+		set(uncore, GEN6_RC6_WAKE_RATE_LIMIT, 54 << 16 | 85);
+		set(uncore, GEN10_MEDIA_WAKE_RATE_LIMIT, 150);
 
-	set(uncore, GEN6_RC_EVALUATION_INTERVAL, 125000); /* 12500 * 1280ns */
-	set(uncore, GEN6_RC_IDLE_HYSTERSIS, 25); /* 25 * 1280ns */
-	for_each_engine(engine, rc6_to_gt(rc6), id)
-		set(uncore, RING_MAX_IDLE(engine->mmio_base), 10);
+		set(uncore, GEN6_RC_EVALUATION_INTERVAL, 125000); /* 12500 * 1280ns */
+		set(uncore, GEN6_RC_IDLE_HYSTERSIS, 25); /* 25 * 1280ns */
+		for_each_engine(engine, rc6_to_gt(rc6), id)
+			set(uncore, RING_MAX_IDLE(engine->mmio_base), 10);
 
-	set(uncore, GUC_MAX_IDLE_COUNT, 0xA);
+		set(uncore, GUC_MAX_IDLE_COUNT, 0xA);
 
-	set(uncore, GEN6_RC_SLEEP, 0);
+		set(uncore, GEN6_RC_SLEEP, 0);
 
-	set(uncore, GEN6_RC6_THRESHOLD, 50000); /* 50/125ms per EI */
+		set(uncore, GEN6_RC6_THRESHOLD, 50000); /* 50/125ms per EI */
+	}
 
 	/*
 	 * 2c: Program Coarse Power Gating Policies.
@@ -98,18 +103,26 @@ static void gen11_rc6_enable(struct intel_rc6 *rc6)
 	set(uncore, GEN9_MEDIA_PG_IDLE_HYSTERESIS, 60);
 	set(uncore, GEN9_RENDER_PG_IDLE_HYSTERESIS, 60);
 
-	/* 3a: Enable RC6 */
-	rc6->ctl_enable =
-		GEN6_RC_CTL_HW_ENABLE |
-		GEN6_RC_CTL_RC6_ENABLE |
-		GEN6_RC_CTL_EI_MODE(1);
+	/* 3a: Enable RC6
+	 *
+	 * With GuCRC, we do not enable bit 31 of RC_CTL,
+	 * thus allowing GuC to control RC6 entry/exit fully instead.
+	 * We will not set the HW ENABLE and EI bits
+	 */
+	if (!intel_guc_rc_enable(&gt->uc.guc))
+		rc6->ctl_enable = GEN6_RC_CTL_RC6_ENABLE;
+	else
+		rc6->ctl_enable =
+			GEN6_RC_CTL_HW_ENABLE |
+			GEN6_RC_CTL_RC6_ENABLE |
+			GEN6_RC_CTL_EI_MODE(1);
 
 	pg_enable =
 		GEN9_RENDER_PG_ENABLE |
 		GEN9_MEDIA_PG_ENABLE |
 		GEN11_MEDIA_SAMPLER_PG_ENABLE;
 
-	if (INTEL_GEN(gt->i915) >= 12) {
+	if (GRAPHICS_VER(gt->i915) >= 12) {
 		for (i = 0; i < I915_MAX_VCS; i++)
 			if (HAS_ENGINE(gt, _VCS(i)))
 				pg_enable |= (VDN_HCP_POWERGATE_ENABLE(i) |
@@ -126,7 +139,7 @@ static void gen9_rc6_enable(struct intel_rc6 *rc6)
 	enum intel_engine_id id;
 
 	/* 2b: Program RC6 thresholds.*/
-	if (INTEL_GEN(rc6_to_i915(rc6)) >= 10) {
+	if (GRAPHICS_VER(rc6_to_i915(rc6)) >= 11) {
 		set(uncore, GEN6_RC6_WAKE_RATE_LIMIT, 54 << 16 | 85);
 		set(uncore, GEN10_MEDIA_WAKE_RATE_LIMIT, 150);
 	} else if (IS_SKYLAKE(rc6_to_i915(rc6))) {
@@ -249,9 +262,9 @@ static void gen6_rc6_enable(struct intel_rc6 *rc6)
 	rc6vids = 0;
 	ret = sandybridge_pcode_read(i915, GEN6_PCODE_READ_RC6VIDS,
 				     &rc6vids, NULL);
-	if (IS_GEN(i915, 6) && ret) {
+	if (GRAPHICS_VER(i915) == 6 && ret) {
 		drm_dbg(&i915->drm, "Couldn't check for BIOS workaround\n");
-	} else if (IS_GEN(i915, 6) &&
+	} else if (GRAPHICS_VER(i915) == 6 &&
 		   (GEN6_DECODE_RC6_VID(rc6vids & 0xff) < 450)) {
 		drm_dbg(&i915->drm,
 			"You should update your BIOS. Correcting minimum rc6 voltage (%dmV->%dmV)\n",
@@ -513,9 +526,13 @@ static void __intel_rc6_disable(struct intel_rc6 *rc6)
 {
 	struct drm_i915_private *i915 = rc6_to_i915(rc6);
 	struct intel_uncore *uncore = rc6_to_uncore(rc6);
+	struct intel_gt *gt = rc6_to_gt(rc6);
+
+	/* Take control of RC6 back from GuC */
+	intel_guc_rc_disable(&gt->uc.guc);
 
 	intel_uncore_forcewake_get(uncore, FORCEWAKE_ALL);
-	if (INTEL_GEN(i915) >= 9)
+	if (GRAPHICS_VER(i915) >= 9)
 		set(uncore, GEN9_PG_ENABLE, 0);
 	set(uncore, GEN6_RC_CONTROL, 0);
 	set(uncore, GEN6_RC_STATE, 0);
@@ -575,13 +592,13 @@ void intel_rc6_enable(struct intel_rc6 *rc6)
 		chv_rc6_enable(rc6);
 	else if (IS_VALLEYVIEW(i915))
 		vlv_rc6_enable(rc6);
-	else if (INTEL_GEN(i915) >= 11)
+	else if (GRAPHICS_VER(i915) >= 11)
 		gen11_rc6_enable(rc6);
-	else if (INTEL_GEN(i915) >= 9)
+	else if (GRAPHICS_VER(i915) >= 9)
 		gen9_rc6_enable(rc6);
 	else if (IS_BROADWELL(i915))
 		gen8_rc6_enable(rc6);
-	else if (INTEL_GEN(i915) >= 6)
+	else if (GRAPHICS_VER(i915) >= 6)
 		gen6_rc6_enable(rc6);
 
 	rc6->manual = rc6->ctl_enable & GEN6_RC_CTL_RC6_ENABLE;

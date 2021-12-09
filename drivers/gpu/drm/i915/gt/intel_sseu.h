@@ -15,12 +15,16 @@ struct drm_i915_private;
 struct intel_gt;
 struct drm_printer;
 
-#define GEN_MAX_SLICES		(6) /* CNL upper bound */
-#define GEN_MAX_SUBSLICES	(8) /* ICL upper bound */
+#define GEN_MAX_SLICES		(3) /* SKL upper bound */
+#define GEN_MAX_SUBSLICES	(32) /* XEHPSDV upper bound */
 #define GEN_SSEU_STRIDE(max_entries) DIV_ROUND_UP(max_entries, BITS_PER_BYTE)
 #define GEN_MAX_SUBSLICE_STRIDE GEN_SSEU_STRIDE(GEN_MAX_SUBSLICES)
 #define GEN_MAX_EUS		(16) /* TGL upper bound */
 #define GEN_MAX_EU_STRIDE GEN_SSEU_STRIDE(GEN_MAX_EUS)
+
+#define GEN_DSS_PER_GSLICE	4
+#define GEN_DSS_PER_CSLICE	8
+#define GEN_DSS_PER_MSLICE	8
 
 struct sseu_dev_info {
 	u8 slice_mask;
@@ -103,5 +107,7 @@ u32 intel_sseu_make_rpcs(struct intel_gt *gt,
 void intel_sseu_dump(const struct sseu_dev_info *sseu, struct drm_printer *p);
 void intel_sseu_print_topology(const struct sseu_dev_info *sseu,
 			       struct drm_printer *p);
+
+u16 intel_slicemask_from_dssmask(u64 dss_mask, int dss_per_slice);
 
 #endif /* __INTEL_SSEU_H__ */

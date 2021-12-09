@@ -750,7 +750,7 @@ static int rkisp1_vb2_queue_setup(struct vb2_queue *queue,
 	return 0;
 }
 
-static void rkisp1_vb2_buf_queue(struct vb2_buffer *vb)
+static int rkisp1_vb2_buf_init(struct vb2_buffer *vb)
 {
 	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
 	struct rkisp1_buffer *ispbuf =
@@ -780,6 +780,15 @@ static void rkisp1_vb2_buf_queue(struct vb2_buffer *vb)
 	if (cap->pix.info->comp_planes == 3 && cap->pix.cfg->uv_swap)
 		swap(ispbuf->buff_addr[RKISP1_PLANE_CR],
 		     ispbuf->buff_addr[RKISP1_PLANE_CB]);
+	return 0;
+}
+
+static void rkisp1_vb2_buf_queue(struct vb2_buffer *vb)
+{
+	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
+	struct rkisp1_buffer *ispbuf =
+		container_of(vbuf, struct rkisp1_buffer, vb);
+	struct rkisp1_capture *cap = vb->vb2_queue->drv_priv;
 
 	spin_lock_irq(&cap->buf.lock);
 	list_add_tail(&ispbuf->queue, &cap->buf.queue);
@@ -830,8 +839,8 @@ static void rkisp1_return_all_buffers(struct rkisp1_capture *cap,
 }
 
 /*
- * Most of registers inside rockchip ISP1 have shadow register since
- * they must be not be changed during processing a frame.
+ * Most registers inside the rockchip ISP1 have shadow register since
+ * they must not be changed while processing a frame.
  * Usually, each sub-module updates its shadow register after
  * processing the last pixel of a frame.
  */
@@ -847,14 +856,14 @@ static void rkisp1_cap_stream_enable(struct rkisp1_capture *cap)
 	spin_lock_irq(&cap->buf.lock);
 	rkisp1_set_next_buf(cap);
 	cap->ops->enable(cap);
-	/* It's safe to config ACTIVE and SHADOW regs for the
+	/* It's safe to configure ACTIVE and SHADOW registers for the
 	 * first stream. While when the second is starting, do NOT
-	 * force update because it also update the first one.
+	 * force update because it also updates the first one.
 	 *
-	 * The latter case would drop one more buf(that is 2) since
-	 * there's not buf in shadow when the second FE received. This's
-	 * also required because the second FE maybe corrupt especially
-	 * when run at 120fps.
+	 * The latter case would drop one more buffer(that is 2) since
+	 * there's no buffer in a shadow register when the second FE received.
+	 * This's also required because the second FE maybe corrupt
+	 * especially when run at 120fps.
 	 */
 	if (!other->is_streaming) {
 		/* force cfg update */
@@ -1003,9 +1012,8 @@ rkisp1_vb2_start_streaming(struct vb2_queue *queue, unsigned int count)
 	if (ret)
 		goto err_pipeline_stop;
 
-	ret = pm_runtime_get_sync(cap->rkisp1->dev);
+	ret = pm_runtime_resume_and_get(cap->rkisp1->dev);
 	if (ret < 0) {
-		pm_runtime_put_noidle(cap->rkisp1->dev);
 		dev_err(cap->rkisp1->dev, "power up failed %d\n", ret);
 		goto err_destroy_dummy;
 	}
@@ -1040,6 +1048,7 @@ err_ret_buffers:
 
 static const struct vb2_ops rkisp1_vb2_ops = {
 	.queue_setup = rkisp1_vb2_queue_setup,
+	.buf_init = rkisp1_vb2_buf_init,
 	.buf_queue = rkisp1_vb2_buf_queue,
 	.buf_prepare = rkisp1_vb2_buf_prepare,
 	.wait_prepare = vb2_ops_wait_prepare,

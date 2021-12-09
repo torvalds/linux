@@ -198,7 +198,7 @@ static irqreturn_t st_nci_irq_thread_fn(int irq, void *phy_id)
 	return IRQ_HANDLED;
 }
 
-static struct nfc_phy_ops spi_phy_ops = {
+static const struct nfc_phy_ops spi_phy_ops = {
 	.write = st_nci_spi_write,
 	.enable = st_nci_spi_enable,
 	.disable = st_nci_spi_disable,
@@ -215,9 +215,6 @@ static int st_nci_spi_probe(struct spi_device *dev)
 {
 	struct st_nci_spi_phy *phy;
 	int r;
-
-	dev_dbg(&dev->dev, "%s\n", __func__);
-	dev_dbg(&dev->dev, "IRQ: %d\n", dev->irq);
 
 	/* Check SPI platform functionnalities */
 	if (!dev) {
@@ -274,8 +271,6 @@ static int st_nci_spi_remove(struct spi_device *dev)
 {
 	struct st_nci_spi_phy *phy = spi_get_drvdata(dev);
 
-	dev_dbg(&dev->dev, "%s\n", __func__);
-
 	ndlc_remove(phy->ndlc);
 
 	return 0;
@@ -283,17 +278,18 @@ static int st_nci_spi_remove(struct spi_device *dev)
 
 static struct spi_device_id st_nci_spi_id_table[] = {
 	{ST_NCI_SPI_DRIVER_NAME, 0},
+	{"st21nfcb-spi", 0},
 	{}
 };
 MODULE_DEVICE_TABLE(spi, st_nci_spi_id_table);
 
-static const struct acpi_device_id st_nci_spi_acpi_match[] = {
+static const struct acpi_device_id st_nci_spi_acpi_match[] __maybe_unused = {
 	{"SMO2101", 0},
 	{}
 };
 MODULE_DEVICE_TABLE(acpi, st_nci_spi_acpi_match);
 
-static const struct of_device_id of_st_nci_spi_match[] = {
+static const struct of_device_id of_st_nci_spi_match[] __maybe_unused = {
 	{ .compatible = "st,st21nfcb-spi", },
 	{}
 };

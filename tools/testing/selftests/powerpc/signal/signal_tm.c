@@ -56,6 +56,7 @@ static int test_signal_tm()
 	}
 
 	SKIP_IF(!have_htm());
+	SKIP_IF(htm_is_synthetic());
 
 	for (i = 0; i < MAX_ATTEMPT; i++) {
 		/*

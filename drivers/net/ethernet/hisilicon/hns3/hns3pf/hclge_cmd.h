@@ -9,6 +9,7 @@
 #include "hnae3.h"
 
 #define HCLGE_CMDQ_TX_TIMEOUT		30000
+#define HCLGE_CMDQ_CLEAR_WAIT_TIME	200
 #define HCLGE_DESC_DATA_LEN		6
 
 struct hclge_dev;
@@ -130,6 +131,10 @@ enum hclge_opcode_type {
 	HCLGE_OPC_COMMON_LOOPBACK       = 0x0315,
 	HCLGE_OPC_CONFIG_FEC_MODE	= 0x031A,
 
+	/* PTP commands */
+	HCLGE_OPC_PTP_INT_EN		= 0x0501,
+	HCLGE_OPC_PTP_MODE_CFG		= 0x0507,
+
 	/* PFC/Pause commands */
 	HCLGE_OPC_CFG_MAC_PAUSE_EN      = 0x0701,
 	HCLGE_OPC_CFG_PFC_PAUSE_EN      = 0x0702,
@@ -236,6 +241,7 @@ enum hclge_opcode_type {
 	HCLGE_OPC_VLAN_FILTER_CTRL	    = 0x1100,
 	HCLGE_OPC_VLAN_FILTER_PF_CFG	= 0x1101,
 	HCLGE_OPC_VLAN_FILTER_VF_CFG	= 0x1102,
+	HCLGE_OPC_PORT_VLAN_BYPASS	= 0x1103,
 
 	/* Flow Director commands */
 	HCLGE_OPC_FD_MODE_CTRL		= 0x1200,
@@ -243,6 +249,7 @@ enum hclge_opcode_type {
 	HCLGE_OPC_FD_KEY_CONFIG		= 0x1202,
 	HCLGE_OPC_FD_TCAM_OP		= 0x1203,
 	HCLGE_OPC_FD_AD_OP		= 0x1204,
+	HCLGE_OPC_FD_CNT_OP		= 0x1205,
 	HCLGE_OPC_FD_USER_DEF_OP	= 0x1207,
 
 	/* MDIO command */
@@ -264,13 +271,16 @@ enum hclge_opcode_type {
 	/* Led command */
 	HCLGE_OPC_LED_STATUS_CFG	= 0xB000,
 
+	/* clear hardware resource command */
+	HCLGE_OPC_CLEAR_HW_RESOURCE	= 0x700B,
+
 	/* NCL config command */
 	HCLGE_OPC_QUERY_NCL_CONFIG	= 0x7011,
 
-	/* M7 stats command */
-	HCLGE_OPC_M7_STATS_BD		= 0x7012,
-	HCLGE_OPC_M7_STATS_INFO		= 0x7013,
-	HCLGE_OPC_M7_COMPAT_CFG		= 0x701A,
+	/* IMP stats command */
+	HCLGE_OPC_IMP_STATS_BD		= 0x7012,
+	HCLGE_OPC_IMP_STATS_INFO		= 0x7013,
+	HCLGE_OPC_IMP_COMPAT_CFG		= 0x701A,
 
 	/* SFP command */
 	HCLGE_OPC_GET_SFP_EEPROM	= 0x7100,
@@ -292,6 +302,8 @@ enum hclge_opcode_type {
 	HCLGE_QUERY_MSIX_INT_STS_BD_NUM	= 0x1513,
 	HCLGE_QUERY_CLEAR_ALL_MPF_MSIX_INT	= 0x1514,
 	HCLGE_QUERY_CLEAR_ALL_PF_MSIX_INT	= 0x1515,
+	HCLGE_QUERY_ALL_ERR_BD_NUM		= 0x1516,
+	HCLGE_QUERY_ALL_ERR_INFO		= 0x1517,
 	HCLGE_CONFIG_ROCEE_RAS_INT_EN	= 0x1580,
 	HCLGE_QUERY_CLEAR_ROCEE_RAS_INT = 0x1581,
 	HCLGE_ROCEE_PF_RAS_INT_CMD	= 0x1584,
@@ -308,6 +320,9 @@ enum hclge_opcode_type {
 	/* PHY command */
 	HCLGE_OPC_PHY_LINK_KSETTING	= 0x7025,
 	HCLGE_OPC_PHY_REG		= 0x7026,
+
+	/* Query link diagnosis info command */
+	HCLGE_OPC_QUERY_LINK_DIAGNOSIS	= 0x702A,
 };
 
 #define HCLGE_TQP_REG_OFFSET		0x80000
@@ -389,8 +404,11 @@ enum HCLGE_CAP_BITS {
 	HCLGE_CAP_HW_PAD_B,
 	HCLGE_CAP_STASH_B,
 	HCLGE_CAP_UDP_TUNNEL_CSUM_B,
+	HCLGE_CAP_RAS_IMP_B = 12,
 	HCLGE_CAP_FEC_B = 13,
 	HCLGE_CAP_PAUSE_B = 14,
+	HCLGE_CAP_RXD_ADV_LAYOUT_B = 15,
+	HCLGE_CAP_PORT_VLAN_BYPASS_B = 17,
 };
 
 enum HCLGE_API_CAP_BITS {
@@ -435,7 +453,7 @@ struct hclge_tc_thrd {
 };
 
 struct hclge_priv_buf {
-	struct hclge_waterline wl;	/* Waterline for low and high*/
+	struct hclge_waterline wl;	/* Waterline for low and high */
 	u32 buf_size;	/* TC private buffer size */
 	u32 tx_buf_size;
 	u32 enable;	/* Enable TC private buffer or not */
@@ -526,10 +544,14 @@ struct hclge_pf_res_cmd {
 #define HCLGE_CFG_SPEED_ABILITY_M	GENMASK(7, 0)
 #define HCLGE_CFG_SPEED_ABILITY_EXT_S	10
 #define HCLGE_CFG_SPEED_ABILITY_EXT_M	GENMASK(15, 10)
+#define HCLGE_CFG_VLAN_FLTR_CAP_S	8
+#define HCLGE_CFG_VLAN_FLTR_CAP_M	GENMASK(9, 8)
 #define HCLGE_CFG_UMV_TBL_SPACE_S	16
 #define HCLGE_CFG_UMV_TBL_SPACE_M	GENMASK(31, 16)
 #define HCLGE_CFG_PF_RSS_SIZE_S		0
 #define HCLGE_CFG_PF_RSS_SIZE_M		GENMASK(3, 0)
+#define HCLGE_CFG_TX_SPARE_BUF_SIZE_S	4
+#define HCLGE_CFG_TX_SPARE_BUF_SIZE_M	GENMASK(15, 4)
 
 #define HCLGE_CFG_CMD_CNT		4
 
@@ -810,6 +832,14 @@ struct hclge_vlan_filter_vf_cfg_cmd {
 	u8  vf_bitmap[HCLGE_MAX_VF_BYTES];
 };
 
+#define HCLGE_INGRESS_BYPASS_B		0
+struct hclge_port_vlan_filter_bypass_cmd {
+	u8 bypass_state;
+	u8 rsv1[3];
+	u8 vf_id;
+	u8 rsv2[19];
+};
+
 #define HCLGE_SWITCH_ANTI_SPOOF_B	0U
 #define HCLGE_SWITCH_ALW_LPBK_B		1U
 #define HCLGE_SWITCH_ALW_LCL_LPBK_B	2U
@@ -987,16 +1017,6 @@ struct hclge_common_lb_cmd {
 
 #define HCLGE_TYPE_CRQ			0
 #define HCLGE_TYPE_CSQ			1
-#define HCLGE_NIC_CSQ_BASEADDR_L_REG	0x27000
-#define HCLGE_NIC_CSQ_BASEADDR_H_REG	0x27004
-#define HCLGE_NIC_CSQ_DEPTH_REG		0x27008
-#define HCLGE_NIC_CSQ_TAIL_REG		0x27010
-#define HCLGE_NIC_CSQ_HEAD_REG		0x27014
-#define HCLGE_NIC_CRQ_BASEADDR_L_REG	0x27018
-#define HCLGE_NIC_CRQ_BASEADDR_H_REG	0x2701c
-#define HCLGE_NIC_CRQ_DEPTH_REG		0x27020
-#define HCLGE_NIC_CRQ_TAIL_REG		0x27024
-#define HCLGE_NIC_CRQ_HEAD_REG		0x27028
 
 /* this bit indicates that the driver is ready for hardware reset */
 #define HCLGE_NIC_SW_RST_RDY_B		16
@@ -1087,6 +1107,14 @@ struct hclge_fd_ad_config_cmd {
 	u8 rsv2[8];
 };
 
+struct hclge_fd_ad_cnt_read_cmd {
+	u8 rsv0[4];
+	__le16 index;
+	u8 rsv1[2];
+	__le64 cnt;
+	u8 rsv2[8];
+};
+
 #define HCLGE_FD_USER_DEF_OFT_S		0
 #define HCLGE_FD_USER_DEF_OFT_M		GENMASK(14, 0)
 #define HCLGE_FD_USER_DEF_EN_B		15
@@ -1100,7 +1128,7 @@ struct hclge_fd_user_def_cfg_cmd {
 	u8 rsv[12];
 };
 
-struct hclge_get_m7_bd_cmd {
+struct hclge_get_imp_bd_cmd {
 	__le32 bd_num;
 	u8 rsv[20];
 };
@@ -1163,6 +1191,19 @@ struct hclge_dev_specs_1_cmd {
 	u8 rsv1[18];
 };
 
+/* mac speed type defined in firmware command */
+enum HCLGE_FIRMWARE_MAC_SPEED {
+	HCLGE_FW_MAC_SPEED_1G,
+	HCLGE_FW_MAC_SPEED_10G,
+	HCLGE_FW_MAC_SPEED_25G,
+	HCLGE_FW_MAC_SPEED_40G,
+	HCLGE_FW_MAC_SPEED_50G,
+	HCLGE_FW_MAC_SPEED_100G,
+	HCLGE_FW_MAC_SPEED_10M,
+	HCLGE_FW_MAC_SPEED_100M,
+	HCLGE_FW_MAC_SPEED_200G,
+};
+
 #define HCLGE_PHY_LINK_SETTING_BD_NUM		2
 
 struct hclge_phy_link_ksetting_0_cmd {
@@ -1191,6 +1232,12 @@ struct hclge_phy_reg_cmd {
 	u8 rsv0[2];
 	__le16 reg_val;
 	u8 rsv1[18];
+};
+
+/* capabilities bits map between imp firmware and local driver */
+struct hclge_caps_bit_map {
+	u16 imp_bit;
+	u16 local_bit;
 };
 
 int hclge_cmd_init(struct hclge_dev *hdev);

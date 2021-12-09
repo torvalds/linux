@@ -7,7 +7,7 @@
  * Handles communication via requests as well as enabling, disabling, and
  * relaying of events.
  *
- * Copyright (C) 2019-2020 Maximilian Luz <luzmaximilian@gmail.com>
+ * Copyright (C) 2019-2021 Maximilian Luz <luzmaximilian@gmail.com>
  */
 
 #include <linux/acpi.h>
@@ -301,19 +301,12 @@ static acpi_status ssam_serdev_setup_via_acpi_crs(struct acpi_resource *rsc,
 						  void *ctx)
 {
 	struct serdev_device *serdev = ctx;
-	struct acpi_resource_common_serialbus *serial;
 	struct acpi_resource_uart_serialbus *uart;
 	bool flow_control;
 	int status = 0;
 
-	if (rsc->type != ACPI_RESOURCE_TYPE_SERIAL_BUS)
+	if (!serdev_acpi_get_uart_resource(rsc, &uart))
 		return AE_OK;
-
-	serial = &rsc->data.common_serial_bus;
-	if (serial->type != ACPI_RESOURCE_SERIAL_TYPE_UART)
-		return AE_OK;
-
-	uart = &rsc->data.uart_serial_bus;
 
 	/* Set up serdev device. */
 	serdev_device_set_baudrate(serdev, uart->default_baud_rate);
@@ -621,8 +614,8 @@ static const struct acpi_gpio_mapping ssam_acpi_gpios[] = {
 
 static int ssam_serial_hub_probe(struct serdev_device *serdev)
 {
+	struct acpi_device *ssh = ACPI_COMPANION(&serdev->dev);
 	struct ssam_controller *ctrl;
-	acpi_handle *ssh = ACPI_HANDLE(&serdev->dev);
 	acpi_status astatus;
 	int status;
 
@@ -652,7 +645,7 @@ static int ssam_serial_hub_probe(struct serdev_device *serdev)
 	if (status)
 		goto err_devopen;
 
-	astatus = ssam_serdev_setup_via_acpi(ssh, serdev);
+	astatus = ssam_serdev_setup_via_acpi(ssh->handle, serdev);
 	if (ACPI_FAILURE(astatus)) {
 		status = -ENXIO;
 		goto err_devinit;
@@ -706,7 +699,7 @@ static int ssam_serial_hub_probe(struct serdev_device *serdev)
 	 *       For now let's thus default power/wakeup to false.
 	 */
 	device_set_wakeup_capable(&serdev->dev, true);
-	acpi_walk_dep_device_list(ssh);
+	acpi_dev_clear_dependencies(ssh);
 
 	return 0;
 

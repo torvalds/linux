@@ -221,7 +221,7 @@ static struct tcp_congestion_ops tcp_yeah __read_mostly = {
 
 static int __init tcp_yeah_register(void)
 {
-	BUG_ON(sizeof(struct yeah) > ICSK_CA_PRIV_SIZE);
+	BUILD_BUG_ON(sizeof(struct yeah) > ICSK_CA_PRIV_SIZE);
 	tcp_register_congestion_control(&tcp_yeah);
 	return 0;
 }

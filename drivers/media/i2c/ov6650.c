@@ -467,7 +467,7 @@ static int ov6650_s_power(struct v4l2_subdev *sd, int on)
 }
 
 static int ov6650_get_selection(struct v4l2_subdev *sd,
-		struct v4l2_subdev_pad_config *cfg,
+		struct v4l2_subdev_state *sd_state,
 		struct v4l2_subdev_selection *sel)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
@@ -492,7 +492,7 @@ static int ov6650_get_selection(struct v4l2_subdev *sd,
 }
 
 static int ov6650_set_selection(struct v4l2_subdev *sd,
-		struct v4l2_subdev_pad_config *cfg,
+		struct v4l2_subdev_state *sd_state,
 		struct v4l2_subdev_selection *sel)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
@@ -535,7 +535,7 @@ static int ov6650_set_selection(struct v4l2_subdev *sd,
 }
 
 static int ov6650_get_fmt(struct v4l2_subdev *sd,
-		struct v4l2_subdev_pad_config *cfg,
+		struct v4l2_subdev_state *sd_state,
 		struct v4l2_subdev_format *format)
 {
 	struct v4l2_mbus_framefmt *mf = &format->format;
@@ -550,9 +550,9 @@ static int ov6650_get_fmt(struct v4l2_subdev *sd,
 
 	/* update media bus format code and frame size */
 	if (format->which == V4L2_SUBDEV_FORMAT_TRY) {
-		mf->width = cfg->try_fmt.width;
-		mf->height = cfg->try_fmt.height;
-		mf->code = cfg->try_fmt.code;
+		mf->width = sd_state->pads->try_fmt.width;
+		mf->height = sd_state->pads->try_fmt.height;
+		mf->code = sd_state->pads->try_fmt.code;
 
 	} else {
 		mf->width = priv->rect.width >> priv->half_scale;
@@ -668,7 +668,7 @@ static int ov6650_s_fmt(struct v4l2_subdev *sd, struct v4l2_mbus_framefmt *mf)
 }
 
 static int ov6650_set_fmt(struct v4l2_subdev *sd,
-		struct v4l2_subdev_pad_config *cfg,
+		struct v4l2_subdev_state *sd_state,
 		struct v4l2_subdev_format *format)
 {
 	struct v4l2_mbus_framefmt *mf = &format->format;
@@ -701,15 +701,15 @@ static int ov6650_set_fmt(struct v4l2_subdev *sd,
 
 	if (format->which == V4L2_SUBDEV_FORMAT_TRY) {
 		/* store media bus format code and frame size in pad config */
-		cfg->try_fmt.width = mf->width;
-		cfg->try_fmt.height = mf->height;
-		cfg->try_fmt.code = mf->code;
+		sd_state->pads->try_fmt.width = mf->width;
+		sd_state->pads->try_fmt.height = mf->height;
+		sd_state->pads->try_fmt.code = mf->code;
 
 		/* return default mbus frame format updated with pad config */
 		*mf = ov6650_def_fmt;
-		mf->width = cfg->try_fmt.width;
-		mf->height = cfg->try_fmt.height;
-		mf->code = cfg->try_fmt.code;
+		mf->width = sd_state->pads->try_fmt.width;
+		mf->height = sd_state->pads->try_fmt.height;
+		mf->code = sd_state->pads->try_fmt.code;
 
 	} else {
 		/* apply new media bus format code and frame size */
@@ -728,7 +728,7 @@ static int ov6650_set_fmt(struct v4l2_subdev *sd,
 }
 
 static int ov6650_enum_mbus_code(struct v4l2_subdev *sd,
-		struct v4l2_subdev_pad_config *cfg,
+		struct v4l2_subdev_state *sd_state,
 		struct v4l2_subdev_mbus_code_enum *code)
 {
 	if (code->pad || code->index >= ARRAY_SIZE(ov6650_codes))

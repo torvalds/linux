@@ -114,6 +114,7 @@ static void vmw_resource_release(struct kref *kref)
 	    container_of(kref, struct vmw_resource, kref);
 	struct vmw_private *dev_priv = res->dev_priv;
 	int id;
+	int ret;
 	struct idr *idr = &dev_priv->res_idr[res->func->res_type];
 
 	spin_lock(&dev_priv->resource_lock);
@@ -122,7 +123,8 @@ static void vmw_resource_release(struct kref *kref)
 	if (res->backup) {
 		struct ttm_buffer_object *bo = &res->backup->base;
 
-		ttm_bo_reserve(bo, false, false, NULL);
+		ret = ttm_bo_reserve(bo, false, false, NULL);
+		BUG_ON(ret);
 		if (vmw_resource_mob_attached(res) &&
 		    res->func->unbind != NULL) {
 			struct ttm_validate_buffer val_buf;
@@ -280,7 +282,7 @@ out_bad_resource:
 }
 
 /**
- * vmw_user_resource_lookup_handle - lookup a struct resource from a
+ * vmw_user_resource_noref_lookup_handle - lookup a struct resource from a
  * TTM user-space handle and perform basic type checks
  *
  * @dev_priv:     Pointer to a device private struct
@@ -351,8 +353,7 @@ int vmw_user_lookup_handle(struct vmw_private *dev_priv,
 static int vmw_resource_buf_alloc(struct vmw_resource *res,
 				  bool interruptible)
 {
-	unsigned long size =
-		(res->backup_size + PAGE_SIZE - 1) & PAGE_MASK;
+	unsigned long size = PFN_ALIGN(res->backup_size);
 	struct vmw_buffer_object *backup;
 	int ret;
 
@@ -990,7 +991,6 @@ int vmw_resource_pin(struct vmw_resource *res, bool interruptible)
 	struct vmw_private *dev_priv = res->dev_priv;
 	int ret;
 
-	ttm_write_lock(&dev_priv->reservation_sem, interruptible);
 	mutex_lock(&dev_priv->cmdbuf_mutex);
 	ret = vmw_resource_reserve(res, interruptible, false);
 	if (ret)
@@ -1002,7 +1002,9 @@ int vmw_resource_pin(struct vmw_resource *res, bool interruptible)
 		if (res->backup) {
 			vbo = res->backup;
 
-			ttm_bo_reserve(&vbo->base, interruptible, false, NULL);
+			ret = ttm_bo_reserve(&vbo->base, interruptible, false, NULL);
+			if (ret)
+				goto out_no_validate;
 			if (!vbo->base.pin_count) {
 				ret = ttm_bo_validate
 					(&vbo->base,
@@ -1029,7 +1031,6 @@ out_no_validate:
 	vmw_resource_unreserve(res, false, false, false, NULL, 0UL);
 out_no_reserve:
 	mutex_unlock(&dev_priv->cmdbuf_mutex);
-	ttm_write_unlock(&dev_priv->reservation_sem);
 
 	return ret;
 }
@@ -1047,7 +1048,6 @@ void vmw_resource_unpin(struct vmw_resource *res)
 	struct vmw_private *dev_priv = res->dev_priv;
 	int ret;
 
-	(void) ttm_read_lock(&dev_priv->reservation_sem, false);
 	mutex_lock(&dev_priv->cmdbuf_mutex);
 
 	ret = vmw_resource_reserve(res, false, true);
@@ -1065,7 +1065,6 @@ void vmw_resource_unpin(struct vmw_resource *res)
 	vmw_resource_unreserve(res, false, false, false, NULL, 0UL);
 
 	mutex_unlock(&dev_priv->cmdbuf_mutex);
-	ttm_read_unlock(&dev_priv->reservation_sem);
 }
 
 /**
@@ -1079,7 +1078,7 @@ enum vmw_res_type vmw_res_type(const struct vmw_resource *res)
 }
 
 /**
- * vmw_resource_update_dirty - Update a resource's dirty tracker with a
+ * vmw_resource_dirty_update - Update a resource's dirty tracker with a
  * sequential range of touched backing store memory.
  * @res: The resource.
  * @start: The first page touched.
@@ -1170,7 +1169,7 @@ int vmw_resources_clean(struct vmw_buffer_object *vbo, pgoff_t start,
 		if (bo->moving)
 			dma_fence_put(bo->moving);
 		bo->moving = dma_fence_get
-			(dma_resv_get_excl(bo->base.resv));
+			(dma_resv_excl_fence(bo->base.resv));
 	}
 
 	return 0;

@@ -78,14 +78,12 @@ static int ulpi_probe(struct device *dev)
 	return drv->probe(to_ulpi_dev(dev));
 }
 
-static int ulpi_remove(struct device *dev)
+static void ulpi_remove(struct device *dev)
 {
 	struct ulpi_driver *drv = to_ulpi_driver(dev->driver);
 
 	if (drv->remove)
 		drv->remove(to_ulpi_dev(dev));
-
-	return 0;
 }
 
 static struct bus_type ulpi_bus = {
@@ -141,7 +139,7 @@ static const struct device_type ulpi_dev_type = {
 /* -------------------------------------------------------------------------- */
 
 /**
- * ulpi_register_driver - register a driver with the ULPI bus
+ * __ulpi_register_driver - register a driver with the ULPI bus
  * @drv: driver being registered
  * @module: ends up being THIS_MODULE
  *

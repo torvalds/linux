@@ -536,11 +536,11 @@ static void ehv_bc_tty_close(struct tty_struct *ttys, struct file *filp)
  * how much write room the driver can guarantee will be sent OR BUFFERED.  This
  * driver MUST honor the return value.
  */
-static int ehv_bc_tty_write_room(struct tty_struct *ttys)
+static unsigned int ehv_bc_tty_write_room(struct tty_struct *ttys)
 {
 	struct ehv_bc_data *bc = ttys->driver_data;
 	unsigned long flags;
-	int count;
+	unsigned int count;
 
 	spin_lock_irqsave(&bc->lock, flags);
 	count = CIRC_SPACE(bc->head, bc->tail, BUF_SIZE);
@@ -751,6 +751,7 @@ static struct platform_driver ehv_bc_tty_driver = {
  */
 static int __init ehv_bc_init(void)
 {
+	struct tty_driver *driver;
 	struct device_node *np;
 	unsigned int count = 0; /* Number of elements in bcs[] */
 	int ret;
@@ -773,25 +774,27 @@ static int __init ehv_bc_init(void)
 	if (!bcs)
 		return -ENOMEM;
 
-	ehv_bc_driver = alloc_tty_driver(count);
-	if (!ehv_bc_driver) {
-		ret = -ENOMEM;
+	driver = tty_alloc_driver(count, TTY_DRIVER_REAL_RAW |
+			TTY_DRIVER_DYNAMIC_DEV);
+	if (IS_ERR(driver)) {
+		ret = PTR_ERR(driver);
 		goto err_free_bcs;
 	}
 
-	ehv_bc_driver->driver_name = "ehv-bc";
-	ehv_bc_driver->name = ehv_bc_console.name;
-	ehv_bc_driver->type = TTY_DRIVER_TYPE_CONSOLE;
-	ehv_bc_driver->subtype = SYSTEM_TYPE_CONSOLE;
-	ehv_bc_driver->init_termios = tty_std_termios;
-	ehv_bc_driver->flags = TTY_DRIVER_REAL_RAW | TTY_DRIVER_DYNAMIC_DEV;
-	tty_set_operations(ehv_bc_driver, &ehv_bc_ops);
+	driver->driver_name = "ehv-bc";
+	driver->name = ehv_bc_console.name;
+	driver->type = TTY_DRIVER_TYPE_CONSOLE;
+	driver->subtype = SYSTEM_TYPE_CONSOLE;
+	driver->init_termios = tty_std_termios;
+	tty_set_operations(driver, &ehv_bc_ops);
 
-	ret = tty_register_driver(ehv_bc_driver);
+	ret = tty_register_driver(driver);
 	if (ret) {
 		pr_err("ehv-bc: could not register tty driver (ret=%i)\n", ret);
-		goto err_put_tty_driver;
+		goto err_tty_driver_kref_put;
 	}
+
+	ehv_bc_driver = driver;
 
 	ret = platform_driver_register(&ehv_bc_tty_driver);
 	if (ret) {
@@ -803,9 +806,10 @@ static int __init ehv_bc_init(void)
 	return 0;
 
 err_deregister_tty_driver:
-	tty_unregister_driver(ehv_bc_driver);
-err_put_tty_driver:
-	put_tty_driver(ehv_bc_driver);
+	ehv_bc_driver = NULL;
+	tty_unregister_driver(driver);
+err_tty_driver_kref_put:
+	tty_driver_kref_put(driver);
 err_free_bcs:
 	kfree(bcs);
 

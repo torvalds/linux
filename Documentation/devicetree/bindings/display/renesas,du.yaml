@@ -55,7 +55,7 @@ properties:
     maxItems: 1
 
   ports:
-    $ref: /schemas/graph.yaml#/properties/port
+    $ref: /schemas/graph.yaml#/properties/ports
     description: |
       The connections to the DU output video ports are modeled using the OF
       graph bindings specified in Documentation/devicetree/bindings/graph.txt.
@@ -92,7 +92,6 @@ required:
   - reg
   - clocks
   - interrupts
-  - resets
   - ports
 
 allOf:

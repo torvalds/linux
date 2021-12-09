@@ -8,21 +8,6 @@
 
 #if IS_ENABLED(CONFIG_NET_DSA_SJA1105_PTP)
 
-/* Timestamps are in units of 8 ns clock ticks (equivalent to
- * a fixed 125 MHz clock).
- */
-#define SJA1105_TICK_NS			8
-
-static inline s64 ns_to_sja1105_ticks(s64 ns)
-{
-	return ns / SJA1105_TICK_NS;
-}
-
-static inline s64 sja1105_ticks_to_ns(s64 ticks)
-{
-	return ticks * SJA1105_TICK_NS;
-}
-
 /* Calculate the first base_time in the future that satisfies this
  * relationship:
  *
@@ -75,6 +60,7 @@ struct sja1105_ptp_cmd {
 
 struct sja1105_ptp_data {
 	struct timer_list extts_timer;
+	/* Used only on SJA1105 to reconstruct partial timestamps */
 	struct sk_buff_head skb_rxtstamp_queue;
 	struct ptp_clock_info caps;
 	struct ptp_clock *clock;
@@ -121,6 +107,10 @@ int __sja1105_ptp_adjtime(struct dsa_switch *ds, s64 delta);
 
 int sja1105_ptp_commit(struct dsa_switch *ds, struct sja1105_ptp_cmd *cmd,
 		       sja1105_spi_rw_mode_t rw);
+
+bool sja1105_rxtstamp(struct dsa_switch *ds, int port, struct sk_buff *skb);
+bool sja1110_rxtstamp(struct dsa_switch *ds, int port, struct sk_buff *skb);
+void sja1110_txtstamp(struct dsa_switch *ds, int port, struct sk_buff *skb);
 
 #else
 
@@ -183,6 +173,10 @@ static inline int sja1105_ptp_commit(struct dsa_switch *ds,
 #define sja1105_hwtstamp_get NULL
 
 #define sja1105_hwtstamp_set NULL
+
+#define sja1105_rxtstamp NULL
+#define sja1110_rxtstamp NULL
+#define sja1110_txtstamp NULL
 
 #endif /* IS_ENABLED(CONFIG_NET_DSA_SJA1105_PTP) */
 

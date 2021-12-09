@@ -1,4 +1,5 @@
 check_buffer_fill
+check_gcr_el1_cswitch
 check_tags_inclusion
 check_child_memory
 check_mmap_options

@@ -144,12 +144,9 @@ static void gpio_mockup_set_multiple(struct gpio_chip *gc,
 static int gpio_mockup_apply_pull(struct gpio_mockup_chip *chip,
 				  unsigned int offset, int value)
 {
+	struct gpio_chip *gc = &chip->gc;
+	struct gpio_desc *desc = gpiochip_get_desc(gc, offset);
 	int curr, irq, irq_type, ret = 0;
-	struct gpio_desc *desc;
-	struct gpio_chip *gc;
-
-	gc = &chip->gc;
-	desc = &gc->gpiodev->descs[offset];
 
 	mutex_lock(&chip->lock);
 
@@ -369,7 +366,7 @@ static void gpio_mockup_debugfs_setup(struct device *dev,
 
 		priv->chip = chip;
 		priv->offset = i;
-		priv->desc = &gc->gpiodev->descs[i];
+		priv->desc = gpiochip_get_desc(gc, i);
 
 		debugfs_create_file(name, 0200, chip->dbg_dir, priv,
 				    &gpio_mockup_debugfs_ops);
@@ -479,10 +476,19 @@ static struct platform_device *gpio_mockup_pdevs[GPIO_MOCKUP_MAX_GC];
 
 static void gpio_mockup_unregister_pdevs(void)
 {
+	struct platform_device *pdev;
+	struct fwnode_handle *fwnode;
 	int i;
 
-	for (i = 0; i < GPIO_MOCKUP_MAX_GC; i++)
-		platform_device_unregister(gpio_mockup_pdevs[i]);
+	for (i = 0; i < GPIO_MOCKUP_MAX_GC; i++) {
+		pdev = gpio_mockup_pdevs[i];
+		if (!pdev)
+			continue;
+
+		fwnode = dev_fwnode(&pdev->dev);
+		platform_device_unregister(pdev);
+		fwnode_remove_software_node(fwnode);
+	}
 }
 
 static __init char **gpio_mockup_make_line_names(const char *label,
@@ -511,6 +517,7 @@ static int __init gpio_mockup_register_chip(int idx)
 	struct property_entry properties[GPIO_MOCKUP_MAX_PROP];
 	struct platform_device_info pdevinfo;
 	struct platform_device *pdev;
+	struct fwnode_handle *fwnode;
 	char **line_names = NULL;
 	char chip_label[32];
 	int prop = 0, base;
@@ -539,13 +546,18 @@ static int __init gpio_mockup_register_chip(int idx)
 					"gpio-line-names", line_names, ngpio);
 	}
 
+	fwnode = fwnode_create_software_node(properties, NULL);
+	if (IS_ERR(fwnode))
+		return PTR_ERR(fwnode);
+
 	pdevinfo.name = "gpio-mockup";
 	pdevinfo.id = idx;
-	pdevinfo.properties = properties;
+	pdevinfo.fwnode = fwnode;
 
 	pdev = platform_device_register_full(&pdevinfo);
 	kfree_strarray(line_names, ngpio);
 	if (IS_ERR(pdev)) {
+		fwnode_remove_software_node(fwnode);
 		pr_err("error registering device");
 		return PTR_ERR(pdev);
 	}

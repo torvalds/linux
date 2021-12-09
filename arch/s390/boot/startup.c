@@ -5,52 +5,29 @@
 #include <asm/sections.h>
 #include <asm/cpu_mf.h>
 #include <asm/setup.h>
+#include <asm/kasan.h>
 #include <asm/kexec.h>
 #include <asm/sclp.h>
 #include <asm/diag.h>
 #include <asm/uv.h>
 #include "compressed/decompressor.h"
 #include "boot.h"
+#include "uv.h"
 
-extern char __boot_data_start[], __boot_data_end[];
-extern char __boot_data_preserved_start[], __boot_data_preserved_end[];
 unsigned long __bootdata_preserved(__kaslr_offset);
+unsigned long __bootdata_preserved(VMALLOC_START);
+unsigned long __bootdata_preserved(VMALLOC_END);
+struct page *__bootdata_preserved(vmemmap);
+unsigned long __bootdata_preserved(vmemmap_size);
+unsigned long __bootdata_preserved(MODULES_VADDR);
+unsigned long __bootdata_preserved(MODULES_END);
 unsigned long __bootdata(ident_map_size);
+int __bootdata(is_full_image) = 1;
+struct initrd_data __bootdata(initrd_data);
 
-/*
- * Some code and data needs to stay below 2 GB, even when the kernel would be
- * relocated above 2 GB, because it has to use 31 bit addresses.
- * Such code and data is part of the .dma section, and its location is passed
- * over to the decompressed / relocated kernel via the .boot.preserved.data
- * section.
- */
-extern char _sdma[], _edma[];
-extern char _stext_dma[], _etext_dma[];
-extern struct exception_table_entry _start_dma_ex_table[];
-extern struct exception_table_entry _stop_dma_ex_table[];
-unsigned long __bootdata_preserved(__sdma) = __pa(&_sdma);
-unsigned long __bootdata_preserved(__edma) = __pa(&_edma);
-unsigned long __bootdata_preserved(__stext_dma) = __pa(&_stext_dma);
-unsigned long __bootdata_preserved(__etext_dma) = __pa(&_etext_dma);
-struct exception_table_entry *
-	__bootdata_preserved(__start_dma_ex_table) = _start_dma_ex_table;
-struct exception_table_entry *
-	__bootdata_preserved(__stop_dma_ex_table) = _stop_dma_ex_table;
-
-int _diag210_dma(struct diag210 *addr);
-int _diag26c_dma(void *req, void *resp, enum diag26c_sc subcode);
-int _diag14_dma(unsigned long rx, unsigned long ry1, unsigned long subcode);
-void _diag0c_dma(struct hypfs_diag0c_entry *entry);
-void _diag308_reset_dma(void);
-struct diag_ops __bootdata_preserved(diag_dma_ops) = {
-	.diag210 = _diag210_dma,
-	.diag26c = _diag26c_dma,
-	.diag14 = _diag14_dma,
-	.diag0c = _diag0c_dma,
-	.diag308_reset = _diag308_reset_dma
-};
-static struct diag210 _diag210_tmp_dma __section(".dma.data");
-struct diag210 *__bootdata_preserved(__diag210_tmp_dma) = &_diag210_tmp_dma;
+u64 __bootdata_preserved(stfle_fac_list[16]);
+u64 __bootdata_preserved(alt_stfle_fac_list[16]);
+struct oldmem_data __bootdata_preserved(oldmem_data);
 
 void error(char *x)
 {
@@ -80,12 +57,12 @@ static void rescue_initrd(unsigned long addr)
 {
 	if (!IS_ENABLED(CONFIG_BLK_DEV_INITRD))
 		return;
-	if (!INITRD_START || !INITRD_SIZE)
+	if (!initrd_data.start || !initrd_data.size)
 		return;
-	if (addr <= INITRD_START)
+	if (addr <= initrd_data.start)
 		return;
-	memmove((void *)addr, (void *)INITRD_START, INITRD_SIZE);
-	INITRD_START = addr;
+	memmove((void *)addr, (void *)initrd_data.start, initrd_data.size);
+	initrd_data.start = addr;
 }
 
 static void copy_bootdata(void)
@@ -158,15 +135,95 @@ static void setup_ident_map_size(unsigned long max_physmem_end)
 	ident_map_size = min(ident_map_size, 1UL << MAX_PHYSMEM_BITS);
 
 #ifdef CONFIG_CRASH_DUMP
-	if (OLDMEM_BASE) {
+	if (oldmem_data.start) {
 		kaslr_enabled = 0;
-		ident_map_size = min(ident_map_size, OLDMEM_SIZE);
+		ident_map_size = min(ident_map_size, oldmem_data.size);
 	} else if (ipl_block_valid && is_ipl_block_dump()) {
 		kaslr_enabled = 0;
 		if (!sclp_early_get_hsa_size(&hsa_size) && hsa_size)
 			ident_map_size = min(ident_map_size, hsa_size);
 	}
 #endif
+}
+
+static void setup_kernel_memory_layout(void)
+{
+	bool vmalloc_size_verified = false;
+	unsigned long vmemmap_off;
+	unsigned long vspace_left;
+	unsigned long rte_size;
+	unsigned long pages;
+	unsigned long vmax;
+
+	pages = ident_map_size / PAGE_SIZE;
+	/* vmemmap contains a multiple of PAGES_PER_SECTION struct pages */
+	vmemmap_size = SECTION_ALIGN_UP(pages) * sizeof(struct page);
+
+	/* choose kernel address space layout: 4 or 3 levels. */
+	vmemmap_off = round_up(ident_map_size, _REGION3_SIZE);
+	if (IS_ENABLED(CONFIG_KASAN) ||
+	    vmalloc_size > _REGION2_SIZE ||
+	    vmemmap_off + vmemmap_size + vmalloc_size + MODULES_LEN > _REGION2_SIZE)
+		vmax = _REGION1_SIZE;
+	else
+		vmax = _REGION2_SIZE;
+
+	/* keep vmemmap_off aligned to a top level region table entry */
+	rte_size = vmax == _REGION1_SIZE ? _REGION2_SIZE : _REGION3_SIZE;
+	MODULES_END = vmax;
+	if (is_prot_virt_host()) {
+		/*
+		 * forcing modules and vmalloc area under the ultravisor
+		 * secure storage limit, so that any vmalloc allocation
+		 * we do could be used to back secure guest storage.
+		 */
+		adjust_to_uv_max(&MODULES_END);
+	}
+
+#ifdef CONFIG_KASAN
+	if (MODULES_END < vmax) {
+		/* force vmalloc and modules below kasan shadow */
+		MODULES_END = min(MODULES_END, KASAN_SHADOW_START);
+	} else {
+		/*
+		 * leave vmalloc and modules above kasan shadow but make
+		 * sure they don't overlap with it
+		 */
+		vmalloc_size = min(vmalloc_size, vmax - KASAN_SHADOW_END - MODULES_LEN);
+		vmalloc_size_verified = true;
+		vspace_left = KASAN_SHADOW_START;
+	}
+#endif
+	MODULES_VADDR = MODULES_END - MODULES_LEN;
+	VMALLOC_END = MODULES_VADDR;
+
+	if (vmalloc_size_verified) {
+		VMALLOC_START = VMALLOC_END - vmalloc_size;
+	} else {
+		vmemmap_off = round_up(ident_map_size, rte_size);
+
+		if (vmemmap_off + vmemmap_size > VMALLOC_END ||
+		    vmalloc_size > VMALLOC_END - vmemmap_off - vmemmap_size) {
+			/*
+			 * allow vmalloc area to occupy up to 1/2 of
+			 * the rest virtual space left.
+			 */
+			vmalloc_size = min(vmalloc_size, VMALLOC_END / 2);
+		}
+		VMALLOC_START = VMALLOC_END - vmalloc_size;
+		vspace_left = VMALLOC_START;
+	}
+
+	pages = vspace_left / (PAGE_SIZE + sizeof(struct page));
+	pages = SECTION_ALIGN_UP(pages);
+	vmemmap_off = round_up(vspace_left - pages * sizeof(struct page), rte_size);
+	/* keep vmemmap left most starting from a fresh region table entry */
+	vmemmap_off = min(vmemmap_off, round_up(ident_map_size, rte_size));
+	/* take care that identity map is lower then vmemmap */
+	ident_map_size = min(ident_map_size, vmemmap_off);
+	vmemmap_size = SECTION_ALIGN_UP(ident_map_size / PAGE_SIZE) * sizeof(struct page);
+	VMALLOC_START = max(vmemmap_off + vmemmap_size, VMALLOC_START);
+	vmemmap = (struct page *)vmemmap_off;
 }
 
 /*
@@ -191,11 +248,27 @@ static void setup_vmalloc_size(void)
 	vmalloc_size = max(size, vmalloc_size);
 }
 
+static void offset_vmlinux_info(unsigned long offset)
+{
+	vmlinux.default_lma += offset;
+	*(unsigned long *)(&vmlinux.entry) += offset;
+	vmlinux.bootdata_off += offset;
+	vmlinux.bootdata_preserved_off += offset;
+	vmlinux.rela_dyn_start += offset;
+	vmlinux.rela_dyn_end += offset;
+	vmlinux.dynsym_start += offset;
+}
+
 void startup_kernel(void)
 {
 	unsigned long random_lma;
 	unsigned long safe_addr;
 	void *img;
+
+	initrd_data.start = parmarea.initrd_start;
+	initrd_data.size = parmarea.initrd_size;
+	oldmem_data.start = parmarea.oldmem_base;
+	oldmem_data.size = parmarea.oldmem_size;
 
 	setup_lpp();
 	store_ipl_parmblock();
@@ -206,22 +279,17 @@ void startup_kernel(void)
 	sclp_early_read_info();
 	setup_boot_command_line();
 	parse_boot_command_line();
+	sanitize_prot_virt_host();
 	setup_ident_map_size(detect_memory());
 	setup_vmalloc_size();
+	setup_kernel_memory_layout();
 
-	random_lma = __kaslr_offset = 0;
 	if (IS_ENABLED(CONFIG_RANDOMIZE_BASE) && kaslr_enabled) {
 		random_lma = get_random_base(safe_addr);
 		if (random_lma) {
 			__kaslr_offset = random_lma - vmlinux.default_lma;
 			img = (void *)vmlinux.default_lma;
-			vmlinux.default_lma += __kaslr_offset;
-			vmlinux.entry += __kaslr_offset;
-			vmlinux.bootdata_off += __kaslr_offset;
-			vmlinux.bootdata_preserved_off += __kaslr_offset;
-			vmlinux.rela_dyn_start += __kaslr_offset;
-			vmlinux.rela_dyn_end += __kaslr_offset;
-			vmlinux.dynsym_start += __kaslr_offset;
+			offset_vmlinux_info(__kaslr_offset);
 		}
 	}
 

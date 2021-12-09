@@ -304,7 +304,7 @@ static void mana_hwc_comp_event(void *ctx, struct gdma_queue *q_self)
 						&comp_data);
 	}
 
-	mana_gd_arm_cq(q_self);
+	mana_gd_ring_cq(q_self, SET_ARM_BIT);
 }
 
 static void mana_hwc_destroy_cq(struct gdma_context *gc, struct hwc_cq *hwc_cq)
@@ -398,9 +398,7 @@ static int mana_hwc_alloc_dma_buf(struct hw_channel_context *hwc, u16 q_depth,
 	int err;
 	u16 i;
 
-	dma_buf = kzalloc(sizeof(*dma_buf) +
-			  q_depth * sizeof(struct hwc_work_request),
-			  GFP_KERNEL);
+	dma_buf = kzalloc(struct_size(dma_buf, reqs, q_depth), GFP_KERNEL);
 	if (!dma_buf)
 		return -ENOMEM;
 

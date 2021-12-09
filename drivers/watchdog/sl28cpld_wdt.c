@@ -108,7 +108,7 @@ static const struct watchdog_info sl28cpld_wdt_info = {
 	.identity = "sl28cpld watchdog",
 };
 
-static struct watchdog_ops sl28cpld_wdt_ops = {
+static const struct watchdog_ops sl28cpld_wdt_ops = {
 	.owner = THIS_MODULE,
 	.start = sl28cpld_wdt_start,
 	.stop = sl28cpld_wdt_stop,
@@ -164,7 +164,7 @@ static int sl28cpld_wdt_probe(struct platform_device *pdev)
 
 	/*
 	 * Initial timeout value, may be overwritten by device tree or module
-	 * parmeter in watchdog_init_timeout().
+	 * parameter in watchdog_init_timeout().
 	 *
 	 * Reading a zero here means that either the hardware has a default
 	 * value of zero (which is very unlikely and definitely a hardware

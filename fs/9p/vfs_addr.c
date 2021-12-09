@@ -30,8 +30,7 @@
 
 /**
  * v9fs_fid_readpage - read an entire page in from 9P
- *
- * @fid: fid being read
+ * @data: Opaque pointer to the fid being read
  * @page: structure to page
  *
  */
@@ -116,6 +115,8 @@ static int v9fs_vfs_readpages(struct file *filp, struct address_space *mapping,
 
 /**
  * v9fs_release_page - release the private state associated with a page
+ * @page: The page to be released
+ * @gfp: The caller's allocation restrictions
  *
  * Returns 1 if the page can be released, false otherwise.
  */
@@ -129,9 +130,9 @@ static int v9fs_release_page(struct page *page, gfp_t gfp)
 
 /**
  * v9fs_invalidate_page - Invalidate a page completely or partially
- *
- * @page: structure to page
- * @offset: offset in the page
+ * @page: The page to be invalidated
+ * @offset: offset of the invalidated region
+ * @length: length of the invalidated region
  */
 
 static void v9fs_invalidate_page(struct page *page, unsigned int offset,
@@ -199,6 +200,8 @@ static int v9fs_vfs_writepage(struct page *page, struct writeback_control *wbc)
 
 /**
  * v9fs_launder_page - Writeback a dirty page
+ * @page: The page to be cleaned up
+ *
  * Returns 0 on success.
  */
 
@@ -219,6 +222,7 @@ static int v9fs_launder_page(struct page *page)
 /**
  * v9fs_direct_IO - 9P address space operation for direct I/O
  * @iocb: target I/O control block
+ * @iter: The data/buffer to use
  *
  * The presence of v9fs_direct_IO() in the address space ops vector
  * allowes open() O_DIRECT flags which would have failed otherwise.

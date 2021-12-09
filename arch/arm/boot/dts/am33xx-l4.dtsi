@@ -853,6 +853,88 @@
 			#size-cells = <1>;
 			ranges = <0x0 0x300000 0x80000>;
 			status = "disabled";
+
+			pruss: pruss@0 {
+				compatible = "ti,am3356-pruss";
+				reg = <0x0 0x80000>;
+				#address-cells = <1>;
+				#size-cells = <1>;
+				ranges;
+
+				pruss_mem: memories@0 {
+					reg = <0x0 0x2000>,
+					      <0x2000 0x2000>,
+					      <0x10000 0x3000>;
+					reg-names = "dram0", "dram1",
+						    "shrdram2";
+				};
+
+				pruss_cfg: cfg@26000 {
+					compatible = "ti,pruss-cfg", "syscon";
+					reg = <0x26000 0x2000>;
+					#address-cells = <1>;
+					#size-cells = <1>;
+					ranges = <0x0 0x26000 0x2000>;
+
+					clocks {
+						#address-cells = <1>;
+						#size-cells = <0>;
+
+						pruss_iepclk_mux: iepclk-mux@30 {
+							reg = <0x30>;
+							#clock-cells = <0>;
+							clocks = <&l3_gclk>,        /* icss_iep_gclk */
+								 <&pruss_ocp_gclk>; /* icss_ocp_gclk */
+						};
+					};
+				};
+
+				pruss_mii_rt: mii-rt@32000 {
+					compatible = "ti,pruss-mii", "syscon";
+					reg = <0x32000 0x58>;
+				};
+
+				pruss_intc: interrupt-controller@20000 {
+					compatible = "ti,pruss-intc";
+					reg = <0x20000 0x2000>;
+					interrupts = <20 21 22 23 24 25 26 27>;
+					interrupt-names = "host_intr0", "host_intr1",
+							  "host_intr2", "host_intr3",
+							  "host_intr4", "host_intr5",
+							  "host_intr6", "host_intr7";
+					interrupt-controller;
+					#interrupt-cells = <3>;
+				};
+
+				pru0: pru@34000 {
+					compatible = "ti,am3356-pru";
+					reg = <0x34000 0x2000>,
+					      <0x22000 0x400>,
+					      <0x22400 0x100>;
+					reg-names = "iram", "control", "debug";
+					firmware-name = "am335x-pru0-fw";
+				};
+
+				pru1: pru@38000 {
+					compatible = "ti,am3356-pru";
+					reg = <0x38000 0x2000>,
+					      <0x24000 0x400>,
+					      <0x24400 0x100>;
+					reg-names = "iram", "control", "debug";
+					firmware-name = "am335x-pru1-fw";
+				};
+
+				pruss_mdio: mdio@32400 {
+					compatible = "ti,davinci_mdio";
+					reg = <0x32400 0x90>;
+					clocks = <&dpll_core_m4_ck>;
+					clock-names = "fck";
+					bus_freq = <1000000>;
+					#address-cells = <1>;
+					#size-cells = <0>;
+					status = "disabled";
+				};
+			};
 		};
 	};
 };
@@ -1486,7 +1568,7 @@
 				#mbox-cells = <1>;
 				ti,mbox-num-users = <4>;
 				ti,mbox-num-fifos = <8>;
-				mbox_wkupm3: wkup_m3 {
+				mbox_wkupm3: mbox-wkup-m3 {
 					ti,mbox-send-noirq;
 					ti,mbox-tx = <0 0 0>;
 					ti,mbox-rx = <0 0 3>;
@@ -1789,7 +1871,7 @@
 			};
 		};
 
-		target-module@ae000 {			/* 0x481ae000, ap 56 3a.0 */
+		gpio3_target: target-module@ae000 {		/* 0x481ae000, ap 56 3a.0 */
 			compatible = "ti,sysc-omap2", "ti,sysc";
 			reg = <0xae000 0x4>,
 			      <0xae010 0x4>,
@@ -1995,15 +2077,12 @@
 				status = "disabled";
 				ranges = <0 0 0x1000>;
 
-				ecap0: ecap@100 {
-					compatible = "ti,am3352-ecap",
-						     "ti,am33xx-ecap";
+				ecap0: pwm@100 {
+					compatible = "ti,am3352-ecap";
 					#pwm-cells = <3>;
 					reg = <0x100 0x80>;
 					clocks = <&l4ls_gclk>;
 					clock-names = "fck";
-					interrupts = <31>;
-					interrupt-names = "ecap0";
 					status = "disabled";
 				};
 
@@ -2017,8 +2096,7 @@
 				};
 
 				ehrpwm0: pwm@200 {
-					compatible = "ti,am3352-ehrpwm",
-						     "ti,am33xx-ehrpwm";
+					compatible = "ti,am3352-ehrpwm";
 					#pwm-cells = <3>;
 					reg = <0x200 0x80>;
 					clocks = <&ehrpwm0_tbclk>, <&l4ls_gclk>;
@@ -2056,15 +2134,12 @@
 				status = "disabled";
 				ranges = <0 0 0x1000>;
 
-				ecap1: ecap@100 {
-					compatible = "ti,am3352-ecap",
-						     "ti,am33xx-ecap";
+				ecap1: pwm@100 {
+					compatible = "ti,am3352-ecap";
 					#pwm-cells = <3>;
 					reg = <0x100 0x80>;
 					clocks = <&l4ls_gclk>;
 					clock-names = "fck";
-					interrupts = <47>;
-					interrupt-names = "ecap1";
 					status = "disabled";
 				};
 
@@ -2078,8 +2153,7 @@
 				};
 
 				ehrpwm1: pwm@200 {
-					compatible = "ti,am3352-ehrpwm",
-						     "ti,am33xx-ehrpwm";
+					compatible = "ti,am3352-ehrpwm";
 					#pwm-cells = <3>;
 					reg = <0x200 0x80>;
 					clocks = <&ehrpwm1_tbclk>, <&l4ls_gclk>;
@@ -2117,15 +2191,12 @@
 				status = "disabled";
 				ranges = <0 0 0x1000>;
 
-				ecap2: ecap@100 {
-					compatible = "ti,am3352-ecap",
-						     "ti,am33xx-ecap";
+				ecap2: pwm@100 {
+					compatible = "ti,am3352-ecap";
 					#pwm-cells = <3>;
 					reg = <0x100 0x80>;
 					clocks = <&l4ls_gclk>;
 					clock-names = "fck";
-					interrupts = <61>;
-					interrupt-names = "ecap2";
 					status = "disabled";
 				};
 
@@ -2139,8 +2210,7 @@
 				};
 
 				ehrpwm2: pwm@200 {
-					compatible = "ti,am3352-ehrpwm",
-						     "ti,am33xx-ehrpwm";
+					compatible = "ti,am3352-ehrpwm";
 					#pwm-cells = <3>;
 					reg = <0x200 0x80>;
 					clocks = <&ehrpwm2_tbclk>, <&l4ls_gclk>;

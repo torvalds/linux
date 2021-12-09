@@ -12,9 +12,8 @@ if TTY
 
 config VT
 	bool "Virtual terminal" if EXPERT
-	depends on !UML
 	select INPUT
-	default y
+	default y if !UML
 	help
 	  If you say Y here, you will get support for terminal devices with
 	  display and keyboard devices. These are called "virtual" because you
@@ -78,7 +77,7 @@ config VT_CONSOLE_SLEEP
 
 config HW_CONSOLE
 	bool
-	depends on VT && !UML
+	depends on VT
 	default y
 
 config VT_HW_CONSOLE_BINDING
@@ -204,7 +203,7 @@ config MOXA_INTELLIO
 
 config MOXA_SMARTIO
 	tristate "Moxa SmartIO support v. 2.0"
-	depends on SERIAL_NONSTANDARD && (PCI || EISA || ISA)
+	depends on SERIAL_NONSTANDARD && PCI
 	help
 	  Say Y here if you have a Moxa SmartIO multiport serial card and/or
 	  want to help develop a new version of this driver.

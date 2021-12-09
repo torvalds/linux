@@ -13,7 +13,6 @@
 
 #include "i915_drv.h"
 #include "i915_active.h"
-#include "i915_globals.h"
 
 /*
  * Active refs memory management
@@ -22,10 +21,7 @@
  * they idle (when we know the active requests are inactive) and allocate the
  * nodes from a local slab cache to hopefully reduce the fragmentation.
  */
-static struct i915_global_active {
-	struct i915_global base;
-	struct kmem_cache *slab_cache;
-} global;
+static struct kmem_cache *slab_cache;
 
 struct active_node {
 	struct rb_node node;
@@ -174,7 +170,7 @@ __active_retire(struct i915_active *ref)
 	/* Finally free the discarded timeline tree  */
 	rbtree_postorder_for_each_entry_safe(it, n, &root, node) {
 		GEM_BUG_ON(i915_active_fence_isset(&it->base));
-		kmem_cache_free(global.slab_cache, it);
+		kmem_cache_free(slab_cache, it);
 	}
 }
 
@@ -322,7 +318,7 @@ active_instance(struct i915_active *ref, u64 idx)
 	 * XXX: We should preallocate this before i915_active_ref() is ever
 	 *  called, but we cannot call into fs_reclaim() anyway, so use GFP_ATOMIC.
 	 */
-	node = kmem_cache_alloc(global.slab_cache, GFP_ATOMIC);
+	node = kmem_cache_alloc(slab_cache, GFP_ATOMIC);
 	if (!node)
 		goto out;
 
@@ -343,18 +339,15 @@ out:
 void __i915_active_init(struct i915_active *ref,
 			int (*active)(struct i915_active *ref),
 			void (*retire)(struct i915_active *ref),
+			unsigned long flags,
 			struct lock_class_key *mkey,
 			struct lock_class_key *wkey)
 {
-	unsigned long bits;
-
 	debug_active_init(ref);
 
-	ref->flags = 0;
+	ref->flags = flags;
 	ref->active = active;
-	ref->retire = ptr_unpack_bits(retire, &bits, 2);
-	if (bits & I915_ACTIVE_MAY_SLEEP)
-		ref->flags |= I915_ACTIVE_RETIRE_SLEEPS;
+	ref->retire = retire;
 
 	spin_lock_init(&ref->tree_lock);
 	ref->tree = RB_ROOT;
@@ -791,7 +784,7 @@ void i915_active_fini(struct i915_active *ref)
 	mutex_destroy(&ref->mutex);
 
 	if (ref->cache)
-		kmem_cache_free(global.slab_cache, ref->cache);
+		kmem_cache_free(slab_cache, ref->cache);
 }
 
 static inline bool is_idle_barrier(struct active_node *node, u64 idx)
@@ -911,7 +904,7 @@ int i915_active_acquire_preallocate_barrier(struct i915_active *ref,
 		node = reuse_idle_barrier(ref, idx);
 		rcu_read_unlock();
 		if (!node) {
-			node = kmem_cache_alloc(global.slab_cache, GFP_KERNEL);
+			node = kmem_cache_alloc(slab_cache, GFP_KERNEL);
 			if (!node)
 				goto unwind;
 
@@ -959,7 +952,7 @@ unwind:
 		atomic_dec(&ref->count);
 		intel_engine_pm_put(barrier_to_engine(node));
 
-		kmem_cache_free(global.slab_cache, node);
+		kmem_cache_free(slab_cache, node);
 	}
 	return -ENOMEM;
 }
@@ -1156,8 +1149,7 @@ static int auto_active(struct i915_active *ref)
 	return 0;
 }
 
-__i915_active_call static void
-auto_retire(struct i915_active *ref)
+static void auto_retire(struct i915_active *ref)
 {
 	i915_active_put(ref);
 }
@@ -1171,7 +1163,7 @@ struct i915_active *i915_active_create(void)
 		return NULL;
 
 	kref_init(&aa->ref);
-	i915_active_init(&aa->base, auto_active, auto_retire);
+	i915_active_init(&aa->base, auto_active, auto_retire, 0);
 
 	return &aa->base;
 }
@@ -1180,27 +1172,16 @@ struct i915_active *i915_active_create(void)
 #include "selftests/i915_active.c"
 #endif
 
-static void i915_global_active_shrink(void)
+void i915_active_module_exit(void)
 {
-	kmem_cache_shrink(global.slab_cache);
+	kmem_cache_destroy(slab_cache);
 }
 
-static void i915_global_active_exit(void)
+int __init i915_active_module_init(void)
 {
-	kmem_cache_destroy(global.slab_cache);
-}
-
-static struct i915_global_active global = { {
-	.shrink = i915_global_active_shrink,
-	.exit = i915_global_active_exit,
-} };
-
-int __init i915_global_active_init(void)
-{
-	global.slab_cache = KMEM_CACHE(active_node, SLAB_HWCACHE_ALIGN);
-	if (!global.slab_cache)
+	slab_cache = KMEM_CACHE(active_node, SLAB_HWCACHE_ALIGN);
+	if (!slab_cache)
 		return -ENOMEM;
 
-	i915_global_register(&global.base);
 	return 0;
 }

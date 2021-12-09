@@ -8,9 +8,11 @@
 #include "hgsmi_channels.h"
 
 /**
- * Set a video mode via an HGSMI request.  The views must have been
- * initialised first using @a VBoxHGSMISendViewInfo and if the mode is being
- * set on the first display then it must be set first using registers.
+ * hgsmi_process_display_info - Set a video mode via an HGSMI request.
+ *                              The views must have been initialised first
+ *                              using @a VBoxHGSMISendViewInfo and if the mode
+ *                              is being set on the first display then it must
+ *                              be set first using registers.
  * @ctx:           The context containing the heap to use.
  * @display:       The screen number.
  * @origin_x:      The horizontal displacement relative to the first scrn.
@@ -51,10 +53,12 @@ void hgsmi_process_display_info(struct gen_pool *ctx, u32 display,
 }
 
 /**
- * Report the rectangle relative to which absolute pointer events should be
- * expressed.  This information remains valid until the next VBVA resize event
- * for any screen, at which time it is reset to the bounding rectangle of all
- * virtual screens.
+ * hgsmi_update_input_mapping - Report the rectangle relative to which absolute
+ *                              pointer events should be expressed.  This
+ *                              information remains valid until the next VBVA
+ *                              resize event for any screen, at which time it is
+ *                              reset to the bounding rectangle of all virtual
+ *                              screens.
  * Return: 0 or negative errno value.
  * @ctx:       The context containing the heap to use.
  * @origin_x:  Upper left X co-ordinate relative to the first screen.
@@ -84,7 +88,7 @@ int hgsmi_update_input_mapping(struct gen_pool *ctx, s32 origin_x, s32 origin_y,
 }
 
 /**
- * Get most recent video mode hints.
+ * hgsmi_get_mode_hints - Get most recent video mode hints.
  * Return: 0 or negative errno value.
  * @ctx:      The context containing the heap to use.
  * @screens:  The number of screens to query hints for, starting at 0.

@@ -134,6 +134,9 @@ void snd_device_initialize(struct device *dev, struct snd_card *card)
 }
 EXPORT_SYMBOL_GPL(snd_device_initialize);
 
+static int snd_card_init(struct snd_card *card, struct device *parent,
+			 int idx, const char *xid, struct module *module,
+			 size_t extra_size);
 static int snd_card_do_free(struct snd_card *card);
 static const struct attribute_group card_dev_attr_group;
 
@@ -163,9 +166,6 @@ int snd_card_new(struct device *parent, int idx, const char *xid,
 {
 	struct snd_card *card;
 	int err;
-#ifdef CONFIG_SND_DEBUG
-	char name[8];
-#endif
 
 	if (snd_BUG_ON(!card_ret))
 		return -EINVAL;
@@ -176,6 +176,74 @@ int snd_card_new(struct device *parent, int idx, const char *xid,
 	card = kzalloc(sizeof(*card) + extra_size, GFP_KERNEL);
 	if (!card)
 		return -ENOMEM;
+
+	err = snd_card_init(card, parent, idx, xid, module, extra_size);
+	if (err < 0) {
+		kfree(card);
+		return err;
+	}
+
+	*card_ret = card;
+	return 0;
+}
+EXPORT_SYMBOL(snd_card_new);
+
+static void __snd_card_release(struct device *dev, void *data)
+{
+	snd_card_free(data);
+}
+
+/**
+ * snd_devm_card_new - managed snd_card object creation
+ * @parent: the parent device object
+ * @idx: card index (address) [0 ... (SNDRV_CARDS-1)]
+ * @xid: card identification (ASCII string)
+ * @module: top level module for locking
+ * @extra_size: allocate this extra size after the main soundcard structure
+ * @card_ret: the pointer to store the created card instance
+ *
+ * This function works like snd_card_new() but manages the allocated resource
+ * via devres, i.e. you don't need to free explicitly.
+ *
+ * When a snd_card object is created with this function and registered via
+ * snd_card_register(), the very first devres action to call snd_card_free()
+ * is added automatically.  In that way, the resource disconnection is assured
+ * at first, then released in the expected order.
+ */
+int snd_devm_card_new(struct device *parent, int idx, const char *xid,
+		      struct module *module, size_t extra_size,
+		      struct snd_card **card_ret)
+{
+	struct snd_card *card;
+	int err;
+
+	*card_ret = NULL;
+	card = devres_alloc(__snd_card_release, sizeof(*card) + extra_size,
+			    GFP_KERNEL);
+	if (!card)
+		return -ENOMEM;
+	card->managed = true;
+	err = snd_card_init(card, parent, idx, xid, module, extra_size);
+	if (err < 0) {
+		devres_free(card);
+		return err;
+	}
+
+	devres_add(parent, card);
+	*card_ret = card;
+	return 0;
+}
+EXPORT_SYMBOL_GPL(snd_devm_card_new);
+
+static int snd_card_init(struct snd_card *card, struct device *parent,
+			 int idx, const char *xid, struct module *module,
+			 size_t extra_size)
+{
+	int err;
+#ifdef CONFIG_SND_DEBUG
+	char name[8];
+#endif
+
 	if (extra_size > 0)
 		card->private_data = (char *)card + sizeof(struct snd_card);
 	if (xid)
@@ -197,7 +265,6 @@ int snd_card_new(struct device *parent, int idx, const char *xid,
 		mutex_unlock(&snd_card_mutex);
 		dev_err(parent, "cannot find the slot for index %d (range 0-%i), error: %d\n",
 			 idx, snd_ecards_limit - 1, err);
-		kfree(card);
 		return err;
 	}
 	set_bit(idx, snd_cards_lock);		/* lock it */
@@ -220,6 +287,8 @@ int snd_card_new(struct device *parent, int idx, const char *xid,
 	mutex_init(&card->memory_mutex);
 #ifdef CONFIG_PM
 	init_waitqueue_head(&card->power_sleep);
+	init_waitqueue_head(&card->power_ref_sleep);
+	atomic_set(&card->power_ref, 0);
 #endif
 	init_waitqueue_head(&card->remove_sleep);
 	card->sync_irq = -1;
@@ -254,8 +323,6 @@ int snd_card_new(struct device *parent, int idx, const char *xid,
 	sprintf(name, "card%d", idx);
 	card->debugfs_root = debugfs_create_dir(name, sound_debugfs_root);
 #endif
-
-	*card_ret = card;
 	return 0;
 
       __error_ctl:
@@ -264,7 +331,6 @@ int snd_card_new(struct device *parent, int idx, const char *xid,
 	put_device(&card->card_dev);
   	return err;
 }
-EXPORT_SYMBOL(snd_card_new);
 
 /**
  * snd_card_ref - Get the card object from the index
@@ -442,6 +508,7 @@ int snd_card_disconnect(struct snd_card *card)
 
 #ifdef CONFIG_PM
 	wake_up(&card->power_sleep);
+	snd_power_sync_ref(card);
 #endif
 	return 0;	
 }
@@ -478,6 +545,7 @@ EXPORT_SYMBOL_GPL(snd_card_disconnect_sync);
 
 static int snd_card_do_free(struct snd_card *card)
 {
+	card->releasing = true;
 #if IS_ENABLED(CONFIG_SND_MIXER_OSS)
 	if (snd_mixer_oss_notify_callback)
 		snd_mixer_oss_notify_callback(card, SND_MIXER_OSS_NOTIFY_FREE);
@@ -495,7 +563,8 @@ static int snd_card_do_free(struct snd_card *card)
 #endif
 	if (card->release_completion)
 		complete(card->release_completion);
-	kfree(card);
+	if (!card->managed)
+		kfree(card);
 	return 0;
 }
 
@@ -535,6 +604,15 @@ int snd_card_free(struct snd_card *card)
 {
 	DECLARE_COMPLETION_ONSTACK(released);
 	int ret;
+
+	/* The call of snd_card_free() is allowed from various code paths;
+	 * a manual call from the driver and the call via devres_free, and
+	 * we need to avoid double-free. Moreover, the release via devres
+	 * may call snd_card_free() twice due to its nature, we need to have
+	 * the check here at the beginning.
+	 */
+	if (card->releasing)
+		return 0;
 
 	card->release_completion = &released;
 	ret = snd_card_free_when_closed(card);
@@ -662,17 +740,15 @@ void snd_card_set_id(struct snd_card *card, const char *nid)
 }
 EXPORT_SYMBOL(snd_card_set_id);
 
-static ssize_t
-card_id_show_attr(struct device *dev,
-		  struct device_attribute *attr, char *buf)
+static ssize_t id_show(struct device *dev,
+		       struct device_attribute *attr, char *buf)
 {
 	struct snd_card *card = container_of(dev, struct snd_card, card_dev);
 	return scnprintf(buf, PAGE_SIZE, "%s\n", card->id);
 }
 
-static ssize_t
-card_id_store_attr(struct device *dev, struct device_attribute *attr,
-		   const char *buf, size_t count)
+static ssize_t id_store(struct device *dev, struct device_attribute *attr,
+			const char *buf, size_t count)
 {
 	struct snd_card *card = container_of(dev, struct snd_card, card_dev);
 	char buf1[sizeof(card->id)];
@@ -700,17 +776,16 @@ card_id_store_attr(struct device *dev, struct device_attribute *attr,
 	return count;
 }
 
-static DEVICE_ATTR(id, 0644, card_id_show_attr, card_id_store_attr);
+static DEVICE_ATTR_RW(id);
 
-static ssize_t
-card_number_show_attr(struct device *dev,
-		     struct device_attribute *attr, char *buf)
+static ssize_t number_show(struct device *dev,
+			   struct device_attribute *attr, char *buf)
 {
 	struct snd_card *card = container_of(dev, struct snd_card, card_dev);
 	return scnprintf(buf, PAGE_SIZE, "%i\n", card->number);
 }
 
-static DEVICE_ATTR(number, 0444, card_number_show_attr, NULL);
+static DEVICE_ATTR_RO(number);
 
 static struct attribute *card_dev_attrs[] = {
 	&dev_attr_id.attr,
@@ -745,6 +820,11 @@ int snd_card_add_dev_attr(struct snd_card *card,
 }
 EXPORT_SYMBOL_GPL(snd_card_add_dev_attr);
 
+static void trigger_card_free(void *data)
+{
+	snd_card_free(data);
+}
+
 /**
  *  snd_card_register - register the soundcard
  *  @card: soundcard structure
@@ -768,9 +848,19 @@ int snd_card_register(struct snd_card *card)
 		if (err < 0)
 			return err;
 		card->registered = true;
+	} else {
+		if (card->managed)
+			devm_remove_action(card->dev, trigger_card_free, card);
 	}
 
-	if ((err = snd_device_register_all(card)) < 0)
+	if (card->managed) {
+		err = devm_add_action(card->dev, trigger_card_free, card);
+		if (err < 0)
+			return err;
+	}
+
+	err = snd_device_register_all(card);
+	if (err < 0)
 		return err;
 	mutex_lock(&snd_card_mutex);
 	if (snd_cards[card->number]) {
@@ -813,7 +903,8 @@ static void snd_card_info_read(struct snd_info_entry *entry,
 
 	for (idx = count = 0; idx < SNDRV_CARDS; idx++) {
 		mutex_lock(&snd_card_mutex);
-		if ((card = snd_cards[idx]) != NULL) {
+		card = snd_cards[idx];
+		if (card) {
 			count++;
 			snd_iprintf(buffer, "%2i [%-15s]: %s - %s\n",
 					idx,
@@ -837,7 +928,8 @@ void snd_card_info_read_oss(struct snd_info_buffer *buffer)
 
 	for (idx = count = 0; idx < SNDRV_CARDS; idx++) {
 		mutex_lock(&snd_card_mutex);
-		if ((card = snd_cards[idx]) != NULL) {
+		card = snd_cards[idx];
+		if (card) {
 			count++;
 			snd_iprintf(buffer, "%s\n", card->longname);
 		}
@@ -859,7 +951,8 @@ static void snd_card_module_info_read(struct snd_info_entry *entry,
 
 	for (idx = 0; idx < SNDRV_CARDS; idx++) {
 		mutex_lock(&snd_card_mutex);
-		if ((card = snd_cards[idx]) != NULL)
+		card = snd_cards[idx];
+		if (card)
 			snd_iprintf(buffer, "%2i %s\n",
 				    idx, card->module->name);
 		mutex_unlock(&snd_card_mutex);
@@ -1002,21 +1095,28 @@ EXPORT_SYMBOL(snd_card_file_remove);
 
 #ifdef CONFIG_PM
 /**
- *  snd_power_wait - wait until the power-state is changed.
- *  @card: soundcard structure
- *  @power_state: expected power state
+ * snd_power_ref_and_wait - wait until the card gets powered up
+ * @card: soundcard structure
  *
- *  Waits until the power-state is changed.
+ * Take the power_ref reference count of the given card, and
+ * wait until the card gets powered up to SNDRV_CTL_POWER_D0 state.
+ * The refcount is down again while sleeping until power-up, hence this
+ * function can be used for syncing the floating control ops accesses,
+ * typically around calling control ops.
  *
- *  Return: Zero if successful, or a negative error code.
+ * The caller needs to pull down the refcount via snd_power_unref() later
+ * no matter whether the error is returned from this function or not.
+ *
+ * Return: Zero if successful, or a negative error code.
  */
-int snd_power_wait(struct snd_card *card, unsigned int power_state)
+int snd_power_ref_and_wait(struct snd_card *card)
 {
 	wait_queue_entry_t wait;
 	int result = 0;
 
+	snd_power_ref(card);
 	/* fastpath */
-	if (snd_power_get_state(card) == power_state)
+	if (snd_power_get_state(card) == SNDRV_CTL_POWER_D0)
 		return 0;
 	init_waitqueue_entry(&wait, current);
 	add_wait_queue(&card->power_sleep, &wait);
@@ -1025,13 +1125,33 @@ int snd_power_wait(struct snd_card *card, unsigned int power_state)
 			result = -ENODEV;
 			break;
 		}
-		if (snd_power_get_state(card) == power_state)
+		if (snd_power_get_state(card) == SNDRV_CTL_POWER_D0)
 			break;
+		snd_power_unref(card);
 		set_current_state(TASK_UNINTERRUPTIBLE);
 		schedule_timeout(30 * HZ);
+		snd_power_ref(card);
 	}
 	remove_wait_queue(&card->power_sleep, &wait);
 	return result;
+}
+EXPORT_SYMBOL_GPL(snd_power_ref_and_wait);
+
+/**
+ * snd_power_wait - wait until the card gets powered up (old form)
+ * @card: soundcard structure
+ *
+ * Wait until the card gets powered up to SNDRV_CTL_POWER_D0 state.
+ *
+ * Return: Zero if successful, or a negative error code.
+ */
+int snd_power_wait(struct snd_card *card)
+{
+	int ret;
+
+	ret = snd_power_ref_and_wait(card);
+	snd_power_unref(card);
+	return ret;
 }
 EXPORT_SYMBOL(snd_power_wait);
 #endif /* CONFIG_PM */

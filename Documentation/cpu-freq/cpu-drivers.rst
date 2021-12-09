@@ -58,9 +58,6 @@ And optionally
 
  .driver_data - cpufreq driver specific data.
 
- .resolve_freq - Returns the most appropriate frequency for a target
- frequency. Doesn't change the frequency though.
-
  .get_intermediate and target_intermediate - Used to switch to stable
  frequency while changing CPU frequency.
 
@@ -71,18 +68,12 @@ And optionally
  .exit - A pointer to a per-policy cleanup function called during
  CPU_POST_DEAD phase of cpu hotplug process.
 
- .stop_cpu - A pointer to a per-policy stop function called during
- CPU_DOWN_PREPARE phase of cpu hotplug process.
-
  .suspend - A pointer to a per-policy suspend function which is called
  with interrupts disabled and _after_ the governor is stopped for the
  policy.
 
  .resume - A pointer to a per-policy resume function which is called
  with interrupts disabled and _before_ the governor is started again.
-
- .ready - A pointer to a per-policy ready function which is called after
- the policy is fully initialized.
 
  .attr - A pointer to a NULL-terminated list of "struct freq_attr" which
  allow to export values to sysfs.

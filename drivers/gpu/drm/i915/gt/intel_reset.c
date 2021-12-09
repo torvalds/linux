@@ -22,7 +22,6 @@
 #include "intel_reset.h"
 
 #include "uc/intel_guc.h"
-#include "uc/intel_guc_submission.h"
 
 #define RESET_MAX_RETRIES 3
 
@@ -37,21 +36,6 @@ static void rmw_set_fw(struct intel_uncore *uncore, i915_reg_t reg, u32 set)
 static void rmw_clear_fw(struct intel_uncore *uncore, i915_reg_t reg, u32 clr)
 {
 	intel_uncore_rmw_fw(uncore, reg, clr, 0);
-}
-
-static void skip_context(struct i915_request *rq)
-{
-	struct intel_context *hung_ctx = rq->context;
-
-	list_for_each_entry_from_rcu(rq, &hung_ctx->timeline->requests, link) {
-		if (!i915_request_is_active(rq))
-			return;
-
-		if (rq->context == hung_ctx) {
-			i915_request_set_error_once(rq, -EIO);
-			__i915_request_skip(rq);
-		}
-	}
 }
 
 static void client_mark_guilty(struct i915_gem_context *ctx, bool banned)
@@ -88,10 +72,8 @@ static bool mark_guilty(struct i915_request *rq)
 	bool banned;
 	int i;
 
-	if (intel_context_is_closed(rq->context)) {
-		intel_context_set_banned(rq->context);
+	if (intel_context_is_closed(rq->context))
 		return true;
-	}
 
 	rcu_read_lock();
 	ctx = rcu_dereference(rq->context->gem_context);
@@ -123,11 +105,9 @@ static bool mark_guilty(struct i915_request *rq)
 	banned = !i915_gem_context_is_recoverable(ctx);
 	if (time_before(jiffies, prev_hang + CONTEXT_FAST_HANG_JIFFIES))
 		banned = true;
-	if (banned) {
+	if (banned)
 		drm_dbg(&ctx->i915->drm, "context %s: guilty %d, banned\n",
 			ctx->name, atomic_read(&ctx->guilty_count));
-		intel_context_set_banned(rq->context);
-	}
 
 	client_mark_guilty(ctx, banned);
 
@@ -149,6 +129,8 @@ static void mark_innocent(struct i915_request *rq)
 
 void __i915_request_reset(struct i915_request *rq, bool guilty)
 {
+	bool banned = false;
+
 	RQ_TRACE(rq, "guilty? %s\n", yesno(guilty));
 	GEM_BUG_ON(__i915_request_is_complete(rq));
 
@@ -156,13 +138,15 @@ void __i915_request_reset(struct i915_request *rq, bool guilty)
 	if (guilty) {
 		i915_request_set_error_once(rq, -EIO);
 		__i915_request_skip(rq);
-		if (mark_guilty(rq))
-			skip_context(rq);
+		banned = mark_guilty(rq);
 	} else {
 		i915_request_set_error_once(rq, -EAGAIN);
 		mark_innocent(rq);
 	}
 	rcu_read_unlock();
+
+	if (banned)
+		intel_context_ban(rq->context, rq);
 }
 
 static bool i915_in_reset(struct pci_dev *pdev)
@@ -338,15 +322,69 @@ static int gen6_reset_engines(struct intel_gt *gt,
 	return gen6_hw_domain_reset(gt, hw_mask);
 }
 
-static int gen11_lock_sfc(struct intel_engine_cs *engine, u32 *hw_mask)
+static struct intel_engine_cs *find_sfc_paired_vecs_engine(struct intel_engine_cs *engine)
+{
+	int vecs_id;
+
+	GEM_BUG_ON(engine->class != VIDEO_DECODE_CLASS);
+
+	vecs_id = _VECS((engine->instance) / 2);
+
+	return engine->gt->engine[vecs_id];
+}
+
+struct sfc_lock_data {
+	i915_reg_t lock_reg;
+	i915_reg_t ack_reg;
+	i915_reg_t usage_reg;
+	u32 lock_bit;
+	u32 ack_bit;
+	u32 usage_bit;
+	u32 reset_bit;
+};
+
+static void get_sfc_forced_lock_data(struct intel_engine_cs *engine,
+				     struct sfc_lock_data *sfc_lock)
+{
+	switch (engine->class) {
+	default:
+		MISSING_CASE(engine->class);
+		fallthrough;
+	case VIDEO_DECODE_CLASS:
+		sfc_lock->lock_reg = GEN11_VCS_SFC_FORCED_LOCK(engine);
+		sfc_lock->lock_bit = GEN11_VCS_SFC_FORCED_LOCK_BIT;
+
+		sfc_lock->ack_reg = GEN11_VCS_SFC_LOCK_STATUS(engine);
+		sfc_lock->ack_bit  = GEN11_VCS_SFC_LOCK_ACK_BIT;
+
+		sfc_lock->usage_reg = GEN11_VCS_SFC_LOCK_STATUS(engine);
+		sfc_lock->usage_bit = GEN11_VCS_SFC_USAGE_BIT;
+		sfc_lock->reset_bit = GEN11_VCS_SFC_RESET_BIT(engine->instance);
+
+		break;
+	case VIDEO_ENHANCEMENT_CLASS:
+		sfc_lock->lock_reg = GEN11_VECS_SFC_FORCED_LOCK(engine);
+		sfc_lock->lock_bit = GEN11_VECS_SFC_FORCED_LOCK_BIT;
+
+		sfc_lock->ack_reg = GEN11_VECS_SFC_LOCK_ACK(engine);
+		sfc_lock->ack_bit  = GEN11_VECS_SFC_LOCK_ACK_BIT;
+
+		sfc_lock->usage_reg = GEN11_VECS_SFC_USAGE(engine);
+		sfc_lock->usage_bit = GEN11_VECS_SFC_USAGE_BIT;
+		sfc_lock->reset_bit = GEN11_VECS_SFC_RESET_BIT(engine->instance);
+
+		break;
+	}
+}
+
+static int gen11_lock_sfc(struct intel_engine_cs *engine,
+			  u32 *reset_mask,
+			  u32 *unlock_mask)
 {
 	struct intel_uncore *uncore = engine->uncore;
 	u8 vdbox_sfc_access = engine->gt->info.vdbox_sfc_access;
-	i915_reg_t sfc_forced_lock, sfc_forced_lock_ack;
-	u32 sfc_forced_lock_bit, sfc_forced_lock_ack_bit;
-	i915_reg_t sfc_usage;
-	u32 sfc_usage_bit;
-	u32 sfc_reset_bit;
+	struct sfc_lock_data sfc_lock;
+	bool lock_obtained, lock_to_other = false;
 	int ret;
 
 	switch (engine->class) {
@@ -354,53 +392,72 @@ static int gen11_lock_sfc(struct intel_engine_cs *engine, u32 *hw_mask)
 		if ((BIT(engine->instance) & vdbox_sfc_access) == 0)
 			return 0;
 
-		sfc_forced_lock = GEN11_VCS_SFC_FORCED_LOCK(engine);
-		sfc_forced_lock_bit = GEN11_VCS_SFC_FORCED_LOCK_BIT;
-
-		sfc_forced_lock_ack = GEN11_VCS_SFC_LOCK_STATUS(engine);
-		sfc_forced_lock_ack_bit  = GEN11_VCS_SFC_LOCK_ACK_BIT;
-
-		sfc_usage = GEN11_VCS_SFC_LOCK_STATUS(engine);
-		sfc_usage_bit = GEN11_VCS_SFC_USAGE_BIT;
-		sfc_reset_bit = GEN11_VCS_SFC_RESET_BIT(engine->instance);
-		break;
-
+		fallthrough;
 	case VIDEO_ENHANCEMENT_CLASS:
-		sfc_forced_lock = GEN11_VECS_SFC_FORCED_LOCK(engine);
-		sfc_forced_lock_bit = GEN11_VECS_SFC_FORCED_LOCK_BIT;
+		get_sfc_forced_lock_data(engine, &sfc_lock);
 
-		sfc_forced_lock_ack = GEN11_VECS_SFC_LOCK_ACK(engine);
-		sfc_forced_lock_ack_bit  = GEN11_VECS_SFC_LOCK_ACK_BIT;
-
-		sfc_usage = GEN11_VECS_SFC_USAGE(engine);
-		sfc_usage_bit = GEN11_VECS_SFC_USAGE_BIT;
-		sfc_reset_bit = GEN11_VECS_SFC_RESET_BIT(engine->instance);
 		break;
-
 	default:
 		return 0;
 	}
 
+	if (!(intel_uncore_read_fw(uncore, sfc_lock.usage_reg) & sfc_lock.usage_bit)) {
+		struct intel_engine_cs *paired_vecs;
+
+		if (engine->class != VIDEO_DECODE_CLASS ||
+		    GRAPHICS_VER(engine->i915) != 12)
+			return 0;
+
+		/*
+		 * Wa_14010733141
+		 *
+		 * If the VCS-MFX isn't using the SFC, we also need to check
+		 * whether VCS-HCP is using it.  If so, we need to issue a *VE*
+		 * forced lock on the VE engine that shares the same SFC.
+		 */
+		if (!(intel_uncore_read_fw(uncore,
+					   GEN12_HCP_SFC_LOCK_STATUS(engine)) &
+		      GEN12_HCP_SFC_USAGE_BIT))
+			return 0;
+
+		paired_vecs = find_sfc_paired_vecs_engine(engine);
+		get_sfc_forced_lock_data(paired_vecs, &sfc_lock);
+		lock_to_other = true;
+		*unlock_mask |= paired_vecs->mask;
+	} else {
+		*unlock_mask |= engine->mask;
+	}
+
 	/*
-	 * If the engine is using a SFC, tell the engine that a software reset
+	 * If the engine is using an SFC, tell the engine that a software reset
 	 * is going to happen. The engine will then try to force lock the SFC.
 	 * If SFC ends up being locked to the engine we want to reset, we have
 	 * to reset it as well (we will unlock it once the reset sequence is
 	 * completed).
 	 */
-	if (!(intel_uncore_read_fw(uncore, sfc_usage) & sfc_usage_bit))
-		return 0;
-
-	rmw_set_fw(uncore, sfc_forced_lock, sfc_forced_lock_bit);
+	rmw_set_fw(uncore, sfc_lock.lock_reg, sfc_lock.lock_bit);
 
 	ret = __intel_wait_for_register_fw(uncore,
-					   sfc_forced_lock_ack,
-					   sfc_forced_lock_ack_bit,
-					   sfc_forced_lock_ack_bit,
+					   sfc_lock.ack_reg,
+					   sfc_lock.ack_bit,
+					   sfc_lock.ack_bit,
 					   1000, 0, NULL);
 
-	/* Was the SFC released while we were trying to lock it? */
-	if (!(intel_uncore_read_fw(uncore, sfc_usage) & sfc_usage_bit))
+	/*
+	 * Was the SFC released while we were trying to lock it?
+	 *
+	 * We should reset both the engine and the SFC if:
+	 *  - We were locking the SFC to this engine and the lock succeeded
+	 *       OR
+	 *  - We were locking the SFC to a different engine (Wa_14010733141)
+	 *    but the SFC was released before the lock was obtained.
+	 *
+	 * Otherwise we need only reset the engine by itself and we can
+	 * leave the SFC alone.
+	 */
+	lock_obtained = (intel_uncore_read_fw(uncore, sfc_lock.usage_reg) &
+			sfc_lock.usage_bit) != 0;
+	if (lock_obtained == lock_to_other)
 		return 0;
 
 	if (ret) {
@@ -408,7 +465,7 @@ static int gen11_lock_sfc(struct intel_engine_cs *engine, u32 *hw_mask)
 		return ret;
 	}
 
-	*hw_mask |= sfc_reset_bit;
+	*reset_mask |= sfc_lock.reset_bit;
 	return 0;
 }
 
@@ -416,28 +473,19 @@ static void gen11_unlock_sfc(struct intel_engine_cs *engine)
 {
 	struct intel_uncore *uncore = engine->uncore;
 	u8 vdbox_sfc_access = engine->gt->info.vdbox_sfc_access;
-	i915_reg_t sfc_forced_lock;
-	u32 sfc_forced_lock_bit;
+	struct sfc_lock_data sfc_lock = {};
 
-	switch (engine->class) {
-	case VIDEO_DECODE_CLASS:
-		if ((BIT(engine->instance) & vdbox_sfc_access) == 0)
-			return;
-
-		sfc_forced_lock = GEN11_VCS_SFC_FORCED_LOCK(engine);
-		sfc_forced_lock_bit = GEN11_VCS_SFC_FORCED_LOCK_BIT;
-		break;
-
-	case VIDEO_ENHANCEMENT_CLASS:
-		sfc_forced_lock = GEN11_VECS_SFC_FORCED_LOCK(engine);
-		sfc_forced_lock_bit = GEN11_VECS_SFC_FORCED_LOCK_BIT;
-		break;
-
-	default:
+	if (engine->class != VIDEO_DECODE_CLASS &&
+	    engine->class != VIDEO_ENHANCEMENT_CLASS)
 		return;
-	}
 
-	rmw_clear_fw(uncore, sfc_forced_lock, sfc_forced_lock_bit);
+	if (engine->class == VIDEO_DECODE_CLASS &&
+	    (BIT(engine->instance) & vdbox_sfc_access) == 0)
+		return;
+
+	get_sfc_forced_lock_data(engine, &sfc_lock);
+
+	rmw_clear_fw(uncore, sfc_lock.lock_reg, sfc_lock.lock_bit);
 }
 
 static int gen11_reset_engines(struct intel_gt *gt,
@@ -451,28 +499,34 @@ static int gen11_reset_engines(struct intel_gt *gt,
 		[VCS1]  = GEN11_GRDOM_MEDIA2,
 		[VCS2]  = GEN11_GRDOM_MEDIA3,
 		[VCS3]  = GEN11_GRDOM_MEDIA4,
+		[VCS4]  = GEN11_GRDOM_MEDIA5,
+		[VCS5]  = GEN11_GRDOM_MEDIA6,
+		[VCS6]  = GEN11_GRDOM_MEDIA7,
+		[VCS7]  = GEN11_GRDOM_MEDIA8,
 		[VECS0] = GEN11_GRDOM_VECS,
 		[VECS1] = GEN11_GRDOM_VECS2,
+		[VECS2] = GEN11_GRDOM_VECS3,
+		[VECS3] = GEN11_GRDOM_VECS4,
 	};
 	struct intel_engine_cs *engine;
 	intel_engine_mask_t tmp;
-	u32 hw_mask;
+	u32 reset_mask, unlock_mask = 0;
 	int ret;
 
 	if (engine_mask == ALL_ENGINES) {
-		hw_mask = GEN11_GRDOM_FULL;
+		reset_mask = GEN11_GRDOM_FULL;
 	} else {
-		hw_mask = 0;
+		reset_mask = 0;
 		for_each_engine_masked(engine, gt, engine_mask, tmp) {
 			GEM_BUG_ON(engine->id >= ARRAY_SIZE(hw_engine_mask));
-			hw_mask |= hw_engine_mask[engine->id];
-			ret = gen11_lock_sfc(engine, &hw_mask);
+			reset_mask |= hw_engine_mask[engine->id];
+			ret = gen11_lock_sfc(engine, &reset_mask, &unlock_mask);
 			if (ret)
 				goto sfc_unlock;
 		}
 	}
 
-	ret = gen6_hw_domain_reset(gt, hw_mask);
+	ret = gen6_hw_domain_reset(gt, reset_mask);
 
 sfc_unlock:
 	/*
@@ -480,10 +534,14 @@ sfc_unlock:
 	 * gen11_lock_sfc to make sure that we clean properly if something
 	 * wrong happened during the lock (e.g. lock acquired after timeout
 	 * expiration).
+	 *
+	 * Due to Wa_14010733141, we may have locked an SFC to an engine that
+	 * wasn't being reset.  So instead of calling gen11_unlock_sfc()
+	 * on engine_mask, we instead call it on the mask of engines that our
+	 * gen11_lock_sfc() calls told us actually had locks attempted.
 	 */
-	if (engine_mask != ALL_ENGINES)
-		for_each_engine_masked(engine, gt, engine_mask, tmp)
-			gen11_unlock_sfc(engine);
+	for_each_engine_masked(engine, gt, unlock_mask, tmp)
+		gen11_unlock_sfc(engine);
 
 	return ret;
 }
@@ -565,7 +623,7 @@ static int gen8_reset_engines(struct intel_gt *gt,
 		 */
 	}
 
-	if (INTEL_GEN(gt->i915) >= 11)
+	if (GRAPHICS_VER(gt->i915) >= 11)
 		ret = gen11_reset_engines(gt, engine_mask, retry);
 	else
 		ret = gen6_reset_engines(gt, engine_mask, retry);
@@ -594,17 +652,17 @@ static reset_func intel_get_gpu_reset(const struct intel_gt *gt)
 
 	if (is_mock_gt(gt))
 		return mock_reset;
-	else if (INTEL_GEN(i915) >= 8)
+	else if (GRAPHICS_VER(i915) >= 8)
 		return gen8_reset_engines;
-	else if (INTEL_GEN(i915) >= 6)
+	else if (GRAPHICS_VER(i915) >= 6)
 		return gen6_reset_engines;
-	else if (INTEL_GEN(i915) >= 5)
+	else if (GRAPHICS_VER(i915) >= 5)
 		return ilk_do_reset;
 	else if (IS_G4X(i915))
 		return g4x_do_reset;
 	else if (IS_G33(i915) || IS_PINEVIEW(i915))
 		return g33_do_reset;
-	else if (INTEL_GEN(i915) >= 3)
+	else if (GRAPHICS_VER(i915) >= 3)
 		return i915_do_reset;
 	else
 		return NULL;
@@ -656,7 +714,7 @@ bool intel_has_reset_engine(const struct intel_gt *gt)
 int intel_reset_guc(struct intel_gt *gt)
 {
 	u32 guc_domain =
-		INTEL_GEN(gt->i915) >= 11 ? GEN11_GRDOM_GUC : GEN9_GRDOM_GUC;
+		GRAPHICS_VER(gt->i915) >= 11 ? GEN11_GRDOM_GUC : GEN9_GRDOM_GUC;
 	int ret;
 
 	GEM_BUG_ON(!HAS_GT_UC(gt->i915));
@@ -758,6 +816,8 @@ static int gt_reset(struct intel_gt *gt, intel_engine_mask_t stalled_mask)
 		__intel_engine_reset(engine, stalled_mask & engine->mask);
 	local_bh_enable();
 
+	intel_uc_reset(&gt->uc, true);
+
 	intel_ggtt_restore_fences(gt->ggtt);
 
 	return err;
@@ -782,6 +842,8 @@ static void reset_finish(struct intel_gt *gt, intel_engine_mask_t awake)
 		if (awake & engine->mask)
 			intel_engine_pm_put(engine);
 	}
+
+	intel_uc_reset_finish(&gt->uc);
 }
 
 static void nop_submit_request(struct i915_request *request)
@@ -835,6 +897,7 @@ static void __intel_gt_set_wedged(struct intel_gt *gt)
 	for_each_engine(engine, gt, id)
 		if (engine->reset.cancel)
 			engine->reset.cancel(engine);
+	intel_uc_cancel_requests(&gt->uc);
 	local_bh_enable();
 
 	reset_finish(gt, awake);
@@ -1118,11 +1181,13 @@ static int intel_gt_reset_engine(struct intel_engine_cs *engine)
 int __intel_engine_reset_bh(struct intel_engine_cs *engine, const char *msg)
 {
 	struct intel_gt *gt = engine->gt;
-	bool uses_guc = intel_engine_in_guc_submission_mode(engine);
 	int ret;
 
 	ENGINE_TRACE(engine, "flags=%lx\n", gt->reset.flags);
 	GEM_BUG_ON(!test_bit(I915_RESET_ENGINE + engine->id, &gt->reset.flags));
+
+	if (intel_engine_uses_guc(engine))
+		return -ENODEV;
 
 	if (!intel_engine_pm_get_if_awake(engine))
 		return 0;
@@ -1134,13 +1199,10 @@ int __intel_engine_reset_bh(struct intel_engine_cs *engine, const char *msg)
 			   "Resetting %s for %s\n", engine->name, msg);
 	atomic_inc(&engine->i915->gpu_error.reset_engine_count[engine->uabi_class]);
 
-	if (!uses_guc)
-		ret = intel_gt_reset_engine(engine);
-	else
-		ret = intel_guc_reset_engine(&engine->gt->uc.guc, engine);
+	ret = intel_gt_reset_engine(engine);
 	if (ret) {
 		/* If we fail here, we expect to fallback to a global reset */
-		ENGINE_TRACE(engine, "Failed to reset, err: %d\n", ret);
+		ENGINE_TRACE(engine, "Failed to reset %s, err: %d\n", engine->name, ret);
 		goto out;
 	}
 
@@ -1274,7 +1336,8 @@ void intel_gt_handle_error(struct intel_gt *gt,
 	 * Try engine reset when available. We fall back to full reset if
 	 * single reset fails.
 	 */
-	if (intel_has_reset_engine(gt) && !intel_gt_is_wedged(gt)) {
+	if (!intel_uc_uses_guc_submission(&gt->uc) &&
+	    intel_has_reset_engine(gt) && !intel_gt_is_wedged(gt)) {
 		local_bh_disable();
 		for_each_engine_masked(engine, gt, engine_mask, tmp) {
 			BUILD_BUG_ON(I915_RESET_MODESET >= I915_RESET_ENGINE);

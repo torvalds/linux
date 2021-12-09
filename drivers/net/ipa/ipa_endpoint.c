@@ -21,7 +21,7 @@
 #include "ipa_modem.h"
 #include "ipa_table.h"
 #include "ipa_gsi.h"
-#include "ipa_clock.h"
+#include "ipa_power.h"
 
 #define atomic_dec_not_zero(v)	atomic_add_unless((v), -1, 0)
 
@@ -75,8 +75,6 @@ struct ipa_status {
 #define IPA_STATUS_FLAGS1_RT_RULE_ID_FMASK	GENMASK(31, 22)
 #define IPA_STATUS_FLAGS2_TAG_FMASK		GENMASK_ULL(63, 16)
 
-#ifdef IPA_VALIDATE
-
 static bool ipa_endpoint_data_valid_one(struct ipa *ipa, u32 count,
 			    const struct ipa_gsi_endpoint_data *all_data,
 			    const struct ipa_gsi_endpoint_data *data)
@@ -87,11 +85,6 @@ static bool ipa_endpoint_data_valid_one(struct ipa *ipa, u32 count,
 
 	if (ipa_gsi_endpoint_data_empty(data))
 		return true;
-
-	/* IPA v4.5+ uses checksum offload, not yet supported by RMNet */
-	if (ipa->version >= IPA_VERSION_4_5)
-		if (data->endpoint.config.checksum)
-			return false;
 
 	if (!data->toward_ipa) {
 		if (data->endpoint.filter_support) {
@@ -230,27 +223,6 @@ static bool ipa_endpoint_data_valid(struct ipa *ipa, u32 count,
 	return true;
 }
 
-#else /* !IPA_VALIDATE */
-
-static bool ipa_endpoint_data_valid(struct ipa *ipa, u32 count,
-				    const struct ipa_gsi_endpoint_data *data)
-{
-	const struct ipa_gsi_endpoint_data *dp = data;
-	enum ipa_endpoint_name name;
-
-	if (ipa->version < IPA_VERSION_4_5)
-		return true;
-
-	/* IPA v4.5+ uses checksum offload, not yet supported by RMNet */
-	for (name = 0; name < count; name++, dp++)
-		if (data->endpoint.config.checksum)
-			return false;
-
-	return true;
-}
-
-#endif /* !IPA_VALIDATE */
-
 /* Allocate a transaction to use on a non-command endpoint */
 static struct gsi_trans *ipa_endpoint_trans_alloc(struct ipa_endpoint *endpoint,
 						  u32 tre_count)
@@ -278,17 +250,18 @@ ipa_endpoint_init_ctrl(struct ipa_endpoint *endpoint, bool suspend_delay)
 
 	/* Suspend is not supported for IPA v4.0+.  Delay doesn't work
 	 * correctly on IPA v4.2.
-	 *
-	 * if (endpoint->toward_ipa)
-	 * 	assert(ipa->version != IPA_VERSION_4.2);
-	 * else
-	 *	assert(ipa->version < IPA_VERSION_4_0);
 	 */
+	if (endpoint->toward_ipa)
+		WARN_ON(ipa->version == IPA_VERSION_4_2);
+	else
+		WARN_ON(ipa->version >= IPA_VERSION_4_0);
+
 	mask = endpoint->toward_ipa ? ENDP_DELAY_FMASK : ENDP_SUSPEND_FMASK;
 
 	val = ioread32(ipa->reg_virt + offset);
-	/* Don't bother if it's already in the requested state */
 	state = !!(val & mask);
+
+	/* Don't bother if it's already in the requested state */
 	if (suspend_delay != state) {
 		val ^= mask;
 		iowrite32(val, ipa->reg_virt + offset);
@@ -301,7 +274,7 @@ ipa_endpoint_init_ctrl(struct ipa_endpoint *endpoint, bool suspend_delay)
 static void
 ipa_endpoint_program_delay(struct ipa_endpoint *endpoint, bool enable)
 {
-	/* assert(endpoint->toward_ipa); */
+	WARN_ON(!endpoint->toward_ipa);
 
 	/* Delay mode doesn't work properly for IPA v4.2 */
 	if (endpoint->ipa->version != IPA_VERSION_4_2)
@@ -315,7 +288,8 @@ static bool ipa_endpoint_aggr_active(struct ipa_endpoint *endpoint)
 	u32 offset;
 	u32 val;
 
-	/* assert(mask & ipa->available); */
+	WARN_ON(!(mask & ipa->available));
+
 	offset = ipa_reg_state_aggr_active_offset(ipa->version);
 	val = ioread32(ipa->reg_virt + offset);
 
@@ -327,7 +301,8 @@ static void ipa_endpoint_force_close(struct ipa_endpoint *endpoint)
 	u32 mask = BIT(endpoint->endpoint_id);
 	struct ipa *ipa = endpoint->ipa;
 
-	/* assert(mask & ipa->available); */
+	WARN_ON(!(mask & ipa->available));
+
 	iowrite32(mask, ipa->reg_virt + IPA_REG_AGGR_FORCE_CLOSE_OFFSET);
 }
 
@@ -366,7 +341,7 @@ ipa_endpoint_program_suspend(struct ipa_endpoint *endpoint, bool enable)
 	if (endpoint->ipa->version >= IPA_VERSION_4_0)
 		return enable;	/* For IPA v4.0+, no change made */
 
-	/* assert(!endpoint->toward_ipa); */
+	WARN_ON(endpoint->toward_ipa);
 
 	suspended = ipa_endpoint_init_ctrl(endpoint, enable);
 
@@ -457,28 +432,34 @@ int ipa_endpoint_modem_exception_reset_all(struct ipa *ipa)
 static void ipa_endpoint_init_cfg(struct ipa_endpoint *endpoint)
 {
 	u32 offset = IPA_REG_ENDP_INIT_CFG_N_OFFSET(endpoint->endpoint_id);
+	enum ipa_cs_offload_en enabled;
 	u32 val = 0;
 
 	/* FRAG_OFFLOAD_EN is 0 */
 	if (endpoint->data->checksum) {
+		enum ipa_version version = endpoint->ipa->version;
+
 		if (endpoint->toward_ipa) {
 			u32 checksum_offset;
 
-			val |= u32_encode_bits(IPA_CS_OFFLOAD_UL,
-					       CS_OFFLOAD_EN_FMASK);
 			/* Checksum header offset is in 4-byte units */
 			checksum_offset = sizeof(struct rmnet_map_header);
 			checksum_offset /= sizeof(u32);
 			val |= u32_encode_bits(checksum_offset,
 					       CS_METADATA_HDR_OFFSET_FMASK);
+
+			enabled = version < IPA_VERSION_4_5
+					? IPA_CS_OFFLOAD_UL
+					: IPA_CS_OFFLOAD_INLINE;
 		} else {
-			val |= u32_encode_bits(IPA_CS_OFFLOAD_DL,
-					       CS_OFFLOAD_EN_FMASK);
+			enabled = version < IPA_VERSION_4_5
+					? IPA_CS_OFFLOAD_DL
+					: IPA_CS_OFFLOAD_INLINE;
 		}
 	} else {
-		val |= u32_encode_bits(IPA_CS_OFFLOAD_NONE,
-				       CS_OFFLOAD_EN_FMASK);
+		enabled = IPA_CS_OFFLOAD_NONE;
 	}
+	val |= u32_encode_bits(enabled, CS_OFFLOAD_EN_FMASK);
 	/* CS_GEN_QMB_MASTER_SEL is 0 */
 
 	iowrite32(val, endpoint->ipa->reg_virt + offset);
@@ -496,6 +477,27 @@ static void ipa_endpoint_init_nat(struct ipa_endpoint *endpoint)
 	val = u32_encode_bits(IPA_NAT_BYPASS, NAT_EN_FMASK);
 
 	iowrite32(val, endpoint->ipa->reg_virt + offset);
+}
+
+static u32
+ipa_qmap_header_size(enum ipa_version version, struct ipa_endpoint *endpoint)
+{
+	u32 header_size = sizeof(struct rmnet_map_header);
+
+	/* Without checksum offload, we just have the MAP header */
+	if (!endpoint->data->checksum)
+		return header_size;
+
+	if (version < IPA_VERSION_4_5) {
+		/* Checksum header inserted for AP TX endpoints only */
+		if (endpoint->toward_ipa)
+			header_size += sizeof(struct rmnet_map_ul_csum_header);
+	} else {
+		/* Checksum header is used in both directions */
+		header_size += sizeof(struct rmnet_map_v5_csum_header);
+	}
+
+	return header_size;
 }
 
 /**
@@ -526,13 +528,11 @@ static void ipa_endpoint_init_hdr(struct ipa_endpoint *endpoint)
 	u32 val = 0;
 
 	if (endpoint->data->qmap) {
-		size_t header_size = sizeof(struct rmnet_map_header);
 		enum ipa_version version = ipa->version;
+		size_t header_size;
 
-		/* We might supply a checksum header after the QMAP header */
-		if (endpoint->toward_ipa && endpoint->data->checksum)
-			header_size += sizeof(struct rmnet_map_ul_csum_header);
-		val |= ipa_header_size_encoded(version, header_size);
+		header_size = ipa_qmap_header_size(version, endpoint);
+		val = ipa_header_size_encoded(version, header_size);
 
 		/* Define how to fill fields in a received QMAP header */
 		if (!endpoint->toward_ipa) {
@@ -810,7 +810,7 @@ static u32 hol_block_timer_val(struct ipa *ipa, u32 microseconds)
 		return hol_block_timer_qtime_val(ipa, microseconds);
 
 	/* Use 64 bit arithmetic to avoid overflow... */
-	rate = ipa_clock_rate(ipa);
+	rate = ipa_core_clock_rate(ipa);
 	ticks = DIV_ROUND_CLOSEST(microseconds * rate, 128 * USEC_PER_SEC);
 	/* ...but we still need to fit into a 32-bit register */
 	WARN_ON(ticks > U32_MAX);
@@ -1159,7 +1159,8 @@ static bool ipa_endpoint_skb_build(struct ipa_endpoint *endpoint,
 	if (!endpoint->netdev)
 		return false;
 
-	/* assert(len <= SKB_WITH_OVERHEAD(IPA_RX_BUFFER_SIZE-NET_SKB_PAD)); */
+	WARN_ON(len > SKB_WITH_OVERHEAD(IPA_RX_BUFFER_SIZE - NET_SKB_PAD));
+
 	skb = build_skb(page_address(page), IPA_RX_BUFFER_SIZE);
 	if (skb) {
 		/* Reserve the headroom and account for the data */
@@ -1586,7 +1587,6 @@ void ipa_endpoint_suspend_one(struct ipa_endpoint *endpoint)
 {
 	struct device *dev = &endpoint->ipa->pdev->dev;
 	struct gsi *gsi = &endpoint->ipa->gsi;
-	bool stop_channel;
 	int ret;
 
 	if (!(endpoint->ipa->enabled & BIT(endpoint->endpoint_id)))
@@ -1597,11 +1597,7 @@ void ipa_endpoint_suspend_one(struct ipa_endpoint *endpoint)
 		(void)ipa_endpoint_program_suspend(endpoint, true);
 	}
 
-	/* Starting with IPA v4.0, endpoints are suspended by stopping the
-	 * underlying GSI channel rather than using endpoint suspend mode.
-	 */
-	stop_channel = endpoint->ipa->version >= IPA_VERSION_4_0;
-	ret = gsi_channel_suspend(gsi, endpoint->channel_id, stop_channel);
+	ret = gsi_channel_suspend(gsi, endpoint->channel_id);
 	if (ret)
 		dev_err(dev, "error %d suspending channel %u\n", ret,
 			endpoint->channel_id);
@@ -1611,7 +1607,6 @@ void ipa_endpoint_resume_one(struct ipa_endpoint *endpoint)
 {
 	struct device *dev = &endpoint->ipa->pdev->dev;
 	struct gsi *gsi = &endpoint->ipa->gsi;
-	bool start_channel;
 	int ret;
 
 	if (!(endpoint->ipa->enabled & BIT(endpoint->endpoint_id)))
@@ -1620,11 +1615,7 @@ void ipa_endpoint_resume_one(struct ipa_endpoint *endpoint)
 	if (!endpoint->toward_ipa)
 		(void)ipa_endpoint_program_suspend(endpoint, false);
 
-	/* Starting with IPA v4.0, the underlying GSI channel must be
-	 * restarted for resume.
-	 */
-	start_channel = endpoint->ipa->version >= IPA_VERSION_4_0;
-	ret = gsi_channel_resume(gsi, endpoint->channel_id, start_channel);
+	ret = gsi_channel_resume(gsi, endpoint->channel_id);
 	if (ret)
 		dev_err(dev, "error %d resuming channel %u\n", ret,
 			endpoint->channel_id);
@@ -1733,6 +1724,21 @@ int ipa_endpoint_config(struct ipa *ipa)
 	int ret = 0;
 	u32 max;
 	u32 val;
+
+	/* Prior to IPAv3.5, the FLAVOR_0 register was not supported.
+	 * Furthermore, the endpoints were not grouped such that TX
+	 * endpoint numbers started with 0 and RX endpoints had numbers
+	 * higher than all TX endpoints, so we can't do the simple
+	 * direction check used for newer hardware below.
+	 *
+	 * For hardware that doesn't support the FLAVOR_0 register,
+	 * just set the available mask to support any endpoint, and
+	 * assume the configuration is valid.
+	 */
+	if (ipa->version < IPA_VERSION_3_5) {
+		ipa->available = ~0;
+		return 0;
+	}
 
 	/* Find out about the endpoints supplied by the hardware, and ensure
 	 * the highest one doesn't exceed the number we support.

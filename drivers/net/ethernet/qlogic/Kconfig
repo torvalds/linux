@@ -99,7 +99,7 @@ config QED_SRIOV
 config QEDE
 	tristate "QLogic QED 25/40/100Gb Ethernet NIC"
 	depends on QED
-	imply PTP_1588_CLOCK
+	depends on PTP_1588_CLOCK_OPTIONAL
 	help
 	  This enables the support for Marvell FastLinQ adapters family,
 	  ethernet driver.
@@ -108,6 +108,9 @@ config QED_RDMA
 	bool
 
 config QED_ISCSI
+	bool
+
+config QED_NVMETCP
 	bool
 
 config QED_FCOE

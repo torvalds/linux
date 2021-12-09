@@ -39,14 +39,20 @@ struct snd_motu_packet_format {
 	unsigned char pcm_chunks[3];
 };
 
+struct amdtp_motu_cache {
+	unsigned int *event_offsets;
+	unsigned int size;
+	unsigned int tail;
+	unsigned int tx_cycle_count;
+	unsigned int head;
+	unsigned int rx_cycle_count;
+};
+
 struct snd_motu {
 	struct snd_card *card;
 	struct fw_unit *unit;
 	struct mutex mutex;
 	spinlock_t lock;
-
-	bool registered;
-	struct delayed_work dwork;
 
 	/* Model dependent information. */
 	const struct snd_motu_spec *spec;
@@ -70,6 +76,8 @@ struct snd_motu {
 	wait_queue_head_t hwdep_wait;
 
 	struct amdtp_domain domain;
+
+	struct amdtp_motu_cache cache;
 };
 
 enum snd_motu_spec_flags {
@@ -99,6 +107,7 @@ enum snd_motu_clock_source {
 };
 
 enum snd_motu_protocol_version {
+	SND_MOTU_PROTOCOL_V1,
 	SND_MOTU_PROTOCOL_V2,
 	SND_MOTU_PROTOCOL_V3,
 };
@@ -106,25 +115,32 @@ enum snd_motu_protocol_version {
 struct snd_motu_spec {
 	const char *const name;
 	enum snd_motu_protocol_version protocol_version;
-	enum snd_motu_spec_flags flags;
+	// The combination of snd_motu_spec_flags enumeration-constants.
+	unsigned int flags;
 
 	unsigned char tx_fixed_pcm_chunks[3];
 	unsigned char rx_fixed_pcm_chunks[3];
 };
 
+extern const struct snd_motu_spec snd_motu_spec_828;
+extern const struct snd_motu_spec snd_motu_spec_896;
+
 extern const struct snd_motu_spec snd_motu_spec_828mk2;
+extern const struct snd_motu_spec snd_motu_spec_896hd;
 extern const struct snd_motu_spec snd_motu_spec_traveler;
 extern const struct snd_motu_spec snd_motu_spec_ultralite;
 extern const struct snd_motu_spec snd_motu_spec_8pre;
 
-extern const struct snd_motu_spec snd_motu_spec_828mk3;
+extern const struct snd_motu_spec snd_motu_spec_828mk3_fw;
+extern const struct snd_motu_spec snd_motu_spec_828mk3_hybrid;
 extern const struct snd_motu_spec snd_motu_spec_ultralite_mk3;
 extern const struct snd_motu_spec snd_motu_spec_audio_express;
 extern const struct snd_motu_spec snd_motu_spec_4pre;
 
 int amdtp_motu_init(struct amdtp_stream *s, struct fw_unit *unit,
 		    enum amdtp_stream_direction dir,
-		    const struct snd_motu_spec *spec);
+		    const struct snd_motu_spec *spec,
+		    struct amdtp_motu_cache *cache);
 int amdtp_motu_set_parameters(struct amdtp_stream *s, unsigned int rate,
 			      unsigned int midi_ports,
 			      struct snd_motu_packet_format *formats);
@@ -160,6 +176,16 @@ int snd_motu_create_midi_devices(struct snd_motu *motu);
 
 int snd_motu_create_hwdep_device(struct snd_motu *motu);
 
+int snd_motu_protocol_v1_get_clock_rate(struct snd_motu *motu,
+					unsigned int *rate);
+int snd_motu_protocol_v1_set_clock_rate(struct snd_motu *motu,
+					unsigned int rate);
+int snd_motu_protocol_v1_get_clock_source(struct snd_motu *motu,
+					  enum snd_motu_clock_source *src);
+int snd_motu_protocol_v1_switch_fetching_mode(struct snd_motu *motu,
+					      bool enable);
+int snd_motu_protocol_v1_cache_packet_formats(struct snd_motu *motu);
+
 int snd_motu_protocol_v2_get_clock_rate(struct snd_motu *motu,
 					unsigned int *rate);
 int snd_motu_protocol_v2_set_clock_rate(struct snd_motu *motu,
@@ -187,6 +213,8 @@ static inline int snd_motu_protocol_get_clock_rate(struct snd_motu *motu,
 		return snd_motu_protocol_v2_get_clock_rate(motu, rate);
 	else if (motu->spec->protocol_version == SND_MOTU_PROTOCOL_V3)
 		return snd_motu_protocol_v3_get_clock_rate(motu, rate);
+	else if (motu->spec->protocol_version == SND_MOTU_PROTOCOL_V1)
+		return snd_motu_protocol_v1_get_clock_rate(motu, rate);
 	else
 		return -ENXIO;
 }
@@ -198,6 +226,8 @@ static inline int snd_motu_protocol_set_clock_rate(struct snd_motu *motu,
 		return snd_motu_protocol_v2_set_clock_rate(motu, rate);
 	else if (motu->spec->protocol_version == SND_MOTU_PROTOCOL_V3)
 		return snd_motu_protocol_v3_set_clock_rate(motu, rate);
+	else if (motu->spec->protocol_version == SND_MOTU_PROTOCOL_V1)
+		return snd_motu_protocol_v1_set_clock_rate(motu, rate);
 	else
 		return -ENXIO;
 }
@@ -209,6 +239,8 @@ static inline int snd_motu_protocol_get_clock_source(struct snd_motu *motu,
 		return snd_motu_protocol_v2_get_clock_source(motu, source);
 	else if (motu->spec->protocol_version == SND_MOTU_PROTOCOL_V3)
 		return snd_motu_protocol_v3_get_clock_source(motu, source);
+	else if (motu->spec->protocol_version == SND_MOTU_PROTOCOL_V1)
+		return snd_motu_protocol_v1_get_clock_source(motu, source);
 	else
 		return -ENXIO;
 }
@@ -220,6 +252,8 @@ static inline int snd_motu_protocol_switch_fetching_mode(struct snd_motu *motu,
 		return snd_motu_protocol_v2_switch_fetching_mode(motu, enable);
 	else if (motu->spec->protocol_version == SND_MOTU_PROTOCOL_V3)
 		return snd_motu_protocol_v3_switch_fetching_mode(motu, enable);
+	else if (motu->spec->protocol_version == SND_MOTU_PROTOCOL_V1)
+		return snd_motu_protocol_v1_switch_fetching_mode(motu, enable);
 	else
 		return -ENXIO;
 }
@@ -230,6 +264,8 @@ static inline int snd_motu_protocol_cache_packet_formats(struct snd_motu *motu)
 		return snd_motu_protocol_v2_cache_packet_formats(motu);
 	else if (motu->spec->protocol_version == SND_MOTU_PROTOCOL_V3)
 		return snd_motu_protocol_v3_cache_packet_formats(motu);
+	else if (motu->spec->protocol_version == SND_MOTU_PROTOCOL_V1)
+		return snd_motu_protocol_v1_cache_packet_formats(motu);
 	else
 		return -ENXIO;
 }

@@ -506,6 +506,11 @@ static struct kobj_type ext4_feat_ktype = {
 	.release	= (void (*)(struct kobject *))kfree,
 };
 
+void ext4_notify_error_sysfs(struct ext4_sb_info *sbi)
+{
+	sysfs_notify(&sbi->s_kobj, NULL, "errors_count");
+}
+
 static struct kobject *ext4_root;
 
 static struct kobject *ext4_feat;

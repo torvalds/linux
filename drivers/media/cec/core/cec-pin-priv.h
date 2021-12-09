@@ -209,8 +209,8 @@ struct cec_pin {
 	u32				work_pin_events_dropped_cnt;
 	ktime_t				timer_ts;
 	u32				timer_cnt;
-	u32				timer_100ms_overruns;
-	u32				timer_300ms_overruns;
+	u32				timer_100us_overruns;
+	u32				timer_300us_overruns;
 	u32				timer_max_overrun;
 	u32				timer_sum_overrun;
 

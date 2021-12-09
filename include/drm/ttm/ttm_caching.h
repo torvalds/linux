@@ -33,4 +33,6 @@ enum ttm_caching {
 	ttm_cached
 };
 
+pgprot_t ttm_prot_from_caching(enum ttm_caching caching, pgprot_t tmp);
+
 #endif

@@ -319,10 +319,8 @@ int qlcnic_read_mac_addr(struct qlcnic_adapter *adapter)
 static void qlcnic_delete_adapter_mac(struct qlcnic_adapter *adapter)
 {
 	struct qlcnic_mac_vlan_list *cur;
-	struct list_head *head;
 
-	list_for_each(head, &adapter->mac_list) {
-		cur = list_entry(head, struct qlcnic_mac_vlan_list, list);
+	list_for_each_entry(cur, &adapter->mac_list, list) {
 		if (ether_addr_equal_unaligned(adapter->mac_addr, cur->mac_addr)) {
 			qlcnic_sre_macaddr_change(adapter, cur->mac_addr,
 						  0, QLCNIC_MAC_DEL);
@@ -2345,11 +2343,9 @@ qlcnic_setup_netdev(struct qlcnic_adapter *adapter, struct net_device *netdev,
 
 static int qlcnic_set_dma_mask(struct pci_dev *pdev, int *pci_using_dac)
 {
-	if (!pci_set_dma_mask(pdev, DMA_BIT_MASK(64)) &&
-			!pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(64)))
+	if (!dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64)))
 		*pci_using_dac = 1;
-	else if (!pci_set_dma_mask(pdev, DMA_BIT_MASK(32)) &&
-			!pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32)))
+	else if (!dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32)))
 		*pci_using_dac = 0;
 	else {
 		dev_err(&pdev->dev, "Unable to set DMA mask, aborting\n");
@@ -3344,9 +3340,6 @@ qlcnic_can_start_firmware(struct qlcnic_adapter *adapter)
 	do {
 		msleep(1000);
 		prev_state = QLC_SHARED_REG_RD32(adapter, QLCNIC_CRB_DEV_STATE);
-
-		if (prev_state == QLCNIC_DEV_QUISCENT)
-			continue;
 	} while ((prev_state != QLCNIC_DEV_READY) && --dev_init_timeo);
 
 	if (!dev_init_timeo) {
@@ -3456,6 +3449,7 @@ wait_npar:
 			adapter->fw_wait_cnt = 0;
 			return;
 		}
+		break;
 	case QLCNIC_DEV_FAILED:
 		break;
 	default:

@@ -22,7 +22,11 @@
  * XXX: This is wrong on {mips, parisc, powerpc, sparc}.
  */
 #undef	O_LARGEFILE
+#ifdef __aarch64__
+#define	O_LARGEFILE 0x20000
+#else
 #define	O_LARGEFILE 0x8000
+#endif
 
 struct open_how_ext {
 	struct open_how inner;
@@ -155,7 +159,7 @@ struct flag_test {
 	int err;
 };
 
-#define NUM_OPENAT2_FLAG_TESTS 24
+#define NUM_OPENAT2_FLAG_TESTS 25
 
 void test_openat2_flags(void)
 {
@@ -229,6 +233,11 @@ void test_openat2_flags(void)
 		{ .name = "invalid how.resolve and O_PATH",
 		  .how.flags = O_PATH,
 		  .how.resolve = 0x1337, .err = -EINVAL },
+
+		/* currently unknown upper 32 bit rejected. */
+		{ .name = "currently unknown bit (1 << 63)",
+		  .how.flags = O_RDONLY | (1ULL << 63),
+		  .how.resolve = 0, .err = -EINVAL },
 	};
 
 	BUILD_BUG_ON(ARRAY_LEN(tests) != NUM_OPENAT2_FLAG_TESTS);

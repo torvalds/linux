@@ -81,15 +81,6 @@ typedef unsigned int sclp_cmdw_t;
 
 #define GDS_KEY_SELFDEFTEXTMSG	0x31
 
-enum sclp_pm_event {
-	SCLP_PM_EVENT_FREEZE,
-	SCLP_PM_EVENT_THAW,
-	SCLP_PM_EVENT_RESTORE,
-};
-
-#define SCLP_PANIC_PRIO		1
-#define SCLP_PANIC_PRIO_CLIENT	0
-
 typedef u64 sccb_mask_t;
 
 struct sccb_header {
@@ -293,10 +284,6 @@ struct sclp_register {
 	void (*state_change_fn)(struct sclp_register *);
 	/* called for events in cp_receive_mask/sclp_receive_mask */
 	void (*receiver_fn)(struct evbuf_header *);
-	/* called for power management events */
-	void (*pm_event_fn)(struct sclp_register *, enum sclp_pm_event);
-	/* pm event posted flag */
-	int pm_event_posted;
 };
 
 /* externals from sclp.c */
@@ -322,8 +309,6 @@ extern int sclp_console_pages;
 extern int sclp_console_drop;
 extern unsigned long sclp_console_full;
 extern bool sclp_mask_compat_mode;
-
-extern char *sclp_early_sccb;
 
 void sclp_early_wait_irq(void);
 int sclp_early_cmd(sclp_cmdw_t cmd, void *sccb);

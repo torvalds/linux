@@ -50,7 +50,6 @@ enum bkw_mmap_state {
 
 struct evlist {
 	struct perf_evlist core;
-	int		 nr_groups;
 	bool		 enabled;
 	int		 id_pos;
 	int		 is_pos;
@@ -202,7 +201,6 @@ void evlist__set_selected(struct evlist *evlist, struct evsel *evsel);
 int evlist__create_maps(struct evlist *evlist, struct target *target);
 int evlist__apply_filters(struct evlist *evlist, struct evsel **err_evsel);
 
-void __evlist__set_leader(struct list_head *list);
 void evlist__set_leader(struct evlist *evlist);
 
 u64 __evlist__combined_sample_type(struct evlist *evlist);
@@ -276,6 +274,22 @@ void evlist__to_front(struct evlist *evlist, struct evsel *move_evsel);
  */
 #define evlist__for_each_entry_continue(evlist, evsel) \
 	__evlist__for_each_entry_continue(&(evlist)->core.entries, evsel)
+
+/**
+ * __evlist__for_each_entry_from - continue iteration from @evsel (included)
+ * @list: list_head instance to iterate
+ * @evsel: struct evsel iterator
+ */
+#define __evlist__for_each_entry_from(list, evsel) \
+	list_for_each_entry_from(evsel, list, core.node)
+
+/**
+ * evlist__for_each_entry_from - continue iteration from @evsel (included)
+ * @evlist: evlist instance to iterate
+ * @evsel: struct evsel iterator
+ */
+#define evlist__for_each_entry_from(evlist, evsel) \
+	__evlist__for_each_entry_from(&(evlist)->core.entries, evsel)
 
 /**
  * __evlist__for_each_entry_reverse - iterate thru all the evsels in reverse order
@@ -367,4 +381,5 @@ int evlist__ctlfd_ack(struct evlist *evlist);
 struct evsel *evlist__find_evsel(struct evlist *evlist, int idx);
 
 int evlist__scnprintf_evsels(struct evlist *evlist, size_t size, char *bf);
+void evlist__check_mem_load_aux(struct evlist *evlist);
 #endif /* __PERF_EVLIST_H */

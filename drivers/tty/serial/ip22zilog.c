@@ -31,7 +31,7 @@
 #include <linux/spinlock.h>
 #include <linux/init.h>
 
-#include <asm/io.h>
+#include <linux/io.h>
 #include <asm/irq.h>
 #include <asm/sgialib.h>
 #include <asm/sgi/ioc.h>

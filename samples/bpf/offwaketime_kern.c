@@ -20,6 +20,7 @@
 	})
 
 #define MINBLOCK_US	1
+#define MAX_ENTRIES	10000
 
 struct key_t {
 	char waker[TASK_COMM_LEN];
@@ -32,14 +33,14 @@ struct {
 	__uint(type, BPF_MAP_TYPE_HASH);
 	__type(key, struct key_t);
 	__type(value, u64);
-	__uint(max_entries, 10000);
+	__uint(max_entries, MAX_ENTRIES);
 } counts SEC(".maps");
 
 struct {
 	__uint(type, BPF_MAP_TYPE_HASH);
 	__type(key, u32);
 	__type(value, u64);
-	__uint(max_entries, 10000);
+	__uint(max_entries, MAX_ENTRIES);
 } start SEC(".maps");
 
 struct wokeby_t {
@@ -51,14 +52,14 @@ struct {
 	__uint(type, BPF_MAP_TYPE_HASH);
 	__type(key, u32);
 	__type(value, struct wokeby_t);
-	__uint(max_entries, 10000);
+	__uint(max_entries, MAX_ENTRIES);
 } wokeby SEC(".maps");
 
 struct {
 	__uint(type, BPF_MAP_TYPE_STACK_TRACE);
 	__uint(key_size, sizeof(u32));
 	__uint(value_size, PERF_MAX_STACK_DEPTH * sizeof(u64));
-	__uint(max_entries, 10000);
+	__uint(max_entries, MAX_ENTRIES);
 } stackmap SEC(".maps");
 
 #define STACKID_FLAGS (0 | BPF_F_FAST_STACK_CMP)

@@ -893,15 +893,13 @@ static struct synth_event *alloc_synth_event(const char *name, int n_fields,
 	dyn_event_init(&event->devent, &synth_event_ops);
 
 	for (i = 0, j = 0; i < n_fields; i++) {
+		fields[i]->field_pos = i;
 		event->fields[i] = fields[i];
 
-		if (fields[i]->is_dynamic) {
-			event->dynamic_fields[j] = fields[i];
-			event->dynamic_fields[j]->field_pos = i;
+		if (fields[i]->is_dynamic)
 			event->dynamic_fields[j++] = fields[i];
-			event->n_dynamic_fields++;
-		}
 	}
+	event->n_dynamic_fields = j;
 	event->n_fields = n_fields;
  out:
 	return event;
@@ -1300,7 +1298,7 @@ static int __create_synth_event(const char *name, const char *raw_fields)
 	}
 	ret = register_synth_event(event);
 	if (!ret)
-		dyn_event_add(&event->devent);
+		dyn_event_add(&event->devent, &event->call);
 	else
 		free_synth_event(event);
  out:
@@ -1371,13 +1369,15 @@ static int destroy_synth_event(struct synth_event *se)
 	int ret;
 
 	if (se->ref)
-		ret = -EBUSY;
-	else {
-		ret = unregister_synth_event(se);
-		if (!ret) {
-			dyn_event_remove(&se->devent);
-			free_synth_event(se);
-		}
+		return -EBUSY;
+
+	if (trace_event_dyn_busy(&se->call))
+		return -EBUSY;
+
+	ret = unregister_synth_event(se);
+	if (!ret) {
+		dyn_event_remove(&se->devent);
+		free_synth_event(se);
 	}
 
 	return ret;
@@ -2102,6 +2102,9 @@ static int synth_event_release(struct dyn_event *ev)
 	int ret;
 
 	if (event->ref)
+		return -EBUSY;
+
+	if (trace_event_dyn_busy(&event->call))
 		return -EBUSY;
 
 	ret = unregister_synth_event(event);

@@ -154,7 +154,7 @@ static int alloc_cqc(struct hns_roce_dev *hr_dev, struct hns_roce_cq *hr_cq)
 	hr_cq->cons_index = 0;
 	hr_cq->arm_sn = 1;
 
-	atomic_set(&hr_cq->refcount, 1);
+	refcount_set(&hr_cq->refcount, 1);
 	init_completion(&hr_cq->free);
 
 	return 0;
@@ -188,7 +188,7 @@ static void free_cqc(struct hns_roce_dev *hr_dev, struct hns_roce_cq *hr_cq)
 	synchronize_irq(hr_dev->eq_table.eq[hr_cq->vector].irq);
 
 	/* wait for all interrupt processed */
-	if (atomic_dec_and_test(&hr_cq->refcount))
+	if (refcount_dec_and_test(&hr_cq->refcount))
 		complete(&hr_cq->free);
 	wait_for_completion(&hr_cq->free);
 
@@ -202,13 +202,13 @@ static int alloc_cq_buf(struct hns_roce_dev *hr_dev, struct hns_roce_cq *hr_cq,
 	struct hns_roce_buf_attr buf_attr = {};
 	int ret;
 
-	buf_attr.page_shift = hr_dev->caps.cqe_buf_pg_sz + HNS_HW_PAGE_SHIFT;
+	buf_attr.page_shift = hr_dev->caps.cqe_buf_pg_sz + PAGE_SHIFT;
 	buf_attr.region[0].size = hr_cq->cq_depth * hr_cq->cqe_size;
 	buf_attr.region[0].hopnum = hr_dev->caps.cqe_hop_num;
 	buf_attr.region_count = 1;
 
 	ret = hns_roce_mtr_create(hr_dev, &hr_cq->mtr, &buf_attr,
-				  hr_dev->caps.cqe_ba_pg_sz + HNS_HW_PAGE_SHIFT,
+				  hr_dev->caps.cqe_ba_pg_sz + PAGE_SHIFT,
 				  udata, addr);
 	if (ret)
 		ibdev_err(ibdev, "failed to alloc CQ mtr, ret = %d.\n", ret);
@@ -234,8 +234,7 @@ static int alloc_cq_db(struct hns_roce_dev *hr_dev, struct hns_roce_cq *hr_cq,
 		    udata->outlen >= offsetofend(typeof(*resp), cap_flags)) {
 			uctx = rdma_udata_to_drv_context(udata,
 					struct hns_roce_ucontext, ibucontext);
-			err = hns_roce_db_map_user(uctx, udata, addr,
-						   &hr_cq->db);
+			err = hns_roce_db_map_user(uctx, addr, &hr_cq->db);
 			if (err)
 				return err;
 			hr_cq->flags |= HNS_ROCE_CQ_FLAG_RECORD_DB;
@@ -327,19 +326,30 @@ static void set_cq_param(struct hns_roce_cq *hr_cq, u32 cq_entries, int vector,
 	INIT_LIST_HEAD(&hr_cq->rq_list);
 }
 
-static void set_cqe_size(struct hns_roce_cq *hr_cq, struct ib_udata *udata,
-			 struct hns_roce_ib_create_cq *ucmd)
+static int set_cqe_size(struct hns_roce_cq *hr_cq, struct ib_udata *udata,
+			struct hns_roce_ib_create_cq *ucmd)
 {
 	struct hns_roce_dev *hr_dev = to_hr_dev(hr_cq->ib_cq.device);
 
-	if (udata) {
-		if (udata->inlen >= offsetofend(typeof(*ucmd), cqe_size))
-			hr_cq->cqe_size = ucmd->cqe_size;
-		else
-			hr_cq->cqe_size = HNS_ROCE_V2_CQE_SIZE;
-	} else {
+	if (!udata) {
 		hr_cq->cqe_size = hr_dev->caps.cqe_sz;
+		return 0;
 	}
+
+	if (udata->inlen >= offsetofend(typeof(*ucmd), cqe_size)) {
+		if (ucmd->cqe_size != HNS_ROCE_V2_CQE_SIZE &&
+		    ucmd->cqe_size != HNS_ROCE_V3_CQE_SIZE) {
+			ibdev_err(&hr_dev->ib_dev,
+				  "invalid cqe size %u.\n", ucmd->cqe_size);
+			return -EINVAL;
+		}
+
+		hr_cq->cqe_size = ucmd->cqe_size;
+	} else {
+		hr_cq->cqe_size = HNS_ROCE_V2_CQE_SIZE;
+	}
+
+	return 0;
 }
 
 int hns_roce_create_cq(struct ib_cq *ib_cq, const struct ib_cq_init_attr *attr,
@@ -367,7 +377,9 @@ int hns_roce_create_cq(struct ib_cq *ib_cq, const struct ib_cq_init_attr *attr,
 
 	set_cq_param(hr_cq, attr->cqe, attr->comp_vector, &ucmd);
 
-	set_cqe_size(hr_cq, udata, &ucmd);
+	ret = set_cqe_size(hr_cq, udata, &ucmd);
+	if (ret)
+		return ret;
 
 	ret = alloc_cq_buf(hr_dev, hr_cq, udata, ucmd.buf_addr);
 	if (ret) {
@@ -481,7 +493,7 @@ void hns_roce_cq_event(struct hns_roce_dev *hr_dev, u32 cqn, int event_type)
 		return;
 	}
 
-	atomic_inc(&hr_cq->refcount);
+	refcount_inc(&hr_cq->refcount);
 
 	ibcq = &hr_cq->ib_cq;
 	if (ibcq->event_handler) {
@@ -491,7 +503,7 @@ void hns_roce_cq_event(struct hns_roce_dev *hr_dev, u32 cqn, int event_type)
 		ibcq->event_handler(&event, ibcq->cq_context);
 	}
 
-	if (atomic_dec_and_test(&hr_cq->refcount))
+	if (refcount_dec_and_test(&hr_cq->refcount))
 		complete(&hr_cq->free);
 }
 

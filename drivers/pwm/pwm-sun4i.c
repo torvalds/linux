@@ -460,8 +460,6 @@ static int sun4i_pwm_probe(struct platform_device *pdev)
 	pwm->chip.dev = &pdev->dev;
 	pwm->chip.ops = &sun4i_pwm_ops;
 	pwm->chip.npwm = pwm->data->npwm;
-	pwm->chip.of_xlate = of_pwm_xlate_with_flags;
-	pwm->chip.of_pwm_n_cells = 3;
 
 	spin_lock_init(&pwm->ctrl_lock);
 
@@ -486,11 +484,8 @@ err_bus:
 static int sun4i_pwm_remove(struct platform_device *pdev)
 {
 	struct sun4i_pwm_chip *pwm = platform_get_drvdata(pdev);
-	int ret;
 
-	ret = pwmchip_remove(&pwm->chip);
-	if (ret)
-		return ret;
+	pwmchip_remove(&pwm->chip);
 
 	clk_disable_unprepare(pwm->bus_clk);
 	reset_control_assert(pwm->rst);

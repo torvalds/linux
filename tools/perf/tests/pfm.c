@@ -96,7 +96,7 @@ static int test__pfm_events(void)
 				count_pfm_events(&evlist->core),
 				table[i].nr_events);
 		TEST_ASSERT_EQUAL(table[i].events,
-				evlist->nr_groups,
+				evlist->core.nr_groups,
 				0);
 
 		evlist__delete(evlist);
@@ -155,6 +155,16 @@ static int test__pfm_group(void)
 			.nr_events = 3,
 			.nr_groups = 1,
 		},
+		{
+			.events = "instructions}",
+			.nr_events = 1,
+			.nr_groups = 0,
+		},
+		{
+			.events = "{{instructions}}",
+			.nr_events = 0,
+			.nr_groups = 0,
+		},
 	};
 
 	for (i = 0; i < ARRAY_SIZE(table); i++) {
@@ -170,7 +180,7 @@ static int test__pfm_group(void)
 				count_pfm_events(&evlist->core),
 				table[i].nr_events);
 		TEST_ASSERT_EQUAL(table[i].events,
-				evlist->nr_groups,
+				evlist->core.nr_groups,
 				table[i].nr_groups);
 
 		evlist__delete(evlist);

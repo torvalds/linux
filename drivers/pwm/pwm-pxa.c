@@ -165,7 +165,7 @@ pxa_pwm_of_xlate(struct pwm_chip *pc, const struct of_phandle_args *args)
 static int pwm_probe(struct platform_device *pdev)
 {
 	const struct platform_device_id *id = platform_get_device_id(pdev);
-	struct pxa_pwm_chip *pwm;
+	struct pxa_pwm_chip *pc;
 	int ret = 0;
 
 	if (IS_ENABLED(CONFIG_OF) && id == NULL)
@@ -174,46 +174,34 @@ static int pwm_probe(struct platform_device *pdev)
 	if (id == NULL)
 		return -EINVAL;
 
-	pwm = devm_kzalloc(&pdev->dev, sizeof(*pwm), GFP_KERNEL);
-	if (pwm == NULL)
+	pc = devm_kzalloc(&pdev->dev, sizeof(*pc), GFP_KERNEL);
+	if (pc == NULL)
 		return -ENOMEM;
 
-	pwm->clk = devm_clk_get(&pdev->dev, NULL);
-	if (IS_ERR(pwm->clk))
-		return PTR_ERR(pwm->clk);
+	pc->clk = devm_clk_get(&pdev->dev, NULL);
+	if (IS_ERR(pc->clk))
+		return PTR_ERR(pc->clk);
 
-	pwm->chip.dev = &pdev->dev;
-	pwm->chip.ops = &pxa_pwm_ops;
-	pwm->chip.npwm = (id->driver_data & HAS_SECONDARY_PWM) ? 2 : 1;
+	pc->chip.dev = &pdev->dev;
+	pc->chip.ops = &pxa_pwm_ops;
+	pc->chip.npwm = (id->driver_data & HAS_SECONDARY_PWM) ? 2 : 1;
 
 	if (IS_ENABLED(CONFIG_OF)) {
-		pwm->chip.of_xlate = pxa_pwm_of_xlate;
-		pwm->chip.of_pwm_n_cells = 1;
+		pc->chip.of_xlate = pxa_pwm_of_xlate;
+		pc->chip.of_pwm_n_cells = 1;
 	}
 
-	pwm->mmio_base = devm_platform_ioremap_resource(pdev, 0);
-	if (IS_ERR(pwm->mmio_base))
-		return PTR_ERR(pwm->mmio_base);
+	pc->mmio_base = devm_platform_ioremap_resource(pdev, 0);
+	if (IS_ERR(pc->mmio_base))
+		return PTR_ERR(pc->mmio_base);
 
-	ret = pwmchip_add(&pwm->chip);
+	ret = devm_pwmchip_add(&pdev->dev, &pc->chip);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "pwmchip_add() failed: %d\n", ret);
 		return ret;
 	}
 
-	platform_set_drvdata(pdev, pwm);
 	return 0;
-}
-
-static int pwm_remove(struct platform_device *pdev)
-{
-	struct pxa_pwm_chip *chip;
-
-	chip = platform_get_drvdata(pdev);
-	if (chip == NULL)
-		return -ENODEV;
-
-	return pwmchip_remove(&chip->chip);
 }
 
 static struct platform_driver pwm_driver = {
@@ -222,7 +210,6 @@ static struct platform_driver pwm_driver = {
 		.of_match_table = pwm_of_match,
 	},
 	.probe		= pwm_probe,
-	.remove		= pwm_remove,
 	.id_table	= pwm_id_table,
 };
 

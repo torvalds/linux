@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-/*
- *	Sealevel Systems 4021 driver.
+/*	Sealevel Systems 4021 driver.
  *
  *	(c) Copyright 1999, 2001 Alan Cox
  *	(c) Copyright 2001 Red Hat Inc.
@@ -29,32 +28,25 @@
 #include <asm/byteorder.h>
 #include "z85230.h"
 
-
-struct slvl_device
-{
+struct slvl_device {
 	struct z8530_channel *chan;
 	int channel;
 };
 
-
-struct slvl_board
-{
+struct slvl_board {
 	struct slvl_device dev[2];
 	struct z8530_dev board;
 	int iobase;
 };
 
-/*
- *	Network driver support routines
- */
+ /*	Network driver support routines */
 
-static inline struct slvl_device* dev_to_chan(struct net_device *dev)
+static inline struct slvl_device *dev_to_chan(struct net_device *dev)
 {
 	return (struct slvl_device *)dev_to_hdlc(dev)->priv;
 }
 
-/*
- *	Frame receive. Simple for our card as we do HDLC and there
+/*	Frame receive. Simple for our card as we do HDLC and there
  *	is no funny garbage involved
  */
 
@@ -68,9 +60,7 @@ static void sealevel_input(struct z8530_channel *c, struct sk_buff *skb)
 	netif_rx(skb);
 }
 
-/*
- *	We've been placed in the UP state
- */
+ /*	We've been placed in the UP state */
 
 static int sealevel_open(struct net_device *d)
 {
@@ -78,17 +68,15 @@ static int sealevel_open(struct net_device *d)
 	int err = -1;
 	int unit = slvl->channel;
 
-	/*
-	 *	Link layer up.
-	 */
+	 /*	Link layer up. */
 
 	switch (unit) {
-		case 0:
-			err = z8530_sync_dma_open(d, slvl->chan);
-			break;
-		case 1:
-			err = z8530_sync_open(d, slvl->chan);
-			break;
+	case 0:
+		err = z8530_sync_dma_open(d, slvl->chan);
+		break;
+	case 1:
+		err = z8530_sync_open(d, slvl->chan);
+		break;
 	}
 
 	if (err)
@@ -97,21 +85,18 @@ static int sealevel_open(struct net_device *d)
 	err = hdlc_open(d);
 	if (err) {
 		switch (unit) {
-			case 0:
-				z8530_sync_dma_close(d, slvl->chan);
-				break;
-			case 1:
-				z8530_sync_close(d, slvl->chan);
-				break;
+		case 0:
+			z8530_sync_dma_close(d, slvl->chan);
+			break;
+		case 1:
+			z8530_sync_close(d, slvl->chan);
+			break;
 		}
 		return err;
 	}
 
 	slvl->chan->rx_function = sealevel_input;
 
-	/*
-	 *	Go go go
-	 */
 	netif_start_queue(d);
 	return 0;
 }
@@ -121,9 +106,7 @@ static int sealevel_close(struct net_device *d)
 	struct slvl_device *slvl = dev_to_chan(d);
 	int unit = slvl->channel;
 
-	/*
-	 *	Discard new frames
-	 */
+	/*	Discard new frames */
 
 	slvl->chan->rx_function = z8530_null_rx;
 
@@ -131,29 +114,20 @@ static int sealevel_close(struct net_device *d)
 	netif_stop_queue(d);
 
 	switch (unit) {
-		case 0:
-			z8530_sync_dma_close(d, slvl->chan);
-			break;
-		case 1:
-			z8530_sync_close(d, slvl->chan);
-			break;
+	case 0:
+		z8530_sync_dma_close(d, slvl->chan);
+		break;
+	case 1:
+		z8530_sync_close(d, slvl->chan);
+		break;
 	}
 	return 0;
 }
 
-static int sealevel_ioctl(struct net_device *d, struct ifreq *ifr, int cmd)
-{
-	/* struct slvl_device *slvl=dev_to_chan(d);
-	   z8530_ioctl(d,&slvl->sync.chanA,ifr,cmd) */
-	return hdlc_ioctl(d, ifr, cmd);
-}
-
-/*
- *	Passed network frames, fire them downwind.
- */
+/*	Passed network frames, fire them downwind. */
 
 static netdev_tx_t sealevel_queue_xmit(struct sk_buff *skb,
-					     struct net_device *d)
+				       struct net_device *d)
 {
 	return z8530_queue_xmit(dev_to_chan(d)->chan, skb);
 }
@@ -170,12 +144,13 @@ static const struct net_device_ops sealevel_ops = {
 	.ndo_open       = sealevel_open,
 	.ndo_stop       = sealevel_close,
 	.ndo_start_xmit = hdlc_start_xmit,
-	.ndo_do_ioctl   = sealevel_ioctl,
+	.ndo_siocwandev = hdlc_ioctl,
 };
 
 static int slvl_setup(struct slvl_device *sv, int iobase, int irq)
 {
 	struct net_device *dev = alloc_hdlcdev(sv);
+
 	if (!dev)
 		return -1;
 
@@ -195,10 +170,7 @@ static int slvl_setup(struct slvl_device *sv, int iobase, int irq)
 	return 0;
 }
 
-
-/*
- *	Allocate and setup Sealevel board.
- */
+/*	Allocate and setup Sealevel board. */
 
 static __init struct slvl_board *slvl_init(int iobase, int irq,
 					   int txdma, int rxdma, int slow)
@@ -206,9 +178,7 @@ static __init struct slvl_board *slvl_init(int iobase, int irq,
 	struct z8530_dev *dev;
 	struct slvl_board *b;
 
-	/*
-	 *	Get the needed I/O space
-	 */
+	/*	Get the needed I/O space */
 
 	if (!request_region(iobase, 8, "Sealevel 4021")) {
 		pr_warn("I/O 0x%X already in use\n", iobase);
@@ -227,17 +197,13 @@ static __init struct slvl_board *slvl_init(int iobase, int irq,
 
 	dev = &b->board;
 
-	/*
-	 *	Stuff in the I/O addressing
-	 */
+	/*	Stuff in the I/O addressing */
 
 	dev->active = 0;
 
 	b->iobase = iobase;
 
-	/*
-	 *	Select 8530 delays for the old board
-	 */
+	/*	Select 8530 delays for the old board */
 
 	if (slow)
 		iobase |= Z8530_PORT_SLEEP;
@@ -250,15 +216,13 @@ static __init struct slvl_board *slvl_init(int iobase, int irq,
 	dev->chanA.irqs = &z8530_nop;
 	dev->chanB.irqs = &z8530_nop;
 
-	/*
-	 *	Assert DTR enable DMA
-	 */
+	/*	Assert DTR enable DMA */
 
 	outb(3 | (1 << 7), b->iobase + 4);
 
-
 	/* We want a fast IRQ for this device. Actually we'd like an even faster
-	   IRQ ;) - This is one driver RtLinux is made for */
+	 * IRQ ;) - This is one driver RtLinux is made for
+	 */
 
 	if (request_irq(irq, z8530_interrupt, 0,
 			"SeaLevel", dev) < 0) {
@@ -282,9 +246,7 @@ static __init struct slvl_board *slvl_init(int iobase, int irq,
 
 	disable_irq(irq);
 
-	/*
-	 *	Begin normal initialise
-	 */
+	/*	Begin normal initialise */
 
 	if (z8530_init(dev) != 0) {
 		pr_err("Z8530 series device not found\n");
@@ -299,9 +261,7 @@ static __init struct slvl_board *slvl_init(int iobase, int irq,
 		z8530_channel_load(&dev->chanB, z8530_hdlc_kilostream_85230);
 	}
 
-	/*
-	 *	Now we can take the IRQ
-	 */
+	/*	Now we can take the IRQ */
 
 	enable_irq(irq);
 
@@ -338,6 +298,7 @@ static void __exit slvl_shutdown(struct slvl_board *b)
 
 	for (u = 0; u < 2; u++) {
 		struct net_device *d = b->dev[u].chan->netdevice;
+
 		unregister_hdlc_device(d);
 		free_netdev(d);
 	}
@@ -351,12 +312,11 @@ static void __exit slvl_shutdown(struct slvl_board *b)
 	kfree(b);
 }
 
-
-static int io=0x238;
-static int txdma=1;
-static int rxdma=3;
-static int irq=5;
-static bool slow=false;
+static int io = 0x238;
+static int txdma = 1;
+static int rxdma = 3;
+static int irq = 5;
+static bool slow;
 
 module_param_hw(io, int, ioport, 0);
 MODULE_PARM_DESC(io, "The I/O base of the Sealevel card");

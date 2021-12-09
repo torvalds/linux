@@ -158,6 +158,7 @@ void amdgpu_ring_undo(struct amdgpu_ring *ring)
  * @irq_src: interrupt source to use for this ring
  * @irq_type: interrupt type to use for this ring
  * @hw_prio: ring priority (NORMAL/HIGH)
+ * @sched_score: optional score atomic shared with other schedulers
  *
  * Initialize the driver information for the selected ring (all asics).
  * Returns 0 on success, error on failure.
@@ -427,8 +428,8 @@ int amdgpu_debugfs_ring_init(struct amdgpu_device *adev,
 	ent = debugfs_create_file(name,
 				  S_IFREG | S_IRUGO, root,
 				  ring, &amdgpu_debugfs_ring_fops);
-	if (!ent)
-		return -ENOMEM;
+	if (IS_ERR(ent))
+		return PTR_ERR(ent);
 
 	i_size_write(ent->d_inode, ring->ring_size + 12);
 	ring->ent = ent;

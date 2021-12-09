@@ -114,7 +114,7 @@ symbol		=	value
 		.set	push;				\
 		.set	reorder;			\
 		PTR_LA	a0, 8f;				\
-		jal	printk;				\
+		jal	_printk;			\
 		.set	pop;				\
 		TEXT(string)
 #else

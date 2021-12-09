@@ -80,11 +80,13 @@ void psp_securedisplay_parse_resp_status(struct psp_context *psp,
 void psp_prep_securedisplay_cmd_buf(struct psp_context *psp, struct securedisplay_cmd **cmd,
 	enum ta_securedisplay_command command_id)
 {
-	*cmd = (struct securedisplay_cmd *)psp->securedisplay_context.securedisplay_shared_buf;
+	*cmd = (struct securedisplay_cmd *)psp->securedisplay_context.context.mem_context.shared_buf;
 	memset(*cmd, 0, sizeof(struct securedisplay_cmd));
 	(*cmd)->status = TA_SECUREDISPLAY_STATUS__GENERIC_FAILURE;
 	(*cmd)->cmd_id = command_id;
 }
+
+#if defined(CONFIG_DEBUG_FS)
 
 static ssize_t amdgpu_securedisplay_debugfs_write(struct file *f, const char __user *buf,
 		size_t size, loff_t *pos)
@@ -162,11 +164,13 @@ static const struct file_operations amdgpu_securedisplay_debugfs_ops = {
 	.llseek = default_llseek
 };
 
+#endif
+
 void amdgpu_securedisplay_debugfs_init(struct amdgpu_device *adev)
 {
 #if defined(CONFIG_DEBUG_FS)
 
-	if (!adev->psp.securedisplay_context.securedisplay_initialized)
+	if (!adev->psp.securedisplay_context.context.initialized)
 		return;
 
 	debugfs_create_file("securedisplay_test", S_IWUSR, adev_to_drm(adev)->primary->debugfs_root,

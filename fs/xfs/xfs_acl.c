@@ -125,7 +125,7 @@ xfs_acl_to_disk(struct xfs_acl *aclp, const struct posix_acl *acl)
 }
 
 struct posix_acl *
-xfs_get_acl(struct inode *inode, int type)
+xfs_get_acl(struct inode *inode, int type, bool rcu)
 {
 	struct xfs_inode	*ip = XFS_I(inode);
 	struct xfs_mount	*mp = ip->i_mount;
@@ -136,6 +136,9 @@ xfs_get_acl(struct inode *inode, int type)
 		.valuelen	= XFS_ACL_MAX_SIZE(mp),
 	};
 	int			error;
+
+	if (rcu)
+		return ERR_PTR(-ECHILD);
 
 	trace_xfs_get_acl(ip);
 
@@ -232,7 +235,7 @@ xfs_acl_set_mode(
 	inode->i_ctime = current_time(inode);
 	xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
 
-	if (mp->m_flags & XFS_MOUNT_WSYNC)
+	if (xfs_has_wsync(mp))
 		xfs_trans_set_sync(tp);
 	return xfs_trans_commit(tp);
 }

@@ -119,8 +119,8 @@ static int ionic_lif_hwstamp_set_ts_config(struct ionic_lif *lif,
 		config->rx_filter = HWTSTAMP_FILTER_ALL;
 	}
 
-	dev_dbg(ionic->dev, "config_rx_filter %d rx_filt %#llx rx_all %d\n",
-		config->rx_filter, rx_filt, rx_all);
+	dev_dbg(ionic->dev, "%s: config_rx_filter %d rx_filt %#llx rx_all %d\n",
+		__func__, config->rx_filter, rx_filt, rx_all);
 
 	if (tx_mode) {
 		err = ionic_lif_create_hwstamp_txq(lif);
@@ -188,10 +188,15 @@ int ionic_lif_hwstamp_set(struct ionic_lif *lif, struct ifreq *ifr)
 	struct hwtstamp_config config;
 	int err;
 
+	if (!lif->phc || !lif->phc->ptp)
+		return -EOPNOTSUPP;
+
 	if (copy_from_user(&config, ifr->ifr_data, sizeof(config)))
 		return -EFAULT;
 
+	mutex_lock(&lif->queue_lock);
 	err = ionic_lif_hwstamp_set_ts_config(lif, &config);
+	mutex_unlock(&lif->queue_lock);
 	if (err) {
 		netdev_info(lif->netdev, "hwstamp set failed: %d\n", err);
 		return err;
@@ -203,15 +208,42 @@ int ionic_lif_hwstamp_set(struct ionic_lif *lif, struct ifreq *ifr)
 	return 0;
 }
 
-int ionic_lif_hwstamp_replay(struct ionic_lif *lif)
+void ionic_lif_hwstamp_replay(struct ionic_lif *lif)
 {
 	int err;
 
+	if (!lif->phc || !lif->phc->ptp)
+		return;
+
+	mutex_lock(&lif->queue_lock);
 	err = ionic_lif_hwstamp_set_ts_config(lif, NULL);
+	mutex_unlock(&lif->queue_lock);
 	if (err)
 		netdev_info(lif->netdev, "hwstamp replay failed: %d\n", err);
+}
 
-	return err;
+void ionic_lif_hwstamp_recreate_queues(struct ionic_lif *lif)
+{
+	int err;
+
+	if (!lif->phc || !lif->phc->ptp)
+		return;
+
+	mutex_lock(&lif->phc->config_lock);
+
+	if (lif->phc->ts_config_tx_mode) {
+		err = ionic_lif_create_hwstamp_txq(lif);
+		if (err)
+			netdev_info(lif->netdev, "hwstamp recreate txq failed: %d\n", err);
+	}
+
+	if (lif->phc->ts_config_rx_filt) {
+		err = ionic_lif_create_hwstamp_rxq(lif);
+		if (err)
+			netdev_info(lif->netdev, "hwstamp recreate rxq failed: %d\n", err);
+	}
+
+	mutex_unlock(&lif->phc->config_lock);
 }
 
 int ionic_lif_hwstamp_get(struct ionic_lif *lif, struct ifreq *ifr)

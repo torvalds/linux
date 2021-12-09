@@ -549,12 +549,6 @@ static void setup_fifo_xfer(struct spi_transfer *xfer,
 	 */
 	spin_lock_irq(&mas->lock);
 	geni_se_setup_m_cmd(se, m_cmd, FRAGMENTATION);
-
-	/*
-	 * TX_WATERMARK_REG should be set after SPI configuration and
-	 * setting up GENI SE engine, as driver starts data transfer
-	 * for the watermark interrupt.
-	 */
 	if (m_cmd & SPI_TX_ONLY) {
 		if (geni_spi_handle_tx(mas))
 			writel(mas->tx_wm, se->base + SE_GENI_TX_WATERMARK_REG);
@@ -639,8 +633,8 @@ static irqreturn_t geni_spi_isr(int irq, void *data)
 		complete(&mas->abort_done);
 
 	/*
-	 * It's safe or a good idea to Ack all of our our interrupts at the
-	 * end of the function. Specifically:
+	 * It's safe or a good idea to Ack all of our interrupts at the end
+	 * of the function. Specifically:
 	 * - M_CMD_DONE_EN / M_RX_FIFO_LAST_EN: Edge triggered interrupts and
 	 *   clearing Acks. Clearing at the end relies on nobody else having
 	 *   started a new transfer yet or else we could be clearing _their_

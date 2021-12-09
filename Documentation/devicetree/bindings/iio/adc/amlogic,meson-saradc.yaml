@@ -41,7 +41,6 @@ properties:
 
   clock-names:
     minItems: 2
-    maxItems: 4
     items:
       - const: clkin
       - const: core

@@ -5,7 +5,7 @@
 #include <asm/asm-const.h>
 #include <linux/stringify.h>
 
-#define __ALIGN .align 4, 0x07
+#define __ALIGN .align 16, 0x07
 #define __ALIGN_STR __stringify(__ALIGN)
 
 /*
@@ -22,7 +22,7 @@
 
 #define EX_TABLE(_fault, _target)					\
 	__EX_TABLE(__ex_table, _fault, _target)
-#define EX_TABLE_DMA(_fault, _target)					\
-	__EX_TABLE(.dma.ex_table, _fault, _target)
+#define EX_TABLE_AMODE31(_fault, _target)				\
+	__EX_TABLE(.amode31.ex_table, _fault, _target)
 
 #endif

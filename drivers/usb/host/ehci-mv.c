@@ -42,26 +42,25 @@ struct ehci_hcd_mv {
 	int (*set_vbus)(unsigned int vbus);
 };
 
-static void ehci_clock_enable(struct ehci_hcd_mv *ehci_mv)
-{
-	clk_prepare_enable(ehci_mv->clk);
-}
-
-static void ehci_clock_disable(struct ehci_hcd_mv *ehci_mv)
-{
-	clk_disable_unprepare(ehci_mv->clk);
-}
-
 static int mv_ehci_enable(struct ehci_hcd_mv *ehci_mv)
 {
-	ehci_clock_enable(ehci_mv);
-	return phy_init(ehci_mv->phy);
+	int retval;
+
+	retval = clk_prepare_enable(ehci_mv->clk);
+	if (retval)
+		return retval;
+
+	retval = phy_init(ehci_mv->phy);
+	if (retval)
+		clk_disable_unprepare(ehci_mv->clk);
+
+	return retval;
 }
 
 static void mv_ehci_disable(struct ehci_hcd_mv *ehci_mv)
 {
 	phy_exit(ehci_mv->phy);
-	ehci_clock_disable(ehci_mv);
+	clk_disable_unprepare(ehci_mv->clk);
 }
 
 static int mv_ehci_reset(struct usb_hcd *hcd)

@@ -340,8 +340,7 @@ nla_put_failure:
 out_dev:
 	wpan_phy_put(phy);
 out:
-	if (dev)
-		dev_put(dev);
+	dev_put(dev);
 
 	return rc;
 }

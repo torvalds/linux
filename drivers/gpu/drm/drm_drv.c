@@ -35,6 +35,7 @@
 #include <linux/slab.h>
 #include <linux/srcu.h>
 
+#include <drm/drm_cache.h>
 #include <drm/drm_client.h>
 #include <drm/drm_color_mgmt.h>
 #include <drm/drm_drv.h>
@@ -248,7 +249,7 @@ void drm_minor_release(struct drm_minor *minor)
  * Finally when everything is up and running and ready for userspace the device
  * instance can be published using drm_dev_register().
  *
- * There is also deprecated support for initalizing device instances using
+ * There is also deprecated support for initializing device instances using
  * bus-specific helpers and the &drm_driver.load callback. But due to
  * backwards-compatibility needs the device instance have to be published too
  * early, which requires unpretty global locking to make safe and is therefore
@@ -378,7 +379,7 @@ void drm_minor_release(struct drm_minor *minor)
  * shortcoming however, drm_dev_unplug() marks the drm_device as unplugged before
  * drm_atomic_helper_shutdown() is called. This means that if the disable code
  * paths are protected, they will not run on regular driver module unload,
- * possibily leaving the hardware enabled.
+ * possibly leaving the hardware enabled.
  */
 
 /**
@@ -941,9 +942,7 @@ void drm_dev_unregister(struct drm_device *dev)
 	if (dev->driver->unload)
 		dev->driver->unload(dev);
 
-	if (dev->agp)
-		drm_pci_agp_destroy(dev);
-
+	drm_legacy_pci_agp_destroy(dev);
 	drm_legacy_rmmaps(dev);
 
 	remove_compat_control_link(dev);
@@ -1043,6 +1042,7 @@ static int __init drm_core_init(void)
 
 	drm_connector_ida_init();
 	idr_init(&drm_minors_idr);
+	drm_memcpy_init_early();
 
 	ret = drm_sysfs_init();
 	if (ret < 0) {

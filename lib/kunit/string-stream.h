@@ -11,7 +11,7 @@
 
 #include <linux/spinlock.h>
 #include <linux/types.h>
-#include <stdarg.h>
+#include <linux/stdarg.h>
 
 struct string_stream_fragment {
 	struct kunit *test;
@@ -35,9 +35,9 @@ struct string_stream *alloc_string_stream(struct kunit *test, gfp_t gfp);
 int __printf(2, 3) string_stream_add(struct string_stream *stream,
 				     const char *fmt, ...);
 
-int string_stream_vadd(struct string_stream *stream,
-		       const char *fmt,
-		       va_list args);
+int __printf(2, 0) string_stream_vadd(struct string_stream *stream,
+				      const char *fmt,
+				      va_list args);
 
 char *string_stream_get_string(struct string_stream *stream);
 

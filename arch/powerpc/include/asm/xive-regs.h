@@ -80,10 +80,13 @@
 #define   TM_QW0W2_VU		PPC_BIT32(0)
 #define   TM_QW0W2_LOGIC_SERV	PPC_BITMASK32(1,31) // XX 2,31 ?
 #define   TM_QW1W2_VO		PPC_BIT32(0)
+#define   TM_QW1W2_HO           PPC_BIT32(1) /* P10 XIVE2 */
 #define   TM_QW1W2_OS_CAM	PPC_BITMASK32(8,31)
 #define   TM_QW2W2_VP		PPC_BIT32(0)
+#define   TM_QW2W2_HP           PPC_BIT32(1) /* P10 XIVE2 */
 #define   TM_QW2W2_POOL_CAM	PPC_BITMASK32(8,31)
 #define   TM_QW3W2_VT		PPC_BIT32(0)
+#define   TM_QW3W2_HT           PPC_BIT32(1) /* P10 XIVE2 */
 #define   TM_QW3W2_LP		PPC_BIT32(6)
 #define   TM_QW3W2_LE		PPC_BIT32(7)
 #define   TM_QW3W2_T		PPC_BIT32(31)

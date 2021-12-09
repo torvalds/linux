@@ -45,8 +45,6 @@
 #endif
 #include <linux/mem_encrypt.h>
 
-
-#include <drm/drm_agpsupport.h>
 #include <drm/drm_device.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_file.h>

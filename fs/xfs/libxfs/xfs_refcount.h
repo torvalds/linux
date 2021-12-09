@@ -6,6 +6,13 @@
 #ifndef __XFS_REFCOUNT_H__
 #define __XFS_REFCOUNT_H__
 
+struct xfs_trans;
+struct xfs_mount;
+struct xfs_perag;
+struct xfs_btree_cur;
+struct xfs_bmbt_irec;
+struct xfs_refcount_irec;
+
 extern int xfs_refcount_lookup_le(struct xfs_btree_cur *cur,
 		xfs_agblock_t bno, int *stat);
 extern int xfs_refcount_lookup_ge(struct xfs_btree_cur *cur,
@@ -50,7 +57,7 @@ void xfs_refcount_alloc_cow_extent(struct xfs_trans *tp, xfs_fsblock_t fsb,
 void xfs_refcount_free_cow_extent(struct xfs_trans *tp, xfs_fsblock_t fsb,
 		xfs_extlen_t len);
 extern int xfs_refcount_recover_cow_leftovers(struct xfs_mount *mp,
-		xfs_agnumber_t agno);
+		struct xfs_perag *pag);
 
 /*
  * While we're adjusting the refcounts records of an extent, we have
@@ -71,7 +78,7 @@ static inline xfs_fileoff_t xfs_refcount_max_unmap(int log_res)
 extern int xfs_refcount_has_record(struct xfs_btree_cur *cur,
 		xfs_agblock_t bno, xfs_extlen_t len, bool *exists);
 union xfs_btree_rec;
-extern void xfs_refcount_btrec_to_irec(union xfs_btree_rec *rec,
+extern void xfs_refcount_btrec_to_irec(const union xfs_btree_rec *rec,
 		struct xfs_refcount_irec *irec);
 extern int xfs_refcount_insert(struct xfs_btree_cur *cur,
 		struct xfs_refcount_irec *irec, int *stat);

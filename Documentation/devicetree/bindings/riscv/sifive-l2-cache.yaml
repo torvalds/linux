@@ -24,10 +24,10 @@ allOf:
 select:
   properties:
     compatible:
-      items:
-        - enum:
-            - sifive,fu540-c000-ccache
-            - sifive,fu740-c000-ccache
+      contains:
+        enum:
+          - sifive,fu540-c000-ccache
+          - sifive,fu740-c000-ccache
 
   required:
     - compatible
@@ -56,7 +56,6 @@ properties:
 
   interrupts:
     minItems: 3
-    maxItems: 4
     items:
       - description: DirError interrupt
       - description: DataError interrupt

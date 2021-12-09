@@ -17,7 +17,6 @@
 #include <linux/module.h>
 #include <linux/delay.h>
 #include <linux/property.h>
-#include <linux/platform_data/x86/apple.h>
 
 #include "nhi.h"
 #include "nhi_regs.h"
@@ -35,6 +34,8 @@
 #define MSIX_MAX_VECS		16
 
 #define NHI_MAILBOX_TIMEOUT	500 /* ms */
+
+#define QUIRK_AUTO_CLEAR_INT	BIT(0)
 
 static int ring_interrupt_index(struct tb_ring *ring)
 {
@@ -67,14 +68,17 @@ static void ring_interrupt_active(struct tb_ring *ring, bool active)
 		else
 			index = ring->hop + ring->nhi->hop_count;
 
-		/*
-		 * Ask the hardware to clear interrupt status bits automatically
-		 * since we already know which interrupt was triggered.
-		 */
-		misc = ioread32(ring->nhi->iobase + REG_DMA_MISC);
-		if (!(misc & REG_DMA_MISC_INT_AUTO_CLEAR)) {
-			misc |= REG_DMA_MISC_INT_AUTO_CLEAR;
-			iowrite32(misc, ring->nhi->iobase + REG_DMA_MISC);
+		if (ring->nhi->quirks & QUIRK_AUTO_CLEAR_INT) {
+			/*
+			 * Ask the hardware to clear interrupt status
+			 * bits automatically since we already know
+			 * which interrupt was triggered.
+			 */
+			misc = ioread32(ring->nhi->iobase + REG_DMA_MISC);
+			if (!(misc & REG_DMA_MISC_INT_AUTO_CLEAR)) {
+				misc |= REG_DMA_MISC_INT_AUTO_CLEAR;
+				iowrite32(misc, ring->nhi->iobase + REG_DMA_MISC);
+			}
 		}
 
 		ivr_base = ring->nhi->iobase + REG_INT_VEC_ALLOC_BASE;
@@ -378,11 +382,24 @@ void tb_ring_poll_complete(struct tb_ring *ring)
 }
 EXPORT_SYMBOL_GPL(tb_ring_poll_complete);
 
+static void ring_clear_msix(const struct tb_ring *ring)
+{
+	if (ring->nhi->quirks & QUIRK_AUTO_CLEAR_INT)
+		return;
+
+	if (ring->is_tx)
+		ioread32(ring->nhi->iobase + REG_RING_NOTIFY_BASE);
+	else
+		ioread32(ring->nhi->iobase + REG_RING_NOTIFY_BASE +
+			 4 * (ring->nhi->hop_count / 32));
+}
+
 static irqreturn_t ring_msix(int irq, void *data)
 {
 	struct tb_ring *ring = data;
 
 	spin_lock(&ring->nhi->lock);
+	ring_clear_msix(ring);
 	spin_lock(&ring->lock);
 	__ring_interrupt(ring);
 	spin_unlock(&ring->lock);
@@ -1075,6 +1092,16 @@ static void nhi_shutdown(struct tb_nhi *nhi)
 		nhi->ops->shutdown(nhi);
 }
 
+static void nhi_check_quirks(struct tb_nhi *nhi)
+{
+	/*
+	 * Intel hardware supports auto clear of the interrupt status
+	 * reqister right after interrupt is being issued.
+	 */
+	if (nhi->pdev->vendor == PCI_VENDOR_ID_INTEL)
+		nhi->quirks |= QUIRK_AUTO_CLEAR_INT;
+}
+
 static int nhi_init_msi(struct tb_nhi *nhi)
 {
 	struct pci_dev *pdev = nhi->pdev;
@@ -1125,69 +1152,6 @@ static bool nhi_imr_valid(struct pci_dev *pdev)
 		return !!val;
 
 	return true;
-}
-
-/*
- * During suspend the Thunderbolt controller is reset and all PCIe
- * tunnels are lost. The NHI driver will try to reestablish all tunnels
- * during resume. This adds device links between the tunneled PCIe
- * downstream ports and the NHI so that the device core will make sure
- * NHI is resumed first before the rest.
- */
-static void tb_apple_add_links(struct tb_nhi *nhi)
-{
-	struct pci_dev *upstream, *pdev;
-
-	if (!x86_apple_machine)
-		return;
-
-	switch (nhi->pdev->device) {
-	case PCI_DEVICE_ID_INTEL_LIGHT_RIDGE:
-	case PCI_DEVICE_ID_INTEL_CACTUS_RIDGE_4C:
-	case PCI_DEVICE_ID_INTEL_FALCON_RIDGE_2C_NHI:
-	case PCI_DEVICE_ID_INTEL_FALCON_RIDGE_4C_NHI:
-		break;
-	default:
-		return;
-	}
-
-	upstream = pci_upstream_bridge(nhi->pdev);
-	while (upstream) {
-		if (!pci_is_pcie(upstream))
-			return;
-		if (pci_pcie_type(upstream) == PCI_EXP_TYPE_UPSTREAM)
-			break;
-		upstream = pci_upstream_bridge(upstream);
-	}
-
-	if (!upstream)
-		return;
-
-	/*
-	 * For each hotplug downstream port, create add device link
-	 * back to NHI so that PCIe tunnels can be re-established after
-	 * sleep.
-	 */
-	for_each_pci_bridge(pdev, upstream->subordinate) {
-		const struct device_link *link;
-
-		if (!pci_is_pcie(pdev))
-			continue;
-		if (pci_pcie_type(pdev) != PCI_EXP_TYPE_DOWNSTREAM ||
-		    !pdev->is_hotplug_bridge)
-			continue;
-
-		link = device_link_add(&pdev->dev, &nhi->pdev->dev,
-				       DL_FLAG_AUTOREMOVE_SUPPLIER |
-				       DL_FLAG_PM_RUNTIME);
-		if (link) {
-			dev_dbg(&nhi->pdev->dev, "created link from %s\n",
-				dev_name(&pdev->dev));
-		} else {
-			dev_warn(&nhi->pdev->dev, "device link creation from %s failed\n",
-				 dev_name(&pdev->dev));
-		}
-	}
 }
 
 static struct tb *nhi_select_cm(struct tb_nhi *nhi)
@@ -1254,6 +1218,8 @@ static int nhi_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (!nhi->tx_rings || !nhi->rx_rings)
 		return -ENOMEM;
 
+	nhi_check_quirks(nhi);
+
 	res = nhi_init_msi(nhi);
 	if (res) {
 		dev_err(&pdev->dev, "cannot enable MSI, aborting\n");
@@ -1277,9 +1243,6 @@ static int nhi_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		if (res)
 			return res;
 	}
-
-	tb_apple_add_links(nhi);
-	tb_acpi_add_links(nhi);
 
 	tb = nhi_select_cm(nhi);
 	if (!tb) {
@@ -1399,6 +1362,10 @@ static struct pci_device_id nhi_ids[] = {
 	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_TGL_H_NHI0),
 	  .driver_data = (kernel_ulong_t)&icl_nhi_ops },
 	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_TGL_H_NHI1),
+	  .driver_data = (kernel_ulong_t)&icl_nhi_ops },
+	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_ADL_NHI0),
+	  .driver_data = (kernel_ulong_t)&icl_nhi_ops },
+	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_ADL_NHI1),
 	  .driver_data = (kernel_ulong_t)&icl_nhi_ops },
 
 	/* Any USB4 compliant host */

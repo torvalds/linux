@@ -60,50 +60,14 @@
 #include <drm/drm.h>
 #include <drm/drm_device.h>
 #include <drm/drm_drv.h>
-#include <drm/drm_irq.h>
+#include <drm/drm_legacy.h>
 #include <drm/drm_print.h>
 #include <drm/drm_vblank.h>
 
 #include "drm_internal.h"
 
-/**
- * DOC: irq helpers
- *
- * The DRM core provides very simple support helpers to enable IRQ handling on a
- * device through the drm_irq_install() and drm_irq_uninstall() functions. This
- * only supports devices with a single interrupt on the main device stored in
- * &drm_device.dev and set as the device paramter in drm_dev_alloc().
- *
- * These IRQ helpers are strictly optional. Drivers which roll their own only
- * need to set &drm_device.irq_enabled to signal the DRM core that vblank
- * interrupts are working. Since these helpers don't automatically clean up the
- * requested interrupt like e.g. devm_request_irq() they're not really
- * recommended.
- */
-
-/**
- * drm_irq_install - install IRQ handler
- * @dev: DRM device
- * @irq: IRQ number to install the handler for
- *
- * Initializes the IRQ related data. Installs the handler, calling the driver
- * &drm_driver.irq_preinstall and &drm_driver.irq_postinstall functions before
- * and after the installation.
- *
- * This is the simplified helper interface provided for drivers with no special
- * needs. Drivers which need to install interrupt handlers for multiple
- * interrupts must instead set &drm_device.irq_enabled to signal the DRM core
- * that vblank interrupts are available.
- *
- * @irq must match the interrupt number that would be passed to request_irq(),
- * if called directly instead of using this helper function.
- *
- * &drm_driver.irq_handler is called to handle the registered interrupt.
- *
- * Returns:
- * Zero on success or a negative error code on failure.
- */
-int drm_irq_install(struct drm_device *dev, int irq)
+#if IS_ENABLED(CONFIG_DRM_LEGACY)
+static int drm_legacy_irq_install(struct drm_device *dev, int irq)
 {
 	int ret;
 	unsigned long sh_flags = 0;
@@ -140,7 +104,7 @@ int drm_irq_install(struct drm_device *dev, int irq)
 	if (ret < 0) {
 		dev->irq_enabled = false;
 		if (drm_core_check_feature(dev, DRIVER_LEGACY))
-			vga_client_register(to_pci_dev(dev->dev), NULL, NULL, NULL);
+			vga_client_unregister(to_pci_dev(dev->dev));
 		free_irq(irq, dev);
 	} else {
 		dev->irq = irq;
@@ -148,25 +112,8 @@ int drm_irq_install(struct drm_device *dev, int irq)
 
 	return ret;
 }
-EXPORT_SYMBOL(drm_irq_install);
 
-/**
- * drm_irq_uninstall - uninstall the IRQ handler
- * @dev: DRM device
- *
- * Calls the driver's &drm_driver.irq_uninstall function and unregisters the IRQ
- * handler.  This should only be called by drivers which used drm_irq_install()
- * to set up their interrupt handler. Other drivers must only reset
- * &drm_device.irq_enabled to false.
- *
- * Note that for kernel modesetting drivers it is a bug if this function fails.
- * The sanity checks are only to catch buggy user modesetting drivers which call
- * the same function through an ioctl.
- *
- * Returns:
- * Zero on success or a negative error code on failure.
- */
-int drm_irq_uninstall(struct drm_device *dev)
+int drm_legacy_irq_uninstall(struct drm_device *dev)
 {
 	unsigned long irqflags;
 	bool irq_enabled;
@@ -203,7 +150,7 @@ int drm_irq_uninstall(struct drm_device *dev)
 	DRM_DEBUG("irq=%d\n", dev->irq);
 
 	if (drm_core_check_feature(dev, DRIVER_LEGACY))
-		vga_client_register(to_pci_dev(dev->dev), NULL, NULL, NULL);
+		vga_client_unregister(to_pci_dev(dev->dev));
 
 	if (dev->driver->irq_uninstall)
 		dev->driver->irq_uninstall(dev);
@@ -212,41 +159,8 @@ int drm_irq_uninstall(struct drm_device *dev)
 
 	return 0;
 }
-EXPORT_SYMBOL(drm_irq_uninstall);
+EXPORT_SYMBOL(drm_legacy_irq_uninstall);
 
-static void devm_drm_irq_uninstall(void *data)
-{
-	drm_irq_uninstall(data);
-}
-
-/**
- * devm_drm_irq_install - install IRQ handler
- * @dev: DRM device
- * @irq: IRQ number to install the handler for
- *
- * devm_drm_irq_install is a  help function of drm_irq_install.
- *
- * if the driver uses devm_drm_irq_install, there is no need
- * to call drm_irq_uninstall when the drm module get unloaded,
- * as this will done automagically.
- *
- * Returns:
- * Zero on success or a negative error code on failure.
- */
-int devm_drm_irq_install(struct drm_device *dev, int irq)
-{
-	int ret;
-
-	ret = drm_irq_install(dev, irq);
-	if (ret)
-		return ret;
-
-	return devm_add_action_or_reset(dev->dev,
-					devm_drm_irq_uninstall, dev);
-}
-EXPORT_SYMBOL(devm_drm_irq_install);
-
-#if IS_ENABLED(CONFIG_DRM_LEGACY)
 int drm_legacy_irq_control(struct drm_device *dev, void *data,
 			   struct drm_file *file_priv)
 {
@@ -275,13 +189,13 @@ int drm_legacy_irq_control(struct drm_device *dev, void *data,
 		    ctl->irq != irq)
 			return -EINVAL;
 		mutex_lock(&dev->struct_mutex);
-		ret = drm_irq_install(dev, irq);
+		ret = drm_legacy_irq_install(dev, irq);
 		mutex_unlock(&dev->struct_mutex);
 
 		return ret;
 	case DRM_UNINST_HANDLER:
 		mutex_lock(&dev->struct_mutex);
-		ret = drm_irq_uninstall(dev);
+		ret = drm_legacy_irq_uninstall(dev);
 		mutex_unlock(&dev->struct_mutex);
 
 		return ret;

@@ -3,8 +3,6 @@
  * Copyright (c) 1996, 2003 VIA Networking Technologies, Inc.
  * All rights reserved.
  *
- * File: upc.h
- *
  * Purpose: Macros to access device
  *
  * Author: Tevin Chen
@@ -42,7 +40,7 @@
 
 #define PCAvDelayByIO(uDelayUnit)				\
 do {								\
-	unsigned char byData;					\
+	unsigned char __maybe_unused byData;			\
 	unsigned long ii;					\
 								\
 	if (uDelayUnit <= 50) {					\

@@ -297,12 +297,12 @@ u32 mlx4_en_free_tx_desc(struct mlx4_en_priv *priv,
 			dma_unmap_single(priv->ddev,
 					 tx_info->map0_dma,
 					 tx_info->map0_byte_count,
-					 PCI_DMA_TODEVICE);
+					 DMA_TO_DEVICE);
 		else
 			dma_unmap_page(priv->ddev,
 				       tx_info->map0_dma,
 				       tx_info->map0_byte_count,
-				       PCI_DMA_TODEVICE);
+				       DMA_TO_DEVICE);
 		/* Optimize the common case when there are no wraparounds */
 		if (likely((void *)tx_desc +
 			   (tx_info->nr_txbb << LOG_TXBB_SIZE) <= end)) {
@@ -311,7 +311,7 @@ u32 mlx4_en_free_tx_desc(struct mlx4_en_priv *priv,
 				dma_unmap_page(priv->ddev,
 					(dma_addr_t)be64_to_cpu(data->addr),
 					be32_to_cpu(data->byte_count),
-					PCI_DMA_TODEVICE);
+					DMA_TO_DEVICE);
 			}
 		} else {
 			if ((void *)data >= end)
@@ -325,7 +325,7 @@ u32 mlx4_en_free_tx_desc(struct mlx4_en_priv *priv,
 				dma_unmap_page(priv->ddev,
 					(dma_addr_t)be64_to_cpu(data->addr),
 					be32_to_cpu(data->byte_count),
-					PCI_DMA_TODEVICE);
+					DMA_TO_DEVICE);
 			}
 		}
 	}
@@ -831,7 +831,7 @@ static bool mlx4_en_build_dma_wqe(struct mlx4_en_priv *priv,
 
 		dma = dma_map_single(ddev, skb->data +
 				     lso_header_size, byte_count,
-				     PCI_DMA_TODEVICE);
+				     DMA_TO_DEVICE);
 		if (dma_mapping_error(ddev, dma))
 			goto tx_drop_unmap;
 
@@ -853,7 +853,7 @@ tx_drop_unmap:
 		++data;
 		dma_unmap_page(ddev, (dma_addr_t)be64_to_cpu(data->addr),
 			       be32_to_cpu(data->byte_count),
-			       PCI_DMA_TODEVICE);
+			       DMA_TO_DEVICE);
 	}
 
 	return false;
@@ -1170,7 +1170,7 @@ netdev_tx_t mlx4_en_xmit_frame(struct mlx4_en_rx_ring *rx_ring,
 	tx_info->nr_bytes = max_t(unsigned int, length, ETH_ZLEN);
 
 	dma_sync_single_range_for_device(priv->ddev, dma, frame->page_offset,
-					 length, PCI_DMA_TODEVICE);
+					 length, DMA_TO_DEVICE);
 
 	data->addr = cpu_to_be64(dma + frame->page_offset);
 	dma_wmb();

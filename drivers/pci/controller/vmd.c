@@ -11,6 +11,7 @@
 #include <linux/module.h>
 #include <linux/msi.h>
 #include <linux/pci.h>
+#include <linux/pci-acpi.h>
 #include <linux/pci-ecam.h>
 #include <linux/srcu.h>
 #include <linux/rculist.h>
@@ -447,6 +448,56 @@ static struct pci_ops vmd_ops = {
 	.write		= vmd_pci_write,
 };
 
+#ifdef CONFIG_ACPI
+static struct acpi_device *vmd_acpi_find_companion(struct pci_dev *pci_dev)
+{
+	struct pci_host_bridge *bridge;
+	u32 busnr, addr;
+
+	if (pci_dev->bus->ops != &vmd_ops)
+		return NULL;
+
+	bridge = pci_find_host_bridge(pci_dev->bus);
+	busnr = pci_dev->bus->number - bridge->bus->number;
+	/*
+	 * The address computation below is only applicable to relative bus
+	 * numbers below 32.
+	 */
+	if (busnr > 31)
+		return NULL;
+
+	addr = (busnr << 24) | ((u32)pci_dev->devfn << 16) | 0x8000FFFFU;
+
+	dev_dbg(&pci_dev->dev, "Looking for ACPI companion (address 0x%x)\n",
+		addr);
+
+	return acpi_find_child_device(ACPI_COMPANION(bridge->dev.parent), addr,
+				      false);
+}
+
+static bool hook_installed;
+
+static void vmd_acpi_begin(void)
+{
+	if (pci_acpi_set_companion_lookup_hook(vmd_acpi_find_companion))
+		return;
+
+	hook_installed = true;
+}
+
+static void vmd_acpi_end(void)
+{
+	if (!hook_installed)
+		return;
+
+	pci_acpi_clear_companion_lookup_hook();
+	hook_installed = false;
+}
+#else
+static inline void vmd_acpi_begin(void) { }
+static inline void vmd_acpi_end(void) { }
+#endif /* CONFIG_ACPI */
+
 static void vmd_attach_resources(struct vmd_dev *vmd)
 {
 	vmd->dev->resource[VMD_MEMBAR1].child = &vmd->resources[1];
@@ -747,6 +798,8 @@ static int vmd_enable_domain(struct vmd_dev *vmd, unsigned long features)
 	if (vmd->irq_domain)
 		dev_set_msi_domain(&vmd->bus->dev, vmd->irq_domain);
 
+	vmd_acpi_begin();
+
 	pci_scan_child_bus(vmd->bus);
 	pci_assign_unassigned_bus_resources(vmd->bus);
 
@@ -759,6 +812,8 @@ static int vmd_enable_domain(struct vmd_dev *vmd, unsigned long features)
 		pcie_bus_configure_settings(child);
 
 	pci_bus_add_devices(vmd->bus);
+
+	vmd_acpi_end();
 
 	WARN(sysfs_create_link(&vmd->dev->dev.kobj, &vmd->bus->dev.kobj,
 			       "domain"), "Can't create symlink to domain\n");

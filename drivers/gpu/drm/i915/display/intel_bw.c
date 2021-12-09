@@ -17,11 +17,52 @@ struct intel_qgv_point {
 	u16 dclk, t_rp, t_rdpre, t_rc, t_ras, t_rcd;
 };
 
+struct intel_psf_gv_point {
+	u8 clk; /* clock in multiples of 16.6666 MHz */
+};
+
 struct intel_qgv_info {
 	struct intel_qgv_point points[I915_NUM_QGV_POINTS];
+	struct intel_psf_gv_point psf_points[I915_NUM_PSF_GV_POINTS];
 	u8 num_points;
+	u8 num_psf_points;
 	u8 t_bl;
 };
+
+static int dg1_mchbar_read_qgv_point_info(struct drm_i915_private *dev_priv,
+					  struct intel_qgv_point *sp,
+					  int point)
+{
+	u32 dclk_ratio, dclk_reference;
+	u32 val;
+
+	val = intel_uncore_read(&dev_priv->uncore, SA_PERF_STATUS_0_0_0_MCHBAR_PC);
+	dclk_ratio = REG_FIELD_GET(DG1_QCLK_RATIO_MASK, val);
+	if (val & DG1_QCLK_REFERENCE)
+		dclk_reference = 6; /* 6 * 16.666 MHz = 100 MHz */
+	else
+		dclk_reference = 8; /* 8 * 16.666 MHz = 133 MHz */
+	sp->dclk = dclk_ratio * dclk_reference;
+
+	val = intel_uncore_read(&dev_priv->uncore, SKL_MC_BIOS_DATA_0_0_0_MCHBAR_PCU);
+	if (val & DG1_GEAR_TYPE)
+		sp->dclk *= 2;
+
+	if (sp->dclk == 0)
+		return -EINVAL;
+
+	val = intel_uncore_read(&dev_priv->uncore, MCHBAR_CH0_CR_TC_PRE_0_0_0_MCHBAR);
+	sp->t_rp = REG_FIELD_GET(DG1_DRAM_T_RP_MASK, val);
+	sp->t_rdpre = REG_FIELD_GET(DG1_DRAM_T_RDPRE_MASK, val);
+
+	val = intel_uncore_read(&dev_priv->uncore, MCHBAR_CH0_CR_TC_PRE_0_0_0_MCHBAR_HIGH);
+	sp->t_rcd = REG_FIELD_GET(DG1_DRAM_T_RCD_MASK, val);
+	sp->t_ras = REG_FIELD_GET(DG1_DRAM_T_RAS_MASK, val);
+
+	sp->t_rc = sp->t_rp + sp->t_ras;
+
+	return 0;
+}
 
 static int icl_pcode_read_qgv_point_info(struct drm_i915_private *dev_priv,
 					 struct intel_qgv_point *sp,
@@ -49,6 +90,28 @@ static int icl_pcode_read_qgv_point_info(struct drm_i915_private *dev_priv,
 	return 0;
 }
 
+static int adls_pcode_read_psf_gv_point_info(struct drm_i915_private *dev_priv,
+					    struct intel_psf_gv_point *points)
+{
+	u32 val = 0;
+	int ret;
+	int i;
+
+	ret = sandybridge_pcode_read(dev_priv,
+				     ICL_PCODE_MEM_SUBSYSYSTEM_INFO |
+				     ADL_PCODE_MEM_SS_READ_PSF_GV_INFO,
+				     &val, NULL);
+	if (ret)
+		return ret;
+
+	for (i = 0; i < I915_NUM_PSF_GV_POINTS; i++) {
+		points[i].clk = val & 0xff;
+		val >>= 8;
+	}
+
+	return 0;
+}
+
 int icl_pcode_restrict_qgv_points(struct drm_i915_private *dev_priv,
 				  u32 points_mask)
 {
@@ -62,7 +125,7 @@ int icl_pcode_restrict_qgv_points(struct drm_i915_private *dev_priv,
 				1);
 
 	if (ret < 0) {
-		drm_err(&dev_priv->drm, "Failed to disable qgv points (%d)\n", ret);
+		drm_err(&dev_priv->drm, "Failed to disable qgv points (%d) points: 0x%x\n", ret, points_mask);
 		return ret;
 	}
 
@@ -76,8 +139,9 @@ static int icl_get_qgv_points(struct drm_i915_private *dev_priv,
 	int i, ret;
 
 	qi->num_points = dram_info->num_qgv_points;
+	qi->num_psf_points = dram_info->num_psf_gv_points;
 
-	if (IS_DISPLAY_VER(dev_priv, 12))
+	if (DISPLAY_VER(dev_priv) == 12)
 		switch (dram_info->type) {
 		case INTEL_DRAM_DDR4:
 			qi->t_bl = 4;
@@ -89,7 +153,7 @@ static int icl_get_qgv_points(struct drm_i915_private *dev_priv,
 			qi->t_bl = 16;
 			break;
 		}
-	else if (IS_DISPLAY_VER(dev_priv, 11))
+	else if (DISPLAY_VER(dev_priv) == 11)
 		qi->t_bl = dev_priv->dram_info.type == INTEL_DRAM_DDR4 ? 4 : 8;
 
 	if (drm_WARN_ON(&dev_priv->drm,
@@ -99,7 +163,11 @@ static int icl_get_qgv_points(struct drm_i915_private *dev_priv,
 	for (i = 0; i < qi->num_points; i++) {
 		struct intel_qgv_point *sp = &qi->points[i];
 
-		ret = icl_pcode_read_qgv_point_info(dev_priv, sp, i);
+		if (IS_DG1(dev_priv))
+			ret = dg1_mchbar_read_qgv_point_info(dev_priv, sp, i);
+		else
+			ret = icl_pcode_read_qgv_point_info(dev_priv, sp, i);
+
 		if (ret)
 			return ret;
 
@@ -109,6 +177,19 @@ static int icl_get_qgv_points(struct drm_i915_private *dev_priv,
 			    sp->t_rcd, sp->t_rc);
 	}
 
+	if (qi->num_psf_points > 0) {
+		ret = adls_pcode_read_psf_gv_point_info(dev_priv, qi->psf_points);
+		if (ret) {
+			drm_err(&dev_priv->drm, "Failed to read PSF point data; PSF points will not be considered in bandwidth calculations.\n");
+			qi->num_psf_points = 0;
+		}
+
+		for (i = 0; i < qi->num_psf_points; i++)
+			drm_dbg_kms(&dev_priv->drm,
+				    "PSF GV %d: CLK=%d \n",
+				    i, qi->psf_points[i].clk);
+	}
+
 	return 0;
 }
 
@@ -116,6 +197,16 @@ static int icl_calc_bw(int dclk, int num, int den)
 {
 	/* multiples of 16.666MHz (100/6) */
 	return DIV_ROUND_CLOSEST(num * dclk * 100, den * 6);
+}
+
+static int adl_calc_psf_bw(int clk)
+{
+	/*
+	 * clk is multiples of 16.666MHz (100/6)
+	 * According to BSpec PSF GV bandwidth is
+	 * calculated as BW = 64 * clk * 16.666Mhz
+	 */
+	return DIV_ROUND_CLOSEST(64 * clk * 100, 6);
 }
 
 static int icl_sagv_max_dclk(const struct intel_qgv_info *qi)
@@ -131,38 +222,49 @@ static int icl_sagv_max_dclk(const struct intel_qgv_info *qi)
 
 struct intel_sa_info {
 	u16 displayrtids;
-	u8 deburst, deprogbwlimit;
+	u8 deburst, deprogbwlimit, derating;
 };
 
 static const struct intel_sa_info icl_sa_info = {
 	.deburst = 8,
 	.deprogbwlimit = 25, /* GB/s */
 	.displayrtids = 128,
+	.derating = 10,
 };
 
 static const struct intel_sa_info tgl_sa_info = {
 	.deburst = 16,
 	.deprogbwlimit = 34, /* GB/s */
 	.displayrtids = 256,
+	.derating = 10,
 };
 
 static const struct intel_sa_info rkl_sa_info = {
 	.deburst = 16,
 	.deprogbwlimit = 20, /* GB/s */
 	.displayrtids = 128,
+	.derating = 10,
 };
 
 static const struct intel_sa_info adls_sa_info = {
 	.deburst = 16,
 	.deprogbwlimit = 38, /* GB/s */
 	.displayrtids = 256,
+	.derating = 10,
+};
+
+static const struct intel_sa_info adlp_sa_info = {
+	.deburst = 16,
+	.deprogbwlimit = 38, /* GB/s */
+	.displayrtids = 256,
+	.derating = 20,
 };
 
 static int icl_get_bw_info(struct drm_i915_private *dev_priv, const struct intel_sa_info *sa)
 {
 	struct intel_qgv_info qi = {};
 	bool is_y_tile = true; /* assume y tile may be used */
-	int num_channels = dev_priv->dram_info.num_channels;
+	int num_channels = max_t(u8, 1, dev_priv->dram_info.num_channels);
 	int deinterleave;
 	int ipqdepth, ipqdepthpch;
 	int dclk_max;
@@ -194,6 +296,7 @@ static int icl_get_bw_info(struct drm_i915_private *dev_priv, const struct intel
 		bi->num_planes = (ipqdepth - clpchgroup) / clpchgroup + 1;
 
 		bi->num_qgv_points = qi.num_points;
+		bi->num_psf_gv_points = qi.num_psf_points;
 
 		for (j = 0; j < qi.num_points; j++) {
 			const struct intel_qgv_point *sp = &qi.points[j];
@@ -210,11 +313,21 @@ static int icl_get_bw_info(struct drm_i915_private *dev_priv, const struct intel
 			bw = icl_calc_bw(sp->dclk, clpchgroup * 32 * num_channels, ct);
 
 			bi->deratedbw[j] = min(maxdebw,
-					       bw * 9 / 10); /* 90% */
+					       bw * (100 - sa->derating) / 100);
 
 			drm_dbg_kms(&dev_priv->drm,
 				    "BW%d / QGV %d: num_planes=%d deratedbw=%u\n",
 				    i, j, bi->num_planes, bi->deratedbw[j]);
+		}
+
+		for (j = 0; j < qi.num_psf_points; j++) {
+			const struct intel_psf_gv_point *sp = &qi.psf_points[j];
+
+			bi->psf_bw[j] = adl_calc_psf_bw(sp->clk);
+
+			drm_dbg_kms(&dev_priv->drm,
+				    "BW%d / PSF GV %d: num_planes=%d bw=%u\n",
+				    i, j, bi->num_planes, bi->psf_bw[j]);
 		}
 
 		if (bi->num_planes == 1)
@@ -232,6 +345,26 @@ static int icl_get_bw_info(struct drm_i915_private *dev_priv, const struct intel
 		dev_priv->sagv_status = I915_SAGV_ENABLED;
 
 	return 0;
+}
+
+static void dg2_get_bw_info(struct drm_i915_private *i915)
+{
+	struct intel_bw_info *bi = &i915->max_bw[0];
+
+	/*
+	 * DG2 doesn't have SAGV or QGV points, just a constant max bandwidth
+	 * that doesn't depend on the number of planes enabled.  Create a
+	 * single dummy QGV point to reflect that.  DG2-G10 platforms have a
+	 * constant 50 GB/s bandwidth, whereas DG2-G11 platforms have 38 GB/s.
+	 */
+	bi->num_planes = 1;
+	bi->num_qgv_points = 1;
+	if (IS_DG2_G11(i915))
+		bi->deratedbw[0] = 38000;
+	else
+		bi->deratedbw[0] = 50000;
+
+	i915->sagv_status = I915_SAGV_NOT_CONTROLLED;
 }
 
 static unsigned int icl_max_bw(struct drm_i915_private *dev_priv,
@@ -262,18 +395,31 @@ static unsigned int icl_max_bw(struct drm_i915_private *dev_priv,
 	return 0;
 }
 
+static unsigned int adl_psf_bw(struct drm_i915_private *dev_priv,
+			       int psf_gv_point)
+{
+	const struct intel_bw_info *bi =
+			&dev_priv->max_bw[0];
+
+	return bi->psf_bw[psf_gv_point];
+}
+
 void intel_bw_init_hw(struct drm_i915_private *dev_priv)
 {
 	if (!HAS_DISPLAY(dev_priv))
 		return;
 
-	if (IS_ALDERLAKE_S(dev_priv))
+	if (IS_DG2(dev_priv))
+		dg2_get_bw_info(dev_priv);
+	else if (IS_ALDERLAKE_P(dev_priv))
+		icl_get_bw_info(dev_priv, &adlp_sa_info);
+	else if (IS_ALDERLAKE_S(dev_priv))
 		icl_get_bw_info(dev_priv, &adls_sa_info);
 	else if (IS_ROCKETLAKE(dev_priv))
 		icl_get_bw_info(dev_priv, &rkl_sa_info);
-	else if (IS_DISPLAY_VER(dev_priv, 12))
+	else if (DISPLAY_VER(dev_priv) == 12)
 		icl_get_bw_info(dev_priv, &tgl_sa_info);
-	else if (IS_DISPLAY_VER(dev_priv, 11))
+	else if (DISPLAY_VER(dev_priv) == 11)
 		icl_get_bw_info(dev_priv, &icl_sa_info);
 }
 
@@ -344,6 +490,9 @@ static unsigned int intel_bw_data_rate(struct drm_i915_private *dev_priv,
 	for_each_pipe(dev_priv, pipe)
 		data_rate += bw_state->data_rate[pipe];
 
+	if (DISPLAY_VER(dev_priv) >= 13 && intel_vtd_active())
+		data_rate = data_rate * 105 / 100;
+
 	return data_rate;
 }
 
@@ -390,7 +539,6 @@ int skl_bw_calc_min_cdclk(struct intel_atomic_state *state)
 	const struct intel_crtc_state *crtc_state;
 	struct intel_crtc *crtc;
 	int max_bw = 0;
-	int slice_id;
 	enum pipe pipe;
 	int i;
 
@@ -418,6 +566,7 @@ int skl_bw_calc_min_cdclk(struct intel_atomic_state *state)
 				&crtc_state->wm.skl.plane_ddb_uv[plane_id];
 			unsigned int data_rate = crtc_state->data_rate[plane_id];
 			unsigned int dbuf_mask = 0;
+			enum dbuf_slice slice;
 
 			dbuf_mask |= skl_ddb_dbuf_slice_mask(dev_priv, plane_alloc);
 			dbuf_mask |= skl_ddb_dbuf_slice_mask(dev_priv, uv_plane_alloc);
@@ -435,8 +584,8 @@ int skl_bw_calc_min_cdclk(struct intel_atomic_state *state)
 			 * pessimistic, which shouldn't pose any significant
 			 * problem anyway.
 			 */
-			for_each_dbuf_slice_in_mask(slice_id, dbuf_mask)
-				crtc_bw->used_bw[slice_id] += data_rate;
+			for_each_dbuf_slice_in_mask(dev_priv, slice, dbuf_mask)
+				crtc_bw->used_bw[slice] += data_rate;
 		}
 	}
 
@@ -445,10 +594,11 @@ int skl_bw_calc_min_cdclk(struct intel_atomic_state *state)
 
 	for_each_pipe(dev_priv, pipe) {
 		struct intel_dbuf_bw *crtc_bw;
+		enum dbuf_slice slice;
 
 		crtc_bw = &new_bw_state->dbuf_bw[pipe];
 
-		for_each_dbuf_slice(slice_id) {
+		for_each_dbuf_slice(dev_priv, slice) {
 			/*
 			 * Current experimental observations show that contrary
 			 * to BSpec we get underruns once we exceed 64 * CDCLK
@@ -457,7 +607,7 @@ int skl_bw_calc_min_cdclk(struct intel_atomic_state *state)
 			 * bumped up all the time we calculate CDCLK according
 			 * to this formula for  overall bw consumed by slices.
 			 */
-			max_bw += crtc_bw->used_bw[slice_id];
+			max_bw += crtc_bw->used_bw[slice];
 		}
 	}
 
@@ -530,11 +680,23 @@ int intel_bw_atomic_check(struct intel_atomic_state *state)
 	u32 allowed_points = 0;
 	unsigned int max_bw_point = 0, max_bw = 0;
 	unsigned int num_qgv_points = dev_priv->max_bw[0].num_qgv_points;
-	u32 mask = (1 << num_qgv_points) - 1;
+	unsigned int num_psf_gv_points = dev_priv->max_bw[0].num_psf_gv_points;
+	u32 mask = 0;
 
 	/* FIXME earlier gens need some checks too */
 	if (DISPLAY_VER(dev_priv) < 11)
 		return 0;
+
+	/*
+	 * We can _not_ use the whole ADLS_QGV_PT_MASK here, as PCode rejects
+	 * it with failure if we try masking any unadvertised points.
+	 * So need to operate only with those returned from PCode.
+	 */
+	if (num_qgv_points > 0)
+		mask |= REG_GENMASK(num_qgv_points - 1, 0);
+
+	if (num_psf_gv_points > 0)
+		mask |= REG_GENMASK(num_psf_gv_points - 1, 0) << ADLS_PSF_PT_SHIFT;
 
 	for_each_oldnew_intel_crtc_in_state(state, crtc, old_crtc_state,
 					    new_crtc_state, i) {
@@ -598,8 +760,20 @@ int intel_bw_atomic_check(struct intel_atomic_state *state)
 			max_bw = max_data_rate;
 		}
 		if (max_data_rate >= data_rate)
-			allowed_points |= BIT(i);
+			allowed_points |= REG_FIELD_PREP(ADLS_QGV_PT_MASK, BIT(i));
+
 		drm_dbg_kms(&dev_priv->drm, "QGV point %d: max bw %d required %d\n",
+			    i, max_data_rate, data_rate);
+	}
+
+	for (i = 0; i < num_psf_gv_points; i++) {
+		unsigned int max_data_rate = adl_psf_bw(dev_priv, i);
+
+		if (max_data_rate >= data_rate)
+			allowed_points |= REG_FIELD_PREP(ADLS_PSF_PT_MASK, BIT(i));
+
+		drm_dbg_kms(&dev_priv->drm, "PSF GV point %d: max bw %d"
+			    " required %d\n",
 			    i, max_data_rate, data_rate);
 	}
 
@@ -608,11 +782,20 @@ int intel_bw_atomic_check(struct intel_atomic_state *state)
 	 * left, so if we couldn't - simply reject the configuration for obvious
 	 * reasons.
 	 */
-	if (allowed_points == 0) {
+	if ((allowed_points & ADLS_QGV_PT_MASK) == 0) {
 		drm_dbg_kms(&dev_priv->drm, "No QGV points provide sufficient memory"
 			    " bandwidth %d for display configuration(%d active planes).\n",
 			    data_rate, num_active_planes);
 		return -EINVAL;
+	}
+
+	if (num_psf_gv_points > 0) {
+		if ((allowed_points & ADLS_PSF_PT_MASK) == 0) {
+			drm_dbg_kms(&dev_priv->drm, "No PSF GV points provide sufficient memory"
+				    " bandwidth %d for display configuration(%d active planes).\n",
+				    data_rate, num_active_planes);
+			return -EINVAL;
+		}
 	}
 
 	/*

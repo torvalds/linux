@@ -2,7 +2,7 @@
 /*
 * Portions of this file
 * Copyright(c) 2016 Intel Deutschland GmbH
-* Copyright (C) 2018 - 2019 Intel Corporation
+* Copyright (C) 2018 - 2019, 2021 Intel Corporation
 */
 
 #ifndef __MAC80211_DRIVER_OPS
@@ -821,7 +821,7 @@ drv_allow_buffered_frames(struct ieee80211_local *local,
 
 static inline void drv_mgd_prepare_tx(struct ieee80211_local *local,
 				      struct ieee80211_sub_if_data *sdata,
-				      u16 duration)
+				      struct ieee80211_prep_tx_info *info)
 {
 	might_sleep();
 
@@ -829,9 +829,27 @@ static inline void drv_mgd_prepare_tx(struct ieee80211_local *local,
 		return;
 	WARN_ON_ONCE(sdata->vif.type != NL80211_IFTYPE_STATION);
 
-	trace_drv_mgd_prepare_tx(local, sdata, duration);
+	trace_drv_mgd_prepare_tx(local, sdata, info->duration,
+				 info->subtype, info->success);
 	if (local->ops->mgd_prepare_tx)
-		local->ops->mgd_prepare_tx(&local->hw, &sdata->vif, duration);
+		local->ops->mgd_prepare_tx(&local->hw, &sdata->vif, info);
+	trace_drv_return_void(local);
+}
+
+static inline void drv_mgd_complete_tx(struct ieee80211_local *local,
+				       struct ieee80211_sub_if_data *sdata,
+				       struct ieee80211_prep_tx_info *info)
+{
+	might_sleep();
+
+	if (!check_sdata_in_driver(sdata))
+		return;
+	WARN_ON_ONCE(sdata->vif.type != NL80211_IFTYPE_STATION);
+
+	trace_drv_mgd_complete_tx(local, sdata, info->duration,
+				  info->subtype, info->success);
+	if (local->ops->mgd_complete_tx)
+		local->ops->mgd_complete_tx(&local->hw, &sdata->vif, info);
 	trace_drv_return_void(local);
 }
 
@@ -1426,6 +1444,42 @@ static inline void drv_sta_set_decap_offload(struct ieee80211_local *local,
 	if (local->ops->sta_set_decap_offload)
 		local->ops->sta_set_decap_offload(&local->hw, &sdata->vif, sta,
 						  enabled);
+	trace_drv_return_void(local);
+}
+
+static inline void drv_add_twt_setup(struct ieee80211_local *local,
+				     struct ieee80211_sub_if_data *sdata,
+				     struct ieee80211_sta *sta,
+				     struct ieee80211_twt_setup *twt)
+{
+	struct ieee80211_twt_params *twt_agrt;
+
+	might_sleep();
+
+	if (!check_sdata_in_driver(sdata))
+		return;
+
+	twt_agrt = (void *)twt->params;
+
+	trace_drv_add_twt_setup(local, sta, twt, twt_agrt);
+	local->ops->add_twt_setup(&local->hw, sta, twt);
+	trace_drv_return_void(local);
+}
+
+static inline void drv_twt_teardown_request(struct ieee80211_local *local,
+					    struct ieee80211_sub_if_data *sdata,
+					    struct ieee80211_sta *sta,
+					    u8 flowid)
+{
+	might_sleep();
+	if (!check_sdata_in_driver(sdata))
+		return;
+
+	if (!local->ops->twt_teardown_request)
+		return;
+
+	trace_drv_twt_teardown_request(local, sta, flowid);
+	local->ops->twt_teardown_request(&local->hw, sta, flowid);
 	trace_drv_return_void(local);
 }
 

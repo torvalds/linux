@@ -963,7 +963,7 @@ out_batch:
 static struct i915_vma *recursive_batch(struct drm_i915_private *i915)
 {
 	struct drm_i915_gem_object *obj;
-	const int gen = INTEL_GEN(i915);
+	const int ver = GRAPHICS_VER(i915);
 	struct i915_vma *vma;
 	u32 *cmd;
 	int err;
@@ -988,11 +988,11 @@ static struct i915_vma *recursive_batch(struct drm_i915_private *i915)
 		goto err;
 	}
 
-	if (gen >= 8) {
+	if (ver >= 8) {
 		*cmd++ = MI_BATCH_BUFFER_START | 1 << 8 | 1;
 		*cmd++ = lower_32_bits(vma->node.start);
 		*cmd++ = upper_32_bits(vma->node.start);
-	} else if (gen >= 6) {
+	} else if (ver >= 6) {
 		*cmd++ = MI_BATCH_BUFFER_START | 1 << 8;
 		*cmd++ = lower_32_bits(vma->node.start);
 	} else {
@@ -1313,7 +1313,7 @@ static int __live_parallel_engine1(void *arg)
 		i915_request_add(rq);
 
 		err = 0;
-		if (i915_request_wait(rq, 0, HZ / 5) < 0)
+		if (i915_request_wait(rq, 0, HZ) < 0)
 			err = -ETIME;
 		i915_request_put(rq);
 		if (err)
@@ -1419,7 +1419,7 @@ static int __live_parallel_spin(void *arg)
 	}
 	igt_spinner_end(&spin);
 
-	if (err == 0 && i915_request_wait(rq, 0, HZ / 5) < 0)
+	if (err == 0 && i915_request_wait(rq, 0, HZ) < 0)
 		err = -EIO;
 	i915_request_put(rq);
 
@@ -2482,7 +2482,7 @@ static int perf_request_latency(void *arg)
 	struct pm_qos_request qos;
 	int err = 0;
 
-	if (INTEL_GEN(i915) < 8) /* per-engine CS timestamp, semaphores */
+	if (GRAPHICS_VER(i915) < 8) /* per-engine CS timestamp, semaphores */
 		return 0;
 
 	cpu_latency_qos_add_request(&qos, 0); /* disable cstates */

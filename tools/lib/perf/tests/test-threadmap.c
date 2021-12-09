@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <perf/threadmap.h>
 #include <internal/tests.h>
+#include "tests.h"
 
 static int libperf_print(enum libperf_print_level level,
 			 const char *fmt, va_list ap)
@@ -10,7 +11,7 @@ static int libperf_print(enum libperf_print_level level,
 	return vfprintf(stderr, fmt, ap);
 }
 
-int main(int argc, char **argv)
+int test_threadmap(int argc, char **argv)
 {
 	struct perf_thread_map *threads;
 

@@ -27,7 +27,7 @@
 // Number of registers
 #define ISYS_CTRL_NOF_REGS                              23
 
-// Register id's of MMIO slave accesible registers
+// Register id's of MMIO slave accessible registers
 #define ISYS_CTRL_CAPT_START_ADDR_A_REG_ID              0
 #define ISYS_CTRL_CAPT_START_ADDR_B_REG_ID              1
 #define ISYS_CTRL_CAPT_START_ADDR_C_REG_ID              2

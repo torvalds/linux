@@ -218,7 +218,7 @@ static int hi3110_spi_trans(struct spi_device *spi, int len)
 	return ret;
 }
 
-static u8 hi3110_cmd(struct spi_device *spi, u8 command)
+static int hi3110_cmd(struct spi_device *spi, u8 command)
 {
 	struct hi3110_priv *priv = spi_get_drvdata(spi);
 
@@ -871,7 +871,7 @@ static int hi3110_can_probe(struct spi_device *spi)
 		CAN_CTRLMODE_BERR_REPORTING;
 
 	if (of_id)
-		priv->model = (enum hi3110_model)of_id->data;
+		priv->model = (enum hi3110_model)(uintptr_t)of_id->data;
 	else
 		priv->model = spi_get_device_id(spi)->driver_data;
 	priv->net = net;

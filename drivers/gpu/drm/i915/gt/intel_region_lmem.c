@@ -5,9 +5,12 @@
 
 #include "i915_drv.h"
 #include "intel_memory_region.h"
+#include "intel_region_lmem.h"
+#include "intel_region_ttm.h"
 #include "gem/i915_gem_lmem.h"
 #include "gem/i915_gem_region.h"
-#include "intel_region_lmem.h"
+#include "gem/i915_gem_ttm.h"
+#include "gt/intel_gt.h"
 
 static int init_fake_lmem_bar(struct intel_memory_region *mem)
 {
@@ -66,9 +69,9 @@ static void release_fake_lmem_bar(struct intel_memory_region *mem)
 static void
 region_lmem_release(struct intel_memory_region *mem)
 {
-	release_fake_lmem_bar(mem);
+	intel_region_ttm_fini(mem);
 	io_mapping_fini(&mem->iomap);
-	intel_memory_region_release_buddy(mem);
+	release_fake_lmem_bar(mem);
 }
 
 static int
@@ -83,12 +86,21 @@ region_lmem_init(struct intel_memory_region *mem)
 
 	if (!io_mapping_init_wc(&mem->iomap,
 				mem->io_start,
-				resource_size(&mem->region)))
-		return -EIO;
+				resource_size(&mem->region))) {
+		ret = -EIO;
+		goto out_no_io;
+	}
 
-	ret = intel_memory_region_init_buddy(mem);
+	ret = intel_region_ttm_init(mem);
 	if (ret)
-		io_mapping_fini(&mem->iomap);
+		goto out_no_buddy;
+
+	return 0;
+
+out_no_buddy:
+	io_mapping_fini(&mem->iomap);
+out_no_io:
+	release_fake_lmem_bar(mem);
 
 	return ret;
 }
@@ -96,7 +108,7 @@ region_lmem_init(struct intel_memory_region *mem)
 static const struct intel_memory_region_ops intel_region_lmem_ops = {
 	.init = region_lmem_init,
 	.release = region_lmem_release,
-	.init_object = __i915_gem_lmem_object_init,
+	.init_object = __i915_gem_ttm_object_init,
 };
 
 struct intel_memory_region *
@@ -127,6 +139,8 @@ intel_gt_setup_fake_lmem(struct intel_gt *gt)
 					 mappable_end,
 					 PAGE_SIZE,
 					 io_start,
+					 INTEL_MEMORY_LOCAL,
+					 0,
 					 &intel_region_lmem_ops);
 	if (!IS_ERR(mem)) {
 		drm_info(&i915->drm, "Intel graphics fake LMEM: %pR\n",
@@ -144,7 +158,7 @@ intel_gt_setup_fake_lmem(struct intel_gt *gt)
 static bool get_legacy_lowmem_region(struct intel_uncore *uncore,
 				     u64 *start, u32 *size)
 {
-	if (!IS_DG1_REVID(uncore->i915, DG1_REVID_A0, DG1_REVID_B0))
+	if (!IS_DG1_GT_STEP(uncore->i915, STEP_A0, STEP_C0))
 		return false;
 
 	*start = 0;
@@ -177,7 +191,7 @@ static struct intel_memory_region *setup_lmem(struct intel_gt *gt)
 {
 	struct drm_i915_private *i915 = gt->i915;
 	struct intel_uncore *uncore = gt->uncore;
-	struct pci_dev *pdev = i915->drm.pdev;
+	struct pci_dev *pdev = to_pci_dev(i915->drm.dev);
 	struct intel_memory_region *mem;
 	resource_size_t io_start;
 	resource_size_t lmem_size;
@@ -198,6 +212,8 @@ static struct intel_memory_region *setup_lmem(struct intel_gt *gt)
 					 lmem_size,
 					 I915_GTT_PAGE_SIZE_4K,
 					 io_start,
+					 INTEL_MEMORY_LOCAL,
+					 0,
 					 &intel_region_lmem_ops);
 	if (IS_ERR(mem))
 		return mem;

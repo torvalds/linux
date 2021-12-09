@@ -143,7 +143,6 @@ pmd_populate(struct mm_struct *mm, pmd_t *pmdp, pgtable_t ptep)
 
 	__pmd_populate(pmdp, page_to_phys(ptep), prot);
 }
-#define pmd_pgtable(pmd) pmd_page(pmd)
 
 #endif /* CONFIG_MMU */
 

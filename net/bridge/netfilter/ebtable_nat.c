@@ -85,7 +85,7 @@ static const struct nf_hook_ops ebt_ops_nat[] = {
 	},
 };
 
-static int __net_init frame_nat_net_init(struct net *net)
+static int frame_nat_table_init(struct net *net)
 {
 	return ebt_register_table(net, &frame_nat, ebt_ops_nat);
 }
@@ -101,19 +101,30 @@ static void __net_exit frame_nat_net_exit(struct net *net)
 }
 
 static struct pernet_operations frame_nat_net_ops = {
-	.init = frame_nat_net_init,
 	.exit = frame_nat_net_exit,
 	.pre_exit = frame_nat_net_pre_exit,
 };
 
 static int __init ebtable_nat_init(void)
 {
-	return register_pernet_subsys(&frame_nat_net_ops);
+	int ret = ebt_register_template(&frame_nat, frame_nat_table_init);
+
+	if (ret)
+		return ret;
+
+	ret = register_pernet_subsys(&frame_nat_net_ops);
+	if (ret) {
+		ebt_unregister_template(&frame_nat);
+		return ret;
+	}
+
+	return ret;
 }
 
 static void __exit ebtable_nat_fini(void)
 {
 	unregister_pernet_subsys(&frame_nat_net_ops);
+	ebt_unregister_template(&frame_nat);
 }
 
 module_init(ebtable_nat_init);

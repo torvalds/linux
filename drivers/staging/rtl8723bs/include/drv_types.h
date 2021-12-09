@@ -15,7 +15,6 @@
 #define __DRV_TYPES_H__
 
 #include <linux/sched/signal.h>
-#include <autoconf.h>
 #include <basic_types.h>
 #include <osdep_service.h>
 #include <rtw_byteorder.h>
@@ -58,7 +57,6 @@
 
 #include <linux/ip.h>
 #include <linux/if_ether.h>
-#include <ethernet.h>
 
 #define SPEC_DEV_ID_NONE BIT(0)
 #define SPEC_DEV_ID_DISABLE_HT BIT(1)
@@ -109,9 +107,11 @@ struct registry_priv {
 	struct wlan_bssid_ex    dev_network;
 
 	u8 ht_enable;
-	/*  0: 20 MHz, 1: 40 MHz, 2: 80 MHz, 3: 160MHz */
-	/*  2.4G use bit 0 ~ 3, 5G use bit 4 ~ 7 */
-	/*  0x21 means enable 2.4G 40MHz & 5G 80MHz */
+	/*
+	 * 0: 20 MHz, 1: 40 MHz
+	 * 2.4G use bit 0 ~ 3
+	 * 0x01 means enable 2.4G 40MHz
+	 */
 	u8 bw_mode;
 	u8 ampdu_enable;/* for tx */
 	u8 rx_stbc;
@@ -131,17 +131,12 @@ struct registry_priv {
 
 	u8 lowrate_two_xmit;
 
-	u8 rf_config;
 	u8 low_power;
 
 	u8 wifi_spec;/*  !turbo_mode */
 
 	u8 channel_plan;
 
-	u8 btcoex;
-	u8 bt_iso;
-	u8 bt_sco;
-	u8 bt_ampdu;
 	s8	ant_num;
 
 	/* false:Reject AP's Add BA req, true:accept AP's Add BA req */
@@ -170,9 +165,7 @@ struct registry_priv {
 	u8 RegPowerBase;
 	u8 RegPwrTblSel;
 	s8	TxBBSwing_2G;
-	s8	TxBBSwing_5G;
 	u8 AmplifierType_2G;
-	u8 AmplifierType_5G;
 	u8 bEn_RFE;
 	u8 RFE_Type;
 	u8  check_fw_ps;
@@ -501,10 +494,6 @@ static inline u8 *myid(struct eeprom_priv *peepriv)
 
 #include <rtw_btcoex.h>
 
-void rtw_indicate_wx_disassoc_event(struct adapter *padapter);
-void rtw_indicate_wx_assoc_event(struct adapter *padapter);
-void rtw_indicate_wx_disassoc_event(struct adapter *padapter);
-void indicate_wx_scan_complete_event(struct adapter *padapter);
 int rtw_change_ifname(struct adapter *padapter, const char *ifname);
 
 extern char *rtw_initmac;

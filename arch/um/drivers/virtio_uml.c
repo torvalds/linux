@@ -27,6 +27,7 @@
 #include <linux/virtio_config.h>
 #include <linux/virtio_ring.h>
 #include <linux/time-internal.h>
+#include <linux/virtio-uml.h>
 #include <shared/as-layout.h>
 #include <irq_kern.h>
 #include <init.h>
@@ -56,6 +57,7 @@ struct virtio_uml_device {
 	u8 status;
 	u8 registered:1;
 	u8 suspended:1;
+	u8 no_vq_suspend:1;
 
 	u8 config_changed_irq:1;
 	uint64_t vq_irq_vq_map;
@@ -1098,6 +1100,19 @@ static void virtio_uml_release_dev(struct device *d)
 	kfree(vu_dev);
 }
 
+void virtio_uml_set_no_vq_suspend(struct virtio_device *vdev,
+				  bool no_vq_suspend)
+{
+	struct virtio_uml_device *vu_dev = to_virtio_uml_device(vdev);
+
+	if (WARN_ON(vdev->config != &virtio_uml_config_ops))
+		return;
+
+	vu_dev->no_vq_suspend = no_vq_suspend;
+	dev_info(&vdev->dev, "%sabled VQ suspend\n",
+		 no_vq_suspend ? "dis" : "en");
+}
+
 /* Platform device */
 
 static int virtio_uml_probe(struct platform_device *pdev)
@@ -1125,7 +1140,7 @@ static int virtio_uml_probe(struct platform_device *pdev)
 		rc = os_connect_socket(pdata->socket_path);
 	} while (rc == -EINTR);
 	if (rc < 0)
-		return rc;
+		goto error_free;
 	vu_dev->sock = rc;
 
 	spin_lock_init(&vu_dev->sock_lock);
@@ -1146,6 +1161,8 @@ static int virtio_uml_probe(struct platform_device *pdev)
 
 error_init:
 	os_close_file(vu_dev->sock);
+error_free:
+	kfree(vu_dev);
 	return rc;
 }
 
@@ -1302,13 +1319,16 @@ MODULE_DEVICE_TABLE(of, virtio_uml_match);
 static int virtio_uml_suspend(struct platform_device *pdev, pm_message_t state)
 {
 	struct virtio_uml_device *vu_dev = platform_get_drvdata(pdev);
-	struct virtqueue *vq;
 
-	virtio_device_for_each_vq((&vu_dev->vdev), vq) {
-		struct virtio_uml_vq_info *info = vq->priv;
+	if (!vu_dev->no_vq_suspend) {
+		struct virtqueue *vq;
 
-		info->suspended = true;
-		vhost_user_set_vring_enable(vu_dev, vq->index, false);
+		virtio_device_for_each_vq((&vu_dev->vdev), vq) {
+			struct virtio_uml_vq_info *info = vq->priv;
+
+			info->suspended = true;
+			vhost_user_set_vring_enable(vu_dev, vq->index, false);
+		}
 	}
 
 	if (!device_may_wakeup(&vu_dev->vdev.dev)) {
@@ -1322,13 +1342,16 @@ static int virtio_uml_suspend(struct platform_device *pdev, pm_message_t state)
 static int virtio_uml_resume(struct platform_device *pdev)
 {
 	struct virtio_uml_device *vu_dev = platform_get_drvdata(pdev);
-	struct virtqueue *vq;
 
-	virtio_device_for_each_vq((&vu_dev->vdev), vq) {
-		struct virtio_uml_vq_info *info = vq->priv;
+	if (!vu_dev->no_vq_suspend) {
+		struct virtqueue *vq;
 
-		info->suspended = false;
-		vhost_user_set_vring_enable(vu_dev, vq->index, true);
+		virtio_device_for_each_vq((&vu_dev->vdev), vq) {
+			struct virtio_uml_vq_info *info = vq->priv;
+
+			info->suspended = false;
+			vhost_user_set_vring_enable(vu_dev, vq->index, true);
+		}
 	}
 
 	vu_dev->suspended = false;

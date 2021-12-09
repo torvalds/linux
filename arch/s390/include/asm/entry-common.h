@@ -14,7 +14,6 @@
 #define ARCH_EXIT_TO_USER_MODE_WORK (_TIF_GUARDED_STORAGE | _TIF_PER_TRAP)
 
 void do_per_trap(struct pt_regs *regs);
-void do_syscall(struct pt_regs *regs);
 
 #ifdef CONFIG_DEBUG_ENTRY
 static __always_inline void arch_check_user_regs(struct pt_regs *regs)

@@ -271,7 +271,7 @@ static void hp_aux_feedback_loop_gain_ramp(struct mt6359_priv *priv, bool up)
 
 static void hp_in_pair_current(struct mt6359_priv *priv, bool increase)
 {
-	int i = 0, stage = 0;
+	int i, stage;
 	int target = 0x3;
 
 	/* Set input diff pair bias select (Hi-Fi mode) */

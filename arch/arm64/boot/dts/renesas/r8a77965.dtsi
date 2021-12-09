@@ -14,6 +14,8 @@
 
 #define CPG_AUDIO_CLK_I		R8A77965_CLK_S0D4
 
+#define SOC_HAS_SATA
+
 / {
 	compatible = "renesas,r8a77965";
 	#address-cells = <2>;
@@ -1050,6 +1052,7 @@
 					  "ch20", "ch21", "ch22", "ch23",
 					  "ch24";
 			clocks = <&cpg CPG_MOD 812>;
+			clock-names = "fck";
 			power-domains = <&sysc R8A77965_PD_ALWAYS_ON>;
 			resets = <&cpg 812>;
 			phy-mode = "rgmii";

@@ -25,8 +25,11 @@
 #define AP_RESET_TIMEOUT (HZ*0.7)	/* Time in ticks for reset timeouts. */
 #define AP_CONFIG_TIME 30	/* Time in seconds between AP bus rescans. */
 #define AP_POLL_TIME 1		/* Time in ticks between receive polls. */
+#define AP_DEFAULT_MAX_MSG_SIZE (12 * 1024)
+#define AP_TAPQ_ML_FIELD_CHUNK_SIZE (4096)
 
 extern int ap_domain_index;
+extern atomic_t ap_max_msg_size;
 
 extern DECLARE_HASHTABLE(ap_queues, 8);
 extern spinlock_t ap_queues_lock;
@@ -78,12 +81,6 @@ static inline int ap_test_bit(unsigned int *ptr, unsigned int nr)
 #define AP_FUNC_APXA  6
 
 /*
- * AP interrupt states
- */
-#define AP_INTR_DISABLED	0	/* AP interrupt disabled */
-#define AP_INTR_ENABLED		1	/* AP interrupt enabled */
-
-/*
  * AP queue state machine states
  */
 enum ap_sm_state {
@@ -109,7 +106,7 @@ enum ap_sm_event {
  * AP queue state wait behaviour
  */
 enum ap_sm_wait {
-	AP_SM_WAIT_AGAIN,	/* retry immediately */
+	AP_SM_WAIT_AGAIN = 0,	/* retry immediately */
 	AP_SM_WAIT_TIMEOUT,	/* wait for timeout */
 	AP_SM_WAIT_INTERRUPT,	/* wait for thin interrupt (if available) */
 	AP_SM_WAIT_NONE,	/* no wait */
@@ -154,7 +151,6 @@ void ap_driver_unregister(struct ap_driver *);
 
 struct ap_device {
 	struct device device;
-	struct ap_driver *drv;		/* Pointer to AP device driver. */
 	int device_type;		/* AP device type. */
 };
 
@@ -162,11 +158,11 @@ struct ap_device {
 
 struct ap_card {
 	struct ap_device ap_dev;
-	void *private;			/* ap driver private pointer. */
 	int raw_hwtype;			/* AP raw hardware type. */
 	unsigned int functions;		/* AP device function bitfield. */
 	int queue_depth;		/* AP queue depth.*/
 	int id;				/* AP card number. */
+	unsigned int maxmsgsize;	/* AP msg limit for this card */
 	bool config;			/* configured state */
 	atomic64_t total_request_count;	/* # requests ever for this AP device.*/
 };
@@ -178,11 +174,10 @@ struct ap_queue {
 	struct hlist_node hnode;	/* Node for the ap_queues hashtable */
 	struct ap_card *card;		/* Ptr to assoc. AP card. */
 	spinlock_t lock;		/* Per device lock. */
-	void *private;			/* ap driver private pointer. */
 	enum ap_dev_state dev_state;	/* queue device state */
 	bool config;			/* configured state */
 	ap_qid_t qid;			/* AP queue id. */
-	int interrupt;			/* indicate if interrupts are enabled */
+	bool interrupt;			/* indicate if interrupts are enabled */
 	int queue_count;		/* # messages currently on AP queue. */
 	int pendingq_count;		/* # requests on pendingq list. */
 	int requestq_count;		/* # requests on requestq list. */
@@ -228,7 +223,8 @@ struct ap_message {
 	struct list_head list;		/* Request queueing. */
 	unsigned long long psmid;	/* Message id. */
 	void *msg;			/* Pointer to message buffer. */
-	unsigned int len;		/* Message length. */
+	unsigned int len;		/* actual msg len in msg buffer */
+	unsigned int bufsize;		/* allocated msg buffer size */
 	u16 flags;			/* Flags, see AP_MSG_FLAG_xxx */
 	struct ap_fi fi;		/* Failure Injection cmd */
 	int rc;				/* Return code for this message */
@@ -290,8 +286,8 @@ void ap_queue_prepare_remove(struct ap_queue *aq);
 void ap_queue_remove(struct ap_queue *aq);
 void ap_queue_init_state(struct ap_queue *aq);
 
-struct ap_card *ap_card_create(int id, int queue_depth, int raw_device_type,
-			       int comp_device_type, unsigned int functions);
+struct ap_card *ap_card_create(int id, int queue_depth, int raw_type,
+			       int comp_type, unsigned int functions, int ml);
 
 struct ap_perms {
 	unsigned long ioctlm[BITS_TO_LONGS(AP_IOCTLS)];
@@ -361,5 +357,8 @@ int ap_parse_mask_str(const char *str,
  * returned to the caller.
  */
 int ap_wait_init_apqn_bindings_complete(unsigned long timeout);
+
+void ap_send_config_uevent(struct ap_device *ap_dev, bool cfg);
+void ap_send_online_uevent(struct ap_device *ap_dev, int online);
 
 #endif /* _AP_BUS_H_ */

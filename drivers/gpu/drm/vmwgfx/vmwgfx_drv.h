@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 OR MIT */
 /**************************************************************************
  *
- * Copyright 2009-2015 VMware, Inc., Palo Alto, CA., USA
+ * Copyright 2009-2021 VMware, Inc., Palo Alto, CA., USA
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
@@ -40,7 +40,6 @@
 #include <drm/ttm/ttm_bo_driver.h>
 #include <drm/ttm/ttm_execbuf_util.h>
 
-#include "ttm_lock.h"
 #include "ttm_object.h"
 
 #include "vmwgfx_fence.h"
@@ -55,10 +54,10 @@
 
 
 #define VMWGFX_DRIVER_NAME "vmwgfx"
-#define VMWGFX_DRIVER_DATE "20210218"
+#define VMWGFX_DRIVER_DATE "20210722"
 #define VMWGFX_DRIVER_MAJOR 2
-#define VMWGFX_DRIVER_MINOR 18
-#define VMWGFX_DRIVER_PATCHLEVEL 1
+#define VMWGFX_DRIVER_MINOR 19
+#define VMWGFX_DRIVER_PATCHLEVEL 0
 #define VMWGFX_FIFO_STATIC_SIZE (1024*1024)
 #define VMWGFX_MAX_RELOCATIONS 2048
 #define VMWGFX_MAX_VALIDATIONS 2048
@@ -67,6 +66,7 @@
 #define VMWGFX_ENABLE_SCREEN_TARGET_OTABLE 1
 
 #define VMWGFX_PCI_ID_SVGA2              0x0405
+#define VMWGFX_PCI_ID_SVGA3              0x0406
 
 /*
  * Perhaps we should have sysfs entries for these.
@@ -90,6 +90,9 @@
 #define VMW_RES_STREAM ttm_driver_type2
 #define VMW_RES_FENCE ttm_driver_type3
 #define VMW_RES_SHADER ttm_driver_type4
+
+#define MKSSTAT_CAPACITY_LOG2 5U
+#define MKSSTAT_CAPACITY (1U << MKSSTAT_CAPACITY_LOG2)
 
 struct vmw_fpriv {
 	struct ttm_object_file *tfile;
@@ -285,7 +288,6 @@ struct vmw_fifo_state {
 	uint32_t capabilities;
 	struct mutex fifo_mutex;
 	struct rw_semaphore rwsem;
-	bool dx;
 };
 
 /**
@@ -312,7 +314,6 @@ struct vmw_res_cache_entry {
  * enum vmw_dma_map_mode - indicate how to perform TTM page dma mappings.
  */
 enum vmw_dma_map_mode {
-	vmw_dma_phys,           /* Use physical page addresses */
 	vmw_dma_alloc_coherent, /* Use TTM coherent pages */
 	vmw_dma_map_populate,   /* Unmap from DMA just after unpopulate */
 	vmw_dma_map_bind,       /* Unmap from DMA just before unbind */
@@ -357,7 +358,6 @@ struct vmw_piter {
 	unsigned long num_pages;
 	bool (*next)(struct vmw_piter *);
 	dma_addr_t (*dma_address)(struct vmw_piter *);
-	struct page *(*page)(struct vmw_piter *);
 };
 
 /*
@@ -367,7 +367,8 @@ enum vmw_display_unit_type {
 	vmw_du_invalid = 0,
 	vmw_du_legacy,
 	vmw_du_screen_object,
-	vmw_du_screen_target
+	vmw_du_screen_target,
+	vmw_du_max
 };
 
 struct vmw_validation_context;
@@ -486,14 +487,13 @@ struct vmw_private {
 	struct drm_device drm;
 	struct ttm_device bdev;
 
-	struct vmw_fifo_state fifo;
-
 	struct drm_vma_offset_manager vma_manager;
-	u32 vmw_chipset;
+	u32 pci_id;
 	resource_size_t io_start;
 	resource_size_t vram_start;
 	resource_size_t vram_size;
-	resource_size_t prim_bb_mem;
+	resource_size_t max_primary_mem;
+	u32 __iomem *rmmio;
 	u32 *fifo_mem;
 	resource_size_t fifo_mem_size;
 	uint32_t fb_max_width;
@@ -514,7 +514,6 @@ struct vmw_private {
 	bool has_gmr;
 	bool has_mob;
 	spinlock_t hw_lock;
-	spinlock_t cap_lock;
 	bool assume_16bpp;
 
 	enum vmw_sm_type sm_type;
@@ -594,11 +593,6 @@ struct vmw_private {
 	atomic_t num_fifo_resources;
 
 	/*
-	 * Replace this with an rwsem as soon as we have down_xx_interruptible()
-	 */
-	struct ttm_lock reservation_sem;
-
-	/*
 	 * Query processing. These members
 	 * are protected by the cmdbuf mutex.
 	 */
@@ -629,11 +623,26 @@ struct vmw_private {
 	 */
 	struct vmw_otable_batch otable_batch;
 
+	struct vmw_fifo_state *fifo;
 	struct vmw_cmdbuf_man *cman;
 	DECLARE_BITMAP(irqthread_pending, VMW_IRQTHREAD_MAX);
 
 	/* Validation memory reservation */
 	struct vmw_validation_mem vvm;
+
+	uint32 *devcaps;
+
+	/*
+	 * mksGuestStat instance-descriptor and pid arrays
+	 */
+	struct page *mksstat_user_pages[MKSSTAT_CAPACITY];
+	atomic_t mksstat_user_pids[MKSSTAT_CAPACITY];
+
+#if IS_ENABLED(CONFIG_DRM_VMWGFX_MKSSTATS)
+	struct page *mksstat_kern_pages[MKSSTAT_CAPACITY];
+	u8 mksstat_kern_top_timer[MKSSTAT_CAPACITY];
+	atomic_t mksstat_kern_pids[MKSSTAT_CAPACITY];
+#endif
 };
 
 static inline struct vmw_surface *vmw_res_to_srf(struct vmw_resource *res)
@@ -652,6 +661,14 @@ static inline struct vmw_fpriv *vmw_fpriv(struct drm_file *file_priv)
 }
 
 /*
+ * SVGA v3 has mmio register access and lacks fifo cmds
+ */
+static inline bool vmw_is_svga_v3(const struct vmw_private *dev)
+{
+	return dev->pci_id == VMWGFX_PCI_ID_SVGA3;
+}
+
+/*
  * The locking here is fine-grained, so that it is performed once
  * for every read- and write operation. This is of course costly, but we
  * don't perform much register access in the timing critical paths anyway.
@@ -661,10 +678,14 @@ static inline struct vmw_fpriv *vmw_fpriv(struct drm_file *file_priv)
 static inline void vmw_write(struct vmw_private *dev_priv,
 			     unsigned int offset, uint32_t value)
 {
-	spin_lock(&dev_priv->hw_lock);
-	outl(offset, dev_priv->io_start + VMWGFX_INDEX_PORT);
-	outl(value, dev_priv->io_start + VMWGFX_VALUE_PORT);
-	spin_unlock(&dev_priv->hw_lock);
+	if (vmw_is_svga_v3(dev_priv)) {
+		iowrite32(value, dev_priv->rmmio + offset);
+	} else {
+		spin_lock(&dev_priv->hw_lock);
+		outl(offset, dev_priv->io_start + SVGA_INDEX_PORT);
+		outl(value, dev_priv->io_start + SVGA_VALUE_PORT);
+		spin_unlock(&dev_priv->hw_lock);
+	}
 }
 
 static inline uint32_t vmw_read(struct vmw_private *dev_priv,
@@ -672,10 +693,14 @@ static inline uint32_t vmw_read(struct vmw_private *dev_priv,
 {
 	u32 val;
 
-	spin_lock(&dev_priv->hw_lock);
-	outl(offset, dev_priv->io_start + VMWGFX_INDEX_PORT);
-	val = inl(dev_priv->io_start + VMWGFX_VALUE_PORT);
-	spin_unlock(&dev_priv->hw_lock);
+	if (vmw_is_svga_v3(dev_priv)) {
+		val = ioread32(dev_priv->rmmio + offset);
+	} else {
+		spin_lock(&dev_priv->hw_lock);
+		outl(offset, dev_priv->io_start + SVGA_INDEX_PORT);
+		val = inl(dev_priv->io_start + SVGA_VALUE_PORT);
+		spin_unlock(&dev_priv->hw_lock);
+	}
 
 	return val;
 }
@@ -938,19 +963,14 @@ extern int vmw_present_ioctl(struct drm_device *dev, void *data,
 			     struct drm_file *file_priv);
 extern int vmw_present_readback_ioctl(struct drm_device *dev, void *data,
 				      struct drm_file *file_priv);
-extern __poll_t vmw_fops_poll(struct file *filp,
-				  struct poll_table_struct *wait);
-extern ssize_t vmw_fops_read(struct file *filp, char __user *buffer,
-			     size_t count, loff_t *offset);
 
 /**
  * Fifo utilities - vmwgfx_fifo.c
  */
 
-extern int vmw_fifo_init(struct vmw_private *dev_priv,
-			 struct vmw_fifo_state *fifo);
-extern void vmw_fifo_release(struct vmw_private *dev_priv,
-			     struct vmw_fifo_state *fifo);
+extern struct vmw_fifo_state *vmw_fifo_create(struct vmw_private *dev_priv);
+extern void vmw_fifo_destroy(struct vmw_private *dev_priv);
+extern bool vmw_cmd_supported(struct vmw_private *vmw);
 extern void *
 vmw_cmd_ctx_reserve(struct vmw_private *dev_priv, uint32_t bytes, int ctx_id);
 extern void vmw_cmd_commit(struct vmw_private *dev_priv, uint32_t bytes);
@@ -975,6 +995,31 @@ extern int vmw_cmd_flush(struct vmw_private *dev_priv,
 
 #define VMW_CMD_RESERVE(__priv, __bytes)                                     \
 	VMW_CMD_CTX_RESERVE(__priv, __bytes, SVGA3D_INVALID_ID)
+
+
+/**
+ * vmw_fifo_caps - Returns the capabilities of the FIFO command
+ * queue or 0 if fifo memory isn't present.
+ * @dev_priv: The device private context
+ */
+static inline uint32_t vmw_fifo_caps(const struct vmw_private *dev_priv)
+{
+	if (!dev_priv->fifo_mem || !dev_priv->fifo)
+		return 0;
+	return dev_priv->fifo->capabilities;
+}
+
+
+/**
+ * vmw_is_cursor_bypass3_enabled - Returns TRUE iff Cursor Bypass 3
+ * is enabled in the FIFO.
+ * @dev_priv: The device private context
+ */
+static inline bool
+vmw_is_cursor_bypass3_enabled(const struct vmw_private *dev_priv)
+{
+	return (vmw_fifo_caps(dev_priv) & SVGA_FIFO_CAP_CURSOR_BYPASS_3) != 0;
+}
 
 /**
  * TTM glue - vmwgfx_ttm_glue.c
@@ -1042,7 +1087,7 @@ static inline dma_addr_t vmw_piter_dma_addr(struct vmw_piter *viter)
  */
 static inline struct page *vmw_piter_page(struct vmw_piter *viter)
 {
-	return viter->page(viter);
+	return viter->pages[viter->i];
 }
 
 /**
@@ -1085,9 +1130,6 @@ bool vmw_cmd_describe(const void *buf, u32 *size, char const **cmd);
  * IRQs and wating - vmwgfx_irq.c
  */
 
-extern int vmw_wait_seqno(struct vmw_private *dev_priv, bool lazy,
-			  uint32_t seqno, bool interruptible,
-			  unsigned long timeout);
 extern int vmw_irq_install(struct drm_device *dev, int irq);
 extern void vmw_irq_uninstall(struct drm_device *dev);
 extern bool vmw_seqno_passed(struct vmw_private *dev_priv,
@@ -1098,8 +1140,7 @@ extern int vmw_fallback_wait(struct vmw_private *dev_priv,
 			     uint32_t seqno,
 			     bool interruptible,
 			     unsigned long timeout);
-extern void vmw_update_seqno(struct vmw_private *dev_priv,
-				struct vmw_fifo_state *fifo_state);
+extern void vmw_update_seqno(struct vmw_private *dev_priv);
 extern void vmw_seqno_waiter_add(struct vmw_private *dev_priv);
 extern void vmw_seqno_waiter_remove(struct vmw_private *dev_priv);
 extern void vmw_goal_waiter_add(struct vmw_private *dev_priv);
@@ -1114,10 +1155,29 @@ extern void vmw_generic_waiter_remove(struct vmw_private *dev_priv,
  * Kernel framebuffer - vmwgfx_fb.c
  */
 
+#ifdef CONFIG_DRM_FBDEV_EMULATION
 int vmw_fb_init(struct vmw_private *vmw_priv);
 int vmw_fb_close(struct vmw_private *dev_priv);
 int vmw_fb_off(struct vmw_private *vmw_priv);
 int vmw_fb_on(struct vmw_private *vmw_priv);
+#else
+static inline int vmw_fb_init(struct vmw_private *vmw_priv)
+{
+	return 0;
+}
+static inline int vmw_fb_close(struct vmw_private *dev_priv)
+{
+	return 0;
+}
+static inline int vmw_fb_off(struct vmw_private *vmw_priv)
+{
+	return 0;
+}
+static inline int vmw_fb_on(struct vmw_private *vmw_priv)
+{
+	return 0;
+}
+#endif
 
 /**
  * Kernel modesetting - vmwgfx_kms.c
@@ -1235,7 +1295,6 @@ extern struct vmw_cmdbuf_res_manager *
 vmw_context_res_man(struct vmw_resource *ctx);
 extern struct vmw_resource *vmw_context_cotable(struct vmw_resource *ctx,
 						SVGACOTableType cotable_type);
-extern struct list_head *vmw_context_binding_list(struct vmw_resource *ctx);
 struct vmw_ctx_binding_state;
 extern struct vmw_ctx_binding_state *
 vmw_context_binding_state(struct vmw_resource *ctx);
@@ -1452,9 +1511,20 @@ int vmw_bo_cpu_blit(struct ttm_buffer_object *dst,
 /* Host messaging -vmwgfx_msg.c: */
 int vmw_host_get_guestinfo(const char *guest_info_param,
 			   char *buffer, size_t *length);
-int vmw_host_log(const char *log);
+__printf(1, 2) int vmw_host_printf(const char *fmt, ...);
 int vmw_msg_ioctl(struct drm_device *dev, void *data,
 		  struct drm_file *file_priv);
+
+/* Host mksGuestStats -vmwgfx_msg.c: */
+int vmw_mksstat_get_kern_slot(pid_t pid, struct vmw_private *dev_priv);
+
+int vmw_mksstat_reset_ioctl(struct drm_device *dev, void *data,
+		      struct drm_file *file_priv);
+int vmw_mksstat_add_ioctl(struct drm_device *dev, void *data,
+		      struct drm_file *file_priv);
+int vmw_mksstat_remove_ioctl(struct drm_device *dev, void *data,
+		      struct drm_file *file_priv);
+int vmw_mksstat_remove_all(struct vmw_private *dev_priv);
 
 /* VMW logging */
 
@@ -1559,6 +1629,7 @@ static inline void vmw_fifo_resource_dec(struct vmw_private *dev_priv)
  */
 static inline u32 vmw_fifo_mem_read(struct vmw_private *vmw, uint32 fifo_reg)
 {
+	BUG_ON(vmw_is_svga_v3(vmw));
 	return READ_ONCE(*(vmw->fifo_mem + fifo_reg));
 }
 
@@ -1573,6 +1644,44 @@ static inline u32 vmw_fifo_mem_read(struct vmw_private *vmw, uint32 fifo_reg)
 static inline void vmw_fifo_mem_write(struct vmw_private *vmw, u32 fifo_reg,
 				      u32 value)
 {
+	BUG_ON(vmw_is_svga_v3(vmw));
 	WRITE_ONCE(*(vmw->fifo_mem + fifo_reg), value);
 }
+
+static inline u32 vmw_fence_read(struct vmw_private *dev_priv)
+{
+	u32 fence;
+	if (vmw_is_svga_v3(dev_priv))
+		fence = vmw_read(dev_priv, SVGA_REG_FENCE);
+	else
+		fence = vmw_fifo_mem_read(dev_priv, SVGA_FIFO_FENCE);
+	return fence;
+}
+
+static inline void vmw_fence_write(struct vmw_private *dev_priv,
+				  u32 fence)
+{
+	BUG_ON(vmw_is_svga_v3(dev_priv));
+	vmw_fifo_mem_write(dev_priv, SVGA_FIFO_FENCE, fence);
+}
+
+static inline u32 vmw_irq_status_read(struct vmw_private *vmw)
+{
+	u32 status;
+	if (vmw_is_svga_v3(vmw))
+		status = vmw_read(vmw, SVGA_REG_IRQ_STATUS);
+	else
+		status = inl(vmw->io_start + SVGA_IRQSTATUS_PORT);
+	return status;
+}
+
+static inline void vmw_irq_status_write(struct vmw_private *vmw,
+					uint32 status)
+{
+	if (vmw_is_svga_v3(vmw))
+		vmw_write(vmw, SVGA_REG_IRQ_STATUS, status);
+	else
+		outl(status, vmw->io_start + SVGA_IRQSTATUS_PORT);
+}
+
 #endif

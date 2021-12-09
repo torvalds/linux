@@ -10,7 +10,7 @@
 
 #include <linux/pci.h>
 
-#define HL_PLDM_PCI_ELBI_TIMEOUT_MSEC	(HL_PCI_ELBI_TIMEOUT_MSEC * 10)
+#define HL_PLDM_PCI_ELBI_TIMEOUT_MSEC	(HL_PCI_ELBI_TIMEOUT_MSEC * 100)
 
 #define IATU_REGION_CTRL_REGION_EN_MASK		BIT(31)
 #define IATU_REGION_CTRL_MATCH_MODE_MASK	BIT(30)
@@ -360,6 +360,32 @@ int hl_pci_set_outbound_region(struct hl_device *hdev,
 }
 
 /**
+ * hl_get_pci_memory_region() - get PCI region for given address
+ * @hdev: Pointer to hl_device structure.
+ * @addr: device address
+ *
+ * @return region index on success, otherwise PCI_REGION_NUMBER (invalid
+ *         region index)
+ */
+enum pci_region hl_get_pci_memory_region(struct hl_device *hdev, u64 addr)
+{
+	int i;
+
+	for  (i = 0 ; i < PCI_REGION_NUMBER ; i++) {
+		struct pci_mem_region *region = &hdev->pci_mem_region[i];
+
+		if (!region->used)
+			continue;
+
+		if ((addr >= region->region_base) &&
+			(addr < region->region_base + region->region_size))
+			return i;
+	}
+
+	return PCI_REGION_NUMBER;
+}
+
+/**
  * hl_pci_init() - PCI initialization code.
  * @hdev: Pointer to hl_device structure.
  *
@@ -395,6 +421,12 @@ int hl_pci_init(struct hl_device *hdev)
 		goto unmap_pci_bars;
 	}
 
+	/* Driver must sleep in order for FW to finish the iATU configuration */
+	if (hdev->asic_prop.iatu_done_by_fw) {
+		usleep_range(2000, 3000);
+		hdev->asic_funcs->set_dma_mask_from_fw(hdev);
+	}
+
 	rc = dma_set_mask_and_coherent(&pdev->dev,
 					DMA_BIT_MASK(hdev->dma_mask));
 	if (rc) {
@@ -403,6 +435,8 @@ int hl_pci_init(struct hl_device *hdev)
 			hdev->dma_mask, rc);
 		goto unmap_pci_bars;
 	}
+
+	dma_set_max_seg_size(&pdev->dev, U32_MAX);
 
 	return 0;
 

@@ -88,6 +88,9 @@ gp100_vmm_pgt_pfn(struct nvkm_vmm *vmm, struct nvkm_mmu_pt *pt,
 		if (!(*map->pfn & NVKM_VMM_PFN_W))
 			data |= BIT_ULL(6); /* RO. */
 
+		if (!(*map->pfn & NVKM_VMM_PFN_A))
+			data |= BIT_ULL(7); /* Atomic disable. */
+
 		if (!(*map->pfn & NVKM_VMM_PFN_VRAM)) {
 			addr = *map->pfn >> NVKM_VMM_PFN_ADDR_SHIFT;
 			addr = dma_map_page(dev, pfn_to_page(addr), 0,
@@ -322,6 +325,9 @@ gp100_vmm_pd0_pfn(struct nvkm_vmm *vmm, struct nvkm_mmu_pt *pt,
 		if (!(*map->pfn & NVKM_VMM_PFN_W))
 			data |= BIT_ULL(6); /* RO. */
 
+		if (!(*map->pfn & NVKM_VMM_PFN_A))
+			data |= BIT_ULL(7); /* Atomic disable. */
+
 		if (!(*map->pfn & NVKM_VMM_PFN_VRAM)) {
 			addr = *map->pfn >> NVKM_VMM_PFN_ADDR_SHIFT;
 			addr = dma_map_page(dev, pfn_to_page(addr), 0,
@@ -528,15 +534,13 @@ int
 gp100_vmm_mthd(struct nvkm_vmm *vmm,
 	       struct nvkm_client *client, u32 mthd, void *argv, u32 argc)
 {
-	if (client->super) {
-		switch (mthd) {
-		case GP100_VMM_VN_FAULT_REPLAY:
-			return gp100_vmm_fault_replay(vmm, argv, argc);
-		case GP100_VMM_VN_FAULT_CANCEL:
-			return gp100_vmm_fault_cancel(vmm, argv, argc);
-		default:
-			break;
-		}
+	switch (mthd) {
+	case GP100_VMM_VN_FAULT_REPLAY:
+		return gp100_vmm_fault_replay(vmm, argv, argc);
+	case GP100_VMM_VN_FAULT_CANCEL:
+		return gp100_vmm_fault_cancel(vmm, argv, argc);
+	default:
+		break;
 	}
 	return -EINVAL;
 }

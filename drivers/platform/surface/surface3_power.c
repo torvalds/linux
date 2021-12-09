@@ -384,13 +384,7 @@ mshw0011_space_handler(u32 function, acpi_physical_address command,
 	if (ACPI_FAILURE(ret))
 		return ret;
 
-	if (!value64 || ares->type != ACPI_RESOURCE_TYPE_SERIAL_BUS) {
-		ret = AE_BAD_PARAMETER;
-		goto err;
-	}
-
-	sb = &ares->data.i2c_serial_bus;
-	if (sb->type != ACPI_RESOURCE_SERIAL_TYPE_I2C) {
+	if (!value64 || !i2c_acpi_get_i2c_resource(ares, &sb)) {
 		ret = AE_BAD_PARAMETER;
 		goto err;
 	}
@@ -446,12 +440,12 @@ mshw0011_space_handler(u32 function, acpi_physical_address command,
 
 static int mshw0011_install_space_handler(struct i2c_client *client)
 {
-	acpi_handle handle;
+	struct acpi_device *adev;
 	struct mshw0011_handler_data *data;
 	acpi_status status;
 
-	handle = ACPI_HANDLE(&client->dev);
-	if (!handle)
+	adev = ACPI_COMPANION(&client->dev);
+	if (!adev)
 		return -ENODEV;
 
 	data = kzalloc(sizeof(struct mshw0011_handler_data),
@@ -460,25 +454,25 @@ static int mshw0011_install_space_handler(struct i2c_client *client)
 		return -ENOMEM;
 
 	data->client = client;
-	status = acpi_bus_attach_private_data(handle, (void *)data);
+	status = acpi_bus_attach_private_data(adev->handle, (void *)data);
 	if (ACPI_FAILURE(status)) {
 		kfree(data);
 		return -ENOMEM;
 	}
 
-	status = acpi_install_address_space_handler(handle,
-				ACPI_ADR_SPACE_GSBUS,
-				&mshw0011_space_handler,
-				NULL,
-				data);
+	status = acpi_install_address_space_handler(adev->handle,
+						    ACPI_ADR_SPACE_GSBUS,
+						    &mshw0011_space_handler,
+						    NULL,
+						    data);
 	if (ACPI_FAILURE(status)) {
 		dev_err(&client->dev, "Error installing i2c space handler\n");
-		acpi_bus_detach_private_data(handle);
+		acpi_bus_detach_private_data(adev->handle);
 		kfree(data);
 		return -ENOMEM;
 	}
 
-	acpi_walk_dep_device_list(handle);
+	acpi_dev_clear_dependencies(adev);
 	return 0;
 }
 

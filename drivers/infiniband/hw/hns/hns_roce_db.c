@@ -8,8 +8,7 @@
 #include <rdma/ib_umem.h>
 #include "hns_roce_device.h"
 
-int hns_roce_db_map_user(struct hns_roce_ucontext *context,
-			 struct ib_udata *udata, unsigned long virt,
+int hns_roce_db_map_user(struct hns_roce_ucontext *context, unsigned long virt,
 			 struct hns_roce_db *db)
 {
 	unsigned long page_addr = virt & PAGE_MASK;
@@ -43,8 +42,8 @@ int hns_roce_db_map_user(struct hns_roce_ucontext *context,
 
 found:
 	offset = virt - page_addr;
-	db->dma = sg_dma_address(page->umem->sg_head.sgl) + offset;
-	db->virt_addr = sg_virt(page->umem->sg_head.sgl) + offset;
+	db->dma = sg_dma_address(page->umem->sgt_append.sgt.sgl) + offset;
+	db->virt_addr = sg_virt(page->umem->sgt_append.sgt.sgl) + offset;
 	db->u.user_page = page;
 	refcount_inc(&page->refcount);
 

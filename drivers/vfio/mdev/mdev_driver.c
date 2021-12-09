@@ -57,7 +57,7 @@ static int mdev_probe(struct device *dev)
 	return ret;
 }
 
-static int mdev_remove(struct device *dev)
+static void mdev_remove(struct device *dev)
 {
 	struct mdev_driver *drv =
 		container_of(dev->driver, struct mdev_driver, driver);
@@ -67,7 +67,14 @@ static int mdev_remove(struct device *dev)
 		drv->remove(mdev);
 
 	mdev_detach_iommu(mdev);
+}
 
+static int mdev_match(struct device *dev, struct device_driver *drv)
+{
+	/*
+	 * No drivers automatically match. Drivers are only bound by explicit
+	 * device_driver_attach()
+	 */
 	return 0;
 }
 
@@ -75,6 +82,7 @@ struct bus_type mdev_bus_type = {
 	.name		= "mdev",
 	.probe		= mdev_probe,
 	.remove		= mdev_remove,
+	.match		= mdev_match,
 };
 EXPORT_SYMBOL_GPL(mdev_bus_type);
 

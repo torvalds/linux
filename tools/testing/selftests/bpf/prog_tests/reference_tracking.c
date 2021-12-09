@@ -15,7 +15,7 @@ void test_reference_tracking(void)
 	int err = 0;
 
 	obj = bpf_object__open_file(file, &open_opts);
-	if (CHECK_FAIL(IS_ERR(obj)))
+	if (!ASSERT_OK_PTR(obj, "obj_open_file"))
 		return;
 
 	if (CHECK(strcmp(bpf_object__name(obj), obj_name), "obj_name",
@@ -34,8 +34,8 @@ void test_reference_tracking(void)
 		if (!test__start_subtest(title))
 			continue;
 
-		/* Expect verifier failure if test name has 'fail' */
-		if (strstr(title, "fail") != NULL) {
+		/* Expect verifier failure if test name has 'err' */
+		if (strstr(title, "err_") != NULL) {
 			libbpf_print_fn_t old_print_fn;
 
 			old_print_fn = libbpf_set_print(NULL);

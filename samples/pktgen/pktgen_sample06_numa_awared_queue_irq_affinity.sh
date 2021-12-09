@@ -92,18 +92,16 @@ for ((i = 0; i < $THREADS; i++)); do
 	pg_set $dev "udp_dst_max $UDP_DST_MAX"
     fi
 
+    [ ! -z "$UDP_CSUM" ] && pg_set $dev "flag UDPCSUM"
+
     # Setup random UDP port src range
     pg_set $dev "flag UDPSRC_RND"
     pg_set $dev "udp_src_min $UDP_SRC_MIN"
     pg_set $dev "udp_src_max $UDP_SRC_MAX"
 done
 
-# start_run
-if [ -z "$APPEND" ]; then
-    echo "Running... ctrl^C to stop" >&2
-    pg_ctrl "start"
-    echo "Done" >&2
-
+# Run if user hits control-c
+function print_result() {
     # Print results
     for ((i = 0; i < $THREADS; i++)); do
         thread=${cpu_array[$((i+F_THREAD))]}
@@ -111,6 +109,17 @@ if [ -z "$APPEND" ]; then
         echo "Device: $dev"
         cat /proc/net/pktgen/$dev | grep -A2 "Result:"
     done
+}
+# trap keyboard interrupt (Ctrl-C)
+trap true SIGINT
+
+# start_run
+if [ -z "$APPEND" ]; then
+    echo "Running... ctrl^C to stop" >&2
+    pg_ctrl "start"
+    echo "Done" >&2
+
+    print_result
 else
     echo "Append mode: config done. Do more or use 'pg_ctrl start' to run"
 fi

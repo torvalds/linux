@@ -21,7 +21,7 @@ config NVME_MULTIPATH
 	help
 	   This option enables support for multipath access to NVMe
 	   subsystems.  If this option is enabled only a single
-	   /dev/nvmeXnY device will show up for each NVMe namespaces,
+	   /dev/nvmeXnY device will show up for each NVMe namespace,
 	   even if it is accessible through multiple controllers.
 
 config NVME_HWMON
@@ -33,12 +33,12 @@ config NVME_HWMON
 	  in the system.
 
 config NVME_FABRICS
+	select NVME_CORE
 	tristate
 
 config NVME_RDMA
 	tristate "NVM Express over Fabrics RDMA host driver"
 	depends on INFINIBAND && INFINIBAND_ADDR_TRANS && BLOCK
-	select NVME_CORE
 	select NVME_FABRICS
 	select SG_POOL
 	help
@@ -55,7 +55,6 @@ config NVME_FC
 	tristate "NVM Express over Fabrics FC host driver"
 	depends on BLOCK
 	depends on HAS_DMA
-	select NVME_CORE
 	select NVME_FABRICS
 	select SG_POOL
 	help
@@ -72,7 +71,6 @@ config NVME_TCP
 	tristate "NVM Express over Fabrics TCP host driver"
 	depends on INET
 	depends on BLOCK
-	select NVME_CORE
 	select NVME_FABRICS
 	select CRYPTO
 	select CRYPTO_CRC32C

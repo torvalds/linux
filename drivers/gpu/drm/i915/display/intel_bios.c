@@ -451,13 +451,23 @@ parse_lfp_backlight(struct drm_i915_private *i915,
 	}
 
 	i915->vbt.backlight.type = INTEL_BACKLIGHT_DISPLAY_DDI;
-	if (bdb->version >= 191 &&
-	    get_blocksize(backlight_data) >= sizeof(*backlight_data)) {
-		const struct lfp_backlight_control_method *method;
+	if (bdb->version >= 191) {
+		size_t exp_size;
 
-		method = &backlight_data->backlight_control[panel_type];
-		i915->vbt.backlight.type = method->type;
-		i915->vbt.backlight.controller = method->controller;
+		if (bdb->version >= 236)
+			exp_size = sizeof(struct bdb_lfp_backlight_data);
+		else if (bdb->version >= 234)
+			exp_size = EXP_BDB_LFP_BL_DATA_SIZE_REV_234;
+		else
+			exp_size = EXP_BDB_LFP_BL_DATA_SIZE_REV_191;
+
+		if (get_blocksize(backlight_data) >= exp_size) {
+			const struct lfp_backlight_control_method *method;
+
+			method = &backlight_data->backlight_control[panel_type];
+			i915->vbt.backlight.type = method->type;
+			i915->vbt.backlight.controller = method->controller;
+		}
 	}
 
 	i915->vbt.backlight.pwm_freq_hz = entry->pwm_freq_hz;
@@ -610,7 +620,7 @@ parse_sdvo_device_mapping(struct drm_i915_private *i915)
 	 * Only parse SDVO mappings on gens that could have SDVO. This isn't
 	 * accurate and doesn't have to be, as long as it's not too strict.
 	 */
-	if (!IS_DISPLAY_RANGE(i915, 3, 7)) {
+	if (!IS_DISPLAY_VER(i915, 3, 7)) {
 		drm_dbg_kms(&i915->drm, "Skipping SDVO device mapping\n");
 		return;
 	}
@@ -917,7 +927,7 @@ parse_psr(struct drm_i915_private *i915, const struct bdb_header *bdb)
 	 * Old decimal value is wake up time in multiples of 100 us.
 	 */
 	if (bdb->version >= 205 &&
-	    (IS_GEN9_BC(i915) || DISPLAY_VER(i915) >= 10)) {
+	    (DISPLAY_VER(i915) >= 9 && !IS_BROXTON(i915))) {
 		switch (psr_table->tp1_wakeup_time) {
 		case 0:
 			i915->vbt.psr.tp1_wakeup_time_us = 500;
@@ -1651,7 +1661,7 @@ static u8 map_ddc_pin(struct drm_i915_private *i915, u8 vbt_pin)
 	const u8 *ddc_pin_map;
 	int n_entries;
 
-	if (HAS_PCH_ADP(i915)) {
+	if (IS_ALDERLAKE_S(i915)) {
 		ddc_pin_map = adls_ddc_pin_map;
 		n_entries = ARRAY_SIZE(adls_ddc_pin_map);
 	} else if (INTEL_PCH_TYPE(i915) >= PCH_DG1) {
@@ -1659,7 +1669,7 @@ static u8 map_ddc_pin(struct drm_i915_private *i915, u8 vbt_pin)
 	} else if (IS_ROCKETLAKE(i915) && INTEL_PCH_TYPE(i915) == PCH_TGP) {
 		ddc_pin_map = rkl_pch_tgp_ddc_pin_map;
 		n_entries = ARRAY_SIZE(rkl_pch_tgp_ddc_pin_map);
-	} else if (HAS_PCH_TGP(i915) && IS_GEN9_BC(i915)) {
+	} else if (HAS_PCH_TGP(i915) && DISPLAY_VER(i915) == 9) {
 		ddc_pin_map = gen9bc_tgp_ddc_pin_map;
 		n_entries = ARRAY_SIZE(gen9bc_tgp_ddc_pin_map);
 	} else if (INTEL_PCH_TYPE(i915) >= PCH_ICP) {
@@ -1743,8 +1753,24 @@ static enum port dvo_port_to_port(struct drm_i915_private *i915,
 		[PORT_TC3] = { DVO_PORT_HDMID, DVO_PORT_DPD, -1 },
 		[PORT_TC4] = { DVO_PORT_HDMIE, DVO_PORT_DPE, -1 },
 	};
+	static const int xelpd_port_mapping[][3] = {
+		[PORT_A] = { DVO_PORT_HDMIA, DVO_PORT_DPA, -1 },
+		[PORT_B] = { DVO_PORT_HDMIB, DVO_PORT_DPB, -1 },
+		[PORT_C] = { DVO_PORT_HDMIC, DVO_PORT_DPC, -1 },
+		[PORT_D_XELPD] = { DVO_PORT_HDMID, DVO_PORT_DPD, -1 },
+		[PORT_E_XELPD] = { DVO_PORT_HDMIE, DVO_PORT_DPE, -1 },
+		[PORT_TC1] = { DVO_PORT_HDMIF, DVO_PORT_DPF, -1 },
+		[PORT_TC2] = { DVO_PORT_HDMIG, DVO_PORT_DPG, -1 },
+		[PORT_TC3] = { DVO_PORT_HDMIH, DVO_PORT_DPH, -1 },
+		[PORT_TC4] = { DVO_PORT_HDMII, DVO_PORT_DPI, -1 },
+	};
 
-	if (IS_ALDERLAKE_S(i915))
+	if (DISPLAY_VER(i915) == 13)
+		return __dvo_port_to_port(ARRAY_SIZE(xelpd_port_mapping),
+					  ARRAY_SIZE(xelpd_port_mapping[0]),
+					  xelpd_port_mapping,
+					  dvo_port);
+	else if (IS_ALDERLAKE_S(i915))
 		return __dvo_port_to_port(ARRAY_SIZE(adls_port_mapping),
 					  ARRAY_SIZE(adls_port_mapping[0]),
 					  adls_port_mapping,
@@ -1852,6 +1878,19 @@ intel_bios_encoder_supports_edp(const struct intel_bios_encoder_data *devdata)
 		devdata->child.device_type & DEVICE_TYPE_INTERNAL_CONNECTOR;
 }
 
+static bool is_port_valid(struct drm_i915_private *i915, enum port port)
+{
+	/*
+	 * On some ICL SKUs port F is not present, but broken VBTs mark
+	 * the port as present. Only try to initialize port F for the
+	 * SKUs that may actually have it.
+	 */
+	if (port == PORT_F && IS_ICELAKE(i915))
+		return IS_ICL_WITH_PORT_F(i915);
+
+	return true;
+}
+
 static void parse_ddi_port(struct drm_i915_private *i915,
 			   struct intel_bios_encoder_data *devdata)
 {
@@ -1864,6 +1903,13 @@ static void parse_ddi_port(struct drm_i915_private *i915,
 	port = dvo_port_to_port(i915, child->dvo_port);
 	if (port == PORT_NONE)
 		return;
+
+	if (!is_port_valid(i915, port)) {
+		drm_dbg_kms(&i915->drm,
+			    "VBT reports port %c as supported, but that can't be true: skipping\n",
+			    port_name(port));
+		return;
+	}
 
 	info = &i915->vbt.ddi_port_info[port];
 
@@ -1962,7 +2008,7 @@ static void parse_ddi_port(struct drm_i915_private *i915,
 			    "Port %c VBT HDMI boost level: %d\n",
 			    port_name(port), hdmi_boost_level);
 
-	/* DP max link rate for CNL+ */
+	/* DP max link rate for GLK+ */
 	if (i915->vbt.version >= 216) {
 		if (i915->vbt.version >= 230)
 			info->dp_max_link_rate = parse_bdb_230_dp_max_link_rate(child->dp_max_link_rate);
@@ -2130,7 +2176,8 @@ static void
 init_vbt_missing_defaults(struct drm_i915_private *i915)
 {
 	enum port port;
-	int ports = PORT_A | PORT_B | PORT_C | PORT_D | PORT_E | PORT_F;
+	int ports = BIT(PORT_A) | BIT(PORT_B) | BIT(PORT_C) |
+		    BIT(PORT_D) | BIT(PORT_E) | BIT(PORT_F);
 
 	if (!HAS_DDI(i915) && !IS_CHERRYVIEW(i915))
 		return;
@@ -2770,7 +2817,8 @@ intel_bios_is_port_hpd_inverted(const struct drm_i915_private *i915,
 	const struct intel_bios_encoder_data *devdata =
 		i915->vbt.ddi_port_info[port].devdata;
 
-	if (drm_WARN_ON_ONCE(&i915->drm, !IS_GEN9_LP(i915)))
+	if (drm_WARN_ON_ONCE(&i915->drm,
+			     !IS_GEMINILAKE(i915) && !IS_BROXTON(i915)))
 		return false;
 
 	return devdata && devdata->child.hpd_invert;
@@ -2852,7 +2900,9 @@ enum aux_ch intel_bios_port_aux_ch(struct drm_i915_private *i915,
 			aux_ch = AUX_CH_C;
 		break;
 	case DP_AUX_D:
-		if (IS_ALDERLAKE_S(i915))
+		if (DISPLAY_VER(i915) == 13)
+			aux_ch = AUX_CH_D_XELPD;
+		else if (IS_ALDERLAKE_S(i915))
 			aux_ch = AUX_CH_USBC3;
 		else if (IS_DG1(i915) || IS_ROCKETLAKE(i915))
 			aux_ch = AUX_CH_USBC2;
@@ -2860,22 +2910,36 @@ enum aux_ch intel_bios_port_aux_ch(struct drm_i915_private *i915,
 			aux_ch = AUX_CH_D;
 		break;
 	case DP_AUX_E:
-		if (IS_ALDERLAKE_S(i915))
+		if (DISPLAY_VER(i915) == 13)
+			aux_ch = AUX_CH_E_XELPD;
+		else if (IS_ALDERLAKE_S(i915))
 			aux_ch = AUX_CH_USBC4;
 		else
 			aux_ch = AUX_CH_E;
 		break;
 	case DP_AUX_F:
-		aux_ch = AUX_CH_F;
+		if (DISPLAY_VER(i915) == 13)
+			aux_ch = AUX_CH_USBC1;
+		else
+			aux_ch = AUX_CH_F;
 		break;
 	case DP_AUX_G:
-		aux_ch = AUX_CH_G;
+		if (DISPLAY_VER(i915) == 13)
+			aux_ch = AUX_CH_USBC2;
+		else
+			aux_ch = AUX_CH_G;
 		break;
 	case DP_AUX_H:
-		aux_ch = AUX_CH_H;
+		if (DISPLAY_VER(i915) == 13)
+			aux_ch = AUX_CH_USBC3;
+		else
+			aux_ch = AUX_CH_H;
 		break;
 	case DP_AUX_I:
-		aux_ch = AUX_CH_I;
+		if (DISPLAY_VER(i915) == 13)
+			aux_ch = AUX_CH_USBC4;
+		else
+			aux_ch = AUX_CH_I;
 		break;
 	default:
 		MISSING_CASE(info->alternate_aux_channel);

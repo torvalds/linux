@@ -6,6 +6,7 @@
  *  Copyright 2006 Sony Corp.
  */
 
+#include <linux/dma-mapping.h>
 #include <linux/kernel.h>
 #include <linux/export.h>
 #include <linux/memblock.h>
@@ -194,9 +195,11 @@ fail:
 
 /**
  * ps3_mm_vas_destroy -
+ *
+ * called during kexec sequence with MMU off.
  */
 
-void ps3_mm_vas_destroy(void)
+notrace void ps3_mm_vas_destroy(void)
 {
 	int result;
 
@@ -1118,6 +1121,7 @@ int ps3_dma_region_init(struct ps3_system_bus_device *dev,
 	enum ps3_dma_region_type region_type, void *addr, unsigned long len)
 {
 	unsigned long lpar_addr;
+	int result;
 
 	lpar_addr = addr ? ps3_mm_phys_to_lpar(__pa(addr)) : 0;
 
@@ -1128,6 +1132,16 @@ int ps3_dma_region_init(struct ps3_system_bus_device *dev,
 	if (r->offset >= map.rm.size)
 		r->offset -= map.r1.offset;
 	r->len = len ? len : ALIGN(map.total, 1 << r->page_size);
+
+	dev->core.dma_mask = &r->dma_mask;
+
+	result = dma_set_mask_and_coherent(&dev->core, DMA_BIT_MASK(32));
+
+	if (result < 0) {
+		dev_err(&dev->core, "%s:%d: dma_set_mask_and_coherent failed: %d\n",
+			__func__, __LINE__, result);
+		return result;
+	}
 
 	switch (dev->dev_type) {
 	case PS3_DEVICE_TYPE_SB:
@@ -1231,9 +1245,11 @@ void __init ps3_mm_init(void)
 
 /**
  * ps3_mm_shutdown - final cleanup of address space
+ *
+ * called during kexec sequence with MMU off.
  */
 
-void ps3_mm_shutdown(void)
+notrace void ps3_mm_shutdown(void)
 {
 	ps3_mm_region_destroy(&map.r1);
 }

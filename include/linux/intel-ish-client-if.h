@@ -8,10 +8,16 @@
 #ifndef _INTEL_ISH_CLIENT_IF_H_
 #define _INTEL_ISH_CLIENT_IF_H_
 
+#include <linux/device.h>
+#include <linux/uuid.h>
+
 struct ishtp_cl_device;
 struct ishtp_device;
 struct ishtp_cl;
 struct ishtp_fw_client;
+
+typedef __printf(2, 3) void (*ishtp_print_log)(struct ishtp_device *dev,
+					       const char *format, ...);
 
 /* Client state */
 enum cl_state {
@@ -36,7 +42,7 @@ struct ishtp_cl_driver {
 	const char *name;
 	const guid_t *guid;
 	int (*probe)(struct ishtp_cl_device *dev);
-	int (*remove)(struct ishtp_cl_device *dev);
+	void (*remove)(struct ishtp_cl_device *dev);
 	int (*reset)(struct ishtp_cl_device *dev);
 	const struct dev_pm_ops *pm;
 };
@@ -75,8 +81,10 @@ int ishtp_register_event_cb(struct ishtp_cl_device *device,
 
 /* Get the device * from ishtp device instance */
 struct device *ishtp_device(struct ishtp_cl_device *cl_device);
+/* wait for IPC resume */
+bool ishtp_wait_resume(struct ishtp_device *dev);
 /* Trace interface for clients */
-void *ishtp_trace_callback(struct ishtp_cl_device *cl_device);
+ishtp_print_log ishtp_trace_callback(struct ishtp_cl_device *cl_device);
 /* Get device pointer of PCI device for DMA acces */
 struct device *ishtp_get_pci_device(struct ishtp_cl_device *cl_device);
 

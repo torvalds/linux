@@ -32,8 +32,9 @@
 
 #define pr_fmt(fmt) "[TTM] " fmt
 
-#include <drm/ttm/ttm_bo_driver.h>
-#include <drm/ttm/ttm_placement.h>
+#include <drm/ttm/ttm_device.h>
+#include <drm/ttm/ttm_tt.h>
+#include <drm/ttm/ttm_resource.h>
 #include <linux/agp_backend.h>
 #include <linux/module.h>
 #include <linux/slab.h>
@@ -50,7 +51,6 @@ int ttm_agp_bind(struct ttm_tt *ttm, struct ttm_resource *bo_mem)
 {
 	struct ttm_agp_backend *agp_be = container_of(ttm, struct ttm_agp_backend, ttm);
 	struct page *dummy_read_page = ttm_glob.dummy_read_page;
-	struct drm_mm_node *node = bo_mem->mm_node;
 	struct agp_memory *mem;
 	int ret, cached = ttm->caching == ttm_cached;
 	unsigned i;
@@ -76,7 +76,7 @@ int ttm_agp_bind(struct ttm_tt *ttm, struct ttm_resource *bo_mem)
 	mem->is_flushed = 1;
 	mem->type = (cached) ? AGP_USER_CACHED_MEMORY : AGP_USER_MEMORY;
 
-	ret = agp_bind_memory(mem, node->start);
+	ret = agp_bind_memory(mem, bo_mem->start);
 	if (ret)
 		pr_err("AGP Bind memory failed\n");
 

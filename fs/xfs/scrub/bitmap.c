@@ -260,7 +260,7 @@ xbitmap_set_btcur_path(
 		xfs_btree_get_block(cur, i, &bp);
 		if (!bp)
 			continue;
-		fsb = XFS_DADDR_TO_FSB(cur->bc_mp, bp->b_bn);
+		fsb = XFS_DADDR_TO_FSB(cur->bc_mp, xfs_buf_daddr(bp));
 		error = xbitmap_set(bitmap, fsb, 1);
 		if (error)
 			return error;
@@ -284,7 +284,7 @@ xbitmap_collect_btblock(
 	if (!bp)
 		return 0;
 
-	fsbno = XFS_DADDR_TO_FSB(cur->bc_mp, bp->b_bn);
+	fsbno = XFS_DADDR_TO_FSB(cur->bc_mp, xfs_buf_daddr(bp));
 	return xbitmap_set(bitmap, fsbno, 1);
 }
 

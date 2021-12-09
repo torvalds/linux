@@ -57,7 +57,7 @@ trans:
 		: [gpr_1]"i"(GPR_1), [gpr_2]"i"(GPR_2),
 		[sprn_texasr] "i" (SPRN_TEXASR), [flt_1] "b" (&a),
 		[flt_2] "b" (&b), [cptr1] "b" (&cptr[1])
-		: "memory", "r7", "r8", "r9", "r10",
+		: "memory", "r0", "r7", "r8", "r9", "r10",
 		"r11", "r12", "r13", "r14", "r15", "r16",
 		"r17", "r18", "r19", "r20", "r21", "r22",
 		"r23", "r24", "r25", "r26", "r27", "r28",
@@ -113,6 +113,7 @@ int ptrace_tm_gpr(void)
 	int ret, status;
 
 	SKIP_IF(!have_htm());
+	SKIP_IF(htm_is_synthetic());
 	shm_id = shmget(IPC_PRIVATE, sizeof(int) * 2, 0777|IPC_CREAT);
 	pid = fork();
 	if (pid < 0) {

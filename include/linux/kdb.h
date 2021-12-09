@@ -13,6 +13,8 @@
  * Copyright (C) 2009 Jason Wessel <jason.wessel@windriver.com>
  */
 
+#include <linux/list.h>
+
 /* Shifted versions of the command enable bits are be used if the command
  * has no arguments (see kdb_check_flags). This allows commands, such as
  * go, to have different permissions depending upon whether it is called
@@ -63,6 +65,17 @@ typedef enum {
 } kdb_cmdflags_t;
 
 typedef int (*kdb_func_t)(int, const char **);
+
+/* The KDB shell command table */
+typedef struct _kdbtab {
+	char    *name;			/* Command name */
+	kdb_func_t func;		/* Function to execute command */
+	char    *usage;			/* Usage String for this command */
+	char    *help;			/* Help message for this command */
+	short    minlen;		/* Minimum legal # cmd chars required */
+	kdb_cmdflags_t flags;		/* Command behaviour flags */
+	struct list_head list_node;	/* Command list */
+} kdbtab_t;
 
 #ifdef	CONFIG_KGDB_KDB
 #include <linux/init.h>
@@ -193,19 +206,13 @@ static inline const char *kdb_walk_kallsyms(loff_t *pos)
 #endif /* ! CONFIG_KALLSYMS */
 
 /* Dynamic kdb shell command registration */
-extern int kdb_register(char *, kdb_func_t, char *, char *, short);
-extern int kdb_register_flags(char *, kdb_func_t, char *, char *,
-			      short, kdb_cmdflags_t);
-extern int kdb_unregister(char *);
+extern int kdb_register(kdbtab_t *cmd);
+extern void kdb_unregister(kdbtab_t *cmd);
 #else /* ! CONFIG_KGDB_KDB */
 static inline __printf(1, 2) int kdb_printf(const char *fmt, ...) { return 0; }
 static inline void kdb_init(int level) {}
-static inline int kdb_register(char *cmd, kdb_func_t func, char *usage,
-			       char *help, short minlen) { return 0; }
-static inline int kdb_register_flags(char *cmd, kdb_func_t func, char *usage,
-				     char *help, short minlen,
-				     kdb_cmdflags_t flags) { return 0; }
-static inline int kdb_unregister(char *cmd) { return 0; }
+static inline int kdb_register(kdbtab_t *cmd) { return 0; }
+static inline void kdb_unregister(kdbtab_t *cmd) {}
 #endif	/* CONFIG_KGDB_KDB */
 enum {
 	KDB_NOT_INITIALIZED,

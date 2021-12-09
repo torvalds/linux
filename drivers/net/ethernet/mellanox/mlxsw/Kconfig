@@ -49,28 +49,6 @@ config MLXSW_I2C
 	  To compile this driver as a module, choose M here: the
 	  module will be called mlxsw_i2c.
 
-config MLXSW_SWITCHIB
-	tristate "Mellanox Technologies SwitchIB and SwitchIB-2 support"
-	depends on MLXSW_CORE && MLXSW_PCI && NET_SWITCHDEV
-	default m
-	help
-	  This driver supports Mellanox Technologies SwitchIB and SwitchIB-2
-	  Infiniband Switch ASICs.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called mlxsw_switchib.
-
-config MLXSW_SWITCHX2
-	tristate "Mellanox Technologies SwitchX-2 support"
-	depends on MLXSW_CORE && MLXSW_PCI && NET_SWITCHDEV
-	default m
-	help
-	  This driver supports Mellanox Technologies SwitchX-2 Ethernet
-	  Switch ASICs.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called mlxsw_switchx2.
-
 config MLXSW_SPECTRUM
 	tristate "Mellanox Technologies Spectrum family support"
 	depends on MLXSW_CORE && MLXSW_PCI && NET_SWITCHDEV && VLAN_8021Q
@@ -80,10 +58,10 @@ config MLXSW_SPECTRUM
 	depends on NET_IPGRE || NET_IPGRE=n
 	depends on IPV6_GRE || IPV6_GRE=n
 	depends on VXLAN || VXLAN=n
+	depends on PTP_1588_CLOCK_OPTIONAL
 	select GENERIC_ALLOCATOR
 	select PARMAN
 	select OBJAGG
-	imply PTP_1588_CLOCK
 	select NET_PTP_CLASSIFY if PTP_1588_CLOCK
 	default m
 	help

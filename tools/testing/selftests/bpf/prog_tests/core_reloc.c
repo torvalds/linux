@@ -369,8 +369,7 @@ static int setup_type_id_case_local(struct core_reloc_test_case *test)
 	const char *name;
 	int i;
 
-	if (CHECK(IS_ERR(local_btf), "local_btf", "failed: %ld\n", PTR_ERR(local_btf)) ||
-	    CHECK(IS_ERR(targ_btf), "targ_btf", "failed: %ld\n", PTR_ERR(targ_btf))) {
+	if (!ASSERT_OK_PTR(local_btf, "local_btf") || !ASSERT_OK_PTR(targ_btf, "targ_btf")) {
 		btf__free(local_btf);
 		btf__free(targ_btf);
 		return -EINVAL;
@@ -817,7 +816,7 @@ static size_t roundup_page(size_t sz)
 void test_core_reloc(void)
 {
 	const size_t mmap_sz = roundup_page(sizeof(struct data));
-	struct bpf_object_load_attr load_attr = {};
+	DECLARE_LIBBPF_OPTS(bpf_object_open_opts, open_opts);
 	struct core_reloc_test_case *test_case;
 	const char *tp_name, *probe_name;
 	int err, i, equal;
@@ -847,10 +846,16 @@ void test_core_reloc(void)
 				continue;
 		}
 
-		obj = bpf_object__open_file(test_case->bpf_obj_file, NULL);
-		if (CHECK(IS_ERR(obj), "obj_open", "failed to open '%s': %ld\n",
-			  test_case->bpf_obj_file, PTR_ERR(obj)))
-			continue;
+		if (test_case->btf_src_file) {
+			err = access(test_case->btf_src_file, R_OK);
+			if (!ASSERT_OK(err, "btf_src_file"))
+				goto cleanup;
+		}
+
+		open_opts.btf_custom_path = test_case->btf_src_file;
+		obj = bpf_object__open_file(test_case->bpf_obj_file, &open_opts);
+		if (!ASSERT_OK_PTR(obj, "obj_open"))
+			goto cleanup;
 
 		probe_name = "raw_tracepoint/sys_enter";
 		tp_name = "sys_enter";
@@ -864,17 +869,7 @@ void test_core_reloc(void)
 			  "prog '%s' not found\n", probe_name))
 			goto cleanup;
 
-
-		if (test_case->btf_src_file) {
-			err = access(test_case->btf_src_file, R_OK);
-			if (!ASSERT_OK(err, "btf_src_file"))
-				goto cleanup;
-		}
-
-		load_attr.obj = obj;
-		load_attr.log_level = 0;
-		load_attr.target_btf_path = test_case->btf_src_file;
-		err = bpf_object__load_xattr(&load_attr);
+		err = bpf_object__load(obj);
 		if (err) {
 			if (!test_case->fails)
 				ASSERT_OK(err, "obj_load");
@@ -899,8 +894,7 @@ void test_core_reloc(void)
 		data->my_pid_tgid = my_pid_tgid;
 
 		link = bpf_program__attach_raw_tracepoint(prog, tp_name);
-		if (CHECK(IS_ERR(link), "attach_raw_tp", "err %ld\n",
-			  PTR_ERR(link)))
+		if (!ASSERT_OK_PTR(link, "attach_raw_tp"))
 			goto cleanup;
 
 		/* trigger test run */
@@ -941,10 +935,8 @@ cleanup:
 			CHECK_FAIL(munmap(mmap_data, mmap_sz));
 			mmap_data = NULL;
 		}
-		if (!IS_ERR_OR_NULL(link)) {
-			bpf_link__destroy(link);
-			link = NULL;
-		}
+		bpf_link__destroy(link);
+		link = NULL;
 		bpf_object__close(obj);
 	}
 }

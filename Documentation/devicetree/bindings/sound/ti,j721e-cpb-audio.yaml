@@ -127,8 +127,6 @@ examples:
         compatible = "ti,j721e-cpb-audio";
         model = "j721e-cpb";
 
-        status = "okay";
-
         ti,cpb-mcasp = <&mcasp10>;
         ti,cpb-codec = <&pcm3168a_1>;
 

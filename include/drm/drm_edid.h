@@ -336,7 +336,7 @@ struct edid {
 	u8 features;
 	/* Color characteristics */
 	u8 red_green_lo;
-	u8 black_white_lo;
+	u8 blue_white_lo;
 	u8 red_x;
 	u8 red_y;
 	u8 green_x;

@@ -2,14 +2,13 @@
 # SPDX-License-Identifier: GPL-2.0
 in="$1"
 out="$2"
-my_abis=`echo "($3)" | tr ',' '|'`
 align=1
 
 fileguard=_ASM_ARM_`basename "$out" | sed \
     -e 'y/abcdefghijklmnopqrstuvwxyz/ABCDEFGHIJKLMNOPQRSTUVWXYZ/' \
     -e 's/[^A-Z0-9_]/_/g' -e 's/__/_/g'`
 
-grep -E "^[0-9A-Fa-fXx]+[[:space:]]+${my_abis}" "$in" | sort -n | tail -n1 | (
+grep -E "^[0-9A-Fa-fXx]+[[:space:]]+" "$in" | sort -n | tail -n1 | (
     echo "#ifndef ${fileguard}
 #define ${fileguard} 1
 

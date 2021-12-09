@@ -43,6 +43,8 @@ config MICROBLAZE
 	select MMU_GATHER_NO_RANGE
 	select SPARSE_IRQ
 	select SET_FS
+	select ZONE_DMA
+	select TRACE_IRQFLAGS_SUPPORT
 
 # Endianness selection
 choice
@@ -59,9 +61,6 @@ config CPU_LITTLE_ENDIAN
 	bool "Little endian"
 
 endchoice
-
-config ZONE_DMA
-	def_bool y
 
 config ARCH_HAS_ILOG2_U32
 	def_bool n

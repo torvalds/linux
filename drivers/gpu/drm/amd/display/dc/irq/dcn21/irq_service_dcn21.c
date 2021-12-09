@@ -58,8 +58,8 @@ enum dc_irq_source to_dal_irq_source_dcn21(
 		return DC_IRQ_SOURCE_VBLANK5;
 	case DCN_1_0__SRCID__DC_D6_OTG_VSTARTUP:
 		return DC_IRQ_SOURCE_VBLANK6;
-	case DCN_1_0__SRCID__DMCUB_OUTBOX_HIGH_PRIORITY_READY_INT:
-		return DC_IRQ_SOURCE_DMCUB_OUTBOX0;
+	case DCN_1_0__SRCID__DMCUB_OUTBOX_LOW_PRIORITY_READY_INT:
+		return DC_IRQ_SOURCE_DMCUB_OUTBOX;
 	case DCN_1_0__SRCID__OTG1_VERTICAL_INTERRUPT0_CONTROL:
 		return DC_IRQ_SOURCE_DC1_VLINE0;
 	case DCN_1_0__SRCID__OTG2_VERTICAL_INTERRUPT0_CONTROL:
@@ -187,7 +187,7 @@ static const struct irq_source_info_funcs vupdate_no_lock_irq_info_funcs = {
 	.ack = NULL
 };
 
-static const struct irq_source_info_funcs dmub_trace_irq_info_funcs = {
+static const struct irq_source_info_funcs dmub_outbox_irq_info_funcs = {
 	.set = NULL,
 	.ack = NULL
 };
@@ -301,11 +301,11 @@ static const struct irq_source_info_funcs vline0_irq_info_funcs = {
 		.funcs = &vline0_irq_info_funcs\
 	}
 
-#define dmub_trace_int_entry()\
-	[DC_IRQ_SOURCE_DMCUB_OUTBOX0] = {\
-		IRQ_REG_ENTRY_DMUB(DMCUB_INTERRUPT_ENABLE, DMCUB_OUTBOX0_READY_INT_EN,\
-			DMCUB_INTERRUPT_ACK, DMCUB_OUTBOX0_READY_INT_ACK),\
-		.funcs = &dmub_trace_irq_info_funcs\
+#define dmub_outbox_int_entry()\
+	[DC_IRQ_SOURCE_DMCUB_OUTBOX] = {\
+		IRQ_REG_ENTRY_DMUB(DMCUB_INTERRUPT_ENABLE, DMCUB_OUTBOX1_READY_INT_EN,\
+			DMCUB_INTERRUPT_ACK, DMCUB_OUTBOX1_READY_INT_ACK),\
+		.funcs = &dmub_outbox_irq_info_funcs\
 	}
 
 #define dummy_irq_entry() \
@@ -426,7 +426,7 @@ irq_source_info_dcn21[DAL_IRQ_SOURCES_NUMBER] = {
 	vline0_int_entry(3),
 	vline0_int_entry(4),
 	vline0_int_entry(5),
-	dmub_trace_int_entry(),
+	dmub_outbox_int_entry(),
 };
 
 static const struct irq_service_funcs irq_service_funcs_dcn21 = {

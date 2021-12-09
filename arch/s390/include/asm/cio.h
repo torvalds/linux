@@ -5,10 +5,10 @@
 #ifndef _ASM_S390_CIO_H_
 #define _ASM_S390_CIO_H_
 
-#include <linux/spinlock.h>
 #include <linux/bitops.h>
 #include <linux/genalloc.h>
 #include <asm/types.h>
+#include <asm/tpi.h>
 
 #define LPM_ANYPATH 0xff
 #define __MAX_CSSID 0

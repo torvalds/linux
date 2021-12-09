@@ -14,6 +14,7 @@
 #include <linux/elf.h>
 #include <linux/vmalloc.h>
 #include <linux/fs.h>
+#include <linux/ftrace.h>
 #include <linux/string.h>
 #include <linux/kernel.h>
 #include <linux/kasan.h>
@@ -23,6 +24,8 @@
 #include <asm/alternative.h>
 #include <asm/nospec-branch.h>
 #include <asm/facility.h>
+#include <asm/ftrace.lds.h>
+#include <asm/set_memory.h>
 
 #if 0
 #define DEBUGP printk
@@ -47,6 +50,13 @@ void *module_alloc(unsigned long size)
 	}
 	return p;
 }
+
+#ifdef CONFIG_FUNCTION_TRACER
+void module_arch_cleanup(struct module *mod)
+{
+	module_memfree(mod->arch.trampolines_start);
+}
+#endif
 
 void module_arch_freeing_init(struct module *mod)
 {
@@ -466,6 +476,30 @@ int apply_relocate_add(Elf_Shdr *sechdrs, const char *strtab,
 				    write);
 }
 
+#ifdef CONFIG_FUNCTION_TRACER
+static int module_alloc_ftrace_hotpatch_trampolines(struct module *me,
+						    const Elf_Shdr *s)
+{
+	char *start, *end;
+	int numpages;
+	size_t size;
+
+	size = FTRACE_HOTPATCH_TRAMPOLINES_SIZE(s->sh_size);
+	numpages = DIV_ROUND_UP(size, PAGE_SIZE);
+	start = module_alloc(numpages * PAGE_SIZE);
+	if (!start)
+		return -ENOMEM;
+	set_memory_ro((unsigned long)start, numpages);
+	end = start + size;
+
+	me->arch.trampolines_start = (struct ftrace_hotpatch_trampoline *)start;
+	me->arch.trampolines_end = (struct ftrace_hotpatch_trampoline *)end;
+	me->arch.next_trampoline = me->arch.trampolines_start;
+
+	return 0;
+}
+#endif /* CONFIG_FUNCTION_TRACER */
+
 int module_finalize(const Elf_Ehdr *hdr,
 		    const Elf_Shdr *sechdrs,
 		    struct module *me)
@@ -473,6 +507,9 @@ int module_finalize(const Elf_Ehdr *hdr,
 	const Elf_Shdr *s;
 	char *secstrings, *secname;
 	void *aseg;
+#ifdef CONFIG_FUNCTION_TRACER
+	int ret;
+#endif
 
 	if (IS_ENABLED(CONFIG_EXPOLINE) &&
 	    !nospec_disable && me->arch.plt_size) {
@@ -507,6 +544,14 @@ int module_finalize(const Elf_Ehdr *hdr,
 		if (IS_ENABLED(CONFIG_EXPOLINE) &&
 		    (str_has_prefix(secname, ".s390_return")))
 			nospec_revert(aseg, aseg + s->sh_size);
+
+#ifdef CONFIG_FUNCTION_TRACER
+		if (!strcmp(FTRACE_CALLSITE_SECTION, secname)) {
+			ret = module_alloc_ftrace_hotpatch_trampolines(me, s);
+			if (ret < 0)
+				return ret;
+		}
+#endif /* CONFIG_FUNCTION_TRACER */
 	}
 
 	jump_label_apply_nops(me);

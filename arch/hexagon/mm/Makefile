@@ -4,4 +4,4 @@
 #
 
 obj-y := init.o ioremap.o uaccess.o vm_fault.o cache.o
-obj-y += copy_to_user.o copy_from_user.o strnlen_user.o vm_tlb.o
+obj-y += copy_to_user.o copy_from_user.o vm_tlb.o

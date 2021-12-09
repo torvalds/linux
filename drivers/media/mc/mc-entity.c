@@ -323,7 +323,7 @@ static void media_graph_walk_iter(struct media_graph *graph)
 		return;
 	}
 
-	/* Get the entity in the other end of the link . */
+	/* Get the entity at the other end of the link. */
 	next = media_entity_other(entity, link);
 
 	/* Has the entity already been visited? */

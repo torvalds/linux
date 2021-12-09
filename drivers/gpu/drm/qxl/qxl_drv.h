@@ -292,12 +292,12 @@ qxl_bo_physical_address(struct qxl_device *qdev, struct qxl_bo *bo,
 			unsigned long offset)
 {
 	struct qxl_memslot *slot =
-		(bo->tbo.mem.mem_type == TTM_PL_VRAM)
+		(bo->tbo.resource->mem_type == TTM_PL_VRAM)
 		? &qdev->main_slot : &qdev->surfaces_slot;
 
-       /* TODO - need to hold one of the locks to read bo->tbo.mem.start */
+       /* TODO - need to hold one of the locks to read bo->tbo.resource->start */
 
-	return slot->high_bits | ((bo->tbo.mem.start << PAGE_SHIFT) + offset);
+	return slot->high_bits | ((bo->tbo.resource->start << PAGE_SHIFT) + offset);
 }
 
 /* qxl_display.c */
@@ -330,9 +330,6 @@ void qxl_bo_force_delete(struct qxl_device *qdev);
 int qxl_mode_dumb_create(struct drm_file *file_priv,
 			 struct drm_device *dev,
 			 struct drm_mode_create_dumb *args);
-int qxl_mode_dumb_mmap(struct drm_file *filp,
-		       struct drm_device *dev,
-		       uint32_t handle, uint64_t *offset_p);
 
 /* qxl ttm */
 int qxl_ttm_init(struct qxl_device *qdev);
@@ -437,12 +434,9 @@ struct drm_gem_object *qxl_gem_prime_import_sg_table(
 int qxl_gem_prime_vmap(struct drm_gem_object *obj, struct dma_buf_map *map);
 void qxl_gem_prime_vunmap(struct drm_gem_object *obj,
 			  struct dma_buf_map *map);
-int qxl_gem_prime_mmap(struct drm_gem_object *obj,
-				struct vm_area_struct *vma);
 
 /* qxl_irq.c */
 int qxl_irq_init(struct qxl_device *qdev);
-irqreturn_t qxl_irq_handler(int irq, void *arg);
 
 void qxl_debugfs_add_files(struct qxl_device *qdev,
 			   struct drm_info_list *files,

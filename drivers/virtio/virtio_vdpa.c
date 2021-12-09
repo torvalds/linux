@@ -142,12 +142,17 @@ virtio_vdpa_setup_vq(struct virtio_device *vdev, unsigned int index,
 	struct vdpa_callback cb;
 	struct virtqueue *vq;
 	u64 desc_addr, driver_addr, device_addr;
+	/* Assume split virtqueue, switch to packed if necessary */
+	struct vdpa_vq_state state = {0};
 	unsigned long flags;
 	u32 align, num;
 	int err;
 
 	if (!name)
 		return NULL;
+
+	if (index >= vdpa->nvqs)
+		return ERR_PTR(-ENOENT);
 
 	/* Queue shouldn't already be set up. */
 	if (ops->get_vq_ready(vdpa, index))
@@ -190,6 +195,19 @@ virtio_vdpa_setup_vq(struct virtio_device *vdev, unsigned int index,
 		err = -EINVAL;
 		goto err_vq;
 	}
+
+	/* reset virtqueue state index */
+	if (virtio_has_feature(vdev, VIRTIO_F_RING_PACKED)) {
+		struct vdpa_vq_state_packed *s = &state.packed;
+
+		s->last_avail_counter = 1;
+		s->last_avail_idx = 0;
+		s->last_used_counter = 1;
+		s->last_used_idx = 0;
+	}
+	err = ops->set_vq_state(vdpa, index, &state);
+	if (err)
+		goto err_vq;
 
 	ops->set_vq_ready(vdpa, index, 1);
 

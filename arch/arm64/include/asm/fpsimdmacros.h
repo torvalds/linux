@@ -94,6 +94,7 @@
 .endm
 
 /* SVE instruction encodings for non-SVE-capable assemblers */
+/* (pre binutils 2.28, all kernel capable clang versions support SVE) */
 
 /* STR (vector): STR Z\nz, [X\nxbase, #\offset, MUL VL] */
 .macro _sve_str_v nz, nxbase, offset=0
@@ -213,8 +214,10 @@
 	mov	v\nz\().16b, v\nz\().16b
 .endm
 
-.macro sve_flush
+.macro sve_flush_z
  _for n, 0, 31, _sve_flush_z	\n
+.endm
+.macro sve_flush_p_ffr
  _for n, 0, 15, _sve_pfalse	\n
 		_sve_wrffr	0
 .endm

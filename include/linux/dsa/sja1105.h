@@ -14,6 +14,9 @@
 
 #define ETH_P_SJA1105				ETH_P_DSA_8021Q
 #define ETH_P_SJA1105_META			0x0008
+#define ETH_P_SJA1110				0xdadc
+
+#define SJA1105_DEFAULT_VLAN			(VLAN_N_VID - 1)
 
 /* IEEE 802.3 Annex 57A: Slow Protocols PDUs (01:80:C2:xx:xx:xx) */
 #define SJA1105_LINKLOCAL_FILTER_A		0x0180C2000000ull
@@ -44,25 +47,50 @@ struct sja1105_tagger_data {
 	 */
 	spinlock_t meta_lock;
 	unsigned long state;
+	u8 ts_id;
+	/* Used on SJA1110 where meta frames are generated only for
+	 * 2-step TX timestamps
+	 */
+	struct sk_buff_head skb_txtstamp_queue;
 };
 
 struct sja1105_skb_cb {
 	struct sk_buff *clone;
-	u32 meta_tstamp;
+	u64 tstamp;
+	/* Only valid for packets cloned for 2-step TX timestamping */
+	u8 ts_id;
 };
 
 #define SJA1105_SKB_CB(skb) \
 	((struct sja1105_skb_cb *)((skb)->cb))
 
 struct sja1105_port {
-	u16 subvlan_map[DSA_8021Q_N_SUBVLAN];
 	struct kthread_worker *xmit_worker;
 	struct kthread_work xmit_work;
 	struct sk_buff_head xmit_queue;
 	struct sja1105_tagger_data *data;
 	struct dsa_port *dp;
 	bool hwts_tx_en;
-	u16 xmit_tpid;
 };
+
+/* Timestamps are in units of 8 ns clock ticks (equivalent to
+ * a fixed 125 MHz clock).
+ */
+#define SJA1105_TICK_NS			8
+
+static inline s64 ns_to_sja1105_ticks(s64 ns)
+{
+	return ns / SJA1105_TICK_NS;
+}
+
+static inline s64 sja1105_ticks_to_ns(s64 ticks)
+{
+	return ticks * SJA1105_TICK_NS;
+}
+
+static inline bool dsa_port_is_sja1105(struct dsa_port *dp)
+{
+	return true;
+}
 
 #endif /* _NET_DSA_SJA1105_H */

@@ -43,23 +43,20 @@ properties:
               - renesas,etheravb-r8a779a0     # R-Car V3U
           - const: renesas,etheravb-rcar-gen3 # R-Car Gen3 and RZ/G2
 
+      - items:
+          - enum:
+              - renesas,r9a07g044-gbeth # RZ/G2{L,LC}
+          - const: renesas,rzg2l-gbeth  # RZ/G2L
+
   reg: true
 
   interrupts: true
 
   interrupt-names: true
 
-  clocks:
-    minItems: 1
-    items:
-      - description: AVB functional clock
-      - description: Optional TXC reference clock
+  clocks: true
 
-  clock-names:
-    minItems: 1
-    items:
-      - const: fck
-      - const: refclk
+  clock-names: true
 
   iommus:
     maxItems: 1
@@ -145,14 +142,20 @@ allOf:
       properties:
         compatible:
           contains:
-            const: renesas,etheravb-rcar-gen2
+            enum:
+              - renesas,etheravb-rcar-gen2
+              - renesas,rzg2l-gbeth
     then:
       properties:
         interrupts:
-          maxItems: 1
+          minItems: 1
+          maxItems: 3
         interrupt-names:
+          minItems: 1
           items:
             - const: mux
+            - const: fil
+            - const: arp_ns
         rx-internal-delay-ps: false
     else:
       properties:
@@ -207,6 +210,36 @@ allOf:
       properties:
         tx-internal-delay-ps:
           const: 2000
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: renesas,rzg2l-gbeth
+    then:
+      properties:
+        clocks:
+          items:
+            - description: Main clock
+            - description: Register access clock
+            - description: Reference clock for RGMII
+        clock-names:
+          items:
+            - const: axi
+            - const: chi
+            - const: refclk
+    else:
+      properties:
+        clocks:
+          minItems: 1
+          items:
+            - description: AVB functional clock
+            - description: Optional TXC reference clock
+        clock-names:
+          minItems: 1
+          items:
+            - const: fck
+            - const: refclk
 
 additionalProperties: false
 

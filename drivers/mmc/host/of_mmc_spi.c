@@ -22,8 +22,8 @@
 MODULE_LICENSE("GPL");
 
 struct of_mmc_spi {
-	int detect_irq;
 	struct mmc_spi_platform_data pdata;
+	int detect_irq;
 };
 
 static struct of_mmc_spi *to_of_mmc_spi(struct device *dev)

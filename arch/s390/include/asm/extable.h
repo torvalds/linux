@@ -28,8 +28,8 @@ struct exception_table_entry
 	long handler;
 };
 
-extern struct exception_table_entry *__start_dma_ex_table;
-extern struct exception_table_entry *__stop_dma_ex_table;
+extern struct exception_table_entry *__start_amode31_ex_table;
+extern struct exception_table_entry *__stop_amode31_ex_table;
 
 const struct exception_table_entry *s390_search_extables(unsigned long addr);
 

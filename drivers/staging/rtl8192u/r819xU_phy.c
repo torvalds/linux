@@ -1185,14 +1185,32 @@ static u8 rtl8192_phy_SwChnlStepByStep(struct net_device *dev, u8 channel,
 				       u8 *stage, u8 *step, u32 *delay)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
-	struct sw_chnl_cmd   PreCommonCmd[MAX_PRECMD_CNT];
-	u32		   PreCommonCmdCnt;
-	struct sw_chnl_cmd   PostCommonCmd[MAX_POSTCMD_CNT];
-	u32		   PostCommonCmdCnt;
-	struct sw_chnl_cmd   RfDependCmd[MAX_RFDEPENDCMD_CNT];
-	u32		   RfDependCmdCnt;
-	struct sw_chnl_cmd  *CurrentCmd = NULL;
-	u8		   e_rfpath;
+	struct sw_chnl_cmd *pre_cmd;
+	u32 pre_cmd_cnt = 0;
+	struct sw_chnl_cmd *post_cmd;
+	u32 post_cmd_cnt = 0;
+	struct sw_chnl_cmd *rf_cmd;
+	u32 rf_cmd_cnt = 0;
+	struct sw_chnl_cmd *current_cmd = NULL;
+	u8 e_rfpath;
+	bool ret;
+
+	pre_cmd = kcalloc(MAX_PRECMD_CNT, sizeof(*pre_cmd), GFP_KERNEL);
+	if (!pre_cmd)
+		return false;
+
+	post_cmd = kcalloc(MAX_POSTCMD_CNT, sizeof(*post_cmd), GFP_KERNEL);
+	if (!post_cmd) {
+		kfree(pre_cmd);
+		return false;
+	}
+
+	rf_cmd = kcalloc(MAX_RFDEPENDCMD_CNT, sizeof(*rf_cmd), GFP_KERNEL);
+	if (!rf_cmd) {
+		kfree(pre_cmd);
+		kfree(post_cmd);
+		return false;
+	}
 
 	RT_TRACE(COMP_CH, "%s() stage: %d, step: %d, channel: %d\n",
 		 __func__, *stage, *step, channel);
@@ -1201,41 +1219,39 @@ static u8 rtl8192_phy_SwChnlStepByStep(struct net_device *dev, u8 channel,
 		/* return true to tell upper caller function this channel
 		 * setting is finished! Or it will in while loop.
 		 */
-		return true;
+		ret = true;
+		goto out;
 	}
 	/* FIXME: need to check whether channel is legal or not here */
 
 	/* <1> Fill up pre common command. */
-	PreCommonCmdCnt = 0;
-	rtl8192_phy_SetSwChnlCmdArray(PreCommonCmd, PreCommonCmdCnt++,
+	rtl8192_phy_SetSwChnlCmdArray(pre_cmd, pre_cmd_cnt++,
 				      MAX_PRECMD_CNT, CMD_ID_SET_TX_PWR_LEVEL,
 				      0, 0, 0);
-	rtl8192_phy_SetSwChnlCmdArray(PreCommonCmd, PreCommonCmdCnt++,
+	rtl8192_phy_SetSwChnlCmdArray(pre_cmd, pre_cmd_cnt++,
 				      MAX_PRECMD_CNT, CMD_ID_END, 0, 0, 0);
 
 	/* <2> Fill up post common command. */
-	PostCommonCmdCnt = 0;
-
-	rtl8192_phy_SetSwChnlCmdArray(PostCommonCmd, PostCommonCmdCnt++,
+	rtl8192_phy_SetSwChnlCmdArray(post_cmd, post_cmd_cnt++,
 				      MAX_POSTCMD_CNT, CMD_ID_END, 0, 0, 0);
 
 	/* <3> Fill up RF dependent command. */
-	RfDependCmdCnt = 0;
 	switch (priv->rf_chip) {
 	case RF_8225:
 		if (!(channel >= 1 && channel <= 14)) {
 			RT_TRACE(COMP_ERR,
 				 "illegal channel for Zebra 8225: %d\n",
 				 channel);
-			return true;
+			ret = true;
+			goto out;
 		}
-		rtl8192_phy_SetSwChnlCmdArray(RfDependCmd, RfDependCmdCnt++,
+		rtl8192_phy_SetSwChnlCmdArray(rf_cmd, rf_cmd_cnt++,
 					      MAX_RFDEPENDCMD_CNT,
 					      CMD_ID_RF_WRITE_REG,
 					      rZebra1_Channel,
 					      RF_CHANNEL_TABLE_ZEBRA[channel],
 					      10);
-		rtl8192_phy_SetSwChnlCmdArray(RfDependCmd, RfDependCmdCnt++,
+		rtl8192_phy_SetSwChnlCmdArray(rf_cmd, rf_cmd_cnt++,
 					      MAX_RFDEPENDCMD_CNT,
 					      CMD_ID_END, 0, 0, 0);
 		break;
@@ -1246,13 +1262,14 @@ static u8 rtl8192_phy_SwChnlStepByStep(struct net_device *dev, u8 channel,
 			RT_TRACE(COMP_ERR,
 				 "illegal channel for Zebra 8256: %d\n",
 				 channel);
-			return true;
+			ret = true;
+			goto out;
 		}
-		rtl8192_phy_SetSwChnlCmdArray(RfDependCmd, RfDependCmdCnt++,
+		rtl8192_phy_SetSwChnlCmdArray(rf_cmd, rf_cmd_cnt++,
 					      MAX_RFDEPENDCMD_CNT,
 					      CMD_ID_RF_WRITE_REG,
 					      rZebra1_Channel, channel, 10);
-		rtl8192_phy_SetSwChnlCmdArray(RfDependCmd, RfDependCmdCnt++,
+		rtl8192_phy_SetSwChnlCmdArray(rf_cmd, rf_cmd_cnt++,
 					      MAX_RFDEPENDCMD_CNT,
 					      CMD_ID_END, 0, 0, 0);
 		break;
@@ -1262,57 +1279,59 @@ static u8 rtl8192_phy_SwChnlStepByStep(struct net_device *dev, u8 channel,
 
 	default:
 		RT_TRACE(COMP_ERR, "Unknown RFChipID: %d\n", priv->rf_chip);
-		return true;
+		ret = true;
+		goto out;
 	}
 
 	do {
 		switch (*stage) {
 		case 0:
-			CurrentCmd = &PreCommonCmd[*step];
+			current_cmd = &pre_cmd[*step];
 			break;
 		case 1:
-			CurrentCmd = &RfDependCmd[*step];
+			current_cmd = &rf_cmd[*step];
 			break;
 		case 2:
-			CurrentCmd = &PostCommonCmd[*step];
+			current_cmd = &post_cmd[*step];
 			break;
 		}
 
-		if (CurrentCmd->cmd_id == CMD_ID_END) {
+		if (current_cmd->cmd_id == CMD_ID_END) {
 			if ((*stage) == 2) {
-				(*delay) = CurrentCmd->ms_delay;
-				return true;
+				*delay = current_cmd->ms_delay;
+				ret = true;
+				goto out;
 			}
 			(*stage)++;
 			(*step) = 0;
 			continue;
 		}
 
-		switch (CurrentCmd->cmd_id) {
+		switch (current_cmd->cmd_id) {
 		case CMD_ID_SET_TX_PWR_LEVEL:
 			if (priv->card_8192_version == VERSION_819XU_A)
 				/* consider it later! */
 				rtl8192_SetTxPowerLevel(dev, channel);
 			break;
 		case CMD_ID_WRITE_PORT_ULONG:
-			write_nic_dword(dev, CurrentCmd->para_1,
-					CurrentCmd->para_2);
+			write_nic_dword(dev, current_cmd->para_1,
+					current_cmd->para_2);
 			break;
 		case CMD_ID_WRITE_PORT_USHORT:
-			write_nic_word(dev, CurrentCmd->para_1,
-				       (u16)CurrentCmd->para_2);
+			write_nic_word(dev, current_cmd->para_1,
+				       (u16)current_cmd->para_2);
 			break;
 		case CMD_ID_WRITE_PORT_UCHAR:
-			write_nic_byte(dev, CurrentCmd->para_1,
-				       (u8)CurrentCmd->para_2);
+			write_nic_byte(dev, current_cmd->para_1,
+				       (u8)current_cmd->para_2);
 			break;
 		case CMD_ID_RF_WRITE_REG:
 			for (e_rfpath = 0; e_rfpath < RF90_PATH_MAX; e_rfpath++) {
 				rtl8192_phy_SetRFReg(dev,
 						     (enum rf90_radio_path_e)e_rfpath,
-						     CurrentCmd->para_1,
+						     current_cmd->para_1,
 						     bZebra1_ChannelNum,
-						     CurrentCmd->para_2);
+						     current_cmd->para_2);
 			}
 			break;
 		default:
@@ -1322,9 +1341,16 @@ static u8 rtl8192_phy_SwChnlStepByStep(struct net_device *dev, u8 channel,
 		break;
 	} while (true);
 
-	(*delay) = CurrentCmd->ms_delay;
+	*delay = current_cmd->ms_delay;
 	(*step)++;
-	return false;
+	ret = false;
+
+out:
+	kfree(pre_cmd);
+	kfree(post_cmd);
+	kfree(rf_cmd);
+
+	return ret;
 }
 
 /******************************************************************************

@@ -52,12 +52,8 @@
  * You can tell if you have a device that supports tagged queueing my
  * cating (eg) /proc/scsi/acornscsi/0 and see if the SCSI revision is reported
  * as '2 TAG'.
- *
- * Also note that CONFIG_SCSI_ACORNSCSI_TAGGED_QUEUE is normally set in the config
- * scripts, but disabled here.  Once debugged, remove the #undef, otherwise to debug,
- * comment out the undef.
  */
-#undef CONFIG_SCSI_ACORNSCSI_TAGGED_QUEUE
+
 /*
  * SCSI-II Synchronous transfer support.
  *
@@ -171,7 +167,7 @@ static void acornscsi_done(AS_Host *host, struct scsi_cmnd **SCpntp,
 			   unsigned int result);
 static int acornscsi_reconnect_finish(AS_Host *host);
 static void acornscsi_dma_cleanup(AS_Host *host);
-static void acornscsi_abortcmd(AS_Host *host, unsigned char tag);
+static void acornscsi_abortcmd(AS_Host *host);
 
 /* ====================================================================================
  * Miscellaneous
@@ -741,17 +737,6 @@ intr_ret_t acornscsi_kick(AS_Host *host)
 #endif
 
     if (from_queue) {
-#ifdef CONFIG_SCSI_ACORNSCSI_TAGGED_QUEUE
-	/*
-	 * tagged queueing - allocate a new tag to this command
-	 */
-	if (SCpnt->device->simple_tags) {
-	    SCpnt->device->current_tag += 1;
-	    if (SCpnt->device->current_tag == 0)
-		SCpnt->device->current_tag = 1;
-	    SCpnt->tag = SCpnt->device->current_tag;
-	} else
-#endif
 	    set_bit(SCpnt->device->id * 8 +
 		    (u8)(SCpnt->device->lun & 0x07), host->busyluns);
 
@@ -794,7 +779,10 @@ static void acornscsi_done(AS_Host *host, struct scsi_cmnd **SCpntp,
 
 	acornscsi_dma_cleanup(host);
 
-	SCpnt->result = result << 16 | host->scsi.SCp.Message << 8 | host->scsi.SCp.Status;
+	set_host_byte(SCpnt, result);
+	if (result == DID_OK)
+		scsi_msg_to_host_byte(SCpnt, host->scsi.SCp.Message);
+	set_status_byte(SCpnt, host->scsi.SCp.Status);
 
 	/*
 	 * In theory, this should not happen.  In practice, it seems to.
@@ -833,12 +821,12 @@ static void acornscsi_done(AS_Host *host, struct scsi_cmnd **SCpntp,
 			xfer_warn = 0;
 
 		if (xfer_warn) {
-		    switch (status_byte(SCpnt->result)) {
-		    case CHECK_CONDITION:
-		    case COMMAND_TERMINATED:
-		    case BUSY:
-		    case QUEUE_FULL:
-		    case RESERVATION_CONFLICT:
+		    switch (get_status_byte(SCpnt)) {
+		    case SAM_STAT_CHECK_CONDITION:
+		    case SAM_STAT_COMMAND_TERMINATED:
+		    case SAM_STAT_BUSY:
+		    case SAM_STAT_TASK_SET_FULL:
+		    case SAM_STAT_RESERVATION_CONFLICT:
 			break;
 
 		    default:
@@ -1189,7 +1177,7 @@ void acornscsi_dma_intr(AS_Host *host)
 	 * the device recognises the attention.
 	 */
 	if (dmac_read(host, DMAC_STATUS) & STATUS_RQ0) {
-	    acornscsi_abortcmd(host, host->SCpnt->tag);
+	    acornscsi_abortcmd(host);
 
 	    dmac_write(host, DMAC_TXCNTLO, 0);
 	    dmac_write(host, DMAC_TXCNTHI, 0);
@@ -1557,23 +1545,6 @@ void acornscsi_message(AS_Host *host)
 	    acornscsi_sbic_issuecmd(host, CMND_ASSERTATN);
 
 	switch (host->scsi.last_message) {
-#ifdef CONFIG_SCSI_ACORNSCSI_TAGGED_QUEUE
-	case HEAD_OF_QUEUE_TAG:
-	case ORDERED_QUEUE_TAG:
-	case SIMPLE_QUEUE_TAG:
-	    /*
-	     * ANSI standard says: (Section SCSI-2 Rev. 10c Sect 5.6.17)
-	     *  If a target does not implement tagged queuing and a queue tag
-	     *  message is received, it shall respond with a MESSAGE REJECT
-	     *  message and accept the I/O process as if it were untagged.
-	     */
-	    printk(KERN_NOTICE "scsi%d.%c: disabling tagged queueing\n",
-		    host->host->host_no, acornscsi_target(host));
-	    host->SCpnt->device->simple_tags = 0;
-	    set_bit(host->SCpnt->device->id * 8 +
-		    (u8)(host->SCpnt->device->lun & 0x7), host->busyluns);
-	    break;
-#endif
 	case EXTENDED_MESSAGE | (EXTENDED_SDTR << 8):
 	    /*
 	     * Target can't handle synchronous transfers
@@ -1684,24 +1655,11 @@ void acornscsi_buildmessages(AS_Host *host)
 #if 0
     /* does the device need the current command aborted */
     if (cmd_aborted) {
-	acornscsi_abortcmd(host->SCpnt->tag);
+	acornscsi_abortcmd(host);
 	return;
     }
 #endif
 
-#ifdef CONFIG_SCSI_ACORNSCSI_TAGGED_QUEUE
-    if (host->SCpnt->tag) {
-	unsigned int tag_type;
-
-	if (host->SCpnt->cmnd[0] == REQUEST_SENSE ||
-	    host->SCpnt->cmnd[0] == TEST_UNIT_READY ||
-	    host->SCpnt->cmnd[0] == INQUIRY)
-	    tag_type = HEAD_OF_QUEUE_TAG;
-	else
-	    tag_type = SIMPLE_QUEUE_TAG;
-	msgqueue_addmsg(&host->scsi.msgs, 2, tag_type, host->SCpnt->tag);
-    }
-#endif
 
 #ifdef CONFIG_SCSI_ACORNSCSI_SYNC
     if (host->device[host->SCpnt->device->id].sync_state == SYNC_NEGOCIATE) {
@@ -1795,7 +1753,7 @@ int acornscsi_reconnect(AS_Host *host)
 		"to reconnect with\n",
 		host->host->host_no, '0' + target);
 	acornscsi_dumplog(host, target);
-	acornscsi_abortcmd(host, 0);
+	acornscsi_abortcmd(host);
 	if (host->SCpnt) {
 	    queue_add_cmd_tail(&host->queues.disconnected, host->SCpnt);
 	    host->SCpnt = NULL;
@@ -1818,7 +1776,7 @@ int acornscsi_reconnect_finish(AS_Host *host)
 	host->scsi.disconnectable = 0;
 	if (host->SCpnt->device->id  == host->scsi.reconnected.target &&
 	    host->SCpnt->device->lun == host->scsi.reconnected.lun &&
-	    host->SCpnt->tag         == host->scsi.reconnected.tag) {
+	    scsi_cmd_to_rq(host->SCpnt)->tag == host->scsi.reconnected.tag) {
 #if (DEBUG & (DEBUG_QUEUES|DEBUG_DISCON))
 	    DBG(host->SCpnt, printk("scsi%d.%c: reconnected",
 		    host->host->host_no, acornscsi_target(host)));
@@ -1845,7 +1803,7 @@ int acornscsi_reconnect_finish(AS_Host *host)
     }
 
     if (!host->SCpnt)
-	acornscsi_abortcmd(host, host->scsi.reconnected.tag);
+	acornscsi_abortcmd(host);
     else {
 	/*
 	 * Restore data pointer from SAVED pointers.
@@ -1886,21 +1844,15 @@ void acornscsi_disconnect_unexpected(AS_Host *host)
  * Function: void acornscsi_abortcmd(AS_host *host, unsigned char tag)
  * Purpose : abort a currently executing command
  * Params  : host - host with connected command to abort
- *	     tag  - tag to abort
  */
 static
-void acornscsi_abortcmd(AS_Host *host, unsigned char tag)
+void acornscsi_abortcmd(AS_Host *host)
 {
     host->scsi.phase = PHASE_ABORTED;
     sbic_arm_write(host, SBIC_CMND, CMND_ASSERTATN);
 
     msgqueue_flush(&host->scsi.msgs);
-#ifdef CONFIG_SCSI_ACORNSCSI_TAGGED_QUEUE
-    if (tag)
-	msgqueue_addmsg(&host->scsi.msgs, 2, ABORT_TAG, tag);
-    else
-#endif
-	msgqueue_addmsg(&host->scsi.msgs, 1, ABORT);
+    msgqueue_addmsg(&host->scsi.msgs, 1, ABORT);
 }
 
 /* ==========================================================================================
@@ -1990,7 +1942,7 @@ intr_ret_t acornscsi_sbicintr(AS_Host *host, int in_irq)
 	    printk(KERN_ERR "scsi%d.%c: PHASE_CONNECTING, SSR %02X?\n",
 		    host->host->host_no, acornscsi_target(host), ssr);
 	    acornscsi_dumplog(host, host->SCpnt ? host->SCpnt->device->id : 8);
-	    acornscsi_abortcmd(host, host->SCpnt->tag);
+	    acornscsi_abortcmd(host);
 	}
 	return INTR_PROCESSING;
 
@@ -2026,7 +1978,7 @@ intr_ret_t acornscsi_sbicintr(AS_Host *host, int in_irq)
 	    printk(KERN_ERR "scsi%d.%c: PHASE_CONNECTED, SSR %02X?\n",
 		    host->host->host_no, acornscsi_target(host), ssr);
 	    acornscsi_dumplog(host, host->SCpnt ? host->SCpnt->device->id : 8);
-	    acornscsi_abortcmd(host, host->SCpnt->tag);
+	    acornscsi_abortcmd(host);
 	}
 	return INTR_PROCESSING;
 
@@ -2072,20 +2024,20 @@ intr_ret_t acornscsi_sbicintr(AS_Host *host, int in_irq)
 	case 0x18:			/* -> PHASE_DATAOUT				*/
 	    /* COMMAND -> DATA OUT */
 	    if (host->scsi.SCp.sent_command != host->SCpnt->cmd_len)
-		acornscsi_abortcmd(host, host->SCpnt->tag);
+		acornscsi_abortcmd(host);
 	    acornscsi_dma_setup(host, DMA_OUT);
 	    if (!acornscsi_starttransfer(host))
-		acornscsi_abortcmd(host, host->SCpnt->tag);
+		acornscsi_abortcmd(host);
 	    host->scsi.phase = PHASE_DATAOUT;
 	    return INTR_IDLE;
 
 	case 0x19:			/* -> PHASE_DATAIN				*/
 	    /* COMMAND -> DATA IN */
 	    if (host->scsi.SCp.sent_command != host->SCpnt->cmd_len)
-		acornscsi_abortcmd(host, host->SCpnt->tag);
+		acornscsi_abortcmd(host);
 	    acornscsi_dma_setup(host, DMA_IN);
 	    if (!acornscsi_starttransfer(host))
-		acornscsi_abortcmd(host, host->SCpnt->tag);
+		acornscsi_abortcmd(host);
 	    host->scsi.phase = PHASE_DATAIN;
 	    return INTR_IDLE;
 
@@ -2153,7 +2105,7 @@ intr_ret_t acornscsi_sbicintr(AS_Host *host, int in_irq)
 	    /* MESSAGE IN -> DATA OUT */
 	    acornscsi_dma_setup(host, DMA_OUT);
 	    if (!acornscsi_starttransfer(host))
-		acornscsi_abortcmd(host, host->SCpnt->tag);
+		acornscsi_abortcmd(host);
 	    host->scsi.phase = PHASE_DATAOUT;
 	    return INTR_IDLE;
 
@@ -2162,7 +2114,7 @@ intr_ret_t acornscsi_sbicintr(AS_Host *host, int in_irq)
 	    /* MESSAGE IN -> DATA IN */
 	    acornscsi_dma_setup(host, DMA_IN);
 	    if (!acornscsi_starttransfer(host))
-		acornscsi_abortcmd(host, host->SCpnt->tag);
+		acornscsi_abortcmd(host);
 	    host->scsi.phase = PHASE_DATAIN;
 	    return INTR_IDLE;
 
@@ -2203,7 +2155,7 @@ intr_ret_t acornscsi_sbicintr(AS_Host *host, int in_irq)
 	switch (ssr) {
 	case 0x19:			/* -> PHASE_DATAIN				*/
 	case 0x89:			/* -> PHASE_DATAIN				*/
-	    acornscsi_abortcmd(host, host->SCpnt->tag);
+	    acornscsi_abortcmd(host);
 	    return INTR_IDLE;
 
 	case 0x1b:			/* -> PHASE_STATUSIN				*/
@@ -2252,7 +2204,7 @@ intr_ret_t acornscsi_sbicintr(AS_Host *host, int in_irq)
 	switch (ssr) {
 	case 0x18:			/* -> PHASE_DATAOUT				*/
 	case 0x88:			/* -> PHASE_DATAOUT				*/
-	    acornscsi_abortcmd(host, host->SCpnt->tag);
+	    acornscsi_abortcmd(host);
 	    return INTR_IDLE;
 
 	case 0x1b:			/* -> PHASE_STATUSIN				*/
@@ -2470,7 +2422,7 @@ static int acornscsi_queuecmd_lck(struct scsi_cmnd *SCpnt,
     if (acornscsi_cmdtype(SCpnt->cmnd[0]) == CMD_WRITE && (NO_WRITE & (1 << SCpnt->device->id))) {
 	printk(KERN_CRIT "scsi%d.%c: WRITE attempted with NO_WRITE flag set\n",
 	    host->host->host_no, '0' + SCpnt->device->id);
-	SCpnt->result = DID_NO_CONNECT << 16;
+	set_host_byte(SCpnt, DID_NO_CONNECT);
 	done(SCpnt);
 	return 0;
     }
@@ -2479,7 +2431,6 @@ static int acornscsi_queuecmd_lck(struct scsi_cmnd *SCpnt,
     SCpnt->scsi_done = done;
     SCpnt->host_scribble = NULL;
     SCpnt->result = 0;
-    SCpnt->tag = 0;
     SCpnt->SCp.phase = (int)acornscsi_datadirection(SCpnt->cmnd[0]);
     SCpnt->SCp.sent_command = 0;
     SCpnt->SCp.scsi_xferred = 0;
@@ -2492,7 +2443,7 @@ static int acornscsi_queuecmd_lck(struct scsi_cmnd *SCpnt,
 	unsigned long flags;
 
 	if (!queue_add_cmd_ordered(&host->queues.issue, SCpnt)) {
-	    SCpnt->result = DID_ERROR << 16;
+		set_host_byte(SCpnt, DID_ERROR);
 	    done(SCpnt);
 	    return 0;
 	}
@@ -2505,31 +2456,6 @@ static int acornscsi_queuecmd_lck(struct scsi_cmnd *SCpnt,
 }
 
 DEF_SCSI_QCMD(acornscsi_queuecmd)
-
-/*
- * Prototype: void acornscsi_reportstatus(struct scsi_cmnd **SCpntp1, struct scsi_cmnd **SCpntp2, int result)
- * Purpose  : pass a result to *SCpntp1, and check if *SCpntp1 = *SCpntp2
- * Params   : SCpntp1 - pointer to command to return
- *	      SCpntp2 - pointer to command to check
- *	      result  - result to pass back to mid-level done function
- * Returns  : *SCpntp2 = NULL if *SCpntp1 is the same command structure as *SCpntp2.
- */
-static inline void acornscsi_reportstatus(struct scsi_cmnd **SCpntp1,
-					  struct scsi_cmnd **SCpntp2,
-					  int result)
-{
-	struct scsi_cmnd *SCpnt = *SCpntp1;
-
-    if (SCpnt) {
-	*SCpntp1 = NULL;
-
-	SCpnt->result = result;
-	SCpnt->scsi_done(SCpnt);
-    }
-
-    if (SCpnt == *SCpntp2)
-	*SCpntp2 = NULL;
-}
 
 enum res_abort { res_not_running, res_success, res_success_clear, res_snooze };
 
@@ -2603,7 +2529,7 @@ static enum res_abort acornscsi_do_abort(AS_Host *host, struct scsi_cmnd *SCpnt)
 			break;
 
 		default:
-			acornscsi_abortcmd(host, host->SCpnt->tag);
+			acornscsi_abortcmd(host);
 			res = res_snooze;
 		}
 		local_irq_restore(flags);
@@ -2664,6 +2590,7 @@ int acornscsi_abort(struct scsi_cmnd *SCpnt)
 //#endif
 		clear_bit(SCpnt->device->id * 8 +
 			  (u8)(SCpnt->device->lun & 0x7), host->busyluns);
+		fallthrough;
 
 	/*
 	 * We found the command, and cleared it out.  Either
@@ -2768,9 +2695,6 @@ char *acornscsi_info(struct Scsi_Host *host)
 #ifdef CONFIG_SCSI_ACORNSCSI_SYNC
     " SYNC"
 #endif
-#ifdef CONFIG_SCSI_ACORNSCSI_TAGGED_QUEUE
-    " TAG"
-#endif
 #if (DEBUG & DEBUG_NO_WRITE)
     " NOWRITE (" __stringify(NO_WRITE) ")"
 #endif
@@ -2790,9 +2714,6 @@ static int acornscsi_show_info(struct seq_file *m, struct Scsi_Host *instance)
     seq_printf(m, "AcornSCSI driver v%d.%d.%d"
 #ifdef CONFIG_SCSI_ACORNSCSI_SYNC
     " SYNC"
-#endif
-#ifdef CONFIG_SCSI_ACORNSCSI_TAGGED_QUEUE
-    " TAG"
 #endif
 #if (DEBUG & DEBUG_NO_WRITE)
     " NOWRITE (" __stringify(NO_WRITE) ")"
@@ -2848,9 +2769,8 @@ static int acornscsi_show_info(struct seq_file *m, struct Scsi_Host *instance)
 	seq_printf(m, "Device/Lun TaggedQ      Sync\n");
 	seq_printf(m, "     %d/%llu   ", scd->id, scd->lun);
 	if (scd->tagged_supported)
-		seq_printf(m, "%3sabled(%3d) ",
-			     scd->simple_tags ? "en" : "dis",
-			     scd->current_tag);
+		seq_printf(m, "%3sabled ",
+			     scd->simple_tags ? "en" : "dis");
 	else
 		seq_printf(m, "unsupported  ");
 

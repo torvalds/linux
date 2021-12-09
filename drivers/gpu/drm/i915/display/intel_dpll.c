@@ -4,12 +4,14 @@
  */
 #include <linux/kernel.h>
 #include "intel_crtc.h"
+#include "intel_de.h"
 #include "intel_display_types.h"
 #include "intel_display.h"
 #include "intel_dpll.h"
 #include "intel_lvds.h"
 #include "intel_panel.h"
 #include "intel_sideband.h"
+#include "display/intel_snps_phy.h"
 
 struct intel_limit {
 	struct {
@@ -366,13 +368,11 @@ static bool intel_pll_is_valid(struct drm_i915_private *dev_priv,
 	if (clock->m1 < limit->m1.min || limit->m1.max < clock->m1)
 		return false;
 
-	if (!IS_PINEVIEW(dev_priv) && !IS_VALLEYVIEW(dev_priv) &&
-	    !IS_CHERRYVIEW(dev_priv) && !IS_GEN9_LP(dev_priv))
+	if (!IS_PINEVIEW(dev_priv) && !IS_LP(dev_priv))
 		if (clock->m1 <= clock->m2)
 			return false;
 
-	if (!IS_VALLEYVIEW(dev_priv) && !IS_CHERRYVIEW(dev_priv) &&
-	    !IS_GEN9_LP(dev_priv)) {
+	if (!IS_LP(dev_priv)) {
 		if (clock->p < limit->p.min || limit->p.max < clock->p)
 			return false;
 		if (clock->m < limit->m.min || limit->m.max < clock->m)
@@ -924,12 +924,13 @@ static int hsw_crtc_compute_clock(struct intel_crtc *crtc,
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	struct intel_atomic_state *state =
 		to_intel_atomic_state(crtc_state->uapi.state);
+	struct intel_encoder *encoder =
+		intel_get_crtc_new_encoder(state, crtc_state);
 
-	if (!intel_crtc_has_type(crtc_state, INTEL_OUTPUT_DSI) ||
-	    DISPLAY_VER(dev_priv) >= 11) {
-		struct intel_encoder *encoder =
-			intel_get_crtc_new_encoder(state, crtc_state);
-
+	if (IS_DG2(dev_priv)) {
+		return intel_mpllb_calc_state(crtc_state, encoder);
+	} else if (!intel_crtc_has_type(crtc_state, INTEL_OUTPUT_DSI) ||
+		   DISPLAY_VER(dev_priv) >= 11) {
 		if (!intel_reserve_shared_dplls(state, crtc, encoder)) {
 			drm_dbg_kms(&dev_priv->drm,
 				    "failed to find PLL for pipe %c\n",
@@ -1358,7 +1359,7 @@ intel_dpll_init_clock_hook(struct drm_i915_private *dev_priv)
 		dev_priv->display.crtc_compute_clock = g4x_crtc_compute_clock;
 	else if (IS_PINEVIEW(dev_priv))
 		dev_priv->display.crtc_compute_clock = pnv_crtc_compute_clock;
-	else if (!IS_DISPLAY_VER(dev_priv, 2))
+	else if (DISPLAY_VER(dev_priv) != 2)
 		dev_priv->display.crtc_compute_clock = i9xx_crtc_compute_clock;
 	else
 		dev_priv->display.crtc_compute_clock = i8xx_crtc_compute_clock;

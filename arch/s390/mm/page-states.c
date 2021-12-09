@@ -31,17 +31,17 @@ __setup("cmma=", cmma);
 
 static inline int cmma_test_essa(void)
 {
-	register unsigned long tmp asm("0") = 0;
-	register int rc asm("1");
+	unsigned long tmp = 0;
+	int rc = -EOPNOTSUPP;
 
 	/* test ESSA_GET_STATE */
 	asm volatile(
-		"	.insn	rrf,0xb9ab0000,%1,%1,%2,0\n"
-		"0:     la      %0,0\n"
+		"	.insn	rrf,0xb9ab0000,%[tmp],%[tmp],%[cmd],0\n"
+		"0:     la      %[rc],0\n"
 		"1:\n"
 		EX_TABLE(0b,1b)
-		: "=&d" (rc), "+&d" (tmp)
-		: "i" (ESSA_GET_STATE), "0" (-EOPNOTSUPP));
+		: [rc] "+&d" (rc), [tmp] "+&d" (tmp)
+		: [cmd] "i" (ESSA_GET_STATE));
 	return rc;
 }
 
@@ -227,47 +227,4 @@ void arch_set_page_dat(struct page *page, int order)
 	if (!cmma_flag)
 		return;
 	set_page_stable_dat(page, order);
-}
-
-void arch_set_page_nodat(struct page *page, int order)
-{
-	if (cmma_flag < 2)
-		return;
-	set_page_stable_nodat(page, order);
-}
-
-int arch_test_page_nodat(struct page *page)
-{
-	unsigned char state;
-
-	if (cmma_flag < 2)
-		return 0;
-	state = get_page_state(page);
-	return !!(state & 0x20);
-}
-
-void arch_set_page_states(int make_stable)
-{
-	unsigned long flags, order, t;
-	struct list_head *l;
-	struct page *page;
-	struct zone *zone;
-
-	if (!cmma_flag)
-		return;
-	if (make_stable)
-		drain_local_pages(NULL);
-	for_each_populated_zone(zone) {
-		spin_lock_irqsave(&zone->lock, flags);
-		for_each_migratetype_order(order, t) {
-			list_for_each(l, &zone->free_area[order].free_list[t]) {
-				page = list_entry(l, struct page, lru);
-				if (make_stable)
-					set_page_stable_dat(page, order);
-				else
-					set_page_unused(page, order);
-			}
-		}
-		spin_unlock_irqrestore(&zone->lock, flags);
-	}
 }

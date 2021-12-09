@@ -16,9 +16,22 @@ static void host1x_debug_show_channel_cdma(struct host1x *host,
 					   struct output *o)
 {
 	struct host1x_cdma *cdma = &ch->cdma;
+	dma_addr_t dmastart = 0, dmaend = 0;
 	u32 dmaput, dmaget, dmactrl;
 	u32 offset, class;
 	u32 ch_stat;
+
+#if defined(CONFIG_ARCH_DMA_ADDR_T_64BIT) && HOST1X_HW >= 6
+	dmastart = host1x_ch_readl(ch, HOST1X_CHANNEL_DMASTART_HI);
+	dmastart <<= 32;
+#endif
+	dmastart |= host1x_ch_readl(ch, HOST1X_CHANNEL_DMASTART);
+
+#if defined(CONFIG_ARCH_DMA_ADDR_T_64BIT) && HOST1X_HW >= 6
+	dmaend = host1x_ch_readl(ch, HOST1X_CHANNEL_DMAEND_HI);
+	dmaend <<= 32;
+#endif
+	dmaend |= host1x_ch_readl(ch, HOST1X_CHANNEL_DMAEND);
 
 	dmaput = host1x_ch_readl(ch, HOST1X_CHANNEL_DMAPUT);
 	dmaget = host1x_ch_readl(ch, HOST1X_CHANNEL_DMAGET);
@@ -41,7 +54,8 @@ static void host1x_debug_show_channel_cdma(struct host1x *host,
 		host1x_debug_output(o, "active class %02x, offset %04x\n",
 				    class, offset);
 
-	host1x_debug_output(o, "DMAPUT %08x, DMAGET %08x, DMACTL %08x\n",
+	host1x_debug_output(o, "DMASTART %pad, DMAEND %pad\n", &dmastart, &dmaend);
+	host1x_debug_output(o, "DMAPUT %08x DMAGET %08x DMACTL %08x\n",
 			    dmaput, dmaget, dmactrl);
 	host1x_debug_output(o, "CHANNELSTAT %02x\n", ch_stat);
 

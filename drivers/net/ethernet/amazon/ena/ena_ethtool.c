@@ -233,10 +233,13 @@ int ena_get_sset_count(struct net_device *netdev, int sset)
 {
 	struct ena_adapter *adapter = netdev_priv(netdev);
 
-	if (sset != ETH_SS_STATS)
-		return -EOPNOTSUPP;
+	switch (sset) {
+	case ETH_SS_STATS:
+		return ena_get_sw_stats_count(adapter) +
+		       ena_get_hw_stats_count(adapter);
+	}
 
-	return ena_get_sw_stats_count(adapter) + ena_get_hw_stats_count(adapter);
+	return -EOPNOTSUPP;
 }
 
 static void ena_queue_strings(struct ena_adapter *adapter, u8 **data)
@@ -314,10 +317,11 @@ static void ena_get_ethtool_strings(struct net_device *netdev,
 {
 	struct ena_adapter *adapter = netdev_priv(netdev);
 
-	if (sset != ETH_SS_STATS)
-		return;
-
-	ena_get_strings(adapter, data, adapter->eni_stats_supported);
+	switch (sset) {
+	case ETH_SS_STATS:
+		ena_get_strings(adapter, data, adapter->eni_stats_supported);
+		break;
+	}
 }
 
 static int ena_get_link_ksettings(struct net_device *netdev,
@@ -353,7 +357,9 @@ static int ena_get_link_ksettings(struct net_device *netdev,
 }
 
 static int ena_get_coalesce(struct net_device *net_dev,
-			    struct ethtool_coalesce *coalesce)
+			    struct ethtool_coalesce *coalesce,
+			    struct kernel_ethtool_coalesce *kernel_coal,
+			    struct netlink_ext_ack *extack)
 {
 	struct ena_adapter *adapter = netdev_priv(net_dev);
 	struct ena_com_dev *ena_dev = adapter->ena_dev;
@@ -398,7 +404,9 @@ static void ena_update_rx_rings_nonadaptive_intr_moderation(struct ena_adapter *
 }
 
 static int ena_set_coalesce(struct net_device *net_dev,
-			    struct ethtool_coalesce *coalesce)
+			    struct ethtool_coalesce *coalesce,
+			    struct kernel_ethtool_coalesce *kernel_coal,
+			    struct netlink_ext_ack *extack)
 {
 	struct ena_adapter *adapter = netdev_priv(net_dev);
 	struct ena_com_dev *ena_dev = adapter->ena_dev;

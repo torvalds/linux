@@ -112,8 +112,7 @@ required:
   - interrupts
   - clocks
 
-additionalProperties:
-  type: object
+unevaluatedProperties: false
 
 examples:
   - |

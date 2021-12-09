@@ -340,18 +340,11 @@ static ssize_t occ_show_temp_10(struct device *dev,
 		if (val == OCC_TEMP_SENSOR_FAULT)
 			return -EREMOTEIO;
 
-		/*
-		 * VRM doesn't return temperature, only alarm bit. This
-		 * attribute maps to tempX_alarm instead of tempX_input for
-		 * VRM
-		 */
-		if (temp->fru_type != OCC_FRU_TYPE_VRM) {
-			/* sensor not ready */
-			if (val == 0)
-				return -EAGAIN;
+		/* sensor not ready */
+		if (val == 0)
+			return -EAGAIN;
 
-			val *= 1000;
-		}
+		val *= 1000;
 		break;
 	case 2:
 		val = temp->fru_type;
@@ -886,7 +879,7 @@ static int occ_setup_sensor_attrs(struct occ *occ)
 					     0, i);
 		attr++;
 
-		if (sensors->temp.version > 1 &&
+		if (sensors->temp.version == 2 &&
 		    temp->fru_type == OCC_FRU_TYPE_VRM) {
 			snprintf(attr->name, sizeof(attr->name),
 				 "temp%d_alarm", s);
@@ -1151,6 +1144,8 @@ int occ_setup(struct occ *occ, const char *name)
 {
 	int rc;
 
+	/* start with 1 to avoid false match with zero-initialized SRAM buffer */
+	occ->seq_no = 1;
 	mutex_init(&occ->lock);
 	occ->groups[0] = &occ->group;
 
@@ -1160,8 +1155,9 @@ int occ_setup(struct occ *occ, const char *name)
 		dev_info(occ->bus_dev, "host is not ready\n");
 		return rc;
 	} else if (rc < 0) {
-		dev_err(occ->bus_dev, "failed to get OCC poll response: %d\n",
-			rc);
+		dev_err(occ->bus_dev,
+			"failed to get OCC poll response=%02x: %d\n",
+			occ->resp.return_status, rc);
 		return rc;
 	}
 

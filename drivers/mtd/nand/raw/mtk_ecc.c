@@ -515,10 +515,8 @@ static int mtk_ecc_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	ecc->regs = devm_ioremap_resource(dev, res);
-	if (IS_ERR(ecc->regs)) {
-		dev_err(dev, "failed to map regs: %ld\n", PTR_ERR(ecc->regs));
+	if (IS_ERR(ecc->regs))
 		return PTR_ERR(ecc->regs);
-	}
 
 	ecc->clk = devm_clk_get(dev, NULL);
 	if (IS_ERR(ecc->clk)) {

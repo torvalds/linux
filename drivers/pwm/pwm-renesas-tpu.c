@@ -408,8 +408,6 @@ static int tpu_probe(struct platform_device *pdev)
 
 	tpu->chip.dev = &pdev->dev;
 	tpu->chip.ops = &tpu_pwm_ops;
-	tpu->chip.of_xlate = of_pwm_xlate_with_flags;
-	tpu->chip.of_pwm_n_cells = 3;
 	tpu->chip.npwm = TPU_CHANNEL_MAX;
 
 	pm_runtime_enable(&pdev->dev);
@@ -427,13 +425,12 @@ static int tpu_probe(struct platform_device *pdev)
 static int tpu_remove(struct platform_device *pdev)
 {
 	struct tpu_device *tpu = platform_get_drvdata(pdev);
-	int ret;
 
-	ret = pwmchip_remove(&tpu->chip);
+	pwmchip_remove(&tpu->chip);
 
 	pm_runtime_disable(&pdev->dev);
 
-	return ret;
+	return 0;
 }
 
 #ifdef CONFIG_OF

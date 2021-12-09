@@ -12,7 +12,7 @@ void mlx5e_fs_tt_redirect_del_rule(struct mlx5_flow_handle *rule);
 /* UDP traffic type redirect */
 struct mlx5_flow_handle *
 mlx5e_fs_tt_redirect_udp_add_rule(struct mlx5e_priv *priv,
-				  enum mlx5e_traffic_types ttc_type,
+				  enum mlx5_traffic_types ttc_type,
 				  u32 tir_num, u16 d_port);
 void mlx5e_fs_tt_redirect_udp_destroy(struct mlx5e_priv *priv);
 int mlx5e_fs_tt_redirect_udp_create(struct mlx5e_priv *priv);

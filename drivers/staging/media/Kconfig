@@ -42,4 +42,6 @@ source "drivers/staging/media/tegra-video/Kconfig"
 
 source "drivers/staging/media/ipu3/Kconfig"
 
+source "drivers/staging/media/av7110/Kconfig"
+
 endif

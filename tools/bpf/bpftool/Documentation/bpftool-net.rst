@@ -12,7 +12,7 @@ SYNOPSIS
 
 	**bpftool** [*OPTIONS*] **net** *COMMAND*
 
-	*OPTIONS* := { [{ **-j** | **--json** }] [{ **-p** | **--pretty** }] }
+	*OPTIONS* := { { **-j** | **--json** } [{ **-p** | **--pretty** }] | { **-d** | **--debug** } }
 
 	*COMMANDS* :=
 	{ **show** | **list** | **attach** | **detach** | **help** }

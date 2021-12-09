@@ -24,6 +24,7 @@
  * file. Useful because they make it more difficult to inadvertently type in
  * the wrong signature.
  */
+#define ACPI_SIG_BDAT           "BDAT"	/* BIOS Data ACPI Table */
 #define ACPI_SIG_IORT           "IORT"	/* IO Remapping Table */
 #define ACPI_SIG_IVRS           "IVRS"	/* I/O Virtualization Reporting Structure */
 #define ACPI_SIG_LPIT           "LPIT"	/* Low Power Idle Table */
@@ -39,11 +40,14 @@
 #define ACPI_SIG_PHAT           "PHAT"	/* Platform Health Assessment Table */
 #define ACPI_SIG_PMTT           "PMTT"	/* Platform Memory Topology Table */
 #define ACPI_SIG_PPTT           "PPTT"	/* Processor Properties Topology Table */
+#define ACPI_SIG_PRMT           "PRMT"	/* Platform Runtime Mechanism Table */
 #define ACPI_SIG_RASF           "RASF"	/* RAS Feature table */
+#define ACPI_SIG_RGRT           "RGRT"	/* Regulatory Graphics Resource Table */
 #define ACPI_SIG_SBST           "SBST"	/* Smart Battery Specification Table */
 #define ACPI_SIG_SDEI           "SDEI"	/* Software Delegated Exception Interface Table */
 #define ACPI_SIG_SDEV           "SDEV"	/* Secure Devices table */
 #define ACPI_SIG_NHLT           "NHLT"	/* Non-HDAudio Link Table */
+#define ACPI_SIG_SVKL           "SVKL"	/* Storage Volume Key Location Table */
 
 /*
  * All tables must be byte-packed to match the ACPI specification, since
@@ -62,6 +66,190 @@
  * and stuck with it." Norman Ramsey.
  * See http://stackoverflow.com/a/1053662/41661
  */
+
+/*******************************************************************************
+ *
+ * AEST - Arm Error Source Table
+ *
+ * Conforms to: ACPI for the Armv8 RAS Extensions 1.1 Platform Design Document
+ * September 2020.
+ *
+ ******************************************************************************/
+
+struct acpi_table_aest {
+	struct acpi_table_header header;
+	void *node_array[];
+};
+
+/* Common Subtable header - one per Node Structure (Subtable) */
+
+struct acpi_aest_hdr {
+	u8 type;
+	u16 length;
+	u8 reserved;
+	u32 node_specific_offset;
+	u32 node_interface_offset;
+	u32 node_interrupt_offset;
+	u32 node_interrupt_count;
+	u64 timestamp_rate;
+	u64 reserved1;
+	u64 error_injection_rate;
+};
+
+/* Values for Type above */
+
+#define ACPI_AEST_PROCESSOR_ERROR_NODE      0
+#define ACPI_AEST_MEMORY_ERROR_NODE         1
+#define ACPI_AEST_SMMU_ERROR_NODE           2
+#define ACPI_AEST_VENDOR_ERROR_NODE         3
+#define ACPI_AEST_GIC_ERROR_NODE            4
+#define ACPI_AEST_NODE_TYPE_RESERVED        5	/* 5 and above are reserved */
+
+/*
+ * AEST subtables (Error nodes)
+ */
+
+/* 0: Processor Error */
+
+typedef struct acpi_aest_processor {
+	u32 processor_id;
+	u8 resource_type;
+	u8 reserved;
+	u8 flags;
+	u8 revision;
+	u64 processor_affinity;
+
+} acpi_aest_processor;
+
+/* Values for resource_type above, related structs below */
+
+#define ACPI_AEST_CACHE_RESOURCE            0
+#define ACPI_AEST_TLB_RESOURCE              1
+#define ACPI_AEST_GENERIC_RESOURCE          2
+#define ACPI_AEST_RESOURCE_RESERVED         3	/* 3 and above are reserved */
+
+/* 0R: Processor Cache Resource Substructure */
+
+typedef struct acpi_aest_processor_cache {
+	u32 cache_reference;
+	u32 reserved;
+
+} acpi_aest_processor_cache;
+
+/* Values for cache_type above */
+
+#define ACPI_AEST_CACHE_DATA                0
+#define ACPI_AEST_CACHE_INSTRUCTION         1
+#define ACPI_AEST_CACHE_UNIFIED             2
+#define ACPI_AEST_CACHE_RESERVED            3	/* 3 and above are reserved */
+
+/* 1R: Processor TLB Resource Substructure */
+
+typedef struct acpi_aest_processor_tlb {
+	u32 tlb_level;
+	u32 reserved;
+
+} acpi_aest_processor_tlb;
+
+/* 2R: Processor Generic Resource Substructure */
+
+typedef struct acpi_aest_processor_generic {
+	u8 *resource;
+
+} acpi_aest_processor_generic;
+
+/* 1: Memory Error */
+
+typedef struct acpi_aest_memory {
+	u32 srat_proximity_domain;
+
+} acpi_aest_memory;
+
+/* 2: Smmu Error */
+
+typedef struct acpi_aest_smmu {
+	u32 iort_node_reference;
+	u32 subcomponent_reference;
+
+} acpi_aest_smmu;
+
+/* 3: Vendor Defined */
+
+typedef struct acpi_aest_vendor {
+	u32 acpi_hid;
+	u32 acpi_uid;
+	u8 vendor_specific_data[16];
+
+} acpi_aest_vendor;
+
+/* 4: Gic Error */
+
+typedef struct acpi_aest_gic {
+	u32 interface_type;
+	u32 instance_id;
+
+} acpi_aest_gic;
+
+/* Values for interface_type above */
+
+#define ACPI_AEST_GIC_CPU                   0
+#define ACPI_AEST_GIC_DISTRIBUTOR           1
+#define ACPI_AEST_GIC_REDISTRIBUTOR         2
+#define ACPI_AEST_GIC_ITS                   3
+#define ACPI_AEST_GIC_RESERVED              4	/* 4 and above are reserved */
+
+/* Node Interface Structure */
+
+typedef struct acpi_aest_node_interface {
+	u8 type;
+	u8 reserved[3];
+	u32 flags;
+	u64 address;
+	u32 error_record_index;
+	u32 error_record_count;
+	u64 error_record_implemented;
+	u64 error_status_reporting;
+	u64 addressing_mode;
+
+} acpi_aest_node_interface;
+
+/* Values for Type field above */
+
+#define ACPI_AEST_NODE_SYSTEM_REGISTER      0
+#define ACPI_AEST_NODE_MEMORY_MAPPED        1
+#define ACPI_AEST_XFACE_RESERVED            2	/* 2 and above are reserved */
+
+/* Node Interrupt Structure */
+
+typedef struct acpi_aest_node_interrupt {
+	u8 type;
+	u8 reserved[2];
+	u8 flags;
+	u32 gsiv;
+	u8 iort_id;
+	u8 reserved1[3];
+
+} acpi_aest_node_interrupt;
+
+/* Values for Type field above */
+
+#define ACPI_AEST_NODE_FAULT_HANDLING       0
+#define ACPI_AEST_NODE_ERROR_RECOVERY       1
+#define ACPI_AEST_XRUPT_RESERVED            2	/* 2 and above are reserved */
+
+/*******************************************************************************
+ *
+ * BDAT - BIOS Data ACPI Table
+ *
+ * Conforms to "BIOS Data ACPI Table", Interface Specification v4.0 Draft 5
+ * Nov 2020
+ *
+ ******************************************************************************/
+
+struct acpi_table_bdat {
+	struct acpi_table_header header;
+	struct acpi_generic_address gas;
+};
 
 /*******************************************************************************
  *
@@ -446,6 +634,12 @@ struct acpi_ivrs_device_hid {
 	u8 uid_length;
 };
 
+/* Values for uid_type above */
+
+#define ACPI_IVRS_UID_NOT_PRESENT   0
+#define ACPI_IVRS_UID_IS_INTEGER    1
+#define ACPI_IVRS_UID_IS_STRING     2
+
 /* 0x20, 0x21, 0x22: I/O Virtualization Memory Definition Block (IVMD) */
 
 struct acpi_ivrs_memory {
@@ -762,6 +956,20 @@ struct acpi_madt_multiproc_wakeup {
 	u32 reserved;		/* reserved - must be zero */
 	u64 base_address;
 };
+
+#define ACPI_MULTIPROC_WAKEUP_MB_OS_SIZE	2032
+#define ACPI_MULTIPROC_WAKEUP_MB_FIRMWARE_SIZE	2048
+
+struct acpi_madt_multiproc_wakeup_mailbox {
+	u16 command;
+	u16 reserved;		/* reserved - must be zero */
+	u32 apic_id;
+	u64 wakeup_vector;
+	u8 reserved_os[ACPI_MULTIPROC_WAKEUP_MB_OS_SIZE];	/* reserved for OS use */
+	u8 reserved_firmware[ACPI_MULTIPROC_WAKEUP_MB_FIRMWARE_SIZE];	/* reserved for firmware use */
+};
+
+#define ACPI_MP_WAKE_COMMAND_WAKEUP    1
 
 /*
  * Common flags fields for MADT subtables
@@ -1675,6 +1883,48 @@ struct acpi_pptt_id {
 
 /*******************************************************************************
  *
+ * PRMT - Platform Runtime Mechanism Table
+ *        Version 1
+ *
+ ******************************************************************************/
+
+struct acpi_table_prmt {
+	struct acpi_table_header header;	/* Common ACPI table header */
+};
+
+struct acpi_table_prmt_header {
+	u8 platform_guid[16];
+	u32 module_info_offset;
+	u32 module_info_count;
+};
+
+struct acpi_prmt_module_header {
+	u16 revision;
+	u16 length;
+};
+
+struct acpi_prmt_module_info {
+	u16 revision;
+	u16 length;
+	u8 module_guid[16];
+	u16 major_rev;
+	u16 minor_rev;
+	u16 handler_info_count;
+	u32 handler_info_offset;
+	u64 mmio_list_pointer;
+};
+
+struct acpi_prmt_handler_info {
+	u16 revision;
+	u16 length;
+	u8 handler_guid[16];
+	u64 handler_address;
+	u64 static_data_buffer_address;
+	u64 acpi_param_buffer_address;
+};
+
+/*******************************************************************************
+ *
  * RASF - RAS Feature Table (ACPI 5.0)
  *        Version 1
  *
@@ -1768,6 +2018,32 @@ enum acpi_rasf_status {
 #define ACPI_RASF_SCI_DOORBELL          (1<<1)
 #define ACPI_RASF_ERROR                 (1<<2)
 #define ACPI_RASF_STATUS                (0x1F<<3)
+
+/*******************************************************************************
+ *
+ * RGRT - Regulatory Graphics Resource Table
+ *        Version 1
+ *
+ * Conforms to "ACPI RGRT" available at:
+ * https://microsoft.github.io/mu/dyn/mu_plus/ms_core_pkg/acpi_RGRT/feature_acpi_rgrt/
+ *
+ ******************************************************************************/
+
+struct acpi_table_rgrt {
+	struct acpi_table_header header;	/* Common ACPI table header */
+	u16 version;
+	u8 image_type;
+	u8 reserved;
+	u8 image[0];
+};
+
+/* image_type values */
+
+enum acpi_rgrt_image_type {
+	ACPI_RGRT_TYPE_RESERVED0 = 0,
+	ACPI_RGRT_IMAGE_TYPE_PNG = 1,
+	ACPI_RGRT_TYPE_RESERVED = 2	/* 2 and greater are reserved */
+};
 
 /*******************************************************************************
  *
@@ -1897,6 +2173,37 @@ struct acpi_sdev_pcie {
 struct acpi_sdev_pcie_path {
 	u8 device;
 	u8 function;
+};
+
+/*******************************************************************************
+ *
+ * SVKL - Storage Volume Key Location Table (ACPI 6.4)
+ *        From: "Guest-Host-Communication Interface (GHCI) for Intel
+ *        Trust Domain Extensions (Intel TDX)".
+ *        Version 1
+ *
+ ******************************************************************************/
+
+struct acpi_table_svkl {
+	struct acpi_table_header header;	/* Common ACPI table header */
+	u32 count;
+};
+
+struct acpi_svkl_key {
+	u16 type;
+	u16 format;
+	u32 size;
+	u64 address;
+};
+
+enum acpi_svkl_type {
+	ACPI_SVKL_TYPE_MAIN_STORAGE = 0,
+	ACPI_SVKL_TYPE_RESERVED = 1	/* 1 and greater are reserved */
+};
+
+enum acpi_svkl_format {
+	ACPI_SVKL_FORMAT_RAW_BINARY = 0,
+	ACPI_SVKL_FORMAT_RESERVED = 1	/* 1 and greater are reserved */
 };
 
 /* Reset to default packing */

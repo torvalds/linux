@@ -60,7 +60,8 @@ struct nfgenmsg {
 #define NFNL_SUBSYS_CTHELPER		9
 #define NFNL_SUBSYS_NFTABLES		10
 #define NFNL_SUBSYS_NFT_COMPAT		11
-#define NFNL_SUBSYS_COUNT		12
+#define NFNL_SUBSYS_HOOK		12
+#define NFNL_SUBSYS_COUNT		13
 
 /* Reserved control nfnetlink messages */
 #define NFNL_MSG_BATCH_BEGIN		NLMSG_MIN_TYPE

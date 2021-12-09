@@ -169,32 +169,36 @@ static __always_inline unsigned long __cmpxchg(unsigned long address,
 
 #define system_has_cmpxchg_double()	1
 
-#define __cmpxchg_double(p1, p2, o1, o2, n1, n2)			\
-({									\
-	register __typeof__(*(p1)) __old1 asm("2") = (o1);		\
-	register __typeof__(*(p2)) __old2 asm("3") = (o2);		\
-	register __typeof__(*(p1)) __new1 asm("4") = (n1);		\
-	register __typeof__(*(p2)) __new2 asm("5") = (n2);		\
-	int cc;								\
-	asm volatile(							\
-		"	cdsg	%[old],%[new],%[ptr]\n"			\
-		"	ipm	%[cc]\n"				\
-		"	srl	%[cc],28"				\
-		: [cc] "=d" (cc), [old] "+d" (__old1), "+d" (__old2)	\
-		: [new] "d" (__new1), "d" (__new2),			\
-		  [ptr] "Q" (*(p1)), "Q" (*(p2))			\
-		: "memory", "cc");					\
-	!cc;								\
-})
+static __always_inline int __cmpxchg_double(unsigned long p1, unsigned long p2,
+					    unsigned long o1, unsigned long o2,
+					    unsigned long n1, unsigned long n2)
+{
+	union register_pair old = { .even = o1, .odd = o2, };
+	union register_pair new = { .even = n1, .odd = n2, };
+	int cc;
+
+	asm volatile(
+		"	cdsg	%[old],%[new],%[ptr]\n"
+		"	ipm	%[cc]\n"
+		"	srl	%[cc],28\n"
+		: [cc] "=&d" (cc), [old] "+&d" (old.pair)
+		: [new] "d" (new.pair),
+		  [ptr] "QS" (*(unsigned long *)p1), "Q" (*(unsigned long *)p2)
+		: "memory", "cc");
+	return !cc;
+}
 
 #define arch_cmpxchg_double(p1, p2, o1, o2, n1, n2)			\
 ({									\
-	__typeof__(p1) __p1 = (p1);					\
-	__typeof__(p2) __p2 = (p2);					\
+	typeof(p1) __p1 = (p1);						\
+	typeof(p2) __p2 = (p2);						\
+									\
 	BUILD_BUG_ON(sizeof(*(p1)) != sizeof(long));			\
 	BUILD_BUG_ON(sizeof(*(p2)) != sizeof(long));			\
 	VM_BUG_ON((unsigned long)((__p1) + 1) != (unsigned long)(__p2));\
-	__cmpxchg_double(__p1, __p2, o1, o2, n1, n2);			\
+	__cmpxchg_double((unsigned long)__p1, (unsigned long)__p2,	\
+			 (unsigned long)(o1), (unsigned long)(o2),	\
+			 (unsigned long)(n1), (unsigned long)(n2));	\
 })
 
 #endif /* __ASM_CMPXCHG_H */

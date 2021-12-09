@@ -72,7 +72,7 @@ void bpf_inode_storage_free(struct inode *inode)
 		return;
 	}
 
-	/* Netiher the bpf_prog nor the bpf-map's syscall
+	/* Neither the bpf_prog nor the bpf-map's syscall
 	 * could be modifying the local_storage->list now.
 	 * Thus, no elem can be added-to or deleted-from the
 	 * local_storage->list by the bpf_prog or by the bpf-map's syscall.

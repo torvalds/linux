@@ -12,7 +12,6 @@
 
 #include <asm/vmlinux.lds.h>
 #include <asm/page.h>
-#include <asm/pgtable.h>
 #include <asm/cache.h>
 #include <asm/thread_info.h>
 
@@ -122,7 +121,6 @@ SECTIONS
 	}
 
 	BSS_SECTION(PAGE_SIZE, PAGE_SIZE, 0)
-	EXCEPTION_TABLE(0x10)
 
 	.rel.dyn : AT(ADDR(.rel.dyn) - LOAD_OFFSET) {
 		*(.rel.dyn*)

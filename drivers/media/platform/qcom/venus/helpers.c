@@ -595,8 +595,7 @@ static int platform_get_bufreq(struct venus_inst *inst, u32 buftype,
 		params.dec.is_secondary_output =
 			inst->opb_buftype == HFI_BUFFER_OUTPUT2;
 		params.dec.is_interlaced =
-			inst->pic_struct != HFI_INTERLACE_FRAME_PROGRESSIVE ?
-				true : false;
+			inst->pic_struct != HFI_INTERLACE_FRAME_PROGRESSIVE;
 	} else {
 		params.width = inst->out_width;
 		params.height = inst->out_height;
@@ -1138,6 +1137,9 @@ int venus_helper_set_format_constraints(struct venus_inst *inst)
 	if (!IS_V6(inst->core))
 		return 0;
 
+	if (inst->opb_fmt == HFI_COLOR_FORMAT_NV12_UBWC)
+		return 0;
+
 	pconstraint.buffer_type = HFI_BUFFER_OUTPUT2;
 	pconstraint.num_planes = 2;
 	pconstraint.plane_format[0].stride_multiples = 128;
@@ -1627,6 +1629,8 @@ int venus_helper_session_init(struct venus_inst *inst)
 								  session_type);
 	inst->clk_data.vsp_freq = hfi_platform_get_codec_vsp_freq(version, codec,
 								  session_type);
+	inst->clk_data.low_power_freq = hfi_platform_get_codec_lp_freq(version, codec,
+								       session_type);
 
 	return 0;
 }

@@ -1,22 +1,9 @@
+/* SPDX-License-Identifier: LGPL-2.1 */
 /*
- *   fs/cifs/cifspdu.h
  *
  *   Copyright (c) International Business Machines  Corp., 2002,2009
  *   Author(s): Steve French (sfrench@us.ibm.com)
  *
- *   This library is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU Lesser General Public License as published
- *   by the Free Software Foundation; either version 2.1 of the License, or
- *   (at your option) any later version.
- *
- *   This library is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See
- *   the GNU Lesser General Public License for more details.
- *
- *   You should have received a copy of the GNU Lesser General Public License
- *   along with this library; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
 #ifndef _CIFSPDU_H
@@ -24,15 +11,9 @@
 
 #include <net/sock.h>
 #include <asm/unaligned.h>
-#include "smbfsctl.h"
+#include "../smbfs_common/smbfsctl.h"
 
-#ifdef CONFIG_CIFS_WEAK_PW_HASH
-#define LANMAN_PROT 0
-#define LANMAN2_PROT 1
-#define CIFS_PROT   2
-#else
 #define CIFS_PROT   0
-#endif
 #define POSIX_PROT  (CIFS_PROT+1)
 #define BAD_PROT 0xFFFF
 
@@ -517,29 +498,7 @@ typedef struct negotiate_req {
 	unsigned char DialectsArray[1];
 } __attribute__((packed)) NEGOTIATE_REQ;
 
-/* Dialect index is 13 for LANMAN */
-
 #define MIN_TZ_ADJ (15 * 60) /* minimum grid for timezones in seconds */
-
-typedef struct lanman_neg_rsp {
-	struct smb_hdr hdr;	/* wct = 13 */
-	__le16 DialectIndex;
-	__le16 SecurityMode;
-	__le16 MaxBufSize;
-	__le16 MaxMpxCount;
-	__le16 MaxNumberVcs;
-	__le16 RawMode;
-	__le32 SessionKey;
-	struct {
-		__le16 Time;
-		__le16 Date;
-	} __attribute__((packed)) SrvTime;
-	__le16 ServerTimeZone;
-	__le16 EncryptionKeyLength;
-	__le16 Reserved;
-	__u16  ByteCount;
-	unsigned char EncryptionKey[1];
-} __attribute__((packed)) LANMAN_NEG_RSP;
 
 #define READ_RAW_ENABLE 1
 #define WRITE_RAW_ENABLE 2
@@ -1797,6 +1756,7 @@ struct smb_com_transaction2_sfi_req {
 	__u16 Fid;
 	__le16 InformationLevel;
 	__u16 Reserved4;
+	__u8  payload[];
 } __attribute__((packed));
 
 struct smb_com_transaction2_sfi_rsp {

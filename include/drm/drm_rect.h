@@ -39,6 +39,9 @@
  * @x2: horizontal ending coordinate (exclusive)
  * @y1: vertical starting coordinate (inclusive)
  * @y2: vertical ending coordinate (exclusive)
+ *
+ * Note that this must match the layout of struct drm_mode_rect or the damage
+ * helpers like drm_atomic_helper_damage_iter_init() break.
  */
 struct drm_rect {
 	int x1, y1, x2, y2;

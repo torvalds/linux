@@ -21,6 +21,8 @@
  * @IPA_VERSION_4_11:	IPA version 4.11/GSI version 2.11 (2.1.1)
  *
  * Defines the version of IPA (and GSI) hardware present on the platform.
+ * Please update ipa_version_valid() and ipa_version_string() whenever a
+ * new version is added.
  */
 enum ipa_version {
 	IPA_VERSION_3_0,

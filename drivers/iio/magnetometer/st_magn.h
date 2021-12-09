@@ -23,30 +23,14 @@
 #define LSM9DS1_MAGN_DEV_NAME		"lsm9ds1_magn"
 #define IIS2MDC_MAGN_DEV_NAME		"iis2mdc"
 
-const struct st_sensor_settings *st_magn_get_settings(const char *name);
-int st_magn_common_probe(struct iio_dev *indio_dev);
-void st_magn_common_remove(struct iio_dev *indio_dev);
-
 #ifdef CONFIG_IIO_BUFFER
 int st_magn_allocate_ring(struct iio_dev *indio_dev);
-void st_magn_deallocate_ring(struct iio_dev *indio_dev);
 int st_magn_trig_set_state(struct iio_trigger *trig, bool state);
 #define ST_MAGN_TRIGGER_SET_STATE (&st_magn_trig_set_state)
 #else /* CONFIG_IIO_BUFFER */
-static inline int st_magn_probe_trigger(struct iio_dev *indio_dev, int irq)
-{
-	return 0;
-}
-static inline void st_magn_remove_trigger(struct iio_dev *indio_dev, int irq)
-{
-	return;
-}
 static inline int st_magn_allocate_ring(struct iio_dev *indio_dev)
 {
 	return 0;
-}
-static inline void st_magn_deallocate_ring(struct iio_dev *indio_dev)
-{
 }
 #define ST_MAGN_TRIGGER_SET_STATE NULL
 #endif /* CONFIG_IIO_BUFFER */

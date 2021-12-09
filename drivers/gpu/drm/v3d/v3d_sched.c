@@ -63,6 +63,16 @@ v3d_job_free(struct drm_sched_job *sched_job)
 	v3d_job_put(job);
 }
 
+static void
+v3d_switch_perfmon(struct v3d_dev *v3d, struct v3d_job *job)
+{
+	if (job->perfmon != v3d->active_perfmon)
+		v3d_perfmon_stop(v3d, v3d->active_perfmon, true);
+
+	if (job->perfmon && v3d->active_perfmon != job->perfmon)
+		v3d_perfmon_start(v3d, job->perfmon);
+}
+
 /*
  * Returns the fences that the job depends on, one by one.
  *
@@ -120,6 +130,8 @@ static struct dma_fence *v3d_bin_job_run(struct drm_sched_job *sched_job)
 	trace_v3d_submit_cl(dev, false, to_v3d_fence(fence)->seqno,
 			    job->start, job->end);
 
+	v3d_switch_perfmon(v3d, &job->base);
+
 	/* Set the current and end address of the control list.
 	 * Writing the end register is what starts the job.
 	 */
@@ -168,6 +180,8 @@ static struct dma_fence *v3d_render_job_run(struct drm_sched_job *sched_job)
 
 	trace_v3d_submit_cl(dev, true, to_v3d_fence(fence)->seqno,
 			    job->start, job->end);
+
+	v3d_switch_perfmon(v3d, &job->base);
 
 	/* XXX: Set the QCFG */
 
@@ -239,6 +253,8 @@ v3d_csd_job_run(struct drm_sched_job *sched_job)
 	job->base.irq_fence = dma_fence_get(fence);
 
 	trace_v3d_submit_csd(dev, to_v3d_fence(fence)->seqno);
+
+	v3d_switch_perfmon(v3d, &job->base);
 
 	for (i = 1; i <= 6; i++)
 		V3D_CORE_WRITE(0, V3D_CSD_QUEUED_CFG0 + 4 * i, job->args.cfg[i]);
@@ -402,7 +418,7 @@ v3d_sched_init(struct v3d_dev *v3d)
 	ret = drm_sched_init(&v3d->queue[V3D_BIN].sched,
 			     &v3d_bin_sched_ops,
 			     hw_jobs_limit, job_hang_limit,
-			     msecs_to_jiffies(hang_limit_ms),
+			     msecs_to_jiffies(hang_limit_ms), NULL,
 			     NULL, "v3d_bin");
 	if (ret) {
 		dev_err(v3d->drm.dev, "Failed to create bin scheduler: %d.", ret);
@@ -412,7 +428,7 @@ v3d_sched_init(struct v3d_dev *v3d)
 	ret = drm_sched_init(&v3d->queue[V3D_RENDER].sched,
 			     &v3d_render_sched_ops,
 			     hw_jobs_limit, job_hang_limit,
-			     msecs_to_jiffies(hang_limit_ms),
+			     msecs_to_jiffies(hang_limit_ms), NULL,
 			     NULL, "v3d_render");
 	if (ret) {
 		dev_err(v3d->drm.dev, "Failed to create render scheduler: %d.",
@@ -424,7 +440,7 @@ v3d_sched_init(struct v3d_dev *v3d)
 	ret = drm_sched_init(&v3d->queue[V3D_TFU].sched,
 			     &v3d_tfu_sched_ops,
 			     hw_jobs_limit, job_hang_limit,
-			     msecs_to_jiffies(hang_limit_ms),
+			     msecs_to_jiffies(hang_limit_ms), NULL,
 			     NULL, "v3d_tfu");
 	if (ret) {
 		dev_err(v3d->drm.dev, "Failed to create TFU scheduler: %d.",
@@ -437,7 +453,7 @@ v3d_sched_init(struct v3d_dev *v3d)
 		ret = drm_sched_init(&v3d->queue[V3D_CSD].sched,
 				     &v3d_csd_sched_ops,
 				     hw_jobs_limit, job_hang_limit,
-				     msecs_to_jiffies(hang_limit_ms),
+				     msecs_to_jiffies(hang_limit_ms), NULL,
 				     NULL, "v3d_csd");
 		if (ret) {
 			dev_err(v3d->drm.dev, "Failed to create CSD scheduler: %d.",
@@ -449,7 +465,7 @@ v3d_sched_init(struct v3d_dev *v3d)
 		ret = drm_sched_init(&v3d->queue[V3D_CACHE_CLEAN].sched,
 				     &v3d_cache_clean_sched_ops,
 				     hw_jobs_limit, job_hang_limit,
-				     msecs_to_jiffies(hang_limit_ms),
+				     msecs_to_jiffies(hang_limit_ms), NULL,
 				     NULL, "v3d_cache_clean");
 		if (ret) {
 			dev_err(v3d->drm.dev, "Failed to create CACHE_CLEAN scheduler: %d.",

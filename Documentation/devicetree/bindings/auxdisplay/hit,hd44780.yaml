@@ -12,7 +12,10 @@ maintainers:
 description:
   The Hitachi HD44780 Character LCD Controller is commonly used on character
   LCDs that can display one or more lines of text. It exposes an M6800 bus
-  interface, which can be used in either 4-bit or 8-bit mode.
+  interface, which can be used in either 4-bit or 8-bit mode. By using a
+  GPIO expander it is possible to use the driver with one of the popular I2C
+  expander boards based on the PCF8574 available for these displays. For
+  an example see below.
 
 properties:
   compatible:
@@ -93,4 +96,30 @@ examples:
 
             display-height-chars = <2>;
             display-width-chars = <16>;
+    };
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+    i2c {
+            #address-cells = <1>;
+            #size-cells = <0>;
+
+            pcf8574: pcf8574@27 {
+                    compatible = "nxp,pcf8574";
+                    reg = <0x27>;
+                    gpio-controller;
+                    #gpio-cells = <2>;
+            };
+    };
+    hd44780 {
+            compatible = "hit,hd44780";
+            display-height-chars = <2>;
+            display-width-chars  = <16>;
+            data-gpios = <&pcf8574 4 0>,
+                         <&pcf8574 5 0>,
+                         <&pcf8574 6 0>,
+                         <&pcf8574 7 0>;
+            enable-gpios = <&pcf8574 2 0>;
+            rs-gpios = <&pcf8574 0 0>;
+            rw-gpios = <&pcf8574 1 0>;
+            backlight-gpios = <&pcf8574 3 0>;
     };

@@ -67,6 +67,10 @@ static int mana_gd_query_max_resources(struct pci_dev *pdev)
 	if (gc->max_num_queues > resp.max_rq)
 		gc->max_num_queues = resp.max_rq;
 
+	/* The Hardware Channel (HWC) used 1 MSI-X */
+	if (gc->max_num_queues > gc->num_msix_usable - 1)
+		gc->max_num_queues = gc->num_msix_usable - 1;
+
 	return 0;
 }
 
@@ -267,7 +271,7 @@ void mana_gd_wq_ring_doorbell(struct gdma_context *gc, struct gdma_queue *queue)
 			      queue->id, queue->head * GDMA_WQE_BU_SIZE, 1);
 }
 
-void mana_gd_arm_cq(struct gdma_queue *cq)
+void mana_gd_ring_cq(struct gdma_queue *cq, u8 arm_bit)
 {
 	struct gdma_context *gc = cq->gdma_dev->gdma_context;
 
@@ -276,7 +280,7 @@ void mana_gd_arm_cq(struct gdma_queue *cq)
 	u32 head = cq->head % (num_cqe << GDMA_CQE_OWNER_BITS);
 
 	mana_gd_ring_doorbell(gc, cq->gdma_dev->doorbell, cq->type, cq->id,
-			      head, SET_ARM_BIT);
+			      head, arm_bit);
 }
 
 static void mana_gd_process_eqe(struct gdma_queue *eq)
@@ -339,7 +343,6 @@ static void mana_gd_process_eq_events(void *arg)
 	struct gdma_queue *eq = arg;
 	struct gdma_context *gc;
 	struct gdma_eqe *eqe;
-	unsigned int arm_bit;
 	u32 head, num_eqe;
 	int i;
 
@@ -370,92 +373,54 @@ static void mana_gd_process_eq_events(void *arg)
 		eq->head++;
 	}
 
-	/* Always rearm the EQ for HWC. For MANA, rearm it when NAPI is done. */
-	if (mana_gd_is_hwc(eq->gdma_dev)) {
-		arm_bit = SET_ARM_BIT;
-	} else if (eq->eq.work_done < eq->eq.budget &&
-		   napi_complete_done(&eq->eq.napi, eq->eq.work_done)) {
-		arm_bit = SET_ARM_BIT;
-	} else {
-		arm_bit = 0;
-	}
-
 	head = eq->head % (num_eqe << GDMA_EQE_OWNER_BITS);
 
 	mana_gd_ring_doorbell(gc, eq->gdma_dev->doorbell, eq->type, eq->id,
-			      head, arm_bit);
-}
-
-static int mana_poll(struct napi_struct *napi, int budget)
-{
-	struct gdma_queue *eq = container_of(napi, struct gdma_queue, eq.napi);
-
-	eq->eq.work_done = 0;
-	eq->eq.budget = budget;
-
-	mana_gd_process_eq_events(eq);
-
-	return min(eq->eq.work_done, budget);
-}
-
-static void mana_gd_schedule_napi(void *arg)
-{
-	struct gdma_queue *eq = arg;
-	struct napi_struct *napi;
-
-	napi = &eq->eq.napi;
-	napi_schedule_irqoff(napi);
+			      head, SET_ARM_BIT);
 }
 
 static int mana_gd_register_irq(struct gdma_queue *queue,
 				const struct gdma_queue_spec *spec)
 {
 	struct gdma_dev *gd = queue->gdma_dev;
-	bool is_mana = mana_gd_is_mana(gd);
 	struct gdma_irq_context *gic;
 	struct gdma_context *gc;
 	struct gdma_resource *r;
 	unsigned int msi_index;
 	unsigned long flags;
-	int err;
+	struct device *dev;
+	int err = 0;
 
 	gc = gd->gdma_context;
 	r = &gc->msix_resource;
+	dev = gc->dev;
 
 	spin_lock_irqsave(&r->lock, flags);
 
 	msi_index = find_first_zero_bit(r->map, r->size);
-	if (msi_index >= r->size) {
+	if (msi_index >= r->size || msi_index >= gc->num_msix_usable) {
 		err = -ENOSPC;
 	} else {
 		bitmap_set(r->map, msi_index, 1);
 		queue->eq.msix_index = msi_index;
-		err = 0;
 	}
 
 	spin_unlock_irqrestore(&r->lock, flags);
 
-	if (err)
-		return err;
+	if (err) {
+		dev_err(dev, "Register IRQ err:%d, msi:%u rsize:%u, nMSI:%u",
+			err, msi_index, r->size, gc->num_msix_usable);
 
-	WARN_ON(msi_index >= gc->num_msix_usable);
+		return err;
+	}
 
 	gic = &gc->irq_contexts[msi_index];
-
-	if (is_mana) {
-		netif_napi_add(spec->eq.ndev, &queue->eq.napi, mana_poll,
-			       NAPI_POLL_WEIGHT);
-		napi_enable(&queue->eq.napi);
-	}
 
 	WARN_ON(gic->handler || gic->arg);
 
 	gic->arg = queue;
 
-	if (is_mana)
-		gic->handler = mana_gd_schedule_napi;
-	else
-		gic->handler = mana_gd_process_eq_events;
+	gic->handler = mana_gd_process_eq_events;
 
 	return 0;
 }
@@ -548,11 +513,6 @@ static void mana_gd_destroy_eq(struct gdma_context *gc, bool flush_evenets,
 	}
 
 	mana_gd_deregiser_irq(queue);
-
-	if (mana_gd_is_mana(queue->gdma_dev)) {
-		napi_disable(&queue->eq.napi);
-		netif_napi_del(&queue->eq.napi);
-	}
 
 	if (queue->eq.disable_needed)
 		mana_gd_disable_queue(queue);
@@ -883,6 +843,11 @@ int mana_gd_verify_vf_version(struct pci_dev *pdev)
 	req.protocol_ver_min = GDMA_PROTOCOL_FIRST;
 	req.protocol_ver_max = GDMA_PROTOCOL_LAST;
 
+	req.gd_drv_cap_flags1 = GDMA_DRV_CAP_FLAGS1;
+	req.gd_drv_cap_flags2 = GDMA_DRV_CAP_FLAGS2;
+	req.gd_drv_cap_flags3 = GDMA_DRV_CAP_FLAGS3;
+	req.gd_drv_cap_flags4 = GDMA_DRV_CAP_FLAGS4;
+
 	err = mana_gd_send_request(gc, sizeof(req), &req, sizeof(resp), &resp);
 	if (err || resp.hdr.status) {
 		dev_err(gc->dev, "VfVerifyVersionOutput: %d, status=0x%x\n",
@@ -1128,7 +1093,7 @@ static int mana_gd_read_cqe(struct gdma_queue *cq, struct gdma_comp *comp)
 
 	new_bits = (cq->head / num_cqe) & GDMA_CQE_OWNER_MASK;
 	/* Return -1 if overflow detected. */
-	if (owner_bits != new_bits)
+	if (WARN_ON_ONCE(owner_bits != new_bits))
 		return -1;
 
 	comp->wq_num = cqe->cqe_info.wq_num;
@@ -1201,10 +1166,8 @@ static int mana_gd_setup_irqs(struct pci_dev *pdev)
 	if (max_queues_per_port > MANA_MAX_NUM_QUEUES)
 		max_queues_per_port = MANA_MAX_NUM_QUEUES;
 
-	max_irqs = max_queues_per_port * MAX_PORTS_IN_MANA_DEV;
-
 	/* Need 1 interrupt for the Hardware communication Channel (HWC) */
-	max_irqs++;
+	max_irqs = max_queues_per_port + 1;
 
 	nvec = pci_alloc_irq_vectors(pdev, 2, max_irqs, PCI_IRQ_MSIX);
 	if (nvec < 0)
@@ -1290,6 +1253,9 @@ static int mana_gd_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	void __iomem *bar0_va;
 	int bar = 0;
 	int err;
+
+	/* Each port has 2 CQs, each CQ has at most 1 EQE at a time */
+	BUILD_BUG_ON(2 * MAX_PORTS_IN_MANA_DEV * GDMA_EQE_SIZE > EQ_SIZE);
 
 	err = pci_enable_device(pdev);
 	if (err)

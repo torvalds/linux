@@ -10,6 +10,8 @@
 #include "en_tc.h"
 #include "rep/tc.h"
 #include "rep/neigh.h"
+#include "lag.h"
+#include "lag_mp.h"
 
 struct mlx5e_tc_tun_route_attr {
 	struct net_device *out_dev;
@@ -124,6 +126,11 @@ static int mlx5e_route_lookup_ipv4_get(struct mlx5e_priv *priv,
 	if (IS_ERR(rt))
 		return PTR_ERR(rt);
 
+	if (rt->rt_type != RTN_UNICAST) {
+		ret = -ENETUNREACH;
+		goto err_rt_release;
+	}
+
 	if (mlx5_lag_is_multipath(mdev) && rt->rt_gw_family != AF_INET) {
 		ret = -ENETUNREACH;
 		goto err_rt_release;
@@ -212,6 +219,7 @@ int mlx5e_tc_tun_create_header_ipv4(struct mlx5e_priv *priv,
 {
 	int max_encap_size = MLX5_CAP_ESW(priv->mdev, max_encap_header_size);
 	const struct ip_tunnel_key *tun_key = &e->tun_info->key;
+	struct mlx5_pkt_reformat_params reformat_params;
 	struct mlx5e_neigh m_neigh = {};
 	TC_TUN_ROUTE_ATTR_INIT(attr);
 	int ipv4_encap_size;
@@ -295,9 +303,12 @@ int mlx5e_tc_tun_create_header_ipv4(struct mlx5e_priv *priv,
 		 */
 		goto release_neigh;
 	}
-	e->pkt_reformat = mlx5_packet_reformat_alloc(priv->mdev,
-						     e->reformat_type,
-						     ipv4_encap_size, encap_header,
+
+	memset(&reformat_params, 0, sizeof(reformat_params));
+	reformat_params.type = e->reformat_type;
+	reformat_params.size = ipv4_encap_size;
+	reformat_params.data = encap_header;
+	e->pkt_reformat = mlx5_packet_reformat_alloc(priv->mdev, &reformat_params,
 						     MLX5_FLOW_NAMESPACE_FDB);
 	if (IS_ERR(e->pkt_reformat)) {
 		err = PTR_ERR(e->pkt_reformat);
@@ -324,6 +335,7 @@ int mlx5e_tc_tun_update_header_ipv4(struct mlx5e_priv *priv,
 {
 	int max_encap_size = MLX5_CAP_ESW(priv->mdev, max_encap_header_size);
 	const struct ip_tunnel_key *tun_key = &e->tun_info->key;
+	struct mlx5_pkt_reformat_params reformat_params;
 	TC_TUN_ROUTE_ATTR_INIT(attr);
 	int ipv4_encap_size;
 	char *encap_header;
@@ -396,9 +408,12 @@ int mlx5e_tc_tun_update_header_ipv4(struct mlx5e_priv *priv,
 		 */
 		goto release_neigh;
 	}
-	e->pkt_reformat = mlx5_packet_reformat_alloc(priv->mdev,
-						     e->reformat_type,
-						     ipv4_encap_size, encap_header,
+
+	memset(&reformat_params, 0, sizeof(reformat_params));
+	reformat_params.type = e->reformat_type;
+	reformat_params.size = ipv4_encap_size;
+	reformat_params.data = encap_header;
+	e->pkt_reformat = mlx5_packet_reformat_alloc(priv->mdev, &reformat_params,
 						     MLX5_FLOW_NAMESPACE_FDB);
 	if (IS_ERR(e->pkt_reformat)) {
 		err = PTR_ERR(e->pkt_reformat);
@@ -471,6 +486,7 @@ int mlx5e_tc_tun_create_header_ipv6(struct mlx5e_priv *priv,
 {
 	int max_encap_size = MLX5_CAP_ESW(priv->mdev, max_encap_header_size);
 	const struct ip_tunnel_key *tun_key = &e->tun_info->key;
+	struct mlx5_pkt_reformat_params reformat_params;
 	struct mlx5e_neigh m_neigh = {};
 	TC_TUN_ROUTE_ATTR_INIT(attr);
 	struct ipv6hdr *ip6h;
@@ -511,7 +527,7 @@ int mlx5e_tc_tun_create_header_ipv6(struct mlx5e_priv *priv,
 	e->out_dev = attr.out_dev;
 	e->route_dev_ifindex = attr.route_dev->ifindex;
 
-	/* It's importent to add the neigh to the hash table before checking
+	/* It's important to add the neigh to the hash table before checking
 	 * the neigh validity state. So if we'll get a notification, in case the
 	 * neigh changes it's validity state, we would find the relevant neigh
 	 * in the hash.
@@ -553,9 +569,11 @@ int mlx5e_tc_tun_create_header_ipv6(struct mlx5e_priv *priv,
 		goto release_neigh;
 	}
 
-	e->pkt_reformat = mlx5_packet_reformat_alloc(priv->mdev,
-						     e->reformat_type,
-						     ipv6_encap_size, encap_header,
+	memset(&reformat_params, 0, sizeof(reformat_params));
+	reformat_params.type = e->reformat_type;
+	reformat_params.size = ipv6_encap_size;
+	reformat_params.data = encap_header;
+	e->pkt_reformat = mlx5_packet_reformat_alloc(priv->mdev, &reformat_params,
 						     MLX5_FLOW_NAMESPACE_FDB);
 	if (IS_ERR(e->pkt_reformat)) {
 		err = PTR_ERR(e->pkt_reformat);
@@ -582,6 +600,7 @@ int mlx5e_tc_tun_update_header_ipv6(struct mlx5e_priv *priv,
 {
 	int max_encap_size = MLX5_CAP_ESW(priv->mdev, max_encap_header_size);
 	const struct ip_tunnel_key *tun_key = &e->tun_info->key;
+	struct mlx5_pkt_reformat_params reformat_params;
 	TC_TUN_ROUTE_ATTR_INIT(attr);
 	struct ipv6hdr *ip6h;
 	int ipv6_encap_size;
@@ -654,9 +673,11 @@ int mlx5e_tc_tun_update_header_ipv6(struct mlx5e_priv *priv,
 		goto release_neigh;
 	}
 
-	e->pkt_reformat = mlx5_packet_reformat_alloc(priv->mdev,
-						     e->reformat_type,
-						     ipv6_encap_size, encap_header,
+	memset(&reformat_params, 0, sizeof(reformat_params));
+	reformat_params.type = e->reformat_type;
+	reformat_params.size = ipv6_encap_size;
+	reformat_params.data = encap_header;
+	e->pkt_reformat = mlx5_packet_reformat_alloc(priv->mdev, &reformat_params,
 						     MLX5_FLOW_NAMESPACE_FDB);
 	if (IS_ERR(e->pkt_reformat)) {
 		err = PTR_ERR(e->pkt_reformat);

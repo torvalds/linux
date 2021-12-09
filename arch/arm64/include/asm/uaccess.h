@@ -430,17 +430,6 @@ extern unsigned long __must_check __arch_copy_to_user(void __user *to, const voi
 	__actu_ret;							\
 })
 
-extern unsigned long __must_check __arch_copy_in_user(void __user *to, const void __user *from, unsigned long n);
-#define raw_copy_in_user(to, from, n)					\
-({									\
-	unsigned long __aciu_ret;					\
-	uaccess_ttbr0_enable();						\
-	__aciu_ret = __arch_copy_in_user(__uaccess_mask_ptr(to),	\
-				    __uaccess_mask_ptr(from), (n));	\
-	uaccess_ttbr0_disable();					\
-	__aciu_ret;							\
-})
-
 #define INLINE_COPY_TO_USER
 #define INLINE_COPY_FROM_USER
 

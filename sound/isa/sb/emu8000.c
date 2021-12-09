@@ -1020,6 +1020,7 @@ static const struct snd_kcontrol_new *mixer_defs[EMU8000_NUM_CONTROLS] = {
 static int
 snd_emu8000_create_mixer(struct snd_card *card, struct snd_emu8000 *emu)
 {
+	struct snd_kcontrol *kctl;
 	int i, err = 0;
 
 	if (snd_BUG_ON(!emu || !card))
@@ -1029,10 +1030,11 @@ snd_emu8000_create_mixer(struct snd_card *card, struct snd_emu8000 *emu)
 
 	memset(emu->controls, 0, sizeof(emu->controls));
 	for (i = 0; i < EMU8000_NUM_CONTROLS; i++) {
-		if ((err = snd_ctl_add(card, emu->controls[i] = snd_ctl_new1(mixer_defs[i], emu))) < 0) {
-			emu->controls[i] = NULL;
+		kctl = snd_ctl_new1(mixer_defs[i], emu);
+		err = snd_ctl_add(card, kctl);
+		if (err < 0)
 			goto __error;
-		}
+		emu->controls[i] = kctl;
 	}
 	return 0;
 
@@ -1046,27 +1048,6 @@ __error:
 	return err;
 }
 
-
-/*
- * free resources
- */
-static int snd_emu8000_free(struct snd_emu8000 *hw)
-{
-	release_and_free_resource(hw->res_port1);
-	release_and_free_resource(hw->res_port2);
-	release_and_free_resource(hw->res_port3);
-	kfree(hw);
-	return 0;
-}
-
-/*
- */
-static int snd_emu8000_dev_free(struct snd_device *device)
-{
-	struct snd_emu8000 *hw = device->device_data;
-	return snd_emu8000_free(hw);
-}
-
 /*
  * initialize and register emu8000 synth device.
  */
@@ -1077,9 +1058,6 @@ snd_emu8000_new(struct snd_card *card, int index, long port, int seq_ports,
 	struct snd_seq_device *awe;
 	struct snd_emu8000 *hw;
 	int err;
-	static const struct snd_device_ops ops = {
-		.dev_free = snd_emu8000_dev_free,
-	};
 
 	if (awe_ret)
 		*awe_ret = NULL;
@@ -1087,7 +1065,7 @@ snd_emu8000_new(struct snd_card *card, int index, long port, int seq_ports,
 	if (seq_ports <= 0)
 		return 0;
 
-	hw = kzalloc(sizeof(*hw), GFP_KERNEL);
+	hw = devm_kzalloc(card->dev, sizeof(*hw), GFP_KERNEL);
 	if (hw == NULL)
 		return -ENOMEM;
 	spin_lock_init(&hw->reg_lock);
@@ -1095,11 +1073,10 @@ snd_emu8000_new(struct snd_card *card, int index, long port, int seq_ports,
 	hw->port1 = port;
 	hw->port2 = port + 0x400;
 	hw->port3 = port + 0x800;
-	if (!(hw->res_port1 = request_region(hw->port1, 4, "Emu8000-1")) ||
-	    !(hw->res_port2 = request_region(hw->port2, 4, "Emu8000-2")) ||
-	    !(hw->res_port3 = request_region(hw->port3, 4, "Emu8000-3"))) {
+	if (!devm_request_region(card->dev, hw->port1, 4, "Emu8000-1") ||
+	    !devm_request_region(card->dev, hw->port2, 4, "Emu8000-2") ||
+	    !devm_request_region(card->dev, hw->port3, 4, "Emu8000-3")) {
 		snd_printk(KERN_ERR "sbawe: can't grab ports 0x%lx, 0x%lx, 0x%lx\n", hw->port1, hw->port2, hw->port3);
-		snd_emu8000_free(hw);
 		return -EBUSY;
 	}
 	hw->mem_size = 0;
@@ -1112,21 +1089,13 @@ snd_emu8000_new(struct snd_card *card, int index, long port, int seq_ports,
 	hw->fm_chorus_depth = 0;
 	hw->fm_reverb_depth = 0;
 
-	if (snd_emu8000_detect(hw) < 0) {
-		snd_emu8000_free(hw);
+	if (snd_emu8000_detect(hw) < 0)
 		return -ENODEV;
-	}
 
 	snd_emu8000_init_hw(hw);
-	if ((err = snd_emu8000_create_mixer(card, hw)) < 0) {
-		snd_emu8000_free(hw);
+	err = snd_emu8000_create_mixer(card, hw);
+	if (err < 0)
 		return err;
-	}
-	
-	if ((err = snd_device_new(card, SNDRV_DEV_CODEC, hw, &ops)) < 0) {
-		snd_emu8000_free(hw);
-		return err;
-	}
 #if IS_ENABLED(CONFIG_SND_SEQUENCER)
 	if (snd_seq_device_new(card, index, SNDRV_SEQ_DEV_ID_EMU8000,
 			       sizeof(struct snd_emu8000*), &awe) >= 0) {

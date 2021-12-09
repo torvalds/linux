@@ -9,7 +9,7 @@ extern __u64 bpf_kfunc_call_test1(struct sock *sk, __u32 a, __u64 b,
 				  __u32 c, __u64 d) __ksym;
 extern struct sock *bpf_kfunc_call_test3(struct sock *sk) __ksym;
 int active_res = -1;
-int sk_state = -1;
+int sk_state_res = -1;
 
 int __noinline f1(struct __sk_buff *skb)
 {
@@ -28,7 +28,7 @@ int __noinline f1(struct __sk_buff *skb)
 	if (active)
 		active_res = *active;
 
-	sk_state = bpf_kfunc_call_test3((struct sock *)sk)->__sk_common.skc_state;
+	sk_state_res = bpf_kfunc_call_test3((struct sock *)sk)->sk_state;
 
 	return (__u32)bpf_kfunc_call_test1((struct sock *)sk, 1, 2, 3, 4);
 }

@@ -27,6 +27,276 @@
 #include "xfs_defer.h"
 #include "xfs_log_format.h"
 #include "xfs_trans.h"
+#include "xfs_trace.h"
+#include "xfs_inode.h"
+#include "xfs_icache.h"
+
+
+/*
+ * Passive reference counting access wrappers to the perag structures.  If the
+ * per-ag structure is to be freed, the freeing code is responsible for cleaning
+ * up objects with passive references before freeing the structure. This is
+ * things like cached buffers.
+ */
+struct xfs_perag *
+xfs_perag_get(
+	struct xfs_mount	*mp,
+	xfs_agnumber_t		agno)
+{
+	struct xfs_perag	*pag;
+	int			ref = 0;
+
+	rcu_read_lock();
+	pag = radix_tree_lookup(&mp->m_perag_tree, agno);
+	if (pag) {
+		ASSERT(atomic_read(&pag->pag_ref) >= 0);
+		ref = atomic_inc_return(&pag->pag_ref);
+	}
+	rcu_read_unlock();
+	trace_xfs_perag_get(mp, agno, ref, _RET_IP_);
+	return pag;
+}
+
+/*
+ * search from @first to find the next perag with the given tag set.
+ */
+struct xfs_perag *
+xfs_perag_get_tag(
+	struct xfs_mount	*mp,
+	xfs_agnumber_t		first,
+	unsigned int		tag)
+{
+	struct xfs_perag	*pag;
+	int			found;
+	int			ref;
+
+	rcu_read_lock();
+	found = radix_tree_gang_lookup_tag(&mp->m_perag_tree,
+					(void **)&pag, first, 1, tag);
+	if (found <= 0) {
+		rcu_read_unlock();
+		return NULL;
+	}
+	ref = atomic_inc_return(&pag->pag_ref);
+	rcu_read_unlock();
+	trace_xfs_perag_get_tag(mp, pag->pag_agno, ref, _RET_IP_);
+	return pag;
+}
+
+void
+xfs_perag_put(
+	struct xfs_perag	*pag)
+{
+	int	ref;
+
+	ASSERT(atomic_read(&pag->pag_ref) > 0);
+	ref = atomic_dec_return(&pag->pag_ref);
+	trace_xfs_perag_put(pag->pag_mount, pag->pag_agno, ref, _RET_IP_);
+}
+
+/*
+ * xfs_initialize_perag_data
+ *
+ * Read in each per-ag structure so we can count up the number of
+ * allocated inodes, free inodes and used filesystem blocks as this
+ * information is no longer persistent in the superblock. Once we have
+ * this information, write it into the in-core superblock structure.
+ */
+int
+xfs_initialize_perag_data(
+	struct xfs_mount	*mp,
+	xfs_agnumber_t		agcount)
+{
+	xfs_agnumber_t		index;
+	struct xfs_perag	*pag;
+	struct xfs_sb		*sbp = &mp->m_sb;
+	uint64_t		ifree = 0;
+	uint64_t		ialloc = 0;
+	uint64_t		bfree = 0;
+	uint64_t		bfreelst = 0;
+	uint64_t		btree = 0;
+	uint64_t		fdblocks;
+	int			error = 0;
+
+	for (index = 0; index < agcount; index++) {
+		/*
+		 * read the agf, then the agi. This gets us
+		 * all the information we need and populates the
+		 * per-ag structures for us.
+		 */
+		error = xfs_alloc_pagf_init(mp, NULL, index, 0);
+		if (error)
+			return error;
+
+		error = xfs_ialloc_pagi_init(mp, NULL, index);
+		if (error)
+			return error;
+		pag = xfs_perag_get(mp, index);
+		ifree += pag->pagi_freecount;
+		ialloc += pag->pagi_count;
+		bfree += pag->pagf_freeblks;
+		bfreelst += pag->pagf_flcount;
+		btree += pag->pagf_btreeblks;
+		xfs_perag_put(pag);
+	}
+	fdblocks = bfree + bfreelst + btree;
+
+	/*
+	 * If the new summary counts are obviously incorrect, fail the
+	 * mount operation because that implies the AGFs are also corrupt.
+	 * Clear FS_COUNTERS so that we don't unmount with a dirty log, which
+	 * will prevent xfs_repair from fixing anything.
+	 */
+	if (fdblocks > sbp->sb_dblocks || ifree > ialloc) {
+		xfs_alert(mp, "AGF corruption. Please run xfs_repair.");
+		error = -EFSCORRUPTED;
+		goto out;
+	}
+
+	/* Overwrite incore superblock counters with just-read data */
+	spin_lock(&mp->m_sb_lock);
+	sbp->sb_ifree = ifree;
+	sbp->sb_icount = ialloc;
+	sbp->sb_fdblocks = fdblocks;
+	spin_unlock(&mp->m_sb_lock);
+
+	xfs_reinit_percpu_counters(mp);
+out:
+	xfs_fs_mark_healthy(mp, XFS_SICK_FS_COUNTERS);
+	return error;
+}
+
+STATIC void
+__xfs_free_perag(
+	struct rcu_head	*head)
+{
+	struct xfs_perag *pag = container_of(head, struct xfs_perag, rcu_head);
+
+	ASSERT(!delayed_work_pending(&pag->pag_blockgc_work));
+	ASSERT(atomic_read(&pag->pag_ref) == 0);
+	kmem_free(pag);
+}
+
+/*
+ * Free up the per-ag resources associated with the mount structure.
+ */
+void
+xfs_free_perag(
+	struct xfs_mount	*mp)
+{
+	struct xfs_perag	*pag;
+	xfs_agnumber_t		agno;
+
+	for (agno = 0; agno < mp->m_sb.sb_agcount; agno++) {
+		spin_lock(&mp->m_perag_lock);
+		pag = radix_tree_delete(&mp->m_perag_tree, agno);
+		spin_unlock(&mp->m_perag_lock);
+		ASSERT(pag);
+		ASSERT(atomic_read(&pag->pag_ref) == 0);
+
+		cancel_delayed_work_sync(&pag->pag_blockgc_work);
+		xfs_iunlink_destroy(pag);
+		xfs_buf_hash_destroy(pag);
+
+		call_rcu(&pag->rcu_head, __xfs_free_perag);
+	}
+}
+
+int
+xfs_initialize_perag(
+	struct xfs_mount	*mp,
+	xfs_agnumber_t		agcount,
+	xfs_agnumber_t		*maxagi)
+{
+	struct xfs_perag	*pag;
+	xfs_agnumber_t		index;
+	xfs_agnumber_t		first_initialised = NULLAGNUMBER;
+	int			error;
+
+	/*
+	 * Walk the current per-ag tree so we don't try to initialise AGs
+	 * that already exist (growfs case). Allocate and insert all the
+	 * AGs we don't find ready for initialisation.
+	 */
+	for (index = 0; index < agcount; index++) {
+		pag = xfs_perag_get(mp, index);
+		if (pag) {
+			xfs_perag_put(pag);
+			continue;
+		}
+
+		pag = kmem_zalloc(sizeof(*pag), KM_MAYFAIL);
+		if (!pag) {
+			error = -ENOMEM;
+			goto out_unwind_new_pags;
+		}
+		pag->pag_agno = index;
+		pag->pag_mount = mp;
+
+		error = radix_tree_preload(GFP_NOFS);
+		if (error)
+			goto out_free_pag;
+
+		spin_lock(&mp->m_perag_lock);
+		if (radix_tree_insert(&mp->m_perag_tree, index, pag)) {
+			WARN_ON_ONCE(1);
+			spin_unlock(&mp->m_perag_lock);
+			radix_tree_preload_end();
+			error = -EEXIST;
+			goto out_free_pag;
+		}
+		spin_unlock(&mp->m_perag_lock);
+		radix_tree_preload_end();
+
+		/* Place kernel structure only init below this point. */
+		spin_lock_init(&pag->pag_ici_lock);
+		spin_lock_init(&pag->pagb_lock);
+		spin_lock_init(&pag->pag_state_lock);
+		INIT_DELAYED_WORK(&pag->pag_blockgc_work, xfs_blockgc_worker);
+		INIT_RADIX_TREE(&pag->pag_ici_root, GFP_ATOMIC);
+		init_waitqueue_head(&pag->pagb_wait);
+		pag->pagb_count = 0;
+		pag->pagb_tree = RB_ROOT;
+
+		error = xfs_buf_hash_init(pag);
+		if (error)
+			goto out_remove_pag;
+
+		error = xfs_iunlink_init(pag);
+		if (error)
+			goto out_hash_destroy;
+
+		/* first new pag is fully initialized */
+		if (first_initialised == NULLAGNUMBER)
+			first_initialised = index;
+	}
+
+	index = xfs_set_inode_alloc(mp, agcount);
+
+	if (maxagi)
+		*maxagi = index;
+
+	mp->m_ag_prealloc_blocks = xfs_prealloc_blocks(mp);
+	return 0;
+
+out_hash_destroy:
+	xfs_buf_hash_destroy(pag);
+out_remove_pag:
+	radix_tree_delete(&mp->m_perag_tree, index);
+out_free_pag:
+	kmem_free(pag);
+out_unwind_new_pags:
+	/* unwind any prior newly initialized pags */
+	for (index = first_initialised; index < agcount; index++) {
+		pag = radix_tree_delete(&mp->m_perag_tree, index);
+		if (!pag)
+			break;
+		xfs_buf_hash_destroy(pag);
+		xfs_iunlink_destroy(pag);
+		kmem_free(pag);
+	}
+	return error;
+}
 
 static int
 xfs_get_aghdr_buf(
@@ -43,8 +313,6 @@ xfs_get_aghdr_buf(
 	if (error)
 		return error;
 
-	xfs_buf_zero(bp, 0, BBTOB(bp->b_length));
-	bp->b_bn = blkno;
 	bp->b_maps[0].bm_bn = blkno;
 	bp->b_ops = ops;
 
@@ -200,7 +468,7 @@ xfs_rmaproot_init(
 	rrec->rm_offset = 0;
 
 	/* account for refc btree root */
-	if (xfs_sb_version_hasreflink(&mp->m_sb)) {
+	if (xfs_has_reflink(mp)) {
 		rrec = XFS_RMAP_REC_ADDR(block, 5);
 		rrec->rm_startblock = cpu_to_be32(xfs_refc_block(mp));
 		rrec->rm_blockcount = cpu_to_be32(1);
@@ -259,7 +527,7 @@ xfs_agfblock_init(
 	agf->agf_roots[XFS_BTNUM_CNTi] = cpu_to_be32(XFS_CNT_BLOCK(mp));
 	agf->agf_levels[XFS_BTNUM_BNOi] = cpu_to_be32(1);
 	agf->agf_levels[XFS_BTNUM_CNTi] = cpu_to_be32(1);
-	if (xfs_sb_version_hasrmapbt(&mp->m_sb)) {
+	if (xfs_has_rmapbt(mp)) {
 		agf->agf_roots[XFS_BTNUM_RMAPi] =
 					cpu_to_be32(XFS_RMAP_BLOCK(mp));
 		agf->agf_levels[XFS_BTNUM_RMAPi] = cpu_to_be32(1);
@@ -272,9 +540,9 @@ xfs_agfblock_init(
 	tmpsize = id->agsize - mp->m_ag_prealloc_blocks;
 	agf->agf_freeblks = cpu_to_be32(tmpsize);
 	agf->agf_longest = cpu_to_be32(tmpsize);
-	if (xfs_sb_version_hascrc(&mp->m_sb))
+	if (xfs_has_crc(mp))
 		uuid_copy(&agf->agf_uuid, &mp->m_sb.sb_meta_uuid);
-	if (xfs_sb_version_hasreflink(&mp->m_sb)) {
+	if (xfs_has_reflink(mp)) {
 		agf->agf_refcount_root = cpu_to_be32(
 				xfs_refc_block(mp));
 		agf->agf_refcount_level = cpu_to_be32(1);
@@ -300,7 +568,7 @@ xfs_agflblock_init(
 	__be32			*agfl_bno;
 	int			bucket;
 
-	if (xfs_sb_version_hascrc(&mp->m_sb)) {
+	if (xfs_has_crc(mp)) {
 		agfl->agfl_magicnum = cpu_to_be32(XFS_AGFL_MAGIC);
 		agfl->agfl_seqno = cpu_to_be32(id->agno);
 		uuid_copy(&agfl->agfl_uuid, &mp->m_sb.sb_meta_uuid);
@@ -330,17 +598,17 @@ xfs_agiblock_init(
 	agi->agi_freecount = 0;
 	agi->agi_newino = cpu_to_be32(NULLAGINO);
 	agi->agi_dirino = cpu_to_be32(NULLAGINO);
-	if (xfs_sb_version_hascrc(&mp->m_sb))
+	if (xfs_has_crc(mp))
 		uuid_copy(&agi->agi_uuid, &mp->m_sb.sb_meta_uuid);
-	if (xfs_sb_version_hasfinobt(&mp->m_sb)) {
+	if (xfs_has_finobt(mp)) {
 		agi->agi_free_root = cpu_to_be32(XFS_FIBT_BLOCK(mp));
 		agi->agi_free_level = cpu_to_be32(1);
 	}
 	for (bucket = 0; bucket < XFS_AGI_UNLINKED_BUCKETS; bucket++)
 		agi->agi_unlinked[bucket] = cpu_to_be32(NULLAGINO);
-	if (xfs_sb_version_hasinobtcounts(&mp->m_sb)) {
+	if (xfs_has_inobtcounts(mp)) {
 		agi->agi_iblocks = cpu_to_be32(1);
-		if (xfs_sb_version_hasfinobt(&mp->m_sb))
+		if (xfs_has_finobt(mp))
 			agi->agi_fblocks = cpu_to_be32(1);
 	}
 }
@@ -450,14 +718,14 @@ xfs_ag_init_headers(
 		.ops = &xfs_finobt_buf_ops,
 		.work = &xfs_btroot_init,
 		.type = XFS_BTNUM_FINO,
-		.need_init =  xfs_sb_version_hasfinobt(&mp->m_sb)
+		.need_init =  xfs_has_finobt(mp)
 	},
 	{ /* RMAP root block */
 		.daddr = XFS_AGB_TO_DADDR(mp, id->agno, XFS_RMAP_BLOCK(mp)),
 		.numblks = BTOBB(mp->m_sb.sb_blocksize),
 		.ops = &xfs_rmapbt_buf_ops,
 		.work = &xfs_rmaproot_init,
-		.need_init = xfs_sb_version_hasrmapbt(&mp->m_sb)
+		.need_init = xfs_has_rmapbt(mp)
 	},
 	{ /* REFC root block */
 		.daddr = XFS_AGB_TO_DADDR(mp, id->agno, xfs_refc_block(mp)),
@@ -465,7 +733,7 @@ xfs_ag_init_headers(
 		.ops = &xfs_refcountbt_buf_ops,
 		.work = &xfs_btroot_init,
 		.type = XFS_BTNUM_REFC,
-		.need_init = xfs_sb_version_hasreflink(&mp->m_sb)
+		.need_init = xfs_has_reflink(mp)
 	},
 	{ /* NULL terminating block */
 		.daddr = XFS_BUF_DADDR_NULL,
@@ -510,6 +778,7 @@ xfs_ag_shrink_space(
 	struct xfs_buf		*agibp, *agfbp;
 	struct xfs_agi		*agi;
 	struct xfs_agf		*agf;
+	xfs_agblock_t		aglen;
 	int			error, err2;
 
 	ASSERT(agno == mp->m_sb.sb_agcount - 1);
@@ -524,14 +793,22 @@ xfs_ag_shrink_space(
 		return error;
 
 	agf = agfbp->b_addr;
+	aglen = be32_to_cpu(agi->agi_length);
 	/* some extra paranoid checks before we shrink the ag */
 	if (XFS_IS_CORRUPT(mp, agf->agf_length != agi->agi_length))
 		return -EFSCORRUPTED;
-	if (delta >= agi->agi_length)
+	if (delta >= aglen)
 		return -EINVAL;
 
-	args.fsbno = XFS_AGB_TO_FSB(mp, agno,
-				    be32_to_cpu(agi->agi_length) - delta);
+	args.fsbno = XFS_AGB_TO_FSB(mp, agno, aglen - delta);
+
+	/*
+	 * Make sure that the last inode cluster cannot overlap with the new
+	 * end of the AG, even if it's sparse.
+	 */
+	error = xfs_ialloc_check_shrink(*tpp, agno, agibp, aglen - delta);
+	if (error)
+		return error;
 
 	/*
 	 * Disable perag reservations so it doesn't cause the allocation request
@@ -646,7 +923,7 @@ xfs_ag_extend_space(
 	 * XFS_RMAP_OINFO_SKIP_UPDATE is used here to tell the rmap btree that
 	 * this doesn't actually exist in the rmap btree.
 	 */
-	error = xfs_rmap_free(tp, bp, id->agno,
+	error = xfs_rmap_free(tp, bp, bp->b_pag,
 				be32_to_cpu(agf->agf_length) - len,
 				len, &XFS_RMAP_OINFO_SKIP_UPDATE);
 	if (error)

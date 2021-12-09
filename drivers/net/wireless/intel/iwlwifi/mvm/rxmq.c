@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2012-2014, 2018-2020 Intel Corporation
+ * Copyright (C) 2012-2014, 2018-2021 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2015-2017 Intel Deutschland GmbH
  */
@@ -69,8 +69,8 @@ static inline int iwl_mvm_check_pn(struct iwl_mvm *mvm, struct sk_buff *skb,
 
 	/* if we are here - this for sure is either CCMP or GCMP */
 	if (IS_ERR_OR_NULL(sta)) {
-		IWL_ERR(mvm,
-			"expected hw-decrypted unicast frame for station\n");
+		IWL_DEBUG_DROP(mvm,
+			       "expected hw-decrypted unicast frame for station\n");
 		return -1;
 	}
 
@@ -279,7 +279,6 @@ static int iwl_mvm_rx_mgmt_prot(struct ieee80211_sta *sta,
 {
 	struct iwl_mvm_sta *mvmsta;
 	struct iwl_mvm_vif *mvmvif;
-	u8 fwkeyid = u32_get_bits(status, IWL_RX_MPDU_STATUS_KEY);
 	u8 keyid;
 	struct ieee80211_key_conf *key;
 	u32 len = le16_to_cpu(desc->mpdu_len);
@@ -299,6 +298,10 @@ static int iwl_mvm_rx_mgmt_prot(struct ieee80211_sta *sta,
 	if (!ieee80211_is_beacon(hdr->frame_control))
 		return 0;
 
+	/* key mismatch - will also report !MIC_OK but we shouldn't count it */
+	if (!(status & IWL_RX_MPDU_STATUS_KEY_VALID))
+		return -1;
+
 	/* good cases */
 	if (likely(status & IWL_RX_MPDU_STATUS_MIC_OK &&
 		   !(status & IWL_RX_MPDU_STATUS_REPLAY_ERROR)))
@@ -309,26 +312,36 @@ static int iwl_mvm_rx_mgmt_prot(struct ieee80211_sta *sta,
 
 	mvmsta = iwl_mvm_sta_from_mac80211(sta);
 
-	/* what? */
-	if (fwkeyid != 6 && fwkeyid != 7)
-		return -1;
-
 	mvmvif = iwl_mvm_vif_from_mac80211(mvmsta->vif);
 
-	key = rcu_dereference(mvmvif->bcn_prot.keys[fwkeyid - 6]);
-	if (!key)
-		return -1;
+	/*
+	 * both keys will have the same cipher and MIC length, use
+	 * whichever one is available
+	 */
+	key = rcu_dereference(mvmvif->bcn_prot.keys[0]);
+	if (!key) {
+		key = rcu_dereference(mvmvif->bcn_prot.keys[1]);
+		if (!key)
+			return -1;
+	}
 
 	if (len < key->icv_len + IEEE80211_GMAC_PN_LEN + 2)
 		return -1;
 
-	/*
-	 * See if the key ID matches - if not this may be due to a
-	 * switch and the firmware may erroneously report !MIC_OK.
-	 */
+	/* get the real key ID */
 	keyid = frame[len - key->icv_len - IEEE80211_GMAC_PN_LEN - 2];
-	if (keyid != fwkeyid)
-		return -1;
+	/* and if that's the other key, look it up */
+	if (keyid != key->keyidx) {
+		/*
+		 * shouldn't happen since firmware checked, but be safe
+		 * in case the MIC length is wrong too, for example
+		 */
+		if (keyid != 6 && keyid != 7)
+			return -1;
+		key = rcu_dereference(mvmvif->bcn_prot.keys[keyid - 6]);
+		if (!key)
+			return -1;
+	}
 
 	/* Report status to mac80211 */
 	if (!(status & IWL_RX_MPDU_STATUS_MIC_OK))
@@ -2001,8 +2014,10 @@ void iwl_mvm_rx_monitor_no_data(struct iwl_mvm *mvm, struct napi_struct *napi,
 	struct sk_buff *skb;
 	u8 channel, energy_a, energy_b;
 	struct iwl_mvm_rx_phy_data phy_data = {
+		.info_type = le32_get_bits(desc->phy_info[1],
+					   IWL_RX_PHY_DATA1_INFO_TYPE_MASK),
 		.d0 = desc->phy_info[0],
-		.info_type = IWL_RX_PHY_INFO_TYPE_NONE,
+		.d1 = desc->phy_info[1],
 	};
 
 	if (unlikely(iwl_rx_packet_payload_len(pkt) < sizeof(*desc)))
@@ -2014,10 +2029,6 @@ void iwl_mvm_rx_monitor_no_data(struct iwl_mvm *mvm, struct napi_struct *napi,
 	energy_a = (rssi & RX_NO_DATA_CHAIN_A_MSK) >> RX_NO_DATA_CHAIN_A_POS;
 	energy_b = (rssi & RX_NO_DATA_CHAIN_B_MSK) >> RX_NO_DATA_CHAIN_B_POS;
 	channel = (rssi & RX_NO_DATA_CHANNEL_MSK) >> RX_NO_DATA_CHANNEL_POS;
-
-	phy_data.info_type =
-		le32_get_bits(desc->phy_info[1],
-			      IWL_RX_PHY_DATA1_INFO_TYPE_MASK);
 
 	/* Dont use dev_alloc_skb(), we'll have enough headroom once
 	 * ieee80211_hdr pulled.

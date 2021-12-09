@@ -951,6 +951,16 @@ static void nfqnl_nf_hook_drop(struct net *net)
 	struct nfnl_queue_net *q = nfnl_queue_pernet(net);
 	int i;
 
+	/* This function is also called on net namespace error unwind,
+	 * when pernet_ops->init() failed and ->exit() functions of the
+	 * previous pernet_ops gets called.
+	 *
+	 * This may result in a call to nfqnl_nf_hook_drop() before
+	 * struct nfnl_queue_net was allocated.
+	 */
+	if (!q)
+		return;
+
 	for (i = 0; i < INSTANCE_BUCKETS; i++) {
 		struct nfqnl_instance *inst;
 		struct hlist_head *head = &q->instance_table[i];
@@ -1051,8 +1061,7 @@ static int nfqnl_recv_verdict_batch(struct sk_buff *skb,
 				    const struct nlattr * const nfqa[])
 {
 	struct nfnl_queue_net *q = nfnl_queue_pernet(info->net);
-	struct nfgenmsg *nfmsg = nlmsg_data(info->nlh);
-	u16 queue_num = ntohs(nfmsg->res_id);
+	u16 queue_num = ntohs(info->nfmsg->res_id);
 	struct nf_queue_entry *entry, *tmp;
 	struct nfqnl_msg_verdict_hdr *vhdr;
 	struct nfqnl_instance *queue;
@@ -1160,8 +1169,7 @@ static int nfqnl_recv_verdict(struct sk_buff *skb, const struct nfnl_info *info,
 			      const struct nlattr * const nfqa[])
 {
 	struct nfnl_queue_net *q = nfnl_queue_pernet(info->net);
-	struct nfgenmsg *nfmsg = nlmsg_data(info->nlh);
-	u_int16_t queue_num = ntohs(nfmsg->res_id);
+	u_int16_t queue_num = ntohs(info->nfmsg->res_id);
 	struct nfqnl_msg_verdict_hdr *vhdr;
 	enum ip_conntrack_info ctinfo;
 	struct nfqnl_instance *queue;
@@ -1243,8 +1251,7 @@ static int nfqnl_recv_config(struct sk_buff *skb, const struct nfnl_info *info,
 			     const struct nlattr * const nfqa[])
 {
 	struct nfnl_queue_net *q = nfnl_queue_pernet(info->net);
-	struct nfgenmsg *nfmsg = nlmsg_data(info->nlh);
-	u_int16_t queue_num = ntohs(nfmsg->res_id);
+	u_int16_t queue_num = ntohs(info->nfmsg->res_id);
 	struct nfqnl_msg_config_cmd *cmd = NULL;
 	struct nfqnl_instance *queue;
 	__u32 flags = 0, mask = 0;
@@ -1505,7 +1512,6 @@ static int __net_init nfnl_queue_net_init(struct net *net)
 			&nfqnl_seq_ops, sizeof(struct iter_state)))
 		return -ENOMEM;
 #endif
-	nf_register_queue_handler(net, &nfqh);
 	return 0;
 }
 
@@ -1514,7 +1520,6 @@ static void __net_exit nfnl_queue_net_exit(struct net *net)
 	struct nfnl_queue_net *q = nfnl_queue_pernet(net);
 	unsigned int i;
 
-	nf_unregister_queue_handler(net);
 #ifdef CONFIG_PROC_FS
 	remove_proc_entry("nfnetlink_queue", net->nf.proc_netfilter);
 #endif
@@ -1558,6 +1563,8 @@ static int __init nfnetlink_queue_init(void)
 		goto cleanup_netlink_subsys;
 	}
 
+	nf_register_queue_handler(&nfqh);
+
 	return status;
 
 cleanup_netlink_subsys:
@@ -1571,6 +1578,7 @@ out:
 
 static void __exit nfnetlink_queue_fini(void)
 {
+	nf_unregister_queue_handler();
 	unregister_netdevice_notifier(&nfqnl_dev_notifier);
 	nfnetlink_subsys_unregister(&nfqnl_subsys);
 	netlink_unregister_notifier(&nfqnl_rtnl_notifier);

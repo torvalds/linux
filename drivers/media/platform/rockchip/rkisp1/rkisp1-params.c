@@ -1143,7 +1143,7 @@ static void rkisp1_params_apply_params_cfg(struct rkisp1_params *params,
 	cur_buf = list_first_entry(&params->params,
 				   struct rkisp1_buffer, queue);
 
-	new_params = (struct rkisp1_params_cfg *)(cur_buf->vaddr);
+	new_params = (struct rkisp1_params_cfg *)vb2_plane_vaddr(&cur_buf->vb.vb2_buf, 0);
 
 	rkisp1_isp_isr_other_config(params, new_params);
 	rkisp1_isp_isr_meas_config(params, new_params);
@@ -1258,7 +1258,10 @@ void rkisp1_params_configure(struct rkisp1_params *params,
 	rkisp1_params_config_parameter(params);
 }
 
-/* Not called when the camera active, thus not isr protection. */
+/*
+ * Not called when the camera is active, therefore there is no need to acquire
+ * a lock.
+ */
 void rkisp1_params_disable(struct rkisp1_params *params)
 {
 	rkisp1_param_clear_bits(params, RKISP1_CIF_ISP_DPCC_MODE,
@@ -1379,7 +1382,6 @@ static void rkisp1_params_vb2_buf_queue(struct vb2_buffer *vb)
 	struct vb2_queue *vq = vb->vb2_queue;
 	struct rkisp1_params *params = vq->drv_priv;
 
-	params_buf->vaddr = vb2_plane_vaddr(vb, 0);
 	spin_lock_irq(&params->config_lock);
 	list_add_tail(&params_buf->queue, &params->params);
 	spin_unlock_irq(&params->config_lock);

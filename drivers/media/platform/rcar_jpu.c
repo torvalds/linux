@@ -42,7 +42,7 @@
 
 /*
  * Align JPEG header end to cache line to make sure we will not have any issues
- * with cache; additionally to requerment (33.3.27 R01UH0501EJ0100 Rev.1.00)
+ * with cache; additionally to requirement (33.3.27 R01UH0501EJ0100 Rev.1.00)
  */
 #define JPU_JPEG_HDR_SIZE		(ALIGN(0x258, L1_CACHE_BYTES))
 #define JPU_JPEG_MAX_BYTES_PER_PIXEL	2	/* 16 bit precision format */
@@ -121,7 +121,7 @@
 #define JCCMD_JEND	(1 << 2)
 #define JCCMD_JSRT	(1 << 0)
 
-/* JPEG code quantanization table number register */
+/* JPEG code quantization table number register */
 #define JCQTN	0x0c
 #define JCQTN_SHIFT(t)		(((t) - 1) << 1)
 
@@ -1644,7 +1644,7 @@ static int jpu_probe(struct platform_device *pdev)
 		goto device_register_rollback;
 	}
 
-	/* fill in qantization and Huffman tables for encoder */
+	/* fill in quantization and Huffman tables for encoder */
 	for (i = 0; i < JPU_MAX_QUALITY; i++)
 		jpu_generate_hdr(i, (unsigned char *)jpeg_hdrs[i]);
 

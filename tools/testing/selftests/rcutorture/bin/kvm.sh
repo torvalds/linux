@@ -20,6 +20,9 @@ mkdir $T
 
 cd `dirname $scriptname`/../../../../../
 
+# This script knows only English.
+LANG=en_US.UTF-8; export LANG
+
 dur=$((30*60))
 dryrun=""
 KVM="`pwd`/tools/testing/selftests/rcutorture"; export KVM
@@ -41,6 +44,7 @@ TORTURE_KCONFIG_KASAN_ARG=""
 TORTURE_KCONFIG_KCSAN_ARG=""
 TORTURE_KMAKE_ARG=""
 TORTURE_QEMU_MEM=512
+TORTURE_REMOTE=
 TORTURE_SHUTDOWN_GRACE=180
 TORTURE_SUITE=rcu
 TORTURE_MOD=rcutorture
@@ -64,7 +68,7 @@ usage () {
 	echo "       --cpus N"
 	echo "       --datestamp string"
 	echo "       --defconfig string"
-	echo "       --dryrun batches|sched|script"
+	echo "       --dryrun batches|scenarios|sched|script"
 	echo "       --duration minutes | <seconds>s | <hours>h | <days>d"
 	echo "       --gdb"
 	echo "       --help"
@@ -77,6 +81,7 @@ usage () {
 	echo "       --no-initrd"
 	echo "       --qemu-args qemu-arguments"
 	echo "       --qemu-cmd qemu-system-..."
+	echo "       --remote"
 	echo "       --results absolute-pathname"
 	echo "       --torture lock|rcu|rcuscale|refscale|scf"
 	echo "       --trust-make"
@@ -112,10 +117,13 @@ do
 		checkarg --cpus "(number)" "$#" "$2" '^[0-9]*$' '^--'
 		cpus=$2
 		TORTURE_ALLOTED_CPUS="$2"
-		max_cpus="`identify_qemu_vcpus`"
-		if test "$TORTURE_ALLOTED_CPUS" -gt "$max_cpus"
+		if test -z "$TORTURE_REMOTE"
 		then
-			TORTURE_ALLOTED_CPUS=$max_cpus
+			max_cpus="`identify_qemu_vcpus`"
+			if test "$TORTURE_ALLOTED_CPUS" -gt "$max_cpus"
+			then
+				TORTURE_ALLOTED_CPUS=$max_cpus
+			fi
 		fi
 		shift
 		;;
@@ -130,7 +138,7 @@ do
 		shift
 		;;
 	--dryrun)
-		checkarg --dryrun "batches|sched|script" $# "$2" 'batches\|sched\|script' '^--'
+		checkarg --dryrun "batches|sched|script" $# "$2" 'batches\|scenarios\|sched\|script' '^--'
 		dryrun=$2
 		shift
 		;;
@@ -205,6 +213,9 @@ do
 		checkarg --qemu-cmd "(qemu-system-...)" $# "$2" 'qemu-system-' '^--'
 		TORTURE_QEMU_CMD="$2"
 		shift
+		;;
+	--remote)
+		TORTURE_REMOTE=1
 		;;
 	--results)
 		checkarg --results "(absolute pathname)" "$#" "$2" '^/' '^error'
@@ -419,17 +430,10 @@ then
 	git diff HEAD >> $resdir/$ds/testid.txt
 fi
 ___EOF___
-awk < $T/cfgcpu.pack \
-	-v TORTURE_BUILDONLY="$TORTURE_BUILDONLY" \
-	-v CONFIGDIR="$CONFIGFRAG/" \
-	-v KVM="$KVM" \
-	-v ncpus=$cpus \
-	-v jitter="$jitter" \
-	-v rd=$resdir/$ds/ \
-	-v dur=$dur \
-	-v TORTURE_QEMU_ARG="$TORTURE_QEMU_ARG" \
-	-v TORTURE_BOOTARGS="$TORTURE_BOOTARGS" \
-'BEGIN {
+kvm-assign-cpus.sh /sys/devices/system/node > $T/cpuarray.awk
+kvm-get-cpus-script.sh $T/cpuarray.awk $T/dumpbatches.awk
+cat << '___EOF___' >> $T/dumpbatches.awk
+BEGIN {
 	i = 0;
 }
 
@@ -440,7 +444,7 @@ awk < $T/cfgcpu.pack \
 }
 
 # Dump out the scripting required to run one test batch.
-function dump(first, pastlast, batchnum)
+function dump(first, pastlast, batchnum,  affinitylist)
 {
 	print "echo ----Start batch " batchnum ": `date` | tee -a " rd "log";
 	print "needqemurun="
@@ -472,6 +476,14 @@ function dump(first, pastlast, batchnum)
 		print "echo ", cfr[jn], cpusr[jn] ovf ": Starting build. `date` | tee -a " rd "log";
 		print "mkdir " rd cfr[jn] " || :";
 		print "touch " builddir ".wait";
+		affinitylist = "";
+		if (gotcpus()) {
+			affinitylist = nextcpus(cpusr[jn]);
+		}
+		if (affinitylist ~ /^[0-9,-][0-9,-]*$/)
+			print "export TORTURE_AFFINITY=" affinitylist;
+		else
+			print "export TORTURE_AFFINITY=";
 		print "kvm-test-1-run.sh " CONFIGDIR cf[j], rd cfr[jn], dur " \"" TORTURE_QEMU_ARG "\" \"" TORTURE_BOOTARGS "\" > " rd cfr[jn]  "/kvm-test-1-run.sh.out 2>&1 &"
 		print "echo ", cfr[jn], cpusr[jn] ovf ": Waiting for build to complete. `date` | tee -a " rd "log";
 		print "while test -f " builddir ".wait"
@@ -549,21 +561,20 @@ END {
 	# Dump the last batch.
 	if (ncpus != 0)
 		dump(first, i, batchnum);
-}' >> $T/script
-
-cat << '___EOF___' >> $T/script
-echo | tee -a $TORTURE_RESDIR/log
-echo | tee -a $TORTURE_RESDIR/log
-echo " --- `date` Test summary:" | tee -a $TORTURE_RESDIR/log
+}
 ___EOF___
-cat << ___EOF___ >> $T/script
-echo Results directory: $resdir/$ds | tee -a $resdir/$ds/log
-kcsan-collapse.sh $resdir/$ds | tee -a $resdir/$ds/log
-kvm-recheck.sh $resdir/$ds > $T/kvm-recheck.sh.out 2>&1
-___EOF___
-echo 'ret=$?' >> $T/script
-echo "cat $T/kvm-recheck.sh.out | tee -a $resdir/$ds/log" >> $T/script
-echo 'exit $ret' >> $T/script
+awk < $T/cfgcpu.pack \
+	-v TORTURE_BUILDONLY="$TORTURE_BUILDONLY" \
+	-v CONFIGDIR="$CONFIGFRAG/" \
+	-v KVM="$KVM" \
+	-v ncpus=$cpus \
+	-v jitter="$jitter" \
+	-v rd=$resdir/$ds/ \
+	-v dur=$dur \
+	-v TORTURE_QEMU_ARG="$TORTURE_QEMU_ARG" \
+	-v TORTURE_BOOTARGS="$TORTURE_BOOTARGS" \
+	-f $T/dumpbatches.awk >> $T/script
+echo kvm-end-run-stats.sh "$resdir/$ds" "$starttime" >> $T/script
 
 # Extract the tests and their batches from the script.
 egrep 'Start batch|Starting build\.' $T/script | grep -v ">>" |
@@ -576,6 +587,25 @@ egrep 'Start batch|Starting build\.' $T/script | grep -v ">>" |
 	{
 		print batchno, $1, $2
 	}' > $T/batches
+
+# As above, but one line per batch.
+grep -v '^#' $T/batches | awk '
+BEGIN {
+	oldbatch = 1;
+}
+
+{
+	if (oldbatch != $1) {
+		print ++n ". " curbatch;
+		curbatch = "";
+		oldbatch = $1;
+	}
+	curbatch = curbatch " " $2;
+}
+
+END {
+	print ++n ". " curbatch;
+}' > $T/scenarios
 
 if test "$dryrun" = script
 then
@@ -597,13 +627,17 @@ elif test "$dryrun" = batches
 then
 	cat $T/batches
 	exit 0
+elif test "$dryrun" = scenarios
+then
+	cat $T/scenarios
+	exit 0
 else
 	# Not a dryrun.  Record the batches and the number of CPUs, then run the script.
 	bash $T/script
 	ret=$?
 	cp $T/batches $resdir/$ds/batches
+	cp $T/scenarios $resdir/$ds/scenarios
 	echo '#' cpus=$cpus >> $resdir/$ds/batches
-	echo " --- Done at `date` (`get_starttime_duration $starttime`) exitcode $ret" | tee -a $resdir/$ds/log
 	exit $ret
 fi
 
