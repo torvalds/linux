@@ -182,7 +182,7 @@ int mt7921_mcu_parse_response(struct mt76_dev *mdev, int cmd,
 	if (cmd == MCU_CMD_PATCH_SEM_CONTROL) {
 		skb_pull(skb, sizeof(*rxd) - 4);
 		ret = *skb->data;
-	} else if (cmd == MCU_EXT_CMD(GET_TEMP)) {
+	} else if (cmd == MCU_EXT_CMD(THERMAL_CTRL)) {
 		skb_pull(skb, sizeof(*rxd) + 4);
 		ret = le32_to_cpu(*(__le32 *)skb->data);
 	} else if (cmd == MCU_EXT_CMD(EFUSE_ACCESS)) {
