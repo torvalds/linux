@@ -901,6 +901,8 @@ struct ath11k_hal {
 	/* shadow register configuration */
 	u32 shadow_reg_addr[HAL_SHADOW_NUM_REGS];
 	int num_shadow_reg_configured;
+
+	struct lock_class_key srng_key[HAL_SRNG_RING_ID_MAX];
 };
 
 u32 ath11k_hal_reo_qdesc_size(u32 ba_window_size, u8 tid);
