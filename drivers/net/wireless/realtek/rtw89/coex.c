@@ -4553,14 +4553,12 @@ void rtw89_btc_c2h_handle(struct rtw89_dev *rtwdev, struct sk_buff *skb,
 		rtw89_debug(rtwdev, RTW89_DBG_BTC,
 			    "[BTC], handle C2H BT INFO with data %8ph\n", buf);
 		btc->cx.cnt_bt[BTC_BCNT_INFOUPDATE]++;
-		rtw89_leave_ps_mode(rtwdev);
 		_update_bt_info(rtwdev, buf, len);
 		break;
 	case BTF_EVNT_BT_SCBD:
 		rtw89_debug(rtwdev, RTW89_DBG_BTC,
 			    "[BTC], handle C2H BT SCBD with data %8ph\n", buf);
 		btc->cx.cnt_bt[BTC_BCNT_SCBDUPDATE]++;
-		rtw89_leave_ps_mode(rtwdev);
 		_update_bt_scbd(rtwdev, false);
 		break;
 	case BTF_EVNT_BT_PSD:
