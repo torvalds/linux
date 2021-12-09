@@ -155,9 +155,6 @@ void put_io_context(struct io_context *ioc)
 	unsigned long flags;
 	bool free_ioc = false;
 
-	if (ioc == NULL)
-		return;
-
 	BUG_ON(atomic_long_read(&ioc->refcount) <= 0);
 
 	/*
