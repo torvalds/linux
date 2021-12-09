@@ -192,27 +192,6 @@ void exit_io_context(struct task_struct *task)
 	}
 }
 
-static void __ioc_clear_queue(struct list_head *icq_list)
-{
-	unsigned long flags;
-
-	rcu_read_lock();
-	while (!list_empty(icq_list)) {
-		struct io_cq *icq = list_entry(icq_list->next,
-						struct io_cq, q_node);
-		struct io_context *ioc = icq->ioc;
-
-		spin_lock_irqsave(&ioc->lock, flags);
-		if (icq->flags & ICQ_DESTROYED) {
-			spin_unlock_irqrestore(&ioc->lock, flags);
-			continue;
-		}
-		ioc_destroy_icq(icq);
-		spin_unlock_irqrestore(&ioc->lock, flags);
-	}
-	rcu_read_unlock();
-}
-
 /**
  * ioc_clear_queue - break any ioc association with the specified queue
  * @q: request_queue being cleared
@@ -227,7 +206,17 @@ void ioc_clear_queue(struct request_queue *q)
 	list_splice_init(&q->icq_list, &icq_list);
 	spin_unlock_irq(&q->queue_lock);
 
-	__ioc_clear_queue(&icq_list);
+	rcu_read_lock();
+	while (!list_empty(&icq_list)) {
+		struct io_cq *icq =
+			list_entry(icq_list.next, struct io_cq, q_node);
+
+		spin_lock_irq(&icq->ioc->lock);
+		if (!(icq->flags & ICQ_DESTROYED))
+			ioc_destroy_icq(icq);
+		spin_unlock_irq(&icq->ioc->lock);
+	}
+	rcu_read_unlock();
 }
 
 static struct io_context *alloc_io_context(gfp_t gfp_flags, int node)
