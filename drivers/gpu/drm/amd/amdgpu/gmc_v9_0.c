@@ -1745,7 +1745,7 @@ static int gmc_v9_0_hw_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	bool value;
-	int r, i;
+	int i;
 
 	/* The sequence of these two function calls matters.*/
 	gmc_v9_0_init_golden_registers(adev);
@@ -1780,9 +1780,7 @@ static int gmc_v9_0_hw_init(void *handle)
 	if (adev->umc.funcs && adev->umc.funcs->init_registers)
 		adev->umc.funcs->init_registers(adev);
 
-	r = gmc_v9_0_gart_enable(adev);
-
-	return r;
+	return gmc_v9_0_gart_enable(adev);
 }
 
 /**
