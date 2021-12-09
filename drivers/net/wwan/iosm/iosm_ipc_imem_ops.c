@@ -11,7 +11,6 @@
 #include "iosm_ipc_imem_ops.h"
 #include "iosm_ipc_port.h"
 #include "iosm_ipc_task_queue.h"
-#include "iosm_ipc_trace.h"
 
 /* Open a packet data online channel between the network layer and CP. */
 int ipc_imem_sys_wwan_open(struct iosm_imem *ipc_imem, int if_id)
@@ -106,23 +105,6 @@ void ipc_imem_wwan_channel_init(struct iosm_imem *ipc_imem,
 	if (!ipc_imem->wwan)
 		dev_err(ipc_imem->dev,
 			"failed to register the ipc_wwan interfaces");
-}
-
-/**
- * ipc_imem_trace_channel_init - Initializes trace channel.
- * @ipc_imem:          Pointer to iosm_imem struct.
- *
- * Returns: Pointer to trace instance on success else NULL
- */
-struct iosm_trace *ipc_imem_trace_channel_init(struct iosm_imem *ipc_imem)
-{
-	struct ipc_chnl_cfg chnl_cfg = { 0 };
-
-	ipc_chnl_cfg_get(&chnl_cfg, IPC_MEM_CTRL_CHL_ID_3);
-	ipc_imem_channel_init(ipc_imem, IPC_CTYPE_CTRL, chnl_cfg,
-			      IRQ_MOD_OFF);
-
-	return ipc_trace_init(ipc_imem);
 }
 
 /* Map SKB to DMA for transfer */

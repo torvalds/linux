@@ -45,7 +45,30 @@ struct iosm_trace {
 	enum trace_ctrl_mode mode;
 };
 
+#ifdef CONFIG_WWAN_DEBUGFS
+
+static inline bool ipc_is_trace_channel(struct iosm_imem *ipc_mem, u16 chl_id)
+{
+	return ipc_mem->trace && ipc_mem->trace->chl_id == chl_id;
+}
+
 struct iosm_trace *ipc_trace_init(struct iosm_imem *ipc_imem);
 void ipc_trace_deinit(struct iosm_trace *ipc_trace);
-void ipc_trace_port_rx(struct iosm_trace *ipc_trace, struct sk_buff *skb);
+void ipc_trace_port_rx(struct iosm_imem *ipc_imem, struct sk_buff *skb);
+
+#else
+
+static inline bool ipc_is_trace_channel(struct iosm_imem *ipc_mem, u16 chl_id)
+{
+	return false;
+}
+
+static inline void ipc_trace_port_rx(struct iosm_imem *ipc_imem,
+				     struct sk_buff *skb)
+{
+	dev_kfree_skb(skb);
+}
+
+#endif
+
 #endif

@@ -17,11 +17,13 @@
 
 /**
  * ipc_trace_port_rx - Receive trace packet from cp and write to relay buffer
- * @ipc_trace:  Pointer to the ipc trace data-struct
+ * @ipc_imem:   Pointer to iosm_imem structure
  * @skb:        Pointer to struct sk_buff
  */
-void ipc_trace_port_rx(struct iosm_trace *ipc_trace, struct sk_buff *skb)
+void ipc_trace_port_rx(struct iosm_imem *ipc_imem, struct sk_buff *skb)
 {
+	struct iosm_trace *ipc_trace = ipc_imem->trace;
+
 	if (ipc_trace->ipc_rchan)
 		relay_write(ipc_trace->ipc_rchan, skb->data, skb->len);
 
@@ -132,9 +134,14 @@ static const struct file_operations ipc_trace_fops = {
  */
 struct iosm_trace *ipc_trace_init(struct iosm_imem *ipc_imem)
 {
-	struct iosm_trace *ipc_trace = kzalloc(sizeof(*ipc_trace), GFP_KERNEL);
-	struct dentry *debugfs_pdev;
+	struct ipc_chnl_cfg chnl_cfg = { 0 };
+	struct iosm_trace *ipc_trace;
 
+	ipc_chnl_cfg_get(&chnl_cfg, IPC_MEM_CTRL_CHL_ID_3);
+	ipc_imem_channel_init(ipc_imem, IPC_CTYPE_CTRL, chnl_cfg,
+			      IRQ_MOD_OFF);
+
+	ipc_trace = kzalloc(sizeof(*ipc_trace), GFP_KERNEL);
 	if (!ipc_trace)
 		return NULL;
 
@@ -144,15 +151,14 @@ struct iosm_trace *ipc_trace_init(struct iosm_imem *ipc_imem)
 	ipc_trace->chl_id = IPC_MEM_CTRL_CHL_ID_3;
 
 	mutex_init(&ipc_trace->trc_mutex);
-	debugfs_pdev = wwan_get_debugfs_dir(ipc_imem->dev);
 
 	ipc_trace->ctrl_file = debugfs_create_file(IOSM_TRC_DEBUGFS_TRACE_CTRL,
 						   IOSM_TRC_FILE_PERM,
-						   debugfs_pdev,
+						   ipc_imem->debugfs_dir,
 						   ipc_trace, &ipc_trace_fops);
 
 	ipc_trace->ipc_rchan = relay_open(IOSM_TRC_DEBUGFS_TRACE,
-					  debugfs_pdev,
+					  ipc_imem->debugfs_dir,
 					  IOSM_TRC_SUB_BUFF_SIZE,
 					  IOSM_TRC_N_SUB_BUFF,
 					  &relay_callbacks, NULL);
@@ -166,6 +172,9 @@ struct iosm_trace *ipc_trace_init(struct iosm_imem *ipc_imem)
  */
 void ipc_trace_deinit(struct iosm_trace *ipc_trace)
 {
+	if (!ipc_trace)
+		return;
+
 	debugfs_remove(ipc_trace->ctrl_file);
 	relay_close(ipc_trace->ipc_rchan);
 	mutex_destroy(&ipc_trace->trc_mutex);
