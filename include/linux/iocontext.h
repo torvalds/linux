@@ -99,7 +99,6 @@ struct io_cq {
 struct io_context {
 	atomic_long_t refcount;
 	atomic_t active_ref;
-	atomic_t nr_tasks;
 
 	/* all the fields below are protected by this lock */
 	spinlock_t lock;

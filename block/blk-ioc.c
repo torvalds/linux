@@ -207,7 +207,6 @@ void exit_io_context(struct task_struct *task)
 	task->io_context = NULL;
 	task_unlock(task);
 
-	atomic_dec(&ioc->nr_tasks);
 	put_io_context_active(ioc);
 }
 
@@ -259,7 +258,6 @@ static struct io_context *alloc_io_context(gfp_t gfp_flags, int node)
 		return NULL;
 
 	atomic_long_set(&ioc->refcount, 1);
-	atomic_set(&ioc->nr_tasks, 1);
 	atomic_set(&ioc->active_ref, 1);
 	spin_lock_init(&ioc->lock);
 	INIT_RADIX_TREE(&ioc->icq_tree, GFP_ATOMIC);
@@ -339,7 +337,6 @@ int __copy_io(unsigned long clone_flags, struct task_struct *tsk)
 	if (clone_flags & CLONE_IO) {
 		atomic_long_inc(&ioc->refcount);
 		atomic_inc(&ioc->active_ref);
-		atomic_inc(&ioc->nr_tasks);
 		tsk->io_context = ioc;
 	} else if (ioprio_valid(ioc->ioprio)) {
 		tsk->io_context = alloc_io_context(GFP_KERNEL, NUMA_NO_NODE);
