@@ -9,6 +9,7 @@
 #include <linux/shmem_fs.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
+#include <linux/module.h>
 
 #ifdef CONFIG_X86
 #include <asm/set_memory.h>
