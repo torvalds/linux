@@ -1452,6 +1452,8 @@ retry:
 	       (k = bch2_btree_iter_peek(&iter)).k) &&
 	       !(ret = bkey_err(k)) &&
 	       bkey_cmp(iter.pos, end) < 0) {
+		struct disk_reservation disk_res =
+			bch2_disk_reservation_init(trans->c, 0);
 		struct bkey_i delete;
 
 		bkey_init(&delete.k);
@@ -1486,8 +1488,9 @@ retry:
 		}
 
 		ret   = bch2_trans_update(trans, &iter, &delete, 0) ?:
-			bch2_trans_commit(trans, NULL, journal_seq,
+			bch2_trans_commit(trans, &disk_res, journal_seq,
 					BTREE_INSERT_NOFAIL);
+		bch2_disk_reservation_put(trans->c, &disk_res);
 		if (ret)
 			break;
 	}
