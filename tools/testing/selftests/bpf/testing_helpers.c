@@ -88,13 +88,15 @@ int extra_prog_load_log_flags = 0;
 int bpf_prog_test_load(const char *file, enum bpf_prog_type type,
 		       struct bpf_object **pobj, int *prog_fd)
 {
-	struct bpf_object_load_attr attr = {};
+	LIBBPF_OPTS(bpf_object_open_opts, opts,
+		.kernel_log_level = extra_prog_load_log_flags,
+	);
 	struct bpf_object *obj;
 	struct bpf_program *prog;
 	__u32 flags;
 	int err;
 
-	obj = bpf_object__open(file);
+	obj = bpf_object__open_file(file, &opts);
 	if (!obj)
 		return -errno;
 
@@ -110,9 +112,7 @@ int bpf_prog_test_load(const char *file, enum bpf_prog_type type,
 	flags = bpf_program__flags(prog) | BPF_F_TEST_RND_HI32;
 	bpf_program__set_flags(prog, flags);
 
-	attr.obj = obj;
-	attr.log_level = extra_prog_load_log_flags;
-	err = bpf_object__load_xattr(&attr);
+	err = bpf_object__load(obj);
 	if (err)
 		goto err_out;
 
