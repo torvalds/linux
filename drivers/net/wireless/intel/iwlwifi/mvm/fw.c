@@ -1153,11 +1153,38 @@ static int iwl_mvm_ppag_init(struct iwl_mvm *mvm)
 	return iwl_mvm_ppag_send_cmd(mvm);
 }
 
+static const struct dmi_system_id dmi_tas_approved_list[] = {
+	{ .ident = "HP",
+	  .matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "HP"),
+		},
+	},
+	{ .ident = "SAMSUNG",
+	  .matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "SAMSUNG ELECTRONICS CO., LTD"),
+		},
+	},
+		{ .ident = "LENOVO",
+	  .matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Lenovo"),
+		},
+	},
+	{ .ident = "DELL",
+	  .matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
+		},
+	},
+
+	/* keep last */
+	{}
+};
+
 static void iwl_mvm_tas_init(struct iwl_mvm *mvm)
 {
 	int ret;
 	struct iwl_tas_config_cmd_v3 cmd = {};
 	int cmd_size;
+	const struct ieee80211_regdomain *regd;
 
 	BUILD_BUG_ON(ARRAY_SIZE(cmd.block_list_array) <
 		     APCI_WTAS_BLACK_LIST_MAX);
@@ -1165,6 +1192,24 @@ static void iwl_mvm_tas_init(struct iwl_mvm *mvm)
 	if (!fw_has_capa(&mvm->fw->ucode_capa, IWL_UCODE_TLV_CAPA_TAS_CFG)) {
 		IWL_DEBUG_RADIO(mvm, "TAS not enabled in FW\n");
 		return;
+	}
+
+	/* Get the MCC from cfg80211 */
+	regd = wiphy_dereference(mvm->hw->wiphy, mvm->hw->wiphy->regd);
+
+	if (!regd) {
+		IWL_DEBUG_RADIO(mvm, "MCC is unavailable\n");
+		return;
+	}
+
+	if ((regd->alpha2[0] == 'U' && regd->alpha2[1] == 'S') ||
+	    (regd->alpha2[0] == 'C' && regd->alpha2[1] == 'A')) {
+		if (!dmi_check_system(dmi_tas_approved_list)) {
+			IWL_DEBUG_RADIO(mvm,
+					"System vendor '%s' is not in the approved list, disabling TAS.\n",
+					dmi_get_system_info(DMI_SYS_VENDOR));
+			return;
+		}
 	}
 
 	ret = iwl_acpi_get_tas(&mvm->fwrt, &cmd);
