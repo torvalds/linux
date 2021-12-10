@@ -33,15 +33,14 @@
 
 static int skips;
 
-static int map_flags;
+static struct bpf_map_create_opts map_opts = { .sz = sizeof(map_opts) };
 
 static void test_hashmap(unsigned int task, void *data)
 {
 	long long key, next_key, first_key, value;
 	int fd;
 
-	fd = bpf_create_map(BPF_MAP_TYPE_HASH, sizeof(key), sizeof(value),
-			    2, map_flags);
+	fd = bpf_map_create(BPF_MAP_TYPE_HASH, NULL, sizeof(key), sizeof(value), 2, &map_opts);
 	if (fd < 0) {
 		printf("Failed to create hashmap '%s'!\n", strerror(errno));
 		exit(1);
@@ -138,8 +137,7 @@ static void test_hashmap_sizes(unsigned int task, void *data)
 
 	for (i = 1; i <= 512; i <<= 1)
 		for (j = 1; j <= 1 << 18; j <<= 1) {
-			fd = bpf_create_map(BPF_MAP_TYPE_HASH, i, j,
-					    2, map_flags);
+			fd = bpf_map_create(BPF_MAP_TYPE_HASH, NULL, i, j, 2, &map_opts);
 			if (fd < 0) {
 				if (errno == ENOMEM)
 					return;
@@ -160,8 +158,8 @@ static void test_hashmap_percpu(unsigned int task, void *data)
 	int expected_key_mask = 0;
 	int fd, i;
 
-	fd = bpf_create_map(BPF_MAP_TYPE_PERCPU_HASH, sizeof(key),
-			    sizeof(bpf_percpu(value, 0)), 2, map_flags);
+	fd = bpf_map_create(BPF_MAP_TYPE_PERCPU_HASH, NULL, sizeof(key),
+			    sizeof(bpf_percpu(value, 0)), 2, &map_opts);
 	if (fd < 0) {
 		printf("Failed to create hashmap '%s'!\n", strerror(errno));
 		exit(1);
@@ -272,11 +270,11 @@ static int helper_fill_hashmap(int max_entries)
 	int i, fd, ret;
 	long long key, value;
 
-	fd = bpf_create_map(BPF_MAP_TYPE_HASH, sizeof(key), sizeof(value),
-			    max_entries, map_flags);
+	fd = bpf_map_create(BPF_MAP_TYPE_HASH, NULL, sizeof(key), sizeof(value),
+			    max_entries, &map_opts);
 	CHECK(fd < 0,
 	      "failed to create hashmap",
-	      "err: %s, flags: 0x%x\n", strerror(errno), map_flags);
+	      "err: %s, flags: 0x%x\n", strerror(errno), map_opts.map_flags);
 
 	for (i = 0; i < max_entries; i++) {
 		key = i; value = key;
@@ -332,8 +330,8 @@ static void test_hashmap_zero_seed(void)
 	int i, first, second, old_flags;
 	long long key, next_first, next_second;
 
-	old_flags = map_flags;
-	map_flags |= BPF_F_ZERO_SEED;
+	old_flags = map_opts.map_flags;
+	map_opts.map_flags |= BPF_F_ZERO_SEED;
 
 	first = helper_fill_hashmap(3);
 	second = helper_fill_hashmap(3);
@@ -355,7 +353,7 @@ static void test_hashmap_zero_seed(void)
 		key = next_first;
 	}
 
-	map_flags = old_flags;
+	map_opts.map_flags = old_flags;
 	close(first);
 	close(second);
 }
@@ -365,8 +363,7 @@ static void test_arraymap(unsigned int task, void *data)
 	int key, next_key, fd;
 	long long value;
 
-	fd = bpf_create_map(BPF_MAP_TYPE_ARRAY, sizeof(key), sizeof(value),
-			    2, 0);
+	fd = bpf_map_create(BPF_MAP_TYPE_ARRAY, NULL, sizeof(key), sizeof(value), 2, NULL);
 	if (fd < 0) {
 		printf("Failed to create arraymap '%s'!\n", strerror(errno));
 		exit(1);
@@ -421,8 +418,8 @@ static void test_arraymap_percpu(unsigned int task, void *data)
 	BPF_DECLARE_PERCPU(long, values);
 	int key, next_key, fd, i;
 
-	fd = bpf_create_map(BPF_MAP_TYPE_PERCPU_ARRAY, sizeof(key),
-			    sizeof(bpf_percpu(values, 0)), 2, 0);
+	fd = bpf_map_create(BPF_MAP_TYPE_PERCPU_ARRAY, NULL, sizeof(key),
+			    sizeof(bpf_percpu(values, 0)), 2, NULL);
 	if (fd < 0) {
 		printf("Failed to create arraymap '%s'!\n", strerror(errno));
 		exit(1);
@@ -484,8 +481,8 @@ static void test_arraymap_percpu_many_keys(void)
 	unsigned int nr_keys = 2000;
 	int key, fd, i;
 
-	fd = bpf_create_map(BPF_MAP_TYPE_PERCPU_ARRAY, sizeof(key),
-			    sizeof(bpf_percpu(values, 0)), nr_keys, 0);
+	fd = bpf_map_create(BPF_MAP_TYPE_PERCPU_ARRAY, NULL, sizeof(key),
+			    sizeof(bpf_percpu(values, 0)), nr_keys, NULL);
 	if (fd < 0) {
 		printf("Failed to create per-cpu arraymap '%s'!\n",
 		       strerror(errno));
@@ -516,8 +513,7 @@ static void test_devmap(unsigned int task, void *data)
 	int fd;
 	__u32 key, value;
 
-	fd = bpf_create_map(BPF_MAP_TYPE_DEVMAP, sizeof(key), sizeof(value),
-			    2, 0);
+	fd = bpf_map_create(BPF_MAP_TYPE_DEVMAP, NULL, sizeof(key), sizeof(value), 2, NULL);
 	if (fd < 0) {
 		printf("Failed to create devmap '%s'!\n", strerror(errno));
 		exit(1);
@@ -531,8 +527,7 @@ static void test_devmap_hash(unsigned int task, void *data)
 	int fd;
 	__u32 key, value;
 
-	fd = bpf_create_map(BPF_MAP_TYPE_DEVMAP_HASH, sizeof(key), sizeof(value),
-			    2, 0);
+	fd = bpf_map_create(BPF_MAP_TYPE_DEVMAP_HASH, NULL, sizeof(key), sizeof(value), 2, NULL);
 	if (fd < 0) {
 		printf("Failed to create devmap_hash '%s'!\n", strerror(errno));
 		exit(1);
@@ -552,14 +547,12 @@ static void test_queuemap(unsigned int task, void *data)
 		vals[i] = rand();
 
 	/* Invalid key size */
-	fd = bpf_create_map(BPF_MAP_TYPE_QUEUE, 4, sizeof(val), MAP_SIZE,
-			    map_flags);
+	fd = bpf_map_create(BPF_MAP_TYPE_QUEUE, NULL, 4, sizeof(val), MAP_SIZE, &map_opts);
 	assert(fd < 0 && errno == EINVAL);
 
-	fd = bpf_create_map(BPF_MAP_TYPE_QUEUE, 0, sizeof(val), MAP_SIZE,
-			    map_flags);
+	fd = bpf_map_create(BPF_MAP_TYPE_QUEUE, NULL, 0, sizeof(val), MAP_SIZE, &map_opts);
 	/* Queue map does not support BPF_F_NO_PREALLOC */
-	if (map_flags & BPF_F_NO_PREALLOC) {
+	if (map_opts.map_flags & BPF_F_NO_PREALLOC) {
 		assert(fd < 0 && errno == EINVAL);
 		return;
 	}
@@ -610,14 +603,12 @@ static void test_stackmap(unsigned int task, void *data)
 		vals[i] = rand();
 
 	/* Invalid key size */
-	fd = bpf_create_map(BPF_MAP_TYPE_STACK, 4, sizeof(val), MAP_SIZE,
-			    map_flags);
+	fd = bpf_map_create(BPF_MAP_TYPE_STACK, NULL, 4, sizeof(val), MAP_SIZE, &map_opts);
 	assert(fd < 0 && errno == EINVAL);
 
-	fd = bpf_create_map(BPF_MAP_TYPE_STACK, 0, sizeof(val), MAP_SIZE,
-			    map_flags);
+	fd = bpf_map_create(BPF_MAP_TYPE_STACK, NULL, 0, sizeof(val), MAP_SIZE, &map_opts);
 	/* Stack map does not support BPF_F_NO_PREALLOC */
-	if (map_flags & BPF_F_NO_PREALLOC) {
+	if (map_opts.map_flags & BPF_F_NO_PREALLOC) {
 		assert(fd < 0 && errno == EINVAL);
 		return;
 	}
@@ -744,9 +735,9 @@ static void test_sockmap(unsigned int tasks, void *data)
 	}
 
 	/* Test sockmap with connected sockets */
-	fd = bpf_create_map(BPF_MAP_TYPE_SOCKMAP,
+	fd = bpf_map_create(BPF_MAP_TYPE_SOCKMAP, NULL,
 			    sizeof(key), sizeof(value),
-			    6, 0);
+			    6, NULL);
 	if (fd < 0) {
 		if (!bpf_probe_map_type(BPF_MAP_TYPE_SOCKMAP, 0)) {
 			printf("%s SKIP (unsupported map type BPF_MAP_TYPE_SOCKMAP)\n",
@@ -1168,8 +1159,7 @@ static void test_map_in_map(void)
 
 	obj = bpf_object__open(MAPINMAP_PROG);
 
-	fd = bpf_create_map(BPF_MAP_TYPE_HASH, sizeof(int), sizeof(int),
-			    2, 0);
+	fd = bpf_map_create(BPF_MAP_TYPE_HASH, NULL, sizeof(int), sizeof(int), 2, NULL);
 	if (fd < 0) {
 		printf("Failed to create hashmap '%s'!\n", strerror(errno));
 		exit(1);
@@ -1315,8 +1305,8 @@ static void test_map_large(void)
 	} key;
 	int fd, i, value;
 
-	fd = bpf_create_map(BPF_MAP_TYPE_HASH, sizeof(key), sizeof(value),
-			    MAP_SIZE, map_flags);
+	fd = bpf_map_create(BPF_MAP_TYPE_HASH, NULL, sizeof(key), sizeof(value),
+			    MAP_SIZE, &map_opts);
 	if (fd < 0) {
 		printf("Failed to create large map '%s'!\n", strerror(errno));
 		exit(1);
@@ -1469,8 +1459,8 @@ static void test_map_parallel(void)
 	int i, fd, key = 0, value = 0;
 	int data[2];
 
-	fd = bpf_create_map(BPF_MAP_TYPE_HASH, sizeof(key), sizeof(value),
-			    MAP_SIZE, map_flags);
+	fd = bpf_map_create(BPF_MAP_TYPE_HASH, NULL, sizeof(key), sizeof(value),
+			    MAP_SIZE, &map_opts);
 	if (fd < 0) {
 		printf("Failed to create map for parallel test '%s'!\n",
 		       strerror(errno));
@@ -1518,9 +1508,13 @@ static void test_map_parallel(void)
 static void test_map_rdonly(void)
 {
 	int fd, key = 0, value = 0;
+	__u32 old_flags;
 
-	fd = bpf_create_map(BPF_MAP_TYPE_HASH, sizeof(key), sizeof(value),
-			    MAP_SIZE, map_flags | BPF_F_RDONLY);
+	old_flags = map_opts.map_flags;
+	map_opts.map_flags |= BPF_F_RDONLY;
+	fd = bpf_map_create(BPF_MAP_TYPE_HASH, NULL, sizeof(key), sizeof(value),
+			    MAP_SIZE, &map_opts);
+	map_opts.map_flags = old_flags;
 	if (fd < 0) {
 		printf("Failed to create map for read only test '%s'!\n",
 		       strerror(errno));
@@ -1543,9 +1537,13 @@ static void test_map_rdonly(void)
 static void test_map_wronly_hash(void)
 {
 	int fd, key = 0, value = 0;
+	__u32 old_flags;
 
-	fd = bpf_create_map(BPF_MAP_TYPE_HASH, sizeof(key), sizeof(value),
-			    MAP_SIZE, map_flags | BPF_F_WRONLY);
+	old_flags = map_opts.map_flags;
+	map_opts.map_flags |= BPF_F_WRONLY;
+	fd = bpf_map_create(BPF_MAP_TYPE_HASH, NULL, sizeof(key), sizeof(value),
+			    MAP_SIZE, &map_opts);
+	map_opts.map_flags = old_flags;
 	if (fd < 0) {
 		printf("Failed to create map for write only test '%s'!\n",
 		       strerror(errno));
@@ -1567,13 +1565,17 @@ static void test_map_wronly_hash(void)
 static void test_map_wronly_stack_or_queue(enum bpf_map_type map_type)
 {
 	int fd, value = 0;
+	__u32 old_flags;
+
 
 	assert(map_type == BPF_MAP_TYPE_QUEUE ||
 	       map_type == BPF_MAP_TYPE_STACK);
-	fd = bpf_create_map(map_type, 0, sizeof(value), MAP_SIZE,
-			    map_flags | BPF_F_WRONLY);
+	old_flags = map_opts.map_flags;
+	map_opts.map_flags |= BPF_F_WRONLY;
+	fd = bpf_map_create(map_type, NULL, 0, sizeof(value), MAP_SIZE, &map_opts);
+	map_opts.map_flags = old_flags;
 	/* Stack/Queue maps do not support BPF_F_NO_PREALLOC */
-	if (map_flags & BPF_F_NO_PREALLOC) {
+	if (map_opts.map_flags & BPF_F_NO_PREALLOC) {
 		assert(fd < 0 && errno == EINVAL);
 		return;
 	}
@@ -1700,8 +1702,8 @@ static void test_reuseport_array(void)
 	__u32 fds_idx = 0;
 	int fd;
 
-	map_fd = bpf_create_map(BPF_MAP_TYPE_REUSEPORT_SOCKARRAY,
-				sizeof(__u32), sizeof(__u64), array_size, 0);
+	map_fd = bpf_map_create(BPF_MAP_TYPE_REUSEPORT_SOCKARRAY, NULL,
+				sizeof(__u32), sizeof(__u64), array_size, NULL);
 	CHECK(map_fd < 0, "reuseport array create",
 	      "map_fd:%d, errno:%d\n", map_fd, errno);
 
@@ -1837,8 +1839,8 @@ static void test_reuseport_array(void)
 	close(map_fd);
 
 	/* Test 32 bit fd */
-	map_fd = bpf_create_map(BPF_MAP_TYPE_REUSEPORT_SOCKARRAY,
-				sizeof(__u32), sizeof(__u32), array_size, 0);
+	map_fd = bpf_map_create(BPF_MAP_TYPE_REUSEPORT_SOCKARRAY, NULL,
+				sizeof(__u32), sizeof(__u32), array_size, NULL);
 	CHECK(map_fd < 0, "reuseport array create",
 	      "map_fd:%d, errno:%d\n", map_fd, errno);
 	prepare_reuseport_grp(SOCK_STREAM, map_fd, sizeof(__u32), &fd64,
@@ -1896,10 +1898,10 @@ int main(void)
 
 	libbpf_set_strict_mode(LIBBPF_STRICT_ALL);
 
-	map_flags = 0;
+	map_opts.map_flags = 0;
 	run_all_tests();
 
-	map_flags = BPF_F_NO_PREALLOC;
+	map_opts.map_flags = BPF_F_NO_PREALLOC;
 	run_all_tests();
 
 #define DEFINE_TEST(name) test_##name();

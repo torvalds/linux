@@ -14,7 +14,7 @@ static void test_queue_stack_map_by_type(int type)
 	int i, err, prog_fd, map_in_fd, map_out_fd;
 	char file[32], buf[128];
 	struct bpf_object *obj;
-	struct iphdr *iph = (void *)buf + sizeof(struct ethhdr);
+	struct iphdr iph;
 
 	/* Fill test values to be used */
 	for (i = 0; i < MAP_SIZE; i++)
@@ -60,15 +60,17 @@ static void test_queue_stack_map_by_type(int type)
 
 		err = bpf_prog_test_run(prog_fd, 1, &pkt_v4, sizeof(pkt_v4),
 					buf, &size, &retval, &duration);
-		if (err || retval || size != sizeof(pkt_v4) ||
-		    iph->daddr != val)
+		if (err || retval || size != sizeof(pkt_v4))
+			break;
+		memcpy(&iph, buf + sizeof(struct ethhdr), sizeof(iph));
+		if (iph.daddr != val)
 			break;
 	}
 
-	CHECK(err || retval || size != sizeof(pkt_v4) || iph->daddr != val,
+	CHECK(err || retval || size != sizeof(pkt_v4) || iph.daddr != val,
 	      "bpf_map_pop_elem",
 	      "err %d errno %d retval %d size %d iph->daddr %u\n",
-	      err, errno, retval, size, iph->daddr);
+	      err, errno, retval, size, iph.daddr);
 
 	/* Queue is empty, program should return TC_ACT_SHOT */
 	err = bpf_prog_test_run(prog_fd, 1, &pkt_v4, sizeof(pkt_v4),

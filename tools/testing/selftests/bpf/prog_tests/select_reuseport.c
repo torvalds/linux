@@ -66,29 +66,20 @@ static union sa46 {
 
 static int create_maps(enum bpf_map_type inner_type)
 {
-	struct bpf_create_map_attr attr = {};
+	LIBBPF_OPTS(bpf_map_create_opts, opts);
 
 	inner_map_type = inner_type;
 
 	/* Creating reuseport_array */
-	attr.name = "reuseport_array";
-	attr.map_type = inner_type;
-	attr.key_size = sizeof(__u32);
-	attr.value_size = sizeof(__u32);
-	attr.max_entries = REUSEPORT_ARRAY_SIZE;
-
-	reuseport_array = bpf_create_map_xattr(&attr);
+	reuseport_array = bpf_map_create(inner_type, "reuseport_array",
+					 sizeof(__u32), sizeof(__u32), REUSEPORT_ARRAY_SIZE, NULL);
 	RET_ERR(reuseport_array < 0, "creating reuseport_array",
 		"reuseport_array:%d errno:%d\n", reuseport_array, errno);
 
 	/* Creating outer_map */
-	attr.name = "outer_map";
-	attr.map_type = BPF_MAP_TYPE_ARRAY_OF_MAPS;
-	attr.key_size = sizeof(__u32);
-	attr.value_size = sizeof(__u32);
-	attr.max_entries = 1;
-	attr.inner_map_fd = reuseport_array;
-	outer_map = bpf_create_map_xattr(&attr);
+	opts.inner_map_fd = reuseport_array;
+	outer_map = bpf_map_create(BPF_MAP_TYPE_ARRAY_OF_MAPS, "outer_map",
+				   sizeof(__u32), sizeof(__u32), 1, &opts);
 	RET_ERR(outer_map < 0, "creating outer_map",
 		"outer_map:%d errno:%d\n", outer_map, errno);
 

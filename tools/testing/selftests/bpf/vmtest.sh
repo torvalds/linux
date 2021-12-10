@@ -4,17 +4,34 @@
 set -u
 set -e
 
-# This script currently only works for x86_64, as
-# it is based on the VM image used by the BPF CI which is
-# x86_64.
-QEMU_BINARY="${QEMU_BINARY:="qemu-system-x86_64"}"
-X86_BZIMAGE="arch/x86/boot/bzImage"
+# This script currently only works for x86_64 and s390x, as
+# it is based on the VM image used by the BPF CI, which is
+# available only for these architectures.
+ARCH="$(uname -m)"
+case "${ARCH}" in
+s390x)
+	QEMU_BINARY=qemu-system-s390x
+	QEMU_CONSOLE="ttyS1"
+	QEMU_FLAGS=(-smp 2)
+	BZIMAGE="arch/s390/boot/compressed/vmlinux"
+	;;
+x86_64)
+	QEMU_BINARY=qemu-system-x86_64
+	QEMU_CONSOLE="ttyS0,115200"
+	QEMU_FLAGS=(-cpu host -smp 8)
+	BZIMAGE="arch/x86/boot/bzImage"
+	;;
+*)
+	echo "Unsupported architecture"
+	exit 1
+	;;
+esac
 DEFAULT_COMMAND="./test_progs"
 MOUNT_DIR="mnt"
 ROOTFS_IMAGE="root.img"
 OUTPUT_DIR="$HOME/.bpf_selftests"
-KCONFIG_URL="https://raw.githubusercontent.com/libbpf/libbpf/master/travis-ci/vmtest/configs/latest.config"
-KCONFIG_API_URL="https://api.github.com/repos/libbpf/libbpf/contents/travis-ci/vmtest/configs/latest.config"
+KCONFIG_URL="https://raw.githubusercontent.com/libbpf/libbpf/master/travis-ci/vmtest/configs/config-latest.${ARCH}"
+KCONFIG_API_URL="https://api.github.com/repos/libbpf/libbpf/contents/travis-ci/vmtest/configs/config-latest.${ARCH}"
 INDEX_URL="https://raw.githubusercontent.com/libbpf/libbpf/master/travis-ci/vmtest/configs/INDEX"
 NUM_COMPILE_JOBS="$(nproc)"
 LOG_FILE_BASE="$(date +"bpf_selftests.%Y-%m-%d_%H-%M-%S")"
@@ -85,7 +102,7 @@ newest_rootfs_version()
 {
 	{
 	for file in "${!URLS[@]}"; do
-		if [[ $file =~ ^libbpf-vmtest-rootfs-(.*)\.tar\.zst$ ]]; then
+		if [[ $file =~ ^"${ARCH}"/libbpf-vmtest-rootfs-(.*)\.tar\.zst$ ]]; then
 			echo "${BASH_REMATCH[1]}"
 		fi
 	done
@@ -102,7 +119,7 @@ download_rootfs()
 		exit 1
 	fi
 
-	download "libbpf-vmtest-rootfs-$rootfsversion.tar.zst" |
+	download "${ARCH}/libbpf-vmtest-rootfs-$rootfsversion.tar.zst" |
 		zstd -d | sudo tar -C "$dir" -x
 }
 
@@ -224,13 +241,12 @@ EOF
 		-nodefaults \
 		-display none \
 		-serial mon:stdio \
-		-cpu host \
+		"${qemu_flags[@]}" \
 		-enable-kvm \
-		-smp 8 \
 		-m 4G \
 		-drive file="${rootfs_img}",format=raw,index=1,media=disk,if=virtio,cache=none \
 		-kernel "${kernel_bzimage}" \
-		-append "root=/dev/vda rw console=ttyS0,115200"
+		-append "root=/dev/vda rw console=${QEMU_CONSOLE}"
 }
 
 copy_logs()
@@ -282,7 +298,7 @@ main()
 	local kernel_checkout=$(realpath "${script_dir}"/../../../../)
 	# By default the script searches for the kernel in the checkout directory but
 	# it also obeys environment variables O= and KBUILD_OUTPUT=
-	local kernel_bzimage="${kernel_checkout}/${X86_BZIMAGE}"
+	local kernel_bzimage="${kernel_checkout}/${BZIMAGE}"
 	local command="${DEFAULT_COMMAND}"
 	local update_image="no"
 	local exit_command="poweroff -f"
@@ -337,13 +353,13 @@ main()
 		if is_rel_path "${O}"; then
 			O="$(realpath "${PWD}/${O}")"
 		fi
-		kernel_bzimage="${O}/${X86_BZIMAGE}"
+		kernel_bzimage="${O}/${BZIMAGE}"
 		make_command="${make_command} O=${O}"
 	elif [[ "${KBUILD_OUTPUT:=""}" != "" ]]; then
 		if is_rel_path "${KBUILD_OUTPUT}"; then
 			KBUILD_OUTPUT="$(realpath "${PWD}/${KBUILD_OUTPUT}")"
 		fi
-		kernel_bzimage="${KBUILD_OUTPUT}/${X86_BZIMAGE}"
+		kernel_bzimage="${KBUILD_OUTPUT}/${BZIMAGE}"
 		make_command="${make_command} KBUILD_OUTPUT=${KBUILD_OUTPUT}"
 	fi
 

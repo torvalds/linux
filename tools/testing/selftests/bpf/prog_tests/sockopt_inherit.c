@@ -167,19 +167,19 @@ static int prog_attach(struct bpf_object *obj, int cgroup_fd, const char *title)
 
 static void run_test(int cgroup_fd)
 {
-	struct bpf_prog_load_attr attr = {
-		.file = "./sockopt_inherit.o",
-	};
 	int server_fd = -1, client_fd;
 	struct bpf_object *obj;
 	void *server_err;
 	pthread_t tid;
-	int ignored;
 	int err;
 
-	err = bpf_prog_load_xattr(&attr, &obj, &ignored);
-	if (CHECK_FAIL(err))
+	obj = bpf_object__open_file("sockopt_inherit.o", NULL);
+	if (!ASSERT_OK_PTR(obj, "obj_open"))
 		return;
+
+	err = bpf_object__load(obj);
+	if (!ASSERT_OK(err, "obj_load"))
+		goto close_bpf_object;
 
 	err = prog_attach(obj, cgroup_fd, "cgroup/getsockopt");
 	if (CHECK_FAIL(err))

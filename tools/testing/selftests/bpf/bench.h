@@ -59,6 +59,8 @@ void hits_drops_report_progress(int iter, struct bench_res *res, long delta_ns);
 void hits_drops_report_final(struct bench_res res[], int res_cnt);
 void false_hits_report_progress(int iter, struct bench_res *res, long delta_ns);
 void false_hits_report_final(struct bench_res res[], int res_cnt);
+void ops_report_progress(int iter, struct bench_res *res, long delta_ns);
+void ops_report_final(struct bench_res res[], int res_cnt);
 
 static inline __u64 get_time_ns() {
 	struct timespec t;

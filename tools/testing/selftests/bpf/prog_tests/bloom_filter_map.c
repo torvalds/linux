@@ -7,32 +7,33 @@
 
 static void test_fail_cases(void)
 {
+	LIBBPF_OPTS(bpf_map_create_opts, opts);
 	__u32 value;
 	int fd, err;
 
 	/* Invalid key size */
-	fd = bpf_create_map(BPF_MAP_TYPE_BLOOM_FILTER, 4, sizeof(value), 100, 0);
-	if (!ASSERT_LT(fd, 0, "bpf_create_map bloom filter invalid key size"))
+	fd = bpf_map_create(BPF_MAP_TYPE_BLOOM_FILTER, NULL, 4, sizeof(value), 100, NULL);
+	if (!ASSERT_LT(fd, 0, "bpf_map_create bloom filter invalid key size"))
 		close(fd);
 
 	/* Invalid value size */
-	fd = bpf_create_map(BPF_MAP_TYPE_BLOOM_FILTER, 0, 0, 100, 0);
-	if (!ASSERT_LT(fd, 0, "bpf_create_map bloom filter invalid value size 0"))
+	fd = bpf_map_create(BPF_MAP_TYPE_BLOOM_FILTER, NULL, 0, 0, 100, NULL);
+	if (!ASSERT_LT(fd, 0, "bpf_map_create bloom filter invalid value size 0"))
 		close(fd);
 
 	/* Invalid max entries size */
-	fd = bpf_create_map(BPF_MAP_TYPE_BLOOM_FILTER, 0, sizeof(value), 0, 0);
-	if (!ASSERT_LT(fd, 0, "bpf_create_map bloom filter invalid max entries size"))
+	fd = bpf_map_create(BPF_MAP_TYPE_BLOOM_FILTER, NULL, 0, sizeof(value), 0, NULL);
+	if (!ASSERT_LT(fd, 0, "bpf_map_create bloom filter invalid max entries size"))
 		close(fd);
 
 	/* Bloom filter maps do not support BPF_F_NO_PREALLOC */
-	fd = bpf_create_map(BPF_MAP_TYPE_BLOOM_FILTER, 0, sizeof(value), 100,
-			    BPF_F_NO_PREALLOC);
-	if (!ASSERT_LT(fd, 0, "bpf_create_map bloom filter invalid flags"))
+	opts.map_flags = BPF_F_NO_PREALLOC;
+	fd = bpf_map_create(BPF_MAP_TYPE_BLOOM_FILTER, NULL, 0, sizeof(value), 100, &opts);
+	if (!ASSERT_LT(fd, 0, "bpf_map_create bloom filter invalid flags"))
 		close(fd);
 
-	fd = bpf_create_map(BPF_MAP_TYPE_BLOOM_FILTER, 0, sizeof(value), 100, 0);
-	if (!ASSERT_GE(fd, 0, "bpf_create_map bloom filter"))
+	fd = bpf_map_create(BPF_MAP_TYPE_BLOOM_FILTER, NULL, 0, sizeof(value), 100, NULL);
+	if (!ASSERT_GE(fd, 0, "bpf_map_create bloom filter"))
 		return;
 
 	/* Test invalid flags */
@@ -56,13 +57,14 @@ static void test_fail_cases(void)
 
 static void test_success_cases(void)
 {
+	LIBBPF_OPTS(bpf_map_create_opts, opts);
 	char value[11];
 	int fd, err;
 
 	/* Create a map */
-	fd = bpf_create_map(BPF_MAP_TYPE_BLOOM_FILTER, 0, sizeof(value), 100,
-			    BPF_F_ZERO_SEED | BPF_F_NUMA_NODE);
-	if (!ASSERT_GE(fd, 0, "bpf_create_map bloom filter success case"))
+	opts.map_flags = BPF_F_ZERO_SEED | BPF_F_NUMA_NODE;
+	fd = bpf_map_create(BPF_MAP_TYPE_BLOOM_FILTER, NULL, 0, sizeof(value), 100, &opts);
+	if (!ASSERT_GE(fd, 0, "bpf_map_create bloom filter success case"))
 		return;
 
 	/* Add a value to the bloom filter */
@@ -100,9 +102,9 @@ static void test_inner_map(struct bloom_filter_map *skel, const __u32 *rand_vals
 	struct bpf_link *link;
 
 	/* Create a bloom filter map that will be used as the inner map */
-	inner_map_fd = bpf_create_map(BPF_MAP_TYPE_BLOOM_FILTER, 0, sizeof(*rand_vals),
-				      nr_rand_vals, 0);
-	if (!ASSERT_GE(inner_map_fd, 0, "bpf_create_map bloom filter inner map"))
+	inner_map_fd = bpf_map_create(BPF_MAP_TYPE_BLOOM_FILTER, NULL, 0, sizeof(*rand_vals),
+				      nr_rand_vals, NULL);
+	if (!ASSERT_GE(inner_map_fd, 0, "bpf_map_create bloom filter inner map"))
 		return;
 
 	for (i = 0; i < nr_rand_vals; i++) {

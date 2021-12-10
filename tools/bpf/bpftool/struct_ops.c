@@ -479,7 +479,7 @@ static int do_unregister(int argc, char **argv)
 
 static int do_register(int argc, char **argv)
 {
-	struct bpf_object_load_attr load_attr = {};
+	LIBBPF_OPTS(bpf_object_open_opts, open_opts);
 	const struct bpf_map_def *def;
 	struct bpf_map_info info = {};
 	__u32 info_len = sizeof(info);
@@ -494,18 +494,17 @@ static int do_register(int argc, char **argv)
 
 	file = GET_ARG();
 
-	obj = bpf_object__open(file);
+	if (verifier_logs)
+		/* log_level1 + log_level2 + stats, but not stable UAPI */
+		open_opts.kernel_log_level = 1 + 2 + 4;
+
+	obj = bpf_object__open_file(file, &open_opts);
 	if (libbpf_get_error(obj))
 		return -1;
 
 	set_max_rlimit();
 
-	load_attr.obj = obj;
-	if (verifier_logs)
-		/* log_level1 + log_level2 + stats, but not stable UAPI */
-		load_attr.log_level = 1 + 2 + 4;
-
-	if (bpf_object__load_xattr(&load_attr)) {
+	if (bpf_object__load(obj)) {
 		bpf_object__close(obj);
 		return -1;
 	}

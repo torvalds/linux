@@ -50,6 +50,12 @@
 #  define __NR_bpf 351
 # elif defined(__arc__)
 #  define __NR_bpf 280
+# elif defined(__mips__) && defined(_ABIO32)
+#  define __NR_bpf 4355
+# elif defined(__mips__) && defined(_ABIN32)
+#  define __NR_bpf 6319
+# elif defined(__mips__) && defined(_ABI64)
+#  define __NR_bpf 5315
 # else
 #  error __NR_bpf not defined. libbpf does not support your arch.
 # endif
@@ -88,146 +94,122 @@ static inline int sys_bpf_prog_load(union bpf_attr *attr, unsigned int size, int
 	return fd;
 }
 
-int libbpf__bpf_create_map_xattr(const struct bpf_create_map_params *create_attr)
+int bpf_map_create(enum bpf_map_type map_type,
+		   const char *map_name,
+		   __u32 key_size,
+		   __u32 value_size,
+		   __u32 max_entries,
+		   const struct bpf_map_create_opts *opts)
 {
+	const size_t attr_sz = offsetofend(union bpf_attr, map_extra);
 	union bpf_attr attr;
 	int fd;
 
-	memset(&attr, '\0', sizeof(attr));
+	memset(&attr, 0, attr_sz);
 
-	attr.map_type = create_attr->map_type;
-	attr.key_size = create_attr->key_size;
-	attr.value_size = create_attr->value_size;
-	attr.max_entries = create_attr->max_entries;
-	attr.map_flags = create_attr->map_flags;
-	if (create_attr->name)
-		memcpy(attr.map_name, create_attr->name,
-		       min(strlen(create_attr->name), BPF_OBJ_NAME_LEN - 1));
-	attr.numa_node = create_attr->numa_node;
-	attr.btf_fd = create_attr->btf_fd;
-	attr.btf_key_type_id = create_attr->btf_key_type_id;
-	attr.btf_value_type_id = create_attr->btf_value_type_id;
-	attr.map_ifindex = create_attr->map_ifindex;
-	if (attr.map_type == BPF_MAP_TYPE_STRUCT_OPS)
-		attr.btf_vmlinux_value_type_id =
-			create_attr->btf_vmlinux_value_type_id;
-	else
-		attr.inner_map_fd = create_attr->inner_map_fd;
-	attr.map_extra = create_attr->map_extra;
+	if (!OPTS_VALID(opts, bpf_map_create_opts))
+		return libbpf_err(-EINVAL);
 
-	fd = sys_bpf_fd(BPF_MAP_CREATE, &attr, sizeof(attr));
+	attr.map_type = map_type;
+	if (map_name)
+		strncat(attr.map_name, map_name, sizeof(attr.map_name) - 1);
+	attr.key_size = key_size;
+	attr.value_size = value_size;
+	attr.max_entries = max_entries;
+
+	attr.btf_fd = OPTS_GET(opts, btf_fd, 0);
+	attr.btf_key_type_id = OPTS_GET(opts, btf_key_type_id, 0);
+	attr.btf_value_type_id = OPTS_GET(opts, btf_value_type_id, 0);
+	attr.btf_vmlinux_value_type_id = OPTS_GET(opts, btf_vmlinux_value_type_id, 0);
+
+	attr.inner_map_fd = OPTS_GET(opts, inner_map_fd, 0);
+	attr.map_flags = OPTS_GET(opts, map_flags, 0);
+	attr.map_extra = OPTS_GET(opts, map_extra, 0);
+	attr.numa_node = OPTS_GET(opts, numa_node, 0);
+	attr.map_ifindex = OPTS_GET(opts, map_ifindex, 0);
+
+	fd = sys_bpf_fd(BPF_MAP_CREATE, &attr, attr_sz);
 	return libbpf_err_errno(fd);
 }
 
 int bpf_create_map_xattr(const struct bpf_create_map_attr *create_attr)
 {
-	struct bpf_create_map_params p = {};
+	LIBBPF_OPTS(bpf_map_create_opts, p);
 
-	p.map_type = create_attr->map_type;
-	p.key_size = create_attr->key_size;
-	p.value_size = create_attr->value_size;
-	p.max_entries = create_attr->max_entries;
 	p.map_flags = create_attr->map_flags;
-	p.name = create_attr->name;
 	p.numa_node = create_attr->numa_node;
 	p.btf_fd = create_attr->btf_fd;
 	p.btf_key_type_id = create_attr->btf_key_type_id;
 	p.btf_value_type_id = create_attr->btf_value_type_id;
 	p.map_ifindex = create_attr->map_ifindex;
-	if (p.map_type == BPF_MAP_TYPE_STRUCT_OPS)
-		p.btf_vmlinux_value_type_id =
-			create_attr->btf_vmlinux_value_type_id;
+	if (create_attr->map_type == BPF_MAP_TYPE_STRUCT_OPS)
+		p.btf_vmlinux_value_type_id = create_attr->btf_vmlinux_value_type_id;
 	else
 		p.inner_map_fd = create_attr->inner_map_fd;
 
-	return libbpf__bpf_create_map_xattr(&p);
+	return bpf_map_create(create_attr->map_type, create_attr->name,
+			      create_attr->key_size, create_attr->value_size,
+			      create_attr->max_entries, &p);
 }
 
 int bpf_create_map_node(enum bpf_map_type map_type, const char *name,
 			int key_size, int value_size, int max_entries,
 			__u32 map_flags, int node)
 {
-	struct bpf_create_map_attr map_attr = {};
+	LIBBPF_OPTS(bpf_map_create_opts, opts);
 
-	map_attr.name = name;
-	map_attr.map_type = map_type;
-	map_attr.map_flags = map_flags;
-	map_attr.key_size = key_size;
-	map_attr.value_size = value_size;
-	map_attr.max_entries = max_entries;
+	opts.map_flags = map_flags;
 	if (node >= 0) {
-		map_attr.numa_node = node;
-		map_attr.map_flags |= BPF_F_NUMA_NODE;
+		opts.numa_node = node;
+		opts.map_flags |= BPF_F_NUMA_NODE;
 	}
 
-	return bpf_create_map_xattr(&map_attr);
+	return bpf_map_create(map_type, name, key_size, value_size, max_entries, &opts);
 }
 
 int bpf_create_map(enum bpf_map_type map_type, int key_size,
 		   int value_size, int max_entries, __u32 map_flags)
 {
-	struct bpf_create_map_attr map_attr = {};
+	LIBBPF_OPTS(bpf_map_create_opts, opts, .map_flags = map_flags);
 
-	map_attr.map_type = map_type;
-	map_attr.map_flags = map_flags;
-	map_attr.key_size = key_size;
-	map_attr.value_size = value_size;
-	map_attr.max_entries = max_entries;
-
-	return bpf_create_map_xattr(&map_attr);
+	return bpf_map_create(map_type, NULL, key_size, value_size, max_entries, &opts);
 }
 
 int bpf_create_map_name(enum bpf_map_type map_type, const char *name,
 			int key_size, int value_size, int max_entries,
 			__u32 map_flags)
 {
-	struct bpf_create_map_attr map_attr = {};
+	LIBBPF_OPTS(bpf_map_create_opts, opts, .map_flags = map_flags);
 
-	map_attr.name = name;
-	map_attr.map_type = map_type;
-	map_attr.map_flags = map_flags;
-	map_attr.key_size = key_size;
-	map_attr.value_size = value_size;
-	map_attr.max_entries = max_entries;
-
-	return bpf_create_map_xattr(&map_attr);
+	return bpf_map_create(map_type, name, key_size, value_size, max_entries, &opts);
 }
 
 int bpf_create_map_in_map_node(enum bpf_map_type map_type, const char *name,
 			       int key_size, int inner_map_fd, int max_entries,
 			       __u32 map_flags, int node)
 {
-	union bpf_attr attr;
-	int fd;
+	LIBBPF_OPTS(bpf_map_create_opts, opts);
 
-	memset(&attr, '\0', sizeof(attr));
-
-	attr.map_type = map_type;
-	attr.key_size = key_size;
-	attr.value_size = 4;
-	attr.inner_map_fd = inner_map_fd;
-	attr.max_entries = max_entries;
-	attr.map_flags = map_flags;
-	if (name)
-		memcpy(attr.map_name, name,
-		       min(strlen(name), BPF_OBJ_NAME_LEN - 1));
-
+	opts.inner_map_fd = inner_map_fd;
+	opts.map_flags = map_flags;
 	if (node >= 0) {
-		attr.map_flags |= BPF_F_NUMA_NODE;
-		attr.numa_node = node;
+		opts.map_flags |= BPF_F_NUMA_NODE;
+		opts.numa_node = node;
 	}
 
-	fd = sys_bpf_fd(BPF_MAP_CREATE, &attr, sizeof(attr));
-	return libbpf_err_errno(fd);
+	return bpf_map_create(map_type, name, key_size, 4, max_entries, &opts);
 }
 
 int bpf_create_map_in_map(enum bpf_map_type map_type, const char *name,
 			  int key_size, int inner_map_fd, int max_entries,
 			  __u32 map_flags)
 {
-	return bpf_create_map_in_map_node(map_type, name, key_size,
-					  inner_map_fd, max_entries, map_flags,
-					  -1);
+	LIBBPF_OPTS(bpf_map_create_opts, opts,
+		.inner_map_fd = inner_map_fd,
+		.map_flags = map_flags,
+	);
+
+	return bpf_map_create(map_type, name, key_size, 4, max_entries, &opts);
 }
 
 static void *
@@ -321,10 +303,6 @@ int bpf_prog_load_v0_6_0(enum bpf_prog_type prog_type,
 	if (log_level && !log_buf)
 		return libbpf_err(-EINVAL);
 
-	attr.log_level = log_level;
-	attr.log_buf = ptr_to_u64(log_buf);
-	attr.log_size = log_size;
-
 	func_info_rec_size = OPTS_GET(opts, func_info_rec_size, 0);
 	func_info = OPTS_GET(opts, func_info, NULL);
 	attr.func_info_rec_size = func_info_rec_size;
@@ -338,6 +316,12 @@ int bpf_prog_load_v0_6_0(enum bpf_prog_type prog_type,
 	attr.line_info_cnt = OPTS_GET(opts, line_info_cnt, 0);
 
 	attr.fd_array = ptr_to_u64(OPTS_GET(opts, fd_array, NULL));
+
+	if (log_level) {
+		attr.log_buf = ptr_to_u64(log_buf);
+		attr.log_size = log_size;
+		attr.log_level = log_level;
+	}
 
 	fd = sys_bpf_prog_load(&attr, sizeof(attr), attempts);
 	if (fd >= 0)
@@ -384,16 +368,17 @@ int bpf_prog_load_v0_6_0(enum bpf_prog_type prog_type,
 			goto done;
 	}
 
-	if (log_level || !log_buf)
-		goto done;
+	if (log_level == 0 && log_buf) {
+		/* log_level == 0 with non-NULL log_buf requires retrying on error
+		 * with log_level == 1 and log_buf/log_buf_size set, to get details of
+		 * failure
+		 */
+		attr.log_buf = ptr_to_u64(log_buf);
+		attr.log_size = log_size;
+		attr.log_level = 1;
 
-	/* Try again with log */
-	log_buf[0] = 0;
-	attr.log_buf = ptr_to_u64(log_buf);
-	attr.log_size = log_size;
-	attr.log_level = 1;
-
-	fd = sys_bpf_prog_load(&attr, sizeof(attr), attempts);
+		fd = sys_bpf_prog_load(&attr, sizeof(attr), attempts);
+	}
 done:
 	/* free() doesn't affect errno, so we don't need to restore it */
 	free(finfo);
@@ -1062,24 +1047,65 @@ int bpf_raw_tracepoint_open(const char *name, int prog_fd)
 	return libbpf_err_errno(fd);
 }
 
-int bpf_load_btf(const void *btf, __u32 btf_size, char *log_buf, __u32 log_buf_size,
-		 bool do_log)
+int bpf_btf_load(const void *btf_data, size_t btf_size, const struct bpf_btf_load_opts *opts)
 {
-	union bpf_attr attr = {};
+	const size_t attr_sz = offsetofend(union bpf_attr, btf_log_level);
+	union bpf_attr attr;
+	char *log_buf;
+	size_t log_size;
+	__u32 log_level;
 	int fd;
 
-	attr.btf = ptr_to_u64(btf);
+	memset(&attr, 0, attr_sz);
+
+	if (!OPTS_VALID(opts, bpf_btf_load_opts))
+		return libbpf_err(-EINVAL);
+
+	log_buf = OPTS_GET(opts, log_buf, NULL);
+	log_size = OPTS_GET(opts, log_size, 0);
+	log_level = OPTS_GET(opts, log_level, 0);
+
+	if (log_size > UINT_MAX)
+		return libbpf_err(-EINVAL);
+	if (log_size && !log_buf)
+		return libbpf_err(-EINVAL);
+
+	attr.btf = ptr_to_u64(btf_data);
 	attr.btf_size = btf_size;
+	/* log_level == 0 and log_buf != NULL means "try loading without
+	 * log_buf, but retry with log_buf and log_level=1 on error", which is
+	 * consistent across low-level and high-level BTF and program loading
+	 * APIs within libbpf and provides a sensible behavior in practice
+	 */
+	if (log_level) {
+		attr.btf_log_buf = ptr_to_u64(log_buf);
+		attr.btf_log_size = (__u32)log_size;
+		attr.btf_log_level = log_level;
+	}
+
+	fd = sys_bpf_fd(BPF_BTF_LOAD, &attr, attr_sz);
+	if (fd < 0 && log_buf && log_level == 0) {
+		attr.btf_log_buf = ptr_to_u64(log_buf);
+		attr.btf_log_size = (__u32)log_size;
+		attr.btf_log_level = 1;
+		fd = sys_bpf_fd(BPF_BTF_LOAD, &attr, attr_sz);
+	}
+	return libbpf_err_errno(fd);
+}
+
+int bpf_load_btf(const void *btf, __u32 btf_size, char *log_buf, __u32 log_buf_size, bool do_log)
+{
+	LIBBPF_OPTS(bpf_btf_load_opts, opts);
+	int fd;
 
 retry:
 	if (do_log && log_buf && log_buf_size) {
-		attr.btf_log_level = 1;
-		attr.btf_log_size = log_buf_size;
-		attr.btf_log_buf = ptr_to_u64(log_buf);
+		opts.log_buf = log_buf;
+		opts.log_size = log_buf_size;
+		opts.log_level = 1;
 	}
 
-	fd = sys_bpf_fd(BPF_BTF_LOAD, &attr, sizeof(attr));
-
+	fd = bpf_btf_load(btf, btf_size, &opts);
 	if (fd < 0 && !do_log && log_buf && log_buf_size) {
 		do_log = true;
 		goto retry;

@@ -167,7 +167,7 @@ static void test_cmpxchg(struct atomics_lskel *skel)
 	prog_fd = skel->progs.cmpxchg.prog_fd;
 	err = bpf_prog_test_run(prog_fd, 1, NULL, 0,
 				NULL, NULL, &retval, &duration);
-	if (CHECK(err || retval, "test_run add",
+	if (CHECK(err || retval, "test_run cmpxchg",
 		  "err %d errno %d retval %d duration %d\n", err, errno, retval, duration))
 		goto cleanup;
 
@@ -196,7 +196,7 @@ static void test_xchg(struct atomics_lskel *skel)
 	prog_fd = skel->progs.xchg.prog_fd;
 	err = bpf_prog_test_run(prog_fd, 1, NULL, 0,
 				NULL, NULL, &retval, &duration);
-	if (CHECK(err || retval, "test_run add",
+	if (CHECK(err || retval, "test_run xchg",
 		  "err %d errno %d retval %d duration %d\n", err, errno, retval, duration))
 		goto cleanup;
 

@@ -297,14 +297,10 @@ detach:
 
 void test_sockopt_multi(void)
 {
-	struct bpf_prog_load_attr attr = {
-		.file = "./sockopt_multi.o",
-	};
 	int cg_parent = -1, cg_child = -1;
 	struct bpf_object *obj = NULL;
 	int sock_fd = -1;
 	int err = -1;
-	int ignored;
 
 	cg_parent = test__join_cgroup("/parent");
 	if (CHECK_FAIL(cg_parent < 0))
@@ -314,8 +310,12 @@ void test_sockopt_multi(void)
 	if (CHECK_FAIL(cg_child < 0))
 		goto out;
 
-	err = bpf_prog_load_xattr(&attr, &obj, &ignored);
-	if (CHECK_FAIL(err))
+	obj = bpf_object__open_file("sockopt_multi.o", NULL);
+	if (!ASSERT_OK_PTR(obj, "obj_load"))
+		goto out;
+
+	err = bpf_object__load(obj);
+	if (!ASSERT_OK(err, "obj_load"))
 		goto out;
 
 	sock_fd = socket(AF_INET, SOCK_STREAM, 0);

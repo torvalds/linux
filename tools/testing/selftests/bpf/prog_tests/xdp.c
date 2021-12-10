@@ -11,8 +11,8 @@ void test_xdp(void)
 	const char *file = "./test_xdp.o";
 	struct bpf_object *obj;
 	char buf[128];
-	struct ipv6hdr *iph6 = (void *)buf + sizeof(struct ethhdr);
-	struct iphdr *iph = (void *)buf + sizeof(struct ethhdr);
+	struct ipv6hdr iph6;
+	struct iphdr iph;
 	__u32 duration, retval, size;
 	int err, prog_fd, map_fd;
 
@@ -28,16 +28,17 @@ void test_xdp(void)
 
 	err = bpf_prog_test_run(prog_fd, 1, &pkt_v4, sizeof(pkt_v4),
 				buf, &size, &retval, &duration);
-
+	memcpy(&iph, buf + sizeof(struct ethhdr), sizeof(iph));
 	CHECK(err || retval != XDP_TX || size != 74 ||
-	      iph->protocol != IPPROTO_IPIP, "ipv4",
+	      iph.protocol != IPPROTO_IPIP, "ipv4",
 	      "err %d errno %d retval %d size %d\n",
 	      err, errno, retval, size);
 
 	err = bpf_prog_test_run(prog_fd, 1, &pkt_v6, sizeof(pkt_v6),
 				buf, &size, &retval, &duration);
+	memcpy(&iph6, buf + sizeof(struct ethhdr), sizeof(iph6));
 	CHECK(err || retval != XDP_TX || size != 114 ||
-	      iph6->nexthdr != IPPROTO_IPV6, "ipv6",
+	      iph6.nexthdr != IPPROTO_IPV6, "ipv6",
 	      "err %d errno %d retval %d size %d\n",
 	      err, errno, retval, size);
 out:

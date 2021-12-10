@@ -85,10 +85,7 @@ int main(int argc, char **argv)
 {
 	int prog_fd, group_all, mac_map;
 	struct bpf_program *ingress_prog, *egress_prog;
-	struct bpf_prog_load_attr prog_load_attr = {
-		.prog_type = BPF_PROG_TYPE_UNSPEC,
-	};
-	int i, ret, opt, egress_prog_fd = 0;
+	int i, err, ret, opt, egress_prog_fd = 0;
 	struct bpf_devmap_val devmap_val;
 	bool attach_egress_prog = false;
 	unsigned char mac_addr[6];
@@ -147,10 +144,14 @@ int main(int argc, char **argv)
 	printf("\n");
 
 	snprintf(filename, sizeof(filename), "%s_kern.o", argv[0]);
-	prog_load_attr.file = filename;
-
-	if (bpf_prog_load_xattr(&prog_load_attr, &obj, &prog_fd))
+	obj = bpf_object__open_file(filename, NULL);
+	err = libbpf_get_error(obj);
+	if (err)
 		goto err_out;
+	err = bpf_object__load(obj);
+	if (err)
+		goto err_out;
+	prog_fd = bpf_program__fd(bpf_object__next_program(obj, NULL));
 
 	if (attach_egress_prog)
 		group_all = bpf_object__find_map_fd_by_name(obj, "map_egress");

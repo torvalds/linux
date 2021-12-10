@@ -24,12 +24,18 @@ static void get_stack_print_output(void *ctx, int cpu, void *data, __u32 size)
 {
 	bool good_kern_stack = false, good_user_stack = false;
 	const char *nonjit_func = "___bpf_prog_run";
-	struct get_stack_trace_t *e = data;
+	/* perfbuf-submitted data is 4-byte aligned, but we need 8-byte
+	 * alignment, so copy data into a local variable, for simplicity
+	 */
+	struct get_stack_trace_t e;
 	int i, num_stack;
 	static __u64 cnt;
 	struct ksym *ks;
 
 	cnt++;
+
+	memset(&e, 0, sizeof(e));
+	memcpy(&e, data, size <= sizeof(e) ? size : sizeof(e));
 
 	if (size < sizeof(struct get_stack_trace_t)) {
 		__u64 *raw_data = data;
@@ -57,19 +63,19 @@ static void get_stack_print_output(void *ctx, int cpu, void *data, __u32 size)
 			good_user_stack = true;
 		}
 	} else {
-		num_stack = e->kern_stack_size / sizeof(__u64);
+		num_stack = e.kern_stack_size / sizeof(__u64);
 		if (env.jit_enabled) {
 			good_kern_stack = num_stack > 0;
 		} else {
 			for (i = 0; i < num_stack; i++) {
-				ks = ksym_search(e->kern_stack[i]);
+				ks = ksym_search(e.kern_stack[i]);
 				if (ks && (strcmp(ks->name, nonjit_func) == 0)) {
 					good_kern_stack = true;
 					break;
 				}
 			}
 		}
-		if (e->user_stack_size > 0 && e->user_stack_buildid_size > 0)
+		if (e.user_stack_size > 0 && e.user_stack_buildid_size > 0)
 			good_user_stack = true;
 	}
 

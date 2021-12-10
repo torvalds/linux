@@ -15,22 +15,22 @@ static int prog_load_cnt(int verdict, int val)
 	int cgroup_storage_fd, percpu_cgroup_storage_fd;
 
 	if (map_fd < 0)
-		map_fd = bpf_create_map(BPF_MAP_TYPE_ARRAY, 4, 8, 1, 0);
+		map_fd = bpf_map_create(BPF_MAP_TYPE_ARRAY, NULL, 4, 8, 1, NULL);
 	if (map_fd < 0) {
 		printf("failed to create map '%s'\n", strerror(errno));
 		return -1;
 	}
 
-	cgroup_storage_fd = bpf_create_map(BPF_MAP_TYPE_CGROUP_STORAGE,
-				sizeof(struct bpf_cgroup_storage_key), 8, 0, 0);
+	cgroup_storage_fd = bpf_map_create(BPF_MAP_TYPE_CGROUP_STORAGE, NULL,
+				sizeof(struct bpf_cgroup_storage_key), 8, 0, NULL);
 	if (cgroup_storage_fd < 0) {
 		printf("failed to create map '%s'\n", strerror(errno));
 		return -1;
 	}
 
-	percpu_cgroup_storage_fd = bpf_create_map(
-		BPF_MAP_TYPE_PERCPU_CGROUP_STORAGE,
-		sizeof(struct bpf_cgroup_storage_key), 8, 0, 0);
+	percpu_cgroup_storage_fd = bpf_map_create(
+		BPF_MAP_TYPE_PERCPU_CGROUP_STORAGE, NULL,
+		sizeof(struct bpf_cgroup_storage_key), 8, 0, NULL);
 	if (percpu_cgroup_storage_fd < 0) {
 		printf("failed to create map '%s'\n", strerror(errno));
 		return -1;

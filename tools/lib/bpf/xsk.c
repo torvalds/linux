@@ -35,6 +35,11 @@
 #include "libbpf_internal.h"
 #include "xsk.h"
 
+/* entire xsk.h and xsk.c is going away in libbpf 1.0, so ignore all internal
+ * uses of deprecated APIs
+ */
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+
 #ifndef SOL_XDP
  #define SOL_XDP 283
 #endif
@@ -364,7 +369,6 @@ int xsk_umem__create_v0_0_2(struct xsk_umem **umem_ptr, void *umem_area,
 static enum xsk_prog get_xsk_prog(void)
 {
 	enum xsk_prog detected = XSK_PROG_FALLBACK;
-	struct bpf_create_map_attr map_attr;
 	__u32 size_out, retval, duration;
 	char data_in = 0, data_out;
 	struct bpf_insn insns[] = {
@@ -376,13 +380,7 @@ static enum xsk_prog get_xsk_prog(void)
 	};
 	int prog_fd, map_fd, ret, insn_cnt = ARRAY_SIZE(insns);
 
-	memset(&map_attr, 0, sizeof(map_attr));
-	map_attr.map_type = BPF_MAP_TYPE_XSKMAP;
-	map_attr.key_size = sizeof(int);
-	map_attr.value_size = sizeof(int);
-	map_attr.max_entries = 1;
-
-	map_fd = bpf_create_map_xattr(&map_attr);
+	map_fd = bpf_map_create(BPF_MAP_TYPE_XSKMAP, NULL, sizeof(int), sizeof(int), 1, NULL);
 	if (map_fd < 0)
 		return detected;
 
@@ -586,8 +584,8 @@ static int xsk_create_bpf_maps(struct xsk_socket *xsk)
 	if (max_queues < 0)
 		return max_queues;
 
-	fd = bpf_create_map_name(BPF_MAP_TYPE_XSKMAP, "xsks_map",
-				 sizeof(int), sizeof(int), max_queues, 0);
+	fd = bpf_map_create(BPF_MAP_TYPE_XSKMAP, "xsks_map",
+			    sizeof(int), sizeof(int), max_queues, NULL);
 	if (fd < 0)
 		return fd;
 

@@ -1261,7 +1261,10 @@ static int do_pin(int argc, char **argv)
 
 static int do_create(int argc, char **argv)
 {
-	struct bpf_create_map_attr attr = { NULL, };
+	LIBBPF_OPTS(bpf_map_create_opts, attr);
+	enum bpf_map_type map_type = BPF_MAP_TYPE_UNSPEC;
+	__u32 key_size = 0, value_size = 0, max_entries = 0;
+	const char *map_name = NULL;
 	const char *pinfile;
 	int err = -1, fd;
 
@@ -1276,30 +1279,30 @@ static int do_create(int argc, char **argv)
 		if (is_prefix(*argv, "type")) {
 			NEXT_ARG();
 
-			if (attr.map_type) {
+			if (map_type) {
 				p_err("map type already specified");
 				goto exit;
 			}
 
-			attr.map_type = map_type_from_str(*argv);
-			if ((int)attr.map_type < 0) {
+			map_type = map_type_from_str(*argv);
+			if ((int)map_type < 0) {
 				p_err("unrecognized map type: %s", *argv);
 				goto exit;
 			}
 			NEXT_ARG();
 		} else if (is_prefix(*argv, "name")) {
 			NEXT_ARG();
-			attr.name = GET_ARG();
+			map_name = GET_ARG();
 		} else if (is_prefix(*argv, "key")) {
-			if (parse_u32_arg(&argc, &argv, &attr.key_size,
+			if (parse_u32_arg(&argc, &argv, &key_size,
 					  "key size"))
 				goto exit;
 		} else if (is_prefix(*argv, "value")) {
-			if (parse_u32_arg(&argc, &argv, &attr.value_size,
+			if (parse_u32_arg(&argc, &argv, &value_size,
 					  "value size"))
 				goto exit;
 		} else if (is_prefix(*argv, "entries")) {
-			if (parse_u32_arg(&argc, &argv, &attr.max_entries,
+			if (parse_u32_arg(&argc, &argv, &max_entries,
 					  "max entries"))
 				goto exit;
 		} else if (is_prefix(*argv, "flags")) {
@@ -1340,14 +1343,14 @@ static int do_create(int argc, char **argv)
 		}
 	}
 
-	if (!attr.name) {
+	if (!map_name) {
 		p_err("map name not specified");
 		goto exit;
 	}
 
 	set_max_rlimit();
 
-	fd = bpf_create_map_xattr(&attr);
+	fd = bpf_map_create(map_type, map_name, key_size, value_size, max_entries, &attr);
 	if (fd < 0) {
 		p_err("map create failed: %s", strerror(errno));
 		goto exit;

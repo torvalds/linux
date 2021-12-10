@@ -29,6 +29,9 @@
 
 #include <internal/xyarray.h>
 
+/* temporarily disable libbpf deprecation warnings */
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+
 static int libbpf_perf_print(enum libbpf_print_level level __attribute__((unused)),
 			      const char *fmt, va_list args)
 {

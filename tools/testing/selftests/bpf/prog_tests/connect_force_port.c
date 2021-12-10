@@ -51,19 +51,20 @@ static int run_test(int cgroup_fd, int server_fd, int family, int type)
 	bool v4 = family == AF_INET;
 	__u16 expected_local_port = v4 ? 22222 : 22223;
 	__u16 expected_peer_port = 60000;
-	struct bpf_prog_load_attr attr = {
-		.file = v4 ? "./connect_force_port4.o" :
-			     "./connect_force_port6.o",
-	};
 	struct bpf_program *prog;
 	struct bpf_object *obj;
-	int xlate_fd, fd, err;
+	const char *obj_file = v4 ? "connect_force_port4.o" : "connect_force_port6.o";
+	int fd, err;
 	__u32 duration = 0;
 
-	err = bpf_prog_load_xattr(&attr, &obj, &xlate_fd);
-	if (err) {
-		log_err("Failed to load BPF object");
+	obj = bpf_object__open_file(obj_file, NULL);
+	if (!ASSERT_OK_PTR(obj, "bpf_obj_open"))
 		return -1;
+
+	err = bpf_object__load(obj);
+	if (!ASSERT_OK(err, "bpf_obj_load")) {
+		err = -EIO;
+		goto close_bpf_object;
 	}
 
 	prog = bpf_object__find_program_by_title(obj, v4 ?

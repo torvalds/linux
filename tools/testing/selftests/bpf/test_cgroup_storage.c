@@ -51,15 +51,15 @@ int main(int argc, char **argv)
 		goto err;
 	}
 
-	map_fd = bpf_create_map(BPF_MAP_TYPE_CGROUP_STORAGE, sizeof(key),
-				sizeof(value), 0, 0);
+	map_fd = bpf_map_create(BPF_MAP_TYPE_CGROUP_STORAGE, NULL, sizeof(key),
+				sizeof(value), 0, NULL);
 	if (map_fd < 0) {
 		printf("Failed to create map: %s\n", strerror(errno));
 		goto out;
 	}
 
-	percpu_map_fd = bpf_create_map(BPF_MAP_TYPE_PERCPU_CGROUP_STORAGE,
-				       sizeof(key), sizeof(value), 0, 0);
+	percpu_map_fd = bpf_map_create(BPF_MAP_TYPE_PERCPU_CGROUP_STORAGE, NULL,
+				       sizeof(key), sizeof(value), 0, NULL);
 	if (percpu_map_fd < 0) {
 		printf("Failed to create map: %s\n", strerror(errno));
 		goto out;

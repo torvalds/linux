@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <test_progs.h>
 #include <network_helpers.h>
+#include "kfree_skb.skel.h"
 
 struct meta {
 	int ifindex;
@@ -58,16 +59,11 @@ void serial_test_kfree_skb(void)
 		.ctx_in = &skb,
 		.ctx_size_in = sizeof(skb),
 	};
-	struct bpf_prog_load_attr attr = {
-		.file = "./kfree_skb.o",
-	};
-
-	struct bpf_link *link = NULL, *link_fentry = NULL, *link_fexit = NULL;
-	struct bpf_map *perf_buf_map, *global_data;
-	struct bpf_program *prog, *fentry, *fexit;
-	struct bpf_object *obj, *obj2 = NULL;
+	struct kfree_skb *skel = NULL;
+	struct bpf_link *link;
+	struct bpf_object *obj;
 	struct perf_buffer *pb = NULL;
-	int err, kfree_skb_fd;
+	int err;
 	bool passed = false;
 	__u32 duration = 0;
 	const int zero = 0;
@@ -78,40 +74,27 @@ void serial_test_kfree_skb(void)
 	if (CHECK(err, "prog_load sched cls", "err %d errno %d\n", err, errno))
 		return;
 
-	err = bpf_prog_load_xattr(&attr, &obj2, &kfree_skb_fd);
-	if (CHECK(err, "prog_load raw tp", "err %d errno %d\n", err, errno))
+	skel = kfree_skb__open_and_load();
+	if (!ASSERT_OK_PTR(skel, "kfree_skb_skel"))
 		goto close_prog;
 
-	prog = bpf_object__find_program_by_title(obj2, "tp_btf/kfree_skb");
-	if (CHECK(!prog, "find_prog", "prog kfree_skb not found\n"))
-		goto close_prog;
-	fentry = bpf_object__find_program_by_title(obj2, "fentry/eth_type_trans");
-	if (CHECK(!fentry, "find_prog", "prog eth_type_trans not found\n"))
-		goto close_prog;
-	fexit = bpf_object__find_program_by_title(obj2, "fexit/eth_type_trans");
-	if (CHECK(!fexit, "find_prog", "prog eth_type_trans not found\n"))
-		goto close_prog;
-
-	global_data = bpf_object__find_map_by_name(obj2, ".bss");
-	if (CHECK(!global_data, "find global data", "not found\n"))
-		goto close_prog;
-
-	link = bpf_program__attach_raw_tracepoint(prog, NULL);
+	link = bpf_program__attach_raw_tracepoint(skel->progs.trace_kfree_skb, NULL);
 	if (!ASSERT_OK_PTR(link, "attach_raw_tp"))
 		goto close_prog;
-	link_fentry = bpf_program__attach_trace(fentry);
-	if (!ASSERT_OK_PTR(link_fentry, "attach fentry"))
-		goto close_prog;
-	link_fexit = bpf_program__attach_trace(fexit);
-	if (!ASSERT_OK_PTR(link_fexit, "attach fexit"))
-		goto close_prog;
+	skel->links.trace_kfree_skb = link;
 
-	perf_buf_map = bpf_object__find_map_by_name(obj2, "perf_buf_map");
-	if (CHECK(!perf_buf_map, "find_perf_buf_map", "not found\n"))
+	link = bpf_program__attach_trace(skel->progs.fentry_eth_type_trans);
+	if (!ASSERT_OK_PTR(link, "attach fentry"))
 		goto close_prog;
+	skel->links.fentry_eth_type_trans = link;
+
+	link = bpf_program__attach_trace(skel->progs.fexit_eth_type_trans);
+	if (!ASSERT_OK_PTR(link, "attach fexit"))
+		goto close_prog;
+	skel->links.fexit_eth_type_trans = link;
 
 	/* set up perf buffer */
-	pb = perf_buffer__new(bpf_map__fd(perf_buf_map), 1,
+	pb = perf_buffer__new(bpf_map__fd(skel->maps.perf_buf_map), 1,
 			      on_sample, NULL, &passed, NULL);
 	if (!ASSERT_OK_PTR(pb, "perf_buf__new"))
 		goto close_prog;
@@ -133,7 +116,7 @@ void serial_test_kfree_skb(void)
 	 */
 	ASSERT_TRUE(passed, "passed");
 
-	err = bpf_map_lookup_elem(bpf_map__fd(global_data), &zero, test_ok);
+	err = bpf_map_lookup_elem(bpf_map__fd(skel->maps.bss), &zero, test_ok);
 	if (CHECK(err, "get_result",
 		  "failed to get output data: %d\n", err))
 		goto close_prog;
@@ -141,9 +124,6 @@ void serial_test_kfree_skb(void)
 	CHECK_FAIL(!test_ok[0] || !test_ok[1]);
 close_prog:
 	perf_buffer__free(pb);
-	bpf_link__destroy(link);
-	bpf_link__destroy(link_fentry);
-	bpf_link__destroy(link_fexit);
 	bpf_object__close(obj);
-	bpf_object__close(obj2);
+	kfree_skb__destroy(skel);
 }
