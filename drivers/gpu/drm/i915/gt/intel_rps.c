@@ -936,14 +936,86 @@ void intel_rps_park(struct intel_rps *rps)
 	GT_TRACE(rps_to_gt(rps), "park:%x\n", rps->cur_freq);
 }
 
+u32 intel_rps_get_boost_frequency(struct intel_rps *rps)
+{
+	struct intel_guc_slpc *slpc;
+
+	if (rps_uses_slpc(rps)) {
+		slpc = rps_to_slpc(rps);
+
+		return slpc->boost_freq;
+	} else {
+		return intel_gpu_freq(rps, rps->boost_freq);
+	}
+}
+
+static int rps_set_boost_freq(struct intel_rps *rps, u32 val)
+{
+	bool boost = false;
+
+	/* Validate against (static) hardware limits */
+	val = intel_freq_opcode(rps, val);
+	if (val < rps->min_freq || val > rps->max_freq)
+		return -EINVAL;
+
+	mutex_lock(&rps->lock);
+	if (val != rps->boost_freq) {
+		rps->boost_freq = val;
+		boost = atomic_read(&rps->num_waiters);
+	}
+	mutex_unlock(&rps->lock);
+	if (boost)
+		schedule_work(&rps->work);
+
+	return 0;
+}
+
+int intel_rps_set_boost_frequency(struct intel_rps *rps, u32 freq)
+{
+	struct intel_guc_slpc *slpc;
+
+	if (rps_uses_slpc(rps)) {
+		slpc = rps_to_slpc(rps);
+
+		return intel_guc_slpc_set_boost_freq(slpc, freq);
+	} else {
+		return rps_set_boost_freq(rps, freq);
+	}
+}
+
+void intel_rps_dec_waiters(struct intel_rps *rps)
+{
+	struct intel_guc_slpc *slpc;
+
+	if (rps_uses_slpc(rps)) {
+		slpc = rps_to_slpc(rps);
+
+		intel_guc_slpc_dec_waiters(slpc);
+	} else {
+		atomic_dec(&rps->num_waiters);
+	}
+}
+
 void intel_rps_boost(struct i915_request *rq)
 {
+	struct intel_guc_slpc *slpc;
+
 	if (i915_request_signaled(rq) || i915_request_has_waitboost(rq))
 		return;
 
 	/* Serializes with i915_request_retire() */
 	if (!test_and_set_bit(I915_FENCE_FLAG_BOOST, &rq->fence.flags)) {
 		struct intel_rps *rps = &READ_ONCE(rq->engine)->gt->rps;
+
+		if (rps_uses_slpc(rps)) {
+			slpc = rps_to_slpc(rps);
+
+			/* Return if old value is non zero */
+			if (!atomic_fetch_inc(&slpc->num_waiters))
+				schedule_work(&slpc->boost_work);
+
+			return;
+		}
 
 		if (atomic_fetch_inc(&rps->num_waiters))
 			return;

@@ -1001,7 +1001,7 @@ static void free_engines_rcu(struct rcu_head *rcu)
 	free_engines(engines);
 }
 
-static int __i915_sw_fence_call
+static int
 engines_notify(struct i915_sw_fence *fence, enum i915_sw_fence_notify state)
 {
 	struct i915_gem_engines *engines =

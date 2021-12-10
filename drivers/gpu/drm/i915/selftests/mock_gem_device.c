@@ -165,7 +165,7 @@ struct drm_i915_private *mock_gem_device(void)
 	/* Using the global GTT may ask questions about KMS users, so prepare */
 	drm_mode_config_init(&i915->drm);
 
-	mkwrite_device_info(i915)->graphics_ver = -1;
+	mkwrite_device_info(i915)->graphics.ver = -1;
 
 	mkwrite_device_info(i915)->page_sizes =
 		I915_GTT_PAGE_SIZE_4K |
@@ -176,6 +176,8 @@ struct drm_i915_private *mock_gem_device(void)
 	intel_memory_regions_hw_probe(i915);
 
 	mock_uncore_init(&i915->uncore, i915);
+
+	spin_lock_init(&i915->gpu_error.lock);
 
 	i915_gem_init__mm(i915);
 	intel_gt_init_early(&i915->gt, i915);

@@ -254,6 +254,6 @@ int i915_gem_object_wait_migration(struct drm_i915_gem_object *obj,
 				   unsigned int flags)
 {
 	might_sleep();
-	/* NOP for now. */
-	return 0;
+
+	return i915_gem_object_wait_moving_fence(obj, !!(flags & I915_WAIT_INTERRUPTIBLE));
 }

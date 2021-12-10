@@ -66,12 +66,16 @@ static void release_fake_lmem_bar(struct intel_memory_region *mem)
 			   DMA_ATTR_FORCE_CONTIGUOUS);
 }
 
-static void
+static int
 region_lmem_release(struct intel_memory_region *mem)
 {
-	intel_region_ttm_fini(mem);
+	int ret;
+
+	ret = intel_region_ttm_fini(mem);
 	io_mapping_fini(&mem->iomap);
 	release_fake_lmem_bar(mem);
+
+	return ret;
 }
 
 static int
@@ -158,7 +162,7 @@ intel_gt_setup_fake_lmem(struct intel_gt *gt)
 static bool get_legacy_lowmem_region(struct intel_uncore *uncore,
 				     u64 *start, u32 *size)
 {
-	if (!IS_DG1_GT_STEP(uncore->i915, STEP_A0, STEP_C0))
+	if (!IS_DG1_GRAPHICS_STEP(uncore->i915, STEP_A0, STEP_C0))
 		return false;
 
 	*start = 0;
@@ -231,7 +235,7 @@ static struct intel_memory_region *setup_lmem(struct intel_gt *gt)
 	return mem;
 
 err_region_put:
-	intel_memory_region_put(mem);
+	intel_memory_region_destroy(mem);
 	return ERR_PTR(err);
 }
 

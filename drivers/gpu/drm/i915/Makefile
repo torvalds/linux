@@ -153,6 +153,7 @@ gem-y += \
 	gem/i915_gem_throttle.o \
 	gem/i915_gem_tiling.o \
 	gem/i915_gem_ttm.o \
+	gem/i915_gem_ttm_move.o \
 	gem/i915_gem_ttm_pm.o \
 	gem/i915_gem_userptr.o \
 	gem/i915_gem_wait.o \
@@ -172,6 +173,7 @@ i915-y += \
 	  i915_trace_points.o \
 	  i915_ttm_buddy_manager.o \
 	  i915_vma.o \
+	  i915_vma_snapshot.o \
 	  intel_wopcm.o
 
 # general-purpose microcontroller (GuC) support

@@ -7,6 +7,8 @@
 
 #include <linux/fault-inject.h>
 
+#include <drm/drm_cache.h>
+
 #include "gem/i915_gem_lmem.h"
 #include "i915_trace.h"
 #include "intel_gt.h"
@@ -273,6 +275,7 @@ static void poison_scratch_page(struct drm_i915_gem_object *scratch)
 		val = POISON_FREE;
 
 	memset(vaddr, val, scratch->base.size);
+	drm_clflush_virt_range(vaddr, scratch->base.size);
 }
 
 int setup_scratch_page(struct i915_address_space *vm)

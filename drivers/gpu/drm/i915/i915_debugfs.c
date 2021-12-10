@@ -65,6 +65,7 @@ static int i915_capabilities(struct seq_file *m, void *data)
 
 	intel_device_info_print_static(INTEL_INFO(i915), &p);
 	intel_device_info_print_runtime(RUNTIME_INFO(i915), &p);
+	i915_print_iommu_status(i915, &p);
 	intel_gt_info_print(&i915->gt.info, &p);
 	intel_driver_caps_print(&i915->caps, &p);
 

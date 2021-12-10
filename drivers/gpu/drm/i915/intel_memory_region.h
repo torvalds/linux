@@ -6,7 +6,6 @@
 #ifndef __INTEL_MEMORY_REGION_H__
 #define __INTEL_MEMORY_REGION_H__
 
-#include <linux/kref.h>
 #include <linux/ioport.h>
 #include <linux/mutex.h>
 #include <linux/io-mapping.h>
@@ -51,7 +50,7 @@ struct intel_memory_region_ops {
 	unsigned int flags;
 
 	int (*init)(struct intel_memory_region *mem);
-	void (*release)(struct intel_memory_region *mem);
+	int (*release)(struct intel_memory_region *mem);
 
 	int (*init_object)(struct intel_memory_region *mem,
 			   struct drm_i915_gem_object *obj,
@@ -70,8 +69,6 @@ struct intel_memory_region {
 
 	/* For fake LMEM */
 	struct drm_mm_node fake_mappable;
-
-	struct kref kref;
 
 	resource_size_t io_start;
 	resource_size_t min_page_size;
@@ -110,9 +107,7 @@ intel_memory_region_create(struct drm_i915_private *i915,
 			   u16 instance,
 			   const struct intel_memory_region_ops *ops);
 
-struct intel_memory_region *
-intel_memory_region_get(struct intel_memory_region *mem);
-void intel_memory_region_put(struct intel_memory_region *mem);
+void intel_memory_region_destroy(struct intel_memory_region *mem);
 
 int intel_memory_regions_hw_probe(struct drm_i915_private *i915);
 void intel_memory_regions_driver_release(struct drm_i915_private *i915);
