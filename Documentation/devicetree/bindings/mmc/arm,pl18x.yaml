@@ -53,6 +53,12 @@ properties:
         items:
           - const: arm,pl18x
           - const: arm,primecell
+      - description: Entry for STMicroelectronics variant of PL18x.
+          This dedicated compatible is used by bootloaders.
+        items:
+          - const: st,stm32-sdmmc2
+          - const: arm,pl18x
+          - const: arm,primecell
 
   clocks:
     description: One or two clocks, the "apb_pclk" and the "MCLK"
