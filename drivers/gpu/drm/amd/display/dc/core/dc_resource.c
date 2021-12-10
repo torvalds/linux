@@ -734,6 +734,10 @@ static void calculate_split_count_and_index(struct pipe_ctx *pipe_ctx, int *spli
 			(*split_idx)++;
 			split_pipe = split_pipe->top_pipe;
 		}
+
+		/* MPO window on right side of ODM split */
+		if (split_pipe && split_pipe->prev_odm_pipe && !pipe_ctx->prev_odm_pipe)
+			(*split_idx)++;
 	} else {
 		/*Get odm split index*/
 		struct pipe_ctx *split_pipe = pipe_ctx->prev_odm_pipe;
@@ -780,7 +784,11 @@ static void calculate_recout(struct pipe_ctx *pipe_ctx)
 	/*
 	 * Only the leftmost ODM pipe should be offset by a nonzero distance
 	 */
-	if (!pipe_ctx->prev_odm_pipe || split_idx == split_count) {
+	if (pipe_ctx->top_pipe && pipe_ctx->top_pipe->prev_odm_pipe && !pipe_ctx->prev_odm_pipe) {
+		/* MPO window on right side of ODM split */
+		data->recout.x = stream->dst.x + (surf_clip.x - stream->dst.width/2) *
+				stream->dst.width / stream->src.width;
+	} else if (!pipe_ctx->prev_odm_pipe || split_idx == split_count) {
 		data->recout.x = stream->dst.x;
 		if (stream->src.x < surf_clip.x)
 			data->recout.x += (surf_clip.x - stream->src.x) * stream->dst.width
@@ -978,6 +986,8 @@ static void calculate_inits_and_viewports(struct pipe_ctx *pipe_ctx)
 			* stream->dst.height / stream->src.height;
 	if (pipe_ctx->prev_odm_pipe && split_idx)
 		ro_lb = data->h_active * split_idx - recout_full_x;
+	else if (pipe_ctx->top_pipe && pipe_ctx->top_pipe->prev_odm_pipe)
+		ro_lb = data->h_active * split_idx - recout_full_x + data->recout.x;
 	else
 		ro_lb = data->recout.x - recout_full_x;
 	ro_tb = data->recout.y - recout_full_y;
@@ -1076,6 +1086,9 @@ bool resource_build_scaling_params(struct pipe_ctx *pipe_ctx)
 		timing->v_border_top + timing->v_border_bottom;
 	if (pipe_ctx->next_odm_pipe || pipe_ctx->prev_odm_pipe)
 		pipe_ctx->plane_res.scl_data.h_active /= get_num_odm_splits(pipe_ctx) + 1;
+	/* ODM + windows MPO, where window is on either right or left ODM half */
+	else if (pipe_ctx->top_pipe && (pipe_ctx->top_pipe->next_odm_pipe || pipe_ctx->top_pipe->prev_odm_pipe))
+		pipe_ctx->plane_res.scl_data.h_active /= get_num_odm_splits(pipe_ctx->top_pipe) + 1;
 
 	/* depends on h_active */
 	calculate_recout(pipe_ctx);
@@ -1083,11 +1096,6 @@ bool resource_build_scaling_params(struct pipe_ctx *pipe_ctx)
 	calculate_scaling_ratios(pipe_ctx);
 	/* depends on scaling ratios and recout, does not calculate offset yet */
 	calculate_viewport_size(pipe_ctx);
-
-	/* Stopgap for validation of ODM + MPO on one side of screen case */
-	if (pipe_ctx->plane_res.scl_data.viewport.height < 1 ||
-			pipe_ctx->plane_res.scl_data.viewport.width < 1)
-		return false;
 
 	/*
 	 * LB calculations depend on vp size, h/v_active and scaling ratios
@@ -1437,23 +1445,54 @@ bool dc_add_plane_to_context(
 		if (head_pipe != free_pipe) {
 			tail_pipe = resource_get_tail_pipe(&context->res_ctx, head_pipe);
 			ASSERT(tail_pipe);
-			free_pipe->stream_res.tg = tail_pipe->stream_res.tg;
-			free_pipe->stream_res.abm = tail_pipe->stream_res.abm;
-			free_pipe->stream_res.opp = tail_pipe->stream_res.opp;
-			free_pipe->stream_res.stream_enc = tail_pipe->stream_res.stream_enc;
-			free_pipe->stream_res.audio = tail_pipe->stream_res.audio;
-			free_pipe->clock_source = tail_pipe->clock_source;
-			free_pipe->top_pipe = tail_pipe;
-			tail_pipe->bottom_pipe = free_pipe;
-			if (!free_pipe->next_odm_pipe && tail_pipe->next_odm_pipe && tail_pipe->next_odm_pipe->bottom_pipe) {
-				free_pipe->next_odm_pipe = tail_pipe->next_odm_pipe->bottom_pipe;
-				tail_pipe->next_odm_pipe->bottom_pipe->prev_odm_pipe = free_pipe;
-			}
-			if (!free_pipe->prev_odm_pipe && tail_pipe->prev_odm_pipe && tail_pipe->prev_odm_pipe->bottom_pipe) {
-				free_pipe->prev_odm_pipe = tail_pipe->prev_odm_pipe->bottom_pipe;
-				tail_pipe->prev_odm_pipe->bottom_pipe->next_odm_pipe = free_pipe;
+
+			/* ODM + window MPO, where MPO window is on right half only */
+			if (free_pipe->plane_state &&
+					(free_pipe->plane_state->clip_rect.x >= free_pipe->stream->src.width/2) &&
+					tail_pipe->next_odm_pipe) {
+				free_pipe->stream_res.tg = tail_pipe->next_odm_pipe->stream_res.tg;
+				free_pipe->stream_res.abm = tail_pipe->next_odm_pipe->stream_res.abm;
+				free_pipe->stream_res.opp = tail_pipe->next_odm_pipe->stream_res.opp;
+				free_pipe->stream_res.stream_enc = tail_pipe->next_odm_pipe->stream_res.stream_enc;
+				free_pipe->stream_res.audio = tail_pipe->next_odm_pipe->stream_res.audio;
+				free_pipe->clock_source = tail_pipe->next_odm_pipe->clock_source;
+
+				free_pipe->top_pipe = tail_pipe->next_odm_pipe;
+				tail_pipe->next_odm_pipe->bottom_pipe = free_pipe;
+			} else {
+				free_pipe->stream_res.tg = tail_pipe->stream_res.tg;
+				free_pipe->stream_res.abm = tail_pipe->stream_res.abm;
+				free_pipe->stream_res.opp = tail_pipe->stream_res.opp;
+				free_pipe->stream_res.stream_enc = tail_pipe->stream_res.stream_enc;
+				free_pipe->stream_res.audio = tail_pipe->stream_res.audio;
+				free_pipe->clock_source = tail_pipe->clock_source;
+
+				free_pipe->top_pipe = tail_pipe;
+				tail_pipe->bottom_pipe = free_pipe;
+
+				if (!free_pipe->next_odm_pipe && tail_pipe->next_odm_pipe && tail_pipe->next_odm_pipe->bottom_pipe) {
+					free_pipe->next_odm_pipe = tail_pipe->next_odm_pipe->bottom_pipe;
+					tail_pipe->next_odm_pipe->bottom_pipe->prev_odm_pipe = free_pipe;
+				}
+				if (!free_pipe->prev_odm_pipe && tail_pipe->prev_odm_pipe && tail_pipe->prev_odm_pipe->bottom_pipe) {
+					free_pipe->prev_odm_pipe = tail_pipe->prev_odm_pipe->bottom_pipe;
+					tail_pipe->prev_odm_pipe->bottom_pipe->next_odm_pipe = free_pipe;
+				}
 			}
 		}
+
+		/* ODM + window MPO, where MPO window is on left half only */
+		if (free_pipe->plane_state &&
+				(free_pipe->plane_state->clip_rect.x + free_pipe->plane_state->clip_rect.width <=
+				free_pipe->stream->src.x + free_pipe->stream->src.width/2)) {
+			break;
+		}
+		/* ODM + window MPO, where MPO window is on right half only */
+		if (free_pipe->plane_state &&
+				(free_pipe->plane_state->clip_rect.x >= free_pipe->stream->src.width/2)) {
+			break;
+		}
+
 		head_pipe = head_pipe->next_odm_pipe;
 	}
 	/* assign new surfaces*/
