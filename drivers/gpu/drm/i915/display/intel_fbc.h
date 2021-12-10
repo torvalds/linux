@@ -8,8 +8,7 @@
 
 #include <linux/types.h>
 
-#include "intel_frontbuffer.h"
-
+enum fb_op_origin;
 struct drm_i915_private;
 struct intel_atomic_state;
 struct intel_crtc;
