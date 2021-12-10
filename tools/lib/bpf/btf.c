@@ -3107,7 +3107,7 @@ done:
 	return libbpf_err(err);
 }
 
-COMPAT_VERSION(bpf__dedup_deprecated, btf__dedup, LIBBPF_0.0.2)
+COMPAT_VERSION(btf__dedup_deprecated, btf__dedup, LIBBPF_0.0.2)
 int btf__dedup_deprecated(struct btf *btf, struct btf_ext *btf_ext, const void *unused_opts)
 {
 	LIBBPF_OPTS(btf_dedup_opts, opts, .btf_ext = btf_ext);
