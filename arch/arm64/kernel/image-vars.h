@@ -69,6 +69,7 @@ KVM_NVHE_ALIAS(kvm_compute_final_ctr_el0);
 KVM_NVHE_ALIAS(spectre_bhb_patch_loop_iter);
 KVM_NVHE_ALIAS(spectre_bhb_patch_loop_mitigation_enable);
 KVM_NVHE_ALIAS(spectre_bhb_patch_wa3);
+KVM_NVHE_ALIAS(spectre_bhb_patch_clearbhb);
 
 /* Global kernel state accessed by nVHE hyp code. */
 KVM_NVHE_ALIAS(kvm_vgic_global_state);

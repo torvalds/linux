@@ -108,6 +108,13 @@
 	.endm
 
 /*
+ * Clear Branch History instruction
+ */
+	.macro clearbhb
+	hint	#22
+	.endm
+
+/*
  * Speculation barrier
  */
 	.macro	sb
@@ -864,6 +871,16 @@ alternative_cb	smccc_patch_fw_mitigation_conduit
 alternative_cb_end
 	ldp	x2, x3, [sp], #16
 	ldp	x0, x1, [sp], #16
+#endif /* CONFIG_MITIGATE_SPECTRE_BRANCH_HISTORY */
+	.endm
+
+	.macro mitigate_spectre_bhb_clear_insn
+#ifdef CONFIG_MITIGATE_SPECTRE_BRANCH_HISTORY
+alternative_cb	spectre_bhb_patch_clearbhb
+	/* Patched to NOP when not supported */
+	clearbhb
+	isb
+alternative_cb_end
 #endif /* CONFIG_MITIGATE_SPECTRE_BRANCH_HISTORY */
 	.endm
 #endif	/* __ASM_ASSEMBLER_H */
