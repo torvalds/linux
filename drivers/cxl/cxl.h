@@ -191,7 +191,7 @@ struct cxl_decoder {
 	int interleave_granularity;
 	enum cxl_decoder_type target_type;
 	unsigned long flags;
-	const int nr_targets;
+	int nr_targets;
 	struct cxl_dport *target[];
 };
 
