@@ -135,7 +135,6 @@ static void damon_do_test_apply_three_regions(struct kunit *test,
 				struct damon_addr_range *three_regions,
 				unsigned long *expected, int nr_expected)
 {
-	struct damon_ctx *ctx = damon_new_ctx();
 	struct damon_target *t;
 	struct damon_region *r;
 	int i;
@@ -145,7 +144,6 @@ static void damon_do_test_apply_three_regions(struct kunit *test,
 		r = damon_new_region(regions[i * 2], regions[i * 2 + 1]);
 		damon_add_region(r, t);
 	}
-	damon_add_target(ctx, t);
 
 	damon_va_apply_three_regions(t, three_regions);
 
@@ -154,8 +152,6 @@ static void damon_do_test_apply_three_regions(struct kunit *test,
 		KUNIT_EXPECT_EQ(test, r->ar.start, expected[i * 2]);
 		KUNIT_EXPECT_EQ(test, r->ar.end, expected[i * 2 + 1]);
 	}
-
-	damon_destroy_ctx(ctx);
 }
 
 /*
@@ -298,8 +294,6 @@ static void damon_test_split_evenly_succ(struct kunit *test,
 
 static void damon_test_split_evenly(struct kunit *test)
 {
-	struct damon_ctx *c = damon_new_ctx();
-
 	KUNIT_EXPECT_EQ(test, damon_va_evenly_split_region(NULL, NULL, 5),
 			-EINVAL);
 
@@ -307,8 +301,6 @@ static void damon_test_split_evenly(struct kunit *test)
 	damon_test_split_evenly_succ(test, 0, 100, 10);
 	damon_test_split_evenly_succ(test, 5, 59, 5);
 	damon_test_split_evenly_fail(test, 5, 6, 2);
-
-	damon_destroy_ctx(c);
 }
 
 static struct kunit_case damon_test_cases[] = {
