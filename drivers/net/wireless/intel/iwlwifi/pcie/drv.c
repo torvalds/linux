@@ -1272,22 +1272,14 @@ static const struct iwl_dev_info iwl_dev_info_table[] = {
 static int get_crf_id(struct iwl_trans *iwl_trans)
 {
 	int ret = 0;
-	u32 wfpm_ctrl_addr;
-	u32 wfpm_otp_cfg_addr;
 	u32 sd_reg_ver_addr;
 	u32 cdb = 0;
 	u32 val;
 
-	if (iwl_trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_AX210) {
-		wfpm_ctrl_addr = WFPM_CTRL_REG_GEN2;
-		wfpm_otp_cfg_addr = WFPM_OTP_CFG1_ADDR_GEN2;
+	if (iwl_trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_AX210)
 		sd_reg_ver_addr = SD_REG_VER_GEN2;
-	/* Qu/Pu families have other addresses */
-	} else {
-		wfpm_ctrl_addr = WFPM_CTRL_REG;
-		wfpm_otp_cfg_addr = WFPM_OTP_CFG1_ADDR;
+	else
 		sd_reg_ver_addr = SD_REG_VER;
-	}
 
 	if (!iwl_trans_grab_nic_access(iwl_trans)) {
 		IWL_ERR(iwl_trans, "Failed to grab nic access before reading crf id\n");
@@ -1296,15 +1288,15 @@ static int get_crf_id(struct iwl_trans *iwl_trans)
 	}
 
 	/* Enable access to peripheral registers */
-	val = iwl_read_umac_prph_no_grab(iwl_trans, wfpm_ctrl_addr);
+	val = iwl_read_umac_prph_no_grab(iwl_trans, WFPM_CTRL_REG);
 	val |= ENABLE_WFPM;
-	iwl_write_umac_prph_no_grab(iwl_trans, wfpm_ctrl_addr, val);
+	iwl_write_umac_prph_no_grab(iwl_trans, WFPM_CTRL_REG, val);
 
 	/* Read crf info */
 	val = iwl_read_prph_no_grab(iwl_trans, sd_reg_ver_addr);
 
 	/* Read cdb info (also contains the jacket info if needed in the future */
-	cdb = iwl_read_umac_prph_no_grab(iwl_trans, wfpm_otp_cfg_addr);
+	cdb = iwl_read_umac_prph_no_grab(iwl_trans, WFPM_OTP_CFG1_ADDR);
 
 	/* Map between crf id to rf id */
 	switch (REG_CRF_ID_TYPE(val)) {
