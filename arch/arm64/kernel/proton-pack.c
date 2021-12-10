@@ -805,6 +805,7 @@ int arch_prctl_spec_ctrl_get(struct task_struct *task, unsigned long which)
  * - Mitigated by a branchy loop a CPU specific number of times, and listed
  *   in our "loop mitigated list".
  * - Mitigated in software by the firmware Spectre v2 call.
+ * - Has the ClearBHB instruction to perform the mitigation.
  * - Has the 'Exception Clears Branch History Buffer' (ECBHB) feature, so no
  *   software mitigation in the vectors is needed.
  * - Has CSV2.3, so is unaffected.
@@ -820,6 +821,7 @@ enum bhb_mitigation_bits {
 	BHB_LOOP,
 	BHB_FW,
 	BHB_HW,
+	BHB_INSN,
 };
 static unsigned long system_bhb_mitigations;
 
@@ -937,6 +939,9 @@ bool is_spectre_bhb_affected(const struct arm64_cpu_capabilities *entry,
 	if (supports_csv2p3(scope))
 		return false;
 
+	if (supports_clearbhb(scope))
+		return true;
+
 	if (spectre_bhb_loop_affected(scope))
 		return true;
 
@@ -984,6 +989,17 @@ void spectre_bhb_enable_mitigation(const struct arm64_cpu_capabilities *entry)
 	} else if (supports_ecbhb(SCOPE_LOCAL_CPU)) {
 		state = SPECTRE_MITIGATED;
 		set_bit(BHB_HW, &system_bhb_mitigations);
+	} else if (supports_clearbhb(SCOPE_LOCAL_CPU)) {
+		/*
+		 * Ensure KVM uses the indirect vector which will have ClearBHB
+		 * added.
+		 */
+		if (!data->slot)
+			data->slot = HYP_VECTOR_INDIRECT;
+
+		this_cpu_set_vectors(EL1_VECTOR_BHB_CLEAR_INSN);
+		state = SPECTRE_MITIGATED;
+		set_bit(BHB_INSN, &system_bhb_mitigations);
 	} else if (spectre_bhb_loop_affected(SCOPE_LOCAL_CPU)) {
 		/*
 		 * Ensure KVM uses the indirect vector which will have the
@@ -1095,4 +1111,17 @@ void noinstr spectre_bhb_patch_wa3(struct alt_instr *alt,
 		return;
 
 	*updptr++ = cpu_to_le32(insn);
+}
+
+/* Patched to NOP when not supported */
+void __init spectre_bhb_patch_clearbhb(struct alt_instr *alt,
+				   __le32 *origptr, __le32 *updptr, int nr_inst)
+{
+	BUG_ON(nr_inst != 2);
+
+	if (test_bit(BHB_INSN, &system_bhb_mitigations))
+		return;
+
+	*updptr++ = cpu_to_le32(aarch64_insn_gen_nop());
+	*updptr++ = cpu_to_le32(aarch64_insn_gen_nop());
 }

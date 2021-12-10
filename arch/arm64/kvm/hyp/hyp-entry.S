@@ -213,6 +213,7 @@ SYM_CODE_END(__kvm_hyp_vector)
 	.else
 	stp	x0, x1, [sp, #-16]!
 	mitigate_spectre_bhb_loop	x0
+	mitigate_spectre_bhb_clear_insn
 	.endif
 	.if \indirect != 0
 	alternative_cb  kvm_patch_vector_branch
