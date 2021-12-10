@@ -2548,11 +2548,12 @@ isp_hdrmge_config(struct rkisp_isp_params_vdev *params_vdev,
 		value = arg->gain2;
 		isp3_param_write(params_vdev, value, ISP3X_HDRMGE_GAIN2, id);
 
-		if (arg->s_base) {
-			value = isp3_param_read_cache(params_vdev, ISP3X_HDRMGE_CTRL, id);
+		value = isp3_param_read_cache(params_vdev, ISP3X_HDRMGE_CTRL, id);
+		if (arg->s_base)
 			value |= BIT(1);
-			isp3_param_write(params_vdev, value, ISP3X_HDRMGE_CTRL, id);
-		}
+		else
+			value &= ~BIT(1);
+		isp3_param_write(params_vdev, value, ISP3X_HDRMGE_CTRL, id);
 	}
 
 	if (type == RKISP_PARAMS_IMD || type == RKISP_PARAMS_ALL) {

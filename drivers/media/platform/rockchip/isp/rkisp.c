@@ -527,9 +527,9 @@ void rkisp_trigger_read_back(struct rkisp_device *dev, u8 dma2frm, u32 mode, boo
 		}
 	}
 
-	tmp = rkisp_read(dev, ISP_HDRMGE_BASE, false) & 0xf;
-	if (val != tmp) {
-		rkisp_unite_write(dev, ISP_HDRMGE_BASE, val, false, hw->is_unite);
+	if (rd_mode != dev->rd_mode) {
+		rkisp_unite_set_bits(dev, ISP_HDRMGE_BASE, ISP_HDRMGE_MODE_MASK,
+				     val, false, hw->is_unite);
 		dev->skip_frame = 2;
 		is_upd = true;
 	}

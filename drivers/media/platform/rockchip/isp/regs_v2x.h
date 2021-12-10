@@ -2492,6 +2492,7 @@
 
 /* HDRMGE */
 /* ISP_HDRMGE_CTRL */
+#define ISP_HDRMGE_MODE_MASK		GENMASK(3, 2)
 #define ISP_HDRMGE_EN			BIT(0)
 
 /* RAWNR */
