@@ -360,12 +360,15 @@ static int starfive_gpio_child_to_parent_hwirq(struct gpio_chip *gc,
 					     unsigned int *parent,
 					     unsigned int *parent_type)
 {
-	struct sfvic7110_gpio *chip = gpiochip_get_data(gc);
-	struct irq_data *d = irq_get_irq_data(chip->irq_parent[child]);
+	struct sfvic7110_gpio *chip;// = gpiochip_get_data(gc);
+	struct irq_data *d;// = irq_get_irq_data(chip->irq_parent[child]);
 
+#if 0
+	chip = gpiochip_get_data(gc);
+	d = irq_get_irq_data(chip->irq_parent[child]);
 	*parent_type = IRQ_TYPE_NONE;
 	*parent = irqd_to_hwirq(d);
-
+#endif
 	return 0;
 }
 
@@ -711,6 +714,7 @@ static int sfvic7110_gpio_probe(struct platform_device *pdev)
 	chip->enabled = 0;
 
 	platform_set_drvdata(pdev, chip);
+
 	ret = gpiochip_add_data(&chip->gc, chip);
 	if (ret){
 		dev_err(dev, "gpiochip_add_data ret=%d!\n", ret);
