@@ -456,6 +456,7 @@
 
 &sdmmc {
 	status = "okay";
+	vmmc-supply = <&vcc_3v3_sd_s0>;
 };
 
 &u2phy0_otg {

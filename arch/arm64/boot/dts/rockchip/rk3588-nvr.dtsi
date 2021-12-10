@@ -189,7 +189,7 @@
 
 &saradc {
 	status = "okay";
-	vref-supply = <&vcc_1v8_cam_s0>;
+	vref-supply = <&avcc_1v8_s0>;
 };
 
 &tsadc {
