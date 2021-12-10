@@ -2678,6 +2678,7 @@ static int intel_pt_hop_trace(struct intel_pt_decoder *decoder, bool *no_tip, in
 		return HOP_IGNORE;
 
 	case INTEL_PT_TIP_PGD:
+		decoder->pge = false;
 		if (!decoder->packet.count) {
 			intel_pt_set_nr(decoder);
 			return HOP_IGNORE;
@@ -2707,7 +2708,7 @@ static int intel_pt_hop_trace(struct intel_pt_decoder *decoder, bool *no_tip, in
 		intel_pt_set_ip(decoder);
 		if (intel_pt_fup_event(decoder))
 			return HOP_RETURN;
-		if (!decoder->branch_enable)
+		if (!decoder->branch_enable || !decoder->pge)
 			*no_tip = true;
 		if (*no_tip) {
 			decoder->state.type = INTEL_PT_INSTRUCTION;
@@ -2897,7 +2898,7 @@ static bool intel_pt_psb_with_fup(struct intel_pt_decoder *decoder, int *err)
 {
 	struct intel_pt_psb_info data = { .fup = false };
 
-	if (!decoder->branch_enable || !decoder->pge)
+	if (!decoder->branch_enable)
 		return false;
 
 	intel_pt_pkt_lookahead(decoder, intel_pt_psb_lookahead_cb, &data);
@@ -2999,7 +3000,7 @@ next:
 				break;
 			}
 			intel_pt_set_last_ip(decoder);
-			if (!decoder->branch_enable) {
+			if (!decoder->branch_enable || !decoder->pge) {
 				decoder->ip = decoder->last_ip;
 				if (intel_pt_fup_event(decoder))
 					return 0;
