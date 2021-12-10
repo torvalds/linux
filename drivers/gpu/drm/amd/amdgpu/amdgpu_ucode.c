@@ -760,3 +760,36 @@ int amdgpu_ucode_init_bo(struct amdgpu_device *adev)
 	}
 	return 0;
 }
+
+void amdgpu_ucode_ip_version_decode(struct amdgpu_device *adev, int block_type, char *ucode_prefix, int len)
+{
+	int maj, min, rev;
+	char *ip_name;
+	uint32_t version = adev->ip_versions[block_type][0];
+
+	switch (block_type) {
+	case GC_HWIP:
+		ip_name = "gc";
+		break;
+	case SDMA0_HWIP:
+		ip_name = "sdma";
+		break;
+	case MP0_HWIP:
+		ip_name = "psp";
+		break;
+	case MP1_HWIP:
+		ip_name = "smu";
+		break;
+	case UVD_HWIP:
+		ip_name = "vcn";
+		break;
+	default:
+		BUG();
+	}
+
+	maj = IP_VERSION_MAJ(version);
+	min = IP_VERSION_MIN(version);
+	rev = IP_VERSION_REV(version);
+
+	snprintf(ucode_prefix, len, "%s_%d_%d_%d", ip_name, maj, min, rev);
+}
