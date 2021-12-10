@@ -55,7 +55,6 @@ extern const struct kfd2kgd_calls gfx_v10_3_kfd2kgd;
 
 #ifdef KFD_SUPPORT_IOMMU_V2
 static const struct kfd_device_info kaveri_device_info = {
-	.asic_family = CHIP_KAVERI,
 	.asic_name = "kaveri",
 	.gfx_target_version = 70000,
 	.max_pasid_bits = 16,
@@ -69,13 +68,10 @@ static const struct kfd_device_info kaveri_device_info = {
 	.supports_cwsr = false,
 	.needs_iommu_device = true,
 	.needs_pci_atomics = false,
-	.num_sdma_engines = 2,
-	.num_xgmi_sdma_engines = 0,
 	.num_sdma_queues_per_engine = 2,
 };
 
 static const struct kfd_device_info carrizo_device_info = {
-	.asic_family = CHIP_CARRIZO,
 	.asic_name = "carrizo",
 	.gfx_target_version = 80001,
 	.max_pasid_bits = 16,
@@ -89,13 +85,10 @@ static const struct kfd_device_info carrizo_device_info = {
 	.supports_cwsr = true,
 	.needs_iommu_device = true,
 	.needs_pci_atomics = false,
-	.num_sdma_engines = 2,
-	.num_xgmi_sdma_engines = 0,
 	.num_sdma_queues_per_engine = 2,
 };
 
 static const struct kfd_device_info raven_device_info = {
-	.asic_family = CHIP_RAVEN,
 	.asic_name = "raven",
 	.gfx_target_version = 90002,
 	.max_pasid_bits = 16,
@@ -108,15 +101,12 @@ static const struct kfd_device_info raven_device_info = {
 	.supports_cwsr = true,
 	.needs_iommu_device = true,
 	.needs_pci_atomics = true,
-	.num_sdma_engines = 1,
-	.num_xgmi_sdma_engines = 0,
 	.num_sdma_queues_per_engine = 2,
 };
 #endif
 
 #ifdef CONFIG_DRM_AMDGPU_CIK
 static const struct kfd_device_info hawaii_device_info = {
-	.asic_family = CHIP_HAWAII,
 	.asic_name = "hawaii",
 	.gfx_target_version = 70001,
 	.max_pasid_bits = 16,
@@ -130,14 +120,11 @@ static const struct kfd_device_info hawaii_device_info = {
 	.supports_cwsr = false,
 	.needs_iommu_device = false,
 	.needs_pci_atomics = false,
-	.num_sdma_engines = 2,
-	.num_xgmi_sdma_engines = 0,
 	.num_sdma_queues_per_engine = 2,
 };
 #endif
 
 static const struct kfd_device_info tonga_device_info = {
-	.asic_family = CHIP_TONGA,
 	.asic_name = "tonga",
 	.gfx_target_version = 80002,
 	.max_pasid_bits = 16,
@@ -150,13 +137,10 @@ static const struct kfd_device_info tonga_device_info = {
 	.supports_cwsr = false,
 	.needs_iommu_device = false,
 	.needs_pci_atomics = true,
-	.num_sdma_engines = 2,
-	.num_xgmi_sdma_engines = 0,
 	.num_sdma_queues_per_engine = 2,
 };
 
 static const struct kfd_device_info fiji_device_info = {
-	.asic_family = CHIP_FIJI,
 	.asic_name = "fiji",
 	.gfx_target_version = 80003,
 	.max_pasid_bits = 16,
@@ -169,13 +153,10 @@ static const struct kfd_device_info fiji_device_info = {
 	.supports_cwsr = true,
 	.needs_iommu_device = false,
 	.needs_pci_atomics = true,
-	.num_sdma_engines = 2,
-	.num_xgmi_sdma_engines = 0,
 	.num_sdma_queues_per_engine = 2,
 };
 
 static const struct kfd_device_info fiji_vf_device_info = {
-	.asic_family = CHIP_FIJI,
 	.asic_name = "fiji",
 	.gfx_target_version = 80003,
 	.max_pasid_bits = 16,
@@ -188,14 +169,11 @@ static const struct kfd_device_info fiji_vf_device_info = {
 	.supports_cwsr = true,
 	.needs_iommu_device = false,
 	.needs_pci_atomics = false,
-	.num_sdma_engines = 2,
-	.num_xgmi_sdma_engines = 0,
 	.num_sdma_queues_per_engine = 2,
 };
 
 
 static const struct kfd_device_info polaris10_device_info = {
-	.asic_family = CHIP_POLARIS10,
 	.asic_name = "polaris10",
 	.gfx_target_version = 80003,
 	.max_pasid_bits = 16,
@@ -208,13 +186,10 @@ static const struct kfd_device_info polaris10_device_info = {
 	.supports_cwsr = true,
 	.needs_iommu_device = false,
 	.needs_pci_atomics = true,
-	.num_sdma_engines = 2,
-	.num_xgmi_sdma_engines = 0,
 	.num_sdma_queues_per_engine = 2,
 };
 
 static const struct kfd_device_info polaris10_vf_device_info = {
-	.asic_family = CHIP_POLARIS10,
 	.asic_name = "polaris10",
 	.gfx_target_version = 80003,
 	.max_pasid_bits = 16,
@@ -227,13 +202,10 @@ static const struct kfd_device_info polaris10_vf_device_info = {
 	.supports_cwsr = true,
 	.needs_iommu_device = false,
 	.needs_pci_atomics = false,
-	.num_sdma_engines = 2,
-	.num_xgmi_sdma_engines = 0,
 	.num_sdma_queues_per_engine = 2,
 };
 
 static const struct kfd_device_info polaris11_device_info = {
-	.asic_family = CHIP_POLARIS11,
 	.asic_name = "polaris11",
 	.gfx_target_version = 80003,
 	.max_pasid_bits = 16,
@@ -246,13 +218,10 @@ static const struct kfd_device_info polaris11_device_info = {
 	.supports_cwsr = true,
 	.needs_iommu_device = false,
 	.needs_pci_atomics = true,
-	.num_sdma_engines = 2,
-	.num_xgmi_sdma_engines = 0,
 	.num_sdma_queues_per_engine = 2,
 };
 
 static const struct kfd_device_info polaris12_device_info = {
-	.asic_family = CHIP_POLARIS12,
 	.asic_name = "polaris12",
 	.gfx_target_version = 80003,
 	.max_pasid_bits = 16,
@@ -265,13 +234,10 @@ static const struct kfd_device_info polaris12_device_info = {
 	.supports_cwsr = true,
 	.needs_iommu_device = false,
 	.needs_pci_atomics = true,
-	.num_sdma_engines = 2,
-	.num_xgmi_sdma_engines = 0,
 	.num_sdma_queues_per_engine = 2,
 };
 
 static const struct kfd_device_info vegam_device_info = {
-	.asic_family = CHIP_VEGAM,
 	.asic_name = "vegam",
 	.gfx_target_version = 80003,
 	.max_pasid_bits = 16,
@@ -284,13 +250,10 @@ static const struct kfd_device_info vegam_device_info = {
 	.supports_cwsr = true,
 	.needs_iommu_device = false,
 	.needs_pci_atomics = true,
-	.num_sdma_engines = 2,
-	.num_xgmi_sdma_engines = 0,
 	.num_sdma_queues_per_engine = 2,
 };
 
 static const struct kfd_device_info vega10_device_info = {
-	.asic_family = CHIP_VEGA10,
 	.asic_name = "vega10",
 	.gfx_target_version = 90000,
 	.max_pasid_bits = 16,
@@ -303,13 +266,10 @@ static const struct kfd_device_info vega10_device_info = {
 	.supports_cwsr = true,
 	.needs_iommu_device = false,
 	.needs_pci_atomics = false,
-	.num_sdma_engines = 2,
-	.num_xgmi_sdma_engines = 0,
 	.num_sdma_queues_per_engine = 2,
 };
 
 static const struct kfd_device_info vega10_vf_device_info = {
-	.asic_family = CHIP_VEGA10,
 	.asic_name = "vega10",
 	.gfx_target_version = 90000,
 	.max_pasid_bits = 16,
@@ -322,13 +282,10 @@ static const struct kfd_device_info vega10_vf_device_info = {
 	.supports_cwsr = true,
 	.needs_iommu_device = false,
 	.needs_pci_atomics = false,
-	.num_sdma_engines = 2,
-	.num_xgmi_sdma_engines = 0,
 	.num_sdma_queues_per_engine = 2,
 };
 
 static const struct kfd_device_info vega12_device_info = {
-	.asic_family = CHIP_VEGA12,
 	.asic_name = "vega12",
 	.gfx_target_version = 90004,
 	.max_pasid_bits = 16,
@@ -341,13 +298,10 @@ static const struct kfd_device_info vega12_device_info = {
 	.supports_cwsr = true,
 	.needs_iommu_device = false,
 	.needs_pci_atomics = false,
-	.num_sdma_engines = 2,
-	.num_xgmi_sdma_engines = 0,
 	.num_sdma_queues_per_engine = 2,
 };
 
 static const struct kfd_device_info vega20_device_info = {
-	.asic_family = CHIP_VEGA20,
 	.asic_name = "vega20",
 	.gfx_target_version = 90006,
 	.max_pasid_bits = 16,
@@ -360,13 +314,10 @@ static const struct kfd_device_info vega20_device_info = {
 	.supports_cwsr = true,
 	.needs_iommu_device = false,
 	.needs_pci_atomics = false,
-	.num_sdma_engines = 2,
-	.num_xgmi_sdma_engines = 0,
 	.num_sdma_queues_per_engine = 8,
 };
 
 static const struct kfd_device_info arcturus_device_info = {
-	.asic_family = CHIP_ARCTURUS,
 	.asic_name = "arcturus",
 	.gfx_target_version = 90008,
 	.max_pasid_bits = 16,
@@ -379,13 +330,10 @@ static const struct kfd_device_info arcturus_device_info = {
 	.supports_cwsr = true,
 	.needs_iommu_device = false,
 	.needs_pci_atomics = false,
-	.num_sdma_engines = 2,
-	.num_xgmi_sdma_engines = 6,
 	.num_sdma_queues_per_engine = 8,
 };
 
 static const struct kfd_device_info aldebaran_device_info = {
-	.asic_family = CHIP_ALDEBARAN,
 	.asic_name = "aldebaran",
 	.gfx_target_version = 90010,
 	.max_pasid_bits = 16,
@@ -398,13 +346,10 @@ static const struct kfd_device_info aldebaran_device_info = {
 	.supports_cwsr = true,
 	.needs_iommu_device = false,
 	.needs_pci_atomics = false,
-	.num_sdma_engines = 2,
-	.num_xgmi_sdma_engines = 3,
 	.num_sdma_queues_per_engine = 8,
 };
 
 static const struct kfd_device_info renoir_device_info = {
-	.asic_family = CHIP_RENOIR,
 	.asic_name = "renoir",
 	.gfx_target_version = 90012,
 	.max_pasid_bits = 16,
@@ -417,13 +362,10 @@ static const struct kfd_device_info renoir_device_info = {
 	.supports_cwsr = true,
 	.needs_iommu_device = false,
 	.needs_pci_atomics = false,
-	.num_sdma_engines = 1,
-	.num_xgmi_sdma_engines = 0,
 	.num_sdma_queues_per_engine = 2,
 };
 
 static const struct kfd_device_info navi10_device_info = {
-	.asic_family = CHIP_NAVI10,
 	.asic_name = "navi10",
 	.gfx_target_version = 100100,
 	.max_pasid_bits = 16,
@@ -437,13 +379,10 @@ static const struct kfd_device_info navi10_device_info = {
 	.supports_cwsr = true,
 	.needs_pci_atomics = true,
 	.no_atomic_fw_version = 145,
-	.num_sdma_engines = 2,
-	.num_xgmi_sdma_engines = 0,
 	.num_sdma_queues_per_engine = 8,
 };
 
 static const struct kfd_device_info navi12_device_info = {
-	.asic_family = CHIP_NAVI12,
 	.asic_name = "navi12",
 	.gfx_target_version = 100101,
 	.max_pasid_bits = 16,
@@ -457,13 +396,10 @@ static const struct kfd_device_info navi12_device_info = {
 	.supports_cwsr = true,
 	.needs_pci_atomics = true,
 	.no_atomic_fw_version = 145,
-	.num_sdma_engines = 2,
-	.num_xgmi_sdma_engines = 0,
 	.num_sdma_queues_per_engine = 8,
 };
 
 static const struct kfd_device_info navi14_device_info = {
-	.asic_family = CHIP_NAVI14,
 	.asic_name = "navi14",
 	.gfx_target_version = 100102,
 	.max_pasid_bits = 16,
@@ -477,13 +413,10 @@ static const struct kfd_device_info navi14_device_info = {
 	.supports_cwsr = true,
 	.needs_pci_atomics = true,
 	.no_atomic_fw_version = 145,
-	.num_sdma_engines = 2,
-	.num_xgmi_sdma_engines = 0,
 	.num_sdma_queues_per_engine = 8,
 };
 
 static const struct kfd_device_info sienna_cichlid_device_info = {
-	.asic_family = CHIP_SIENNA_CICHLID,
 	.asic_name = "sienna_cichlid",
 	.gfx_target_version = 100300,
 	.max_pasid_bits = 16,
@@ -497,13 +430,10 @@ static const struct kfd_device_info sienna_cichlid_device_info = {
 	.supports_cwsr = true,
 	.needs_pci_atomics = true,
 	.no_atomic_fw_version = 92,
-	.num_sdma_engines = 4,
-	.num_xgmi_sdma_engines = 0,
 	.num_sdma_queues_per_engine = 8,
 };
 
 static const struct kfd_device_info navy_flounder_device_info = {
-	.asic_family = CHIP_NAVY_FLOUNDER,
 	.asic_name = "navy_flounder",
 	.gfx_target_version = 100301,
 	.max_pasid_bits = 16,
@@ -517,13 +447,10 @@ static const struct kfd_device_info navy_flounder_device_info = {
 	.supports_cwsr = true,
 	.needs_pci_atomics = true,
 	.no_atomic_fw_version = 92,
-	.num_sdma_engines = 2,
-	.num_xgmi_sdma_engines = 0,
 	.num_sdma_queues_per_engine = 8,
 };
 
 static const struct kfd_device_info vangogh_device_info = {
-	.asic_family = CHIP_VANGOGH,
 	.asic_name = "vangogh",
 	.gfx_target_version = 100303,
 	.max_pasid_bits = 16,
@@ -537,13 +464,10 @@ static const struct kfd_device_info vangogh_device_info = {
 	.supports_cwsr = true,
 	.needs_pci_atomics = true,
 	.no_atomic_fw_version = 92,
-	.num_sdma_engines = 1,
-	.num_xgmi_sdma_engines = 0,
 	.num_sdma_queues_per_engine = 2,
 };
 
 static const struct kfd_device_info dimgrey_cavefish_device_info = {
-	.asic_family = CHIP_DIMGREY_CAVEFISH,
 	.asic_name = "dimgrey_cavefish",
 	.gfx_target_version = 100302,
 	.max_pasid_bits = 16,
@@ -557,13 +481,10 @@ static const struct kfd_device_info dimgrey_cavefish_device_info = {
 	.supports_cwsr = true,
 	.needs_pci_atomics = true,
 	.no_atomic_fw_version = 92,
-	.num_sdma_engines = 2,
-	.num_xgmi_sdma_engines = 0,
 	.num_sdma_queues_per_engine = 8,
 };
 
 static const struct kfd_device_info beige_goby_device_info = {
-	.asic_family = CHIP_BEIGE_GOBY,
 	.asic_name = "beige_goby",
 	.gfx_target_version = 100304,
 	.max_pasid_bits = 16,
@@ -577,13 +498,10 @@ static const struct kfd_device_info beige_goby_device_info = {
 	.supports_cwsr = true,
 	.needs_pci_atomics = true,
 	.no_atomic_fw_version = 92,
-	.num_sdma_engines = 1,
-	.num_xgmi_sdma_engines = 0,
 	.num_sdma_queues_per_engine = 8,
 };
 
 static const struct kfd_device_info yellow_carp_device_info = {
-	.asic_family = CHIP_YELLOW_CARP,
 	.asic_name = "yellow_carp",
 	.gfx_target_version = 100305,
 	.max_pasid_bits = 16,
@@ -597,13 +515,10 @@ static const struct kfd_device_info yellow_carp_device_info = {
 	.supports_cwsr = true,
 	.needs_pci_atomics = true,
 	.no_atomic_fw_version = 92,
-	.num_sdma_engines = 1,
-	.num_xgmi_sdma_engines = 0,
 	.num_sdma_queues_per_engine = 2,
 };
 
 static const struct kfd_device_info cyan_skillfish_device_info = {
-	.asic_family = CHIP_CYAN_SKILLFISH,
 	.asic_name = "cyan_skillfish",
 	.gfx_target_version = 100103,
 	.max_pasid_bits = 16,
@@ -616,8 +531,6 @@ static const struct kfd_device_info cyan_skillfish_device_info = {
 	.needs_iommu_device = false,
 	.supports_cwsr = true,
 	.needs_pci_atomics = true,
-	.num_sdma_engines = 2,
-	.num_xgmi_sdma_engines = 0,
 	.num_sdma_queues_per_engine = 8,
 };
 
@@ -627,12 +540,11 @@ static void kfd_gtt_sa_fini(struct kfd_dev *kfd);
 
 static int kfd_resume(struct kfd_dev *kfd);
 
-struct kfd_dev *kgd2kfd_probe(struct kgd_dev *kgd, bool vf)
+struct kfd_dev *kgd2kfd_probe(struct amdgpu_device *adev, bool vf)
 {
 	struct kfd_dev *kfd;
 	const struct kfd_device_info *device_info;
 	const struct kfd2kgd_calls *f2g;
-	struct amdgpu_device *adev = (struct amdgpu_device *)kgd;
 	struct pci_dev *pdev = adev->pdev;
 
 	switch (adev->asic_type) {
@@ -815,8 +727,12 @@ struct kfd_dev *kgd2kfd_probe(struct kgd_dev *kgd, bool vf)
 	}
 
 	if (!device_info || !f2g) {
-		dev_err(kfd_device, "%s %s not supported in kfd\n",
-			amdgpu_asic_name[adev->asic_type], vf ? "VF" : "");
+		if (adev->ip_versions[GC_HWIP][0])
+			dev_err(kfd_device, "GC IP %06x %s not supported in kfd\n",
+				adev->ip_versions[GC_HWIP][0], vf ? "VF" : "");
+		else
+			dev_err(kfd_device, "%s %s not supported in kfd\n",
+				amdgpu_asic_name[adev->asic_type], vf ? "VF" : "");
 		return NULL;
 	}
 
@@ -824,7 +740,7 @@ struct kfd_dev *kgd2kfd_probe(struct kgd_dev *kgd, bool vf)
 	if (!kfd)
 		return NULL;
 
-	kfd->kgd = kgd;
+	kfd->adev = adev;
 	kfd->device_info = device_info;
 	kfd->pdev = pdev;
 	kfd->init_complete = false;
@@ -845,23 +761,23 @@ struct kfd_dev *kgd2kfd_probe(struct kgd_dev *kgd, bool vf)
 static void kfd_cwsr_init(struct kfd_dev *kfd)
 {
 	if (cwsr_enable && kfd->device_info->supports_cwsr) {
-		if (kfd->device_info->asic_family < CHIP_VEGA10) {
+		if (KFD_GC_VERSION(kfd) < IP_VERSION(9, 0, 1)) {
 			BUILD_BUG_ON(sizeof(cwsr_trap_gfx8_hex) > PAGE_SIZE);
 			kfd->cwsr_isa = cwsr_trap_gfx8_hex;
 			kfd->cwsr_isa_size = sizeof(cwsr_trap_gfx8_hex);
-		} else if (kfd->device_info->asic_family == CHIP_ARCTURUS) {
+		} else if (KFD_GC_VERSION(kfd) == IP_VERSION(9, 4, 1)) {
 			BUILD_BUG_ON(sizeof(cwsr_trap_arcturus_hex) > PAGE_SIZE);
 			kfd->cwsr_isa = cwsr_trap_arcturus_hex;
 			kfd->cwsr_isa_size = sizeof(cwsr_trap_arcturus_hex);
-		} else if (kfd->device_info->asic_family == CHIP_ALDEBARAN) {
+		} else if (KFD_GC_VERSION(kfd) == IP_VERSION(9, 4, 2)) {
 			BUILD_BUG_ON(sizeof(cwsr_trap_aldebaran_hex) > PAGE_SIZE);
 			kfd->cwsr_isa = cwsr_trap_aldebaran_hex;
 			kfd->cwsr_isa_size = sizeof(cwsr_trap_aldebaran_hex);
-		} else if (kfd->device_info->asic_family < CHIP_NAVI10) {
+		} else if (KFD_GC_VERSION(kfd) < IP_VERSION(10, 1, 1)) {
 			BUILD_BUG_ON(sizeof(cwsr_trap_gfx9_hex) > PAGE_SIZE);
 			kfd->cwsr_isa = cwsr_trap_gfx9_hex;
 			kfd->cwsr_isa_size = sizeof(cwsr_trap_gfx9_hex);
-		} else if (kfd->device_info->asic_family < CHIP_SIENNA_CICHLID) {
+		} else if (KFD_GC_VERSION(kfd) < IP_VERSION(10, 3, 0)) {
 			BUILD_BUG_ON(sizeof(cwsr_trap_nv1x_hex) > PAGE_SIZE);
 			kfd->cwsr_isa = cwsr_trap_nv1x_hex;
 			kfd->cwsr_isa_size = sizeof(cwsr_trap_nv1x_hex);
@@ -882,18 +798,17 @@ static int kfd_gws_init(struct kfd_dev *kfd)
 	if (kfd->dqm->sched_policy == KFD_SCHED_POLICY_NO_HWS)
 		return 0;
 
-	if (hws_gws_support
-		|| (kfd->device_info->asic_family == CHIP_VEGA10
-			&& kfd->mec2_fw_version >= 0x81b3)
-		|| (kfd->device_info->asic_family >= CHIP_VEGA12
-			&& kfd->device_info->asic_family <= CHIP_RAVEN
-			&& kfd->mec2_fw_version >= 0x1b3)
-		|| (kfd->device_info->asic_family == CHIP_ARCTURUS
-			&& kfd->mec2_fw_version >= 0x30)
-		|| (kfd->device_info->asic_family == CHIP_ALDEBARAN
-			&& kfd->mec2_fw_version >= 0x28))
-		ret = amdgpu_amdkfd_alloc_gws(kfd->kgd,
-				amdgpu_amdkfd_get_num_gws(kfd->kgd), &kfd->gws);
+	if (hws_gws_support || (KFD_IS_SOC15(kfd) &&
+		((KFD_GC_VERSION(kfd) == IP_VERSION(9, 0, 1)
+			&& kfd->mec2_fw_version >= 0x81b3) ||
+		(KFD_GC_VERSION(kfd) <= IP_VERSION(9, 4, 0)
+			&& kfd->mec2_fw_version >= 0x1b3)  ||
+		(KFD_GC_VERSION(kfd) == IP_VERSION(9, 4, 1)
+			&& kfd->mec2_fw_version >= 0x30)   ||
+		(KFD_GC_VERSION(kfd) == IP_VERSION(9, 4, 2)
+			&& kfd->mec2_fw_version >= 0x28))))
+		ret = amdgpu_amdkfd_alloc_gws(kfd->adev,
+				kfd->adev->gds.gws_size, &kfd->gws);
 
 	return ret;
 }
@@ -910,11 +825,11 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 	unsigned int size, map_process_packet_size;
 
 	kfd->ddev = ddev;
-	kfd->mec_fw_version = amdgpu_amdkfd_get_fw_version(kfd->kgd,
+	kfd->mec_fw_version = amdgpu_amdkfd_get_fw_version(kfd->adev,
 			KGD_ENGINE_MEC1);
-	kfd->mec2_fw_version = amdgpu_amdkfd_get_fw_version(kfd->kgd,
+	kfd->mec2_fw_version = amdgpu_amdkfd_get_fw_version(kfd->adev,
 			KGD_ENGINE_MEC2);
-	kfd->sdma_fw_version = amdgpu_amdkfd_get_fw_version(kfd->kgd,
+	kfd->sdma_fw_version = amdgpu_amdkfd_get_fw_version(kfd->adev,
 			KGD_ENGINE_SDMA1);
 	kfd->shared_resources = *gpu_resources;
 
@@ -927,7 +842,7 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 	 * 32 and 64-bit requests are possible and must be
 	 * supported.
 	 */
-	kfd->pci_atomic_requested = amdgpu_amdkfd_have_atomics_support(kfd->kgd);
+	kfd->pci_atomic_requested = amdgpu_amdkfd_have_atomics_support(kfd->adev);
 	if (!kfd->pci_atomic_requested &&
 	    kfd->device_info->needs_pci_atomics &&
 	    (!kfd->device_info->no_atomic_fw_version ||
@@ -959,10 +874,9 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 	 * calculate max size of runlist packet.
 	 * There can be only 2 packets at once
 	 */
-	map_process_packet_size =
-			kfd->device_info->asic_family == CHIP_ALDEBARAN ?
+	map_process_packet_size = KFD_GC_VERSION(kfd) == IP_VERSION(9, 4, 2) ?
 				sizeof(struct pm4_mes_map_process_aldebaran) :
-					sizeof(struct pm4_mes_map_process);
+				sizeof(struct pm4_mes_map_process);
 	size += (KFD_MAX_NUM_OF_PROCESSES * map_process_packet_size +
 		max_num_of_queues_per_device * sizeof(struct pm4_mes_map_queues)
 		+ sizeof(struct pm4_mes_runlist)) * 2;
@@ -974,7 +888,7 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 	size += 512 * 1024;
 
 	if (amdgpu_amdkfd_alloc_gtt_mem(
-			kfd->kgd, size, &kfd->gtt_mem,
+			kfd->adev, size, &kfd->gtt_mem,
 			&kfd->gtt_start_gpu_addr, &kfd->gtt_start_cpu_ptr,
 			false)) {
 		dev_err(kfd_device, "Could not allocate %d bytes\n", size);
@@ -995,9 +909,9 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 		goto kfd_doorbell_error;
 	}
 
-	kfd->hive_id = amdgpu_amdkfd_get_hive_id(kfd->kgd);
+	kfd->hive_id = kfd->adev->gmc.xgmi.hive_id;
 
-	kfd->noretry = amdgpu_amdkfd_get_noretry(kfd->kgd);
+	kfd->noretry = kfd->adev->gmc.noretry;
 
 	if (kfd_interrupt_init(kfd)) {
 		dev_err(kfd_device, "Error initializing interrupts\n");
@@ -1015,7 +929,7 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 	 */
 	if (kfd_gws_init(kfd)) {
 		dev_err(kfd_device, "Could not allocate %d gws\n",
-			amdgpu_amdkfd_get_num_gws(kfd->kgd));
+			kfd->adev->gds.gws_size);
 		goto gws_error;
 	}
 
@@ -1030,7 +944,7 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 
 	kfd_cwsr_init(kfd);
 
-	svm_migrate_init((struct amdgpu_device *)kfd->kgd);
+	svm_migrate_init(kfd->adev);
 
 	if(kgd2kfd_resume_iommu(kfd))
 		goto device_iommu_error;
@@ -1068,10 +982,10 @@ kfd_interrupt_error:
 kfd_doorbell_error:
 	kfd_gtt_sa_fini(kfd);
 kfd_gtt_sa_init_error:
-	amdgpu_amdkfd_free_gtt_mem(kfd->kgd, kfd->gtt_mem);
+	amdgpu_amdkfd_free_gtt_mem(kfd->adev, kfd->gtt_mem);
 alloc_gtt_mem_failure:
 	if (kfd->gws)
-		amdgpu_amdkfd_free_gws(kfd->kgd, kfd->gws);
+		amdgpu_amdkfd_free_gws(kfd->adev, kfd->gws);
 	dev_err(kfd_device,
 		"device %x:%x NOT added due to errors\n",
 		kfd->pdev->vendor, kfd->pdev->device);
@@ -1088,9 +1002,9 @@ void kgd2kfd_device_exit(struct kfd_dev *kfd)
 		kfd_doorbell_fini(kfd);
 		ida_destroy(&kfd->doorbell_ida);
 		kfd_gtt_sa_fini(kfd);
-		amdgpu_amdkfd_free_gtt_mem(kfd->kgd, kfd->gtt_mem);
+		amdgpu_amdkfd_free_gtt_mem(kfd->adev, kfd->gtt_mem);
 		if (kfd->gws)
-			amdgpu_amdkfd_free_gws(kfd->kgd, kfd->gws);
+			amdgpu_amdkfd_free_gws(kfd->adev, kfd->gws);
 	}
 
 	kfree(kfd);
@@ -1526,7 +1440,7 @@ void kgd2kfd_set_sram_ecc_flag(struct kfd_dev *kfd)
 void kfd_inc_compute_active(struct kfd_dev *kfd)
 {
 	if (atomic_inc_return(&kfd->compute_profile) == 1)
-		amdgpu_amdkfd_set_compute_idle(kfd->kgd, false);
+		amdgpu_amdkfd_set_compute_idle(kfd->adev, false);
 }
 
 void kfd_dec_compute_active(struct kfd_dev *kfd)
@@ -1534,7 +1448,7 @@ void kfd_dec_compute_active(struct kfd_dev *kfd)
 	int count = atomic_dec_return(&kfd->compute_profile);
 
 	if (count == 0)
-		amdgpu_amdkfd_set_compute_idle(kfd->kgd, true);
+		amdgpu_amdkfd_set_compute_idle(kfd->adev, true);
 	WARN_ONCE(count < 0, "Compute profile ref. count error");
 }
 
@@ -1542,6 +1456,26 @@ void kgd2kfd_smi_event_throttle(struct kfd_dev *kfd, uint64_t throttle_bitmask)
 {
 	if (kfd && kfd->init_complete)
 		kfd_smi_event_update_thermal_throttling(kfd, throttle_bitmask);
+}
+
+/* kfd_get_num_sdma_engines returns the number of PCIe optimized SDMA and
+ * kfd_get_num_xgmi_sdma_engines returns the number of XGMI SDMA.
+ * When the device has more than two engines, we reserve two for PCIe to enable
+ * full-duplex and the rest are used as XGMI.
+ */
+unsigned int kfd_get_num_sdma_engines(struct kfd_dev *kdev)
+{
+	/* If XGMI is not supported, all SDMA engines are PCIe */
+	if (!kdev->adev->gmc.xgmi.supported)
+		return kdev->adev->sdma.num_instances;
+
+	return min(kdev->adev->sdma.num_instances, 2);
+}
+
+unsigned int kfd_get_num_xgmi_sdma_engines(struct kfd_dev *kdev)
+{
+	/* After reserved for PCIe, the rest of engines are XGMI */
+	return kdev->adev->sdma.num_instances - kfd_get_num_sdma_engines(kdev);
 }
 
 #if defined(CONFIG_DEBUG_FS)

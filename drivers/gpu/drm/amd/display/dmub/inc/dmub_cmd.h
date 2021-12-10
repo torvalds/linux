@@ -46,10 +46,10 @@
 
 /* Firmware versioning. */
 #ifdef DMUB_EXPOSE_VERSION
-#define DMUB_FW_VERSION_GIT_HASH 0x1d82d23e
+#define DMUB_FW_VERSION_GIT_HASH 0x465e619a
 #define DMUB_FW_VERSION_MAJOR 0
 #define DMUB_FW_VERSION_MINOR 0
-#define DMUB_FW_VERSION_REVISION 91
+#define DMUB_FW_VERSION_REVISION 94
 #define DMUB_FW_VERSION_TEST 0
 #define DMUB_FW_VERSION_VBIOS 0
 #define DMUB_FW_VERSION_HOTFIX 0
@@ -173,13 +173,6 @@ extern "C" {
 #endif
 
 /**
- * Number of nanoseconds per DMUB tick.
- * DMCUB_TIMER_CURRENT increments in DMUB ticks, which are 10ns by default.
- * If DMCUB_TIMER_WINDOW is non-zero this will no longer be true.
- */
-#define NS_PER_DMUB_TICK 10
-
-/**
  * union dmub_addr - DMUB physical/virtual 64-bit address.
  */
 union dmub_addr {
@@ -208,10 +201,9 @@ union dmub_psr_debug_flags {
 		uint32_t use_hw_lock_mgr : 1;
 
 		/**
-		 * Unused.
-		 * TODO: Remove.
+		 * Use TPS3 signal when restore main link.
 		 */
-		uint32_t log_line_nums : 1;
+		uint32_t force_wakeup_by_tps3 : 1;
 	} bitfields;
 
 	/**
@@ -1550,10 +1542,14 @@ struct dmub_cmd_psr_copy_settings_data {
 	 * Currently the support is only for 0 or 1
 	 */
 	uint8_t panel_inst;
-	/**
-	 * Explicit padding to 4 byte boundary.
+	/*
+	 * DSC enable status in driver
 	 */
-	uint8_t pad3[4];
+	uint8_t dsc_enable_status;
+	/**
+	 * Explicit padding to 3 byte boundary.
+	 */
+	uint8_t pad3[3];
 };
 
 /**
@@ -2722,7 +2718,7 @@ static inline bool dmub_rb_full(struct dmub_rb *rb)
 static inline bool dmub_rb_push_front(struct dmub_rb *rb,
 				      const union dmub_rb_cmd *cmd)
 {
-	uint64_t volatile *dst = (uint64_t volatile *)(rb->base_address) + rb->wrpt / sizeof(uint64_t);
+	uint64_t volatile *dst = (uint64_t volatile *)((uint8_t *)(rb->base_address) + rb->wrpt);
 	const uint64_t *src = (const uint64_t *)cmd;
 	uint8_t i;
 
@@ -2840,7 +2836,7 @@ static inline bool dmub_rb_peek_offset(struct dmub_rb *rb,
 static inline bool dmub_rb_out_front(struct dmub_rb *rb,
 				 union dmub_rb_out_cmd *cmd)
 {
-	const uint64_t volatile *src = (const uint64_t volatile *)(rb->base_address) + rb->rptr / sizeof(uint64_t);
+	const uint64_t volatile *src = (const uint64_t volatile *)((uint8_t *)(rb->base_address) + rb->rptr);
 	uint64_t *dst = (uint64_t *)cmd;
 	uint8_t i;
 
@@ -2888,7 +2884,7 @@ static inline void dmub_rb_flush_pending(const struct dmub_rb *rb)
 	uint32_t wptr = rb->wrpt;
 
 	while (rptr != wptr) {
-		uint64_t volatile *data = (uint64_t volatile *)rb->base_address + rptr / sizeof(uint64_t);
+		uint64_t volatile *data = (uint64_t volatile *)((uint8_t *)(rb->base_address) + rptr);
 		//uint64_t volatile *p = (uint64_t volatile *)data;
 		uint64_t temp;
 		uint8_t i;

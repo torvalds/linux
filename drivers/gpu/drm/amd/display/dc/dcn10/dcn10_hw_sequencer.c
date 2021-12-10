@@ -1362,11 +1362,48 @@ void dcn10_init_pipes(struct dc *dc, struct dc_state *context)
 
 		tg->funcs->tg_init(tg);
 	}
+
+	/* Power gate DSCs */
+	if (hws->funcs.dsc_pg_control != NULL) {
+		uint32_t num_opps = 0;
+		uint32_t opp_id_src0 = OPP_ID_INVALID;
+		uint32_t opp_id_src1 = OPP_ID_INVALID;
+
+		// Step 1: To find out which OPTC is running & OPTC DSC is ON
+		for (i = 0; i < dc->res_pool->res_cap->num_timing_generator; i++) {
+			uint32_t optc_dsc_state = 0;
+			struct timing_generator *tg = dc->res_pool->timing_generators[i];
+
+			if (tg->funcs->is_tg_enabled(tg)) {
+				if (tg->funcs->get_dsc_status)
+					tg->funcs->get_dsc_status(tg, &optc_dsc_state);
+				// Only one OPTC with DSC is ON, so if we got one result, we would exit this block.
+				// non-zero value is DSC enabled
+				if (optc_dsc_state != 0) {
+					tg->funcs->get_optc_source(tg, &num_opps, &opp_id_src0, &opp_id_src1);
+					break;
+				}
+			}
+		}
+
+		// Step 2: To power down DSC but skip DSC  of running OPTC
+		for (i = 0; i < dc->res_pool->res_cap->num_dsc; i++) {
+			struct dcn_dsc_state s  = {0};
+
+			dc->res_pool->dscs[i]->funcs->dsc_read_state(dc->res_pool->dscs[i], &s);
+
+			if ((s.dsc_opp_source == opp_id_src0 || s.dsc_opp_source == opp_id_src1) &&
+				s.dsc_clock_en && s.dsc_fw_en)
+				continue;
+
+			hws->funcs.dsc_pg_control(hws, dc->res_pool->dscs[i]->inst, false);
+		}
+	}
 }
 
 void dcn10_init_hw(struct dc *dc)
 {
-	int i, j;
+	int i;
 	struct abm *abm = dc->res_pool->abm;
 	struct dmcu *dmcu = dc->res_pool->dmcu;
 	struct dce_hwseq *hws = dc->hwseq;
@@ -1468,43 +1505,8 @@ void dcn10_init_hw(struct dc *dc)
 		dmub_enable_outbox_notification(dc);
 
 	/* we want to turn off all dp displays before doing detection */
-	if (dc->config.power_down_display_on_boot) {
-		uint8_t dpcd_power_state = '\0';
-		enum dc_status status = DC_ERROR_UNEXPECTED;
-
-		for (i = 0; i < dc->link_count; i++) {
-			if (dc->links[i]->connector_signal != SIGNAL_TYPE_DISPLAY_PORT)
-				continue;
-
-			/* DP 2.0 requires that LTTPR Caps be read first */
-			dp_retrieve_lttpr_cap(dc->links[i]);
-
-			/*
-			 * If any of the displays are lit up turn them off.
-			 * The reason is that some MST hubs cannot be turned off
-			 * completely until we tell them to do so.
-			 * If not turned off, then displays connected to MST hub
-			 * won't light up.
-			 */
-			status = core_link_read_dpcd(dc->links[i], DP_SET_POWER,
-							&dpcd_power_state, sizeof(dpcd_power_state));
-			if (status == DC_OK && dpcd_power_state == DP_POWER_STATE_D0) {
-				/* blank dp stream before power off receiver*/
-				if (dc->links[i]->link_enc->funcs->get_dig_frontend) {
-					unsigned int fe = dc->links[i]->link_enc->funcs->get_dig_frontend(dc->links[i]->link_enc);
-
-					for (j = 0; j < dc->res_pool->stream_enc_count; j++) {
-						if (fe == dc->res_pool->stream_enc[j]->id) {
-							dc->res_pool->stream_enc[j]->funcs->dp_blank(dc->links[i],
-										dc->res_pool->stream_enc[j]);
-							break;
-						}
-					}
-				}
-				dp_receiver_power_ctrl(dc->links[i], false);
-			}
-		}
-	}
+	if (dc->config.power_down_display_on_boot)
+		dc_link_blank_all_dp_displays(dc);
 
 	/* If taking control over from VBIOS, we may want to optimize our first
 	 * mode set, so we need to skip powering down pipes until we know which
@@ -1637,7 +1639,7 @@ void dcn10_reset_hw_ctx_wrap(
 
 			dcn10_reset_back_end_for_pipe(dc, pipe_ctx_old, dc->current_state);
 			if (hws->funcs.enable_stream_gating)
-				hws->funcs.enable_stream_gating(dc, pipe_ctx);
+				hws->funcs.enable_stream_gating(dc, pipe_ctx_old);
 			if (old_clk)
 				old_clk->funcs->cs_power_down(old_clk);
 		}
@@ -2624,7 +2626,7 @@ static void dcn10_update_dchubp_dpp(
 		/* new calculated dispclk, dppclk are stored in
 		 * context->bw_ctx.bw.dcn.clk.dispclk_khz / dppclk_khz. current
 		 * dispclk, dppclk are from dc->clk_mgr->clks.dispclk_khz.
-		 * dcn_validate_bandwidth compute new dispclk, dppclk.
+		 * dcn10_validate_bandwidth compute new dispclk, dppclk.
 		 * dispclk will put in use after optimize_bandwidth when
 		 * ramp_up_dispclk_with_dpp is called.
 		 * there are two places for dppclk be put in use. One location
@@ -2638,7 +2640,7 @@ static void dcn10_update_dchubp_dpp(
 		 * for example, eDP + external dp,  change resolution of DP from
 		 * 1920x1080x144hz to 1280x960x60hz.
 		 * before change: dispclk = 337889 dppclk = 337889
-		 * change mode, dcn_validate_bandwidth calculate
+		 * change mode, dcn10_validate_bandwidth calculate
 		 *                dispclk = 143122 dppclk = 143122
 		 * update_dchubp_dpp be executed before dispclk be updated,
 		 * dispclk = 337889, but dppclk use new value dispclk /2 =

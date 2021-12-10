@@ -978,10 +978,8 @@ static void dcn10_resource_destruct(struct dcn10_resource_pool *pool)
 		pool->base.mpc = NULL;
 	}
 
-	if (pool->base.hubbub != NULL) {
-		kfree(pool->base.hubbub);
-		pool->base.hubbub = NULL;
-	}
+	kfree(pool->base.hubbub);
+	pool->base.hubbub = NULL;
 
 	for (i = 0; i < pool->base.pipe_count; i++) {
 		if (pool->base.opps[i] != NULL)
@@ -1011,14 +1009,10 @@ static void dcn10_resource_destruct(struct dcn10_resource_pool *pool)
 	for (i = 0; i < pool->base.res_cap->num_ddc; i++) {
 		if (pool->base.engines[i] != NULL)
 			dce110_engine_destroy(&pool->base.engines[i]);
-		if (pool->base.hw_i2cs[i] != NULL) {
-			kfree(pool->base.hw_i2cs[i]);
-			pool->base.hw_i2cs[i] = NULL;
-		}
-		if (pool->base.sw_i2cs[i] != NULL) {
-			kfree(pool->base.sw_i2cs[i]);
-			pool->base.sw_i2cs[i] = NULL;
-		}
+		kfree(pool->base.hw_i2cs[i]);
+		pool->base.hw_i2cs[i] = NULL;
+		kfree(pool->base.sw_i2cs[i]);
+		pool->base.sw_i2cs[i] = NULL;
 	}
 
 	for (i = 0; i < pool->base.audio_count; i++) {
@@ -1320,7 +1314,7 @@ static const struct resource_funcs dcn10_res_pool_funcs = {
 	.destroy = dcn10_destroy_resource_pool,
 	.link_enc_create = dcn10_link_encoder_create,
 	.panel_cntl_create = dcn10_panel_cntl_create,
-	.validate_bandwidth = dcn_validate_bandwidth,
+	.validate_bandwidth = dcn10_validate_bandwidth,
 	.acquire_idle_pipe_for_layer = dcn10_acquire_idle_pipe_for_layer,
 	.validate_plane = dcn10_validate_plane,
 	.validate_global = dcn10_validate_global,
