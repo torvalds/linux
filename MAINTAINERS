@@ -17805,6 +17805,7 @@ F:	Documentation/sound/
 F:	include/sound/
 F:	include/uapi/sound/
 F:	sound/
+F:	tools/testing/selftests/alsa
 
 SOUND - COMPRESSED AUDIO
 M:	Vinod Koul <vkoul@kernel.org>
@@ -17823,6 +17824,13 @@ S:	Supported
 F:	include/sound/dmaengine_pcm.h
 F:	sound/core/pcm_dmaengine.c
 F:	sound/soc/soc-generic-dmaengine-pcm.c
+
+SOUND - ALSA SELFTESTS
+M:	Mark Brown <broonie@kernel.org>
+L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
+L:	linux-kselftest@vger.kernel.org
+S:	Supported
+F:	tools/testing/selftests/alsa
 
 SOUND - SOC LAYER / DYNAMIC AUDIO POWER MANAGEMENT (ASoC)
 M:	Liam Girdwood <lgirdwood@gmail.com>
