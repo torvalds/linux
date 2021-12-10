@@ -45,7 +45,9 @@
  *  VERSION     : 01-00-19
  *  24 Nov 2021 : 1. EEE update for runtime configuration through ethtool.
 		  2. ethtool driver name display corrected
- *  VERSION     : 01-00-24 
+ *  VERSION     : 01-00-24
+ *  10 Dec 2021 : 1. Added link partner pause frame count debug counters to ethtool statistics.
+ *  VERSION     : 01-00-31
  */
 
 #include <linux/etherdevice.h>
@@ -645,6 +647,7 @@ static const struct tc956xmac_stats tc956xmac_gstrings_stats[] = {
 	TC956XMAC_STAT(rxch_watchdog_timer[5]),
 	TC956XMAC_STAT(rxch_watchdog_timer[6]),
 	TC956XMAC_STAT(rxch_watchdog_timer[7]),
+	TC956XMAC_STAT(link_partner_pause_frame_cnt),
 
 	TC956XMAC_STAT(m3_debug_cnt0),
 	TC956XMAC_STAT(m3_debug_cnt1),

@@ -1,7 +1,7 @@
 # Toshiba Electronic Devices & Storage Corporation TC956X PCIe Ethernet Host Driver
-Release Date: 08 Dec 2021
+Release Date: 10 Dec 2021
 
-Release Version: V_01-00-30 : Limited-tested version
+Release Version: V_01-00-31 : Limited-tested version
 
 TC956X PCIe EMAC driver is based on "Fedora 30, kernel-5.4.19".
 
@@ -242,6 +242,17 @@ TC956X PCIe EMAC driver is based on "Fedora 30, kernel-5.4.19".
 	Note:
 	1. Please configure flow control thresholds (RFD & RFA) as per Queue size (Default values are for Default Queue size which is 18KB).
 
+15. Please use the below command to insert the kernel module for counting Link partner pause frames and output to ethtool:
+
+	#insmod tc956x_pcie_eth.ko mac0_en_lp_pause_frame_cnt=x mac1_en_lp_pause_frame_cnt=x
+
+	argument info:
+		mac0_en_lp_pause_frame_cnt: For PORT0
+		mac1_en_lp_pause_frame_cnt: For PORT1
+		x = [0: DISABLE (default), 1: ENABLE]
+
+	If invalid values are passed as kernel module parameter, the default value will be selected.
+	Note: It is required to enable kernel module parameter "mac0_filter_phy_pause/mac1_filter_phy_pause" along with this module parameter to count link partner pause frames.
 # Release Versions:
 
 ## TC956X_Host_Driver_20210326_V_01-00:
@@ -396,3 +407,8 @@ TC956X PCIe EMAC driver is based on "Fedora 30, kernel-5.4.19".
 
 1. Added module parameters for Rx Queue Size, Flow Control thresholds and Tx Queue Size configuration.
 2. Renamed all module parameters for easy readability.
+
+## TC956X_Host_Driver_20211210_V_01-00-31:
+
+1. Support for link partner pause frame counting.
+2. Module parameter support to enable/disable link partner pause frame counting.

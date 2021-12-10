@@ -110,6 +110,9 @@
 		  3. Printing User Configured/Default Module Parameters for future purpose.
  		  4. Version update.
  *  VERSION     : 01-00-30
+ *  10 Dec 2021 : 1. Added Module parameter to count Link partner pause frames and output to ethtool.
+		  2. Version update.
+ *  VERSION     : 01-00-31
  */
 
 #include <linux/clk-provider.h>
@@ -165,7 +168,10 @@ static unsigned int mac1_rxq1_rfa = 24;
 static unsigned int mac1_txq0_size = TX_QUEUE0_SIZE;
 static unsigned int mac1_txq1_size = TX_QUEUE1_SIZE;
 
-static const struct tc956x_version tc956x_drv_version = {0, 1, 0, 0, 3, 0};
+unsigned int mac0_en_lp_pause_frame_cnt = DISABLE;
+unsigned int mac1_en_lp_pause_frame_cnt = DISABLE;
+
+static const struct tc956x_version tc956x_drv_version = {0, 1, 0, 0, 3, 1};
 
 static int tc956xmac_pm_usage_counter; /* Device Usage Counter */
 struct mutex tc956x_pm_suspend_lock; /* This mutex is shared between all available EMAC ports. */
@@ -2215,6 +2221,7 @@ static int tc956xmac_pci_probe(struct pci_dev *pdev,
 		NMSGPR_INFO(&pdev->dev, "mac0_rxq1_rfa  = %d \n", mac0_rxq1_rfa);
 		NMSGPR_INFO(&pdev->dev, "mac0_txq0_size = %d \n", mac0_txq0_size);
 		NMSGPR_INFO(&pdev->dev, "mac0_txq1_size = %d \n", mac0_txq1_size);
+		NMSGPR_INFO(&pdev->dev, "mac0_en_lp_pause_frame_cnt = %d \n", mac0_en_lp_pause_frame_cnt);
 	} else if (plat->port_num == RM_PF1_ID) {
 		NMSGPR_INFO(&pdev->dev, "mac1_interface = %d \n", mac1_interface);
 		NMSGPR_INFO(&pdev->dev, "mac1_eee_enable = %d \n", mac1_eee_enable);
@@ -2228,6 +2235,7 @@ static int tc956xmac_pci_probe(struct pci_dev *pdev,
 		NMSGPR_INFO(&pdev->dev, "mac1_rxq1_rfa  = %d \n", mac1_rxq1_rfa);
 		NMSGPR_INFO(&pdev->dev, "mac1_txq0_size = %d \n", mac1_txq0_size);
 		NMSGPR_INFO(&pdev->dev, "mac1_txq1_size = %d \n", mac1_txq1_size);
+		NMSGPR_INFO(&pdev->dev, "mac1_en_lp_pause_frame_cnt = %d \n", mac1_en_lp_pause_frame_cnt);
 	}
 
 	if (res.port_num == RM_PF0_ID) {
@@ -3375,6 +3383,16 @@ module_param(mac1_txq1_size, uint, 0444);
 MODULE_PARM_DESC(mac1_txq1_size,
 		 "Tx Queue-1 size of Port 1 - default is 18432 (bytes),\
 		 [Range Supported : 3072..44032 (bytes)]");
+
+module_param(mac0_en_lp_pause_frame_cnt, uint, 0444);
+MODULE_PARM_DESC(mac0_en_lp_pause_frame_cnt,
+		 "Enable counter to count Link Partner pause frames in PORT0 - default is 0,\
+		 [0: DISABLE, 1: ENABLE]");
+
+module_param(mac1_en_lp_pause_frame_cnt, uint, 0444);
+MODULE_PARM_DESC(mac1_en_lp_pause_frame_cnt,
+		 "Enable counter to count Link Partner pause frames in PORT1 - default is 0,\
+		 [0: DISABLE, 1: ENABLE]");
 
 MODULE_DESCRIPTION("TC956X PCI Express Ethernet Network Driver");
 MODULE_AUTHOR("Toshiba Electronic Devices & Storage Corporation");

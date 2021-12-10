@@ -83,6 +83,8 @@
  *  VERSION     : 01-00-29
  *  08 Dec 2021 : 1. Added Module parameter for Rx & Tx Queue Size configuration.
  *  VERSION     : 01-00-30
+ *  10 Dec 2021 : 1. Added Module parameter to count Link partner pause frames and output to ethtool.
+ *  VERSION     : 01-00-31
  */
 
 #include <linux/clk.h>
@@ -236,6 +238,14 @@ static uint16_t mdio_bus_id;
 
 #define CONFIG_PARAM_NUM ARRAY_SIZE(config_param_list)
 int tc956xmac_rx_parser_configuration(struct tc956xmac_priv *);
+
+/* Source Address in Pause frame from PHY */
+static u8 phy_sa_addr[2][6] = {
+	{0x00, 0x01, 0x02, 0x03, 0x04, 0x05}, /*For Port-0*/
+	{0x00, 0x01, 0x02, 0x03, 0x04, 0x05}, /*For Port-1*/
+};
+extern unsigned int mac0_en_lp_pause_frame_cnt;
+extern unsigned int mac1_en_lp_pause_frame_cnt;
 
 /**
  *  tc956x_GPIO_OutputConfigPin - to configure GPIO as output and write the value
@@ -5405,6 +5415,7 @@ static int tc956xmac_rx(struct tc956xmac_priv *priv, int limit, u32 queue)
 	int status = 0, coe = priv->hw->rx_csum;
 	unsigned int next_entry = rx_q->cur_rx;
 	struct sk_buff *skb = NULL;
+	unsigned int proto;
 
 	if (netif_msg_rx_status(priv)) {
 		void *rx_head;
@@ -5547,6 +5558,18 @@ drain_data:
 			continue;
 
 		/* Got entire packet into SKB. Finish it. */
+		/* Pause frame counter to count link partner pause frames */
+		if ((mac0_en_lp_pause_frame_cnt == ENABLE && priv->port_num == RM_PF0_ID) ||
+			(mac1_en_lp_pause_frame_cnt == ENABLE && priv->port_num == RM_PF1_ID)) {
+			proto = htons(((skb->data[13]<<8) | skb->data[12]));
+			if (proto == ETH_P_PAUSE) {
+				if(!(skb->data[6] == phy_sa_addr[priv->port_num][0] && skb->data[7] == phy_sa_addr[priv->port_num][1] 
+					&& skb->data[8] == phy_sa_addr[priv->port_num][2] && skb->data[9] == phy_sa_addr[priv->port_num][3]
+					&& skb->data[10] == phy_sa_addr[priv->port_num][4] && skb->data[11] == phy_sa_addr[priv->port_num][5])) {
+					priv->xstats.link_partner_pause_frame_cnt++;
+				}
+			}
+		}
 
 		tc956xmac_get_rx_hwtstamp(priv, p, np, skb);
 #ifndef TC956X

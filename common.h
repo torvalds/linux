@@ -67,6 +67,8 @@
  *  VERSION     : 01-00-24
  *  08 Dec 2021 : 1. Added Macro for Maximum Tx, Rx Queue Size and byte size.
  *  VERSION     : 01-00-30
+ *  10 Dec 2021 : 1. Added link partner pause frame count debug counters to ethtool statistics.
+ *  VERSION     : 01-00-31
  */
 
 #ifndef __COMMON_H__
@@ -1303,6 +1305,7 @@ struct tc956xmac_extra_stats {
 	u64 mtl_rx_miss_pkt_cnt[MTL_MAX_RX_QUEUES];
 	u64 mtl_rx_overflow_pkt_cnt[MTL_MAX_RX_QUEUES];
 	u64 rxch_watchdog_timer[TC956XMAC_CH_MAX];
+	u64 link_partner_pause_frame_cnt;
 
 	/*m3 SRAM debug counters */
 	u64 m3_debug_cnt0;
