@@ -31,8 +31,9 @@
 #include <linux/list.h>
 #include <linux/ww_mutex.h>
 
-#include <drm/drm_hashtab.h>
 #include <drm/ttm/ttm_execbuf_util.h>
+
+#include "vmwgfx_hashtab.h"
 
 #define VMW_RES_DIRTY_NONE 0
 #define VMW_RES_DIRTY_SET BIT(0)
@@ -73,7 +74,7 @@ struct vmw_validation_mem {
  * @total_mem: Amount of reserved memory.
  */
 struct vmw_validation_context {
-	struct drm_open_hash *ht;
+	struct vmwgfx_open_hash *ht;
 	struct list_head resource_list;
 	struct list_head resource_ctx_list;
 	struct list_head bo_list;
@@ -151,7 +152,7 @@ vmw_validation_set_val_mem(struct vmw_validation_context *ctx,
  * available at validation context declaration time
  */
 static inline void vmw_validation_set_ht(struct vmw_validation_context *ctx,
-					 struct drm_open_hash *ht)
+					 struct vmwgfx_open_hash *ht)
 {
 	ctx->ht = ht;
 }

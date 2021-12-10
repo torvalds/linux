@@ -15,7 +15,6 @@
 
 #include "gt/intel_gt_requests.h"
 
-#include "dma_resv_utils.h"
 #include "i915_trace.h"
 
 static bool swap_available(void)
@@ -228,8 +227,6 @@ i915_gem_shrink(struct i915_gem_ww_ctx *ww,
 				if (!ww)
 					i915_gem_object_unlock(obj);
 			}
-
-			dma_resv_prune(obj->base.resv);
 
 			scanned += obj->base.size >> PAGE_SHIFT;
 skip:

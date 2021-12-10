@@ -4117,7 +4117,7 @@ int vmw_execbuf_process(struct drm_file *file_priv,
 		vmw_binding_state_reset(sw_context->staged_bindings);
 
 	if (!sw_context->res_ht_initialized) {
-		ret = drm_ht_create(&sw_context->res_ht, VMW_RES_HT_ORDER);
+		ret = vmwgfx_ht_create(&sw_context->res_ht, VMW_RES_HT_ORDER);
 		if (unlikely(ret != 0))
 			goto out_unlock;
 

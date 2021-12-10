@@ -1,5 +1,4 @@
-/**************************************************************************
- *
+/*
  * Copyright 2006 Tungsten Graphics, Inc., Bismarck, ND. USA.
  * All Rights Reserved.
  *
@@ -22,9 +21,8 @@
  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
  * USE OR OTHER DEALINGS IN THE SOFTWARE.
- *
- *
- **************************************************************************/
+ */
+
 /*
  * Simple open hash tab implementation.
  *
@@ -32,6 +30,7 @@
  * Thomas Hellström <thomas-at-tungstengraphics-dot-com>
  */
 
+#include <linux/export.h>
 #include <linux/hash.h>
 #include <linux/mm.h>
 #include <linux/rculist.h>
@@ -40,9 +39,9 @@
 
 #include <drm/drm_print.h>
 
-#include "drm_legacy.h"
+#include "vmwgfx_hashtab.h"
 
-int drm_ht_create(struct drm_open_hash *ht, unsigned int order)
+int vmwgfx_ht_create(struct vmwgfx_open_hash *ht, unsigned int order)
 {
 	unsigned int size = 1 << order;
 
@@ -59,9 +58,9 @@ int drm_ht_create(struct drm_open_hash *ht, unsigned int order)
 	return 0;
 }
 
-void drm_ht_verbose_list(struct drm_open_hash *ht, unsigned long key)
+void vmwgfx_ht_verbose_list(struct vmwgfx_open_hash *ht, unsigned long key)
 {
-	struct drm_hash_item *entry;
+	struct vmwgfx_hash_item *entry;
 	struct hlist_head *h_list;
 	unsigned int hashed_key;
 	int count = 0;
@@ -73,10 +72,9 @@ void drm_ht_verbose_list(struct drm_open_hash *ht, unsigned long key)
 		DRM_DEBUG("count %d, key: 0x%08lx\n", count++, entry->key);
 }
 
-static struct hlist_node *drm_ht_find_key(struct drm_open_hash *ht,
-					  unsigned long key)
+static struct hlist_node *vmwgfx_ht_find_key(struct vmwgfx_open_hash *ht, unsigned long key)
 {
-	struct drm_hash_item *entry;
+	struct vmwgfx_hash_item *entry;
 	struct hlist_head *h_list;
 	unsigned int hashed_key;
 
@@ -91,10 +89,9 @@ static struct hlist_node *drm_ht_find_key(struct drm_open_hash *ht,
 	return NULL;
 }
 
-static struct hlist_node *drm_ht_find_key_rcu(struct drm_open_hash *ht,
-					      unsigned long key)
+static struct hlist_node *vmwgfx_ht_find_key_rcu(struct vmwgfx_open_hash *ht, unsigned long key)
 {
-	struct drm_hash_item *entry;
+	struct vmwgfx_hash_item *entry;
 	struct hlist_head *h_list;
 	unsigned int hashed_key;
 
@@ -109,9 +106,9 @@ static struct hlist_node *drm_ht_find_key_rcu(struct drm_open_hash *ht,
 	return NULL;
 }
 
-int drm_ht_insert_item(struct drm_open_hash *ht, struct drm_hash_item *item)
+int vmwgfx_ht_insert_item(struct vmwgfx_open_hash *ht, struct vmwgfx_hash_item *item)
 {
-	struct drm_hash_item *entry;
+	struct vmwgfx_hash_item *entry;
 	struct hlist_head *h_list;
 	struct hlist_node *parent;
 	unsigned int hashed_key;
@@ -127,11 +124,10 @@ int drm_ht_insert_item(struct drm_open_hash *ht, struct drm_hash_item *item)
 			break;
 		parent = &entry->head;
 	}
-	if (parent) {
+	if (parent)
 		hlist_add_behind_rcu(&item->head, parent);
-	} else {
+	else
 		hlist_add_head_rcu(&item->head, h_list);
-	}
 	return 0;
 }
 
@@ -139,9 +135,9 @@ int drm_ht_insert_item(struct drm_open_hash *ht, struct drm_hash_item *item)
  * Just insert an item and return any "bits" bit key that hasn't been
  * used before.
  */
-int drm_ht_just_insert_please(struct drm_open_hash *ht, struct drm_hash_item *item,
-			      unsigned long seed, int bits, int shift,
-			      unsigned long add)
+int vmwgfx_ht_just_insert_please(struct vmwgfx_open_hash *ht, struct vmwgfx_hash_item *item,
+				 unsigned long seed, int bits, int shift,
+				 unsigned long add)
 {
 	int ret;
 	unsigned long mask = (1UL << bits) - 1;
@@ -151,10 +147,10 @@ int drm_ht_just_insert_please(struct drm_open_hash *ht, struct drm_hash_item *it
 	first = unshifted_key;
 	do {
 		item->key = (unshifted_key << shift) + add;
-		ret = drm_ht_insert_item(ht, item);
+		ret = vmwgfx_ht_insert_item(ht, item);
 		if (ret)
 			unshifted_key = (unshifted_key + 1) & mask;
-	} while(ret && (unshifted_key != first));
+	} while (ret && (unshifted_key != first));
 
 	if (ret) {
 		DRM_ERROR("Available key bit space exhausted\n");
@@ -163,24 +159,24 @@ int drm_ht_just_insert_please(struct drm_open_hash *ht, struct drm_hash_item *it
 	return 0;
 }
 
-int drm_ht_find_item(struct drm_open_hash *ht, unsigned long key,
-		     struct drm_hash_item **item)
+int vmwgfx_ht_find_item(struct vmwgfx_open_hash *ht, unsigned long key,
+			struct vmwgfx_hash_item **item)
 {
 	struct hlist_node *list;
 
-	list = drm_ht_find_key_rcu(ht, key);
+	list = vmwgfx_ht_find_key_rcu(ht, key);
 	if (!list)
 		return -EINVAL;
 
-	*item = hlist_entry(list, struct drm_hash_item, head);
+	*item = hlist_entry(list, struct vmwgfx_hash_item, head);
 	return 0;
 }
 
-int drm_ht_remove_key(struct drm_open_hash *ht, unsigned long key)
+int vmwgfx_ht_remove_key(struct vmwgfx_open_hash *ht, unsigned long key)
 {
 	struct hlist_node *list;
 
-	list = drm_ht_find_key(ht, key);
+	list = vmwgfx_ht_find_key(ht, key);
 	if (list) {
 		hlist_del_init_rcu(list);
 		return 0;
@@ -188,13 +184,13 @@ int drm_ht_remove_key(struct drm_open_hash *ht, unsigned long key)
 	return -EINVAL;
 }
 
-int drm_ht_remove_item(struct drm_open_hash *ht, struct drm_hash_item *item)
+int vmwgfx_ht_remove_item(struct vmwgfx_open_hash *ht, struct vmwgfx_hash_item *item)
 {
 	hlist_del_init_rcu(&item->head);
 	return 0;
 }
 
-void drm_ht_remove(struct drm_open_hash *ht)
+void vmwgfx_ht_remove(struct vmwgfx_open_hash *ht)
 {
 	if (ht->table) {
 		kvfree(ht->table);

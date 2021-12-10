@@ -43,7 +43,7 @@
  */
 struct vmw_validation_bo_node {
 	struct ttm_validate_buffer base;
-	struct drm_hash_item hash;
+	struct vmwgfx_hash_item hash;
 	unsigned int coherent_count;
 	u32 as_mob : 1;
 	u32 cpu_blit : 1;
@@ -72,7 +72,7 @@ struct vmw_validation_bo_node {
  */
 struct vmw_validation_res_node {
 	struct list_head head;
-	struct drm_hash_item hash;
+	struct vmwgfx_hash_item hash;
 	struct vmw_resource *res;
 	struct vmw_buffer_object *new_backup;
 	unsigned long new_backup_offset;
@@ -184,9 +184,9 @@ vmw_validation_find_bo_dup(struct vmw_validation_context *ctx,
 		return NULL;
 
 	if (ctx->ht) {
-		struct drm_hash_item *hash;
+		struct vmwgfx_hash_item *hash;
 
-		if (!drm_ht_find_item(ctx->ht, (unsigned long) vbo, &hash))
+		if (!vmwgfx_ht_find_item(ctx->ht, (unsigned long) vbo, &hash))
 			bo_node = container_of(hash, typeof(*bo_node), hash);
 	} else {
 		struct  vmw_validation_bo_node *entry;
@@ -221,9 +221,9 @@ vmw_validation_find_res_dup(struct vmw_validation_context *ctx,
 		return NULL;
 
 	if (ctx->ht) {
-		struct drm_hash_item *hash;
+		struct vmwgfx_hash_item *hash;
 
-		if (!drm_ht_find_item(ctx->ht, (unsigned long) res, &hash))
+		if (!vmwgfx_ht_find_item(ctx->ht, (unsigned long) res, &hash))
 			res_node = container_of(hash, typeof(*res_node), hash);
 	} else {
 		struct  vmw_validation_res_node *entry;
@@ -280,7 +280,7 @@ int vmw_validation_add_bo(struct vmw_validation_context *ctx,
 
 		if (ctx->ht) {
 			bo_node->hash.key = (unsigned long) vbo;
-			ret = drm_ht_insert_item(ctx->ht, &bo_node->hash);
+			ret = vmwgfx_ht_insert_item(ctx->ht, &bo_node->hash);
 			if (ret) {
 				DRM_ERROR("Failed to initialize a buffer "
 					  "validation entry.\n");
@@ -335,7 +335,7 @@ int vmw_validation_add_resource(struct vmw_validation_context *ctx,
 
 	if (ctx->ht) {
 		node->hash.key = (unsigned long) res;
-		ret = drm_ht_insert_item(ctx->ht, &node->hash);
+		ret = vmwgfx_ht_insert_item(ctx->ht, &node->hash);
 		if (ret) {
 			DRM_ERROR("Failed to initialize a resource validation "
 				  "entry.\n");
@@ -688,13 +688,13 @@ void vmw_validation_drop_ht(struct vmw_validation_context *ctx)
 		return;
 
 	list_for_each_entry(entry, &ctx->bo_list, base.head)
-		(void) drm_ht_remove_item(ctx->ht, &entry->hash);
+		(void) vmwgfx_ht_remove_item(ctx->ht, &entry->hash);
 
 	list_for_each_entry(val, &ctx->resource_list, head)
-		(void) drm_ht_remove_item(ctx->ht, &val->hash);
+		(void) vmwgfx_ht_remove_item(ctx->ht, &val->hash);
 
 	list_for_each_entry(val, &ctx->resource_ctx_list, head)
-		(void) drm_ht_remove_item(ctx->ht, &val->hash);
+		(void) vmwgfx_ht_remove_item(ctx->ht, &val->hash);
 
 	ctx->ht = NULL;
 }

@@ -10,7 +10,6 @@
 
 #include "gt/intel_engine.h"
 
-#include "dma_resv_utils.h"
 #include "i915_gem_ioctls.h"
 #include "i915_gem_object.h"
 
@@ -51,13 +50,6 @@ i915_gem_object_wait_reservation(struct dma_resv *resv,
 			timeout = ret;
 	}
 	dma_resv_iter_end(&cursor);
-
-	/*
-	 * Opportunistically prune the fences iff we know they have *all* been
-	 * signaled.
-	 */
-	if (timeout > 0)
-		dma_resv_prune(resv);
 
 	return ret;
 }

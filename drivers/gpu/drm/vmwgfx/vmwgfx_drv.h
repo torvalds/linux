@@ -34,7 +34,6 @@
 #include <drm/drm_auth.h>
 #include <drm/drm_device.h>
 #include <drm/drm_file.h>
-#include <drm/drm_hashtab.h>
 #include <drm/drm_rect.h>
 
 #include <drm/ttm/ttm_bo_driver.h>
@@ -43,6 +42,7 @@
 #include "ttm_object.h"
 
 #include "vmwgfx_fence.h"
+#include "vmwgfx_hashtab.h"
 #include "vmwgfx_reg.h"
 #include "vmwgfx_validation.h"
 
@@ -82,8 +82,9 @@
 			VMWGFX_NUM_GB_SURFACE +\
 			VMWGFX_NUM_GB_SCREEN_TARGET)
 
-#define VMW_PL_GMR (TTM_PL_PRIV + 0)
-#define VMW_PL_MOB (TTM_PL_PRIV + 1)
+#define VMW_PL_GMR      (TTM_PL_PRIV + 0)
+#define VMW_PL_MOB      (TTM_PL_PRIV + 1)
+#define VMW_PL_SYSTEM   (TTM_PL_PRIV + 2)
 
 #define VMW_RES_CONTEXT ttm_driver_type0
 #define VMW_RES_SURFACE ttm_driver_type1
@@ -133,7 +134,7 @@ struct vmw_buffer_object {
  */
 struct vmw_validate_buffer {
 	struct ttm_validate_buffer base;
-	struct drm_hash_item hash;
+	struct vmwgfx_hash_item hash;
 	bool validate_as_mob;
 };
 
@@ -406,7 +407,7 @@ struct vmw_ctx_validation_info;
  * @ctx: The validation context
  */
 struct vmw_sw_context{
-	struct drm_open_hash res_ht;
+	struct vmwgfx_open_hash res_ht;
 	bool res_ht_initialized;
 	bool kernel;
 	struct vmw_fpriv *fp;
@@ -1039,7 +1040,6 @@ extern struct ttm_placement vmw_vram_placement;
 extern struct ttm_placement vmw_vram_sys_placement;
 extern struct ttm_placement vmw_vram_gmr_placement;
 extern struct ttm_placement vmw_sys_placement;
-extern struct ttm_placement vmw_evictable_placement;
 extern struct ttm_placement vmw_srf_placement;
 extern struct ttm_placement vmw_mob_placement;
 extern struct ttm_placement vmw_nonfixed_placement;
@@ -1250,6 +1250,12 @@ int vmw_overlay_num_free_overlays(struct vmw_private *dev_priv);
 
 int vmw_gmrid_man_init(struct vmw_private *dev_priv, int type);
 void vmw_gmrid_man_fini(struct vmw_private *dev_priv, int type);
+
+/**
+ * System memory manager
+ */
+int vmw_sys_man_init(struct vmw_private *dev_priv);
+void vmw_sys_man_fini(struct vmw_private *dev_priv);
 
 /**
  * Prime - vmwgfx_prime.c

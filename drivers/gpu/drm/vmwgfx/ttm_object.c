@@ -73,7 +73,7 @@ struct ttm_object_file {
 	struct ttm_object_device *tdev;
 	spinlock_t lock;
 	struct list_head ref_list;
-	struct drm_open_hash ref_hash[TTM_REF_NUM];
+	struct vmwgfx_open_hash ref_hash[TTM_REF_NUM];
 	struct kref refcount;
 };
 
@@ -91,7 +91,7 @@ struct ttm_object_file {
 
 struct ttm_object_device {
 	spinlock_t object_lock;
-	struct drm_open_hash object_hash;
+	struct vmwgfx_open_hash object_hash;
 	atomic_t object_count;
 	struct ttm_mem_global *mem_glob;
 	struct dma_buf_ops ops;
@@ -123,7 +123,7 @@ struct ttm_object_device {
 
 struct ttm_ref_object {
 	struct rcu_head rcu_head;
-	struct drm_hash_item hash;
+	struct vmwgfx_hash_item hash;
 	struct list_head head;
 	struct kref kref;
 	enum ttm_ref_type ref_type;
@@ -247,12 +247,12 @@ void ttm_base_object_unref(struct ttm_base_object **p_base)
 struct ttm_base_object *
 ttm_base_object_noref_lookup(struct ttm_object_file *tfile, uint32_t key)
 {
-	struct drm_hash_item *hash;
-	struct drm_open_hash *ht = &tfile->ref_hash[TTM_REF_USAGE];
+	struct vmwgfx_hash_item *hash;
+	struct vmwgfx_open_hash *ht = &tfile->ref_hash[TTM_REF_USAGE];
 	int ret;
 
 	rcu_read_lock();
-	ret = drm_ht_find_item_rcu(ht, key, &hash);
+	ret = vmwgfx_ht_find_item_rcu(ht, key, &hash);
 	if (ret) {
 		rcu_read_unlock();
 		return NULL;
@@ -267,12 +267,12 @@ struct ttm_base_object *ttm_base_object_lookup(struct ttm_object_file *tfile,
 					       uint32_t key)
 {
 	struct ttm_base_object *base = NULL;
-	struct drm_hash_item *hash;
-	struct drm_open_hash *ht = &tfile->ref_hash[TTM_REF_USAGE];
+	struct vmwgfx_hash_item *hash;
+	struct vmwgfx_open_hash *ht = &tfile->ref_hash[TTM_REF_USAGE];
 	int ret;
 
 	rcu_read_lock();
-	ret = drm_ht_find_item_rcu(ht, key, &hash);
+	ret = vmwgfx_ht_find_item_rcu(ht, key, &hash);
 
 	if (likely(ret == 0)) {
 		base = drm_hash_entry(hash, struct ttm_ref_object, hash)->obj;
@@ -312,12 +312,12 @@ ttm_base_object_lookup_for_ref(struct ttm_object_device *tdev, uint32_t key)
 bool ttm_ref_object_exists(struct ttm_object_file *tfile,
 			   struct ttm_base_object *base)
 {
-	struct drm_open_hash *ht = &tfile->ref_hash[TTM_REF_USAGE];
-	struct drm_hash_item *hash;
+	struct vmwgfx_open_hash *ht = &tfile->ref_hash[TTM_REF_USAGE];
+	struct vmwgfx_hash_item *hash;
 	struct ttm_ref_object *ref;
 
 	rcu_read_lock();
-	if (unlikely(drm_ht_find_item_rcu(ht, base->handle, &hash) != 0))
+	if (unlikely(vmwgfx_ht_find_item_rcu(ht, base->handle, &hash) != 0))
 		goto out_false;
 
 	/*
@@ -349,9 +349,9 @@ int ttm_ref_object_add(struct ttm_object_file *tfile,
 		       enum ttm_ref_type ref_type, bool *existed,
 		       bool require_existed)
 {
-	struct drm_open_hash *ht = &tfile->ref_hash[ref_type];
+	struct vmwgfx_open_hash *ht = &tfile->ref_hash[ref_type];
 	struct ttm_ref_object *ref;
-	struct drm_hash_item *hash;
+	struct vmwgfx_hash_item *hash;
 	struct ttm_mem_global *mem_glob = tfile->tdev->mem_glob;
 	struct ttm_operation_ctx ctx = {
 		.interruptible = false,
@@ -367,7 +367,7 @@ int ttm_ref_object_add(struct ttm_object_file *tfile,
 
 	while (ret == -EINVAL) {
 		rcu_read_lock();
-		ret = drm_ht_find_item_rcu(ht, base->handle, &hash);
+		ret = vmwgfx_ht_find_item_rcu(ht, base->handle, &hash);
 
 		if (ret == 0) {
 			ref = drm_hash_entry(hash, struct ttm_ref_object, hash);
@@ -398,7 +398,7 @@ int ttm_ref_object_add(struct ttm_object_file *tfile,
 		kref_init(&ref->kref);
 
 		spin_lock(&tfile->lock);
-		ret = drm_ht_insert_item_rcu(ht, &ref->hash);
+		ret = vmwgfx_ht_insert_item_rcu(ht, &ref->hash);
 
 		if (likely(ret == 0)) {
 			list_add_tail(&ref->head, &tfile->ref_list);
@@ -426,11 +426,11 @@ ttm_ref_object_release(struct kref *kref)
 	    container_of(kref, struct ttm_ref_object, kref);
 	struct ttm_base_object *base = ref->obj;
 	struct ttm_object_file *tfile = ref->tfile;
-	struct drm_open_hash *ht;
+	struct vmwgfx_open_hash *ht;
 	struct ttm_mem_global *mem_glob = tfile->tdev->mem_glob;
 
 	ht = &tfile->ref_hash[ref->ref_type];
-	(void)drm_ht_remove_item_rcu(ht, &ref->hash);
+	(void)vmwgfx_ht_remove_item_rcu(ht, &ref->hash);
 	list_del(&ref->head);
 	spin_unlock(&tfile->lock);
 
@@ -446,13 +446,13 @@ ttm_ref_object_release(struct kref *kref)
 int ttm_ref_object_base_unref(struct ttm_object_file *tfile,
 			      unsigned long key, enum ttm_ref_type ref_type)
 {
-	struct drm_open_hash *ht = &tfile->ref_hash[ref_type];
+	struct vmwgfx_open_hash *ht = &tfile->ref_hash[ref_type];
 	struct ttm_ref_object *ref;
-	struct drm_hash_item *hash;
+	struct vmwgfx_hash_item *hash;
 	int ret;
 
 	spin_lock(&tfile->lock);
-	ret = drm_ht_find_item(ht, key, &hash);
+	ret = vmwgfx_ht_find_item(ht, key, &hash);
 	if (unlikely(ret != 0)) {
 		spin_unlock(&tfile->lock);
 		return -EINVAL;
@@ -486,7 +486,7 @@ void ttm_object_file_release(struct ttm_object_file **p_tfile)
 
 	spin_unlock(&tfile->lock);
 	for (i = 0; i < TTM_REF_NUM; ++i)
-		drm_ht_remove(&tfile->ref_hash[i]);
+		vmwgfx_ht_remove(&tfile->ref_hash[i]);
 
 	ttm_object_file_unref(&tfile);
 }
@@ -508,7 +508,7 @@ struct ttm_object_file *ttm_object_file_init(struct ttm_object_device *tdev,
 	INIT_LIST_HEAD(&tfile->ref_list);
 
 	for (i = 0; i < TTM_REF_NUM; ++i) {
-		ret = drm_ht_create(&tfile->ref_hash[i], hash_order);
+		ret = vmwgfx_ht_create(&tfile->ref_hash[i], hash_order);
 		if (ret) {
 			j = i;
 			goto out_err;
@@ -518,7 +518,7 @@ struct ttm_object_file *ttm_object_file_init(struct ttm_object_device *tdev,
 	return tfile;
 out_err:
 	for (i = 0; i < j; ++i)
-		drm_ht_remove(&tfile->ref_hash[i]);
+		vmwgfx_ht_remove(&tfile->ref_hash[i]);
 
 	kfree(tfile);
 
@@ -539,7 +539,7 @@ ttm_object_device_init(struct ttm_mem_global *mem_glob,
 	tdev->mem_glob = mem_glob;
 	spin_lock_init(&tdev->object_lock);
 	atomic_set(&tdev->object_count, 0);
-	ret = drm_ht_create(&tdev->object_hash, hash_order);
+	ret = vmwgfx_ht_create(&tdev->object_hash, hash_order);
 	if (ret != 0)
 		goto out_no_object_hash;
 
@@ -564,7 +564,7 @@ void ttm_object_device_release(struct ttm_object_device **p_tdev)
 
 	WARN_ON_ONCE(!idr_is_empty(&tdev->idr));
 	idr_destroy(&tdev->idr);
-	drm_ht_remove(&tdev->object_hash);
+	vmwgfx_ht_remove(&tdev->object_hash);
 
 	kfree(tdev);
 }

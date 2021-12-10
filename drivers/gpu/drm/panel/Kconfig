@@ -152,7 +152,7 @@ config DRM_PANEL_ILITEK_ILI9341
 	tristate "Ilitek ILI9341 240x320 QVGA panels"
 	depends on OF && SPI
 	depends on DRM_KMS_HELPER
-	depends on DRM_KMS_CMA_HELPER
+	depends on DRM_GEM_CMA_HELPER
 	depends on BACKLIGHT_CLASS_DEVICE
 	select DRM_MIPI_DBI
 	help
