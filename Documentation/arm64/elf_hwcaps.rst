@@ -251,6 +251,10 @@ HWCAP2_ECV
 
     Functionality implied by ID_AA64MMFR0_EL1.ECV == 0b0001.
 
+HWCAP2_AFP
+
+    Functionality implied by ID_AA64MFR1_EL1.AFP == 0b0001.
+
 4. Unused AT_HWCAP bits
 -----------------------
 
