@@ -458,8 +458,12 @@ static int si2157_set_params(struct dvb_frontend *fe)
 		goto err;
 	}
 
+	if (SUPPORTS_1700KHz(dev) && c->bandwidth_hz <= 1700000)
+		bandwidth = 0x09;
 	if (c->bandwidth_hz <= 6000000)
 		bandwidth = 0x06;
+	if (SUPPORTS_1700KHz(dev) && c->bandwidth_hz <= 6100000)
+		bandwidth = 0x10;
 	else if (c->bandwidth_hz <= 7000000)
 		bandwidth = 0x07;
 	else if (c->bandwidth_hz <= 8000000)

@@ -66,6 +66,11 @@ struct si2157_cmd {
 	unsigned rlen;
 };
 
+#define SUPPORTS_1700KHz(dev) (((dev)->part_id == SI2141) || \
+			       ((dev)->part_id == SI2147) || \
+			       ((dev)->part_id == SI2157) || \
+			       ((dev)->part_id == SI2177))
+
 /* Old firmware namespace */
 #define SI2158_A20_FIRMWARE "dvb-tuner-si2158-a20-01.fw"
 #define SI2141_A10_FIRMWARE "dvb-tuner-si2141-a10-01.fw"
