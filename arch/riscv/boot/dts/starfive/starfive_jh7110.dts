@@ -484,7 +484,7 @@
 		gpu:gpu@18000000{
 			compatible = "img-gpu";
 			interrupt-parent = <&plic>;
-			interrupts = <87>;
+			interrupts = <82>;
 			reg = <0x0 0x18000000 0x0 0x100000 0x0 0x130C000 0x0 0x10000>;
 			clocks = <&gpu_core_clk>, <&gpu_sys_clk>;
 			clock-names = "gpu_core_clk","gpu_sys_clk";
