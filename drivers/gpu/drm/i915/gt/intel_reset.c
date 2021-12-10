@@ -6,7 +6,7 @@
 #include <linux/sched/mm.h>
 #include <linux/stop_machine.h>
 
-#include "display/intel_display_types.h"
+#include "display/intel_display.h"
 #include "display/intel_overlay.h"
 
 #include "gem/i915_gem_context.h"
