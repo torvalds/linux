@@ -1205,10 +1205,6 @@ int ice_ptp_get_ts_config(struct ice_pf *pf, struct ifreq *ifr)
 static int
 ice_ptp_set_timestamp_mode(struct ice_pf *pf, struct hwtstamp_config *config)
 {
-	/* Reserved for future extensions. */
-	if (config->flags)
-		return -EINVAL;
-
 	switch (config->tx_type) {
 	case HWTSTAMP_TX_OFF:
 		ice_set_tx_tstamp(pf, false);

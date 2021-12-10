@@ -338,10 +338,6 @@ static int ines_hwtstamp(struct mii_timestamper *mii_ts, struct ifreq *ifr)
 	if (copy_from_user(&cfg, ifr->ifr_data, sizeof(cfg)))
 		return -EFAULT;
 
-	/* reserved for future extensions */
-	if (cfg.flags)
-		return -EINVAL;
-
 	switch (cfg.tx_type) {
 	case HWTSTAMP_TX_OFF:
 		ts_stat_tx = 0;
