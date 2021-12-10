@@ -5370,7 +5370,7 @@ static void gen12_dbuf_slices_config(struct drm_i915_private *dev_priv)
 
 static void icl_mbus_init(struct drm_i915_private *dev_priv)
 {
-	unsigned long abox_regs = INTEL_INFO(dev_priv)->abox_mask;
+	unsigned long abox_regs = INTEL_INFO(dev_priv)->display.abox_mask;
 	u32 mask, val, i;
 
 	if (IS_ALDERLAKE_P(dev_priv))
@@ -5830,7 +5830,7 @@ static void tgl_bw_buddy_init(struct drm_i915_private *dev_priv)
 	enum intel_dram_type type = dev_priv->dram_info.type;
 	u8 num_channels = dev_priv->dram_info.num_channels;
 	const struct buddy_page_mask *table;
-	unsigned long abox_mask = INTEL_INFO(dev_priv)->abox_mask;
+	unsigned long abox_mask = INTEL_INFO(dev_priv)->display.abox_mask;
 	int config, i;
 
 	/* BW_BUDDY registers are not used on dgpu's beyond DG1 */
