@@ -154,7 +154,7 @@ static int i3c_ibi_mqueue_probe(struct i3c_device *i3cdev)
 		mq->queue[i].len = 0;
 	}
 
-	dev_set_drvdata(dev, &mq->bin);
+	dev_set_drvdata(dev, mq);
 
 	spin_lock_init(&mq->lock);
 	mq->curr = &mq->queue[0];
