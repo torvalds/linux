@@ -1156,8 +1156,8 @@ static int iwl_mvm_ppag_init(struct iwl_mvm *mvm)
 static void iwl_mvm_tas_init(struct iwl_mvm *mvm)
 {
 	int ret;
-	struct iwl_tas_config_cmd cmd = {};
-	int list_size;
+	struct iwl_tas_config_cmd_v3 cmd = {};
+	int cmd_size;
 
 	BUILD_BUG_ON(ARRAY_SIZE(cmd.block_list_array) <
 		     APCI_WTAS_BLACK_LIST_MAX);
@@ -1167,7 +1167,7 @@ static void iwl_mvm_tas_init(struct iwl_mvm *mvm)
 		return;
 	}
 
-	ret = iwl_acpi_get_tas(&mvm->fwrt, cmd.block_list_array, &list_size);
+	ret = iwl_acpi_get_tas(&mvm->fwrt, &cmd);
 	if (ret < 0) {
 		IWL_DEBUG_RADIO(mvm,
 				"TAS table invalid or unavailable. (%d)\n",
@@ -1175,15 +1175,18 @@ static void iwl_mvm_tas_init(struct iwl_mvm *mvm)
 		return;
 	}
 
-	if (list_size < 0)
+	if (ret == 0)
 		return;
 
-	/* list size if TAS enabled can only be non-negative */
-	cmd.block_list_size = cpu_to_le32((u32)list_size);
+	cmd_size = iwl_fw_lookup_cmd_ver(mvm->fw, REGULATORY_AND_NVM_GROUP,
+					 TAS_CONFIG,
+					 IWL_FW_CMD_VER_UNKNOWN) < 3 ?
+		sizeof(struct iwl_tas_config_cmd_v2) :
+		sizeof(struct iwl_tas_config_cmd_v3);
 
 	ret = iwl_mvm_send_cmd_pdu(mvm, WIDE_ID(REGULATORY_AND_NVM_GROUP,
 						TAS_CONFIG),
-				   0, sizeof(cmd), &cmd);
+				   0, cmd_size, &cmd);
 	if (ret < 0)
 		IWL_DEBUG_RADIO(mvm, "failed to send TAS_CONFIG (%d)\n", ret);
 }

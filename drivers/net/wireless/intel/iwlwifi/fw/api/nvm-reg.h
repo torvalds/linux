@@ -393,16 +393,31 @@ enum iwl_mcc_source {
 	MCC_SOURCE_GETTING_MCC_TEST_MODE = 0x11,
 };
 
-#define IWL_TAS_BLACK_LIST_MAX 16
+#define IWL_TAS_BLOCK_LIST_MAX 16
 /**
- * struct iwl_tas_config_cmd - configures the TAS
+ * struct iwl_tas_config_cmd_v2 - configures the TAS
  * @block_list_size: size of relevant field in block_list_array
- * @block_list_array: block list countries (without TAS)
+ * @block_list_array: list of countries where TAS must be disabled
  */
-struct iwl_tas_config_cmd {
+struct iwl_tas_config_cmd_v2 {
 	__le32 block_list_size;
-	__le32 block_list_array[IWL_TAS_BLACK_LIST_MAX];
+	__le32 block_list_array[IWL_TAS_BLOCK_LIST_MAX];
 } __packed; /* TAS_CONFIG_CMD_API_S_VER_2 */
+
+/**
+ * struct iwl_tas_config_cmd_v3 - configures the TAS
+ * @block_list_size: size of relevant field in block_list_array
+ * @block_list_array: list of countries where TAS must be disabled
+ * @override_tas_iec: indicates whether to override default value of IEC regulatory
+ * @enable_tas_iec: in case override_tas_iec is set -
+ *	indicates whether IEC regulatory is enabled or disabled
+ */
+struct iwl_tas_config_cmd_v3 {
+	__le32 block_list_size;
+	__le32 block_list_array[IWL_TAS_BLOCK_LIST_MAX];
+	__le16 override_tas_iec;
+	__le16 enable_tas_iec;
+} __packed; /* TAS_CONFIG_CMD_API_S_VER_3 */
 
 /**
  * enum iwl_lari_configs - bit masks for the various LARI config operations
