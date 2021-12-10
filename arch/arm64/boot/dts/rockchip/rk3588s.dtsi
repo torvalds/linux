@@ -2315,10 +2315,11 @@
 		reg = <0x0 0xfdcd0f00 0x0 0x100>;
 		interrupts = <GIC_SPI 140 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "fec0_mmu";
-		clocks = <&cru ACLK_FISHEYE0>, <&cru HCLK_FISHEYE0>;
-		clock-names = "aclk", "iface";
+		clocks = <&cru ACLK_FISHEYE0>, <&cru HCLK_FISHEYE0>, <&cru CLK_FISHEYE0_CORE>;
+		clock-names = "aclk", "iface", "pclk";
 		power-domains = <&power RK3588_PD_FEC>;
 		#iommu-cells = <0>;
+		rockchip,disable-mmu-reset;
 		status = "disabled";
 	};
 
@@ -2340,10 +2341,11 @@
 		reg = <0x0 0xfdcd8f00 0x0 0x100>;
 		interrupts = <GIC_SPI 142 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "fec1_mmu";
-		clocks = <&cru ACLK_FISHEYE1>, <&cru HCLK_FISHEYE1>;
-		clock-names = "aclk", "iface";
+		clocks = <&cru ACLK_FISHEYE1>, <&cru HCLK_FISHEYE1>,  <&cru CLK_FISHEYE1_CORE>;
+		clock-names = "aclk", "iface", "pclk";
 		power-domains = <&power RK3588_PD_FEC>;
 		#iommu-cells = <0>;
+		rockchip,disable-mmu-reset;
 		status = "disabled";
 	};
 
