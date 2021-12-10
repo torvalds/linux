@@ -39,7 +39,7 @@ static int bump_memlock_rlimit(void)
 	return setrlimit(RLIMIT_MEMLOCK, &rlim_new);
 }
 
-void setup_libbpf()
+void setup_libbpf(void)
 {
 	int err;
 
