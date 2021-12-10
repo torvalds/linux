@@ -723,6 +723,32 @@ static void *rkvenc_ccu_alloc_task(struct mpp_session *session,
 	return rkvenc_alloc_task(session, msgs);
 }
 
+static void *rkvenc2_prepare(struct mpp_dev *mpp, struct mpp_task *mpp_task)
+{
+	struct mpp_taskqueue *queue = mpp->queue;
+	unsigned long flags;
+	s32 core_id;
+
+	spin_lock_irqsave(&queue->running_lock, flags);
+
+	core_id = find_first_bit(&queue->core_idle, queue->core_count);
+
+	if (core_id >= queue->core_count) {
+		mpp_task = NULL;
+		mpp_dbg_core("core %d all busy %lx\n", core_id, queue->core_idle);
+	} else {
+		mpp_dbg_core("core %d set idle %lx\n", core_id, queue->core_idle);
+
+		clear_bit(core_id, &queue->core_idle);
+		mpp_task->mpp = queue->cores[core_id];
+		mpp_task->core_id = core_id;
+	}
+
+	spin_unlock_irqrestore(&queue->running_lock, flags);
+
+	return mpp_task;
+}
+
 static int rkvenc_run(struct mpp_dev *mpp, struct mpp_task *mpp_task)
 {
 	u32 i, j;
@@ -760,8 +786,16 @@ static int rkvenc_run(struct mpp_dev *mpp, struct mpp_task *mpp_task)
 		}
 	}
 
+	if (mpp_debug_unlikely(DEBUG_CORE))
+		dev_info(mpp->dev, "reg[%03x] %08x\n", 0x304,
+			 mpp_read_relaxed(mpp, 0x304));
+
+	/* flush tlb before starting hardware */
+	mpp_iommu_flush_tlb(mpp->iommu_info);
+
 	/* init current task */
 	mpp->cur_task = mpp_task;
+
 	/* Flush the register before the start the device */
 	wmb();
 	mpp_write(mpp, enc->hw_info->enc_start_base, start_val);
@@ -781,6 +815,7 @@ static int rkvenc_irq(struct mpp_dev *mpp)
 	mpp->irq_status = mpp_read(mpp, hw->int_sta_base);
 	if (!mpp->irq_status)
 		return IRQ_NONE;
+
 	mpp_write(mpp, hw->int_mask_base, 0x100);
 	mpp_write(mpp, hw->int_clr_base, 0xffffffff);
 	udelay(5);
@@ -796,6 +831,7 @@ static int rkvenc_isr(struct mpp_dev *mpp)
 	struct rkvenc_task *task;
 	struct mpp_task *mpp_task;
 	struct rkvenc_dev *enc = to_rkvenc_dev(mpp);
+	struct mpp_taskqueue *queue = mpp->queue;
 
 	mpp_debug_enter();
 
@@ -808,9 +844,15 @@ static int rkvenc_isr(struct mpp_dev *mpp)
 	mpp_task = mpp->cur_task;
 	mpp_time_diff(mpp_task);
 	mpp->cur_task = NULL;
+
+	if (mpp_task->mpp && mpp_task->mpp != mpp)
+		dev_err(mpp->dev, "mismatch core dev %p:%p\n", mpp_task->mpp, mpp);
+
 	task = to_rkvenc_task(mpp_task);
 	task->irq_status = mpp->irq_status;
-	mpp_debug(DEBUG_IRQ_STATUS, "irq_status: %08x\n", task->irq_status);
+
+	mpp_debug(DEBUG_IRQ_STATUS, "%s irq_status: %08x\n",
+		  dev_name(mpp->dev), task->irq_status);
 
 	if (task->irq_status & enc->hw_info->err_mask) {
 		atomic_inc(&mpp->reset_request);
@@ -819,6 +861,9 @@ static int rkvenc_isr(struct mpp_dev *mpp)
 			mpp_task_dump_hw_reg(mpp, mpp_task);
 	}
 	mpp_task_finish(mpp_task->session, mpp_task);
+
+	set_bit(mpp->core_id, &queue->core_idle);
+	mpp_dbg_core("core %d isr idle %lx\n", mpp->core_id, queue->core_idle);
 
 	mpp_debug_leave();
 
@@ -1049,8 +1094,16 @@ static int rkvenc_show_session_info(struct seq_file *seq, void *offset)
 static int rkvenc_procfs_init(struct mpp_dev *mpp)
 {
 	struct rkvenc_dev *enc = to_rkvenc_dev(mpp);
+	char name[32];
 
-	enc->procfs = proc_mkdir(mpp->dev->of_node->name, mpp->srv->procfs);
+	if (!mpp->dev || !mpp->dev->of_node || !mpp->dev->of_node->name ||
+	    !mpp->srv || !mpp->srv->procfs)
+		return -EINVAL;
+
+	snprintf(name, sizeof(name) - 1, "%s%d",
+		 mpp->dev->of_node->name, mpp->core_id);
+
+	enc->procfs = proc_mkdir(name, mpp->srv->procfs);
 	if (IS_ERR_OR_NULL(enc->procfs)) {
 		mpp_err("failed on open procfs\n");
 		enc->procfs = NULL;
@@ -1142,6 +1195,7 @@ static int rkvenc_reset(struct mpp_dev *mpp)
 {
 	struct rkvenc_dev *enc = to_rkvenc_dev(mpp);
 	struct rkvenc_hw_info *hw = enc->hw_info;
+	struct mpp_taskqueue *queue = mpp->queue;
 
 	mpp_debug_enter();
 
@@ -1164,6 +1218,9 @@ static int rkvenc_reset(struct mpp_dev *mpp)
 		mpp_safe_unreset(enc->rst_core);
 		rockchip_pmu_idle_request(mpp->dev, false);
 	}
+
+	set_bit(mpp->core_id, &queue->core_idle);
+	mpp_dbg_core("core %d reset idle %lx\n", mpp->core_id, queue->core_idle);
 
 	mpp_debug_leave();
 
@@ -1227,6 +1284,7 @@ static struct mpp_dev_ops rkvenc_dev_ops_v2 = {
 
 static struct mpp_dev_ops rkvenc_ccu_dev_ops = {
 	.alloc_task = rkvenc_ccu_alloc_task,
+	.prepare = rkvenc2_prepare,
 	.run = rkvenc_run,
 	.irq = rkvenc_irq,
 	.isr = rkvenc_isr,
@@ -1332,11 +1390,12 @@ static int rkvenc_attach_ccu(struct device *dev, struct rkvenc_dev *enc)
 		cur_info = enc->mpp.iommu_info;
 
 		cur_info->domain = ccu_info->domain;
+		cur_info->rw_sem = ccu_info->rw_sem;
 		mpp_iommu_attach(cur_info);
 	}
 	enc->ccu = ccu;
 
-	dev_info(dev, "attach ccu success\n");
+	dev_info(dev, "attach ccu as core %d\n", enc->mpp.core_id);
 	mpp_debug_enter();
 
 	return 0;
@@ -1356,10 +1415,9 @@ static int rkvenc2_alloc_rcbbuf(struct platform_device *pdev, struct rkvenc_dev 
 
 	/* get rcb iova start and size */
 	ret = device_property_read_u32_array(dev, "rockchip,rcb-iova", vals, 2);
-	if (ret) {
-		dev_err(dev, "could not find property rcb-iova\n");
+	if (ret)
 		return ret;
-	}
+
 	iova = PAGE_ALIGN(vals[0]);
 	sram_used = PAGE_ALIGN(vals[1]);
 	if (!sram_used) {
@@ -1447,8 +1505,6 @@ static int rkvenc_core_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct rkvenc_dev *enc = NULL;
 	struct mpp_dev *mpp = NULL;
-	const struct of_device_id *match = NULL;
-
 
 	enc = devm_kzalloc(dev, sizeof(*enc), GFP_KERNEL);
 	if (!enc)
@@ -1458,9 +1514,14 @@ static int rkvenc_core_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, enc);
 
 	if (pdev->dev.of_node) {
-		match = of_match_node(mpp_rkvenc_dt_match, pdev->dev.of_node);
+		struct device_node *np = pdev->dev.of_node;
+		const struct of_device_id *match = NULL;
+
+		match = of_match_node(mpp_rkvenc_dt_match, np);
 		if (match)
 			mpp->var = (struct mpp_dev_var *)match->data;
+
+		mpp->core_id = of_alias_get_id(np, "rkvenc");
 	}
 
 	ret = mpp_dev_probe(mpp, pdev);
@@ -1625,7 +1686,9 @@ static void rkvenc_shutdown(struct platform_device *pdev)
 
 	dev_info(dev, "shutdown device\n");
 
-	atomic_inc(&mpp->srv->shutdown_request);
+	if (mpp->srv)
+		atomic_inc(&mpp->srv->shutdown_request);
+
 	ret = readx_poll_timeout(atomic_read,
 				 &mpp->task_count,
 				 val, val == 0, 1000, 200000);

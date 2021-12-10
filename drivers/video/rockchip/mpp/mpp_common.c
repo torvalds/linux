@@ -398,18 +398,20 @@ static void mpp_free_task(struct kref *ref)
 	}
 	session = task->session;
 
-	mpp_debug_func(DEBUG_TASK_INFO,
-		       "session=%p, task=%p, state=0x%lx, abort_request=%d\n",
-		       session, task, task->state,
+	mpp_debug_func(DEBUG_TASK_INFO, "task %d:%d state 0x%lx abort %d\n",
+		       session->index, task->task_index, task->state,
 		       atomic_read(&task->abort_request));
-	if (!session->mpp) {
-		mpp_err("session %p, session->mpp is null.\n", session);
+
+	mpp = task->mpp ? task->mpp : session->mpp;
+	if (!mpp) {
+		mpp_err("task %d:%d mpp is null.\n",
+			session->index, task->task_index);
 		return;
 	}
-	mpp = session->mpp;
 
 	if (mpp->dev_ops->free_task)
 		mpp->dev_ops->free_task(session, task);
+
 	/* Decrease reference count */
 	atomic_dec(&session->task_count);
 	atomic_dec(&mpp->task_count);
@@ -581,7 +583,6 @@ int mpp_dev_reset(struct mpp_dev *mpp)
 	mpp_iommu_down_write(mpp->iommu_info);
 	mpp_reset_down_write(mpp->reset_group);
 	atomic_set(&mpp->reset_request, 0);
-	mpp_iommu_detach(mpp->iommu_info);
 
 	rockchip_save_qos(mpp->dev);
 	if (mpp->hw_ops->reset)
@@ -594,7 +595,6 @@ int mpp_dev_reset(struct mpp_dev *mpp)
 	 */
 	mpp_iommu_refresh(mpp->iommu_info, mpp->dev);
 
-	mpp_iommu_attach(mpp->iommu_info);
 	mpp_reset_up_write(mpp->reset_group);
 	mpp_iommu_up_write(mpp->iommu_info);
 
@@ -622,15 +622,6 @@ static int mpp_task_run(struct mpp_dev *mpp,
 		}
 	} else {
 		mpp_set_grf(mpp->grf_info);
-	}
-	/*
-	 * for iommu share hardware, should attach to ensure
-	 * working in current device
-	 */
-	ret = mpp_iommu_attach(mpp->iommu_info);
-	if (ret) {
-		dev_err(mpp->dev, "mpp_iommu_attach failed\n");
-		return -ENODATA;
 	}
 
 	mpp_power_on(mpp);
@@ -697,10 +688,12 @@ static void mpp_task_worker_default(struct kthread_work *work_s)
 	 */
 	/* Push a pending task to running queue */
 	if (task) {
+		struct mpp_dev *task_mpp = task->mpp ? task->mpp : mpp;
+
 		mpp_taskqueue_pending_to_run(queue, task);
 		set_bit(TASK_STATE_RUNNING, &task->state);
-		if (mpp_task_run(mpp, task))
-			mpp_taskqueue_pop_running(mpp->queue, task);
+		if (mpp_task_run(task_mpp, task))
+			mpp_taskqueue_pop_running(queue, task);
 	}
 
 done:
@@ -881,12 +874,43 @@ struct mpp_taskqueue *mpp_taskqueue_init(struct device *dev)
 static void mpp_attach_workqueue(struct mpp_dev *mpp,
 				 struct mpp_taskqueue *queue)
 {
-	mpp->queue = queue;
+	s32 core_id;
+
 	INIT_LIST_HEAD(&mpp->queue_link);
+
 	mutex_lock(&queue->dev_lock);
+
+	if (mpp->core_id >= 0)
+		core_id = mpp->core_id;
+	else
+		core_id = queue->core_count;
+
+	if (core_id < 0 || core_id >= MPP_MAX_CORE_NUM) {
+		dev_err(mpp->dev, "invalid core id %d\n", core_id);
+		goto done;
+	}
+
+	if (queue->cores[core_id]) {
+		dev_err(mpp->dev, "can not attach device with same id %d", core_id);
+		goto done;
+	}
+
+	queue->cores[core_id] = mpp;
+	queue->core_count++;
+
+	set_bit(core_id, &queue->core_idle);
 	list_add_tail(&mpp->queue_link, &queue->dev_list);
+
+	mpp->core_id = core_id;
+	mpp->queue = queue;
+
+	mpp_dbg_core("%s attach queue as core %d\n",
+			dev_name(mpp->dev), mpp->core_id);
+
 	if (queue->task_capacity > mpp->task_capacity)
 		queue->task_capacity = mpp->task_capacity;
+
+done:
 	mutex_unlock(&queue->dev_lock);
 }
 
@@ -896,7 +920,15 @@ static void mpp_detach_workqueue(struct mpp_dev *mpp)
 
 	if (queue) {
 		mutex_lock(&queue->dev_lock);
+
+		queue->cores[mpp->core_id] = NULL;
+		queue->core_count--;
+
+		clear_bit(queue->core_count, &queue->core_idle);
 		list_del_init(&mpp->queue_link);
+
+		mpp->queue = NULL;
+
 		mutex_unlock(&queue->dev_lock);
 	}
 }
@@ -1571,7 +1603,7 @@ int mpp_task_init(struct mpp_session *session,
 int mpp_task_finish(struct mpp_session *session,
 		    struct mpp_task *task)
 {
-	struct mpp_dev *mpp = session->mpp;
+	struct mpp_dev *mpp = task->mpp ? task->mpp : session->mpp;
 
 	if (mpp->dev_ops->finish)
 		mpp->dev_ops->finish(mpp, task);
@@ -1722,6 +1754,16 @@ int mpp_dev_probe(struct mpp_dev *mpp,
 	/* Get disable auto frequent flag from dtsi */
 	mpp->auto_freq_en = !device_property_read_bool(dev, "rockchip,disable-auto-freq");
 
+	/* read link table capacity */
+	ret = of_property_read_u32(np, "rockchip,task-capacity",
+				   &mpp->task_capacity);
+	if (ret)
+		mpp->task_capacity = 1;
+
+	mpp->dev = dev;
+	mpp->hw_ops = mpp->var->hw_ops;
+	mpp->dev_ops = mpp->var->dev_ops;
+
 	/* Get and attach to service */
 	ret = mpp_attach_service(mpp, dev);
 	if (ret) {
@@ -1729,21 +1771,12 @@ int mpp_dev_probe(struct mpp_dev *mpp,
 		return -ENODEV;
 	}
 
-	mpp->dev = dev;
-	mpp->hw_ops = mpp->var->hw_ops;
-	mpp->dev_ops = mpp->var->dev_ops;
-
-	/* read link table capacity */
-	ret = of_property_read_u32(np, "rockchip,task-capacity",
-				   &mpp->task_capacity);
-	if (ret) {
-		mpp->task_capacity = 1;
-
+	if (mpp->task_capacity == 1) {
 		/* power domain autosuspend delay 2s */
 		pm_runtime_set_autosuspend_delay(dev, 2000);
 		pm_runtime_use_autosuspend(dev);
 	} else {
-		dev_info(dev, "%d task capacity link mode detected\n",
+		dev_info(dev, "link mode task capacity %d\n",
 			 mpp->task_capacity);
 		/* do not setup autosuspend on multi task device */
 	}
@@ -1945,7 +1978,7 @@ int mpp_time_record(struct mpp_task *task)
 int mpp_time_diff(struct mpp_task *task)
 {
 	struct timespec64 end;
-	struct mpp_dev *mpp = task->session->mpp;
+	struct mpp_dev *mpp = task->mpp ? task->mpp : task->session->mpp;
 
 	ktime_get_real_ts64(&end);
 	mpp_debug(DEBUG_TIMING, "%s: pid: %d, session: %p, time: %lld us\n",

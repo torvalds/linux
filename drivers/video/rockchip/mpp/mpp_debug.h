@@ -50,6 +50,9 @@
 #define DEBUG_SESSION				0x00400000
 #define DEBUG_DEVICE				0x00800000
 
+#define DEBUG_CCU				0x01000000
+#define DEBUG_CORE				0x02000000
+
 #define PRINT_FUNCTION				0x80000000
 #define PRINT_LINE				0x40000000
 
@@ -102,6 +105,21 @@ extern unsigned int mpp_dev_debug;
 #define mpp_dbg_session(fmt, args...)				\
 	do {							\
 		if (unlikely(mpp_dev_debug & DEBUG_SESSION)) {	\
+			pr_info(fmt, ##args);			\
+		}						\
+	} while (0)
+
+#define mpp_dbg_ccu(fmt, args...)				\
+	do {							\
+		if (unlikely(mpp_dev_debug & DEBUG_CCU)) {	\
+			pr_info("%s:%d: " fmt,			\
+				 __func__, __LINE__, ##args);	\
+		}						\
+	} while (0)
+
+#define mpp_dbg_core(fmt, args...)				\
+	do {							\
+		if (unlikely(mpp_dev_debug & DEBUG_CORE)) {	\
 			pr_info(fmt, ##args);			\
 		}						\
 	} while (0)

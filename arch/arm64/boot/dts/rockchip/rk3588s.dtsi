@@ -39,6 +39,8 @@
 		rkcif_mipi_lvds1= &rkcif_mipi_lvds1;
 		rkcif_mipi_lvds2= &rkcif_mipi_lvds2;
 		rkcif_mipi_lvds3= &rkcif_mipi_lvds3;
+		rkvenc0 = &rkvenc0;
+		rkvenc1 = &rkvenc1;
 		serial0 = &uart0;
 		serial1 = &uart1;
 		serial2 = &uart2;
@@ -2026,8 +2028,8 @@
 		status = "disabled";
 	};
 
-	rkvenc0: rkvenc@fdbd0000 {
-		compatible = "rockchip,rkv-encoder-v2";
+	rkvenc0: rkvenc-core@fdbd0000 {
+		compatible = "rockchip,rkv-encoder-v2-core";
 		reg = <0x0 0xfdbd0000 0x0 0x6000>;
 		interrupts = <GIC_SPI 101 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "irq_rkvenc0";
@@ -2063,7 +2065,7 @@
 		status = "disabled";
 	};
 
-	rkvenc_core1: rkvenc@fdbe0000 {
+	rkvenc1: rkvenc-core@fdbe0000 {
 		compatible = "rockchip,rkv-encoder-v2-core";
 		reg = <0x0 0xfdbe0000 0x0 0x6000>;
 		interrupts = <GIC_SPI 104 IRQ_TYPE_LEVEL_HIGH>;
@@ -2078,7 +2080,7 @@
 		iommus = <&rkvenc1_mmu>;
 		rockchip,srv = <&mpp_srv>;
 		rockchip,ccu = <&rkvenc_ccu>;
-		rockchip,taskqueue-node = <8>;
+		rockchip,taskqueue-node = <7>;
 		rockchip,task-capacity = <8>;
 		power-domains = <&power RK3588_PD_VENC1>;
 		status = "disabled";

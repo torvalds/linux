@@ -39,6 +39,9 @@
 /* grf mask for get value */
 #define MPP_GRF_VAL_MASK		(0xFFFF)
 
+/* max 4 cores supported */
+#define MPP_MAX_CORE_NUM		(4)
+
 /**
  * Device type: classified by hardware feature
  */
@@ -318,7 +321,9 @@ struct mpp_dev {
 	struct platform_device *pdev_srv;
 	struct mpp_service *srv;
 
+	/* multi-core data */
 	struct list_head queue_link;
+	s32 core_id;
 };
 
 struct mpp_task;
@@ -411,6 +416,10 @@ struct mpp_task {
 	u32 *reg;
 	/* event for session wait thread */
 	wait_queue_head_t wait;
+
+	/* for multi-core */
+	struct mpp_dev *mpp;
+	s32 core_id;
 };
 
 struct mpp_taskqueue {
@@ -447,6 +456,11 @@ struct mpp_taskqueue {
 	 * device task capacity which is attached to the taskqueue
 	 */
 	u32 task_capacity;
+
+	/* multi-core task distribution */
+	struct mpp_dev *cores[MPP_MAX_CORE_NUM];
+	unsigned long core_idle;
+	u32 core_count;
 };
 
 struct mpp_reset_group {
