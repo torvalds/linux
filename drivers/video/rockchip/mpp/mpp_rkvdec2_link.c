@@ -694,9 +694,6 @@ static int rkvdec2_link_irq(struct mpp_dev *mpp)
 
 	irq_status = readl(link_dec->reg_base + RKVDEC_LINK_IRQ_BASE);
 
-	mpp_debug(DEBUG_IRQ_STATUS, "irq_status: %08x\n", irq_status);
-	mpp_dbg_link_flow("link irq %08x\n", irq_status);
-
 	if (irq_status & RKVDEC_LINK_BIT_IRQ_RAW) {
 		u32 enabled = readl(link_dec->reg_base + RKVDEC_LINK_EN_BASE);
 
@@ -710,10 +707,12 @@ static int rkvdec2_link_irq(struct mpp_dev *mpp)
 
 		link_dec->irq_status = irq_status;
 		mpp->irq_status = mpp_read_relaxed(mpp, RKVDEC_REG_INT_EN);
-		mpp_dbg_link_flow("core irq %08x\n", mpp->irq_status);
 
 		writel_relaxed(0, link_dec->reg_base + RKVDEC_LINK_IRQ_BASE);
 	}
+
+	mpp_debug(DEBUG_IRQ_STATUS | DEBUG_LINK_TABLE, "irq_status: %08x : %08x\n",
+		  irq_status, mpp->irq_status);
 
 	return 0;
 }

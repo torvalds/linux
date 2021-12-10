@@ -56,18 +56,18 @@
 extern unsigned int mpp_dev_debug;
 
 #define mpp_debug_unlikely(type)				\
-		(unlikely(mpp_dev_debug & type))
+		(unlikely(mpp_dev_debug & (type)))
 
 #define mpp_debug_func(type, fmt, args...)			\
 	do {							\
-		if (unlikely(mpp_dev_debug & type)) {		\
+		if (unlikely(mpp_dev_debug & (type))) {		\
 			pr_info("%s:%d: " fmt,			\
 				 __func__, __LINE__, ##args);	\
 		}						\
 	} while (0)
 #define mpp_debug(type, fmt, args...)				\
 	do {							\
-		if (unlikely(mpp_dev_debug & type)) {		\
+		if (unlikely(mpp_dev_debug & (type))) {		\
 			pr_info(fmt, ##args);			\
 		}						\
 	} while (0)
