@@ -1089,15 +1089,27 @@ static int usbdp_typec_mux_set(struct typec_mux *mux,
 
 	if (state->alt && state->alt->svid == USB_TYPEC_DP_SID) {
 		struct typec_displayport_data *data = state->data;
-		bool hpd = !!(data && (data->status & DP_STATUS_HPD_STATE));
 
-		if (hpd && udphy->mode != mode) {
-			udphy->mode = mode;
-			udphy->mode_change = true;
+		if (!data) {
+			if (cfg->hpd_event_trigger)
+				cfg->hpd_event_trigger(udphy, false);
+		} else if (data->status & DP_STATUS_IRQ_HPD) {
+			if (cfg->hpd_event_trigger) {
+				cfg->hpd_event_trigger(udphy, false);
+				usleep_range(750, 800);
+				cfg->hpd_event_trigger(udphy, true);
+			}
+		} else if (data->status & DP_STATUS_HPD_STATE) {
+			if (udphy->mode != mode) {
+				udphy->mode = mode;
+				udphy->mode_change = true;
+			}
+			if (cfg->hpd_event_trigger)
+				cfg->hpd_event_trigger(udphy, true);
+		} else {
+			if (cfg->hpd_event_trigger)
+				cfg->hpd_event_trigger(udphy, false);
 		}
-
-		if (cfg->hpd_event_trigger)
-			cfg->hpd_event_trigger(udphy, hpd);
 	}
 
 	mutex_unlock(&udphy->mutex);
