@@ -844,8 +844,24 @@ int osnoise_main(int argc, char *argv[])
 	if (argc == 0)
 		goto usage;
 
+	/*
+	 * if osnoise was called without any argument, run the
+	 * default cmdline.
+	 */
+	if (argc == 1) {
+		osnoise_top_main(argc, argv);
+		exit(0);
+	}
+
 	if ((strcmp(argv[1], "-h") == 0) || (strcmp(argv[1], "--help") == 0)) {
 		osnoise_usage();
+		exit(0);
+	} else if (strncmp(argv[1], "-", 1) == 0) {
+		/* the user skipped the tool, call the default one */
+		osnoise_top_main(argc, argv);
+		exit(0);
+	} else if (strcmp(argv[1], "top") == 0) {
+		osnoise_top_main(argc-1, &argv[1]);
 		exit(0);
 	}
 

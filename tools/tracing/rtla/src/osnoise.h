@@ -86,4 +86,5 @@ void osnoise_destroy_tool(struct osnoise_tool *top);
 struct osnoise_tool *osnoise_init_tool(char *tool_name);
 struct osnoise_tool *osnoise_init_trace_tool(char *tracer);
 
+int osnoise_top_main(int argc, char **argv);
 int osnoise_main(int argc, char **argv);
