@@ -2232,7 +2232,8 @@ static int gup_pte_range(pmd_t pmd, unsigned long addr, unsigned long end,
 	ptem = ptep = pte_offset_map(&pmd, addr);
 	do {
 		pte_t pte = ptep_get_lockless(ptep);
-		struct page *head, *page;
+		struct page *page;
+		struct folio *folio;
 
 		/*
 		 * Similar to the PMD case below, NUMA hinting must take slow
@@ -2259,21 +2260,19 @@ static int gup_pte_range(pmd_t pmd, unsigned long addr, unsigned long end,
 		VM_BUG_ON(!pfn_valid(pte_pfn(pte)));
 		page = pte_page(pte);
 
-		head = try_grab_compound_head(page, 1, flags);
-		if (!head)
+		folio = try_grab_folio(page, 1, flags);
+		if (!folio)
 			goto pte_unmap;
 
 		if (unlikely(page_is_secretmem(page))) {
-			put_compound_head(head, 1, flags);
+			gup_put_folio(folio, 1, flags);
 			goto pte_unmap;
 		}
 
 		if (unlikely(pte_val(pte) != pte_val(*ptep))) {
-			put_compound_head(head, 1, flags);
+			gup_put_folio(folio, 1, flags);
 			goto pte_unmap;
 		}
-
-		VM_BUG_ON_PAGE(compound_head(page) != head, page);
 
 		/*
 		 * We need to make the page accessible if and only if we are
@@ -2284,14 +2283,13 @@ static int gup_pte_range(pmd_t pmd, unsigned long addr, unsigned long end,
 		if (flags & FOLL_PIN) {
 			ret = arch_make_page_accessible(page);
 			if (ret) {
-				unpin_user_page(page);
+				gup_put_folio(folio, 1, flags);
 				goto pte_unmap;
 			}
 		}
-		SetPageReferenced(page);
+		folio_set_referenced(folio);
 		pages[*nr] = page;
 		(*nr)++;
-
 	} while (ptep++, addr += PAGE_SIZE, addr != end);
 
 	ret = 1;
