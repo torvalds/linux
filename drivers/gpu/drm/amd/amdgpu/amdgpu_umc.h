@@ -78,9 +78,10 @@ struct amdgpu_umc {
 
 int amdgpu_umc_ras_late_init(struct amdgpu_device *adev);
 void amdgpu_umc_ras_fini(struct amdgpu_device *adev);
-int amdgpu_umc_process_ras_data_cb(struct amdgpu_device *adev,
+int amdgpu_umc_do_page_retirement(struct amdgpu_device *adev,
 		void *ras_error_status,
-		struct amdgpu_iv_entry *entry);
+		struct amdgpu_iv_entry *entry,
+		bool reset);
 int amdgpu_umc_process_ecc_irq(struct amdgpu_device *adev,
 		struct amdgpu_irq_src *source,
 		struct amdgpu_iv_entry *entry);

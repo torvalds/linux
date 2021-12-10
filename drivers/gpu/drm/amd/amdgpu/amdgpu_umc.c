@@ -23,6 +23,13 @@
 
 #include "amdgpu_ras.h"
 
+static int amdgpu_umc_process_ras_data_cb(struct amdgpu_device *adev,
+		void *ras_error_status,
+		struct amdgpu_iv_entry *entry)
+{
+	return amdgpu_umc_do_page_retirement(adev, ras_error_status, entry, true);
+}
+
 int amdgpu_umc_ras_late_init(struct amdgpu_device *adev)
 {
 	int r;
@@ -88,9 +95,10 @@ void amdgpu_umc_ras_fini(struct amdgpu_device *adev)
 	}
 }
 
-int amdgpu_umc_process_ras_data_cb(struct amdgpu_device *adev,
+int amdgpu_umc_do_page_retirement(struct amdgpu_device *adev,
 		void *ras_error_status,
-		struct amdgpu_iv_entry *entry)
+		struct amdgpu_iv_entry *entry,
+		bool reset)
 {
 	struct ras_err_data *err_data = (struct ras_err_data *)ras_error_status;
 	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
@@ -164,7 +172,8 @@ int amdgpu_umc_process_ras_data_cb(struct amdgpu_device *adev,
 				adev->smu.ppt_funcs->send_hbm_bad_pages_num(&adev->smu, con->eeprom_control.ras_num_recs);
 		}
 
-		amdgpu_ras_reset_gpu(adev);
+		if (reset)
+			amdgpu_ras_reset_gpu(adev);
 	}
 
 	kfree(err_data->err_addr);
