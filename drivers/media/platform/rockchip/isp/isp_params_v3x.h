@@ -165,6 +165,8 @@ struct rkisp_isp_params_ops_v3x {
 };
 
 struct rkisp_isp_params_val_v3x {
+	struct tasklet_struct lsc_tasklet;
+
 	struct rkisp_dummy_buffer buf_3dlut[ISP3_UNITE_MAX][ISP3X_3DLUT_BUF_NUM];
 	u32 buf_3dlut_idx[ISP3_UNITE_MAX];
 

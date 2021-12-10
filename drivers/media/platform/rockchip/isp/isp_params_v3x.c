@@ -45,6 +45,19 @@ isp3_param_write(struct rkisp_isp_params_vdev *params_vdev,
 }
 
 static inline u32
+isp3_param_read_direct(struct rkisp_isp_params_vdev *params_vdev,
+		       u32 addr, u32 id)
+{
+	u32 val;
+
+	if (id == ISP3_LEFT)
+		val = rkisp_read(params_vdev->dev, addr, true);
+	else
+		val = rkisp_next_read(params_vdev->dev, addr, true);
+	return val;
+}
+
+static inline u32
 isp3_param_read(struct rkisp_isp_params_vdev *params_vdev,
 		u32 addr, u32 id)
 {
@@ -503,20 +516,27 @@ isp_sdg_enable(struct rkisp_isp_params_vdev *params_vdev, bool en, u32 id)
 	}
 }
 
-static void __maybe_unused
+static void
 isp_lsc_matrix_cfg_sram(struct rkisp_isp_params_vdev *params_vdev,
 			const struct isp3x_lsc_cfg *pconfig,
 			bool is_check, u32 id)
 {
-	unsigned int sram_addr, data;
+	struct rkisp_device *dev = params_vdev->dev;
+	u32 sram_addr, data, table;
 	int i, j;
 
 	if (is_check &&
 	    !(isp3_param_read(params_vdev, ISP3X_LSC_CTRL, id) & ISP_LSC_EN))
 		return;
 
+	table = isp3_param_read_direct(params_vdev, ISP3X_LSC_STATUS, id);
+	table &= ISP3X_LSC_ACTIVE_TABLE;
+	/* default table 0 for multi device */
+	if (!dev->hw_dev->is_single)
+		table = ISP3X_LSC_ACTIVE_TABLE;
+
 	/* CIF_ISP_LSC_TABLE_ADDRESS_153 = ( 17 * 18 ) >> 1 */
-	sram_addr = CIF_ISP_LSC_TABLE_ADDRESS_0;
+	sram_addr = table ? ISP3X_LSC_TABLE_ADDRESS_0 : CIF_ISP_LSC_TABLE_ADDRESS_153;
 	isp3_param_write_direct(params_vdev, sram_addr, ISP3X_LSC_R_TABLE_ADDR, id);
 	isp3_param_write_direct(params_vdev, sram_addr, ISP3X_LSC_GR_TABLE_ADDR, id);
 	isp3_param_write_direct(params_vdev, sram_addr, ISP3X_LSC_GB_TABLE_ADDR, id);
@@ -559,74 +579,29 @@ isp_lsc_matrix_cfg_sram(struct rkisp_isp_params_vdev *params_vdev,
 		data = ISP_ISP_LSC_TABLE_DATA(pconfig->b_data_tbl[i + j], 0);
 		isp3_param_write_direct(params_vdev, data, ISP3X_LSC_B_TABLE_DATA, id);
 	}
+	isp3_param_write_direct(params_vdev, !table, ISP3X_LSC_TABLE_SEL, id);
 }
 
-static void __maybe_unused
-isp_lsc_matrix_cfg_ddr(struct rkisp_isp_params_vdev *params_vdev,
-		       const struct isp3x_lsc_cfg *pconfig, u32 id)
+static void
+isp_lsc_cfg_sram_task(unsigned long data)
 {
-	struct rkisp_isp_params_val_v3x *priv_val;
-	u32 data, buf_idx, *vaddr[4], index[4];
-	void *buf_vaddr;
-	int i, j;
+	struct rkisp_isp_params_vdev *params_vdev =
+		(struct rkisp_isp_params_vdev *)data;
+	struct isp3x_isp_params_cfg *params = params_vdev->isp3x_params;
 
-	memset(&index[0], 0, sizeof(index));
-	priv_val = (struct rkisp_isp_params_val_v3x *)params_vdev->priv_val;
-	buf_idx = (priv_val->buf_lsclut_idx[id]++) % ISP3X_LSC_LUT_BUF_NUM;
-	buf_vaddr = priv_val->buf_lsclut[id][buf_idx].vaddr;
-
-	vaddr[0] = buf_vaddr;
-	vaddr[1] = buf_vaddr + ISP3X_LSC_LUT_TBL_SIZE;
-	vaddr[2] = buf_vaddr + ISP3X_LSC_LUT_TBL_SIZE * 2;
-	vaddr[3] = buf_vaddr + ISP3X_LSC_LUT_TBL_SIZE * 3;
-
-	/* program data tables (table size is 9 * 17 = 153) */
-	for (i = 0; i < CIF_ISP_LSC_SECTORS_MAX * CIF_ISP_LSC_SECTORS_MAX;
-	     i += CIF_ISP_LSC_SECTORS_MAX) {
-		/*
-		 * 17 sectors with 2 values in one DWORD = 9
-		 * DWORDs (2nd value of last DWORD unused)
-		 */
-		for (j = 0; j < CIF_ISP_LSC_SECTORS_MAX - 1; j += 2) {
-			data = ISP_ISP_LSC_TABLE_DATA(
-				pconfig->r_data_tbl[i + j], pconfig->r_data_tbl[i + j + 1]);
-			vaddr[0][index[0]++] = data;
-
-			data = ISP_ISP_LSC_TABLE_DATA(
-				pconfig->gr_data_tbl[i + j], pconfig->gr_data_tbl[i + j + 1]);
-			vaddr[1][index[1]++] = data;
-
-			data = ISP_ISP_LSC_TABLE_DATA(
-				pconfig->b_data_tbl[i + j], pconfig->b_data_tbl[i + j + 1]);
-			vaddr[2][index[2]++] = data;
-
-			data = ISP_ISP_LSC_TABLE_DATA(
-				pconfig->gb_data_tbl[i + j], pconfig->gb_data_tbl[i + j + 1]);
-			vaddr[3][index[3]++] = data;
-		}
-
-		data = ISP_ISP_LSC_TABLE_DATA(pconfig->r_data_tbl[i + j], 0);
-		vaddr[0][index[0]++] = data;
-
-		data = ISP_ISP_LSC_TABLE_DATA(pconfig->gr_data_tbl[i + j], 0);
-		vaddr[1][index[1]++] = data;
-
-		data = ISP_ISP_LSC_TABLE_DATA(pconfig->b_data_tbl[i + j], 0);
-		vaddr[2][index[2]++] = data;
-
-		data = ISP_ISP_LSC_TABLE_DATA(pconfig->gb_data_tbl[i + j], 0);
-		vaddr[3][index[3]++] = data;
+	isp_lsc_matrix_cfg_sram(params_vdev, &params->others.lsc_cfg, true, 0);
+	if (params_vdev->dev->hw_dev->is_unite) {
+		params++;
+		isp_lsc_matrix_cfg_sram(params_vdev, &params->others.lsc_cfg, true, 1);
 	}
-	rkisp_prepare_buffer(params_vdev->dev, &priv_val->buf_lsclut[id][buf_idx]);
-	data = priv_val->buf_lsclut[id][buf_idx].dma_addr;
-	isp3_param_write(params_vdev, data, ISP3X_MI_LUT_LSC_RD_BASE, id);
-	isp3_param_write(params_vdev, ISP3X_LSC_LUT_BUF_SIZE, ISP3X_MI_LUT_LSC_RD_WSIZE, id);
 }
 
 static void
 isp_lsc_config(struct rkisp_isp_params_vdev *params_vdev,
 	       const struct isp3x_lsc_cfg *arg, u32 id)
 {
+	struct rkisp_isp_params_val_v3x *priv_val =
+		(struct rkisp_isp_params_val_v3x *)params_vdev->priv_val;
 	struct isp3x_isp_params_cfg *params_rec = params_vdev->isp3x_params + id;
 	struct rkisp_device *dev = params_vdev->dev;
 	unsigned int data;
@@ -636,16 +611,16 @@ isp_lsc_config(struct rkisp_isp_params_vdev *params_vdev,
 	/* To config must be off , store the current status firstly */
 	lsc_ctrl = isp3_param_read(params_vdev, ISP3X_LSC_CTRL, id);
 	isp3_param_clear_bits(params_vdev, ISP3X_LSC_CTRL, ISP_LSC_EN | BIT(2), id);
-	/* online mode lsc lut load from ddr quick for some sensor VB short
-	 * readback mode lsc lut AHB config to sram, once for single device,
-	 * need record to switch for multi-device.
-	 */
-	if (!IS_HDR_RDBK(dev->rd_mode))
-		isp_lsc_matrix_cfg_ddr(params_vdev, arg, id);
-	else if (dev->hw_dev->is_single)
-		isp_lsc_matrix_cfg_sram(params_vdev, arg, false, id);
-	else
-		params_rec->others.lsc_cfg = *arg;
+	params_rec->others.lsc_cfg = *arg;
+	if (dev->hw_dev->is_single) {
+		if (lsc_ctrl & ISP_LSC_EN) {
+			/* latest config for ISP3_LEFT, unite isp or single isp */
+			if (id == ISP3_LEFT)
+				tasklet_schedule(&priv_val->lsc_tasklet);
+		} else {
+			isp_lsc_matrix_cfg_sram(params_vdev, arg, false, id);
+		}
+	}
 
 	for (i = 0; i < ISP3X_LSC_SIZE_TBL_SIZE / 4; i++) {
 		/* program x size tables */
@@ -681,9 +656,6 @@ isp_lsc_config(struct rkisp_isp_params_vdev *params_vdev,
 		isp3_param_write(params_vdev, data, ISP3X_LSC_YGRAD_89 + i * 4, id);
 	}
 
-	/* restore the lsc ctrl status */
-	if (lsc_ctrl & ISP_LSC_EN && !IS_HDR_RDBK(dev->rd_mode))
-		lsc_ctrl |= ISP_LSC_LUT_EN;
 	if (arg->sector_16x16)
 		lsc_ctrl |= BIT(2);
 	isp3_param_set_bits(params_vdev, ISP3X_LSC_CTRL, lsc_ctrl, id);
@@ -692,11 +664,7 @@ isp_lsc_config(struct rkisp_isp_params_vdev *params_vdev,
 static void
 isp_lsc_enable(struct rkisp_isp_params_vdev *params_vdev, bool en, u32 id)
 {
-	struct rkisp_device *dev = params_vdev->dev;
 	u32 val = ISP_LSC_EN;
-
-	if (!IS_HDR_RDBK(dev->rd_mode))
-		val |= ISP_LSC_LUT_EN;
 
 	if (en) {
 		isp3_param_set_bits(params_vdev, ISP3X_LSC_CTRL, val, id);
@@ -3679,6 +3647,9 @@ void __isp_isr_other_config(struct rkisp_isp_params_vdev *params_vdev,
 		 "%s id:%d seq:%d module_cfg_update:0x%llx\n",
 		 __func__, id, new_params->frame_id, module_cfg_update);
 
+	if ((module_cfg_update & ISP3X_MODULE_LSC))
+		ops->lsc_config(params_vdev, &new_params->others.lsc_cfg, id);
+
 	if ((module_cfg_update & ISP3X_MODULE_DPCC))
 		ops->dpcc_config(params_vdev, &new_params->others.dpcc_cfg, id);
 
@@ -3687,9 +3658,6 @@ void __isp_isr_other_config(struct rkisp_isp_params_vdev *params_vdev,
 
 	if ((module_cfg_update & ISP3X_MODULE_SDG))
 		ops->sdg_config(params_vdev, &new_params->others.sdg_cfg, id);
-
-	if ((module_cfg_update & ISP3X_MODULE_LSC))
-		ops->lsc_config(params_vdev, &new_params->others.lsc_cfg, id);
 
 	if ((module_cfg_update & ISP3X_MODULE_AWB_GAIN))
 		ops->awbgain_config(params_vdev, &new_params->others.awb_gain_cfg, id);
@@ -4100,6 +4068,8 @@ rkisp_params_first_cfg_v3x(struct rkisp_isp_params_vdev *params_vdev)
 	u32 size = width * height;
 	u32 bigmode_max_w, bigmode_max_size;
 
+	tasklet_enable(&priv_val->lsc_tasklet);
+
 	if (hw->dev_num > 2) {
 		bigmode_max_w = ISP3X_VIR4_AUTO_BIGMODE_WIDTH;
 		bigmode_max_size = ISP3X_VIR4_NOBIG_OVERFLOW_SIZE;
@@ -4327,6 +4297,7 @@ rkisp_params_stream_stop_v3x(struct rkisp_isp_params_vdev *params_vdev)
 	u32 id, i;
 
 	priv_val = (struct rkisp_isp_params_val_v3x *)params_vdev->priv_val;
+	tasklet_disable(&priv_val->lsc_tasklet);
 	for (id = 0; id <= ispdev->hw_dev->is_unite; id++) {
 		rkisp_free_buffer(ispdev, &priv_val->buf_3dnr_iir[id]);
 		rkisp_free_buffer(ispdev, &priv_val->buf_3dnr_cur[id]);
@@ -4455,18 +4426,18 @@ rkisp_params_cfg_v3x(struct rkisp_isp_params_vdev *params_vdev,
 		goto unlock;
 
 	new_params = (struct isp3x_isp_params_cfg *)(cur_buf->vaddr[0]);
-	__isp_isr_other_config(params_vdev, new_params, type, 0);
-	__isp_isr_other_en(params_vdev, new_params, type, 0);
-	__isp_isr_meas_config(params_vdev, new_params, type, 0);
-	__isp_isr_meas_en(params_vdev, new_params, type, 0);
-	if (!hw_dev->is_single && type != RKISP_PARAMS_SHD)
-		__isp_config_hdrshd(params_vdev);
 	if (hw_dev->is_unite) {
 		__isp_isr_other_config(params_vdev, new_params + 1, type, 1);
 		__isp_isr_other_en(params_vdev, new_params + 1, type, 1);
 		__isp_isr_meas_config(params_vdev, new_params + 1, type, 1);
 		__isp_isr_meas_en(params_vdev, new_params + 1, type, 1);
 	}
+	__isp_isr_other_config(params_vdev, new_params, type, 0);
+	__isp_isr_other_en(params_vdev, new_params, type, 0);
+	__isp_isr_meas_config(params_vdev, new_params, type, 0);
+	__isp_isr_meas_en(params_vdev, new_params, type, 0);
+	if (!hw_dev->is_single && type != RKISP_PARAMS_SHD)
+		__isp_config_hdrshd(params_vdev);
 
 	if (type != RKISP_PARAMS_IMD) {
 		struct rkisp_isp_params_val_v3x *priv_val =
@@ -4593,13 +4564,22 @@ int rkisp_init_params_vdev_v3x(struct rkisp_isp_params_vdev *params_vdev)
 	params_vdev->ops = &rkisp_isp_params_ops_tbl;
 	params_vdev->priv_ops = &isp_params_ops_v3x;
 	rkisp_clear_first_param_v3x(params_vdev);
+	tasklet_init(&priv_val->lsc_tasklet,
+		     isp_lsc_cfg_sram_task,
+		     (unsigned long)params_vdev);
+	tasklet_disable(&priv_val->lsc_tasklet);
 	return 0;
 }
 
 void rkisp_uninit_params_vdev_v3x(struct rkisp_isp_params_vdev *params_vdev)
 {
+	struct rkisp_isp_params_val_v3x *priv_val = params_vdev->priv_val;
+
 	if (params_vdev->isp3x_params)
 		vfree(params_vdev->isp3x_params);
-	kfree(params_vdev->priv_val);
-	params_vdev->priv_val = NULL;
+	if (priv_val) {
+		tasklet_kill(&priv_val->lsc_tasklet);
+		kfree(priv_val);
+		params_vdev->priv_val = NULL;
+	}
 }
