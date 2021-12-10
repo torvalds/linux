@@ -13,29 +13,29 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-#include <linux/kernel.h>
-#include <linux/module.h>
-#include <linux/init.h>
-#include <linux/types.h>
-#include <linux/slab.h>
-#include <linux/input.h>
-#include <linux/input/sparse-keymap.h>
-#include <linux/fb.h>
+#include <linux/acpi.h>
 #include <linux/backlight.h>
-#include <linux/leds.h>
-#include <linux/rfkill.h>
-#include <linux/pci.h>
-#include <linux/pci_hotplug.h>
-#include <linux/platform_profile.h>
-#include <linux/power_supply.h>
+#include <linux/debugfs.h>
+#include <linux/dmi.h>
+#include <linux/fb.h>
 #include <linux/hwmon.h>
 #include <linux/hwmon-sysfs.h>
-#include <linux/debugfs.h>
-#include <linux/seq_file.h>
+#include <linux/init.h>
+#include <linux/input.h>
+#include <linux/input/sparse-keymap.h>
+#include <linux/kernel.h>
+#include <linux/leds.h>
+#include <linux/module.h>
+#include <linux/pci.h>
+#include <linux/pci_hotplug.h>
 #include <linux/platform_data/x86/asus-wmi.h>
 #include <linux/platform_device.h>
-#include <linux/acpi.h>
-#include <linux/dmi.h>
+#include <linux/platform_profile.h>
+#include <linux/power_supply.h>
+#include <linux/rfkill.h>
+#include <linux/seq_file.h>
+#include <linux/slab.h>
+#include <linux/types.h>
 #include <linux/units.h>
 
 #include <acpi/battery.h>
