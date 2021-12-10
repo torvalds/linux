@@ -26,7 +26,7 @@ struct si2157_dev {
 	unsigned int active:1;
 	unsigned int inversion:1;
 	unsigned int dont_load_firmware:1;
-	u8 chiptype;
+	u8 part_id;
 	u8 if_port;
 	u32 if_frequency;
 	u32 bandwidth;
@@ -57,11 +57,6 @@ struct si2157_tuner_info {
 	bool			required;
 	const char		*fw_name, *fw_alt_name;
 };
-
-#define SI2157_CHIPTYPE_SI2157 0
-#define SI2157_CHIPTYPE_SI2146 1
-#define SI2157_CHIPTYPE_SI2141 2
-#define SI2157_CHIPTYPE_SI2177 3
 
 /* firmware command struct */
 #define SI2157_ARGLEN      30
