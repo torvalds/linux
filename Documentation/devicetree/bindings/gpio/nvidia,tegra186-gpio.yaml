@@ -83,6 +83,8 @@ properties:
       - nvidia,tegra186-gpio-aon
       - nvidia,tegra194-gpio
       - nvidia,tegra194-gpio-aon
+      - nvidia,tegra234-gpio
+      - nvidia,tegra234-gpio-aon
 
   reg-names:
     items:
@@ -149,6 +151,7 @@ allOf:
             enum:
               - nvidia,tegra186-gpio
               - nvidia,tegra194-gpio
+              - nvidia,tegra234-gpio
     then:
       properties:
         interrupts:
@@ -162,6 +165,7 @@ allOf:
             enum:
               - nvidia,tegra186-gpio-aon
               - nvidia,tegra194-gpio-aon
+              - nvidia,tegra234-gpio-aon
     then:
       properties:
         interrupts:
