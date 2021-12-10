@@ -29,23 +29,6 @@ struct follow_page_context {
 	unsigned int page_mask;
 };
 
-/* Equivalent to calling put_page() @refs times. */
-static void put_page_refs(struct page *page, int refs)
-{
-#ifdef CONFIG_DEBUG_VM
-	if (VM_WARN_ON_ONCE_PAGE(page_ref_count(page) < refs, page))
-		return;
-#endif
-
-	/*
-	 * Calling put_page() for each ref is unnecessarily slow. Only the last
-	 * ref needs a put_page().
-	 */
-	if (refs > 1)
-		page_ref_sub(page, refs - 1);
-	put_page(page);
-}
-
 /*
  * Return the folio with ref appropriately incremented,
  * or NULL if that failed.
@@ -156,20 +139,23 @@ struct page *try_grab_compound_head(struct page *page,
 	return &try_grab_folio(page, refs, flags)->page;
 }
 
-static void put_compound_head(struct page *page, int refs, unsigned int flags)
+static void gup_put_folio(struct folio *folio, int refs, unsigned int flags)
 {
-	VM_BUG_ON_PAGE(PageTail(page), page);
-
 	if (flags & FOLL_PIN) {
-		mod_node_page_state(page_pgdat(page), NR_FOLL_PIN_RELEASED,
-				    refs);
-		if (PageHead(page))
-			atomic_sub(refs, compound_pincount_ptr(page));
+		node_stat_mod_folio(folio, NR_FOLL_PIN_RELEASED, refs);
+		if (folio_test_large(folio))
+			atomic_sub(refs, folio_pincount_ptr(folio));
 		else
 			refs *= GUP_PIN_COUNTING_BIAS;
 	}
 
-	put_page_refs(page, refs);
+	folio_put_refs(folio, refs);
+}
+
+static void put_compound_head(struct page *page, int refs, unsigned int flags)
+{
+	VM_BUG_ON_PAGE(PageTail(page), page);
+	gup_put_folio((struct folio *)page, refs, flags);
 }
 
 /**
@@ -230,7 +216,7 @@ bool __must_check try_grab_page(struct page *page, unsigned int flags)
  */
 void unpin_user_page(struct page *page)
 {
-	put_compound_head(compound_head(page), 1, FOLL_PIN);
+	gup_put_folio(page_folio(page), 1, FOLL_PIN);
 }
 EXPORT_SYMBOL(unpin_user_page);
 
