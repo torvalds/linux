@@ -58,13 +58,9 @@ static int batadv_nc_recv_coded_packet(struct sk_buff *skb,
  */
 int __init batadv_nc_init(void)
 {
-	int ret;
-
 	/* Register our packet type */
-	ret = batadv_recv_handler_register(BATADV_CODED,
-					   batadv_nc_recv_coded_packet);
-
-	return ret;
+	return batadv_recv_handler_register(BATADV_CODED,
+					    batadv_nc_recv_coded_packet);
 }
 
 /**
