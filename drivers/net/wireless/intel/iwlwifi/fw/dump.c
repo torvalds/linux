@@ -294,6 +294,72 @@ static void iwl_fwrt_dump_tcm_error_log(struct iwl_fw_runtime *fwrt, int idx)
 			table.sw_status[i], i);
 }
 
+/*
+ * RCM error struct.
+ * Note: This structure is read from the device with IO accesses,
+ * and the reading already does the endian conversion. As it is
+ * read with u32-sized accesses, any members with a different size
+ * need to be ordered correctly though!
+ */
+struct iwl_rcm_error_event_table {
+	u32 valid;
+	u32 error_id;
+	u32 blink2;
+	u32 ilink1;
+	u32 ilink2;
+	u32 data1, data2, data3;
+	u32 logpc;
+	u32 frame_pointer;
+	u32 stack_pointer;
+	u32 msgid;
+	u32 isr;
+	u32 frame_hw_status;
+	u32 mbx_lmac_to_rcm_req;
+	u32 mbx_rcm_to_lmac_req;
+	u32 mh_ctl;
+	u32 mh_addr1_lo;
+	u32 mh_info;
+	u32 mh_err;
+	u32 reserved[3];
+} __packed; /* RCM_LOG_ERROR_TABLE_API_S_VER_1 */
+
+static void iwl_fwrt_dump_rcm_error_log(struct iwl_fw_runtime *fwrt, int idx)
+{
+	struct iwl_trans *trans = fwrt->trans;
+	struct iwl_rcm_error_event_table table = {};
+	u32 base = fwrt->trans->dbg.rcm_error_event_table[idx];
+	u32 flag = idx ? IWL_ERROR_EVENT_TABLE_RCM2 :
+			 IWL_ERROR_EVENT_TABLE_RCM1;
+
+	if (!base || !(fwrt->trans->dbg.error_event_table_tlv_status & flag))
+		return;
+
+	iwl_trans_read_mem_bytes(trans, base, &table, sizeof(table));
+
+	IWL_ERR(fwrt, "RCM%d status:\n", idx + 1);
+	IWL_ERR(fwrt, "0x%08X | error ID\n", table.error_id);
+	IWL_ERR(fwrt, "0x%08X | rcm branchlink2\n", table.blink2);
+	IWL_ERR(fwrt, "0x%08X | rcm interruptlink1\n", table.ilink1);
+	IWL_ERR(fwrt, "0x%08X | rcm interruptlink2\n", table.ilink2);
+	IWL_ERR(fwrt, "0x%08X | rcm data1\n", table.data1);
+	IWL_ERR(fwrt, "0x%08X | rcm data2\n", table.data2);
+	IWL_ERR(fwrt, "0x%08X | rcm data3\n", table.data3);
+	IWL_ERR(fwrt, "0x%08X | rcm log PC\n", table.logpc);
+	IWL_ERR(fwrt, "0x%08X | rcm frame pointer\n", table.frame_pointer);
+	IWL_ERR(fwrt, "0x%08X | rcm stack pointer\n", table.stack_pointer);
+	IWL_ERR(fwrt, "0x%08X | rcm msg ID\n", table.msgid);
+	IWL_ERR(fwrt, "0x%08X | rcm ISR status\n", table.isr);
+	IWL_ERR(fwrt, "0x%08X | frame HW status\n", table.frame_hw_status);
+	IWL_ERR(fwrt, "0x%08X | LMAC-to-RCM request mbox\n",
+		table.mbx_lmac_to_rcm_req);
+	IWL_ERR(fwrt, "0x%08X | RCM-to-LMAC request mbox\n",
+		table.mbx_rcm_to_lmac_req);
+	IWL_ERR(fwrt, "0x%08X | MAC header control\n", table.mh_ctl);
+	IWL_ERR(fwrt, "0x%08X | MAC header addr1 low\n", table.mh_addr1_lo);
+	IWL_ERR(fwrt, "0x%08X | MAC header info\n", table.mh_info);
+	IWL_ERR(fwrt, "0x%08X | MAC header error\n", table.mh_err);
+}
+
 static void iwl_fwrt_dump_iml_error_log(struct iwl_fw_runtime *fwrt)
 {
 	struct iwl_trans *trans = fwrt->trans;
@@ -376,7 +442,9 @@ void iwl_fwrt_dump_error_logs(struct iwl_fw_runtime *fwrt)
 		iwl_fwrt_dump_lmac_error_log(fwrt, 1);
 	iwl_fwrt_dump_umac_error_log(fwrt);
 	iwl_fwrt_dump_tcm_error_log(fwrt, 0);
+	iwl_fwrt_dump_rcm_error_log(fwrt, 0);
 	iwl_fwrt_dump_tcm_error_log(fwrt, 1);
+	iwl_fwrt_dump_rcm_error_log(fwrt, 1);
 	iwl_fwrt_dump_iml_error_log(fwrt);
 	iwl_fwrt_dump_fseq_regs(fwrt);
 
