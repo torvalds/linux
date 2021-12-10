@@ -43,11 +43,6 @@ static inline int kvm_dirty_ring_alloc(struct kvm_dirty_ring *ring,
 	return 0;
 }
 
-static inline struct kvm_dirty_ring *kvm_dirty_ring_get(struct kvm *kvm)
-{
-	return NULL;
-}
-
 static inline int kvm_dirty_ring_reset(struct kvm *kvm,
 				       struct kvm_dirty_ring *ring)
 {
@@ -78,7 +73,6 @@ static inline bool kvm_dirty_ring_soft_full(struct kvm_dirty_ring *ring)
 
 u32 kvm_dirty_ring_get_rsvd_entries(void);
 int kvm_dirty_ring_alloc(struct kvm_dirty_ring *ring, int index, u32 size);
-struct kvm_dirty_ring *kvm_dirty_ring_get(struct kvm *kvm);
 
 /*
  * called with kvm->slots_lock held, returns the number of
