@@ -355,5 +355,6 @@ int i3c_device_request_ibi(struct i3c_device *dev,
 void i3c_device_free_ibi(struct i3c_device *dev);
 int i3c_device_enable_ibi(struct i3c_device *dev);
 int i3c_device_disable_ibi(struct i3c_device *dev);
+int i3c_device_send_ccc_cmd(struct i3c_device *dev, u8 ccc_id);
 
 #endif /* I3C_DEV_H */

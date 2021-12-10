@@ -177,6 +177,33 @@ void i3c_device_free_ibi(struct i3c_device *dev)
 EXPORT_SYMBOL_GPL(i3c_device_free_ibi);
 
 /**
+ * i3c_device_send_ccc_cmd() - send ccc to the target device
+ * @dev: device on which you want to release IBI resources
+ * @ccc_id: CCC ID you want to send.  Only support SETAASA, RSTDAA for now.
+ *
+ * This function provides a interface to send CCC from high layer driver.
+ * This is needed for the bus topologic with I3C MUX or switch devices.
+ * The I3C MUX may not enable the local/slave port by default.  The master
+ * controller needs to attach the I3C MUX device, and program the mode
+ * registers to enable the local/slave port.  Then the devices hehind
+ * the MUX may need for CCC for initialization (e.g. SETAASA to bring them
+ * from I2C mode to I3C mode)
+ */
+int i3c_device_send_ccc_cmd(struct i3c_device *dev, u8 ccc_id)
+{
+	int ret;
+
+	if (dev->desc) {
+		i3c_bus_normaluse_lock(dev->bus);
+		ret = i3c_dev_send_ccc_cmd_locked(dev->desc, ccc_id);
+		i3c_bus_normaluse_unlock(dev->bus);
+	}
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(i3c_device_send_ccc_cmd);
+
+/**
  * i3cdev_to_dev() - Returns the device embedded in @i3cdev
  * @i3cdev: I3C device
  *
