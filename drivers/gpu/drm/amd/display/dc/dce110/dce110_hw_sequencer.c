@@ -1798,7 +1798,6 @@ void dce110_enable_accelerated_mode(struct dc *dc, struct dc_state *context)
 	struct dc_stream_state *edp_streams[MAX_NUM_EDP];
 	struct dc_link *edp_link_with_sink = NULL;
 	struct dc_link *edp_link = NULL;
-	struct dc_stream_state *edp_stream = NULL;
 	struct dce_hwseq *hws = dc->hwseq;
 	int edp_with_sink_num;
 	int edp_num;
@@ -1830,7 +1829,8 @@ void dce110_enable_accelerated_mode(struct dc *dc, struct dc_state *context)
 			if (edp_link->link_enc->funcs->is_dig_enabled &&
 			    edp_link->link_enc->funcs->is_dig_enabled(edp_link->link_enc) &&
 			    edp_link->link_status.link_active) {
-				edp_stream = edp_streams[0];
+				struct dc_stream_state *edp_stream = edp_streams[0];
+
 				can_apply_edp_fast_boot = !is_edp_ilr_optimization_required(edp_stream->link, &edp_stream->timing);
 				edp_stream->apply_edp_fast_boot_optimization = can_apply_edp_fast_boot;
 				if (can_apply_edp_fast_boot)
