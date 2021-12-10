@@ -35,6 +35,7 @@ bool bch2_btree_node_format_fits(struct bch_fs *c, struct btree *,
 struct btree_update {
 	struct closure			cl;
 	struct bch_fs			*c;
+	u64				start_time;
 
 	struct list_head		list;
 	struct list_head		unwritten_list;

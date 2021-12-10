@@ -81,9 +81,9 @@ enum opt_type {
  */
 
 #ifdef __KERNEL__
-#define RATELIMIT_ERRORS true
+#define RATELIMIT_ERRORS_DEFAULT true
 #else
-#define RATELIMIT_ERRORS false
+#define RATELIMIT_ERRORS_DEFAULT false
 #endif
 
 #define BCH_OPTS()							\
@@ -288,7 +288,7 @@ enum opt_type {
 	x(ratelimit_errors,		u8,				\
 	  OPT_FS|OPT_MOUNT,						\
 	  OPT_BOOL(),							\
-	  NO_SB_OPT,			RATELIMIT_ERRORS,		\
+	  NO_SB_OPT,			RATELIMIT_ERRORS_DEFAULT,	\
 	  NULL,		"Ratelimit error messages during fsck")		\
 	x(nochanges,			u8,				\
 	  OPT_FS|OPT_MOUNT,						\

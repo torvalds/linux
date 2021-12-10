@@ -321,8 +321,12 @@ BCH_DEBUG_PARAMS_DEBUG()
 #define BCH_TIME_STATS()			\
 	x(btree_node_mem_alloc)			\
 	x(btree_node_split)			\
+	x(btree_node_compact)			\
+	x(btree_node_merge)			\
 	x(btree_node_sort)			\
 	x(btree_node_read)			\
+	x(btree_interior_update_foreground)	\
+	x(btree_interior_update_total)		\
 	x(btree_gc)				\
 	x(btree_lock_contended_read)		\
 	x(btree_lock_contended_intent)		\
@@ -330,8 +334,8 @@ BCH_DEBUG_PARAMS_DEBUG()
 	x(data_write)				\
 	x(data_read)				\
 	x(data_promote)				\
-	x(journal_write)			\
-	x(journal_delay)			\
+	x(journal_flush_write)			\
+	x(journal_noflush_write)		\
 	x(journal_flush_seq)			\
 	x(blocked_journal)			\
 	x(blocked_allocate)			\

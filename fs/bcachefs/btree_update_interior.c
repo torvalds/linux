@@ -455,15 +455,23 @@ static void bch2_btree_update_free(struct btree_update *as)
 	bch2_disk_reservation_put(c, &as->disk_res);
 	bch2_btree_reserve_put(as);
 
+	bch2_time_stats_update(&c->times[BCH_TIME_btree_interior_update_total],
+			       as->start_time);
+
 	mutex_lock(&c->btree_interior_update_lock);
 	list_del(&as->unwritten_list);
 	list_del(&as->list);
-	mutex_unlock(&c->btree_interior_update_lock);
 
 	closure_debug_destroy(&as->cl);
 	mempool_free(as, &c->btree_interior_update_pool);
 
+	/*
+	 * Have to do the wakeup with btree_interior_update_lock still held,
+	 * since being on btree_interior_update_list is our ref on @c:
+	 */
 	closure_wake_up(&c->btree_interior_update_wait);
+
+	mutex_unlock(&c->btree_interior_update_lock);
 }
 
 static void btree_update_will_delete_key(struct btree_update *as,
@@ -902,6 +910,9 @@ static void bch2_btree_interior_update_will_free_node(struct btree_update *as,
 
 static void bch2_btree_update_done(struct btree_update *as)
 {
+	struct bch_fs *c = as->c;
+	u64 start_time = as->start_time;
+
 	BUG_ON(as->mode == BTREE_INTERIOR_NO_UPDATE);
 
 	if (as->took_gc_lock)
@@ -912,6 +923,9 @@ static void bch2_btree_update_done(struct btree_update *as)
 
 	continue_at(&as->cl, btree_update_set_nodes_written,
 		    as->c->btree_interior_update_worker);
+
+	bch2_time_stats_update(&c->times[BCH_TIME_btree_interior_update_foreground],
+			       start_time);
 }
 
 static struct btree_update *
@@ -921,6 +935,7 @@ bch2_btree_update_start(struct btree_trans *trans, struct btree_path *path,
 	struct bch_fs *c = trans->c;
 	struct btree_update *as;
 	struct closure cl;
+	u64 start_time = local_clock();
 	int disk_res_flags = (flags & BTREE_INSERT_NOFAIL)
 		? BCH_DISK_RESERVATION_NOFAIL : 0;
 	int journal_flags = 0;
@@ -960,6 +975,7 @@ retry:
 	memset(as, 0, sizeof(*as));
 	closure_init(&as->cl, NULL);
 	as->c		= c;
+	as->start_time	= start_time;
 	as->mode	= BTREE_INTERIOR_NO_UPDATE;
 	as->took_gc_lock = !(flags & BTREE_INSERT_GC_LOCK_HELD);
 	as->btree_id	= path->btree_id;
@@ -1452,7 +1468,9 @@ static void btree_split(struct btree_update *as, struct btree_trans *trans,
 
 	bch2_trans_verify_locks(trans);
 
-	bch2_time_stats_update(&c->times[BCH_TIME_btree_node_split],
+	bch2_time_stats_update(&c->times[n2
+			       ? BCH_TIME_btree_node_split
+			       : BCH_TIME_btree_node_compact],
 			       start_time);
 }
 
@@ -1573,6 +1591,7 @@ int __bch2_foreground_maybe_merge(struct btree_trans *trans,
 	struct btree *b, *m, *n, *prev, *next, *parent;
 	struct bpos sib_pos;
 	size_t sib_u64s;
+	u64 start_time = local_clock();
 	int ret = 0;
 
 	BUG_ON(!path->should_be_locked);
@@ -1710,6 +1729,8 @@ int __bch2_foreground_maybe_merge(struct btree_trans *trans,
 	six_unlock_intent(&n->c.lock);
 
 	bch2_btree_update_done(as);
+
+	bch2_time_stats_update(&c->times[BCH_TIME_btree_node_merge], start_time);
 out:
 err:
 	bch2_path_put(trans, sib_path, true);

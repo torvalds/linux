@@ -625,6 +625,12 @@ int bch2_journal_flush_seq(struct journal *j, u64 seq)
 	u64 start_time = local_clock();
 	int ret, ret2;
 
+	/*
+	 * Don't update time_stats when @seq is already flushed:
+	 */
+	if (seq <= j->flushed_seq_ondisk)
+		return 0;
+
 	ret = wait_event_interruptible(j->wait, (ret2 = bch2_journal_flush_seq_async(j, seq, NULL)));
 
 	if (!ret)

@@ -1849,6 +1849,7 @@ int bch2_gc_gens(struct bch_fs *c)
 	struct bch_dev *ca;
 	struct bucket_array *buckets;
 	struct bucket *g;
+	u64 start_time = local_clock();
 	unsigned i;
 	int ret;
 
@@ -1892,6 +1893,8 @@ int bch2_gc_gens(struct bch_fs *c)
 	c->gc_gens_pos		= POS_MIN;
 
 	c->gc_count++;
+
+	bch2_time_stats_update(&c->times[BCH_TIME_btree_gc], start_time);
 err:
 	up_read(&c->gc_lock);
 	return ret;

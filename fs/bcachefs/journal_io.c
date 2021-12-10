@@ -1237,7 +1237,9 @@ static void journal_write_done(struct closure *cl)
 	u64 v, seq;
 	int err = 0;
 
-	bch2_time_stats_update(j->write_time, j->write_start_time);
+	bch2_time_stats_update(!JSET_NO_FLUSH(w->data)
+			       ? j->flush_write_time
+			       : j->noflush_write_time, j->write_start_time);
 
 	if (!w->devs_written.nr) {
 		bch_err(c, "unable to write journal to sufficient devices");
