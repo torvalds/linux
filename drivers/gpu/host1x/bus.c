@@ -5,6 +5,7 @@
  */
 
 #include <linux/debugfs.h>
+#include <linux/dma-mapping.h>
 #include <linux/host1x.h>
 #include <linux/of.h>
 #include <linux/seq_file.h>
