@@ -832,7 +832,7 @@ static void apparmor_sk_free_security(struct sock *sk)
 }
 
 /**
- * apparmor_clone_security - clone the sk_security field
+ * apparmor_sk_clone_security - clone the sk_security field
  */
 static void apparmor_sk_clone_security(const struct sock *sk,
 				       struct sock *newsk)
@@ -937,7 +937,7 @@ static int apparmor_socket_connect(struct socket *sock,
 }
 
 /**
- * apparmor_socket_list - check perms before allowing listen
+ * apparmor_socket_listen - check perms before allowing listen
  */
 static int apparmor_socket_listen(struct socket *sock, int backlog)
 {
@@ -1041,7 +1041,7 @@ static int aa_sock_opt_perm(const char *op, u32 request, struct socket *sock,
 }
 
 /**
- * apparmor_getsockopt - check perms before getting socket options
+ * apparmor_socket_getsockopt - check perms before getting socket options
  */
 static int apparmor_socket_getsockopt(struct socket *sock, int level,
 				      int optname)
@@ -1051,7 +1051,7 @@ static int apparmor_socket_getsockopt(struct socket *sock, int level,
 }
 
 /**
- * apparmor_setsockopt - check perms before setting socket options
+ * apparmor_socket_setsockopt - check perms before setting socket options
  */
 static int apparmor_socket_setsockopt(struct socket *sock, int level,
 				      int optname)
@@ -1070,7 +1070,7 @@ static int apparmor_socket_shutdown(struct socket *sock, int how)
 
 #ifdef CONFIG_NETWORK_SECMARK
 /**
- * apparmor_socket_sock_recv_skb - check perms before associating skb to sk
+ * apparmor_socket_sock_rcv_skb - check perms before associating skb to sk
  *
  * Note: can not sleep may be called with locks held
  *
