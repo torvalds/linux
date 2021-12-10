@@ -212,7 +212,7 @@ static int pcpu_alloc_lowcore(struct pcpu *pcpu, int cpu)
 	lc->return_lpswe = gen_lpswe(__LC_RETURN_PSW);
 	lc->return_mcck_lpswe = gen_lpswe(__LC_RETURN_MCCK_PSW);
 	lc->preempt_count = PREEMPT_DISABLED;
-	if (nmi_alloc_per_cpu(lc))
+	if (nmi_alloc_mcesa(&lc->mcesad))
 		goto out;
 	lowcore_ptr[cpu] = lc;
 	pcpu_sigp_retry(pcpu, SIGP_SET_PREFIX, (u32)(unsigned long) lc);
@@ -239,7 +239,7 @@ static void pcpu_free_lowcore(struct pcpu *pcpu)
 	mcck_stack = lc->mcck_stack - STACK_INIT_OFFSET;
 	pcpu_sigp_retry(pcpu, SIGP_SET_PREFIX, 0);
 	lowcore_ptr[cpu] = NULL;
-	nmi_free_per_cpu(lc);
+	nmi_free_mcesa(&lc->mcesad);
 	stack_free(async_stack);
 	stack_free(mcck_stack);
 	free_pages(nodat_stack, THREAD_SIZE_ORDER);
@@ -1271,14 +1271,15 @@ static int __init smp_reinit_ipl_cpu(void)
 {
 	unsigned long async_stack, nodat_stack, mcck_stack;
 	struct lowcore *lc, *lc_ipl;
-	unsigned long flags;
+	unsigned long flags, cr0;
+	u64 mcesad;
 
 	lc_ipl = lowcore_ptr[0];
 	lc = (struct lowcore *)	__get_free_pages(GFP_KERNEL | GFP_DMA, LC_ORDER);
 	nodat_stack = __get_free_pages(GFP_KERNEL, THREAD_SIZE_ORDER);
 	async_stack = stack_alloc();
 	mcck_stack = stack_alloc();
-	if (!lc || !nodat_stack || !async_stack || !mcck_stack)
+	if (!lc || !nodat_stack || !async_stack || !mcck_stack || nmi_alloc_mcesa(&mcesad))
 		panic("Couldn't allocate memory");
 
 	local_irq_save(flags);
@@ -1287,6 +1288,10 @@ static int __init smp_reinit_ipl_cpu(void)
 	S390_lowcore.nodat_stack = nodat_stack + STACK_INIT_OFFSET;
 	S390_lowcore.async_stack = async_stack + STACK_INIT_OFFSET;
 	S390_lowcore.mcck_stack = mcck_stack + STACK_INIT_OFFSET;
+	__ctl_store(cr0, 0, 0);
+	__ctl_clear_bit(0, 28); /* disable lowcore protection */
+	S390_lowcore.mcesad = mcesad;
+	__ctl_load(cr0, 0, 0);
 	lowcore_ptr[0] = lc;
 	local_mcck_enable();
 	local_irq_restore(flags);
