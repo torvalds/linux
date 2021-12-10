@@ -25,7 +25,8 @@ static void timerlat_usage(void)
 		"  usage: [rtla] timerlat [MODE] ...",
 		"",
 		"  modes:",
-		"     top  - prints the summary from timerlat tracer",
+		"     top   - prints the summary from timerlat tracer",
+		"     hist  - prints a histogram of timer latencies",
 		"",
 		"if no MODE is given, the top mode is called, passing the arguments",
 		NULL,
@@ -59,6 +60,9 @@ int timerlat_main(int argc, char *argv[])
 		exit(0);
 	} else if (strcmp(argv[1], "top") == 0) {
 		timerlat_top_main(argc-1, &argv[1]);
+		exit(0);
+	} else if (strcmp(argv[1], "hist") == 0) {
+		timerlat_hist_main(argc-1, &argv[1]);
 		exit(0);
 	}
 
