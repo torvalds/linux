@@ -96,3 +96,12 @@ SYM_DATA_START(__spectre_bhb_loop_k32)
 1:	.org __spectre_bhb_loop_k32 + __SPECTRE_BHB_LOOP_SZ
 	.org 1b
 SYM_DATA_END(__spectre_bhb_loop_k32)
+
+	.global	__spectre_bhb_clearbhb
+SYM_DATA_START(__spectre_bhb_clearbhb)
+	esb
+	clearbhb
+	isb
+1:	.org __spectre_bhb_clearbhb + __SPECTRE_BHB_CLEARBHB_SZ
+	.org 1b
+SYM_DATA_END(__spectre_bhb_clearbhb)

@@ -824,6 +824,7 @@ int arch_prctl_spec_ctrl_get(struct task_struct *task, unsigned long which)
  * - Mitigated by a branchy loop a CPU specific number of times, and listed
  *   in our "loop mitigated list".
  * - Mitigated in software by the firmware Spectre v2 call.
+ * - Has the ClearBHB instruction to perform the mitigation.
  * - Has the 'Exception Clears Branch History Buffer' (ECBHB) feature, so no
  *   software mitigation in the vectors is needed.
  * - Has CSV2.3, so is unaffected.
@@ -949,6 +950,9 @@ bool is_spectre_bhb_affected(const struct arm64_cpu_capabilities *entry,
 	if (supports_csv2p3(scope))
 		return false;
 
+	if (supports_clearbhb(scope))
+		return true;
+
 	if (spectre_bhb_loop_affected(scope))
 		return true;
 
@@ -987,6 +991,8 @@ static int kvm_bhb_get_vecs_size(const char *start)
 		 start == __spectre_bhb_loop_k24 ||
 		 start == __spectre_bhb_loop_k32)
 		return __SPECTRE_BHB_LOOP_SZ;
+	else if (start == __spectre_bhb_clearbhb)
+		return __SPECTRE_BHB_CLEARBHB_SZ;
 
 	return 0;
 }
@@ -1027,6 +1033,7 @@ static void kvm_setup_bhb_slot(const char *hyp_vecs_start)
 #define __spectre_bhb_loop_k8 NULL
 #define __spectre_bhb_loop_k24 NULL
 #define __spectre_bhb_loop_k32 NULL
+#define __spectre_bhb_clearbhb NULL
 
 static void kvm_setup_bhb_slot(const char *hyp_vecs_start) { }
 #endif /* CONFIG_KVM */
@@ -1045,6 +1052,11 @@ void spectre_bhb_enable_mitigation(const struct arm64_cpu_capabilities *entry)
 	} else if (cpu_mitigations_off()) {
 		pr_info_once("spectre-bhb mitigation disabled by command line option\n");
 	} else if (supports_ecbhb(SCOPE_LOCAL_CPU)) {
+		state = SPECTRE_MITIGATED;
+	} else if (supports_clearbhb(SCOPE_LOCAL_CPU)) {
+		kvm_setup_bhb_slot(__spectre_bhb_clearbhb);
+		this_cpu_set_vectors(EL1_VECTOR_BHB_CLEAR_INSN);
+
 		state = SPECTRE_MITIGATED;
 	} else if (spectre_bhb_loop_affected(SCOPE_LOCAL_CPU)) {
 		switch (spectre_bhb_loop_affected(SCOPE_SYSTEM)) {

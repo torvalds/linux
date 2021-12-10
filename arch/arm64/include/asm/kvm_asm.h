@@ -37,6 +37,7 @@
 #define __SMCCC_WORKAROUND_1_SMC_SZ 36
 #define __SMCCC_WORKAROUND_3_SMC_SZ 36
 #define __SPECTRE_BHB_LOOP_SZ       44
+#define __SPECTRE_BHB_CLEARBHB_SZ   12
 
 #define KVM_HOST_SMCCC_ID(id)						\
 	ARM_SMCCC_CALL_VAL(ARM_SMCCC_FAST_CALL,				\
@@ -205,6 +206,7 @@ extern char __smccc_workaround_3_smc[__SMCCC_WORKAROUND_3_SMC_SZ];
 extern char __spectre_bhb_loop_k8[__SPECTRE_BHB_LOOP_SZ];
 extern char __spectre_bhb_loop_k24[__SPECTRE_BHB_LOOP_SZ];
 extern char __spectre_bhb_loop_k32[__SPECTRE_BHB_LOOP_SZ];
+extern char __spectre_bhb_clearbhb[__SPECTRE_BHB_LOOP_SZ];
 
 /*
  * Obtain the PC-relative address of a kernel symbol
