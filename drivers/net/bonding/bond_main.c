@@ -4094,6 +4094,7 @@ static int bond_eth_ioctl(struct net_device *bond_dev, struct ifreq *ifr, int cm
 	struct mii_ioctl_data *mii = NULL;
 	const struct net_device_ops *ops;
 	struct net_device *real_dev;
+	struct hwtstamp_config cfg;
 	struct ifreq ifrr;
 	int res = 0;
 
@@ -4124,21 +4125,29 @@ static int bond_eth_ioctl(struct net_device *bond_dev, struct ifreq *ifr, int cm
 		break;
 	case SIOCSHWTSTAMP:
 	case SIOCGHWTSTAMP:
-		rcu_read_lock();
-		real_dev = bond_option_active_slave_get_rcu(bond);
-		rcu_read_unlock();
-		if (real_dev) {
-			strscpy_pad(ifrr.ifr_name, real_dev->name, IFNAMSIZ);
-			ifrr.ifr_ifru = ifr->ifr_ifru;
+		if (copy_from_user(&cfg, ifr->ifr_data, sizeof(cfg)))
+			return -EFAULT;
 
-			ops = real_dev->netdev_ops;
-			if (netif_device_present(real_dev) && ops->ndo_eth_ioctl)
-				res = ops->ndo_eth_ioctl(real_dev, &ifrr, cmd);
+		if (cfg.flags & HWTSTAMP_FLAG_BONDED_PHC_INDEX) {
+			rcu_read_lock();
+			real_dev = bond_option_active_slave_get_rcu(bond);
+			rcu_read_unlock();
+			if (real_dev) {
+				strscpy_pad(ifrr.ifr_name, real_dev->name, IFNAMSIZ);
+				ifrr.ifr_ifru = ifr->ifr_ifru;
 
-			if (!res)
-				ifr->ifr_ifru = ifrr.ifr_ifru;
+				ops = real_dev->netdev_ops;
+				if (netif_device_present(real_dev) && ops->ndo_eth_ioctl) {
+					res = ops->ndo_eth_ioctl(real_dev, &ifrr, cmd);
+
+					if (!res)
+						ifr->ifr_ifru = ifrr.ifr_ifru;
+
+					return res;
+				}
+			}
 		}
-		break;
+		fallthrough;
 	default:
 		res = -EOPNOTSUPP;
 	}
