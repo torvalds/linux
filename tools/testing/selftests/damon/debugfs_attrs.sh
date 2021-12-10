@@ -105,4 +105,22 @@ orig_monitor_on=$(cat "$DBGFS/monitor_on")
 test_write_fail "$DBGFS/monitor_on" "on" "orig_monitor_on" "empty target ids"
 echo "$orig_target_ids" > "$DBGFS/target_ids"
 
+# Test huge count read write
+# ==========================
+
+dmesg -C
+
+for file in "$DBGFS/"*
+do
+	./huge_count_read_write "$file"
+done
+
+if dmesg | grep -q WARNING
+then
+	dmesg
+	exit 1
+else
+	exit 0
+fi
+
 echo "PASS"
