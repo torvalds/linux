@@ -84,22 +84,7 @@ EXPORT_SYMBOL_GPL(mc146818_avoid_UIP);
  */
 bool mc146818_does_rtc_work(void)
 {
-	int i;
-	unsigned char val;
-	unsigned long flags;
-
-	for (i = 0; i < 10; i++) {
-		spin_lock_irqsave(&rtc_lock, flags);
-		val = CMOS_READ(RTC_FREQ_SELECT);
-		spin_unlock_irqrestore(&rtc_lock, flags);
-
-		if ((val & RTC_UIP) == 0)
-			return true;
-
-		mdelay(1);
-	}
-
-	return false;
+	return mc146818_avoid_UIP(NULL, NULL);
 }
 EXPORT_SYMBOL_GPL(mc146818_does_rtc_work);
 
