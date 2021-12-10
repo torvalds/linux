@@ -19,6 +19,7 @@ struct kvm_memslots;
 enum kvm_mr_change;
 
 #include <linux/types.h>
+#include <linux/spinlock_types.h>
 
 #include <asm/kvm_types.h>
 
@@ -51,6 +52,23 @@ struct gfn_to_hva_cache {
 	unsigned long hva;
 	unsigned long len;
 	struct kvm_memory_slot *memslot;
+};
+
+struct gfn_to_pfn_cache {
+	u64 generation;
+	gpa_t gpa;
+	unsigned long uhva;
+	struct kvm_memory_slot *memslot;
+	struct kvm_vcpu *vcpu;
+	struct list_head list;
+	rwlock_t lock;
+	void *khva;
+	kvm_pfn_t pfn;
+	bool active;
+	bool valid;
+	bool dirty;
+	bool kernel_map;
+	bool guest_uses_pa;
 };
 
 #ifdef KVM_ARCH_NR_OBJS_PER_MEMORY_CACHE

@@ -9,7 +9,7 @@
 #include <linux/vmalloc.h>
 #include <linux/kvm_dirty_ring.h>
 #include <trace/events/kvm.h>
-#include "mmu_lock.h"
+#include "kvm_mm.h"
 
 int __weak kvm_cpu_dirty_log_size(void)
 {

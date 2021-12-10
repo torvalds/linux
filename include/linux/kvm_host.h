@@ -155,6 +155,7 @@ static inline bool is_error_page(struct page *page)
 #define KVM_REQ_UNBLOCK           2
 #define KVM_REQ_UNHALT            3
 #define KVM_REQ_VM_DEAD           (4 | KVM_REQUEST_WAIT | KVM_REQUEST_NO_WAKEUP)
+#define KVM_REQ_GPC_INVALIDATE    (5 | KVM_REQUEST_WAIT | KVM_REQUEST_NO_WAKEUP)
 #define KVM_REQUEST_ARCH_BASE     8
 
 #define KVM_ARCH_REQ_FLAGS(nr, flags) ({ \
@@ -592,6 +593,10 @@ struct kvm {
 	spinlock_t mn_invalidate_lock;
 	unsigned long mn_active_invalidate_count;
 	struct rcuwait mn_memslots_update_rcuwait;
+
+	/* For management / invalidation of gfn_to_pfn_caches */
+	spinlock_t gpc_lock;
+	struct list_head gpc_list;
 
 	/*
 	 * created_vcpus is protected by kvm->lock, and is incremented
@@ -1098,6 +1103,104 @@ int kvm_vcpu_write_guest_page(struct kvm_vcpu *vcpu, gfn_t gfn, const void *data
 int kvm_vcpu_write_guest(struct kvm_vcpu *vcpu, gpa_t gpa, const void *data,
 			 unsigned long len);
 void kvm_vcpu_mark_page_dirty(struct kvm_vcpu *vcpu, gfn_t gfn);
+
+/**
+ * kvm_gfn_to_pfn_cache_init - prepare a cached kernel mapping and HPA for a
+ *                             given guest physical address.
+ *
+ * @kvm:	   pointer to kvm instance.
+ * @gpc:	   struct gfn_to_pfn_cache object.
+ * @vcpu:	   vCPU to be used for marking pages dirty and to be woken on
+ *		   invalidation.
+ * @guest_uses_pa: indicates that the resulting host physical PFN is used while
+ *		   @vcpu is IN_GUEST_MODE so invalidations should wake it.
+ * @kernel_map:    requests a kernel virtual mapping (kmap / memremap).
+ * @gpa:	   guest physical address to map.
+ * @len:	   sanity check; the range being access must fit a single page.
+ * @dirty:         mark the cache dirty immediately.
+ *
+ * @return:	   0 for success.
+ *		   -EINVAL for a mapping which would cross a page boundary.
+ *                 -EFAULT for an untranslatable guest physical address.
+ *
+ * This primes a gfn_to_pfn_cache and links it into the @kvm's list for
+ * invalidations to be processed. Invalidation callbacks to @vcpu using
+ * %KVM_REQ_GPC_INVALIDATE will occur only for MMU notifiers, not for KVM
+ * memslot changes. Callers are required to use kvm_gfn_to_pfn_cache_check()
+ * to ensure that the cache is valid before accessing the target page.
+ */
+int kvm_gfn_to_pfn_cache_init(struct kvm *kvm, struct gfn_to_pfn_cache *gpc,
+			      struct kvm_vcpu *vcpu, bool guest_uses_pa,
+			      bool kernel_map, gpa_t gpa, unsigned long len,
+			      bool dirty);
+
+/**
+ * kvm_gfn_to_pfn_cache_check - check validity of a gfn_to_pfn_cache.
+ *
+ * @kvm:	   pointer to kvm instance.
+ * @gpc:	   struct gfn_to_pfn_cache object.
+ * @gpa:	   current guest physical address to map.
+ * @len:	   sanity check; the range being access must fit a single page.
+ * @dirty:         mark the cache dirty immediately.
+ *
+ * @return:	   %true if the cache is still valid and the address matches.
+ *		   %false if the cache is not valid.
+ *
+ * Callers outside IN_GUEST_MODE context should hold a read lock on @gpc->lock
+ * while calling this function, and then continue to hold the lock until the
+ * access is complete.
+ *
+ * Callers in IN_GUEST_MODE may do so without locking, although they should
+ * still hold a read lock on kvm->scru for the memslot checks.
+ */
+bool kvm_gfn_to_pfn_cache_check(struct kvm *kvm, struct gfn_to_pfn_cache *gpc,
+				gpa_t gpa, unsigned long len);
+
+/**
+ * kvm_gfn_to_pfn_cache_refresh - update a previously initialized cache.
+ *
+ * @kvm:	   pointer to kvm instance.
+ * @gpc:	   struct gfn_to_pfn_cache object.
+ * @gpa:	   updated guest physical address to map.
+ * @len:	   sanity check; the range being access must fit a single page.
+ * @dirty:         mark the cache dirty immediately.
+ *
+ * @return:	   0 for success.
+ *		   -EINVAL for a mapping which would cross a page boundary.
+ *                 -EFAULT for an untranslatable guest physical address.
+ *
+ * This will attempt to refresh a gfn_to_pfn_cache. Note that a successful
+ * returm from this function does not mean the page can be immediately
+ * accessed because it may have raced with an invalidation. Callers must
+ * still lock and check the cache status, as this function does not return
+ * with the lock still held to permit access.
+ */
+int kvm_gfn_to_pfn_cache_refresh(struct kvm *kvm, struct gfn_to_pfn_cache *gpc,
+				 gpa_t gpa, unsigned long len, bool dirty);
+
+/**
+ * kvm_gfn_to_pfn_cache_unmap - temporarily unmap a gfn_to_pfn_cache.
+ *
+ * @kvm:	   pointer to kvm instance.
+ * @gpc:	   struct gfn_to_pfn_cache object.
+ *
+ * This unmaps the referenced page and marks it dirty, if appropriate. The
+ * cache is left in the invalid state but at least the mapping from GPA to
+ * userspace HVA will remain cached and can be reused on a subsequent
+ * refresh.
+ */
+void kvm_gfn_to_pfn_cache_unmap(struct kvm *kvm, struct gfn_to_pfn_cache *gpc);
+
+/**
+ * kvm_gfn_to_pfn_cache_destroy - destroy and unlink a gfn_to_pfn_cache.
+ *
+ * @kvm:	   pointer to kvm instance.
+ * @gpc:	   struct gfn_to_pfn_cache object.
+ *
+ * This removes a cache from the @kvm's list to be processed on MMU notifier
+ * invocation.
+ */
+void kvm_gfn_to_pfn_cache_destroy(struct kvm *kvm, struct gfn_to_pfn_cache *gpc);
 
 void kvm_sigset_activate(struct kvm_vcpu *vcpu);
 void kvm_sigset_deactivate(struct kvm_vcpu *vcpu);
