@@ -1776,6 +1776,7 @@ static int dcn31_populate_dml_pipes_from_context(
 	int i, pipe_cnt;
 	struct resource_context *res_ctx = &context->res_ctx;
 	struct pipe_ctx *pipe;
+	bool upscaled = false;
 
 	dcn20_populate_dml_pipes_from_context(dc, context, pipes, fast_validate);
 
@@ -1786,6 +1787,11 @@ static int dcn31_populate_dml_pipes_from_context(
 			continue;
 		pipe = &res_ctx->pipe_ctx[i];
 		timing = &pipe->stream->timing;
+
+		if (pipe->plane_state &&
+				(pipe->plane_state->src_rect.height < pipe->plane_state->dst_rect.height ||
+				pipe->plane_state->src_rect.width < pipe->plane_state->dst_rect.width))
+			upscaled = true;
 
 		/*
 		 * Immediate flip can be set dynamically after enabling the plane.
@@ -1834,6 +1840,8 @@ static int dcn31_populate_dml_pipes_from_context(
 	} else if (context->stream_count >= dc->debug.crb_alloc_policy_min_disp_count
 			&& dc->debug.crb_alloc_policy > DET_SIZE_DEFAULT) {
 		context->bw_ctx.dml.ip.det_buffer_size_kbytes = dc->debug.crb_alloc_policy * 64;
+	} else if (context->stream_count >= 3 && upscaled) {
+		context->bw_ctx.dml.ip.det_buffer_size_kbytes = 192;
 	}
 
 	return pipe_cnt;
