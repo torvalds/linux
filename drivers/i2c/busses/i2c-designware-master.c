@@ -815,6 +815,7 @@ static void i2c_dw_unprepare_recovery(struct i2c_adapter *adap)
 	i2c_dw_init_master(dev);
 }
 
+#ifndef CONFIG_SOC_STARFIVE_VIC7110
 static int i2c_dw_init_recovery_info(struct dw_i2c_dev *dev)
 {
 	struct i2c_bus_recovery_info *rinfo = &dev->rinfo;
@@ -842,6 +843,7 @@ static int i2c_dw_init_recovery_info(struct dw_i2c_dev *dev)
 
 	return 0;
 }
+#endif
 
 static int amd_i2c_adap_quirk(struct dw_i2c_dev *dev)
 {
@@ -910,11 +912,11 @@ int i2c_dw_probe_master(struct dw_i2c_dev *dev)
 			dev->irq, ret);
 		return ret;
 	}
-
+#ifndef CONFIG_SOC_STARFIVE_VIC7110
 	ret = i2c_dw_init_recovery_info(dev);
 	if (ret)
 		return ret;
-
+#endif
 	/*
 	 * Increment PM usage count during adapter registration in order to
 	 * avoid possible spurious runtime suspend when adapter device is

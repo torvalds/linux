@@ -40,6 +40,21 @@ static u32 i2c_dw_get_clk_rate_khz(struct dw_i2c_dev *dev)
 	return clk_get_rate(dev->clk) / KILO;
 }
 
+#ifdef CONFIG_SOC_STARFIVE
+static u32 starfive_i2c_dw_get_clk_rate_khz(struct dw_i2c_dev *dev)
+{
+	u32 val;
+
+	if(!device_property_read_u32(dev->dev, "clocks", &val)) {
+		dev_info(dev->dev, "Using 'clocks' : %u / 1000", val);
+		return (val / 1000);
+	} else {
+		dev_info(dev->dev, "Using the static setting value: 49500");
+		return 49500;
+	}
+}
+#endif
+
 #ifdef CONFIG_ACPI
 static const struct acpi_device_id dw_i2c_acpi_match[] = {
 	{ "INT33C2", 0 },
@@ -272,6 +287,17 @@ static int dw_i2c_plat_probe(struct platform_device *pdev)
 		if (!dev->sda_hold_time && t->sda_hold_ns)
 			dev->sda_hold_time =
 				DIV_S64_ROUND_CLOSEST(clk_khz * t->sda_hold_ns, MICRO);
+#ifdef CONFIG_SOC_STARFIVE
+	} else {
+		u64 clk_khz;
+
+		dev->get_clk_rate_khz = starfive_i2c_dw_get_clk_rate_khz;
+		clk_khz = dev->get_clk_rate_khz(dev);
+
+		if (!dev->sda_hold_time && t->sda_hold_ns)
+			dev->sda_hold_time =
+				DIV_S64_ROUND_CLOSEST(clk_khz * t->sda_hold_ns, MICRO);
+#endif
 	}
 
 	adap = &dev->adapter;
