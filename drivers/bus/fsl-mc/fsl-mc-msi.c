@@ -253,18 +253,20 @@ int fsl_mc_msi_domain_alloc_irqs(struct device *dev,
 	struct irq_domain *msi_domain;
 	int error;
 
+	msi_domain = dev_get_msi_domain(dev);
+	if (!msi_domain)
+		return -EINVAL;
+
+	error = msi_setup_device_data(dev);
+	if (error)
+		return error;
+
 	if (!list_empty(dev_to_msi_list(dev)))
 		return -EINVAL;
 
 	error = fsl_mc_msi_alloc_descs(dev, irq_count);
 	if (error < 0)
 		return error;
-
-	msi_domain = dev_get_msi_domain(dev);
-	if (!msi_domain) {
-		error = -EINVAL;
-		goto cleanup_msi_descs;
-	}
 
 	/*
 	 * NOTE: Calling this function will trigger the invocation of the
