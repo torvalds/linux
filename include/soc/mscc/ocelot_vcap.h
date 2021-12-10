@@ -703,6 +703,8 @@ int ocelot_vcap_filter_add(struct ocelot *ocelot,
 			   struct netlink_ext_ack *extack);
 int ocelot_vcap_filter_del(struct ocelot *ocelot,
 			   struct ocelot_vcap_filter *rule);
+int ocelot_vcap_filter_replace(struct ocelot *ocelot,
+			       struct ocelot_vcap_filter *filter);
 struct ocelot_vcap_filter *
 ocelot_vcap_block_find_filter_by_id(struct ocelot_vcap_block *block,
 				    unsigned long cookie, bool tc_offload);

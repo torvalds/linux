@@ -617,8 +617,9 @@ static int wm_adsp_control_add(struct cs_dsp_coeff_ctl *cs_ctl)
 	switch (cs_dsp->fw_ver) {
 	case 0:
 	case 1:
-		snprintf(name, SNDRV_CTL_ELEM_ID_NAME_MAXLEN, "%s %s %x",
-			 cs_dsp->name, region_name, cs_ctl->alg_region.alg);
+		ret = scnprintf(name, SNDRV_CTL_ELEM_ID_NAME_MAXLEN,
+				"%s %s %x", cs_dsp->name, region_name,
+				cs_ctl->alg_region.alg);
 		break;
 	case 2:
 		ret = scnprintf(name, SNDRV_CTL_ELEM_ID_NAME_MAXLEN,

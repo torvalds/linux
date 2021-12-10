@@ -34,7 +34,7 @@ int axspi_read_status(struct axspi_data *ax_spi, struct spi_status *status)
 
 	/* OP */
 	ax_spi->cmd_buf[0] = AX_SPICMD_READ_STATUS;
-	ret = spi_write_then_read(ax_spi->spi, ax_spi->cmd_buf, 1, (u8 *)&status, 3);
+	ret = spi_write_then_read(ax_spi->spi, ax_spi->cmd_buf, 1, (u8 *)status, 3);
 	if (ret)
 		dev_err(&ax_spi->spi->dev, "%s() failed: ret = %d\n", __func__, ret);
 	else

@@ -2031,8 +2031,9 @@ retry:
 			dev->horkage |= ATA_HORKAGE_NO_DMA_LOG;
 			goto retry;
 		}
-		ata_dev_err(dev, "Read log page 0x%02x failed, Emask 0x%x\n",
-			    (unsigned int)page, err_mask);
+		ata_dev_err(dev,
+			    "Read log 0x%02x page 0x%02x failed, Emask 0x%x\n",
+			    (unsigned int)log, (unsigned int)page, err_mask);
 	}
 
 	return err_mask;
@@ -2176,6 +2177,9 @@ static void ata_dev_config_ncq_prio(struct ata_device *dev)
 {
 	struct ata_port *ap = dev->link->ap;
 	unsigned int err_mask;
+
+	if (!ata_identify_page_supported(dev, ATA_LOG_SATA_SETTINGS))
+		return;
 
 	err_mask = ata_read_log_page(dev,
 				     ATA_LOG_IDENTIFY_DEVICE,
@@ -2453,7 +2457,8 @@ static void ata_dev_config_devslp(struct ata_device *dev)
 	 * Check device sleep capability. Get DevSlp timing variables
 	 * from SATA Settings page of Identify Device Data Log.
 	 */
-	if (!ata_id_has_devslp(dev->id))
+	if (!ata_id_has_devslp(dev->id) ||
+	    !ata_identify_page_supported(dev, ATA_LOG_SATA_SETTINGS))
 		return;
 
 	err_mask = ata_read_log_page(dev,

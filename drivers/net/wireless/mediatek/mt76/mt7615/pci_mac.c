@@ -143,8 +143,6 @@ int mt7615_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
 	if (!wcid)
 		wcid = &dev->mt76.global_wcid;
 
-	pid = mt76_tx_status_skb_add(mdev, wcid, tx_info->skb);
-
 	if ((info->flags & IEEE80211_TX_CTL_RATE_CTRL_PROBE) && msta) {
 		struct mt7615_phy *phy = &dev->phy;
 
@@ -164,6 +162,7 @@ int mt7615_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
 	if (id < 0)
 		return id;
 
+	pid = mt76_tx_status_skb_add(mdev, wcid, tx_info->skb);
 	mt7615_mac_write_txwi(dev, txwi_ptr, tx_info->skb, wcid, sta,
 			      pid, key, false);
 

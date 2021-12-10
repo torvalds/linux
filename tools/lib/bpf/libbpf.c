@@ -7258,7 +7258,7 @@ int bpf_object__load_xattr(struct bpf_object_load_attr *attr)
 	}
 
 	if (obj->gen_loader)
-		bpf_gen__init(obj->gen_loader, attr->log_level);
+		bpf_gen__init(obj->gen_loader, attr->log_level, obj->nr_programs, obj->nr_maps);
 
 	err = bpf_object__probe_loading(obj);
 	err = err ? : bpf_object__load_vmlinux_btf(obj, false);
@@ -7277,7 +7277,7 @@ int bpf_object__load_xattr(struct bpf_object_load_attr *attr)
 		for (i = 0; i < obj->nr_maps; i++)
 			obj->maps[i].fd = -1;
 		if (!err)
-			err = bpf_gen__finish(obj->gen_loader);
+			err = bpf_gen__finish(obj->gen_loader, obj->nr_programs, obj->nr_maps);
 	}
 
 	/* clean up fd_array */

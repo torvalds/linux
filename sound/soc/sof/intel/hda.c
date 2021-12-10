@@ -58,6 +58,13 @@ int hda_ctrl_dai_widget_setup(struct snd_soc_dapm_widget *w)
 		return -EINVAL;
 	}
 
+	/* DAI already configured, reset it before reconfiguring it */
+	if (sof_dai->configured) {
+		ret = hda_ctrl_dai_widget_free(w);
+		if (ret < 0)
+			return ret;
+	}
+
 	config = &sof_dai->dai_config[sof_dai->current_config];
 
 	/*
@@ -810,6 +817,20 @@ skip_soundwire:
 	return 0;
 }
 
+static void hda_check_for_state_change(struct snd_sof_dev *sdev)
+{
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
+	struct hdac_bus *bus = sof_to_bus(sdev);
+	unsigned int codec_mask;
+
+	codec_mask = snd_hdac_chip_readw(bus, STATESTS);
+	if (codec_mask) {
+		hda_codec_jack_check(sdev);
+		snd_hdac_chip_writew(bus, STATESTS, codec_mask);
+	}
+#endif
+}
+
 static irqreturn_t hda_dsp_interrupt_handler(int irq, void *context)
 {
 	struct snd_sof_dev *sdev = context;
@@ -850,6 +871,8 @@ static irqreturn_t hda_dsp_interrupt_thread(int irq, void *context)
 
 	if (hda_sdw_check_wakeen_irq(sdev))
 		hda_sdw_process_wakeen(sdev);
+
+	hda_check_for_state_change(sdev);
 
 	/* enable GIE interrupt */
 	snd_sof_dsp_update_bits(sdev, HDA_DSP_HDA_BAR,

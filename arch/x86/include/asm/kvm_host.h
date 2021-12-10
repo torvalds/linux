@@ -363,6 +363,7 @@ union kvm_mmu_extended_role {
 		unsigned int cr4_smap:1;
 		unsigned int cr4_smep:1;
 		unsigned int cr4_la57:1;
+		unsigned int efer_lma:1;
 	};
 };
 
@@ -1035,6 +1036,7 @@ struct kvm_x86_msr_filter {
 #define APICV_INHIBIT_REASON_PIT_REINJ  4
 #define APICV_INHIBIT_REASON_X2APIC	5
 #define APICV_INHIBIT_REASON_BLOCKIRQ	6
+#define APICV_INHIBIT_REASON_ABSENT	7
 
 struct kvm_arch {
 	unsigned long n_used_mmu_pages;

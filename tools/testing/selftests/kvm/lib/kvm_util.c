@@ -22,15 +22,6 @@
 
 static int vcpu_mmap_sz(void);
 
-/* Aligns x up to the next multiple of size. Size must be a power of 2. */
-static void *align(void *x, size_t size)
-{
-	size_t mask = size - 1;
-	TEST_ASSERT(size != 0 && !(size & (size - 1)),
-		    "size not a power of 2: %lu", size);
-	return (void *) (((size_t) x + mask) & ~mask);
-}
-
 int open_path_or_exit(const char *path, int flags)
 {
 	int fd;
@@ -191,15 +182,15 @@ const char *vm_guest_mode_string(uint32_t i)
 }
 
 const struct vm_guest_mode_params vm_guest_mode_params[] = {
-	{ 52, 48,  0x1000, 12 },
-	{ 52, 48, 0x10000, 16 },
-	{ 48, 48,  0x1000, 12 },
-	{ 48, 48, 0x10000, 16 },
-	{ 40, 48,  0x1000, 12 },
-	{ 40, 48, 0x10000, 16 },
-	{  0,  0,  0x1000, 12 },
-	{ 47, 64,  0x1000, 12 },
-	{ 44, 64,  0x1000, 12 },
+	[VM_MODE_P52V48_4K]	= { 52, 48,  0x1000, 12 },
+	[VM_MODE_P52V48_64K]	= { 52, 48, 0x10000, 16 },
+	[VM_MODE_P48V48_4K]	= { 48, 48,  0x1000, 12 },
+	[VM_MODE_P48V48_64K]	= { 48, 48, 0x10000, 16 },
+	[VM_MODE_P40V48_4K]	= { 40, 48,  0x1000, 12 },
+	[VM_MODE_P40V48_64K]	= { 40, 48, 0x10000, 16 },
+	[VM_MODE_PXXV48_4K]	= {  0,  0,  0x1000, 12 },
+	[VM_MODE_P47V64_4K]	= { 47, 64,  0x1000, 12 },
+	[VM_MODE_P44V64_4K]	= { 44, 64,  0x1000, 12 },
 };
 _Static_assert(sizeof(vm_guest_mode_params)/sizeof(struct vm_guest_mode_params) == NUM_VM_MODES,
 	       "Missing new mode params?");
@@ -879,8 +870,16 @@ void vm_userspace_mem_region_add(struct kvm_vm *vm,
 	alignment = 1;
 #endif
 
+	/*
+	 * When using THP mmap is not guaranteed to returned a hugepage aligned
+	 * address so we have to pad the mmap. Padding is not needed for HugeTLB
+	 * because mmap will always return an address aligned to the HugeTLB
+	 * page size.
+	 */
 	if (src_type == VM_MEM_SRC_ANONYMOUS_THP)
 		alignment = max(backing_src_pagesz, alignment);
+
+	ASSERT_EQ(guest_paddr, align_up(guest_paddr, backing_src_pagesz));
 
 	/* Add enough memory to align up if necessary */
 	if (alignment > 1)
@@ -914,8 +913,13 @@ void vm_userspace_mem_region_add(struct kvm_vm *vm,
 		    "test_malloc failed, mmap_start: %p errno: %i",
 		    region->mmap_start, errno);
 
+	TEST_ASSERT(!is_backing_src_hugetlb(src_type) ||
+		    region->mmap_start == align_ptr_up(region->mmap_start, backing_src_pagesz),
+		    "mmap_start %p is not aligned to HugeTLB page size 0x%lx",
+		    region->mmap_start, backing_src_pagesz);
+
 	/* Align host address */
-	region->host_mem = align(region->mmap_start, alignment);
+	region->host_mem = align_ptr_up(region->mmap_start, alignment);
 
 	/* As needed perform madvise */
 	if ((src_type == VM_MEM_SRC_ANONYMOUS ||
@@ -958,7 +962,7 @@ void vm_userspace_mem_region_add(struct kvm_vm *vm,
 			    "mmap of alias failed, errno: %i", errno);
 
 		/* Align host alias address */
-		region->host_alias = align(region->mmap_alias, alignment);
+		region->host_alias = align_ptr_up(region->mmap_alias, alignment);
 	}
 }
 

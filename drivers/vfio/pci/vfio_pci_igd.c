@@ -98,7 +98,8 @@ static ssize_t vfio_pci_igd_rw(struct vfio_pci_core_device *vdev,
 			version = cpu_to_le16(0x0201);
 
 		if (igd_opregion_shift_copy(buf, &off,
-					    &version + (pos - OPREGION_VERSION),
+					    (u8 *)&version +
+					    (pos - OPREGION_VERSION),
 					    &pos, &remaining, bytes))
 			return -EFAULT;
 	}
@@ -121,7 +122,7 @@ static ssize_t vfio_pci_igd_rw(struct vfio_pci_core_device *vdev,
 					  OPREGION_SIZE : 0);
 
 		if (igd_opregion_shift_copy(buf, &off,
-					    &rvda + (pos - OPREGION_RVDA),
+					    (u8 *)&rvda + (pos - OPREGION_RVDA),
 					    &pos, &remaining, bytes))
 			return -EFAULT;
 	}
