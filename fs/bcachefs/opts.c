@@ -291,7 +291,7 @@ void bch2_opt_to_text(struct printbuf *out, struct bch_fs *c,
 		pr_buf(out, "%lli", v);
 		break;
 	case BCH_OPT_SECTORS:
-		bch2_hprint(out, v);
+		bch2_hprint(out, v << 9);
 		break;
 	case BCH_OPT_STR:
 		if (flags & OPT_SHOW_FULL_LIST)
