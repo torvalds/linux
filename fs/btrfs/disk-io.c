@@ -1732,6 +1732,14 @@ again:
 	}
 	return root;
 fail:
+	/*
+	 * If our caller provided us an anonymous device, then it's his
+	 * responsability to free it in case we fail. So we have to set our
+	 * root's anon_dev to 0 to avoid a double free, once by btrfs_put_root()
+	 * and once again by our caller.
+	 */
+	if (anon_dev)
+		root->anon_dev = 0;
 	btrfs_put_root(root);
 	return ERR_PTR(ret);
 }
