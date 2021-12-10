@@ -44,6 +44,15 @@ test_content() {
 
 source ./_chk_dependency.sh
 
+ksft_skip=4
+
+damon_onoff="$DBGFS/monitor_on"
+if [ $(cat "$damon_onoff") = "on" ]
+then
+	echo "monitoring is on"
+	exit $ksft_skip
+fi
+
 # Test attrs file
 # ===============
 
