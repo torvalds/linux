@@ -431,6 +431,7 @@ struct bpf_map {
 	char *pin_path;
 	bool pinned;
 	bool reused;
+	bool skipped;
 	__u64 map_extra;
 };
 
@@ -5087,8 +5088,10 @@ bpf_object__create_maps(struct bpf_object *obj)
 		 * kernels.
 		 */
 		if (bpf_map__is_internal(map) &&
-		    !kernel_supports(obj, FEAT_GLOBAL_DATA))
+		    !kernel_supports(obj, FEAT_GLOBAL_DATA)) {
+			map->skipped = true;
 			continue;
+		}
 
 		retried = false;
 retry:
@@ -5717,8 +5720,7 @@ bpf_object__relocate_data(struct bpf_object *obj, struct bpf_program *prog)
 			} else {
 				const struct bpf_map *map = &obj->maps[relo->map_idx];
 
-				if (bpf_map__is_internal(map) &&
-				    !kernel_supports(obj, FEAT_GLOBAL_DATA)) {
+				if (map->skipped) {
 					pr_warn("prog '%s': relo #%d: kernel doesn't support global data\n",
 						prog->name, i);
 					return -ENOTSUP;
@@ -7925,6 +7927,9 @@ int bpf_object__pin_maps(struct bpf_object *obj, const char *path)
 	bpf_object__for_each_map(map, obj) {
 		char *pin_path = NULL;
 		char buf[PATH_MAX];
+
+		if (map->skipped)
+			continue;
 
 		if (path) {
 			int len;
