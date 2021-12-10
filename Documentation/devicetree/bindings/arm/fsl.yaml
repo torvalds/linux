@@ -670,6 +670,7 @@ properties:
       - description: i.MX6ULZ based Boards
         items:
           - enum:
+              - bsh,imx6ulz-bsh-smm-m2    # i.MX6 ULZ BSH SystemMaster
               - fsl,imx6ulz-14x14-evk     # i.MX6 ULZ 14x14 EVK Board
           - const: fsl,imx6ull # This seems odd. Should be last?
           - const: fsl,imx6ulz
