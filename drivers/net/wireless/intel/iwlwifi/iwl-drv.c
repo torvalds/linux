@@ -622,9 +622,14 @@ static void iwl_parse_dbg_tlv_assert_tables(struct iwl_drv *drv,
 			IWL_ERROR_EVENT_TABLE_LMAC2;
 		break;
 	case IWL_FW_INI_REGION_DEVICE_MEMORY_SUBTYPE_TCM_1_ERROR_TABLE:
-		drv->trans->dbg.tcm_error_event_table = addr;
+		drv->trans->dbg.tcm_error_event_table[0] = addr;
 		drv->trans->dbg.error_event_table_tlv_status |=
-			IWL_ERROR_EVENT_TABLE_TCM;
+			IWL_ERROR_EVENT_TABLE_TCM1;
+		break;
+	case IWL_FW_INI_REGION_DEVICE_MEMORY_SUBTYPE_TCM_2_ERROR_TABLE:
+		drv->trans->dbg.tcm_error_event_table[1] = addr;
+		drv->trans->dbg.error_event_table_tlv_status |=
+			IWL_ERROR_EVENT_TABLE_TCM2;
 		break;
 	default:
 		break;

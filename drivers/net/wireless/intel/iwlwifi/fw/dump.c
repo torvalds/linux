@@ -259,21 +259,21 @@ struct iwl_tcm_error_event_table {
 	u32 reserved[4];
 } __packed; /* TCM_LOG_ERROR_TABLE_API_S_VER_1 */
 
-static void iwl_fwrt_dump_tcm_error_log(struct iwl_fw_runtime *fwrt)
+static void iwl_fwrt_dump_tcm_error_log(struct iwl_fw_runtime *fwrt, int idx)
 {
 	struct iwl_trans *trans = fwrt->trans;
 	struct iwl_tcm_error_event_table table = {};
-	u32 base = fwrt->trans->dbg.tcm_error_event_table;
+	u32 base = fwrt->trans->dbg.tcm_error_event_table[idx];
 	int i;
+	u32 flag = idx ? IWL_ERROR_EVENT_TABLE_TCM2 :
+			 IWL_ERROR_EVENT_TABLE_TCM1;
 
-	if (!base ||
-	    !(fwrt->trans->dbg.error_event_table_tlv_status &
-	      IWL_ERROR_EVENT_TABLE_TCM))
+	if (!base || !(fwrt->trans->dbg.error_event_table_tlv_status & flag))
 		return;
 
 	iwl_trans_read_mem_bytes(trans, base, &table, sizeof(table));
 
-	IWL_ERR(fwrt, "TCM status:\n");
+	IWL_ERR(fwrt, "TCM%d status:\n", idx + 1);
 	IWL_ERR(fwrt, "0x%08X | error ID\n", table.error_id);
 	IWL_ERR(fwrt, "0x%08X | tcm branchlink2\n", table.blink2);
 	IWL_ERR(fwrt, "0x%08X | tcm interruptlink1\n", table.ilink1);
@@ -375,7 +375,8 @@ void iwl_fwrt_dump_error_logs(struct iwl_fw_runtime *fwrt)
 	if (fwrt->trans->dbg.lmac_error_event_table[1])
 		iwl_fwrt_dump_lmac_error_log(fwrt, 1);
 	iwl_fwrt_dump_umac_error_log(fwrt);
-	iwl_fwrt_dump_tcm_error_log(fwrt);
+	iwl_fwrt_dump_tcm_error_log(fwrt, 0);
+	iwl_fwrt_dump_tcm_error_log(fwrt, 1);
 	iwl_fwrt_dump_iml_error_log(fwrt);
 	iwl_fwrt_dump_fseq_regs(fwrt);
 
