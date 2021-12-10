@@ -1899,9 +1899,11 @@ static struct ice_buf *ice_pkg_buf(struct ice_buf_build *bld)
  * ice_get_open_tunnel_port - retrieve an open tunnel port
  * @hw: pointer to the HW structure
  * @port: returns open port
+ * @type: type of tunnel, can be TNL_LAST if it doesn't matter
  */
 bool
-ice_get_open_tunnel_port(struct ice_hw *hw, u16 *port)
+ice_get_open_tunnel_port(struct ice_hw *hw, u16 *port,
+			 enum ice_tunnel_type type)
 {
 	bool res = false;
 	u16 i;
@@ -1909,7 +1911,8 @@ ice_get_open_tunnel_port(struct ice_hw *hw, u16 *port)
 	mutex_lock(&hw->tnl_lock);
 
 	for (i = 0; i < hw->tnl.count && i < ICE_TUNNEL_MAX_ENTRIES; i++)
-		if (hw->tnl.tbl[i].valid && hw->tnl.tbl[i].port) {
+		if (hw->tnl.tbl[i].valid && hw->tnl.tbl[i].port &&
+		    (type == TNL_LAST || type == hw->tnl.tbl[i].type)) {
 			*port = hw->tnl.tbl[i].port;
 			res = true;
 			break;

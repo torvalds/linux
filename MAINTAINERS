@@ -9336,7 +9336,6 @@ S:	Maintained
 F:	drivers/iio/pressure/dps310.c
 
 INFINIBAND SUBSYSTEM
-M:	Doug Ledford <dledford@redhat.com>
 M:	Jason Gunthorpe <jgg@nvidia.com>
 L:	linux-rdma@vger.kernel.org
 S:	Supported
@@ -12187,8 +12186,8 @@ F:	drivers/net/ethernet/mellanox/mlx5/core/fpga/*
 F:	include/linux/mlx5/mlx5_ifc_fpga.h
 
 MELLANOX ETHERNET SWITCH DRIVERS
-M:	Jiri Pirko <jiri@nvidia.com>
 M:	Ido Schimmel <idosch@nvidia.com>
+M:	Petr Machata <petrm@nvidia.com>
 L:	netdev@vger.kernel.org
 S:	Supported
 W:	http://www.mellanox.com
@@ -16636,7 +16635,6 @@ W:	http://www.ibm.com/developerworks/linux/linux390/
 F:	drivers/iommu/s390-iommu.c
 
 S390 IUCV NETWORK LAYER
-M:	Julian Wiedmann <jwi@linux.ibm.com>
 M:	Alexandra Winter <wintera@linux.ibm.com>
 M:	Wenjia Zhang <wenjia@linux.ibm.com>
 L:	linux-s390@vger.kernel.org
@@ -16648,7 +16646,6 @@ F:	include/net/iucv/
 F:	net/iucv/
 
 S390 NETWORK DRIVERS
-M:	Julian Wiedmann <jwi@linux.ibm.com>
 M:	Alexandra Winter <wintera@linux.ibm.com>
 M:	Wenjia Zhang <wenjia@linux.ibm.com>
 L:	linux-s390@vger.kernel.org

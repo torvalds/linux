@@ -18,6 +18,7 @@
 #include <linux/pm_domain.h>
 #include <linux/regmap.h>
 #include <linux/reset.h>
+#include <linux/module.h>
 
 #include "pcie-designware.h"
 
