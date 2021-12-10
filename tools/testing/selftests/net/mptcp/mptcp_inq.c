@@ -18,7 +18,6 @@
 #include <time.h>
 
 #include <sys/ioctl.h>
-#include <sys/ioctl.h>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <sys/wait.h>
