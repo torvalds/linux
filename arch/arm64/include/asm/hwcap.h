@@ -106,6 +106,7 @@
 #define KERNEL_HWCAP_BTI		__khwcap2_feature(BTI)
 #define KERNEL_HWCAP_MTE		__khwcap2_feature(MTE)
 #define KERNEL_HWCAP_ECV		__khwcap2_feature(ECV)
+#define KERNEL_HWCAP_AFP		__khwcap2_feature(AFP)
 
 /*
  * This yields a mask that user programs can use to figure out what
