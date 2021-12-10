@@ -19,53 +19,6 @@
  * read with u32-sized accesses, any members with a different size
  * need to be ordered correctly though!
  */
-struct iwl_error_event_table_v1 {
-	u32 valid;		/* (nonzero) valid, (0) log is empty */
-	u32 error_id;		/* type of error */
-	u32 pc;			/* program counter */
-	u32 blink1;		/* branch link */
-	u32 blink2;		/* branch link */
-	u32 ilink1;		/* interrupt link */
-	u32 ilink2;		/* interrupt link */
-	u32 data1;		/* error-specific data */
-	u32 data2;		/* error-specific data */
-	u32 data3;		/* error-specific data */
-	u32 bcon_time;		/* beacon timer */
-	u32 tsf_low;		/* network timestamp function timer */
-	u32 tsf_hi;		/* network timestamp function timer */
-	u32 gp1;		/* GP1 timer register */
-	u32 gp2;		/* GP2 timer register */
-	u32 gp3;		/* GP3 timer register */
-	u32 ucode_ver;		/* uCode version */
-	u32 hw_ver;		/* HW Silicon version */
-	u32 brd_ver;		/* HW board version */
-	u32 log_pc;		/* log program counter */
-	u32 frame_ptr;		/* frame pointer */
-	u32 stack_ptr;		/* stack pointer */
-	u32 hcmd;		/* last host command header */
-	u32 isr0;		/* isr status register LMPM_NIC_ISR0:
-				 * rxtx_flag */
-	u32 isr1;		/* isr status register LMPM_NIC_ISR1:
-				 * host_flag */
-	u32 isr2;		/* isr status register LMPM_NIC_ISR2:
-				 * enc_flag */
-	u32 isr3;		/* isr status register LMPM_NIC_ISR3:
-				 * time_flag */
-	u32 isr4;		/* isr status register LMPM_NIC_ISR4:
-				 * wico interrupt */
-	u32 isr_pref;		/* isr status register LMPM_NIC_PREF_STAT */
-	u32 wait_event;		/* wait event() caller address */
-	u32 l2p_control;	/* L2pControlField */
-	u32 l2p_duration;	/* L2pDurationField */
-	u32 l2p_mhvalid;	/* L2pMhValidBits */
-	u32 l2p_addr_match;	/* L2pAddrMatchStat */
-	u32 lmpm_pmg_sel;	/* indicate which clocks are turned on
-				 * (LMPM_PMG_SEL) */
-	u32 u_timestamp;	/* indicate when the date and time of the
-				 * compilation */
-	u32 flow_handler;	/* FH read/write pointers, RX credit */
-} __packed /* LOG_ERROR_TABLE_API_S_VER_1 */;
-
 struct iwl_error_event_table {
 	u32 valid;		/* (nonzero) valid, (0) log is empty */
 	u32 error_id;		/* type of error */
