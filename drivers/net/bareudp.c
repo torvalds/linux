@@ -38,6 +38,13 @@ struct bareudp_net {
 	struct list_head        bareudp_list;
 };
 
+struct bareudp_conf {
+	__be16 ethertype;
+	__be16 port;
+	u16 sport_min;
+	bool multi_proto_mode;
+};
+
 /* Pseudo network device */
 struct bareudp_dev {
 	struct net         *net;        /* netns for packet i/o */
