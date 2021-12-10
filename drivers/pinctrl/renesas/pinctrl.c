@@ -397,7 +397,7 @@ static int sh_pfc_gpio_request_enable(struct pinctrl_dev *pctldev,
 
 	spin_lock_irqsave(&pfc->lock, flags);
 
-	if (!pfc->gpio) {
+	if (!pfc->gpio && !cfg->mux_mark) {
 		/* If GPIOs are handled externally the pin mux type needs to be
 		 * set to GPIO here.
 		 */
