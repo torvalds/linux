@@ -505,7 +505,7 @@ error_state:
 }
 
 /**
- * cpuidle_remove_driver_sysfs - removes the cpuidle states sysfs attributes
+ * cpuidle_remove_state_sysfs - removes the cpuidle states sysfs attributes
  * @device: the target device
  */
 static void cpuidle_remove_state_sysfs(struct cpuidle_device *device)
