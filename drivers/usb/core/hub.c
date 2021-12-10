@@ -3572,7 +3572,7 @@ static int finish_port_resume(struct usb_device *udev)
  * This routine should only be called when persist is enabled.
  */
 static int wait_for_connected(struct usb_device *udev,
-		struct usb_hub *hub, int *port1,
+		struct usb_hub *hub, int port1,
 		u16 *portchange, u16 *portstatus)
 {
 	int status = 0, delay_ms = 0;
@@ -3586,7 +3586,7 @@ static int wait_for_connected(struct usb_device *udev,
 		}
 		msleep(20);
 		delay_ms += 20;
-		status = hub_port_status(hub, *port1, portstatus, portchange);
+		status = hub_port_status(hub, port1, portstatus, portchange);
 	}
 	dev_dbg(&udev->dev, "Waited %dms for CONNECT\n", delay_ms);
 	return status;
@@ -3692,7 +3692,7 @@ int usb_port_resume(struct usb_device *udev, pm_message_t msg)
 	}
 
 	if (udev->persist_enabled)
-		status = wait_for_connected(udev, hub, &port1, &portchange,
+		status = wait_for_connected(udev, hub, port1, &portchange,
 				&portstatus);
 
 	status = check_port_resume_type(udev,
