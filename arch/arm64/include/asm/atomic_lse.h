@@ -75,31 +75,21 @@ ATOMIC_FETCH_OP_SUB(        )
 
 #undef ATOMIC_FETCH_OP_SUB
 
-#define ATOMIC_OP_ADD_SUB_RETURN(name, mb, cl...)			\
+#define ATOMIC_OP_ADD_SUB_RETURN(name)					\
 static inline int __lse_atomic_add_return##name(int i, atomic_t *v)	\
 {									\
-	u32 tmp;							\
-									\
-	asm volatile(							\
-	__LSE_PREAMBLE							\
-	"	ldadd" #mb "	%w[i], %w[tmp], %[v]\n"			\
-	"	add	%w[i], %w[i], %w[tmp]"				\
-	: [i] "+r" (i), [v] "+Q" (v->counter), [tmp] "=&r" (tmp)	\
-	: "r" (v)							\
-	: cl);								\
-									\
-	return i;							\
+	return __lse_atomic_fetch_add##name(i, v) + i;			\
 }									\
 									\
 static inline int __lse_atomic_sub_return##name(int i, atomic_t *v)	\
 {									\
-	return __lse_atomic_add_return##name(-i, v);			\
+	return __lse_atomic_fetch_sub(i, v) - i;			\
 }
 
-ATOMIC_OP_ADD_SUB_RETURN(_relaxed,   )
-ATOMIC_OP_ADD_SUB_RETURN(_acquire,  a, "memory")
-ATOMIC_OP_ADD_SUB_RETURN(_release,  l, "memory")
-ATOMIC_OP_ADD_SUB_RETURN(        , al, "memory")
+ATOMIC_OP_ADD_SUB_RETURN(_relaxed)
+ATOMIC_OP_ADD_SUB_RETURN(_acquire)
+ATOMIC_OP_ADD_SUB_RETURN(_release)
+ATOMIC_OP_ADD_SUB_RETURN(        )
 
 #undef ATOMIC_OP_ADD_SUB_RETURN
 
@@ -186,31 +176,21 @@ ATOMIC64_FETCH_OP_SUB(        )
 
 #undef ATOMIC64_FETCH_OP_SUB
 
-#define ATOMIC64_OP_ADD_SUB_RETURN(name, mb, cl...)			\
+#define ATOMIC64_OP_ADD_SUB_RETURN(name)				\
 static inline long __lse_atomic64_add_return##name(s64 i, atomic64_t *v)\
 {									\
-	unsigned long tmp;						\
-									\
-	asm volatile(							\
-	__LSE_PREAMBLE							\
-	"	ldadd" #mb "	%[i], %x[tmp], %[v]\n"			\
-	"	add	%[i], %[i], %x[tmp]"				\
-	: [i] "+r" (i), [v] "+Q" (v->counter), [tmp] "=&r" (tmp)	\
-	: "r" (v)							\
-	: cl);								\
-									\
-	return i;							\
+	return __lse_atomic64_fetch_add##name(i, v) + i;		\
 }									\
 									\
 static inline long __lse_atomic64_sub_return##name(s64 i, atomic64_t *v)\
 {									\
-	return __lse_atomic64_add_return##name(-i, v);			\
+	return __lse_atomic64_fetch_sub##name(i, v) - i;		\
 }
 
-ATOMIC64_OP_ADD_SUB_RETURN(_relaxed,   )
-ATOMIC64_OP_ADD_SUB_RETURN(_acquire,  a, "memory")
-ATOMIC64_OP_ADD_SUB_RETURN(_release,  l, "memory")
-ATOMIC64_OP_ADD_SUB_RETURN(        , al, "memory")
+ATOMIC64_OP_ADD_SUB_RETURN(_relaxed)
+ATOMIC64_OP_ADD_SUB_RETURN(_acquire)
+ATOMIC64_OP_ADD_SUB_RETURN(_release)
+ATOMIC64_OP_ADD_SUB_RETURN(        )
 
 #undef ATOMIC64_OP_ADD_SUB_RETURN
 
