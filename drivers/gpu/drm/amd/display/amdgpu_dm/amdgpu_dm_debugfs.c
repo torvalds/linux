@@ -2755,6 +2755,138 @@ static const struct {
 		{"internal_display", &internal_display_fops}
 };
 
+/*
+ * Returns supported customized link rates by this eDP panel.
+ * Example usage: cat /sys/kernel/debug/dri/0/eDP-x/ilr_setting
+ */
+static int edp_ilr_show(struct seq_file *m, void *unused)
+{
+	struct amdgpu_dm_connector *aconnector = to_amdgpu_dm_connector(m->private);
+	struct dc_link *link = aconnector->dc_link;
+	uint8_t supported_link_rates[16];
+	uint32_t link_rate_in_khz;
+	uint32_t entry = 0;
+	uint8_t dpcd_rev;
+
+	memset(supported_link_rates, 0, sizeof(supported_link_rates));
+	dm_helpers_dp_read_dpcd(link->ctx, link, DP_SUPPORTED_LINK_RATES,
+		supported_link_rates, sizeof(supported_link_rates));
+
+	dpcd_rev = link->dpcd_caps.dpcd_rev.raw;
+
+	if (dpcd_rev >= DP_DPCD_REV_13 &&
+		(supported_link_rates[entry+1] != 0 || supported_link_rates[entry] != 0)) {
+
+		for (entry = 0; entry < 16; entry += 2) {
+			link_rate_in_khz = (supported_link_rates[entry+1] * 0x100 +
+										supported_link_rates[entry]) * 200;
+			seq_printf(m, "[%d] %d kHz\n", entry/2, link_rate_in_khz);
+		}
+	} else {
+		seq_printf(m, "ILR is not supported by this eDP panel.\n");
+	}
+
+	return 0;
+}
+
+/*
+ * Set supported customized link rate to eDP panel.
+ *
+ * echo <lane_count>  <link_rate option> > ilr_setting
+ *
+ * for example, supported ILR : [0] 1620000 kHz [1] 2160000 kHz [2] 2430000 kHz ...
+ * echo 4 1 > /sys/kernel/debug/dri/0/eDP-x/ilr_setting
+ * to set 4 lanes and 2.16 GHz
+ */
+static ssize_t edp_ilr_write(struct file *f, const char __user *buf,
+				 size_t size, loff_t *pos)
+{
+	struct amdgpu_dm_connector *connector = file_inode(f)->i_private;
+	struct dc_link *link = connector->dc_link;
+	struct amdgpu_device *adev = drm_to_adev(connector->base.dev);
+	struct dc *dc = (struct dc *)link->dc;
+	struct dc_link_settings prefer_link_settings;
+	char *wr_buf = NULL;
+	const uint32_t wr_buf_size = 40;
+	/* 0: lane_count; 1: link_rate */
+	int max_param_num = 2;
+	uint8_t param_nums = 0;
+	long param[2];
+	bool valid_input = true;
+
+	if (size == 0)
+		return -EINVAL;
+
+	wr_buf = kcalloc(wr_buf_size, sizeof(char), GFP_KERNEL);
+	if (!wr_buf)
+		return -ENOMEM;
+
+	if (parse_write_buffer_into_params(wr_buf, wr_buf_size,
+					   (long *)param, buf,
+					   max_param_num,
+					   &param_nums)) {
+		kfree(wr_buf);
+		return -EINVAL;
+	}
+
+	if (param_nums <= 0) {
+		kfree(wr_buf);
+		return -EINVAL;
+	}
+
+	switch (param[0]) {
+	case LANE_COUNT_ONE:
+	case LANE_COUNT_TWO:
+	case LANE_COUNT_FOUR:
+		break;
+	default:
+		valid_input = false;
+		break;
+	}
+
+	if (param[1] >= link->dpcd_caps.edp_supported_link_rates_count)
+		valid_input = false;
+
+	if (!valid_input) {
+		kfree(wr_buf);
+		DRM_DEBUG_DRIVER("Invalid Input value. No HW will be programmed\n");
+		prefer_link_settings.use_link_rate_set = false;
+		dc_link_set_preferred_training_settings(dc, NULL, NULL, link, true);
+		return size;
+	}
+
+	/* save user force lane_count, link_rate to preferred settings
+	 * spread spectrum will not be changed
+	 */
+	prefer_link_settings.link_spread = link->cur_link_settings.link_spread;
+	prefer_link_settings.lane_count = param[0];
+	prefer_link_settings.use_link_rate_set = true;
+	prefer_link_settings.link_rate_set = param[1];
+	prefer_link_settings.link_rate = link->dpcd_caps.edp_supported_link_rates[param[1]];
+
+	mutex_lock(&adev->dm.dc_lock);
+	dc_link_set_preferred_training_settings(dc, &prefer_link_settings,
+						NULL, link, false);
+	mutex_unlock(&adev->dm.dc_lock);
+
+	kfree(wr_buf);
+	return size;
+}
+
+static int edp_ilr_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, edp_ilr_show, inode->i_private);
+}
+
+static const struct file_operations edp_ilr_debugfs_fops = {
+	.owner = THIS_MODULE,
+	.open = edp_ilr_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
+	.write = edp_ilr_write
+};
+
 void connector_debugfs_init(struct amdgpu_dm_connector *connector)
 {
 	int i;
@@ -2775,6 +2907,8 @@ void connector_debugfs_init(struct amdgpu_dm_connector *connector)
 				    &current_backlight_fops);
 		debugfs_create_file("amdgpu_target_backlight_pwm", 0444, dir, connector,
 				    &target_backlight_fops);
+		debugfs_create_file("ilr_setting", 0644, dir, connector,
+					&edp_ilr_debugfs_fops);
 	}
 
 	for (i = 0; i < ARRAY_SIZE(connector_debugfs_entries); i++) {
