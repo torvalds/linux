@@ -102,26 +102,13 @@ ATOMIC_OP_ADD_SUB_RETURN(        , al, "memory")
 
 static inline void __lse_atomic_and(int i, atomic_t *v)
 {
-	asm volatile(
-	__LSE_PREAMBLE
-	"	mvn	%w[i], %w[i]\n"
-	"	stclr	%w[i], %[v]"
-	: [i] "+&r" (i), [v] "+Q" (v->counter)
-	: "r" (v));
+	return __lse_atomic_andnot(~i, v);
 }
 
 #define ATOMIC_FETCH_OP_AND(name, mb, cl...)				\
 static inline int __lse_atomic_fetch_and##name(int i, atomic_t *v)	\
 {									\
-	asm volatile(							\
-	__LSE_PREAMBLE							\
-	"	mvn	%w[i], %w[i]\n"					\
-	"	ldclr" #mb "	%w[i], %w[i], %[v]"			\
-	: [i] "+&r" (i), [v] "+Q" (v->counter)				\
-	: "r" (v)							\
-	: cl);								\
-									\
-	return i;							\
+	return __lse_atomic_fetch_andnot##name(~i, v);			\
 }
 
 ATOMIC_FETCH_OP_AND(_relaxed,   )
@@ -223,26 +210,13 @@ ATOMIC64_OP_ADD_SUB_RETURN(        , al, "memory")
 
 static inline void __lse_atomic64_and(s64 i, atomic64_t *v)
 {
-	asm volatile(
-	__LSE_PREAMBLE
-	"	mvn	%[i], %[i]\n"
-	"	stclr	%[i], %[v]"
-	: [i] "+&r" (i), [v] "+Q" (v->counter)
-	: "r" (v));
+	return __lse_atomic64_andnot(~i, v);
 }
 
 #define ATOMIC64_FETCH_OP_AND(name, mb, cl...)				\
 static inline long __lse_atomic64_fetch_and##name(s64 i, atomic64_t *v)	\
 {									\
-	asm volatile(							\
-	__LSE_PREAMBLE							\
-	"	mvn	%[i], %[i]\n"					\
-	"	ldclr" #mb "	%[i], %[i], %[v]"			\
-	: [i] "+&r" (i), [v] "+Q" (v->counter)				\
-	: "r" (v)							\
-	: cl);								\
-									\
-	return i;							\
+	return __lse_atomic64_fetch_andnot##name(~i, v);		\
 }
 
 ATOMIC64_FETCH_OP_AND(_relaxed,   )
