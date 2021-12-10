@@ -1432,6 +1432,9 @@ void dc_unlock_memory_clock_frequency(struct dc *dc);
  */
 void dc_lock_memory_clock_frequency(struct dc *dc);
 
+/* set soft max for memclk, to be used for AC/DC switching clock limitations */
+void dc_enable_dcmode_clk_limit(struct dc *dc, bool enable);
+
 /* cleanup on driver unload */
 void dc_hardware_release(struct dc *dc);
 

@@ -929,6 +929,16 @@ bool hubp2_is_flip_pending(struct hubp *hubp)
 
 void hubp2_set_blank(struct hubp *hubp, bool blank)
 {
+	hubp2_set_blank_regs(hubp, blank);
+
+	if (blank) {
+		hubp->mpcc_id = 0xf;
+		hubp->opp_id = OPP_ID_INVALID;
+	}
+}
+
+void hubp2_set_blank_regs(struct hubp *hubp, bool blank)
+{
 	struct dcn20_hubp *hubp2 = TO_DCN20_HUBP(hubp);
 	uint32_t blank_en = blank ? 1 : 0;
 
@@ -950,9 +960,6 @@ void hubp2_set_blank(struct hubp *hubp, bool blank)
 					HUBP_NO_OUTSTANDING_REQ, 1,
 					1, 200);
 		}
-
-		hubp->mpcc_id = 0xf;
-		hubp->opp_id = OPP_ID_INVALID;
 	}
 }
 
@@ -1602,6 +1609,7 @@ static struct hubp_funcs dcn20_hubp_funcs = {
 	.hubp_setup_interdependent = hubp2_setup_interdependent,
 	.hubp_set_vm_system_aperture_settings = hubp2_set_vm_system_aperture_settings,
 	.set_blank = hubp2_set_blank,
+	.set_blank_regs = hubp2_set_blank_regs,
 	.dcc_control = hubp2_dcc_control,
 	.mem_program_viewport = min_set_viewport,
 	.set_cursor_attributes	= hubp2_cursor_set_attributes,
