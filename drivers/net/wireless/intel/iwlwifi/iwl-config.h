@@ -448,6 +448,9 @@ struct iwl_cfg {
 #define IWL_CFG_NO_CDB			0x0
 #define IWL_CFG_CDB			0x1
 
+#define IWL_CFG_NO_JACKET		0x0
+#define IWL_CFG_IS_JACKET		0x1
+
 #define IWL_SUBDEVICE_RF_ID(subdevice)	((u16)((subdevice) & 0x00F0) >> 4)
 #define IWL_SUBDEVICE_NO_160(subdevice)	((u16)((subdevice) & 0x0200) >> 9)
 #define IWL_SUBDEVICE_CORES(subdevice)	((u16)((subdevice) & 0x1C00) >> 10)
@@ -462,6 +465,7 @@ struct iwl_dev_info {
 	u8 no_160;
 	u8 cores;
 	u8 cdb;
+	u8 jacket;
 	const struct iwl_cfg *cfg;
 	const char *name;
 };
