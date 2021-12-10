@@ -1662,65 +1662,67 @@ err:
 }
 
 static int bch2_trans_mark_stripe(struct btree_trans *trans,
-				  struct bkey_s_c old, struct bkey_s_c new,
+				  struct bkey_s_c old, struct bkey_i *new,
 				  unsigned flags)
 {
-	struct bkey_s_c_stripe old_s = { .k = NULL };
-	struct bkey_s_c_stripe new_s = { .k = NULL };
+	const struct bch_stripe *old_s = NULL;
+	struct bch_stripe *new_s = NULL;
 	struct bch_replicas_padded r;
 	unsigned i, nr_blocks;
 	int ret = 0;
 
 	if (old.k->type == KEY_TYPE_stripe)
-		old_s = bkey_s_c_to_stripe(old);
-	if (new.k->type == KEY_TYPE_stripe)
-		new_s = bkey_s_c_to_stripe(new);
+		old_s = bkey_s_c_to_stripe(old).v;
+	if (new->k.type == KEY_TYPE_stripe)
+		new_s = &bkey_i_to_stripe(new)->v;
 
 	/*
 	 * If the pointers aren't changing, we don't need to do anything:
 	 */
-	if (new_s.k && old_s.k &&
-	    new_s.v->nr_blocks		== old_s.v->nr_blocks &&
-	    new_s.v->nr_redundant	== old_s.v->nr_redundant &&
-	    !memcmp(old_s.v->ptrs, new_s.v->ptrs,
-		    new_s.v->nr_blocks * sizeof(struct bch_extent_ptr)))
+	if (new_s && old_s &&
+	    new_s->nr_blocks	== old_s->nr_blocks &&
+	    new_s->nr_redundant	== old_s->nr_redundant &&
+	    !memcmp(old_s->ptrs, new_s->ptrs,
+		    new_s->nr_blocks * sizeof(struct bch_extent_ptr)))
 		return 0;
 
-	BUG_ON(new_s.k && old_s.k &&
-	       (new_s.v->nr_blocks	!= old_s.v->nr_blocks ||
-		new_s.v->nr_redundant	!= old_s.v->nr_redundant));
+	BUG_ON(new_s && old_s &&
+	       (new_s->nr_blocks	!= old_s->nr_blocks ||
+		new_s->nr_redundant	!= old_s->nr_redundant));
 
-	nr_blocks = new_s.k ? new_s.v->nr_blocks : old_s.v->nr_blocks;
+	nr_blocks = new_s ? new_s->nr_blocks : old_s->nr_blocks;
 
-	if (new_s.k) {
-		s64 sectors = le16_to_cpu(new_s.v->sectors);
+	if (new_s) {
+		s64 sectors = le16_to_cpu(new_s->sectors);
 
-		bch2_bkey_to_replicas(&r.e, new);
-		update_replicas_list(trans, &r.e, sectors * new_s.v->nr_redundant);
+		bch2_bkey_to_replicas(&r.e, bkey_i_to_s_c(new));
+		update_replicas_list(trans, &r.e, sectors * new_s->nr_redundant);
 	}
 
-	if (old_s.k) {
-		s64 sectors = -((s64) le16_to_cpu(old_s.v->sectors));
+	if (old_s) {
+		s64 sectors = -((s64) le16_to_cpu(old_s->sectors));
 
 		bch2_bkey_to_replicas(&r.e, old);
-		update_replicas_list(trans, &r.e, sectors * old_s.v->nr_redundant);
+		update_replicas_list(trans, &r.e, sectors * old_s->nr_redundant);
 	}
 
 	for (i = 0; i < nr_blocks; i++) {
-		if (new_s.k && old_s.k &&
-		    !memcmp(&new_s.v->ptrs[i],
-			    &old_s.v->ptrs[i],
-			    sizeof(new_s.v->ptrs[i])))
+		if (new_s && old_s &&
+		    !memcmp(&new_s->ptrs[i],
+			    &old_s->ptrs[i],
+			    sizeof(new_s->ptrs[i])))
 			continue;
 
-		if (new_s.k) {
-			ret = bch2_trans_mark_stripe_bucket(trans, new_s, i, false);
+		if (new_s) {
+			ret = bch2_trans_mark_stripe_bucket(trans,
+					bkey_i_to_s_c_stripe(new), i, false);
 			if (ret)
 				break;
 		}
 
-		if (old_s.k) {
-			ret = bch2_trans_mark_stripe_bucket(trans, old_s, i, true);
+		if (old_s) {
+			ret = bch2_trans_mark_stripe_bucket(trans,
+					bkey_s_c_to_stripe(old), i, true);
 			if (ret)
 				break;
 		}
@@ -1731,10 +1733,10 @@ static int bch2_trans_mark_stripe(struct btree_trans *trans,
 
 static int bch2_trans_mark_inode(struct btree_trans *trans,
 				 struct bkey_s_c old,
-				 struct bkey_s_c new,
+				 struct bkey_i *new,
 				 unsigned flags)
 {
-	int nr = bkey_is_inode(new.k) - bkey_is_inode(old.k);
+	int nr = bkey_is_inode(&new->k) - bkey_is_inode(old.k);
 
 	if (nr) {
 		struct replicas_delta_list *d =
@@ -1869,9 +1871,11 @@ static int bch2_trans_mark_reflink_p(struct btree_trans *trans,
 }
 
 int bch2_trans_mark_key(struct btree_trans *trans, struct bkey_s_c old,
-			struct bkey_s_c new, unsigned flags)
+			struct bkey_i *new, unsigned flags)
 {
-	struct bkey_s_c k = flags & BTREE_TRIGGER_OVERWRITE ? old: new;
+	struct bkey_s_c k = flags & BTREE_TRIGGER_OVERWRITE
+		? old
+		: bkey_i_to_s_c(new);
 
 	switch (k.k->type) {
 	case KEY_TYPE_btree_ptr:

@@ -510,19 +510,13 @@ static int btree_update_nodes_written_trans(struct btree_trans *trans,
 	trans->journal_pin = &as->journal;
 
 	for_each_keylist_key(&as->new_keys, k) {
-		ret = bch2_trans_mark_key(trans,
-					  bkey_s_c_null,
-					  bkey_i_to_s_c(k),
-					  BTREE_TRIGGER_INSERT);
+		ret = bch2_trans_mark_new(trans, k, 0);
 		if (ret)
 			return ret;
 	}
 
 	for_each_keylist_key(&as->old_keys, k) {
-		ret = bch2_trans_mark_key(trans,
-					  bkey_i_to_s_c(k),
-					  bkey_s_c_null,
-					  BTREE_TRIGGER_OVERWRITE);
+		ret = bch2_trans_mark_old(trans, bkey_i_to_s_c(k), 0);
 		if (ret)
 			return ret;
 	}
@@ -1891,17 +1885,11 @@ static int __bch2_btree_node_update_key(struct btree_trans *trans,
 	int ret;
 
 	if (!skip_triggers) {
-		ret = bch2_trans_mark_key(trans,
-					  bkey_s_c_null,
-					  bkey_i_to_s_c(new_key),
-					  BTREE_TRIGGER_INSERT);
+		ret = bch2_trans_mark_new(trans, new_key, 0);
 		if (ret)
 			return ret;
 
-		ret = bch2_trans_mark_key(trans,
-					  bkey_i_to_s_c(&b->key),
-					  bkey_s_c_null,
-					  BTREE_TRIGGER_OVERWRITE);
+		ret = bch2_trans_mark_old(trans, bkey_i_to_s_c(&b->key), 0);
 		if (ret)
 			return ret;
 	}

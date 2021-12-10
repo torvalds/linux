@@ -860,8 +860,6 @@ bch2_trans_commit_get_rw_cold(struct btree_trans *trans)
 static int run_one_trigger(struct btree_trans *trans, struct btree_insert_entry *i,
 			   bool overwrite)
 {
-	struct bkey		_deleted = KEY(0, 0, 0);
-	struct bkey_s_c		deleted = (struct bkey_s_c) { &_deleted, NULL };
 	struct bkey_s_c		old;
 	struct bkey		unpacked;
 	int ret = 0;
@@ -885,19 +883,16 @@ static int run_one_trigger(struct btree_trans *trans, struct btree_insert_entry 
 	}
 
 	old = bch2_btree_path_peek_slot(i->path, &unpacked);
-	_deleted.p = i->path->pos;
 
 	if (overwrite) {
-		ret = bch2_trans_mark_key(trans, old, deleted,
-				BTREE_TRIGGER_OVERWRITE|i->flags);
+		ret = bch2_trans_mark_old(trans, old, i->flags);
 	} else if (old.k->type == i->k->k.type &&
 	    ((1U << old.k->type) & BTREE_TRIGGER_WANTS_OLD_AND_NEW)) {
 		i->overwrite_trigger_run = true;
-		ret = bch2_trans_mark_key(trans, old, bkey_i_to_s_c(i->k),
+		ret = bch2_trans_mark_key(trans, old, i->k,
 				BTREE_TRIGGER_INSERT|BTREE_TRIGGER_OVERWRITE|i->flags);
 	} else {
-		ret = bch2_trans_mark_key(trans, deleted, bkey_i_to_s_c(i->k),
-				BTREE_TRIGGER_INSERT|i->flags);
+		ret = bch2_trans_mark_new(trans, i->k, i->flags);
 	}
 
 	if (ret == -EINTR)
