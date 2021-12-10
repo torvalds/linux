@@ -1739,6 +1739,16 @@ static struct hid_input *hidinput_allocate(struct hid_device *hid,
 		case HID_GD_MOUSE:
 			suffix = "Mouse";
 			break;
+		case HID_DG_PEN:
+			/*
+			 * yes, there is an issue here:
+			 *  DG_PEN -> "Stylus"
+			 *  DG_STYLUS -> "Pen"
+			 * But changing this now means users with config snippets
+			 * will have to change it and the test suite will not be happy.
+			 */
+			suffix = "Stylus";
+			break;
 		case HID_DG_STYLUS:
 			suffix = "Pen";
 			break;
