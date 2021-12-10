@@ -2037,6 +2037,12 @@ static u16 iwl_mvm_scan_umac_flags_v2(struct iwl_mvm *mvm,
 	if (params->enable_6ghz_passive)
 		flags |= IWL_UMAC_SCAN_GEN_FLAGS_V2_6GHZ_PASSIVE_SCAN;
 
+	if (iwl_mvm_is_oce_supported(mvm) &&
+	    (params->flags & (NL80211_SCAN_FLAG_ACCEPT_BCAST_PROBE_RESP |
+			      NL80211_SCAN_FLAG_OCE_PROBE_REQ_HIGH_TX_RATE |
+			      NL80211_SCAN_FLAG_FILS_MAX_CHANNEL_TIME)))
+		flags |= IWL_UMAC_SCAN_GEN_FLAGS_V2_OCE;
+
 	return flags;
 }
 

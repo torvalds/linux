@@ -641,14 +641,21 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 	}
 
 	if (iwl_mvm_is_oce_supported(mvm)) {
+		u8 scan_ver = iwl_fw_lookup_cmd_ver(mvm->fw,
+						    IWL_ALWAYS_LONG_GROUP,
+						    SCAN_REQ_UMAC, 0);
+
 		wiphy_ext_feature_set(hw->wiphy,
 			NL80211_EXT_FEATURE_ACCEPT_BCAST_PROBE_RESP);
 		wiphy_ext_feature_set(hw->wiphy,
 			NL80211_EXT_FEATURE_FILS_MAX_CHANNEL_TIME);
 		wiphy_ext_feature_set(hw->wiphy,
-			NL80211_EXT_FEATURE_OCE_PROBE_REQ_DEFERRAL_SUPPRESSION);
-		wiphy_ext_feature_set(hw->wiphy,
 			NL80211_EXT_FEATURE_OCE_PROBE_REQ_HIGH_TX_RATE);
+
+		/* Old firmware also supports probe deferral and suppression */
+		if (scan_ver < 15)
+			wiphy_ext_feature_set(hw->wiphy,
+					      NL80211_EXT_FEATURE_OCE_PROBE_REQ_DEFERRAL_SUPPRESSION);
 	}
 
 	if (mvm->nvm_data->sku_cap_11ax_enable &&
