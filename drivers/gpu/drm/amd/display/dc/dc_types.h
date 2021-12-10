@@ -951,6 +951,7 @@ enum dc_gpu_mem_alloc_type {
 
 enum dc_psr_version {
 	DC_PSR_VERSION_1			= 0,
+	DC_PSR_VERSION_SU_1			= 1,
 	DC_PSR_VERSION_UNSUPPORTED		= 0xFFFFFFFF,
 };
 

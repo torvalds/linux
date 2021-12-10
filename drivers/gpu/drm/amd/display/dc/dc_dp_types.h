@@ -883,6 +883,15 @@ struct psr_caps {
 	unsigned char psr_version;
 	unsigned int psr_rfb_setup_time;
 	bool psr_exit_link_training_required;
+	unsigned char edp_revision;
+	unsigned char support_ver;
+	bool su_granularity_required;
+	bool y_coordinate_required;
+	uint8_t su_y_granularity;
+	bool alpm_cap;
+	bool standby_support;
+	uint8_t rate_control_caps;
+	unsigned int psr_power_opt_flag;
 };
 
 /* Length of router topology ID read from DPCD in bytes. */
