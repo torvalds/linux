@@ -282,7 +282,6 @@ int damon_set_targets(struct damon_ctx *ctx,
 	for (i = 0; i < nr_ids; i++) {
 		t = damon_new_target(ids[i]);
 		if (!t) {
-			pr_err("Failed to alloc damon_target\n");
 			/* The caller should do cleanup of the ids itself */
 			damon_for_each_target_safe(t, next, ctx)
 				damon_destroy_target(t);
@@ -312,16 +311,10 @@ int damon_set_attrs(struct damon_ctx *ctx, unsigned long sample_int,
 		    unsigned long aggr_int, unsigned long primitive_upd_int,
 		    unsigned long min_nr_reg, unsigned long max_nr_reg)
 {
-	if (min_nr_reg < 3) {
-		pr_err("min_nr_regions (%lu) must be at least 3\n",
-				min_nr_reg);
+	if (min_nr_reg < 3)
 		return -EINVAL;
-	}
-	if (min_nr_reg > max_nr_reg) {
-		pr_err("invalid nr_regions.  min (%lu) > max (%lu)\n",
-				min_nr_reg, max_nr_reg);
+	if (min_nr_reg > max_nr_reg)
 		return -EINVAL;
-	}
 
 	ctx->sample_interval = sample_int;
 	ctx->aggr_interval = aggr_int;
