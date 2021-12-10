@@ -32,7 +32,8 @@
 static struct dentry *rootdir;
 
 struct l2tp_dfs_seq_data {
-	struct net *net;
+	struct net	*net;
+	netns_tracker	ns_tracker;
 	int tunnel_idx;			/* current tunnel */
 	int session_idx;		/* index of session within current tunnel */
 	struct l2tp_tunnel *tunnel;
@@ -281,7 +282,7 @@ static int l2tp_dfs_seq_open(struct inode *inode, struct file *file)
 		rc = PTR_ERR(pd->net);
 		goto err_free_pd;
 	}
-
+	netns_tracker_alloc(pd->net, &pd->ns_tracker, GFP_KERNEL);
 	rc = seq_open(file, &l2tp_dfs_seq_ops);
 	if (rc)
 		goto err_free_net;
@@ -293,7 +294,7 @@ out:
 	return rc;
 
 err_free_net:
-	put_net(pd->net);
+	put_net_track(pd->net, &pd->ns_tracker);
 err_free_pd:
 	kfree(pd);
 	goto out;
@@ -307,7 +308,7 @@ static int l2tp_dfs_seq_release(struct inode *inode, struct file *file)
 	seq = file->private_data;
 	pd = seq->private;
 	if (pd->net)
-		put_net(pd->net);
+		put_net_track(pd->net, &pd->ns_tracker);
 	kfree(pd);
 	seq_release(inode, file);
 

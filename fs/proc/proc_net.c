@@ -61,15 +61,27 @@ static int seq_open_net(struct inode *inode, struct file *file)
 	}
 #ifdef CONFIG_NET_NS
 	p->net = net;
+	netns_tracker_alloc(net, &p->ns_tracker, GFP_KERNEL);
 #endif
 	return 0;
+}
+
+static void seq_file_net_put_net(struct seq_file *seq)
+{
+#ifdef CONFIG_NET_NS
+	struct seq_net_private *priv = seq->private;
+
+	put_net_track(priv->net, &priv->ns_tracker);
+#else
+	put_net(&init_net);
+#endif
 }
 
 static int seq_release_net(struct inode *ino, struct file *f)
 {
 	struct seq_file *seq = f->private_data;
 
-	put_net(seq_file_net(seq));
+	seq_file_net_put_net(seq);
 	seq_release_private(ino, f);
 	return 0;
 }
@@ -87,7 +99,8 @@ int bpf_iter_init_seq_net(void *priv_data, struct bpf_iter_aux_info *aux)
 #ifdef CONFIG_NET_NS
 	struct seq_net_private *p = priv_data;
 
-	p->net = get_net(current->nsproxy->net_ns);
+	p->net = get_net_track(current->nsproxy->net_ns, &p->ns_tracker,
+			       GFP_KERNEL);
 #endif
 	return 0;
 }
@@ -97,7 +110,7 @@ void bpf_iter_fini_seq_net(void *priv_data)
 #ifdef CONFIG_NET_NS
 	struct seq_net_private *p = priv_data;
 
-	put_net(p->net);
+	put_net_track(p->net, &p->ns_tracker);
 #endif
 }
 
