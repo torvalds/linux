@@ -87,6 +87,10 @@ properties:
               - items:
                   pattern: cs1024$
               - items:
+                  pattern: c1025$
+              - items:
+                  pattern: cs1025$
+              - items:
                   pattern: c2048$
               - items:
                   pattern: cs2048$
