@@ -15,10 +15,6 @@
 
 #define BTREE_CSUM_XOR 121107
 
-static int node_check(struct dm_block_validator *v,
-		      struct dm_block *b,
-		      size_t block_size);
-
 static void node_prepare_for_write(struct dm_block_validator *v,
 				   struct dm_block *b,
 				   size_t block_size)
