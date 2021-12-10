@@ -202,7 +202,8 @@ struct tcf_exts {
 	__u32	type; /* for backward compat(TCA_OLD_COMPAT) */
 	int nr_actions;
 	struct tc_action **actions;
-	struct net *net;
+	struct net	*net;
+	netns_tracker	ns_tracker;
 #endif
 	/* Map to export classifier specific extension TLV types to the
 	 * generic extensions API. Unsupported extensions must be set to 0.
@@ -218,6 +219,7 @@ static inline int tcf_exts_init(struct tcf_exts *exts, struct net *net,
 	exts->type = 0;
 	exts->nr_actions = 0;
 	exts->net = net;
+	netns_tracker_alloc(net, &exts->ns_tracker, GFP_KERNEL);
 	exts->actions = kcalloc(TCA_ACT_MAX_PRIO, sizeof(struct tc_action *),
 				GFP_KERNEL);
 	if (!exts->actions)
@@ -236,6 +238,8 @@ static inline bool tcf_exts_get_net(struct tcf_exts *exts)
 {
 #ifdef CONFIG_NET_CLS_ACT
 	exts->net = maybe_get_net(exts->net);
+	if (exts->net)
+		netns_tracker_alloc(exts->net, &exts->ns_tracker, GFP_KERNEL);
 	return exts->net != NULL;
 #else
 	return true;
@@ -246,7 +250,7 @@ static inline void tcf_exts_put_net(struct tcf_exts *exts)
 {
 #ifdef CONFIG_NET_CLS_ACT
 	if (exts->net)
-		put_net(exts->net);
+		put_net_track(exts->net, &exts->ns_tracker);
 #endif
 }
 
