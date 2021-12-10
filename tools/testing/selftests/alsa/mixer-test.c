@@ -307,9 +307,15 @@ bool show_mismatch(struct ctl_data *ctl, int index,
 	}
 
 	if (expected_int != read_int) {
-		ksft_print_msg("%s.%d expected %lld but read %lld\n",
-			       ctl->name, index, expected_int, read_int);
-		return true;
+		/*
+		 * NOTE: The volatile attribute means that the hardware
+		 * can voluntarily change the state of control element
+		 * independent of any operation by software.  
+		 */
+		bool is_volatile = snd_ctl_elem_info_is_volatile(ctl->info);
+		ksft_print_msg("%s.%d expected %lld but read %lld, is_volatile %d\n",
+			       ctl->name, index, expected_int, read_int, is_volatile);
+		return !is_volatile;
 	} else {
 		return false;
 	}
