@@ -544,10 +544,12 @@ const char *rcar_du_output_name(enum rcar_du_output output)
 	static const char * const names[] = {
 		[RCAR_DU_OUTPUT_DPAD0] = "DPAD0",
 		[RCAR_DU_OUTPUT_DPAD1] = "DPAD1",
-		[RCAR_DU_OUTPUT_LVDS0] = "LVDS0",
-		[RCAR_DU_OUTPUT_LVDS1] = "LVDS1",
+		[RCAR_DU_OUTPUT_DSI0] = "DSI0",
+		[RCAR_DU_OUTPUT_DSI1] = "DSI1",
 		[RCAR_DU_OUTPUT_HDMI0] = "HDMI0",
 		[RCAR_DU_OUTPUT_HDMI1] = "HDMI1",
+		[RCAR_DU_OUTPUT_LVDS0] = "LVDS0",
+		[RCAR_DU_OUTPUT_LVDS1] = "LVDS1",
 		[RCAR_DU_OUTPUT_TCON] = "TCON",
 	};
 
