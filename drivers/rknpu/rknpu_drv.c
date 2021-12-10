@@ -27,6 +27,7 @@
 #include <linux/wait.h>
 #include <linux/sched.h>
 #include <linux/clk.h>
+#include <linux/pm_domain.h>
 #include <linux/pm_runtime.h>
 #include <linux/devfreq_cooling.h>
 
@@ -364,6 +365,41 @@ static int rknpu_power_on(struct rknpu_device *rknpu_dev)
 		return ret;
 	}
 
+	if (rknpu_dev->multiple_domains) {
+		if (rknpu_dev->genpd_dev_npu0) {
+			ret = pm_runtime_resume_and_get(
+				rknpu_dev->genpd_dev_npu0);
+			if (ret < 0) {
+				LOG_DEV_ERROR(
+					dev,
+					"failed to get pm runtime for npu0, ret = %d\n",
+					ret);
+				return ret;
+			}
+		}
+		if (rknpu_dev->genpd_dev_npu1) {
+			ret = pm_runtime_resume_and_get(
+				rknpu_dev->genpd_dev_npu1);
+			if (ret < 0) {
+				LOG_DEV_ERROR(
+					dev,
+					"failed to get pm runtime for npu1, ret = %d\n",
+					ret);
+				return ret;
+			}
+		}
+		if (rknpu_dev->genpd_dev_npu2) {
+			ret = pm_runtime_resume_and_get(
+				rknpu_dev->genpd_dev_npu2);
+			if (ret < 0) {
+				LOG_DEV_ERROR(
+					dev,
+					"failed to get pm runtime for npu2, ret = %d\n",
+					ret);
+				return ret;
+			}
+		}
+	}
 	ret = pm_runtime_get_sync(dev);
 	if (ret < 0) {
 		LOG_DEV_ERROR(dev,
@@ -380,6 +416,15 @@ static int rknpu_power_off(struct rknpu_device *rknpu_dev)
 	struct device *dev = rknpu_dev->dev;
 
 	pm_runtime_put_sync(dev);
+
+	if (rknpu_dev->multiple_domains) {
+		if (rknpu_dev->genpd_dev_npu2)
+			pm_runtime_put_sync(rknpu_dev->genpd_dev_npu2);
+		if (rknpu_dev->genpd_dev_npu1)
+			pm_runtime_put_sync(rknpu_dev->genpd_dev_npu1);
+		if (rknpu_dev->genpd_dev_npu0)
+			pm_runtime_put_sync(rknpu_dev->genpd_dev_npu0);
+	}
 
 	clk_bulk_disable_unprepare(rknpu_dev->num_clks, rknpu_dev->clks);
 
@@ -638,6 +683,7 @@ static int rknpu_probe(struct platform_device *pdev)
 	struct resource *res = NULL;
 	struct rknpu_device *rknpu_dev = NULL;
 	struct device *dev = &pdev->dev;
+	struct device *virt_dev = NULL;
 	const struct of_device_id *match = NULL;
 	const struct rknpu_config *config = NULL;
 	int ret = -EINVAL;
@@ -770,6 +816,20 @@ static int rknpu_probe(struct platform_device *pdev)
 
 	pm_runtime_enable(dev);
 
+	if (of_count_phandle_with_args(dev->of_node, "power-domains",
+				       "#power-domain-cells") > 1) {
+		virt_dev = dev_pm_domain_attach_by_name(dev, "npu0");
+		if (!IS_ERR(virt_dev))
+			rknpu_dev->genpd_dev_npu0 = virt_dev;
+		virt_dev = dev_pm_domain_attach_by_name(dev, "npu1");
+		if (!IS_ERR(virt_dev))
+			rknpu_dev->genpd_dev_npu1 = virt_dev;
+		virt_dev = dev_pm_domain_attach_by_name(dev, "npu2");
+		if (!IS_ERR(virt_dev))
+			rknpu_dev->genpd_dev_npu2 = virt_dev;
+		rknpu_dev->multiple_domains = true;
+	}
+
 	ret = rknpu_power_on(rknpu_dev);
 	if (ret)
 		goto err_free_fence_context;
@@ -796,6 +856,15 @@ static int rknpu_remove(struct platform_device *pdev)
 	rknpu_fence_context_free(rknpu_dev->fence_ctx);
 
 	rknpu_power_off(rknpu_dev);
+
+	if (rknpu_dev->multiple_domains) {
+		if (rknpu_dev->genpd_dev_npu0)
+			dev_pm_domain_detach(rknpu_dev->genpd_dev_npu0, true);
+		if (rknpu_dev->genpd_dev_npu1)
+			dev_pm_domain_detach(rknpu_dev->genpd_dev_npu1, true);
+		if (rknpu_dev->genpd_dev_npu2)
+			dev_pm_domain_detach(rknpu_dev->genpd_dev_npu2, true);
+	}
 
 	pm_runtime_disable(&pdev->dev);
 

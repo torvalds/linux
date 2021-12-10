@@ -83,6 +83,10 @@ struct rknpu_device {
 	unsigned long current_volt;
 	int bypass_irq_handler;
 	int bypass_soft_reset;
+	struct device *genpd_dev_npu0;
+	struct device *genpd_dev_npu1;
+	struct device *genpd_dev_npu2;
+	bool multiple_domains;
 };
 
 #endif /* __LINUX_RKNPU_DRV_H_ */
