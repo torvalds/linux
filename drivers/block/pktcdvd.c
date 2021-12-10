@@ -1107,7 +1107,6 @@ static int pkt_handle_queue(struct pktcdvd_device *pd)
 	sector_t zone = 0; /* Suppress gcc warning */
 	struct pkt_rb_node *node, *first_node;
 	struct rb_node *n;
-	int wakeup;
 
 	atomic_set(&pd->scan_queue, 0);
 
@@ -1179,12 +1178,14 @@ try_next_bio:
 		spin_unlock(&pkt->lock);
 	}
 	/* check write congestion marks, and if bio_queue_size is
-	   below, wake up any waiters */
-	wakeup = (pd->write_congestion_on > 0
-	 		&& pd->bio_queue_size <= pd->write_congestion_off);
+	 * below, wake up any waiters
+	 */
+	if (pd->congested &&
+	    pd->bio_queue_size <= pd->write_congestion_off) {
+		pd->congested = false;
+		wake_up_var(&pd->congested);
+	}
 	spin_unlock(&pd->lock);
-	if (wakeup)
-		clear_bdi_congested(pd->disk->bdi, BLK_RW_ASYNC);
 
 	pkt->sleep_time = max(PACKET_WAIT_TIME, 1);
 	pkt_set_state(pkt, PACKET_WAITING_STATE);
@@ -2356,7 +2357,7 @@ static void pkt_make_request_write(struct request_queue *q, struct bio *bio)
 	}
 	spin_unlock(&pd->cdrw.active_list_lock);
 
- 	/*
+	/*
 	 * Test if there is enough room left in the bio work queue
 	 * (queue size >= congestion on mark).
 	 * If not, wait till the work queue size is below the congestion off mark.
@@ -2364,12 +2365,20 @@ static void pkt_make_request_write(struct request_queue *q, struct bio *bio)
 	spin_lock(&pd->lock);
 	if (pd->write_congestion_on > 0
 	    && pd->bio_queue_size >= pd->write_congestion_on) {
-		set_bdi_congested(bio->bi_bdev->bd_disk->bdi, BLK_RW_ASYNC);
-		do {
+		struct wait_bit_queue_entry wqe;
+
+		init_wait_var_entry(&wqe, &pd->congested, 0);
+		for (;;) {
+			prepare_to_wait_event(__var_waitqueue(&pd->congested),
+					      &wqe.wq_entry,
+					      TASK_UNINTERRUPTIBLE);
+			if (pd->bio_queue_size <= pd->write_congestion_off)
+				break;
+			pd->congested = true;
 			spin_unlock(&pd->lock);
-			congestion_wait(BLK_RW_ASYNC, HZ);
+			schedule();
 			spin_lock(&pd->lock);
-		} while(pd->bio_queue_size > pd->write_congestion_off);
+		}
 	}
 	spin_unlock(&pd->lock);
 
