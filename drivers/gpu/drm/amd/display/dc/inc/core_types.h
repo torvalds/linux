@@ -334,6 +334,11 @@ struct plane_resource {
 	struct dcn_fe_bandwidth bw;
 };
 
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+#define LINK_RES_HPO_DP_REC_MAP__MASK 0xFFFF
+#define LINK_RES_HPO_DP_REC_MAP__SHIFT 0
+#endif
+
 /* all mappable hardware resources used to enable a link */
 struct link_resource {
 #if defined(CONFIG_DRM_AMD_DC_DCN)

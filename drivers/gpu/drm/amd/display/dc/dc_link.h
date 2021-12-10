@@ -459,4 +459,8 @@ enum dp_link_encoding dc_link_dp_mst_decide_link_encoding_format(const struct dc
 #endif
 
 const struct link_resource *dc_link_get_cur_link_res(const struct dc_link *link);
+/* take a snapshot of current link resource allocation state */
+void dc_get_cur_link_res_map(const struct dc *dc, uint32_t *map);
+/* restore link resource allocation state from a snapshot */
+void dc_restore_link_res_map(const struct dc *dc, uint32_t *map);
 #endif /* DC_LINK_H_ */
