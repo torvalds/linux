@@ -8,6 +8,8 @@
 #include <string.h>
 #include <stdio.h>
 
+#include "osnoise.h"
+
 /*
  * rtla_usage - print rtla usage
  */
@@ -22,6 +24,7 @@ static void rtla_usage(void)
 		"  usage: rtla COMMAND ...",
 		"",
 		"  commands:",
+		"     osnoise  - gives information about the operating system noise (osnoise)",
 		"",
 		NULL,
 	};
@@ -39,7 +42,14 @@ static void rtla_usage(void)
  */
 int run_command(int argc, char **argv, int start_position)
 {
+	if (strcmp(argv[start_position], "osnoise") == 0) {
+		osnoise_main(argc-start_position, &argv[start_position]);
+		goto ran;
+	}
+
 	return 0;
+ran:
+	return 1;
 }
 
 int main(int argc, char *argv[])
