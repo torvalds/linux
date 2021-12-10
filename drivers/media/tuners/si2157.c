@@ -576,7 +576,7 @@ static int si2157_set_analog_params(struct dvb_frontend *fe,
 	u8 color = 0;    /* 0=NTSC/PAL, 0x10=SECAM */
 	u8 invert_analog = 1; /* analog tuner spectrum; 0=normal, 1=inverted */
 
-	if (dev->part_id != SI2157) {
+	if (!SUPPORTS_ATV_IF(dev)) {
 		dev_info(&client->dev, "Analog tuning not supported yet for Si21%d\n",
 			 dev->part_id);
 		ret = -EINVAL;
