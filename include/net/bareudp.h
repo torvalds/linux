@@ -14,10 +14,6 @@ struct bareudp_conf {
 	bool multi_proto_mode;
 };
 
-struct net_device *bareudp_dev_create(struct net *net, const char *name,
-				      u8 name_assign_type,
-				      struct bareudp_conf *info);
-
 static inline bool netif_is_bareudp(const struct net_device *dev)
 {
 	return dev->rtnl_link_ops &&
