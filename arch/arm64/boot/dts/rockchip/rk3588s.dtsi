@@ -1374,7 +1374,8 @@
 					#address-cells = <1>;
 					#size-cells = <0>;
 					clocks = <&cru HCLK_NPU_ROOT>,
-						 <&cru PCLK_NPU_ROOT>;
+						 <&cru PCLK_NPU_ROOT>,
+						 <&cru CLK_NPU_DSU0>;
 					pm_qos = <&qos_npu0_mwr>,
 						 <&qos_npu0_mro>,
 						 <&qos_mcu_npu>;
@@ -1382,13 +1383,15 @@
 					power-domain@RK3588_PD_NPU1 {
 						reg = <RK3588_PD_NPU1>;
 						clocks = <&cru HCLK_NPU_ROOT>,
-							 <&cru PCLK_NPU_ROOT>;
+							 <&cru PCLK_NPU_ROOT>,
+							 <&cru CLK_NPU_DSU0>;
 						pm_qos = <&qos_npu1>;
 					};
 					power-domain@RK3588_PD_NPU2 {
 						reg = <RK3588_PD_NPU2>;
 						clocks = <&cru HCLK_NPU_ROOT>,
-							 <&cru PCLK_NPU_ROOT>;
+							 <&cru PCLK_NPU_ROOT>,
+							 <&cru CLK_NPU_DSU0>;
 						pm_qos = <&qos_npu2>;
 					};
 				};
