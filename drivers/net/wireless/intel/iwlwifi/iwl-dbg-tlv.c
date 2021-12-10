@@ -300,13 +300,20 @@ static int (*dbg_tlv_alloc[])(struct iwl_trans *trans,
 void iwl_dbg_tlv_alloc(struct iwl_trans *trans, const struct iwl_ucode_tlv *tlv,
 		       bool ext)
 {
-	const struct iwl_fw_ini_header *hdr = (const void *)&tlv->data[0];
-	u32 type = le32_to_cpu(tlv->type);
-	u32 tlv_idx = type - IWL_UCODE_TLV_DEBUG_BASE;
-	u32 domain = le32_to_cpu(hdr->domain);
 	enum iwl_ini_cfg_state *cfg_state = ext ?
 		&trans->dbg.external_ini_cfg : &trans->dbg.internal_ini_cfg;
+	const struct iwl_fw_ini_header *hdr = (const void *)&tlv->data[0];
+	u32 type;
+	u32 tlv_idx;
+	u32 domain;
 	int ret;
+
+	if (le32_to_cpu(tlv->length) < sizeof(*hdr))
+		return;
+
+	type = le32_to_cpu(tlv->type);
+	tlv_idx = type - IWL_UCODE_TLV_DEBUG_BASE;
+	domain = le32_to_cpu(hdr->domain);
 
 	if (domain != IWL_FW_INI_DOMAIN_ALWAYS_ON &&
 	    !(domain & trans->dbg.domains_bitmap)) {
