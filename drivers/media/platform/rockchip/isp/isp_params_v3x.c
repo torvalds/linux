@@ -4108,9 +4108,9 @@ rkisp_params_first_cfg_v3x(struct rkisp_isp_params_vdev *params_vdev)
 			rkisp_next_set_bits(params_vdev->dev, ISP3X_ISP_CTRL1, 0,
 					    ISP3X_BIGMODE_MANUAL | ISP3X_BIGMODE_FORCE_EN, false);
 		}
+		__isp_isr_meas_config(params_vdev, params_vdev->isp3x_params + 1, RKISP_PARAMS_ALL, 1);
 		__isp_isr_other_config(params_vdev, params_vdev->isp3x_params + 1, RKISP_PARAMS_ALL, 1);
 		__isp_isr_other_en(params_vdev, params_vdev->isp3x_params + 1, RKISP_PARAMS_ALL, 1);
-		__isp_isr_meas_config(params_vdev, params_vdev->isp3x_params + 1, RKISP_PARAMS_ALL, 1);
 		__isp_isr_meas_en(params_vdev, params_vdev->isp3x_params + 1, RKISP_PARAMS_ALL, 1);
 		if (width > bigmode_max_w || size > bigmode_max_size) {
 			priv_val->is_bigmode = true;
@@ -4123,9 +4123,9 @@ rkisp_params_first_cfg_v3x(struct rkisp_isp_params_vdev *params_vdev)
 		rkisp_set_bits(params_vdev->dev, ISP3X_ISP_CTRL1, 0,
 			       ISP3X_BIGMODE_MANUAL | ISP3X_BIGMODE_FORCE_EN, false);
 	}
+	__isp_isr_meas_config(params_vdev, params_vdev->isp3x_params, RKISP_PARAMS_ALL, 0);
 	__isp_isr_other_config(params_vdev, params_vdev->isp3x_params, RKISP_PARAMS_ALL, 0);
 	__isp_isr_other_en(params_vdev, params_vdev->isp3x_params, RKISP_PARAMS_ALL, 0);
-	__isp_isr_meas_config(params_vdev, params_vdev->isp3x_params, RKISP_PARAMS_ALL, 0);
 	__isp_isr_meas_en(params_vdev, params_vdev->isp3x_params, RKISP_PARAMS_ALL, 0);
 
 	priv_val->cur_hdrmge = params_vdev->isp3x_params->others.hdrmge_cfg;
@@ -4427,14 +4427,14 @@ rkisp_params_cfg_v3x(struct rkisp_isp_params_vdev *params_vdev,
 
 	new_params = (struct isp3x_isp_params_cfg *)(cur_buf->vaddr[0]);
 	if (hw_dev->is_unite) {
+		__isp_isr_meas_config(params_vdev, new_params + 1, type, 1);
 		__isp_isr_other_config(params_vdev, new_params + 1, type, 1);
 		__isp_isr_other_en(params_vdev, new_params + 1, type, 1);
-		__isp_isr_meas_config(params_vdev, new_params + 1, type, 1);
 		__isp_isr_meas_en(params_vdev, new_params + 1, type, 1);
 	}
+	__isp_isr_meas_config(params_vdev, new_params, type, 0);
 	__isp_isr_other_config(params_vdev, new_params, type, 0);
 	__isp_isr_other_en(params_vdev, new_params, type, 0);
-	__isp_isr_meas_config(params_vdev, new_params, type, 0);
 	__isp_isr_meas_en(params_vdev, new_params, type, 0);
 	if (!hw_dev->is_single && type != RKISP_PARAMS_SHD)
 		__isp_config_hdrshd(params_vdev);
