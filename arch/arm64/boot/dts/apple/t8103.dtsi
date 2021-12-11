@@ -324,6 +324,14 @@
 				     <AIC_IRQ 336 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
+		wdt: watchdog@23d2b0000 {
+			compatible = "apple,t8103-wdt", "apple,wdt";
+			reg = <0x2 0x3d2b0000 0x0 0x4000>;
+			clocks = <&clk24>;
+			interrupt-parent = <&aic>;
+			interrupts = <AIC_IRQ 338 IRQ_TYPE_LEVEL_HIGH>;
+		};
+
 		pinctrl_smc: pinctrl@23e820000 {
 			compatible = "apple,t8103-pinctrl", "apple,pinctrl";
 			reg = <0x2 0x3e820000 0x0 0x4000>;
