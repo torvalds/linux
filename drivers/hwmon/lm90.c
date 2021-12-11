@@ -114,7 +114,7 @@ static const unsigned short normal_i2c[] = {
 	0x18, 0x19, 0x1a, 0x29, 0x2a, 0x2b, 0x48, 0x49, 0x4a, 0x4b, 0x4c,
 	0x4d, 0x4e, 0x4f, I2C_CLIENT_END };
 
-enum chips { adm1032, adt7461, g781, lm86, lm90, lm99,
+enum chips { adm1032, adt7461, adt7461a, g781, lm86, lm90, lm99,
 	max6646, max6654, max6657, max6659, max6680, max6696,
 	sa56004, tmp451, tmp461, w83l771,
 };
@@ -207,7 +207,7 @@ enum chips { adm1032, adt7461, g781, lm86, lm90, lm99,
 static const struct i2c_device_id lm90_id[] = {
 	{ "adm1032", adm1032 },
 	{ "adt7461", adt7461 },
-	{ "adt7461a", adt7461 },
+	{ "adt7461a", adt7461a },
 	{ "g781", g781 },
 	{ "lm90", lm90 },
 	{ "lm86", lm86 },
@@ -224,7 +224,7 @@ static const struct i2c_device_id lm90_id[] = {
 	{ "max6681", max6680 },
 	{ "max6695", max6696 },
 	{ "max6696", max6696 },
-	{ "nct1008", adt7461 },
+	{ "nct1008", adt7461a },
 	{ "w83l771", w83l771 },
 	{ "sa56004", sa56004 },
 	{ "tmp451", tmp451 },
@@ -244,7 +244,7 @@ static const struct of_device_id __maybe_unused lm90_of_match[] = {
 	},
 	{
 		.compatible = "adi,adt7461a",
-		.data = (void *)adt7461
+		.data = (void *)adt7461a
 	},
 	{
 		.compatible = "gmt,g781",
@@ -312,7 +312,7 @@ static const struct of_device_id __maybe_unused lm90_of_match[] = {
 	},
 	{
 		.compatible = "onnn,nct1008",
-		.data = (void *)adt7461
+		.data = (void *)adt7461a
 	},
 	{
 		.compatible = "winbond,w83l771",
@@ -357,6 +357,13 @@ static const struct lm90_params lm90_params[] = {
 		.flags = LM90_HAVE_OFFSET | LM90_HAVE_REM_LIMIT_EXT
 		  | LM90_HAVE_BROKEN_ALERT | LM90_HAVE_EXTENDED_TEMP
 		  | LM90_HAVE_CRIT | LM90_HAVE_PARTIAL_PEC,
+		.alert_alarms = 0x7c,
+		.max_convrate = 10,
+	},
+	[adt7461a] = {
+		.flags = LM90_HAVE_OFFSET | LM90_HAVE_REM_LIMIT_EXT
+		  | LM90_HAVE_BROKEN_ALERT | LM90_HAVE_EXTENDED_TEMP
+		  | LM90_HAVE_CRIT | LM90_HAVE_PEC,
 		.alert_alarms = 0x7c,
 		.max_convrate = 10,
 	},
