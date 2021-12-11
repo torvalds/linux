@@ -612,7 +612,7 @@
 		backlight = <&backlight>;
 	};
 
-	p5valw_reg: regulator@0 {
+	p5valw_reg: regulator-5v0alw {
 		compatible = "regulator-fixed";
 		regulator-name = "+5valw";
 		regulator-min-microvolt = <5000000>;
@@ -620,7 +620,7 @@
 		regulator-always-on;
 	};
 
-	vdd_pnl_reg: regulator@1 {
+	vdd_pnl_reg: regulator-3v0 {
 		compatible = "regulator-fixed";
 		regulator-name = "+3VS,vdd_pnl";
 		regulator-min-microvolt = <3300000>;

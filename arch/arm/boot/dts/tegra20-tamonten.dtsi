@@ -508,7 +508,7 @@
 		#clock-cells = <0>;
 	};
 
-	pci_vdd_reg: regulator@1 {
+	pci_vdd_reg: regulator-1v05 {
 		compatible = "regulator-fixed";
 		regulator-name = "vdd_1v05";
 		regulator-min-microvolt = <1050000>;

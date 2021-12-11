@@ -402,7 +402,7 @@
 		gpios = <&gpio TEGRA_GPIO(X, 7) GPIO_ACTIVE_LOW>;
 	};
 
-	hdmi_vdd_reg: regulator@0 {
+	hdmi_vdd_reg: regulator-hdmi {
 		compatible = "regulator-fixed";
 		regulator-name = "avdd_hdmi";
 		regulator-min-microvolt = <3300000>;
@@ -410,7 +410,7 @@
 		regulator-always-on;
 	};
 
-	hdmi_pll_reg: regulator@1 {
+	hdmi_pll_reg: regulator-hdmipll {
 		compatible = "regulator-fixed";
 		regulator-name = "avdd_hdmi_pll";
 		regulator-min-microvolt = <1800000>;
@@ -418,7 +418,7 @@
 		regulator-always-on;
 	};
 
-	vbus_reg: regulator@2 {
+	vbus_reg: regulator-vbus {
 		compatible = "regulator-fixed";
 		regulator-name = "usb1_vbus";
 		regulator-min-microvolt = <5000000>;
@@ -429,7 +429,7 @@
 		regulator-boot-on;
 	};
 
-	pci_clk_reg: regulator@3 {
+	pci_clk_reg: regulator-pciclk {
 		compatible = "regulator-fixed";
 		regulator-name = "pci_clk";
 		regulator-min-microvolt = <3300000>;
@@ -437,7 +437,7 @@
 		regulator-always-on;
 	};
 
-	pci_vdd_reg: regulator@4 {
+	pci_vdd_reg: regulator-pcivdd {
 		compatible = "regulator-fixed";
 		regulator-name = "pci_vdd";
 		regulator-min-microvolt = <1050000>;

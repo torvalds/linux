@@ -1045,7 +1045,7 @@
 		};
 	};
 
-	lcd_bl_en: regulator@0 {
+	lcd_bl_en: regulator-lcden {
 		compatible = "regulator-fixed";
 		regulator-name = "lcd_bl_en";
 		regulator-min-microvolt = <5000000>;
@@ -1053,7 +1053,7 @@
 		regulator-boot-on;
 	};
 
-	vdd_lcd: regulator@1 {
+	vdd_lcd: regulator-lcd {
 		compatible = "regulator-fixed";
 		regulator-name = "vdd_lcd_1v8";
 		regulator-min-microvolt = <1800000>;
@@ -1064,7 +1064,7 @@
 		regulator-boot-on;
 	};
 
-	regulator@2 {
+	regulator-1v8ts {
 		compatible = "regulator-fixed";
 		regulator-name = "vdd_1v8_ts";
 		regulator-min-microvolt = <1800000>;
@@ -1073,7 +1073,7 @@
 		regulator-boot-on;
 	};
 
-	regulator@3 {
+	regulator-3v3ts {
 		compatible = "regulator-fixed";
 		regulator-name = "vdd_3v3_ts";
 		regulator-min-microvolt = <3300000>;
@@ -1083,7 +1083,7 @@
 		regulator-boot-on;
 	};
 
-	regulator@4 {
+	regulator-1v8com {
 		compatible = "regulator-fixed";
 		regulator-name = "vdd_1v8_com";
 		regulator-min-microvolt = <1800000>;
@@ -1094,7 +1094,7 @@
 		regulator-boot-on;
 	};
 
-	regulator@5 {
+	regulator-3v3com {
 		compatible = "regulator-fixed";
 		regulator-name = "vdd_3v3_com";
 		regulator-min-microvolt = <3300000>;

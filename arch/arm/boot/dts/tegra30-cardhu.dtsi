@@ -476,7 +476,7 @@
 		backlight = <&backlight>;
 	};
 
-	vdd_ac_bat_reg: regulator@0 {
+	vdd_ac_bat_reg: regulator-acbat {
 		compatible = "regulator-fixed";
 		regulator-name = "vdd_ac_bat";
 		regulator-min-microvolt = <5000000>;
@@ -484,7 +484,7 @@
 		regulator-always-on;
 	};
 
-	cam_1v8_reg: regulator@1 {
+	cam_1v8_reg: regulator-cam {
 		compatible = "regulator-fixed";
 		regulator-name = "cam_1v8";
 		regulator-min-microvolt = <1800000>;
@@ -494,7 +494,7 @@
 		vin-supply = <&vio_reg>;
 	};
 
-	cp_5v_reg: regulator@2 {
+	cp_5v_reg: regulator-5v0cp {
 		compatible = "regulator-fixed";
 		regulator-name = "cp_5v";
 		regulator-min-microvolt = <5000000>;
@@ -505,7 +505,7 @@
 		gpio = <&pmic 0 GPIO_ACTIVE_HIGH>;
 	};
 
-	emmc_3v3_reg: regulator@3 {
+	emmc_3v3_reg: regulator-emmc {
 		compatible = "regulator-fixed";
 		regulator-name = "emmc_3v3";
 		regulator-min-microvolt = <3300000>;
@@ -517,7 +517,7 @@
 		vin-supply = <&sys_3v3_reg>;
 	};
 
-	modem_3v3_reg: regulator@4 {
+	modem_3v3_reg: regulator-modem {
 		compatible = "regulator-fixed";
 		regulator-name = "modem_3v3";
 		regulator-min-microvolt = <3300000>;
@@ -526,7 +526,7 @@
 		gpio = <&gpio TEGRA_GPIO(D, 6) GPIO_ACTIVE_HIGH>;
 	};
 
-	pex_hvdd_3v3_reg: regulator@5 {
+	pex_hvdd_3v3_reg: regulator-pex {
 		compatible = "regulator-fixed";
 		regulator-name = "pex_hvdd_3v3";
 		regulator-min-microvolt = <3300000>;
@@ -536,7 +536,7 @@
 		vin-supply = <&sys_3v3_reg>;
 	};
 
-	vdd_cam1_ldo_reg: regulator@6 {
+	vdd_cam1_ldo_reg: regulator-cam1 {
 		compatible = "regulator-fixed";
 		regulator-name = "vdd_cam1_ldo";
 		regulator-min-microvolt = <2800000>;
@@ -546,7 +546,7 @@
 		vin-supply = <&sys_3v3_reg>;
 	};
 
-	vdd_cam2_ldo_reg: regulator@7 {
+	vdd_cam2_ldo_reg: regulator-cam2 {
 		compatible = "regulator-fixed";
 		regulator-name = "vdd_cam2_ldo";
 		regulator-min-microvolt = <2800000>;
@@ -556,7 +556,7 @@
 		vin-supply = <&sys_3v3_reg>;
 	};
 
-	vdd_cam3_ldo_reg: regulator@8 {
+	vdd_cam3_ldo_reg: regulator-cam3 {
 		compatible = "regulator-fixed";
 		regulator-name = "vdd_cam3_ldo";
 		regulator-min-microvolt = <3300000>;
@@ -566,7 +566,7 @@
 		vin-supply = <&sys_3v3_reg>;
 	};
 
-	vdd_com_reg: regulator@9 {
+	vdd_com_reg: regulator-com {
 		compatible = "regulator-fixed";
 		regulator-name = "vdd_com";
 		regulator-min-microvolt = <3300000>;
@@ -578,7 +578,7 @@
 		vin-supply = <&sys_3v3_reg>;
 	};
 
-	vdd_fuse_3v3_reg: regulator@10 {
+	vdd_fuse_3v3_reg: regulator-fuse {
 		compatible = "regulator-fixed";
 		regulator-name = "vdd_fuse_3v3";
 		regulator-min-microvolt = <3300000>;
@@ -588,7 +588,7 @@
 		vin-supply = <&sys_3v3_reg>;
 	};
 
-	vdd_pnl1_reg: regulator@11 {
+	vdd_pnl1_reg: regulator-pnl1 {
 		compatible = "regulator-fixed";
 		regulator-name = "vdd_pnl1";
 		regulator-min-microvolt = <3300000>;
@@ -600,7 +600,7 @@
 		vin-supply = <&sys_3v3_reg>;
 	};
 
-	vdd_vid_reg: regulator@12 {
+	vdd_vid_reg: regulator-vid {
 		compatible = "regulator-fixed";
 		regulator-name = "vddio_vid";
 		regulator-min-microvolt = <5000000>;
