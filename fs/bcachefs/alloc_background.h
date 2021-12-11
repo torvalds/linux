@@ -20,15 +20,6 @@ struct bkey_alloc_unpacked {
 #undef  x
 };
 
-struct bkey_alloc_buf {
-	struct bkey_i	k;
-	struct bch_alloc_v3 v;
-
-#define x(_name,  _bits)		+ _bits / 8
-	u8		_pad[0 + BCH_ALLOC_FIELDS_V2()];
-#undef  x
-} __attribute__((packed, aligned(8)));
-
 /* How out of date a pointer gen is allowed to be: */
 #define BUCKET_GC_GEN_MAX	96U
 
@@ -46,8 +37,8 @@ static inline bool bkey_alloc_unpacked_cmp(struct bkey_alloc_unpacked l,
 }
 
 struct bkey_alloc_unpacked bch2_alloc_unpack(struct bkey_s_c);
-void bch2_alloc_pack(struct bch_fs *, struct bkey_alloc_buf *,
-		     const struct bkey_alloc_unpacked);
+int bch2_alloc_write(struct btree_trans *, struct btree_iter *,
+		     struct bkey_alloc_unpacked *, unsigned);
 
 int bch2_bucket_io_time_reset(struct btree_trans *, unsigned, size_t, int);
 
@@ -137,7 +128,7 @@ void bch2_dev_allocator_quiesce(struct bch_fs *, struct bch_dev *);
 void bch2_dev_allocator_stop(struct bch_dev *);
 int bch2_dev_allocator_start(struct bch_dev *);
 
-int bch2_alloc_write(struct bch_fs *, unsigned);
+int bch2_alloc_write_all(struct bch_fs *, unsigned);
 void bch2_fs_allocator_background_init(struct bch_fs *);
 
 void bch2_open_buckets_to_text(struct printbuf *, struct bch_fs *);

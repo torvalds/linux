@@ -38,6 +38,15 @@ static const unsigned BCH_ALLOC_V1_FIELD_BYTES[] = {
 #undef x
 };
 
+struct bkey_alloc_buf {
+	struct bkey_i	k;
+	struct bch_alloc_v3 v;
+
+#define x(_name,  _bits)		+ _bits / 8
+	u8		_pad[0 + BCH_ALLOC_FIELDS_V2()];
+#undef  x
+} __attribute__((packed, aligned(8)));
+
 /* Persistent alloc info: */
 
 static inline u64 alloc_field_v1_get(const struct bch_alloc *a,
@@ -244,11 +253,24 @@ struct bkey_alloc_unpacked bch2_alloc_unpack(struct bkey_s_c k)
 	return ret;
 }
 
-void bch2_alloc_pack(struct bch_fs *c,
-		     struct bkey_alloc_buf *dst,
-		     const struct bkey_alloc_unpacked src)
+static void bch2_alloc_pack(struct bch_fs *c,
+			    struct bkey_alloc_buf *dst,
+			    const struct bkey_alloc_unpacked src)
 {
 	bch2_alloc_pack_v3(dst, src);
+}
+
+int bch2_alloc_write(struct btree_trans *trans, struct btree_iter *iter,
+		     struct bkey_alloc_unpacked *u, unsigned trigger_flags)
+{
+	struct bkey_alloc_buf *a;
+
+	a = bch2_trans_kmalloc(trans, sizeof(struct bkey_alloc_buf));
+	if (IS_ERR(a))
+		return PTR_ERR(a);
+
+	bch2_alloc_pack(trans->c, a, *u);
+	return bch2_trans_update(trans, iter, &a->k, trigger_flags);
 }
 
 static unsigned bch_alloc_v1_val_u64s(const struct bch_alloc *a)
@@ -375,7 +397,6 @@ static int bch2_alloc_write_key(struct btree_trans *trans,
 	struct bucket *g;
 	struct bucket_mark m;
 	struct bkey_alloc_unpacked old_u, new_u;
-	struct bkey_alloc_buf a;
 	int ret;
 retry:
 	bch2_trans_begin(trans);
@@ -402,8 +423,7 @@ retry:
 	if (!bkey_alloc_unpacked_cmp(old_u, new_u))
 		return 0;
 
-	bch2_alloc_pack(c, &a, new_u);
-	ret   = bch2_trans_update(trans, iter, &a.k,
+	ret   = bch2_alloc_write(trans, iter, &new_u,
 				  BTREE_TRIGGER_NORUN) ?:
 		bch2_trans_commit(trans, NULL, NULL,
 				BTREE_INSERT_NOFAIL|flags);
@@ -413,7 +433,7 @@ err:
 	return ret;
 }
 
-int bch2_alloc_write(struct bch_fs *c, unsigned flags)
+int bch2_alloc_write_all(struct bch_fs *c, unsigned flags)
 {
 	struct btree_trans trans;
 	struct btree_iter iter;
@@ -453,7 +473,6 @@ int bch2_bucket_io_time_reset(struct btree_trans *trans, unsigned dev,
 	struct bch_dev *ca = bch_dev_bkey_exists(c, dev);
 	struct btree_iter iter;
 	struct bucket *g;
-	struct bkey_alloc_buf *a;
 	struct bkey_alloc_unpacked u;
 	u64 *time, now;
 	int ret = 0;
@@ -463,11 +482,6 @@ int bch2_bucket_io_time_reset(struct btree_trans *trans, unsigned dev,
 			     BTREE_ITER_CACHED_NOFILL|
 			     BTREE_ITER_INTENT);
 	ret = bch2_btree_iter_traverse(&iter);
-	if (ret)
-		goto out;
-
-	a = bch2_trans_kmalloc(trans, sizeof(struct bkey_alloc_buf));
-	ret = PTR_ERR_OR_ZERO(a);
 	if (ret)
 		goto out;
 
@@ -483,8 +497,7 @@ int bch2_bucket_io_time_reset(struct btree_trans *trans, unsigned dev,
 
 	*time = now;
 
-	bch2_alloc_pack(c, a, u);
-	ret   = bch2_trans_update(trans, &iter, &a->k, 0) ?:
+	ret   = bch2_alloc_write(trans, &iter, &u, 0) ?:
 		bch2_trans_commit(trans, NULL, NULL, 0);
 out:
 	bch2_trans_iter_exit(trans, &iter);
@@ -752,7 +765,6 @@ static int bucket_invalidate_btree(struct btree_trans *trans,
 				   struct bch_dev *ca, u64 b)
 {
 	struct bch_fs *c = trans->c;
-	struct bkey_alloc_buf *a;
 	struct bkey_alloc_unpacked u;
 	struct bucket *g;
 	struct bucket_mark m;
@@ -764,11 +776,6 @@ static int bucket_invalidate_btree(struct btree_trans *trans,
 			     BTREE_ITER_CACHED|
 			     BTREE_ITER_CACHED_NOFILL|
 			     BTREE_ITER_INTENT);
-
-	a = bch2_trans_kmalloc(trans, sizeof(*a));
-	ret = PTR_ERR_OR_ZERO(a);
-	if (ret)
-		goto err;
 
 	ret = bch2_btree_iter_traverse(&iter);
 	if (ret)
@@ -787,9 +794,8 @@ static int bucket_invalidate_btree(struct btree_trans *trans,
 	u.read_time	= atomic64_read(&c->io_clock[READ].now);
 	u.write_time	= atomic64_read(&c->io_clock[WRITE].now);
 
-	bch2_alloc_pack(c, a, u);
-	ret = bch2_trans_update(trans, &iter, &a->k,
-				BTREE_TRIGGER_BUCKET_INVALIDATE);
+	ret = bch2_alloc_write(trans, &iter, &u,
+			       BTREE_TRIGGER_BUCKET_INVALIDATE);
 err:
 	bch2_trans_iter_exit(trans, &iter);
 	return ret;
