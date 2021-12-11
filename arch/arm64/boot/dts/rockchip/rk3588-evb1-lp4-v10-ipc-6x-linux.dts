@@ -123,10 +123,6 @@
 	status = "disabled";
 };
 
-&mipi_dcphy0 {
-	status = "disabled";
-};
-
 &pcie2x1l0 {
 	status = "disabled";
 };

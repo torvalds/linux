@@ -46,10 +46,6 @@
 	};
 };
 
-&csi2_dcphy0_hw {
-	status = "okay";
-};
-
 &i2c6 {
 	status = "okay";
 	pinctrl-names = "default";
@@ -86,6 +82,10 @@
 			};
 		};
 	};
+};
+
+&mipi_dcphy0 {
+	status = "okay";
 };
 
 &mipi0_csi2 {

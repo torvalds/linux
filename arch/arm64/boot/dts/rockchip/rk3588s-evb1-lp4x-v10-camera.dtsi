@@ -40,10 +40,6 @@
 	};
 };
 
-&csi2_dcphy0_hw {
-	status = "okay";
-};
-
 &csi2_dcphy1 {
 	status = "okay";
 
@@ -72,10 +68,6 @@
 			};
 		};
 	};
-};
-
-&csi2_dcphy1_hw {
-	status = "okay";
 };
 
 &i2c6 {
@@ -201,6 +193,14 @@
 		status = "okay";
 		reg = <0x50>;
 	};
+};
+
+&mipi_dcphy0 {
+	status = "okay";
+};
+
+&mipi_dcphy1 {
+	status = "okay";
 };
 
 &mipi0_csi2 {

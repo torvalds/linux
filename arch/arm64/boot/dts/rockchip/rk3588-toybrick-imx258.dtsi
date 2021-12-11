@@ -150,10 +150,6 @@
 		};
 	};
 };
-// use dcphy0 isp1
-&csi2_dcphy0_hw {
-	status = "okay";
-};
 
 &csi2_dcphy0 {
 	status = "okay";
@@ -225,6 +221,11 @@
 			};
 		};
 	};
+};
+
+// use dcphy0 isp1
+&mipi_dcphy0 {
+	status = "okay";
 };
 
 &mipi0_csi2 {
