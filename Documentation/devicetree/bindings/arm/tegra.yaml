@@ -90,6 +90,9 @@ properties:
           - const: ouya,ouya
           - const: nvidia,tegra30
       - items:
+          - const: pegatron,chagall
+          - const: nvidia,tegra30
+      - items:
           - enum:
               - asus,tf701t
               - nvidia,dalmore
