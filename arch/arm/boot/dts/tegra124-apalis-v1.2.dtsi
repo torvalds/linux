@@ -1888,6 +1888,7 @@
 			usb2-0 {
 				status = "okay";
 				mode = "otg";
+				usb-role-switch;
 				vbus-supply = <&reg_usbo1_vbus>;
 			};
 
