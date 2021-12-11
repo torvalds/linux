@@ -33,6 +33,7 @@ struct bch_member_cpu {
 	u8			discard;
 	u8			data_allowed;
 	u8			durability;
+	u8			freespace_initialized;
 	u8			valid;
 };
 

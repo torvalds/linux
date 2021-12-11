@@ -1028,8 +1028,8 @@ int bch2_fs_recovery(struct bch_fs *c)
 			bch_info(c, "filesystem version is prior to subvol_dirent - upgrading");
 			c->opts.version_upgrade = true;
 			c->opts.fsck		= true;
-		} else if (c->sb.version < bcachefs_metadata_version_inode_v2) {
-			bch_info(c, "filesystem version is prior to inode_v2 - upgrading");
+		} else if (c->sb.version < bcachefs_metadata_version_alloc_v4) {
+			bch_info(c, "filesystem version is prior to alloc_v4 - upgrading");
 			c->opts.version_upgrade = true;
 		}
 	}
@@ -1196,6 +1196,11 @@ use_clean:
 		goto err;
 	if (c->opts.verbose || !c->sb.clean)
 		bch_info(c, "journal replay done");
+
+	err = "error initializing freespace";
+	ret = bch2_fs_freespace_init(c);
+	if (ret)
+		goto err;
 
 	if (c->sb.version < bcachefs_metadata_version_snapshot_2) {
 		bch2_fs_lazy_rw(c);
@@ -1379,6 +1384,11 @@ int bch2_fs_initialize(struct bch_fs *c)
 
 		ca->new_fs_bucket_idx = 0;
 	}
+
+	err = "error initializing freespace";
+	ret = bch2_fs_freespace_init(c);
+	if (ret)
+		goto err;
 
 	err = "error creating root snapshot node";
 	ret = bch2_fs_initialize_subvolumes(c);

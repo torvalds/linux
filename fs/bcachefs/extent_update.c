@@ -15,17 +15,26 @@ static unsigned bch2_bkey_nr_alloc_ptrs(struct bkey_s_c k)
 {
 	struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
 	const union bch_extent_entry *entry;
-	unsigned ret = 0;
+	unsigned ret = 0, lru = 0;
 
 	bkey_extent_entry_for_each(ptrs, entry) {
 		switch (__extent_entry_type(entry)) {
 		case BCH_EXTENT_ENTRY_ptr:
+			/* Might also be updating LRU btree */
+			if (entry->ptr.cached)
+				lru++;
+
+			fallthrough;
 		case BCH_EXTENT_ENTRY_stripe_ptr:
 			ret++;
 		}
 	}
 
-	return ret;
+	/*
+	 * Updating keys in the alloc btree may also update keys in the
+	 * freespace or discard btrees:
+	 */
+	return lru + ret * 2;
 }
 
 static int count_iters_for_insert(struct btree_trans *trans,

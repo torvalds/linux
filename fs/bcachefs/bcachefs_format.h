@@ -947,7 +947,6 @@ enum {
 #define x(name, _bits) BCH_ALLOC_FIELD_V1_##name,
 	BCH_ALLOC_FIELDS_V1()
 #undef x
-	BCH_ALLOC_FIELD_NR
 };
 
 /* Quotas: */
@@ -1146,6 +1145,8 @@ LE64_BITMASK(BCH_MEMBER_DISCARD,	struct bch_member, flags[0], 14, 15)
 LE64_BITMASK(BCH_MEMBER_DATA_ALLOWED,	struct bch_member, flags[0], 15, 20)
 LE64_BITMASK(BCH_MEMBER_GROUP,		struct bch_member, flags[0], 20, 28)
 LE64_BITMASK(BCH_MEMBER_DURABILITY,	struct bch_member, flags[0], 28, 30)
+LE64_BITMASK(BCH_MEMBER_FREESPACE_INITIALIZED,
+					struct bch_member, flags[0], 30, 31)
 
 #if 0
 LE64_BITMASK(BCH_MEMBER_NR_READ_ERRORS,	struct bch_member, flags[1], 0,  20);
@@ -1361,7 +1362,9 @@ struct bch_sb_field_journal_seq_blacklist {
 	x(snapshot_2,			15)		\
 	x(reflink_p_fix,		16)		\
 	x(subvol_dirent,		17)		\
-	x(inode_v2,			18)
+	x(inode_v2,			18)		\
+	x(freespace,			19)		\
+	x(alloc_v4,			20)
 
 enum bcachefs_metadata_version {
 	bcachefs_metadata_version_min = 9,
@@ -1889,7 +1892,9 @@ LE32_BITMASK(JSET_NO_FLUSH,	struct jset, flags, 5, 6);
 	x(reflink,	7)			\
 	x(subvolumes,	8)			\
 	x(snapshots,	9)			\
-	x(lru,		10)
+	x(lru,		10)			\
+	x(freespace,	11)			\
+	x(need_discard,	12)
 
 enum btree_id {
 #define x(kwd, val) BTREE_ID_##kwd = val,

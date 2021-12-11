@@ -81,16 +81,6 @@ static inline u8 *bucket_gen(struct bch_dev *ca, size_t b)
 	return gens->b + b;
 }
 
-/*
- * bucket_gc_gen() returns the difference between the bucket's current gen and
- * the oldest gen of any pointer into that bucket in the btree.
- */
-
-static inline u8 bucket_gc_gen(struct bucket *g)
-{
-	return g->mark.gen - g->oldest_gen;
-}
-
 static inline size_t PTR_BUCKET_NR(const struct bch_dev *ca,
 				   const struct bch_extent_ptr *ptr)
 {

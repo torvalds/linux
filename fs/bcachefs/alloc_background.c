@@ -14,6 +14,7 @@
 #include "debug.h"
 #include "ec.h"
 #include "error.h"
+#include "lru.h"
 #include "recovery.h"
 #include "trace.h"
 #include "varint.h"
@@ -39,6 +40,15 @@ static const unsigned BCH_ALLOC_V1_FIELD_BYTES[] = {
 #define x(name, bits) [BCH_ALLOC_FIELD_V1_##name] = bits / 8,
 	BCH_ALLOC_FIELDS_V1()
 #undef x
+};
+
+const char * const bch2_bucket_states[] = {
+	"free",
+	"need gc gens",
+	"need discard",
+	"cached",
+	"dirty",
+	NULL
 };
 
 struct bkey_alloc_unpacked {
@@ -448,6 +458,217 @@ int bch2_alloc_read(struct bch_fs *c, bool gc, bool metadata_only)
 	return ret;
 }
 
+/* Free space/discard btree: */
+
+static int bch2_bucket_do_index(struct btree_trans *trans,
+				struct bkey_s_c alloc_k,
+				struct bch_alloc_v4 a,
+				bool set)
+{
+	struct bch_fs *c = trans->c;
+	struct bch_dev *ca = bch_dev_bkey_exists(c, alloc_k.k->p.inode);
+	struct btree_iter iter;
+	struct bkey_s_c old;
+	struct bkey_i *k;
+	enum bucket_state state = bucket_state(a);
+	enum btree_id btree;
+	enum bch_bkey_type old_type = !set ? KEY_TYPE_set : KEY_TYPE_deleted;
+	enum bch_bkey_type new_type =  set ? KEY_TYPE_set : KEY_TYPE_deleted;
+	struct printbuf buf = PRINTBUF;
+	int ret;
+
+	if (state != BUCKET_free &&
+	    state != BUCKET_need_discard)
+		return 0;
+
+	k = bch2_trans_kmalloc(trans, sizeof(*k));
+	if (IS_ERR(k))
+		return PTR_ERR(k);
+
+	bkey_init(&k->k);
+	k->k.type = new_type;
+
+	switch (state) {
+	case BUCKET_free:
+		btree = BTREE_ID_freespace;
+		k->k.p = alloc_freespace_pos(alloc_k.k->p, a);
+		bch2_key_resize(&k->k, 1);
+		break;
+	case BUCKET_need_discard:
+		btree = BTREE_ID_need_discard;
+		k->k.p = alloc_k.k->p;
+		break;
+	default:
+		return 0;
+	}
+
+	bch2_trans_iter_init(trans, &iter, btree,
+			     bkey_start_pos(&k->k),
+			     BTREE_ITER_INTENT);
+	old = bch2_btree_iter_peek_slot(&iter);
+	ret = bkey_err(old);
+	if (ret)
+		goto err;
+
+	if (ca->mi.freespace_initialized &&
+	    bch2_fs_inconsistent_on(old.k->type != old_type, c,
+			"incorrect key when %s %s btree (got %s should be %s)\n"
+			"  for %s",
+			set ? "setting" : "clearing",
+			bch2_btree_ids[btree],
+			bch2_bkey_types[old.k->type],
+			bch2_bkey_types[old_type],
+			(bch2_bkey_val_to_text(&buf, c, alloc_k), buf.buf))) {
+		ret = -EIO;
+		goto err;
+	}
+
+	ret = bch2_trans_update(trans, &iter, k, 0);
+err:
+	bch2_trans_iter_exit(trans, &iter);
+	printbuf_exit(&buf);
+	return ret;
+}
+
+int bch2_trans_mark_alloc(struct btree_trans *trans,
+			  struct bkey_s_c old, struct bkey_i *new,
+			  unsigned flags)
+{
+	struct bch_fs *c = trans->c;
+	struct bch_alloc_v4 old_a, *new_a;
+	u64 old_lru, new_lru;
+	int ret = 0;
+
+	/*
+	 * Deletion only happens in the device removal path, with
+	 * BTREE_TRIGGER_NORUN:
+	 */
+	BUG_ON(new->k.type != KEY_TYPE_alloc_v4);
+
+	bch2_alloc_to_v4(old, &old_a);
+	new_a = &bkey_i_to_alloc_v4(new)->v;
+
+	if (new_a->dirty_sectors > old_a.dirty_sectors ||
+	    new_a->cached_sectors > old_a.cached_sectors) {
+		new_a->io_time[READ] = max_t(u64, 1, atomic64_read(&c->io_clock[READ].now));
+		new_a->io_time[WRITE]= max_t(u64, 1, atomic64_read(&c->io_clock[WRITE].now));
+		SET_BCH_ALLOC_V4_NEED_INC_GEN(new_a, true);
+		SET_BCH_ALLOC_V4_NEED_DISCARD(new_a, true);
+	}
+
+	if (old_a.data_type && !new_a->data_type &&
+	    old_a.gen == new_a->gen &&
+	    !bch2_bucket_is_open_safe(c, new->k.p.inode, new->k.p.offset)) {
+		new_a->gen++;
+		SET_BCH_ALLOC_V4_NEED_INC_GEN(new_a, false);
+	}
+
+	if (bucket_state(old_a) != bucket_state(*new_a) ||
+	    (bucket_state(*new_a) == BUCKET_free &&
+	     alloc_freespace_genbits(old_a) != alloc_freespace_genbits(*new_a))) {
+		ret =   bch2_bucket_do_index(trans, old, old_a, false) ?:
+			bch2_bucket_do_index(trans, bkey_i_to_s_c(new), *new_a, true);
+		if (ret)
+			return ret;
+	}
+
+	old_lru = alloc_lru_idx(old_a);
+	new_lru = alloc_lru_idx(*new_a);
+
+	if (old_lru != new_lru) {
+		ret = bch2_lru_change(trans, new->k.p.inode, new->k.p.offset,
+				      old_lru, &new_lru);
+		if (ret)
+			return ret;
+
+		if (new_lru && new_a->io_time[READ] != new_lru)
+			new_a->io_time[READ] = new_lru;
+	}
+
+	return 0;
+}
+
+static int bch2_dev_freespace_init(struct bch_fs *c, struct bch_dev *ca)
+{
+	struct btree_trans trans;
+	struct btree_iter iter;
+	struct bkey_s_c k;
+	struct bch_alloc_v4 a;
+	struct bch_member *m;
+	int ret;
+
+	bch2_trans_init(&trans, c, 0, 0);
+
+	for_each_btree_key(&trans, iter, BTREE_ID_alloc,
+			   POS(ca->dev_idx, ca->mi.first_bucket),
+			   BTREE_ITER_SLOTS|
+			   BTREE_ITER_PREFETCH, k, ret) {
+		if (iter.pos.offset >= ca->mi.nbuckets)
+			break;
+
+		bch2_alloc_to_v4(k, &a);
+		ret = __bch2_trans_do(&trans, NULL, NULL,
+				      BTREE_INSERT_LAZY_RW,
+				 bch2_bucket_do_index(&trans, k, a, true));
+		if (ret)
+			break;
+	}
+	bch2_trans_iter_exit(&trans, &iter);
+
+	bch2_trans_exit(&trans);
+
+	if (ret) {
+		bch_err(ca, "error initializing free space: %i", ret);
+		return ret;
+	}
+
+	mutex_lock(&c->sb_lock);
+	m = bch2_sb_get_members(c->disk_sb.sb)->members + ca->dev_idx;
+	SET_BCH_MEMBER_FREESPACE_INITIALIZED(m, true);
+	mutex_unlock(&c->sb_lock);
+
+	return ret;
+}
+
+int bch2_fs_freespace_init(struct bch_fs *c)
+{
+	struct bch_dev *ca;
+	unsigned i;
+	int ret = 0;
+	bool doing_init = false;
+
+	/*
+	 * We can crash during the device add path, so we need to check this on
+	 * every mount:
+	 */
+
+	for_each_member_device(ca, c, i) {
+		if (ca->mi.freespace_initialized)
+			continue;
+
+		if (!doing_init) {
+			bch_info(c, "initializing freespace");
+			doing_init = true;
+		}
+
+		ret = bch2_dev_freespace_init(c, ca);
+		if (ret) {
+			percpu_ref_put(&ca->ref);
+			return ret;
+		}
+	}
+
+	if (doing_init) {
+		mutex_lock(&c->sb_lock);
+		bch2_write_super(c);
+		mutex_unlock(&c->sb_lock);
+
+		bch_verbose(c, "done initializing freespace");
+	}
+
+	return ret;
+}
+
 /* Bucket IO clocks: */
 
 int bch2_bucket_io_time_reset(struct btree_trans *trans, unsigned dev,
@@ -484,6 +705,16 @@ out:
  * (marking them as invalidated on disk), then optionally issues discard
  * commands to the newly free buckets, then puts them on the various freelists.
  */
+
+/*
+ * bucket_gc_gen() returns the difference between the bucket's current gen and
+ * the oldest gen of any pointer into that bucket in the btree.
+ */
+
+static inline u8 bucket_gc_gen(struct bucket *g)
+{
+	return g->mark.gen - g->oldest_gen;
+}
 
 static bool bch2_can_invalidate_bucket(struct bch_dev *ca, size_t b,
 				       struct bucket_mark m)

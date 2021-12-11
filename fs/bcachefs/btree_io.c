@@ -925,7 +925,7 @@ int bch2_btree_node_read_done(struct bch_fs *c, struct bch_dev *ca,
 					"error decrypting btree node: %i", ret))
 				goto fsck_err;
 
-			btree_err_on(btree_node_is_extents(b) &&
+			btree_err_on(btree_node_type_is_extents(btree_node_type(b)) &&
 				     !BTREE_NODE_NEW_EXTENT_OVERWRITE(b->data),
 				     BTREE_ERR_FATAL, c, NULL, b, NULL,
 				     "btree node does not have NEW_EXTENT_OVERWRITE set");

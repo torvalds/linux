@@ -1471,30 +1471,20 @@ int bch2_dev_set_state(struct bch_fs *c, struct bch_dev *ca,
 
 static int bch2_dev_remove_alloc(struct bch_fs *c, struct bch_dev *ca)
 {
-	struct btree_trans trans;
-	size_t i;
+	struct bpos start	= POS(ca->dev_idx, 0);
+	struct bpos end		= POS(ca->dev_idx, U64_MAX);
 	int ret;
 
-	bch2_trans_init(&trans, c, 0, 0);
-
-	for (i = 0; i < ca->mi.nbuckets; i++) {
-		ret = lockrestart_do(&trans,
-			bch2_btree_key_cache_flush(&trans,
-				BTREE_ID_alloc, POS(ca->dev_idx, i)));
-		if (ret)
-			break;
-	}
-	bch2_trans_exit(&trans);
-
-	if (ret) {
+	ret =   bch2_btree_delete_range(c, BTREE_ID_alloc, start, end,
+					BTREE_TRIGGER_NORUN, NULL) ?:
+		bch2_btree_delete_range(c, BTREE_ID_freespace, start, end,
+					BTREE_TRIGGER_NORUN, NULL) ?:
+		bch2_btree_delete_range(c, BTREE_ID_need_discard, start, end,
+					BTREE_TRIGGER_NORUN, NULL);
+	if (ret)
 		bch_err(c, "error %i removing dev alloc info", ret);
-		return ret;
-	}
 
-	return bch2_btree_delete_range(c, BTREE_ID_alloc,
-				       POS(ca->dev_idx, 0),
-				       POS(ca->dev_idx + 1, 0),
-				       0, NULL);
+	return ret;
 }
 
 int bch2_dev_remove(struct bch_fs *c, struct bch_dev *ca, int flags)
@@ -1709,6 +1699,12 @@ have_slot:
 	ret = bch2_trans_mark_dev_sb(c, ca);
 	if (ret) {
 		bch_err(c, "device add error: error marking new superblock: %i", ret);
+		goto err_late;
+	}
+
+	ret = bch2_fs_freespace_init(c);
+	if (ret) {
+		bch_err(c, "device add error: error initializing free space: %i", ret);
 		goto err_late;
 	}
 

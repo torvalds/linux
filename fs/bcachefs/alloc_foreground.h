@@ -117,6 +117,20 @@ static inline bool bch2_bucket_is_open(struct bch_fs *c, unsigned dev, u64 bucke
 	return false;
 }
 
+static inline bool bch2_bucket_is_open_safe(struct bch_fs *c, unsigned dev, u64 bucket)
+{
+	bool ret;
+
+	if (bch2_bucket_is_open(c, dev, bucket))
+		return true;
+
+	spin_lock(&c->freelist_lock);
+	ret = bch2_bucket_is_open(c, dev, bucket);
+	spin_unlock(&c->freelist_lock);
+
+	return ret;
+}
+
 int bch2_bucket_alloc_set(struct bch_fs *, struct open_buckets *,
 		      struct dev_stripe_state *, struct bch_devs_mask *,
 		      unsigned, unsigned *, bool *, enum alloc_reserve,
