@@ -1201,12 +1201,10 @@ static struct bpf_object *bpf_object__new(const char *path,
 
 	strcpy(obj->path, path);
 	if (obj_name) {
-		strncpy(obj->name, obj_name, sizeof(obj->name) - 1);
-		obj->name[sizeof(obj->name) - 1] = 0;
+		libbpf_strlcpy(obj->name, obj_name, sizeof(obj->name));
 	} else {
 		/* Using basename() GNU version which doesn't modify arg. */
-		strncpy(obj->name, basename((void *)path),
-			sizeof(obj->name) - 1);
+		libbpf_strlcpy(obj->name, basename((void *)path), sizeof(obj->name));
 		end = strchr(obj->name, '.');
 		if (end)
 			*end = 0;
@@ -1358,7 +1356,7 @@ static int bpf_object__check_endianness(struct bpf_object *obj)
 static int
 bpf_object__init_license(struct bpf_object *obj, void *data, size_t size)
 {
-	memcpy(obj->license, data, min(size, sizeof(obj->license) - 1));
+	libbpf_strlcpy(obj->license, data, sizeof(obj->license));
 	pr_debug("license of %s is %s\n", obj->path, obj->license);
 	return 0;
 }

@@ -112,7 +112,7 @@ int bpf_map_create(enum bpf_map_type map_type,
 
 	attr.map_type = map_type;
 	if (map_name)
-		strncat(attr.map_name, map_name, sizeof(attr.map_name) - 1);
+		libbpf_strlcpy(attr.map_name, map_name, sizeof(attr.map_name));
 	attr.key_size = key_size;
 	attr.value_size = value_size;
 	attr.max_entries = max_entries;
@@ -271,7 +271,7 @@ int bpf_prog_load_v0_6_0(enum bpf_prog_type prog_type,
 	attr.kern_version = OPTS_GET(opts, kern_version, 0);
 
 	if (prog_name)
-		strncat(attr.prog_name, prog_name, sizeof(attr.prog_name) - 1);
+		libbpf_strlcpy(attr.prog_name, prog_name, sizeof(attr.prog_name));
 	attr.license = ptr_to_u64(license);
 
 	if (insn_cnt > UINT_MAX)

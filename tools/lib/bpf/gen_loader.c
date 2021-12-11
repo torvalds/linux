@@ -463,8 +463,7 @@ void bpf_gen__map_create(struct bpf_gen *gen,
 	attr.map_flags = map_attr->map_flags;
 	attr.map_extra = map_attr->map_extra;
 	if (map_name)
-		memcpy(attr.map_name, map_name,
-		       min((unsigned)strlen(map_name), BPF_OBJ_NAME_LEN - 1));
+		libbpf_strlcpy(attr.map_name, map_name, sizeof(attr.map_name));
 	attr.numa_node = map_attr->numa_node;
 	attr.map_ifindex = map_attr->map_ifindex;
 	attr.max_entries = max_entries;
@@ -970,8 +969,7 @@ void bpf_gen__prog_load(struct bpf_gen *gen,
 	core_relos = add_data(gen, gen->core_relos,
 			     attr.core_relo_cnt * attr.core_relo_rec_size);
 
-	memcpy(attr.prog_name, prog_name,
-	       min((unsigned)strlen(prog_name), BPF_OBJ_NAME_LEN - 1));
+	libbpf_strlcpy(attr.prog_name, prog_name, sizeof(attr.prog_name));
 	prog_load_attr = add_data(gen, &attr, attr_size);
 
 	/* populate union bpf_attr with a pointer to license */

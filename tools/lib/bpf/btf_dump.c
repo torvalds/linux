@@ -2321,8 +2321,8 @@ int btf_dump__dump_type_data(struct btf_dump *d, __u32 id,
 	if (!opts->indent_str)
 		d->typed_dump->indent_str[0] = '\t';
 	else
-		strncat(d->typed_dump->indent_str, opts->indent_str,
-			sizeof(d->typed_dump->indent_str) - 1);
+		libbpf_strlcpy(d->typed_dump->indent_str, opts->indent_str,
+			       sizeof(d->typed_dump->indent_str));
 
 	d->typed_dump->compact = OPTS_GET(opts, compact, false);
 	d->typed_dump->skip_names = OPTS_GET(opts, skip_names, false);
