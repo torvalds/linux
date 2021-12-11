@@ -132,16 +132,14 @@ static int rkispp_create_links(struct rkispp_device *ispp_dev)
 		stream->linked = true;
 	}
 	source = &stream->vnode.vdev.entity;
-	ret = media_create_pad_link(source, 0, sink,
-				    RKISPP_PAD_SINK, flags);
+	ret = media_create_pad_link(source, 0, sink, RKISPP_PAD_SINK, flags);
 	if (ret < 0)
 		return ret;
 
 	/* params links */
 	flags = MEDIA_LNK_FL_ENABLED;
 	source = &ispp_dev->params_vdev.vnode.vdev.entity;
-	ret = media_create_pad_link(source, 0, sink,
-				    RKISPP_PAD_SINK_PARAMS, flags);
+	ret = media_create_pad_link(source, 0, sink, RKISPP_PAD_SINK_PARAMS, flags);
 	if (ret < 0)
 		return ret;
 	ispp_dev->stream_vdev.module_ens = ISPP_MODULE_FEC;
@@ -150,8 +148,7 @@ static int rkispp_create_links(struct rkispp_device *ispp_dev)
 		flags = MEDIA_LNK_FL_ENABLED;
 		source = &ispp_dev->ispp_sdev.sd.entity;
 		sink = &ispp_dev->stats_vdev.vnode.vdev.entity;
-		ret = media_create_pad_link(source, RKISPP_PAD_SOURCE_STATS,
-					    sink, 0, flags);
+		ret = media_create_pad_link(source, RKISPP_PAD_SOURCE_STATS, sink, 0, flags);
 		if (ret < 0)
 			return ret;
 
@@ -159,32 +156,21 @@ static int rkispp_create_links(struct rkispp_device *ispp_dev)
 		stream = &stream_vdev->stream[STREAM_S0];
 		stream->linked = flags;
 		sink = &stream->vnode.vdev.entity;
-		ret = media_create_pad_link(source, RKISPP_PAD_SOURCE,
-					    sink, 0, flags);
+		ret = media_create_pad_link(source, RKISPP_PAD_SOURCE, sink, 0, flags);
 		if (ret < 0)
 			return ret;
 
 		stream = &stream_vdev->stream[STREAM_S1];
 		stream->linked = flags;
 		sink = &stream->vnode.vdev.entity;
-		ret = media_create_pad_link(source, RKISPP_PAD_SOURCE,
-					    sink, 0, flags);
+		ret = media_create_pad_link(source, RKISPP_PAD_SOURCE, sink, 0, flags);
 		if (ret < 0)
 			return ret;
 
 		stream = &stream_vdev->stream[STREAM_S2];
 		stream->linked = flags;
 		sink = &stream->vnode.vdev.entity;
-		ret = media_create_pad_link(source, RKISPP_PAD_SOURCE,
-					    sink, 0, flags);
-		if (ret < 0)
-			return ret;
-
-		stream = &stream_vdev->stream[STREAM_VIR];
-		stream->linked = flags;
-		sink = &stream->vnode.vdev.entity;
-		ret = media_create_pad_link(source, RKISPP_PAD_SOURCE,
-					    sink, 0, flags);
+		ret = media_create_pad_link(source, RKISPP_PAD_SOURCE, sink, 0, flags);
 		if (ret < 0)
 			return ret;
 
@@ -196,8 +182,14 @@ static int rkispp_create_links(struct rkispp_device *ispp_dev)
 	stream->linked = flags;
 	source = &ispp_dev->ispp_sdev.sd.entity;
 	sink = &stream->vnode.vdev.entity;
-	ret = media_create_pad_link(source, RKISPP_PAD_SOURCE,
-				    sink, 0, flags);
+	ret = media_create_pad_link(source, RKISPP_PAD_SOURCE, sink, 0, flags);
+	if (ret < 0)
+		return ret;
+
+	stream = &stream_vdev->stream[STREAM_VIR];
+	stream->linked = flags;
+	sink = &stream->vnode.vdev.entity;
+	ret = media_create_pad_link(source, RKISPP_PAD_SOURCE, sink, 0, flags);
 	if (ret < 0)
 		return ret;
 

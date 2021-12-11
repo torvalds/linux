@@ -336,8 +336,7 @@ static void rkispp_module_work_event(struct rkispp_device *dev,
 	 * tnr->nr->fec frame0
 	 *       |->tnr->nr->fec frame1
 	 */
-	if (is_isr && !buf_rd && !buf_wr &&
-	    (module == ISPP_MODULE_FEC && dev->hw_dev->is_single)) {
+	if (is_isr && !buf_rd && !buf_wr) {
 		dev->stream_vdev.monitor.retry = 0;
 		rkispp_event_handle(dev, CMD_QUEUE_DMABUF, NULL);
 

@@ -20,10 +20,10 @@ struct rkispp_stream;
 enum rkispp_stream_id {
 	STREAM_II = 0,
 	STREAM_MB,
+	STREAM_VIR,
 	STREAM_S0,
 	STREAM_S1,
 	STREAM_S2,
-	STREAM_VIR,
 	STREAM_MAX
 };
 

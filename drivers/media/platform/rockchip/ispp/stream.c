@@ -1934,7 +1934,7 @@ int rkispp_register_stream_vdevs(struct rkispp_device *dev)
 		stream_vdev->frame_qst.function = stream_vdev->stream_ops->rkispp_frame_done_early;
 		dev->hw_dev->pool[0].group_buf_max = GROUP_BUF_MAX;
 	} else if (dev->ispp_ver == ISPP_V20) {
-		dev->stream_max = STREAM_MB + 1;
+		dev->stream_max = STREAM_VIR + 1;
 		rkispp_stream_init_ops_v20(stream_vdev);
 		dev->hw_dev->pool[0].group_buf_max = GROUP_BUF_GAIN;
 	}
