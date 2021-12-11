@@ -477,6 +477,7 @@ static const struct drm_connector_funcs dw_dp_connector_funcs = {
 static int dw_dp_connector_get_modes(struct drm_connector *connector)
 {
 	struct dw_dp *dp = connector_to_dp(connector);
+	struct drm_display_info *di = &connector->display_info;
 	struct edid *edid;
 	int num_modes;
 
@@ -492,6 +493,8 @@ static int dw_dp_connector_get_modes(struct drm_connector *connector)
 
 	if (num_modes > 0 && dp->split_mode) {
 		struct drm_display_mode *mode;
+
+		di->width_mm *= 2;
 
 		list_for_each_entry(mode, &connector->probed_modes, head)
 			drm_mode_convert_to_split_mode(mode);
@@ -1899,9 +1902,12 @@ static u32 *dw_dp_bridge_atomic_get_output_bus_fmts(struct drm_bridge *bridge,
 	struct dw_dp *dp = bridge_to_dp(bridge);
 	struct dw_dp_link *link = &dp->link;
 	struct drm_display_info *di = &conn_state->connector->display_info;
-	struct drm_display_mode *mode = &crtc_state->mode;
+	struct drm_display_mode mode = crtc_state->mode;
 	u32 *output_fmts;
 	unsigned int i, j = 0;
+
+	if (dp->split_mode)
+		drm_mode_convert_to_origin_mode(&mode);
 
 	*num_output_fmts = 0;
 
@@ -1923,11 +1929,11 @@ static u32 *dw_dp_bridge_atomic_get_output_bus_fmts(struct drm_bridge *bridge,
 		    !link->vsc_sdp_extension_for_colorimetry_supported)
 			continue;
 
-		if (drm_mode_is_420_only(di, mode) &&
+		if (drm_mode_is_420_only(di, &mode) &&
 		    fmt->color_format != DRM_COLOR_FORMAT_YCRCB420)
 			continue;
 
-		if (!dw_dp_bandwidth_ok(dp, mode, fmt->bpp, link->lanes, link->rate))
+		if (!dw_dp_bandwidth_ok(dp, &mode, fmt->bpp, link->lanes, link->rate))
 			continue;
 
 		output_fmts[j++] = fmt->bus_format;
@@ -1948,6 +1954,10 @@ static int dw_dp_bridge_atomic_check(struct drm_bridge *bridge,
 	const struct dw_dp_output_format *fmt =
 		dw_dp_get_output_format(bridge_state->output_bus_cfg.format);
 
+	dev_dbg(dp->dev, "input format 0x%04x, output format 0x%04x\n",
+		bridge_state->input_bus_cfg.format,
+		bridge_state->output_bus_cfg.format);
+
 	video->video_mapping = fmt->video_mapping;
 	video->color_format = fmt->color_format;
 	video->bus_format = fmt->bus_format;
@@ -1961,6 +1971,7 @@ static const struct drm_bridge_funcs dw_dp_bridge_funcs = {
 	.atomic_duplicate_state = drm_atomic_helper_bridge_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_bridge_destroy_state,
 	.atomic_reset = drm_atomic_helper_bridge_reset,
+	.atomic_get_input_bus_fmts = drm_atomic_helper_bridge_propagate_bus_fmt,
 	.atomic_get_output_bus_fmts = dw_dp_bridge_atomic_get_output_bus_fmts,
 	.attach = dw_dp_bridge_attach,
 	.detach = dw_dp_bridge_detach,
