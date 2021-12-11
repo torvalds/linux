@@ -605,6 +605,75 @@ static bool qm_qp_avail_state(struct hisi_qm *qm, struct hisi_qp *qp,
 	return avail;
 }
 
+static u32 qm_get_hw_error_status(struct hisi_qm *qm)
+{
+	return readl(qm->io_base + QM_ABNORMAL_INT_STATUS);
+}
+
+static u32 qm_get_dev_err_status(struct hisi_qm *qm)
+{
+	return qm->err_ini->get_dev_hw_err_status(qm);
+}
+
+/* Check if the error causes the master ooo block */
+static int qm_check_dev_error(struct hisi_qm *qm)
+{
+	u32 val, dev_val;
+
+	if (qm->fun_type == QM_HW_VF)
+		return 0;
+
+	val = qm_get_hw_error_status(qm);
+	dev_val = qm_get_dev_err_status(qm);
+
+	if (qm->ver < QM_HW_V3)
+		return (val & QM_ECC_MBIT) ||
+		       (dev_val & qm->err_info.ecc_2bits_mask);
+
+	return (val & readl(qm->io_base + QM_OOO_SHUTDOWN_SEL)) ||
+	       (dev_val & (~qm->err_info.dev_ce_mask));
+}
+
+static int qm_wait_reset_finish(struct hisi_qm *qm)
+{
+	int delay = 0;
+
+	/* All reset requests need to be queued for processing */
+	while (test_and_set_bit(QM_RESETTING, &qm->misc_ctl)) {
+		msleep(++delay);
+		if (delay > QM_RESET_WAIT_TIMEOUT)
+			return -EBUSY;
+	}
+
+	return 0;
+}
+
+static int qm_reset_prepare_ready(struct hisi_qm *qm)
+{
+	struct pci_dev *pdev = qm->pdev;
+	struct hisi_qm *pf_qm = pci_get_drvdata(pci_physfn(pdev));
+
+	/*
+	 * PF and VF on host doesnot support resetting at the
+	 * same time on Kunpeng920.
+	 */
+	if (qm->ver < QM_HW_V3)
+		return qm_wait_reset_finish(pf_qm);
+
+	return qm_wait_reset_finish(qm);
+}
+
+static void qm_reset_bit_clear(struct hisi_qm *qm)
+{
+	struct pci_dev *pdev = qm->pdev;
+	struct hisi_qm *pf_qm = pci_get_drvdata(pci_physfn(pdev));
+
+	if (qm->ver < QM_HW_V3)
+		clear_bit(QM_RESETTING, &pf_qm->misc_ctl);
+
+	clear_bit(QM_RESETTING, &qm->misc_ctl);
+}
+
 static void qm_mb_pre_init(struct qm_mailbox *mailbox, u8 cmd,
 			   u64 base, u16 queue, bool op)
 {
@@ -2106,35 +2175,6 @@ static enum acc_err_result qm_hw_error_handle_v2(struct hisi_qm *qm)
 	}
 
 	return ACC_ERR_RECOVERED;
-}
-
-static u32 qm_get_hw_error_status(struct hisi_qm *qm)
-{
-	return readl(qm->io_base + QM_ABNORMAL_INT_STATUS);
-}
-
-static u32 qm_get_dev_err_status(struct hisi_qm *qm)
-{
-	return qm->err_ini->get_dev_hw_err_status(qm);
-}
-
-/* Check if the error causes the master ooo block */
-static int qm_check_dev_error(struct hisi_qm *qm)
-{
-	u32 val, dev_val;
-
-	if (qm->fun_type == QM_HW_VF)
-		return 0;
-
-	val = qm_get_hw_error_status(qm);
-	dev_val = qm_get_dev_err_status(qm);
-
-	if (qm->ver < QM_HW_V3)
-		return (val & QM_ECC_MBIT) ||
-		       (dev_val & qm->err_info.ecc_2bits_mask);
-
-	return (val & readl(qm->io_base + QM_OOO_SHUTDOWN_SEL)) ||
-	       (dev_val & (~qm->err_info.dev_ce_mask));
 }
 
 static int qm_get_mb_cmd(struct hisi_qm *qm, u64 *msg, u16 fun_num)
@@ -4752,46 +4792,6 @@ static int qm_try_stop_vfs(struct hisi_qm *qm, u64 cmd,
 	}
 
 	return ret;
-}
-
-static int qm_wait_reset_finish(struct hisi_qm *qm)
-{
-	int delay = 0;
-
-	/* All reset requests need to be queued for processing */
-	while (test_and_set_bit(QM_RESETTING, &qm->misc_ctl)) {
-		msleep(++delay);
-		if (delay > QM_RESET_WAIT_TIMEOUT)
-			return -EBUSY;
-	}
-
-	return 0;
-}
-
-static int qm_reset_prepare_ready(struct hisi_qm *qm)
-{
-	struct pci_dev *pdev = qm->pdev;
-	struct hisi_qm *pf_qm = pci_get_drvdata(pci_physfn(pdev));
-
-	/*
-	 * PF and VF on host doesnot support resetting at the
-	 * same time on Kunpeng920.
-	 */
-	if (qm->ver < QM_HW_V3)
-		return qm_wait_reset_finish(pf_qm);
-
-	return qm_wait_reset_finish(qm);
-}
-
-static void qm_reset_bit_clear(struct hisi_qm *qm)
-{
-	struct pci_dev *pdev = qm->pdev;
-	struct hisi_qm *pf_qm = pci_get_drvdata(pci_physfn(pdev));
-
-	if (qm->ver < QM_HW_V3)
-		clear_bit(QM_RESETTING, &pf_qm->misc_ctl);
-
-	clear_bit(QM_RESETTING, &qm->misc_ctl);
 }
 
 static int qm_controller_reset_prepare(struct hisi_qm *qm)
