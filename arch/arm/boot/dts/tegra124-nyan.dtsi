@@ -532,7 +532,7 @@
 
 	/* CPU DFLL clock */
 	clock@70110000 {
-		status = "disabled";
+		status = "okay";
 		vdd-cpu-supply = <&vdd_cpu>;
 		nvidia,i2c-fs-rate = <400000>;
 	};
