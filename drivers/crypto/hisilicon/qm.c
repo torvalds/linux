@@ -988,15 +988,11 @@ static void qm_set_qp_disable(struct hisi_qp *qp, int offset)
 	mb();
 }
 
-static irqreturn_t qm_aeq_irq(int irq, void *data)
+static irqreturn_t qm_aeq_thread(int irq, void *data)
 {
 	struct hisi_qm *qm = data;
 	struct qm_aeqe *aeqe = qm->aeqe + qm->status.aeq_head;
 	u32 type;
-
-	atomic64_inc(&qm->debug.dfx.aeq_irq_cnt);
-	if (!readl(qm->io_base + QM_VF_AEQ_INT_SOURCE))
-		return IRQ_NONE;
 
 	while (QM_AEQE_PHASE(aeqe) == qm->status.aeqc_phase) {
 		type = le32_to_cpu(aeqe->dw0) >> QM_AEQE_TYPE_SHIFT;
@@ -1020,6 +1016,17 @@ static irqreturn_t qm_aeq_irq(int irq, void *data)
 	qm_db(qm, 0, QM_DOORBELL_CMD_AEQ, qm->status.aeq_head, 0);
 
 	return IRQ_HANDLED;
+}
+
+static irqreturn_t qm_aeq_irq(int irq, void *data)
+{
+	struct hisi_qm *qm = data;
+
+	atomic64_inc(&qm->debug.dfx.aeq_irq_cnt);
+	if (!readl(qm->io_base + QM_VF_AEQ_INT_SOURCE))
+		return IRQ_NONE;
+
+	return IRQ_WAKE_THREAD;
 }
 
 static void qm_irq_unregister(struct hisi_qm *qm)
@@ -5299,8 +5306,10 @@ static int qm_irq_register(struct hisi_qm *qm)
 		return ret;
 
 	if (qm->ver > QM_HW_V1) {
-		ret = request_irq(pci_irq_vector(pdev, QM_AEQ_EVENT_IRQ_VECTOR),
-				  qm_aeq_irq, 0, qm->dev_name, qm);
+		ret = request_threaded_irq(pci_irq_vector(pdev,
+					   QM_AEQ_EVENT_IRQ_VECTOR),
+					   qm_aeq_irq, qm_aeq_thread,
+					   0, qm->dev_name, qm);
 		if (ret)
 			goto err_aeq_irq;
 
