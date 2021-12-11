@@ -999,6 +999,18 @@ config MSC313E_WATCHDOG
 	  To compile this driver as a module, choose M here: the
 	  module will be called msc313e_wdt.
 
+config APPLE_WATCHDOG
+	tristate "Apple SoC watchdog"
+	depends on ARCH_APPLE || COMPILE_TEST
+	select WATCHDOG_CORE
+	help
+	  Say Y here to include support for the Watchdog found in Apple
+	  SoCs such as the M1. Next to the common watchdog features this
+	  driver is also required in order to reboot these SoCs.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called apple_wdt.
+
 # X86 (i386 + ia64 + x86_64) Architecture
 
 config ACQUIRE_WDT
