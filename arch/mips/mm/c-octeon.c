@@ -341,7 +341,7 @@ asmlinkage void cache_parity_error_octeon_recoverable(void)
 }
 
 /*
- * Called when the the exception is not recoverable
+ * Called when the exception is not recoverable
  */
 
 asmlinkage void cache_parity_error_octeon_non_recoverable(void)
