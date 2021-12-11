@@ -147,7 +147,7 @@ By default, the build will try to use the Read the Docs sphinx theme:
 
 If the theme is not available, it will fall-back to the classic one.
 
-The Sphinx theme can be overriden by using the ``DOCS_THEME`` make variable.
+The Sphinx theme can be overridden by using the ``DOCS_THEME`` make variable.
 
 To remove the generated documentation, run ``make cleandocs``.
 
