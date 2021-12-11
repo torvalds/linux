@@ -526,7 +526,7 @@ fail:
 	i915_probe_error(gt->i915, "Failed to load %s firmware %s (%d)\n",
 			 intel_uc_fw_type_repr(uc_fw->type), uc_fw->path,
 			 err);
-	intel_uc_fw_change_status(uc_fw, INTEL_UC_FIRMWARE_FAIL);
+	intel_uc_fw_change_status(uc_fw, INTEL_UC_FIRMWARE_LOAD_FAIL);
 	return err;
 }
 
@@ -544,7 +544,7 @@ int intel_uc_fw_init(struct intel_uc_fw *uc_fw)
 	if (err) {
 		DRM_DEBUG_DRIVER("%s fw pin-pages err=%d\n",
 				 intel_uc_fw_type_repr(uc_fw->type), err);
-		intel_uc_fw_change_status(uc_fw, INTEL_UC_FIRMWARE_FAIL);
+		intel_uc_fw_change_status(uc_fw, INTEL_UC_FIRMWARE_INIT_FAIL);
 	}
 
 	return err;
