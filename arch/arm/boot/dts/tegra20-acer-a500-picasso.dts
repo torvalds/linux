@@ -827,7 +827,7 @@
 	};
 
 	/* PMIC has a built-in 32KHz oscillator which is used by PMC */
-	clk32k_in: clock@0 {
+	clk32k_in: clock-32k-in {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
 		clock-frequency = <32768>;
@@ -839,7 +839,7 @@
 	 * oscillator is used as a reference clock-source by the
 	 * Azurewave WiFi/BT module.
 	 */
-	rtc_32k_wifi: clock@1 {
+	rtc_32k_wifi: clock-32k-wifi {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
 		clock-frequency = <32768>;
