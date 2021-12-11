@@ -4033,11 +4033,12 @@ int intel_guc_engine_failure_process_msg(struct intel_guc *guc,
 					 const u32 *msg, u32 len)
 {
 	struct intel_engine_cs *engine;
+	struct intel_gt *gt = guc_to_gt(guc);
 	u8 guc_class, instance;
 	u32 reason;
 
 	if (unlikely(len != 3)) {
-		drm_err(&guc_to_gt(guc)->i915->drm, "Invalid length %u", len);
+		drm_err(&gt->i915->drm, "Invalid length %u", len);
 		return -EPROTO;
 	}
 
@@ -4047,12 +4048,19 @@ int intel_guc_engine_failure_process_msg(struct intel_guc *guc,
 
 	engine = guc_lookup_engine(guc, guc_class, instance);
 	if (unlikely(!engine)) {
-		drm_err(&guc_to_gt(guc)->i915->drm,
+		drm_err(&gt->i915->drm,
 			"Invalid engine %d:%d", guc_class, instance);
 		return -EPROTO;
 	}
 
-	intel_gt_handle_error(guc_to_gt(guc), engine->mask,
+	/*
+	 * This is an unexpected failure of a hardware feature. So, log a real
+	 * error message not just the informational that comes with the reset.
+	 */
+	drm_err(&gt->i915->drm, "GuC engine reset request failed on %d:%d (%s) because 0x%08X",
+		guc_class, instance, engine->name, reason);
+
+	intel_gt_handle_error(gt, engine->mask,
 			      I915_ERROR_CAPTURE,
 			      "GuC failed to reset %s (reason=0x%08x)\n",
 			      engine->name, reason);
