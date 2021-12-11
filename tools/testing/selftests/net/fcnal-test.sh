@@ -446,6 +446,22 @@ cleanup()
 	ip netns del ${NSC} >/dev/null 2>&1
 }
 
+cleanup_vrf_dup()
+{
+	ip link del ${NSA_DEV2} >/dev/null 2>&1
+	ip netns pids ${NSC} | xargs kill 2>/dev/null
+	ip netns del ${NSC} >/dev/null 2>&1
+}
+
+setup_vrf_dup()
+{
+	# some VRF tests use ns-C which has the same config as
+	# ns-B but for a device NOT in the VRF
+	create_ns ${NSC} "-" "-"
+	connect_ns ${NSA} ${NSA_DEV2} ${NSA_IP}/24 ${NSA_IP6}/64 \
+		   ${NSC} ${NSC_DEV} ${NSB_IP}/24 ${NSB_IP6}/64
+}
+
 setup()
 {
 	local with_vrf=${1}
@@ -475,12 +491,6 @@ setup()
 
 		ip -netns ${NSB} ro add ${VRF_IP}/32 via ${NSA_IP} dev ${NSB_DEV}
 		ip -netns ${NSB} -6 ro add ${VRF_IP6}/128 via ${NSA_IP6} dev ${NSB_DEV}
-
-		# some VRF tests use ns-C which has the same config as
-		# ns-B but for a device NOT in the VRF
-		create_ns ${NSC} "-" "-"
-		connect_ns ${NSA} ${NSA_DEV2} ${NSA_IP}/24 ${NSA_IP6}/64 \
-			   ${NSC} ${NSC_DEV} ${NSB_IP}/24 ${NSB_IP6}/64
 	else
 		ip -netns ${NSA} ro add ${NSB_LO_IP}/32 via ${NSB_IP} dev ${NSA_DEV}
 		ip -netns ${NSA} ro add ${NSB_LO_IP6}/128 via ${NSB_IP6} dev ${NSA_DEV}
@@ -1177,7 +1187,9 @@ ipv4_tcp_vrf()
 	log_test_addr ${a} $? 1 "Global server, local connection"
 
 	# run MD5 tests
+	setup_vrf_dup
 	ipv4_tcp_md5
+	cleanup_vrf_dup
 
 	#
 	# enable VRF global server
@@ -2656,7 +2668,9 @@ ipv6_tcp_vrf()
 	log_test_addr ${a} $? 1 "Global server, local connection"
 
 	# run MD5 tests
+	setup_vrf_dup
 	ipv6_tcp_md5
+	cleanup_vrf_dup
 
 	#
 	# enable VRF global server
