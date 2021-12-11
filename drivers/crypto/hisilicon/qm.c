@@ -1015,9 +1015,9 @@ static irqreturn_t qm_aeq_irq(int irq, void *data)
 			aeqe++;
 			qm->status.aeq_head++;
 		}
-
-		qm_db(qm, 0, QM_DOORBELL_CMD_AEQ, qm->status.aeq_head, 0);
 	}
+
+	qm_db(qm, 0, QM_DOORBELL_CMD_AEQ, qm->status.aeq_head, 0);
 
 	return IRQ_HANDLED;
 }
