@@ -1605,22 +1605,26 @@ static const char *lm90_detect_analog(struct i2c_client *client, int chip_id,
 
 	switch (chip_id) {
 	case 0x40 ... 0x4f:	/* ADM1032 */
-		if ((address == 0x4c || address == 0x4d) && !(config1 & 0x3f) &&
+		if (man_id2 == 0x00 && chip_id2 == 0x00 &&
+		    (address == 0x4c || address == 0x4d) && !(config1 & 0x3f) &&
 		    convrate <= 0x0a)
 			name = "adm1032";
 		break;
 	case 0x51:	/* ADT7461 */
-		if ((address == 0x4c || address == 0x4d) && !(config1 & 0x1b) &&
+		if (man_id2 == 0x00 && chip_id2 == 0x00 &&
+		    (address == 0x4c || address == 0x4d) && !(config1 & 0x1b) &&
 		    convrate <= 0x0a)
 			name = "adt7461";
 		break;
 	case 0x54:	/* NCT1008 */
-		if ((address == 0x4c || address == 0x4d) && !(config1 & 0x1b) &&
+		if (man_id2 == 0x41 && chip_id2 == 0x61 &&
+		    (address == 0x4c || address == 0x4d) && !(config1 & 0x1b) &&
 		    convrate <= 0x0a)
 			name = "nct1008";
 		break;
 	case 0x57:	/* ADT7461A, NCT1008 (datasheet rev. 3) */
-		if ((address == 0x4c || address == 0x4d) && !(config1 & 0x1b) &&
+		if (man_id2 == 0x41 && chip_id2 == 0x61 &&
+		    (address == 0x4c || address == 0x4d) && !(config1 & 0x1b) &&
 		    convrate <= 0x0a)
 			name = "adt7461a";
 		break;
