@@ -89,6 +89,7 @@
 
 #define QM_AEQE_PHASE(aeqe)		((le32_to_cpu((aeqe)->dw0) >> 16) & 0x1)
 #define QM_AEQE_TYPE_SHIFT		17
+#define QM_EQ_OVERFLOW			1
 
 #define QM_DOORBELL_CMD_SQ		0
 #define QM_DOORBELL_CMD_CQ		1
@@ -988,6 +989,35 @@ static void qm_set_qp_disable(struct hisi_qp *qp, int offset)
 	mb();
 }
 
+static void qm_reset_function(struct hisi_qm *qm)
+{
+	struct hisi_qm *pf_qm = pci_get_drvdata(pci_physfn(qm->pdev));
+	struct device *dev = &qm->pdev->dev;
+	int ret;
+
+	if (qm_check_dev_error(pf_qm))
+		return;
+
+	ret = qm_reset_prepare_ready(qm);
+	if (ret) {
+		dev_err(dev, "reset function not ready\n");
+		return;
+	}
+
+	ret = hisi_qm_stop(qm, QM_FLR);
+	if (ret) {
+		dev_err(dev, "failed to stop qm when reset function\n");
+		goto clear_bit;
+	}
+
+	ret = hisi_qm_start(qm);
+	if (ret)
+		dev_err(dev, "failed to start qm when reset function\n");
+
+clear_bit:
+	qm_reset_bit_clear(qm);
+}
+
 static irqreturn_t qm_aeq_thread(int irq, void *data)
 {
 	struct hisi_qm *qm = data;
@@ -996,12 +1026,17 @@ static irqreturn_t qm_aeq_thread(int irq, void *data)
 
 	while (QM_AEQE_PHASE(aeqe) == qm->status.aeqc_phase) {
 		type = le32_to_cpu(aeqe->dw0) >> QM_AEQE_TYPE_SHIFT;
-		if (type < ARRAY_SIZE(qm_fifo_overflow))
-			dev_err(&qm->pdev->dev, "%s overflow\n",
-				qm_fifo_overflow[type]);
-		else
+
+		switch (type) {
+		case QM_EQ_OVERFLOW:
+			dev_err(&qm->pdev->dev, "eq overflow, reset function\n");
+			qm_reset_function(qm);
+			return IRQ_HANDLED;
+		default:
 			dev_err(&qm->pdev->dev, "unknown error type %u\n",
 				type);
+			break;
+		}
 
 		if (qm->status.aeq_head == QM_Q_DEPTH - 1) {
 			qm->status.aeqc_phase = !qm->status.aeqc_phase;
@@ -3545,6 +3580,22 @@ static void qm_init_eq_aeq_status(struct hisi_qm *qm)
 	status->aeqc_phase = true;
 }
 
+static void qm_enable_eq_aeq_interrupts(struct hisi_qm *qm)
+{
+	/* Clear eq/aeq interrupt source */
+	qm_db(qm, 0, QM_DOORBELL_CMD_AEQ, qm->status.aeq_head, 0);
+	qm_db(qm, 0, QM_DOORBELL_CMD_EQ, qm->status.eq_head, 0);
+
+	writel(0x0, qm->io_base + QM_VF_EQ_INT_MASK);
+	writel(0x0, qm->io_base + QM_VF_AEQ_INT_MASK);
+}
+
+static void qm_disable_eq_aeq_interrupts(struct hisi_qm *qm)
+{
+	writel(0x1, qm->io_base + QM_VF_EQ_INT_MASK);
+	writel(0x1, qm->io_base + QM_VF_AEQ_INT_MASK);
+}
+
 static int qm_eq_ctx_cfg(struct hisi_qm *qm)
 {
 	struct device *dev = &qm->pdev->dev;
@@ -3646,9 +3697,7 @@ static int __hisi_qm_start(struct hisi_qm *qm)
 		return ret;
 
 	qm_init_prefetch(qm);
-
-	writel(0x0, qm->io_base + QM_VF_EQ_INT_MASK);
-	writel(0x0, qm->io_base + QM_VF_AEQ_INT_MASK);
+	qm_enable_eq_aeq_interrupts(qm);
 
 	return 0;
 }
@@ -3796,10 +3845,7 @@ int hisi_qm_stop(struct hisi_qm *qm, enum qm_stop_reason r)
 		hisi_qm_set_hw_reset(qm, QM_RESET_STOP_RX_OFFSET);
 	}
 
-	/* Mask eq and aeq irq */
-	writel(0x1, qm->io_base + QM_VF_EQ_INT_MASK);
-	writel(0x1, qm->io_base + QM_VF_AEQ_INT_MASK);
-
+	qm_disable_eq_aeq_interrupts(qm);
 	if (qm->fun_type == QM_HW_PF) {
 		ret = hisi_qm_set_vft(qm, 0, 0, 0);
 		if (ret < 0) {
