@@ -392,6 +392,11 @@ static int serdes_set_mode(struct phy *phy, enum phy_mode mode, int submode)
 	if (mode != PHY_MODE_ETHERNET)
 		return -EOPNOTSUPP;
 
+	if (submode == PHY_INTERFACE_MODE_2500BASEX)
+		macro->speed = SPEED_2500;
+	else
+		macro->speed = SPEED_1000;
+
 	if (submode == PHY_INTERFACE_MODE_1000BASEX ||
 	    submode == PHY_INTERFACE_MODE_2500BASEX)
 		submode = PHY_INTERFACE_MODE_SGMII;
@@ -427,19 +432,8 @@ static int serdes_set_mode(struct phy *phy, enum phy_mode mode, int submode)
 	return -EINVAL;
 }
 
-static int serdes_set_speed(struct phy *phy, int speed)
-{
-	struct serdes_macro *macro = phy_get_drvdata(phy);
-
-	macro->speed = speed;
-
-	return lan966x_sd6g40_setup(macro, macro->idx - (CU_MAX + 1),
-				    macro->mode);
-}
-
 static const struct phy_ops serdes_ops = {
 	.set_mode	= serdes_set_mode,
-	.set_speed	= serdes_set_speed,
 	.owner		= THIS_MODULE,
 };
 
@@ -482,7 +476,6 @@ static int serdes_phy_create(struct serdes_ctrl *ctrl, u8 idx, struct phy **phy)
 
 	macro->idx = idx;
 	macro->ctrl = ctrl;
-	macro->speed = SPEED_1000;
 	macro->port = -1;
 
 	phy_set_drvdata(*phy, macro);
