@@ -12,6 +12,16 @@ Optional properties:
 - rockchip,wait-card-locked : This is a variable length array, user specified
 			      these sound cards need to be prepared and locked,
 			      otherwise the local slave card can be probed.
+- rockchip,audio-routing : sound card dapm routing.
+- hp-det-gpio : headphone detect gpio.
+- io-channels : headset mic/key detect adc channel.
+- io-channel-names : headset mic/key adc channel name.
+- spk-con-gpio : speaker enable/disabled gpio.
+- hp-con-gpio : headphone enable/disabled gpio.
+- keyup-threshold-microvolt: keyup-threshold-microvolt uV.
+- poll-interval : headset adc key poller internal ms.
+- play-pause-key : PLAYPAUSE key, can define the other key like vol+/vol- and so on.
+
 
 Optional dai-link subnode properties:
 - rockchip,format			: CPU/CODEC common audio format.
@@ -36,4 +46,43 @@ sound {
 	rockchip,mclk-fs = <256>;
 	rockchip,cpu = <&i2s0_8ch>;
 	rockchip,codec = <&codec>, <&vad>;
+};
+
+Example 2 :
+
+es8388_sound: es8388-sound {
+	status = "okay";
+	compatible = "rockchip,multicodecs-card";
+	rockchip,card-name = "rockchip-es8388";
+	hp-det-gpio = <&gpio1 RK_PD5 GPIO_ACTIVE_LOW>;
+	io-channels = <&saradc 3>;
+	io-channel-names = "adc-detect";
+	spk-con-gpio = <&gpio1 RK_PD3 GPIO_ACTIVE_HIGH>;
+	hp-con-gpio = <&gpio1 RK_PD2 GPIO_ACTIVE_HIGH>;
+	rockchip,format = "i2s";
+	rockchip,mclk-fs = <256>;
+	rockchip,cpu = <&i2s0_8ch>;
+	rockchip,codec = <&es8388>;
+	rockchip,audio-routing =
+                        "Headphone", "LOUT1",
+                        "Headphone", "ROUT1",
+                        "Speaker", "LOUT2",
+                        "Speaker", "ROUT2",
+                        "Headphone", "Headphone Power",
+                        "Headphone", "Headphone Power",
+                        "Speaker", "Speaker Power",
+                        "Speaker", "Speaker Power",
+                        "LINPUT1", "Main Mic",
+                        "LINPUT2", "Main Mic",
+                        "RINPUT1", "Headset Mic",
+                        "RINPUT2", "Headset Mic";
+        pinctrl-names = "default";
+        pinctrl-0 = <&hp_det>;
+        keyup-threshold-microvolt = <1800000>;
+        poll-interval = <100>;
+        play-pause-key{
+                label = "playpause";
+                linux,code = <KEY_PLAYPAUSE>;
+                press-threshold-microvolt = <2000>;
+	};
 };
