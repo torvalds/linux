@@ -630,9 +630,9 @@ struct q6apm_graph *q6apm_graph_open(struct device *dev, q6apm_cb cb,
 	init_waitqueue_head(&graph->cmd_wait);
 
 	graph->port = gpr_alloc_port(apm->gdev, dev, graph_callback, graph);
-	if (!graph->port) {
+	if (IS_ERR(graph->port)) {
 		kfree(graph);
-		ret = -ENOMEM;
+		ret = PTR_ERR(graph->port);
 		goto err;
 	}
 
