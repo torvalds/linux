@@ -331,7 +331,6 @@ int lan966x_port_pcs_set(struct lan966x_port *port,
 	struct lan966x *lan966x = port->lan966x;
 	bool inband_aneg = false;
 	bool outband;
-	int err;
 
 	if (config->inband) {
 		if (config->portmode == PHY_INTERFACE_MODE_SGMII ||
@@ -341,11 +340,6 @@ int lan966x_port_pcs_set(struct lan966x_port *port,
 			 config->autoneg)
 			inband_aneg = true; /* Clause-37 in-band-aneg */
 
-		if (config->speed > 0) {
-			err = phy_set_speed(port->serdes, config->speed);
-			if (err)
-				return err;
-		}
 		outband = false;
 	} else {
 		outband = true;
