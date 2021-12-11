@@ -3366,11 +3366,14 @@ ipv6_addr_bind_novrf()
 	run_cmd nettest -6 -s -l ${a} -d ${NSA_DEV} -t1 -b
 	log_test_addr ${a} $? 0 "TCP socket bind to local address after device bind"
 
+	# Sadly, the kernel allows binding a socket to a device and then
+	# binding to an address not on the device. So this test passes
+	# when it really should not
 	a=${NSA_LO_IP6}
 	log_start
-	show_hint "Should fail with 'Cannot assign requested address'"
-	run_cmd nettest -6 -s -l ${a} -d ${NSA_DEV} -t1 -b
-	log_test_addr ${a} $? 1 "TCP socket bind to out of scope local address"
+	show_hint "Tecnically should fail since address is not on device but kernel allows"
+	run_cmd nettest -6 -s -l ${a} -I ${NSA_DEV} -t1 -b
+	log_test_addr ${a} $? 0 "TCP socket bind to out of scope local address"
 }
 
 ipv6_addr_bind_vrf()
@@ -3411,10 +3414,15 @@ ipv6_addr_bind_vrf()
 	run_cmd nettest -6 -s -l ${a} -d ${NSA_DEV} -t1 -b
 	log_test_addr ${a} $? 0 "TCP socket bind to local address with device bind"
 
+	# Sadly, the kernel allows binding a socket to a device and then
+	# binding to an address not on the device. The only restriction
+	# is that the address is valid in the L3 domain. So this test
+	# passes when it really should not
 	a=${VRF_IP6}
 	log_start
-	run_cmd nettest -6 -s -l ${a} -d ${NSA_DEV} -t1 -b
-	log_test_addr ${a} $? 1 "TCP socket bind to VRF address with device bind"
+	show_hint "Tecnically should fail since address is not on device but kernel allows"
+	run_cmd nettest -6 -s -l ${a} -I ${NSA_DEV} -t1 -b
+	log_test_addr ${a} $? 0 "TCP socket bind to VRF address with device bind"
 
 	a=${NSA_LO_IP6}
 	log_start
