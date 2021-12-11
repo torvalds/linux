@@ -37,6 +37,9 @@ properties:
           - const: toradex,colibri_t20
           - const: nvidia,tegra20
       - items:
+          - const: asus,tf101
+          - const: nvidia,tegra20
+      - items:
           - const: acer,picasso
           - const: nvidia,tegra20
       - items:
@@ -48,6 +51,18 @@ properties:
               - nvidia,cardhu-a02
               - nvidia,cardhu-a04
           - const: nvidia,cardhu
+          - const: nvidia,tegra30
+      - items:
+          - const: asus,tf201
+          - const: nvidia,tegra30
+      - items:
+          - const: asus,tf300t
+          - const: nvidia,tegra30
+      - items:
+          - const: asus,tf300tg
+          - const: nvidia,tegra30
+      - items:
+          - const: asus,tf700t
           - const: nvidia,tegra30
       - items:
           - const: toradex,apalis_t30-eval
@@ -76,6 +91,7 @@ properties:
           - const: nvidia,tegra30
       - items:
           - enum:
+              - asus,tf701t
               - nvidia,dalmore
               - nvidia,roth
               - nvidia,tn7
