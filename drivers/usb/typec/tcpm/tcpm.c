@@ -1696,7 +1696,7 @@ static int tcpm_pd_svdm(struct tcpm_port *port, struct typec_altmode *adev,
 				u16 svid = modep->svids[modep->svid_index];
 				response[0] = VDO(svid, 1, svdm_version, CMD_DISCOVER_MODES);
 				rlen = 1;
-			} else {
+			} else if (port->data_role == TYPEC_HOST) {
 				tcpm_register_partner_altmodes(port);
 			}
 			break;
