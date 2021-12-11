@@ -449,12 +449,12 @@ static int i8k_get_power_status(void)
  * Procfs interface
  */
 
-static int
-i8k_ioctl_unlocked(struct file *fp, struct dell_smm_data *data, unsigned int cmd, unsigned long arg)
+static long i8k_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 {
-	int val = 0;
-	int speed, err;
+	struct dell_smm_data *data = PDE_DATA(file_inode(fp));
 	int __user *argp = (int __user *)arg;
+	int speed, err;
+	int val = 0;
 
 	if (!argp)
 		return -EINVAL;
@@ -516,11 +516,13 @@ i8k_ioctl_unlocked(struct file *fp, struct dell_smm_data *data, unsigned int cmd
 		if (copy_from_user(&speed, argp + 1, sizeof(int)))
 			return -EFAULT;
 
+		mutex_lock(&data->i8k_mutex);
 		err = i8k_set_fan(data, val, speed);
 		if (err < 0)
-			return err;
-
-		val = i8k_get_fan_status(data, val);
+			val = err;
+		else
+			val = i8k_get_fan_status(data, val);
+		mutex_unlock(&data->i8k_mutex);
 		break;
 
 	default:
@@ -534,18 +536,6 @@ i8k_ioctl_unlocked(struct file *fp, struct dell_smm_data *data, unsigned int cmd
 		return -EFAULT;
 
 	return 0;
-}
-
-static long i8k_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
-{
-	struct dell_smm_data *data = PDE_DATA(file_inode(fp));
-	long ret;
-
-	mutex_lock(&data->i8k_mutex);
-	ret = i8k_ioctl_unlocked(fp, data, cmd, arg);
-	mutex_unlock(&data->i8k_mutex);
-
-	return ret;
 }
 
 /*
