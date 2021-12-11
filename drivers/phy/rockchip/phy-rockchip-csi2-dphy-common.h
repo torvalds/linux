@@ -8,6 +8,8 @@
 #ifndef _PHY_ROCKCHIP_CSI2_DPHY_COMMON_H_
 #define _PHY_ROCKCHIP_CSI2_DPHY_COMMON_H_
 
+#include <linux/rk-camera-module.h>
+
 #define PHY_MAX 16
 #define MAX_DEV_NAME_LEN 32
 
@@ -52,15 +54,18 @@ struct csi2_sensor {
 };
 
 struct csi2_dphy_hw;
+struct samsung_mipi_dcphy;
 
 struct dphy_drv_data {
 	const char dev_name[MAX_DEV_NAME_LEN];
+	enum csi2_dphy_vendor vendor;
 };
 
 struct csi2_dphy {
 	struct device *dev;
 	struct list_head list;
 	struct csi2_dphy_hw *dphy_hw;
+	struct samsung_mipi_dcphy *samsung_phy;
 	struct v4l2_async_notifier notifier;
 	struct v4l2_subdev sd;
 	struct mutex mutex; /* lock for updating protection */
@@ -72,6 +77,7 @@ struct csi2_dphy {
 	bool is_streaming;
 	enum csi2_dphy_lane_mode lane_mode;
 	const struct dphy_drv_data *drv_data;
+	struct rkmodule_csi_dphy_param *dphy_param;
 };
 
 struct dphy_hw_drv_data {

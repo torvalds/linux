@@ -16,6 +16,12 @@
 #include <linux/pm_runtime.h>
 #include <linux/regmap.h>
 #include <linux/reset.h>
+#include <media/v4l2-ctrls.h>
+#include <media/v4l2-fwnode.h>
+#include <media/v4l2-subdev.h>
+#include <media/v4l2-device.h>
+#include "phy-rockchip-csi2-dphy-common.h"
+#include "phy-rockchip-samsung-dcphy.h"
 
 #define UPDATE(x, h, l)	(((x) << (l)) & GENMASK((h), (l)))
 #define HIWORD_UPDATE(v, h, l)	(((v) << (l)) | (GENMASK((h), (l)) << 16))
@@ -150,6 +156,66 @@
 #define MAX_DPHY_BW		4500000L
 #define MAX_CPHY_BW		2000000L
 
+#define RX_CLK_THS_SETTLE		(0xb30)
+#define RX_LANE0_THS_SETTLE		(0xC30)
+#define RX_LANE0_ERR_SOT_SYNC		(0xC34)
+#define RX_LANE1_THS_SETTLE		(0xD30)
+#define RX_LANE1_ERR_SOT_SYNC		(0xD34)
+#define RX_LANE2_THS_SETTLE		(0xE30)
+#define RX_LANE2_ERR_SOT_SYNC		(0xE34)
+#define RX_LANE3_THS_SETTLE		(0xF30)
+#define RX_LANE3_ERR_SOT_SYNC		(0xF34)
+#define RX_CLK_LANE_ENABLE		(0xB00)
+#define RX_DATA_LANE0_ENABLE		(0xC00)
+#define RX_DATA_LANE1_ENABLE		(0xD00)
+#define RX_DATA_LANE2_ENABLE		(0xE00)
+#define RX_DATA_LANE3_ENABLE		(0xF00)
+
+#define RX_S0C_GNR_CON1			(0xB04)
+#define RX_S0C_ANA_CON1			(0xB0c)
+#define RX_S0C_ANA_CON2			(0xB10)
+#define RX_S0C_ANA_CON3			(0xB14)
+#define RX_COMBO_S0D0_GNR_CON1		(0xC04)
+#define RX_COMBO_S0D0_ANA_CON1		(0xC0c)
+#define RX_COMBO_S0D0_ANA_CON2		(0xC10)
+#define RX_COMBO_S0D0_ANA_CON3		(0xC14)
+#define RX_COMBO_S0D0_ANA_CON6		(0xC20)
+#define RX_COMBO_S0D0_ANA_CON7		(0xC24)
+#define RX_COMBO_S0D0_DESKEW_CON0	(0xC40)
+#define RX_COMBO_S0D0_DESKEW_CON2	(0xC48)
+#define RX_COMBO_S0D0_DESKEW_CON4	(0xC50)
+#define RX_COMBO_S0D0_CRC_CON1		(0xC64)
+#define RX_COMBO_S0D0_CRC_CON2		(0xC68)
+#define RX_COMBO_S0D1_GNR_CON1		(0xD04)
+#define RX_COMBO_S0D1_ANA_CON1		(0xD0c)
+#define RX_COMBO_S0D1_ANA_CON2		(0xD10)
+#define RX_COMBO_S0D1_ANA_CON3		(0xD14)
+#define RX_COMBO_S0D1_ANA_CON6		(0xD20)
+#define RX_COMBO_S0D1_ANA_CON7		(0xD24)
+#define RX_COMBO_S0D1_DESKEW_CON0	(0xD40)
+#define RX_COMBO_S0D1_DESKEW_CON2	(0xD48)
+#define RX_COMBO_S0D1_DESKEW_CON4	(0xD50)
+#define RX_COMBO_S0D1_CRC_CON1		(0xD64)
+#define RX_COMBO_S0D1_CRC_CON2		(0xD68)
+#define RX_COMBO_S0D2_GNR_CON1		(0xE04)
+#define RX_COMBO_S0D2_ANA_CON1		(0xE0c)
+#define RX_COMBO_S0D2_ANA_CON2		(0xE10)
+#define RX_COMBO_S0D2_ANA_CON3		(0xE14)
+#define RX_COMBO_S0D2_ANA_CON6		(0xE20)
+#define RX_COMBO_S0D2_ANA_CON7		(0xE24)
+#define RX_COMBO_S0D2_DESKEW_CON0	(0xE40)
+#define RX_COMBO_S0D2_DESKEW_CON2	(0xE48)
+#define RX_COMBO_S0D2_DESKEW_CON4	(0xE50)
+#define RX_COMBO_S0D2_CRC_CON1		(0xE64)
+#define RX_COMBO_S0D2_CRC_CON2		(0xE68)
+#define RX_S0D3_GNR_CON1		(0xF04)
+#define RX_S0D3_ANA_CON1		(0xF0c)
+#define RX_S0D3_ANA_CON2		(0xF10)
+#define RX_S0D3_ANA_CON3		(0xF14)
+#define RX_S0D3_DESKEW_CON0		(0xF40)
+#define RX_S0D3_DESKEW_CON2		(0xF48)
+#define RX_S0D3_DESKEW_CON4		(0xF50)
+
 struct samsung_mipi_dphy_timing {
 	unsigned int max_lane_mbps;
 	u8 clk_prepare;
@@ -172,32 +238,6 @@ struct samsung_mipi_cphy_timing {
 	u8 lpx;
 	u8 hs_exit;
 	u8 settle_3;
-};
-
-struct samsung_mipi_dcphy {
-	struct device *dev;
-	struct clk *ref_clk;
-	struct clk *pclk;
-	struct regmap *regmap;
-	struct regmap *grf_regmap;
-	struct reset_control *phy_rst;
-	struct reset_control *apb_rst;
-	struct reset_control *grf_apb_rst;
-	bool c_option;
-
-	unsigned int lanes;
-
-	struct {
-		unsigned long long rate;
-		u8 prediv;
-		u16 fbdiv;
-		long dsm;
-		u8 scaler;
-
-		bool ssc_en;
-		u8 mfr;
-		u8 mrr;
-	} pll;
 };
 
 static const
@@ -1194,11 +1234,58 @@ struct samsung_mipi_cphy_timing samsung_mipi_cphy_timing_table[] = {
 	{   80,  1, 50, 25,  2,  0, 2 },
 };
 
+struct hsfreq_range {
+	u32 range_h;
+	u16 cfg_bit;
+};
+/* These tables must be sorted by .range_h ascending. */
+static const struct hsfreq_range samsung_dphy_rx_hsfreq_ranges[] = {
+	{ 80,  0x105}, { 100, 0x106}, { 120, 0x107}, { 140, 0x108},
+	{ 160, 0x109}, { 180, 0x10a}, { 200, 0x10b}, { 220, 0x10c},
+	{ 240, 0x10d}, { 270, 0x10e}, { 290, 0x10f}, { 310, 0x110},
+	{ 330, 0x111}, { 350, 0x112}, { 370, 0x113}, { 390, 0x114},
+	{ 410, 0x115}, { 430, 0x116}, { 450, 0x117}, { 470, 0x118},
+	{ 490, 0x119}, { 510, 0x11a}, { 540, 0x11b}, { 560, 0x11c},
+	{ 580, 0x11d}, { 600, 0x11e}, { 620, 0x11f}, { 640, 0x120},
+	{ 660, 0x121}, { 680, 0x122}, { 700, 0x123}, { 720, 0x124},
+	{ 740, 0x125}, { 760, 0x126}, { 790, 0x127}, { 810, 0x128},
+	{ 830, 0x129}, { 850, 0x12a}, { 870, 0x12b}, { 890, 0x12c},
+	{ 910, 0x12d}, { 930, 0x12e}, { 950, 0x12f}, { 970, 0x130},
+	{ 990, 0x131}, {1010, 0x132}, {1030, 0x133}, {1060, 0x134},
+	{1080, 0x135}, {1100, 0x136}, {1120, 0x137}, {1140, 0x138},
+	{1160, 0x139}, {1180, 0x13a}, {1200, 0x13b}, {1220, 0x13c},
+	{1240, 0x13d}, {1260, 0x13e}, {1280, 0x13f}, {1310, 0x140},
+	{1330, 0x141}, {1350, 0x142}, {1370, 0x143}, {1390, 0x144},
+	{1410, 0x145}, {1430, 0x146}, {1450, 0x147}, {1470, 0x148},
+	{1490, 0x149}, {1580, 0x007}, {1740, 0x008}, {1910, 0x009},
+	{2070, 0x00a}, {2240, 0x00b}, {2410, 0x00c}, {2570, 0x00d},
+	{2740, 0x00e}, {2910, 0x00f}, {3070, 0x010}, {3240, 0x011},
+	{3410, 0x012}, {3570, 0x013}, {3740, 0x014}, {3890, 0x015},
+	{4070, 0x016}, {4240, 0x017}, {4400, 0x018}, {4500, 0x019},
+};
+
+/* These tables must be sorted by .range_h ascending. */
+static const struct hsfreq_range samsung_cphy_rx_hsfreq_ranges[] = {
+	{ 500,  0x102}, { 990, 0x002}, { 2500, 0x001},
+};
+
 static void samsung_mipi_dcphy_bias_block_enable(struct samsung_mipi_dcphy *samsung)
 {
+	struct csi2_dphy *csi_dphy = samsung->dphy_dev[0];
+	u32 bias_con2 = 0x3223;
+
+	if (csi_dphy &&
+	    csi_dphy->dphy_param->lp_vol_ref != 3 &&
+	    csi_dphy->dphy_param->lp_vol_ref < 0x7) {
+		bias_con2 &= 0xfffffff8;
+		bias_con2 |= csi_dphy->dphy_param->lp_vol_ref;
+		dev_info(samsung->dev,
+			 "rx change lp_vol_ref to %d, it may cause tx exception\n",
+			 csi_dphy->dphy_param->lp_vol_ref);
+	}
 	regmap_write(samsung->regmap, BIAS_CON0, 0x0010);
 	regmap_write(samsung->regmap, BIAS_CON1, 0x0110);
-	regmap_write(samsung->regmap, BIAS_CON2, 0x3223);
+	regmap_write(samsung->regmap, BIAS_CON2, bias_con2);
 
 	/* default output voltage select:
 	 * dphy: 400mv
@@ -1612,7 +1699,7 @@ samsung_mipi_dcphy_hs_vreg_amp_configure(struct samsung_mipi_dcphy *samsung)
 
 static void samsung_mipi_dphy_power_on(struct samsung_mipi_dcphy *samsung)
 {
-	reset_control_assert(samsung->phy_rst);
+	reset_control_assert(samsung->m_phy_rst);
 
 	samsung_mipi_dcphy_bias_block_enable(samsung);
 	samsung_mipi_dcphy_pll_configure(samsung);
@@ -1621,7 +1708,7 @@ static void samsung_mipi_dphy_power_on(struct samsung_mipi_dcphy *samsung)
 	samsung_mipi_dcphy_pll_enable(samsung);
 	samsung_mipi_dphy_lane_enable(samsung);
 
-	reset_control_deassert(samsung->phy_rst);
+	reset_control_deassert(samsung->m_phy_rst);
 
 	/* The TSKEWCAL maximum is 100 µsec
 	 * at initial calibration.
@@ -1632,7 +1719,7 @@ static void samsung_mipi_dphy_power_on(struct samsung_mipi_dcphy *samsung)
 static void samsung_mipi_cphy_power_on(struct samsung_mipi_dcphy *samsung)
 {
 	regmap_write(samsung->grf_regmap, MIPI_DCPHY_GRF_CON0, M_CPHY_MODE);
-	reset_control_assert(samsung->phy_rst);
+	reset_control_assert(samsung->m_phy_rst);
 
 	samsung_mipi_dcphy_bias_block_enable(samsung);
 	samsung_mipi_dcphy_hs_vreg_amp_configure(samsung);
@@ -1641,7 +1728,7 @@ static void samsung_mipi_cphy_power_on(struct samsung_mipi_dcphy *samsung)
 	samsung_mipi_dcphy_pll_enable(samsung);
 	samsung_mipi_cphy_lane_enable(samsung);
 
-	reset_control_deassert(samsung->phy_rst);
+	reset_control_deassert(samsung->m_phy_rst);
 }
 
 static int samsung_mipi_dcphy_power_on(struct phy *phy)
@@ -1796,6 +1883,369 @@ static int samsung_mipi_dcphy_configure(struct phy *phy,
 	return 0;
 }
 
+static struct v4l2_subdev *get_remote_sensor(struct v4l2_subdev *sd)
+{
+	struct media_pad *local, *remote;
+	struct media_entity *sensor_me;
+
+	local = &sd->entity.pads[CSI2_DPHY_RX_PAD_SINK];
+	remote = media_entity_remote_pad(local);
+	if (!remote) {
+		v4l2_warn(sd, "No link between dphy and sensor\n");
+		return NULL;
+	}
+
+	sensor_me = media_entity_remote_pad(local)->entity;
+	return media_entity_to_v4l2_subdev(sensor_me);
+}
+
+static struct csi2_sensor *sd_to_sensor(struct csi2_dphy *dphy,
+					   struct v4l2_subdev *sd)
+{
+	int i;
+
+	for (i = 0; i < dphy->num_sensors; ++i)
+		if (dphy->sensors[i].sd == sd)
+			return &dphy->sensors[i];
+
+	return NULL;
+}
+
+static void samsung_dcphy_rx_config_settle(struct csi2_dphy *dphy,
+					  struct csi2_sensor *sensor)
+{
+	struct samsung_mipi_dcphy *samsung = dphy->samsung_phy;
+	const struct hsfreq_range *hsfreq_ranges = NULL;
+	int num_hsfreq_ranges = 0;
+	int i, hsfreq = 0;
+	u32 sot_sync = 0;
+
+	if (sensor->mbus.type == V4L2_MBUS_CSI2_DPHY) {
+		hsfreq_ranges = samsung_dphy_rx_hsfreq_ranges;
+		num_hsfreq_ranges = ARRAY_SIZE(samsung_dphy_rx_hsfreq_ranges);
+		sot_sync = 0x03;
+	} else if (sensor->mbus.type == V4L2_MBUS_CSI2_CPHY) {
+		hsfreq_ranges = samsung_cphy_rx_hsfreq_ranges;
+		num_hsfreq_ranges = ARRAY_SIZE(samsung_cphy_rx_hsfreq_ranges);
+		sot_sync = 0x32;
+	} else {
+		dev_err(dphy->dev, "mbus type %d is not support",
+			sensor->mbus.type);
+		return;
+	}
+	/* set data lane */
+	for (i = 0; i < num_hsfreq_ranges; i++) {
+		if (hsfreq_ranges[i].range_h >= dphy->data_rate_mbps) {
+			hsfreq = hsfreq_ranges[i].cfg_bit;
+			break;
+		}
+	}
+
+	if (i == num_hsfreq_ranges) {
+		i = num_hsfreq_ranges - 1;
+		dev_warn(dphy->dev, "data rate: %lld mbps, max support %d mbps",
+			 dphy->data_rate_mbps, hsfreq_ranges[i].range_h + 1);
+		hsfreq = hsfreq_ranges[i].cfg_bit;
+	}
+	/*clk settle fix to 0x301*/
+	if (sensor->mbus.type == V4L2_MBUS_CSI2_DPHY)
+		regmap_write(samsung->regmap, RX_CLK_THS_SETTLE, 0x301);
+
+	if (sensor->lanes > 0x00) {
+		regmap_update_bits(samsung->regmap, RX_LANE0_THS_SETTLE, 0x1ff, hsfreq);
+		regmap_update_bits(samsung->regmap, RX_LANE0_ERR_SOT_SYNC, 0xff, sot_sync);
+	}
+	if (sensor->lanes > 0x01) {
+		regmap_update_bits(samsung->regmap, RX_LANE1_THS_SETTLE, 0x1ff, hsfreq);
+		regmap_update_bits(samsung->regmap, RX_LANE1_ERR_SOT_SYNC, 0xff, sot_sync);
+	}
+	if (sensor->lanes > 0x02) {
+		regmap_update_bits(samsung->regmap, RX_LANE2_THS_SETTLE, 0x1ff, hsfreq);
+		regmap_update_bits(samsung->regmap, RX_LANE2_ERR_SOT_SYNC, 0xff, sot_sync);
+	}
+	if (sensor->lanes > 0x03) {
+		regmap_update_bits(samsung->regmap, RX_LANE3_THS_SETTLE, 0x1ff, hsfreq);
+		regmap_update_bits(samsung->regmap, RX_LANE3_ERR_SOT_SYNC, 0xff, sot_sync);
+	}
+}
+
+static int samsung_dcphy_rx_config_common(struct csi2_dphy *dphy,
+					  struct csi2_sensor *sensor)
+{
+	struct samsung_mipi_dcphy *samsung = dphy->samsung_phy;
+	u32 dlysel = 0;
+	int i = 0;
+
+	if (sensor->mbus.type == V4L2_MBUS_CSI2_DPHY) {
+		if (dphy->data_rate_mbps < 1500)
+			dlysel = 0;
+		else if (dphy->data_rate_mbps < 2000)
+			dlysel = 3 << 8;
+		else if (dphy->data_rate_mbps < 3000)
+			dlysel = 2 << 8;
+		else if (dphy->data_rate_mbps < 4000)
+			dlysel = 1 << 8;
+		else if (dphy->data_rate_mbps < 6500)
+			dlysel = 0;
+		if (dphy->dphy_param->clk_hs_term_sel > 0x7) {
+			dev_err(dphy->dev, "clk_hs_term_sel error param %d\n",
+				dphy->dphy_param->clk_hs_term_sel);
+			return -EINVAL;
+		}
+		for (i = 0; i < sensor->lanes; i++) {
+			if (dphy->dphy_param->data_hs_term_sel[i] > 0x7) {
+				dev_err(dphy->dev, "data_hs_term_sel[%d] error param %d\n",
+					i,
+					dphy->dphy_param->data_hs_term_sel[i]);
+				return -EINVAL;
+			}
+			if (dphy->dphy_param->lp_hys_sw[i] > 0x3) {
+				dev_err(dphy->dev, "lp_hys_sw[%d] error param %d\n",
+					i,
+					dphy->dphy_param->lp_hys_sw[i]);
+				return -EINVAL;
+			}
+			if (dphy->dphy_param->lp_escclk_pol_sel[i] > 0x1) {
+				dev_err(dphy->dev, "lp_escclk_pol_sel[%d] error param %d\n",
+					i,
+					dphy->dphy_param->lp_escclk_pol_sel[i]);
+				return -EINVAL;
+			}
+			if (dphy->dphy_param->skew_data_cal_clk[i] > 0x1f) {
+				dev_err(dphy->dev, "skew_data_cal_clk[%d] error param %d\n",
+					i,
+					dphy->dphy_param->skew_data_cal_clk[i]);
+				return -EINVAL;
+			}
+		}
+		regmap_write(samsung->regmap, RX_S0C_GNR_CON1, 0x1450);
+		regmap_write(samsung->regmap, RX_S0C_ANA_CON1, 0x8000);
+		regmap_write(samsung->regmap, RX_S0C_ANA_CON2, dphy->dphy_param->clk_hs_term_sel);
+		regmap_write(samsung->regmap, RX_S0C_ANA_CON3, 0x0600);
+		if (sensor->lanes > 0x00) {
+			regmap_write(samsung->regmap, RX_COMBO_S0D0_GNR_CON1, 0x1450);
+			regmap_write(samsung->regmap, RX_COMBO_S0D0_ANA_CON1, 0x8000);
+			regmap_write(samsung->regmap, RX_COMBO_S0D0_ANA_CON2, dlysel |
+				     dphy->dphy_param->data_hs_term_sel[0]);
+			regmap_write(samsung->regmap, RX_COMBO_S0D0_ANA_CON3, 0x0600 |
+				     (dphy->dphy_param->lp_hys_sw[0] << 4) |
+				     (dphy->dphy_param->lp_escclk_pol_sel[0] << 11));
+			regmap_write(samsung->regmap, RX_COMBO_S0D0_ANA_CON7, 0x40);
+			regmap_write(samsung->regmap, RX_COMBO_S0D0_DESKEW_CON2,
+				     dphy->dphy_param->skew_data_cal_clk[0]);
+		}
+		if (sensor->lanes > 0x01) {
+			regmap_write(samsung->regmap, RX_COMBO_S0D1_GNR_CON1, 0x1450);
+			regmap_write(samsung->regmap, RX_COMBO_S0D1_ANA_CON1, 0x8000);
+			regmap_write(samsung->regmap, RX_COMBO_S0D1_ANA_CON2, dlysel |
+				     dphy->dphy_param->data_hs_term_sel[1]);
+			regmap_write(samsung->regmap, RX_COMBO_S0D1_ANA_CON3, 0x0600 |
+				     (dphy->dphy_param->lp_hys_sw[1] << 4) |
+				     (dphy->dphy_param->lp_escclk_pol_sel[1] << 11));
+			regmap_write(samsung->regmap, RX_COMBO_S0D1_ANA_CON7, 0x40);
+			regmap_write(samsung->regmap, RX_COMBO_S0D1_DESKEW_CON2,
+				     dphy->dphy_param->skew_data_cal_clk[1]);
+		}
+		if (sensor->lanes > 0x02) {
+			regmap_write(samsung->regmap, RX_COMBO_S0D2_GNR_CON1, 0x1450);
+			regmap_write(samsung->regmap, RX_COMBO_S0D2_ANA_CON1, 0x8000);
+			regmap_write(samsung->regmap, RX_COMBO_S0D2_ANA_CON2, dlysel |
+				     dphy->dphy_param->data_hs_term_sel[2]);
+			regmap_write(samsung->regmap, RX_COMBO_S0D2_ANA_CON3, 0x0600 |
+				     (dphy->dphy_param->lp_hys_sw[2] << 4) |
+				     (dphy->dphy_param->lp_escclk_pol_sel[2] << 11));
+			regmap_write(samsung->regmap, RX_COMBO_S0D2_ANA_CON7, 0x40);
+			regmap_write(samsung->regmap, RX_COMBO_S0D2_DESKEW_CON2,
+				     dphy->dphy_param->skew_data_cal_clk[2]);
+		}
+		if (sensor->lanes > 0x03) {
+			regmap_write(samsung->regmap, RX_S0D3_GNR_CON1, 0x1450);
+			regmap_write(samsung->regmap, RX_S0D3_ANA_CON1, 0x8000);
+			regmap_write(samsung->regmap, RX_S0D3_ANA_CON2, dlysel |
+				     dphy->dphy_param->data_hs_term_sel[3]);
+			regmap_write(samsung->regmap, RX_S0D3_ANA_CON3, 0x0600 |
+				     (dphy->dphy_param->lp_hys_sw[3] << 4) |
+				     (dphy->dphy_param->lp_escclk_pol_sel[3] << 11));
+			regmap_write(samsung->regmap, RX_S0D3_DESKEW_CON2,
+				     dphy->dphy_param->skew_data_cal_clk[3]);
+		}
+	} else {
+		if (sensor->lanes > 0x00) {
+			regmap_write(samsung->regmap, RX_COMBO_S0D0_GNR_CON1, 0x1450);
+			regmap_write(samsung->regmap, RX_COMBO_S0D0_ANA_CON1, 0x8000);
+			regmap_write(samsung->regmap, RX_COMBO_S0D0_ANA_CON2, 0x5);
+			regmap_write(samsung->regmap, RX_COMBO_S0D0_ANA_CON3, 0x600);
+			regmap_write(samsung->regmap, RX_COMBO_S0D0_ANA_CON6, 0x608);
+			regmap_write(samsung->regmap, RX_COMBO_S0D0_ANA_CON7, 0x40);
+			regmap_write(samsung->regmap, RX_COMBO_S0D0_CRC_CON1, 0x1500);
+			regmap_write(samsung->regmap, RX_COMBO_S0D0_CRC_CON2, 0x30);
+		}
+		if (sensor->lanes > 0x01) {
+			regmap_write(samsung->regmap, RX_COMBO_S0D1_GNR_CON1, 0x1450);
+			regmap_write(samsung->regmap, RX_COMBO_S0D1_ANA_CON1, 0x8000);
+			regmap_write(samsung->regmap, RX_COMBO_S0D1_ANA_CON2, 0x5);
+			regmap_write(samsung->regmap, RX_COMBO_S0D1_ANA_CON3, 0x600);
+			regmap_write(samsung->regmap, RX_COMBO_S0D1_ANA_CON6, 0x608);
+			regmap_write(samsung->regmap, RX_COMBO_S0D1_ANA_CON7, 0x40);
+			regmap_write(samsung->regmap, RX_COMBO_S0D1_CRC_CON1, 0x1500);
+			regmap_write(samsung->regmap, RX_COMBO_S0D1_CRC_CON2, 0x30);
+		}
+		if (sensor->lanes > 0x02) {
+			regmap_write(samsung->regmap, RX_COMBO_S0D2_GNR_CON1, 0x1450);
+			regmap_write(samsung->regmap, RX_COMBO_S0D2_ANA_CON1, 0x8000);
+			regmap_write(samsung->regmap, RX_COMBO_S0D2_ANA_CON2, 0x5);
+			regmap_write(samsung->regmap, RX_COMBO_S0D2_ANA_CON3, 0x600);
+			regmap_write(samsung->regmap, RX_COMBO_S0D2_ANA_CON6, 0x608);
+			regmap_write(samsung->regmap, RX_COMBO_S0D2_ANA_CON7, 0x40);
+			regmap_write(samsung->regmap, RX_COMBO_S0D2_CRC_CON1, 0x1500);
+			regmap_write(samsung->regmap, RX_COMBO_S0D2_CRC_CON2, 0x30);
+		}
+	}
+	return 0;
+}
+
+static int samsung_dcphy_rx_lane_enable(struct csi2_dphy *dphy,
+					  struct csi2_sensor *sensor)
+{
+	struct samsung_mipi_dcphy *samsung = dphy->samsung_phy;
+	u32 sts;
+	int ret = 0;
+
+	if (sensor->mbus.type == V4L2_MBUS_CSI2_DPHY)
+		regmap_update_bits(samsung->regmap, RX_CLK_LANE_ENABLE, PHY_ENABLE, PHY_ENABLE);
+
+	if (sensor->lanes > 0x00)
+		regmap_update_bits(samsung->regmap, RX_DATA_LANE0_ENABLE, PHY_ENABLE, PHY_ENABLE);
+	if (sensor->lanes > 0x01)
+		regmap_update_bits(samsung->regmap, RX_DATA_LANE1_ENABLE, PHY_ENABLE, PHY_ENABLE);
+	if (sensor->lanes > 0x02)
+		regmap_update_bits(samsung->regmap, RX_DATA_LANE2_ENABLE, PHY_ENABLE, PHY_ENABLE);
+	if (sensor->lanes > 0x03)
+		regmap_update_bits(samsung->regmap, RX_DATA_LANE3_ENABLE, PHY_ENABLE, PHY_ENABLE);
+
+	/*wait for clk lane ready*/
+	if (sensor->mbus.type == V4L2_MBUS_CSI2_DPHY) {
+		ret = regmap_read_poll_timeout(samsung->regmap, RX_CLK_LANE_ENABLE,
+				       sts, (sts & PHY_READY), 200, 4000);
+		if (ret < 0) {
+			dev_err(samsung->dev, "phy rx clk lane is not locked\n");
+			return -EINVAL;
+		}
+	}
+
+	/*wait for data lane ready*/
+	if (sensor->lanes > 0x00) {
+		ret = regmap_read_poll_timeout(samsung->regmap, RX_DATA_LANE0_ENABLE,
+				       sts, (sts & PHY_READY), 200, 2000);
+		if (ret < 0) {
+			dev_err(samsung->dev, "phy rx data lane 0 is not locked\n");
+			return -EINVAL;
+		}
+	}
+	if (sensor->lanes > 0x01) {
+		ret = regmap_read_poll_timeout(samsung->regmap, RX_DATA_LANE1_ENABLE,
+				       sts, (sts & PHY_READY), 200, 2000);
+		if (ret < 0) {
+			dev_err(samsung->dev, "phy rx data lane 1 is not locked\n");
+			return -EINVAL;
+		}
+	}
+	if (sensor->lanes > 0x02) {
+		ret = regmap_read_poll_timeout(samsung->regmap, RX_DATA_LANE2_ENABLE,
+				       sts, (sts & PHY_READY), 200, 2000);
+		if (ret < 0) {
+			dev_err(samsung->dev, "phy rx data lane 2 is not locked\n");
+			return -EINVAL;
+		}
+	}
+
+	if (sensor->lanes > 0x03) {
+		ret = regmap_read_poll_timeout(samsung->regmap, RX_DATA_LANE3_ENABLE,
+				       sts, (sts & PHY_READY), 200, 2000);
+		if (ret < 0) {
+			dev_err(samsung->dev, "phy rx data lane 3 is not locked\n");
+			return -EINVAL;
+		}
+	}
+	return 0;
+}
+
+static int samsung_dcphy_rx_stream_on(struct csi2_dphy *dphy,
+					struct v4l2_subdev *sd)
+{
+	struct v4l2_subdev *sensor_sd = get_remote_sensor(sd);
+	struct csi2_sensor *sensor = sd_to_sensor(dphy, sensor_sd);
+	struct samsung_mipi_dcphy *samsung = dphy->samsung_phy;
+	int ret = 0;
+
+	mutex_lock(&samsung->mutex);
+	if (sensor->mbus.type == V4L2_MBUS_CSI2_CPHY)
+		regmap_write(samsung->grf_regmap, MIPI_DCPHY_GRF_CON0, S_CPHY_MODE);
+
+	if (samsung->s_phy_rst)
+		reset_control_assert(samsung->s_phy_rst);
+
+	samsung_mipi_dcphy_bias_block_enable(samsung);
+	ret = samsung_dcphy_rx_config_common(dphy, sensor);
+	if (ret)
+		goto out_streamon;
+	samsung_dcphy_rx_config_settle(dphy, sensor);
+
+	ret = samsung_dcphy_rx_lane_enable(dphy, sensor);
+	if (ret)
+		goto out_streamon;
+
+	if (samsung->s_phy_rst)
+		reset_control_deassert(samsung->s_phy_rst);
+
+	atomic_inc(&samsung->stream_cnt);
+	mutex_unlock(&samsung->mutex);
+
+	return 0;
+out_streamon:
+	if (samsung->s_phy_rst)
+		reset_control_deassert(samsung->s_phy_rst);
+	mutex_unlock(&samsung->mutex);
+	dev_err(dphy->dev, "stream on error\n");
+	return -EINVAL;
+
+}
+
+static int samsung_dcphy_rx_stream_off(struct csi2_dphy *dphy,
+					  struct v4l2_subdev *sd)
+{
+	struct samsung_mipi_dcphy *samsung = dphy->samsung_phy;
+	struct v4l2_subdev *sensor_sd = get_remote_sensor(sd);
+	struct csi2_sensor *sensor = sd_to_sensor(dphy, sensor_sd);
+
+	if (atomic_dec_return(&samsung->stream_cnt))
+		return 0;
+
+	mutex_lock(&samsung->mutex);
+	if (samsung->s_phy_rst)
+		reset_control_assert(samsung->s_phy_rst);
+
+	if (sensor->mbus.type == V4L2_MBUS_CSI2_DPHY)
+		regmap_update_bits(samsung->regmap, RX_CLK_LANE_ENABLE, PHY_ENABLE, 0);
+
+	if (sensor->lanes > 0x00)
+		regmap_update_bits(samsung->regmap, RX_DATA_LANE0_ENABLE, PHY_ENABLE, 0);
+	if (sensor->lanes > 0x01)
+		regmap_update_bits(samsung->regmap, RX_DATA_LANE1_ENABLE, PHY_ENABLE, 0);
+	if (sensor->lanes > 0x02)
+		regmap_update_bits(samsung->regmap, RX_DATA_LANE2_ENABLE, PHY_ENABLE, 0);
+	if (sensor->lanes > 0x03)
+		regmap_update_bits(samsung->regmap, RX_DATA_LANE3_ENABLE, PHY_ENABLE, 0);
+
+	if (samsung->s_phy_rst)
+		reset_control_deassert(samsung->s_phy_rst);
+	usleep_range(500, 1000);
+
+	mutex_unlock(&samsung->mutex);
+
+	return 0;
+}
+
 static int samsung_mipi_dcphy_init(struct phy *phy)
 {
 	struct samsung_mipi_dcphy *samsung = phy_get_drvdata(phy);
@@ -1824,11 +2274,11 @@ static const struct phy_ops samsung_mipi_dcphy_ops = {
 };
 
 static const struct regmap_config samsung_mipi_dcphy_regmap_config = {
-	.name = "dcphy_tx",
+	.name = "dcphy",
 	.reg_bits = 32,
 	.val_bits = 32,
 	.reg_stride = 4,
-	.max_register = 0x0b00,
+	.max_register = 0x10000,
 };
 
 static int samsung_mipi_dcphy_probe(struct platform_device *pdev)
@@ -1880,10 +2330,16 @@ static int samsung_mipi_dcphy_probe(struct platform_device *pdev)
 		return PTR_ERR(samsung->pclk);
 	}
 
-	samsung->phy_rst = devm_reset_control_get(dev, "phy");
-	if (IS_ERR(samsung->phy_rst)) {
-		dev_err(dev, "failed to get system phy_rst control\n");
-		return PTR_ERR(samsung->phy_rst);
+	samsung->m_phy_rst = devm_reset_control_get(dev, "m_phy");
+	if (IS_ERR(samsung->m_phy_rst)) {
+		dev_err(dev, "failed to get system m_phy_rst control\n");
+		return PTR_ERR(samsung->m_phy_rst);
+	}
+
+	samsung->s_phy_rst = devm_reset_control_get(dev, "s_phy");
+	if (IS_ERR(samsung->s_phy_rst)) {
+		dev_err(dev, "failed to get system s_phy_rst control\n");
+		return PTR_ERR(samsung->s_phy_rst);
 	}
 
 	samsung->apb_rst = devm_reset_control_get(dev, "apb");
@@ -1912,6 +2368,9 @@ static int samsung_mipi_dcphy_probe(struct platform_device *pdev)
 		return PTR_ERR(phy_provider);
 	}
 
+	samsung->stream_on = samsung_dcphy_rx_stream_on;
+	samsung->stream_off = samsung_dcphy_rx_stream_off;
+	mutex_init(&samsung->mutex);
 	pm_runtime_enable(dev);
 
 	return 0;
@@ -1922,6 +2381,7 @@ static int samsung_mipi_dcphy_remove(struct platform_device *pdev)
 	struct samsung_mipi_dcphy *samsung = platform_get_drvdata(pdev);
 
 	pm_runtime_disable(samsung->dev);
+	mutex_destroy(&samsung->mutex);
 
 	return 0;
 }
@@ -1952,7 +2412,9 @@ static const struct dev_pm_ops samsung_mipi_dcphy_pm_ops = {
 };
 
 static const struct of_device_id samsung_mipi_dcphy_of_match[] = {
-	{ .compatible = "rockchip,rk3588-mipi-dcphy", },
+	{
+		.compatible = "rockchip,rk3588-mipi-dcphy",
+	},
 	{}
 };
 MODULE_DEVICE_TABLE(of, samsung_mipi_dcphy_of_match);
