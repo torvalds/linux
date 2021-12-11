@@ -1492,7 +1492,6 @@ static int bch2_trans_start_alloc_update(struct btree_trans *trans, struct btree
 	struct bch_fs *c = trans->c;
 	struct bch_dev *ca = bch_dev_bkey_exists(c, ptr->dev);
 	struct bpos pos = POS(ptr->dev, PTR_BUCKET_NR(ca, ptr));
-	struct bucket *g;
 	struct bkey_i *update;
 	int ret;
 
@@ -1507,14 +1506,9 @@ static int bch2_trans_start_alloc_update(struct btree_trans *trans, struct btree
 	}
 
 	update = __bch2_btree_trans_peek_updates(iter);
-	if (update && !bpos_cmp(update->k.p, pos)) {
-		*u = bch2_alloc_unpack(bkey_i_to_s_c(update));
-	} else {
-		percpu_down_read(&c->mark_lock);
-		g = bucket(ca, pos.offset);
-		*u = alloc_mem_to_key(iter, g, READ_ONCE(g->mark));
-		percpu_up_read(&c->mark_lock);
-	}
+	*u = update && !bpos_cmp(update->k.p, pos)
+		? bch2_alloc_unpack(bkey_i_to_s_c(update))
+		: alloc_mem_to_key(c, iter);
 
 	return 0;
 }

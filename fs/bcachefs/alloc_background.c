@@ -393,9 +393,6 @@ static int bch2_alloc_write_key(struct btree_trans *trans,
 {
 	struct bch_fs *c = trans->c;
 	struct bkey_s_c k;
-	struct bch_dev *ca;
-	struct bucket *g;
-	struct bucket_mark m;
 	struct bkey_alloc_unpacked old_u, new_u;
 	int ret;
 retry:
@@ -411,14 +408,8 @@ retry:
 	if (ret)
 		goto err;
 
-	old_u = bch2_alloc_unpack(k);
-
-	percpu_down_read(&c->mark_lock);
-	ca	= bch_dev_bkey_exists(c, iter->pos.inode);
-	g	= bucket(ca, iter->pos.offset);
-	m	= READ_ONCE(g->mark);
-	new_u	= alloc_mem_to_key(iter, g, m);
-	percpu_up_read(&c->mark_lock);
+	old_u	= bch2_alloc_unpack(k);
+	new_u	= alloc_mem_to_key(c, iter);
 
 	if (!bkey_alloc_unpacked_cmp(old_u, new_u))
 		return 0;
@@ -470,9 +461,7 @@ int bch2_bucket_io_time_reset(struct btree_trans *trans, unsigned dev,
 			      size_t bucket_nr, int rw)
 {
 	struct bch_fs *c = trans->c;
-	struct bch_dev *ca = bch_dev_bkey_exists(c, dev);
 	struct btree_iter iter;
-	struct bucket *g;
 	struct bkey_alloc_unpacked u;
 	u64 *time, now;
 	int ret = 0;
@@ -485,10 +474,7 @@ int bch2_bucket_io_time_reset(struct btree_trans *trans, unsigned dev,
 	if (ret)
 		goto out;
 
-	percpu_down_read(&c->mark_lock);
-	g = bucket(ca, bucket_nr);
-	u = alloc_mem_to_key(&iter, g, READ_ONCE(g->mark));
-	percpu_up_read(&c->mark_lock);
+	u = alloc_mem_to_key(c, &iter);
 
 	time = rw == READ ? &u.read_time : &u.write_time;
 	now = atomic64_read(&c->io_clock[rw].now);
@@ -766,8 +752,6 @@ static int bucket_invalidate_btree(struct btree_trans *trans,
 {
 	struct bch_fs *c = trans->c;
 	struct bkey_alloc_unpacked u;
-	struct bucket *g;
-	struct bucket_mark m;
 	struct btree_iter iter;
 	int ret;
 
@@ -781,11 +765,7 @@ static int bucket_invalidate_btree(struct btree_trans *trans,
 	if (ret)
 		goto err;
 
-	percpu_down_read(&c->mark_lock);
-	g = bucket(ca, b);
-	m = READ_ONCE(g->mark);
-	u = alloc_mem_to_key(&iter, g, m);
-	percpu_up_read(&c->mark_lock);
+	u = alloc_mem_to_key(c, &iter);
 
 	u.gen++;
 	u.data_type	= 0;

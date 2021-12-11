@@ -4,7 +4,9 @@
 
 #include "bcachefs.h"
 #include "alloc_types.h"
+#include "buckets.h"
 #include "debug.h"
+#include "super.h"
 
 extern const char * const bch2_allocator_states[];
 
@@ -43,22 +45,31 @@ int bch2_alloc_write(struct btree_trans *, struct btree_iter *,
 int bch2_bucket_io_time_reset(struct btree_trans *, unsigned, size_t, int);
 
 static inline struct bkey_alloc_unpacked
-alloc_mem_to_key(struct btree_iter *iter,
-		 struct bucket *g, struct bucket_mark m)
+alloc_mem_to_key(struct bch_fs *c, struct btree_iter *iter)
 {
-	return (struct bkey_alloc_unpacked) {
+	struct bch_dev *ca;
+	struct bucket *g;
+	struct bkey_alloc_unpacked ret;
+
+	percpu_down_read(&c->mark_lock);
+	ca	= bch_dev_bkey_exists(c, iter->pos.inode);
+	g	= bucket(ca, iter->pos.offset);
+	ret	= (struct bkey_alloc_unpacked) {
 		.dev		= iter->pos.inode,
 		.bucket		= iter->pos.offset,
-		.gen		= m.gen,
+		.gen		= g->mark.gen,
 		.oldest_gen	= g->oldest_gen,
-		.data_type	= m.data_type,
-		.dirty_sectors	= m.dirty_sectors,
-		.cached_sectors	= m.cached_sectors,
+		.data_type	= g->mark.data_type,
+		.dirty_sectors	= g->mark.dirty_sectors,
+		.cached_sectors	= g->mark.cached_sectors,
 		.read_time	= g->io_time[READ],
 		.write_time	= g->io_time[WRITE],
 		.stripe		= g->stripe,
 		.stripe_redundancy = g->stripe_redundancy,
 	};
+	percpu_up_read(&c->mark_lock);
+
+	return ret;
 }
 
 #define ALLOC_SCAN_BATCH(ca)		max_t(size_t, 1, (ca)->mi.nbuckets >> 9)
