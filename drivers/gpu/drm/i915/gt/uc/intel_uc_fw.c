@@ -355,13 +355,6 @@ int intel_uc_fw_fetch(struct intel_uc_fw *uc_fw)
 	uc_fw->ucode_size = (css->size_dw - css->header_size_dw) * sizeof(u32);
 
 	/* now RSA */
-	if (unlikely(css->key_size_dw != UOS_RSA_SCRATCH_COUNT)) {
-		drm_warn(&i915->drm, "%s firmware %s: unexpected key size: %u != %u\n",
-			 intel_uc_fw_type_repr(uc_fw->type), uc_fw->path,
-			 css->key_size_dw, UOS_RSA_SCRATCH_COUNT);
-		err = -EPROTO;
-		goto fail;
-	}
 	uc_fw->rsa_size = css->key_size_dw * sizeof(u32);
 
 	/* At least, it should have header, uCode and RSA. Size of all three. */
