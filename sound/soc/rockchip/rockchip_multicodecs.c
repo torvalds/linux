@@ -23,6 +23,7 @@
 #include <linux/gpio.h>
 #include <linux/iio/consumer.h>
 #include <linux/iio/iio.h>
+#include <linux/input.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/module.h>
@@ -42,6 +43,19 @@
 #define WAIT_CARDS	(SNDRV_CARDS - 1)
 #define DEFAULT_MCLK_FS	256
 
+struct adc_keys_button {
+	u32 voltage;
+	u32 keycode;
+};
+
+struct input_dev_poller {
+	void (*poll)(struct input_dev *dev);
+
+	unsigned int poll_interval_ms;
+	struct input_dev *input;
+	struct delayed_work work;
+};
+
 struct multicodecs_data {
 	struct snd_soc_card snd_card;
 	struct snd_soc_dai_link dai_link;
@@ -54,6 +68,12 @@ struct multicodecs_data {
 	struct delayed_work handler;
 	unsigned int mclk_fs;
 	bool codec_hp_det;
+	u32 num_keys;
+	u32 last_key;
+	u32 keyup_voltage;
+	const struct adc_keys_button *map;
+	struct input_dev *input;
+	struct input_dev_poller *poller;
 };
 
 static struct snd_soc_jack_pin jack_pins[] = {
@@ -88,6 +108,135 @@ static const unsigned int headset_extcon_cable[] = {
 	EXTCON_NONE,
 };
 
+static void mc_set_poll_interval(struct input_dev_poller *poller, unsigned int interval)
+{
+	if (poller)
+		poller->poll_interval_ms = interval;
+}
+
+static void mc_keys_poller_queue_work(struct input_dev_poller *poller)
+{
+	unsigned long delay;
+
+	delay = msecs_to_jiffies(poller->poll_interval_ms);
+	if (delay >= HZ)
+		delay = round_jiffies_relative(delay);
+
+	queue_delayed_work(system_freezable_wq, &poller->work, delay);
+}
+
+static void mc_keys_poller_work(struct work_struct *work)
+{
+	struct input_dev_poller *poller =
+		container_of(work, struct input_dev_poller, work.work);
+
+	poller->poll(poller->input);
+	mc_keys_poller_queue_work(poller);
+}
+
+static void mc_keys_poller_start(struct input_dev_poller *poller)
+{
+	if (poller->poll_interval_ms > 0) {
+		poller->poll(poller->input);
+		mc_keys_poller_queue_work(poller);
+	}
+}
+
+static void mc_keys_poller_stop(struct input_dev_poller *poller)
+{
+	cancel_delayed_work_sync(&poller->work);
+}
+
+static int mc_keys_setup_polling(struct multicodecs_data *mc_data,
+				 void (*poll_fn)(struct input_dev *dev))
+{
+	struct input_dev_poller *poller;
+
+	poller = devm_kzalloc(mc_data->snd_card.dev, sizeof(*poller), GFP_KERNEL);
+	if (!poller)
+		return -ENOMEM;
+
+	INIT_DELAYED_WORK(&poller->work, mc_keys_poller_work);
+	poller->input = mc_data->input;
+	poller->poll = poll_fn;
+	mc_data->poller = poller;
+
+	return 0;
+}
+
+static void mc_keys_poll(struct input_dev *input)
+{
+	struct multicodecs_data *mc_data = input_get_drvdata(input);
+	int i, value, ret;
+	u32 diff, closest = 0xffffffff;
+	int keycode = 0;
+
+	ret = iio_read_channel_processed(mc_data->adc, &value);
+	if (unlikely(ret < 0)) {
+		/* Forcibly release key if any was pressed */
+		value = mc_data->keyup_voltage;
+	} else {
+		for (i = 0; i < mc_data->num_keys; i++) {
+			diff = abs(mc_data->map[i].voltage - value);
+			if (diff < closest) {
+				closest = diff;
+				keycode = mc_data->map[i].keycode;
+			}
+		}
+	}
+
+	if (abs(mc_data->keyup_voltage - value) < closest)
+		keycode = 0;
+
+	if (mc_data->last_key && mc_data->last_key != keycode)
+		input_report_key(input, mc_data->last_key, 0);
+
+	if (keycode)
+		input_report_key(input, keycode, 1);
+
+	input_sync(input);
+	mc_data->last_key = keycode;
+}
+
+static int mc_keys_load_keymap(struct device *dev,
+			       struct multicodecs_data *mc_data)
+{
+	struct adc_keys_button *map;
+	struct fwnode_handle *child;
+	int i = 0;
+
+	mc_data->num_keys = device_get_child_node_count(dev);
+	if (mc_data->num_keys == 0) {
+		dev_err(dev, "keymap is missing\n");
+		return -EINVAL;
+	}
+
+	map = devm_kmalloc_array(dev, mc_data->num_keys, sizeof(*map), GFP_KERNEL);
+	if (!map)
+		return -ENOMEM;
+
+	device_for_each_child_node(dev, child) {
+		if (fwnode_property_read_u32(child, "press-threshold-microvolt",
+					     &map[i].voltage)) {
+			dev_err(dev, "Key with invalid or missing voltage\n");
+			fwnode_handle_put(child);
+			return -EINVAL;
+		}
+		map[i].voltage /= 1000;
+
+		if (fwnode_property_read_u32(child, "linux,code",
+					     &map[i].keycode)) {
+			dev_err(dev, "Key with invalid or missing linux,code\n");
+			fwnode_handle_put(child);
+			return -EINVAL;
+		}
+
+		i++;
+	}
+	mc_data->map = map;
+	return 0;
+}
+
 static void adc_jack_handler(struct work_struct *work)
 {
 	struct multicodecs_data *mc_data = container_of(to_delayed_work(work),
@@ -102,6 +251,8 @@ static void adc_jack_handler(struct work_struct *work)
 				EXTCON_JACK_HEADPHONE, false);
 		extcon_set_state_sync(mc_data->extcon,
 				EXTCON_JACK_MICROPHONE, false);
+		if (mc_data->poller)
+			mc_keys_poller_stop(mc_data->poller);
 
 		return;
 	}
@@ -118,8 +269,11 @@ static void adc_jack_handler(struct work_struct *work)
 				    SND_JACK_HEADSET);
 		extcon_set_state_sync(mc_data->extcon, EXTCON_JACK_HEADPHONE, true);
 
-		if (snd_soc_jack_get_type(jack_headset, adc) == SND_JACK_HEADSET)
+		if (snd_soc_jack_get_type(jack_headset, adc) == SND_JACK_HEADSET) {
 			extcon_set_state_sync(mc_data->extcon, EXTCON_JACK_MICROPHONE, true);
+			if (mc_data->poller)
+				mc_keys_poller_start(mc_data->poller);
+		}
 	}
 };
 
@@ -407,8 +561,9 @@ static int rk_multicodecs_probe(struct platform_device *pdev)
 	struct multicodecs_data *mc_data;
 	struct of_phandle_args args;
 	struct device_node *node;
+	struct input_dev *input;
 	u32 val;
-	int count;
+	int count, value;
 	int ret = 0, i = 0, idx = 0;
 	const char *prefix = "rockchip,";
 
@@ -521,6 +676,55 @@ static int rk_multicodecs_probe(struct platform_device *pdev)
 	} else {
 		if (mc_data->adc->channel->type != IIO_VOLTAGE)
 			return -EINVAL;
+
+		if (device_property_read_u32(&pdev->dev, "keyup-threshold-microvolt",
+					&mc_data->keyup_voltage)) {
+			dev_warn(&pdev->dev, "Invalid or missing keyup voltage\n");
+			return -EINVAL;
+		}
+		mc_data->keyup_voltage /= 1000;
+
+		ret = mc_keys_load_keymap(&pdev->dev, mc_data);
+		if (ret)
+			return ret;
+
+		input = devm_input_allocate_device(&pdev->dev);
+		if (IS_ERR(input)) {
+			dev_err(&pdev->dev, "failed to allocate input device\n");
+			return PTR_ERR(input);
+		}
+
+		input_set_drvdata(input, mc_data);
+
+		input->name = "headset-keys";
+		input->phys = "headset-keys/input0";
+		input->id.bustype = BUS_HOST;
+		input->id.vendor = 0x0001;
+		input->id.product = 0x0001;
+		input->id.version = 0x0100;
+
+		__set_bit(EV_KEY, input->evbit);
+		for (i = 0; i < mc_data->num_keys; i++)
+			__set_bit(mc_data->map[i].keycode, input->keybit);
+
+		if (device_property_read_bool(&pdev->dev, "autorepeat"))
+			__set_bit(EV_REP, input->evbit);
+
+		mc_data->input = input;
+		ret = mc_keys_setup_polling(mc_data, mc_keys_poll);
+		if (ret) {
+			dev_err(&pdev->dev, "Unable to set up polling: %d\n", ret);
+			return ret;
+		}
+
+		if (!device_property_read_u32(&pdev->dev, "poll-interval", &value))
+			mc_set_poll_interval(mc_data->poller, value);
+
+		ret = input_register_device(mc_data->input);
+		if (ret) {
+			dev_err(&pdev->dev, "Unable to register input device: %d\n", ret);
+			return ret;
+		}
 	}
 
 	INIT_DEFERRABLE_WORK(&mc_data->handler, adc_jack_handler);
