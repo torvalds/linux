@@ -364,15 +364,16 @@ static int hisi_zip_set_user_domain_and_cache(struct hisi_qm *qm)
 
 	/* user domain configurations */
 	writel(AXUSER_BASE, base + HZIP_BD_RUSER_32_63);
-	writel(AXUSER_BASE, base + HZIP_SGL_RUSER_32_63);
 	writel(AXUSER_BASE, base + HZIP_BD_WUSER_32_63);
 
 	if (qm->use_sva && qm->ver == QM_HW_V2) {
 		writel(AXUSER_BASE | AXUSER_SSV, base + HZIP_DATA_RUSER_32_63);
 		writel(AXUSER_BASE | AXUSER_SSV, base + HZIP_DATA_WUSER_32_63);
+		writel(AXUSER_BASE | AXUSER_SSV, base + HZIP_SGL_RUSER_32_63);
 	} else {
 		writel(AXUSER_BASE, base + HZIP_DATA_RUSER_32_63);
 		writel(AXUSER_BASE, base + HZIP_DATA_WUSER_32_63);
+		writel(AXUSER_BASE, base + HZIP_SGL_RUSER_32_63);
 	}
 
 	/* let's open all compression/decompression cores */
