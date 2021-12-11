@@ -595,7 +595,6 @@
 		num-lanes = <1>;
 		phys = <&combphy1_ps PHY_TYPE_PCIE>;
 		phy-names = "pcie-phy";
-		power-domains = <&power RK3588_PD_PHP>;
 		ranges = <0x00000800 0x0 0x80000000 0x9 0x80000000 0x0 0x800000
 			  0x81000000 0x0 0x80800000 0x9 0x80800000 0x0 0x100000
 			  0x83000000 0x0 0x80900000 0x9 0x80900000 0x0 0x3f700000>;
@@ -679,7 +678,6 @@
 		phys = <&combphy1_ps PHY_TYPE_SATA>;
 		phy-names = "sata-phy";
 		ports-implemented = <0x1>;
-		power-domains = <&power RK3588_PD_PHP>;
 		status = "disabled";
 	};
 
