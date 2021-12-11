@@ -1747,8 +1747,9 @@ ipv4_addr_bind_vrf()
 	for a in ${NSA_IP} ${VRF_IP}
 	do
 		log_start
+		show_hint "Socket not bound to VRF, but address is in VRF"
 		run_cmd nettest -s -R -P icmp -l ${a} -b
-		log_test_addr ${a} $? 0 "Raw socket bind to local address"
+		log_test_addr ${a} $? 1 "Raw socket bind to local address"
 
 		log_start
 		run_cmd nettest -s -R -P icmp -l ${a} -d ${NSA_DEV} -b
