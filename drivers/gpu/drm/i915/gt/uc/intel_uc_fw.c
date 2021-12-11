@@ -570,6 +570,75 @@ fail:
 	return err;
 }
 
+static inline bool uc_fw_need_rsa_in_memory(struct intel_uc_fw *uc_fw)
+{
+	/*
+	 * The HW reads the GuC RSA from memory if the key size is > 256 bytes,
+	 * while it reads it from the 64 RSA registers if it is smaller.
+	 * The HuC RSA is always read from memory.
+	 */
+	return uc_fw->type == INTEL_UC_FW_TYPE_HUC || uc_fw->rsa_size > 256;
+}
+
+static int uc_fw_rsa_data_create(struct intel_uc_fw *uc_fw)
+{
+	struct intel_gt *gt = __uc_fw_to_gt(uc_fw);
+	struct i915_vma *vma;
+	size_t copied;
+	void *vaddr;
+	int err;
+
+	err = i915_inject_probe_error(gt->i915, -ENXIO);
+	if (err)
+		return err;
+
+	if (!uc_fw_need_rsa_in_memory(uc_fw))
+		return 0;
+
+	/*
+	 * uC firmwares will sit above GUC_GGTT_TOP and will not map through
+	 * GGTT. Unfortunately, this means that the GuC HW cannot perform the uC
+	 * authentication from memory, as the RSA offset now falls within the
+	 * GuC inaccessible range. We resort to perma-pinning an additional vma
+	 * within the accessible range that only contains the RSA signature.
+	 * The GuC HW can use this extra pinning to perform the authentication
+	 * since its GGTT offset will be GuC accessible.
+	 */
+	GEM_BUG_ON(uc_fw->rsa_size > PAGE_SIZE);
+	vma = intel_guc_allocate_vma(&gt->uc.guc, PAGE_SIZE);
+	if (IS_ERR(vma))
+		return PTR_ERR(vma);
+
+	vaddr = i915_gem_object_pin_map_unlocked(vma->obj,
+						 i915_coherent_map_type(gt->i915, vma->obj, true));
+	if (IS_ERR(vaddr)) {
+		i915_vma_unpin_and_release(&vma, 0);
+		err = PTR_ERR(vaddr);
+		goto unpin_out;
+	}
+
+	copied = intel_uc_fw_copy_rsa(uc_fw, vaddr, vma->size);
+	i915_gem_object_unpin_map(vma->obj);
+
+	if (copied < uc_fw->rsa_size) {
+		err = -ENOMEM;
+		goto unpin_out;
+	}
+
+	uc_fw->rsa_data = vma;
+
+	return 0;
+
+unpin_out:
+	i915_vma_unpin_and_release(&vma, 0);
+	return err;
+}
+
+static void uc_fw_rsa_data_destroy(struct intel_uc_fw *uc_fw)
+{
+	i915_vma_unpin_and_release(&uc_fw->rsa_data, 0);
+}
+
 int intel_uc_fw_init(struct intel_uc_fw *uc_fw)
 {
 	int err;
@@ -584,14 +653,29 @@ int intel_uc_fw_init(struct intel_uc_fw *uc_fw)
 	if (err) {
 		DRM_DEBUG_DRIVER("%s fw pin-pages err=%d\n",
 				 intel_uc_fw_type_repr(uc_fw->type), err);
-		intel_uc_fw_change_status(uc_fw, INTEL_UC_FIRMWARE_INIT_FAIL);
+		goto out;
 	}
 
+	err = uc_fw_rsa_data_create(uc_fw);
+	if (err) {
+		DRM_DEBUG_DRIVER("%s fw rsa data creation failed, err=%d\n",
+				 intel_uc_fw_type_repr(uc_fw->type), err);
+		goto out_unpin;
+	}
+
+	return 0;
+
+out_unpin:
+	i915_gem_object_unpin_pages(uc_fw->obj);
+out:
+	intel_uc_fw_change_status(uc_fw, INTEL_UC_FIRMWARE_INIT_FAIL);
 	return err;
 }
 
 void intel_uc_fw_fini(struct intel_uc_fw *uc_fw)
 {
+	uc_fw_rsa_data_destroy(uc_fw);
+
 	if (i915_gem_object_has_pinned_pages(uc_fw->obj))
 		i915_gem_object_unpin_pages(uc_fw->obj);
 

@@ -86,6 +86,7 @@ struct intel_uc_fw {
 	 * or during a GT reset (mutex guarantees single threaded).
 	 */
 	struct i915_vma dummy;
+	struct i915_vma *rsa_data;
 
 	/*
 	 * The firmware build process will generate a version header file with major and
