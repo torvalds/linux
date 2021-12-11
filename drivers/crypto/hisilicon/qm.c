@@ -89,7 +89,10 @@
 
 #define QM_AEQE_PHASE(aeqe)		((le32_to_cpu((aeqe)->dw0) >> 16) & 0x1)
 #define QM_AEQE_TYPE_SHIFT		17
+#define QM_AEQE_CQN_MASK		GENMASK(15, 0)
+#define QM_CQ_OVERFLOW			0
 #define QM_EQ_OVERFLOW			1
+#define QM_CQE_ERROR			2
 
 #define QM_DOORBELL_CMD_SQ		0
 #define QM_DOORBELL_CMD_CQ		1
@@ -989,6 +992,15 @@ static void qm_set_qp_disable(struct hisi_qp *qp, int offset)
 	mb();
 }
 
+static void qm_disable_qp(struct hisi_qm *qm, u32 qp_id)
+{
+	struct hisi_qp *qp = &qm->qp_array[qp_id];
+
+	qm_set_qp_disable(qp, QM_RESET_STOP_TX_OFFSET);
+	hisi_qm_stop_qp(qp);
+	qm_set_qp_disable(qp, QM_RESET_STOP_RX_OFFSET);
+}
+
 static void qm_reset_function(struct hisi_qm *qm)
 {
 	struct hisi_qm *pf_qm = pci_get_drvdata(pci_physfn(qm->pdev));
@@ -1022,16 +1034,24 @@ static irqreturn_t qm_aeq_thread(int irq, void *data)
 {
 	struct hisi_qm *qm = data;
 	struct qm_aeqe *aeqe = qm->aeqe + qm->status.aeq_head;
-	u32 type;
+	u32 type, qp_id;
 
 	while (QM_AEQE_PHASE(aeqe) == qm->status.aeqc_phase) {
 		type = le32_to_cpu(aeqe->dw0) >> QM_AEQE_TYPE_SHIFT;
+		qp_id = le32_to_cpu(aeqe->dw0) & QM_AEQE_CQN_MASK;
 
 		switch (type) {
 		case QM_EQ_OVERFLOW:
 			dev_err(&qm->pdev->dev, "eq overflow, reset function\n");
 			qm_reset_function(qm);
 			return IRQ_HANDLED;
+		case QM_CQ_OVERFLOW:
+			dev_err(&qm->pdev->dev, "cq overflow, stop qp(%u)\n",
+				qp_id);
+			fallthrough;
+		case QM_CQE_ERROR:
+			qm_disable_qp(qm, qp_id);
+			break;
 		default:
 			dev_err(&qm->pdev->dev, "unknown error type %u\n",
 				type);
