@@ -32,6 +32,8 @@
 
 #define OCELOT_PTP_QUEUE_SZ	128
 
+#define OCELOT_JUMBO_MTU	9000
+
 struct ocelot_port_tc {
 	bool block_shared;
 	unsigned long offload_cnt;
