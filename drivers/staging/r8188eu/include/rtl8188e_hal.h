@@ -13,7 +13,6 @@
 #include "rtl8188e_recv.h"
 #include "rtl8188e_xmit.h"
 #include "rtl8188e_cmd.h"
-#include "rtl8188e_sreset.h"
 #include "rtw_efuse.h"
 #include "odm_precomp.h"
 #include "odm.h"

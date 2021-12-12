@@ -10,7 +10,6 @@
 #include "../include/wlan_bssdef.h"
 #include "../include/mlme_osdep.h"
 #include "../include/recv_osdep.h"
-#include "../include/rtl8188e_sreset.h"
 #include "../include/rtl8188e_xmit.h"
 #include "../include/rtl8188e_dm.h"
 
@@ -7158,6 +7157,24 @@ static u8 chk_ap_is_alive(struct adapter *padapter, struct sta_info *psta)
 	sta_update_last_rx_pkts(psta);
 
 	return ret;
+}
+
+static void rtl8188e_sreset_linked_status_check(struct adapter *padapter)
+{
+	u32 rx_dma_status = 0;
+	u8 fw_status = 0;
+	rx_dma_status = rtw_read32(padapter, REG_RXDMA_STATUS);
+	if (rx_dma_status != 0x00) {
+		DBG_88E("%s REG_RXDMA_STATUS:0x%08x\n", __func__, rx_dma_status);
+		rtw_write32(padapter, REG_RXDMA_STATUS, rx_dma_status);
+	}
+	fw_status = rtw_read8(padapter, REG_FMETHR);
+	if (fw_status != 0x00) {
+		if (fw_status == 1)
+			DBG_88E("%s REG_FW_STATUS (0x%02x), Read_Efuse_Fail !!\n", __func__, fw_status);
+		else if (fw_status == 2)
+			DBG_88E("%s REG_FW_STATUS (0x%02x), Condition_No_Match !!\n", __func__, fw_status);
+	}
 }
 
 void linked_status_chk(struct adapter *padapter)
