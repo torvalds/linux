@@ -50,8 +50,8 @@ struct slab {
 	struct list_head slab_list;
 	void *__unused_1;
 	void *freelist;		/* first free block */
-	void *__unused_2;
-	int units;
+	long units;
+	unsigned int __unused_2;
 
 #else
 #error "Unexpected slab allocator configured"
