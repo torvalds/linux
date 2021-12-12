@@ -42,7 +42,7 @@
 
 /* card parameters */
 static int ivtvfb_card_id = -1;
-static int ivtvfb_debug = 0;
+static int ivtvfb_debug;
 static bool ivtvfb_force_pat = IS_ENABLED(CONFIG_VIDEO_FB_IVTV_FORCE_PAT);
 static bool osd_laced;
 static int osd_depth;
