@@ -11,7 +11,7 @@ static struct trigger_ctx {
 
 static struct counter base_hits;
 
-static void trigger_validate()
+static void trigger_validate(void)
 {
 	if (env.consumer_cnt != 1) {
 		fprintf(stderr, "benchmark doesn't support multi-consumer!\n");
@@ -45,7 +45,7 @@ static void trigger_measure(struct bench_res *res)
 	res->hits = atomic_swap(&ctx.skel->bss->hits, 0);
 }
 
-static void setup_ctx()
+static void setup_ctx(void)
 {
 	setup_libbpf();
 
@@ -67,37 +67,37 @@ static void attach_bpf(struct bpf_program *prog)
 	}
 }
 
-static void trigger_tp_setup()
+static void trigger_tp_setup(void)
 {
 	setup_ctx();
 	attach_bpf(ctx.skel->progs.bench_trigger_tp);
 }
 
-static void trigger_rawtp_setup()
+static void trigger_rawtp_setup(void)
 {
 	setup_ctx();
 	attach_bpf(ctx.skel->progs.bench_trigger_raw_tp);
 }
 
-static void trigger_kprobe_setup()
+static void trigger_kprobe_setup(void)
 {
 	setup_ctx();
 	attach_bpf(ctx.skel->progs.bench_trigger_kprobe);
 }
 
-static void trigger_fentry_setup()
+static void trigger_fentry_setup(void)
 {
 	setup_ctx();
 	attach_bpf(ctx.skel->progs.bench_trigger_fentry);
 }
 
-static void trigger_fentry_sleep_setup()
+static void trigger_fentry_sleep_setup(void)
 {
 	setup_ctx();
 	attach_bpf(ctx.skel->progs.bench_trigger_fentry_sleep);
 }
 
-static void trigger_fmodret_setup()
+static void trigger_fmodret_setup(void)
 {
 	setup_ctx();
 	attach_bpf(ctx.skel->progs.bench_trigger_fmodret);
@@ -183,22 +183,22 @@ static void usetup(bool use_retprobe, bool use_nop)
 	ctx.skel->links.bench_trigger_uprobe = link;
 }
 
-static void uprobe_setup_with_nop()
+static void uprobe_setup_with_nop(void)
 {
 	usetup(false, true);
 }
 
-static void uretprobe_setup_with_nop()
+static void uretprobe_setup_with_nop(void)
 {
 	usetup(true, true);
 }
 
-static void uprobe_setup_without_nop()
+static void uprobe_setup_without_nop(void)
 {
 	usetup(false, false);
 }
 
-static void uretprobe_setup_without_nop()
+static void uretprobe_setup_without_nop(void)
 {
 	usetup(true, false);
 }
