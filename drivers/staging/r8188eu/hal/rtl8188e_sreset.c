@@ -6,18 +6,6 @@
 #include "../include/rtl8188e_sreset.h"
 #include "../include/rtl8188e_hal.h"
 
-void rtl8188e_sreset_xmit_status_check(struct adapter *padapter)
-{
-	u32 txdma_status;
-
-	txdma_status = rtw_read32(padapter, REG_TXDMA_STATUS);
-	if (txdma_status != 0x00) {
-		DBG_88E("%s REG_TXDMA_STATUS:0x%08x\n", __func__, txdma_status);
-		rtw_write32(padapter, REG_TXDMA_STATUS, txdma_status);
-	}
-	/* total xmit irp = 4 */
-}
-
 void rtl8188e_sreset_linked_status_check(struct adapter *padapter)
 {
 	u32 rx_dma_status = 0;

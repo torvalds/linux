@@ -7,7 +7,6 @@
 #include "osdep_service.h"
 #include "drv_types.h"
 
-void rtl8188e_sreset_xmit_status_check(struct adapter *padapter);
 void rtl8188e_sreset_linked_status_check(struct adapter *padapter);
 
 #endif
