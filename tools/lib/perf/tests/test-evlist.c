@@ -535,7 +535,7 @@ static int test_stat_multiplexing(void)
 				    (double)counts[i].run / (double)counts[i].ena * 100.0,
 				    counts[i].run, counts[i].ena);
 		} else if (scaled == -1) {
-			__T_VERBOSE("\t Not Runnnig\n");
+			__T_VERBOSE("\t Not Running\n");
 		} else {
 			__T_VERBOSE("\t Not Scaling\n");
 		}
