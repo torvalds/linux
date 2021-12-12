@@ -439,6 +439,8 @@ int lp55xx_init_device(struct lp55xx_chip *chip)
 		return -EINVAL;
 
 	if (pdata->enable_gpiod) {
+		gpiod_direction_output(pdata->enable_gpiod, 0);
+
 		gpiod_set_consumer_name(pdata->enable_gpiod, "LP55xx enable");
 		gpiod_set_value(pdata->enable_gpiod, 0);
 		usleep_range(1000, 2000); /* Keep enable down at least 1ms */
@@ -694,7 +696,7 @@ struct lp55xx_platform_data *lp55xx_of_populate_pdata(struct device *dev,
 	of_property_read_u8(np, "clock-mode", &pdata->clock_mode);
 
 	pdata->enable_gpiod = devm_gpiod_get_optional(dev, "enable",
-						      GPIOD_OUT_LOW);
+						      GPIOD_ASIS);
 	if (IS_ERR(pdata->enable_gpiod))
 		return ERR_CAST(pdata->enable_gpiod);
 
