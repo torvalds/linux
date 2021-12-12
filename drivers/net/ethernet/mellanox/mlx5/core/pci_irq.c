@@ -342,13 +342,27 @@ static struct mlx5_irq_pool *ctrl_irq_pool_get(struct mlx5_core_dev *dev)
 }
 
 /**
- * mlx5_irq_release - release an IRQ back to the system.
- * @irq: irq to be released.
+ * mlx5_irqs_release - release one or more IRQs back to the system.
+ * @irqs: IRQs to be released.
+ * @nirqs: number of IRQs to be released.
  */
-void mlx5_irq_release(struct mlx5_irq *irq)
+static void mlx5_irqs_release(struct mlx5_irq **irqs, int nirqs)
 {
-	synchronize_irq(irq->irqn);
-	irq_put(irq);
+	int i;
+
+	for (i = 0; i < nirqs; i++) {
+		synchronize_irq(irqs[i]->irqn);
+		irq_put(irqs[i]);
+	}
+}
+
+/**
+ * mlx5_ctrl_irq_release - release a ctrl IRQ back to the system.
+ * @ctrl_irq: ctrl IRQ to be released.
+ */
+void mlx5_ctrl_irq_release(struct mlx5_irq *ctrl_irq)
+{
+	mlx5_irqs_release(&ctrl_irq, 1);
 }
 
 /**
@@ -421,6 +435,51 @@ out:
 		      irq->irqn, cpumask_pr_args(affinity),
 		      irq->refcount / MLX5_EQ_REFS_PER_IRQ);
 	return irq;
+}
+
+/**
+ * mlx5_irqs_release_vectors - release one or more IRQs back to the system.
+ * @irqs: IRQs to be released.
+ * @nirqs: number of IRQs to be released.
+ */
+void mlx5_irqs_release_vectors(struct mlx5_irq **irqs, int nirqs)
+{
+	mlx5_irqs_release(irqs, nirqs);
+}
+
+/**
+ * mlx5_irqs_request_vectors - request one or more IRQs for mlx5 device.
+ * @dev: mlx5 device that is requesting the IRQs.
+ * @cpus: CPUs array for binding the IRQs
+ * @nirqs: number of IRQs to request.
+ * @irqs: an output array of IRQs pointers.
+ *
+ * Each IRQ is bound to at most 1 CPU.
+ * This function is requests nirqs IRQs, starting from @vecidx.
+ *
+ * This function returns the number of IRQs requested, (which might be smaller than
+ * @nirqs), if successful, or a negative error code in case of an error.
+ */
+int mlx5_irqs_request_vectors(struct mlx5_core_dev *dev, u16 *cpus, int nirqs,
+			      struct mlx5_irq **irqs)
+{
+	cpumask_var_t req_mask;
+	struct mlx5_irq *irq;
+	int i;
+
+	if (!zalloc_cpumask_var(&req_mask, GFP_KERNEL))
+		return -ENOMEM;
+	for (i = 0; i < nirqs; i++) {
+		cpumask_set_cpu(cpus[i], req_mask);
+		irq = mlx5_irq_request(dev, i, req_mask);
+		if (IS_ERR(irq))
+			break;
+		cpumask_clear(req_mask);
+		irqs[i] = irq;
+	}
+
+	free_cpumask_var(req_mask);
+	return i ? i : PTR_ERR(irq);
 }
 
 static struct mlx5_irq_pool *
