@@ -248,8 +248,12 @@ static struct dsa_switch_tree *dsa_tree_alloc(int index)
 
 static void dsa_tree_free(struct dsa_switch_tree *dst)
 {
-	if (dst->tag_ops)
+	if (dst->tag_ops) {
+		if (dst->tag_ops->disconnect)
+			dst->tag_ops->disconnect(dst);
+
 		dsa_tag_driver_put(dst->tag_ops);
+	}
 	list_del(&dst->list);
 	kfree(dst);
 }
@@ -822,7 +826,7 @@ static int dsa_switch_setup_tag_protocol(struct dsa_switch *ds)
 	int err;
 
 	if (tag_ops->proto == dst->default_proto)
-		return 0;
+		goto connect;
 
 	dsa_switch_for_each_cpu_port(cpu_dp, ds) {
 		rtnl_lock();
@@ -831,6 +835,17 @@ static int dsa_switch_setup_tag_protocol(struct dsa_switch *ds)
 		rtnl_unlock();
 		if (err) {
 			dev_err(ds->dev, "Unable to use tag protocol \"%s\": %pe\n",
+				tag_ops->name, ERR_PTR(err));
+			return err;
+		}
+	}
+
+connect:
+	if (ds->ops->connect_tag_protocol) {
+		err = ds->ops->connect_tag_protocol(ds, tag_ops->proto);
+		if (err) {
+			dev_err(ds->dev,
+				"Unable to connect to tag protocol \"%s\": %pe\n",
 				tag_ops->name, ERR_PTR(err));
 			return err;
 		}
@@ -1136,6 +1151,46 @@ static void dsa_tree_teardown(struct dsa_switch_tree *dst)
 	dst->setup = false;
 }
 
+static int dsa_tree_bind_tag_proto(struct dsa_switch_tree *dst,
+				   const struct dsa_device_ops *tag_ops)
+{
+	const struct dsa_device_ops *old_tag_ops = dst->tag_ops;
+	struct dsa_notifier_tag_proto_info info;
+	int err;
+
+	dst->tag_ops = tag_ops;
+
+	/* Notify the new tagger about the connection to this tree */
+	if (tag_ops->connect) {
+		err = tag_ops->connect(dst);
+		if (err)
+			goto out_revert;
+	}
+
+	/* Notify the switches from this tree about the connection
+	 * to the new tagger
+	 */
+	info.tag_ops = tag_ops;
+	err = dsa_tree_notify(dst, DSA_NOTIFIER_TAG_PROTO_CONNECT, &info);
+	if (err && err != -EOPNOTSUPP)
+		goto out_disconnect;
+
+	/* Notify the old tagger about the disconnection from this tree */
+	if (old_tag_ops->disconnect)
+		old_tag_ops->disconnect(dst);
+
+	return 0;
+
+out_disconnect:
+	/* Revert the new tagger's connection to this tree */
+	if (tag_ops->disconnect)
+		tag_ops->disconnect(dst);
+out_revert:
+	dst->tag_ops = old_tag_ops;
+
+	return err;
+}
+
 /* Since the dsa/tagging sysfs device attribute is per master, the assumption
  * is that all DSA switches within a tree share the same tagger, otherwise
  * they would have formed disjoint trees (different "dsa,member" values).
@@ -1168,12 +1223,15 @@ int dsa_tree_change_tag_proto(struct dsa_switch_tree *dst,
 			goto out_unlock;
 	}
 
+	/* Notify the tag protocol change */
 	info.tag_ops = tag_ops;
 	err = dsa_tree_notify(dst, DSA_NOTIFIER_TAG_PROTO, &info);
 	if (err)
-		goto out_unwind_tagger;
+		return err;
 
-	dst->tag_ops = tag_ops;
+	err = dsa_tree_bind_tag_proto(dst, tag_ops);
+	if (err)
+		goto out_unwind_tagger;
 
 	rtnl_unlock();
 
@@ -1260,6 +1318,7 @@ static int dsa_port_parse_cpu(struct dsa_port *dp, struct net_device *master,
 	struct dsa_switch_tree *dst = ds->dst;
 	const struct dsa_device_ops *tag_ops;
 	enum dsa_tag_protocol default_proto;
+	int err;
 
 	/* Find out which protocol the switch would prefer. */
 	default_proto = dsa_get_tag_protocol(dp, master);
@@ -1307,6 +1366,12 @@ static int dsa_port_parse_cpu(struct dsa_port *dp, struct net_device *master,
 		 */
 		dsa_tag_driver_put(tag_ops);
 	} else {
+		if (tag_ops->connect) {
+			err = tag_ops->connect(dst);
+			if (err)
+				return err;
+		}
+
 		dst->tag_ops = tag_ops;
 	}
 

@@ -647,6 +647,17 @@ static int dsa_switch_change_tag_proto(struct dsa_switch *ds,
 	return 0;
 }
 
+static int dsa_switch_connect_tag_proto(struct dsa_switch *ds,
+					struct dsa_notifier_tag_proto_info *info)
+{
+	const struct dsa_device_ops *tag_ops = info->tag_ops;
+
+	if (!ds->ops->connect_tag_protocol)
+		return -EOPNOTSUPP;
+
+	return ds->ops->connect_tag_protocol(ds, tag_ops->proto);
+}
+
 static int dsa_switch_mrp_add(struct dsa_switch *ds,
 			      struct dsa_notifier_mrp_info *info)
 {
@@ -765,6 +776,9 @@ static int dsa_switch_event(struct notifier_block *nb,
 		break;
 	case DSA_NOTIFIER_TAG_PROTO:
 		err = dsa_switch_change_tag_proto(ds, info);
+		break;
+	case DSA_NOTIFIER_TAG_PROTO_CONNECT:
+		err = dsa_switch_connect_tag_proto(ds, info);
 		break;
 	case DSA_NOTIFIER_MRP_ADD:
 		err = dsa_switch_mrp_add(ds, info);
