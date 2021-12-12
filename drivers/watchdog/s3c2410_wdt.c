@@ -711,16 +711,18 @@ static int s3c2410wdt_probe(struct platform_device *pdev)
 	 * "watchdog_src" clock is optional; if it's not present -- just skip it
 	 * and use "watchdog" clock as both bus and source clock.
 	 */
-	wdt->src_clk = devm_clk_get(dev, "watchdog_src");
-	if (!IS_ERR(wdt->src_clk)) {
-		ret = clk_prepare_enable(wdt->src_clk);
-		if (ret < 0) {
-			dev_err(dev, "failed to enable source clock\n");
-			ret = PTR_ERR(wdt->src_clk);
-			goto err_bus_clk;
-		}
-	} else {
-		wdt->src_clk = NULL;
+	wdt->src_clk = devm_clk_get_optional(dev, "watchdog_src");
+	if (IS_ERR(wdt->src_clk)) {
+		dev_err_probe(dev, PTR_ERR(wdt->src_clk),
+			      "failed to get source clock\n");
+		ret = PTR_ERR(wdt->src_clk);
+		goto err_bus_clk;
+	}
+
+	ret = clk_prepare_enable(wdt->src_clk);
+	if (ret) {
+		dev_err(dev, "failed to enable source clock\n");
+		goto err_bus_clk;
 	}
 
 	wdt->wdt_device.min_timeout = 1;
