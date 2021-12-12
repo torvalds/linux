@@ -814,9 +814,11 @@ static int exynos5_i2c_probe(struct platform_device *pdev)
 		return -ENOENT;
 	}
 
-	i2c->pclk = devm_clk_get(&pdev->dev, "hsi2c_pclk");
-	if (IS_ERR(i2c->pclk))
-		i2c->pclk = NULL; /* pclk is optional */
+	i2c->pclk = devm_clk_get_optional(&pdev->dev, "hsi2c_pclk");
+	if (IS_ERR(i2c->pclk)) {
+		return dev_err_probe(&pdev->dev, PTR_ERR(i2c->pclk),
+				     "cannot get pclk");
+	}
 
 	ret = clk_prepare_enable(i2c->pclk);
 	if (ret)
