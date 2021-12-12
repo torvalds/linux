@@ -121,8 +121,6 @@ struct usb_8dev_tx_urb_context {
 struct usb_8dev_priv {
 	struct can_priv can; /* must be the first member */
 
-	struct sk_buff *echo_skb[MAX_TX_URBS];
-
 	struct usb_device *udev;
 	struct net_device *netdev;
 
