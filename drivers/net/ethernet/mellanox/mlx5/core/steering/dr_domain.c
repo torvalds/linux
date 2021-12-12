@@ -164,9 +164,7 @@ static int dr_domain_query_vport(struct mlx5dr_domain *dmn,
 
 static int dr_domain_query_esw_mngr(struct mlx5dr_domain *dmn)
 {
-	return dr_domain_query_vport(dmn,
-				     dmn->info.caps.is_ecpf ? MLX5_VPORT_ECPF : 0,
-				     false,
+	return dr_domain_query_vport(dmn, 0, false,
 				     &dmn->info.caps.vports.esw_manager_caps);
 }
 
