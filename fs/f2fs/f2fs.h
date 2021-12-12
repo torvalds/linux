@@ -56,6 +56,7 @@ enum {
 	FAULT_WRITE_IO,
 	FAULT_SLAB_ALLOC,
 	FAULT_DQUOT_INIT,
+	FAULT_LOCK_OP,
 	FAULT_MAX,
 };
 
@@ -2095,6 +2096,10 @@ static inline void f2fs_lock_op(struct f2fs_sb_info *sbi)
 
 static inline int f2fs_trylock_op(struct f2fs_sb_info *sbi)
 {
+	if (time_to_inject(sbi, FAULT_LOCK_OP)) {
+		f2fs_show_injection_info(sbi, FAULT_LOCK_OP);
+		return 0;
+	}
 	return down_read_trylock(&sbi->cp_rwsem);
 }
 
