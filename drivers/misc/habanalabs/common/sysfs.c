@@ -424,8 +424,6 @@ static struct attribute *hl_dev_attrs[] = {
 	&dev_attr_max_power.attr,
 	&dev_attr_pci_addr.attr,
 	&dev_attr_preboot_btl_ver.attr,
-	&dev_attr_soft_reset.attr,
-	&dev_attr_soft_reset_cnt.attr,
 	&dev_attr_status.attr,
 	&dev_attr_thermal_ver.attr,
 	&dev_attr_uboot_ver.attr,
@@ -450,6 +448,21 @@ static const struct attribute_group *hl_dev_attr_groups[] = {
 	NULL,
 };
 
+static struct attribute *hl_dev_inference_attrs[] = {
+	&dev_attr_soft_reset.attr,
+	&dev_attr_soft_reset_cnt.attr,
+	NULL,
+};
+
+static struct attribute_group hl_dev_inference_attr_group = {
+	.attrs = hl_dev_inference_attrs,
+};
+
+static const struct attribute_group *hl_dev_inference_attr_groups[] = {
+	&hl_dev_inference_attr_group,
+	NULL,
+};
+
 int hl_sysfs_init(struct hl_device *hdev)
 {
 	int rc;
@@ -465,10 +478,25 @@ int hl_sysfs_init(struct hl_device *hdev)
 		return rc;
 	}
 
+	if (!hdev->allow_inference_soft_reset)
+		return 0;
+
+	rc = device_add_groups(hdev->dev, hl_dev_inference_attr_groups);
+	if (rc) {
+		dev_err(hdev->dev,
+			"Failed to add groups to device, error %d\n", rc);
+		return rc;
+	}
+
 	return 0;
 }
 
 void hl_sysfs_fini(struct hl_device *hdev)
 {
 	device_remove_groups(hdev->dev, hl_dev_attr_groups);
+
+	if (!hdev->allow_inference_soft_reset)
+		return;
+
+	device_remove_groups(hdev->dev, hl_dev_inference_attr_groups);
 }
