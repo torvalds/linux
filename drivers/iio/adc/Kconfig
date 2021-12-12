@@ -532,7 +532,7 @@ config IMX7D_ADC
 
 config IMX8QXP_ADC
 	tristate "NXP IMX8QXP ADC driver"
-	depends on ARCH_MXC_ARM64 || COMPILE_TEST
+	depends on ARCH_MXC || COMPILE_TEST
 	depends on HAS_IOMEM
 	help
 	  Say yes here to build support for IMX8QXP ADC.

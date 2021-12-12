@@ -2973,6 +2973,9 @@ struct qmp_phy_combo_cfg {
  * @qmp: QMP phy to which this lane belongs
  * @lane_rst: lane's reset controller
  * @mode: current PHY mode
+ * @dp_aux_cfg: Display port aux config
+ * @dp_opts: Display port optional config
+ * @dp_clks: Display port clocks
  */
 struct qmp_phy {
 	struct phy *phy;

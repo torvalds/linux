@@ -15770,6 +15770,15 @@ S:	Maintained
 F:	Documentation/devicetree/bindings/net/qcom,ethqos.txt
 F:	drivers/net/ethernet/stmicro/stmmac/dwmac-qcom-ethqos.c
 
+QUALCOMM FASTRPC DRIVER
+M:	Srinivas Kandagatla <srinivas.kandagatla@linaro.org>
+M:	Amol Maheshwari <amahesh@qti.qualcomm.com>
+L:	linux-arm-msm@vger.kernel.org
+S:	Maintained
+F:	Documentation/devicetree/bindings/misc/qcom,fastrpc.txt
+F:	drivers/misc/fastrpc.c
+F:	include/uapi/misc/fastrpc.h
+
 QUALCOMM GENERIC INTERFACE I2C DRIVER
 M:	Akash Asthana <akashast@codeaurora.org>
 M:	Mukesh Savaliya <msavaliy@codeaurora.org>
