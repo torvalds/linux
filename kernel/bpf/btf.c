@@ -6656,7 +6656,7 @@ bpf_core_find_cands(struct bpf_core_ctx *ctx, u32 local_type_id)
 
 	main_btf = bpf_get_btf_vmlinux();
 	if (IS_ERR(main_btf))
-		return (void *)main_btf;
+		return ERR_CAST(main_btf);
 
 	local_type = btf_type_by_id(local_btf, local_type_id);
 	if (!local_type)
@@ -6683,14 +6683,14 @@ bpf_core_find_cands(struct bpf_core_ctx *ctx, u32 local_type_id)
 	/* Attempt to find target candidates in vmlinux BTF first */
 	cands = bpf_core_add_cands(cands, main_btf, 1);
 	if (IS_ERR(cands))
-		return cands;
+		return ERR_CAST(cands);
 
 	/* cands is a pointer to kmalloced memory here if cands->cnt > 0 */
 
 	/* populate cache even when cands->cnt == 0 */
 	cc = populate_cand_cache(cands, vmlinux_cand_cache, VMLINUX_CAND_CACHE_SIZE);
 	if (IS_ERR(cc))
-		return cc;
+		return ERR_CAST(cc);
 
 	/* if vmlinux BTF has any candidate, don't go for module BTFs */
 	if (cc->cnt)
@@ -6716,7 +6716,7 @@ check_modules:
 		cands = bpf_core_add_cands(cands, mod_btf, btf_nr_types(main_btf));
 		if (IS_ERR(cands)) {
 			btf_put(mod_btf);
-			return cands;
+			return ERR_CAST(cands);
 		}
 		spin_lock_bh(&btf_idr_lock);
 		btf_put(mod_btf);
