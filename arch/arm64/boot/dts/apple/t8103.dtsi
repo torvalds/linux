@@ -274,34 +274,6 @@
 			};
 		};
 
-		pmgr_mini: power-management@23d280000 {
-			compatible = "apple,t8103-pmgr", "apple,pmgr", "syscon", "simple-mfd";
-			#address-cells = <1>;
-			#size-cells = <1>;
-			reg = <0x2 0x3d280000 0 0x4000>;
-		};
-
-		pinctrl_aop: pinctrl@24a820000 {
-			compatible = "apple,t8103-pinctrl", "apple,pinctrl";
-			reg = <0x2 0x4a820000 0x0 0x4000>;
-
-			gpio-controller;
-			#gpio-cells = <2>;
-			gpio-ranges = <&pinctrl_aop 0 0 42>;
-			apple,npins = <42>;
-
-			interrupt-controller;
-			#interrupt-cells = <2>;
-			interrupt-parent = <&aic>;
-			interrupts = <AIC_IRQ 268 IRQ_TYPE_LEVEL_HIGH>,
-				     <AIC_IRQ 269 IRQ_TYPE_LEVEL_HIGH>,
-				     <AIC_IRQ 270 IRQ_TYPE_LEVEL_HIGH>,
-				     <AIC_IRQ 271 IRQ_TYPE_LEVEL_HIGH>,
-				     <AIC_IRQ 272 IRQ_TYPE_LEVEL_HIGH>,
-				     <AIC_IRQ 273 IRQ_TYPE_LEVEL_HIGH>,
-				     <AIC_IRQ 274 IRQ_TYPE_LEVEL_HIGH>;
-		};
-
 		pinctrl_nub: pinctrl@23d1f0000 {
 			compatible = "apple,t8103-pinctrl", "apple,pinctrl";
 			reg = <0x2 0x3d1f0000 0x0 0x4000>;
@@ -322,6 +294,13 @@
 				     <AIC_IRQ 334 IRQ_TYPE_LEVEL_HIGH>,
 				     <AIC_IRQ 335 IRQ_TYPE_LEVEL_HIGH>,
 				     <AIC_IRQ 336 IRQ_TYPE_LEVEL_HIGH>;
+		};
+
+		pmgr_mini: power-management@23d280000 {
+			compatible = "apple,t8103-pmgr", "apple,pmgr", "syscon", "simple-mfd";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			reg = <0x2 0x3d280000 0 0x4000>;
 		};
 
 		wdt: watchdog@23d2b0000 {
@@ -351,6 +330,27 @@
 				     <AIC_IRQ 395 IRQ_TYPE_LEVEL_HIGH>,
 				     <AIC_IRQ 396 IRQ_TYPE_LEVEL_HIGH>,
 				     <AIC_IRQ 397 IRQ_TYPE_LEVEL_HIGH>;
+		};
+
+		pinctrl_aop: pinctrl@24a820000 {
+			compatible = "apple,t8103-pinctrl", "apple,pinctrl";
+			reg = <0x2 0x4a820000 0x0 0x4000>;
+
+			gpio-controller;
+			#gpio-cells = <2>;
+			gpio-ranges = <&pinctrl_aop 0 0 42>;
+			apple,npins = <42>;
+
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			interrupt-parent = <&aic>;
+			interrupts = <AIC_IRQ 268 IRQ_TYPE_LEVEL_HIGH>,
+				     <AIC_IRQ 269 IRQ_TYPE_LEVEL_HIGH>,
+				     <AIC_IRQ 270 IRQ_TYPE_LEVEL_HIGH>,
+				     <AIC_IRQ 271 IRQ_TYPE_LEVEL_HIGH>,
+				     <AIC_IRQ 272 IRQ_TYPE_LEVEL_HIGH>,
+				     <AIC_IRQ 273 IRQ_TYPE_LEVEL_HIGH>,
+				     <AIC_IRQ 274 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
 		pcie0_dart_0: dart@681008000 {
