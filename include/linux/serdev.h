@@ -19,12 +19,15 @@ struct serdev_device;
 
 /**
  * struct serdev_device_ops - Callback operations for a serdev device
+ * @error:		Function called with errors received from device;
+ *			may sleep.
  * @receive_buf:	Function called with data received from device;
  *			returns number of bytes accepted; may sleep.
  * @write_wakeup:	Function called when ready to transmit more data; must
  *			not sleep.
  */
 struct serdev_device_ops {
+	void (*error)(struct serdev_device *, unsigned long);
 	int (*receive_buf)(struct serdev_device *, const unsigned char *, size_t);
 	void (*write_wakeup)(struct serdev_device *);
 };
@@ -76,6 +79,11 @@ enum serdev_parity {
 	SERDEV_PARITY_ODD,
 };
 
+#define SERDEV_ERROR_BREAK 0
+#define SERDEV_ERROR_FRAME 1
+#define SERDEV_ERROR_PARITY 2
+#define SERDEV_ERROR_OVERRUN 3
+
 /*
  * serdev controller structures
  */
@@ -85,6 +93,7 @@ struct serdev_controller_ops {
 	int (*write_room)(struct serdev_controller *);
 	int (*open)(struct serdev_controller *);
 	void (*close)(struct serdev_controller *);
+	void (*set_error_mask)(struct serdev_controller *, unsigned long);
 	void (*set_flow_control)(struct serdev_controller *, bool);
 	int (*set_parity)(struct serdev_controller *, enum serdev_parity);
 	unsigned int (*set_baudrate)(struct serdev_controller *, unsigned int);
@@ -190,12 +199,24 @@ static inline int serdev_controller_receive_buf(struct serdev_controller *ctrl,
 	return serdev->ops->receive_buf(serdev, data, count);
 }
 
+static inline void serdev_controller_error(struct serdev_controller *ctrl,
+					   unsigned long errors)
+{
+	struct serdev_device *serdev = ctrl->serdev;
+
+	if (!serdev || !serdev->ops->error)
+		return;
+
+	serdev->ops->error(serdev, errors);
+}
+
 #if IS_ENABLED(CONFIG_SERIAL_DEV_BUS)
 
 int serdev_device_open(struct serdev_device *);
 void serdev_device_close(struct serdev_device *);
 int devm_serdev_device_open(struct device *, struct serdev_device *);
 unsigned int serdev_device_set_baudrate(struct serdev_device *, unsigned int);
+void serdev_device_set_error_mask(struct serdev_device *, unsigned long);
 void serdev_device_set_flow_control(struct serdev_device *, bool);
 int serdev_device_write_buf(struct serdev_device *, const unsigned char *, size_t);
 void serdev_device_wait_until_sent(struct serdev_device *, long);
@@ -238,6 +259,7 @@ static inline unsigned int serdev_device_set_baudrate(struct serdev_device *sdev
 {
 	return 0;
 }
+static inline void serdev_device_set_error_mask(struct serdev_device *sdev, unsigned long mask) {}
 static inline void serdev_device_set_flow_control(struct serdev_device *sdev, bool enable) {}
 static inline int serdev_device_write_buf(struct serdev_device *serdev,
 					  const unsigned char *buf,

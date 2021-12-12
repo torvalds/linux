@@ -2,6 +2,7 @@
 /*
  * Copyright (C) 2016-2017 Linaro Ltd., Rob Herring <robh@kernel.org>
  */
+#include <linux/bits.h>
 #include <linux/kernel.h>
 #include <linux/serdev.h>
 #include <linux/tty.h>
@@ -9,6 +10,10 @@
 #include <linux/poll.h>
 
 #define SERPORT_ACTIVE		1
+#define SERPORT_NOTIFY_BREAK	2
+#define SERPORT_NOTIFY_FRAME	3
+#define SERPORT_NOTIFY_PARITY	4
+#define SERPORT_NOTIFY_OVERRUN	5
 
 struct serport {
 	struct tty_port *port;
@@ -27,10 +32,38 @@ static int ttyport_receive_buf(struct tty_port *port, const unsigned char *cp,
 {
 	struct serdev_controller *ctrl = port->client_data;
 	struct serport *serport = serdev_controller_get_drvdata(ctrl);
+	unsigned long errors = 0;
+	unsigned int i;
 	int ret;
 
 	if (!test_bit(SERPORT_ACTIVE, &serport->flags))
 		return 0;
+
+	for (i = 0; fp && i < count; i++) {
+		switch (fp[i]) {
+		case TTY_BREAK:
+			if (test_bit(SERPORT_NOTIFY_BREAK, &serport->flags))
+				__set_bit(SERDEV_ERROR_BREAK, &errors);
+			break;
+
+		case TTY_FRAME:
+			if (test_bit(SERPORT_NOTIFY_FRAME, &serport->flags))
+				__set_bit(SERDEV_ERROR_FRAME, &errors);
+			break;
+
+		case TTY_PARITY:
+			if (test_bit(SERPORT_NOTIFY_PARITY, &serport->flags))
+				__set_bit(SERDEV_ERROR_PARITY, &errors);
+			break;
+
+		case TTY_OVERRUN:
+			if (test_bit(SERPORT_NOTIFY_OVERRUN, &serport->flags))
+				__set_bit(SERDEV_ERROR_OVERRUN, &errors);
+			break;
+		}
+	}
+	if (errors)
+		serdev_controller_error(ctrl, errors);
 
 	ret = serdev_controller_receive_buf(ctrl, cp, count);
 
@@ -180,6 +213,21 @@ static unsigned int ttyport_set_baudrate(struct serdev_controller *ctrl, unsigne
 	return ktermios.c_ospeed;
 }
 
+static void ttyport_set_error_mask(struct serdev_controller *ctrl,
+				   unsigned long m)
+{
+	struct serport *sp = serdev_controller_get_drvdata(ctrl);
+
+	assign_bit(SERPORT_NOTIFY_BREAK, &sp->flags,
+		   m & BIT(SERDEV_ERROR_BREAK));
+	assign_bit(SERPORT_NOTIFY_FRAME, &sp->flags,
+		   m & BIT(SERDEV_ERROR_FRAME));
+	assign_bit(SERPORT_NOTIFY_PARITY, &sp->flags,
+		   m & BIT(SERDEV_ERROR_PARITY));
+	assign_bit(SERPORT_NOTIFY_OVERRUN, &sp->flags,
+		   m & BIT(SERDEV_ERROR_OVERRUN));
+}
+
 static void ttyport_set_flow_control(struct serdev_controller *ctrl, bool enable)
 {
 	struct serport *serport = serdev_controller_get_drvdata(ctrl);
@@ -253,6 +301,7 @@ static const struct serdev_controller_ops ctrl_ops = {
 	.write_room = ttyport_write_room,
 	.open = ttyport_open,
 	.close = ttyport_close,
+	.set_error_mask = ttyport_set_error_mask,
 	.set_flow_control = ttyport_set_flow_control,
 	.set_parity = ttyport_set_parity,
 	.set_baudrate = ttyport_set_baudrate,

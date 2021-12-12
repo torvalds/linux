@@ -349,6 +349,17 @@ unsigned int serdev_device_set_baudrate(struct serdev_device *serdev, unsigned i
 }
 EXPORT_SYMBOL_GPL(serdev_device_set_baudrate);
 
+void serdev_device_set_error_mask(struct serdev_device *serdev, unsigned long mask)
+{
+	struct serdev_controller *ctrl = serdev->ctrl;
+
+	if (!ctrl || !ctrl->ops->set_error_mask)
+		return;
+
+	ctrl->ops->set_error_mask(ctrl, mask);
+}
+EXPORT_SYMBOL_GPL(serdev_device_set_error_mask);
+
 void serdev_device_set_flow_control(struct serdev_device *serdev, bool enable)
 {
 	struct serdev_controller *ctrl = serdev->ctrl;
