@@ -371,8 +371,9 @@ int bpf_gen__finish(struct bpf_gen *gen, int nr_progs, int nr_maps)
 {
 	int i;
 
-	if (nr_progs != gen->nr_progs || nr_maps != gen->nr_maps) {
-		pr_warn("progs/maps mismatch\n");
+	if (nr_progs < gen->nr_progs || nr_maps != gen->nr_maps) {
+		pr_warn("nr_progs %d/%d nr_maps %d/%d mismatch\n",
+			nr_progs, gen->nr_progs, nr_maps, gen->nr_maps);
 		gen->error = -EFAULT;
 		return gen->error;
 	}
