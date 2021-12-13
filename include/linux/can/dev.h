@@ -131,17 +131,24 @@ static inline s32 can_get_relative_tdco(const struct can_priv *priv)
 }
 
 /* helper to define static CAN controller features at device creation time */
-static inline void can_set_static_ctrlmode(struct net_device *dev,
-					   u32 static_mode)
+static inline int __must_check can_set_static_ctrlmode(struct net_device *dev,
+						       u32 static_mode)
 {
 	struct can_priv *priv = netdev_priv(dev);
 
 	/* alloc_candev() succeeded => netdev_priv() is valid at this point */
+	if (priv->ctrlmode_supported & static_mode) {
+		netdev_warn(dev,
+			    "Controller features can not be supported and static at the same time\n");
+		return -EINVAL;
+	}
 	priv->ctrlmode = static_mode;
 
 	/* override MTU which was set by default in can_setup()? */
 	if (static_mode & CAN_CTRLMODE_FD)
 		dev->mtu = CANFD_MTU;
+
+	return 0;
 }
 
 static inline u32 can_get_static_ctrlmode(struct can_priv *priv)

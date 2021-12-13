@@ -1699,7 +1699,9 @@ static int rcar_canfd_channel_probe(struct rcar_canfd_global *gpriv, u32 ch,
 			&rcar_canfd_data_bittiming_const;
 
 		/* Controller starts in CAN FD only mode */
-		can_set_static_ctrlmode(ndev, CAN_CTRLMODE_FD);
+		err = can_set_static_ctrlmode(ndev, CAN_CTRLMODE_FD);
+		if (err)
+			goto fail;
 		priv->can.ctrlmode_supported = CAN_CTRLMODE_BERR_REPORTING;
 	} else {
 		/* Controller starts in Classical CAN only mode */
