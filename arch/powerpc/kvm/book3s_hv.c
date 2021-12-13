@@ -4442,6 +4442,7 @@ static int kvmppc_run_vcpu(struct kvm_vcpu *vcpu)
 int kvmhv_run_single_vcpu(struct kvm_vcpu *vcpu, u64 time_limit,
 			  unsigned long lpcr)
 {
+	struct rcuwait *wait = kvm_arch_vcpu_get_wait(vcpu);
 	struct kvm_run *run = vcpu->run;
 	int trap, r, pcpu;
 	int srcu_idx;
@@ -4588,7 +4589,7 @@ int kvmhv_run_single_vcpu(struct kvm_vcpu *vcpu, u64 time_limit,
 	if (is_kvmppc_resume_guest(r) && !kvmppc_vcpu_check_block(vcpu)) {
 		kvmppc_set_timer(vcpu);
 
-		prepare_to_rcuwait(&vcpu->wait);
+		prepare_to_rcuwait(wait);
 		for (;;) {
 			set_current_state(TASK_INTERRUPTIBLE);
 			if (signal_pending(current)) {
@@ -4605,7 +4606,7 @@ int kvmhv_run_single_vcpu(struct kvm_vcpu *vcpu, u64 time_limit,
 			schedule();
 			trace_kvmppc_vcore_blocked(vc, 1);
 		}
-		finish_rcuwait(&vcpu->wait);
+		finish_rcuwait(wait);
 	}
 	vcpu->arch.ceded = 0;
 
