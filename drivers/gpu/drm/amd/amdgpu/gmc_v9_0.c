@@ -478,9 +478,18 @@ static int gmc_v9_0_vm_fault_interrupt_state(struct amdgpu_device *adev,
 			hub = &adev->vmhub[j];
 			for (i = 0; i < 16; i++) {
 				reg = hub->vm_context0_cntl + i;
-				tmp = RREG32(reg);
+
+				if (j == AMDGPU_GFXHUB_0)
+					tmp = RREG32_SOC15_IP(GC, reg);
+				else
+					tmp = RREG32_SOC15_IP(MMHUB, reg);
+
 				tmp &= ~bits;
-				WREG32(reg, tmp);
+
+				if (j == AMDGPU_GFXHUB_0)
+					WREG32_SOC15_IP(GC, reg, tmp);
+				else
+					WREG32_SOC15_IP(MMHUB, reg, tmp);
 			}
 		}
 		break;
@@ -489,9 +498,18 @@ static int gmc_v9_0_vm_fault_interrupt_state(struct amdgpu_device *adev,
 			hub = &adev->vmhub[j];
 			for (i = 0; i < 16; i++) {
 				reg = hub->vm_context0_cntl + i;
-				tmp = RREG32(reg);
+
+				if (j == AMDGPU_GFXHUB_0)
+					tmp = RREG32_SOC15_IP(GC, reg);
+				else
+					tmp = RREG32_SOC15_IP(MMHUB, reg);
+
 				tmp |= bits;
-				WREG32(reg, tmp);
+
+				if (j == AMDGPU_GFXHUB_0)
+					WREG32_SOC15_IP(GC, reg, tmp);
+				else
+					WREG32_SOC15_IP(MMHUB, reg, tmp);
 			}
 		}
 		break;
@@ -788,9 +806,12 @@ static void gmc_v9_0_flush_gpu_tlb(struct amdgpu_device *adev, uint32_t vmid,
 	/* TODO: It needs to continue working on debugging with semaphore for GFXHUB as well. */
 	if (use_semaphore) {
 		for (j = 0; j < adev->usec_timeout; j++) {
-			/* a read return value of 1 means semaphore acuqire */
-			tmp = RREG32_NO_KIQ(hub->vm_inv_eng0_sem +
-					    hub->eng_distance * eng);
+			/* a read return value of 1 means semaphore acquire */
+			if (vmhub == AMDGPU_GFXHUB_0)
+				tmp = RREG32_SOC15_IP_NO_KIQ(GC, hub->vm_inv_eng0_sem + hub->eng_distance * eng);
+			else
+				tmp = RREG32_SOC15_IP_NO_KIQ(MMHUB, hub->vm_inv_eng0_sem + hub->eng_distance * eng);
+
 			if (tmp & 0x1)
 				break;
 			udelay(1);
@@ -801,8 +822,10 @@ static void gmc_v9_0_flush_gpu_tlb(struct amdgpu_device *adev, uint32_t vmid,
 	}
 
 	do {
-		WREG32_NO_KIQ(hub->vm_inv_eng0_req +
-			      hub->eng_distance * eng, inv_req);
+		if (vmhub == AMDGPU_GFXHUB_0)
+			WREG32_SOC15_IP_NO_KIQ(GC, hub->vm_inv_eng0_req + hub->eng_distance * eng, inv_req);
+		else
+			WREG32_SOC15_IP_NO_KIQ(MMHUB, hub->vm_inv_eng0_req + hub->eng_distance * eng, inv_req);
 
 		/*
 		 * Issue a dummy read to wait for the ACK register to
@@ -815,8 +838,11 @@ static void gmc_v9_0_flush_gpu_tlb(struct amdgpu_device *adev, uint32_t vmid,
 				      hub->eng_distance * eng);
 
 		for (j = 0; j < adev->usec_timeout; j++) {
-			tmp = RREG32_NO_KIQ(hub->vm_inv_eng0_ack +
-					    hub->eng_distance * eng);
+			if (vmhub == AMDGPU_GFXHUB_0)
+				tmp = RREG32_SOC15_IP_NO_KIQ(GC, hub->vm_inv_eng0_ack + hub->eng_distance * eng);
+			else
+				tmp = RREG32_SOC15_IP_NO_KIQ(MMHUB, hub->vm_inv_eng0_ack + hub->eng_distance * eng);
+
 			if (tmp & (1 << vmid))
 				break;
 			udelay(1);
@@ -827,13 +853,16 @@ static void gmc_v9_0_flush_gpu_tlb(struct amdgpu_device *adev, uint32_t vmid,
 	} while (inv_req);
 
 	/* TODO: It needs to continue working on debugging with semaphore for GFXHUB as well. */
-	if (use_semaphore)
+	if (use_semaphore) {
 		/*
 		 * add semaphore release after invalidation,
 		 * write with 0 means semaphore release
 		 */
-		WREG32_NO_KIQ(hub->vm_inv_eng0_sem +
-			      hub->eng_distance * eng, 0);
+		if (vmhub == AMDGPU_GFXHUB_0)
+			WREG32_SOC15_IP_NO_KIQ(GC, hub->vm_inv_eng0_sem + hub->eng_distance * eng, 0);
+		else
+			WREG32_SOC15_IP_NO_KIQ(MMHUB, hub->vm_inv_eng0_sem + hub->eng_distance * eng, 0);
+	}
 
 	spin_unlock(&adev->gmc.invalidate_lock);
 
