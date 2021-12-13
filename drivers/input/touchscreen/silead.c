@@ -75,12 +75,43 @@ struct silead_ts_data {
 	struct input_mt_pos pos[SILEAD_MAX_FINGERS];
 	int slots[SILEAD_MAX_FINGERS];
 	int id[SILEAD_MAX_FINGERS];
+	u32 efi_fw_min_max[4];
+	bool efi_fw_min_max_set;
 };
 
 struct silead_fw_data {
 	u32 offset;
 	u32 val;
 };
+
+static void silead_apply_efi_fw_min_max(struct silead_ts_data *data)
+{
+	struct input_absinfo *absinfo_x = &data->input->absinfo[ABS_MT_POSITION_X];
+	struct input_absinfo *absinfo_y = &data->input->absinfo[ABS_MT_POSITION_Y];
+
+	if (!data->efi_fw_min_max_set)
+		return;
+
+	absinfo_x->minimum = data->efi_fw_min_max[0];
+	absinfo_x->maximum = data->efi_fw_min_max[1];
+	absinfo_y->minimum = data->efi_fw_min_max[2];
+	absinfo_y->maximum = data->efi_fw_min_max[3];
+
+	if (data->prop.invert_x) {
+		absinfo_x->maximum -= absinfo_x->minimum;
+		absinfo_x->minimum = 0;
+	}
+
+	if (data->prop.invert_y) {
+		absinfo_y->maximum -= absinfo_y->minimum;
+		absinfo_y->minimum = 0;
+	}
+
+	if (data->prop.swap_x_y) {
+		swap(absinfo_x->minimum, absinfo_y->minimum);
+		swap(absinfo_x->maximum, absinfo_y->maximum);
+	}
+}
 
 static int silead_ts_request_input_dev(struct silead_ts_data *data)
 {
@@ -97,6 +128,7 @@ static int silead_ts_request_input_dev(struct silead_ts_data *data)
 	input_set_abs_params(data->input, ABS_MT_POSITION_X, 0, 4095, 0, 0);
 	input_set_abs_params(data->input, ABS_MT_POSITION_Y, 0, 4095, 0, 0);
 	touchscreen_parse_properties(data->input, true, &data->prop);
+	silead_apply_efi_fw_min_max(data);
 
 	input_mt_init_slots(data->input, data->max_fingers,
 			    INPUT_MT_DIRECT | INPUT_MT_DROP_UNUSED |
@@ -282,17 +314,48 @@ static int silead_ts_load_fw(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct silead_ts_data *data = i2c_get_clientdata(client);
-	unsigned int fw_size, i;
-	const struct firmware *fw;
+	const struct firmware *fw = NULL;
 	struct silead_fw_data *fw_data;
+	unsigned int fw_size, i;
 	int error;
 
 	dev_dbg(dev, "Firmware file name: %s", data->fw_name);
 
-	error = firmware_request_platform(&fw, data->fw_name, dev);
+	/*
+	 * Unfortunately, at the time of writing this comment, we have been unable to
+	 * get permission from Silead, or from device OEMs, to distribute the necessary
+	 * Silead firmware files in linux-firmware.
+	 *
+	 * On a whole bunch of devices the UEFI BIOS code contains a touchscreen driver,
+	 * which contains an embedded copy of the firmware. The fw-loader code has a
+	 * "platform" fallback mechanism, which together with info on the firmware
+	 * from drivers/platform/x86/touchscreen_dmi.c will use the firmware from the
+	 * UEFI driver when the firmware is missing from /lib/firmware. This makes the
+	 * touchscreen work OOTB without users needing to manually download the firmware.
+	 *
+	 * The firmware bundled with the original Windows/Android is usually newer then
+	 * the firmware in the UEFI driver and it is better calibrated. This better
+	 * calibration can lead to significant differences in the reported min/max
+	 * coordinates.
+	 *
+	 * To deal with this we first try to load the firmware without "platform"
+	 * fallback. If that fails we retry with "platform" fallback and if that
+	 * succeeds we apply an (optional) set of alternative min/max values from the
+	 * "silead,efi-fw-min-max" property.
+	 */
+	error = firmware_request_nowarn(&fw, data->fw_name, dev);
 	if (error) {
-		dev_err(dev, "Firmware request error %d\n", error);
-		return error;
+		error = firmware_request_platform(&fw, data->fw_name, dev);
+		if (error) {
+			dev_err(dev, "Firmware request error %d\n", error);
+			return error;
+		}
+
+		error = device_property_read_u32_array(dev, "silead,efi-fw-min-max",
+						       data->efi_fw_min_max,
+						       ARRAY_SIZE(data->efi_fw_min_max));
+		if (!error)
+			data->efi_fw_min_max_set = true;
 	}
 
 	fw_size = fw->size / sizeof(*fw_data);
