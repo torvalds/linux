@@ -4531,7 +4531,15 @@ static void hci_inquiry_result_with_rssi_evt(struct hci_dev *hdev, void *edata,
 		for (i = 0; i < ev->res2->num; i++) {
 			u32 flags;
 
-			info = &ev->res2->info[i];
+			info = hci_ev_skb_pull(hdev, skb,
+					       HCI_EV_INQUIRY_RESULT_WITH_RSSI,
+					       sizeof(*info));
+			if (!info) {
+				bt_dev_err(hdev, "Malformed HCI Event: 0x%2.2x",
+					   HCI_EV_INQUIRY_RESULT_WITH_RSSI);
+				return;
+			}
+
 			bacpy(&data.bdaddr, &info->bdaddr);
 			data.pscan_rep_mode	= info->pscan_rep_mode;
 			data.pscan_period_mode	= info->pscan_period_mode;
@@ -4553,7 +4561,15 @@ static void hci_inquiry_result_with_rssi_evt(struct hci_dev *hdev, void *edata,
 		for (i = 0; i < ev->res1->num; i++) {
 			u32 flags;
 
-			info = &ev->res1->info[i];
+			info = hci_ev_skb_pull(hdev, skb,
+					       HCI_EV_INQUIRY_RESULT_WITH_RSSI,
+					       sizeof(*info));
+			if (!info) {
+				bt_dev_err(hdev, "Malformed HCI Event: 0x%2.2x",
+					   HCI_EV_INQUIRY_RESULT_WITH_RSSI);
+				return;
+			}
+
 			bacpy(&data.bdaddr, &info->bdaddr);
 			data.pscan_rep_mode	= info->pscan_rep_mode;
 			data.pscan_period_mode	= info->pscan_period_mode;
