@@ -45,7 +45,6 @@ required:
   - compatible
   - reg
   - reg-names
-  - interrupts
 
 additionalProperties: false
 
