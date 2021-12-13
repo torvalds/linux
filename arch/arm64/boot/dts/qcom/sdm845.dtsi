@@ -1078,7 +1078,7 @@
 		};
 
 		qfprom@784000 {
-			compatible = "qcom,qfprom";
+			compatible = "qcom,sdm845-qfprom", "qcom,qfprom";
 			reg = <0 0x00784000 0 0x8ff>;
 			#address-cells = <1>;
 			#size-cells = <1>;
