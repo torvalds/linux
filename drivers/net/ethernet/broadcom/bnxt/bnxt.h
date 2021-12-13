@@ -2258,6 +2258,16 @@ static inline void bnxt_db_write(struct bnxt *bp, struct bnxt_db_info *db,
 	}
 }
 
+/* Must hold rtnl_lock */
+static inline bool bnxt_sriov_cfg(struct bnxt *bp)
+{
+#if defined(CONFIG_BNXT_SRIOV)
+	return BNXT_PF(bp) && (bp->pf.active_vfs || bp->sriov_cfg);
+#else
+	return false;
+#endif
+}
+
 extern const u16 bnxt_lhint_arr[];
 
 int bnxt_alloc_rx_data(struct bnxt *bp, struct bnxt_rx_ring_info *rxr,

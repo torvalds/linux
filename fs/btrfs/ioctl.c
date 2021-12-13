@@ -3187,10 +3187,8 @@ static long btrfs_ioctl_rm_dev_v2(struct file *file, void __user *arg)
 		return -EPERM;
 
 	vol_args = memdup_user(arg, sizeof(*vol_args));
-	if (IS_ERR(vol_args)) {
-		ret = PTR_ERR(vol_args);
-		goto out;
-	}
+	if (IS_ERR(vol_args))
+		return PTR_ERR(vol_args);
 
 	if (vol_args->flags & ~BTRFS_DEVICE_REMOVE_ARGS_MASK) {
 		ret = -EOPNOTSUPP;
@@ -3984,6 +3982,10 @@ static long btrfs_ioctl_balance(struct file *file, void __user *arg)
 	struct btrfs_balance_control *bctl;
 	bool need_unlock; /* for mut. excl. ops lock */
 	int ret;
+
+	if (!arg)
+		btrfs_warn(fs_info,
+	"IOC_BALANCE ioctl (v1) is deprecated and will be removed in kernel 5.18");
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;

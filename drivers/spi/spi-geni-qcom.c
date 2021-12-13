@@ -491,22 +491,26 @@ static int spi_geni_grab_gpi_chan(struct spi_geni_master *mas)
 	int ret;
 
 	mas->tx = dma_request_chan(mas->dev, "tx");
-	ret = dev_err_probe(mas->dev, IS_ERR(mas->tx), "Failed to get tx DMA ch\n");
-	if (ret < 0)
+	if (IS_ERR(mas->tx)) {
+		ret = dev_err_probe(mas->dev, PTR_ERR(mas->tx),
+				    "Failed to get tx DMA ch\n");
 		goto err_tx;
+	}
 
 	mas->rx = dma_request_chan(mas->dev, "rx");
-	ret = dev_err_probe(mas->dev, IS_ERR(mas->rx), "Failed to get rx DMA ch\n");
-	if (ret < 0)
+	if (IS_ERR(mas->rx)) {
+		ret = dev_err_probe(mas->dev, PTR_ERR(mas->rx),
+				    "Failed to get rx DMA ch\n");
 		goto err_rx;
+	}
 
 	return 0;
 
 err_rx:
-	dma_release_channel(mas->tx);
-	mas->tx = NULL;
-err_tx:
 	mas->rx = NULL;
+	dma_release_channel(mas->tx);
+err_tx:
+	mas->tx = NULL;
 	return ret;
 }
 

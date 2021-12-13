@@ -566,7 +566,7 @@ lws_compare_and_swap:
 	ldo	R%lws_lock_start(%r20), %r28
 
 	/* Extract eight bits from r26 and hash lock (Bits 3-11) */
-	extru  %r26, 28, 8, %r20
+	extru_safe  %r26, 28, 8, %r20
 
 	/* Find lock to use, the hash is either one of 0 to
 	   15, multiplied by 16 (keep it 16-byte aligned)
@@ -751,7 +751,7 @@ cas2_lock_start:
 	ldo	R%lws_lock_start(%r20), %r28
 
 	/* Extract eight bits from r26 and hash lock (Bits 3-11) */
-	extru  %r26, 28, 8, %r20
+	extru_safe  %r26, 28, 8, %r20
 
 	/* Find lock to use, the hash is either one of 0 to
 	   15, multiplied by 16 (keep it 16-byte aligned)

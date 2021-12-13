@@ -23,8 +23,10 @@ msm-y := \
 	hdmi/hdmi_i2c.o \
 	hdmi/hdmi_phy.o \
 	hdmi/hdmi_phy_8960.o \
+	hdmi/hdmi_phy_8996.o \
 	hdmi/hdmi_phy_8x60.o \
 	hdmi/hdmi_phy_8x74.o \
+	hdmi/hdmi_pll_8960.o \
 	edp/edp.o \
 	edp/edp_aux.o \
 	edp/edp_bridge.o \
@@ -37,6 +39,7 @@ msm-y := \
 	disp/mdp4/mdp4_dtv_encoder.o \
 	disp/mdp4/mdp4_lcdc_encoder.o \
 	disp/mdp4/mdp4_lvds_connector.o \
+	disp/mdp4/mdp4_lvds_pll.o \
 	disp/mdp4/mdp4_irq.o \
 	disp/mdp4/mdp4_kms.o \
 	disp/mdp4/mdp4_plane.o \
@@ -116,9 +119,6 @@ msm-$(CONFIG_DRM_MSM_DP)+= dp/dp_aux.o \
 	dp/dp_audio.o
 
 msm-$(CONFIG_DRM_FBDEV_EMULATION) += msm_fbdev.o
-msm-$(CONFIG_COMMON_CLK) += disp/mdp4/mdp4_lvds_pll.o
-msm-$(CONFIG_COMMON_CLK) += hdmi/hdmi_pll_8960.o
-msm-$(CONFIG_COMMON_CLK) += hdmi/hdmi_phy_8996.o
 
 msm-$(CONFIG_DRM_MSM_HDMI_HDCP) += hdmi/hdmi_hdcp.o
 

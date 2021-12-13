@@ -606,7 +606,7 @@ static void __init setup_resources(void)
 
 static void __init setup_memory_end(void)
 {
-	memblock_remove(ident_map_size, ULONG_MAX);
+	memblock_remove(ident_map_size, PHYS_ADDR_MAX - ident_map_size);
 	max_pfn = max_low_pfn = PFN_DOWN(ident_map_size);
 	pr_notice("The maximum memory size is %luMB\n", ident_map_size >> 20);
 }
@@ -636,14 +636,6 @@ static struct notifier_block kdump_mem_nb = {
 };
 
 #endif
-
-/*
- * Make sure that the area above identity mapping is protected
- */
-static void __init reserve_above_ident_map(void)
-{
-	memblock_reserve(ident_map_size, ULONG_MAX);
-}
 
 /*
  * Reserve memory for kdump kernel to be loaded with kexec
@@ -785,7 +777,6 @@ static void __init memblock_add_mem_detect_info(void)
 	}
 	memblock_set_bottom_up(false);
 	memblock_set_node(0, ULONG_MAX, &memblock.memory, 0);
-	memblock_dump_all();
 }
 
 /*
@@ -826,9 +817,6 @@ static void __init setup_memory(void)
 		storage_key_init_range(start, end);
 
 	psw_set_key(PAGE_DEFAULT_KEY);
-
-	/* Only cosmetics */
-	memblock_enforce_memory_limit(memblock_end_of_DRAM());
 }
 
 static void __init relocate_amode31_section(void)
@@ -999,24 +987,24 @@ void __init setup_arch(char **cmdline_p)
 	setup_control_program_code();
 
 	/* Do some memory reservations *before* memory is added to memblock */
-	reserve_above_ident_map();
 	reserve_kernel();
 	reserve_initrd();
 	reserve_certificate_list();
 	reserve_mem_detect_info();
+	memblock_set_current_limit(ident_map_size);
 	memblock_allow_resize();
 
 	/* Get information about *all* installed memory */
 	memblock_add_mem_detect_info();
 
 	free_mem_detect_info();
+	setup_memory_end();
+	memblock_dump_all();
+	setup_memory();
 
 	relocate_amode31_section();
 	setup_cr();
-
 	setup_uv();
-	setup_memory_end();
-	setup_memory();
 	dma_contiguous_reserve(ident_map_size);
 	vmcp_cma_reserve();
 	if (MACHINE_HAS_EDAT2)

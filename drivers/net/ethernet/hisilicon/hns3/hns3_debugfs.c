@@ -1081,7 +1081,8 @@ static void hns3_dump_page_pool_info(struct hns3_enet_ring *ring,
 	u32 j = 0;
 
 	sprintf(result[j++], "%u", index);
-	sprintf(result[j++], "%u", ring->page_pool->pages_state_hold_cnt);
+	sprintf(result[j++], "%u",
+		READ_ONCE(ring->page_pool->pages_state_hold_cnt));
 	sprintf(result[j++], "%u",
 		atomic_read(&ring->page_pool->pages_state_release_cnt));
 	sprintf(result[j++], "%u", ring->page_pool->p.pool_size);
@@ -1103,6 +1104,11 @@ hns3_dbg_page_pool_info(struct hnae3_handle *h, char *buf, int len)
 
 	if (!priv->ring) {
 		dev_err(&h->pdev->dev, "priv->ring is NULL\n");
+		return -EFAULT;
+	}
+
+	if (!priv->ring[h->kinfo.num_tqps].page_pool) {
+		dev_err(&h->pdev->dev, "page pool is not initialized\n");
 		return -EFAULT;
 	}
 

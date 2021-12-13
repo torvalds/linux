@@ -565,7 +565,6 @@ struct nfp_net_dp {
  * @exn_name:           Name for Exception interrupt
  * @shared_handler:     Handler for shared interrupts
  * @shared_name:        Name for shared interrupt
- * @me_freq_mhz:        ME clock_freq (MHz)
  * @reconfig_lock:	Protects @reconfig_posted, @reconfig_timer_active,
  *			@reconfig_sync_present and HW reconfiguration request
  *			regs/machinery from async requests (sync must take
@@ -649,8 +648,6 @@ struct nfp_net {
 
 	irq_handler_t shared_handler;
 	char shared_name[IFNAMSIZ + 8];
-
-	u32 me_freq_mhz;
 
 	bool link_up;
 	spinlock_t link_status_lock;

@@ -402,8 +402,10 @@ static int add_event_tool(struct list_head *list, int *idx,
 	if (!evsel)
 		return -ENOMEM;
 	evsel->tool_event = tool_event;
-	if (tool_event == PERF_TOOL_DURATION_TIME)
-		evsel->unit = "ns";
+	if (tool_event == PERF_TOOL_DURATION_TIME) {
+		free((char *)evsel->unit);
+		evsel->unit = strdup("ns");
+	}
 	return 0;
 }
 
@@ -1630,7 +1632,8 @@ int parse_events_add_pmu(struct parse_events_state *parse_state,
 	if (parse_state->fake_pmu)
 		return 0;
 
-	evsel->unit = info.unit;
+	free((char *)evsel->unit);
+	evsel->unit = strdup(info.unit);
 	evsel->scale = info.scale;
 	evsel->per_pkg = info.per_pkg;
 	evsel->snapshot = info.snapshot;
