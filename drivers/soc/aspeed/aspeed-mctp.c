@@ -216,9 +216,6 @@
 #define ID0_AST2625A3			0x05030403
 #define ID1_AST2625A3			0x05030403
 
-/* FIXME: ast2600 supports variable max transmission unit */
-#define ASPEED_MCTP_MTU 64
-
 struct aspeed_mctp_match_data {
 	u32 rx_cmd_size;
 	u32 packet_unit_size;
