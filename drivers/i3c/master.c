@@ -1515,7 +1515,11 @@ static int i3c_master_early_i3c_dev_add(struct i3c_master_controller *master,
 	if (ret)
 		goto err_free_dev;
 
-	if (master->jdec_spd == 0) {
+	/*
+	 * JESD403-1 devices only support SETAASA (will be called in do_daa)
+	 * Here we use SETDASA for non-JESD403-1 devices
+	 */
+	if (!I3C_DCR_IS_JESD403_COMPLIANT(i3cdev->boardinfo->dcr)) {
 		ret = i3c_master_setdasa_locked(
 			master, i3cdev->info.static_addr,
 			i3cdev->boardinfo->init_dyn_addr);

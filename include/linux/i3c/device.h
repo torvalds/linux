@@ -74,6 +74,7 @@ struct i3c_priv_xfer {
  */
 enum i3c_dcr {
 	I3C_DCR_GENERIC_DEVICE = 0,
+	I3C_DCR_JESD403_BEGIN = 208,
 	I3C_DCR_THERMAL_SENSOR_FIRST = 210,
 	I3C_DCR_THERMAL_SENSOR_SECOND = 214,
 	I3C_DCR_PMIC_SECOND = 216,
@@ -81,8 +82,12 @@ enum i3c_dcr {
 	I3C_DCR_SPD_HUB = 218,
 	I3C_DCR_RCD = 219,
 	I3C_DCR_PMIC_THIRD = 220,
+	I3C_DCR_JESD403_END = 223,
 	I3C_DCR_MAX = 228,
 };
+
+#define I3C_DCR_IS_JESD403_COMPLIANT(dcr)                                      \
+	(dcr >= I3C_DCR_JESD403_BEGIN && dcr <= I3C_DCR_JESD403_END)
 
 #define I3C_PID_MANUF_ID(pid)		(((pid) & GENMASK_ULL(47, 33)) >> 33)
 #define I3C_PID_RND_LOWER_32BITS(pid)	(!!((pid) & BIT_ULL(32)))
