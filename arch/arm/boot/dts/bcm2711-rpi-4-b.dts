@@ -65,12 +65,12 @@
 };
 
 &expgpio {
-	gpio-line-names = "BT_ON",
+	gpio-line-names = "BT_ON",		/*  0 */
 			  "WL_ON",
 			  "PWR_LED_OFF",
 			  "GLOBAL_RESET",
 			  "VDD_SD_IO_SEL",
-			  "CAM_GPIO",
+			  "CAM_GPIO",		/*  5 */
 			  "SD_PWR_ON",
 			  "";
 };
@@ -84,66 +84,66 @@
 	 * "FOO" = GPIO line named "FOO" on the schematic
 	 * "FOO_N" = GPIO line named "FOO" on schematic, active low
 	 */
-	gpio-line-names = "ID_SDA",
+	gpio-line-names = "ID_SDA",		/*  0 */
 			  "ID_SCL",
 			  "SDA1",
 			  "SCL1",
 			  "GPIO_GCLK",
-			  "GPIO5",
+			  "GPIO5",		/*  5 */
 			  "GPIO6",
 			  "SPI_CE1_N",
 			  "SPI_CE0_N",
 			  "SPI_MISO",
-			  "SPI_MOSI",
+			  "SPI_MOSI",		/* 10 */
 			  "SPI_SCLK",
 			  "GPIO12",
 			  "GPIO13",
 			  /* Serial port */
 			  "TXD1",
-			  "RXD1",
+			  "RXD1",		/* 15 */
 			  "GPIO16",
 			  "GPIO17",
 			  "GPIO18",
 			  "GPIO19",
-			  "GPIO20",
+			  "GPIO20",		/* 20 */
 			  "GPIO21",
 			  "GPIO22",
 			  "GPIO23",
 			  "GPIO24",
-			  "GPIO25",
+			  "GPIO25",		/* 25 */
 			  "GPIO26",
 			  "GPIO27",
 			  "RGMII_MDIO",
 			  "RGMIO_MDC",
 			  /* Used by BT module */
-			  "CTS0",
+			  "CTS0",		/* 30 */
 			  "RTS0",
 			  "TXD0",
 			  "RXD0",
 			  /* Used by Wifi */
 			  "SD1_CLK",
-			  "SD1_CMD",
+			  "SD1_CMD",		/* 35 */
 			  "SD1_DATA0",
 			  "SD1_DATA1",
 			  "SD1_DATA2",
 			  "SD1_DATA3",
 			  /* Shared with SPI flash */
-			  "PWM0_MISO",
+			  "PWM0_MISO",		/* 40 */
 			  "PWM1_MOSI",
 			  "STATUS_LED_G_CLK",
 			  "SPIFLASH_CE_N",
 			  "SDA0",
-			  "SCL0",
+			  "SCL0",		/* 45 */
 			  "RGMII_RXCLK",
 			  "RGMII_RXCTL",
 			  "RGMII_RXD0",
 			  "RGMII_RXD1",
-			  "RGMII_RXD2",
+			  "RGMII_RXD2",		/* 50 */
 			  "RGMII_RXD3",
 			  "RGMII_TXCLK",
 			  "RGMII_TXCTL",
 			  "RGMII_TXD0",
-			  "RGMII_TXD1",
+			  "RGMII_TXD1",		/* 55 */
 			  "RGMII_TXD2",
 			  "RGMII_TXD3";
 };
