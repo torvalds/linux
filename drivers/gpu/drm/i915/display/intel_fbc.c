@@ -49,6 +49,13 @@
 #include "intel_fbc.h"
 #include "intel_frontbuffer.h"
 
+#define for_each_fbc_id(__fbc_id) \
+	for ((__fbc_id) = INTEL_FBC_A; (__fbc_id) < I915_MAX_FBCS; (__fbc_id)++)
+
+#define for_each_intel_fbc(__dev_priv, __fbc, __fbc_id) \
+	for_each_fbc_id(__fbc_id) \
+		for_each_if((__fbc) = (__dev_priv)->fbc[(__fbc_id)])
+
 struct intel_fbc_funcs {
 	void (*activate)(struct intel_fbc *fbc);
 	void (*deactivate)(struct intel_fbc *fbc);
@@ -812,16 +819,16 @@ static void __intel_fbc_cleanup_cfb(struct intel_fbc *fbc)
 
 void intel_fbc_cleanup(struct drm_i915_private *i915)
 {
-	struct intel_fbc *fbc = i915->fbc;
+	struct intel_fbc *fbc;
+	enum intel_fbc_id fbc_id;
 
-	if (!fbc)
-		return;
+	for_each_intel_fbc(i915, fbc, fbc_id) {
+		mutex_lock(&fbc->lock);
+		__intel_fbc_cleanup_cfb(fbc);
+		mutex_unlock(&fbc->lock);
 
-	mutex_lock(&fbc->lock);
-	__intel_fbc_cleanup_cfb(fbc);
-	mutex_unlock(&fbc->lock);
-
-	kfree(fbc);
+		kfree(fbc);
+	}
 }
 
 static bool stride_is_valid(const struct intel_plane_state *plane_state)
@@ -1307,15 +1314,10 @@ static unsigned int intel_fbc_get_frontbuffer_bit(struct intel_fbc *fbc)
 		return fbc->possible_framebuffer_bits;
 }
 
-void intel_fbc_invalidate(struct drm_i915_private *i915,
-			  unsigned int frontbuffer_bits,
-			  enum fb_op_origin origin)
+static void __intel_fbc_invalidate(struct intel_fbc *fbc,
+				   unsigned int frontbuffer_bits,
+				   enum fb_op_origin origin)
 {
-	struct intel_fbc *fbc = i915->fbc;
-
-	if (!fbc)
-		return;
-
 	if (origin == ORIGIN_FLIP || origin == ORIGIN_CURSOR_UPDATE)
 		return;
 
@@ -1329,14 +1331,22 @@ void intel_fbc_invalidate(struct drm_i915_private *i915,
 	mutex_unlock(&fbc->lock);
 }
 
-void intel_fbc_flush(struct drm_i915_private *i915,
-		     unsigned int frontbuffer_bits, enum fb_op_origin origin)
+void intel_fbc_invalidate(struct drm_i915_private *i915,
+			  unsigned int frontbuffer_bits,
+			  enum fb_op_origin origin)
 {
-	struct intel_fbc *fbc = i915->fbc;
+	struct intel_fbc *fbc;
+	enum intel_fbc_id fbc_id;
 
-	if (!fbc)
-		return;
+	for_each_intel_fbc(i915, fbc, fbc_id)
+		__intel_fbc_invalidate(fbc, frontbuffer_bits, origin);
 
+}
+
+static void __intel_fbc_flush(struct intel_fbc *fbc,
+			      unsigned int frontbuffer_bits,
+			      enum fb_op_origin origin)
+{
 	mutex_lock(&fbc->lock);
 
 	fbc->busy_bits &= ~frontbuffer_bits;
@@ -1354,6 +1364,17 @@ void intel_fbc_flush(struct drm_i915_private *i915,
 
 out:
 	mutex_unlock(&fbc->lock);
+}
+
+void intel_fbc_flush(struct drm_i915_private *i915,
+		     unsigned int frontbuffer_bits,
+		     enum fb_op_origin origin)
+{
+	struct intel_fbc *fbc;
+	enum intel_fbc_id fbc_id;
+
+	for_each_intel_fbc(i915, fbc, fbc_id)
+		__intel_fbc_flush(fbc, frontbuffer_bits, origin);
 }
 
 int intel_fbc_atomic_check(struct intel_atomic_state *state)
@@ -1483,15 +1504,15 @@ void intel_fbc_update(struct intel_atomic_state *state,
  */
 void intel_fbc_global_disable(struct drm_i915_private *i915)
 {
-	struct intel_fbc *fbc = i915->fbc;
+	struct intel_fbc *fbc;
+	enum intel_fbc_id fbc_id;
 
-	if (!fbc)
-		return;
-
-	mutex_lock(&fbc->lock);
-	if (fbc->state.plane)
-		__intel_fbc_disable(fbc);
-	mutex_unlock(&fbc->lock);
+	for_each_intel_fbc(i915, fbc, fbc_id) {
+		mutex_lock(&fbc->lock);
+		if (fbc->state.plane)
+			__intel_fbc_disable(fbc);
+		mutex_unlock(&fbc->lock);
+	}
 }
 
 static void intel_fbc_underrun_work_fn(struct work_struct *work)
@@ -1516,19 +1537,9 @@ out:
 	mutex_unlock(&fbc->lock);
 }
 
-/*
- * intel_fbc_reset_underrun - reset FBC fifo underrun status.
- * @i915: the i915 device
- *
- * See intel_fbc_handle_fifo_underrun_irq(). For automated testing we
- * want to re-enable FBC after an underrun to increase test coverage.
- */
-void intel_fbc_reset_underrun(struct drm_i915_private *i915)
+static void __intel_fbc_reset_underrun(struct intel_fbc *fbc)
 {
-	struct intel_fbc *fbc = i915->fbc;
-
-	if (!fbc)
-		return;
+	struct drm_i915_private *i915 = fbc->i915;
 
 	cancel_work_sync(&fbc->underrun_work);
 
@@ -1542,6 +1553,38 @@ void intel_fbc_reset_underrun(struct drm_i915_private *i915)
 
 	fbc->underrun_detected = false;
 	mutex_unlock(&fbc->lock);
+}
+
+/*
+ * intel_fbc_reset_underrun - reset FBC fifo underrun status.
+ * @i915: the i915 device
+ *
+ * See intel_fbc_handle_fifo_underrun_irq(). For automated testing we
+ * want to re-enable FBC after an underrun to increase test coverage.
+ */
+void intel_fbc_reset_underrun(struct drm_i915_private *i915)
+{
+	struct intel_fbc *fbc;
+	enum intel_fbc_id fbc_id;
+
+	for_each_intel_fbc(i915, fbc, fbc_id)
+		__intel_fbc_reset_underrun(fbc);
+}
+
+static void __intel_fbc_handle_fifo_underrun_irq(struct intel_fbc *fbc)
+{
+	/*
+	 * There's no guarantee that underrun_detected won't be set to true
+	 * right after this check and before the work is scheduled, but that's
+	 * not a problem since we'll check it again under the work function
+	 * while FBC is locked. This check here is just to prevent us from
+	 * unnecessarily scheduling the work, and it relies on the fact that we
+	 * never switch underrun_detect back to false after it's true.
+	 */
+	if (READ_ONCE(fbc->underrun_detected))
+		return;
+
+	schedule_work(&fbc->underrun_work);
 }
 
 /**
@@ -1560,21 +1603,11 @@ void intel_fbc_reset_underrun(struct drm_i915_private *i915)
  */
 void intel_fbc_handle_fifo_underrun_irq(struct drm_i915_private *i915)
 {
-	struct intel_fbc *fbc = i915->fbc;
+	struct intel_fbc *fbc;
+	enum intel_fbc_id fbc_id;
 
-	if (!fbc)
-		return;
-
-	/* There's no guarantee that underrun_detected won't be set to true
-	 * right after this check and before the work is scheduled, but that's
-	 * not a problem since we'll check it again under the work function
-	 * while FBC is locked. This check here is just to prevent us from
-	 * unnecessarily scheduling the work, and it relies on the fact that we
-	 * never switch underrun_detect back to false after it's true. */
-	if (READ_ONCE(fbc->underrun_detected))
-		return;
-
-	schedule_work(&fbc->underrun_work);
+	for_each_intel_fbc(i915, fbc, fbc_id)
+		__intel_fbc_handle_fifo_underrun_irq(fbc);
 }
 
 /*
@@ -1685,7 +1718,7 @@ void intel_fbc_init(struct drm_i915_private *i915)
 	if (intel_fbc_hw_is_active(fbc))
 		intel_fbc_hw_deactivate(fbc);
 
-	i915->fbc = fbc;
+	i915->fbc[fbc->id] = fbc;
 }
 
 static int intel_fbc_debugfs_status_show(struct seq_file *m, void *unused)
@@ -1778,7 +1811,7 @@ static void intel_fbc_debugfs_add(struct intel_fbc *fbc)
 
 void intel_fbc_debugfs_register(struct drm_i915_private *i915)
 {
-	struct intel_fbc *fbc = i915->fbc;
+	struct intel_fbc *fbc = i915->fbc[INTEL_FBC_A];
 
 	if (fbc)
 		intel_fbc_debugfs_add(fbc);
