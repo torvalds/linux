@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0+ OR MIT
 /*
- * Apple Mac mini (M1, 2020)
+ * Apple iMac (24-inch, 4x USB-C, M1, 2020)
  *
- * target-type: J274
+ * target-type: J456
  *
  * Copyright The Asahi Linux Contributors
  */
@@ -13,11 +13,29 @@
 #include "t8103-jxxx.dtsi"
 
 / {
-	compatible = "apple,j274", "apple,t8103", "apple,arm-platform";
-	model = "Apple Mac mini (M1, 2020)";
+	compatible = "apple,j456", "apple,t8103", "apple,arm-platform";
+	model = "Apple iMac (24-inch, 4x USB-C, M1, 2020)";
 
 	aliases {
 		ethernet0 = &ethernet0;
+	};
+};
+
+&i2c0 {
+	hpm2: usb-pd@3b {
+		compatible = "apple,cd321x";
+		reg = <0x3b>;
+		interrupt-parent = <&pinctrl_ap>;
+		interrupts = <106 IRQ_TYPE_LEVEL_LOW>;
+		interrupt-names = "irq";
+	};
+
+	hpm3: usb-pd@3c {
+		compatible = "apple,cd321x";
+		reg = <0x3c>;
+		interrupt-parent = <&pinctrl_ap>;
+		interrupts = <106 IRQ_TYPE_LEVEL_LOW>;
+		interrupt-names = "irq";
 	};
 };
 
@@ -38,8 +56,4 @@
 		/* To be filled by the loader */
 		local-mac-address = [00 10 18 00 00 00];
 	};
-};
-
-&i2c2 {
-	status = "okay";
 };

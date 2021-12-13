@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0+ OR MIT
 /*
- * Apple Mac mini (M1, 2020)
+ * Apple iMac (24-inch, 2x USB-C, M1, 2020)
  *
- * target-type: J274
+ * target-type: J457
  *
  * Copyright The Asahi Linux Contributors
  */
@@ -13,8 +13,8 @@
 #include "t8103-jxxx.dtsi"
 
 / {
-	compatible = "apple,j274", "apple,t8103", "apple,arm-platform";
-	model = "Apple Mac mini (M1, 2020)";
+	compatible = "apple,j457", "apple,t8103", "apple,arm-platform";
+	model = "Apple iMac (24-inch, 2x USB-C, M1, 2020)";
 
 	aliases {
 		ethernet0 = &ethernet0;
@@ -27,10 +27,6 @@
  * (such as MAC addresses).
  */
 
-&port01 {
-	bus-range = <2 2>;
-};
-
 &port02 {
 	bus-range = <3 3>;
 	ethernet0: ethernet@0,0 {
@@ -40,6 +36,12 @@
 	};
 };
 
-&i2c2 {
-	status = "okay";
+/*
+ * Remove unused PCIe port and disable the associated DART.
+ */
+
+&pcie0_dart_1 {
+	status = "disabled";
 };
+
+/delete-node/ &port01;
