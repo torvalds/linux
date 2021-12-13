@@ -90,7 +90,6 @@ static int idxd_setup_interrupts(struct idxd_device *idxd)
 	}
 	dev_dbg(dev, "Enabled %d msix vectors\n", msixcnt);
 
-	idxd_msix_perm_setup(idxd);
 
 	ie = idxd_get_ie(idxd, 0);
 	ie->vector = pci_irq_vector(pdev, 0);
@@ -99,65 +98,26 @@ static int idxd_setup_interrupts(struct idxd_device *idxd)
 		dev_err(dev, "Failed to allocate misc interrupt.\n");
 		goto err_misc_irq;
 	}
-
-	dev_dbg(dev, "Allocated idxd-misc handler on msix vector %d\n", ie->vector);
+	dev_dbg(dev, "Requested idxd-misc handler on msix vector %d\n", ie->vector);
 
 	for (i = 0; i < idxd->max_wqs; i++) {
 		int msix_idx = i + 1;
 
 		ie = idxd_get_ie(idxd, msix_idx);
-
-		/* MSIX vector 0 special, wq irq entry starts at 1 */
 		ie->id = msix_idx;
-		ie->vector = pci_irq_vector(pdev, msix_idx);
 		ie->int_handle = INVALID_INT_HANDLE;
-		if (device_pasid_enabled(idxd) && i > 0)
-			ie->pasid = idxd->pasid;
-		else
-			ie->pasid = INVALID_IOASID;
+		ie->pasid = INVALID_IOASID;
+
 		spin_lock_init(&ie->list_lock);
 		init_llist_head(&ie->pending_llist);
 		INIT_LIST_HEAD(&ie->work_list);
-
-		rc = request_threaded_irq(ie->vector, NULL, idxd_wq_thread, 0, "idxd-portal", ie);
-		if (rc < 0) {
-			dev_err(dev, "Failed to allocate irq %d.\n", ie->vector);
-			goto err_wq_irqs;
-		}
-
-		dev_dbg(dev, "Allocated idxd-msix %d for vector %d\n", i, ie->vector);
-		if (idxd->request_int_handles) {
-			rc = idxd_device_request_int_handle(idxd, i, &ie->int_handle,
-							    IDXD_IRQ_MSIX);
-			if (rc < 0) {
-				free_irq(ie->vector, ie);
-				goto err_wq_irqs;
-			}
-			dev_dbg(dev, "int handle requested: %u\n", ie->int_handle);
-		} else {
-			ie->int_handle = msix_idx;
-		}
-
 	}
 
 	idxd_unmask_error_interrupts(idxd);
 	return 0;
 
- err_wq_irqs:
-	while (--i >= 0) {
-		ie = &idxd->wqs[i]->ie;
-		free_irq(ie->vector, ie);
-		if (ie->int_handle != INVALID_INT_HANDLE) {
-			idxd_device_release_int_handle(idxd, ie->int_handle, IDXD_IRQ_MSIX);
-			ie->int_handle = INVALID_INT_HANDLE;
-			ie->pasid = INVALID_IOASID;
-		}
-		ie->vector = -1;
-	}
  err_misc_irq:
-	/* Disable error interrupt generation */
 	idxd_mask_error_interrupts(idxd);
-	idxd_msix_perm_clear(idxd);
 	pci_free_irq_vectors(pdev);
 	dev_err(dev, "No usable interrupts\n");
 	return rc;
@@ -167,20 +127,15 @@ static void idxd_cleanup_interrupts(struct idxd_device *idxd)
 {
 	struct pci_dev *pdev = idxd->pdev;
 	struct idxd_irq_entry *ie;
-	int i;
+	int msixcnt;
 
-	for (i = 0; i < idxd->irq_cnt; i++) {
-		ie = idxd_get_ie(idxd, i);
-		if (ie->int_handle != INVALID_INT_HANDLE) {
-			idxd_device_release_int_handle(idxd, ie->int_handle, IDXD_IRQ_MSIX);
-			ie->int_handle = INVALID_INT_HANDLE;
-			ie->pasid = INVALID_IOASID;
-		}
-		free_irq(ie->vector, ie);
-		ie->vector = -1;
-	}
+	msixcnt = pci_msix_vec_count(pdev);
+	if (msixcnt <= 0)
+		return;
 
+	ie = idxd_get_ie(idxd, 0);
 	idxd_mask_error_interrupts(idxd);
+	free_irq(ie->vector, ie);
 	pci_free_irq_vectors(pdev);
 }
 
@@ -592,8 +547,6 @@ static int idxd_probe(struct idxd_device *idxd)
 	if (rc)
 		goto err_config;
 
-	dev_dbg(dev, "IDXD interrupt setup complete.\n");
-
 	idxd->major = idxd_cdev_get_major(idxd);
 
 	rc = perfmon_pmu_init(idxd);
@@ -689,31 +642,6 @@ static int idxd_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	return rc;
 }
 
-static void idxd_flush_pending_descs(struct idxd_irq_entry *ie)
-{
-	struct idxd_desc *desc, *itr;
-	struct llist_node *head;
-	LIST_HEAD(flist);
-	enum idxd_complete_type ctype;
-
-	spin_lock(&ie->list_lock);
-	head = llist_del_all(&ie->pending_llist);
-	if (head) {
-		llist_for_each_entry_safe(desc, itr, head, llnode)
-			list_add_tail(&desc->list, &ie->work_list);
-	}
-
-	list_for_each_entry_safe(desc, itr, &ie->work_list, list)
-		list_move_tail(&desc->list, &flist);
-	spin_unlock(&ie->list_lock);
-
-	list_for_each_entry_safe(desc, itr, &flist, list) {
-		list_del(&desc->list);
-		ctype = desc->completion->status ? IDXD_COMPLETE_NORMAL : IDXD_COMPLETE_ABORT;
-		idxd_dma_complete_txd(desc, ctype, true);
-	}
-}
-
 void idxd_wqs_quiesce(struct idxd_device *idxd)
 {
 	struct idxd_wq *wq;
@@ -726,46 +654,19 @@ void idxd_wqs_quiesce(struct idxd_device *idxd)
 	}
 }
 
-static void idxd_release_int_handles(struct idxd_device *idxd)
-{
-	struct device *dev = &idxd->pdev->dev;
-	int i, rc;
-
-	for (i = 1; i < idxd->irq_cnt; i++) {
-		struct idxd_irq_entry *ie = idxd_get_ie(idxd, i);
-
-		if (ie->int_handle != INVALID_INT_HANDLE) {
-			rc = idxd_device_release_int_handle(idxd, ie->int_handle, IDXD_IRQ_MSIX);
-			if (rc < 0)
-				dev_warn(dev, "irq handle %d release failed\n", ie->int_handle);
-			else
-				dev_dbg(dev, "int handle released: %u\n", ie->int_handle);
-		}
-	}
-}
-
 static void idxd_shutdown(struct pci_dev *pdev)
 {
 	struct idxd_device *idxd = pci_get_drvdata(pdev);
-	int rc, i;
 	struct idxd_irq_entry *irq_entry;
-	int msixcnt = pci_msix_vec_count(pdev);
+	int rc;
 
 	rc = idxd_device_disable(idxd);
 	if (rc)
 		dev_err(&pdev->dev, "Disabling device failed\n");
 
-	dev_dbg(&pdev->dev, "%s called\n", __func__);
-	idxd_mask_msix_vectors(idxd);
+	irq_entry = &idxd->ie;
+	synchronize_irq(irq_entry->vector);
 	idxd_mask_error_interrupts(idxd);
-
-	for (i = 0; i < msixcnt; i++) {
-		irq_entry = idxd_get_ie(idxd, i);
-		synchronize_irq(irq_entry->vector);
-		if (i == 0)
-			continue;
-		idxd_flush_pending_descs(irq_entry);
-	}
 	flush_workqueue(idxd->wq);
 }
 
@@ -773,8 +674,6 @@ static void idxd_remove(struct pci_dev *pdev)
 {
 	struct idxd_device *idxd = pci_get_drvdata(pdev);
 	struct idxd_irq_entry *irq_entry;
-	int msixcnt = pci_msix_vec_count(pdev);
-	int i;
 
 	idxd_unregister_devices(idxd);
 	/*
@@ -790,12 +689,8 @@ static void idxd_remove(struct pci_dev *pdev)
 	if (device_pasid_enabled(idxd))
 		idxd_disable_system_pasid(idxd);
 
-	for (i = 0; i < msixcnt; i++) {
-		irq_entry = idxd_get_ie(idxd, i);
-		free_irq(irq_entry->vector, irq_entry);
-	}
-	idxd_msix_perm_clear(idxd);
-	idxd_release_int_handles(idxd);
+	irq_entry = idxd_get_ie(idxd, 0);
+	free_irq(irq_entry->vector, irq_entry);
 	pci_free_irq_vectors(pdev);
 	pci_iounmap(pdev, idxd->reg_base);
 	iommu_dev_disable_feature(&pdev->dev, IOMMU_DEV_FEAT_SVA);

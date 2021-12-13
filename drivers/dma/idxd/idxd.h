@@ -548,15 +548,10 @@ void idxd_wqs_quiesce(struct idxd_device *idxd);
 bool idxd_queue_int_handle_resubmit(struct idxd_desc *desc);
 
 /* device interrupt control */
-void idxd_msix_perm_setup(struct idxd_device *idxd);
-void idxd_msix_perm_clear(struct idxd_device *idxd);
 irqreturn_t idxd_misc_thread(int vec, void *data);
 irqreturn_t idxd_wq_thread(int irq, void *data);
 void idxd_mask_error_interrupts(struct idxd_device *idxd);
 void idxd_unmask_error_interrupts(struct idxd_device *idxd);
-void idxd_mask_msix_vectors(struct idxd_device *idxd);
-void idxd_mask_msix_vector(struct idxd_device *idxd, int vec_id);
-void idxd_unmask_msix_vector(struct idxd_device *idxd, int vec_id);
 
 /* device control */
 int idxd_register_idxd_drv(void);
@@ -595,6 +590,8 @@ int idxd_wq_disable_pasid(struct idxd_wq *wq);
 void __idxd_wq_quiesce(struct idxd_wq *wq);
 void idxd_wq_quiesce(struct idxd_wq *wq);
 int idxd_wq_init_percpu_ref(struct idxd_wq *wq);
+void idxd_wq_free_irq(struct idxd_wq *wq);
+int idxd_wq_request_irq(struct idxd_wq *wq);
 
 /* submission */
 int idxd_submit_desc(struct idxd_wq *wq, struct idxd_desc *desc);

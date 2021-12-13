@@ -289,6 +289,14 @@ static int idxd_dmaengine_drv_probe(struct idxd_dev *idxd_dev)
 
 	mutex_lock(&wq->wq_lock);
 	wq->type = IDXD_WQT_KERNEL;
+
+	rc = idxd_wq_request_irq(wq);
+	if (rc < 0) {
+		idxd->cmd_status = IDXD_SCMD_WQ_IRQ_ERR;
+		dev_dbg(dev, "WQ %d irq setup failed: %d\n", wq->id, rc);
+		goto err_irq;
+	}
+
 	rc = __drv_enable_wq(wq);
 	if (rc < 0) {
 		dev_dbg(dev, "Enable wq %d failed: %d\n", wq->id, rc);
@@ -329,6 +337,8 @@ err_ref:
 err_res_alloc:
 	__drv_disable_wq(wq);
 err:
+	idxd_wq_free_irq(wq);
+err_irq:
 	wq->type = IDXD_WQT_NONE;
 	mutex_unlock(&wq->wq_lock);
 	return rc;
@@ -344,6 +354,8 @@ static void idxd_dmaengine_drv_remove(struct idxd_dev *idxd_dev)
 	idxd_wq_free_resources(wq);
 	__drv_disable_wq(wq);
 	percpu_ref_exit(&wq->wq_active);
+	idxd_wq_free_irq(wq);
+	wq->type = IDXD_WQT_NONE;
 	mutex_unlock(&wq->wq_lock);
 }
 
