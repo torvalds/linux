@@ -157,6 +157,16 @@ Supported chips:
 
 	       https://www.onsemi.com/PowerSolutions/product.do?id=NCT214
 
+  * ON Semiconductor NCT218
+
+    Prefix: 'nct218'
+
+    Addresses scanned: I2C 0x4c - 0x4d
+
+    Datasheet: Publicly available at the ON Semiconductor website
+
+	       https://www.onsemi.com/PowerSolutions/product.do?id=NCT218
+
   * ON Semiconductor NCT72
 
     Prefix: 'nct72'

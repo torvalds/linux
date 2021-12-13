@@ -69,8 +69,9 @@
  * / ON Semiconductor. The chips are similar to ADT7461 but support two external
  * temperature sensors.
  *
- * This driver also supports NCT72 and NCT214 from ON Semiconductor. The chips
- * are similar to ADT7461/ADT7461A but have full PEC support (undocumented).
+ * This driver also supports NCT72, NCT214, and NCT218 from ON Semiconductor.
+ * The chips are similar to ADT7461/ADT7461A but have full PEC support
+ * (undocumented).
  *
  * This driver also supports the SA56004 from Philips. This device is
  * pin-compatible with the LM86, the ED/EDP parts are also address-compatible.
@@ -262,6 +263,7 @@ static const struct i2c_device_id lm90_id[] = {
 	{ "nct1008", adt7461a },
 	{ "nct210", nct210 },
 	{ "nct214", nct72 },
+	{ "nct218", nct72 },
 	{ "nct72", nct72 },
 	{ "w83l771", w83l771 },
 	{ "sa56004", sa56004 },
@@ -355,6 +357,10 @@ static const struct of_device_id __maybe_unused lm90_of_match[] = {
 	},
 	{
 		.compatible = "onnn,nct214",
+		.data = (void *)nct72
+	},
+	{
+		.compatible = "onnn,nct218",
 		.data = (void *)nct72
 	},
 	{
@@ -1780,6 +1786,24 @@ static const char *lm90_detect_national(struct i2c_client *client, int chip_id,
 	return name;
 }
 
+static const char *lm90_detect_on(struct i2c_client *client, int chip_id, int config1,
+				  int convrate)
+{
+	int address = client->addr;
+	const char *name = NULL;
+
+	switch (chip_id) {
+	case 0xca:		/* NCT218 */
+		if ((address == 0x4c || address == 0x4d) && !(config1 & 0x1b) &&
+		    convrate <= 0x0a)
+			name = "nct218";
+		break;
+	default:
+		break;
+	}
+	return name;
+}
+
 static const char *lm90_detect_analog(struct i2c_client *client, bool common_address,
 				      int chip_id, int config1, int convrate)
 {
@@ -2264,6 +2288,9 @@ static int lm90_detect(struct i2c_client *client, struct i2c_board_info *info)
 		break;
 	case 0x01:	/* National Semiconductor */
 		name = lm90_detect_national(client, chip_id, config1, convrate);
+		break;
+	case 0x1a:	/* ON */
+		name = lm90_detect_on(client, chip_id, config1, convrate);
 		break;
 	case 0x23:	/* Genesys Logic */
 		if (common_address && !(config1 & 0x3f) && !(convrate & 0xf8))
