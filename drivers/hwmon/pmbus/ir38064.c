@@ -16,6 +16,7 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/of_device.h>
 #include "pmbus.h"
 
 static struct pmbus_driver_info ir38064_info = {
@@ -50,10 +51,21 @@ static const struct i2c_device_id ir38064_id[] = {
 
 MODULE_DEVICE_TABLE(i2c, ir38064_id);
 
+static const struct of_device_id ir38064_of_match[] = {
+	{ .compatible = "infineon,ir38060" },
+	{ .compatible = "infineon,ir38064" },
+	{ .compatible = "infineon,ir38164" },
+	{ .compatible = "infineon,ir38263" },
+	{}
+};
+
+MODULE_DEVICE_TABLE(of, ir38064_of_match);
+
 /* This is the driver that will be inserted */
 static struct i2c_driver ir38064_driver = {
 	.driver = {
 		   .name = "ir38064",
+		   .of_match_table = of_match_ptr(ir38064_of_match),
 		   },
 	.probe_new = ir38064_probe,
 	.id_table = ir38064_id,
