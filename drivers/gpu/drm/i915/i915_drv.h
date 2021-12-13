@@ -65,6 +65,7 @@
 #include "i915_utils.h"
 
 #include "display/intel_bios.h"
+#include "display/intel_cdclk.h"
 #include "display/intel_display.h"
 #include "display/intel_display_power.h"
 #include "display/intel_dmc.h"
@@ -625,11 +626,6 @@ struct i915_virtual_gpu {
 	struct mutex lock; /* serialises sending of g2v_notify command pkts */
 	bool active;
 	u32 caps;
-};
-
-struct intel_cdclk_config {
-	unsigned int cdclk, vco, ref, bypass;
-	u8 voltage_level;
 };
 
 struct i915_selftest_stash {

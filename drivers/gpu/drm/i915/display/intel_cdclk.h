@@ -8,13 +8,17 @@
 
 #include <linux/types.h>
 
-#include "i915_drv.h"
 #include "intel_display.h"
 #include "intel_global_state.h"
 
 struct drm_i915_private;
 struct intel_atomic_state;
 struct intel_crtc_state;
+
+struct intel_cdclk_config {
+	unsigned int cdclk, vco, ref, bypass;
+	u8 voltage_level;
+};
 
 struct intel_cdclk_state {
 	struct intel_global_state base;
