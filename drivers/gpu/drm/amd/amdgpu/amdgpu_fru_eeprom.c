@@ -88,7 +88,7 @@ static int amdgpu_fru_read_eeprom(struct amdgpu_device *adev, uint32_t addrptr,
 
 int amdgpu_fru_get_product_info(struct amdgpu_device *adev)
 {
-	unsigned char buff[34];
+	unsigned char buff[AMDGPU_PRODUCT_NAME_LEN+2];
 	u32 addrptr;
 	int size, len;
 
@@ -131,12 +131,10 @@ int amdgpu_fru_get_product_info(struct amdgpu_device *adev)
 	}
 
 	len = size;
-	/* Product name should only be 32 characters. Any more,
-	 * and something could be wrong. Cap it at 32 to be safe
-	 */
-	if (len >= sizeof(adev->product_name)) {
-		DRM_WARN("FRU Product Number is larger than 32 characters. This is likely a mistake");
-		len = sizeof(adev->product_name) - 1;
+	if (len >= AMDGPU_PRODUCT_NAME_LEN) {
+		DRM_WARN("FRU Product Name is larger than %d characters. This is likely a mistake",
+				AMDGPU_PRODUCT_NAME_LEN);
+		len = AMDGPU_PRODUCT_NAME_LEN - 1;
 	}
 	/* Start at 2 due to buff using fields 0 and 1 for the address */
 	memcpy(adev->product_name, &buff[2], len);
