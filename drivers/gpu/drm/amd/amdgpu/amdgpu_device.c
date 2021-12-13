@@ -551,11 +551,11 @@ void amdgpu_device_wreg(struct amdgpu_device *adev,
 	trace_amdgpu_device_wreg(adev->pdev->device, reg, v);
 }
 
-/*
+/**
  * amdgpu_mm_wreg_mmio_rlc -  write register either with mmio or with RLC path if in range
  *
  * this function is invoked only the debugfs register access
- * */
+ */
 void amdgpu_mm_wreg_mmio_rlc(struct amdgpu_device *adev,
 			     uint32_t reg, uint32_t v)
 {
@@ -1101,7 +1101,7 @@ static void amdgpu_device_wb_fini(struct amdgpu_device *adev)
 }
 
 /**
- * amdgpu_device_wb_init- Init Writeback driver info and allocate memory
+ * amdgpu_device_wb_init - Init Writeback driver info and allocate memory
  *
  * @adev: amdgpu_device pointer
  *

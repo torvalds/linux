@@ -624,7 +624,7 @@ static void dm_dcn_vertical_interrupt0_high_irq(void *interrupt_params)
 #endif /* CONFIG_DRM_AMD_SECURE_DISPLAY */
 
 /**
- * dmub_aux_setconfig_reply_callback - Callback for AUX or SET_CONFIG command.
+ * dmub_aux_setconfig_callback - Callback for AUX or SET_CONFIG command.
  * @adev: amdgpu_device pointer
  * @notify: dmub notification structure
  *
