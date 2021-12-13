@@ -1607,7 +1607,6 @@ config CPU_R4300
 	depends on SYS_HAS_CPU_R4300
 	select CPU_SUPPORTS_32BIT_KERNEL
 	select CPU_SUPPORTS_64BIT_KERNEL
-	select CPU_HAS_LOAD_STORE_LR
 	help
 	  MIPS Technologies R4300-series processors.
 
