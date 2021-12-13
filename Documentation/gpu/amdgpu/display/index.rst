@@ -1,3 +1,5 @@
+.. _amdgpu-display-core:
+
 ===================================
 drm/amd/display - Display Core (DC)
 ===================================
