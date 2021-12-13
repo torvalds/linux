@@ -461,7 +461,7 @@ get_tracepoint_field(struct pyrf_event *pevent, PyObject *attr_name)
 		struct tep_event *tp_format;
 
 		tp_format = trace_event__tp_format_id(evsel->core.attr.config);
-		if (!tp_format)
+		if (IS_ERR_OR_NULL(tp_format))
 			return NULL;
 
 		evsel->tp_format = tp_format;
