@@ -304,9 +304,8 @@ struct rcu_state {
 
 	/* The following fields are guarded by the root rcu_node's lock. */
 
-	u8	boost ____cacheline_internodealigned_in_smp;
-						/* Subject to priority boost. */
-	unsigned long gp_seq;			/* Grace-period sequence #. */
+	unsigned long gp_seq ____cacheline_internodealigned_in_smp;
+						/* Grace-period sequence #. */
 	unsigned long gp_max;			/* Maximum GP duration in */
 						/*  jiffies. */
 	struct task_struct *gp_kthread;		/* Task for grace periods. */
