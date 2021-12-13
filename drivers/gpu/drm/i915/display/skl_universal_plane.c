@@ -1816,20 +1816,27 @@ static int skl_plane_check(struct intel_crtc_state *crtc_state,
 	return 0;
 }
 
-static bool skl_plane_has_fbc(struct drm_i915_private *dev_priv,
-			      enum pipe pipe, enum plane_id plane_id)
+static enum intel_fbc_id skl_fbc_id_for_pipe(enum pipe pipe)
 {
-	if (!HAS_FBC(dev_priv))
+	return pipe - PIPE_A + INTEL_FBC_A;
+}
+
+static bool skl_plane_has_fbc(struct drm_i915_private *dev_priv,
+			      enum intel_fbc_id fbc_id, enum plane_id plane_id)
+{
+	if ((INTEL_INFO(dev_priv)->display.fbc_mask & BIT(fbc_id)) == 0)
 		return false;
 
-	return pipe == PIPE_A && plane_id == PLANE_PRIMARY;
+	return plane_id == PLANE_PRIMARY;
 }
 
 static struct intel_fbc *skl_plane_fbc(struct drm_i915_private *dev_priv,
 				       enum pipe pipe, enum plane_id plane_id)
 {
-	if (skl_plane_has_fbc(dev_priv, pipe, plane_id))
-		return dev_priv->fbc[INTEL_FBC_A];
+	enum intel_fbc_id fbc_id = skl_fbc_id_for_pipe(pipe);
+
+	if (skl_plane_has_fbc(dev_priv, fbc_id, plane_id))
+		return dev_priv->fbc[fbc_id];
 	else
 		return NULL;
 }

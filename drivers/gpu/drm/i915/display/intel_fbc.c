@@ -49,11 +49,12 @@
 #include "intel_fbc.h"
 #include "intel_frontbuffer.h"
 
-#define for_each_fbc_id(__fbc_id) \
-	for ((__fbc_id) = INTEL_FBC_A; (__fbc_id) < I915_MAX_FBCS; (__fbc_id)++)
+#define for_each_fbc_id(__dev_priv, __fbc_id) \
+	for ((__fbc_id) = INTEL_FBC_A; (__fbc_id) < I915_MAX_FBCS; (__fbc_id)++) \
+		for_each_if(INTEL_INFO(__dev_priv)->display.fbc_mask & BIT(__fbc_id))
 
 #define for_each_intel_fbc(__dev_priv, __fbc, __fbc_id) \
-	for_each_fbc_id(__fbc_id) \
+	for_each_fbc_id((__dev_priv), (__fbc_id)) \
 		for_each_if((__fbc) = (__dev_priv)->fbc[(__fbc_id)])
 
 struct intel_fbc_funcs {
@@ -1693,32 +1694,35 @@ static struct intel_fbc *intel_fbc_create(struct drm_i915_private *i915,
  */
 void intel_fbc_init(struct drm_i915_private *i915)
 {
-	struct intel_fbc *fbc;
+	enum intel_fbc_id fbc_id;
 
 	if (!drm_mm_initialized(&i915->mm.stolen))
-		mkwrite_device_info(i915)->display.has_fbc = false;
+		mkwrite_device_info(i915)->display.fbc_mask = 0;
 
 	if (need_fbc_vtd_wa(i915))
-		mkwrite_device_info(i915)->display.has_fbc = false;
+		mkwrite_device_info(i915)->display.fbc_mask = 0;
 
 	i915->params.enable_fbc = intel_sanitize_fbc_option(i915);
 	drm_dbg_kms(&i915->drm, "Sanitized enable_fbc value: %d\n",
 		    i915->params.enable_fbc);
 
-	if (!HAS_FBC(i915))
-		return;
+	for_each_fbc_id(i915, fbc_id) {
+		struct intel_fbc *fbc;
 
-	fbc = intel_fbc_create(i915, INTEL_FBC_A);
-	if (!fbc)
-		return;
+		fbc = intel_fbc_create(i915, fbc_id);
+		if (!fbc)
+			continue;
 
-	/* We still don't have any sort of hardware state readout for FBC, so
-	 * deactivate it in case the BIOS activated it to make sure software
-	 * matches the hardware state. */
-	if (intel_fbc_hw_is_active(fbc))
-		intel_fbc_hw_deactivate(fbc);
+		/*
+		 * We still don't have any sort of hardware state readout
+		 * for FBC, so deactivate it in case the BIOS activated it
+		 * to make sure software matches the hardware state.
+		 */
+		if (intel_fbc_hw_is_active(fbc))
+			intel_fbc_hw_deactivate(fbc);
 
-	i915->fbc[fbc->id] = fbc;
+		i915->fbc[fbc->id] = fbc;
+	}
 }
 
 static int intel_fbc_debugfs_status_show(struct seq_file *m, void *unused)
