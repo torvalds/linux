@@ -23,12 +23,12 @@ remove_chip() {
 
 	for FILE in $CONFIGFS_DIR/$CHIP/*; do
 		BANK=`basename $FILE`
-		if [ "$BANK" == "live" ] || [ "$BANK" == "dev_name" ]; then
+		if [ "$BANK" = "live" ] || [ "$BANK" = "dev_name" ]; then
 			continue
 		fi
 
 		LINES=`ls $CONFIGFS_DIR/$CHIP/$BANK/ | egrep ^line`
-		if [ "$?" == 0 ]; then
+		if [ "$?" = 0 ]; then
 			for LINE in $LINES; do
 				if [ -e $CONFIGFS_DIR/$CHIP/$BANK/$LINE/hog ]; then
 					rmdir $CONFIGFS_DIR/$CHIP/$BANK/$LINE/hog || \
