@@ -955,15 +955,15 @@ void blkdev_put(struct block_device *bdev, fmode_t mode)
 EXPORT_SYMBOL(blkdev_put);
 
 /**
- * lookup_bdev  - lookup a struct block_device by name
- * @pathname:	special file representing the block device
- * @dev:	return value of the block device's dev_t
+ * lookup_bdev() - Look up a struct block_device by name.
+ * @pathname: Name of the block device in the filesystem.
+ * @dev: Pointer to the block device's dev_t, if found.
  *
  * Lookup the block device's dev_t at @pathname in the current
- * namespace if possible and return it by @dev.
+ * namespace if possible and return it in @dev.
  *
- * RETURNS:
- * 0 if succeeded, errno otherwise.
+ * Context: May sleep.
+ * Return: 0 if succeeded, negative errno otherwise.
  */
 int lookup_bdev(const char *pathname, dev_t *dev)
 {
