@@ -44,7 +44,7 @@ static struct snd_gf1_mem_block *snd_gf1_mem_xalloc(struct snd_gf1_mem * alloc,
 			else
 				nblock->prev->next = nblock;
 			mutex_unlock(&alloc->memory_mutex);
-			return NULL;
+			return nblock;
 		}
 		pblock = pblock->next;
 	}
