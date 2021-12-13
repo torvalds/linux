@@ -227,9 +227,6 @@ int smu_v13_0_check_fw_version(struct smu_context *smu)
 		break;
 	}
 
-	dev_info(smu->adev->dev, "smu fw reported version = 0x%08x (%d.%d.%d)\n",
-			 smu_version, smu_major, smu_minor, smu_debug);
-
 	/*
 	 * 1. if_version mismatch is not critical as our fw is designed
 	 * to be backward compatible.
