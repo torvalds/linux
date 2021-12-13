@@ -713,9 +713,6 @@ static void __init early_reserve_memory(void)
 
 	early_reserve_initrd();
 
-	if (efi_enabled(EFI_BOOT))
-		efi_memblock_x86_reserve_range();
-
 	memblock_x86_reserve_range_setup_data();
 
 	reserve_ibft_region();
@@ -889,6 +886,9 @@ void __init setup_arch(char **cmdline_p)
 	x86_configure_nx();
 
 	parse_early_param();
+
+	if (efi_enabled(EFI_BOOT))
+		efi_memblock_x86_reserve_range();
 
 #ifdef CONFIG_MEMORY_HOTPLUG
 	/*
