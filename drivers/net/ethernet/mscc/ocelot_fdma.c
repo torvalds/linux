@@ -734,8 +734,8 @@ static void ocelot_fdma_free_tx_ring(struct ocelot *ocelot)
 	while (idx != tx_ring->next_to_use) {
 		txb = &tx_ring->bufs[idx];
 		skb = txb->skb;
-		dma_unmap_single(ocelot->dev, txb->dma_addr, skb->len,
-				 DMA_TO_DEVICE);
+		dma_unmap_single(ocelot->dev, dma_unmap_addr(txb, dma_addr),
+				 skb->len, DMA_TO_DEVICE);
 		dev_kfree_skb_any(skb);
 		idx = ocelot_fdma_idx_next(idx, OCELOT_FDMA_TX_RING_SIZE);
 	}
