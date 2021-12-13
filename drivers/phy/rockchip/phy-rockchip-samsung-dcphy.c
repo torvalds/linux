@@ -23,6 +23,9 @@
 #define BIAS_CON0		0x0000
 #define BIAS_CON1		0x0004
 #define BIAS_CON2		0x0008
+#define BIAS_CON4		0x0010
+#define I_MUX_SEL_MASK		GENMASK(6, 5)
+#define I_MUX_SEL(x)		UPDATE(x, 6, 5)
 
 #define PLL_CON0		0x0100
 #define PLL_EN			BIT(12)
@@ -1196,6 +1199,14 @@ static void samsung_mipi_dcphy_bias_block_enable(struct samsung_mipi_dcphy *sams
 	regmap_write(samsung->regmap, BIAS_CON0, 0x0010);
 	regmap_write(samsung->regmap, BIAS_CON1, 0x0110);
 	regmap_write(samsung->regmap, BIAS_CON2, 0x3223);
+
+	/* default output voltage select:
+	 * dphy: 400mv
+	 * cphy: 530mv
+	 */
+	if (samsung->c_option)
+		regmap_update_bits(samsung->regmap, BIAS_CON4,
+				   I_MUX_SEL_MASK, I_MUX_SEL(2));
 }
 
 static void samsung_mipi_dcphy_bias_block_disable(struct samsung_mipi_dcphy *samsung)
@@ -1417,7 +1428,6 @@ static void samsung_mipi_cphy_timing_init(struct samsung_mipi_dcphy *samsung)
 	regmap_write(samsung->regmap, COMBO_MD2_TIME_CON1, val);
 
 	val = T_HS_EXIT(timing->hs_exit) | T_HS_TRAIL(timing->post_3);
-	regmap_write(samsung->regmap, DPHY_MD3_TIME_CON2, val);
 	regmap_write(samsung->regmap, COMBO_MD0_TIME_CON2, val);
 	regmap_write(samsung->regmap, COMBO_MD1_TIME_CON2, val);
 	regmap_write(samsung->regmap, COMBO_MD2_TIME_CON2, val);
@@ -1441,7 +1451,7 @@ samsung_mipi_dcphy_pll_round_rate(struct samsung_mipi_dcphy *samsung,
 				  unsigned long prate, unsigned long rate,
 				  u8 *prediv, u16 *fbdiv, int *dsm, u8 *scaler)
 {
-	unsigned int max_fout = samsung->c_option ? 4500 : 2000;
+	unsigned int max_fout = samsung->c_option ? 2000 : 4500;
 	unsigned long best_freq = 0;
 	unsigned int fin, fvco, fout;
 	u8 min_prediv, max_prediv;
@@ -1644,6 +1654,11 @@ static void samsung_mipi_dphy_power_on(struct samsung_mipi_dcphy *samsung)
 	samsung_mipi_dphy_lane_enable(samsung);
 
 	reset_control_deassert(samsung->phy_rst);
+
+	/* The TSKEWCAL maximum is 100 µsec
+	 * at initial calibration.
+	 */
+	usleep_range(100, 110);
 }
 
 static void samsung_mipi_cphy_power_on(struct samsung_mipi_dcphy *samsung)
