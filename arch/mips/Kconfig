@@ -2161,7 +2161,7 @@ config CPU_SUPPORTS_ADDRWINCFG
 	bool
 config CPU_SUPPORTS_HUGEPAGES
 	bool
-	depends on !(32BIT && (ARCH_PHYS_ADDR_T_64BIT || EVA))
+	depends on !(32BIT && (PHYS_ADDR_T_64BIT || EVA))
 config MIPS_PGD_C0_CONTEXT
 	bool
 	depends on 64BIT
