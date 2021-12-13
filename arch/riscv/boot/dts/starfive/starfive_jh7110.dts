@@ -352,6 +352,22 @@
 			status = "okay";
 		};
 
+		i2c0: i2c@10030000 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "snps,designware-i2c";
+			reg = <0x0 0x10030000 0x0 0x10000>;
+			interrupt-parent = <&plic>;
+			interrupts = <35>;
+			/*clocks = <&hfclk>; */
+			clock-frequency = <100000>;
+			i2c-sda-hold-time-ns = <300>;
+			i2c-sda-falling-time-ns = <3000>;
+			i2c-scl-falling-time-ns = <3000>;
+			auto_calc_scl_lhcnt;
+			status = "okay";
+		};
+
 		/*emmc*/
 		sdio0:sdio0@16010000{
 			compatible = "snps,dw-mshc";
@@ -498,7 +514,7 @@
 			clocks = <&ahb1clk>;
 			clock-names = "apb_pclk";
 			dmas = <&dma 14 1>, <&dma 15 1>;
-			dma-names = "rx","tx";                  
+			dma-names = "rx","tx";
 			#address-cells = <1>;
 			#size-cells = <0>;
 			arm,primecell-periphid = <0x00041022>;
