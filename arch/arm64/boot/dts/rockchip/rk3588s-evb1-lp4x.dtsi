@@ -501,6 +501,10 @@
 	status = "okay";
 };
 
+&sdmmc {
+	status = "okay";
+};
+
 &spdif_tx1 {
 	status = "okay";
 	pinctrl-names = "default";
