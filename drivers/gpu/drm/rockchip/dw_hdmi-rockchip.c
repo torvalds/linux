@@ -2181,15 +2181,6 @@ dw_hdmi_rockchip_attach_properties(struct drm_connector *connector,
 		drm_object_attach_property(&connector->base, prop, 0);
 	}
 
-	prop = drm_property_create_enum(connector->dev, 0,
-					"hdmi_quant_range",
-					quant_range_enum_list,
-					ARRAY_SIZE(quant_range_enum_list));
-	if (prop) {
-		hdmi->quant_range = prop;
-		drm_object_attach_property(&connector->base, prop, 0);
-	}
-
 	prop = drm_property_create(connector->dev,
 				   DRM_MODE_PROP_BLOB |
 				   DRM_MODE_PROP_IMMUTABLE,
@@ -2224,6 +2215,15 @@ dw_hdmi_rockchip_attach_properties(struct drm_connector *connector,
 						 ARRAY_SIZE(output_type_cap_list));
 		if (prop) {
 			hdmi->output_type_capacity = prop;
+			drm_object_attach_property(&connector->base, prop, 0);
+		}
+
+		prop = drm_property_create_enum(connector->dev, 0,
+						"hdmi_quant_range",
+						quant_range_enum_list,
+						ARRAY_SIZE(quant_range_enum_list));
+		if (prop) {
+			hdmi->quant_range = prop;
 			drm_object_attach_property(&connector->base, prop, 0);
 		}
 	}
