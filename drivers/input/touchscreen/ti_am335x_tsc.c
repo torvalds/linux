@@ -126,7 +126,7 @@ static int titsc_config_wires(struct titsc *ts_dev)
 static void titsc_step_config(struct titsc *ts_dev)
 {
 	unsigned int	config;
-	int i;
+	int i, n;
 	int end_step, first_step, tsc_steps;
 	u32 stepenable;
 
@@ -151,9 +151,11 @@ static void titsc_step_config(struct titsc *ts_dev)
 	first_step = TOTAL_STEPS - tsc_steps;
 	/* Steps 16 to 16-coordinate_readouts is for X */
 	end_step = first_step + tsc_steps;
+	n = 0;
 	for (i = end_step - ts_dev->coordinate_readouts; i < end_step; i++) {
 		titsc_writel(ts_dev, REG_STEPCONFIG(i), config);
-		titsc_writel(ts_dev, REG_STEPDELAY(i), STEPCONFIG_OPENDLY);
+		titsc_writel(ts_dev, REG_STEPDELAY(i),
+			     n++ == 0 ? STEPCONFIG_OPENDLY : 0);
 	}
 
 	config = 0;
@@ -175,9 +177,11 @@ static void titsc_step_config(struct titsc *ts_dev)
 
 	/* 1 ... coordinate_readouts is for Y */
 	end_step = first_step + ts_dev->coordinate_readouts;
+	n = 0;
 	for (i = first_step; i < end_step; i++) {
 		titsc_writel(ts_dev, REG_STEPCONFIG(i), config);
-		titsc_writel(ts_dev, REG_STEPDELAY(i), STEPCONFIG_OPENDLY);
+		titsc_writel(ts_dev, REG_STEPDELAY(i),
+			     n++ == 0 ? STEPCONFIG_OPENDLY : 0);
 	}
 
 	/* Make CHARGECONFIG same as IDLECONFIG */
