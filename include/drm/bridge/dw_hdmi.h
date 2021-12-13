@@ -205,6 +205,12 @@ struct dw_hdmi_plat_data {
 	unsigned int phy_force_vendor;
 	const struct dw_hdmi_audio_tmds_n *tmds_n_table;
 
+	/* split mode */
+	bool split_mode;
+	bool first_screen;
+	struct dw_hdmi_qp *left;
+	struct dw_hdmi_qp *right;
+
 	/* Synopsys PHY support */
 	const struct dw_hdmi_mpll_config *mpll_cfg;
 	const struct dw_hdmi_mpll_config *mpll_cfg_420;
@@ -228,6 +234,8 @@ struct dw_hdmi_plat_data {
 				 struct drm_connector *connector);
 	struct dw_hdmi_link_config *(*get_link_cfg)(void *data);
 	void (*set_grf_cfg)(void *data);
+	void (*convert_to_split_mode)(struct drm_display_mode *mode);
+	void (*convert_to_origin_mode)(struct drm_display_mode *mode);
 
 	/* Vendor Property support */
 	const struct dw_hdmi_property_ops *property_ops;
