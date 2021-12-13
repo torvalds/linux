@@ -333,6 +333,7 @@ static struct input_dev *goodix_create_pen_input(struct goodix_ts_data *ts)
 	input->name = "Goodix Active Pen";
 	input->phys = "input/pen";
 	input->id.bustype = BUS_I2C;
+	input->id.vendor = 0x0416;
 	if (kstrtou16(ts->id, 10, &input->id.product))
 		input->id.product = 0x1001;
 	input->id.version = ts->version;
@@ -475,7 +476,7 @@ static void goodix_process_events(struct goodix_ts_data *ts)
 	if (touch_num == 1 && (point_data[1] & 0x80)) {
 		goodix_ts_report_pen_down(ts, point_data);
 		goodix_ts_release_keys(ts);
-		goto sync; /* Release any previousle registered touches */
+		goto sync; /* Release any previously registered touches */
 	} else {
 		goodix_ts_report_pen_up(ts);
 	}
