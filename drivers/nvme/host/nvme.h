@@ -614,6 +614,10 @@ static inline bool nvme_try_complete_req(struct request *req, __le16 status,
 		union nvme_result result)
 {
 	struct nvme_request *rq = nvme_req(req);
+	struct nvme_ctrl *ctrl = rq->ctrl;
+
+	if (!(ctrl->quirks & NVME_QUIRK_SKIP_CID_GEN))
+		rq->genctr++;
 
 	rq->status = le16_to_cpu(status) >> 1;
 	rq->result = result;
