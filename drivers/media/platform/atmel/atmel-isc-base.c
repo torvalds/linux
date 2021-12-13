@@ -1105,42 +1105,6 @@ static int isc_enum_framesizes(struct file *file, void *fh,
 	return 0;
 }
 
-static int isc_enum_frameintervals(struct file *file, void *fh,
-				    struct v4l2_frmivalenum *fival)
-{
-	struct isc_device *isc = video_drvdata(file);
-	struct v4l2_subdev_frame_interval_enum fie = {
-		.code = isc->config.sd_format->mbus_code,
-		.index = fival->index,
-		.width = fival->width,
-		.height = fival->height,
-		.which = V4L2_SUBDEV_FORMAT_ACTIVE,
-	};
-	int ret = -EINVAL;
-	unsigned int i;
-
-	for (i = 0; i < isc->num_user_formats; i++)
-		if (isc->user_formats[i]->fourcc == fival->pixel_format)
-			ret = 0;
-
-	for (i = 0; i < isc->controller_formats_size; i++)
-		if (isc->controller_formats[i].fourcc == fival->pixel_format)
-			ret = 0;
-
-	if (ret)
-		return ret;
-
-	ret = v4l2_subdev_call(isc->current_subdev->sd, pad,
-			       enum_frame_interval, NULL, &fie);
-	if (ret)
-		return ret;
-
-	fival->type = V4L2_FRMIVAL_TYPE_DISCRETE;
-	fival->discrete = fie.interval;
-
-	return 0;
-}
-
 static const struct v4l2_ioctl_ops isc_ioctl_ops = {
 	.vidioc_querycap		= isc_querycap,
 	.vidioc_enum_fmt_vid_cap	= isc_enum_fmt_vid_cap,
@@ -1165,7 +1129,6 @@ static const struct v4l2_ioctl_ops isc_ioctl_ops = {
 	.vidioc_g_parm			= isc_g_parm,
 	.vidioc_s_parm			= isc_s_parm,
 	.vidioc_enum_framesizes		= isc_enum_framesizes,
-	.vidioc_enum_frameintervals	= isc_enum_frameintervals,
 
 	.vidioc_log_status		= v4l2_ctrl_log_status,
 	.vidioc_subscribe_event		= v4l2_ctrl_subscribe_event,
