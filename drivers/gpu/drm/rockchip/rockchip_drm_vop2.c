@@ -4698,6 +4698,8 @@ static void vop2_crtc_regs_dump(struct drm_crtc *crtc, struct seq_file *s)
 		{ RK3568_VP2_DSP_CTRL, "VP2" },
 		{ RK3568_CLUSTER0_WIN0_CTRL0, "Cluster0" },
 		{ RK3568_CLUSTER1_WIN0_CTRL0, "Cluster1" },
+		{ RK3588_CLUSTER2_WIN0_CTRL0, "Cluster2" },
+		{ RK3588_CLUSTER3_WIN0_CTRL0, "Cluster3" },
 		{ RK3568_ESMART0_CTRL0, "Esmart0" },
 		{ RK3568_ESMART1_CTRL0, "Esmart1" },
 		{ RK3568_SMART0_CTRL0, "Smart0" },
