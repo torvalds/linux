@@ -712,30 +712,6 @@
 		method = "smc";
 	};
 
-	rgb: rgb {
-		compatible = "rockchip,rk3588-rgb";
-		pinctrl-names = "default";
-		pinctrl-0 = <&bt1120_pins>;
-		status = "disabled";
-
-		ports {
-			#address-cells = <1>;
-			#size-cells = <0>;
-
-			port@0 {
-				reg = <0>;
-				#address-cells = <1>;
-				#size-cells = <0>;
-
-				rgb_in_vp3: endpoint@2 {
-					reg = <2>;
-					remote-endpoint = <&vp3_out_rgb>;
-					status = "disabled";
-				};
-			};
-		};
-	};
-
 	rkcif_dvp: rkcif-dvp {
 		compatible = "rockchip,rkcif-dvp";
 		rockchip,hw = <&rkcif>;
@@ -1157,8 +1133,32 @@
 	};
 
 	sys_grf: syscon@fd58c000 {
-		compatible = "rockchip,rk3588-sys-grf", "syscon";
+		compatible = "rockchip,rk3588-sys-grf", "syscon", "simple-mfd";
 		reg = <0x0 0xfd58c000 0x0 0x1000>;
+
+		rgb: rgb {
+			compatible = "rockchip,rk3588-rgb";
+			pinctrl-names = "default";
+			pinctrl-0 = <&bt1120_pins>;
+			status = "disabled";
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@0 {
+					reg = <0>;
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					rgb_in_vp3: endpoint@2 {
+						reg = <2>;
+						remote-endpoint = <&vp3_out_rgb>;
+						status = "disabled";
+					};
+				};
+			};
+		};
 	};
 
 	vop_grf: syscon@fd5a4000 {
