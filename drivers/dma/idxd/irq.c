@@ -73,8 +73,8 @@ static void idxd_device_reinit(struct work_struct *work)
  */
 static void idxd_int_handle_revoke_drain(struct idxd_irq_entry *ie)
 {
-	struct idxd_wq *wq = ie->wq;
-	struct idxd_device *idxd = ie->idxd;
+	struct idxd_wq *wq = ie_to_wq(ie);
+	struct idxd_device *idxd = wq->idxd;
 	struct device *dev = &idxd->pdev->dev;
 	struct dsa_hw_desc desc = {};
 	void __iomem *portal;
@@ -155,8 +155,8 @@ static void idxd_int_handle_revoke(struct work_struct *work)
 	 * at the end to make sure all invalid int handle descriptors are processed.
 	 */
 	for (i = 1; i < idxd->irq_cnt; i++) {
-		struct idxd_irq_entry *ie = &idxd->irq_entries[i];
-		struct idxd_wq *wq = ie->wq;
+		struct idxd_irq_entry *ie = idxd_get_ie(idxd, i);
+		struct idxd_wq *wq = ie_to_wq(ie);
 
 		rc = idxd_device_request_int_handle(idxd, i, &new_handle, IDXD_IRQ_MSIX);
 		if (rc < 0) {
@@ -338,7 +338,7 @@ halt:
 irqreturn_t idxd_misc_thread(int vec, void *data)
 {
 	struct idxd_irq_entry *irq_entry = data;
-	struct idxd_device *idxd = irq_entry->idxd;
+	struct idxd_device *idxd = ie_to_idxd(irq_entry);
 	int rc;
 	u32 cause;
 

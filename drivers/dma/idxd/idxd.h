@@ -70,7 +70,6 @@ extern struct idxd_device_driver idxd_user_drv;
 
 #define INVALID_INT_HANDLE	-1
 struct idxd_irq_entry {
-	struct idxd_device *idxd;
 	int id;
 	int vector;
 	struct llist_head pending_llist;
@@ -81,7 +80,6 @@ struct idxd_irq_entry {
 	 */
 	spinlock_t list_lock;
 	int int_handle;
-	struct idxd_wq *wq;
 	ioasid_t pasid;
 };
 
@@ -185,7 +183,7 @@ struct idxd_wq {
 	struct wait_queue_head err_queue;
 	struct idxd_device *idxd;
 	int id;
-	struct idxd_irq_entry *ie;
+	struct idxd_irq_entry ie;
 	enum idxd_wq_type type;
 	struct idxd_group *group;
 	int client_count;
@@ -266,6 +264,7 @@ struct idxd_device {
 	int id;
 	int major;
 	u32 cmd_status;
+	struct idxd_irq_entry ie;	/* misc irq, msix 0 */
 
 	struct pci_dev *pdev;
 	void __iomem *reg_base;
@@ -302,8 +301,6 @@ struct idxd_device {
 
 	union sw_err_reg sw_err;
 	wait_queue_head_t cmd_waitq;
-	int num_wq_irqs;
-	struct idxd_irq_entry *irq_entries;
 
 	struct idxd_dma_dev *idxd_dma;
 	struct workqueue_struct *wq;
@@ -393,6 +390,21 @@ static inline void idxd_dev_set_type(struct idxd_dev *idev, int type)
 	}
 
 	idev->type = type;
+}
+
+static inline struct idxd_irq_entry *idxd_get_ie(struct idxd_device *idxd, int idx)
+{
+	return (idx == 0) ? &idxd->ie : &idxd->wqs[idx - 1]->ie;
+}
+
+static inline struct idxd_wq *ie_to_wq(struct idxd_irq_entry *ie)
+{
+	return container_of(ie, struct idxd_wq, ie);
+}
+
+static inline struct idxd_device *ie_to_idxd(struct idxd_irq_entry *ie)
+{
+	return container_of(ie, struct idxd_device, ie);
 }
 
 extern struct bus_type dsa_bus_type;

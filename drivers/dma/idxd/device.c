@@ -21,8 +21,11 @@ static void idxd_wq_disable_cleanup(struct idxd_wq *wq);
 /* Interrupt control bits */
 void idxd_mask_msix_vector(struct idxd_device *idxd, int vec_id)
 {
-	struct irq_data *data = irq_get_irq_data(idxd->irq_entries[vec_id].vector);
+	struct idxd_irq_entry *ie;
+	struct irq_data *data;
 
+	ie = idxd_get_ie(idxd, vec_id);
+	data = irq_get_irq_data(ie->vector);
 	pci_msi_mask_irq(data);
 }
 
@@ -38,8 +41,11 @@ void idxd_mask_msix_vectors(struct idxd_device *idxd)
 
 void idxd_unmask_msix_vector(struct idxd_device *idxd, int vec_id)
 {
-	struct irq_data *data = irq_get_irq_data(idxd->irq_entries[vec_id].vector);
+	struct idxd_irq_entry *ie;
+	struct irq_data *data;
 
+	ie = idxd_get_ie(idxd, vec_id);
+	data = irq_get_irq_data(ie->vector);
 	pci_msi_unmask_irq(data);
 }
 
@@ -1216,13 +1222,6 @@ int __drv_enable_wq(struct idxd_wq *wq)
 		goto err;
 	}
 
-	/*
-	 * Device has 1 misc interrupt and N interrupts for descriptor completion. To
-	 * assign WQ to interrupt, we will take the N+1 interrupt since vector 0 is
-	 * for the misc interrupt.
-	 */
-	wq->ie = &idxd->irq_entries[wq->id + 1];
-
 	rc = idxd_wq_enable(wq);
 	if (rc < 0) {
 		dev_dbg(dev, "wq %d enabling failed: %d\n", wq->id, rc);
@@ -1273,7 +1272,6 @@ void __drv_disable_wq(struct idxd_wq *wq)
 	idxd_wq_drain(wq);
 	idxd_wq_reset(wq);
 
-	wq->ie = NULL;
 	wq->client_count = 0;
 }
 
