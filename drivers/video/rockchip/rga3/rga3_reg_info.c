@@ -313,10 +313,17 @@ static void RGA3_set_reg_win0_info(u8 *base, struct rga3_req *msg)
 	reg =
 		((reg & (~m_RGA3_WIN0_RD_CTRL_SW_WIN0_RD_FORMAT)) |
 		 (s_RGA3_WIN0_RD_CTRL_SW_WIN0_RD_FORMAT(win_interleaved)));
-	//warning: TRM not complete
-	reg =
-		((reg & (~m_RGA3_WIN0_RD_CTRL_SW_WIN0_CSC_MODE)) |
-		 (s_RGA3_WIN0_RD_CTRL_SW_WIN0_CSC_MODE(msg->yuv2rgb_mode)));
+
+	if (win_r2y == 1) {
+		reg =
+			((reg & (~m_RGA3_WIN0_RD_CTRL_SW_WIN0_CSC_MODE)) |
+			(s_RGA3_WIN0_RD_CTRL_SW_WIN0_CSC_MODE(msg->win0.r2y_mode)));
+	} else if (win_y2r == 1) {
+		reg =
+			((reg & (~m_RGA3_WIN0_RD_CTRL_SW_WIN0_CSC_MODE)) |
+			(s_RGA3_WIN0_RD_CTRL_SW_WIN0_CSC_MODE(msg->win0.y2r_mode)));
+	}
+
 	/* rotate & mirror */
 	if (msg->win1.yrgb_addr == 0) {
 		reg =
@@ -721,10 +728,17 @@ static void RGA3_set_reg_win1_info(u8 *base, struct rga3_req *msg)
 	reg =
 		((reg & (~m_RGA3_WIN1_RD_CTRL_SW_WIN1_RD_FORMAT)) |
 		 (s_RGA3_WIN1_RD_CTRL_SW_WIN1_RD_FORMAT(win_interleaved)));
-	//warning: TRM not complete
-	reg =
-		((reg & (~m_RGA3_WIN1_RD_CTRL_SW_WIN1_CSC_MODE)) |
-		 (s_RGA3_WIN1_RD_CTRL_SW_WIN1_CSC_MODE(msg->yuv2rgb_mode)));
+
+	if (win_r2y == 1) {
+		reg =
+			((reg & (~m_RGA3_WIN0_RD_CTRL_SW_WIN0_CSC_MODE)) |
+			(s_RGA3_WIN0_RD_CTRL_SW_WIN0_CSC_MODE(msg->win1.r2y_mode)));
+	} else if (win_y2r == 1) {
+		reg =
+			((reg & (~m_RGA3_WIN0_RD_CTRL_SW_WIN0_CSC_MODE)) |
+			(s_RGA3_WIN0_RD_CTRL_SW_WIN0_CSC_MODE(msg->win1.y2r_mode)));
+	}
+
 	/* rotate & mirror */
 	reg =
 		((reg & (~m_RGA3_WIN1_RD_CTRL_SW_WIN1_ROT)) |
@@ -1528,7 +1542,35 @@ void rga_cmd_to_rga3_cmd(struct rga_req *req_rga, struct rga3_req *req)
 	req->win0_a_global_val = req_rga->alpha_global_value;
 	req->win1_a_global_val = req_rga->alpha_global_value;
 
-	req->yuv2rgb_mode = req_rga->yuv2rgb_mode;
+	/* yuv to rgb */
+	/* 601 limit */
+	if (req_rga->yuv2rgb_mode == 1) {
+		req->win0.y2r_mode = 0;
+		req->win1.y2r_mode = 0;
+	/* 601 full */
+	} else if (req_rga->yuv2rgb_mode == 2) {
+		req->win0.y2r_mode = 2;
+		req->win1.y2r_mode = 2;
+	/* 709 limit */
+	} else if (req_rga->yuv2rgb_mode == 3) {
+		req->win0.y2r_mode = 1;
+		req->win1.y2r_mode = 1;
+	}
+
+	/* rgb to yuv */
+	/* 601 limit */
+	if ((req_rga->yuv2rgb_mode >> 2) == 1) {
+		req->win0.r2y_mode = 0;
+		req->win1.r2y_mode = 0;
+	/* 601 full */
+	} else if ((req_rga->yuv2rgb_mode >> 2) == 2) {
+		req->win0.r2y_mode = 2;
+		req->win1.r2y_mode = 2;
+	/* 709 limit */
+	} else if ((req_rga->yuv2rgb_mode >> 2) == 3) {
+		req->win0.r2y_mode = 1;
+		req->win1.r2y_mode = 1;
+	}
 
 	/* color key */
 	req->color_key_min = req_rga->color_key_min;

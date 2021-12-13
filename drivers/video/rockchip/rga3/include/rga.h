@@ -279,6 +279,9 @@ struct rga_win_info_t {
 	unsigned short vir_w;
 	unsigned short vir_h;
 
+	unsigned short y2r_mode;
+	unsigned short r2y_mode;
+
 	unsigned short rotate_mode;
 	/* RASTER or FBCD or TILE */
 	unsigned short rd_mode;
