@@ -1701,6 +1701,16 @@ static void aspeed_mctp_reset_work(struct work_struct *work)
 		if (priv->match_data->need_address_mapping)
 			regmap_update_bits(priv->map, ASPEED_MCTP_EID,
 					   MEMORY_SPACE_MAPPING, BIT(31));
+		/*
+		 * In some condition, tx som and eom will not match expected result.
+		 * e.g. When Maximum Transmit Unit (MTU) set to 64 byte, and then transfer
+		 * size set between 61 ~ 124 (MTU-3 ~ 2*MTU-4), the engine will set all
+		 * packet vdm header eom to 1, no matter what it setted. To fix that
+		 * issue, the driver set MTU to next level(e.g. 64 to 128).
+		 */
+		regmap_update_bits(priv->map, ASPEED_MCTP_ENGINE_CTRL,
+				   TX_MAX_PAYLOAD_SIZE_MASK,
+				   FIELD_GET(TX_MAX_PAYLOAD_SIZE_MASK, fls(ASPEED_MCTP_MTU >> 6)));
 		aspeed_mctp_flush_all_tx_queues(priv);
 		if (!priv->miss_mctp_int)
 			aspeed_mctp_irq_enable(priv);
@@ -2041,6 +2051,16 @@ static int aspeed_mctp_probe(struct platform_device *pdev)
 		if (priv->match_data->need_address_mapping)
 			regmap_update_bits(priv->map, ASPEED_MCTP_EID,
 					   MEMORY_SPACE_MAPPING, BIT(31));
+		/*
+		 * In some condition, tx som and eom will not match expected result.
+		 * e.g. When Maximum Transmit Unit (MTU) set to 64 byte, and then transfer
+		 * size set between 61 ~ 124 (MTU-3 ~ 2*MTU-4), the engine will set all
+		 * packet vdm header eom to 1, no matter what it setted. To fix that
+		 * issue, the driver set MTU to next level(e.g. 64 to 128).
+		 */
+		regmap_update_bits(priv->map, ASPEED_MCTP_ENGINE_CTRL,
+				   TX_MAX_PAYLOAD_SIZE_MASK,
+				   FIELD_GET(TX_MAX_PAYLOAD_SIZE_MASK, fls(ASPEED_MCTP_MTU >> 6)));
 		_set_bdf(priv, bdf);
 	}
 
