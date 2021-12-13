@@ -689,26 +689,28 @@ static int idxd_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	return rc;
 }
 
-static void idxd_flush_pending_llist(struct idxd_irq_entry *ie)
+static void idxd_flush_pending_descs(struct idxd_irq_entry *ie)
 {
 	struct idxd_desc *desc, *itr;
 	struct llist_node *head;
+	LIST_HEAD(flist);
+	enum idxd_complete_type ctype;
 
+	spin_lock(&ie->list_lock);
 	head = llist_del_all(&ie->pending_llist);
-	if (!head)
-		return;
+	if (head) {
+		llist_for_each_entry_safe(desc, itr, head, llnode)
+			list_add_tail(&desc->list, &ie->work_list);
+	}
 
-	llist_for_each_entry_safe(desc, itr, head, llnode)
-		idxd_dma_complete_txd(desc, IDXD_COMPLETE_ABORT, true);
-}
+	list_for_each_entry_safe(desc, itr, &ie->work_list, list)
+		list_move_tail(&desc->list, &flist);
+	spin_unlock(&ie->list_lock);
 
-static void idxd_flush_work_list(struct idxd_irq_entry *ie)
-{
-	struct idxd_desc *desc, *iter;
-
-	list_for_each_entry_safe(desc, iter, &ie->work_list, list) {
+	list_for_each_entry_safe(desc, itr, &flist, list) {
 		list_del(&desc->list);
-		idxd_dma_complete_txd(desc, IDXD_COMPLETE_ABORT, true);
+		ctype = desc->completion->status ? IDXD_COMPLETE_NORMAL : IDXD_COMPLETE_ABORT;
+		idxd_dma_complete_txd(desc, ctype, true);
 	}
 }
 
@@ -762,8 +764,7 @@ static void idxd_shutdown(struct pci_dev *pdev)
 		synchronize_irq(irq_entry->vector);
 		if (i == 0)
 			continue;
-		idxd_flush_pending_llist(irq_entry);
-		idxd_flush_work_list(irq_entry);
+		idxd_flush_pending_descs(irq_entry);
 	}
 	flush_workqueue(idxd->wq);
 }
