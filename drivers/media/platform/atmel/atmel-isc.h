@@ -10,6 +10,13 @@
  */
 #ifndef _ATMEL_ISC_H_
 
+#include <linux/clk-provider.h>
+#include <linux/platform_device.h>
+
+#include <media/v4l2-ctrls.h>
+#include <media/v4l2-device.h>
+#include <media/videobuf2-dma-contig.h>
+
 #define ISC_CLK_MAX_DIV		255
 
 enum isc_clk_id {
