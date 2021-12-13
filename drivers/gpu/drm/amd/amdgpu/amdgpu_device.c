@@ -5706,7 +5706,7 @@ void amdgpu_device_invalidate_hdp(struct amdgpu_device *adev,
 void amdgpu_device_halt(struct amdgpu_device *adev)
 {
 	struct pci_dev *pdev = adev->pdev;
-	struct drm_device *ddev = &adev->ddev;
+	struct drm_device *ddev = adev_to_drm(adev);
 
 	drm_dev_unplug(ddev);
 
