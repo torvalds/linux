@@ -1798,25 +1798,32 @@ DEFINE_SIMPLE_ATTRIBUTE(intel_fbc_debugfs_false_color_fops,
 			intel_fbc_debugfs_false_color_set,
 			"%llu\n");
 
-static void intel_fbc_debugfs_add(struct intel_fbc *fbc)
+static void intel_fbc_debugfs_add(struct intel_fbc *fbc,
+				  struct dentry *parent)
 {
-	struct drm_i915_private *i915 = fbc->i915;
-	struct drm_minor *minor = i915->drm.primary;
-
-	debugfs_create_file("i915_fbc_status", 0444,
-			    minor->debugfs_root, fbc,
-			    &intel_fbc_debugfs_status_fops);
+	debugfs_create_file("i915_fbc_status", 0444, parent,
+			    fbc, &intel_fbc_debugfs_status_fops);
 
 	if (fbc->funcs->set_false_color)
-		debugfs_create_file("i915_fbc_false_color", 0644,
-				    minor->debugfs_root, fbc,
-				    &intel_fbc_debugfs_false_color_fops);
+		debugfs_create_file("i915_fbc_false_color", 0644, parent,
+				    fbc, &intel_fbc_debugfs_false_color_fops);
 }
 
+void intel_fbc_crtc_debugfs_add(struct intel_crtc *crtc)
+{
+	struct intel_plane *plane = to_intel_plane(crtc->base.primary);
+
+	if (plane->fbc)
+		intel_fbc_debugfs_add(plane->fbc, crtc->base.debugfs_entry);
+}
+
+/* FIXME: remove this once igt is on board with per-crtc stuff */
 void intel_fbc_debugfs_register(struct drm_i915_private *i915)
 {
-	struct intel_fbc *fbc = i915->fbc[INTEL_FBC_A];
+	struct drm_minor *minor = i915->drm.primary;
+	struct intel_fbc *fbc;
 
+	fbc = i915->fbc[INTEL_FBC_A];
 	if (fbc)
-		intel_fbc_debugfs_add(fbc);
+		intel_fbc_debugfs_add(fbc, minor->debugfs_root);
 }
