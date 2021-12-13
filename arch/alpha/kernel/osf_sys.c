@@ -522,7 +522,7 @@ SYSCALL_DEFINE4(osf_mount, unsigned long, typenr, const char __user *, path,
 		break;
 	default:
 		retval = -EINVAL;
-		printk("osf_mount(%ld, %x)\n", typenr, flag);
+		printk_ratelimited("osf_mount(%ld, %x)\n", typenr, flag);
 	}
 
 	return retval;
