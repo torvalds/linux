@@ -141,6 +141,12 @@ config SENSORS_IR38064
 	  This driver can also be built as a module. If so, the module will
 	  be called ir38064.
 
+config SENSORS_IR38064_REGULATOR
+	bool "Regulator support for IR38064 and compatibles"
+	depends on SENSORS_IR38064 && REGULATOR
+	help
+	  Uses the IR38064 or compatible as regulator.
+
 config SENSORS_IRPS5401
 	tristate "Infineon IRPS5401"
 	help

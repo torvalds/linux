@@ -17,7 +17,14 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/of_device.h>
+#include <linux/regulator/driver.h>
 #include "pmbus.h"
+
+#if IS_ENABLED(CONFIG_SENSORS_IR38064_REGULATOR)
+static const struct regulator_desc ir38064_reg_desc[] = {
+	PMBUS_REGULATOR("vout", 0),
+};
+#endif /* CONFIG_SENSORS_IR38064_REGULATOR */
 
 static struct pmbus_driver_info ir38064_info = {
 	.pages = 1,
@@ -34,6 +41,10 @@ static struct pmbus_driver_info ir38064_info = {
 	    | PMBUS_HAVE_VOUT | PMBUS_HAVE_STATUS_VOUT
 	    | PMBUS_HAVE_IOUT | PMBUS_HAVE_STATUS_IOUT
 	    | PMBUS_HAVE_POUT,
+#if IS_ENABLED(CONFIG_SENSORS_IR38064_REGULATOR)
+	.num_regulators = 1,
+	.reg_desc = ir38064_reg_desc,
+#endif
 };
 
 static int ir38064_probe(struct i2c_client *client)
