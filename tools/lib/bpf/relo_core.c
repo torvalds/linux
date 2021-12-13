@@ -709,9 +709,13 @@ static int bpf_core_calc_field_relo(const char *prog_name,
 
 static int bpf_core_calc_type_relo(const struct bpf_core_relo *relo,
 				   const struct bpf_core_spec *spec,
-				   __u32 *val)
+				   __u32 *val, bool *validate)
 {
 	__s64 sz;
+
+	/* by default, always check expected value in bpf_insn */
+	if (validate)
+		*validate = true;
 
 	/* type-based relos return zero when target type is not found */
 	if (!spec) {
@@ -722,6 +726,11 @@ static int bpf_core_calc_type_relo(const struct bpf_core_relo *relo,
 	switch (relo->kind) {
 	case BPF_CORE_TYPE_ID_TARGET:
 		*val = spec->root_type_id;
+		/* type ID, embedded in bpf_insn, might change during linking,
+		 * so enforcing it is pointless
+		 */
+		if (validate)
+			*validate = false;
 		break;
 	case BPF_CORE_TYPE_EXISTS:
 		*val = 1;
@@ -861,8 +870,8 @@ static int bpf_core_calc_relo(const char *prog_name,
 			res->fail_memsz_adjust = true;
 		}
 	} else if (core_relo_is_type_based(relo->kind)) {
-		err = bpf_core_calc_type_relo(relo, local_spec, &res->orig_val);
-		err = err ?: bpf_core_calc_type_relo(relo, targ_spec, &res->new_val);
+		err = bpf_core_calc_type_relo(relo, local_spec, &res->orig_val, &res->validate);
+		err = err ?: bpf_core_calc_type_relo(relo, targ_spec, &res->new_val, NULL);
 	} else if (core_relo_is_enumval_based(relo->kind)) {
 		err = bpf_core_calc_enumval_relo(relo, local_spec, &res->orig_val);
 		err = err ?: bpf_core_calc_enumval_relo(relo, targ_spec, &res->new_val);
@@ -1213,7 +1222,8 @@ int bpf_core_apply_relo_insn(const char *prog_name, struct bpf_insn *insn,
 
 	/* TYPE_ID_LOCAL relo is special and doesn't need candidate search */
 	if (relo->kind == BPF_CORE_TYPE_ID_LOCAL) {
-		targ_res.validate = true;
+		/* bpf_insn's imm value could get out of sync during linking */
+		targ_res.validate = false;
 		targ_res.poison = false;
 		targ_res.orig_val = local_spec->root_type_id;
 		targ_res.new_val = local_spec->root_type_id;
@@ -1226,7 +1236,6 @@ int bpf_core_apply_relo_insn(const char *prog_name, struct bpf_insn *insn,
 			prog_name, relo_idx, core_relo_kind_str(relo->kind), relo->kind);
 		return -EOPNOTSUPP;
 	}
-
 
 	for (i = 0, j = 0; i < cands->len; i++) {
 		err = bpf_core_spec_match(local_spec, cands->cands[i].btf,
