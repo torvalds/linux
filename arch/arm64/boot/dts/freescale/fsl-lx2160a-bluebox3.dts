@@ -386,6 +386,8 @@
 				reg = <2>;
 				ethernet = <&dpmac17>;
 				phy-mode = "rgmii-id";
+				rx-internal-delay-ps = <2000>;
+				tx-internal-delay-ps = <2000>;
 
 				fixed-link {
 					speed = <1000>;
@@ -529,6 +531,8 @@
 				reg = <2>;
 				ethernet = <&dpmac18>;
 				phy-mode = "rgmii-id";
+				rx-internal-delay-ps = <2000>;
+				tx-internal-delay-ps = <2000>;
 
 				fixed-link {
 					speed = <1000>;
