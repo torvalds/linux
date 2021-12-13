@@ -57,6 +57,7 @@ struct intel_plane;
 struct intel_plane_state;
 struct intel_remapped_info;
 struct intel_rotation_info;
+struct pci_dev;
 
 enum i915_gpio {
 	GPIOA,
