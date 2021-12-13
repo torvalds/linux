@@ -3724,7 +3724,7 @@ no_lock_out:
 	 * sent after the qdisc owner is scheduled again. To prevent this
 	 * scenario the task always serialize on the lock.
 	 */
-	contended = IS_ENABLED(CONFIG_PREEMPT_RT) || qdisc_is_running(q);
+	contended = qdisc_is_running(q) || IS_ENABLED(CONFIG_PREEMPT_RT);
 	if (unlikely(contended))
 		spin_lock(&q->busylock);
 
