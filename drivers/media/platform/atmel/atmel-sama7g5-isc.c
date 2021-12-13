@@ -188,7 +188,7 @@ static struct isc_format sama7g5_formats_list[] = {
 	},
 	{
 		.fourcc		= V4L2_PIX_FMT_UYVY,
-		.mbus_code	= MEDIA_BUS_FMT_YUYV8_2X8,
+		.mbus_code	= MEDIA_BUS_FMT_UYVY8_2X8,
 		.pfe_cfg0_bps	= ISC_PFE_CFG0_BPS_EIGHT,
 	},
 	{
