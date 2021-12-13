@@ -678,10 +678,12 @@ static const char *spa_type_name(u16 type)
 
 int nfit_spa_type(struct acpi_nfit_system_address *spa)
 {
+	guid_t guid;
 	int i;
 
+	import_guid(&guid, spa->range_guid);
 	for (i = 0; i < NFIT_UUID_MAX; i++)
-		if (guid_equal(to_nfit_uuid(i), (guid_t *)&spa->range_guid))
+		if (guid_equal(to_nfit_uuid(i), &guid))
 			return i;
 	return -1;
 }
