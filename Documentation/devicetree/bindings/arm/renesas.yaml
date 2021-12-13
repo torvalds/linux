@@ -315,6 +315,10 @@ properties:
           - const: renesas,falcon-cpu
           - const: renesas,r8a779a0
 
+      - description: R-Car S4-8 (R8A779F0)
+        items:
+          - const: renesas,r8a779f0
+
       - description: R-Car H3e (R8A779M0)
         items:
           - enum:
