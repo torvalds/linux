@@ -9331,7 +9331,6 @@ S:	Maintained
 F:	drivers/iio/pressure/dps310.c
 
 INFINIBAND SUBSYSTEM
-M:	Doug Ledford <dledford@redhat.com>
 M:	Jason Gunthorpe <jgg@nvidia.com>
 L:	linux-rdma@vger.kernel.org
 S:	Supported
@@ -10282,9 +10281,9 @@ F:	lib/Kconfig.kcsan
 F:	scripts/Makefile.kcsan
 
 KDUMP
-M:	Dave Young <dyoung@redhat.com>
 M:	Baoquan He <bhe@redhat.com>
 R:	Vivek Goyal <vgoyal@redhat.com>
+R:	Dave Young <dyoung@redhat.com>
 L:	kexec@lists.infradead.org
 S:	Maintained
 W:	http://lse.sourceforge.net/kdump/
@@ -12182,8 +12181,8 @@ F:	drivers/net/ethernet/mellanox/mlx5/core/fpga/*
 F:	include/linux/mlx5/mlx5_ifc_fpga.h
 
 MELLANOX ETHERNET SWITCH DRIVERS
-M:	Jiri Pirko <jiri@nvidia.com>
 M:	Ido Schimmel <idosch@nvidia.com>
+M:	Petr Machata <petrm@nvidia.com>
 L:	netdev@vger.kernel.org
 S:	Supported
 W:	http://www.mellanox.com
@@ -15773,6 +15772,15 @@ S:	Maintained
 F:	Documentation/devicetree/bindings/net/qcom,ethqos.txt
 F:	drivers/net/ethernet/stmicro/stmmac/dwmac-qcom-ethqos.c
 
+QUALCOMM FASTRPC DRIVER
+M:	Srinivas Kandagatla <srinivas.kandagatla@linaro.org>
+M:	Amol Maheshwari <amahesh@qti.qualcomm.com>
+L:	linux-arm-msm@vger.kernel.org
+S:	Maintained
+F:	Documentation/devicetree/bindings/misc/qcom,fastrpc.txt
+F:	drivers/misc/fastrpc.c
+F:	include/uapi/misc/fastrpc.h
+
 QUALCOMM GENERIC INTERFACE I2C DRIVER
 M:	Akash Asthana <akashast@codeaurora.org>
 M:	Mukesh Savaliya <msavaliy@codeaurora.org>
@@ -15981,6 +15989,7 @@ F:	arch/mips/generic/board-ranchu.c
 
 RANDOM NUMBER DRIVER
 M:	"Theodore Ts'o" <tytso@mit.edu>
+M:	Jason A. Donenfeld <Jason@zx2c4.com>
 S:	Maintained
 F:	drivers/char/random.c
 
@@ -16503,6 +16512,12 @@ T:	git git://linuxtv.org/media_tree.git
 F:	Documentation/devicetree/bindings/media/allwinner,sun8i-a83t-de2-rotate.yaml
 F:	drivers/media/platform/sunxi/sun8i-rotate/
 
+RPMSG TTY DRIVER
+M:	Arnaud Pouliquen <arnaud.pouliquen@foss.st.com>
+L:	linux-remoteproc@vger.kernel.org
+S:	Maintained
+F:	drivers/tty/rpmsg_tty.c
+
 RTL2830 MEDIA DRIVER
 M:	Antti Palosaari <crope@iki.fi>
 L:	linux-media@vger.kernel.org
@@ -16624,8 +16639,8 @@ W:	http://www.ibm.com/developerworks/linux/linux390/
 F:	drivers/iommu/s390-iommu.c
 
 S390 IUCV NETWORK LAYER
-M:	Julian Wiedmann <jwi@linux.ibm.com>
-M:	Karsten Graul <kgraul@linux.ibm.com>
+M:	Alexandra Winter <wintera@linux.ibm.com>
+M:	Wenjia Zhang <wenjia@linux.ibm.com>
 L:	linux-s390@vger.kernel.org
 L:	netdev@vger.kernel.org
 S:	Supported
@@ -16635,8 +16650,8 @@ F:	include/net/iucv/
 F:	net/iucv/
 
 S390 NETWORK DRIVERS
-M:	Julian Wiedmann <jwi@linux.ibm.com>
-M:	Karsten Graul <kgraul@linux.ibm.com>
+M:	Alexandra Winter <wintera@linux.ibm.com>
+M:	Wenjia Zhang <wenjia@linux.ibm.com>
 L:	linux-s390@vger.kernel.org
 L:	netdev@vger.kernel.org
 S:	Supported

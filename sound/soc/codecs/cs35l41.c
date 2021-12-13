@@ -302,7 +302,6 @@ static int cs35l41_otp_unpack(void *data)
 	const struct cs35l41_otp_packed_element_t *otp_map;
 	struct cs35l41_private *cs35l41 = data;
 	int bit_offset, word_offset, ret, i;
-	unsigned int orig_spi_freq;
 	unsigned int bit_sum = 8;
 	u32 otp_val, otp_id_reg;
 	u32 *otp_mem;
@@ -326,18 +325,12 @@ static int cs35l41_otp_unpack(void *data)
 		goto err_otp_unpack;
 	}
 
-	if (cs35l41->otp_setup)
-		cs35l41->otp_setup(cs35l41, true, &orig_spi_freq);
-
 	ret = regmap_bulk_read(cs35l41->regmap, CS35L41_OTP_MEM0, otp_mem,
 			       CS35L41_OTP_SIZE_WORDS);
 	if (ret < 0) {
 		dev_err(cs35l41->dev, "Read OTP Mem failed: %d\n", ret);
 		goto err_otp_unpack;
 	}
-
-	if (cs35l41->otp_setup)
-		cs35l41->otp_setup(cs35l41, false, &orig_spi_freq);
 
 	otp_map = otp_map_match->map;
 

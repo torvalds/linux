@@ -4110,14 +4110,6 @@ static int devlink_nl_cmd_reload(struct sk_buff *skb, struct genl_info *info)
 		return err;
 	}
 
-	if (info->attrs[DEVLINK_ATTR_NETNS_PID] ||
-	    info->attrs[DEVLINK_ATTR_NETNS_FD] ||
-	    info->attrs[DEVLINK_ATTR_NETNS_ID]) {
-		dest_net = devlink_netns_get(skb, info);
-		if (IS_ERR(dest_net))
-			return PTR_ERR(dest_net);
-	}
-
 	if (info->attrs[DEVLINK_ATTR_RELOAD_ACTION])
 		action = nla_get_u8(info->attrs[DEVLINK_ATTR_RELOAD_ACTION]);
 	else
@@ -4160,6 +4152,14 @@ static int devlink_nl_cmd_reload(struct sk_buff *skb, struct genl_info *info)
 			return -EINVAL;
 		}
 	}
+	if (info->attrs[DEVLINK_ATTR_NETNS_PID] ||
+	    info->attrs[DEVLINK_ATTR_NETNS_FD] ||
+	    info->attrs[DEVLINK_ATTR_NETNS_ID]) {
+		dest_net = devlink_netns_get(skb, info);
+		if (IS_ERR(dest_net))
+			return PTR_ERR(dest_net);
+	}
+
 	err = devlink_reload(devlink, dest_net, action, limit, &actions_performed, info->extack);
 
 	if (dest_net)

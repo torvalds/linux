@@ -827,7 +827,7 @@ static ssize_t ata_scsi_lpm_show(struct device *dev,
 	if (ap->target_lpm_policy >= ARRAY_SIZE(ata_lpm_policy_names))
 		return -EINVAL;
 
-	return snprintf(buf, PAGE_SIZE, "%s\n",
+	return sysfs_emit(buf, "%s\n",
 			ata_lpm_policy_names[ap->target_lpm_policy]);
 }
 DEVICE_ATTR(link_power_management_policy, S_IRUGO | S_IWUSR,
