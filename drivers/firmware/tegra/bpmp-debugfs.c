@@ -77,13 +77,14 @@ static const char *get_filename(struct tegra_bpmp *bpmp,
 	const char *root_path, *filename = NULL;
 	char *root_path_buf;
 	size_t root_len;
+	size_t root_path_buf_len = 512;
 
-	root_path_buf = kzalloc(512, GFP_KERNEL);
+	root_path_buf = kzalloc(root_path_buf_len, GFP_KERNEL);
 	if (!root_path_buf)
 		goto out;
 
 	root_path = dentry_path(bpmp->debugfs_mirror, root_path_buf,
-				sizeof(root_path_buf));
+				root_path_buf_len);
 	if (IS_ERR(root_path))
 		goto out;
 
