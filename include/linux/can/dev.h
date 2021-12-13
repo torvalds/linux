@@ -64,6 +64,9 @@ struct can_priv {
 	struct gpio_desc *termination_gpio;
 	u16 termination_gpio_ohms[CAN_TERMINATION_GPIO_MAX];
 
+	unsigned int echo_skb_max;
+	struct sk_buff **echo_skb;
+
 	enum can_state state;
 
 	/* CAN controller features - see include/uapi/linux/can/netlink.h */
@@ -82,9 +85,6 @@ struct can_priv {
 	int (*do_get_berr_counter)(const struct net_device *dev,
 				   struct can_berr_counter *bec);
 	int (*do_get_auto_tdcv)(const struct net_device *dev, u32 *tdcv);
-
-	unsigned int echo_skb_max;
-	struct sk_buff **echo_skb;
 
 #ifdef CONFIG_CAN_LEDS
 	struct led_trigger *tx_led_trig;
