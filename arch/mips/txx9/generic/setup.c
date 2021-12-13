@@ -835,34 +835,6 @@ void __init txx9_aclc_init(unsigned long baseaddr, int irq,
 			   unsigned int dma_chan_out,
 			   unsigned int dma_chan_in)
 {
-#if IS_ENABLED(CONFIG_SND_SOC_TXX9ACLC)
-	unsigned int dma_base = dmac_id * TXX9_DMA_MAX_NR_CHANNELS;
-	struct resource res[] = {
-		{
-			.start = baseaddr,
-			.end = baseaddr + 0x100 - 1,
-			.flags = IORESOURCE_MEM,
-		}, {
-			.start = irq,
-			.flags = IORESOURCE_IRQ,
-		}, {
-			.name = "txx9dmac-chan",
-			.start = dma_base + dma_chan_out,
-			.flags = IORESOURCE_DMA,
-		}, {
-			.name = "txx9dmac-chan",
-			.start = dma_base + dma_chan_in,
-			.flags = IORESOURCE_DMA,
-		}
-	};
-	struct platform_device *pdev =
-		platform_device_alloc("txx9aclc-ac97", -1);
-
-	if (!pdev ||
-	    platform_device_add_resources(pdev, res, ARRAY_SIZE(res)) ||
-	    platform_device_add(pdev))
-		platform_device_put(pdev);
-#endif
 }
 
 static struct bus_type txx9_sramc_subsys = {
