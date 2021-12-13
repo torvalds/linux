@@ -293,6 +293,7 @@ struct intel_connector;
 struct intel_encoder;
 struct intel_atomic_state;
 struct intel_cdclk_config;
+struct intel_cdclk_funcs;
 struct intel_cdclk_state;
 struct intel_cdclk_vals;
 struct intel_initial_plane_config;
@@ -339,17 +340,6 @@ struct intel_color_funcs {
 	 */
 	void (*load_luts)(const struct intel_crtc_state *crtc_state);
 	void (*read_luts)(struct intel_crtc_state *crtc_state);
-};
-
-struct intel_cdclk_funcs {
-	void (*get_cdclk)(struct drm_i915_private *dev_priv,
-			  struct intel_cdclk_config *cdclk_config);
-	void (*set_cdclk)(struct drm_i915_private *dev_priv,
-			  const struct intel_cdclk_config *cdclk_config,
-			  enum pipe pipe);
-	int (*bw_calc_min_cdclk)(struct intel_atomic_state *state);
-	int (*modeset_calc_cdclk)(struct intel_cdclk_state *state);
-	u8 (*calc_voltage_level)(int cdclk);
 };
 
 struct intel_hotplug_funcs {
