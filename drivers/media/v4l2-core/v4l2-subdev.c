@@ -1743,6 +1743,230 @@ out:
 }
 EXPORT_SYMBOL_GPL(v4l2_subdev_routing_validate);
 
+static int v4l2_subdev_enable_streams_fallback(struct v4l2_subdev *sd, u32 pad,
+					       u64 streams_mask)
+{
+	struct device *dev = sd->entity.graph_obj.mdev->dev;
+	unsigned int i;
+	int ret;
+
+	/*
+	 * The subdev doesn't implement pad-based stream enable, fall back
+	 * on the .s_stream() operation. This can only be done for subdevs that
+	 * have a single source pad, as sd->enabled_streams is global to the
+	 * subdev.
+	 */
+	if (!(sd->entity.pads[pad].flags & MEDIA_PAD_FL_SOURCE))
+		return -EOPNOTSUPP;
+
+	for (i = 0; i < sd->entity.num_pads; ++i) {
+		if (i != pad && sd->entity.pads[i].flags & MEDIA_PAD_FL_SOURCE)
+			return -EOPNOTSUPP;
+	}
+
+	if (sd->enabled_streams & streams_mask) {
+		dev_dbg(dev, "set of streams %#llx already enabled on %s:%u\n",
+			streams_mask, sd->entity.name, pad);
+		return -EALREADY;
+	}
+
+	/* Start streaming when the first streams are enabled. */
+	if (!sd->enabled_streams) {
+		ret = v4l2_subdev_call(sd, video, s_stream, 1);
+		if (ret)
+			return ret;
+	}
+
+	sd->enabled_streams |= streams_mask;
+
+	return 0;
+}
+
+int v4l2_subdev_enable_streams(struct v4l2_subdev *sd, u32 pad,
+			       u64 streams_mask)
+{
+	struct device *dev = sd->entity.graph_obj.mdev->dev;
+	struct v4l2_subdev_state *state;
+	u64 found_streams = 0;
+	unsigned int i;
+	int ret;
+
+	/* A few basic sanity checks first. */
+	if (pad >= sd->entity.num_pads)
+		return -EINVAL;
+
+	if (!streams_mask)
+		return 0;
+
+	/* Fallback on .s_stream() if .enable_streams() isn't available. */
+	if (!sd->ops->pad || !sd->ops->pad->enable_streams)
+		return v4l2_subdev_enable_streams_fallback(sd, pad,
+							   streams_mask);
+
+	state = v4l2_subdev_lock_and_get_active_state(sd);
+
+	/*
+	 * Verify that the requested streams exist and that they are not
+	 * already enabled.
+	 */
+	for (i = 0; i < state->stream_configs.num_configs; ++i) {
+		struct v4l2_subdev_stream_config *cfg =
+			&state->stream_configs.configs[i];
+
+		if (cfg->pad != pad || !(streams_mask & BIT_ULL(cfg->stream)))
+			continue;
+
+		found_streams |= BIT_ULL(cfg->stream);
+
+		if (cfg->enabled) {
+			dev_dbg(dev, "stream %u already enabled on %s:%u\n",
+				cfg->stream, sd->entity.name, pad);
+			ret = -EALREADY;
+			goto done;
+		}
+	}
+
+	if (found_streams != streams_mask) {
+		dev_dbg(dev, "streams 0x%llx not found on %s:%u\n",
+			streams_mask & ~found_streams, sd->entity.name, pad);
+		ret = -EINVAL;
+		goto done;
+	}
+
+	/* Call the .enable_streams() operation. */
+	ret = v4l2_subdev_call(sd, pad, enable_streams, state, pad,
+			       streams_mask);
+	if (ret)
+		goto done;
+
+	/* Mark the streams as enabled. */
+	for (i = 0; i < state->stream_configs.num_configs; ++i) {
+		struct v4l2_subdev_stream_config *cfg =
+			&state->stream_configs.configs[i];
+
+		if (cfg->pad == pad && (streams_mask & BIT_ULL(cfg->stream)))
+			cfg->enabled = true;
+	}
+
+done:
+	v4l2_subdev_unlock_state(state);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(v4l2_subdev_enable_streams);
+
+static int v4l2_subdev_disable_streams_fallback(struct v4l2_subdev *sd, u32 pad,
+						u64 streams_mask)
+{
+	struct device *dev = sd->entity.graph_obj.mdev->dev;
+	unsigned int i;
+	int ret;
+
+	/*
+	 * If the subdev doesn't implement pad-based stream enable, fall  back
+	 * on the .s_stream() operation. This can only be done for subdevs that
+	 * have a single source pad, as sd->enabled_streams is global to the
+	 * subdev.
+	 */
+	if (!(sd->entity.pads[pad].flags & MEDIA_PAD_FL_SOURCE))
+		return -EOPNOTSUPP;
+
+	for (i = 0; i < sd->entity.num_pads; ++i) {
+		if (i != pad && sd->entity.pads[i].flags & MEDIA_PAD_FL_SOURCE)
+			return -EOPNOTSUPP;
+	}
+
+	if ((sd->enabled_streams & streams_mask) != streams_mask) {
+		dev_dbg(dev, "set of streams %#llx already disabled on %s:%u\n",
+			streams_mask, sd->entity.name, pad);
+		return -EALREADY;
+	}
+
+	/* Stop streaming when the last streams are disabled. */
+	if (!(sd->enabled_streams & ~streams_mask)) {
+		ret = v4l2_subdev_call(sd, video, s_stream, 0);
+		if (ret)
+			return ret;
+	}
+
+	sd->enabled_streams &= ~streams_mask;
+
+	return 0;
+}
+
+int v4l2_subdev_disable_streams(struct v4l2_subdev *sd, u32 pad,
+				u64 streams_mask)
+{
+	struct device *dev = sd->entity.graph_obj.mdev->dev;
+	struct v4l2_subdev_state *state;
+	u64 found_streams = 0;
+	unsigned int i;
+	int ret;
+
+	/* A few basic sanity checks first. */
+	if (pad >= sd->entity.num_pads)
+		return -EINVAL;
+
+	if (!streams_mask)
+		return 0;
+
+	/* Fallback on .s_stream() if .disable_streams() isn't available. */
+	if (!sd->ops->pad || !sd->ops->pad->disable_streams)
+		return v4l2_subdev_disable_streams_fallback(sd, pad,
+							    streams_mask);
+
+	state = v4l2_subdev_lock_and_get_active_state(sd);
+
+	/*
+	 * Verify that the requested streams exist and that they are not
+	 * already disabled.
+	 */
+	for (i = 0; i < state->stream_configs.num_configs; ++i) {
+		struct v4l2_subdev_stream_config *cfg =
+			&state->stream_configs.configs[i];
+
+		if (cfg->pad != pad || !(streams_mask & BIT_ULL(cfg->stream)))
+			continue;
+
+		found_streams |= BIT_ULL(cfg->stream);
+
+		if (!cfg->enabled) {
+			dev_dbg(dev, "stream %u already disabled on %s:%u\n",
+				cfg->stream, sd->entity.name, pad);
+			ret = -EALREADY;
+			goto done;
+		}
+	}
+
+	if (found_streams != streams_mask) {
+		dev_dbg(dev, "streams 0x%llx not found on %s:%u\n",
+			streams_mask & ~found_streams, sd->entity.name, pad);
+		ret = -EINVAL;
+		goto done;
+	}
+
+	/* Call the .disable_streams() operation. */
+	ret = v4l2_subdev_call(sd, pad, disable_streams, state, pad,
+			       streams_mask);
+	if (ret)
+		goto done;
+
+	/* Mark the streams as disabled. */
+	for (i = 0; i < state->stream_configs.num_configs; ++i) {
+		struct v4l2_subdev_stream_config *cfg =
+			&state->stream_configs.configs[i];
+
+		if (cfg->pad == pad && (streams_mask & BIT_ULL(cfg->stream)))
+			cfg->enabled = false;
+	}
+
+done:
+	v4l2_subdev_unlock_state(state);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(v4l2_subdev_disable_streams);
+
 #endif /* CONFIG_VIDEO_V4L2_SUBDEV_API */
 
 #endif /* CONFIG_MEDIA_CONTROLLER */

@@ -705,6 +705,7 @@ struct v4l2_subdev_pad_config {
  *
  * @pad: pad number
  * @stream: stream number
+ * @enabled: has the stream been enabled with v4l2_subdev_enable_stream()
  * @fmt: &struct v4l2_mbus_framefmt
  * @crop: &struct v4l2_rect to be used for crop
  * @compose: &struct v4l2_rect to be used for compose
@@ -714,6 +715,7 @@ struct v4l2_subdev_pad_config {
 struct v4l2_subdev_stream_config {
 	u32 pad;
 	u32 stream;
+	bool enabled;
 
 	struct v4l2_mbus_framefmt fmt;
 	struct v4l2_rect crop;
@@ -819,6 +821,18 @@ struct v4l2_subdev_state {
  *
  * @set_routing: enable or disable data connection routes described in the
  *		 subdevice routing table.
+ *
+ * @enable_streams: Enable the streams defined in streams_mask on the given
+ *	source pad. Subdevs that implement this operation must use the active
+ *	state management provided by the subdev core (enabled through a call to
+ *	v4l2_subdev_init_finalize() at initialization time). Do not call
+ *	directly, use v4l2_subdev_enable_streams() instead.
+ *
+ * @disable_streams: Disable the streams defined in streams_mask on the given
+ *	source pad. Subdevs that implement this operation must use the active
+ *	state management provided by the subdev core (enabled through a call to
+ *	v4l2_subdev_init_finalize() at initialization time). Do not call
+ *	directly, use v4l2_subdev_disable_streams() instead.
  */
 struct v4l2_subdev_pad_ops {
 	int (*init_cfg)(struct v4l2_subdev *sd,
@@ -865,6 +879,12 @@ struct v4l2_subdev_pad_ops {
 			   struct v4l2_subdev_state *state,
 			   enum v4l2_subdev_format_whence which,
 			   struct v4l2_subdev_krouting *route);
+	int (*enable_streams)(struct v4l2_subdev *sd,
+			      struct v4l2_subdev_state *state, u32 pad,
+			      u64 streams_mask);
+	int (*disable_streams)(struct v4l2_subdev *sd,
+			       struct v4l2_subdev_state *state, u32 pad,
+			       u64 streams_mask);
 };
 
 /**
@@ -1010,6 +1030,10 @@ struct v4l2_subdev_platform_data {
  * @active_state: Active state for the subdev (NULL for subdevs tracking the
  *		  state internally). Initialized by calling
  *		  v4l2_subdev_init_finalize().
+ * @enabled_streams: Bitmask of enabled streams used by
+ *		     v4l2_subdev_enable_streams() and
+ *		     v4l2_subdev_disable_streams() helper functions for fallback
+ *		     cases.
  *
  * Each instance of a subdev driver should create this struct, either
  * stand-alone or embedded in a larger struct.
@@ -1055,6 +1079,7 @@ struct v4l2_subdev {
 	 * doesn't support it.
 	 */
 	struct v4l2_subdev_state *active_state;
+	u64 enabled_streams;
 };
 
 
@@ -1645,6 +1670,66 @@ enum v4l2_subdev_routing_restriction {
 int v4l2_subdev_routing_validate(struct v4l2_subdev *sd,
 				 const struct v4l2_subdev_krouting *routing,
 				 enum v4l2_subdev_routing_restriction disallow);
+
+/**
+ * v4l2_subdev_enable_streams() - Enable streams on a pad
+ * @sd: The subdevice
+ * @pad: The pad
+ * @streams_mask: Bitmask of streams to enable
+ *
+ * This function enables streams on a source @pad of a subdevice. The pad is
+ * identified by its index, while the streams are identified by the
+ * @streams_mask bitmask. This allows enabling multiple streams on a pad at
+ * once.
+ *
+ * Enabling a stream that is already enabled isn't allowed. If @streams_mask
+ * contains an already enabled stream, this function returns -EALREADY without
+ * performing any operation.
+ *
+ * Per-stream enable is only available for subdevs that implement the
+ * .enable_streams() and .disable_streams() operations. For other subdevs, this
+ * function implements a best-effort compatibility by calling the .s_stream()
+ * operation, limited to subdevs that have a single source pad.
+ *
+ * Return:
+ * * 0: Success
+ * * -EALREADY: One of the streams in streams_mask is already enabled
+ * * -EINVAL: The pad index is invalid, or doesn't correspond to a source pad
+ * * -EOPNOTSUPP: Falling back to the legacy .s_stream() operation is
+ *   impossible because the subdev has multiple source pads
+ */
+int v4l2_subdev_enable_streams(struct v4l2_subdev *sd, u32 pad,
+			       u64 streams_mask);
+
+/**
+ * v4l2_subdev_disable_streams() - Disable streams on a pad
+ * @sd: The subdevice
+ * @pad: The pad
+ * @streams_mask: Bitmask of streams to disable
+ *
+ * This function disables streams on a source @pad of a subdevice. The pad is
+ * identified by its index, while the streams are identified by the
+ * @streams_mask bitmask. This allows disabling multiple streams on a pad at
+ * once.
+ *
+ * Disabling a streams that is not enabled isn't allowed. If @streams_mask
+ * contains a disabled stream, this function returns -EALREADY without
+ * performing any operation.
+ *
+ * Per-stream disable is only available for subdevs that implement the
+ * .enable_streams() and .disable_streams() operations. For other subdevs, this
+ * function implements a best-effort compatibility by calling the .s_stream()
+ * operation, limited to subdevs that have a single source pad.
+ *
+ * Return:
+ * * 0: Success
+ * * -EALREADY: One of the streams in streams_mask is not enabled
+ * * -EINVAL: The pad index is invalid, or doesn't correspond to a source pad
+ * * -EOPNOTSUPP: Falling back to the legacy .s_stream() operation is
+ *   impossible because the subdev has multiple source pads
+ */
+int v4l2_subdev_disable_streams(struct v4l2_subdev *sd, u32 pad,
+				u64 streams_mask);
 
 #endif /* CONFIG_VIDEO_V4L2_SUBDEV_API */
 
