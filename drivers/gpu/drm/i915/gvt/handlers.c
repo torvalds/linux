@@ -40,6 +40,7 @@
 #include "gvt.h"
 #include "i915_pvinfo.h"
 #include "display/intel_display_types.h"
+#include "display/intel_fbc.h"
 
 /* XXX FIXME i915 has changed PP_XXX definition */
 #define PCH_PP_STATUS  _MMIO(0xc7200)
@@ -2647,12 +2648,12 @@ static int init_generic_mmio_info(struct intel_gvt *gvt)
 	MMIO_D(_MMIO(_TRANSA_CHICKEN2), D_ALL);
 	MMIO_D(_MMIO(_TRANSB_CHICKEN2), D_ALL);
 
-	MMIO_D(ILK_DPFC_CB_BASE, D_ALL);
-	MMIO_D(ILK_DPFC_CONTROL, D_ALL);
-	MMIO_D(ILK_DPFC_RECOMP_CTL, D_ALL);
-	MMIO_D(ILK_DPFC_STATUS, D_ALL);
-	MMIO_D(ILK_DPFC_FENCE_YOFF, D_ALL);
-	MMIO_D(ILK_DPFC_CHICKEN, D_ALL);
+	MMIO_D(ILK_DPFC_CB_BASE(INTEL_FBC_A), D_ALL);
+	MMIO_D(ILK_DPFC_CONTROL(INTEL_FBC_A), D_ALL);
+	MMIO_D(ILK_DPFC_RECOMP_CTL(INTEL_FBC_A), D_ALL);
+	MMIO_D(ILK_DPFC_STATUS(INTEL_FBC_A), D_ALL);
+	MMIO_D(ILK_DPFC_FENCE_YOFF(INTEL_FBC_A), D_ALL);
+	MMIO_D(ILK_DPFC_CHICKEN(INTEL_FBC_A), D_ALL);
 	MMIO_D(ILK_FBC_RT_BASE, D_ALL);
 
 	MMIO_D(IPS_CTL, D_ALL);

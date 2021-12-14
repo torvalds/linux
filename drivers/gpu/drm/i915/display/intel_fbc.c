@@ -85,6 +85,8 @@ struct intel_fbc {
 	struct drm_mm_node compressed_fb;
 	struct drm_mm_node compressed_llb;
 
+	enum intel_fbc_id id;
+
 	u8 limit;
 
 	bool false_color;
@@ -454,10 +456,10 @@ static void ilk_fbc_activate(struct intel_fbc *fbc)
 	struct intel_fbc_state *fbc_state = &fbc->state;
 	struct drm_i915_private *i915 = fbc->i915;
 
-	intel_de_write(i915, ILK_DPFC_FENCE_YOFF,
+	intel_de_write(i915, ILK_DPFC_FENCE_YOFF(fbc->id),
 		       fbc_state->fence_y_offset);
 
-	intel_de_write(i915, ILK_DPFC_CONTROL,
+	intel_de_write(i915, ILK_DPFC_CONTROL(fbc->id),
 		       DPFC_CTL_EN | g4x_dpfc_ctl(fbc));
 }
 
@@ -467,28 +469,28 @@ static void ilk_fbc_deactivate(struct intel_fbc *fbc)
 	u32 dpfc_ctl;
 
 	/* Disable compression */
-	dpfc_ctl = intel_de_read(i915, ILK_DPFC_CONTROL);
+	dpfc_ctl = intel_de_read(i915, ILK_DPFC_CONTROL(fbc->id));
 	if (dpfc_ctl & DPFC_CTL_EN) {
 		dpfc_ctl &= ~DPFC_CTL_EN;
-		intel_de_write(i915, ILK_DPFC_CONTROL, dpfc_ctl);
+		intel_de_write(i915, ILK_DPFC_CONTROL(fbc->id), dpfc_ctl);
 	}
 }
 
 static bool ilk_fbc_is_active(struct intel_fbc *fbc)
 {
-	return intel_de_read(fbc->i915, ILK_DPFC_CONTROL) & DPFC_CTL_EN;
+	return intel_de_read(fbc->i915, ILK_DPFC_CONTROL(fbc->id)) & DPFC_CTL_EN;
 }
 
 static bool ilk_fbc_is_compressing(struct intel_fbc *fbc)
 {
-	return intel_de_read(fbc->i915, ILK_DPFC_STATUS) & DPFC_COMP_SEG_MASK;
+	return intel_de_read(fbc->i915, ILK_DPFC_STATUS(fbc->id)) & DPFC_COMP_SEG_MASK;
 }
 
 static void ilk_fbc_program_cfb(struct intel_fbc *fbc)
 {
 	struct drm_i915_private *i915 = fbc->i915;
 
-	intel_de_write(i915, ILK_DPFC_CB_BASE, fbc->compressed_fb.start);
+	intel_de_write(i915, ILK_DPFC_CB_BASE(fbc->id), fbc->compressed_fb.start);
 }
 
 static const struct intel_fbc_funcs ilk_fbc_funcs = {
@@ -524,8 +526,8 @@ static void snb_fbc_nuke(struct intel_fbc *fbc)
 {
 	struct drm_i915_private *i915 = fbc->i915;
 
-	intel_de_write(i915, MSG_FBC_REND_STATE, FBC_REND_NUKE);
-	intel_de_posting_read(i915, MSG_FBC_REND_STATE);
+	intel_de_write(i915, MSG_FBC_REND_STATE(fbc->id), FBC_REND_NUKE);
+	intel_de_posting_read(i915, MSG_FBC_REND_STATE(fbc->id));
 }
 
 static const struct intel_fbc_funcs snb_fbc_funcs = {
@@ -547,7 +549,7 @@ static void glk_fbc_program_cfb_stride(struct intel_fbc *fbc)
 		val |= FBC_STRIDE_OVERRIDE |
 			FBC_STRIDE(fbc_state->override_cfb_stride / fbc->limit);
 
-	intel_de_write(i915, GLK_FBC_STRIDE, val);
+	intel_de_write(i915, GLK_FBC_STRIDE(fbc->id), val);
 }
 
 static void skl_fbc_program_cfb_stride(struct intel_fbc *fbc)
@@ -598,19 +600,19 @@ static void ivb_fbc_activate(struct intel_fbc *fbc)
 	if (i915->ggtt.num_fences)
 		snb_fbc_program_fence(fbc);
 
-	intel_de_write(i915, ILK_DPFC_CONTROL,
+	intel_de_write(i915, ILK_DPFC_CONTROL(fbc->id),
 		       DPFC_CTL_EN | ivb_dpfc_ctl(fbc));
 }
 
 static bool ivb_fbc_is_compressing(struct intel_fbc *fbc)
 {
-	return intel_de_read(fbc->i915, ILK_DPFC_STATUS2) & DPFC_COMP_SEG_MASK_IVB;
+	return intel_de_read(fbc->i915, ILK_DPFC_STATUS2(fbc->id)) & DPFC_COMP_SEG_MASK_IVB;
 }
 
 static void ivb_fbc_set_false_color(struct intel_fbc *fbc,
 				    bool enable)
 {
-	intel_de_rmw(fbc->i915, ILK_DPFC_CONTROL,
+	intel_de_rmw(fbc->i915, ILK_DPFC_CONTROL(fbc->id),
 		     DPFC_CTL_FALSE_COLOR, enable ? DPFC_CTL_FALSE_COLOR : 0);
 }
 
@@ -1620,7 +1622,8 @@ void intel_fbc_add_plane(struct intel_fbc *fbc, struct intel_plane *plane)
 	fbc->possible_framebuffer_bits |= plane->frontbuffer_bit;
 }
 
-static struct intel_fbc *intel_fbc_create(struct drm_i915_private *i915)
+static struct intel_fbc *intel_fbc_create(struct drm_i915_private *i915,
+					  enum intel_fbc_id fbc_id)
 {
 	struct intel_fbc *fbc;
 
@@ -1628,6 +1631,7 @@ static struct intel_fbc *intel_fbc_create(struct drm_i915_private *i915)
 	if (!fbc)
 		return NULL;
 
+	fbc->id = fbc_id;
 	fbc->i915 = i915;
 	INIT_WORK(&fbc->underrun_work, intel_fbc_underrun_work_fn);
 	mutex_init(&fbc->lock);
@@ -1671,7 +1675,7 @@ void intel_fbc_init(struct drm_i915_private *i915)
 	if (!HAS_FBC(i915))
 		return;
 
-	fbc = intel_fbc_create(i915);
+	fbc = intel_fbc_create(i915, INTEL_FBC_A);
 	if (!fbc)
 		return;
 

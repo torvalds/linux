@@ -17,6 +17,12 @@ struct intel_fbc;
 struct intel_plane;
 struct intel_plane_state;
 
+enum intel_fbc_id {
+	INTEL_FBC_A,
+
+	I915_MAX_FBCS,
+};
+
 int intel_fbc_atomic_check(struct intel_atomic_state *state);
 bool intel_fbc_pre_update(struct intel_atomic_state *state,
 			  struct intel_crtc *crtc);
