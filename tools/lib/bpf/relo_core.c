@@ -1223,6 +1223,7 @@ int bpf_core_apply_relo_insn(const char *prog_name, struct bpf_insn *insn,
 	/* TYPE_ID_LOCAL relo is special and doesn't need candidate search */
 	if (relo->kind == BPF_CORE_TYPE_ID_LOCAL) {
 		/* bpf_insn's imm value could get out of sync during linking */
+		memset(&targ_res, 0, sizeof(targ_res));
 		targ_res.validate = false;
 		targ_res.poison = false;
 		targ_res.orig_val = local_spec->root_type_id;
