@@ -85,11 +85,9 @@ int meson_card_parse_dai(struct snd_soc_card *card,
 
 	ret = of_parse_phandle_with_args(node, "sound-dai",
 					 "#sound-dai-cells", 0, &args);
-	if (ret) {
-		if (ret != -EPROBE_DEFER)
-			dev_err(card->dev, "can't parse dai %d\n", ret);
-		return ret;
-	}
+	if (ret)
+		return dev_err_probe(card->dev, ret, "can't parse dai\n");
+
 	*dai_of_node = args.np;
 
 	return snd_soc_get_dai_name(&args, dai_name);
