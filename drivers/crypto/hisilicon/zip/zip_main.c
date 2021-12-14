@@ -830,7 +830,10 @@ static int hisi_zip_qm_init(struct hisi_qm *qm, struct pci_dev *pdev)
 
 	qm->pdev = pdev;
 	qm->ver = pdev->revision;
-	qm->algs = "zlib\ngzip";
+	if (pdev->revision >= QM_HW_V3)
+		qm->algs = "zlib\ngzip\ndeflate\nlz77_zstd";
+	else
+		qm->algs = "zlib\ngzip";
 	qm->mode = uacce_mode;
 	qm->sqe_size = HZIP_SQE_SIZE;
 	qm->dev_name = hisi_zip_name;
