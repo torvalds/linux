@@ -528,6 +528,19 @@ mlxsw_reg_sfd_uc_tunnel_pack4(char *payload, int rec_index,
 				     MLXSW_REG_SFD_UC_TUNNEL_PROTOCOL_IPV4);
 }
 
+static inline void
+mlxsw_reg_sfd_uc_tunnel_pack6(char *payload, int rec_index, const char *mac,
+			      u16 fid, enum mlxsw_reg_sfd_rec_action action,
+			      u32 uip_ptr)
+{
+	mlxsw_reg_sfd_uc_tunnel_uip_lsb_set(payload, rec_index, uip_ptr);
+	/* Only static policy is supported for IPv6 unicast tunnel entry. */
+	mlxsw_reg_sfd_uc_tunnel_pack(payload, rec_index,
+				     MLXSW_REG_SFD_REC_POLICY_STATIC_ENTRY,
+				     mac, fid, action,
+				     MLXSW_REG_SFD_UC_TUNNEL_PROTOCOL_IPV6);
+}
+
 enum mlxsw_reg_tunnel_port {
 	MLXSW_REG_TUNNEL_PORT_NVE,
 	MLXSW_REG_TUNNEL_PORT_VPLS,
