@@ -870,6 +870,9 @@ static int rockchip_usb2phy_set_mode(struct phy *phy,
 		/* Disable VBUS supply */
 		rockchip_set_vbus_power(rport, false);
 		extcon_set_state_sync(rphy->edev, EXTCON_USB_VBUS_EN, false);
+		/* For vbus always on, set EXTCON_USB to true. */
+		extcon_set_state(rphy->edev, EXTCON_USB, true);
+		rport->perip_connected = true;
 		vbus_det_en = true;
 		break;
 	case PHY_MODE_USB_HOST:
@@ -882,6 +885,9 @@ static int rockchip_usb2phy_set_mode(struct phy *phy,
 		}
 
 		extcon_set_state_sync(rphy->edev, EXTCON_USB_VBUS_EN, true);
+		/* For vbus always on, deinit EXTCON_USB to false. */
+		extcon_set_state(rphy->edev, EXTCON_USB, false);
+		rport->perip_connected = false;
 		fallthrough;
 	case PHY_MODE_INVALID:
 		vbus_det_en = false;
@@ -2425,6 +2431,10 @@ static int rk3588_usb2phy_tuning(struct rockchip_usb2phy *rphy)
 		/* HS Transmitter Pre-Emphasis Current Control 2'b10 : 2x */
 		ret |= regmap_write(rphy->grf, 0x0008,
 				   GENMASK(20, 19) | 0x0010);
+
+		/* Pullup iddig pin for USB3_0 OTG mode */
+		ret |= regmap_write(rphy->grf, 0x0010,
+				    GENMASK(16, 16) | 0x0001);
 	} else if (rphy->phy_cfg->reg == 0x4000) {
 		/*
 		 * Set USB2 PHY1 suspend configuration for USB3_1
@@ -2442,6 +2452,10 @@ static int rk3588_usb2phy_tuning(struct rockchip_usb2phy *rphy)
 		/* HS Transmitter Pre-Emphasis Current Control 2'b10 : 2x */
 		ret |= regmap_write(rphy->grf, 0x0008,
 				   GENMASK(20, 19) | 0x0010);
+
+		/* Pullup iddig pin for USB3_1 OTG mode */
+		ret |= regmap_write(rphy->grf, 0x0010,
+				    GENMASK(16, 16) | 0x0001);
 	} else if (rphy->phy_cfg->reg == 0x8000) {
 		/*
 		 * Set USB2 PHY2 suspend configuration for USB2_0
@@ -3165,6 +3179,19 @@ static const struct rockchip_usb2phy_cfg rk3588_phy_cfgs[] = {
 		.port_cfgs	= {
 			[USB2PHY_PORT_OTG] = {
 				.phy_sus	= { 0x000c, 11, 11, 0, 0 },
+				.bvalid_det_en	= { 0x0080, 1, 1, 0, 1 },
+				.bvalid_det_st	= { 0x0084, 1, 1, 0, 1 },
+				.bvalid_det_clr = { 0x0088, 1, 1, 0, 1 },
+				.bypass_dm_en	= { 0x000c, 5, 5, 0, 1 },
+				.bypass_sel	= { 0x000c, 6, 6, 0, 1 },
+				.iddig_output	= { 0x0010, 0, 0, 0, 1 },
+				.iddig_en	= { 0x0010, 1, 1, 0, 1 },
+				.idfall_det_en	= { 0x0080, 4, 4, 0, 1 },
+				.idfall_det_st	= { 0x0084, 4, 4, 0, 1 },
+				.idfall_det_clr = { 0x0088, 4, 4, 0, 1 },
+				.idrise_det_en	= { 0x0080, 3, 3, 0, 1 },
+				.idrise_det_st	= { 0x0084, 3, 3, 0, 1 },
+				.idrise_det_clr = { 0x0088, 3, 3, 0, 1 },
 				.ls_det_en	= { 0x0080, 0, 0, 0, 1 },
 				.ls_det_st	= { 0x0084, 0, 0, 0, 1 },
 				.ls_det_clr	= { 0x0088, 0, 0, 0, 1 },
@@ -3174,6 +3201,9 @@ static const struct rockchip_usb2phy_cfg rk3588_phy_cfgs[] = {
 				.disrise_en	= { 0x0080, 5, 5, 0, 1 },
 				.disrise_st	= { 0x0084, 5, 5, 0, 1 },
 				.disrise_clr	= { 0x0088, 5, 5, 0, 1 },
+				.utmi_avalid	= { 0x00c0, 7, 7, 0, 1 },
+				.utmi_bvalid	= { 0x00c0, 6, 6, 0, 1 },
+				.utmi_iddig	= { 0x00c0, 5, 5, 0, 1 },
 				.utmi_ls	= { 0x00c0, 10, 9, 0, 1 },
 			}
 		},
@@ -3181,7 +3211,7 @@ static const struct rockchip_usb2phy_cfg rk3588_phy_cfgs[] = {
 			.chg_mode	= { 0x0008, 2, 2, 0, 1 },
 			.cp_det		= { 0x00c0, 0, 0, 0, 1 },
 			.dcp_det	= { 0x00c0, 0, 0, 0, 1 },
-			.dp_det		= { 0x00c0, 1, 1, 0, 1 },
+			.dp_det		= { 0x00c0, 1, 1, 1, 0 },
 			.idm_sink_en	= { 0x0008, 5, 5, 1, 0 },
 			.idp_sink_en	= { 0x0008, 5, 5, 0, 1 },
 			.idp_src_en	= { 0x0008, 14, 14, 0, 1 },
@@ -3199,6 +3229,19 @@ static const struct rockchip_usb2phy_cfg rk3588_phy_cfgs[] = {
 			/* Select suspend control from controller */
 			[USB2PHY_PORT_OTG] = {
 				.phy_sus	= { 0x000c, 11, 11, 0, 0 },
+				.bvalid_det_en	= { 0x0080, 1, 1, 0, 1 },
+				.bvalid_det_st	= { 0x0084, 1, 1, 0, 1 },
+				.bvalid_det_clr = { 0x0088, 1, 1, 0, 1 },
+				.bypass_dm_en	= { 0x000c, 5, 5, 0, 1 },
+				.bypass_sel	= { 0x000c, 6, 6, 0, 1 },
+				.iddig_output	= { 0x0010, 0, 0, 0, 1 },
+				.iddig_en	= { 0x0010, 1, 1, 0, 1 },
+				.idfall_det_en	= { 0x0080, 4, 4, 0, 1 },
+				.idfall_det_st	= { 0x0084, 4, 4, 0, 1 },
+				.idfall_det_clr = { 0x0088, 4, 4, 0, 1 },
+				.idrise_det_en	= { 0x0080, 3, 3, 0, 1 },
+				.idrise_det_st	= { 0x0084, 3, 3, 0, 1 },
+				.idrise_det_clr = { 0x0088, 3, 3, 0, 1 },
 				.ls_det_en	= { 0x0080, 0, 0, 0, 1 },
 				.ls_det_st	= { 0x0084, 0, 0, 0, 1 },
 				.ls_det_clr	= { 0x0088, 0, 0, 0, 1 },
@@ -3208,8 +3251,23 @@ static const struct rockchip_usb2phy_cfg rk3588_phy_cfgs[] = {
 				.disrise_en	= { 0x0080, 5, 5, 0, 1 },
 				.disrise_st	= { 0x0084, 5, 5, 0, 1 },
 				.disrise_clr	= { 0x0088, 5, 5, 0, 1 },
+				.utmi_avalid	= { 0x00c0, 7, 7, 0, 1 },
+				.utmi_bvalid	= { 0x00c0, 6, 6, 0, 1 },
+				.utmi_iddig	= { 0x00c0, 5, 5, 0, 1 },
 				.utmi_ls	= { 0x00c0, 10, 9, 0, 1 },
 			}
+		},
+		.chg_det = {
+			.chg_mode	= { 0x0008, 2, 2, 0, 1 },
+			.cp_det		= { 0x00c0, 0, 0, 0, 1 },
+			.dcp_det	= { 0x00c0, 0, 0, 0, 1 },
+			.dp_det		= { 0x00c0, 1, 1, 1, 0 },
+			.idm_sink_en	= { 0x0008, 5, 5, 1, 0 },
+			.idp_sink_en	= { 0x0008, 5, 5, 0, 1 },
+			.idp_src_en	= { 0x0008, 14, 14, 0, 1 },
+			.rdm_pdwn_en	= { 0x0008, 14, 14, 0, 1 },
+			.vdm_src_en	= { 0x0008, 7, 6, 0, 3 },
+			.vdp_src_en	= { 0x0008, 7, 6, 0, 3 },
 		},
 	},
 	{
