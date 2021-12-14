@@ -99,17 +99,17 @@ struct device_type idxd_engine_device_type = {
 
 /* Group attributes */
 
-static void idxd_set_free_tokens(struct idxd_device *idxd)
+static void idxd_set_free_rdbufs(struct idxd_device *idxd)
 {
-	int i, tokens;
+	int i, rdbufs;
 
-	for (i = 0, tokens = 0; i < idxd->max_groups; i++) {
+	for (i = 0, rdbufs = 0; i < idxd->max_groups; i++) {
 		struct idxd_group *g = idxd->groups[i];
 
-		tokens += g->tokens_reserved;
+		rdbufs += g->rdbufs_reserved;
 	}
 
-	idxd->nr_tokens = idxd->max_tokens - tokens;
+	idxd->nr_rdbufs = idxd->max_rdbufs - rdbufs;
 }
 
 static ssize_t group_tokens_reserved_show(struct device *dev,
@@ -118,7 +118,7 @@ static ssize_t group_tokens_reserved_show(struct device *dev,
 {
 	struct idxd_group *group = confdev_to_group(dev);
 
-	return sysfs_emit(buf, "%u\n", group->tokens_reserved);
+	return sysfs_emit(buf, "%u\n", group->rdbufs_reserved);
 }
 
 static ssize_t group_tokens_reserved_store(struct device *dev,
@@ -143,14 +143,14 @@ static ssize_t group_tokens_reserved_store(struct device *dev,
 	if (idxd->state == IDXD_DEV_ENABLED)
 		return -EPERM;
 
-	if (val > idxd->max_tokens)
+	if (val > idxd->max_rdbufs)
 		return -EINVAL;
 
-	if (val > idxd->nr_tokens + group->tokens_reserved)
+	if (val > idxd->nr_rdbufs + group->rdbufs_reserved)
 		return -EINVAL;
 
-	group->tokens_reserved = val;
-	idxd_set_free_tokens(idxd);
+	group->rdbufs_reserved = val;
+	idxd_set_free_rdbufs(idxd);
 	return count;
 }
 
@@ -164,7 +164,7 @@ static ssize_t group_tokens_allowed_show(struct device *dev,
 {
 	struct idxd_group *group = confdev_to_group(dev);
 
-	return sysfs_emit(buf, "%u\n", group->tokens_allowed);
+	return sysfs_emit(buf, "%u\n", group->rdbufs_allowed);
 }
 
 static ssize_t group_tokens_allowed_store(struct device *dev,
@@ -190,10 +190,10 @@ static ssize_t group_tokens_allowed_store(struct device *dev,
 		return -EPERM;
 
 	if (val < 4 * group->num_engines ||
-	    val > group->tokens_reserved + idxd->nr_tokens)
+	    val > group->rdbufs_reserved + idxd->nr_rdbufs)
 		return -EINVAL;
 
-	group->tokens_allowed = val;
+	group->rdbufs_allowed = val;
 	return count;
 }
 
@@ -207,7 +207,7 @@ static ssize_t group_use_token_limit_show(struct device *dev,
 {
 	struct idxd_group *group = confdev_to_group(dev);
 
-	return sysfs_emit(buf, "%u\n", group->use_token_limit);
+	return sysfs_emit(buf, "%u\n", group->use_rdbuf_limit);
 }
 
 static ssize_t group_use_token_limit_store(struct device *dev,
@@ -232,10 +232,10 @@ static ssize_t group_use_token_limit_store(struct device *dev,
 	if (idxd->state == IDXD_DEV_ENABLED)
 		return -EPERM;
 
-	if (idxd->token_limit == 0)
+	if (idxd->rdbuf_limit == 0)
 		return -EPERM;
 
-	group->use_token_limit = !!val;
+	group->use_rdbuf_limit = !!val;
 	return count;
 }
 
@@ -1161,7 +1161,7 @@ static ssize_t max_tokens_show(struct device *dev,
 {
 	struct idxd_device *idxd = confdev_to_idxd(dev);
 
-	return sysfs_emit(buf, "%u\n", idxd->max_tokens);
+	return sysfs_emit(buf, "%u\n", idxd->max_rdbufs);
 }
 static DEVICE_ATTR_RO(max_tokens);
 
@@ -1170,7 +1170,7 @@ static ssize_t token_limit_show(struct device *dev,
 {
 	struct idxd_device *idxd = confdev_to_idxd(dev);
 
-	return sysfs_emit(buf, "%u\n", idxd->token_limit);
+	return sysfs_emit(buf, "%u\n", idxd->rdbuf_limit);
 }
 
 static ssize_t token_limit_store(struct device *dev,
@@ -1191,13 +1191,13 @@ static ssize_t token_limit_store(struct device *dev,
 	if (!test_bit(IDXD_FLAG_CONFIGURABLE, &idxd->flags))
 		return -EPERM;
 
-	if (!idxd->hw.group_cap.token_limit)
+	if (!idxd->hw.group_cap.rdbuf_limit)
 		return -EPERM;
 
-	if (val > idxd->hw.group_cap.total_tokens)
+	if (val > idxd->hw.group_cap.total_rdbufs)
 		return -EINVAL;
 
-	idxd->token_limit = val;
+	idxd->rdbuf_limit = val;
 	return count;
 }
 static DEVICE_ATTR_RW(token_limit);

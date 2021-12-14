@@ -464,9 +464,9 @@ static void idxd_read_caps(struct idxd_device *idxd)
 	dev_dbg(dev, "group_cap: %#llx\n", idxd->hw.group_cap.bits);
 	idxd->max_groups = idxd->hw.group_cap.num_groups;
 	dev_dbg(dev, "max groups: %u\n", idxd->max_groups);
-	idxd->max_tokens = idxd->hw.group_cap.total_tokens;
-	dev_dbg(dev, "max tokens: %u\n", idxd->max_tokens);
-	idxd->nr_tokens = idxd->max_tokens;
+	idxd->max_rdbufs = idxd->hw.group_cap.total_rdbufs;
+	dev_dbg(dev, "max read buffers: %u\n", idxd->max_rdbufs);
+	idxd->nr_rdbufs = idxd->max_rdbufs;
 
 	/* read engine capabilities */
 	idxd->hw.engine_cap.bits =
