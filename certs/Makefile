@@ -6,7 +6,7 @@
 obj-$(CONFIG_SYSTEM_TRUSTED_KEYRING) += system_keyring.o system_certificates.o common.o
 obj-$(CONFIG_SYSTEM_BLACKLIST_KEYRING) += blacklist.o common.o
 obj-$(CONFIG_SYSTEM_REVOCATION_LIST) += revocation_certificates.o
-ifneq ($(CONFIG_SYSTEM_BLACKLIST_HASH_LIST),"")
+ifneq ($(CONFIG_SYSTEM_BLACKLIST_HASH_LIST),)
 obj-$(CONFIG_SYSTEM_BLACKLIST_KEYRING) += blacklist_hashes.o
 else
 obj-$(CONFIG_SYSTEM_BLACKLIST_KEYRING) += blacklist_nohashes.o
@@ -16,8 +16,6 @@ quiet_cmd_extract_certs  = CERT    $@
       cmd_extract_certs  = scripts/extract-cert $(2) $@
 
 $(obj)/system_certificates.o: $(obj)/x509_certificate_list
-
-CONFIG_SYSTEM_TRUSTED_KEYS := $(CONFIG_SYSTEM_TRUSTED_KEYS:"%"=%)
 
 $(obj)/x509_certificate_list: $(CONFIG_SYSTEM_TRUSTED_KEYS) scripts/extract-cert FORCE
 	$(call if_changed,extract_certs,$(if $(CONFIG_SYSTEM_TRUSTED_KEYS),$<,""))
@@ -46,7 +44,7 @@ ifdef SIGN_KEY
 # We do it this way rather than having a boolean option for enabling an
 # external private key, because 'make randconfig' might enable such a
 # boolean option and we unfortunately can't make it depend on !RANDCONFIG.
-ifeq ($(CONFIG_MODULE_SIG_KEY),"certs/signing_key.pem")
+ifeq ($(CONFIG_MODULE_SIG_KEY),certs/signing_key.pem)
 
 keytype-$(CONFIG_MODULE_SIG_KEY_TYPE_ECDSA) := -newkey ec -pkeyopt ec_paramgen_curve:secp384r1
 
@@ -69,8 +67,6 @@ $(obj)/x509.genkey:
 
 endif # CONFIG_MODULE_SIG_KEY
 
-CONFIG_MODULE_SIG_KEY := $(CONFIG_MODULE_SIG_KEY:"%"=%)
-
 # If CONFIG_MODULE_SIG_KEY isn't a PKCS#11 URI, depend on it
 ifneq ($(filter-out pkcs11:%, %(CONFIG_MODULE_SIG_KEY)),)
 X509_DEP := $(CONFIG_MODULE_SIG_KEY)
@@ -85,8 +81,6 @@ endif # CONFIG_MODULE_SIG
 targets += signing_key.x509
 
 $(obj)/revocation_certificates.o: $(obj)/x509_revocation_list
-
-CONFIG_SYSTEM_REVOCATION_KEYS := $(CONFIG_SYSTEM_REVOCATION_KEYS:"%"=%)
 
 $(obj)/x509_revocation_list: $(CONFIG_SYSTEM_REVOCATION_KEYS) scripts/extract-cert FORCE
 	$(call if_changed,extract_certs,$(if $(CONFIG_SYSTEM_REVOCATION_KEYS),$<,""))
