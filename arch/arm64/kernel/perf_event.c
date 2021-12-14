@@ -1247,6 +1247,18 @@ static int armv8_vulcan_pmu_init(struct arm_pmu *cpu_pmu)
 				       armv8_vulcan_map_event);
 }
 
+static int armv8_carmel_pmu_init(struct arm_pmu *cpu_pmu)
+{
+	return armv8_pmu_init_nogroups(cpu_pmu, "armv8_nvidia_carmel",
+				       armv8_pmuv3_map_event);
+}
+
+static int armv8_denver_pmu_init(struct arm_pmu *cpu_pmu)
+{
+	return armv8_pmu_init_nogroups(cpu_pmu, "armv8_nvidia_denver",
+				       armv8_pmuv3_map_event);
+}
+
 static const struct of_device_id armv8_pmu_of_device_ids[] = {
 	{.compatible = "arm,armv8-pmuv3",	.data = armv8_pmuv3_init},
 	{.compatible = "arm,cortex-a34-pmu",	.data = armv8_a34_pmu_init},
@@ -1265,6 +1277,8 @@ static const struct of_device_id armv8_pmu_of_device_ids[] = {
 	{.compatible = "arm,neoverse-n1-pmu",	.data = armv8_n1_pmu_init},
 	{.compatible = "cavium,thunder-pmu",	.data = armv8_thunder_pmu_init},
 	{.compatible = "brcm,vulcan-pmu",	.data = armv8_vulcan_pmu_init},
+	{.compatible = "nvidia,carmel-pmu",	.data = armv8_carmel_pmu_init},
+	{.compatible = "nvidia,denver-pmu",	.data = armv8_denver_pmu_init},
 	{},
 };
 
