@@ -2885,7 +2885,6 @@ static void scrub_parity_put(struct scrub_parity *sparity)
 static noinline_for_stack int scrub_raid56_parity(struct scrub_ctx *sctx,
 						  struct map_lookup *map,
 						  struct btrfs_device *sdev,
-						  struct btrfs_path *path,
 						  u64 logic_start,
 						  u64 logic_end)
 {
@@ -2894,6 +2893,7 @@ static noinline_for_stack int scrub_raid56_parity(struct scrub_ctx *sctx,
 	struct btrfs_root *csum_root;
 	struct btrfs_extent_item *extent;
 	struct btrfs_io_context *bioc = NULL;
+	struct btrfs_path *path;
 	u64 flags;
 	int ret;
 	int slot;
@@ -2912,6 +2912,16 @@ static noinline_for_stack int scrub_raid56_parity(struct scrub_ctx *sctx,
 	int extent_mirror_num;
 	int stop_loop = 0;
 
+	path = btrfs_alloc_path();
+	if (!path) {
+		spin_lock(&sctx->stat_lock);
+		sctx->stat.malloc_errors++;
+		spin_unlock(&sctx->stat_lock);
+		return -ENOMEM;
+	}
+	path->search_commit_root = 1;
+	path->skip_locking = 1;
+
 	ASSERT(map->stripe_len <= U32_MAX);
 	nsectors = map->stripe_len >> fs_info->sectorsize_bits;
 	bitmap_len = scrub_calc_parity_bitmap_len(nsectors);
@@ -2921,6 +2931,7 @@ static noinline_for_stack int scrub_raid56_parity(struct scrub_ctx *sctx,
 		spin_lock(&sctx->stat_lock);
 		sctx->stat.malloc_errors++;
 		spin_unlock(&sctx->stat_lock);
+		btrfs_free_path(path);
 		return -ENOMEM;
 	}
 
@@ -3110,7 +3121,7 @@ out:
 	scrub_wr_submit(sctx);
 	mutex_unlock(&sctx->wr_lock);
 
-	btrfs_release_path(path);
+	btrfs_free_path(path);
 	return ret < 0 ? ret : 0;
 }
 
@@ -3160,7 +3171,7 @@ static noinline_for_stack int scrub_stripe(struct scrub_ctx *sctx,
 					   int num, u64 base, u64 length,
 					   struct btrfs_block_group *cache)
 {
-	struct btrfs_path *path, *ppath;
+	struct btrfs_path *path;
 	struct btrfs_fs_info *fs_info = sctx->fs_info;
 	struct btrfs_root *root;
 	struct btrfs_root *csum_root;
@@ -3222,12 +3233,6 @@ static noinline_for_stack int scrub_stripe(struct scrub_ctx *sctx,
 	if (!path)
 		return -ENOMEM;
 
-	ppath = btrfs_alloc_path();
-	if (!ppath) {
-		btrfs_free_path(path);
-		return -ENOMEM;
-	}
-
 	/*
 	 * work on commit root. The related disk blocks are static as
 	 * long as COW is applied. This means, it is save to rewrite
@@ -3236,8 +3241,6 @@ static noinline_for_stack int scrub_stripe(struct scrub_ctx *sctx,
 	path->search_commit_root = 1;
 	path->skip_locking = 1;
 
-	ppath->search_commit_root = 1;
-	ppath->skip_locking = 1;
 	/*
 	 * trigger the readahead for extent tree csum tree and wait for
 	 * completion. During readahead, the scrub is officially paused
@@ -3340,7 +3343,7 @@ static noinline_for_stack int scrub_stripe(struct scrub_ctx *sctx,
 				stripe_logical += base;
 				stripe_end = stripe_logical + increment;
 				ret = scrub_raid56_parity(sctx, map, scrub_dev,
-							  ppath, stripe_logical,
+							  stripe_logical,
 							  stripe_end);
 				if (ret)
 					goto out;
@@ -3511,7 +3514,7 @@ loop:
 						stripe_end = stripe_logical +
 								increment;
 						ret = scrub_raid56_parity(sctx,
-							map, scrub_dev, ppath,
+							map, scrub_dev,
 							stripe_logical,
 							stripe_end);
 						if (ret)
@@ -3558,7 +3561,6 @@ out:
 
 	blk_finish_plug(&plug);
 	btrfs_free_path(path);
-	btrfs_free_path(ppath);
 
 	if (sctx->is_dev_replace && ret >= 0) {
 		int ret2;
