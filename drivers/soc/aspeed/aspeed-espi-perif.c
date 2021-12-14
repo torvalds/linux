@@ -416,7 +416,7 @@ void *aspeed_espi_perif_alloc(struct device *dev, struct aspeed_espi_ctrl *espi_
 
 	espi_perif->mcyc_enable = of_property_read_bool(dev->of_node, "perif,memcyc-enable");
 
-	while (0) {
+	do {
 		if (!espi_perif->mcyc_enable)
 			break;
 
@@ -451,7 +451,7 @@ void *aspeed_espi_perif_alloc(struct device *dev, struct aspeed_espi_ctrl *espi_
 			dev_err(dev, "cannot allocate memory cycle region\n");
 			return ERR_PTR(-ENOMEM);
 		}
-	}
+	} while (0);
 
 	if (of_property_read_bool(dev->of_node, "perif,dma-mode")) {
 		dma = &espi_perif->dma;
