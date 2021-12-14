@@ -1,3 +1,4 @@
 # SPDX-License-Identifier: GPL-2.0-only
+/extract-cert
 /x509_certificate_list
 /x509_revocation_list

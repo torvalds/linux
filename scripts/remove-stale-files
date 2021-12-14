@@ -34,3 +34,5 @@ if [ -n "${building_out_of_srctree}" ]; then
 		rm -f arch/mips/boot/compressed/${f}
 	done
 fi
+
+rm -f scripts/extract-cert
