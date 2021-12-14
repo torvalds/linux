@@ -1290,38 +1290,24 @@ static enum mlxsw_reg_sfd_op mlxsw_sp_sfd_op(bool adding)
 			MLXSW_REG_SFD_OP_WRITE_REMOVE;
 }
 
-static int mlxsw_sp_port_fdb_tunnel_uc_op(struct mlxsw_sp *mlxsw_sp,
-					  const char *mac, u16 fid,
-					  enum mlxsw_sp_l3proto proto,
-					  const union mlxsw_sp_l3addr *addr,
-					  bool adding, bool dynamic)
+static int
+mlxsw_sp_port_fdb_tun_uc_op4(struct mlxsw_sp *mlxsw_sp, bool dynamic,
+			     const char *mac, u16 fid, __be32 addr, bool adding)
 {
-	enum mlxsw_reg_sfd_uc_tunnel_protocol sfd_proto;
 	char *sfd_pl;
 	u8 num_rec;
 	u32 uip;
 	int err;
 
-	switch (proto) {
-	case MLXSW_SP_L3_PROTO_IPV4:
-		uip = be32_to_cpu(addr->addr4);
-		sfd_proto = MLXSW_REG_SFD_UC_TUNNEL_PROTOCOL_IPV4;
-		break;
-	case MLXSW_SP_L3_PROTO_IPV6:
-	default:
-		WARN_ON(1);
-		return -EOPNOTSUPP;
-	}
-
 	sfd_pl = kmalloc(MLXSW_REG_SFD_LEN, GFP_KERNEL);
 	if (!sfd_pl)
 		return -ENOMEM;
 
+	uip = be32_to_cpu(addr);
 	mlxsw_reg_sfd_pack(sfd_pl, mlxsw_sp_sfd_op(adding), 0);
-	mlxsw_reg_sfd_uc_tunnel_pack(sfd_pl, 0,
-				     mlxsw_sp_sfd_rec_policy(dynamic), mac, fid,
-				     MLXSW_REG_SFD_REC_ACTION_NOP, uip,
-				     sfd_proto);
+	mlxsw_reg_sfd_uc_tunnel_pack4(sfd_pl, 0,
+				      mlxsw_sp_sfd_rec_policy(dynamic), mac,
+				      fid, MLXSW_REG_SFD_REC_ACTION_NOP, uip);
 	num_rec = mlxsw_reg_sfd_num_rec_get(sfd_pl);
 	err = mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(sfd), sfd_pl);
 	if (err)
@@ -1333,6 +1319,23 @@ static int mlxsw_sp_port_fdb_tunnel_uc_op(struct mlxsw_sp *mlxsw_sp,
 out:
 	kfree(sfd_pl);
 	return err;
+}
+
+static int mlxsw_sp_port_fdb_tunnel_uc_op(struct mlxsw_sp *mlxsw_sp,
+					  const char *mac, u16 fid,
+					  enum mlxsw_sp_l3proto proto,
+					  const union mlxsw_sp_l3addr *addr,
+					  bool adding, bool dynamic)
+{
+	switch (proto) {
+	case MLXSW_SP_L3_PROTO_IPV4:
+		return mlxsw_sp_port_fdb_tun_uc_op4(mlxsw_sp, dynamic, mac, fid,
+						    addr->addr4, adding);
+	case MLXSW_SP_L3_PROTO_IPV6:
+	default:
+		WARN_ON(1);
+		return -EOPNOTSUPP;
+	}
 }
 
 static int __mlxsw_sp_port_fdb_uc_op(struct mlxsw_sp *mlxsw_sp, u16 local_port,
