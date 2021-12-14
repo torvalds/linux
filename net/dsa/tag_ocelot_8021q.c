@@ -81,55 +81,34 @@ static struct sk_buff *ocelot_rcv(struct sk_buff *skb,
 	return skb;
 }
 
-static void ocelot_disconnect(struct dsa_switch_tree *dst)
+static void ocelot_disconnect(struct dsa_switch *ds)
 {
-	struct ocelot_8021q_tagger_private *priv;
-	struct dsa_port *dp;
+	struct ocelot_8021q_tagger_private *priv = ds->tagger_data;
 
-	list_for_each_entry(dp, &dst->ports, list) {
-		priv = dp->ds->tagger_data;
-
-		if (!priv)
-			continue;
-
-		if (priv->xmit_worker)
-			kthread_destroy_worker(priv->xmit_worker);
-
-		kfree(priv);
-		dp->ds->tagger_data = NULL;
-	}
+	kthread_destroy_worker(priv->xmit_worker);
+	kfree(priv);
+	ds->tagger_data = NULL;
 }
 
-static int ocelot_connect(struct dsa_switch_tree *dst)
+static int ocelot_connect(struct dsa_switch *ds)
 {
 	struct ocelot_8021q_tagger_private *priv;
-	struct dsa_port *dp;
 	int err;
 
-	list_for_each_entry(dp, &dst->ports, list) {
-		if (dp->ds->tagger_data)
-			continue;
+	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	if (!priv)
+		return -ENOMEM;
 
-		priv = kzalloc(sizeof(*priv), GFP_KERNEL);
-		if (!priv) {
-			err = -ENOMEM;
-			goto out;
-		}
-
-		priv->xmit_worker = kthread_create_worker(0, "felix_xmit");
-		if (IS_ERR(priv->xmit_worker)) {
-			err = PTR_ERR(priv->xmit_worker);
-			goto out;
-		}
-
-		dp->ds->tagger_data = priv;
+	priv->xmit_worker = kthread_create_worker(0, "felix_xmit");
+	if (IS_ERR(priv->xmit_worker)) {
+		err = PTR_ERR(priv->xmit_worker);
+		kfree(priv);
+		return err;
 	}
 
-	return 0;
+	ds->tagger_data = priv;
 
-out:
-	ocelot_disconnect(dst);
-	return err;
+	return 0;
 }
 
 static const struct dsa_device_ops ocelot_8021q_netdev_ops = {

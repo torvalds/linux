@@ -741,65 +741,44 @@ static void sja1110_flow_dissect(const struct sk_buff *skb, __be16 *proto,
 	*proto = ((__be16 *)skb->data)[(VLAN_HLEN / 2) - 1];
 }
 
-static void sja1105_disconnect(struct dsa_switch_tree *dst)
+static void sja1105_disconnect(struct dsa_switch *ds)
 {
-	struct sja1105_tagger_private *priv;
-	struct dsa_port *dp;
+	struct sja1105_tagger_private *priv = ds->tagger_data;
 
-	list_for_each_entry(dp, &dst->ports, list) {
-		priv = dp->ds->tagger_data;
-
-		if (!priv)
-			continue;
-
-		if (priv->xmit_worker)
-			kthread_destroy_worker(priv->xmit_worker);
-
-		kfree(priv);
-		dp->ds->tagger_data = NULL;
-	}
+	kthread_destroy_worker(priv->xmit_worker);
+	kfree(priv);
+	ds->tagger_data = NULL;
 }
 
-static int sja1105_connect(struct dsa_switch_tree *dst)
+static int sja1105_connect(struct dsa_switch *ds)
 {
 	struct sja1105_tagger_data *tagger_data;
 	struct sja1105_tagger_private *priv;
 	struct kthread_worker *xmit_worker;
-	struct dsa_port *dp;
 	int err;
 
-	list_for_each_entry(dp, &dst->ports, list) {
-		if (dp->ds->tagger_data)
-			continue;
+	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	if (!priv)
+		return -ENOMEM;
 
-		priv = kzalloc(sizeof(*priv), GFP_KERNEL);
-		if (!priv) {
-			err = -ENOMEM;
-			goto out;
-		}
+	spin_lock_init(&priv->meta_lock);
 
-		spin_lock_init(&priv->meta_lock);
-
-		xmit_worker = kthread_create_worker(0, "dsa%d:%d_xmit",
-						    dst->index, dp->ds->index);
-		if (IS_ERR(xmit_worker)) {
-			err = PTR_ERR(xmit_worker);
-			goto out;
-		}
-
-		priv->xmit_worker = xmit_worker;
-		/* Export functions for switch driver use */
-		tagger_data = &priv->data;
-		tagger_data->rxtstamp_get_state = sja1105_rxtstamp_get_state;
-		tagger_data->rxtstamp_set_state = sja1105_rxtstamp_set_state;
-		dp->ds->tagger_data = priv;
+	xmit_worker = kthread_create_worker(0, "dsa%d:%d_xmit",
+					    ds->dst->index, ds->index);
+	if (IS_ERR(xmit_worker)) {
+		err = PTR_ERR(xmit_worker);
+		kfree(priv);
+		return err;
 	}
 
-	return 0;
+	priv->xmit_worker = xmit_worker;
+	/* Export functions for switch driver use */
+	tagger_data = &priv->data;
+	tagger_data->rxtstamp_get_state = sja1105_rxtstamp_get_state;
+	tagger_data->rxtstamp_set_state = sja1105_rxtstamp_set_state;
+	ds->tagger_data = priv;
 
-out:
-	sja1105_disconnect(dst);
-	return err;
+	return 0;
 }
 
 static const struct dsa_device_ops sja1105_netdev_ops = {
