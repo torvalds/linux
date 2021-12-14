@@ -70,7 +70,8 @@ struct sja1105_skb_cb {
 static inline struct sja1105_tagger_data *
 sja1105_tagger_data(struct dsa_switch *ds)
 {
-	BUG_ON(ds->dst->tag_ops->proto != DSA_TAG_PROTO_SJA1105);
+	BUG_ON(ds->dst->tag_ops->proto != DSA_TAG_PROTO_SJA1105 &&
+	       ds->dst->tag_ops->proto != DSA_TAG_PROTO_SJA1110);
 
 	return ds->tagger_data;
 }

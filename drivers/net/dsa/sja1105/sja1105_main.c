@@ -2708,17 +2708,17 @@ static void sja1105_port_deferred_xmit(struct kthread_work *work)
 static int sja1105_connect_tag_protocol(struct dsa_switch *ds,
 					enum dsa_tag_protocol proto)
 {
+	struct sja1105_private *priv = ds->priv;
 	struct sja1105_tagger_data *tagger_data;
 
-	switch (proto) {
-	case DSA_TAG_PROTO_SJA1105:
-		tagger_data = sja1105_tagger_data(ds);
-		tagger_data->xmit_work_fn = sja1105_port_deferred_xmit;
-		tagger_data->meta_tstamp_handler = sja1110_process_meta_tstamp;
-		return 0;
-	default:
+	if (proto != priv->info->tag_proto)
 		return -EPROTONOSUPPORT;
-	}
+
+	tagger_data = sja1105_tagger_data(ds);
+	tagger_data->xmit_work_fn = sja1105_port_deferred_xmit;
+	tagger_data->meta_tstamp_handler = sja1110_process_meta_tstamp;
+
+	return 0;
 }
 
 /* The MAXAGE setting belongs to the L2 Forwarding Parameters table,
