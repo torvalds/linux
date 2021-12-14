@@ -28,6 +28,13 @@
 		#size-cells = <1>;
 		ranges;
 
+		gfx_memory: framebuffer {
+			size = <0x01000000>;
+			alignment = <0x01000000>;
+			compatible = "shared-dma-pool";
+			reusable;
+		};
+
 		video_engine_memory: video {
 			size = <0x02000000>;
 			alignment = <0x01000000>;
@@ -589,6 +596,13 @@
 &sdc {
 	status = "okay";
 };
+
+#if 0
+&gfx {
+	status = "okay";
+	memory-region = <&gfx_memory>;
+};
+#endif
 
 /*
  * The signal voltage of sdhci0 and sdhci1 on AST2600-A2 EVB is able to be
