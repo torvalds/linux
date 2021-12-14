@@ -37,14 +37,7 @@ static u8 crc8(u16 data)
 	return (u8)(data >> 8);
 }
 
-/**
- * i2c_smbus_pec - Incremental CRC8 over the given input data array
- * @crc: previous return crc8 value
- * @p: pointer to data buffer.
- * @count: number of bytes in data buffer.
- *
- * Incremental CRC8 over count bytes in the array pointed to by p
- */
+/* Incremental CRC8 over count bytes in the array pointed to by p */
 u8 i2c_smbus_pec(u8 crc, u8 *p, size_t count)
 {
 	int i;
