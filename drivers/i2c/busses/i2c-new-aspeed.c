@@ -1153,7 +1153,19 @@ static void aspeed_i2c_master_package_irq(struct aspeed_new_i2c_bus *i2c_bus, u3
 		}
 		break;
 	case AST_I2CM_RX_DONE:
-		//dev_dbg(i2c_bus->dev, "M : AST_I2CM_RX_DONE = %x\n", sts);
+#ifdef CONFIG_I2C_SLAVE
+		/* Workaround for master/slave package mode enable rx done stuck issue
+		 * When master go for first read (RX_DONE), slave mode will also effect
+		 * Then controller will send nack, not operate anymore.
+		 */
+		if (readl(i2c_bus->reg_base + AST_I2CS_CMD_STS) & AST_I2CS_PKT_MODE_EN) {
+			u32 slave_cmd = readl(i2c_bus->reg_base + AST_I2CS_CMD_STS);
+
+			writel(0, i2c_bus->reg_base + AST_I2CS_CMD_STS);
+			writel(slave_cmd, i2c_bus->reg_base + AST_I2CS_CMD_STS);
+		}
+		fallthrough;
+#endif
 	case AST_I2CM_RX_DONE | AST_I2CM_NORMAL_STOP:
 		dev_dbg(i2c_bus->dev, "M : AST_I2CM_RX_DONE | AST_I2CM_NORMAL_STOP = %x\n", sts);
 		/* do next rx */
