@@ -1533,6 +1533,9 @@ static void dw_dp_encoder_disable(struct drm_encoder *encoder)
 	struct drm_crtc *crtc = encoder->crtc;
 	struct rockchip_crtc_state *s = to_rockchip_crtc_state(crtc->state);
 
+	if (!crtc->state->active_changed)
+		return;
+
 	if (dp->split_mode)
 		s->output_if &= ~(VOP_OUTPUT_IF_DP0 | VOP_OUTPUT_IF_DP1);
 	else
@@ -1562,6 +1565,15 @@ static int dw_dp_encoder_atomic_check(struct drm_encoder *encoder,
 		break;
 	}
 
+	if (dp->split_mode) {
+		s->output_flags |= ROCKCHIP_OUTPUT_DUAL_CHANNEL_LEFT_RIGHT_MODE;
+		s->output_flags |= dp->id ? ROCKCHIP_OUTPUT_DATA_SWAP : 0;
+		s->output_if |= VOP_OUTPUT_IF_DP0 | VOP_OUTPUT_IF_DP1;
+	} else {
+		s->output_if |= dp->id ? VOP_OUTPUT_IF_DP1 : VOP_OUTPUT_IF_DP0;
+	}
+
+	s->output_type = DRM_MODE_CONNECTOR_DisplayPort;
 	s->bus_format = video->bus_format;
 	s->bus_flags = di->bus_flags;
 	s->tv_state = &conn_state->tv;
@@ -1571,27 +1583,9 @@ static int dw_dp_encoder_atomic_check(struct drm_encoder *encoder,
 	return 0;
 }
 
-static void dw_dp_encoder_atomic_mode_set(struct drm_encoder *encoder,
-					  struct drm_crtc_state *crtc_state,
-					  struct drm_connector_state *conn_state)
-{
-	struct dw_dp *dp = encoder_to_dp(encoder);
-	struct rockchip_crtc_state *s = to_rockchip_crtc_state(crtc_state);
-
-	s->output_type = DRM_MODE_CONNECTOR_DisplayPort;
-	if (dp->split_mode) {
-		s->output_flags |= ROCKCHIP_OUTPUT_DUAL_CHANNEL_LEFT_RIGHT_MODE;
-		s->output_flags |= dp->id ? ROCKCHIP_OUTPUT_DATA_SWAP : 0;
-		s->output_if |= VOP_OUTPUT_IF_DP0 | VOP_OUTPUT_IF_DP1;
-	} else {
-		s->output_if |= dp->id ? VOP_OUTPUT_IF_DP1 : VOP_OUTPUT_IF_DP0;
-	}
-}
-
 static const struct drm_encoder_helper_funcs dw_dp_encoder_helper_funcs = {
 	.enable			= dw_dp_encoder_enable,
 	.disable		= dw_dp_encoder_disable,
-	.atomic_mode_set	= dw_dp_encoder_atomic_mode_set,
 	.atomic_check		= dw_dp_encoder_atomic_check,
 };
 
@@ -1763,15 +1757,15 @@ static void dw_dp_bridge_detach(struct drm_bridge *bridge)
 	drm_connector_cleanup(&dp->connector);
 }
 
-static void dw_dp_bridge_mode_set(struct drm_bridge *bridge,
-				  const struct drm_display_mode *mode,
-				  const struct drm_display_mode *adjusted_mode)
+static void dw_dp_bridge_atomic_pre_enable(struct drm_bridge *bridge,
+					   struct drm_bridge_state *bridge_state)
 {
 	struct dw_dp *dp = bridge_to_dp(bridge);
 	struct dw_dp_video *video = &dp->video;
+	struct drm_crtc_state *crtc_state = bridge->encoder->crtc->state;
 	struct drm_display_mode *m = &video->mode;
 
-	drm_mode_copy(m, adjusted_mode);
+	drm_mode_copy(m, &crtc_state->adjusted_mode);
 
 	if (dp->split_mode)
 		drm_mode_convert_to_origin_mode(m);
@@ -1975,9 +1969,9 @@ static const struct drm_bridge_funcs dw_dp_bridge_funcs = {
 	.atomic_get_output_bus_fmts = dw_dp_bridge_atomic_get_output_bus_fmts,
 	.attach = dw_dp_bridge_attach,
 	.detach = dw_dp_bridge_detach,
-	.mode_set = dw_dp_bridge_mode_set,
 	.mode_valid = dw_dp_bridge_mode_valid,
 	.atomic_check = dw_dp_bridge_atomic_check,
+	.atomic_pre_enable = dw_dp_bridge_atomic_pre_enable,
 	.atomic_enable = dw_dp_bridge_atomic_enable,
 	.atomic_disable = dw_dp_bridge_atomic_disable,
 	.detect = dw_dp_bridge_detect,
