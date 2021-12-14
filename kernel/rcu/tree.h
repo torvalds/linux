@@ -188,6 +188,8 @@ struct rcu_data {
 	bool rcu_forced_tick_exp;	/*   ... provide QS to expedited GP. */
 
 	/* 4) rcu_barrier(), OOM callbacks, and expediting. */
+	raw_spinlock_t barrier_lock;	/* Protects ->barrier_seq_snap. */
+	unsigned long barrier_seq_snap;	/* Snap of rcu_state.barrier_sequence. */
 	struct rcu_head barrier_head;
 	int exp_dynticks_snap;		/* Double-check need for IPI. */
 
