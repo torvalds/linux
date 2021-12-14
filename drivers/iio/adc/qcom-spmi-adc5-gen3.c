@@ -1628,7 +1628,6 @@ static int adc5_gen3_probe(struct platform_device *pdev)
 	struct adc5_chip *adc;
 	struct regmap *regmap;
 	const char *irq_name;
-	const __be32 *prop_addr;
 	int ret, irq_eoc, i;
 	u32 reg;
 
@@ -1639,6 +1638,10 @@ static int adc5_gen3_probe(struct platform_device *pdev)
 	ret = of_property_read_u32(node, "reg", &reg);
 	if (ret < 0)
 		return ret;
+	adc->base = reg;
+
+	if (!of_property_read_u32(node, "qcom,debug-base", &reg))
+		adc->debug_base = reg;
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*adc));
 	if (!indio_dev)
@@ -1647,19 +1650,6 @@ static int adc5_gen3_probe(struct platform_device *pdev)
 	adc = iio_priv(indio_dev);
 	adc->regmap = regmap;
 	adc->dev = dev;
-
-	prop_addr = of_get_address(dev->of_node, 0, NULL, NULL);
-	if (!prop_addr) {
-		pr_err("invalid IO resource\n");
-		return -EINVAL;
-	}
-	adc->base = be32_to_cpu(*prop_addr);
-
-	prop_addr = of_get_address(dev->of_node, 1, NULL, NULL);
-	if (!prop_addr)
-		pr_debug("invalid debug resource\n");
-	else
-		adc->debug_base = be32_to_cpu(*prop_addr);
 
 	platform_set_drvdata(pdev, adc);
 
