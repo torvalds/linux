@@ -219,6 +219,10 @@
 	};
 };
 
+&optee {
+	status = "okay";
+};
+
 &pcs_mdio3 {
 	status = "okay";
 };
