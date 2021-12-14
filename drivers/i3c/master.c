@@ -1869,7 +1869,9 @@ static int i3c_master_bus_init(struct i3c_master_controller *master)
 
 	ret = i3c_master_do_daa(master);
 	if (ret)
-		goto err_rstdaa;
+		dev_dbg(&master->dev,
+			"Failed to do DAA: %d. However, devices with static address can still be accessed\n",
+			ret);
 
 	return 0;
 
