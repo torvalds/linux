@@ -523,6 +523,15 @@ static inline bool ct_deadlocked(struct intel_guc_ct *ct)
 		CT_ERROR(ct, "Communication stalled for %lld ms, desc status=%#x,%#x\n",
 			 ktime_ms_delta(ktime_get(), ct->stall_time),
 			 send->status, recv->status);
+		CT_ERROR(ct, "H2G Space: %u (Bytes)\n",
+			 atomic_read(&ct->ctbs.send.space) * 4);
+		CT_ERROR(ct, "Head: %u (Dwords)\n", ct->ctbs.send.desc->head);
+		CT_ERROR(ct, "Tail: %u (Dwords)\n", ct->ctbs.send.desc->tail);
+		CT_ERROR(ct, "G2H Space: %u (Bytes)\n",
+			 atomic_read(&ct->ctbs.recv.space) * 4);
+		CT_ERROR(ct, "Head: %u\n (Dwords)", ct->ctbs.recv.desc->head);
+		CT_ERROR(ct, "Tail: %u\n (Dwords)", ct->ctbs.recv.desc->tail);
+
 		ct->ctbs.send.broken = true;
 	}
 
