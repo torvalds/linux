@@ -87,7 +87,7 @@ struct rockchip_udphy_cfg {
 	int (*dp_phy_set_voltages)(struct rockchip_udphy *udphy,
 				   struct phy_configure_opts_dp *dp);
 	int (*hpd_event_trigger)(struct rockchip_udphy *udphy, bool hpd);
-	int (*lane_cfg)(struct rockchip_udphy *udphy, int dp_lanes);
+	int (*dplane_enable)(struct rockchip_udphy *udphy, int dp_lanes);
 	int (*dplane_select)(struct rockchip_udphy *udphy);
 };
 
@@ -414,13 +414,13 @@ static int udphy_dplane_get(struct rockchip_udphy *udphy)
 	return dp_lanes;
 }
 
-static int udphy_lane_configure(struct rockchip_udphy *udphy, int dp_lanes)
+static int udphy_dplane_enable(struct rockchip_udphy *udphy, int dp_lanes)
 {
 	const struct rockchip_udphy_cfg *cfg = udphy->cfgs;
 	int ret = 0;
 
-	if (cfg->lane_cfg)
-		ret = cfg->lane_cfg(udphy, dp_lanes);
+	if (cfg->dplane_enable)
+		ret = cfg->dplane_enable(udphy, dp_lanes);
 
 	return ret;
 }
@@ -742,12 +742,19 @@ static int udphy_power_off(struct rockchip_udphy *udphy, u8 mode)
 static int rockchip_dp_phy_power_on(struct phy *phy)
 {
 	struct rockchip_udphy *udphy = phy_get_drvdata(phy);
-	int ret;
+	int ret, dp_lanes;
 
-	phy_set_bus_width(phy, udphy_dplane_get(udphy));
+	dp_lanes = udphy_dplane_get(udphy);
+	phy_set_bus_width(phy, dp_lanes);
+
 	ret = udphy_power_on(udphy, UDPHY_MODE_DP);
 	if (ret)
 		return ret;
+
+	ret = udphy_dplane_enable(udphy, dp_lanes);
+	if (ret)
+		return ret;
+
 	return udphy_dplane_select(udphy);
 
 }
@@ -755,6 +762,11 @@ static int rockchip_dp_phy_power_on(struct phy *phy)
 static int rockchip_dp_phy_power_off(struct phy *phy)
 {
 	struct rockchip_udphy *udphy = phy_get_drvdata(phy);
+	int ret;
+
+	ret = udphy_dplane_enable(udphy, 0);
+	if (ret)
+		return ret;
 
 	return udphy_power_off(udphy, UDPHY_MODE_DP);
 }
@@ -1105,17 +1117,6 @@ static int rk3588_udphy_status_check(struct rockchip_udphy *udphy)
 		}
 	}
 
-	/* ROPLL check */
-	if (udphy->mode & UDPHY_MODE_DP) {
-		ret = regmap_read_poll_timeout(udphy->pma_regmap, CMN_ANA_ROPLL_DONE_OFFSET,
-					       val, (val & CMN_ANA_ROPLL_AFC_DONE) &&
-					       (val & CMN_ANA_ROPLL_LOCK_DONE), 200, 100000);
-		if (ret) {
-			dev_err(udphy->dev, "cmn ana ropll lock timeout\n");
-			return ret;
-		}
-	}
-
 	if (udphy->mode & UDPHY_MODE_USB) {
 		if (!udphy->flip) {
 			ret = regmap_read_poll_timeout(udphy->pma_regmap,
@@ -1166,12 +1167,14 @@ static int rk3588_udphy_init(struct rockchip_udphy *udphy)
 		goto assert_apb;
 	}
 
-	/* Step 3: configure lane and select mux */
-	ret = udphy_lane_configure(udphy, udphy_dplane_get(udphy));
-	if (ret) {
-		dev_err(udphy->dev, "lane configure error %d\n", ret);
-		goto assert_apb;
-	}
+	/* Step 3: configure lane mux */
+	regmap_update_bits(udphy->pma_regmap, CMN_LANE_MUX_AND_EN_OFFSET,
+			   CMN_DP_LANE_MUX_ALL | CMN_DP_LANE_EN_ALL,
+			   FIELD_PREP(CMN_DP_LANE_MUX_N(3), udphy->lane_mux_sel[3]) |
+			   FIELD_PREP(CMN_DP_LANE_MUX_N(2), udphy->lane_mux_sel[2]) |
+			   FIELD_PREP(CMN_DP_LANE_MUX_N(1), udphy->lane_mux_sel[1]) |
+			   FIELD_PREP(CMN_DP_LANE_MUX_N(0), udphy->lane_mux_sel[0]) |
+			   FIELD_PREP(CMN_DP_LANE_EN_ALL, 0));
 
 	/* Step 4: deassert init rstn and wait for 200ns from datasheet */
 	if (udphy->mode & UDPHY_MODE_USB)
@@ -1189,12 +1192,6 @@ static int rk3588_udphy_init(struct rockchip_udphy *udphy)
 	if (udphy->mode & UDPHY_MODE_USB) {
 		udphy_reset_deassert(udphy, "cmn");
 		udphy_reset_deassert(udphy, "lane");
-	}
-
-	if (udphy->mode & UDPHY_MODE_DP) {
-		regmap_update_bits(udphy->pma_regmap, CMN_DP_RSTN_OFFSET,
-				   CMN_DP_CMN_RSTN,
-				   FIELD_PREP(CMN_DP_CMN_RSTN, 0x1));
 	}
 
 	/*  Step 6: wait for lock done of pll */
@@ -1224,7 +1221,7 @@ static int rk3588_udphy_hpd_event_trigger(struct rockchip_udphy *udphy, bool hpd
 	return 0;
 }
 
-static int rk3588_udphy_lane_configure(struct rockchip_udphy *udphy, int dp_lanes)
+static int rk3588_udphy_dplane_enable(struct rockchip_udphy *udphy, int dp_lanes)
 {
 	int i;
 	u32 val = 0;
@@ -1232,13 +1229,12 @@ static int rk3588_udphy_lane_configure(struct rockchip_udphy *udphy, int dp_lane
 	for (i = 0; i < dp_lanes; i++)
 		val |= BIT(udphy->dp_lane_sel[i]);
 
-	regmap_update_bits(udphy->pma_regmap, CMN_LANE_MUX_AND_EN_OFFSET,
-			   CMN_DP_LANE_MUX_ALL | CMN_DP_LANE_EN_ALL,
-			   FIELD_PREP(CMN_DP_LANE_MUX_N(3), udphy->lane_mux_sel[3]) |
-			   FIELD_PREP(CMN_DP_LANE_MUX_N(2), udphy->lane_mux_sel[2]) |
-			   FIELD_PREP(CMN_DP_LANE_MUX_N(1), udphy->lane_mux_sel[1]) |
-			   FIELD_PREP(CMN_DP_LANE_MUX_N(0), udphy->lane_mux_sel[0]) |
+	regmap_update_bits(udphy->pma_regmap, CMN_LANE_MUX_AND_EN_OFFSET, CMN_DP_LANE_EN_ALL,
 			   FIELD_PREP(CMN_DP_LANE_EN_ALL, val));
+
+	if (!dp_lanes)
+		regmap_update_bits(udphy->pma_regmap, CMN_DP_RSTN_OFFSET,
+				   CMN_DP_CMN_RSTN, FIELD_PREP(CMN_DP_CMN_RSTN, 0x0));
 
 	return 0;
 }
@@ -1313,7 +1309,7 @@ static int rk3588_dp_phy_set_rate(struct rockchip_udphy *udphy,
 		return ret;
 	}
 
-	return udphy_lane_configure(udphy, dp->lanes);
+	return 0;
 }
 
 static const struct {
@@ -1430,7 +1426,7 @@ static const struct rockchip_udphy_cfg rk3588_udphy_cfgs = {
 	.dp_phy_set_rate = rk3588_dp_phy_set_rate,
 	.dp_phy_set_voltages = rk3588_dp_phy_set_voltages,
 	.hpd_event_trigger = rk3588_udphy_hpd_event_trigger,
-	.lane_cfg = rk3588_udphy_lane_configure,
+	.dplane_enable = rk3588_udphy_dplane_enable,
 	.dplane_select = rk3588_udphy_dplane_select,
 };
 
