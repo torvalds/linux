@@ -47,6 +47,11 @@
 
 #include <asm/cacheflush.h>
 
+#include <linux/iommu.h>
+#include <linux/iova.h>
+#include <linux/dma-iommu.h>
+#include <linux/dma-map-ops.h>
+
 #include "rga.h"
 #include "rga_debugger.h"
 
@@ -84,14 +89,6 @@
 
 #define RGA_BUFFER_POOL_MAX_SIZE	64
 
-#ifndef MIN
-#define MIN(X, Y)		 ((X) < (Y) ? (X) : (Y))
-#endif
-
-#ifndef MAX
-#define MAX(X, Y)		 ((X) > (Y) ? (X) : (Y))
-#endif
-
 #ifndef ABS
 #define ABS(X)			 (((X) < 0) ? (-(X)) : (X))
 #endif
@@ -109,6 +106,11 @@ enum {
 	RGA_NONE_CORE			 = 0x0,
 };
 
+enum iommu_dma_cookie_type {
+	IOMMU_DMA_IOVA_COOKIE,
+	IOMMU_DMA_MSI_COOKIE,
+};
+
 struct rga_fence_context {
 	unsigned int context;
 	unsigned int seqno;
@@ -120,6 +122,13 @@ struct rga_fence_waiter {
 	struct dma_fence_cb waiter;
 
 	struct rga_job *job;
+};
+
+struct rga_iommu_dma_cookie {
+	enum iommu_dma_cookie_type  type;
+
+	/* Full allocator for IOMMU_DMA_IOVA_COOKIE */
+	struct iova_domain  iovad;
 };
 
 struct rga_dma_buffer_t {
@@ -139,11 +148,16 @@ struct rga_dma_buffer_t {
 	struct list_head link;
 	struct kref refcount;
 
+	struct iommu_domain *domain;
+	struct rga_iommu_dma_cookie *cookie;
+
 	/*
 	 * use dma_buf directly,
 	 * do not call dma_buf_put, such as mpi
 	 */
 	bool use_dma_buf;
+
+	bool use_viraddr;
 };
 
 struct rga_dma_buffer_pool {

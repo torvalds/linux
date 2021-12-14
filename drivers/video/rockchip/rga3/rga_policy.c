@@ -200,14 +200,6 @@ int rga_job_assign(struct rga_job *job)
 		if (RGA_DEBUG_MSG)
 			pr_err("start policy on core = %d", scheduler->core);
 
-		if ((scheduler->core != RGA2_SCHEDULER_CORE0) &&
-			(src0->uv_addr > 0 || src1->uv_addr > 0 ||
-			dst->uv_addr > 0)) {
-			if (RGA_DEBUG_MSG)
-				pr_err("rga3 can not support viraddr\n");
-			continue;
-		}
-
 		if (feature > 0) {
 			if (!(feature & data->feature)) {
 				if (RGA_DEBUG_MSG)

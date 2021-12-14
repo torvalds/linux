@@ -190,174 +190,6 @@ static int rga2_mem_size_cal(unsigned long Mem, uint32_t MemSize,
 	return pageCount;
 }
 
-static int rga2_buf_size_cal(unsigned long yrgb_addr, unsigned long uv_addr,
-				 unsigned long v_addr, int format, uint32_t w,
-				 uint32_t h, unsigned long *StartAddr)
-{
-	uint32_t size_yrgb = 0;
-	uint32_t size_uv = 0;
-	uint32_t size_v = 0;
-	uint32_t stride = 0;
-	unsigned long start, end;
-	uint32_t pageCount;
-
-	switch (format) {
-	case RGA2_FORMAT_RGBA_8888:
-	case RGA2_FORMAT_RGBX_8888:
-	case RGA2_FORMAT_BGRA_8888:
-	case RGA2_FORMAT_BGRX_8888:
-	case RGA2_FORMAT_ARGB_8888:
-	case RGA2_FORMAT_XRGB_8888:
-	case RGA2_FORMAT_ABGR_8888:
-	case RGA2_FORMAT_XBGR_8888:
-		stride = (w * 4 + 3) & (~3);
-		size_yrgb = stride * h;
-		start = yrgb_addr >> PAGE_SHIFT;
-		end = yrgb_addr + size_yrgb;
-		end = (end + (PAGE_SIZE - 1)) >> PAGE_SHIFT;
-		pageCount = end - start;
-		break;
-	case RGA2_FORMAT_RGB_888:
-	case RGA2_FORMAT_BGR_888:
-		stride = (w * 3 + 3) & (~3);
-		size_yrgb = stride * h;
-		start = yrgb_addr >> PAGE_SHIFT;
-		end = yrgb_addr + size_yrgb;
-		end = (end + (PAGE_SIZE - 1)) >> PAGE_SHIFT;
-		pageCount = end - start;
-		break;
-	case RGA2_FORMAT_RGB_565:
-	case RGA2_FORMAT_RGBA_5551:
-	case RGA2_FORMAT_RGBA_4444:
-	case RGA2_FORMAT_BGR_565:
-	case RGA2_FORMAT_BGRA_5551:
-	case RGA2_FORMAT_BGRA_4444:
-	case RGA2_FORMAT_ARGB_5551:
-	case RGA2_FORMAT_ARGB_4444:
-	case RGA2_FORMAT_ABGR_5551:
-	case RGA2_FORMAT_ABGR_4444:
-		stride = (w * 2 + 3) & (~3);
-		size_yrgb = stride * h;
-		start = yrgb_addr >> PAGE_SHIFT;
-		end = yrgb_addr + size_yrgb;
-		end = (end + (PAGE_SIZE - 1)) >> PAGE_SHIFT;
-		pageCount = end - start;
-		break;
-
-		/* YUV FORMAT */
-	case RGA2_FORMAT_YCbCr_422_SP:
-	case RGA2_FORMAT_YCrCb_422_SP:
-		stride = (w + 3) & (~3);
-		size_yrgb = stride * h;
-		size_uv = stride * h;
-		start = MIN(yrgb_addr, uv_addr);
-		start >>= PAGE_SHIFT;
-		end = MAX((yrgb_addr + size_yrgb), (uv_addr + size_uv));
-		end = (end + (PAGE_SIZE - 1)) >> PAGE_SHIFT;
-		pageCount = end - start;
-		break;
-	case RGA2_FORMAT_YCbCr_422_P:
-	case RGA2_FORMAT_YCrCb_422_P:
-		stride = (w + 3) & (~3);
-		size_yrgb = stride * h;
-		size_uv = ((stride >> 1) * h);
-		size_v = ((stride >> 1) * h);
-		start = MIN(MIN(yrgb_addr, uv_addr), v_addr);
-		start = start >> PAGE_SHIFT;
-		end =
-			MAX(MAX((yrgb_addr + size_yrgb), (uv_addr + size_uv)),
-			(v_addr + size_v));
-		end = (end + (PAGE_SIZE - 1)) >> PAGE_SHIFT;
-		pageCount = end - start;
-		break;
-	case RGA2_FORMAT_YCbCr_420_SP:
-	case RGA2_FORMAT_YCrCb_420_SP:
-		stride = (w + 3) & (~3);
-		size_yrgb = stride * h;
-		size_uv = (stride * (h >> 1));
-		start = MIN(yrgb_addr, uv_addr);
-		start >>= PAGE_SHIFT;
-		end = MAX((yrgb_addr + size_yrgb), (uv_addr + size_uv));
-		end = (end + (PAGE_SIZE - 1)) >> PAGE_SHIFT;
-		pageCount = end - start;
-		break;
-	case RGA2_FORMAT_YCbCr_420_P:
-	case RGA2_FORMAT_YCrCb_420_P:
-		stride = (w + 3) & (~3);
-		size_yrgb = stride * h;
-		size_uv = ((stride >> 1) * (h >> 1));
-		size_v = ((stride >> 1) * (h >> 1));
-		start = MIN(MIN(yrgb_addr, uv_addr), v_addr);
-		start >>= PAGE_SHIFT;
-		end =
-			MAX(MAX((yrgb_addr + size_yrgb), (uv_addr + size_uv)),
-			(v_addr + size_v));
-		end = (end + (PAGE_SIZE - 1)) >> PAGE_SHIFT;
-		pageCount = end - start;
-		break;
-	case RGA2_FORMAT_YCbCr_400:
-		stride = (w + 3) & (~3);
-		size_yrgb = stride * h;
-		start = yrgb_addr >> PAGE_SHIFT;
-		end = yrgb_addr + size_yrgb;
-		end = (end + (PAGE_SIZE - 1)) >> PAGE_SHIFT;
-		pageCount = end - start;
-		break;
-	case RGA2_FORMAT_Y4:
-		stride = ((w + 3) & (~3)) >> 1;
-		size_yrgb = stride * h;
-		start = yrgb_addr >> PAGE_SHIFT;
-		end = yrgb_addr + size_yrgb;
-		end = (end + (PAGE_SIZE - 1)) >> PAGE_SHIFT;
-		pageCount = end - start;
-		break;
-	case RGA2_FORMAT_YVYU_422:
-	case RGA2_FORMAT_VYUY_422:
-	case RGA2_FORMAT_YUYV_422:
-	case RGA2_FORMAT_UYVY_422:
-		stride = (w + 3) & (~3);
-		size_yrgb = stride * h;
-		size_uv = stride * h;
-		start = MIN(yrgb_addr, uv_addr);
-		start >>= PAGE_SHIFT;
-		end = MAX((yrgb_addr + size_yrgb), (uv_addr + size_uv));
-		end = (end + (PAGE_SIZE - 1)) >> PAGE_SHIFT;
-		pageCount = end - start;
-		break;
-	case RGA2_FORMAT_YVYU_420:
-	case RGA2_FORMAT_VYUY_420:
-	case RGA2_FORMAT_YUYV_420:
-	case RGA2_FORMAT_UYVY_420:
-		stride = (w + 3) & (~3);
-		size_yrgb = stride * h;
-		size_uv = (stride * (h >> 1));
-		start = MIN(yrgb_addr, uv_addr);
-		start >>= PAGE_SHIFT;
-		end = MAX((yrgb_addr + size_yrgb), (uv_addr + size_uv));
-		end = (end + (PAGE_SIZE - 1)) >> PAGE_SHIFT;
-		pageCount = end - start;
-		break;
-	case RGA2_FORMAT_YCbCr_420_SP_10B:
-	case RGA2_FORMAT_YCrCb_420_SP_10B:
-		stride = (w + 3) & (~3);
-		size_yrgb = stride * h;
-		size_uv = (stride * (h >> 1));
-		start = MIN(yrgb_addr, uv_addr);
-		start >>= PAGE_SHIFT;
-		end = MAX((yrgb_addr + size_yrgb), (uv_addr + size_uv));
-		end = (end + (PAGE_SIZE - 1)) >> PAGE_SHIFT;
-		pageCount = end - start;
-		break;
-	default:
-		pageCount = 0;
-		start = 0;
-		break;
-	}
-
-	*StartAddr = start;
-	return pageCount;
-}
-
 #if CONFIG_ROCKCHIP_RGA_DEBUGGER
 
 static int rga2_user_memory_check(struct page **pages, u32 w, u32 h, u32 format,
@@ -613,12 +445,12 @@ static int rga2_mmu_flush_cache(struct rga2_mmu_other_t *reg,
 
 	/* cal dst buf mmu info */
 	if (req->mmu_info.dst_mmu_flag & 1) {
-		DstPageCount = rga2_buf_size_cal(req->dst.yrgb_addr,
+		DstPageCount = rga_buf_size_cal(req->dst.yrgb_addr,
 						 req->dst.uv_addr,
 						 req->dst.v_addr,
 						 req->dst.format,
 						 req->dst.vir_w,
-						 req->dst.vir_h, &DstStart);
+						 req->dst.vir_h, &DstStart, NULL);
 		if (DstPageCount == 0)
 			return -EINVAL;
 	}
@@ -700,35 +532,35 @@ static int rga2_mmu_info_BitBlt_mode(struct rga2_mmu_other_t *reg,
 
 	/* cal src0 buf mmu info */
 	if (req->mmu_info.src0_mmu_flag & 1) {
-		Src0PageCount = rga2_buf_size_cal(req->src.yrgb_addr,
+		Src0PageCount = rga_buf_size_cal(req->src.yrgb_addr,
 						 req->src.uv_addr,
 						 req->src.v_addr,
 						 req->src.format,
 						 req->src.vir_w,
-						 (req->src.vir_h), &Src0Start);
+						 (req->src.vir_h), &Src0Start, NULL);
 		if (Src0PageCount == 0)
 			return -EINVAL;
 	}
 	/* cal src1 buf mmu info */
 	if (req->mmu_info.src1_mmu_flag & 1) {
-		Src1PageCount = rga2_buf_size_cal(req->src1.yrgb_addr,
+		Src1PageCount = rga_buf_size_cal(req->src1.yrgb_addr,
 						 req->src1.uv_addr,
 						 req->src1.v_addr,
 						 req->src1.format,
 						 req->src1.vir_w,
 						 (req->src1.vir_h),
-						 &Src1Start);
+						 &Src1Start, NULL);
 		if (Src1PageCount == 0)
 			return -EINVAL;
 	}
 	/* cal dst buf mmu info */
 	if (req->mmu_info.dst_mmu_flag & 1) {
-		DstPageCount = rga2_buf_size_cal(req->dst.yrgb_addr,
+		DstPageCount = rga_buf_size_cal(req->dst.yrgb_addr,
 						 req->dst.uv_addr,
 						 req->dst.v_addr,
 						 req->dst.format,
 						 req->dst.vir_w,
-						 req->dst.vir_h, &DstStart);
+						 req->dst.vir_h, &DstStart, NULL);
 		if (DstPageCount == 0)
 			return -EINVAL;
 	}
@@ -962,10 +794,10 @@ static int rga2_mmu_info_color_palette_mode(struct rga2_mmu_other_t *reg,
 
 		if (req->mmu_info.dst_mmu_flag) {
 			DstPageCount =
-				rga2_buf_size_cal(req->dst.yrgb_addr,
+				rga_buf_size_cal(req->dst.yrgb_addr,
 					req->dst.uv_addr, req->dst.v_addr,
 					req->dst.format, req->dst.vir_w,
-					req->dst.vir_h, &DstStart);
+					req->dst.vir_h, &DstStart, NULL);
 			if (DstPageCount == 0)
 				return -EINVAL;
 		}
@@ -1103,10 +935,10 @@ static int rga2_mmu_info_color_fill_mode(struct rga2_mmu_other_t *reg,
 
 	do {
 		if (req->mmu_info.dst_mmu_flag & 1) {
-			DstPageCount = rga2_buf_size_cal(req->dst.yrgb_addr,
+			DstPageCount = rga_buf_size_cal(req->dst.yrgb_addr,
 				req->dst.uv_addr, req->dst.v_addr,
 				req->dst.format, req->dst.vir_w,
-				req->dst.vir_h, &DstStart);
+				req->dst.vir_h, &DstStart, NULL);
 			if (DstPageCount == 0)
 				return -EINVAL;
 		}
@@ -1212,10 +1044,10 @@ static int rga2_mmu_info_update_palette_table_mode(struct rga2_mmu_other_t *reg,
 				1 ? 0 : req->mmu_info.dst_mmu_flag;
 
 			LutPageCount =
-				rga2_buf_size_cal(req->pat.yrgb_addr,
+				rga_buf_size_cal(req->pat.yrgb_addr,
 					req->pat.uv_addr, req->pat.v_addr,
 					req->pat.format, req->pat.vir_w,
-					req->pat.vir_h, &LutStart);
+					req->pat.vir_h, &LutStart, NULL);
 			if (LutPageCount == 0)
 				return -EINVAL;
 		}

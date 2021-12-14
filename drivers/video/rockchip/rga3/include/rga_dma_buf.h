@@ -8,11 +8,12 @@
  */
 #ifndef __RGA3_DMA_BUF_H__
 #define __RGA3_DMA_BUF_H__
-#include <linux/iommu.h>
-#include <linux/iova.h>
-#include <linux/dma-iommu.h>
 
 #include "rga_drv.h"
+
+int rga_buf_size_cal(unsigned long yrgb_addr, unsigned long uv_addr,
+		      unsigned long v_addr, int format, uint32_t w,
+		      uint32_t h, unsigned long *StartAddr, unsigned long *size);
 
 void rga_dma_print_session_info(struct rga_dma_session *session);
 
