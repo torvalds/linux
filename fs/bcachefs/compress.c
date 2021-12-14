@@ -376,7 +376,7 @@ static unsigned __bio_compress(struct bch_fs *c,
 	BUG_ON(!mempool_initialized(&c->compress_workspace[compression_type]));
 
 	/* If it's only one block, don't bother trying to compress: */
-	if (bio_sectors(src) <= c->opts.block_size)
+	if (src->bi_iter.bi_size <= c->opts.block_size)
 		return 0;
 
 	dst_data = bio_map_or_bounce(c, dst, WRITE);

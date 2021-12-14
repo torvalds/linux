@@ -267,8 +267,7 @@ const char *bch2_sb_validate(struct bch_sb_handle *disk_sb)
 
 	block_size = le16_to_cpu(sb->block_size);
 
-	if (!is_power_of_2(block_size) ||
-	    block_size > PAGE_SECTORS)
+	if (block_size > PAGE_SECTORS)
 		return "Bad block size";
 
 	if (bch2_is_zero(sb->user_uuid.b, sizeof(sb->user_uuid)))
@@ -309,9 +308,6 @@ const char *bch2_sb_validate(struct bch_sb_handle *disk_sb)
 
 	if (!BCH_SB_BTREE_NODE_SIZE(sb))
 		return "Btree node size not set";
-
-	if (!is_power_of_2(BCH_SB_BTREE_NODE_SIZE(sb)))
-		return "Btree node size not a power of two";
 
 	if (BCH_SB_GC_RESERVE(sb) < 5)
 		return "gc reserve percentage too small";
@@ -627,8 +623,12 @@ got_super:
 	err = "Superblock block size smaller than device block size";
 	ret = -EINVAL;
 	if (le16_to_cpu(sb->sb->block_size) << 9 <
-	    bdev_logical_block_size(sb->bdev))
-		goto err;
+	    bdev_logical_block_size(sb->bdev)) {
+		pr_err("error reading superblock: Superblock block size (%u) smaller than device block size (%u)",
+		       le16_to_cpu(sb->sb->block_size) << 9,
+		       bdev_logical_block_size(sb->bdev));
+		goto err_no_print;
+	}
 
 	ret = 0;
 	sb->have_layout = true;
@@ -636,8 +636,9 @@ out:
 	pr_verbose_init(*opts, "ret %i", ret);
 	return ret;
 err:
-	bch2_free_super(sb);
 	pr_err("error reading superblock: %s", err);
+err_no_print:
+	bch2_free_super(sb);
 	goto out;
 }
 

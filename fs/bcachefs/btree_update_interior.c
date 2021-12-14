@@ -223,12 +223,12 @@ retry:
 	if (IS_ERR(wp))
 		return ERR_CAST(wp);
 
-	if (wp->sectors_free < c->opts.btree_node_size) {
+	if (wp->sectors_free < btree_sectors(c)) {
 		struct open_bucket *ob;
 		unsigned i;
 
 		open_bucket_for_each(c, &wp->ptrs, ob, i)
-			if (ob->sectors_free < c->opts.btree_node_size)
+			if (ob->sectors_free < btree_sectors(c))
 				ob->sectors_free = 0;
 
 		bch2_alloc_sectors_done(c, wp);
@@ -236,7 +236,7 @@ retry:
 	}
 
 	bkey_btree_ptr_v2_init(&tmp.k);
-	bch2_alloc_sectors_append_ptrs(c, wp, &tmp.k, c->opts.btree_node_size);
+	bch2_alloc_sectors_append_ptrs(c, wp, &tmp.k, btree_sectors(c));
 
 	bch2_open_bucket_get(c, wp, &ob);
 	bch2_alloc_sectors_done(c, wp);
@@ -1029,7 +1029,7 @@ retry:
 	}
 
 	ret = bch2_disk_reservation_get(c, &as->disk_res,
-			nr_nodes * c->opts.btree_node_size,
+			nr_nodes * btree_sectors(c),
 			c->opts.metadata_replicas,
 			disk_res_flags);
 	if (ret)

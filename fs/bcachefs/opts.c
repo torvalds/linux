@@ -141,41 +141,27 @@ void bch2_opt_set_by_id(struct bch_opts *opts, enum bch_opt_id id, u64 v)
 	}
 }
 
-/*
- * Initial options from superblock - here we don't want any options undefined,
- * any options the superblock doesn't specify are set to 0:
- */
-struct bch_opts bch2_opts_from_sb(struct bch_sb *sb)
-{
-	struct bch_opts opts = bch2_opts_empty();
-
-#define x(_name, _bits, _mode, _type, _sb_opt, ...)			\
-	if (_sb_opt != NO_SB_OPT)					\
-		opt_set(opts, _name, _sb_opt(sb));
-	BCH_OPTS()
-#undef x
-
-	return opts;
-}
-
 const struct bch_option bch2_opt_table[] = {
-#define OPT_BOOL()		.type = BCH_OPT_BOOL
-#define OPT_UINT(_min, _max)	.type = BCH_OPT_UINT, .min = _min, .max = _max
-#define OPT_SECTORS(_min, _max)	.type = BCH_OPT_SECTORS, .min = _min, .max = _max
-#define OPT_STR(_choices)	.type = BCH_OPT_STR, .choices = _choices
+#define OPT_BOOL()		.type = BCH_OPT_BOOL, .min = 0, .max = 2
+#define OPT_UINT(_min, _max)	.type = BCH_OPT_UINT,			\
+				.min = _min, .max = _max
+#define OPT_STR(_choices)	.type = BCH_OPT_STR,			\
+				.min = 0, .max = ARRAY_SIZE(_choices),\
+				.choices = _choices
 #define OPT_FN(_fn)		.type = BCH_OPT_FN,			\
 				.parse = _fn##_parse,			\
 				.to_text = _fn##_to_text
 
-#define x(_name, _bits, _mode, _type, _sb_opt, _default, _hint, _help)	\
+#define x(_name, _bits, _flags, _type, _sb_opt, _default, _hint, _help)	\
 	[Opt_##_name] = {						\
 		.attr	= {						\
 			.name	= #_name,				\
-			.mode = (_mode) & OPT_RUNTIME ? 0644 : 0444,	\
+			.mode = (_flags) & OPT_RUNTIME ? 0644 : 0444,	\
 		},							\
-		.mode	= _mode,					\
+		.flags	= _flags,					\
 		.hint	= _hint,					\
 		.help	= _help,					\
+		.get_sb = _sb_opt,					\
 		.set_sb	= SET_##_sb_opt,				\
 		_type							\
 	},
@@ -218,7 +204,41 @@ static int bch2_mount_opt_lookup(const char *name)
 	return bch2_opt_lookup(name);
 }
 
-int bch2_opt_parse(struct bch_fs *c, const struct bch_option *opt,
+static int bch2_opt_validate(const struct bch_option *opt, const char *msg, u64 v)
+{
+	if (v < opt->min) {
+		if (msg)
+			pr_err("invalid %s%s: too small (min %llu)",
+			       msg, opt->attr.name, opt->min);
+		return -ERANGE;
+	}
+
+	if (opt->max && v >= opt->max) {
+		if (msg)
+			pr_err("invalid %s%s: too big (max %llu)",
+			       msg, opt->attr.name, opt->max);
+		return -ERANGE;
+	}
+
+	if ((opt->flags & OPT_SB_FIELD_SECTORS) && (v & 511)) {
+		if (msg)
+			pr_err("invalid %s %s: not a multiple of 512",
+			       msg, opt->attr.name);
+		return -EINVAL;
+	}
+
+	if ((opt->flags & OPT_MUST_BE_POW_2) && !is_power_of_2(v)) {
+		if (msg)
+			pr_err("invalid %s%s: must be a power of two",
+			       msg, opt->attr.name);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+int bch2_opt_parse(struct bch_fs *c, const char *msg,
+		   const struct bch_option *opt,
 		   const char *val, u64 *res)
 {
 	ssize_t ret;
@@ -228,30 +248,13 @@ int bch2_opt_parse(struct bch_fs *c, const struct bch_option *opt,
 		ret = kstrtou64(val, 10, res);
 		if (ret < 0)
 			return ret;
-
-		if (*res > 1)
-			return -ERANGE;
 		break;
 	case BCH_OPT_UINT:
-		ret = kstrtou64(val, 10, res);
+		ret = opt->flags & OPT_HUMAN_READABLE
+			? bch2_strtou64_h(val, res)
+			: kstrtou64(val, 10, res);
 		if (ret < 0)
 			return ret;
-
-		if (*res < opt->min || *res >= opt->max)
-			return -ERANGE;
-		break;
-	case BCH_OPT_SECTORS:
-		ret = bch2_strtou64_h(val, res);
-		if (ret < 0)
-			return ret;
-
-		if (*res & 511)
-			return -EINVAL;
-
-		*res >>= 9;
-
-		if (*res < opt->min || *res >= opt->max)
-			return -ERANGE;
 		break;
 	case BCH_OPT_STR:
 		ret = match_string(opt->choices, -1, val);
@@ -264,10 +267,12 @@ int bch2_opt_parse(struct bch_fs *c, const struct bch_option *opt,
 		if (!c)
 			return 0;
 
-		return opt->parse(c, val, res);
+		ret = opt->parse(c, val, res);
+		if (ret < 0)
+			return ret;
 	}
 
-	return 0;
+	return bch2_opt_validate(opt, msg, *res);
 }
 
 void bch2_opt_to_text(struct printbuf *out, struct bch_fs *c,
@@ -288,10 +293,10 @@ void bch2_opt_to_text(struct printbuf *out, struct bch_fs *c,
 	switch (opt->type) {
 	case BCH_OPT_BOOL:
 	case BCH_OPT_UINT:
-		pr_buf(out, "%lli", v);
-		break;
-	case BCH_OPT_SECTORS:
-		bch2_hprint(out, v << 9);
+		if (opt->flags & OPT_HUMAN_READABLE)
+			bch2_hprint(out, v);
+		else
+			pr_buf(out, "%lli", v);
 		break;
 	case BCH_OPT_STR:
 		if (flags & OPT_SHOW_FULL_LIST)
@@ -365,7 +370,8 @@ int bch2_parse_mount_opts(struct bch_fs *c, struct bch_opts *opts,
 			if (id < 0)
 				goto bad_opt;
 
-			ret = bch2_opt_parse(c, &bch2_opt_table[id], val, &v);
+			ret = bch2_opt_parse(c, "mount option ",
+					     &bch2_opt_table[id], val, &v);
 			if (ret < 0)
 				goto bad_val;
 		} else {
@@ -385,7 +391,7 @@ int bch2_parse_mount_opts(struct bch_fs *c, struct bch_opts *opts,
 				goto no_val;
 		}
 
-		if (!(bch2_opt_table[id].mode & OPT_MOUNT))
+		if (!(bch2_opt_table[id].flags & OPT_MOUNT))
 			goto bad_opt;
 
 		if (id == Opt_acl &&
@@ -418,6 +424,65 @@ no_val:
 out:
 	kfree(copied_opts_start);
 	return ret;
+}
+
+/*
+ * Initial options from superblock - here we don't want any options undefined,
+ * any options the superblock doesn't specify are set to 0:
+ */
+int bch2_opts_from_sb(struct bch_opts *opts, struct bch_sb *sb)
+{
+	unsigned id;
+	int ret;
+
+	for (id = 0; id < bch2_opts_nr; id++) {
+		const struct bch_option *opt = bch2_opt_table + id;
+		u64 v;
+
+		if (opt->get_sb == NO_SB_OPT)
+			continue;
+
+		v = opt->get_sb(sb);
+
+		if (opt->flags & OPT_SB_FIELD_ILOG2)
+			v = 1ULL << v;
+
+		if (opt->flags & OPT_SB_FIELD_SECTORS)
+			v <<= 9;
+
+		ret = bch2_opt_validate(opt, "superblock option ", v);
+		if (ret)
+			return ret;
+
+		bch2_opt_set_by_id(opts, id, v);
+	}
+
+	return 0;
+}
+
+void __bch2_opt_set_sb(struct bch_sb *sb, const struct bch_option *opt, u64 v)
+{
+	if (opt->set_sb == SET_NO_SB_OPT)
+		return;
+
+	if (opt->flags & OPT_SB_FIELD_SECTORS)
+		v >>= 9;
+
+	if (opt->flags & OPT_SB_FIELD_ILOG2)
+		v = ilog2(v);
+
+	opt->set_sb(sb, v);
+}
+
+void bch2_opt_set_sb(struct bch_fs *c, const struct bch_option *opt, u64 v)
+{
+	if (opt->set_sb == SET_NO_SB_OPT)
+		return;
+
+	mutex_lock(&c->sb_lock);
+	__bch2_opt_set_sb(c->disk_sb.sb, opt, v);
+	bch2_write_super(c);
+	mutex_unlock(&c->sb_lock);
 }
 
 /* io opts: */

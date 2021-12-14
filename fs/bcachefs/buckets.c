@@ -1000,7 +1000,7 @@ static int bch2_mark_extent(struct btree_trans *trans,
 		? BCH_DATA_btree
 		: BCH_DATA_user;
 	s64 sectors = bkey_is_btree_ptr(k.k)
-		? c->opts.btree_node_size
+		? btree_sectors(c)
 		: k.k->size;
 	s64 dirty_sectors = 0;
 	bool stale;
@@ -1609,7 +1609,7 @@ static int bch2_trans_mark_extent(struct btree_trans *trans,
 		? BCH_DATA_btree
 		: BCH_DATA_user;
 	s64 sectors = bkey_is_btree_ptr(k.k)
-		? c->opts.btree_node_size
+		? btree_sectors(c)
 		: k.k->size;
 	s64 dirty_sectors = 0;
 	bool stale;
@@ -2184,7 +2184,7 @@ int bch2_dev_buckets_resize(struct bch_fs *c, struct bch_dev *ca, u64 nbuckets)
 	alloc_heap	alloc_heap;
 
 	size_t btree_reserve	= DIV_ROUND_UP(BTREE_NODE_RESERVE,
-			     ca->mi.bucket_size / c->opts.btree_node_size);
+			     ca->mi.bucket_size / btree_sectors(c));
 	/* XXX: these should be tunable */
 	size_t reserve_none	= max_t(size_t, 1, nbuckets >> 9);
 	size_t copygc_reserve	= max_t(size_t, 2, nbuckets >> 6);

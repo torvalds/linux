@@ -44,19 +44,22 @@ static inline const char *bch2_d_type_str(unsigned d_type)
 LE64_BITMASK(NO_SB_OPT,		struct bch_sb, flags[0], 0, 0);
 
 /* When can be set: */
-enum opt_mode {
+enum opt_flags {
 	OPT_FS		= (1 << 0),	/* Filesystem option */
 	OPT_DEVICE	= (1 << 1),	/* Device option */
 	OPT_INODE	= (1 << 2),	/* Inode option */
 	OPT_FORMAT	= (1 << 3),	/* May be specified at format time */
 	OPT_MOUNT	= (1 << 4),	/* May be specified at mount time */
 	OPT_RUNTIME	= (1 << 5),	/* May be specified at runtime */
+	OPT_HUMAN_READABLE = (1 << 6),
+	OPT_MUST_BE_POW_2 = (1 << 7),	/* Must be power of 2 */
+	OPT_SB_FIELD_SECTORS = (1 << 8),/* Superblock field is >> 9 of actual value */
+	OPT_SB_FIELD_ILOG2 = (1 << 9),	/* Superblock field is ilog2 of actual value */
 };
 
 enum opt_type {
 	BCH_OPT_BOOL,
 	BCH_OPT_UINT,
-	BCH_OPT_SECTORS,
 	BCH_OPT_STR,
 	BCH_OPT_FN,
 };
@@ -88,13 +91,15 @@ enum opt_type {
 
 #define BCH_OPTS()							\
 	x(block_size,			u16,				\
-	  OPT_FS|OPT_FORMAT,						\
-	  OPT_SECTORS(1, 128),						\
+	  OPT_FS|OPT_FORMAT|						\
+	  OPT_HUMAN_READABLE|OPT_MUST_BE_POW_2|OPT_SB_FIELD_SECTORS,	\
+	  OPT_UINT(512, 1U << 16),					\
 	  BCH_SB_BLOCK_SIZE,		8,				\
 	  "size",	NULL)						\
-	x(btree_node_size,		u16,				\
-	  OPT_FS|OPT_FORMAT,						\
-	  OPT_SECTORS(1, 512),						\
+	x(btree_node_size,		u32,				\
+	  OPT_FS|OPT_FORMAT|						\
+	  OPT_HUMAN_READABLE|OPT_MUST_BE_POW_2|OPT_SB_FIELD_SECTORS,	\
+	  OPT_UINT(512, 1U << 20),					\
 	  BCH_SB_BTREE_NODE_SIZE,	512,				\
 	  "size",	"Btree node size, default 256k")		\
 	x(errors,			u8,				\
@@ -198,8 +203,9 @@ enum opt_type {
 	  BCH_SB_GC_RESERVE,		8,				\
 	  "%",		"Percentage of disk space to reserve for copygc")\
 	x(gc_reserve_bytes,		u64,				\
-	  OPT_FS|OPT_FORMAT|OPT_MOUNT|OPT_RUNTIME,			\
-	  OPT_SECTORS(0, U64_MAX),					\
+	  OPT_FS|OPT_FORMAT|OPT_MOUNT|OPT_RUNTIME|			\
+	  OPT_HUMAN_READABLE|OPT_SB_FIELD_SECTORS,			\
+	  OPT_UINT(0, U64_MAX),						\
 	  BCH_SB_GC_RESERVE_BYTES,	0,				\
 	  "%",		"Amount of disk space to reserve for copygc\n"	\
 			"Takes precedence over gc_reserve_percent if set")\
@@ -360,12 +366,12 @@ enum opt_type {
 			"for performance testing purposes")		\
 	x(fs_size,			u64,				\
 	  OPT_DEVICE,							\
-	  OPT_SECTORS(0, S64_MAX),					\
+	  OPT_UINT(0, S64_MAX),						\
 	  NO_SB_OPT,			0,				\
 	  "size",	"Size of filesystem on device")			\
 	x(bucket,			u32,				\
 	  OPT_DEVICE,							\
-	  OPT_SECTORS(0, S64_MAX),					\
+	  OPT_UINT(0, S64_MAX),						\
 	  NO_SB_OPT,			0,				\
 	  "size",	"Size of filesystem on device")			\
 	x(durability,			u8,				\
@@ -424,13 +430,14 @@ struct printbuf;
 
 struct bch_option {
 	struct attribute	attr;
+	u64			(*get_sb)(const struct bch_sb *);
 	void			(*set_sb)(struct bch_sb *, u64);
-	enum opt_mode		mode;
 	enum opt_type		type;
+	enum opt_flags		flags;
+	u64			min, max;
 
 	union {
 	struct {
-		u64		min, max;
 	};
 	struct {
 		const char * const *choices;
@@ -452,10 +459,13 @@ bool bch2_opt_defined_by_id(const struct bch_opts *, enum bch_opt_id);
 u64 bch2_opt_get_by_id(const struct bch_opts *, enum bch_opt_id);
 void bch2_opt_set_by_id(struct bch_opts *, enum bch_opt_id, u64);
 
-struct bch_opts bch2_opts_from_sb(struct bch_sb *);
+int bch2_opts_from_sb(struct bch_opts *, struct bch_sb *);
+void __bch2_opt_set_sb(struct bch_sb *, const struct bch_option *, u64);
+void bch2_opt_set_sb(struct bch_fs *, const struct bch_option *, u64);
 
 int bch2_opt_lookup(const char *);
-int bch2_opt_parse(struct bch_fs *, const struct bch_option *, const char *, u64 *);
+int bch2_opt_parse(struct bch_fs *, const char *, const struct bch_option *,
+		   const char *, u64 *);
 
 #define OPT_SHOW_FULL_LIST	(1 << 0)
 #define OPT_SHOW_MOUNT_STYLE	(1 << 1)

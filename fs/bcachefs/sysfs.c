@@ -626,7 +626,7 @@ STORE(bch2_fs_opts_dir)
 	if (!tmp)
 		return -ENOMEM;
 
-	ret = bch2_opt_parse(c, opt, strim(tmp), &v);
+	ret = bch2_opt_parse(c, NULL, opt, strim(tmp), &v);
 	kfree(tmp);
 
 	if (ret < 0)
@@ -636,13 +636,7 @@ STORE(bch2_fs_opts_dir)
 	if (ret < 0)
 		return ret;
 
-	if (opt->set_sb != SET_NO_SB_OPT) {
-		mutex_lock(&c->sb_lock);
-		opt->set_sb(c->disk_sb.sb, v);
-		bch2_write_super(c);
-		mutex_unlock(&c->sb_lock);
-	}
-
+	bch2_opt_set_sb(c, opt, v);
 	bch2_opt_set_by_id(&c->opts, id, v);
 
 	if ((id == Opt_background_target ||
@@ -665,7 +659,7 @@ int bch2_opts_create_sysfs_files(struct kobject *kobj)
 	for (i = bch2_opt_table;
 	     i < bch2_opt_table + bch2_opts_nr;
 	     i++) {
-		if (!(i->mode & OPT_FS))
+		if (!(i->flags & OPT_FS))
 			continue;
 
 		ret = sysfs_create_file(kobj, &i->attr);

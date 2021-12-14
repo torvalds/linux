@@ -928,10 +928,20 @@ static inline unsigned bucket_bytes(const struct bch_dev *ca)
 
 static inline unsigned block_bytes(const struct bch_fs *c)
 {
-	return c->opts.block_size << 9;
+	return c->opts.block_size;
 }
 
-static inline struct timespec64 bch2_time_to_timespec(struct bch_fs *c, s64 time)
+static inline unsigned block_sectors(const struct bch_fs *c)
+{
+	return c->opts.block_size >> 9;
+}
+
+static inline size_t btree_sectors(const struct bch_fs *c)
+{
+	return c->opts.btree_node_size >> 9;
+}
+
+static inline struct timespec64 bch2_time_to_timespec(const struct bch_fs *c, s64 time)
 {
 	struct timespec64 t;
 	s32 rem;
@@ -943,13 +953,13 @@ static inline struct timespec64 bch2_time_to_timespec(struct bch_fs *c, s64 time
 	return t;
 }
 
-static inline s64 timespec_to_bch2_time(struct bch_fs *c, struct timespec64 ts)
+static inline s64 timespec_to_bch2_time(const struct bch_fs *c, struct timespec64 ts)
 {
 	return (ts.tv_sec * c->sb.time_units_per_sec +
 		(int) ts.tv_nsec / c->sb.nsec_per_time_unit) - c->sb.time_base_lo;
 }
 
-static inline s64 bch2_current_time(struct bch_fs *c)
+static inline s64 bch2_current_time(const struct bch_fs *c)
 {
 	struct timespec64 now;
 

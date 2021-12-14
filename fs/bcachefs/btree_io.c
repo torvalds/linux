@@ -682,7 +682,7 @@ static int validate_bset(struct bch_fs *c, struct bch_dev *ca,
 		     BTREE_ERR_FATAL, c, ca, b, i,
 		     "BSET_SEPARATE_WHITEOUTS no longer supported");
 
-	if (btree_err_on(offset + sectors > c->opts.btree_node_size,
+	if (btree_err_on(offset + sectors > btree_sectors(c),
 			 BTREE_ERR_FIXABLE, c, ca, b, i,
 			 "bset past end of btree node")) {
 		i->u64s = 0;
@@ -896,7 +896,7 @@ int bch2_btree_node_read_done(struct bch_fs *c, struct bch_dev *ca,
 			     b->data->keys.seq, bp->seq);
 	}
 
-	while (b->written < (ptr_written ?: c->opts.btree_node_size)) {
+	while (b->written < (ptr_written ?: btree_sectors(c))) {
 		unsigned sectors, whiteout_u64s = 0;
 		struct nonce nonce;
 		struct bch_csum csum;
@@ -1204,7 +1204,7 @@ static unsigned btree_node_sectors_written(struct bch_fs *c, void *data)
 	if (le64_to_cpu(bn->magic) !=  bset_magic(c))
 		return 0;
 
-	while (offset < c->opts.btree_node_size) {
+	while (offset < btree_sectors(c)) {
 		if (!offset) {
 			offset += vstruct_sectors(bn, c->block_bits);
 		} else {
@@ -1226,7 +1226,7 @@ static bool btree_node_has_extra_bsets(struct bch_fs *c, unsigned offset, void *
 	if (!offset)
 		return false;
 
-	while (offset < c->opts.btree_node_size) {
+	while (offset < btree_sectors(c)) {
 		bne = data + (offset << 9);
 		if (bne->keys.seq == bn->keys.seq)
 			return true;
@@ -1296,7 +1296,7 @@ fsck_err:
 			if (ra->err[i])
 				continue;
 
-			while (offset < c->opts.btree_node_size) {
+			while (offset < btree_sectors(c)) {
 				if (!offset) {
 					sectors = vstruct_sectors(bn, c->block_bits);
 				} else {
@@ -1313,7 +1313,7 @@ fsck_err:
 				offset += sectors;
 			}
 
-			while (offset < c->opts.btree_node_size) {
+			while (offset < btree_sectors(c)) {
 				bne = ra->buf[i] + (offset << 9);
 				if (bne->keys.seq == bn->keys.seq) {
 					if (!gap)
@@ -1793,8 +1793,8 @@ do_write:
 	BUG_ON(btree_node_fake(b));
 	BUG_ON((b->will_make_reachable != 0) != !b->written);
 
-	BUG_ON(b->written >= c->opts.btree_node_size);
-	BUG_ON(b->written & (c->opts.block_size - 1));
+	BUG_ON(b->written >= btree_sectors(c));
+	BUG_ON(b->written & (block_sectors(c) - 1));
 	BUG_ON(bset_written(b, btree_bset_last(b)));
 	BUG_ON(le64_to_cpu(b->data->magic) != bset_magic(c));
 	BUG_ON(memcmp(&b->data->format, &b->format, sizeof(b->format)));
@@ -1867,7 +1867,7 @@ do_write:
 	memset(data + bytes_to_write, 0,
 	       (sectors_to_write << 9) - bytes_to_write);
 
-	BUG_ON(b->written + sectors_to_write > c->opts.btree_node_size);
+	BUG_ON(b->written + sectors_to_write > btree_sectors(c));
 	BUG_ON(BSET_BIG_ENDIAN(i) != CPU_BIG_ENDIAN);
 	BUG_ON(i->seq != b->data->keys.seq);
 

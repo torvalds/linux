@@ -868,8 +868,8 @@ static int bch2_fill_extent(struct bch_fs *c,
 			else
 				offset += p.crc.offset;
 
-			if ((offset & (c->opts.block_size - 1)) ||
-			    (k.k->size & (c->opts.block_size - 1)))
+			if ((offset & (block_sectors(c) - 1)) ||
+			    (k.k->size & (block_sectors(c) - 1)))
 				flags2 |= FIEMAP_EXTENT_NOT_ALIGNED;
 
 			ret = fiemap_fill_next_extent(info,
@@ -1683,7 +1683,7 @@ static int bch2_show_options(struct seq_file *seq, struct dentry *root)
 		const struct bch_option *opt = &bch2_opt_table[i];
 		u64 v = bch2_opt_get_by_id(&c->opts, i);
 
-		if (!(opt->mode & OPT_MOUNT))
+		if (!(opt->flags & OPT_MOUNT))
 			continue;
 
 		if (v == bch2_opt_get_by_id(&bch2_opts_default, i))

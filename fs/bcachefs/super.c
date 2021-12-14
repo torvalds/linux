@@ -762,10 +762,13 @@ static struct bch_fs *bch2_fs_alloc(struct bch_sb *sb, struct bch_opts opts)
 		SET_BCH_SB_JOURNAL_RECLAIM_DELAY(sb, 100);
 
 	c->opts = bch2_opts_default;
-	bch2_opts_apply(&c->opts, bch2_opts_from_sb(sb));
+	ret = bch2_opts_from_sb(&c->opts, sb);
+	if (ret)
+		goto err;
+
 	bch2_opts_apply(&c->opts, opts);
 
-	c->block_bits		= ilog2(c->opts.block_size);
+	c->block_bits		= ilog2(block_sectors(c));
 	c->btree_foreground_merge_threshold = BTREE_FOREGROUND_MERGE_THRESHOLD(c);
 
 	if (bch2_fs_init_fault("fs_alloc")) {
@@ -877,7 +880,7 @@ static void print_mount_opts(struct bch_fs *c)
 		const struct bch_option *opt = &bch2_opt_table[i];
 		u64 v = bch2_opt_get_by_id(&c->opts, i);
 
-		if (!(opt->mode & OPT_MOUNT))
+		if (!(opt->flags & OPT_MOUNT))
 			continue;
 
 		if (v == bch2_opt_get_by_id(&bch2_opts_default, i))
@@ -1003,7 +1006,7 @@ static const char *bch2_dev_may_add(struct bch_sb *sb, struct bch_fs *c)
 	if (!sb_mi)
 		return "Invalid superblock: member info area missing";
 
-	if (le16_to_cpu(sb->block_size) != c->opts.block_size)
+	if (le16_to_cpu(sb->block_size) != block_sectors(c))
 		return "mismatched block size";
 
 	if (le16_to_cpu(sb_mi->members[sb->dev_idx].bucket_size) <

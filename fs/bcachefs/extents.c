@@ -1037,7 +1037,7 @@ const char *bch2_bkey_ptrs_invalid(const struct bch_fs *c, struct bkey_s_c k)
 
 	if (k.k->type == KEY_TYPE_btree_ptr ||
 	    k.k->type == KEY_TYPE_btree_ptr_v2)
-		size_ondisk = c->opts.btree_node_size;
+		size_ondisk = btree_sectors(c);
 
 	bkey_extent_entry_for_each(ptrs, entry) {
 		if (__extent_entry_type(entry) >= BCH_EXTENT_ENTRY_MAX)

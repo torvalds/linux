@@ -1357,7 +1357,7 @@ void bch2_write(struct closure *cl)
 	bch2_keylist_init(&op->insert_keys, op->inline_keys);
 	wbio_init(bio)->put_bio = false;
 
-	if (bio_sectors(bio) & (c->opts.block_size - 1)) {
+	if (bio->bi_iter.bi_size & (c->opts.block_size - 1)) {
 		bch_err_inum_ratelimited(c, op->pos.inode,
 					 "misaligned write");
 		op->error = -EIO;
@@ -2437,7 +2437,7 @@ int bch2_fs_io_init(struct bch_fs *c)
 			BIOSET_NEED_BVECS) ||
 	    mempool_init_page_pool(&c->bio_bounce_pages,
 				   max_t(unsigned,
-					 c->opts.btree_node_size,
+					 btree_sectors(c),
 					 c->sb.encoded_extent_max) /
 				   PAGE_SECTORS, 0) ||
 	    rhashtable_init(&c->promote_table, &bch_promote_params))
