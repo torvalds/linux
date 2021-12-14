@@ -12,6 +12,9 @@ else
 obj-$(CONFIG_SYSTEM_BLACKLIST_KEYRING) += blacklist_nohashes.o
 endif
 
+quiet_cmd_extract_certs  = CERT    $@
+      cmd_extract_certs  = scripts/extract-cert $(2) $@
+
 ifeq ($(CONFIG_SYSTEM_TRUSTED_KEYRING),y)
 
 $(eval $(call config_filename,SYSTEM_TRUSTED_KEYS))
@@ -21,9 +24,6 @@ $(obj)/system_certificates.o: $(obj)/x509_certificate_list
 
 # Cope with signing_key.x509 existing in $(srctree) not $(objtree)
 AFLAGS_system_certificates.o := -I$(srctree)
-
-quiet_cmd_extract_certs  = EXTRACT_CERTS   $(patsubst "%",%,$(2))
-      cmd_extract_certs  = scripts/extract-cert $(2) $@
 
 targets += x509_certificate_list
 $(obj)/x509_certificate_list: scripts/extract-cert $(SYSTEM_TRUSTED_KEYS_SRCPREFIX)$(SYSTEM_TRUSTED_KEYS_FILENAME) FORCE
@@ -97,9 +97,6 @@ ifeq ($(CONFIG_SYSTEM_REVOCATION_LIST),y)
 $(eval $(call config_filename,SYSTEM_REVOCATION_KEYS))
 
 $(obj)/revocation_certificates.o: $(obj)/x509_revocation_list
-
-quiet_cmd_extract_certs  = EXTRACT_CERTS   $(patsubst "%",%,$(2))
-      cmd_extract_certs  = scripts/extract-cert $(2) $@
 
 targets += x509_revocation_list
 $(obj)/x509_revocation_list: scripts/extract-cert $(SYSTEM_REVOCATION_KEYS_SRCPREFIX)$(SYSTEM_REVOCATION_KEYS_FILENAME) FORCE
