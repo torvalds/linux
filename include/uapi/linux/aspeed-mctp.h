@@ -69,7 +69,7 @@ struct aspeed_mctp_get_medium_id {
 };
 
 struct aspeed_mctp_get_mtu {
-	__u8 mtu;
+	__u16 mtu;
 };
 
 struct aspeed_mctp_type_handler_ioctl {
