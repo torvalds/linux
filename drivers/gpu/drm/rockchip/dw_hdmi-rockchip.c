@@ -1729,6 +1729,12 @@ dw_hdmi_rockchip_select_output(struct drm_connector_state *conn_state,
 		/* We prefer use YCbCr422 to send 10bit */
 		if (info->color_formats & DRM_COLOR_FORMAT_YCRCB422)
 			*color_format = DRM_HDMI_OUTPUT_YCBCR422;
+		if (hdmi->is_hdmi_qp) {
+			if (info->color_formats & DRM_COLOR_FORMAT_YCRCB420)
+				*color_format = DRM_HDMI_OUTPUT_YCBCR420;
+			else
+				*color_format = DRM_HDMI_OUTPUT_DEFAULT_RGB;
+		}
 	}
 
 	if (mode->flags & DRM_MODE_FLAG_DBLCLK)
@@ -2751,6 +2757,7 @@ static const struct dw_hdmi_plat_data rk3588_hdmi_drv_data = {
 	.phy_force_vendor = true,
 	.ycbcr_420_allowed = true,
 	.is_hdmi_qp = true,
+	.use_drm_infoframe = true,
 };
 
 static const struct of_device_id dw_hdmi_rockchip_dt_ids[] = {

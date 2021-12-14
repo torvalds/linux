@@ -1191,12 +1191,12 @@ static void hdmi_config_drm_infoframe(struct dw_hdmi_qp *hdmi,
 	val = (frame.version << 8) | (frame.length << 16);
 	hdmi_writel(hdmi, val, PKT_DRMI_CONTENTS0);
 
-	for (i = 0; i < frame.length; i++) {
+	for (i = 0; i <= frame.length; i++) {
 		if (i % 4 == 0)
-			val = buffer[4 + i];
-		val |= buffer[4 + i] << ((i % 4) * 8);
+			val = buffer[3 + i];
+		val |= buffer[3 + i] << ((i % 4) * 8);
 
-		if (i % 4 == 3 || (i == (frame.length - 1)))
+		if (i % 4 == 3 || (i == (frame.length)))
 			hdmi_writel(hdmi, val, PKT_DRMI_CONTENTS1 + ((i / 4) * 4));
 	}
 
