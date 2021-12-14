@@ -22,7 +22,6 @@
 #include <bpf/libbpf.h>
 #include <bpf/btf.h>
 
-#include "bpf_rlimit.h"
 #include "bpf_util.h"
 #include "../test_btf.h"
 #include "test_progs.h"

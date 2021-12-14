@@ -41,7 +41,6 @@
 #  define CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS 1
 # endif
 #endif
-#include "bpf_rlimit.h"
 #include "bpf_rand.h"
 #include "bpf_util.h"
 #include "test_btf.h"
@@ -1394,6 +1393,9 @@ int main(int argc, char **argv)
 		       UNPRIV_SYSCTL);
 		return EXIT_FAILURE;
 	}
+
+	/* Use libbpf 1.0 API mode */
+	libbpf_set_strict_mode(LIBBPF_STRICT_ALL);
 
 	bpf_semi_rand_init();
 	return do_test(unpriv, from, to);
