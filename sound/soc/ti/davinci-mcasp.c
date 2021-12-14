@@ -2024,13 +2024,9 @@ static int davinci_mcasp_get_dma_type(struct davinci_mcasp *mcasp)
 
 	tmp = mcasp->dma_data[SNDRV_PCM_STREAM_PLAYBACK].filter_data;
 	chan = dma_request_chan(mcasp->dev, tmp);
-	if (IS_ERR(chan)) {
-		if (PTR_ERR(chan) != -EPROBE_DEFER)
-			dev_err(mcasp->dev,
-				"Can't verify DMA configuration (%ld)\n",
-				PTR_ERR(chan));
-		return PTR_ERR(chan);
-	}
+	if (IS_ERR(chan))
+		return dev_err_probe(mcasp->dev, PTR_ERR(chan),
+				     "Can't verify DMA configuration\n");
 	if (WARN_ON(!chan->device || !chan->device->dev)) {
 		dma_release_channel(chan);
 		return -EINVAL;
