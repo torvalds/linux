@@ -560,7 +560,8 @@ enum btree_validate_ret {
 									\
 	switch (write) {						\
 	case READ:							\
-		bch_err(c, "%s", _buf2);				\
+		if (_buf2)						\
+			bch_err(c, "%s", _buf2);			\
 									\
 		switch (type) {						\
 		case BTREE_ERR_FIXABLE:					\

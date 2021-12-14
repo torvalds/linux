@@ -230,7 +230,7 @@ int bch2_dirent_rename(struct btree_trans *trans,
 {
 	struct btree_iter src_iter = { NULL };
 	struct btree_iter dst_iter = { NULL };
-	struct bkey_s_c old_src, old_dst;
+	struct bkey_s_c old_src, old_dst = bkey_s_c_null;
 	struct bkey_i_dirent *new_src = NULL, *new_dst = NULL;
 	struct bpos dst_pos =
 		POS(dst_dir.inum, bch2_dirent_hash(dst_hash, dst_name));

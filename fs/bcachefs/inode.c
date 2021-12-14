@@ -24,16 +24,6 @@ const char * const bch2_inode_opts[] = {
 };
 
 static const u8 byte_table[8] = { 1, 2, 3, 4, 6, 8, 10, 13 };
-static const u8 bits_table[8] = {
-	1  * 8 - 1,
-	2  * 8 - 2,
-	3  * 8 - 3,
-	4  * 8 - 4,
-	6  * 8 - 5,
-	8  * 8 - 6,
-	10 * 8 - 7,
-	13 * 8 - 8,
-};
 
 static int inode_decode_field(const u8 *in, const u8 *end,
 			      u64 out[2], unsigned *out_bits)
