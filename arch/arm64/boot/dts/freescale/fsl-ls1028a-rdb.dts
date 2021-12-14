@@ -21,7 +21,7 @@
 		serial1 = &duart1;
 		mmc0 = &esdhc;
 		mmc1 = &esdhc1;
-		rtc1 = &ftm_alarm0;
+		rtc1 = &ftm_alarm1;
 		spi0 = &fspi;
 		ethernet0 = &enetc_port0;
 		ethernet1 = &enetc_port2;
@@ -179,6 +179,10 @@
 		spi-tx-bus-width = <1>; /* 1 SPI Tx line */
 		reg = <0>;
 	};
+};
+
+&ftm_alarm1 {
+	status = "okay";
 };
 
 &i2c0 {
