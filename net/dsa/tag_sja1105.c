@@ -756,7 +756,7 @@ static void sja1105_disconnect(struct dsa_switch_tree *dst)
 			kthread_destroy_worker(priv->xmit_worker);
 
 		kfree(priv);
-		dp->ds->priv = NULL;
+		dp->ds->tagger_data = NULL;
 	}
 }
 
