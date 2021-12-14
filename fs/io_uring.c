@@ -1549,7 +1549,7 @@ static void io_prep_async_link(struct io_kiocb *req)
 static inline void io_req_add_compl_list(struct io_kiocb *req)
 {
 	struct io_ring_ctx *ctx = req->ctx;
-	struct io_submit_state *state = &req->ctx->submit_state;
+	struct io_submit_state *state = &ctx->submit_state;
 
 	if (!(req->flags & REQ_F_CQE_SKIP))
 		ctx->submit_state.flush_cqes = true;
@@ -2188,7 +2188,7 @@ static void __io_req_find_next_prep(struct io_kiocb *req)
 	spin_lock(&ctx->completion_lock);
 	posted = io_disarm_next(req);
 	if (posted)
-		io_commit_cqring(req->ctx);
+		io_commit_cqring(ctx);
 	spin_unlock(&ctx->completion_lock);
 	if (posted)
 		io_cqring_ev_posted(ctx);
