@@ -31,7 +31,6 @@
 #define PCIE_CORE_DEV_ID_REG					0x0
 #define PCIE_CORE_CMD_STATUS_REG				0x4
 #define PCIE_CORE_DEV_REV_REG					0x8
-#define PCIE_CORE_EXP_ROM_BAR_REG				0x30
 #define PCIE_CORE_PCIEXP_CAP					0xc0
 #define PCIE_CORE_ERR_CAPCTL_REG				0x118
 #define     PCIE_CORE_ERR_CAPCTL_ECRC_CHK_TX			BIT(5)
@@ -781,10 +780,6 @@ advk_pci_bridge_emul_base_conf_read(struct pci_bridge_emul *bridge,
 		*value = advk_readl(pcie, PCIE_CORE_CMD_STATUS_REG);
 		return PCI_BRIDGE_EMUL_HANDLED;
 
-	case PCI_ROM_ADDRESS1:
-		*value = advk_readl(pcie, PCIE_CORE_EXP_ROM_BAR_REG);
-		return PCI_BRIDGE_EMUL_HANDLED;
-
 	case PCI_INTERRUPT_LINE: {
 		/*
 		 * From the whole 32bit register we support reading from HW only
@@ -815,10 +810,6 @@ advk_pci_bridge_emul_base_conf_write(struct pci_bridge_emul *bridge,
 	switch (reg) {
 	case PCI_COMMAND:
 		advk_writel(pcie, new, PCIE_CORE_CMD_STATUS_REG);
-		break;
-
-	case PCI_ROM_ADDRESS1:
-		advk_writel(pcie, new, PCIE_CORE_EXP_ROM_BAR_REG);
 		break;
 
 	case PCI_INTERRUPT_LINE:

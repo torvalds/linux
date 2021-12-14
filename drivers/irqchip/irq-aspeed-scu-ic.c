@@ -78,8 +78,8 @@ static void aspeed_scu_ic_irq_handler(struct irq_desc *desc)
 				       bit - scu_ic->irq_shift);
 		generic_handle_irq(irq);
 
-		regmap_update_bits(scu_ic->scu, scu_ic->reg, mask,
-				   BIT(bit + ASPEED_SCU_IC_STATUS_SHIFT));
+		regmap_write_bits(scu_ic->scu, scu_ic->reg, mask,
+				  BIT(bit + ASPEED_SCU_IC_STATUS_SHIFT));
 	}
 
 	chained_irq_exit(chip, desc);
