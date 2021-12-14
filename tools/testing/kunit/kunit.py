@@ -172,7 +172,7 @@ def exec_tests(linux: kunit_kernel.LinuxSourceTree, request: KunitExecRequest) -
 		test_end = time.time()
 		exec_time += test_end - test_start
 
-		test_counts.add_subtest_counts(result.result.test.counts)
+		test_counts.add_subtest_counts(result.result.counts)
 
 	if len(filter_globs) == 1 and test_counts.crashed > 0:
 		bd = request.build_dir
@@ -181,7 +181,7 @@ def exec_tests(linux: kunit_kernel.LinuxSourceTree, request: KunitExecRequest) -
 				bd, bd, kunit_kernel.get_outfile_path(bd), bd, sys.argv[0]))
 
 	kunit_status = _map_to_overall_status(test_counts.get_status())
-	return KunitResult(status=kunit_status, result=result.result, elapsed_time=exec_time)
+	return KunitResult(status=kunit_status, result=result, elapsed_time=exec_time)
 
 def _map_to_overall_status(test_status: kunit_parser.TestStatus) -> KunitStatus:
 	if test_status in (kunit_parser.TestStatus.SUCCESS, kunit_parser.TestStatus.SKIPPED):
@@ -192,14 +192,12 @@ def _map_to_overall_status(test_status: kunit_parser.TestStatus) -> KunitStatus:
 def parse_tests(request: KunitParseRequest, input_data: Iterable[str]) -> KunitResult:
 	parse_start = time.time()
 
-	test_result = kunit_parser.TestResult(kunit_parser.TestStatus.SUCCESS,
-					      kunit_parser.Test(),
-					      'Tests not Parsed.')
+	test_result = kunit_parser.Test()
 
 	if request.raw_output:
 		# Treat unparsed results as one passing test.
-		test_result.test.status = kunit_parser.TestStatus.SUCCESS
-		test_result.test.counts.passed = 1
+		test_result.status = kunit_parser.TestStatus.SUCCESS
+		test_result.counts.passed = 1
 
 		output: Iterable[str] = input_data
 		if request.raw_output == 'all':
@@ -217,7 +215,7 @@ def parse_tests(request: KunitParseRequest, input_data: Iterable[str]) -> KunitR
 
 	if request.json:
 		json_obj = kunit_json.get_json_result(
-					test_result=test_result,
+					test=test_result,
 					def_config='kunit_defconfig',
 					build_dir=request.build_dir,
 					json_path=request.json)
