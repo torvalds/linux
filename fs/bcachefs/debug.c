@@ -406,6 +406,8 @@ static ssize_t bch2_read_bfloat_failed(struct file *file, char __user *buf,
 		if (!i->size)
 			break;
 	}
+	bch2_trans_iter_exit(&trans, &iter);
+
 	bch2_trans_exit(&trans);
 
 	return err < 0 ? err : i->ret;
