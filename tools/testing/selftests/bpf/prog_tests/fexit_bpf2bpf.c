@@ -101,6 +101,8 @@ static void test_fexit_bpf2bpf_common(const char *obj_file,
 
 	for (i = 0; i < prog_cnt; i++) {
 		struct bpf_link_info link_info;
+		struct bpf_program *pos;
+		const char *pos_sec_name;
 		char *tgt_name;
 		__s32 btf_id;
 
@@ -109,7 +111,14 @@ static void test_fexit_bpf2bpf_common(const char *obj_file,
 			goto close_prog;
 		btf_id = btf__find_by_name_kind(btf, tgt_name + 1, BTF_KIND_FUNC);
 
-		prog[i] = bpf_object__find_program_by_title(obj, prog_name[i]);
+		prog[i] = NULL;
+		bpf_object__for_each_program(pos, obj) {
+			pos_sec_name = bpf_program__section_name(pos);
+			if (pos_sec_name && !strcmp(pos_sec_name, prog_name[i])) {
+				prog[i] = pos;
+				break;
+			}
+		}
 		if (!ASSERT_OK_PTR(prog[i], prog_name[i]))
 			goto close_prog;
 
@@ -211,8 +220,8 @@ static void test_func_replace_verify(void)
 
 static int test_second_attach(struct bpf_object *obj)
 {
-	const char *prog_name = "freplace/get_constant";
-	const char *tgt_name = prog_name + 9; /* cut off freplace/ */
+	const char *prog_name = "security_new_get_constant";
+	const char *tgt_name = "get_constant";
 	const char *tgt_obj_file = "./test_pkt_access.o";
 	struct bpf_program *prog = NULL;
 	struct bpf_object *tgt_obj;
@@ -220,7 +229,7 @@ static int test_second_attach(struct bpf_object *obj)
 	struct bpf_link *link;
 	int err = 0, tgt_fd;
 
-	prog = bpf_object__find_program_by_title(obj, prog_name);
+	prog = bpf_object__find_program_by_name(obj, prog_name);
 	if (CHECK(!prog, "find_prog", "prog %s not found\n", prog_name))
 		return -ENOENT;
 
