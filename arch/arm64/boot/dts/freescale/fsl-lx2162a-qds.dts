@@ -317,6 +317,8 @@
 			rtc@51 {
 				compatible = "nxp,pcf2129";
 				reg = <0x51>;
+				/* IRQ_RTC_B -> IRQ11_B(CPLD) -> IRQ11(CPU), active low */
+				interrupts-extended = <&extirq 11 IRQ_TYPE_LEVEL_LOW>;
 			};
 		};
 	};
