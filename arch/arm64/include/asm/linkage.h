@@ -6,12 +6,7 @@
 
 #if defined(CONFIG_ARM64_BTI_KERNEL) && defined(__aarch64__)
 
-/*
- * Since current versions of gas reject the BTI instruction unless we
- * set the architecture version to v8.5 we use the hint instruction
- * instead.
- */
-#define BTI_C hint 34 ;
+#define BTI_C bti c ;
 
 /*
  * When using in-kernel BTI we need to ensure that PCS-conformant assembly
