@@ -261,5 +261,5 @@ int i915_gem_migrate_live_selftests(struct drm_i915_private *i915)
 	if (!HAS_LMEM(i915))
 		return 0;
 
-	return intel_gt_live_subtests(tests, &i915->gt);
+	return intel_gt_live_subtests(tests, to_gt(i915));
 }

@@ -397,7 +397,7 @@ static struct dma_fence *i915_ttm_accel_move(struct ttm_buffer_object *bo,
 	enum i915_cache_level src_level, dst_level;
 	int ret;
 
-	if (!i915->gt.migrate.context || intel_gt_is_wedged(&i915->gt))
+	if (!to_gt(i915)->migrate.context || intel_gt_is_wedged(to_gt(i915)))
 		return ERR_PTR(-EINVAL);
 
 	/* With fail_gpu_migration, we always perform a GPU clear. */
@@ -410,8 +410,8 @@ static struct dma_fence *i915_ttm_accel_move(struct ttm_buffer_object *bo,
 		    !I915_SELFTEST_ONLY(fail_gpu_migration))
 			return ERR_PTR(-EINVAL);
 
-		intel_engine_pm_get(i915->gt.migrate.context->engine);
-		ret = intel_context_migrate_clear(i915->gt.migrate.context, dep,
+		intel_engine_pm_get(to_gt(i915)->migrate.context->engine);
+		ret = intel_context_migrate_clear(to_gt(i915)->migrate.context, dep,
 						  dst_st->sgl, dst_level,
 						  i915_ttm_gtt_binds_lmem(dst_mem),
 						  0, &rq);
@@ -423,8 +423,8 @@ static struct dma_fence *i915_ttm_accel_move(struct ttm_buffer_object *bo,
 			return ERR_CAST(src_rsgt);
 
 		src_level = i915_ttm_cache_level(i915, bo->resource, src_ttm);
-		intel_engine_pm_get(i915->gt.migrate.context->engine);
-		ret = intel_context_migrate_copy(i915->gt.migrate.context,
+		intel_engine_pm_get(to_gt(i915)->migrate.context->engine);
+		ret = intel_context_migrate_copy(to_gt(i915)->migrate.context,
 						 dep, src_rsgt->table.sgl,
 						 src_level,
 						 i915_ttm_gtt_binds_lmem(bo->resource),
@@ -435,7 +435,7 @@ static struct dma_fence *i915_ttm_accel_move(struct ttm_buffer_object *bo,
 		i915_refct_sgt_put(src_rsgt);
 	}
 
-	intel_engine_pm_put(i915->gt.migrate.context->engine);
+	intel_engine_pm_put(to_gt(i915)->migrate.context->engine);
 
 	if (ret && rq) {
 		i915_request_wait(rq, 0, MAX_SCHEDULE_TIMEOUT);

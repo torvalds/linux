@@ -153,7 +153,7 @@ i915_gem_shrink(struct i915_gem_ww_ctx *ww,
 	 */
 	if (shrink & I915_SHRINK_ACTIVE)
 		/* Retire requests to unpin all idle contexts */
-		intel_gt_retire_requests(&i915->gt);
+		intel_gt_retire_requests(to_gt(i915));
 
 	/*
 	 * As we may completely rewrite the (un)bound list whilst unbinding
