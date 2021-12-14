@@ -76,7 +76,6 @@ struct emac_board_info {
 	void __iomem		*membase;
 	u32			msg_enable;
 	struct net_device	*ndev;
-	struct sk_buff		*skb_last;
 	u16			tx_fifo_stat;
 
 	int			emacrx_completed_flag;
@@ -499,7 +498,6 @@ static void emac_rx(struct net_device *dev)
 	struct sk_buff *skb;
 	u8 *rdptr;
 	bool good_packet;
-	static int rxlen_last;
 	unsigned int reg_val;
 	u32 rxhdr, rxstatus, rxcount, rxlen;
 
@@ -513,22 +511,6 @@ static void emac_rx(struct net_device *dev)
 
 		if (netif_msg_rx_status(db))
 			dev_dbg(db->dev, "RXCount: %x\n", rxcount);
-
-		if ((db->skb_last != NULL) && (rxlen_last > 0)) {
-			dev->stats.rx_bytes += rxlen_last;
-
-			/* Pass to upper layer */
-			db->skb_last->protocol = eth_type_trans(db->skb_last,
-								dev);
-			netif_rx(db->skb_last);
-			dev->stats.rx_packets++;
-			db->skb_last = NULL;
-			rxlen_last = 0;
-
-			reg_val = readl(db->membase + EMAC_RX_CTL_REG);
-			reg_val &= ~EMAC_RX_CTL_DMA_EN;
-			writel(reg_val, db->membase + EMAC_RX_CTL_REG);
-		}
 
 		if (!rxcount) {
 			db->emacrx_completed_flag = 1;
