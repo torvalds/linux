@@ -336,6 +336,10 @@
 	status = "okay";
 };
 
+&lpuart1 {
+	status = "okay";
+};
+
 &sai1 {
 	status = "okay";
 };
