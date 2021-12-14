@@ -7,6 +7,7 @@
  * Copyright The Asahi Linux Contributors
  */
 
+#include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/interrupt-controller/apple-aic.h>
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/pinctrl/apple.h>
@@ -281,7 +282,7 @@
 			port00: pci@0,0 {
 				device_type = "pci";
 				reg = <0x0 0x0 0x0 0x0 0x0>;
-				reset-gpios = <&pinctrl_ap 152 0>;
+				reset-gpios = <&pinctrl_ap 152 GPIO_ACTIVE_LOW>;
 				max-link-speed = <2>;
 
 				#address-cells = <3>;
@@ -301,7 +302,7 @@
 			port01: pci@1,0 {
 				device_type = "pci";
 				reg = <0x800 0x0 0x0 0x0 0x0>;
-				reset-gpios = <&pinctrl_ap 153 0>;
+				reset-gpios = <&pinctrl_ap 153 GPIO_ACTIVE_LOW>;
 				max-link-speed = <2>;
 
 				#address-cells = <3>;
@@ -321,7 +322,7 @@
 			port02: pci@2,0 {
 				device_type = "pci";
 				reg = <0x1000 0x0 0x0 0x0 0x0>;
-				reset-gpios = <&pinctrl_ap 33 0>;
+				reset-gpios = <&pinctrl_ap 33 GPIO_ACTIVE_LOW>;
 				max-link-speed = <1>;
 
 				#address-cells = <3>;

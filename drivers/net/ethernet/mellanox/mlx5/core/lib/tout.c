@@ -31,11 +31,11 @@ static void tout_set(struct mlx5_core_dev *dev, u64 val, enum mlx5_timeouts_type
 	dev->timeouts->to[type] = val;
 }
 
-static void tout_set_def_val(struct mlx5_core_dev *dev)
+void mlx5_tout_set_def_val(struct mlx5_core_dev *dev)
 {
 	int i;
 
-	for (i = MLX5_TO_FW_PRE_INIT_TIMEOUT_MS; i < MAX_TIMEOUT_TYPES; i++)
+	for (i = 0; i < MAX_TIMEOUT_TYPES; i++)
 		tout_set(dev, tout_def_sw_val[i], i);
 }
 
@@ -45,7 +45,6 @@ int mlx5_tout_init(struct mlx5_core_dev *dev)
 	if (!dev->timeouts)
 		return -ENOMEM;
 
-	tout_set_def_val(dev);
 	return 0;
 }
 

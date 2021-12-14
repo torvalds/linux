@@ -15,7 +15,7 @@ int smt_on(void)
 	if (cached)
 		return cached_result;
 
-	if (sysfs__read_int("devices/system/cpu/smt/active", &cached_result) > 0)
+	if (sysfs__read_int("devices/system/cpu/smt/active", &cached_result) >= 0)
 		goto done;
 
 	ncpu = sysconf(_SC_NPROCESSORS_CONF);

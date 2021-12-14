@@ -664,7 +664,6 @@ struct mlx5_ib_mr {
 
 	/* User MR data */
 	struct mlx5_cache_ent *cache_ent;
-	struct ib_umem *umem;
 
 	/* This is zero'd when the MR is allocated */
 	union {
@@ -676,7 +675,7 @@ struct mlx5_ib_mr {
 			struct list_head list;
 		};
 
-		/* Used only by kernel MRs (umem == NULL) */
+		/* Used only by kernel MRs */
 		struct {
 			void *descs;
 			void *descs_alloc;
@@ -697,8 +696,9 @@ struct mlx5_ib_mr {
 			int data_length;
 		};
 
-		/* Used only by User MRs (umem != NULL) */
+		/* Used only by User MRs */
 		struct {
+			struct ib_umem *umem;
 			unsigned int page_shift;
 			/* Current access_flags */
 			int access_flags;

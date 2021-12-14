@@ -85,9 +85,9 @@ static ssize_t idletimer_tg_show(struct device *dev,
 	mutex_unlock(&list_mutex);
 
 	if (time_after(expires, jiffies) || ktimespec.tv_sec > 0)
-		return snprintf(buf, PAGE_SIZE, "%ld\n", time_diff);
+		return sysfs_emit(buf, "%ld\n", time_diff);
 
-	return snprintf(buf, PAGE_SIZE, "0\n");
+	return sysfs_emit(buf, "0\n");
 }
 
 static void idletimer_tg_work(struct work_struct *work)

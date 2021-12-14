@@ -291,7 +291,7 @@ vga_pw_show(struct device *dev, struct device_attribute *attr, char *buf)
 	if (rc)
 		return rc;
 
-	return sprintf(buf, "%u\n", reg & 1);
+	return sprintf(buf, "%u\n", reg);
 }
 static DEVICE_ATTR_RO(vga_pw);
 

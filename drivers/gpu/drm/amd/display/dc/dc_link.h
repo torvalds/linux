@@ -192,6 +192,8 @@ struct dc_link {
 		bool dp_skip_DID2;
 		bool dp_skip_reset_segment;
 		bool dp_mot_reset_segment;
+		/* Some USB4 docks do not handle turning off MST DSC once it has been enabled. */
+		bool dpia_mst_dsc_always_on;
 	} wa_flags;
 	struct link_mst_stream_allocation_table mst_stream_alloc_table;
 
@@ -225,6 +227,8 @@ static inline void get_edp_links(const struct dc *dc,
 	*edp_num = 0;
 	for (i = 0; i < dc->link_count; i++) {
 		// report any eDP links, even unconnected DDI's
+		if (!dc->links[i])
+			continue;
 		if (dc->links[i]->connector_signal == SIGNAL_TYPE_EDP) {
 			edp_links[*edp_num] = dc->links[i];
 			if (++(*edp_num) == MAX_NUM_EDP)

@@ -412,7 +412,7 @@ static int qedi_conn_bind(struct iscsi_cls_session *cls_session,
 	qedi_conn->iscsi_conn_id = qedi_ep->iscsi_cid;
 	qedi_conn->fw_cid = qedi_ep->fw_cid;
 	qedi_conn->cmd_cleanup_req = 0;
-	qedi_conn->cmd_cleanup_cmpl = 0;
+	atomic_set(&qedi_conn->cmd_cleanup_cmpl, 0);
 
 	if (qedi_bind_conn_to_iscsi_cid(qedi, qedi_conn)) {
 		rc = -EINVAL;
