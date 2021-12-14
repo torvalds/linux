@@ -2302,7 +2302,7 @@ unsigned long i915_read_mch_val(void)
 		return 0;
 
 	with_intel_runtime_pm(&i915->runtime_pm, wakeref) {
-		struct intel_ips *ips = &i915->gt.rps.ips;
+		struct intel_ips *ips = &to_gt(i915)->rps.ips;
 
 		spin_lock_irq(&mchdev_lock);
 		chipset_val = __ips_chipset_val(ips);
@@ -2329,7 +2329,7 @@ bool i915_gpu_raise(void)
 	if (!i915)
 		return false;
 
-	rps = &i915->gt.rps;
+	rps = &to_gt(i915)->rps;
 
 	spin_lock_irq(&mchdev_lock);
 	if (rps->max_freq_softlimit < rps->max_freq)
@@ -2356,7 +2356,7 @@ bool i915_gpu_lower(void)
 	if (!i915)
 		return false;
 
-	rps = &i915->gt.rps;
+	rps = &to_gt(i915)->rps;
 
 	spin_lock_irq(&mchdev_lock);
 	if (rps->max_freq_softlimit > rps->min_freq)
@@ -2382,7 +2382,7 @@ bool i915_gpu_busy(void)
 	if (!i915)
 		return false;
 
-	ret = i915->gt.awake;
+	ret = to_gt(i915)->awake;
 
 	drm_dev_put(&i915->drm);
 	return ret;
@@ -2405,11 +2405,11 @@ bool i915_gpu_turbo_disable(void)
 	if (!i915)
 		return false;
 
-	rps = &i915->gt.rps;
+	rps = &to_gt(i915)->rps;
 
 	spin_lock_irq(&mchdev_lock);
 	rps->max_freq_softlimit = rps->min_freq;
-	ret = !__gen5_rps_set(&i915->gt.rps, rps->min_freq);
+	ret = !__gen5_rps_set(&to_gt(i915)->rps, rps->min_freq);
 	spin_unlock_irq(&mchdev_lock);
 
 	drm_dev_put(&i915->drm);

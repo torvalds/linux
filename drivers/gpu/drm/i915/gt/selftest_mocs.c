@@ -451,5 +451,5 @@ int intel_mocs_live_selftests(struct drm_i915_private *i915)
 	if (!get_mocs_settings(i915, &table))
 		return 0;
 
-	return intel_gt_live_subtests(tests, &i915->gt);
+	return intel_gt_live_subtests(tests, to_gt(i915));
 }

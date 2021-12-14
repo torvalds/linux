@@ -1215,7 +1215,7 @@ int i915_ggtt_probe_hw(struct drm_i915_private *i915)
 {
 	int ret;
 
-	ret = ggtt_probe_hw(&i915->ggtt, &i915->gt);
+	ret = ggtt_probe_hw(&i915->ggtt, to_gt(i915));
 	if (ret)
 		return ret;
 

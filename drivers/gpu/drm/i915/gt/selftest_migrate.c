@@ -442,7 +442,7 @@ int intel_migrate_live_selftests(struct drm_i915_private *i915)
 		SUBTEST(thread_global_copy),
 		SUBTEST(thread_global_clear),
 	};
-	struct intel_gt *gt = &i915->gt;
+	struct intel_gt *gt = to_gt(i915);
 
 	if (!gt->migrate.context)
 		return 0;
@@ -658,7 +658,7 @@ int intel_migrate_perf_selftests(struct drm_i915_private *i915)
 		SUBTEST(perf_clear_blt),
 		SUBTEST(perf_copy_blt),
 	};
-	struct intel_gt *gt = &i915->gt;
+	struct intel_gt *gt = to_gt(i915);
 
 	if (intel_gt_is_wedged(gt))
 		return 0;

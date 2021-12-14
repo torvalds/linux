@@ -288,7 +288,7 @@ int intel_guc_live_selftests(struct drm_i915_private *i915)
 		SUBTEST(intel_guc_scrub_ctbs),
 		SUBTEST(intel_guc_steal_guc_ids),
 	};
-	struct intel_gt *gt = &i915->gt;
+	struct intel_gt *gt = to_gt(i915);
 
 	if (intel_gt_is_wedged(gt))
 		return 0;
