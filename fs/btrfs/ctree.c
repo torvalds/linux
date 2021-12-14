@@ -1349,33 +1349,34 @@ static noinline void unlock_up(struct btrfs_path *path, int level,
 {
 	int i;
 	int skip_level = level;
-	int no_skips = 0;
-	struct extent_buffer *t;
+	bool check_skip = true;
 
 	for (i = level; i < BTRFS_MAX_LEVEL; i++) {
 		if (!path->nodes[i])
 			break;
 		if (!path->locks[i])
 			break;
-		if (!no_skips && path->slots[i] == 0) {
-			skip_level = i + 1;
-			continue;
-		}
-		if (!no_skips && path->keep_locks) {
-			u32 nritems;
-			t = path->nodes[i];
-			nritems = btrfs_header_nritems(t);
-			if (nritems < 1 || path->slots[i] >= nritems - 1) {
+
+		if (check_skip) {
+			if (path->slots[i] == 0) {
 				skip_level = i + 1;
 				continue;
 			}
-		}
-		if (skip_level < i && i >= lowest_unlock)
-			no_skips = 1;
 
-		t = path->nodes[i];
+			if (path->keep_locks) {
+				u32 nritems;
+
+				nritems = btrfs_header_nritems(path->nodes[i]);
+				if (nritems < 1 || path->slots[i] >= nritems - 1) {
+					skip_level = i + 1;
+					continue;
+				}
+			}
+		}
+
 		if (i >= lowest_unlock && i > skip_level) {
-			btrfs_tree_unlock_rw(t, path->locks[i]);
+			check_skip = false;
+			btrfs_tree_unlock_rw(path->nodes[i], path->locks[i]);
 			path->locks[i] = 0;
 			if (write_lock_level &&
 			    i > min_write_lock_level &&
