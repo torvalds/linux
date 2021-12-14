@@ -240,7 +240,6 @@ static int rza2_gpio_register(struct rza2_pinctrl_priv *priv)
 	int ret;
 
 	chip.label = devm_kasprintf(priv->dev, GFP_KERNEL, "%pOFn", np);
-	chip.of_node = np;
 	chip.parent = priv->dev;
 	chip.ngpio = priv->npins;
 

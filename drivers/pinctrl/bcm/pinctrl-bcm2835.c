@@ -1228,7 +1228,6 @@ static int bcm2835_pinctrl_probe(struct platform_device *pdev)
 
 	pc->gpio_chip = *pdata->gpio_chip;
 	pc->gpio_chip.parent = dev;
-	pc->gpio_chip.of_node = np;
 
 	for (i = 0; i < BCM2835_NUM_BANKS; i++) {
 		unsigned long events;

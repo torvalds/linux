@@ -1136,7 +1136,6 @@ static int atmel_pinctrl_probe(struct platform_device *pdev)
 	}
 
 	atmel_pioctrl->gpio_chip = &atmel_gpio_chip;
-	atmel_pioctrl->gpio_chip->of_node = dev->of_node;
 	atmel_pioctrl->gpio_chip->ngpio = atmel_pioctrl->npins;
 	atmel_pioctrl->gpio_chip->label = dev_name(dev);
 	atmel_pioctrl->gpio_chip->parent = dev;

@@ -581,7 +581,6 @@ static int plgpio_probe(struct platform_device *pdev)
 	plgpio->chip.label = dev_name(&pdev->dev);
 	plgpio->chip.parent = &pdev->dev;
 	plgpio->chip.owner = THIS_MODULE;
-	plgpio->chip.of_node = pdev->dev.of_node;
 
 	if (!IS_ERR(plgpio->clk)) {
 		ret = clk_prepare(plgpio->clk);
