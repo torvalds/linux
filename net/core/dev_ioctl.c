@@ -192,7 +192,7 @@ static int net_hwtstamp_validate(struct ifreq *ifr)
 	if (copy_from_user(&cfg, ifr->ifr_data, sizeof(cfg)))
 		return -EFAULT;
 
-	if (cfg.flags) /* reserved for future extensions */
+	if (cfg.flags & ~HWTSTAMP_FLAG_MASK)
 		return -EINVAL;
 
 	tx_type = cfg.tx_type;

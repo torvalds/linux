@@ -13806,9 +13806,6 @@ static int tg3_hwtstamp_set(struct net_device *dev, struct ifreq *ifr)
 	if (copy_from_user(&stmpconf, ifr->ifr_data, sizeof(stmpconf)))
 		return -EFAULT;
 
-	if (stmpconf.flags)
-		return -EINVAL;
-
 	if (stmpconf.tx_type != HWTSTAMP_TX_ON &&
 	    stmpconf.tx_type != HWTSTAMP_TX_OFF)
 		return -ERANGE;

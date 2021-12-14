@@ -2221,10 +2221,6 @@ static int ravb_hwtstamp_set(struct net_device *ndev, struct ifreq *req)
 	if (copy_from_user(&config, req->ifr_data, sizeof(config)))
 		return -EFAULT;
 
-	/* Reserved for future extensions */
-	if (config.flags)
-		return -EINVAL;
-
 	switch (config.tx_type) {
 	case HWTSTAMP_TX_OFF:
 		tstamp_tx_ctrl = 0;

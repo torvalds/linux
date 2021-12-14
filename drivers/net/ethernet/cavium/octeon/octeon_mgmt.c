@@ -702,9 +702,6 @@ static int octeon_mgmt_ioctl_hwtstamp(struct net_device *netdev,
 	if (copy_from_user(&config, rq->ifr_data, sizeof(config)))
 		return -EFAULT;
 
-	if (config.flags) /* reserved for future extensions */
-		return -EINVAL;
-
 	/* Check the status of hardware for tiemstamps */
 	if (OCTEON_IS_MODEL(OCTEON_CN6XXX)) {
 		/* Get the current state of the PTP clock */

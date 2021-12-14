@@ -31,9 +31,6 @@ int tsnep_ptp_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd)
 		if (copy_from_user(&config, ifr->ifr_data, sizeof(config)))
 			return -EFAULT;
 
-		if (config.flags)
-			return -EINVAL;
-
 		switch (config.tx_type) {
 		case HWTSTAMP_TX_OFF:
 		case HWTSTAMP_TX_ON:

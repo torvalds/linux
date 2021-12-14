@@ -1254,9 +1254,6 @@ static int hwtstamp_ioctl(struct net_device *netdev, struct ifreq *ifr)
 	if (copy_from_user(&conf, ifr->ifr_data, sizeof(conf)))
 		return -EFAULT;
 
-	if (conf.flags)
-		return -EINVAL;
-
 	switch (conf.tx_type) {
 	case HWTSTAMP_TX_ON:
 	case HWTSTAMP_TX_OFF:

@@ -1617,10 +1617,6 @@ int ocelot_hwstamp_set(struct ocelot *ocelot, int port, struct ifreq *ifr)
 	if (copy_from_user(&cfg, ifr->ifr_data, sizeof(cfg)))
 		return -EFAULT;
 
-	/* reserved for future extensions */
-	if (cfg.flags)
-		return -EINVAL;
-
 	/* Tx type sanity check */
 	switch (cfg.tx_type) {
 	case HWTSTAMP_TX_ON:

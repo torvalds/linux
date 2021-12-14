@@ -3159,10 +3159,6 @@ static int vxge_hwtstamp_set(struct vxgedev *vdev, void __user *data)
 	if (copy_from_user(&config, data, sizeof(config)))
 		return -EFAULT;
 
-	/* reserved for future extensions */
-	if (config.flags)
-		return -EINVAL;
-
 	/* Transmit HW Timestamp not supported */
 	switch (config.tx_type) {
 	case HWTSTAMP_TX_OFF:
