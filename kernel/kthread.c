@@ -294,7 +294,7 @@ void __noreturn kthread_exit(long result)
 }
 
 /**
- * kthread_complete_and exit - Exit the current kthread.
+ * kthread_complete_and_exit - Exit the current kthread.
  * @comp: Completion to complete
  * @code: The integer value to return to kthread_stop().
  *
