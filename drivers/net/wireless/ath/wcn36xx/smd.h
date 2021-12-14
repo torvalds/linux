@@ -167,4 +167,7 @@ int wcn36xx_smd_host_resume(struct wcn36xx *wcn);
 int wcn36xx_smd_enter_imps(struct wcn36xx *wcn);
 int wcn36xx_smd_exit_imps(struct wcn36xx *wcn);
 
+int wcn36xx_smd_add_beacon_filter(struct wcn36xx *wcn,
+				  struct ieee80211_vif *vif);
+
 #endif	/* _SMD_H_ */
