@@ -137,7 +137,7 @@ static struct timer_of to_tpm = {
 	},
 	.of_irq = {
 		.handler		= tpm_timer_interrupt,
-		.flags			= IRQF_TIMER | IRQF_IRQPOLL,
+		.flags			= IRQF_TIMER,
 	},
 	.of_clk = {
 		.name = "per",
