@@ -10,8 +10,24 @@
 #include "spectrum.h"
 #include "spectrum_nve.h"
 
-#define MLXSW_SP_NVE_VXLAN_SUPPORTED_FLAGS	(VXLAN_F_UDP_ZERO_CSUM_TX | \
+#define MLXSW_SP_NVE_VXLAN_IPV4_SUPPORTED_FLAGS (VXLAN_F_UDP_ZERO_CSUM_TX | \
 						 VXLAN_F_LEARN)
+
+static bool mlxsw_sp_nve_vxlan_ipv4_flags_check(const struct vxlan_config *cfg,
+						struct netlink_ext_ack *extack)
+{
+	if (!(cfg->flags & VXLAN_F_UDP_ZERO_CSUM_TX)) {
+		NL_SET_ERR_MSG_MOD(extack, "VxLAN: Zero UDP checksum must be allowed for TX");
+		return false;
+	}
+
+	if (cfg->flags & ~MLXSW_SP_NVE_VXLAN_IPV4_SUPPORTED_FLAGS) {
+		NL_SET_ERR_MSG_MOD(extack, "VxLAN: Unsupported flag");
+		return false;
+	}
+
+	return true;
+}
 
 static bool mlxsw_sp_nve_vxlan_can_offload(const struct mlxsw_sp_nve *nve,
 					   const struct mlxsw_sp_nve_params *params,
@@ -55,14 +71,11 @@ static bool mlxsw_sp_nve_vxlan_can_offload(const struct mlxsw_sp_nve *nve,
 		return false;
 	}
 
-	if (!(cfg->flags & VXLAN_F_UDP_ZERO_CSUM_TX)) {
-		NL_SET_ERR_MSG_MOD(extack, "VxLAN: UDP checksum is not supported");
-		return false;
-	}
-
-	if (cfg->flags & ~MLXSW_SP_NVE_VXLAN_SUPPORTED_FLAGS) {
-		NL_SET_ERR_MSG_MOD(extack, "VxLAN: Unsupported flag");
-		return false;
+	switch (cfg->saddr.sa.sa_family) {
+	case AF_INET:
+		if (!mlxsw_sp_nve_vxlan_ipv4_flags_check(cfg, extack))
+			return false;
+		break;
 	}
 
 	if (cfg->ttl == 0) {
