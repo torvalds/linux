@@ -152,8 +152,8 @@ examples:
             interrupts = <GIC_SPI 227 IRQ_TYPE_LEVEL_HIGH>;
             #address-cells = <1>;
             #size-cells = <0>;
-            clocks = <&cmu_peri 32>, <&cmu_peri 31>;
-            clock-names = "hsi2c_pclk", "hsi2c";
+            clocks = <&cmu_peri 31>, <&cmu_peri 32>;
+            clock-names = "hsi2c", "hsi2c_pclk";
             status = "disabled";
         };
     };
