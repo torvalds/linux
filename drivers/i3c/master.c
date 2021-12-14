@@ -1747,7 +1747,7 @@ static int i3c_master_bus_init(struct i3c_master_controller *master)
 	struct i2c_dev_boardinfo *i2cboardinfo;
 	struct i3c_dev_boardinfo *i3cboardinfo;
 	struct i2c_dev_desc *i2cdev;
-	int ret, n_i3cdev = 0;
+	int ret;
 
 	/*
 	 * First attach all devices with static definitions provided by the
@@ -1856,17 +1856,15 @@ static int i3c_master_bus_init(struct i3c_master_controller *master)
 		 * addressable.
 		 */
 
-		if (i3cboardinfo->static_addr) {
+		if (i3cboardinfo->static_addr)
 			i3c_master_early_i3c_dev_add(master, i3cboardinfo);
-			n_i3cdev++;
-		}
 	}
 
 	/*
-	 * Since SPD devices are all with static address.  Don't do DAA if we
-	 * know it is a pure I2C bus.
+	 * Not support mix mode on JEDEC bus context. Here We only handle
+	 * the I2C part so simply return with success code.
 	 */
-	if (master->jdec_spd && n_i3cdev == 0)
+	if (master->jdec_spd && master->bus.mode != I3C_BUS_MODE_PURE)
 		return 0;
 
 	ret = i3c_master_do_daa(master);
