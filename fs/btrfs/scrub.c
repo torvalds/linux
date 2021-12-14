@@ -3240,6 +3240,7 @@ static noinline_for_stack int scrub_stripe(struct scrub_ctx *sctx,
 	 */
 	path->search_commit_root = 1;
 	path->skip_locking = 1;
+	path->reada = READA_FORWARD;
 
 	/*
 	 * trigger the readahead for extent tree csum tree and wait for
