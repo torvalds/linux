@@ -179,7 +179,7 @@ SYM_FUNC_END(cpu_do_resume)
 	.pushsection ".idmap.text", "awx"
 
 .macro	__idmap_cpu_set_reserved_ttbr1, tmp1, tmp2
-	adrp	\tmp1, empty_zero_page
+	adrp	\tmp1, reserved_pg_dir
 	phys_to_ttbr \tmp2, \tmp1
 	offset_ttbr1 \tmp2, \tmp1
 	msr	ttbr1_el1, \tmp2
@@ -445,8 +445,7 @@ SYM_FUNC_START(__cpu_setup)
 	mov	x10, #MAIR_ATTR_NORMAL_TAGGED
 	bfi	x5, x10, #(8 *  MT_NORMAL_TAGGED), #8
 
-	/* initialize GCR_EL1: all non-zero tags excluded by default */
-	mov	x10, #(SYS_GCR_EL1_RRND | SYS_GCR_EL1_EXCL_MASK)
+	mov	x10, #KERNEL_GCR_EL1
 	msr_s	SYS_GCR_EL1, x10
 
 	/*

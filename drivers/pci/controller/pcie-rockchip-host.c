@@ -681,10 +681,6 @@ static int rockchip_pcie_parse_host_dt(struct rockchip_pcie *rockchip)
 	if (err)
 		return err;
 
-	err = rockchip_pcie_setup_irq(rockchip);
-	if (err)
-		return err;
-
 	rockchip->vpcie12v = devm_regulator_get_optional(dev, "vpcie12v");
 	if (IS_ERR(rockchip->vpcie12v)) {
 		if (PTR_ERR(rockchip->vpcie12v) != -ENODEV)
@@ -1071,6 +1067,10 @@ static int rockchip_pcie_really_probe(struct rockchip_pcie *rockchip)
 	int err;
 
 	err = rockchip_pcie_host_init_port(rockchip);
+	if (err)
+		return err;
+
+	err = rockchip_pcie_setup_irq(rockchip);
 	if (err)
 		return err;
 

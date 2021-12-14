@@ -63,7 +63,7 @@
 		_new;						\
 		struct {					\
 			_orig;					\
-		} __UNIQUE_ID(android_kabi_hide);		\
+		};						\
 		__ANDROID_KABI_CHECK_SIZE_ALIGN(_orig, _new);	\
 	}
 

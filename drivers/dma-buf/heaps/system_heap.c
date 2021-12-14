@@ -54,11 +54,12 @@ struct dma_heap_attachment {
 	bool uncached;
 };
 
+#define LOW_ORDER_GFP (GFP_HIGHUSER | __GFP_ZERO | __GFP_COMP)
+#define MID_ORDER_GFP (LOW_ORDER_GFP | __GFP_NOWARN)
 #define HIGH_ORDER_GFP  (((GFP_HIGHUSER | __GFP_ZERO | __GFP_NOWARN \
 				| __GFP_NORETRY) & ~__GFP_RECLAIM) \
 				| __GFP_COMP)
-#define LOW_ORDER_GFP (GFP_HIGHUSER | __GFP_ZERO | __GFP_COMP)
-static gfp_t order_flags[] = {HIGH_ORDER_GFP, LOW_ORDER_GFP, LOW_ORDER_GFP};
+static gfp_t order_flags[] = {HIGH_ORDER_GFP, MID_ORDER_GFP, LOW_ORDER_GFP};
 /*
  * The selection of the orders used for allocation (1MB, 64K, 4K) is designed
  * to match with the sizes often found in IOMMUs. Using order 4 pages instead
@@ -725,10 +726,37 @@ static struct dma_heap_ops system_uncached_heap_ops = {
 	.allocate = system_uncached_heap_not_initialized,
 };
 
+static int set_heap_dev_dma(struct device *heap_dev)
+{
+	int err = 0;
+
+	if (!heap_dev)
+		return -EINVAL;
+
+	dma_coerce_mask_and_coherent(heap_dev, DMA_BIT_MASK(64));
+
+	if (!heap_dev->dma_parms) {
+		heap_dev->dma_parms = devm_kzalloc(heap_dev,
+						   sizeof(*heap_dev->dma_parms),
+						   GFP_KERNEL);
+		if (!heap_dev->dma_parms)
+			return -ENOMEM;
+
+		err = dma_set_max_seg_size(heap_dev, (unsigned int)DMA_BIT_MASK(64));
+		if (err) {
+			devm_kfree(heap_dev, heap_dev->dma_parms);
+			dev_err(heap_dev, "Failed to set DMA segment size, err:%d\n", err);
+			return err;
+		}
+	}
+
+	return 0;
+}
+
 static int system_heap_create(void)
 {
 	struct dma_heap_export_info exp_info;
-	int i;
+	int i, err = 0;
 
 	/*
 	 * Since swiotlb has memory size limitation, this will calculate
@@ -804,6 +832,10 @@ static int system_heap_create(void)
 	if (IS_ERR(sys_uncached_heap))
 		return PTR_ERR(sys_uncached_heap);
 
+	err = set_heap_dev_dma(dma_heap_get_dev(sys_uncached_heap));
+	if (err)
+		return err;
+
 	exp_info.name = "system-uncached-dma32";
 	exp_info.ops = &system_uncached_heap_ops;
 	exp_info.priv = NULL;
@@ -812,8 +844,11 @@ static int system_heap_create(void)
 	if (IS_ERR(sys_uncached_dma32_heap))
 		return PTR_ERR(sys_uncached_dma32_heap);
 
-	dma_coerce_mask_and_coherent(dma_heap_get_dev(sys_uncached_heap), DMA_BIT_MASK(64));
+	err = set_heap_dev_dma(dma_heap_get_dev(sys_uncached_dma32_heap));
+	if (err)
+		return err;
 	dma_coerce_mask_and_coherent(dma_heap_get_dev(sys_uncached_dma32_heap), DMA_BIT_MASK(32));
+
 	mb(); /* make sure we only set allocate after dma_mask is set */
 	system_uncached_heap_ops.allocate = system_uncached_heap_allocate;
 

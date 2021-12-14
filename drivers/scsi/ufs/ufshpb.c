@@ -13,6 +13,7 @@
 #include <linux/async.h>
 
 #include "ufshcd.h"
+#include "ufshcd-add-info.h"
 #include "ufshpb.h"
 #include "../sd.h"
 
@@ -37,7 +38,7 @@ static void ufshpb_update_active_info(struct ufshpb_lu *hpb, int rgn_idx,
 
 static inline struct ufshpb_dev_info *ufs_hba_to_hpb(struct ufs_hba *hba)
 {
-	return &container_of(hba, struct ufs_hba_with_hpb, hba)->hpb_dev;
+	return &ufs_hba_add_info(hba)->hpb_dev;
 }
 
 bool ufshpb_is_allowed(struct ufs_hba *hba)
@@ -183,9 +184,19 @@ next_srgn:
 		set_bit_len = cnt;
 
 	spin_lock_irqsave(&hpb->rgn_state_lock, flags);
-	if (set_dirty && rgn->rgn_state != HPB_RGN_INACTIVE &&
-	    srgn->srgn_state == HPB_SRGN_VALID)
-		bitmap_set(srgn->mctx->ppn_dirty, srgn_offset, set_bit_len);
+	if (rgn->rgn_state != HPB_RGN_INACTIVE) {
+		if (set_dirty) {
+		    if (srgn->srgn_state == HPB_SRGN_VALID)
+			    bitmap_set(srgn->mctx->ppn_dirty, srgn_offset,
+				       set_bit_len);
+		} else if (hpb->is_hcm) {
+			/* rewind the read timer for lru regions */
+			rgn->read_timeout = ktime_add_ms(ktime_get(),
+					rgn->hpb->params.read_timeout_ms);
+			rgn->read_timeout_expiries =
+				rgn->hpb->params.read_timeout_expiries;
+		}
+	}
 	spin_unlock_irqrestore(&hpb->rgn_state_lock, flags);
 
 	if (hpb->is_hcm && prev_srgn != srgn) {
@@ -328,15 +339,19 @@ ufshpb_get_pos_from_lpn(struct ufshpb_lu *hpb, unsigned long lpn, int *rgn_idx,
 }
 
 static void
-ufshpb_set_hpb_read_to_upiu(struct ufshpb_lu *hpb, struct ufshcd_lrb *lrbp,
-			    u32 lpn, __be64 ppn, u8 transfer_len, int read_id)
+ufshpb_set_hpb_read_to_upiu(struct ufs_hba *hba, struct ufshpb_lu *hpb,
+			    struct ufshcd_lrb *lrbp, u32 lpn, __be64 ppn,
+			    u8 transfer_len, int read_id)
 {
 	unsigned char *cdb = lrbp->cmd->cmnd;
-
+	__be64 ppn_tmp = ppn;
 	cdb[0] = UFSHPB_READ;
 
+	if (hba->dev_quirks & UFS_DEVICE_QUIRK_SWAP_L2P_ENTRY_FOR_HPB_READ)
+		ppn_tmp = swab64(ppn);
+
 	/* ppn value is stored as big-endian in the host memory */
-	memcpy(&cdb[6], &ppn, sizeof(__be64));
+	memcpy(&cdb[6], &ppn_tmp, sizeof(__be64));
 	cdb[14] = transfer_len;
 	cdb[15] = read_id;
 
@@ -695,7 +710,8 @@ int ufshpb_prep(struct ufs_hba *hba, struct ufshcd_lrb *lrbp)
 		}
 	}
 
-	ufshpb_set_hpb_read_to_upiu(hpb, lrbp, lpn, ppn, transfer_len, read_id);
+	ufshpb_set_hpb_read_to_upiu(hba, hpb, lrbp, lpn, ppn, transfer_len,
+				    read_id);
 
 	hpb->stats.hit_cnt++;
 	return 0;
@@ -747,6 +763,7 @@ static struct ufshpb_req *ufshpb_get_map_req(struct ufshpb_lu *hpb,
 {
 	struct ufshpb_req *map_req;
 	struct bio *bio;
+	unsigned long flags;
 
 	if (hpb->is_hcm &&
 	    hpb->num_inflight_map_req >= hpb->params.inflight_map_req) {
@@ -771,7 +788,10 @@ static struct ufshpb_req *ufshpb_get_map_req(struct ufshpb_lu *hpb,
 
 	map_req->rb.srgn_idx = srgn->srgn_idx;
 	map_req->rb.mctx = srgn->mctx;
+
+	spin_lock_irqsave(&hpb->param_lock, flags);
 	hpb->num_inflight_map_req++;
+	spin_unlock_irqrestore(&hpb->param_lock, flags);
 
 	return map_req;
 }
@@ -779,9 +799,14 @@ static struct ufshpb_req *ufshpb_get_map_req(struct ufshpb_lu *hpb,
 static void ufshpb_put_map_req(struct ufshpb_lu *hpb,
 			       struct ufshpb_req *map_req)
 {
+	unsigned long flags;
+
 	bio_put(map_req->bio);
 	ufshpb_put_req(hpb, map_req);
+
+	spin_lock_irqsave(&hpb->param_lock, flags);
 	hpb->num_inflight_map_req--;
+	spin_unlock_irqrestore(&hpb->param_lock, flags);
 }
 
 static int ufshpb_clear_dirty_bitmap(struct ufshpb_lu *hpb,
@@ -1366,7 +1391,8 @@ static int ufshpb_add_region(struct ufshpb_lu *hpb, struct ufshpb_region *rgn)
 			victim_rgn = ufshpb_victim_lru_info(hpb);
 			if (!victim_rgn) {
 				dev_warn(&hpb->sdev_ufs_lu->sdev_dev,
-				    "cannot get victim region error\n");
+				    "cannot get victim region %s\n",
+				    hpb->is_hcm ? "" : "error");
 				ret = -ENOMEM;
 				goto out;
 			}
@@ -2380,6 +2406,7 @@ static int ufshpb_lu_hpb_init(struct ufs_hba *hba, struct ufshpb_lu *hpb)
 
 	spin_lock_init(&hpb->rgn_state_lock);
 	spin_lock_init(&hpb->rsp_list_lock);
+	spin_lock_init(&hpb->param_lock);
 
 	INIT_LIST_HEAD(&hpb->lru_info.lh_lru_rgn);
 	INIT_LIST_HEAD(&hpb->lh_act_srgn);

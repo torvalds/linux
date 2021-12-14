@@ -1,0 +1,3 @@
+. ${ROOT_DIR}/${KERNEL_DIR}/build.config.gki.aarch64.fips140
+
+PRE_DEFCONFIG_CMDS+=" cat ${ROOT_DIR}/${KERNEL_DIR}/arch/arm64/configs/fips140_gki_eval_testing.fragment >> ${ROOT_DIR}/${KERNEL_DIR}/arch/arm64/configs/${DEFCONFIG};"

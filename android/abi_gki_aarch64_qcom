@@ -359,6 +359,7 @@
   dev_alloc_name
   dev_change_net_namespace
   dev_close
+  dev_coredumpm
   dev_coredumpv
   _dev_crit
   __dev_direct_xmit
@@ -1216,6 +1217,7 @@
   __irq_domain_add
   irq_domain_alloc_irqs_parent
   irq_domain_create_hierarchy
+  irq_domain_disconnect_hierarchy
   irq_domain_free_irqs_common
   irq_domain_free_irqs_parent
   irq_domain_get_irq_data
@@ -1438,11 +1440,21 @@
   misc_deregister
   misc_register
   mmc_cqe_request_done
+  mmc_hs200_tuning
+  mmc_issue_type
   mmc_of_parse
   mmc_regulator_get_supply
   mmc_regulator_set_ocr
   mmc_regulator_set_vqmmc
+  mmc_select_bus_width
+  mmc_select_hs
+  mmc_select_hs400
+  mmc_select_hs_ddr
+  mmc_select_timing
   mmc_send_tuning
+  mmc_set_clock
+  mmc_set_initial_state
+  mmc_set_timing
   mmput
   mod_delayed_work_on
   __mod_node_page_state
@@ -1470,6 +1482,7 @@
   neigh_destroy
   __neigh_event_send
   neigh_lookup
+  neigh_resolve_output
   neigh_xmit
   __netdev_alloc_skb
   netdev_err
@@ -1772,6 +1785,8 @@
   platform_get_resource
   platform_get_resource_byname
   platform_irq_count
+  platform_msi_domain_alloc_irqs
+  platform_msi_domain_free_irqs
   pm_clk_add
   pm_clk_create
   pm_clk_destroy
@@ -1946,6 +1961,7 @@
   register_kretprobe
   register_memory_notifier
   register_module_notifier
+  register_qdisc
   register_netdev
   register_netdevice
   register_netdevice_notifier
@@ -2074,8 +2090,10 @@
   rproc_remove_subdev
   rproc_report_crash
   rproc_shutdown
+  rtc_ktime_to_tm
   __rtc_register_device
   rtc_time64_to_tm
+  rtc_tm_to_ktime
   rtc_tm_to_time64
   rtc_update_irq
   rt_mutex_lock
@@ -2233,6 +2251,7 @@
   smp_call_function
   smp_call_function_any
   smp_call_function_single
+  smp_call_function_single_async
   snd_card_free
   snd_card_new
   snd_card_register
@@ -2482,6 +2501,7 @@
   __traceiter_android_rvh_cpu_cgroup_online
   __traceiter_android_rvh_cpufreq_transition
   __traceiter_android_rvh_dequeue_task
+  __traceiter_android_rvh_do_sched_yield
   __traceiter_android_rvh_enqueue_task
   __traceiter_android_rvh_find_busiest_queue
   __traceiter_android_rvh_find_lowest_rq
@@ -2512,6 +2532,7 @@
   __traceiter_android_rvh_schedule_bug
   __traceiter_android_rvh_select_task_rq_fair
   __traceiter_android_rvh_select_task_rq_rt
+  __traceiter_android_rvh_set_balance_anon_file_reclaim
   __traceiter_android_rvh_set_gfp_zone_flags
   __traceiter_android_rvh_set_readahead_gfp_mask
   __traceiter_android_rvh_set_skip_swapcache_flags
@@ -2550,6 +2571,7 @@
   __traceiter_android_vh_logbuf_pr_cont
   __traceiter_android_vh_printk_hotplug
   __traceiter_android_vh_rproc_recovery
+  __traceiter_android_vh_rproc_recovery_set
   __traceiter_android_vh_scheduler_tick
   __traceiter_android_vh_show_max_freq
   __traceiter_android_vh_show_resume_epoch_val
@@ -2591,6 +2613,7 @@
   __tracepoint_android_rvh_cpu_cgroup_online
   __tracepoint_android_rvh_cpufreq_transition
   __tracepoint_android_rvh_dequeue_task
+  __tracepoint_android_rvh_do_sched_yield
   __tracepoint_android_rvh_enqueue_task
   __tracepoint_android_rvh_find_busiest_queue
   __tracepoint_android_rvh_find_lowest_rq
@@ -2621,6 +2644,7 @@
   __tracepoint_android_rvh_schedule_bug
   __tracepoint_android_rvh_select_task_rq_fair
   __tracepoint_android_rvh_select_task_rq_rt
+  __tracepoint_android_rvh_set_balance_anon_file_reclaim
   __tracepoint_android_rvh_set_gfp_zone_flags
   __tracepoint_android_rvh_set_readahead_gfp_mask
   __tracepoint_android_rvh_set_skip_swapcache_flags
@@ -2666,6 +2690,7 @@
   __tracepoint_android_vh_psi_event
   __tracepoint_android_vh_psi_group
   __tracepoint_android_vh_rproc_recovery
+  __tracepoint_android_vh_rproc_recovery_set
   __tracepoint_android_vh_scheduler_tick
   __tracepoint_android_vh_shmem_alloc_page
   __tracepoint_android_vh_show_max_freq
@@ -2796,6 +2821,7 @@
   unregister_oom_notifier
   unregister_pernet_device
   unregister_pm_notifier
+  unregister_qdisc
   unregister_reboot_notifier
   unregister_restart_handler
   unregister_rpmsg_driver
@@ -2969,6 +2995,8 @@
   vprintk
   vscnprintf
   vsnprintf
+  vsock_addr_init
+  vsock_remove_sock
   vunmap
   vzalloc
   wait_for_completion

@@ -690,8 +690,8 @@ static int ixp4xx_npe_probe(struct platform_device *pdev)
 
 		if (!(ixp4xx_read_feature_bits() &
 		      (IXP4XX_FEATURE_RESET_NPEA << i))) {
-			dev_info(dev, "NPE%d at 0x%08x-0x%08x not available\n",
-				 i, res->start, res->end);
+			dev_info(dev, "NPE%d at %pR not available\n",
+				 i, res);
 			continue; /* NPE already disabled or not present */
 		}
 		npe->regs = devm_ioremap_resource(dev, res);
@@ -699,13 +699,12 @@ static int ixp4xx_npe_probe(struct platform_device *pdev)
 			return PTR_ERR(npe->regs);
 
 		if (npe_reset(npe)) {
-			dev_info(dev, "NPE%d at 0x%08x-0x%08x does not reset\n",
-				 i, res->start, res->end);
+			dev_info(dev, "NPE%d at %pR does not reset\n",
+				 i, res);
 			continue;
 		}
 		npe->valid = 1;
-		dev_info(dev, "NPE%d at 0x%08x-0x%08x registered\n",
-			 i, res->start, res->end);
+		dev_info(dev, "NPE%d at %pR registered\n", i, res);
 		found++;
 	}
 

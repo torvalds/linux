@@ -1875,7 +1875,6 @@ static bool dcn30_split_stream_for_mpc_or_odm(
 		}
 		pri_pipe->next_odm_pipe = sec_pipe;
 		sec_pipe->prev_odm_pipe = pri_pipe;
-		ASSERT(sec_pipe->top_pipe == NULL);
 
 		sec_pipe->stream_res.opp = pool->opps[pipe_idx];
 		if (sec_pipe->stream->timing.flags.DSC == 1) {

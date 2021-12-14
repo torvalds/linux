@@ -11,6 +11,7 @@
 
 #include <linux/bits.h>
 #include <linux/stringify.h>
+#include <linux/kasan-tags.h>
 
 /*
  * ARMv8 ARM reserves the following encoding for system registers:
@@ -1043,6 +1044,21 @@
 /* GCR_EL1 Definitions */
 #define SYS_GCR_EL1_RRND	(BIT(16))
 #define SYS_GCR_EL1_EXCL_MASK	0xffffUL
+
+#ifdef CONFIG_KASAN_HW_TAGS
+/*
+ * KASAN always uses a whole byte for its tags. With CONFIG_KASAN_HW_TAGS it
+ * only uses tags in the range 0xF0-0xFF, which we map to MTE tags 0x0-0xF.
+ */
+#define __MTE_TAG_MIN		(KASAN_TAG_MIN & 0xf)
+#define __MTE_TAG_MAX		(KASAN_TAG_MAX & 0xf)
+#define __MTE_TAG_INCL		GENMASK(__MTE_TAG_MAX, __MTE_TAG_MIN)
+#define KERNEL_GCR_EL1_EXCL	(SYS_GCR_EL1_EXCL_MASK & ~__MTE_TAG_INCL)
+#else
+#define KERNEL_GCR_EL1_EXCL	SYS_GCR_EL1_EXCL_MASK
+#endif
+
+#define KERNEL_GCR_EL1		(SYS_GCR_EL1_RRND | KERNEL_GCR_EL1_EXCL)
 
 /* RGSR_EL1 Definitions */
 #define SYS_RGSR_EL1_TAG_MASK	0xfUL

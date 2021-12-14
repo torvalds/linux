@@ -5259,7 +5259,6 @@ struct cfg80211_cqm_config;
  *	netdev and may otherwise be used by driver read-only, will be update
  *	by cfg80211 on change_interface
  * @mgmt_registrations: list of registrations for management frames
- * @mgmt_registrations_lock: lock for the list
  * @mgmt_registrations_need_update: mgmt registrations were updated,
  *	need to propagate the update to the driver
  * @mtx: mutex used to lock data in this struct, may be used by drivers
@@ -5306,6 +5305,12 @@ struct wireless_dev {
 	u32 identifier;
 
 	struct list_head mgmt_registrations;
+	/*
+	 * ANDROID: mgmt_registrations_lock was restored to preserve ABI in
+	 * 5.10.77 due to backport of 09b1d5dc6ce1 ("cfg80211: fix management
+	 * registrations locking") but it is not used for anything so do not
+	 * touch this variable!
+	 */
 	spinlock_t mgmt_registrations_lock;
 	u8 mgmt_registrations_need_update:1;
 

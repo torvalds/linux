@@ -6,12 +6,14 @@
 # required by fips140.ko
   add_random_ready_callback
   aead_register_instance
-  arm64_const_caps_ready
+  ahash_register_instance
+  arch_timer_read_counter
   bcmp
   cancel_work_sync
   __cfi_slowpath
+  complete_all
+  completion_done
   cpu_have_feature
-  cpu_hwcap_keys
   crypto_aead_decrypt
   crypto_aead_encrypt
   crypto_aead_setauthsize
@@ -19,7 +21,6 @@
   crypto_ahash_finup
   crypto_ahash_setkey
   crypto_alg_list
-  crypto_alg_mod_lookup
   crypto_alg_sem
   crypto_alloc_aead
   crypto_alloc_base
@@ -28,7 +29,6 @@
   crypto_alloc_skcipher
   crypto_attr_alg_name
   crypto_check_attr_type
-  crypto_cipher_decrypt_one
   crypto_cipher_encrypt_one
   crypto_cipher_setkey
   crypto_destroy_tfm
@@ -38,17 +38,23 @@
   crypto_grab_ahash
   crypto_grab_shash
   crypto_grab_skcipher
+  crypto_grab_spawn
   crypto_inst_setname
   crypto_put_default_null_skcipher
   crypto_register_aead
+  crypto_register_aeads
+  crypto_register_ahash
+  crypto_register_ahashes
   crypto_register_alg
+  crypto_register_algs
+  crypto_register_rng
   crypto_register_rngs
   crypto_register_shash
   crypto_register_shashes
+  crypto_register_skcipher
   crypto_register_skciphers
   crypto_register_template
   crypto_register_templates
-  crypto_remove_final
   crypto_remove_spawns
   crypto_req_done
   crypto_rng_reset
@@ -63,8 +69,10 @@
   crypto_skcipher_encrypt
   crypto_skcipher_setkey
   crypto_spawn_tfm2
+  crypto_spawn_tfm
   crypto_unregister_aead
   crypto_unregister_alg
+  crypto_unregister_rng
   crypto_unregister_rngs
   crypto_unregister_shash
   crypto_unregister_shashes
@@ -87,6 +95,7 @@
   kmalloc_order_trace
   kmem_cache_alloc_trace
   kmemdup
+  ktime_get
   __list_add_valid
   __list_del_entry_valid
   memcpy
@@ -99,6 +108,9 @@
   preempt_schedule_notrace
   printk
   queue_work_on
+  ___ratelimit
+  _raw_spin_lock
+  _raw_spin_unlock
   refcount_warn_saturate
   scatterwalk_ffwd
   scatterwalk_map_and_copy
@@ -121,7 +133,6 @@
   strlcpy
   strlen
   strncmp
-  synchronize_rcu_tasks
   system_wq
   __traceiter_android_vh_aes_decrypt
   __traceiter_android_vh_aes_encrypt
@@ -134,23 +145,29 @@
   tracepoint_probe_register
   up_write
   wait_for_completion
+  xa_load
+  xa_store
 
-# needed by fips140.ko but not identified by the tooling
-# TODO(b/189327973): [GKI: ABI] Build of fips140.ko module fails to identify some symbols
-  __crypto_memneq
-  __crypto_xor
+# preserved by --additions-only
   aes_decrypt
   aes_encrypt
   aes_expandkey
+  arm64_const_caps_ready
   ce_aes_expandkey
+  cpu_hwcap_keys
   crypto_aes_inv_sbox
   crypto_aes_sbox
   crypto_aes_set_key
+  crypto_alg_mod_lookup
+  crypto_cipher_decrypt_one
   crypto_ft_tab
   crypto_inc
   crypto_it_tab
+  __crypto_memneq
+  crypto_remove_final
   crypto_sha1_finup
   crypto_sha1_update
+  __crypto_xor
   gf128mul_lle
   sha1_transform
   sha224_final
@@ -158,3 +175,4 @@
   sha256_block_data_order
   sha256_final
   sha256_update
+  synchronize_rcu_tasks

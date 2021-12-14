@@ -11,12 +11,12 @@
  * mechanism for vendor modules to hook and extend functionality
  */
 DECLARE_HOOK(android_vh_cpu_up,
-	TP_PROTO(void *unused),
-	TP_ARGS(unused));
+	TP_PROTO(unsigned int cpu),
+	TP_ARGS(cpu));
 
 DECLARE_HOOK(android_vh_cpu_down,
-	TP_PROTO(void *unused),
-	TP_ARGS(unused));
+	TP_PROTO(unsigned int cpu),
+	TP_ARGS(cpu));
 
 /* macro versions of hooks are no longer required */
 

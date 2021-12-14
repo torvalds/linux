@@ -131,7 +131,7 @@ static int hyf1gq4udacae_ecc_get_status(struct spinand_device *spinand,
 		return 1;
 
 	default:
-		return nanddev_get_ecc_conf(nand)->strength;
+		return nanddev_get_ecc_requirements(nand)->strength;
 	}
 
 	return -EINVAL;

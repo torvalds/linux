@@ -88,6 +88,21 @@ static inline int scsi_is_wlun(u64 lun)
 	return (lun & 0xff00) == SCSI_W_LUN_BASE;
 }
 
+/**
+ * scsi_status_is_check_condition - check the status return.
+ *
+ * @status: the status passed up from the driver (including host and
+ *          driver components)
+ *
+ * This returns true if the status code is SAM_STAT_CHECK_CONDITION.
+ */
+static inline int scsi_status_is_check_condition(int status)
+{
+	if (status < 0)
+		return false;
+	status &= 0xfe;
+	return status == SAM_STAT_CHECK_CONDITION;
+}
 
 /*
  *  MESSAGE CODES

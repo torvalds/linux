@@ -414,6 +414,7 @@ NOKPROBE_SYMBOL(do_undefinstr);
 
 void do_bti(struct pt_regs *regs)
 {
+	trace_android_rvh_do_bti(regs, user_mode(regs));
 	BUG_ON(!user_mode(regs));
 	force_signal_inject(SIGILL, ILL_ILLOPC, regs->pc, 0);
 }
@@ -425,6 +426,7 @@ void do_ptrauth_fault(struct pt_regs *regs, unsigned int esr)
 	 * Unexpected FPAC exception or pointer authentication failure in
 	 * the kernel: kill the task before it does any more harm.
 	 */
+	trace_android_rvh_do_ptrauth_fault(regs, esr, user_mode(regs));
 	BUG_ON(!user_mode(regs));
 	force_signal_inject(SIGILL, ILL_ILLOPN, regs->pc, esr);
 }

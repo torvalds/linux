@@ -40,6 +40,7 @@
   scsi_print_command
   scsi_dma_map
   scsi_host_alloc
+  scsi_normalize_sense
   sg_copy_from_buffer
   sg_copy_to_buffer
   ufshcd_alloc_host
@@ -58,6 +59,9 @@
   blk_queue_update_dma_alignment
   blk_queue_update_dma_pad
   blk_ksm_get_slot_idx
+  mempool_resize
+  mempool_alloc_pages
+  mempool_free_pages
 
 #required by cs35l41 module
   regmap_raw_write_async
@@ -139,6 +143,33 @@
   __traceiter_android_vh_free_task
   __tracepoint_android_vh_free_task
   jiffies_64
+  free_uid
+  find_user
+
+#required by migt.ko
+  __traceiter_android_rvh_after_enqueue_task
+  __traceiter_android_rvh_after_dequeue_task
+  __traceiter_android_vh_map_util_freq
+  __tracepoint_android_rvh_after_enqueue_task
+  __tracepoint_android_rvh_after_dequeue_task
+  __tracepoint_android_vh_map_util_freq
+
+#required by turbo.ko
+  __traceiter_android_rvh_set_cpus_allowed_comm
+  __traceiter_android_vh_sched_setaffinity_early
+  __traceiter_android_rvh_cpuset_fork
+  __tracepoint_android_rvh_set_cpus_allowed_comm
+  __tracepoint_android_vh_sched_setaffinity_early
+  __tracepoint_android_rvh_cpuset_fork
+  cpuset_cpus_allowed
+
+#required by fas.ko
+  __traceiter_android_rvh_check_preempt_tick
+  __traceiter_android_rvh_dequeue_entity
+  __traceiter_android_rvh_enqueue_entity
+  __tracepoint_android_rvh_check_preempt_tick
+  __tracepoint_android_rvh_dequeue_entity
+  __tracepoint_android_rvh_enqueue_entity
 
 #required by pm8941-pwrkey.ko module
   console_printk
@@ -155,3 +186,11 @@
   __traceiter_android_vh_tune_swappiness
   __tracepoint_android_vh_tune_swappiness
 
+#required by msm_drm.ko module
+  drm_get_connector_type_name
+
+#required by mi_gamekey.ko module
+  gpio_request_array
+
+#extend_reclaim.ko
+  try_to_free_mem_cgroup_pages

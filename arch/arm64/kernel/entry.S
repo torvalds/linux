@@ -193,21 +193,20 @@ alternative_else_nop_endif
 
 	.macro mte_set_kernel_gcr, tmp, tmp2
 #ifdef CONFIG_KASAN_HW_TAGS
-alternative_if_not ARM64_MTE
+alternative_cb	kasan_hw_tags_enable
 	b	1f
-alternative_else_nop_endif
-	ldr_l	\tmp, gcr_kernel_excl
-
-	mte_set_gcr \tmp, \tmp2
+alternative_cb_end
+	mov	\tmp, KERNEL_GCR_EL1
+	msr_s	SYS_GCR_EL1, \tmp
 1:
 #endif
 	.endm
 
 	.macro mte_set_user_gcr, tsk, tmp, tmp2
-#ifdef CONFIG_ARM64_MTE
-alternative_if_not ARM64_MTE
+#ifdef CONFIG_KASAN_HW_TAGS
+alternative_cb	kasan_hw_tags_enable
 	b	1f
-alternative_else_nop_endif
+alternative_cb_end
 	ldr	\tmp, [\tsk, #THREAD_MTE_CTRL]
 
 	mte_set_gcr \tmp, \tmp2
@@ -868,9 +867,10 @@ SYM_CODE_END(ret_to_user)
  */
 	.pushsection ".entry.tramp.text", "ax"
 
+	// Move from tramp_pg_dir to swapper_pg_dir
 	.macro tramp_map_kernel, tmp
 	mrs	\tmp, ttbr1_el1
-	add	\tmp, \tmp, #(PAGE_SIZE + RESERVED_TTBR0_SIZE)
+	add	\tmp, \tmp, #(2 * PAGE_SIZE)
 	bic	\tmp, \tmp, #USER_ASID_FLAG
 	msr	ttbr1_el1, \tmp
 #ifdef CONFIG_QCOM_FALKOR_ERRATUM_1003
@@ -887,9 +887,10 @@ alternative_else_nop_endif
 #endif /* CONFIG_QCOM_FALKOR_ERRATUM_1003 */
 	.endm
 
+	// Move from swapper_pg_dir to tramp_pg_dir
 	.macro tramp_unmap_kernel, tmp
 	mrs	\tmp, ttbr1_el1
-	sub	\tmp, \tmp, #(PAGE_SIZE + RESERVED_TTBR0_SIZE)
+	sub	\tmp, \tmp, #(2 * PAGE_SIZE)
 	orr	\tmp, \tmp, #USER_ASID_FLAG
 	msr	ttbr1_el1, \tmp
 	/*

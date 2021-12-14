@@ -16,8 +16,6 @@
 
 #include <asm/pgtable-types.h>
 
-extern u64 gcr_kernel_excl;
-
 void mte_clear_page_tags(void *addr);
 unsigned long mte_copy_tags_from_user(void *to, const void __user *from,
 				      unsigned long n);
@@ -43,7 +41,6 @@ void mte_copy_page_tags(void *kto, const void *kfrom);
 void mte_thread_init_user(void);
 void mte_thread_switch(struct task_struct *next);
 void mte_suspend_enter(void);
-void mte_suspend_exit(void);
 long set_mte_ctrl(struct task_struct *task, unsigned long arg);
 long get_mte_ctrl(struct task_struct *task);
 int mte_ptrace_copy_tags(struct task_struct *child, long request,
@@ -70,9 +67,6 @@ static inline void mte_thread_switch(struct task_struct *next)
 {
 }
 static inline void mte_suspend_enter(void)
-{
-}
-static inline void mte_suspend_exit(void)
 {
 }
 static inline long set_mte_ctrl(struct task_struct *task, unsigned long arg)
@@ -105,11 +99,17 @@ void mte_check_tfsr_el1(void);
 
 static inline void mte_check_tfsr_entry(void)
 {
+	if (!system_supports_mte())
+		return;
+
 	mte_check_tfsr_el1();
 }
 
 static inline void mte_check_tfsr_exit(void)
 {
+	if (!system_supports_mte())
+		return;
+
 	/*
 	 * The asynchronous faults are sync'ed automatically with
 	 * TFSR_EL1 on kernel entry but for exit an explicit dsb()

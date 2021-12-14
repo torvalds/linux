@@ -31,7 +31,7 @@ config ROCKCHIP_CPUINFO
 	  If unsure, say N.
 
 config ROCKCHIP_GRF
-	tristate "Rockchip GRF"
+	tristate "Rockchip General Register Files support"
 	help
 	  The General Register Files are a central component providing
 	  special additional settings registers for a lot of soc-components.

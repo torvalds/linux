@@ -15,6 +15,10 @@ DECLARE_HOOK(android_vh_sound_usb_support_cpu_suspend,
 		bool *is_support),
 	TP_ARGS(udev, direction, is_support));
 
+DECLARE_HOOK(android_vh_snd_soc_card_get_comp_chain,
+	TP_PROTO(bool *component_chaining),
+	TP_ARGS(component_chaining));
+
 #endif /* _TRACE_HOOK_SOUND_H */
 /* This part must be outside protection */
 #include <trace/define_trace.h>

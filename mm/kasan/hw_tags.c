@@ -142,8 +142,6 @@ void kasan_init_hw_tags_cpu(void)
 	if (kasan_arg == KASAN_ARG_OFF)
 		return;
 
-	hw_init_tags(KASAN_TAG_MAX);
-
 	/*
 	 * Enable async mode only when explicitly requested through
 	 * the command line.

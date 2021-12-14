@@ -292,6 +292,7 @@
   destroy_workqueue
   dev_alloc_name
   dev_base_lock
+  dev_change_flags
   dev_change_net_namespace
   dev_close
   dev_driver_string
@@ -452,6 +453,7 @@
   devres_alloc_node
   devres_free
   devres_release
+  dev_set_mac_address
   dev_set_name
   _dev_warn
   disable_irq
@@ -973,6 +975,7 @@
   kfree_skb
   kfree_skb_list
   kill_anon_super
+  kill_pid
   kimage_vaddr
   kimage_voffset
   __kmalloc
@@ -1020,6 +1023,7 @@
   kthread_destroy_worker
   kthread_flush_work
   kthread_flush_worker
+  kthread_freezable_should_stop
   __kthread_init_worker
   kthread_queue_delayed_work
   kthread_queue_work
@@ -1923,8 +1927,13 @@
   __traceiter_android_vh_exit_creds
   __traceiter_android_vh_fill_ext_fmtdesc
   __traceiter_android_vh_finish_update_load_avg_se
+  __traceiter_android_vh_freq_qos_add_request
+  __traceiter_android_vh_freq_qos_update_request
+  __traceiter_android_vh_freq_qos_remove_request
   __traceiter_android_vh_iommu_alloc_iova
+  __traceiter_android_vh_iommu_iovad_alloc_iova
   __traceiter_android_vh_iommu_free_iova
+  __traceiter_android_vh_iommu_iovad_free_iova
   __traceiter_android_vh_ipv6_gen_linklocal_addr
   __traceiter_android_vh_logbuf
   __traceiter_android_vh_override_creds
@@ -1934,6 +1943,7 @@
   __traceiter_android_vh_rwsem_wake
   __traceiter_android_vh_rwsem_write_finished
   __traceiter_android_vh_scheduler_tick
+  __traceiter_android_vh_scmi_timeout_sync
   __traceiter_android_vh_selinux_avc_insert
   __traceiter_android_vh_selinux_avc_lookup
   __traceiter_android_vh_selinux_avc_node_delete
@@ -1946,6 +1956,7 @@
   __traceiter_android_vh_set_module_permit_after_init
   __traceiter_android_vh_set_module_permit_before_init
   __traceiter_android_vh_set_wake_flags
+  __traceiter_android_vh_snd_soc_card_get_comp_chain
   __traceiter_android_vh_syscall_prctl_finished
   __traceiter_android_vh_ufs_send_command
   __traceiter_android_vh_ufs_send_tm_command
@@ -1996,8 +2007,13 @@
   __tracepoint_android_vh_exit_creds
   __tracepoint_android_vh_fill_ext_fmtdesc
   __tracepoint_android_vh_finish_update_load_avg_se
+  __tracepoint_android_vh_freq_qos_add_request
+  __tracepoint_android_vh_freq_qos_update_request
+  __tracepoint_android_vh_freq_qos_remove_request
   __tracepoint_android_vh_iommu_alloc_iova
+  __tracepoint_android_vh_iommu_iovad_alloc_iova
   __tracepoint_android_vh_iommu_free_iova
+  __tracepoint_android_vh_iommu_iovad_free_iova
   __tracepoint_android_vh_ipv6_gen_linklocal_addr
   __tracepoint_android_vh_logbuf
   __tracepoint_android_vh_override_creds
@@ -2007,6 +2023,7 @@
   __tracepoint_android_vh_rwsem_wake
   __tracepoint_android_vh_rwsem_write_finished
   __tracepoint_android_vh_scheduler_tick
+  __tracepoint_android_vh_scmi_timeout_sync
   __tracepoint_android_vh_selinux_avc_insert
   __tracepoint_android_vh_selinux_avc_lookup
   __tracepoint_android_vh_selinux_avc_node_delete
@@ -2019,6 +2036,7 @@
   __tracepoint_android_vh_set_module_permit_after_init
   __tracepoint_android_vh_set_module_permit_before_init
   __tracepoint_android_vh_set_wake_flags
+  __tracepoint_android_vh_snd_soc_card_get_comp_chain
   __tracepoint_android_vh_syscall_prctl_finished
   __tracepoint_android_vh_ufs_send_command
   __tracepoint_android_vh_ufs_send_tm_command
@@ -2040,6 +2058,7 @@
   trace_raw_output_prep
   trace_seq_printf
   trace_seq_putc
+  trace_set_clr_event
   tracing_off
   try_wait_for_completion
   tty_flip_buffer_push
@@ -2189,6 +2208,7 @@
   usbnet_write_cmd
   usbnet_write_cmd_async
   usbnet_write_cmd_nopm
+  usb_os_desc_prepare_interf_dir
   usb_put_function
   usb_put_function_instance
   usb_put_hcd
@@ -2229,6 +2249,7 @@
   v4l2_ctrl_request_complete
   v4l2_ctrl_request_setup
   __v4l2_ctrl_s_ctrl
+  __v4l2_ctrl_s_ctrl_compound
   v4l2_ctrl_subdev_subscribe_event
   v4l2_ctrl_subscribe_event
   v4l2_device_register
@@ -2352,6 +2373,7 @@
   vscnprintf
   vsnprintf
   vsprintf
+  vsscanf
   vunmap
   vzalloc
   wait_for_completion

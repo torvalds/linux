@@ -398,6 +398,7 @@
   __devm_regmap_init_spi
   devm_regulator_bulk_get
   devm_regulator_get
+  devm_regulator_get_exclusive
   devm_regulator_get_optional
   devm_regulator_put
   devm_regulator_register
@@ -967,6 +968,7 @@
   __ioremap
   io_schedule_timeout
   iounmap
+  iov_iter_bvec
   ip_send_check
   iput
   __irq_alloc_descs
@@ -1052,6 +1054,7 @@
   kstrtouint
   kstrtouint_from_user
   kstrtoull
+  kstrtoull_from_user
   kthread_bind
   kthread_bind_mask
   kthread_cancel_delayed_work_sync
@@ -1246,6 +1249,7 @@
   of_get_regulator_init_data
   of_iomap
   of_irq_find_parent
+  of_irq_get
   of_irq_get_byname
   of_irq_parse_one
   of_machine_is_compatible
@@ -1280,6 +1284,7 @@
   of_root
   of_thermal_get_ntrips
   of_thermal_get_trip_points
+  of_thermal_is_trip_valid
   of_translate_address
   of_usb_host_tpl_support
   page_endio
@@ -1355,6 +1360,7 @@
   pinctrl_remove_gpio_range
   pinctrl_select_state
   pin_get_name
+  pin_user_pages
   pin_user_pages_fast
   pin_user_pages_remote
   pktgen_xfrm_outer_mode_output
@@ -1582,6 +1588,9 @@
   rtc_tm_to_time64
   rtc_update_irq
   rtc_valid_tm
+  __rt_mutex_init
+  rt_mutex_lock
+  rt_mutex_unlock
   rtnl_is_locked
   rtnl_lock
   rtnl_unlock
@@ -1923,6 +1932,7 @@
   __traceiter_android_rvh_typec_tcpci_chk_contaminant
   __traceiter_android_rvh_typec_tcpci_get_vbus
   __traceiter_android_rvh_uclamp_eff_get
+  __traceiter_android_rvh_ufs_complete_init
   __traceiter_android_rvh_ufs_reprogram_all_keys
   __traceiter_android_rvh_util_est_update
   __traceiter_android_vh_arch_set_freq_scale
@@ -1956,6 +1966,8 @@
   __traceiter_android_vh_ufs_send_tm_command
   __traceiter_android_vh_ufs_send_uic_command
   __traceiter_android_vh_ufs_update_sysfs
+  __traceiter_android_vh_usb_dev_resume
+  __traceiter_android_vh_usb_dev_suspend
   __traceiter_clock_set_rate
   __traceiter_cpu_frequency
   __traceiter_device_pm_callback_end
@@ -1998,6 +2010,7 @@
   __tracepoint_android_rvh_typec_tcpci_chk_contaminant
   __tracepoint_android_rvh_typec_tcpci_get_vbus
   __tracepoint_android_rvh_uclamp_eff_get
+  __tracepoint_android_rvh_ufs_complete_init
   __tracepoint_android_rvh_ufs_reprogram_all_keys
   __tracepoint_android_rvh_util_est_update
   __tracepoint_android_vh_arch_set_freq_scale
@@ -2031,6 +2044,8 @@
   __tracepoint_android_vh_ufs_send_tm_command
   __tracepoint_android_vh_ufs_send_uic_command
   __tracepoint_android_vh_ufs_update_sysfs
+  __tracepoint_android_vh_usb_dev_resume
+  __tracepoint_android_vh_usb_dev_suspend
   __tracepoint_clock_set_rate
   __tracepoint_cpu_frequency
   __tracepoint_device_pm_callback_end

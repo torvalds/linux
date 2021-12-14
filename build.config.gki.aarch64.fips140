@@ -15,3 +15,4 @@ DEFCONFIG=fips140_gki_defconfig
 KMI_SYMBOL_LIST=android/abi_gki_aarch64_fips140
 PRE_DEFCONFIG_CMDS="cat ${ROOT_DIR}/${KERNEL_DIR}/arch/arm64/configs/gki_defconfig ${ROOT_DIR}/${KERNEL_DIR}/arch/arm64/configs/fips140_gki.fragment > ${ROOT_DIR}/${KERNEL_DIR}/arch/arm64/configs/${DEFCONFIG};"
 POST_DEFCONFIG_CMDS="rm ${ROOT_DIR}/${KERNEL_DIR}/arch/arm64/configs/${DEFCONFIG}"
+KMI_SYMBOL_LIST_ADD_ONLY=1
