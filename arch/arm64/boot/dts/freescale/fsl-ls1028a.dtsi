@@ -66,6 +66,13 @@
 		};
 	};
 
+	rtc_clk: rtc-clk {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <32768>;
+		clock-output-names = "rtc_clk";
+	};
+
 	sysclk: sysclk {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
@@ -1184,6 +1191,94 @@
 		ierb@1f0800000 {
 			compatible = "fsl,ls1028a-enetc-ierb";
 			reg = <0x01 0xf0800000 0x0 0x10000>;
+		};
+
+		pwm0: pwm@2800000 {
+			compatible = "fsl,vf610-ftm-pwm";
+			#pwm-cells = <3>;
+			reg = <0x0 0x2800000 0x0 0x10000>;
+			clock-names = "ftm_sys", "ftm_ext",
+				      "ftm_fix", "ftm_cnt_clk_en";
+			clocks = <&clockgen 4 1>, <&clockgen 4 1>,
+				 <&rtc_clk>, <&clockgen 4 1>;
+			status = "disabled";
+		};
+
+		pwm1: pwm@2810000 {
+			compatible = "fsl,vf610-ftm-pwm";
+			#pwm-cells = <3>;
+			reg = <0x0 0x2810000 0x0 0x10000>;
+			clock-names = "ftm_sys", "ftm_ext",
+				      "ftm_fix", "ftm_cnt_clk_en";
+			clocks = <&clockgen 4 1>, <&clockgen 4 1>,
+				 <&rtc_clk>, <&clockgen 4 1>;
+			status = "disabled";
+		};
+
+		pwm2: pwm@2820000 {
+			compatible = "fsl,vf610-ftm-pwm";
+			#pwm-cells = <3>;
+			reg = <0x0 0x2820000 0x0 0x10000>;
+			clock-names = "ftm_sys", "ftm_ext",
+				      "ftm_fix", "ftm_cnt_clk_en";
+			clocks = <&clockgen 4 1>, <&clockgen 4 1>,
+				 <&rtc_clk>, <&clockgen 4 1>;
+			status = "disabled";
+		};
+
+		pwm3: pwm@2830000 {
+			compatible = "fsl,vf610-ftm-pwm";
+			#pwm-cells = <3>;
+			reg = <0x0 0x2830000 0x0 0x10000>;
+			clock-names = "ftm_sys", "ftm_ext",
+				      "ftm_fix", "ftm_cnt_clk_en";
+			clocks = <&clockgen 4 1>, <&clockgen 4 1>,
+				 <&rtc_clk>, <&clockgen 4 1>;
+			status = "disabled";
+		};
+
+		pwm4: pwm@2840000 {
+			compatible = "fsl,vf610-ftm-pwm";
+			#pwm-cells = <3>;
+			reg = <0x0 0x2840000 0x0 0x10000>;
+			clock-names = "ftm_sys", "ftm_ext",
+				      "ftm_fix", "ftm_cnt_clk_en";
+			clocks = <&clockgen 4 1>, <&clockgen 4 1>,
+				 <&rtc_clk>, <&clockgen 4 1>;
+			status = "disabled";
+		};
+
+		pwm5: pwm@2850000 {
+			compatible = "fsl,vf610-ftm-pwm";
+			#pwm-cells = <3>;
+			reg = <0x0 0x2850000 0x0 0x10000>;
+			clock-names = "ftm_sys", "ftm_ext",
+				      "ftm_fix", "ftm_cnt_clk_en";
+			clocks = <&clockgen 4 1>, <&clockgen 4 1>,
+				 <&rtc_clk>, <&clockgen 4 1>;
+			status = "disabled";
+		};
+
+		pwm6: pwm@2860000 {
+			compatible = "fsl,vf610-ftm-pwm";
+			#pwm-cells = <3>;
+			reg = <0x0 0x2860000 0x0 0x10000>;
+			clock-names = "ftm_sys", "ftm_ext",
+				      "ftm_fix", "ftm_cnt_clk_en";
+			clocks = <&clockgen 4 1>, <&clockgen 4 1>,
+				 <&rtc_clk>, <&clockgen 4 1>;
+			status = "disabled";
+		};
+
+		pwm7: pwm@2870000 {
+			compatible = "fsl,vf610-ftm-pwm";
+			#pwm-cells = <3>;
+			reg = <0x0 0x2870000 0x0 0x10000>;
+			clock-names = "ftm_sys", "ftm_ext",
+				      "ftm_fix", "ftm_cnt_clk_en";
+			clocks = <&clockgen 4 1>, <&clockgen 4 1>,
+				 <&rtc_clk>, <&clockgen 4 1>;
+			status = "disabled";
 		};
 
 		rcpm: power-controller@1e34040 {
