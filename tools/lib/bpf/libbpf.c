@@ -1320,7 +1320,10 @@ static int bpf_object__check_endianness(struct bpf_object *obj)
 static int
 bpf_object__init_license(struct bpf_object *obj, void *data, size_t size)
 {
-	libbpf_strlcpy(obj->license, data, sizeof(obj->license));
+	/* libbpf_strlcpy() only copies first N - 1 bytes, so size + 1 won't
+	 * go over allowed ELF data section buffer
+	 */
+	libbpf_strlcpy(obj->license, data, min(size + 1, sizeof(obj->license)));
 	pr_debug("license of %s is %s\n", obj->path, obj->license);
 	return 0;
 }
