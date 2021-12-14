@@ -26,7 +26,7 @@ static struct bbuf __bounce_alloc(struct bch_fs *c, unsigned size, int rw)
 {
 	void *b;
 
-	BUG_ON(size > c->sb.encoded_extent_max << 9);
+	BUG_ON(size > c->opts.encoded_extent_max);
 
 	b = kmalloc(size, GFP_NOIO|__GFP_NOWARN);
 	if (b)
@@ -68,7 +68,7 @@ static struct bbuf __bio_map_or_bounce(struct bch_fs *c, struct bio *bio,
 	struct page **pages = NULL;
 	void *data;
 
-	BUG_ON(bvec_iter_sectors(start) > c->sb.encoded_extent_max);
+	BUG_ON(start.bi_size > c->opts.encoded_extent_max);
 
 	if (!PageHighMem(bio_iter_page(bio, start)) &&
 	    bio_phys_contig(bio, start))
@@ -231,8 +231,8 @@ int bch2_bio_uncompress_inplace(struct bch_fs *c, struct bio *bio,
 	BUG_ON(!bio->bi_vcnt);
 	BUG_ON(DIV_ROUND_UP(crc->live_size, PAGE_SECTORS) > bio->bi_max_vecs);
 
-	if (crc->uncompressed_size	> c->sb.encoded_extent_max ||
-	    crc->compressed_size	> c->sb.encoded_extent_max) {
+	if (crc->uncompressed_size << 9	> c->opts.encoded_extent_max ||
+	    crc->compressed_size << 9	> c->opts.encoded_extent_max) {
 		bch_err(c, "error rewriting existing data: extent too big");
 		return -EIO;
 	}
@@ -272,8 +272,8 @@ int bch2_bio_uncompress(struct bch_fs *c, struct bio *src,
 	size_t dst_len = crc.uncompressed_size << 9;
 	int ret = -ENOMEM;
 
-	if (crc.uncompressed_size	> c->sb.encoded_extent_max ||
-	    crc.compressed_size		> c->sb.encoded_extent_max)
+	if (crc.uncompressed_size << 9	> c->opts.encoded_extent_max ||
+	    crc.compressed_size << 9	> c->opts.encoded_extent_max)
 		return -EIO;
 
 	dst_data = dst_len == dst_iter.bi_size
@@ -466,7 +466,7 @@ unsigned bch2_bio_compress(struct bch_fs *c,
 
 	/* Don't consume more than BCH_ENCODED_EXTENT_MAX from @src: */
 	src->bi_iter.bi_size = min_t(unsigned, src->bi_iter.bi_size,
-				     c->sb.encoded_extent_max << 9);
+				     c->opts.encoded_extent_max);
 	/* Don't generate a bigger output than input: */
 	dst->bi_iter.bi_size = min(dst->bi_iter.bi_size, src->bi_iter.bi_size);
 
@@ -544,10 +544,9 @@ void bch2_fs_compress_exit(struct bch_fs *c)
 
 static int __bch2_fs_compress_init(struct bch_fs *c, u64 features)
 {
-	size_t max_extent = c->sb.encoded_extent_max << 9;
 	size_t decompress_workspace_size = 0;
 	bool decompress_workspace_needed;
-	ZSTD_parameters params = zstd_get_params(0, max_extent);
+	ZSTD_parameters params = zstd_get_params(0, c->opts.encoded_extent_max);
 	struct {
 		unsigned	feature;
 		unsigned	type;
@@ -579,14 +578,14 @@ have_compressed:
 
 	if (!mempool_initialized(&c->compression_bounce[READ])) {
 		ret = mempool_init_kvpmalloc_pool(&c->compression_bounce[READ],
-						  1, max_extent);
+						  1, c->opts.encoded_extent_max);
 		if (ret)
 			goto out;
 	}
 
 	if (!mempool_initialized(&c->compression_bounce[WRITE])) {
 		ret = mempool_init_kvpmalloc_pool(&c->compression_bounce[WRITE],
-						  1, max_extent);
+						  1, c->opts.encoded_extent_max);
 		if (ret)
 			goto out;
 	}

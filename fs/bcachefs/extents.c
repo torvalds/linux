@@ -302,7 +302,7 @@ bool bch2_extent_merge(struct bch_fs *c, struct bkey_s l, struct bkey_s_c r)
 
 			if (lp.crc.csum_type &&
 			    lp.crc.uncompressed_size +
-			    rp.crc.uncompressed_size > c->sb.encoded_extent_max)
+			    rp.crc.uncompressed_size > (c->opts.encoded_extent_max >> 9))
 				return false;
 
 			if (lp.crc.uncompressed_size + rp.crc.uncompressed_size >

@@ -806,7 +806,7 @@ static struct bio *bch2_write_bio_alloc(struct bch_fs *c,
 	 */
 	bch2_bio_alloc_pages_pool(c, bio,
 				  min_t(unsigned, output_available,
-					c->sb.encoded_extent_max << 9));
+					c->opts.encoded_extent_max));
 
 	if (bio->bi_iter.bi_size < output_available)
 		*page_alloc_failed =
@@ -1003,8 +1003,8 @@ static int bch2_write_extent(struct bch_write_op *op, struct write_point *wp,
 		size_t dst_len, src_len;
 
 		if (page_alloc_failed &&
-		    bio_sectors(dst) < wp->sectors_free &&
-		    bio_sectors(dst) < c->sb.encoded_extent_max)
+		    dst->bi_iter.bi_size  < (wp->sectors_free << 9) &&
+		    dst->bi_iter.bi_size < c->opts.encoded_extent_max)
 			break;
 
 		BUG_ON(op->compression_type &&
@@ -1024,7 +1024,7 @@ static int bch2_write_extent(struct bch_write_op *op, struct write_point *wp,
 
 			if (op->csum_type)
 				dst_len = min_t(unsigned, dst_len,
-						c->sb.encoded_extent_max << 9);
+						c->opts.encoded_extent_max);
 
 			if (bounce) {
 				swap(dst->bi_iter.bi_size, dst_len);
@@ -2437,9 +2437,9 @@ int bch2_fs_io_init(struct bch_fs *c)
 			BIOSET_NEED_BVECS) ||
 	    mempool_init_page_pool(&c->bio_bounce_pages,
 				   max_t(unsigned,
-					 btree_sectors(c),
-					 c->sb.encoded_extent_max) /
-				   PAGE_SECTORS, 0) ||
+					 c->opts.btree_node_size,
+					 c->opts.encoded_extent_max) /
+				   PAGE_SIZE, 0) ||
 	    rhashtable_init(&c->promote_table, &bch_promote_params))
 		return -ENOMEM;
 

@@ -368,7 +368,6 @@ static void bch2_sb_update(struct bch_fs *c)
 	c->sb.nr_devices	= src->nr_devices;
 	c->sb.clean		= BCH_SB_CLEAN(src);
 	c->sb.encryption_type	= BCH_SB_ENCRYPTION_TYPE(src);
-	c->sb.encoded_extent_max= 1 << BCH_SB_ENCODED_EXTENT_MAX_BITS(src);
 
 	c->sb.nsec_per_time_unit = le32_to_cpu(src->time_precision);
 	c->sb.time_units_per_sec = NSEC_PER_SEC / c->sb.nsec_per_time_unit;

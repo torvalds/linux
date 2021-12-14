@@ -634,7 +634,6 @@ struct bch_fs {
 
 		u16		version;
 		u16		version_min;
-		u16		encoded_extent_max;
 
 		u8		nr_devices;
 		u8		clean;
