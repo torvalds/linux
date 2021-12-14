@@ -637,7 +637,7 @@ static struct audit_rule_data *audit_krule_to_data(struct audit_krule *krule)
 	void *bufp;
 	int i;
 
-	data = kmalloc(sizeof(*data) + krule->buflen, GFP_KERNEL);
+	data = kmalloc(struct_size(data, buf, krule->buflen), GFP_KERNEL);
 	if (unlikely(!data))
 		return NULL;
 	memset(data, 0, sizeof(*data));
