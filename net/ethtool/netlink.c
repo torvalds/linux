@@ -141,8 +141,10 @@ int ethnl_parse_header_dev_get(struct ethnl_req_info *req_info,
 		return -EINVAL;
 	}
 
-	req_info->dev = dev;
-	netdev_tracker_alloc(dev, &req_info->dev_tracker, GFP_KERNEL);
+	if (dev) {
+		req_info->dev = dev;
+		netdev_tracker_alloc(dev, &req_info->dev_tracker, GFP_KERNEL);
+	}
 	req_info->flags = flags;
 	return 0;
 }
