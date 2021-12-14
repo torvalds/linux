@@ -302,6 +302,10 @@ static int rkvdec2_run(struct mpp_dev *mpp, struct mpp_task *mpp_task)
 		e = s + req->size / sizeof(u32);
 		mpp_write_req(mpp, task->reg, s, e, reg_en);
 	}
+
+	/* flush tlb before starting hardware */
+	mpp_iommu_flush_tlb(mpp->iommu_info);
+
 	/* init current task */
 	mpp->cur_task = mpp_task;
 	/* Flush the register before the start the device */
