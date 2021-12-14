@@ -1082,7 +1082,8 @@ static u32 ufshcd_pending_cmds(struct ufs_hba *hba)
 	struct scsi_device *sdev;
 	u32 pending = 0;
 
-	shost_for_each_device(sdev, hba->host)
+	lockdep_assert_held(hba->host->host_lock);
+	__shost_for_each_device(sdev, hba->host)
 		pending += sbitmap_weight(&sdev->budget_map);
 
 	return pending;
