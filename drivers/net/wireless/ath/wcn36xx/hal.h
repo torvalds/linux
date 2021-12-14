@@ -3459,9 +3459,6 @@ struct wcn36xx_hal_missed_beacon_ind_msg {
 
 /* Beacon Filtering data structures */
 
-/* The above structure would be followed by multiple of below mentioned
- * structure
- */
 struct beacon_filter_ie {
 	u8 element_id;
 	u8 check_ie_presence;
@@ -3470,6 +3467,10 @@ struct beacon_filter_ie {
 	u8 bitmask;
 	u8 ref;
 } __packed;
+
+/* The above structure would be followed by multiple of below mentioned
+ * structure
+ */
 
 struct wcn36xx_hal_add_bcn_filter_req_msg {
 	struct wcn36xx_hal_msg_header header;
