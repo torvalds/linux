@@ -114,8 +114,6 @@ static LIST_HEAD(adc_tm_device_list);
 #define ADC_TM5_GEN3_LOWER_MASK(n)		((n) & GENMASK(7, 0))
 #define ADC_TM5_GEN3_UPPER_MASK(n)		(((n) & GENMASK(15, 8)) >> 8)
 
-#define ADC_TM5_GEN3_CHANS_MAX			7
-
 enum adc5_cal_method {
 	ADC5_NO_CAL = 0,
 	ADC5_RATIOMETRIC_CAL,
@@ -217,6 +215,7 @@ struct adc5_channel_prop {
  * @base: base address for the ADC peripheral.
  * @debug_base: base address for the reserved ADC peripheral,
  * to dump for debug purposes alone.
+ * @max_channels: max amount of channels for the ADC peripheral.
  * @nchannels: number of ADC channels.
  * @chan_props: array of ADC channel properties.
  * @iio_chans: array of IIO channels specification.
@@ -233,6 +232,7 @@ struct adc5_chip {
 	struct device		*dev;
 	u16			base;
 	u16			debug_base;
+	unsigned int		max_channels;
 	unsigned int		nchannels;
 	struct adc5_channel_prop	*chan_props;
 	struct iio_chan_spec	*iio_chans;
@@ -1510,9 +1510,9 @@ static int adc5_get_dt_channel_data(struct adc5_chip *adc,
 
 	if (prop->adc_tm && prop->adc_tm != ADC_TM_IIO) {
 		adc->n_tm_channels++;
-		if (adc->n_tm_channels > ADC_TM5_GEN3_CHANS_MAX) {
-			pr_err("Number of TM nodes greater than channels supported:%d\n",
-						adc->n_tm_channels);
+		if (adc->n_tm_channels > adc->max_channels - 1) {
+			pr_err("Number of TM nodes %u greater than channels supported:%u\n",
+						adc->n_tm_channels, adc->max_channels - 1);
 			return -EINVAL;
 		}
 		prop->tm_chan_index = adc->n_tm_channels;
@@ -1635,14 +1635,6 @@ static int adc5_gen3_probe(struct platform_device *pdev)
 	if (!regmap)
 		return -ENODEV;
 
-	ret = of_property_read_u32(node, "reg", &reg);
-	if (ret < 0)
-		return ret;
-	adc->base = reg;
-
-	if (!of_property_read_u32(node, "qcom,debug-base", &reg))
-		adc->debug_base = reg;
-
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*adc));
 	if (!indio_dev)
 		return -ENOMEM;
@@ -1650,6 +1642,20 @@ static int adc5_gen3_probe(struct platform_device *pdev)
 	adc = iio_priv(indio_dev);
 	adc->regmap = regmap;
 	adc->dev = dev;
+
+	ret = of_property_count_u32_elems(node, "reg");
+	if (ret < 0)
+		return ret;
+
+	adc->max_channels = 8 * ret;
+
+	ret = of_property_read_u32(node, "reg", &reg);
+	if (ret < 0)
+		return ret;
+	adc->base = reg;
+
+	if (!of_property_read_u32(node, "qcom,debug-base", &reg))
+		adc->debug_base = reg;
 
 	platform_set_drvdata(pdev, adc);
 
@@ -1715,7 +1721,7 @@ static int adc5_gen3_exit(struct platform_device *pdev)
 	}
 
 	/* Disable all available channels */
-	for (i = 0; i < 8; i++) {
+	for (i = 0; i < adc->max_channels; i++) {
 		data = MEAS_INT_DISABLE;
 		adc5_write(adc, ADC5_GEN3_TIMER_SEL, &data, 1);
 
