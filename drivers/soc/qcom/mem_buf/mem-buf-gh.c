@@ -222,6 +222,13 @@ static void mem_buf_rmt_free_dmaheap_mem(struct mem_buf_xfer_mem *xfer_mem)
 	dma_buf_unmap_attachment(attachment, mem_sgt, DMA_BIDIRECTIONAL);
 	dma_buf_detach(dmabuf, attachment);
 	dma_buf_put(dmaheap_mem_data->dmabuf);
+	/*
+	 * No locks should be held at this point, as flush_delayed_fput may call the
+	 * release callbacks of arbitrary files. It should be safe for us since we
+	 * know this function is called only from our recv kthread, so we have control
+	 * over what locks are currently held.
+	 */
+	flush_delayed_fput();
 	pr_debug("%s: DMAHEAP memory freed\n", __func__);
 }
 
