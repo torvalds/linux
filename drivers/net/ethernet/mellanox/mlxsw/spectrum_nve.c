@@ -130,15 +130,25 @@ mlxsw_sp_nve_mc_record_ipv6_entry_add(struct mlxsw_sp_nve_mc_record *mc_record,
 				      struct mlxsw_sp_nve_mc_entry *mc_entry,
 				      const union mlxsw_sp_l3addr *addr)
 {
-	WARN_ON(1);
+	u32 kvdl_index;
+	int err;
 
-	return -EINVAL;
+	err = mlxsw_sp_ipv6_addr_kvdl_index_get(mc_record->mlxsw_sp,
+						&addr->addr6, &kvdl_index);
+	if (err)
+		return err;
+
+	mc_entry->ipv6_entry.addr6 = addr->addr6;
+	mc_entry->ipv6_entry.addr6_kvdl_index = kvdl_index;
+	return 0;
 }
 
 static void
 mlxsw_sp_nve_mc_record_ipv6_entry_del(const struct mlxsw_sp_nve_mc_record *mc_record,
 				      const struct mlxsw_sp_nve_mc_entry *mc_entry)
 {
+	mlxsw_sp_ipv6_addr_put(mc_record->mlxsw_sp,
+			       &mc_entry->ipv6_entry.addr6);
 }
 
 static void

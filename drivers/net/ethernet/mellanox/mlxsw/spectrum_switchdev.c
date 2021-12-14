@@ -1321,6 +1321,88 @@ out:
 	return err;
 }
 
+static int mlxsw_sp_port_fdb_tun_uc_op6_sfd_write(struct mlxsw_sp *mlxsw_sp,
+						  const char *mac, u16 fid,
+						  u32 kvdl_index, bool adding)
+{
+	char *sfd_pl;
+	u8 num_rec;
+	int err;
+
+	sfd_pl = kmalloc(MLXSW_REG_SFD_LEN, GFP_KERNEL);
+	if (!sfd_pl)
+		return -ENOMEM;
+
+	mlxsw_reg_sfd_pack(sfd_pl, mlxsw_sp_sfd_op(adding), 0);
+	mlxsw_reg_sfd_uc_tunnel_pack6(sfd_pl, 0, mac, fid,
+				      MLXSW_REG_SFD_REC_ACTION_NOP, kvdl_index);
+	num_rec = mlxsw_reg_sfd_num_rec_get(sfd_pl);
+	err = mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(sfd), sfd_pl);
+	if (err)
+		goto out;
+
+	if (num_rec != mlxsw_reg_sfd_num_rec_get(sfd_pl))
+		err = -EBUSY;
+
+out:
+	kfree(sfd_pl);
+	return err;
+}
+
+static int mlxsw_sp_port_fdb_tun_uc_op6_add(struct mlxsw_sp *mlxsw_sp,
+					    const char *mac, u16 fid,
+					    const struct in6_addr *addr)
+{
+	u32 kvdl_index;
+	int err;
+
+	err = mlxsw_sp_nve_ipv6_addr_kvdl_set(mlxsw_sp, addr, &kvdl_index);
+	if (err)
+		return err;
+
+	err = mlxsw_sp_port_fdb_tun_uc_op6_sfd_write(mlxsw_sp, mac, fid,
+						     kvdl_index, true);
+	if (err)
+		goto err_sfd_write;
+
+	err = mlxsw_sp_nve_ipv6_addr_map_replace(mlxsw_sp, mac, fid, addr);
+	if (err)
+		/* Replace can fail only for creating new mapping, so removing
+		 * the FDB entry in the error path is OK.
+		 */
+		goto err_addr_replace;
+
+	return 0;
+
+err_addr_replace:
+	mlxsw_sp_port_fdb_tun_uc_op6_sfd_write(mlxsw_sp, mac, fid, kvdl_index,
+					       false);
+err_sfd_write:
+	mlxsw_sp_nve_ipv6_addr_kvdl_unset(mlxsw_sp, addr);
+	return err;
+}
+
+static void mlxsw_sp_port_fdb_tun_uc_op6_del(struct mlxsw_sp *mlxsw_sp,
+					     const char *mac, u16 fid,
+					     const struct in6_addr *addr)
+{
+	mlxsw_sp_nve_ipv6_addr_map_del(mlxsw_sp, mac, fid);
+	mlxsw_sp_port_fdb_tun_uc_op6_sfd_write(mlxsw_sp, mac, fid, 0, false);
+	mlxsw_sp_nve_ipv6_addr_kvdl_unset(mlxsw_sp, addr);
+}
+
+static int
+mlxsw_sp_port_fdb_tun_uc_op6(struct mlxsw_sp *mlxsw_sp, const char *mac,
+			     u16 fid, const struct in6_addr *addr, bool adding)
+{
+	if (adding)
+		return mlxsw_sp_port_fdb_tun_uc_op6_add(mlxsw_sp, mac, fid,
+							addr);
+
+	mlxsw_sp_port_fdb_tun_uc_op6_del(mlxsw_sp, mac, fid, addr);
+	return 0;
+}
+
 static int mlxsw_sp_port_fdb_tunnel_uc_op(struct mlxsw_sp *mlxsw_sp,
 					  const char *mac, u16 fid,
 					  enum mlxsw_sp_l3proto proto,
@@ -1332,6 +1414,8 @@ static int mlxsw_sp_port_fdb_tunnel_uc_op(struct mlxsw_sp *mlxsw_sp,
 		return mlxsw_sp_port_fdb_tun_uc_op4(mlxsw_sp, dynamic, mac, fid,
 						    addr->addr4, adding);
 	case MLXSW_SP_L3_PROTO_IPV6:
+		return mlxsw_sp_port_fdb_tun_uc_op6(mlxsw_sp, mac, fid,
+						    &addr->addr6, adding);
 	default:
 		WARN_ON(1);
 		return -EOPNOTSUPP;
