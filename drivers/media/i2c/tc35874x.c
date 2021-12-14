@@ -2509,5 +2509,5 @@ static void __exit tc35874x_driver_exit(void)
 	i2c_del_driver(&tc35874x_driver);
 }
 
-late_initcall_sync(tc35874x_driver_init);
+device_initcall_sync(tc35874x_driver_init);
 module_exit(tc35874x_driver_exit);
