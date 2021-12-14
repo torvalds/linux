@@ -1052,7 +1052,7 @@ static void hellcreek_setup_tc_identity_mapping(struct hellcreek *hellcreek)
 
 static int hellcreek_setup_fdb(struct hellcreek *hellcreek)
 {
-	static struct hellcreek_fdb_entry ptp = {
+	static struct hellcreek_fdb_entry l2_ptp = {
 		/* MAC: 01-1B-19-00-00-00 */
 		.mac	      = { 0x01, 0x1b, 0x19, 0x00, 0x00, 0x00 },
 		.portmask     = 0x03,	/* Management ports */
@@ -1063,7 +1063,29 @@ static int hellcreek_setup_fdb(struct hellcreek *hellcreek)
 		.reprio_tc    = 6,	/* TC: 6 as per IEEE 802.1AS */
 		.reprio_en    = 1,
 	};
-	static struct hellcreek_fdb_entry p2p = {
+	static struct hellcreek_fdb_entry udp4_ptp = {
+		/* MAC: 01-00-5E-00-01-81 */
+		.mac	      = { 0x01, 0x00, 0x5e, 0x00, 0x01, 0x81 },
+		.portmask     = 0x03,	/* Management ports */
+		.age	      = 0,
+		.is_obt	      = 0,
+		.pass_blocked = 0,
+		.is_static    = 1,
+		.reprio_tc    = 6,
+		.reprio_en    = 1,
+	};
+	static struct hellcreek_fdb_entry udp6_ptp = {
+		/* MAC: 33-33-00-00-01-81 */
+		.mac	      = { 0x33, 0x33, 0x00, 0x00, 0x01, 0x81 },
+		.portmask     = 0x03,	/* Management ports */
+		.age	      = 0,
+		.is_obt	      = 0,
+		.pass_blocked = 0,
+		.is_static    = 1,
+		.reprio_tc    = 6,
+		.reprio_en    = 1,
+	};
+	static struct hellcreek_fdb_entry l2_p2p = {
 		/* MAC: 01-80-C2-00-00-0E */
 		.mac	      = { 0x01, 0x80, 0xc2, 0x00, 0x00, 0x0e },
 		.portmask     = 0x03,	/* Management ports */
@@ -1072,6 +1094,28 @@ static int hellcreek_setup_fdb(struct hellcreek *hellcreek)
 		.pass_blocked = 1,
 		.is_static    = 1,
 		.reprio_tc    = 6,	/* TC: 6 as per IEEE 802.1AS */
+		.reprio_en    = 1,
+	};
+	static struct hellcreek_fdb_entry udp4_p2p = {
+		/* MAC: 01-00-5E-00-00-6B */
+		.mac	      = { 0x01, 0x00, 0x5e, 0x00, 0x00, 0x6b },
+		.portmask     = 0x03,	/* Management ports */
+		.age	      = 0,
+		.is_obt	      = 0,
+		.pass_blocked = 1,
+		.is_static    = 1,
+		.reprio_tc    = 6,
+		.reprio_en    = 1,
+	};
+	static struct hellcreek_fdb_entry udp6_p2p = {
+		/* MAC: 33-33-00-00-00-6B */
+		.mac	      = { 0x33, 0x33, 0x00, 0x00, 0x00, 0x6b },
+		.portmask     = 0x03,	/* Management ports */
+		.age	      = 0,
+		.is_obt	      = 0,
+		.pass_blocked = 1,
+		.is_static    = 1,
+		.reprio_tc    = 6,
 		.reprio_en    = 1,
 	};
 	static struct hellcreek_fdb_entry stp = {
@@ -1088,10 +1132,22 @@ static int hellcreek_setup_fdb(struct hellcreek *hellcreek)
 	int ret;
 
 	mutex_lock(&hellcreek->reg_lock);
-	ret = __hellcreek_fdb_add(hellcreek, &ptp);
+	ret = __hellcreek_fdb_add(hellcreek, &l2_ptp);
 	if (ret)
 		goto out;
-	ret = __hellcreek_fdb_add(hellcreek, &p2p);
+	ret = __hellcreek_fdb_add(hellcreek, &udp4_ptp);
+	if (ret)
+		goto out;
+	ret = __hellcreek_fdb_add(hellcreek, &udp6_ptp);
+	if (ret)
+		goto out;
+	ret = __hellcreek_fdb_add(hellcreek, &l2_p2p);
+	if (ret)
+		goto out;
+	ret = __hellcreek_fdb_add(hellcreek, &udp4_p2p);
+	if (ret)
+		goto out;
+	ret = __hellcreek_fdb_add(hellcreek, &udp6_p2p);
 	if (ret)
 		goto out;
 	ret = __hellcreek_fdb_add(hellcreek, &stp);
