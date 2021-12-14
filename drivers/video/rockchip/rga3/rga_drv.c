@@ -474,6 +474,7 @@ static const struct of_device_id rga2_dt_ids[] = {
 	 .compatible = "rockchip,rga2",
 	 .data = &old_rga2_match_data,
 	},
+	{},
 };
 
 static void init_scheduler(struct rga_scheduler_t *rga_scheduler,
