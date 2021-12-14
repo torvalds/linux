@@ -2822,6 +2822,9 @@ int i3c_dev_send_ccc_cmd_locked(struct i3c_dev_desc *dev, u8 ccc_id)
 	case I3C_CCC_SETAASA:
 		ret = i3c_master_setaasa_locked(master);
 		break;
+	case I3C_CCC_SETHID:
+		ret = i3c_master_sethid_locked(master);
+		break;
 	case I3C_CCC_RSTDAA(false):
 		ret = i3c_master_rstdaa_locked(master, dev->info.dyn_addr);
 		break;
