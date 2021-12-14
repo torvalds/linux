@@ -729,6 +729,7 @@
 	pinctrl_usbh1: usbh1-grp {
 		fsl,pins = <
 			MX6QDL_PAD_EIM_D31__GPIO3_IO31		0x120b0
+			MX6QDL_PAD_EIM_D30__USB_H1_OC		0x1b0b1
 		>;
 	};
 
