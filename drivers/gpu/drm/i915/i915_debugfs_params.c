@@ -40,8 +40,8 @@ static int notify_guc(struct drm_i915_private *i915)
 {
 	int ret = 0;
 
-	if (intel_uc_uses_guc_submission(&i915->gt.uc))
-		ret = intel_guc_global_policies_update(&i915->gt.uc.guc);
+	if (intel_uc_uses_guc_submission(&to_gt(i915)->uc))
+		ret = intel_guc_global_policies_update(&to_gt(i915)->uc.guc);
 
 	return ret;
 }
