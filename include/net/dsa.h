@@ -82,15 +82,14 @@ enum dsa_tag_protocol {
 };
 
 struct dsa_switch;
-struct dsa_switch_tree;
 
 struct dsa_device_ops {
 	struct sk_buff *(*xmit)(struct sk_buff *skb, struct net_device *dev);
 	struct sk_buff *(*rcv)(struct sk_buff *skb, struct net_device *dev);
 	void (*flow_dissect)(const struct sk_buff *skb, __be16 *proto,
 			     int *offset);
-	int (*connect)(struct dsa_switch_tree *dst);
-	void (*disconnect)(struct dsa_switch_tree *dst);
+	int (*connect)(struct dsa_switch *ds);
+	void (*disconnect)(struct dsa_switch *ds);
 	unsigned int needed_headroom;
 	unsigned int needed_tailroom;
 	const char *name;
