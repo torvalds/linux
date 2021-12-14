@@ -1680,11 +1680,9 @@ static int aic31xx_i2c_probe(struct i2c_client *i2c,
 
 	aic31xx->gpio_reset = devm_gpiod_get_optional(aic31xx->dev, "reset",
 						      GPIOD_OUT_LOW);
-	if (IS_ERR(aic31xx->gpio_reset)) {
-		if (PTR_ERR(aic31xx->gpio_reset) != -EPROBE_DEFER)
-			dev_err(aic31xx->dev, "not able to acquire gpio\n");
-		return PTR_ERR(aic31xx->gpio_reset);
-	}
+	if (IS_ERR(aic31xx->gpio_reset))
+		return dev_err_probe(aic31xx->dev, PTR_ERR(aic31xx->gpio_reset),
+				     "not able to acquire gpio\n");
 
 	for (i = 0; i < ARRAY_SIZE(aic31xx->supplies); i++)
 		aic31xx->supplies[i].supply = aic31xx_supply_names[i];
@@ -1692,12 +1690,8 @@ static int aic31xx_i2c_probe(struct i2c_client *i2c,
 	ret = devm_regulator_bulk_get(aic31xx->dev,
 				      ARRAY_SIZE(aic31xx->supplies),
 				      aic31xx->supplies);
-	if (ret) {
-		if (ret != -EPROBE_DEFER)
-			dev_err(aic31xx->dev,
-				"Failed to request supplies: %d\n", ret);
-		return ret;
-	}
+	if (ret)
+		return dev_err_probe(aic31xx->dev, ret, "Failed to request supplies\n");
 
 	aic31xx_configure_ocmv(aic31xx);
 
