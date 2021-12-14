@@ -3188,10 +3188,7 @@ static noinline_for_stack int scrub_stripe(struct scrub_ctx *sctx,
 	u64 physical_end;
 	u64 generation;
 	int mirror_num;
-	struct reada_control *reada1;
-	struct reada_control *reada2;
 	struct btrfs_key key;
-	struct btrfs_key key_end;
 	u64 increment = map->stripe_len;
 	u64 offset;
 	u64 extent_logical;
@@ -3242,11 +3239,6 @@ static noinline_for_stack int scrub_stripe(struct scrub_ctx *sctx,
 	path->skip_locking = 1;
 	path->reada = READA_FORWARD;
 
-	/*
-	 * trigger the readahead for extent tree csum tree and wait for
-	 * completion. During readahead, the scrub is officially paused
-	 * to not hold off transaction commits
-	 */
 	logical = base + offset;
 	physical_end = physical + nstripes * map->stripe_len;
 	if (map->type & BTRFS_BLOCK_GROUP_RAID56_MASK) {
@@ -3261,35 +3253,7 @@ static noinline_for_stack int scrub_stripe(struct scrub_ctx *sctx,
 	scrub_blocked_if_needed(fs_info);
 
 	root = btrfs_extent_root(fs_info, logical);
-
-	/* FIXME it might be better to start readahead at commit root */
-	key.objectid = logical;
-	key.type = BTRFS_EXTENT_ITEM_KEY;
-	key.offset = (u64)0;
-	key_end.objectid = logic_end;
-	key_end.type = BTRFS_METADATA_ITEM_KEY;
-	key_end.offset = (u64)-1;
-	reada1 = btrfs_reada_add(root, &key, &key_end);
-
 	csum_root = btrfs_csum_root(fs_info, logical);
-
-	if (cache->flags & BTRFS_BLOCK_GROUP_DATA) {
-		key.objectid = BTRFS_EXTENT_CSUM_OBJECTID;
-		key.type = BTRFS_EXTENT_CSUM_KEY;
-		key.offset = logical;
-		key_end.objectid = BTRFS_EXTENT_CSUM_OBJECTID;
-		key_end.type = BTRFS_EXTENT_CSUM_KEY;
-		key_end.offset = logic_end;
-		reada2 = btrfs_reada_add(csum_root, &key, &key_end);
-	} else {
-		reada2 = NULL;
-	}
-
-	if (!IS_ERR(reada1))
-		btrfs_reada_wait(reada1);
-	if (!IS_ERR_OR_NULL(reada2))
-		btrfs_reada_wait(reada2);
-
 
 	/*
 	 * collect all data csums for the stripe to avoid seeking during

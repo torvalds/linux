@@ -821,7 +821,6 @@ struct btrfs_fs_info {
 	struct btrfs_workqueue *endio_write_workers;
 	struct btrfs_workqueue *endio_freespace_worker;
 	struct btrfs_workqueue *caching_workers;
-	struct btrfs_workqueue *readahead_workers;
 
 	/*
 	 * fixup workers take dirty pages that didn't properly go through
@@ -957,13 +956,6 @@ struct btrfs_fs_info {
 	unsigned long fs_state;
 
 	struct btrfs_delayed_root *delayed_root;
-
-	/* readahead tree */
-	spinlock_t reada_lock;
-	struct radix_tree_root reada_tree;
-
-	/* readahead works cnt */
-	atomic_t reada_works_cnt;
 
 	/* Extent buffer radix tree */
 	spinlock_t buffer_lock;
@@ -3806,23 +3798,6 @@ static inline void btrfs_bio_counter_dec(struct btrfs_fs_info *fs_info)
 {
 	btrfs_bio_counter_sub(fs_info, 1);
 }
-
-/* reada.c */
-struct reada_control {
-	struct btrfs_fs_info	*fs_info;		/* tree to prefetch */
-	struct btrfs_key	key_start;
-	struct btrfs_key	key_end;	/* exclusive */
-	atomic_t		elems;
-	struct kref		refcnt;
-	wait_queue_head_t	wait;
-};
-struct reada_control *btrfs_reada_add(struct btrfs_root *root,
-			      struct btrfs_key *start, struct btrfs_key *end);
-int btrfs_reada_wait(void *handle);
-void btrfs_reada_detach(void *handle);
-int btree_readahead_hook(struct extent_buffer *eb, int err);
-void btrfs_reada_remove_dev(struct btrfs_device *dev);
-void btrfs_reada_undo_remove_dev(struct btrfs_device *dev);
 
 static inline int is_fstree(u64 rootid)
 {
