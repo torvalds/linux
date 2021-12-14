@@ -95,6 +95,11 @@ struct intel_guc {
 		 */
 		struct ida guc_ids;
 		/**
+		 * @num_guc_ids: Number of guc_ids, selftest feature to be able
+		 * to reduce this number while testing.
+		 */
+		int num_guc_ids;
+		/**
 		 * @guc_ids_bitmap: used to allocate new guc_ids, multi-lrc
 		 */
 		unsigned long *guc_ids_bitmap;
@@ -202,6 +207,13 @@ struct intel_guc {
 		 */
 		struct delayed_work work;
 	} timestamp;
+
+#ifdef CONFIG_DRM_I915_SELFTEST
+	/**
+	 * @number_guc_id_stolen: The number of guc_ids that have been stolen
+	 */
+	int number_guc_id_stolen;
+#endif
 };
 
 static inline struct intel_guc *log_to_guc(struct intel_guc_log *log)
