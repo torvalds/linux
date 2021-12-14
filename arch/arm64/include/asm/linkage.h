@@ -8,10 +8,18 @@
 
 #define BTI_C bti c ;
 
+#else
+
+#define BTI_C
+
+#endif
+
 /*
- * When using in-kernel BTI we need to ensure that PCS-conformant assembly
- * functions have suitable annotations.  Override SYM_FUNC_START to insert
- * a BTI landing pad at the start of everything.
+ * When using in-kernel BTI we need to ensure that PCS-conformant
+ * assembly functions have suitable annotations.  Override
+ * SYM_FUNC_START to insert a BTI landing pad at the start of
+ * everything, the override is done unconditionally so we're more
+ * likely to notice any drift from the overridden definitions.
  */
 #define SYM_FUNC_START(name)				\
 	SYM_START(name, SYM_L_GLOBAL, SYM_A_ALIGN)	\
@@ -36,8 +44,6 @@
 #define SYM_FUNC_START_WEAK_NOALIGN(name)		\
 	SYM_START(name, SYM_L_WEAK, SYM_A_NONE)		\
 	BTI_C
-
-#endif
 
 /*
  * Annotate a function as position independent, i.e., safe to be called before
