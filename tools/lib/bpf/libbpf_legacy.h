@@ -45,7 +45,6 @@ enum libbpf_strict_mode {
 	 * (positive) error code.
 	 */
 	LIBBPF_STRICT_DIRECT_ERRS = 0x02,
-
 	/*
 	 * Enforce strict BPF program section (SEC()) names.
 	 * E.g., while prefiously SEC("xdp_whatever") or SEC("perf_event_blah") were
@@ -63,6 +62,17 @@ enum libbpf_strict_mode {
 	 * Clients can maintain it on their own if it is valuable for them.
 	 */
 	LIBBPF_STRICT_NO_OBJECT_LIST = 0x08,
+	/*
+	 * Automatically bump RLIMIT_MEMLOCK using setrlimit() before the
+	 * first BPF program or map creation operation. This is done only if
+	 * kernel is too old to support memcg-based memory accounting for BPF
+	 * subsystem. By default, RLIMIT_MEMLOCK limit is set to RLIM_INFINITY,
+	 * but it can be overriden with libbpf_set_memlock_rlim_max() API.
+	 * Note that libbpf_set_memlock_rlim_max() needs to be called before
+	 * the very first bpf_prog_load(), bpf_map_create() or bpf_object__load()
+	 * operation.
+	 */
+	LIBBPF_STRICT_AUTO_RLIMIT_MEMLOCK = 0x10,
 
 	__LIBBPF_STRICT_LAST,
 };

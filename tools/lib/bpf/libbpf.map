@@ -427,4 +427,5 @@ LIBBPF_0.7.0 {
 		bpf_program__log_level;
 		bpf_program__set_log_buf;
 		bpf_program__set_log_level;
+		libbpf_set_memlock_rlim_max;
 };
