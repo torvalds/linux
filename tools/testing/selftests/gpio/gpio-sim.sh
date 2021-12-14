@@ -23,7 +23,7 @@ remove_chip() {
 
 	for FILE in $CONFIGFS_DIR/$CHIP/*; do
 		BANK=`basename $FILE`
-		if [ "$BANK" = "live" ] || [ "$BANK" = "dev_name" ]; then
+		if [ "$BANK" = "live" -o "$BANK" = "dev_name" ]; then
 			continue
 		fi
 
