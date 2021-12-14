@@ -371,35 +371,27 @@ static int tse850_probe(struct platform_device *pdev)
 	}
 
 	tse850->add = devm_gpiod_get(dev, "axentia,add", GPIOD_OUT_HIGH);
-	if (IS_ERR(tse850->add)) {
-		if (PTR_ERR(tse850->add) != -EPROBE_DEFER)
-			dev_err(dev, "failed to get 'add' gpio\n");
-		return PTR_ERR(tse850->add);
-	}
+	if (IS_ERR(tse850->add))
+		return dev_err_probe(dev, PTR_ERR(tse850->add),
+				     "failed to get 'add' gpio\n");
 	tse850->add_cache = 1;
 
 	tse850->loop1 = devm_gpiod_get(dev, "axentia,loop1", GPIOD_OUT_HIGH);
-	if (IS_ERR(tse850->loop1)) {
-		if (PTR_ERR(tse850->loop1) != -EPROBE_DEFER)
-			dev_err(dev, "failed to get 'loop1' gpio\n");
-		return PTR_ERR(tse850->loop1);
-	}
+	if (IS_ERR(tse850->loop1))
+		return dev_err_probe(dev, PTR_ERR(tse850->loop1),
+				     "failed to get 'loop1' gpio\n");
 	tse850->loop1_cache = 1;
 
 	tse850->loop2 = devm_gpiod_get(dev, "axentia,loop2", GPIOD_OUT_HIGH);
-	if (IS_ERR(tse850->loop2)) {
-		if (PTR_ERR(tse850->loop2) != -EPROBE_DEFER)
-			dev_err(dev, "failed to get 'loop2' gpio\n");
-		return PTR_ERR(tse850->loop2);
-	}
+	if (IS_ERR(tse850->loop2))
+		return dev_err_probe(dev, PTR_ERR(tse850->loop2),
+				     "failed to get 'loop2' gpio\n");
 	tse850->loop2_cache = 1;
 
 	tse850->ana = devm_regulator_get(dev, "axentia,ana");
-	if (IS_ERR(tse850->ana)) {
-		if (PTR_ERR(tse850->ana) != -EPROBE_DEFER)
-			dev_err(dev, "failed to get 'ana' regulator\n");
-		return PTR_ERR(tse850->ana);
-	}
+	if (IS_ERR(tse850->ana))
+		return dev_err_probe(dev, PTR_ERR(tse850->ana),
+				     "failed to get 'ana' regulator\n");
 
 	ret = regulator_enable(tse850->ana);
 	if (ret < 0) {
