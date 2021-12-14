@@ -21,7 +21,11 @@ description:
 
 properties:
   compatible:
-    const: arm,dsu-pmu
+    oneOf:
+      - const: arm,dsu-pmu
+      - items:
+          - const: arm,dsu-110-pmu
+          - const: arm,dsu-pmu
 
   interrupts:
     items:
@@ -30,7 +34,7 @@ properties:
   cpus:
     $ref: /schemas/types.yaml#/definitions/phandle-array
     minItems: 1
-    maxItems: 8
+    maxItems: 12
     description: List of phandles for the CPUs connected to this DSU instance.
 
 required:
