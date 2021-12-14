@@ -129,6 +129,8 @@ void arch_timer_reg_write_cp15(int access, enum arch_timer_reg reg, u64 val)
 		default:
 			BUILD_BUG();
 		}
+	} else {
+		BUILD_BUG();
 	}
 }
 
@@ -151,6 +153,7 @@ u64 arch_timer_reg_read_cp15(int access, enum arch_timer_reg reg)
 		}
 	}
 
+	BUILD_BUG();
 	unreachable();
 }
 
