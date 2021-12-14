@@ -82,7 +82,6 @@ static int simple_mux_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct simple_mux *priv;
-	int err;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
@@ -91,12 +90,9 @@ static int simple_mux_probe(struct platform_device *pdev)
 	dev_set_drvdata(dev, priv);
 
 	priv->gpiod_mux = devm_gpiod_get(dev, "mux", GPIOD_OUT_LOW);
-	if (IS_ERR(priv->gpiod_mux)) {
-		err = PTR_ERR(priv->gpiod_mux);
-		if (err != -EPROBE_DEFER)
-			dev_err(dev, "Failed to get 'mux' gpio: %d", err);
-		return err;
-	}
+	if (IS_ERR(priv->gpiod_mux))
+		return dev_err_probe(dev, PTR_ERR(priv->gpiod_mux),
+				     "Failed to get 'mux' gpio");
 
 	return devm_snd_soc_register_component(dev, &simple_mux_component_driver, NULL, 0);
 }
