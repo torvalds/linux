@@ -271,25 +271,6 @@ least a notification of the change, so that some information makes its way
 into the manual pages.  User-space API changes should also be copied to
 linux-api@vger.kernel.org.
 
-For small patches you may want to CC the Trivial Patch Monkey
-trivial@kernel.org which collects "trivial" patches. Have a look
-into the MAINTAINERS file for its current manager.
-
-Trivial patches must qualify for one of the following rules:
-
-- Spelling fixes in documentation
-- Spelling fixes for errors which could break :manpage:`grep(1)`
-- Warning fixes (cluttering with useless warnings is bad)
-- Compilation fixes (only if they are actually correct)
-- Runtime fixes (only if they actually fix things)
-- Removing use of deprecated functions/macros
-- Contact detail and documentation fixes
-- Non-portable code replaced by portable code (even in arch-specific,
-  since people copy, as long as it's trivial)
-- Any fix by the author/maintainer of the file (ie. patch monkey
-  in re-transmission mode)
-
-
 
 No MIME, no links, no compression, no attachments.  Just plain text
 -------------------------------------------------------------------

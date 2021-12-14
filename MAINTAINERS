@@ -19329,12 +19329,6 @@ W:	https://github.com/srcres258/linux-doc
 T:	git git://github.com/srcres258/linux-doc.git doc-zh-tw
 F:	Documentation/translations/zh_TW/
 
-TRIVIAL PATCHES
-M:	Jiri Kosina <trivial@kernel.org>
-S:	Maintained
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jikos/trivial.git
-K:	^Subject:.*(?i)trivial
-
 TTY LAYER
 M:	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 M:	Jiri Slaby <jirislaby@kernel.org>
