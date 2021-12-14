@@ -145,23 +145,6 @@ sanitization_single_dev_no_local_ip_test()
 	log_test "vxlan device with no local ip"
 }
 
-sanitization_single_dev_local_ipv6_test()
-{
-	RET=0
-
-	ip link add dev br0 type bridge mcast_snooping 0
-
-	ip link add name vxlan0 up type vxlan id 10 nolearning noudpcsum \
-		ttl 20 tos inherit local 2001:db8::1 dstport 4789
-
-	sanitization_single_dev_test_fail
-
-	ip link del dev vxlan0
-	ip link del dev br0
-
-	log_test "vxlan device with local ipv6 address"
-}
-
 sanitization_single_dev_learning_enabled_test()
 {
 	RET=0
@@ -276,7 +259,6 @@ sanitization_single_dev_test()
 	sanitization_single_dev_mcast_enabled_test
 	sanitization_single_dev_mcast_group_test
 	sanitization_single_dev_no_local_ip_test
-	sanitization_single_dev_local_ipv6_test
 	sanitization_single_dev_learning_enabled_test
 	sanitization_single_dev_local_interface_test
 	sanitization_single_dev_port_range_test
