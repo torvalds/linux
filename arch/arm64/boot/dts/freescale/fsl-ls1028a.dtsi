@@ -1115,7 +1115,7 @@
 				interrupts = <GIC_SPI 95 IRQ_TYPE_LEVEL_HIGH>;
 				status = "disabled";
 
-				ports {
+				mscc_felix_ports: ports {
 					#address-cells = <1>;
 					#size-cells = <0>;
 
