@@ -203,8 +203,8 @@ static int mt7915_add_interface(struct ieee80211_hw *hw,
 	    is_zero_ether_addr(vif->addr))
 		phy->monitor_vif = vif;
 
-	mvif->idx = ffs(~dev->mt76.vif_mask) - 1;
-	if (mvif->idx >= MT7915_MAX_INTERFACES) {
+	mvif->mt76.idx = ffs(~dev->mt76.vif_mask) - 1;
+	if (mvif->mt76.idx >= MT7915_MAX_INTERFACES) {
 		ret = -ENOSPC;
 		goto out;
 	}
@@ -214,27 +214,27 @@ static int mt7915_add_interface(struct ieee80211_hw *hw,
 		ret = -ENOSPC;
 		goto out;
 	}
-	mvif->omac_idx = idx;
+	mvif->mt76.omac_idx = idx;
 	mvif->phy = phy;
-	mvif->band_idx = ext_phy;
+	mvif->mt76.band_idx = ext_phy;
 
-	mvif->wmm_idx = vif->type != NL80211_IFTYPE_AP;
+	mvif->mt76.wmm_idx = vif->type != NL80211_IFTYPE_AP;
 	if (ext_phy)
-		mvif->wmm_idx += 2;
+		mvif->mt76.wmm_idx += 2;
 
 	ret = mt7915_mcu_add_dev_info(phy, vif, true);
 	if (ret)
 		goto out;
 
-	dev->mt76.vif_mask |= BIT(mvif->idx);
-	phy->omac_mask |= BIT_ULL(mvif->omac_idx);
+	dev->mt76.vif_mask |= BIT(mvif->mt76.idx);
+	phy->omac_mask |= BIT_ULL(mvif->mt76.omac_idx);
 
-	idx = MT7915_WTBL_RESERVED - mvif->idx;
+	idx = MT7915_WTBL_RESERVED - mvif->mt76.idx;
 
 	INIT_LIST_HEAD(&mvif->sta.rc_list);
 	INIT_LIST_HEAD(&mvif->sta.poll_list);
 	mvif->sta.wcid.idx = idx;
-	mvif->sta.wcid.ext_phy = mvif->band_idx;
+	mvif->sta.wcid.ext_phy = mvif->mt76.band_idx;
 	mvif->sta.wcid.hw_key_idx = -1;
 	mvif->sta.wcid.tx_info |= MT_WCID_TX_INFO_SET;
 	mt76_packet_id_init(&mvif->sta.wcid);
@@ -249,7 +249,7 @@ static int mt7915_add_interface(struct ieee80211_hw *hw,
 	}
 
 	if (vif->type != NL80211_IFTYPE_AP &&
-	    (!mvif->omac_idx || mvif->omac_idx > 3))
+	    (!mvif->mt76.omac_idx || mvif->mt76.omac_idx > 3))
 		vif->offload_flags = 0;
 	vif->offload_flags |= IEEE80211_OFFLOAD_ENCAP_4ADDR;
 
@@ -286,8 +286,8 @@ static void mt7915_remove_interface(struct ieee80211_hw *hw,
 	rcu_assign_pointer(dev->mt76.wcid[idx], NULL);
 
 	mutex_lock(&dev->mt76.mutex);
-	dev->mt76.vif_mask &= ~BIT(mvif->idx);
-	phy->omac_mask &= ~BIT_ULL(mvif->omac_idx);
+	dev->mt76.vif_mask &= ~BIT(mvif->mt76.idx);
+	phy->omac_mask &= ~BIT_ULL(mvif->mt76.omac_idx);
 	mutex_unlock(&dev->mt76.mutex);
 
 	spin_lock_bh(&dev->sta_poll_lock);
@@ -576,7 +576,7 @@ mt7915_update_bss_color(struct ieee80211_hw *hw,
 	case NL80211_IFTYPE_AP: {
 		struct mt7915_vif *mvif = (struct mt7915_vif *)vif->drv_priv;
 
-		if (mvif->omac_idx > HW_BSSID_MAX)
+		if (mvif->mt76.omac_idx > HW_BSSID_MAX)
 			return;
 		fallthrough;
 	}
@@ -675,7 +675,7 @@ int mt7915_mac_sta_add(struct mt76_dev *mdev, struct ieee80211_vif *vif,
 	msta->vif = mvif;
 	msta->wcid.sta = 1;
 	msta->wcid.idx = idx;
-	msta->wcid.ext_phy = mvif->band_idx;
+	msta->wcid.ext_phy = mvif->mt76.band_idx;
 	msta->wcid.tx_info |= MT_WCID_TX_INFO_SET;
 	msta->jiffies = jiffies;
 
@@ -858,7 +858,8 @@ u64 __mt7915_get_tsf(struct ieee80211_hw *hw, struct mt7915_vif *mvif)
 
 	lockdep_assert_held(&dev->mt76.mutex);
 
-	n = mvif->omac_idx > HW_BSSID_MAX ? HW_BSSID_0 : mvif->omac_idx;
+	n = mvif->mt76.omac_idx > HW_BSSID_MAX ? HW_BSSID_0
+					       : mvif->mt76.omac_idx;
 	/* TSF software read */
 	mt76_rmw(dev, MT_LPON_TCR(band, n), MT_LPON_TCR_SW_MODE,
 		 MT_LPON_TCR_SW_READ);
@@ -898,7 +899,8 @@ mt7915_set_tsf(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 
 	mutex_lock(&dev->mt76.mutex);
 
-	n = mvif->omac_idx > HW_BSSID_MAX ? HW_BSSID_0 : mvif->omac_idx;
+	n = mvif->mt76.omac_idx > HW_BSSID_MAX ? HW_BSSID_0
+					       : mvif->mt76.omac_idx;
 	mt76_wr(dev, MT_LPON_UTTR0(band), tsf.t32[0]);
 	mt76_wr(dev, MT_LPON_UTTR1(band), tsf.t32[1]);
 	/* TSF software overwrite */
@@ -924,7 +926,8 @@ mt7915_offset_tsf(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 
 	mutex_lock(&dev->mt76.mutex);
 
-	n = mvif->omac_idx > HW_BSSID_MAX ? HW_BSSID_0 : mvif->omac_idx;
+	n = mvif->mt76.omac_idx > HW_BSSID_MAX ? HW_BSSID_0
+					       : mvif->mt76.omac_idx;
 	mt76_wr(dev, MT_LPON_UTTR0(band), tsf.t32[0]);
 	mt76_wr(dev, MT_LPON_UTTR1(band), tsf.t32[1]);
 	/* TSF software adjust*/
@@ -1215,7 +1218,7 @@ static void mt7915_ethtool_worker(void *wi_data, struct ieee80211_sta *sta)
 	struct mt76_ethtool_worker_info *wi = wi_data;
 	struct mt7915_sta *msta = (struct mt7915_sta *)sta->drv_priv;
 
-	if (msta->vif->idx != wi->idx)
+	if (msta->vif->mt76.idx != wi->idx)
 		return;
 
 	mt76_ethtool_worker(wi, &msta->stats);
@@ -1231,7 +1234,7 @@ void mt7915_get_et_stats(struct ieee80211_hw *hw,
 	struct mt7915_vif *mvif = (struct mt7915_vif *)vif->drv_priv;
 	struct mt76_ethtool_worker_info wi = {
 		.data = data,
-		.idx = mvif->idx,
+		.idx = mvif->mt76.idx,
 	};
 	struct mib_stats *mib = &phy->mib;
 	/* See mt7915_ampdu_stat_read_phy, etc */

@@ -355,8 +355,8 @@ mt7915_sta_hw_queue_read(void *data, struct ieee80211_sta *sta)
 		qlen = mt76_get_field(dev, MT_PLE_BASE + MT_FL_Q3_CTRL,
 				      GENMASK(11, 0));
 		seq_printf(s, "\tSTA %pM wcid %d: AC%d%d queued:%d\n",
-			   sta->addr, msta->wcid.idx, msta->vif->wmm_idx,
-			   ac, qlen);
+			   sta->addr, msta->wcid.idx,
+			   msta->vif->mt76.wmm_idx, ac, qlen);
 	}
 }
 

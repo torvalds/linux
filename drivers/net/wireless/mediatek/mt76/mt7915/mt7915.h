@@ -124,10 +124,7 @@ struct mt7915_vif_cap {
 };
 
 struct mt7915_vif {
-	u16 idx;
-	u8 omac_idx;
-	u8 band_idx;
-	u8 wmm_idx;
+	struct mt76_vif mt76; /* must be first */
 
 	struct mt7915_vif_cap cap;
 	struct mt7915_sta sta;

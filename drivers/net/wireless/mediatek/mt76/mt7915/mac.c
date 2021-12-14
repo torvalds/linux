@@ -1149,8 +1149,8 @@ void mt7915_mac_write_txwi(struct mt7915_dev *dev, __le32 *txwi,
 	if (vif) {
 		struct mt7915_vif *mvif = (struct mt7915_vif *)vif->drv_priv;
 
-		omac_idx = mvif->omac_idx;
-		wmm_idx = mvif->wmm_idx;
+		omac_idx = mvif->mt76.omac_idx;
+		wmm_idx = mvif->mt76.wmm_idx;
 	}
 
 	if (ext_phy && dev->mt76.phy2)
@@ -1286,7 +1286,7 @@ int mt7915_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
 	if (vif) {
 		struct mt7915_vif *mvif = (struct mt7915_vif *)vif->drv_priv;
 
-		txp->bss_idx = mvif->idx;
+		txp->bss_idx = mvif->mt76.idx;
 	}
 
 	txp->token = cpu_to_le16(id);
