@@ -166,7 +166,10 @@ static void linkwatch_do_dev(struct net_device *dev)
 
 		netdev_state_change(dev);
 	}
-	dev_put_track(dev, &dev->linkwatch_dev_tracker);
+	/* Note: our callers are responsible for
+	 * calling netdev_tracker_free().
+	 */
+	dev_put(dev);
 }
 
 static void __linkwatch_run_queue(int urgent_only)
@@ -209,6 +212,10 @@ static void __linkwatch_run_queue(int urgent_only)
 			list_add_tail(&dev->link_watch_list, &lweventlist);
 			continue;
 		}
+		/* We must free netdev tracker under
+		 * the spinlock protection.
+		 */
+		netdev_tracker_free(dev, &dev->linkwatch_dev_tracker);
 		spin_unlock_irq(&lweventlist_lock);
 		linkwatch_do_dev(dev);
 		do_dev--;
@@ -232,6 +239,10 @@ void linkwatch_forget_dev(struct net_device *dev)
 	if (!list_empty(&dev->link_watch_list)) {
 		list_del_init(&dev->link_watch_list);
 		clean = 1;
+		/* We must release netdev tracker under
+		 * the spinlock protection.
+		 */
+		netdev_tracker_free(dev, &dev->linkwatch_dev_tracker);
 	}
 	spin_unlock_irqrestore(&lweventlist_lock, flags);
 	if (clean)
