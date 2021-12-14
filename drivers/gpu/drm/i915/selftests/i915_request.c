@@ -841,7 +841,7 @@ static struct i915_vma *empty_batch(struct drm_i915_private *i915)
 	__i915_gem_object_flush_map(obj, 0, 64);
 	i915_gem_object_unpin_map(obj);
 
-	intel_gt_chipset_flush(&i915->gt);
+	intel_gt_chipset_flush(to_gt(i915));
 
 	vma = i915_vma_instance(obj, &i915->ggtt.vm, NULL);
 	if (IS_ERR(vma)) {
@@ -982,7 +982,7 @@ static struct i915_vma *recursive_batch(struct drm_i915_private *i915)
 	if (IS_ERR(obj))
 		return ERR_CAST(obj);
 
-	vma = i915_vma_instance(obj, i915->gt.vm, NULL);
+	vma = i915_vma_instance(obj, to_gt(i915)->vm, NULL);
 	if (IS_ERR(vma)) {
 		err = PTR_ERR(vma);
 		goto err;
@@ -1014,7 +1014,7 @@ static struct i915_vma *recursive_batch(struct drm_i915_private *i915)
 	__i915_gem_object_flush_map(obj, 0, 64);
 	i915_gem_object_unpin_map(obj);
 
-	intel_gt_chipset_flush(&i915->gt);
+	intel_gt_chipset_flush(to_gt(i915));
 
 	return vma;
 
@@ -1700,7 +1700,7 @@ int i915_request_live_selftests(struct drm_i915_private *i915)
 		SUBTEST(live_breadcrumbs_smoketest),
 	};
 
-	if (intel_gt_is_wedged(&i915->gt))
+	if (intel_gt_is_wedged(to_gt(i915)))
 		return 0;
 
 	return i915_subtests(tests, i915);
@@ -3091,7 +3091,7 @@ int i915_request_perf_selftests(struct drm_i915_private *i915)
 		SUBTEST(perf_parallel_engines),
 	};
 
-	if (intel_gt_is_wedged(&i915->gt))
+	if (intel_gt_is_wedged(to_gt(i915)))
 		return 0;
 
 	return i915_subtests(tests, i915);

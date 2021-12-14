@@ -70,7 +70,7 @@ struct i915_ppgtt *mock_ppgtt(struct drm_i915_private *i915, const char *name)
 	if (!ppgtt)
 		return NULL;
 
-	ppgtt->vm.gt = &i915->gt;
+	ppgtt->vm.gt = to_gt(i915);
 	ppgtt->vm.i915 = i915;
 	ppgtt->vm.total = round_down(U64_MAX, PAGE_SIZE);
 	ppgtt->vm.dma = i915->drm.dev;
@@ -110,7 +110,7 @@ void mock_init_ggtt(struct drm_i915_private *i915, struct i915_ggtt *ggtt)
 {
 	memset(ggtt, 0, sizeof(*ggtt));
 
-	ggtt->vm.gt = &i915->gt;
+	ggtt->vm.gt = to_gt(i915);
 	ggtt->vm.i915 = i915;
 	ggtt->vm.is_ggtt = true;
 
@@ -132,7 +132,7 @@ void mock_init_ggtt(struct drm_i915_private *i915, struct i915_ggtt *ggtt)
 	ggtt->vm.vma_ops.clear_pages = clear_pages;
 
 	i915_address_space_init(&ggtt->vm, VM_CLASS_GGTT);
-	i915->gt.ggtt = ggtt;
+	to_gt(i915)->ggtt = ggtt;
 }
 
 void mock_fini_ggtt(struct i915_ggtt *ggtt)
