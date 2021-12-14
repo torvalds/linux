@@ -262,21 +262,6 @@ static long data_progress_to_text(struct printbuf *out, struct bch_fs *c)
 	return ret;
 }
 
-static int fs_alloc_debug_to_text(struct printbuf *out, struct bch_fs *c)
-{
-	struct bch_fs_usage_online *fs_usage = bch2_fs_usage_read(c);
-
-	if (!fs_usage)
-		return -ENOMEM;
-
-	bch2_fs_usage_to_text(out, c, fs_usage);
-
-	percpu_up_read(&c->mark_lock);
-
-	kfree(fs_usage);
-	return 0;
-}
-
 static int bch2_compression_stats_to_text(struct printbuf *out, struct bch_fs *c)
 {
 	struct btree_trans trans;
@@ -385,9 +370,6 @@ SHOW(bch2_fs)
 	sysfs_print(promote_whole_extents,	c->promote_whole_extents);
 
 	/* Debugging: */
-
-	if (attr == &sysfs_alloc_debug)
-		return fs_alloc_debug_to_text(&out, c) ?: out.pos - buf;
 
 	if (attr == &sysfs_journal_debug) {
 		bch2_journal_debug_to_text(&out, &c->journal);
@@ -580,7 +562,6 @@ STORE(bch2_fs_internal)
 SYSFS_OPS(bch2_fs_internal);
 
 struct attribute *bch2_fs_internal_files[] = {
-	&sysfs_alloc_debug,
 	&sysfs_journal_debug,
 	&sysfs_journal_pins,
 	&sysfs_btree_updates,
@@ -588,17 +569,21 @@ struct attribute *bch2_fs_internal_files[] = {
 	&sysfs_btree_cache,
 	&sysfs_btree_key_cache,
 	&sysfs_btree_transactions,
+	&sysfs_new_stripes,
 	&sysfs_stripes_heap,
 	&sysfs_open_buckets,
+	&sysfs_io_timers_read,
+	&sysfs_io_timers_write,
+
+	&sysfs_trigger_journal_flush,
+	&sysfs_trigger_gc,
+	&sysfs_prune_cache,
 
 	&sysfs_read_realloc_races,
 	&sysfs_extent_migrate_done,
 	&sysfs_extent_migrate_raced,
 
-	&sysfs_trigger_journal_flush,
-	&sysfs_trigger_gc,
 	&sysfs_gc_gens_pos,
-	&sysfs_prune_cache,
 
 	&sysfs_copy_gc_enabled,
 	&sysfs_copy_gc_wait,
@@ -606,11 +591,6 @@ struct attribute *bch2_fs_internal_files[] = {
 	&sysfs_rebalance_enabled,
 	&sysfs_rebalance_work,
 	sysfs_pd_controller_files(rebalance),
-
-	&sysfs_new_stripes,
-
-	&sysfs_io_timers_read,
-	&sysfs_io_timers_write,
 
 	&sysfs_data_op_data_progress,
 
