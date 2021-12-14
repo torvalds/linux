@@ -394,14 +394,21 @@ static void idxd_wq_disable_cleanup(struct idxd_wq *wq)
 	lockdep_assert_held(&wq->wq_lock);
 	memset(wq->wqcfg, 0, idxd->wqcfg_size);
 	wq->type = IDXD_WQT_NONE;
-	wq->size = 0;
-	wq->group = NULL;
 	wq->threshold = 0;
 	wq->priority = 0;
 	wq->ats_dis = 0;
 	clear_bit(WQ_FLAG_DEDICATED, &wq->flags);
 	clear_bit(WQ_FLAG_BLOCK_ON_FAULT, &wq->flags);
 	memset(wq->name, 0, WQ_NAME_SIZE);
+}
+
+static void idxd_wq_device_reset_cleanup(struct idxd_wq *wq)
+{
+	lockdep_assert_held(&wq->wq_lock);
+
+	idxd_wq_disable_cleanup(wq);
+	wq->size = 0;
+	wq->group = NULL;
 }
 
 static void idxd_wq_ref_release(struct percpu_ref *ref)
@@ -711,6 +718,7 @@ static void idxd_device_wqs_clear_state(struct idxd_device *idxd)
 
 		if (wq->state == IDXD_WQ_ENABLED) {
 			idxd_wq_disable_cleanup(wq);
+			idxd_wq_device_reset_cleanup(wq);
 			wq->state = IDXD_WQ_DISABLED;
 		}
 	}
