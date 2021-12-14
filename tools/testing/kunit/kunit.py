@@ -15,37 +15,56 @@ import time
 
 assert sys.version_info >= (3, 7), "Python version is too old"
 
-from collections import namedtuple
+from dataclasses import dataclass
 from enum import Enum, auto
-from typing import Iterable, Sequence, List
+from typing import Any, Iterable, Sequence, List, Optional
 
 import kunit_json
 import kunit_kernel
 import kunit_parser
-
-KunitResult = namedtuple('KunitResult', ['status','result','elapsed_time'])
-
-KunitConfigRequest = namedtuple('KunitConfigRequest',
-				['build_dir', 'make_options'])
-KunitBuildRequest = namedtuple('KunitBuildRequest',
-			       ['jobs', 'build_dir', 'alltests',
-				'make_options'])
-KunitExecRequest = namedtuple('KunitExecRequest',
-			      ['timeout', 'build_dir', 'alltests',
-			       'filter_glob', 'kernel_args', 'run_isolated'])
-KunitParseRequest = namedtuple('KunitParseRequest',
-			       ['raw_output', 'build_dir', 'json'])
-KunitRequest = namedtuple('KunitRequest', ['raw_output','timeout', 'jobs',
-					   'build_dir', 'alltests', 'filter_glob',
-					   'kernel_args', 'run_isolated', 'json', 'make_options'])
-
-KernelDirectoryPath = sys.argv[0].split('tools/testing/kunit/')[0]
 
 class KunitStatus(Enum):
 	SUCCESS = auto()
 	CONFIG_FAILURE = auto()
 	BUILD_FAILURE = auto()
 	TEST_FAILURE = auto()
+
+@dataclass
+class KunitResult:
+	status: KunitStatus
+	result: Any
+	elapsed_time: float
+
+@dataclass
+class KunitConfigRequest:
+	build_dir: str
+	make_options: Optional[List[str]]
+
+@dataclass
+class KunitBuildRequest(KunitConfigRequest):
+	jobs: int
+	alltests: bool
+
+@dataclass
+class KunitParseRequest:
+	raw_output: Optional[str]
+	build_dir: str
+	json: Optional[str]
+
+@dataclass
+class KunitExecRequest(KunitParseRequest):
+	timeout: int
+	alltests: bool
+	filter_glob: str
+	kernel_args: Optional[List[str]]
+	run_isolated: Optional[str]
+
+@dataclass
+class KunitRequest(KunitExecRequest, KunitBuildRequest):
+	pass
+
+
+KernelDirectoryPath = sys.argv[0].split('tools/testing/kunit/')[0]
 
 def get_kernel_root_path() -> str:
 	path = sys.argv[0] if not __file__ else __file__
@@ -121,8 +140,7 @@ def _suites_from_test_list(tests: List[str]) -> List[str]:
 
 
 
-def exec_tests(linux: kunit_kernel.LinuxSourceTree, request: KunitExecRequest,
-	       parse_request: KunitParseRequest) -> KunitResult:
+def exec_tests(linux: kunit_kernel.LinuxSourceTree, request: KunitExecRequest) -> KunitResult:
 	filter_globs = [request.filter_glob]
 	if request.run_isolated:
 		tests = _list_tests(linux, request)
@@ -147,7 +165,7 @@ def exec_tests(linux: kunit_kernel.LinuxSourceTree, request: KunitExecRequest,
 			filter_glob=filter_glob,
 			build_dir=request.build_dir)
 
-		result = parse_tests(parse_request, run_result)
+		result = parse_tests(request, run_result)
 		# run_kernel() doesn't block on the kernel exiting.
 		# That only happens after we get the last line of output from `run_result`.
 		# So exec_time here actually contains parsing + execution time, which is fine.
@@ -217,27 +235,15 @@ def run_tests(linux: kunit_kernel.LinuxSourceTree,
 	      request: KunitRequest) -> KunitResult:
 	run_start = time.time()
 
-	config_request = KunitConfigRequest(request.build_dir,
-					    request.make_options)
-	config_result = config_tests(linux, config_request)
+	config_result = config_tests(linux, request)
 	if config_result.status != KunitStatus.SUCCESS:
 		return config_result
 
-	build_request = KunitBuildRequest(request.jobs, request.build_dir,
-					  request.alltests,
-					  request.make_options)
-	build_result = build_tests(linux, build_request)
+	build_result = build_tests(linux, request)
 	if build_result.status != KunitStatus.SUCCESS:
 		return build_result
 
-	exec_request = KunitExecRequest(request.timeout, request.build_dir,
-				 request.alltests, request.filter_glob,
-				 request.kernel_args, request.run_isolated)
-	parse_request = KunitParseRequest(request.raw_output,
-					  request.build_dir,
-					  request.json)
-
-	exec_result = exec_tests(linux, exec_request, parse_request)
+	exec_result = exec_tests(linux, request)
 
 	run_end = time.time()
 
@@ -413,16 +419,16 @@ def main(argv, linux=None):
 					cross_compile=cli_args.cross_compile,
 					qemu_config_path=cli_args.qemu_config)
 
-		request = KunitRequest(cli_args.raw_output,
-				       cli_args.timeout,
-				       cli_args.jobs,
-				       cli_args.build_dir,
-				       cli_args.alltests,
-				       cli_args.filter_glob,
-				       cli_args.kernel_args,
-				       cli_args.run_isolated,
-				       cli_args.json,
-				       cli_args.make_options)
+		request = KunitRequest(build_dir=cli_args.build_dir,
+				       make_options=cli_args.make_options,
+				       jobs=cli_args.jobs,
+				       alltests=cli_args.alltests,
+				       raw_output=cli_args.raw_output,
+				       json=cli_args.json,
+				       timeout=cli_args.timeout,
+				       filter_glob=cli_args.filter_glob,
+				       kernel_args=cli_args.kernel_args,
+				       run_isolated=cli_args.run_isolated)
 		result = run_tests(linux, request)
 		if result.status != KunitStatus.SUCCESS:
 			sys.exit(1)
@@ -439,8 +445,8 @@ def main(argv, linux=None):
 					cross_compile=cli_args.cross_compile,
 					qemu_config_path=cli_args.qemu_config)
 
-		request = KunitConfigRequest(cli_args.build_dir,
-					     cli_args.make_options)
+		request = KunitConfigRequest(build_dir=cli_args.build_dir,
+					     make_options=cli_args.make_options)
 		result = config_tests(linux, request)
 		kunit_parser.print_with_timestamp((
 			'Elapsed time: %.3fs\n') % (
@@ -456,10 +462,10 @@ def main(argv, linux=None):
 					cross_compile=cli_args.cross_compile,
 					qemu_config_path=cli_args.qemu_config)
 
-		request = KunitBuildRequest(cli_args.jobs,
-					    cli_args.build_dir,
-					    cli_args.alltests,
-					    cli_args.make_options)
+		request = KunitBuildRequest(build_dir=cli_args.build_dir,
+					    make_options=cli_args.make_options,
+					    jobs=cli_args.jobs,
+					    alltests=cli_args.alltests)
 		result = build_tests(linux, request)
 		kunit_parser.print_with_timestamp((
 			'Elapsed time: %.3fs\n') % (
@@ -475,16 +481,15 @@ def main(argv, linux=None):
 					cross_compile=cli_args.cross_compile,
 					qemu_config_path=cli_args.qemu_config)
 
-		exec_request = KunitExecRequest(cli_args.timeout,
-						cli_args.build_dir,
-						cli_args.alltests,
-						cli_args.filter_glob,
-						cli_args.kernel_args,
-						cli_args.run_isolated)
-		parse_request = KunitParseRequest(cli_args.raw_output,
-						  cli_args.build_dir,
-						  cli_args.json)
-		result = exec_tests(linux, exec_request, parse_request)
+		exec_request = KunitExecRequest(raw_output=cli_args.raw_output,
+						build_dir=cli_args.build_dir,
+						json=cli_args.json,
+						timeout=cli_args.timeout,
+						alltests=cli_args.alltests,
+						filter_glob=cli_args.filter_glob,
+						kernel_args=cli_args.kernel_args,
+						run_isolated=cli_args.run_isolated)
+		result = exec_tests(linux, exec_request)
 		kunit_parser.print_with_timestamp((
 			'Elapsed time: %.3fs\n') % (result.elapsed_time))
 		if result.status != KunitStatus.SUCCESS:
@@ -496,9 +501,9 @@ def main(argv, linux=None):
 		else:
 			with open(cli_args.file, 'r', errors='backslashreplace') as f:
 				kunit_output = f.read().splitlines()
-		request = KunitParseRequest(cli_args.raw_output,
-					    None,
-					    cli_args.json)
+		request = KunitParseRequest(raw_output=cli_args.raw_output,
+					    build_dir='',
+					    json=cli_args.json)
 		result = parse_tests(request, kunit_output)
 		if result.status != KunitStatus.SUCCESS:
 			sys.exit(1)
