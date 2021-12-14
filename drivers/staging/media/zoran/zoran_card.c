@@ -29,6 +29,9 @@
 #include "zoran.h"
 #include "zoran_card.h"
 #include "zoran_device.h"
+#include "zr36016.h"
+#include "zr36050.h"
+#include "zr36060.h"
 
 extern const struct zoran_format zoran_formats[];
 
@@ -264,6 +267,96 @@ static const char *codecid_to_modulename(u16 codecid)
 	}
 
 	return name;
+}
+
+static int codec_init(struct zoran *zr, u16 codecid)
+{
+	switch (codecid) {
+	case CODEC_TYPE_ZR36060:
+#ifdef CONFIG_VIDEO_ZORAN_ZR36060
+		return zr36060_init_module();
+#else
+		pci_err(zr->pci_dev, "ZR36060 support is not enabled\n");
+		return -EINVAL;
+#endif
+		break;
+	case CODEC_TYPE_ZR36050:
+#ifdef CONFIG_VIDEO_ZORAN_DC30
+		return zr36050_init_module();
+#else
+		pci_err(zr->pci_dev, "ZR36050 support is not enabled\n");
+		return -EINVAL;
+#endif
+		break;
+	case CODEC_TYPE_ZR36016:
+#ifdef CONFIG_VIDEO_ZORAN_DC30
+		return zr36016_init_module();
+#else
+		pci_err(zr->pci_dev, "ZR36016 support is not enabled\n");
+		return -EINVAL;
+#endif
+		break;
+	}
+
+	pci_err(zr->pci_dev, "unknown codec id %x\n", codecid);
+	return -EINVAL;
+}
+
+static void codec_exit(struct zoran *zr, u16 codecid)
+{
+	switch (codecid) {
+	case CODEC_TYPE_ZR36060:
+#ifdef CONFIG_VIDEO_ZORAN_ZR36060
+		zr36060_cleanup_module();
+#endif
+		break;
+	case CODEC_TYPE_ZR36050:
+#ifdef CONFIG_VIDEO_ZORAN_DC30
+		zr36050_cleanup_module();
+#endif
+		break;
+	case CODEC_TYPE_ZR36016:
+#ifdef CONFIG_VIDEO_ZORAN_DC30
+		zr36016_cleanup_module();
+#endif
+		break;
+	}
+}
+
+static int videocodec_init(struct zoran *zr)
+{
+	const char *codec_name, *vfe_name;
+	int result;
+
+	codec_name = codecid_to_modulename(zr->card.video_codec);
+	if (codec_name) {
+		result = codec_init(zr, zr->card.video_codec);
+		if (result < 0) {
+			pci_err(zr->pci_dev, "failed to load video codec %s: %d\n",
+				codec_name, result);
+			return result;
+		}
+	}
+	vfe_name = codecid_to_modulename(zr->card.video_vfe);
+	if (vfe_name) {
+		result = codec_init(zr, zr->card.video_vfe);
+		if (result < 0) {
+			pci_err(zr->pci_dev, "failed to load video vfe %s: %d\n",
+				vfe_name, result);
+			if (codec_name)
+				codec_exit(zr, zr->card.video_codec);
+			return result;
+		}
+	}
+	return 0;
+}
+
+static void videocodec_exit(struct zoran *zr)
+{
+	if (zr->card.video_codec != CODEC_TYPE_NONE)
+		codec_exit(zr, zr->card.video_codec);
+	if (zr->card.video_vfe != CODEC_TYPE_NONE)
+		codec_exit(zr, zr->card.video_vfe);
 }
 
 // struct tvnorm {
@@ -954,6 +1047,7 @@ static void zoran_remove(struct pci_dev *pdev)
 		videocodec_detach(zr->codec);
 	if (zr->vfe)
 		videocodec_detach(zr->vfe);
+	videocodec_exit(zr);
 
 	/* unregister i2c bus */
 	zoran_unregister_i2c(zr);
@@ -1079,6 +1173,8 @@ static int zoran_debugfs_show(struct seq_file *seq, void *v)
 
 	seq_printf(seq, "Prepared %u\n", zr->prepared);
 	seq_printf(seq, "Queued %u\n", zr->queued);
+
+	videocodec_debugfs_show(seq);
 	return 0;
 }
 
@@ -1096,7 +1192,6 @@ static int zoran_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct videocodec_master *master_vfe = NULL;
 	struct videocodec_master *master_codec = NULL;
 	int card_num;
-	const char *codec_name, *vfe_name;
 	unsigned int nr;
 	int err;
 
@@ -1258,23 +1353,9 @@ static int zoran_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 						  zr->card.addrs_encoder);
 
 	pci_info(zr->pci_dev, "Initializing videocodec bus...\n");
-
-	if (zr->card.video_codec) {
-		codec_name = codecid_to_modulename(zr->card.video_codec);
-		if (codec_name) {
-			result = request_module(codec_name);
-			if (result)
-				pci_err(pdev, "failed to load modules %s: %d\n", codec_name, result);
-		}
-	}
-	if (zr->card.video_vfe) {
-		vfe_name = codecid_to_modulename(zr->card.video_vfe);
-		if (vfe_name) {
-			result = request_module(vfe_name);
-			if (result < 0)
-				pci_err(pdev, "failed to load modules %s: %d\n", vfe_name, result);
-		}
-	}
+	err = videocodec_init(zr);
+	if (err)
+		goto zr_unreg_i2c;
 
 	/* reset JPEG codec */
 	jpeg_codec_sleep(zr, 1);
@@ -1328,6 +1409,8 @@ zr_detach_vfe:
 	videocodec_detach(zr->vfe);
 zr_detach_codec:
 	videocodec_detach(zr->codec);
+zr_unreg_videocodec:
+	videocodec_exit(zr);
 zr_unreg_i2c:
 	zoran_unregister_i2c(zr);
 zr_free_irq:
