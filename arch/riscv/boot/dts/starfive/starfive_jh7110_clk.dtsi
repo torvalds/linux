@@ -146,6 +146,11 @@
             compatible = "fixed-clock";
             clock-frequency = <12288000>;
     	};
+	clk_ext_camera: clk-ext-camera {
+		#clock-cells = <0>;
+		compatible = "fixed-clock";
+		clock-frequency = <24000000>;
+	};
 	canclk: canclk {
             #clock-cells = <0>;
             compatible = "fixed-clock";

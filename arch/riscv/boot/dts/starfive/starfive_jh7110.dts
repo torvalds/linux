@@ -351,7 +351,53 @@
 			ngpios = <64>;
 			status = "okay";
 		};
+		i2c6: i2c@12060000 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "snps,designware-i2c";
+			reg = <0x0 0x12060000 0x0 0x10000>;
+			interrupt-parent = <&plic>;
+			interrupts = <51>;
+			clock-frequency = <100000>;
+			i2c-sda-hold-time-ns = <300>;
+			i2c-sda-falling-time-ns = <3000>;
+			i2c-scl-falling-time-ns = <3000>;
+			auto_calc_scl_lhcnt;
 
+			status = "okay";
+			
+			
+			
+			sc2235@30 {
+				compatible = "sc2235";
+				reg = <0x30>;
+				clocks = <&clk_ext_camera>;
+				clock-names = "xclk";
+				powerdown-gpios = <&gpio 0 0>;
+				reset-gpios = <&gpio 0 0>;
+				sc2235-18-gpios = <&gpio 11 0>;
+				sc2235-15-gpios = <&gpio 12 0>;
+				sc2235-28-gpios = <&gpio 10 0>;
+				sc2235-reset-gpios = <&gpio 16 0>;
+				sc2235-pwdn-gpios = <&gpio 15 0>;
+				sc2235-esync-gpios = <&gpio 17 0>;
+				sc2235-oen-gpios = <&gpio 18 0>;
+				//DOVDD-supply = <&v2v8>;
+
+				port {
+					/* Parallel bus endpoint */
+					sc2235_to_parallel: endpoint {
+						remote-endpoint = <&parallel_from_sc2235>;
+						bus-type = <5>;      /* Parallel */
+						bus-width = <8>;
+						data-shift = <2>; /* lines 13:6 are used */
+						hsync-active = <1>;
+						vsync-active = <1>;
+						pclk-sample = <1>;
+					};
+				};
+			};
+		};
 		i2c0: i2c@10030000 {
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -422,6 +468,43 @@
 			cap-mmc-highspeed;
 			/*fixed-emmc-driver-type;*/
 			post-power-on-delay-ms = <200>;
+		};
+		vin_sysctl:vin_sysctl@19800000 {
+			compatible = "starfive,stf-vin";
+			reg = <0x0 0x19800000 0x0 0x10000>,//mipi-csi-0  			mipi0
+				<0x0 0x19810000 0x0 0x10000>,//dom-isp-cfg    			vclk
+				<0x0 0x19820000 0x0 0x10000>,//mipirx-dphyapb config	vrst
+				<0x0 0x19830000 0x0 0x10000>,//reserved					mipi1
+				<0x0 0x19840000 0x0 0x10000>,//dom-isp-syscon			sctrl
+				<0x0 0x19870000 0x0 0x30000>,//ispv1-mini				isp0
+				<0x0 0x198a0000 0x0 0x30000>,//reserved					isp1
+				<0x0 0x11800000 0x0 0x10000>,//reserved					tclk
+				<0x0 0x11840000 0x0 0x10000>,//reserved					trst
+				<0x0 0x11858000 0x0 0x10000>,//reserved					iopad
+				<0x0 0x17030000 0x0 0x10000>,  						 //pmu
+				<0x0 0x13020000 0x0 0x10000>;  //sys_crg
+			reg-names = "mipi0", "vclk", "vrst", "mipi1", "sctrl", "isp0", "isp1", "tclk", "trst", "iopad", "pmu", "syscrg";
+			interrupt-parent = <&plic>;
+			interrupts = <92 87 86>;
+			// memory-region = <&vin_reserved>;
+
+			ports {	
+				port@3 {
+					reg = <2>; //dvp sensor
+
+					/* Parallel bus endpoint */
+					parallel_from_sc2235: endpoint {
+						remote-endpoint = <&sc2235_to_parallel>;
+						bus-type = <5>;      /* Parallel */
+						bus-width = <8>;
+						data-shift = <2>; /* lines 9:2 are used */
+						hsync-active = <1>;
+						vsync-active = <1>;
+						pclk-sample = <1>;
+						status = "okay";
+					};
+				};
+			};
 		};
 		jpu: jpu@11900000 {
 		    compatible = "starfive,jpu";
@@ -551,6 +634,7 @@
 							<0x0 0x0 0x0 0x2 &plic 0x2>,
 							<0x0 0x0 0x0 0x3 &plic 0x3>,
 							<0x0 0x0 0x0 0x4 &plic 0x4>;
+             		status = "disabled";
 		};
 	};
 };

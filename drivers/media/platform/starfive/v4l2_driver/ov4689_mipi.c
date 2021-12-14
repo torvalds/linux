@@ -1,0 +1,2768 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+/*
+ * Copyright (C) 2011-2013 Freescale Semiconductor, Inc. All Rights Reserved.
+ * Copyright (C) 2014-2017 Mentor Graphics Inc.
+ * Copyright (C) 2021 StarFive Technology Co., Ltd.
+ */
+
+#include <linux/clk.h>
+#include <linux/clk-provider.h>
+#include <linux/clkdev.h>
+#include <linux/ctype.h>
+#include <linux/delay.h>
+#include <linux/device.h>
+#include <linux/gpio/consumer.h>
+#include <linux/i2c.h>
+#include <linux/init.h>
+#include <linux/module.h>
+#include <linux/of_device.h>
+#include <linux/regulator/consumer.h>
+#include <linux/slab.h>
+#include <linux/types.h>
+#include <media/v4l2-async.h>
+#include <media/v4l2-ctrls.h>
+#include <media/v4l2-device.h>
+#include <media/v4l2-event.h>
+#include <media/v4l2-fwnode.h>
+#include <media/v4l2-subdev.h>
+#include "stfcamss.h"
+
+
+#define OV4689_LANES    2
+
+#define OV4689_LINK_FREQ_500MHZ         500000000LL
+
+/* min/typical/max system clock (xclk) frequencies */
+#define OV4689_XCLK_MIN  6000000
+#define OV4689_XCLK_MAX 54000000
+
+#define OV4689_CHIP_ID	(0x4688)
+
+#define OV4689_CHIP_ID_HIGH_BYTE        0x300a   // max should be 0x46
+#define OV4689_CHIP_ID_LOW_BYTE         0x300b   // max should be 0x88
+#define OV4689_REG_CHIP_ID              0x300a
+
+#define OV4689_REG_H_OUTPUT_SIZE	0x3808
+#define OV4689_REG_V_OUTPUT_SIZE	0x380a
+#define OV4689_REG_TIMING_HTS		0x380c
+#define OV4689_REG_TIMING_VTS		0x380e
+
+#define OV4689_REG_EXPOSURE_HI          0x3500
+#define OV4689_REG_EXPOSURE_MED         0x3501
+#define OV4689_REG_EXPOSURE_LO          0x3502
+#define OV4689_REG_GAIN_H               0x3507
+#define OV4689_REG_GAIN_M               0x3508
+#define OV4689_REG_GAIN_L               0x3509
+#define OV4689_REG_TEST_PATTERN         0x5040
+#define OV4689_REG_TIMING_TC_REG20      0x3820
+#define OV4689_REG_TIMING_TC_REG21      0x3821
+
+#define OV4689_REG_AWB_R_GAIN           0x500C
+#define OV4689_REG_AWB_B_GAIN           0x5010
+
+
+enum ov4689_mode_id {
+	OV4689_MODE_720P_1280_720 = 0,
+	OV4689_MODE_1080P_1920_1080,
+	OV4689_MODE_4M_2688_1520,
+	OV4689_NUM_MODES,
+};
+
+enum ov4689_frame_rate {
+	OV4689_15_FPS = 0,
+	OV4689_30_FPS,
+	OV4689_45_FPS,
+	OV4689_60_FPS,
+	OV4689_90_FPS,
+	OV4689_120_FPS,
+	OV4689_150_FPS,
+	OV4689_180_FPS,
+	OV4689_330_FPS,
+	OV4689_NUM_FRAMERATES,
+};
+
+enum ov4689_format_mux {
+	OV4689_FMT_MUX_RAW,
+};
+
+static const int ov4689_framerates[] = {
+	[OV4689_15_FPS] = 15,
+	[OV4689_30_FPS] = 30,
+	[OV4689_45_FPS] = 45,
+	[OV4689_60_FPS] = 60,
+	[OV4689_90_FPS] = 90,
+	[OV4689_120_FPS] = 120,
+	[OV4689_150_FPS] = 150,
+	[OV4689_180_FPS] = 180,
+	[OV4689_330_FPS] = 330,
+};
+
+/* regulator supplies */
+static const char * const ov4689_supply_name[] = {
+	"DOVDD", /* Digital I/O (1.8V) supply */
+	"AVDD",  /* Analog (2.8V) supply */
+	"DVDD",  /* Digital Core (1.5V) supply */
+};
+
+#define OV4689_NUM_SUPPLIES ARRAY_SIZE(ov4689_supply_name)
+
+/*
+ * Image size under 1280 * 960 are SUBSAMPLING
+ * Image size upper 1280 * 960 are SCALING
+ */
+enum ov4689_downsize_mode {
+	SUBSAMPLING,
+	SCALING,
+};
+
+struct reg_value {
+	u16 reg_addr;
+	u8 val;
+	u8 mask;
+	u32 delay_ms;
+};
+
+struct ov4689_mode_info {
+	enum ov4689_mode_id id;
+	enum ov4689_downsize_mode dn_mode;
+	u32 hact;
+	u32 htot;
+	u32 vact;
+	u32 vtot;
+	const struct reg_value *reg_data;
+	u32 reg_data_size;
+	u32 max_fps;
+};
+
+struct ov4689_ctrls {
+	struct v4l2_ctrl_handler handler;
+	struct v4l2_ctrl *pixel_rate;
+	struct {
+		struct v4l2_ctrl *exposure;
+	};
+	struct {
+		struct v4l2_ctrl *auto_wb;
+		struct v4l2_ctrl *blue_balance;
+		struct v4l2_ctrl *red_balance;
+	};
+	struct {
+		struct v4l2_ctrl *anal_gain;
+	};
+	struct v4l2_ctrl *brightness;
+	struct v4l2_ctrl *light_freq;
+	struct v4l2_ctrl *link_freq;
+	struct v4l2_ctrl *saturation;
+	struct v4l2_ctrl *contrast;
+	struct v4l2_ctrl *hue;
+	struct v4l2_ctrl *test_pattern;
+	struct v4l2_ctrl *hflip;
+	struct v4l2_ctrl *vflip;
+};
+
+struct ov4689_dev {
+	struct i2c_client *i2c_client;
+	struct v4l2_subdev sd;
+	struct media_pad pad;
+	struct v4l2_fwnode_endpoint ep; /* the parsed DT endpoint info */
+	struct clk *xclk; /* system clock to OV4689 */
+	u32 xclk_freq;
+
+	struct regulator_bulk_data supplies[OV4689_NUM_SUPPLIES];
+	struct gpio_desc *reset_gpio;
+	struct gpio_desc *pwdn_gpio;
+	bool   upside_down;
+
+	/* lock to protect all members below */
+	struct mutex lock;
+
+	int power_count;
+
+	struct v4l2_mbus_framefmt fmt;
+
+	const struct ov4689_mode_info *current_mode;
+	const struct ov4689_mode_info *last_mode;
+	enum ov4689_frame_rate current_fr;
+	struct v4l2_fract frame_interval;
+
+	struct ov4689_ctrls ctrls;
+
+	u32 prev_sysclk, prev_hts;
+	u32 ae_low, ae_high, ae_target;
+
+	bool pending_mode_change;
+	bool streaming;
+};
+
+static inline struct ov4689_dev *to_ov4689_dev(struct v4l2_subdev *sd)
+{
+	return container_of(sd, struct ov4689_dev, sd);
+}
+
+static inline struct v4l2_subdev *ctrl_to_sd(struct v4l2_ctrl *ctrl)
+{
+	return &container_of(ctrl->handler, struct ov4689_dev,
+			ctrls.handler)->sd;
+}
+
+/* ov4689 initial register */
+static const struct reg_value ov4689_init_setting_30fps_1080P[] = {
+
+};
+
+static const struct reg_value ov4689_setting_VGA_640_480[] = {
+	//@@ RES_640x480_2x_Bin_330fps_816Mbps
+	//OV4689_AM01B_640x480_24M_2lane_816Mbps_330fps_20140210.txt
+	{0x0103, 0x01, 0, 0},
+	{0x3638, 0x00, 0, 0},
+	{0x0300, 0x00, 0, 0}, // 00
+	{0x0302, 0x22, 0, 0}, // 816Mbps 5a ; 64 ; 5a ; 78  ; 78 ; 2a
+	{0x0303, 0x00, 0, 0}, // 03 ; 01 ; 02 ;
+	{0x0304, 0x03, 0, 0},
+	{0x030b, 0x00, 0, 0},
+	{0x030d, 0x1e, 0, 0},
+	{0x030e, 0x04, 0, 0},
+	{0x030f, 0x01, 0, 0},
+	{0x0312, 0x01, 0, 0},
+	{0x031e, 0x00, 0, 0},
+	{0x3000, 0x20, 0, 0},
+	{0x3002, 0x00, 0, 0},
+	{0x3018, 0x32, 0, 0}, // 32/72 2lane/4lane
+	{0x3019, 0x0c, 0, 0}, // 0c/00 2lane/4lane
+	{0x3020, 0x93, 0, 0},
+	{0x3021, 0x03, 0, 0},
+	{0x3022, 0x01, 0, 0},
+	{0x3031, 0x0a, 0, 0},
+	{0x303f, 0x0c, 0, 0},
+	{0x3305, 0xf1, 0, 0},
+	{0x3307, 0x04, 0, 0},
+	{0x3309, 0x29, 0, 0},
+	{0x3500, 0x00, 0, 0},
+	{0x3501, 0x4c, 0, 0},
+	{0x3502, 0x00, 0, 0},
+	{0x3503, 0x04, 0, 0},
+	{0x3504, 0x00, 0, 0},
+	{0x3505, 0x00, 0, 0},
+	{0x3506, 0x00, 0, 0},
+	{0x3507, 0x00, 0, 0},
+	{0x3508, 0x00, 0, 0},
+	{0x3509, 0x80, 0, 0}, // 8X
+	{0x350a, 0x00, 0, 0},
+	{0x350b, 0x00, 0, 0},
+	{0x350c, 0x00, 0, 0},
+	{0x350d, 0x00, 0, 0},
+	{0x350e, 0x00, 0, 0},
+	{0x350f, 0x80, 0, 0},
+	{0x3510, 0x00, 0, 0},
+	{0x3511, 0x00, 0, 0},
+	{0x3512, 0x00, 0, 0},
+	{0x3513, 0x00, 0, 0},
+	{0x3514, 0x00, 0, 0},
+	{0x3515, 0x80, 0, 0},
+	{0x3516, 0x00, 0, 0},
+	{0x3517, 0x00, 0, 0},
+	{0x3518, 0x00, 0, 0},
+	{0x3519, 0x00, 0, 0},
+	{0x351a, 0x00, 0, 0},
+	{0x351b, 0x80, 0, 0},
+	{0x351c, 0x00, 0, 0},
+	{0x351d, 0x00, 0, 0},
+	{0x351e, 0x00, 0, 0},
+	{0x351f, 0x00, 0, 0},
+	{0x3520, 0x00, 0, 0},
+	{0x3521, 0x80, 0, 0},
+	{0x3522, 0x08, 0, 0},
+	{0x3524, 0x08, 0, 0},
+	{0x3526, 0x08, 0, 0},
+	{0x3528, 0x08, 0, 0},
+	{0x352a, 0x08, 0, 0},
+	{0x3602, 0x00, 0, 0},
+	{0x3603, 0x40, 0, 0},
+	{0x3604, 0x02, 0, 0},
+	{0x3605, 0x00, 0, 0},
+	{0x3606, 0x00, 0, 0},
+	{0x3607, 0x00, 0, 0},
+	{0x3609, 0x12, 0, 0},
+	{0x360a, 0x40, 0, 0},
+	{0x360c, 0x08, 0, 0},
+	{0x360f, 0xe5, 0, 0},
+	{0x3608, 0x8f, 0, 0},
+	{0x3611, 0x00, 0, 0},
+	{0x3613, 0xf7, 0, 0},
+	{0x3616, 0x58, 0, 0},
+	{0x3619, 0x99, 0, 0},
+	{0x361b, 0x60, 0, 0},
+	{0x361c, 0x7a, 0, 0},
+	{0x361e, 0x79, 0, 0},
+	{0x361f, 0x02, 0, 0},
+	{0x3632, 0x05, 0, 0},
+	{0x3633, 0x10, 0, 0},
+	{0x3634, 0x10, 0, 0},
+	{0x3635, 0x10, 0, 0},
+	{0x3636, 0x15, 0, 0},
+	{0x3646, 0x86, 0, 0},
+	{0x364a, 0x0b, 0, 0},
+	{0x3700, 0x17, 0, 0},
+	{0x3701, 0x22, 0, 0},
+	{0x3703, 0x10, 0, 0},
+	{0x370a, 0x37, 0, 0},
+	{0x3705, 0x00, 0, 0},
+	{0x3706, 0x63, 0, 0},
+	{0x3709, 0x3c, 0, 0},
+	{0x370b, 0x01, 0, 0},
+	{0x370c, 0x30, 0, 0},
+	{0x3710, 0x24, 0, 0},
+	{0x3711, 0x0c, 0, 0},
+	{0x3716, 0x00, 0, 0},
+	{0x3720, 0x28, 0, 0},
+	{0x3729, 0x7b, 0, 0},
+	{0x372a, 0x84, 0, 0},
+	{0x372b, 0xbd, 0, 0},
+	{0x372c, 0xbc, 0, 0},
+	{0x372e, 0x52, 0, 0},
+	{0x373c, 0x0e, 0, 0},
+	{0x373e, 0x33, 0, 0},
+	{0x3743, 0x10, 0, 0},
+	{0x3744, 0x88, 0, 0},
+	{0x3745, 0xc0, 0, 0},
+	{0x374a, 0x43, 0, 0},
+	{0x374c, 0x00, 0, 0},
+	{0x374e, 0x23, 0, 0},
+	{0x3751, 0x7b, 0, 0},
+	{0x3752, 0x84, 0, 0},
+	{0x3753, 0xbd, 0, 0},
+	{0x3754, 0xbc, 0, 0},
+	{0x3756, 0x52, 0, 0},
+	{0x375c, 0x00, 0, 0},
+	{0x3760, 0x00, 0, 0},
+	{0x3761, 0x00, 0, 0},
+	{0x3762, 0x00, 0, 0},
+	{0x3763, 0x00, 0, 0},
+	{0x3764, 0x00, 0, 0},
+	{0x3767, 0x04, 0, 0},
+	{0x3768, 0x04, 0, 0},
+	{0x3769, 0x08, 0, 0},
+	{0x376a, 0x08, 0, 0},
+	{0x376b, 0x40, 0, 0},
+	{0x376c, 0x00, 0, 0},
+	{0x376d, 0x00, 0, 0},
+	{0x376e, 0x00, 0, 0},
+	{0x3773, 0x00, 0, 0},
+	{0x3774, 0x51, 0, 0},
+	{0x3776, 0xbd, 0, 0},
+	{0x3777, 0xbd, 0, 0},
+	{0x3781, 0x18, 0, 0},
+	{0x3783, 0x25, 0, 0},
+	{0x3798, 0x1b, 0, 0},
+	{0x3800, 0x00, 0, 0},
+	{0x3801, 0x48, 0, 0},
+	{0x3802, 0x00, 0, 0},
+	{0x3803, 0x2C, 0, 0},
+	{0x3804, 0x0a, 0, 0},
+	{0x3805, 0x57, 0, 0},
+	{0x3806, 0x05, 0, 0},
+	{0x3807, 0xD3, 0, 0},
+	{0x3808, 0x02, 0, 0},
+	{0x3809, 0x80, 0, 0},
+	{0x380a, 0x01, 0, 0},
+	{0x380b, 0xe0, 0, 0},
+
+	{0x380c, 0x02, 0, 0}, // 0a ; 03
+	{0x380d, 0x04, 0, 0}, // 1c ; 5C
+
+	{0x380e, 0x03, 0, 0},
+	{0x380f, 0x05, 0, 0},
+	{0x3810, 0x00, 0, 0},
+	{0x3811, 0x04, 0, 0},
+	{0x3812, 0x00, 0, 0},
+	{0x3813, 0x02, 0, 0},
+	{0x3814, 0x03, 0, 0},
+	{0x3815, 0x01, 0, 0},
+	{0x3819, 0x01, 0, 0},
+	{0x3820, 0x06, 0, 0},
+	{0x3821, 0x00, 0, 0},
+	{0x3829, 0x00, 0, 0},
+	{0x382a, 0x03, 0, 0},
+	{0x382b, 0x01, 0, 0},
+	{0x382d, 0x7f, 0, 0},
+	{0x3830, 0x08, 0, 0},
+	{0x3836, 0x02, 0, 0},
+	{0x3837, 0x00, 0, 0},
+	{0x3841, 0x02, 0, 0},
+	{0x3846, 0x08, 0, 0},
+	{0x3847, 0x07, 0, 0},
+	{0x3d85, 0x36, 0, 0},
+	{0x3d8c, 0x71, 0, 0},
+	{0x3d8d, 0xcb, 0, 0},
+	{0x3f0a, 0x00, 0, 0},
+	{0x4000, 0x71, 0, 0},
+	{0x4001, 0x50, 0, 0},
+	{0x4002, 0x04, 0, 0},
+	{0x4003, 0x14, 0, 0},
+	{0x400e, 0x00, 0, 0},
+	{0x4011, 0x00, 0, 0},
+	{0x401a, 0x00, 0, 0},
+	{0x401b, 0x00, 0, 0},
+	{0x401c, 0x00, 0, 0},
+	{0x401d, 0x00, 0, 0},
+	{0x401f, 0x00, 0, 0},
+	{0x4020, 0x00, 0, 0},
+	{0x4021, 0x10, 0, 0},
+	{0x4022, 0x03, 0, 0},
+	{0x4023, 0x93, 0, 0},
+	{0x4024, 0x04, 0, 0},
+	{0x4025, 0xC0, 0, 0},
+	{0x4026, 0x04, 0, 0},
+	{0x4027, 0xD0, 0, 0},
+	{0x4028, 0x00, 0, 0},
+	{0x4029, 0x02, 0, 0},
+	{0x402a, 0x06, 0, 0},
+	{0x402b, 0x04, 0, 0},
+	{0x402c, 0x02, 0, 0},
+	{0x402d, 0x02, 0, 0},
+	{0x402e, 0x0e, 0, 0},
+	{0x402f, 0x04, 0, 0},
+	{0x4302, 0xff, 0, 0},
+	{0x4303, 0xff, 0, 0},
+	{0x4304, 0x00, 0, 0},
+	{0x4305, 0x00, 0, 0},
+	{0x4306, 0x00, 0, 0},
+	{0x4308, 0x02, 0, 0},
+	{0x4500, 0x6c, 0, 0},
+	{0x4501, 0xc4, 0, 0},
+	{0x4502, 0x44, 0, 0},
+	{0x4503, 0x01, 0, 0},
+	{0x4600, 0x00, 0, 0},
+	{0x4601, 0x4F, 0, 0},
+	{0x4800, 0x04, 0, 0},
+	{0x4813, 0x08, 0, 0},
+	{0x481f, 0x40, 0, 0},
+	{0x4829, 0x78, 0, 0},
+	{0x4837, 0x10, 0, 0}, // 20 ; 10
+	{0x4b00, 0x2a, 0, 0},
+	{0x4b0d, 0x00, 0, 0},
+	{0x4d00, 0x04, 0, 0},
+	{0x4d01, 0x42, 0, 0},
+	{0x4d02, 0xd1, 0, 0},
+	{0x4d03, 0x93, 0, 0},
+	{0x4d04, 0xf5, 0, 0},
+	{0x4d05, 0xc1, 0, 0},
+	{0x5000, 0xf3, 0, 0},
+	{0x5001, 0x11, 0, 0},
+	{0x5004, 0x00, 0, 0},
+	{0x500a, 0x00, 0, 0},
+	{0x500b, 0x00, 0, 0},
+	{0x5032, 0x00, 0, 0},
+	{0x5040, 0x00, 0, 0},
+	{0x5050, 0x3c, 0, 0},
+	{0x5500, 0x00, 0, 0},
+	{0x5501, 0x10, 0, 0},
+	{0x5502, 0x01, 0, 0},
+	{0x5503, 0x0f, 0, 0},
+	{0x8000, 0x00, 0, 0},
+	{0x8001, 0x00, 0, 0},
+	{0x8002, 0x00, 0, 0},
+	{0x8003, 0x00, 0, 0},
+	{0x8004, 0x00, 0, 0},
+	{0x8005, 0x00, 0, 0},
+	{0x8006, 0x00, 0, 0},
+	{0x8007, 0x00, 0, 0},
+	{0x8008, 0x00, 0, 0},
+	{0x3638, 0x00, 0, 0},
+};
+
+static const struct reg_value ov4689_setting_720P_1280_720[] = {
+	//@@ RES_1280x720_2x_Bin_150fps_816Mbps
+	//OV4689_AM01B_1280x720_24M_2lane_816Mbps_150fps_20140210.txt
+	{0x0103, 0x01, 0, 0},
+	{0x3638, 0x00, 0, 0},
+	{0x0300, 0x00, 0, 0}, // 00
+	{0x0302, 0x22, 0, 0}, // 816Mbps 5a ; 64 ; 5a ; 78  ; 78 ; 2a
+	{0x0303, 0x00, 0, 0}, // 03 ; 01 ; 02 ;
+	{0x0304, 0x03, 0, 0},
+	{0x030b, 0x00, 0, 0},
+	{0x030d, 0x1e, 0, 0},
+	{0x030e, 0x04, 0, 0},
+	{0x030f, 0x01, 0, 0},
+	{0x0312, 0x01, 0, 0},
+	{0x031e, 0x00, 0, 0},
+	{0x3000, 0x20, 0, 0},
+	{0x3002, 0x00, 0, 0},
+	{0x3018, 0x32, 0, 0}, // 32/72 2lane/4lane
+	{0x3019, 0x0c, 0, 0}, // 0c/00 2lane/4lane
+	{0x3020, 0x93, 0, 0},
+	{0x3021, 0x03, 0, 0},
+	{0x3022, 0x01, 0, 0},
+	{0x3031, 0x0a, 0, 0},
+	{0x303f, 0x0c, 0, 0},
+	{0x3305, 0xf1, 0, 0},
+	{0x3307, 0x04, 0, 0},
+	{0x3309, 0x29, 0, 0},
+	{0x3500, 0x00, 0, 0},
+	{0x3501, 0x30, 0, 0},
+	{0x3502, 0x00, 0, 0},
+	{0x3503, 0x04, 0, 0},
+	{0x3504, 0x00, 0, 0},
+	{0x3505, 0x00, 0, 0},
+	{0x3506, 0x00, 0, 0},
+	{0x3507, 0x00, 0, 0},
+	{0x3508, 0x07, 0, 0},
+	{0x3509, 0x78, 0, 0}, // 8X
+	{0x350a, 0x00, 0, 0},
+	{0x350b, 0x00, 0, 0},
+	{0x350c, 0x00, 0, 0},
+	{0x350d, 0x00, 0, 0},
+	{0x350e, 0x00, 0, 0},
+	{0x350f, 0x80, 0, 0},
+	{0x3510, 0x00, 0, 0},
+	{0x3511, 0x00, 0, 0},
+	{0x3512, 0x00, 0, 0},
+	{0x3513, 0x00, 0, 0},
+	{0x3514, 0x00, 0, 0},
+	{0x3515, 0x80, 0, 0},
+	{0x3516, 0x00, 0, 0},
+	{0x3517, 0x00, 0, 0},
+	{0x3518, 0x00, 0, 0},
+	{0x3519, 0x00, 0, 0},
+	{0x351a, 0x00, 0, 0},
+	{0x351b, 0x80, 0, 0},
+	{0x351c, 0x00, 0, 0},
+	{0x351d, 0x00, 0, 0},
+	{0x351e, 0x00, 0, 0},
+	{0x351f, 0x00, 0, 0},
+	{0x3520, 0x00, 0, 0},
+	{0x3521, 0x80, 0, 0},
+	{0x3522, 0x08, 0, 0},
+	{0x3524, 0x08, 0, 0},
+	{0x3526, 0x08, 0, 0},
+	{0x3528, 0x08, 0, 0},
+	{0x352a, 0x08, 0, 0},
+	{0x3602, 0x00, 0, 0},
+	{0x3603, 0x40, 0, 0},
+	{0x3604, 0x02, 0, 0},
+	{0x3605, 0x00, 0, 0},
+	{0x3606, 0x00, 0, 0},
+	{0x3607, 0x00, 0, 0},
+	{0x3609, 0x12, 0, 0},
+	{0x360a, 0x40, 0, 0},
+	{0x360c, 0x08, 0, 0},
+	{0x360f, 0xe5, 0, 0},
+	{0x3608, 0x8f, 0, 0},
+	{0x3611, 0x00, 0, 0},
+	{0x3613, 0xf7, 0, 0},
+	{0x3616, 0x58, 0, 0},
+	{0x3619, 0x99, 0, 0},
+	{0x361b, 0x60, 0, 0},
+	{0x361c, 0x7a, 0, 0},
+	{0x361e, 0x79, 0, 0},
+	{0x361f, 0x02, 0, 0},
+	{0x3632, 0x05, 0, 0},
+	{0x3633, 0x10, 0, 0},
+	{0x3634, 0x10, 0, 0},
+	{0x3635, 0x10, 0, 0},
+	{0x3636, 0x15, 0, 0},
+	{0x3646, 0x86, 0, 0},
+	{0x364a, 0x0b, 0, 0},
+	{0x3700, 0x17, 0, 0},
+	{0x3701, 0x22, 0, 0},
+	{0x3703, 0x10, 0, 0},
+	{0x370a, 0x37, 0, 0},
+	{0x3705, 0x00, 0, 0},
+	{0x3706, 0x63, 0, 0},
+	{0x3709, 0x3c, 0, 0},
+	{0x370b, 0x01, 0, 0},
+	{0x370c, 0x30, 0, 0},
+	{0x3710, 0x24, 0, 0},
+	{0x3711, 0x0c, 0, 0},
+	{0x3716, 0x00, 0, 0},
+	{0x3720, 0x28, 0, 0},
+	{0x3729, 0x7b, 0, 0},
+	{0x372a, 0x84, 0, 0},
+	{0x372b, 0xbd, 0, 0},
+	{0x372c, 0xbc, 0, 0},
+	{0x372e, 0x52, 0, 0},
+	{0x373c, 0x0e, 0, 0},
+	{0x373e, 0x33, 0, 0},
+	{0x3743, 0x10, 0, 0},
+	{0x3744, 0x88, 0, 0},
+	{0x3745, 0xc0, 0, 0},
+	{0x374a, 0x43, 0, 0},
+	{0x374c, 0x00, 0, 0},
+	{0x374e, 0x23, 0, 0},
+	{0x3751, 0x7b, 0, 0},
+	{0x3752, 0x84, 0, 0},
+	{0x3753, 0xbd, 0, 0},
+	{0x3754, 0xbc, 0, 0},
+	{0x3756, 0x52, 0, 0},
+	{0x375c, 0x00, 0, 0},
+	{0x3760, 0x00, 0, 0},
+	{0x3761, 0x00, 0, 0},
+	{0x3762, 0x00, 0, 0},
+	{0x3763, 0x00, 0, 0},
+	{0x3764, 0x00, 0, 0},
+	{0x3767, 0x04, 0, 0},
+	{0x3768, 0x04, 0, 0},
+	{0x3769, 0x08, 0, 0},
+	{0x376a, 0x08, 0, 0},
+	{0x376b, 0x40, 0, 0},
+	{0x376c, 0x00, 0, 0},
+	{0x376d, 0x00, 0, 0},
+	{0x376e, 0x00, 0, 0},
+	{0x3773, 0x00, 0, 0},
+	{0x3774, 0x51, 0, 0},
+	{0x3776, 0xbd, 0, 0},
+	{0x3777, 0xbd, 0, 0},
+	{0x3781, 0x18, 0, 0},
+	{0x3783, 0x25, 0, 0},
+	{0x3798, 0x1b, 0, 0},
+	{0x3800, 0x00, 0, 0},
+	{0x3801, 0x48, 0, 0},
+	{0x3802, 0x00, 0, 0},
+	{0x3803, 0x2C, 0, 0},
+	{0x3804, 0x0a, 0, 0},
+	{0x3805, 0x57, 0, 0},
+	{0x3806, 0x05, 0, 0},
+	{0x3807, 0xD3, 0, 0},
+	{0x3808, 0x05, 0, 0},
+	{0x3809, 0x00, 0, 0},
+	{0x380a, 0x02, 0, 0},
+	{0x380b, 0xD0, 0, 0},
+#if 1
+	{0x380c, 0x04, 0, 0}, // 0a ; 03
+	{0x380d, 0x08, 0, 0}, // 1c ; 5C
+#else
+	{0x380c, 0x05, 0, 0}, // 120fps
+	{0x380d, 0x0A, 0, 0},
+#endif
+	{0x380e, 0x03, 0, 0},
+	{0x380f, 0x05, 0, 0},
+	{0x3810, 0x00, 0, 0},
+	{0x3811, 0x04, 0, 0},
+	{0x3812, 0x00, 0, 0},
+	{0x3813, 0x02, 0, 0},
+	{0x3814, 0x03, 0, 0},
+	{0x3815, 0x01, 0, 0},
+	{0x3819, 0x01, 0, 0},
+	{0x3820, 0x06, 0, 0},
+	{0x3821, 0x00, 0, 0},
+	{0x3829, 0x00, 0, 0},
+	{0x382a, 0x03, 0, 0},
+	{0x382b, 0x01, 0, 0},
+	{0x382d, 0x7f, 0, 0},
+	{0x3830, 0x08, 0, 0},
+	{0x3836, 0x02, 0, 0},
+	{0x3837, 0x00, 0, 0},
+	{0x3841, 0x02, 0, 0},
+	{0x3846, 0x08, 0, 0},
+	{0x3847, 0x07, 0, 0},
+	{0x3d85, 0x36, 0, 0},
+	{0x3d8c, 0x71, 0, 0},
+	{0x3d8d, 0xcb, 0, 0},
+	{0x3f0a, 0x00, 0, 0},
+	{0x4000, 0x71, 0, 0},
+	{0x4001, 0x50, 0, 0},
+	{0x4002, 0x04, 0, 0},
+	{0x4003, 0x14, 0, 0},
+	{0x400e, 0x00, 0, 0},
+	{0x4011, 0x00, 0, 0},
+	{0x401a, 0x00, 0, 0},
+	{0x401b, 0x00, 0, 0},
+	{0x401c, 0x00, 0, 0},
+	{0x401d, 0x00, 0, 0},
+	{0x401f, 0x00, 0, 0},
+	{0x4020, 0x00, 0, 0},
+	{0x4021, 0x10, 0, 0},
+	{0x4022, 0x03, 0, 0},
+	{0x4023, 0x93, 0, 0},
+	{0x4024, 0x04, 0, 0},
+	{0x4025, 0xC0, 0, 0},
+	{0x4026, 0x04, 0, 0},
+	{0x4027, 0xD0, 0, 0},
+	{0x4028, 0x00, 0, 0},
+	{0x4029, 0x02, 0, 0},
+	{0x402a, 0x06, 0, 0},
+	{0x402b, 0x04, 0, 0},
+	{0x402c, 0x02, 0, 0},
+	{0x402d, 0x02, 0, 0},
+	{0x402e, 0x0e, 0, 0},
+	{0x402f, 0x04, 0, 0},
+	{0x4302, 0xff, 0, 0},
+	{0x4303, 0xff, 0, 0},
+	{0x4304, 0x00, 0, 0},
+	{0x4305, 0x00, 0, 0},
+	{0x4306, 0x00, 0, 0},
+	{0x4308, 0x02, 0, 0},
+	{0x4500, 0x6c, 0, 0},
+	{0x4501, 0xc4, 0, 0},
+	{0x4502, 0x44, 0, 0},
+	{0x4503, 0x01, 0, 0},
+	{0x4600, 0x00, 0, 0},
+	{0x4601, 0x4F, 0, 0},
+	{0x4800, 0x04, 0, 0},
+	{0x4813, 0x08, 0, 0},
+	{0x481f, 0x40, 0, 0},
+	{0x4829, 0x78, 0, 0},
+	{0x4837, 0x10, 0, 0}, // 20 ; 10
+	{0x4b00, 0x2a, 0, 0},
+	{0x4b0d, 0x00, 0, 0},
+	{0x4d00, 0x04, 0, 0},
+	{0x4d01, 0x42, 0, 0},
+	{0x4d02, 0xd1, 0, 0},
+	{0x4d03, 0x93, 0, 0},
+	{0x4d04, 0xf5, 0, 0},
+	{0x4d05, 0xc1, 0, 0},
+	{0x5000, 0xf3, 0, 0},
+	{0x5001, 0x11, 0, 0},
+	{0x5004, 0x00, 0, 0},
+	{0x500a, 0x00, 0, 0},
+	{0x500b, 0x00, 0, 0},
+	{0x5032, 0x00, 0, 0},
+	{0x5040, 0x00, 0, 0},
+	{0x5050, 0x3c, 0, 0},
+	{0x5500, 0x00, 0, 0},
+	{0x5501, 0x10, 0, 0},
+	{0x5502, 0x01, 0, 0},
+	{0x5503, 0x0f, 0, 0},
+	{0x8000, 0x00, 0, 0},
+	{0x8001, 0x00, 0, 0},
+	{0x8002, 0x00, 0, 0},
+	{0x8003, 0x00, 0, 0},
+	{0x8004, 0x00, 0, 0},
+	{0x8005, 0x00, 0, 0},
+	{0x8006, 0x00, 0, 0},
+	{0x8007, 0x00, 0, 0},
+	{0x8008, 0x00, 0, 0},
+	{0x3638, 0x00, 0, 0},
+};
+
+static const struct reg_value ov4689_setting_1080P_1920_1080[] = {
+	//@@ RES_1920x1080_60fps_816Mbps 2lanes
+	{0x0103, 0x01, 0, 0},
+	{0x3638, 0x00, 0, 0},
+	{0x0300, 0x00, 0, 0},  // clk
+	{0x0302, 0x22, 0, 0},
+	{0x0303, 0x00, 0, 0},
+	{0x0304, 0x03, 0, 0},
+	{0x030b, 0x00, 0, 0},
+	{0x030d, 0x1e, 0, 0},
+	{0x030e, 0x04, 0, 0},
+	{0x030f, 0x01, 0, 0},
+	{0x0312, 0x01, 0, 0},
+	{0x031e, 0x00, 0, 0},
+	{0x3000, 0x20, 0, 0},
+	{0x3002, 0x00, 0, 0},
+	{0x3018, 0x32, 0, 0},
+	{0x3019, 0x0c, 0, 0},
+	{0x3020, 0x93, 0, 0},
+	{0x3021, 0x03, 0, 0},
+	{0x3022, 0x01, 0, 0},
+	{0x3031, 0x0a, 0, 0},
+	{0x303f, 0x0c, 0, 0},
+	{0x3305, 0xf1, 0, 0},
+	{0x3307, 0x04, 0, 0},
+	{0x3309, 0x29, 0, 0},
+	{0x3500, 0x00, 0, 0},  // AEC
+	{0x3501, 0x4c, 0, 0},
+	{0x3502, 0x00, 0, 0},
+	{0x3503, 0x04, 0, 0},
+	{0x3504, 0x00, 0, 0},
+	{0x3505, 0x00, 0, 0},
+	{0x3506, 0x00, 0, 0},
+	{0x3507, 0x00, 0, 0},
+	{0x3508, 0x00, 0, 0},
+	{0x3509, 0x80, 0, 0},
+	{0x350a, 0x00, 0, 0},
+	{0x350b, 0x00, 0, 0},
+	{0x350c, 0x00, 0, 0},
+	{0x350d, 0x00, 0, 0},
+	{0x350e, 0x00, 0, 0},
+	{0x350f, 0x80, 0, 0},
+	{0x3510, 0x00, 0, 0},
+	{0x3511, 0x00, 0, 0},
+	{0x3512, 0x00, 0, 0},
+	{0x3513, 0x00, 0, 0},
+	{0x3514, 0x00, 0, 0},
+	{0x3515, 0x80, 0, 0},
+	{0x3516, 0x00, 0, 0},
+	{0x3517, 0x00, 0, 0},
+	{0x3518, 0x00, 0, 0},
+	{0x3519, 0x00, 0, 0},
+	{0x351a, 0x00, 0, 0},
+	{0x351b, 0x80, 0, 0},
+	{0x351c, 0x00, 0, 0},
+	{0x351d, 0x00, 0, 0},
+	{0x351e, 0x00, 0, 0},
+	{0x351f, 0x00, 0, 0},
+	{0x3520, 0x00, 0, 0},
+	{0x3521, 0x80, 0, 0},
+	{0x3522, 0x08, 0, 0},
+	{0x3524, 0x08, 0, 0},
+	{0x3526, 0x08, 0, 0},
+	{0x3528, 0x08, 0, 0},
+	{0x352a, 0x08, 0, 0},
+	{0x3602, 0x00, 0, 0},
+	{0x3603, 0x40, 0, 0},
+	{0x3604, 0x02, 0, 0},
+	{0x3605, 0x00, 0, 0},
+	{0x3606, 0x00, 0, 0},
+	{0x3607, 0x00, 0, 0},
+	{0x3609, 0x12, 0, 0},
+	{0x360a, 0x40, 0, 0},
+	{0x360c, 0x08, 0, 0},
+	{0x360f, 0xe5, 0, 0},
+	{0x3608, 0x8f, 0, 0},
+	{0x3611, 0x00, 0, 0},
+	{0x3613, 0xf7, 0, 0},
+	{0x3616, 0x58, 0, 0},
+	{0x3619, 0x99, 0, 0},
+	{0x361b, 0x60, 0, 0},
+	{0x361c, 0x7a, 0, 0},
+	{0x361e, 0x79, 0, 0},
+	{0x361f, 0x02, 0, 0},
+	{0x3632, 0x00, 0, 0},
+	{0x3633, 0x10, 0, 0},
+	{0x3634, 0x10, 0, 0},
+	{0x3635, 0x10, 0, 0},
+	{0x3636, 0x15, 0, 0},
+	{0x3646, 0x86, 0, 0},
+	{0x364a, 0x0b, 0, 0},
+	{0x3700, 0x17, 0, 0},
+	{0x3701, 0x22, 0, 0},
+	{0x3703, 0x10, 0, 0},
+	{0x370a, 0x37, 0, 0},
+	{0x3705, 0x00, 0, 0},
+	{0x3706, 0x63, 0, 0},
+	{0x3709, 0x3c, 0, 0},
+	{0x370b, 0x01, 0, 0},
+	{0x370c, 0x30, 0, 0},
+	{0x3710, 0x24, 0, 0},
+	{0x3711, 0x0c, 0, 0},
+	{0x3716, 0x00, 0, 0},
+	{0x3720, 0x28, 0, 0},
+	{0x3729, 0x7b, 0, 0},
+	{0x372a, 0x84, 0, 0},
+	{0x372b, 0xbd, 0, 0},
+	{0x372c, 0xbc, 0, 0},
+	{0x372e, 0x52, 0, 0},
+	{0x373c, 0x0e, 0, 0},
+	{0x373e, 0x33, 0, 0},
+	{0x3743, 0x10, 0, 0},
+	{0x3744, 0x88, 0, 0},
+	{0x3745, 0xc0, 0, 0},
+	{0x374a, 0x43, 0, 0},
+	{0x374c, 0x00, 0, 0},
+	{0x374e, 0x23, 0, 0},
+	{0x3751, 0x7b, 0, 0},
+	{0x3752, 0x84, 0, 0},
+	{0x3753, 0xbd, 0, 0},
+	{0x3754, 0xbc, 0, 0},
+	{0x3756, 0x52, 0, 0},
+	{0x375c, 0x00, 0, 0},
+	{0x3760, 0x00, 0, 0},
+	{0x3761, 0x00, 0, 0},
+	{0x3762, 0x00, 0, 0},
+	{0x3763, 0x00, 0, 0},
+	{0x3764, 0x00, 0, 0},
+	{0x3767, 0x04, 0, 0},
+	{0x3768, 0x04, 0, 0},
+	{0x3769, 0x08, 0, 0},
+	{0x376a, 0x08, 0, 0},
+	{0x376b, 0x20, 0, 0},
+	{0x376c, 0x00, 0, 0},
+	{0x376d, 0x00, 0, 0},
+	{0x376e, 0x00, 0, 0},
+	{0x3773, 0x00, 0, 0},
+	{0x3774, 0x51, 0, 0},
+	{0x3776, 0xbd, 0, 0},
+	{0x3777, 0xbd, 0, 0},
+	{0x3781, 0x18, 0, 0},
+	{0x3783, 0x25, 0, 0},
+	{0x3798, 0x1b, 0, 0},
+	{0x3800, 0x01, 0, 0},   // timings
+	{0x3801, 0x88, 0, 0},
+	{0x3802, 0x00, 0, 0},
+	{0x3803, 0xe0, 0, 0},
+	{0x3804, 0x09, 0, 0},
+	{0x3805, 0x17, 0, 0},
+	{0x3806, 0x05, 0, 0},
+	{0x3807, 0x1f, 0, 0},
+	{0x3808, 0x07, 0, 0},
+	{0x3809, 0x80, 0, 0},
+	{0x380a, 0x04, 0, 0},
+	{0x380b, 0x38, 0, 0},
+	{0x380c, 0x06, 0, 0},
+	{0x380d, 0xe0, 0, 0},
+	{0x380e, 0x04, 0, 0},
+	{0x380f, 0x70, 0, 0},
+	{0x3810, 0x00, 0, 0},
+	{0x3811, 0x08, 0, 0},
+	{0x3812, 0x00, 0, 0},
+	{0x3813, 0x04, 0, 0},
+	{0x3814, 0x01, 0, 0},
+	{0x3815, 0x01, 0, 0},
+	{0x3819, 0x01, 0, 0},
+	{0x3820, 0x06, 0, 0},
+	{0x3821, 0x00, 0, 0},
+	{0x3829, 0x00, 0, 0},
+	{0x382a, 0x01, 0, 0},
+	{0x382b, 0x01, 0, 0},
+	{0x382d, 0x7f, 0, 0},
+	{0x3830, 0x04, 0, 0},
+	{0x3836, 0x01, 0, 0},
+	{0x3837, 0x00, 0, 0},
+	{0x3841, 0x02, 0, 0},
+	{0x3846, 0x08, 0, 0},
+	{0x3847, 0x07, 0, 0},
+	{0x3d85, 0x36, 0, 0},
+	{0x3d8c, 0x71, 0, 0},
+	{0x3d8d, 0xcb, 0, 0},
+	{0x3f0a, 0x00, 0, 0},
+	{0x4000, 0xf1, 0, 0},
+	{0x4001, 0x40, 0, 0},
+	{0x4002, 0x04, 0, 0},
+	{0x4003, 0x14, 0, 0},
+	{0x400e, 0x00, 0, 0},
+	{0x4011, 0x00, 0, 0},
+	{0x401a, 0x00, 0, 0},
+	{0x401b, 0x00, 0, 0},
+	{0x401c, 0x00, 0, 0},
+	{0x401d, 0x00, 0, 0},
+	{0x401f, 0x00, 0, 0},
+	{0x4020, 0x00, 0, 0},
+	{0x4021, 0x10, 0, 0},
+	{0x4022, 0x06, 0, 0},
+	{0x4023, 0x13, 0, 0},
+	{0x4024, 0x07, 0, 0},
+	{0x4025, 0x40, 0, 0},
+	{0x4026, 0x07, 0, 0},
+	{0x4027, 0x50, 0, 0},
+	{0x4028, 0x00, 0, 0},
+	{0x4029, 0x02, 0, 0},
+	{0x402a, 0x06, 0, 0},
+	{0x402b, 0x04, 0, 0},
+	{0x402c, 0x02, 0, 0},
+	{0x402d, 0x02, 0, 0},
+	{0x402e, 0x0e, 0, 0},
+	{0x402f, 0x04, 0, 0},
+	{0x4302, 0xff, 0, 0},
+	{0x4303, 0xff, 0, 0},
+	{0x4304, 0x00, 0, 0},
+	{0x4305, 0x00, 0, 0},
+	{0x4306, 0x00, 0, 0},
+	{0x4308, 0x02, 0, 0},
+	{0x4500, 0x6c, 0, 0},
+	{0x4501, 0xc4, 0, 0},
+	{0x4502, 0x40, 0, 0},
+	{0x4503, 0x01, 0, 0},
+	{0x4601, 0x77, 0, 0},
+	{0x4800, 0x04, 0, 0},
+	{0x4813, 0x08, 0, 0},
+	{0x481f, 0x40, 0, 0},
+	{0x4829, 0x78, 0, 0},
+	{0x4837, 0x10, 0, 0},
+	{0x4b00, 0x2a, 0, 0},
+	{0x4b0d, 0x00, 0, 0},
+	{0x4d00, 0x04, 0, 0},
+	{0x4d01, 0x42, 0, 0},
+	{0x4d02, 0xd1, 0, 0},
+	{0x4d03, 0x93, 0, 0},
+	{0x4d04, 0xf5, 0, 0},
+	{0x4d05, 0xc1, 0, 0},
+	{0x5000, 0xf3, 0, 0},
+	{0x5001, 0x11, 0, 0},
+	{0x5004, 0x00, 0, 0},
+	{0x500a, 0x00, 0, 0},
+	{0x500b, 0x00, 0, 0},
+	{0x5032, 0x00, 0, 0},
+	{0x5040, 0x00, 0, 0},
+	{0x5050, 0x0c, 0, 0},
+	{0x5500, 0x00, 0, 0},
+	{0x5501, 0x10, 0, 0},
+	{0x5502, 0x01, 0, 0},
+	{0x5503, 0x0f, 0, 0},
+	{0x8000, 0x00, 0, 0},
+	{0x8001, 0x00, 0, 0},
+	{0x8002, 0x00, 0, 0},
+	{0x8003, 0x00, 0, 0},
+	{0x8004, 0x00, 0, 0},
+	{0x8005, 0x00, 0, 0},
+	{0x8006, 0x00, 0, 0},
+	{0x8007, 0x00, 0, 0},
+	{0x8008, 0x00, 0, 0},
+	{0x3638, 0x00, 0, 0},
+};
+
+static const struct reg_value ov4689_setting_4M_2688_1520[] = {
+	//@@ 0 10 RES_2688x1520_default(60fps)
+	//102 2630 960
+	{0x0103, 0x01, 0, 0},
+	{0x3638, 0x00, 0, 0},
+	{0x0300, 0x00, 0, 0},
+	{0x0302, 0x22, 0, 0}, // 2a ;1008Mbps,23 ;; 840Mbps
+	{0x0304, 0x03, 0, 0},
+	{0x030b, 0x00, 0, 0},
+	{0x030d, 0x1e, 0, 0},
+	{0x030e, 0x04, 0, 0},
+	{0x030f, 0x01, 0, 0},
+	{0x0312, 0x01, 0, 0},
+	{0x031e, 0x00, 0, 0},
+	{0x3000, 0x20, 0, 0},
+	{0x3002, 0x00, 0, 0},
+	{0x3018, 0x32, 0, 0},
+	{0x3019, 0x0C, 0, 0},
+	{0x3020, 0x93, 0, 0},
+	{0x3021, 0x03, 0, 0},
+	{0x3022, 0x01, 0, 0},
+	{0x3031, 0x0a, 0, 0},
+	{0x303f, 0x0c, 0, 0},
+	{0x3305, 0xf1, 0, 0},
+	{0x3307, 0x04, 0, 0},
+	{0x3309, 0x29, 0, 0},
+	{0x3500, 0x00, 0, 0},
+	{0x3501, 0x60, 0, 0},
+	{0x3502, 0x00, 0, 0},
+	{0x3503, 0x04, 0, 0},
+	{0x3504, 0x00, 0, 0},
+	{0x3505, 0x00, 0, 0},
+	{0x3506, 0x00, 0, 0},
+	{0x3507, 0x00, 0, 0},
+	{0x3508, 0x00, 0, 0},
+	{0x3509, 0x80, 0, 0},
+	{0x350a, 0x00, 0, 0},
+	{0x350b, 0x00, 0, 0},
+	{0x350c, 0x00, 0, 0},
+	{0x350d, 0x00, 0, 0},
+	{0x350e, 0x00, 0, 0},
+	{0x350f, 0x80, 0, 0},
+	{0x3510, 0x00, 0, 0},
+	{0x3511, 0x00, 0, 0},
+	{0x3512, 0x00, 0, 0},
+	{0x3513, 0x00, 0, 0},
+	{0x3514, 0x00, 0, 0},
+	{0x3515, 0x80, 0, 0},
+	{0x3516, 0x00, 0, 0},
+	{0x3517, 0x00, 0, 0},
+	{0x3518, 0x00, 0, 0},
+	{0x3519, 0x00, 0, 0},
+	{0x351a, 0x00, 0, 0},
+	{0x351b, 0x80, 0, 0},
+	{0x351c, 0x00, 0, 0},
+	{0x351d, 0x00, 0, 0},
+	{0x351e, 0x00, 0, 0},
+	{0x351f, 0x00, 0, 0},
+	{0x3520, 0x00, 0, 0},
+	{0x3521, 0x80, 0, 0},
+	{0x3522, 0x08, 0, 0},
+	{0x3524, 0x08, 0, 0},
+	{0x3526, 0x08, 0, 0},
+	{0x3528, 0x08, 0, 0},
+	{0x352a, 0x08, 0, 0},
+	{0x3602, 0x00, 0, 0},
+	{0x3603, 0x40, 0, 0},
+	{0x3604, 0x02, 0, 0},
+	{0x3605, 0x00, 0, 0},
+	{0x3606, 0x00, 0, 0},
+	{0x3607, 0x00, 0, 0},
+	{0x3609, 0x12, 0, 0},
+	{0x360a, 0x40, 0, 0},
+	{0x360c, 0x08, 0, 0},
+	{0x360f, 0xe5, 0, 0},
+	{0x3608, 0x8f, 0, 0},
+	{0x3611, 0x00, 0, 0},
+	{0x3613, 0xf7, 0, 0},
+	{0x3616, 0x58, 0, 0},
+	{0x3619, 0x99, 0, 0},
+	{0x361b, 0x60, 0, 0},
+	{0x361c, 0x7a, 0, 0},
+	{0x361e, 0x79, 0, 0},
+	{0x361f, 0x02, 0, 0},
+	{0x3632, 0x00, 0, 0},
+	{0x3633, 0x10, 0, 0},
+	{0x3634, 0x10, 0, 0},
+	{0x3635, 0x10, 0, 0},
+	{0x3636, 0x15, 0, 0},
+	{0x3646, 0x86, 0, 0},
+	{0x364a, 0x0b, 0, 0},
+	{0x3700, 0x17, 0, 0},
+	{0x3701, 0x22, 0, 0},
+	{0x3703, 0x10, 0, 0},
+	{0x370a, 0x37, 0, 0},
+	{0x3705, 0x00, 0, 0},
+	{0x3706, 0x63, 0, 0},
+	{0x3709, 0x3c, 0, 0},
+	{0x370b, 0x01, 0, 0},
+	{0x370c, 0x30, 0, 0},
+	{0x3710, 0x24, 0, 0},
+	{0x3711, 0x0c, 0, 0},
+	{0x3716, 0x00, 0, 0},
+	{0x3720, 0x28, 0, 0},
+	{0x3729, 0x7b, 0, 0},
+	{0x372a, 0x84, 0, 0},
+	{0x372b, 0xbd, 0, 0},
+	{0x372c, 0xbc, 0, 0},
+	{0x372e, 0x52, 0, 0},
+	{0x373c, 0x0e, 0, 0},
+	{0x373e, 0x33, 0, 0},
+	{0x3743, 0x10, 0, 0},
+	{0x3744, 0x88, 0, 0},
+	{0x3745, 0xc0, 0, 0},
+	{0x374a, 0x43, 0, 0},
+	{0x374c, 0x00, 0, 0},
+	{0x374e, 0x23, 0, 0},
+	{0x3751, 0x7b, 0, 0},
+	{0x3752, 0x84, 0, 0},
+	{0x3753, 0xbd, 0, 0},
+	{0x3754, 0xbc, 0, 0},
+	{0x3756, 0x52, 0, 0},
+	{0x375c, 0x00, 0, 0},
+	{0x3760, 0x00, 0, 0},
+	{0x3761, 0x00, 0, 0},
+	{0x3762, 0x00, 0, 0},
+	{0x3763, 0x00, 0, 0},
+	{0x3764, 0x00, 0, 0},
+	{0x3767, 0x04, 0, 0},
+	{0x3768, 0x04, 0, 0},
+	{0x3769, 0x08, 0, 0},
+	{0x376a, 0x08, 0, 0},
+	{0x376b, 0x20, 0, 0},
+	{0x376c, 0x00, 0, 0},
+	{0x376d, 0x00, 0, 0},
+	{0x376e, 0x00, 0, 0},
+	{0x3773, 0x00, 0, 0},
+	{0x3774, 0x51, 0, 0},
+	{0x3776, 0xbd, 0, 0},
+	{0x3777, 0xbd, 0, 0},
+	{0x3781, 0x18, 0, 0},
+	{0x3783, 0x25, 0, 0},
+	{0x3798, 0x1b, 0, 0},
+	{0x3800, 0x00, 0, 0},
+	{0x3801, 0x08, 0, 0},
+	{0x3802, 0x00, 0, 0},
+	{0x3803, 0x04, 0, 0},
+	{0x3804, 0x0a, 0, 0},
+	{0x3805, 0x97, 0, 0},
+	{0x3806, 0x05, 0, 0},
+	{0x3807, 0xfb, 0, 0},
+	{0x3808, 0x0a, 0, 0},
+	{0x3809, 0x80, 0, 0},
+	{0x380a, 0x05, 0, 0},
+	{0x380b, 0xf0, 0, 0},
+	{0x380c, 0x03, 0, 0},
+	{0x380d, 0x5c, 0, 0},
+	{0x380e, 0x06, 0, 0},
+	{0x380f, 0x12, 0, 0},
+	{0x3810, 0x00, 0, 0},
+	{0x3811, 0x08, 0, 0},
+	{0x3812, 0x00, 0, 0},
+	{0x3813, 0x04, 0, 0},
+	{0x3814, 0x01, 0, 0},
+	{0x3815, 0x01, 0, 0},
+	{0x3819, 0x01, 0, 0},
+	{0x3820, 0x00, 0, 0},
+	{0x3821, 0x06, 0, 0},
+	{0x3829, 0x00, 0, 0},
+	{0x382a, 0x01, 0, 0},
+	{0x382b, 0x01, 0, 0},
+	{0x382d, 0x7f, 0, 0},
+	{0x3830, 0x04, 0, 0},
+	{0x3836, 0x01, 0, 0},
+	{0x3837, 0x00, 0, 0},
+	{0x3841, 0x02, 0, 0},
+	{0x3846, 0x08, 0, 0},
+	{0x3847, 0x07, 0, 0},
+	{0x3d85, 0x36, 0, 0},
+	{0x3d8c, 0x71, 0, 0},
+	{0x3d8d, 0xcb, 0, 0},
+	{0x3f0a, 0x00, 0, 0},
+	{0x4000, 0x71, 0, 0},
+	{0x4001, 0x40, 0, 0},
+	{0x4002, 0x04, 0, 0},
+	{0x4003, 0x14, 0, 0},
+	{0x400e, 0x00, 0, 0},
+	{0x4011, 0x00, 0, 0},
+	{0x401a, 0x00, 0, 0},
+	{0x401b, 0x00, 0, 0},
+	{0x401c, 0x00, 0, 0},
+	{0x401d, 0x00, 0, 0},
+	{0x401f, 0x00, 0, 0},
+	{0x4020, 0x00, 0, 0},
+	{0x4021, 0x10, 0, 0},
+	{0x4022, 0x07, 0, 0},
+	{0x4023, 0xcf, 0, 0},
+	{0x4024, 0x09, 0, 0},
+	{0x4025, 0x60, 0, 0},
+	{0x4026, 0x09, 0, 0},
+	{0x4027, 0x6f, 0, 0},
+	{0x4028, 0x00, 0, 0},
+	{0x4029, 0x02, 0, 0},
+	{0x402a, 0x06, 0, 0},
+	{0x402b, 0x04, 0, 0},
+	{0x402c, 0x02, 0, 0},
+	{0x402d, 0x02, 0, 0},
+	{0x402e, 0x0e, 0, 0},
+	{0x402f, 0x04, 0, 0},
+	{0x4302, 0xff, 0, 0},
+	{0x4303, 0xff, 0, 0},
+	{0x4304, 0x00, 0, 0},
+	{0x4305, 0x00, 0, 0},
+	{0x4306, 0x00, 0, 0},
+	{0x4308, 0x02, 0, 0},
+	{0x4500, 0x6c, 0, 0},
+	{0x4501, 0xc4, 0, 0},
+	{0x4502, 0x40, 0, 0},
+	{0x4503, 0x01, 0, 0},
+	{0x4601, 0x04, 0, 0},
+	{0x4800, 0x04, 0, 0},
+	{0x4813, 0x08, 0, 0},
+	{0x481f, 0x40, 0, 0},
+	{0x4829, 0x78, 0, 0},
+	{0x4837, 0x14, 0, 0}, // 10
+	{0x4b00, 0x2a, 0, 0},
+	{0x4b0d, 0x00, 0, 0},
+	{0x4d00, 0x04, 0, 0},
+	{0x4d01, 0x42, 0, 0},
+	{0x4d02, 0xd1, 0, 0},
+	{0x4d03, 0x93, 0, 0},
+	{0x4d04, 0xf5, 0, 0},
+	{0x4d05, 0xc1, 0, 0},
+	{0x5000, 0xf3, 0, 0},
+	{0x5001, 0x11, 0, 0},
+	{0x5004, 0x00, 0, 0},
+	{0x500a, 0x00, 0, 0},
+	{0x500b, 0x00, 0, 0},
+	{0x5032, 0x00, 0, 0},
+	{0x5040, 0x00, 0, 0},
+	{0x5050, 0x0c, 0, 0},
+	{0x5500, 0x00, 0, 0},
+	{0x5501, 0x10, 0, 0},
+	{0x5502, 0x01, 0, 0},
+	{0x5503, 0x0f, 0, 0},
+	{0x8000, 0x00, 0, 0},
+	{0x8001, 0x00, 0, 0},
+	{0x8002, 0x00, 0, 0},
+	{0x8003, 0x00, 0, 0},
+	{0x8004, 0x00, 0, 0},
+	{0x8005, 0x00, 0, 0},
+	{0x8006, 0x00, 0, 0},
+	{0x8007, 0x00, 0, 0},
+	{0x8008, 0x00, 0, 0},
+	{0x3638, 0x00, 0, 0},
+//	{0x0100, 0x01, 0, 0},
+
+//	{0x0100, 0x00, 0, 0},
+	{0x380c, 0x0A, 0, 0}, // 05
+	{0x380d, 0x0A, 0, 0}, // 10
+	{0x380e, 0x06, 0, 0},
+	{0x380f, 0x12, 0, 0},
+//	{0x0100, 0x01, 0, 0},
+	{0x3105, 0x31, 0, 0},
+	{0x301a, 0xf9, 0, 0},
+	{0x3508, 0x07, 0, 0},
+	{0x484b, 0x05, 0, 0},
+	{0x4805, 0x03, 0, 0},
+	{0x3601, 0x01, 0, 0},
+	{0x3745, 0xc0, 0, 0},
+	{0x3798, 0x1b, 0, 0},
+//	{0x0100, 0x01, 0, 0},
+	{0xffff, 0x0a, 0, 0},
+	{0x3105, 0x11, 0, 0},
+	{0x301a, 0xf1, 0, 0},
+	{0x4805, 0x00, 0, 0},
+	{0x301a, 0xf0, 0, 0},
+	{0x3208, 0x00, 0, 0},
+	{0x302a, 0x00, 0, 0},
+	{0x302a, 0x00, 0, 0},
+	{0x302a, 0x00, 0, 0},
+	{0x302a, 0x00, 0, 0},
+	{0x302a, 0x00, 0, 0},
+	{0x3601, 0x00, 0, 0},
+	{0x3638, 0x00, 0, 0},
+	{0x3208, 0x10, 0, 0},
+	{0x3208, 0xa0, 0, 0},
+};
+
+/* power-on sensor init reg table */
+static const struct ov4689_mode_info ov4689_mode_init_data = {
+	OV4689_MODE_1080P_1920_1080, SCALING,
+	1920, 0x6e0, 1080, 0x470,
+	ov4689_init_setting_30fps_1080P,
+	ARRAY_SIZE(ov4689_init_setting_30fps_1080P),
+	OV4689_60_FPS,
+};
+
+static const struct ov4689_mode_info
+ov4689_mode_data[OV4689_NUM_MODES] = {
+	{OV4689_MODE_720P_1280_720, SUBSAMPLING,
+	 1280, 0x408, 720, 0x305,
+	 ov4689_setting_720P_1280_720,
+	 ARRAY_SIZE(ov4689_setting_720P_1280_720),
+	 OV4689_150_FPS},
+	{OV4689_MODE_1080P_1920_1080, SCALING,
+	 1920, 0x6e0, 1080, 0x470,
+	 ov4689_setting_1080P_1920_1080,
+	 ARRAY_SIZE(ov4689_setting_1080P_1920_1080),
+	 OV4689_60_FPS},
+	{OV4689_MODE_4M_2688_1520, SCALING,
+	 2688, 0xa0a, 1520, 0x612,
+	 ov4689_setting_4M_2688_1520,
+	 ARRAY_SIZE(ov4689_setting_4M_2688_1520),
+	 OV4689_60_FPS},
+};
+
+static int ov4689_write_reg(struct ov4689_dev *sensor, u16 reg, u8 val)
+{
+	struct i2c_client *client = sensor->i2c_client;
+	struct i2c_msg msg;
+	u8 buf[3];
+	int ret;
+
+	buf[0] = reg >> 8;
+	buf[1] = reg & 0xff;
+	buf[2] = val;
+
+	msg.addr = client->addr;
+	msg.flags = client->flags;
+	msg.buf = buf;
+	msg.len = sizeof(buf);
+
+	ret = i2c_transfer(client->adapter, &msg, 1);
+	if (ret < 0) {
+		dev_err(&client->dev, "%s: error: reg=%x, val=%x\n",
+			__func__, reg, val);
+		return ret;
+	}
+
+	return 0;
+}
+
+static int ov4689_read_reg(struct ov4689_dev *sensor, u16 reg, u8 *val)
+{
+	struct i2c_client *client = sensor->i2c_client;
+	struct i2c_msg msg[2];
+	u8 buf[2];
+	int ret;
+
+	buf[0] = reg >> 8;
+	buf[1] = reg & 0xff;
+
+	msg[0].addr = client->addr;
+	msg[0].flags = client->flags;
+	msg[0].buf = buf;
+	msg[0].len = sizeof(buf);
+
+	msg[1].addr = client->addr;
+	msg[1].flags = client->flags | I2C_M_RD;
+	msg[1].buf = buf;
+	msg[1].len = 1;
+
+	ret = i2c_transfer(client->adapter, msg, 2);
+	if (ret < 0) {
+		dev_err(&client->dev, "%s: error: reg=%x\n",
+			__func__, reg);
+		return ret;
+	}
+
+	*val = buf[0];
+	return 0;
+}
+
+static int ov4689_read_reg16(struct ov4689_dev *sensor, u16 reg, u16 *val)
+{
+	u8 hi, lo;
+	int ret;
+
+	ret = ov4689_read_reg(sensor, reg, &hi);
+	if (ret)
+		return ret;
+	ret = ov4689_read_reg(sensor, reg + 1, &lo);
+	if (ret)
+		return ret;
+
+	*val = ((u16)hi << 8) | (u16)lo;
+	return 0;
+}
+
+static int ov4689_write_reg16(struct ov4689_dev *sensor, u16 reg, u16 val)
+{
+	int ret;
+
+	ret = ov4689_write_reg(sensor, reg, val >> 8);
+	if (ret)
+		return ret;
+
+	return ov4689_write_reg(sensor, reg + 1, val & 0xff);
+}
+
+static int ov4689_mod_reg(struct ov4689_dev *sensor, u16 reg,
+			u8 mask, u8 val)
+{
+	u8 readval;
+	int ret;
+
+	ret = ov4689_read_reg(sensor, reg, &readval);
+	if (ret)
+		return ret;
+
+	readval &= ~mask;
+	val &= mask;
+	val |= readval;
+
+	return ov4689_write_reg(sensor, reg, val);
+}
+
+static int ov4689_set_timings(struct ov4689_dev *sensor,
+			const struct ov4689_mode_info *mode)
+{
+	int ret;
+
+	return 0;
+}
+
+static int ov4689_load_regs(struct ov4689_dev *sensor,
+			const struct ov4689_mode_info *mode)
+{
+	const struct reg_value *regs = mode->reg_data;
+	unsigned int i;
+	u32 delay_ms;
+	u16 reg_addr;
+	u8 mask, val;
+	int ret = 0;
+
+	st_info(ST_SENSOR, "%s, mode = 0x%x\n", __func__, mode->id);
+	for (i = 0; i < mode->reg_data_size; ++i, ++regs) {
+		delay_ms = regs->delay_ms;
+		reg_addr = regs->reg_addr;
+		val = regs->val;
+		mask = regs->mask;
+
+		if (mask)
+			ret = ov4689_mod_reg(sensor, reg_addr, mask, val);
+		else
+			ret = ov4689_write_reg(sensor, reg_addr, val);
+		if (ret)
+			break;
+
+		if (delay_ms)
+			usleep_range(1000 * delay_ms, 1000 * delay_ms + 100);
+	}
+
+	return ov4689_set_timings(sensor, mode);
+}
+
+static int ov4689_get_exposure(struct ov4689_dev *sensor)
+{
+	int exp, ret;
+	u8 temp;
+
+	ret = ov4689_read_reg(sensor, OV4689_REG_EXPOSURE_HI, &temp);
+	if (ret)
+		return ret;
+	exp = ((int)temp & 0x0f) << 16;
+	ret = ov4689_read_reg(sensor, OV4689_REG_EXPOSURE_MED, &temp);
+	if (ret)
+		return ret;
+	exp |= ((int)temp << 8);
+	ret = ov4689_read_reg(sensor, OV4689_REG_EXPOSURE_LO, &temp);
+	if (ret)
+		return ret;
+	exp |= (int)temp;
+
+	return exp >> 4;
+}
+
+static int ov4689_set_exposure(struct ov4689_dev *sensor, u32 exposure)
+{
+	int ret;
+
+	st_info(ST_SENSOR, "%s, exposure = 0x%x\n", __func__, exposure);
+	exposure <<= 4;
+
+	ret = ov4689_write_reg(sensor,
+			OV4689_REG_EXPOSURE_LO,
+			exposure & 0xff);
+	if (ret)
+		return ret;
+	ret = ov4689_write_reg(sensor,
+			OV4689_REG_EXPOSURE_MED,
+			(exposure >> 8) & 0xff);
+	if (ret)
+		return ret;
+	return ov4689_write_reg(sensor,
+				OV4689_REG_EXPOSURE_HI,
+				(exposure >> 16) & 0x0f);
+}
+
+static int ov4689_get_gain(struct ov4689_dev *sensor)
+{
+	u32 gain = 0;
+	u8 val;
+
+	ov4689_read_reg(sensor, OV4689_REG_GAIN_H, &val);
+	gain = (val & 0x3) << 16;
+	ov4689_read_reg(sensor, OV4689_REG_GAIN_M, &val);
+	gain |= val << 8;
+	ov4689_read_reg(sensor, OV4689_REG_GAIN_L, &val);
+	gain |= val;
+
+	return gain;
+}
+
+static int ov4689_set_gain(struct ov4689_dev *sensor, int gain)
+{
+	u8 val;
+
+	ov4689_write_reg(sensor, OV4689_REG_GAIN_H,
+				(gain >> 16) & 0x3);
+	ov4689_write_reg(sensor, OV4689_REG_GAIN_M,
+				(gain >> 8) & 0xff);
+	ov4689_write_reg(sensor, OV4689_REG_GAIN_L,
+				gain & 0xff);
+	return 0;
+}
+
+static int ov4689_set_stream_mipi(struct ov4689_dev *sensor, bool on)
+{
+	return 0;
+}
+
+static int ov4689_get_sysclk(struct ov4689_dev *sensor)
+{
+	return 0;
+}
+
+static int ov4689_set_night_mode(struct ov4689_dev *sensor)
+{
+	return 0;
+}
+
+static int ov4689_get_hts(struct ov4689_dev *sensor)
+{
+	/* read HTS from register settings */
+	u16 hts;
+	int ret;
+
+	ret = ov4689_read_reg16(sensor, OV4689_REG_TIMING_HTS, &hts);
+	if (ret)
+		return ret;
+	return hts;
+}
+
+static int ov4689_get_vts(struct ov4689_dev *sensor)
+{
+	u16 vts;
+	int ret;
+
+	ret = ov4689_read_reg16(sensor, OV4689_REG_TIMING_VTS, &vts);
+	if (ret)
+		return ret;
+	return vts;
+}
+
+static int ov4689_set_vts(struct ov4689_dev *sensor, int vts)
+{
+	return ov4689_write_reg16(sensor, OV4689_REG_TIMING_VTS, vts);
+}
+
+static int ov4689_get_light_freq(struct ov4689_dev *sensor)
+{
+	return 0;
+}
+
+static int ov4689_set_bandingfilter(struct ov4689_dev *sensor)
+{
+	return 0;
+}
+
+static int ov4689_set_ae_target(struct ov4689_dev *sensor, int target)
+{
+	return 0;
+}
+
+static int ov4689_get_binning(struct ov4689_dev *sensor)
+{
+	return 0;
+}
+
+static int ov4689_set_binning(struct ov4689_dev *sensor, bool enable)
+{
+	return 0;
+}
+
+static const struct ov4689_mode_info *
+ov4689_find_mode(struct ov4689_dev *sensor, enum ov4689_frame_rate fr,
+		int width, int height, bool nearest)
+{
+	const struct ov4689_mode_info *mode;
+
+	mode = v4l2_find_nearest_size(ov4689_mode_data,
+				ARRAY_SIZE(ov4689_mode_data),
+				hact, vact,
+				width, height);
+
+	if (!mode ||
+		(!nearest && (mode->hact != width || mode->vact != height)))
+		return NULL;
+
+	/* Check to see if the current mode exceeds the max frame rate */
+	if (ov4689_framerates[fr] > ov4689_framerates[mode->max_fps])
+		return NULL;
+
+	return mode;
+}
+
+static u64 ov4689_calc_pixel_rate(struct ov4689_dev *sensor)
+{
+	u64 rate;
+
+	rate = sensor->current_mode->vact * sensor->current_mode->hact;
+	rate *= ov4689_framerates[sensor->current_fr];
+
+	return rate;
+}
+
+/*
+ * After trying the various combinations, reading various
+ * documentations spread around the net, and from the various
+ * feedback, the clock tree is probably as follows:
+ *
+ *   +--------------+
+ *   |  Ext. Clock  |
+ *   +-+------------+
+ *     |  +----------+
+ *     +->|   PLL1   | - reg 0x030a, bit0 for the pre-dividerp
+ *        +-+--------+ - reg 0x0300, bits 0-2 for the pre-divider
+ *        +-+--------+ - reg 0x0301~0x0302, for the multiplier
+ *          |  +--------------+
+ *          +->| MIPI Divider |  - reg 0x0303, bits 0-3 for the pre-divider
+ *               | +---------> MIPI PHY CLK
+ *               |    +-----+
+ *               | +->| PLL1_DIV_MIPI | - reg 0x0304, bits 0-1 for the divider
+ *                 |    +----------------> PCLK
+ *               |    +-----+
+ *
+ *   +--------------+
+ *   |  Ext. Clock  |
+ *   +-+------------+
+ *     |  +----------+
+ *     +->|   PLL2  | - reg 0x0311, bit0 for the pre-dividerp
+ *        +-+--------+ - reg 0x030b, bits 0-2 for the pre-divider
+ *        +-+--------+ - reg 0x030c~0x030d, for the multiplier
+ *          |  +--------------+
+ *          +->| SCLK Divider |  - reg 0x030F, bits 0-3 for the pre-divider
+ *               +-+--------+    - reg 0x030E, bits 0-2 for the divider
+ *               |    +---------> SCLK
+ *
+ *          |       +-----+
+ *          +->| DAC Divider | - reg 0x0312, bits 0-3 for the divider
+ *                    |    +----------------> DACCLK
+ **
+ */
+
+/*
+ * ov4689_set_mipi_pclk() - Calculate the clock tree configuration values
+ *			for the MIPI CSI-2 output.
+ *
+ * @rate: The requested bandwidth per lane in bytes per second.
+ *	'Bandwidth Per Lane' is calculated as:
+ *	bpl = HTOT * VTOT * FPS * bpp / num_lanes;
+ *
+ * This function use the requested bandwidth to calculate:
+ *
+ * - mipi_pclk   = bpl / 2; ( / 2 is for CSI-2 DDR)
+ * - mipi_phy_clk   = mipi_pclk * PLL1_DIV_MIPI;
+ *
+ * with these fixed parameters:
+ *	PLL1_PREDIVP    = 1;
+ *	PLL1_PREDIV     = 1; (MIPI_BIT_MODE == 8 ? 2 : 2,5);
+ *	PLL1_DIVM       = 1;
+ *	PLL1_DIV_MIPI   = 4;
+ *
+ * FIXME: this have been tested with 10-bit raw and 2 lanes setup only.
+ * MIPI_DIV is fixed to value 2, but it -might- be changed according to the
+ * above formula for setups with 1 lane or image formats with different bpp.
+ *
+ * FIXME: this deviates from the sensor manual documentation which is quite
+ * thin on the MIPI clock tree generation part.
+ */
+
+#define PLL1_PREDIVP         1     // bypass
+#define PLL1_PREDIV          1     // bypass
+#define PLL1_DIVM            1  // bypass
+#define PLL1_DIV_MIPI        3  // div
+#define PLL1_DIV_MIPI_BASE   1  // div
+
+#define PLL1_DIVSP    1   // no use
+#define PLL1_DIVS     1   // no use
+
+#define PLL2_PREDIVP       0
+#define PLL2_PREDIV        0
+#define PLL2_DIVSP       1
+#define PLL2_DIVS        4
+#define PLL2_DIVDAC      1
+
+#define OV4689_PLL1_PREDIVP         0x030a   // bits[0]
+#define OV4689_PLL1_PREDIV          0x0300   // bits[2:0]
+#define OV4689_PLL1_MULTIPLIER      0x0301   // bits[9:8]  0x0302 bits[7:0]
+#define OV4689_PLL1_DIVM            0x0303   // bits[3:0]
+#define OV4689_PLL1_DIV_MIPI        0x0304   // bits[1:0]
+
+#define OV4689_PLL1_DIVSP           0x0305   //bits[1:0]
+#define OV4689_PLL1_DIVS            0x0306   // bits[0]
+
+#define OV4689_PLL2_PREDIVP         0x0311   // bits[0]
+#define OV4689_PLL2_PREDIV          0x030b   // bits[2:0]
+#define OV4689_PLL2_MULTIPLIER      0x030c   // bits[9:8]   0x030d bits[7:0]
+#define OV4689_PLL2_DIVSP           0x030f  // bits[3:0]
+#define OV4689_PLL2_DIVS            0x030e  // bits[2:0]
+#define OV4689_PLL2_DIVDAC          0x0312  // bits[3:0]
+
+#define OV4689_TIMING_HTS           0x380c
+
+static int ov4689_set_mipi_pclk(struct ov4689_dev *sensor,
+				unsigned long rate)
+{
+	const struct ov4689_mode_info *mode = sensor->current_mode;
+	const struct ov4689_mode_info *orig_mode = sensor->last_mode;
+	u8 mult, val;
+	int ret = 0;
+	int fps = ov4689_framerates[sensor->current_fr];
+	u16 htot, val16;
+
+	htot = mode->htot * ov4689_framerates[mode->max_fps] / fps;
+
+	ret = ov4689_write_reg16(sensor, OV4689_TIMING_HTS, htot);
+
+	ret = ov4689_read_reg(sensor, OV4689_TIMING_HTS, &val);
+	val16 = val << 8;
+	ret = ov4689_read_reg(sensor, OV4689_TIMING_HTS + 1, &val);
+	val16 |= val;
+	st_info(ST_SENSOR, "fps = %d, max_fps = %d, mode->htot = 0x%x, "
+			"htot = 0x%x, 0x%x = 0x%x\n",
+			fps, mode->max_fps, mode->htot,
+			htot, OV4689_TIMING_HTS, val16);
+	return 0;
+}
+
+/*
+ * if sensor changes inside scaling or subsampling
+ * change mode directly
+ */
+static int ov4689_set_mode_direct(struct ov4689_dev *sensor,
+				const struct ov4689_mode_info *mode)
+{
+	if (!mode->reg_data)
+		return -EINVAL;
+
+	/* Write capture setting */
+	return ov4689_load_regs(sensor, mode);
+}
+
+static int ov4689_set_mode(struct ov4689_dev *sensor)
+{
+	const struct ov4689_mode_info *mode = sensor->current_mode;
+	const struct ov4689_mode_info *orig_mode = sensor->last_mode;
+	int ret = 0;
+
+	ret = ov4689_set_mode_direct(sensor, mode);
+	if (ret < 0)
+		return ret;
+
+	/*
+	 * we support have 10 bits raw RGB(mipi)
+	 */
+	if (sensor->ep.bus_type == V4L2_MBUS_CSI2_DPHY)
+		ret = ov4689_set_mipi_pclk(sensor, 0);
+
+	if (ret < 0)
+		return 0;
+
+	sensor->pending_mode_change = false;
+	sensor->last_mode = mode;
+	return 0;
+}
+
+/* restore the last set video mode after chip power-on */
+static int ov4689_restore_mode(struct ov4689_dev *sensor)
+{
+	int ret;
+
+	/* first load the initial register values */
+	ret = ov4689_load_regs(sensor, &ov4689_mode_init_data);
+	if (ret < 0)
+		return ret;
+	sensor->last_mode = &ov4689_mode_init_data;
+
+	/* now restore the last capture mode */
+	ret = ov4689_set_mode(sensor);
+	if (ret < 0)
+		return ret;
+
+	return ret;
+}
+
+static void ov4689_power(struct ov4689_dev *sensor, bool enable)
+{
+	if (!sensor->pwdn_gpio)
+		return;
+	gpiod_set_value_cansleep(sensor->pwdn_gpio, enable ? 0 : 1);
+}
+
+static void ov4689_reset(struct ov4689_dev *sensor)
+{
+	if (!sensor->reset_gpio)
+		return;
+
+	gpiod_set_value_cansleep(sensor->reset_gpio, 0);
+
+	usleep_range(5000, 25000);
+
+	gpiod_set_value_cansleep(sensor->reset_gpio, 1);
+	usleep_range(1000, 2000);
+}
+
+static int ov4689_set_power_on(struct ov4689_dev *sensor)
+{
+	struct i2c_client *client = sensor->i2c_client;
+	int ret;
+
+	ret = clk_prepare_enable(sensor->xclk);
+	if (ret) {
+		dev_err(&client->dev, "%s: failed to enable clock\n",
+			__func__);
+		return ret;
+	}
+
+	ret = regulator_bulk_enable(OV4689_NUM_SUPPLIES,
+				sensor->supplies);
+	if (ret) {
+		dev_err(&client->dev, "%s: failed to enable regulators\n",
+			__func__);
+		goto xclk_off;
+	}
+
+	ov4689_reset(sensor);
+	ov4689_power(sensor, true);
+
+	return 0;
+
+xclk_off:
+	clk_disable_unprepare(sensor->xclk);
+	return ret;
+}
+
+static void ov4689_set_power_off(struct ov4689_dev *sensor)
+{
+	ov4689_power(sensor, false);
+	regulator_bulk_disable(OV4689_NUM_SUPPLIES, sensor->supplies);
+	clk_disable_unprepare(sensor->xclk);
+}
+
+static int ov4689_set_power_mipi(struct ov4689_dev *sensor, bool on)
+{
+	return 0;
+}
+
+static int ov4689_set_power(struct ov4689_dev *sensor, bool on)
+{
+	int ret = 0;
+	u16 chip_id;
+
+	if (on) {
+		ret = ov4689_set_power_on(sensor);
+		if (ret)
+			return ret;
+
+		ret = ov4689_read_reg16(sensor, OV4689_REG_CHIP_ID, &chip_id);
+		if (ret) {
+			dev_err(&sensor->i2c_client->dev, "%s: failed to read chip identifier\n",
+				__func__);
+			ret = -ENODEV;
+			goto power_off;
+		}
+
+		if (chip_id != OV4689_CHIP_ID) {
+			dev_err(&sensor->i2c_client->dev,
+					"%s: wrong chip identifier, expected 0x%x, got 0x%x\n",
+					__func__, OV4689_CHIP_ID, chip_id);
+			ret = -ENXIO;
+			goto power_off;
+		}
+		dev_err(&sensor->i2c_client->dev, "%s: chip identifier, got 0x%x\n",
+			__func__, chip_id);
+
+		ret = ov4689_restore_mode(sensor);
+		if (ret)
+			goto power_off;
+	}
+
+	if (sensor->ep.bus_type == V4L2_MBUS_CSI2_DPHY)
+		ret = ov4689_set_power_mipi(sensor, on);
+	if (ret)
+		goto power_off;
+
+	if (!on)
+		ov4689_set_power_off(sensor);
+
+	return 0;
+
+power_off:
+	ov4689_set_power_off(sensor);
+	return ret;
+}
+
+static int ov4689_s_power(struct v4l2_subdev *sd, int on)
+{
+	struct ov4689_dev *sensor = to_ov4689_dev(sd);
+	int ret = 0;
+
+	mutex_lock(&sensor->lock);
+
+	/*
+	 * If the power count is modified from 0 to != 0 or from != 0 to 0,
+	 * update the power state.
+	 */
+	if (sensor->power_count == !on) {
+		ret = ov4689_set_power(sensor, !!on);
+		if (ret)
+			goto out;
+	}
+
+	/* Update the power count. */
+	sensor->power_count += on ? 1 : -1;
+	WARN_ON(sensor->power_count < 0);
+out:
+	mutex_unlock(&sensor->lock);
+
+	if (on && !ret && sensor->power_count == 1) {
+		/* restore controls */
+		ret = v4l2_ctrl_handler_setup(&sensor->ctrls.handler);
+	}
+
+	return ret;
+}
+
+static int ov4689_try_frame_interval(struct ov4689_dev *sensor,
+				struct v4l2_fract *fi,
+				u32 width, u32 height)
+{
+	const struct ov4689_mode_info *mode;
+	enum ov4689_frame_rate rate = OV4689_15_FPS;
+	int minfps, maxfps, best_fps, fps;
+	int i;
+
+	minfps = ov4689_framerates[OV4689_15_FPS];
+	maxfps = ov4689_framerates[OV4689_NUM_FRAMERATES - 1];
+
+	if (fi->numerator == 0) {
+		fi->denominator = maxfps;
+		fi->numerator = 1;
+		rate = OV4689_60_FPS;
+		goto find_mode;
+	}
+
+	fps = clamp_val(DIV_ROUND_CLOSEST(fi->denominator, fi->numerator),
+			minfps, maxfps);
+
+	best_fps = minfps;
+	for (i = 0; i < ARRAY_SIZE(ov4689_framerates); i++) {
+		int curr_fps = ov4689_framerates[i];
+		if (abs(curr_fps - fps) < abs(best_fps - fps)) {
+			best_fps = curr_fps;
+			rate = i;
+		}
+	}
+	st_info(ST_SENSOR, "best_fps = %d, fps = %d\n", best_fps, fps);
+
+	fi->numerator = 1;
+	fi->denominator = best_fps;
+
+find_mode:
+	mode = ov4689_find_mode(sensor, rate, width, height, false);
+	return mode ? rate : -EINVAL;
+}
+
+static int ov4689_enum_mbus_code(struct v4l2_subdev *sd,
+				struct v4l2_subdev_pad_config *cfg,
+				struct v4l2_subdev_mbus_code_enum *code)
+{
+	if (code->pad != 0)
+		return -EINVAL;
+
+	if (code->index)
+		return -EINVAL;
+
+	code->code = MEDIA_BUS_FMT_SBGGR10_1X10;
+	return 0;
+}
+
+static int ov4689_get_fmt(struct v4l2_subdev *sd,
+			struct v4l2_subdev_pad_config *cfg,
+			struct v4l2_subdev_format *format)
+{
+	struct ov4689_dev *sensor = to_ov4689_dev(sd);
+	struct v4l2_mbus_framefmt *fmt;
+
+	if (format->pad != 0)
+		return -EINVAL;
+
+	mutex_lock(&sensor->lock);
+
+	if (format->which == V4L2_SUBDEV_FORMAT_TRY)
+		fmt = v4l2_subdev_get_try_format(&sensor->sd, cfg,
+						format->pad);
+	else
+		fmt = &sensor->fmt;
+
+	format->format = *fmt;
+
+	mutex_unlock(&sensor->lock);
+
+	return 0;
+}
+
+static int ov4689_try_fmt_internal(struct v4l2_subdev *sd,
+				struct v4l2_mbus_framefmt *fmt,
+				enum ov4689_frame_rate fr,
+				const struct ov4689_mode_info **new_mode)
+{
+	struct ov4689_dev *sensor = to_ov4689_dev(sd);
+	const struct ov4689_mode_info *mode;
+	int i;
+
+	mode = ov4689_find_mode(sensor, fr, fmt->width, fmt->height, true);
+	if (!mode)
+		return -EINVAL;
+	fmt->width = mode->hact;
+	fmt->height = mode->vact;
+
+	if (new_mode)
+		*new_mode = mode;
+
+	fmt->code = MEDIA_BUS_FMT_SBGGR10_1X10;
+
+	return 0;
+}
+
+static int ov4689_set_fmt(struct v4l2_subdev *sd,
+			struct v4l2_subdev_pad_config *cfg,
+			struct v4l2_subdev_format *format)
+{
+	struct ov4689_dev *sensor = to_ov4689_dev(sd);
+	const struct ov4689_mode_info *new_mode;
+	struct v4l2_mbus_framefmt *mbus_fmt = &format->format;
+	struct v4l2_mbus_framefmt *fmt;
+	int ret;
+
+	if (format->pad != 0)
+		return -EINVAL;
+
+	mutex_lock(&sensor->lock);
+
+	if (sensor->streaming) {
+		ret = -EBUSY;
+		goto out;
+	}
+
+	ret = ov4689_try_fmt_internal(sd, mbus_fmt, 0, &new_mode);
+	if (ret)
+		goto out;
+
+	if (format->which == V4L2_SUBDEV_FORMAT_TRY)
+		fmt = v4l2_subdev_get_try_format(sd, cfg, 0);
+	else
+		fmt = &sensor->fmt;
+
+	*fmt = *mbus_fmt;
+
+	if (new_mode != sensor->current_mode) {
+		sensor->current_mode = new_mode;
+		sensor->pending_mode_change = true;
+	}
+	if (new_mode->max_fps < sensor->current_fr) {
+		sensor->current_fr = new_mode->max_fps;
+		sensor->frame_interval.numerator = 1;
+		sensor->frame_interval.denominator =
+			ov4689_framerates[sensor->current_fr];
+		sensor->current_mode = new_mode;
+		sensor->pending_mode_change = true;
+	}
+
+	__v4l2_ctrl_s_ctrl_int64(sensor->ctrls.pixel_rate,
+				ov4689_calc_pixel_rate(sensor));
+out:
+	mutex_unlock(&sensor->lock);
+	return ret;
+}
+
+/*
+ * Sensor Controls.
+ */
+
+static int ov4689_set_ctrl_hue(struct ov4689_dev *sensor, int value)
+{
+	int ret = 0;
+
+	return ret;
+}
+
+static int ov4689_set_ctrl_contrast(struct ov4689_dev *sensor, int value)
+{
+	int ret = 0;
+
+	return ret;
+}
+
+static int ov4689_set_ctrl_saturation(struct ov4689_dev *sensor, int value)
+{
+	int ret  = 0;
+
+	return ret;
+}
+
+static int ov4689_set_ctrl_white_balance(struct ov4689_dev *sensor, int awb)
+{
+	struct ov4689_ctrls *ctrls = &sensor->ctrls;
+	int ret = 0;
+
+	if (!awb && (ctrls->red_balance->is_new
+			|| ctrls->blue_balance->is_new)) {
+		u16 red = (u16)ctrls->red_balance->val;
+		u16 blue = (u16)ctrls->blue_balance->val;
+
+		st_info(ST_SENSOR, "red = 0x%x, blue = 0x%x\n", red, blue);
+		ret = ov4689_write_reg16(sensor, OV4689_REG_AWB_R_GAIN, red);
+		if (ret)
+			return ret;
+		ret = ov4689_write_reg16(sensor, OV4689_REG_AWB_B_GAIN, blue);
+	}
+	return ret;
+}
+
+static int ov4689_set_ctrl_exposure(struct ov4689_dev *sensor,
+				enum v4l2_exposure_auto_type auto_exposure)
+{
+	struct ov4689_ctrls *ctrls = &sensor->ctrls;
+	bool auto_exp = (auto_exposure == V4L2_EXPOSURE_AUTO);
+	int ret = 0;
+
+	if (!auto_exp && ctrls->exposure->is_new) {
+		u16 max_exp = 0;
+
+		ret = ov4689_read_reg16(sensor, OV4689_REG_V_OUTPUT_SIZE,
+					&max_exp);
+
+		ret = ov4689_get_vts(sensor);
+		if (ret < 0)
+			return ret;
+		max_exp += ret;
+		ret = 0;
+
+		st_info(ST_SENSOR, "%s, max_exp = 0x%x\n", __func__, max_exp);
+		if (ctrls->exposure->val < max_exp)
+			ret = ov4689_set_exposure(sensor, ctrls->exposure->val);
+	}
+
+	return ret;
+}
+
+static const s64 link_freq_menu_items[] = {
+	OV4689_LINK_FREQ_500MHZ
+};
+
+static const char * const test_pattern_menu[] = {
+	"Disabled",
+	"Color bars",
+	"Color bars w/ rolling bar",
+	"Color squares",
+	"Color squares w/ rolling bar",
+};
+
+#define OV4689_TEST_ENABLE		BIT(7)
+#define OV4689_TEST_ROLLING		BIT(6)  /* rolling horizontal bar */
+#define OV4689_TEST_TRANSPARENT		BIT(5)
+#define OV4689_TEST_SQUARE_BW		BIT(4)  /* black & white squares */
+#define OV4689_TEST_BAR_STANDARD	(0 << 2)
+#define OV4689_TEST_BAR_DARKER_1	(1 << 2)
+#define OV4689_TEST_BAR_DARKER_2	(2 << 2)
+#define OV4689_TEST_BAR_DARKER_3	(3 << 2)
+#define OV4689_TEST_BAR			(0 << 0)
+#define OV4689_TEST_RANDOM		(1 << 0)
+#define OV4689_TEST_SQUARE		(2 << 0)
+#define OV4689_TEST_BLACK		(3 << 0)
+
+static const u8 test_pattern_val[] = {
+	0,
+	OV4689_TEST_ENABLE | OV4689_TEST_BAR_STANDARD |
+		OV4689_TEST_BAR,
+	OV4689_TEST_ENABLE | OV4689_TEST_ROLLING |
+		OV4689_TEST_BAR_DARKER_1 | OV4689_TEST_BAR,
+	OV4689_TEST_ENABLE | OV4689_TEST_SQUARE,
+	OV4689_TEST_ENABLE | OV4689_TEST_ROLLING | OV4689_TEST_SQUARE,
+};
+
+static int ov4689_set_ctrl_test_pattern(struct ov4689_dev *sensor, int value)
+{
+	return ov4689_write_reg(sensor, OV4689_REG_TEST_PATTERN,
+			test_pattern_val[value]);
+}
+
+static int ov4689_set_ctrl_light_freq(struct ov4689_dev *sensor, int value)
+{
+	return 0;
+}
+
+static int ov4689_set_ctrl_hflip(struct ov4689_dev *sensor, int value)
+{
+	/*
+	 * TIMING TC REG21:
+	 * - [2]:       Digital mirror
+	 * - [1]:       Array mirror
+	 */
+	return ov4689_mod_reg(sensor, OV4689_REG_TIMING_TC_REG21,
+			BIT(2) | BIT(1),
+			(!(value ^ sensor->upside_down)) ?
+			(BIT(2) | BIT(1)) : 0);
+}
+
+static int ov4689_set_ctrl_vflip(struct ov4689_dev *sensor, int value)
+{
+	/*
+	 * TIMING TC REG20:
+	 * - [2]:       Digital vflip
+	 * - [1]:       Array vflip
+	 */
+	return ov4689_mod_reg(sensor, OV4689_REG_TIMING_TC_REG20,
+				BIT(2) | BIT(1),
+				(value ^ sensor->upside_down) ?
+				(BIT(2) | BIT(1)) : 0);
+}
+
+static int ov4689_g_volatile_ctrl(struct v4l2_ctrl *ctrl)
+{
+	struct v4l2_subdev *sd = ctrl_to_sd(ctrl);
+	struct ov4689_dev *sensor = to_ov4689_dev(sd);
+	int val;
+
+	/* v4l2_ctrl_lock() locks our own mutex */
+
+	switch (ctrl->id) {
+	case V4L2_CID_ANALOGUE_GAIN:
+		val = ov4689_get_gain(sensor);
+		break;
+	}
+
+	return 0;
+}
+
+static int ov4689_s_ctrl(struct v4l2_ctrl *ctrl)
+{
+	struct v4l2_subdev *sd = ctrl_to_sd(ctrl);
+	struct ov4689_dev *sensor = to_ov4689_dev(sd);
+	int ret;
+
+	/* v4l2_ctrl_lock() locks our own mutex */
+
+	/*
+	 * If the device is not powered up by the host driver do
+	 * not apply any controls to H/W at this time. Instead
+	 * the controls will be restored right after power-up.
+	 */
+	if (sensor->power_count == 0)
+		return 0;
+
+	switch (ctrl->id) {
+	case V4L2_CID_ANALOGUE_GAIN:
+		ret = ov4689_set_gain(sensor, ctrl->val);
+		break;
+	case V4L2_CID_EXPOSURE:
+		ret = ov4689_set_ctrl_exposure(sensor, V4L2_EXPOSURE_MANUAL);
+		break;
+	case V4L2_CID_AUTO_WHITE_BALANCE:
+		ret = ov4689_set_ctrl_white_balance(sensor, ctrl->val);
+		break;
+	case V4L2_CID_HUE:
+		ret = ov4689_set_ctrl_hue(sensor, ctrl->val);
+		break;
+	case V4L2_CID_CONTRAST:
+		ret = ov4689_set_ctrl_contrast(sensor, ctrl->val);
+		break;
+	case V4L2_CID_SATURATION:
+		ret = ov4689_set_ctrl_saturation(sensor, ctrl->val);
+		break;
+	case V4L2_CID_TEST_PATTERN:
+		ret = ov4689_set_ctrl_test_pattern(sensor, ctrl->val);
+		break;
+	case V4L2_CID_POWER_LINE_FREQUENCY:
+		ret = ov4689_set_ctrl_light_freq(sensor, ctrl->val);
+		break;
+	case V4L2_CID_HFLIP:
+		ret = ov4689_set_ctrl_hflip(sensor, ctrl->val);
+		break;
+	case V4L2_CID_VFLIP:
+		ret = ov4689_set_ctrl_vflip(sensor, ctrl->val);
+		break;
+	default:
+		ret = -EINVAL;
+		break;
+	}
+
+	return ret;
+}
+
+static const struct v4l2_ctrl_ops ov4689_ctrl_ops = {
+	.g_volatile_ctrl = ov4689_g_volatile_ctrl,
+	.s_ctrl = ov4689_s_ctrl,
+};
+
+static int ov4689_init_controls(struct ov4689_dev *sensor)
+{
+	const struct v4l2_ctrl_ops *ops = &ov4689_ctrl_ops;
+	struct ov4689_ctrls *ctrls = &sensor->ctrls;
+	struct v4l2_ctrl_handler *hdl = &ctrls->handler;
+	int ret;
+
+	v4l2_ctrl_handler_init(hdl, 32);
+
+	/* we can use our own mutex for the ctrl lock */
+	hdl->lock = &sensor->lock;
+
+	/* Clock related controls */
+	ctrls->pixel_rate = v4l2_ctrl_new_std(hdl, ops, V4L2_CID_PIXEL_RATE,
+					0, INT_MAX, 1,
+					ov4689_calc_pixel_rate(sensor));
+
+	/* Auto/manual white balance */
+	ctrls->auto_wb = v4l2_ctrl_new_std(hdl, ops,
+					V4L2_CID_AUTO_WHITE_BALANCE,
+					0, 1, 1, 0);
+	ctrls->blue_balance = v4l2_ctrl_new_std(hdl, ops, V4L2_CID_BLUE_BALANCE,
+						0, 4095, 1, 1024);
+	ctrls->red_balance = v4l2_ctrl_new_std(hdl, ops, V4L2_CID_RED_BALANCE,
+						0, 4095, 1, 1024);
+
+	ctrls->exposure = v4l2_ctrl_new_std(hdl, ops, V4L2_CID_EXPOSURE,
+					4, 0xfff8, 1, 0x4c00);
+	ctrls->anal_gain = v4l2_ctrl_new_std(hdl, ops, V4L2_CID_ANALOGUE_GAIN,
+					0x10, 0xfff8, 1, 0x0080);
+	ctrls->test_pattern =
+		v4l2_ctrl_new_std_menu_items(hdl, ops, V4L2_CID_TEST_PATTERN,
+					ARRAY_SIZE(test_pattern_menu) - 1,
+					0, 0, test_pattern_menu);
+	ctrls->hflip = v4l2_ctrl_new_std(hdl, ops, V4L2_CID_HFLIP,
+					0, 1, 1, 0);
+	ctrls->vflip = v4l2_ctrl_new_std(hdl, ops, V4L2_CID_VFLIP,
+					0, 1, 1, 0);
+	ctrls->light_freq =
+		v4l2_ctrl_new_std_menu(hdl, ops,
+					V4L2_CID_POWER_LINE_FREQUENCY,
+					V4L2_CID_POWER_LINE_FREQUENCY_AUTO, 0,
+					V4L2_CID_POWER_LINE_FREQUENCY_50HZ);
+	ctrls->link_freq = v4l2_ctrl_new_int_menu(hdl, ops, V4L2_CID_LINK_FREQ,
+					0, 0, link_freq_menu_items);
+	if (hdl->error) {
+		ret = hdl->error;
+		goto free_ctrls;
+	}
+
+	ctrls->pixel_rate->flags |= V4L2_CTRL_FLAG_READ_ONLY;
+	ctrls->link_freq->flags |= V4L2_CTRL_FLAG_READ_ONLY;
+	// ctrls->exposure->flags |= V4L2_CTRL_FLAG_VOLATILE;
+	// ctrls->anal_gain->flags |= V4L2_CTRL_FLAG_VOLATILE;
+
+	v4l2_ctrl_auto_cluster(3, &ctrls->auto_wb, 0, false);
+
+	sensor->sd.ctrl_handler = hdl;
+	return 0;
+
+free_ctrls:
+	v4l2_ctrl_handler_free(hdl);
+	return ret;
+}
+
+static int ov4689_enum_frame_size(struct v4l2_subdev *sd,
+				struct v4l2_subdev_pad_config *cfg,
+				struct v4l2_subdev_frame_size_enum *fse)
+{
+	if (fse->pad != 0)
+		return -EINVAL;
+	if (fse->index >= OV4689_NUM_MODES)
+		return -EINVAL;
+
+	fse->min_width =
+		ov4689_mode_data[fse->index].hact;
+	fse->max_width = fse->min_width;
+	fse->min_height =
+		ov4689_mode_data[fse->index].vact;
+	fse->max_height = fse->min_height;
+
+	return 0;
+}
+
+static int ov4689_enum_frame_interval(
+	struct v4l2_subdev *sd,
+	struct v4l2_subdev_pad_config *cfg,
+	struct v4l2_subdev_frame_interval_enum *fie)
+{
+	struct ov4689_dev *sensor = to_ov4689_dev(sd);
+	struct v4l2_fract tpf;
+	int ret;
+
+	if (fie->pad != 0)
+		return -EINVAL;
+	if (fie->index >= OV4689_NUM_FRAMERATES)
+		return -EINVAL;
+
+	tpf.numerator = 1;
+	tpf.denominator = ov4689_framerates[fie->index];
+
+/*	ret = ov4689_try_frame_interval(sensor, &tpf,
+					fie->width, fie->height);
+	if (ret < 0)
+		return -EINVAL;
+*/
+	fie->interval = tpf;
+
+	return 0;
+}
+
+static int ov4689_g_frame_interval(struct v4l2_subdev *sd,
+				struct v4l2_subdev_frame_interval *fi)
+{
+	struct ov4689_dev *sensor = to_ov4689_dev(sd);
+
+	mutex_lock(&sensor->lock);
+	fi->interval = sensor->frame_interval;
+	mutex_unlock(&sensor->lock);
+
+	return 0;
+}
+
+static int ov4689_s_frame_interval(struct v4l2_subdev *sd,
+				struct v4l2_subdev_frame_interval *fi)
+{
+	struct ov4689_dev *sensor = to_ov4689_dev(sd);
+	const struct ov4689_mode_info *mode;
+	int frame_rate, ret = 0;
+
+	if (fi->pad != 0)
+		return -EINVAL;
+
+	mutex_lock(&sensor->lock);
+
+	if (sensor->streaming) {
+		ret = -EBUSY;
+		goto out;
+	}
+
+	mode = sensor->current_mode;
+
+	frame_rate = ov4689_try_frame_interval(sensor, &fi->interval,
+					mode->hact, mode->vact);
+	if (frame_rate < 0) {
+		/* Always return a valid frame interval value */
+		fi->interval = sensor->frame_interval;
+		goto out;
+	}
+
+	mode = ov4689_find_mode(sensor, frame_rate, mode->hact,
+				mode->vact, true);
+	if (!mode) {
+		ret = -EINVAL;
+		goto out;
+	}
+
+	if (mode != sensor->current_mode ||
+		frame_rate != sensor->current_fr) {
+		sensor->current_fr = frame_rate;
+		sensor->frame_interval = fi->interval;
+		sensor->current_mode = mode;
+		sensor->pending_mode_change = true;
+
+		__v4l2_ctrl_s_ctrl_int64(sensor->ctrls.pixel_rate,
+					ov4689_calc_pixel_rate(sensor));
+	}
+out:
+	mutex_unlock(&sensor->lock);
+	return ret;
+}
+
+static int ov4689_stream_start(struct ov4689_dev *sensor, int enable)
+{
+	u8 val;
+	int result = ov4689_write_reg(sensor, 0x100, enable);
+
+	ov4689_read_reg(sensor, 0x100, &val);
+	mdelay(200);
+	return result;
+}
+
+static int ov4689_s_stream(struct v4l2_subdev *sd, int enable)
+{
+	struct ov4689_dev *sensor = to_ov4689_dev(sd);
+	int ret = 0;
+
+	mutex_lock(&sensor->lock);
+
+	if (sensor->streaming == !enable) {
+		if (enable && sensor->pending_mode_change) {
+			ret = ov4689_set_mode(sensor);
+			if (ret)
+				goto out;
+		}
+
+		if (sensor->ep.bus_type == V4L2_MBUS_CSI2_DPHY)
+			ret = ov4689_set_stream_mipi(sensor, enable);
+
+		ret = ov4689_stream_start(sensor, enable);
+
+		if (!ret)
+			sensor->streaming = enable;
+	}
+out:
+	mutex_unlock(&sensor->lock);
+	return ret;
+}
+
+static const struct v4l2_subdev_core_ops ov4689_core_ops = {
+	.s_power = ov4689_s_power,
+	.log_status = v4l2_ctrl_subdev_log_status,
+	.subscribe_event = v4l2_ctrl_subdev_subscribe_event,
+	.unsubscribe_event = v4l2_event_subdev_unsubscribe,
+};
+
+static const struct v4l2_subdev_video_ops ov4689_video_ops = {
+	.g_frame_interval = ov4689_g_frame_interval,
+	.s_frame_interval = ov4689_s_frame_interval,
+	.s_stream = ov4689_s_stream,
+};
+
+static const struct v4l2_subdev_pad_ops ov4689_pad_ops = {
+	.enum_mbus_code = ov4689_enum_mbus_code,
+	.get_fmt = ov4689_get_fmt,
+	.set_fmt = ov4689_set_fmt,
+	.enum_frame_size = ov4689_enum_frame_size,
+	.enum_frame_interval = ov4689_enum_frame_interval,
+};
+
+static const struct v4l2_subdev_ops ov4689_subdev_ops = {
+	.core = &ov4689_core_ops,
+	.video = &ov4689_video_ops,
+	.pad = &ov4689_pad_ops,
+};
+
+static int ov4689_get_regulators(struct ov4689_dev *sensor)
+{
+	int i;
+
+	for (i = 0; i < OV4689_NUM_SUPPLIES; i++)
+		sensor->supplies[i].supply = ov4689_supply_name[i];
+
+	return devm_regulator_bulk_get(&sensor->i2c_client->dev,
+					OV4689_NUM_SUPPLIES,
+					sensor->supplies);
+}
+
+static int ov4689_check_chip_id(struct ov4689_dev *sensor)
+{
+	struct i2c_client *client = sensor->i2c_client;
+	int ret = 0;
+	u16 chip_id;
+
+	ret = ov4689_set_power_on(sensor);
+	if (ret)
+		return ret;
+
+	ret = ov4689_read_reg16(sensor, OV4689_REG_CHIP_ID, &chip_id);
+	if (ret) {
+		dev_err(&client->dev, "%s: failed to read chip identifier\n",
+			__func__);
+		goto power_off;
+	}
+
+	if (chip_id != OV4689_CHIP_ID) {
+		dev_err(&client->dev, "%s: wrong chip identifier, expected 0x%x,  got 0x%x\n",
+			__func__, OV4689_CHIP_ID, chip_id);
+		ret = -ENXIO;
+	}
+	dev_err(&client->dev, "%s: chip identifier, got 0x%x\n",
+		__func__, chip_id);
+
+power_off:
+	ov4689_set_power_off(sensor);
+	return ret;
+}
+
+static int ov4689_probe(struct i2c_client *client)
+{
+	struct device *dev = &client->dev;
+	struct fwnode_handle *endpoint;
+	struct ov4689_dev *sensor;
+	struct v4l2_mbus_framefmt *fmt;
+	u32 rotation;
+	int ret;
+	u8 chip_id_high, chip_id_low;
+
+	sensor = devm_kzalloc(dev, sizeof(*sensor), GFP_KERNEL);
+	if (!sensor)
+		return -ENOMEM;
+
+	sensor->i2c_client = client;
+
+	fmt = &sensor->fmt;
+	fmt->code = MEDIA_BUS_FMT_SBGGR10_1X10;
+	fmt->colorspace = V4L2_COLORSPACE_SRGB;
+	fmt->ycbcr_enc = V4L2_MAP_YCBCR_ENC_DEFAULT(fmt->colorspace);
+	fmt->quantization = V4L2_QUANTIZATION_FULL_RANGE;
+	fmt->xfer_func = V4L2_MAP_XFER_FUNC_DEFAULT(fmt->colorspace);
+	fmt->width = 1920;
+	fmt->height = 1080;
+	fmt->field = V4L2_FIELD_NONE;
+	sensor->frame_interval.numerator = 1;
+	sensor->frame_interval.denominator = ov4689_framerates[OV4689_30_FPS];
+	sensor->current_fr = OV4689_30_FPS;
+	sensor->current_mode =
+		&ov4689_mode_data[OV4689_MODE_1080P_1920_1080];
+	sensor->last_mode = sensor->current_mode;
+
+	sensor->ae_target = 52;
+
+	/* optional indication of physical rotation of sensor */
+	ret = fwnode_property_read_u32(dev_fwnode(&client->dev), "rotation",
+					&rotation);
+	if (!ret) {
+		switch (rotation) {
+		case 180:
+			sensor->upside_down = true;
+			fallthrough;
+		case 0:
+			break;
+		default:
+			dev_warn(dev, "%u degrees rotation is not supported, ignoring...\n",
+				rotation);
+		}
+	}
+
+	endpoint = fwnode_graph_get_next_endpoint(dev_fwnode(&client->dev),
+						NULL);
+	if (!endpoint) {
+		dev_err(dev, "endpoint node not found\n");
+		return -EINVAL;
+	}
+
+	ret = v4l2_fwnode_endpoint_parse(endpoint, &sensor->ep);
+	fwnode_handle_put(endpoint);
+	if (ret) {
+		dev_err(dev, "Could not parse endpoint\n");
+		return ret;
+	}
+
+	if (sensor->ep.bus_type != V4L2_MBUS_PARALLEL &&
+		sensor->ep.bus_type != V4L2_MBUS_CSI2_DPHY &&
+		sensor->ep.bus_type != V4L2_MBUS_BT656) {
+		dev_err(dev, "Unsupported bus type %d\n", sensor->ep.bus_type);
+		return -EINVAL;
+	}
+
+	/* get system clock (xclk) */
+	sensor->xclk = devm_clk_get(dev, "xclk");
+	if (IS_ERR(sensor->xclk)) {
+		dev_err(dev, "failed to get xclk\n");
+		return PTR_ERR(sensor->xclk);
+	}
+
+	sensor->xclk_freq = clk_get_rate(sensor->xclk);
+	if (sensor->xclk_freq < OV4689_XCLK_MIN ||
+		sensor->xclk_freq > OV4689_XCLK_MAX) {
+		dev_err(dev, "xclk frequency out of range: %d Hz\n",
+			sensor->xclk_freq);
+		return -EINVAL;
+	}
+
+	/* request optional power down pin */
+	sensor->pwdn_gpio = devm_gpiod_get_optional(dev, "powerdown",
+						GPIOD_OUT_HIGH);
+	if (IS_ERR(sensor->pwdn_gpio))
+		return PTR_ERR(sensor->pwdn_gpio);
+
+	/* request optional reset pin */
+	sensor->reset_gpio = devm_gpiod_get_optional(dev, "reset",
+						GPIOD_OUT_HIGH);
+	if (IS_ERR(sensor->reset_gpio))
+		return PTR_ERR(sensor->reset_gpio);
+
+	v4l2_i2c_subdev_init(&sensor->sd, client, &ov4689_subdev_ops);
+
+	sensor->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE |
+			V4L2_SUBDEV_FL_HAS_EVENTS;
+	sensor->pad.flags = MEDIA_PAD_FL_SOURCE;
+	sensor->sd.entity.function = MEDIA_ENT_F_CAM_SENSOR;
+	ret = media_entity_pads_init(&sensor->sd.entity, 1, &sensor->pad);
+	if (ret)
+		return ret;
+
+	ret = ov4689_get_regulators(sensor);
+	if (ret)
+		return ret;
+
+	mutex_init(&sensor->lock);
+
+	ret = ov4689_check_chip_id(sensor);
+	if (ret)
+		goto entity_cleanup;
+
+	ret = ov4689_init_controls(sensor);
+	if (ret)
+		goto entity_cleanup;
+
+	ret = v4l2_async_register_subdev_sensor_common(&sensor->sd);
+	if (ret)
+		goto free_ctrls;
+
+	return 0;
+
+free_ctrls:
+	v4l2_ctrl_handler_free(&sensor->ctrls.handler);
+entity_cleanup:
+	media_entity_cleanup(&sensor->sd.entity);
+	mutex_destroy(&sensor->lock);
+	return ret;
+}
+
+static int ov4689_remove(struct i2c_client *client)
+{
+	struct v4l2_subdev *sd = i2c_get_clientdata(client);
+	struct ov4689_dev *sensor = to_ov4689_dev(sd);
+
+	v4l2_async_unregister_subdev(&sensor->sd);
+	media_entity_cleanup(&sensor->sd.entity);
+	v4l2_ctrl_handler_free(&sensor->ctrls.handler);
+	mutex_destroy(&sensor->lock);
+
+	return 0;
+}
+
+static const struct i2c_device_id ov4689_id[] = {
+	{"ov4689", 0},
+	{},
+};
+MODULE_DEVICE_TABLE(i2c, ov4689_id);
+
+static const struct of_device_id ov4689_dt_ids[] = {
+	{ .compatible = "ovti,ov4689" },
+	{ /* sentinel */ }
+};
+MODULE_DEVICE_TABLE(of, ov4689_dt_ids);
+
+static struct i2c_driver ov4689_i2c_driver = {
+	.driver = {
+		.name  = "ov4689",
+		.of_match_table = ov4689_dt_ids,
+	},
+	.id_table = ov4689_id,
+	.probe_new = ov4689_probe,
+	.remove   = ov4689_remove,
+};
+
+module_i2c_driver(ov4689_i2c_driver);
+
+MODULE_DESCRIPTION("OV4689 MIPI Camera Subdev Driver");
+MODULE_LICENSE("GPL");
