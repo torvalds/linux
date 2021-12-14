@@ -328,94 +328,92 @@ static const struct of_device_id renesas_socs[] __initconst = {
 	{ /* sentinel */ }
 };
 
+struct renesas_id {
+	unsigned int offset;
+	u32 mask;
+};
+
+static const struct renesas_id id_bsid __initconst = {
+	.offset = 0,
+	.mask = 0xff0000,
+	/*
+	 * TODO: Upper 4 bits of BSID are for chip version, but the format is
+	 * not known at this time so we don't know how to specify eshi and eslo
+	 */
+};
+
+static const struct renesas_id id_rzg2l __initconst = {
+	.offset = 0xa04,
+	.mask = 0xfffffff,
+};
+
+static const struct renesas_id id_prr __initconst = {
+	.offset = 0,
+	.mask = 0xff00,
+};
+
+static const struct of_device_id renesas_ids[] __initconst = {
+	{ .compatible = "renesas,bsid",			.data = &id_bsid },
+	{ .compatible = "renesas,r9a07g044-sysc",	.data = &id_rzg2l },
+	{ .compatible = "renesas,prr",			.data = &id_prr },
+	{ /* sentinel */ }
+};
+
 static int __init renesas_soc_init(void)
 {
 	struct soc_device_attribute *soc_dev_attr;
+	unsigned int product, eshi = 0, eslo;
 	const struct renesas_family *family;
 	const struct of_device_id *match;
 	const struct renesas_soc *soc;
+	const struct renesas_id *id;
 	void __iomem *chipid = NULL;
 	struct soc_device *soc_dev;
 	struct device_node *np;
-	unsigned int product, eshi = 0, eslo;
+	const char *soc_id;
 
 	match = of_match_node(renesas_socs, of_root);
 	if (!match)
 		return -ENODEV;
 
+	soc_id = strchr(match->compatible, ',') + 1;
 	soc = match->data;
 	family = soc->family;
 
-	np = of_find_compatible_node(NULL, NULL, "renesas,bsid");
+	np = of_find_matching_node_and_match(NULL, renesas_ids, &match);
 	if (np) {
-		chipid = of_iomap(np, 0);
-		of_node_put(np);
-
-		if (chipid) {
-			product = readl(chipid);
-			iounmap(chipid);
-
-			if (soc->id && ((product >> 16) & 0xff) != soc->id) {
-				pr_warn("SoC mismatch (product = 0x%x)\n",
-					product);
-				return -ENODEV;
-			}
-		}
-
-		/*
-		 * TODO: Upper 4 bits of BSID are for chip version, but the
-		 * format is not known at this time so we don't know how to
-		 * specify eshi and eslo
-		 */
-
-		goto done;
-	}
-
-	np = of_find_compatible_node(NULL, NULL, "renesas,r9a07g044-sysc");
-	if (np) {
-		chipid = of_iomap(np, 0);
-		of_node_put(np);
-
-		if (chipid) {
-			product = readl(chipid + 0x0a04);
-			iounmap(chipid);
-
-			if (soc->id && (product & 0xfffffff) != soc->id) {
-				pr_warn("SoC mismatch (product = 0x%x)\n",
-					product);
-				return -ENODEV;
-			}
-		}
-
-		goto done;
-	}
-
-	/* Try PRR first, then hardcoded fallback */
-	np = of_find_compatible_node(NULL, NULL, "renesas,prr");
-	if (np) {
+		id = match->data;
 		chipid = of_iomap(np, 0);
 		of_node_put(np);
 	} else if (soc->id && family->reg) {
+		/* Try hardcoded CCCR/PRR fallback */
+		id = &id_prr;
 		chipid = ioremap(family->reg, 4);
 	}
+
 	if (chipid) {
-		product = readl(chipid);
+		product = readl(chipid + id->offset);
 		iounmap(chipid);
-		/* R-Car M3-W ES1.1 incorrectly identifies as ES2.0 */
-		if ((product & 0x7fff) == 0x5210)
-			product ^= 0x11;
-		/* R-Car M3-W ES1.3 incorrectly identifies as ES2.1 */
-		if ((product & 0x7fff) == 0x5211)
-			product ^= 0x12;
-		if (soc->id && ((product >> 8) & 0xff) != soc->id) {
+
+		if (id == &id_prr) {
+			/* R-Car M3-W ES1.1 incorrectly identifies as ES2.0 */
+			if ((product & 0x7fff) == 0x5210)
+				product ^= 0x11;
+			/* R-Car M3-W ES1.3 incorrectly identifies as ES2.1 */
+			if ((product & 0x7fff) == 0x5211)
+				product ^= 0x12;
+
+			eshi = ((product >> 4) & 0x0f) + 1;
+			eslo = product & 0xf;
+		}
+
+		if (soc->id &&
+		    ((product & id->mask) >> __ffs(id->mask)) != soc->id) {
 			pr_warn("SoC mismatch (product = 0x%x)\n", product);
 			return -ENODEV;
 		}
-		eshi = ((product >> 4) & 0x0f) + 1;
-		eslo = product & 0xf;
 	}
 
-done:
 	soc_dev_attr = kzalloc(sizeof(*soc_dev_attr), GFP_KERNEL);
 	if (!soc_dev_attr)
 		return -ENOMEM;
@@ -425,8 +423,7 @@ done:
 	of_node_put(np);
 
 	soc_dev_attr->family = kstrdup_const(family->name, GFP_KERNEL);
-	soc_dev_attr->soc_id = kstrdup_const(strchr(match->compatible, ',') + 1,
-					     GFP_KERNEL);
+	soc_dev_attr->soc_id = kstrdup_const(soc_id, GFP_KERNEL);
 	if (eshi)
 		soc_dev_attr->revision = kasprintf(GFP_KERNEL, "ES%u.%u", eshi,
 						   eslo);
