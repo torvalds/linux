@@ -902,7 +902,26 @@ static int rkisp_set_fmt(struct rkisp_stream *stream,
 	const struct stream_config *config = stream->config;
 	struct rkisp_device *dev = stream->ispdev;
 	u32 planes, imagsize = 0;
-	u32 i, xsubs = 1, ysubs = 1;
+	u32 i = 0, xsubs = 1, ysubs = 1;
+
+	if (stream->id == RKISP_STREAM_VIR) {
+		for (i = RKISP_STREAM_MP; i < RKISP_STREAM_VIR; i++) {
+			struct rkisp_stream *t = &dev->cap_dev.stream[i];
+
+			if (t->out_isp_fmt.fmt_type != FMT_YUV || !t->streaming)
+				continue;
+			if (t->out_fmt.plane_fmt[0].sizeimage > imagsize) {
+				imagsize = t->out_fmt.plane_fmt[0].sizeimage;
+				*pixm = t->out_fmt;
+				stream->conn_id = t->id;
+			}
+		}
+		if (!imagsize) {
+			v4l2_err(&dev->v4l2_dev, "no output stream for iqtool\n");
+			return -EINVAL;
+		}
+		imagsize = 0;
+	}
 
 	fmt = find_fmt(stream, pixm->pixelformat);
 	if (!fmt) {
