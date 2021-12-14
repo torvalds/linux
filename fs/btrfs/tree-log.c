@@ -3978,6 +3978,7 @@ search:
 			goto done;
 		}
 		if (btrfs_header_generation(path->nodes[0]) != trans->transid) {
+			ctx->last_dir_item_offset = min_key.offset;
 			ret = overwrite_item(trans, log, dst_path,
 					     path->nodes[0], path->slots[0],
 					     &min_key);
