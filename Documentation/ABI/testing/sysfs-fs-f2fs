@@ -98,6 +98,33 @@ Description:	Controls the issue rate of discard commands that consist of small
 		checkpoint is triggered, and issued during the checkpoint.
 		By default, it is disabled with 0.
 
+What:		/sys/fs/f2fs/<disk>/max_discard_request
+Date:		December 2021
+Contact:	"Konstantin Vyshetsky" <vkon@google.com>
+Description:	Controls the number of discards a thread will issue at a time.
+		Higher number will allow the discard thread to finish its work
+		faster, at the cost of higher latency for incomming I/O.
+
+What:		/sys/fs/f2fs/<disk>/min_discard_issue_time
+Date:		December 2021
+Contact:	"Konstantin Vyshetsky" <vkon@google.com>
+Description:	Controls the interval the discard thread will wait between
+		issuing discard requests when there are discards to be issued and
+		no I/O aware interruptions occur.
+
+What:		/sys/fs/f2fs/<disk>/mid_discard_issue_time
+Date:		December 2021
+Contact:	"Konstantin Vyshetsky" <vkon@google.com>
+Description:	Controls the interval the discard thread will wait between
+		issuing discard requests when there are discards to be issued and
+		an I/O aware interruption occurs.
+
+What:		/sys/fs/f2fs/<disk>/max_discard_issue_time
+Date:		December 2021
+Contact:	"Konstantin Vyshetsky" <vkon@google.com>
+Description:	Controls the interval the discard thread will wait when there are
+		no discard operations to be issued.
+
 What:		/sys/fs/f2fs/<disk>/discard_granularity
 Date:		July 2017
 Contact:	"Chao Yu" <yuchao0@huawei.com>
