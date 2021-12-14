@@ -2533,6 +2533,7 @@ struct packet_type {
 	__be16			type;	/* This is really htons(ether_type). */
 	bool			ignore_outgoing;
 	struct net_device	*dev;	/* NULL is wildcarded here	     */
+	netdevice_tracker	dev_tracker;
 	int			(*func) (struct sk_buff *,
 					 struct net_device *,
 					 struct packet_type *,
