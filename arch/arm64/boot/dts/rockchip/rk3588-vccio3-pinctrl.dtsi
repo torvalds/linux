@@ -36,24 +36,24 @@
 		fspim1_pins: fspim1-pins {
 			rockchip,pins =
 				/* fspi_clk_m1 */
-				<2 RK_PB3 3 &pcfg_pull_none>,
+				<2 RK_PB3 3 &pcfg_pull_up_drv_level_2>,
 				/* fspi_cs0n_m1 */
-				<2 RK_PB4 3 &pcfg_pull_none>,
+				<2 RK_PB4 3 &pcfg_pull_up_drv_level_2>,
 				/* fspi_d0_m1 */
-				<2 RK_PA6 3 &pcfg_pull_none>,
+				<2 RK_PA6 3 &pcfg_pull_up_drv_level_2>,
 				/* fspi_d1_m1 */
-				<2 RK_PA7 3 &pcfg_pull_none>,
+				<2 RK_PA7 3 &pcfg_pull_up_drv_level_2>,
 				/* fspi_d2_m1 */
-				<2 RK_PB0 3 &pcfg_pull_none>,
+				<2 RK_PB0 3 &pcfg_pull_up_drv_level_2>,
 				/* fspi_d3_m1 */
-				<2 RK_PB1 3 &pcfg_pull_none>;
+				<2 RK_PB1 3 &pcfg_pull_up_drv_level_2>;
 		};
 
 		/omit-if-no-ref/
 		fspim1_cs1: fspim1-cs1 {
 			rockchip,pins =
 				/* fspi_cs1n_m1 */
-				<2 RK_PB5 3 &pcfg_pull_up>;
+				<2 RK_PB5 3 &pcfg_pull_up_drv_level_2>;
 		};
 	};
 
