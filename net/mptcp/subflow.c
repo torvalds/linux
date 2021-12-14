@@ -1534,7 +1534,7 @@ int mptcp_subflow_create_socket(struct sock *sk, struct socket **new_sock)
 	 * needs it.
 	 */
 	sf->sk->sk_net_refcnt = 1;
-	get_net(net);
+	get_net_track(net, &sf->sk->ns_tracker, GFP_KERNEL);
 	sock_inuse_add(net, 1);
 	err = tcp_set_ulp(sf->sk, "mptcp");
 	release_sock(sf->sk);
