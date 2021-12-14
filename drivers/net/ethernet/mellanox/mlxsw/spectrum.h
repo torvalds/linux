@@ -203,6 +203,8 @@ struct mlxsw_sp {
 	const struct mlxsw_listener *listeners;
 	size_t listeners_count;
 	u32 lowest_shaper_bs;
+	struct rhashtable ipv6_addr_ht;
+	struct mutex ipv6_addr_ht_lock; /* Protects ipv6_addr_ht */
 };
 
 struct mlxsw_sp_ptp_ops {
@@ -587,6 +589,11 @@ mlxsw_sp_sample_trigger_params_set(struct mlxsw_sp *mlxsw_sp,
 void
 mlxsw_sp_sample_trigger_params_unset(struct mlxsw_sp *mlxsw_sp,
 				     const struct mlxsw_sp_sample_trigger *trigger);
+int mlxsw_sp_ipv6_addr_kvdl_index_get(struct mlxsw_sp *mlxsw_sp,
+				      const struct in6_addr *addr6,
+				      u32 *p_kvdl_index);
+void
+mlxsw_sp_ipv6_addr_put(struct mlxsw_sp *mlxsw_sp, const struct in6_addr *addr6);
 
 extern const struct mlxsw_sp_sb_vals mlxsw_sp1_sb_vals;
 extern const struct mlxsw_sp_sb_vals mlxsw_sp2_sb_vals;
