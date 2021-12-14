@@ -87,6 +87,7 @@ static struct rcu_state rcu_state = {
 	.gp_state = RCU_GP_IDLE,
 	.gp_seq = (0UL - 300UL) << RCU_SEQ_CTR_SHIFT,
 	.barrier_mutex = __MUTEX_INITIALIZER(rcu_state.barrier_mutex),
+	.barrier_lock = __RAW_SPIN_LOCK_UNLOCKED(rcu_state.barrier_lock),
 	.name = RCU_NAME,
 	.abbr = RCU_ABBR,
 	.exp_mutex = __MUTEX_INITIALIZER(rcu_state.exp_mutex),
@@ -3994,7 +3995,7 @@ static void rcu_barrier_entrain(struct rcu_data *rdp)
 	unsigned long gseq = READ_ONCE(rcu_state.barrier_sequence);
 	unsigned long lseq = READ_ONCE(rdp->barrier_seq_snap);
 
-	lockdep_assert_held(&rdp->barrier_lock);
+	lockdep_assert_held(&rcu_state.barrier_lock);
 	if (rcu_seq_state(lseq) || !rcu_seq_state(gseq) || rcu_seq_ctr(lseq) != rcu_seq_ctr(gseq))
 		return;
 	rcu_barrier_trace(TPS("IRQ"), -1, rcu_state.barrier_sequence);
@@ -4023,9 +4024,9 @@ static void rcu_barrier_handler(void *cpu_in)
 	lockdep_assert_irqs_disabled();
 	WARN_ON_ONCE(cpu != rdp->cpu);
 	WARN_ON_ONCE(cpu != smp_processor_id());
-	raw_spin_lock(&rdp->barrier_lock);
+	raw_spin_lock(&rcu_state.barrier_lock);
 	rcu_barrier_entrain(rdp);
-	raw_spin_unlock(&rdp->barrier_lock);
+	raw_spin_unlock(&rcu_state.barrier_lock);
 }
 
 /**
@@ -4058,6 +4059,7 @@ void rcu_barrier(void)
 	}
 
 	/* Mark the start of the barrier operation. */
+	raw_spin_lock_irqsave(&rcu_state.barrier_lock, flags);
 	rcu_seq_start(&rcu_state.barrier_sequence);
 	gseq = rcu_state.barrier_sequence;
 	rcu_barrier_trace(TPS("Inc1"), -1, rcu_state.barrier_sequence);
@@ -4071,7 +4073,7 @@ void rcu_barrier(void)
 	 */
 	init_completion(&rcu_state.barrier_completion);
 	atomic_set(&rcu_state.barrier_cpu_count, 2);
-	cpus_read_lock();
+	raw_spin_unlock_irqrestore(&rcu_state.barrier_lock, flags);
 
 	/*
 	 * Force each CPU with callbacks to register a new callback.
@@ -4083,21 +4085,21 @@ void rcu_barrier(void)
 retry:
 		if (smp_load_acquire(&rdp->barrier_seq_snap) == gseq)
 			continue;
-		raw_spin_lock_irqsave(&rdp->barrier_lock, flags);
+		raw_spin_lock_irqsave(&rcu_state.barrier_lock, flags);
 		if (!rcu_segcblist_n_cbs(&rdp->cblist)) {
 			WRITE_ONCE(rdp->barrier_seq_snap, gseq);
-			raw_spin_unlock_irqrestore(&rdp->barrier_lock, flags);
+			raw_spin_unlock_irqrestore(&rcu_state.barrier_lock, flags);
 			rcu_barrier_trace(TPS("NQ"), cpu, rcu_state.barrier_sequence);
 			continue;
 		}
 		if (!rcu_rdp_cpu_online(rdp)) {
 			rcu_barrier_entrain(rdp);
 			WARN_ON_ONCE(READ_ONCE(rdp->barrier_seq_snap) != gseq);
-			raw_spin_unlock_irqrestore(&rdp->barrier_lock, flags);
+			raw_spin_unlock_irqrestore(&rcu_state.barrier_lock, flags);
 			rcu_barrier_trace(TPS("OfflineNoCBQ"), cpu, rcu_state.barrier_sequence);
 			continue;
 		}
-		raw_spin_unlock_irqrestore(&rdp->barrier_lock, flags);
+		raw_spin_unlock_irqrestore(&rcu_state.barrier_lock, flags);
 		if (smp_call_function_single(cpu, rcu_barrier_handler, (void *)cpu, 1)) {
 			schedule_timeout_uninterruptible(1);
 			goto retry;
@@ -4105,7 +4107,6 @@ retry:
 		WARN_ON_ONCE(READ_ONCE(rdp->barrier_seq_snap) != gseq);
 		rcu_barrier_trace(TPS("OnlineQ"), cpu, rcu_state.barrier_sequence);
 	}
-	cpus_read_unlock();
 
 	/*
 	 * Now that we have an rcu_barrier_callback() callback on each
@@ -4173,7 +4174,6 @@ rcu_boot_init_percpu_data(int cpu)
 	INIT_WORK(&rdp->strict_work, strict_work_handler);
 	WARN_ON_ONCE(rdp->dynticks_nesting != 1);
 	WARN_ON_ONCE(rcu_dynticks_in_eqs(rcu_dynticks_snap(rdp)));
-	raw_spin_lock_init(&rdp->barrier_lock);
 	rdp->barrier_seq_snap = rcu_state.barrier_sequence;
 	rdp->rcu_ofl_gp_seq = rcu_state.gp_seq;
 	rdp->rcu_ofl_gp_flags = RCU_GP_CLEANED;
@@ -4325,10 +4325,10 @@ void rcu_cpu_starting(unsigned int cpu)
 	local_irq_save(flags);
 	arch_spin_lock(&rcu_state.ofl_lock);
 	rcu_dynticks_eqs_online();
-	raw_spin_lock(&rdp->barrier_lock);
+	raw_spin_lock(&rcu_state.barrier_lock);
 	raw_spin_lock_rcu_node(rnp);
 	WRITE_ONCE(rnp->qsmaskinitnext, rnp->qsmaskinitnext | mask);
-	raw_spin_unlock(&rdp->barrier_lock);
+	raw_spin_unlock(&rcu_state.barrier_lock);
 	newcpu = !(rnp->expmaskinitnext & mask);
 	rnp->expmaskinitnext |= mask;
 	/* Allow lockless access for expedited grace periods. */
@@ -4415,7 +4415,7 @@ void rcutree_migrate_callbacks(int cpu)
 	    rcu_segcblist_empty(&rdp->cblist))
 		return;  /* No callbacks to migrate. */
 
-	raw_spin_lock_irqsave(&rdp->barrier_lock, flags);
+	raw_spin_lock_irqsave(&rcu_state.barrier_lock, flags);
 	WARN_ON_ONCE(rcu_rdp_cpu_online(rdp));
 	rcu_barrier_entrain(rdp);
 	my_rdp = this_cpu_ptr(&rcu_data);
@@ -4427,7 +4427,7 @@ void rcutree_migrate_callbacks(int cpu)
 	needwake = rcu_advance_cbs(my_rnp, rdp) ||
 		   rcu_advance_cbs(my_rnp, my_rdp);
 	rcu_segcblist_merge(&my_rdp->cblist, &rdp->cblist);
-	raw_spin_unlock(&rdp->barrier_lock); /* irqs remain disabled. */
+	raw_spin_unlock(&rcu_state.barrier_lock); /* irqs remain disabled. */
 	needwake = needwake || rcu_advance_cbs(my_rnp, my_rdp);
 	rcu_segcblist_disable(&rdp->cblist);
 	WARN_ON_ONCE(rcu_segcblist_empty(&my_rdp->cblist) != !rcu_segcblist_n_cbs(&my_rdp->cblist));
