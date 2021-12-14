@@ -175,6 +175,6 @@ out_ops:
 	ethnl_ops_complete(dev);
 out_rtnl:
 	rtnl_unlock();
-	dev_put(dev);
+	ethnl_parse_header_dev_put(&req_info);
 	return ret;
 }

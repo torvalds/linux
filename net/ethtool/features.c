@@ -283,6 +283,6 @@ int ethnl_set_features(struct sk_buff *skb, struct genl_info *info)
 
 out_rtnl:
 	rtnl_unlock();
-	dev_put(dev);
+	ethnl_parse_header_dev_put(&req_info);
 	return ret;
 }

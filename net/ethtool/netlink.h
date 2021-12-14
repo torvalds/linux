@@ -235,6 +235,11 @@ struct ethnl_req_info {
 	u32			flags;
 };
 
+static inline void ethnl_parse_header_dev_put(struct ethnl_req_info *req_info)
+{
+	dev_put_track(req_info->dev, &req_info->dev_tracker);
+}
+
 /**
  * struct ethnl_reply_data - base type of reply data for GET requests
  * @dev:       device for current reply message; in single shot requests it is

@@ -195,7 +195,7 @@ int ethnl_tunnel_info_doit(struct sk_buff *skb, struct genl_info *info)
 	if (ret)
 		goto err_free_msg;
 	rtnl_unlock();
-	dev_put(req_info.dev);
+	ethnl_parse_header_dev_put(&req_info);
 	genlmsg_end(rskb, reply_payload);
 
 	return genlmsg_reply(rskb, info);
@@ -204,7 +204,7 @@ err_free_msg:
 	nlmsg_free(rskb);
 err_unlock_rtnl:
 	rtnl_unlock();
-	dev_put(req_info.dev);
+	ethnl_parse_header_dev_put(&req_info);
 	return ret;
 }
 
@@ -230,7 +230,7 @@ int ethnl_tunnel_info_start(struct netlink_callback *cb)
 					 sock_net(cb->skb->sk), cb->extack,
 					 false);
 	if (ctx->req_info.dev) {
-		dev_put(ctx->req_info.dev);
+		ethnl_parse_header_dev_put(&ctx->req_info);
 		ctx->req_info.dev = NULL;
 	}
 
