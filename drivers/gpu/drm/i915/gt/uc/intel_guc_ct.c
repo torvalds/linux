@@ -591,11 +591,18 @@ static inline bool h2g_has_room(struct intel_guc_ct *ct, u32 len_dw)
 
 static int has_room_nb(struct intel_guc_ct *ct, u32 h2g_dw, u32 g2h_dw)
 {
+	bool h2g = h2g_has_room(ct, h2g_dw);
+	bool g2h = g2h_has_room(ct, g2h_dw);
+
 	lockdep_assert_held(&ct->ctbs.send.lock);
 
-	if (unlikely(!h2g_has_room(ct, h2g_dw) || !g2h_has_room(ct, g2h_dw))) {
+	if (unlikely(!h2g || !g2h)) {
 		if (ct->stall_time == KTIME_MAX)
 			ct->stall_time = ktime_get();
+
+		/* Be paranoid and kick G2H tasklet to free credits */
+		if (!g2h)
+			tasklet_hi_schedule(&ct->receive_tasklet);
 
 		if (unlikely(ct_deadlocked(ct)))
 			return -EPIPE;
