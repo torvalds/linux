@@ -220,6 +220,7 @@ config SND_SOC_ALL_CODECS
 	imply SND_SOC_TDA7419
 	imply SND_SOC_TFA9879
 	imply SND_SOC_TFA989X
+	imply SND_SOC_TLV320ADC3XXX
 	imply SND_SOC_TLV320ADCX140
 	imply SND_SOC_TLV320AIC23_I2C
 	imply SND_SOC_TLV320AIC23_SPI
@@ -1495,6 +1496,13 @@ config SND_SOC_TFA989X
 	  amplifiers, e.g. TFA9895.
 	  Note that the driver currently bypasses the built-in "CoolFlux DSP"
 	  and does not support (hardware) volume control.
+
+config SND_SOC_TLV320ADC3XXX
+	tristate "Texas Instruments TLV320ADC3001/3101 audio ADC"
+	depends on I2C
+	help
+	 Enable support for Texas Instruments TLV320ADC3001 and TLV320ADC3101
+	 ADCs.
 
 config SND_SOC_TLV320AIC23
 	tristate
