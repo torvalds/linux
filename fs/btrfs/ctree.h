@@ -1058,6 +1058,8 @@ struct btrfs_fs_info {
 	spinlock_t relocation_bg_lock;
 	u64 data_reloc_bg;
 
+	u64 nr_global_roots;
+
 	spinlock_t zone_active_bgs_lock;
 	struct list_head zone_active_bgs;
 

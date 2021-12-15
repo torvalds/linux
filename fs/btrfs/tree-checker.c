@@ -639,8 +639,10 @@ static void block_group_err(const struct extent_buffer *eb, int slot,
 static int check_block_group_item(struct extent_buffer *leaf,
 				  struct btrfs_key *key, int slot)
 {
+	struct btrfs_fs_info *fs_info = leaf->fs_info;
 	struct btrfs_block_group_item bgi;
 	u32 item_size = btrfs_item_size(leaf, slot);
+	u64 chunk_objectid;
 	u64 flags;
 	u64 type;
 
@@ -663,8 +665,23 @@ static int check_block_group_item(struct extent_buffer *leaf,
 
 	read_extent_buffer(leaf, &bgi, btrfs_item_ptr_offset(leaf, slot),
 			   sizeof(bgi));
-	if (unlikely(btrfs_stack_block_group_chunk_objectid(&bgi) !=
-		     BTRFS_FIRST_CHUNK_TREE_OBJECTID)) {
+	chunk_objectid = btrfs_stack_block_group_chunk_objectid(&bgi);
+	if (btrfs_fs_incompat(fs_info, EXTENT_TREE_V2)) {
+		/*
+		 * We don't init the nr_global_roots until we load the global
+		 * roots, so this could be 0 at mount time.  If it's 0 we'll
+		 * just assume we're fine, and later we'll check against our
+		 * actual value.
+		 */
+		if (unlikely(fs_info->nr_global_roots &&
+			     chunk_objectid >= fs_info->nr_global_roots)) {
+			block_group_err(leaf, slot,
+	"invalid block group global root id, have %llu, needs to be <= %llu",
+					chunk_objectid,
+					fs_info->nr_global_roots);
+			return -EUCLEAN;
+		}
+	} else if (unlikely(chunk_objectid != BTRFS_FIRST_CHUNK_TREE_OBJECTID)) {
 		block_group_err(leaf, slot,
 		"invalid block group chunk objectid, have %llu expect %llu",
 				btrfs_stack_block_group_chunk_objectid(&bgi),

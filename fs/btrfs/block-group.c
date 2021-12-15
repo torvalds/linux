@@ -2006,6 +2006,7 @@ static int read_one_block_group(struct btrfs_fs_info *info,
 	cache->length = key->offset;
 	cache->used = btrfs_stack_block_group_used(bgi);
 	cache->flags = btrfs_stack_block_group_flags(bgi);
+	cache->global_root_id = btrfs_stack_block_group_chunk_objectid(bgi);
 
 	set_free_space_tree_thresholds(cache);
 
@@ -2288,7 +2289,7 @@ static int insert_block_group_item(struct btrfs_trans_handle *trans,
 	spin_lock(&block_group->lock);
 	btrfs_set_stack_block_group_used(&bgi, block_group->used);
 	btrfs_set_stack_block_group_chunk_objectid(&bgi,
-				BTRFS_FIRST_CHUNK_TREE_OBJECTID);
+						   block_group->global_root_id);
 	btrfs_set_stack_block_group_flags(&bgi, block_group->flags);
 	key.objectid = block_group->start;
 	key.type = BTRFS_BLOCK_GROUP_ITEM_KEY;
@@ -2444,6 +2445,27 @@ next:
 	btrfs_trans_release_chunk_metadata(trans);
 }
 
+/*
+ * For extent tree v2 we use the block_group_item->chunk_offset to point at our
+ * global root id.  For v1 it's always set to BTRFS_FIRST_CHUNK_TREE_OBJECTID.
+ */
+static u64 calculate_global_root_id(struct btrfs_fs_info *fs_info, u64 offset)
+{
+	u64 div = SZ_1G;
+	u64 index;
+
+	if (!btrfs_fs_incompat(fs_info, EXTENT_TREE_V2))
+		return BTRFS_FIRST_CHUNK_TREE_OBJECTID;
+
+	/* If we have a smaller fs index based on 128MiB. */
+	if (btrfs_super_total_bytes(fs_info->super_copy) <= (SZ_1G * 10ULL))
+		div = SZ_128M;
+
+	offset = div64_u64(offset, div);
+	div64_u64_rem(offset, fs_info->nr_global_roots, &index);
+	return index;
+}
+
 struct btrfs_block_group *btrfs_make_block_group(struct btrfs_trans_handle *trans,
 						 u64 bytes_used, u64 type,
 						 u64 chunk_offset, u64 size)
@@ -2464,6 +2486,8 @@ struct btrfs_block_group *btrfs_make_block_group(struct btrfs_trans_handle *tran
 	cache->flags = type;
 	cache->last_byte_to_unpin = (u64)-1;
 	cache->cached = BTRFS_CACHE_FINISHED;
+	cache->global_root_id = calculate_global_root_id(fs_info, cache->start);
+
 	if (btrfs_fs_compat_ro(fs_info, FREE_SPACE_TREE))
 		cache->needs_free_space = 1;
 
@@ -2693,7 +2717,7 @@ static int update_block_group_item(struct btrfs_trans_handle *trans,
 	bi = btrfs_item_ptr_offset(leaf, path->slots[0]);
 	btrfs_set_stack_block_group_used(&bgi, cache->used);
 	btrfs_set_stack_block_group_chunk_objectid(&bgi,
-			BTRFS_FIRST_CHUNK_TREE_OBJECTID);
+						   cache->global_root_id);
 	btrfs_set_stack_block_group_flags(&bgi, cache->flags);
 	write_extent_buffer(leaf, &bgi, bi, sizeof(bgi));
 	btrfs_mark_buffer_dirty(leaf);

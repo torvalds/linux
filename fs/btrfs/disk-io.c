@@ -1289,12 +1289,33 @@ struct btrfs_root *btrfs_global_root(struct btrfs_fs_info *fs_info,
 	return root;
 }
 
+static u64 btrfs_global_root_id(struct btrfs_fs_info *fs_info, u64 bytenr)
+{
+	struct btrfs_block_group *block_group;
+	u64 ret;
+
+	if (!btrfs_fs_incompat(fs_info, EXTENT_TREE_V2))
+		return 0;
+
+	if (bytenr)
+		block_group = btrfs_lookup_block_group(fs_info, bytenr);
+	else
+		block_group = btrfs_lookup_first_block_group(fs_info, bytenr);
+	ASSERT(block_group);
+	if (!block_group)
+		return 0;
+	ret = block_group->global_root_id;
+	btrfs_put_block_group(block_group);
+
+	return ret;
+}
+
 struct btrfs_root *btrfs_csum_root(struct btrfs_fs_info *fs_info, u64 bytenr)
 {
 	struct btrfs_key key = {
 		.objectid = BTRFS_CSUM_TREE_OBJECTID,
 		.type = BTRFS_ROOT_ITEM_KEY,
-		.offset = 0,
+		.offset = btrfs_global_root_id(fs_info, bytenr),
 	};
 
 	return btrfs_global_root(fs_info, &key);
@@ -1305,7 +1326,7 @@ struct btrfs_root *btrfs_extent_root(struct btrfs_fs_info *fs_info, u64 bytenr)
 	struct btrfs_key key = {
 		.objectid = BTRFS_EXTENT_TREE_OBJECTID,
 		.type = BTRFS_ROOT_ITEM_KEY,
-		.offset = 0,
+		.offset = btrfs_global_root_id(fs_info, bytenr),
 	};
 
 	return btrfs_global_root(fs_info, &key);
@@ -2096,7 +2117,6 @@ static void backup_super_roots(struct btrfs_fs_info *info)
 {
 	const int next_backup = info->backup_root_index;
 	struct btrfs_root_backup *root_backup;
-	struct btrfs_root *csum_root = btrfs_csum_root(info, 0);
 
 	root_backup = info->super_for_commit->super_roots + next_backup;
 
@@ -2130,6 +2150,7 @@ static void backup_super_roots(struct btrfs_fs_info *info)
 			btrfs_header_level(info->block_group_root->node));
 	} else {
 		struct btrfs_root *extent_root = btrfs_extent_root(info, 0);
+		struct btrfs_root *csum_root = btrfs_csum_root(info, 0);
 
 		btrfs_set_backup_extent_root(root_backup,
 					     extent_root->node->start);
@@ -2137,6 +2158,12 @@ static void backup_super_roots(struct btrfs_fs_info *info)
 				btrfs_header_generation(extent_root->node));
 		btrfs_set_backup_extent_root_level(root_backup,
 					btrfs_header_level(extent_root->node));
+
+		btrfs_set_backup_csum_root(root_backup, csum_root->node->start);
+		btrfs_set_backup_csum_root_gen(root_backup,
+					       btrfs_header_generation(csum_root->node));
+		btrfs_set_backup_csum_root_level(root_backup,
+						 btrfs_header_level(csum_root->node));
 	}
 
 	/*
@@ -2157,12 +2184,6 @@ static void backup_super_roots(struct btrfs_fs_info *info)
 			       btrfs_header_generation(info->dev_root->node));
 	btrfs_set_backup_dev_root_level(root_backup,
 				       btrfs_header_level(info->dev_root->node));
-
-	btrfs_set_backup_csum_root(root_backup, csum_root->node->start);
-	btrfs_set_backup_csum_root_gen(root_backup,
-				       btrfs_header_generation(csum_root->node));
-	btrfs_set_backup_csum_root_level(root_backup,
-					 btrfs_header_level(csum_root->node));
 
 	btrfs_set_backup_total_bytes(root_backup,
 			     btrfs_super_total_bytes(info->super_copy));
@@ -2546,6 +2567,7 @@ static int load_global_roots_objectid(struct btrfs_root *tree_root,
 {
 	struct btrfs_fs_info *fs_info = tree_root->fs_info;
 	struct btrfs_root *root;
+	u64 max_global_id = 0;
 	int ret;
 	struct btrfs_key key = {
 		.objectid = objectid,
@@ -2581,6 +2603,13 @@ static int load_global_roots_objectid(struct btrfs_root *tree_root,
 			break;
 		btrfs_release_path(path);
 
+		/*
+		 * Just worry about this for extent tree, it'll be the same for
+		 * everybody.
+		 */
+		if (objectid == BTRFS_EXTENT_TREE_OBJECTID)
+			max_global_id = max(max_global_id, key.offset);
+
 		found = true;
 		root = read_tree_root_path(tree_root, path, &key);
 		if (IS_ERR(root)) {
@@ -2597,6 +2626,9 @@ static int load_global_roots_objectid(struct btrfs_root *tree_root,
 		key.offset++;
 	}
 	btrfs_release_path(path);
+
+	if (objectid == BTRFS_EXTENT_TREE_OBJECTID)
+		fs_info->nr_global_roots = max_global_id + 1;
 
 	if (!found || ret) {
 		if (objectid == BTRFS_CSUM_TREE_OBJECTID)
