@@ -1306,6 +1306,46 @@ dpu_plane_duplicate_state(struct drm_plane *plane)
 	return &pstate->base;
 }
 
+static const char * const multirect_mode_name[] = {
+	[DPU_SSPP_MULTIRECT_NONE] = "none",
+	[DPU_SSPP_MULTIRECT_PARALLEL] = "parallel",
+	[DPU_SSPP_MULTIRECT_TIME_MX] = "time_mx",
+};
+
+static const char * const multirect_index_name[] = {
+	[DPU_SSPP_RECT_SOLO] = "solo",
+	[DPU_SSPP_RECT_0] = "rect_0",
+	[DPU_SSPP_RECT_1] = "rect_1",
+};
+
+static const char *dpu_get_multirect_mode(enum dpu_sspp_multirect_mode mode)
+{
+	if (WARN_ON(mode >= ARRAY_SIZE(multirect_mode_name)))
+		return "unknown";
+
+	return multirect_mode_name[mode];
+}
+
+static const char *dpu_get_multirect_index(enum dpu_sspp_multirect_index index)
+{
+	if (WARN_ON(index >= ARRAY_SIZE(multirect_index_name)))
+		return "unknown";
+
+	return multirect_index_name[index];
+}
+
+static void dpu_plane_atomic_print_state(struct drm_printer *p,
+		const struct drm_plane_state *state)
+{
+	const struct dpu_plane_state *pstate = to_dpu_plane_state(state);
+	const struct dpu_plane *pdpu = to_dpu_plane(state->plane);
+
+	drm_printf(p, "\tstage=%d\n", pstate->stage);
+	drm_printf(p, "\tsspp=%s\n", pdpu->pipe_hw->cap->name);
+	drm_printf(p, "\tmultirect_mode=%s\n", dpu_get_multirect_mode(pstate->multirect_mode));
+	drm_printf(p, "\tmultirect_index=%s\n", dpu_get_multirect_index(pstate->multirect_index));
+}
+
 static void dpu_plane_reset(struct drm_plane *plane)
 {
 	struct dpu_plane *pdpu;
@@ -1445,6 +1485,7 @@ static const struct drm_plane_funcs dpu_plane_funcs = {
 		.reset = dpu_plane_reset,
 		.atomic_duplicate_state = dpu_plane_duplicate_state,
 		.atomic_destroy_state = dpu_plane_destroy_state,
+		.atomic_print_state = dpu_plane_atomic_print_state,
 		.late_register = dpu_plane_late_register,
 		.format_mod_supported = dpu_plane_format_mod_supported,
 };
