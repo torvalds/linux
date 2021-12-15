@@ -465,7 +465,8 @@ esw_setup_dests(struct mlx5_flow_destination *dest,
 	    esw_src_port_rewrite_supported(esw))
 		attr->flags |= MLX5_ATTR_FLAG_SRC_REWRITE;
 
-	if (attr->flags & MLX5_ATTR_FLAG_SAMPLE) {
+	if (attr->flags & MLX5_ATTR_FLAG_SAMPLE &&
+	    !(attr->flags & MLX5_ATTR_FLAG_SLOW_PATH)) {
 		esw_setup_sampler_dest(dest, flow_act, attr->sample_attr.sampler_id, *i);
 		(*i)++;
 	} else if (attr->dest_ft) {

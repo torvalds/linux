@@ -112,6 +112,17 @@ struct mlx5e_tc_flow {
 	struct mlx5_flow_attr *attr;
 };
 
+struct mlx5_flow_handle *
+mlx5e_tc_rule_offload(struct mlx5e_priv *priv,
+		      struct mlx5e_tc_flow *flow,
+		      struct mlx5_flow_spec *spec,
+		      struct mlx5_flow_attr *attr);
+
+void
+mlx5e_tc_rule_unoffload(struct mlx5e_priv *priv,
+			struct mlx5e_tc_flow *flow,
+			struct mlx5_flow_attr *attr);
+
 u8 mlx5e_tc_get_ip_version(struct mlx5_flow_spec *spec, bool outer);
 
 struct mlx5_flow_handle *
@@ -174,6 +185,7 @@ struct mlx5_flow_handle *
 mlx5e_tc_offload_to_slow_path(struct mlx5_eswitch *esw,
 			      struct mlx5e_tc_flow *flow,
 			      struct mlx5_flow_spec *spec);
+
 void mlx5e_tc_unoffload_fdb_rules(struct mlx5_eswitch *esw,
 				  struct mlx5e_tc_flow *flow,
 				  struct mlx5_flow_attr *attr);

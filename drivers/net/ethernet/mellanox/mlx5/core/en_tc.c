@@ -295,11 +295,63 @@ mlx5_tc_rule_delete(struct mlx5e_priv *priv,
 
 	if (is_mdev_switchdev_mode(priv->mdev)) {
 		mlx5_eswitch_del_offloaded_rule(esw, rule, attr);
-
 		return;
 	}
 
 	mlx5e_del_offloaded_nic_rule(priv, rule, attr);
+}
+
+struct mlx5_flow_handle *
+mlx5e_tc_rule_offload(struct mlx5e_priv *priv,
+		      struct mlx5e_tc_flow *flow,
+		      struct mlx5_flow_spec *spec,
+		      struct mlx5_flow_attr *attr)
+{
+	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
+	u32 tun_id = mlx5e_tc_get_flow_tun_id(flow);
+
+	if (attr->flags & MLX5_ATTR_FLAG_CT) {
+		struct mlx5e_tc_mod_hdr_acts *mod_hdr_acts =
+			&attr->parse_attr->mod_hdr_acts;
+
+		return mlx5_tc_ct_flow_offload(get_ct_priv(priv), flow,
+					       spec, attr,
+					       mod_hdr_acts);
+	}
+
+	if (!is_mdev_switchdev_mode(priv->mdev))
+		return mlx5e_add_offloaded_nic_rule(priv, spec, attr);
+
+	if (attr->flags & MLX5_ATTR_FLAG_SAMPLE)
+		return mlx5e_tc_sample_offload(get_sample_priv(priv), spec, attr, tun_id);
+
+	return mlx5_eswitch_add_offloaded_rule(esw, spec, attr);
+}
+
+void
+mlx5e_tc_rule_unoffload(struct mlx5e_priv *priv,
+			struct mlx5e_tc_flow *flow,
+			struct mlx5_flow_attr *attr)
+{
+	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
+	struct mlx5_flow_handle *rule = flow->rule[0];
+
+	if (attr->flags & MLX5_ATTR_FLAG_CT) {
+		mlx5_tc_ct_delete_flow(get_ct_priv(priv), flow, attr);
+		return;
+	}
+
+	if (!is_mdev_switchdev_mode(priv->mdev)) {
+		mlx5e_del_offloaded_nic_rule(priv, rule, attr);
+		return;
+	}
+
+	if (attr->flags & MLX5_ATTR_FLAG_SAMPLE) {
+		mlx5e_tc_sample_unoffload(get_sample_priv(priv), rule, attr);
+		return;
+	}
+
+	mlx5_eswitch_del_offloaded_rule(esw, rule, attr);
 }
 
 int
@@ -1084,7 +1136,7 @@ mlx5e_tc_add_nic_flow(struct mlx5e_priv *priv,
 			return err;
 	}
 
-	if (flow_flag_test(flow, CT))
+	if (attr->flags & MLX5_ATTR_FLAG_CT)
 		flow->rule[0] = mlx5_tc_ct_flow_offload(get_ct_priv(priv), flow, &parse_attr->spec,
 							attr, &parse_attr->mod_hdr_acts);
 	else
@@ -1119,7 +1171,7 @@ static void mlx5e_tc_del_nic_flow(struct mlx5e_priv *priv,
 
 	flow_flag_clear(flow, OFFLOADED);
 
-	if (flow_flag_test(flow, CT))
+	if (attr->flags & MLX5_ATTR_FLAG_CT)
 		mlx5_tc_ct_delete_flow(get_ct_priv(flow->priv), flow, attr);
 	else if (!IS_ERR_OR_NULL(flow->rule[0]))
 		mlx5e_del_offloaded_nic_rule(priv, flow->rule[0], attr);
@@ -1154,40 +1206,27 @@ mlx5e_tc_offload_fdb_rules(struct mlx5_eswitch *esw,
 			   struct mlx5_flow_spec *spec,
 			   struct mlx5_flow_attr *attr)
 {
-	struct mlx5e_tc_mod_hdr_acts *mod_hdr_acts;
 	struct mlx5_flow_handle *rule;
 
 	if (attr->flags & MLX5_ATTR_FLAG_SLOW_PATH)
 		return mlx5_eswitch_add_offloaded_rule(esw, spec, attr);
 
-	if (flow_flag_test(flow, CT)) {
-		mod_hdr_acts = &attr->parse_attr->mod_hdr_acts;
-
-		rule = mlx5_tc_ct_flow_offload(get_ct_priv(flow->priv),
-					       flow, spec, attr,
-					       mod_hdr_acts);
-	} else if (flow_flag_test(flow, SAMPLE)) {
-		rule = mlx5e_tc_sample_offload(get_sample_priv(flow->priv), spec, attr,
-					       mlx5e_tc_get_flow_tun_id(flow));
-	} else {
-		rule = mlx5_eswitch_add_offloaded_rule(esw, spec, attr);
-	}
+	rule = mlx5e_tc_rule_offload(flow->priv, flow, spec, attr);
 
 	if (IS_ERR(rule))
 		return rule;
 
 	if (attr->esw_attr->split_count) {
 		flow->rule[1] = mlx5_eswitch_add_fwd_rule(esw, spec, attr);
-		if (IS_ERR(flow->rule[1])) {
-			if (flow_flag_test(flow, CT))
-				mlx5_tc_ct_delete_flow(get_ct_priv(flow->priv), flow, attr);
-			else
-				mlx5_eswitch_del_offloaded_rule(esw, rule, attr);
-			return flow->rule[1];
-		}
+		if (IS_ERR(flow->rule[1]))
+			goto err_rule1;
 	}
 
 	return rule;
+
+err_rule1:
+	mlx5e_tc_rule_unoffload(flow->priv, flow, attr);
+	return flow->rule[1];
 }
 
 void mlx5e_tc_unoffload_fdb_rules(struct mlx5_eswitch *esw,
@@ -1197,18 +1236,12 @@ void mlx5e_tc_unoffload_fdb_rules(struct mlx5_eswitch *esw,
 	flow_flag_clear(flow, OFFLOADED);
 
 	if (attr->flags & MLX5_ATTR_FLAG_SLOW_PATH)
-		goto offload_rule_0;
+		return mlx5_eswitch_del_offloaded_rule(esw, flow->rule[0], attr);
 
 	if (attr->esw_attr->split_count)
 		mlx5_eswitch_del_fwd_rule(esw, flow->rule[1], attr);
 
-	if (flow_flag_test(flow, CT))
-		mlx5_tc_ct_delete_flow(get_ct_priv(flow->priv), flow, attr);
-	else if (flow_flag_test(flow, SAMPLE))
-		mlx5e_tc_sample_unoffload(get_sample_priv(flow->priv), flow->rule[0], attr);
-	else
-offload_rule_0:
-		mlx5_eswitch_del_offloaded_rule(esw, flow->rule[0], attr);
+	mlx5e_tc_rule_unoffload(flow->priv, flow, attr);
 }
 
 struct mlx5_flow_handle *

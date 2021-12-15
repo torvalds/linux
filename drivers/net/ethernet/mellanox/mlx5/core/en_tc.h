@@ -96,6 +96,7 @@ enum {
 	MLX5_ATTR_FLAG_SRC_REWRITE   = BIT(3),
 	MLX5_ATTR_FLAG_SAMPLE        = BIT(4),
 	MLX5_ATTR_FLAG_ACCEPT        = BIT(5),
+	MLX5_ATTR_FLAG_CT            = BIT(6),
 };
 
 /* Returns true if any of the flags that require skipping further TC/NF processing are set. */

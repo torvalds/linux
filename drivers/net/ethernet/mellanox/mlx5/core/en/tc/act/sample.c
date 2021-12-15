@@ -36,6 +36,7 @@ tc_act_parse_sample(struct mlx5e_tc_act_parse_state *parse_state,
 	if (act->sample.truncate)
 		sample_attr->trunc_size = act->sample.trunc_size;
 
+	attr->flags |= MLX5_ATTR_FLAG_SAMPLE;
 	flow_flag_set(parse_state->flow, SAMPLE);
 
 	return 0;
