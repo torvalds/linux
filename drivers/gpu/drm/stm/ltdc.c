@@ -198,6 +198,21 @@
 
 #define LXCFBLNR_CFBLN	GENMASK(10, 0)	/* Color Frame Buffer Line Number */
 
+#define LXCR_C1R_YIA	BIT(0)		/* Ycbcr 422 Interleaved Ability */
+#define LXCR_C1R_YSPA	BIT(1)		/* Ycbcr 420 Semi-Planar Ability */
+#define LXCR_C1R_YFPA	BIT(2)		/* Ycbcr 420 Full-Planar Ability */
+#define LXCR_C1R_SCA	BIT(31)		/* SCaling Ability*/
+
+#define LxPCR_YREN	BIT(9)		/* Y Rescale Enable for the color dynamic range */
+#define LxPCR_OF	BIT(8)		/* Odd pixel First */
+#define LxPCR_CBF	BIT(7)		/* CB component First */
+#define LxPCR_YF	BIT(6)		/* Y component First */
+#define LxPCR_YCM	GENMASK(5, 4)	/* Ycbcr Conversion Mode */
+#define YCM_I		0x0		/* Interleaved 422 */
+#define YCM_SP		0x1		/* Semi-Planar 420 */
+#define YCM_FP		0x2		/* Full-Planar 420 */
+#define LxPCR_YCEN	BIT(3)		/* YCbCr-to-RGB Conversion Enable */
+
 #define LXRCR_IMR	BIT(0)		/* IMmediate Reload */
 #define LXRCR_VBR	BIT(1)		/* Vertical Blanking Reload */
 #define LXRCR_GRMSK	BIT(2)		/* Global (centralized) Reload MaSKed */
@@ -311,6 +326,23 @@ static const u32 ltdc_drm_fmt_a2[] = {
 	DRM_FORMAT_C8
 };
 
+static const u32 ltdc_drm_fmt_ycbcr_cp[] = {
+	DRM_FORMAT_YUYV,
+	DRM_FORMAT_YVYU,
+	DRM_FORMAT_UYVY,
+	DRM_FORMAT_VYUY
+};
+
+static const u32 ltdc_drm_fmt_ycbcr_sp[] = {
+	DRM_FORMAT_NV12,
+	DRM_FORMAT_NV21
+};
+
+static const u32 ltdc_drm_fmt_ycbcr_fp[] = {
+	DRM_FORMAT_YUV420,
+	DRM_FORMAT_YVU420
+};
+
 /* Layer register offsets */
 static const u32 ltdc_layer_regs_a0[] = {
 	0x80,	/* L1 configuration 0 */
@@ -408,6 +440,26 @@ static const struct regmap_config stm32_ltdc_regmap_cfg = {
 	.max_register = 0x400,
 	.use_relaxed_mmio = true,
 	.cache_type = REGCACHE_NONE,
+};
+
+static const u32 ltdc_ycbcr2rgb_coeffs[DRM_COLOR_ENCODING_MAX][DRM_COLOR_RANGE_MAX][2] = {
+	[DRM_COLOR_YCBCR_BT601][DRM_COLOR_YCBCR_LIMITED_RANGE] = {
+		0x02040199,	/* (b_cb = 516 / r_cr = 409) */
+		0x006400D0	/* (g_cb = 100 / g_cr = 208) */
+	},
+	[DRM_COLOR_YCBCR_BT601][DRM_COLOR_YCBCR_FULL_RANGE] = {
+		0x01C60167,	/* (b_cb = 454 / r_cr = 359) */
+		0x005800B7	/* (g_cb = 88 / g_cr = 183) */
+	},
+	[DRM_COLOR_YCBCR_BT709][DRM_COLOR_YCBCR_LIMITED_RANGE] = {
+		0x021D01CB,	/* (b_cb = 541 / r_cr = 459) */
+		0x00370089	/* (g_cb = 55 / g_cr = 137) */
+	},
+	[DRM_COLOR_YCBCR_BT709][DRM_COLOR_YCBCR_FULL_RANGE] = {
+		0x01DB0193,	/* (b_cb = 475 / r_cr = 403) */
+		0x00300078	/* (g_cb = 48 / g_cr = 120) */
+	}
+	/* BT2020 not supported */
 };
 
 static inline struct ltdc_device *crtc_to_ltdc(struct drm_crtc *crtc)
@@ -538,6 +590,78 @@ static inline u32 ltdc_set_flexible_pixel_format(struct drm_plane *plane, enum l
 static inline u32 is_xrgb(u32 drm)
 {
 	return ((drm & 0xFF) == 'X' || ((drm >> 8) & 0xFF) == 'X');
+}
+
+static inline void ltdc_set_ycbcr_config(struct drm_plane *plane, u32 drm_pix_fmt)
+{
+	struct ltdc_device *ldev = plane_to_ltdc(plane);
+	struct drm_plane_state *state = plane->state;
+	u32 lofs = plane->index * LAY_OFS;
+	u32 val;
+
+	switch (drm_pix_fmt) {
+	case DRM_FORMAT_YUYV:
+		val = (YCM_I << 4) | LxPCR_YF | LxPCR_CBF;
+		break;
+	case DRM_FORMAT_YVYU:
+		val = (YCM_I << 4) | LxPCR_YF;
+		break;
+	case DRM_FORMAT_UYVY:
+		val = (YCM_I << 4) | LxPCR_CBF;
+		break;
+	case DRM_FORMAT_VYUY:
+		val = (YCM_I << 4);
+		break;
+	case DRM_FORMAT_NV12:
+		val = (YCM_SP << 4) | LxPCR_CBF;
+		break;
+	case DRM_FORMAT_NV21:
+		val = (YCM_SP << 4);
+		break;
+	case DRM_FORMAT_YUV420:
+	case DRM_FORMAT_YVU420:
+		val = (YCM_FP << 4);
+		break;
+	default:
+		/* RGB or not a YCbCr supported format */
+		break;
+	}
+
+	/* Enable limited range */
+	if (state->color_range == DRM_COLOR_YCBCR_LIMITED_RANGE)
+		val |= LxPCR_YREN;
+
+	/* enable ycbcr conversion */
+	val |= LxPCR_YCEN;
+
+	regmap_write(ldev->regmap, LTDC_L1PCR + lofs, val);
+}
+
+static inline void ltdc_set_ycbcr_coeffs(struct drm_plane *plane)
+{
+	struct ltdc_device *ldev = plane_to_ltdc(plane);
+	struct drm_plane_state *state = plane->state;
+	enum drm_color_encoding enc = state->color_encoding;
+	enum drm_color_range ran = state->color_range;
+	u32 lofs = plane->index * LAY_OFS;
+
+	if (enc != DRM_COLOR_YCBCR_BT601 && enc != DRM_COLOR_YCBCR_BT709) {
+		DRM_ERROR("color encoding %d not supported, use bt601 by default\n", enc);
+		/* set by default color encoding to DRM_COLOR_YCBCR_BT601 */
+		enc = DRM_COLOR_YCBCR_BT601;
+	}
+
+	if (ran != DRM_COLOR_YCBCR_LIMITED_RANGE && ran != DRM_COLOR_YCBCR_FULL_RANGE) {
+		DRM_ERROR("color range %d not supported, use limited range by default\n", ran);
+		/* set by default color range to DRM_COLOR_YCBCR_LIMITED_RANGE */
+		ran = DRM_COLOR_YCBCR_LIMITED_RANGE;
+	}
+
+	DRM_DEBUG_DRIVER("Color encoding=%d, range=%d\n", enc, ran);
+	regmap_write(ldev->regmap, LTDC_L1CYR0R + lofs,
+		     ltdc_ycbcr2rgb_coeffs[enc][ran][0]);
+	regmap_write(ldev->regmap, LTDC_L1CYR1R + lofs,
+		     ltdc_ycbcr2rgb_coeffs[enc][ran][1]);
 }
 
 static irqreturn_t ltdc_irq_thread(int irq, void *arg)
@@ -1010,7 +1134,7 @@ static void ltdc_plane_atomic_update(struct drm_plane *plane,
 	u32 y0 = newstate->crtc_y;
 	u32 y1 = newstate->crtc_y + newstate->crtc_h - 1;
 	u32 src_x, src_y, src_w, src_h;
-	u32 val, pitch_in_bytes, line_length, paddr, ahbp, avbp, bpcr;
+	u32 val, pitch_in_bytes, line_length, line_number, paddr, ahbp, avbp, bpcr;
 	enum ltdc_pix_fmt pf;
 
 	if (!newstate->crtc || !fb) {
@@ -1086,14 +1210,85 @@ static void ltdc_plane_atomic_update(struct drm_plane *plane,
 	regmap_write_bits(ldev->regmap, LTDC_L1BFCR + lofs, LXBFCR_BF2 | LXBFCR_BF1, val);
 
 	/* Configures the frame buffer line number */
-	val = y1 - y0 + 1;
-	regmap_write_bits(ldev->regmap, LTDC_L1CFBLNR + lofs, LXCFBLNR_CFBLN, val);
+	line_number = y1 - y0 + 1;
+	regmap_write_bits(ldev->regmap, LTDC_L1CFBLNR + lofs, LXCFBLNR_CFBLN, line_number);
 
 	/* Sets the FB address */
 	paddr = (u32)drm_fb_cma_get_gem_addr(fb, newstate, 0);
 
 	DRM_DEBUG_DRIVER("fb: phys 0x%08x", paddr);
 	regmap_write(ldev->regmap, LTDC_L1CFBAR + lofs, paddr);
+
+	if (ldev->caps.ycbcr_input) {
+		if (fb->format->is_yuv) {
+			switch (fb->format->format) {
+			case DRM_FORMAT_NV12:
+			case DRM_FORMAT_NV21:
+			/* Configure the auxiliary frame buffer address 0 & 1 */
+			paddr = (u32)drm_fb_cma_get_gem_addr(fb, newstate, 1);
+			regmap_write(ldev->regmap, LTDC_L1AFBA0R + lofs, paddr);
+			regmap_write(ldev->regmap, LTDC_L1AFBA1R + lofs, paddr + 1);
+
+			/* Configure the buffer length */
+			val = ((pitch_in_bytes << 16) | line_length);
+			regmap_write(ldev->regmap, LTDC_L1AFBLR + lofs, val);
+
+			/* Configure the frame buffer line number */
+			val = (line_number >> 1);
+			regmap_write(ldev->regmap, LTDC_L1AFBLNR + lofs, val);
+			break;
+			case DRM_FORMAT_YUV420:
+			/* Configure the auxiliary frame buffer address 0 */
+			paddr = (u32)drm_fb_cma_get_gem_addr(fb, newstate, 1);
+			regmap_write(ldev->regmap, LTDC_L1AFBA0R + lofs, paddr);
+
+			/* Configure the auxiliary frame buffer address 1 */
+			paddr = (u32)drm_fb_cma_get_gem_addr(fb, newstate, 2);
+			regmap_write(ldev->regmap, LTDC_L1AFBA1R + lofs, paddr);
+
+			line_length = ((fb->format->cpp[0] * (x1 - x0 + 1)) >> 1) +
+				      (ldev->caps.bus_width >> 3) - 1;
+
+			/* Configure the buffer length */
+			val = (((pitch_in_bytes >> 1) << 16) | line_length);
+			regmap_write(ldev->regmap, LTDC_L1AFBLR + lofs, val);
+
+			/* Configure the frame buffer line number */
+			val = (line_number >> 1);
+			regmap_write(ldev->regmap, LTDC_L1AFBLNR + lofs, val);
+			break;
+			case DRM_FORMAT_YVU420:
+			/* Configure the auxiliary frame buffer address 0 */
+			paddr = (u32)drm_fb_cma_get_gem_addr(fb, newstate, 2);
+			regmap_write(ldev->regmap, LTDC_L1AFBA0R + lofs, paddr);
+
+			/* Configure the auxiliary frame buffer address 1 */
+			paddr = (u32)drm_fb_cma_get_gem_addr(fb, newstate, 1);
+			regmap_write(ldev->regmap, LTDC_L1AFBA1R + lofs, paddr);
+
+			line_length = ((fb->format->cpp[0] * (x1 - x0 + 1)) >> 1) +
+				      (ldev->caps.bus_width >> 3) - 1;
+
+			/* Configure the buffer length */
+			val = (((pitch_in_bytes >> 1) << 16) | line_length);
+			regmap_write(ldev->regmap, LTDC_L1AFBLR + lofs, val);
+
+			/* Configure the frame buffer line number */
+			val = (line_number >> 1);
+			regmap_write(ldev->regmap, LTDC_L1AFBLNR + lofs, val);
+			break;
+			}
+
+			/* Configure YCbC conversion coefficient */
+			ltdc_set_ycbcr_coeffs(plane);
+
+			/* Configure YCbCr format and enable/disable conversion */
+			ltdc_set_ycbcr_config(plane, fb->format->format);
+		} else {
+			/* disable ycbcr conversion */
+			regmap_write(ldev->regmap, LTDC_L1PCR + lofs, 0);
+		}
+	}
 
 	/* Enable layer and CLUT if needed */
 	val = fb->format->format == DRM_FORMAT_C8 ? LXCR_CLUTEN : 0;
@@ -1186,7 +1381,8 @@ static const struct drm_plane_helper_funcs ltdc_plane_helper_funcs = {
 };
 
 static struct drm_plane *ltdc_plane_create(struct drm_device *ddev,
-					   enum drm_plane_type type)
+					   enum drm_plane_type type,
+					   int index)
 {
 	unsigned long possible_crtcs = CRTC_MASK;
 	struct ltdc_device *ldev = ddev->dev_private;
@@ -1196,9 +1392,16 @@ static struct drm_plane *ltdc_plane_create(struct drm_device *ddev,
 	u32 *formats;
 	u32 drm_fmt;
 	const u64 *modifiers = ltdc_format_modifiers;
+	u32 lofs = index * LAY_OFS;
+	u32 val;
 	int ret;
 
-	formats = devm_kzalloc(dev, ldev->caps.pix_fmt_nb * sizeof(*formats), GFP_KERNEL);
+	/* Allocate the biggest size according to supported color formats */
+	formats = devm_kzalloc(dev, (ldev->caps.pix_fmt_nb +
+			       ARRAY_SIZE(ltdc_drm_fmt_ycbcr_cp) +
+			       ARRAY_SIZE(ltdc_drm_fmt_ycbcr_sp) +
+			       ARRAY_SIZE(ltdc_drm_fmt_ycbcr_fp)) *
+			       sizeof(*formats), GFP_KERNEL);
 
 	for (i = 0; i < ldev->caps.pix_fmt_nb; i++) {
 		drm_fmt = ldev->caps.pix_fmt_drm[i];
@@ -1212,6 +1415,26 @@ static struct drm_plane *ltdc_plane_create(struct drm_device *ddev,
 		formats[nb_fmt++] = drm_fmt;
 	}
 
+	/* Add YCbCr supported pixel formats */
+	if (ldev->caps.ycbcr_input) {
+		regmap_read(ldev->regmap, LTDC_L1C1R + lofs, &val);
+		if (val & LXCR_C1R_YIA) {
+			memcpy(&formats[nb_fmt], ltdc_drm_fmt_ycbcr_cp,
+			       ARRAY_SIZE(ltdc_drm_fmt_ycbcr_cp) * sizeof(*formats));
+			nb_fmt += ARRAY_SIZE(ltdc_drm_fmt_ycbcr_cp);
+		}
+		if (val & LXCR_C1R_YSPA) {
+			memcpy(&formats[nb_fmt], ltdc_drm_fmt_ycbcr_sp,
+			       ARRAY_SIZE(ltdc_drm_fmt_ycbcr_sp) * sizeof(*formats));
+			nb_fmt += ARRAY_SIZE(ltdc_drm_fmt_ycbcr_sp);
+		}
+		if (val & LXCR_C1R_YFPA) {
+			memcpy(&formats[nb_fmt], ltdc_drm_fmt_ycbcr_fp,
+			       ARRAY_SIZE(ltdc_drm_fmt_ycbcr_fp) * sizeof(*formats));
+			nb_fmt += ARRAY_SIZE(ltdc_drm_fmt_ycbcr_fp);
+		}
+	}
+
 	plane = devm_kzalloc(dev, sizeof(*plane), GFP_KERNEL);
 	if (!plane)
 		return NULL;
@@ -1221,6 +1444,17 @@ static struct drm_plane *ltdc_plane_create(struct drm_device *ddev,
 				       modifiers, type, NULL);
 	if (ret < 0)
 		return NULL;
+
+	if (ldev->caps.ycbcr_input) {
+		if (val & (LXCR_C1R_YIA | LXCR_C1R_YSPA | LXCR_C1R_YFPA))
+			drm_plane_create_color_properties(plane,
+							  BIT(DRM_COLOR_YCBCR_BT601) |
+							  BIT(DRM_COLOR_YCBCR_BT709),
+							  BIT(DRM_COLOR_YCBCR_LIMITED_RANGE) |
+							  BIT(DRM_COLOR_YCBCR_FULL_RANGE),
+							  DRM_COLOR_YCBCR_BT601,
+							  DRM_COLOR_YCBCR_LIMITED_RANGE);
+	}
 
 	drm_plane_helper_add(plane, &ltdc_plane_helper_funcs);
 
@@ -1247,7 +1481,7 @@ static int ltdc_crtc_init(struct drm_device *ddev, struct drm_crtc *crtc)
 	unsigned int i;
 	int ret;
 
-	primary = ltdc_plane_create(ddev, DRM_PLANE_TYPE_PRIMARY);
+	primary = ltdc_plane_create(ddev, DRM_PLANE_TYPE_PRIMARY, 0);
 	if (!primary) {
 		DRM_ERROR("Can not create primary plane\n");
 		return -EINVAL;
@@ -1271,7 +1505,7 @@ static int ltdc_crtc_init(struct drm_device *ddev, struct drm_crtc *crtc)
 
 	/* Add planes. Note : the first layer is used by primary plane */
 	for (i = 1; i < ldev->caps.nb_layers; i++) {
-		overlay = ltdc_plane_create(ddev, DRM_PLANE_TYPE_OVERLAY);
+		overlay = ltdc_plane_create(ddev, DRM_PLANE_TYPE_OVERLAY, i);
 		if (!overlay) {
 			ret = -ENOMEM;
 			DRM_ERROR("Can not create overlay plane %d\n", i);
@@ -1403,6 +1637,7 @@ static int ltdc_get_caps(struct drm_device *ddev)
 		if (ldev->caps.hw_version == HWVER_10200)
 			ldev->caps.pad_max_freq_hz = 65000000;
 		ldev->caps.nb_irq = 2;
+		ldev->caps.ycbcr_input = false;
 		ldev->caps.ycbcr_output = false;
 		ldev->caps.plane_reg_shadow = false;
 		break;
@@ -1416,6 +1651,7 @@ static int ltdc_get_caps(struct drm_device *ddev)
 		ldev->caps.non_alpha_only_l1 = false;
 		ldev->caps.pad_max_freq_hz = 150000000;
 		ldev->caps.nb_irq = 4;
+		ldev->caps.ycbcr_input = false;
 		ldev->caps.ycbcr_output = false;
 		ldev->caps.plane_reg_shadow = false;
 		break;
@@ -1429,6 +1665,7 @@ static int ltdc_get_caps(struct drm_device *ddev)
 		ldev->caps.non_alpha_only_l1 = false;
 		ldev->caps.pad_max_freq_hz = 90000000;
 		ldev->caps.nb_irq = 2;
+		ldev->caps.ycbcr_input = true;
 		ldev->caps.ycbcr_output = true;
 		ldev->caps.plane_reg_shadow = true;
 		break;
