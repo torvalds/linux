@@ -21,9 +21,9 @@
 #include <sound/sof.h>
 #include <sound/sof/xtensa.h>
 #include "../../ops.h"
+#include "../../sof-of-dev.h"
 #include "../../sof-audio.h"
 #include "../adsp_helper.h"
-#include "../mediatek-ops.h"
 #include "mt8195.h"
 #include "mt8195-clk.h"
 
@@ -388,7 +388,7 @@ static struct snd_soc_dai_driver mt8195_dai[] = {
 };
 
 /* mt8195 ops */
-const struct snd_sof_dsp_ops sof_mt8195_ops = {
+static const struct snd_sof_dsp_ops sof_mt8195_ops = {
 	/* probe and remove */
 	.probe		= mt8195_dsp_probe,
 	.remove		= mt8195_dsp_remove,
@@ -432,7 +432,32 @@ const struct snd_sof_dsp_ops sof_mt8195_ops = {
 			SNDRV_PCM_INFO_PAUSE |
 			SNDRV_PCM_INFO_NO_PERIOD_WAKEUP,
 };
-EXPORT_SYMBOL(sof_mt8195_ops);
+
+static const struct sof_dev_desc sof_of_mt8195_desc = {
+	.default_fw_path = "mediatek/sof",
+	.default_tplg_path = "mediatek/sof-tplg",
+	.default_fw_filename = "sof-mt8195.ri",
+	.nocodec_tplg_filename = "sof-mt8195-nocodec.tplg",
+	.ops = &sof_mt8195_ops,
+};
+
+static const struct of_device_id sof_of_mt8195_ids[] = {
+	{ .compatible = "mediatek,mt8195-dsp", .data = &sof_of_mt8195_desc},
+	{ }
+};
+MODULE_DEVICE_TABLE(of, sof_of_mt8195_ids);
+
+/* DT driver definition */
+static struct platform_driver snd_sof_of_mt8195_driver = {
+	.probe = sof_of_probe,
+	.remove = sof_of_remove,
+	.driver = {
+	.name = "sof-audio-of-mt8195",
+		.pm = &sof_of_pm,
+		.of_match_table = sof_of_mt8195_ids,
+	},
+};
+module_platform_driver(snd_sof_of_mt8195_driver);
 
 MODULE_IMPORT_NS(SND_SOC_SOF_XTENSA);
 MODULE_LICENSE("Dual BSD/GPL");

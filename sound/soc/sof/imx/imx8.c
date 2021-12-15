@@ -21,8 +21,8 @@
 #include <linux/firmware/imx/svc/misc.h>
 #include <dt-bindings/firmware/imx/rsrc.h>
 #include "../ops.h"
+#include "../sof-of-dev.h"
 #include "imx-common.h"
-#include "imx-ops.h"
 
 /* DSP memories */
 #define IRAM_OFFSET		0x10000
@@ -487,7 +487,7 @@ static int imx8_dsp_set_power_state(struct snd_sof_dev *sdev,
 }
 
 /* i.MX8 ops */
-struct snd_sof_dsp_ops sof_imx8_ops = {
+static const struct snd_sof_dsp_ops sof_imx8_ops = {
 	/* probe and remove */
 	.probe		= imx8_probe,
 	.remove		= imx8_remove,
@@ -548,10 +548,9 @@ struct snd_sof_dsp_ops sof_imx8_ops = {
 
 	.set_power_state	= imx8_dsp_set_power_state,
 };
-EXPORT_SYMBOL(sof_imx8_ops);
 
 /* i.MX8X ops */
-struct snd_sof_dsp_ops sof_imx8x_ops = {
+static const struct snd_sof_dsp_ops sof_imx8x_ops = {
 	/* probe and remove */
 	.probe		= imx8_probe,
 	.remove		= imx8_remove,
@@ -612,7 +611,41 @@ struct snd_sof_dsp_ops sof_imx8x_ops = {
 			SNDRV_PCM_INFO_PAUSE |
 			SNDRV_PCM_INFO_NO_PERIOD_WAKEUP
 };
-EXPORT_SYMBOL(sof_imx8x_ops);
+
+static struct sof_dev_desc sof_of_imx8qxp_desc = {
+	.default_fw_path = "imx/sof",
+	.default_tplg_path = "imx/sof-tplg",
+	.default_fw_filename = "sof-imx8x.ri",
+	.nocodec_tplg_filename = "sof-imx8-nocodec.tplg",
+	.ops = &sof_imx8x_ops,
+};
+
+static struct sof_dev_desc sof_of_imx8qm_desc = {
+	.default_fw_path = "imx/sof",
+	.default_tplg_path = "imx/sof-tplg",
+	.default_fw_filename = "sof-imx8.ri",
+	.nocodec_tplg_filename = "sof-imx8-nocodec.tplg",
+	.ops = &sof_imx8_ops,
+};
+
+static const struct of_device_id sof_of_imx8_ids[] = {
+	{ .compatible = "fsl,imx8qxp-dsp", .data = &sof_of_imx8qxp_desc},
+	{ .compatible = "fsl,imx8qm-dsp", .data = &sof_of_imx8qm_desc},
+	{ }
+};
+MODULE_DEVICE_TABLE(of, sof_of_imx8_ids);
+
+/* DT driver definition */
+static struct platform_driver snd_sof_of_imx8_driver = {
+	.probe = sof_of_probe,
+	.remove = sof_of_remove,
+	.driver = {
+		.name = "sof-audio-of-imx8",
+		.pm = &sof_of_pm,
+		.of_match_table = sof_of_imx8_ids,
+	},
+};
+module_platform_driver(snd_sof_of_imx8_driver);
 
 MODULE_IMPORT_NS(SND_SOC_SOF_XTENSA);
 MODULE_LICENSE("Dual BSD/GPL");
