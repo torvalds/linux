@@ -3906,17 +3906,18 @@ static noinline int log_dir_items(struct btrfs_trans_handle *trans,
 	ret = btrfs_previous_item(root, path, ino, BTRFS_DIR_INDEX_KEY);
 	if (ret == 0) {
 		struct btrfs_key tmp;
+
 		btrfs_item_key_to_cpu(path->nodes[0], &tmp, path->slots[0]);
-		if (tmp.type == BTRFS_DIR_INDEX_KEY) {
-			first_offset = tmp.offset;
-			ret = overwrite_item(trans, log, dst_path,
-					     path->nodes[0], path->slots[0],
-					     &tmp);
-			if (ret) {
-				err = ret;
-				goto done;
-			}
-		}
+		/*
+		 * The dir index key before the first one we found that needs to
+		 * be logged might be in a previous leaf, and there might be a
+		 * gap between these keys, meaning that we had deletions that
+		 * happened. So the key range item we log (key type
+		 * BTRFS_DIR_LOG_INDEX_KEY) must cover a range that starts at the
+		 * previous key's offset plus 1, so that those deletes are replayed.
+		 */
+		if (tmp.type == BTRFS_DIR_INDEX_KEY)
+			first_offset = tmp.offset + 1;
 	}
 	btrfs_release_path(path);
 
@@ -3964,14 +3965,16 @@ search:
 			goto done;
 		}
 		if (btrfs_header_generation(path->nodes[0]) != trans->transid) {
-			ctx->last_dir_item_offset = min_key.offset;
-			ret = overwrite_item(trans, log, dst_path,
-					     path->nodes[0], path->slots[0],
-					     &min_key);
-			if (ret)
-				err = ret;
-			else
-				last_offset = min_key.offset;
+			/*
+			 * The next leaf was not changed in the current transaction
+			 * and has at least one dir index key.
+			 * We check for the next key because there might have been
+			 * one or more deletions between the last key we logged and
+			 * that next key. So the key range item we log (key type
+			 * BTRFS_DIR_LOG_INDEX_KEY) must end at the next key's
+			 * offset minus 1, so that those deletes are replayed.
+			 */
+			last_offset = min_key.offset - 1;
 			goto done;
 		}
 		if (need_resched()) {
