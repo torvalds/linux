@@ -345,6 +345,9 @@ struct ov2740 {
 
 	/* NVM data inforamtion */
 	struct nvm_data *nvm;
+
+	/* True if the device has been identified */
+	bool identified;
 };
 
 static inline struct ov2740 *to_ov2740(struct v4l2_subdev *subdev)
@@ -436,6 +439,30 @@ static int ov2740_write_reg_list(struct ov2740 *ov2740,
 			return ret;
 		}
 	}
+
+	return 0;
+}
+
+static int ov2740_identify_module(struct ov2740 *ov2740)
+{
+	struct i2c_client *client = v4l2_get_subdevdata(&ov2740->sd);
+	int ret;
+	u32 val;
+
+	if (ov2740->identified)
+		return 0;
+
+	ret = ov2740_read_reg(ov2740, OV2740_REG_CHIP_ID, 3, &val);
+	if (ret)
+		return ret;
+
+	if (val != OV2740_CHIP_ID) {
+		dev_err(&client->dev, "chip id mismatch: %x!=%x",
+			OV2740_CHIP_ID, val);
+		return -ENXIO;
+	}
+
+	ov2740->identified = true;
 
 	return 0;
 }
@@ -724,6 +751,10 @@ static int ov2740_start_streaming(struct ov2740 *ov2740)
 	int link_freq_index;
 	int ret = 0;
 
+	ret = ov2740_identify_module(ov2740);
+	if (ret)
+		return ret;
+
 	ov2740_load_otp_data(nvm);
 
 	link_freq_index = ov2740->cur_mode->link_freq_index;
@@ -956,25 +987,6 @@ static const struct v4l2_subdev_internal_ops ov2740_internal_ops = {
 	.open = ov2740_open,
 };
 
-static int ov2740_identify_module(struct ov2740 *ov2740)
-{
-	struct i2c_client *client = v4l2_get_subdevdata(&ov2740->sd);
-	int ret;
-	u32 val;
-
-	ret = ov2740_read_reg(ov2740, OV2740_REG_CHIP_ID, 3, &val);
-	if (ret)
-		return ret;
-
-	if (val != OV2740_CHIP_ID) {
-		dev_err(&client->dev, "chip id mismatch: %x!=%x",
-			OV2740_CHIP_ID, val);
-		return -ENXIO;
-	}
-
-	return 0;
-}
-
 static int ov2740_check_hwcfg(struct device *dev)
 {
 	struct fwnode_handle *ep;
@@ -1137,6 +1149,7 @@ static int ov2740_probe(struct i2c_client *client)
 {
 	struct ov2740 *ov2740;
 	int ret = 0;
+	bool full_power;
 
 	ret = ov2740_check_hwcfg(&client->dev);
 	if (ret) {
@@ -1148,6 +1161,15 @@ static int ov2740_probe(struct i2c_client *client)
 	ov2740 = devm_kzalloc(&client->dev, sizeof(*ov2740), GFP_KERNEL);
 	if (!ov2740)
 		return -ENOMEM;
+
+	full_power = acpi_dev_state_d0(&client->dev);
+	if (full_power) {
+		ret = ov2740_identify_module(ov2740);
+		if (ret) {
+			dev_err(&client->dev, "failed to find sensor: %d", ret);
+			return ret;
+		}
+	}
 
 	v4l2_i2c_subdev_init(&ov2740->sd, client, &ov2740_subdev_ops);
 	ret = ov2740_identify_module(ov2740);
@@ -1186,11 +1208,9 @@ static int ov2740_probe(struct i2c_client *client)
 	if (ret)
 		dev_warn(&client->dev, "register nvmem failed, ret %d\n", ret);
 
-	/*
-	 * Device is already turned on by i2c-core with ACPI domain PM.
-	 * Enable runtime PM and turn off the device.
-	 */
-	pm_runtime_set_active(&client->dev);
+	/* Set the device's state to active if it's in D0 state. */
+	if (full_power)
+		pm_runtime_set_active(&client->dev);
 	pm_runtime_enable(&client->dev);
 	pm_runtime_idle(&client->dev);
 
@@ -1225,6 +1245,7 @@ static struct i2c_driver ov2740_i2c_driver = {
 	},
 	.probe_new = ov2740_probe,
 	.remove = ov2740_remove,
+	.flags = I2C_DRV_ACPI_WAIVE_D0_PROBE,
 };
 
 module_i2c_driver(ov2740_i2c_driver);
