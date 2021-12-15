@@ -4583,14 +4583,21 @@ out_up_write:
 static int btrfs_rmdir(struct inode *dir, struct dentry *dentry)
 {
 	struct inode *inode = d_inode(dentry);
+	struct btrfs_fs_info *fs_info = BTRFS_I(inode)->root->fs_info;
 	int err = 0;
 	struct btrfs_trans_handle *trans;
 	u64 last_unlink_trans;
 
 	if (inode->i_size > BTRFS_EMPTY_DIR_SIZE)
 		return -ENOTEMPTY;
-	if (btrfs_ino(BTRFS_I(inode)) == BTRFS_FIRST_FREE_OBJECTID)
+	if (btrfs_ino(BTRFS_I(inode)) == BTRFS_FIRST_FREE_OBJECTID) {
+		if (unlikely(btrfs_fs_incompat(fs_info, EXTENT_TREE_V2))) {
+			btrfs_err(fs_info,
+			"extent tree v2 doesn't support snapshot deletion yet");
+			return -EOPNOTSUPP;
+		}
 		return btrfs_delete_subvolume(dir, dentry);
+	}
 
 	trans = __unlink_start_trans(dir);
 	if (IS_ERR(trans))
@@ -4629,7 +4636,7 @@ static int btrfs_rmdir(struct inode *dir, struct dentry *dentry)
 	}
 out:
 	btrfs_end_transaction(trans);
-	btrfs_btree_balance_dirty(BTRFS_I(dir)->root->fs_info);
+	btrfs_btree_balance_dirty(fs_info);
 
 	return err;
 }
