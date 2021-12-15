@@ -565,7 +565,24 @@ static int set_tracing_options(struct perf_ftrace *ftrace)
 	return 0;
 }
 
-static int __cmd_ftrace(struct perf_ftrace *ftrace, int argc, const char **argv)
+static void select_tracer(struct perf_ftrace *ftrace)
+{
+	bool graph = !list_empty(&ftrace->graph_funcs) ||
+		     !list_empty(&ftrace->nograph_funcs);
+	bool func = !list_empty(&ftrace->filters) ||
+		    !list_empty(&ftrace->notrace);
+
+	/* The function_graph has priority over function tracer. */
+	if (graph)
+		ftrace->tracer = "function_graph";
+	else if (func)
+		ftrace->tracer = "function";
+	/* Otherwise, the default tracer is used. */
+
+	pr_debug("%s tracer is used\n", ftrace->tracer);
+}
+
+static int __cmd_ftrace(struct perf_ftrace *ftrace)
 {
 	char *trace_file;
 	int trace_fd;
@@ -586,10 +603,7 @@ static int __cmd_ftrace(struct perf_ftrace *ftrace, int argc, const char **argv)
 		return -1;
 	}
 
-	signal(SIGINT, sig_handler);
-	signal(SIGUSR1, sig_handler);
-	signal(SIGCHLD, sig_handler);
-	signal(SIGPIPE, sig_handler);
+	select_tracer(ftrace);
 
 	if (reset_tracing_files(ftrace) < 0) {
 		pr_err("failed to reset ftrace\n");
@@ -599,11 +613,6 @@ static int __cmd_ftrace(struct perf_ftrace *ftrace, int argc, const char **argv)
 	/* reset ftrace buffer */
 	if (write_tracing_file("trace", "0") < 0)
 		goto out;
-
-	if (argc && evlist__prepare_workload(ftrace->evlist, &ftrace->target, argv, false,
-					     ftrace__workload_exec_failed_signal) < 0) {
-		goto out;
-	}
 
 	if (set_tracing_options(ftrace) < 0)
 		goto out_reset;
@@ -855,23 +864,6 @@ static int parse_graph_tracer_opts(const struct option *opt,
 	return 0;
 }
 
-static void select_tracer(struct perf_ftrace *ftrace)
-{
-	bool graph = !list_empty(&ftrace->graph_funcs) ||
-		     !list_empty(&ftrace->nograph_funcs);
-	bool func = !list_empty(&ftrace->filters) ||
-		    !list_empty(&ftrace->notrace);
-
-	/* The function_graph has priority over function tracer. */
-	if (graph)
-		ftrace->tracer = "function_graph";
-	else if (func)
-		ftrace->tracer = "function";
-	/* Otherwise, the default tracer is used. */
-
-	pr_debug("%s tracer is used\n", ftrace->tracer);
-}
-
 int cmd_ftrace(int argc, const char **argv)
 {
 	int ret;
@@ -937,6 +929,11 @@ int cmd_ftrace(int argc, const char **argv)
 	INIT_LIST_HEAD(&ftrace.graph_funcs);
 	INIT_LIST_HEAD(&ftrace.nograph_funcs);
 
+	signal(SIGINT, sig_handler);
+	signal(SIGUSR1, sig_handler);
+	signal(SIGCHLD, sig_handler);
+	signal(SIGPIPE, sig_handler);
+
 	ret = perf_config(perf_ftrace_config, &ftrace);
 	if (ret < 0)
 		return -1;
@@ -950,8 +947,6 @@ int cmd_ftrace(int argc, const char **argv)
 			    PARSE_OPT_STOP_AT_NON_OPTION);
 	if (!argc && target__none(&ftrace.target))
 		ftrace.target.system_wide = true;
-
-	select_tracer(&ftrace);
 
 	ret = target__validate(&ftrace.target);
 	if (ret) {
@@ -972,7 +967,15 @@ int cmd_ftrace(int argc, const char **argv)
 	if (ret < 0)
 		goto out_delete_evlist;
 
-	ret = __cmd_ftrace(&ftrace, argc, argv);
+	if (argc) {
+		ret = evlist__prepare_workload(ftrace.evlist, &ftrace.target,
+					       argv, false,
+					       ftrace__workload_exec_failed_signal);
+		if (ret < 0)
+			goto out_delete_evlist;
+	}
+
+	ret = __cmd_ftrace(&ftrace);
 
 out_delete_evlist:
 	evlist__delete(ftrace.evlist);
