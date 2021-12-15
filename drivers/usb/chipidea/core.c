@@ -864,6 +864,7 @@ struct platform_device *ci_hdrc_add_device(struct device *dev,
 	}
 
 	pdev->dev.parent = dev;
+	device_set_of_node_from_dev(&pdev->dev, dev);
 
 	ret = platform_device_add_resources(pdev, res, nres);
 	if (ret)
