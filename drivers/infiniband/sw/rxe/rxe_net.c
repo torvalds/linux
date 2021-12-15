@@ -22,24 +22,20 @@ static struct rxe_recv_sockets recv_sockets;
 
 int rxe_mcast_add(struct rxe_dev *rxe, union ib_gid *mgid)
 {
-	int err;
 	unsigned char ll_addr[ETH_ALEN];
 
 	ipv6_eth_mc_map((struct in6_addr *)mgid->raw, ll_addr);
-	err = dev_mc_add(rxe->ndev, ll_addr);
 
-	return err;
+	return dev_mc_add(rxe->ndev, ll_addr);
 }
 
 int rxe_mcast_delete(struct rxe_dev *rxe, union ib_gid *mgid)
 {
-	int err;
 	unsigned char ll_addr[ETH_ALEN];
 
 	ipv6_eth_mc_map((struct in6_addr *)mgid->raw, ll_addr);
-	err = dev_mc_del(rxe->ndev, ll_addr);
 
-	return err;
+	return dev_mc_del(rxe->ndev, ll_addr);
 }
 
 static struct dst_entry *rxe_find_route4(struct net_device *ndev,
