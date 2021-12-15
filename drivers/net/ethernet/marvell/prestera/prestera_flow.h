@@ -8,6 +8,7 @@
 
 struct prestera_port;
 struct prestera_switch;
+struct prestera_flower_template;
 
 struct prestera_flow_block_binding {
 	struct list_head list;
@@ -18,10 +19,11 @@ struct prestera_flow_block_binding {
 struct prestera_flow_block {
 	struct list_head binding_list;
 	struct prestera_switch *sw;
-	unsigned int rule_count;
 	struct net *net;
 	struct prestera_acl_ruleset *ruleset_zero;
 	struct flow_block_cb *block_cb;
+	struct prestera_flower_template *tmplt;
+	unsigned int rule_count;
 };
 
 int prestera_flow_block_setup(struct prestera_port *port,

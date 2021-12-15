@@ -88,8 +88,8 @@ prestera_acl_ruleset_create(struct prestera_acl *acl,
 			    struct prestera_flow_block *block)
 {
 	struct prestera_acl_ruleset *ruleset;
+	u32 uid = 0;
 	int err;
-	u32 uid;
 
 	ruleset = kzalloc(sizeof(*ruleset), GFP_KERNEL);
 	if (!ruleset)
@@ -123,6 +123,12 @@ err_ruleset_create:
 err_rhashtable_init:
 	kfree(ruleset);
 	return ERR_PTR(err);
+}
+
+void prestera_acl_ruleset_keymask_set(struct prestera_acl_ruleset *ruleset,
+				      void *keymask)
+{
+	ruleset->keymask = kmemdup(keymask, ACL_KEYMASK_SIZE, GFP_KERNEL);
 }
 
 int prestera_acl_ruleset_offload(struct prestera_acl_ruleset *ruleset)
@@ -556,6 +562,49 @@ err_kzalloc:
 	return NULL;
 }
 
+static int __prestera_acl_vtcam_id_try_fit(struct prestera_acl *acl, u8 lookup,
+					   void *keymask, u32 *vtcam_id)
+{
+	struct prestera_acl_vtcam *vtcam;
+	int i;
+
+	list_for_each_entry(vtcam, &acl->vtcam_list, list) {
+		if (lookup != vtcam->lookup)
+			continue;
+
+		if (!keymask && !vtcam->is_keymask_set)
+			goto vtcam_found;
+
+		if (!(keymask && vtcam->is_keymask_set))
+			continue;
+
+		/* try to fit with vtcam keymask */
+		for (i = 0; i < __PRESTERA_ACL_RULE_MATCH_TYPE_MAX; i++) {
+			__be32 __keymask = ((__be32 *)keymask)[i];
+
+			if (!__keymask)
+				/* vtcam keymask in not interested */
+				continue;
+
+			if (__keymask & ~vtcam->keymask[i])
+				/* keymask does not fit the vtcam keymask */
+				break;
+		}
+
+		if (i == __PRESTERA_ACL_RULE_MATCH_TYPE_MAX)
+			/* keymask fits vtcam keymask, return it */
+			goto vtcam_found;
+	}
+
+	/* nothing is found */
+	return -ENOENT;
+
+vtcam_found:
+	refcount_inc(&vtcam->refcount);
+	*vtcam_id = vtcam->id;
+	return 0;
+}
+
 int prestera_acl_vtcam_id_get(struct prestera_acl *acl, u8 lookup,
 			      void *keymask, u32 *vtcam_id)
 {
@@ -592,7 +641,14 @@ int prestera_acl_vtcam_id_get(struct prestera_acl *acl, u8 lookup,
 				       PRESTERA_HW_VTCAM_DIR_INGRESS);
 	if (err) {
 		kfree(vtcam);
-		return err;
+
+		/* cannot create new, try to fit into existing vtcam */
+		if (__prestera_acl_vtcam_id_try_fit(acl, lookup,
+						    keymask, &new_vtcam_id))
+			return err;
+
+		*vtcam_id = new_vtcam_id;
+		return 0;
 	}
 
 	vtcam->id = new_vtcam_id;

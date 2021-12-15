@@ -40,6 +40,11 @@ static int prestera_flow_block_flower_cb(struct prestera_flow_block *block,
 		return 0;
 	case FLOW_CLS_STATS:
 		return prestera_flower_stats(block, f);
+	case FLOW_CLS_TMPLT_CREATE:
+		return prestera_flower_tmplt_create(block, f);
+	case FLOW_CLS_TMPLT_DESTROY:
+		prestera_flower_tmplt_destroy(block, f);
+		return 0;
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -63,6 +68,8 @@ static int prestera_flow_block_cb(enum tc_setup_type type,
 static void prestera_flow_block_destroy(void *cb_priv)
 {
 	struct prestera_flow_block *block = cb_priv;
+
+	prestera_flower_template_cleanup(block);
 
 	WARN_ON(!list_empty(&block->binding_list));
 

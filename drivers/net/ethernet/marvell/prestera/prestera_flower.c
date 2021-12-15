@@ -6,6 +6,21 @@
 #include "prestera_flow.h"
 #include "prestera_flower.h"
 
+struct prestera_flower_template {
+	struct prestera_acl_ruleset *ruleset;
+};
+
+void prestera_flower_template_cleanup(struct prestera_flow_block *block)
+{
+	if (block->tmplt) {
+		/* put the reference to the ruleset kept in create */
+		prestera_acl_ruleset_put(block->tmplt->ruleset);
+		kfree(block->tmplt);
+		block->tmplt = NULL;
+		return;
+	}
+}
+
 static int prestera_flower_parse_actions(struct prestera_flow_block *block,
 					 struct prestera_acl_rule *rule,
 					 struct flow_action *flow_action,
@@ -308,6 +323,61 @@ void prestera_flower_destroy(struct prestera_flow_block *block,
 	}
 	prestera_acl_ruleset_put(ruleset);
 
+}
+
+int prestera_flower_tmplt_create(struct prestera_flow_block *block,
+				 struct flow_cls_offload *f)
+{
+	struct prestera_flower_template *template;
+	struct prestera_acl_ruleset *ruleset;
+	struct prestera_acl_rule rule;
+	int err;
+
+	memset(&rule, 0, sizeof(rule));
+	err = prestera_flower_parse(block, &rule, f);
+	if (err)
+		return err;
+
+	template = kmalloc(sizeof(*template), GFP_KERNEL);
+	if (!template) {
+		err = -ENOMEM;
+		goto err_malloc;
+	}
+
+	prestera_acl_rule_keymask_pcl_id_set(&rule, 0);
+	ruleset = prestera_acl_ruleset_get(block->sw->acl, block);
+	if (IS_ERR_OR_NULL(ruleset)) {
+		err = -EINVAL;
+		goto err_ruleset_get;
+	}
+
+	/* preserve keymask/template to this ruleset */
+	prestera_acl_ruleset_keymask_set(ruleset, rule.re_key.match.mask);
+
+	/* skip error, as it is not possible to reject template operation,
+	 * so, keep the reference to the ruleset for rules to be added
+	 * to that ruleset later. In case of offload fail, the ruleset
+	 * will be offloaded again during adding a new rule. Also,
+	 * unlikly possble that ruleset is already offloaded at this staage.
+	 */
+	prestera_acl_ruleset_offload(ruleset);
+
+	/* keep the reference to the ruleset */
+	template->ruleset = ruleset;
+	block->tmplt = template;
+	return 0;
+
+err_ruleset_get:
+	kfree(template);
+err_malloc:
+	NL_SET_ERR_MSG_MOD(f->common.extack, "Create chain template failed");
+	return err;
+}
+
+void prestera_flower_tmplt_destroy(struct prestera_flow_block *block,
+				   struct flow_cls_offload *f)
+{
+	prestera_flower_template_cleanup(block);
 }
 
 int prestera_flower_stats(struct prestera_flow_block *block,
