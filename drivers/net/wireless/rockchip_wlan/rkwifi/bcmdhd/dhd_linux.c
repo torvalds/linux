@@ -20397,8 +20397,10 @@ dhd_os_dbgring_lock_init(osl_t *osh)
 }
 
 void
-dhd_os_dbgring_lock_deinit(osl_t *osh, void *mtx)
+dhd_os_dbgring_lock_deinit(osl_t *osh, void *mutex)
 {
+	struct mutex *mtx = mutex;
+
 	if (mtx) {
 		mutex_destroy(mtx);
 		MFREE(osh, mtx, sizeof(struct mutex));
