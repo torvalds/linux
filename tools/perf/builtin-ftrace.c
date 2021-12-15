@@ -879,17 +879,7 @@ int cmd_ftrace(int argc, const char **argv)
 		.tracer = DEFAULT_TRACER,
 		.target = { .uid = UINT_MAX, },
 	};
-	const char * const ftrace_usage[] = {
-		"perf ftrace [<options>] [<command>]",
-		"perf ftrace [<options>] -- <command> [<options>]",
-		NULL
-	};
-	const struct option ftrace_options[] = {
-	OPT_STRING('t', "tracer", &ftrace.tracer, "tracer",
-		   "Tracer to use: function_graph(default) or function"),
-	OPT_CALLBACK_DEFAULT('F', "funcs", NULL, "[FILTER]",
-			     "Show available functions to filter",
-			     opt_list_avail_functions, "*"),
+	const struct option common_options[] = {
 	OPT_STRING('p', "pid", &ftrace.target.pid, "pid",
 		   "Trace on existing process id"),
 	/* TODO: Add short option -t after -t/--tracer can be removed. */
@@ -901,6 +891,14 @@ int cmd_ftrace(int argc, const char **argv)
 		    "System-wide collection from all CPUs"),
 	OPT_STRING('C', "cpu", &ftrace.target.cpu_list, "cpu",
 		    "List of cpus to monitor"),
+	OPT_END()
+	};
+	const struct option ftrace_options[] = {
+	OPT_STRING('t', "tracer", &ftrace.tracer, "tracer",
+		   "Tracer to use: function_graph(default) or function"),
+	OPT_CALLBACK_DEFAULT('F', "funcs", NULL, "[FILTER]",
+			     "Show available functions to filter",
+			     opt_list_avail_functions, "*"),
 	OPT_CALLBACK('T', "trace-funcs", &ftrace.filters, "func",
 		     "Trace given functions using function tracer",
 		     parse_filter_func),
@@ -923,7 +921,15 @@ int cmd_ftrace(int argc, const char **argv)
 		    "Trace children processes"),
 	OPT_UINTEGER('D', "delay", &ftrace.initial_delay,
 		     "Number of milliseconds to wait before starting tracing after program start"),
-	OPT_END()
+	OPT_PARENT(common_options),
+	};
+
+	const char * const ftrace_usage[] = {
+		"perf ftrace [<options>] [<command>]",
+		"perf ftrace [<options>] -- [<command>] [<options>]",
+		"perf ftrace trace [<options>] [<command>]",
+		"perf ftrace trace [<options>] -- [<command>] [<options>]",
+		NULL
 	};
 
 	INIT_LIST_HEAD(&ftrace.filters);
@@ -934,6 +940,11 @@ int cmd_ftrace(int argc, const char **argv)
 	ret = perf_config(perf_ftrace_config, &ftrace);
 	if (ret < 0)
 		return -1;
+
+	if (argc > 1 && !strcmp(argv[1], "trace")) {
+		argc--;
+		argv++;
+	}
 
 	argc = parse_options(argc, argv, ftrace_options, ftrace_usage,
 			    PARSE_OPT_STOP_AT_NON_OPTION);
