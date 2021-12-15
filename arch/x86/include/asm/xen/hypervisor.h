@@ -59,7 +59,7 @@ static inline bool __init xen_x2apic_para_available(void)
 
 struct pci_dev;
 
-#ifdef CONFIG_XEN_DOM0
+#ifdef CONFIG_XEN_PV_DOM0
 bool xen_initdom_restore_msi(struct pci_dev *dev);
 #else
 static inline bool xen_initdom_restore_msi(struct pci_dev *dev) { return true; }
