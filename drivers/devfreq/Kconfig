@@ -135,6 +135,7 @@ config ARM_RK3399_DMC_DEVFREQ
 config ARM_SUN8I_A33_MBUS_DEVFREQ
 	tristate "sun8i/sun50i MBUS DEVFREQ Driver"
 	depends on ARCH_SUNXI || COMPILE_TEST
+	depends on COMMON_CLK
 	select DEVFREQ_GOV_SIMPLE_ONDEMAND
 	help
 	  This adds the DEVFREQ driver for the MBUS controller in some
