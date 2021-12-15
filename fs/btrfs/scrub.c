@@ -3166,10 +3166,10 @@ static int sync_write_pointer_for_zoned(struct scrub_ctx *sctx, u64 logical,
 }
 
 static noinline_for_stack int scrub_stripe(struct scrub_ctx *sctx,
+					   struct btrfs_block_group *bg,
 					   struct map_lookup *map,
 					   struct btrfs_device *scrub_dev,
-					   int num, u64 base, u64 length,
-					   struct btrfs_block_group *cache)
+					   int stripe_index, u64 dev_extent_len)
 {
 	struct btrfs_path *path;
 	struct btrfs_fs_info *fs_info = sctx->fs_info;
@@ -3177,6 +3177,7 @@ static noinline_for_stack int scrub_stripe(struct scrub_ctx *sctx,
 	struct btrfs_root *csum_root;
 	struct btrfs_extent_item *extent;
 	struct blk_plug plug;
+	const u64 chunk_logical = bg->start;
 	u64 flags;
 	int ret;
 	int slot;
@@ -3204,25 +3205,26 @@ static noinline_for_stack int scrub_stripe(struct scrub_ctx *sctx,
 	int extent_mirror_num;
 	int stop_loop = 0;
 
-	physical = map->stripes[num].physical;
+	physical = map->stripes[stripe_index].physical;
 	offset = 0;
-	nstripes = div64_u64(length, map->stripe_len);
+	nstripes = div64_u64(dev_extent_len, map->stripe_len);
 	mirror_num = 1;
 	increment = map->stripe_len;
 	if (map->type & BTRFS_BLOCK_GROUP_RAID0) {
-		offset = map->stripe_len * num;
+		offset = map->stripe_len * stripe_index;
 		increment = map->stripe_len * map->num_stripes;
 	} else if (map->type & BTRFS_BLOCK_GROUP_RAID10) {
 		int factor = map->num_stripes / map->sub_stripes;
-		offset = map->stripe_len * (num / map->sub_stripes);
+		offset = map->stripe_len * (stripe_index / map->sub_stripes);
 		increment = map->stripe_len * factor;
-		mirror_num = num % map->sub_stripes + 1;
+		mirror_num = stripe_index % map->sub_stripes + 1;
 	} else if (map->type & BTRFS_BLOCK_GROUP_RAID1_MASK) {
-		mirror_num = num % map->num_stripes + 1;
+		mirror_num = stripe_index % map->num_stripes + 1;
 	} else if (map->type & BTRFS_BLOCK_GROUP_DUP) {
-		mirror_num = num % map->num_stripes + 1;
+		mirror_num = stripe_index % map->num_stripes + 1;
 	} else if (map->type & BTRFS_BLOCK_GROUP_RAID56_MASK) {
-		get_raid56_logic_offset(physical, num, map, &offset, NULL);
+		get_raid56_logic_offset(physical, stripe_index, map, &offset,
+					NULL);
 		increment = map->stripe_len * nr_data_stripes(map);
 	}
 
@@ -3239,12 +3241,12 @@ static noinline_for_stack int scrub_stripe(struct scrub_ctx *sctx,
 	path->skip_locking = 1;
 	path->reada = READA_FORWARD;
 
-	logical = base + offset;
+	logical = chunk_logical + offset;
 	physical_end = physical + nstripes * map->stripe_len;
 	if (map->type & BTRFS_BLOCK_GROUP_RAID56_MASK) {
-		get_raid56_logic_offset(physical_end, num,
+		get_raid56_logic_offset(physical_end, stripe_index,
 					map, &logic_end, NULL);
-		logic_end += base;
+		logic_end += chunk_logical;
 	} else {
 		logic_end = logical + increment * nstripes;
 	}
@@ -3299,13 +3301,13 @@ static noinline_for_stack int scrub_stripe(struct scrub_ctx *sctx,
 		}
 
 		if (map->type & BTRFS_BLOCK_GROUP_RAID56_MASK) {
-			ret = get_raid56_logic_offset(physical, num, map,
-						      &logical,
+			ret = get_raid56_logic_offset(physical, stripe_index,
+						      map, &logical,
 						      &stripe_logical);
-			logical += base;
+			logical += chunk_logical;
 			if (ret) {
 				/* it is parity strip */
-				stripe_logical += base;
+				stripe_logical += chunk_logical;
 				stripe_end = stripe_logical + increment;
 				ret = scrub_raid56_parity(sctx, map, scrub_dev,
 							  stripe_logical,
@@ -3385,13 +3387,13 @@ static noinline_for_stack int scrub_stripe(struct scrub_ctx *sctx,
 			 * Continuing would prevent reusing its device extents
 			 * for new block groups for a long time.
 			 */
-			spin_lock(&cache->lock);
-			if (cache->removed) {
-				spin_unlock(&cache->lock);
+			spin_lock(&bg->lock);
+			if (bg->removed) {
+				spin_unlock(&bg->lock);
 				ret = 0;
 				goto out;
 			}
-			spin_unlock(&cache->lock);
+			spin_unlock(&bg->lock);
 
 			extent = btrfs_item_ptr(l, slot,
 						struct btrfs_extent_item);
@@ -3470,12 +3472,12 @@ again:
 loop:
 					physical += map->stripe_len;
 					ret = get_raid56_logic_offset(physical,
-							num, map, &logical,
-							&stripe_logical);
-					logical += base;
+							stripe_index, map,
+							&logical, &stripe_logical);
+					logical += chunk_logical;
 
 					if (ret && physical < physical_end) {
-						stripe_logical += base;
+						stripe_logical += chunk_logical;
 						stripe_end = stripe_logical +
 								increment;
 						ret = scrub_raid56_parity(sctx,
@@ -3509,8 +3511,8 @@ skip:
 		physical += map->stripe_len;
 		spin_lock(&sctx->stat_lock);
 		if (stop_loop)
-			sctx->stat.last_physical = map->stripes[num].physical +
-						   length;
+			sctx->stat.last_physical = map->stripes[stripe_index].physical +
+						   dev_extent_len;
 		else
 			sctx->stat.last_physical = physical;
 		spin_unlock(&sctx->stat_lock);
@@ -3530,9 +3532,10 @@ out:
 	if (sctx->is_dev_replace && ret >= 0) {
 		int ret2;
 
-		ret2 = sync_write_pointer_for_zoned(sctx, base + offset,
-						    map->stripes[num].physical,
-						    physical_end);
+		ret2 = sync_write_pointer_for_zoned(sctx,
+				chunk_logical + offset,
+				map->stripes[stripe_index].physical,
+				physical_end);
 		if (ret2)
 			ret = ret2;
 	}
@@ -3578,8 +3581,8 @@ static noinline_for_stack int scrub_chunk(struct scrub_ctx *sctx,
 	for (i = 0; i < map->num_stripes; ++i) {
 		if (map->stripes[i].dev->bdev == scrub_dev->bdev &&
 		    map->stripes[i].physical == dev_offset) {
-			ret = scrub_stripe(sctx, map, scrub_dev, i,
-					   bg->start, dev_extent_len, bg);
+			ret = scrub_stripe(sctx, bg, map, scrub_dev, i,
+					   dev_extent_len);
 			if (ret)
 				goto out;
 		}
