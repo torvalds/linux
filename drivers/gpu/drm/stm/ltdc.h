@@ -22,6 +22,7 @@ struct ltdc_caps {
 	int pad_max_freq_hz;	/* max frequency supported by pad */
 	int nb_irq;		/* number of hardware interrupts */
 	bool ycbcr_output;	/* ycbcr output converter supported */
+	bool plane_reg_shadow;	/* plane shadow registers ability */
 };
 
 #define LTDC_MAX_LAYER	4
