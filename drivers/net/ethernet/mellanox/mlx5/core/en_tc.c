@@ -1574,8 +1574,7 @@ mlx5e_tc_add_fdb_flow(struct mlx5e_priv *priv,
 	if (err)
 		goto err_out;
 
-	if (attr->action & MLX5_FLOW_CONTEXT_ACTION_MOD_HDR &&
-	    !(attr->ct_attr.ct_action & TCA_CT_ACT_CLEAR)) {
+	if (attr->action & MLX5_FLOW_CONTEXT_ACTION_MOD_HDR) {
 		if (vf_tun) {
 			err = mlx5e_tc_add_flow_mod_hdr(priv, flow, attr);
 			if (err)
