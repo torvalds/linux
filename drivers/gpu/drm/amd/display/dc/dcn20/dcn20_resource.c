@@ -3093,8 +3093,14 @@ static enum dcn_zstate_support_state  decide_zstate_support(struct dc *dc, struc
 	else if (context->stream_count == 1 &&  context->streams[0]->signal == SIGNAL_TYPE_EDP) {
 		struct dc_link *link = context->streams[0]->sink->link;
 
-		if (link->link_index == 0 && context->bw_ctx.dml.vba.StutterPeriod > 5000.0)
+		/* zstate only supported on PWRSEQ0 */
+		if (link->link_index != 0)
+			return DCN_ZSTATE_SUPPORT_DISALLOW;
+
+		if (context->bw_ctx.dml.vba.StutterPeriod > 5000.0)
 			return DCN_ZSTATE_SUPPORT_ALLOW;
+		else if (link->psr_settings.psr_feature_enabled)
+			return DCN_ZSTATE_SUPPORT_ALLOW_Z10_ONLY;
 		else
 			return DCN_ZSTATE_SUPPORT_DISALLOW;
 	} else
