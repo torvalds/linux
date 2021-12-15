@@ -45,6 +45,7 @@ enum {
 	NTC_NCP15XH103,
 	NTC_NCP18WB473,
 	NTC_NCP21WB473,
+	NTC_SSG1404001221,
 	NTC_LAST,
 };
 
@@ -58,6 +59,7 @@ static const struct platform_device_id ntc_thermistor_id[] = {
 	[NTC_NCP15XH103]      = { "ncp15xh103",      TYPE_NCPXXXH103 },
 	[NTC_NCP18WB473]      = { "ncp18wb473",      TYPE_NCPXXWB473 },
 	[NTC_NCP21WB473]      = { "ncp21wb473",      TYPE_NCPXXWB473 },
+	[NTC_SSG1404001221]   = { "ssg1404-001221",  TYPE_NCPXXWB473 },
 	[NTC_LAST]            = { },
 };
 
@@ -671,6 +673,8 @@ static const struct of_device_id ntc_match[] = {
 		.data = &ntc_thermistor_id[NTC_NCP18WB473] },
 	{ .compatible = "murata,ncp21wb473",
 		.data = &ntc_thermistor_id[NTC_NCP21WB473] },
+	{ .compatible = "samsung,1404-001221",
+		.data = &ntc_thermistor_id[NTC_SSG1404001221] },
 
 	/* Usage of vendor name "ntc" is deprecated */
 	{ .compatible = "ntc,ncp03wb473",
