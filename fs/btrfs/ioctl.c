@@ -3449,6 +3449,11 @@ static long btrfs_ioctl_add_dev(struct btrfs_fs_info *fs_info, void __user *arg)
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
+	if (btrfs_fs_incompat(fs_info, EXTENT_TREE_V2)) {
+		btrfs_err(fs_info, "device add not supported on extent tree v2 yet");
+		return -EINVAL;
+	}
+
 	if (!btrfs_exclop_start(fs_info, BTRFS_EXCLOP_DEV_ADD)) {
 		if (!btrfs_exclop_start_try_lock(fs_info, BTRFS_EXCLOP_DEV_ADD))
 			return BTRFS_ERROR_DEV_EXCL_RUN_IN_PROGRESS;
@@ -4072,6 +4077,11 @@ static long btrfs_ioctl_dev_replace(struct btrfs_fs_info *fs_info,
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
+
+	if (btrfs_fs_incompat(fs_info, EXTENT_TREE_V2)) {
+		btrfs_err(fs_info, "device replace not supported on extent tree v2 yet");
+		return -EINVAL;
+	}
 
 	p = memdup_user(arg, sizeof(*p));
 	if (IS_ERR(p))

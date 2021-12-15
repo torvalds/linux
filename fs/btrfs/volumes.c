@@ -2085,6 +2085,11 @@ int btrfs_rm_device(struct btrfs_fs_info *fs_info,
 	u64 num_devices;
 	int ret = 0;
 
+	if (btrfs_fs_incompat(fs_info, EXTENT_TREE_V2)) {
+		btrfs_err(fs_info, "device remove not supported on extent tree v2 yet");
+		return -EINVAL;
+	}
+
 	/*
 	 * The device list in fs_devices is accessed without locks (neither
 	 * uuid_mutex nor device_list_mutex) as it won't change on a mounted
