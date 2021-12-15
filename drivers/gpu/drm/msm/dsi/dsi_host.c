@@ -2020,7 +2020,7 @@ void msm_dsi_host_xfer_restore(struct mipi_dsi_host *host,
 	/* TODO: unvote for bus bandwidth */
 
 	cfg_hnd->ops->link_clk_disable(msm_host);
-	pm_runtime_put_autosuspend(&msm_host->pdev->dev);
+	pm_runtime_put(&msm_host->pdev->dev);
 }
 
 int msm_dsi_host_cmd_tx(struct mipi_dsi_host *host,
@@ -2252,7 +2252,7 @@ int msm_dsi_host_enable(struct mipi_dsi_host *host)
 	 */
 	/* if (msm_panel->mode == MSM_DSI_CMD_MODE) {
 	 *	dsi_link_clk_disable(msm_host);
-	 *	pm_runtime_put_autosuspend(&msm_host->pdev->dev);
+	 *	pm_runtime_put(&msm_host->pdev->dev);
 	 * }
 	 */
 	msm_host->enabled = true;
@@ -2344,7 +2344,7 @@ int msm_dsi_host_power_on(struct mipi_dsi_host *host,
 
 fail_disable_clk:
 	cfg_hnd->ops->link_clk_disable(msm_host);
-	pm_runtime_put_autosuspend(&msm_host->pdev->dev);
+	pm_runtime_put(&msm_host->pdev->dev);
 fail_disable_reg:
 	dsi_host_regulator_disable(msm_host);
 unlock_ret:
@@ -2371,7 +2371,7 @@ int msm_dsi_host_power_off(struct mipi_dsi_host *host)
 	pinctrl_pm_select_sleep_state(&msm_host->pdev->dev);
 
 	cfg_hnd->ops->link_clk_disable(msm_host);
-	pm_runtime_put_autosuspend(&msm_host->pdev->dev);
+	pm_runtime_put(&msm_host->pdev->dev);
 
 	dsi_host_regulator_disable(msm_host);
 

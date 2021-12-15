@@ -205,7 +205,7 @@ void msm_hdmi_hpd_disable(struct hdmi_bridge *hdmi_bridge)
 	msm_hdmi_set_mode(hdmi, false);
 
 	enable_hpd_clocks(hdmi, false);
-	pm_runtime_put_autosuspend(dev);
+	pm_runtime_put(dev);
 
 	ret = gpio_config(hdmi, false);
 	if (ret)
@@ -260,7 +260,7 @@ static enum drm_connector_status detect_reg(struct hdmi *hdmi)
 	hpd_int_status = hdmi_read(hdmi, REG_HDMI_HPD_INT_STATUS);
 
 	enable_hpd_clocks(hdmi, false);
-	pm_runtime_put_autosuspend(&hdmi->pdev->dev);
+	pm_runtime_put(&hdmi->pdev->dev);
 
 	return (hpd_int_status & HDMI_HPD_INT_STATUS_CABLE_DETECTED) ?
 			connector_status_connected : connector_status_disconnected;

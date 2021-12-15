@@ -69,7 +69,7 @@ static void power_off(struct drm_bridge *bridge)
 	if (ret)
 		DRM_DEV_ERROR(dev->dev, "failed to disable pwr regulator: %d\n", ret);
 
-	pm_runtime_put_autosuspend(&hdmi->pdev->dev);
+	pm_runtime_put(&hdmi->pdev->dev);
 }
 
 #define AVI_IFRAME_LINE_NUMBER 1
