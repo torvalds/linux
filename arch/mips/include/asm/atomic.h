@@ -16,13 +16,12 @@
 
 #include <linux/irqflags.h>
 #include <linux/types.h>
+#include <asm/asm.h>
 #include <asm/barrier.h>
 #include <asm/compiler.h>
 #include <asm/cpu-features.h>
 #include <asm/cmpxchg.h>
-#include <asm/llsc.h>
 #include <asm/sync.h>
-#include <asm/war.h>
 
 #define ATOMIC_OPS(pfx, type)						\
 static __always_inline type arch_##pfx##_read(const pfx##_t *v)		\
@@ -74,7 +73,7 @@ static __inline__ void arch_##pfx##_##op(type i, pfx##_t * v)		\
 	"1:	" #ll "	%0, %1		# " #pfx "_" #op "	\n"	\
 	"	" #asm_op " %0, %2				\n"	\
 	"	" #sc "	%0, %1					\n"	\
-	"\t" __SC_BEQZ "%0, 1b					\n"	\
+	"\t" __stringify(SC_BEQZ) "	%0, 1b			\n"	\
 	"	.set	pop					\n"	\
 	: "=&r" (temp), "+" GCC_OFF_SMALL_ASM() (v->counter)		\
 	: "Ir" (i) : __LLSC_CLOBBER);					\
@@ -104,7 +103,7 @@ arch_##pfx##_##op##_return_relaxed(type i, pfx##_t * v)			\
 	"1:	" #ll "	%1, %2		# " #pfx "_" #op "_return\n"	\
 	"	" #asm_op " %0, %1, %3				\n"	\
 	"	" #sc "	%0, %2					\n"	\
-	"\t" __SC_BEQZ "%0, 1b					\n"	\
+	"\t" __stringify(SC_BEQZ) "	%0, 1b			\n"	\
 	"	" #asm_op " %0, %1, %3				\n"	\
 	"	.set	pop					\n"	\
 	: "=&r" (result), "=&r" (temp),					\
@@ -137,7 +136,7 @@ arch_##pfx##_fetch_##op##_relaxed(type i, pfx##_t * v)			\
 	"1:	" #ll "	%1, %2		# " #pfx "_fetch_" #op "\n"	\
 	"	" #asm_op " %0, %1, %3				\n"	\
 	"	" #sc "	%0, %2					\n"	\
-	"\t" __SC_BEQZ "%0, 1b					\n"	\
+	"\t" __stringify(SC_BEQZ) "	%0, 1b			\n"	\
 	"	.set	pop					\n"	\
 	"	move	%0, %1					\n"	\
 	: "=&r" (result), "=&r" (temp),					\
@@ -237,7 +236,7 @@ static __inline__ type arch_##pfx##_sub_if_positive(type i, pfx##_t * v)	\
 	"	.set	push					\n"	\
 	"	.set	" MIPS_ISA_LEVEL "			\n"	\
 	"	" #sc "	%1, %2					\n"	\
-	"	" __SC_BEQZ "%1, 1b				\n"	\
+	"	" __stringify(SC_BEQZ) "	%1, 1b		\n"	\
 	"2:	" __SYNC(full, loongson3_war) "			\n"	\
 	"	.set	pop					\n"	\
 	: "=&r" (result), "=&r" (temp),					\

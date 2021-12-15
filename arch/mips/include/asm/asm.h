@@ -222,6 +222,8 @@ symbol		=	value
 #define LONG_SRLV	srlv
 #define LONG_SRA	sra
 #define LONG_SRAV	srav
+#define LONG_INS	ins
+#define LONG_EXT	ext
 
 #ifdef __ASSEMBLY__
 #define LONG		.word
@@ -249,6 +251,8 @@ symbol		=	value
 #define LONG_SRLV	dsrlv
 #define LONG_SRA	dsra
 #define LONG_SRAV	dsrav
+#define LONG_INS	dins
+#define LONG_EXT	dext
 
 #ifdef __ASSEMBLY__
 #define LONG		.dword
