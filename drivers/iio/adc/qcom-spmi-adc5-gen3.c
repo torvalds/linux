@@ -15,6 +15,7 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
+#include <linux/of_irq.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
 #include <linux/thermal.h>
@@ -141,6 +142,12 @@ static struct adc_tm_reverse_scale_fn adc_tm_rscale_fn[] = {
 	[SCALE_R_ABSOLUTE] = {adc_tm_absolute_rthr_gen3},
 };
 
+struct adc5_base_data {
+	u16			base_addr;
+	const char		*irq_name;
+	int			irq;
+};
+
 /**
  * struct adc5_channel_prop - ADC channel property.
  * @channel: channel number, refer to the channel list.
@@ -152,6 +159,7 @@ static struct adc_tm_reverse_scale_fn adc_tm_rscale_fn[] = {
  *	start of conversion.
  * @avg_samples: ability to provide single result from the ADC
  *	that is an average of multiple measurements.
+ * @sdam_index: Index for which SDAM this channel is on.
  * @scale_fn_type: Represents the scaling function to convert voltage
  *	physical units desired by the client for the channel.
  * @datasheet_name: Channel name used in device tree.
@@ -184,6 +192,7 @@ struct adc5_channel_prop {
 	unsigned int		prescale;
 	unsigned int		hw_settle_time;
 	unsigned int		avg_samples;
+	unsigned int		sdam_index;
 
 	enum vadc_scale_fn_type	scale_fn_type;
 	const char		*datasheet_name;
@@ -212,10 +221,10 @@ struct adc5_channel_prop {
  * struct adc5_chip - ADC private structure.
  * @regmap: SPMI ADC5 peripheral register map field.
  * @dev: SPMI ADC5 device.
- * @base: base address for the ADC peripheral.
+ * @base: pointer to array of ADC peripheral base and interrupt.
  * @debug_base: base address for the reserved ADC peripheral,
  * to dump for debug purposes alone.
- * @max_channels: max amount of channels for the ADC peripheral.
+ * @num_sdams: number of SDAMs being used.
  * @nchannels: number of ADC channels.
  * @chan_props: array of ADC channel properties.
  * @iio_chans: array of IIO channels specification.
@@ -230,9 +239,9 @@ struct adc5_channel_prop {
 struct adc5_chip {
 	struct regmap		*regmap;
 	struct device		*dev;
-	u16			base;
+	struct adc5_base_data	*base;
 	u16			debug_base;
-	unsigned int		max_channels;
+	unsigned int		num_sdams;
 	unsigned int		nchannels;
 	struct adc5_channel_prop	*chan_props;
 	struct iio_chan_spec	*iio_chans;
@@ -258,22 +267,22 @@ static const struct u32_fract adc5_prescale_ratios[] = {
 	{ .numerator = 1000, .denominator = 305185 },	/* ICHG_FB */
 };
 
-static int adc5_read(struct adc5_chip *adc, u16 offset, u8 *data, int len)
+static int adc5_read(struct adc5_chip *adc, unsigned int sdam_index, u16 offset, u8 *data, int len)
 {
 	int ret;
 
-	ret = regmap_bulk_read(adc->regmap, adc->base + offset, data, len);
+	ret = regmap_bulk_read(adc->regmap, adc->base[sdam_index].base_addr + offset, data, len);
 	if (ret < 0)
 		pr_err("adc read to register 0x%x of length:%d failed, ret=%d\n", offset, len, ret);
 
 	return ret;
 }
 
-static int adc5_write(struct adc5_chip *adc, u16 offset, u8 *data, int len)
+static int adc5_write(struct adc5_chip *adc, unsigned int sdam_index, u16 offset, u8 *data, int len)
 {
 	int ret;
 
-	ret = regmap_bulk_write(adc->regmap, adc->base + offset, data, len);
+	ret = regmap_bulk_write(adc->regmap, adc->base[sdam_index].base_addr + offset, data, len);
 	if (ret < 0)
 		pr_err("adc write to register 0x%x of length:%d failed, ret=%d\n", offset, len,
 			ret);
@@ -331,12 +340,13 @@ static int adc5_decimation_from_dt(u32 value,
 	return -ENOENT;
 }
 
-static int adc5_gen3_read_voltage_data(struct adc5_chip *adc, u16 *data)
+static int adc5_gen3_read_voltage_data(struct adc5_chip *adc, u16 *data,
+				struct adc5_channel_prop *prop)
 {
 	int ret;
 	u8 rslt[2];
 
-	ret = adc5_read(adc, ADC5_GEN3_CH0_DATA0, rslt, 2);
+	ret = adc5_read(adc, prop->sdam_index, ADC5_GEN3_CH0_DATA0, rslt, 2);
 	if (ret < 0)
 		return ret;
 
@@ -370,7 +380,7 @@ static int adc5_gen3_configure(struct adc5_chip *adc,
 	int ret;
 	u8 conv_req = 0, buf[7];
 
-	ret = adc5_read(adc, ADC5_GEN3_SID, buf, sizeof(buf));
+	ret = adc5_read(adc, prop->sdam_index, ADC5_GEN3_SID, buf, sizeof(buf));
 	if (ret < 0)
 		return ret;
 
@@ -402,12 +412,12 @@ static int adc5_gen3_configure(struct adc5_chip *adc,
 
 	reinit_completion(&adc->complete);
 
-	ret = adc5_write(adc, ADC5_GEN3_SID, buf, sizeof(buf));
+	ret = adc5_write(adc, prop->sdam_index, ADC5_GEN3_SID, buf, sizeof(buf));
 	if (ret < 0)
 		return ret;
 
 	conv_req = ADC5_GEN3_CONV_REQ_REQ;
-	ret = adc5_write(adc, ADC5_GEN3_CONV_REQ, &conv_req, 1);
+	ret = adc5_write(adc, prop->sdam_index, ADC5_GEN3_CONV_REQ, &conv_req, 1);
 
 	return ret;
 }
@@ -416,13 +426,13 @@ static int adc5_gen3_configure(struct adc5_chip *adc,
 #define ADC5_GEN3_HS_DELAY_MAX_US		110
 #define ADC5_GEN3_HS_RETRY_COUNT			20
 
-static int adc5_gen3_poll_wait_hs(struct adc5_chip *adc)
+static int adc5_gen3_poll_wait_hs(struct adc5_chip *adc, struct adc5_channel_prop *prop)
 {
 	int ret, count;
 	u8 status = 0;
 
 	for (count = 0; count < ADC5_GEN3_HS_RETRY_COUNT; count++) {
-		ret = adc5_read(adc, ADC5_GEN3_HS, &status, 1);
+		ret = adc5_read(adc, prop->sdam_index, ADC5_GEN3_HS, &status, 1);
 		if (ret < 0)
 			return ret;
 
@@ -453,7 +463,7 @@ static int adc5_gen3_do_conversion(struct adc5_chip *adc,
 	u8 val;
 
 	mutex_lock(&adc->lock);
-	ret = adc5_gen3_poll_wait_hs(adc);
+	ret = adc5_gen3_poll_wait_hs(adc, prop);
 	if (ret < 0)
 		goto unlock;
 
@@ -477,23 +487,23 @@ static int adc5_gen3_do_conversion(struct adc5_chip *adc,
 	pr_debug("ADC channel %s EOC took %u ms\n", prop->datasheet_name,
 		ADC5_GEN3_CONV_TIMEOUT_MS - time_pending_ms);
 
-	ret = adc5_gen3_read_voltage_data(adc, data_volt);
+	ret = adc5_gen3_read_voltage_data(adc, data_volt, prop);
 	if (ret < 0)
 		goto unlock;
 
 	val = BIT(0);
-	ret = adc5_write(adc, ADC5_GEN3_EOC_CLR, &val, 1);
+	ret = adc5_write(adc, prop->sdam_index, ADC5_GEN3_EOC_CLR, &val, 1);
 	if (ret < 0)
 		goto unlock;
 
 	/* To indicate conversion request is only to clear a status */
 	val = 0;
-	ret = adc5_write(adc, ADC5_GEN3_PERPH_CH, &val, 1);
+	ret = adc5_write(adc, prop->sdam_index, ADC5_GEN3_PERPH_CH, &val, 1);
 	if (ret < 0)
 		goto unlock;
 
 	val = ADC5_GEN3_CONV_REQ_REQ;
-	ret = adc5_write(adc, ADC5_GEN3_CONV_REQ, &val, 1);
+	ret = adc5_write(adc, prop->sdam_index, ADC5_GEN3_CONV_REQ, &val, 1);
 
 unlock:
 	mutex_unlock(&adc->lock);
@@ -503,42 +513,60 @@ unlock:
 
 #define ADC_OFFSET_DUMP					8
 #define ADC_SDAM_REG_DUMP					32
-static void adc5_gen3_dump_regs_debug(struct adc5_chip *adc)
+static void adc5_gen3_dump_register(struct adc5_chip *adc, unsigned int offset)
 {
-	int rc = 0, i = 0, j = 0, offset;
+	int i, rc;
 	u8 buf[8];
 
-	for (j = 0; j < 2; j++) {
-		if (!j) {
-			offset = adc->base;
-			pr_debug("ADC SDAM DUMP\n");
-		} else {
-			if (adc->debug_base)
-				offset = adc->debug_base;
-			else
-				break;
-			pr_debug("SDAM 20 DUMP\n");
+	for (i = 0; i < ADC_SDAM_REG_DUMP; i++) {
+		rc = regmap_bulk_read(adc->regmap, offset, buf, sizeof(buf));
+		if (rc < 0) {
+			pr_err("debug register dump failed with rc=%d\n", rc);
+			return;
 		}
-
-		for (i = 0; i < ADC_SDAM_REG_DUMP; i++) {
-			rc = regmap_bulk_read(adc->regmap, offset, buf, sizeof(buf));
-			if (rc < 0) {
-				pr_err("debug register dump failed\n");
-				return;
-			}
-			offset += ADC_OFFSET_DUMP;
-			pr_debug("Buf[%d]: %*ph\n", i, sizeof(buf), buf);
-		}
+		offset += ADC_OFFSET_DUMP;
+		pr_debug("Buf[%d]: %*ph\n", i, sizeof(buf), buf);
 	}
+}
+
+static void adc5_gen3_dump_regs_debug(struct adc5_chip *adc)
+{
+	int i = 0;
+
+	for (i = 0; i < adc->num_sdams; i++) {
+		pr_debug("ADC SDAM%d DUMP\n", i);
+		adc5_gen3_dump_register(adc, adc->base[i].base_addr);
+	}
+	if (adc->debug_base) {
+		pr_debug("ADC Debug base DUMP\n");
+		adc5_gen3_dump_register(adc, adc->debug_base);
+	}
+}
+
+static int get_sdam_from_irq(struct adc5_chip *adc, int irq)
+{
+	int i;
+
+	for (i = 0; i < adc->num_sdams; i++) {
+		if (adc->base[i].irq == irq)
+			return i;
+	}
+	return -ENOENT;
 }
 
 static irqreturn_t adc5_gen3_isr(int irq, void *dev_id)
 {
 	struct adc5_chip *adc = dev_id;
 	u8 status, tm_status[2], eoc_status, val;
-	int ret;
+	int ret, sdam_num;
 
-	ret = adc5_read(adc, ADC5_GEN3_EOC_STS, &eoc_status, 1);
+	sdam_num = get_sdam_from_irq(adc, irq);
+	if (sdam_num < 0) {
+		pr_err("adc irq %d not associated with an sdam\n", irq);
+		goto handler_end;
+	}
+
+	ret = adc5_read(adc, sdam_num, ADC5_GEN3_EOC_STS, &eoc_status, 1);
 	if (ret < 0) {
 		pr_err("adc read eoc status failed with %d\n", ret);
 		goto handler_end;
@@ -548,7 +576,7 @@ static irqreturn_t adc5_gen3_isr(int irq, void *dev_id)
 	if (eoc_status & ADC5_GEN3_EOC_CHAN_0)
 		complete(&adc->complete);
 
-	ret = adc5_read(adc, ADC5_GEN3_TM_HIGH_STS, tm_status, 2);
+	ret = adc5_read(adc, sdam_num, ADC5_GEN3_TM_HIGH_STS, tm_status, 2);
 	if (ret < 0) {
 		pr_err("adc read TM status failed with %d\n", ret);
 		goto handler_end;
@@ -557,7 +585,7 @@ static irqreturn_t adc5_gen3_isr(int irq, void *dev_id)
 	if (tm_status[0] || tm_status[1])
 		schedule_work(&adc->tm_handler_work);
 
-	ret = adc5_read(adc, ADC5_GEN3_STATUS1, &status, 1);
+	ret = adc5_read(adc, sdam_num, ADC5_GEN3_STATUS1, &status, 1);
 	if (ret < 0) {
 		pr_err("adc read status1 failed with %d\n", ret);
 		goto handler_end;
@@ -571,18 +599,18 @@ static irqreturn_t adc5_gen3_isr(int irq, void *dev_id)
 		adc5_gen3_dump_regs_debug(adc);
 
 		val = ADC5_GEN3_CONV_ERR_CLR_REQ;
-		ret = adc5_write(adc, ADC5_GEN3_CONV_ERR_CLR, &val, 1);
+		ret = adc5_write(adc, sdam_num, ADC5_GEN3_CONV_ERR_CLR, &val, 1);
 		if (ret < 0)
 			goto handler_end;
 
 		/* To indicate conversion request is only to clear a status */
 		val = 0;
-		ret = adc5_write(adc, ADC5_GEN3_PERPH_CH, &val, 1);
+		ret = adc5_write(adc, sdam_num, ADC5_GEN3_PERPH_CH, &val, 1);
 		if (ret < 0)
 			goto handler_end;
 
 		val = ADC5_GEN3_CONV_REQ_REQ;
-		ret = adc5_write(adc, ADC5_GEN3_CONV_REQ, &val, 1);
+		ret = adc5_write(adc, sdam_num, ADC5_GEN3_CONV_REQ, &val, 1);
 		if (ret < 0)
 			goto handler_end;
 	}
@@ -591,23 +619,21 @@ handler_end:
 	return IRQ_HANDLED;
 }
 
-static void tm_handler_work(struct work_struct *work)
+static void __tm_handler_work(struct adc5_chip *adc, unsigned int sdam_index)
 {
-	struct adc5_chip *adc = container_of(work, struct adc5_chip,
-						tm_handler_work);
 	struct adc5_channel_prop *chan_prop;
 	u8 tm_status[2], buf[16], val;
 	int ret, i;
 
 	mutex_lock(&adc->lock);
 
-	ret = adc5_read(adc, ADC5_GEN3_TM_HIGH_STS, tm_status, 2);
+	ret = adc5_read(adc, sdam_index, ADC5_GEN3_TM_HIGH_STS, tm_status, 2);
 	if (ret < 0) {
 		pr_err("adc read TM status failed with %d\n", ret);
 		goto work_unlock;
 	}
 
-	ret = adc5_write(adc, ADC5_GEN3_TM_HIGH_STS_CLR, tm_status, 2);
+	ret = adc5_write(adc, sdam_index, ADC5_GEN3_TM_HIGH_STS_CLR, tm_status, 2);
 	if (ret < 0) {
 		pr_err("adc write TM status failed with %d\n", ret);
 		goto work_unlock;
@@ -615,20 +641,20 @@ static void tm_handler_work(struct work_struct *work)
 
 	/* To indicate conversion request is only to clear a status */
 	val = 0;
-	ret = adc5_write(adc, ADC5_GEN3_PERPH_CH, &val, 1);
+	ret = adc5_write(adc, sdam_index, ADC5_GEN3_PERPH_CH, &val, 1);
 	if (ret < 0) {
 		pr_err("adc write status clear conv_req failed with %d\n", ret);
 		goto work_unlock;
 	}
 
 	val = ADC5_GEN3_CONV_REQ_REQ;
-	ret = adc5_write(adc, ADC5_GEN3_CONV_REQ, &val, 1);
+	ret = adc5_write(adc, sdam_index, ADC5_GEN3_CONV_REQ, &val, 1);
 	if (ret < 0) {
 		pr_err("adc write conv_req failed with %d\n", ret);
 		goto work_unlock;
 	}
 
-	ret = adc5_read(adc, ADC5_GEN3_CH0_DATA0, buf, sizeof(buf));
+	ret = adc5_read(adc, sdam_index, ADC5_GEN3_CH0_DATA0, buf, sizeof(buf));
 	if (ret < 0) {
 		pr_err("adc read data failed with %d\n", ret);
 		goto work_unlock;
@@ -636,7 +662,7 @@ static void tm_handler_work(struct work_struct *work)
 
 	mutex_unlock(&adc->lock);
 
-	for (i = 0; i < adc->nchannels; i++) {
+	for (i = sdam_index * 8; i < (sdam_index + 1) * 8; i++) {
 		bool upper_set = false, lower_set = false;
 		u8 data_low = 0, data_high = 0;
 		u16 code = 0;
@@ -702,6 +728,16 @@ static void tm_handler_work(struct work_struct *work)
 
 work_unlock:
 	mutex_unlock(&adc->lock);
+}
+
+static void tm_handler_work(struct work_struct *work)
+{
+	int i;
+	struct adc5_chip *adc = container_of(work, struct adc5_chip,
+						tm_handler_work);
+
+	for (i = 0; i < adc->num_sdams; i++)
+		__tm_handler_work(adc, i);
 }
 
 static int adc5_gen3_of_xlate(struct iio_dev *indio_dev,
@@ -802,11 +838,11 @@ static int adc_tm5_gen3_configure(struct adc5_channel_prop *prop)
 	u32 mask = 0;
 	struct adc5_chip *adc = prop->chip;
 
-	ret = adc5_gen3_poll_wait_hs(adc);
+	ret = adc5_gen3_poll_wait_hs(adc, prop);
 	if (ret < 0)
 		return ret;
 
-	ret = adc5_read(adc, ADC5_GEN3_SID, buf, sizeof(buf));
+	ret = adc5_read(adc, prop->sdam_index, ADC5_GEN3_SID, buf, sizeof(buf));
 	if (ret < 0)
 		return ret;
 
@@ -846,12 +882,12 @@ static int adc_tm5_gen3_configure(struct adc5_channel_prop *prop)
 	buf[10] = ADC_TM5_GEN3_LOWER_MASK(mask);
 	buf[11] = ADC_TM5_GEN3_UPPER_MASK(mask);
 
-	ret = adc5_write(adc, ADC5_GEN3_SID, buf, sizeof(buf));
+	ret = adc5_write(adc, prop->sdam_index, ADC5_GEN3_SID, buf, sizeof(buf));
 	if (ret < 0)
 		return ret;
 
 	conv_req = ADC5_GEN3_CONV_REQ_REQ;
-	return adc5_write(adc, ADC5_GEN3_CONV_REQ, &conv_req, 1);
+	return adc5_write(adc, prop->sdam_index, ADC5_GEN3_CONV_REQ, &conv_req, 1);
 }
 
 static int adc_tm5_gen3_set_trip_temp(void *data,
@@ -1396,7 +1432,7 @@ static int adc5_get_dt_channel_data(struct adc5_chip *adc,
 	const char *name = node->name, *channel_name;
 	u32 chan, value, varr[2];
 	u32 sid = 0;
-	int ret;
+	int ret, val;
 	struct device *dev = adc->dev;
 
 	ret = of_property_read_u32(node, "reg", &chan);
@@ -1510,12 +1546,16 @@ static int adc5_get_dt_channel_data(struct adc5_chip *adc,
 
 	if (prop->adc_tm && prop->adc_tm != ADC_TM_IIO) {
 		adc->n_tm_channels++;
-		if (adc->n_tm_channels > adc->max_channels - 1) {
+		if (adc->n_tm_channels > ((adc->num_sdams * 8) - 1)) {
 			pr_err("Number of TM nodes %u greater than channels supported:%u\n",
-						adc->n_tm_channels, adc->max_channels - 1);
+						adc->n_tm_channels, (adc->num_sdams * 8) - 1);
 			return -EINVAL;
 		}
-		prop->tm_chan_index = adc->n_tm_channels;
+
+		val = adc->n_tm_channels / 8;
+		prop->sdam_index = val;
+		prop->tm_chan_index = adc->n_tm_channels - (8*val);
+
 		prop->timer = MEAS_INT_1S;
 
 		if (prop->adc_tm == ADC_TM_NON_THERMAL) {
@@ -1605,7 +1645,6 @@ static int adc5_get_dt_data(struct adc5_chip *adc, struct device_node *node)
 				data->adc_chans[prop.channel].scale_fn_type;
 		*chan_props = prop;
 		adc_chan = &data->adc_chans[prop.channel];
-
 		iio_chan->channel = prop.channel;
 		iio_chan->datasheet_name = prop.datasheet_name;
 		iio_chan->extend_name = prop.datasheet_name;
@@ -1627,9 +1666,9 @@ static int adc5_gen3_probe(struct platform_device *pdev)
 	struct iio_dev *indio_dev;
 	struct adc5_chip *adc;
 	struct regmap *regmap;
-	const char *irq_name;
-	int ret, irq_eoc, i;
+	int ret, i;
 	u32 reg;
+	char buf[20];
 
 	regmap = dev_get_regmap(dev->parent, NULL);
 	if (!regmap)
@@ -1647,12 +1686,31 @@ static int adc5_gen3_probe(struct platform_device *pdev)
 	if (ret < 0)
 		return ret;
 
-	adc->max_channels = 8 * ret;
+	adc->num_sdams = ret;
 
-	ret = of_property_read_u32(node, "reg", &reg);
-	if (ret < 0)
-		return ret;
-	adc->base = reg;
+	adc->base = devm_kcalloc(adc->dev, adc->num_sdams, sizeof(*adc->base), GFP_KERNEL);
+	if (!adc->base)
+		return -ENOMEM;
+
+	for (i = 0; i < adc->num_sdams; i++) {
+		ret = of_property_read_u32_index(node, "reg", i, &reg);
+		if (ret < 0)
+			return ret;
+
+		adc->base[i].base_addr = reg;
+
+		scnprintf(buf, sizeof(buf), "adc-sdam%d", i);
+		ret = of_irq_get_byname(node, buf);
+		if (ret < 0) {
+			pr_err("Failed to get irq for ADC5 GEN3 SDAM%d, ret=%d\n", i, ret);
+			return ret;
+		}
+		adc->base[i].irq = ret;
+
+		adc->base[i].irq_name = devm_kstrdup(adc->dev, buf, GFP_KERNEL);
+		if (!adc->base[i].irq_name)
+			return -ENOMEM;
+	}
 
 	if (!of_property_read_u32(node, "qcom,debug-base", &reg))
 		adc->debug_base = reg;
@@ -1672,15 +1730,12 @@ static int adc5_gen3_probe(struct platform_device *pdev)
 
 	adc_tm_register_tzd(adc);
 
-	irq_eoc = platform_get_irq(pdev, 0);
-	irq_name = "pm-adc5";
-	if (adc->data->name)
-		irq_name = adc->data->name;
-
-	ret = devm_request_irq(dev, irq_eoc, adc5_gen3_isr, 0,
-			       irq_name, adc);
-	if (ret < 0)
-		goto fail;
+	for (i = 0; i < adc->num_sdams; i++) {
+		ret = devm_request_irq(dev, adc->base[i].irq, adc5_gen3_isr,
+					0, adc->base[i].irq_name, adc);
+		if (ret < 0)
+			goto fail;
+	}
 
 	if (adc->n_tm_channels)
 		INIT_WORK(&adc->tm_handler_work, tm_handler_work);
@@ -1711,7 +1766,7 @@ static int adc5_gen3_exit(struct platform_device *pdev)
 {
 	struct adc5_chip *adc = platform_get_drvdata(pdev);
 	u8 data = 0;
-	int i;
+	int i, sdam_index;
 
 	mutex_lock(&adc->lock);
 	for (i = 0; i < adc->nchannels; i++) {
@@ -1721,16 +1776,17 @@ static int adc5_gen3_exit(struct platform_device *pdev)
 	}
 
 	/* Disable all available channels */
-	for (i = 0; i < adc->max_channels; i++) {
+	for (i = 0; i < adc->num_sdams * 8; i++) {
+		sdam_index = i / 8;
 		data = MEAS_INT_DISABLE;
-		adc5_write(adc, ADC5_GEN3_TIMER_SEL, &data, 1);
+		adc5_write(adc, sdam_index, ADC5_GEN3_TIMER_SEL, &data, 1);
 
 		/* To indicate there is an actual conversion request */
-		data = ADC5_GEN3_CHAN_CONV_REQ | i;
-		adc5_write(adc, ADC5_GEN3_PERPH_CH, &data, 1);
+		data = ADC5_GEN3_CHAN_CONV_REQ | (i - (sdam_index*8));
+		adc5_write(adc, sdam_index, ADC5_GEN3_PERPH_CH, &data, 1);
 
 		data = ADC5_GEN3_CONV_REQ_REQ;
-		adc5_write(adc, ADC5_GEN3_CONV_REQ, &data, 1);
+		adc5_write(adc, sdam_index, ADC5_GEN3_CONV_REQ, &data, 1);
 	}
 
 	mutex_unlock(&adc->lock);
