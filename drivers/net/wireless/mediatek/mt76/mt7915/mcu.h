@@ -185,6 +185,44 @@ struct mt7915_mcu_tx {
 	struct edca edca[IEEE80211_NUM_ACS];
 } __packed;
 
+struct mt7915_mcu_muru_stats {
+	__le32 event_id;
+	struct {
+		__le32 cck_cnt;
+		__le32 ofdm_cnt;
+		__le32 htmix_cnt;
+		__le32 htgf_cnt;
+		__le32 vht_su_cnt;
+		__le32 vht_2mu_cnt;
+		__le32 vht_3mu_cnt;
+		__le32 vht_4mu_cnt;
+		__le32 he_su_cnt;
+		__le32 he_ext_su_cnt;
+		__le32 he_2ru_cnt;
+		__le32 he_2mu_cnt;
+		__le32 he_3ru_cnt;
+		__le32 he_3mu_cnt;
+		__le32 he_4ru_cnt;
+		__le32 he_4mu_cnt;
+		__le32 he_5to8ru_cnt;
+		__le32 he_9to16ru_cnt;
+		__le32 he_gtr16ru_cnt;
+	} dl;
+
+	struct {
+		__le32 hetrig_su_cnt;
+		__le32 hetrig_2ru_cnt;
+		__le32 hetrig_3ru_cnt;
+		__le32 hetrig_4ru_cnt;
+		__le32 hetrig_5to8ru_cnt;
+		__le32 hetrig_9to16ru_cnt;
+		__le32 hetrig_gtr16ru_cnt;
+		__le32 hetrig_2mu_cnt;
+		__le32 hetrig_3mu_cnt;
+		__le32 hetrig_4mu_cnt;
+	} ul;
+};
+
 #define WMM_AIFS_SET		BIT(0)
 #define WMM_CW_MIN_SET		BIT(1)
 #define WMM_CW_MAX_SET		BIT(2)
@@ -412,6 +450,12 @@ enum {
 enum {
 	MURU_PLATFORM_TYPE_PERF_LEVEL_1 = 1,
 	MURU_PLATFORM_TYPE_PERF_LEVEL_2,
+};
+
+/* tx cmd tx statistics */
+enum {
+	MURU_SET_TXC_TX_STATS_EN = 150,
+	MURU_GET_TXC_TX_STATS = 151,
 };
 
 #define MT7915_BSS_UPDATE_MAX_SIZE	(sizeof(struct sta_req_hdr) +	\
