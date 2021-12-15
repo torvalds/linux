@@ -96,8 +96,8 @@ static int stf_dvp_config_set(struct stf_dvp_dev *dvp_dev)
 		polarities |= BIT(3);
 	print_reg(ST_DVP, vin->sysctrl_base, SYSCONSAIF_SYSCFG_36);
 	reg_set_bit(vin->sysctrl_base,	SYSCONSAIF_SYSCFG_36,
-		V4L2_MBUS_HSYNC_ACTIVE_HIGH 
-		| V4L2_MBUS_VSYNC_ACTIVE_HIGH,
+		BIT(1) 
+		| BIT(3),
 		polarities);
 	print_reg(ST_DVP, vin->sysctrl_base, SYSCONSAIF_SYSCFG_36);
 
