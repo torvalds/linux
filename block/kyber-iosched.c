@@ -433,6 +433,7 @@ static void kyber_exit_sched(struct elevator_queue *e)
 	int i;
 
 	del_timer_sync(&kqd->timer);
+	blk_stat_disable_accounting(kqd->q);
 
 	for (i = 0; i < KYBER_NUM_DOMAINS; i++)
 		sbitmap_queue_free(&kqd->domain_tokens[i]);
