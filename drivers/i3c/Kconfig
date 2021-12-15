@@ -67,5 +67,12 @@ config I3C_SLAVE_MQUEUE
 	  Userspace can get the messages by reading sysfs file that this driver
 	  exposes.
 
+config I3C_MUX_IMX3102
+	bool "IMX/IML3102 I3C multiplexer driver"
+	default y
+	select REGMAP_I3C
+	help
+	  Say y to enable Renesas IMX3102 I3C 2:1 multiplexer.
+
 source "drivers/i3c/master/Kconfig"
 endif # I3C
