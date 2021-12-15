@@ -23,6 +23,10 @@
  * V0.0X01.0X06
  * 1. support DOL3 10bit 20fps 1485Mbps
  * 2. fixed linkfreq error
+ * V0.0X01.0X07
+ * 1. fix set_fmt & ioctl get mode unmatched issue.
+ * 2. need to set default vblank when change format.
+ * 3. enum all supported mode mbus_code, not just cur_mode.
  */
 
 #define DEBUG
@@ -46,7 +50,7 @@
 #include <linux/rk-preisp.h>
 #include "../platform/rockchip/isp/rkisp_tb_helper.h"
 
-#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x06)
+#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x07)
 
 #ifndef V4L2_CID_DIGITAL_GAIN
 #define V4L2_CID_DIGITAL_GAIN		V4L2_CID_GAIN
@@ -1054,12 +1058,14 @@ imx415_find_best_fit(struct imx415 *imx415, struct v4l2_subdev_format *fmt)
 
 	for (i = 0; i < imx415->cfg_num; i++) {
 		dist = imx415_get_reso_dist(&supported_modes[i], framefmt);
-		if ((cur_best_fit_dist == -1 || dist <= cur_best_fit_dist) &&
+		if ((cur_best_fit_dist == -1 || dist < cur_best_fit_dist) &&
 			supported_modes[i].bus_fmt == framefmt->code) {
 			cur_best_fit_dist = dist;
 			cur_best_fit = i;
 		}
 	}
+	dev_info(&imx415->client->dev, "%s: cur_best_fit(%d)",
+		 __func__, cur_best_fit);
 
 	return &supported_modes[cur_best_fit];
 }
@@ -1113,11 +1119,14 @@ static int imx415_set_fmt(struct v4l2_subdev *sd,
 		__v4l2_ctrl_modify_range(imx415->vblank, vblank_min,
 					 IMX415_VTS_MAX - mode->height,
 					 1, vblank_def);
+		__v4l2_ctrl_s_ctrl(imx415->vblank, vblank_def);
 		__v4l2_ctrl_s_ctrl(imx415->link_freq, mode->mipi_freq_idx);
 		pixel_rate = (u32)link_freq_items[mode->mipi_freq_idx] / mode->bpp * 2 * IMX415_4LANES;
 		__v4l2_ctrl_s_ctrl_int64(imx415->pixel_rate,
 					 pixel_rate);
 	}
+	dev_info(&imx415->client->dev, "%s: mode->mipi_freq_idx(%d)",
+		 __func__, mode->mipi_freq_idx);
 
 	mutex_unlock(&imx415->mutex);
 
@@ -1160,9 +1169,10 @@ static int imx415_enum_mbus_code(struct v4l2_subdev *sd,
 {
 	struct imx415 *imx415 = to_imx415(sd);
 
-	if (code->index != 0)
+	if (code->index >= imx415->cfg_num)
 		return -EINVAL;
-	code->code = imx415->cur_mode->bus_fmt;
+
+	code->code = supported_modes[code->index].bus_fmt;
 
 	return 0;
 }
@@ -1923,7 +1933,7 @@ static int imx415_s_stream(struct v4l2_subdev *sd, int on)
 	struct i2c_client *client = imx415->client;
 	int ret = 0;
 
-	dev_dbg(&imx415->client->dev, "s_stream: %d. %dx%d, hdr: %d, bpp: %d\n",
+	dev_info(&imx415->client->dev, "s_stream: %d. %dx%d, hdr: %d, bpp: %d\n",
 	       on, imx415->cur_mode->width, imx415->cur_mode->height,
 	       imx415->cur_mode->hdr_mode, imx415->cur_mode->bpp);
 
