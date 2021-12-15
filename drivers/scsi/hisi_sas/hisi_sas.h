@@ -133,6 +133,11 @@ struct hisi_sas_rst {
 	bool done;
 };
 
+struct hisi_sas_internal_abort {
+	unsigned int flag;
+	unsigned int tag;
+};
+
 #define HISI_SAS_RST_WORK_INIT(r, c) \
 	{	.hisi_hba = hisi_hba, \
 		.completion = &c, \
