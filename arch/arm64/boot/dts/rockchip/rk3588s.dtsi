@@ -448,6 +448,14 @@
 		compatible = "operating-points-v2";
 		opp-shared;
 
+		rockchip,grf = <&bigcore0_grf>;
+		volt-mem-read-margin = <
+			855000	1
+			765000	2
+			675000	3
+			495000	4
+		>;
+
 		opp-408000000 {
 			opp-hz = /bits/ 64 <408000000>;
 			opp-microvolt = <750000 750000 950000>,
@@ -508,6 +516,14 @@
 	cluster2_opp_table: cluster2-opp-table {
 		compatible = "operating-points-v2";
 		opp-shared;
+
+		rockchip,grf = <&bigcore1_grf>;
+		volt-mem-read-margin = <
+			855000	1
+			765000	2
+			675000	3
+			495000	4
+		>;
 
 		opp-408000000 {
 			opp-hz = /bits/ 64 <408000000>;
@@ -1163,6 +1179,16 @@
 				};
 			};
 		};
+	};
+
+	bigcore0_grf: syscon@fd590000 {
+		compatible = "rockchip,rk3588-bigcore0-grf", "syscon";
+		reg = <0x0 0xfd590000 0x0 0x100>;
+	};
+
+	bigcore1_grf: syscon@fd592000 {
+		compatible = "rockchip,rk3588-bigcore1-grf", "syscon";
+		reg = <0x0 0xfd592000 0x0 0x100>;
 	};
 
 	vop_grf: syscon@fd5a4000 {
