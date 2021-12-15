@@ -14,27 +14,12 @@
 
 static int sof_kcontrol_setup(struct snd_sof_dev *sdev, struct snd_sof_control *scontrol)
 {
-	enum sof_ipc_ctrl_type ctrl_type;
 	int ret;
 
 	/* reset readback offset for scontrol */
 	scontrol->readback_offset = 0;
 
-	/* notify DSP of kcontrol values */
-	switch (scontrol->control_data->cmd) {
-	case SOF_CTRL_CMD_VOLUME:
-	case SOF_CTRL_CMD_ENUM:
-	case SOF_CTRL_CMD_SWITCH:
-		ctrl_type = SOF_CTRL_TYPE_VALUE_CHAN_SET;
-		break;
-	case SOF_CTRL_CMD_BINARY:
-		ctrl_type = SOF_CTRL_TYPE_DATA_SET;
-		break;
-	default:
-		return 0;
-	}
-
-	ret = snd_sof_ipc_set_get_comp_data(scontrol, ctrl_type, true);
+	ret = snd_sof_ipc_set_get_comp_data(scontrol, true);
 	if (ret < 0)
 		dev_err(sdev->dev, "error: failed kcontrol value set for widget: %d\n",
 			scontrol->comp_id);

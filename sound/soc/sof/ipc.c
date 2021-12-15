@@ -721,11 +721,6 @@ static int sof_get_ctrl_copy_params(enum sof_ipc_ctrl_type ctrl_type,
 		sparams->src = (u8 *)src->chanv;
 		sparams->dst = (u8 *)dst->chanv;
 		break;
-	case SOF_CTRL_TYPE_VALUE_COMP_GET:
-	case SOF_CTRL_TYPE_VALUE_COMP_SET:
-		sparams->src = (u8 *)src->compv;
-		sparams->dst = (u8 *)dst->compv;
-		break;
 	case SOF_CTRL_TYPE_DATA_GET:
 	case SOF_CTRL_TYPE_DATA_SET:
 		sparams->src = (u8 *)src->data->data;
@@ -816,8 +811,7 @@ static int sof_set_get_large_ctrl_data(struct snd_sof_dev *sdev,
 /*
  * IPC get()/set() for kcontrols.
  */
-int snd_sof_ipc_set_get_comp_data(struct snd_sof_control *scontrol,
-				  enum sof_ipc_ctrl_type ctrl_type, bool set)
+int snd_sof_ipc_set_get_comp_data(struct snd_sof_control *scontrol, bool set)
 {
 	struct snd_soc_component *scomp = scontrol->scomp;
 	struct sof_ipc_ctrl_data *cdata = scontrol->control_data;
@@ -825,6 +819,7 @@ int snd_sof_ipc_set_get_comp_data(struct snd_sof_control *scontrol,
 	struct sof_ipc_fw_ready *ready = &sdev->fw_ready;
 	struct sof_ipc_fw_version *v = &ready->version;
 	struct sof_ipc_ctrl_data_params sparams;
+	enum sof_ipc_ctrl_type ctrl_type;
 	struct snd_sof_widget *swidget;
 	bool widget_found = false;
 	size_t send_bytes;
@@ -872,11 +867,19 @@ int snd_sof_ipc_set_get_comp_data(struct snd_sof_control *scontrol,
 		return err;
 	}
 
-	/* Select the IPC cmd based on the ctrl_cmd and the direction */
-	if (cdata->cmd == SOF_CTRL_CMD_BINARY)
+	/*
+	 * Select the IPC cmd and the ctrl_type based on the ctrl_cmd and the
+	 * direction
+	 * Note: SOF_CTRL_TYPE_VALUE_COMP_* is not used and supported currently
+	 *	 for ctrl_type
+	 */
+	if (cdata->cmd == SOF_CTRL_CMD_BINARY) {
 		ipc_cmd = set ? SOF_IPC_COMP_SET_DATA : SOF_IPC_COMP_GET_DATA;
-	else
+		ctrl_type = set ? SOF_CTRL_TYPE_DATA_SET : SOF_CTRL_TYPE_DATA_GET;
+	} else {
 		ipc_cmd = set ? SOF_IPC_COMP_SET_VALUE : SOF_IPC_COMP_GET_VALUE;
+		ctrl_type = set ? SOF_CTRL_TYPE_VALUE_CHAN_SET : SOF_CTRL_TYPE_VALUE_CHAN_GET;
+	}
 
 	cdata->rhdr.hdr.cmd = SOF_IPC_GLB_COMP_MSG | ipc_cmd;
 	cdata->type = ctrl_type;
@@ -889,13 +892,6 @@ int snd_sof_ipc_set_get_comp_data(struct snd_sof_control *scontrol,
 	case SOF_CTRL_TYPE_VALUE_CHAN_SET:
 		sparams.msg_bytes = scontrol->num_channels *
 			sizeof(struct sof_ipc_ctrl_value_chan);
-		sparams.hdr_bytes = sizeof(struct sof_ipc_ctrl_data);
-		sparams.elems = scontrol->num_channels;
-		break;
-	case SOF_CTRL_TYPE_VALUE_COMP_GET:
-	case SOF_CTRL_TYPE_VALUE_COMP_SET:
-		sparams.msg_bytes = scontrol->num_channels *
-			sizeof(struct sof_ipc_ctrl_value_comp);
 		sparams.hdr_bytes = sizeof(struct sof_ipc_ctrl_data);
 		sparams.elems = scontrol->num_channels;
 		break;
