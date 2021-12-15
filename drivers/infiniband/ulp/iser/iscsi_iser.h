@@ -486,7 +486,6 @@ struct iser_global {
 extern struct iser_global ig;
 extern int iser_debug_level;
 extern bool iser_pi_enable;
-extern int iser_pi_guard;
 extern unsigned int iser_max_sectors;
 extern bool iser_always_reg;
 
