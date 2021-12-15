@@ -57,10 +57,18 @@ static int drop_pages(struct drm_i915_gem_object *obj,
 
 static int try_to_writeback(struct drm_i915_gem_object *obj, unsigned int flags)
 {
-	if (obj->ops->shrinker_release_pages)
-		return obj->ops->shrinker_release_pages(obj,
-							!(flags & I915_SHRINK_ACTIVE),
-							flags & I915_SHRINK_WRITEBACK);
+	if (obj->ops->shrink) {
+		unsigned int shrink_flags = 0;
+
+		if (!(flags & I915_SHRINK_ACTIVE))
+			shrink_flags |= I915_GEM_OBJECT_SHRINK_NO_GPU_WAIT;
+
+		if (flags & I915_SHRINK_WRITEBACK)
+			shrink_flags |= I915_GEM_OBJECT_SHRINK_WRITEBACK;
+
+		return obj->ops->shrink(obj, shrink_flags);
+	}
+
 	return 0;
 }
 

@@ -57,9 +57,26 @@ struct drm_i915_gem_object_ops {
 	void (*put_pages)(struct drm_i915_gem_object *obj,
 			  struct sg_table *pages);
 	int (*truncate)(struct drm_i915_gem_object *obj);
-	int (*shrinker_release_pages)(struct drm_i915_gem_object *obj,
-				      bool no_gpu_wait,
-				      bool should_writeback);
+	/**
+	 * shrink - Perform further backend specific actions to facilate
+	 * shrinking.
+	 * @obj: The gem object
+	 * @flags: Extra flags to control shrinking behaviour in the backend
+	 *
+	 * Possible values for @flags:
+	 *
+	 * I915_GEM_OBJECT_SHRINK_WRITEBACK - Try to perform writeback of the
+	 * backing pages, if supported.
+	 *
+	 * I915_GEM_OBJECT_SHRINK_NO_GPU_WAIT - Don't wait for the object to
+	 * idle.  Active objects can be considered later. The TTM backend for
+	 * example might have aync migrations going on, which don't use any
+	 * i915_vma to track the active GTT binding, and hence having an unbound
+	 * object might not be enough.
+	 */
+#define I915_GEM_OBJECT_SHRINK_WRITEBACK   BIT(0)
+#define I915_GEM_OBJECT_SHRINK_NO_GPU_WAIT BIT(1)
+	int (*shrink)(struct drm_i915_gem_object *obj, unsigned int flags);
 
 	int (*pread)(struct drm_i915_gem_object *obj,
 		     const struct drm_i915_gem_pread *arg);
