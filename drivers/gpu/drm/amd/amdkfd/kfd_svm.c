@@ -2277,8 +2277,8 @@ svm_range_cpu_invalidate_pagetables(struct mmu_interval_notifier *mni,
 
 	start = mni->interval_tree.start;
 	last = mni->interval_tree.last;
-	start = (start > range->start ? start : range->start) >> PAGE_SHIFT;
-	last = (last < (range->end - 1) ? last : range->end - 1) >> PAGE_SHIFT;
+	start = max(start, range->start) >> PAGE_SHIFT;
+	last = min(last, range->end - 1) >> PAGE_SHIFT;
 	pr_debug("[0x%lx 0x%lx] range[0x%lx 0x%lx] notifier[0x%lx 0x%lx] %d\n",
 		 start, last, range->start >> PAGE_SHIFT,
 		 (range->end - 1) >> PAGE_SHIFT,
