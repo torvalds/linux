@@ -5925,6 +5925,7 @@ static int io_poll_update(struct io_kiocb *req, unsigned int issue_flags)
 	 * update those. For multishot, if we're racing with completion, just
 	 * let completion re-add it.
 	 */
+	io_poll_remove_double(preq);
 	completing = !__io_poll_remove_one(preq, &preq->poll, false);
 	if (completing && (preq->poll.events & EPOLLONESHOT)) {
 		ret = -EALREADY;
