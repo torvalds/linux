@@ -828,7 +828,7 @@ int iser_post_recvl(struct iser_conn *iser_conn)
 	struct ib_conn *ib_conn = &iser_conn->ib_conn;
 	struct iser_login_desc *desc = &iser_conn->login_desc;
 	struct ib_recv_wr wr;
-	int ib_ret;
+	int ret;
 
 	desc->sge.addr = desc->rsp_dma;
 	desc->sge.length = ISER_RX_LOGIN_SIZE;
@@ -840,18 +840,18 @@ int iser_post_recvl(struct iser_conn *iser_conn)
 	wr.num_sge = 1;
 	wr.next = NULL;
 
-	ib_ret = ib_post_recv(ib_conn->qp, &wr, NULL);
-	if (unlikely(ib_ret))
-		iser_err("ib_post_recv login failed ret=%d\n", ib_ret);
+	ret = ib_post_recv(ib_conn->qp, &wr, NULL);
+	if (unlikely(ret))
+		iser_err("ib_post_recv login failed ret=%d\n", ret);
 
-	return ib_ret;
+	return ret;
 }
 
 int iser_post_recvm(struct iser_conn *iser_conn, struct iser_rx_desc *rx_desc)
 {
 	struct ib_conn *ib_conn = &iser_conn->ib_conn;
 	struct ib_recv_wr wr;
-	int ib_ret;
+	int ret;
 
 	rx_desc->cqe.done = iser_task_rsp;
 	wr.wr_cqe = &rx_desc->cqe;
@@ -859,11 +859,11 @@ int iser_post_recvm(struct iser_conn *iser_conn, struct iser_rx_desc *rx_desc)
 	wr.num_sge = 1;
 	wr.next = NULL;
 
-	ib_ret = ib_post_recv(ib_conn->qp, &wr, NULL);
-	if (unlikely(ib_ret))
-		iser_err("ib_post_recv failed ret=%d\n", ib_ret);
+	ret = ib_post_recv(ib_conn->qp, &wr, NULL);
+	if (unlikely(ret))
+		iser_err("ib_post_recv failed ret=%d\n", ret);
 
-	return ib_ret;
+	return ret;
 }
 
 
@@ -880,7 +880,7 @@ int iser_post_send(struct ib_conn *ib_conn, struct iser_tx_desc *tx_desc,
 {
 	struct ib_send_wr *wr = &tx_desc->send_wr;
 	struct ib_send_wr *first_wr;
-	int ib_ret;
+	int ret;
 
 	ib_dma_sync_single_for_device(ib_conn->device->ib_device,
 				      tx_desc->dma_addr, ISER_HEADERS_LEN,
@@ -900,12 +900,12 @@ int iser_post_send(struct ib_conn *ib_conn, struct iser_tx_desc *tx_desc,
 	else
 		first_wr = wr;
 
-	ib_ret = ib_post_send(ib_conn->qp, first_wr, NULL);
-	if (unlikely(ib_ret))
+	ret = ib_post_send(ib_conn->qp, first_wr, NULL);
+	if (unlikely(ret))
 		iser_err("ib_post_send failed, ret:%d opcode:%d\n",
-			 ib_ret, wr->opcode);
+			 ret, wr->opcode);
 
-	return ib_ret;
+	return ret;
 }
 
 u8 iser_check_task_pi_status(struct iscsi_iser_task *iser_task,
