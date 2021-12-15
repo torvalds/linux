@@ -69,7 +69,6 @@ static void snd_sof_refresh_control(struct snd_sof_control *scontrol)
 {
 	struct sof_ipc_ctrl_data *cdata = scontrol->control_data;
 	struct snd_soc_component *scomp = scontrol->scomp;
-	u32 ipc_cmd;
 	int ret;
 
 	if (!scontrol->comp_data_dirty)
@@ -78,18 +77,13 @@ static void snd_sof_refresh_control(struct snd_sof_control *scontrol)
 	if (!pm_runtime_active(scomp->dev))
 		return;
 
-	if (scontrol->cmd == SOF_CTRL_CMD_BINARY)
-		ipc_cmd = SOF_IPC_COMP_GET_DATA;
-	else
-		ipc_cmd = SOF_IPC_COMP_GET_VALUE;
-
 	/* set the ABI header values */
 	cdata->data->magic = SOF_ABI_MAGIC;
 	cdata->data->abi = SOF_ABI_VERSION;
 
 	/* refresh the component data from DSP */
 	scontrol->comp_data_dirty = false;
-	ret = snd_sof_ipc_set_get_comp_data(scontrol, ipc_cmd,
+	ret = snd_sof_ipc_set_get_comp_data(scontrol,
 					    SOF_CTRL_TYPE_VALUE_CHAN_GET,
 					    scontrol->cmd, false);
 	if (ret < 0) {
@@ -143,7 +137,6 @@ int snd_sof_volume_put(struct snd_kcontrol *kcontrol,
 	/* notify DSP of mixer updates */
 	if (pm_runtime_active(scomp->dev))
 		snd_sof_ipc_set_get_comp_data(scontrol,
-					      SOF_IPC_COMP_SET_VALUE,
 					      SOF_CTRL_TYPE_VALUE_CHAN_SET,
 					      SOF_CTRL_CMD_VOLUME,
 					      true);
@@ -216,7 +209,6 @@ int snd_sof_switch_put(struct snd_kcontrol *kcontrol,
 	/* notify DSP of mixer updates */
 	if (pm_runtime_active(scomp->dev))
 		snd_sof_ipc_set_get_comp_data(scontrol,
-					      SOF_IPC_COMP_SET_VALUE,
 					      SOF_CTRL_TYPE_VALUE_CHAN_SET,
 					      SOF_CTRL_CMD_SWITCH,
 					      true);
@@ -265,7 +257,6 @@ int snd_sof_enum_put(struct snd_kcontrol *kcontrol,
 	/* notify DSP of enum updates */
 	if (pm_runtime_active(scomp->dev))
 		snd_sof_ipc_set_get_comp_data(scontrol,
-					      SOF_IPC_COMP_SET_VALUE,
 					      SOF_CTRL_TYPE_VALUE_CHAN_SET,
 					      SOF_CTRL_CMD_ENUM,
 					      true);
@@ -343,7 +334,6 @@ int snd_sof_bytes_put(struct snd_kcontrol *kcontrol,
 	/* notify DSP of byte control updates */
 	if (pm_runtime_active(scomp->dev))
 		snd_sof_ipc_set_get_comp_data(scontrol,
-					      SOF_IPC_COMP_SET_DATA,
 					      SOF_CTRL_TYPE_DATA_SET,
 					      scontrol->cmd,
 					      true);
@@ -423,7 +413,6 @@ int snd_sof_bytes_ext_put(struct snd_kcontrol *kcontrol,
 	/* notify DSP of byte control updates */
 	if (pm_runtime_active(scomp->dev))
 		snd_sof_ipc_set_get_comp_data(scontrol,
-					      SOF_IPC_COMP_SET_DATA,
 					      SOF_CTRL_TYPE_DATA_SET,
 					      scontrol->cmd,
 					      true);
@@ -463,7 +452,7 @@ int snd_sof_bytes_ext_volatile_get(struct snd_kcontrol *kcontrol, unsigned int _
 	cdata->data->magic = SOF_ABI_MAGIC;
 	cdata->data->abi = SOF_ABI_VERSION;
 	/* get all the component data from DSP */
-	ret = snd_sof_ipc_set_get_comp_data(scontrol, SOF_IPC_COMP_GET_DATA, SOF_CTRL_TYPE_DATA_GET,
+	ret = snd_sof_ipc_set_get_comp_data(scontrol, SOF_CTRL_TYPE_DATA_GET,
 					    scontrol->cmd, false);
 	if (ret < 0)
 		goto out;
