@@ -2125,7 +2125,7 @@ _hisi_sas_internal_task_abort(struct hisi_hba *hisi_hba,
 		return -ENOMEM;
 
 	task->dev = device;
-	task->task_proto = device->tproto;
+	task->task_proto = SAS_PROTOCOL_NONE;
 	task->task_done = hisi_sas_task_done;
 	task->slow_task->timer.function = hisi_sas_tmf_timedout;
 	task->slow_task->timer.expires = jiffies + INTERNAL_ABORT_TIMEOUT;
