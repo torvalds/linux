@@ -37,6 +37,8 @@ struct {
 
 
 int enabled = 0;
+int has_cpu = 0;
+int has_task = 0;
 
 SEC("kprobe/func")
 int BPF_PROG(func_begin)
@@ -47,6 +49,25 @@ int BPF_PROG(func_begin)
 		return 0;
 
 	key = bpf_get_current_pid_tgid();
+
+	if (has_cpu) {
+		__u32 cpu = bpf_get_smp_processor_id();
+		__u8 *ok;
+
+		ok = bpf_map_lookup_elem(&cpu_filter, &cpu);
+		if (!ok)
+			return 0;
+	}
+
+	if (has_task) {
+		__u32 pid = key & 0xffffffff;
+		__u8 *ok;
+
+		ok = bpf_map_lookup_elem(&task_filter, &pid);
+		if (!ok)
+			return 0;
+	}
+
 	now = bpf_ktime_get_ns();
 
 	// overwrite timestamp for nested functions
