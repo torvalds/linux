@@ -948,6 +948,12 @@ int btrfs_quota_enable(struct btrfs_fs_info *fs_info)
 	 */
 	lockdep_assert_held_write(&fs_info->subvol_sem);
 
+	if (btrfs_fs_incompat(fs_info, EXTENT_TREE_V2)) {
+		btrfs_err(fs_info,
+			  "qgroups are currently unsupported in extent tree v2");
+		return -EINVAL;
+	}
+
 	mutex_lock(&fs_info->qgroup_ioctl_lock);
 	if (fs_info->quota_root)
 		goto out;
