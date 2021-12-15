@@ -160,7 +160,7 @@ Efault_end:
 	user_access_end();
 Efault:
 	pr_alert("could not access userspace vm86 info\n");
-	force_fatal_sig(SIGSEGV);
+	force_exit_sig(SIGSEGV);
 	goto exit_vm86;
 }
 

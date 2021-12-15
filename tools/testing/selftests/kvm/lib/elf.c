@@ -157,8 +157,7 @@ void kvm_vm_elf_load(struct kvm_vm *vm, const char *filename)
 			"memsize of 0,\n"
 			"  phdr index: %u p_memsz: 0x%" PRIx64,
 			n1, (uint64_t) phdr.p_memsz);
-		vm_vaddr_t seg_vstart = phdr.p_vaddr;
-		seg_vstart &= ~(vm_vaddr_t)(vm->page_size - 1);
+		vm_vaddr_t seg_vstart = align_down(phdr.p_vaddr, vm->page_size);
 		vm_vaddr_t seg_vend = phdr.p_vaddr + phdr.p_memsz - 1;
 		seg_vend |= vm->page_size - 1;
 		size_t seg_size = seg_vend - seg_vstart + 1;

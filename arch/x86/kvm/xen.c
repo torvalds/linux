@@ -127,9 +127,9 @@ void kvm_xen_update_runstate_guest(struct kvm_vcpu *v, int state)
 	state_entry_time = vx->runstate_entry_time;
 	state_entry_time |= XEN_RUNSTATE_UPDATE;
 
-	BUILD_BUG_ON(sizeof(((struct vcpu_runstate_info *)0)->state_entry_time) !=
+	BUILD_BUG_ON(sizeof_field(struct vcpu_runstate_info, state_entry_time) !=
 		     sizeof(state_entry_time));
-	BUILD_BUG_ON(sizeof(((struct compat_vcpu_runstate_info *)0)->state_entry_time) !=
+	BUILD_BUG_ON(sizeof_field(struct compat_vcpu_runstate_info, state_entry_time) !=
 		     sizeof(state_entry_time));
 
 	if (kvm_write_guest_offset_cached(v->kvm, &v->arch.xen.runstate_cache,
@@ -144,9 +144,9 @@ void kvm_xen_update_runstate_guest(struct kvm_vcpu *v, int state)
 	 */
 	BUILD_BUG_ON(offsetof(struct vcpu_runstate_info, state) !=
 		     offsetof(struct compat_vcpu_runstate_info, state));
-	BUILD_BUG_ON(sizeof(((struct vcpu_runstate_info *)0)->state) !=
+	BUILD_BUG_ON(sizeof_field(struct vcpu_runstate_info, state) !=
 		     sizeof(vx->current_runstate));
-	BUILD_BUG_ON(sizeof(((struct compat_vcpu_runstate_info *)0)->state) !=
+	BUILD_BUG_ON(sizeof_field(struct compat_vcpu_runstate_info, state) !=
 		     sizeof(vx->current_runstate));
 
 	if (kvm_write_guest_offset_cached(v->kvm, &v->arch.xen.runstate_cache,
@@ -163,9 +163,9 @@ void kvm_xen_update_runstate_guest(struct kvm_vcpu *v, int state)
 		     offsetof(struct vcpu_runstate_info, time) - sizeof(u64));
 	BUILD_BUG_ON(offsetof(struct compat_vcpu_runstate_info, state_entry_time) !=
 		     offsetof(struct compat_vcpu_runstate_info, time) - sizeof(u64));
-	BUILD_BUG_ON(sizeof(((struct vcpu_runstate_info *)0)->time) !=
-		     sizeof(((struct compat_vcpu_runstate_info *)0)->time));
-	BUILD_BUG_ON(sizeof(((struct vcpu_runstate_info *)0)->time) !=
+	BUILD_BUG_ON(sizeof_field(struct vcpu_runstate_info, time) !=
+		     sizeof_field(struct compat_vcpu_runstate_info, time));
+	BUILD_BUG_ON(sizeof_field(struct vcpu_runstate_info, time) !=
 		     sizeof(vx->runstate_times));
 
 	if (kvm_write_guest_offset_cached(v->kvm, &v->arch.xen.runstate_cache,
@@ -205,9 +205,9 @@ int __kvm_xen_has_interrupt(struct kvm_vcpu *v)
 	BUILD_BUG_ON(offsetof(struct vcpu_info, evtchn_upcall_pending) !=
 		     offsetof(struct compat_vcpu_info, evtchn_upcall_pending));
 	BUILD_BUG_ON(sizeof(rc) !=
-		     sizeof(((struct vcpu_info *)0)->evtchn_upcall_pending));
+		     sizeof_field(struct vcpu_info, evtchn_upcall_pending));
 	BUILD_BUG_ON(sizeof(rc) !=
-		     sizeof(((struct compat_vcpu_info *)0)->evtchn_upcall_pending));
+		     sizeof_field(struct compat_vcpu_info, evtchn_upcall_pending));
 
 	/*
 	 * For efficiency, this mirrors the checks for using the valid
@@ -299,7 +299,7 @@ int kvm_xen_hvm_get_attr(struct kvm *kvm, struct kvm_xen_hvm_attr *data)
 		break;
 
 	case KVM_XEN_ATTR_TYPE_SHARED_INFO:
-		data->u.shared_info.gfn = gpa_to_gfn(kvm->arch.xen.shinfo_gfn);
+		data->u.shared_info.gfn = kvm->arch.xen.shinfo_gfn;
 		r = 0;
 		break;
 
@@ -698,7 +698,7 @@ int kvm_xen_hypercall(struct kvm_vcpu *vcpu)
 	    kvm_hv_hypercall_enabled(vcpu))
 		return kvm_hv_hypercall(vcpu);
 
-	longmode = is_64_bit_mode(vcpu);
+	longmode = is_64_bit_hypercall(vcpu);
 	if (!longmode) {
 		params[0] = (u32)kvm_rbx_read(vcpu);
 		params[1] = (u32)kvm_rcx_read(vcpu);

@@ -309,6 +309,7 @@ static int cyan_skillfish_print_clk_levels(struct smu_context *smu,
 {
 	int ret = 0, size = 0;
 	uint32_t cur_value = 0;
+	int i;
 
 	smu_cmn_get_sysfs_buf(&buf, &size);
 
@@ -334,8 +335,6 @@ static int cyan_skillfish_print_clk_levels(struct smu_context *smu,
 		size += sysfs_emit_at(buf, size, "VDDC: %7umV  %10umV\n",
 						CYAN_SKILLFISH_VDDC_MIN, CYAN_SKILLFISH_VDDC_MAX);
 		break;
-	case SMU_GFXCLK:
-	case SMU_SCLK:
 	case SMU_FCLK:
 	case SMU_MCLK:
 	case SMU_SOCCLK:
@@ -345,6 +344,25 @@ static int cyan_skillfish_print_clk_levels(struct smu_context *smu,
 		if (ret)
 			return ret;
 		size += sysfs_emit_at(buf, size, "0: %uMhz *\n", cur_value);
+		break;
+	case SMU_SCLK:
+	case SMU_GFXCLK:
+		ret = cyan_skillfish_get_current_clk_freq(smu, clk_type, &cur_value);
+		if (ret)
+			return ret;
+		if (cur_value  == CYAN_SKILLFISH_SCLK_MAX)
+			i = 2;
+		else if (cur_value == CYAN_SKILLFISH_SCLK_MIN)
+			i = 0;
+		else
+			i = 1;
+		size += sysfs_emit_at(buf, size, "0: %uMhz %s\n", CYAN_SKILLFISH_SCLK_MIN,
+				i == 0 ? "*" : "");
+		size += sysfs_emit_at(buf, size, "1: %uMhz %s\n",
+				i == 1 ? cur_value : cyan_skillfish_sclk_default,
+				i == 1 ? "*" : "");
+		size += sysfs_emit_at(buf, size, "2: %uMhz %s\n", CYAN_SKILLFISH_SCLK_MAX,
+				i == 2 ? "*" : "");
 		break;
 	default:
 		dev_warn(smu->adev->dev, "Unsupported clock type\n");

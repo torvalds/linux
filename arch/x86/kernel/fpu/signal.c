@@ -118,7 +118,7 @@ static inline bool save_xstate_epilog(void __user *buf, int ia32_frame,
 				      struct fpstate *fpstate)
 {
 	struct xregs_state __user *x = buf;
-	struct _fpx_sw_bytes sw_bytes;
+	struct _fpx_sw_bytes sw_bytes = {};
 	u32 xfeatures;
 	int err;
 

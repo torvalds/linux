@@ -6051,6 +6051,9 @@ int btrfs_trim_fs(struct btrfs_fs_info *fs_info, struct fstrim_range *range)
 	int dev_ret = 0;
 	int ret = 0;
 
+	if (range->start == U64_MAX)
+		return -EINVAL;
+
 	/*
 	 * Check range overflow if range->len is set.
 	 * The default range->len is U64_MAX.

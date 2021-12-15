@@ -25,6 +25,7 @@
 #include <linux/io.h>
 #include <linux/dma-mapping.h>
 #include <linux/module.h>
+#include <linux/property.h>
 
 #include <asm/checksum.h>
 
@@ -239,6 +240,7 @@ ltq_etop_hw_init(struct net_device *dev)
 {
 	struct ltq_etop_priv *priv = netdev_priv(dev);
 	int i;
+	int err;
 
 	ltq_pmu_enable(PMU_PPE);
 
@@ -273,7 +275,13 @@ ltq_etop_hw_init(struct net_device *dev)
 
 		if (IS_TX(i)) {
 			ltq_dma_alloc_tx(&ch->dma);
-			request_irq(irq, ltq_etop_dma_irq, 0, "etop_tx", priv);
+			err = request_irq(irq, ltq_etop_dma_irq, 0, "etop_tx", priv);
+			if (err) {
+				netdev_err(dev,
+					   "Unable to get Tx DMA IRQ %d\n",
+					   irq);
+				return err;
+			}
 		} else if (IS_RX(i)) {
 			ltq_dma_alloc_rx(&ch->dma);
 			for (ch->dma.desc = 0; ch->dma.desc < LTQ_DESC_NUM;
@@ -281,7 +289,13 @@ ltq_etop_hw_init(struct net_device *dev)
 				if (ltq_etop_alloc_skb(ch))
 					return -ENOMEM;
 			ch->dma.desc = 0;
-			request_irq(irq, ltq_etop_dma_irq, 0, "etop_rx", priv);
+			err = request_irq(irq, ltq_etop_dma_irq, 0, "etop_rx", priv);
+			if (err) {
+				netdev_err(dev,
+					   "Unable to get Rx DMA IRQ %d\n",
+					   irq);
+				return err;
+			}
 		}
 		ch->dma.irq = irq;
 	}
@@ -726,7 +740,7 @@ static struct platform_driver ltq_mii_driver = {
 	},
 };
 
-int __init
+static int __init
 init_ltq_etop(void)
 {
 	int ret = platform_driver_probe(&ltq_mii_driver, ltq_etop_probe);
