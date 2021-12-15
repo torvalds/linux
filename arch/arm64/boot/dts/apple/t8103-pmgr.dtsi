@@ -665,6 +665,7 @@
 		#reset-cells = <0>;
 		label = "dispext_cpu0";
 		power-domains = <&ps_dispext_fe>;
+		apple,min-state = <4>;
 	};
 
 	ps_jpg: power-controller@3c0 {
@@ -1005,6 +1006,7 @@
 		label = "disp0_cpu0";
 		power-domains = <&ps_disp0_fe>;
 		apple,always-on; /* TODO: figure out if we can enable PM here */
+		apple,min-state = <4>;
 	};
 };
 

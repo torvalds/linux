@@ -61,6 +61,14 @@ properties:
       Forces this power domain to always be powered up.
     type: boolean
 
+  apple,min-state:
+    description:
+      Specifies the minimum power state for auto-PM.
+      0 = power gated, 4 = clock gated, 15 = on.
+    $ref: /schemas/types.yaml#/definitions/uint32
+    minimum: 0
+    maximum: 15
+
 required:
   - compatible
   - reg
