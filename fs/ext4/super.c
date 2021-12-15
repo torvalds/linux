@@ -2081,7 +2081,7 @@ static void ext4_fc_free(struct fs_context *fc)
 
 int ext4_init_fs_context(struct fs_context *fc)
 {
-	struct xfs_fs_context	*ctx;
+	struct ext4_fs_context *ctx;
 
 	ctx = kzalloc(sizeof(struct ext4_fs_context), GFP_KERNEL);
 	if (!ctx)
