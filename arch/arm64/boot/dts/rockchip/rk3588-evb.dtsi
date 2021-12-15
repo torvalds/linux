@@ -88,7 +88,7 @@
 		status = "disabled";
 		compatible = "rockchip,hdmi";
 		rockchip,mclk-fs = <128>;
-		rockchip,card-name = "rockchip,hdmi0";
+		rockchip,card-name = "rockchip-hdmi0";
 		rockchip,cpu = <&i2s5_8ch>;
 		rockchip,codec = <&hdmi0>;
 		rockchip,jack-det;
@@ -98,7 +98,7 @@
 		status = "disabled";
 		compatible = "rockchip,hdmi";
 		rockchip,mclk-fs = <128>;
-		rockchip,card-name = "rockchip,hdmi1";
+		rockchip,card-name = "rockchip-hdmi1";
 		rockchip,cpu = <&i2s6_8ch>;
 		rockchip,codec = <&hdmi1>;
 		rockchip,jack-det;
