@@ -151,7 +151,6 @@ enum {
 
 int mlx5e_tc_esw_init(struct rhashtable *tc_ht);
 void mlx5e_tc_esw_cleanup(struct rhashtable *tc_ht);
-bool mlx5e_is_eswitch_flow(struct mlx5e_tc_flow *flow);
 
 int mlx5e_configure_flower(struct net_device *dev, struct mlx5e_priv *priv,
 			   struct flow_cls_offload *f, unsigned long flags);
