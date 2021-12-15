@@ -1150,7 +1150,7 @@ static int ad74413r_parse_channel_config(struct iio_dev *indio_dev,
 		return ret;
 	}
 
-	if (index > AD74413R_CHANNEL_MAX) {
+	if (index >= AD74413R_CHANNEL_MAX) {
 		dev_err(st->dev, "Channel index %u is too large\n", index);
 		return -EINVAL;
 	}
