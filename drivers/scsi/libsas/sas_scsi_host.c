@@ -37,7 +37,8 @@
 static void sas_end_task(struct scsi_cmnd *sc, struct sas_task *task)
 {
 	struct task_status_struct *ts = &task->task_status;
-	int hs = 0, stat = 0;
+	enum scsi_host_status hs = DID_OK;
+	enum exec_status stat = SAS_SAM_STAT_GOOD;
 
 	if (ts->resp == SAS_TASK_UNDELIVERED) {
 		/* transport error */
@@ -82,10 +83,10 @@ static void sas_end_task(struct scsi_cmnd *sc, struct sas_task *task)
 		case SAS_ABORTED_TASK:
 			hs = DID_ABORT;
 			break;
-		case SAM_STAT_CHECK_CONDITION:
+		case SAS_SAM_STAT_CHECK_CONDITION:
 			memcpy(sc->sense_buffer, ts->buf,
 			       min(SCSI_SENSE_BUFFERSIZE, ts->buf_valid_size));
-			stat = SAM_STAT_CHECK_CONDITION;
+			stat = SAS_SAM_STAT_CHECK_CONDITION;
 			break;
 		default:
 			stat = ts->stat;
