@@ -725,8 +725,9 @@
 		rockchip,vo-grf = <&vo0_grf>;
 		clocks = <&cru CLK_USBDPPHY_MIPIDCPPHY_REF>,
 			 <&cru CLK_USBDP_PHY1_IMMORTAL>,
-			 <&cru PCLK_USBDPPHY1>;
-		clock-names = "refclk", "immortal", "pclk";
+			 <&cru PCLK_USBDPPHY1>,
+			 <&u2phy1>;
+		clock-names = "refclk", "immortal", "pclk", "utmi";
 		resets = <&cru SRST_USBDP_COMBO_PHY1_INIT>,
 			 <&cru SRST_USBDP_COMBO_PHY1_CMN>,
 			 <&cru SRST_USBDP_COMBO_PHY1_LANE>,
