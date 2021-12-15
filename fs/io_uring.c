@@ -2778,7 +2778,7 @@ static bool __io_complete_rw_common(struct io_kiocb *req, long res)
 	return false;
 }
 
-static void io_req_task_complete(struct io_kiocb *req, bool *locked)
+static inline void io_req_task_complete(struct io_kiocb *req, bool *locked)
 {
 	unsigned int cflags = io_put_kbuf(req);
 	int res = req->result;
@@ -5903,6 +5903,7 @@ static int io_poll_update(struct io_kiocb *req, unsigned int issue_flags)
 	struct io_ring_ctx *ctx = req->ctx;
 	struct io_kiocb *preq;
 	int ret2, ret = 0;
+	bool locked;
 
 	spin_lock(&ctx->completion_lock);
 	preq = io_poll_find(ctx, req->poll_update.old_user_data, true);
@@ -5928,13 +5929,16 @@ static int io_poll_update(struct io_kiocb *req, unsigned int issue_flags)
 		if (!ret2)
 			goto out;
 	}
+
 	req_set_fail(preq);
-	io_req_complete(preq, -ECANCELED);
+	preq->result = -ECANCELED;
+	locked = !(issue_flags & IO_URING_F_UNLOCKED);
+	io_req_task_complete(preq, &locked);
 out:
 	if (ret < 0)
 		req_set_fail(req);
 	/* complete update request, we're done with it */
-	io_req_complete(req, ret);
+	__io_req_complete(req, issue_flags, ret, 0);
 	return 0;
 }
 
