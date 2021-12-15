@@ -526,6 +526,7 @@ struct mvneta_port {
 	unsigned int tx_csum_limit;
 	struct phylink *phylink;
 	struct phylink_config phylink_config;
+	struct phylink_pcs phylink_pcs;
 	struct phy *comphy;
 
 	struct mvneta_bm *bm_priv;
@@ -3846,29 +3847,15 @@ static int mvneta_set_mac_addr(struct net_device *dev, void *addr)
 	return 0;
 }
 
-static void mvneta_validate(struct phylink_config *config,
-			    unsigned long *supported,
-			    struct phylink_link_state *state)
+static struct mvneta_port *mvneta_pcs_to_port(struct phylink_pcs *pcs)
 {
-	/* We only support QSGMII, SGMII, 802.3z and RGMII modes.
-	 * When in 802.3z mode, we must have AN enabled:
-	 * "Bit 2 Field InBandAnEn In-band Auto-Negotiation enable. ...
-	 * When <PortType> = 1 (1000BASE-X) this field must be set to 1."
-	 */
-	if (phy_interface_mode_is_8023z(state->interface) &&
-	    !phylink_test(state->advertising, Autoneg)) {
-		linkmode_zero(supported);
-		return;
-	}
-
-	phylink_generic_validate(config, supported, state);
+	return container_of(pcs, struct mvneta_port, phylink_pcs);
 }
 
-static void mvneta_mac_pcs_get_state(struct phylink_config *config,
-				     struct phylink_link_state *state)
+static void mvneta_pcs_get_state(struct phylink_pcs *pcs,
+				 struct phylink_link_state *state)
 {
-	struct net_device *ndev = to_net_dev(config->dev);
-	struct mvneta_port *pp = netdev_priv(ndev);
+	struct mvneta_port *pp = mvneta_pcs_to_port(pcs);
 	u32 gmac_stat;
 
 	gmac_stat = mvreg_read(pp, MVNETA_GMAC_STATUS);
@@ -3886,23 +3873,101 @@ static void mvneta_mac_pcs_get_state(struct phylink_config *config,
 	state->link = !!(gmac_stat & MVNETA_GMAC_LINK_UP);
 	state->duplex = !!(gmac_stat & MVNETA_GMAC_FULL_DUPLEX);
 
-	state->pause = 0;
 	if (gmac_stat & MVNETA_GMAC_RX_FLOW_CTRL_ENABLE)
 		state->pause |= MLO_PAUSE_RX;
 	if (gmac_stat & MVNETA_GMAC_TX_FLOW_CTRL_ENABLE)
 		state->pause |= MLO_PAUSE_TX;
 }
 
-static void mvneta_mac_an_restart(struct phylink_config *config)
+static int mvneta_pcs_config(struct phylink_pcs *pcs,
+			     unsigned int mode, phy_interface_t interface,
+			     const unsigned long *advertising,
+			     bool permit_pause_to_mac)
 {
-	struct net_device *ndev = to_net_dev(config->dev);
-	struct mvneta_port *pp = netdev_priv(ndev);
+	struct mvneta_port *pp = mvneta_pcs_to_port(pcs);
+	u32 mask, val, an, old_an, changed;
+
+	mask = MVNETA_GMAC_INBAND_AN_ENABLE |
+	       MVNETA_GMAC_INBAND_RESTART_AN |
+	       MVNETA_GMAC_AN_SPEED_EN |
+	       MVNETA_GMAC_AN_FLOW_CTRL_EN |
+	       MVNETA_GMAC_AN_DUPLEX_EN;
+
+	if (phylink_autoneg_inband(mode)) {
+		mask |= MVNETA_GMAC_CONFIG_MII_SPEED |
+			MVNETA_GMAC_CONFIG_GMII_SPEED |
+			MVNETA_GMAC_CONFIG_FULL_DUPLEX;
+		val = MVNETA_GMAC_INBAND_AN_ENABLE;
+
+		if (interface == PHY_INTERFACE_MODE_SGMII) {
+			/* SGMII mode receives the speed and duplex from PHY */
+			val |= MVNETA_GMAC_AN_SPEED_EN |
+			       MVNETA_GMAC_AN_DUPLEX_EN;
+		} else {
+			/* 802.3z mode has fixed speed and duplex */
+			val |= MVNETA_GMAC_CONFIG_GMII_SPEED |
+			       MVNETA_GMAC_CONFIG_FULL_DUPLEX;
+
+			/* The FLOW_CTRL_EN bit selects either the hardware
+			 * automatically or the CONFIG_FLOW_CTRL manually
+			 * controls the GMAC pause mode.
+			 */
+			if (permit_pause_to_mac)
+				val |= MVNETA_GMAC_AN_FLOW_CTRL_EN;
+
+			/* Update the advertisement bits */
+			mask |= MVNETA_GMAC_ADVERT_SYM_FLOW_CTRL;
+			if (phylink_test(advertising, Pause))
+				val |= MVNETA_GMAC_ADVERT_SYM_FLOW_CTRL;
+		}
+	} else {
+		/* Phy or fixed speed - disable in-band AN modes */
+		val = 0;
+	}
+
+	old_an = an = mvreg_read(pp, MVNETA_GMAC_AUTONEG_CONFIG);
+	an = (an & ~mask) | val;
+	changed = old_an ^ an;
+	if (changed)
+		mvreg_write(pp, MVNETA_GMAC_AUTONEG_CONFIG, an);
+
+	/* We are only interested in the advertisement bits changing */
+	return !!(changed & MVNETA_GMAC_ADVERT_SYM_FLOW_CTRL);
+}
+
+static void mvneta_pcs_an_restart(struct phylink_pcs *pcs)
+{
+	struct mvneta_port *pp = mvneta_pcs_to_port(pcs);
 	u32 gmac_an = mvreg_read(pp, MVNETA_GMAC_AUTONEG_CONFIG);
 
 	mvreg_write(pp, MVNETA_GMAC_AUTONEG_CONFIG,
 		    gmac_an | MVNETA_GMAC_INBAND_RESTART_AN);
 	mvreg_write(pp, MVNETA_GMAC_AUTONEG_CONFIG,
 		    gmac_an & ~MVNETA_GMAC_INBAND_RESTART_AN);
+}
+
+static const struct phylink_pcs_ops mvneta_phylink_pcs_ops = {
+	.pcs_get_state = mvneta_pcs_get_state,
+	.pcs_config = mvneta_pcs_config,
+	.pcs_an_restart = mvneta_pcs_an_restart,
+};
+
+static void mvneta_validate(struct phylink_config *config,
+			    unsigned long *supported,
+			    struct phylink_link_state *state)
+{
+	/* We only support QSGMII, SGMII, 802.3z and RGMII modes.
+	 * When in 802.3z mode, we must have AN enabled:
+	 * "Bit 2 Field InBandAnEn In-band Auto-Negotiation enable. ...
+	 * When <PortType> = 1 (1000BASE-X) this field must be set to 1."
+	 */
+	if (phy_interface_mode_is_8023z(state->interface) &&
+	    !phylink_test(state->advertising, Autoneg)) {
+		linkmode_zero(supported);
+		return;
+	}
+
+	phylink_generic_validate(config, supported, state);
 }
 
 static int mvneta_mac_prepare(struct phylink_config *config, unsigned int mode,
@@ -3947,18 +4012,11 @@ static void mvneta_mac_config(struct phylink_config *config, unsigned int mode,
 	u32 new_ctrl0, gmac_ctrl0 = mvreg_read(pp, MVNETA_GMAC_CTRL_0);
 	u32 new_ctrl2, gmac_ctrl2 = mvreg_read(pp, MVNETA_GMAC_CTRL_2);
 	u32 new_ctrl4, gmac_ctrl4 = mvreg_read(pp, MVNETA_GMAC_CTRL_4);
-	u32 new_an, gmac_an = mvreg_read(pp, MVNETA_GMAC_AUTONEG_CONFIG);
 
 	new_ctrl0 = gmac_ctrl0 & ~MVNETA_GMAC0_PORT_1000BASE_X;
 	new_ctrl2 = gmac_ctrl2 & ~(MVNETA_GMAC2_INBAND_AN_ENABLE |
 				   MVNETA_GMAC2_PORT_RESET);
 	new_ctrl4 = gmac_ctrl4 & ~(MVNETA_GMAC4_SHORT_PREAMBLE_ENABLE);
-	new_an = gmac_an & ~(MVNETA_GMAC_INBAND_AN_ENABLE |
-			     MVNETA_GMAC_INBAND_RESTART_AN |
-			     MVNETA_GMAC_AN_SPEED_EN |
-			     MVNETA_GMAC_ADVERT_SYM_FLOW_CTRL |
-			     MVNETA_GMAC_AN_FLOW_CTRL_EN |
-			     MVNETA_GMAC_AN_DUPLEX_EN);
 
 	/* Even though it might look weird, when we're configured in
 	 * SGMII or QSGMII mode, the RGMII bit needs to be set.
@@ -3970,9 +4028,6 @@ static void mvneta_mac_config(struct phylink_config *config, unsigned int mode,
 	    phy_interface_mode_is_8023z(state->interface))
 		new_ctrl2 |= MVNETA_GMAC2_PCS_ENABLE;
 
-	if (phylink_test(state->advertising, Pause))
-		new_an |= MVNETA_GMAC_ADVERT_SYM_FLOW_CTRL;
-
 	if (!phylink_autoneg_inband(mode)) {
 		/* Phy or fixed speed - nothing to do, leave the
 		 * configured speed, duplex and flow control as-is.
@@ -3980,23 +4035,9 @@ static void mvneta_mac_config(struct phylink_config *config, unsigned int mode,
 	} else if (state->interface == PHY_INTERFACE_MODE_SGMII) {
 		/* SGMII mode receives the state from the PHY */
 		new_ctrl2 |= MVNETA_GMAC2_INBAND_AN_ENABLE;
-		new_an = (new_an & ~(MVNETA_GMAC_CONFIG_MII_SPEED |
-				     MVNETA_GMAC_CONFIG_GMII_SPEED |
-				     MVNETA_GMAC_CONFIG_FULL_DUPLEX)) |
-			 MVNETA_GMAC_INBAND_AN_ENABLE |
-			 MVNETA_GMAC_AN_SPEED_EN |
-			 MVNETA_GMAC_AN_DUPLEX_EN;
 	} else {
 		/* 802.3z negotiation - only 1000base-X */
 		new_ctrl0 |= MVNETA_GMAC0_PORT_1000BASE_X;
-		new_an = (new_an & ~MVNETA_GMAC_CONFIG_MII_SPEED) |
-			 MVNETA_GMAC_INBAND_AN_ENABLE |
-			 MVNETA_GMAC_CONFIG_GMII_SPEED |
-			 /* The MAC only supports FD mode */
-			 MVNETA_GMAC_CONFIG_FULL_DUPLEX;
-
-		if (state->pause & MLO_PAUSE_AN && state->an_enabled)
-			new_an |= MVNETA_GMAC_AN_FLOW_CTRL_EN;
 	}
 
 	/* When at 2.5G, the link partner can send frames with shortened
@@ -4011,8 +4052,6 @@ static void mvneta_mac_config(struct phylink_config *config, unsigned int mode,
 		mvreg_write(pp, MVNETA_GMAC_CTRL_2, new_ctrl2);
 	if (new_ctrl4 != gmac_ctrl4)
 		mvreg_write(pp, MVNETA_GMAC_CTRL_4, new_ctrl4);
-	if (new_an != gmac_an)
-		mvreg_write(pp, MVNETA_GMAC_AUTONEG_CONFIG, new_an);
 
 	if (gmac_ctrl2 & MVNETA_GMAC2_PORT_RESET) {
 		while ((mvreg_read(pp, MVNETA_GMAC_CTRL_2) &
@@ -4138,8 +4177,6 @@ static void mvneta_mac_link_up(struct phylink_config *config,
 
 static const struct phylink_mac_ops mvneta_phylink_ops = {
 	.validate = mvneta_validate,
-	.mac_pcs_get_state = mvneta_mac_pcs_get_state,
-	.mac_an_restart = mvneta_mac_an_restart,
 	.mac_prepare = mvneta_mac_prepare,
 	.mac_config = mvneta_mac_config,
 	.mac_finish = mvneta_mac_finish,
@@ -5308,7 +5345,6 @@ static int mvneta_probe(struct platform_device *pdev)
 
 	pp->phylink_config.dev = &dev->dev;
 	pp->phylink_config.type = PHYLINK_NETDEV;
-	pp->phylink_config.legacy_pre_march2020 = true;
 	pp->phylink_config.mac_capabilities = MAC_SYM_PAUSE | MAC_10 |
 		MAC_100 | MAC_1000FD | MAC_2500FD;
 
@@ -5382,6 +5418,9 @@ static int mvneta_probe(struct platform_device *pdev)
 		err = PTR_ERR(pp->base);
 		goto err_clk;
 	}
+
+	pp->phylink_pcs.ops = &mvneta_phylink_pcs_ops;
+	phylink_set_pcs(phylink, &pp->phylink_pcs);
 
 	/* Alloc per-cpu port structure */
 	pp->ports = alloc_percpu(struct mvneta_pcpu_port);
