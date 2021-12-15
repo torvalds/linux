@@ -3852,6 +3852,22 @@ static struct mvneta_port *mvneta_pcs_to_port(struct phylink_pcs *pcs)
 	return container_of(pcs, struct mvneta_port, phylink_pcs);
 }
 
+static int mvneta_pcs_validate(struct phylink_pcs *pcs,
+			       unsigned long *supported,
+			       const struct phylink_link_state *state)
+{
+	/* We only support QSGMII, SGMII, 802.3z and RGMII modes.
+	 * When in 802.3z mode, we must have AN enabled:
+	 * "Bit 2 Field InBandAnEn In-band Auto-Negotiation enable. ...
+	 * When <PortType> = 1 (1000BASE-X) this field must be set to 1."
+	 */
+	if (phy_interface_mode_is_8023z(state->interface) &&
+	    !phylink_test(state->advertising, Autoneg))
+		return -EINVAL;
+
+	return 0;
+}
+
 static void mvneta_pcs_get_state(struct phylink_pcs *pcs,
 				 struct phylink_link_state *state)
 {
@@ -3947,28 +3963,11 @@ static void mvneta_pcs_an_restart(struct phylink_pcs *pcs)
 }
 
 static const struct phylink_pcs_ops mvneta_phylink_pcs_ops = {
+	.pcs_validate = mvneta_pcs_validate,
 	.pcs_get_state = mvneta_pcs_get_state,
 	.pcs_config = mvneta_pcs_config,
 	.pcs_an_restart = mvneta_pcs_an_restart,
 };
-
-static void mvneta_validate(struct phylink_config *config,
-			    unsigned long *supported,
-			    struct phylink_link_state *state)
-{
-	/* We only support QSGMII, SGMII, 802.3z and RGMII modes.
-	 * When in 802.3z mode, we must have AN enabled:
-	 * "Bit 2 Field InBandAnEn In-band Auto-Negotiation enable. ...
-	 * When <PortType> = 1 (1000BASE-X) this field must be set to 1."
-	 */
-	if (phy_interface_mode_is_8023z(state->interface) &&
-	    !phylink_test(state->advertising, Autoneg)) {
-		linkmode_zero(supported);
-		return;
-	}
-
-	phylink_generic_validate(config, supported, state);
-}
 
 static int mvneta_mac_prepare(struct phylink_config *config, unsigned int mode,
 			      phy_interface_t interface)
@@ -4176,7 +4175,7 @@ static void mvneta_mac_link_up(struct phylink_config *config,
 }
 
 static const struct phylink_mac_ops mvneta_phylink_ops = {
-	.validate = mvneta_validate,
+	.validate = phylink_generic_validate,
 	.mac_prepare = mvneta_mac_prepare,
 	.mac_config = mvneta_mac_config,
 	.mac_finish = mvneta_mac_finish,
