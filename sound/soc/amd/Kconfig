@@ -98,7 +98,7 @@ config SND_SOC_AMD_YC_MACH
 
 config SND_AMD_ACP_CONFIG
 	tristate "AMD ACP configuration selection"
-	depends on SND_SOC_ACPI
+	select SND_SOC_ACPI if ACPI
 	help
 	 This option adds an auto detection to determine which ACP
 	 driver modules to use
