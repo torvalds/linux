@@ -13,16 +13,12 @@
 #include <dt-bindings/gpio/gpio.h>
 
 / {
-	model = "Engicam i.Core STM32MP1 EDIMM2.2 Starter Kit";
-	compatible = "engicam,icore-stm32mp1-edimm2.2",
+	model = "Engicam i.Core STM32MP1 C.TOUCH 2.0 10.1\" Open Frame";
+	compatible = "engicam,icore-stm32mp1-ctouch2-of10",
 		     "engicam,icore-stm32mp1", "st,stm32mp157";
 
 	aliases {
 		serial0 = &uart4;
-	};
-
-	chosen {
-		stdout-path = "serial0:115200n8";
 	};
 
 	backlight: backlight {
@@ -31,14 +27,18 @@
 		default-on;
 	};
 
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
+
 	panel {
-		compatible = "yes-optoelectronics,ytc700tlag-05-201c";
+		compatible = "ampire,am-1280800n3tzqw-t00h";
 		backlight = <&backlight>;
 		power-supply = <&v3v3>;
 
 		port {
-			panel_out_bridge: endpoint {
-				remote-endpoint = <&bridge_out_panel>;
+			panel_in_lvds: endpoint {
+				remote-endpoint = <&bridge_out>;
 			};
 		};
 	};
@@ -51,15 +51,15 @@
 	ports {
 		port@0 {
 			reg = <0>;
-			dsi_in_ltdc: endpoint {
-				remote-endpoint = <&ltdc_out_dsi>;
+			dsi_in: endpoint {
+				remote-endpoint = <&ltdc_ep0_out>;
 			};
 		};
 
 		port@1 {
 			reg = <1>;
-			dsi_out_bridge: endpoint {
-				remote-endpoint = <&bridge_in_dsi>;
+			dsi_out: endpoint {
+				remote-endpoint = <&bridge_in>;
 			};
 		};
 	};
@@ -84,16 +84,16 @@
 
 			port@0 {
 				reg = <0>;
-				bridge_in_dsi: endpoint {
-					remote-endpoint = <&dsi_out_bridge>;
+				bridge_in: endpoint {
+					remote-endpoint = <&dsi_out>;
 					data-lanes = <1 2>;
 				};
 			};
 
 			port@2 {
 				reg = <2>;
-				bridge_out_panel: endpoint {
-					remote-endpoint = <&panel_out_bridge>;
+				bridge_out: endpoint {
+					remote-endpoint = <&panel_in_lvds>;
 				};
 			};
 		};
@@ -104,9 +104,9 @@
 	status = "okay";
 
 	port {
-		ltdc_out_dsi: endpoint@0 {
+		ltdc_ep0_out: endpoint@0 {
 			reg = <0>;
-			remote-endpoint = <&dsi_in_ltdc>;
+			remote-endpoint = <&dsi_in>;
 		};
 	};
 };
