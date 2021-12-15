@@ -16,8 +16,6 @@
 #include <linux/ioport.h>
 #include <linux/lantiq.h>
 #include <linux/module.h>
-#include <linux/of_address.h>
-#include <linux/of_irq.h>
 #include <linux/of_platform.h>
 #include <linux/serial.h>
 #include <linux/serial_core.h>
@@ -728,19 +726,19 @@ static struct uart_driver lqasc_reg = {
 static int fetch_irq_lantiq(struct device *dev, struct ltq_uart_port *ltq_port)
 {
 	struct uart_port *port = &ltq_port->port;
-	struct resource irqres[3];
-	int ret;
+	struct platform_device *pdev = to_platform_device(dev);
 
-	ret = of_irq_to_resource_table(dev->of_node, irqres, 3);
-	if (ret != 3) {
-		dev_err(dev,
-			"failed to get IRQs for serial port\n");
-		return -ENODEV;
-	}
-	ltq_port->tx_irq = irqres[0].start;
-	ltq_port->rx_irq = irqres[1].start;
-	ltq_port->err_irq = irqres[2].start;
-	port->irq = irqres[0].start;
+	ltq_port->tx_irq = platform_get_irq(pdev, 0);
+	if (ltq_port->tx_irq < 0)
+		return ltq_port->tx_irq;
+	ltq_port->rx_irq = platform_get_irq(pdev, 1);
+	if (ltq_port->rx_irq < 0)
+		return ltq_port->rx_irq;
+	ltq_port->err_irq = platform_get_irq(pdev, 2);
+	if (ltq_port->err_irq < 0)
+		return ltq_port->err_irq;
+
+	port->irq = ltq_port->tx_irq;
 
 	return 0;
 }
@@ -793,7 +791,7 @@ static int fetch_irq_intel(struct device *dev, struct ltq_uart_port *ltq_port)
 	struct uart_port *port = &ltq_port->port;
 	int ret;
 
-	ret = of_irq_get(dev->of_node, 0);
+	ret = platform_get_irq(to_platform_device(dev), 0);
 	if (ret < 0) {
 		dev_err(dev, "failed to fetch IRQ for serial port\n");
 		return ret;
