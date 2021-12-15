@@ -419,6 +419,23 @@ void phylink_generic_validate(struct phylink_config *config,
 }
 EXPORT_SYMBOL_GPL(phylink_generic_validate);
 
+static int phylink_validate_mac_and_pcs(struct phylink *pl,
+					unsigned long *supported,
+					struct phylink_link_state *state)
+{
+	struct phylink_pcs *pcs;
+
+	if (pl->mac_ops->mac_select_pcs) {
+		pcs = pl->mac_ops->mac_select_pcs(pl->config, state->interface);
+		if (IS_ERR(pcs))
+			return PTR_ERR(pcs);
+	}
+
+	pl->mac_ops->validate(pl->config, supported, state);
+
+	return phylink_is_empty_linkmode(supported) ? -EINVAL : 0;
+}
+
 static int phylink_validate_any(struct phylink *pl, unsigned long *supported,
 				struct phylink_link_state *state)
 {
@@ -434,9 +451,10 @@ static int phylink_validate_any(struct phylink *pl, unsigned long *supported,
 
 			t = *state;
 			t.interface = intf;
-			pl->mac_ops->validate(pl->config, s, &t);
-			linkmode_or(all_s, all_s, s);
-			linkmode_or(all_adv, all_adv, t.advertising);
+			if (!phylink_validate_mac_and_pcs(pl, s, &t)) {
+				linkmode_or(all_s, all_s, s);
+				linkmode_or(all_adv, all_adv, t.advertising);
+			}
 		}
 	}
 
@@ -458,9 +476,7 @@ static int phylink_validate(struct phylink *pl, unsigned long *supported,
 			return -EINVAL;
 	}
 
-	pl->mac_ops->validate(pl->config, supported, state);
-
-	return phylink_is_empty_linkmode(supported) ? -EINVAL : 0;
+	return phylink_validate_mac_and_pcs(pl, supported, state);
 }
 
 static int phylink_parse_fixedlink(struct phylink *pl,
@@ -750,9 +766,20 @@ static void phylink_mac_pcs_an_restart(struct phylink *pl)
 static void phylink_major_config(struct phylink *pl, bool restart,
 				  const struct phylink_link_state *state)
 {
+	struct phylink_pcs *pcs = NULL;
 	int err;
 
 	phylink_dbg(pl, "major config %s\n", phy_modes(state->interface));
+
+	if (pl->mac_ops->mac_select_pcs) {
+		pcs = pl->mac_ops->mac_select_pcs(pl->config, state->interface);
+		if (IS_ERR(pcs)) {
+			phylink_err(pl,
+				    "mac_select_pcs unexpectedly failed: %pe\n",
+				    pcs);
+			return;
+		}
+	}
 
 	if (pl->mac_ops->mac_prepare) {
 		err = pl->mac_ops->mac_prepare(pl->config, pl->cur_link_an_mode,
@@ -763,6 +790,12 @@ static void phylink_major_config(struct phylink *pl, bool restart,
 			return;
 		}
 	}
+
+	/* If we have a new PCS, switch to the new PCS after preparing the MAC
+	 * for the change.
+	 */
+	if (pcs)
+		phylink_set_pcs(pl, pcs);
 
 	phylink_mac_config(pl, state);
 
@@ -1155,6 +1188,14 @@ struct phylink *phylink_create(struct phylink_config *config,
 	struct phylink *pl;
 	int ret;
 
+	/* Validate the supplied configuration */
+	if (mac_ops->mac_select_pcs &&
+	    phy_interface_empty(config->supported_interfaces)) {
+		dev_err(config->dev,
+			"phylink: error: empty supported_interfaces but mac_select_pcs() method present\n");
+		return ERR_PTR(-EINVAL);
+	}
+
 	pl = kzalloc(sizeof(*pl), GFP_KERNEL);
 	if (!pl)
 		return ERR_PTR(-ENOMEM);
@@ -1222,9 +1263,10 @@ EXPORT_SYMBOL_GPL(phylink_create);
  * @pl: a pointer to a &struct phylink returned from phylink_create()
  * @pcs: a pointer to the &struct phylink_pcs
  *
- * Bind the MAC PCS to phylink.  This may be called after phylink_create(),
- * in mac_prepare() or mac_config() methods if it is desired to dynamically
- * change the PCS.
+ * Bind the MAC PCS to phylink.  This may be called after phylink_create().
+ * If it is desired to dynamically change the PCS, then the preferred method
+ * is to use mac_select_pcs(), but it may also be called in mac_prepare()
+ * or mac_config().
  *
  * Please note that there are behavioural changes with the mac_config()
  * callback if a PCS is present (denoting a newer setup) so removing a PCS
@@ -1235,6 +1277,14 @@ void phylink_set_pcs(struct phylink *pl, struct phylink_pcs *pcs)
 {
 	pl->pcs = pcs;
 	pl->pcs_ops = pcs->ops;
+
+	if (!pl->phylink_disable_state &&
+	    pl->cfg_link_an_mode == MLO_AN_INBAND) {
+		if (pl->config->pcs_poll || pcs->poll)
+			mod_timer(&pl->link_poll, jiffies + HZ);
+		else
+			del_timer(&pl->link_poll);
+	}
 }
 EXPORT_SYMBOL_GPL(phylink_set_pcs);
 

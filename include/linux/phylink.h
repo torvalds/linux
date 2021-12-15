@@ -112,6 +112,7 @@ struct phylink_config {
 /**
  * struct phylink_mac_ops - MAC operations structure.
  * @validate: Validate and update the link configuration.
+ * @mac_select_pcs: Select a PCS for the interface mode.
  * @mac_pcs_get_state: Read the current link state from the hardware.
  * @mac_prepare: prepare for a major reconfiguration of the interface.
  * @mac_config: configure the MAC for the selected mode and state.
@@ -126,6 +127,8 @@ struct phylink_mac_ops {
 	void (*validate)(struct phylink_config *config,
 			 unsigned long *supported,
 			 struct phylink_link_state *state);
+	struct phylink_pcs *(*mac_select_pcs)(struct phylink_config *config,
+					      phy_interface_t interface);
 	void (*mac_pcs_get_state)(struct phylink_config *config,
 				  struct phylink_link_state *state);
 	int (*mac_prepare)(struct phylink_config *config, unsigned int mode,
@@ -178,6 +181,21 @@ struct phylink_mac_ops {
  */
 void validate(struct phylink_config *config, unsigned long *supported,
 	      struct phylink_link_state *state);
+/**
+ * mac_select_pcs: Select a PCS for the interface mode.
+ * @config: a pointer to a &struct phylink_config.
+ * @interface: PHY interface mode for PCS
+ *
+ * Return the &struct phylink_pcs for the specified interface mode, or
+ * NULL if none is required, or an error pointer on error.
+ *
+ * This must not modify any state. It is used to query which PCS should
+ * be used. Phylink will use this during validation to ensure that the
+ * configuration is valid, and when setting a configuration to internally
+ * set the PCS that will be used.
+ */
+struct phylink_pcs *mac_select_pcs(struct phylink_config *config,
+				   phy_interface_t interface);
 
 /**
  * mac_pcs_get_state() - Read the current inband link state from the hardware
