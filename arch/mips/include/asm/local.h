@@ -5,6 +5,7 @@
 #include <linux/percpu.h>
 #include <linux/bitops.h>
 #include <linux/atomic.h>
+#include <asm/asm.h>
 #include <asm/cmpxchg.h>
 #include <asm/compiler.h>
 #include <asm/war.h>
@@ -39,7 +40,7 @@ static __inline__ long local_add_return(long i, local_t * l)
 		"	.set	arch=r4000				\n"
 			__SYNC(full, loongson3_war) "			\n"
 		"1:"	__LL	"%1, %2		# local_add_return	\n"
-		"	addu	%0, %1, %3				\n"
+			__stringify(LONG_ADDU)	"	%0, %1, %3	\n"
 			__SC	"%0, %2					\n"
 		"	beqzl	%0, 1b					\n"
 		"	addu	%0, %1, %3				\n"
@@ -55,7 +56,7 @@ static __inline__ long local_add_return(long i, local_t * l)
 		"	.set	"MIPS_ISA_ARCH_LEVEL"			\n"
 			__SYNC(full, loongson3_war) "			\n"
 		"1:"	__LL	"%1, %2		# local_add_return	\n"
-		"	addu	%0, %1, %3				\n"
+			__stringify(LONG_ADDU)	"	%0, %1, %3	\n"
 			__SC	"%0, %2					\n"
 		"	beqz	%0, 1b					\n"
 		"	addu	%0, %1, %3				\n"
@@ -88,7 +89,7 @@ static __inline__ long local_sub_return(long i, local_t * l)
 		"	.set	arch=r4000				\n"
 			__SYNC(full, loongson3_war) "			\n"
 		"1:"	__LL	"%1, %2		# local_sub_return	\n"
-		"	subu	%0, %1, %3				\n"
+			__stringify(LONG_SUBU)	"	%0, %1, %3	\n"
 			__SC	"%0, %2					\n"
 		"	beqzl	%0, 1b					\n"
 		"	subu	%0, %1, %3				\n"
@@ -104,7 +105,7 @@ static __inline__ long local_sub_return(long i, local_t * l)
 		"	.set	"MIPS_ISA_ARCH_LEVEL"			\n"
 			__SYNC(full, loongson3_war) "			\n"
 		"1:"	__LL	"%1, %2		# local_sub_return	\n"
-		"	subu	%0, %1, %3				\n"
+			__stringify(LONG_SUBU)	"	%0, %1, %3	\n"
 			__SC	"%0, %2					\n"
 		"	beqz	%0, 1b					\n"
 		"	subu	%0, %1, %3				\n"
