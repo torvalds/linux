@@ -900,7 +900,8 @@ static bool rtl8365mb_phy_mode_supported(struct dsa_switch *ds, int port,
 {
 	if (dsa_is_user_port(ds, port) &&
 	    (interface == PHY_INTERFACE_MODE_NA ||
-	     interface == PHY_INTERFACE_MODE_INTERNAL))
+	     interface == PHY_INTERFACE_MODE_INTERNAL ||
+	     interface == PHY_INTERFACE_MODE_GMII))
 		/* Internal PHY */
 		return true;
 	else if (dsa_is_cpu_port(ds, port) &&
