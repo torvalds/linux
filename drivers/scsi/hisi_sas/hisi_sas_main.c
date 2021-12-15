@@ -397,8 +397,7 @@ err_out_dif_dma_unmap:
 
 static int hisi_sas_task_prep(struct sas_task *task,
 			      struct hisi_sas_dq **dq_pointer,
-			      bool is_tmf, struct hisi_sas_tmf_task *tmf,
-			      int *pass)
+			      bool is_tmf, struct hisi_sas_tmf_task *tmf)
 {
 	struct domain_device *device = task->dev;
 	struct hisi_hba *hisi_hba = dev_to_hisi_hba(device);
@@ -536,8 +535,11 @@ static int hisi_sas_task_prep(struct sas_task *task,
 	task->task_state_flags |= SAS_TASK_AT_INITIATOR;
 	spin_unlock_irqrestore(&task->task_state_lock, flags);
 
-	++(*pass);
 	WRITE_ONCE(slot->ready, 1);
+
+	spin_lock(&dq->lock);
+	hisi_hba->hw->start_delivery(dq);
+	spin_unlock(&dq->lock);
 
 	return 0;
 
@@ -556,7 +558,6 @@ static int hisi_sas_task_exec(struct sas_task *task, gfp_t gfp_flags,
 			      bool is_tmf, struct hisi_sas_tmf_task *tmf)
 {
 	u32 rc;
-	u32 pass = 0;
 	struct hisi_hba *hisi_hba;
 	struct device *dev;
 	struct domain_device *device = task->dev;
@@ -589,15 +590,9 @@ static int hisi_sas_task_exec(struct sas_task *task, gfp_t gfp_flags,
 	}
 
 	/* protect task_prep and start_delivery sequence */
-	rc = hisi_sas_task_prep(task, &dq, is_tmf, tmf, &pass);
+	rc = hisi_sas_task_prep(task, &dq, is_tmf, tmf);
 	if (rc)
 		dev_err(dev, "task exec: failed[%d]!\n", rc);
-
-	if (likely(pass)) {
-		spin_lock(&dq->lock);
-		hisi_hba->hw->start_delivery(dq);
-		spin_unlock(&dq->lock);
-	}
 
 	return rc;
 }
