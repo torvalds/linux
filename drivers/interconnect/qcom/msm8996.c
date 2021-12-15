@@ -1811,6 +1811,7 @@ static const struct regmap_config msm8996_a0noc_regmap_config = {
 };
 
 static const struct qcom_icc_desc msm8996_a0noc = {
+	.type = QCOM_ICC_NOC,
 	.nodes = a0noc_nodes,
 	.num_nodes = ARRAY_SIZE(a0noc_nodes),
 	.clocks = bus_a0noc_clocks,
@@ -1834,6 +1835,7 @@ static const struct regmap_config msm8996_a1noc_regmap_config = {
 };
 
 static const struct qcom_icc_desc msm8996_a1noc = {
+	.type = QCOM_ICC_NOC,
 	.nodes = a1noc_nodes,
 	.num_nodes = ARRAY_SIZE(a1noc_nodes),
 	.regmap_cfg = &msm8996_a1noc_regmap_config
@@ -1854,6 +1856,7 @@ static const struct regmap_config msm8996_a2noc_regmap_config = {
 };
 
 static const struct qcom_icc_desc msm8996_a2noc = {
+	.type = QCOM_ICC_NOC,
 	.nodes = a2noc_nodes,
 	.num_nodes = ARRAY_SIZE(a2noc_nodes),
 	.regmap_cfg = &msm8996_a2noc_regmap_config
@@ -1879,9 +1882,9 @@ static const struct regmap_config msm8996_bimc_regmap_config = {
 };
 
 static const struct qcom_icc_desc msm8996_bimc = {
+	.type = QCOM_ICC_BIMC,
 	.nodes = bimc_nodes,
 	.num_nodes = ARRAY_SIZE(bimc_nodes),
-	.is_bimc_node = true,
 	.regmap_cfg = &msm8996_bimc_regmap_config
 };
 
@@ -1937,6 +1940,7 @@ static const struct regmap_config msm8996_cnoc_regmap_config = {
 };
 
 static const struct qcom_icc_desc msm8996_cnoc = {
+	.type = QCOM_ICC_NOC,
 	.nodes = cnoc_nodes,
 	.num_nodes = ARRAY_SIZE(cnoc_nodes),
 	.regmap_cfg = &msm8996_cnoc_regmap_config
@@ -1989,6 +1993,7 @@ static const struct regmap_config msm8996_mnoc_regmap_config = {
 };
 
 static const struct qcom_icc_desc msm8996_mnoc = {
+	.type = QCOM_ICC_NOC,
 	.nodes = mnoc_nodes,
 	.num_nodes = ARRAY_SIZE(mnoc_nodes),
 	.clocks = bus_mm_clocks,
@@ -2026,6 +2031,7 @@ static const struct regmap_config msm8996_pnoc_regmap_config = {
 };
 
 static const struct qcom_icc_desc msm8996_pnoc = {
+	.type = QCOM_ICC_NOC,
 	.nodes = pnoc_nodes,
 	.num_nodes = ARRAY_SIZE(pnoc_nodes),
 	.regmap_cfg = &msm8996_pnoc_regmap_config
@@ -2069,6 +2075,7 @@ static const struct regmap_config msm8996_snoc_regmap_config = {
 };
 
 static const struct qcom_icc_desc msm8996_snoc = {
+	.type = QCOM_ICC_NOC,
 	.nodes = snoc_nodes,
 	.num_nodes = ARRAY_SIZE(snoc_nodes),
 	.regmap_cfg = &msm8996_snoc_regmap_config
