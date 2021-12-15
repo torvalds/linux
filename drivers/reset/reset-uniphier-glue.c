@@ -23,7 +23,7 @@ struct uniphier_glue_reset_soc_data {
 
 struct uniphier_glue_reset_priv {
 	struct clk_bulk_data clk[MAX_CLKS];
-	struct reset_control *rst[MAX_RSTS];
+	struct reset_control_bulk_data rst[MAX_RSTS];
 	struct reset_simple_data rdata;
 	const struct uniphier_glue_reset_soc_data *data;
 };
@@ -34,8 +34,7 @@ static int uniphier_glue_reset_probe(struct platform_device *pdev)
 	struct uniphier_glue_reset_priv *priv;
 	struct resource *res;
 	resource_size_t size;
-	const char *name;
-	int i, ret, nr;
+	int i, ret;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
@@ -58,22 +57,20 @@ static int uniphier_glue_reset_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	for (i = 0; i < priv->data->nrsts; i++) {
-		name = priv->data->reset_names[i];
-		priv->rst[i] = devm_reset_control_get_shared(dev, name);
-		if (IS_ERR(priv->rst[i]))
-			return PTR_ERR(priv->rst[i]);
-	}
+	for (i = 0; i < priv->data->nrsts; i++)
+		priv->rst[i].id = priv->data->reset_names[i];
+	ret = devm_reset_control_bulk_get_shared(dev, priv->data->nrsts,
+						 priv->rst);
+	if (ret)
+		return ret;
 
 	ret = clk_bulk_prepare_enable(priv->data->nclks, priv->clk);
 	if (ret)
 		return ret;
 
-	for (nr = 0; nr < priv->data->nrsts; nr++) {
-		ret = reset_control_deassert(priv->rst[nr]);
-		if (ret)
-			goto out_rst_assert;
-	}
+	ret = reset_control_bulk_deassert(priv->data->nrsts, priv->rst);
+	if (ret)
+		goto out_clk_disable;
 
 	spin_lock_init(&priv->rdata.lock);
 	priv->rdata.rcdev.owner = THIS_MODULE;
@@ -91,9 +88,9 @@ static int uniphier_glue_reset_probe(struct platform_device *pdev)
 	return 0;
 
 out_rst_assert:
-	while (nr--)
-		reset_control_assert(priv->rst[nr]);
+	reset_control_bulk_assert(priv->data->nrsts, priv->rst);
 
+out_clk_disable:
 	clk_bulk_disable_unprepare(priv->data->nclks, priv->clk);
 
 	return ret;
@@ -102,10 +99,8 @@ out_rst_assert:
 static int uniphier_glue_reset_remove(struct platform_device *pdev)
 {
 	struct uniphier_glue_reset_priv *priv = platform_get_drvdata(pdev);
-	int i;
 
-	for (i = 0; i < priv->data->nrsts; i++)
-		reset_control_assert(priv->rst[i]);
+	reset_control_bulk_assert(priv->data->nrsts, priv->rst);
 
 	clk_bulk_disable_unprepare(priv->data->nclks, priv->clk);
 
