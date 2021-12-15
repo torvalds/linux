@@ -251,15 +251,15 @@ static int vc4_drm_bind(struct device *dev)
 	if (ret)
 		return ret;
 
+	ret = drm_aperture_remove_framebuffers(false, &vc4_drm_driver);
+	if (ret)
+		return ret;
+
 	ret = component_bind_all(dev, drm);
 	if (ret)
 		return ret;
 
 	ret = vc4_plane_create_additional_planes(drm);
-	if (ret)
-		goto unbind_all;
-
-	ret = drm_aperture_remove_framebuffers(false, &vc4_drm_driver);
 	if (ret)
 		goto unbind_all;
 
