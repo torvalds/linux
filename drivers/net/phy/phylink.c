@@ -424,13 +424,44 @@ static int phylink_validate_mac_and_pcs(struct phylink *pl,
 					struct phylink_link_state *state)
 {
 	struct phylink_pcs *pcs;
+	int ret;
 
+	/* Get the PCS for this interface mode */
 	if (pl->mac_ops->mac_select_pcs) {
 		pcs = pl->mac_ops->mac_select_pcs(pl->config, state->interface);
 		if (IS_ERR(pcs))
 			return PTR_ERR(pcs);
+	} else {
+		pcs = pl->pcs;
 	}
 
+	if (pcs) {
+		/* The PCS, if present, must be setup before phylink_create()
+		 * has been called. If the ops is not initialised, print an
+		 * error and backtrace rather than oopsing the kernel.
+		 */
+		if (!pcs->ops) {
+			phylink_err(pl, "interface %s: uninitialised PCS\n",
+				    phy_modes(state->interface));
+			dump_stack();
+			return -EINVAL;
+		}
+
+		/* Validate the link parameters with the PCS */
+		if (pcs->ops->pcs_validate) {
+			ret = pcs->ops->pcs_validate(pcs, supported, state);
+			if (ret < 0 || phylink_is_empty_linkmode(supported))
+				return -EINVAL;
+
+			/* Ensure the advertising mask is a subset of the
+			 * supported mask.
+			 */
+			linkmode_and(state->advertising, state->advertising,
+				     supported);
+		}
+	}
+
+	/* Then validate the link parameters with the MAC */
 	pl->mac_ops->validate(pl->config, supported, state);
 
 	return phylink_is_empty_linkmode(supported) ? -EINVAL : 0;

@@ -416,6 +416,7 @@ struct phylink_pcs {
 
 /**
  * struct phylink_pcs_ops - MAC PCS operations structure.
+ * @pcs_validate: validate the link configuration.
  * @pcs_get_state: read the current MAC PCS link state from the hardware.
  * @pcs_config: configure the MAC PCS for the selected mode and state.
  * @pcs_an_restart: restart 802.3z BaseX autonegotiation.
@@ -423,6 +424,8 @@ struct phylink_pcs {
  *               (where necessary).
  */
 struct phylink_pcs_ops {
+	int (*pcs_validate)(struct phylink_pcs *pcs, unsigned long *supported,
+			    const struct phylink_link_state *state);
 	void (*pcs_get_state)(struct phylink_pcs *pcs,
 			      struct phylink_link_state *state);
 	int (*pcs_config)(struct phylink_pcs *pcs, unsigned int mode,
@@ -435,6 +438,23 @@ struct phylink_pcs_ops {
 };
 
 #if 0 /* For kernel-doc purposes only. */
+/**
+ * pcs_validate() - validate the link configuration.
+ * @pcs: a pointer to a &struct phylink_pcs.
+ * @supported: ethtool bitmask for supported link modes.
+ * @state: a const pointer to a &struct phylink_link_state.
+ *
+ * Validate the interface mode, and advertising's autoneg bit, removing any
+ * media ethtool link modes that would not be supportable from the supported
+ * mask. Phylink will propagate the changes to the advertising mask. See the
+ * &struct phylink_mac_ops validate() method.
+ *
+ * Returns -EINVAL if the interface mode/autoneg mode is not supported.
+ * Returns non-zero positive if the link state can be supported.
+ */
+int pcs_validate(struct phylink_pcs *pcs, unsigned long *supported,
+		 const struct phylink_link_state *state);
+
 /**
  * pcs_get_state() - Read the current inband link state from the hardware
  * @pcs: a pointer to a &struct phylink_pcs.
