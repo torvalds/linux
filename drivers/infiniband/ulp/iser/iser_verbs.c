@@ -757,7 +757,6 @@ void iser_conn_init(struct iser_conn *iser_conn)
 	INIT_LIST_HEAD(&iser_conn->conn_list);
 	mutex_init(&iser_conn->state_mutex);
 
-	ib_conn->post_recv_buf_count = 0;
 	ib_conn->reg_cqe.done = iser_reg_comp;
 }
 
@@ -841,44 +840,28 @@ int iser_post_recvl(struct iser_conn *iser_conn)
 	wr.num_sge = 1;
 	wr.next = NULL;
 
-	ib_conn->post_recv_buf_count++;
 	ib_ret = ib_post_recv(ib_conn->qp, &wr, NULL);
-	if (ib_ret) {
-		iser_err("ib_post_recv failed ret=%d\n", ib_ret);
-		ib_conn->post_recv_buf_count--;
-	}
+	if (unlikely(ib_ret))
+		iser_err("ib_post_recv login failed ret=%d\n", ib_ret);
 
 	return ib_ret;
 }
 
-int iser_post_recvm(struct iser_conn *iser_conn, int count)
+int iser_post_recvm(struct iser_conn *iser_conn, struct iser_rx_desc *rx_desc)
 {
 	struct ib_conn *ib_conn = &iser_conn->ib_conn;
-	unsigned int my_rx_head = iser_conn->rx_desc_head;
-	struct iser_rx_desc *rx_desc;
-	struct ib_recv_wr *wr;
-	int i, ib_ret;
+	struct ib_recv_wr wr;
+	int ib_ret;
 
-	for (wr = ib_conn->rx_wr, i = 0; i < count; i++, wr++) {
-		rx_desc = &iser_conn->rx_descs[my_rx_head];
-		rx_desc->cqe.done = iser_task_rsp;
-		wr->wr_cqe = &rx_desc->cqe;
-		wr->sg_list = &rx_desc->rx_sg;
-		wr->num_sge = 1;
-		wr->next = wr + 1;
-		my_rx_head = (my_rx_head + 1) & iser_conn->qp_max_recv_dtos_mask;
-	}
+	rx_desc->cqe.done = iser_task_rsp;
+	wr.wr_cqe = &rx_desc->cqe;
+	wr.sg_list = &rx_desc->rx_sg;
+	wr.num_sge = 1;
+	wr.next = NULL;
 
-	wr--;
-	wr->next = NULL; /* mark end of work requests list */
-
-	ib_conn->post_recv_buf_count += count;
-	ib_ret = ib_post_recv(ib_conn->qp, ib_conn->rx_wr, NULL);
-	if (unlikely(ib_ret)) {
+	ib_ret = ib_post_recv(ib_conn->qp, &wr, NULL);
+	if (unlikely(ib_ret))
 		iser_err("ib_post_recv failed ret=%d\n", ib_ret);
-		ib_conn->post_recv_buf_count -= count;
-	} else
-		iser_conn->rx_desc_head = my_rx_head;
 
 	return ib_ret;
 }

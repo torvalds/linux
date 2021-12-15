@@ -119,8 +119,6 @@
 
 #define ISER_QP_MAX_RECV_DTOS		(ISER_DEF_XMIT_CMDS_MAX)
 
-#define ISER_MIN_POSTED_RX		(ISER_DEF_XMIT_CMDS_MAX >> 2)
-
 /* the max TX (send) WR supported by the iSER QP is defined by                 *
  * max_send_wr = T * (1 + D) + C ; D is how many inflight dataouts we expect   *
  * to have at max for SCSI command. The tx posting & completion handling code  *
@@ -366,9 +364,7 @@ struct iser_fr_pool {
  * @qp:                  Connection Queue-pair
  * @cq:                  Connection completion queue
  * @cq_size:             The number of max outstanding completions
- * @post_recv_buf_count: post receive counter
  * @sig_count:           send work request signal count
- * @rx_wr:               receive work request for batch posts
  * @device:              reference to iser device
  * @fr_pool:             connection fast registration poool
  * @pi_support:          Indicate device T10-PI support
@@ -379,9 +375,7 @@ struct ib_conn {
 	struct ib_qp	            *qp;
 	struct ib_cq		    *cq;
 	u32			    cq_size;
-	int                          post_recv_buf_count;
 	u8                           sig_count;
-	struct ib_recv_wr	     rx_wr[ISER_MIN_POSTED_RX];
 	struct iser_device          *device;
 	struct iser_fr_pool          fr_pool;
 	bool			     pi_support;
@@ -397,8 +391,6 @@ struct ib_conn {
  * @state:            connection logical state
  * @qp_max_recv_dtos: maximum number of data outs, corresponds
  *                    to max number of post recvs
- * @qp_max_recv_dtos_mask: (qp_max_recv_dtos - 1)
- * @min_posted_rx:    (qp_max_recv_dtos >> 2)
  * @max_cmds:         maximum cmds allowed for this connection
  * @name:             connection peer portal
  * @release_work:     deffered work for release job
@@ -409,7 +401,6 @@ struct ib_conn {
  *                    (state is ISER_CONN_UP)
  * @conn_list:        entry in ig conn list
  * @login_desc:       login descriptor
- * @rx_desc_head:     head of rx_descs cyclic buffer
  * @rx_descs:         rx buffers array (cyclic buffer)
  * @num_rx_descs:     number of rx descriptors
  * @scsi_sg_tablesize: scsi host sg_tablesize
@@ -422,8 +413,6 @@ struct iser_conn {
 	struct iscsi_endpoint	     *ep;
 	enum iser_conn_state	     state;
 	unsigned		     qp_max_recv_dtos;
-	unsigned		     qp_max_recv_dtos_mask;
-	unsigned		     min_posted_rx;
 	u16                          max_cmds;
 	char 			     name[ISER_OBJECT_NAME_SIZE];
 	struct work_struct	     release_work;
@@ -433,7 +422,6 @@ struct iser_conn {
 	struct completion	     up_completion;
 	struct list_head	     conn_list;
 	struct iser_login_desc       login_desc;
-	unsigned int 		     rx_desc_head;
 	struct iser_rx_desc	     *rx_descs;
 	u32                          num_rx_descs;
 	unsigned short               scsi_sg_tablesize;
@@ -542,7 +530,8 @@ int  iser_connect(struct iser_conn *iser_conn,
 		  int non_blocking);
 
 int  iser_post_recvl(struct iser_conn *iser_conn);
-int  iser_post_recvm(struct iser_conn *iser_conn, int count);
+int  iser_post_recvm(struct iser_conn *iser_conn,
+		     struct iser_rx_desc *rx_desc);
 int  iser_post_send(struct ib_conn *ib_conn, struct iser_tx_desc *tx_desc,
 		    bool signal);
 
