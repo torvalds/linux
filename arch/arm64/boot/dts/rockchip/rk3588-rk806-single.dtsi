@@ -17,7 +17,7 @@
 		regulator-compatible = "rk860x-reg";
 		regulator-name = "vdd_cpu_big0_s0";
 		regulator-min-microvolt = <550000>;
-		regulator-max-microvolt = <950000>;
+		regulator-max-microvolt = <1050000>;
 		regulator-ramp-delay = <2300>;
 		rockchip,suspend-voltage-selector = <1>;
 		regulator-boot-on;
@@ -34,7 +34,7 @@
 		regulator-compatible = "rk860x-reg";
 		regulator-name = "vdd_cpu_big1_s0";
 		regulator-min-microvolt = <550000>;
-		regulator-max-microvolt = <950000>;
+		regulator-max-microvolt = <1050000>;
 		regulator-ramp-delay = <2300>;
 		rockchip,suspend-voltage-selector = <1>;
 		regulator-boot-on;

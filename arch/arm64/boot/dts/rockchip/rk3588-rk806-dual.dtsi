@@ -545,7 +545,7 @@
 				regulator-always-on;
 				regulator-boot-on;
 				regulator-min-microvolt = <550000>;
-				regulator-max-microvolt = <950000>;
+				regulator-max-microvolt = <1050000>;
 				regulator-ramp-delay = <12500>;
 				regulator-name = "vdd_cpu_big1_s0";
 				regulator-state-mem {
@@ -557,7 +557,7 @@
 				regulator-always-on;
 				regulator-boot-on;
 				regulator-min-microvolt = <550000>;
-				regulator-max-microvolt = <950000>;
+				regulator-max-microvolt = <1050000>;
 				regulator-ramp-delay = <12500>;
 				regulator-name = "vdd_cpu_big0_s0";
 				regulator-state-mem {
@@ -593,7 +593,7 @@
 				regulator-always-on;
 				regulator-boot-on;
 				regulator-min-microvolt = <675000>;
-				regulator-max-microvolt = <950000>;
+				regulator-max-microvolt = <1050000>;
 				regulator-ramp-delay = <12500>;
 				regulator-name = "vdd_cpu_big1_mem_s0";
 				regulator-state-mem {
@@ -606,7 +606,7 @@
 				regulator-always-on;
 				regulator-boot-on;
 				regulator-min-microvolt = <675000>;
-				regulator-max-microvolt = <950000>;
+				regulator-max-microvolt = <1050000>;
 				regulator-ramp-delay = <12500>;
 				regulator-name = "vdd_cpu_big0_mem_s0";
 				regulator-state-mem {
