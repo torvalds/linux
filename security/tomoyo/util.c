@@ -1051,7 +1051,6 @@ bool tomoyo_domain_quota_is_ok(struct tomoyo_request_info *r)
 	list_for_each_entry_rcu(ptr, &domain->acl_info_list, list,
 				srcu_read_lock_held(&tomoyo_ss)) {
 		u16 perm;
-		u8 i;
 
 		if (ptr->is_deleted)
 			continue;
@@ -1062,23 +1061,23 @@ bool tomoyo_domain_quota_is_ok(struct tomoyo_request_info *r)
 		 */
 		switch (ptr->type) {
 		case TOMOYO_TYPE_PATH_ACL:
-			data_race(perm = container_of(ptr, struct tomoyo_path_acl, head)->perm);
+			perm = data_race(container_of(ptr, struct tomoyo_path_acl, head)->perm);
 			break;
 		case TOMOYO_TYPE_PATH2_ACL:
-			data_race(perm = container_of(ptr, struct tomoyo_path2_acl, head)->perm);
+			perm = data_race(container_of(ptr, struct tomoyo_path2_acl, head)->perm);
 			break;
 		case TOMOYO_TYPE_PATH_NUMBER_ACL:
-			data_race(perm = container_of(ptr, struct tomoyo_path_number_acl, head)
+			perm = data_race(container_of(ptr, struct tomoyo_path_number_acl, head)
 				  ->perm);
 			break;
 		case TOMOYO_TYPE_MKDEV_ACL:
-			data_race(perm = container_of(ptr, struct tomoyo_mkdev_acl, head)->perm);
+			perm = data_race(container_of(ptr, struct tomoyo_mkdev_acl, head)->perm);
 			break;
 		case TOMOYO_TYPE_INET_ACL:
-			data_race(perm = container_of(ptr, struct tomoyo_inet_acl, head)->perm);
+			perm = data_race(container_of(ptr, struct tomoyo_inet_acl, head)->perm);
 			break;
 		case TOMOYO_TYPE_UNIX_ACL:
-			data_race(perm = container_of(ptr, struct tomoyo_unix_acl, head)->perm);
+			perm = data_race(container_of(ptr, struct tomoyo_unix_acl, head)->perm);
 			break;
 		case TOMOYO_TYPE_MANUAL_TASK_ACL:
 			perm = 0;
@@ -1086,9 +1085,7 @@ bool tomoyo_domain_quota_is_ok(struct tomoyo_request_info *r)
 		default:
 			perm = 1;
 		}
-		for (i = 0; i < 16; i++)
-			if (perm & (1 << i))
-				count++;
+		count += hweight16(perm);
 	}
 	if (count < tomoyo_profile(domain->ns, domain->profile)->
 	    pref[TOMOYO_PREF_MAX_LEARNING_ENTRY])
