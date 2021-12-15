@@ -3154,10 +3154,8 @@ store_speed_tolerance(struct device *dev, struct device_attribute *attr,
 	if (err < 0)
 		return err;
 
-	high = fan_from_reg16(data->target_speed[nr],
-			      data->fan_div[nr]) + val;
-	low = fan_from_reg16(data->target_speed[nr],
-			     data->fan_div[nr]) - val;
+	high = fan_from_reg16(data->target_speed[nr], data->fan_div[nr]) + val;
+	low = fan_from_reg16(data->target_speed[nr], data->fan_div[nr]) - val;
 	if (low <= 0)
 		low = 1;
 	if (high < low)
