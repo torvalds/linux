@@ -7,16 +7,20 @@ config BRCMSMAC
 	depends on MAC80211
 	depends on BCMA_POSSIBLE
 	select BCMA
-	select NEW_LEDS if BCMA_DRIVER_GPIO
-	select LEDS_CLASS if BCMA_DRIVER_GPIO
 	select BRCMUTIL
 	select FW_LOADER
 	select CORDIC
 	help
 	  This module adds support for PCIe wireless adapters based on Broadcom
-	  IEEE802.11n SoftMAC chipsets. It also has WLAN led support, which will
-	  be available if you select BCMA_DRIVER_GPIO. If you choose to build a
-	  module, the driver will be called brcmsmac.ko.
+	  IEEE802.11n SoftMAC chipsets. If you choose to build a module, the
+	  driver will be called brcmsmac.ko.
+
+config BRCMSMAC_LEDS
+	def_bool BRCMSMAC && BCMA_DRIVER_GPIO && MAC80211_LEDS
+	help
+	  The brcmsmac LED support depends on the presence of the
+	  BCMA_DRIVER_GPIO driver, and it only works if LED support
+	  is enabled and reachable from the driver module.
 
 source "drivers/net/wireless/broadcom/brcm80211/brcmfmac/Kconfig"
 
