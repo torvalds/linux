@@ -76,6 +76,7 @@
 #define LTDC_LIPCR	0x0040		/* Line Interrupt Position Conf. */
 #define LTDC_CPSR	0x0044		/* Current Position Status */
 #define LTDC_CDSR	0x0048		/* Current Display Status */
+#define LTDC_EDCR	0x0060		/* External Display Control */
 #define LTDC_FUT	0x0090		/* Fifo underrun Threshold */
 
 /* Layer register offsets */
@@ -169,6 +170,10 @@
 #define ISR_FUIF	BIT(1)		/* Fifo Underrun Interrupt Flag */
 #define ISR_TERRIF	BIT(2)		/* Transfer ERRor Interrupt Flag */
 #define ISR_RRIF	BIT(3)		/* Register Reload Interrupt Flag */
+
+#define EDCR_OCYEN	BIT(25)		/* Output Conversion to YCbCr 422: ENable */
+#define EDCR_OCYSEL	BIT(26)		/* Output Conversion to YCbCr 422: SELection of the CCIR */
+#define EDCR_OCYCO	BIT(27)		/* Output Conversion to YCbCr 422: Chrominance Order */
 
 #define LXCR_LEN	BIT(0)		/* Layer ENable */
 #define LXCR_COLKEN	BIT(1)		/* Color Keying Enable */
@@ -625,6 +630,7 @@ static void ltdc_crtc_mode_set_nofb(struct drm_crtc *crtc)
 	struct drm_display_mode *mode = &crtc->state->adjusted_mode;
 	u32 hsync, vsync, accum_hbp, accum_vbp, accum_act_w, accum_act_h;
 	u32 total_width, total_height;
+	u32 bus_formats = MEDIA_BUS_FMT_RGB888_1X24;
 	u32 bus_flags = 0;
 	u32 val;
 	int ret;
@@ -650,8 +656,11 @@ static void ltdc_crtc_mode_set_nofb(struct drm_crtc *crtc)
 
 	if (bridge && bridge->timings)
 		bus_flags = bridge->timings->input_bus_flags;
-	else if (connector)
+	else if (connector) {
 		bus_flags = connector->display_info.bus_flags;
+		if (connector->display_info.num_bus_formats)
+			bus_formats = connector->display_info.bus_formats[0];
+	}
 
 	if (!pm_runtime_active(ddev->dev)) {
 		ret = pm_runtime_get_sync(ddev->dev);
@@ -716,6 +725,36 @@ static void ltdc_crtc_mode_set_nofb(struct drm_crtc *crtc)
 	regmap_update_bits(ldev->regmap, LTDC_TWCR, TWCR_TOTALH | TWCR_TOTALW, val);
 
 	regmap_write(ldev->regmap, LTDC_LIPCR, (accum_act_h + 1));
+
+	/* Configure the output format (hw version dependent) */
+	if (ldev->caps.ycbcr_output) {
+		/* Input video dynamic_range & colorimetry */
+		int vic = drm_match_cea_mode(mode);
+		u32 val;
+
+		if (vic == 6 || vic == 7 || vic == 21 || vic == 22 ||
+		    vic == 2 || vic == 3 || vic == 17 || vic == 18)
+			/* ITU-R BT.601 */
+			val = 0;
+		else
+			/* ITU-R BT.709 */
+			val = EDCR_OCYSEL;
+
+		switch (bus_formats) {
+		case MEDIA_BUS_FMT_YUYV8_1X16:
+			/* enable ycbcr output converter */
+			regmap_write(ldev->regmap, LTDC_EDCR, EDCR_OCYEN | val);
+			break;
+		case MEDIA_BUS_FMT_YVYU8_1X16:
+			/* enable ycbcr output converter & invert chrominance order */
+			regmap_write(ldev->regmap, LTDC_EDCR, EDCR_OCYEN | EDCR_OCYCO | val);
+			break;
+		default:
+			/* disable ycbcr output converter */
+			regmap_write(ldev->regmap, LTDC_EDCR, 0);
+			break;
+		}
+	}
 }
 
 static void ltdc_crtc_atomic_flush(struct drm_crtc *crtc,
@@ -1267,6 +1306,7 @@ static int ltdc_get_caps(struct drm_device *ddev)
 		if (ldev->caps.hw_version == HWVER_10200)
 			ldev->caps.pad_max_freq_hz = 65000000;
 		ldev->caps.nb_irq = 2;
+		ldev->caps.ycbcr_output = false;
 		break;
 	case HWVER_20101:
 		ldev->caps.layer_ofs = LAY_OFS_0;
@@ -1275,6 +1315,7 @@ static int ltdc_get_caps(struct drm_device *ddev)
 		ldev->caps.non_alpha_only_l1 = false;
 		ldev->caps.pad_max_freq_hz = 150000000;
 		ldev->caps.nb_irq = 4;
+		ldev->caps.ycbcr_output = false;
 		break;
 	case HWVER_40100:
 		ldev->caps.layer_ofs = LAY_OFS_1;
@@ -1283,6 +1324,7 @@ static int ltdc_get_caps(struct drm_device *ddev)
 		ldev->caps.non_alpha_only_l1 = false;
 		ldev->caps.pad_max_freq_hz = 90000000;
 		ldev->caps.nb_irq = 2;
+		ldev->caps.ycbcr_output = true;
 		break;
 	default:
 		return -ENODEV;
