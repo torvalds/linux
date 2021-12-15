@@ -568,10 +568,12 @@ static int vmw_user_bo_synccpu_release(struct drm_file *filp,
 	struct vmw_buffer_object *vmw_bo;
 	int ret = vmw_user_bo_lookup(filp, handle, &vmw_bo);
 
-	if (!(flags & drm_vmw_synccpu_allow_cs)) {
-		atomic_dec(&vmw_bo->cpu_writers);
+	if (!ret) {
+		if (!(flags & drm_vmw_synccpu_allow_cs)) {
+			atomic_dec(&vmw_bo->cpu_writers);
+		}
+		ttm_bo_put(&vmw_bo->base);
 	}
-	ttm_bo_put(&vmw_bo->base);
 
 	return ret;
 }
