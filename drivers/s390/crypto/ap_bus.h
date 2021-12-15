@@ -315,6 +315,7 @@ struct ap_perms {
 	unsigned long ioctlm[BITS_TO_LONGS(AP_IOCTLS)];
 	unsigned long apm[BITS_TO_LONGS(AP_DEVICES)];
 	unsigned long aqm[BITS_TO_LONGS(AP_DOMAINS)];
+	unsigned long adm[BITS_TO_LONGS(AP_DOMAINS)];
 };
 extern struct ap_perms ap_perms;
 extern struct mutex ap_perms_mutex;

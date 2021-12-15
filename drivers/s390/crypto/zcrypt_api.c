@@ -285,10 +285,53 @@ static ssize_t aqmask_store(struct device *dev,
 
 static DEVICE_ATTR_RW(aqmask);
 
+static ssize_t admask_show(struct device *dev,
+			   struct device_attribute *attr,
+			   char *buf)
+{
+	int i, rc;
+	struct zcdn_device *zcdndev = to_zcdn_dev(dev);
+
+	if (mutex_lock_interruptible(&ap_perms_mutex))
+		return -ERESTARTSYS;
+
+	buf[0] = '0';
+	buf[1] = 'x';
+	for (i = 0; i < sizeof(zcdndev->perms.adm) / sizeof(long); i++)
+		snprintf(buf + 2 + 2 * i * sizeof(long),
+			 PAGE_SIZE - 2 - 2 * i * sizeof(long),
+			 "%016lx", zcdndev->perms.adm[i]);
+	buf[2 + 2 * i * sizeof(long)] = '\n';
+	buf[2 + 2 * i * sizeof(long) + 1] = '\0';
+	rc = 2 + 2 * i * sizeof(long) + 1;
+
+	mutex_unlock(&ap_perms_mutex);
+
+	return rc;
+}
+
+static ssize_t admask_store(struct device *dev,
+			    struct device_attribute *attr,
+			    const char *buf, size_t count)
+{
+	int rc;
+	struct zcdn_device *zcdndev = to_zcdn_dev(dev);
+
+	rc = ap_parse_mask_str(buf, zcdndev->perms.adm,
+			       AP_DOMAINS, &ap_perms_mutex);
+	if (rc)
+		return rc;
+
+	return count;
+}
+
+static DEVICE_ATTR_RW(admask);
+
 static struct attribute *zcdn_dev_attrs[] = {
 	&dev_attr_ioctlmask.attr,
 	&dev_attr_apmask.attr,
 	&dev_attr_aqmask.attr,
+	&dev_attr_admask.attr,
 	NULL
 };
 
