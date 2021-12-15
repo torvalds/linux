@@ -501,7 +501,7 @@ static void iser_connect_error(struct rdma_cm_id *cma_id)
 {
 	struct iser_conn *iser_conn;
 
-	iser_conn = (struct iser_conn *)cma_id->context;
+	iser_conn = cma_id->context;
 	iser_conn->state = ISER_CONN_TERMINATING;
 }
 
@@ -549,7 +549,7 @@ static void iser_addr_handler(struct rdma_cm_id *cma_id)
 	struct ib_conn   *ib_conn;
 	int    ret;
 
-	iser_conn = (struct iser_conn *)cma_id->context;
+	iser_conn = cma_id->context;
 	if (iser_conn->state != ISER_CONN_PENDING)
 		/* bailout */
 		return;
@@ -595,7 +595,7 @@ static void iser_route_handler(struct rdma_cm_id *cma_id)
 	struct rdma_conn_param conn_param;
 	int    ret;
 	struct iser_cm_hdr req_hdr;
-	struct iser_conn *iser_conn = (struct iser_conn *)cma_id->context;
+	struct iser_conn *iser_conn = cma_id->context;
 	struct ib_conn *ib_conn = &iser_conn->ib_conn;
 	struct ib_device *ib_dev = ib_conn->device->ib_device;
 
@@ -638,7 +638,7 @@ static void iser_connected_handler(struct rdma_cm_id *cma_id,
 	struct ib_qp_attr attr;
 	struct ib_qp_init_attr init_attr;
 
-	iser_conn = (struct iser_conn *)cma_id->context;
+	iser_conn = cma_id->context;
 	if (iser_conn->state != ISER_CONN_PENDING)
 		/* bailout */
 		return;
@@ -661,7 +661,7 @@ static void iser_connected_handler(struct rdma_cm_id *cma_id,
 
 static void iser_disconnected_handler(struct rdma_cm_id *cma_id)
 {
-	struct iser_conn *iser_conn = (struct iser_conn *)cma_id->context;
+	struct iser_conn *iser_conn = cma_id->context;
 
 	if (iser_conn_terminate(iser_conn)) {
 		if (iser_conn->iscsi_conn)
@@ -675,7 +675,7 @@ static void iser_disconnected_handler(struct rdma_cm_id *cma_id)
 static void iser_cleanup_handler(struct rdma_cm_id *cma_id,
 				 bool destroy)
 {
-	struct iser_conn *iser_conn = (struct iser_conn *)cma_id->context;
+	struct iser_conn *iser_conn = cma_id->context;
 
 	/*
 	 * We are not guaranteed that we visited disconnected_handler
@@ -692,7 +692,7 @@ static int iser_cma_handler(struct rdma_cm_id *cma_id, struct rdma_cm_event *eve
 	struct iser_conn *iser_conn;
 	int ret = 0;
 
-	iser_conn = (struct iser_conn *)cma_id->context;
+	iser_conn = cma_id->context;
 	iser_info("%s (%d): status %d conn %p id %p\n",
 		  rdma_event_msg(event->event), event->event,
 		  event->status, cma_id->context, cma_id);
@@ -784,8 +784,7 @@ int iser_connect(struct iser_conn   *iser_conn,
 	iser_conn->state = ISER_CONN_PENDING;
 
 	ib_conn->cma_id = rdma_create_id(&init_net, iser_cma_handler,
-					 (void *)iser_conn,
-					 RDMA_PS_TCP, IB_QPT_RC);
+					 iser_conn, RDMA_PS_TCP, IB_QPT_RC);
 	if (IS_ERR(ib_conn->cma_id)) {
 		err = PTR_ERR(ib_conn->cma_id);
 		iser_err("rdma_create_id failed: %d\n", err);
