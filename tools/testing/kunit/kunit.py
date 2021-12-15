@@ -282,6 +282,9 @@ def massage_argv(argv: Sequence[str]) -> Sequence[str]:
 		return  f'{arg}={pseudo_bool_flag_defaults[arg]}'
 	return list(map(massage_arg, argv))
 
+def get_default_jobs() -> int:
+	return len(os.sched_getaffinity(0))
+
 def add_common_opts(parser) -> None:
 	parser.add_argument('--build_dir',
 			    help='As in the make command, it specifies the build '
@@ -332,7 +335,7 @@ def add_build_opts(parser) -> None:
 	parser.add_argument('--jobs',
 			    help='As in the make command, "Specifies  the number of '
 			    'jobs (commands) to run simultaneously."',
-			    type=int, default=8, metavar='jobs')
+			    type=int, default=get_default_jobs(), metavar='jobs')
 
 def add_exec_opts(parser) -> None:
 	parser.add_argument('--timeout',
