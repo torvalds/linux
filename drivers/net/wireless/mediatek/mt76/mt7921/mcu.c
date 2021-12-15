@@ -226,7 +226,7 @@ int mt7921_mcu_fill_message(struct mt76_dev *mdev, struct sk_buff *skb,
 	if (cmd == MCU_UNI_CMD(HIF_CTRL) ||
 	    cmd == MCU_UNI_CMD(SUSPEND) ||
 	    cmd == MCU_UNI_CMD(OFFLOAD))
-		mdev->mcu.timeout = HZ / 3;
+		mdev->mcu.timeout = HZ;
 	else
 		mdev->mcu.timeout = 3 * HZ;
 
