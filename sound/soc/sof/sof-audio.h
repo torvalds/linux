@@ -242,8 +242,7 @@ static inline void snd_sof_compr_init_elapsed_work(struct work_struct *work) { }
 int snd_sof_ipc_set_get_comp_data(struct snd_sof_control *scontrol,
 				  u32 ipc_cmd,
 				  enum sof_ipc_ctrl_type ctrl_type,
-				  enum sof_ipc_ctrl_cmd ctrl_cmd,
-				  bool send);
+				  enum sof_ipc_ctrl_cmd ctrl_cmd, bool set);
 
 /* DAI link fixup */
 int sof_pcm_dai_link_fixup(struct snd_soc_pcm_runtime *rtd, struct snd_pcm_hw_params *params);
