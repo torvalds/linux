@@ -316,6 +316,7 @@
 			capacity-dmips-mhz = <530>;
 			clocks = <&cru ARMCLK_L>;
 			operating-points-v2 = <&cluster0_opp_table>;
+			cpu-idle-states = <&CPU_SLEEP>;
 		};
 
 		cpu_l1: cpu@100 {
@@ -326,6 +327,7 @@
 			capacity-dmips-mhz = <530>;
 			clocks = <&cru ARMCLK_L>;
 			operating-points-v2 = <&cluster0_opp_table>;
+			cpu-idle-states = <&CPU_SLEEP>;
 		};
 
 		cpu_l2: cpu@200 {
@@ -336,6 +338,7 @@
 			capacity-dmips-mhz = <530>;
 			clocks = <&cru ARMCLK_L>;
 			operating-points-v2 = <&cluster0_opp_table>;
+			cpu-idle-states = <&CPU_SLEEP>;
 		};
 
 		cpu_l3: cpu@300 {
@@ -346,6 +349,7 @@
 			capacity-dmips-mhz = <530>;
 			clocks = <&cru ARMCLK_L>;
 			operating-points-v2 = <&cluster0_opp_table>;
+			cpu-idle-states = <&CPU_SLEEP>;
 		};
 
 		cpu_b0: cpu@400 {
@@ -356,6 +360,7 @@
 			capacity-dmips-mhz = <1024>;
 			clocks = <&scmi_clk SCMI_CLK_CPUB01>;
 			operating-points-v2 = <&cluster1_opp_table>;
+			cpu-idle-states = <&CPU_SLEEP>;
 		};
 
 		cpu_b1: cpu@500 {
@@ -366,6 +371,7 @@
 			capacity-dmips-mhz = <1024>;
 			clocks = <&scmi_clk SCMI_CLK_CPUB01>;
 			operating-points-v2 = <&cluster1_opp_table>;
+			cpu-idle-states = <&CPU_SLEEP>;
 		};
 
 		cpu_b2: cpu@600 {
@@ -376,6 +382,7 @@
 			capacity-dmips-mhz = <1024>;
 			clocks = <&scmi_clk SCMI_CLK_CPUB23>;
 			operating-points-v2 = <&cluster2_opp_table>;
+			cpu-idle-states = <&CPU_SLEEP>;
 		};
 
 		cpu_b3: cpu@700 {
@@ -386,6 +393,19 @@
 			capacity-dmips-mhz = <1024>;
 			clocks = <&scmi_clk SCMI_CLK_CPUB23>;
 			operating-points-v2 = <&cluster2_opp_table>;
+			cpu-idle-states = <&CPU_SLEEP>;
+		};
+
+		idle-states {
+			entry-method = "psci";
+			CPU_SLEEP: cpu-sleep {
+				compatible = "arm,idle-state";
+				local-timer-stop;
+				arm,psci-suspend-param = <0x0010000>;
+				entry-latency-us = <100>;
+				exit-latency-us = <120>;
+				min-residency-us = <1000>;
+			};
 		};
 	};
 
