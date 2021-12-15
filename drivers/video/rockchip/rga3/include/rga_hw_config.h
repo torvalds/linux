@@ -18,10 +18,10 @@ struct rga_rect {
 struct rga_win_data {
 	const char *name;
 	const uint32_t *raster_formats;
-	const uint32_t *fbcd_formats;
+	const uint32_t *fbc_formats;
 	const uint32_t *tile_formats;
 	uint32_t num_of_raster_formats;
-	uint32_t num_of_fbcd_formats;
+	uint32_t num_of_fbc_formats;
 	uint32_t num_of_tile_formats;
 
 	const unsigned int supported_rotations;

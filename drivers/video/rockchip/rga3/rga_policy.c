@@ -32,11 +32,41 @@ static int rga_set_feature(struct rga_req *rga_base)
 	return feature;
 }
 
-static bool rga_check_src0(const struct rga_hw_data *data,
-			 struct rga_img_info_t *src0)
+static bool rga_check_format(const struct rga_hw_data *data,
+		int rd_mode, int format, int win_num)
 {
 	int i;
 	bool matched = false;
+
+	if (rd_mode == RGA_RASTER_MODE) {
+		for (i = 0; i < data->win[win_num].num_of_raster_formats; i++) {
+			if (format == data->win[win_num].raster_formats[i]) {
+				matched = true;
+				break;
+			}
+		}
+	} else if (rd_mode == RGA_FBC_MODE) {
+		for (i = 0; i < data->win[win_num].num_of_fbc_formats; i++) {
+			if (format == data->win[win_num].fbc_formats[i]) {
+				matched = true;
+				break;
+			}
+		}
+	} else if (rd_mode == RGA_TILE_MODE) {
+		for (i = 0; i < data->win[win_num].num_of_tile_formats; i++) {
+			if (format == data->win[win_num].tile_formats[i]) {
+				matched = true;
+				break;
+			}
+		}
+	}
+
+	return matched;
+}
+
+static bool rga_check_src0(const struct rga_hw_data *data,
+			 struct rga_img_info_t *src0)
+{
 	int format;
 
 	user_format_convert(&format, src0->format);
@@ -49,14 +79,7 @@ static bool rga_check_src0(const struct rga_hw_data *data,
 		src0->act_h > data->max_input.h)
 		return false;
 
-	for (i = 0; i < data->win[0].num_of_raster_formats; i++) {
-		if (format == data->win[0].raster_formats[i]) {
-			matched = true;
-			break;
-		}
-	}
-
-	if (!matched)
+	if (!rga_check_format(data, src0->rd_mode, format, 0))
 		return false;
 
 	return true;
@@ -65,8 +88,6 @@ static bool rga_check_src0(const struct rga_hw_data *data,
 static bool rga_check_src1(const struct rga_hw_data *data,
 			 struct rga_img_info_t *src1)
 {
-	int i;
-	bool matched = false;
 	int format;
 
 	user_format_convert(&format, src1->format);
@@ -79,14 +100,7 @@ static bool rga_check_src1(const struct rga_hw_data *data,
 		src1->act_h > data->max_input.h)
 		return false;
 
-	for (i = 0; i < data->win[1].num_of_raster_formats; i++) {
-		if (format == data->win[1].raster_formats[i]) {
-			matched = true;
-			break;
-		}
-	}
-
-	if (!matched)
+	if (!rga_check_format(data, src1->rd_mode, format, 1))
 		return false;
 
 	return true;
@@ -95,8 +109,6 @@ static bool rga_check_src1(const struct rga_hw_data *data,
 static bool rga_check_dst(const struct rga_hw_data *data,
 			 struct rga_img_info_t *dst)
 {
-	int i;
-	bool matched = false;
 	int format;
 
 	user_format_convert(&format, dst->format);
@@ -109,14 +121,7 @@ static bool rga_check_dst(const struct rga_hw_data *data,
 		dst->act_h > data->max_output.h)
 		return false;
 
-	for (i = 0; i < data->win[2].num_of_raster_formats; i++) {
-		if (format == data->win[2].raster_formats[i]) {
-			matched = true;
-			break;
-		}
-	}
-
-	if (!matched)
+	if (!rga_check_format(data, dst->rd_mode, format, 2))
 		return false;
 
 	return true;
