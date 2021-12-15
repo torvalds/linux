@@ -30,7 +30,7 @@ int kvm_arch_vcpu_run_map_fp(struct kvm_vcpu *vcpu)
 	struct user_fpsimd_state *fpsimd = &current->thread.uw.fpsimd_state;
 
 	/* Make sure the host task fpsimd state is visible to hyp: */
-	ret = create_hyp_mappings(fpsimd, fpsimd + 1, PAGE_HYP);
+	ret = kvm_share_hyp(fpsimd, fpsimd + 1);
 	if (!ret)
 		vcpu->arch.host_fpsimd_state = kern_hyp_va(fpsimd);
 
