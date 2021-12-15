@@ -942,6 +942,7 @@ static int xenhcd_urb_request_done(struct xenhcd_info *info)
 	rp = info->urb_ring.sring->rsp_prod;
 	if (RING_RESPONSE_PROD_OVERFLOW(&info->urb_ring, rp)) {
 		xenhcd_set_error(info, "Illegal index on urb-ring");
+		spin_unlock_irqrestore(&info->lock, flags);
 		return 0;
 	}
 	rmb(); /* ensure we see queued responses up to "rp" */
@@ -997,6 +998,7 @@ static int xenhcd_conn_notify(struct xenhcd_info *info)
 	rp = info->conn_ring.sring->rsp_prod;
 	if (RING_RESPONSE_PROD_OVERFLOW(&info->conn_ring, rp)) {
 		xenhcd_set_error(info, "Illegal index on conn-ring");
+		spin_unlock_irqrestore(&info->lock, flags);
 		return 0;
 	}
 	rmb(); /* ensure we see queued responses up to "rp" */
@@ -1010,6 +1012,7 @@ static int xenhcd_conn_notify(struct xenhcd_info *info)
 
 		if (xenhcd_rhport_connect(info, portnum, speed)) {
 			xenhcd_set_error(info, "Illegal data on conn-ring");
+			spin_unlock_irqrestore(&info->lock, flags);
 			return 0;
 		}
 
