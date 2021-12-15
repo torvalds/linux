@@ -359,9 +359,6 @@ static void i2c_dw_pci_remove(struct pci_dev *pdev)
 	pci_free_irq_vectors(pdev);
 }
 
-/* work with hotplug and coldplug */
-MODULE_ALIAS("i2c_designware-pci");
-
 static const struct pci_device_id i2_designware_pci_ids[] = {
 	/* Medfield */
 	{ PCI_VDEVICE(INTEL, 0x0817), medfield },
@@ -418,9 +415,10 @@ static struct pci_driver dw_i2c_driver = {
 		.pm     = &i2c_dw_pm_ops,
 	},
 };
-
 module_pci_driver(dw_i2c_driver);
 
+/* Work with hotplug and coldplug */
+MODULE_ALIAS("i2c_designware-pci");
 MODULE_AUTHOR("Baruch Siach <baruch@tkos.co.il>");
 MODULE_DESCRIPTION("Synopsys DesignWare PCI I2C bus adapter");
 MODULE_LICENSE("GPL");
