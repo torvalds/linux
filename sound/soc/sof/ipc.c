@@ -817,8 +817,7 @@ static int sof_set_get_large_ctrl_data(struct snd_sof_dev *sdev,
  * IPC get()/set() for kcontrols.
  */
 int snd_sof_ipc_set_get_comp_data(struct snd_sof_control *scontrol,
-				  enum sof_ipc_ctrl_type ctrl_type,
-				  enum sof_ipc_ctrl_cmd ctrl_cmd, bool set)
+				  enum sof_ipc_ctrl_type ctrl_type, bool set)
 {
 	struct snd_soc_component *scomp = scontrol->scomp;
 	struct sof_ipc_ctrl_data *cdata = scontrol->control_data;
@@ -874,13 +873,12 @@ int snd_sof_ipc_set_get_comp_data(struct snd_sof_control *scontrol,
 	}
 
 	/* Select the IPC cmd based on the ctrl_cmd and the direction */
-	if (ctrl_cmd == SOF_CTRL_CMD_BINARY)
+	if (cdata->cmd == SOF_CTRL_CMD_BINARY)
 		ipc_cmd = set ? SOF_IPC_COMP_SET_DATA : SOF_IPC_COMP_GET_DATA;
 	else
 		ipc_cmd = set ? SOF_IPC_COMP_SET_VALUE : SOF_IPC_COMP_GET_VALUE;
 
 	cdata->rhdr.hdr.cmd = SOF_IPC_GLB_COMP_MSG | ipc_cmd;
-	cdata->cmd = ctrl_cmd;
 	cdata->type = ctrl_type;
 	cdata->comp_id = scontrol->comp_id;
 	cdata->msg_index = 0;

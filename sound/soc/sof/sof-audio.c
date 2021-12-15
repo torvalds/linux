@@ -34,7 +34,7 @@ static int sof_kcontrol_setup(struct snd_sof_dev *sdev, struct snd_sof_control *
 		return 0;
 	}
 
-	ret = snd_sof_ipc_set_get_comp_data(scontrol, ctrl_type, scontrol->cmd, true);
+	ret = snd_sof_ipc_set_get_comp_data(scontrol, ctrl_type, true);
 	if (ret < 0)
 		dev_err(sdev->dev, "error: failed kcontrol value set for widget: %d\n",
 			scontrol->comp_id);
