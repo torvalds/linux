@@ -1090,13 +1090,11 @@ static int sof_control_load_volume(struct snd_soc_component *scomp,
 
 	/* set cmd for mixer control */
 	if (le32_to_cpu(mc->max) == 1) {
-		scontrol->cmd = SOF_CTRL_CMD_SWITCH;
-		scontrol->control_data->cmd = scontrol->cmd;
+		scontrol->control_data->cmd = SOF_CTRL_CMD_SWITCH;
 		goto skip;
 	}
 
-	scontrol->cmd = SOF_CTRL_CMD_VOLUME;
-	scontrol->control_data->cmd = scontrol->cmd;
+	scontrol->control_data->cmd = SOF_CTRL_CMD_VOLUME;
 
 	/* extract tlv data */
 	if (!kc->tlv.p || get_tlv_data(kc->tlv.p, tlv) < 0) {
@@ -1167,8 +1165,7 @@ static int sof_control_load_enum(struct snd_soc_component *scomp,
 	scontrol->comp_id = sdev->next_comp_id;
 	scontrol->num_channels = le32_to_cpu(ec->num_channels);
 	scontrol->control_data->index = kc->index;
-	scontrol->cmd = SOF_CTRL_CMD_ENUM;
-	scontrol->control_data->cmd = scontrol->cmd;
+	scontrol->control_data->cmd = SOF_CTRL_CMD_ENUM;
 
 	dev_dbg(scomp->dev, "tplg: load kcontrol index %d chans %d comp_id %d\n",
 		scontrol->comp_id, scontrol->num_channels, scontrol->comp_id);
@@ -1214,8 +1211,7 @@ static int sof_control_load_bytes(struct snd_soc_component *scomp,
 	}
 
 	scontrol->comp_id = sdev->next_comp_id;
-	scontrol->cmd = SOF_CTRL_CMD_BINARY;
-	scontrol->control_data->cmd = scontrol->cmd;
+	scontrol->control_data->cmd = SOF_CTRL_CMD_BINARY;
 	scontrol->control_data->index = kc->index;
 
 	dev_dbg(scomp->dev, "tplg: load kcontrol index %d chans %d\n",
@@ -2080,7 +2076,7 @@ static int sof_get_control_data(struct snd_soc_component *scomp,
 		*size += wdata[i].pdata->size;
 
 		/* get data type */
-		switch (wdata[i].control->cmd) {
+		switch (wdata[i].control->control_data->cmd) {
 		case SOF_CTRL_CMD_VOLUME:
 		case SOF_CTRL_CMD_ENUM:
 		case SOF_CTRL_CMD_SWITCH:

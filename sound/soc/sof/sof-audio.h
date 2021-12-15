@@ -74,7 +74,6 @@ struct snd_sof_control {
 	u32 readback_offset; /* offset to mmapped data if used */
 	struct sof_ipc_ctrl_data *control_data;
 	u32 size;	/* cdata size */
-	enum sof_ipc_ctrl_cmd cmd;
 	u32 *volume_table; /* volume table computed from tlv data*/
 
 	struct list_head list;	/* list in sdev control list */

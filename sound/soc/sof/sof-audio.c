@@ -21,7 +21,7 @@ static int sof_kcontrol_setup(struct snd_sof_dev *sdev, struct snd_sof_control *
 	scontrol->readback_offset = 0;
 
 	/* notify DSP of kcontrol values */
-	switch (scontrol->cmd) {
+	switch (scontrol->control_data->cmd) {
 	case SOF_CTRL_CMD_VOLUME:
 	case SOF_CTRL_CMD_ENUM:
 	case SOF_CTRL_CMD_SWITCH:

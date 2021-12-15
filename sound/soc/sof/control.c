@@ -372,7 +372,7 @@ int snd_sof_bytes_ext_put(struct snd_kcontrol *kcontrol,
 	}
 
 	/* Check that header id matches the command */
-	if (header.numid != scontrol->cmd) {
+	if (header.numid != cdata->cmd) {
 		dev_err_ratelimited(scomp->dev,
 				    "error: incorrect numid %d\n",
 				    header.numid);
@@ -462,7 +462,7 @@ int snd_sof_bytes_ext_volatile_get(struct snd_kcontrol *kcontrol, unsigned int _
 		goto out;
 	}
 
-	header.numid = scontrol->cmd;
+	header.numid = cdata->cmd;
 	header.length = data_size;
 	if (copy_to_user(tlvd, &header, sizeof(struct snd_ctl_tlv))) {
 		ret = -EFAULT;
@@ -522,7 +522,7 @@ int snd_sof_bytes_ext_get(struct snd_kcontrol *kcontrol,
 	if (data_size > size)
 		return -ENOSPC;
 
-	header.numid = scontrol->cmd;
+	header.numid = cdata->cmd;
 	header.length = data_size;
 	if (copy_to_user(tlvd, &header, sizeof(struct snd_ctl_tlv)))
 		return -EFAULT;
