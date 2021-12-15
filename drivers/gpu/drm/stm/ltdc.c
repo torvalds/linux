@@ -186,6 +186,7 @@
 #define LXWVPCR_WVSPPOS	GENMASK(26, 16)	/* Window Vertical StoP POSition */
 
 #define LXPFCR_PF	GENMASK(2, 0)	/* Pixel Format */
+#define PF_FLEXIBLE	0x7		/* Flexible Pixel Format selected */
 
 #define LXCACR_CONSTA	GENMASK(7, 0)	/* CONSTant Alpha */
 
@@ -216,17 +217,18 @@ enum ltdc_pix_fmt {
 	/* RGB formats */
 	PF_ARGB8888,		/* ARGB [32 bits] */
 	PF_RGBA8888,		/* RGBA [32 bits] */
+	PF_ABGR8888,		/* ABGR [32 bits] */
+	PF_BGRA8888,		/* BGRA [32 bits] */
 	PF_RGB888,		/* RGB [24 bits] */
+	PF_BGR888,		/* BGR [24 bits] */
 	PF_RGB565,		/* RGB [16 bits] */
+	PF_BGR565,		/* BGR [16 bits] */
 	PF_ARGB1555,		/* ARGB A:1 bit RGB:15 bits [16 bits] */
 	PF_ARGB4444,		/* ARGB A:4 bits R/G/B: 4 bits each [16 bits] */
 	/* Indexed formats */
 	PF_L8,			/* Indexed 8 bits [8 bits] */
 	PF_AL44,		/* Alpha:4 bits + indexed 4 bits [8 bits] */
-	PF_AL88,		/* Alpha:8 bits + indexed 8 bits [16 bits] */
-	PF_ABGR8888,		/* ABGR [32 bits] */
-	PF_BGRA8888,		/* BGRA [32 bits] */
-	PF_BGR565		/* RGB [16 bits] */
+	PF_AL88			/* Alpha:8 bits + indexed 8 bits [16 bits] */
 };
 
 /* The index gives the encoding of the pixel format for an HW version */
@@ -260,7 +262,53 @@ static const enum ltdc_pix_fmt ltdc_pix_fmt_a2[NB_PF] = {
 	PF_RGB565,		/* 0x04 */
 	PF_BGR565,		/* 0x05 */
 	PF_RGB888,		/* 0x06 */
-	PF_ARGB1555		/* 0x07 */
+	PF_NONE			/* 0x07 */
+};
+
+static const u32 ltdc_drm_fmt_a0[] = {
+	DRM_FORMAT_ARGB8888,
+	DRM_FORMAT_XRGB8888,
+	DRM_FORMAT_RGB888,
+	DRM_FORMAT_RGB565,
+	DRM_FORMAT_ARGB1555,
+	DRM_FORMAT_XRGB1555,
+	DRM_FORMAT_ARGB4444,
+	DRM_FORMAT_XRGB4444,
+	DRM_FORMAT_C8
+};
+
+static const u32 ltdc_drm_fmt_a1[] = {
+	DRM_FORMAT_ARGB8888,
+	DRM_FORMAT_XRGB8888,
+	DRM_FORMAT_RGB888,
+	DRM_FORMAT_RGB565,
+	DRM_FORMAT_RGBA8888,
+	DRM_FORMAT_RGBX8888,
+	DRM_FORMAT_ARGB1555,
+	DRM_FORMAT_XRGB1555,
+	DRM_FORMAT_ARGB4444,
+	DRM_FORMAT_XRGB4444,
+	DRM_FORMAT_C8
+};
+
+static const u32 ltdc_drm_fmt_a2[] = {
+	DRM_FORMAT_ARGB8888,
+	DRM_FORMAT_XRGB8888,
+	DRM_FORMAT_ABGR8888,
+	DRM_FORMAT_XBGR8888,
+	DRM_FORMAT_RGBA8888,
+	DRM_FORMAT_RGBX8888,
+	DRM_FORMAT_BGRA8888,
+	DRM_FORMAT_BGRX8888,
+	DRM_FORMAT_RGB565,
+	DRM_FORMAT_BGR565,
+	DRM_FORMAT_RGB888,
+	DRM_FORMAT_BGR888,
+	DRM_FORMAT_ARGB1555,
+	DRM_FORMAT_XRGB1555,
+	DRM_FORMAT_ARGB4444,
+	DRM_FORMAT_XRGB4444,
+	DRM_FORMAT_C8
 };
 
 /* Layer register offsets */
@@ -386,15 +434,29 @@ static inline enum ltdc_pix_fmt to_ltdc_pixelformat(u32 drm_fmt)
 	case DRM_FORMAT_XRGB8888:
 		pf = PF_ARGB8888;
 		break;
+	case DRM_FORMAT_ABGR8888:
+	case DRM_FORMAT_XBGR8888:
+		pf = PF_ABGR8888;
+		break;
 	case DRM_FORMAT_RGBA8888:
 	case DRM_FORMAT_RGBX8888:
 		pf = PF_RGBA8888;
 		break;
+	case DRM_FORMAT_BGRA8888:
+	case DRM_FORMAT_BGRX8888:
+		pf = PF_BGRA8888;
+		break;
 	case DRM_FORMAT_RGB888:
 		pf = PF_RGB888;
 		break;
+	case DRM_FORMAT_BGR888:
+		pf = PF_BGR888;
+		break;
 	case DRM_FORMAT_RGB565:
 		pf = PF_RGB565;
+		break;
+	case DRM_FORMAT_BGR565:
+		pf = PF_BGR565;
 		break;
 	case DRM_FORMAT_ARGB1555:
 	case DRM_FORMAT_XRGB1555:
@@ -416,49 +478,66 @@ static inline enum ltdc_pix_fmt to_ltdc_pixelformat(u32 drm_fmt)
 	return pf;
 }
 
-static inline u32 to_drm_pixelformat(enum ltdc_pix_fmt pf)
+static inline u32 ltdc_set_flexible_pixel_format(struct drm_plane *plane, enum ltdc_pix_fmt pix_fmt)
 {
-	switch (pf) {
-	case PF_ARGB8888:
-		return DRM_FORMAT_ARGB8888;
-	case PF_RGBA8888:
-		return DRM_FORMAT_RGBA8888;
-	case PF_RGB888:
-		return DRM_FORMAT_RGB888;
-	case PF_RGB565:
-		return DRM_FORMAT_RGB565;
+	struct ltdc_device *ldev = plane_to_ltdc(plane);
+	u32 lofs = plane->index * LAY_OFS, ret = PF_FLEXIBLE;
+	int psize, alen, apos, rlen, rpos, glen, gpos, blen, bpos;
+
+	switch (pix_fmt) {
+	case PF_BGR888:
+		psize = 3;
+		alen = 0; apos = 0; rlen = 8; rpos = 0;
+		glen = 8; gpos = 8; blen = 8; bpos = 16;
+	break;
 	case PF_ARGB1555:
-		return DRM_FORMAT_ARGB1555;
+		psize = 2;
+		alen = 1; apos = 15; rlen = 5; rpos = 10;
+		glen = 5; gpos = 5;  blen = 5; bpos = 0;
+	break;
 	case PF_ARGB4444:
-		return DRM_FORMAT_ARGB4444;
+		psize = 2;
+		alen = 4; apos = 12; rlen = 4; rpos = 8;
+		glen = 4; gpos = 4; blen = 4; bpos = 0;
+	break;
 	case PF_L8:
-		return DRM_FORMAT_C8;
-	case PF_AL44:		/* No DRM support */
-	case PF_AL88:		/* No DRM support */
-	case PF_NONE:
+		psize = 1;
+		alen = 0; apos = 0; rlen = 8; rpos = 0;
+		glen = 8; gpos = 0; blen = 8; bpos = 0;
+	break;
+	case PF_AL44:
+		psize = 1;
+		alen = 4; apos = 4; rlen = 4; rpos = 0;
+		glen = 4; gpos = 0; blen = 4; bpos = 0;
+	break;
+	case PF_AL88:
+		psize = 2;
+		alen = 8; apos = 8; rlen = 8; rpos = 0;
+		glen = 8; gpos = 0; blen = 8; bpos = 0;
+	break;
 	default:
-		return 0;
+		ret = NB_PF; /* error case, trace msg is handled by the caller */
+	break;
 	}
+
+	if (ret == PF_FLEXIBLE) {
+		regmap_write(ldev->regmap, LTDC_L1FPF0R + lofs,
+			     (rlen << 14)  + (rpos << 9) + (alen << 5) + apos);
+
+		regmap_write(ldev->regmap, LTDC_L1FPF1R + lofs,
+			     (psize << 18) + (blen << 14)  + (bpos << 9) + (glen << 5) + gpos);
+	}
+
+	return ret;
 }
 
-static inline u32 get_pixelformat_without_alpha(u32 drm)
+/*
+ * All non-alpha color formats derived from native alpha color formats are
+ * either characterized by a FourCC format code
+ */
+static inline u32 is_xrgb(u32 drm)
 {
-	switch (drm) {
-	case DRM_FORMAT_ARGB4444:
-		return DRM_FORMAT_XRGB4444;
-	case DRM_FORMAT_RGBA4444:
-		return DRM_FORMAT_RGBX4444;
-	case DRM_FORMAT_ARGB1555:
-		return DRM_FORMAT_XRGB1555;
-	case DRM_FORMAT_RGBA5551:
-		return DRM_FORMAT_RGBX5551;
-	case DRM_FORMAT_ARGB8888:
-		return DRM_FORMAT_XRGB8888;
-	case DRM_FORMAT_RGBA8888:
-		return DRM_FORMAT_RGBX8888;
-	default:
-		return 0;
-	}
+	return ((drm & 0xFF) == 'X' || ((drm >> 8) & 0xFF) == 'X');
 }
 
 static irqreturn_t ltdc_irq_thread(int irq, void *arg)
@@ -972,6 +1051,10 @@ static void ltdc_plane_atomic_update(struct drm_plane *plane,
 		if (ldev->caps.pix_fmt_hw[val] == pf)
 			break;
 
+	/* Use the flexible color format feature if necessary and available */
+	if (ldev->caps.pix_fmt_flex && val == NB_PF)
+		val = ltdc_set_flexible_pixel_format(plane, pf);
+
 	if (val == NB_PF) {
 		DRM_ERROR("Pixel format %.4s not supported\n",
 			  (char *)&fb->format->format);
@@ -1110,29 +1193,23 @@ static struct drm_plane *ltdc_plane_create(struct drm_device *ddev,
 	struct device *dev = ddev->dev;
 	struct drm_plane *plane;
 	unsigned int i, nb_fmt = 0;
-	u32 formats[NB_PF * 2];
-	u32 drm_fmt, drm_fmt_no_alpha;
+	u32 *formats;
+	u32 drm_fmt;
 	const u64 *modifiers = ltdc_format_modifiers;
 	int ret;
 
-	/* Get supported pixel formats */
-	for (i = 0; i < NB_PF; i++) {
-		drm_fmt = to_drm_pixelformat(ldev->caps.pix_fmt_hw[i]);
-		if (!drm_fmt)
-			continue;
-		formats[nb_fmt++] = drm_fmt;
+	formats = devm_kzalloc(dev, ldev->caps.pix_fmt_nb * sizeof(*formats), GFP_KERNEL);
 
-		/* Add the no-alpha related format if any & supported */
-		drm_fmt_no_alpha = get_pixelformat_without_alpha(drm_fmt);
-		if (!drm_fmt_no_alpha)
-			continue;
+	for (i = 0; i < ldev->caps.pix_fmt_nb; i++) {
+		drm_fmt = ldev->caps.pix_fmt_drm[i];
 
 		/* Manage hw-specific capabilities */
-		if (ldev->caps.non_alpha_only_l1 &&
-		    type != DRM_PLANE_TYPE_PRIMARY)
-			continue;
+		if (ldev->caps.non_alpha_only_l1)
+			/* XR24 & RX24 like formats supported only on primary layer */
+			if (type != DRM_PLANE_TYPE_PRIMARY && is_xrgb(drm_fmt))
+				continue;
 
-		formats[nb_fmt++] = drm_fmt_no_alpha;
+		formats[nb_fmt++] = drm_fmt;
 	}
 
 	plane = devm_kzalloc(dev, sizeof(*plane), GFP_KERNEL);
@@ -1311,6 +1388,9 @@ static int ltdc_get_caps(struct drm_device *ddev)
 		ldev->caps.layer_ofs = LAY_OFS_0;
 		ldev->caps.layer_regs = ltdc_layer_regs_a0;
 		ldev->caps.pix_fmt_hw = ltdc_pix_fmt_a0;
+		ldev->caps.pix_fmt_drm = ltdc_drm_fmt_a0;
+		ldev->caps.pix_fmt_nb = ARRAY_SIZE(ltdc_drm_fmt_a0);
+		ldev->caps.pix_fmt_flex = false;
 		/*
 		 * Hw older versions support non-alpha color formats derived
 		 * from native alpha color formats only on the primary layer.
@@ -1330,6 +1410,9 @@ static int ltdc_get_caps(struct drm_device *ddev)
 		ldev->caps.layer_ofs = LAY_OFS_0;
 		ldev->caps.layer_regs = ltdc_layer_regs_a1;
 		ldev->caps.pix_fmt_hw = ltdc_pix_fmt_a1;
+		ldev->caps.pix_fmt_drm = ltdc_drm_fmt_a1;
+		ldev->caps.pix_fmt_nb = ARRAY_SIZE(ltdc_drm_fmt_a1);
+		ldev->caps.pix_fmt_flex = false;
 		ldev->caps.non_alpha_only_l1 = false;
 		ldev->caps.pad_max_freq_hz = 150000000;
 		ldev->caps.nb_irq = 4;
@@ -1340,6 +1423,9 @@ static int ltdc_get_caps(struct drm_device *ddev)
 		ldev->caps.layer_ofs = LAY_OFS_1;
 		ldev->caps.layer_regs = ltdc_layer_regs_a2;
 		ldev->caps.pix_fmt_hw = ltdc_pix_fmt_a2;
+		ldev->caps.pix_fmt_drm = ltdc_drm_fmt_a2;
+		ldev->caps.pix_fmt_nb = ARRAY_SIZE(ltdc_drm_fmt_a2);
+		ldev->caps.pix_fmt_flex = true;
 		ldev->caps.non_alpha_only_l1 = false;
 		ldev->caps.pad_max_freq_hz = 90000000;
 		ldev->caps.nb_irq = 2;

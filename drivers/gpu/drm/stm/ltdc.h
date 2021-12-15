@@ -17,7 +17,10 @@ struct ltdc_caps {
 	u32 layer_ofs;		/* layer offset for applicable regs */
 	const u32 *layer_regs;	/* layer register offset */
 	u32 bus_width;		/* bus width (32 or 64 bits) */
-	const u32 *pix_fmt_hw;	/* supported pixel formats */
+	const u32 *pix_fmt_hw;	/* supported hw pixel formats */
+	const u32 *pix_fmt_drm;	/* supported drm pixel formats */
+	int pix_fmt_nb;		/* number of pixel format */
+	bool pix_fmt_flex;	/* pixel format flexibility supported */
 	bool non_alpha_only_l1; /* non-native no-alpha formats on layer 1 */
 	int pad_max_freq_hz;	/* max frequency supported by pad */
 	int nb_irq;		/* number of hardware interrupts */
