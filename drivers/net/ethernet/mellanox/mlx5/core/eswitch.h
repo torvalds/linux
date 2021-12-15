@@ -331,7 +331,6 @@ struct mlx5_eswitch {
 		u32             large_group_num;
 	}  params;
 	struct blocking_notifier_head n_head;
-	struct lock_class_key mode_lock_key;
 };
 
 void esw_offloads_disable(struct mlx5_eswitch *esw);
@@ -704,7 +703,6 @@ void mlx5_esw_get(struct mlx5_core_dev *dev);
 void mlx5_esw_put(struct mlx5_core_dev *dev);
 int mlx5_esw_try_lock(struct mlx5_eswitch *esw);
 void mlx5_esw_unlock(struct mlx5_eswitch *esw);
-void mlx5_esw_lock(struct mlx5_eswitch *esw);
 
 void esw_vport_change_handle_locked(struct mlx5_vport *vport);
 
@@ -729,9 +727,6 @@ static inline const u32 *mlx5_esw_query_functions(struct mlx5_core_dev *dev)
 {
 	return ERR_PTR(-EOPNOTSUPP);
 }
-
-static inline void mlx5_esw_unlock(struct mlx5_eswitch *esw) { return; }
-static inline void mlx5_esw_lock(struct mlx5_eswitch *esw) { return; }
 
 static inline struct mlx5_flow_handle *
 esw_add_restore_rule(struct mlx5_eswitch *esw, u32 tag)

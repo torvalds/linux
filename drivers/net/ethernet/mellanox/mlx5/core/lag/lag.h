@@ -56,6 +56,8 @@ struct mlx5_lag {
 	struct notifier_block     nb;
 	struct lag_mp             lag_mp;
 	struct mlx5_lag_port_sel  port_sel;
+	/* Protect lag fields/state changes */
+	struct mutex		  lock;
 };
 
 static inline struct mlx5_lag *
