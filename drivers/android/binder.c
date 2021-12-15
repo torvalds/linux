@@ -69,7 +69,7 @@
 
 #include <uapi/linux/android/binder.h>
 
-#include <asm/cacheflush.h>
+#include <linux/cacheflush.h>
 
 #include "binder_internal.h"
 #include "binder_trace.h"
