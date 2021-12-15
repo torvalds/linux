@@ -1508,27 +1508,12 @@ dw_hdmi_connector_detect(struct drm_connector *connector, bool force)
 {
 	struct dw_hdmi_qp *hdmi =
 		container_of(connector, struct dw_hdmi_qp, connector);
-	enum drm_connector_status result;
 
 	mutex_lock(&hdmi->mutex);
 	hdmi->force = DRM_FORCE_UNSPECIFIED;
 	mutex_unlock(&hdmi->mutex);
 
-	result = hdmi->phy.ops->read_hpd(hdmi, hdmi->phy.data);
-	if (result == connector_status_connected)
-		extcon_set_state_sync(hdmi->extcon, EXTCON_DISP_HDMI, true);
-	else
-		extcon_set_state_sync(hdmi->extcon, EXTCON_DISP_HDMI, false);
-
-	mutex_lock(&hdmi->mutex);
-	if (result != hdmi->last_connector_result) {
-		dev_dbg(hdmi->dev, "read_hpd result: %d", result);
-		handle_plugged_change(hdmi,
-				result == connector_status_connected);
-		hdmi->last_connector_result = result;
-	}
-	mutex_unlock(&hdmi->mutex);
-	return result;
+	return hdmi->phy.ops->read_hpd(hdmi, hdmi->phy.data);
 }
 
 static int
@@ -1913,6 +1898,8 @@ static void dw_hdmi_qp_bridge_atomic_disable(struct drm_bridge *bridge,
 {
 	struct dw_hdmi_qp *hdmi = bridge->driver_private;
 
+	extcon_set_state_sync(hdmi->extcon, EXTCON_DISP_HDMI, false);
+	handle_plugged_change(hdmi, false);
 	mutex_lock(&hdmi->mutex);
 	hdmi->disabled = true;
 	hdmi->curr_conn = NULL;
@@ -1937,6 +1924,8 @@ static void dw_hdmi_qp_bridge_atomic_enable(struct drm_bridge *bridge,
 	hdmi->curr_conn = connector;
 	dw_hdmi_qp_setup(hdmi, hdmi->curr_conn, &hdmi->previous_mode);
 	mutex_unlock(&hdmi->mutex);
+	extcon_set_state_sync(hdmi->extcon, EXTCON_DISP_HDMI, true);
+	handle_plugged_change(hdmi, true);
 }
 
 static const struct drm_bridge_funcs dw_hdmi_bridge_funcs = {
