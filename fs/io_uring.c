@@ -5568,8 +5568,14 @@ static int io_poll_wake(struct wait_queue_entry *wait, unsigned mode, int sync,
 	if (mask && !(mask & poll->events))
 		return 0;
 
-	if (io_poll_get_ownership(req))
+	if (io_poll_get_ownership(req)) {
+		/* optional, saves extra locking for removal in tw handler */
+		if (mask && poll->events & EPOLLONESHOT) {
+			list_del_init(&poll->wait.entry);
+			poll->head = NULL;
+		}
 		__io_poll_execute(req, mask);
+	}
 	return 1;
 }
 
