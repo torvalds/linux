@@ -1593,14 +1593,14 @@ static void at_xdmac_advance_work(struct at_xdmac_chan *atchan)
 	 * If channel is enabled, do nothing, advance_work will be triggered
 	 * after the interruption.
 	 */
-	if (!at_xdmac_chan_is_enabled(atchan) && !list_empty(&atchan->xfers_list)) {
-		desc = list_first_entry(&atchan->xfers_list,
-					struct at_xdmac_desc,
-					xfer_node);
-		dev_vdbg(chan2dev(&atchan->chan), "%s: desc 0x%p\n", __func__, desc);
-		if (!desc->active_xfer)
-			at_xdmac_start_xfer(atchan, desc);
-	}
+	if (at_xdmac_chan_is_enabled(atchan) || list_empty(&atchan->xfers_list))
+		return;
+
+	desc = list_first_entry(&atchan->xfers_list, struct at_xdmac_desc,
+				xfer_node);
+	dev_vdbg(chan2dev(&atchan->chan), "%s: desc 0x%p\n", __func__, desc);
+	if (!desc->active_xfer)
+		at_xdmac_start_xfer(atchan, desc);
 }
 
 static void at_xdmac_handle_cyclic(struct at_xdmac_chan *atchan)
