@@ -871,12 +871,10 @@ int iser_post_recvm(struct iser_conn *iser_conn, struct iser_rx_desc *rx_desc)
  * iser_post_send - Initiate a Send DTO operation
  * @ib_conn: connection RDMA resources
  * @tx_desc: iSER TX descriptor
- * @signal: true to send work request as SIGNALED
  *
  * Return: 0 on success, -1 on failure
  */
-int iser_post_send(struct ib_conn *ib_conn, struct iser_tx_desc *tx_desc,
-		   bool signal)
+int iser_post_send(struct ib_conn *ib_conn, struct iser_tx_desc *tx_desc)
 {
 	struct ib_send_wr *wr = &tx_desc->send_wr;
 	struct ib_send_wr *first_wr;
@@ -891,7 +889,7 @@ int iser_post_send(struct ib_conn *ib_conn, struct iser_tx_desc *tx_desc,
 	wr->sg_list = tx_desc->tx_sg;
 	wr->num_sge = tx_desc->num_sge;
 	wr->opcode = IB_WR_SEND;
-	wr->send_flags = signal ? IB_SEND_SIGNALED : 0;
+	wr->send_flags = IB_SEND_SIGNALED;
 
 	if (tx_desc->inv_wr.next)
 		first_wr = &tx_desc->inv_wr;

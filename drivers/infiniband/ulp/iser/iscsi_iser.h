@@ -146,8 +146,6 @@
 					 - ISER_MAX_RX_MISC_PDUS) /	\
 					 (1 + ISER_INFLIGHT_DATAOUTS))
 
-#define ISER_SIGNAL_CMD_COUNT 32
-
 /* Constant PDU lengths calculations */
 #define ISER_HEADERS_LEN	(sizeof(struct iser_ctrl) + sizeof(struct iscsi_hdr))
 
@@ -364,7 +362,6 @@ struct iser_fr_pool {
  * @qp:                  Connection Queue-pair
  * @cq:                  Connection completion queue
  * @cq_size:             The number of max outstanding completions
- * @sig_count:           send work request signal count
  * @device:              reference to iser device
  * @fr_pool:             connection fast registration poool
  * @pi_support:          Indicate device T10-PI support
@@ -375,7 +372,6 @@ struct ib_conn {
 	struct ib_qp	            *qp;
 	struct ib_cq		    *cq;
 	u32			    cq_size;
-	u8                           sig_count;
 	struct iser_device          *device;
 	struct iser_fr_pool          fr_pool;
 	bool			     pi_support;
@@ -532,8 +528,7 @@ int  iser_connect(struct iser_conn *iser_conn,
 int  iser_post_recvl(struct iser_conn *iser_conn);
 int  iser_post_recvm(struct iser_conn *iser_conn,
 		     struct iser_rx_desc *rx_desc);
-int  iser_post_send(struct ib_conn *ib_conn, struct iser_tx_desc *tx_desc,
-		    bool signal);
+int  iser_post_send(struct ib_conn *ib_conn, struct iser_tx_desc *tx_desc);
 
 int iser_dma_map_task_data(struct iscsi_iser_task *iser_task,
 			   struct iser_data_buf *data,
