@@ -30,35 +30,11 @@
 #include "strfilter.h"
 #include "util/cap.h"
 #include "util/config.h"
+#include "util/ftrace.h"
 #include "util/units.h"
 #include "util/parse-sublevel-options.h"
 
 #define DEFAULT_TRACER  "function_graph"
-
-struct perf_ftrace {
-	struct evlist		*evlist;
-	struct target		target;
-	const char		*tracer;
-	struct list_head	filters;
-	struct list_head	notrace;
-	struct list_head	graph_funcs;
-	struct list_head	nograph_funcs;
-	int			graph_depth;
-	unsigned long		percpu_buffer_size;
-	bool			inherit;
-	int			func_stack_trace;
-	int			func_irq_info;
-	int			graph_nosleep_time;
-	int			graph_noirqs;
-	int			graph_verbose;
-	int			graph_thresh;
-	unsigned int		initial_delay;
-};
-
-struct filter_entry {
-	struct list_head	list;
-	char			name[];
-};
 
 static volatile int workload_exec_errno;
 static bool done;
@@ -704,8 +680,6 @@ out:
 	return (done && !workload_exec_errno) ? 0 : -1;
 }
 
-#define NUM_BUCKET  22  /* 20 + 2 (for outliers in both direction) */
-
 static void make_histogram(int buckets[], char *buf, size_t len, char *linebuf)
 {
 	char *p, *q;
@@ -816,9 +790,87 @@ static void display_histogram(int buckets[])
 
 }
 
-static int __cmd_latency(struct perf_ftrace *ftrace)
+static int prepare_func_latency(struct perf_ftrace *ftrace)
 {
 	char *trace_file;
+	int fd;
+
+	if (ftrace->target.use_bpf)
+		return perf_ftrace__latency_prepare_bpf(ftrace);
+
+	if (reset_tracing_files(ftrace) < 0) {
+		pr_err("failed to reset ftrace\n");
+		return -1;
+	}
+
+	/* reset ftrace buffer */
+	if (write_tracing_file("trace", "0") < 0)
+		return -1;
+
+	if (set_tracing_options(ftrace) < 0)
+		return -1;
+
+	/* force to use the function_graph tracer to track duration */
+	if (write_tracing_file("current_tracer", "function_graph") < 0) {
+		pr_err("failed to set current_tracer to function_graph\n");
+		return -1;
+	}
+
+	trace_file = get_tracing_file("trace_pipe");
+	if (!trace_file) {
+		pr_err("failed to open trace_pipe\n");
+		return -1;
+	}
+
+	fd = open(trace_file, O_RDONLY);
+	if (fd < 0)
+		pr_err("failed to open trace_pipe\n");
+
+	put_tracing_file(trace_file);
+	return fd;
+}
+
+static int start_func_latency(struct perf_ftrace *ftrace)
+{
+	if (ftrace->target.use_bpf)
+		return perf_ftrace__latency_start_bpf(ftrace);
+
+	if (write_tracing_file("tracing_on", "1") < 0) {
+		pr_err("can't enable tracing\n");
+		return -1;
+	}
+
+	return 0;
+}
+
+static int stop_func_latency(struct perf_ftrace *ftrace)
+{
+	if (ftrace->target.use_bpf)
+		return perf_ftrace__latency_stop_bpf(ftrace);
+
+	write_tracing_file("tracing_on", "0");
+	return 0;
+}
+
+static int read_func_latency(struct perf_ftrace *ftrace, int buckets[])
+{
+	if (ftrace->target.use_bpf)
+		return perf_ftrace__latency_read_bpf(ftrace, buckets);
+
+	return 0;
+}
+
+static int cleanup_func_latency(struct perf_ftrace *ftrace)
+{
+	if (ftrace->target.use_bpf)
+		return perf_ftrace__latency_cleanup_bpf(ftrace);
+
+	reset_tracing_files(ftrace);
+	return 0;
+}
+
+static int __cmd_latency(struct perf_ftrace *ftrace)
+{
 	int trace_fd;
 	char buf[4096];
 	char line[256];
@@ -839,46 +891,15 @@ static int __cmd_latency(struct perf_ftrace *ftrace)
 		return -1;
 	}
 
-	if (reset_tracing_files(ftrace) < 0) {
-		pr_err("failed to reset ftrace\n");
+	trace_fd = prepare_func_latency(ftrace);
+	if (trace_fd < 0)
 		goto out;
-	}
-
-	/* reset ftrace buffer */
-	if (write_tracing_file("trace", "0") < 0)
-		goto out;
-
-	if (set_tracing_options(ftrace) < 0)
-		goto out_reset;
-
-	/* force to use the function_graph tracer to track duration */
-	if (write_tracing_file("current_tracer", "function_graph") < 0) {
-		pr_err("failed to set current_tracer to function_graph\n");
-		goto out_reset;
-	}
-
-	trace_file = get_tracing_file("trace_pipe");
-	if (!trace_file) {
-		pr_err("failed to open trace_pipe\n");
-		goto out_reset;
-	}
-
-	trace_fd = open(trace_file, O_RDONLY);
-
-	put_tracing_file(trace_file);
-
-	if (trace_fd < 0) {
-		pr_err("failed to open trace_pipe\n");
-		goto out_reset;
-	}
 
 	fcntl(trace_fd, F_SETFL, O_NONBLOCK);
 	pollfd.fd = trace_fd;
 
-	if (write_tracing_file("tracing_on", "1") < 0) {
-		pr_err("can't enable tracing\n");
-		goto out_close_fd;
-	}
+	if (start_func_latency(ftrace) < 0)
+		goto out;
 
 	evlist__start_workload(ftrace->evlist);
 
@@ -896,29 +917,30 @@ static int __cmd_latency(struct perf_ftrace *ftrace)
 		}
 	}
 
-	write_tracing_file("tracing_on", "0");
+	stop_func_latency(ftrace);
 
 	if (workload_exec_errno) {
 		const char *emsg = str_error_r(workload_exec_errno, buf, sizeof(buf));
 		pr_err("workload failed: %s\n", emsg);
-		goto out_close_fd;
+		goto out;
 	}
 
 	/* read remaining buffer contents */
-	while (true) {
+	while (!ftrace->target.use_bpf) {
 		int n = read(trace_fd, buf, sizeof(buf) - 1);
 		if (n <= 0)
 			break;
 		make_histogram(buckets, buf, n, line);
 	}
 
+	read_func_latency(ftrace, buckets);
+
 	display_histogram(buckets);
 
-out_close_fd:
-	close(trace_fd);
-out_reset:
-	reset_tracing_files(ftrace);
 out:
+	close(trace_fd);
+	cleanup_func_latency(ftrace);
+
 	return (done && !workload_exec_errno) ? 0 : -1;
 }
 
@@ -1144,6 +1166,10 @@ int cmd_ftrace(int argc, const char **argv)
 	const struct option latency_options[] = {
 	OPT_CALLBACK('T', "trace-funcs", &ftrace.filters, "func",
 		     "Show latency of given function", parse_filter_func),
+#ifdef HAVE_BPF_SKEL
+	OPT_BOOLEAN('b', "use-bpf", &ftrace.target.use_bpf,
+		    "Use BPF to measure function latency"),
+#endif
 	OPT_PARENT(common_options),
 	};
 	const struct option *options = ftrace_options;
