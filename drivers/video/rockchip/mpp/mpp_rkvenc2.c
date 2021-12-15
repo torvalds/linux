@@ -1678,23 +1678,26 @@ static int rkvenc_remove(struct platform_device *pdev)
 
 static void rkvenc_shutdown(struct platform_device *pdev)
 {
-	int ret;
-	int val;
 	struct device *dev = &pdev->dev;
-	struct rkvenc_dev *enc = platform_get_drvdata(pdev);
-	struct mpp_dev *mpp = &enc->mpp;
 
-	dev_info(dev, "shutdown device\n");
+	if (!strstr(dev_name(dev), "ccu")) {
+		int ret;
+		int val;
+		struct rkvenc_dev *enc = platform_get_drvdata(pdev);
+		struct mpp_dev *mpp = &enc->mpp;
 
-	if (mpp->srv)
-		atomic_inc(&mpp->srv->shutdown_request);
+		dev_info(dev, "shutdown device\n");
 
-	ret = readx_poll_timeout(atomic_read,
-				 &mpp->task_count,
-				 val, val == 0, 1000, 200000);
-	if (ret == -ETIMEDOUT)
-		dev_err(dev, "wait total running time out\n");
+		if (mpp->srv)
+			atomic_inc(&mpp->srv->shutdown_request);
 
+		ret = readx_poll_timeout(atomic_read,
+					 &mpp->task_count,
+					 val, val == 0, 1000, 200000);
+		if (ret == -ETIMEDOUT)
+			dev_err(dev, "wait total running time out\n");
+
+	}
 	dev_info(dev, "shutdown success\n");
 }
 
