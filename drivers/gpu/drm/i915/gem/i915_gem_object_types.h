@@ -57,7 +57,6 @@ struct drm_i915_gem_object_ops {
 	void (*put_pages)(struct drm_i915_gem_object *obj,
 			  struct sg_table *pages);
 	int (*truncate)(struct drm_i915_gem_object *obj);
-	void (*writeback)(struct drm_i915_gem_object *obj);
 	int (*shrinker_release_pages)(struct drm_i915_gem_object *obj,
 				      bool no_gpu_wait,
 				      bool should_writeback);

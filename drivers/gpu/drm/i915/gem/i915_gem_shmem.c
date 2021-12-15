@@ -331,6 +331,23 @@ shmem_writeback(struct drm_i915_gem_object *obj)
 	__shmem_writeback(obj->base.size, obj->base.filp->f_mapping);
 }
 
+static int shmem_shrinker_release_pages(struct drm_i915_gem_object *obj,
+					bool no_gpu_wait,
+					bool writeback)
+{
+	switch (obj->mm.madv) {
+	case I915_MADV_DONTNEED:
+		return i915_gem_object_truncate(obj);
+	case __I915_MADV_PURGED:
+		return 0;
+	}
+
+	if (writeback)
+		shmem_writeback(obj);
+
+	return 0;
+}
+
 void
 __i915_gem_object_release_shmem(struct drm_i915_gem_object *obj,
 				struct sg_table *pages,
@@ -503,7 +520,7 @@ const struct drm_i915_gem_object_ops i915_gem_shmem_ops = {
 	.get_pages = shmem_get_pages,
 	.put_pages = shmem_put_pages,
 	.truncate = shmem_truncate,
-	.writeback = shmem_writeback,
+	.shrinker_release_pages = shmem_shrinker_release_pages,
 
 	.pwrite = shmem_pwrite,
 	.pread = shmem_pread,

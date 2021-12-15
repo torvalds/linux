@@ -61,18 +61,6 @@ static int try_to_writeback(struct drm_i915_gem_object *obj, unsigned int flags)
 		return obj->ops->shrinker_release_pages(obj,
 							!(flags & I915_SHRINK_ACTIVE),
 							flags & I915_SHRINK_WRITEBACK);
-
-	switch (obj->mm.madv) {
-	case I915_MADV_DONTNEED:
-		i915_gem_object_truncate(obj);
-		return 0;
-	case __I915_MADV_PURGED:
-		return 0;
-	}
-
-	if (flags & I915_SHRINK_WRITEBACK)
-		i915_gem_object_writeback(obj);
-
 	return 0;
 }
 
