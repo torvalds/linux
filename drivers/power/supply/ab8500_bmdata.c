@@ -167,15 +167,16 @@ struct ab8500_bm_data ab8500_bm_data = {
 int ab8500_bm_of_probe(struct power_supply *psy,
 		       struct ab8500_bm_data *bm)
 {
-	struct power_supply_battery_info *bi = &bm->bi;
+	struct power_supply_battery_info *bi;
 	struct device *dev = &psy->dev;
 	int ret;
 
-	ret = power_supply_get_battery_info(psy, bi);
+	ret = power_supply_get_battery_info(psy, &bm->bi);
 	if (ret) {
 		dev_err(dev, "cannot retrieve battery info\n");
 		return ret;
 	}
+	bi = bm->bi;
 
 	/* Fill in defaults for any data missing from the device tree */
 	if (bi->charge_full_design_uah < 0)
@@ -240,5 +241,5 @@ int ab8500_bm_of_probe(struct power_supply *psy,
 void ab8500_bm_of_remove(struct power_supply *psy,
 			 struct ab8500_bm_data *bm)
 {
-	power_supply_put_battery_info(psy, &bm->bi);
+	power_supply_put_battery_info(psy, bm->bi);
 }

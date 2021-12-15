@@ -852,7 +852,7 @@ static int ab8500_fg_bat_voltage(struct ab8500_fg *di)
  */
 static int ab8500_fg_volt_to_capacity(struct ab8500_fg *di, int voltage_uv)
 {
-	struct power_supply_battery_info *bi = &di->bm->bi;
+	struct power_supply_battery_info *bi = di->bm->bi;
 
 	/* Multiply by 10 because the capacity is tracked in per mille */
 	return power_supply_batinfo_ocv2cap(bi, voltage_uv, di->bat_temp) *  10;
@@ -881,7 +881,7 @@ static int ab8500_fg_uncomp_volt_to_capacity(struct ab8500_fg *di)
  */
 static int ab8500_fg_battery_resistance(struct ab8500_fg *di)
 {
-	struct power_supply_battery_info *bi = &di->bm->bi;
+	struct power_supply_battery_info *bi = di->bm->bi;
 	int resistance_percent = 0;
 	int resistance;
 
@@ -2140,11 +2140,13 @@ static int ab8500_fg_get_ext_psy_data(struct device *dev, void *data)
 	struct power_supply *ext = dev_get_drvdata(dev);
 	const char **supplicants = (const char **)ext->supplied_to;
 	struct ab8500_fg *di;
+	struct power_supply_battery_info *bi;
 	union power_supply_propval ret;
 	int j;
 
 	psy = (struct power_supply *)data;
 	di = power_supply_get_drvdata(psy);
+	bi = di->bm->bi;
 
 	/*
 	 * For all psy where the name of your driver
@@ -2207,8 +2209,8 @@ static int ab8500_fg_get_ext_psy_data(struct device *dev, void *data)
 			switch (ext->desc->type) {
 			case POWER_SUPPLY_TYPE_BATTERY:
 				if (!di->flags.batt_id_received &&
-				    (di->bm->bi.technology !=
-				     POWER_SUPPLY_TECHNOLOGY_UNKNOWN)) {
+				    (bi && (bi->technology !=
+					    POWER_SUPPLY_TECHNOLOGY_UNKNOWN))) {
 					const struct ab8500_battery_type *b;
 
 					b = di->bm->bat_type;
@@ -2216,13 +2218,13 @@ static int ab8500_fg_get_ext_psy_data(struct device *dev, void *data)
 					di->flags.batt_id_received = true;
 
 					di->bat_cap.max_mah_design =
-						di->bm->bi.charge_full_design_uah;
+						di->bm->bi->charge_full_design_uah;
 
 					di->bat_cap.max_mah =
 						di->bat_cap.max_mah_design;
 
 					di->vbat_nom_uv =
-						di->bm->bi.voltage_max_design_uv;
+						di->bm->bi->voltage_max_design_uv;
 				}
 
 				if (ret.intval)
@@ -2992,9 +2994,9 @@ static int ab8500_fg_bind(struct device *dev, struct device *master,
 		return -ENOMEM;
 	}
 
-	di->bat_cap.max_mah_design = di->bm->bi.charge_full_design_uah;
+	di->bat_cap.max_mah_design = di->bm->bi->charge_full_design_uah;
 	di->bat_cap.max_mah = di->bat_cap.max_mah_design;
-	di->vbat_nom_uv = di->bm->bi.voltage_max_design_uv;
+	di->vbat_nom_uv = di->bm->bi->voltage_max_design_uv;
 
 	/* Start the coulomb counter */
 	ab8500_fg_coulomb_counter(di, true);

@@ -352,7 +352,7 @@ static void ab8500_chargalg_state_to(struct ab8500_chargalg *di,
 
 static int ab8500_chargalg_check_charger_enable(struct ab8500_chargalg *di)
 {
-	struct power_supply_battery_info *bi = &di->bm->bi;
+	struct power_supply_battery_info *bi = di->bm->bi;
 
 	switch (di->charge_state) {
 	case STATE_NORMAL:
@@ -731,7 +731,7 @@ static void ab8500_chargalg_start_charging(struct ab8500_chargalg *di,
  */
 static void ab8500_chargalg_check_temp(struct ab8500_chargalg *di)
 {
-	struct power_supply_battery_info *bi = &di->bm->bi;
+	struct power_supply_battery_info *bi = di->bm->bi;
 
 	if (di->batt_data.temp > (bi->temp_alert_min + di->t_hyst_norm) &&
 		di->batt_data.temp < (bi->temp_alert_max - di->t_hyst_norm)) {
@@ -802,10 +802,10 @@ static void ab8500_chargalg_end_of_charge(struct ab8500_chargalg *di)
 	if (di->charge_status == POWER_SUPPLY_STATUS_CHARGING &&
 		di->charge_state == STATE_NORMAL &&
 		!di->maintenance_chg && (di->batt_data.volt_uv >=
-		di->bm->bi.overvoltage_limit_uv ||
+		di->bm->bi->overvoltage_limit_uv ||
 		di->events.usb_cv_active || di->events.ac_cv_active) &&
 		di->batt_data.avg_curr_ua <
-		di->bm->bi.charge_term_current_ua &&
+		di->bm->bi->charge_term_current_ua &&
 		di->batt_data.avg_curr_ua > 0) {
 		if (++di->eoc_cnt >= EOC_COND_CNT) {
 			di->eoc_cnt = 0;
@@ -827,7 +827,7 @@ static void ab8500_chargalg_end_of_charge(struct ab8500_chargalg *di)
 
 static void init_maxim_chg_curr(struct ab8500_chargalg *di)
 {
-	struct power_supply_battery_info *bi = &di->bm->bi;
+	struct power_supply_battery_info *bi = di->bm->bi;
 
 	di->ccm.original_iset_ua = bi->constant_charge_current_max_ua;
 	di->ccm.current_iset_ua = bi->constant_charge_current_max_ua;
@@ -920,7 +920,7 @@ static enum maxim_ret ab8500_chargalg_chg_curr_maxim(struct ab8500_chargalg *di)
 
 static void handle_maxim_chg_curr(struct ab8500_chargalg *di)
 {
-	struct power_supply_battery_info *bi = &di->bm->bi;
+	struct power_supply_battery_info *bi = di->bm->bi;
 	enum maxim_ret ret;
 	int result;
 
@@ -1299,7 +1299,7 @@ static void ab8500_chargalg_external_power_changed(struct power_supply *psy)
  */
 static void ab8500_chargalg_algorithm(struct ab8500_chargalg *di)
 {
-	struct power_supply_battery_info *bi = &di->bm->bi;
+	struct power_supply_battery_info *bi = di->bm->bi;
 	int charger_status;
 	int ret;
 	int curr_step_lvl_ua;
@@ -1723,7 +1723,7 @@ static int ab8500_chargalg_get_property(struct power_supply *psy,
 		if (di->events.batt_ovv) {
 			val->intval = POWER_SUPPLY_HEALTH_OVERVOLTAGE;
 		} else if (di->events.btemp_underover) {
-			if (di->batt_data.temp <= di->bm->bi.temp_min)
+			if (di->batt_data.temp <= di->bm->bi->temp_min)
 				val->intval = POWER_SUPPLY_HEALTH_COLD;
 			else
 				val->intval = POWER_SUPPLY_HEALTH_OVERHEAT;

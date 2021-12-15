@@ -439,7 +439,7 @@ struct ab8500_bm_charger_parameters {
  * @fg_params		fuel gauge parameters
  */
 struct ab8500_bm_data {
-	struct power_supply_battery_info bi;
+	struct power_supply_battery_info *bi;
 	int temp_now;
 	int temp_interval_chg;
 	int temp_interval_nochg;
