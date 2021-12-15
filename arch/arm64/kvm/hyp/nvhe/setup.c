@@ -257,6 +257,7 @@ void __noreturn __pkvm_init_finalise(void)
 		.virt_to_phys = hyp_virt_to_phys,
 		.get_page = hpool_get_page,
 		.put_page = hpool_put_page,
+		.page_count = hyp_page_count,
 	};
 	pkvm_pgtable.mm_ops = &pkvm_pgtable_mm_ops;
 
