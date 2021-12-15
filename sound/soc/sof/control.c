@@ -577,6 +577,13 @@ void snd_sof_control_notify(struct snd_sof_dev *sdev,
 	bool found = false;
 	int i, type;
 
+	if (cdata->type == SOF_CTRL_TYPE_VALUE_COMP_GET ||
+	    cdata->type == SOF_CTRL_TYPE_VALUE_COMP_SET) {
+		dev_err(sdev->dev,
+			"Component data is not supported in control notification\n");
+		return;
+	}
+
 	/* Find the swidget first */
 	list_for_each_entry(swidget, &sdev->widget_list, list) {
 		if (swidget->comp_id == cdata->comp_id) {
@@ -642,11 +649,6 @@ void snd_sof_control_notify(struct snd_sof_dev *sdev,
 	case SOF_CTRL_TYPE_VALUE_CHAN_SET:
 		expected_size += cdata->num_elems *
 				 sizeof(struct sof_ipc_ctrl_value_chan);
-		break;
-	case SOF_CTRL_TYPE_VALUE_COMP_GET:
-	case SOF_CTRL_TYPE_VALUE_COMP_SET:
-		expected_size += cdata->num_elems *
-				 sizeof(struct sof_ipc_ctrl_value_comp);
 		break;
 	case SOF_CTRL_TYPE_DATA_GET:
 	case SOF_CTRL_TYPE_DATA_SET:
