@@ -56,6 +56,10 @@
 	};
 };
 
+&bluetooth {
+	vddio-supply = <&vreg_l19b_1p8>;
+};
+
 &ipa {
 	status = "okay";
 	modem-init;
