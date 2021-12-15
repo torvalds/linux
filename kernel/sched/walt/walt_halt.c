@@ -193,6 +193,9 @@ static int halt_cpus(struct cpumask *cpus)
 {
 	int cpu;
 	int ret = 0;
+	u64 start_time = sched_clock();
+
+	trace_halt_cpus_start(cpus, 1);
 
 	for_each_cpu(cpu, cpus) {
 
@@ -212,6 +215,8 @@ static int halt_cpus(struct cpumask *cpus)
 		}
 	}
 
+	trace_halt_cpus(cpus, start_time, 1, ret);
+
 	return ret;
 }
 
@@ -221,11 +226,16 @@ static int halt_cpus(struct cpumask *cpus)
  */
 static int start_cpus(struct cpumask *cpus)
 {
+	u64 start_time = sched_clock();
+
+	trace_halt_cpus_start(cpus, 0);
 	if (!cpumask_empty(cpus)) {
 
 		/* remove the cpus from the halt mask */
 		cpumask_andnot(cpu_halt_mask, cpu_halt_mask, cpus);
 	}
+
+	trace_halt_cpus(cpus, start_time, 0, 0);
 
 	return 0;
 }

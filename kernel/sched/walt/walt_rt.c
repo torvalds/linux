@@ -36,7 +36,7 @@ static void walt_rt_energy_aware_wake_cpu(void *unused, struct task_struct *task
 		for_each_cpu_and(cpu, lowest_mask, &cpu_array[order_index][cluster]) {
 			bool lt;
 
-			trace_sched_cpu_util(cpu);
+			trace_sched_cpu_util(cpu, lowest_mask);
 
 			if (!cpu_active(cpu))
 				continue;

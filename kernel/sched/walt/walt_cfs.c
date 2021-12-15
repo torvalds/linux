@@ -295,7 +295,7 @@ static void walt_find_best_target(struct sched_domain *sd,
 			unsigned int idle_exit_latency = UINT_MAX;
 			struct walt_rq *wrq = (struct walt_rq *) cpu_rq(i)->android_vendor_data1;
 
-			trace_sched_cpu_util(i);
+			trace_sched_cpu_util(i, NULL);
 			/* record the prss as we visit cpus in a cluster */
 			fbt_env->prs[i] = wrq->prev_runnable_sum + wrq->grp_time.prev_runnable_sum;
 

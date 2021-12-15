@@ -894,9 +894,9 @@ TRACE_EVENT(walt_lb_cpu_util,
 
 TRACE_EVENT(sched_cpu_util,
 
-	TP_PROTO(int cpu),
+	TP_PROTO(int cpu, struct cpumask *lowest_mask),
 
-	TP_ARGS(cpu),
+	TP_ARGS(cpu, lowest_mask),
 
 	TP_STRUCT__entry(
 		__field(unsigned int,	cpu)
@@ -910,10 +910,12 @@ TRACE_EVENT(sched_cpu_util,
 		__field(u64,		irqload)
 		__field(int,		online)
 		__field(int,		inactive)
+		__field(int,		halted)
 		__field(int,		reserved)
 		__field(int,		high_irq_load)
 		__field(unsigned int,	nr_rtg_high_prio_tasks)
 		__field(u64,	prs_gprs)
+		__field(unsigned int,	lowest_mask)
 	),
 
 	TP_fast_assign(
@@ -929,19 +931,25 @@ TRACE_EVENT(sched_cpu_util,
 		__entry->irqload		= sched_irqload(cpu);
 		__entry->online			= cpu_online(cpu);
 		__entry->inactive		= !cpu_active(cpu);
+		__entry->halted			= cpu_halted(cpu);
 		__entry->reserved		= is_reserved(cpu);
 		__entry->high_irq_load		= sched_cpu_high_irqload(cpu);
 		__entry->nr_rtg_high_prio_tasks	= walt_nr_rtg_high_prio(cpu);
 		__entry->prs_gprs	= wrq->prev_runnable_sum + wrq->grp_time.prev_runnable_sum;
+		if (!lowest_mask)
+			__entry->lowest_mask	= 0;
+		else
+			__entry->lowest_mask	= cpumask_bits(lowest_mask)[0];
 	),
 
-	TP_printk("cpu=%d nr_running=%d cpu_util=%ld cpu_util_cum=%ld capacity_curr=%lu capacity=%lu capacity_orig=%lu idle_exit_latency=%u irqload=%llu online=%u, inactive=%u, reserved=%u, high_irq_load=%u nr_rtg_hp=%u prs_gprs=%llu",
+	TP_printk("cpu=%d nr_running=%d cpu_util=%ld cpu_util_cum=%ld capacity_curr=%lu capacity=%lu capacity_orig=%lu idle_exit_latency=%u irqload=%llu online=%u, inactive=%u, halted=%u, reserved=%u, high_irq_load=%u nr_rtg_hp=%u prs_gprs=%llu lowest_mask=0x%x",
 		__entry->cpu, __entry->nr_running, __entry->cpu_util,
 		__entry->cpu_util_cum, __entry->capacity_curr,
 		__entry->capacity, __entry->capacity_orig,
 		__entry->idle_exit_latency, __entry->irqload, __entry->online,
-		__entry->inactive, __entry->reserved, __entry->high_irq_load,
-		__entry->nr_rtg_high_prio_tasks, __entry->prs_gprs)
+		__entry->inactive, __entry->halted, __entry->reserved, __entry->high_irq_load,
+		__entry->nr_rtg_high_prio_tasks, __entry->prs_gprs,
+		__entry->lowest_mask)
 );
 
 TRACE_EVENT(sched_compute_energy,
@@ -1297,6 +1305,56 @@ TRACE_EVENT(sched_cgroup_attach,
 			__entry->grp_id, __entry->ret)
 
 );
+
+TRACE_EVENT(halt_cpus_start,
+	    TP_PROTO(struct cpumask *cpus, unsigned char halt),
+
+	    TP_ARGS(cpus, halt),
+
+	    TP_STRUCT__entry(
+		    __field(unsigned int,   cpus)
+		    __field(unsigned int,   halted_cpus)
+		    __field(unsigned char,  halt)
+		    ),
+
+	    TP_fast_assign(
+		    __entry->cpus        = cpumask_bits(cpus)[0];
+		    __entry->halted_cpus = cpumask_bits(cpu_halt_mask)[0];
+		    __entry->halt        = halt;
+		    ),
+
+	    TP_printk("req_cpus=0x%x halt_cpus=0x%x halt=%d",
+		      __entry->cpus, __entry->halted_cpus, __entry->halt)
+
+);
+
+TRACE_EVENT(halt_cpus,
+	    TP_PROTO(struct cpumask *cpus, u64 start_time, unsigned char halt, int err),
+
+	    TP_ARGS(cpus, start_time, halt, err),
+
+	    TP_STRUCT__entry(
+		    __field(unsigned int,   cpus)
+		    __field(unsigned int,   halted_cpus)
+		    __field(unsigned int,   time)
+		    __field(unsigned char,  halt)
+		    __field(unsigned char,  success)
+		    ),
+
+	    TP_fast_assign(
+		    __entry->cpus        = cpumask_bits(cpus)[0];
+		    __entry->halted_cpus = cpumask_bits(cpu_halt_mask)[0];
+		    __entry->time        = div64_u64(sched_clock() - start_time, 1000);
+		    __entry->halt        = halt;
+		    __entry->success     = ((err >= 0)?1:0);
+		    ),
+
+	    TP_printk("req_cpus=0x%x halt_cpus=0x%x time=%u us halt=%d success=%d",
+		      __entry->cpus, __entry->halted_cpus,
+		      __entry->time, __entry->halt, __entry->success)
+
+);
+
 #endif /* _TRACE_WALT_H */
 
 #undef TRACE_INCLUDE_PATH
