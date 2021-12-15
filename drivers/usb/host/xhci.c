@@ -4998,10 +4998,8 @@ static int calculate_max_exit_latency(struct usb_device *udev,
 			enabling_u2)
 		u2_mel_us = DIV_ROUND_UP(udev->u2_params.mel, 1000);
 
-	if (u1_mel_us > u2_mel_us)
-		mel_us = u1_mel_us;
-	else
-		mel_us = u2_mel_us;
+	mel_us = max(u1_mel_us, u2_mel_us);
+
 	/* xHCI host controller max exit latency field is only 16 bits wide. */
 	if (mel_us > MAX_EXIT) {
 		dev_warn(&udev->dev, "Link PM max exit latency of %lluus "
