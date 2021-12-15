@@ -13,7 +13,9 @@
 #include <signal.h>
 #include <stdlib.h>
 #include <fcntl.h>
+#include <math.h>
 #include <poll.h>
+#include <ctype.h>
 #include <linux/capability.h>
 #include <linux/string.h>
 
@@ -702,6 +704,224 @@ out:
 	return (done && !workload_exec_errno) ? 0 : -1;
 }
 
+#define NUM_BUCKET  22  /* 20 + 2 (for outliers in both direction) */
+
+static void make_histogram(int buckets[], char *buf, size_t len, char *linebuf)
+{
+	char *p, *q;
+	char *unit;
+	double num;
+	int i;
+
+	/* ensure NUL termination */
+	buf[len] = '\0';
+
+	/* handle data line by line */
+	for (p = buf; (q = strchr(p, '\n')) != NULL; p = q + 1) {
+		*q = '\0';
+		/* move it to the line buffer */
+		strcat(linebuf, p);
+
+		/*
+		 * parse trace output to get function duration like in
+		 *
+		 * # tracer: function_graph
+		 * #
+		 * # CPU  DURATION                  FUNCTION CALLS
+		 * # |     |   |                     |   |   |   |
+		 *  1) + 10.291 us   |  do_filp_open();
+		 *  1)   4.889 us    |  do_filp_open();
+		 *  1)   6.086 us    |  do_filp_open();
+		 *
+		 */
+		if (linebuf[0] == '#')
+			goto next;
+
+		/* ignore CPU */
+		p = strchr(linebuf, ')');
+		if (p == NULL)
+			p = linebuf;
+
+		while (*p && !isdigit(*p) && (*p != '|'))
+			p++;
+
+		/* no duration */
+		if (*p == '\0' || *p == '|')
+			goto next;
+
+		num = strtod(p, &unit);
+		if (!unit || strncmp(unit, " us", 3))
+			goto next;
+
+		i = log2(num);
+		if (i < 0)
+			i = 0;
+		if (i >= NUM_BUCKET)
+			i = NUM_BUCKET - 1;
+
+		buckets[i]++;
+
+next:
+		/* empty the line buffer for the next output  */
+		linebuf[0] = '\0';
+	}
+
+	/* preserve any remaining output (before newline) */
+	strcat(linebuf, p);
+}
+
+static void display_histogram(int buckets[])
+{
+	int i;
+	int total = 0;
+	int bar_total = 46;  /* to fit in 80 column */
+	char bar[] = "###############################################";
+	int bar_len;
+
+	for (i = 0; i < NUM_BUCKET; i++)
+		total += buckets[i];
+
+	if (total == 0) {
+		printf("No data found\n");
+		return;
+	}
+
+	printf("# %14s | %10s | %-*s |\n",
+	       "  DURATION    ", "COUNT", bar_total, "GRAPH");
+
+	bar_len = buckets[0] * bar_total / total;
+	printf("  %4d - %-4d %s | %10d | %.*s%*s |\n",
+	       0, 1, "us", buckets[0], bar_len, bar, bar_total - bar_len, "");
+
+	for (i = 1; i < NUM_BUCKET - 1; i++) {
+		int start = (1 << (i - 1));
+		int stop = 1 << i;
+		const char *unit = "us";
+
+		if (start >= 1024) {
+			start >>= 10;
+			stop >>= 10;
+			unit = "ms";
+		}
+		bar_len = buckets[i] * bar_total / total;
+		printf("  %4d - %-4d %s | %10d | %.*s%*s |\n",
+		       start, stop, unit, buckets[i], bar_len, bar,
+		       bar_total - bar_len, "");
+	}
+
+	bar_len = buckets[NUM_BUCKET - 1] * bar_total / total;
+	printf("  %4d - %-4s %s | %10d | %.*s%*s |\n",
+	       1, "...", " s", buckets[NUM_BUCKET - 1], bar_len, bar,
+	       bar_total - bar_len, "");
+
+}
+
+static int __cmd_latency(struct perf_ftrace *ftrace)
+{
+	char *trace_file;
+	int trace_fd;
+	char buf[4096];
+	char line[256];
+	struct pollfd pollfd = {
+		.events = POLLIN,
+	};
+	int buckets[NUM_BUCKET] = { };
+
+	if (!(perf_cap__capable(CAP_PERFMON) ||
+	      perf_cap__capable(CAP_SYS_ADMIN))) {
+		pr_err("ftrace only works for %s!\n",
+#ifdef HAVE_LIBCAP_SUPPORT
+		"users with the CAP_PERFMON or CAP_SYS_ADMIN capability"
+#else
+		"root"
+#endif
+		);
+		return -1;
+	}
+
+	if (reset_tracing_files(ftrace) < 0) {
+		pr_err("failed to reset ftrace\n");
+		goto out;
+	}
+
+	/* reset ftrace buffer */
+	if (write_tracing_file("trace", "0") < 0)
+		goto out;
+
+	if (set_tracing_options(ftrace) < 0)
+		goto out_reset;
+
+	/* force to use the function_graph tracer to track duration */
+	if (write_tracing_file("current_tracer", "function_graph") < 0) {
+		pr_err("failed to set current_tracer to function_graph\n");
+		goto out_reset;
+	}
+
+	trace_file = get_tracing_file("trace_pipe");
+	if (!trace_file) {
+		pr_err("failed to open trace_pipe\n");
+		goto out_reset;
+	}
+
+	trace_fd = open(trace_file, O_RDONLY);
+
+	put_tracing_file(trace_file);
+
+	if (trace_fd < 0) {
+		pr_err("failed to open trace_pipe\n");
+		goto out_reset;
+	}
+
+	fcntl(trace_fd, F_SETFL, O_NONBLOCK);
+	pollfd.fd = trace_fd;
+
+	if (write_tracing_file("tracing_on", "1") < 0) {
+		pr_err("can't enable tracing\n");
+		goto out_close_fd;
+	}
+
+	evlist__start_workload(ftrace->evlist);
+
+	line[0] = '\0';
+	while (!done) {
+		if (poll(&pollfd, 1, -1) < 0)
+			break;
+
+		if (pollfd.revents & POLLIN) {
+			int n = read(trace_fd, buf, sizeof(buf) - 1);
+			if (n < 0)
+				break;
+
+			make_histogram(buckets, buf, n, line);
+		}
+	}
+
+	write_tracing_file("tracing_on", "0");
+
+	if (workload_exec_errno) {
+		const char *emsg = str_error_r(workload_exec_errno, buf, sizeof(buf));
+		pr_err("workload failed: %s\n", emsg);
+		goto out_close_fd;
+	}
+
+	/* read remaining buffer contents */
+	while (true) {
+		int n = read(trace_fd, buf, sizeof(buf) - 1);
+		if (n <= 0)
+			break;
+		make_histogram(buckets, buf, n, line);
+	}
+
+	display_histogram(buckets);
+
+out_close_fd:
+	close(trace_fd);
+out_reset:
+	reset_tracing_files(ftrace);
+out:
+	return (done && !workload_exec_errno) ? 0 : -1;
+}
+
 static int perf_ftrace_config(const char *var, const char *value, void *cb)
 {
 	struct perf_ftrace *ftrace = cb;
@@ -864,6 +1084,12 @@ static int parse_graph_tracer_opts(const struct option *opt,
 	return 0;
 }
 
+enum perf_ftrace_subcommand {
+	PERF_FTRACE_NONE,
+	PERF_FTRACE_TRACE,
+	PERF_FTRACE_LATENCY,
+};
+
 int cmd_ftrace(int argc, const char **argv)
 {
 	int ret;
@@ -915,14 +1141,21 @@ int cmd_ftrace(int argc, const char **argv)
 		     "Number of milliseconds to wait before starting tracing after program start"),
 	OPT_PARENT(common_options),
 	};
+	const struct option latency_options[] = {
+	OPT_CALLBACK('T', "trace-funcs", &ftrace.filters, "func",
+		     "Show latency of given function", parse_filter_func),
+	OPT_PARENT(common_options),
+	};
+	const struct option *options = ftrace_options;
 
 	const char * const ftrace_usage[] = {
 		"perf ftrace [<options>] [<command>]",
 		"perf ftrace [<options>] -- [<command>] [<options>]",
-		"perf ftrace trace [<options>] [<command>]",
-		"perf ftrace trace [<options>] -- [<command>] [<options>]",
+		"perf ftrace {trace|latency} [<options>] [<command>]",
+		"perf ftrace {trace|latency} [<options>] -- [<command>] [<options>]",
 		NULL
 	};
+	enum perf_ftrace_subcommand subcmd = PERF_FTRACE_NONE;
 
 	INIT_LIST_HEAD(&ftrace.filters);
 	INIT_LIST_HEAD(&ftrace.notrace);
@@ -938,15 +1171,29 @@ int cmd_ftrace(int argc, const char **argv)
 	if (ret < 0)
 		return -1;
 
-	if (argc > 1 && !strcmp(argv[1], "trace")) {
-		argc--;
-		argv++;
-	}
+	if (argc > 1) {
+		if (!strcmp(argv[1], "trace")) {
+			subcmd = PERF_FTRACE_TRACE;
+		} else if (!strcmp(argv[1], "latency")) {
+			subcmd = PERF_FTRACE_LATENCY;
+			options = latency_options;
+		}
 
-	argc = parse_options(argc, argv, ftrace_options, ftrace_usage,
+		if (subcmd != PERF_FTRACE_NONE) {
+			argc--;
+			argv++;
+		}
+	}
+	/* for backward compatibility */
+	if (subcmd == PERF_FTRACE_NONE)
+		subcmd = PERF_FTRACE_TRACE;
+
+	argc = parse_options(argc, argv, options, ftrace_usage,
 			    PARSE_OPT_STOP_AT_NON_OPTION);
-	if (!argc && target__none(&ftrace.target))
-		ftrace.target.system_wide = true;
+	if (argc < 0) {
+		ret = -EINVAL;
+		goto out_delete_filters;
+	}
 
 	ret = target__validate(&ftrace.target);
 	if (ret) {
@@ -975,7 +1222,27 @@ int cmd_ftrace(int argc, const char **argv)
 			goto out_delete_evlist;
 	}
 
-	ret = __cmd_ftrace(&ftrace);
+	switch (subcmd) {
+	case PERF_FTRACE_TRACE:
+		if (!argc && target__none(&ftrace.target))
+			ftrace.target.system_wide = true;
+		ret = __cmd_ftrace(&ftrace);
+		break;
+	case PERF_FTRACE_LATENCY:
+		if (list_empty(&ftrace.filters)) {
+			pr_err("Should provide a function to measure\n");
+			parse_options_usage(ftrace_usage, options, "T", 1);
+			ret = -EINVAL;
+			goto out_delete_evlist;
+		}
+		ret = __cmd_latency(&ftrace);
+		break;
+	case PERF_FTRACE_NONE:
+	default:
+		pr_err("Invalid subcommand\n");
+		ret = -EINVAL;
+		break;
+	}
 
 out_delete_evlist:
 	evlist__delete(ftrace.evlist);
