@@ -85,6 +85,16 @@ int msm_disp_snapshot_init(struct drm_device *drm_dev);
 void msm_disp_snapshot_destroy(struct drm_device *drm_dev);
 
 /**
+ * msm_disp_snapshot_state_sync - synchronously snapshot display state
+ * @kms:  the kms object
+ *
+ * Returns state or error
+ *
+ * Must be called with &kms->dump_mutex held
+ */
+struct msm_disp_state *msm_disp_snapshot_state_sync(struct msm_kms *kms);
+
+/**
  * msm_disp_snapshot_state - trigger to dump the display snapshot
  * @drm_dev:	handle to drm device
 
