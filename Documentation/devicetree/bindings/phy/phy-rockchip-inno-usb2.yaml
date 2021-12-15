@@ -18,6 +18,7 @@ properties:
       - rockchip,rk3328-usb2phy
       - rockchip,rk3366-usb2phy
       - rockchip,rk3399-usb2phy
+      - rockchip,rk3568-usb2phy
       - rockchip,rv1108-usb2phy
 
   reg:
@@ -50,6 +51,10 @@ properties:
     description:
       Phandle to the extcon device providing the cable state for the otg phy.
 
+  interrupts:
+    description: Muxed interrupt for both ports
+    maxItems: 1
+
   rockchip,usbgrf:
     $ref: /schemas/types.yaml#/definitions/phandle
     description:
@@ -67,6 +72,7 @@ properties:
 
       interrupts:
         description: host linestate interrupt
+        maxItems: 1
 
       interrupt-names:
         const: linestate
@@ -78,8 +84,6 @@ properties:
 
     required:
       - "#phy-cells"
-      - interrupts
-      - interrupt-names
 
   otg-port:
     type: object
@@ -109,8 +113,6 @@ properties:
 
     required:
       - "#phy-cells"
-      - interrupts
-      - interrupt-names
 
 required:
   - compatible
@@ -119,6 +121,40 @@ required:
   - "#clock-cells"
   - host-port
   - otg-port
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: rockchip,rk3568-usb2phy
+
+    then:
+      properties:
+        host-port:
+          properties:
+            interrupts: false
+
+        otg-port:
+          properties:
+            interrupts: false
+
+      required:
+        - interrupts
+
+    else:
+      properties:
+        interrupts: false
+
+        host-port:
+          required:
+            - interrupts
+            - interrupt-names
+
+        otg-port:
+          required:
+            - interrupts
+            - interrupt-names
 
 additionalProperties: false
 
