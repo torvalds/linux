@@ -410,7 +410,6 @@ struct amdgpu_hive_info *amdgpu_get_xgmi_hive(struct amdgpu_device *adev)
 	INIT_LIST_HEAD(&hive->device_list);
 	INIT_LIST_HEAD(&hive->node);
 	mutex_init(&hive->hive_lock);
-	atomic_set(&hive->in_reset, 0);
 	atomic_set(&hive->number_devices, 0);
 	task_barrier_init(&hive->tb);
 	hive->pstate = AMDGPU_XGMI_PSTATE_UNKNOWN;
