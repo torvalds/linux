@@ -239,6 +239,9 @@ void free_hyp_pgds(void)
 
 static bool kvm_host_owns_hyp_mappings(void)
 {
+	if (is_kernel_in_hyp_mode())
+		return false;
+
 	if (static_branch_likely(&kvm_protected_mode_initialized))
 		return false;
 
@@ -406,6 +409,9 @@ int create_hyp_io_mappings(phys_addr_t phys_addr, size_t size,
 {
 	unsigned long addr;
 	int ret;
+
+	if (is_protected_kvm_enabled())
+		return -EPERM;
 
 	*kaddr = ioremap(phys_addr, size);
 	if (!*kaddr)
@@ -649,6 +655,9 @@ int kvm_phys_addr_ioremap(struct kvm *kvm, phys_addr_t guest_ipa,
 	enum kvm_pgtable_prot prot = KVM_PGTABLE_PROT_DEVICE |
 				     KVM_PGTABLE_PROT_R |
 				     (writable ? KVM_PGTABLE_PROT_W : 0);
+
+	if (is_protected_kvm_enabled())
+		return -EPERM;
 
 	size += offset_in_page(guest_ipa);
 	guest_ipa &= PAGE_MASK;
