@@ -59,12 +59,26 @@ static int sof_widget_kcontrol_setup(struct snd_sof_dev *sdev, struct snd_sof_wi
 	/* set up all controls for the widget */
 	list_for_each_entry(scontrol, &sdev->kcontrol_list, list)
 		if (scontrol->comp_id == swidget->comp_id) {
+			/* set kcontrol data in DSP */
 			ret = sof_kcontrol_setup(sdev, scontrol);
 			if (ret < 0) {
 				dev_err(sdev->dev, "error: fail to set up kcontrols for widget %s\n",
 					swidget->widget->name);
 				return ret;
 			}
+
+			/*
+			 * Read back the data from the DSP for static widgets. This is particularly
+			 * useful for binary kcontrols associated with static pipeline widgets to
+			 * initialize the data size to match that in the DSP.
+			 */
+			if (swidget->dynamic_pipeline_widget)
+				continue;
+
+			ret = snd_sof_ipc_set_get_comp_data(scontrol, false);
+			if (ret < 0)
+				dev_warn(sdev->dev, "Failed kcontrol get for control in widget %s\n",
+					 swidget->widget->name);
 		}
 
 	return 0;
