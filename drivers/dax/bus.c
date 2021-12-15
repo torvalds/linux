@@ -1330,6 +1330,8 @@ struct dev_dax *devm_create_dev_dax(struct dev_dax_data *data)
 		goto err_alloc_dax;
 	}
 	set_dax_synchronous(dax_dev);
+	set_dax_nocache(dax_dev);
+	set_dax_nomc(dax_dev);
 
 	/* a device_dax instance is dead while the driver is not attached */
 	kill_dax(dax_dev);
