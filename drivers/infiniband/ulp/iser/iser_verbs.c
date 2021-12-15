@@ -265,14 +265,14 @@ static int iser_create_ib_conn_res(struct ib_conn *ib_conn)
 	memset(&init_attr, 0, sizeof(init_attr));
 
 	init_attr.event_handler = iser_qp_event_callback;
-	init_attr.qp_context	= (void *)ib_conn;
-	init_attr.send_cq	= ib_conn->cq;
-	init_attr.recv_cq	= ib_conn->cq;
-	init_attr.cap.max_recv_wr  = ISER_QP_MAX_RECV_DTOS;
+	init_attr.qp_context = (void *)ib_conn;
+	init_attr.send_cq = ib_conn->cq;
+	init_attr.recv_cq = ib_conn->cq;
+	init_attr.cap.max_recv_wr = ISER_QP_MAX_RECV_DTOS;
 	init_attr.cap.max_send_sge = 2;
 	init_attr.cap.max_recv_sge = 1;
-	init_attr.sq_sig_type	= IB_SIGNAL_REQ_WR;
-	init_attr.qp_type	= IB_QPT_RC;
+	init_attr.sq_sig_type = IB_SIGNAL_REQ_WR;
+	init_attr.qp_type = IB_QPT_RC;
 	init_attr.cap.max_send_wr = max_send_wr;
 	if (ib_conn->pi_support)
 		init_attr.create_flags |= IB_QP_CREATE_INTEGRITY_EN;
@@ -283,9 +283,8 @@ static int iser_create_ib_conn_res(struct ib_conn *ib_conn)
 		goto out_err;
 
 	ib_conn->qp = ib_conn->cma_id->qp;
-	iser_info("setting conn %p cma_id %p qp %p max_send_wr %d\n",
-		  ib_conn, ib_conn->cma_id,
-		  ib_conn->cma_id->qp, max_send_wr);
+	iser_info("setting conn %p cma_id %p qp %p max_send_wr %d\n", ib_conn,
+		  ib_conn->cma_id, ib_conn->cma_id->qp, max_send_wr);
 	return ret;
 
 out_err:
@@ -313,7 +312,7 @@ struct iser_device *iser_device_find_by_ib_device(struct rdma_cm_id *cma_id)
 			goto inc_refcnt;
 
 	device = kzalloc(sizeof *device, GFP_KERNEL);
-	if (device == NULL)
+	if (!device)
 		goto out;
 
 	/* assign this device to the device */
@@ -392,8 +391,7 @@ void iser_release_work(struct work_struct *work)
  * so the cm_id removal is out of here. It is Safe to
  * be invoked multiple times.
  */
-static void iser_free_ib_conn_res(struct iser_conn *iser_conn,
-				  bool destroy)
+static void iser_free_ib_conn_res(struct iser_conn *iser_conn, bool destroy)
 {
 	struct ib_conn *ib_conn = &iser_conn->ib_conn;
 	struct iser_device *device = ib_conn->device;
@@ -401,7 +399,7 @@ static void iser_free_ib_conn_res(struct iser_conn *iser_conn,
 	iser_info("freeing conn %p cma_id %p qp %p\n",
 		  iser_conn, ib_conn->cma_id, ib_conn->qp);
 
-	if (ib_conn->qp != NULL) {
+	if (ib_conn->qp) {
 		rdma_destroy_qp(ib_conn->cma_id);
 		ib_cq_pool_put(ib_conn->cq, ib_conn->cq_size);
 		ib_conn->qp = NULL;
@@ -411,7 +409,7 @@ static void iser_free_ib_conn_res(struct iser_conn *iser_conn,
 		if (iser_conn->rx_descs)
 			iser_free_rx_descriptors(iser_conn);
 
-		if (device != NULL) {
+		if (device) {
 			iser_device_try_release(device);
 			ib_conn->device = NULL;
 		}
@@ -445,7 +443,7 @@ void iser_conn_release(struct iser_conn *iser_conn)
 	iser_free_ib_conn_res(iser_conn, true);
 	mutex_unlock(&iser_conn->state_mutex);
 
-	if (ib_conn->cma_id != NULL) {
+	if (ib_conn->cma_id) {
 		rdma_destroy_id(ib_conn->cma_id);
 		ib_conn->cma_id = NULL;
 	}
@@ -505,9 +503,8 @@ static void iser_connect_error(struct rdma_cm_id *cma_id)
 	iser_conn->state = ISER_CONN_TERMINATING;
 }
 
-static void
-iser_calc_scsi_params(struct iser_conn *iser_conn,
-		      unsigned int max_sectors)
+static void iser_calc_scsi_params(struct iser_conn *iser_conn,
+				  unsigned int max_sectors)
 {
 	struct iser_device *device = iser_conn->ib_conn.device;
 	struct ib_device_attr *attr = &device->ib_device->attrs;
@@ -545,8 +542,8 @@ iser_calc_scsi_params(struct iser_conn *iser_conn,
 static void iser_addr_handler(struct rdma_cm_id *cma_id)
 {
 	struct iser_device *device;
-	struct iser_conn   *iser_conn;
-	struct ib_conn   *ib_conn;
+	struct iser_conn *iser_conn;
+	struct ib_conn *ib_conn;
 	int    ret;
 
 	iser_conn = cma_id->context;
@@ -593,7 +590,7 @@ static void iser_addr_handler(struct rdma_cm_id *cma_id)
 static void iser_route_handler(struct rdma_cm_id *cma_id)
 {
 	struct rdma_conn_param conn_param;
-	int    ret;
+	int ret;
 	struct iser_cm_hdr req_hdr;
 	struct iser_conn *iser_conn = cma_id->context;
 	struct ib_conn *ib_conn = &iser_conn->ib_conn;
@@ -609,9 +606,9 @@ static void iser_route_handler(struct rdma_cm_id *cma_id)
 
 	memset(&conn_param, 0, sizeof conn_param);
 	conn_param.responder_resources = ib_dev->attrs.max_qp_rd_atom;
-	conn_param.initiator_depth     = 1;
-	conn_param.retry_count	       = 7;
-	conn_param.rnr_retry_count     = 6;
+	conn_param.initiator_depth = 1;
+	conn_param.retry_count = 7;
+	conn_param.rnr_retry_count = 6;
 
 	memset(&req_hdr, 0, sizeof(req_hdr));
 	req_hdr.flags = ISER_ZBVA_NOT_SUP;
@@ -687,7 +684,8 @@ static void iser_cleanup_handler(struct rdma_cm_id *cma_id,
 	complete(&iser_conn->ib_completion);
 }
 
-static int iser_cma_handler(struct rdma_cm_id *cma_id, struct rdma_cm_event *event)
+static int iser_cma_handler(struct rdma_cm_id *cma_id,
+			    struct rdma_cm_event *event)
 {
 	struct iser_conn *iser_conn;
 	int ret = 0;
@@ -764,10 +762,8 @@ void iser_conn_init(struct iser_conn *iser_conn)
  * starts the process of connecting to the target
  * sleeps until the connection is established or rejected
  */
-int iser_connect(struct iser_conn   *iser_conn,
-		 struct sockaddr    *src_addr,
-		 struct sockaddr    *dst_addr,
-		 int                 non_blocking)
+int iser_connect(struct iser_conn *iser_conn, struct sockaddr *src_addr,
+		 struct sockaddr *dst_addr, int non_blocking)
 {
 	struct ib_conn *ib_conn = &iser_conn->ib_conn;
 	int err = 0;
