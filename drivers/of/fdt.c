@@ -975,7 +975,7 @@ static unsigned long chosen_node_offset = -FDT_ERR_NOTFOUND;
  * early_init_dt_check_for_usable_mem_range - Decode usable memory range
  * location from flat tree
  */
-static void __init early_init_dt_check_for_usable_mem_range(void)
+void __init early_init_dt_check_for_usable_mem_range(void)
 {
 	const __be32 *prop;
 	int len;
