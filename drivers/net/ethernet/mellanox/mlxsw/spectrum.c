@@ -2755,6 +2755,140 @@ static void mlxsw_sp_parsing_fini(struct mlxsw_sp *mlxsw_sp)
 	mutex_destroy(&mlxsw_sp->parsing.lock);
 }
 
+struct mlxsw_sp_ipv6_addr_node {
+	struct in6_addr key;
+	struct rhash_head ht_node;
+	u32 kvdl_index;
+	refcount_t refcount;
+};
+
+static const struct rhashtable_params mlxsw_sp_ipv6_addr_ht_params = {
+	.key_offset = offsetof(struct mlxsw_sp_ipv6_addr_node, key),
+	.head_offset = offsetof(struct mlxsw_sp_ipv6_addr_node, ht_node),
+	.key_len = sizeof(struct in6_addr),
+	.automatic_shrinking = true,
+};
+
+static int
+mlxsw_sp_ipv6_addr_init(struct mlxsw_sp *mlxsw_sp, const struct in6_addr *addr6,
+			u32 *p_kvdl_index)
+{
+	struct mlxsw_sp_ipv6_addr_node *node;
+	char rips_pl[MLXSW_REG_RIPS_LEN];
+	int err;
+
+	err = mlxsw_sp_kvdl_alloc(mlxsw_sp,
+				  MLXSW_SP_KVDL_ENTRY_TYPE_IPV6_ADDRESS, 1,
+				  p_kvdl_index);
+	if (err)
+		return err;
+
+	mlxsw_reg_rips_pack(rips_pl, *p_kvdl_index, addr6);
+	err = mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(rips), rips_pl);
+	if (err)
+		goto err_rips_write;
+
+	node = kzalloc(sizeof(*node), GFP_KERNEL);
+	if (!node) {
+		err = -ENOMEM;
+		goto err_node_alloc;
+	}
+
+	node->key = *addr6;
+	node->kvdl_index = *p_kvdl_index;
+	refcount_set(&node->refcount, 1);
+
+	err = rhashtable_insert_fast(&mlxsw_sp->ipv6_addr_ht,
+				     &node->ht_node,
+				     mlxsw_sp_ipv6_addr_ht_params);
+	if (err)
+		goto err_rhashtable_insert;
+
+	return 0;
+
+err_rhashtable_insert:
+	kfree(node);
+err_node_alloc:
+err_rips_write:
+	mlxsw_sp_kvdl_free(mlxsw_sp, MLXSW_SP_KVDL_ENTRY_TYPE_IPV6_ADDRESS, 1,
+			   *p_kvdl_index);
+	return err;
+}
+
+static void mlxsw_sp_ipv6_addr_fini(struct mlxsw_sp *mlxsw_sp,
+				    struct mlxsw_sp_ipv6_addr_node *node)
+{
+	u32 kvdl_index = node->kvdl_index;
+
+	rhashtable_remove_fast(&mlxsw_sp->ipv6_addr_ht, &node->ht_node,
+			       mlxsw_sp_ipv6_addr_ht_params);
+	kfree(node);
+	mlxsw_sp_kvdl_free(mlxsw_sp, MLXSW_SP_KVDL_ENTRY_TYPE_IPV6_ADDRESS, 1,
+			   kvdl_index);
+}
+
+int mlxsw_sp_ipv6_addr_kvdl_index_get(struct mlxsw_sp *mlxsw_sp,
+				      const struct in6_addr *addr6,
+				      u32 *p_kvdl_index)
+{
+	struct mlxsw_sp_ipv6_addr_node *node;
+	int err = 0;
+
+	mutex_lock(&mlxsw_sp->ipv6_addr_ht_lock);
+	node = rhashtable_lookup_fast(&mlxsw_sp->ipv6_addr_ht, addr6,
+				      mlxsw_sp_ipv6_addr_ht_params);
+	if (node) {
+		refcount_inc(&node->refcount);
+		*p_kvdl_index = node->kvdl_index;
+		goto out_unlock;
+	}
+
+	err = mlxsw_sp_ipv6_addr_init(mlxsw_sp, addr6, p_kvdl_index);
+
+out_unlock:
+	mutex_unlock(&mlxsw_sp->ipv6_addr_ht_lock);
+	return err;
+}
+
+void
+mlxsw_sp_ipv6_addr_put(struct mlxsw_sp *mlxsw_sp, const struct in6_addr *addr6)
+{
+	struct mlxsw_sp_ipv6_addr_node *node;
+
+	mutex_lock(&mlxsw_sp->ipv6_addr_ht_lock);
+	node = rhashtable_lookup_fast(&mlxsw_sp->ipv6_addr_ht, addr6,
+				      mlxsw_sp_ipv6_addr_ht_params);
+	if (WARN_ON(!node))
+		goto out_unlock;
+
+	if (!refcount_dec_and_test(&node->refcount))
+		goto out_unlock;
+
+	mlxsw_sp_ipv6_addr_fini(mlxsw_sp, node);
+
+out_unlock:
+	mutex_unlock(&mlxsw_sp->ipv6_addr_ht_lock);
+}
+
+static int mlxsw_sp_ipv6_addr_ht_init(struct mlxsw_sp *mlxsw_sp)
+{
+	int err;
+
+	err = rhashtable_init(&mlxsw_sp->ipv6_addr_ht,
+			      &mlxsw_sp_ipv6_addr_ht_params);
+	if (err)
+		return err;
+
+	mutex_init(&mlxsw_sp->ipv6_addr_ht_lock);
+	return 0;
+}
+
+static void mlxsw_sp_ipv6_addr_ht_fini(struct mlxsw_sp *mlxsw_sp)
+{
+	mutex_destroy(&mlxsw_sp->ipv6_addr_ht_lock);
+	rhashtable_destroy(&mlxsw_sp->ipv6_addr_ht);
+}
+
 static int mlxsw_sp_init(struct mlxsw_core *mlxsw_core,
 			 const struct mlxsw_bus_info *mlxsw_bus_info,
 			 struct netlink_ext_ack *extack)
@@ -2841,6 +2975,12 @@ static int mlxsw_sp_init(struct mlxsw_core *mlxsw_core,
 	if (err) {
 		dev_err(mlxsw_sp->bus_info->dev, "Failed to initialize ACL actions\n");
 		goto err_afa_init;
+	}
+
+	err = mlxsw_sp_ipv6_addr_ht_init(mlxsw_sp);
+	if (err) {
+		dev_err(mlxsw_sp->bus_info->dev, "Failed to initialize hash table for IPv6 addresses\n");
+		goto err_ipv6_addr_ht_init;
 	}
 
 	err = mlxsw_sp_nve_init(mlxsw_sp);
@@ -2944,6 +3084,8 @@ err_router_init:
 err_acl_init:
 	mlxsw_sp_nve_fini(mlxsw_sp);
 err_nve_init:
+	mlxsw_sp_ipv6_addr_ht_fini(mlxsw_sp);
+err_ipv6_addr_ht_init:
 	mlxsw_sp_afa_fini(mlxsw_sp);
 err_afa_init:
 	mlxsw_sp_counter_pool_fini(mlxsw_sp);
@@ -3075,6 +3217,7 @@ static void mlxsw_sp_fini(struct mlxsw_core *mlxsw_core)
 	mlxsw_sp_router_fini(mlxsw_sp);
 	mlxsw_sp_acl_fini(mlxsw_sp);
 	mlxsw_sp_nve_fini(mlxsw_sp);
+	mlxsw_sp_ipv6_addr_ht_fini(mlxsw_sp);
 	mlxsw_sp_afa_fini(mlxsw_sp);
 	mlxsw_sp_counter_pool_fini(mlxsw_sp);
 	mlxsw_sp_switchdev_fini(mlxsw_sp);
