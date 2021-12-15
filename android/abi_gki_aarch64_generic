@@ -63,6 +63,7 @@
   bitmap_to_arr32
   __bitmap_weight
   blk_alloc_queue
+  blk_check_plugged
   blk_cleanup_queue
   blkdev_get_by_dev
   blkdev_put
@@ -686,6 +687,7 @@
   drm_property_create_range
   drm_property_lookup_blob
   drm_property_replace_blob
+  drm_puts
   __drm_puts_seq_file
   drm_read
   drm_rect_clip_scaled
@@ -1012,6 +1014,7 @@
   __kfifo_in
   __kfifo_init
   __kfifo_out
+  __kfifo_out_peek
   kfree
   kfree_sensitive
   kfree_skb
@@ -1032,6 +1035,7 @@
   kobject_add
   kobject_create_and_add
   kobject_del
+  kobject_get
   kobject_init
   kobject_init_and_add
   kobject_put
@@ -1079,6 +1083,7 @@
   ktime_get_real_seconds
   ktime_get_real_ts64
   ktime_get_seconds
+  ktime_get_snapshot
   ktime_get_ts64
   ktime_get_with_offset
   kvfree
@@ -1590,6 +1595,7 @@
   rtc_valid_tm
   __rt_mutex_init
   rt_mutex_lock
+  rt_mutex_trylock
   rt_mutex_unlock
   rtnl_is_locked
   rtnl_lock
