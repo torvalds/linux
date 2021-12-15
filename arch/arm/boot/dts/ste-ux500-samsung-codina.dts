@@ -47,6 +47,24 @@
 		compatible = "samsung,eb425161lu";
 	};
 
+	thermal-zones {
+		battery-thermal {
+			/* This zone will be polled by the battery temperature code */
+			polling-delay = <0>;
+			polling-delay-passive = <0>;
+			thermal-sensors = <&bat_therm>;
+		};
+	};
+
+	bat_therm: thermistor {
+		compatible = "samsung,1404-001221";
+		io-channels = <&gpadc 0x02>; /* BatTemp */
+		pullup-uv = <1800000>;
+		pullup-ohm = <230000>;
+		pulldown-ohm = <0>;
+		#thermal-sensor-cells = <0>;
+	};
+
 	/* TI TXS0206 level translator for 2.9 V */
 	sd_level_translator: regulator-gpio {
 		compatible = "regulator-fixed";
