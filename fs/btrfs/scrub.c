@@ -3541,10 +3541,10 @@ out:
 }
 
 static noinline_for_stack int scrub_chunk(struct scrub_ctx *sctx,
+					  struct btrfs_block_group *bg,
 					  struct btrfs_device *scrub_dev,
-					  u64 chunk_offset, u64 length,
 					  u64 dev_offset,
-					  struct btrfs_block_group *cache)
+					  u64 dev_extent_len)
 {
 	struct btrfs_fs_info *fs_info = sctx->fs_info;
 	struct extent_map_tree *map_tree = &fs_info->mapping_tree;
@@ -3554,7 +3554,7 @@ static noinline_for_stack int scrub_chunk(struct scrub_ctx *sctx,
 	int ret = 0;
 
 	read_lock(&map_tree->lock);
-	em = lookup_extent_mapping(map_tree, chunk_offset, 1);
+	em = lookup_extent_mapping(map_tree, bg->start, bg->length);
 	read_unlock(&map_tree->lock);
 
 	if (!em) {
@@ -3562,26 +3562,24 @@ static noinline_for_stack int scrub_chunk(struct scrub_ctx *sctx,
 		 * Might have been an unused block group deleted by the cleaner
 		 * kthread or relocation.
 		 */
-		spin_lock(&cache->lock);
-		if (!cache->removed)
+		spin_lock(&bg->lock);
+		if (!bg->removed)
 			ret = -EINVAL;
-		spin_unlock(&cache->lock);
+		spin_unlock(&bg->lock);
 
 		return ret;
 	}
+	if (em->start != bg->start)
+		goto out;
+	if (em->len < dev_extent_len)
+		goto out;
 
 	map = em->map_lookup;
-	if (em->start != chunk_offset)
-		goto out;
-
-	if (em->len < length)
-		goto out;
-
 	for (i = 0; i < map->num_stripes; ++i) {
 		if (map->stripes[i].dev->bdev == scrub_dev->bdev &&
 		    map->stripes[i].physical == dev_offset) {
 			ret = scrub_stripe(sctx, map, scrub_dev, i,
-					   chunk_offset, length, cache);
+					   bg->start, dev_extent_len, bg);
 			if (ret)
 				goto out;
 		}
@@ -3619,7 +3617,6 @@ int scrub_enumerate_chunks(struct scrub_ctx *sctx,
 	struct btrfs_path *path;
 	struct btrfs_fs_info *fs_info = sctx->fs_info;
 	struct btrfs_root *root = fs_info->dev_root;
-	u64 length;
 	u64 chunk_offset;
 	int ret = 0;
 	int ro_set;
@@ -3643,6 +3640,8 @@ int scrub_enumerate_chunks(struct scrub_ctx *sctx,
 	key.type = BTRFS_DEV_EXTENT_KEY;
 
 	while (1) {
+		u64 dev_extent_len;
+
 		ret = btrfs_search_slot(NULL, root, &key, path, 0, 0);
 		if (ret < 0)
 			break;
@@ -3679,9 +3678,9 @@ int scrub_enumerate_chunks(struct scrub_ctx *sctx,
 			break;
 
 		dev_extent = btrfs_item_ptr(l, slot, struct btrfs_dev_extent);
-		length = btrfs_dev_extent_length(l, dev_extent);
+		dev_extent_len = btrfs_dev_extent_length(l, dev_extent);
 
-		if (found_key.offset + length <= start)
+		if (found_key.offset + dev_extent_len <= start)
 			goto skip;
 
 		chunk_offset = btrfs_dev_extent_chunk_offset(l, dev_extent);
@@ -3815,13 +3814,14 @@ int scrub_enumerate_chunks(struct scrub_ctx *sctx,
 
 		scrub_pause_off(fs_info);
 		down_write(&dev_replace->rwsem);
-		dev_replace->cursor_right = found_key.offset + length;
+		dev_replace->cursor_right = found_key.offset + dev_extent_len;
 		dev_replace->cursor_left = found_key.offset;
 		dev_replace->item_needs_writeback = 1;
 		up_write(&dev_replace->rwsem);
 
-		ret = scrub_chunk(sctx, scrub_dev, chunk_offset, length,
-				  found_key.offset, cache);
+		ASSERT(cache->start == chunk_offset);
+		ret = scrub_chunk(sctx, cache, scrub_dev, found_key.offset,
+				  dev_extent_len);
 
 		/*
 		 * flush, submit all pending read and write bios, afterwards
@@ -3902,7 +3902,7 @@ skip_unfreeze:
 			break;
 		}
 skip:
-		key.offset = found_key.offset + length;
+		key.offset = found_key.offset + dev_extent_len;
 		btrfs_release_path(path);
 	}
 
