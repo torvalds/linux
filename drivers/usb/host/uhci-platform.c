@@ -133,7 +133,11 @@ static int uhci_hcd_platform_probe(struct platform_device *pdev)
 		goto err_rmr;
 	}
 
-	ret = usb_add_hcd(hcd, pdev->resource[1].start, IRQF_SHARED);
+	ret = platform_get_irq(pdev, 0);
+	if (ret < 0)
+		goto err_clk;
+
+	ret = usb_add_hcd(hcd, ret, IRQF_SHARED);
 	if (ret)
 		goto err_clk;
 
