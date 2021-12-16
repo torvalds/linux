@@ -439,22 +439,19 @@ nfsd3_proc_link(struct svc_rqst *rqstp)
 
 static void nfsd3_init_dirlist_pages(struct svc_rqst *rqstp,
 				     struct nfsd3_readdirres *resp,
-				     int count)
+				     u32 count)
 {
 	struct xdr_buf *buf = &resp->dirlist;
 	struct xdr_stream *xdr = &resp->xdr;
 
-	count = min_t(u32, count, svc_max_payload(rqstp));
+	count = clamp(count, (u32)(XDR_UNIT * 2), svc_max_payload(rqstp));
 
 	memset(buf, 0, sizeof(*buf));
 
 	/* Reserve room for the NULL ptr & eof flag (-2 words) */
 	buf->buflen = count - XDR_UNIT * 2;
 	buf->pages = rqstp->rq_next_page;
-	while (count > 0) {
-		rqstp->rq_next_page++;
-		count -= PAGE_SIZE;
-	}
+	rqstp->rq_next_page += (buf->buflen + PAGE_SIZE - 1) >> PAGE_SHIFT;
 
 	/* This is xdr_init_encode(), but it assumes that
 	 * the head kvec has already been consumed. */
@@ -463,7 +460,7 @@ static void nfsd3_init_dirlist_pages(struct svc_rqst *rqstp,
 	xdr->page_ptr = buf->pages;
 	xdr->iov = NULL;
 	xdr->p = page_address(*buf->pages);
-	xdr->end = xdr->p + (PAGE_SIZE >> 2);
+	xdr->end = (void *)xdr->p + min_t(u32, buf->buflen, PAGE_SIZE);
 	xdr->rqst = NULL;
 }
 
