@@ -1638,6 +1638,7 @@ static void msdc_init_hw(struct msdc_host *host)
 {
 	u32 val;
 	u32 tune_reg = host->dev_comp->pad_tune_reg;
+	struct mmc_host *mmc = mmc_from_priv(host);
 
 	if (host->reset) {
 		reset_control_assert(host->reset);
@@ -1743,14 +1744,18 @@ static void msdc_init_hw(struct msdc_host *host)
 				     MSDC_PAD_TUNE_RXDLYSEL);
 	}
 
-	/* Configure to enable SDIO mode.
-	 * it's must otherwise sdio cmd5 failed
-	 */
-	sdr_set_bits(host->base + SDC_CFG, SDC_CFG_SDIO);
+	if (mmc->caps2 & MMC_CAP2_NO_SDIO) {
+		sdr_clr_bits(host->base + SDC_CFG, SDC_CFG_SDIO);
+		sdr_clr_bits(host->base + MSDC_INTEN, MSDC_INTEN_SDIOIRQ);
+		sdr_clr_bits(host->base + SDC_ADV_CFG0, SDC_DAT1_IRQ_TRIGGER);
+	} else {
+		/* Configure to enable SDIO mode, otherwise SDIO CMD5 fails */
+		sdr_set_bits(host->base + SDC_CFG, SDC_CFG_SDIO);
 
-	/* Config SDIO device detect interrupt function */
-	sdr_clr_bits(host->base + SDC_CFG, SDC_CFG_SDIOIDE);
-	sdr_set_bits(host->base + SDC_ADV_CFG0, SDC_DAT1_IRQ_TRIGGER);
+		/* Config SDIO device detect interrupt function */
+		sdr_clr_bits(host->base + SDC_CFG, SDC_CFG_SDIOIDE);
+		sdr_set_bits(host->base + SDC_ADV_CFG0, SDC_DAT1_IRQ_TRIGGER);
+	}
 
 	/* Configure to default data timeout */
 	sdr_set_field(host->base + SDC_CFG, SDC_CFG_DTOC, 3);
