@@ -229,6 +229,7 @@ struct gve_rx_ring {
 /* A TX desc ring entry */
 union gve_tx_desc {
 	struct gve_tx_pkt_desc pkt; /* first desc for a packet */
+	struct gve_tx_mtd_desc mtd; /* optional metadata descriptor */
 	struct gve_tx_seg_desc seg; /* subsequent descs for a packet */
 };
 
