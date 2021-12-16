@@ -97,6 +97,8 @@ static u32 get_accel_cap(struct adf_accel_dev *accel_dev)
 		capabilities &= ~ICP_ACCEL_CAPABILITIES_CRYPTO_ASYMMETRIC;
 	if (legfuses & ICP_ACCEL_MASK_AUTH_SLICE)
 		capabilities &= ~ICP_ACCEL_CAPABILITIES_AUTHENTICATION;
+	if (legfuses & ICP_ACCEL_MASK_COMPRESS_SLICE)
+		capabilities &= ~ICP_ACCEL_CAPABILITIES_COMPRESSION;
 
 	return capabilities;
 }
