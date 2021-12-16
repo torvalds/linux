@@ -771,7 +771,7 @@
 				#size-cells = <1>;
 				ranges = <0x0 0x1e789000 0x1000>;
 
-				kcs1: kcs@24 {
+				kcs1: kcs1@24 {
 					compatible = "aspeed,ast2600-kcs-bmc";
 					reg = <0x0 0x130>;
 					interrupts = <GIC_SPI 138 IRQ_TYPE_LEVEL_HIGH>;
@@ -779,24 +779,27 @@
 					status = "disabled";
 				};
 
-				kcs2: kcs@28 {
+				kcs2: kcs2@28 {
 					compatible = "aspeed,ast2600-kcs-bmc";
 					reg = <0x0 0x130>;
 					interrupts = <GIC_SPI 139 IRQ_TYPE_LEVEL_HIGH>;
+					kcs_chan = <2>;
 					status = "disabled";
 				};
 
-				kcs3: kcs@2c {
+				kcs3: kcs3@2c {
 					compatible = "aspeed,ast2600-kcs-bmc";
 					reg = <0x0 0x130>;
 					interrupts = <GIC_SPI 140 IRQ_TYPE_LEVEL_HIGH>;
+					kcs_chan = <3>;
 					status = "disabled";
 				};
 
-				kcs4: kcs@114 {
+				kcs4: kcs4@114 {
 					compatible = "aspeed,ast2600-kcs-bmc";
 					reg = <0x0 0x130>;
 					interrupts = <GIC_SPI 141 IRQ_TYPE_LEVEL_HIGH>;
+					kcs_chan = <4>;
 					status = "disabled";
 				};
 
