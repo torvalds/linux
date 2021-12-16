@@ -237,6 +237,8 @@ static int vic_load_firmware(struct vic *vic)
 			return -ENOMEM;
 	} else {
 		virt = tegra_drm_alloc(tegra, size, &iova);
+		if (IS_ERR(virt))
+			return PTR_ERR(virt);
 	}
 
 	vic->falcon.firmware.virt = virt;
