@@ -328,7 +328,7 @@ static void arc_pmu_stop(struct perf_event *event, int flags)
 	}
 
 	if (!(event->hw.state & PERF_HES_STOPPED)) {
-		/* stop ARC pmu here */
+		/* stop hw counter here */
 		write_aux_reg(ARC_REG_PCT_INDEX, idx);
 
 		/* condition code #0 is always "never" */
