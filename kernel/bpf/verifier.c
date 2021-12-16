@@ -609,6 +609,44 @@ static const char *kernel_type_name(const struct btf* btf, u32 id)
 	return btf_name_by_offset(btf, btf_type_by_id(btf, id)->name_off);
 }
 
+static void mark_reg_scratched(struct bpf_verifier_env *env, u32 regno)
+{
+	env->scratched_regs |= 1U << regno;
+}
+
+static void mark_stack_slot_scratched(struct bpf_verifier_env *env, u32 spi)
+{
+	env->scratched_stack_slots |= 1UL << spi;
+}
+
+static bool reg_scratched(const struct bpf_verifier_env *env, u32 regno)
+{
+	return (env->scratched_regs >> regno) & 1;
+}
+
+static bool stack_slot_scratched(const struct bpf_verifier_env *env, u64 regno)
+{
+	return (env->scratched_stack_slots >> regno) & 1;
+}
+
+static bool verifier_state_scratched(const struct bpf_verifier_env *env)
+{
+	return env->scratched_regs || env->scratched_stack_slots;
+}
+
+static void mark_verifier_state_clean(struct bpf_verifier_env *env)
+{
+	env->scratched_regs = 0U;
+	env->scratched_stack_slots = 0UL;
+}
+
+/* Used for printing the entire verifier state. */
+static void mark_verifier_state_scratched(struct bpf_verifier_env *env)
+{
+	env->scratched_regs = ~0U;
+	env->scratched_stack_slots = ~0UL;
+}
+
 /* The reg state of a pointer or a bounded scalar was saved when
  * it was spilled to the stack.
  */
@@ -624,7 +662,8 @@ static void scrub_spilled_slot(u8 *stype)
 }
 
 static void print_verifier_state(struct bpf_verifier_env *env,
-				 const struct bpf_func_state *state)
+				 const struct bpf_func_state *state,
+				 bool print_all)
 {
 	const struct bpf_reg_state *reg;
 	enum bpf_reg_type t;
@@ -636,6 +675,8 @@ static void print_verifier_state(struct bpf_verifier_env *env,
 		reg = &state->regs[i];
 		t = reg->type;
 		if (t == NOT_INIT)
+			continue;
+		if (!print_all && !reg_scratched(env, i))
 			continue;
 		verbose(env, " R%d", i);
 		print_liveness(env, reg->live);
@@ -726,6 +767,8 @@ static void print_verifier_state(struct bpf_verifier_env *env,
 		types_buf[BPF_REG_SIZE] = 0;
 		if (!valid)
 			continue;
+		if (!print_all && !stack_slot_scratched(env, i))
+			continue;
 		verbose(env, " fp%d", (-i - 1) * BPF_REG_SIZE);
 		print_liveness(env, state->stack[i].spilled_ptr.live);
 		if (is_spilled_reg(&state->stack[i])) {
@@ -751,6 +794,7 @@ static void print_verifier_state(struct bpf_verifier_env *env,
 	if (state->in_async_callback_fn)
 		verbose(env, " async_cb");
 	verbose(env, "\n");
+	mark_verifier_state_clean(env);
 }
 
 /* copy array src of length n * size bytes to dst. dst is reallocated if it's too
@@ -1541,6 +1585,7 @@ static void init_func_state(struct bpf_verifier_env *env,
 	state->frameno = frameno;
 	state->subprogno = subprogno;
 	init_reg_state(env, state);
+	mark_verifier_state_scratched(env);
 }
 
 /* Similar to push_stack(), but for async callbacks */
@@ -2228,6 +2273,8 @@ static int check_reg_arg(struct bpf_verifier_env *env, u32 regno,
 		return -EINVAL;
 	}
 
+	mark_reg_scratched(env, regno);
+
 	reg = &regs[regno];
 	rw64 = is_reg64(env, insn, regno, reg, t);
 	if (t == SRC_OP) {
@@ -2678,7 +2725,7 @@ static int __mark_chain_precision(struct bpf_verifier_env *env, int regno,
 			reg->precise = true;
 		}
 		if (env->log.level & BPF_LOG_LEVEL) {
-			print_verifier_state(env, func);
+			print_verifier_state(env, func, false);
 			verbose(env, "parent %s regs=%x stack=%llx marks\n",
 				new_marks ? "didn't have" : "already had",
 				reg_mask, stack_mask);
@@ -2837,6 +2884,7 @@ static int check_stack_write_fixed_off(struct bpf_verifier_env *env,
 			env->insn_aux_data[insn_idx].sanitize_stack_spill = true;
 	}
 
+	mark_stack_slot_scratched(env, spi);
 	if (reg && !(off % BPF_REG_SIZE) && register_is_bounded(reg) &&
 	    !register_is_null(reg) && env->bpf_capable) {
 		if (dst_reg != BPF_REG_FP) {
@@ -2958,6 +3006,7 @@ static int check_stack_write_var_off(struct bpf_verifier_env *env,
 		slot = -i - 1;
 		spi = slot / BPF_REG_SIZE;
 		stype = &state->stack[spi].slot_type[slot % BPF_REG_SIZE];
+		mark_stack_slot_scratched(env, spi);
 
 		if (!env->allow_ptr_leaks
 				&& *stype != NOT_INIT
@@ -3376,7 +3425,7 @@ static int check_mem_region_access(struct bpf_verifier_env *env, u32 regno,
 	 * to make sure our theoretical access will be safe.
 	 */
 	if (env->log.level & BPF_LOG_LEVEL)
-		print_verifier_state(env, state);
+		print_verifier_state(env, state, false);
 
 	/* The minimum value is only important with signed
 	 * comparisons where we can't assume the floor of a
@@ -6011,9 +6060,9 @@ static int __check_func_call(struct bpf_verifier_env *env, struct bpf_insn *insn
 
 	if (env->log.level & BPF_LOG_LEVEL) {
 		verbose(env, "caller:\n");
-		print_verifier_state(env, caller);
+		print_verifier_state(env, caller, true);
 		verbose(env, "callee:\n");
-		print_verifier_state(env, callee);
+		print_verifier_state(env, callee, true);
 	}
 	return 0;
 }
@@ -6228,9 +6277,9 @@ static int prepare_func_exit(struct bpf_verifier_env *env, int *insn_idx)
 	*insn_idx = callee->callsite + 1;
 	if (env->log.level & BPF_LOG_LEVEL) {
 		verbose(env, "returning from callee:\n");
-		print_verifier_state(env, callee);
+		print_verifier_state(env, callee, true);
 		verbose(env, "to caller at %d:\n", *insn_idx);
-		print_verifier_state(env, caller);
+		print_verifier_state(env, caller, true);
 	}
 	/* clear everything in the callee */
 	free_func_state(callee);
@@ -8249,12 +8298,12 @@ static int adjust_reg_min_max_vals(struct bpf_verifier_env *env,
 
 	/* Got here implies adding two SCALAR_VALUEs */
 	if (WARN_ON_ONCE(ptr_reg)) {
-		print_verifier_state(env, state);
+		print_verifier_state(env, state, true);
 		verbose(env, "verifier internal error: unexpected ptr_reg\n");
 		return -EINVAL;
 	}
 	if (WARN_ON(!src_reg)) {
-		print_verifier_state(env, state);
+		print_verifier_state(env, state, true);
 		verbose(env, "verifier internal error: no src_reg\n");
 		return -EINVAL;
 	}
@@ -9389,7 +9438,7 @@ static int check_cond_jmp_op(struct bpf_verifier_env *env,
 		return -EACCES;
 	}
 	if (env->log.level & BPF_LOG_LEVEL)
-		print_verifier_state(env, this_branch->frame[this_branch->curframe]);
+		print_verifier_state(env, this_branch->frame[this_branch->curframe], false);
 	return 0;
 }
 
@@ -11259,14 +11308,17 @@ static int do_check(struct bpf_verifier_env *env)
 
 		if (env->log.level & BPF_LOG_LEVEL2 ||
 		    (env->log.level & BPF_LOG_LEVEL && do_print_state)) {
-			if (env->log.level & BPF_LOG_LEVEL2)
-				verbose(env, "%d:", env->insn_idx);
-			else
+			if (env->log.level & BPF_LOG_LEVEL2) {
+				if (verifier_state_scratched(env))
+					verbose(env, "%d:", env->insn_idx);
+			} else {
 				verbose(env, "\nfrom %d to %d%s:",
 					env->prev_insn_idx, env->insn_idx,
 					env->cur_state->speculative ?
 					" (speculative execution)" : "");
-			print_verifier_state(env, state->frame[state->curframe]);
+			}
+			print_verifier_state(env, state->frame[state->curframe],
+					     false);
 			do_print_state = false;
 		}
 
@@ -11488,6 +11540,7 @@ static int do_check(struct bpf_verifier_env *env)
 				if (err)
 					return err;
 process_bpf_exit:
+				mark_verifier_state_scratched(env);
 				update_branch_counts(env, env->cur_state);
 				err = pop_stack(env, &prev_insn_idx,
 						&env->insn_idx, pop_log);
@@ -14147,6 +14200,8 @@ int bpf_check(struct bpf_prog **prog, union bpf_attr *attr, bpfptr_t uattr)
 			goto err_unlock;
 		}
 	}
+
+	mark_verifier_state_clean(env);
 
 	if (IS_ERR(btf_vmlinux)) {
 		/* Either gcc or pahole or kernel are broken. */
