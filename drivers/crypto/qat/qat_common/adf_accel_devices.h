@@ -158,7 +158,7 @@ struct adf_pfvf_ops {
 	int (*send_msg)(struct adf_accel_dev *accel_dev, struct pfvf_message msg,
 			u32 pfvf_offset, struct mutex *csr_lock);
 	struct pfvf_message (*recv_msg)(struct adf_accel_dev *accel_dev,
-					u32 pfvf_offset);
+					u32 pfvf_offset, u8 compat_ver);
 };
 
 struct adf_hw_device_data {

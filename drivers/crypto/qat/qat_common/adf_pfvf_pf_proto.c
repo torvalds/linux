@@ -48,10 +48,11 @@ int adf_send_pf2vf_msg(struct adf_accel_dev *accel_dev, u8 vf_nr, struct pfvf_me
  */
 static struct pfvf_message adf_recv_vf2pf_msg(struct adf_accel_dev *accel_dev, u8 vf_nr)
 {
+	struct adf_accel_vf_info *vf_info = &accel_dev->pf.vf_info[vf_nr];
 	struct adf_pfvf_ops *pfvf_ops = GET_PFVF_OPS(accel_dev);
 	u32 pfvf_offset = pfvf_ops->get_vf2pf_offset(vf_nr);
 
-	return pfvf_ops->recv_msg(accel_dev, pfvf_offset);
+	return pfvf_ops->recv_msg(accel_dev, pfvf_offset, vf_info->vf_compat_ver);
 }
 
 static adf_pf2vf_blkmsg_provider get_blkmsg_response_provider(u8 type)

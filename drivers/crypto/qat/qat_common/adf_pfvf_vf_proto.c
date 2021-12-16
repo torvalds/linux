@@ -15,6 +15,8 @@
 #define ADF_PFVF_MSG_ACK_DELAY			2
 #define ADF_PFVF_MSG_ACK_MAX_RETRY		100
 
+/* How often to retry if there is no response */
+#define ADF_PFVF_MSG_RESP_RETRIES	5
 #define ADF_PFVF_MSG_RESP_TIMEOUT	(ADF_PFVF_MSG_ACK_DELAY * \
 					 ADF_PFVF_MSG_ACK_MAX_RETRY + \
 					 ADF_PFVF_MSG_COLLISION_DETECT_DELAY)
@@ -50,7 +52,7 @@ static struct pfvf_message adf_recv_pf2vf_msg(struct adf_accel_dev *accel_dev)
 	struct adf_pfvf_ops *pfvf_ops = GET_PFVF_OPS(accel_dev);
 	u32 pfvf_offset = pfvf_ops->get_pf2vf_offset(0);
 
-	return pfvf_ops->recv_msg(accel_dev, pfvf_offset);
+	return pfvf_ops->recv_msg(accel_dev, pfvf_offset, accel_dev->vf.pf_compat_ver);
 }
 
 /**
@@ -68,33 +70,37 @@ int adf_send_vf2pf_req(struct adf_accel_dev *accel_dev, struct pfvf_message msg,
 		       struct pfvf_message *resp)
 {
 	unsigned long timeout = msecs_to_jiffies(ADF_PFVF_MSG_RESP_TIMEOUT);
+	unsigned int retries = ADF_PFVF_MSG_RESP_RETRIES;
 	int ret;
 
 	reinit_completion(&accel_dev->vf.msg_received);
 
 	/* Send request from VF to PF */
-	ret = adf_send_vf2pf_msg(accel_dev, msg);
-	if (ret) {
-		dev_err(&GET_DEV(accel_dev),
-			"Failed to send request msg to PF\n");
-		return ret;
-	}
+	do {
+		ret = adf_send_vf2pf_msg(accel_dev, msg);
+		if (ret) {
+			dev_err(&GET_DEV(accel_dev),
+				"Failed to send request msg to PF\n");
+			return ret;
+		}
 
-	/* Wait for response */
-	if (!wait_for_completion_timeout(&accel_dev->vf.msg_received,
-					 timeout)) {
-		dev_err(&GET_DEV(accel_dev),
-			"PFVF request/response message timeout expired\n");
-		return -EIO;
-	}
+		/* Wait for response, if it times out retry */
+		ret = wait_for_completion_timeout(&accel_dev->vf.msg_received,
+						  timeout);
+		if (ret) {
+			if (likely(resp))
+				*resp = accel_dev->vf.response;
 
-	if (likely(resp))
-		*resp = accel_dev->vf.response;
+			/* Once copied, set to an invalid value */
+			accel_dev->vf.response.type = 0;
 
-	/* Once copied, set to an invalid value */
-	accel_dev->vf.response.type = 0;
+			return 0;
+		}
 
-	return 0;
+		dev_err(&GET_DEV(accel_dev), "PFVF response message timeout\n");
+	} while (--retries);
+
+	return -EIO;
 }
 
 static int adf_vf2pf_blkmsg_data_req(struct adf_accel_dev *accel_dev, bool crc,

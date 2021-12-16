@@ -124,11 +124,34 @@ static bool is_legacy_user_pfvf_message(u32 msg)
 	return !(msg & ADF_PFVF_MSGORIGIN_SYSTEM);
 }
 
+static bool is_pf2vf_notification(u8 msg_type)
+{
+	switch (msg_type) {
+	case ADF_PF2VF_MSGTYPE_RESTARTING:
+		return true;
+	default:
+		return false;
+	}
+}
+
+static bool is_vf2pf_notification(u8 msg_type)
+{
+	switch (msg_type) {
+	case ADF_VF2PF_MSGTYPE_INIT:
+	case ADF_VF2PF_MSGTYPE_SHUTDOWN:
+		return true;
+	default:
+		return false;
+	}
+}
+
 struct pfvf_gen2_params {
 	u32 pfvf_offset;
 	struct mutex *csr_lock; /* lock preventing concurrent access of CSR */
 	enum gen2_csr_pos local_offset;
 	enum gen2_csr_pos remote_offset;
+	bool (*is_notification_message)(u8 msg_type);
+	u8 compat_ver;
 };
 
 static int adf_gen2_pfvf_send(struct adf_accel_dev *accel_dev,
@@ -190,15 +213,27 @@ start:
 		csr_val &= ~int_bit;
 	}
 
-	if (csr_val != csr_msg) {
-		dev_dbg(&GET_DEV(accel_dev),
-			"Collision - PFVF CSR overwritten by remote function\n");
+	/* For fire-and-forget notifications, the receiver does not clear
+	 * the in-use pattern. This is used to detect collisions.
+	 */
+	if (params->is_notification_message(msg.type) && csr_val != csr_msg) {
+		/* Collision must have overwritten the message */
+		dev_err(&GET_DEV(accel_dev),
+			"Collision on notification - PFVF CSR overwritten by remote function\n");
 		goto retry;
 	}
 
-	/* Finished with the PFVF CSR; relinquish it and leave msg in CSR */
-	gen2_csr_clear_in_use(&csr_val, remote_offset);
-	ADF_CSR_WR(pmisc_addr, pfvf_offset, csr_val);
+	/* If the far side did not clear the in-use pattern it is either
+	 * 1) Notification - message left intact to detect collision
+	 * 2) Older protocol (compatibility version < 3) on the far side
+	 *    where the sender is responsible for clearing the in-use
+	 *    pattern after the received has acknowledged receipt.
+	 * In either case, clear the in-use pattern now.
+	 */
+	if (gen2_csr_is_in_use(csr_val, remote_offset)) {
+		gen2_csr_clear_in_use(&csr_val, remote_offset);
+		ADF_CSR_WR(pmisc_addr, pfvf_offset, csr_val);
+	}
 
 out:
 	mutex_unlock(lock);
@@ -218,6 +253,7 @@ static struct pfvf_message adf_gen2_pfvf_recv(struct adf_accel_dev *accel_dev,
 					      struct pfvf_gen2_params *params)
 {
 	void __iomem *pmisc_addr = adf_get_pmisc_base(accel_dev);
+	enum gen2_csr_pos remote_offset = params->remote_offset;
 	enum gen2_csr_pos local_offset = params->local_offset;
 	u32 pfvf_offset = params->pfvf_offset;
 	struct pfvf_message msg = { 0 };
@@ -242,11 +278,21 @@ static struct pfvf_message adf_gen2_pfvf_recv(struct adf_accel_dev *accel_dev,
 	if (unlikely(is_legacy_user_pfvf_message(csr_msg))) {
 		dev_dbg(&GET_DEV(accel_dev),
 			"Ignored non-system message (0x%.8x);\n", csr_val);
+		/* Because this must be a legacy message, the far side
+		 * must clear the in-use pattern, so don't do it.
+		 */
 		return msg;
 	}
 
 	/* Return the pfvf_message format */
 	msg = adf_pfvf_message_of(accel_dev, csr_msg, &csr_gen2_fmt);
+
+	/* The in-use pattern is not cleared for notifications (so that
+	 * it can be used for collision detection) or older implementations
+	 */
+	if (params->compat_ver >= ADF_PFVF_COMPAT_FAST_ACK &&
+	    !params->is_notification_message(msg.type))
+		gen2_csr_clear_in_use(&csr_val, remote_offset);
 
 	/* To ACK, clear the INT bit */
 	csr_val &= ~int_bit;
@@ -263,6 +309,7 @@ static int adf_gen2_pf2vf_send(struct adf_accel_dev *accel_dev, struct pfvf_mess
 		.pfvf_offset = pfvf_offset,
 		.local_offset = ADF_GEN2_CSR_PF2VF_OFFSET,
 		.remote_offset = ADF_GEN2_CSR_VF2PF_OFFSET,
+		.is_notification_message = is_pf2vf_notification,
 	};
 
 	return adf_gen2_pfvf_send(accel_dev, msg, &params);
@@ -276,30 +323,35 @@ static int adf_gen2_vf2pf_send(struct adf_accel_dev *accel_dev, struct pfvf_mess
 		.pfvf_offset = pfvf_offset,
 		.local_offset = ADF_GEN2_CSR_VF2PF_OFFSET,
 		.remote_offset = ADF_GEN2_CSR_PF2VF_OFFSET,
+		.is_notification_message = is_vf2pf_notification,
 	};
 
 	return adf_gen2_pfvf_send(accel_dev, msg, &params);
 }
 
 static struct pfvf_message adf_gen2_pf2vf_recv(struct adf_accel_dev *accel_dev,
-					       u32 pfvf_offset)
+					       u32 pfvf_offset, u8 compat_ver)
 {
 	struct pfvf_gen2_params params = {
 		.pfvf_offset = pfvf_offset,
 		.local_offset = ADF_GEN2_CSR_PF2VF_OFFSET,
 		.remote_offset = ADF_GEN2_CSR_VF2PF_OFFSET,
+		.is_notification_message = is_pf2vf_notification,
+		.compat_ver = compat_ver,
 	};
 
 	return adf_gen2_pfvf_recv(accel_dev, &params);
 }
 
 static struct pfvf_message adf_gen2_vf2pf_recv(struct adf_accel_dev *accel_dev,
-					       u32 pfvf_offset)
+					       u32 pfvf_offset, u8 compat_ver)
 {
 	struct pfvf_gen2_params params = {
 		.pfvf_offset = pfvf_offset,
 		.local_offset = ADF_GEN2_CSR_VF2PF_OFFSET,
 		.remote_offset = ADF_GEN2_CSR_PF2VF_OFFSET,
+		.is_notification_message = is_vf2pf_notification,
+		.compat_ver = compat_ver,
 	};
 
 	return adf_gen2_pfvf_recv(accel_dev, &params);

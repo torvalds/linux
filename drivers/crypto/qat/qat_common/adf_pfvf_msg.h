@@ -89,8 +89,10 @@ enum vf2pf_msgtype {
 enum pfvf_compatibility_version {
 	/* Support for extended capabilities */
 	ADF_PFVF_COMPAT_CAPABILITIES		= 0x02,
+	/* In-use pattern cleared by receiver */
+	ADF_PFVF_COMPAT_FAST_ACK		= 0x03,
 	/* Reference to the latest version */
-	ADF_PFVF_COMPAT_THIS_VERSION		= 0x02,
+	ADF_PFVF_COMPAT_THIS_VERSION		= 0x03,
 };
 
 /* PF->VF Version Response */
