@@ -87,6 +87,18 @@ int BPF_PROG(handle_fexit,
 	return 0;
 }
 
+SEC("fexit/bpf_testmod_return_ptr")
+int BPF_PROG(handle_fexit_ret, int arg, struct file *ret)
+{
+	long buf = 0;
+
+	bpf_probe_read_kernel(&buf, 8, ret);
+	bpf_probe_read_kernel(&buf, 8, (char *)ret + 256);
+	*(volatile long long *)ret;
+	*(volatile int *)&ret->f_mode;
+	return 0;
+}
+
 __u32 fmod_ret_read_sz = 0;
 
 SEC("fmod_ret/bpf_testmod_test_read")
