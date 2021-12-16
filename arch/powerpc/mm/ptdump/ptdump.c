@@ -315,7 +315,7 @@ static int ptdump_show(struct seq_file *m, void *v)
 
 DEFINE_SHOW_ATTRIBUTE(ptdump);
 
-static void build_pgtable_complete_mask(void)
+static void __init build_pgtable_complete_mask(void)
 {
 	unsigned int i, j;
 

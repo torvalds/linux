@@ -662,7 +662,7 @@ static int __init htab_dt_scan_hugepage_blocks(unsigned long node,
 }
 #endif /* CONFIG_HUGETLB_PAGE */
 
-static void mmu_psize_set_default_penc(void)
+static void __init mmu_psize_set_default_penc(void)
 {
 	int bpsize, apsize;
 	for (bpsize = 0; bpsize < MMU_PAGE_COUNT; bpsize++)
@@ -672,7 +672,7 @@ static void mmu_psize_set_default_penc(void)
 
 #ifdef CONFIG_PPC_64K_PAGES
 
-static bool might_have_hea(void)
+static bool __init might_have_hea(void)
 {
 	/*
 	 * The HEA ethernet adapter requires awareness of the
@@ -743,7 +743,7 @@ static void __init htab_scan_page_sizes(void)
  * low-order N bits as the encoding for the 2^(12+N) byte page size
  * (if it exists).
  */
-static void init_hpte_page_sizes(void)
+static void __init init_hpte_page_sizes(void)
 {
 	long int ap, bp;
 	long int shift, penc;

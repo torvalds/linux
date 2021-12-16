@@ -432,7 +432,7 @@ void tlb_flush_pgtable(struct mmu_gather *tlb, unsigned long address)
 	}
 }
 
-static void setup_page_sizes(void)
+static void __init setup_page_sizes(void)
 {
 	unsigned int tlb0cfg;
 	unsigned int tlb0ps;
@@ -570,7 +570,7 @@ out:
 	}
 }
 
-static void setup_mmu_htw(void)
+static void __init setup_mmu_htw(void)
 {
 	/*
 	 * If we want to use HW tablewalk, enable it by patching the TLB miss

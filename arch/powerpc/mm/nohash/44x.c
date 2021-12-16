@@ -38,7 +38,7 @@ int icache_44x_need_flush;
 
 unsigned long tlb_47x_boltmap[1024/8];
 
-static void ppc44x_update_tlb_hwater(void)
+static void __init ppc44x_update_tlb_hwater(void)
 {
 	/* The TLB miss handlers hard codes the watermark in a cmpli
 	 * instruction to improve performances rather than loading it
@@ -122,7 +122,7 @@ static void __init ppc47x_update_boltmap(void)
 /*
  * "Pins" a 256MB TLB entry in AS0 for kernel lowmem for 47x type MMU
  */
-static void ppc47x_pin_tlb(unsigned int virt, unsigned int phys)
+static void __init ppc47x_pin_tlb(unsigned int virt, unsigned int phys)
 {
 	unsigned int rA;
 	int bolted;

@@ -259,7 +259,7 @@ void __init MMU_init_hw(void)
 	flush_instruction_cache();
 }
 
-static unsigned long tlbcam_sz(int idx)
+static unsigned long __init tlbcam_sz(int idx)
 {
 	return tlbcam_addrs[idx].limit - tlbcam_addrs[idx].start + 1;
 }

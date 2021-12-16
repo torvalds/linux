@@ -499,7 +499,7 @@ static int __init probe_memory_block_size(unsigned long node, const char *uname,
 	return 1;
 }
 
-static unsigned long radix_memory_block_size(void)
+static unsigned long __init radix_memory_block_size(void)
 {
 	unsigned long mem_block_size = MIN_MEMORY_BLOCK_SIZE;
 
@@ -517,7 +517,7 @@ static unsigned long radix_memory_block_size(void)
 
 #else   /* CONFIG_MEMORY_HOTPLUG */
 
-static unsigned long radix_memory_block_size(void)
+static unsigned long __init radix_memory_block_size(void)
 {
 	return 1UL * 1024 * 1024 * 1024;
 }

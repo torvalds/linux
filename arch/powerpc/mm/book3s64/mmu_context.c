@@ -32,7 +32,7 @@ static int alloc_context_id(int min_id, int max_id)
 }
 
 #ifdef CONFIG_PPC_64S_HASH_MMU
-void hash__reserve_context_id(int id)
+void __init hash__reserve_context_id(int id)
 {
 	int result = ida_alloc_range(&mmu_context_ida, id, id, GFP_KERNEL);
 
