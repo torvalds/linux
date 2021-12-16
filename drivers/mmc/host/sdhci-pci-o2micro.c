@@ -578,6 +578,11 @@ static void sdhci_pci_o2_set_clock(struct sdhci_host *host, unsigned int clock)
 
 		if ((scratch_32 & 0xFFFF0000) != 0x2c280000)
 			o2_pci_set_baseclk(chip, 0x2c280000);
+	} else {
+		pci_read_config_dword(chip->pdev, O2_SD_PLL_SETTING, &scratch_32);
+
+		if ((scratch_32 & 0xFFFF0000) != 0x25100000)
+			o2_pci_set_baseclk(chip, 0x25100000);
 	}
 
 	pci_read_config_dword(chip->pdev, O2_SD_OUTPUT_CLK_SOURCE_SWITCH, &scratch_32);
