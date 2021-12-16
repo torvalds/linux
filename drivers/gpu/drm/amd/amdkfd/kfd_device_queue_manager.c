@@ -1476,6 +1476,21 @@ static int unmap_queues_cpsch(struct device_queue_manager *dqm,
 	return retval;
 }
 
+/* only for compute queue */
+static int reset_queues_cpsch(struct device_queue_manager *dqm,
+			uint16_t pasid)
+{
+	int retval;
+
+	dqm_lock(dqm);
+
+	retval = unmap_queues_cpsch(dqm, KFD_UNMAP_QUEUES_FILTER_BY_PASID,
+			pasid, true);
+
+	dqm_unlock(dqm);
+	return retval;
+}
+
 /* dqm->lock mutex has to be locked before calling this function */
 static int execute_queues_cpsch(struct device_queue_manager *dqm,
 				enum kfd_unmap_queues_filter filter,
@@ -1896,6 +1911,7 @@ struct device_queue_manager *device_queue_manager_init(struct kfd_dev *dev)
 		dqm->ops.evict_process_queues = evict_process_queues_cpsch;
 		dqm->ops.restore_process_queues = restore_process_queues_cpsch;
 		dqm->ops.get_wave_state = get_wave_state;
+		dqm->ops.reset_queues = reset_queues_cpsch;
 		break;
 	case KFD_SCHED_POLICY_NO_HWS:
 		/* initialize dqm for no cp scheduling */
