@@ -324,7 +324,7 @@ ssize_t ms_sensors_show_battery_low(struct ms_ht_dev *dev_data,
 	if (ret)
 		return ret;
 
-	return sprintf(buf, "%d\n", (config_reg & 0x40) >> 6);
+	return sysfs_emit(buf, "%d\n", (config_reg & 0x40) >> 6);
 }
 EXPORT_SYMBOL(ms_sensors_show_battery_low);
 
@@ -351,7 +351,7 @@ ssize_t ms_sensors_show_heater(struct ms_ht_dev *dev_data,
 	if (ret)
 		return ret;
 
-	return sprintf(buf, "%d\n", (config_reg & 0x4) >> 2);
+	return sysfs_emit(buf, "%d\n", (config_reg & 0x4) >> 2);
 }
 EXPORT_SYMBOL(ms_sensors_show_heater);
 
