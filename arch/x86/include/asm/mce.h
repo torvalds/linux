@@ -329,22 +329,6 @@ enum smca_bank_types {
 	N_SMCA_BANK_TYPES
 };
 
-#define HWID_MCATYPE(hwid, mcatype) (((hwid) << 16) | (mcatype))
-
-struct smca_hwid {
-	unsigned int bank_type;	/* Use with smca_bank_types for easy indexing. */
-	u32 hwid_mcatype;	/* (hwid,mcatype) tuple */
-	u8 count;		/* Number of instances. */
-};
-
-struct smca_bank {
-	struct smca_hwid *hwid;
-	u32 id;			/* Value of MCA_IPID[InstanceId]. */
-	u8 sysfs_id;		/* Value used for sysfs name. */
-};
-
-extern struct smca_bank smca_banks[MAX_NR_BANKS];
-
 extern const char *smca_get_long_name(enum smca_bank_types t);
 extern bool amd_mce_is_memory_error(struct mce *m);
 
@@ -352,7 +336,7 @@ extern int mce_threshold_create_device(unsigned int cpu);
 extern int mce_threshold_remove_device(unsigned int cpu);
 
 void mce_amd_feature_init(struct cpuinfo_x86 *c);
-enum smca_bank_types smca_get_bank_type(unsigned int bank);
+enum smca_bank_types smca_get_bank_type(unsigned int cpu, unsigned int bank);
 #else
 
 static inline int mce_threshold_create_device(unsigned int cpu)		{ return 0; };

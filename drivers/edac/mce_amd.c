@@ -1166,19 +1166,12 @@ static void decode_mc6_mce(struct mce *m)
 /* Decode errors according to Scalable MCA specification */
 static void decode_smca_error(struct mce *m)
 {
-	struct smca_hwid *hwid;
-	enum smca_bank_types bank_type;
+	enum smca_bank_types bank_type = smca_get_bank_type(m->extcpu, m->bank);
 	const char *ip_name;
 	u8 xec = XEC(m->status, xec_mask);
 
-	if (m->bank >= ARRAY_SIZE(smca_banks))
+	if (bank_type >= N_SMCA_BANK_TYPES)
 		return;
-
-	hwid = smca_banks[m->bank].hwid;
-	if (!hwid)
-		return;
-
-	bank_type = hwid->bank_type;
 
 	if (bank_type == SMCA_RESERVED) {
 		pr_emerg(HW_ERR "Bank %d is reserved.\n", m->bank);
