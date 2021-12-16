@@ -356,22 +356,18 @@ int i915_vma_wait_for_bind(struct i915_vma *vma)
 #if IS_ENABLED(CONFIG_DRM_I915_DEBUG_GEM)
 static int i915_vma_verify_bind_complete(struct i915_vma *vma)
 {
-	int err = 0;
+	struct dma_fence *fence = i915_active_fence_get(&vma->active.excl);
+	int err;
 
-	if (i915_active_has_exclusive(&vma->active)) {
-		struct dma_fence *fence =
-			i915_active_fence_get(&vma->active.excl);
+	if (!fence)
+		return 0;
 
-		if (!fence)
-			return 0;
+	if (dma_fence_is_signaled(fence))
+		err = fence->error;
+	else
+		err = -EBUSY;
 
-		if (dma_fence_is_signaled(fence))
-			err = fence->error;
-		else
-			err = -EBUSY;
-
-		dma_fence_put(fence);
-	}
+	dma_fence_put(fence);
 
 	return err;
 }
@@ -1249,7 +1245,7 @@ __i915_request_await_bind(struct i915_request *rq, struct i915_vma *vma)
 	return __i915_request_await_exclusive(rq, &vma->active);
 }
 
-int __i915_vma_move_to_active(struct i915_vma *vma, struct i915_request *rq)
+static int __i915_vma_move_to_active(struct i915_vma *vma, struct i915_request *rq)
 {
 	int err;
 
