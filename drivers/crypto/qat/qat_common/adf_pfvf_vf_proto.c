@@ -25,7 +25,7 @@
  *
  * Return: 0 on success, error code otherwise.
  */
-int adf_send_vf2pf_msg(struct adf_accel_dev *accel_dev, u32 msg)
+int adf_send_vf2pf_msg(struct adf_accel_dev *accel_dev, struct pfvf_message msg)
 {
 	struct adf_pfvf_ops *pfvf_ops = GET_PFVF_OPS(accel_dev);
 	u32 pfvf_offset = pfvf_ops->get_vf2pf_offset(0);
@@ -42,7 +42,7 @@ int adf_send_vf2pf_msg(struct adf_accel_dev *accel_dev, u32 msg)
  *
  * Return: a valid message on success, zero otherwise.
  */
-static u32 adf_recv_pf2vf_msg(struct adf_accel_dev *accel_dev)
+static struct pfvf_message adf_recv_pf2vf_msg(struct adf_accel_dev *accel_dev)
 {
 	struct adf_pfvf_ops *pfvf_ops = GET_PFVF_OPS(accel_dev);
 	u32 pfvf_offset = pfvf_ops->get_pf2vf_offset(0);
@@ -61,7 +61,8 @@ static u32 adf_recv_pf2vf_msg(struct adf_accel_dev *accel_dev)
  *
  * Return: 0 on success, error code otherwise.
  */
-int adf_send_vf2pf_req(struct adf_accel_dev *accel_dev, u32 msg, u32 *resp)
+int adf_send_vf2pf_req(struct adf_accel_dev *accel_dev, struct pfvf_message msg,
+		       struct pfvf_message *resp)
 {
 	unsigned long timeout = msecs_to_jiffies(ADF_PFVF_MSG_RESP_TIMEOUT);
 	int ret;
@@ -88,14 +89,15 @@ int adf_send_vf2pf_req(struct adf_accel_dev *accel_dev, u32 msg, u32 *resp)
 		*resp = accel_dev->vf.response;
 
 	/* Once copied, set to an invalid value */
-	accel_dev->vf.response = 0;
+	accel_dev->vf.response.type = 0;
 
 	return 0;
 }
 
-static bool adf_handle_pf2vf_msg(struct adf_accel_dev *accel_dev, u32 msg)
+static bool adf_handle_pf2vf_msg(struct adf_accel_dev *accel_dev,
+				 struct pfvf_message msg)
 {
-	switch ((msg >> ADF_PFVF_MSGTYPE_SHIFT) & ADF_PFVF_MSGTYPE_MASK) {
+	switch (msg.type) {
 	case ADF_PF2VF_MSGTYPE_RESTARTING:
 		dev_dbg(&GET_DEV(accel_dev), "Restarting message received from PF\n");
 
@@ -103,13 +105,15 @@ static bool adf_handle_pf2vf_msg(struct adf_accel_dev *accel_dev, u32 msg)
 		return false;
 	case ADF_PF2VF_MSGTYPE_VERSION_RESP:
 		dev_dbg(&GET_DEV(accel_dev),
-			"Response message received from PF (0x%.8x)\n", msg);
+			"Response Message received from PF (type 0x%.4x, data 0x%.4x)\n",
+			msg.type, msg.data);
 		accel_dev->vf.response = msg;
 		complete(&accel_dev->vf.msg_received);
 		return true;
 	default:
 		dev_err(&GET_DEV(accel_dev),
-			"Unknown PF2VF message (0x%.8x) from PF\n", msg);
+			"Unknown message from PF (type 0x%.4x, data: 0x%.4x)\n",
+			msg.type, msg.data);
 	}
 
 	return false;
@@ -117,11 +121,13 @@ static bool adf_handle_pf2vf_msg(struct adf_accel_dev *accel_dev, u32 msg)
 
 bool adf_recv_and_handle_pf2vf_msg(struct adf_accel_dev *accel_dev)
 {
-	u32 msg;
+	struct pfvf_message msg;
 
 	msg = adf_recv_pf2vf_msg(accel_dev);
-	if (msg)
+	if (msg.type)  /* Invalid or no message */
 		return adf_handle_pf2vf_msg(accel_dev, msg);
+
+	/* No replies for PF->VF messages at present */
 
 	return true;
 }

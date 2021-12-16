@@ -16,7 +16,7 @@
  */
 int adf_vf2pf_notify_init(struct adf_accel_dev *accel_dev)
 {
-	u32 msg = ADF_VF2PF_MSGTYPE_INIT << ADF_PFVF_MSGTYPE_SHIFT;
+	struct pfvf_message msg = { .type = ADF_VF2PF_MSGTYPE_INIT };
 
 	if (adf_send_vf2pf_msg(accel_dev, msg)) {
 		dev_err(&GET_DEV(accel_dev),
@@ -38,7 +38,7 @@ EXPORT_SYMBOL_GPL(adf_vf2pf_notify_init);
  */
 void adf_vf2pf_notify_shutdown(struct adf_accel_dev *accel_dev)
 {
-	u32 msg = ADF_VF2PF_MSGTYPE_SHUTDOWN << ADF_PFVF_MSGTYPE_SHIFT;
+	struct pfvf_message msg = { .type = ADF_VF2PF_MSGTYPE_SHUTDOWN };
 
 	if (test_bit(ADF_STATUS_PF_RUNNING, &accel_dev->status))
 		if (adf_send_vf2pf_msg(accel_dev, msg))
@@ -50,13 +50,13 @@ EXPORT_SYMBOL_GPL(adf_vf2pf_notify_shutdown);
 int adf_vf2pf_request_version(struct adf_accel_dev *accel_dev)
 {
 	u8 pf_version;
-	u32 msg = 0;
 	int compat;
-	u32 resp;
 	int ret;
-
-	msg = ADF_VF2PF_MSGTYPE_COMPAT_VER_REQ << ADF_PFVF_MSGTYPE_SHIFT |
-	      ADF_PFVF_COMPAT_THIS_VERSION << ADF_VF2PF_COMPAT_VER_REQ_SHIFT;
+	struct pfvf_message resp;
+	struct pfvf_message msg = {
+		.type = ADF_VF2PF_MSGTYPE_COMPAT_VER_REQ,
+		.data = ADF_PFVF_COMPAT_THIS_VERSION,
+	};
 
 	BUILD_BUG_ON(ADF_PFVF_COMPAT_THIS_VERSION > 255);
 
@@ -67,9 +67,9 @@ int adf_vf2pf_request_version(struct adf_accel_dev *accel_dev)
 		return ret;
 	}
 
-	pf_version = (resp >> ADF_PF2VF_VERSION_RESP_VERS_SHIFT)
+	pf_version = (resp.data >> ADF_PF2VF_VERSION_RESP_VERS_SHIFT)
 		     & ADF_PF2VF_VERSION_RESP_VERS_MASK;
-	compat = (resp >> ADF_PF2VF_VERSION_RESP_RESULT_SHIFT)
+	compat = (resp.data >> ADF_PF2VF_VERSION_RESP_RESULT_SHIFT)
 		 & ADF_PF2VF_VERSION_RESP_RESULT_MASK;
 
 	/* Response from PF received, check compatibility */

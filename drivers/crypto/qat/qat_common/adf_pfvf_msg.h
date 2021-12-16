@@ -56,8 +56,14 @@
 /* PFVF message common bits */
 #define ADF_PFVF_INT				BIT(0)
 #define ADF_PFVF_MSGORIGIN_SYSTEM		BIT(1)
-#define ADF_PFVF_MSGTYPE_SHIFT			2
-#define ADF_PFVF_MSGTYPE_MASK			0x0F
+
+/* Different generations have different CSR layouts, use this struct
+ * to abstract these differences away
+ */
+struct pfvf_message {
+	u8 type;
+	u32 data;
+};
 
 /* PF->VF messages */
 enum pf2vf_msgtype {
@@ -80,11 +86,9 @@ enum pfvf_compatibility_version {
 };
 
 /* PF->VF Version Response */
-#define ADF_PF2VF_MINORVERSION_SHIFT		6
-#define ADF_PF2VF_MAJORVERSION_SHIFT		10
-#define ADF_PF2VF_VERSION_RESP_VERS_SHIFT	6
+#define ADF_PF2VF_VERSION_RESP_VERS_SHIFT	0
 #define ADF_PF2VF_VERSION_RESP_VERS_MASK	0xFF
-#define ADF_PF2VF_VERSION_RESP_RESULT_SHIFT	14
+#define ADF_PF2VF_VERSION_RESP_RESULT_SHIFT	8
 #define ADF_PF2VF_VERSION_RESP_RESULT_MASK	0x03
 
 enum pf2vf_compat_response {
@@ -92,8 +96,5 @@ enum pf2vf_compat_response {
 	ADF_PF2VF_VF_INCOMPATIBLE		= 0x02,
 	ADF_PF2VF_VF_COMPAT_UNKNOWN		= 0x03,
 };
-
-/* VF->PF Compatible Version Request */
-#define ADF_VF2PF_COMPAT_VER_REQ_SHIFT		6
 
 #endif /* ADF_PFVF_MSG_H */

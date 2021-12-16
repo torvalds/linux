@@ -9,6 +9,7 @@
 #include "adf_pfvf_msg.h"
 #include "adf_pfvf_pf_proto.h"
 #include "adf_pfvf_vf_proto.h"
+#include "adf_pfvf_utils.h"
 
  /* VF2PF interrupts */
 #define ADF_GEN2_ERR_REG_VF2PF(vf_src)	(((vf_src) & 0x01FFFE00) >> 9)
@@ -23,6 +24,16 @@
 enum gen2_csr_pos {
 	ADF_GEN2_CSR_PF2VF_OFFSET	=  0,
 	ADF_GEN2_CSR_VF2PF_OFFSET	= 16,
+};
+
+#define ADF_PFVF_GEN2_MSGTYPE_SHIFT	2
+#define ADF_PFVF_GEN2_MSGTYPE_MASK	0x0F
+#define ADF_PFVF_GEN2_MSGDATA_SHIFT	6
+#define ADF_PFVF_GEN2_MSGDATA_MASK	0x3FF
+
+static const struct pfvf_csr_format csr_gen2_fmt = {
+	{ ADF_PFVF_GEN2_MSGTYPE_SHIFT, ADF_PFVF_GEN2_MSGTYPE_MASK },
+	{ ADF_PFVF_GEN2_MSGDATA_SHIFT, ADF_PFVF_GEN2_MSGDATA_MASK },
 };
 
 #define ADF_PFVF_MSG_ACK_DELAY		2
@@ -122,7 +133,8 @@ struct pfvf_gen2_params {
 	enum gen2_csr_pos remote_offset;
 };
 
-static int adf_gen2_pfvf_send(struct adf_accel_dev *accel_dev, u32 msg,
+static int adf_gen2_pfvf_send(struct adf_accel_dev *accel_dev,
+			      struct pfvf_message msg,
 			      struct pfvf_gen2_params *params)
 {
 	void __iomem *pmisc_addr = adf_get_pmisc_base(accel_dev);
@@ -134,6 +146,7 @@ static int adf_gen2_pfvf_send(struct adf_accel_dev *accel_dev, u32 msg,
 	u32 count = 0;
 	u32 int_bit;
 	u32 csr_val;
+	u32 csr_msg;
 	int ret;
 
 	/* Gen2 messages, both PF->VF and VF->PF, are all 16 bits long. This
@@ -146,12 +159,15 @@ static int adf_gen2_pfvf_send(struct adf_accel_dev *accel_dev, u32 msg,
 
 	int_bit = gen2_csr_get_int_bit(local_offset);
 
-	/* Pre-calculate message, shifting it in place and setting
-	 * the in use pattern
+	csr_msg = adf_pfvf_csr_msg_of(accel_dev, msg, &csr_gen2_fmt);
+	if (unlikely(!csr_msg))
+		return -EINVAL;
+
+	/* Prepare for CSR format, shifting the wire message in place and
+	 * setting the in use pattern
 	 */
-	msg |= ADF_PFVF_MSGORIGIN_SYSTEM;
-	msg = gen2_csr_msg_to_position(msg, local_offset);
-	gen2_csr_set_in_use(&msg, remote_offset);
+	csr_msg = gen2_csr_msg_to_position(csr_msg, local_offset);
+	gen2_csr_set_in_use(&csr_msg, remote_offset);
 
 	mutex_lock(lock);
 
@@ -167,7 +183,7 @@ start:
 	}
 
 	/* Attempt to get ownership of the PFVF CSR */
-	ADF_CSR_WR(pmisc_addr, pfvf_offset, msg | int_bit);
+	ADF_CSR_WR(pmisc_addr, pfvf_offset, csr_msg | int_bit);
 
 	/* Wait for confirmation from remote func it received the message */
 	do {
@@ -181,7 +197,7 @@ start:
 		ret = -EIO;
 	}
 
-	if (csr_val != msg) {
+	if (csr_val != csr_msg) {
 		dev_dbg(&GET_DEV(accel_dev),
 			"Collision - PFVF CSR overwritten by remote function\n");
 		goto retry;
@@ -205,15 +221,16 @@ retry:
 	}
 }
 
-static u32 adf_gen2_pfvf_recv(struct adf_accel_dev *accel_dev,
-			      struct pfvf_gen2_params *params)
+static struct pfvf_message adf_gen2_pfvf_recv(struct adf_accel_dev *accel_dev,
+					      struct pfvf_gen2_params *params)
 {
 	void __iomem *pmisc_addr = adf_get_pmisc_base(accel_dev);
 	enum gen2_csr_pos local_offset = params->local_offset;
 	u32 pfvf_offset = params->pfvf_offset;
+	struct pfvf_message msg = { 0 };
 	u32 int_bit;
 	u32 csr_val;
-	u32 msg;
+	u16 csr_msg;
 
 	int_bit = gen2_csr_get_int_bit(local_offset);
 
@@ -222,18 +239,21 @@ static u32 adf_gen2_pfvf_recv(struct adf_accel_dev *accel_dev,
 	if (!(csr_val & int_bit)) {
 		dev_info(&GET_DEV(accel_dev),
 			 "Spurious PFVF interrupt, msg 0x%.8x. Ignored\n", csr_val);
-		return 0;
+		return msg;
 	}
 
 	/* Extract the message from the CSR */
-	msg = gen2_csr_msg_from_position(csr_val, local_offset);
+	csr_msg = gen2_csr_msg_from_position(csr_val, local_offset);
 
 	/* Ignore legacy non-system (non-kernel) messages */
-	if (unlikely(is_legacy_user_pfvf_message(msg))) {
+	if (unlikely(is_legacy_user_pfvf_message(csr_msg))) {
 		dev_dbg(&GET_DEV(accel_dev),
 			"Ignored non-system message (0x%.8x);\n", csr_val);
-		return 0;
+		return msg;
 	}
+
+	/* Return the pfvf_message format */
+	msg = adf_pfvf_message_of(accel_dev, csr_msg, &csr_gen2_fmt);
 
 	/* To ACK, clear the INT bit */
 	csr_val &= ~int_bit;
@@ -242,7 +262,7 @@ static u32 adf_gen2_pfvf_recv(struct adf_accel_dev *accel_dev,
 	return msg;
 }
 
-static int adf_gen2_pf2vf_send(struct adf_accel_dev *accel_dev, u32 msg,
+static int adf_gen2_pf2vf_send(struct adf_accel_dev *accel_dev, struct pfvf_message msg,
 			       u32 pfvf_offset, struct mutex *csr_lock)
 {
 	struct pfvf_gen2_params params = {
@@ -255,7 +275,7 @@ static int adf_gen2_pf2vf_send(struct adf_accel_dev *accel_dev, u32 msg,
 	return adf_gen2_pfvf_send(accel_dev, msg, &params);
 }
 
-static int adf_gen2_vf2pf_send(struct adf_accel_dev *accel_dev, u32 msg,
+static int adf_gen2_vf2pf_send(struct adf_accel_dev *accel_dev, struct pfvf_message msg,
 			       u32 pfvf_offset, struct mutex *csr_lock)
 {
 	struct pfvf_gen2_params params = {
@@ -268,7 +288,8 @@ static int adf_gen2_vf2pf_send(struct adf_accel_dev *accel_dev, u32 msg,
 	return adf_gen2_pfvf_send(accel_dev, msg, &params);
 }
 
-static u32 adf_gen2_pf2vf_recv(struct adf_accel_dev *accel_dev, u32 pfvf_offset)
+static struct pfvf_message adf_gen2_pf2vf_recv(struct adf_accel_dev *accel_dev,
+					       u32 pfvf_offset)
 {
 	struct pfvf_gen2_params params = {
 		.pfvf_offset = pfvf_offset,
@@ -279,7 +300,8 @@ static u32 adf_gen2_pf2vf_recv(struct adf_accel_dev *accel_dev, u32 pfvf_offset)
 	return adf_gen2_pfvf_recv(accel_dev, &params);
 }
 
-static u32 adf_gen2_vf2pf_recv(struct adf_accel_dev *accel_dev, u32 pfvf_offset)
+static struct pfvf_message adf_gen2_vf2pf_recv(struct adf_accel_dev *accel_dev,
+					       u32 pfvf_offset)
 {
 	struct pfvf_gen2_params params = {
 		.pfvf_offset = pfvf_offset,

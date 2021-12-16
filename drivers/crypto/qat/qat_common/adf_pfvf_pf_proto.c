@@ -17,7 +17,7 @@
  *
  * Return: 0 on success, error code otherwise.
  */
-int adf_send_pf2vf_msg(struct adf_accel_dev *accel_dev, u8 vf_nr, u32 msg)
+int adf_send_pf2vf_msg(struct adf_accel_dev *accel_dev, u8 vf_nr, struct pfvf_message msg)
 {
 	struct adf_pfvf_ops *pfvf_ops = GET_PFVF_OPS(accel_dev);
 	u32 pfvf_offset = pfvf_ops->get_pf2vf_offset(vf_nr);
@@ -35,7 +35,7 @@ int adf_send_pf2vf_msg(struct adf_accel_dev *accel_dev, u8 vf_nr, u32 msg)
  *
  * Return: a valid message on success, zero otherwise.
  */
-static u32 adf_recv_vf2pf_msg(struct adf_accel_dev *accel_dev, u8 vf_nr)
+static struct pfvf_message adf_recv_vf2pf_msg(struct adf_accel_dev *accel_dev, u8 vf_nr)
 {
 	struct adf_pfvf_ops *pfvf_ops = GET_PFVF_OPS(accel_dev);
 	u32 pfvf_offset = pfvf_ops->get_vf2pf_offset(vf_nr);
@@ -43,16 +43,15 @@ static u32 adf_recv_vf2pf_msg(struct adf_accel_dev *accel_dev, u8 vf_nr)
 	return pfvf_ops->recv_msg(accel_dev, pfvf_offset);
 }
 
-static int adf_handle_vf2pf_msg(struct adf_accel_dev *accel_dev, u32 vf_nr,
-				u32 msg, u32 *response)
+static int adf_handle_vf2pf_msg(struct adf_accel_dev *accel_dev, u8 vf_nr,
+				struct pfvf_message msg, struct pfvf_message *resp)
 {
 	struct adf_accel_vf_info *vf_info = &accel_dev->pf.vf_info[vf_nr];
-	u32 resp = 0;
 
-	switch ((msg >> ADF_PFVF_MSGTYPE_SHIFT) & ADF_PFVF_MSGTYPE_MASK) {
+	switch (msg.type) {
 	case ADF_VF2PF_MSGTYPE_COMPAT_VER_REQ:
 		{
-		u8 vf_compat_ver = msg >> ADF_VF2PF_COMPAT_VER_REQ_SHIFT;
+		u8 vf_compat_ver = msg.data;
 		u8 compat;
 
 		dev_dbg(&GET_DEV(accel_dev),
@@ -64,11 +63,10 @@ static int adf_handle_vf2pf_msg(struct adf_accel_dev *accel_dev, u32 vf_nr,
 		else
 			compat = ADF_PF2VF_VF_COMPAT_UNKNOWN;
 
-		resp |= ADF_PF2VF_MSGTYPE_VERSION_RESP <<
-			ADF_PFVF_MSGTYPE_SHIFT;
-		resp |= ADF_PFVF_COMPAT_THIS_VERSION <<
-			ADF_PF2VF_VERSION_RESP_VERS_SHIFT;
-		resp |= compat << ADF_PF2VF_VERSION_RESP_RESULT_SHIFT;
+		resp->type = ADF_PF2VF_MSGTYPE_VERSION_RESP;
+		resp->data = ADF_PFVF_COMPAT_THIS_VERSION <<
+			     ADF_PF2VF_VERSION_RESP_VERS_SHIFT;
+		resp->data |= compat << ADF_PF2VF_VERSION_RESP_RESULT_SHIFT;
 		}
 		break;
 	case ADF_VF2PF_MSGTYPE_VERSION_REQ:
@@ -82,12 +80,10 @@ static int adf_handle_vf2pf_msg(struct adf_accel_dev *accel_dev, u32 vf_nr,
 		/* PF always newer than legacy VF */
 		compat = ADF_PF2VF_VF_COMPATIBLE;
 
-		resp |= ADF_PF2VF_MSGTYPE_VERSION_RESP <<
-			ADF_PFVF_MSGTYPE_SHIFT;
-		/* Set legacy major and minor version num */
-		resp |= 1 << ADF_PF2VF_MAJORVERSION_SHIFT |
-			1 << ADF_PF2VF_MINORVERSION_SHIFT;
-		resp |= compat << ADF_PF2VF_VERSION_RESP_RESULT_SHIFT;
+		resp->type = ADF_PF2VF_MSGTYPE_VERSION_RESP;
+		/* Set legacy major and minor version to the latest, 1.1 */
+		resp->data |= 0x11;
+		resp->data |= compat << ADF_PF2VF_VERSION_RESP_RESULT_SHIFT;
 		}
 		break;
 	case ADF_VF2PF_MSGTYPE_INIT:
@@ -105,29 +101,28 @@ static int adf_handle_vf2pf_msg(struct adf_accel_dev *accel_dev, u32 vf_nr,
 		}
 		break;
 	default:
-		dev_dbg(&GET_DEV(accel_dev), "Unknown message from VF%d (0x%.8x)\n",
-			vf_nr, msg);
+		dev_dbg(&GET_DEV(accel_dev),
+			"Unknown message from VF%d (type 0x%.4x, data: 0x%.4x)\n",
+			vf_nr, msg.type, msg.data);
 		return -ENOMSG;
 	}
-
-	*response = resp;
 
 	return 0;
 }
 
 bool adf_recv_and_handle_vf2pf_msg(struct adf_accel_dev *accel_dev, u32 vf_nr)
 {
-	u32 resp = 0;
-	u32 msg;
+	struct pfvf_message req;
+	struct pfvf_message resp = {0};
 
-	msg = adf_recv_vf2pf_msg(accel_dev, vf_nr);
-	if (!msg)
+	req = adf_recv_vf2pf_msg(accel_dev, vf_nr);
+	if (!req.type)  /* Legacy or no message */
 		return true;
 
-	if (adf_handle_vf2pf_msg(accel_dev, vf_nr, msg, &resp))
+	if (adf_handle_vf2pf_msg(accel_dev, vf_nr, req, &resp))
 		return false;
 
-	if (resp && adf_send_pf2vf_msg(accel_dev, vf_nr, resp))
+	if (resp.type && adf_send_pf2vf_msg(accel_dev, vf_nr, resp))
 		dev_err(&GET_DEV(accel_dev),
 			"Failed to send response to VF%d\n", vf_nr);
 

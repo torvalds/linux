@@ -8,6 +8,7 @@
 #include <linux/io.h>
 #include <linux/ratelimit.h>
 #include "adf_cfg_common.h"
+#include "adf_pfvf_msg.h"
 
 #define ADF_DH895XCC_DEVICE_NAME "dh895xcc"
 #define ADF_DH895XCCVF_DEVICE_NAME "dh895xccvf"
@@ -154,9 +155,10 @@ struct adf_pfvf_ops {
 	u32 (*get_vf2pf_sources)(void __iomem *pmisc_addr);
 	void (*enable_vf2pf_interrupts)(void __iomem *pmisc_addr, u32 vf_mask);
 	void (*disable_vf2pf_interrupts)(void __iomem *pmisc_addr, u32 vf_mask);
-	int (*send_msg)(struct adf_accel_dev *accel_dev, u32 msg,
+	int (*send_msg)(struct adf_accel_dev *accel_dev, struct pfvf_message msg,
 			u32 pfvf_offset, struct mutex *csr_lock);
-	u32 (*recv_msg)(struct adf_accel_dev *accel_dev, u32 pfvf_offset);
+	struct pfvf_message (*recv_msg)(struct adf_accel_dev *accel_dev,
+					u32 pfvf_offset);
 };
 
 struct adf_hw_device_data {
@@ -275,7 +277,7 @@ struct adf_accel_dev {
 			struct tasklet_struct pf2vf_bh_tasklet;
 			struct mutex vf2pf_lock; /* protect CSR access */
 			struct completion msg_received;
-			u32 response; /* temp field holding pf2vf response */
+			struct pfvf_message response; /* temp field holding pf2vf response */
 			u8 pf_version;
 		} vf;
 	};
