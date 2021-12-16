@@ -122,7 +122,7 @@ static ssize_t as3935_sensor_sensitivity_show(struct device *dev,
 		return ret;
 	val = (val & AS3935_AFE_MASK) >> 1;
 
-	return sprintf(buf, "%d\n", val);
+	return sysfs_emit(buf, "%d\n", val);
 }
 
 static ssize_t as3935_sensor_sensitivity_store(struct device *dev,
@@ -153,7 +153,7 @@ static ssize_t as3935_noise_level_tripped_show(struct device *dev,
 	int ret;
 
 	mutex_lock(&st->lock);
-	ret = sprintf(buf, "%d\n", !time_after(jiffies, st->noise_tripped + HZ));
+	ret = sysfs_emit(buf, "%d\n", !time_after(jiffies, st->noise_tripped + HZ));
 	mutex_unlock(&st->lock);
 
 	return ret;
