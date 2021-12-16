@@ -53,27 +53,19 @@
  * adf_gen2_pfvf_send() in adf_pf2vf_msg.c).
  */
 
-/* PF->VF messages */
-#define ADF_PF2VF_INT				BIT(0)
-#define ADF_PF2VF_MSGORIGIN_SYSTEM		BIT(1)
-#define ADF_PF2VF_IN_USE_BY_PF			0x6AC20000
-#define ADF_PF2VF_IN_USE_BY_PF_MASK		0xFFFE0000
-#define ADF_PF2VF_MSGTYPE_MASK			0x0000003C
-#define ADF_PF2VF_MSGTYPE_SHIFT			2
+/* PFVF message common bits */
+#define ADF_PFVF_INT				BIT(0)
+#define ADF_PFVF_MSGORIGIN_SYSTEM		BIT(1)
+#define ADF_PFVF_MSGTYPE_SHIFT			2
+#define ADF_PFVF_MSGTYPE_MASK			0x0F
 
+/* PF->VF messages */
 enum pf2vf_msgtype {
 	ADF_PF2VF_MSGTYPE_RESTARTING		= 0x01,
 	ADF_PF2VF_MSGTYPE_VERSION_RESP		= 0x02,
 };
 
 /* VF->PF messages */
-#define ADF_VF2PF_INT				BIT(16)
-#define ADF_VF2PF_MSGORIGIN_SYSTEM		BIT(17)
-#define ADF_VF2PF_IN_USE_BY_VF			0x00006AC2
-#define ADF_VF2PF_IN_USE_BY_VF_MASK		0x0000FFFE
-#define ADF_VF2PF_MSGTYPE_MASK			0x003C0000
-#define ADF_VF2PF_MSGTYPE_SHIFT			18
-
 enum vf2pf_msgtype {
 	ADF_VF2PF_MSGTYPE_INIT			= 0x03,
 	ADF_VF2PF_MSGTYPE_SHUTDOWN		= 0x04,
@@ -90,10 +82,10 @@ enum pfvf_compatibility_version {
 /* PF->VF Version Response */
 #define ADF_PF2VF_MINORVERSION_SHIFT		6
 #define ADF_PF2VF_MAJORVERSION_SHIFT		10
-#define ADF_PF2VF_VERSION_RESP_VERS_MASK	0x00003FC0
 #define ADF_PF2VF_VERSION_RESP_VERS_SHIFT	6
-#define ADF_PF2VF_VERSION_RESP_RESULT_MASK	0x0000C000
+#define ADF_PF2VF_VERSION_RESP_VERS_MASK	0xFF
 #define ADF_PF2VF_VERSION_RESP_RESULT_SHIFT	14
+#define ADF_PF2VF_VERSION_RESP_RESULT_MASK	0x03
 
 enum pf2vf_compat_response {
 	ADF_PF2VF_VF_COMPATIBLE			= 0x01,
@@ -102,6 +94,6 @@ enum pf2vf_compat_response {
 };
 
 /* VF->PF Compatible Version Request */
-#define ADF_VF2PF_COMPAT_VER_REQ_SHIFT		22
+#define ADF_VF2PF_COMPAT_VER_REQ_SHIFT		6
 
 #endif /* ADF_PFVF_MSG_H */

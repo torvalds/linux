@@ -42,7 +42,7 @@ static int adf_handle_vf2pf_msg(struct adf_accel_dev *accel_dev, u32 vf_nr,
 	struct adf_accel_vf_info *vf_info = &accel_dev->pf.vf_info[vf_nr];
 	u32 resp = 0;
 
-	switch ((msg & ADF_VF2PF_MSGTYPE_MASK) >> ADF_VF2PF_MSGTYPE_SHIFT) {
+	switch ((msg >> ADF_PFVF_MSGTYPE_SHIFT) & ADF_PFVF_MSGTYPE_MASK) {
 	case ADF_VF2PF_MSGTYPE_COMPAT_VER_REQ:
 		{
 		u8 vf_compat_ver = msg >> ADF_VF2PF_COMPAT_VER_REQ_SHIFT;
@@ -57,9 +57,9 @@ static int adf_handle_vf2pf_msg(struct adf_accel_dev *accel_dev, u32 vf_nr,
 		else
 			compat = ADF_PF2VF_VF_COMPAT_UNKNOWN;
 
-		resp =  ADF_PF2VF_MSGORIGIN_SYSTEM;
+		resp =  ADF_PFVF_MSGORIGIN_SYSTEM;
 		resp |= ADF_PF2VF_MSGTYPE_VERSION_RESP <<
-			ADF_PF2VF_MSGTYPE_SHIFT;
+			ADF_PFVF_MSGTYPE_SHIFT;
 		resp |= ADF_PFVF_COMPAT_THIS_VERSION <<
 			ADF_PF2VF_VERSION_RESP_VERS_SHIFT;
 		resp |= compat << ADF_PF2VF_VERSION_RESP_RESULT_SHIFT;
@@ -76,9 +76,9 @@ static int adf_handle_vf2pf_msg(struct adf_accel_dev *accel_dev, u32 vf_nr,
 		/* PF always newer than legacy VF */
 		compat = ADF_PF2VF_VF_COMPATIBLE;
 
-		resp = ADF_PF2VF_MSGORIGIN_SYSTEM;
+		resp = ADF_PFVF_MSGORIGIN_SYSTEM;
 		resp |= ADF_PF2VF_MSGTYPE_VERSION_RESP <<
-			ADF_PF2VF_MSGTYPE_SHIFT;
+			ADF_PFVF_MSGTYPE_SHIFT;
 		/* Set legacy major and minor version num */
 		resp |= 1 << ADF_PF2VF_MAJORVERSION_SHIFT |
 			1 << ADF_PF2VF_MINORVERSION_SHIFT;

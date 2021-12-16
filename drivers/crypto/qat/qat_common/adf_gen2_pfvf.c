@@ -17,6 +17,14 @@
 #define ADF_GEN2_PF_PF2VF_OFFSET(i)	(0x3A000 + 0x280 + ((i) * 0x04))
 #define ADF_GEN2_VF_PF2VF_OFFSET	0x200
 
+#define ADF_GEN2_CSR_IN_USE		0x6AC2
+#define ADF_GEN2_CSR_IN_USE_MASK	0xFFFE
+
+enum gen2_csr_pos {
+	ADF_GEN2_CSR_PF2VF_OFFSET	=  0,
+	ADF_GEN2_CSR_VF2PF_OFFSET	= 16,
+};
+
 #define ADF_PFVF_MSG_ACK_DELAY		2
 #define ADF_PFVF_MSG_ACK_MAX_RETRY	100
 
@@ -72,38 +80,81 @@ static void adf_gen2_disable_vf2pf_interrupts(void __iomem *pmisc_addr,
 	}
 }
 
+static u32 gen2_csr_get_int_bit(enum gen2_csr_pos offset)
+{
+	return ADF_PFVF_INT << offset;
+}
+
+static u32 gen2_csr_msg_to_position(u32 csr_msg, enum gen2_csr_pos offset)
+{
+	return (csr_msg & 0xFFFF) << offset;
+}
+
+static u32 gen2_csr_msg_from_position(u32 csr_val, enum gen2_csr_pos offset)
+{
+	return (csr_val >> offset) & 0xFFFF;
+}
+
+static bool gen2_csr_is_in_use(u32 msg, enum gen2_csr_pos offset)
+{
+	return ((msg >> offset) & ADF_GEN2_CSR_IN_USE_MASK) == ADF_GEN2_CSR_IN_USE;
+}
+
+static void gen2_csr_clear_in_use(u32 *msg, enum gen2_csr_pos offset)
+{
+	*msg &= ~(ADF_GEN2_CSR_IN_USE_MASK << offset);
+}
+
+static void gen2_csr_set_in_use(u32 *msg, enum gen2_csr_pos offset)
+{
+	*msg |= (ADF_GEN2_CSR_IN_USE << offset);
+}
+
+static bool is_legacy_user_pfvf_message(u32 msg)
+{
+	return !(msg & ADF_PFVF_MSGORIGIN_SYSTEM);
+}
+
 static int adf_gen2_pfvf_send(struct adf_accel_dev *accel_dev, u32 msg,
 			      u8 vf_nr)
 {
 	void __iomem *pmisc_addr = adf_get_pmisc_base(accel_dev);
 	unsigned int retries = ADF_PFVF_MSG_MAX_RETRIES;
-	u32 remote_in_use_mask, remote_in_use_pattern;
-	u32 local_in_use_mask, local_in_use_pattern;
-	u32 val, pfvf_offset, count = 0;
+	enum gen2_csr_pos remote_offset;
+	enum gen2_csr_pos local_offset;
 	struct mutex *lock;	/* lock preventing concurrent acces of CSR */
+	u32 pfvf_offset;
+	u32 count = 0;
 	u32 int_bit;
+	u32 csr_val;
 	int ret;
 
+	/* Gen2 messages, both PF->VF and VF->PF, are all 16 bits long. This
+	 * allows us to build and read messages as if they where all 0 based.
+	 * However, send and receive are in a single shared 32 bits register,
+	 * so we need to shift and/or mask the message half before decoding
+	 * it and after encoding it. Which one to shift depends on the
+	 * direction.
+	 */
 	if (accel_dev->is_vf) {
 		pfvf_offset = GET_PFVF_OPS(accel_dev)->get_vf2pf_offset(0);
 		lock = &accel_dev->vf.vf2pf_lock;
-		local_in_use_mask = ADF_VF2PF_IN_USE_BY_VF_MASK;
-		local_in_use_pattern = ADF_VF2PF_IN_USE_BY_VF;
-		remote_in_use_mask = ADF_PF2VF_IN_USE_BY_PF_MASK;
-		remote_in_use_pattern = ADF_PF2VF_IN_USE_BY_PF;
-		int_bit = ADF_VF2PF_INT;
+		local_offset = ADF_GEN2_CSR_VF2PF_OFFSET;
+		remote_offset = ADF_GEN2_CSR_PF2VF_OFFSET;
 	} else {
 		pfvf_offset = GET_PFVF_OPS(accel_dev)->get_pf2vf_offset(vf_nr);
 		lock = &accel_dev->pf.vf_info[vf_nr].pf2vf_lock;
-		local_in_use_mask = ADF_PF2VF_IN_USE_BY_PF_MASK;
-		local_in_use_pattern = ADF_PF2VF_IN_USE_BY_PF;
-		remote_in_use_mask = ADF_VF2PF_IN_USE_BY_VF_MASK;
-		remote_in_use_pattern = ADF_VF2PF_IN_USE_BY_VF;
-		int_bit = ADF_PF2VF_INT;
+		local_offset = ADF_GEN2_CSR_PF2VF_OFFSET;
+		remote_offset = ADF_GEN2_CSR_VF2PF_OFFSET;
 	}
 
-	msg &= ~local_in_use_mask;
-	msg |= local_in_use_pattern;
+	int_bit = gen2_csr_get_int_bit(local_offset);
+
+	/* Pre-calculate message, shifting it in place and setting
+	 * the in use pattern
+	 */
+	msg = gen2_csr_msg_to_position(msg, local_offset);
+	gen2_csr_set_in_use(&msg, remote_offset);
 
 	mutex_lock(lock);
 
@@ -111,8 +162,8 @@ start:
 	ret = 0;
 
 	/* Check if the PFVF CSR is in use by remote function */
-	val = ADF_CSR_RD(pmisc_addr, pfvf_offset);
-	if ((val & remote_in_use_mask) == remote_in_use_pattern) {
+	csr_val = ADF_CSR_RD(pmisc_addr, pfvf_offset);
+	if (gen2_csr_is_in_use(csr_val, local_offset)) {
 		dev_dbg(&GET_DEV(accel_dev),
 			"PFVF CSR in use by remote function\n");
 		goto retry;
@@ -124,23 +175,25 @@ start:
 	/* Wait for confirmation from remote func it received the message */
 	do {
 		msleep(ADF_PFVF_MSG_ACK_DELAY);
-		val = ADF_CSR_RD(pmisc_addr, pfvf_offset);
-	} while ((val & int_bit) && (count++ < ADF_PFVF_MSG_ACK_MAX_RETRY));
+		csr_val = ADF_CSR_RD(pmisc_addr, pfvf_offset);
+	} while ((csr_val & int_bit) && (count++ < ADF_PFVF_MSG_ACK_MAX_RETRY));
 
-	if (val & int_bit) {
+	if (csr_val & int_bit) {
 		dev_dbg(&GET_DEV(accel_dev), "ACK not received from remote\n");
-		val &= ~int_bit;
+		csr_val &= ~int_bit;
 		ret = -EIO;
 	}
 
-	if (val != msg) {
+	if (csr_val != msg) {
 		dev_dbg(&GET_DEV(accel_dev),
 			"Collision - PFVF CSR overwritten by remote function\n");
 		goto retry;
 	}
 
 	/* Finished with the PFVF CSR; relinquish it and leave msg in CSR */
-	ADF_CSR_WR(pmisc_addr, pfvf_offset, val & ~local_in_use_mask);
+	gen2_csr_clear_in_use(&csr_val, remote_offset);
+	ADF_CSR_WR(pmisc_addr, pfvf_offset, csr_val);
+
 out:
 	mutex_unlock(lock);
 	return ret;
@@ -158,39 +211,43 @@ retry:
 static u32 adf_gen2_pfvf_recv(struct adf_accel_dev *accel_dev, u8 vf_nr)
 {
 	void __iomem *pmisc_addr = adf_get_pmisc_base(accel_dev);
+	enum gen2_csr_pos local_offset;
 	u32 pfvf_offset;
-	u32 msg_origin;
 	u32 int_bit;
+	u32 csr_val;
 	u32 msg;
 
 	if (accel_dev->is_vf) {
 		pfvf_offset = GET_PFVF_OPS(accel_dev)->get_pf2vf_offset(0);
-		int_bit = ADF_PF2VF_INT;
-		msg_origin = ADF_PF2VF_MSGORIGIN_SYSTEM;
+		local_offset = ADF_GEN2_CSR_PF2VF_OFFSET;
 	} else {
 		pfvf_offset = GET_PFVF_OPS(accel_dev)->get_vf2pf_offset(vf_nr);
-		int_bit = ADF_VF2PF_INT;
-		msg_origin = ADF_VF2PF_MSGORIGIN_SYSTEM;
+		local_offset = ADF_GEN2_CSR_VF2PF_OFFSET;
 	}
 
+	int_bit = gen2_csr_get_int_bit(local_offset);
+
 	/* Read message */
-	msg = ADF_CSR_RD(pmisc_addr, pfvf_offset);
-	if (!(msg & int_bit)) {
+	csr_val = ADF_CSR_RD(pmisc_addr, pfvf_offset);
+	if (!(csr_val & int_bit)) {
 		dev_info(&GET_DEV(accel_dev),
-			 "Spurious PFVF interrupt, msg 0x%.8x. Ignored\n", msg);
+			 "Spurious PFVF interrupt, msg 0x%.8x. Ignored\n", csr_val);
 		return 0;
 	}
 
-	/* Ignore legacy non-system (non-kernel) VF2PF messages */
-	if (!(msg & msg_origin)) {
+	/* Extract the message from the CSR */
+	msg = gen2_csr_msg_from_position(csr_val, local_offset);
+
+	/* Ignore legacy non-system (non-kernel) messages */
+	if (unlikely(is_legacy_user_pfvf_message(msg))) {
 		dev_dbg(&GET_DEV(accel_dev),
-			"Ignored non-system message (0x%.8x);\n", msg);
+			"Ignored non-system message (0x%.8x);\n", csr_val);
 		return 0;
 	}
 
 	/* To ACK, clear the INT bit */
-	msg &= ~int_bit;
-	ADF_CSR_WR(pmisc_addr, pfvf_offset, msg);
+	csr_val &= ~int_bit;
+	ADF_CSR_WR(pmisc_addr, pfvf_offset, csr_val);
 
 	return msg;
 }

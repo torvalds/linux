@@ -9,8 +9,8 @@
 void adf_pf2vf_notify_restarting(struct adf_accel_dev *accel_dev)
 {
 	struct adf_accel_vf_info *vf;
-	u32 msg = (ADF_PF2VF_MSGORIGIN_SYSTEM |
-		(ADF_PF2VF_MSGTYPE_RESTARTING << ADF_PF2VF_MSGTYPE_SHIFT));
+	u32 msg = (ADF_PFVF_MSGORIGIN_SYSTEM |
+		(ADF_PF2VF_MSGTYPE_RESTARTING << ADF_PFVF_MSGTYPE_SHIFT));
 	int i, num_vfs = pci_num_vf(accel_to_pci_dev(accel_dev));
 
 	for (i = 0, vf = accel_dev->pf.vf_info; i < num_vfs; i++, vf++) {
