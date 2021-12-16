@@ -249,6 +249,7 @@ struct adf_accel_vf_info {
 	struct ratelimit_state vf2pf_ratelimit;
 	u32 vf_nr;
 	bool init;
+	u8 vf_compat_ver;
 };
 
 struct adf_accel_dev {
@@ -278,7 +279,7 @@ struct adf_accel_dev {
 			struct mutex vf2pf_lock; /* protect CSR access */
 			struct completion msg_received;
 			struct pfvf_message response; /* temp field holding pf2vf response */
-			u8 pf_version;
+			u8 pf_compat_ver;
 		} vf;
 	};
 	bool is_vf;

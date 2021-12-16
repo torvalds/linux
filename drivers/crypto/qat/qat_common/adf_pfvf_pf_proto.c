@@ -64,6 +64,8 @@ static int adf_handle_vf2pf_msg(struct adf_accel_dev *accel_dev, u8 vf_nr,
 		else
 			compat = ADF_PF2VF_VF_COMPAT_UNKNOWN;
 
+		vf_info->vf_compat_ver = vf_compat_ver;
+
 		resp->type = ADF_PF2VF_MSGTYPE_VERSION_RESP;
 		resp->data = FIELD_PREP(ADF_PF2VF_VERSION_RESP_VERS_MASK,
 					ADF_PFVF_COMPAT_THIS_VERSION) |
@@ -77,6 +79,9 @@ static int adf_handle_vf2pf_msg(struct adf_accel_dev *accel_dev, u8 vf_nr,
 		dev_dbg(&GET_DEV(accel_dev),
 			"Legacy VersionRequest received from VF%d to PF (vers 1.1)\n",
 			vf_nr);
+
+		/* legacy driver, VF compat_ver is 0 */
+		vf_info->vf_compat_ver = 0;
 
 		/* PF always newer than legacy VF */
 		compat = ADF_PF2VF_VF_COMPATIBLE;

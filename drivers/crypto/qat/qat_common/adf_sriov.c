@@ -58,6 +58,7 @@ static int adf_enable_sriov(struct adf_accel_dev *accel_dev)
 		/* This ptr will be populated when VFs will be created */
 		vf_info->accel_dev = accel_dev;
 		vf_info->vf_nr = i;
+		vf_info->vf_compat_ver = 0;
 
 		mutex_init(&vf_info->pf2vf_lock);
 		ratelimit_state_init(&vf_info->vf2pf_ratelimit,

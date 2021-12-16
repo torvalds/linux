@@ -89,6 +89,6 @@ int adf_vf2pf_request_version(struct adf_accel_dev *accel_dev)
 		return -EINVAL;
 	}
 
-	accel_dev->vf.pf_version = pf_version;
+	accel_dev->vf.pf_compat_ver = pf_version;
 	return 0;
 }
