@@ -1617,37 +1617,38 @@ static int keembay_build_functions(struct keembay_pinctrl *kpc)
 	struct function_desc *keembay_funcs, *new_funcs;
 	int i;
 
-	/* Allocate total number of functions */
+	/*
+	 * Allocate maximum possible number of functions. Assume every pin
+	 * being part of 8 (hw maximum) globally unique muxes.
+	 */
 	kpc->nfuncs = 0;
 	keembay_funcs = kcalloc(kpc->npins * 8, sizeof(*keembay_funcs), GFP_KERNEL);
 	if (!keembay_funcs)
 		return -ENOMEM;
 
-	/* Find total number of functions and each's properties */
+	/* Setup 1 function for each unique mux */
 	for (i = 0; i < kpc->npins; i++) {
 		const struct pinctrl_pin_desc *pdesc = keembay_pins + i;
-		struct keembay_mux_desc *mux = pdesc->drv_data;
+		struct keembay_mux_desc *mux;
 
-		while (mux->name) {
-			struct function_desc *fdesc = keembay_funcs;
+		for (mux = pdesc->drv_data; mux->name; mux++) {
+			struct function_desc *fdesc;
 
-			while (fdesc->name) {
+			/* Check if we already have function for this mux */
+			for (fdesc = keembay_funcs; fdesc->name; fdesc++) {
 				if (!strcmp(mux->name, fdesc->name)) {
 					fdesc->num_group_names++;
 					break;
 				}
-
-				fdesc++;
 			}
 
+			/* Setup new function for this mux we didn't see before */
 			if (!fdesc->name) {
 				fdesc->name = mux->name;
 				fdesc->num_group_names = 1;
 				fdesc->data = &mux->mode;
 				kpc->nfuncs++;
 			}
-
-			mux++;
 		}
 	}
 
