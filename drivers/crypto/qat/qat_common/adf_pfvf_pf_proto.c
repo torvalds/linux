@@ -178,6 +178,55 @@ static struct pfvf_message handle_blkmsg_req(struct adf_accel_vf_info *vf_info,
 	return resp;
 }
 
+static struct pfvf_message handle_rp_reset_req(struct adf_accel_dev *accel_dev, u8 vf_nr,
+					       struct pfvf_message req)
+{
+	struct adf_hw_device_data *hw_data = accel_dev->hw_device;
+	struct pfvf_message resp = {
+		.type = ADF_PF2VF_MSGTYPE_RP_RESET_RESP,
+		.data = RPRESET_SUCCESS
+	};
+	u32 bank_number;
+	u32 rsvd_field;
+
+	bank_number = FIELD_GET(ADF_VF2PF_RNG_RESET_RP_MASK, req.data);
+	rsvd_field = FIELD_GET(ADF_VF2PF_RNG_RESET_RSVD_MASK, req.data);
+
+	dev_dbg(&GET_DEV(accel_dev),
+		"Ring Pair Reset Message received from VF%d for bank 0x%x\n",
+		vf_nr, bank_number);
+
+	if (!hw_data->ring_pair_reset || rsvd_field) {
+		dev_dbg(&GET_DEV(accel_dev),
+			"Ring Pair Reset for VF%d is not supported\n", vf_nr);
+		resp.data = RPRESET_NOT_SUPPORTED;
+		goto out;
+	}
+
+	if (bank_number >= hw_data->num_banks_per_vf) {
+		dev_err(&GET_DEV(accel_dev),
+			"Invalid bank number (0x%x) from VF%d for Ring Reset\n",
+			bank_number, vf_nr);
+		resp.data = RPRESET_INVAL_BANK;
+		goto out;
+	}
+
+	/* Convert the VF provided value to PF bank number */
+	bank_number = vf_nr * hw_data->num_banks_per_vf + bank_number;
+	if (hw_data->ring_pair_reset(accel_dev, bank_number)) {
+		dev_dbg(&GET_DEV(accel_dev),
+			"Ring pair reset for VF%d failure\n", vf_nr);
+		resp.data = RPRESET_TIMEOUT;
+		goto out;
+	}
+
+	dev_dbg(&GET_DEV(accel_dev),
+		"Ring pair reset for VF%d successfully\n", vf_nr);
+
+out:
+	return resp;
+}
+
 static int adf_handle_vf2pf_msg(struct adf_accel_dev *accel_dev, u8 vf_nr,
 				struct pfvf_message msg, struct pfvf_message *resp)
 {
@@ -244,6 +293,9 @@ static int adf_handle_vf2pf_msg(struct adf_accel_dev *accel_dev, u8 vf_nr,
 	case ADF_VF2PF_MSGTYPE_MEDIUM_BLOCK_REQ:
 	case ADF_VF2PF_MSGTYPE_SMALL_BLOCK_REQ:
 		*resp = handle_blkmsg_req(vf_info, msg);
+		break;
+	case ADF_VF2PF_MSGTYPE_RP_RESET:
+		*resp = handle_rp_reset_req(accel_dev, vf_nr, msg);
 		break;
 	default:
 		dev_dbg(&GET_DEV(accel_dev),

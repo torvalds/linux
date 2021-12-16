@@ -99,6 +99,8 @@ enum pf2vf_msgtype {
 	ADF_PF2VF_MSGTYPE_RESTARTING		= 0x01,
 	ADF_PF2VF_MSGTYPE_VERSION_RESP		= 0x02,
 	ADF_PF2VF_MSGTYPE_BLKMSG_RESP		= 0x03,
+/* Values from 0x10 are Gen4 specific, message type is only 4 bits in Gen2 devices. */
+	ADF_PF2VF_MSGTYPE_RP_RESET_RESP		= 0x10,
 };
 
 /* VF->PF messages */
@@ -110,6 +112,8 @@ enum vf2pf_msgtype {
 	ADF_VF2PF_MSGTYPE_LARGE_BLOCK_REQ	= 0x07,
 	ADF_VF2PF_MSGTYPE_MEDIUM_BLOCK_REQ	= 0x08,
 	ADF_VF2PF_MSGTYPE_SMALL_BLOCK_REQ	= 0x09,
+/* Values from 0x10 are Gen4 specific, message type is only 4 bits in Gen2 devices. */
+	ADF_VF2PF_MSGTYPE_RP_RESET		= 0x10,
 };
 
 /* VF/PF compatibility version. */
@@ -133,6 +137,16 @@ enum pf2vf_compat_response {
 	ADF_PF2VF_VF_INCOMPATIBLE		= 0x02,
 	ADF_PF2VF_VF_COMPAT_UNKNOWN		= 0x03,
 };
+
+enum ring_reset_result {
+	RPRESET_SUCCESS				= 0x01,
+	RPRESET_NOT_SUPPORTED			= 0x02,
+	RPRESET_INVAL_BANK			= 0x03,
+	RPRESET_TIMEOUT				= 0x04,
+};
+
+#define ADF_VF2PF_RNG_RESET_RP_MASK		GENMASK(1, 0)
+#define ADF_VF2PF_RNG_RESET_RSVD_MASK		GENMASK(25, 2)
 
 /* PF->VF Block Responses */
 #define ADF_PF2VF_BLKMSG_RESP_TYPE_MASK		GENMASK(1, 0)

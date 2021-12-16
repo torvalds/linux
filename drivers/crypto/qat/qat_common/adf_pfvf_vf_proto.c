@@ -310,6 +310,7 @@ static bool adf_handle_pf2vf_msg(struct adf_accel_dev *accel_dev,
 		return false;
 	case ADF_PF2VF_MSGTYPE_VERSION_RESP:
 	case ADF_PF2VF_MSGTYPE_BLKMSG_RESP:
+	case ADF_PF2VF_MSGTYPE_RP_RESET_RESP:
 		dev_dbg(&GET_DEV(accel_dev),
 			"Response Message received from PF (type 0x%.4x, data 0x%.4x)\n",
 			msg.type, msg.data);
