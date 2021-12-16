@@ -411,7 +411,7 @@ static int mse102x_tx_pkt_spi(struct mse102x_net *mse, struct sk_buff *txb,
 		} else {
 			msleep(20);
 		}
-	};
+	}
 
 	ret = mse102x_tx_frame_spi(mse, txb, pad);
 	if (ret)
