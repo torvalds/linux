@@ -40,7 +40,7 @@
 #include "powernv.h"
 
 
-static bool fw_feature_is(const char *state, const char *name,
+static bool __init fw_feature_is(const char *state, const char *name,
 			  struct device_node *fw_features)
 {
 	struct device_node *np;
@@ -55,7 +55,7 @@ static bool fw_feature_is(const char *state, const char *name,
 	return rc;
 }
 
-static void init_fw_feat_flags(struct device_node *np)
+static void __init init_fw_feat_flags(struct device_node *np)
 {
 	if (fw_feature_is("enabled", "inst-spec-barrier-ori31,31,0", np))
 		security_ftr_set(SEC_FTR_SPEC_BAR_ORI31);
@@ -98,7 +98,7 @@ static void init_fw_feat_flags(struct device_node *np)
 		security_ftr_clear(SEC_FTR_BNDS_CHK_SPEC_BAR);
 }
 
-static void pnv_setup_security_mitigations(void)
+static void __init pnv_setup_security_mitigations(void)
 {
 	struct device_node *np, *fw_features;
 	enum l1d_flush_type type;

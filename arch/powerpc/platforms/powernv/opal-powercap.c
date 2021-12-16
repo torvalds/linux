@@ -129,7 +129,7 @@ out_token:
 	return ret;
 }
 
-static void powercap_add_attr(int handle, const char *name,
+static void __init powercap_add_attr(int handle, const char *name,
 			      struct powercap_attr *attr)
 {
 	attr->handle = handle;

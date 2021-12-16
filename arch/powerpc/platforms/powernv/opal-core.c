@@ -89,7 +89,7 @@ static inline int is_opalcore_usable(void)
 	return (oc_conf && oc_conf->opalcorebuf != NULL) ? 1 : 0;
 }
 
-static Elf64_Word *append_elf64_note(Elf64_Word *buf, char *name,
+static Elf64_Word *__init append_elf64_note(Elf64_Word *buf, char *name,
 				     u32 type, void *data,
 				     size_t data_len)
 {
@@ -108,7 +108,7 @@ static Elf64_Word *append_elf64_note(Elf64_Word *buf, char *name,
 	return buf;
 }
 
-static void fill_prstatus(struct elf_prstatus *prstatus, int pir,
+static void __init fill_prstatus(struct elf_prstatus *prstatus, int pir,
 			  struct pt_regs *regs)
 {
 	memset(prstatus, 0, sizeof(struct elf_prstatus));
@@ -134,7 +134,7 @@ static void fill_prstatus(struct elf_prstatus *prstatus, int pir,
 	}
 }
 
-static Elf64_Word *auxv_to_elf64_notes(Elf64_Word *buf,
+static Elf64_Word *__init auxv_to_elf64_notes(Elf64_Word *buf,
 				       u64 opal_boot_entry)
 {
 	Elf64_Off *bufp = (Elf64_Off *)oc_conf->auxv_buf;
