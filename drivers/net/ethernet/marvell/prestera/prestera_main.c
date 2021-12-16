@@ -768,23 +768,27 @@ static int prestera_netdev_port_event(struct net_device *lower,
 				      struct net_device *dev,
 				      unsigned long event, void *ptr)
 {
-	struct netdev_notifier_changeupper_info *info = ptr;
+	struct netdev_notifier_info *info = ptr;
+	struct netdev_notifier_changeupper_info *cu_info;
 	struct prestera_port *port = netdev_priv(dev);
 	struct netlink_ext_ack *extack;
 	struct net_device *upper;
 
-	extack = netdev_notifier_info_to_extack(&info->info);
-	upper = info->upper_dev;
+	extack = netdev_notifier_info_to_extack(info);
+	cu_info = container_of(info,
+			       struct netdev_notifier_changeupper_info,
+			       info);
 
 	switch (event) {
 	case NETDEV_PRECHANGEUPPER:
+		upper = cu_info->upper_dev;
 		if (!netif_is_bridge_master(upper) &&
 		    !netif_is_lag_master(upper)) {
 			NL_SET_ERR_MSG_MOD(extack, "Unknown upper device type");
 			return -EINVAL;
 		}
 
-		if (!info->linking)
+		if (!cu_info->linking)
 			break;
 
 		if (netdev_has_any_upper_dev(upper)) {
@@ -793,7 +797,7 @@ static int prestera_netdev_port_event(struct net_device *lower,
 		}
 
 		if (netif_is_lag_master(upper) &&
-		    !prestera_lag_master_check(upper, info->upper_info, extack))
+		    !prestera_lag_master_check(upper, cu_info->upper_info, extack))
 			return -EOPNOTSUPP;
 		if (netif_is_lag_master(upper) && vlan_uses_dev(dev)) {
 			NL_SET_ERR_MSG_MOD(extack,
@@ -809,14 +813,15 @@ static int prestera_netdev_port_event(struct net_device *lower,
 		break;
 
 	case NETDEV_CHANGEUPPER:
+		upper = cu_info->upper_dev;
 		if (netif_is_bridge_master(upper)) {
-			if (info->linking)
+			if (cu_info->linking)
 				return prestera_bridge_port_join(upper, port,
 								 extack);
 			else
 				prestera_bridge_port_leave(upper, port);
 		} else if (netif_is_lag_master(upper)) {
-			if (info->linking)
+			if (cu_info->linking)
 				return prestera_lag_port_add(port, upper);
 			else
 				prestera_lag_port_del(port);
