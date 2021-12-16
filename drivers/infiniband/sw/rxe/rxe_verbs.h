@@ -392,8 +392,6 @@ struct rxe_dev {
 
 	struct net_device	*ndev;
 
-	int			xmit_errors;
-
 	struct rxe_pool		uc_pool;
 	struct rxe_pool		pd_pool;
 	struct rxe_pool		ah_pool;

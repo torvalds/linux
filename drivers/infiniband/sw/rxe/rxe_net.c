@@ -440,7 +440,6 @@ int rxe_xmit_packet(struct rxe_qp *qp, struct rxe_pkt_info *pkt,
 	else
 		err = rxe_send(skb, pkt);
 	if (err) {
-		rxe->xmit_errors++;
 		rxe_counter_inc(rxe, RXE_CNT_SEND_ERR);
 		return err;
 	}
