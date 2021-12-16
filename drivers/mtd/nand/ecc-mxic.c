@@ -16,6 +16,7 @@
 #include <linux/module.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/nand.h>
+#include <linux/mtd/nand-ecc-mxic.h>
 #include <linux/mutex.h>
 #include <linux/of_device.h>
 #include <linux/of_platform.h>
@@ -40,7 +41,9 @@
 #define INTRPT_SIG_EN 0x0C
 /* Host Controller Configuration */
 #define HC_CONFIG 0x10
+#define   DEV2MEM 0 /* TRANS_TYP_DMA in the spec */
 #define   MEM2MEM BIT(4) /* TRANS_TYP_IO in the spec */
+#define   MAPPING BIT(5) /* TRANS_TYP_MAPPING in the spec */
 #define   ECC_PACKED 0 /* LAYOUT_TYP_INTEGRATED in the spec */
 #define   ECC_INTERLEAVED BIT(2) /* LAYOUT_TYP_DISTRIBUTED in the spec */
 #define   BURST_TYP_FIXED 0
@@ -87,6 +90,7 @@ struct mxic_ecc_engine {
 	int irq;
 	struct completion complete;
 	struct nand_ecc_engine external_engine;
+	struct nand_ecc_engine pipelined_engine;
 	struct mutex lock;
 };
 
@@ -104,6 +108,7 @@ struct mxic_ecc_ctx {
 	u8 *oobwithstat;
 	struct scatterlist sg[2];
 	struct nand_page_io_req *req;
+	unsigned int pageoffs;
 };
 
 static struct mxic_ecc_engine *ext_ecc_eng_to_mxic(struct nand_ecc_engine *eng)
@@ -111,11 +116,19 @@ static struct mxic_ecc_engine *ext_ecc_eng_to_mxic(struct nand_ecc_engine *eng)
 	return container_of(eng, struct mxic_ecc_engine, external_engine);
 }
 
+static struct mxic_ecc_engine *pip_ecc_eng_to_mxic(struct nand_ecc_engine *eng)
+{
+	return container_of(eng, struct mxic_ecc_engine, pipelined_engine);
+}
+
 static struct mxic_ecc_engine *nand_to_mxic(struct nand_device *nand)
 {
 	struct nand_ecc_engine *eng = nand->ecc.engine;
 
-	return ext_ecc_eng_to_mxic(eng);
+	if (eng->integration == NAND_ECC_ENGINE_INTEGRATION_EXTERNAL)
+		return ext_ecc_eng_to_mxic(eng);
+	else
+		return pip_ecc_eng_to_mxic(eng);
 }
 
 static int mxic_ecc_ooblayout_ecc(struct mtd_info *mtd, int section,
@@ -364,6 +377,38 @@ static int mxic_ecc_init_ctx_external(struct nand_device *nand)
 	return 0;
 }
 
+static int mxic_ecc_init_ctx_pipelined(struct nand_device *nand)
+{
+	struct mxic_ecc_engine *mxic = nand_to_mxic(nand);
+	struct mxic_ecc_ctx *ctx;
+	struct device *dev;
+	int ret;
+
+	dev = nand_ecc_get_engine_dev(nand->ecc.engine->dev);
+	if (!dev)
+		return -EINVAL;
+
+	dev_info(dev, "Macronix ECC engine in pipelined/mapping mode\n");
+
+	ret = mxic_ecc_init_ctx(nand, dev);
+	if (ret)
+		return ret;
+
+	ctx = nand_to_ecc_ctx(nand);
+
+	/* All steps should be handled in one go directly by the internal DMA */
+	writel(ctx->steps, mxic->regs + CHUNK_CNT);
+
+	/*
+	 * Interleaved ECC scheme cannot be used otherwise factory bad block
+	 * markers would be lost. A packed layout is mandatory.
+	 */
+	writel(BURST_TYP_INCREASING | ECC_PACKED | MAPPING,
+	       mxic->regs + HC_CONFIG);
+
+	return 0;
+}
+
 static void mxic_ecc_cleanup_ctx(struct nand_device *nand)
 {
 	struct mxic_ecc_ctx *ctx = nand_to_ecc_ctx(nand);
@@ -418,6 +463,18 @@ static int mxic_ecc_process_data(struct mxic_ecc_engine *mxic,
 
 	return ret;
 }
+
+int mxic_ecc_process_data_pipelined(struct nand_ecc_engine *eng,
+				    unsigned int direction, dma_addr_t dirmap)
+{
+	struct mxic_ecc_engine *mxic = pip_ecc_eng_to_mxic(eng);
+
+	if (dirmap)
+		writel(dirmap, mxic->regs + HC_SLV_ADDR);
+
+	return mxic_ecc_process_data(mxic, direction);
+}
+EXPORT_SYMBOL_GPL(mxic_ecc_process_data_pipelined);
 
 static void mxic_ecc_extract_status_bytes(struct mxic_ecc_ctx *ctx)
 {
@@ -592,6 +649,11 @@ static int mxic_ecc_finish_io_req_external(struct nand_device *nand,
 
 	dma_unmap_sg(mxic->dev, ctx->sg, 2, DMA_BIDIRECTIONAL);
 
+	if (ret) {
+		nand_ecc_restore_req(&ctx->req_ctx, req);
+		return ret;
+	}
+
 	/* Extract the status bytes and reconstruct the buffer */
 	mxic_ecc_extract_status_bytes(ctx);
 	mxic_ecc_reconstruct_oobbuf(ctx, ctx->req->oobbuf.in, ctx->oobwithstat);
@@ -601,6 +663,65 @@ static int mxic_ecc_finish_io_req_external(struct nand_device *nand,
 	return mxic_ecc_count_biterrs(mxic, nand);
 }
 
+/* Pipelined ECC engine helpers */
+static int mxic_ecc_prepare_io_req_pipelined(struct nand_device *nand,
+					     struct nand_page_io_req *req)
+{
+	struct mxic_ecc_engine *mxic = nand_to_mxic(nand);
+	struct mxic_ecc_ctx *ctx = nand_to_ecc_ctx(nand);
+	int nents;
+
+	if (req->mode == MTD_OPS_RAW)
+		return 0;
+
+	nand_ecc_tweak_req(&ctx->req_ctx, req);
+	ctx->req = req;
+
+	/* Copy the OOB buffer and add room for the ECC engine status bytes */
+	mxic_ecc_add_room_in_oobbuf(ctx, ctx->oobwithstat, ctx->req->oobbuf.in);
+
+	sg_set_buf(&ctx->sg[0], req->databuf.in, req->datalen);
+	sg_set_buf(&ctx->sg[1], ctx->oobwithstat,
+		   req->ooblen + (ctx->steps * STAT_BYTES));
+
+	nents = dma_map_sg(mxic->dev, ctx->sg, 2, DMA_BIDIRECTIONAL);
+	if (!nents)
+		return -EINVAL;
+
+	mutex_lock(&mxic->lock);
+
+	writel(sg_dma_address(&ctx->sg[0]), mxic->regs + SDMA_MAIN_ADDR);
+	writel(sg_dma_address(&ctx->sg[1]), mxic->regs + SDMA_SPARE_ADDR);
+
+	return 0;
+}
+
+static int mxic_ecc_finish_io_req_pipelined(struct nand_device *nand,
+					    struct nand_page_io_req *req)
+{
+	struct mxic_ecc_engine *mxic = nand_to_mxic(nand);
+	struct mxic_ecc_ctx *ctx = nand_to_ecc_ctx(nand);
+	int ret = 0;
+
+	if (req->mode == MTD_OPS_RAW)
+		return 0;
+
+	mutex_unlock(&mxic->lock);
+
+	dma_unmap_sg(mxic->dev, ctx->sg, 2, DMA_BIDIRECTIONAL);
+
+	if (req->type == NAND_PAGE_READ) {
+		mxic_ecc_extract_status_bytes(ctx);
+		mxic_ecc_reconstruct_oobbuf(ctx, ctx->req->oobbuf.in,
+					    ctx->oobwithstat);
+		ret = mxic_ecc_count_biterrs(mxic, nand);
+	}
+
+	nand_ecc_restore_req(&ctx->req_ctx, req);
+
+	return ret;
+}
+
 static struct nand_ecc_engine_ops mxic_ecc_engine_external_ops = {
 	.init_ctx = mxic_ecc_init_ctx_external,
 	.cleanup_ctx = mxic_ecc_cleanup_ctx,
@@ -608,6 +729,69 @@ static struct nand_ecc_engine_ops mxic_ecc_engine_external_ops = {
 	.finish_io_req = mxic_ecc_finish_io_req_external,
 };
 
+static struct nand_ecc_engine_ops mxic_ecc_engine_pipelined_ops = {
+	.init_ctx = mxic_ecc_init_ctx_pipelined,
+	.cleanup_ctx = mxic_ecc_cleanup_ctx,
+	.prepare_io_req = mxic_ecc_prepare_io_req_pipelined,
+	.finish_io_req = mxic_ecc_finish_io_req_pipelined,
+};
+
+struct nand_ecc_engine_ops *mxic_ecc_get_pipelined_ops(void)
+{
+	return &mxic_ecc_engine_pipelined_ops;
+}
+EXPORT_SYMBOL_GPL(mxic_ecc_get_pipelined_ops);
+
+static struct platform_device *
+mxic_ecc_get_pdev(struct platform_device *spi_pdev)
+{
+	struct platform_device *eng_pdev;
+	struct device_node *np;
+
+	/* Retrieve the nand-ecc-engine phandle */
+	np = of_parse_phandle(spi_pdev->dev.of_node, "nand-ecc-engine", 0);
+	if (!np)
+		return NULL;
+
+	/* Jump to the engine's device node */
+	eng_pdev = of_find_device_by_node(np);
+	of_node_put(np);
+
+	return eng_pdev;
+}
+
+void mxic_ecc_put_pipelined_engine(struct nand_ecc_engine *eng)
+{
+	struct mxic_ecc_engine *mxic = pip_ecc_eng_to_mxic(eng);
+
+	platform_device_put(to_platform_device(mxic->dev));
+}
+EXPORT_SYMBOL_GPL(mxic_ecc_put_pipelined_engine);
+
+struct nand_ecc_engine *
+mxic_ecc_get_pipelined_engine(struct platform_device *spi_pdev)
+{
+	struct platform_device *eng_pdev;
+	struct mxic_ecc_engine *mxic;
+
+	eng_pdev = mxic_ecc_get_pdev(spi_pdev);
+	if (!eng_pdev)
+		return ERR_PTR(-ENODEV);
+
+	mxic = platform_get_drvdata(eng_pdev);
+	if (!mxic) {
+		platform_device_put(eng_pdev);
+		return ERR_PTR(-EPROBE_DEFER);
+	}
+
+	return &mxic->pipelined_engine;
+}
+EXPORT_SYMBOL_GPL(mxic_ecc_get_pipelined_engine);
+
+/*
+ * Only the external ECC engine is exported as the pipelined is SoC specific, so
+ * it is registered directly by the drivers that wrap it.
+ */
 static int mxic_ecc_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
