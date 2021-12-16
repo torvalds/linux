@@ -1,0 +1,6 @@
+config RESET_STARFIVE_JH7110
+	bool "StarFive JH7110 Reset Driver"
+	depends on SOC_STARFIVE || COMPILE_TEST
+	default SOC_STARFIVE_JH7110
+	help
+	  This enables the reset controller driver for the StarFive JH7110 SoC.
