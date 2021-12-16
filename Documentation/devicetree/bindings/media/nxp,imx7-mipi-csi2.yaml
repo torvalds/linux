@@ -79,6 +79,8 @@ properties:
 
             properties:
               data-lanes:
+                description:
+                  Note that 'fsl,imx7-mipi-csi2' only supports up to 2 data lines.
                 items:
                   minItems: 1
                   maxItems: 4
@@ -90,18 +92,6 @@ properties:
 
             required:
               - data-lanes
-
-            allOf:
-              - if:
-                  properties:
-                    compatible:
-                      contains:
-                        const: fsl,imx7-mipi-csi2
-                then:
-                  properties:
-                    data-lanes:
-                      items:
-                        maxItems: 2
 
       port@1:
         $ref: /schemas/graph.yaml#/properties/port
