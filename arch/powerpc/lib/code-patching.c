@@ -397,7 +397,7 @@ void __patch_exception(int exc, unsigned long addr)
 
 #ifdef CONFIG_CODE_PATCHING_SELFTEST
 
-static int instr_is_branch_to_addr(const u32 *instr, unsigned long addr)
+static int __init instr_is_branch_to_addr(const u32 *instr, unsigned long addr)
 {
 	if (instr_is_branch_iform(ppc_inst_read(instr)) ||
 	    instr_is_branch_bform(ppc_inst_read(instr)))

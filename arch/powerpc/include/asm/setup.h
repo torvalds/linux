@@ -75,7 +75,7 @@ void __init setup_spectre_v2(void);
 #else
 static inline void setup_spectre_v2(void) {}
 #endif
-void do_btb_flush_fixups(void);
+void __init do_btb_flush_fixups(void);
 
 #endif /* !__ASSEMBLY__ */
 
