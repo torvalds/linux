@@ -159,26 +159,22 @@
 #define  VE_SRC_LR_EDGE_DET_NO_H	BIT(13)
 #define  VE_SRC_LR_EDGE_DET_NO_DISP	BIT(14)
 #define  VE_SRC_LR_EDGE_DET_NO_CLK	BIT(15)
-#define  VE_SRC_LR_EDGE_DET_RT_SHF	16
-#define  VE_SRC_LR_EDGE_DET_RT		GENMASK(27, VE_SRC_LR_EDGE_DET_RT_SHF)
+#define  VE_SRC_LR_EDGE_DET_RT		GENMASK(27, 16)
 #define  VE_SRC_LR_EDGE_DET_INTERLACE	BIT(31)
 
 #define VE_SRC_TB_EDGE_DET		0x094
 #define  VE_SRC_TB_EDGE_DET_TOP		GENMASK(12, 0)
-#define  VE_SRC_TB_EDGE_DET_BOT_SHF	16
-#define  VE_SRC_TB_EDGE_DET_BOT		GENMASK(28, VE_SRC_TB_EDGE_DET_BOT_SHF)
+#define  VE_SRC_TB_EDGE_DET_BOT		GENMASK(28, 16)
 
 #define VE_MODE_DETECT_STATUS		0x098
 #define  VE_MODE_DETECT_H_PERIOD	GENMASK(11, 0)
-#define  VE_MODE_DETECT_V_LINES_SHF	16
-#define  VE_MODE_DETECT_V_LINES		GENMASK(27, VE_MODE_DETECT_V_LINES_SHF)
+#define  VE_MODE_DETECT_V_LINES		GENMASK(27, 16)
 #define  VE_MODE_DETECT_STATUS_VSYNC	BIT(28)
 #define  VE_MODE_DETECT_STATUS_HSYNC	BIT(29)
 
 #define VE_SYNC_STATUS			0x09c
 #define  VE_SYNC_STATUS_HSYNC		GENMASK(11, 0)
-#define  VE_SYNC_STATUS_VSYNC_SHF	16
-#define  VE_SYNC_STATUS_VSYNC		GENMASK(27, VE_SYNC_STATUS_VSYNC_SHF)
+#define  VE_SYNC_STATUS_VSYNC		GENMASK(27, 16)
 
 #define VE_H_TOTAL_PIXELS		0x0A0
 
@@ -1009,23 +1005,24 @@ static void aspeed_video_get_resolution(struct aspeed_video *video)
 		sync = aspeed_video_read(video, VE_SYNC_STATUS);
 		htotal = aspeed_video_read(video, VE_H_TOTAL_PIXELS);
 
-		video->frame_bottom = (src_tb_edge & VE_SRC_TB_EDGE_DET_BOT) >>
-			VE_SRC_TB_EDGE_DET_BOT_SHF;
-		video->frame_top = src_tb_edge & VE_SRC_TB_EDGE_DET_TOP;
+		video->frame_bottom = FIELD_GET(VE_SRC_TB_EDGE_DET_BOT,
+						src_tb_edge);
+		video->frame_top = FIELD_GET(VE_SRC_TB_EDGE_DET_TOP,
+					     src_tb_edge);
 		det->vfrontporch = video->frame_top;
-		det->vbackporch = ((mds & VE_MODE_DETECT_V_LINES) >>
-			VE_MODE_DETECT_V_LINES_SHF) - video->frame_bottom;
-		det->vsync = (sync & VE_SYNC_STATUS_VSYNC) >>
-			VE_SYNC_STATUS_VSYNC_SHF;
+		det->vbackporch = FIELD_GET(VE_MODE_DETECT_V_LINES, mds) -
+			video->frame_bottom;
+		det->vsync = FIELD_GET(VE_SYNC_STATUS_VSYNC, sync);
 		if (video->frame_top > video->frame_bottom)
 			continue;
 
-		video->frame_right = (src_lr_edge & VE_SRC_LR_EDGE_DET_RT) >>
-			VE_SRC_LR_EDGE_DET_RT_SHF;
-		video->frame_left = src_lr_edge & VE_SRC_LR_EDGE_DET_LEFT;
+		video->frame_right = FIELD_GET(VE_SRC_LR_EDGE_DET_RT,
+					       src_lr_edge);
+		video->frame_left = FIELD_GET(VE_SRC_LR_EDGE_DET_LEFT,
+					      src_lr_edge);
 		det->hfrontporch = video->frame_left;
 		det->hbackporch = htotal - video->frame_right;
-		det->hsync = sync & VE_SYNC_STATUS_HSYNC;
+		det->hsync = FIELD_GET(VE_SYNC_STATUS_HSYNC, sync);
 		if (video->frame_left > video->frame_right)
 			continue;
 
