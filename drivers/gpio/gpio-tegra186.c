@@ -15,6 +15,7 @@
 #include <dt-bindings/gpio/tegra186-gpio.h>
 #include <dt-bindings/gpio/tegra194-gpio.h>
 #include <dt-bindings/gpio/tegra234-gpio.h>
+#include <dt-bindings/gpio/tegra241-gpio.h>
 
 /* security registers */
 #define TEGRA186_GPIO_CTL_SCR 0x0c
@@ -1041,6 +1042,55 @@ static const struct tegra_gpio_soc tegra234_aon_soc = {
 	.num_irqs_per_bank = 8,
 };
 
+#define TEGRA241_MAIN_GPIO_PORT(_name, _bank, _port, _pins)	\
+	[TEGRA241_MAIN_GPIO_PORT_##_name] = {			\
+		.name = #_name,					\
+		.bank = _bank,					\
+		.port = _port,					\
+		.pins = _pins,					\
+	}
+
+static const struct tegra_gpio_port tegra241_main_ports[] = {
+	TEGRA241_MAIN_GPIO_PORT(A, 0, 0, 8),
+	TEGRA241_MAIN_GPIO_PORT(B, 0, 1, 8),
+	TEGRA241_MAIN_GPIO_PORT(C, 0, 2, 2),
+	TEGRA241_MAIN_GPIO_PORT(D, 0, 3, 6),
+	TEGRA241_MAIN_GPIO_PORT(E, 0, 4, 8),
+	TEGRA241_MAIN_GPIO_PORT(F, 1, 0, 8),
+	TEGRA241_MAIN_GPIO_PORT(G, 1, 1, 8),
+	TEGRA241_MAIN_GPIO_PORT(H, 1, 2, 8),
+	TEGRA241_MAIN_GPIO_PORT(J, 1, 3, 8),
+	TEGRA241_MAIN_GPIO_PORT(K, 1, 4, 4),
+	TEGRA241_MAIN_GPIO_PORT(L, 1, 5, 6),
+};
+
+static const struct tegra_gpio_soc tegra241_main_soc = {
+	.num_ports = ARRAY_SIZE(tegra241_main_ports),
+	.ports = tegra241_main_ports,
+	.name = "tegra241-gpio",
+	.instance = 0,
+};
+
+#define TEGRA241_AON_GPIO_PORT(_name, _bank, _port, _pins)	\
+	[TEGRA241_AON_GPIO_PORT_##_name] = {			\
+		.name = #_name,					\
+		.bank = _bank,					\
+		.port = _port,					\
+		.pins = _pins,					\
+	}
+
+static const struct tegra_gpio_port tegra241_aon_ports[] = {
+	TEGRA241_AON_GPIO_PORT(AA, 0, 0, 8),
+	TEGRA241_AON_GPIO_PORT(BB, 0, 0, 4),
+};
+
+static const struct tegra_gpio_soc tegra241_aon_soc = {
+	.num_ports = ARRAY_SIZE(tegra241_aon_ports),
+	.ports = tegra241_aon_ports,
+	.name = "tegra241-gpio-aon",
+	.instance = 1,
+};
+
 static const struct of_device_id tegra186_gpio_of_match[] = {
 	{
 		.compatible = "nvidia,tegra186-gpio",
@@ -1071,6 +1121,8 @@ static const struct acpi_device_id  tegra186_gpio_acpi_match[] = {
 	{ .id = "NVDA0208", .driver_data = (kernel_ulong_t)&tegra186_aon_soc },
 	{ .id = "NVDA0308", .driver_data = (kernel_ulong_t)&tegra194_main_soc },
 	{ .id = "NVDA0408", .driver_data = (kernel_ulong_t)&tegra194_aon_soc },
+	{ .id = "NVDA0508", .driver_data = (kernel_ulong_t)&tegra241_main_soc },
+	{ .id = "NVDA0608", .driver_data = (kernel_ulong_t)&tegra241_aon_soc },
 	{}
 };
 MODULE_DEVICE_TABLE(acpi, tegra186_gpio_acpi_match);
