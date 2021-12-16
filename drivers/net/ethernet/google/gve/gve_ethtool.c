@@ -8,6 +8,7 @@
 #include <linux/rtnetlink.h>
 #include "gve.h"
 #include "gve_adminq.h"
+#include "gve_dqo.h"
 
 static void gve_get_drvinfo(struct net_device *netdev,
 			    struct ethtool_drvinfo *info)
@@ -540,7 +541,65 @@ static int gve_get_link_ksettings(struct net_device *netdev,
 	return err;
 }
 
+static int gve_get_coalesce(struct net_device *netdev,
+			    struct ethtool_coalesce *ec,
+			    struct kernel_ethtool_coalesce *kernel_ec,
+			    struct netlink_ext_ack *extack)
+{
+	struct gve_priv *priv = netdev_priv(netdev);
+
+	if (gve_is_gqi(priv))
+		return -EOPNOTSUPP;
+	ec->tx_coalesce_usecs = priv->tx_coalesce_usecs;
+	ec->rx_coalesce_usecs = priv->rx_coalesce_usecs;
+
+	return 0;
+}
+
+static int gve_set_coalesce(struct net_device *netdev,
+			    struct ethtool_coalesce *ec,
+			    struct kernel_ethtool_coalesce *kernel_ec,
+			    struct netlink_ext_ack *extack)
+{
+	struct gve_priv *priv = netdev_priv(netdev);
+	u32 tx_usecs_orig = priv->tx_coalesce_usecs;
+	u32 rx_usecs_orig = priv->rx_coalesce_usecs;
+	int idx;
+
+	if (gve_is_gqi(priv))
+		return -EOPNOTSUPP;
+
+	if (ec->tx_coalesce_usecs > GVE_MAX_ITR_INTERVAL_DQO ||
+	    ec->rx_coalesce_usecs > GVE_MAX_ITR_INTERVAL_DQO)
+		return -EINVAL;
+	priv->tx_coalesce_usecs = ec->tx_coalesce_usecs;
+	priv->rx_coalesce_usecs = ec->rx_coalesce_usecs;
+
+	if (tx_usecs_orig != priv->tx_coalesce_usecs) {
+		for (idx = 0; idx < priv->tx_cfg.num_queues; idx++) {
+			int ntfy_idx = gve_tx_idx_to_ntfy(priv, idx);
+			struct gve_notify_block *block = &priv->ntfy_blocks[ntfy_idx];
+
+			gve_set_itr_coalesce_usecs_dqo(priv, block,
+						       priv->tx_coalesce_usecs);
+		}
+	}
+
+	if (rx_usecs_orig != priv->rx_coalesce_usecs) {
+		for (idx = 0; idx < priv->rx_cfg.num_queues; idx++) {
+			int ntfy_idx = gve_rx_idx_to_ntfy(priv, idx);
+			struct gve_notify_block *block = &priv->ntfy_blocks[ntfy_idx];
+
+			gve_set_itr_coalesce_usecs_dqo(priv, block,
+						       priv->rx_coalesce_usecs);
+		}
+	}
+
+	return 0;
+}
+
 const struct ethtool_ops gve_ethtool_ops = {
+	.supported_coalesce_params = ETHTOOL_COALESCE_USECS,
 	.get_drvinfo = gve_get_drvinfo,
 	.get_strings = gve_get_strings,
 	.get_sset_count = gve_get_sset_count,
@@ -550,6 +609,8 @@ const struct ethtool_ops gve_ethtool_ops = {
 	.set_channels = gve_set_channels,
 	.get_channels = gve_get_channels,
 	.get_link = ethtool_op_get_link,
+	.get_coalesce = gve_get_coalesce,
+	.set_coalesce = gve_set_coalesce,
 	.get_ringparam = gve_get_ringparam,
 	.reset = gve_user_reset,
 	.get_tunable = gve_get_tunable,

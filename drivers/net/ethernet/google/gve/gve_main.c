@@ -1113,9 +1113,8 @@ static void gve_turnup(struct gve_priv *priv)
 		if (gve_is_gqi(priv)) {
 			iowrite32be(0, gve_irq_doorbell(priv, block));
 		} else {
-			u32 val = gve_set_itr_ratelimit_dqo(GVE_TX_IRQ_RATELIMIT_US_DQO);
-
-			gve_write_irq_doorbell_dqo(priv, block, val);
+			gve_set_itr_coalesce_usecs_dqo(priv, block,
+						       priv->tx_coalesce_usecs);
 		}
 	}
 	for (idx = 0; idx < priv->rx_cfg.num_queues; idx++) {
@@ -1126,9 +1125,8 @@ static void gve_turnup(struct gve_priv *priv)
 		if (gve_is_gqi(priv)) {
 			iowrite32be(0, gve_irq_doorbell(priv, block));
 		} else {
-			u32 val = gve_set_itr_ratelimit_dqo(GVE_RX_IRQ_RATELIMIT_US_DQO);
-
-			gve_write_irq_doorbell_dqo(priv, block, val);
+			gve_set_itr_coalesce_usecs_dqo(priv, block,
+						       priv->rx_coalesce_usecs);
 		}
 	}
 
@@ -1424,6 +1422,11 @@ static int gve_init_priv(struct gve_priv *priv, bool skip_describe_device)
 		 priv->tx_cfg.num_queues, priv->rx_cfg.num_queues);
 	dev_info(&priv->pdev->dev, "Max TX queues %d, Max RX queues %d\n",
 		 priv->tx_cfg.max_queues, priv->rx_cfg.max_queues);
+
+	if (!gve_is_gqi(priv)) {
+		priv->tx_coalesce_usecs = GVE_TX_IRQ_RATELIMIT_US_DQO;
+		priv->rx_coalesce_usecs = GVE_RX_IRQ_RATELIMIT_US_DQO;
+	}
 
 setup_device:
 	err = gve_setup_device_resources(priv);

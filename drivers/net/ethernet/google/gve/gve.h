@@ -584,6 +584,10 @@ struct gve_priv {
 	int data_buffer_size_dqo;
 
 	enum gve_queue_format queue_format;
+
+	/* Interrupt coalescing settings */
+	u32 tx_coalesce_usecs;
+	u32 rx_coalesce_usecs;
 };
 
 enum gve_service_task_flags_bit {
