@@ -27,6 +27,9 @@ properties:
               - fsl,imx8qxp-lpuart
               - fsl,imx8ulp-lpuart
           - const: fsl,imx7ulp-lpuart
+      - items:
+          - const: fsl,imx8qm-lpuart
+          - const: fsl,imx8qxp-lpuart
 
   reg:
     maxItems: 1
