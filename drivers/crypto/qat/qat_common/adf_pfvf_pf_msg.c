@@ -18,3 +18,21 @@ void adf_pf2vf_notify_restarting(struct adf_accel_dev *accel_dev)
 				"Failed to send restarting msg to VF%d\n", i);
 	}
 }
+
+int adf_pf_capabilities_msg_provider(struct adf_accel_dev *accel_dev,
+				     u8 *buffer, u8 compat)
+{
+	struct adf_hw_device_data *hw_data = accel_dev->hw_device;
+	struct capabilities_v2 caps_msg;
+
+	caps_msg.ext_dc_caps = hw_data->extended_dc_capabilities;
+	caps_msg.capabilities = hw_data->accel_capabilities_mask;
+
+	caps_msg.hdr.version = ADF_PFVF_CAPABILITIES_V2_VERSION;
+	caps_msg.hdr.payload_size =
+			ADF_PFVF_BLKMSG_PAYLOAD_SIZE(struct capabilities_v2);
+
+	memcpy(buffer, &caps_msg, sizeof(caps_msg));
+
+	return 0;
+}

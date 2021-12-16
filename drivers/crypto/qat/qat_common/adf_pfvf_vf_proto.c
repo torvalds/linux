@@ -341,8 +341,17 @@ bool adf_recv_and_handle_pf2vf_msg(struct adf_accel_dev *accel_dev)
  */
 int adf_enable_vf2pf_comms(struct adf_accel_dev *accel_dev)
 {
+	int ret;
+
 	adf_pfvf_crc_init();
 	adf_enable_pf2vf_interrupts(accel_dev);
-	return adf_vf2pf_request_version(accel_dev);
+
+	ret = adf_vf2pf_request_version(accel_dev);
+	if (ret)
+		return ret;
+
+	ret = adf_vf2pf_get_capabilities(accel_dev);
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(adf_enable_vf2pf_comms);

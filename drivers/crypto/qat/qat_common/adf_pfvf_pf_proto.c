@@ -15,6 +15,7 @@ typedef u8 (*pf2vf_blkmsg_data_getter_fn)(u8 const *blkmsg, u8 byte);
 static const adf_pf2vf_blkmsg_provider pf2vf_blkmsg_providers[] = {
 	NULL,				  /* no message type defined for value 0 */
 	NULL,				  /* no message type defined for value 1 */
+	adf_pf_capabilities_msg_provider, /* ADF_VF2PF_BLKMSG_REQ_CAP_SUMMARY */
 };
 
 /**

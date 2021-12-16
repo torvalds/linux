@@ -10,4 +10,7 @@ void adf_pf2vf_notify_restarting(struct adf_accel_dev *accel_dev);
 typedef int (*adf_pf2vf_blkmsg_provider)(struct adf_accel_dev *accel_dev,
 					 u8 *buffer, u8 compat);
 
+int adf_pf_capabilities_msg_provider(struct adf_accel_dev *accel_dev,
+				     u8 *buffer, u8 comapt);
+
 #endif /* ADF_PFVF_PF_MSG_H */

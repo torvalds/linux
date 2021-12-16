@@ -92,3 +92,49 @@ int adf_vf2pf_request_version(struct adf_accel_dev *accel_dev)
 	accel_dev->vf.pf_compat_ver = pf_version;
 	return 0;
 }
+
+int adf_vf2pf_get_capabilities(struct adf_accel_dev *accel_dev)
+{
+	struct adf_hw_device_data *hw_data = accel_dev->hw_device;
+	struct capabilities_v3 cap_msg = { { 0 }, };
+	unsigned int len = sizeof(cap_msg);
+
+	if (accel_dev->vf.pf_compat_ver < ADF_PFVF_COMPAT_CAPABILITIES)
+		/* The PF is too old to support the extended capabilities */
+		return 0;
+
+	if (adf_send_vf2pf_blkmsg_req(accel_dev, ADF_VF2PF_BLKMSG_REQ_CAP_SUMMARY,
+				      (u8 *)&cap_msg, &len)) {
+		dev_err(&GET_DEV(accel_dev),
+			"QAT: Failed to get block message response\n");
+		return -EFAULT;
+	}
+
+	switch (cap_msg.hdr.version) {
+	default:
+		/* Newer version received, handle only the know parts */
+		fallthrough;
+	case ADF_PFVF_CAPABILITIES_V3_VERSION:
+		if (likely(len >= sizeof(struct capabilities_v3)))
+			hw_data->clock_frequency = cap_msg.frequency;
+		else
+			dev_info(&GET_DEV(accel_dev), "Could not get frequency");
+		fallthrough;
+	case ADF_PFVF_CAPABILITIES_V2_VERSION:
+		if (likely(len >= sizeof(struct capabilities_v2)))
+			hw_data->accel_capabilities_mask = cap_msg.capabilities;
+		else
+			dev_info(&GET_DEV(accel_dev), "Could not get capabilities");
+		fallthrough;
+	case ADF_PFVF_CAPABILITIES_V1_VERSION:
+		if (likely(len >= sizeof(struct capabilities_v1))) {
+			hw_data->extended_dc_capabilities = cap_msg.ext_dc_caps;
+		} else {
+			dev_err(&GET_DEV(accel_dev),
+				"Capabilities message truncated to %d bytes\n", len);
+			return -EFAULT;
+		}
+	}
+
+	return 0;
+}
