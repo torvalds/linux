@@ -26,7 +26,7 @@ static void dbg_poison_ce(struct intel_context *ce)
 		int type = i915_coherent_map_type(ce->engine->i915, obj, true);
 		void *map;
 
-		if (!i915_gem_object_trylock(obj))
+		if (!i915_gem_object_trylock(obj, NULL))
 			return;
 
 		map = i915_gem_object_pin_map(obj, type);

@@ -216,7 +216,7 @@ i915_gem_shrink(struct i915_gem_ww_ctx *ww,
 
 			/* May arrive from get_pages on another bo */
 			if (!ww) {
-				if (!i915_gem_object_trylock(obj))
+				if (!i915_gem_object_trylock(obj, NULL))
 					goto skip;
 			} else {
 				err = i915_gem_object_lock(obj, ww);
@@ -410,7 +410,7 @@ i915_gem_shrinker_vmap(struct notifier_block *nb, unsigned long event, void *ptr
 		if (!vma->iomap || i915_vma_is_active(vma))
 			continue;
 
-		if (!i915_gem_object_trylock(obj))
+		if (!i915_gem_object_trylock(obj, NULL))
 			continue;
 
 		if (__i915_vma_unbind(vma) == 0)
