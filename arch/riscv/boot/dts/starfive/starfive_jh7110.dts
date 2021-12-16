@@ -616,6 +616,25 @@
 			current-clock = <8000000>;
 			status = "okay";
                 };
+
+		ipmscan0: can@130d0000  {
+			compatible = "ipms,can";
+			reg = <0x0 0x130d0000 0x0 0x1000>;
+			interrupts = <112>;
+			interrupt-parent = <&plic>;
+			clocks = <&canclk>;
+			clock-names = "ipms_can_clk";
+		};
+		
+		ipmscan1: can@130c0000  {
+			compatible = "ipms,canfd";
+			reg = <0x0 0x130c0000 0x0 0x1000>;
+			interrupts = <113>;
+			interrupt-parent = <&plic>;
+			clocks = <&canclk>;
+			clock-names = "ipms_can_clk";
+		};
+		
 		tdm: tdm@10090000  {
 			compatible = "starfive,tdm";
 			reg = <0x0 0x10090000 0x0 0x1000>;
