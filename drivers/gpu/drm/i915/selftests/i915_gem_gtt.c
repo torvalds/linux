@@ -1275,7 +1275,7 @@ static void track_vma_bind(struct i915_vma *vma)
 
 	__i915_gem_object_pin_pages(obj);
 
-	GEM_BUG_ON(vma->pages);
+	GEM_BUG_ON(atomic_read(&vma->pages_count));
 	atomic_set(&vma->pages_count, I915_VMA_PAGES_ACTIVE);
 	__i915_gem_object_pin_pages(obj);
 	vma->pages = obj->mm.pages;
@@ -1953,7 +1953,9 @@ static int igt_cs_tlb(void *arg)
 				goto end;
 			}
 
-			err = vma->ops->set_pages(vma);
+			i915_gem_object_lock(bbe, NULL);
+			err = i915_vma_get_pages(vma);
+			i915_gem_object_unlock(bbe);
 			if (err)
 				goto end;
 
@@ -1994,7 +1996,7 @@ end_ww:
 				i915_request_put(rq);
 			}
 
-			vma->ops->clear_pages(vma);
+			i915_vma_put_pages(vma);
 
 			err = context_sync(ce);
 			if (err) {
@@ -2009,7 +2011,9 @@ end_ww:
 				goto end;
 			}
 
-			err = vma->ops->set_pages(vma);
+			i915_gem_object_lock(act, NULL);
+			err = i915_vma_get_pages(vma);
+			i915_gem_object_unlock(act);
 			if (err)
 				goto end;
 
@@ -2047,7 +2051,7 @@ end_ww:
 			}
 			end_spin(batch, count - 1);
 
-			vma->ops->clear_pages(vma);
+			i915_vma_put_pages(vma);
 
 			err = context_sync(ce);
 			if (err) {

@@ -269,19 +269,6 @@ static void gen6_ppgtt_cleanup(struct i915_address_space *vm)
 	free_pd(&ppgtt->base.vm, ppgtt->base.pd);
 }
 
-static int pd_vma_set_pages(struct i915_vma *vma)
-{
-	vma->pages = ERR_PTR(-ENODEV);
-	return 0;
-}
-
-static void pd_vma_clear_pages(struct i915_vma *vma)
-{
-	GEM_BUG_ON(!vma->pages);
-
-	vma->pages = NULL;
-}
-
 static void pd_vma_bind(struct i915_address_space *vm,
 			struct i915_vm_pt_stash *stash,
 			struct i915_vma *vma,
@@ -321,8 +308,6 @@ static void pd_vma_unbind(struct i915_address_space *vm, struct i915_vma *vma)
 }
 
 static const struct i915_vma_ops pd_vma_ops = {
-	.set_pages = pd_vma_set_pages,
-	.clear_pages = pd_vma_clear_pages,
 	.bind_vma = pd_vma_bind,
 	.unbind_vma = pd_vma_unbind,
 };
