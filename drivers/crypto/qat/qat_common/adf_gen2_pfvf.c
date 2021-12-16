@@ -37,9 +37,6 @@ static const struct pfvf_csr_format csr_gen2_fmt = {
 	{ ADF_PFVF_GEN2_MSGDATA_SHIFT, ADF_PFVF_GEN2_MSGDATA_MASK },
 };
 
-#define ADF_PFVF_MSG_ACK_DELAY_US	2000
-#define ADF_PFVF_MSG_ACK_MAX_DELAY_US	(ADF_PFVF_MSG_ACK_DELAY_US * 100)
-
 #define ADF_PFVF_MSG_RETRY_DELAY	5
 #define ADF_PFVF_MSG_MAX_RETRIES	3
 

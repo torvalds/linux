@@ -6,6 +6,10 @@
 #include <linux/types.h>
 #include "adf_pfvf_msg.h"
 
+/* How long to wait for far side to acknowledge receipt */
+#define ADF_PFVF_MSG_ACK_DELAY_US	4
+#define ADF_PFVF_MSG_ACK_MAX_DELAY_US	(1 * USEC_PER_SEC)
+
 struct pfvf_field_format {
 	u8  offset;
 	u32 mask;
