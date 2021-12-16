@@ -605,6 +605,70 @@
 	display_subsystem: display-subsystem {
 		compatible = "rockchip,display-subsystem";
 		ports = <&vop_out>;
+
+		route {
+			route_dp0: route-dp0 {
+				status = "disabled";
+				logo,uboot = "logo.bmp";
+				logo,kernel = "logo_kernel.bmp";
+				logo,mode = "center";
+				charge_logo,mode = "center";
+				connect = <&vp1_out_dp0>;
+			};
+
+			route_dsi0: route-dsi0 {
+				status = "disabled";
+				logo,uboot = "logo.bmp";
+				logo,kernel = "logo_kernel.bmp";
+				logo,mode = "center";
+				charge_logo,mode = "center";
+				connect = <&vp3_out_dsi0>;
+			};
+
+			route_dsi1: route-dsi1 {
+				status = "disabled";
+				logo,uboot = "logo.bmp";
+				logo,kernel = "logo_kernel.bmp";
+				logo,mode = "center";
+				charge_logo,mode = "center";
+				connect = <&vp3_out_dsi1>;
+			};
+
+			route_edp0: route-edp0 {
+				status = "disabled";
+				logo,uboot = "logo.bmp";
+				logo,kernel = "logo_kernel.bmp";
+				logo,mode = "center";
+				charge_logo,mode = "center";
+				connect = <&vp2_out_edp0>;
+			};
+
+			route_edp1: route-edp1 {
+				status = "disabled";
+				logo,uboot = "logo.bmp";
+				logo,kernel = "logo_kernel.bmp";
+				logo,mode = "center";
+				charge_logo,mode = "center";
+			};
+
+			route_hdmi0: route-hdmi0 {
+				status = "disabled";
+				logo,uboot = "logo.bmp";
+				logo,kernel = "logo_kernel.bmp";
+				logo,mode = "center";
+				charge_logo,mode = "center";
+				connect = <&vp0_out_hdmi0>;
+			};
+
+			route_rgb: route-rgb {
+				status = "disabled";
+				logo,uboot = "logo.bmp";
+				logo,kernel = "logo_kernel.bmp";
+				logo,mode = "center";
+				charge_logo,mode = "center";
+				connect = <&vp3_out_rgb>;
+			};
+		};
 	};
 
 	firmware {
