@@ -796,8 +796,9 @@ static inline void mmu_notifier_subscriptions_destroy(struct mm_struct *mm)
 {
 }
 
-static inline void mmu_notifier_lock(struct mm_struct *mm)
+static inline bool mmu_notifier_trylock(struct mm_struct *mm)
 {
+	return true;
 }
 
 static inline void mmu_notifier_unlock(struct mm_struct *mm)
