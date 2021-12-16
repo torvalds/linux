@@ -647,8 +647,7 @@ static int rk_pcie_link_up(struct dw_pcie *pci)
 			return 1;
 	} else {
 		val = rk_pcie_readl_apb(rk_pcie, PCIE_CLIENT_LTSSM_STATUS);
-		if ((val & (RDLH_LINKUP | SMLH_LINKUP)) == 0x30000 &&
-		    (val & GENMASK(5, 0)) == 0x11)
+		if ((val & (RDLH_LINKUP | SMLH_LINKUP)) == 0x30000)
 			return 1;
 	}
 
