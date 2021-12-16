@@ -1059,6 +1059,26 @@ out:
 	return rc;
 }
 
+int hl_fw_cpucp_engine_core_asid_set(struct hl_device *hdev, u32 asid)
+{
+	struct cpucp_packet pkt;
+	int rc;
+
+	memset(&pkt, 0, sizeof(pkt));
+
+	pkt.ctl = cpu_to_le32(CPUCP_PACKET_ENGINE_CORE_ASID_SET << CPUCP_PKT_CTL_OPCODE_SHIFT);
+	pkt.value = cpu_to_le64(asid);
+
+	rc = hdev->asic_funcs->send_cpu_message(hdev, (u32 *) &pkt, sizeof(pkt),
+						HL_CPUCP_INFO_TIMEOUT_USEC, NULL);
+	if (rc)
+		dev_err(hdev->dev,
+			"Failed on ASID configuration request for engine core, error %d\n",
+			rc);
+
+	return rc;
+}
+
 void hl_fw_ask_hard_reset_without_linux(struct hl_device *hdev)
 {
 	struct static_fw_load_mgr *static_loader =

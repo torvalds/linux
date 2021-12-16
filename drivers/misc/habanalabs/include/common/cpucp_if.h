@@ -386,6 +386,9 @@ enum pq_init_status {
  *
  * CPUCP_PACKET_POWER_SET -
  *       Resets power history of device to 0
+ *
+ * CPUCP_PACKET_ENGINE_CORE_ASID_SET -
+ *       Packet to perform engine core ASID configuration
  */
 
 enum cpucp_packet_id {
@@ -434,6 +437,8 @@ enum cpucp_packet_id {
 	CPUCP_PACKET_HBM_REPLACED_ROWS_INFO_GET,/* internal */
 	CPUCP_PACKET_HBM_PENDING_ROWS_STATUS,	/* internal */
 	CPUCP_PACKET_POWER_SET,			/* internal */
+	CPUCP_PACKET_RESERVED,			/* not used */
+	CPUCP_PACKET_ENGINE_CORE_ASID_SET,	/* internal */
 };
 
 #define CPUCP_PACKET_FENCE_VAL	0xFE8CE7A5
