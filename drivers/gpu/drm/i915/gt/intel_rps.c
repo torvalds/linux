@@ -2226,6 +2226,65 @@ u32 intel_rps_read_state_cap(struct intel_rps *rps)
 		return intel_uncore_read(uncore, GEN6_RP_STATE_CAP);
 }
 
+static void intel_rps_set_manual(struct intel_rps *rps, bool enable)
+{
+	struct intel_uncore *uncore = rps_to_uncore(rps);
+	u32 state = enable ? GEN9_RPSWCTL_ENABLE : GEN9_RPSWCTL_DISABLE;
+
+	/* Allow punit to process software requests */
+	intel_uncore_write(uncore, GEN6_RP_CONTROL, state);
+}
+
+void intel_rps_raise_unslice(struct intel_rps *rps)
+{
+	struct intel_uncore *uncore = rps_to_uncore(rps);
+	u32 rp0_unslice_req;
+
+	mutex_lock(&rps->lock);
+
+	if (rps_uses_slpc(rps)) {
+		/* RP limits have not been initialized yet for SLPC path */
+		rp0_unslice_req = ((intel_rps_read_state_cap(rps) >> 0)
+				   & 0xff) * GEN9_FREQ_SCALER;
+
+		intel_rps_set_manual(rps, true);
+		intel_uncore_write(uncore, GEN6_RPNSWREQ,
+				   ((rp0_unslice_req <<
+				   GEN9_SW_REQ_UNSLICE_RATIO_SHIFT) |
+				   GEN9_IGNORE_SLICE_RATIO));
+		intel_rps_set_manual(rps, false);
+	} else {
+		intel_rps_set(rps, rps->rp0_freq);
+	}
+
+	mutex_unlock(&rps->lock);
+}
+
+void intel_rps_lower_unslice(struct intel_rps *rps)
+{
+	struct intel_uncore *uncore = rps_to_uncore(rps);
+	u32 rpn_unslice_req;
+
+	mutex_lock(&rps->lock);
+
+	if (rps_uses_slpc(rps)) {
+		/* RP limits have not been initialized yet for SLPC path */
+		rpn_unslice_req = ((intel_rps_read_state_cap(rps) >> 16)
+				   & 0xff) * GEN9_FREQ_SCALER;
+
+		intel_rps_set_manual(rps, true);
+		intel_uncore_write(uncore, GEN6_RPNSWREQ,
+				   ((rpn_unslice_req <<
+				   GEN9_SW_REQ_UNSLICE_RATIO_SHIFT) |
+				   GEN9_IGNORE_SLICE_RATIO));
+		intel_rps_set_manual(rps, false);
+	} else {
+		intel_rps_set(rps, rps->min_freq);
+	}
+
+	mutex_unlock(&rps->lock);
+}
+
 /* External interface for intel_ips.ko */
 
 static struct drm_i915_private __rcu *ips_mchdev;
