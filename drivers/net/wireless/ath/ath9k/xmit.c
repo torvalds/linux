@@ -154,11 +154,52 @@ static void ath_send_bar(struct ath_atx_tid *tid, u16 seqno)
 			   seqno << IEEE80211_SEQ_SEQ_SHIFT);
 }
 
+static bool ath_merge_ratetbl(struct ieee80211_sta *sta, struct ath_buf *bf,
+			      struct ieee80211_tx_info *tx_info)
+{
+	struct ieee80211_sta_rates *ratetbl;
+	u8 i;
+
+	if (!sta)
+		return false;
+
+	ratetbl = rcu_dereference(sta->rates);
+	if (!ratetbl)
+		return false;
+
+	if (tx_info->control.rates[0].idx < 0 ||
+	    tx_info->control.rates[0].count == 0)
+	{
+		i = 0;
+	} else {
+		bf->rates[0] = tx_info->control.rates[0];
+		i = 1;
+	}
+
+	for ( ; i < IEEE80211_TX_MAX_RATES; i++) {
+		bf->rates[i].idx = ratetbl->rate[i].idx;
+		bf->rates[i].flags = ratetbl->rate[i].flags;
+		if (tx_info->control.use_rts)
+			bf->rates[i].count = ratetbl->rate[i].count_rts;
+		else if (tx_info->control.use_cts_prot)
+			bf->rates[i].count = ratetbl->rate[i].count_cts;
+		else
+			bf->rates[i].count = ratetbl->rate[i].count;
+	}
+
+	return true;
+}
+
 static void ath_set_rates(struct ieee80211_vif *vif, struct ieee80211_sta *sta,
 			  struct ath_buf *bf)
 {
-	ieee80211_get_tx_rates(vif, sta, bf->bf_mpdu, bf->rates,
-			       ARRAY_SIZE(bf->rates));
+	struct ieee80211_tx_info *tx_info;
+
+	tx_info = IEEE80211_SKB_CB(bf->bf_mpdu);
+
+	if (!ath_merge_ratetbl(sta, bf, tx_info))
+		ieee80211_get_tx_rates(vif, sta, bf->bf_mpdu, bf->rates,
+				       ARRAY_SIZE(bf->rates));
 }
 
 static void ath_txq_skb_done(struct ath_softc *sc, struct ath_txq *txq,
