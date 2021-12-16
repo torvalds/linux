@@ -499,7 +499,7 @@ void smp_release_cpus(void)
  * routines and/or provided to userland
  */
 
-static void init_cache_info(struct ppc_cache_info *info, u32 size, u32 lsize,
+static void __init init_cache_info(struct ppc_cache_info *info, u32 size, u32 lsize,
 			    u32 bsize, u32 sets)
 {
 	info->size = size;

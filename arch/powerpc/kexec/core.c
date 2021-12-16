@@ -185,7 +185,7 @@ void __init reserve_crashkernel(void)
 	}
 }
 
-int overlaps_crashkernel(unsigned long start, unsigned long size)
+int __init overlaps_crashkernel(unsigned long start, unsigned long size)
 {
 	return (start + size) > crashk_res.start && start <= crashk_res.end;
 }

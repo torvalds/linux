@@ -55,7 +55,7 @@ void setup_entry_flush(bool enable);
 void setup_uaccess_flush(bool enable);
 void do_rfi_flush_fixups(enum l1d_flush_type types);
 #ifdef CONFIG_PPC_BARRIER_NOSPEC
-void setup_barrier_nospec(void);
+void __init setup_barrier_nospec(void);
 #else
 static inline void setup_barrier_nospec(void) { }
 #endif
@@ -71,7 +71,7 @@ static inline void do_barrier_nospec_fixups_range(bool enable, void *start, void
 #endif
 
 #ifdef CONFIG_PPC_FSL_BOOK3E
-void setup_spectre_v2(void);
+void __init setup_spectre_v2(void);
 #else
 static inline void setup_spectre_v2(void) {}
 #endif

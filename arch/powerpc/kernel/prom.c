@@ -447,7 +447,7 @@ static int __init early_init_dt_scan_chosen_ppc(unsigned long node,
  */
 
 #ifdef CONFIG_SPARSEMEM
-static bool validate_mem_limit(u64 base, u64 *size)
+static bool __init validate_mem_limit(u64 base, u64 *size)
 {
 	u64 max_mem = 1UL << (MAX_PHYSMEM_BITS);
 
@@ -458,7 +458,7 @@ static bool validate_mem_limit(u64 base, u64 *size)
 	return true;
 }
 #else
-static bool validate_mem_limit(u64 base, u64 *size)
+static bool __init validate_mem_limit(u64 base, u64 *size)
 {
 	return true;
 }

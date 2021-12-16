@@ -344,7 +344,7 @@ static int __init feat_enable_dscr(struct dt_cpu_feature *f)
 	return 1;
 }
 
-static void hfscr_pmu_enable(void)
+static void __init hfscr_pmu_enable(void)
 {
 	u64 hfscr = mfspr(SPRN_HFSCR);
 	hfscr |= PPC_BIT(60);

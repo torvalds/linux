@@ -23,11 +23,11 @@ extern void udbg_printf(const char *fmt, ...)
 	__attribute__ ((format (printf, 1, 2)));
 extern void udbg_progress(char *s, unsigned short hex);
 
-extern void udbg_uart_init_mmio(void __iomem *addr, unsigned int stride);
-extern void udbg_uart_init_pio(unsigned long port, unsigned int stride);
+void __init udbg_uart_init_mmio(void __iomem *addr, unsigned int stride);
+void __init udbg_uart_init_pio(unsigned long port, unsigned int stride);
 
-extern void udbg_uart_setup(unsigned int speed, unsigned int clock);
-extern unsigned int udbg_probe_uart_speed(unsigned int clock);
+void __init udbg_uart_setup(unsigned int speed, unsigned int clock);
+unsigned int __init udbg_probe_uart_speed(unsigned int clock);
 
 struct device_node;
 extern void udbg_scc_init(int force_scc);

@@ -161,7 +161,7 @@ void btext_map(void)
 	boot_text_mapped = 1;
 }
 
-static int btext_initialize(struct device_node *np)
+static int __init btext_initialize(struct device_node *np)
 {
 	unsigned int width, height, depth, pitch;
 	unsigned long address = 0;
@@ -292,7 +292,7 @@ void btext_update_display(unsigned long phys, int width, int height,
 }
 EXPORT_SYMBOL(btext_update_display);
 
-void btext_clearscreen(void)
+void __init btext_clearscreen(void)
 {
 	unsigned int *base	= (unsigned int *)calc_base(0, 0);
 	unsigned long width 	= ((dispDeviceRect[2] - dispDeviceRect[0]) *
@@ -310,7 +310,7 @@ void btext_clearscreen(void)
 	rmci_maybe_off();
 }
 
-void btext_flushscreen(void)
+void __init btext_flushscreen(void)
 {
 	unsigned int *base	= (unsigned int *)calc_base(0, 0);
 	unsigned long width 	= ((dispDeviceRect[2] - dispDeviceRect[0]) *
@@ -329,7 +329,7 @@ void btext_flushscreen(void)
 	__asm__ __volatile__ ("sync" ::: "memory");
 }
 
-void btext_flushline(void)
+void __init btext_flushline(void)
 {
 	unsigned int *base	= (unsigned int *)calc_base(0, g_loc_Y << 4);
 	unsigned long width 	= ((dispDeviceRect[2] - dispDeviceRect[0]) *
@@ -544,7 +544,7 @@ void btext_drawstring(const char *c)
 		btext_drawchar(*c++);
 }
 
-void btext_drawtext(const char *c, unsigned int len)
+void __init btext_drawtext(const char *c, unsigned int len)
 {
 	if (!boot_text_mapped)
 		return;
@@ -552,7 +552,7 @@ void btext_drawtext(const char *c, unsigned int len)
 		btext_drawchar(*c++);
 }
 
-void btext_drawhex(unsigned long v)
+void __init btext_drawhex(unsigned long v)
 {
 	if (!boot_text_mapped)
 		return;
