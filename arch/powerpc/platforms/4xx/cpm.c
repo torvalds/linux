@@ -163,7 +163,7 @@ static ssize_t cpm_idle_store(struct kobject *kobj,
 static struct kobj_attribute cpm_idle_attr =
 	__ATTR(idle, 0644, cpm_idle_show, cpm_idle_store);
 
-static void cpm_idle_config_sysfs(void)
+static void __init cpm_idle_config_sysfs(void)
 {
 	struct device *dev;
 	unsigned long ret;
@@ -231,7 +231,7 @@ static const struct platform_suspend_ops cpm_suspend_ops = {
 	.enter		= cpm_suspend_enter,
 };
 
-static int cpm_get_uint_property(struct device_node *np,
+static int __init cpm_get_uint_property(struct device_node *np,
 				 const char *name)
 {
 	int len;
