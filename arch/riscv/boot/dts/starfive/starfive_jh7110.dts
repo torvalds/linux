@@ -351,6 +351,17 @@
 			ngpios = <64>;
 			status = "okay";
 		};
+		
+		trng: trng@1600C000 {
+			compatible = "starfive,trng";
+			reg = <0x0 0x1600C000 0x0 0x4000>;
+			interrupt-parent = <&plic>;
+			interrupts = <30>;
+			clocks = <&apb12clk>;
+			status = "okay";
+		};
+		
+
 		i2c6: i2c@12060000 {
 			#address-cells = <1>;
 			#size-cells = <0>;
