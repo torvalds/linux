@@ -658,26 +658,22 @@ int smp_store_status(int cpu)
  *    deactivates the elfcorehdr= kernel parameter
  */
 static __init void smp_save_cpu_vxrs(struct save_area *sa, u16 addr,
-				     bool is_boot_cpu, unsigned long page)
+				     bool is_boot_cpu, __vector128 *vxrs)
 {
-	__vector128 *vxrs = (__vector128 *) page;
-
 	if (is_boot_cpu)
 		vxrs = boot_cpu_vector_save_area;
 	else
-		__pcpu_sigp_relax(addr, SIGP_STORE_ADDITIONAL_STATUS, page);
+		__pcpu_sigp_relax(addr, SIGP_STORE_ADDITIONAL_STATUS, __pa(vxrs));
 	save_area_add_vxrs(sa, vxrs);
 }
 
 static __init void smp_save_cpu_regs(struct save_area *sa, u16 addr,
-				     bool is_boot_cpu, unsigned long page)
+				     bool is_boot_cpu, void *regs)
 {
-	void *regs = (void *) page;
-
 	if (is_boot_cpu)
 		copy_oldmem_kernel(regs, (void *) __LC_FPREGS_SAVE_AREA, 512);
 	else
-		__pcpu_sigp_relax(addr, SIGP_STORE_STATUS_AT_ADDRESS, page);
+		__pcpu_sigp_relax(addr, SIGP_STORE_STATUS_AT_ADDRESS, __pa(regs));
 	save_area_add_regs(sa, regs);
 }
 
@@ -685,14 +681,14 @@ void __init smp_save_dump_cpus(void)
 {
 	int addr, boot_cpu_addr, max_cpu_addr;
 	struct save_area *sa;
-	unsigned long page;
 	bool is_boot_cpu;
+	void *page;
 
 	if (!(oldmem_data.start || is_ipl_type_dump()))
 		/* No previous system present, normal boot. */
 		return;
 	/* Allocate a page as dumping area for the store status sigps */
-	page = memblock_phys_alloc_range(PAGE_SIZE, PAGE_SIZE, 0, 1UL << 31);
+	page = memblock_alloc_low(PAGE_SIZE, PAGE_SIZE);
 	if (!page)
 		panic("ERROR: Failed to allocate %lx bytes below %lx\n",
 		      PAGE_SIZE, 1UL << 31);
@@ -723,7 +719,7 @@ void __init smp_save_dump_cpus(void)
 			/* Get the CPU registers */
 			smp_save_cpu_regs(sa, addr, is_boot_cpu, page);
 	}
-	memblock_phys_free(page, PAGE_SIZE);
+	memblock_free(page, PAGE_SIZE);
 	diag_amode31_ops.diag308_reset();
 	pcpu_set_smt(0);
 }
