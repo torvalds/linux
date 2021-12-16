@@ -633,7 +633,7 @@
 			status = "disabled";
 		};
 
-		pinctrl: pin-controller@11030000 {
+		pinctrl: pinctrl@11030000 {
 			compatible = "renesas,r9a07g044-pinctrl";
 			reg = <0 0x11030000 0 0x10000>;
 			gpio-controller;
