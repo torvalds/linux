@@ -95,11 +95,18 @@ static struct smca_bank_name smca_names[] = {
 	[SMCA_PSP ... SMCA_PSP_V2]	= { "psp",		"Platform Security Processor" },
 	[SMCA_SMU ... SMCA_SMU_V2]	= { "smu",		"System Management Unit" },
 	[SMCA_MP5]			= { "mp5",		"Microprocessor 5 Unit" },
+	[SMCA_MPDMA]			= { "mpdma",		"MPDMA Unit" },
 	[SMCA_NBIO]			= { "nbio",		"Northbridge IO Unit" },
 	[SMCA_PCIE ... SMCA_PCIE_V2]	= { "pcie",		"PCI Express Unit" },
 	[SMCA_XGMI_PCS]			= { "xgmi_pcs",		"Ext Global Memory Interconnect PCS Unit" },
+	[SMCA_NBIF]			= { "nbif",		"NBIF Unit" },
+	[SMCA_SHUB]			= { "shub",		"System Hub Unit" },
+	[SMCA_SATA]			= { "sata",		"SATA Unit" },
+	[SMCA_USB]			= { "usb",		"USB Unit" },
+	[SMCA_GMI_PCS]			= { "gmi_pcs",		"Global Memory Interconnect PCS Unit" },
 	[SMCA_XGMI_PHY]			= { "xgmi_phy",		"Ext Global Memory Interconnect PHY Unit" },
 	[SMCA_WAFL_PHY]			= { "wafl_phy",		"WAFL PHY Unit" },
+	[SMCA_GMI_PHY]			= { "gmi_phy",		"Global Memory Interconnect PHY Unit" },
 };
 
 static const char *smca_get_name(enum smca_bank_types t)
@@ -174,6 +181,9 @@ static struct smca_hwid smca_hwid_mcatypes[] = {
 	/* Microprocessor 5 Unit MCA type */
 	{ SMCA_MP5,	 HWID_MCATYPE(0x01, 0x2)	},
 
+	/* MPDMA MCA type */
+	{ SMCA_MPDMA,	 HWID_MCATYPE(0x01, 0x3)	},
+
 	/* Northbridge IO Unit MCA type */
 	{ SMCA_NBIO,	 HWID_MCATYPE(0x18, 0x0)	},
 
@@ -181,14 +191,15 @@ static struct smca_hwid smca_hwid_mcatypes[] = {
 	{ SMCA_PCIE,	 HWID_MCATYPE(0x46, 0x0)	},
 	{ SMCA_PCIE_V2,	 HWID_MCATYPE(0x46, 0x1)	},
 
-	/* xGMI PCS MCA type */
 	{ SMCA_XGMI_PCS, HWID_MCATYPE(0x50, 0x0)	},
-
-	/* xGMI PHY MCA type */
+	{ SMCA_NBIF,	 HWID_MCATYPE(0x6C, 0x0)	},
+	{ SMCA_SHUB,	 HWID_MCATYPE(0x80, 0x0)	},
+	{ SMCA_SATA,	 HWID_MCATYPE(0xA8, 0x0)	},
+	{ SMCA_USB,	 HWID_MCATYPE(0xAA, 0x0)	},
+	{ SMCA_GMI_PCS,  HWID_MCATYPE(0x241, 0x0)	},
 	{ SMCA_XGMI_PHY, HWID_MCATYPE(0x259, 0x0)	},
-
-	/* WAFL PHY MCA type */
 	{ SMCA_WAFL_PHY, HWID_MCATYPE(0x267, 0x0)	},
+	{ SMCA_GMI_PHY,	 HWID_MCATYPE(0x269, 0x0)	},
 };
 
 struct smca_bank smca_banks[MAX_NR_BANKS];
