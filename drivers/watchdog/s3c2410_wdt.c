@@ -661,8 +661,8 @@ static int s3c2410wdt_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct s3c2410_wdt *wdt;
-	struct resource *wdt_irq;
 	unsigned int wtcon;
+	int wdt_irq;
 	int ret;
 
 	wdt = devm_kzalloc(dev, sizeof(*wdt), GFP_KERNEL);
@@ -686,11 +686,9 @@ static int s3c2410wdt_probe(struct platform_device *pdev)
 		}
 	}
 
-	wdt_irq = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
-	if (wdt_irq == NULL) {
-		dev_err(dev, "no irq resource specified\n");
-		return -ENOENT;
-	}
+	wdt_irq = platform_get_irq(pdev, 0);
+	if (wdt_irq < 0)
+		return wdt_irq;
 
 	/* get the memory region for the watchdog timer */
 	wdt->reg_base = devm_platform_ioremap_resource(pdev, 0);
@@ -754,8 +752,8 @@ static int s3c2410wdt_probe(struct platform_device *pdev)
 		}
 	}
 
-	ret = devm_request_irq(dev, wdt_irq->start, s3c2410wdt_irq, 0,
-				pdev->name, pdev);
+	ret = devm_request_irq(dev, wdt_irq, s3c2410wdt_irq, 0,
+			       pdev->name, pdev);
 	if (ret != 0) {
 		dev_err(dev, "failed to install irq (%d)\n", ret);
 		goto err_cpufreq;
