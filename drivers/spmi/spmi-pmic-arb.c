@@ -261,20 +261,21 @@ static int pmic_arb_wait_for_done(struct spmi_controller *ctrl,
 
 		if (status & PMIC_ARB_STATUS_DONE) {
 			if (status & PMIC_ARB_STATUS_DENIED) {
-				dev_err(&ctrl->dev, "%s: transaction denied (0x%x)\n",
-					__func__, status);
+				dev_err(&ctrl->dev, "%s: %#x %#x: transaction denied (%#x)\n",
+					__func__, sid, addr, status);
 				return -EPERM;
 			}
 
 			if (status & PMIC_ARB_STATUS_FAILURE) {
-				dev_err(&ctrl->dev, "%s: transaction failed (0x%x)\n",
-					__func__, status);
+				dev_err(&ctrl->dev, "%s: %#x %#x: transaction failed (%#x)\n",
+					__func__, sid, addr, status);
+				WARN_ON(1);
 				return -EIO;
 			}
 
 			if (status & PMIC_ARB_STATUS_DROPPED) {
-				dev_err(&ctrl->dev, "%s: transaction dropped (0x%x)\n",
-					__func__, status);
+				dev_err(&ctrl->dev, "%s: %#x %#x: transaction dropped (%#x)\n",
+					__func__, sid, addr, status);
 				return -EIO;
 			}
 
@@ -283,8 +284,8 @@ static int pmic_arb_wait_for_done(struct spmi_controller *ctrl,
 		udelay(1);
 	}
 
-	dev_err(&ctrl->dev, "%s: timeout, status 0x%x\n",
-		__func__, status);
+	dev_err(&ctrl->dev, "%s: %#x %#x: timeout, status %#x\n",
+		__func__, sid, addr, status);
 	return -ETIMEDOUT;
 }
 
