@@ -231,6 +231,7 @@ static const struct i2c_device_id lm90_id[] = {
 	{ "adm1021", max1617 },
 	{ "adm1023", adm1023 },
 	{ "adm1032", adm1032 },
+	{ "adt7421", adt7461a },
 	{ "adt7461", adt7461 },
 	{ "adt7461a", adt7461a },
 	{ "adt7481", adt7481 },
@@ -1818,10 +1819,17 @@ static const char *lm90_detect_analog(struct i2c_client *client, bool common_add
 		return NULL;
 
 	switch (chip_id) {
-	case 0x00 ... 0x0f:	/* ADM1021, undocumented */
+	case 0x00 ... 0x03:	/* ADM1021 */
+	case 0x05 ... 0x0f:
 		if (man_id2 == 0x00 && chip_id2 == 0x00 && common_address &&
 		    !(status & 0x03) && !(config1 & 0x3f) && !(convrate & 0xf8))
 			name = "adm1021";
+		break;
+	case 0x04:		/* ADT7421 (undocumented) */
+		if (man_id2 == 0x41 && chip_id2 == 0x21 &&
+		    (address == 0x4c || address == 0x4d) &&
+		    (config1 & 0x0b) == 0x08 && convrate <= 0x0a)
+			name = "adt7421";
 		break;
 	case 0x30 ... 0x3e:	/* ADM1021A, ADM1023 */
 		/*
