@@ -138,7 +138,7 @@
 				ethernet = <&sw0_p5>;
 				phy-mode = "rgmii";
 				tx-internal-delay-ps = <2000>;
-				rx-internal-delay-ps = <2000>;
+				rx-internal-delay-ps = <2100>;
 
 				fixed-link {
 					speed = <1000>;
@@ -213,6 +213,7 @@
 			fixed-link {
 				speed = <1000>;
 				full-duplex;
+				pause;
 			};
 		};
 
