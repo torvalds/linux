@@ -466,7 +466,7 @@ static irqreturn_t tsens_irq_thread(int irq, void *data)
 
 	for (i = 0; i < priv->num_sensors; i++) {
 		bool trigger = false;
-		const struct tsens_sensor *s = &priv->sensor[i];
+		struct tsens_sensor *s = &priv->sensor[i];
 		u32 hw_id = s->hw_id;
 
 		if (!s->tzd)
@@ -511,6 +511,7 @@ static irqreturn_t tsens_irq_thread(int irq, void *data)
 		spin_unlock_irqrestore(&priv->ul_lock, flags);
 
 		if (trigger) {
+			s->cached_temp = temp;
 			dev_dbg(priv->dev, "[%u] %s: TZ update trigger (%d mC)\n",
 				hw_id, __func__, temp);
 			thermal_zone_device_update(s->tzd,
@@ -564,6 +565,7 @@ static int tsens_set_trips(void *_sensor, int low, int high)
 
 	tsens_read_irq_state(priv, hw_id, s, &d);
 
+	s->cached_temp = INT_MIN;
 	/* Write the new thresholds and clear the status */
 	regmap_field_write(priv->rf[LOW_THRESH_0 + hw_id], low_val);
 	regmap_field_write(priv->rf[UP_THRESH_0 + hw_id], high_val);
@@ -605,6 +607,11 @@ int get_temp_tsens_valid(const struct tsens_sensor *s, int *temp)
 	u32 valid;
 	int ret;
 
+	if (s->cached_temp != INT_MIN) {
+		*temp = s->cached_temp;
+		goto dump_and_exit;
+	}
+
 	/* VER_0 doesn't have VALID bit */
 	if (tsens_version(priv) == VER_0)
 		goto get_temp;
@@ -624,6 +631,7 @@ get_temp:
 	/* Valid bit is set, OK to read the temperature */
 	*temp = tsens_hw_to_mC(s, temp_idx);
 
+dump_and_exit:
 	TSENS_DBG(priv, "Sensor_id: %d temp: %d", hw_id, *temp);
 
 	return 0;
@@ -1150,6 +1158,7 @@ static int tsens_probe(struct platform_device *pdev)
 			priv->sensor[i].hw_id = data->hw_ids[i];
 		else
 			priv->sensor[i].hw_id = i;
+		priv->sensor[i].cached_temp = INT_MIN;
 	}
 	priv->feat = data->feat;
 	priv->fields = data->fields;

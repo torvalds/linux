@@ -56,6 +56,7 @@ struct tsens_sensor {
 	unsigned int			hw_id;
 	int				slope;
 	u32				status;
+	int				cached_temp;
 };
 
 /**
