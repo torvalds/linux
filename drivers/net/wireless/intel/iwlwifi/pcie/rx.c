@@ -1976,7 +1976,7 @@ irqreturn_t iwl_pcie_irq_handler(int irq, void *dev_id)
 				CSR_INT, CSR_INT_BIT_RX_PERIODIC);
 		}
 		/* Sending RX interrupt require many steps to be done in the
-		 * the device:
+		 * device:
 		 * 1- write interrupt to current index in ICT table.
 		 * 2- dma RX frame.
 		 * 3- update RX shared data to indicate last write index.
