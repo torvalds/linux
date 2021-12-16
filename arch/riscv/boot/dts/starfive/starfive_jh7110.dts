@@ -412,6 +412,21 @@
 			i2c-scl-falling-time-ns = <3000>;
 			auto_calc_scl_lhcnt;
 			status = "okay";
+			
+			ac108_a: ac108@3b {
+				compatible = "x-power,ac108_0";
+				reg = <0x3b>;
+				#sound-dai-cells = <0>;
+				data-protocol = <0>;
+			};
+			
+			wm8960: codec@1a {
+				compatible = "wlf,wm8960";
+				reg = <0x1a>;
+				#sound-dai-cells = <0>;
+
+				wlf,shared-lrclk;
+			};
 		};
 
 		/*emmc*/
@@ -589,7 +604,125 @@
 			clock-names = "gpu_core_clk","gpu_sys_clk";
 			current-clock = <8000000>;
 			status = "okay";
+                };
+		tdm: tdm@10090000  {
+			compatible = "starfive,tdm";
+			reg = <0x0 0x10090000 0x0 0x1000>;
+			reg-names = "tdm";
+			clocks = <&audioclk>;
+			clock-names = "audioclk";
+			dmas = <&dma 20 1>, <&dma 21 1>;
+			dma-names = "rx","tx";  
+			#sound-dai-cells = <0>;
 		};
+		
+		spdif0: spdif0@100a0000 {
+			compatible = "starfive,sf-spdif";
+			reg = <0x0 0x100a0000 0x0 0x1000>;
+			interrupt-parent = <&plic>;
+			interrupts = <84>;
+			interrupt-names = "tx";
+			clocks = <&audioclk>;
+			clock-names = "audioclk";
+			#sound-dai-cells = <0>;
+		};
+		
+		pwmdac: pwmdac@100b0000 {
+			compatible = "sf,pwmdac";
+			reg = <0x0 0x100b0000 0x0 0x1000>;
+			clocks = <&apb0clk>;
+			dmas = <&dma 22 1>;
+			dma-names = "tx";
+			#sound-dai-cells = <0>;
+		};
+		
+		i2stx: i2stx@100c0000  {
+			compatible = "snps,designware-i2stx";
+			reg = <0x0 0x100c0000 0x0 0x1000>;
+			interrupt-names = "tx";
+			clocks = <&apb0clk>;
+			clock-names = "i2sclk";
+			#sound-dai-cells = <0>;
+			dmas = <&dma 28>;
+			dma-names = "rx";
+		};
+		
+		pdm: pdm@100d0000 {
+			compatible = "starfive,sf-pdm";
+			reg = <0x0 0x100d0000 0x0 0x1000>;
+			reg-names = "pdm";
+			clocks = <&audioclk>;
+			clock-names = "audioclk";
+			#sound-dai-cells = <0>;
+		};
+		
+		i2srx_3ch: i2srx-3ch@100e0000 {
+			compatible = "snps,designware-i2srx";
+			reg = <0x0 0x100e0000 0x0 0x1000>;
+			interrupt-parent = <&plic>;
+			/*interrupts = <42>, <43>, <44>;*/
+			/*interrupt-names = "rx-ch0","rx-ch1","rx-ch2";*/
+			interrupts = <42>;
+			interrupt-names = "rx";
+			clocks = <&apb0clk>;
+			clock-names = "i2sclk";
+			#sound-dai-cells = <0>;
+		};
+
+		i2stx_4ch0: i2stx-4ch0@120b0000 {
+			compatible = "snps,designware-i2stx-4ch0";
+			reg = <0x0 0x120b0000 0x0 0x1000>;
+			interrupt-parent = <&plic>;
+			interrupts = <58>;
+			interrupt-names = "tx";
+			clocks = <&apb0clk>;
+			clock-names = "i2sclk";
+			#sound-dai-cells = <0>;
+		};
+		
+		i2stx_4ch1: i2sdac1@120c0000 {
+			compatible = "snps,designware-i2stx-4ch1";
+			reg = <0x0 0x120c0000 0x0 0x1000>;
+			interrupt-parent = <&plic>;
+			interrupts = <59>;
+			interrupt-names = "tx";
+			clocks = <&apb0clk>;
+			clock-names = "i2sclk";
+			#sound-dai-cells = <0>;
+		};
+		
+		
+		ac108_mclk: ac108_mclk {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <24576000>;
+		};
+		
+		wm8960_mclk: wm8960_mclk {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <4000000>;
+		};
+
+		spdif_transmitter: spdif_transmitter {
+			compatible = "linux,spdif-dit";
+			#sound-dai-cells = <0>;
+		};	
+		
+		spdif_receiver: spdif_receiver {
+			compatible = "linux,spdif-dir";
+			#sound-dai-cells = <0>;
+		};
+		
+		pwmdac_codec: pwmdac-transmitter {
+			compatible = "linux,pwmdac-dit";
+			#sound-dai-cells = <0>;
+		};
+		
+		dmic_codec: dmic_codec { 
+			compatible = "dmic-codec";
+			#sound-dai-cells = <0>;
+		}; 
 
 		spi0:spi0@10060000 {
 			compatible = "arm,pl022", "arm,primecell";
@@ -638,3 +771,5 @@
 		};
 	};
 };
+
+#include "starfive_jh7110_audio.dtsi"

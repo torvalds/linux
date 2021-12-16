@@ -92,6 +92,7 @@ source "sound/soc/uniphier/Kconfig"
 source "sound/soc/ux500/Kconfig"
 source "sound/soc/xilinx/Kconfig"
 source "sound/soc/xtensa/Kconfig"
+source "sound/soc/starfive/Kconfig"
 
 # Supported codecs
 source "sound/soc/codecs/Kconfig"

@@ -735,7 +735,9 @@ static int dw_i2s_remove(struct platform_device *pdev)
 
 #ifdef CONFIG_OF
 static const struct of_device_id dw_i2s_of_match[] = {
-	{ .compatible = "snps,designware-i2s",	 },
+	{ .compatible = "snps,designware-i2srx",	 },
+	{ .compatible = "snps,designware-i2stx-4ch0",	 },
+	{ .compatible = "snps,designware-i2stx-4ch1",	 },
 	{},
 };
 
