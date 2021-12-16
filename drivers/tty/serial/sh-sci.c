@@ -2785,17 +2785,6 @@ static int sci_init_clocks(struct sci_port *sci_port, struct device *dev)
 
 		if (IS_ERR(clk) && i == SCI_FCK) {
 			/*
-			 * "fck" used to be called "sci_ick", and we need to
-			 * maintain DT backward compatibility.
-			 */
-			clk = devm_clk_get(dev, "sci_ick");
-			if (PTR_ERR(clk) == -EPROBE_DEFER)
-				return -EPROBE_DEFER;
-
-			if (!IS_ERR(clk))
-				goto found;
-
-			/*
 			 * Not all SH platforms declare a clock lookup entry
 			 * for SCI devices, in which case we need to get the
 			 * global "peripheral_clk" clock.
