@@ -2,6 +2,7 @@
 /* Copyright(c) 2020 - 2021 Intel Corporation */
 #include <linux/iopoll.h>
 #include <adf_accel_devices.h>
+#include <adf_cfg.h>
 #include <adf_common_drv.h>
 #include <adf_gen4_hw_data.h>
 #include <adf_gen4_pfvf.h>
@@ -13,9 +14,15 @@ struct adf_fw_config {
 	char *obj_name;
 };
 
-static struct adf_fw_config adf_4xxx_fw_config[] = {
+static struct adf_fw_config adf_4xxx_fw_cy_config[] = {
 	{0xF0, ADF_4XXX_SYM_OBJ},
 	{0xF, ADF_4XXX_ASYM_OBJ},
+	{0x100, ADF_4XXX_ADMIN_OBJ},
+};
+
+static struct adf_fw_config adf_4xxx_fw_dc_config[] = {
+	{0xF0, ADF_4XXX_DC_OBJ},
+	{0xF, ADF_4XXX_DC_OBJ},
 	{0x100, ADF_4XXX_ADMIN_OBJ},
 };
 
@@ -31,6 +38,39 @@ static struct adf_hw_device_class adf_4xxx_class = {
 	.type = DEV_4XXX,
 	.instances = 0,
 };
+
+enum dev_services {
+	SVC_CY = 0,
+	SVC_DC,
+};
+
+static const char *const dev_cfg_services[] = {
+	[SVC_CY] = ADF_CFG_CY,
+	[SVC_DC] = ADF_CFG_DC,
+};
+
+static int get_service_enabled(struct adf_accel_dev *accel_dev)
+{
+	char services[ADF_CFG_MAX_VAL_LEN_IN_BYTES] = {0};
+	u32 ret;
+
+	ret = adf_cfg_get_param_value(accel_dev, ADF_GENERAL_SEC,
+				      ADF_SERVICES_ENABLED, services);
+	if (ret) {
+		dev_err(&GET_DEV(accel_dev),
+			ADF_SERVICES_ENABLED " param not found\n");
+		return ret;
+	}
+
+	ret = match_string(dev_cfg_services, ARRAY_SIZE(dev_cfg_services),
+			   services);
+	if (ret < 0)
+		dev_err(&GET_DEV(accel_dev),
+			"Invalid value of " ADF_SERVICES_ENABLED " param: %s\n",
+			services);
+
+	return ret;
+}
 
 static u32 get_accel_mask(struct adf_hw_device_data *self)
 {
@@ -149,7 +189,14 @@ static u32 get_accel_cap(struct adf_accel_dev *accel_dev)
 		capabilities_dc &= ~ICP_ACCEL_CAPABILITIES_CNV_INTEGRITY64;
 	}
 
-	return capabilities_cy;
+	switch (get_service_enabled(accel_dev)) {
+	case SVC_CY:
+		return capabilities_cy;
+	case SVC_DC:
+		return capabilities_dc;
+	}
+
+	return 0;
 }
 
 static enum dev_sku_info get_sku(struct adf_hw_device_data *self)
@@ -230,17 +277,35 @@ static int adf_init_device(struct adf_accel_dev *accel_dev)
 
 static u32 uof_get_num_objs(void)
 {
-	return ARRAY_SIZE(adf_4xxx_fw_config);
+	BUILD_BUG_ON_MSG(ARRAY_SIZE(adf_4xxx_fw_cy_config) !=
+			 ARRAY_SIZE(adf_4xxx_fw_dc_config),
+			 "Size mismatch between adf_4xxx_fw_*_config arrays");
+
+	return ARRAY_SIZE(adf_4xxx_fw_cy_config);
 }
 
-static char *uof_get_name(u32 obj_num)
+static char *uof_get_name(struct adf_accel_dev *accel_dev, u32 obj_num)
 {
-	return adf_4xxx_fw_config[obj_num].obj_name;
+	switch (get_service_enabled(accel_dev)) {
+	case SVC_CY:
+		return adf_4xxx_fw_cy_config[obj_num].obj_name;
+	case SVC_DC:
+		return adf_4xxx_fw_dc_config[obj_num].obj_name;
+	}
+
+	return NULL;
 }
 
-static u32 uof_get_ae_mask(u32 obj_num)
+static u32 uof_get_ae_mask(struct adf_accel_dev *accel_dev, u32 obj_num)
 {
-	return adf_4xxx_fw_config[obj_num].ae_mask;
+	switch (get_service_enabled(accel_dev)) {
+	case SVC_CY:
+		return adf_4xxx_fw_cy_config[obj_num].ae_mask;
+	case SVC_DC:
+		return adf_4xxx_fw_dc_config[obj_num].ae_mask;
+	}
+
+	return 0;
 }
 
 void adf_init_hw_data_4xxx(struct adf_hw_device_data *hw_data)
