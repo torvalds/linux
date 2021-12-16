@@ -14,12 +14,14 @@ static void delete_test_keys(struct bch_fs *c)
 	int ret;
 
 	ret = bch2_btree_delete_range(c, BTREE_ID_extents,
-				      POS(0, 0), POS(0, U64_MAX),
+				      SPOS(0, 0, U32_MAX),
+				      SPOS(0, U64_MAX, U32_MAX),
 				      NULL);
 	BUG_ON(ret);
 
 	ret = bch2_btree_delete_range(c, BTREE_ID_xattrs,
-				      POS(0, 0), POS(0, U64_MAX),
+				      SPOS(0, 0, U32_MAX),
+				      SPOS(0, U64_MAX, U32_MAX),
 				      NULL);
 	BUG_ON(ret);
 }
@@ -144,7 +146,7 @@ static int test_iterate(struct bch_fs *c, u64 nr)
 	i = 0;
 
 	for_each_btree_key(&trans, iter, BTREE_ID_xattrs,
-			   POS_MIN, 0, k, ret) {
+			   SPOS(0, 0, U32_MAX), 0, k, ret) {
 		if (k.k->p.inode)
 			break;
 
@@ -200,7 +202,7 @@ static int test_iterate_extents(struct bch_fs *c, u64 nr)
 	i = 0;
 
 	for_each_btree_key(&trans, iter, BTREE_ID_extents,
-			   POS_MIN, 0, k, ret) {
+			   SPOS(0, 0, U32_MAX), 0, k, ret) {
 		BUG_ON(bkey_start_offset(k.k) != i);
 		i = k.k->p.offset;
 	}
@@ -254,8 +256,8 @@ static int test_iterate_slots(struct bch_fs *c, u64 nr)
 
 	i = 0;
 
-	for_each_btree_key(&trans, iter, BTREE_ID_xattrs, POS_MIN,
-			   0, k, ret) {
+	for_each_btree_key(&trans, iter, BTREE_ID_xattrs,
+			   SPOS(0, 0, U32_MAX), 0, k, ret) {
 		if (k.k->p.inode)
 			break;
 
@@ -270,7 +272,8 @@ static int test_iterate_slots(struct bch_fs *c, u64 nr)
 
 	i = 0;
 
-	for_each_btree_key(&trans, iter, BTREE_ID_xattrs, POS_MIN,
+	for_each_btree_key(&trans, iter, BTREE_ID_xattrs,
+			   SPOS(0, 0, U32_MAX),
 			   BTREE_ITER_SLOTS, k, ret) {
 		BUG_ON(k.k->p.offset != i);
 		BUG_ON(bkey_deleted(k.k) != (i & 1));
@@ -319,8 +322,8 @@ static int test_iterate_slots_extents(struct bch_fs *c, u64 nr)
 
 	i = 0;
 
-	for_each_btree_key(&trans, iter, BTREE_ID_extents, POS_MIN,
-			   0, k, ret) {
+	for_each_btree_key(&trans, iter, BTREE_ID_extents,
+			   SPOS(0, 0, U32_MAX), 0, k, ret) {
 		BUG_ON(bkey_start_offset(k.k) != i + 8);
 		BUG_ON(k.k->size != 8);
 		i += 16;
@@ -333,7 +336,8 @@ static int test_iterate_slots_extents(struct bch_fs *c, u64 nr)
 
 	i = 0;
 
-	for_each_btree_key(&trans, iter, BTREE_ID_extents, POS_MIN,
+	for_each_btree_key(&trans, iter, BTREE_ID_extents,
+			   SPOS(0, 0, U32_MAX),
 			   BTREE_ITER_SLOTS, k, ret) {
 		BUG_ON(bkey_deleted(k.k) != !(i % 16));
 
@@ -361,7 +365,8 @@ static int test_peek_end(struct bch_fs *c, u64 nr)
 	struct bkey_s_c k;
 
 	bch2_trans_init(&trans, c, 0, 0);
-	bch2_trans_iter_init(&trans, &iter, BTREE_ID_xattrs, POS_MIN, 0);
+	bch2_trans_iter_init(&trans, &iter, BTREE_ID_xattrs,
+			     SPOS(0, 0, U32_MAX), 0);
 
 	k = bch2_btree_iter_peek(&iter);
 	BUG_ON(k.k);
@@ -381,7 +386,8 @@ static int test_peek_end_extents(struct bch_fs *c, u64 nr)
 	struct bkey_s_c k;
 
 	bch2_trans_init(&trans, c, 0, 0);
-	bch2_trans_iter_init(&trans, &iter, BTREE_ID_extents, POS_MIN, 0);
+	bch2_trans_iter_init(&trans, &iter, BTREE_ID_extents,
+			     SPOS(0, 0, U32_MAX), 0);
 
 	k = bch2_btree_iter_peek(&iter);
 	BUG_ON(k.k);
@@ -403,8 +409,6 @@ static int insert_test_extent(struct bch_fs *c,
 {
 	struct bkey_i_cookie k;
 	int ret;
-
-	//pr_info("inserting %llu-%llu v %llu", start, end, test_version);
 
 	bkey_cookie_init(&k.k_i);
 	k.k_i.k.p.offset = end;
@@ -541,10 +545,11 @@ static int rand_lookup(struct bch_fs *c, u64 nr)
 	u64 i;
 
 	bch2_trans_init(&trans, c, 0, 0);
-	bch2_trans_iter_init(&trans, &iter, BTREE_ID_xattrs, POS_MIN, 0);
+	bch2_trans_iter_init(&trans, &iter, BTREE_ID_xattrs,
+			     SPOS(0, 0, U32_MAX), 0);
 
 	for (i = 0; i < nr; i++) {
-		bch2_btree_iter_set_pos(&iter, POS(0, test_rand()));
+		bch2_btree_iter_set_pos(&iter, SPOS(0, test_rand(), U32_MAX));
 
 		k = bch2_btree_iter_peek(&iter);
 		ret = bkey_err(k);
@@ -567,7 +572,7 @@ static int rand_mixed_trans(struct btree_trans *trans,
 	struct bkey_s_c k;
 	int ret;
 
-	bch2_btree_iter_set_pos(iter, POS(0, pos));
+	bch2_btree_iter_set_pos(iter, SPOS(0, pos, U32_MAX));
 
 	k = bch2_btree_iter_peek(iter);
 	ret = bkey_err(k);
@@ -594,7 +599,8 @@ static int rand_mixed(struct bch_fs *c, u64 nr)
 	u64 i, rand;
 
 	bch2_trans_init(&trans, c, 0, 0);
-	bch2_trans_iter_init(&trans, &iter, BTREE_ID_xattrs, POS_MIN, 0);
+	bch2_trans_iter_init(&trans, &iter, BTREE_ID_xattrs,
+			     SPOS(0, 0, U32_MAX), 0);
 
 	for (i = 0; i < nr; i++) {
 		rand = test_rand();
@@ -614,7 +620,6 @@ static int rand_mixed(struct bch_fs *c, u64 nr)
 static int __do_delete(struct btree_trans *trans, struct bpos pos)
 {
 	struct btree_iter iter;
-	struct bkey_i delete;
 	struct bkey_s_c k;
 	int ret = 0;
 
@@ -628,10 +633,7 @@ static int __do_delete(struct btree_trans *trans, struct bpos pos)
 	if (!k.k)
 		goto err;
 
-	bkey_init(&delete.k);
-	delete.k.p = k.k->p;
-
-	ret = bch2_trans_update(trans, &iter, &delete, 0);
+	ret = bch2_btree_delete_at(trans, &iter, 0);
 err:
 	bch2_trans_iter_exit(trans, &iter);
 	return ret;
@@ -646,7 +648,7 @@ static int rand_delete(struct bch_fs *c, u64 nr)
 	bch2_trans_init(&trans, c, 0, 0);
 
 	for (i = 0; i < nr; i++) {
-		struct bpos pos = POS(0, test_rand());
+		struct bpos pos = SPOS(0, test_rand(), U32_MAX);
 
 		ret = __bch2_trans_do(&trans, NULL, NULL, 0,
 			__do_delete(&trans, pos));
@@ -673,7 +675,7 @@ static int seq_insert(struct bch_fs *c, u64 nr)
 
 	bch2_trans_init(&trans, c, 0, 0);
 
-	for_each_btree_key(&trans, iter, BTREE_ID_xattrs, POS_MIN,
+	for_each_btree_key(&trans, iter, BTREE_ID_xattrs, SPOS(0, 0, U32_MAX),
 			   BTREE_ITER_SLOTS|BTREE_ITER_INTENT, k, ret) {
 		insert.k.p = iter.pos;
 
@@ -703,7 +705,8 @@ static int seq_lookup(struct bch_fs *c, u64 nr)
 
 	bch2_trans_init(&trans, c, 0, 0);
 
-	for_each_btree_key(&trans, iter, BTREE_ID_xattrs, POS_MIN, 0, k, ret)
+	for_each_btree_key(&trans, iter, BTREE_ID_xattrs,
+			   SPOS(0, 0, U32_MAX), 0, k, ret)
 		;
 	bch2_trans_iter_exit(&trans, &iter);
 
@@ -720,7 +723,8 @@ static int seq_overwrite(struct bch_fs *c, u64 nr)
 
 	bch2_trans_init(&trans, c, 0, 0);
 
-	for_each_btree_key(&trans, iter, BTREE_ID_xattrs, POS_MIN,
+	for_each_btree_key(&trans, iter, BTREE_ID_xattrs,
+			   SPOS(0, 0, U32_MAX),
 			   BTREE_ITER_INTENT, k, ret) {
 		struct bkey_i_cookie u;
 
@@ -745,8 +749,7 @@ static int seq_delete(struct bch_fs *c, u64 nr)
 	int ret;
 
 	ret = bch2_btree_delete_range(c, BTREE_ID_xattrs,
-				      POS(0, 0), POS(0, U64_MAX),
-				      NULL);
+				      SPOS(0, 0, U32_MAX), POS_MAX, NULL);
 	if (ret)
 		bch_err(c, "error in seq_delete: %i", ret);
 	return ret;
