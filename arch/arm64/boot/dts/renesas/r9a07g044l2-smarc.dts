@@ -8,6 +8,7 @@
 /dts-v1/;
 #include "r9a07g044l2.dtsi"
 #include "rzg2l-smarc-som.dtsi"
+#include "rzg2l-smarc-pinfunction.dtsi"
 #include "rzg2l-smarc.dtsi"
 
 / {
