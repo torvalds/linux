@@ -149,6 +149,7 @@ static int adf_gen2_pfvf_send(struct adf_accel_dev *accel_dev, u32 msg,
 	/* Pre-calculate message, shifting it in place and setting
 	 * the in use pattern
 	 */
+	msg |= ADF_PFVF_MSGORIGIN_SYSTEM;
 	msg = gen2_csr_msg_to_position(msg, local_offset);
 	gen2_csr_set_in_use(&msg, remote_offset);
 

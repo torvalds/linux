@@ -64,7 +64,6 @@ static int adf_handle_vf2pf_msg(struct adf_accel_dev *accel_dev, u32 vf_nr,
 		else
 			compat = ADF_PF2VF_VF_COMPAT_UNKNOWN;
 
-		resp =  ADF_PFVF_MSGORIGIN_SYSTEM;
 		resp |= ADF_PF2VF_MSGTYPE_VERSION_RESP <<
 			ADF_PFVF_MSGTYPE_SHIFT;
 		resp |= ADF_PFVF_COMPAT_THIS_VERSION <<
@@ -83,7 +82,6 @@ static int adf_handle_vf2pf_msg(struct adf_accel_dev *accel_dev, u32 vf_nr,
 		/* PF always newer than legacy VF */
 		compat = ADF_PF2VF_VF_COMPATIBLE;
 
-		resp = ADF_PFVF_MSGORIGIN_SYSTEM;
 		resp |= ADF_PF2VF_MSGTYPE_VERSION_RESP <<
 			ADF_PFVF_MSGTYPE_SHIFT;
 		/* Set legacy major and minor version num */
