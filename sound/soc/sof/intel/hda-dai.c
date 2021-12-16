@@ -342,16 +342,6 @@ static int hda_link_pcm_trigger(struct snd_pcm_substream *substream,
 	w = snd_soc_dai_get_widget(dai, substream->stream);
 
 	switch (cmd) {
-	case SNDRV_PCM_TRIGGER_RESUME:
-		/* set up hw_params */
-		ret = hda_link_pcm_prepare(substream, dai);
-		if (ret < 0) {
-			dev_err(dai->dev,
-				"error: setting up hw_params during resume\n");
-			return ret;
-		}
-
-		fallthrough;
 	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
 		snd_hdac_ext_link_stream_start(link_dev);
