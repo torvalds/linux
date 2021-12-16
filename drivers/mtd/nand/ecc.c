@@ -699,6 +699,37 @@ void nand_ecc_put_on_host_hw_engine(struct nand_device *nand)
 }
 EXPORT_SYMBOL(nand_ecc_put_on_host_hw_engine);
 
+/*
+ * In the case of a pipelined engine, the device registering the ECC
+ * engine is not necessarily the ECC engine itself but may be a host controller.
+ * It is then useful to provide a helper to retrieve the right device object
+ * which actually represents the ECC engine.
+ */
+struct device *nand_ecc_get_engine_dev(struct device *host)
+{
+	struct platform_device *ecc_pdev;
+	struct device_node *np;
+
+	/*
+	 * If the device node contains this property, it means we need to follow
+	 * it in order to get the right ECC engine device we are looking for.
+	 */
+	np = of_parse_phandle(host->of_node, "nand-ecc-engine", 0);
+	if (!np)
+		return host;
+
+	ecc_pdev = of_find_device_by_node(np);
+	if (!ecc_pdev) {
+		of_node_put(np);
+		return NULL;
+	}
+
+	platform_device_put(ecc_pdev);
+	of_node_put(np);
+
+	return &ecc_pdev->dev;
+}
+
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Miquel Raynal <miquel.raynal@bootlin.com>");
 MODULE_DESCRIPTION("Generic ECC engine");
