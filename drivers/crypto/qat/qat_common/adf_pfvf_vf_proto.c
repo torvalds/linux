@@ -27,7 +27,11 @@
  */
 int adf_send_vf2pf_msg(struct adf_accel_dev *accel_dev, u32 msg)
 {
-	return GET_PFVF_OPS(accel_dev)->send_msg(accel_dev, msg, 0);
+	struct adf_pfvf_ops *pfvf_ops = GET_PFVF_OPS(accel_dev);
+	u32 pfvf_offset = pfvf_ops->get_vf2pf_offset(0);
+
+	return pfvf_ops->send_msg(accel_dev, msg, pfvf_offset,
+				  &accel_dev->vf.vf2pf_lock);
 }
 
 /**
@@ -40,7 +44,10 @@ int adf_send_vf2pf_msg(struct adf_accel_dev *accel_dev, u32 msg)
  */
 static u32 adf_recv_pf2vf_msg(struct adf_accel_dev *accel_dev)
 {
-	return GET_PFVF_OPS(accel_dev)->recv_msg(accel_dev, 0);
+	struct adf_pfvf_ops *pfvf_ops = GET_PFVF_OPS(accel_dev);
+	u32 pfvf_offset = pfvf_ops->get_pf2vf_offset(0);
+
+	return pfvf_ops->recv_msg(accel_dev, pfvf_offset);
 }
 
 /**

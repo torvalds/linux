@@ -115,15 +115,22 @@ static bool is_legacy_user_pfvf_message(u32 msg)
 	return !(msg & ADF_PFVF_MSGORIGIN_SYSTEM);
 }
 
+struct pfvf_gen2_params {
+	u32 pfvf_offset;
+	struct mutex *csr_lock; /* lock preventing concurrent access of CSR */
+	enum gen2_csr_pos local_offset;
+	enum gen2_csr_pos remote_offset;
+};
+
 static int adf_gen2_pfvf_send(struct adf_accel_dev *accel_dev, u32 msg,
-			      u8 vf_nr)
+			      struct pfvf_gen2_params *params)
 {
 	void __iomem *pmisc_addr = adf_get_pmisc_base(accel_dev);
+	enum gen2_csr_pos remote_offset = params->remote_offset;
+	enum gen2_csr_pos local_offset = params->local_offset;
 	unsigned int retries = ADF_PFVF_MSG_MAX_RETRIES;
-	enum gen2_csr_pos remote_offset;
-	enum gen2_csr_pos local_offset;
-	struct mutex *lock;	/* lock preventing concurrent acces of CSR */
-	u32 pfvf_offset;
+	struct mutex *lock = params->csr_lock;
+	u32 pfvf_offset = params->pfvf_offset;
 	u32 count = 0;
 	u32 int_bit;
 	u32 csr_val;
@@ -136,17 +143,6 @@ static int adf_gen2_pfvf_send(struct adf_accel_dev *accel_dev, u32 msg,
 	 * it and after encoding it. Which one to shift depends on the
 	 * direction.
 	 */
-	if (accel_dev->is_vf) {
-		pfvf_offset = GET_PFVF_OPS(accel_dev)->get_vf2pf_offset(0);
-		lock = &accel_dev->vf.vf2pf_lock;
-		local_offset = ADF_GEN2_CSR_VF2PF_OFFSET;
-		remote_offset = ADF_GEN2_CSR_PF2VF_OFFSET;
-	} else {
-		pfvf_offset = GET_PFVF_OPS(accel_dev)->get_pf2vf_offset(vf_nr);
-		lock = &accel_dev->pf.vf_info[vf_nr].pf2vf_lock;
-		local_offset = ADF_GEN2_CSR_PF2VF_OFFSET;
-		remote_offset = ADF_GEN2_CSR_VF2PF_OFFSET;
-	}
 
 	int_bit = gen2_csr_get_int_bit(local_offset);
 
@@ -208,22 +204,15 @@ retry:
 	}
 }
 
-static u32 adf_gen2_pfvf_recv(struct adf_accel_dev *accel_dev, u8 vf_nr)
+static u32 adf_gen2_pfvf_recv(struct adf_accel_dev *accel_dev,
+			      struct pfvf_gen2_params *params)
 {
 	void __iomem *pmisc_addr = adf_get_pmisc_base(accel_dev);
-	enum gen2_csr_pos local_offset;
-	u32 pfvf_offset;
+	enum gen2_csr_pos local_offset = params->local_offset;
+	u32 pfvf_offset = params->pfvf_offset;
 	u32 int_bit;
 	u32 csr_val;
 	u32 msg;
-
-	if (accel_dev->is_vf) {
-		pfvf_offset = GET_PFVF_OPS(accel_dev)->get_pf2vf_offset(0);
-		local_offset = ADF_GEN2_CSR_PF2VF_OFFSET;
-	} else {
-		pfvf_offset = GET_PFVF_OPS(accel_dev)->get_vf2pf_offset(vf_nr);
-		local_offset = ADF_GEN2_CSR_VF2PF_OFFSET;
-	}
 
 	int_bit = gen2_csr_get_int_bit(local_offset);
 
@@ -252,6 +241,54 @@ static u32 adf_gen2_pfvf_recv(struct adf_accel_dev *accel_dev, u8 vf_nr)
 	return msg;
 }
 
+static int adf_gen2_pf2vf_send(struct adf_accel_dev *accel_dev, u32 msg,
+			       u32 pfvf_offset, struct mutex *csr_lock)
+{
+	struct pfvf_gen2_params params = {
+		.csr_lock = csr_lock,
+		.pfvf_offset = pfvf_offset,
+		.local_offset = ADF_GEN2_CSR_PF2VF_OFFSET,
+		.remote_offset = ADF_GEN2_CSR_VF2PF_OFFSET,
+	};
+
+	return adf_gen2_pfvf_send(accel_dev, msg, &params);
+}
+
+static int adf_gen2_vf2pf_send(struct adf_accel_dev *accel_dev, u32 msg,
+			       u32 pfvf_offset, struct mutex *csr_lock)
+{
+	struct pfvf_gen2_params params = {
+		.csr_lock = csr_lock,
+		.pfvf_offset = pfvf_offset,
+		.local_offset = ADF_GEN2_CSR_VF2PF_OFFSET,
+		.remote_offset = ADF_GEN2_CSR_PF2VF_OFFSET,
+	};
+
+	return adf_gen2_pfvf_send(accel_dev, msg, &params);
+}
+
+static u32 adf_gen2_pf2vf_recv(struct adf_accel_dev *accel_dev, u32 pfvf_offset)
+{
+	struct pfvf_gen2_params params = {
+		.pfvf_offset = pfvf_offset,
+		.local_offset = ADF_GEN2_CSR_PF2VF_OFFSET,
+		.remote_offset = ADF_GEN2_CSR_VF2PF_OFFSET,
+	};
+
+	return adf_gen2_pfvf_recv(accel_dev, &params);
+}
+
+static u32 adf_gen2_vf2pf_recv(struct adf_accel_dev *accel_dev, u32 pfvf_offset)
+{
+	struct pfvf_gen2_params params = {
+		.pfvf_offset = pfvf_offset,
+		.local_offset = ADF_GEN2_CSR_VF2PF_OFFSET,
+		.remote_offset = ADF_GEN2_CSR_PF2VF_OFFSET,
+	};
+
+	return adf_gen2_pfvf_recv(accel_dev, &params);
+}
+
 void adf_gen2_init_pf_pfvf_ops(struct adf_pfvf_ops *pfvf_ops)
 {
 	pfvf_ops->enable_comms = adf_enable_pf2vf_comms;
@@ -260,8 +297,8 @@ void adf_gen2_init_pf_pfvf_ops(struct adf_pfvf_ops *pfvf_ops)
 	pfvf_ops->get_vf2pf_sources = adf_gen2_get_vf2pf_sources;
 	pfvf_ops->enable_vf2pf_interrupts = adf_gen2_enable_vf2pf_interrupts;
 	pfvf_ops->disable_vf2pf_interrupts = adf_gen2_disable_vf2pf_interrupts;
-	pfvf_ops->send_msg = adf_gen2_pfvf_send;
-	pfvf_ops->recv_msg = adf_gen2_pfvf_recv;
+	pfvf_ops->send_msg = adf_gen2_pf2vf_send;
+	pfvf_ops->recv_msg = adf_gen2_vf2pf_recv;
 }
 EXPORT_SYMBOL_GPL(adf_gen2_init_pf_pfvf_ops);
 
@@ -270,7 +307,7 @@ void adf_gen2_init_vf_pfvf_ops(struct adf_pfvf_ops *pfvf_ops)
 	pfvf_ops->enable_comms = adf_enable_vf2pf_comms;
 	pfvf_ops->get_pf2vf_offset = adf_gen2_vf_get_pfvf_offset;
 	pfvf_ops->get_vf2pf_offset = adf_gen2_vf_get_pfvf_offset;
-	pfvf_ops->send_msg = adf_gen2_pfvf_send;
-	pfvf_ops->recv_msg = adf_gen2_pfvf_recv;
+	pfvf_ops->send_msg = adf_gen2_vf2pf_send;
+	pfvf_ops->recv_msg = adf_gen2_pf2vf_recv;
 }
 EXPORT_SYMBOL_GPL(adf_gen2_init_vf_pfvf_ops);
