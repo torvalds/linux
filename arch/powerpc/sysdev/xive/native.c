@@ -492,7 +492,7 @@ static const struct xive_ops xive_native_ops = {
 	.name			= "native",
 };
 
-static bool xive_parse_provisioning(struct device_node *np)
+static bool __init xive_parse_provisioning(struct device_node *np)
 {
 	int rc;
 
@@ -532,7 +532,7 @@ static bool xive_parse_provisioning(struct device_node *np)
 	return true;
 }
 
-static void xive_native_setup_pools(void)
+static void __init xive_native_setup_pools(void)
 {
 	/* Allocate a pool big enough */
 	pr_debug("XIVE: Allocating VP block for pool size %u\n", nr_cpu_ids);

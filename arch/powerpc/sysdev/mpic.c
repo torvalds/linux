@@ -1839,7 +1839,7 @@ unsigned int mpic_get_mcirq(void)
 }
 
 #ifdef CONFIG_SMP
-void mpic_request_ipis(void)
+void __init mpic_request_ipis(void)
 {
 	struct mpic *mpic = mpic_primary;
 	int i;

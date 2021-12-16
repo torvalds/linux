@@ -162,7 +162,7 @@ static const struct icp_ops icp_hv_ops = {
 #endif
 };
 
-int icp_hv_init(void)
+int __init icp_hv_init(void)
 {
 	struct device_node *np;
 
