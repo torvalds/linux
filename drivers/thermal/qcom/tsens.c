@@ -2,6 +2,7 @@
 /*
  * Copyright (c) 2015, The Linux Foundation. All rights reserved.
  * Copyright (c) 2019, 2020, Linaro Ltd.
+ * Copyright (c) 2021 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/debugfs.h>
@@ -264,7 +265,7 @@ static void tsens_set_interrupt_v2(struct tsens_priv *priv, u32 hw_id,
 static void tsens_set_interrupt(struct tsens_priv *priv, u32 hw_id,
 				enum tsens_irq_type irq_type, bool enable)
 {
-	dev_dbg(priv->dev, "[%u] %s: %s -> %s\n", hw_id, __func__,
+	TSENS_DBG_1(priv, "[%u] %s: %s -> %s\n", hw_id, __func__,
 		irq_type ? ((irq_type == 1) ? "UP" : "CRITICAL") : "LOW",
 		enable ? "en" : "dis");
 	if (tsens_version(priv) > VER_1_X)
@@ -348,7 +349,7 @@ static int tsens_read_irq_state(struct tsens_priv *priv, u32 hw_id,
 	d->up_thresh  = tsens_hw_to_mC(s, UP_THRESH_0 + hw_id);
 	d->low_thresh = tsens_hw_to_mC(s, LOW_THRESH_0 + hw_id);
 
-	dev_dbg(priv->dev, "[%u] %s%s: status(%u|%u|%u) | clr(%u|%u|%u) | mask(%u|%u|%u)\n",
+	TSENS_DBG_1(priv, "[%u] %s%s: status(%u|%u|%u) | clr(%u|%u|%u) | mask(%u|%u|%u)\n",
 		hw_id, __func__,
 		(d->up_viol || d->low_viol || d->crit_viol) ? "(V)" : "",
 		d->low_viol, d->up_viol, d->crit_viol,
@@ -407,7 +408,7 @@ static irqreturn_t tsens_critical_irq_thread(int irq, void *data)
 			if (ret)
 				return ret;
 			if (wdog_count)
-				dev_dbg(priv->dev, "%s: watchdog count: %d\n",
+				TSENS_DBG_1(priv, "%s: watchdog count: %d\n",
 					__func__, wdog_count);
 
 			/* Fall through to handle critical interrupts if any */
@@ -528,6 +529,7 @@ static irqreturn_t tsens_irq_thread(int irq, void *data)
 			break;
 		}
 	}
+	TSENS_DBG_1(priv, "%s: irq[%d] exit", __func__, irq);
 
 	return IRQ_HANDLED;
 }
@@ -570,7 +572,7 @@ static int tsens_set_trips(void *_sensor, int low, int high)
 
 	spin_unlock_irqrestore(&priv->ul_lock, flags);
 
-	dev_dbg(dev, "[%u] %s: (%d:%d)->(%d:%d)\n",
+	TSENS_DBG_1(priv, "[%u] %s: (%d:%d)->(%d:%d)\n",
 		hw_id, __func__, d.low_thresh, d.up_thresh, cl_low, cl_high);
 
 	return 0;
@@ -622,6 +624,8 @@ get_temp:
 	/* Valid bit is set, OK to read the temperature */
 	*temp = tsens_hw_to_mC(s, temp_idx);
 
+	TSENS_DBG(priv, "Sensor_id: %d temp: %d", hw_id, *temp);
+
 	return 0;
 }
 
@@ -647,6 +651,8 @@ int get_temp_common(const struct tsens_sensor *s, int *temp)
 			return ret;
 
 		*temp = code_to_degc(last_temp, s) * 1000;
+
+		TSENS_DBG(priv, "Sensor_id: %d temp: %d", hw_id, *temp);
 
 		return 0;
 	} while (time_before(jiffies, timeout));
@@ -705,6 +711,7 @@ static void tsens_debug_init(struct platform_device *pdev)
 {
 	struct tsens_priv *priv = platform_get_drvdata(pdev);
 	struct dentry *root, *file;
+	char tsens_name[32];
 
 	root = debugfs_lookup("tsens", NULL);
 	if (!root)
@@ -720,6 +727,20 @@ static void tsens_debug_init(struct platform_device *pdev)
 	/* A directory for each instance of the TSENS IP */
 	priv->debug = debugfs_create_dir(dev_name(&pdev->dev), priv->debug_root);
 	debugfs_create_file("sensors", 0444, priv->debug, pdev, &dbg_sensors_fops);
+
+	/* Enable TSENS IPC logging context */
+	snprintf(tsens_name, sizeof(tsens_name), "%s_0", dev_name(&pdev->dev));
+	priv->ipc_log = ipc_log_context_create(IPC_LOGPAGES, tsens_name, 0);
+	if (!priv->ipc_log)
+		dev_err(&pdev->dev, "%s: unable to create IPC Logging for %s\n",
+				__func__, tsens_name);
+
+	snprintf(tsens_name, sizeof(tsens_name), "%s_1", dev_name(&pdev->dev));
+	priv->ipc_log1 = ipc_log_context_create(IPC_LOGPAGES, tsens_name, 0);
+	if (!priv->ipc_log1)
+		dev_err(&pdev->dev, "%s: unable to create IPC Logging for %s\n",
+				__func__, tsens_name);
+
 }
 #else
 static inline void tsens_debug_init(struct platform_device *pdev) {}
