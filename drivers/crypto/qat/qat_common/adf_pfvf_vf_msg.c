@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: (BSD-3-Clause OR GPL-2.0-only)
 /* Copyright(c) 2015 - 2021 Intel Corporation */
+#include <linux/bitfield.h>
 #include "adf_accel_devices.h"
 #include "adf_common_drv.h"
 #include "adf_pfvf_msg.h"
@@ -67,10 +68,8 @@ int adf_vf2pf_request_version(struct adf_accel_dev *accel_dev)
 		return ret;
 	}
 
-	pf_version = (resp.data >> ADF_PF2VF_VERSION_RESP_VERS_SHIFT)
-		     & ADF_PF2VF_VERSION_RESP_VERS_MASK;
-	compat = (resp.data >> ADF_PF2VF_VERSION_RESP_RESULT_SHIFT)
-		 & ADF_PF2VF_VERSION_RESP_RESULT_MASK;
+	pf_version = FIELD_GET(ADF_PF2VF_VERSION_RESP_VERS_MASK, resp.data);
+	compat = FIELD_GET(ADF_PF2VF_VERSION_RESP_RESULT_MASK, resp.data);
 
 	/* Response from PF received, check compatibility */
 	switch (compat) {

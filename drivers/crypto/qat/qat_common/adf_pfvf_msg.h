@@ -3,6 +3,8 @@
 #ifndef ADF_PFVF_MSG_H
 #define ADF_PFVF_MSG_H
 
+#include <linux/bits.h>
+
 /*
  * PF<->VF Messaging
  * The PF has an array of 32-bit PF2VF registers, one for each VF.  The
@@ -86,10 +88,8 @@ enum pfvf_compatibility_version {
 };
 
 /* PF->VF Version Response */
-#define ADF_PF2VF_VERSION_RESP_VERS_SHIFT	0
-#define ADF_PF2VF_VERSION_RESP_VERS_MASK	0xFF
-#define ADF_PF2VF_VERSION_RESP_RESULT_SHIFT	8
-#define ADF_PF2VF_VERSION_RESP_RESULT_MASK	0x03
+#define ADF_PF2VF_VERSION_RESP_VERS_MASK	GENMASK(7, 0)
+#define ADF_PF2VF_VERSION_RESP_RESULT_MASK	GENMASK(9, 8)
 
 enum pf2vf_compat_response {
 	ADF_PF2VF_VF_COMPATIBLE			= 0x01,

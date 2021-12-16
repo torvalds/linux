@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: (BSD-3-Clause OR GPL-2.0-only)
 /* Copyright(c) 2015 - 2021 Intel Corporation */
+#include <linux/bitfield.h>
 #include <linux/spinlock.h>
 #include <linux/types.h>
 #include "adf_accel_devices.h"
@@ -64,9 +65,9 @@ static int adf_handle_vf2pf_msg(struct adf_accel_dev *accel_dev, u8 vf_nr,
 			compat = ADF_PF2VF_VF_COMPAT_UNKNOWN;
 
 		resp->type = ADF_PF2VF_MSGTYPE_VERSION_RESP;
-		resp->data = ADF_PFVF_COMPAT_THIS_VERSION <<
-			     ADF_PF2VF_VERSION_RESP_VERS_SHIFT;
-		resp->data |= compat << ADF_PF2VF_VERSION_RESP_RESULT_SHIFT;
+		resp->data = FIELD_PREP(ADF_PF2VF_VERSION_RESP_VERS_MASK,
+					ADF_PFVF_COMPAT_THIS_VERSION) |
+			     FIELD_PREP(ADF_PF2VF_VERSION_RESP_RESULT_MASK, compat);
 		}
 		break;
 	case ADF_VF2PF_MSGTYPE_VERSION_REQ:
@@ -80,10 +81,10 @@ static int adf_handle_vf2pf_msg(struct adf_accel_dev *accel_dev, u8 vf_nr,
 		/* PF always newer than legacy VF */
 		compat = ADF_PF2VF_VF_COMPATIBLE;
 
-		resp->type = ADF_PF2VF_MSGTYPE_VERSION_RESP;
 		/* Set legacy major and minor version to the latest, 1.1 */
-		resp->data |= 0x11;
-		resp->data |= compat << ADF_PF2VF_VERSION_RESP_RESULT_SHIFT;
+		resp->type = ADF_PF2VF_MSGTYPE_VERSION_RESP;
+		resp->data = FIELD_PREP(ADF_PF2VF_VERSION_RESP_VERS_MASK, 0x11) |
+			     FIELD_PREP(ADF_PF2VF_VERSION_RESP_RESULT_MASK, compat);
 		}
 		break;
 	case ADF_VF2PF_MSGTYPE_INIT:
