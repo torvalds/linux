@@ -8,6 +8,7 @@
 #include "imx6q.dtsi"
 #include "imx6qdl-phytec-phycore-som.dtsi"
 #include "imx6qdl-phytec-mira.dtsi"
+#include "imx6qdl-phytec-mira-peb-eval-01.dtsi"
 
 / {
 	model = "PHYTEC phyBOARD-Mira Quad Carrier-Board with eMMC";
