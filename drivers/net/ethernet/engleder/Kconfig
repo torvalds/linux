@@ -18,6 +18,7 @@ if NET_VENDOR_ENGLEDER
 
 config TSNEP
 	tristate "TSN endpoint support"
+	depends on HAS_IOMEM && HAS_DMA
 	depends on PTP_1588_CLOCK_OPTIONAL
 	select PHYLIB
 	help
