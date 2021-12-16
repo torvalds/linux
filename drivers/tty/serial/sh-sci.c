@@ -2790,15 +2790,12 @@ static int sci_init_clocks(struct sci_port *sci_port, struct device *dev)
 			 * global "peripheral_clk" clock.
 			 */
 			clk = devm_clk_get(dev, "peripheral_clk");
-			if (!IS_ERR(clk))
-				goto found;
-
-			dev_err(dev, "failed to get %s (%ld)\n", clk_names[i],
-				PTR_ERR(clk));
-			return PTR_ERR(clk);
+			if (IS_ERR(clk))
+				return dev_err_probe(dev, PTR_ERR(clk),
+						     "failed to get %s\n",
+						     clk_names[i]);
 		}
 
-found:
 		if (IS_ERR(clk))
 			dev_dbg(dev, "failed to get %s (%ld)\n", clk_names[i],
 				PTR_ERR(clk));
