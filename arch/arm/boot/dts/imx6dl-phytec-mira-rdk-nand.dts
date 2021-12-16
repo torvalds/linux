@@ -10,6 +10,7 @@
 #include "imx6qdl-phytec-mira.dtsi"
 #include "imx6qdl-phytec-mira-peb-eval-01.dtsi"
 #include "imx6qdl-phytec-mira-peb-av-02.dtsi"
+#include "imx6qdl-phytec-mira-peb-wlbt-05.dtsi"
 
 / {
 	model = "PHYTEC phyBOARD-Mira DualLite/Solo Carrier-Board with NAND";
