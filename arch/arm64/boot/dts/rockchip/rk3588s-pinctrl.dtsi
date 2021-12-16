@@ -3373,23 +3373,23 @@
 		bt656_pins: bt656-pins {
 			rockchip,pins =
 				/* bt1120_clkout */
-				<4 RK_PB0 2 &pcfg_pull_none>,
+				<4 RK_PB0 2 &pcfg_pull_none_drv_level_2>,
 				/* bt1120_d0 */
-				<4 RK_PA0 2 &pcfg_pull_none>,
+				<4 RK_PA0 2 &pcfg_pull_none_drv_level_2>,
 				/* bt1120_d1 */
-				<4 RK_PA1 2 &pcfg_pull_none>,
+				<4 RK_PA1 2 &pcfg_pull_none_drv_level_2>,
 				/* bt1120_d2 */
-				<4 RK_PA2 2 &pcfg_pull_none>,
+				<4 RK_PA2 2 &pcfg_pull_none_drv_level_2>,
 				/* bt1120_d3 */
-				<4 RK_PA3 2 &pcfg_pull_none>,
+				<4 RK_PA3 2 &pcfg_pull_none_drv_level_2>,
 				/* bt1120_d4 */
-				<4 RK_PA4 2 &pcfg_pull_none>,
+				<4 RK_PA4 2 &pcfg_pull_none_drv_level_2>,
 				/* bt1120_d5 */
-				<4 RK_PA5 2 &pcfg_pull_none>,
+				<4 RK_PA5 2 &pcfg_pull_none_drv_level_2>,
 				/* bt1120_d6 */
-				<4 RK_PA6 2 &pcfg_pull_none>,
+				<4 RK_PA6 2 &pcfg_pull_none_drv_level_2>,
 				/* bt1120_d7 */
-				<4 RK_PA7 2 &pcfg_pull_none>;
+				<4 RK_PA7 2 &pcfg_pull_none_drv_level_2>;
 		};
 	};
 
