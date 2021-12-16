@@ -96,46 +96,60 @@ static void set_msix_default_rttable(struct adf_accel_dev *accel_dev)
 static u32 get_accel_cap(struct adf_accel_dev *accel_dev)
 {
 	struct pci_dev *pdev = accel_dev->accel_pci_dev.pci_dev;
+	u32 capabilities_cy, capabilities_dc;
 	u32 fusectl1;
-	u32 capabilities = ICP_ACCEL_CAPABILITIES_CRYPTO_SYMMETRIC |
-			   ICP_ACCEL_CAPABILITIES_CRYPTO_ASYMMETRIC |
-			   ICP_ACCEL_CAPABILITIES_CIPHER |
-			   ICP_ACCEL_CAPABILITIES_AUTHENTICATION |
-			   ICP_ACCEL_CAPABILITIES_SHA3 |
-			   ICP_ACCEL_CAPABILITIES_SHA3_EXT |
-			   ICP_ACCEL_CAPABILITIES_HKDF |
-			   ICP_ACCEL_CAPABILITIES_ECEDMONT |
-			   ICP_ACCEL_CAPABILITIES_CHACHA_POLY |
-			   ICP_ACCEL_CAPABILITIES_AESGCM_SPC |
-			   ICP_ACCEL_CAPABILITIES_AES_V2;
 
 	/* Read accelerator capabilities mask */
 	pci_read_config_dword(pdev, ADF_4XXX_FUSECTL1_OFFSET, &fusectl1);
 
+	capabilities_cy = ICP_ACCEL_CAPABILITIES_CRYPTO_SYMMETRIC |
+			  ICP_ACCEL_CAPABILITIES_CRYPTO_ASYMMETRIC |
+			  ICP_ACCEL_CAPABILITIES_CIPHER |
+			  ICP_ACCEL_CAPABILITIES_AUTHENTICATION |
+			  ICP_ACCEL_CAPABILITIES_SHA3 |
+			  ICP_ACCEL_CAPABILITIES_SHA3_EXT |
+			  ICP_ACCEL_CAPABILITIES_HKDF |
+			  ICP_ACCEL_CAPABILITIES_ECEDMONT |
+			  ICP_ACCEL_CAPABILITIES_CHACHA_POLY |
+			  ICP_ACCEL_CAPABILITIES_AESGCM_SPC |
+			  ICP_ACCEL_CAPABILITIES_AES_V2;
+
 	/* A set bit in fusectl1 means the feature is OFF in this SKU */
 	if (fusectl1 & ICP_ACCEL_4XXX_MASK_CIPHER_SLICE) {
-		capabilities &= ~ICP_ACCEL_CAPABILITIES_CRYPTO_SYMMETRIC;
-		capabilities &= ~ICP_ACCEL_CAPABILITIES_HKDF;
-		capabilities &= ~ICP_ACCEL_CAPABILITIES_CIPHER;
+		capabilities_cy &= ~ICP_ACCEL_CAPABILITIES_CRYPTO_SYMMETRIC;
+		capabilities_cy &= ~ICP_ACCEL_CAPABILITIES_HKDF;
+		capabilities_cy &= ~ICP_ACCEL_CAPABILITIES_CIPHER;
 	}
 	if (fusectl1 & ICP_ACCEL_4XXX_MASK_UCS_SLICE) {
-		capabilities &= ~ICP_ACCEL_CAPABILITIES_CHACHA_POLY;
-		capabilities &= ~ICP_ACCEL_CAPABILITIES_AESGCM_SPC;
-		capabilities &= ~ICP_ACCEL_CAPABILITIES_AES_V2;
-		capabilities &= ~ICP_ACCEL_CAPABILITIES_CIPHER;
+		capabilities_cy &= ~ICP_ACCEL_CAPABILITIES_CHACHA_POLY;
+		capabilities_cy &= ~ICP_ACCEL_CAPABILITIES_AESGCM_SPC;
+		capabilities_cy &= ~ICP_ACCEL_CAPABILITIES_AES_V2;
+		capabilities_cy &= ~ICP_ACCEL_CAPABILITIES_CIPHER;
 	}
 	if (fusectl1 & ICP_ACCEL_4XXX_MASK_AUTH_SLICE) {
-		capabilities &= ~ICP_ACCEL_CAPABILITIES_AUTHENTICATION;
-		capabilities &= ~ICP_ACCEL_CAPABILITIES_SHA3;
-		capabilities &= ~ICP_ACCEL_CAPABILITIES_SHA3_EXT;
-		capabilities &= ~ICP_ACCEL_CAPABILITIES_CIPHER;
+		capabilities_cy &= ~ICP_ACCEL_CAPABILITIES_AUTHENTICATION;
+		capabilities_cy &= ~ICP_ACCEL_CAPABILITIES_SHA3;
+		capabilities_cy &= ~ICP_ACCEL_CAPABILITIES_SHA3_EXT;
+		capabilities_cy &= ~ICP_ACCEL_CAPABILITIES_CIPHER;
 	}
 	if (fusectl1 & ICP_ACCEL_4XXX_MASK_PKE_SLICE) {
-		capabilities &= ~ICP_ACCEL_CAPABILITIES_CRYPTO_ASYMMETRIC;
-		capabilities &= ~ICP_ACCEL_CAPABILITIES_ECEDMONT;
+		capabilities_cy &= ~ICP_ACCEL_CAPABILITIES_CRYPTO_ASYMMETRIC;
+		capabilities_cy &= ~ICP_ACCEL_CAPABILITIES_ECEDMONT;
 	}
 
-	return capabilities;
+	capabilities_dc = ICP_ACCEL_CAPABILITIES_COMPRESSION |
+			  ICP_ACCEL_CAPABILITIES_LZ4_COMPRESSION |
+			  ICP_ACCEL_CAPABILITIES_LZ4S_COMPRESSION |
+			  ICP_ACCEL_CAPABILITIES_CNV_INTEGRITY64;
+
+	if (fusectl1 & ICP_ACCEL_4XXX_MASK_COMPRESS_SLICE) {
+		capabilities_dc &= ~ICP_ACCEL_CAPABILITIES_COMPRESSION;
+		capabilities_dc &= ~ICP_ACCEL_CAPABILITIES_LZ4_COMPRESSION;
+		capabilities_dc &= ~ICP_ACCEL_CAPABILITIES_LZ4S_COMPRESSION;
+		capabilities_dc &= ~ICP_ACCEL_CAPABILITIES_CNV_INTEGRITY64;
+	}
+
+	return capabilities_cy;
 }
 
 static enum dev_sku_info get_sku(struct adf_hw_device_data *self)
