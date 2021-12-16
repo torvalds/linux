@@ -788,7 +788,7 @@ struct hid_driver {
 	container_of(pdrv, struct hid_driver, driver)
 
 /**
- * hid_ll_driver - low level driver callbacks
+ * struct hid_ll_driver - low level driver callbacks
  * @start: called on probe to start the device
  * @stop: called on remove
  * @open: called by input layer on open
@@ -1158,7 +1158,7 @@ static inline int hid_hw_idle(struct hid_device *hdev, int report, int idle,
 }
 
 /**
- * hid_may_wakeup - return if the hid device may act as a wakeup source during system-suspend
+ * hid_hw_may_wakeup - return if the hid device may act as a wakeup source during system-suspend
  *
  * @hdev: hid device
  */
