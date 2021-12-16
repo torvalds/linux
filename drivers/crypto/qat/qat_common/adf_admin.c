@@ -194,6 +194,35 @@ static int adf_set_fw_constants(struct adf_accel_dev *accel_dev)
 	return adf_send_admin(accel_dev, &req, &resp, ae_mask);
 }
 
+static int adf_get_dc_capabilities(struct adf_accel_dev *accel_dev,
+				   u32 *capabilities)
+{
+	struct adf_hw_device_data *hw_device = accel_dev->hw_device;
+	struct icp_qat_fw_init_admin_resp resp;
+	struct icp_qat_fw_init_admin_req req;
+	unsigned long ae_mask;
+	unsigned long ae;
+	int ret;
+
+	/* Target only service accelerator engines */
+	ae_mask = hw_device->ae_mask & ~hw_device->admin_ae_mask;
+
+	memset(&req, 0, sizeof(req));
+	memset(&resp, 0, sizeof(resp));
+	req.cmd_id = ICP_QAT_FW_COMP_CAPABILITY_GET;
+
+	*capabilities = 0;
+	for_each_set_bit(ae, &ae_mask, GET_MAX_ACCELENGINES(accel_dev)) {
+		ret = adf_send_admin(accel_dev, &req, &resp, 1ULL << ae);
+		if (ret)
+			return ret;
+
+		*capabilities |= resp.extended_features;
+	}
+
+	return 0;
+}
+
 /**
  * adf_send_admin_init() - Function sends init message to FW
  * @accel_dev: Pointer to acceleration device.
@@ -204,7 +233,15 @@ static int adf_set_fw_constants(struct adf_accel_dev *accel_dev)
  */
 int adf_send_admin_init(struct adf_accel_dev *accel_dev)
 {
+	u32 dc_capabilities = 0;
 	int ret;
+
+	ret = adf_get_dc_capabilities(accel_dev, &dc_capabilities);
+	if (ret) {
+		dev_err(&GET_DEV(accel_dev), "Cannot get dc capabilities\n");
+		return ret;
+	}
+	accel_dev->hw_device->extended_dc_capabilities = dc_capabilities;
 
 	ret = adf_set_fw_constants(accel_dev);
 	if (ret)

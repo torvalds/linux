@@ -198,6 +198,7 @@ struct adf_hw_device_data {
 	u32 fuses;
 	u32 straps;
 	u32 accel_capabilities_mask;
+	u32 extended_dc_capabilities;
 	u32 instance_id;
 	u16 accel_mask;
 	u32 ae_mask;
