@@ -36,3 +36,17 @@ int adf_pf_capabilities_msg_provider(struct adf_accel_dev *accel_dev,
 
 	return 0;
 }
+
+int adf_pf_ring_to_svc_msg_provider(struct adf_accel_dev *accel_dev,
+				    u8 *buffer, u8 compat)
+{
+	struct ring_to_svc_map_v1 rts_map_msg;
+
+	rts_map_msg.map = accel_dev->hw_device->ring_to_svc_map;
+	rts_map_msg.hdr.version = ADF_PFVF_RING_TO_SVC_VERSION;
+	rts_map_msg.hdr.payload_size = ADF_PFVF_BLKMSG_PAYLOAD_SIZE(rts_map_msg);
+
+	memcpy(buffer, &rts_map_msg, sizeof(rts_map_msg));
+
+	return 0;
+}

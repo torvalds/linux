@@ -16,6 +16,7 @@ static const adf_pf2vf_blkmsg_provider pf2vf_blkmsg_providers[] = {
 	NULL,				  /* no message type defined for value 0 */
 	NULL,				  /* no message type defined for value 1 */
 	adf_pf_capabilities_msg_provider, /* ADF_VF2PF_BLKMSG_REQ_CAP_SUMMARY */
+	adf_pf_ring_to_svc_msg_provider,  /* ADF_VF2PF_BLKMSG_REQ_RING_SVC_MAP */
 };
 
 /**

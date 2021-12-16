@@ -91,8 +91,10 @@ enum pfvf_compatibility_version {
 	ADF_PFVF_COMPAT_CAPABILITIES		= 0x02,
 	/* In-use pattern cleared by receiver */
 	ADF_PFVF_COMPAT_FAST_ACK		= 0x03,
+	/* Ring to service mapping support for non-standard mappings */
+	ADF_PFVF_COMPAT_RING_TO_SVC_MAP		= 0x04,
 	/* Reference to the latest version */
-	ADF_PFVF_COMPAT_THIS_VERSION		= 0x03,
+	ADF_PFVF_COMPAT_THIS_VERSION		= 0x04,
 };
 
 /* PF->VF Version Response */
@@ -139,6 +141,7 @@ enum pf2vf_blkmsg_error {
  */
 enum vf2pf_blkmsg_req_type {
 	ADF_VF2PF_BLKMSG_REQ_CAP_SUMMARY	= 0x02,
+	ADF_VF2PF_BLKMSG_REQ_RING_SVC_MAP	= 0x03,
 };
 
 #define ADF_VF2PF_SMALL_BLOCK_TYPE_MAX \
@@ -200,6 +203,16 @@ struct capabilities_v3 {
 	u32 ext_dc_caps;
 	u32 capabilities;
 	u32 frequency;
+} __packed;
+
+/* PF/VF Ring to service mapping values */
+enum blkmsg_ring_to_svc_versions {
+	ADF_PFVF_RING_TO_SVC_VERSION		= 0x01,
+};
+
+struct ring_to_svc_map_v1 {
+	struct pfvf_blkmsg_header hdr;
+	u16 map;
 } __packed;
 
 #endif /* ADF_PFVF_MSG_H */

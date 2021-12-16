@@ -357,6 +357,10 @@ int adf_enable_vf2pf_comms(struct adf_accel_dev *accel_dev)
 		return ret;
 
 	ret = adf_vf2pf_get_capabilities(accel_dev);
+	if (ret)
+		return ret;
+
+	ret = adf_vf2pf_get_ring_to_svc(accel_dev);
 
 	return ret;
 }

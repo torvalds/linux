@@ -8,6 +8,7 @@ int adf_vf2pf_notify_init(struct adf_accel_dev *accel_dev);
 void adf_vf2pf_notify_shutdown(struct adf_accel_dev *accel_dev);
 int adf_vf2pf_request_version(struct adf_accel_dev *accel_dev);
 int adf_vf2pf_get_capabilities(struct adf_accel_dev *accel_dev);
+int adf_vf2pf_get_ring_to_svc(struct adf_accel_dev *accel_dev);
 #else
 static inline int adf_vf2pf_notify_init(struct adf_accel_dev *accel_dev)
 {

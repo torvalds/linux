@@ -138,3 +138,30 @@ int adf_vf2pf_get_capabilities(struct adf_accel_dev *accel_dev)
 
 	return 0;
 }
+
+int adf_vf2pf_get_ring_to_svc(struct adf_accel_dev *accel_dev)
+{
+	struct ring_to_svc_map_v1 rts_map_msg = { { 0 }, };
+	unsigned int len = sizeof(rts_map_msg);
+
+	if (accel_dev->vf.pf_compat_ver < ADF_PFVF_COMPAT_RING_TO_SVC_MAP)
+		/* Use already set default mappings */
+		return 0;
+
+	if (adf_send_vf2pf_blkmsg_req(accel_dev, ADF_VF2PF_BLKMSG_REQ_RING_SVC_MAP,
+				      (u8 *)&rts_map_msg, &len)) {
+		dev_err(&GET_DEV(accel_dev),
+			"QAT: Failed to get block message response\n");
+		return -EFAULT;
+	}
+
+	if (unlikely(len < sizeof(struct ring_to_svc_map_v1))) {
+		dev_err(&GET_DEV(accel_dev),
+			"RING_TO_SVC message truncated to %d bytes\n", len);
+		return -EFAULT;
+	}
+
+	/* Only v1 at present */
+	accel_dev->hw_device->ring_to_svc_map = rts_map_msg.map;
+	return 0;
+}
