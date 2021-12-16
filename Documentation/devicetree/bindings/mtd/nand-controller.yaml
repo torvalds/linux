@@ -52,30 +52,12 @@ properties:
 patternProperties:
   "^nand@[a-f0-9]$":
     type: object
+    $ref: "nand-chip.yaml#"
+
     properties:
       reg:
         description:
           Contains the chip-select IDs.
-
-      nand-ecc-engine:
-        description: |
-          A phandle on the hardware ECC engine if any. There are
-          basically three possibilities:
-          1/ The ECC engine is part of the NAND controller, in this
-          case the phandle should reference the parent node.
-          2/ The ECC engine is part of the NAND part (on-die), in this
-          case the phandle should reference the node itself.
-          3/ The ECC engine is external, in this case the phandle should
-          reference the specific ECC engine node.
-        $ref: /schemas/types.yaml#/definitions/phandle
-
-      nand-use-soft-ecc-engine:
-        description: Use a software ECC engine.
-        type: boolean
-
-      nand-no-ecc-engine:
-        description: Do not use any ECC correction.
-        type: boolean
 
       nand-ecc-placement:
         description:
@@ -85,12 +67,6 @@ patternProperties:
           bytes will be interleaved with regular data in the main area.
         $ref: /schemas/types.yaml#/definitions/string
         enum: [ oob, interleaved ]
-
-      nand-ecc-algo:
-        description:
-          Desired ECC algorithm.
-        $ref: /schemas/types.yaml#/definitions/string
-        enum: [hamming, bch, rs]
 
       nand-bus-width:
         description:
@@ -109,18 +85,6 @@ patternProperties:
           find Bad Block Markers (BBM). These markers will help to
           build a volatile BBT in RAM.
         $ref: /schemas/types.yaml#/definitions/flag
-
-      nand-ecc-strength:
-        description:
-          Maximum number of bits that can be corrected per ECC step.
-        $ref: /schemas/types.yaml#/definitions/uint32
-        minimum: 1
-
-      nand-ecc-step-size:
-        description:
-          Number of data bytes covered by a single ECC step.
-        $ref: /schemas/types.yaml#/definitions/uint32
-        minimum: 1
 
       nand-ecc-maximize:
         description:
@@ -152,13 +116,6 @@ patternProperties:
           Ready/Busy pins. Active state refers to the NAND ready state and
           should be set to GPIOD_ACTIVE_HIGH unless the signal is inverted.
 
-      secure-regions:
-        description:
-          Regions in the NAND chip which are protected using a secure element
-          like Trustzone. This property contains the start address and size of
-          the secure regions present.
-        $ref: /schemas/types.yaml#/definitions/uint64-matrix
-
     required:
       - reg
 
@@ -179,9 +136,6 @@ examples:
 
       nand@0 {
         reg = <0>; /* Native CS */
-        nand-use-soft-ecc-engine;
-        nand-ecc-algo = "bch";
-
         /* NAND chip specific properties */
       };
 
