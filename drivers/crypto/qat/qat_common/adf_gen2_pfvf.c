@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: (BSD-3-Clause OR GPL-2.0-only)
 /* Copyright(c) 2021 Intel Corporation */
 #include <linux/delay.h>
+#include <linux/iopoll.h>
 #include <linux/mutex.h>
 #include <linux/types.h>
 #include "adf_accel_devices.h"
@@ -36,8 +37,8 @@ static const struct pfvf_csr_format csr_gen2_fmt = {
 	{ ADF_PFVF_GEN2_MSGDATA_SHIFT, ADF_PFVF_GEN2_MSGDATA_MASK },
 };
 
-#define ADF_PFVF_MSG_ACK_DELAY		2
-#define ADF_PFVF_MSG_ACK_MAX_RETRY	100
+#define ADF_PFVF_MSG_ACK_DELAY_US	2000
+#define ADF_PFVF_MSG_ACK_MAX_DELAY_US	(ADF_PFVF_MSG_ACK_DELAY_US * 100)
 
 #define ADF_PFVF_MSG_RETRY_DELAY	5
 #define ADF_PFVF_MSG_MAX_RETRIES	3
@@ -143,7 +144,6 @@ static int adf_gen2_pfvf_send(struct adf_accel_dev *accel_dev,
 	unsigned int retries = ADF_PFVF_MSG_MAX_RETRIES;
 	struct mutex *lock = params->csr_lock;
 	u32 pfvf_offset = params->pfvf_offset;
-	u32 count = 0;
 	u32 int_bit;
 	u32 csr_val;
 	u32 csr_msg;
@@ -172,8 +172,6 @@ static int adf_gen2_pfvf_send(struct adf_accel_dev *accel_dev,
 	mutex_lock(lock);
 
 start:
-	ret = 0;
-
 	/* Check if the PFVF CSR is in use by remote function */
 	csr_val = ADF_CSR_RD(pmisc_addr, pfvf_offset);
 	if (gen2_csr_is_in_use(csr_val, local_offset)) {
@@ -186,15 +184,13 @@ start:
 	ADF_CSR_WR(pmisc_addr, pfvf_offset, csr_msg | int_bit);
 
 	/* Wait for confirmation from remote func it received the message */
-	do {
-		msleep(ADF_PFVF_MSG_ACK_DELAY);
-		csr_val = ADF_CSR_RD(pmisc_addr, pfvf_offset);
-	} while ((csr_val & int_bit) && (count++ < ADF_PFVF_MSG_ACK_MAX_RETRY));
-
-	if (csr_val & int_bit) {
+	ret = read_poll_timeout(ADF_CSR_RD, csr_val, !(csr_val & int_bit),
+				ADF_PFVF_MSG_ACK_DELAY_US,
+				ADF_PFVF_MSG_ACK_MAX_DELAY_US,
+				true, pmisc_addr, pfvf_offset);
+	if (unlikely(ret < 0)) {
 		dev_dbg(&GET_DEV(accel_dev), "ACK not received from remote\n");
 		csr_val &= ~int_bit;
-		ret = -EIO;
 	}
 
 	if (csr_val != csr_msg) {
