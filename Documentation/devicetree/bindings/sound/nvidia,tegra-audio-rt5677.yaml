@@ -92,9 +92,6 @@ examples:
         nvidia,audio-codec = <&rt5677>;
 
         nvidia,hp-det-gpios = <&gpio 143 0>;
-        nvidia,mic-present-gpios = <&gpio 132 1>;
-        nvidia,hp-en-gpios = <&rt5677 1 0>;
-        nvidia,dmic-clk-en-gpios = <&rt5677 2 1>;
 
         clocks = <&clk 216>,
                  <&clk 217>,
