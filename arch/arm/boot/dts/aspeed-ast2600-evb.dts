@@ -523,14 +523,31 @@
 
 &i2c4 {
 	status = "okay";
+
+	ssif-bmc@10 {
+		compatible = "aspeed,ast2600-ssif-bmc";
+		reg = <0x10>;
+	};
 };
 
 &i2c5 {
 	status = "okay";
+
+	ipmb@10 {
+		compatible = "ipmb-dev";
+		reg = <0x10>;
+		i2c-protocol;
+	};
 };
 
 &i2c6 {
 	status = "okay";
+
+	ipmb@12 {
+		compatible = "ipmb-dev";
+		reg = <0x12>;
+		i2c-protocol;
+	};
 };
 
 &i2c7 {
