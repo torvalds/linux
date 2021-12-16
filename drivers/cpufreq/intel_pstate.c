@@ -664,19 +664,29 @@ static int intel_pstate_set_epb(int cpu, s16 pref)
  *	3		balance_power
  *	4		power
  */
+
+enum energy_perf_value_index {
+	EPP_INDEX_DEFAULT = 0,
+	EPP_INDEX_PERFORMANCE,
+	EPP_INDEX_BALANCE_PERFORMANCE,
+	EPP_INDEX_BALANCE_POWERSAVE,
+	EPP_INDEX_POWERSAVE,
+};
+
 static const char * const energy_perf_strings[] = {
-	"default",
-	"performance",
-	"balance_performance",
-	"balance_power",
-	"power",
+	[EPP_INDEX_DEFAULT] = "default",
+	[EPP_INDEX_PERFORMANCE] = "performance",
+	[EPP_INDEX_BALANCE_PERFORMANCE] = "balance_performance",
+	[EPP_INDEX_BALANCE_POWERSAVE] = "balance_power",
+	[EPP_INDEX_POWERSAVE] = "power",
 	NULL
 };
-static const unsigned int epp_values[] = {
-	HWP_EPP_PERFORMANCE,
-	HWP_EPP_BALANCE_PERFORMANCE,
-	HWP_EPP_BALANCE_POWERSAVE,
-	HWP_EPP_POWERSAVE
+static unsigned int epp_values[] = {
+	[EPP_INDEX_DEFAULT] = 0, /* Unused index */
+	[EPP_INDEX_PERFORMANCE] = HWP_EPP_PERFORMANCE,
+	[EPP_INDEX_BALANCE_PERFORMANCE] = HWP_EPP_BALANCE_PERFORMANCE,
+	[EPP_INDEX_BALANCE_POWERSAVE] = HWP_EPP_BALANCE_POWERSAVE,
+	[EPP_INDEX_POWERSAVE] = HWP_EPP_POWERSAVE,
 };
 
 static int intel_pstate_get_energy_pref_index(struct cpudata *cpu_data, int *raw_epp)
@@ -690,14 +700,14 @@ static int intel_pstate_get_energy_pref_index(struct cpudata *cpu_data, int *raw
 		return epp;
 
 	if (boot_cpu_has(X86_FEATURE_HWP_EPP)) {
-		if (epp == HWP_EPP_PERFORMANCE)
-			return 1;
-		if (epp == HWP_EPP_BALANCE_PERFORMANCE)
-			return 2;
-		if (epp == HWP_EPP_BALANCE_POWERSAVE)
-			return 3;
-		if (epp == HWP_EPP_POWERSAVE)
-			return 4;
+		if (epp == epp_values[EPP_INDEX_PERFORMANCE])
+			return EPP_INDEX_PERFORMANCE;
+		if (epp == epp_values[EPP_INDEX_BALANCE_PERFORMANCE])
+			return EPP_INDEX_BALANCE_PERFORMANCE;
+		if (epp == epp_values[EPP_INDEX_BALANCE_POWERSAVE])
+			return EPP_INDEX_BALANCE_POWERSAVE;
+		if (epp == epp_values[EPP_INDEX_POWERSAVE])
+			return EPP_INDEX_POWERSAVE;
 		*raw_epp = epp;
 		return 0;
 	} else if (boot_cpu_has(X86_FEATURE_EPB)) {
@@ -757,7 +767,7 @@ static int intel_pstate_set_energy_pref_index(struct cpudata *cpu_data,
 		if (use_raw)
 			epp = raw_epp;
 		else if (epp == -EINVAL)
-			epp = epp_values[pref_index - 1];
+			epp = epp_values[pref_index];
 
 		/*
 		 * To avoid confusion, refuse to set EPP to any values different
@@ -843,7 +853,7 @@ static ssize_t store_energy_performance_preference(
 		 * upfront.
 		 */
 		if (!raw)
-			epp = ret ? epp_values[ret - 1] : cpu->epp_default;
+			epp = ret ? epp_values[ret] : cpu->epp_default;
 
 		if (cpu->epp_cached != epp) {
 			int err;
@@ -1679,10 +1689,18 @@ static void intel_pstate_hwp_enable(struct cpudata *cpudata)
 		wrmsrl_on_cpu(cpudata->cpu, MSR_HWP_INTERRUPT, 0x00);
 
 	wrmsrl_on_cpu(cpudata->cpu, MSR_PM_ENABLE, 0x1);
-	if (cpudata->epp_default == -EINVAL)
-		cpudata->epp_default = intel_pstate_get_epp(cpudata, 0);
 
 	intel_pstate_enable_hwp_interrupt(cpudata);
+
+	if (cpudata->epp_default >= 0)
+		return;
+
+	if (epp_values[EPP_INDEX_BALANCE_PERFORMANCE] == HWP_EPP_BALANCE_PERFORMANCE) {
+		cpudata->epp_default = intel_pstate_get_epp(cpudata, 0);
+	} else {
+		cpudata->epp_default = epp_values[EPP_INDEX_BALANCE_PERFORMANCE];
+		intel_pstate_set_epp(cpudata, cpudata->epp_default);
+	}
 }
 
 static int atom_get_min_pstate(void)
@@ -3345,6 +3363,16 @@ static bool intel_pstate_hwp_is_enabled(void)
 	return !!(value & 0x1);
 }
 
+static const struct x86_cpu_id intel_epp_balance_perf[] = {
+	/*
+	 * Set EPP value as 102, this is the max suggested EPP
+	 * which can result in one core turbo frequency for
+	 * AlderLake Mobile CPUs.
+	 */
+	X86_MATCH_INTEL_FAM6_MODEL(ALDERLAKE_L, 102),
+	{}
+};
+
 static int __init intel_pstate_init(void)
 {
 	static struct cpudata **_all_cpu_data;
@@ -3433,6 +3461,13 @@ hwp_cpu_matched:
 	intel_pstate_request_control_from_smm();
 
 	intel_pstate_sysfs_expose_params();
+
+	if (hwp_active) {
+		const struct x86_cpu_id *id = x86_match_cpu(intel_epp_balance_perf);
+
+		if (id)
+			epp_values[EPP_INDEX_BALANCE_PERFORMANCE] = id->driver_data;
+	}
 
 	mutex_lock(&intel_pstate_driver_lock);
 	rc = intel_pstate_register_driver(default_driver);
