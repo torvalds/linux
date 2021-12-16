@@ -42,34 +42,6 @@ static const struct spi_device_id cs35l41_id_spi[] = {
 
 MODULE_DEVICE_TABLE(spi, cs35l41_id_spi);
 
-static void cs35l41_spi_otp_setup(struct cs35l41_private *cs35l41,
-				  bool is_pre_setup, unsigned int *freq)
-{
-	struct spi_device *spi;
-	u32 orig_spi_freq;
-
-	spi = to_spi_device(cs35l41->dev);
-
-	if (!spi) {
-		dev_err(cs35l41->dev, "%s: No SPI device\n", __func__);
-		return;
-	}
-
-	if (is_pre_setup) {
-		orig_spi_freq = spi->max_speed_hz;
-		if (orig_spi_freq > CS35L41_SPI_MAX_FREQ_OTP) {
-			spi->max_speed_hz = CS35L41_SPI_MAX_FREQ_OTP;
-			spi_setup(spi);
-		}
-		*freq = orig_spi_freq;
-	} else {
-		if (spi->max_speed_hz != *freq) {
-			spi->max_speed_hz = *freq;
-			spi_setup(spi);
-		}
-	}
-}
-
 static int cs35l41_spi_probe(struct spi_device *spi)
 {
 	const struct regmap_config *regmap_config = &cs35l41_regmap_spi;
@@ -81,6 +53,9 @@ static int cs35l41_spi_probe(struct spi_device *spi)
 	if (!cs35l41)
 		return -ENOMEM;
 
+	spi->max_speed_hz = CS35L41_SPI_MAX_FREQ;
+	spi_setup(spi);
+
 	spi_set_drvdata(spi, cs35l41);
 	cs35l41->regmap = devm_regmap_init_spi(spi, regmap_config);
 	if (IS_ERR(cs35l41->regmap)) {
@@ -91,7 +66,6 @@ static int cs35l41_spi_probe(struct spi_device *spi)
 
 	cs35l41->dev = &spi->dev;
 	cs35l41->irq = spi->irq;
-	cs35l41->otp_setup = cs35l41_spi_otp_setup;
 
 	return cs35l41_probe(cs35l41, pdata);
 }

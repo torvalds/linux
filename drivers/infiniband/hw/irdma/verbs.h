@@ -110,6 +110,8 @@ struct irdma_cq {
 	u16 cq_size;
 	u16 cq_num;
 	bool user_mode;
+	bool armed;
+	enum irdma_cmpl_notify last_notify;
 	u32 polled_cmpls;
 	u32 cq_mem_size;
 	struct irdma_dma_mem kmem;

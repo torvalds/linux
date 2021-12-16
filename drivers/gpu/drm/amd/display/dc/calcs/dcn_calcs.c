@@ -763,7 +763,7 @@ unsigned int get_highest_allowed_voltage_level(uint32_t chip_family, uint32_t hw
 	return 4;
 }
 
-bool dcn_validate_bandwidth(
+bool dcn10_validate_bandwidth(
 		struct dc *dc,
 		struct dc_state *context,
 		bool fast_validate)

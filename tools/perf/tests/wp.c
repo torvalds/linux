@@ -21,6 +21,7 @@ do {                                            \
 volatile u64 data1;
 volatile u8 data2[3];
 
+#ifndef __s390x__
 static int wp_read(int fd, long long *count, int size)
 {
 	int ret = read(fd, count, size);
@@ -48,7 +49,6 @@ static void get__perf_event_attr(struct perf_event_attr *attr, int wp_type,
 	attr->exclude_hv     = 1;
 }
 
-#ifndef __s390x__
 static int __event(int wp_type, void *wp_addr, unsigned long wp_len)
 {
 	int fd;

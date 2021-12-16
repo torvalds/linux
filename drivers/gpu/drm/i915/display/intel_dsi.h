@@ -166,57 +166,15 @@ static inline u16 intel_dsi_encoder_ports(struct intel_encoder *encoder)
 	return enc_to_intel_dsi(encoder)->ports;
 }
 
-/* icl_dsi.c */
-void icl_dsi_init(struct drm_i915_private *dev_priv);
-void icl_dsi_frame_update(struct intel_crtc_state *crtc_state);
-
-/* intel_dsi.c */
 int intel_dsi_bitrate(const struct intel_dsi *intel_dsi);
 int intel_dsi_tlpx_ns(const struct intel_dsi *intel_dsi);
 enum drm_panel_orientation
 intel_dsi_get_panel_orientation(struct intel_connector *connector);
-
-/* vlv_dsi.c */
-void vlv_dsi_wait_for_fifo_empty(struct intel_dsi *intel_dsi, enum port port);
-enum mipi_dsi_pixel_format pixel_format_from_register_bits(u32 fmt);
 int intel_dsi_get_modes(struct drm_connector *connector);
 enum drm_mode_status intel_dsi_mode_valid(struct drm_connector *connector,
 					  struct drm_display_mode *mode);
 struct intel_dsi_host *intel_dsi_host_init(struct intel_dsi *intel_dsi,
 					   const struct mipi_dsi_host_ops *funcs,
 					   enum port port);
-void vlv_dsi_init(struct drm_i915_private *dev_priv);
-
-/* vlv_dsi_pll.c */
-int vlv_dsi_pll_compute(struct intel_encoder *encoder,
-			struct intel_crtc_state *config);
-void vlv_dsi_pll_enable(struct intel_encoder *encoder,
-			const struct intel_crtc_state *config);
-void vlv_dsi_pll_disable(struct intel_encoder *encoder);
-u32 vlv_dsi_get_pclk(struct intel_encoder *encoder,
-		     struct intel_crtc_state *config);
-void vlv_dsi_reset_clocks(struct intel_encoder *encoder, enum port port);
-
-bool bxt_dsi_pll_is_enabled(struct drm_i915_private *dev_priv);
-int bxt_dsi_pll_compute(struct intel_encoder *encoder,
-			struct intel_crtc_state *config);
-void bxt_dsi_pll_enable(struct intel_encoder *encoder,
-			const struct intel_crtc_state *config);
-void bxt_dsi_pll_disable(struct intel_encoder *encoder);
-u32 bxt_dsi_get_pclk(struct intel_encoder *encoder,
-		     struct intel_crtc_state *config);
-void bxt_dsi_reset_clocks(struct intel_encoder *encoder, enum port port);
-
-void assert_dsi_pll_enabled(struct drm_i915_private *i915);
-void assert_dsi_pll_disabled(struct drm_i915_private *i915);
-
-/* intel_dsi_vbt.c */
-bool intel_dsi_vbt_init(struct intel_dsi *intel_dsi, u16 panel_id);
-void intel_dsi_vbt_gpio_init(struct intel_dsi *intel_dsi, bool panel_is_on);
-void intel_dsi_vbt_gpio_cleanup(struct intel_dsi *intel_dsi);
-void intel_dsi_vbt_exec_sequence(struct intel_dsi *intel_dsi,
-				 enum mipi_seq seq_id);
-void intel_dsi_msleep(struct intel_dsi *intel_dsi, int msec);
-void intel_dsi_log_params(struct intel_dsi *intel_dsi);
 
 #endif /* _INTEL_DSI_H */

@@ -288,7 +288,7 @@ static int kfd_get_cu_occupancy(struct attribute *attr, char *buffer)
 	/* Collect wave count from device if it supports */
 	wave_cnt = 0;
 	max_waves_per_cu = 0;
-	dev->kfd2kgd->get_cu_occupancy(dev->kgd, proc->pasid, &wave_cnt,
+	dev->kfd2kgd->get_cu_occupancy(dev->adev, proc->pasid, &wave_cnt,
 			&max_waves_per_cu);
 
 	/* Translate wave count to number of compute units */
@@ -692,12 +692,12 @@ static void kfd_process_free_gpuvm(struct kgd_mem *mem,
 	struct kfd_dev *dev = pdd->dev;
 
 	if (kptr) {
-		amdgpu_amdkfd_gpuvm_unmap_gtt_bo_from_kernel(dev->kgd, mem);
+		amdgpu_amdkfd_gpuvm_unmap_gtt_bo_from_kernel(dev->adev, mem);
 		kptr = NULL;
 	}
 
-	amdgpu_amdkfd_gpuvm_unmap_memory_from_gpu(dev->kgd, mem, pdd->drm_priv);
-	amdgpu_amdkfd_gpuvm_free_memory_of_gpu(dev->kgd, mem, pdd->drm_priv,
+	amdgpu_amdkfd_gpuvm_unmap_memory_from_gpu(dev->adev, mem, pdd->drm_priv);
+	amdgpu_amdkfd_gpuvm_free_memory_of_gpu(dev->adev, mem, pdd->drm_priv,
 					       NULL);
 }
 
@@ -714,24 +714,24 @@ static int kfd_process_alloc_gpuvm(struct kfd_process_device *pdd,
 	struct kfd_dev *kdev = pdd->dev;
 	int err;
 
-	err = amdgpu_amdkfd_gpuvm_alloc_memory_of_gpu(kdev->kgd, gpu_va, size,
+	err = amdgpu_amdkfd_gpuvm_alloc_memory_of_gpu(kdev->adev, gpu_va, size,
 						 pdd->drm_priv, mem, NULL, flags);
 	if (err)
 		goto err_alloc_mem;
 
-	err = amdgpu_amdkfd_gpuvm_map_memory_to_gpu(kdev->kgd, *mem,
+	err = amdgpu_amdkfd_gpuvm_map_memory_to_gpu(kdev->adev, *mem,
 			pdd->drm_priv, NULL);
 	if (err)
 		goto err_map_mem;
 
-	err = amdgpu_amdkfd_gpuvm_sync_memory(kdev->kgd, *mem, true);
+	err = amdgpu_amdkfd_gpuvm_sync_memory(kdev->adev, *mem, true);
 	if (err) {
 		pr_debug("Sync memory failed, wait interrupted by user signal\n");
 		goto sync_memory_failed;
 	}
 
 	if (kptr) {
-		err = amdgpu_amdkfd_gpuvm_map_gtt_bo_to_kernel(kdev->kgd,
+		err = amdgpu_amdkfd_gpuvm_map_gtt_bo_to_kernel(kdev->adev,
 				(struct kgd_mem *)*mem, kptr, NULL);
 		if (err) {
 			pr_debug("Map GTT BO to kernel failed\n");
@@ -742,10 +742,10 @@ static int kfd_process_alloc_gpuvm(struct kfd_process_device *pdd,
 	return err;
 
 sync_memory_failed:
-	amdgpu_amdkfd_gpuvm_unmap_memory_from_gpu(kdev->kgd, *mem, pdd->drm_priv);
+	amdgpu_amdkfd_gpuvm_unmap_memory_from_gpu(kdev->adev, *mem, pdd->drm_priv);
 
 err_map_mem:
-	amdgpu_amdkfd_gpuvm_free_memory_of_gpu(kdev->kgd, *mem, pdd->drm_priv,
+	amdgpu_amdkfd_gpuvm_free_memory_of_gpu(kdev->adev, *mem, pdd->drm_priv,
 					       NULL);
 err_alloc_mem:
 	*mem = NULL;
@@ -940,10 +940,10 @@ static void kfd_process_device_free_bos(struct kfd_process_device *pdd)
 			if (!peer_pdd->drm_priv)
 				continue;
 			amdgpu_amdkfd_gpuvm_unmap_memory_from_gpu(
-				peer_pdd->dev->kgd, mem, peer_pdd->drm_priv);
+				peer_pdd->dev->adev, mem, peer_pdd->drm_priv);
 		}
 
-		amdgpu_amdkfd_gpuvm_free_memory_of_gpu(pdd->dev->kgd, mem,
+		amdgpu_amdkfd_gpuvm_free_memory_of_gpu(pdd->dev->adev, mem,
 						       pdd->drm_priv, NULL);
 		kfd_process_device_remove_obj_handle(pdd, id);
 	}
@@ -974,7 +974,7 @@ static void kfd_process_kunmap_signal_bo(struct kfd_process *p)
 	if (!mem)
 		goto out;
 
-	amdgpu_amdkfd_gpuvm_unmap_gtt_bo_from_kernel(kdev->kgd, mem);
+	amdgpu_amdkfd_gpuvm_unmap_gtt_bo_from_kernel(kdev->adev, mem);
 
 out:
 	mutex_unlock(&p->mutex);
@@ -1003,7 +1003,7 @@ static void kfd_process_destroy_pdds(struct kfd_process *p)
 
 		if (pdd->drm_file) {
 			amdgpu_amdkfd_gpuvm_release_process_vm(
-					pdd->dev->kgd, pdd->drm_priv);
+					pdd->dev->adev, pdd->drm_priv);
 			fput(pdd->drm_file);
 		}
 
@@ -1317,14 +1317,13 @@ bool kfd_process_xnack_mode(struct kfd_process *p, bool supported)
 		 * support the SVM APIs and don't need to be considered
 		 * for the XNACK mode selection.
 		 */
-		if (dev->device_info->asic_family < CHIP_VEGA10)
+		if (!KFD_IS_SOC15(dev))
 			continue;
 		/* Aldebaran can always support XNACK because it can support
 		 * per-process XNACK mode selection. But let the dev->noretry
 		 * setting still influence the default XNACK mode.
 		 */
-		if (supported &&
-		    dev->device_info->asic_family == CHIP_ALDEBARAN)
+		if (supported && KFD_GC_VERSION(dev) == IP_VERSION(9, 4, 2))
 			continue;
 
 		/* GFXv10 and later GPUs do not support shader preemption
@@ -1332,7 +1331,7 @@ bool kfd_process_xnack_mode(struct kfd_process *p, bool supported)
 		 * management and memory-manager-related preemptions or
 		 * even deadlocks.
 		 */
-		if (dev->device_info->asic_family >= CHIP_NAVI10)
+		if (KFD_GC_VERSION(dev) >= IP_VERSION(10, 1, 1))
 			return false;
 
 		if (dev->noretry)
@@ -1431,7 +1430,7 @@ static int init_doorbell_bitmap(struct qcm_process_device *qpd,
 	int range_start = dev->shared_resources.non_cp_doorbells_start;
 	int range_end = dev->shared_resources.non_cp_doorbells_end;
 
-	if (!KFD_IS_SOC15(dev->device_info->asic_family))
+	if (!KFD_IS_SOC15(dev))
 		return 0;
 
 	qpd->doorbell_bitmap =
@@ -1547,7 +1546,7 @@ int kfd_process_device_init_vm(struct kfd_process_device *pdd,
 	dev = pdd->dev;
 
 	ret = amdgpu_amdkfd_gpuvm_acquire_process_vm(
-		dev->kgd, drm_file, p->pasid,
+		dev->adev, drm_file, p->pasid,
 		&p->kgd_process_info, &p->ef);
 	if (ret) {
 		pr_err("Failed to create process VM object\n");
@@ -1779,14 +1778,13 @@ int kfd_process_gpuidx_from_gpuid(struct kfd_process *p, uint32_t gpu_id)
 }
 
 int
-kfd_process_gpuid_from_kgd(struct kfd_process *p, struct amdgpu_device *adev,
+kfd_process_gpuid_from_adev(struct kfd_process *p, struct amdgpu_device *adev,
 			   uint32_t *gpuid, uint32_t *gpuidx)
 {
-	struct kgd_dev *kgd = (struct kgd_dev *)adev;
 	int i;
 
 	for (i = 0; i < p->n_pdds; i++)
-		if (p->pdds[i] && p->pdds[i]->dev->kgd == kgd) {
+		if (p->pdds[i] && p->pdds[i]->dev->adev == adev) {
 			*gpuid = p->pdds[i]->dev->id;
 			*gpuidx = i;
 			return 0;
@@ -1951,10 +1949,10 @@ void kfd_flush_tlb(struct kfd_process_device *pdd, enum TLB_FLUSH_TYPE type)
 		 * only happens when the first queue is created.
 		 */
 		if (pdd->qpd.vmid)
-			amdgpu_amdkfd_flush_gpu_tlb_vmid(dev->kgd,
+			amdgpu_amdkfd_flush_gpu_tlb_vmid(dev->adev,
 							pdd->qpd.vmid);
 	} else {
-		amdgpu_amdkfd_flush_gpu_tlb_pasid(dev->kgd,
+		amdgpu_amdkfd_flush_gpu_tlb_pasid(dev->adev,
 					pdd->process->pasid, type);
 	}
 }

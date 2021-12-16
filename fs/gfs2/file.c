@@ -773,8 +773,8 @@ static inline bool should_fault_in_pages(ssize_t ret, struct iov_iter *i,
 					 size_t *prev_count,
 					 size_t *window_size)
 {
-	char __user *p = i->iov[0].iov_base + i->iov_offset;
 	size_t count = iov_iter_count(i);
+	char __user *p;
 	int pages = 1;
 
 	if (likely(!count))
@@ -787,14 +787,14 @@ static inline bool should_fault_in_pages(ssize_t ret, struct iov_iter *i,
 	if (*prev_count != count || !*window_size) {
 		int pages, nr_dirtied;
 
-		pages = min_t(int, BIO_MAX_VECS,
-			      DIV_ROUND_UP(iov_iter_count(i), PAGE_SIZE));
+		pages = min_t(int, BIO_MAX_VECS, DIV_ROUND_UP(count, PAGE_SIZE));
 		nr_dirtied = max(current->nr_dirtied_pause -
 				 current->nr_dirtied, 1);
 		pages = min(pages, nr_dirtied);
 	}
 
 	*prev_count = count;
+	p = i->iov[0].iov_base + i->iov_offset;
 	*window_size = (size_t)PAGE_SIZE * pages - offset_in_page(p);
 	return true;
 }
@@ -1013,6 +1013,7 @@ static ssize_t gfs2_file_buffered_write(struct kiocb *iocb,
 	struct gfs2_sbd *sdp = GFS2_SB(inode);
 	struct gfs2_holder *statfs_gh = NULL;
 	size_t prev_count = 0, window_size = 0;
+	size_t orig_count = iov_iter_count(from);
 	size_t read = 0;
 	ssize_t ret;
 
@@ -1057,6 +1058,7 @@ retry_under_glock:
 	if (inode == sdp->sd_rindex)
 		gfs2_glock_dq_uninit(statfs_gh);
 
+	from->count = orig_count - read;
 	if (should_fault_in_pages(ret, from, &prev_count, &window_size)) {
 		size_t leftover;
 
@@ -1064,6 +1066,7 @@ retry_under_glock:
 		leftover = fault_in_iov_iter_readable(from, window_size);
 		gfs2_holder_disallow_demote(gh);
 		if (leftover != window_size) {
+			from->count = min(from->count, window_size - leftover);
 			if (!gfs2_holder_queued(gh)) {
 				if (read)
 					goto out_uninit;

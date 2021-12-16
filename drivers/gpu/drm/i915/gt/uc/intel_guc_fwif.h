@@ -294,6 +294,19 @@ struct guc_ads {
 	u32 reserved[15];
 } __packed;
 
+/* Engine usage stats */
+struct guc_engine_usage_record {
+	u32 current_context_index;
+	u32 last_switch_in_stamp;
+	u32 reserved0;
+	u32 total_runtime;
+	u32 reserved1[4];
+} __packed;
+
+struct guc_engine_usage {
+	struct guc_engine_usage_record engines[GUC_MAX_ENGINE_CLASSES][GUC_MAX_INSTANCES_PER_CLASS];
+} __packed;
+
 /* GuC logging structures */
 
 enum guc_log_buffer_type {

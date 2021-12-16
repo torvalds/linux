@@ -84,6 +84,16 @@ CONFIG_ENERGY_MODEL must be enabled to use the EM framework.
 2.2 Registration of performance domains
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Registration of 'advanced' EM
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The 'advanced' EM gets it's name due to the fact that the driver is allowed
+to provide more precised power model. It's not limited to some implemented math
+formula in the framework (like it's in 'simple' EM case). It can better reflect
+the real power measurements performed for each performance state. Thus, this
+registration method should be preferred in case considering EM static power
+(leakage) is important.
+
 Drivers are expected to register performance domains into the EM framework by
 calling the following API::
 
@@ -102,6 +112,18 @@ the same scale. If there are different scales, these subsystems might decide
 to: return warning/error, stop working or panic.
 See Section 3. for an example of driver implementing this
 callback, or Section 2.4 for further documentation on this API
+
+Registration of 'simple' EM
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The 'simple' EM is registered using the framework helper function
+cpufreq_register_em_with_opp(). It implements a power model which is tight to
+math formula::
+
+	Power = C * V^2 * f
+
+The EM which is registered using this method might not reflect correctly the
+physics of a real device, e.g. when static power (leakage) is important.
 
 
 2.3 Accessing performance domains
@@ -138,6 +160,10 @@ or in Section 2.4
 3. Example driver
 -----------------
 
+The CPUFreq framework supports dedicated callback for registering
+the EM for a given CPU(s) 'policy' object: cpufreq_driver::register_em().
+That callback has to be implemented properly for a given driver,
+because the framework would call it at the right time during setup.
 This section provides a simple example of a CPUFreq driver registering a
 performance domain in the Energy Model framework using the (fake) 'foo'
 protocol. The driver implements an est_power() function to be provided to the
@@ -167,25 +193,22 @@ EM framework::
   20		return 0;
   21	}
   22
-  23	static int foo_cpufreq_init(struct cpufreq_policy *policy)
+  23	static void foo_cpufreq_register_em(struct cpufreq_policy *policy)
   24	{
   25		struct em_data_callback em_cb = EM_DATA_CB(est_power);
   26		struct device *cpu_dev;
-  27		int nr_opp, ret;
+  27		int nr_opp;
   28
   29		cpu_dev = get_cpu_device(cpumask_first(policy->cpus));
   30
-  31     	/* Do the actual CPUFreq init work ... */
-  32     	ret = do_foo_cpufreq_init(policy);
-  33     	if (ret)
-  34     		return ret;
-  35
-  36     	/* Find the number of OPPs for this policy */
-  37     	nr_opp = foo_get_nr_opp(policy);
+  31     	/* Find the number of OPPs for this policy */
+  32     	nr_opp = foo_get_nr_opp(policy);
+  33
+  34     	/* And register the new performance domain */
+  35     	em_dev_register_perf_domain(cpu_dev, nr_opp, &em_cb, policy->cpus,
+  36					    true);
+  37	}
   38
-  39     	/* And register the new performance domain */
-  40     	em_dev_register_perf_domain(cpu_dev, nr_opp, &em_cb, policy->cpus,
-  41					    true);
-  42
-  43	        return 0;
-  44	}
+  39	static struct cpufreq_driver foo_cpufreq_driver = {
+  40		.register_em = foo_cpufreq_register_em,
+  41	};

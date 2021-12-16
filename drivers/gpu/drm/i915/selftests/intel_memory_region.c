@@ -225,7 +225,7 @@ static int igt_mock_reserve(void *arg)
 
 out_close:
 	close_objects(mem, &objects);
-	intel_memory_region_put(mem);
+	intel_memory_region_destroy(mem);
 out_free_order:
 	kfree(order);
 	return err;
@@ -439,7 +439,7 @@ static int igt_mock_splintered_region(void *arg)
 out_close:
 	close_objects(mem, &objects);
 out_put:
-	intel_memory_region_put(mem);
+	intel_memory_region_destroy(mem);
 	return err;
 }
 
@@ -507,7 +507,7 @@ static int igt_mock_max_segment(void *arg)
 out_close:
 	close_objects(mem, &objects);
 out_put:
-	intel_memory_region_put(mem);
+	intel_memory_region_destroy(mem);
 	return err;
 }
 
@@ -1196,7 +1196,7 @@ int intel_memory_region_mock_selftests(void)
 
 	err = i915_subtests(tests, mem);
 
-	intel_memory_region_put(mem);
+	intel_memory_region_destroy(mem);
 out_unref:
 	mock_destroy_device(i915);
 	return err;

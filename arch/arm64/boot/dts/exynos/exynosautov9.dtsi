@@ -296,8 +296,7 @@
 			pinctrl-0 = <&ufs_rst_n &ufs_refclk_out>;
 			phys = <&ufs_0_phy>;
 			phy-names = "ufs-phy";
-			samsung,sysreg = <&syscon_fsys2>;
-			samsung,ufs-shareability-reg-offset = <0x710>;
+			samsung,sysreg = <&syscon_fsys2 0x710>;
 			status = "disabled";
 		};
 	};

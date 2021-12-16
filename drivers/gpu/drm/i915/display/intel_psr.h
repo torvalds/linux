@@ -20,7 +20,8 @@ struct intel_plane;
 struct intel_encoder;
 
 void intel_psr_init_dpcd(struct intel_dp *intel_dp);
-void intel_psr_pre_plane_update(const struct intel_atomic_state *state);
+void intel_psr_pre_plane_update(struct intel_atomic_state *state,
+				struct intel_crtc *crtc);
 void intel_psr_post_plane_update(const struct intel_atomic_state *state);
 void intel_psr_disable(struct intel_dp *intel_dp,
 		       const struct intel_crtc_state *old_crtc_state);

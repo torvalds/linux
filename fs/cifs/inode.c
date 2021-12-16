@@ -1376,6 +1376,13 @@ iget_no_retry:
 		inode = ERR_PTR(rc);
 	}
 
+	/*
+	 * The cookie is initialized from volume info returned above.
+	 * Inside cifs_fscache_get_super_cookie it checks
+	 * that we do not get super cookie twice.
+	 */
+	cifs_fscache_get_super_cookie(tcon);
+
 out:
 	kfree(path);
 	free_xid(xid);

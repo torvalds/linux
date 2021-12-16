@@ -31,6 +31,15 @@ config SAMPLE_FTRACE_DIRECT
 	  This builds an ftrace direct function example
 	  that hooks to wake_up_process and prints the parameters.
 
+config SAMPLE_FTRACE_DIRECT_MULTI
+	tristate "Build register_ftrace_direct_multi() example"
+	depends on DYNAMIC_FTRACE_WITH_DIRECT_CALLS && m
+	depends on HAVE_SAMPLE_FTRACE_DIRECT_MULTI
+	help
+	  This builds an ftrace direct function example
+	  that hooks to wake_up_process and schedule, and prints
+	  the function addresses.
+
 config SAMPLE_TRACE_ARRAY
         tristate "Build sample module for kernel access to Ftrace instancess"
 	depends on EVENT_TRACING && m
@@ -237,5 +246,5 @@ endif # SAMPLES
 config HAVE_SAMPLE_FTRACE_DIRECT
 	bool
 
-config HAVE_SAMPLE_FTRACE_MULTI_DIRECT
+config HAVE_SAMPLE_FTRACE_DIRECT_MULTI
 	bool

@@ -47,7 +47,7 @@ struct aux_payload;
 struct set_config_cmd_payload;
 struct dmub_notification;
 
-#define DC_VER "3.2.160"
+#define DC_VER "3.2.163"
 
 #define MAX_SURFACES 3
 #define MAX_PLANES 6
@@ -188,6 +188,7 @@ struct dc_caps {
 #if defined(CONFIG_DRM_AMD_DC_DCN)
 	bool dp_hpo;
 #endif
+	bool edp_dsc_support;
 	bool vbios_lttpr_aware;
 	bool vbios_lttpr_enable;
 };
@@ -508,7 +509,8 @@ union dpia_debug_options {
 		uint32_t disable_dpia:1;
 		uint32_t force_non_lttpr:1;
 		uint32_t extend_aux_rd_interval:1;
-		uint32_t reserved:29;
+		uint32_t disable_mst_dsc_work_around:1;
+		uint32_t reserved:28;
 	} bits;
 	uint32_t raw;
 };
@@ -573,6 +575,8 @@ struct dc_debug_options {
 	bool native422_support;
 	bool disable_dsc;
 	enum visual_confirm visual_confirm;
+	int visual_confirm_rect_height;
+
 	bool sanity_checks;
 	bool max_disp_clk;
 	bool surface_trace;
@@ -667,6 +671,8 @@ struct dc_debug_options {
 	bool validate_dml_output;
 	bool enable_dmcub_surface_flip;
 	bool usbc_combo_phy_reset_wa;
+	bool disable_dsc_edp;
+	unsigned int  force_dsc_edp_policy;
 	bool enable_dram_clock_change_one_display_vactive;
 #if defined(CONFIG_DRM_AMD_DC_DCN)
 	/* TODO - remove once tested */

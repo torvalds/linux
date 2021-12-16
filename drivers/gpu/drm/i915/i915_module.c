@@ -24,8 +24,8 @@ static int i915_check_nomodeset(void)
 
 	/*
 	 * Enable KMS by default, unless explicitly overriden by
-	 * either the i915.modeset prarameter or by the
-	 * vga_text_mode_force boot option.
+	 * either the i915.modeset parameter or by the
+	 * nomodeset boot option.
 	 */
 
 	if (i915_modparams.modeset == 0)

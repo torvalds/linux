@@ -362,7 +362,9 @@ const struct nbio_hdp_flush_reg nbio_v7_4_hdp_flush_reg_ald = {
 
 static void nbio_v7_4_init_registers(struct amdgpu_device *adev)
 {
-
+	if (amdgpu_sriov_vf(adev))
+		adev->rmmio_remap.reg_offset = SOC15_REG_OFFSET(NBIO, 0,
+			mmBIF_BX_DEV0_EPF0_VF0_HDP_MEM_COHERENCY_FLUSH_CNTL) << 2;
 }
 
 static void nbio_v7_4_handle_ras_controller_intr_no_bifring(struct amdgpu_device *adev)
@@ -691,6 +693,9 @@ static void nbio_v7_4_program_ltr(struct amdgpu_device *adev)
 static void nbio_v7_4_program_aspm(struct amdgpu_device *adev)
 {
 	uint32_t def, data;
+
+	if (adev->ip_versions[NBIO_HWIP][0] == IP_VERSION(7, 4, 4))
+		return;
 
 	def = data = RREG32_PCIE(smnPCIE_LC_CNTL);
 	data &= ~PCIE_LC_CNTL__LC_L1_INACTIVITY_MASK;

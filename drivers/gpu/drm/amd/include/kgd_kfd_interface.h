@@ -33,12 +33,11 @@
 #include <linux/dma-fence.h>
 
 struct pci_dev;
+struct amdgpu_device;
 
 #define KGD_MAX_QUEUES 128
 
 struct kfd_dev;
-struct kgd_dev;
-
 struct kgd_mem;
 
 enum kfd_preempt_type {
@@ -228,61 +227,61 @@ struct tile_config {
  */
 struct kfd2kgd_calls {
 	/* Register access functions */
-	void (*program_sh_mem_settings)(struct kgd_dev *kgd, uint32_t vmid,
+	void (*program_sh_mem_settings)(struct amdgpu_device *adev, uint32_t vmid,
 			uint32_t sh_mem_config,	uint32_t sh_mem_ape1_base,
 			uint32_t sh_mem_ape1_limit, uint32_t sh_mem_bases);
 
-	int (*set_pasid_vmid_mapping)(struct kgd_dev *kgd, u32 pasid,
+	int (*set_pasid_vmid_mapping)(struct amdgpu_device *adev, u32 pasid,
 					unsigned int vmid);
 
-	int (*init_interrupts)(struct kgd_dev *kgd, uint32_t pipe_id);
+	int (*init_interrupts)(struct amdgpu_device *adev, uint32_t pipe_id);
 
-	int (*hqd_load)(struct kgd_dev *kgd, void *mqd, uint32_t pipe_id,
+	int (*hqd_load)(struct amdgpu_device *adev, void *mqd, uint32_t pipe_id,
 			uint32_t queue_id, uint32_t __user *wptr,
 			uint32_t wptr_shift, uint32_t wptr_mask,
 			struct mm_struct *mm);
 
-	int (*hiq_mqd_load)(struct kgd_dev *kgd, void *mqd,
+	int (*hiq_mqd_load)(struct amdgpu_device *adev, void *mqd,
 			    uint32_t pipe_id, uint32_t queue_id,
 			    uint32_t doorbell_off);
 
-	int (*hqd_sdma_load)(struct kgd_dev *kgd, void *mqd,
+	int (*hqd_sdma_load)(struct amdgpu_device *adev, void *mqd,
 			     uint32_t __user *wptr, struct mm_struct *mm);
 
-	int (*hqd_dump)(struct kgd_dev *kgd,
+	int (*hqd_dump)(struct amdgpu_device *adev,
 			uint32_t pipe_id, uint32_t queue_id,
 			uint32_t (**dump)[2], uint32_t *n_regs);
 
-	int (*hqd_sdma_dump)(struct kgd_dev *kgd,
+	int (*hqd_sdma_dump)(struct amdgpu_device *adev,
 			     uint32_t engine_id, uint32_t queue_id,
 			     uint32_t (**dump)[2], uint32_t *n_regs);
 
-	bool (*hqd_is_occupied)(struct kgd_dev *kgd, uint64_t queue_address,
-				uint32_t pipe_id, uint32_t queue_id);
-
-	int (*hqd_destroy)(struct kgd_dev *kgd, void *mqd, uint32_t reset_type,
-				unsigned int timeout, uint32_t pipe_id,
+	bool (*hqd_is_occupied)(struct amdgpu_device *adev,
+				uint64_t queue_address, uint32_t pipe_id,
 				uint32_t queue_id);
 
-	bool (*hqd_sdma_is_occupied)(struct kgd_dev *kgd, void *mqd);
+	int (*hqd_destroy)(struct amdgpu_device *adev, void *mqd,
+				uint32_t reset_type, unsigned int timeout,
+				uint32_t pipe_id, uint32_t queue_id);
 
-	int (*hqd_sdma_destroy)(struct kgd_dev *kgd, void *mqd,
+	bool (*hqd_sdma_is_occupied)(struct amdgpu_device *adev, void *mqd);
+
+	int (*hqd_sdma_destroy)(struct amdgpu_device *adev, void *mqd,
 				unsigned int timeout);
 
-	int (*address_watch_disable)(struct kgd_dev *kgd);
-	int (*address_watch_execute)(struct kgd_dev *kgd,
+	int (*address_watch_disable)(struct amdgpu_device *adev);
+	int (*address_watch_execute)(struct amdgpu_device *adev,
 					unsigned int watch_point_id,
 					uint32_t cntl_val,
 					uint32_t addr_hi,
 					uint32_t addr_lo);
-	int (*wave_control_execute)(struct kgd_dev *kgd,
+	int (*wave_control_execute)(struct amdgpu_device *adev,
 					uint32_t gfx_index_val,
 					uint32_t sq_cmd);
-	uint32_t (*address_watch_get_offset)(struct kgd_dev *kgd,
+	uint32_t (*address_watch_get_offset)(struct amdgpu_device *adev,
 					unsigned int watch_point_id,
 					unsigned int reg_offset);
-	bool (*get_atc_vmid_pasid_mapping_info)(
-					struct kgd_dev *kgd,
+	bool (*get_atc_vmid_pasid_mapping_info)(struct amdgpu_device *adev,
 					uint8_t vmid,
 					uint16_t *p_pasid);
 
@@ -290,16 +289,16 @@ struct kfd2kgd_calls {
 	 * passed to the shader by the CP. It's the user mode driver's
 	 * responsibility.
 	 */
-	void (*set_scratch_backing_va)(struct kgd_dev *kgd,
+	void (*set_scratch_backing_va)(struct amdgpu_device *adev,
 				uint64_t va, uint32_t vmid);
 
-	void (*set_vm_context_page_table_base)(struct kgd_dev *kgd,
+	void (*set_vm_context_page_table_base)(struct amdgpu_device *adev,
 			uint32_t vmid, uint64_t page_table_base);
-	uint32_t (*read_vmid_from_vmfault_reg)(struct kgd_dev *kgd);
+	uint32_t (*read_vmid_from_vmfault_reg)(struct amdgpu_device *adev);
 
-	void (*get_cu_occupancy)(struct kgd_dev *kgd, int pasid, int *wave_cnt,
-			int *max_waves_per_cu);
-	void (*program_trap_handler_settings)(struct kgd_dev *kgd,
+	void (*get_cu_occupancy)(struct amdgpu_device *adev, int pasid,
+			int *wave_cnt, int *max_waves_per_cu);
+	void (*program_trap_handler_settings)(struct amdgpu_device *adev,
 			uint32_t vmid, uint64_t tba_addr, uint64_t tma_addr);
 };
 

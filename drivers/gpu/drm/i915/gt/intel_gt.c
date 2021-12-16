@@ -3,6 +3,8 @@
  * Copyright © 2019 Intel Corporation
  */
 
+#include <drm/intel-gtt.h>
+
 #include "intel_gt_debugfs.h"
 
 #include "gem/i915_gem_lmem.h"

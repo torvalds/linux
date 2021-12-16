@@ -424,7 +424,7 @@ static unsigned int get_mocs_settings(const struct drm_i915_private *i915,
 
 	table->unused_entries_index = I915_MOCS_PTE;
 	if (IS_DG2(i915)) {
-		if (IS_DG2_GT_STEP(i915, G10, STEP_A0, STEP_B0)) {
+		if (IS_DG2_GRAPHICS_STEP(i915, G10, STEP_A0, STEP_B0)) {
 			table->size = ARRAY_SIZE(dg2_mocs_table_g10_ax);
 			table->table = dg2_mocs_table_g10_ax;
 		} else {

@@ -24,6 +24,7 @@
 #include <linux/time.h>
 
 #include "intel_atomic.h"
+#include "intel_audio.h"
 #include "intel_bw.h"
 #include "intel_cdclk.h"
 #include "intel_de.h"
@@ -1975,6 +1976,8 @@ static void intel_set_cdclk(struct drm_i915_private *dev_priv,
 		intel_psr_pause(intel_dp);
 	}
 
+	intel_audio_cdclk_change_pre(dev_priv);
+
 	/*
 	 * Lock aux/gmbus while we change cdclk in case those
 	 * functions use cdclk. Not all platforms/ports do,
@@ -2002,6 +2005,8 @@ static void intel_set_cdclk(struct drm_i915_private *dev_priv,
 
 		intel_psr_resume(intel_dp);
 	}
+
+	intel_audio_cdclk_change_post(dev_priv);
 
 	if (drm_WARN(&dev_priv->drm,
 		     intel_cdclk_changed(&dev_priv->cdclk.hw, cdclk_config),

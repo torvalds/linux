@@ -60,8 +60,6 @@ MODULE_FIRMWARE("amdgpu/aldebaran_smc.bin");
 
 #define SMU13_VOLTAGE_SCALE 4
 
-#define SMU13_MODE1_RESET_WAIT_TIME_IN_MS 500  //500ms
-
 #define LINK_WIDTH_MAX				6
 #define LINK_SPEED_MAX				3
 
@@ -430,8 +428,10 @@ int smu_v13_0_fini_smc_tables(struct smu_context *smu)
 	kfree(smu_table->hardcode_pptable);
 	smu_table->hardcode_pptable = NULL;
 
+	kfree(smu_table->ecc_table);
 	kfree(smu_table->metrics_table);
 	kfree(smu_table->watermarks_table);
+	smu_table->ecc_table = NULL;
 	smu_table->metrics_table = NULL;
 	smu_table->watermarks_table = NULL;
 	smu_table->metrics_time = 0;
@@ -1420,25 +1420,6 @@ int smu_v13_0_set_azalia_d3_pme(struct smu_context *smu)
 	int ret = 0;
 
 	ret = smu_cmn_send_smc_msg(smu, SMU_MSG_BacoAudioD3PME, NULL);
-
-	return ret;
-}
-
-int smu_v13_0_mode1_reset(struct smu_context *smu)
-{
-	u32 smu_version;
-	int ret = 0;
-	/*
-	* PM FW support SMU_MSG_GfxDeviceDriverReset from 68.07
-	*/
-	smu_cmn_get_smc_version(smu, NULL, &smu_version);
-	if (smu_version < 0x00440700)
-		ret = smu_cmn_send_smc_msg(smu, SMU_MSG_Mode1Reset, NULL);
-	else
-		ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_GfxDeviceDriverReset, SMU_RESET_MODE_1, NULL);
-
-	if (!ret)
-		msleep(SMU13_MODE1_RESET_WAIT_TIME_IN_MS);
 
 	return ret;
 }

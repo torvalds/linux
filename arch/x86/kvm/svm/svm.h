@@ -79,6 +79,7 @@ struct kvm_sev_info {
 	struct list_head regions_list;  /* List of registered regions */
 	u64 ap_jump_table;	/* SEV-ES AP Jump Table address */
 	struct kvm *enc_context_owner; /* Owner of copied encryption context */
+	unsigned long num_mirrored_vms; /* Number of VMs sharing this ASID */
 	struct misc_cg *misc_cg; /* For misc cgroup accounting */
 	atomic_t migration_in_progress;
 };
@@ -247,7 +248,7 @@ static __always_inline bool sev_es_guest(struct kvm *kvm)
 #ifdef CONFIG_KVM_AMD_SEV
 	struct kvm_sev_info *sev = &to_kvm_svm(kvm)->sev_info;
 
-	return sev_guest(kvm) && sev->es_active;
+	return sev->es_active && !WARN_ON_ONCE(!sev->active);
 #else
 	return false;
 #endif

@@ -1602,6 +1602,11 @@ static enum dc_status apply_single_controller_ctx_to_hw(
 			pipe_ctx->stream_res.stream_enc,
 			pipe_ctx->stream_res.tg->inst);
 
+	if (dc_is_dp_signal(pipe_ctx->stream->signal) &&
+		pipe_ctx->stream_res.stream_enc->funcs->reset_fifo)
+		pipe_ctx->stream_res.stream_enc->funcs->reset_fifo(
+			pipe_ctx->stream_res.stream_enc);
+
 	if (dc_is_dp_signal(pipe_ctx->stream->signal))
 		dp_source_sequence_trace(link, DPCD_SOURCE_SEQ_AFTER_CONNECT_DIG_FE_OTG);
 
@@ -1655,30 +1660,12 @@ static enum dc_status apply_single_controller_ctx_to_hw(
 
 static void power_down_encoders(struct dc *dc)
 {
-	int i, j;
+	int i;
 
 	for (i = 0; i < dc->link_count; i++) {
 		enum signal_type signal = dc->links[i]->connector_signal;
 
-		if ((signal == SIGNAL_TYPE_EDP) ||
-			(signal == SIGNAL_TYPE_DISPLAY_PORT)) {
-			if (dc->links[i]->link_enc->funcs->get_dig_frontend &&
-				dc->links[i]->link_enc->funcs->is_dig_enabled(dc->links[i]->link_enc)) {
-				unsigned int fe = dc->links[i]->link_enc->funcs->get_dig_frontend(
-									dc->links[i]->link_enc);
-
-				for (j = 0; j < dc->res_pool->stream_enc_count; j++) {
-					if (fe == dc->res_pool->stream_enc[j]->id) {
-						dc->res_pool->stream_enc[j]->funcs->dp_blank(dc->links[i],
-									dc->res_pool->stream_enc[j]);
-						break;
-					}
-				}
-			}
-
-			if (!dc->links[i]->wa_flags.dp_keep_receiver_powered)
-				dp_receiver_power_ctrl(dc->links[i], false);
-		}
+		dc_link_blank_dp_stream(dc->links[i], false);
 
 		if (signal != SIGNAL_TYPE_EDP)
 			signal = SIGNAL_TYPE_NONE;
@@ -1846,7 +1833,7 @@ void dce110_enable_accelerated_mode(struct dc *dc, struct dc_state *context)
 			}
 		}
 		// We are trying to enable eDP, don't power down VDD
-		if (edp_stream_num)
+		if (edp_stream_num && can_apply_edp_fast_boot)
 			keep_edp_vdd_on = true;
 	}
 

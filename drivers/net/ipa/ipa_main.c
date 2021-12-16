@@ -28,6 +28,7 @@
 #include "ipa_reg.h"
 #include "ipa_mem.h"
 #include "ipa_table.h"
+#include "ipa_smp2p.h"
 #include "ipa_modem.h"
 #include "ipa_uc.h"
 #include "ipa_interrupt.h"
@@ -800,6 +801,11 @@ static int ipa_remove(struct platform_device *pdev)
 	struct ipa_power *power = ipa->power;
 	struct device *dev = &pdev->dev;
 	int ret;
+
+	/* Prevent the modem from triggering a call to ipa_setup().  This
+	 * also ensures a modem-initiated setup that's underway completes.
+	 */
+	ipa_smp2p_irq_disable_setup(ipa);
 
 	ret = pm_runtime_get_sync(dev);
 	if (WARN_ON(ret < 0))

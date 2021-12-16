@@ -31,6 +31,7 @@
 #include "i915_gem_context.h"
 #include "i915_gem_mman.h"
 #include "i915_gem_object.h"
+#include "i915_gem_ttm.h"
 #include "i915_memcpy.h"
 #include "i915_trace.h"
 
@@ -91,7 +92,7 @@ void i915_gem_object_init(struct drm_i915_gem_object *obj,
 }
 
 /**
- * i915_gem_object_fini - Clean up a GEM object initialization
+ * __i915_gem_object_fini - Clean up a GEM object initialization
  * @obj: The gem object to cleanup
  *
  * This function cleans up gem object fields that are set up by
@@ -107,25 +108,29 @@ void __i915_gem_object_fini(struct drm_i915_gem_object *obj)
 }
 
 /**
- * Mark up the object's coherency levels for a given cache_level
+ * i915_gem_object_set_cache_coherency - Mark up the object's coherency levels
+ * for a given cache_level
  * @obj: #drm_i915_gem_object
  * @cache_level: cache level
  */
 void i915_gem_object_set_cache_coherency(struct drm_i915_gem_object *obj,
 					 unsigned int cache_level)
 {
+	struct drm_i915_private *i915 = to_i915(obj->base.dev);
+
 	obj->cache_level = cache_level;
 
 	if (cache_level != I915_CACHE_NONE)
 		obj->cache_coherent = (I915_BO_CACHE_COHERENT_FOR_READ |
 				       I915_BO_CACHE_COHERENT_FOR_WRITE);
-	else if (HAS_LLC(to_i915(obj->base.dev)))
+	else if (HAS_LLC(i915))
 		obj->cache_coherent = I915_BO_CACHE_COHERENT_FOR_READ;
 	else
 		obj->cache_coherent = 0;
 
 	obj->cache_dirty =
-		!(obj->cache_coherent & I915_BO_CACHE_COHERENT_FOR_WRITE);
+		!(obj->cache_coherent & I915_BO_CACHE_COHERENT_FOR_WRITE) &&
+		!IS_DGFX(i915);
 }
 
 bool i915_gem_object_can_bypass_llc(struct drm_i915_gem_object *obj)
@@ -364,15 +369,6 @@ static void i915_gem_free_object(struct drm_gem_object *gem_obj)
 	atomic_inc(&i915->mm.free_count);
 
 	/*
-	 * This serializes freeing with the shrinker. Since the free
-	 * is delayed, first by RCU then by the workqueue, we want the
-	 * shrinker to be able to free pages of unreferenced objects,
-	 * or else we may oom whilst there are plenty of deferred
-	 * freed objects.
-	 */
-	i915_gem_object_make_unshrinkable(obj);
-
-	/*
 	 * Since we require blocking on struct_mutex to unbind the freed
 	 * object from the GPU before releasing resources back to the
 	 * system, we can not do that directly from the RCU callback (which may
@@ -456,7 +452,7 @@ i915_gem_object_read_from_page_iomap(struct drm_i915_gem_object *obj, u64 offset
  * from can't cross a page boundary. The caller must ensure that @obj pages
  * are pinned and that @obj is synced wrt. any related writes.
  *
- * Returns 0 on success or -ENODEV if the type of @obj's backing store is
+ * Return: %0 on success or -ENODEV if the type of @obj's backing store is
  * unsupported.
  */
 int i915_gem_object_read_from_page(struct drm_i915_gem_object *obj, u64 offset, void *dst, int size)
@@ -731,6 +727,57 @@ static const struct drm_gem_object_funcs i915_gem_object_funcs = {
 	.close = i915_gem_close_object,
 	.export = i915_gem_prime_export,
 };
+
+/**
+ * i915_gem_object_get_moving_fence - Get the object's moving fence if any
+ * @obj: The object whose moving fence to get.
+ *
+ * A non-signaled moving fence means that there is an async operation
+ * pending on the object that needs to be waited on before setting up
+ * any GPU- or CPU PTEs to the object's pages.
+ *
+ * Return: A refcounted pointer to the object's moving fence if any,
+ * NULL otherwise.
+ */
+struct dma_fence *
+i915_gem_object_get_moving_fence(struct drm_i915_gem_object *obj)
+{
+	return dma_fence_get(i915_gem_to_ttm(obj)->moving);
+}
+
+/**
+ * i915_gem_object_wait_moving_fence - Wait for the object's moving fence if any
+ * @obj: The object whose moving fence to wait for.
+ * @intr: Whether to wait interruptible.
+ *
+ * If the moving fence signaled without an error, it is detached from the
+ * object and put.
+ *
+ * Return: 0 if successful, -ERESTARTSYS if the wait was interrupted,
+ * negative error code if the async operation represented by the
+ * moving fence failed.
+ */
+int i915_gem_object_wait_moving_fence(struct drm_i915_gem_object *obj,
+				      bool intr)
+{
+	struct dma_fence *fence = i915_gem_to_ttm(obj)->moving;
+	int ret;
+
+	assert_object_held(obj);
+	if (!fence)
+		return 0;
+
+	ret = dma_fence_wait(fence, intr);
+	if (ret)
+		return ret;
+
+	if (fence->error)
+		return fence->error;
+
+	i915_gem_to_ttm(obj)->moving = NULL;
+	dma_fence_put(fence);
+	return 0;
+}
 
 #if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)
 #include "selftests/huge_gem_object.c"

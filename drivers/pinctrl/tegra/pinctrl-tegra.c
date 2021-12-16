@@ -275,7 +275,7 @@ static int tegra_pinctrl_set_mux(struct pinctrl_dev *pctldev,
 	return 0;
 }
 
-static struct tegra_pingroup *tegra_pinctrl_get_group(struct pinctrl_dev *pctldev,
+static const struct tegra_pingroup *tegra_pinctrl_get_group(struct pinctrl_dev *pctldev,
 					unsigned int offset)
 {
 	struct tegra_pmx *pmx = pinctrl_dev_get_drvdata(pctldev);
@@ -289,7 +289,7 @@ static struct tegra_pingroup *tegra_pinctrl_get_group(struct pinctrl_dev *pctlde
 			continue;
 		for (j = 0; j < num_pins; j++) {
 			if (offset == pins[j])
-				return (struct tegra_pingroup *)&pmx->soc->groups[group];
+				return &pmx->soc->groups[group];
 		}
 	}
 

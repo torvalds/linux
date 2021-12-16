@@ -183,7 +183,8 @@ enum cache_policy {
 	cache_policy_noncoherent
 };
 
-#define KFD_IS_SOC15(chip) ((chip) >= CHIP_VEGA10)
+#define KFD_GC_VERSION(dev) ((dev)->adev->ip_versions[GC_HWIP][0])
+#define KFD_IS_SOC15(dev)   ((KFD_GC_VERSION(dev)) >= (IP_VERSION(9, 0, 1)))
 
 struct kfd_event_interrupt_class {
 	bool (*interrupt_isr)(struct kfd_dev *dev,
@@ -194,7 +195,6 @@ struct kfd_event_interrupt_class {
 };
 
 struct kfd_device_info {
-	enum amd_asic_type asic_family;
 	const char *asic_name;
 	uint32_t gfx_target_version;
 	const struct kfd_event_interrupt_class *event_interrupt_class;
@@ -208,10 +208,11 @@ struct kfd_device_info {
 	bool needs_iommu_device;
 	bool needs_pci_atomics;
 	uint32_t no_atomic_fw_version;
-	unsigned int num_sdma_engines;
-	unsigned int num_xgmi_sdma_engines;
 	unsigned int num_sdma_queues_per_engine;
 };
+
+unsigned int kfd_get_num_sdma_engines(struct kfd_dev *kdev);
+unsigned int kfd_get_num_xgmi_sdma_engines(struct kfd_dev *kdev);
 
 struct kfd_mem_obj {
 	uint32_t range_start;
@@ -228,7 +229,7 @@ struct kfd_vmid_info {
 };
 
 struct kfd_dev {
-	struct kgd_dev *kgd;
+	struct amdgpu_device *adev;
 
 	const struct kfd_device_info *device_info;
 	struct pci_dev *pdev;
@@ -766,7 +767,7 @@ struct svm_range_list {
 	struct list_head		deferred_range_list;
 	spinlock_t			deferred_list_lock;
 	atomic_t			evicted_ranges;
-	bool				drain_pagefaults;
+	atomic_t			drain_pagefaults;
 	struct delayed_work		restore_work;
 	DECLARE_BITMAP(bitmap_supported, MAX_GPU_INSTANCE);
 	struct task_struct 		*faulting_task;
@@ -891,7 +892,7 @@ struct kfd_process *kfd_lookup_process_by_pasid(u32 pasid);
 struct kfd_process *kfd_lookup_process_by_mm(const struct mm_struct *mm);
 
 int kfd_process_gpuidx_from_gpuid(struct kfd_process *p, uint32_t gpu_id);
-int kfd_process_gpuid_from_kgd(struct kfd_process *p,
+int kfd_process_gpuid_from_adev(struct kfd_process *p,
 			       struct amdgpu_device *adev, uint32_t *gpuid,
 			       uint32_t *gpuidx);
 static inline int kfd_process_gpuid_from_gpuidx(struct kfd_process *p,
@@ -984,7 +985,7 @@ struct kfd_topology_device *kfd_topology_device_by_proximity_domain(
 struct kfd_topology_device *kfd_topology_device_by_id(uint32_t gpu_id);
 struct kfd_dev *kfd_device_by_id(uint32_t gpu_id);
 struct kfd_dev *kfd_device_by_pci_dev(const struct pci_dev *pdev);
-struct kfd_dev *kfd_device_by_kgd(const struct kgd_dev *kgd);
+struct kfd_dev *kfd_device_by_adev(const struct amdgpu_device *adev);
 int kfd_topology_enum_kfd_devices(uint8_t idx, struct kfd_dev **kdev);
 int kfd_numa_node_to_apic_id(int numa_node_id);
 void kfd_double_confirm_iommu_support(struct kfd_dev *gpu);
