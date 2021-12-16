@@ -539,7 +539,7 @@ static ssize_t ina2xx_allow_async_readout_show(struct device *dev,
 {
 	struct ina2xx_chip_info *chip = iio_priv(dev_to_iio_dev(dev));
 
-	return sprintf(buf, "%d\n", chip->allow_async_readout);
+	return sysfs_emit(buf, "%d\n", chip->allow_async_readout);
 }
 
 static ssize_t ina2xx_allow_async_readout_store(struct device *dev,
