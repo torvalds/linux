@@ -293,12 +293,12 @@ int vgic_v2_map_resources(struct kvm *kvm)
 
 	if (IS_VGIC_ADDR_UNDEF(dist->vgic_dist_base) ||
 	    IS_VGIC_ADDR_UNDEF(dist->vgic_cpu_base)) {
-		kvm_err("Need to set vgic cpu and dist addresses first\n");
+		kvm_debug("Need to set vgic cpu and dist addresses first\n");
 		return -ENXIO;
 	}
 
 	if (!vgic_v2_check_base(dist->vgic_dist_base, dist->vgic_cpu_base)) {
-		kvm_err("VGIC CPU and dist frames overlap\n");
+		kvm_debug("VGIC CPU and dist frames overlap\n");
 		return -EINVAL;
 	}
 
