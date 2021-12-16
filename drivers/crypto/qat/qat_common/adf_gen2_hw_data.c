@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: (BSD-3-Clause OR GPL-2.0-only)
 /* Copyright(c) 2020 Intel Corporation */
+#include "adf_common_drv.h"
 #include "adf_gen2_hw_data.h"
 #include "icp_qat_hw.h"
 #include <linux/pci.h>
@@ -25,31 +26,29 @@ EXPORT_SYMBOL_GPL(adf_gen2_get_num_aes);
 void adf_gen2_enable_error_correction(struct adf_accel_dev *accel_dev)
 {
 	struct adf_hw_device_data *hw_data = accel_dev->hw_device;
-	struct adf_bar *misc_bar = &GET_BARS(accel_dev)
-					[hw_data->get_misc_bar_id(hw_data)];
+	void __iomem *pmisc_addr = adf_get_pmisc_base(accel_dev);
 	unsigned long accel_mask = hw_data->accel_mask;
 	unsigned long ae_mask = hw_data->ae_mask;
-	void __iomem *csr = misc_bar->virt_addr;
 	unsigned int val, i;
 
 	/* Enable Accel Engine error detection & correction */
 	for_each_set_bit(i, &ae_mask, hw_data->num_engines) {
-		val = ADF_CSR_RD(csr, ADF_GEN2_AE_CTX_ENABLES(i));
+		val = ADF_CSR_RD(pmisc_addr, ADF_GEN2_AE_CTX_ENABLES(i));
 		val |= ADF_GEN2_ENABLE_AE_ECC_ERR;
-		ADF_CSR_WR(csr, ADF_GEN2_AE_CTX_ENABLES(i), val);
-		val = ADF_CSR_RD(csr, ADF_GEN2_AE_MISC_CONTROL(i));
+		ADF_CSR_WR(pmisc_addr, ADF_GEN2_AE_CTX_ENABLES(i), val);
+		val = ADF_CSR_RD(pmisc_addr, ADF_GEN2_AE_MISC_CONTROL(i));
 		val |= ADF_GEN2_ENABLE_AE_ECC_PARITY_CORR;
-		ADF_CSR_WR(csr, ADF_GEN2_AE_MISC_CONTROL(i), val);
+		ADF_CSR_WR(pmisc_addr, ADF_GEN2_AE_MISC_CONTROL(i), val);
 	}
 
 	/* Enable shared memory error detection & correction */
 	for_each_set_bit(i, &accel_mask, hw_data->num_accel) {
-		val = ADF_CSR_RD(csr, ADF_GEN2_UERRSSMSH(i));
+		val = ADF_CSR_RD(pmisc_addr, ADF_GEN2_UERRSSMSH(i));
 		val |= ADF_GEN2_ERRSSMSH_EN;
-		ADF_CSR_WR(csr, ADF_GEN2_UERRSSMSH(i), val);
-		val = ADF_CSR_RD(csr, ADF_GEN2_CERRSSMSH(i));
+		ADF_CSR_WR(pmisc_addr, ADF_GEN2_UERRSSMSH(i), val);
+		val = ADF_CSR_RD(pmisc_addr, ADF_GEN2_CERRSSMSH(i));
 		val |= ADF_GEN2_ERRSSMSH_EN;
-		ADF_CSR_WR(csr, ADF_GEN2_CERRSSMSH(i), val);
+		ADF_CSR_WR(pmisc_addr, ADF_GEN2_CERRSSMSH(i), val);
 	}
 }
 EXPORT_SYMBOL_GPL(adf_gen2_enable_error_correction);
@@ -57,15 +56,9 @@ EXPORT_SYMBOL_GPL(adf_gen2_enable_error_correction);
 void adf_gen2_cfg_iov_thds(struct adf_accel_dev *accel_dev, bool enable,
 			   int num_a_regs, int num_b_regs)
 {
-	struct adf_hw_device_data *hw_data = accel_dev->hw_device;
-	void __iomem *pmisc_addr;
-	struct adf_bar *pmisc;
-	int pmisc_id, i;
+	void __iomem *pmisc_addr = adf_get_pmisc_base(accel_dev);
 	u32 reg;
-
-	pmisc_id = hw_data->get_misc_bar_id(hw_data);
-	pmisc = &GET_BARS(accel_dev)[pmisc_id];
-	pmisc_addr = pmisc->virt_addr;
+	int i;
 
 	/* Set/Unset Valid bit in AE Thread to PCIe Function Mapping Group A */
 	for (i = 0; i < num_a_regs; i++) {
@@ -245,17 +238,11 @@ EXPORT_SYMBOL_GPL(adf_gen2_get_accel_cap);
 void adf_gen2_set_ssm_wdtimer(struct adf_accel_dev *accel_dev)
 {
 	struct adf_hw_device_data *hw_data = accel_dev->hw_device;
+	void __iomem *pmisc_addr = adf_get_pmisc_base(accel_dev);
 	u32 timer_val_pke = ADF_SSM_WDT_PKE_DEFAULT_VALUE;
 	u32 timer_val = ADF_SSM_WDT_DEFAULT_VALUE;
 	unsigned long accel_mask = hw_data->accel_mask;
-	void __iomem *pmisc_addr;
-	struct adf_bar *pmisc;
-	int pmisc_id;
 	u32 i = 0;
-
-	pmisc_id = hw_data->get_misc_bar_id(hw_data);
-	pmisc = &GET_BARS(accel_dev)[pmisc_id];
-	pmisc_addr = pmisc->virt_addr;
 
 	/* Configures WDT timers */
 	for_each_set_bit(i, &accel_mask, hw_data->num_accel) {

@@ -255,9 +255,7 @@ int adf_init_admin_comms(struct adf_accel_dev *accel_dev)
 {
 	struct adf_admin_comms *admin;
 	struct adf_hw_device_data *hw_data = accel_dev->hw_device;
-	struct adf_bar *pmisc =
-		&GET_BARS(accel_dev)[hw_data->get_misc_bar_id(hw_data)];
-	void __iomem *csr = pmisc->virt_addr;
+	void __iomem *pmisc_addr = adf_get_pmisc_base(accel_dev);
 	struct admin_info admin_csrs_info;
 	u32 mailbox_offset, adminmsg_u, adminmsg_l;
 	void __iomem *mailbox;
@@ -291,13 +289,13 @@ int adf_init_admin_comms(struct adf_accel_dev *accel_dev)
 	hw_data->get_admin_info(&admin_csrs_info);
 
 	mailbox_offset = admin_csrs_info.mailbox_offset;
-	mailbox = csr + mailbox_offset;
+	mailbox = pmisc_addr + mailbox_offset;
 	adminmsg_u = admin_csrs_info.admin_msg_ur;
 	adminmsg_l = admin_csrs_info.admin_msg_lr;
 
 	reg_val = (u64)admin->phy_addr;
-	ADF_CSR_WR(csr, adminmsg_u, upper_32_bits(reg_val));
-	ADF_CSR_WR(csr, adminmsg_l, lower_32_bits(reg_val));
+	ADF_CSR_WR(pmisc_addr, adminmsg_u, upper_32_bits(reg_val));
+	ADF_CSR_WR(pmisc_addr, adminmsg_l, lower_32_bits(reg_val));
 
 	mutex_init(&admin->lock);
 	admin->mailbox_addr = mailbox;

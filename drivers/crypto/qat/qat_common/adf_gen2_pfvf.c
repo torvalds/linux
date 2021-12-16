@@ -75,15 +75,12 @@ static void adf_gen2_disable_vf2pf_interrupts(void __iomem *pmisc_addr,
 static int adf_gen2_pfvf_send(struct adf_accel_dev *accel_dev, u32 msg,
 			      u8 vf_nr)
 {
-	struct adf_accel_pci *pci_info = &accel_dev->accel_pci_dev;
-	struct adf_hw_device_data *hw_data = accel_dev->hw_device;
-	void __iomem *pmisc_bar_addr =
-		pci_info->pci_bars[hw_data->get_misc_bar_id(hw_data)].virt_addr;
-	u32 val, pfvf_offset, count = 0;
-	u32 local_in_use_mask, local_in_use_pattern;
-	u32 remote_in_use_mask, remote_in_use_pattern;
-	struct mutex *lock;	/* lock preventing concurrent acces of CSR */
+	void __iomem *pmisc_addr = adf_get_pmisc_base(accel_dev);
 	unsigned int retries = ADF_PFVF_MSG_MAX_RETRIES;
+	u32 remote_in_use_mask, remote_in_use_pattern;
+	u32 local_in_use_mask, local_in_use_pattern;
+	u32 val, pfvf_offset, count = 0;
+	struct mutex *lock;	/* lock preventing concurrent acces of CSR */
 	u32 int_bit;
 	int ret;
 
@@ -114,7 +111,7 @@ start:
 	ret = 0;
 
 	/* Check if the PFVF CSR is in use by remote function */
-	val = ADF_CSR_RD(pmisc_bar_addr, pfvf_offset);
+	val = ADF_CSR_RD(pmisc_addr, pfvf_offset);
 	if ((val & remote_in_use_mask) == remote_in_use_pattern) {
 		dev_dbg(&GET_DEV(accel_dev),
 			"PFVF CSR in use by remote function\n");
@@ -122,12 +119,12 @@ start:
 	}
 
 	/* Attempt to get ownership of the PFVF CSR */
-	ADF_CSR_WR(pmisc_bar_addr, pfvf_offset, msg | int_bit);
+	ADF_CSR_WR(pmisc_addr, pfvf_offset, msg | int_bit);
 
 	/* Wait for confirmation from remote func it received the message */
 	do {
 		msleep(ADF_PFVF_MSG_ACK_DELAY);
-		val = ADF_CSR_RD(pmisc_bar_addr, pfvf_offset);
+		val = ADF_CSR_RD(pmisc_addr, pfvf_offset);
 	} while ((val & int_bit) && (count++ < ADF_PFVF_MSG_ACK_MAX_RETRY));
 
 	if (val & int_bit) {
@@ -143,7 +140,7 @@ start:
 	}
 
 	/* Finished with the PFVF CSR; relinquish it and leave msg in CSR */
-	ADF_CSR_WR(pmisc_bar_addr, pfvf_offset, val & ~local_in_use_mask);
+	ADF_CSR_WR(pmisc_addr, pfvf_offset, val & ~local_in_use_mask);
 out:
 	mutex_unlock(lock);
 	return ret;
@@ -160,10 +157,7 @@ retry:
 
 static u32 adf_gen2_pfvf_recv(struct adf_accel_dev *accel_dev, u8 vf_nr)
 {
-	struct adf_accel_pci *pci_info = &accel_dev->accel_pci_dev;
-	struct adf_hw_device_data *hw_data = accel_dev->hw_device;
-	void __iomem *pmisc_addr =
-		pci_info->pci_bars[hw_data->get_misc_bar_id(hw_data)].virt_addr;
+	void __iomem *pmisc_addr = adf_get_pmisc_base(accel_dev);
 	u32 pfvf_offset;
 	u32 msg_origin;
 	u32 int_bit;

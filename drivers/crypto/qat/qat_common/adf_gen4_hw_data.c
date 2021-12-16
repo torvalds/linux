@@ -111,20 +111,13 @@ static inline void adf_gen4_unpack_ssm_wdtimer(u64 value, u32 *upper,
 
 void adf_gen4_set_ssm_wdtimer(struct adf_accel_dev *accel_dev)
 {
-	struct adf_hw_device_data *hw_data = accel_dev->hw_device;
+	void __iomem *pmisc_addr = adf_get_pmisc_base(accel_dev);
 	u64 timer_val_pke = ADF_SSM_WDT_PKE_DEFAULT_VALUE;
 	u64 timer_val = ADF_SSM_WDT_DEFAULT_VALUE;
 	u32 ssm_wdt_pke_high = 0;
 	u32 ssm_wdt_pke_low = 0;
 	u32 ssm_wdt_high = 0;
 	u32 ssm_wdt_low = 0;
-	void __iomem *pmisc_addr;
-	struct adf_bar *pmisc;
-	int pmisc_id;
-
-	pmisc_id = hw_data->get_misc_bar_id(hw_data);
-	pmisc = &GET_BARS(accel_dev)[pmisc_id];
-	pmisc_addr = pmisc->virt_addr;
 
 	/* Convert 64bit WDT timer value into 32bit values for
 	 * mmio write to 32bit CSRs.
