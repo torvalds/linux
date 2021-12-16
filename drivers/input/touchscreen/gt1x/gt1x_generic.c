@@ -2398,6 +2398,8 @@ s32 gt1x_init(void)
 #if GTP_WITH_STYLUS
 	gt1x_pen_init();
 #endif
+	if (ret != 0)
+		gt1x_power_switch(SWITCH_OFF);
 
 	return ret;
 }
