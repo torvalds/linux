@@ -9,13 +9,6 @@
 #ifndef LINUX_RIO_IDS_H
 #define LINUX_RIO_IDS_H
 
-#define RIO_VID_TUNDRA			0x000d
-#define RIO_DID_TSI568			0x0568
-#define RIO_DID_TSI572			0x0572
-#define RIO_DID_TSI574			0x0574
-#define RIO_DID_TSI577			0x0577
-#define RIO_DID_TSI578			0x0578
-
 #define RIO_VID_IDT			0x0038
 #define RIO_DID_IDT70K200		0x0310
 #define RIO_DID_IDTCPS8			0x035c
