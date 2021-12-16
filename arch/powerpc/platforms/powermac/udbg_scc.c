@@ -62,7 +62,7 @@ static unsigned char scc_inittab[] = {
     3,  0xc1,		/* rx enable, 8 bits */
 };
 
-void udbg_scc_init(int force_scc)
+void __init udbg_scc_init(int force_scc)
 {
 	const u32 *reg;
 	unsigned long addr;

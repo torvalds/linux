@@ -30,7 +30,7 @@ void __init udbg_uart_setup(unsigned int speed, unsigned int clock);
 unsigned int __init udbg_probe_uart_speed(unsigned int clock);
 
 struct device_node;
-extern void udbg_scc_init(int force_scc);
+void __init udbg_scc_init(int force_scc);
 extern int udbg_adb_init(int force_btext);
 extern void udbg_adb_init_early(void);
 

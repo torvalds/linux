@@ -186,7 +186,7 @@ static const struct irq_domain_ops psurge_host_ops = {
 	.map	= psurge_host_map,
 };
 
-static int psurge_secondary_ipi_init(void)
+static int __init psurge_secondary_ipi_init(void)
 {
 	int rc = -ENOMEM;
 
@@ -875,7 +875,7 @@ static int smp_core99_cpu_online(unsigned int cpu)
 
 static void __init smp_core99_bringup_done(void)
 {
-	extern void g5_phy_disable_cpu1(void);
+	extern void __init g5_phy_disable_cpu1(void);
 
 	/* Close i2c bus if it was used for tb sync */
 	if (pmac_tb_clock_chip_host)

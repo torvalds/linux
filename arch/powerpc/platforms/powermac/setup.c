@@ -194,7 +194,7 @@ int find_via_pmu(void)
 #endif
 
 #ifndef CONFIG_PMAC_SMU
-int smu_init(void)
+int __init smu_init(void)
 {
 	/* should check and warn if SMU is present */
 	return 0;
