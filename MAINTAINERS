@@ -20864,7 +20864,7 @@ M:	Juergen Gross <jgross@suse.com>
 L:	xen-devel@lists.xenproject.org (moderated for non-subscribers)
 L:	linux-usb@vger.kernel.org
 S:	Supported
-F:	divers/usb/host/xen*
+F:	drivers/usb/host/xen*
 F:	include/xen/interface/io/usbif.h
 
 XEN SOUND FRONTEND DRIVER
