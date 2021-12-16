@@ -163,8 +163,8 @@ static int iwl_request_firmware(struct iwl_drv *drv, bool first)
 	char tag[8];
 
 	if (drv->trans->trans_cfg->device_family == IWL_DEVICE_FAMILY_9000 &&
-	    (CSR_HW_REV_STEP(drv->trans->hw_rev) != SILICON_B_STEP &&
-	     CSR_HW_REV_STEP(drv->trans->hw_rev) != SILICON_C_STEP)) {
+	    (drv->trans->hw_rev_step != SILICON_B_STEP &&
+	     drv->trans->hw_rev_step != SILICON_C_STEP)) {
 		IWL_ERR(drv,
 			"Only HW steps B and C are currently supported (0x%0x)\n",
 			drv->trans->hw_rev);

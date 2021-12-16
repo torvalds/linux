@@ -7,7 +7,6 @@
 
 #include <linux/bitops.h>
 
-#define IWL_FW_INI_HW_SMEM_REGION_ID		15
 #define IWL_FW_INI_MAX_REGION_ID		64
 #define IWL_FW_INI_MAX_NAME			32
 #define IWL_FW_INI_MAX_CFG_NAME			64
@@ -124,6 +123,9 @@ struct iwl_fw_ini_region_internal_buffer {
  * @hdr: debug header
  * @id: region id. Max id is &IWL_FW_INI_MAX_REGION_ID
  * @type: region type. One of &enum iwl_fw_ini_region_type
+ * @sub_type: region sub type
+ * @sub_type_ver: region sub type
+ * @reserved: not in use
  * @name: region name
  * @dev_addr: device address configuration. Used by
  *	&IWL_FW_INI_REGION_DEVICE_MEMORY, &IWL_FW_INI_REGION_PERIPHERY_MAC,
@@ -146,7 +148,10 @@ struct iwl_fw_ini_region_internal_buffer {
 struct iwl_fw_ini_region_tlv {
 	struct iwl_fw_ini_header hdr;
 	__le32 id;
-	__le32 type;
+	u8 type;
+	u8 sub_type;
+	u8 sub_type_ver;
+	u8 reserved;
 	u8 name[IWL_FW_INI_MAX_NAME];
 	union {
 		struct iwl_fw_ini_region_dev_addr dev_addr;
@@ -306,6 +311,7 @@ enum iwl_fw_ini_config_set_type {
  * @IWL_FW_INI_ALLOCATION_ID_DBGC1: allocation meant for DBGC1 configuration
  * @IWL_FW_INI_ALLOCATION_ID_DBGC2: allocation meant for DBGC2 configuration
  * @IWL_FW_INI_ALLOCATION_ID_DBGC3: allocation meant for DBGC3 configuration
+ * @IWL_FW_INI_ALLOCATION_ID_DBGC4: allocation meant for DBGC4 configuration
  * @IWL_FW_INI_ALLOCATION_NUM: number of allocation ids
 */
 enum iwl_fw_ini_allocation_id {
@@ -313,6 +319,7 @@ enum iwl_fw_ini_allocation_id {
 	IWL_FW_INI_ALLOCATION_ID_DBGC1,
 	IWL_FW_INI_ALLOCATION_ID_DBGC2,
 	IWL_FW_INI_ALLOCATION_ID_DBGC3,
+	IWL_FW_INI_ALLOCATION_ID_DBGC4,
 	IWL_FW_INI_ALLOCATION_NUM,
 }; /* FW_DEBUG_TLV_ALLOCATION_ID_E_VER_1 */
 
@@ -378,6 +385,8 @@ enum iwl_fw_ini_region_type {
 	IWL_FW_INI_REGION_DBGI_SRAM,
 	IWL_FW_INI_REGION_NUM
 }; /* FW_TLV_DEBUG_REGION_TYPE_API_E */
+
+#define IWL_FW_INI_REGION_DEVICE_MEMORY_SUBTYPE_HW_SMEM	1
 
 /**
  * enum iwl_fw_ini_time_point

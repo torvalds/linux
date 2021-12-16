@@ -15,7 +15,7 @@
 #include "fw/api/datapath.h"
 #include "fw/api/phy.h"
 #include "fw/api/config.h"
-#include "fw/api/soc.h"
+#include "fw/api/system.h"
 #include "fw/api/alive.h"
 #include "fw/api/binding.h"
 #include "fw/api/cmdhdr.h"

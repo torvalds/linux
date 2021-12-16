@@ -503,6 +503,20 @@ union iwl_ppag_table_cmd {
 	} v2;
 } __packed;
 
+#define MCC_TO_SAR_OFFSET_TABLE_ROW_SIZE	26
+#define MCC_TO_SAR_OFFSET_TABLE_COL_SIZE	13
+
+/**
+ * struct iwl_sar_offset_mapping_cmd - struct for SAR_OFFSET_MAPPING_TABLE_CMD
+ * @offset_map: mapping a mcc to a geo sar group
+ * @reserved: reserved
+ */
+struct iwl_sar_offset_mapping_cmd {
+	u8 offset_map[MCC_TO_SAR_OFFSET_TABLE_ROW_SIZE]
+		[MCC_TO_SAR_OFFSET_TABLE_COL_SIZE];
+	u16 reserved;
+} __packed; /*SAR_OFFSET_MAPPING_TABLE_CMD_API_S*/
+
 /**
  * struct iwl_beacon_filter_cmd
  * REPLY_BEACON_FILTERING_CMD = 0xd2 (command)

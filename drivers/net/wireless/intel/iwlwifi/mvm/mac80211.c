@@ -1732,6 +1732,7 @@ static void iwl_mvm_recalc_multicast(struct iwl_mvm *mvm)
 	struct iwl_mvm_mc_iter_data iter_data = {
 		.mvm = mvm,
 	};
+	int ret;
 
 	lockdep_assert_held(&mvm->mutex);
 
@@ -1741,6 +1742,22 @@ static void iwl_mvm_recalc_multicast(struct iwl_mvm *mvm)
 	ieee80211_iterate_active_interfaces_atomic(
 		mvm->hw, IEEE80211_IFACE_ITER_NORMAL,
 		iwl_mvm_mc_iface_iterator, &iter_data);
+
+	/*
+	 * Send a (synchronous) ech command so that we wait for the
+	 * multiple asynchronous MCAST_FILTER_CMD commands sent by
+	 * the interface iterator. Otherwise, we might get here over
+	 * and over again (by userspace just sending a lot of these)
+	 * and the CPU can send them faster than the firmware can
+	 * process them.
+	 * Note that the CPU is still faster - but with this we'll
+	 * actually send fewer commands overall because the CPU will
+	 * not schedule the work in mac80211 as frequently if it's
+	 * still running when rescheduled (possibly multiple times).
+	 */
+	ret = iwl_mvm_send_cmd_pdu(mvm, ECHO_CMD, 0, 0, NULL);
+	if (ret)
+		IWL_ERR(mvm, "Failed to synchronize multicast groups update\n");
 }
 
 static u64 iwl_mvm_prepare_multicast(struct ieee80211_hw *hw,
@@ -3388,6 +3405,11 @@ static int iwl_mvm_mac_sta_state(struct ieee80211_hw *hw,
 				     true);
 	} else if (old_state == IEEE80211_STA_AUTHORIZED &&
 		   new_state == IEEE80211_STA_ASSOC) {
+		/* once we move into assoc state, need to update rate scale to
+		 * disable using wide bandwidth
+		 */
+		iwl_mvm_rs_rate_init(mvm, sta, mvmvif->phy_ctxt->channel->band,
+				     false);
 		if (!sta->tdls) {
 			/* Multicast data frames are no longer allowed */
 			iwl_mvm_mac_ctxt_changed(mvm, vif, false, NULL);
@@ -3410,16 +3432,16 @@ static int iwl_mvm_mac_sta_state(struct ieee80211_hw *hw,
 		if (vif->type == NL80211_IFTYPE_AP) {
 			mvmvif->ap_assoc_sta_count--;
 			iwl_mvm_mac_ctxt_changed(mvm, vif, false, NULL);
-		} else if (vif->type == NL80211_IFTYPE_STATION && !sta->tdls) {
-			/* remove session protection if still running */
+		} else if (vif->type == NL80211_IFTYPE_STATION && !sta->tdls)
 			iwl_mvm_stop_session_protection(mvm, vif);
-		}
 		ret = 0;
 	} else if (old_state == IEEE80211_STA_AUTH &&
 		   new_state == IEEE80211_STA_NONE) {
 		ret = 0;
 	} else if (old_state == IEEE80211_STA_NONE &&
 		   new_state == IEEE80211_STA_NOTEXIST) {
+		if (vif->type == NL80211_IFTYPE_STATION && !sta->tdls)
+			iwl_mvm_stop_session_protection(mvm, vif);
 		ret = iwl_mvm_rm_sta(mvm, vif, sta);
 		if (sta->tdls) {
 			iwl_mvm_recalc_tdls_state(mvm, vif, false);
@@ -3585,13 +3607,14 @@ static int __iwl_mvm_mac_set_key(struct ieee80211_hw *hw,
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
-	struct iwl_mvm_sta *mvmsta;
+	struct iwl_mvm_sta *mvmsta = NULL;
 	struct iwl_mvm_key_pn *ptk_pn;
 	int keyidx = key->keyidx;
 	int ret, i;
 	u8 key_offset;
 
-	mvmsta = iwl_mvm_sta_from_mac80211(sta);
+	if (sta)
+		mvmsta = iwl_mvm_sta_from_mac80211(sta);
 
 	switch (key->cipher) {
 	case WLAN_CIPHER_SUITE_TKIP:
@@ -3693,7 +3716,7 @@ static int __iwl_mvm_mac_set_key(struct ieee80211_hw *hw,
 		}
 
 		if (!test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status) &&
-		    sta && iwl_mvm_has_new_rx_api(mvm) &&
+		    mvmsta && iwl_mvm_has_new_rx_api(mvm) &&
 		    key->flags & IEEE80211_KEY_FLAG_PAIRWISE &&
 		    (key->cipher == WLAN_CIPHER_SUITE_CCMP ||
 		     key->cipher == WLAN_CIPHER_SUITE_GCMP ||
@@ -3727,7 +3750,7 @@ static int __iwl_mvm_mac_set_key(struct ieee80211_hw *hw,
 		else
 			key_offset = STA_KEY_IDX_INVALID;
 
-		if (key->flags & IEEE80211_KEY_FLAG_PAIRWISE)
+		if (mvmsta && key->flags & IEEE80211_KEY_FLAG_PAIRWISE)
 			mvmsta->pairwise_cipher = key->cipher;
 
 		IWL_DEBUG_MAC80211(mvm, "set hwcrypto key\n");
@@ -3770,7 +3793,7 @@ static int __iwl_mvm_mac_set_key(struct ieee80211_hw *hw,
 			break;
 		}
 
-		if (sta && iwl_mvm_has_new_rx_api(mvm) &&
+		if (mvmsta && iwl_mvm_has_new_rx_api(mvm) &&
 		    key->flags & IEEE80211_KEY_FLAG_PAIRWISE &&
 		    (key->cipher == WLAN_CIPHER_SUITE_CCMP ||
 		     key->cipher == WLAN_CIPHER_SUITE_GCMP ||

@@ -1609,7 +1609,7 @@ int iwl_read_external_nvm(struct iwl_trans *trans,
 
 		/* nvm file validation, dword_buff[2] holds the file version */
 		if (trans->trans_cfg->device_family == IWL_DEVICE_FAMILY_8000 &&
-		    CSR_HW_REV_STEP(trans->hw_rev) == SILICON_C_STEP &&
+		    trans->hw_rev_step == SILICON_C_STEP &&
 		    le32_to_cpu(dword_buff[2]) < 0xE4A) {
 			ret = -EFAULT;
 			goto out;

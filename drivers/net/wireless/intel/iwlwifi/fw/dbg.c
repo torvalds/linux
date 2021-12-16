@@ -880,7 +880,7 @@ iwl_fw_error_dump_file(struct iwl_fw_runtime *fwrt,
 		dump_info->hw_type =
 			cpu_to_le32(CSR_HW_REV_TYPE(fwrt->trans->hw_rev));
 		dump_info->hw_step =
-			cpu_to_le32(CSR_HW_REV_STEP(fwrt->trans->hw_rev));
+			cpu_to_le32(fwrt->trans->hw_rev_step);
 		memcpy(dump_info->fw_human_readable, fwrt->fw->human_readable,
 		       sizeof(dump_info->fw_human_readable));
 		strncpy(dump_info->dev_human_readable, fwrt->trans->name,
@@ -1165,8 +1165,7 @@ static int iwl_dump_ini_dev_mem_iter(struct iwl_fw_runtime *fwrt,
 	iwl_trans_read_mem_bytes(fwrt->trans, addr, range->data,
 				 le32_to_cpu(reg->dev_addr.size));
 
-	if ((le32_to_cpu(reg->id) & IWL_FW_INI_REGION_V2_MASK) ==
-		IWL_FW_INI_HW_SMEM_REGION_ID &&
+	if (reg->sub_type == IWL_FW_INI_REGION_DEVICE_MEMORY_SUBTYPE_HW_SMEM &&
 	    fwrt->sanitize_ops && fwrt->sanitize_ops->frob_txf)
 		fwrt->sanitize_ops->frob_txf(fwrt->sanitize_ctx,
 					     range->data,
@@ -1988,17 +1987,18 @@ static u32 iwl_dump_ini_mem(struct iwl_fw_runtime *fwrt, struct list_head *list,
 {
 	struct iwl_fw_ini_region_tlv *reg = (void *)reg_data->reg_tlv->data;
 	struct iwl_fw_ini_dump_entry *entry;
-	struct iwl_fw_error_dump_data *tlv;
+	struct iwl_fw_ini_error_dump_data *tlv;
 	struct iwl_fw_ini_error_dump_header *header;
-	u32 type = le32_to_cpu(reg->type), id = le32_to_cpu(reg->id);
+	u32 type = reg->type;
+	u32 id = le32_to_cpu(reg->id);
 	u32 num_of_ranges, i, size;
 	void *range;
 
 	/*
-	 * The higher part of the ID in version 2 is irrelevant for
+	 * The higher part of the ID from 2 is irrelevant for
 	 * us, so mask it out.
 	 */
-	if (le32_to_cpu(reg->hdr.version) == 2)
+	if (le32_to_cpu(reg->hdr.version) >= 2)
 		id &= IWL_FW_INI_REGION_V2_MASK;
 
 	if (!ops->get_num_of_ranges || !ops->get_size || !ops->fill_mem_hdr ||
@@ -2017,6 +2017,9 @@ static u32 iwl_dump_ini_mem(struct iwl_fw_runtime *fwrt, struct list_head *list,
 
 	tlv = (void *)entry->data;
 	tlv->type = reg->type;
+	tlv->sub_type = reg->sub_type;
+	tlv->sub_type_ver = reg->sub_type_ver;
+	tlv->reserved = reg->reserved;
 	tlv->len = cpu_to_le32(size);
 
 	IWL_DEBUG_FW(fwrt, "WRT: Collecting region: id=%d, type=%d\n", id,
@@ -2099,7 +2102,7 @@ static u32 iwl_dump_ini_info(struct iwl_fw_runtime *fwrt,
 	dump->ver_type = cpu_to_le32(fwrt->dump.fw_ver.type);
 	dump->ver_subtype = cpu_to_le32(fwrt->dump.fw_ver.subtype);
 
-	dump->hw_step = cpu_to_le32(CSR_HW_REV_STEP(fwrt->trans->hw_rev));
+	dump->hw_step = cpu_to_le32(fwrt->trans->hw_rev_step);
 
 	/*
 	 * Several HWs all have type == 0x42, so we'll override this value
@@ -2291,7 +2294,7 @@ static u32 iwl_dump_ini_trigger(struct iwl_fw_runtime *fwrt,
 		}
 
 		reg = (void *)reg_data.reg_tlv->data;
-		reg_type = le32_to_cpu(reg->type);
+		reg_type = reg->type;
 		if (reg_type >= ARRAY_SIZE(iwl_dump_ini_region_ops))
 			continue;
 

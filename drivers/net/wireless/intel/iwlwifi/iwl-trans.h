@@ -296,6 +296,8 @@ enum iwl_d3_status {
  *	are sent
  * @STATUS_TRANS_IDLE: the trans is idle - general commands are not to be sent
  * @STATUS_TRANS_DEAD: trans is dead - avoid any read/write operation
+ * @STATUS_SUPPRESS_CMD_ERROR_ONCE: suppress "FW error in SYNC CMD" once,
+ *	e.g. for testing
  */
 enum iwl_trans_status {
 	STATUS_SYNC_HCMD_ACTIVE,
@@ -308,6 +310,7 @@ enum iwl_trans_status {
 	STATUS_TRANS_GOING_IDLE,
 	STATUS_TRANS_IDLE,
 	STATUS_TRANS_DEAD,
+	STATUS_SUPPRESS_CMD_ERROR_ONCE,
 };
 
 static inline int
@@ -593,7 +596,7 @@ struct iwl_trans_ops {
 	void (*configure)(struct iwl_trans *trans,
 			  const struct iwl_trans_config *trans_cfg);
 	void (*set_pmi)(struct iwl_trans *trans, bool state);
-	void (*sw_reset)(struct iwl_trans *trans);
+	int (*sw_reset)(struct iwl_trans *trans, bool retake_ownership);
 	bool (*grab_nic_access)(struct iwl_trans *trans);
 	void (*release_nic_access)(struct iwl_trans *trans);
 	void (*set_bits_mask)(struct iwl_trans *trans, u32 reg, u32 mask,
@@ -938,6 +941,7 @@ struct iwl_trans_txqs {
  * @hw_id: a u32 with the ID of the device / sub-device.
  *	Set during transport allocation.
  * @hw_id_str: a string with info about HW ID. Set during transport allocation.
+ * @hw_rev_step: The mac step of the HW
  * @pm_support: set to true in start_hw if link pm is supported
  * @ltr_enabled: set to true if the LTR is enabled
  * @wide_cmd_header: true when ucode supports wide command header format
@@ -971,6 +975,7 @@ struct iwl_trans {
 	struct device *dev;
 	u32 max_skb_frags;
 	u32 hw_rev;
+	u32 hw_rev_step;
 	u32 hw_rf_id;
 	u32 hw_id;
 	char hw_id_str[52];
@@ -1384,10 +1389,12 @@ static inline void iwl_trans_set_pmi(struct iwl_trans *trans, bool state)
 		trans->ops->set_pmi(trans, state);
 }
 
-static inline void iwl_trans_sw_reset(struct iwl_trans *trans)
+static inline int iwl_trans_sw_reset(struct iwl_trans *trans,
+				     bool retake_ownership)
 {
 	if (trans->ops->sw_reset)
-		trans->ops->sw_reset(trans);
+		return trans->ops->sw_reset(trans, retake_ownership);
+	return 0;
 }
 
 static inline void

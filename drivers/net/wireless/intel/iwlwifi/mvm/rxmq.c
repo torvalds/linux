@@ -766,8 +766,11 @@ static void iwl_mvm_release_frames_from_notif(struct iwl_mvm *mvm,
 	rcu_read_lock();
 
 	ba_data = rcu_dereference(mvm->baid_map[baid]);
-	if (WARN_ON_ONCE(!ba_data))
+	if (!ba_data) {
+		WARN(!(flags & IWL_MVM_RELEASE_FROM_RSS_SYNC),
+		     "BAID %d not found in map\n", baid);
 		goto out;
+	}
 
 	sta = rcu_dereference(mvm->fw_id_to_mac_id[ba_data->sta_id]);
 	if (WARN_ON_ONCE(IS_ERR_OR_NULL(sta)))
