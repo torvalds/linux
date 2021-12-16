@@ -595,9 +595,8 @@ static int catpt_component_open(struct snd_soc_component *component,
 {
 	struct snd_soc_pcm_runtime *rtm = substream->private_data;
 
-	if (rtm->dai_link->no_pcm)
-		return 0;
-	snd_soc_set_runtime_hwparams(substream, &catpt_pcm_hardware);
+	if (!rtm->dai_link->no_pcm)
+		snd_soc_set_runtime_hwparams(substream, &catpt_pcm_hardware);
 	return 0;
 }
 
