@@ -6229,14 +6229,15 @@ static void ice_napi_disable_all(struct ice_vsi *vsi)
 /**
  * ice_down - Shutdown the connection
  * @vsi: The VSI being stopped
+ *
+ * Caller of this function is expected to set the vsi->state ICE_DOWN bit
  */
 int ice_down(struct ice_vsi *vsi)
 {
 	int i, tx_err, rx_err, link_err = 0;
 
-	/* Caller of this function is expected to set the
-	 * vsi->state ICE_DOWN bit
-	 */
+	WARN_ON(!test_bit(ICE_VSI_DOWN, vsi->state));
+
 	if (vsi->netdev && vsi->type == ICE_VSI_PF) {
 		netif_carrier_off(vsi->netdev);
 		netif_tx_disable(vsi->netdev);
@@ -6593,6 +6594,14 @@ static void ice_rebuild(struct ice_pf *pf, enum ice_reset_req reset_type)
 		goto clear_recovery;
 
 	dev_dbg(dev, "rebuilding PF after reset_type=%d\n", reset_type);
+
+	if (reset_type == ICE_RESET_EMPR) {
+		/* If an EMP reset has occurred, any previously pending flash
+		 * update will have completed. We no longer know whether or
+		 * not the NVM update EMP reset is restricted.
+		 */
+		pf->fw_emp_reset_disabled = false;
+	}
 
 	err = ice_init_all_ctrlq(hw);
 	if (err) {
