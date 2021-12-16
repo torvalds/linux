@@ -2779,11 +2779,11 @@ static int sci_init_clocks(struct sci_port *sci_port, struct device *dev)
 		clk_names[SCI_SCK] = "hsck";
 
 	for (i = 0; i < SCI_NUM_CLKS; i++) {
-		clk = devm_clk_get(dev, clk_names[i]);
-		if (PTR_ERR(clk) == -EPROBE_DEFER)
-			return -EPROBE_DEFER;
+		clk = devm_clk_get_optional(dev, clk_names[i]);
+		if (IS_ERR(clk))
+			return PTR_ERR(clk);
 
-		if (IS_ERR(clk) && i == SCI_FCK) {
+		if (!clk && i == SCI_FCK) {
 			/*
 			 * Not all SH platforms declare a clock lookup entry
 			 * for SCI devices, in which case we need to get the
@@ -2796,13 +2796,12 @@ static int sci_init_clocks(struct sci_port *sci_port, struct device *dev)
 						     clk_names[i]);
 		}
 
-		if (IS_ERR(clk))
-			dev_dbg(dev, "failed to get %s (%ld)\n", clk_names[i],
-				PTR_ERR(clk));
+		if (!clk)
+			dev_dbg(dev, "failed to get %s\n", clk_names[i]);
 		else
 			dev_dbg(dev, "clk %s is %pC rate %lu\n", clk_names[i],
 				clk, clk_get_rate(clk));
-		sci_port->clks[i] = IS_ERR(clk) ? NULL : clk;
+		sci_port->clks[i] = clk;
 	}
 	return 0;
 }
