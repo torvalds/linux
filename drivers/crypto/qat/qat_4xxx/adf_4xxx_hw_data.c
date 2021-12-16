@@ -98,18 +98,41 @@ static u32 get_accel_cap(struct adf_accel_dev *accel_dev)
 	u32 fusectl1;
 	u32 capabilities = ICP_ACCEL_CAPABILITIES_CRYPTO_SYMMETRIC |
 			   ICP_ACCEL_CAPABILITIES_CRYPTO_ASYMMETRIC |
+			   ICP_ACCEL_CAPABILITIES_CIPHER |
 			   ICP_ACCEL_CAPABILITIES_AUTHENTICATION |
+			   ICP_ACCEL_CAPABILITIES_SHA3 |
+			   ICP_ACCEL_CAPABILITIES_SHA3_EXT |
+			   ICP_ACCEL_CAPABILITIES_HKDF |
+			   ICP_ACCEL_CAPABILITIES_ECEDMONT |
+			   ICP_ACCEL_CAPABILITIES_CHACHA_POLY |
+			   ICP_ACCEL_CAPABILITIES_AESGCM_SPC |
 			   ICP_ACCEL_CAPABILITIES_AES_V2;
 
 	/* Read accelerator capabilities mask */
 	pci_read_config_dword(pdev, ADF_4XXX_FUSECTL1_OFFSET, &fusectl1);
 
-	if (fusectl1 & ICP_ACCEL_4XXX_MASK_CIPHER_SLICE)
+	/* A set bit in fusectl1 means the feature is OFF in this SKU */
+	if (fusectl1 & ICP_ACCEL_4XXX_MASK_CIPHER_SLICE) {
 		capabilities &= ~ICP_ACCEL_CAPABILITIES_CRYPTO_SYMMETRIC;
-	if (fusectl1 & ICP_ACCEL_4XXX_MASK_AUTH_SLICE)
+		capabilities &= ~ICP_ACCEL_CAPABILITIES_HKDF;
+		capabilities &= ~ICP_ACCEL_CAPABILITIES_CIPHER;
+	}
+	if (fusectl1 & ICP_ACCEL_4XXX_MASK_UCS_SLICE) {
+		capabilities &= ~ICP_ACCEL_CAPABILITIES_CHACHA_POLY;
+		capabilities &= ~ICP_ACCEL_CAPABILITIES_AESGCM_SPC;
+		capabilities &= ~ICP_ACCEL_CAPABILITIES_AES_V2;
+		capabilities &= ~ICP_ACCEL_CAPABILITIES_CIPHER;
+	}
+	if (fusectl1 & ICP_ACCEL_4XXX_MASK_AUTH_SLICE) {
 		capabilities &= ~ICP_ACCEL_CAPABILITIES_AUTHENTICATION;
-	if (fusectl1 & ICP_ACCEL_4XXX_MASK_PKE_SLICE)
+		capabilities &= ~ICP_ACCEL_CAPABILITIES_SHA3;
+		capabilities &= ~ICP_ACCEL_CAPABILITIES_SHA3_EXT;
+		capabilities &= ~ICP_ACCEL_CAPABILITIES_CIPHER;
+	}
+	if (fusectl1 & ICP_ACCEL_4XXX_MASK_PKE_SLICE) {
 		capabilities &= ~ICP_ACCEL_CAPABILITIES_CRYPTO_ASYMMETRIC;
+		capabilities &= ~ICP_ACCEL_CAPABILITIES_ECEDMONT;
+	}
 
 	return capabilities;
 }

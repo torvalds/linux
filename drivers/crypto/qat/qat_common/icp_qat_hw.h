@@ -91,7 +91,14 @@ enum icp_qat_capabilities_mask {
 	ICP_ACCEL_CAPABILITIES_RAND = BIT(7),
 	ICP_ACCEL_CAPABILITIES_ZUC = BIT(8),
 	ICP_ACCEL_CAPABILITIES_SHA3 = BIT(9),
-	/* Bits 10-25 are currently reserved */
+	/* Bits 10-11 are currently reserved */
+	ICP_ACCEL_CAPABILITIES_HKDF = BIT(12),
+	ICP_ACCEL_CAPABILITIES_ECEDMONT = BIT(13),
+	/* Bit 14 is currently reserved */
+	ICP_ACCEL_CAPABILITIES_SHA3_EXT = BIT(15),
+	ICP_ACCEL_CAPABILITIES_AESGCM_SPC = BIT(16),
+	ICP_ACCEL_CAPABILITIES_CHACHA_POLY = BIT(17),
+	/* Bits 18-25 are currently reserved */
 	ICP_ACCEL_CAPABILITIES_AES_V2 = BIT(26)
 };
 
