@@ -262,6 +262,8 @@ static void __i915_gem_object_free_mmaps(struct drm_i915_gem_object *obj)
  */
 void __i915_gem_object_pages_fini(struct drm_i915_gem_object *obj)
 {
+	assert_object_held(obj);
+
 	if (!list_empty(&obj->vma.list)) {
 		struct i915_vma *vma;
 
@@ -328,7 +330,10 @@ static void __i915_gem_free_objects(struct drm_i915_private *i915,
 			obj->ops->delayed_free(obj);
 			continue;
 		}
+
+		i915_gem_object_lock(obj, NULL);
 		__i915_gem_object_pages_fini(obj);
+		i915_gem_object_unlock(obj);
 		__i915_gem_free_object(obj);
 
 		/* But keep the pointer alive for RCU-protected lookups */
