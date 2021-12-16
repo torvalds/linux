@@ -8,6 +8,9 @@
 #include "adf_cfg.h"
 #include "adf_pfvf_pf_msg.h"
 
+#define ADF_VF2PF_RATELIMIT_INTERVAL	8
+#define ADF_VF2PF_RATELIMIT_BURST	130
+
 static struct workqueue_struct *pf2vf_resp_wq;
 
 struct adf_pf2vf_resp {
@@ -62,8 +65,8 @@ static int adf_enable_sriov(struct adf_accel_dev *accel_dev)
 
 		mutex_init(&vf_info->pf2vf_lock);
 		ratelimit_state_init(&vf_info->vf2pf_ratelimit,
-				     DEFAULT_RATELIMIT_INTERVAL,
-				     DEFAULT_RATELIMIT_BURST);
+				     ADF_VF2PF_RATELIMIT_INTERVAL,
+				     ADF_VF2PF_RATELIMIT_BURST);
 	}
 
 	/* Set Valid bits in AE Thread to PCIe Function Mapping */

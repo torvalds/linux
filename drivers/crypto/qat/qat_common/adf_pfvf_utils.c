@@ -1,10 +1,25 @@
 // SPDX-License-Identifier: (BSD-3-Clause OR GPL-2.0-only)
 /* Copyright(c) 2021 Intel Corporation */
+#include <linux/crc8.h>
 #include <linux/pci.h>
 #include <linux/types.h>
 #include "adf_accel_devices.h"
 #include "adf_pfvf_msg.h"
 #include "adf_pfvf_utils.h"
+
+/* CRC Calculation */
+DECLARE_CRC8_TABLE(pfvf_crc8_table);
+#define ADF_PFVF_CRC8_POLYNOMIAL 0x97
+
+void adf_pfvf_crc_init(void)
+{
+	crc8_populate_msb(pfvf_crc8_table, ADF_PFVF_CRC8_POLYNOMIAL);
+}
+
+u8 adf_pfvf_calc_blkmsg_crc(u8 const *buf, u8 buf_len)
+{
+	return crc8(pfvf_crc8_table, buf, buf_len, CRC8_INIT_VALUE);
+}
 
 static bool set_value_on_csr_msg(struct adf_accel_dev *accel_dev, u32 *csr_msg,
 				 u32 value, const struct pfvf_field_format *fmt)

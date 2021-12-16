@@ -10,6 +10,9 @@
 #define ADF_PFVF_MSG_ACK_DELAY_US	4
 #define ADF_PFVF_MSG_ACK_MAX_DELAY_US	(1 * USEC_PER_SEC)
 
+u8 adf_pfvf_calc_blkmsg_crc(u8 const *buf, u8 buf_len);
+void adf_pfvf_crc_init(void);
+
 struct pfvf_field_format {
 	u8  offset;
 	u32 mask;

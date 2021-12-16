@@ -6,7 +6,16 @@
 #include "adf_accel_devices.h"
 #include "adf_common_drv.h"
 #include "adf_pfvf_msg.h"
+#include "adf_pfvf_pf_msg.h"
 #include "adf_pfvf_pf_proto.h"
+#include "adf_pfvf_utils.h"
+
+typedef u8 (*pf2vf_blkmsg_data_getter_fn)(u8 const *blkmsg, u8 byte);
+
+static const adf_pf2vf_blkmsg_provider pf2vf_blkmsg_providers[] = {
+	NULL,				  /* no message type defined for value 0 */
+	NULL,				  /* no message type defined for value 1 */
+};
 
 /**
  * adf_send_pf2vf_msg() - send PF to VF message
@@ -42,6 +51,128 @@ static struct pfvf_message adf_recv_vf2pf_msg(struct adf_accel_dev *accel_dev, u
 	u32 pfvf_offset = pfvf_ops->get_vf2pf_offset(vf_nr);
 
 	return pfvf_ops->recv_msg(accel_dev, pfvf_offset);
+}
+
+static adf_pf2vf_blkmsg_provider get_blkmsg_response_provider(u8 type)
+{
+	if (type >= ARRAY_SIZE(pf2vf_blkmsg_providers))
+		return NULL;
+
+	return pf2vf_blkmsg_providers[type];
+}
+
+/* Byte pf2vf_blkmsg_data_getter_fn callback */
+static u8 adf_pf2vf_blkmsg_get_byte(u8 const *blkmsg, u8 index)
+{
+	return blkmsg[index];
+}
+
+/* CRC pf2vf_blkmsg_data_getter_fn callback */
+static u8 adf_pf2vf_blkmsg_get_crc(u8 const *blkmsg, u8 count)
+{
+	/* count is 0-based, turn it into a length */
+	return adf_pfvf_calc_blkmsg_crc(blkmsg, count + 1);
+}
+
+static int adf_pf2vf_blkmsg_get_data(struct adf_accel_vf_info *vf_info,
+				     u8 type, u8 byte, u8 max_size, u8 *data,
+				     pf2vf_blkmsg_data_getter_fn data_getter)
+{
+	u8 blkmsg[ADF_PFVF_BLKMSG_MSG_MAX_SIZE] = { 0 };
+	struct adf_accel_dev *accel_dev = vf_info->accel_dev;
+	adf_pf2vf_blkmsg_provider provider;
+	u8 msg_size;
+
+	provider = get_blkmsg_response_provider(type);
+
+	if (unlikely(!provider)) {
+		pr_err("QAT: No registered provider for message %d\n", type);
+		*data = ADF_PF2VF_INVALID_BLOCK_TYPE;
+		return -EINVAL;
+	}
+
+	if (unlikely((*provider)(accel_dev, blkmsg, vf_info->vf_compat_ver))) {
+		pr_err("QAT: unknown error from provider for message %d\n", type);
+		*data = ADF_PF2VF_UNSPECIFIED_ERROR;
+		return -EINVAL;
+	}
+
+	msg_size = ADF_PFVF_BLKMSG_HEADER_SIZE + blkmsg[ADF_PFVF_BLKMSG_LEN_BYTE];
+
+	if (unlikely(msg_size >= max_size)) {
+		pr_err("QAT: Invalid size %d provided for message type %d\n",
+		       msg_size, type);
+		*data = ADF_PF2VF_PAYLOAD_TRUNCATED;
+		return -EINVAL;
+	}
+
+	if (unlikely(byte >= msg_size)) {
+		pr_err("QAT: Out-of-bound byte number %d (msg size %d)\n",
+		       byte, msg_size);
+		*data = ADF_PF2VF_INVALID_BYTE_NUM_REQ;
+		return -EINVAL;
+	}
+
+	*data = data_getter(blkmsg, byte);
+	return 0;
+}
+
+static struct pfvf_message handle_blkmsg_req(struct adf_accel_vf_info *vf_info,
+					     struct pfvf_message req)
+{
+	u8 resp_type = ADF_PF2VF_BLKMSG_RESP_TYPE_ERROR;
+	struct pfvf_message resp = { 0 };
+	u8 resp_data = 0;
+	u8 blk_type;
+	u8 blk_byte;
+	u8 byte_max;
+
+	switch (req.type) {
+	case ADF_VF2PF_MSGTYPE_LARGE_BLOCK_REQ:
+		blk_type = FIELD_GET(ADF_VF2PF_LARGE_BLOCK_TYPE_MASK, req.data)
+			   + ADF_VF2PF_MEDIUM_BLOCK_TYPE_MAX + 1;
+		blk_byte = FIELD_GET(ADF_VF2PF_LARGE_BLOCK_BYTE_MASK, req.data);
+		byte_max = ADF_VF2PF_LARGE_BLOCK_BYTE_MAX;
+		break;
+	case ADF_VF2PF_MSGTYPE_MEDIUM_BLOCK_REQ:
+		blk_type = FIELD_GET(ADF_VF2PF_MEDIUM_BLOCK_TYPE_MASK, req.data)
+			   + ADF_VF2PF_SMALL_BLOCK_TYPE_MAX + 1;
+		blk_byte = FIELD_GET(ADF_VF2PF_MEDIUM_BLOCK_BYTE_MASK, req.data);
+		byte_max = ADF_VF2PF_MEDIUM_BLOCK_BYTE_MAX;
+		break;
+	case ADF_VF2PF_MSGTYPE_SMALL_BLOCK_REQ:
+		blk_type = FIELD_GET(ADF_VF2PF_SMALL_BLOCK_TYPE_MASK, req.data);
+		blk_byte = FIELD_GET(ADF_VF2PF_SMALL_BLOCK_BYTE_MASK, req.data);
+		byte_max = ADF_VF2PF_SMALL_BLOCK_BYTE_MAX;
+		break;
+	}
+
+	/* Is this a request for CRC or data? */
+	if (FIELD_GET(ADF_VF2PF_BLOCK_CRC_REQ_MASK, req.data)) {
+		dev_dbg(&GET_DEV(vf_info->accel_dev),
+			"BlockMsg of type %d for CRC over %d bytes received from VF%d\n",
+			blk_type, blk_byte, vf_info->vf_nr);
+
+		if (!adf_pf2vf_blkmsg_get_data(vf_info, blk_type, blk_byte,
+					       byte_max, &resp_data,
+					       adf_pf2vf_blkmsg_get_crc))
+			resp_type = ADF_PF2VF_BLKMSG_RESP_TYPE_CRC;
+	} else {
+		dev_dbg(&GET_DEV(vf_info->accel_dev),
+			"BlockMsg of type %d for data byte %d received from VF%d\n",
+			blk_type, blk_byte, vf_info->vf_nr);
+
+		if (!adf_pf2vf_blkmsg_get_data(vf_info, blk_type, blk_byte,
+					       byte_max, &resp_data,
+					       adf_pf2vf_blkmsg_get_byte))
+			resp_type = ADF_PF2VF_BLKMSG_RESP_TYPE_DATA;
+	}
+
+	resp.type = ADF_PF2VF_MSGTYPE_BLKMSG_RESP;
+	resp.data = FIELD_PREP(ADF_PF2VF_BLKMSG_RESP_TYPE_MASK, resp_type) |
+		    FIELD_PREP(ADF_PF2VF_BLKMSG_RESP_DATA_MASK, resp_data);
+
+	return resp;
 }
 
 static int adf_handle_vf2pf_msg(struct adf_accel_dev *accel_dev, u8 vf_nr,
@@ -106,6 +237,11 @@ static int adf_handle_vf2pf_msg(struct adf_accel_dev *accel_dev, u8 vf_nr,
 		vf_info->init = false;
 		}
 		break;
+	case ADF_VF2PF_MSGTYPE_LARGE_BLOCK_REQ:
+	case ADF_VF2PF_MSGTYPE_MEDIUM_BLOCK_REQ:
+	case ADF_VF2PF_MSGTYPE_SMALL_BLOCK_REQ:
+		*resp = handle_blkmsg_req(vf_info, msg);
+		break;
 	default:
 		dev_dbg(&GET_DEV(accel_dev),
 			"Unknown message from VF%d (type 0x%.4x, data: 0x%.4x)\n",
@@ -147,6 +283,7 @@ bool adf_recv_and_handle_vf2pf_msg(struct adf_accel_dev *accel_dev, u32 vf_nr)
  */
 int adf_enable_pf2vf_comms(struct adf_accel_dev *accel_dev)
 {
+	adf_pfvf_crc_init();
 	spin_lock_init(&accel_dev->pf.vf2pf_ints_lock);
 
 	return 0;
