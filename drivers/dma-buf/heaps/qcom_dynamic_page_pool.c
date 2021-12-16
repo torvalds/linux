@@ -17,6 +17,7 @@
 #include <linux/list.h>
 #include <linux/slab.h>
 #include <linux/swap.h>
+#include <linux/spinlock.h>
 #include <linux/sched/signal.h>
 #include <uapi/linux/sched/types.h>
 
@@ -27,7 +28,9 @@ static DEFINE_MUTEX(pool_list_lock);
 
 void dynamic_page_pool_add(struct dynamic_page_pool *pool, struct page *page)
 {
-	mutex_lock(&pool->mutex);
+	unsigned long flags;
+
+	spin_lock_irqsave(&pool->lock, flags);
 	if (PageHighMem(page)) {
 		list_add_tail(&page->lru, &pool->high_items);
 		pool->high_count++;
@@ -39,7 +42,7 @@ void dynamic_page_pool_add(struct dynamic_page_pool *pool, struct page *page)
 	atomic_inc(&pool->count);
 	mod_node_page_state(page_pgdat(page), NR_KERNEL_MISC_RECLAIMABLE,
 			    1 << pool->order);
-	mutex_unlock(&pool->mutex);
+	spin_unlock_irqrestore(&pool->lock, flags);
 }
 
 struct page *dynamic_page_pool_remove(struct dynamic_page_pool *pool, bool high)
@@ -92,7 +95,7 @@ struct dynamic_page_pool *dynamic_page_pool_create(gfp_t gfp_mask, unsigned int 
 	INIT_LIST_HEAD(&pool->high_items);
 	pool->gfp_mask = gfp_mask | __GFP_COMP;
 	pool->order = order;
-	mutex_init(&pool->mutex);
+	spin_lock_init(&pool->lock);
 
 	mutex_lock(&pool_list_lock);
 	list_add(&pool->list, &pool_list);
@@ -107,6 +110,7 @@ void dynamic_page_pool_destroy(struct dynamic_page_pool *pool)
 	LIST_HEAD(pages);
 	int num_pages = 0;
 	int ret = DYNAMIC_POOL_SUCCESS;
+	unsigned long flags;
 
 	/* Remove us from the pool list */
 	mutex_lock(&pool_list_lock);
@@ -114,7 +118,7 @@ void dynamic_page_pool_destroy(struct dynamic_page_pool *pool)
 	mutex_unlock(&pool_list_lock);
 
 	/* Free any remaining pages in the pool */
-	mutex_lock(&pool->mutex);
+	spin_lock_irqsave(&pool->lock, flags);
 	while (true) {
 		if (pool->low_count)
 			page = dynamic_page_pool_remove(pool, false);
@@ -126,7 +130,7 @@ void dynamic_page_pool_destroy(struct dynamic_page_pool *pool)
 		list_add(&page->lru, &pages);
 		num_pages++;
 	}
-	mutex_unlock(&pool->mutex);
+	spin_unlock_irqrestore(&pool->lock, flags);
 
 	if (num_pages && pool->prerelease_callback)
 		ret = pool->prerelease_callback(pool, &pages, num_pages);
@@ -162,16 +166,18 @@ static int dynamic_page_pool_do_shrink(struct dynamic_page_pool *pool, gfp_t gfp
 		return dynamic_page_pool_total(pool, high);
 
 	while (freed < nr_to_scan) {
-		mutex_lock(&pool->mutex);
+		unsigned long flags;
+
+		spin_lock_irqsave(&pool->lock, flags);
 		if (pool->low_count) {
 			page = dynamic_page_pool_remove(pool, false);
 		} else if (high && pool->high_count) {
 			page = dynamic_page_pool_remove(pool, true);
 		} else {
-			mutex_unlock(&pool->mutex);
+			spin_unlock_irqrestore(&pool->lock, flags);
 			break;
 		}
-		mutex_unlock(&pool->mutex);
+		spin_unlock_irqrestore(&pool->lock, flags);
 		list_add(&page->lru, &pages);
 		freed += (1 << pool->order);
 	}

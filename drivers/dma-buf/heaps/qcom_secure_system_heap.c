@@ -455,17 +455,19 @@ static struct page *alloc_largest_available(struct dynamic_page_pool **pools,
 	*page_from_secure_pool = true;
 
 	for (i = 0; i < NUM_ORDERS; i++) {
+		unsigned long flags;
+
 		if (size <  (PAGE_SIZE << orders[i]))
 			continue;
 		if (max_order < orders[i])
 			continue;
 
-		mutex_lock(&pools[i]->mutex);
+		spin_lock_irqsave(&pools[i]->lock, flags);
 		if (pools[i]->high_count)
 			page = dynamic_page_pool_remove(pools[i], true);
 		else if (pools[i]->low_count)
 			page = dynamic_page_pool_remove(pools[i], false);
-		mutex_unlock(&pools[i]->mutex);
+		spin_unlock_irqrestore(&pools[i]->lock, flags);
 
 		if (!page)
 			continue;
