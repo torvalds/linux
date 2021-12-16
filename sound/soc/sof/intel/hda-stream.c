@@ -329,7 +329,6 @@ int hda_dsp_stream_trigger(struct snd_sof_dev *sdev,
 
 	/* cmd must be for audio stream */
 	switch (cmd) {
-	case SNDRV_PCM_TRIGGER_RESUME:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
 	case SNDRV_PCM_TRIGGER_START:
 		snd_sof_dsp_update_bits(sdev, HDA_DSP_HDA_BAR, SOF_HDA_INTCTL,
