@@ -2281,6 +2281,7 @@ static void rcu_torture_fwd_prog_nr(struct rcu_fwd *rfp,
 	unsigned long stopat;
 	static DEFINE_TORTURE_RANDOM(trs);
 
+	pr_alert("%s: Starting forward-progress test %d\n", __func__, rfp->rcu_fwd_id);
 	if (!cur_ops->sync)
 		return; // Cannot do need_resched() forward progress testing without ->sync.
 	if (cur_ops->call && cur_ops->cb_barrier) {
@@ -2325,6 +2326,7 @@ static void rcu_torture_fwd_prog_nr(struct rcu_fwd *rfp,
 	if (selfpropcb) {
 		WRITE_ONCE(fcs.stop, 1);
 		cur_ops->sync(); /* Wait for running CB to complete. */
+		pr_alert("%s: Waiting for CBs: %pS() %d\n", __func__, cur_ops->cb_barrier, rfp->rcu_fwd_id);
 		cur_ops->cb_barrier(); /* Wait for queued callbacks. */
 	}
 
@@ -2353,6 +2355,7 @@ static void rcu_torture_fwd_prog_cr(struct rcu_fwd *rfp)
 	unsigned long stopat;
 	unsigned long stoppedat;
 
+	pr_alert("%s: Starting forward-progress test %d\n", __func__, rfp->rcu_fwd_id);
 	if (READ_ONCE(rcu_fwd_emergency_stop))
 		return; /* Get out of the way quickly, no GP wait! */
 	if (!cur_ops->call)
@@ -2414,6 +2417,7 @@ static void rcu_torture_fwd_prog_cr(struct rcu_fwd *rfp)
 	n_launders_cb_snap = READ_ONCE(rfp->n_launders_cb);
 	cver = READ_ONCE(rcu_torture_current_version) - cver;
 	gps = rcutorture_seq_diff(cur_ops->get_gp_seq(), gps);
+	pr_alert("%s: Waiting for CBs: %pS() %d\n", __func__, cur_ops->cb_barrier, rfp->rcu_fwd_id);
 	cur_ops->cb_barrier(); /* Wait for callbacks to be invoked. */
 	(void)rcu_torture_fwd_prog_cbfree(rfp);
 
