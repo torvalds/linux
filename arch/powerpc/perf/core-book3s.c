@@ -2479,7 +2479,7 @@ static int power_pmu_prepare_cpu(unsigned int cpu)
 	return 0;
 }
 
-int register_power_pmu(struct power_pmu *pmu)
+int __init register_power_pmu(struct power_pmu *pmu)
 {
 	if (ppmu)
 		return -EBUSY;		/* something's already registered */
