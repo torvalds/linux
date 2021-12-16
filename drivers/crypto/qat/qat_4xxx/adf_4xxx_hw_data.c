@@ -239,6 +239,7 @@ void adf_init_hw_data_4xxx(struct adf_hw_device_data *hw_data)
 	hw_data->dev_class = &adf_4xxx_class;
 	hw_data->instance_id = adf_4xxx_class.instances++;
 	hw_data->num_banks = ADF_4XXX_ETR_MAX_BANKS;
+	hw_data->num_banks_per_vf = ADF_4XXX_NUM_BANKS_PER_VF;
 	hw_data->num_rings_per_bank = ADF_4XXX_NUM_RINGS_PER_BANK;
 	hw_data->num_accel = ADF_4XXX_MAX_ACCELERATORS;
 	hw_data->num_engines = ADF_4XXX_MAX_ACCELENGINES;
@@ -279,6 +280,7 @@ void adf_init_hw_data_4xxx(struct adf_hw_device_data *hw_data)
 	hw_data->pfvf_ops.enable_comms = adf_pfvf_comms_disabled;
 	hw_data->pfvf_ops.get_vf2pf_sources = get_vf2pf_sources;
 	hw_data->disable_iov = adf_disable_sriov;
+	hw_data->ring_pair_reset = adf_gen4_ring_pair_reset;
 
 	adf_gen4_init_hw_csr_ops(&hw_data->csr_ops);
 }

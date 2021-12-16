@@ -186,6 +186,7 @@ struct adf_hw_device_data {
 				      bool enable);
 	void (*enable_ints)(struct adf_accel_dev *accel_dev);
 	void (*set_ssm_wdtimer)(struct adf_accel_dev *accel_dev);
+	int (*ring_pair_reset)(struct adf_accel_dev *accel_dev, u32 bank_nr);
 	void (*reset_device)(struct adf_accel_dev *accel_dev);
 	void (*set_msix_rttable)(struct adf_accel_dev *accel_dev);
 	char *(*uof_get_name)(u32 obj_num);
@@ -206,6 +207,7 @@ struct adf_hw_device_data {
 	u16 tx_rings_mask;
 	u8 tx_rx_gap;
 	u8 num_banks;
+	u16 num_banks_per_vf;
 	u8 num_rings_per_bank;
 	u8 num_accel;
 	u8 num_logical_accel;

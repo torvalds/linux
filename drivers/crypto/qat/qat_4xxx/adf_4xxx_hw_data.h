@@ -37,6 +37,7 @@
 
 /* Bank and ring configuration */
 #define ADF_4XXX_NUM_RINGS_PER_BANK	2
+#define ADF_4XXX_NUM_BANKS_PER_VF	4
 
 /* Error source registers */
 #define ADF_4XXX_ERRSOU0	(0x41A200)

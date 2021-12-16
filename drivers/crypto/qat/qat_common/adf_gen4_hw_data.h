@@ -106,6 +106,15 @@ do { \
 #define ADF_SSMWDTPKEL_OFFSET		0x58
 #define ADF_SSMWDTPKEH_OFFSET		0x60
 
+/* Ring reset */
+#define ADF_RPRESET_POLL_TIMEOUT_US	(5 * USEC_PER_SEC)
+#define ADF_RPRESET_POLL_DELAY_US	20
+#define ADF_WQM_CSR_RPRESETCTL_RESET	BIT(0)
+#define ADF_WQM_CSR_RPRESETCTL(bank)	(0x6000 + ((bank) << 3))
+#define ADF_WQM_CSR_RPRESETSTS_STATUS	BIT(0)
+#define ADF_WQM_CSR_RPRESETSTS(bank)	(ADF_WQM_CSR_RPRESETCTL(bank) + 4)
+
 void adf_gen4_set_ssm_wdtimer(struct adf_accel_dev *accel_dev);
 void adf_gen4_init_hw_csr_ops(struct adf_hw_csr_ops *csr_ops);
+int adf_gen4_ring_pair_reset(struct adf_accel_dev *accel_dev, u32 bank_number);
 #endif
