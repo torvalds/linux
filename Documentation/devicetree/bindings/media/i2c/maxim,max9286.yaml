@@ -70,6 +70,28 @@ properties:
       a remote serializer whose high-threshold noise immunity is not enabled
       is 100000 micro volts
 
+  maxim,gpio-poc:
+    $ref: '/schemas/types.yaml#/definitions/uint32-array'
+    minItems: 2
+    maxItems: 2
+    description: |
+      Index of the MAX9286 gpio output line (0 or 1) that controls Power over
+      Coax to the cameras and its associated polarity flag.
+
+      The property accepts an array of two unsigned integers, the first being
+      the gpio line index (0 or 1) and the second being the gpio line polarity
+      flag (GPIO_ACTIVE_HIGH or GPIO_ACTIVE_LOW) as defined in
+      <include/dt-bindings/gpio/gpio.h>.
+
+      When the remote cameras power is controlled by one of the MAX9286 gpio
+      lines, this property has to be used to specify which line among the two
+      available ones controls the remote camera power enablement.
+
+      When this property is used it is not possible to register a gpio
+      controller as the gpio lines are controlled directly by the MAX9286 and
+      not available for consumers, nor the 'poc-supply' property should be
+      specified.
+
   ports:
     $ref: /schemas/graph.yaml#/properties/ports
 
@@ -165,7 +187,16 @@ required:
   - reg
   - ports
   - i2c-mux
-  - gpio-controller
+
+# If 'maxim,gpio-poc' is present, then 'poc-supply' and 'gpio-controller'
+# are not allowed.
+if:
+  required:
+    - maxim,gpio-poc
+then:
+  properties:
+    poc-supply: false
+    gpio-controller: false
 
 additionalProperties: false
 
@@ -308,6 +339,40 @@ examples:
                         };
                     };
                 };
+            };
+        };
+
+        /*
+        * Example of a deserializer that controls the camera Power over Coax
+        * through one of its gpio lines.
+        */
+        gmsl-deserializer@6c {
+            compatible = "maxim,max9286";
+            reg = <0x6c>;
+            enable-gpios = <&gpio 14 GPIO_ACTIVE_HIGH>;
+
+            /*
+            * The remote camera power is controlled by MAX9286 GPIO line #0.
+            * No 'poc-supply' nor 'gpio-controller' are specified.
+            */
+            maxim,gpio-poc = <0 GPIO_ACTIVE_LOW>;
+
+            /*
+            * Do not describe connections as they're the same as in the previous
+            * example.
+            */
+            ports {
+                #address-cells = <1>;
+                #size-cells = <0>;
+
+                port@4 {
+                    reg = <4>;
+                };
+            };
+
+            i2c-mux {
+                #address-cells = <1>;
+                #size-cells = <0>;
             };
         };
     };
