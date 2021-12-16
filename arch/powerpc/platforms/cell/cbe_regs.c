@@ -165,7 +165,7 @@ u32 cbe_node_to_cpu(int node)
 }
 EXPORT_SYMBOL_GPL(cbe_node_to_cpu);
 
-static struct device_node *cbe_get_be_node(int cpu_id)
+static struct device_node *__init cbe_get_be_node(int cpu_id)
 {
 	struct device_node *np;
 
