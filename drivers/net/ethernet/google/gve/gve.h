@@ -557,6 +557,8 @@ struct gve_priv {
 	u32 page_alloc_fail; /* count of page alloc fails */
 	u32 dma_mapping_error; /* count of dma mapping errors */
 	u32 stats_report_trigger_cnt; /* count of device-requested stats-reports since last reset */
+	u32 suspend_cnt; /* count of times suspended */
+	u32 resume_cnt; /* count of times resumed */
 	struct workqueue_struct *gve_wq;
 	struct work_struct service_task;
 	struct work_struct stats_report_task;
@@ -573,6 +575,7 @@ struct gve_priv {
 
 	/* Gvnic device link speed from hypervisor. */
 	u64 link_speed;
+	bool up_before_suspend; /* True if dev was up before suspend */
 
 	struct gve_options_dqo_rda options_dqo_rda;
 	struct gve_ptype_lut *ptype_lut_dqo;
