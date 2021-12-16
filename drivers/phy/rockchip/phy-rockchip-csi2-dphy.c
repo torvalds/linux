@@ -29,7 +29,6 @@ struct sensor_async_subdev {
 	int lanes;
 };
 
-static DEFINE_MUTEX(csi2dphy_dev_mutex);
 static LIST_HEAD(csi2dphy_device_list);
 
 static inline struct csi2_dphy *to_csi2_dphy(struct v4l2_subdev *subdev)
