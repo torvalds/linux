@@ -3071,6 +3071,13 @@ void vmx_set_cr0(struct kvm_vcpu *vcpu, unsigned long cr0)
 		/* Note, vmx_set_cr4() consumes the new vcpu->arch.cr0. */
 		if ((old_cr0_pg ^ cr0) & X86_CR0_PG)
 			vmx_set_cr4(vcpu, kvm_read_cr4(vcpu));
+
+		/*
+		 * When !CR0_PG -> CR0_PG, vcpu->arch.cr3 becomes active, but
+		 * GUEST_CR3 is still vmx->ept_identity_map_addr if EPT + !URG.
+		 */
+		if (!(old_cr0_pg & X86_CR0_PG) && (cr0 & X86_CR0_PG))
+			kvm_register_mark_dirty(vcpu, VCPU_EXREG_CR3);
 	}
 
 	/* depends on vcpu->arch.cr0 to be set to a new value */
