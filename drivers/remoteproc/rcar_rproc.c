@@ -163,7 +163,7 @@ static int rcar_rproc_probe(struct platform_device *pdev)
 	if (IS_ERR(priv->rst)) {
 		ret = PTR_ERR(priv->rst);
 		dev_err_probe(dev, ret, "fail to acquire rproc reset\n");
-		return ret;;
+		return ret;
 	}
 
 	pm_runtime_enable(dev);
