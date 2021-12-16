@@ -12,7 +12,7 @@
 
 #ifdef CONFIG_XMON
 extern void xmon_setup(void);
-extern void xmon_register_spus(struct list_head *list);
+void __init xmon_register_spus(struct list_head *list);
 struct pt_regs;
 extern int xmon(struct pt_regs *excp);
 extern irqreturn_t xmon_irq(int, void *);
