@@ -489,7 +489,7 @@ EXPORT_SYMBOL_GPL(vas_unregister_api_pseries);
  * Get the specific capabilities based on the feature type.
  * Right now supports GZIP default and GZIP QoS capabilities.
  */
-static int get_vas_capabilities(u8 feat, enum vas_cop_feat_type type,
+static int __init get_vas_capabilities(u8 feat, enum vas_cop_feat_type type,
 				struct hv_vas_cop_feat_caps *hv_caps)
 {
 	struct vas_cop_feat_caps *caps;

@@ -32,7 +32,7 @@ void setup_panic(void);
 extern bool pseries_enable_reloc_on_exc(void);
 extern void pseries_disable_reloc_on_exc(void);
 extern void pseries_big_endian_exceptions(void);
-extern void pseries_little_endian_exceptions(void);
+void __init pseries_little_endian_exceptions(void);
 #else
 static inline bool pseries_enable_reloc_on_exc(void) { return false; }
 static inline void pseries_disable_reloc_on_exc(void) {}

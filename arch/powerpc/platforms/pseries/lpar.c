@@ -714,7 +714,7 @@ void vpa_init(int cpu)
 
 #ifdef CONFIG_PPC_BOOK3S_64
 
-static int pseries_lpar_register_process_table(unsigned long base,
+static int __init pseries_lpar_register_process_table(unsigned long base,
 			unsigned long page_size, unsigned long table_size)
 {
 	long rc;
@@ -1737,7 +1737,7 @@ void __init hpte_init_pseries(void)
 #endif /* CONFIG_PPC_64S_HASH_MMU */
 
 #ifdef CONFIG_PPC_RADIX_MMU
-void radix_init_pseries(void)
+void __init radix_init_pseries(void)
 {
 	pr_info("Using radix MMU under hypervisor\n");
 
@@ -1938,7 +1938,7 @@ int h_get_mpp_x(struct hvcall_mpp_x_data *mpp_x_data)
 }
 
 #ifdef CONFIG_PPC_64S_HASH_MMU
-static unsigned long vsid_unscramble(unsigned long vsid, int ssize)
+static unsigned long __init vsid_unscramble(unsigned long vsid, int ssize)
 {
 	unsigned long protovsid;
 	unsigned long va_bits = VA_BITS;
