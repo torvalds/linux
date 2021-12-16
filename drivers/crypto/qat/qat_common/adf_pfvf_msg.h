@@ -6,7 +6,8 @@
 #include <linux/bits.h>
 
 /*
- * PF<->VF Messaging
+ * PF<->VF Gen2 Messaging format
+ *
  * The PF has an array of 32-bit PF2VF registers, one for each VF.  The
  * PF can access all these registers; each VF can access only the one
  * register associated with that particular VF.
@@ -53,6 +54,32 @@
  * respectively, the other 16 bits are written to first with a defined
  * IN_USE_BY pattern as part of a collision control scheme (see function
  * adf_gen2_pfvf_send() in adf_pf2vf_msg.c).
+ *
+ *
+ * PF<->VF Gen4 Messaging format
+ *
+ * Similarly to the gen2 messaging format, 32-bit long registers are used for
+ * communication between PF and VFs. However, each VF and PF share a pair of
+ * 32-bits register to avoid collisions: one for PV to VF messages and one
+ * for VF to PF messages.
+ *
+ * Both the Interrupt bit and the Message Origin bit retain the same position
+ * and meaning, although non-system messages are now deprecated and not
+ * expected.
+ *
+ *  31 30              9  8  7  6  5  4  3  2  1  0
+ *  _______________________________________________
+ * |  |  |   . . .   |  |  |  |  |  |  |  |  |  |  |
+ * +-----------------------------------------------+
+ *  \_____________________/ \_______________/  ^  ^
+ *             ^                     ^         |  |
+ *             |                     |         |  PF/VF Int
+ *             |                     |         Message Origin
+ *             |                     Message Type
+ *             Message-specific Data/Reserved
+ *
+ * For both formats, the message reception is acknowledged by lowering the
+ * interrupt bit on the register where the message was sent.
  */
 
 /* PFVF message common bits */
