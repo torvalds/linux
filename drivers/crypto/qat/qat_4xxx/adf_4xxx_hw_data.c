@@ -246,6 +246,7 @@ void adf_init_hw_data_4xxx(struct adf_hw_device_data *hw_data)
 	hw_data->num_logical_accel = 1;
 	hw_data->tx_rx_gap = ADF_4XXX_RX_RINGS_OFFSET;
 	hw_data->tx_rings_mask = ADF_4XXX_TX_RINGS_MASK;
+	hw_data->ring_to_svc_map = ADF_GEN4_DEFAULT_RING_TO_SRV_MAP;
 	hw_data->alloc_irq = adf_isr_resource_alloc;
 	hw_data->free_irq = adf_isr_resource_free;
 	hw_data->enable_error_correction = adf_enable_error_correction;

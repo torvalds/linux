@@ -4,6 +4,7 @@
 #define ADF_GEN2_HW_DATA_H_
 
 #include "adf_accel_devices.h"
+#include "adf_cfg_common.h"
 
 /* Transport access */
 #define ADF_BANK_INT_SRC_SEL_MASK_0	0x4444444CUL
@@ -115,6 +116,13 @@ do { \
 /* Power gating */
 #define ADF_POWERGATE_DC		BIT(23)
 #define ADF_POWERGATE_PKE		BIT(24)
+
+/* Default ring mapping */
+#define ADF_GEN2_DEFAULT_RING_TO_SRV_MAP \
+	(CRYPTO << ADF_CFG_SERV_RING_PAIR_0_SHIFT | \
+	 CRYPTO << ADF_CFG_SERV_RING_PAIR_1_SHIFT | \
+	 UNUSED << ADF_CFG_SERV_RING_PAIR_2_SHIFT | \
+	   COMP << ADF_CFG_SERV_RING_PAIR_3_SHIFT)
 
 /* WDT timers
  *

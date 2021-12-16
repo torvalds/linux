@@ -4,6 +4,7 @@
 #define ADF_GEN4_HW_CSR_DATA_H_
 
 #include "adf_accel_devices.h"
+#include "adf_cfg_common.h"
 
 /* Transport access */
 #define ADF_BANK_INT_SRC_SEL_MASK	0x44UL
@@ -93,6 +94,13 @@ do { \
 	ADF_CSR_WR((csr_base_addr) + ADF_RING_CSR_ADDR_OFFSET, \
 		   ADF_RING_BUNDLE_SIZE * (bank) + \
 		   ADF_RING_CSR_RING_SRV_ARB_EN, (value))
+
+/* Default ring mapping */
+#define ADF_GEN4_DEFAULT_RING_TO_SRV_MAP \
+	(ASYM << ADF_CFG_SERV_RING_PAIR_0_SHIFT | \
+	  SYM << ADF_CFG_SERV_RING_PAIR_1_SHIFT | \
+	 ASYM << ADF_CFG_SERV_RING_PAIR_2_SHIFT | \
+	  SYM << ADF_CFG_SERV_RING_PAIR_3_SHIFT)
 
 /* WDT timers
  *

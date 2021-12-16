@@ -208,6 +208,7 @@ struct adf_hw_device_data {
 	u32 ae_mask;
 	u32 admin_ae_mask;
 	u16 tx_rings_mask;
+	u16 ring_to_svc_map;
 	u8 tx_rx_gap;
 	u8 num_banks;
 	u16 num_banks_per_vf;
@@ -224,12 +225,19 @@ struct adf_hw_device_data {
 /* CSR read macro */
 #define ADF_CSR_RD(csr_base, csr_offset) __raw_readl(csr_base + csr_offset)
 
+#define ADF_CFG_NUM_SERVICES	4
+#define ADF_SRV_TYPE_BIT_LEN	3
+#define ADF_SRV_TYPE_MASK	0x7
+
 #define GET_DEV(accel_dev) ((accel_dev)->accel_pci_dev.pci_dev->dev)
 #define GET_BARS(accel_dev) ((accel_dev)->accel_pci_dev.pci_bars)
 #define GET_HW_DATA(accel_dev) (accel_dev->hw_device)
 #define GET_MAX_BANKS(accel_dev) (GET_HW_DATA(accel_dev)->num_banks)
 #define GET_NUM_RINGS_PER_BANK(accel_dev) \
 	GET_HW_DATA(accel_dev)->num_rings_per_bank
+#define GET_SRV_TYPE(accel_dev, idx) \
+	(((GET_HW_DATA(accel_dev)->ring_to_svc_map) >> (ADF_SRV_TYPE_BIT_LEN * (idx))) \
+	& ADF_SRV_TYPE_MASK)
 #define GET_MAX_ACCELENGINES(accel_dev) (GET_HW_DATA(accel_dev)->num_engines)
 #define GET_CSR_OPS(accel_dev) (&(accel_dev)->hw_device->csr_ops)
 #define GET_PFVF_OPS(accel_dev) (&(accel_dev)->hw_device->pfvf_ops)

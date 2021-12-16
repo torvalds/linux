@@ -67,6 +67,7 @@ void adf_init_hw_data_c62xiov(struct adf_hw_device_data *hw_data)
 	hw_data->num_engines = ADF_C62XIOV_MAX_ACCELENGINES;
 	hw_data->tx_rx_gap = ADF_C62XIOV_RX_RINGS_OFFSET;
 	hw_data->tx_rings_mask = ADF_C62XIOV_TX_RINGS_MASK;
+	hw_data->ring_to_svc_map = ADF_GEN2_DEFAULT_RING_TO_SRV_MAP;
 	hw_data->alloc_irq = adf_vf_isr_resource_alloc;
 	hw_data->free_irq = adf_vf_isr_resource_free;
 	hw_data->enable_error_correction = adf_vf_void_noop;

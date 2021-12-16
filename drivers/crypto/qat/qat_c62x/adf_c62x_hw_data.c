@@ -111,6 +111,7 @@ void adf_init_hw_data_c62x(struct adf_hw_device_data *hw_data)
 	hw_data->num_engines = ADF_C62X_MAX_ACCELENGINES;
 	hw_data->tx_rx_gap = ADF_GEN2_RX_RINGS_OFFSET;
 	hw_data->tx_rings_mask = ADF_GEN2_TX_RINGS_MASK;
+	hw_data->ring_to_svc_map = ADF_GEN2_DEFAULT_RING_TO_SRV_MAP;
 	hw_data->alloc_irq = adf_isr_resource_alloc;
 	hw_data->free_irq = adf_isr_resource_free;
 	hw_data->enable_error_correction = adf_gen2_enable_error_correction;
