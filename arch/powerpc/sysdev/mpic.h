@@ -24,7 +24,7 @@ static inline int mpic_u3msi_init(struct mpic *mpic)
 #endif
 
 #if defined(CONFIG_PCI_MSI) && defined(CONFIG_PPC_PASEMI)
-int mpic_pasemi_msi_init(struct mpic *mpic);
+int __init mpic_pasemi_msi_init(struct mpic *mpic);
 #else
 static inline int mpic_pasemi_msi_init(struct mpic *mpic) { return -1; }
 #endif
