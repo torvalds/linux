@@ -395,7 +395,9 @@ static void io_wqe_dec_running(struct io_worker *worker)
 	if (atomic_dec_and_test(&acct->nr_running) && io_acct_run_queue(acct)) {
 		atomic_inc(&acct->nr_running);
 		atomic_inc(&wqe->wq->worker_refs);
+		raw_spin_unlock(&wqe->lock);
 		io_queue_worker_create(worker, acct, create_worker_cb);
+		raw_spin_lock(&wqe->lock);
 	}
 }
 
