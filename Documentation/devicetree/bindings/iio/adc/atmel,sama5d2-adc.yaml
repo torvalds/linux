@@ -72,7 +72,6 @@ required:
   - atmel,min-sample-rate-hz
   - atmel,max-sample-rate-hz
   - atmel,startup-time-ms
-  - atmel,trigger-edge-type
 
 examples:
   - |
