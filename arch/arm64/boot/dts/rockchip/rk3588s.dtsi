@@ -989,8 +989,10 @@
 			     <GIC_SPI 92 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "GPU", "MMU", "JOB";
 
-		clocks = <&cru CLK_GPU_COREGROUP>, <&cru CLK_GPU_STACKS>, <&cru CLK_GPU>;
-		clock-names = "clk_gpu_coregroup", "clk_gpu_stacks", "clk_gpu";
+		clocks = <&scmi_clk SCMI_CLK_GPU>, <&cru CLK_GPU_COREGROUP>,
+			 <&cru CLK_GPU_STACKS>, <&cru CLK_GPU>;
+		clock-names = "clk_mali", "clk_gpu_coregroup",
+			      "clk_gpu_stacks", "clk_gpu";
 		power-domains = <&power RK3588_PD_GPU>;
 		operating-points-v2 = <&gpu_opp_table>;
 
@@ -1012,33 +1014,48 @@
 
 		opp-198000000 {
 			opp-hz = /bits/ 64 <198000000>;
-			opp-microvolt = <750000 750000 950000>,
-					<750000 750000 950000>;
+			opp-microvolt = <675000 675000 850000>,
+					<675000 675000 850000>;
 		};
 		opp-297000000 {
 			opp-hz = /bits/ 64 <297000000>;
-			opp-microvolt = <750000 750000 950000>,
-					<750000 750000 950000>;
+			opp-microvolt = <675000 675000 850000>,
+					<675000 675000 850000>;
 		};
 		opp-396000000 {
 			opp-hz = /bits/ 64 <396000000>;
-			opp-microvolt = <750000 750000 950000>,
-					<750000 750000 950000>;
+			opp-microvolt = <675000 675000 850000>,
+					<675000 675000 850000>;
 		};
-		opp-594000000 {
-			opp-hz = /bits/ 64 <594000000>;
-			opp-microvolt = <750000 750000 950000>,
-					<750000 750000 950000>;
+		opp-500000000 {
+			opp-hz = /bits/ 64 <500000000>;
+			opp-microvolt = <675000 675000 850000>,
+					<675000 675000 850000>;
 		};
-		opp-702000000 {
-			opp-hz = /bits/ 64 <702000000>;
-			opp-microvolt = <750000 750000 950000>,
-					<750000 750000 950000>;
+		opp-600000000 {
+			opp-hz = /bits/ 64 <600000000>;
+			opp-microvolt = <675000 675000 850000>,
+					<675000 675000 850000>;
 		};
-		opp-850000000 {
-			opp-hz = /bits/ 64 <850000000>;
-			opp-microvolt = <825000 825000 950000>,
-					<825000 825000 950000>;
+		opp-700000000 {
+			opp-hz = /bits/ 64 <700000000>;
+			opp-microvolt = <700000 700000 850000>,
+					<700000 700000 850000>;
+		};
+		opp-800000000 {
+			opp-hz = /bits/ 64 <800000000>;
+			opp-microvolt = <750000 750000 850000>,
+					<750000 750000 850000>;
+		};
+		opp-900000000 {
+			opp-hz = /bits/ 64 <900000000>;
+			opp-microvolt = <800000 800000 850000>,
+					<800000 800000 850000>;
+		};
+		opp-1000000000 {
+			opp-hz = /bits/ 64 <1000000000>;
+			opp-microvolt = <850000 850000 850000>,
+					<850000 850000 850000>;
 		};
 	};
 
