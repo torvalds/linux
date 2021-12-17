@@ -1027,9 +1027,10 @@ int sof_machine_check(struct snd_sof_dev *sdev)
 	if (!IS_ENABLED(CONFIG_SND_SOC_SOF_FORCE_NOCODEC_MODE)) {
 
 		/* find machine */
-		snd_sof_machine_select(sdev);
-		if (sof_pdata->machine) {
-			snd_sof_set_mach_params(sof_pdata->machine, sdev);
+		mach = snd_sof_machine_select(sdev);
+		if (mach) {
+			sof_pdata->machine = mach;
+			snd_sof_set_mach_params(mach, sdev);
 			return 0;
 		}
 
@@ -1051,7 +1052,7 @@ int sof_machine_check(struct snd_sof_dev *sdev)
 	sof_pdata->tplg_filename = desc->nocodec_tplg_filename;
 
 	sof_pdata->machine = mach;
-	snd_sof_set_mach_params(sof_pdata->machine, sdev);
+	snd_sof_set_mach_params(mach, sdev);
 
 	return 0;
 }

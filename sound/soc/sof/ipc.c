@@ -623,7 +623,8 @@ static void ipc_period_elapsed(struct snd_sof_dev *sdev, u32 msg_id)
 
 	if (spcm->pcm.compress)
 		snd_sof_compr_fragment_elapsed(stream->cstream);
-	else if (!stream->substream->runtime->no_period_wakeup)
+	else if (stream->substream->runtime &&
+		 !stream->substream->runtime->no_period_wakeup)
 		/* only inform ALSA for period_wakeup mode */
 		snd_sof_pcm_period_elapsed(stream->substream);
 }

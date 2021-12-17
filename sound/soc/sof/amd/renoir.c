@@ -104,7 +104,7 @@ static struct snd_soc_dai_driver renoir_sof_dai[] = {
 	},
 };
 
-static void amd_sof_machine_select(struct snd_sof_dev *sdev)
+static struct snd_soc_acpi_mach *amd_sof_machine_select(struct snd_sof_dev *sdev)
 {
 	struct snd_sof_pdata *sof_pdata = sdev->pdata;
 	const struct sof_dev_desc *desc = sof_pdata->desc;
@@ -113,12 +113,13 @@ static void amd_sof_machine_select(struct snd_sof_dev *sdev)
 	mach = snd_soc_acpi_find_machine(desc->machines);
 	if (!mach) {
 		dev_warn(sdev->dev, "No matching ASoC machine driver found\n");
-		return;
+		return NULL;
 	}
 
 	sof_pdata->tplg_filename = mach->sof_tplg_filename;
 	sof_pdata->fw_filename = mach->fw_filename;
-	sof_pdata->machine = mach;
+
+	return mach;
 }
 
 /* AMD Renoir DSP ops */
