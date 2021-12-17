@@ -38,8 +38,8 @@
 		interrupt-names = "syncpt", "host1x";
 		clocks = <&tegra_car TEGRA114_CLK_HOST1X>;
 		clock-names = "host1x";
-		resets = <&tegra_car 28>;
-		reset-names = "host1x";
+		resets = <&tegra_car 28>, <&mc TEGRA114_MC_RESET_HC>;
+		reset-names = "host1x", "mc";
 		iommus = <&mc TEGRA_SWGROUP_HC>;
 
 		#address-cells = <1>;
@@ -52,8 +52,8 @@
 			reg = <0x54140000 0x00040000>;
 			interrupts = <GIC_SPI 72 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&tegra_car TEGRA114_CLK_GR2D>;
-			resets = <&tegra_car 21>;
-			reset-names = "2d";
+			resets = <&tegra_car 21>, <&mc TEGRA114_MC_RESET_2D>;
+			reset-names = "2d", "mc";
 
 			iommus = <&mc TEGRA_SWGROUP_G2>;
 		};
@@ -62,8 +62,8 @@
 			compatible = "nvidia,tegra114-gr3d";
 			reg = <0x54180000 0x00040000>;
 			clocks = <&tegra_car TEGRA114_CLK_GR3D>;
-			resets = <&tegra_car 24>;
-			reset-names = "3d";
+			resets = <&tegra_car 24>, <&mc TEGRA114_MC_RESET_3D>;
+			reset-names = "3d", "mc";
 
 			iommus = <&mc TEGRA_SWGROUP_NV>;
 		};
