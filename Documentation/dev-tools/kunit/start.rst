@@ -243,7 +243,7 @@ Next Steps
 *   Documentation/dev-tools/kunit/architecture.rst - KUnit architecture.
 *   Documentation/dev-tools/kunit/run_wrapper.rst - run kunit_tool.
 *   Documentation/dev-tools/kunit/run_manual.rst - run tests without kunit_tool.
-*   Documentation/dev-tools/kunit/usage.rst - KUnit features.
+*   Documentation/dev-tools/kunit/usage.rst - write tests.
 *   Documentation/dev-tools/kunit/tips.rst - best practices with
     examples.
 *   Documentation/dev-tools/kunit/api/index.rst - KUnit APIs
