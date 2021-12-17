@@ -1010,6 +1010,15 @@ static void aspeed_video_get_resolution(struct aspeed_video *video)
 		video->frame_top = FIELD_GET(VE_SRC_TB_EDGE_DET_TOP,
 					     src_tb_edge);
 		det->vsync = FIELD_GET(VE_SYNC_STATUS_VSYNC, sync);
+		/*
+		 * Workaround for polarity detection
+		 * Use sync(VR098) counts from sync's rising edge till falling
+		 * edge to tell sync polarity.
+		 */
+		if (det->vsync > (FIELD_GET(VE_MODE_DETECT_V_LINES, mds) >> 1))
+			det->polarities &= ~V4L2_DV_VSYNC_POS_POL;
+		else
+			det->polarities |= V4L2_DV_VSYNC_POS_POL;
 		if (det->polarities & V4L2_DV_VSYNC_POS_POL) {
 			det->vbackporch = video->frame_top - det->vsync;
 			det->vfrontporch =
@@ -1031,6 +1040,15 @@ static void aspeed_video_get_resolution(struct aspeed_video *video)
 		video->frame_left = FIELD_GET(VE_SRC_LR_EDGE_DET_LEFT,
 					      src_lr_edge);
 		det->hsync = FIELD_GET(VE_SYNC_STATUS_HSYNC, sync);
+		/*
+		 * Workaround for polarity detection
+		 * Use sync(VR098) counts from sync's rising edge till falling
+		 * edge to tell sync polarity.
+		 */
+		if (det->hsync > (htotal >> 1))
+			det->polarities &= ~V4L2_DV_HSYNC_POS_POL;
+		else
+			det->polarities |= V4L2_DV_HSYNC_POS_POL;
 		if (det->polarities & V4L2_DV_HSYNC_POS_POL) {
 			det->hbackporch = video->frame_left - det->hsync;
 			det->hfrontporch = htotal - video->frame_right;
