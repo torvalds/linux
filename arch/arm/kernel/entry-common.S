@@ -16,12 +16,14 @@
 
 	.equ	NR_syscalls, __NR_syscalls
 
-#ifdef CONFIG_NEED_RET_TO_USER
-#include <mach/entry-macro.S>
-#else
-	.macro  arch_ret_to_user, tmp1, tmp2
-	.endm
+	.macro  arch_ret_to_user, tmp
+#ifdef CONFIG_ARCH_IOP32X
+	mrc	p15, 0, \tmp, c15, c1, 0
+	tst	\tmp, #(1 << 6)
+	bicne	\tmp, \tmp, #(1 << 6)
+	mcrne	p15, 0, \tmp, c15, c1, 0	@ Disable cp6 access
 #endif
+	.endm
 
 #include "entry-header.S"
 
@@ -55,7 +57,7 @@ __ret_fast_syscall:
 
 
 	/* perform architecture specific actions before user return */
-	arch_ret_to_user r1, lr
+	arch_ret_to_user r1
 
 	restore_user_regs fast = 1, offset = S_OFF
  UNWIND(.fnend		)
@@ -128,7 +130,7 @@ no_work_pending:
 	asm_trace_hardirqs_on save = 0
 
 	/* perform architecture specific actions before user return */
-	arch_ret_to_user r1, lr
+	arch_ret_to_user r1
 	ct_user_enter save = 0
 
 	restore_user_regs fast = 0, offset = 0

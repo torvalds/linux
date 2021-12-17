@@ -58,6 +58,7 @@ config ARM_NVIC
 	bool
 	select IRQ_DOMAIN_HIERARCHY
 	select GENERIC_IRQ_CHIP
+	select GENERIC_IRQ_MULTI_HANDLER
 
 config ARM_VIC
 	bool

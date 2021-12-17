@@ -403,6 +403,17 @@ static void smp_store_cpu_info(unsigned int cpuid)
 	check_cpu_icache_size(cpuid);
 }
 
+static void set_current(struct task_struct *cur)
+{
+	if (!IS_ENABLED(CONFIG_CURRENT_POINTER_IN_TPIDRURO) && !is_smp()) {
+		__current = cur;
+		return;
+	}
+
+	/* Set TPIDRURO */
+	asm("mcr p15, 0, %0, c13, c0, 3" :: "r"(cur) : "memory");
+}
+
 /*
  * This is the secondary CPU boot entry.  We're using this CPUs
  * idle thread stack, but a set of temporary page tables.
@@ -631,11 +642,6 @@ static void ipi_complete(unsigned int cpu)
 /*
  * Main handler for inter-processor interrupts
  */
-asmlinkage void __exception_irq_entry do_IPI(int ipinr, struct pt_regs *regs)
-{
-	handle_IPI(ipinr, regs);
-}
-
 static void do_handle_IPI(int ipinr)
 {
 	unsigned int cpu = smp_processor_id();

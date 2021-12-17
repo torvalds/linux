@@ -18,6 +18,16 @@ struct stackframe {
 	struct llist_node *kr_cur;
 	struct task_struct *tsk;
 #endif
+#ifdef CONFIG_ARM_UNWIND
+	/*
+	 * This field is used to track the stack pointer value when calling
+	 * __entry routines. This is needed when IRQ stacks and overflow stacks
+	 * are used, because in that case, the struct pt_regs passed to these
+	 * __entry routines may be at the top of the task stack, while we are
+	 * executing from another stack.
+	 */
+	unsigned long sp_low;
+#endif
 };
 
 static __always_inline
@@ -36,5 +46,7 @@ void arm_get_current_stackframe(struct pt_regs *regs, struct stackframe *frame)
 extern int unwind_frame(struct stackframe *frame);
 extern void walk_stackframe(struct stackframe *frame,
 			    int (*fn)(struct stackframe *, void *), void *data);
+extern void dump_mem(const char *lvl, const char *str, unsigned long bottom,
+		     unsigned long top);
 
 #endif	/* __ASM_STACKTRACE_H */

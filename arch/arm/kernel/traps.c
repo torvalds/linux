@@ -35,6 +35,7 @@
 #include <asm/ptrace.h>
 #include <asm/unwind.h>
 #include <asm/tls.h>
+#include <asm/stacktrace.h>
 #include <asm/system_misc.h>
 #include <asm/opcodes.h>
 
@@ -60,12 +61,23 @@ static int __init user_debug_setup(char *str)
 __setup("user_debug=", user_debug_setup);
 #endif
 
-static void dump_mem(const char *, const char *, unsigned long, unsigned long);
-
 void dump_backtrace_entry(unsigned long where, unsigned long from,
 			  unsigned long frame, const char *loglvl)
 {
 	unsigned long end = frame + 4 + sizeof(struct pt_regs);
+
+	if (IS_ENABLED(CONFIG_UNWINDER_FRAME_POINTER) &&
+	    IS_ENABLED(CONFIG_CC_IS_GCC) &&
+	    end > ALIGN(frame, THREAD_SIZE)) {
+		/*
+		 * If we are walking past the end of the stack, it may be due
+		 * to the fact that we are on an IRQ or overflow stack. In this
+		 * case, we can load the address of the other stack from the
+		 * frame record.
+		 */
+		frame = ((unsigned long *)frame)[-2] - 4;
+		end = frame + 4 + sizeof(struct pt_regs);
+	}
 
 #ifdef CONFIG_KALLSYMS
 	printk("%s[<%08lx>] (%ps) from [<%08lx>] (%pS)\n",
@@ -75,7 +87,8 @@ void dump_backtrace_entry(unsigned long where, unsigned long from,
 		loglvl, where, from);
 #endif
 
-	if (in_entry_text(from) && end <= ALIGN(frame, THREAD_SIZE))
+	if (!IS_ENABLED(CONFIG_UNWINDER_ARM) &&
+	    in_entry_text(from) && end <= ALIGN(frame, THREAD_SIZE))
 		dump_mem(loglvl, "Exception stack", frame + 4, end);
 }
 
@@ -108,7 +121,8 @@ void dump_backtrace_stm(u32 *stack, u32 instruction, const char *loglvl)
 static int verify_stack(unsigned long sp)
 {
 	if (sp < PAGE_OFFSET ||
-	    (sp > (unsigned long)high_memory && high_memory != NULL))
+	    (!IS_ENABLED(CONFIG_VMAP_STACK) &&
+	     sp > (unsigned long)high_memory && high_memory != NULL))
 		return -EFAULT;
 
 	return 0;
@@ -118,8 +132,8 @@ static int verify_stack(unsigned long sp)
 /*
  * Dump out the contents of some memory nicely...
  */
-static void dump_mem(const char *lvl, const char *str, unsigned long bottom,
-		     unsigned long top)
+void dump_mem(const char *lvl, const char *str, unsigned long bottom,
+	      unsigned long top)
 {
 	unsigned long first;
 	int i;
@@ -278,7 +292,8 @@ static int __die(const char *str, int err, struct pt_regs *regs)
 
 	if (!user_mode(regs) || in_interrupt()) {
 		dump_mem(KERN_EMERG, "Stack: ", regs->ARM_sp,
-			 THREAD_SIZE + (unsigned long)task_stack_page(tsk));
+			 ALIGN(regs->ARM_sp - THREAD_SIZE, THREAD_ALIGN)
+			 + THREAD_SIZE);
 		dump_backtrace(regs, tsk, KERN_EMERG);
 		dump_instr(KERN_EMERG, regs);
 	}
@@ -825,3 +840,81 @@ void __init early_trap_init(void *vectors_base)
 	 */
 #endif
 }
+
+#ifdef CONFIG_VMAP_STACK
+
+DECLARE_PER_CPU(u8 *, irq_stack_ptr);
+
+asmlinkage DEFINE_PER_CPU(u8 *, overflow_stack_ptr);
+
+static int __init allocate_overflow_stacks(void)
+{
+	u8 *stack;
+	int cpu;
+
+	for_each_possible_cpu(cpu) {
+		stack = (u8 *)__get_free_page(GFP_KERNEL);
+		if (WARN_ON(!stack))
+			return -ENOMEM;
+		per_cpu(overflow_stack_ptr, cpu) = &stack[OVERFLOW_STACK_SIZE];
+	}
+	return 0;
+}
+early_initcall(allocate_overflow_stacks);
+
+asmlinkage void handle_bad_stack(struct pt_regs *regs)
+{
+	unsigned long tsk_stk = (unsigned long)current->stack;
+#ifdef CONFIG_IRQSTACKS
+	unsigned long irq_stk = (unsigned long)this_cpu_read(irq_stack_ptr);
+#endif
+	unsigned long ovf_stk = (unsigned long)this_cpu_read(overflow_stack_ptr);
+
+	console_verbose();
+	pr_emerg("Insufficient stack space to handle exception!");
+
+	pr_emerg("Task stack:     [0x%08lx..0x%08lx]\n",
+		 tsk_stk, tsk_stk + THREAD_SIZE);
+#ifdef CONFIG_IRQSTACKS
+	pr_emerg("IRQ stack:      [0x%08lx..0x%08lx]\n",
+		 irq_stk - THREAD_SIZE, irq_stk);
+#endif
+	pr_emerg("Overflow stack: [0x%08lx..0x%08lx]\n",
+		 ovf_stk - OVERFLOW_STACK_SIZE, ovf_stk);
+
+	die("kernel stack overflow", regs, 0);
+}
+
+/*
+ * Normally, we rely on the logic in do_translation_fault() to update stale PMD
+ * entries covering the vmalloc space in a task's page tables when it first
+ * accesses the region in question. Unfortunately, this is not sufficient when
+ * the task stack resides in the vmalloc region, as do_translation_fault() is a
+ * C function that needs a stack to run.
+ *
+ * So we need to ensure that these PMD entries are up to date *before* the MM
+ * switch. As we already have some logic in the MM switch path that takes care
+ * of this, let's trigger it by bumping the counter every time the core vmalloc
+ * code modifies a PMD entry in the vmalloc region.
+ */
+void arch_sync_kernel_mappings(unsigned long start, unsigned long end)
+{
+	if (start > VMALLOC_END || end < VMALLOC_START)
+		return;
+
+	/*
+	 * This hooks into the core vmalloc code to receive notifications of
+	 * any PMD level changes that have been made to the kernel page tables.
+	 * This means it should only be triggered once for every MiB worth of
+	 * vmalloc space, given that we don't support huge vmalloc/vmap on ARM,
+	 * and that kernel PMD level table entries are rarely (if ever)
+	 * updated.
+	 *
+	 * This means that the counter is going to max out at ~250 for the
+	 * typical case. If it overflows, something entirely unexpected has
+	 * occurred so let's throw a warning if that happens.
+	 */
+	WARN_ON(++init_mm.context.vmalloc_seq == UINT_MAX);
+}
+
+#endif

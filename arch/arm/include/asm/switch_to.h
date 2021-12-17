@@ -40,7 +40,8 @@ static inline void set_ti_cpu(struct task_struct *p)
 do {									\
 	__complete_pending_tlbi();					\
 	set_ti_cpu(next);						\
-	if (IS_ENABLED(CONFIG_CURRENT_POINTER_IN_TPIDRURO))		\
+	if (IS_ENABLED(CONFIG_CURRENT_POINTER_IN_TPIDRURO) ||		\
+	    IS_ENABLED(CONFIG_SMP))					\
 		__this_cpu_write(__entry_task, next);			\
 	last = __switch_to(prev,task_thread_info(prev), task_thread_info(next));	\
 } while (0)
