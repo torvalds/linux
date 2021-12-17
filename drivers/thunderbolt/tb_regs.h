@@ -246,6 +246,7 @@ enum usb4_switch_op {
 #define TMU_RTR_CS_3_TS_PACKET_INTERVAL_SHIFT	16
 #define TMU_RTR_CS_22				0x16
 #define TMU_RTR_CS_24				0x18
+#define TMU_RTR_CS_25				0x19
 
 enum tb_port_type {
 	TB_TYPE_INACTIVE	= 0x000000,
@@ -305,6 +306,8 @@ struct tb_regs_port_header {
 /* TMU adapter registers */
 #define TMU_ADP_CS_3				0x03
 #define TMU_ADP_CS_3_UDM			BIT(29)
+#define TMU_ADP_CS_6				0x06
+#define TMU_ADP_CS_6_DTS			BIT(1)
 
 /* Lane adapter registers */
 #define LANE_ADP_CS_0				0x00

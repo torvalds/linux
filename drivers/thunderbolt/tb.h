@@ -89,15 +89,24 @@ enum tb_switch_tmu_rate {
  * @cap: Offset to the TMU capability (%0 if not found)
  * @has_ucap: Does the switch support uni-directional mode
  * @rate: TMU refresh rate related to upstream switch. In case of root
- *	  switch this holds the domain rate.
+ *	  switch this holds the domain rate. Reflects the HW setting.
  * @unidirectional: Is the TMU in uni-directional or bi-directional mode
- *		    related to upstream switch. Don't case for root switch.
+ *		    related to upstream switch. Don't care for root switch.
+ *		    Reflects the HW setting.
+ * @unidirectional_request: Is the new TMU mode: uni-directional or bi-directional
+ *			    that is requested to be set. Related to upstream switch.
+ *			    Don't care for root switch.
+ * @rate_request: TMU new refresh rate related to upstream switch that is
+ *		  requested to be set. In case of root switch, this holds
+ *		  the new domain rate that is requested to be set.
  */
 struct tb_switch_tmu {
 	int cap;
 	bool has_ucap;
 	enum tb_switch_tmu_rate rate;
 	bool unidirectional;
+	bool unidirectional_request;
+	enum tb_switch_tmu_rate rate_request;
 };
 
 /**
@@ -891,11 +900,22 @@ int tb_switch_tmu_init(struct tb_switch *sw);
 int tb_switch_tmu_post_time(struct tb_switch *sw);
 int tb_switch_tmu_disable(struct tb_switch *sw);
 int tb_switch_tmu_enable(struct tb_switch *sw);
-
-static inline bool tb_switch_tmu_is_enabled(const struct tb_switch *sw)
+void tb_switch_tmu_configure(struct tb_switch *sw,
+			     enum tb_switch_tmu_rate rate,
+			     bool unidirectional);
+/**
+ * tb_switch_tmu_hifi_is_enabled() - Checks if the specified TMU mode is enabled
+ * @sw: Router whose TMU mode to check
+ * @unidirectional: If uni-directional (bi-directional otherwise)
+ *
+ * Return true if hardware TMU configuration matches the one passed in
+ * as parameter. That is HiFi and either uni-directional or bi-directional.
+ */
+static inline bool tb_switch_tmu_hifi_is_enabled(const struct tb_switch *sw,
+						 bool unidirectional)
 {
 	return sw->tmu.rate == TB_SWITCH_TMU_RATE_HIFI &&
-	       !sw->tmu.unidirectional;
+	       sw->tmu.unidirectional == unidirectional;
 }
 
 int tb_wait_for_port(struct tb_port *port, bool wait_if_unplugged);
