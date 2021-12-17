@@ -1025,7 +1025,12 @@ static int rz_ssi_probe(struct platform_device *pdev)
 
 	reset_control_deassert(ssi->rstc);
 	pm_runtime_enable(&pdev->dev);
-	pm_runtime_resume_and_get(&pdev->dev);
+	ret = pm_runtime_resume_and_get(&pdev->dev);
+	if (ret < 0) {
+		pm_runtime_disable(ssi->dev);
+		reset_control_assert(ssi->rstc);
+		return dev_err_probe(ssi->dev, ret, "pm_runtime_resume_and_get failed\n");
+	}
 
 	ret = devm_snd_soc_register_component(&pdev->dev, &rz_ssi_soc_component,
 					      rz_ssi_soc_dai,
