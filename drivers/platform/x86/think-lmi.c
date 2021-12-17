@@ -573,7 +573,7 @@ static ssize_t index_store(struct kobject *kobj,
 	if (err < 0)
 		return err;
 
-	if (val > TLMI_INDEX_MAX)
+	if (val < 0 || val > TLMI_INDEX_MAX)
 		return -EINVAL;
 
 	setting->index = val;
