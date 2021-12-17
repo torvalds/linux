@@ -43,7 +43,7 @@ static void measure_clocks(struct intel_engine_cs *engine,
 	int i;
 
 	for (i = 0; i < 5; i++) {
-		preempt_disable();
+		local_irq_disable();
 		cycles[i] = -ENGINE_READ_FW(engine, RING_TIMESTAMP);
 		dt[i] = ktime_get();
 
@@ -51,7 +51,7 @@ static void measure_clocks(struct intel_engine_cs *engine,
 
 		dt[i] = ktime_sub(ktime_get(), dt[i]);
 		cycles[i] += ENGINE_READ_FW(engine, RING_TIMESTAMP);
-		preempt_enable();
+		local_irq_enable();
 	}
 
 	/* Use the median of both cycle/dt; close enough */

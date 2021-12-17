@@ -82,7 +82,6 @@
 #include "i915_suspend.h"
 #include "i915_switcheroo.h"
 #include "i915_sysfs.h"
-#include "i915_trace.h"
 #include "i915_vgpu.h"
 #include "intel_dram.h"
 #include "intel_gvt.h"

@@ -6,12 +6,14 @@
  *         Manasi Navare <manasi.d.navare@intel.com>
  */
 #include <linux/limits.h>
+
 #include "i915_drv.h"
+#include "intel_crtc.h"
 #include "intel_de.h"
 #include "intel_display_types.h"
 #include "intel_dsi.h"
-#include "intel_vdsc.h"
 #include "intel_qp_tables.h"
+#include "intel_vdsc.h"
 
 enum ROW_INDEX_BPP {
 	ROW_INDEX_6BPP = 0,
@@ -1110,25 +1112,16 @@ static i915_reg_t dss_ctl2_reg(struct intel_crtc *crtc, enum transcoder cpu_tran
 		ICL_PIPE_DSS_CTL2(crtc->pipe) : DSS_CTL2;
 }
 
-static struct intel_crtc *
-_get_crtc_for_pipe(struct drm_i915_private *i915, enum pipe pipe)
-{
-	if (!intel_pipe_valid(i915, pipe))
-		return NULL;
-
-	return intel_get_crtc_for_pipe(i915, pipe);
-}
-
 struct intel_crtc *
 intel_dsc_get_bigjoiner_secondary(const struct intel_crtc *primary_crtc)
 {
-	return _get_crtc_for_pipe(to_i915(primary_crtc->base.dev), primary_crtc->pipe + 1);
+	return intel_crtc_for_pipe(to_i915(primary_crtc->base.dev), primary_crtc->pipe + 1);
 }
 
 static struct intel_crtc *
 intel_dsc_get_bigjoiner_primary(const struct intel_crtc *secondary_crtc)
 {
-	return _get_crtc_for_pipe(to_i915(secondary_crtc->base.dev), secondary_crtc->pipe - 1);
+	return intel_crtc_for_pipe(to_i915(secondary_crtc->base.dev), secondary_crtc->pipe - 1);
 }
 
 void intel_uncompressed_joiner_enable(const struct intel_crtc_state *crtc_state)

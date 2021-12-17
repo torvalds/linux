@@ -35,6 +35,7 @@
 #include <drm/drm_drv.h>
 
 #include "display/intel_de.h"
+#include "display/intel_display_trace.h"
 #include "display/intel_display_types.h"
 #include "display/intel_fifo_underrun.h"
 #include "display/intel_hotplug.h"
@@ -49,7 +50,6 @@
 
 #include "i915_drv.h"
 #include "i915_irq.h"
-#include "i915_trace.h"
 #include "intel_pm.h"
 
 /**
@@ -224,7 +224,7 @@ static void intel_hpd_init_pins(struct drm_i915_private *dev_priv)
 static void
 intel_handle_vblank(struct drm_i915_private *dev_priv, enum pipe pipe)
 {
-	struct intel_crtc *crtc = intel_get_crtc_for_pipe(dev_priv, pipe);
+	struct intel_crtc *crtc = intel_crtc_for_pipe(dev_priv, pipe);
 
 	drm_crtc_handle_vblank(&crtc->base);
 }
@@ -1318,7 +1318,7 @@ static void display_pipe_crc_irq_handler(struct drm_i915_private *dev_priv,
 					 u32 crc2, u32 crc3,
 					 u32 crc4)
 {
-	struct intel_crtc *crtc = intel_get_crtc_for_pipe(dev_priv, pipe);
+	struct intel_crtc *crtc = intel_crtc_for_pipe(dev_priv, pipe);
 	struct intel_pipe_crc *pipe_crc = &crtc->pipe_crc;
 	u32 crcs[5] = { crc0, crc1, crc2, crc3, crc4 };
 
@@ -1357,7 +1357,7 @@ display_pipe_crc_irq_handler(struct drm_i915_private *dev_priv,
 static void flip_done_handler(struct drm_i915_private *i915,
 			      enum pipe pipe)
 {
-	struct intel_crtc *crtc = intel_get_crtc_for_pipe(i915, pipe);
+	struct intel_crtc *crtc = intel_crtc_for_pipe(i915, pipe);
 	struct drm_crtc_state *crtc_state = crtc->base.state;
 	struct drm_pending_vblank_event *e = crtc_state->event;
 	struct drm_device *dev = &i915->drm;

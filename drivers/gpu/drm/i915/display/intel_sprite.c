@@ -40,15 +40,15 @@
 #include <drm/drm_rect.h>
 
 #include "i915_drv.h"
-#include "i915_trace.h"
 #include "i915_vgpu.h"
+#include "i9xx_plane.h"
 #include "intel_atomic_plane.h"
+#include "intel_crtc.h"
 #include "intel_de.h"
 #include "intel_display_types.h"
 #include "intel_fb.h"
 #include "intel_frontbuffer.h"
 #include "intel_sprite.h"
-#include "i9xx_plane.h"
 #include "intel_vrr.h"
 
 int intel_plane_check_src_coordinates(struct intel_plane_state *plane_state)
@@ -431,10 +431,6 @@ vlv_sprite_update_noarm(struct intel_plane *plane,
 	u32 crtc_h = drm_rect_height(&plane_state->uapi.dst);
 	unsigned long irqflags;
 
-	/* Sizes are 0 based */
-	crtc_w--;
-	crtc_h--;
-
 	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
 
 	intel_de_write_fw(dev_priv, SPSTRIDE(pipe, plane_id),
@@ -442,7 +438,7 @@ vlv_sprite_update_noarm(struct intel_plane *plane,
 	intel_de_write_fw(dev_priv, SPPOS(pipe, plane_id),
 			  (crtc_y << 16) | crtc_x);
 	intel_de_write_fw(dev_priv, SPSIZE(pipe, plane_id),
-			  (crtc_h << 16) | crtc_w);
+			  ((crtc_h - 1) << 16) | (crtc_w - 1));
 
 	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
 }
@@ -866,21 +862,15 @@ ivb_sprite_update_noarm(struct intel_plane *plane,
 	u32 sprscale = 0;
 	unsigned long irqflags;
 
-	/* Sizes are 0 based */
-	src_w--;
-	src_h--;
-	crtc_w--;
-	crtc_h--;
-
 	if (crtc_w != src_w || crtc_h != src_h)
-		sprscale = SPRITE_SCALE_ENABLE | (src_w << 16) | src_h;
+		sprscale = SPRITE_SCALE_ENABLE | ((src_w - 1) << 16) | (src_h - 1);
 
 	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
 
 	intel_de_write_fw(dev_priv, SPRSTRIDE(pipe),
 			  plane_state->view.color_plane[0].mapping_stride);
 	intel_de_write_fw(dev_priv, SPRPOS(pipe), (crtc_y << 16) | crtc_x);
-	intel_de_write_fw(dev_priv, SPRSIZE(pipe), (crtc_h << 16) | crtc_w);
+	intel_de_write_fw(dev_priv, SPRSIZE(pipe), ((crtc_h - 1) << 16) | (crtc_w - 1));
 	if (IS_IVYBRIDGE(dev_priv))
 		intel_de_write_fw(dev_priv, SPRSCALE(pipe), sprscale);
 
@@ -1208,21 +1198,15 @@ g4x_sprite_update_noarm(struct intel_plane *plane,
 	u32 dvsscale = 0;
 	unsigned long irqflags;
 
-	/* Sizes are 0 based */
-	src_w--;
-	src_h--;
-	crtc_w--;
-	crtc_h--;
-
 	if (crtc_w != src_w || crtc_h != src_h)
-		dvsscale = DVS_SCALE_ENABLE | (src_w << 16) | src_h;
+		dvsscale = DVS_SCALE_ENABLE | ((src_w - 1) << 16) | (src_h - 1);
 
 	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
 
 	intel_de_write_fw(dev_priv, DVSSTRIDE(pipe),
 			  plane_state->view.color_plane[0].mapping_stride);
 	intel_de_write_fw(dev_priv, DVSPOS(pipe), (crtc_y << 16) | crtc_x);
-	intel_de_write_fw(dev_priv, DVSSIZE(pipe), (crtc_h << 16) | crtc_w);
+	intel_de_write_fw(dev_priv, DVSSIZE(pipe), ((crtc_h - 1) << 16) | (crtc_w - 1));
 	intel_de_write_fw(dev_priv, DVSSCALE(pipe), dvsscale);
 
 	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
@@ -1584,8 +1568,8 @@ int intel_sprite_set_colorkey_ioctl(struct drm_device *dev, void *data,
 		 */
 		if (!ret && has_dst_key_in_primary_plane(dev_priv)) {
 			struct intel_crtc *crtc =
-				intel_get_crtc_for_pipe(dev_priv,
-							to_intel_plane(plane)->pipe);
+				intel_crtc_for_pipe(dev_priv,
+						    to_intel_plane(plane)->pipe);
 
 			plane_state = drm_atomic_get_plane_state(state,
 								 crtc->base.primary);

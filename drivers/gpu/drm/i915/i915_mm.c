@@ -27,6 +27,7 @@
 
 
 #include "i915_drv.h"
+#include "i915_mm.h"
 
 struct remap_pfn {
 	struct mm_struct *mm;
@@ -36,17 +37,6 @@ struct remap_pfn {
 	struct sgt_iter sgt;
 	resource_size_t iobase;
 };
-
-static int remap_pfn(pte_t *pte, unsigned long addr, void *data)
-{
-	struct remap_pfn *r = data;
-
-	/* Special PTE are not associated with any struct page */
-	set_pte_at(r->mm, addr, pte, pte_mkspecial(pfn_pte(r->pfn, r->prot)));
-	r->pfn++;
-
-	return 0;
-}
 
 #define use_dma(io) ((io) != -1)
 
@@ -77,6 +67,20 @@ static int remap_sg(pte_t *pte, unsigned long addr, void *data)
 	return 0;
 }
 
+#define EXPECTED_FLAGS (VM_PFNMAP | VM_DONTEXPAND | VM_DONTDUMP)
+
+#if IS_ENABLED(CONFIG_X86)
+static int remap_pfn(pte_t *pte, unsigned long addr, void *data)
+{
+	struct remap_pfn *r = data;
+
+	/* Special PTE are not associated with any struct page */
+	set_pte_at(r->mm, addr, pte, pte_mkspecial(pfn_pte(r->pfn, r->prot)));
+	r->pfn++;
+
+	return 0;
+}
+
 /**
  * remap_io_mapping - remap an IO mapping to userspace
  * @vma: user vma to map to
@@ -94,7 +98,6 @@ int remap_io_mapping(struct vm_area_struct *vma,
 	struct remap_pfn r;
 	int err;
 
-#define EXPECTED_FLAGS (VM_PFNMAP | VM_DONTEXPAND | VM_DONTDUMP)
 	GEM_BUG_ON((vma->vm_flags & EXPECTED_FLAGS) != EXPECTED_FLAGS);
 
 	/* We rely on prevalidation of the io-mapping to skip track_pfn(). */
@@ -111,6 +114,7 @@ int remap_io_mapping(struct vm_area_struct *vma,
 
 	return 0;
 }
+#endif
 
 /**
  * remap_io_sg - remap an IO mapping to userspace

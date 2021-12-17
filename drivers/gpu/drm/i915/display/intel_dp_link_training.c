@@ -21,10 +21,10 @@
  * IN THE SOFTWARE.
  */
 
+#include "i915_drv.h"
 #include "intel_display_types.h"
 #include "intel_dp.h"
 #include "intel_dp_link_training.h"
-
 
 static void intel_dp_reset_lttpr_common_caps(struct intel_dp *intel_dp)
 {
