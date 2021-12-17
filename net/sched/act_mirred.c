@@ -450,6 +450,44 @@ static size_t tcf_mirred_get_fill_size(const struct tc_action *act)
 	return nla_total_size(sizeof(struct tc_mirred));
 }
 
+static void tcf_offload_mirred_get_dev(struct flow_action_entry *entry,
+				       const struct tc_action *act)
+{
+	entry->dev = act->ops->get_dev(act, &entry->destructor);
+	if (!entry->dev)
+		return;
+	entry->destructor_priv = entry->dev;
+}
+
+static int tcf_mirred_offload_act_setup(struct tc_action *act, void *entry_data,
+					u32 *index_inc, bool bind)
+{
+	if (bind) {
+		struct flow_action_entry *entry = entry_data;
+
+		if (is_tcf_mirred_egress_redirect(act)) {
+			entry->id = FLOW_ACTION_REDIRECT;
+			tcf_offload_mirred_get_dev(entry, act);
+		} else if (is_tcf_mirred_egress_mirror(act)) {
+			entry->id = FLOW_ACTION_MIRRED;
+			tcf_offload_mirred_get_dev(entry, act);
+		} else if (is_tcf_mirred_ingress_redirect(act)) {
+			entry->id = FLOW_ACTION_REDIRECT_INGRESS;
+			tcf_offload_mirred_get_dev(entry, act);
+		} else if (is_tcf_mirred_ingress_mirror(act)) {
+			entry->id = FLOW_ACTION_MIRRED_INGRESS;
+			tcf_offload_mirred_get_dev(entry, act);
+		} else {
+			return -EOPNOTSUPP;
+		}
+		*index_inc = 1;
+	} else {
+		return -EOPNOTSUPP;
+	}
+
+	return 0;
+}
+
 static struct tc_action_ops act_mirred_ops = {
 	.kind		=	"mirred",
 	.id		=	TCA_ID_MIRRED,
@@ -462,6 +500,7 @@ static struct tc_action_ops act_mirred_ops = {
 	.walk		=	tcf_mirred_walker,
 	.lookup		=	tcf_mirred_search,
 	.get_fill_size	=	tcf_mirred_get_fill_size,
+	.offload_act_setup =	tcf_mirred_offload_act_setup,
 	.size		=	sizeof(struct tcf_mirred),
 	.get_dev	=	tcf_mirred_get_dev,
 };
