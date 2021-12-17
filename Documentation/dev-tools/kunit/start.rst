@@ -240,6 +240,7 @@ Congrats! You just wrote your first KUnit test.
 Next Steps
 ==========
 
+*   Documentation/dev-tools/kunit/architecture.rst - KUnit architecture.
 *   Documentation/dev-tools/kunit/usage.rst - KUnit features.
 *   Documentation/dev-tools/kunit/tips.rst - best practices with
     examples.

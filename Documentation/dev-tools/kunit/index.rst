@@ -9,6 +9,7 @@ KUnit - Linux Kernel Unit Testing
 	:caption: Contents:
 
 	start
+	architecture
 	usage
 	kunit-tool
 	api/index
@@ -96,6 +97,7 @@ How do I use it?
 ================
 
 *   Documentation/dev-tools/kunit/start.rst - for KUnit new users.
+*   Documentation/dev-tools/kunit/architecture.rst - KUnit architecture.
 *   Documentation/dev-tools/kunit/usage.rst - KUnit features.
 *   Documentation/dev-tools/kunit/tips.rst - best practices with
     examples.
