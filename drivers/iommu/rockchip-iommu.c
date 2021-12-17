@@ -1205,7 +1205,9 @@ static size_t rk_iommu_unmap_v2(struct iommu_domain *domain, unsigned long _iova
 	spin_unlock_irqrestore(&rk_domain->dt_lock, flags);
 
 	/* Shootdown iotlb entries for iova range that was just unmapped */
-	rk_iommu_zap_iova(rk_domain, iova, unmap_size);
+	/* Do not zap tlb cache line if shootdown_entire set */
+	if (!rk_domain->shootdown_entire)
+		rk_iommu_zap_iova(rk_domain, iova, unmap_size);
 
 	return unmap_size;
 }
