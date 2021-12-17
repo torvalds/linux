@@ -1123,7 +1123,7 @@ vmw_stdu_primary_plane_prepare_fb(struct drm_plane *plane,
 		}
 
 		if (!vps->surf) {
-			ret = vmw_gb_surface_define(dev_priv, 0, &metadata,
+			ret = vmw_gb_surface_define(dev_priv, &metadata,
 						    &vps->surf);
 			if (ret != 0) {
 				DRM_ERROR("Couldn't allocate STDU surface.\n");

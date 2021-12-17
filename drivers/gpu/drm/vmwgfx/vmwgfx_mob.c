@@ -146,9 +146,6 @@ static int vmw_setup_otable_base(struct vmw_private *dev_priv,
 	if (otable->size <= PAGE_SIZE) {
 		mob->pt_level = VMW_MOBFMT_PTDEPTH_0;
 		mob->pt_root_page = vmw_piter_dma_addr(&iter);
-	} else if (vsgt->num_regions == 1) {
-		mob->pt_level = SVGA3D_MOBFMT_RANGE;
-		mob->pt_root_page = vmw_piter_dma_addr(&iter);
 	} else {
 		ret = vmw_mob_pt_populate(dev_priv, mob);
 		if (unlikely(ret != 0))
@@ -413,10 +410,9 @@ struct vmw_mob *vmw_mob_create(unsigned long data_pages)
  * @mob:         Pointer to the mob the pagetable of which we want to
  *               populate.
  *
- * This function allocates memory to be used for the pagetable, and
- * adjusts TTM memory accounting accordingly. Returns ENOMEM if
- * memory resources aren't sufficient and may cause TTM buffer objects
- * to be swapped out by using the TTM memory accounting function.
+ * This function allocates memory to be used for the pagetable.
+ * Returns ENOMEM if memory resources aren't sufficient and may
+ * cause TTM buffer objects to be swapped out.
  */
 static int vmw_mob_pt_populate(struct vmw_private *dev_priv,
 			       struct vmw_mob *mob)
@@ -623,9 +619,6 @@ int vmw_mob_bind(struct vmw_private *dev_priv,
 
 	if (likely(num_data_pages == 1)) {
 		mob->pt_level = VMW_MOBFMT_PTDEPTH_0;
-		mob->pt_root_page = vmw_piter_dma_addr(&data_iter);
-	} else if (vsgt->num_regions == 1) {
-		mob->pt_level = SVGA3D_MOBFMT_RANGE;
 		mob->pt_root_page = vmw_piter_dma_addr(&data_iter);
 	} else if (unlikely(mob->pt_bo == NULL)) {
 		ret = vmw_mob_pt_populate(dev_priv, mob);

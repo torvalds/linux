@@ -407,12 +407,8 @@ static int vmw_cotable_resize(struct vmw_resource *res, size_t new_size)
 	 * for the new COTable. Initially pin the buffer object to make sure
 	 * we can use tryreserve without failure.
 	 */
-	buf = kzalloc(sizeof(*buf), GFP_KERNEL);
-	if (!buf)
-		return -ENOMEM;
-
-	ret = vmw_bo_init(dev_priv, buf, new_size, &vmw_mob_placement,
-			  true, true, vmw_bo_bo_free);
+	ret = vmw_bo_create(dev_priv, new_size, &vmw_mob_placement,
+			    true, true, vmw_bo_bo_free, &buf);
 	if (ret) {
 		DRM_ERROR("Failed initializing new cotable MOB.\n");
 		return ret;
@@ -546,8 +542,6 @@ static void vmw_hw_cotable_destroy(struct vmw_resource *res)
 	(void) vmw_cotable_destroy(res);
 }
 
-static size_t cotable_acc_size;
-
 /**
  * vmw_cotable_free - Cotable resource destructor
  *
@@ -555,10 +549,7 @@ static size_t cotable_acc_size;
  */
 static void vmw_cotable_free(struct vmw_resource *res)
 {
-	struct vmw_private *dev_priv = res->dev_priv;
-
 	kfree(res);
-	ttm_mem_global_free(vmw_mem_glob(dev_priv), cotable_acc_size);
 }
 
 /**
@@ -574,20 +565,8 @@ struct vmw_resource *vmw_cotable_alloc(struct vmw_private *dev_priv,
 				       u32 type)
 {
 	struct vmw_cotable *vcotbl;
-	struct ttm_operation_ctx ttm_opt_ctx = {
-		.interruptible = true,
-		.no_wait_gpu = false
-	};
 	int ret;
 	u32 num_entries;
-
-	if (unlikely(cotable_acc_size == 0))
-		cotable_acc_size = ttm_round_pot(sizeof(struct vmw_cotable));
-
-	ret = ttm_mem_global_alloc(vmw_mem_glob(dev_priv),
-				   cotable_acc_size, &ttm_opt_ctx);
-	if (unlikely(ret))
-		return ERR_PTR(ret);
 
 	vcotbl = kzalloc(sizeof(*vcotbl), GFP_KERNEL);
 	if (unlikely(!vcotbl)) {
@@ -622,7 +601,6 @@ struct vmw_resource *vmw_cotable_alloc(struct vmw_private *dev_priv,
 out_no_init:
 	kfree(vcotbl);
 out_no_alloc:
-	ttm_mem_global_free(vmw_mem_glob(dev_priv), cotable_acc_size);
 	return ERR_PTR(ret);
 }
 

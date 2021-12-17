@@ -29,6 +29,9 @@
 #include "vmwgfx_validation.h"
 #include "vmwgfx_drv.h"
 
+
+#define VMWGFX_VALIDATION_MEM_GRAN (16*PAGE_SIZE)
+
 /**
  * struct vmw_validation_bo_node - Buffer object validation metadata.
  * @base: Metadata used for TTM reservation- and validation.
@@ -113,13 +116,8 @@ void *vmw_validation_mem_alloc(struct vmw_validation_context *ctx,
 		struct page *page;
 
 		if (ctx->vm && ctx->vm_size_left < PAGE_SIZE) {
-			int ret = ctx->vm->reserve_mem(ctx->vm, ctx->vm->gran);
-
-			if (ret)
-				return NULL;
-
-			ctx->vm_size_left += ctx->vm->gran;
-			ctx->total_mem += ctx->vm->gran;
+			ctx->vm_size_left += VMWGFX_VALIDATION_MEM_GRAN;
+			ctx->total_mem += VMWGFX_VALIDATION_MEM_GRAN;
 		}
 
 		page = alloc_page(GFP_KERNEL | __GFP_ZERO);
@@ -159,7 +157,6 @@ static void vmw_validation_mem_free(struct vmw_validation_context *ctx)
 
 	ctx->mem_size_left = 0;
 	if (ctx->vm && ctx->total_mem) {
-		ctx->vm->unreserve_mem(ctx->vm, ctx->total_mem);
 		ctx->total_mem = 0;
 		ctx->vm_size_left = 0;
 	}

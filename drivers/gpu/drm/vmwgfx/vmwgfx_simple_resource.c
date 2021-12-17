@@ -32,12 +32,10 @@
  * struct vmw_user_simple_resource - User-space simple resource struct
  *
  * @base: The TTM base object implementing user-space visibility.
- * @account_size: How much memory was accounted for this object.
  * @simple: The embedded struct vmw_simple_resource.
  */
 struct vmw_user_simple_resource {
 	struct ttm_base_object base;
-	size_t account_size;
 	struct vmw_simple_resource simple;
 /*
  * Nothing to be placed after @simple, since size of @simple is
@@ -91,18 +89,15 @@ static int vmw_simple_resource_init(struct vmw_private *dev_priv,
  *
  * @res: The struct vmw_resource member of the simple resource object.
  *
- * Frees memory and memory accounting for the object.
+ * Frees memory for the object.
  */
 static void vmw_simple_resource_free(struct vmw_resource *res)
 {
 	struct vmw_user_simple_resource *usimple =
 		container_of(res, struct vmw_user_simple_resource,
 			     simple.res);
-	struct vmw_private *dev_priv = res->dev_priv;
-	size_t size = usimple->account_size;
 
 	ttm_base_object_kfree(usimple, base);
-	ttm_mem_global_free(vmw_mem_glob(dev_priv), size);
 }
 
 /**
@@ -149,39 +144,19 @@ vmw_simple_resource_create_ioctl(struct drm_device *dev, void *data,
 	struct vmw_resource *res;
 	struct vmw_resource *tmp;
 	struct ttm_object_file *tfile = vmw_fpriv(file_priv)->tfile;
-	struct ttm_operation_ctx ctx = {
-		.interruptible = true,
-		.no_wait_gpu = false
-	};
 	size_t alloc_size;
-	size_t account_size;
 	int ret;
 
 	alloc_size = offsetof(struct vmw_user_simple_resource, simple) +
 	  func->size;
-	account_size = ttm_round_pot(alloc_size) + VMW_IDA_ACC_SIZE +
-		TTM_OBJ_EXTRA_SIZE;
-
-	ret = ttm_mem_global_alloc(vmw_mem_glob(dev_priv), account_size,
-				   &ctx);
-	if (ret) {
-		if (ret != -ERESTARTSYS)
-			DRM_ERROR("Out of graphics memory for %s"
-				  " creation.\n", func->res_func.type_name);
-
-		goto out_ret;
-	}
 
 	usimple = kzalloc(alloc_size, GFP_KERNEL);
 	if (!usimple) {
-		ttm_mem_global_free(vmw_mem_glob(dev_priv),
-				    account_size);
 		ret = -ENOMEM;
 		goto out_ret;
 	}
 
 	usimple->simple.func = func;
-	usimple->account_size = account_size;
 	res = &usimple->simple.res;
 	usimple->base.shareable = false;
 	usimple->base.tfile = NULL;
@@ -197,7 +172,7 @@ vmw_simple_resource_create_ioctl(struct drm_device *dev, void *data,
 	tmp = vmw_resource_reference(res);
 	ret = ttm_base_object_init(tfile, &usimple->base, false,
 				   func->ttm_res_type,
-				   &vmw_simple_resource_base_release, NULL);
+				   &vmw_simple_resource_base_release);
 
 	if (ret) {
 		vmw_resource_unreference(&tmp);

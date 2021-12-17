@@ -324,22 +324,3 @@ void vmw_cmdbuf_res_man_destroy(struct vmw_cmdbuf_res_manager *man)
 	kfree(man);
 }
 
-/**
- * vmw_cmdbuf_res_man_size - Return the size of a command buffer managed
- * resource manager
- *
- * Returns the approximate allocation size of a command buffer managed
- * resource manager.
- */
-size_t vmw_cmdbuf_res_man_size(void)
-{
-	static size_t res_man_size;
-
-	if (unlikely(res_man_size == 0))
-		res_man_size =
-			ttm_round_pot(sizeof(struct vmw_cmdbuf_res_manager)) +
-			ttm_round_pot(sizeof(struct hlist_head) <<
-				      VMW_CMDBUF_RES_MAN_HT_ORDER);
-
-	return res_man_size;
-}

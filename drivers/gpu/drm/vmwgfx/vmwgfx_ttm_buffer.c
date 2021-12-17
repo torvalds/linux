@@ -167,19 +167,6 @@ struct ttm_placement vmw_nonfixed_placement = {
 	.busy_placement = &sys_placement_flags
 };
 
-struct vmw_ttm_tt {
-	struct ttm_tt dma_ttm;
-	struct vmw_private *dev_priv;
-	int gmr_id;
-	struct vmw_mob *mob;
-	int mem_type;
-	struct sg_table sgt;
-	struct vmw_sg_table vsgt;
-	uint64_t sg_alloc_size;
-	bool mapped;
-	bool bound;
-};
-
 const size_t vmw_tt_size = sizeof(struct vmw_ttm_tt);
 
 /**
@@ -300,17 +287,8 @@ static int vmw_ttm_map_for_dma(struct vmw_ttm_tt *vmw_tt)
 static int vmw_ttm_map_dma(struct vmw_ttm_tt *vmw_tt)
 {
 	struct vmw_private *dev_priv = vmw_tt->dev_priv;
-	struct ttm_mem_global *glob = vmw_mem_glob(dev_priv);
 	struct vmw_sg_table *vsgt = &vmw_tt->vsgt;
-	struct ttm_operation_ctx ctx = {
-		.interruptible = true,
-		.no_wait_gpu = false
-	};
-	struct vmw_piter iter;
-	dma_addr_t old;
 	int ret = 0;
-	static size_t sgl_size;
-	static size_t sgt_size;
 
 	if (vmw_tt->mapped)
 		return 0;
@@ -319,35 +297,18 @@ static int vmw_ttm_map_dma(struct vmw_ttm_tt *vmw_tt)
 	vsgt->pages = vmw_tt->dma_ttm.pages;
 	vsgt->num_pages = vmw_tt->dma_ttm.num_pages;
 	vsgt->addrs = vmw_tt->dma_ttm.dma_address;
-	vsgt->sgt = &vmw_tt->sgt;
+	vsgt->sgt = NULL;
 
 	switch (dev_priv->map_mode) {
 	case vmw_dma_map_bind:
 	case vmw_dma_map_populate:
-		if (unlikely(!sgl_size)) {
-			sgl_size = ttm_round_pot(sizeof(struct scatterlist));
-			sgt_size = ttm_round_pot(sizeof(struct sg_table));
-		}
-		vmw_tt->sg_alloc_size = sgt_size + sgl_size * vsgt->num_pages;
-		ret = ttm_mem_global_alloc(glob, vmw_tt->sg_alloc_size, &ctx);
-		if (unlikely(ret != 0))
-			return ret;
-
+		vsgt->sgt = &vmw_tt->sgt;
 		ret = sg_alloc_table_from_pages_segment(
 			&vmw_tt->sgt, vsgt->pages, vsgt->num_pages, 0,
 			(unsigned long)vsgt->num_pages << PAGE_SHIFT,
 			dma_get_max_seg_size(dev_priv->drm.dev), GFP_KERNEL);
 		if (ret)
 			goto out_sg_alloc_fail;
-
-		if (vsgt->num_pages > vmw_tt->sgt.orig_nents) {
-			uint64_t over_alloc =
-				sgl_size * (vsgt->num_pages -
-					    vmw_tt->sgt.orig_nents);
-
-			ttm_mem_global_free(glob, over_alloc);
-			vmw_tt->sg_alloc_size -= over_alloc;
-		}
 
 		ret = vmw_ttm_map_for_dma(vmw_tt);
 		if (unlikely(ret != 0))
@@ -358,16 +319,6 @@ static int vmw_ttm_map_dma(struct vmw_ttm_tt *vmw_tt)
 		break;
 	}
 
-	old = ~((dma_addr_t) 0);
-	vmw_tt->vsgt.num_regions = 0;
-	for (vmw_piter_start(&iter, vsgt, 0); vmw_piter_next(&iter);) {
-		dma_addr_t cur = vmw_piter_dma_addr(&iter);
-
-		if (cur != old + PAGE_SIZE)
-			vmw_tt->vsgt.num_regions++;
-		old = cur;
-	}
-
 	vmw_tt->mapped = true;
 	return 0;
 
@@ -375,7 +326,6 @@ out_map_fail:
 	sg_free_table(vmw_tt->vsgt.sgt);
 	vmw_tt->vsgt.sgt = NULL;
 out_sg_alloc_fail:
-	ttm_mem_global_free(glob, vmw_tt->sg_alloc_size);
 	return ret;
 }
 
@@ -401,8 +351,6 @@ static void vmw_ttm_unmap_dma(struct vmw_ttm_tt *vmw_tt)
 		vmw_ttm_unmap_from_dma(vmw_tt);
 		sg_free_table(vmw_tt->vsgt.sgt);
 		vmw_tt->vsgt.sgt = NULL;
-		ttm_mem_global_free(vmw_mem_glob(dev_priv),
-				    vmw_tt->sg_alloc_size);
 		break;
 	default:
 		break;
@@ -522,7 +470,6 @@ static void vmw_ttm_destroy(struct ttm_device *bdev, struct ttm_tt *ttm)
 static int vmw_ttm_populate(struct ttm_device *bdev,
 			    struct ttm_tt *ttm, struct ttm_operation_ctx *ctx)
 {
-	unsigned int i;
 	int ret;
 
 	/* TODO: maybe completely drop this ? */
@@ -530,22 +477,7 @@ static int vmw_ttm_populate(struct ttm_device *bdev,
 		return 0;
 
 	ret = ttm_pool_alloc(&bdev->pool, ttm, ctx);
-	if (ret)
-		return ret;
 
-	for (i = 0; i < ttm->num_pages; ++i) {
-		ret = ttm_mem_global_alloc_page(&ttm_mem_glob, ttm->pages[i],
-						PAGE_SIZE, ctx);
-		if (ret)
-			goto error;
-	}
-	return 0;
-
-error:
-	while (i--)
-		ttm_mem_global_free_page(&ttm_mem_glob, ttm->pages[i],
-					 PAGE_SIZE);
-	ttm_pool_free(&bdev->pool, ttm);
 	return ret;
 }
 
@@ -554,7 +486,6 @@ static void vmw_ttm_unpopulate(struct ttm_device *bdev,
 {
 	struct vmw_ttm_tt *vmw_tt = container_of(ttm, struct vmw_ttm_tt,
 						 dma_ttm);
-	unsigned int i;
 
 	vmw_ttm_unbind(bdev, ttm);
 
@@ -564,10 +495,6 @@ static void vmw_ttm_unpopulate(struct ttm_device *bdev,
 	}
 
 	vmw_ttm_unmap_dma(vmw_tt);
-
-	for (i = 0; i < ttm->num_pages; ++i)
-		ttm_mem_global_free_page(&ttm_mem_glob, ttm->pages[i],
-					 PAGE_SIZE);
 
 	ttm_pool_free(&bdev->pool, ttm);
 }
