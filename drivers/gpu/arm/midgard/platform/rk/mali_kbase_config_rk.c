@@ -467,20 +467,26 @@ out:
 	return ret;
 }
 
+static const struct rockchip_opp_data rk3288_gpu_opp_data = {
+	.get_soc_info = rk3288_get_soc_info,
+};
+
 static const struct of_device_id rockchip_mali_of_match[] = {
 	{
 		.compatible = "rockchip,rk3288",
-		.data = (void *)&rk3288_get_soc_info,
+		.data = (void *)&rk3288_gpu_opp_data,
 	},
 	{
 		.compatible = "rockchip,rk3288w",
-		.data = (void *)&rk3288_get_soc_info,
+		.data = (void *)&rk3288_gpu_opp_data,
 	},
 	{},
 };
 
 int kbase_platform_rk_init_opp_table(struct kbase_device *kbdev)
 {
-	return rockchip_init_opp_table(kbdev->dev, rockchip_mali_of_match,
+	rockchip_get_opp_data(rockchip_mali_of_match, &kbdev->opp_info);
+
+	return rockchip_init_opp_table(kbdev->dev, &kbdev->opp_info,
 				       "gpu_leakage", "mali");
 }

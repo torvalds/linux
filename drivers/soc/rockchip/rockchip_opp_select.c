@@ -6,8 +6,10 @@
 #include <linux/clk.h>
 #include <linux/cpufreq.h>
 #include <linux/devfreq.h>
+#include <linux/mfd/syscon.h>
 #include <linux/module.h>
 #include <linux/nvmem-consumer.h>
+#include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
 #include <linux/slab.h>
 #include <linux/soc/rockchip/pvtm.h>
@@ -813,39 +815,61 @@ void rockchip_of_get_bin_volt_sel(struct device *dev, struct device_node *np,
 }
 EXPORT_SYMBOL(rockchip_of_get_bin_volt_sel);
 
-void rockchip_get_soc_info(struct device *dev,
-			   const struct of_device_id *matches,
-			   int *bin, int *process)
+void rockchip_get_opp_data(const struct of_device_id *matches,
+			   struct rockchip_opp_info *info)
 {
 	const struct of_device_id *match;
-	struct device_node *np;
 	struct device_node *node;
-	int (*get_soc_info)(struct device *dev, struct device_node *np,
-			    int *bin, int *process);
-	int ret = 0;
-
-	if (!matches)
-		return;
-
-	np = of_parse_phandle(dev->of_node, "operating-points-v2", 0);
-	if (!np) {
-		dev_warn(dev, "OPP-v2 not supported\n");
-		return;
-	}
 
 	node = of_find_node_by_path("/");
 	match = of_match_node(matches, node);
-	if (match && match->data) {
-		get_soc_info = match->data;
-		ret = get_soc_info(dev, np, bin, process);
-		if (ret)
-			dev_err(dev, "Failed to get soc info\n");
+	if (match && match->data)
+		info->data = match->data;
+	of_node_put(node);
+}
+EXPORT_SYMBOL(rockchip_get_opp_data);
+
+int rockchip_get_volt_rm_table(struct device *dev, struct device_node *np,
+			       char *porp_name, struct volt_rm_table **table)
+{
+	struct volt_rm_table *rm_table;
+	const struct property *prop;
+	int count, i;
+
+	prop = of_find_property(np, porp_name, NULL);
+	if (!prop)
+		return -EINVAL;
+
+	if (!prop->value)
+		return -ENODATA;
+
+	count = of_property_count_u32_elems(np, porp_name);
+	if (count < 0)
+		return -EINVAL;
+
+	if (count % 2)
+		return -EINVAL;
+
+	rm_table = devm_kzalloc(dev, sizeof(*rm_table) * (count / 2 + 1),
+				GFP_KERNEL);
+	if (!rm_table)
+		return -ENOMEM;
+
+	for (i = 0; i < count / 2; i++) {
+		of_property_read_u32_index(np, porp_name, 2 * i,
+					   &rm_table[i].volt);
+		of_property_read_u32_index(np, porp_name, 2 * i + 1,
+					   &rm_table[i].rm);
 	}
 
-	of_node_put(node);
-	of_node_put(np);
+	rm_table[i].volt = 0;
+	rm_table[i].rm = VOLT_RM_TABLE_END;
+
+	*table = rm_table;
+
+	return 0;
 }
-EXPORT_SYMBOL(rockchip_get_soc_info);
+EXPORT_SYMBOL(rockchip_get_volt_rm_table);
 
 void rockchip_get_scale_volt_sel(struct device *dev, char *lkg_name,
 				 char *reg_name, int bin, int process,
@@ -1118,14 +1142,13 @@ out_np:
 }
 EXPORT_SYMBOL(rockchip_adjust_power_scale);
 
-int rockchip_init_opp_table(struct device *dev,
-			    const struct of_device_id *matches,
+int rockchip_init_opp_table(struct device *dev, struct rockchip_opp_info *info,
 			    char *lkg_name, char *reg_name)
 {
 	struct device_node *np;
 	int bin = -EINVAL, process = -EINVAL;
 	int scale = 0, volt_sel = -EINVAL;
-	int ret = 0;
+	int ret = 0, num_clks = 0, i;
 
 	/* Get OPP descriptor node */
 	np = of_parse_phandle(dev->of_node, "operating-points-v2", 0);
@@ -1133,20 +1156,52 @@ int rockchip_init_opp_table(struct device *dev,
 		dev_dbg(dev, "Failed to find operating-points-v2\n");
 		return -ENOENT;
 	}
-	of_node_put(np);
+	if (!info)
+		goto next;
 
-	rockchip_get_soc_info(dev, matches, &bin, &process);
+	num_clks = of_clk_get_parent_count(np);
+	if (num_clks > 0) {
+		info->clks = devm_kcalloc(dev, num_clks, sizeof(*info->clks),
+					  GFP_KERNEL);
+		if (!info->clks) {
+			ret = -ENOMEM;
+			goto out;
+		}
+		for (i = 0; i < num_clks; i++) {
+			info->clks[i].clk = of_clk_get(np, i);
+			if (IS_ERR(info->clks[i].clk)) {
+				ret = PTR_ERR(info->clks[i].clk);
+				dev_err(dev, "%s: failed to get clk %d\n",
+					np->name, i);
+				goto out;
+			}
+		}
+		info->num_clks = num_clks;
+	}
+	if (info->data && info->data->set_read_margin) {
+		info->grf = syscon_regmap_lookup_by_phandle(np, "rockchip,grf");
+		if (IS_ERR(info->grf))
+			info->grf = NULL;
+		rockchip_get_volt_rm_table(dev, np, "volt-mem-read-margin",
+					   &info->volt_rm_tbl);
+	}
+	if (info->data && info->data->get_soc_info)
+		info->data->get_soc_info(dev, np, &bin, &process);
+
+next:
 	rockchip_get_scale_volt_sel(dev, lkg_name, reg_name, bin, process,
 				    &scale, &volt_sel);
 	rockchip_set_opp_prop_name(dev, process, volt_sel);
 	ret = dev_pm_opp_of_add_table(dev);
 	if (ret) {
 		dev_err(dev, "Invalid operating-points in device tree.\n");
-		return ret;
+		goto out;
 	}
 	rockchip_adjust_power_scale(dev, scale);
+out:
+	of_node_put(np);
 
-	return 0;
+	return ret;
 }
 EXPORT_SYMBOL(rockchip_init_opp_table);
 

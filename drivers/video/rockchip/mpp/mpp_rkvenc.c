@@ -984,15 +984,19 @@ static int __maybe_unused rv1126_get_soc_info(struct device *dev,
 	return ret;
 }
 
+static const struct rockchip_opp_data __maybe_unused rv1126_rkvenc_opp_data = {
+	.get_soc_info = rv1126_get_soc_info,
+};
+
 static const struct of_device_id rockchip_rkvenc_of_match[] = {
 #ifdef CONFIG_CPU_RV1126
 	{
 		.compatible = "rockchip,rv1109",
-		.data = (void *)&rv1126_get_soc_info,
+		.data = (void *)&rv1126_rkvenc_opp_data,
 	},
 	{
 		.compatible = "rockchip,rv1126",
-		.data = (void *)&rv1126_get_soc_info,
+		.data = (void *)&rv1126_rkvenc_opp_data,
 	},
 #endif
 	{},
@@ -1003,6 +1007,7 @@ static int rkvenc_devfreq_init(struct mpp_dev *mpp)
 	struct rkvenc_dev *enc = to_rkvenc_dev(mpp);
 	struct clk *clk_core = enc->core_clk_info.clk;
 	struct devfreq_cooling_power *venc_dcp = &venc_cooling_power_data;
+	struct rockchip_opp_info opp_info = {0};
 	int ret = 0;
 
 	if (!clk_core)
@@ -1020,8 +1025,8 @@ static int rkvenc_devfreq_init(struct mpp_dev *mpp)
 		return 0;
 	}
 
-	ret = rockchip_init_opp_table(mpp->dev, rockchip_rkvenc_of_match,
-				      "leakage", "venc");
+	rockchip_get_opp_data(rockchip_rkvenc_of_match, &opp_info);
+	ret = rockchip_init_opp_table(mpp->dev, &opp_info, "leakage", "venc");
 	if (ret) {
 		dev_err(mpp->dev, "failed to init_opp_table\n");
 		return ret;

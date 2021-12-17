@@ -19,12 +19,15 @@
 #include <linux/err.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
+#include <linux/mfd/syscon.h>
 #include <linux/module.h>
 #include <linux/nvmem-consumer.h>
 #include <linux/of.h>
+#include <linux/of_address.h>
 #include <linux/platform_device.h>
 #include <linux/pm_opp.h>
 #include <linux/slab.h>
+#include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
 #include <linux/rockchip/cpu.h>
 #include <soc/rockchip/rockchip_opp_select.h>
@@ -36,6 +39,7 @@
 struct cluster_info {
 	struct list_head list_head;
 	struct monitor_dev_info *mdev_info;
+	struct rockchip_opp_info opp_info;
 	cpumask_t cpus;
 	int scale;
 };
@@ -197,34 +201,50 @@ static int rv1126_get_soc_info(struct device *dev, struct device_node *np,
 	return ret;
 }
 
+static const struct rockchip_opp_data px30_cpu_opp_data = {
+	.get_soc_info = px30_get_soc_info,
+};
+
+static const struct rockchip_opp_data rk3288_cpu_opp_data = {
+	.get_soc_info = rk3288_get_soc_info,
+};
+
+static const struct rockchip_opp_data rk3399_cpu_opp_data = {
+	.get_soc_info = rk3399_get_soc_info,
+};
+
+static const struct rockchip_opp_data rv1126_cpu_opp_data = {
+	.get_soc_info = rv1126_get_soc_info,
+};
+
 static const struct of_device_id rockchip_cpufreq_of_match[] = {
 	{
 		.compatible = "rockchip,px30",
-		.data = (void *)&px30_get_soc_info,
+		.data = (void *)&px30_cpu_opp_data,
 	},
 	{
 		.compatible = "rockchip,rk3288",
-		.data = (void *)&rk3288_get_soc_info,
+		.data = (void *)&rk3288_cpu_opp_data,
 	},
 	{
 		.compatible = "rockchip,rk3288w",
-		.data = (void *)&rk3288_get_soc_info,
+		.data = (void *)&rk3288_cpu_opp_data,
 	},
 	{
 		.compatible = "rockchip,rk3326",
-		.data = (void *)&px30_get_soc_info,
+		.data = (void *)&px30_cpu_opp_data,
 	},
 	{
 		.compatible = "rockchip,rk3399",
-		.data = (void *)&rk3399_get_soc_info,
+		.data = (void *)&rk3399_cpu_opp_data,
 	},
 	{
 		.compatible = "rockchip,rv1109",
-		.data = (void *)&rv1126_get_soc_info,
+		.data = (void *)&rv1126_cpu_opp_data,
 	},
 	{
 		.compatible = "rockchip,rv1126",
-		.data = (void *)&rv1126_get_soc_info,
+		.data = (void *)&rv1126_cpu_opp_data,
 	},
 	{},
 };
@@ -271,9 +291,14 @@ static int cpu_opp_helper(struct dev_pm_set_opp_data *data)
 	struct regulator *mem_reg = data->regulators[1];
 	struct device *dev = data->dev;
 	struct clk *clk = data->clk;
+	struct cluster_info *cluster;
 	unsigned long old_freq = data->old_opp.rate;
 	unsigned long new_freq = data->new_opp.rate;
 	int ret = 0;
+
+	cluster = rockchip_cluster_info_lookup(dev->id);
+	if (!cluster)
+		return -EINVAL;
 
 	/* Scaling up? Scale voltage before frequency */
 	if (new_freq >= old_freq) {
@@ -323,6 +348,7 @@ restore_voltage:
 
 static int rockchip_cpufreq_cluster_init(int cpu, struct cluster_info *cluster)
 {
+	struct rockchip_opp_info *opp_info = &cluster->opp_info;
 	struct opp_table *pname_table = NULL;
 	struct opp_table *reg_table = NULL;
 	struct opp_table *opp_table;
@@ -358,7 +384,17 @@ static int rockchip_cpufreq_cluster_init(int cpu, struct cluster_info *cluster)
 		goto np_err;
 	}
 
-	rockchip_get_soc_info(dev, rockchip_cpufreq_of_match, &bin, &process);
+	rockchip_get_opp_data(rockchip_cpufreq_of_match, opp_info);
+	if (opp_info->data && opp_info->data->set_read_margin) {
+		opp_info->grf = syscon_regmap_lookup_by_phandle(np,
+								"rockchip,grf");
+		if (IS_ERR(opp_info->grf))
+			opp_info->grf = NULL;
+		rockchip_get_volt_rm_table(dev, np, "volt-mem-read-margin",
+					   &opp_info->volt_rm_tbl);
+	}
+	if (opp_info->data && opp_info->data->get_soc_info)
+		opp_info->data->get_soc_info(dev, np, &bin, &process);
 	rockchip_get_scale_volt_sel(dev, "cpu_leakage", reg_name, bin, process,
 				    &cluster->scale, &volt_sel);
 	pname_table = rockchip_set_opp_prop_name(dev, process, volt_sel);
