@@ -284,7 +284,7 @@ static atomic_t barrier_cbs_invoked;	/* Barrier callbacks invoked. */
 static wait_queue_head_t *barrier_cbs_wq; /* Coordinate barrier testing. */
 static DECLARE_WAIT_QUEUE_HEAD(barrier_wq);
 
-static bool rcu_fwd_cb_nodelay;		/* Short rcu_torture_delay() delays. */
+static atomic_t rcu_fwd_cb_nodelay;	/* Short rcu_torture_delay() delays. */
 
 /*
  * Allocate an element from the rcu_tortures pool.
@@ -387,7 +387,7 @@ rcu_read_delay(struct torture_random_state *rrsp, struct rt_read_seg *rtrsp)
 	 * period, and we want a long delay occasionally to trigger
 	 * force_quiescent_state. */
 
-	if (!READ_ONCE(rcu_fwd_cb_nodelay) &&
+	if (!atomic_read(&rcu_fwd_cb_nodelay) &&
 	    !(torture_random(rrsp) % (nrealreaders * 2000 * longdelay_ms))) {
 		started = cur_ops->get_gp_seq();
 		ts = rcu_trace_clock_local();
@@ -1276,7 +1276,7 @@ rcu_torture_writer(void *arg)
 		boot_ended = rcu_inkernel_boot_has_ended();
 		stutter_waited = stutter_wait("rcu_torture_writer");
 		if (stutter_waited &&
-		    !READ_ONCE(rcu_fwd_cb_nodelay) &&
+		    !atomic_read(&rcu_fwd_cb_nodelay) &&
 		    !cur_ops->slow_gps &&
 		    !torture_must_stop() &&
 		    boot_ended)
@@ -2290,7 +2290,7 @@ static void rcu_torture_fwd_prog_nr(struct rcu_fwd *rfp,
 	}
 
 	/* Tight loop containing cond_resched(). */
-	WRITE_ONCE(rcu_fwd_cb_nodelay, true);
+	atomic_inc(&rcu_fwd_cb_nodelay);
 	cur_ops->sync(); /* Later readers see above write. */
 	if  (selfpropcb) {
 		WRITE_ONCE(fcs.stop, 0);
@@ -2335,7 +2335,7 @@ static void rcu_torture_fwd_prog_nr(struct rcu_fwd *rfp,
 		destroy_rcu_head_on_stack(&fcs.rh);
 	}
 	schedule_timeout_uninterruptible(HZ / 10); /* Let kthreads recover. */
-	WRITE_ONCE(rcu_fwd_cb_nodelay, false);
+	atomic_dec(&rcu_fwd_cb_nodelay);
 }
 
 /* Carry out call_rcu() forward-progress testing. */
@@ -2362,7 +2362,7 @@ static void rcu_torture_fwd_prog_cr(struct rcu_fwd *rfp)
 		return; /* Can't do call_rcu() fwd prog without ->call. */
 
 	/* Loop continuously posting RCU callbacks. */
-	WRITE_ONCE(rcu_fwd_cb_nodelay, true);
+	atomic_inc(&rcu_fwd_cb_nodelay);
 	cur_ops->sync(); /* Later readers see above write. */
 	WRITE_ONCE(rfp->rcu_fwd_startat, jiffies);
 	stopat = rfp->rcu_fwd_startat + MAX_FWD_CB_JIFFIES;
@@ -2435,7 +2435,7 @@ static void rcu_torture_fwd_prog_cr(struct rcu_fwd *rfp)
 	}
 	schedule_timeout_uninterruptible(HZ); /* Let CBs drain. */
 	tick_dep_clear_task(current, TICK_DEP_BIT_RCU);
-	WRITE_ONCE(rcu_fwd_cb_nodelay, false);
+	atomic_dec(&rcu_fwd_cb_nodelay);
 }
 
 
