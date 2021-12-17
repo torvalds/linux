@@ -139,6 +139,11 @@
 		};
 	};
 
+	refclk: msspllclk {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+	};
+
 	soc {
 		#address-cells = <2>;
 		#size-cells = <2>;
@@ -187,13 +192,6 @@
 			interrupt-parent = <&plic>;
 			interrupts = <23 24 25 26 27 28 29 30>;
 			#dma-cells = <1>;
-		};
-
-		refclk: refclk {
-			compatible = "fixed-clock";
-			#clock-cells = <0>;
-			clock-frequency = <600000000>;
-			clock-output-names = "msspllclk";
 		};
 
 		clkcfg: clkcfg@20002000 {
