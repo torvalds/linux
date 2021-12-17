@@ -5,6 +5,8 @@
 #include <string.h>
 #include "debug.h"
 #include "symbol.h"
+#include "callchain.h"
+#include "record.h"
 
 /* On arm64, kernel text segment starts at high memory address,
  * for example 0xffff 0000 8xxx xxxx. Modules start at a low memory
@@ -25,4 +27,9 @@ void arch__symbols__fixup_end(struct symbol *p, struct symbol *c)
 	else
 		p->end = c->start;
 	pr_debug4("%s sym:%s end:%#" PRIx64 "\n", __func__, p->name, p->end);
+}
+
+void arch__add_leaf_frame_record_opts(struct record_opts *opts)
+{
+	opts->sample_user_regs |= sample_reg_masks[PERF_REG_ARM64_LR].mask;
 }
