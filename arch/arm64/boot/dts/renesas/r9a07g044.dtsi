@@ -88,6 +88,7 @@
 			compatible = "arm,cortex-a55";
 			reg = <0>;
 			device_type = "cpu";
+			#cooling-cells = <2>;
 			next-level-cache = <&L3_CA55>;
 			enable-method = "psci";
 			clocks = <&cpg CPG_CORE R9A07G044_CLK_I>;
@@ -108,6 +109,50 @@
 			compatible = "cache";
 			cache-unified;
 			cache-size = <0x40000>;
+		};
+	};
+
+	gpu_opp_table: opp-table-1 {
+		compatible = "operating-points-v2";
+
+		opp-500000000 {
+			opp-hz = /bits/ 64 <500000000>;
+			opp-microvolt = <1100000>;
+		};
+
+		opp-400000000 {
+			opp-hz = /bits/ 64 <400000000>;
+			opp-microvolt = <1100000>;
+		};
+
+		opp-250000000 {
+			opp-hz = /bits/ 64 <250000000>;
+			opp-microvolt = <1100000>;
+		};
+
+		opp-200000000 {
+			opp-hz = /bits/ 64 <200000000>;
+			opp-microvolt = <1100000>;
+		};
+
+		opp-125000000 {
+			opp-hz = /bits/ 64 <125000000>;
+			opp-microvolt = <1100000>;
+		};
+
+		opp-100000000 {
+			opp-hz = /bits/ 64 <100000000>;
+			opp-microvolt = <1100000>;
+		};
+
+		opp-62500000 {
+			opp-hz = /bits/ 64 <62500000>;
+			opp-microvolt = <1100000>;
+		};
+
+		opp-50000000 {
+			opp-hz = /bits/ 64 <50000000>;
+			opp-microvolt = <1100000>;
 		};
 	};
 
@@ -539,6 +584,16 @@
 			};
 		};
 
+		tsu: thermal@10059400 {
+			compatible = "renesas,r9a07g044-tsu",
+				     "renesas,rzg2l-tsu";
+			reg = <0 0x10059400 0 0x400>;
+			clocks = <&cpg CPG_MOD R9A07G044_TSU_PCLK>;
+			resets = <&cpg R9A07G044_TSU_PRESETN>;
+			power-domains = <&cpg>;
+			#thermal-sensor-cells = <1>;
+		};
+
 		sbc: spi@10060000 {
 			compatible = "renesas,r9a07g044-rpc-if",
 				     "renesas,rzg2l-rpc-if";
@@ -578,7 +633,7 @@
 			status = "disabled";
 		};
 
-		pinctrl: pin-controller@11030000 {
+		pinctrl: pinctrl@11030000 {
 			compatible = "renesas,r9a07g044-pinctrl";
 			reg = <0 0x11030000 0 0x10000>;
 			gpio-controller;
@@ -625,6 +680,27 @@
 				 <&cpg R9A07G044_DMAC_RST_ASYNC>;
 			#dma-cells = <1>;
 			dma-channels = <16>;
+		};
+
+		gpu: gpu@11840000 {
+			compatible = "renesas,r9a07g044-mali",
+				     "arm,mali-bifrost";
+			reg = <0x0 0x11840000 0x0 0x10000>;
+			interrupts = <GIC_SPI 154 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 155 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 153 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 156 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "job", "mmu", "gpu", "event";
+			clocks = <&cpg CPG_MOD R9A07G044_GPU_CLK>,
+				 <&cpg CPG_MOD R9A07G044_GPU_AXI_CLK>,
+				 <&cpg CPG_MOD R9A07G044_GPU_ACE_CLK>;
+			clock-names = "gpu", "bus", "bus_ace";
+			power-domains = <&cpg>;
+			resets = <&cpg R9A07G044_GPU_RESETN>,
+				 <&cpg R9A07G044_GPU_AXI_RESETN>,
+				 <&cpg R9A07G044_GPU_ACE_RESETN>;
+			reset-names = "rst", "axi_rst", "ace_rst";
+			operating-points-v2 = <&gpu_opp_table>;
 		};
 
 		gic: interrupt-controller@11900000 {
@@ -899,6 +975,37 @@
 			resets = <&cpg R9A07G044_OSTM2_PRESETZ>;
 			power-domains = <&cpg>;
 			status = "disabled";
+		};
+	};
+
+	thermal-zones {
+		cpu-thermal {
+			polling-delay-passive = <250>;
+			polling-delay = <1000>;
+			thermal-sensors = <&tsu 0>;
+			sustainable-power = <717>;
+
+			cooling-maps {
+				map0 {
+					trip = <&target>;
+					cooling-device = <&cpu0 0 2>;
+					contribution = <1024>;
+				};
+			};
+
+			trips {
+				sensor_crit: sensor-crit {
+					temperature = <125000>;
+					hysteresis = <1000>;
+					type = "critical";
+				};
+
+				target: trip-point {
+					temperature = <100000>;
+					hysteresis = <1000>;
+					type = "passive";
+				};
+			};
 		};
 	};
 
