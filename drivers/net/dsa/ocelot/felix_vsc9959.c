@@ -1745,7 +1745,7 @@ static void vsc9959_psfp_sfi_table_del(struct ocelot *ocelot, u32 index)
 static void vsc9959_psfp_parse_gate(const struct flow_action_entry *entry,
 				    struct felix_stream_gate *sgi)
 {
-	sgi->index = entry->gate.index;
+	sgi->index = entry->hw_index;
 	sgi->ipv_valid = (entry->gate.prio < 0) ? 0 : 1;
 	sgi->init_ipv = (sgi->ipv_valid) ? entry->gate.prio : 0;
 	sgi->basetime = entry->gate.basetime;
@@ -1947,7 +1947,7 @@ static int vsc9959_psfp_filter_add(struct ocelot *ocelot, int port,
 			kfree(sgi);
 			break;
 		case FLOW_ACTION_POLICE:
-			index = a->police.index + VSC9959_PSFP_POLICER_BASE;
+			index = a->hw_index + VSC9959_PSFP_POLICER_BASE;
 			if (index > VSC9959_PSFP_POLICER_MAX) {
 				ret = -EINVAL;
 				goto err;

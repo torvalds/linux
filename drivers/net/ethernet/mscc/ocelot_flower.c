@@ -303,7 +303,7 @@ static int ocelot_flower_parse_action(struct ocelot *ocelot, int port,
 			}
 			filter->action.police_ena = true;
 
-			pol_ix = a->police.index + ocelot->vcap_pol.base;
+			pol_ix = a->hw_index + ocelot->vcap_pol.base;
 			pol_max = ocelot->vcap_pol.max;
 
 			if (ocelot->vcap_pol.max2 && pol_ix > pol_max) {
