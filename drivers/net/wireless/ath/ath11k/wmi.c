@@ -3605,6 +3605,8 @@ ath11k_wmi_obss_color_collision_event(struct ath11k_base *ab, struct sk_buff *sk
 		return;
 	}
 
+	rcu_read_lock();
+
 	ev = tb[WMI_TAG_OBSS_COLOR_COLLISION_EVT];
 	if (!ev) {
 		ath11k_warn(ab, "failed to fetch obss color collision ev");
@@ -3635,6 +3637,7 @@ ath11k_wmi_obss_color_collision_event(struct ath11k_base *ab, struct sk_buff *sk
 
 exit:
 	kfree(tb);
+	rcu_read_unlock();
 }
 
 static void
@@ -6541,13 +6544,16 @@ static void ath11k_bcn_tx_status_event(struct ath11k_base *ab, struct sk_buff *s
 		return;
 	}
 
+	rcu_read_lock();
 	arvif = ath11k_mac_get_arvif_by_vdev_id(ab, vdev_id);
 	if (!arvif) {
 		ath11k_warn(ab, "invalid vdev id %d in bcn_tx_status",
 			    vdev_id);
+		rcu_read_unlock();
 		return;
 	}
 	ath11k_mac_bcn_tx_event(arvif);
+	rcu_read_unlock();
 }
 
 static void ath11k_vdev_stopped_event(struct ath11k_base *ab, struct sk_buff *skb)
