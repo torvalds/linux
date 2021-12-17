@@ -1685,7 +1685,7 @@ int otx2_cpt_dl_custom_egrp_delete(struct otx2_cptpf_dev *cptpf,
 	if (kstrtoint(tmp, 10, &egrp))
 		goto err_print;
 
-	if (egrp >= OTX2_CPT_MAX_ENGINE_GROUPS) {
+	if (egrp < 0 || egrp >= OTX2_CPT_MAX_ENGINE_GROUPS) {
 		dev_err(dev, "Invalid engine group %d", egrp);
 		return -EINVAL;
 	}
