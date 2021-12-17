@@ -2162,8 +2162,29 @@ static int gfx_v9_4_3_early_init(void *handle)
 
 	/* hardcode in emulation phase */
 	adev->gfx.num_xcd = 1;
-	adev->gfx.num_xcc_per_xcp = 1;
-	adev->gfx.partition_mode = AMDGPU_SPX_PARTITION_MODE;
+
+	adev->gfx.partition_mode = amdgpu_user_partt_mode;
+	/* calculate the num_xcc_in_xcp for the partition mode*/
+	switch (amdgpu_user_partt_mode) {
+	case AMDGPU_SPX_PARTITION_MODE:
+		adev->gfx.num_xcc_per_xcp = adev->gfx.num_xcd;
+		break;
+	case AMDGPU_DPX_PARTITION_MODE:
+		adev->gfx.num_xcc_per_xcp = adev->gfx.num_xcd / 2;
+		break;
+	case AMDGPU_TPX_PARTITION_MODE:
+		adev->gfx.num_xcc_per_xcp = adev->gfx.num_xcd / 3;
+		break;
+	case AMDGPU_QPX_PARTITION_MODE:
+		adev->gfx.num_xcc_per_xcp = adev->gfx.num_xcd / 4;
+		break;
+	case AMDGPU_CPX_PARTITION_MODE:
+		adev->gfx.num_xcc_per_xcp = 1;
+		break;
+	default:
+		adev->gfx.num_xcc_per_xcp = adev->gfx.num_xcd;
+		break;
+	}
 
 	adev->gfx.num_compute_rings = min(amdgpu_gfx_get_num_kcq(adev),
 					  AMDGPU_MAX_COMPUTE_RINGS);
