@@ -320,6 +320,22 @@ static const struct cif_output_fmt out_fmts[] = {
 		.raw_bpp = 16,
 		.csi_fmt_val	= CSI_WRDDR_TYPE_RAW8,
 		.fmt_type = CIF_FMT_TYPE_RAW,
+	}, {
+		.fourcc = V4L2_PIX_FMT_Y12,
+		.cplanes = 1,
+		.mplanes = 1,
+		.bpp = { 16 },
+		.raw_bpp = 12,
+		.csi_fmt_val = CSI_WRDDR_TYPE_RAW12,
+		.fmt_type = CIF_FMT_TYPE_RAW,
+	}, {
+		.fourcc = V4L2_PIX_FMT_Y10,
+		.cplanes = 1,
+		.mplanes = 1,
+		.bpp = { 16 },
+		.raw_bpp = 10,
+		.csi_fmt_val = CSI_WRDDR_TYPE_RAW10,
+		.fmt_type = CIF_FMT_TYPE_RAW,
 	}
 
 	/* TODO: We can support NV12M/NV21M/NV16M/NV61M too */
@@ -649,6 +665,7 @@ cif_input_fmt *get_input_fmt(struct v4l2_subdev *sd, struct v4l2_rect *rect,
 	fmt.pad = 0;
 	fmt.which = V4L2_SUBDEV_FORMAT_ACTIVE;
 	fmt.reserved[0] = 0;
+	fmt.format.field = V4L2_FIELD_NONE;
 	ret = v4l2_subdev_call(sd, pad, get_fmt, NULL, &fmt);
 	if (ret < 0) {
 		v4l2_warn(sd->v4l2_dev,
@@ -2203,7 +2220,7 @@ static int rkcif_dvp_get_input_yuv_order(struct rkcif_stream *stream)
 		mask = CSI_YUV_INPUT_ORDER_YVYU >> 11;
 		break;
 	default:
-		mask = MEDIA_BUS_FMT_UYVY8_2X8;
+		mask = CSI_YUV_INPUT_ORDER_UYVY >> 11;
 		break;
 	}
 	return mask;
@@ -3225,10 +3242,10 @@ static u32 rkcif_determine_input_mode_rk3588(struct rkcif_stream *stream)
 		switch (std) {
 		case V4L2_STD_NTSC:
 		case V4L2_STD_PAL:
-			mode = INPUT_BT656_YUV422 | TRANSMIT_INTERFACE_RK3588;
+			mode = INPUT_BT656_YUV422;
 			break;
 		case V4L2_STD_ATSC:
-			mode = INPUT_BT1120_YUV422 | TRANSMIT_INTERFACE_RK3588;
+			mode = INPUT_BT1120_YUV422;
 			break;
 		default:
 			v4l2_err(&dev->v4l2_dev,
@@ -3265,12 +3282,11 @@ static u32 rkcif_determine_input_mode_rk3588(struct rkcif_stream *stream)
 			mode |= stream->cif_fmt_in->csi_fmt_val << 6;
 			break;
 		}
-		if (stream->cif_fmt_in->field == V4L2_FIELD_NONE)
-			mode |= TRANSMIT_PROGRESS_RK3588;
-		else
-			mode |= TRANSMIT_INTERFACE_RK3588;
 	}
-
+	if (stream->cif_fmt_in->field == V4L2_FIELD_NONE)
+		mode |= TRANSMIT_PROGRESS_RK3588;
+	else
+		mode |= TRANSMIT_INTERFACE_RK3588;
 	return mode;
 }
 
@@ -3298,13 +3314,18 @@ static u32 rkcif_align_bits_per_pixel(struct rkcif_stream *stream,
 		case V4L2_PIX_FMT_NV61:
 		case V4L2_PIX_FMT_NV12:
 		case V4L2_PIX_FMT_NV21:
+		case V4L2_PIX_FMT_GREY:
+		case V4L2_PIX_FMT_Y16:
+			bpp = fmt->bpp[plane_index];
+			break;
 		case V4L2_PIX_FMT_YUYV:
 		case V4L2_PIX_FMT_YVYU:
 		case V4L2_PIX_FMT_UYVY:
 		case V4L2_PIX_FMT_VYUY:
-		case V4L2_PIX_FMT_GREY:
-		case V4L2_PIX_FMT_Y16:
-			bpp = fmt->bpp[plane_index];
+			if (stream->cifdev->chip_id < CHIP_RK3588_CIF)
+				bpp = fmt->bpp[plane_index];
+			else
+				bpp = fmt->bpp[plane_index + 1];
 			break;
 		case V4L2_PIX_FMT_RGB24:
 		case V4L2_PIX_FMT_RGB565:
@@ -3640,6 +3661,8 @@ static int rkcif_stream_start(struct rkcif_stream *stream, unsigned int mode)
 	struct rkcif_dvp_sof_subdev *sof_sd = &dev->dvp_sof_subdev;
 	const struct cif_output_fmt *fmt;
 	unsigned int dma_en = 0;
+	int i = 0;
+	u32 sav_detect = BT656_DETECT_SAV;
 
 	if (stream->state < RKCIF_STATE_STREAMING)
 		stream->frame_idx = 0;
@@ -3675,8 +3698,8 @@ static int rkcif_stream_start(struct rkcif_stream *stream, unsigned int mode)
 				multi_id_mode = BT656_1120_MULTI_ID_MODE_4;
 			else if (((bt1120_flags & RKMODULE_CAMERA_BT656_CHANNELS) >> 2) > 1)
 				multi_id_mode = BT656_1120_MULTI_ID_MODE_2;
-
-			multi_id = DVP_SW_MULTI_ID(stream->id, stream->id, bt1120_info.id_en_bits);
+			for (i = 0; i < 4; i++)
+				multi_id |= DVP_SW_MULTI_ID(i, i, bt1120_info.id_en_bits);
 			rkcif_write_register_or(dev, CIF_REG_DVP_MULTI_ID, multi_id);
 		}
 	}
@@ -3770,6 +3793,7 @@ static int rkcif_stream_start(struct rkcif_stream *stream, unsigned int mode)
 			| out_fmt_mask
 			| in_fmt_yuv_order
 			| multi_id_en
+			| sav_detect
 			| multi_id_sel | multi_id_mode | bt1120_edge_mode;
 		if (stream->is_high_align)
 			val |= CIF_HIGH_ALIGN_RK3588;
@@ -3778,8 +3802,9 @@ static int rkcif_stream_start(struct rkcif_stream *stream, unsigned int mode)
 	}
 	rkcif_write_register(dev, CIF_REG_DVP_FOR, val);
 
-	val = stream->pixm.width;
-	if (stream->cif_fmt_in->fmt_type == CIF_FMT_TYPE_RAW) {
+	if (dev->chip_id >= CHIP_RK3588_CIF) {
+		val = stream->pixm.plane_fmt[0].bytesperline;
+	} else {
 		fmt = find_output_fmt(stream, stream->pixm.pixelformat);
 		if (fmt->fmt_type == CIF_FMT_TYPE_RAW &&
 		    fmt->csi_fmt_val == CSI_WRDDR_TYPE_RAW8)
@@ -3787,9 +3812,6 @@ static int rkcif_stream_start(struct rkcif_stream *stream, unsigned int mode)
 		else
 			val = stream->pixm.width * rkcif_cal_raw_vir_line_ratio(stream, fmt);
 	}
-	rkcif_write_register(dev, CIF_REG_DVP_VIR_LINE_WIDTH, val);
-	rkcif_write_register(dev, CIF_REG_DVP_SET_SIZE,
-			     stream->pixm.width | (stream->pixm.height << 16));
 
 	if (stream->crop_enable) {
 		dev->channels[stream->id].crop_en = 1;
@@ -3805,6 +3827,10 @@ static int rkcif_stream_start(struct rkcif_stream *stream, unsigned int mode)
 		dev->channels[stream->id].crop_en = 0;
 	}
 
+	rkcif_write_register(dev, CIF_REG_DVP_VIR_LINE_WIDTH, val);
+	rkcif_write_register(dev, CIF_REG_DVP_SET_SIZE,
+			     dev->channels[stream->id].width |
+			     (dev->channels[stream->id].height << 16));
 	rkcif_write_register(dev, CIF_REG_DVP_CROP,
 			     dev->channels[stream->id].crop_st_y << CIF_CROP_Y_SHIFT |
 			     dev->channels[stream->id].crop_st_x);
@@ -4284,8 +4310,13 @@ int rkcif_set_fmt(struct rkcif_stream *stream,
 		     dev->active_sensor->mbus.type == V4L2_MBUS_CCP2)) {
 			bpl = ALIGN(width * fmt->raw_bpp / 8, 256);
 		} else {
-			bpp = rkcif_align_bits_per_pixel(stream, fmt, i);
-			bpl = width * bpp / CIF_YUV_STORED_BIT_WIDTH;
+			if (fmt->fmt_type == CIF_FMT_TYPE_RAW && stream->is_compact &&
+			    dev->chip_id >= CHIP_RK3588_CIF) {
+				bpl = ALIGN(width * fmt->raw_bpp / 8, 256);
+			} else {
+				bpp = rkcif_align_bits_per_pixel(stream, fmt, i);
+				bpl = width * bpp / CIF_YUV_STORED_BIT_WIDTH;
+			}
 		}
 		size = bpl * height;
 		imagesize += size;
@@ -7393,7 +7424,7 @@ void rkcif_irq_pingpong_v1(struct rkcif_device *cif_dev)
 				  intstat);
 		}
 
-		if (intstat & INTSTAT_ERR) {
+		if (intstat & INTSTAT_ERR_RK3588) {
 			cif_dev->irq_stats.all_err_cnt++;
 			v4l2_err(&cif_dev->v4l2_dev,
 				 "ERROR: DVP_ALL_ERROR_INTEN:0x%x!!\n", intstat);

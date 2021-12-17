@@ -489,6 +489,10 @@ enum cif_reg_index {
 #define PRE_INF_FRAME_END_CLR		(0x01 << 8)
 #define PST_INF_FRAME_END_CLR		(0x01 << 9)
 #define INTSTAT_ERR			(0xFC)
+#define INTSTAT_ERR_RK3588		(DVP_SIZE_ERR |\
+					 DVP_FIFO_OVERFLOW |\
+					 DVP_BANDWIDTH_LACK)
+
 #define DVP_ALL_OVERFLOW		(IFIFO_OVERFLOW | DFIFO_OVERFLOW)
 
 #define DVP_FIFO_OVERFLOW		(0x01 << 16)
@@ -604,7 +608,8 @@ enum cif_reg_index {
 #define BT656_1120_MULTI_ID_3_MASK	~(0x03 << 28)
 #define	CIF_HIGH_ALIGN			(0x01 << 18)
 #define	CIF_HIGH_ALIGN_RK3588		(0x01 << 21)
-
+#define BT656_DETECT_SAV		(0X01 << 13)
+#define BT656_DETECT_SAV_EAV		(0X00 << 13)
 
 #define BT1120_CLOCK_SINGLE_EDGES_RK3588	(0x00 << 11)
 #define BT1120_CLOCK_DOUBLE_EDGES_RK3588	(0x01 << 11)
