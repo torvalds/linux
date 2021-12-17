@@ -3840,7 +3840,9 @@ static int _nfs4_server_capabilities(struct nfs_server *server, struct nfs_fh *f
 		     FATTR4_WORD0_FH_EXPIRE_TYPE |
 		     FATTR4_WORD0_LINK_SUPPORT |
 		     FATTR4_WORD0_SYMLINK_SUPPORT |
-		     FATTR4_WORD0_ACLSUPPORT;
+		     FATTR4_WORD0_ACLSUPPORT |
+		     FATTR4_WORD0_CASE_INSENSITIVE |
+		     FATTR4_WORD0_CASE_PRESERVING;
 	if (minorversion)
 		bitmask[2] = FATTR4_WORD2_SUPPATTR_EXCLCREAT;
 
@@ -3869,6 +3871,10 @@ static int _nfs4_server_capabilities(struct nfs_server *server, struct nfs_fh *f
 			server->caps |= NFS_CAP_HARDLINKS;
 		if (res.has_symlinks != 0)
 			server->caps |= NFS_CAP_SYMLINKS;
+		if (res.case_insensitive)
+			server->caps |= NFS_CAP_CASE_INSENSITIVE;
+		if (res.case_preserving)
+			server->caps |= NFS_CAP_CASE_PRESERVING;
 #ifdef CONFIG_NFS_V4_SECURITY_LABEL
 		if (res.attr_bitmask[2] & FATTR4_WORD2_SECURITY_LABEL)
 			server->caps |= NFS_CAP_SECURITY_LABEL;

@@ -1194,6 +1194,8 @@ struct nfs4_server_caps_res {
 	u32				has_links;
 	u32				has_symlinks;
 	u32				fh_expire_type;
+	u32				case_insensitive;
+	u32				case_preserving;
 };
 
 #define NFS4_PATHNAME_MAXCOMPONENTS 512

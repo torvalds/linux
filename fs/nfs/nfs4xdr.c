@@ -3533,6 +3533,42 @@ static int decode_attr_aclsupport(struct xdr_stream *xdr, uint32_t *bitmap, uint
 	return 0;
 }
 
+static int decode_attr_case_insensitive(struct xdr_stream *xdr, uint32_t *bitmap, uint32_t *res)
+{
+	__be32 *p;
+
+	*res = 0;
+	if (unlikely(bitmap[0] & (FATTR4_WORD0_CASE_INSENSITIVE - 1U)))
+		return -EIO;
+	if (likely(bitmap[0] & FATTR4_WORD0_CASE_INSENSITIVE)) {
+		p = xdr_inline_decode(xdr, 4);
+		if (unlikely(!p))
+			return -EIO;
+		*res = be32_to_cpup(p);
+		bitmap[0] &= ~FATTR4_WORD0_CASE_INSENSITIVE;
+	}
+	dprintk("%s: case_insensitive=%s\n", __func__, *res == 0 ? "false" : "true");
+	return 0;
+}
+
+static int decode_attr_case_preserving(struct xdr_stream *xdr, uint32_t *bitmap, uint32_t *res)
+{
+	__be32 *p;
+
+	*res = 0;
+	if (unlikely(bitmap[0] & (FATTR4_WORD0_CASE_PRESERVING - 1U)))
+		return -EIO;
+	if (likely(bitmap[0] & FATTR4_WORD0_CASE_PRESERVING)) {
+		p = xdr_inline_decode(xdr, 4);
+		if (unlikely(!p))
+			return -EIO;
+		*res = be32_to_cpup(p);
+		bitmap[0] &= ~FATTR4_WORD0_CASE_PRESERVING;
+	}
+	dprintk("%s: case_preserving=%s\n", __func__, *res == 0 ? "false" : "true");
+	return 0;
+}
+
 static int decode_attr_fileid(struct xdr_stream *xdr, uint32_t *bitmap, uint64_t *fileid)
 {
 	__be32 *p;
@@ -4412,6 +4448,10 @@ static int decode_server_caps(struct xdr_stream *xdr, struct nfs4_server_caps_re
 	if ((status = decode_attr_symlink_support(xdr, bitmap, &res->has_symlinks)) != 0)
 		goto xdr_error;
 	if ((status = decode_attr_aclsupport(xdr, bitmap, &res->acl_bitmask)) != 0)
+		goto xdr_error;
+	if ((status = decode_attr_case_insensitive(xdr, bitmap, &res->case_insensitive)) != 0)
+		goto xdr_error;
+	if ((status = decode_attr_case_preserving(xdr, bitmap, &res->case_preserving)) != 0)
 		goto xdr_error;
 	if ((status = decode_attr_exclcreat_supported(xdr, bitmap,
 				res->exclcreat_bitmask)) != 0)
