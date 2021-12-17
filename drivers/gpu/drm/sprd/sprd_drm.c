@@ -186,6 +186,9 @@ static struct platform_driver *sprd_drm_drivers[]  = {
 
 static int __init sprd_drm_init(void)
 {
+	if (drm_firmware_drivers_only())
+		return -ENODEV;
+
 	return platform_register_drivers(sprd_drm_drivers,
 					ARRAY_SIZE(sprd_drm_drivers));
 }
