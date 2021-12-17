@@ -13,6 +13,7 @@
 #include <linux/sched/signal.h>
 #include <linux/sizes.h>
 #include <linux/slab.h>
+#include <linux/module.h>
 
 #include "tb.h"
 
@@ -25,6 +26,10 @@ struct nvm_auth_status {
 	uuid_t uuid;
 	u32 status;
 };
+
+static bool clx_enabled = true;
+module_param_named(clx, clx_enabled, bool, 0444);
+MODULE_PARM_DESC(clx, "allow low power states on the high-speed lanes (default: true)");
 
 /*
  * Hold NVM authentication failure status per switch This information
@@ -3478,6 +3483,9 @@ int tb_switch_enable_clx(struct tb_switch *sw, enum tb_clx clx)
 {
 	struct tb_switch *root_sw = sw->tb->root_switch;
 
+	if (!clx_enabled)
+		return 0;
+
 	/*
 	 * CLx is not enabled and validated on Intel USB4 platforms before
 	 * Alder Lake.
@@ -3539,6 +3547,9 @@ static int tb_switch_disable_cl0s(struct tb_switch *sw)
  */
 int tb_switch_disable_clx(struct tb_switch *sw, enum tb_clx clx)
 {
+	if (!clx_enabled)
+		return 0;
+
 	switch (clx) {
 	case TB_CL0S:
 		return tb_switch_disable_cl0s(sw);
