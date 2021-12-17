@@ -1078,7 +1078,7 @@
 	.errstr_unpriv = "R0 pointer -= pointer prohibited",
 },
 {
-	"map access: trying to leak tained dst reg",
+	"map access: trying to leak tainted dst reg",
 	.insns = {
 	BPF_MOV64_IMM(BPF_REG_0, 0),
 	BPF_ST_MEM(BPF_DW, BPF_REG_10, -8, 0),
