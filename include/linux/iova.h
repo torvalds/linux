@@ -46,7 +46,7 @@ struct iova_rcache {
 struct iova_fq_entry {
 	unsigned long iova_pfn;
 	unsigned long pages;
-	struct page *freelist;
+	struct list_head freelist;
 	u64 counter; /* Flush counter when this entrie was added */
 };
 
@@ -135,7 +135,7 @@ void free_iova_fast(struct iova_domain *iovad, unsigned long pfn,
 		    unsigned long size);
 void queue_iova(struct iova_domain *iovad,
 		unsigned long pfn, unsigned long pages,
-		struct page *freelist);
+		struct list_head *freelist);
 unsigned long alloc_iova_fast(struct iova_domain *iovad, unsigned long size,
 			      unsigned long limit_pfn, bool flush_rcache);
 struct iova *reserve_iova(struct iova_domain *iovad, unsigned long pfn_lo,

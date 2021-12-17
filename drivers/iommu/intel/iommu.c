@@ -1303,35 +1303,30 @@ static void dma_pte_free_pagetable(struct dmar_domain *domain,
    know the hardware page-walk will no longer touch them.
    The 'pte' argument is the *parent* PTE, pointing to the page that is to
    be freed. */
-static struct page *dma_pte_list_pagetables(struct dmar_domain *domain,
-					    int level, struct dma_pte *pte,
-					    struct page *freelist)
+static void dma_pte_list_pagetables(struct dmar_domain *domain,
+				    int level, struct dma_pte *pte,
+				    struct list_head *freelist)
 {
 	struct page *pg;
 
 	pg = pfn_to_page(dma_pte_addr(pte) >> PAGE_SHIFT);
-	pg->freelist = freelist;
-	freelist = pg;
+	list_add_tail(&pg->lru, freelist);
 
 	if (level == 1)
-		return freelist;
+		return;
 
 	pte = page_address(pg);
 	do {
 		if (dma_pte_present(pte) && !dma_pte_superpage(pte))
-			freelist = dma_pte_list_pagetables(domain, level - 1,
-							   pte, freelist);
+			dma_pte_list_pagetables(domain, level - 1, pte, freelist);
 		pte++;
 	} while (!first_pte_in_page(pte));
-
-	return freelist;
 }
 
-static struct page *dma_pte_clear_level(struct dmar_domain *domain, int level,
-					struct dma_pte *pte, unsigned long pfn,
-					unsigned long start_pfn,
-					unsigned long last_pfn,
-					struct page *freelist)
+static void dma_pte_clear_level(struct dmar_domain *domain, int level,
+				struct dma_pte *pte, unsigned long pfn,
+				unsigned long start_pfn, unsigned long last_pfn,
+				struct list_head *freelist)
 {
 	struct dma_pte *first_pte = NULL, *last_pte = NULL;
 
@@ -1350,7 +1345,7 @@ static struct page *dma_pte_clear_level(struct dmar_domain *domain, int level,
 			/* These suborbinate page tables are going away entirely. Don't
 			   bother to clear them; we're just going to *free* them. */
 			if (level > 1 && !dma_pte_superpage(pte))
-				freelist = dma_pte_list_pagetables(domain, level - 1, pte, freelist);
+				dma_pte_list_pagetables(domain, level - 1, pte, freelist);
 
 			dma_clear_pte(pte);
 			if (!first_pte)
@@ -1358,10 +1353,10 @@ static struct page *dma_pte_clear_level(struct dmar_domain *domain, int level,
 			last_pte = pte;
 		} else if (level > 1) {
 			/* Recurse down into a level that isn't *entirely* obsolete */
-			freelist = dma_pte_clear_level(domain, level - 1,
-						       phys_to_virt(dma_pte_addr(pte)),
-						       level_pfn, start_pfn, last_pfn,
-						       freelist);
+			dma_pte_clear_level(domain, level - 1,
+					    phys_to_virt(dma_pte_addr(pte)),
+					    level_pfn, start_pfn, last_pfn,
+					    freelist);
 		}
 next:
 		pfn = level_pfn + level_size(level);
@@ -1370,46 +1365,27 @@ next:
 	if (first_pte)
 		domain_flush_cache(domain, first_pte,
 				   (void *)++last_pte - (void *)first_pte);
-
-	return freelist;
 }
 
 /* We can't just free the pages because the IOMMU may still be walking
    the page tables, and may have cached the intermediate levels. The
    pages can only be freed after the IOTLB flush has been done. */
-static struct page *domain_unmap(struct dmar_domain *domain,
-				 unsigned long start_pfn,
-				 unsigned long last_pfn,
-				 struct page *freelist)
+static void domain_unmap(struct dmar_domain *domain, unsigned long start_pfn,
+			 unsigned long last_pfn, struct list_head *freelist)
 {
 	BUG_ON(!domain_pfn_supported(domain, start_pfn));
 	BUG_ON(!domain_pfn_supported(domain, last_pfn));
 	BUG_ON(start_pfn > last_pfn);
 
 	/* we don't need lock here; nobody else touches the iova range */
-	freelist = dma_pte_clear_level(domain, agaw_to_level(domain->agaw),
-				       domain->pgd, 0, start_pfn, last_pfn,
-				       freelist);
+	dma_pte_clear_level(domain, agaw_to_level(domain->agaw),
+			    domain->pgd, 0, start_pfn, last_pfn, freelist);
 
 	/* free pgd */
 	if (start_pfn == 0 && last_pfn == DOMAIN_MAX_PFN(domain->gaw)) {
 		struct page *pgd_page = virt_to_page(domain->pgd);
-		pgd_page->freelist = freelist;
-		freelist = pgd_page;
-
+		list_add_tail(&pgd_page->lru, freelist);
 		domain->pgd = NULL;
-	}
-
-	return freelist;
-}
-
-static void dma_free_pagelist(struct page *freelist)
-{
-	struct page *pg;
-
-	while ((pg = freelist)) {
-		freelist = pg->freelist;
-		free_pgtable_page(page_address(pg));
 	}
 }
 
@@ -2095,11 +2071,10 @@ static void domain_exit(struct dmar_domain *domain)
 	domain_remove_dev_info(domain);
 
 	if (domain->pgd) {
-		struct page *freelist;
+		LIST_HEAD(freelist);
 
-		freelist = domain_unmap(domain, 0,
-					DOMAIN_MAX_PFN(domain->gaw), NULL);
-		dma_free_pagelist(freelist);
+		domain_unmap(domain, 0, DOMAIN_MAX_PFN(domain->gaw), &freelist);
+		put_pages_list(&freelist);
 	}
 
 	free_domain_mem(domain);
@@ -4192,19 +4167,17 @@ static int intel_iommu_memory_notifier(struct notifier_block *nb,
 		{
 			struct dmar_drhd_unit *drhd;
 			struct intel_iommu *iommu;
-			struct page *freelist;
+			LIST_HEAD(freelist);
 
-			freelist = domain_unmap(si_domain,
-						start_vpfn, last_vpfn,
-						NULL);
+			domain_unmap(si_domain, start_vpfn, last_vpfn, &freelist);
 
 			rcu_read_lock();
 			for_each_active_iommu(iommu, drhd)
 				iommu_flush_iotlb_psi(iommu, si_domain,
 					start_vpfn, mhp->nr_pages,
-					!freelist, 0);
+					list_empty(&freelist), 0);
 			rcu_read_unlock();
-			dma_free_pagelist(freelist);
+			put_pages_list(&freelist);
 		}
 		break;
 	}
@@ -5211,8 +5184,7 @@ static size_t intel_iommu_unmap(struct iommu_domain *domain,
 	start_pfn = iova >> VTD_PAGE_SHIFT;
 	last_pfn = (iova + size - 1) >> VTD_PAGE_SHIFT;
 
-	gather->freelist = domain_unmap(dmar_domain, start_pfn,
-					last_pfn, gather->freelist);
+	domain_unmap(dmar_domain, start_pfn, last_pfn, &gather->freelist);
 
 	if (dmar_domain->max_addr == iova + size)
 		dmar_domain->max_addr = iova;
@@ -5248,9 +5220,10 @@ static void intel_iommu_tlb_sync(struct iommu_domain *domain,
 
 	for_each_domain_iommu(iommu_id, dmar_domain)
 		iommu_flush_iotlb_psi(g_iommus[iommu_id], dmar_domain,
-				      start_pfn, nrpages, !gather->freelist, 0);
+				      start_pfn, nrpages,
+				      list_empty(&gather->freelist), 0);
 
-	dma_free_pagelist(gather->freelist);
+	put_pages_list(&gather->freelist);
 }
 
 static phys_addr_t intel_iommu_iova_to_phys(struct iommu_domain *domain,
