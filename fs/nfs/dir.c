@@ -1324,6 +1324,14 @@ void nfs_clear_verifier_delegated(struct inode *inode)
 EXPORT_SYMBOL_GPL(nfs_clear_verifier_delegated);
 #endif /* IS_ENABLED(CONFIG_NFS_V4) */
 
+static int nfs_dentry_verify_change(struct inode *dir, struct dentry *dentry)
+{
+	if (nfs_server_capable(dir, NFS_CAP_CASE_INSENSITIVE) &&
+	    d_really_is_negative(dentry))
+		return dentry->d_time == inode_peek_iversion_raw(dir);
+	return nfs_verify_change_attribute(dir, dentry->d_time);
+}
+
 /*
  * A check for whether or not the parent directory has changed.
  * In the case it has, we assume that the dentries are untrustworthy
@@ -1337,7 +1345,7 @@ static int nfs_check_verifier(struct inode *dir, struct dentry *dentry,
 		return 1;
 	if (NFS_SERVER(dir)->flags & NFS_MOUNT_LOOKUP_CACHE_NONE)
 		return 0;
-	if (!nfs_verify_change_attribute(dir, dentry->d_time))
+	if (!nfs_dentry_verify_change(dir, dentry))
 		return 0;
 	/* Revalidate nfsi->cache_change_attribute before we declare a match */
 	if (nfs_mapping_need_revalidate_inode(dir)) {
@@ -1346,7 +1354,7 @@ static int nfs_check_verifier(struct inode *dir, struct dentry *dentry,
 		if (__nfs_revalidate_inode(NFS_SERVER(dir), dir) < 0)
 			return 0;
 	}
-	if (!nfs_verify_change_attribute(dir, dentry->d_time))
+	if (!nfs_dentry_verify_change(dir, dentry))
 		return 0;
 	return 1;
 }
@@ -1539,7 +1547,7 @@ out:
 	 * If the lookup failed despite the dentry change attribute being
 	 * a match, then we should revalidate the directory cache.
 	 */
-	if (!ret && nfs_verify_change_attribute(dir, dentry->d_time))
+	if (!ret && nfs_dentry_verify_change(dir, dentry))
 		nfs_mark_dir_for_revalidate(dir);
 	return nfs_lookup_revalidate_done(dir, dentry, inode, ret);
 }
@@ -1778,8 +1786,11 @@ struct dentry *nfs_lookup(struct inode *dir, struct dentry * dentry, unsigned in
 	dir_verifier = nfs_save_change_attribute(dir);
 	trace_nfs_lookup_enter(dir, dentry, flags);
 	error = NFS_PROTO(dir)->lookup(dir, dentry, fhandle, fattr);
-	if (error == -ENOENT)
+	if (error == -ENOENT) {
+		if (nfs_server_capable(dir, NFS_CAP_CASE_INSENSITIVE))
+			dir_verifier = inode_peek_iversion_raw(dir);
 		goto no_entry;
+	}
 	if (error < 0) {
 		res = ERR_PTR(error);
 		goto out;
