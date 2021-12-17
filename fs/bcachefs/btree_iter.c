@@ -364,19 +364,16 @@ bool __bch2_btree_node_lock(struct btree_trans *trans,
 	if (six_trylock_type(&b->c.lock, type))
 		return true;
 
-#ifdef CONFIG_BCACHEFS_DEBUG
 	trans->locking_path_idx = path->idx;
 	trans->locking_pos	= pos;
 	trans->locking_btree_id	= path->btree_id;
 	trans->locking_level	= level;
 	trans->locking		= b;
-#endif
 
 	ret = six_lock_type(&b->c.lock, type, should_sleep_fn, p) == 0;
 
-#ifdef CONFIG_BCACHEFS_DEBUG
 	trans->locking = NULL;
-#endif
+
 	if (ret)
 		bch2_time_stats_update(&trans->c->times[lock_to_time_stat(type)],
 				       start_time);
@@ -2822,12 +2819,12 @@ void bch2_trans_init(struct btree_trans *trans, struct bch_fs *c,
 
 	trans->srcu_idx = srcu_read_lock(&c->btree_trans_barrier);
 
-#ifdef CONFIG_BCACHEFS_DEBUG
-	trans->pid = current->pid;
-	mutex_lock(&c->btree_trans_lock);
-	list_add(&trans->list, &c->btree_trans_list);
-	mutex_unlock(&c->btree_trans_lock);
-#endif
+	if (IS_ENABLED(CONFIG_BCACHEFS_DEBUG_TRANSACTIONS)) {
+		trans->pid = current->pid;
+		mutex_lock(&c->btree_trans_lock);
+		list_add(&trans->list, &c->btree_trans_list);
+		mutex_unlock(&c->btree_trans_lock);
+	}
 }
 
 static void check_btree_paths_leaked(struct btree_trans *trans)
@@ -2866,11 +2863,11 @@ void bch2_trans_exit(struct btree_trans *trans)
 
 	check_btree_paths_leaked(trans);
 
-#ifdef CONFIG_BCACHEFS_DEBUG
-	mutex_lock(&c->btree_trans_lock);
-	list_del(&trans->list);
-	mutex_unlock(&c->btree_trans_lock);
-#endif
+	if (IS_ENABLED(CONFIG_BCACHEFS_DEBUG_TRANSACTIONS)) {
+		mutex_lock(&c->btree_trans_lock);
+		list_del(&trans->list);
+		mutex_unlock(&c->btree_trans_lock);
+	}
 
 	srcu_read_unlock(&c->btree_trans_barrier, trans->srcu_idx);
 
@@ -2914,7 +2911,7 @@ bch2_btree_path_node_to_text(struct printbuf *out,
 	bch2_bpos_to_text(out, btree_node_pos(_b, cached));
 }
 
-#ifdef CONFIG_BCACHEFS_DEBUG
+#ifdef CONFIG_BCACHEFS_DEBUG_TRANSACTIONS
 static bool trans_has_locks(struct btree_trans *trans)
 {
 	struct btree_path *path;
@@ -2928,7 +2925,7 @@ static bool trans_has_locks(struct btree_trans *trans)
 
 void bch2_btree_trans_to_text(struct printbuf *out, struct bch_fs *c)
 {
-#ifdef CONFIG_BCACHEFS_DEBUG
+#ifdef CONFIG_BCACHEFS_DEBUG_TRANSACTIONS
 	struct btree_trans *trans;
 	struct btree_path *path;
 	struct btree *b;
