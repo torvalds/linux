@@ -313,11 +313,24 @@ static void hci_cmd_sync_work(struct work_struct *work)
 	}
 }
 
+static void hci_cmd_sync_cancel_work(struct work_struct *work)
+{
+	struct hci_dev *hdev = container_of(work, struct hci_dev, cmd_sync_cancel_work);
+
+	cancel_delayed_work_sync(&hdev->cmd_timer);
+	cancel_delayed_work_sync(&hdev->ncmd_timer);
+	atomic_set(&hdev->cmd_cnt, 1);
+
+	wake_up_interruptible(&hdev->req_wait_q);
+}
+
 void hci_cmd_sync_init(struct hci_dev *hdev)
 {
 	INIT_WORK(&hdev->cmd_sync_work, hci_cmd_sync_work);
 	INIT_LIST_HEAD(&hdev->cmd_sync_work_list);
 	mutex_init(&hdev->cmd_sync_work_lock);
+
+	INIT_WORK(&hdev->cmd_sync_cancel_work, hci_cmd_sync_cancel_work);
 }
 
 void hci_cmd_sync_clear(struct hci_dev *hdev)
@@ -335,7 +348,7 @@ void hci_cmd_sync_clear(struct hci_dev *hdev)
 	}
 }
 
-void hci_cmd_sync_cancel(struct hci_dev *hdev, int err)
+void __hci_cmd_sync_cancel(struct hci_dev *hdev, int err)
 {
 	bt_dev_dbg(hdev, "err 0x%2.2x", err);
 
@@ -348,6 +361,18 @@ void hci_cmd_sync_cancel(struct hci_dev *hdev, int err)
 		atomic_set(&hdev->cmd_cnt, 1);
 
 		wake_up_interruptible(&hdev->req_wait_q);
+	}
+}
+
+void hci_cmd_sync_cancel(struct hci_dev *hdev, int err)
+{
+	bt_dev_dbg(hdev, "err 0x%2.2x", err);
+
+	if (hdev->req_status == HCI_REQ_PEND) {
+		hdev->req_result = err;
+		hdev->req_status = HCI_REQ_CANCELED;
+
+		queue_work(hdev->workqueue, &hdev->cmd_sync_cancel_work);
 	}
 }
 EXPORT_SYMBOL(hci_cmd_sync_cancel);

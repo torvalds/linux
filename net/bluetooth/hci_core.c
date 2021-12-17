@@ -3859,7 +3859,7 @@ static void hci_cmd_work(struct work_struct *work)
 
 			res = hci_send_frame(hdev, skb);
 			if (res < 0)
-				hci_cmd_sync_cancel(hdev, -res);
+				__hci_cmd_sync_cancel(hdev, -res);
 
 			if (test_bit(HCI_RESET, &hdev->flags))
 				cancel_delayed_work(&hdev->cmd_timer);
