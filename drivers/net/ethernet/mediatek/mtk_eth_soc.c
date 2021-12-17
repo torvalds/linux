@@ -2211,7 +2211,6 @@ static int mtk_open(struct net_device *dev)
 	/* we run 2 netdevs on the same dma ring so we only bring it up once */
 	if (!refcount_read(&eth->dma_refcnt)) {
 		u32 gdm_config = MTK_GDMA_TO_PDMA;
-		int err;
 
 		err = mtk_start_dma(eth);
 		if (err)
