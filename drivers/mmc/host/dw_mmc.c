@@ -1307,7 +1307,7 @@ static void dw_mci_set_data_timeout(struct dw_mci *host,
 		tmout |= (tmp & 0xFFFFFF) << 8;
 
 	mci_writel(host, TMOUT, tmout);
-	dev_dbg(host->dev, "timeout_ns: %u => TMOUT[31:8]: 0x%#08x",
+	dev_dbg(host->dev, "timeout_ns: %u => TMOUT[31:8]: %#08x",
 		timeout_ns, tmout >> 8);
 }
 
