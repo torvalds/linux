@@ -2643,37 +2643,10 @@ bool intel_bios_is_lvds_present(struct drm_i915_private *i915, u8 *i2c_pin)
  */
 bool intel_bios_is_port_present(struct drm_i915_private *i915, enum port port)
 {
-	const struct intel_bios_encoder_data *devdata;
-	const struct child_device_config *child;
-	static const struct {
-		u16 dp, hdmi;
-	} port_mapping[] = {
-		[PORT_B] = { DVO_PORT_DPB, DVO_PORT_HDMIB, },
-		[PORT_C] = { DVO_PORT_DPC, DVO_PORT_HDMIC, },
-		[PORT_D] = { DVO_PORT_DPD, DVO_PORT_HDMID, },
-		[PORT_E] = { DVO_PORT_DPE, DVO_PORT_HDMIE, },
-		[PORT_F] = { DVO_PORT_DPF, DVO_PORT_HDMIF, },
-	};
+	if (WARN_ON(!has_ddi_port_info(i915)))
+		return true;
 
-	if (has_ddi_port_info(i915))
-		return i915->vbt.ports[port];
-
-	/* FIXME maybe deal with port A as well? */
-	if (drm_WARN_ON(&i915->drm,
-			port == PORT_A) || port >= ARRAY_SIZE(port_mapping))
-		return false;
-
-	list_for_each_entry(devdata, &i915->vbt.display_devices, node) {
-		child = &devdata->child;
-
-		if ((child->dvo_port == port_mapping[port].dp ||
-		     child->dvo_port == port_mapping[port].hdmi) &&
-		    (child->device_type & (DEVICE_TYPE_TMDS_DVI_SIGNALING |
-					   DEVICE_TYPE_DISPLAYPORT_OUTPUT)))
-			return true;
-	}
-
-	return false;
+	return i915->vbt.ports[port];
 }
 
 /**
@@ -2685,34 +2658,10 @@ bool intel_bios_is_port_present(struct drm_i915_private *i915, enum port port)
  */
 bool intel_bios_is_port_edp(struct drm_i915_private *i915, enum port port)
 {
-	const struct intel_bios_encoder_data *devdata;
-	const struct child_device_config *child;
-	static const short port_mapping[] = {
-		[PORT_B] = DVO_PORT_DPB,
-		[PORT_C] = DVO_PORT_DPC,
-		[PORT_D] = DVO_PORT_DPD,
-		[PORT_E] = DVO_PORT_DPE,
-		[PORT_F] = DVO_PORT_DPF,
-	};
+	const struct intel_bios_encoder_data *devdata =
+		intel_bios_encoder_data_lookup(i915, port);
 
-	if (has_ddi_port_info(i915)) {
-		const struct intel_bios_encoder_data *devdata;
-
-		devdata = intel_bios_encoder_data_lookup(i915, port);
-
-		return devdata && intel_bios_encoder_supports_edp(devdata);
-	}
-
-	list_for_each_entry(devdata, &i915->vbt.display_devices, node) {
-		child = &devdata->child;
-
-		if (child->dvo_port == port_mapping[port] &&
-		    (child->device_type & DEVICE_TYPE_eDP_BITS) ==
-		    (DEVICE_TYPE_eDP & DEVICE_TYPE_eDP_BITS))
-			return true;
-	}
-
-	return false;
+	return devdata && intel_bios_encoder_supports_edp(devdata);
 }
 
 static bool child_dev_is_dp_dual_mode(const struct child_device_config *child)
@@ -2735,40 +2684,10 @@ static bool child_dev_is_dp_dual_mode(const struct child_device_config *child)
 bool intel_bios_is_port_dp_dual_mode(struct drm_i915_private *i915,
 				     enum port port)
 {
-	static const struct {
-		u16 dp, hdmi;
-	} port_mapping[] = {
-		/*
-		 * Buggy VBTs may declare DP ports as having
-		 * HDMI type dvo_port :( So let's check both.
-		 */
-		[PORT_B] = { DVO_PORT_DPB, DVO_PORT_HDMIB, },
-		[PORT_C] = { DVO_PORT_DPC, DVO_PORT_HDMIC, },
-		[PORT_D] = { DVO_PORT_DPD, DVO_PORT_HDMID, },
-		[PORT_E] = { DVO_PORT_DPE, DVO_PORT_HDMIE, },
-		[PORT_F] = { DVO_PORT_DPF, DVO_PORT_HDMIF, },
-	};
-	const struct intel_bios_encoder_data *devdata;
+	const struct intel_bios_encoder_data *devdata =
+		intel_bios_encoder_data_lookup(i915, port);
 
-	if (has_ddi_port_info(i915)) {
-		const struct intel_bios_encoder_data *devdata;
-
-		devdata = intel_bios_encoder_data_lookup(i915, port);
-
-		return devdata && child_dev_is_dp_dual_mode(&devdata->child);
-	}
-
-	if (port == PORT_A || port >= ARRAY_SIZE(port_mapping))
-		return false;
-
-	list_for_each_entry(devdata, &i915->vbt.display_devices, node) {
-		if ((devdata->child.dvo_port == port_mapping[port].dp ||
-		     devdata->child.dvo_port == port_mapping[port].hdmi) &&
-		    child_dev_is_dp_dual_mode(&devdata->child))
-			return true;
-	}
-
-	return false;
+	return devdata && child_dev_is_dp_dual_mode(&devdata->child);
 }
 
 /**
