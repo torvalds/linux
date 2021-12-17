@@ -1,12 +1,16 @@
 // SPDX-License-Identifier: GPL-2.0
 //
-// cs35l41-tables.c -- CS35L41 ALSA SoC audio driver
+// cs35l41-lib.c -- CS35L41 Common functions for HDA and ASoC Audio drivers
 //
 // Copyright 2017-2021 Cirrus Logic, Inc.
 //
 // Author: David Rhodes <david.rhodes@cirrus.com>
+// Author: Lucas Tanure <lucas.tanure@cirrus.com>
 
-#include "cs35l41.h"
+#include <linux/module.h>
+#include <linux/regmap.h>
+
+#include <sound/cs35l41.h>
 
 static const struct reg_default cs35l41_reg[] = {
 	{ CS35L41_PWR_CTRL1,			0x00000000 },
@@ -688,6 +692,7 @@ const struct cs35l41_otp_map_element_t cs35l41_otp_map_map[CS35L41_NUM_OTP_MAPS]
 		.word_offset = 2,
 	},
 };
+EXPORT_SYMBOL_GPL(cs35l41_otp_map_map);
 
 struct regmap_config cs35l41_regmap_i2c = {
 	.reg_bits = 32,
@@ -721,3 +726,8 @@ struct regmap_config cs35l41_regmap_spi = {
 	.cache_type = REGCACHE_RBTREE,
 };
 EXPORT_SYMBOL_GPL(cs35l41_regmap_spi);
+
+MODULE_DESCRIPTION("CS35L41 library");
+MODULE_AUTHOR("David Rhodes, Cirrus Logic Inc, <david.rhodes@cirrus.com>");
+MODULE_AUTHOR("Lucas Tanure, Cirrus Logic Inc, <tanureal@opensource.cirrus.com>");
+MODULE_LICENSE("GPL");

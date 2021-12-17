@@ -15,7 +15,6 @@
 #include <linux/platform_device.h>
 #include <linux/spi/spi.h>
 
-#include <sound/cs35l41.h>
 #include "cs35l41.h"
 
 static const struct spi_device_id cs35l41_id_spi[] = {
