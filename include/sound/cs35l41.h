@@ -534,7 +534,6 @@
 #define CS35L41_MAX_CACHE_REG		36
 #define CS35L41_OTP_SIZE_WORDS		32
 #define CS35L41_NUM_OTP_ELEM		100
-#define CS35L41_NUM_OTP_MAPS		5
 
 #define CS35L41_VALID_PDATA		0x80000000
 #define CS35L41_NUM_SUPPLIES            2
@@ -760,8 +759,9 @@ struct cs35l41_otp_map_element_t {
 	u32 word_offset;
 };
 
-extern const struct cs35l41_otp_map_element_t cs35l41_otp_map_map[CS35L41_NUM_OTP_MAPS];
 extern struct regmap_config cs35l41_regmap_i2c;
 extern struct regmap_config cs35l41_regmap_spi;
+
+int cs35l41_otp_unpack(struct device *dev, struct regmap *regmap);
 
 #endif /* __CS35L41_H */
