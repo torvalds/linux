@@ -386,6 +386,7 @@ struct ath11k_sta {
 	u64 rx_duration;
 	u64 tx_duration;
 	u8 rssi_comb;
+	s8 chain_signal[IEEE80211_MAX_CHAINS];
 	struct ath11k_htt_tx_stats *tx_stats;
 	struct ath11k_rx_peer_stats *rx_stats;
 
@@ -415,6 +416,10 @@ enum ath11k_state {
 
 /* Antenna noise floor */
 #define ATH11K_DEFAULT_NOISE_FLOOR -95
+
+#define ATH11K_INVALID_RSSI_FULL -1
+
+#define ATH11K_INVALID_RSSI_EMPTY -128
 
 struct ath11k_fw_stats {
 	struct dentry *debugfs_fwstats;

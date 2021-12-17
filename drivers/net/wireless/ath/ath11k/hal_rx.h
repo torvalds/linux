@@ -112,6 +112,7 @@ struct hal_rx_mon_ppdu_info {
 	u8 ldpc;
 	u8 beamformed;
 	u8 rssi_comb;
+	u8 rssi_chain_pri20[HAL_RX_MAX_NSS];
 	u8 tid;
 	u8 dcm;
 	u8 ru_alloc;
@@ -262,8 +263,17 @@ struct hal_rx_he_sig_b2_ofdma_info {
 
 #define HAL_RX_PHYRX_RSSI_LEGACY_INFO_INFO1_RSSI_COMB	GENMASK(15, 8)
 
+#define HAL_RX_PHYRX_RSSI_PREAMBLE_PRI20	GENMASK(7, 0)
+
+struct hal_rx_phyrx_chain_rssi {
+	__le32 rssi_2040;
+	__le32 rssi_80;
+} __packed;
+
 struct hal_rx_phyrx_rssi_legacy_info {
-	__le32 rsvd[35];
+	__le32 rsvd[3];
+	struct hal_rx_phyrx_chain_rssi pre_rssi[HAL_RX_MAX_NSS];
+	struct hal_rx_phyrx_chain_rssi preamble[HAL_RX_MAX_NSS];
 	__le32 info0;
 } __packed;
 

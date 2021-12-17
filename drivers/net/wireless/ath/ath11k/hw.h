@@ -185,6 +185,7 @@ struct ath11k_hw_params {
 	bool supports_dynamic_smps_6ghz;
 	bool alloc_cacheable_memory;
 	bool wakeup_mhi;
+	bool supports_rssi_stats;
 };
 
 struct ath11k_hw_ops {
