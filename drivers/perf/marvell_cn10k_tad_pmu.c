@@ -312,7 +312,7 @@ static int tad_pmu_probe(struct platform_device *pdev)
 		regions[i].base = devm_ioremap(&pdev->dev,
 					       res->start,
 					       tad_pmu_page_size);
-		if (IS_ERR(regions[i].base)) {
+		if (!regions[i].base) {
 			dev_err(&pdev->dev, "TAD%d ioremap fail\n", i);
 			return -ENOMEM;
 		}
