@@ -2055,7 +2055,7 @@ static void parse_ddi_port(struct drm_i915_private *i915,
 
 static bool has_ddi_port_info(struct drm_i915_private *i915)
 {
-	return HAS_DDI(i915) || IS_CHERRYVIEW(i915);
+	return DISPLAY_VER(i915) >= 5 || IS_G4X(i915);
 }
 
 static void parse_ddi_ports(struct drm_i915_private *i915)
@@ -2063,9 +2063,6 @@ static void parse_ddi_ports(struct drm_i915_private *i915)
 	struct intel_bios_encoder_data *devdata;
 
 	if (!has_ddi_port_info(i915))
-		return;
-
-	if (i915->vbt.version < 155)
 		return;
 
 	list_for_each_entry(devdata, &i915->vbt.display_devices, node)
