@@ -1134,19 +1134,22 @@ static void intel_pstate_update_policies(void)
 		cpufreq_update_policy(cpu);
 }
 
+static void __intel_pstate_update_max_freq(struct cpudata *cpudata,
+					   struct cpufreq_policy *policy)
+{
+	policy->cpuinfo.max_freq = global.turbo_disabled_mf ?
+			cpudata->pstate.max_freq : cpudata->pstate.turbo_freq;
+	refresh_frequency_limits(policy);
+}
+
 static void intel_pstate_update_max_freq(unsigned int cpu)
 {
 	struct cpufreq_policy *policy = cpufreq_cpu_acquire(cpu);
-	struct cpudata *cpudata;
 
 	if (!policy)
 		return;
 
-	cpudata = all_cpu_data[cpu];
-	policy->cpuinfo.max_freq = global.turbo_disabled_mf ?
-			cpudata->pstate.max_freq : cpudata->pstate.turbo_freq;
-
-	refresh_frequency_limits(policy);
+	__intel_pstate_update_max_freq(all_cpu_data[cpu], policy);
 
 	cpufreq_cpu_release(policy);
 }
@@ -1594,8 +1597,15 @@ static void intel_pstate_notify_work(struct work_struct *work)
 {
 	struct cpudata *cpudata =
 		container_of(to_delayed_work(work), struct cpudata, hwp_notify_work);
+	struct cpufreq_policy *policy = cpufreq_cpu_acquire(cpudata->cpu);
 
-	cpufreq_update_policy(cpudata->cpu);
+	if (policy) {
+		intel_pstate_get_hwp_cap(cpudata);
+		__intel_pstate_update_max_freq(cpudata, policy);
+
+		cpufreq_cpu_release(policy);
+	}
+
 	wrmsrl_on_cpu(cpudata->cpu, MSR_HWP_STATUS, 0);
 }
 
