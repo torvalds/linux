@@ -26,7 +26,9 @@
 #include <linux/suspend.h>
 #include <linux/of.h>
 #include <linux/delay.h>
+#include <linux/mfd/syscon.h>
 #include <linux/nvmem-consumer.h>
+#include <linux/regmap.h>
 #include <linux/soc/rockchip/pvtm.h>
 #include <linux/thermal.h>
 #include <soc/rockchip/rockchip_opp_select.h>
@@ -444,9 +446,66 @@ static void kbase_platform_rk_remove_sysfs_files(struct device *dev)
 	device_remove_file(dev, &dev_attr_utilisation);
 }
 
+static int rk3588_gpu_set_read_margin(struct device *dev,
+				      struct rockchip_opp_info *opp_info,
+				      unsigned long volt)
+{
+	bool is_found = false;
+	int i, ret = 0;
+	u32 rm, val;
+
+	if (!opp_info->grf || !opp_info->volt_rm_tbl)
+		return 0;
+
+	for (i = 0; opp_info->volt_rm_tbl[i].rm != VOLT_RM_TABLE_END; i++) {
+		if (volt >= opp_info->volt_rm_tbl[i].volt) {
+			rm = opp_info->volt_rm_tbl[i].rm;
+			is_found = true;
+			break;
+		}
+	}
+
+	if (!is_found)
+		return 0;
+
+	dev_dbg(dev, "set rm to %d\n", rm);
+
+	ret = regmap_read(opp_info->grf, 0x24, &val);
+	if (ret < 0) {
+		dev_err(dev, "failed to get rm from 0x24\n");
+		return ret;
+	}
+	val &= ~0x1c;
+	regmap_write(opp_info->grf, 0x24, val | (rm << 2));
+
+	ret = regmap_read(opp_info->grf, 0x28, &val);
+	if (ret < 0) {
+		dev_err(dev, "failed to get rm from 0x28\n");
+		return ret;
+	}
+	val &= ~0x1c;
+	regmap_write(opp_info->grf, 0x28, val | (rm << 2));
+
+	return 0;
+}
+
+static const struct rockchip_opp_data rk3588_gpu_opp_data = {
+	.set_read_margin = rk3588_gpu_set_read_margin,
+};
+
+static const struct of_device_id rockchip_mali_of_match[] = {
+	{
+		.compatible = "rockchip,rk3588",
+		.data = (void *)&rk3588_gpu_opp_data,
+	},
+	{},
+};
+
 int kbase_platform_rk_init_opp_table(struct kbase_device *kbdev)
 {
-	return rockchip_init_opp_table(kbdev->dev, NULL,
+	rockchip_get_opp_data(rockchip_mali_of_match, &kbdev->opp_info);
+
+	return rockchip_init_opp_table(kbdev->dev, &kbdev->opp_info,
 				       "gpu_leakage", "mali");
 }
 

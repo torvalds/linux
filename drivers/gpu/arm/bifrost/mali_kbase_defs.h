@@ -70,6 +70,7 @@
 #include <linux/clk.h>
 #include <linux/regulator/consumer.h>
 #include <linux/memory_group_manager.h>
+#include <soc/rockchip/rockchip_opp_select.h>
 
 #if defined(CONFIG_PM_RUNTIME) || defined(CONFIG_PM)
 #define KBASE_PM_RUNTIME 1
@@ -1014,6 +1015,7 @@ struct kbase_device {
 	struct mutex            kctx_list_lock;
 	atomic_t                group_max_uid_in_devices;
 
+	struct rockchip_opp_info opp_info;
 #ifdef CONFIG_MALI_BIFROST_DEVFREQ
 	struct devfreq_dev_profile devfreq_profile;
 	struct devfreq *devfreq;
