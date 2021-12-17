@@ -32,9 +32,10 @@
 
 #include <drm/drm_aperture.h>
 #include <drm/drm_drv.h>
-#include <drm/drm_ioctl.h>
-#include <drm/drm_sysfs.h>
 #include <drm/drm_gem_ttm_helper.h>
+#include <drm/drm_ioctl.h>
+#include <drm/drm_module.h>
+#include <drm/drm_sysfs.h>
 #include <drm/ttm/ttm_bo_driver.h>
 #include <drm/ttm/ttm_range_manager.h>
 #include <drm/ttm/ttm_placement.h>
@@ -1643,26 +1644,7 @@ out_error:
 	return ret;
 }
 
-static int __init vmwgfx_init(void)
-{
-	int ret;
-
-	if (drm_firmware_drivers_only())
-		return -EINVAL;
-
-	ret = pci_register_driver(&vmw_pci_driver);
-	if (ret)
-		DRM_ERROR("Failed initializing DRM.\n");
-	return ret;
-}
-
-static void __exit vmwgfx_exit(void)
-{
-	pci_unregister_driver(&vmw_pci_driver);
-}
-
-module_init(vmwgfx_init);
-module_exit(vmwgfx_exit);
+drm_module_pci_driver(vmw_pci_driver);
 
 MODULE_AUTHOR("VMware Inc. and others");
 MODULE_DESCRIPTION("Standalone drm driver for the VMware SVGA device");
