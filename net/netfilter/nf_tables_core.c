@@ -169,6 +169,7 @@ static void expr_call_ops_eval(const struct nft_expr *expr,
 
 	X(e, nft_payload_eval);
 	X(e, nft_cmp_eval);
+	X(e, nft_counter_eval);
 	X(e, nft_meta_get_eval);
 	X(e, nft_lookup_eval);
 	X(e, nft_range_eval);
@@ -292,17 +293,21 @@ static struct nft_expr_type *nft_basic_types[] = {
 	&nft_rt_type,
 	&nft_exthdr_type,
 	&nft_last_type,
+	&nft_counter_type,
 };
 
 static struct nft_object_type *nft_basic_objects[] = {
 #ifdef CONFIG_NETWORK_SECMARK
 	&nft_secmark_obj_type,
 #endif
+	&nft_counter_obj_type,
 };
 
 int __init nf_tables_core_module_init(void)
 {
 	int err, i, j = 0;
+
+	nft_counter_init_seqcount();
 
 	for (i = 0; i < ARRAY_SIZE(nft_basic_objects); i++) {
 		err = nft_register_obj(nft_basic_objects[i]);
