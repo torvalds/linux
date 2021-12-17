@@ -118,6 +118,9 @@ static void fuse_evict_inode(struct inode *inode)
 {
 	struct fuse_inode *fi = get_fuse_inode(inode);
 
+	/* Will write inode on close/munmap and in all other dirtiers */
+	WARN_ON(inode->i_state & I_DIRTY_INODE);
+
 	truncate_inode_pages_final(&inode->i_data);
 	clear_inode(inode);
 	if (inode->i_sb->s_flags & SB_ACTIVE) {
@@ -161,7 +164,7 @@ static ino_t fuse_squash_ino(u64 ino64)
 }
 
 void fuse_change_attributes_common(struct inode *inode, struct fuse_attr *attr,
-				   u64 attr_valid)
+				   u64 attr_valid, u32 cache_mask)
 {
 	struct fuse_conn *fc = get_fuse_conn(inode);
 	struct fuse_inode *fi = get_fuse_inode(inode);
@@ -181,9 +184,11 @@ void fuse_change_attributes_common(struct inode *inode, struct fuse_attr *attr,
 	inode->i_atime.tv_sec   = attr->atime;
 	inode->i_atime.tv_nsec  = attr->atimensec;
 	/* mtime from server may be stale due to local buffered write */
-	if (!fc->writeback_cache || !S_ISREG(inode->i_mode)) {
+	if (!(cache_mask & STATX_MTIME)) {
 		inode->i_mtime.tv_sec   = attr->mtime;
 		inode->i_mtime.tv_nsec  = attr->mtimensec;
+	}
+	if (!(cache_mask & STATX_CTIME)) {
 		inode->i_ctime.tv_sec   = attr->ctime;
 		inode->i_ctime.tv_nsec  = attr->ctimensec;
 	}
@@ -215,16 +220,44 @@ void fuse_change_attributes_common(struct inode *inode, struct fuse_attr *attr,
 	inode->i_flags &= ~S_NOSEC;
 }
 
+u32 fuse_get_cache_mask(struct inode *inode)
+{
+	struct fuse_conn *fc = get_fuse_conn(inode);
+
+	if (!fc->writeback_cache || !S_ISREG(inode->i_mode))
+		return 0;
+
+	return STATX_MTIME | STATX_CTIME | STATX_SIZE;
+}
+
 void fuse_change_attributes(struct inode *inode, struct fuse_attr *attr,
 			    u64 attr_valid, u64 attr_version)
 {
 	struct fuse_conn *fc = get_fuse_conn(inode);
 	struct fuse_inode *fi = get_fuse_inode(inode);
-	bool is_wb = fc->writeback_cache;
+	u32 cache_mask;
 	loff_t oldsize;
 	struct timespec64 old_mtime;
 
 	spin_lock(&fi->lock);
+	/*
+	 * In case of writeback_cache enabled, writes update mtime, ctime and
+	 * may update i_size.  In these cases trust the cached value in the
+	 * inode.
+	 */
+	cache_mask = fuse_get_cache_mask(inode);
+	if (cache_mask & STATX_SIZE)
+		attr->size = i_size_read(inode);
+
+	if (cache_mask & STATX_MTIME) {
+		attr->mtime = inode->i_mtime.tv_sec;
+		attr->mtimensec = inode->i_mtime.tv_nsec;
+	}
+	if (cache_mask & STATX_CTIME) {
+		attr->ctime = inode->i_ctime.tv_sec;
+		attr->ctimensec = inode->i_ctime.tv_nsec;
+	}
+
 	if ((attr_version != 0 && fi->attr_version > attr_version) ||
 	    test_bit(FUSE_I_SIZE_UNSTABLE, &fi->state)) {
 		spin_unlock(&fi->lock);
@@ -232,7 +265,7 @@ void fuse_change_attributes(struct inode *inode, struct fuse_attr *attr,
 	}
 
 	old_mtime = inode->i_mtime;
-	fuse_change_attributes_common(inode, attr, attr_valid);
+	fuse_change_attributes_common(inode, attr, attr_valid, cache_mask);
 
 	oldsize = inode->i_size;
 	/*
@@ -240,11 +273,11 @@ void fuse_change_attributes(struct inode *inode, struct fuse_attr *attr,
 	 * extend local i_size without keeping userspace server in sync. So,
 	 * attr->size coming from server can be stale. We cannot trust it.
 	 */
-	if (!is_wb || !S_ISREG(inode->i_mode))
+	if (!(cache_mask & STATX_SIZE))
 		i_size_write(inode, attr->size);
 	spin_unlock(&fi->lock);
 
-	if (!is_wb && S_ISREG(inode->i_mode)) {
+	if (!cache_mask && S_ISREG(inode->i_mode)) {
 		bool inval = false;
 
 		if (oldsize != attr->size) {
@@ -455,14 +488,6 @@ static void fuse_send_destroy(struct fuse_mount *fm)
 		args.nocreds = true;
 		fuse_simple_request(fm, &args);
 	}
-}
-
-static void fuse_put_super(struct super_block *sb)
-{
-	struct fuse_mount *fm = get_fuse_mount_super(sb);
-
-	fuse_conn_put(fm->fc);
-	kfree(fm);
 }
 
 static void convert_fuse_statfs(struct kstatfs *stbuf, struct fuse_kstatfs *attr)
@@ -1003,7 +1028,6 @@ static const struct super_operations fuse_super_operations = {
 	.evict_inode	= fuse_evict_inode,
 	.write_inode	= fuse_write_inode,
 	.drop_inode	= generic_delete_inode,
-	.put_super	= fuse_put_super,
 	.umount_begin	= fuse_umount_begin,
 	.statfs		= fuse_statfs,
 	.sync_fs	= fuse_sync_fs,
@@ -1424,20 +1448,17 @@ static int fuse_get_tree_submount(struct fs_context *fsc)
 	if (!fm)
 		return -ENOMEM;
 
+	fm->fc = fuse_conn_get(fc);
 	fsc->s_fs_info = fm;
 	sb = sget_fc(fsc, NULL, set_anon_super_fc);
-	if (IS_ERR(sb)) {
-		kfree(fm);
+	if (fsc->s_fs_info)
+		fuse_mount_destroy(fm);
+	if (IS_ERR(sb))
 		return PTR_ERR(sb);
-	}
-	fm->fc = fuse_conn_get(fc);
 
 	/* Initialize superblock, making @mp_fi its root */
 	err = fuse_fill_super_submount(sb, mp_fi);
 	if (err) {
-		fuse_conn_put(fc);
-		kfree(fm);
-		sb->s_fs_info = NULL;
 		deactivate_locked_super(sb);
 		return err;
 	}
@@ -1569,8 +1590,6 @@ static int fuse_fill_super(struct super_block *sb, struct fs_context *fsc)
 {
 	struct fuse_fs_context *ctx = fsc->fs_private;
 	int err;
-	struct fuse_conn *fc;
-	struct fuse_mount *fm;
 
 	if (!ctx->file || !ctx->rootmode_present ||
 	    !ctx->user_id_present || !ctx->group_id_present)
@@ -1580,42 +1599,18 @@ static int fuse_fill_super(struct super_block *sb, struct fs_context *fsc)
 	 * Require mount to happen from the same user namespace which
 	 * opened /dev/fuse to prevent potential attacks.
 	 */
-	err = -EINVAL;
 	if ((ctx->file->f_op != &fuse_dev_operations) ||
 	    (ctx->file->f_cred->user_ns != sb->s_user_ns))
-		goto err;
+		return -EINVAL;
 	ctx->fudptr = &ctx->file->private_data;
-
-	fc = kmalloc(sizeof(*fc), GFP_KERNEL);
-	err = -ENOMEM;
-	if (!fc)
-		goto err;
-
-	fm = kzalloc(sizeof(*fm), GFP_KERNEL);
-	if (!fm) {
-		kfree(fc);
-		goto err;
-	}
-
-	fuse_conn_init(fc, fm, sb->s_user_ns, &fuse_dev_fiq_ops, NULL);
-	fc->release = fuse_free_conn;
-
-	sb->s_fs_info = fm;
 
 	err = fuse_fill_super_common(sb, ctx);
 	if (err)
-		goto err_put_conn;
+		return err;
 	/* file->private_data shall be visible on all CPUs after this */
 	smp_mb();
 	fuse_send_init(get_fuse_mount_super(sb));
 	return 0;
-
- err_put_conn:
-	fuse_conn_put(fc);
-	kfree(fm);
-	sb->s_fs_info = NULL;
- err:
-	return err;
 }
 
 /*
@@ -1637,22 +1632,40 @@ static int fuse_get_tree(struct fs_context *fsc)
 {
 	struct fuse_fs_context *ctx = fsc->fs_private;
 	struct fuse_dev *fud;
+	struct fuse_conn *fc;
+	struct fuse_mount *fm;
 	struct super_block *sb;
 	int err;
+
+	fc = kmalloc(sizeof(*fc), GFP_KERNEL);
+	if (!fc)
+		return -ENOMEM;
+
+	fm = kzalloc(sizeof(*fm), GFP_KERNEL);
+	if (!fm) {
+		kfree(fc);
+		return -ENOMEM;
+	}
+
+	fuse_conn_init(fc, fm, fsc->user_ns, &fuse_dev_fiq_ops, NULL);
+	fc->release = fuse_free_conn;
+
+	fsc->s_fs_info = fm;
 
 	if (ctx->fd_present)
 		ctx->file = fget(ctx->fd);
 
 	if (IS_ENABLED(CONFIG_BLOCK) && ctx->is_bdev) {
 		err = get_tree_bdev(fsc, fuse_fill_super);
-		goto out_fput;
+		goto out;
 	}
 	/*
 	 * While block dev mount can be initialized with a dummy device fd
 	 * (found by device name), normal fuse mounts can't
 	 */
+	err = -EINVAL;
 	if (!ctx->file)
-		return -EINVAL;
+		goto out;
 
 	/*
 	 * Allow creating a fuse mount with an already initialized fuse
@@ -1668,7 +1681,9 @@ static int fuse_get_tree(struct fs_context *fsc)
 	} else {
 		err = get_tree_nodev(fsc, fuse_fill_super);
 	}
-out_fput:
+out:
+	if (fsc->s_fs_info)
+		fuse_mount_destroy(fm);
 	if (ctx->file)
 		fput(ctx->file);
 	return err;
@@ -1747,17 +1762,25 @@ static void fuse_sb_destroy(struct super_block *sb)
 	struct fuse_mount *fm = get_fuse_mount_super(sb);
 	bool last;
 
-	if (fm) {
+	if (sb->s_root) {
 		last = fuse_mount_remove(fm);
 		if (last)
 			fuse_conn_destroy(fm);
 	}
 }
 
+void fuse_mount_destroy(struct fuse_mount *fm)
+{
+	fuse_conn_put(fm->fc);
+	kfree(fm);
+}
+EXPORT_SYMBOL(fuse_mount_destroy);
+
 static void fuse_kill_sb_anon(struct super_block *sb)
 {
 	fuse_sb_destroy(sb);
 	kill_anon_super(sb);
+	fuse_mount_destroy(get_fuse_mount_super(sb));
 }
 
 static struct file_system_type fuse_fs_type = {
@@ -1775,6 +1798,7 @@ static void fuse_kill_sb_blk(struct super_block *sb)
 {
 	fuse_sb_destroy(sb);
 	kill_block_super(sb);
+	fuse_mount_destroy(get_fuse_mount_super(sb));
 }
 
 static struct file_system_type fuseblk_fs_type = {

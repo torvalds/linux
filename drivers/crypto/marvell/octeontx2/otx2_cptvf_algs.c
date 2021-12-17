@@ -1274,6 +1274,7 @@ static int aead_do_fallback(struct aead_request *req, bool is_enc)
 					  req->base.complete, req->base.data);
 		aead_request_set_crypt(&rctx->fbk_req, req->src,
 				       req->dst, req->cryptlen, req->iv);
+		aead_request_set_ad(&rctx->fbk_req, req->assoclen);
 		ret = is_enc ? crypto_aead_encrypt(&rctx->fbk_req) :
 			       crypto_aead_decrypt(&rctx->fbk_req);
 	} else {

@@ -4033,7 +4033,7 @@ static void hw_set_add_addr(struct ksz_hw *hw)
 	}
 }
 
-static int hw_add_addr(struct ksz_hw *hw, u8 *mac_addr)
+static int hw_add_addr(struct ksz_hw *hw, const u8 *mac_addr)
 {
 	int i;
 	int j = ADDITIONAL_ENTRIES;
@@ -4054,7 +4054,7 @@ static int hw_add_addr(struct ksz_hw *hw, u8 *mac_addr)
 	return -1;
 }
 
-static int hw_del_addr(struct ksz_hw *hw, u8 *mac_addr)
+static int hw_del_addr(struct ksz_hw *hw, const u8 *mac_addr)
 {
 	int i;
 
@@ -5581,7 +5581,7 @@ static int netdev_set_mac_address(struct net_device *dev, void *addr)
 		memcpy(hw->override_addr, mac->sa_data, ETH_ALEN);
 	}
 
-	memcpy(dev->dev_addr, mac->sa_data, ETH_ALEN);
+	eth_hw_addr_set(dev, mac->sa_data);
 
 	interrupt = hw_block_intr(hw);
 
@@ -7005,12 +7005,14 @@ static int pcidev_init(struct pci_dev *pdev, const struct pci_device_id *id)
 		dev->mem_end = dev->mem_start + reg_len - 1;
 		dev->irq = pdev->irq;
 		if (MAIN_PORT == i)
-			memcpy(dev->dev_addr, hw_priv->hw.override_addr,
-			       ETH_ALEN);
+			eth_hw_addr_set(dev, hw_priv->hw.override_addr);
 		else {
-			memcpy(dev->dev_addr, sw->other_addr, ETH_ALEN);
+			u8 addr[ETH_ALEN];
+
+			ether_addr_copy(addr, sw->other_addr);
 			if (ether_addr_equal(sw->other_addr, hw->override_addr))
-				dev->dev_addr[5] += port->first_port;
+				addr[5] += port->first_port;
+			eth_hw_addr_set(dev, addr);
 		}
 
 		dev->netdev_ops = &netdev_ops;

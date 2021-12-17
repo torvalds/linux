@@ -74,7 +74,7 @@ test_span_gre_ttl()
 
 	mirror_install $swp1 ingress $tundev "matchall $tcflags"
 	tc filter add dev $h3 ingress pref 77 prot $prot \
-		flower ip_ttl 50 action pass
+		flower skip_hw ip_ttl 50 action pass
 
 	mirror_test v$h1 192.0.2.1 192.0.2.2 $h3 77 0
 

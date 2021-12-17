@@ -79,7 +79,7 @@ static inline int is_vcpu_stopped(struct kvm_vcpu *vcpu)
 
 static inline int is_vcpu_idle(struct kvm_vcpu *vcpu)
 {
-	return test_bit(kvm_vcpu_get_idx(vcpu), vcpu->kvm->arch.idle_mask);
+	return test_bit(vcpu->vcpu_idx, vcpu->kvm->arch.idle_mask);
 }
 
 static inline int kvm_is_ucontrol(struct kvm *kvm)
@@ -206,6 +206,15 @@ static inline int test_kvm_cpu_feat(struct kvm *kvm, unsigned long nr)
 static inline int kvm_s390_user_cpu_state_ctrl(struct kvm *kvm)
 {
 	return kvm->arch.user_cpu_state_ctrl != 0;
+}
+
+static inline void kvm_s390_set_user_cpu_state_ctrl(struct kvm *kvm)
+{
+	if (kvm->arch.user_cpu_state_ctrl)
+		return;
+
+	VM_EVENT(kvm, 3, "%s", "ENABLE: Userspace CPU state control");
+	kvm->arch.user_cpu_state_ctrl = 1;
 }
 
 /* implemented in pv.c */

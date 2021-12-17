@@ -109,8 +109,10 @@ static ssize_t rpc_sysfs_xprt_srcaddr_show(struct kobject *kobj,
 	struct sock_xprt *sock;
 	ssize_t ret = -1;
 
-	if (!xprt)
-		return 0;
+	if (!xprt || !xprt_connected(xprt)) {
+		xprt_put(xprt);
+		return -ENOTCONN;
+	}
 
 	sock = container_of(xprt, struct sock_xprt, xprt);
 	if (kernel_getsockname(sock->sock, (struct sockaddr *)&saddr) < 0)
@@ -129,8 +131,10 @@ static ssize_t rpc_sysfs_xprt_info_show(struct kobject *kobj,
 	struct rpc_xprt *xprt = rpc_sysfs_xprt_kobj_get_xprt(kobj);
 	ssize_t ret;
 
-	if (!xprt)
-		return 0;
+	if (!xprt || !xprt_connected(xprt)) {
+		xprt_put(xprt);
+		return -ENOTCONN;
+	}
 
 	ret = sprintf(buf, "last_used=%lu\ncur_cong=%lu\ncong_win=%lu\n"
 		       "max_num_slots=%u\nmin_num_slots=%u\nnum_reqs=%u\n"

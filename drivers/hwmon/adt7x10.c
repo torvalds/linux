@@ -444,7 +444,7 @@ exit_restore:
 }
 EXPORT_SYMBOL_GPL(adt7x10_probe);
 
-int adt7x10_remove(struct device *dev, int irq)
+void adt7x10_remove(struct device *dev, int irq)
 {
 	struct adt7x10_data *data = dev_get_drvdata(dev);
 
@@ -457,7 +457,6 @@ int adt7x10_remove(struct device *dev, int irq)
 	sysfs_remove_group(&dev->kobj, &adt7x10_group);
 	if (data->oldconfig != data->config)
 		adt7x10_write_byte(dev, ADT7X10_CONFIG, data->oldconfig);
-	return 0;
 }
 EXPORT_SYMBOL_GPL(adt7x10_remove);
 

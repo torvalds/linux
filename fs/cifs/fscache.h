@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: LGPL-2.1 */
 /*
- *   fs/cifs/fscache.h - CIFS filesystem cache interface definitions
+ *   CIFS filesystem cache interface definitions
  *
  *   Copyright (c) 2010 Novell, Inc.
  *   Authors(s): Suresh Jayaraman (sjayaraman@suse.de>

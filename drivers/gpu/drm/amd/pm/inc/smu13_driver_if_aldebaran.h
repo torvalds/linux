@@ -140,6 +140,8 @@
 
 #define MAX_SW_I2C_COMMANDS                24
 
+#define ALDEBARAN_UMC_CHANNEL_NUM    32
+
 typedef enum {
   I2C_CONTROLLER_PORT_0, //CKSVII2C0
   I2C_CONTROLLER_PORT_1, //CKSVII2C1
@@ -507,6 +509,19 @@ typedef struct {
   uint32_t MmHubPadding[8]; // SMU internal use
 } AvfsDebugTable_t;
 
+typedef struct {
+	uint64_t mca_umc_status;
+	uint64_t mca_umc_addr;
+	uint16_t ce_count_lo_chip;
+	uint16_t ce_count_hi_chip;
+
+	uint32_t eccPadding;
+} EccInfo_t;
+
+typedef struct {
+	EccInfo_t  EccInfo[ALDEBARAN_UMC_CHANNEL_NUM];
+} EccInfoTable_t;
+
 // These defines are used with the following messages:
 // SMC_MSG_TransferTableDram2Smu
 // SMC_MSG_TransferTableSmu2Dram
@@ -517,6 +532,7 @@ typedef struct {
 #define TABLE_SMU_METRICS             4
 #define TABLE_DRIVER_SMU_CONFIG       5
 #define TABLE_I2C_COMMANDS            6
-#define TABLE_COUNT                   7
+#define TABLE_ECCINFO                 7
+#define TABLE_COUNT                   8
 
 #endif

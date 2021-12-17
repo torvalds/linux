@@ -482,6 +482,7 @@ static int rionet_setup_netdev(struct rio_mport *mport, struct net_device *ndev)
 {
 	int rc = 0;
 	struct rionet_private *rnet;
+	u8 addr[ETH_ALEN];
 	u16 device_id;
 	const size_t rionet_active_bytes = sizeof(void *) *
 				RIO_MAX_ROUTE_ENTRIES(mport->sys_size);
@@ -501,12 +502,13 @@ static int rionet_setup_netdev(struct rio_mport *mport, struct net_device *ndev)
 
 	/* Set the default MAC address */
 	device_id = rio_local_get_device_id(mport);
-	ndev->dev_addr[0] = 0x00;
-	ndev->dev_addr[1] = 0x01;
-	ndev->dev_addr[2] = 0x00;
-	ndev->dev_addr[3] = 0x01;
-	ndev->dev_addr[4] = device_id >> 8;
-	ndev->dev_addr[5] = device_id & 0xff;
+	addr[0] = 0x00;
+	addr[1] = 0x01;
+	addr[2] = 0x00;
+	addr[3] = 0x01;
+	addr[4] = device_id >> 8;
+	addr[5] = device_id & 0xff;
+	eth_hw_addr_set(ndev, addr);
 
 	ndev->netdev_ops = &rionet_netdev_ops;
 	ndev->mtu = RIONET_MAX_MTU;

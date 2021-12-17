@@ -2,7 +2,7 @@ Using TopDown metrics in user space
 -----------------------------------
 
 Intel CPUs (since Sandy Bridge and Silvermont) support a TopDown
-methology to break down CPU pipeline execution into 4 bottlenecks:
+methodology to break down CPU pipeline execution into 4 bottlenecks:
 frontend bound, backend bound, bad speculation, retiring.
 
 For more details on Topdown see [1][5]

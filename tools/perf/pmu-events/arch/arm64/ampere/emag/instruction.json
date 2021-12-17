@@ -44,25 +44,25 @@
         "BriefDescription": "Software increment"
     },
     {
-        "ArchStdEvent": "INST_RETIRED",
+        "ArchStdEvent": "INST_RETIRED"
     },
     {
         "ArchStdEvent": "CID_WRITE_RETIRED",
         "BriefDescription": "Write to CONTEXTIDR"
     },
     {
-        "ArchStdEvent": "INST_SPEC",
+        "ArchStdEvent": "INST_SPEC"
     },
     {
-        "ArchStdEvent": "TTBR_WRITE_RETIRED",
+        "ArchStdEvent": "TTBR_WRITE_RETIRED"
     },
     {
         "PublicDescription": "This event counts all branches, taken or not. This excludes exception entries, debug entries and CCFAIL branches",
-        "ArchStdEvent": "BR_RETIRED",
+        "ArchStdEvent": "BR_RETIRED"
     },
     {
         "PublicDescription": "This event counts any branch counted by BR_RETIRED which is not correctly predicted and causes a pipeline flush",
-        "ArchStdEvent": "BR_MIS_PRED_RETIRED",
+        "ArchStdEvent": "BR_MIS_PRED_RETIRED"
     },
     {
         "PublicDescription": "Operation speculatively executed, NOP",

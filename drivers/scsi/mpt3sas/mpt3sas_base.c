@@ -639,8 +639,8 @@ static void _base_sync_drv_fw_timestamp(struct MPT3SAS_ADAPTER *ioc)
 	mpi_request->IOCParameter = MPI26_SET_IOC_PARAMETER_SYNC_TIMESTAMP;
 	current_time = ktime_get_real();
 	TimeStamp = ktime_to_ms(current_time);
-	mpi_request->Reserved7 = cpu_to_le32(TimeStamp & 0xFFFFFFFF);
-	mpi_request->IOCParameterValue = cpu_to_le32(TimeStamp >> 32);
+	mpi_request->Reserved7 = cpu_to_le32(TimeStamp >> 32);
+	mpi_request->IOCParameterValue = cpu_to_le32(TimeStamp & 0xFFFFFFFF);
 	init_completion(&ioc->scsih_cmds.done);
 	ioc->put_smid_default(ioc, smid);
 	dinitprintk(ioc, ioc_info(ioc,
@@ -1582,8 +1582,10 @@ mpt3sas_base_pause_mq_polling(struct MPT3SAS_ADAPTER *ioc)
 	 * wait for current poll to complete.
 	 */
 	for (qid = 0; qid < iopoll_q_count; qid++) {
-		while (atomic_read(&ioc->io_uring_poll_queues[qid].busy))
+		while (atomic_read(&ioc->io_uring_poll_queues[qid].busy)) {
+			cpu_relax();
 			udelay(500);
+		}
 	}
 }
 

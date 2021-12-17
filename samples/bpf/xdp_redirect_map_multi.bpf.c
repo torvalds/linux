@@ -5,11 +5,6 @@
 #include "xdp_sample.bpf.h"
 #include "xdp_sample_shared.h"
 
-enum {
-	BPF_F_BROADCAST		= (1ULL << 3),
-	BPF_F_EXCLUDE_INGRESS	= (1ULL << 4),
-};
-
 struct {
 	__uint(type, BPF_MAP_TYPE_DEVMAP_HASH);
 	__uint(key_size, sizeof(int));

@@ -8,6 +8,7 @@
 / {
 	model = "Samsung Galaxy S Fascinate 4G (SGH-T959P) based on S5PV210";
 	compatible = "samsung,fascinate4g", "samsung,aries", "samsung,s5pv210";
+	chassis-type = "handset";
 
 	chosen {
 		stdout-path = &uart2;

@@ -2458,6 +2458,16 @@ static const unsigned int intc_ex_irq5_mux[] = {
 	IRQ5_MARK,
 };
 
+#if defined(CONFIG_PINCTRL_PFC_R8A77960) || defined(CONFIG_PINCTRL_PFC_R8A77961)
+/* - MLB+ ------------------------------------------------------------------- */
+static const unsigned int mlb_3pin_pins[] = {
+	RCAR_GP_PIN(5, 23), RCAR_GP_PIN(5, 24), RCAR_GP_PIN(5, 25),
+};
+static const unsigned int mlb_3pin_mux[] = {
+	MLB_CLK_MARK, MLB_SIG_MARK, MLB_DAT_MARK,
+};
+#endif /* CONFIG_PINCTRL_PFC_R8A77960 || CONFIG_PINCTRL_PFC_R8A77961 */
+
 /* - MSIOF0 ----------------------------------------------------------------- */
 static const unsigned int msiof0_clk_pins[] = {
 	/* SCK */
@@ -4210,7 +4220,7 @@ static const unsigned int vin5_clk_mux[] = {
 static const struct {
 	struct sh_pfc_pin_group common[324];
 #if defined(CONFIG_PINCTRL_PFC_R8A77960) || defined(CONFIG_PINCTRL_PFC_R8A77961)
-	struct sh_pfc_pin_group automotive[30];
+	struct sh_pfc_pin_group automotive[31];
 #endif
 } pinmux_groups = {
 	.common = {
@@ -4571,6 +4581,7 @@ static const struct {
 		SH_PFC_PIN_GROUP(drif3_ctrl_b),
 		SH_PFC_PIN_GROUP(drif3_data0_b),
 		SH_PFC_PIN_GROUP(drif3_data1_b),
+		SH_PFC_PIN_GROUP(mlb_3pin),
 	}
 #endif /* CONFIG_PINCTRL_PFC_R8A77960 || CONFIG_PINCTRL_PFC_R8A77961 */
 };
@@ -4765,6 +4776,12 @@ static const char * const intc_ex_groups[] = {
 	"intc_ex_irq4",
 	"intc_ex_irq5",
 };
+
+#if defined(CONFIG_PINCTRL_PFC_R8A77960) || defined(CONFIG_PINCTRL_PFC_R8A77961)
+static const char * const mlb_3pin_groups[] = {
+	"mlb_3pin",
+};
+#endif /* CONFIG_PINCTRL_PFC_R8A77960 || CONFIG_PINCTRL_PFC_R8A77961 */
 
 static const char * const msiof0_groups[] = {
 	"msiof0_clk",
@@ -5102,7 +5119,7 @@ static const char * const vin5_groups[] = {
 static const struct {
 	struct sh_pfc_function common[52];
 #if defined(CONFIG_PINCTRL_PFC_R8A77960) || defined(CONFIG_PINCTRL_PFC_R8A77961)
-	struct sh_pfc_function automotive[4];
+	struct sh_pfc_function automotive[5];
 #endif
 } pinmux_functions = {
 	.common = {
@@ -5165,6 +5182,7 @@ static const struct {
 		SH_PFC_FUNCTION(drif1),
 		SH_PFC_FUNCTION(drif2),
 		SH_PFC_FUNCTION(drif3),
+		SH_PFC_FUNCTION(mlb_3pin),
 	}
 #endif /* CONFIG_PINCTRL_PFC_R8A77960 || CONFIG_PINCTRL_PFC_R8A77961 */
 };

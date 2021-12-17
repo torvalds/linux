@@ -4,75 +4,6 @@
 #ifndef	__HALDMOUTSRC_H__
 #define __HALDMOUTSRC_H__
 
-/*  Definition */
-/*  Define all team support ability. */
-
-/*  Define for all teams. Please Define the constant in your precomp header. */
-
-/* define		DM_ODM_SUPPORT_AP			0 */
-/* define		DM_ODM_SUPPORT_ADSL			0 */
-/* define		DM_ODM_SUPPORT_CE			0 */
-/* define		DM_ODM_SUPPORT_MP			1 */
-
-/*  Define ODM SW team support flag. */
-
-/*  Antenna Switch Relative Definition. */
-
-/*  Add new function SwAntDivCheck8192C(). */
-/*  This is the main function of Antenna diversity function before link. */
-/*  Mainly, it just retains last scan result and scan again. */
-/*  After that, it compares the scan result to see which one gets better
- *  RSSI. It selects antenna with better receiving power and returns better
- *  scan result. */
-
-#define	TP_MODE			0
-#define	RSSI_MODE		1
-#define	TRAFFIC_LOW		0
-#define	TRAFFIC_HIGH		1
-
-/* 3 Tx Power Tracking */
-/* 3============================================================ */
-#define		DPK_DELTA_MAPPING_NUM	13
-#define		index_mapping_HP_NUM	15
-
-/*  */
-/* 3 PSD Handler */
-/* 3============================================================ */
-
-#define	AFH_PSD		1	/* 0:normal PSD scan, 1: only do 20 pts PSD */
-#define	MODE_40M	0	/* 0:20M, 1:40M */
-#define	PSD_TH2		3
-#define	PSD_CHM		20   /*  Minimum channel number for BT AFH */
-#define	SIR_STEP_SIZE	3
-#define Smooth_Size_1	5
-#define	Smooth_TH_1	3
-#define Smooth_Size_2	10
-#define	Smooth_TH_2	4
-#define Smooth_Size_3	20
-#define	Smooth_TH_3	4
-#define Smooth_Step_Size 5
-#define	Adaptive_SIR	1
-#define	PSD_RESCAN	4
-#define	PSD_SCAN_INTERVAL	700 /* ms */
-
-/* 8723A High Power IGI Setting */
-#define DM_DIG_HIGH_PWR_IGI_LOWER_BOUND	0x22
-#define DM_DIG_Gmode_HIGH_PWR_IGI_LOWER_BOUND 0x28
-#define DM_DIG_HIGH_PWR_THRESHOLD	0x3a
-
-/*  LPS define */
-#define DM_DIG_FA_TH0_LPS		4 /*  4 in lps */
-#define DM_DIG_FA_TH1_LPS		15 /*  15 lps */
-#define DM_DIG_FA_TH2_LPS		30 /*  30 lps */
-#define RSSI_OFFSET_DIG			0x05;
-
-/* ANT Test */
-#define ANTTESTALL		0x00	/* Ant A or B will be Testing */
-#define ANTTESTA		0x01	/* Ant A will be Testing */
-#define ANTTESTB		0x02	/* Ant B will be testing */
-
-/*  structure and define */
-
 /*  Add for AP/ADSLpseudo DM structuer requirement. */
 /*  We need to remove to other position??? */
 struct rtl8192cd_priv {
@@ -178,23 +109,7 @@ struct rx_hpc {
 	struct timer_list PSDTimer;
 };
 
-#define ASSOCIATE_ENTRY_NUM	32 /*  Max size of AsocEntry[]. */
-#define	ODM_ASSOCIATE_ENTRY_NUM	ASSOCIATE_ENTRY_NUM
-
-/*  This indicates two different steps. */
-/*  In SWAW_STEP_PEAK, driver needs to switch antenna and listen to
- *  the signal on the air. */
-/*  In SWAW_STEP_DETERMINE, driver just compares the signal captured in
- *  SWAW_STEP_PEAK with original RSSI to determine if it is necessary to
- *  switch antenna. */
-
-#define SWAW_STEP_PEAK		0
-#define SWAW_STEP_DETERMINE	1
-
-#define	TP_MODE			0
-#define	RSSI_MODE		1
-#define	TRAFFIC_LOW		0
-#define	TRAFFIC_HIGH		1
+#define ODM_ASSOCIATE_ENTRY_NUM	32 /*  Max size of AsocEntry[]. */
 
 struct sw_ant_switch {
 	u8	try_flag;
@@ -210,8 +125,6 @@ struct sw_ant_switch {
 	/*  Before link Antenna Switch check */
 	u8	SWAS_NoLink_State;
 	u32	SWAS_NoLink_BK_Reg860;
-	bool	ANTA_ON;	/* To indicate Ant A is or not */
-	bool	ANTB_ON;	/* To indicate Ant B is on or not */
 
 	s32	RSSI_sum_A;
 	s32	RSSI_sum_B;
@@ -225,16 +138,8 @@ struct sw_ant_switch {
 	u64	RXByteCnt_B;
 	u8	TrafficLoad;
 	struct timer_list SwAntennaSwitchTimer;
-	/* Hybrid Antenna Diversity */
-	u32	CCK_Ant1_Cnt[ASSOCIATE_ENTRY_NUM];
-	u32	CCK_Ant2_Cnt[ASSOCIATE_ENTRY_NUM];
-	u32	OFDM_Ant1_Cnt[ASSOCIATE_ENTRY_NUM];
-	u32	OFDM_Ant2_Cnt[ASSOCIATE_ENTRY_NUM];
-	u32	RSSI_Ant1_Sum[ASSOCIATE_ENTRY_NUM];
-	u32	RSSI_Ant2_Sum[ASSOCIATE_ENTRY_NUM];
-	u8	TxAnt[ASSOCIATE_ENTRY_NUM];
+	u8	TxAnt[ODM_ASSOCIATE_ENTRY_NUM];
 	u8	TargetSTA;
-	u8	antsel;
 	u8	RxIdleAnt;
 };
 
@@ -245,7 +150,6 @@ struct edca_turbo {
 };
 
 struct odm_rate_adapt {
-	u8	Type;		/*  DM_Type_ByFW/DM_Type_ByDriver */
 	u8	HighRSSIThresh;	/*  if RSSI > HighRSSIThresh	=> RATRState is DM_RATR_STA_HIGH */
 	u8	LowRSSIThresh;	/*  if RSSI <= LowRSSIThresh	=> RATRState is DM_RATR_STA_LOW */
 	u8	RATRState;	/*  Current RSSI level, DM_RATR_STA_HIGH/DM_RATR_STA_MIDDLE/DM_RATR_STA_LOW */
@@ -254,33 +158,11 @@ struct odm_rate_adapt {
 
 #define IQK_MAC_REG_NUM		4
 #define IQK_ADDA_REG_NUM	16
-#define IQK_BB_REG_NUM_MAX	10
 #define IQK_BB_REG_NUM		9
 #define HP_THERMAL_NUM		8
 
 #define AVG_THERMAL_NUM		8
 #define IQK_Matrix_REG_NUM	8
-#define IQK_Matrix_Settings_NUM	1+24+21
-
-#define	DM_Type_ByFWi		0
-#define	DM_Type_ByDriver	1
-
-/*  Declare for common info */
-
-struct odm_phy_status_info {
-	u8	RxPWDBAll;
-	u8	SignalQuality;	 /*  in 0-100 index. */
-	u8	RxMIMOSignalQuality[MAX_PATH_NUM_92CS]; /* EVM */
-	u8	RxMIMOSignalStrength[MAX_PATH_NUM_92CS];/*  in 0~100 index */
-	s8	RxPower; /*  in dBm Translate from PWdB */
-	s8	RecvSignalPower;/*  Real power in dBm for this packet, no
-				 * beautification and aggregation. Keep this raw
-				 * info to be used for the other procedures. */
-	u8	BTRxRSSIPercentage;
-	u8	SignalStrength; /*  in 0-100 index. */
-	u8	RxPwr[MAX_PATH_NUM_92CS];/* per-path's pwdb */
-	u8	RxSNR[MAX_PATH_NUM_92CS];/* per-path's SNR */
-};
 
 struct odm_phy_dbg_info {
 	/* ODM Write,debug info */
@@ -342,48 +224,23 @@ enum odm_common_info_def {
 	/*  Fixed value: */
 
 	/* HOOK BEFORE REG INIT----------- */
-	ODM_CMNINFO_PLATFORM = 0,
 	ODM_CMNINFO_ABILITY,		/* ODM_ABILITY_E */
-	ODM_CMNINFO_INTERFACE,		/* ODM_INTERFACE_E */
 	ODM_CMNINFO_MP_TEST_CHIP,
-	ODM_CMNINFO_IC_TYPE,		/* ODM_IC_TYPE_E */
-	ODM_CMNINFO_CUT_VER,		/* ODM_CUT_VERSION_E */
-	ODM_CMNINFO_FAB_VER,		/* ODM_FAB_E */
-	ODM_CMNINFO_RF_TYPE,		/* RF_PATH_E or ODM_RF_TYPE_E? */
-	ODM_CMNINFO_BOARD_TYPE,		/* ODM_BOARD_TYPE_E */
-	ODM_CMNINFO_EXT_LNA,		/* true */
-	ODM_CMNINFO_EXT_PA,
-	ODM_CMNINFO_EXT_TRSW,
-	ODM_CMNINFO_PATCH_ID,		/* CUSTOMER ID */
-	ODM_CMNINFO_BINHCT_TEST,
-	ODM_CMNINFO_BWIFI_TEST,
-	ODM_CMNINFO_SMART_CONCURRENT,
 	/* HOOK BEFORE REG INIT-----------  */
 
 	/*  Dynamic value: */
 /*  POINTER REFERENCE-----------  */
-	ODM_CMNINFO_MAC_PHY_MODE,	/*  ODM_MAC_PHY_MODE_E */
 	ODM_CMNINFO_TX_UNI,
 	ODM_CMNINFO_RX_UNI,
 	ODM_CMNINFO_WM_MODE,		/*  ODM_WIRELESS_MODE_E */
-	ODM_CMNINFO_BAND,		/*  ODM_BAND_TYPE_E */
 	ODM_CMNINFO_SEC_CHNL_OFFSET,	/*  ODM_SEC_CHNL_OFFSET_E */
 	ODM_CMNINFO_SEC_MODE,		/*  ODM_SECURITY_E */
 	ODM_CMNINFO_BW,			/*  ODM_BW_E */
 	ODM_CMNINFO_CHNL,
 
-	ODM_CMNINFO_DMSP_GET_VALUE,
-	ODM_CMNINFO_BUDDY_ADAPTOR,
-	ODM_CMNINFO_DMSP_IS_MASTER,
 	ODM_CMNINFO_SCAN,
 	ODM_CMNINFO_POWER_SAVING,
-	ODM_CMNINFO_ONE_PATH_CCA,	/*  ODM_CCA_PATH_E */
-	ODM_CMNINFO_DRV_STOP,
-	ODM_CMNINFO_PNP_IN,
-	ODM_CMNINFO_INIT_ON,
-	ODM_CMNINFO_ANT_TEST,
 	ODM_CMNINFO_NET_CLOSED,
-	ODM_CMNINFO_MP_MODE,
 /*  POINTER REFERENCE----------- */
 
 /* CALL BY VALUE------------- */
@@ -391,21 +248,8 @@ enum odm_common_info_def {
 	ODM_CMNINFO_WIFI_DISPLAY,
 	ODM_CMNINFO_LINK,
 	ODM_CMNINFO_RSSI_MIN,
-	ODM_CMNINFO_RA_THRESHOLD_HIGH,		/*  u8 */
-	ODM_CMNINFO_RA_THRESHOLD_LOW,		/*  u8 */
 	ODM_CMNINFO_RF_ANTENNA_TYPE,		/*  u8 */
-	ODM_CMNINFO_BT_DISABLED,
-	ODM_CMNINFO_BT_OPERATION,
-	ODM_CMNINFO_BT_DIG,
-	ODM_CMNINFO_BT_BUSY,			/* Check Bt is using or not */
-	ODM_CMNINFO_BT_DISABLE_EDCA,
 /* CALL BY VALUE-------------*/
-
-	/*  Dynamic ptr array hook itms. */
-	ODM_CMNINFO_STA_STATUS,
-	ODM_CMNINFO_PHY_STATUS,
-	ODM_CMNINFO_MAC_STATUS,
-	ODM_CMNINFO_MAX,
 };
 
 /*  2011/10/20 MH Define ODM support ability.  ODM_CMNINFO_ABILITY */
@@ -436,85 +280,7 @@ enum odm_ability_def {
 	ODM_RF_CALIBRATION		= BIT(26),
 };
 
-/* 	ODM_CMNINFO_INTERFACE */
-enum odm_interface_def {
-	ODM_ITRF_PCIE	=	0x1,
-	ODM_ITRF_USB	=	0x2,
-	ODM_ITRF_SDIO	=	0x4,
-	ODM_ITRF_ALL	=	0x7,
-};
-
-/*  ODM_CMNINFO_IC_TYPE */
-enum odm_ic_type {
-	ODM_RTL8192S	=	BIT(0),
-	ODM_RTL8192C	=	BIT(1),
-	ODM_RTL8192D	=	BIT(2),
-	ODM_RTL8723A	=	BIT(3),
-	ODM_RTL8188E	=	BIT(4),
-	ODM_RTL8812	=	BIT(5),
-	ODM_RTL8821	=	BIT(6),
-};
-
-#define ODM_IC_11N_SERIES						\
-	(ODM_RTL8192S | ODM_RTL8192C | ODM_RTL8192D |			\
-	 ODM_RTL8723A | ODM_RTL8188E)
-#define ODM_IC_11AC_SERIES		(ODM_RTL8812)
-
-/* ODM_CMNINFO_CUT_VER */
-enum odm_cut_version {
-	ODM_CUT_A	=	1,
-	ODM_CUT_B	=	2,
-	ODM_CUT_C	=	3,
-	ODM_CUT_D	=	4,
-	ODM_CUT_E	=	5,
-	ODM_CUT_F	=	6,
-	ODM_CUT_TEST	=	7,
-};
-
-/*  ODM_CMNINFO_FAB_VER */
-enum odm_fab_Version {
-	ODM_TSMC	=	0,
-	ODM_UMC		=	1,
-};
-
-/*  ODM_CMNINFO_RF_TYPE */
-/*  For example 1T2R (A+AB = BIT(0)|BIT(4)|BIT(5)) */
-enum odm_rf_path {
-	ODM_RF_TX_A	=	BIT(0),
-	ODM_RF_TX_B	=	BIT(1),
-	ODM_RF_TX_C	=	BIT(2),
-	ODM_RF_TX_D	=	BIT(3),
-	ODM_RF_RX_A	=	BIT(4),
-	ODM_RF_RX_B	=	BIT(5),
-	ODM_RF_RX_C	=	BIT(6),
-	ODM_RF_RX_D	=	BIT(7),
-};
-
-enum odm_rf_type {
-	ODM_1T1R	=	0,
-	ODM_1T2R	=	1,
-	ODM_2T2R	=	2,
-	ODM_2T3R	=	3,
-	ODM_2T4R	=	4,
-	ODM_3T3R	=	5,
-	ODM_3T4R	=	6,
-	ODM_4T4R	=	7,
-};
-
-/*  ODM Dynamic common info value definition */
-
-enum odm_mac_phy_mode {
-	ODM_SMSP	= 0,
-	ODM_DMSP	= 1,
-	ODM_DMDP	= 2,
-};
-
-enum odm_bt_coexist {
-	ODM_BT_BUSY		= 1,
-	ODM_BT_ON		= 2,
-	ODM_BT_OFF		= 3,
-	ODM_BT_NONE		= 4,
-};
+# define ODM_ITRF_USB 0x2
 
 /*  ODM_CMNINFO_OP_MODE */
 enum odm_operation_mode {
@@ -538,50 +304,10 @@ enum odm_wireless_mode {
 	ODM_WM_AUTO	= BIT(5),
 };
 
-/*  ODM_CMNINFO_BAND */
-enum odm_band_type {
-	ODM_BAND_2_4G	= BIT(0),
-};
-
-/*  ODM_CMNINFO_SEC_CHNL_OFFSET */
-enum odm_sec_chnl_offset {
-	ODM_DONT_CARE	= 0,
-	ODM_BELOW	= 1,
-	ODM_ABOVE	= 2
-};
-
-/*  ODM_CMNINFO_SEC_MODE */
-enum odm_security {
-	ODM_SEC_OPEN		= 0,
-	ODM_SEC_WEP40		= 1,
-	ODM_SEC_TKIP		= 2,
-	ODM_SEC_RESERVE		= 3,
-	ODM_SEC_AESCCMP		= 4,
-	ODM_SEC_WEP104		= 5,
-	ODM_WEP_WPA_MIXED   	= 6, /*  WEP + WPA */
-	ODM_SEC_SMS4		= 7,
-};
-
 /*  ODM_CMNINFO_BW */
 enum odm_bw {
 	ODM_BW20M		= 0,
 	ODM_BW40M		= 1,
-};
-
-/*  ODM_CMNINFO_BOARD_TYPE */
-enum odm_board_type {
-	ODM_BOARD_NORMAL	= 0,
-	ODM_BOARD_HIGHPWR	= 1,
-	ODM_BOARD_MINICARD	= 2,
-	ODM_BOARD_SLIM		= 3,
-	ODM_BOARD_COMBO		= 4,
-};
-
-/*  ODM_CMNINFO_ONE_PATH_CCA */
-enum odm_cca_path {
-	ODM_CCA_2R		= 0,
-	ODM_CCA_1R_A		= 1,
-	ODM_CCA_1R_B		= 2,
 };
 
 struct odm_ra_info {
@@ -664,7 +390,7 @@ struct odm_rf_cal {
 
 	u8	ThermalValue_HP[HP_THERMAL_NUM];
 	u8	ThermalValue_HP_index;
-	struct ijk_matrix_regs_set IQKMatrixRegSetting[IQK_Matrix_Settings_NUM];
+	struct ijk_matrix_regs_set IQKMatrixRegSetting;
 
 	u8	Delta_IQK;
 	u8	Delta_LCK;
@@ -680,7 +406,6 @@ struct odm_rf_cal {
 	u32	Reg864;
 
 	bool	bIQKInitialized;
-	bool	bLCKInProgress;
 	bool	bAntennaDetected;
 	u32	ADDA_backup[IQK_ADDA_REG_NUM];
 	u32	IQK_MAC_backup[IQK_MAC_REG_NUM];
@@ -730,7 +455,6 @@ enum ant_div_type {
 	CGCS_RX_HW_ANTDIV		= 0x02,
 	FIXED_HW_ANTDIV			= 0x03,
 	CG_TRX_SMART_ANTDIV		= 0x04,
-	CGCS_RX_SW_ANTDIV		= 0x05,
 };
 
 /* Copy from SD4 defined structure. We use to support PHY DM integration. */
@@ -752,34 +476,9 @@ struct odm_dm_struct {
 /* 1  COMMON INFORMATION */
 	/*  Init Value */
 /* HOOK BEFORE REG INIT----------- */
-	/*  ODM Platform info AP/ADSL/CE/MP = 1/2/3/4 */
-	u8	SupportPlatform;
 	/*  ODM Support Ability DIG/RATR/TX_PWR_TRACK/ �K�K = 1/2/3/�K */
 	u32	SupportAbility;
-	/*  ODM PCIE/USB/SDIO/GSPI = 0/1/2/3 */
-	u8	SupportInterface;
-	/*  ODM composite or independent. Bit oriented/ 92C+92D+ .... or any
-	 *  other type = 1/2/3/... */
-	u32	SupportICType;
-	/*  Cut Version TestChip/A-cut/B-cut... = 0/1/2/3/... */
-	u8	CutVersion;
-	/*  Fab Version TSMC/UMC = 0/1 */
-	u8	FabVersion;
-	/*  RF Type 4T4R/3T3R/2T2R/1T2R/1T1R/... */
-	u8	RFType;
-	/*  Board Type Normal/HighPower/MiniCard/SLIM/Combo/. = 0/1/2/3/4/. */
-	u8	BoardType;
-	/*  with external LNA  NO/Yes = 0/1 */
-	u8	ExtLNA;
-	/*  with external PA  NO/Yes = 0/1 */
-	u8	ExtPA;
-	/*  with external TRSW  NO/Yes = 0/1 */
-	u8	ExtTRSW;
-	u8	PatchID; /* Customer ID */
-	bool	bInHctTest;
-	bool	bWIFITest;
 
-	bool	bDualMacSmartConcurrent;
 	u32	BK_SupportAbility;
 	u8	AntDivType;
 /* HOOK BEFORE REG INIT----------- */
@@ -791,16 +490,12 @@ struct odm_dm_struct {
 	bool	bool_temp;
 	struct adapter *adapter_temp;
 
-	/*  MAC PHY Mode SMSP/DMSP/DMDP = 0/1/2 */
-	u8	*pMacPhyMode;
 	/* TX Unicast byte count */
 	u64	*pNumTxBytesUnicast;
 	/* RX Unicast byte count */
 	u64	*pNumRxBytesUnicast;
 	/*  Wireless mode B/G/A/N = BIT(0)/BIT(1)/BIT(2)/BIT(3) */
 	u8	*pWirelessMode; /* ODM_WIRELESS_MODE_E */
-	/*  Frequence band 2.4G/5G = 0/1 */
-	u8	*pBandType;
 	/*  Secondary channel offset don't_care/below/above = 0/1/2 */
 	u8	*pSecChOffset;
 	/*  Security mode Open/WEP/AES/TKIP = 0/1/2/3 */
@@ -850,13 +545,6 @@ struct odm_dm_struct {
 	struct odm_ra_info RAInfo[ODM_ASSOCIATE_ENTRY_NUM]; /* Use MacID as
 			* array index. STA MacID=0,
 			* VWiFi Client MacID={1, ODM_ASSOCIATE_ENTRY_NUM-1} */
-	/*  */
-	/*  2012/02/14 MH Add to share 88E ra with other SW team. */
-	/*  We need to colelct all support abilit to a proper area. */
-	/*  */
-	bool	RaSupport88E;
-
-	/*  Define ........... */
 
 	/*  Latest packet phy info (ODM write) */
 	struct odm_phy_dbg_info PhyDbgInfo;
@@ -895,9 +583,6 @@ struct odm_dm_struct {
 	bool	bPSDinProcess;
 	bool	bDMInitialGainEnable;
 
-	/* for rate adaptive, in fact,  88c/92c fw will handle this */
-	u8	bUseRAMask;
-
 	struct odm_rate_adapt RateAdaptive;
 
 	struct odm_rf_cal RFCalibrateInfo;
@@ -911,7 +596,6 @@ struct odm_dm_struct {
 	u8	BbSwingIdxCckCurrent;
 	u8	BbSwingIdxCckBase;
 	bool	BbSwingFlagCck;
-	u8	*mp_mode;
 	/*  ODM system resource. */
 
 	/*  ODM relative time. */
@@ -921,13 +605,6 @@ struct odm_dm_struct {
 	struct timer_list FastAntTrainingTimer;
 };		/*  DM_Dynamic_Mechanism_Structure */
 
-enum ODM_RF_CONTENT {
-	odm_radioa_txt = 0x1000,
-	odm_radiob_txt = 0x1001,
-	odm_radioc_txt = 0x1002,
-	odm_radiod_txt = 0x1003
-};
-
 enum odm_bb_config_type {
     CONFIG_BB_PHY_REG,
     CONFIG_BB_AGC_TAB,
@@ -935,37 +612,8 @@ enum odm_bb_config_type {
     CONFIG_BB_PHY_REG_PG,
 };
 
-/*  Status code */
-enum rt_status {
-	RT_STATUS_SUCCESS,
-	RT_STATUS_FAILURE,
-	RT_STATUS_PENDING,
-	RT_STATUS_RESOURCE,
-	RT_STATUS_INVALID_CONTEXT,
-	RT_STATUS_INVALID_PARAMETER,
-	RT_STATUS_NOT_SUPPORT,
-	RT_STATUS_OS_API_FAILED,
-};
-
-/* 3=========================================================== */
-/* 3 DIG */
-/* 3=========================================================== */
-
-enum dm_dig_op {
-	RT_TYPE_THRESH_HIGH	= 0,
-	RT_TYPE_THRESH_LOW	= 1,
-	RT_TYPE_BACKOFF		= 2,
-	RT_TYPE_RX_GAIN_MIN	= 3,
-	RT_TYPE_RX_GAIN_MAX	= 4,
-	RT_TYPE_ENABLE		= 5,
-	RT_TYPE_DISABLE		= 6,
-	DIG_OP_TYPE_MAX
-};
-
 #define		DM_DIG_THRESH_HIGH	40
 #define		DM_DIG_THRESH_LOW	35
-
-#define		DM_SCAN_RSSI_TH		0x14 /* scan return issue for LC */
 
 #define		DM_false_ALARM_THRESH_LOW	400
 #define		DM_false_ALARM_THRESH_HIGH	1000
@@ -974,63 +622,16 @@ enum dm_dig_op {
 #define		DM_DIG_MIN_NIC			0x1e /* 0x22/0x1c */
 
 #define		DM_DIG_MAX_AP			0x32
-#define		DM_DIG_MIN_AP			0x20
-
-#define		DM_DIG_MAX_NIC_HP		0x46
-#define		DM_DIG_MIN_NIC_HP		0x2e
-
-#define		DM_DIG_MAX_AP_HP		0x42
-#define		DM_DIG_MIN_AP_HP		0x30
 
 /* vivi 92c&92d has different definition, 20110504 */
 /* this is for 92c */
 #define		DM_DIG_FA_TH0			0x200/* 0x20 */
 #define		DM_DIG_FA_TH1			0x300/* 0x100 */
 #define		DM_DIG_FA_TH2			0x400/* 0x200 */
-/* this is for 92d */
-#define		DM_DIG_FA_TH0_92D		0x100
-#define		DM_DIG_FA_TH1_92D		0x400
-#define		DM_DIG_FA_TH2_92D		0x600
 
 #define		DM_DIG_BACKOFF_MAX		12
 #define		DM_DIG_BACKOFF_MIN		-4
 #define		DM_DIG_BACKOFF_DEFAULT		10
-
-/* 3=========================================================== */
-/* 3 AGC RX High Power Mode */
-/* 3=========================================================== */
-#define	  LNA_Low_Gain_1		0x64
-#define	  LNA_Low_Gain_2		0x5A
-#define	  LNA_Low_Gain_3		0x58
-
-#define	  FA_RXHP_TH1			5000
-#define	  FA_RXHP_TH2			1500
-#define	  FA_RXHP_TH3			800
-#define	  FA_RXHP_TH4			600
-#define	  FA_RXHP_TH5			500
-
-/* 3=========================================================== */
-/* 3 EDCA */
-/* 3=========================================================== */
-
-/* 3=========================================================== */
-/* 3 Dynamic Tx Power */
-/* 3=========================================================== */
-/* Dynamic Tx Power Control Threshold */
-#define		TX_POWER_NEAR_FIELD_THRESH_LVL2	74
-#define		TX_POWER_NEAR_FIELD_THRESH_LVL1	67
-#define		TX_POWER_NEAR_FIELD_THRESH_AP		0x3F
-
-#define		TxHighPwrLevel_Normal		0
-#define		TxHighPwrLevel_Level1		1
-#define		TxHighPwrLevel_Level2		2
-#define		TxHighPwrLevel_BT1		3
-#define		TxHighPwrLevel_BT2		4
-#define		TxHighPwrLevel_15		5
-#define		TxHighPwrLevel_35		6
-#define		TxHighPwrLevel_50		7
-#define		TxHighPwrLevel_70		8
-#define		TxHighPwrLevel_100		9
 
 /* 3=========================================================== */
 /* 3 Rate Adaptive */
@@ -1065,11 +666,7 @@ enum dm_swas {
 	Antenna_MAX = 3,
 };
 
-/*  Maximal number of antenna detection mechanism needs to perform. */
-#define	MAX_ANTENNA_DETECTION_CNT	10
-
 /*  Extern Global Variables. */
-#define	OFDM_TABLE_SIZE_92C	37
 #define	OFDM_TABLE_SIZE_92D	43
 #define	CCK_TABLE_SIZE		33
 
@@ -1079,43 +676,18 @@ extern	u8 CCKSwingTable_Ch14 [CCK_TABLE_SIZE][8];
 
 /*  check Sta pointer valid or not */
 #define IS_STA_VALID(pSta)		(pSta)
-/*  20100514 Joseph: Add definition for antenna switching test after link. */
-/*  This indicates two different the steps. */
-/*  In SWAW_STEP_PEAK, driver needs to switch antenna and listen to the
- *  signal on the air. */
-/*  In SWAW_STEP_DETERMINE, driver just compares the signal captured in
- *  SWAW_STEP_PEAK */
-/*  with original RSSI to determine if it is necessary to switch antenna. */
-#define SWAW_STEP_PEAK		0
-#define SWAW_STEP_DETERMINE	1
 
 void ODM_Write_DIG(struct odm_dm_struct *pDM_Odm, u8 CurrentIGI);
 void ODM_Write_CCK_CCA_Thres(struct odm_dm_struct *pDM_Odm, u8 CurCCK_CCAThres);
 
 void ODM_SetAntenna(struct odm_dm_struct *pDM_Odm, u8 Antenna);
 
-#define dm_RF_Saving	ODM_RF_Saving
 void ODM_RF_Saving(struct odm_dm_struct *pDM_Odm, u8 bForceInNormal);
 
-#define SwAntDivRestAfterLink	ODM_SwAntDivRestAfterLink
-void ODM_SwAntDivRestAfterLink(struct odm_dm_struct *pDM_Odm);
-
-#define dm_CheckTXPowerTracking ODM_TXPowerTrackingCheck
 void ODM_TXPowerTrackingCheck(struct odm_dm_struct *pDM_Odm);
 
 bool ODM_RAStateCheck(struct odm_dm_struct *pDM_Odm, s32 RSSI,
 		      bool bForceUpdate, u8 *pRATRState);
-
-#define dm_SWAW_RSSI_Check	ODM_SwAntDivChkPerPktRssi
-void ODM_SwAntDivChkPerPktRssi(struct odm_dm_struct *pDM_Odm, u8 StationID,
-			       struct odm_phy_status_info *pPhyInfo);
-
-u32 ConvertTo_dB(u32 Value);
-
-u32 GetPSDData(struct odm_dm_struct *pDM_Odm, unsigned int point,
-	       u8 initial_gain_psd);
-
-void odm_DIGbyRSSI_LPS(struct odm_dm_struct *pDM_Odm);
 
 u32 ODM_Get_Rate_Bitmap(struct odm_dm_struct *pDM_Odm, u32 macid,
 			u32 ra_mask, u8 rssi_level);
@@ -1130,25 +702,6 @@ void ODM_CmnInfoInit(struct odm_dm_struct *pDM_Odm,
 void ODM_CmnInfoHook(struct odm_dm_struct *pDM_Odm,
 		     enum odm_common_info_def CmnInfo, void *pValue);
 
-void ODM_CmnInfoPtrArrayHook(struct odm_dm_struct *pDM_Odm,
-			     enum odm_common_info_def CmnInfo,
-			     u16 Index, void *pValue);
-
 void ODM_CmnInfoUpdate(struct odm_dm_struct *pDM_Odm, u32 CmnInfo, u64 Value);
-
-void ODM_InitAllTimers(struct odm_dm_struct *pDM_Odm);
-
-void ODM_CancelAllTimers(struct odm_dm_struct *pDM_Odm);
-
-void ODM_ReleaseAllTimers(struct odm_dm_struct *pDM_Odm);
-
-void ODM_AntselStatistics_88C(struct odm_dm_struct *pDM_Odm, u8 MacId,
-			      u32 PWDBAll, bool isCCKrate);
-
-void ODM_SingleDualAntennaDefaultSetting(struct odm_dm_struct *pDM_Odm);
-
-bool ODM_SingleDualAntennaDetection(struct odm_dm_struct *pDM_Odm, u8 mode);
-
-void odm_dtc(struct odm_dm_struct *pDM_Odm);
 
 #endif

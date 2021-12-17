@@ -13,6 +13,7 @@
 
 		mt6358codec: mt6358codec {
 			compatible = "mediatek,mt6358-sound";
+			mediatek,dmic-mode = <0>; /* two-wires */
 		};
 
 		mt6358regulator: mt6358regulator {

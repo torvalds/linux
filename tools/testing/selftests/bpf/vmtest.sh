@@ -224,10 +224,10 @@ EOF
 		-nodefaults \
 		-display none \
 		-serial mon:stdio \
-		-cpu kvm64 \
+		-cpu host \
 		-enable-kvm \
-		-smp 4 \
-		-m 2G \
+		-smp 8 \
+		-m 4G \
 		-drive file="${rootfs_img}",format=raw,index=1,media=disk,if=virtio,cache=none \
 		-kernel "${kernel_bzimage}" \
 		-append "root=/dev/vda rw console=ttyS0,115200"

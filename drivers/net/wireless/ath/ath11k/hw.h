@@ -6,6 +6,7 @@
 #ifndef ATH11K_HW_H
 #define ATH11K_HW_H
 
+#include "hal.h"
 #include "wmi.h"
 
 /* Target configuration defines */
@@ -119,6 +120,10 @@ struct ath11k_hw_ring_mask {
 	u8 host2rxdma[ATH11K_EXT_IRQ_GRP_NUM_MAX];
 };
 
+struct ath11k_hw_hal_params {
+	enum hal_rx_buf_return_buf_manager rx_buf_rbm;
+};
+
 struct ath11k_hw_params {
 	const char *name;
 	u16 hw_rev;
@@ -128,7 +133,7 @@ struct ath11k_hw_params {
 	struct {
 		const char *dir;
 		size_t board_size;
-		size_t cal_size;
+		size_t cal_offset;
 	} fw;
 
 	const struct ath11k_hw_ops *hw_ops;
@@ -152,8 +157,14 @@ struct ath11k_hw_params {
 	bool rx_mac_buf_ring;
 	bool vdev_start_delay;
 	bool htt_peer_map_v2;
-	bool tcl_0_only;
-	u8 spectral_fft_sz;
+
+	struct {
+		u8 fft_sz;
+		u8 fft_pad_sz;
+		u8 summary_pad_sz;
+		u8 fft_hdr_len;
+		u16 max_fft_bins;
+	} spectral;
 
 	u16 interface_modes;
 	bool supports_monitor;
@@ -163,6 +174,8 @@ struct ath11k_hw_params {
 	bool supports_suspend;
 	u32 hal_desc_sz;
 	bool fix_l1ss;
+	u8 max_tx_ring;
+	const struct ath11k_hw_hal_params *hal_params;
 };
 
 struct ath11k_hw_ops {
@@ -202,6 +215,8 @@ struct ath11k_hw_ops {
 	u8 *(*rx_desc_get_msdu_payload)(struct hal_rx_desc *desc);
 	void (*reo_setup)(struct ath11k_base *ab);
 	u16 (*mpdu_info_get_peerid)(u8 *tlv_data);
+	bool (*rx_desc_mac_addr2_valid)(struct hal_rx_desc *desc);
+	u8* (*rx_desc_mpdu_start_addr2)(struct hal_rx_desc *desc);
 };
 
 extern const struct ath11k_hw_ops ipq8074_ops;
@@ -213,6 +228,9 @@ extern const struct ath11k_hw_ops wcn6855_ops;
 extern const struct ath11k_hw_ring_mask ath11k_hw_ring_mask_ipq8074;
 extern const struct ath11k_hw_ring_mask ath11k_hw_ring_mask_qca6390;
 extern const struct ath11k_hw_ring_mask ath11k_hw_ring_mask_qcn9074;
+
+extern const struct ath11k_hw_hal_params ath11k_hw_hal_params_ipq8074;
+extern const struct ath11k_hw_hal_params ath11k_hw_hal_params_qca6390;
 
 static inline
 int ath11k_hw_get_mac_from_pdev_id(struct ath11k_hw_params *hw,

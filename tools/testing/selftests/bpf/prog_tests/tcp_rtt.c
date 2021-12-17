@@ -109,7 +109,7 @@ static int run_test(int cgroup_fd, int server_fd)
 		return -1;
 	}
 
-	map = bpf_map__next(NULL, obj);
+	map = bpf_object__next_map(obj, NULL);
 	map_fd = bpf_map__fd(map);
 
 	err = bpf_prog_attach(prog_fd, cgroup_fd, BPF_CGROUP_SOCK_OPS, 0);

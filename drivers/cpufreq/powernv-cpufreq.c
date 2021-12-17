@@ -934,7 +934,7 @@ static void powernv_cpufreq_work_fn(struct work_struct *work)
 		policy = cpufreq_cpu_get(cpu);
 		if (!policy)
 			continue;
-		index = cpufreq_table_find_index_c(policy, policy->cur);
+		index = cpufreq_table_find_index_c(policy, policy->cur, false);
 		powernv_cpufreq_target_index(policy, index);
 		cpumask_andnot(&mask, &mask, policy->cpus);
 		cpufreq_cpu_put(policy);
@@ -1022,7 +1022,7 @@ static unsigned int powernv_fast_switch(struct cpufreq_policy *policy,
 	int index;
 	struct powernv_smp_call_data freq_data;
 
-	index = cpufreq_table_find_index_dl(policy, target_freq);
+	index = cpufreq_table_find_index_dl(policy, target_freq, false);
 	freq_data.pstate_id = powernv_freqs[index].driver_data;
 	freq_data.gpstate_id = powernv_freqs[index].driver_data;
 	set_pstate(&freq_data);

@@ -2105,10 +2105,10 @@ mlx4_ib_alloc_hw_device_stats(struct ib_device *ibdev)
 	struct mlx4_ib_dev *dev = to_mdev(ibdev);
 	struct mlx4_ib_diag_counters *diag = dev->diag_counters;
 
-	if (!diag[0].name)
+	if (!diag[0].descs)
 		return NULL;
 
-	return rdma_alloc_hw_stats_struct(diag[0].name, diag[0].num_counters,
+	return rdma_alloc_hw_stats_struct(diag[0].descs, diag[0].num_counters,
 					  RDMA_HW_STATS_DEFAULT_LIFESPAN);
 }
 
@@ -2118,10 +2118,10 @@ mlx4_ib_alloc_hw_port_stats(struct ib_device *ibdev, u32 port_num)
 	struct mlx4_ib_dev *dev = to_mdev(ibdev);
 	struct mlx4_ib_diag_counters *diag = dev->diag_counters;
 
-	if (!diag[1].name)
+	if (!diag[1].descs)
 		return NULL;
 
-	return rdma_alloc_hw_stats_struct(diag[1].name, diag[1].num_counters,
+	return rdma_alloc_hw_stats_struct(diag[1].descs, diag[1].num_counters,
 					  RDMA_HW_STATS_DEFAULT_LIFESPAN);
 }
 
@@ -2151,10 +2151,8 @@ static int mlx4_ib_get_hw_stats(struct ib_device *ibdev,
 }
 
 static int __mlx4_ib_alloc_diag_counters(struct mlx4_ib_dev *ibdev,
-					 const char ***name,
-					 u32 **offset,
-					 u32 *num,
-					 bool port)
+					 struct rdma_stat_desc **pdescs,
+					 u32 **offset, u32 *num, bool port)
 {
 	u32 num_counters;
 
@@ -2166,46 +2164,46 @@ static int __mlx4_ib_alloc_diag_counters(struct mlx4_ib_dev *ibdev,
 	if (!port)
 		num_counters += ARRAY_SIZE(diag_device_only);
 
-	*name = kcalloc(num_counters, sizeof(**name), GFP_KERNEL);
-	if (!*name)
+	*pdescs = kcalloc(num_counters, sizeof(struct rdma_stat_desc),
+			  GFP_KERNEL);
+	if (!*pdescs)
 		return -ENOMEM;
 
 	*offset = kcalloc(num_counters, sizeof(**offset), GFP_KERNEL);
 	if (!*offset)
-		goto err_name;
+		goto err;
 
 	*num = num_counters;
 
 	return 0;
 
-err_name:
-	kfree(*name);
+err:
+	kfree(*pdescs);
 	return -ENOMEM;
 }
 
 static void mlx4_ib_fill_diag_counters(struct mlx4_ib_dev *ibdev,
-				       const char **name,
-				       u32 *offset,
-				       bool port)
+				       struct rdma_stat_desc *descs,
+				       u32 *offset, bool port)
 {
 	int i;
 	int j;
 
 	for (i = 0, j = 0; i < ARRAY_SIZE(diag_basic); i++, j++) {
-		name[i] = diag_basic[i].name;
+		descs[i].name = diag_basic[i].name;
 		offset[i] = diag_basic[i].offset;
 	}
 
 	if (ibdev->dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_DIAG_PER_PORT) {
 		for (i = 0; i < ARRAY_SIZE(diag_ext); i++, j++) {
-			name[j] = diag_ext[i].name;
+			descs[j].name = diag_ext[i].name;
 			offset[j] = diag_ext[i].offset;
 		}
 	}
 
 	if (!port) {
 		for (i = 0; i < ARRAY_SIZE(diag_device_only); i++, j++) {
-			name[j] = diag_device_only[i].name;
+			descs[j].name = diag_device_only[i].name;
 			offset[j] = diag_device_only[i].offset;
 		}
 	}
@@ -2214,6 +2212,11 @@ static void mlx4_ib_fill_diag_counters(struct mlx4_ib_dev *ibdev,
 static const struct ib_device_ops mlx4_ib_hw_stats_ops = {
 	.alloc_hw_device_stats = mlx4_ib_alloc_hw_device_stats,
 	.alloc_hw_port_stats = mlx4_ib_alloc_hw_port_stats,
+	.get_hw_stats = mlx4_ib_get_hw_stats,
+};
+
+static const struct ib_device_ops mlx4_ib_hw_stats_ops1 = {
+	.alloc_hw_device_stats = mlx4_ib_alloc_hw_device_stats,
 	.get_hw_stats = mlx4_ib_get_hw_stats,
 };
 
@@ -2229,17 +2232,24 @@ static int mlx4_ib_alloc_diag_counters(struct mlx4_ib_dev *ibdev)
 		return 0;
 
 	for (i = 0; i < MLX4_DIAG_COUNTERS_TYPES; i++) {
-		/* i == 1 means we are building port counters */
-		if (i && !per_port)
-			continue;
+		/*
+		 * i == 1 means we are building port counters, set a different
+		 * stats ops without port stats callback.
+		 */
+		if (i && !per_port) {
+			ib_set_device_ops(&ibdev->ib_dev,
+					  &mlx4_ib_hw_stats_ops1);
 
-		ret = __mlx4_ib_alloc_diag_counters(ibdev, &diag[i].name,
+			return 0;
+		}
+
+		ret = __mlx4_ib_alloc_diag_counters(ibdev, &diag[i].descs,
 						    &diag[i].offset,
 						    &diag[i].num_counters, i);
 		if (ret)
 			goto err_alloc;
 
-		mlx4_ib_fill_diag_counters(ibdev, diag[i].name,
+		mlx4_ib_fill_diag_counters(ibdev, diag[i].descs,
 					   diag[i].offset, i);
 	}
 
@@ -2249,7 +2259,7 @@ static int mlx4_ib_alloc_diag_counters(struct mlx4_ib_dev *ibdev)
 
 err_alloc:
 	if (i) {
-		kfree(diag[i - 1].name);
+		kfree(diag[i - 1].descs);
 		kfree(diag[i - 1].offset);
 	}
 
@@ -2262,7 +2272,7 @@ static void mlx4_ib_diag_cleanup(struct mlx4_ib_dev *ibdev)
 
 	for (i = 0; i < MLX4_DIAG_COUNTERS_TYPES; i++) {
 		kfree(ibdev->diag_counters[i].offset);
-		kfree(ibdev->diag_counters[i].name);
+		kfree(ibdev->diag_counters[i].descs);
 	}
 }
 
@@ -2275,7 +2285,7 @@ static void mlx4_ib_update_qps(struct mlx4_ib_dev *ibdev,
 	u64 release_mac = MLX4_IB_INVALID_MAC;
 	struct mlx4_ib_qp *qp;
 
-	new_smac = mlx4_mac_to_u64(dev->dev_addr);
+	new_smac = ether_addr_to_u64(dev->dev_addr);
 	atomic64_set(&ibdev->iboe.mac[port - 1], new_smac);
 
 	/* no need for update QP1 and mac registration in non-SRIOV */

@@ -23,6 +23,8 @@
  * @groupcounter:		index of next attribute group
  * @legacy_scan_el_group:	attribute group for legacy scan elements attribute group
  * @legacy_buffer_group:	attribute group for legacy buffer attributes group
+ * @bounce_buffer:		for devices that call iio_push_to_buffers_with_timestamp_unaligned()
+ * @bounce_buffer_size:		size of currently allocate bounce buffer
  * @scan_index_timestamp:	cache of the index to the timestamp
  * @clock_id:			timestamping clock posix identifier
  * @chrdev:			associated character device
@@ -50,6 +52,8 @@ struct iio_dev_opaque {
 	int				groupcounter;
 	struct attribute_group		legacy_scan_el_group;
 	struct attribute_group		legacy_buffer_group;
+	void				*bounce_buffer;
+	size_t				bounce_buffer_size;
 
 	unsigned int			scan_index_timestamp;
 	clockid_t			clock_id;

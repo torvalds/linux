@@ -6,16 +6,22 @@ config EROFS_FS
 	select FS_IOMAP
 	select LIBCRC32C
 	help
-	  EROFS (Enhanced Read-Only File System) is a lightweight
-	  read-only file system with modern designs (eg. page-sized
-	  blocks, inline xattrs/data, etc.) for scenarios which need
-	  high-performance read-only requirements, e.g. Android OS
-	  for mobile phones and LIVECDs.
+	  EROFS (Enhanced Read-Only File System) is a lightweight read-only
+	  file system with modern designs (e.g. no buffer heads, inline
+	  xattrs/data, chunk-based deduplication, multiple devices, etc.) for
+	  scenarios which need high-performance read-only solutions, e.g.
+	  smartphones with Android OS, LiveCDs and high-density hosts with
+	  numerous containers;
 
-	  It also provides fixed-sized output compression support,
-	  which improves storage density, keeps relatively higher
-	  compression ratios, which is more useful to achieve high
-	  performance for embedded devices with limited memory.
+	  It also provides fixed-sized output compression support in order to
+	  improve storage density as well as keep relatively higher compression
+	  ratios and implements in-place decompression to reuse the file page
+	  for compressed data temporarily with proper strategies, which is
+	  quite useful to ensure guaranteed end-to-end runtime decompression
+	  performance under extremely memory pressure without extra cost.
+
+	  See the documentation at <file:Documentation/filesystems/erofs.rst>
+	  for more details.
 
 	  If unsure, say N.
 
@@ -76,3 +82,19 @@ config EROFS_FS_ZIP
 	  Enable fixed-sized output compression for EROFS.
 
 	  If you don't want to enable compression feature, say N.
+
+config EROFS_FS_ZIP_LZMA
+	bool "EROFS LZMA compressed data support"
+	depends on EROFS_FS_ZIP
+	select XZ_DEC
+	select XZ_DEC_MICROLZMA
+	help
+	  Saying Y here includes support for reading EROFS file systems
+	  containing LZMA compressed data, specifically called microLZMA. it
+	  gives better compression ratios than the LZ4 algorithm, at the
+	  expense of more CPU overhead.
+
+	  LZMA support is an experimental feature for now and so most file
+	  systems will be readable without selecting this option.
+
+	  If unsure, say N.

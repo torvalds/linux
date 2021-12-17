@@ -125,7 +125,7 @@ static noinline depot_stack_handle_t save_stack(gfp_t flags)
 	return handle;
 }
 
-void __reset_page_owner(struct page *page, unsigned int order)
+void __reset_page_owner(struct page *page, unsigned short order)
 {
 	int i;
 	struct page_ext *page_ext;
@@ -149,7 +149,7 @@ void __reset_page_owner(struct page *page, unsigned int order)
 
 static inline void __set_page_owner_handle(struct page_ext *page_ext,
 					depot_stack_handle_t handle,
-					unsigned int order, gfp_t gfp_mask)
+					unsigned short order, gfp_t gfp_mask)
 {
 	struct page_owner *page_owner;
 	int i;
@@ -169,7 +169,7 @@ static inline void __set_page_owner_handle(struct page_ext *page_ext,
 	}
 }
 
-noinline void __set_page_owner(struct page *page, unsigned int order,
+noinline void __set_page_owner(struct page *page, unsigned short order,
 					gfp_t gfp_mask)
 {
 	struct page_ext *page_ext = lookup_page_ext(page);
@@ -210,10 +210,10 @@ void __split_page_owner(struct page *page, unsigned int nr)
 	}
 }
 
-void __copy_page_owner(struct page *oldpage, struct page *newpage)
+void __folio_copy_owner(struct folio *newfolio, struct folio *old)
 {
-	struct page_ext *old_ext = lookup_page_ext(oldpage);
-	struct page_ext *new_ext = lookup_page_ext(newpage);
+	struct page_ext *old_ext = lookup_page_ext(&old->page);
+	struct page_ext *new_ext = lookup_page_ext(&newfolio->page);
 	struct page_owner *old_page_owner, *new_page_owner;
 
 	if (unlikely(!old_ext || !new_ext))
@@ -231,11 +231,11 @@ void __copy_page_owner(struct page *oldpage, struct page *newpage)
 	new_page_owner->free_ts_nsec = old_page_owner->ts_nsec;
 
 	/*
-	 * We don't clear the bit on the oldpage as it's going to be freed
+	 * We don't clear the bit on the old folio as it's going to be freed
 	 * after migration. Until then, the info can be useful in case of
 	 * a bug, and the overall stats will be off a bit only temporarily.
 	 * Also, migrate_misplaced_transhuge_page() can still fail the
-	 * migration and then we want the oldpage to retain the info. But
+	 * migration and then we want the old folio to retain the info. But
 	 * in that case we also don't need to explicitly clear the info from
 	 * the new page, which will be freed.
 	 */
@@ -329,8 +329,6 @@ print_page_owner(char __user *buf, size_t count, unsigned long pfn,
 		depot_stack_handle_t handle)
 {
 	int ret, pageblock_mt, page_mt;
-	unsigned long *entries;
-	unsigned int nr_entries;
 	char *kbuf;
 
 	count = min_t(size_t, count, PAGE_SIZE);
@@ -351,18 +349,17 @@ print_page_owner(char __user *buf, size_t count, unsigned long pfn,
 	pageblock_mt = get_pageblock_migratetype(page);
 	page_mt  = gfp_migratetype(page_owner->gfp_mask);
 	ret += snprintf(kbuf + ret, count - ret,
-			"PFN %lu type %s Block %lu type %s Flags %#lx(%pGp)\n",
+			"PFN %lu type %s Block %lu type %s Flags %pGp\n",
 			pfn,
 			migratetype_names[page_mt],
 			pfn >> pageblock_order,
 			migratetype_names[pageblock_mt],
-			page->flags, &page->flags);
+			&page->flags);
 
 	if (ret >= count)
 		goto err;
 
-	nr_entries = stack_depot_fetch(handle, &entries);
-	ret += stack_trace_snprint(kbuf + ret, count - ret, entries, nr_entries, 0);
+	ret += stack_depot_snprint(handle, kbuf + ret, count - ret, 0);
 	if (ret >= count)
 		goto err;
 
@@ -394,8 +391,6 @@ void __dump_page_owner(const struct page *page)
 	struct page_ext *page_ext = lookup_page_ext(page);
 	struct page_owner *page_owner;
 	depot_stack_handle_t handle;
-	unsigned long *entries;
-	unsigned int nr_entries;
 	gfp_t gfp_mask;
 	int mt;
 
@@ -423,20 +418,17 @@ void __dump_page_owner(const struct page *page)
 		 page_owner->pid, page_owner->ts_nsec, page_owner->free_ts_nsec);
 
 	handle = READ_ONCE(page_owner->handle);
-	if (!handle) {
+	if (!handle)
 		pr_alert("page_owner allocation stack trace missing\n");
-	} else {
-		nr_entries = stack_depot_fetch(handle, &entries);
-		stack_trace_print(entries, nr_entries, 0);
-	}
+	else
+		stack_depot_print(handle);
 
 	handle = READ_ONCE(page_owner->free_handle);
 	if (!handle) {
 		pr_alert("page_owner free stack trace missing\n");
 	} else {
-		nr_entries = stack_depot_fetch(handle, &entries);
 		pr_alert("page last free stack trace:\n");
-		stack_trace_print(entries, nr_entries, 0);
+		stack_depot_print(handle);
 	}
 
 	if (page_owner->last_migrate_reason != -1)

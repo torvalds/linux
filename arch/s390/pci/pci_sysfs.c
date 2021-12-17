@@ -90,6 +90,14 @@ static ssize_t recover_store(struct device *dev, struct device_attribute *attr,
 
 		if (zdev_enabled(zdev)) {
 			ret = zpci_disable_device(zdev);
+			/*
+			 * Due to a z/VM vs LPAR inconsistency in the error
+			 * state the FH may indicate an enabled device but
+			 * disable says the device is already disabled don't
+			 * treat it as an error here.
+			 */
+			if (ret == -EINVAL)
+				ret = 0;
 			if (ret)
 				goto out;
 		}

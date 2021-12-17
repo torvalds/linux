@@ -671,7 +671,7 @@ buffer_setup_err:
 }
 EXPORT_SYMBOL(hmc5843_common_probe);
 
-int hmc5843_common_remove(struct device *dev)
+void hmc5843_common_remove(struct device *dev)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 
@@ -680,8 +680,6 @@ int hmc5843_common_remove(struct device *dev)
 
 	/*  sleep mode to save power */
 	hmc5843_set_mode(iio_priv(indio_dev), HMC5843_MODE_SLEEP);
-
-	return 0;
 }
 EXPORT_SYMBOL(hmc5843_common_remove);
 

@@ -20,34 +20,38 @@ static void pci_error_handlers(struct cxl_afu *afu,
 				pci_channel_state_t state)
 {
 	struct pci_dev *afu_dev;
+	struct pci_driver *afu_drv;
+	const struct pci_error_handlers *err_handler;
 
 	if (afu->phb == NULL)
 		return;
 
 	list_for_each_entry(afu_dev, &afu->phb->bus->devices, bus_list) {
-		if (!afu_dev->driver)
+		afu_drv = to_pci_driver(afu_dev->dev.driver);
+		if (!afu_drv)
 			continue;
 
+		err_handler = afu_drv->err_handler;
 		switch (bus_error_event) {
 		case CXL_ERROR_DETECTED_EVENT:
 			afu_dev->error_state = state;
 
-			if (afu_dev->driver->err_handler &&
-			    afu_dev->driver->err_handler->error_detected)
-				afu_dev->driver->err_handler->error_detected(afu_dev, state);
-		break;
+			if (err_handler &&
+			    err_handler->error_detected)
+				err_handler->error_detected(afu_dev, state);
+			break;
 		case CXL_SLOT_RESET_EVENT:
 			afu_dev->error_state = state;
 
-			if (afu_dev->driver->err_handler &&
-			    afu_dev->driver->err_handler->slot_reset)
-				afu_dev->driver->err_handler->slot_reset(afu_dev);
-		break;
+			if (err_handler &&
+			    err_handler->slot_reset)
+				err_handler->slot_reset(afu_dev);
+			break;
 		case CXL_RESUME_EVENT:
-			if (afu_dev->driver->err_handler &&
-			    afu_dev->driver->err_handler->resume)
-				afu_dev->driver->err_handler->resume(afu_dev);
-		break;
+			if (err_handler &&
+			    err_handler->resume)
+				err_handler->resume(afu_dev);
+			break;
 		}
 	}
 }

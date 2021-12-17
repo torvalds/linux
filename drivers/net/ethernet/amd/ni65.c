@@ -748,7 +748,7 @@ static void ni65_stop_start(struct net_device *dev,struct priv *p)
 #ifdef XMT_VIA_SKB
 			skb_save[i] = p->tmd_skb[i];
 #endif
-			buffer[i] = (u32) isa_bus_to_virt(tmdp->u.buffer);
+			buffer[i] = (unsigned long)isa_bus_to_virt(tmdp->u.buffer);
 			blen[i] = tmdp->blen;
 			tmdp->u.s.status = 0x0;
 		}

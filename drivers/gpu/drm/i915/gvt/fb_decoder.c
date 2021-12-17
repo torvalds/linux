@@ -427,7 +427,7 @@ int intel_vgpu_decode_sprite_plane(struct intel_vgpu *vgpu,
 
 	plane->tiled = !!(val & SPRITE_TILED);
 	color_order = !!(val & SPRITE_RGB_ORDER_RGBX);
-	yuv_order = (val & SPRITE_YUV_BYTE_ORDER_MASK) >>
+	yuv_order = (val & SPRITE_YUV_ORDER_MASK) >>
 				_SPRITE_YUV_ORDER_SHIFT;
 
 	fmt = (val & SPRITE_PIXFORMAT_MASK) >> _SPRITE_FMT_SHIFT;

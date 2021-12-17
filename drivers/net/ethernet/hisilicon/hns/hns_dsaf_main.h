@@ -210,7 +210,7 @@ struct hnae_vf_cb {
 	u8 port_index;
 	struct hns_mac_cb *mac_cb;
 	struct dsaf_device *dsaf_dev;
-	struct hnae_handle  ae_handle; /* must be the last number */
+	struct hnae_handle  ae_handle; /* must be the last member */
 };
 
 struct dsaf_int_xge_src {

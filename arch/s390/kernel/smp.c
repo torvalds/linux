@@ -723,7 +723,7 @@ void __init smp_save_dump_cpus(void)
 			/* Get the CPU registers */
 			smp_save_cpu_regs(sa, addr, is_boot_cpu, page);
 	}
-	memblock_free(page, PAGE_SIZE);
+	memblock_phys_free(page, PAGE_SIZE);
 	diag_amode31_ops.diag308_reset();
 	pcpu_set_smt(0);
 }
@@ -880,7 +880,7 @@ void __init smp_detect_cpus(void)
 
 	/* Add CPUs present at boot */
 	__smp_rescan_cpus(info, true);
-	memblock_free_early((unsigned long)info, sizeof(*info));
+	memblock_phys_free((unsigned long)info, sizeof(*info));
 }
 
 /*

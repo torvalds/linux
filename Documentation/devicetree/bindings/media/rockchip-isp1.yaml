@@ -15,13 +15,22 @@ description: |
 
 properties:
   compatible:
-    const: rockchip,rk3399-cif-isp
+    enum:
+      - rockchip,px30-cif-isp
+      - rockchip,rk3399-cif-isp
 
   reg:
     maxItems: 1
 
   interrupts:
-    maxItems: 1
+    minItems: 1
+    maxItems: 3
+
+  interrupt-names:
+    items:
+      - const: isp
+      - const: mi
+      - const: mipi
 
   clocks:
     minItems: 3
@@ -41,7 +50,7 @@ properties:
       - const: aclk
       - const: hclk
       # only for isp1
-      - const: pclk_isp
+      - const: pclk
 
   iommus:
     maxItems: 1
@@ -90,19 +99,29 @@ required:
   - power-domains
   - ports
 
-if:
-  properties:
-    compatible:
-      contains:
-        const: rockchip,rk3399-cif-isp
-then:
-  properties:
-    clocks:
-      minItems: 3
-      maxItems: 4
-    clock-names:
-      minItems: 3
-      maxItems: 4
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: rockchip,rk3399-cif-isp
+    then:
+      properties:
+        clocks:
+          minItems: 3
+          maxItems: 4
+        clock-names:
+          minItems: 3
+          maxItems: 4
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: rockchip,px30-cif-isp
+    then:
+      required:
+        - interrupt-names
 
 additionalProperties: false
 
@@ -180,6 +199,69 @@ examples:
                           data-lanes = <1>;
                       };
                   };
+            };
+        };
+    };
+
+  - |
+
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/power/px30-power.h>
+
+    parent1: parent {
+        #address-cells = <2>;
+        #size-cells = <2>;
+
+        isp: isp@ff4a0000 {
+            compatible = "rockchip,px30-cif-isp";
+            reg = <0x0 0xff4a0000 0x0 0x8000>;
+            interrupts = <GIC_SPI 70 IRQ_TYPE_LEVEL_HIGH>,
+                         <GIC_SPI 73 IRQ_TYPE_LEVEL_HIGH>,
+                         <GIC_SPI 74 IRQ_TYPE_LEVEL_HIGH>;
+            interrupt-names = "isp", "mi", "mipi";
+            clocks = <&cru SCLK_ISP0>,
+                     <&cru ACLK_ISP0_WRAPPER>,
+                     <&cru HCLK_ISP0_WRAPPER>,
+                     <&cru PCLK_ISP1_WRAPPER>;
+            clock-names = "isp", "aclk", "hclk", "pclk";
+            iommus = <&isp_mmu>;
+            phys = <&csi_dphy>;
+            phy-names = "dphy";
+            power-domains = <&power PX30_PD_VI>;
+
+            ports {
+                #address-cells = <1>;
+                #size-cells = <0>;
+
+                port@0 {
+                    reg = <0>;
+                    #address-cells = <1>;
+                    #size-cells = <0>;
+
+                    mipi_in_ucam1: endpoint@0 {
+                        reg = <0>;
+                        remote-endpoint = <&ucam1_out>;
+                        data-lanes = <1 2>;
+                    };
+                };
+            };
+        };
+
+        i2c2: i2c {
+            #address-cells = <1>;
+            #size-cells = <0>;
+
+            ov5695: camera@36 {
+                compatible = "ovti,ov5647";
+                reg = <0x36>;
+                clocks = <&cru SCLK_CIF_OUT>;
+
+                port {
+                    ucam1_out: endpoint {
+                        remote-endpoint = <&mipi_in_ucam1>;
+                        data-lanes = <1 2>;
+                    };
+                };
             };
         };
     };

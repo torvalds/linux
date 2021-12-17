@@ -41,10 +41,6 @@ properties:
           - adi,adp5585-02
             # Analog Devices ADP5589 Keypad Decoder and I/O Expansion
           - adi,adp5589
-            # +/-1C TDM Extended Temp Range I.C
-          - adi,adt7461
-            # +/-1C TDM Extended Temp Range I.C
-          - adt7461
             # AMS iAQ-Core VOC Sensor
           - ams,iaq-core
             # i2c serial eeprom  (24cxx)
@@ -77,6 +73,8 @@ properties:
           - dallas,ds4510
             # Digital Thermometer and Thermostat
           - dallas,ds75
+            # Delta Electronics DPS-650-AB power supply
+          - delta,dps650ab
           # Delta Electronics DPS920AB 920W 54V Power Supply
           - delta,dps920ab
             # 1/4 Brick DC/DC Regulated Power Module
@@ -113,8 +111,14 @@ properties:
           - mps,mp2888
             # Monolithic Power Systems Inc. multi-phase controller mp2975
           - mps,mp2975
-            # G751: Digital Temperature Sensor and Thermal Watchdog with Two-Wire Interface
-          - gmt,g751
+            # Honeywell Humidicon HIH-6130 humidity/temperature sensor
+          - honeywell,hi6130
+            # IBM Common Form Factor Power Supply Versions (all versions)
+          - ibm,cffps
+            # IBM Common Form Factor Power Supply Versions 1
+          - ibm,cffps1
+            # IBM Common Form Factor Power Supply Versions 2
+          - ibm,cffps2
             # Infineon IR36021 digital POL buck controller
           - infineon,ir36021
             # Infineon IR38064 Voltage Regulator
@@ -307,16 +311,22 @@ properties:
           - ti,hdc1050
             # Temperature and humidity sensor with i2c interface
           - ti,hdc1080
+            # Thermometer with SPI interface
+          - ti,lm70
+          - ti,lm71
             # Temperature sensor with 2-wire interface
           - ti,lm73
+            # Thermometer with SPI interface
+          - ti,lm74
             # Temperature sensor with integrated fan control
           - ti,lm96000
             # I2C Touch-Screen Controller
           - ti,tsc2003
             # Low Power Digital Temperature Sensor with SMBUS/Two Wire Serial Interface
-          - ti,tmp102
-            # Low Power Digital Temperature Sensor with SMBUS/Two Wire Serial Interface
           - ti,tmp103
+            # Thermometer with SPI interface
+          - ti,tmp121
+          - ti,tmp122
             # Digital Temperature Sensor
           - ti,tmp275
             # TI Dual channel DCAP+ multiphase controller TPS53676 with AVSBus

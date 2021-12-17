@@ -136,8 +136,7 @@ static inline void rtrs_srv_update_rdma_stats(struct rtrs_srv_stats *s,
 
 /* functions which are implemented in rtrs-srv-stats.c */
 int rtrs_srv_reset_rdma_stats(struct rtrs_srv_stats *stats, bool enable);
-ssize_t rtrs_srv_stats_rdma_to_str(struct rtrs_srv_stats *stats,
-				    char *page, size_t len);
+ssize_t rtrs_srv_stats_rdma_to_str(struct rtrs_srv_stats *stats, char *page);
 int rtrs_srv_reset_all_stats(struct rtrs_srv_stats *stats, bool enable);
 ssize_t rtrs_srv_reset_all_help(struct rtrs_srv_stats *stats,
 				 char *page, size_t len);

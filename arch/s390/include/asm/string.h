@@ -31,22 +31,18 @@ void *memmove(void *dest, const void *src, size_t n);
 #define __HAVE_ARCH_STRCMP	/* arch function */
 #define __HAVE_ARCH_STRCPY	/* inline & arch function */
 #define __HAVE_ARCH_STRLCAT	/* arch function */
-#define __HAVE_ARCH_STRLCPY	/* arch function */
 #define __HAVE_ARCH_STRLEN	/* inline & arch function */
 #define __HAVE_ARCH_STRNCAT	/* arch function */
 #define __HAVE_ARCH_STRNCPY	/* arch function */
 #define __HAVE_ARCH_STRNLEN	/* inline & arch function */
-#define __HAVE_ARCH_STRRCHR	/* arch function */
 #define __HAVE_ARCH_STRSTR	/* arch function */
 
 /* Prototypes for non-inlined arch strings functions. */
 int memcmp(const void *s1, const void *s2, size_t n);
 int strcmp(const char *s1, const char *s2);
 size_t strlcat(char *dest, const char *src, size_t n);
-size_t strlcpy(char *dest, const char *src, size_t size);
 char *strncat(char *dest, const char *src, size_t n);
 char *strncpy(char *dest, const char *src, size_t n);
-char *strrchr(const char *s, int c);
 char *strstr(const char *s1, const char *s2);
 #endif /* !CONFIG_KASAN */
 

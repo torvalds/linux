@@ -1174,6 +1174,9 @@ static bool wcd938x_readonly_register(struct device *dev, unsigned int reg)
 	case WCD938X_DIGITAL_INTR_STATUS_0:
 	case WCD938X_DIGITAL_INTR_STATUS_1:
 	case WCD938X_DIGITAL_INTR_STATUS_2:
+	case WCD938X_DIGITAL_INTR_CLEAR_0:
+	case WCD938X_DIGITAL_INTR_CLEAR_1:
+	case WCD938X_DIGITAL_INTR_CLEAR_2:
 	case WCD938X_DIGITAL_SWR_HM_TEST_0:
 	case WCD938X_DIGITAL_SWR_HM_TEST_1:
 	case WCD938X_DIGITAL_EFUSE_T_DATA_0:
@@ -4144,10 +4147,10 @@ static int wcd938x_codec_set_jack(struct snd_soc_component *comp,
 {
 	struct wcd938x_priv *wcd = dev_get_drvdata(comp->dev);
 
-	if (!jack)
+	if (jack)
 		return wcd_mbhc_start(wcd->wcd_mbhc, &wcd->mbhc_cfg, jack);
-
-	wcd_mbhc_stop(wcd->wcd_mbhc);
+	else
+		wcd_mbhc_stop(wcd->wcd_mbhc);
 
 	return 0;
 }

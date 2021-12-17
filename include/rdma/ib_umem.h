@@ -38,6 +38,7 @@ struct ib_umem_dmabuf {
 	unsigned long first_sg_offset;
 	unsigned long last_sg_trim;
 	void *private;
+	u8 pinned : 1;
 };
 
 static inline struct ib_umem_dmabuf *to_ib_umem_dmabuf(struct ib_umem *umem)
@@ -139,6 +140,10 @@ struct ib_umem_dmabuf *ib_umem_dmabuf_get(struct ib_device *device,
 					  unsigned long offset, size_t size,
 					  int fd, int access,
 					  const struct dma_buf_attach_ops *ops);
+struct ib_umem_dmabuf *ib_umem_dmabuf_get_pinned(struct ib_device *device,
+						 unsigned long offset,
+						 size_t size, int fd,
+						 int access);
 int ib_umem_dmabuf_map_pages(struct ib_umem_dmabuf *umem_dmabuf);
 void ib_umem_dmabuf_unmap_pages(struct ib_umem_dmabuf *umem_dmabuf);
 void ib_umem_dmabuf_release(struct ib_umem_dmabuf *umem_dmabuf);
@@ -176,6 +181,12 @@ struct ib_umem_dmabuf *ib_umem_dmabuf_get(struct ib_device *device,
 					  size_t size, int fd,
 					  int access,
 					  struct dma_buf_attach_ops *ops)
+{
+	return ERR_PTR(-EOPNOTSUPP);
+}
+static inline struct ib_umem_dmabuf *
+ib_umem_dmabuf_get_pinned(struct ib_device *device, unsigned long offset,
+			  size_t size, int fd, int access)
 {
 	return ERR_PTR(-EOPNOTSUPP);
 }

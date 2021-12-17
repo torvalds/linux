@@ -16,6 +16,9 @@
 #include <net/mctpdevice.h>
 #include <net/sock.h>
 
+#define CREATE_TRACE_POINTS
+#include <trace/events/mctp.h>
+
 /* socket implementation */
 
 static int mctp_release(struct socket *sock)
@@ -28,6 +31,19 @@ static int mctp_release(struct socket *sock)
 	}
 
 	return 0;
+}
+
+/* Generic sockaddr checks, padding checks only so far */
+static bool mctp_sockaddr_is_ok(const struct sockaddr_mctp *addr)
+{
+	return !addr->__smctp_pad0 && !addr->__smctp_pad1;
+}
+
+static bool mctp_sockaddr_ext_is_ok(const struct sockaddr_mctp_ext *addr)
+{
+	return !addr->__smctp_pad0[0] &&
+	       !addr->__smctp_pad0[1] &&
+	       !addr->__smctp_pad0[2];
 }
 
 static int mctp_bind(struct socket *sock, struct sockaddr *addr, int addrlen)
@@ -48,6 +64,9 @@ static int mctp_bind(struct socket *sock, struct sockaddr *addr, int addrlen)
 
 	/* it's a valid sockaddr for MCTP, cast and do protocol checks */
 	smctp = (struct sockaddr_mctp *)addr;
+
+	if (!mctp_sockaddr_is_ok(smctp))
+		return -EINVAL;
 
 	lock_sock(sk);
 
@@ -74,6 +93,7 @@ static int mctp_sendmsg(struct socket *sock, struct msghdr *msg, size_t len)
 	const int hlen = MCTP_HEADER_MAXLEN + sizeof(struct mctp_hdr);
 	int rc, addrlen = msg->msg_namelen;
 	struct sock *sk = sock->sk;
+	struct mctp_sock *msk = container_of(sk, struct mctp_sock, sk);
 	struct mctp_skb_cb *cb;
 	struct mctp_route *rt;
 	struct sk_buff *skb;
@@ -82,6 +102,8 @@ static int mctp_sendmsg(struct socket *sock, struct msghdr *msg, size_t len)
 		if (addrlen < sizeof(struct sockaddr_mctp))
 			return -EINVAL;
 		if (addr->smctp_family != AF_MCTP)
+			return -EINVAL;
+		if (!mctp_sockaddr_is_ok(addr))
 			return -EINVAL;
 		if (addr->smctp_tag & ~(MCTP_TAG_MASK | MCTP_TAG_OWNER))
 			return -EINVAL;
@@ -97,11 +119,6 @@ static int mctp_sendmsg(struct socket *sock, struct msghdr *msg, size_t len)
 	if (addr->smctp_network == MCTP_NET_ANY)
 		addr->smctp_network = mctp_default_net(sock_net(sk));
 
-	rt = mctp_route_lookup(sock_net(sk), addr->smctp_network,
-			       addr->smctp_addr.s_addr);
-	if (!rt)
-		return -EHOSTUNREACH;
-
 	skb = sock_alloc_send_skb(sk, hlen + 1 + len,
 				  msg->msg_flags & MSG_DONTWAIT, &rc);
 	if (!skb)
@@ -113,19 +130,46 @@ static int mctp_sendmsg(struct socket *sock, struct msghdr *msg, size_t len)
 	*(u8 *)skb_put(skb, 1) = addr->smctp_type;
 
 	rc = memcpy_from_msg((void *)skb_put(skb, len), msg, len);
-	if (rc < 0) {
-		kfree_skb(skb);
-		return rc;
-	}
+	if (rc < 0)
+		goto err_free;
 
 	/* set up cb */
 	cb = __mctp_cb(skb);
 	cb->net = addr->smctp_network;
 
+	/* direct addressing */
+	if (msk->addr_ext && addrlen >= sizeof(struct sockaddr_mctp_ext)) {
+		DECLARE_SOCKADDR(struct sockaddr_mctp_ext *,
+				 extaddr, msg->msg_name);
+
+		if (!mctp_sockaddr_ext_is_ok(extaddr) ||
+		    extaddr->smctp_halen > sizeof(cb->haddr)) {
+			rc = -EINVAL;
+			goto err_free;
+		}
+
+		cb->ifindex = extaddr->smctp_ifindex;
+		cb->halen = extaddr->smctp_halen;
+		memcpy(cb->haddr, extaddr->smctp_haddr, cb->halen);
+
+		rt = NULL;
+	} else {
+		rt = mctp_route_lookup(sock_net(sk), addr->smctp_network,
+				       addr->smctp_addr.s_addr);
+		if (!rt) {
+			rc = -EHOSTUNREACH;
+			goto err_free;
+		}
+	}
+
 	rc = mctp_local_output(sk, rt, skb, addr->smctp_addr.s_addr,
 			       addr->smctp_tag);
 
 	return rc ? : len;
+
+err_free:
+	kfree_skb(skb);
+	return rc;
 }
 
 static int mctp_recvmsg(struct socket *sock, struct msghdr *msg, size_t len,
@@ -133,6 +177,7 @@ static int mctp_recvmsg(struct socket *sock, struct msghdr *msg, size_t len,
 {
 	DECLARE_SOCKADDR(struct sockaddr_mctp *, addr, msg->msg_name);
 	struct sock *sk = sock->sk;
+	struct mctp_sock *msk = container_of(sk, struct mctp_sock, sk);
 	struct sk_buff *skb;
 	size_t msglen;
 	u8 type;
@@ -172,12 +217,25 @@ static int mctp_recvmsg(struct socket *sock, struct msghdr *msg, size_t len,
 
 		addr = msg->msg_name;
 		addr->smctp_family = AF_MCTP;
+		addr->__smctp_pad0 = 0;
 		addr->smctp_network = cb->net;
 		addr->smctp_addr.s_addr = hdr->src;
 		addr->smctp_type = type;
 		addr->smctp_tag = hdr->flags_seq_tag &
 					(MCTP_HDR_TAG_MASK | MCTP_HDR_FLAG_TO);
+		addr->__smctp_pad1 = 0;
 		msg->msg_namelen = sizeof(*addr);
+
+		if (msk->addr_ext) {
+			DECLARE_SOCKADDR(struct sockaddr_mctp_ext *, ae,
+					 msg->msg_name);
+			msg->msg_namelen = sizeof(*ae);
+			ae->smctp_ifindex = cb->ifindex;
+			ae->smctp_halen = cb->halen;
+			memset(ae->__smctp_pad0, 0x0, sizeof(ae->__smctp_pad0));
+			memset(ae->smctp_haddr, 0x0, sizeof(ae->smctp_haddr));
+			memcpy(ae->smctp_haddr, cb->haddr, cb->halen);
+		}
 	}
 
 	rc = len;
@@ -193,12 +251,45 @@ out_free:
 static int mctp_setsockopt(struct socket *sock, int level, int optname,
 			   sockptr_t optval, unsigned int optlen)
 {
-	return -EINVAL;
+	struct mctp_sock *msk = container_of(sock->sk, struct mctp_sock, sk);
+	int val;
+
+	if (level != SOL_MCTP)
+		return -EINVAL;
+
+	if (optname == MCTP_OPT_ADDR_EXT) {
+		if (optlen != sizeof(int))
+			return -EINVAL;
+		if (copy_from_sockptr(&val, optval, sizeof(int)))
+			return -EFAULT;
+		msk->addr_ext = val;
+		return 0;
+	}
+
+	return -ENOPROTOOPT;
 }
 
 static int mctp_getsockopt(struct socket *sock, int level, int optname,
 			   char __user *optval, int __user *optlen)
 {
+	struct mctp_sock *msk = container_of(sock->sk, struct mctp_sock, sk);
+	int len, val;
+
+	if (level != SOL_MCTP)
+		return -EINVAL;
+
+	if (get_user(len, optlen))
+		return -EFAULT;
+
+	if (optname == MCTP_OPT_ADDR_EXT) {
+		if (len != sizeof(int))
+			return -EINVAL;
+		val = !!msk->addr_ext;
+		if (copy_to_user(optval, &val, len))
+			return -EFAULT;
+		return 0;
+	}
+
 	return -EINVAL;
 }
 
@@ -223,16 +314,61 @@ static const struct proto_ops mctp_dgram_ops = {
 	.sendpage	= sock_no_sendpage,
 };
 
+static void mctp_sk_expire_keys(struct timer_list *timer)
+{
+	struct mctp_sock *msk = container_of(timer, struct mctp_sock,
+					     key_expiry);
+	struct net *net = sock_net(&msk->sk);
+	unsigned long next_expiry, flags;
+	struct mctp_sk_key *key;
+	struct hlist_node *tmp;
+	bool next_expiry_valid = false;
+
+	spin_lock_irqsave(&net->mctp.keys_lock, flags);
+
+	hlist_for_each_entry_safe(key, tmp, &msk->keys, sklist) {
+		spin_lock(&key->lock);
+
+		if (!time_after_eq(key->expiry, jiffies)) {
+			trace_mctp_key_release(key, MCTP_TRACE_KEY_TIMEOUT);
+			key->valid = false;
+			hlist_del_rcu(&key->hlist);
+			hlist_del_rcu(&key->sklist);
+			spin_unlock(&key->lock);
+			mctp_key_unref(key);
+			continue;
+		}
+
+		if (next_expiry_valid) {
+			if (time_before(key->expiry, next_expiry))
+				next_expiry = key->expiry;
+		} else {
+			next_expiry = key->expiry;
+			next_expiry_valid = true;
+		}
+		spin_unlock(&key->lock);
+	}
+
+	spin_unlock_irqrestore(&net->mctp.keys_lock, flags);
+
+	if (next_expiry_valid)
+		mod_timer(timer, next_expiry);
+}
+
 static int mctp_sk_init(struct sock *sk)
 {
 	struct mctp_sock *msk = container_of(sk, struct mctp_sock, sk);
 
 	INIT_HLIST_HEAD(&msk->keys);
+	timer_setup(&msk->key_expiry, mctp_sk_expire_keys, 0);
 	return 0;
 }
 
 static void mctp_sk_close(struct sock *sk, long timeout)
 {
+	struct mctp_sock *msk = container_of(sk, struct mctp_sock, sk);
+
+	del_timer_sync(&msk->key_expiry);
 	sk_common_release(sk);
 }
 
@@ -263,21 +399,23 @@ static void mctp_sk_unhash(struct sock *sk)
 	/* remove tag allocations */
 	spin_lock_irqsave(&net->mctp.keys_lock, flags);
 	hlist_for_each_entry_safe(key, tmp, &msk->keys, sklist) {
-		hlist_del_rcu(&key->sklist);
-		hlist_del_rcu(&key->hlist);
+		hlist_del(&key->sklist);
+		hlist_del(&key->hlist);
 
-		spin_lock(&key->reasm_lock);
+		trace_mctp_key_release(key, MCTP_TRACE_KEY_CLOSED);
+
+		spin_lock(&key->lock);
 		if (key->reasm_head)
 			kfree_skb(key->reasm_head);
 		key->reasm_head = NULL;
 		key->reasm_dead = true;
-		spin_unlock(&key->reasm_lock);
+		key->valid = false;
+		spin_unlock(&key->lock);
 
-		kfree_rcu(key, rcu);
+		/* key is no longer on the lookup lists, unref */
+		mctp_key_unref(key);
 	}
 	spin_unlock_irqrestore(&net->mctp.keys_lock, flags);
-
-	synchronize_rcu();
 }
 
 static struct proto mctp_proto = {
@@ -385,7 +523,7 @@ static __exit void mctp_exit(void)
 	sock_unregister(PF_MCTP);
 }
 
-module_init(mctp_init);
+subsys_initcall(mctp_init);
 module_exit(mctp_exit);
 
 MODULE_DESCRIPTION("MCTP core");

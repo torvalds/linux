@@ -27,7 +27,9 @@
 
 #define SMU13_DRIVER_IF_VERSION_INV 0xFFFFFFFF
 #define SMU13_DRIVER_IF_VERSION_YELLOW_CARP 0x04
-#define SMU13_DRIVER_IF_VERSION_ALDE 0x07
+#define SMU13_DRIVER_IF_VERSION_ALDE 0x08
+
+#define SMU13_MODE1_RESET_WAIT_TIME_IN_MS 500  //500ms
 
 /* MP Apertures */
 #define MP0_Public			0x03800000
@@ -163,7 +165,9 @@ int smu_v13_0_notify_display_change(struct smu_context *smu);
 int smu_v13_0_get_current_power_limit(struct smu_context *smu,
 				      uint32_t *power_limit);
 
-int smu_v13_0_set_power_limit(struct smu_context *smu, uint32_t n);
+int smu_v13_0_set_power_limit(struct smu_context *smu,
+			      enum smu_ppt_limit_type limit_type,
+			      uint32_t limit);
 
 int smu_v13_0_init_max_sustainable_clocks(struct smu_context *smu);
 
@@ -214,7 +218,6 @@ int smu_v13_0_baco_set_state(struct smu_context *smu, enum smu_baco_state state)
 int smu_v13_0_baco_enter(struct smu_context *smu);
 int smu_v13_0_baco_exit(struct smu_context *smu);
 
-int smu_v13_0_mode1_reset(struct smu_context *smu);
 int smu_v13_0_mode2_reset(struct smu_context *smu);
 
 int smu_v13_0_get_dpm_ultimate_freq(struct smu_context *smu, enum smu_clk_type clk_type,

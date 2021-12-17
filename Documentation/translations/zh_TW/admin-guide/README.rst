@@ -226,7 +226,7 @@ Linux內核5.x版本 <http://kernel.org/>
 編譯內核
 ---------
 
- - 確保您至少有gcc 4.9可用。
+ - 確保您至少有gcc 5.1可用。
    有關更多信息，請參閱 :ref:`Documentation/process/changes.rst <changes>` 。
 
    請注意，您仍然可以使用此內核運行a.out用戶程序。

@@ -233,36 +233,44 @@ static int mtk_spi_set_hw_cs_timing(struct spi_device *spi)
 		return delay;
 	inactive = (delay * DIV_ROUND_UP(mdata->spi_clk_hz, 1000000)) / 1000;
 
-	setup    = setup ? setup : 1;
-	hold     = hold ? hold : 1;
-	inactive = inactive ? inactive : 1;
-
-	reg_val = readl(mdata->base + SPI_CFG0_REG);
-	if (mdata->dev_comp->enhance_timing) {
-		hold = min_t(u32, hold, 0x10000);
-		setup = min_t(u32, setup, 0x10000);
-		reg_val &= ~(0xffff << SPI_ADJUST_CFG0_CS_HOLD_OFFSET);
-		reg_val |= (((hold - 1) & 0xffff)
-			   << SPI_ADJUST_CFG0_CS_HOLD_OFFSET);
-		reg_val &= ~(0xffff << SPI_ADJUST_CFG0_CS_SETUP_OFFSET);
-		reg_val |= (((setup - 1) & 0xffff)
-			   << SPI_ADJUST_CFG0_CS_SETUP_OFFSET);
-	} else {
-		hold = min_t(u32, hold, 0x100);
-		setup = min_t(u32, setup, 0x100);
-		reg_val &= ~(0xff << SPI_CFG0_CS_HOLD_OFFSET);
-		reg_val |= (((hold - 1) & 0xff) << SPI_CFG0_CS_HOLD_OFFSET);
-		reg_val &= ~(0xff << SPI_CFG0_CS_SETUP_OFFSET);
-		reg_val |= (((setup - 1) & 0xff)
-			    << SPI_CFG0_CS_SETUP_OFFSET);
+	if (hold || setup) {
+		reg_val = readl(mdata->base + SPI_CFG0_REG);
+		if (mdata->dev_comp->enhance_timing) {
+			if (hold) {
+				hold = min_t(u32, hold, 0x10000);
+				reg_val &= ~(0xffff << SPI_ADJUST_CFG0_CS_HOLD_OFFSET);
+				reg_val |= (((hold - 1) & 0xffff)
+					<< SPI_ADJUST_CFG0_CS_HOLD_OFFSET);
+			}
+			if (setup) {
+				setup = min_t(u32, setup, 0x10000);
+				reg_val &= ~(0xffff << SPI_ADJUST_CFG0_CS_SETUP_OFFSET);
+				reg_val |= (((setup - 1) & 0xffff)
+					<< SPI_ADJUST_CFG0_CS_SETUP_OFFSET);
+			}
+		} else {
+			if (hold) {
+				hold = min_t(u32, hold, 0x100);
+				reg_val &= ~(0xff << SPI_CFG0_CS_HOLD_OFFSET);
+				reg_val |= (((hold - 1) & 0xff) << SPI_CFG0_CS_HOLD_OFFSET);
+			}
+			if (setup) {
+				setup = min_t(u32, setup, 0x100);
+				reg_val &= ~(0xff << SPI_CFG0_CS_SETUP_OFFSET);
+				reg_val |= (((setup - 1) & 0xff)
+					<< SPI_CFG0_CS_SETUP_OFFSET);
+			}
+		}
+		writel(reg_val, mdata->base + SPI_CFG0_REG);
 	}
-	writel(reg_val, mdata->base + SPI_CFG0_REG);
 
-	inactive = min_t(u32, inactive, 0x100);
-	reg_val = readl(mdata->base + SPI_CFG1_REG);
-	reg_val &= ~SPI_CFG1_CS_IDLE_MASK;
-	reg_val |= (((inactive - 1) & 0xff) << SPI_CFG1_CS_IDLE_OFFSET);
-	writel(reg_val, mdata->base + SPI_CFG1_REG);
+	if (inactive) {
+		inactive = min_t(u32, inactive, 0x100);
+		reg_val = readl(mdata->base + SPI_CFG1_REG);
+		reg_val &= ~SPI_CFG1_CS_IDLE_MASK;
+		reg_val |= (((inactive - 1) & 0xff) << SPI_CFG1_CS_IDLE_OFFSET);
+		writel(reg_val, mdata->base + SPI_CFG1_REG);
+	}
 
 	return 0;
 }

@@ -471,16 +471,6 @@ odm_RATxRPTTimerSetting(
 	}
 }
 
-void
-ODM_RASupport_Init(
-		struct odm_dm_struct *dm_odm
-	)
-{
-	/*  2012/02/14 MH Be noticed, the init must be after IC type is recognized!!!!! */
-	if (dm_odm->SupportICType == ODM_RTL8188E)
-		dm_odm->RaSupport88E = true;
-}
-
 int ODM_RAInfo_Init(struct odm_dm_struct *dm_odm, u8 macid)
 {
 	struct odm_ra_info *pRaInfo = &dm_odm->RAInfo[macid];
@@ -548,7 +538,7 @@ int ODM_RAInfo_Init_all(struct odm_dm_struct *dm_odm)
 
 u8 ODM_RA_GetShortGI_8188E(struct odm_dm_struct *dm_odm, u8 macid)
 {
-	if ((NULL == dm_odm) || (macid >= ASSOCIATE_ENTRY_NUM))
+	if ((NULL == dm_odm) || (macid >= ODM_ASSOCIATE_ENTRY_NUM))
 		return 0;
 	return dm_odm->RAInfo[macid].RateSGI;
 }
@@ -557,7 +547,7 @@ u8 ODM_RA_GetDecisionRate_8188E(struct odm_dm_struct *dm_odm, u8 macid)
 {
 	u8 DecisionRate = 0;
 
-	if ((NULL == dm_odm) || (macid >= ASSOCIATE_ENTRY_NUM))
+	if ((NULL == dm_odm) || (macid >= ODM_ASSOCIATE_ENTRY_NUM))
 		return 0;
 	DecisionRate = (dm_odm->RAInfo[macid].DecisionRate);
 	return DecisionRate;
@@ -567,7 +557,7 @@ u8 ODM_RA_GetHwPwrStatus_8188E(struct odm_dm_struct *dm_odm, u8 macid)
 {
 	u8 PTStage = 5;
 
-	if ((NULL == dm_odm) || (macid >= ASSOCIATE_ENTRY_NUM))
+	if ((NULL == dm_odm) || (macid >= ODM_ASSOCIATE_ENTRY_NUM))
 		return 0;
 	PTStage = (dm_odm->RAInfo[macid].PTStage);
 	return PTStage;
@@ -577,7 +567,7 @@ void ODM_RA_UpdateRateInfo_8188E(struct odm_dm_struct *dm_odm, u8 macid, u8 Rate
 {
 	struct odm_ra_info *pRaInfo = NULL;
 
-	if ((NULL == dm_odm) || (macid >= ASSOCIATE_ENTRY_NUM))
+	if ((NULL == dm_odm) || (macid >= ODM_ASSOCIATE_ENTRY_NUM))
 		return;
 
 	pRaInfo = &dm_odm->RAInfo[macid];
@@ -591,7 +581,7 @@ void ODM_RA_SetRSSI_8188E(struct odm_dm_struct *dm_odm, u8 macid, u8 Rssi)
 {
 	struct odm_ra_info *pRaInfo = NULL;
 
-	if ((NULL == dm_odm) || (macid >= ASSOCIATE_ENTRY_NUM))
+	if ((NULL == dm_odm) || (macid >= ODM_ASSOCIATE_ENTRY_NUM))
 		return;
 
 	pRaInfo = &dm_odm->RAInfo[macid];
@@ -615,7 +605,7 @@ void ODM_RA_TxRPT2Handle_8188E(struct odm_dm_struct *dm_odm, u8 *TxRPT_Buf, u16 
 	pBuffer = TxRPT_Buf;
 
 	do {
-		if (MacId >= ASSOCIATE_ENTRY_NUM)
+		if (MacId >= ODM_ASSOCIATE_ENTRY_NUM)
 			valid = 0;
 		else if (MacId >= 32)
 			valid = (1 << (MacId - 32)) & macid_entry1;

@@ -12,6 +12,7 @@
 #include <linux/kexec.h>
 #include <linux/module_signature.h>
 #include <linux/verification.h>
+#include <linux/vmalloc.h>
 #include <asm/boot_data.h>
 #include <asm/ipl.h>
 #include <asm/setup.h>
@@ -170,6 +171,7 @@ static int kexec_file_add_ipl_report(struct kimage *image,
 	struct kexec_buf buf;
 	unsigned long addr;
 	void *ptr, *end;
+	int ret;
 
 	buf.image = image;
 
@@ -199,9 +201,13 @@ static int kexec_file_add_ipl_report(struct kimage *image,
 		ptr += len;
 	}
 
+	ret = -ENOMEM;
 	buf.buffer = ipl_report_finish(data->report);
+	if (!buf.buffer)
+		goto out;
 	buf.bufsz = data->report->size;
 	buf.memsz = buf.bufsz;
+	image->arch.ipl_buf = buf.buffer;
 
 	data->memsz += buf.memsz;
 
@@ -209,14 +215,18 @@ static int kexec_file_add_ipl_report(struct kimage *image,
 		data->kernel_buf + offsetof(struct lowcore, ipl_parmblock_ptr);
 	*lc_ipl_parmblock_ptr = (__u32)buf.mem;
 
-	return kexec_add_buffer(&buf);
+	ret = kexec_add_buffer(&buf);
+out:
+	return ret;
 }
 
 void *kexec_file_add_components(struct kimage *image,
 				int (*add_kernel)(struct kimage *image,
 						  struct s390_load_data *data))
 {
+	unsigned long max_command_line_size = LEGACY_COMMAND_LINE_SIZE;
 	struct s390_load_data data = {0};
+	unsigned long minsize;
 	int ret;
 
 	data.report = ipl_report_init(&ipl_block);
@@ -227,10 +237,23 @@ void *kexec_file_add_components(struct kimage *image,
 	if (ret)
 		goto out;
 
-	if (image->cmdline_buf_len >= ARCH_COMMAND_LINE_SIZE) {
-		ret = -EINVAL;
+	ret = -EINVAL;
+	minsize = PARMAREA + offsetof(struct parmarea, command_line);
+	if (image->kernel_buf_len < minsize)
 		goto out;
-	}
+
+	if (data.parm->max_command_line_size)
+		max_command_line_size = data.parm->max_command_line_size;
+
+	if (minsize + max_command_line_size < minsize)
+		goto out;
+
+	if (image->kernel_buf_len < minsize + max_command_line_size)
+		goto out;
+
+	if (image->cmdline_buf_len >= max_command_line_size)
+		goto out;
+
 	memcpy(data.parm->command_line, image->cmdline_buf,
 	       image->cmdline_buf_len);
 
@@ -308,16 +331,10 @@ int arch_kexec_apply_relocations_add(struct purgatory_info *pi,
 	return 0;
 }
 
-int arch_kexec_kernel_image_probe(struct kimage *image, void *buf,
-				  unsigned long buf_len)
+int arch_kimage_file_post_load_cleanup(struct kimage *image)
 {
-	/* A kernel must be at least large enough to contain head.S. During
-	 * load memory in head.S will be accessed, e.g. to register the next
-	 * command line. If the next kernel were smaller the current kernel
-	 * will panic at load.
-	 */
-	if (buf_len < HEAD_END)
-		return -ENOEXEC;
+	vfree(image->arch.ipl_buf);
+	image->arch.ipl_buf = NULL;
 
-	return kexec_image_probe_default(image, buf, buf_len);
+	return kexec_image_post_load_cleanup_default(image);
 }

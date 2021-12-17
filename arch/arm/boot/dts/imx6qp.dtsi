@@ -110,5 +110,5 @@
 };
 
 &pcie {
-	compatible = "fsl,imx6qp-pcie", "snps,dw-pcie";
+	compatible = "fsl,imx6qp-pcie";
 };

@@ -10,17 +10,6 @@ config SCSI_ACORNSCSI_3
 	  This enables support for the Acorn SCSI card (aka30). If you have an
 	  Acorn system with one of these, say Y. If unsure, say N.
 
-config SCSI_ACORNSCSI_TAGGED_QUEUE
-	bool "Support SCSI 2 Tagged queueing"
-	depends on SCSI_ACORNSCSI_3
-	help
-	  Say Y here to enable tagged queuing support on the Acorn SCSI card.
-
-	  This is a feature of SCSI-2 which improves performance: the host
-	  adapter can send several SCSI commands to a device's queue even if
-	  previous commands haven't finished yet. Some SCSI devices don't
-	  implement this properly, so the safe answer is N.
-
 config SCSI_ACORNSCSI_SYNC
 	bool "Support SCSI 2 Synchronous Transfers"
 	depends on SCSI_ACORNSCSI_3

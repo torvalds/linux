@@ -109,6 +109,13 @@ config NUMA_KEEP_MEMINFO
 config MEMORY_ISOLATION
 	bool
 
+# IORESOURCE_SYSTEM_RAM regions in the kernel resource tree that are marked
+# IORESOURCE_EXCLUSIVE cannot be mapped to user space, for example, via
+# /dev/mem.
+config EXCLUSIVE_SYSTEM_RAM
+	def_bool y
+	depends on !DEVMEM || STRICT_DEVMEM
+
 #
 # Only be set on architectures that have completely implemented memory hotplug
 # feature. If you are not sure, don't touch it.
@@ -123,14 +130,10 @@ config ARCH_ENABLE_MEMORY_HOTPLUG
 config MEMORY_HOTPLUG
 	bool "Allow for memory hot-add"
 	select MEMORY_ISOLATION
-	depends on SPARSEMEM || X86_64_ACPI_NUMA
+	depends on SPARSEMEM
 	depends on ARCH_ENABLE_MEMORY_HOTPLUG
-	depends on 64BIT || BROKEN
+	depends on 64BIT
 	select NUMA_KEEP_MEMINFO if NUMA
-
-config MEMORY_HOTPLUG_SPARSE
-	def_bool y
-	depends on SPARSEMEM && MEMORY_HOTPLUG
 
 config MEMORY_HOTPLUG_DEFAULT_ONLINE
 	bool "Online the newly added memory blocks by default"
@@ -371,7 +374,7 @@ config NOMMU_INITIAL_TRIM_EXCESS
 
 config TRANSPARENT_HUGEPAGE
 	bool "Transparent Hugepage Support"
-	depends on HAVE_ARCH_TRANSPARENT_HUGEPAGE
+	depends on HAVE_ARCH_TRANSPARENT_HUGEPAGE && !PREEMPT_RT
 	select COMPACTION
 	select XARRAY_MULTI
 	help
@@ -425,7 +428,7 @@ config THP_SWAP
 # UP and nommu archs use km based percpu allocator
 #
 config NEED_PER_CPU_KM
-	depends on !SMP
+	depends on !SMP || !MMU
 	bool
 	default y
 
@@ -885,6 +888,9 @@ config MAPPING_DIRTY_HELPERS
         bool
 
 config KMAP_LOCAL
+	bool
+
+config KMAP_LOCAL_NON_LINEAR_PTE_ARRAY
 	bool
 
 # struct io_mapping based helper.  Selected by drivers that need them

@@ -102,6 +102,7 @@ static void unix_dgram_bpf_rebuild_protos(struct proto *prot, const struct proto
 	*prot        = *base;
 	prot->close  = sock_map_close;
 	prot->recvmsg = unix_bpf_recvmsg;
+	prot->sock_is_readable = sk_msg_is_readable;
 }
 
 static void unix_stream_bpf_rebuild_protos(struct proto *prot,
@@ -110,6 +111,7 @@ static void unix_stream_bpf_rebuild_protos(struct proto *prot,
 	*prot        = *base;
 	prot->close  = sock_map_close;
 	prot->recvmsg = unix_bpf_recvmsg;
+	prot->sock_is_readable = sk_msg_is_readable;
 	prot->unhash  = sock_map_unhash;
 }
 

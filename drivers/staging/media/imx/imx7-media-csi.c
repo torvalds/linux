@@ -1099,13 +1099,13 @@ static int imx7_csi_async_register(struct imx7_csi *csi)
 	struct fwnode_handle *ep;
 	int ret;
 
-	v4l2_async_notifier_init(&csi->notifier);
+	v4l2_async_nf_init(&csi->notifier);
 
 	ep = fwnode_graph_get_endpoint_by_id(dev_fwnode(csi->dev), 0, 0,
 					     FWNODE_GRAPH_ENDPOINT_NEXT);
 	if (ep) {
-		asd = v4l2_async_notifier_add_fwnode_remote_subdev(
-			&csi->notifier, ep, struct v4l2_async_subdev);
+		asd = v4l2_async_nf_add_fwnode_remote(&csi->notifier, ep,
+						      struct v4l2_async_subdev);
 
 		fwnode_handle_put(ep);
 
@@ -1119,7 +1119,7 @@ static int imx7_csi_async_register(struct imx7_csi *csi)
 
 	csi->notifier.ops = &imx7_csi_notify_ops;
 
-	ret = v4l2_async_subdev_notifier_register(&csi->sd, &csi->notifier);
+	ret = v4l2_async_subdev_nf_register(&csi->sd, &csi->notifier);
 	if (ret)
 		return ret;
 
@@ -1210,12 +1210,12 @@ static int imx7_csi_probe(struct platform_device *pdev)
 	return 0;
 
 subdev_notifier_cleanup:
-	v4l2_async_notifier_unregister(&csi->notifier);
-	v4l2_async_notifier_cleanup(&csi->notifier);
+	v4l2_async_nf_unregister(&csi->notifier);
+	v4l2_async_nf_cleanup(&csi->notifier);
 
 cleanup:
-	v4l2_async_notifier_unregister(&imxmd->notifier);
-	v4l2_async_notifier_cleanup(&imxmd->notifier);
+	v4l2_async_nf_unregister(&imxmd->notifier);
+	v4l2_async_nf_cleanup(&imxmd->notifier);
 	v4l2_device_unregister(&imxmd->v4l2_dev);
 	media_device_unregister(&imxmd->md);
 	media_device_cleanup(&imxmd->md);
@@ -1232,15 +1232,15 @@ static int imx7_csi_remove(struct platform_device *pdev)
 	struct imx7_csi *csi = v4l2_get_subdevdata(sd);
 	struct imx_media_dev *imxmd = csi->imxmd;
 
-	v4l2_async_notifier_unregister(&imxmd->notifier);
-	v4l2_async_notifier_cleanup(&imxmd->notifier);
+	v4l2_async_nf_unregister(&imxmd->notifier);
+	v4l2_async_nf_cleanup(&imxmd->notifier);
 
 	media_device_unregister(&imxmd->md);
 	v4l2_device_unregister(&imxmd->v4l2_dev);
 	media_device_cleanup(&imxmd->md);
 
-	v4l2_async_notifier_unregister(&csi->notifier);
-	v4l2_async_notifier_cleanup(&csi->notifier);
+	v4l2_async_nf_unregister(&csi->notifier);
+	v4l2_async_nf_cleanup(&csi->notifier);
 	v4l2_async_unregister_subdev(sd);
 
 	mutex_destroy(&csi->lock);

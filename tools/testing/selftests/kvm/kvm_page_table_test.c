@@ -280,7 +280,7 @@ static struct kvm_vm *pre_init_before_test(enum vm_guest_mode mode, void *arg)
 #ifdef __s390x__
 	alignment = max(0x100000, alignment);
 #endif
-	guest_test_phys_mem &= ~(alignment - 1);
+	guest_test_phys_mem = align_down(guest_test_phys_mem, alignment);
 
 	/* Set up the shared data structure test_args */
 	test_args.vm = vm;
@@ -456,10 +456,7 @@ static void help(char *name)
 	       "     (default: 1G)\n");
 	printf(" -v: specify the number of vCPUs to run\n"
 	       "     (default: 1)\n");
-	printf(" -s: specify the type of memory that should be used to\n"
-	       "     back the guest data region.\n"
-	       "     (default: anonymous)\n\n");
-	backing_src_help();
+	backing_src_help("-s");
 	puts("");
 }
 
@@ -468,7 +465,7 @@ int main(int argc, char *argv[])
 	int max_vcpus = kvm_check_cap(KVM_CAP_MAX_VCPUS);
 	struct test_params p = {
 		.test_mem_size = DEFAULT_TEST_MEM_SIZE,
-		.src_type = VM_MEM_SRC_ANONYMOUS,
+		.src_type = DEFAULT_VM_MEM_SRC,
 	};
 	int opt;
 

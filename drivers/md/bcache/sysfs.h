@@ -51,13 +51,27 @@ STORE(fn)								\
 #define sysfs_printf(file, fmt, ...)					\
 do {									\
 	if (attr == &sysfs_ ## file)					\
-		return snprintf(buf, PAGE_SIZE, fmt "\n", __VA_ARGS__);	\
+		return sysfs_emit(buf, fmt "\n", __VA_ARGS__);	\
 } while (0)
 
 #define sysfs_print(file, var)						\
 do {									\
 	if (attr == &sysfs_ ## file)					\
-		return snprint(buf, PAGE_SIZE, var);			\
+		return sysfs_emit(buf,						\
+				__builtin_types_compatible_p(typeof(var), int)		\
+					 ? "%i\n" :				\
+				__builtin_types_compatible_p(typeof(var), unsigned int)	\
+					 ? "%u\n" :				\
+				__builtin_types_compatible_p(typeof(var), long)		\
+					 ? "%li\n" :			\
+				__builtin_types_compatible_p(typeof(var), unsigned long)\
+					 ? "%lu\n" :			\
+				__builtin_types_compatible_p(typeof(var), int64_t)	\
+					 ? "%lli\n" :			\
+				__builtin_types_compatible_p(typeof(var), uint64_t)	\
+					 ? "%llu\n" :			\
+				__builtin_types_compatible_p(typeof(var), const char *)	\
+					 ? "%s\n" : "%i\n", var);	\
 } while (0)
 
 #define sysfs_hprint(file, val)						\

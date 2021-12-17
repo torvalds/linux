@@ -20,6 +20,10 @@
 #include <linux/list.h>
 #include <linux/of.h>
 
+#ifdef CONFIG_PCI_DRIVERS_GENERIC
+#define pci_remap_iospace pci_remap_iospace
+#endif
+
 #ifdef CONFIG_PCI_DRIVERS_LEGACY
 
 /*

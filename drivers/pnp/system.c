@@ -106,7 +106,7 @@ static int __init pnp_system_init(void)
 	return pnp_register_driver(&system_pnp_driver);
 }
 
-/**
+/*
  * Reserve motherboard resources after PCI claim BARs,
  * but before PCI assign resources for uninitialized PCI devices
  */

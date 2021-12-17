@@ -249,11 +249,16 @@ except ImportError:
 
 html_static_path = ['sphinx-static']
 
-html_context = {
-    'css_files': [
-        '_static/theme_overrides.css',
-    ],
-}
+html_css_files = [
+    'theme_overrides.css',
+]
+
+if major <= 1 and minor < 8:
+    html_context = {
+        'css_files': [
+            '_static/theme_overrides.css',
+        ],
+    }
 
 # Add any extra paths that contain custom files (such as robots.txt or
 # .htaccess) here, relative to this directory. These files are copied
@@ -353,6 +358,9 @@ latex_elements = {
         \\setsansfont{DejaVu Sans}
         \\setromanfont{DejaVu Serif}
         \\setmonofont{DejaVu Sans Mono}
+        % Adjust \\headheight for fancyhdr
+        \\addtolength{\\headheight}{1.6pt}
+        \\addtolength{\\topmargin}{-1.6pt}
      ''',
 }
 

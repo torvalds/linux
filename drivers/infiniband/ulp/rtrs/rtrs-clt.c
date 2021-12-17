@@ -2788,6 +2788,12 @@ struct rtrs_clt *rtrs_clt_open(struct rtrs_clt_ops *ops,
 	struct rtrs_clt *clt;
 	int err, i;
 
+	if (strchr(sessname, '/') || strchr(sessname, '.')) {
+		pr_err("sessname cannot contain / and .\n");
+		err = -EINVAL;
+		goto out;
+	}
+
 	clt = alloc_clt(sessname, paths_num, port, pdu_sz, ops->priv,
 			ops->link_ev,
 			reconnect_delay_sec,

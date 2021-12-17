@@ -162,6 +162,7 @@ int dpio_get_attributes(struct fsl_mc_io *mc_io,
 	attr->qbman_portal_ci_offset =
 		le64_to_cpu(dpio_rsp->qbman_portal_ci_addr);
 	attr->qbman_version = le32_to_cpu(dpio_rsp->qbman_version);
+	attr->clk = le32_to_cpu(dpio_rsp->clk);
 
 	return 0;
 }

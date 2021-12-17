@@ -6,13 +6,9 @@
  * TODO: Merge attr_set_size/attr_data_get_block/attr_allocate_frame?
  */
 
-#include <linux/blkdev.h>
-#include <linux/buffer_head.h>
 #include <linux/fs.h>
-#include <linux/hash.h>
-#include <linux/nls.h>
-#include <linux/ratelimit.h>
 #include <linux/slab.h>
+#include <linux/kernel.h>
 
 #include "debug.h"
 #include "ntfs.h"
@@ -291,7 +287,7 @@ int attr_make_nonresident(struct ntfs_inode *ni, struct ATTRIB *attr,
 		if (!rsize) {
 			/* Empty resident -> Non empty nonresident. */
 		} else if (!is_data) {
-			err = ntfs_sb_write_run(sbi, run, 0, data, rsize);
+			err = ntfs_sb_write_run(sbi, run, 0, data, rsize, 0);
 			if (err)
 				goto out2;
 		} else if (!page) {
@@ -451,11 +447,8 @@ again:
 again_1:
 	align = sbi->cluster_size;
 
-	if (is_ext) {
+	if (is_ext)
 		align <<= attr_b->nres.c_unit;
-		if (is_attr_sparsed(attr_b))
-			keep_prealloc = false;
-	}
 
 	old_valid = le64_to_cpu(attr_b->nres.valid_size);
 	old_size = le64_to_cpu(attr_b->nres.data_size);
@@ -464,9 +457,6 @@ again_1:
 
 	new_alloc = (new_size + align - 1) & ~(u64)(align - 1);
 	new_alen = new_alloc >> cluster_bits;
-
-	if (keep_prealloc && is_ext)
-		keep_prealloc = false;
 
 	if (keep_prealloc && new_size < old_size) {
 		attr_b->nres.data_size = cpu_to_le64(new_size);
@@ -529,7 +519,7 @@ add_alloc_in_same_attr_seg:
 		} else if (pre_alloc == -1) {
 			pre_alloc = 0;
 			if (type == ATTR_DATA && !name_len &&
-			    sbi->options.prealloc) {
+			    sbi->options->prealloc) {
 				CLST new_alen2 = bytes_to_cluster(
 					sbi, get_pre_allocated(new_size));
 				pre_alloc = new_alen2 - new_alen;
@@ -1966,7 +1956,7 @@ int attr_punch_hole(struct ntfs_inode *ni, u64 vbo, u64 bytes, u32 *frame_size)
 			return 0;
 
 		from = vbo;
-		to = (vbo + bytes) < data_size ? (vbo + bytes) : data_size;
+		to = min_t(u64, vbo + bytes, data_size);
 		memset(Add2Ptr(resident_data(attr_b), from), 0, to - from);
 		return 0;
 	}

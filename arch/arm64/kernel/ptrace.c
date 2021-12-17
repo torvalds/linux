@@ -725,10 +725,10 @@ static void sve_init_header_from_task(struct user_sve_header *header,
 	if (test_tsk_thread_flag(target, TIF_SVE_VL_INHERIT))
 		header->flags |= SVE_PT_VL_INHERIT;
 
-	header->vl = target->thread.sve_vl;
+	header->vl = task_get_sve_vl(target);
 	vq = sve_vq_from_vl(header->vl);
 
-	header->max_vl = sve_max_vl;
+	header->max_vl = sve_max_vl();
 	header->size = SVE_PT_SIZE(vq, header->flags);
 	header->max_size = SVE_PT_SIZE(sve_vq_from_vl(header->max_vl),
 				      SVE_PT_REGS_SVE);
@@ -820,7 +820,7 @@ static int sve_set(struct task_struct *target,
 		goto out;
 
 	/* Actual VL set may be less than the user asked for: */
-	vq = sve_vq_from_vl(target->thread.sve_vl);
+	vq = sve_vq_from_vl(task_get_sve_vl(target));
 
 	/* Registers: FPSIMD-only case */
 

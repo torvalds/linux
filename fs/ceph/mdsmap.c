@@ -263,10 +263,6 @@ struct ceph_mdsmap *ceph_mdsmap_decode(void **p, void *end, bool msgr2)
 				goto nomem;
 			for (j = 0; j < num_export_targets; j++) {
 				target = ceph_decode_32(&pexport_targets);
-				if (target >= m->possible_max_rank) {
-					err = -EIO;
-					goto corrupt;
-				}
 				info->export_targets[j] = target;
 			}
 		} else {

@@ -98,6 +98,12 @@ properties:
           - const: nxp,se97b
           - const: atmel,24c02
       - items:
+          - const: onnn,cat24c04
+          - const: atmel,24c04
+      - items:
+          - const: onnn,cat24c05
+          - const: atmel,24c04
+      - items:
           - const: renesas,r1ex24002
           - const: atmel,24c02
       - items:

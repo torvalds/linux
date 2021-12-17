@@ -456,6 +456,7 @@ static void save_mc_for_early(struct ucode_cpu_info *uci, u8 *mc, unsigned int s
 static bool load_builtin_intel_microcode(struct cpio_data *cp)
 {
 	unsigned int eax = 1, ebx, ecx = 0, edx;
+	struct firmware fw;
 	char name[30];
 
 	if (IS_ENABLED(CONFIG_X86_32))
@@ -466,7 +467,13 @@ static bool load_builtin_intel_microcode(struct cpio_data *cp)
 	sprintf(name, "intel-ucode/%02x-%02x-%02x",
 		      x86_family(eax), x86_model(eax), x86_stepping(eax));
 
-	return get_builtin_firmware(cp, name);
+	if (firmware_request_builtin(&fw, name)) {
+		cp->size = fw.size;
+		cp->data = (void *)fw.data;
+		return true;
+	}
+
+	return false;
 }
 
 /*

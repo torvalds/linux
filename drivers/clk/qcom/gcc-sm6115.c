@@ -3242,7 +3242,7 @@ static struct gdsc hlos1_vote_turing_mmu_tbu1_gdsc = {
 };
 
 static struct gdsc hlos1_vote_turing_mmu_tbu0_gdsc = {
-	.gdscr = 0x7d060,
+	.gdscr = 0x7d07c,
 	.pd = {
 		.name = "hlos1_vote_turing_mmu_tbu0",
 	},

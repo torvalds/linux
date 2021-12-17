@@ -1,0 +1,61 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-3-Clause)
+# This file is provided under a dual BSD/GPLv2 license. When using or
+# redistributing this file, you may do so under either license.
+#
+# Copyright(c) 2021 Advanced Micro Devices, Inc. All rights reserved.
+#
+
+config SND_SOC_AMD_ACP_COMMON
+	tristate "AMD Audio ACP Common support"
+	select SND_AMD_ACP_CONFIG
+	depends on X86 && PCI
+	help
+	  This option enables common modules for Audio-Coprocessor i.e. ACP
+	  IP block on AMD platforms.
+
+if SND_SOC_AMD_ACP_COMMON
+
+config SND_SOC_AMD_ACP_I2S
+	tristate
+
+config SND_SOC_AMD_ACP_PCM
+	tristate
+	select SND_SOC_ACPI if ACPI
+
+config SND_AMD_ASOC_RENOIR
+	tristate "AMD ACP ASOC Renoir Support"
+	select SND_SOC_AMD_ACP_PCM
+	select SND_SOC_AMD_ACP_I2S
+	depends on X86 && PCI
+	help
+	  This option enables Renoir I2S support on AMD platform.
+
+config SND_SOC_AMD_MACH_COMMON
+	tristate
+	depends on X86 && PCI && I2C
+	select CLK_FIXED_FCH
+	select SND_SOC_RT5682_I2C
+	select SND_SOC_DMIC
+	select SND_SOC_RT1019
+	select SND_SOC_MAX98357A
+	select SND_SOC_RT5682S
+	help
+	  This option enables common Machine driver module for ACP.
+
+config SND_SOC_AMD_LEGACY_MACH
+	tristate "AMD Legacy Machine Driver Support"
+	depends on X86 && PCI && I2C
+	select SND_SOC_AMD_MACH_COMMON
+	depends on X86 && PCI && I2C
+	help
+	  This option enables legacy sound card support for ACP audio.
+
+config SND_SOC_AMD_SOF_MACH
+	tristate "AMD SOF Machine Driver Support"
+	depends on X86 && PCI && I2C
+	select SND_SOC_AMD_MACH_COMMON
+	depends on X86 && PCI && I2C
+	help
+	  This option enables SOF sound card support for ACP audio.
+
+endif # SND_SOC_AMD_ACP_COMMON

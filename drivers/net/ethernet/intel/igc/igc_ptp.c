@@ -773,7 +773,7 @@ static bool igc_is_crosststamp_supported(struct igc_adapter *adapter)
 
 static struct system_counterval_t igc_device_tstamp_to_system(u64 tstamp)
 {
-#if IS_ENABLED(CONFIG_X86_TSC)
+#if IS_ENABLED(CONFIG_X86_TSC) && !defined(CONFIG_UML)
 	return convert_art_ns_to_tsc(tstamp);
 #else
 	return (struct system_counterval_t) { };

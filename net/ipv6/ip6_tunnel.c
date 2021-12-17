@@ -1449,7 +1449,7 @@ static void ip6_tnl_link_config(struct ip6_tnl *t)
 	unsigned int mtu;
 	int t_hlen;
 
-	memcpy(dev->dev_addr, &p->laddr, sizeof(struct in6_addr));
+	__dev_addr_set(dev, &p->laddr, sizeof(struct in6_addr));
 	memcpy(dev->broadcast, &p->raddr, sizeof(struct in6_addr));
 
 	/* Set up flowi template */

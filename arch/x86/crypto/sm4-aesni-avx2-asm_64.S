@@ -93,7 +93,7 @@
 	vpxor tmp0, x, x;
 
 
-.section	.rodata.cst164, "aM", @progbits, 164
+.section	.rodata.cst16, "aM", @progbits, 16
 .align 16
 
 /*
@@ -147,6 +147,10 @@
 /* 4-bit mask */
 .L0f0f0f0f:
 	.long 0x0f0f0f0f
+
+/* 12 bytes, only for padding */
+.Lpadding_deadbeef:
+	.long 0xdeadbeef, 0xdeadbeef, 0xdeadbeef
 
 .text
 .align 16

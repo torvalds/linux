@@ -1109,7 +1109,7 @@ struct airo_info;
 static int get_dec_u16(char *buffer, int *start, int limit);
 static void OUT4500(struct airo_info *, u16 reg, u16 value);
 static unsigned short IN4500(struct airo_info *, u16 reg);
-static u16 setup_card(struct airo_info*, u8 *mac, int lock);
+static u16 setup_card(struct airo_info*, struct net_device *dev, int lock);
 static int enable_MAC(struct airo_info *ai, int lock);
 static void disable_MAC(struct airo_info *ai, int lock);
 static void enable_interrupts(struct airo_info*);
@@ -2337,9 +2337,9 @@ static int airo_set_mac_address(struct net_device *dev, void *p)
 	disable_MAC(ai, 1);
 	writeConfigRid (ai, 1);
 	enable_MAC(ai, 1);
-	memcpy (ai->dev->dev_addr, addr->sa_data, dev->addr_len);
+	dev_addr_set(ai->dev, addr->sa_data);
 	if (ai->wifidev)
-		memcpy (ai->wifidev->dev_addr, addr->sa_data, dev->addr_len);
+		dev_addr_set(ai->wifidev, addr->sa_data);
 	return 0;
 }
 
@@ -2854,7 +2854,7 @@ static struct net_device *_init_airo_card(unsigned short irq, int port,
 	}
 
 	if (probe) {
-		if (setup_card(ai, dev->dev_addr, 1) != SUCCESS) {
+		if (setup_card(ai, dev, 1) != SUCCESS) {
 			airo_print_err(dev->name, "MAC could not be enabled");
 			rc = -EIO;
 			goto err_out_map;
@@ -2972,7 +2972,7 @@ int reset_airo_card(struct net_device *dev)
 	if (reset_card (dev, 1))
 		return -1;
 
-	if (setup_card(ai, dev->dev_addr, 1) != SUCCESS) {
+	if (setup_card(ai, dev, 1) != SUCCESS) {
 		airo_print_err(dev->name, "MAC could not be enabled");
 		return -1;
 	}
@@ -3817,7 +3817,8 @@ static inline void set_auth_type(struct airo_info *local, int auth_type)
 		local->last_auth = auth_type;
 }
 
-static int noinline_for_stack airo_readconfig(struct airo_info *ai, u8 *mac, int lock)
+static int noinline_for_stack airo_readconfig(struct airo_info *ai,
+					      struct net_device *dev, int lock)
 {
 	int i, status;
 	/* large variables, so don't inline this function,
@@ -3861,9 +3862,7 @@ static int noinline_for_stack airo_readconfig(struct airo_info *ai, u8 *mac, int
 	}
 
 	/* Save off the MAC */
-	for (i = 0; i < ETH_ALEN; i++) {
-		mac[i] = ai->config.macAddr[i];
-	}
+	eth_hw_addr_set(dev, ai->config.macAddr);
 
 	/* Check to see if there are any insmod configured
 	   rates to add */
@@ -3879,7 +3878,7 @@ static int noinline_for_stack airo_readconfig(struct airo_info *ai, u8 *mac, int
 }
 
 
-static u16 setup_card(struct airo_info *ai, u8 *mac, int lock)
+static u16 setup_card(struct airo_info *ai, struct net_device *dev, int lock)
 {
 	Cmd cmd;
 	Resp rsp;
@@ -3925,7 +3924,7 @@ static u16 setup_card(struct airo_info *ai, u8 *mac, int lock)
 	if (lock)
 		up(&ai->sem);
 	if (ai->config.len == 0) {
-		status = airo_readconfig(ai, mac, lock);
+		status = airo_readconfig(ai, dev, lock);
 		if (status != SUCCESS)
 			return ERROR;
 	}
@@ -5654,7 +5653,7 @@ static int __maybe_unused airo_pci_resume(struct device *dev_d)
 	if (prev_state != PCI_D1) {
 		reset_card(dev, 0);
 		mpi_init_descriptors(ai);
-		setup_card(ai, dev->dev_addr, 0);
+		setup_card(ai, dev, 0);
 		clear_bit(FLAG_RADIO_OFF, &ai->flags);
 		clear_bit(FLAG_PENDING_XMIT, &ai->flags);
 	} else {
@@ -7534,7 +7533,7 @@ static int airo_config_commit(struct net_device *dev,
 
 		readSsidRid(local, &SSID_rid);
 		if (test_bit(FLAG_MPI,&local->flags))
-			setup_card(local, dev->dev_addr, 1);
+			setup_card(local, dev, 1);
 		else
 			reset_airo_card(dev);
 		disable_MAC(local, 1);
@@ -8208,7 +8207,7 @@ static int flashrestart(struct airo_info *ai, struct net_device *dev)
 		if (status != SUCCESS)
 			return status;
 	}
-	status = setup_card(ai, dev->dev_addr, 1);
+	status = setup_card(ai, dev, 1);
 
 	if (!test_bit(FLAG_MPI,&ai->flags))
 		for (i = 0; i < MAX_FIDS; i++) {

@@ -10,7 +10,10 @@
 #include <linux/slab.h>
 #include <linux/tee_drv.h>
 #include <linux/uio.h>
+#include <linux/module.h>
 #include "tee_private.h"
+
+MODULE_IMPORT_NS(DMA_BUF);
 
 static void release_registered_pages(struct tee_shm *shm)
 {

@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-/* Copyright 2020, NXP Semiconductors
+/* Copyright 2020 NXP
  */
 #ifndef _SJA1105_VL_H
 #define _SJA1105_VL_H

@@ -115,7 +115,7 @@ static void guest_code(void)
 			addr = guest_test_virt_mem;
 			addr += (READ_ONCE(random_array[i]) % guest_num_pages)
 				* guest_page_size;
-			addr &= ~(host_page_size - 1);
+			addr = align_down(addr, host_page_size);
 			*(uint64_t *)addr = READ_ONCE(iteration);
 		}
 
@@ -737,14 +737,14 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 	if (!p->phys_offset) {
 		guest_test_phys_mem = (vm_get_max_gfn(vm) -
 				       guest_num_pages) * guest_page_size;
-		guest_test_phys_mem &= ~(host_page_size - 1);
+		guest_test_phys_mem = align_down(guest_test_phys_mem, host_page_size);
 	} else {
 		guest_test_phys_mem = p->phys_offset;
 	}
 
 #ifdef __s390x__
 	/* Align to 1M (segment size) */
-	guest_test_phys_mem &= ~((1 << 20) - 1);
+	guest_test_phys_mem = align_down(guest_test_phys_mem, 1 << 20);
 #endif
 
 	pr_info("guest physical test memory offset: 0x%lx\n", guest_test_phys_mem);

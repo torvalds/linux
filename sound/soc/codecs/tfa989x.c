@@ -19,6 +19,7 @@
 #define TFA989X_REVISIONNUMBER		0x03
 #define TFA989X_REVISIONNUMBER_REV_MSK	GENMASK(7, 0)	/* device revision */
 #define TFA989X_I2SREG			0x04
+#define TFA989X_I2SREG_RCV		2	/* receiver mode */
 #define TFA989X_I2SREG_CHSA		6	/* amplifier input select */
 #define TFA989X_I2SREG_CHSA_MSK		GENMASK(7, 6)
 #define TFA989X_I2SREG_I2SSR		12	/* sample rate */
@@ -53,6 +54,7 @@ struct tfa989x_rev {
 };
 
 struct tfa989x {
+	const struct tfa989x_rev *rev;
 	struct regulator *vddd_supply;
 };
 
@@ -97,7 +99,25 @@ static const struct snd_soc_dapm_route tfa989x_dapm_routes[] = {
 	{"Amp Input", "Right", "AIFINR"},
 };
 
+static const char * const mode_text[] = { "Speaker", "Receiver" };
+static SOC_ENUM_SINGLE_DECL(mode_enum, TFA989X_I2SREG, TFA989X_I2SREG_RCV, mode_text);
+static const struct snd_kcontrol_new tfa989x_mode_controls[] = {
+	SOC_ENUM("Mode", mode_enum),
+};
+
+static int tfa989x_probe(struct snd_soc_component *component)
+{
+	struct tfa989x *tfa989x = snd_soc_component_get_drvdata(component);
+
+	if (tfa989x->rev->rev == TFA9897_REVISION)
+		return snd_soc_add_component_controls(component, tfa989x_mode_controls,
+						      ARRAY_SIZE(tfa989x_mode_controls));
+
+	return 0;
+}
+
 static const struct snd_soc_component_driver tfa989x_component = {
+	.probe			= tfa989x_probe,
 	.dapm_widgets		= tfa989x_dapm_widgets,
 	.num_dapm_widgets	= ARRAY_SIZE(tfa989x_dapm_widgets),
 	.dapm_routes		= tfa989x_dapm_routes,
@@ -273,6 +293,7 @@ static int tfa989x_i2c_probe(struct i2c_client *i2c)
 	if (!tfa989x)
 		return -ENOMEM;
 
+	tfa989x->rev = rev;
 	i2c_set_clientdata(i2c, tfa989x);
 
 	tfa989x->vddd_supply = devm_regulator_get(dev, "vddd");

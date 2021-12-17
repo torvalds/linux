@@ -42,16 +42,17 @@ static inline struct cik_sdma_rlc_registers *get_sdma_mqd(void *mqd)
 }
 
 static void update_cu_mask(struct mqd_manager *mm, void *mqd,
-			struct queue_properties *q)
+			struct mqd_update_info *minfo)
 {
 	struct cik_mqd *m;
 	uint32_t se_mask[4] = {0}; /* 4 is the max # of SEs */
 
-	if (q->cu_mask_count == 0)
+	if (!minfo || (minfo->update_flag != UPDATE_FLAG_CU_MASK) ||
+	    !minfo->cu_mask.ptr)
 		return;
 
 	mqd_symmetrically_map_cu_mask(mm,
-		q->cu_mask, q->cu_mask_count, se_mask);
+		minfo->cu_mask.ptr, minfo->cu_mask.count, se_mask);
 
 	m = get_mqd(mqd);
 	m->compute_static_thread_mgmt_se0 = se_mask[0];
@@ -135,7 +136,7 @@ static void init_mqd(struct mqd_manager *mm, void **mqd,
 	*mqd = m;
 	if (gart_addr)
 		*gart_addr = addr;
-	mm->update_mqd(mm, m, q);
+	mm->update_mqd(mm, m, q, NULL);
 }
 
 static void init_mqd_sdma(struct mqd_manager *mm, void **mqd,
@@ -152,7 +153,7 @@ static void init_mqd_sdma(struct mqd_manager *mm, void **mqd,
 	if (gart_addr)
 		*gart_addr = mqd_mem_obj->gpu_addr;
 
-	mm->update_mqd(mm, m, q);
+	mm->update_mqd(mm, m, q, NULL);
 }
 
 static void free_mqd(struct mqd_manager *mm, void *mqd,
@@ -170,7 +171,7 @@ static int load_mqd(struct mqd_manager *mm, void *mqd, uint32_t pipe_id,
 	uint32_t wptr_shift = (p->format == KFD_QUEUE_FORMAT_AQL ? 4 : 0);
 	uint32_t wptr_mask = (uint32_t)((p->queue_size / 4) - 1);
 
-	return mm->dev->kfd2kgd->hqd_load(mm->dev->kgd, mqd, pipe_id, queue_id,
+	return mm->dev->kfd2kgd->hqd_load(mm->dev->adev, mqd, pipe_id, queue_id,
 					  (uint32_t __user *)p->write_ptr,
 					  wptr_shift, wptr_mask, mms);
 }
@@ -179,13 +180,14 @@ static int load_mqd_sdma(struct mqd_manager *mm, void *mqd,
 			 uint32_t pipe_id, uint32_t queue_id,
 			 struct queue_properties *p, struct mm_struct *mms)
 {
-	return mm->dev->kfd2kgd->hqd_sdma_load(mm->dev->kgd, mqd,
+	return mm->dev->kfd2kgd->hqd_sdma_load(mm->dev->adev, mqd,
 					       (uint32_t __user *)p->write_ptr,
 					       mms);
 }
 
 static void __update_mqd(struct mqd_manager *mm, void *mqd,
-			struct queue_properties *q, unsigned int atc_bit)
+			struct queue_properties *q, struct mqd_update_info *minfo,
+			unsigned int atc_bit)
 {
 	struct cik_mqd *m;
 
@@ -214,16 +216,17 @@ static void __update_mqd(struct mqd_manager *mm, void *mqd,
 	if (q->format == KFD_QUEUE_FORMAT_AQL)
 		m->cp_hqd_pq_control |= NO_UPDATE_RPTR;
 
-	update_cu_mask(mm, mqd, q);
+	update_cu_mask(mm, mqd, minfo);
 	set_priority(m, q);
 
 	q->is_active = QUEUE_IS_ACTIVE(*q);
 }
 
 static void update_mqd(struct mqd_manager *mm, void *mqd,
-			struct queue_properties *q)
+			struct queue_properties *q,
+			struct mqd_update_info *minfo)
 {
-	__update_mqd(mm, mqd, q, 1);
+	__update_mqd(mm, mqd, q, minfo, 1);
 }
 
 static uint32_t read_doorbell_id(void *mqd)
@@ -234,13 +237,15 @@ static uint32_t read_doorbell_id(void *mqd)
 }
 
 static void update_mqd_hawaii(struct mqd_manager *mm, void *mqd,
-			struct queue_properties *q)
+			struct queue_properties *q,
+			struct mqd_update_info *minfo)
 {
-	__update_mqd(mm, mqd, q, 0);
+	__update_mqd(mm, mqd, q, minfo, 0);
 }
 
 static void update_mqd_sdma(struct mqd_manager *mm, void *mqd,
-				struct queue_properties *q)
+			struct queue_properties *q,
+			struct mqd_update_info *minfo)
 {
 	struct cik_sdma_rlc_registers *m;
 
@@ -271,7 +276,7 @@ static int destroy_mqd(struct mqd_manager *mm, void *mqd,
 			unsigned int timeout, uint32_t pipe_id,
 			uint32_t queue_id)
 {
-	return mm->dev->kfd2kgd->hqd_destroy(mm->dev->kgd, mqd, type, timeout,
+	return mm->dev->kfd2kgd->hqd_destroy(mm->dev->adev, mqd, type, timeout,
 					pipe_id, queue_id);
 }
 
@@ -284,7 +289,7 @@ static int destroy_mqd_sdma(struct mqd_manager *mm, void *mqd,
 				unsigned int timeout, uint32_t pipe_id,
 				uint32_t queue_id)
 {
-	return mm->dev->kfd2kgd->hqd_sdma_destroy(mm->dev->kgd, mqd, timeout);
+	return mm->dev->kfd2kgd->hqd_sdma_destroy(mm->dev->adev, mqd, timeout);
 }
 
 static bool is_occupied(struct mqd_manager *mm, void *mqd,
@@ -292,7 +297,7 @@ static bool is_occupied(struct mqd_manager *mm, void *mqd,
 			uint32_t queue_id)
 {
 
-	return mm->dev->kfd2kgd->hqd_is_occupied(mm->dev->kgd, queue_address,
+	return mm->dev->kfd2kgd->hqd_is_occupied(mm->dev->adev, queue_address,
 					pipe_id, queue_id);
 
 }
@@ -301,7 +306,7 @@ static bool is_occupied_sdma(struct mqd_manager *mm, void *mqd,
 			uint64_t queue_address,	uint32_t pipe_id,
 			uint32_t queue_id)
 {
-	return mm->dev->kfd2kgd->hqd_sdma_is_occupied(mm->dev->kgd, mqd);
+	return mm->dev->kfd2kgd->hqd_sdma_is_occupied(mm->dev->adev, mqd);
 }
 
 /*
@@ -318,7 +323,8 @@ static void init_mqd_hiq(struct mqd_manager *mm, void **mqd,
 }
 
 static void update_mqd_hiq(struct mqd_manager *mm, void *mqd,
-				struct queue_properties *q)
+			struct queue_properties *q,
+			struct mqd_update_info *minfo)
 {
 	struct cik_mqd *m;
 

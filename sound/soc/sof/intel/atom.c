@@ -283,11 +283,8 @@ int atom_run(struct snd_sof_dev *sdev)
 			break;
 		msleep(100);
 	}
-	if (tries < 0) {
-		dev_err(sdev->dev, "error:  unable to run DSP firmware\n");
-		atom_dump(sdev, SOF_DBG_DUMP_REGS | SOF_DBG_DUMP_MBOX);
+	if (tries < 0)
 		return -ENODEV;
-	}
 
 	/* return init core mask */
 	return 1;

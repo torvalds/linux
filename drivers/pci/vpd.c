@@ -57,10 +57,7 @@ static size_t pci_vpd_size(struct pci_dev *dev)
 	size_t off = 0, size;
 	unsigned char tag, header[1+2];	/* 1 byte tag, 2 bytes length */
 
-	/* Otherwise the following reads would fail. */
-	dev->vpd.len = PCI_VPD_MAX_SIZE;
-
-	while (pci_read_vpd(dev, off, 1, header) == 1) {
+	while (pci_read_vpd_any(dev, off, 1, header) == 1) {
 		size = 0;
 
 		if (off == 0 && (header[0] == 0x00 || header[0] == 0xff))
@@ -68,7 +65,7 @@ static size_t pci_vpd_size(struct pci_dev *dev)
 
 		if (header[0] & PCI_VPD_LRDT) {
 			/* Large Resource Data Type Tag */
-			if (pci_read_vpd(dev, off + 1, 2, &header[1]) != 2) {
+			if (pci_read_vpd_any(dev, off + 1, 2, &header[1]) != 2) {
 				pci_warn(dev, "failed VPD read at offset %zu\n",
 					 off + 1);
 				return off ?: PCI_VPD_SZ_INVALID;
@@ -97,6 +94,24 @@ error:
 		 header[0], size, off, off == 0 ?
 		 "; assume missing optional EEPROM" : "");
 	return off ?: PCI_VPD_SZ_INVALID;
+}
+
+static bool pci_vpd_available(struct pci_dev *dev, bool check_size)
+{
+	struct pci_vpd *vpd = &dev->vpd;
+
+	if (!vpd->cap)
+		return false;
+
+	if (vpd->len == 0 && check_size) {
+		vpd->len = pci_vpd_size(dev);
+		if (vpd->len == PCI_VPD_SZ_INVALID) {
+			vpd->cap = 0;
+			return false;
+		}
+	}
+
+	return true;
 }
 
 /*
@@ -138,24 +153,27 @@ static int pci_vpd_wait(struct pci_dev *dev, bool set)
 }
 
 static ssize_t pci_vpd_read(struct pci_dev *dev, loff_t pos, size_t count,
-			    void *arg)
+			    void *arg, bool check_size)
 {
 	struct pci_vpd *vpd = &dev->vpd;
+	unsigned int max_len;
 	int ret = 0;
 	loff_t end = pos + count;
 	u8 *buf = arg;
 
-	if (!vpd->cap)
+	if (!pci_vpd_available(dev, check_size))
 		return -ENODEV;
 
 	if (pos < 0)
 		return -EINVAL;
 
-	if (pos > vpd->len)
+	max_len = check_size ? vpd->len : PCI_VPD_MAX_SIZE;
+
+	if (pos >= max_len)
 		return 0;
 
-	if (end > vpd->len) {
-		end = vpd->len;
+	if (end > max_len) {
+		end = max_len;
 		count = end - pos;
 	}
 
@@ -199,20 +217,23 @@ static ssize_t pci_vpd_read(struct pci_dev *dev, loff_t pos, size_t count,
 }
 
 static ssize_t pci_vpd_write(struct pci_dev *dev, loff_t pos, size_t count,
-			     const void *arg)
+			     const void *arg, bool check_size)
 {
 	struct pci_vpd *vpd = &dev->vpd;
+	unsigned int max_len;
 	const u8 *buf = arg;
 	loff_t end = pos + count;
 	int ret = 0;
 
-	if (!vpd->cap)
+	if (!pci_vpd_available(dev, check_size))
 		return -ENODEV;
 
 	if (pos < 0 || (pos & 3) || (count & 3))
 		return -EINVAL;
 
-	if (end > vpd->len)
+	max_len = check_size ? vpd->len : PCI_VPD_MAX_SIZE;
+
+	if (end > max_len)
 		return -EINVAL;
 
 	if (mutex_lock_killable(&vpd->lock))
@@ -242,14 +263,11 @@ static ssize_t pci_vpd_write(struct pci_dev *dev, loff_t pos, size_t count,
 
 void pci_vpd_init(struct pci_dev *dev)
 {
+	if (dev->vpd.len == PCI_VPD_SZ_INVALID)
+		return;
+
 	dev->vpd.cap = pci_find_capability(dev, PCI_CAP_ID_VPD);
 	mutex_init(&dev->vpd.lock);
-
-	if (!dev->vpd.len)
-		dev->vpd.len = pci_vpd_size(dev);
-
-	if (dev->vpd.len == PCI_VPD_SZ_INVALID)
-		dev->vpd.cap = 0;
 }
 
 static ssize_t vpd_read(struct file *filp, struct kobject *kobj,
@@ -294,13 +312,14 @@ const struct attribute_group pci_dev_vpd_attr_group = {
 
 void *pci_vpd_alloc(struct pci_dev *dev, unsigned int *size)
 {
-	unsigned int len = dev->vpd.len;
+	unsigned int len;
 	void *buf;
 	int cnt;
 
-	if (!dev->vpd.cap)
+	if (!pci_vpd_available(dev, true))
 		return ERR_PTR(-ENODEV);
 
+	len = dev->vpd.len;
 	buf = kmalloc(len, GFP_KERNEL);
 	if (!buf)
 		return ERR_PTR(-ENOMEM);
@@ -365,6 +384,24 @@ static int pci_vpd_find_info_keyword(const u8 *buf, unsigned int off,
 	return -ENOENT;
 }
 
+static ssize_t __pci_read_vpd(struct pci_dev *dev, loff_t pos, size_t count, void *buf,
+			      bool check_size)
+{
+	ssize_t ret;
+
+	if (dev->dev_flags & PCI_DEV_FLAGS_VPD_REF_F0) {
+		dev = pci_get_func0_dev(dev);
+		if (!dev)
+			return -ENODEV;
+
+		ret = pci_vpd_read(dev, pos, count, buf, check_size);
+		pci_dev_put(dev);
+		return ret;
+	}
+
+	return pci_vpd_read(dev, pos, count, buf, check_size);
+}
+
 /**
  * pci_read_vpd - Read one entry from Vital Product Data
  * @dev:	PCI device struct
@@ -374,6 +411,20 @@ static int pci_vpd_find_info_keyword(const u8 *buf, unsigned int off,
  */
 ssize_t pci_read_vpd(struct pci_dev *dev, loff_t pos, size_t count, void *buf)
 {
+	return __pci_read_vpd(dev, pos, count, buf, true);
+}
+EXPORT_SYMBOL(pci_read_vpd);
+
+/* Same, but allow to access any address */
+ssize_t pci_read_vpd_any(struct pci_dev *dev, loff_t pos, size_t count, void *buf)
+{
+	return __pci_read_vpd(dev, pos, count, buf, false);
+}
+EXPORT_SYMBOL(pci_read_vpd_any);
+
+static ssize_t __pci_write_vpd(struct pci_dev *dev, loff_t pos, size_t count,
+			       const void *buf, bool check_size)
+{
 	ssize_t ret;
 
 	if (dev->dev_flags & PCI_DEV_FLAGS_VPD_REF_F0) {
@@ -381,14 +432,13 @@ ssize_t pci_read_vpd(struct pci_dev *dev, loff_t pos, size_t count, void *buf)
 		if (!dev)
 			return -ENODEV;
 
-		ret = pci_vpd_read(dev, pos, count, buf);
+		ret = pci_vpd_write(dev, pos, count, buf, check_size);
 		pci_dev_put(dev);
 		return ret;
 	}
 
-	return pci_vpd_read(dev, pos, count, buf);
+	return pci_vpd_write(dev, pos, count, buf, check_size);
 }
-EXPORT_SYMBOL(pci_read_vpd);
 
 /**
  * pci_write_vpd - Write entry to Vital Product Data
@@ -399,21 +449,16 @@ EXPORT_SYMBOL(pci_read_vpd);
  */
 ssize_t pci_write_vpd(struct pci_dev *dev, loff_t pos, size_t count, const void *buf)
 {
-	ssize_t ret;
-
-	if (dev->dev_flags & PCI_DEV_FLAGS_VPD_REF_F0) {
-		dev = pci_get_func0_dev(dev);
-		if (!dev)
-			return -ENODEV;
-
-		ret = pci_vpd_write(dev, pos, count, buf);
-		pci_dev_put(dev);
-		return ret;
-	}
-
-	return pci_vpd_write(dev, pos, count, buf);
+	return __pci_write_vpd(dev, pos, count, buf, true);
 }
 EXPORT_SYMBOL(pci_write_vpd);
+
+/* Same, but allow to access any address */
+ssize_t pci_write_vpd_any(struct pci_dev *dev, loff_t pos, size_t count, const void *buf)
+{
+	return __pci_write_vpd(dev, pos, count, buf, false);
+}
+EXPORT_SYMBOL(pci_write_vpd_any);
 
 int pci_vpd_find_ro_info_keyword(const void *buf, unsigned int len,
 				 const char *kw, unsigned int *size)

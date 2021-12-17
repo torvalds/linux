@@ -69,7 +69,7 @@ struct ipc_chnl_cfg;
 
 #define IMEM_IRQ_DONT_CARE (-1)
 
-#define IPC_MEM_MAX_CHANNELS 7
+#define IPC_MEM_MAX_CHANNELS 8
 
 #define IPC_MEM_MUX_IP_SESSION_ENTRIES 8
 
@@ -98,8 +98,10 @@ struct ipc_chnl_cfg;
 #define IPC_MEM_DL_ETH_OFFSET 16
 
 #define IPC_CB(skb) ((struct ipc_skb_cb *)((skb)->cb))
+#define IOSM_CHIP_INFO_SIZE_MAX 100
 
 #define FULLY_FUNCTIONAL 0
+#define IOSM_DEVLINK_INIT 1
 
 /* List of the supported UL/DL pipes. */
 enum ipc_mem_pipes {
@@ -304,9 +306,9 @@ enum ipc_phase {
  * @ipc_port:			IPC PORT data structure pointer
  * @pcie:			IPC PCIe
  * @dev:			Pointer to device structure
- * @flash_channel_id:		Reserved channel id for flashing to RAM.
  * @ipc_requested_state:	Expected IPC state on CP.
  * @channels:			Channel list with UL/DL pipe pairs.
+ * @ipc_devlink:		IPC Devlink data structure pointer
  * @ipc_status:			local ipc_status
  * @nr_of_channels:		number of configured channels
  * @startup_timer:		startup timer for NAND support.
@@ -334,8 +336,6 @@ enum ipc_phase {
  *				process the irq actions.
  * @flag:			Flag to monitor the state of driver
  * @td_update_timer_suspended:	if true then td update timer suspend
- * @ev_cdev_write_pending:	0 means inform the IPC tasklet to pass
- *				the accumulated uplink buffers to CP.
  * @ev_mux_net_transmit_pending:0 means inform the IPC tasklet to pass
  * @reset_det_n:		Reset detect flag
  * @pcie_wake_n:		Pcie wake flag
@@ -349,9 +349,9 @@ struct iosm_imem {
 	struct iosm_cdev *ipc_port[IPC_MEM_MAX_CHANNELS];
 	struct iosm_pcie *pcie;
 	struct device *dev;
-	int flash_channel_id;
 	enum ipc_mem_device_ipc_state ipc_requested_state;
 	struct ipc_mem_channel channels[IPC_MEM_MAX_CHANNELS];
+	struct iosm_devlink *ipc_devlink;
 	u32 ipc_status;
 	u32 nr_of_channels;
 	struct hrtimer startup_timer;
@@ -373,7 +373,6 @@ struct iosm_imem {
 	u8 ev_irq_pending[IPC_IRQ_VECTORS];
 	unsigned long flag;
 	u8 td_update_timer_suspended:1,
-	   ev_cdev_write_pending:1,
 	   ev_mux_net_transmit_pending:1,
 	   reset_det_n:1,
 	   pcie_wake_n:1;
@@ -575,4 +574,15 @@ void ipc_imem_ipc_init_check(struct iosm_imem *ipc_imem);
  */
 void ipc_imem_channel_init(struct iosm_imem *ipc_imem, enum ipc_ctype ctype,
 			   struct ipc_chnl_cfg chnl_cfg, u32 irq_moderation);
+
+/**
+ * ipc_imem_devlink_trigger_chip_info - Inform devlink that the chip
+ *					information are available if the
+ *					flashing to RAM interworking shall be
+ *					executed.
+ * @ipc_imem:	Pointer to imem structure
+ *
+ * Returns: 0 on success, -1 on failure
+ */
+int ipc_imem_devlink_trigger_chip_info(struct iosm_imem *ipc_imem);
 #endif

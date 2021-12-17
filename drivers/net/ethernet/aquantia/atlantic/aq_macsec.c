@@ -35,7 +35,7 @@ static int aq_apply_macsec_cfg(struct aq_nic_s *nic);
 static int aq_apply_secy_cfg(struct aq_nic_s *nic,
 			     const struct macsec_secy *secy);
 
-static void aq_ether_addr_to_mac(u32 mac[2], unsigned char *emac)
+static void aq_ether_addr_to_mac(u32 mac[2], const unsigned char *emac)
 {
 	u32 tmp[2] = { 0 };
 

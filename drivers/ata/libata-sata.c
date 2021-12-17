@@ -827,7 +827,7 @@ static ssize_t ata_scsi_lpm_show(struct device *dev,
 	if (ap->target_lpm_policy >= ARRAY_SIZE(ata_lpm_policy_names))
 		return -EINVAL;
 
-	return snprintf(buf, PAGE_SIZE, "%s\n",
+	return sysfs_emit(buf, "%s\n",
 			ata_lpm_policy_names[ap->target_lpm_policy]);
 }
 DEVICE_ATTR(link_power_management_policy, S_IRUGO | S_IWUSR,
@@ -922,13 +922,22 @@ DEVICE_ATTR(ncq_prio_enable, S_IRUGO | S_IWUSR,
 	    ata_ncq_prio_enable_show, ata_ncq_prio_enable_store);
 EXPORT_SYMBOL_GPL(dev_attr_ncq_prio_enable);
 
-struct device_attribute *ata_ncq_sdev_attrs[] = {
-	&dev_attr_unload_heads,
-	&dev_attr_ncq_prio_enable,
-	&dev_attr_ncq_prio_supported,
+static struct attribute *ata_ncq_sdev_attrs[] = {
+	&dev_attr_unload_heads.attr,
+	&dev_attr_ncq_prio_enable.attr,
+	&dev_attr_ncq_prio_supported.attr,
 	NULL
 };
-EXPORT_SYMBOL_GPL(ata_ncq_sdev_attrs);
+
+static const struct attribute_group ata_ncq_sdev_attr_group = {
+	.attrs = ata_ncq_sdev_attrs
+};
+
+const struct attribute_group *ata_ncq_sdev_groups[] = {
+	&ata_ncq_sdev_attr_group,
+	NULL
+};
+EXPORT_SYMBOL_GPL(ata_ncq_sdev_groups);
 
 static ssize_t
 ata_scsi_em_message_store(struct device *dev, struct device_attribute *attr,
@@ -1258,7 +1267,7 @@ int ata_sas_queuecmd(struct scsi_cmnd *cmd, struct ata_port *ap)
 		rc = __ata_scsi_queuecmd(cmd, ap->link.device);
 	else {
 		cmd->result = (DID_BAD_TARGET << 16);
-		cmd->scsi_done(cmd);
+		scsi_done(cmd);
 	}
 	return rc;
 }

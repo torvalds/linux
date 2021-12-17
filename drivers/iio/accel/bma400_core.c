@@ -828,7 +828,7 @@ int bma400_probe(struct device *dev, struct regmap *regmap, const char *name)
 }
 EXPORT_SYMBOL(bma400_probe);
 
-int bma400_remove(struct device *dev)
+void bma400_remove(struct device *dev)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	struct bma400_data *data = iio_priv(indio_dev);
@@ -838,12 +838,13 @@ int bma400_remove(struct device *dev)
 	ret = bma400_set_power_mode(data, POWER_MODE_SLEEP);
 	mutex_unlock(&data->mutex);
 
+	if (ret)
+		dev_warn(dev, "Failed to put device into sleep mode (%pe)\n", ERR_PTR(ret));
+
 	regulator_bulk_disable(ARRAY_SIZE(data->regulators),
 			       data->regulators);
 
 	iio_device_unregister(indio_dev);
-
-	return ret;
 }
 EXPORT_SYMBOL(bma400_remove);
 

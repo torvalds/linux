@@ -426,7 +426,7 @@ static void __init dev_setup(struct net_device *dev)
 	dev->addr_len = AX25_ADDR_LEN;
 	dev->tx_queue_len = 64;
 	memcpy(dev->broadcast, &ax25_bcast, AX25_ADDR_LEN);
-	memcpy(dev->dev_addr, &ax25_defaddr, AX25_ADDR_LEN);
+	dev_addr_set(dev, (u8 *)&ax25_defaddr);
 }
 
 static const struct net_device_ops scc_netdev_ops = {
@@ -956,8 +956,7 @@ static int scc_send_packet(struct sk_buff *skb, struct net_device *dev)
 
 static int scc_set_mac_address(struct net_device *dev, void *sa)
 {
-	memcpy(dev->dev_addr, ((struct sockaddr *) sa)->sa_data,
-	       dev->addr_len);
+	dev_addr_set(dev, ((struct sockaddr *)sa)->sa_data);
 	return 0;
 }
 
@@ -973,7 +972,7 @@ static inline void tx_on(struct scc_priv *priv)
 		flags = claim_dma_lock();
 		set_dma_mode(priv->param.dma, DMA_MODE_WRITE);
 		set_dma_addr(priv->param.dma,
-			     (int) priv->tx_buf[priv->tx_tail] + n);
+			     virt_to_bus(priv->tx_buf[priv->tx_tail]) + n);
 		set_dma_count(priv->param.dma,
 			      priv->tx_len[priv->tx_tail] - n);
 		release_dma_lock(flags);
@@ -1020,7 +1019,7 @@ static inline void rx_on(struct scc_priv *priv)
 		flags = claim_dma_lock();
 		set_dma_mode(priv->param.dma, DMA_MODE_READ);
 		set_dma_addr(priv->param.dma,
-			     (int) priv->rx_buf[priv->rx_head]);
+			     virt_to_bus(priv->rx_buf[priv->rx_head]));
 		set_dma_count(priv->param.dma, BUF_SIZE);
 		release_dma_lock(flags);
 		enable_dma(priv->param.dma);
@@ -1233,7 +1232,7 @@ static void special_condition(struct scc_priv *priv, int rc)
 		if (priv->param.dma >= 0) {
 			flags = claim_dma_lock();
 			set_dma_addr(priv->param.dma,
-				     (int) priv->rx_buf[priv->rx_head]);
+				     virt_to_bus(priv->rx_buf[priv->rx_head]));
 			set_dma_count(priv->param.dma, BUF_SIZE);
 			release_dma_lock(flags);
 		} else {

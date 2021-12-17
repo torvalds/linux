@@ -50,16 +50,29 @@ properties:
       by interrupts and "host-wakeup" interrupt-names
 
   clocks:
+    minItems: 1
     maxItems: 2
     description: 1 or 2 clocks as defined in clock-names below,
       in that order
 
   clock-names:
     description: Names of the 1 to 2 supplied clocks
-    items:
-      - const: txco
-      - const: lpo
+    oneOf:
       - const: extclk
+        deprecated: true
+        description: Deprecated in favor of txco
+
+      - const: txco
+        description: >
+          external reference clock (not a standalone crystal)
+
+      - const: lpo
+        description: >
+          external low power 32.768 kHz clock
+
+      - items:
+          - const: txco
+          - const: lpo
 
   vbat-supply:
     description: phandle to regulator supply for VBAT

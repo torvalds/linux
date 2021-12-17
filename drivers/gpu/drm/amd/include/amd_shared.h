@@ -98,7 +98,8 @@ enum amd_ip_block_type {
 	AMD_IP_BLOCK_TYPE_ACP,
 	AMD_IP_BLOCK_TYPE_VCN,
 	AMD_IP_BLOCK_TYPE_MES,
-	AMD_IP_BLOCK_TYPE_JPEG
+	AMD_IP_BLOCK_TYPE_JPEG,
+	AMD_IP_BLOCK_TYPE_NUM,
 };
 
 enum amd_clockgating_state {
@@ -228,7 +229,7 @@ enum DC_FEATURE_MASK {
 	DC_FBC_MASK = (1 << 0), //0x1, disabled by default
 	DC_MULTI_MON_PP_MCLK_SWITCH_MASK = (1 << 1), //0x2, enabled by default
 	DC_DISABLE_FRACTIONAL_PWM_MASK = (1 << 2), //0x4, disabled by default
-	DC_PSR_MASK = (1 << 3), //0x8, disabled by default
+	DC_PSR_MASK = (1 << 3), //0x8, disabled by default for dcn < 3.1
 	DC_EDP_NO_POWER_SEQUENCING = (1 << 4), //0x10, disabled by default
 };
 
@@ -236,7 +237,8 @@ enum DC_DEBUG_MASK {
 	DC_DISABLE_PIPE_SPLIT = 0x1,
 	DC_DISABLE_STUTTER = 0x2,
 	DC_DISABLE_DSC = 0x4,
-	DC_DISABLE_CLOCK_GATING = 0x8
+	DC_DISABLE_CLOCK_GATING = 0x8,
+	DC_DISABLE_PSR = 0x10,
 };
 
 enum amd_dpm_forced_level;

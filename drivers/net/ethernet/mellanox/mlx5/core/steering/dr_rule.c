@@ -917,7 +917,7 @@ static bool dr_rule_verify(struct mlx5dr_matcher *matcher,
 		return false;
 	}
 
-	mlx5dr_ste_copy_param(matcher->match_criteria, param, value);
+	mlx5dr_ste_copy_param(matcher->match_criteria, param, value, false);
 
 	if (match_criteria & DR_MATCHER_CRITERIA_OUTER) {
 		s_idx = offsetof(struct mlx5dr_match_param, outer);
@@ -1042,10 +1042,10 @@ static bool dr_rule_skip(enum mlx5dr_domain_type domain,
 		return false;
 
 	if (mask->misc.source_port) {
-		if (rx && value->misc.source_port != WIRE_PORT)
+		if (rx && value->misc.source_port != MLX5_VPORT_UPLINK)
 			return true;
 
-		if (!rx && value->misc.source_port == WIRE_PORT)
+		if (!rx && value->misc.source_port == MLX5_VPORT_UPLINK)
 			return true;
 	}
 

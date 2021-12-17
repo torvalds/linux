@@ -70,6 +70,8 @@
 #define DART_ERROR_ADDR_HI 0x54
 #define DART_ERROR_ADDR_LO 0x50
 
+#define DART_STREAMS_ENABLE 0xfc
+
 #define DART_TCR(sid) (0x100 + 4 * (sid))
 #define DART_TCR_TRANSLATE_ENABLE BIT(7)
 #define DART_TCR_BYPASS0_ENABLE BIT(8)
@@ -183,7 +185,6 @@ struct apple_dart_master_cfg {
 
 static struct platform_driver apple_dart_driver;
 static const struct iommu_ops apple_dart_iommu_ops;
-static const struct iommu_flush_ops apple_dart_tlb_ops;
 
 static struct apple_dart_domain *to_dart_domain(struct iommu_domain *dom)
 {
@@ -302,6 +303,9 @@ static int apple_dart_hw_reset(struct apple_dart *dart)
 	apple_dart_hw_disable_dma(&stream_map);
 	apple_dart_hw_clear_all_ttbrs(&stream_map);
 
+	/* enable all streams globally since TCR is used to control isolation */
+	writel(DART_STREAM_ALL, dart->regs + DART_STREAMS_ENABLE);
+
 	/* clear any pending errors before the interrupt is unmasked */
 	writel(readl(dart->regs + DART_ERROR), dart->regs + DART_ERROR);
 
@@ -337,22 +341,6 @@ static void apple_dart_iotlb_sync_map(struct iommu_domain *domain,
 {
 	apple_dart_domain_flush_tlb(to_dart_domain(domain));
 }
-
-static void apple_dart_tlb_flush_all(void *cookie)
-{
-	apple_dart_domain_flush_tlb(cookie);
-}
-
-static void apple_dart_tlb_flush_walk(unsigned long iova, size_t size,
-				      size_t granule, void *cookie)
-{
-	apple_dart_domain_flush_tlb(cookie);
-}
-
-static const struct iommu_flush_ops apple_dart_tlb_ops = {
-	.tlb_flush_all = apple_dart_tlb_flush_all,
-	.tlb_flush_walk = apple_dart_tlb_flush_walk,
-};
 
 static phys_addr_t apple_dart_iova_to_phys(struct iommu_domain *domain,
 					   dma_addr_t iova)
@@ -435,7 +423,6 @@ static int apple_dart_finalize_domain(struct iommu_domain *domain,
 		.ias = 32,
 		.oas = 36,
 		.coherent_walk = 1,
-		.tlb = &apple_dart_tlb_ops,
 		.iommu_dev = dart->dev,
 	};
 
@@ -596,7 +583,6 @@ static struct iommu_domain *apple_dart_domain_alloc(unsigned int type)
 	if (!dart_domain)
 		return NULL;
 
-	iommu_get_dma_cookie(&dart_domain->domain);
 	mutex_init(&dart_domain->init_lock);
 
 	/* no need to allocate pgtbl_ops or do any other finalization steps */
@@ -661,16 +647,34 @@ static int apple_dart_of_xlate(struct device *dev, struct of_phandle_args *args)
 	return -EINVAL;
 }
 
+static DEFINE_MUTEX(apple_dart_groups_lock);
+
+static void apple_dart_release_group(void *iommu_data)
+{
+	int i, sid;
+	struct apple_dart_stream_map *stream_map;
+	struct apple_dart_master_cfg *group_master_cfg = iommu_data;
+
+	mutex_lock(&apple_dart_groups_lock);
+
+	for_each_stream_map(i, group_master_cfg, stream_map)
+		for_each_set_bit(sid, &stream_map->sidmap, DART_MAX_STREAMS)
+			stream_map->dart->sid2group[sid] = NULL;
+
+	kfree(iommu_data);
+	mutex_unlock(&apple_dart_groups_lock);
+}
+
 static struct iommu_group *apple_dart_device_group(struct device *dev)
 {
-	static DEFINE_MUTEX(lock);
 	int i, sid;
 	struct apple_dart_master_cfg *cfg = dev_iommu_priv_get(dev);
 	struct apple_dart_stream_map *stream_map;
+	struct apple_dart_master_cfg *group_master_cfg;
 	struct iommu_group *group = NULL;
 	struct iommu_group *res = ERR_PTR(-EINVAL);
 
-	mutex_lock(&lock);
+	mutex_lock(&apple_dart_groups_lock);
 
 	for_each_stream_map(i, cfg, stream_map) {
 		for_each_set_bit(sid, &stream_map->sidmap, DART_MAX_STREAMS) {
@@ -698,6 +702,19 @@ static struct iommu_group *apple_dart_device_group(struct device *dev)
 #endif
 		group = generic_device_group(dev);
 
+	res = ERR_PTR(-ENOMEM);
+	if (!group)
+		goto out;
+
+	group_master_cfg = kmemdup(cfg, sizeof(*group_master_cfg), GFP_KERNEL);
+	if (!group_master_cfg) {
+		iommu_group_put(group);
+		goto out;
+	}
+
+	iommu_group_set_iommudata(group, group_master_cfg,
+		apple_dart_release_group);
+
 	for_each_stream_map(i, cfg, stream_map)
 		for_each_set_bit(sid, &stream_map->sidmap, DART_MAX_STREAMS)
 			stream_map->dart->sid2group[sid] = group;
@@ -705,7 +722,7 @@ static struct iommu_group *apple_dart_device_group(struct device *dev)
 	res = group;
 
 out:
-	mutex_unlock(&lock);
+	mutex_unlock(&apple_dart_groups_lock);
 	return res;
 }
 
@@ -719,6 +736,31 @@ static int apple_dart_def_domain_type(struct device *dev)
 		return IOMMU_DOMAIN_DMA;
 
 	return 0;
+}
+
+#ifndef CONFIG_PCIE_APPLE_MSI_DOORBELL_ADDR
+/* Keep things compiling when CONFIG_PCI_APPLE isn't selected */
+#define CONFIG_PCIE_APPLE_MSI_DOORBELL_ADDR	0
+#endif
+#define DOORBELL_ADDR	(CONFIG_PCIE_APPLE_MSI_DOORBELL_ADDR & PAGE_MASK)
+
+static void apple_dart_get_resv_regions(struct device *dev,
+					struct list_head *head)
+{
+	if (IS_ENABLED(CONFIG_PCIE_APPLE) && dev_is_pci(dev)) {
+		struct iommu_resv_region *region;
+		int prot = IOMMU_WRITE | IOMMU_NOEXEC | IOMMU_MMIO;
+
+		region = iommu_alloc_resv_region(DOORBELL_ADDR,
+						 PAGE_SIZE, prot,
+						 IOMMU_RESV_MSI);
+		if (!region)
+			return;
+
+		list_add_tail(&region->list, head);
+	}
+
+	iommu_dma_get_resv_regions(dev, head);
 }
 
 static const struct iommu_ops apple_dart_iommu_ops = {
@@ -737,6 +779,8 @@ static const struct iommu_ops apple_dart_iommu_ops = {
 	.device_group = apple_dart_device_group,
 	.of_xlate = apple_dart_of_xlate,
 	.def_domain_type = apple_dart_def_domain_type,
+	.get_resv_regions = apple_dart_get_resv_regions,
+	.put_resv_regions = generic_iommu_put_resv_regions,
 	.pgsize_bitmap = -1UL, /* Restricted during dart probe */
 };
 

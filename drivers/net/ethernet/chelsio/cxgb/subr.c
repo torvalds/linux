@@ -1140,7 +1140,7 @@ int t1_init_sw_modules(adapter_t *adapter, const struct board_info *bi)
 			       adapter->port[i].dev->name);
 			goto error;
 		}
-		memcpy(adapter->port[i].dev->dev_addr, hw_addr, ETH_ALEN);
+		eth_hw_addr_set(adapter->port[i].dev, hw_addr);
 		init_link_config(&adapter->port[i].link_config, bi);
 	}
 

@@ -1250,7 +1250,7 @@ int ef100_probe_pf(struct efx_nic *efx)
 	if (rc)
 		goto fail;
 	/* Assign MAC address */
-	memcpy(net_dev->dev_addr, net_dev->perm_addr, ETH_ALEN);
+	eth_hw_addr_set(net_dev, net_dev->perm_addr);
 	memcpy(nic_data->port_id, net_dev->perm_addr, ETH_ALEN);
 
 	return 0;

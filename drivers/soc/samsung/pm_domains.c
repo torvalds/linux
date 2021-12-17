@@ -28,7 +28,6 @@ struct exynos_pm_domain_config {
  */
 struct exynos_pm_domain {
 	void __iomem *base;
-	bool is_off;
 	struct generic_pm_domain pd;
 	u32 local_pwr_cfg;
 };

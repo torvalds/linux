@@ -75,7 +75,7 @@ static void mlxbf_gige_initial_mac(struct mlxbf_gige *priv)
 	u64_to_ether_addr(local_mac, mac);
 
 	if (is_valid_ether_addr(mac)) {
-		ether_addr_copy(priv->netdev->dev_addr, mac);
+		eth_hw_addr_set(priv->netdev, mac);
 	} else {
 		/* Provide a random MAC if for some reason the device has
 		 * not been configured with a valid MAC address already.
@@ -142,6 +142,13 @@ static int mlxbf_gige_open(struct net_device *netdev)
 	err = mlxbf_gige_clean_port(priv);
 	if (err)
 		goto free_irqs;
+
+	/* Clear driver's valid_polarity to match hardware,
+	 * since the above call to clean_port() resets the
+	 * receive polarity used by hardware.
+	 */
+	priv->valid_polarity = 0;
+
 	err = mlxbf_gige_rx_init(priv);
 	if (err)
 		goto free_irqs;
@@ -273,8 +280,8 @@ static int mlxbf_gige_probe(struct platform_device *pdev)
 	void __iomem *llu_base;
 	void __iomem *plu_base;
 	void __iomem *base;
+	int addr, phy_irq;
 	u64 control;
-	int addr;
 	int err;
 
 	base = devm_platform_ioremap_resource(pdev, MLXBF_GIGE_RES_MAC);
@@ -309,19 +316,11 @@ static int mlxbf_gige_probe(struct platform_device *pdev)
 	priv->pdev = pdev;
 
 	spin_lock_init(&priv->lock);
-	spin_lock_init(&priv->gpio_lock);
 
 	/* Attach MDIO device */
 	err = mlxbf_gige_mdio_probe(pdev, priv);
 	if (err)
 		return err;
-
-	err = mlxbf_gige_gpio_init(pdev, priv);
-	if (err) {
-		dev_err(&pdev->dev, "PHY IRQ initialization failed\n");
-		mlxbf_gige_mdio_remove(priv);
-		return -ENODEV;
-	}
 
 	priv->base = base;
 	priv->llu_base = llu_base;
@@ -343,6 +342,12 @@ static int mlxbf_gige_probe(struct platform_device *pdev)
 	priv->rx_irq = platform_get_irq(pdev, MLXBF_GIGE_RECEIVE_PKT_INTR_IDX);
 	priv->llu_plu_irq = platform_get_irq(pdev, MLXBF_GIGE_LLU_PLU_INTR_IDX);
 
+	phy_irq = acpi_dev_gpio_irq_get_by(ACPI_COMPANION(&pdev->dev), "phy-gpios", 0);
+	if (phy_irq < 0) {
+		dev_err(&pdev->dev, "Error getting PHY irq. Use polling instead");
+		phy_irq = PHY_POLL;
+	}
+
 	phydev = phy_find_first(priv->mdiobus);
 	if (!phydev) {
 		err = -ENODEV;
@@ -350,8 +355,8 @@ static int mlxbf_gige_probe(struct platform_device *pdev)
 	}
 
 	addr = phydev->mdio.addr;
-	priv->mdiobus->irq[addr] = priv->phy_irq;
-	phydev->irq = priv->phy_irq;
+	priv->mdiobus->irq[addr] = phy_irq;
+	phydev->irq = phy_irq;
 
 	err = phy_connect_direct(netdev, phydev,
 				 mlxbf_gige_adjust_link,
@@ -387,7 +392,6 @@ static int mlxbf_gige_probe(struct platform_device *pdev)
 	return 0;
 
 out:
-	mlxbf_gige_gpio_free(priv);
 	mlxbf_gige_mdio_remove(priv);
 	return err;
 }
@@ -398,7 +402,6 @@ static int mlxbf_gige_remove(struct platform_device *pdev)
 
 	unregister_netdev(priv->netdev);
 	phy_disconnect(priv->netdev->phydev);
-	mlxbf_gige_gpio_free(priv);
 	mlxbf_gige_mdio_remove(priv);
 	platform_set_drvdata(pdev, NULL);
 

@@ -23,6 +23,7 @@ properties:
       - socionext,uniphier-pxs2-usb3-reset
       - socionext,uniphier-ld20-usb3-reset
       - socionext,uniphier-pxs3-usb3-reset
+      - socionext,uniphier-nx1-usb3-reset
       - socionext,uniphier-pro4-ahci-reset
       - socionext,uniphier-pxs2-ahci-reset
       - socionext,uniphier-pxs3-ahci-reset

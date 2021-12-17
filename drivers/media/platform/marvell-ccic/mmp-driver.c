@@ -239,10 +239,10 @@ static int mmpcam_probe(struct platform_device *pdev)
 	if (!ep)
 		return -ENODEV;
 
-	v4l2_async_notifier_init(&mcam->notifier);
+	v4l2_async_nf_init(&mcam->notifier);
 
-	asd = v4l2_async_notifier_add_fwnode_remote_subdev(&mcam->notifier, ep,
-							   struct v4l2_async_subdev);
+	asd = v4l2_async_nf_add_fwnode_remote(&mcam->notifier, ep,
+					      struct v4l2_async_subdev);
 	fwnode_handle_put(ep);
 	if (IS_ERR(asd)) {
 		ret = PTR_ERR(asd);

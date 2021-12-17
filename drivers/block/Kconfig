@@ -180,14 +180,6 @@ config BLK_DEV_LOOP
 	  bits of, say, a sound file). This is also safe if the file resides
 	  on a remote file server.
 
-	  There are several ways of encrypting disks. Some of these require
-	  kernel patches. The vanilla kernel offers the cryptoloop option
-	  and a Device Mapper target (which is superior, as it supports all
-	  file systems). If you want to use the cryptoloop, say Y to both
-	  LOOP and CRYPTOLOOP, and make sure you have a recent (version 2.12
-	  or later) version of util-linux. Additionally, be aware that
-	  the cryptoloop is not safe for storing journaled filesystems.
-
 	  Note that this loop device has nothing to do with the loopback
 	  device used for network connections from the machine to itself.
 
@@ -210,21 +202,6 @@ config BLK_DEV_LOOP_MIN_COUNT
 	  The historic default is 8. If a late 2011 version of losetup(8)
 	  is used, it can be set to 0, since needed loop devices can be
 	  dynamically allocated with the /dev/loop-control interface.
-
-config BLK_DEV_CRYPTOLOOP
-	tristate "Cryptoloop Support (DEPRECATED)"
-	select CRYPTO
-	select CRYPTO_CBC
-	depends on BLK_DEV_LOOP
-	help
-	  Say Y here if you want to be able to use the ciphers that are 
-	  provided by the CryptoAPI as loop transformation. This might be
-	  used as hard disk encryption.
-
-	  WARNING: This device is not safe for journaled file systems like
-	  ext3 or Reiserfs. Please use the Device Mapper crypto module
-	  instead, which can be configured to be on-disk compatible with the
-	  cryptoloop device.  cryptoloop support will be removed in Linux 5.16.
 
 source "drivers/block/drbd/Kconfig"
 
@@ -304,8 +281,8 @@ config BLK_DEV_RAM_SIZE
 config CDROM_PKTCDVD
 	tristate "Packet writing on CD/DVD media (DEPRECATED)"
 	depends on !UML
+	depends on SCSI
 	select CDROM
-	select SCSI_COMMON
 	help
 	  Note: This driver is deprecated and will be removed from the
 	  kernel in the near future!
@@ -394,6 +371,7 @@ config XEN_BLKDEV_BACKEND
 config VIRTIO_BLK
 	tristate "Virtio block driver"
 	depends on VIRTIO
+	select SG_POOL
 	help
 	  This is the virtual block driver for virtio.  It can be used with
           QEMU based VMMs (like KVM or Xen).  Say Y or M.

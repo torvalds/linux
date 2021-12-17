@@ -308,6 +308,8 @@
 #define mmPCIE_AUX_FLR_CTRL                                          0xC07394
 #define mmPCIE_AUX_DBI                                               0xC07490
 
+#define mmPCIE_CORE_MSI_REQ                                          0xC04100
+
 #define mmPSOC_PCI_PLL_NR                                            0xC72100
 #define mmSRAM_W_PLL_NR                                              0x4C8100
 #define mmPSOC_HBM_PLL_NR                                            0xC74100

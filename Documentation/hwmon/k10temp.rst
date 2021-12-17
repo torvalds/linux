@@ -132,20 +132,3 @@ On Family 17h and Family 18h CPUs, additional temperature sensors may report
 Core Complex Die (CCD) temperatures. Up to 8 such temperatures are reported
 as temp{3..10}_input, labeled Tccd{1..8}. Actual support depends on the CPU
 variant.
-
-Various Family 17h and 18h CPUs report voltage and current telemetry
-information. The following attributes may be reported.
-
-Attribute	Label	Description
-===============	=======	================
-in0_input	Vcore	Core voltage
-in1_input	Vsoc	SoC voltage
-curr1_input	Icore	Core current
-curr2_input	Isoc	SoC current
-===============	=======	================
-
-Current values are raw (unscaled) as reported by the CPU. Core current is
-reported as multiples of 1A / LSB. SoC is reported as multiples of 0.25A
-/ LSB. The real current is board specific. Reported currents should be seen
-as rough guidance, and should be scaled using sensors3.conf as appropriate
-for a given board.

@@ -3,7 +3,8 @@
 #include <test_progs.h>
 #include <linux/nbd.h>
 
-void test_raw_tp_writable_test_run(void)
+/* NOTE: conflict with other tests. */
+void serial_test_raw_tp_writable_test_run(void)
 {
 	__u32 duration = 0;
 	char error[4096];

@@ -615,7 +615,10 @@ config I2C_EXYNOS5
 	depends on ARCH_EXYNOS || COMPILE_TEST
 	default y if ARCH_EXYNOS
 	help
-	  High-speed I2C controller on Exynos5 and newer Samsung SoCs.
+	  High-speed I2C controller on Samsung Exynos5 and newer Samsung SoCs:
+	  Exynos5250, Exynos5260, Exynos5410, Exynos542x, Exynos5800,
+	  Exynos5433 and Exynos7.
+	  Choose Y here only if you build for such Samsung SoC.
 
 config I2C_GPIO
 	tristate "GPIO-based bitbanging I2C"
@@ -855,6 +858,17 @@ config I2C_PASEMI
 	depends on PPC_PASEMI && PCI
 	help
 	  Supports the PA Semi PWRficient on-chip SMBus interfaces.
+
+config I2C_APPLE
+	tristate "Apple SMBus platform driver"
+	depends on ARCH_APPLE || COMPILE_TEST
+	default ARCH_APPLE
+	help
+	  Say Y here if you want to use the I2C controller present on Apple
+	  Silicon chips such as the M1.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called i2c-apple.
 
 config I2C_PCA_PLATFORM
 	tristate "PCA9564/PCA9665 as platform device"

@@ -15,6 +15,12 @@
 struct hclgevf_hw;
 struct hclgevf_dev;
 
+#define HCLGEVF_SYNC_RX_RING_HEAD_EN_B	4
+struct hclgevf_firmware_compat_cmd {
+	__le32 compat;
+	u8 rsv[20];
+};
+
 struct hclgevf_desc {
 	__le16 opcode;
 	__le16 flag;
@@ -107,6 +113,9 @@ enum hclgevf_opcode_type {
 	HCLGEVF_OPC_RSS_TC_MODE		= 0x0D08,
 	/* Mailbox cmd */
 	HCLGEVF_OPC_MBX_VF_TO_PF	= 0x2001,
+
+	/* IMP stats command */
+	HCLGEVF_OPC_IMP_COMPAT_CFG	= 0x701A,
 };
 
 #define HCLGEVF_TQP_REG_OFFSET		0x80000

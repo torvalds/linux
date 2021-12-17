@@ -1583,6 +1583,7 @@ int ipoib_cm_dev_init(struct net_device *dev)
 {
 	struct ipoib_dev_priv *priv = ipoib_priv(dev);
 	int max_srq_sge, i;
+	u8 addr;
 
 	INIT_LIST_HEAD(&priv->cm.passive_ids);
 	INIT_LIST_HEAD(&priv->cm.reap_list);
@@ -1636,7 +1637,8 @@ int ipoib_cm_dev_init(struct net_device *dev)
 		}
 	}
 
-	priv->dev->dev_addr[0] = IPOIB_FLAGS_RC;
+	addr = IPOIB_FLAGS_RC;
+	dev_addr_mod(dev, 0, &addr, 1);
 	return 0;
 }
 

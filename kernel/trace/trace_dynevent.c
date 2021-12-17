@@ -262,7 +262,7 @@ static __init int init_dynamic_event(void)
 	if (ret)
 		return 0;
 
-	entry = tracefs_create_file("dynamic_events", 0644, NULL,
+	entry = tracefs_create_file("dynamic_events", TRACE_MODE_WRITE, NULL,
 				    NULL, &dynamic_events_ops);
 
 	/* Event list interface */

@@ -632,7 +632,7 @@ static void set_dev_domain_options(struct pci_dev *pdev)
 		pdev->hotplug_user_indicators = 1;
 }
 
-int pcibios_add_device(struct pci_dev *dev)
+int pcibios_device_add(struct pci_dev *dev)
 {
 	struct pci_setup_rom *rom;
 	struct irq_domain *msidom;

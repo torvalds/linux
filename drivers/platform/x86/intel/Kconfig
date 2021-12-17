@@ -102,6 +102,22 @@ config INTEL_CHTDC_TI_PWRBTN
 	  To compile this driver as a module, choose M here: the module
 	  will be called intel_chtdc_ti_pwrbtn.
 
+config INTEL_ISHTP_ECLITE
+	tristate "Intel ISHTP eclite controller Driver"
+	depends on INTEL_ISH_HID
+	depends on ACPI
+	help
+	  This driver is for accessing the PSE (Programmable Service Engine) -
+	  an Embedded Controller like IP - using ISHTP (Integrated Sensor Hub
+	  Transport Protocol) to get battery, thermal and UCSI (USB Type-C
+	  Connector System Software Interface) related data from the platform.
+	  Users who don't want to use discrete Embedded Controller on Intel's
+	  Elkhartlake platform can leverage this integrated solution of
+	  ECLite which is part of PSE subsystem.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called intel_ishtp_eclite.
+
 config INTEL_MRFLD_PWRBTN
 	tristate "Intel Merrifield Basin Cove power button driver"
 	depends on INTEL_SOC_PMIC_MRFLD

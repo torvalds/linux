@@ -14,6 +14,9 @@
 #define ICE_VSI_INVAL_ID 0xffff
 #define ICE_INVAL_Q_HANDLE 0xFFFF
 
+#define ICE_SW_RULE_RX_TX_NO_HDR_SIZE \
+	(offsetof(struct ice_aqc_sw_rules_elem, pdata.lkup_tx_rx.hdr))
+
 /* VSI context structure for add/get/update/free operations */
 struct ice_vsi_ctx {
 	u16 vsi_num;
@@ -122,30 +125,124 @@ struct ice_fltr_info {
 	u8 lan_en;	/* Indicate if packet can be forwarded to the uplink */
 };
 
+struct ice_adv_lkup_elem {
+	enum ice_protocol_type type;
+	union ice_prot_hdr h_u;	/* Header values */
+	union ice_prot_hdr m_u;	/* Mask of header values to match */
+};
+
+struct ice_sw_act_ctrl {
+	/* Source VSI for LOOKUP_TX or source port for LOOKUP_RX */
+	u16 src;
+	u16 flag;
+	enum ice_sw_fwd_act_type fltr_act;
+	/* Depending on filter action */
+	union {
+		/* This is a queue ID in case of ICE_FWD_TO_Q and starting
+		 * queue ID in case of ICE_FWD_TO_QGRP.
+		 */
+		u16 q_id:11;
+		u16 vsi_id:10;
+		u16 hw_vsi_id:10;
+		u16 vsi_list_id:10;
+	} fwd_id;
+	/* software VSI handle */
+	u16 vsi_handle;
+	u8 qgrp_size;
+};
+
+struct ice_rule_query_data {
+	/* Recipe ID for which the requested rule was added */
+	u16 rid;
+	/* Rule ID that was added or is supposed to be removed */
+	u16 rule_id;
+	/* vsi_handle for which Rule was added or is supposed to be removed */
+	u16 vsi_handle;
+};
+
+/* This structure allows to pass info about lb_en and lan_en
+ * flags to ice_add_adv_rule. Values in act would be used
+ * only if act_valid was set to true, otherwise default
+ * values would be used.
+ */
+struct ice_adv_rule_flags_info {
+	u32 act;
+	u8 act_valid;		/* indicate if flags in act are valid */
+};
+
+struct ice_adv_rule_info {
+	enum ice_sw_tunnel_type tun_type;
+	struct ice_sw_act_ctrl sw_act;
+	u32 priority;
+	u8 rx; /* true means LOOKUP_RX otherwise LOOKUP_TX */
+	u16 fltr_rule_id;
+	struct ice_adv_rule_flags_info flags_info;
+};
+
+/* A collection of one or more four word recipe */
 struct ice_sw_recipe {
-	struct list_head l_entry;
-
-	/* To protect modification of filt_rule list
-	 * defined below
+	/* For a chained recipe the root recipe is what should be used for
+	 * programming rules
 	 */
-	struct mutex filt_rule_lock;
+	u8 is_root;
+	u8 root_rid;
+	u8 recp_created;
 
-	/* List of type ice_fltr_mgmt_list_entry */
+	/* Number of extraction words */
+	u8 n_ext_words;
+	/* Protocol ID and Offset pair (extraction word) to describe the
+	 * recipe
+	 */
+	struct ice_fv_word ext_words[ICE_MAX_CHAIN_WORDS];
+	u16 word_masks[ICE_MAX_CHAIN_WORDS];
+
+	/* if this recipe is a collection of other recipe */
+	u8 big_recp;
+
+	/* if this recipe is part of another bigger recipe then chain index
+	 * corresponding to this recipe
+	 */
+	u8 chain_idx;
+
+	/* if this recipe is a collection of other recipe then count of other
+	 * recipes and recipe IDs of those recipes
+	 */
+	u8 n_grp_count;
+
+	/* Bit map specifying the IDs associated with this group of recipe */
+	DECLARE_BITMAP(r_bitmap, ICE_MAX_NUM_RECIPES);
+
+	enum ice_sw_tunnel_type tun_type;
+
+	/* List of type ice_fltr_mgmt_list_entry or adv_rule */
+	u8 adv_rule;
 	struct list_head filt_rules;
 	struct list_head filt_replay_rules;
 
-	/* linked list of type recipe_list_entry */
-	struct list_head rg_list;
-	/* linked list of type ice_sw_fv_list_entry*/
-	struct list_head fv_list;
-	struct ice_aqc_recipe_data_elem *r_buf;
-	u8 recp_count;
-	u8 root_rid;
-	u8 num_profs;
-	u8 *prof_ids;
+	struct mutex filt_rule_lock;	/* protect filter rule structure */
 
-	/* recipe bitmap: what all recipes makes this recipe */
-	DECLARE_BITMAP(r_bitmap, ICE_MAX_NUM_RECIPES);
+	/* Profiles this recipe should be associated with */
+	struct list_head fv_list;
+
+	/* Profiles this recipe is associated with */
+	u8 num_profs, *prof_ids;
+
+	/* Bit map for possible result indexes */
+	DECLARE_BITMAP(res_idxs, ICE_MAX_FV_WORDS);
+
+	/* This allows user to specify the recipe priority.
+	 * For now, this becomes 'fwd_priority' when recipe
+	 * is created, usually recipes can have 'fwd' and 'join'
+	 * priority.
+	 */
+	u8 priority;
+
+	struct list_head rg_list;
+
+	/* AQ buffer associated with this recipe */
+	struct ice_aqc_recipe_data_elem *root_buf;
+	/* This struct saves the fv_words for a given lookup */
+	struct ice_prot_lkup_ext lkup_exts;
 };
 
 /* Bookkeeping structure to hold bitmap of VSIs corresponding to VSI list ID */
@@ -183,6 +280,16 @@ struct ice_fltr_mgmt_list_entry {
 	u8 counter_index;
 };
 
+struct ice_adv_fltr_mgmt_list_entry {
+	struct list_head list_entry;
+
+	struct ice_adv_lkup_elem *lkups;
+	struct ice_adv_rule_info rule_info;
+	u16 lkups_cnt;
+	struct ice_vsi_list_map_info *vsi_list_info;
+	u16 vsi_count;
+};
+
 enum ice_promisc_flags {
 	ICE_PROMISC_UCAST_RX = 0x1,
 	ICE_PROMISC_UCAST_TX = 0x2,
@@ -218,6 +325,10 @@ ice_free_res_cntr(struct ice_hw *hw, u8 type, u8 alloc_shared, u16 num_items,
 		  u16 counter_id);
 
 /* Switch/bridge related commands */
+enum ice_status
+ice_add_adv_rule(struct ice_hw *hw, struct ice_adv_lkup_elem *lkups,
+		 u16 lkups_cnt, struct ice_adv_rule_info *rinfo,
+		 struct ice_rule_query_data *added_entry);
 enum ice_status ice_update_sw_rule_bridge_mode(struct ice_hw *hw);
 enum ice_status ice_add_mac(struct ice_hw *hw, struct list_head *m_lst);
 enum ice_status ice_remove_mac(struct ice_hw *hw, struct list_head *m_lst);
@@ -227,6 +338,8 @@ enum ice_status
 ice_remove_eth_mac(struct ice_hw *hw, struct list_head *em_list);
 int
 ice_cfg_rdma_fltr(struct ice_hw *hw, u16 vsi_handle, bool enable);
+bool ice_mac_fltr_exist(struct ice_hw *hw, u8 *mac, u16 vsi_handle);
+bool ice_vlan_fltr_exist(struct ice_hw *hw, u16 vlan_id, u16 vsi_handle);
 void ice_remove_vsi_fltr(struct ice_hw *hw, u16 vsi_handle);
 enum ice_status
 ice_add_vlan(struct ice_hw *hw, struct list_head *m_list);
@@ -245,10 +358,19 @@ enum ice_status
 ice_set_vlan_vsi_promisc(struct ice_hw *hw, u16 vsi_handle, u8 promisc_mask,
 			 bool rm_vlan_promisc);
 
+enum ice_status
+ice_rem_adv_rule_for_vsi(struct ice_hw *hw, u16 vsi_handle);
+enum ice_status
+ice_rem_adv_rule_by_id(struct ice_hw *hw,
+		       struct ice_rule_query_data *remove_entry);
+
 enum ice_status ice_init_def_sw_recp(struct ice_hw *hw);
 u16 ice_get_hw_vsi_num(struct ice_hw *hw, u16 vsi_handle);
 
 enum ice_status ice_replay_vsi_all_fltr(struct ice_hw *hw, u16 vsi_handle);
 void ice_rm_all_sw_replay_rule_info(struct ice_hw *hw);
 
+enum ice_status
+ice_aq_sw_rules(struct ice_hw *hw, void *rule_list, u16 rule_list_sz,
+		u8 num_rules, enum ice_adminq_opc opc, struct ice_sq_cd *cd);
 #endif /* _ICE_SWITCH_H_ */

@@ -6867,6 +6867,8 @@ static int si_dpm_enable(struct amdgpu_device *adev)
 	si_enable_auto_throttle_source(adev, AMDGPU_DPM_AUTO_THROTTLE_SRC_THERMAL, true);
 	si_thermal_start_thermal_controller(adev);
 
+	ni_update_current_ps(adev, boot_ps);
+
 	return 0;
 }
 

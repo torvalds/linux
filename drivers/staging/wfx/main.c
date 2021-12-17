@@ -35,7 +35,7 @@
 
 #define WFX_PDS_MAX_SIZE 1500
 
-MODULE_DESCRIPTION("Silicon Labs 802.11 Wireless LAN driver for WFx");
+MODULE_DESCRIPTION("Silicon Labs 802.11 Wireless LAN driver for WF200");
 MODULE_AUTHOR("Jérôme Pouiller <jerome.pouiller@silabs.com>");
 MODULE_LICENSE("GPL");
 
@@ -92,7 +92,7 @@ static const struct ieee80211_supported_band wfx_band_2ghz = {
 	.bitrates = wfx_rates,
 	.n_bitrates = ARRAY_SIZE(wfx_rates),
 	.ht_cap = {
-		// Receive caps
+		/* Receive caps */
 		.cap = IEEE80211_HT_CAP_GRN_FLD | IEEE80211_HT_CAP_SGI_20 |
 		       IEEE80211_HT_CAP_MAX_AMSDU |
 		       (1 << IEEE80211_HT_CAP_RX_STBC_SHIFT),
@@ -100,7 +100,7 @@ static const struct ieee80211_supported_band wfx_band_2ghz = {
 		.ampdu_factor = IEEE80211_HT_MAX_AMPDU_16K,
 		.ampdu_density = IEEE80211_HT_MPDU_DENSITY_NONE,
 		.mcs = {
-			.rx_mask = { 0xFF }, // MCS0 to MCS7
+			.rx_mask = { 0xFF }, /* MCS0 to MCS7 */
 			.rx_highest = cpu_to_le16(72),
 			.tx_params = IEEE80211_HT_MCS_TX_DEFINED,
 		},
@@ -163,7 +163,20 @@ bool wfx_api_older_than(struct wfx_dev *wdev, int major, int minor)
 	return false;
 }
 
-/* NOTE: wfx_send_pds() destroy buf */
+/* The device needs data about the antenna configuration. This information in
+ * provided by PDS (Platform Data Set, this is the wording used in WF200
+ * documentation) files. For hardware integrators, the full process to create
+ * PDS files is described here:
+ *   https:github.com/SiliconLabs/wfx-firmware/blob/master/PDS/README.md
+ *
+ * So this function aims to send PDS to the device. However, the PDS file is
+ * often bigger than Rx buffers of the chip, so it has to be sent in multiple
+ * parts.
+ *
+ * In add, the PDS data cannot be split anywhere. The PDS files contains tree
+ * structures. Braces are used to enter/leave a level of the tree (in a JSON
+ * fashion). PDS files can only been split between root nodes.
+ */
 int wfx_send_pds(struct wfx_dev *wdev, u8 *buf, size_t len)
 {
 	int ret;
@@ -220,7 +233,7 @@ static int wfx_send_pdata_pds(struct wfx_dev *wdev)
 
 	ret = request_firmware(&pds, wdev->pdata.file_pds, wdev->dev);
 	if (ret) {
-		dev_err(wdev->dev, "can't load PDS file %s\n",
+		dev_err(wdev->dev, "can't load antenna parameters (PDS file %s). The device may be unstable.\n",
 			wdev->pdata.file_pds);
 		goto err1;
 	}
@@ -294,7 +307,7 @@ struct wfx_dev *wfx_init_common(struct device *dev,
 	hw->wiphy->n_iface_combinations = ARRAY_SIZE(wfx_iface_combinations);
 	hw->wiphy->iface_combinations = wfx_iface_combinations;
 	hw->wiphy->bands[NL80211_BAND_2GHZ] = devm_kmalloc(dev, sizeof(wfx_band_2ghz), GFP_KERNEL);
-	// FIXME: also copy wfx_rates and wfx_2ghz_chantable
+	/* FIXME: also copy wfx_rates and wfx_2ghz_chantable */
 	memcpy(hw->wiphy->bands[NL80211_BAND_2GHZ], &wfx_band_2ghz,
 	       sizeof(wfx_band_2ghz));
 
@@ -336,8 +349,9 @@ int wfx_probe(struct wfx_dev *wdev)
 	int err;
 	struct gpio_desc *gpio_saved;
 
-	// During first part of boot, gpio_wakeup cannot yet been used. So
-	// prevent bh() to touch it.
+	/* During first part of boot, gpio_wakeup cannot yet been used. So
+	 * prevent bh() to touch it.
+	 */
 	gpio_saved = wdev->pdata.gpio_wakeup;
 	wdev->pdata.gpio_wakeup = NULL;
 	wdev->poll_irq = true;
@@ -360,7 +374,7 @@ int wfx_probe(struct wfx_dev *wdev)
 		goto err0;
 	}
 
-	// FIXME: fill wiphy::hw_version
+	/* FIXME: fill wiphy::hw_version */
 	dev_info(wdev->dev, "started firmware %d.%d.%d \"%s\" (API: %d.%d, keyset: %02X, caps: 0x%.8X)\n",
 		 wdev->hw_caps.firmware_major, wdev->hw_caps.firmware_minor,
 		 wdev->hw_caps.firmware_build, wdev->hw_caps.firmware_label,
@@ -396,7 +410,7 @@ int wfx_probe(struct wfx_dev *wdev)
 	dev_dbg(wdev->dev, "sending configuration file %s\n",
 		wdev->pdata.file_pds);
 	err = wfx_send_pdata_pds(wdev);
-	if (err < 0)
+	if (err < 0 && err != -ENOENT)
 		goto err0;
 
 	wdev->poll_irq = false;
@@ -439,6 +453,9 @@ int wfx_probe(struct wfx_dev *wdev)
 	}
 	wdev->hw->wiphy->n_addresses = ARRAY_SIZE(wdev->addresses);
 	wdev->hw->wiphy->addresses = wdev->addresses;
+
+	if (!wfx_api_older_than(wdev, 3, 8))
+		wdev->hw->wiphy->flags |= WIPHY_FLAG_SUPPORTS_TDLS;
 
 	err = ieee80211_register_hw(wdev->hw);
 	if (err)

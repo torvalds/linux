@@ -6,17 +6,6 @@
 #include <asm/machvec.h>
 
 /*
- * Only legacy non-sparseirq platforms have to set a reasonably sane
- * value here. sparseirq platforms allocate their irq_descs on the fly,
- * so will expand automatically based on the number of registered IRQs.
- */
-#ifdef CONFIG_SPARSE_IRQ
-# define NR_IRQS		8
-#else
-# define NR_IRQS		512
-#endif
-
-/*
  * This is a special IRQ number for indicating that no IRQ has been
  * triggered and to simply ignore the IRQ dispatch. This is a special
  * case that can happen with IRQ auto-distribution when multiple CPUs

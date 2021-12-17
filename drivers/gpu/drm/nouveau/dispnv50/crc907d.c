@@ -23,9 +23,8 @@ struct crc907d_notifier {
 } __packed;
 
 static int
-crc907d_set_src(struct nv50_head *head, int or,
-		enum nv50_crc_source_type source,
-		struct nv50_crc_notifier_ctx *ctx, u32 wndw)
+crc907d_set_src(struct nv50_head *head, int or, enum nv50_crc_source_type source,
+		struct nv50_crc_notifier_ctx *ctx)
 {
 	struct nvif_push *push = nv50_disp(head->base.base.dev)->core->chan.push;
 	const int i = head->base.index;
@@ -33,7 +32,8 @@ crc907d_set_src(struct nv50_head *head, int or,
 		       NVDEF(NV907D, HEAD_SET_CRC_CONTROL, EXPECT_BUFFER_COLLAPSE, FALSE) |
 		       NVDEF(NV907D, HEAD_SET_CRC_CONTROL, TIMESTAMP_MODE, FALSE) |
 		       NVDEF(NV907D, HEAD_SET_CRC_CONTROL, SECONDARY_OUTPUT, NONE) |
-		       NVDEF(NV907D, HEAD_SET_CRC_CONTROL, CRC_DURING_SNOOZE, DISABLE);
+		       NVDEF(NV907D, HEAD_SET_CRC_CONTROL, CRC_DURING_SNOOZE, DISABLE) |
+		       NVDEF(NV907D, HEAD_SET_CRC_CONTROL, WIDE_PIPE_CRC, ENABLE);
 	int ret;
 
 	switch (source) {

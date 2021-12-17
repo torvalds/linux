@@ -48,8 +48,8 @@ int hsr_register_frame_out(struct hsr_port *port, struct hsr_node *node,
 void hsr_prune_nodes(struct timer_list *t);
 
 int hsr_create_self_node(struct hsr_priv *hsr,
-			 unsigned char addr_a[ETH_ALEN],
-			 unsigned char addr_b[ETH_ALEN]);
+			 const unsigned char addr_a[ETH_ALEN],
+			 const unsigned char addr_b[ETH_ALEN]);
 
 void *hsr_get_next_node(struct hsr_priv *hsr, void *_pos,
 			unsigned char addr[ETH_ALEN]);

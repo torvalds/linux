@@ -1,0 +1,74 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/sound/nvidia,tegra210-mixer.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Tegra210 Mixer Device Tree Bindings
+
+description: |
+  The Mixer supports mixing of up to ten 7.1 audio input streams and
+  generate five outputs (each of which can be any combination of the
+  ten input streams).
+
+maintainers:
+  - Jon Hunter <jonathanh@nvidia.com>
+  - Mohan Kumar <mkumard@nvidia.com>
+  - Sameer Pujar <spujar@nvidia.com>
+
+allOf:
+  - $ref: name-prefix.yaml#
+
+properties:
+  $nodename:
+    pattern: "^amixer@[0-9a-f]*$"
+
+  compatible:
+    oneOf:
+      - const: nvidia,tegra210-amixer
+      - items:
+          - enum:
+              - nvidia,tegra194-amixer
+              - nvidia,tegra186-amixer
+          - const: nvidia,tegra210-amixer
+
+  reg:
+    maxItems: 1
+
+  sound-name-prefix:
+    pattern: "^MIXER[1-9]$"
+
+  ports:
+    $ref: /schemas/graph.yaml#/properties/ports
+    description: |
+      Mixer has ten inputs and five outputs. Accordingly ACIF (Audio
+      Client Interfaces) port nodes are defined to represent Mixer
+      inputs (port 0 to 9) and outputs (port 10 to 14). These are
+      connected to corresponding ports on AHUB (Audio Hub).
+
+    patternProperties:
+      '^port@[0-9]':
+        $ref: audio-graph-port.yaml#
+        unevaluatedProperties: false
+        description: Mixer ACIF input ports
+      '^port@[10-14]':
+        $ref: audio-graph-port.yaml#
+        unevaluatedProperties: false
+        description: Mixer ACIF output ports
+
+required:
+  - compatible
+  - reg
+
+additionalProperties: false
+
+examples:
+  - |
+
+    amixer@702dbb00 {
+        compatible = "nvidia,tegra210-amixer";
+        reg = <0x702dbb00 0x800>;
+        sound-name-prefix = "MIXER1";
+    };
+
+...

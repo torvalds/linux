@@ -14,9 +14,6 @@
 #define IONIC_ADMINQ_LENGTH	16	/* must be a power of two */
 #define IONIC_NOTIFYQ_LENGTH	64	/* must be a power of two */
 
-#define IONIC_MAX_NUM_NAPI_CNTR		(NAPI_POLL_WEIGHT + 1)
-#define IONIC_MAX_NUM_SG_CNTR		(IONIC_TX_MAX_SG_ELEMS + 1)
-
 #define ADD_ADDR	true
 #define DEL_ADDR	false
 #define CAN_SLEEP	true
@@ -37,7 +34,6 @@ struct ionic_tx_stats {
 	u64 clean;
 	u64 linearize;
 	u64 crc32_csum;
-	u64 sg_cntr[IONIC_MAX_NUM_SG_CNTR];
 	u64 dma_map_err;
 	u64 hwstamp_valid;
 	u64 hwstamp_invalid;
@@ -48,7 +44,6 @@ struct ionic_rx_stats {
 	u64 bytes;
 	u64 csum_none;
 	u64 csum_complete;
-	u64 buffers_posted;
 	u64 dropped;
 	u64 vlan_stripped;
 	u64 csum_error;
@@ -65,11 +60,6 @@ struct ionic_rx_stats {
 #define IONIC_QCQ_F_RX_STATS		BIT(4)
 #define IONIC_QCQ_F_NOTIFYQ		BIT(5)
 
-struct ionic_napi_stats {
-	u64 poll_count;
-	u64 work_done_cntr[IONIC_MAX_NUM_NAPI_CNTR];
-};
-
 struct ionic_qcq {
 	void *q_base;
 	dma_addr_t q_base_pa;
@@ -85,7 +75,6 @@ struct ionic_qcq {
 	struct ionic_cq cq;
 	struct ionic_intr_info intr;
 	struct napi_struct napi;
-	struct ionic_napi_stats napi_stats;
 	unsigned int flags;
 	struct dentry *dentry;
 };
@@ -142,7 +131,6 @@ struct ionic_lif_sw_stats {
 
 enum ionic_lif_state_flags {
 	IONIC_LIF_F_INITED,
-	IONIC_LIF_F_SW_DEBUG_STATS,
 	IONIC_LIF_F_UP,
 	IONIC_LIF_F_LINK_CHECK_REQUESTED,
 	IONIC_LIF_F_FILTER_SYNC_NEEDED,
@@ -201,11 +189,11 @@ struct ionic_lif {
 	u16 rx_mode;
 	u64 hw_features;
 	bool registered;
-	bool mc_overflow;
-	bool uc_overflow;
 	u16 lif_type;
 	unsigned int nmcast;
 	unsigned int nucast;
+	unsigned int nvlans;
+	unsigned int max_vlans;
 	char name[IONIC_LIF_NAME_MAX_SZ];
 
 	union ionic_lif_identity *identity;
@@ -350,37 +338,4 @@ int ionic_lif_rss_config(struct ionic_lif *lif, u16 types,
 void ionic_lif_rx_mode(struct ionic_lif *lif);
 int ionic_reconfigure_queues(struct ionic_lif *lif,
 			     struct ionic_queue_params *qparam);
-
-static inline void debug_stats_txq_post(struct ionic_queue *q, bool dbell)
-{
-	struct ionic_txq_desc *desc = &q->txq[q->head_idx];
-	u8 num_sg_elems;
-
-	q->dbell_count += dbell;
-
-	num_sg_elems = ((le64_to_cpu(desc->cmd) >> IONIC_TXQ_DESC_NSGE_SHIFT)
-						& IONIC_TXQ_DESC_NSGE_MASK);
-	if (num_sg_elems > (IONIC_MAX_NUM_SG_CNTR - 1))
-		num_sg_elems = IONIC_MAX_NUM_SG_CNTR - 1;
-
-	q->lif->txqstats[q->index].sg_cntr[num_sg_elems]++;
-}
-
-static inline void debug_stats_napi_poll(struct ionic_qcq *qcq,
-					 unsigned int work_done)
-{
-	qcq->napi_stats.poll_count++;
-
-	if (work_done > (IONIC_MAX_NUM_NAPI_CNTR - 1))
-		work_done = IONIC_MAX_NUM_NAPI_CNTR - 1;
-
-	qcq->napi_stats.work_done_cntr[work_done]++;
-}
-
-#define DEBUG_STATS_CQE_CNT(cq)		((cq)->compl_count++)
-#define DEBUG_STATS_RX_BUFF_CNT(q)	((q)->lif->rxqstats[q->index].buffers_posted++)
-#define DEBUG_STATS_TXQ_POST(q, dbell)  debug_stats_txq_post(q, dbell)
-#define DEBUG_STATS_NAPI_POLL(qcq, work_done) \
-	debug_stats_napi_poll(qcq, work_done)
-
 #endif /* _IONIC_LIF_H_ */

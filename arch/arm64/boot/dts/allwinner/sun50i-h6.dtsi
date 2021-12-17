@@ -119,10 +119,10 @@
 			display_clocks: clock@0 {
 				compatible = "allwinner,sun50i-h6-de3-clk";
 				reg = <0x0 0x10000>;
-				clocks = <&ccu CLK_DE>,
-					 <&ccu CLK_BUS_DE>;
-				clock-names = "mod",
-					      "bus";
+				clocks = <&ccu CLK_BUS_DE>,
+					 <&ccu CLK_DE>;
+				clock-names = "bus",
+					      "mod";
 				resets = <&ccu RST_BUS_DE>;
 				#clock-cells = <1>;
 				#reset-cells = <1>;

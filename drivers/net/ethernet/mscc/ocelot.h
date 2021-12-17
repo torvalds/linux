@@ -25,6 +25,7 @@
 #include "ocelot_rew.h"
 #include "ocelot_qs.h"
 
+#define OCELOT_VLAN_UNAWARE_PVID 0
 #define OCELOT_BUFFER_CELL_SZ 60
 
 #define OCELOT_STATS_CHECK_DELAY (2 * HZ)

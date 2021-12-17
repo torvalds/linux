@@ -52,7 +52,7 @@ static DEFINE_PER_CPU(int, fpu_recursion_depth);
  * This function tells if the code is already under FPU protection or not. A
  * function that works as an API for a set of FPU operations can use this
  * function for checking if the caller invoked it after DC_FP_START(). For
- * example, take a look at dcn2x.c file.
+ * example, take a look at dcn20_fpu.c file.
  */
 inline void dc_assert_fp_enabled(void)
 {
@@ -62,7 +62,7 @@ inline void dc_assert_fp_enabled(void)
 	depth = *pcpu;
 	put_cpu_ptr(&fpu_recursion_depth);
 
-	ASSERT(depth > 1);
+	ASSERT(depth >= 1);
 }
 
 /**

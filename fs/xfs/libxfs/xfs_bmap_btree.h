@@ -110,4 +110,9 @@ extern struct xfs_btree_cur *xfs_bmbt_init_cursor(struct xfs_mount *,
 extern unsigned long long xfs_bmbt_calc_size(struct xfs_mount *mp,
 		unsigned long long len);
 
+unsigned int xfs_bmbt_maxlevels_ondisk(void);
+
+int __init xfs_bmbt_init_cur_cache(void);
+void xfs_bmbt_destroy_cur_cache(void);
+
 #endif	/* __XFS_BMAP_BTREE_H__ */

@@ -695,8 +695,7 @@ void dhcp_flag_bcast(struct adapter *priv, struct sk_buff *skb)
 	}
 }
 
-void *scdb_findEntry(struct adapter *priv, unsigned char *macAddr,
-				unsigned char *ipAddr)
+void *scdb_findEntry(struct adapter *priv, unsigned char *ipAddr)
 {
 	unsigned char networkAddr[MAX_NETWORK_ADDR_LEN];
 	struct nat25_network_db_entry *db;

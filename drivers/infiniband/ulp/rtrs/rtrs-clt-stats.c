@@ -19,7 +19,7 @@ void rtrs_clt_update_wc_stats(struct rtrs_clt_con *con)
 	int cpu;
 
 	cpu = raw_smp_processor_id();
-	s = this_cpu_ptr(stats->pcpu_stats);
+	s = get_cpu_ptr(stats->pcpu_stats);
 	if (con->cpu != cpu) {
 		s->cpu_migr.to++;
 
@@ -27,56 +27,62 @@ void rtrs_clt_update_wc_stats(struct rtrs_clt_con *con)
 		s = per_cpu_ptr(stats->pcpu_stats, con->cpu);
 		atomic_inc(&s->cpu_migr.from);
 	}
+	put_cpu_ptr(stats->pcpu_stats);
 }
 
 void rtrs_clt_inc_failover_cnt(struct rtrs_clt_stats *stats)
 {
 	struct rtrs_clt_stats_pcpu *s;
 
-	s = this_cpu_ptr(stats->pcpu_stats);
+	s = get_cpu_ptr(stats->pcpu_stats);
 	s->rdma.failover_cnt++;
+	put_cpu_ptr(stats->pcpu_stats);
 }
 
-int rtrs_clt_stats_migration_cnt_to_str(struct rtrs_clt_stats *stats,
-					 char *buf, size_t len)
+int rtrs_clt_stats_migration_from_cnt_to_str(struct rtrs_clt_stats *stats, char *buf)
 {
 	struct rtrs_clt_stats_pcpu *s;
 
 	size_t used;
 	int cpu;
 
-	used = scnprintf(buf, len, "    ");
-	for_each_possible_cpu(cpu)
-		used += scnprintf(buf + used, len - used, " CPU%u", cpu);
-
-	used += scnprintf(buf + used, len - used, "\nfrom:");
+	used = 0;
 	for_each_possible_cpu(cpu) {
 		s = per_cpu_ptr(stats->pcpu_stats, cpu);
-		used += scnprintf(buf + used, len - used, " %d",
+		used += sysfs_emit_at(buf, used, "%d ",
 				  atomic_read(&s->cpu_migr.from));
 	}
 
-	used += scnprintf(buf + used, len - used, "\nto  :");
-	for_each_possible_cpu(cpu) {
-		s = per_cpu_ptr(stats->pcpu_stats, cpu);
-		used += scnprintf(buf + used, len - used, " %d",
-				  s->cpu_migr.to);
-	}
-	used += scnprintf(buf + used, len - used, "\n");
+	used += sysfs_emit_at(buf, used, "\n");
 
 	return used;
 }
 
-int rtrs_clt_stats_reconnects_to_str(struct rtrs_clt_stats *stats, char *buf,
-				      size_t len)
+int rtrs_clt_stats_migration_to_cnt_to_str(struct rtrs_clt_stats *stats, char *buf)
 {
-	return scnprintf(buf, len, "%d %d\n",
-			 stats->reconnects.successful_cnt,
-			 stats->reconnects.fail_cnt);
+	struct rtrs_clt_stats_pcpu *s;
+
+	size_t used;
+	int cpu;
+
+	used = 0;
+	for_each_possible_cpu(cpu) {
+		s = per_cpu_ptr(stats->pcpu_stats, cpu);
+		used += sysfs_emit_at(buf, used, "%d ", s->cpu_migr.to);
+	}
+
+	used += sysfs_emit_at(buf, used, "\n");
+
+	return used;
 }
 
-ssize_t rtrs_clt_stats_rdma_to_str(struct rtrs_clt_stats *stats,
-				    char *page, size_t len)
+int rtrs_clt_stats_reconnects_to_str(struct rtrs_clt_stats *stats, char *buf)
+{
+	return sysfs_emit(buf, "%d %d\n", stats->reconnects.successful_cnt,
+			  stats->reconnects.fail_cnt);
+}
+
+ssize_t rtrs_clt_stats_rdma_to_str(struct rtrs_clt_stats *stats, char *page)
 {
 	struct rtrs_clt_stats_rdma sum;
 	struct rtrs_clt_stats_rdma *r;
@@ -94,16 +100,15 @@ ssize_t rtrs_clt_stats_rdma_to_str(struct rtrs_clt_stats *stats,
 		sum.failover_cnt	  += r->failover_cnt;
 	}
 
-	return scnprintf(page, len, "%llu %llu %llu %llu %u %llu\n",
+	return sysfs_emit(page, "%llu %llu %llu %llu %u %llu\n",
 			 sum.dir[READ].cnt, sum.dir[READ].size_total,
 			 sum.dir[WRITE].cnt, sum.dir[WRITE].size_total,
 			 atomic_read(&stats->inflight), sum.failover_cnt);
 }
 
-ssize_t rtrs_clt_reset_all_help(struct rtrs_clt_stats *s,
-				 char *page, size_t len)
+ssize_t rtrs_clt_reset_all_help(struct rtrs_clt_stats *s, char *page)
 {
-	return scnprintf(page, len, "echo 1 to reset all statistics\n");
+	return sysfs_emit(page, "echo 1 to reset all statistics\n");
 }
 
 int rtrs_clt_reset_rdma_stats(struct rtrs_clt_stats *stats, bool enable)
@@ -166,9 +171,10 @@ static inline void rtrs_clt_update_rdma_stats(struct rtrs_clt_stats *stats,
 {
 	struct rtrs_clt_stats_pcpu *s;
 
-	s = this_cpu_ptr(stats->pcpu_stats);
+	s = get_cpu_ptr(stats->pcpu_stats);
 	s->rdma.dir[d].cnt++;
 	s->rdma.dir[d].size_total += size;
+	put_cpu_ptr(stats->pcpu_stats);
 }
 
 void rtrs_clt_update_all_stats(struct rtrs_clt_io_req *req, int dir)

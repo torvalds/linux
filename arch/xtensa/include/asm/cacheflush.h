@@ -120,7 +120,7 @@ void flush_cache_page(struct vm_area_struct*,
 #define flush_cache_vunmap(start,end)	flush_cache_all()
 
 #define ARCH_IMPLEMENTS_FLUSH_DCACHE_PAGE 1
-extern void flush_dcache_page(struct page*);
+void flush_dcache_page(struct page *);
 
 void local_flush_cache_range(struct vm_area_struct *vma,
 		unsigned long start, unsigned long end);

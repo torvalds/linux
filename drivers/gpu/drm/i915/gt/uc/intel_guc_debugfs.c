@@ -5,14 +5,14 @@
 
 #include <drm/drm_print.h>
 
-#include "gt/debugfs_gt.h"
+#include "gt/intel_gt_debugfs.h"
+#include "gt/uc/intel_guc_ads.h"
+#include "gt/uc/intel_guc_ct.h"
+#include "gt/uc/intel_guc_slpc.h"
+#include "gt/uc/intel_guc_submission.h"
 #include "intel_guc.h"
 #include "intel_guc_debugfs.h"
 #include "intel_guc_log_debugfs.h"
-#include "gt/uc/intel_guc_ct.h"
-#include "gt/uc/intel_guc_ads.h"
-#include "gt/uc/intel_guc_submission.h"
-#include "gt/uc/intel_guc_slpc.h"
 
 static int guc_info_show(struct seq_file *m, void *data)
 {
@@ -35,7 +35,7 @@ static int guc_info_show(struct seq_file *m, void *data)
 
 	return 0;
 }
-DEFINE_GT_DEBUGFS_ATTRIBUTE(guc_info);
+DEFINE_INTEL_GT_DEBUGFS_ATTRIBUTE(guc_info);
 
 static int guc_registered_contexts_show(struct seq_file *m, void *data)
 {
@@ -49,7 +49,7 @@ static int guc_registered_contexts_show(struct seq_file *m, void *data)
 
 	return 0;
 }
-DEFINE_GT_DEBUGFS_ATTRIBUTE(guc_registered_contexts);
+DEFINE_INTEL_GT_DEBUGFS_ATTRIBUTE(guc_registered_contexts);
 
 static int guc_slpc_info_show(struct seq_file *m, void *unused)
 {
@@ -62,7 +62,7 @@ static int guc_slpc_info_show(struct seq_file *m, void *unused)
 
 	return intel_guc_slpc_print_info(slpc, &p);
 }
-DEFINE_GT_DEBUGFS_ATTRIBUTE(guc_slpc_info);
+DEFINE_INTEL_GT_DEBUGFS_ATTRIBUTE(guc_slpc_info);
 
 static bool intel_eval_slpc_support(void *data)
 {
@@ -73,7 +73,7 @@ static bool intel_eval_slpc_support(void *data)
 
 void intel_guc_debugfs_register(struct intel_guc *guc, struct dentry *root)
 {
-	static const struct debugfs_gt_file files[] = {
+	static const struct intel_gt_debugfs_file files[] = {
 		{ "guc_info", &guc_info_fops, NULL },
 		{ "guc_registered_contexts", &guc_registered_contexts_fops, NULL },
 		{ "guc_slpc_info", &guc_slpc_info_fops, &intel_eval_slpc_support},

@@ -149,7 +149,7 @@ kalmia_bind(struct usbnet *dev, struct usb_interface *intf)
 	if (status)
 		return status;
 
-	memcpy(dev->net->dev_addr, ethernet_addr, ETH_ALEN);
+	eth_hw_addr_set(dev->net, ethernet_addr);
 
 	return status;
 }

@@ -56,7 +56,7 @@ int prog_stream_verdict(struct __sk_buff *skb)
 	return verdict;
 }
 
-SEC("sk_skb/skb_verdict")
+SEC("sk_skb")
 int prog_skb_verdict(struct __sk_buff *skb)
 {
 	unsigned int *count;
@@ -116,5 +116,4 @@ int prog_reuseport(struct sk_reuseport_md *reuse)
 	return verdict;
 }
 
-int _version SEC("version") = 1;
 char _license[] SEC("license") = "GPL";

@@ -496,7 +496,7 @@ static int pm3393_macaddress_get(struct cmac *cmac, u8 mac_addr[6])
 	return 0;
 }
 
-static int pm3393_macaddress_set(struct cmac *cmac, u8 ma[6])
+static int pm3393_macaddress_set(struct cmac *cmac, const u8 ma[6])
 {
 	u32 val, lo, mid, hi, enabled = cmac->instance->enabled;
 

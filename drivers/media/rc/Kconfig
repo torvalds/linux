@@ -453,14 +453,6 @@ config IR_SERIAL_TRANSMITTER
 	help
 	   Serial Port Transmitter support
 
-config IR_SIR
-	tristate "Built-in SIR IrDA port"
-	help
-	   Say Y if you want to use a IrDA SIR port Transceivers.
-
-	   To compile this driver as a module, choose M here: the module will
-	   be called sir-ir.
-
 config RC_XBOX_DVD
 	tristate "Xbox DVD Movie Playback Kit"
 	depends on USB

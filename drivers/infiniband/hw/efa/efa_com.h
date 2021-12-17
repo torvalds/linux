@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-2-Clause */
 /*
- * Copyright 2018-2020 Amazon.com, Inc. or its affiliates. All rights reserved.
+ * Copyright 2018-2021 Amazon.com, Inc. or its affiliates. All rights reserved.
  */
 
 #ifndef _EFA_COM_H_
@@ -80,6 +80,9 @@ struct efa_com_admin_queue {
 };
 
 struct efa_aenq_handlers;
+struct efa_com_eq;
+typedef void (*efa_eqe_handler)(struct efa_com_eq *eeq,
+				struct efa_admin_eqe *eqe);
 
 struct efa_com_aenq {
 	struct efa_admin_aenq_entry *entries;
@@ -112,6 +115,33 @@ struct efa_com_dev {
 	struct efa_com_mmio_read mmio_read;
 };
 
+struct efa_com_eq {
+	struct efa_com_dev *edev;
+	struct efa_admin_eqe *eqes;
+	dma_addr_t dma_addr;
+	u32 cc; /* Consumer counter */
+	u16 eqn;
+	u16 depth;
+	u8 phase;
+	efa_eqe_handler cb;
+};
+
+struct efa_com_create_eq_params {
+	dma_addr_t dma_addr;
+	u32 event_bitmask;
+	u16 depth;
+	u8 entry_size_in_bytes;
+	u8 msix_vec;
+};
+
+struct efa_com_create_eq_result {
+	u16 eqn;
+};
+
+struct efa_com_destroy_eq_params {
+	u16 eqn;
+};
+
 typedef void (*efa_aenq_handler)(void *data,
 	      struct efa_admin_aenq_entry *aenq_e);
 
@@ -121,9 +151,13 @@ struct efa_aenq_handlers {
 	efa_aenq_handler unimplemented_handler;
 };
 
+void efa_com_set_dma_addr(dma_addr_t addr, u32 *addr_high, u32 *addr_low);
 int efa_com_admin_init(struct efa_com_dev *edev,
 		       struct efa_aenq_handlers *aenq_handlers);
 void efa_com_admin_destroy(struct efa_com_dev *edev);
+int efa_com_eq_init(struct efa_com_dev *edev, struct efa_com_eq *eeq,
+		    efa_eqe_handler cb, u16 depth, u8 msix_vec);
+void efa_com_eq_destroy(struct efa_com_dev *edev, struct efa_com_eq *eeq);
 int efa_com_dev_reset(struct efa_com_dev *edev,
 		      enum efa_regs_reset_reason_types reset_reason);
 void efa_com_set_admin_polling_mode(struct efa_com_dev *edev, bool polling);
@@ -140,5 +174,7 @@ int efa_com_cmd_exec(struct efa_com_admin_queue *aq,
 		     struct efa_admin_acq_entry *comp,
 		     size_t comp_size);
 void efa_com_aenq_intr_handler(struct efa_com_dev *edev, void *data);
+void efa_com_eq_comp_intr_handler(struct efa_com_dev *edev,
+				  struct efa_com_eq *eeq);
 
 #endif /* _EFA_COM_H_ */

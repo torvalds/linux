@@ -59,6 +59,10 @@ struct encoder_feature_support {
 			uint32_t IS_TPS3_CAPABLE:1;
 			uint32_t IS_TPS4_CAPABLE:1;
 			uint32_t HDMI_6GB_EN:1;
+			uint32_t IS_DP2_CAPABLE:1;
+			uint32_t IS_UHBR10_CAPABLE:1;
+			uint32_t IS_UHBR13_5_CAPABLE:1;
+			uint32_t IS_UHBR20_CAPABLE:1;
 			uint32_t DP_IS_USB_C:1;
 		} bits;
 		uint32_t raw;
@@ -208,6 +212,99 @@ struct link_enc_assignment {
 	bool valid;
 	struct display_endpoint_id ep_id;
 	enum engine_id eng_id;
+	struct dc_stream_state *stream;
 };
+
+enum link_enc_cfg_mode {
+	LINK_ENC_CFG_STEADY, /* Normal operation - use current_state. */
+	LINK_ENC_CFG_TRANSIENT /* During commit state - use state to be committed. */
+};
+
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+enum dp2_link_mode {
+	DP2_LINK_TRAINING_TPS1,
+	DP2_LINK_TRAINING_TPS2,
+	DP2_LINK_ACTIVE,
+	DP2_TEST_PATTERN
+};
+
+enum dp2_phy_tp_select {
+	DP_DPHY_TP_SELECT_TPS1,
+	DP_DPHY_TP_SELECT_TPS2,
+	DP_DPHY_TP_SELECT_PRBS,
+	DP_DPHY_TP_SELECT_CUSTOM,
+	DP_DPHY_TP_SELECT_SQUARE
+};
+
+enum dp2_phy_tp_prbs {
+	DP_DPHY_TP_PRBS7,
+	DP_DPHY_TP_PRBS9,
+	DP_DPHY_TP_PRBS11,
+	DP_DPHY_TP_PRBS15,
+	DP_DPHY_TP_PRBS23,
+	DP_DPHY_TP_PRBS31
+};
+
+struct hpo_dp_link_enc_state {
+	uint32_t   link_enc_enabled;
+	uint32_t   link_mode;
+	uint32_t   lane_count;
+	uint32_t   slot_count[4];
+	uint32_t   stream_src[4];
+	uint32_t   vc_rate_x[4];
+	uint32_t   vc_rate_y[4];
+};
+
+struct hpo_dp_link_encoder {
+	const struct hpo_dp_link_encoder_funcs *funcs;
+	struct dc_context *ctx;
+	int inst;
+	enum engine_id preferred_engine;
+	enum transmitter transmitter;
+	enum hpd_source_id hpd_source;
+};
+
+struct hpo_dp_link_encoder_funcs {
+
+	void (*enable_link_phy)(struct hpo_dp_link_encoder *enc,
+		const struct dc_link_settings *link_settings,
+		enum transmitter transmitter);
+
+	void (*disable_link_phy)(struct hpo_dp_link_encoder *link_enc,
+		enum signal_type signal);
+
+	void (*link_enable)(
+			struct hpo_dp_link_encoder *enc,
+			enum dc_lane_count num_lanes);
+
+	void (*link_disable)(
+			struct hpo_dp_link_encoder *enc);
+
+	void (*set_link_test_pattern)(
+			struct hpo_dp_link_encoder *enc,
+			struct encoder_set_dp_phy_pattern_param *tp_params);
+
+	void (*update_stream_allocation_table)(
+			struct hpo_dp_link_encoder *enc,
+			const struct link_mst_stream_allocation_table *table);
+
+	void (*set_throttled_vcp_size)(
+			struct hpo_dp_link_encoder *enc,
+			uint32_t stream_encoder_inst,
+			struct fixed31_32 avg_time_slots_per_mtp);
+
+	bool (*is_in_alt_mode) (
+			struct hpo_dp_link_encoder *enc);
+
+	void (*read_state)(
+			struct hpo_dp_link_encoder *enc,
+			struct hpo_dp_link_enc_state *state);
+
+	void (*set_ffe)(
+		struct hpo_dp_link_encoder *enc,
+		const struct dc_link_settings *link_settings,
+		uint8_t ffe_preset);
+};
+#endif
 
 #endif /* LINK_ENCODER_H_ */

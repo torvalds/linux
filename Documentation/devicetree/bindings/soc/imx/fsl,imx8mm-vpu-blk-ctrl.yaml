@@ -1,0 +1,76 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/soc/imx/fsl,imx8mm-vpu-blk-ctrl.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: NXP i.MX8MM VPU blk-ctrl
+
+maintainers:
+  - Lucas Stach <l.stach@pengutronix.de>
+
+description:
+  The i.MX8MM VPU blk-ctrl is a top-level peripheral providing access to
+  the NoC and ensuring proper power sequencing of the VPU peripherals
+  located in the VPU domain of the SoC.
+
+properties:
+  compatible:
+    items:
+      - const: fsl,imx8mm-vpu-blk-ctrl
+      - const: syscon
+
+  reg:
+    maxItems: 1
+
+  '#power-domain-cells':
+    const: 1
+
+  power-domains:
+    minItems: 4
+    maxItems: 4
+
+  power-domain-names:
+    items:
+      - const: bus
+      - const: g1
+      - const: g2
+      - const: h1
+
+  clocks:
+    minItems: 3
+    maxItems: 3
+
+  clock-names:
+    items:
+      - const: g1
+      - const: g2
+      - const: h1
+
+required:
+  - compatible
+  - reg
+  - power-domains
+  - power-domain-names
+  - clocks
+  - clock-names
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/imx8mm-clock.h>
+    #include <dt-bindings/power/imx8mm-power.h>
+
+    vpu_blk_ctrl: blk-ctrl@38330000 {
+      compatible = "fsl,imx8mm-vpu-blk-ctrl", "syscon";
+      reg = <0x38330000 0x100>;
+      power-domains = <&pgc_vpumix>, <&pgc_vpu_g1>,
+                      <&pgc_vpu_g2>, <&pgc_vpu_h1>;
+      power-domain-names = "bus", "g1", "g2", "h1";
+      clocks = <&clk IMX8MM_CLK_VPU_G1_ROOT>,
+               <&clk IMX8MM_CLK_VPU_G2_ROOT>,
+               <&clk IMX8MM_CLK_VPU_H1_ROOT>;
+      clock-names = "g1", "g2", "h1";
+      #power-domain-cells = <1>;
+    };

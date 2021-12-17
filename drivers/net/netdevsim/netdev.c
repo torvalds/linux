@@ -82,12 +82,12 @@ nsim_setup_tc_block_cb(enum tc_setup_type type, void *type_data, void *cb_priv)
 static int nsim_set_vf_mac(struct net_device *dev, int vf, u8 *mac)
 {
 	struct netdevsim *ns = netdev_priv(dev);
-	struct nsim_bus_dev *nsim_bus_dev = ns->nsim_bus_dev;
+	struct nsim_dev *nsim_dev = ns->nsim_dev;
 
 	/* Only refuse multicast addresses, zero address can mean unset/any. */
-	if (vf >= nsim_bus_dev->num_vfs || is_multicast_ether_addr(mac))
+	if (vf >= nsim_dev_get_vfs(nsim_dev) || is_multicast_ether_addr(mac))
 		return -EINVAL;
-	memcpy(nsim_bus_dev->vfconfigs[vf].vf_mac, mac, ETH_ALEN);
+	memcpy(nsim_dev->vfconfigs[vf].vf_mac, mac, ETH_ALEN);
 
 	return 0;
 }
@@ -96,14 +96,14 @@ static int nsim_set_vf_vlan(struct net_device *dev, int vf,
 			    u16 vlan, u8 qos, __be16 vlan_proto)
 {
 	struct netdevsim *ns = netdev_priv(dev);
-	struct nsim_bus_dev *nsim_bus_dev = ns->nsim_bus_dev;
+	struct nsim_dev *nsim_dev = ns->nsim_dev;
 
-	if (vf >= nsim_bus_dev->num_vfs || vlan > 4095 || qos > 7)
+	if (vf >= nsim_dev_get_vfs(nsim_dev) || vlan > 4095 || qos > 7)
 		return -EINVAL;
 
-	nsim_bus_dev->vfconfigs[vf].vlan = vlan;
-	nsim_bus_dev->vfconfigs[vf].qos = qos;
-	nsim_bus_dev->vfconfigs[vf].vlan_proto = vlan_proto;
+	nsim_dev->vfconfigs[vf].vlan = vlan;
+	nsim_dev->vfconfigs[vf].qos = qos;
+	nsim_dev->vfconfigs[vf].vlan_proto = vlan_proto;
 
 	return 0;
 }
@@ -111,18 +111,18 @@ static int nsim_set_vf_vlan(struct net_device *dev, int vf,
 static int nsim_set_vf_rate(struct net_device *dev, int vf, int min, int max)
 {
 	struct netdevsim *ns = netdev_priv(dev);
-	struct nsim_bus_dev *nsim_bus_dev = ns->nsim_bus_dev;
+	struct nsim_dev *nsim_dev = ns->nsim_dev;
 
 	if (nsim_esw_mode_is_switchdev(ns->nsim_dev)) {
 		pr_err("Not supported in switchdev mode. Please use devlink API.\n");
 		return -EOPNOTSUPP;
 	}
 
-	if (vf >= nsim_bus_dev->num_vfs)
+	if (vf >= nsim_dev_get_vfs(nsim_dev))
 		return -EINVAL;
 
-	nsim_bus_dev->vfconfigs[vf].min_tx_rate = min;
-	nsim_bus_dev->vfconfigs[vf].max_tx_rate = max;
+	nsim_dev->vfconfigs[vf].min_tx_rate = min;
+	nsim_dev->vfconfigs[vf].max_tx_rate = max;
 
 	return 0;
 }
@@ -130,11 +130,11 @@ static int nsim_set_vf_rate(struct net_device *dev, int vf, int min, int max)
 static int nsim_set_vf_spoofchk(struct net_device *dev, int vf, bool val)
 {
 	struct netdevsim *ns = netdev_priv(dev);
-	struct nsim_bus_dev *nsim_bus_dev = ns->nsim_bus_dev;
+	struct nsim_dev *nsim_dev = ns->nsim_dev;
 
-	if (vf >= nsim_bus_dev->num_vfs)
+	if (vf >= nsim_dev_get_vfs(nsim_dev))
 		return -EINVAL;
-	nsim_bus_dev->vfconfigs[vf].spoofchk_enabled = val;
+	nsim_dev->vfconfigs[vf].spoofchk_enabled = val;
 
 	return 0;
 }
@@ -142,11 +142,11 @@ static int nsim_set_vf_spoofchk(struct net_device *dev, int vf, bool val)
 static int nsim_set_vf_rss_query_en(struct net_device *dev, int vf, bool val)
 {
 	struct netdevsim *ns = netdev_priv(dev);
-	struct nsim_bus_dev *nsim_bus_dev = ns->nsim_bus_dev;
+	struct nsim_dev *nsim_dev = ns->nsim_dev;
 
-	if (vf >= nsim_bus_dev->num_vfs)
+	if (vf >= nsim_dev_get_vfs(nsim_dev))
 		return -EINVAL;
-	nsim_bus_dev->vfconfigs[vf].rss_query_enabled = val;
+	nsim_dev->vfconfigs[vf].rss_query_enabled = val;
 
 	return 0;
 }
@@ -154,11 +154,11 @@ static int nsim_set_vf_rss_query_en(struct net_device *dev, int vf, bool val)
 static int nsim_set_vf_trust(struct net_device *dev, int vf, bool val)
 {
 	struct netdevsim *ns = netdev_priv(dev);
-	struct nsim_bus_dev *nsim_bus_dev = ns->nsim_bus_dev;
+	struct nsim_dev *nsim_dev = ns->nsim_dev;
 
-	if (vf >= nsim_bus_dev->num_vfs)
+	if (vf >= nsim_dev_get_vfs(nsim_dev))
 		return -EINVAL;
-	nsim_bus_dev->vfconfigs[vf].trusted = val;
+	nsim_dev->vfconfigs[vf].trusted = val;
 
 	return 0;
 }
@@ -167,22 +167,22 @@ static int
 nsim_get_vf_config(struct net_device *dev, int vf, struct ifla_vf_info *ivi)
 {
 	struct netdevsim *ns = netdev_priv(dev);
-	struct nsim_bus_dev *nsim_bus_dev = ns->nsim_bus_dev;
+	struct nsim_dev *nsim_dev = ns->nsim_dev;
 
-	if (vf >= nsim_bus_dev->num_vfs)
+	if (vf >= nsim_dev_get_vfs(nsim_dev))
 		return -EINVAL;
 
 	ivi->vf = vf;
-	ivi->linkstate = nsim_bus_dev->vfconfigs[vf].link_state;
-	ivi->min_tx_rate = nsim_bus_dev->vfconfigs[vf].min_tx_rate;
-	ivi->max_tx_rate = nsim_bus_dev->vfconfigs[vf].max_tx_rate;
-	ivi->vlan = nsim_bus_dev->vfconfigs[vf].vlan;
-	ivi->vlan_proto = nsim_bus_dev->vfconfigs[vf].vlan_proto;
-	ivi->qos = nsim_bus_dev->vfconfigs[vf].qos;
-	memcpy(&ivi->mac, nsim_bus_dev->vfconfigs[vf].vf_mac, ETH_ALEN);
-	ivi->spoofchk = nsim_bus_dev->vfconfigs[vf].spoofchk_enabled;
-	ivi->trusted = nsim_bus_dev->vfconfigs[vf].trusted;
-	ivi->rss_query_en = nsim_bus_dev->vfconfigs[vf].rss_query_enabled;
+	ivi->linkstate = nsim_dev->vfconfigs[vf].link_state;
+	ivi->min_tx_rate = nsim_dev->vfconfigs[vf].min_tx_rate;
+	ivi->max_tx_rate = nsim_dev->vfconfigs[vf].max_tx_rate;
+	ivi->vlan = nsim_dev->vfconfigs[vf].vlan;
+	ivi->vlan_proto = nsim_dev->vfconfigs[vf].vlan_proto;
+	ivi->qos = nsim_dev->vfconfigs[vf].qos;
+	memcpy(&ivi->mac, nsim_dev->vfconfigs[vf].vf_mac, ETH_ALEN);
+	ivi->spoofchk = nsim_dev->vfconfigs[vf].spoofchk_enabled;
+	ivi->trusted = nsim_dev->vfconfigs[vf].trusted;
+	ivi->rss_query_en = nsim_dev->vfconfigs[vf].rss_query_enabled;
 
 	return 0;
 }
@@ -190,9 +190,9 @@ nsim_get_vf_config(struct net_device *dev, int vf, struct ifla_vf_info *ivi)
 static int nsim_set_vf_link_state(struct net_device *dev, int vf, int state)
 {
 	struct netdevsim *ns = netdev_priv(dev);
-	struct nsim_bus_dev *nsim_bus_dev = ns->nsim_bus_dev;
+	struct nsim_dev *nsim_dev = ns->nsim_dev;
 
-	if (vf >= nsim_bus_dev->num_vfs)
+	if (vf >= nsim_dev_get_vfs(nsim_dev))
 		return -EINVAL;
 
 	switch (state) {
@@ -204,7 +204,7 @@ static int nsim_set_vf_link_state(struct net_device *dev, int vf, int state)
 		return -EINVAL;
 	}
 
-	nsim_bus_dev->vfconfigs[vf].link_state = state;
+	nsim_dev->vfconfigs[vf].link_state = state;
 
 	return 0;
 }

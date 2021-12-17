@@ -557,7 +557,7 @@ static struct clk *m41t80_sqw_register_clk(struct m41t80_data *m41t80)
 		 * registered automatically when being referenced.
 		 */
 		of_node_put(fixed_clock);
-		return 0;
+		return NULL;
 	}
 
 	/* First disable the clock */

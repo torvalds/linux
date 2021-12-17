@@ -12,10 +12,21 @@
 
 #define HAVE_FUNCTION_GRAPH_FP_TEST
 
+/*
+ * HAVE_FUNCTION_GRAPH_RET_ADDR_PTR means that the architecture can provide a
+ * "return address pointer" which can be used to uniquely identify a return
+ * address which has been overwritten.
+ *
+ * On arm64 we use the address of the caller's frame record, which remains the
+ * same for the lifetime of the instrumented function, unlike the return
+ * address in the LR.
+ */
+#define HAVE_FUNCTION_GRAPH_RET_ADDR_PTR
+
 #ifdef CONFIG_DYNAMIC_FTRACE_WITH_REGS
 #define ARCH_SUPPORTS_FTRACE_OPS 1
 #else
-#define MCOUNT_ADDR		((unsigned long)_mcount)
+#define MCOUNT_ADDR		((unsigned long)function_nocfi(_mcount))
 #endif
 
 /* The BL at the callsite's adjusted rec->ip */

@@ -3,3 +3,6 @@ obj-y			+= kernel/
 obj-y			+= mm/
 obj-$(CONFIG_PCI)	+= pci/
 obj-y			+= boot/dts/
+
+# for cleaning
+subdir- += boot

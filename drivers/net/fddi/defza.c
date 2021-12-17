@@ -1380,7 +1380,7 @@ static int fza_probe(struct device *bdev)
 		goto err_out_irq;
 
 	fza_reads(&init->hw_addr, &hw_addr, sizeof(hw_addr));
-	memcpy(dev->dev_addr, &hw_addr, FDDI_K_ALEN);
+	dev_addr_set(dev, (u8 *)&hw_addr);
 
 	fza_reads(&init->rom_rev, &rom_rev, sizeof(rom_rev));
 	fza_reads(&init->fw_rev, &fw_rev, sizeof(fw_rev));

@@ -15,6 +15,7 @@
 #include "uv.h"
 
 unsigned long __bootdata_preserved(__kaslr_offset);
+unsigned long __bootdata(__amode31_base);
 unsigned long __bootdata_preserved(VMALLOC_START);
 unsigned long __bootdata_preserved(VMALLOC_END);
 struct page *__bootdata_preserved(vmemmap);
@@ -148,82 +149,56 @@ static void setup_ident_map_size(unsigned long max_physmem_end)
 
 static void setup_kernel_memory_layout(void)
 {
-	bool vmalloc_size_verified = false;
-	unsigned long vmemmap_off;
-	unsigned long vspace_left;
+	unsigned long vmemmap_start;
 	unsigned long rte_size;
 	unsigned long pages;
-	unsigned long vmax;
 
 	pages = ident_map_size / PAGE_SIZE;
 	/* vmemmap contains a multiple of PAGES_PER_SECTION struct pages */
 	vmemmap_size = SECTION_ALIGN_UP(pages) * sizeof(struct page);
 
 	/* choose kernel address space layout: 4 or 3 levels. */
-	vmemmap_off = round_up(ident_map_size, _REGION3_SIZE);
+	vmemmap_start = round_up(ident_map_size, _REGION3_SIZE);
 	if (IS_ENABLED(CONFIG_KASAN) ||
 	    vmalloc_size > _REGION2_SIZE ||
-	    vmemmap_off + vmemmap_size + vmalloc_size + MODULES_LEN > _REGION2_SIZE)
-		vmax = _REGION1_SIZE;
-	else
-		vmax = _REGION2_SIZE;
-
-	/* keep vmemmap_off aligned to a top level region table entry */
-	rte_size = vmax == _REGION1_SIZE ? _REGION2_SIZE : _REGION3_SIZE;
-	MODULES_END = vmax;
-	if (is_prot_virt_host()) {
-		/*
-		 * forcing modules and vmalloc area under the ultravisor
-		 * secure storage limit, so that any vmalloc allocation
-		 * we do could be used to back secure guest storage.
-		 */
-		adjust_to_uv_max(&MODULES_END);
-	}
-
-#ifdef CONFIG_KASAN
-	if (MODULES_END < vmax) {
-		/* force vmalloc and modules below kasan shadow */
-		MODULES_END = min(MODULES_END, KASAN_SHADOW_START);
+	    vmemmap_start + vmemmap_size + vmalloc_size + MODULES_LEN >
+		    _REGION2_SIZE) {
+		MODULES_END = _REGION1_SIZE;
+		rte_size = _REGION2_SIZE;
 	} else {
-		/*
-		 * leave vmalloc and modules above kasan shadow but make
-		 * sure they don't overlap with it
-		 */
-		vmalloc_size = min(vmalloc_size, vmax - KASAN_SHADOW_END - MODULES_LEN);
-		vmalloc_size_verified = true;
-		vspace_left = KASAN_SHADOW_START;
+		MODULES_END = _REGION2_SIZE;
+		rte_size = _REGION3_SIZE;
 	}
+	/*
+	 * forcing modules and vmalloc area under the ultravisor
+	 * secure storage limit, so that any vmalloc allocation
+	 * we do could be used to back secure guest storage.
+	 */
+	adjust_to_uv_max(&MODULES_END);
+#ifdef CONFIG_KASAN
+	/* force vmalloc and modules below kasan shadow */
+	MODULES_END = min(MODULES_END, KASAN_SHADOW_START);
 #endif
 	MODULES_VADDR = MODULES_END - MODULES_LEN;
 	VMALLOC_END = MODULES_VADDR;
 
-	if (vmalloc_size_verified) {
-		VMALLOC_START = VMALLOC_END - vmalloc_size;
-	} else {
-		vmemmap_off = round_up(ident_map_size, rte_size);
+	/* allow vmalloc area to occupy up to about 1/2 of the rest virtual space left */
+	vmalloc_size = min(vmalloc_size, round_down(VMALLOC_END / 2, _REGION3_SIZE));
+	VMALLOC_START = VMALLOC_END - vmalloc_size;
 
-		if (vmemmap_off + vmemmap_size > VMALLOC_END ||
-		    vmalloc_size > VMALLOC_END - vmemmap_off - vmemmap_size) {
-			/*
-			 * allow vmalloc area to occupy up to 1/2 of
-			 * the rest virtual space left.
-			 */
-			vmalloc_size = min(vmalloc_size, VMALLOC_END / 2);
-		}
-		VMALLOC_START = VMALLOC_END - vmalloc_size;
-		vspace_left = VMALLOC_START;
-	}
-
-	pages = vspace_left / (PAGE_SIZE + sizeof(struct page));
+	/* split remaining virtual space between 1:1 mapping & vmemmap array */
+	pages = VMALLOC_START / (PAGE_SIZE + sizeof(struct page));
 	pages = SECTION_ALIGN_UP(pages);
-	vmemmap_off = round_up(vspace_left - pages * sizeof(struct page), rte_size);
-	/* keep vmemmap left most starting from a fresh region table entry */
-	vmemmap_off = min(vmemmap_off, round_up(ident_map_size, rte_size));
-	/* take care that identity map is lower then vmemmap */
-	ident_map_size = min(ident_map_size, vmemmap_off);
+	/* keep vmemmap_start aligned to a top level region table entry */
+	vmemmap_start = round_down(VMALLOC_START - pages * sizeof(struct page), rte_size);
+	/* vmemmap_start is the future VMEM_MAX_PHYS, make sure it is within MAX_PHYSMEM */
+	vmemmap_start = min(vmemmap_start, 1UL << MAX_PHYSMEM_BITS);
+	/* make sure identity map doesn't overlay with vmemmap */
+	ident_map_size = min(ident_map_size, vmemmap_start);
 	vmemmap_size = SECTION_ALIGN_UP(ident_map_size / PAGE_SIZE) * sizeof(struct page);
-	VMALLOC_START = max(vmemmap_off + vmemmap_size, VMALLOC_START);
-	vmemmap = (struct page *)vmemmap_off;
+	/* make sure vmemmap doesn't overlay with vmalloc area */
+	VMALLOC_START = max(vmemmap_start + vmemmap_size, VMALLOC_START);
+	vmemmap = (struct page *)vmemmap_start;
 }
 
 /*
@@ -259,6 +234,12 @@ static void offset_vmlinux_info(unsigned long offset)
 	vmlinux.dynsym_start += offset;
 }
 
+static unsigned long reserve_amode31(unsigned long safe_addr)
+{
+	__amode31_base = PAGE_ALIGN(safe_addr);
+	return safe_addr + vmlinux.amode31_size;
+}
+
 void startup_kernel(void)
 {
 	unsigned long random_lma;
@@ -273,6 +254,7 @@ void startup_kernel(void)
 	setup_lpp();
 	store_ipl_parmblock();
 	safe_addr = mem_safe_offset();
+	safe_addr = reserve_amode31(safe_addr);
 	safe_addr = read_ipl_report(safe_addr);
 	uv_query_info();
 	rescue_initrd(safe_addr);

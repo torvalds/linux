@@ -2,10 +2,10 @@
 MMC tools introduction
 ======================
 
-There is one MMC test tools called mmc-utils, which is maintained by Chris Ball,
+There is one MMC test tools called mmc-utils, which is maintained by Ulf Hansson,
 you can find it at the below public git repository:
 
-	https://git.kernel.org/cgit/linux/kernel/git/cjb/mmc-utils.git/
+	https://git.kernel.org/pub/scm/utils/mmc/mmc-utils.git
 
 Functions
 =========

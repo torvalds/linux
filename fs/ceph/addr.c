@@ -63,7 +63,7 @@
 	 (CONGESTION_ON_THRESH(congestion_kb) >> 2))
 
 static int ceph_netfs_check_write_begin(struct file *file, loff_t pos, unsigned int len,
-					struct page *page, void **_fsdata);
+					struct folio *folio, void **_fsdata);
 
 static inline struct ceph_snap_context *page_snap_context(struct page *page)
 {
@@ -317,13 +317,14 @@ static const struct netfs_read_request_ops ceph_netfs_read_ops = {
 };
 
 /* read a single page, without unlocking it. */
-static int ceph_readpage(struct file *file, struct page *page)
+static int ceph_readpage(struct file *file, struct page *subpage)
 {
+	struct folio *folio = page_folio(subpage);
 	struct inode *inode = file_inode(file);
 	struct ceph_inode_info *ci = ceph_inode(inode);
 	struct ceph_vino vino = ceph_vino(inode);
-	u64 off = page_offset(page);
-	u64 len = thp_size(page);
+	size_t len = folio_size(folio);
+	u64 off = folio_file_pos(folio);
 
 	if (ci->i_inline_version != CEPH_INLINE_NONE) {
 		/*
@@ -331,19 +332,19 @@ static int ceph_readpage(struct file *file, struct page *page)
 		 * into page cache while getting Fcr caps.
 		 */
 		if (off == 0) {
-			unlock_page(page);
+			folio_unlock(folio);
 			return -EINVAL;
 		}
-		zero_user_segment(page, 0, thp_size(page));
-		SetPageUptodate(page);
-		unlock_page(page);
+		zero_user_segment(&folio->page, 0, folio_size(folio));
+		folio_mark_uptodate(folio);
+		folio_unlock(folio);
 		return 0;
 	}
 
-	dout("readpage ino %llx.%llx file %p off %llu len %llu page %p index %lu\n",
-	     vino.ino, vino.snap, file, off, len, page, page->index);
+	dout("readpage ino %llx.%llx file %p off %llu len %zu folio %p index %lu\n",
+	     vino.ino, vino.snap, file, off, len, folio, folio_index(folio));
 
-	return netfs_readpage(file, page, &ceph_netfs_read_ops, NULL);
+	return netfs_readpage(file, folio, &ceph_netfs_read_ops, NULL);
 }
 
 static void ceph_readahead(struct readahead_control *ractl)
@@ -724,7 +725,7 @@ static int ceph_writepages_start(struct address_space *mapping,
 	     wbc->sync_mode == WB_SYNC_NONE ? "NONE" :
 	     (wbc->sync_mode == WB_SYNC_ALL ? "ALL" : "HOLD"));
 
-	if (READ_ONCE(fsc->mount_state) >= CEPH_MOUNT_SHUTDOWN) {
+	if (ceph_inode_is_shutdown(inode)) {
 		if (ci->i_wrbuffer_ref > 0) {
 			pr_warn_ratelimited(
 				"writepage_start %p %lld forced umount\n",
@@ -1145,12 +1146,12 @@ static struct ceph_snap_context *
 ceph_find_incompatible(struct page *page)
 {
 	struct inode *inode = page->mapping->host;
-	struct ceph_fs_client *fsc = ceph_inode_to_client(inode);
 	struct ceph_inode_info *ci = ceph_inode(inode);
 
-	if (READ_ONCE(fsc->mount_state) >= CEPH_MOUNT_SHUTDOWN) {
-		dout(" page %p forced umount\n", page);
-		return ERR_PTR(-EIO);
+	if (ceph_inode_is_shutdown(inode)) {
+		dout(" page %p %llx:%llx is shutdown\n", page,
+		     ceph_vinop(inode));
+		return ERR_PTR(-ESTALE);
 	}
 
 	for (;;) {
@@ -1187,18 +1188,18 @@ ceph_find_incompatible(struct page *page)
 }
 
 static int ceph_netfs_check_write_begin(struct file *file, loff_t pos, unsigned int len,
-					struct page *page, void **_fsdata)
+					struct folio *folio, void **_fsdata)
 {
 	struct inode *inode = file_inode(file);
 	struct ceph_inode_info *ci = ceph_inode(inode);
 	struct ceph_snap_context *snapc;
 
-	snapc = ceph_find_incompatible(page);
+	snapc = ceph_find_incompatible(folio_page(folio, 0));
 	if (snapc) {
 		int r;
 
-		unlock_page(page);
-		put_page(page);
+		folio_unlock(folio);
+		folio_put(folio);
 		if (IS_ERR(snapc))
 			return PTR_ERR(snapc);
 
@@ -1216,12 +1217,12 @@ static int ceph_netfs_check_write_begin(struct file *file, loff_t pos, unsigned 
  * clean, or already dirty within the same snap context.
  */
 static int ceph_write_begin(struct file *file, struct address_space *mapping,
-			    loff_t pos, unsigned len, unsigned flags,
+			    loff_t pos, unsigned len, unsigned aop_flags,
 			    struct page **pagep, void **fsdata)
 {
 	struct inode *inode = file_inode(file);
 	struct ceph_inode_info *ci = ceph_inode(inode);
-	struct page *page = NULL;
+	struct folio *folio = NULL;
 	pgoff_t index = pos >> PAGE_SHIFT;
 	int r;
 
@@ -1230,39 +1231,43 @@ static int ceph_write_begin(struct file *file, struct address_space *mapping,
 	 * for inline_version sent to the MDS.
 	 */
 	if (ci->i_inline_version != CEPH_INLINE_NONE) {
-		page = grab_cache_page_write_begin(mapping, index, flags);
-		if (!page)
+		unsigned int fgp_flags = FGP_LOCK | FGP_WRITE | FGP_CREAT | FGP_STABLE;
+		if (aop_flags & AOP_FLAG_NOFS)
+			fgp_flags |= FGP_NOFS;
+		folio = __filemap_get_folio(mapping, index, fgp_flags,
+					    mapping_gfp_mask(mapping));
+		if (!folio)
 			return -ENOMEM;
 
 		/*
 		 * The inline_version on a new inode is set to 1. If that's the
-		 * case, then the page is brand new and isn't yet Uptodate.
+		 * case, then the folio is brand new and isn't yet Uptodate.
 		 */
 		r = 0;
 		if (index == 0 && ci->i_inline_version != 1) {
-			if (!PageUptodate(page)) {
+			if (!folio_test_uptodate(folio)) {
 				WARN_ONCE(1, "ceph: write_begin called on still-inlined inode (inline_version %llu)!\n",
 					  ci->i_inline_version);
 				r = -EINVAL;
 			}
 			goto out;
 		}
-		zero_user_segment(page, 0, thp_size(page));
-		SetPageUptodate(page);
+		zero_user_segment(&folio->page, 0, folio_size(folio));
+		folio_mark_uptodate(folio);
 		goto out;
 	}
 
-	r = netfs_write_begin(file, inode->i_mapping, pos, len, 0, &page, NULL,
+	r = netfs_write_begin(file, inode->i_mapping, pos, len, 0, &folio, NULL,
 			      &ceph_netfs_read_ops, NULL);
 out:
 	if (r == 0)
-		wait_on_page_fscache(page);
+		folio_wait_fscache(folio);
 	if (r < 0) {
-		if (page)
-			put_page(page);
+		if (folio)
+			folio_put(folio);
 	} else {
-		WARN_ON_ONCE(!PageLocked(page));
-		*pagep = page;
+		WARN_ON_ONCE(!folio_test_locked(folio));
+		*pagep = &folio->page;
 	}
 	return r;
 }
@@ -1273,48 +1278,38 @@ out:
  */
 static int ceph_write_end(struct file *file, struct address_space *mapping,
 			  loff_t pos, unsigned len, unsigned copied,
-			  struct page *page, void *fsdata)
+			  struct page *subpage, void *fsdata)
 {
+	struct folio *folio = page_folio(subpage);
 	struct inode *inode = file_inode(file);
 	bool check_cap = false;
 
-	dout("write_end file %p inode %p page %p %d~%d (%d)\n", file,
-	     inode, page, (int)pos, (int)copied, (int)len);
+	dout("write_end file %p inode %p folio %p %d~%d (%d)\n", file,
+	     inode, folio, (int)pos, (int)copied, (int)len);
 
-	if (!PageUptodate(page)) {
+	if (!folio_test_uptodate(folio)) {
 		/* just return that nothing was copied on a short copy */
 		if (copied < len) {
 			copied = 0;
 			goto out;
 		}
-		SetPageUptodate(page);
+		folio_mark_uptodate(folio);
 	}
 
 	/* did file size increase? */
 	if (pos+copied > i_size_read(inode))
 		check_cap = ceph_inode_set_size(inode, pos+copied);
 
-	set_page_dirty(page);
+	folio_mark_dirty(folio);
 
 out:
-	unlock_page(page);
-	put_page(page);
+	folio_unlock(folio);
+	folio_put(folio);
 
 	if (check_cap)
 		ceph_check_caps(ceph_inode(inode), CHECK_CAPS_AUTHONLY, NULL);
 
 	return copied;
-}
-
-/*
- * we set .direct_IO to indicate direct io is supported, but since we
- * intercept O_DIRECT reads and writes early, this function should
- * never get called.
- */
-static ssize_t ceph_direct_io(struct kiocb *iocb, struct iov_iter *iter)
-{
-	WARN_ON(1);
-	return -EINVAL;
 }
 
 const struct address_space_operations ceph_aops = {
@@ -1327,7 +1322,7 @@ const struct address_space_operations ceph_aops = {
 	.set_page_dirty = ceph_set_page_dirty,
 	.invalidatepage = ceph_invalidatepage,
 	.releasepage = ceph_releasepage,
-	.direct_IO = ceph_direct_io,
+	.direct_IO = noop_direct_IO,
 };
 
 static void ceph_block_sigs(sigset_t *oldset)
@@ -1355,6 +1350,9 @@ static vm_fault_t ceph_filemap_fault(struct vm_fault *vmf)
 	int want, got, err;
 	sigset_t oldset;
 	vm_fault_t ret = VM_FAULT_SIGBUS;
+
+	if (ceph_inode_is_shutdown(inode))
+		return ret;
 
 	ceph_block_sigs(&oldset);
 
@@ -1446,6 +1444,9 @@ static vm_fault_t ceph_page_mkwrite(struct vm_fault *vmf)
 	int want, got, err;
 	sigset_t oldset;
 	vm_fault_t ret = VM_FAULT_SIGBUS;
+
+	if (ceph_inode_is_shutdown(inode))
+		return ret;
 
 	prealloc_cf = ceph_alloc_cap_flush();
 	if (!prealloc_cf)

@@ -18,7 +18,7 @@
 
 #include "../virt-dma.h"
 
-#define DMAC_MAX_CHANNELS	8
+#define DMAC_MAX_CHANNELS	16
 #define DMAC_MAX_MASTERS	2
 #define DMAC_MAX_BLK_SIZE	0x200000
 
@@ -30,6 +30,8 @@ struct dw_axi_dma_hcfg {
 	u32	priority[DMAC_MAX_CHANNELS];
 	/* maximum supported axi burst length */
 	u32	axi_rw_burst_len;
+	/* Register map for DMAX_NUM_CHANNELS <= 8 */
+	bool	reg_map_8_channels;
 	bool	restrict_axi_burst_len;
 };
 
@@ -103,6 +105,17 @@ struct axi_dma_desc {
 	u32				period_len;
 };
 
+struct axi_dma_chan_config {
+	u8 dst_multblk_type;
+	u8 src_multblk_type;
+	u8 dst_per;
+	u8 src_per;
+	u8 tt_fc;
+	u8 prior;
+	u8 hs_sel_dst;
+	u8 hs_sel_src;
+};
+
 static inline struct device *dchan2dev(struct dma_chan *dchan)
 {
 	return &dchan->dev->device;
@@ -139,6 +152,8 @@ static inline struct axi_dma_chan *dchan_to_axi_dma_chan(struct dma_chan *dchan)
 #define DMAC_CHEN		0x018 /* R/W DMAC Channel Enable */
 #define DMAC_CHEN_L		0x018 /* R/W DMAC Channel Enable 00-31 */
 #define DMAC_CHEN_H		0x01C /* R/W DMAC Channel Enable 32-63 */
+#define DMAC_CHSUSPREG		0x020 /* R/W DMAC Channel Suspend */
+#define DMAC_CHABORTREG		0x028 /* R/W DMAC Channel Abort */
 #define DMAC_INTSTATUS		0x030 /* R DMAC Interrupt Status */
 #define DMAC_COMMON_INTCLEAR	0x038 /* W DMAC Interrupt Clear */
 #define DMAC_COMMON_INTSTATUS_ENA 0x040 /* R DMAC Interrupt Status Enable */
@@ -187,6 +202,7 @@ static inline struct axi_dma_chan *dchan_to_axi_dma_chan(struct dma_chan *dchan)
 #define DMA_APB_HS_SEL_BIT_SIZE	0x08 /* HW handshake bits per channel */
 #define DMA_APB_HS_SEL_MASK	0xFF /* HW handshake select masks */
 #define MAX_BLOCK_SIZE		0x1000 /* 1024 blocks * 4 bytes data width */
+#define DMA_REG_MAP_CH_REF	0x08 /* Channel count to choose register map */
 
 /* DMAC_CFG */
 #define DMAC_EN_POS			0
@@ -195,11 +211,19 @@ static inline struct axi_dma_chan *dchan_to_axi_dma_chan(struct dma_chan *dchan)
 #define INT_EN_POS			1
 #define INT_EN_MASK			BIT(INT_EN_POS)
 
+/* DMAC_CHEN */
 #define DMAC_CHAN_EN_SHIFT		0
 #define DMAC_CHAN_EN_WE_SHIFT		8
 
 #define DMAC_CHAN_SUSP_SHIFT		16
 #define DMAC_CHAN_SUSP_WE_SHIFT		24
+
+/* DMAC_CHEN2 */
+#define DMAC_CHAN_EN2_WE_SHIFT		16
+
+/* DMAC_CHSUSP */
+#define DMAC_CHAN_SUSP2_SHIFT		0
+#define DMAC_CHAN_SUSP2_WE_SHIFT	16
 
 /* CH_CTL_H */
 #define CH_CTL_H_ARLEN_EN		BIT(6)
@@ -288,6 +312,15 @@ enum {
 	DWAXIDMAC_MBLK_TYPE_SHADOW_REG,
 	DWAXIDMAC_MBLK_TYPE_LL
 };
+
+/* CH_CFG2 */
+#define CH_CFG2_L_SRC_PER_POS		4
+#define CH_CFG2_L_DST_PER_POS		11
+
+#define CH_CFG2_H_TT_FC_POS		0
+#define CH_CFG2_H_HS_SEL_SRC_POS	3
+#define CH_CFG2_H_HS_SEL_DST_POS	4
+#define CH_CFG2_H_PRIORITY_POS		20
 
 /**
  * DW AXI DMA channel interrupts

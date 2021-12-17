@@ -69,7 +69,7 @@ static const int rpm_ranges[] = { 2000, 4000, 8000, 16000 };
 struct max6639_data {
 	struct i2c_client *client;
 	struct mutex update_lock;
-	char valid;		/* !=0 if following fields are valid */
+	bool valid;		/* true if following fields are valid */
 	unsigned long last_updated;	/* In jiffies */
 
 	/* Register values sampled regularly */
@@ -141,7 +141,7 @@ static struct max6639_data *max6639_update_device(struct device *dev)
 		}
 
 		data->last_updated = jiffies;
-		data->valid = 1;
+		data->valid = true;
 	}
 abort:
 	mutex_unlock(&data->update_lock);

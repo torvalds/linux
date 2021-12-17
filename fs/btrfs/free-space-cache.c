@@ -22,6 +22,7 @@
 #include "delalloc-space.h"
 #include "block-group.h"
 #include "discard.h"
+#include "subpage.h"
 
 #define BITS_PER_BITMAP		(PAGE_SIZE * 8UL)
 #define MAX_CACHE_BYTES_PER_GIG	SZ_64K
@@ -411,7 +412,10 @@ static void io_ctl_drop_pages(struct btrfs_io_ctl *io_ctl)
 
 	for (i = 0; i < io_ctl->num_pages; i++) {
 		if (io_ctl->pages[i]) {
-			ClearPageChecked(io_ctl->pages[i]);
+			btrfs_page_clear_checked(io_ctl->fs_info,
+					io_ctl->pages[i],
+					page_offset(io_ctl->pages[i]),
+					PAGE_SIZE);
 			unlock_page(io_ctl->pages[i]);
 			put_page(io_ctl->pages[i]);
 		}
@@ -2539,10 +2543,16 @@ static int __btrfs_add_free_space_zoned(struct btrfs_block_group *block_group,
 	u64 offset = bytenr - block_group->start;
 	u64 to_free, to_unusable;
 	const int bg_reclaim_threshold = READ_ONCE(fs_info->bg_reclaim_threshold);
+	bool initial = (size == block_group->length);
+	u64 reclaimable_unusable;
+
+	WARN_ON(!initial && offset + size > block_group->zone_capacity);
 
 	spin_lock(&ctl->tree_lock);
 	if (!used)
 		to_free = size;
+	else if (initial)
+		to_free = block_group->zone_capacity;
 	else if (offset >= block_group->alloc_offset)
 		to_free = size;
 	else if (offset + size <= block_group->alloc_offset)
@@ -2565,12 +2575,15 @@ static int __btrfs_add_free_space_zoned(struct btrfs_block_group *block_group,
 		spin_unlock(&block_group->lock);
 	}
 
+	reclaimable_unusable = block_group->zone_unusable -
+			       (block_group->length - block_group->zone_capacity);
 	/* All the region is now unusable. Mark it as unused and reclaim */
 	if (block_group->zone_unusable == block_group->length) {
 		btrfs_mark_bg_unused(block_group);
 	} else if (bg_reclaim_threshold &&
-		   block_group->zone_unusable >=
-		   div_factor_fine(block_group->length, bg_reclaim_threshold)) {
+		   reclaimable_unusable >=
+		   div_factor_fine(block_group->zone_capacity,
+				   bg_reclaim_threshold)) {
 		btrfs_mark_bg_to_reclaim(block_group);
 	}
 
@@ -2754,8 +2767,9 @@ void btrfs_dump_free_space(struct btrfs_block_group *block_group,
 	 * out the free space after the allocation offset.
 	 */
 	if (btrfs_is_zoned(fs_info)) {
-		btrfs_info(fs_info, "free space %llu",
-			   block_group->length - block_group->alloc_offset);
+		btrfs_info(fs_info, "free space %llu active %d",
+			   block_group->zone_capacity - block_group->alloc_offset,
+			   block_group->zone_is_active);
 		return;
 	}
 

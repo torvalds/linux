@@ -10,12 +10,10 @@
  *
  */
 
-#include <linux/blkdev.h>
 #include <linux/buffer_head.h>
 #include <linux/fs.h>
-#include <linux/nls.h>
+#include <linux/kernel.h>
 
-#include "debug.h"
 #include "ntfs.h"
 #include "ntfs_fs.h"
 
@@ -435,7 +433,7 @@ static void wnd_remove_free_ext(struct wnd_bitmap *wnd, size_t bit, size_t len)
 		;
 	} else {
 		n3 = rb_next(&e->count.node);
-		max_new_len = len > new_len ? len : new_len;
+		max_new_len = max(len, new_len);
 		if (!n3) {
 			wnd->extent_max = max_new_len;
 		} else {
@@ -731,7 +729,7 @@ int wnd_set_free(struct wnd_bitmap *wnd, size_t bit, size_t bits)
 			wbits = wnd->bits_last;
 
 		tail = wbits - wbit;
-		op = tail < bits ? tail : bits;
+		op = min_t(u32, tail, bits);
 
 		bh = wnd_map(wnd, iw);
 		if (IS_ERR(bh)) {
@@ -784,7 +782,7 @@ int wnd_set_used(struct wnd_bitmap *wnd, size_t bit, size_t bits)
 			wbits = wnd->bits_last;
 
 		tail = wbits - wbit;
-		op = tail < bits ? tail : bits;
+		op = min_t(u32, tail, bits);
 
 		bh = wnd_map(wnd, iw);
 		if (IS_ERR(bh)) {
@@ -834,7 +832,7 @@ static bool wnd_is_free_hlp(struct wnd_bitmap *wnd, size_t bit, size_t bits)
 			wbits = wnd->bits_last;
 
 		tail = wbits - wbit;
-		op = tail < bits ? tail : bits;
+		op = min_t(u32, tail, bits);
 
 		if (wbits != wnd->free_bits[iw]) {
 			bool ret;
@@ -926,7 +924,7 @@ use_wnd:
 			wbits = wnd->bits_last;
 
 		tail = wbits - wbit;
-		op = tail < bits ? tail : bits;
+		op = min_t(u32, tail, bits);
 
 		if (wnd->free_bits[iw]) {
 			bool ret;

@@ -6,6 +6,7 @@ config SND_SOC_AMD_ACP
 
 config SND_SOC_AMD_CZ_DA7219MX98357_MACH
 	tristate "AMD CZ support for DA7219, RT5682 and MAX9835"
+	select CLK_FIXED_FCH
 	select SND_SOC_DA7219
 	select SND_SOC_RT5682_I2C
 	select SND_SOC_MAX98357A
@@ -30,13 +31,14 @@ config SND_SOC_AMD_ACP3x
 
 config SND_SOC_AMD_RV_RT5682_MACH
 	tristate "AMD RV support for RT5682"
+	select CLK_FIXED_FCH
 	select SND_SOC_RT5682_I2C
 	select SND_SOC_MAX98357A
 	select SND_SOC_CROS_EC_CODEC
 	select I2C_CROS_EC_TUNNEL
 	select SND_SOC_RT1015
 	select SND_SOC_RT1015P
-	depends on SND_SOC_AMD_ACP3x && I2C && CROS_EC
+	depends on SND_SOC_AMD_ACP3x && I2C && CROS_EC && GPIOLIB
 	help
 	 This option enables machine driver for RT5682 and MAX9835.
 
@@ -49,7 +51,7 @@ config SND_SOC_AMD_RENOIR
 config SND_SOC_AMD_RENOIR_MACH
 	tristate "AMD Renoir support for DMIC"
 	select SND_SOC_DMIC
-	depends on SND_SOC_AMD_RENOIR
+	depends on SND_SOC_AMD_RENOIR && GPIOLIB
 	help
 	 This option enables machine driver for DMIC
 
@@ -61,3 +63,37 @@ config SND_SOC_AMD_ACP5x
 
 	 By enabling this flag build will trigger for ACP PCI driver,
 	 ACP DMA driver, CPU DAI driver.
+
+config SND_SOC_AMD_VANGOGH_MACH
+	tristate "AMD Vangogh support for NAU8821 CS35L41"
+	select SND_SOC_NAU8821
+	select SND_SOC_CS35L41_SPI
+	depends on SND_SOC_AMD_ACP5x && I2C
+	help
+	  This option enables machine driver for Vangogh platform
+	  using NAU8821 and CS35L41 codecs.
+	  Say m if you have such a device.
+	  If unsure select "N".
+
+config SND_SOC_AMD_ACP6x
+	tristate "AMD Audio Coprocessor-v6.x Yellow Carp support"
+	depends on X86 && PCI
+	help
+	  This option enables Audio Coprocessor i.e ACP v6.x support on
+	  AMD Yellow Carp platform. By enabling this flag build will be
+	  triggered for ACP PCI driver, ACP PDM DMA driver.
+	  Say m if you have such a device.
+	  If unsure select "N".
+
+config SND_SOC_AMD_YC_MACH
+	tristate "AMD YC support for DMIC"
+	select SND_SOC_DMIC
+	depends on SND_SOC_AMD_ACP6x
+	help
+	  This option enables machine driver for Yellow Carp platform
+	  using dmic. ACP IP has PDM Decoder block with DMA controller.
+	  DMIC can be connected directly to ACP IP.
+	  Say m if you have such a device.
+	  If unsure select "N".
+
+source "sound/soc/amd/acp/Kconfig"

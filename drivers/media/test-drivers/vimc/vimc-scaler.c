@@ -6,6 +6,7 @@
  */
 
 #include <linux/moduleparam.h>
+#include <linux/string.h>
 #include <linux/vmalloc.h>
 #include <linux/v4l2-mediabus.h>
 #include <media/v4l2-rect.h>
@@ -13,11 +14,11 @@
 
 #include "vimc-common.h"
 
-static unsigned int sca_mult = 3;
-module_param(sca_mult, uint, 0000);
-MODULE_PARM_DESC(sca_mult, " the image size multiplier");
-
-#define MAX_ZOOM	8
+/* Pad identifier */
+enum vic_sca_pad {
+	VIMC_SCA_SINK = 0,
+	VIMC_SCA_SRC = 1,
+};
 
 #define VIMC_SCA_FMT_WIDTH_DEFAULT  640
 #define VIMC_SCA_FMT_HEIGHT_DEFAULT 480
@@ -25,19 +26,16 @@ MODULE_PARM_DESC(sca_mult, " the image size multiplier");
 struct vimc_sca_device {
 	struct vimc_ent_device ved;
 	struct v4l2_subdev sd;
-	/* NOTE: the source fmt is the same as the sink
-	 * with the width and hight multiplied by mult
-	 */
-	struct v4l2_mbus_framefmt sink_fmt;
 	struct v4l2_rect crop_rect;
+	/* Frame format for both sink and src pad */
+	struct v4l2_mbus_framefmt fmt[2];
 	/* Values calculated when the stream starts */
 	u8 *src_frame;
-	unsigned int src_line_size;
 	unsigned int bpp;
 	struct media_pad pads[2];
 };
 
-static const struct v4l2_mbus_framefmt sink_fmt_default = {
+static const struct v4l2_mbus_framefmt fmt_default = {
 	.width = VIMC_SCA_FMT_WIDTH_DEFAULT,
 	.height = VIMC_SCA_FMT_HEIGHT_DEFAULT,
 	.code = MEDIA_BUS_FMT_RGB888_1X24,
@@ -72,17 +70,6 @@ vimc_sca_get_crop_bound_sink(const struct v4l2_mbus_framefmt *sink_fmt)
 	return r;
 }
 
-static void vimc_sca_adjust_sink_crop(struct v4l2_rect *r,
-				      const struct v4l2_mbus_framefmt *sink_fmt)
-{
-	const struct v4l2_rect sink_rect =
-		vimc_sca_get_crop_bound_sink(sink_fmt);
-
-	/* Disallow rectangles smaller than the minimal one. */
-	v4l2_rect_set_min_size(r, &crop_rect_min);
-	v4l2_rect_map_inside(r, &sink_rect);
-}
-
 static int vimc_sca_init_cfg(struct v4l2_subdev *sd,
 			     struct v4l2_subdev_state *sd_state)
 {
@@ -90,18 +77,13 @@ static int vimc_sca_init_cfg(struct v4l2_subdev *sd,
 	struct v4l2_rect *r;
 	unsigned int i;
 
-	mf = v4l2_subdev_get_try_format(sd, sd_state, 0);
-	*mf = sink_fmt_default;
-
-	r = v4l2_subdev_get_try_crop(sd, sd_state, 0);
-	*r = crop_rect_default;
-
-	for (i = 1; i < sd->entity.num_pads; i++) {
+	for (i = 0; i < sd->entity.num_pads; i++) {
 		mf = v4l2_subdev_get_try_format(sd, sd_state, i);
-		*mf = sink_fmt_default;
-		mf->width = mf->width * sca_mult;
-		mf->height = mf->height * sca_mult;
+		*mf = fmt_default;
 	}
+
+	r = v4l2_subdev_get_try_crop(sd, sd_state, VIMC_SCA_SINK);
+	*r = crop_rect_default;
 
 	return 0;
 }
@@ -144,15 +126,33 @@ static int vimc_sca_enum_frame_size(struct v4l2_subdev *sd,
 	fse->min_width = VIMC_FRAME_MIN_WIDTH;
 	fse->min_height = VIMC_FRAME_MIN_HEIGHT;
 
-	if (VIMC_IS_SINK(fse->pad)) {
-		fse->max_width = VIMC_FRAME_MAX_WIDTH;
-		fse->max_height = VIMC_FRAME_MAX_HEIGHT;
-	} else {
-		fse->max_width = VIMC_FRAME_MAX_WIDTH * MAX_ZOOM;
-		fse->max_height = VIMC_FRAME_MAX_HEIGHT * MAX_ZOOM;
-	}
+	fse->max_width = VIMC_FRAME_MAX_WIDTH;
+	fse->max_height = VIMC_FRAME_MAX_HEIGHT;
 
 	return 0;
+}
+
+static struct v4l2_mbus_framefmt *
+vimc_sca_pad_format(struct vimc_sca_device *vsca,
+		    struct v4l2_subdev_state *sd_state, u32 pad,
+		    enum v4l2_subdev_format_whence which)
+{
+	if (which == V4L2_SUBDEV_FORMAT_TRY)
+		return v4l2_subdev_get_try_format(&vsca->sd, sd_state, pad);
+	else
+		return &vsca->fmt[pad];
+}
+
+static struct v4l2_rect *
+vimc_sca_pad_crop(struct vimc_sca_device *vsca,
+		  struct v4l2_subdev_state *sd_state,
+		  enum v4l2_subdev_format_whence which)
+{
+	if (which == V4L2_SUBDEV_FORMAT_TRY)
+		return v4l2_subdev_get_try_crop(&vsca->sd, sd_state,
+						VIMC_SCA_SINK);
+	else
+		return &vsca->crop_rect;
 }
 
 static int vimc_sca_get_fmt(struct v4l2_subdev *sd,
@@ -160,95 +160,73 @@ static int vimc_sca_get_fmt(struct v4l2_subdev *sd,
 			    struct v4l2_subdev_format *format)
 {
 	struct vimc_sca_device *vsca = v4l2_get_subdevdata(sd);
-	struct v4l2_rect *crop_rect;
 
-	/* Get the current sink format */
-	if (format->which == V4L2_SUBDEV_FORMAT_TRY) {
-		format->format = *v4l2_subdev_get_try_format(sd, sd_state, 0);
-		crop_rect = v4l2_subdev_get_try_crop(sd, sd_state, 0);
-	} else {
-		format->format = vsca->sink_fmt;
-		crop_rect = &vsca->crop_rect;
-	}
-
-	/* Scale the frame size for the source pad */
-	if (VIMC_IS_SRC(format->pad)) {
-		format->format.width = crop_rect->width * sca_mult;
-		format->format.height = crop_rect->height * sca_mult;
-	}
-
+	format->format = *vimc_sca_pad_format(vsca, sd_state, format->pad,
+					      format->which);
 	return 0;
-}
-
-static void vimc_sca_adjust_sink_fmt(struct v4l2_mbus_framefmt *fmt)
-{
-	const struct vimc_pix_map *vpix;
-
-	/* Only accept code in the pix map table in non bayer format */
-	vpix = vimc_pix_map_by_code(fmt->code);
-	if (!vpix || vpix->bayer)
-		fmt->code = sink_fmt_default.code;
-
-	fmt->width = clamp_t(u32, fmt->width, VIMC_FRAME_MIN_WIDTH,
-			     VIMC_FRAME_MAX_WIDTH) & ~1;
-	fmt->height = clamp_t(u32, fmt->height, VIMC_FRAME_MIN_HEIGHT,
-			      VIMC_FRAME_MAX_HEIGHT) & ~1;
-
-	if (fmt->field == V4L2_FIELD_ANY)
-		fmt->field = sink_fmt_default.field;
-
-	vimc_colorimetry_clamp(fmt);
 }
 
 static int vimc_sca_set_fmt(struct v4l2_subdev *sd,
 			    struct v4l2_subdev_state *sd_state,
-			    struct v4l2_subdev_format *fmt)
+			    struct v4l2_subdev_format *format)
 {
 	struct vimc_sca_device *vsca = v4l2_get_subdevdata(sd);
-	struct v4l2_mbus_framefmt *sink_fmt;
-	struct v4l2_rect *crop_rect;
+	struct v4l2_mbus_framefmt *fmt;
 
-	if (fmt->which == V4L2_SUBDEV_FORMAT_ACTIVE) {
-		/* Do not change the format while stream is on */
-		if (vsca->src_frame)
-			return -EBUSY;
+	/* Do not change the active format while stream is on */
+	if (format->which == V4L2_SUBDEV_FORMAT_ACTIVE && vsca->src_frame)
+		return -EBUSY;
 
-		sink_fmt = &vsca->sink_fmt;
-		crop_rect = &vsca->crop_rect;
-	} else {
-		sink_fmt = v4l2_subdev_get_try_format(sd, sd_state, 0);
-		crop_rect = v4l2_subdev_get_try_crop(sd, sd_state, 0);
-	}
+	fmt = vimc_sca_pad_format(vsca, sd_state, format->pad, format->which);
 
 	/*
-	 * Do not change the format of the source pad,
-	 * it is propagated from the sink
+	 * The media bus code and colorspace can only be changed on the sink
+	 * pad, the source pad only follows.
 	 */
-	if (VIMC_IS_SRC(fmt->pad)) {
-		fmt->format = *sink_fmt;
-		fmt->format.width = crop_rect->width * sca_mult;
-		fmt->format.height = crop_rect->height * sca_mult;
-	} else {
-		/* Set the new format in the sink pad */
-		vimc_sca_adjust_sink_fmt(&fmt->format);
+	if (format->pad == VIMC_SCA_SINK) {
+		const struct vimc_pix_map *vpix;
 
-		dev_dbg(vsca->ved.dev, "%s: sink format update: "
-			"old:%dx%d (0x%x, %d, %d, %d, %d) "
-			"new:%dx%d (0x%x, %d, %d, %d, %d)\n", vsca->sd.name,
-			/* old */
-			sink_fmt->width, sink_fmt->height, sink_fmt->code,
-			sink_fmt->colorspace, sink_fmt->quantization,
-			sink_fmt->xfer_func, sink_fmt->ycbcr_enc,
-			/* new */
-			fmt->format.width, fmt->format.height, fmt->format.code,
-			fmt->format.colorspace,	fmt->format.quantization,
-			fmt->format.xfer_func, fmt->format.ycbcr_enc);
+		/* Only accept code in the pix map table in non bayer format. */
+		vpix = vimc_pix_map_by_code(format->format.code);
+		if (vpix && !vpix->bayer)
+			fmt->code = format->format.code;
+		else
+			fmt->code = fmt_default.code;
 
-		*sink_fmt = fmt->format;
-
-		/* Do the crop, but respect the current bounds */
-		vimc_sca_adjust_sink_crop(crop_rect, sink_fmt);
+		/* Clamp the colorspace to valid values. */
+		fmt->colorspace = format->format.colorspace;
+		fmt->ycbcr_enc = format->format.ycbcr_enc;
+		fmt->quantization = format->format.quantization;
+		fmt->xfer_func = format->format.xfer_func;
+		vimc_colorimetry_clamp(fmt);
 	}
+
+	/* Clamp and align the width and height */
+	fmt->width = clamp_t(u32, format->format.width, VIMC_FRAME_MIN_WIDTH,
+			     VIMC_FRAME_MAX_WIDTH) & ~1;
+	fmt->height = clamp_t(u32, format->format.height, VIMC_FRAME_MIN_HEIGHT,
+			      VIMC_FRAME_MAX_HEIGHT) & ~1;
+
+	/*
+	 * Propagate the sink pad format to the crop rectangle and the source
+	 * pad.
+	 */
+	if (format->pad == VIMC_SCA_SINK) {
+		struct v4l2_mbus_framefmt *src_fmt;
+		struct v4l2_rect *crop;
+
+		crop = vimc_sca_pad_crop(vsca, sd_state, format->which);
+		crop->width = fmt->width;
+		crop->height = fmt->height;
+		crop->top = 0;
+		crop->left = 0;
+
+		src_fmt = vimc_sca_pad_format(vsca, sd_state, VIMC_SCA_SRC,
+					      format->which);
+		*src_fmt = *fmt;
+	}
+
+	format->format = *fmt;
 
 	return 0;
 }
@@ -259,24 +237,17 @@ static int vimc_sca_get_selection(struct v4l2_subdev *sd,
 {
 	struct vimc_sca_device *vsca = v4l2_get_subdevdata(sd);
 	struct v4l2_mbus_framefmt *sink_fmt;
-	struct v4l2_rect *crop_rect;
 
 	if (VIMC_IS_SRC(sel->pad))
 		return -EINVAL;
 
-	if (sel->which == V4L2_SUBDEV_FORMAT_ACTIVE) {
-		sink_fmt = &vsca->sink_fmt;
-		crop_rect = &vsca->crop_rect;
-	} else {
-		sink_fmt = v4l2_subdev_get_try_format(sd, sd_state, 0);
-		crop_rect = v4l2_subdev_get_try_crop(sd, sd_state, 0);
-	}
-
 	switch (sel->target) {
 	case V4L2_SEL_TGT_CROP:
-		sel->r = *crop_rect;
+		sel->r = *vimc_sca_pad_crop(vsca, sd_state, sel->which);
 		break;
 	case V4L2_SEL_TGT_CROP_BOUNDS:
+		sink_fmt = vimc_sca_pad_format(vsca, sd_state, VIMC_SCA_SINK,
+					       sel->which);
 		sel->r = vimc_sca_get_crop_bound_sink(sink_fmt);
 		break;
 	default:
@@ -284,6 +255,17 @@ static int vimc_sca_get_selection(struct v4l2_subdev *sd,
 	}
 
 	return 0;
+}
+
+static void vimc_sca_adjust_sink_crop(struct v4l2_rect *r,
+				      const struct v4l2_mbus_framefmt *sink_fmt)
+{
+	const struct v4l2_rect sink_rect =
+		vimc_sca_get_crop_bound_sink(sink_fmt);
+
+	/* Disallow rectangles smaller than the minimal one. */
+	v4l2_rect_set_min_size(r, &crop_rect_min);
+	v4l2_rect_map_inside(r, &sink_rect);
 }
 
 static int vimc_sca_set_selection(struct v4l2_subdev *sd,
@@ -294,30 +276,18 @@ static int vimc_sca_set_selection(struct v4l2_subdev *sd,
 	struct v4l2_mbus_framefmt *sink_fmt;
 	struct v4l2_rect *crop_rect;
 
-	if (VIMC_IS_SRC(sel->pad))
+	/* Only support setting the crop of the sink pad */
+	if (VIMC_IS_SRC(sel->pad) || sel->target != V4L2_SEL_TGT_CROP)
 		return -EINVAL;
 
-	if (sel->which == V4L2_SUBDEV_FORMAT_ACTIVE) {
-		/* Do not change the format while stream is on */
-		if (vsca->src_frame)
-			return -EBUSY;
+	if (sel->which == V4L2_SUBDEV_FORMAT_ACTIVE && vsca->src_frame)
+		return -EBUSY;
 
-		crop_rect = &vsca->crop_rect;
-		sink_fmt = &vsca->sink_fmt;
-	} else {
-		crop_rect = v4l2_subdev_get_try_crop(sd, sd_state, 0);
-		sink_fmt = v4l2_subdev_get_try_format(sd, sd_state, 0);
-	}
-
-	switch (sel->target) {
-	case V4L2_SEL_TGT_CROP:
-		/* Do the crop, but respect the current bounds */
-		vimc_sca_adjust_sink_crop(&sel->r, sink_fmt);
-		*crop_rect = sel->r;
-		break;
-	default:
-		return -EINVAL;
-	}
+	crop_rect = vimc_sca_pad_crop(vsca, sd_state, sel->which);
+	sink_fmt = vimc_sca_pad_format(vsca, sd_state, VIMC_SCA_SINK,
+				       sel->which);
+	vimc_sca_adjust_sink_crop(&sel->r, sink_fmt);
+	*crop_rect = sel->r;
 
 	return 0;
 }
@@ -344,16 +314,12 @@ static int vimc_sca_s_stream(struct v4l2_subdev *sd, int enable)
 			return 0;
 
 		/* Save the bytes per pixel of the sink */
-		vpix = vimc_pix_map_by_code(vsca->sink_fmt.code);
+		vpix = vimc_pix_map_by_code(vsca->fmt[VIMC_SCA_SINK].code);
 		vsca->bpp = vpix->bpp;
 
-		/* Calculate the width in bytes of the src frame */
-		vsca->src_line_size = vsca->crop_rect.width *
-				      sca_mult * vsca->bpp;
-
 		/* Calculate the frame size of the source pad */
-		frame_size = vsca->src_line_size * vsca->crop_rect.height *
-			     sca_mult;
+		frame_size = vsca->fmt[VIMC_SCA_SRC].width
+			   * vsca->fmt[VIMC_SCA_SRC].height * vsca->bpp;
 
 		/* Allocate the frame buffer. Use vmalloc to be able to
 		 * allocate a large amount of memory
@@ -382,77 +348,32 @@ static const struct v4l2_subdev_ops vimc_sca_ops = {
 	.video = &vimc_sca_video_ops,
 };
 
-static void vimc_sca_fill_pix(u8 *const ptr,
-			      const u8 *const pixel,
-			      const unsigned int bpp)
-{
-	unsigned int i;
-
-	/* copy the pixel to the pointer */
-	for (i = 0; i < bpp; i++)
-		ptr[i] = pixel[i];
-}
-
-static void vimc_sca_scale_pix(const struct vimc_sca_device *const vsca,
-			       unsigned int lin, unsigned int col,
-			       const u8 *const sink_frame)
-{
-	const struct v4l2_rect crop_rect = vsca->crop_rect;
-	unsigned int i, j, index;
-	const u8 *pixel;
-
-	/* Point to the pixel value in position (lin, col) in the sink frame */
-	index = VIMC_FRAME_INDEX(lin, col,
-				 vsca->sink_fmt.width,
-				 vsca->bpp);
-	pixel = &sink_frame[index];
-
-	dev_dbg(vsca->ved.dev,
-		"sca: %s: --- scale_pix sink pos %dx%d, index %d ---\n",
-		vsca->sd.name, lin, col, index);
-
-	/* point to the place we are going to put the first pixel
-	 * in the scaled src frame
-	 */
-	lin -= crop_rect.top;
-	col -= crop_rect.left;
-	index = VIMC_FRAME_INDEX(lin * sca_mult, col * sca_mult,
-				 crop_rect.width * sca_mult, vsca->bpp);
-
-	dev_dbg(vsca->ved.dev, "sca: %s: scale_pix src pos %dx%d, index %d\n",
-		vsca->sd.name, lin * sca_mult, col * sca_mult, index);
-
-	/* Repeat this pixel mult times */
-	for (i = 0; i < sca_mult; i++) {
-		/* Iterate through each beginning of a
-		 * pixel repetition in a line
-		 */
-		for (j = 0; j < sca_mult * vsca->bpp; j += vsca->bpp) {
-			dev_dbg(vsca->ved.dev,
-				"sca: %s: sca: scale_pix src pos %d\n",
-				vsca->sd.name, index + j);
-
-			/* copy the pixel to the position index + j */
-			vimc_sca_fill_pix(&vsca->src_frame[index + j],
-					  pixel, vsca->bpp);
-		}
-
-		/* move the index to the next line */
-		index += vsca->src_line_size;
-	}
-}
-
 static void vimc_sca_fill_src_frame(const struct vimc_sca_device *const vsca,
 				    const u8 *const sink_frame)
 {
-	const struct v4l2_rect r = vsca->crop_rect;
-	unsigned int i, j;
+	const struct v4l2_mbus_framefmt *src_fmt = &vsca->fmt[VIMC_SCA_SRC];
+	const struct v4l2_rect *r = &vsca->crop_rect;
+	unsigned int snk_width = vsca->fmt[VIMC_SCA_SINK].width;
+	unsigned int src_x, src_y;
+	u8 *walker = vsca->src_frame;
 
-	/* Scale each pixel from the original sink frame */
-	/* TODO: implement scale down, only scale up is supported for now */
-	for (i = r.top; i < r.top + r.height; i++)
-		for (j = r.left; j < r.left + r.width; j++)
-			vimc_sca_scale_pix(vsca, i, j, sink_frame);
+	/* Set each pixel at the src_frame to its sink_frame equivalent */
+	for (src_y = 0; src_y < src_fmt->height; src_y++) {
+		unsigned int snk_y, y_offset;
+
+		snk_y = (src_y * r->height) / src_fmt->height + r->top;
+		y_offset = snk_y * snk_width * vsca->bpp;
+
+		for (src_x = 0; src_x < src_fmt->width; src_x++) {
+			unsigned int snk_x, x_offset, index;
+
+			snk_x = (src_x * r->width) / src_fmt->width + r->left;
+			x_offset = snk_x * vsca->bpp;
+			index = y_offset + x_offset;
+			memcpy(walker, &sink_frame[index], vsca->bpp);
+			walker += vsca->bpp;
+		}
+	}
 }
 
 static void *vimc_sca_process_frame(struct vimc_ent_device *ved,
@@ -492,8 +413,8 @@ static struct vimc_ent_device *vimc_sca_add(struct vimc_device *vimc,
 		return ERR_PTR(-ENOMEM);
 
 	/* Initialize ved and sd */
-	vsca->pads[0].flags = MEDIA_PAD_FL_SINK;
-	vsca->pads[1].flags = MEDIA_PAD_FL_SOURCE;
+	vsca->pads[VIMC_SCA_SINK].flags = MEDIA_PAD_FL_SINK;
+	vsca->pads[VIMC_SCA_SRC].flags = MEDIA_PAD_FL_SOURCE;
 
 	ret = vimc_ent_sd_register(&vsca->ved, &vsca->sd, v4l2_dev,
 				   vcfg_name,
@@ -508,7 +429,8 @@ static struct vimc_ent_device *vimc_sca_add(struct vimc_device *vimc,
 	vsca->ved.dev = vimc->mdev.dev;
 
 	/* Initialize the frame format */
-	vsca->sink_fmt = sink_fmt_default;
+	vsca->fmt[VIMC_SCA_SINK] = fmt_default;
+	vsca->fmt[VIMC_SCA_SRC] = fmt_default;
 
 	/* Initialize the crop selection */
 	vsca->crop_rect = crop_rect_default;

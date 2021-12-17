@@ -1418,13 +1418,11 @@ err_disable_regulators:
 }
 EXPORT_SYMBOL(aic32x4_probe);
 
-int aic32x4_remove(struct device *dev)
+void aic32x4_remove(struct device *dev)
 {
 	struct aic32x4_priv *aic32x4 = dev_get_drvdata(dev);
 
 	aic32x4_disable_regulators(aic32x4);
-
-	return 0;
 }
 EXPORT_SYMBOL(aic32x4_remove);
 

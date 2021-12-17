@@ -8,7 +8,7 @@
 #include <linux/blkdev.h>
 #include <linux/buffer_head.h>
 #include <linux/fs.h>
-#include <linux/nls.h>
+#include <linux/kernel.h>
 
 #include "debug.h"
 #include "ntfs.h"
@@ -358,7 +358,7 @@ int ntfs_look_for_free_space(struct ntfs_sb_info *sbi, CLST lcn, CLST len,
 			     enum ALLOCATE_OPT opt)
 {
 	int err;
-	CLST alen = 0;
+	CLST alen;
 	struct super_block *sb = sbi->sb;
 	size_t alcn, zlen, zeroes, zlcn, zlen2, ztrim, new_zlen;
 	struct wnd_bitmap *wnd = &sbi->used.bitmap;
@@ -370,27 +370,28 @@ int ntfs_look_for_free_space(struct ntfs_sb_info *sbi, CLST lcn, CLST len,
 		if (!zlen) {
 			err = ntfs_refresh_zone(sbi);
 			if (err)
-				goto out;
+				goto up_write;
+
 			zlen = wnd_zone_len(wnd);
 		}
 
 		if (!zlen) {
 			ntfs_err(sbi->sb, "no free space to extend mft");
-			goto out;
+			err = -ENOSPC;
+			goto up_write;
 		}
 
 		lcn = wnd_zone_bit(wnd);
-		alen = zlen > len ? len : zlen;
+		alen = min_t(CLST, len, zlen);
 
 		wnd_zone_set(wnd, lcn + alen, zlen - alen);
 
 		err = wnd_set_used(wnd, lcn, alen);
-		if (err) {
-			up_write(&wnd->rw_lock);
-			return err;
-		}
+		if (err)
+			goto up_write;
+
 		alcn = lcn;
-		goto out;
+		goto space_found;
 	}
 	/*
 	 * 'Cause cluster 0 is always used this value means that we should use
@@ -404,49 +405,45 @@ int ntfs_look_for_free_space(struct ntfs_sb_info *sbi, CLST lcn, CLST len,
 
 	alen = wnd_find(wnd, len, lcn, BITMAP_FIND_MARK_AS_USED, &alcn);
 	if (alen)
-		goto out;
+		goto space_found;
 
 	/* Try to use clusters from MftZone. */
 	zlen = wnd_zone_len(wnd);
 	zeroes = wnd_zeroes(wnd);
 
 	/* Check too big request */
-	if (len > zeroes + zlen || zlen <= NTFS_MIN_MFT_ZONE)
-		goto out;
+	if (len > zeroes + zlen || zlen <= NTFS_MIN_MFT_ZONE) {
+		err = -ENOSPC;
+		goto up_write;
+	}
 
 	/* How many clusters to cat from zone. */
 	zlcn = wnd_zone_bit(wnd);
 	zlen2 = zlen >> 1;
-	ztrim = len > zlen ? zlen : (len > zlen2 ? len : zlen2);
-	new_zlen = zlen - ztrim;
-
-	if (new_zlen < NTFS_MIN_MFT_ZONE) {
-		new_zlen = NTFS_MIN_MFT_ZONE;
-		if (new_zlen > zlen)
-			new_zlen = zlen;
-	}
+	ztrim = clamp_val(len, zlen2, zlen);
+	new_zlen = max_t(size_t, zlen - ztrim, NTFS_MIN_MFT_ZONE);
 
 	wnd_zone_set(wnd, zlcn, new_zlen);
 
 	/* Allocate continues clusters. */
 	alen = wnd_find(wnd, len, 0,
 			BITMAP_FIND_MARK_AS_USED | BITMAP_FIND_FULL, &alcn);
-
-out:
-	if (alen) {
-		err = 0;
-		*new_len = alen;
-		*new_lcn = alcn;
-
-		ntfs_unmap_meta(sb, alcn, alen);
-
-		/* Set hint for next requests. */
-		if (!(opt & ALLOCATE_MFT))
-			sbi->used.next_free_lcn = alcn + alen;
-	} else {
+	if (!alen) {
 		err = -ENOSPC;
+		goto up_write;
 	}
 
+space_found:
+	err = 0;
+	*new_len = alen;
+	*new_lcn = alcn;
+
+	ntfs_unmap_meta(sb, alcn, alen);
+
+	/* Set hint for next requests. */
+	if (!(opt & ALLOCATE_MFT))
+		sbi->used.next_free_lcn = alcn + alen;
+up_write:
 	up_write(&wnd->rw_lock);
 	return err;
 }
@@ -1080,7 +1077,7 @@ int ntfs_sb_write(struct super_block *sb, u64 lbo, size_t bytes,
 }
 
 int ntfs_sb_write_run(struct ntfs_sb_info *sbi, const struct runs_tree *run,
-		      u64 vbo, const void *buf, size_t bytes)
+		      u64 vbo, const void *buf, size_t bytes, int sync)
 {
 	struct super_block *sb = sbi->sb;
 	u8 cluster_bits = sbi->cluster_bits;
@@ -1099,8 +1096,8 @@ int ntfs_sb_write_run(struct ntfs_sb_info *sbi, const struct runs_tree *run,
 	len = ((u64)clen << cluster_bits) - off;
 
 	for (;;) {
-		u32 op = len < bytes ? len : bytes;
-		int err = ntfs_sb_write(sb, lbo, op, buf, 0);
+		u32 op = min_t(u64, len, bytes);
+		int err = ntfs_sb_write(sb, lbo, op, buf, sync);
 
 		if (err)
 			return err;
@@ -1300,7 +1297,7 @@ int ntfs_get_bh(struct ntfs_sb_info *sbi, const struct runs_tree *run, u64 vbo,
 	nb->off = off = lbo & (blocksize - 1);
 
 	for (;;) {
-		u32 len32 = len < bytes ? len : bytes;
+		u32 len32 = min_t(u64, len, bytes);
 		sector_t block = lbo >> sb->s_blocksize_bits;
 
 		do {
@@ -2175,7 +2172,7 @@ int ntfs_insert_security(struct ntfs_sb_info *sbi,
 
 	/* Write main SDS bucket. */
 	err = ntfs_sb_write_run(sbi, &ni->file.run, sbi->security.next_off,
-				d_security, aligned_sec_size);
+				d_security, aligned_sec_size, 0);
 
 	if (err)
 		goto out;
@@ -2193,7 +2190,7 @@ int ntfs_insert_security(struct ntfs_sb_info *sbi,
 
 	/* Write copy SDS bucket. */
 	err = ntfs_sb_write_run(sbi, &ni->file.run, mirr_off, d_security,
-				aligned_sec_size);
+				aligned_sec_size, 0);
 	if (err)
 		goto out;
 

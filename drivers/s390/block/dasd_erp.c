@@ -24,7 +24,7 @@
 #include "dasd_int.h"
 
 struct dasd_ccw_req *
-dasd_alloc_erp_request(char *magic, int cplength, int datasize,
+dasd_alloc_erp_request(unsigned int magic, int cplength, int datasize,
 		       struct dasd_device * device)
 {
 	unsigned long flags;
@@ -33,8 +33,8 @@ dasd_alloc_erp_request(char *magic, int cplength, int datasize,
 	int size;
 
 	/* Sanity checks */
-	BUG_ON( magic == NULL || datasize > PAGE_SIZE ||
-	     (cplength*sizeof(struct ccw1)) > PAGE_SIZE);
+	BUG_ON(datasize > PAGE_SIZE ||
+	       (cplength*sizeof(struct ccw1)) > PAGE_SIZE);
 
 	size = (sizeof(struct dasd_ccw_req) + 7L) & -8L;
 	if (cplength > 0)
@@ -62,7 +62,7 @@ dasd_alloc_erp_request(char *magic, int cplength, int datasize,
 		cqr->data = data;
  		memset(cqr->data, 0, datasize);
 	}
-	strncpy((char *) &cqr->magic, magic, 4);
+	cqr->magic = magic;
 	ASCEBC((char *) &cqr->magic, 4);
 	set_bit(DASD_CQR_FLAGS_USE_ERP, &cqr->flags);
 	dasd_get_device(device);

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 or BSD-3-Clause
 /*
  * Copyright(c) 2015 - 2020 Intel Corporation.
+ * Copyright(c) 2021 Cornelis Networks.
  */
 
 /*
@@ -8414,6 +8415,8 @@ static void receive_interrupt_common(struct hfi1_ctxtdata *rcd)
  */
 static void __hfi1_rcd_eoi_intr(struct hfi1_ctxtdata *rcd)
 {
+	if (!rcd->rcvhdrq)
+		return;
 	clear_recv_intr(rcd);
 	if (check_packet_present(rcd))
 		force_recv_intr(rcd);
@@ -14918,7 +14921,7 @@ static int obtain_boardname(struct hfi1_devdata *dd)
 {
 	/* generic board description */
 	const char generic[] =
-		"Intel Omni-Path Host Fabric Interface Adapter 100 Series";
+		"Cornelis Omni-Path Host Fabric Interface Adapter 100 Series";
 	unsigned long size;
 	int ret;
 

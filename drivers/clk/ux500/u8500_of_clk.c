@@ -10,10 +10,10 @@
 #include <linux/of_address.h>
 #include <linux/clk-provider.h>
 #include <linux/mfd/dbx500-prcmu.h>
-#include "clk.h"
 
-#define PRCC_NUM_PERIPH_CLUSTERS 6
-#define PRCC_PERIPHS_PER_CLUSTER 32
+#include "clk.h"
+#include "prcc.h"
+#include "reset-prcc.h"
 
 static struct clk *prcmu_clk[PRCMU_NUM_CLKS];
 static struct clk *prcc_pclk[(PRCC_NUM_PERIPH_CLUSTERS + 1) * PRCC_PERIPHS_PER_CLUSTER];
@@ -46,16 +46,6 @@ static struct clk *ux500_twocell_get(struct of_phandle_args *clkspec,
 	return PRCC_SHOW(clk_data, base, bit);
 }
 
-/* CLKRST4 is missing making it hard to index things */
-enum clkrst_index {
-	CLKRST1_INDEX = 0,
-	CLKRST2_INDEX,
-	CLKRST3_INDEX,
-	CLKRST5_INDEX,
-	CLKRST6_INDEX,
-	CLKRST_MAX,
-};
-
 static void u8500_clk_init(struct device_node *np)
 {
 	struct prcmu_fw_version *fw_version;
@@ -63,7 +53,17 @@ static void u8500_clk_init(struct device_node *np)
 	const char *sgaclk_parent = NULL;
 	struct clk *clk, *rtc_clk, *twd_clk;
 	u32 bases[CLKRST_MAX];
+	struct u8500_prcc_reset *rstc;
 	int i;
+
+	/*
+	 * We allocate the reset controller here so that we can fill in the
+	 * base addresses properly and pass to the reset controller init
+	 * function later on.
+	 */
+	rstc = kzalloc(sizeof(*rstc), GFP_KERNEL);
+	if (!rstc)
+		return;
 
 	for (i = 0; i < ARRAY_SIZE(bases); i++) {
 		struct resource r;
@@ -73,6 +73,7 @@ static void u8500_clk_init(struct device_node *np)
 			pr_err("failed to get CLKRST %d base address\n",
 			       i + 1);
 		bases[i] = r.start;
+		rstc->phy_base[i] = r.start;
 	}
 
 	/* Clock sources */
@@ -563,6 +564,9 @@ static void u8500_clk_init(struct device_node *np)
 
 		if (of_node_name_eq(child, "smp-twd-clock"))
 			of_clk_add_provider(child, of_clk_src_simple_get, twd_clk);
+
+		if (of_node_name_eq(child, "prcc-reset-controller"))
+			u8500_prcc_reset_init(child, rstc);
 	}
 }
 CLK_OF_DECLARE(u8500_clks, "stericsson,u8500-clks", u8500_clk_init);

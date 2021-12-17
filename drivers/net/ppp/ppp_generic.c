@@ -1161,7 +1161,7 @@ static int ppp_unit_register(struct ppp *ppp, int unit, bool ifname_is_set)
 		if (!ifname_is_set) {
 			while (1) {
 				snprintf(ppp->dev->name, IFNAMSIZ, "ppp%i", ret);
-				if (!__dev_get_by_name(ppp->ppp_net, ppp->dev->name))
+				if (!netdev_name_in_use(ppp->ppp_net, ppp->dev->name))
 					break;
 				unit_put(&pn->units_idr, ret);
 				ret = unit_get(&pn->units_idr, ppp, ret + 1);

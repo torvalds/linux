@@ -1,6 +1,5 @@
 /* SPDX-License-Identifier: LGPL-2.1 */
 /*
- *   fs/cifs/ntlmssp.h
  *
  *   Copyright (c) International Business Machines  Corp., 2002,2007
  *   Author(s): Steve French (sfrench@us.ibm.com)
@@ -120,7 +119,9 @@ typedef struct _AUTHENTICATE_MESSAGE {
  */
 
 int decode_ntlmssp_challenge(char *bcc_ptr, int blob_len, struct cifs_ses *ses);
-void build_ntlmssp_negotiate_blob(unsigned char *pbuffer, struct cifs_ses *ses);
+int build_ntlmssp_negotiate_blob(unsigned char **pbuffer, u16 *buflen,
+				 struct cifs_ses *ses,
+				 const struct nls_table *nls_cp);
 int build_ntlmssp_auth_blob(unsigned char **pbuffer, u16 *buflen,
 			struct cifs_ses *ses,
 			const struct nls_table *nls_cp);

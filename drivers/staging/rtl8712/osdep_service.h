@@ -37,7 +37,6 @@ struct	__queue	{
 
 #define _pkt struct sk_buff
 #define _buffer unsigned char
-#define thread_exit() complete_and_exit(NULL, 0)
 
 #define _init_queue(pqueue)				\
 	do {						\

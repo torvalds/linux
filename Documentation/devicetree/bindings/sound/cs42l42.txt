@@ -19,13 +19,14 @@ Optional properties:
   (See Documentation/devicetree/bindings/interrupt-controller/interrupts.txt
   for further information relating to interrupt properties)
 
-  - cirrus,ts-inv : Boolean property. For jacks that invert the tip sense
-  polarity. Normal jacks will short tip sense pin to HS1 when headphones are
-  plugged in and leave tip sense floating when not plugged in. Inverting jacks
-  short tip sense when unplugged and float when plugged in.
+  - cirrus,ts-inv : Boolean property. Sets the behaviour of the jack plug
+  detect switch.
 
-  0 = (Default) Non-inverted
-  1 = Inverted
+  0 = (Default) Shorted to tip when unplugged, open when plugged.
+      This is "inverted tip sense (ITS)" in the datasheet.
+
+  1 = Open when unplugged, shorted to tip when plugged.
+      This is "normal tip sense (TS)" in the datasheet.
 
   - cirrus,ts-dbnc-rise : Debounce the rising edge of TIP_SENSE_PLUG. With no
   debounce, the tip sense pin might be noisy on a plug event.

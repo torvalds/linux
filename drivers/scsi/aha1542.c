@@ -268,8 +268,7 @@ static void aha1542_free_cmd(struct scsi_cmnd *cmd)
 		struct bio_vec bv;
 
 		rq_for_each_segment(bv, rq, iter) {
-			memcpy_to_page(bv.bv_page, bv.bv_offset, buf,
-				       bv.bv_len);
+			memcpy_to_bvec(&bv, buf);
 			buf += bv.bv_len;
 		}
 	}
@@ -281,7 +280,6 @@ static irqreturn_t aha1542_interrupt(int irq, void *dev_id)
 {
 	struct Scsi_Host *sh = dev_id;
 	struct aha1542_hostdata *aha1542 = shost_priv(sh);
-	void (*my_done)(struct scsi_cmnd *) = NULL;
 	int errstatus, mbi, mbo, mbistatus;
 	int number_serviced;
 	unsigned long flags;
@@ -369,14 +367,13 @@ static irqreturn_t aha1542_interrupt(int irq, void *dev_id)
 
 		tmp_cmd = aha1542->int_cmds[mbo];
 
-		if (!tmp_cmd || !tmp_cmd->scsi_done) {
+		if (!tmp_cmd) {
 			spin_unlock_irqrestore(sh->host_lock, flags);
 			shost_printk(KERN_WARNING, sh, "Unexpected interrupt\n");
 			shost_printk(KERN_WARNING, sh, "tarstat=%x, hastat=%x idlun=%x ccb#=%d\n", ccb[mbo].tarstat,
 			       ccb[mbo].hastat, ccb[mbo].idlun, mbo);
 			return IRQ_HANDLED;
 		}
-		my_done = tmp_cmd->scsi_done;
 		aha1542_free_cmd(tmp_cmd);
 		/*
 		 * Fetch the sense data, and tuck it away, in the required slot.  The
@@ -410,7 +407,7 @@ static irqreturn_t aha1542_interrupt(int irq, void *dev_id)
 		aha1542->int_cmds[mbo] = NULL;	/* This effectively frees up the mailbox slot, as
 						 * far as queuecommand is concerned
 						 */
-		my_done(tmp_cmd);
+		scsi_done(tmp_cmd);
 		number_serviced++;
 	};
 }
@@ -431,7 +428,7 @@ static int aha1542_queuecommand(struct Scsi_Host *sh, struct scsi_cmnd *cmd)
 	if (*cmd->cmnd == REQUEST_SENSE) {
 		/* Don't do the command - we have the sense data already */
 		cmd->result = 0;
-		cmd->scsi_done(cmd);
+		scsi_done(cmd);
 		return 0;
 	}
 #ifdef DEBUG
@@ -454,8 +451,7 @@ static int aha1542_queuecommand(struct Scsi_Host *sh, struct scsi_cmnd *cmd)
 		struct bio_vec bv;
 
 		rq_for_each_segment(bv, rq, iter) {
-			memcpy_from_page(buf, bv.bv_page, bv.bv_offset,
-					 bv.bv_len);
+			memcpy_from_bvec(buf, &bv);
 			buf += bv.bv_len;
 		}
 	}
@@ -488,7 +484,7 @@ static int aha1542_queuecommand(struct Scsi_Host *sh, struct scsi_cmnd *cmd)
 	aha1542->aha1542_last_mbo_used = mbo;
 
 #ifdef DEBUG
-	shost_printk(KERN_DEBUG, sh, "Sending command (%d %p)...", mbo, cmd->scsi_done);
+	shost_printk(KERN_DEBUG, sh, "Sending command (%d)...", mbo);
 #endif
 
 	/* This gets trashed for some reason */

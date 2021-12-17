@@ -18,6 +18,7 @@
 #include <linux/kasan-checks.h>
 #include <linux/string.h>
 
+#include <asm/asm-extable.h>
 #include <asm/cpufeature.h>
 #include <asm/mmu.h>
 #include <asm/mte.h>
@@ -69,12 +70,6 @@ static inline unsigned long __range_ok(const void __user *addr, unsigned long si
 }
 
 #define access_ok(addr, size)	__range_ok(addr, size)
-
-#define _ASM_EXTABLE(from, to)						\
-	"	.pushsection	__ex_table, \"a\"\n"			\
-	"	.align		3\n"					\
-	"	.long		(" #from " - .), (" #to " - .)\n"	\
-	"	.popsection\n"
 
 /*
  * User access enabling/disabling.
@@ -196,13 +191,13 @@ static inline void __uaccess_enable_tco(void)
  */
 static inline void __uaccess_disable_tco_async(void)
 {
-	if (system_uses_mte_async_mode())
+	if (system_uses_mte_async_or_asymm_mode())
 		 __uaccess_disable_tco();
 }
 
 static inline void __uaccess_enable_tco_async(void)
 {
-	if (system_uses_mte_async_mode())
+	if (system_uses_mte_async_or_asymm_mode())
 		__uaccess_enable_tco();
 }
 
@@ -260,15 +255,9 @@ static inline void __user *__uaccess_mask_ptr(const void __user *ptr)
 	asm volatile(							\
 	"1:	" load "	" reg "1, [%2]\n"			\
 	"2:\n"								\
-	"	.section .fixup, \"ax\"\n"				\
-	"	.align	2\n"						\
-	"3:	mov	%w0, %3\n"					\
-	"	mov	%1, #0\n"					\
-	"	b	2b\n"						\
-	"	.previous\n"						\
-	_ASM_EXTABLE(1b, 3b)						\
+	_ASM_EXTABLE_UACCESS_ERR_ZERO(1b, 2b, %w0, %w1)			\
 	: "+r" (err), "=&r" (x)						\
-	: "r" (addr), "i" (-EFAULT))
+	: "r" (addr))
 
 #define __raw_get_mem(ldr, x, ptr, err)					\
 do {									\
@@ -292,12 +281,22 @@ do {									\
 	(x) = (__force __typeof__(*(ptr)))__gu_val;			\
 } while (0)
 
+/*
+ * We must not call into the scheduler between uaccess_ttbr0_enable() and
+ * uaccess_ttbr0_disable(). As `x` and `ptr` could contain blocking functions,
+ * we must evaluate these outside of the critical section.
+ */
 #define __raw_get_user(x, ptr, err)					\
 do {									\
+	__typeof__(*(ptr)) __user *__rgu_ptr = (ptr);			\
+	__typeof__(x) __rgu_val;					\
 	__chk_user_ptr(ptr);						\
+									\
 	uaccess_ttbr0_enable();						\
-	__raw_get_mem("ldtr", x, ptr, err);				\
+	__raw_get_mem("ldtr", __rgu_val, __rgu_ptr, err);		\
 	uaccess_ttbr0_disable();					\
+									\
+	(x) = __rgu_val;						\
 } while (0)
 
 #define __get_user_error(x, ptr, err)					\
@@ -321,14 +320,22 @@ do {									\
 
 #define get_user	__get_user
 
+/*
+ * We must not call into the scheduler between __uaccess_enable_tco_async() and
+ * __uaccess_disable_tco_async(). As `dst` and `src` may contain blocking
+ * functions, we must evaluate these outside of the critical section.
+ */
 #define __get_kernel_nofault(dst, src, type, err_label)			\
 do {									\
+	__typeof__(dst) __gkn_dst = (dst);				\
+	__typeof__(src) __gkn_src = (src);				\
 	int __gkn_err = 0;						\
 									\
 	__uaccess_enable_tco_async();					\
-	__raw_get_mem("ldr", *((type *)(dst)),				\
-		      (__force type *)(src), __gkn_err);		\
+	__raw_get_mem("ldr", *((type *)(__gkn_dst)),			\
+		      (__force type *)(__gkn_src), __gkn_err);		\
 	__uaccess_disable_tco_async();					\
+									\
 	if (unlikely(__gkn_err))					\
 		goto err_label;						\
 } while (0)
@@ -337,14 +344,9 @@ do {									\
 	asm volatile(							\
 	"1:	" store "	" reg "1, [%2]\n"			\
 	"2:\n"								\
-	"	.section .fixup,\"ax\"\n"				\
-	"	.align	2\n"						\
-	"3:	mov	%w0, %3\n"					\
-	"	b	2b\n"						\
-	"	.previous\n"						\
-	_ASM_EXTABLE(1b, 3b)						\
+	_ASM_EXTABLE_UACCESS_ERR(1b, 2b, %w0)				\
 	: "+r" (err)							\
-	: "r" (x), "r" (addr), "i" (-EFAULT))
+	: "r" (x), "r" (addr))
 
 #define __raw_put_mem(str, x, ptr, err)					\
 do {									\
@@ -367,11 +369,19 @@ do {									\
 	}								\
 } while (0)
 
+/*
+ * We must not call into the scheduler between uaccess_ttbr0_enable() and
+ * uaccess_ttbr0_disable(). As `x` and `ptr` could contain blocking functions,
+ * we must evaluate these outside of the critical section.
+ */
 #define __raw_put_user(x, ptr, err)					\
 do {									\
-	__chk_user_ptr(ptr);						\
+	__typeof__(*(ptr)) __user *__rpu_ptr = (ptr);			\
+	__typeof__(*(ptr)) __rpu_val = (x);				\
+	__chk_user_ptr(__rpu_ptr);					\
+									\
 	uaccess_ttbr0_enable();						\
-	__raw_put_mem("sttr", x, ptr, err);				\
+	__raw_put_mem("sttr", __rpu_val, __rpu_ptr, err);		\
 	uaccess_ttbr0_disable();					\
 } while (0)
 
@@ -396,14 +406,22 @@ do {									\
 
 #define put_user	__put_user
 
+/*
+ * We must not call into the scheduler between __uaccess_enable_tco_async() and
+ * __uaccess_disable_tco_async(). As `dst` and `src` may contain blocking
+ * functions, we must evaluate these outside of the critical section.
+ */
 #define __put_kernel_nofault(dst, src, type, err_label)			\
 do {									\
+	__typeof__(dst) __pkn_dst = (dst);				\
+	__typeof__(src) __pkn_src = (src);				\
 	int __pkn_err = 0;						\
 									\
 	__uaccess_enable_tco_async();					\
-	__raw_put_mem("str", *((type *)(src)),				\
-		      (__force type *)(dst), __pkn_err);		\
+	__raw_put_mem("str", *((type *)(__pkn_src)),			\
+		      (__force type *)(__pkn_dst), __pkn_err);		\
 	__uaccess_disable_tco_async();					\
+									\
 	if (unlikely(__pkn_err))					\
 		goto err_label;						\
 } while(0)

@@ -469,7 +469,6 @@ static int radeon_uvd_cs_msg(struct radeon_cs_parser *p, struct radeon_bo *bo,
 {
 	int32_t *msg, msg_type, handle;
 	unsigned img_size = 0;
-	struct dma_fence *f;
 	void *ptr;
 
 	int i, r;
@@ -479,13 +478,11 @@ static int radeon_uvd_cs_msg(struct radeon_cs_parser *p, struct radeon_bo *bo,
 		return -EINVAL;
 	}
 
-	f = dma_resv_excl_fence(bo->tbo.base.resv);
-	if (f) {
-		r = radeon_fence_wait((struct radeon_fence *)f, false);
-		if (r) {
-			DRM_ERROR("Failed waiting for UVD message (%d)!\n", r);
-			return r;
-		}
+	r = dma_resv_wait_timeout(bo->tbo.base.resv, false, false,
+				  MAX_SCHEDULE_TIMEOUT);
+	if (r <= 0) {
+		DRM_ERROR("Failed waiting for UVD message (%d)!\n", r);
+		return r ? r : -ETIME;
 	}
 
 	r = radeon_bo_kmap(bo, &ptr);

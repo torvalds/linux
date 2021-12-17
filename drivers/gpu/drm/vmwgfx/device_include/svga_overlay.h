@@ -1,6 +1,6 @@
-/**********************************************************
+/* SPDX-License-Identifier: GPL-2.0 OR MIT */
+/*
  * Copyright 2007-2021 VMware, Inc.
- * SPDX-License-Identifier: GPL-2.0 OR MIT
  *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
@@ -22,7 +22,7 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  *
- **********************************************************/
+ */
 
 /*
  * svga_overlay.h --

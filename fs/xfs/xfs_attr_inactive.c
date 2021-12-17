@@ -390,7 +390,7 @@ out_destroy_fork:
 	/* kill the in-core attr fork before we drop the inode lock */
 	if (dp->i_afp) {
 		xfs_idestroy_fork(dp->i_afp);
-		kmem_cache_free(xfs_ifork_zone, dp->i_afp);
+		kmem_cache_free(xfs_ifork_cache, dp->i_afp);
 		dp->i_afp = NULL;
 	}
 	if (lock_mode)

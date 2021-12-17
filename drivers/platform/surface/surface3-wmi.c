@@ -139,13 +139,12 @@ static acpi_status s3_wmi_attach_spi_device(acpi_handle handle,
 
 static int s3_wmi_check_platform_device(struct device *dev, void *data)
 {
-	struct acpi_device *adev, *ts_adev = NULL;
-	acpi_handle handle;
+	struct acpi_device *adev = ACPI_COMPANION(dev);
+	struct acpi_device *ts_adev = NULL;
 	acpi_status status;
 
 	/* ignore non ACPI devices */
-	handle = ACPI_HANDLE(dev);
-	if (!handle || acpi_bus_get_device(handle, &adev))
+	if (!adev)
 		return 0;
 
 	/* check for LID ACPI switch */
@@ -159,7 +158,7 @@ static int s3_wmi_check_platform_device(struct device *dev, void *data)
 	    strlen(SPI_CTL_OBJ_NAME)))
 		return 0;
 
-	status = acpi_walk_namespace(ACPI_TYPE_DEVICE, handle, 1,
+	status = acpi_walk_namespace(ACPI_TYPE_DEVICE, adev->handle, 1,
 				     s3_wmi_attach_spi_device, NULL,
 				     &ts_adev, NULL);
 	if (ACPI_FAILURE(status))

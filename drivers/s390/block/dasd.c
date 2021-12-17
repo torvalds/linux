@@ -2077,12 +2077,15 @@ static void __dasd_device_check_path_events(struct dasd_device *device)
 
 	if (device->stopped & ~(DASD_STOPPED_DC_WAIT))
 		return;
+
+	dasd_path_clear_all_verify(device);
+	dasd_path_clear_all_fcsec(device);
+
 	rc = device->discipline->pe_handler(device, tbvpm, fcsecpm);
 	if (rc) {
+		dasd_path_add_tbvpm(device, tbvpm);
+		dasd_path_add_fcsecpm(device, fcsecpm);
 		dasd_device_set_timer(device, 50);
-	} else {
-		dasd_path_clear_all_verify(device);
-		dasd_path_clear_all_fcsec(device);
 	}
 };
 

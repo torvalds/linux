@@ -2475,10 +2475,10 @@ static int sparx5_serdes_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 	iomem = devm_ioremap(priv->dev, iores->start, resource_size(iores));
-	if (IS_ERR(iomem)) {
+	if (!iomem) {
 		dev_err(priv->dev, "Unable to get serdes registers: %s\n",
 			iores->name);
-		return PTR_ERR(iomem);
+		return -ENOMEM;
 	}
 	for (idx = 0; idx < ARRAY_SIZE(sparx5_serdes_iomap); idx++) {
 		struct sparx5_serdes_io_resource *iomap = &sparx5_serdes_iomap[idx];

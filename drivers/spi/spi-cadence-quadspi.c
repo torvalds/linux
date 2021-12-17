@@ -13,6 +13,7 @@
 #include <linux/dmaengine.h>
 #include <linux/err.h>
 #include <linux/errno.h>
+#include <linux/firmware/xlnx-zynqmp.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/iopoll.h>
@@ -35,6 +36,8 @@
 /* Quirks */
 #define CQSPI_NEEDS_WR_DELAY		BIT(0)
 #define CQSPI_DISABLE_DAC_MODE		BIT(1)
+#define CQSPI_SUPPORT_EXTERNAL_DMA	BIT(2)
+#define CQSPI_NO_SUPPORT_WR_COMPLETION	BIT(3)
 
 /* Capabilities */
 #define CQSPI_SUPPORTS_OCTAL		BIT(0)
@@ -82,11 +85,17 @@ struct cqspi_st {
 	u32			wr_delay;
 	bool			use_direct_mode;
 	struct cqspi_flash_pdata f_pdata[CQSPI_MAX_CHIPSELECT];
+	bool			use_dma_read;
+	u32			pd_dev_id;
+	bool			wr_completion;
 };
 
 struct cqspi_driver_platdata {
 	u32 hwcaps_mask;
 	u8 quirks;
+	int (*indirect_read_dma)(struct cqspi_flash_pdata *f_pdata,
+				 u_char *rxbuf, loff_t from_addr, size_t n_rx);
+	u32 (*get_dma_status)(struct cqspi_st *cqspi);
 };
 
 /* Operation timeout value */
@@ -217,6 +226,8 @@ struct cqspi_driver_platdata {
 #define CQSPI_REG_INDIRECTWRSTARTADDR		0x78
 #define CQSPI_REG_INDIRECTWRBYTES		0x7C
 
+#define CQSPI_REG_INDTRIG_ADDRRANGE		0x80
+
 #define CQSPI_REG_CMDADDRESS			0x94
 #define CQSPI_REG_CMDREADDATALOWER		0xA0
 #define CQSPI_REG_CMDREADDATAUPPER		0xA4
@@ -230,6 +241,23 @@ struct cqspi_driver_platdata {
 #define CQSPI_REG_OP_EXT_READ_LSB		24
 #define CQSPI_REG_OP_EXT_WRITE_LSB		16
 #define CQSPI_REG_OP_EXT_STIG_LSB		0
+
+#define CQSPI_REG_VERSAL_DMA_SRC_ADDR		0x1000
+
+#define CQSPI_REG_VERSAL_DMA_DST_ADDR		0x1800
+#define CQSPI_REG_VERSAL_DMA_DST_SIZE		0x1804
+
+#define CQSPI_REG_VERSAL_DMA_DST_CTRL		0x180C
+
+#define CQSPI_REG_VERSAL_DMA_DST_I_STS		0x1814
+#define CQSPI_REG_VERSAL_DMA_DST_I_EN		0x1818
+#define CQSPI_REG_VERSAL_DMA_DST_I_DIS		0x181C
+#define CQSPI_REG_VERSAL_DMA_DST_DONE_MASK	BIT(1)
+
+#define CQSPI_REG_VERSAL_DMA_DST_ADDR_MSB	0x1828
+
+#define CQSPI_REG_VERSAL_DMA_DST_CTRL_VAL	0xF43FFA00
+#define CQSPI_REG_VERSAL_ADDRRANGE_WIDTH_VAL	0x6
 
 /* Interrupt status bits */
 #define CQSPI_REG_IRQ_MODE_ERR			BIT(0)
@@ -250,6 +278,9 @@ struct cqspi_driver_platdata {
 					 CQSPI_REG_IRQ_UNDERFLOW)
 
 #define CQSPI_IRQ_STATUS_MASK		0x1FFFF
+#define CQSPI_DMA_UNALIGN		0x3
+
+#define CQSPI_REG_VERSAL_DMA_VAL		0x602
 
 static int cqspi_wait_for_bit(void __iomem *reg, const u32 mask, bool clr)
 {
@@ -275,16 +306,39 @@ static u32 cqspi_get_rd_sram_level(struct cqspi_st *cqspi)
 	return reg & CQSPI_REG_SDRAMLEVEL_RD_MASK;
 }
 
+static u32 cqspi_get_versal_dma_status(struct cqspi_st *cqspi)
+{
+	u32 dma_status;
+
+	dma_status = readl(cqspi->iobase +
+					   CQSPI_REG_VERSAL_DMA_DST_I_STS);
+	writel(dma_status, cqspi->iobase +
+		   CQSPI_REG_VERSAL_DMA_DST_I_STS);
+
+	return dma_status & CQSPI_REG_VERSAL_DMA_DST_DONE_MASK;
+}
+
 static irqreturn_t cqspi_irq_handler(int this_irq, void *dev)
 {
 	struct cqspi_st *cqspi = dev;
 	unsigned int irq_status;
+	struct device *device = &cqspi->pdev->dev;
+	const struct cqspi_driver_platdata *ddata;
+
+	ddata = of_device_get_match_data(device);
 
 	/* Read interrupt status */
 	irq_status = readl(cqspi->iobase + CQSPI_REG_IRQSTATUS);
 
 	/* Clear interrupt */
 	writel(irq_status, cqspi->iobase + CQSPI_REG_IRQSTATUS);
+
+	if (cqspi->use_dma_read && ddata && ddata->get_dma_status) {
+		if (ddata->get_dma_status(cqspi)) {
+			complete(&cqspi->transfer_complete);
+			return IRQ_HANDLED;
+		}
+	}
 
 	irq_status &= CQSPI_IRQ_MASK_RD | CQSPI_IRQ_MASK_WR;
 
@@ -781,6 +835,131 @@ failrd:
 	return ret;
 }
 
+static int cqspi_versal_indirect_read_dma(struct cqspi_flash_pdata *f_pdata,
+					  u_char *rxbuf, loff_t from_addr,
+					  size_t n_rx)
+{
+	struct cqspi_st *cqspi = f_pdata->cqspi;
+	struct device *dev = &cqspi->pdev->dev;
+	void __iomem *reg_base = cqspi->iobase;
+	u32 reg, bytes_to_dma;
+	loff_t addr = from_addr;
+	void *buf = rxbuf;
+	dma_addr_t dma_addr;
+	u8 bytes_rem;
+	int ret = 0;
+
+	bytes_rem = n_rx % 4;
+	bytes_to_dma = (n_rx - bytes_rem);
+
+	if (!bytes_to_dma)
+		goto nondmard;
+
+	ret = zynqmp_pm_ospi_mux_select(cqspi->pd_dev_id, PM_OSPI_MUX_SEL_DMA);
+	if (ret)
+		return ret;
+
+	reg = readl(cqspi->iobase + CQSPI_REG_CONFIG);
+	reg |= CQSPI_REG_CONFIG_DMA_MASK;
+	writel(reg, cqspi->iobase + CQSPI_REG_CONFIG);
+
+	dma_addr = dma_map_single(dev, rxbuf, bytes_to_dma, DMA_FROM_DEVICE);
+	if (dma_mapping_error(dev, dma_addr)) {
+		dev_err(dev, "dma mapping failed\n");
+		return -ENOMEM;
+	}
+
+	writel(from_addr, reg_base + CQSPI_REG_INDIRECTRDSTARTADDR);
+	writel(bytes_to_dma, reg_base + CQSPI_REG_INDIRECTRDBYTES);
+	writel(CQSPI_REG_VERSAL_ADDRRANGE_WIDTH_VAL,
+	       reg_base + CQSPI_REG_INDTRIG_ADDRRANGE);
+
+	/* Clear all interrupts. */
+	writel(CQSPI_IRQ_STATUS_MASK, reg_base + CQSPI_REG_IRQSTATUS);
+
+	/* Enable DMA done interrupt */
+	writel(CQSPI_REG_VERSAL_DMA_DST_DONE_MASK,
+	       reg_base + CQSPI_REG_VERSAL_DMA_DST_I_EN);
+
+	/* Default DMA periph configuration */
+	writel(CQSPI_REG_VERSAL_DMA_VAL, reg_base + CQSPI_REG_DMA);
+
+	/* Configure DMA Dst address */
+	writel(lower_32_bits(dma_addr),
+	       reg_base + CQSPI_REG_VERSAL_DMA_DST_ADDR);
+	writel(upper_32_bits(dma_addr),
+	       reg_base + CQSPI_REG_VERSAL_DMA_DST_ADDR_MSB);
+
+	/* Configure DMA Src address */
+	writel(cqspi->trigger_address, reg_base +
+	       CQSPI_REG_VERSAL_DMA_SRC_ADDR);
+
+	/* Set DMA destination size */
+	writel(bytes_to_dma, reg_base + CQSPI_REG_VERSAL_DMA_DST_SIZE);
+
+	/* Set DMA destination control */
+	writel(CQSPI_REG_VERSAL_DMA_DST_CTRL_VAL,
+	       reg_base + CQSPI_REG_VERSAL_DMA_DST_CTRL);
+
+	writel(CQSPI_REG_INDIRECTRD_START_MASK,
+	       reg_base + CQSPI_REG_INDIRECTRD);
+
+	reinit_completion(&cqspi->transfer_complete);
+
+	if (!wait_for_completion_timeout(&cqspi->transfer_complete,
+					 msecs_to_jiffies(CQSPI_READ_TIMEOUT_MS))) {
+		ret = -ETIMEDOUT;
+		goto failrd;
+	}
+
+	/* Disable DMA interrupt */
+	writel(0x0, cqspi->iobase + CQSPI_REG_VERSAL_DMA_DST_I_DIS);
+
+	/* Clear indirect completion status */
+	writel(CQSPI_REG_INDIRECTRD_DONE_MASK,
+	       cqspi->iobase + CQSPI_REG_INDIRECTRD);
+	dma_unmap_single(dev, dma_addr, bytes_to_dma, DMA_FROM_DEVICE);
+
+	reg = readl(cqspi->iobase + CQSPI_REG_CONFIG);
+	reg &= ~CQSPI_REG_CONFIG_DMA_MASK;
+	writel(reg, cqspi->iobase + CQSPI_REG_CONFIG);
+
+	ret = zynqmp_pm_ospi_mux_select(cqspi->pd_dev_id,
+					PM_OSPI_MUX_SEL_LINEAR);
+	if (ret)
+		return ret;
+
+nondmard:
+	if (bytes_rem) {
+		addr += bytes_to_dma;
+		buf += bytes_to_dma;
+		ret = cqspi_indirect_read_execute(f_pdata, buf, addr,
+						  bytes_rem);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+
+failrd:
+	/* Disable DMA interrupt */
+	writel(0x0, reg_base + CQSPI_REG_VERSAL_DMA_DST_I_DIS);
+
+	/* Cancel the indirect read */
+	writel(CQSPI_REG_INDIRECTWR_CANCEL_MASK,
+	       reg_base + CQSPI_REG_INDIRECTRD);
+
+	dma_unmap_single(dev, dma_addr, bytes_to_dma, DMA_FROM_DEVICE);
+
+	reg = readl(cqspi->iobase + CQSPI_REG_CONFIG);
+	reg &= ~CQSPI_REG_CONFIG_DMA_MASK;
+	writel(reg, cqspi->iobase + CQSPI_REG_CONFIG);
+
+	zynqmp_pm_ospi_mux_select(cqspi->pd_dev_id, PM_OSPI_MUX_SEL_LINEAR);
+
+	return ret;
+}
+
 static int cqspi_write_setup(struct cqspi_flash_pdata *f_pdata,
 			     const struct spi_mem_op *op)
 {
@@ -819,9 +998,11 @@ static int cqspi_write_setup(struct cqspi_flash_pdata *f_pdata,
 	 * polling on the controller's side. spinand and spi-nor will take
 	 * care of polling the status register.
 	 */
-	reg = readl(reg_base + CQSPI_REG_WR_COMPLETION_CTRL);
-	reg |= CQSPI_REG_WR_DISABLE_AUTO_POLL;
-	writel(reg, reg_base + CQSPI_REG_WR_COMPLETION_CTRL);
+	if (cqspi->wr_completion) {
+		reg = readl(reg_base + CQSPI_REG_WR_COMPLETION_CTRL);
+		reg |= CQSPI_REG_WR_DISABLE_AUTO_POLL;
+		writel(reg, reg_base + CQSPI_REG_WR_COMPLETION_CTRL);
+	}
 
 	reg = readl(reg_base + CQSPI_REG_SIZE);
 	reg &= ~CQSPI_REG_SIZE_ADDRESS_MASK;
@@ -1180,11 +1361,15 @@ static ssize_t cqspi_read(struct cqspi_flash_pdata *f_pdata,
 			  const struct spi_mem_op *op)
 {
 	struct cqspi_st *cqspi = f_pdata->cqspi;
+	struct device *dev = &cqspi->pdev->dev;
+	const struct cqspi_driver_platdata *ddata;
 	loff_t from = op->addr.val;
 	size_t len = op->data.nbytes;
 	u_char *buf = op->data.buf.in;
+	u64 dma_align = (u64)(uintptr_t)buf;
 	int ret;
 
+	ddata = of_device_get_match_data(dev);
 	ret = cqspi_set_protocol(f_pdata, op);
 	if (ret)
 		return ret;
@@ -1195,6 +1380,10 @@ static ssize_t cqspi_read(struct cqspi_flash_pdata *f_pdata,
 
 	if (cqspi->use_direct_mode && ((from + len) <= cqspi->ahb_size))
 		return cqspi_direct_read_execute(f_pdata, buf, from, len);
+
+	if (cqspi->use_dma_read && ddata && ddata->indirect_read_dma &&
+	    virt_addr_valid(buf) && ((dma_align & CQSPI_DMA_UNALIGN) == 0))
+		return ddata->indirect_read_dma(f_pdata, buf, from, len);
 
 	return cqspi_indirect_read_execute(f_pdata, buf, from, len);
 }
@@ -1299,6 +1488,7 @@ static int cqspi_of_get_pdata(struct cqspi_st *cqspi)
 {
 	struct device *dev = &cqspi->pdev->dev;
 	struct device_node *np = dev->of_node;
+	u32 id[2];
 
 	cqspi->is_decoded_cs = of_property_read_bool(np, "cdns,is-decoded-cs");
 
@@ -1322,6 +1512,10 @@ static int cqspi_of_get_pdata(struct cqspi_st *cqspi)
 		cqspi->num_chipselect = CQSPI_MAX_CHIPSELECT;
 
 	cqspi->rclk_en = of_property_read_bool(np, "cdns,rclk-en");
+
+	if (!of_property_read_u32_array(np, "power-domains", id,
+					ARRAY_SIZE(id)))
+		cqspi->pd_dev_id = id[1];
 
 	return 0;
 }
@@ -1356,6 +1550,13 @@ static void cqspi_controller_init(struct cqspi_st *cqspi)
 	if (!cqspi->use_direct_mode) {
 		reg = readl(cqspi->iobase + CQSPI_REG_CONFIG);
 		reg &= ~CQSPI_REG_CONFIG_ENB_DIR_ACC_CTRL;
+		writel(reg, cqspi->iobase + CQSPI_REG_CONFIG);
+	}
+
+	/* Enable DMA interface */
+	if (cqspi->use_dma_read) {
+		reg = readl(cqspi->iobase + CQSPI_REG_CONFIG);
+		reg |= CQSPI_REG_CONFIG_DMA_MASK;
 		writel(reg, cqspi->iobase + CQSPI_REG_CONFIG);
 	}
 
@@ -1539,6 +1740,10 @@ static int cqspi_probe(struct platform_device *pdev)
 
 	cqspi->master_ref_clk_hz = clk_get_rate(cqspi->clk);
 	master->max_speed_hz = cqspi->master_ref_clk_hz;
+
+	/* write completion is supported by default */
+	cqspi->wr_completion = true;
+
 	ddata  = of_device_get_match_data(dev);
 	if (ddata) {
 		if (ddata->quirks & CQSPI_NEEDS_WR_DELAY)
@@ -1548,6 +1753,14 @@ static int cqspi_probe(struct platform_device *pdev)
 			master->mode_bits |= SPI_RX_OCTAL | SPI_TX_OCTAL;
 		if (!(ddata->quirks & CQSPI_DISABLE_DAC_MODE))
 			cqspi->use_direct_mode = true;
+		if (ddata->quirks & CQSPI_SUPPORT_EXTERNAL_DMA)
+			cqspi->use_dma_read = true;
+		if (ddata->quirks & CQSPI_NO_SUPPORT_WR_COMPLETION)
+			cqspi->wr_completion = false;
+
+		if (of_device_is_compatible(pdev->dev.of_node,
+					    "xlnx,versal-ospi-1.0"))
+			dma_set_mask(&pdev->dev, DMA_BIT_MASK(64));
 	}
 
 	ret = devm_request_irq(dev, irq, cqspi_irq_handler, 0,
@@ -1656,6 +1869,17 @@ static const struct cqspi_driver_platdata intel_lgm_qspi = {
 	.quirks = CQSPI_DISABLE_DAC_MODE,
 };
 
+static const struct cqspi_driver_platdata socfpga_qspi = {
+	.quirks = CQSPI_NO_SUPPORT_WR_COMPLETION,
+};
+
+static const struct cqspi_driver_platdata versal_ospi = {
+	.hwcaps_mask = CQSPI_SUPPORTS_OCTAL,
+	.quirks = CQSPI_DISABLE_DAC_MODE | CQSPI_SUPPORT_EXTERNAL_DMA,
+	.indirect_read_dma = cqspi_versal_indirect_read_dma,
+	.get_dma_status = cqspi_get_versal_dma_status,
+};
+
 static const struct of_device_id cqspi_dt_ids[] = {
 	{
 		.compatible = "cdns,qspi-nor",
@@ -1672,6 +1896,14 @@ static const struct of_device_id cqspi_dt_ids[] = {
 	{
 		.compatible = "intel,lgm-qspi",
 		.data = &intel_lgm_qspi,
+	},
+	{
+		.compatible = "xlnx,versal-ospi-1.0",
+		.data = (void *)&versal_ospi,
+	},
+	{
+		.compatible = "intel,socfpga-qspi",
+		.data = (void *)&socfpga_qspi,
 	},
 	{ /* end of table */ }
 };

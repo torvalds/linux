@@ -6,9 +6,7 @@
 
 #include "osdep_service.h"
 #include "drv_types.h"
-#include "rtw_sreset.h"
 
-void rtl8188e_silentreset_for_specific_platform(struct adapter *padapter);
 void rtl8188e_sreset_xmit_status_check(struct adapter *padapter);
 void rtl8188e_sreset_linked_status_check(struct adapter *padapter);
 

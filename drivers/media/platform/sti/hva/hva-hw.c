@@ -298,15 +298,13 @@ static unsigned long int hva_hw_get_ip_version(struct hva_dev *hva)
 int hva_hw_probe(struct platform_device *pdev, struct hva_dev *hva)
 {
 	struct device *dev = &pdev->dev;
-	struct resource *regs;
 	struct resource *esram;
 	int ret;
 
 	WARN_ON(!hva);
 
 	/* get memory for registers */
-	regs = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	hva->regs = devm_ioremap_resource(dev, regs);
+	hva->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(hva->regs)) {
 		dev_err(dev, "%s     failed to get regs\n", HVA_PREFIX);
 		return PTR_ERR(hva->regs);

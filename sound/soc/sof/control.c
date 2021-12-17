@@ -65,6 +65,40 @@ static inline u32 ipc_to_mixer(u32 value, u32 *volume_map, int size)
 	return i - 1;
 }
 
+static void snd_sof_refresh_control(struct snd_sof_control *scontrol)
+{
+	struct sof_ipc_ctrl_data *cdata = scontrol->control_data;
+	struct snd_soc_component *scomp = scontrol->scomp;
+	u32 ipc_cmd;
+	int ret;
+
+	if (!scontrol->comp_data_dirty)
+		return;
+
+	if (!pm_runtime_active(scomp->dev))
+		return;
+
+	if (scontrol->cmd == SOF_CTRL_CMD_BINARY)
+		ipc_cmd = SOF_IPC_COMP_GET_DATA;
+	else
+		ipc_cmd = SOF_IPC_COMP_GET_VALUE;
+
+	/* set the ABI header values */
+	cdata->data->magic = SOF_ABI_MAGIC;
+	cdata->data->abi = SOF_ABI_VERSION;
+
+	/* refresh the component data from DSP */
+	scontrol->comp_data_dirty = false;
+	ret = snd_sof_ipc_set_get_comp_data(scontrol, ipc_cmd,
+					    SOF_CTRL_TYPE_VALUE_CHAN_GET,
+					    scontrol->cmd, false);
+	if (ret < 0) {
+		dev_err(scomp->dev, "error: failed to get control data: %d\n", ret);
+		/* Set the flag to re-try next time to get the data */
+		scontrol->comp_data_dirty = true;
+	}
+}
+
 int snd_sof_volume_get(struct snd_kcontrol *kcontrol,
 		       struct snd_ctl_elem_value *ucontrol)
 {
@@ -73,6 +107,8 @@ int snd_sof_volume_get(struct snd_kcontrol *kcontrol,
 	struct snd_sof_control *scontrol = sm->dobj.private;
 	struct sof_ipc_ctrl_data *cdata = scontrol->control_data;
 	unsigned int i, channels = scontrol->num_channels;
+
+	snd_sof_refresh_control(scontrol);
 
 	/* read back each channel */
 	for (i = 0; i < channels; i++)
@@ -108,7 +144,7 @@ int snd_sof_volume_put(struct snd_kcontrol *kcontrol,
 	if (pm_runtime_active(scomp->dev))
 		snd_sof_ipc_set_get_comp_data(scontrol,
 					      SOF_IPC_COMP_SET_VALUE,
-					      SOF_CTRL_TYPE_VALUE_CHAN_GET,
+					      SOF_CTRL_TYPE_VALUE_CHAN_SET,
 					      SOF_CTRL_CMD_VOLUME,
 					      true);
 	return change;
@@ -145,6 +181,8 @@ int snd_sof_switch_get(struct snd_kcontrol *kcontrol,
 	struct sof_ipc_ctrl_data *cdata = scontrol->control_data;
 	unsigned int i, channels = scontrol->num_channels;
 
+	snd_sof_refresh_control(scontrol);
+
 	/* read back each channel */
 	for (i = 0; i < channels; i++)
 		ucontrol->value.integer.value[i] = cdata->chanv[i].value;
@@ -179,7 +217,7 @@ int snd_sof_switch_put(struct snd_kcontrol *kcontrol,
 	if (pm_runtime_active(scomp->dev))
 		snd_sof_ipc_set_get_comp_data(scontrol,
 					      SOF_IPC_COMP_SET_VALUE,
-					      SOF_CTRL_TYPE_VALUE_CHAN_GET,
+					      SOF_CTRL_TYPE_VALUE_CHAN_SET,
 					      SOF_CTRL_CMD_SWITCH,
 					      true);
 
@@ -194,6 +232,8 @@ int snd_sof_enum_get(struct snd_kcontrol *kcontrol,
 	struct snd_sof_control *scontrol = se->dobj.private;
 	struct sof_ipc_ctrl_data *cdata = scontrol->control_data;
 	unsigned int i, channels = scontrol->num_channels;
+
+	snd_sof_refresh_control(scontrol);
 
 	/* read back each channel */
 	for (i = 0; i < channels; i++)
@@ -226,7 +266,7 @@ int snd_sof_enum_put(struct snd_kcontrol *kcontrol,
 	if (pm_runtime_active(scomp->dev))
 		snd_sof_ipc_set_get_comp_data(scontrol,
 					      SOF_IPC_COMP_SET_VALUE,
-					      SOF_CTRL_TYPE_VALUE_CHAN_GET,
+					      SOF_CTRL_TYPE_VALUE_CHAN_SET,
 					      SOF_CTRL_CMD_ENUM,
 					      true);
 
@@ -243,6 +283,8 @@ int snd_sof_bytes_get(struct snd_kcontrol *kcontrol,
 	struct sof_ipc_ctrl_data *cdata = scontrol->control_data;
 	struct sof_abi_hdr *data = cdata->data;
 	size_t size;
+
+	snd_sof_refresh_control(scontrol);
 
 	if (be->max > sizeof(ucontrol->value.bytes.data)) {
 		dev_err_ratelimited(scomp->dev,
@@ -475,6 +517,8 @@ int snd_sof_bytes_ext_get(struct snd_kcontrol *kcontrol,
 		(struct snd_ctl_tlv __user *)binary_data;
 	size_t data_size;
 
+	snd_sof_refresh_control(scontrol);
+
 	/*
 	 * Decrement the limit by ext bytes header size to
 	 * ensure the user space buffer is not exceeded.
@@ -510,4 +554,146 @@ int snd_sof_bytes_ext_get(struct snd_kcontrol *kcontrol,
 		return -EFAULT;
 
 	return 0;
+}
+
+static void snd_sof_update_control(struct snd_sof_control *scontrol,
+				   struct sof_ipc_ctrl_data *cdata)
+{
+	struct snd_soc_component *scomp = scontrol->scomp;
+	struct sof_ipc_ctrl_data *local_cdata;
+	int i;
+
+	local_cdata = scontrol->control_data;
+
+	if (cdata->cmd == SOF_CTRL_CMD_BINARY) {
+		if (cdata->num_elems != local_cdata->data->size) {
+			dev_err(scomp->dev,
+				"error: cdata binary size mismatch %u - %u\n",
+				cdata->num_elems, local_cdata->data->size);
+			return;
+		}
+
+		/* copy the new binary data */
+		memcpy(local_cdata->data, cdata->data, cdata->num_elems);
+	} else if (cdata->num_elems != scontrol->num_channels) {
+		dev_err(scomp->dev,
+			"error: cdata channel count mismatch %u - %d\n",
+			cdata->num_elems, scontrol->num_channels);
+	} else {
+		/* copy the new values */
+		for (i = 0; i < cdata->num_elems; i++)
+			local_cdata->chanv[i].value = cdata->chanv[i].value;
+	}
+}
+
+void snd_sof_control_notify(struct snd_sof_dev *sdev,
+			    struct sof_ipc_ctrl_data *cdata)
+{
+	struct snd_soc_dapm_widget *widget;
+	struct snd_sof_control *scontrol;
+	struct snd_sof_widget *swidget;
+	struct snd_kcontrol *kc = NULL;
+	struct soc_mixer_control *sm;
+	struct soc_bytes_ext *be;
+	size_t expected_size;
+	struct soc_enum *se;
+	bool found = false;
+	int i, type;
+
+	/* Find the swidget first */
+	list_for_each_entry(swidget, &sdev->widget_list, list) {
+		if (swidget->comp_id == cdata->comp_id) {
+			found = true;
+			break;
+		}
+	}
+
+	if (!found)
+		return;
+
+	/* Translate SOF cmd to TPLG type */
+	switch (cdata->cmd) {
+	case SOF_CTRL_CMD_VOLUME:
+	case SOF_CTRL_CMD_SWITCH:
+		type = SND_SOC_TPLG_TYPE_MIXER;
+		break;
+	case SOF_CTRL_CMD_BINARY:
+		type = SND_SOC_TPLG_TYPE_BYTES;
+		break;
+	case SOF_CTRL_CMD_ENUM:
+		type = SND_SOC_TPLG_TYPE_ENUM;
+		break;
+	default:
+		dev_err(sdev->dev, "error: unknown cmd %u\n", cdata->cmd);
+		return;
+	}
+
+	widget = swidget->widget;
+	for (i = 0; i < widget->num_kcontrols; i++) {
+		/* skip non matching types or non matching indexes within type */
+		if (widget->dobj.widget.kcontrol_type[i] == type &&
+		    widget->kcontrol_news[i].index == cdata->index) {
+			kc = widget->kcontrols[i];
+			break;
+		}
+	}
+
+	if (!kc)
+		return;
+
+	switch (cdata->cmd) {
+	case SOF_CTRL_CMD_VOLUME:
+	case SOF_CTRL_CMD_SWITCH:
+		sm = (struct soc_mixer_control *)kc->private_value;
+		scontrol = sm->dobj.private;
+		break;
+	case SOF_CTRL_CMD_BINARY:
+		be = (struct soc_bytes_ext *)kc->private_value;
+		scontrol = be->dobj.private;
+		break;
+	case SOF_CTRL_CMD_ENUM:
+		se = (struct soc_enum *)kc->private_value;
+		scontrol = se->dobj.private;
+		break;
+	default:
+		return;
+	}
+
+	expected_size = sizeof(struct sof_ipc_ctrl_data);
+	switch (cdata->type) {
+	case SOF_CTRL_TYPE_VALUE_CHAN_GET:
+	case SOF_CTRL_TYPE_VALUE_CHAN_SET:
+		expected_size += cdata->num_elems *
+				 sizeof(struct sof_ipc_ctrl_value_chan);
+		break;
+	case SOF_CTRL_TYPE_VALUE_COMP_GET:
+	case SOF_CTRL_TYPE_VALUE_COMP_SET:
+		expected_size += cdata->num_elems *
+				 sizeof(struct sof_ipc_ctrl_value_comp);
+		break;
+	case SOF_CTRL_TYPE_DATA_GET:
+	case SOF_CTRL_TYPE_DATA_SET:
+		expected_size += cdata->num_elems + sizeof(struct sof_abi_hdr);
+		break;
+	default:
+		return;
+	}
+
+	if (cdata->rhdr.hdr.size != expected_size) {
+		dev_err(sdev->dev, "error: component notification size mismatch\n");
+		return;
+	}
+
+	if (cdata->num_elems)
+		/*
+		 * The message includes the updated value/data, update the
+		 * control's local cache using the received notification
+		 */
+		snd_sof_update_control(scontrol, cdata);
+	else
+		/* Mark the scontrol that the value/data is changed in SOF */
+		scontrol->comp_data_dirty = true;
+
+	snd_ctl_notify_one(swidget->scomp->card->snd_card,
+			   SNDRV_CTL_EVENT_MASK_VALUE, kc, 0);
 }

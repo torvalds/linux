@@ -36,7 +36,7 @@ struct compat_regfile {
         compat_int_t rf_sar;
 };
 
-#define COMPAT_SIGRETURN_TRAMP 3
+#define COMPAT_SIGRETURN_TRAMP 4
 #define COMPAT_SIGRESTARTBLOCK_TRAMP 5
 #define COMPAT_TRAMP_SIZE (COMPAT_SIGRETURN_TRAMP + \
 				COMPAT_SIGRESTARTBLOCK_TRAMP)

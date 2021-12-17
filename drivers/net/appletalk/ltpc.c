@@ -846,9 +846,8 @@ static int ltpc_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 			set_30 (dev,ltflags);  
 
 			dev->broadcast[0] = 0xFF;
-			dev->dev_addr[0] = aa->s_node;
-
 			dev->addr_len=1;
+			dev_addr_set(dev, &aa->s_node);
    
 			return 0;
 

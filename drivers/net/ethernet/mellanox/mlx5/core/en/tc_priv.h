@@ -102,6 +102,7 @@ struct mlx5e_tc_flow {
 	refcount_t refcnt;
 	struct rcu_head rcu_head;
 	struct completion init_done;
+	struct completion del_hw_done;
 	int tunnel_id; /* the mapped tunnel id of this flow */
 	struct mlx5_flow_attr *attr;
 };
@@ -173,4 +174,6 @@ void mlx5e_flow_put(struct mlx5e_priv *priv, struct mlx5e_tc_flow *flow);
 
 struct mlx5_fc *mlx5e_tc_get_counter(struct mlx5e_tc_flow *flow);
 
+struct mlx5e_tc_int_port_priv *
+mlx5e_get_int_port_priv(struct mlx5e_priv *priv);
 #endif /* __MLX5_EN_TC_PRIV_H__ */

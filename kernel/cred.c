@@ -225,8 +225,6 @@ struct cred *cred_alloc_blank(void)
 #ifdef CONFIG_DEBUG_CREDENTIALS
 	new->magic = CRED_MAGIC;
 #endif
-	new->ucounts = get_ucounts(&init_ucounts);
-
 	if (security_cred_alloc_blank(new, GFP_KERNEL_ACCOUNT) < 0)
 		goto error;
 
@@ -501,7 +499,7 @@ int commit_creds(struct cred *new)
 		inc_rlimit_ucounts(new->ucounts, UCOUNT_RLIMIT_NPROC, 1);
 	rcu_assign_pointer(task->real_cred, new);
 	rcu_assign_pointer(task->cred, new);
-	if (new->user != old->user)
+	if (new->user != old->user || new->user_ns != old->user_ns)
 		dec_rlimit_ucounts(old->ucounts, UCOUNT_RLIMIT_NPROC, 1);
 	alter_cred_subscribers(old, -2);
 
@@ -669,7 +667,7 @@ int set_cred_ucounts(struct cred *new)
 {
 	struct task_struct *task = current;
 	const struct cred *old = task->real_cred;
-	struct ucounts *old_ucounts = new->ucounts;
+	struct ucounts *new_ucounts, *old_ucounts = new->ucounts;
 
 	if (new->user == old->user && new->user_ns == old->user_ns)
 		return 0;
@@ -678,14 +676,14 @@ int set_cred_ucounts(struct cred *new)
 	 * This optimization is needed because alloc_ucounts() uses locks
 	 * for table lookups.
 	 */
-	if (old_ucounts && old_ucounts->ns == new->user_ns && uid_eq(old_ucounts->uid, new->euid))
+	if (old_ucounts->ns == new->user_ns && uid_eq(old_ucounts->uid, new->euid))
 		return 0;
 
-	if (!(new->ucounts = alloc_ucounts(new->user_ns, new->euid)))
+	if (!(new_ucounts = alloc_ucounts(new->user_ns, new->euid)))
 		return -EAGAIN;
 
-	if (old_ucounts)
-		put_ucounts(old_ucounts);
+	new->ucounts = new_ucounts;
+	put_ucounts(old_ucounts);
 
 	return 0;
 }

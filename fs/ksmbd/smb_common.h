@@ -10,6 +10,7 @@
 
 #include "glob.h"
 #include "nterr.h"
+#include "../smbfs_common/smb2pdu.h"
 #include "smb2pdu.h"
 
 /* ksmbd's Specific ERRNO */
@@ -32,29 +33,12 @@
 #define SMB302_VERSION_STRING	"3.02"
 #define SMB311_VERSION_STRING	"3.1.1"
 
-/* Dialects */
-#define SMB10_PROT_ID		0x00
-#define SMB20_PROT_ID		0x0202
-#define SMB21_PROT_ID		0x0210
-/* multi-protocol negotiate request */
-#define SMB2X_PROT_ID		0x02FF
-#define SMB30_PROT_ID		0x0300
-#define SMB302_PROT_ID		0x0302
-#define SMB311_PROT_ID		0x0311
-#define BAD_PROT_ID		0xFFFF
-
 #define SMB_ECHO_INTERVAL	(60 * HZ)
 
 #define CIFS_DEFAULT_IOSIZE	(64 * 1024)
 #define MAX_CIFS_SMALL_BUFFER_SIZE 448 /* big enough for most */
 
-/* RFC 1002 session packet types */
-#define RFC1002_SESSION_MESSAGE			0x00
-#define RFC1002_SESSION_REQUEST			0x81
-#define RFC1002_POSITIVE_SESSION_RESPONSE	0x82
-#define RFC1002_NEGATIVE_SESSION_RESPONSE	0x83
-#define RFC1002_RETARGET_SESSION_RESPONSE	0x84
-#define RFC1002_SESSION_KEEP_ALIVE		0x85
+#define MAX_STREAM_PROT_LEN	0x00FFFFFF
 
 /* Responses when opening a file. */
 #define F_SUPERSEDED	0
@@ -65,21 +49,6 @@
 /*
  * File Attribute flags
  */
-#define ATTR_READONLY			0x0001
-#define ATTR_HIDDEN			0x0002
-#define ATTR_SYSTEM			0x0004
-#define ATTR_VOLUME			0x0008
-#define ATTR_DIRECTORY			0x0010
-#define ATTR_ARCHIVE			0x0020
-#define ATTR_DEVICE			0x0040
-#define ATTR_NORMAL			0x0080
-#define ATTR_TEMPORARY			0x0100
-#define ATTR_SPARSE			0x0200
-#define ATTR_REPARSE			0x0400
-#define ATTR_COMPRESSED			0x0800
-#define ATTR_OFFLINE			0x1000
-#define ATTR_NOT_CONTENT_INDEXED	0x2000
-#define ATTR_ENCRYPTED			0x4000
 #define ATTR_POSIX_SEMANTICS		0x01000000
 #define ATTR_BACKUP_SEMANTICS		0x02000000
 #define ATTR_DELETE_ON_CLOSE		0x04000000
@@ -87,23 +56,6 @@
 #define ATTR_RANDOM_ACCESS		0x10000000
 #define ATTR_NO_BUFFERING		0x20000000
 #define ATTR_WRITE_THROUGH		0x80000000
-
-#define ATTR_READONLY_LE		cpu_to_le32(ATTR_READONLY)
-#define ATTR_HIDDEN_LE			cpu_to_le32(ATTR_HIDDEN)
-#define ATTR_SYSTEM_LE			cpu_to_le32(ATTR_SYSTEM)
-#define ATTR_DIRECTORY_LE		cpu_to_le32(ATTR_DIRECTORY)
-#define ATTR_ARCHIVE_LE			cpu_to_le32(ATTR_ARCHIVE)
-#define ATTR_NORMAL_LE			cpu_to_le32(ATTR_NORMAL)
-#define ATTR_TEMPORARY_LE		cpu_to_le32(ATTR_TEMPORARY)
-#define ATTR_SPARSE_FILE_LE		cpu_to_le32(ATTR_SPARSE)
-#define ATTR_REPARSE_POINT_LE		cpu_to_le32(ATTR_REPARSE)
-#define ATTR_COMPRESSED_LE		cpu_to_le32(ATTR_COMPRESSED)
-#define ATTR_OFFLINE_LE			cpu_to_le32(ATTR_OFFLINE)
-#define ATTR_NOT_CONTENT_INDEXED_LE	cpu_to_le32(ATTR_NOT_CONTENT_INDEXED)
-#define ATTR_ENCRYPTED_LE		cpu_to_le32(ATTR_ENCRYPTED)
-#define ATTR_INTEGRITY_STREAML_LE	cpu_to_le32(0x00008000)
-#define ATTR_NO_SCRUB_DATA_LE		cpu_to_le32(0x00020000)
-#define ATTR_MASK_LE			cpu_to_le32(0x00007FB7)
 
 /* List of FileSystemAttributes - see 2.5.1 of MS-FSCC */
 #define FILE_SUPPORTS_SPARSE_VDL	0x10000000 /* faster nonsparse extend */
@@ -166,11 +118,6 @@
 /* file_execute, file_read_attributes*/
 /* write_dac, and delete.           */
 
-#define FILE_READ_RIGHTS (FILE_READ_DATA | FILE_READ_EA | FILE_READ_ATTRIBUTES)
-#define FILE_WRITE_RIGHTS (FILE_WRITE_DATA | FILE_APPEND_DATA \
-		| FILE_WRITE_EA | FILE_WRITE_ATTRIBUTES)
-#define FILE_EXEC_RIGHTS (FILE_EXECUTE)
-
 #define SET_FILE_READ_RIGHTS (FILE_READ_DATA | FILE_READ_EA \
 		| FILE_READ_ATTRIBUTES \
 		| DELETE | READ_CONTROL | WRITE_DAC \
@@ -210,6 +157,7 @@
 		FILE_READ_ATTRIBUTES | FILE_WRITE_ATTRIBUTES)
 
 #define SMB1_PROTO_NUMBER		cpu_to_le32(0x424d53ff)
+#define SMB_COM_NEGOTIATE		0x72
 
 #define SMB1_CLIENT_GUID_SIZE		(16)
 struct smb_hdr {
@@ -482,12 +430,6 @@ struct smb_version_cmds {
 	int (*proc)(struct ksmbd_work *swork);
 };
 
-static inline size_t
-smb2_hdr_size_no_buflen(struct smb_version_values *vals)
-{
-	return vals->header_size - 4;
-}
-
 int ksmbd_min_protocol(void);
 int ksmbd_max_protocol(void);
 
@@ -499,8 +441,6 @@ bool ksmbd_smb_request(struct ksmbd_conn *conn);
 int ksmbd_lookup_dialect_by_id(__le16 *cli_dialects, __le16 dialects_count);
 
 int ksmbd_init_smb_server(struct ksmbd_work *work);
-
-bool ksmbd_pdu_size_has_room(unsigned int pdu);
 
 struct ksmbd_kstat;
 int ksmbd_populate_dot_dotdot_entries(struct ksmbd_work *work,

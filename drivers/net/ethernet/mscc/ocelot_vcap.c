@@ -998,8 +998,8 @@ ocelot_vcap_block_find_filter_by_index(struct ocelot_vcap_block *block,
 }
 
 struct ocelot_vcap_filter *
-ocelot_vcap_block_find_filter_by_id(struct ocelot_vcap_block *block, int cookie,
-				    bool tc_offload)
+ocelot_vcap_block_find_filter_by_id(struct ocelot_vcap_block *block,
+				    unsigned long cookie, bool tc_offload)
 {
 	struct ocelot_vcap_filter *filter;
 
@@ -1216,6 +1216,22 @@ int ocelot_vcap_filter_del(struct ocelot *ocelot,
 	return 0;
 }
 EXPORT_SYMBOL(ocelot_vcap_filter_del);
+
+int ocelot_vcap_filter_replace(struct ocelot *ocelot,
+			       struct ocelot_vcap_filter *filter)
+{
+	struct ocelot_vcap_block *block = &ocelot->block[filter->block_id];
+	int index;
+
+	index = ocelot_vcap_block_get_filter_index(block, filter);
+	if (index < 0)
+		return index;
+
+	vcap_entry_set(ocelot, index, filter);
+
+	return 0;
+}
+EXPORT_SYMBOL(ocelot_vcap_filter_replace);
 
 int ocelot_vcap_filter_stats_update(struct ocelot *ocelot,
 				    struct ocelot_vcap_filter *filter)

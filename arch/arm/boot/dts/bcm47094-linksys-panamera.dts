@@ -129,7 +129,7 @@
 		};
 	};
 
-	mdio-bus-mux@18003000 {
+	mdio-mux@18003000 {
 
 		/* BIT(9) = 1 => external mdio */
 		mdio@200 {

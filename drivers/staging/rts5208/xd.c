@@ -177,7 +177,7 @@ static int xd_read_data_from_ppb(struct rtsx_chip *chip, int offset,
 {
 	int retval, i;
 
-	if (!buf || (buf_len < 0))
+	if (!buf || buf_len < 0)
 		return STATUS_FAIL;
 
 	rtsx_init_cmd(chip);
@@ -203,7 +203,7 @@ static int xd_read_cis(struct rtsx_chip *chip, u32 page_addr, u8 *buf,
 	int retval;
 	u8 reg;
 
-	if (!buf || (buf_len < 10))
+	if (!buf || buf_len < 10)
 		return STATUS_FAIL;
 
 	rtsx_init_cmd(chip);
@@ -713,7 +713,7 @@ static int reset_xd(struct rtsx_chip *chip)
 		}
 
 		/* Check CIS data */
-		if ((redunt[BLOCK_STATUS] == XD_GBLK) &&
+		if (redunt[BLOCK_STATUS] == XD_GBLK &&
 		    (redunt[PARITY] & XD_BA1_ALL0)) {
 			u8 buf[10];
 
@@ -723,12 +723,12 @@ static int reset_xd(struct rtsx_chip *chip)
 			if (retval != STATUS_SUCCESS)
 				return STATUS_FAIL;
 
-			if ((buf[0] == 0x01) && (buf[1] == 0x03) &&
-			    (buf[2] == 0xD9) &&
-			    (buf[3] == 0x01) && (buf[4] == 0xFF) &&
-			    (buf[5] == 0x18) && (buf[6] == 0x02) &&
-			    (buf[7] == 0xDF) && (buf[8] == 0x01) &&
-			    (buf[9] == 0x20)) {
+			if (buf[0] == 0x01 && buf[1] == 0x03 &&
+			    buf[2] == 0xD9 &&
+			    buf[3] == 0x01 && buf[4] == 0xFF &&
+			    buf[5] == 0x18 && buf[6] == 0x02 &&
+			    buf[7] == 0xDF && buf[8] == 0x01 &&
+			    buf[9] == 0x20) {
 				xd_card->cis_block = (u16)i;
 			}
 		}
@@ -847,8 +847,8 @@ static void xd_set_unused_block(struct rtsx_chip *chip, u32 phy_blk)
 			return;
 	}
 
-	if ((zone->set_index >= XD_FREE_TABLE_CNT) ||
-	    (zone->set_index < 0)) {
+	if (zone->set_index >= XD_FREE_TABLE_CNT ||
+	    zone->set_index < 0) {
 		free_zone(zone);
 		dev_dbg(rtsx_dev(chip), "Set unused block fail, invalid set_index\n");
 		return;
@@ -876,13 +876,13 @@ static u32 xd_get_unused_block(struct rtsx_chip *chip, int zone_no)
 	}
 	zone = &xd_card->zone[zone_no];
 
-	if ((zone->unused_blk_cnt == 0) ||
-	    (zone->set_index == zone->get_index)) {
+	if (zone->unused_blk_cnt == 0 ||
+	    zone->set_index == zone->get_index) {
 		free_zone(zone);
 		dev_dbg(rtsx_dev(chip), "Get unused block fail, no unused block available\n");
 		return BLK_NOT_FOUND;
 	}
-	if ((zone->get_index >= XD_FREE_TABLE_CNT) || (zone->get_index < 0)) {
+	if (zone->get_index >= XD_FREE_TABLE_CNT || zone->get_index < 0) {
 		free_zone(zone);
 		dev_dbg(rtsx_dev(chip), "Get unused block fail, invalid get_index\n");
 		return BLK_NOT_FOUND;
@@ -1109,7 +1109,7 @@ static int xd_copy_page(struct rtsx_chip *chip, u32 old_blk, u32 new_blk,
 	if (start_page > end_page)
 		return STATUS_FAIL;
 
-	if ((old_blk == BLK_NOT_FOUND) || (new_blk == BLK_NOT_FOUND))
+	if (old_blk == BLK_NOT_FOUND || new_blk == BLK_NOT_FOUND)
 		return STATUS_FAIL;
 
 	old_page = (old_blk << xd_card->block_shift) + start_page;
@@ -1375,16 +1375,16 @@ static int xd_build_l2p_tbl(struct rtsx_chip *chip, int zone_no)
 		}
 
 		cur_fst_page_logoff = xd_load_log_block_addr(redunt);
-		if ((cur_fst_page_logoff == 0xFFFF) ||
-		    (cur_fst_page_logoff > max_logoff)) {
+		if (cur_fst_page_logoff == 0xFFFF ||
+		    cur_fst_page_logoff > max_logoff) {
 			retval = xd_erase_block(chip, i);
 			if (retval == STATUS_SUCCESS)
 				xd_set_unused_block(chip, i);
 			continue;
 		}
 
-		if ((zone_no == 0) && (cur_fst_page_logoff == 0) &&
-		    (redunt[PAGE_STATUS] != XD_GPG))
+		if (zone_no == 0 && cur_fst_page_logoff == 0 &&
+		    redunt[PAGE_STATUS] != XD_GPG)
 			XD_SET_MBR_FAIL(xd_card);
 
 		if (zone->l2p_table[cur_fst_page_logoff] == 0xFFFF) {
@@ -1874,8 +1874,8 @@ int xd_rw(struct scsi_cmnd *srb, struct rtsx_chip *chip,
 	if (srb->sc_data_direction == DMA_TO_DEVICE) {
 #ifdef XD_DELAY_WRITE
 		if (delay_write->delay_write_flag &&
-		    (delay_write->logblock == log_blk) &&
-		    (start_page > delay_write->pageoff)) {
+		    delay_write->logblock == log_blk &&
+		    start_page > delay_write->pageoff) {
 			delay_write->delay_write_flag = 0;
 			if (delay_write->old_phyblock != BLK_NOT_FOUND) {
 				retval = xd_copy_page(chip,
@@ -1907,8 +1907,8 @@ int xd_rw(struct scsi_cmnd *srb, struct rtsx_chip *chip,
 #endif
 			old_blk = xd_get_l2p_tbl(chip, zone_no, log_off);
 			new_blk  = xd_get_unused_block(chip, zone_no);
-			if ((old_blk == BLK_NOT_FOUND) ||
-			    (new_blk == BLK_NOT_FOUND)) {
+			if (old_blk == BLK_NOT_FOUND ||
+			    new_blk == BLK_NOT_FOUND) {
 				set_sense_type(chip, lun,
 					       SENSE_TYPE_MEDIA_WRITE_ERR);
 				return STATUS_FAIL;
@@ -2034,7 +2034,7 @@ int xd_rw(struct scsi_cmnd *srb, struct rtsx_chip *chip,
 		start_page = 0;
 	}
 
-	if ((srb->sc_data_direction == DMA_TO_DEVICE) &&
+	if (srb->sc_data_direction == DMA_TO_DEVICE &&
 	    (end_page != (xd_card->page_off + 1))) {
 #ifdef XD_DELAY_WRITE
 		delay_write->delay_write_flag = 1;

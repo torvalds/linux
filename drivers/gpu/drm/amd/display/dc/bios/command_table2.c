@@ -44,9 +44,7 @@
 	bp->base.ctx->logger
 
 #define GET_INDEX_INTO_MASTER_TABLE(MasterOrData, FieldName)\
-	(((char *)(&((\
-		struct atom_master_list_of_##MasterOrData##_functions_v2_1 *)0)\
-		->FieldName)-(char *)0)/sizeof(uint16_t))
+	(offsetof(struct atom_master_list_of_##MasterOrData##_functions_v2_1, FieldName) / sizeof(uint16_t))
 
 #define EXEC_BIOS_CMD_TABLE(fname, params)\
 	(amdgpu_atom_execute_table(((struct amdgpu_device *)bp->base.ctx->driver_context)->mode_info.atom_context, \
@@ -340,6 +338,13 @@ static enum bp_result transmitter_control_v1_7(
 	const struct command_table_helper *cmd = bp->cmd_helper;
 	struct dmub_dig_transmitter_control_data_v1_7 dig_v1_7 = {0};
 
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+	uint8_t hpo_instance = (uint8_t)cntl->hpo_engine_id - ENGINE_ID_HPO_0;
+
+	if (dc_is_dp_signal(cntl->signal))
+		hpo_instance = (uint8_t)cntl->hpo_engine_id - ENGINE_ID_HPO_DP_0;
+#endif
+
 	dig_v1_7.phyid = cmd->phy_id_to_atom(cntl->transmitter);
 	dig_v1_7.action = (uint8_t)cntl->action;
 
@@ -353,6 +358,9 @@ static enum bp_result transmitter_control_v1_7(
 	dig_v1_7.hpdsel = cmd->hpd_sel_to_atom(cntl->hpd_sel);
 	dig_v1_7.digfe_sel = cmd->dig_encoder_sel_to_atom(cntl->engine_id);
 	dig_v1_7.connobj_id = (uint8_t)cntl->connector_obj_id.id;
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+	dig_v1_7.HPO_instance = hpo_instance;
+#endif
 	dig_v1_7.symclk_units.symclk_10khz = cntl->pixel_clock/10;
 
 	if (cntl->action == TRANSMITTER_CONTROL_ENABLE ||

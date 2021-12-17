@@ -19,9 +19,10 @@ It is designed as a better filesystem solution for the following scenarios:
    immutable and bit-for-bit identical to the official golden image for
    their releases due to security and other considerations and
 
- - hope to save some extra storage space with guaranteed end-to-end performance
-   by using reduced metadata and transparent file compression, especially
-   for those embedded devices with limited memory (ex, smartphone);
+ - hope to minimize extra storage space with guaranteed end-to-end performance
+   by using compact layout, transparent file compression and direct access,
+   especially for those embedded devices with limited memory and high-density
+   hosts with numerous containers;
 
 Here is the main features of EROFS:
 
@@ -51,7 +52,9 @@ Here is the main features of EROFS:
  - Support POSIX.1e ACLs by using xattrs;
 
  - Support transparent data compression as an option:
-   LZ4 algorithm with the fixed-sized output compression for high performance.
+   LZ4 algorithm with the fixed-sized output compression for high performance;
+
+ - Multiple device support for multi-layer container images.
 
 The following git tree provides the file system user-space tools under
 development (ex, formatting tool mkfs.erofs):
@@ -87,6 +90,7 @@ cache_strategy=%s      Select a strategy for cached decompression from now on:
 dax={always,never}     Use direct access (no page cache).  See
                        Documentation/filesystems/dax.rst.
 dax                    A legacy option which is an alias for ``dax=always``.
+device=%s              Specify a path to an extra device to be used together.
 ===================    =========================================================
 
 On-disk details

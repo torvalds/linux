@@ -21,16 +21,58 @@
  *
  */
 
+#include <linux/firmware.h>
+
 #include "amdgpu.h"
 #include "amdgpu_discovery.h"
 #include "soc15_hw_ip.h"
 #include "discovery.h"
 
+#include "soc15.h"
+#include "gfx_v9_0.h"
+#include "gmc_v9_0.h"
+#include "df_v1_7.h"
+#include "df_v3_6.h"
+#include "nbio_v6_1.h"
+#include "nbio_v7_0.h"
+#include "nbio_v7_4.h"
+#include "hdp_v4_0.h"
+#include "vega10_ih.h"
+#include "vega20_ih.h"
+#include "sdma_v4_0.h"
+#include "uvd_v7_0.h"
+#include "vce_v4_0.h"
+#include "vcn_v1_0.h"
+#include "vcn_v2_5.h"
+#include "jpeg_v2_5.h"
+#include "smuio_v9_0.h"
+#include "gmc_v10_0.h"
+#include "gfxhub_v2_0.h"
+#include "mmhub_v2_0.h"
+#include "nbio_v2_3.h"
+#include "nbio_v7_2.h"
+#include "hdp_v5_0.h"
+#include "nv.h"
+#include "navi10_ih.h"
+#include "gfx_v10_0.h"
+#include "sdma_v5_0.h"
+#include "sdma_v5_2.h"
+#include "vcn_v2_0.h"
+#include "jpeg_v2_0.h"
+#include "vcn_v3_0.h"
+#include "jpeg_v3_0.h"
+#include "amdgpu_vkms.h"
+#include "mes_v10_1.h"
+#include "smuio_v11_0.h"
+#include "smuio_v11_0_6.h"
+#include "smuio_v13_0.h"
+
+MODULE_FIRMWARE("amdgpu/ip_discovery.bin");
+
 #define mmRCC_CONFIG_MEMSIZE	0xde3
 #define mmMM_INDEX		0x0
 #define mmMM_INDEX_HI		0x6
 #define mmMM_DATA		0x1
-#define HW_ID_MAX		300
 
 static const char *hw_id_names[HW_ID_MAX] = {
 	[MP1_HWID]		= "MP1",
@@ -66,6 +108,8 @@ static const char *hw_id_names[HW_ID_MAX] = {
 	[HDP_HWID]		= "HDP",
 	[SDMA0_HWID]		= "SDMA0",
 	[SDMA1_HWID]		= "SDMA1",
+	[SDMA2_HWID]		= "SDMA2",
+	[SDMA3_HWID]		= "SDMA3",
 	[ISP_HWID]		= "ISP",
 	[DBGU_IO_HWID]		= "DBGU_IO",
 	[DF_HWID]		= "DF",
@@ -113,6 +157,8 @@ static int hw_id_map[MAX_HWIP] = {
 	[HDP_HWIP]	= HDP_HWID,
 	[SDMA0_HWIP]	= SDMA0_HWID,
 	[SDMA1_HWIP]	= SDMA1_HWID,
+	[SDMA2_HWIP]    = SDMA2_HWID,
+	[SDMA3_HWIP]    = SDMA3_HWID,
 	[MMHUB_HWIP]	= MMHUB_HWID,
 	[ATHUB_HWIP]	= ATHUB_HWID,
 	[NBIO_HWIP]	= NBIF_HWID,
@@ -129,6 +175,8 @@ static int hw_id_map[MAX_HWIP] = {
 	[THM_HWIP]	= THM_HWID,
 	[CLK_HWIP]	= CLKA_HWID,
 	[UMC_HWIP]	= UMC_HWID,
+	[XGMI_HWIP]	= XGMI_HWID,
+	[DCI_HWIP]	= DCI_HWID,
 };
 
 static int amdgpu_discovery_read_binary(struct amdgpu_device *adev, uint8_t *binary)
@@ -164,6 +212,7 @@ static int amdgpu_discovery_init(struct amdgpu_device *adev)
 	struct binary_header *bhdr;
 	struct ip_discovery_header *ihdr;
 	struct gpu_info_header *ghdr;
+	const struct firmware *fw;
 	uint16_t offset;
 	uint16_t size;
 	uint16_t checksum;
@@ -174,10 +223,21 @@ static int amdgpu_discovery_init(struct amdgpu_device *adev)
 	if (!adev->mman.discovery_bin)
 		return -ENOMEM;
 
-	r = amdgpu_discovery_read_binary(adev, adev->mman.discovery_bin);
-	if (r) {
-		DRM_ERROR("failed to read ip discovery binary\n");
-		goto out;
+	if (amdgpu_discovery == 2) {
+		r = request_firmware(&fw, "amdgpu/ip_discovery.bin", adev->dev);
+		if (r)
+			goto get_from_vram;
+		dev_info(adev->dev, "Using IP discovery from file\n");
+		memcpy((u8 *)adev->mman.discovery_bin, (u8 *)fw->data,
+		       adev->mman.discovery_tmr_size);
+		release_firmware(fw);
+	} else {
+get_from_vram:
+		r = amdgpu_discovery_read_binary(adev, adev->mman.discovery_bin);
+		if (r) {
+			DRM_ERROR("failed to read ip discovery binary\n");
+			goto out;
+		}
 	}
 
 	bhdr = (struct binary_header *)adev->mman.discovery_bin;
@@ -190,8 +250,8 @@ static int amdgpu_discovery_init(struct amdgpu_device *adev)
 
 	offset = offsetof(struct binary_header, binary_checksum) +
 		sizeof(bhdr->binary_checksum);
-	size = bhdr->binary_size - offset;
-	checksum = bhdr->binary_checksum;
+	size = le16_to_cpu(bhdr->binary_size) - offset;
+	checksum = le16_to_cpu(bhdr->binary_checksum);
 
 	if (!amdgpu_discovery_verify_checksum(adev->mman.discovery_bin + offset,
 					      size, checksum)) {
@@ -212,7 +272,7 @@ static int amdgpu_discovery_init(struct amdgpu_device *adev)
 	}
 
 	if (!amdgpu_discovery_verify_checksum(adev->mman.discovery_bin + offset,
-					      ihdr->size, checksum)) {
+					      le16_to_cpu(ihdr->size), checksum)) {
 		DRM_ERROR("invalid ip discovery data table checksum\n");
 		r = -EINVAL;
 		goto out;
@@ -224,7 +284,7 @@ static int amdgpu_discovery_init(struct amdgpu_device *adev)
 	ghdr = (struct gpu_info_header *)(adev->mman.discovery_bin + offset);
 
 	if (!amdgpu_discovery_verify_checksum(adev->mman.discovery_bin + offset,
-				              ghdr->size, checksum)) {
+				              le32_to_cpu(ghdr->size), checksum)) {
 		DRM_ERROR("invalid gc data table checksum\n");
 		r = -EINVAL;
 		goto out;
@@ -243,6 +303,22 @@ void amdgpu_discovery_fini(struct amdgpu_device *adev)
 {
 	kfree(adev->mman.discovery_bin);
 	adev->mman.discovery_bin = NULL;
+}
+
+static int amdgpu_discovery_validate_ip(const struct ip *ip)
+{
+	if (ip->number_instance >= HWIP_MAX_INSTANCE) {
+		DRM_ERROR("Unexpected number_instance (%d) from ip discovery blob\n",
+			  ip->number_instance);
+		return -EINVAL;
+	}
+	if (le16_to_cpu(ip->hw_id) >= HW_ID_MAX) {
+		DRM_ERROR("Unexpected hw_id (%d) from ip discovery blob\n",
+			  le16_to_cpu(ip->hw_id));
+		return -EINVAL;
+	}
+
+	return 0;
 }
 
 int amdgpu_discovery_reg_base_init(struct amdgpu_device *adev)
@@ -290,6 +366,10 @@ int amdgpu_discovery_reg_base_init(struct amdgpu_device *adev)
 
 		for (j = 0; j < num_ips; j++) {
 			ip = (struct ip *)(adev->mman.discovery_bin + ip_offset);
+
+			if (amdgpu_discovery_validate_ip(ip))
+				goto next_ip;
+
 			num_base_address = ip->num_base_address;
 
 			DRM_DEBUG("%s(%d) #%d v%d.%d.%d:\n",
@@ -301,6 +381,11 @@ int amdgpu_discovery_reg_base_init(struct amdgpu_device *adev)
 
 			if (le16_to_cpu(ip->hw_id) == VCN_HWID)
 				adev->vcn.num_vcn_inst++;
+			if (le16_to_cpu(ip->hw_id) == SDMA0_HWID ||
+			    le16_to_cpu(ip->hw_id) == SDMA1_HWID ||
+			    le16_to_cpu(ip->hw_id) == SDMA2_HWID ||
+			    le16_to_cpu(ip->hw_id) == SDMA3_HWID)
+				adev->sdma.num_instances++;
 
 			for (k = 0; k < num_base_address; k++) {
 				/*
@@ -317,10 +402,21 @@ int amdgpu_discovery_reg_base_init(struct amdgpu_device *adev)
 							hw_id_names[le16_to_cpu(ip->hw_id)]);
 					adev->reg_offset[hw_ip][ip->number_instance] =
 						ip->base_address;
+					/* Instance support is somewhat inconsistent.
+					 * SDMA is a good example.  Sienna cichlid has 4 total
+					 * SDMA instances, each enumerated separately (HWIDs
+					 * 42, 43, 68, 69).  Arcturus has 8 total SDMA instances,
+					 * but they are enumerated as multiple instances of the
+					 * same HWIDs (4x HWID 42, 4x HWID 43).  UMC is another
+					 * example.  On most chips there are multiple instances
+					 * with the same HWID.
+					 */
+					adev->ip_versions[hw_ip][ip->number_instance] =
+						IP_VERSION(ip->major, ip->minor, ip->revision);
 				}
-
 			}
 
+next_ip:
 			ip_offset += sizeof(*ip) + 4 * (ip->num_base_address - 1);
 		}
 	}
@@ -395,12 +491,16 @@ void amdgpu_discovery_harvest_ip(struct amdgpu_device *adev)
 			le16_to_cpu(bhdr->table_list[HARVEST_INFO].offset));
 
 	for (i = 0; i < 32; i++) {
-		if (le32_to_cpu(harvest_info->list[i].hw_id) == 0)
+		if (le16_to_cpu(harvest_info->list[i].hw_id) == 0)
 			break;
 
-		switch (le32_to_cpu(harvest_info->list[i].hw_id)) {
+		switch (le16_to_cpu(harvest_info->list[i].hw_id)) {
 		case VCN_HWID:
 			vcn_harvest_count++;
+			if (harvest_info->list[i].number_instance == 0)
+				adev->vcn.harvest_config |= AMDGPU_VCN_HARVEST_VCN0;
+			else
+				adev->vcn.harvest_config |= AMDGPU_VCN_HARVEST_VCN1;
 			break;
 		case DMU_HWID:
 			adev->harvest_ip_mask |= AMD_HARVEST_IP_DMU_MASK;
@@ -409,7 +509,18 @@ void amdgpu_discovery_harvest_ip(struct amdgpu_device *adev)
 			break;
 		}
 	}
+	/* some IP discovery tables on Navy Flounder don't have this set correctly */
+	if ((adev->ip_versions[UVD_HWIP][1] == IP_VERSION(3, 0, 1)) &&
+	    (adev->ip_versions[GC_HWIP][0] == IP_VERSION(10, 3, 2)))
+		adev->vcn.harvest_config |= AMDGPU_VCN_HARVEST_VCN1;
 	if (vcn_harvest_count == adev->vcn.num_vcn_inst) {
+		adev->harvest_ip_mask |= AMD_HARVEST_IP_VCN_MASK;
+		adev->harvest_ip_mask |= AMD_HARVEST_IP_JPEG_MASK;
+	}
+	if ((adev->pdev->device == 0x731E &&
+	     (adev->pdev->revision == 0xC6 || adev->pdev->revision == 0xC7)) ||
+	    (adev->pdev->device == 0x7340 && adev->pdev->revision == 0xC9)  ||
+	    (adev->pdev->device == 0x7360 && adev->pdev->revision == 0xC7)) {
 		adev->harvest_ip_mask |= AMD_HARVEST_IP_VCN_MASK;
 		adev->harvest_ip_mask |= AMD_HARVEST_IP_JPEG_MASK;
 	}
@@ -450,3 +561,792 @@ int amdgpu_discovery_get_gfx_info(struct amdgpu_device *adev)
 
 	return 0;
 }
+
+static int amdgpu_discovery_set_common_ip_blocks(struct amdgpu_device *adev)
+{
+	/* what IP to use for this? */
+	switch (adev->ip_versions[GC_HWIP][0]) {
+	case IP_VERSION(9, 0, 1):
+	case IP_VERSION(9, 1, 0):
+	case IP_VERSION(9, 2, 1):
+	case IP_VERSION(9, 2, 2):
+	case IP_VERSION(9, 3, 0):
+	case IP_VERSION(9, 4, 0):
+	case IP_VERSION(9, 4, 1):
+	case IP_VERSION(9, 4, 2):
+		amdgpu_device_ip_block_add(adev, &vega10_common_ip_block);
+		break;
+	case IP_VERSION(10, 1, 10):
+	case IP_VERSION(10, 1, 1):
+	case IP_VERSION(10, 1, 2):
+	case IP_VERSION(10, 1, 3):
+	case IP_VERSION(10, 3, 0):
+	case IP_VERSION(10, 3, 1):
+	case IP_VERSION(10, 3, 2):
+	case IP_VERSION(10, 3, 3):
+	case IP_VERSION(10, 3, 4):
+	case IP_VERSION(10, 3, 5):
+		amdgpu_device_ip_block_add(adev, &nv_common_ip_block);
+		break;
+	default:
+		dev_err(adev->dev,
+			"Failed to add common ip block(GC_HWIP:0x%x)\n",
+			adev->ip_versions[GC_HWIP][0]);
+		return -EINVAL;
+	}
+	return 0;
+}
+
+static int amdgpu_discovery_set_gmc_ip_blocks(struct amdgpu_device *adev)
+{
+	/* use GC or MMHUB IP version */
+	switch (adev->ip_versions[GC_HWIP][0]) {
+	case IP_VERSION(9, 0, 1):
+	case IP_VERSION(9, 1, 0):
+	case IP_VERSION(9, 2, 1):
+	case IP_VERSION(9, 2, 2):
+	case IP_VERSION(9, 3, 0):
+	case IP_VERSION(9, 4, 0):
+	case IP_VERSION(9, 4, 1):
+	case IP_VERSION(9, 4, 2):
+		amdgpu_device_ip_block_add(adev, &gmc_v9_0_ip_block);
+		break;
+	case IP_VERSION(10, 1, 10):
+	case IP_VERSION(10, 1, 1):
+	case IP_VERSION(10, 1, 2):
+	case IP_VERSION(10, 1, 3):
+	case IP_VERSION(10, 3, 0):
+	case IP_VERSION(10, 3, 1):
+	case IP_VERSION(10, 3, 2):
+	case IP_VERSION(10, 3, 3):
+	case IP_VERSION(10, 3, 4):
+	case IP_VERSION(10, 3, 5):
+		amdgpu_device_ip_block_add(adev, &gmc_v10_0_ip_block);
+		break;
+	default:
+		dev_err(adev->dev,
+			"Failed to add gmc ip block(GC_HWIP:0x%x)\n",
+			adev->ip_versions[GC_HWIP][0]);
+		return -EINVAL;
+	}
+	return 0;
+}
+
+static int amdgpu_discovery_set_ih_ip_blocks(struct amdgpu_device *adev)
+{
+	switch (adev->ip_versions[OSSSYS_HWIP][0]) {
+	case IP_VERSION(4, 0, 0):
+	case IP_VERSION(4, 0, 1):
+	case IP_VERSION(4, 1, 0):
+	case IP_VERSION(4, 1, 1):
+	case IP_VERSION(4, 3, 0):
+		amdgpu_device_ip_block_add(adev, &vega10_ih_ip_block);
+		break;
+	case IP_VERSION(4, 2, 0):
+	case IP_VERSION(4, 2, 1):
+	case IP_VERSION(4, 4, 0):
+		amdgpu_device_ip_block_add(adev, &vega20_ih_ip_block);
+		break;
+	case IP_VERSION(5, 0, 0):
+	case IP_VERSION(5, 0, 1):
+	case IP_VERSION(5, 0, 2):
+	case IP_VERSION(5, 0, 3):
+	case IP_VERSION(5, 2, 0):
+	case IP_VERSION(5, 2, 1):
+		amdgpu_device_ip_block_add(adev, &navi10_ih_ip_block);
+		break;
+	default:
+		dev_err(adev->dev,
+			"Failed to add ih ip block(OSSSYS_HWIP:0x%x)\n",
+			adev->ip_versions[OSSSYS_HWIP][0]);
+		return -EINVAL;
+	}
+	return 0;
+}
+
+static int amdgpu_discovery_set_psp_ip_blocks(struct amdgpu_device *adev)
+{
+	switch (adev->ip_versions[MP0_HWIP][0]) {
+	case IP_VERSION(9, 0, 0):
+		amdgpu_device_ip_block_add(adev, &psp_v3_1_ip_block);
+		break;
+	case IP_VERSION(10, 0, 0):
+	case IP_VERSION(10, 0, 1):
+		amdgpu_device_ip_block_add(adev, &psp_v10_0_ip_block);
+		break;
+	case IP_VERSION(11, 0, 0):
+	case IP_VERSION(11, 0, 2):
+	case IP_VERSION(11, 0, 4):
+	case IP_VERSION(11, 0, 5):
+	case IP_VERSION(11, 0, 9):
+	case IP_VERSION(11, 0, 7):
+	case IP_VERSION(11, 0, 11):
+	case IP_VERSION(11, 0, 12):
+	case IP_VERSION(11, 0, 13):
+	case IP_VERSION(11, 5, 0):
+		amdgpu_device_ip_block_add(adev, &psp_v11_0_ip_block);
+		break;
+	case IP_VERSION(11, 0, 8):
+		amdgpu_device_ip_block_add(adev, &psp_v11_0_8_ip_block);
+		break;
+	case IP_VERSION(11, 0, 3):
+	case IP_VERSION(12, 0, 1):
+		amdgpu_device_ip_block_add(adev, &psp_v12_0_ip_block);
+		break;
+	case IP_VERSION(13, 0, 1):
+	case IP_VERSION(13, 0, 2):
+	case IP_VERSION(13, 0, 3):
+		amdgpu_device_ip_block_add(adev, &psp_v13_0_ip_block);
+		break;
+	default:
+		dev_err(adev->dev,
+			"Failed to add psp ip block(MP0_HWIP:0x%x)\n",
+			adev->ip_versions[MP0_HWIP][0]);
+		return -EINVAL;
+	}
+	return 0;
+}
+
+static int amdgpu_discovery_set_smu_ip_blocks(struct amdgpu_device *adev)
+{
+	switch (adev->ip_versions[MP1_HWIP][0]) {
+	case IP_VERSION(9, 0, 0):
+	case IP_VERSION(10, 0, 0):
+	case IP_VERSION(10, 0, 1):
+	case IP_VERSION(11, 0, 2):
+		if (adev->asic_type == CHIP_ARCTURUS)
+			amdgpu_device_ip_block_add(adev, &smu_v11_0_ip_block);
+		else
+			amdgpu_device_ip_block_add(adev, &pp_smu_ip_block);
+		break;
+	case IP_VERSION(11, 0, 0):
+	case IP_VERSION(11, 0, 5):
+	case IP_VERSION(11, 0, 9):
+	case IP_VERSION(11, 0, 7):
+	case IP_VERSION(11, 0, 8):
+	case IP_VERSION(11, 0, 11):
+	case IP_VERSION(11, 0, 12):
+	case IP_VERSION(11, 0, 13):
+	case IP_VERSION(11, 5, 0):
+		amdgpu_device_ip_block_add(adev, &smu_v11_0_ip_block);
+		break;
+	case IP_VERSION(12, 0, 0):
+	case IP_VERSION(12, 0, 1):
+		amdgpu_device_ip_block_add(adev, &smu_v12_0_ip_block);
+		break;
+	case IP_VERSION(13, 0, 1):
+	case IP_VERSION(13, 0, 2):
+	case IP_VERSION(13, 0, 3):
+		amdgpu_device_ip_block_add(adev, &smu_v13_0_ip_block);
+		break;
+	default:
+		dev_err(adev->dev,
+			"Failed to add smu ip block(MP1_HWIP:0x%x)\n",
+			adev->ip_versions[MP1_HWIP][0]);
+		return -EINVAL;
+	}
+	return 0;
+}
+
+static int amdgpu_discovery_set_display_ip_blocks(struct amdgpu_device *adev)
+{
+	if (adev->enable_virtual_display || amdgpu_sriov_vf(adev)) {
+		amdgpu_device_ip_block_add(adev, &amdgpu_vkms_ip_block);
+#if defined(CONFIG_DRM_AMD_DC)
+	} else if (adev->ip_versions[DCE_HWIP][0]) {
+		switch (adev->ip_versions[DCE_HWIP][0]) {
+		case IP_VERSION(1, 0, 0):
+		case IP_VERSION(1, 0, 1):
+		case IP_VERSION(2, 0, 2):
+		case IP_VERSION(2, 0, 0):
+		case IP_VERSION(2, 0, 3):
+		case IP_VERSION(2, 1, 0):
+		case IP_VERSION(3, 0, 0):
+		case IP_VERSION(3, 0, 2):
+		case IP_VERSION(3, 0, 3):
+		case IP_VERSION(3, 0, 1):
+		case IP_VERSION(3, 1, 2):
+		case IP_VERSION(3, 1, 3):
+			amdgpu_device_ip_block_add(adev, &dm_ip_block);
+			break;
+		default:
+			dev_err(adev->dev,
+				"Failed to add dm ip block(DCE_HWIP:0x%x)\n",
+				adev->ip_versions[DCE_HWIP][0]);
+			return -EINVAL;
+		}
+	} else if (adev->ip_versions[DCI_HWIP][0]) {
+		switch (adev->ip_versions[DCI_HWIP][0]) {
+		case IP_VERSION(12, 0, 0):
+		case IP_VERSION(12, 0, 1):
+		case IP_VERSION(12, 1, 0):
+			amdgpu_device_ip_block_add(adev, &dm_ip_block);
+			break;
+		default:
+			dev_err(adev->dev,
+				"Failed to add dm ip block(DCI_HWIP:0x%x)\n",
+				adev->ip_versions[DCI_HWIP][0]);
+			return -EINVAL;
+		}
+#endif
+	}
+	return 0;
+}
+
+static int amdgpu_discovery_set_gc_ip_blocks(struct amdgpu_device *adev)
+{
+	switch (adev->ip_versions[GC_HWIP][0]) {
+	case IP_VERSION(9, 0, 1):
+	case IP_VERSION(9, 1, 0):
+	case IP_VERSION(9, 2, 1):
+	case IP_VERSION(9, 2, 2):
+	case IP_VERSION(9, 3, 0):
+	case IP_VERSION(9, 4, 0):
+	case IP_VERSION(9, 4, 1):
+	case IP_VERSION(9, 4, 2):
+		amdgpu_device_ip_block_add(adev, &gfx_v9_0_ip_block);
+		break;
+	case IP_VERSION(10, 1, 10):
+	case IP_VERSION(10, 1, 2):
+	case IP_VERSION(10, 1, 1):
+	case IP_VERSION(10, 1, 3):
+	case IP_VERSION(10, 3, 0):
+	case IP_VERSION(10, 3, 2):
+	case IP_VERSION(10, 3, 1):
+	case IP_VERSION(10, 3, 4):
+	case IP_VERSION(10, 3, 5):
+	case IP_VERSION(10, 3, 3):
+		amdgpu_device_ip_block_add(adev, &gfx_v10_0_ip_block);
+		break;
+	default:
+		dev_err(adev->dev,
+			"Failed to add gfx ip block(GC_HWIP:0x%x)\n",
+			adev->ip_versions[GC_HWIP][0]);
+		return -EINVAL;
+	}
+	return 0;
+}
+
+static int amdgpu_discovery_set_sdma_ip_blocks(struct amdgpu_device *adev)
+{
+	switch (adev->ip_versions[SDMA0_HWIP][0]) {
+	case IP_VERSION(4, 0, 0):
+	case IP_VERSION(4, 0, 1):
+	case IP_VERSION(4, 1, 0):
+	case IP_VERSION(4, 1, 1):
+	case IP_VERSION(4, 1, 2):
+	case IP_VERSION(4, 2, 0):
+	case IP_VERSION(4, 2, 2):
+	case IP_VERSION(4, 4, 0):
+		amdgpu_device_ip_block_add(adev, &sdma_v4_0_ip_block);
+		break;
+	case IP_VERSION(5, 0, 0):
+	case IP_VERSION(5, 0, 1):
+	case IP_VERSION(5, 0, 2):
+	case IP_VERSION(5, 0, 5):
+		amdgpu_device_ip_block_add(adev, &sdma_v5_0_ip_block);
+		break;
+	case IP_VERSION(5, 2, 0):
+	case IP_VERSION(5, 2, 2):
+	case IP_VERSION(5, 2, 4):
+	case IP_VERSION(5, 2, 5):
+	case IP_VERSION(5, 2, 3):
+	case IP_VERSION(5, 2, 1):
+		amdgpu_device_ip_block_add(adev, &sdma_v5_2_ip_block);
+		break;
+	default:
+		dev_err(adev->dev,
+			"Failed to add sdma ip block(SDMA0_HWIP:0x%x)\n",
+			adev->ip_versions[SDMA0_HWIP][0]);
+		return -EINVAL;
+	}
+	return 0;
+}
+
+static int amdgpu_discovery_set_mm_ip_blocks(struct amdgpu_device *adev)
+{
+	if (adev->ip_versions[VCE_HWIP][0]) {
+		switch (adev->ip_versions[UVD_HWIP][0]) {
+		case IP_VERSION(7, 0, 0):
+		case IP_VERSION(7, 2, 0):
+			/* UVD is not supported on vega20 SR-IOV */
+			if (!(adev->asic_type == CHIP_VEGA20 && amdgpu_sriov_vf(adev)))
+				amdgpu_device_ip_block_add(adev, &uvd_v7_0_ip_block);
+			break;
+		default:
+			dev_err(adev->dev,
+				"Failed to add uvd v7 ip block(UVD_HWIP:0x%x)\n",
+				adev->ip_versions[UVD_HWIP][0]);
+			return -EINVAL;
+		}
+		switch (adev->ip_versions[VCE_HWIP][0]) {
+		case IP_VERSION(4, 0, 0):
+		case IP_VERSION(4, 1, 0):
+			/* VCE is not supported on vega20 SR-IOV */
+			if (!(adev->asic_type == CHIP_VEGA20 && amdgpu_sriov_vf(adev)))
+				amdgpu_device_ip_block_add(adev, &vce_v4_0_ip_block);
+			break;
+		default:
+			dev_err(adev->dev,
+				"Failed to add VCE v4 ip block(VCE_HWIP:0x%x)\n",
+				adev->ip_versions[VCE_HWIP][0]);
+			return -EINVAL;
+		}
+	} else {
+		switch (adev->ip_versions[UVD_HWIP][0]) {
+		case IP_VERSION(1, 0, 0):
+		case IP_VERSION(1, 0, 1):
+			amdgpu_device_ip_block_add(adev, &vcn_v1_0_ip_block);
+			break;
+		case IP_VERSION(2, 0, 0):
+		case IP_VERSION(2, 0, 2):
+		case IP_VERSION(2, 2, 0):
+			amdgpu_device_ip_block_add(adev, &vcn_v2_0_ip_block);
+			if (!amdgpu_sriov_vf(adev))
+				amdgpu_device_ip_block_add(adev, &jpeg_v2_0_ip_block);
+			break;
+		case IP_VERSION(2, 0, 3):
+			break;
+		case IP_VERSION(2, 5, 0):
+			amdgpu_device_ip_block_add(adev, &vcn_v2_5_ip_block);
+			amdgpu_device_ip_block_add(adev, &jpeg_v2_5_ip_block);
+			break;
+		case IP_VERSION(2, 6, 0):
+			amdgpu_device_ip_block_add(adev, &vcn_v2_6_ip_block);
+			amdgpu_device_ip_block_add(adev, &jpeg_v2_6_ip_block);
+			break;
+		case IP_VERSION(3, 0, 0):
+		case IP_VERSION(3, 0, 16):
+		case IP_VERSION(3, 0, 64):
+		case IP_VERSION(3, 1, 1):
+		case IP_VERSION(3, 0, 2):
+		case IP_VERSION(3, 0, 192):
+			amdgpu_device_ip_block_add(adev, &vcn_v3_0_ip_block);
+			if (!amdgpu_sriov_vf(adev))
+				amdgpu_device_ip_block_add(adev, &jpeg_v3_0_ip_block);
+			break;
+		case IP_VERSION(3, 0, 33):
+			amdgpu_device_ip_block_add(adev, &vcn_v3_0_ip_block);
+			break;
+		default:
+			dev_err(adev->dev,
+				"Failed to add vcn/jpeg ip block(UVD_HWIP:0x%x)\n",
+				adev->ip_versions[UVD_HWIP][0]);
+			return -EINVAL;
+		}
+	}
+	return 0;
+}
+
+static int amdgpu_discovery_set_mes_ip_blocks(struct amdgpu_device *adev)
+{
+	switch (adev->ip_versions[GC_HWIP][0]) {
+	case IP_VERSION(10, 1, 10):
+	case IP_VERSION(10, 1, 1):
+	case IP_VERSION(10, 1, 2):
+	case IP_VERSION(10, 1, 3):
+	case IP_VERSION(10, 3, 0):
+	case IP_VERSION(10, 3, 1):
+	case IP_VERSION(10, 3, 2):
+	case IP_VERSION(10, 3, 3):
+	case IP_VERSION(10, 3, 4):
+	case IP_VERSION(10, 3, 5):
+		amdgpu_device_ip_block_add(adev, &mes_v10_1_ip_block);
+		break;
+	default:
+		break;;
+	}
+	return 0;
+}
+
+int amdgpu_discovery_set_ip_blocks(struct amdgpu_device *adev)
+{
+	int r;
+
+	switch (adev->asic_type) {
+	case CHIP_VEGA10:
+		vega10_reg_base_init(adev);
+		adev->sdma.num_instances = 2;
+		adev->ip_versions[MMHUB_HWIP][0] = IP_VERSION(9, 0, 0);
+		adev->ip_versions[ATHUB_HWIP][0] = IP_VERSION(9, 0, 0);
+		adev->ip_versions[OSSSYS_HWIP][0] = IP_VERSION(4, 0, 0);
+		adev->ip_versions[HDP_HWIP][0] = IP_VERSION(4, 0, 0);
+		adev->ip_versions[SDMA0_HWIP][0] = IP_VERSION(4, 0, 0);
+		adev->ip_versions[SDMA1_HWIP][0] = IP_VERSION(4, 0, 0);
+		adev->ip_versions[DF_HWIP][0] = IP_VERSION(2, 1, 0);
+		adev->ip_versions[NBIO_HWIP][0] = IP_VERSION(6, 1, 0);
+		adev->ip_versions[UMC_HWIP][0] = IP_VERSION(6, 0, 0);
+		adev->ip_versions[MP0_HWIP][0] = IP_VERSION(9, 0, 0);
+		adev->ip_versions[MP1_HWIP][0] = IP_VERSION(9, 0, 0);
+		adev->ip_versions[THM_HWIP][0] = IP_VERSION(9, 0, 0);
+		adev->ip_versions[SMUIO_HWIP][0] = IP_VERSION(9, 0, 0);
+		adev->ip_versions[GC_HWIP][0] = IP_VERSION(9, 0, 1);
+		adev->ip_versions[UVD_HWIP][0] = IP_VERSION(7, 0, 0);
+		adev->ip_versions[VCE_HWIP][0] = IP_VERSION(4, 0, 0);
+		adev->ip_versions[DCI_HWIP][0] = IP_VERSION(12, 0, 0);
+		break;
+	case CHIP_VEGA12:
+		vega10_reg_base_init(adev);
+		adev->sdma.num_instances = 2;
+		adev->ip_versions[MMHUB_HWIP][0] = IP_VERSION(9, 3, 0);
+		adev->ip_versions[ATHUB_HWIP][0] = IP_VERSION(9, 3, 0);
+		adev->ip_versions[OSSSYS_HWIP][0] = IP_VERSION(4, 0, 1);
+		adev->ip_versions[HDP_HWIP][0] = IP_VERSION(4, 0, 1);
+		adev->ip_versions[SDMA0_HWIP][0] = IP_VERSION(4, 0, 1);
+		adev->ip_versions[SDMA1_HWIP][0] = IP_VERSION(4, 0, 1);
+		adev->ip_versions[DF_HWIP][0] = IP_VERSION(2, 5, 0);
+		adev->ip_versions[NBIO_HWIP][0] = IP_VERSION(6, 2, 0);
+		adev->ip_versions[UMC_HWIP][0] = IP_VERSION(6, 1, 0);
+		adev->ip_versions[MP0_HWIP][0] = IP_VERSION(9, 0, 0);
+		adev->ip_versions[MP1_HWIP][0] = IP_VERSION(9, 0, 0);
+		adev->ip_versions[THM_HWIP][0] = IP_VERSION(9, 0, 0);
+		adev->ip_versions[SMUIO_HWIP][0] = IP_VERSION(9, 0, 1);
+		adev->ip_versions[GC_HWIP][0] = IP_VERSION(9, 2, 1);
+		adev->ip_versions[UVD_HWIP][0] = IP_VERSION(7, 0, 0);
+		adev->ip_versions[VCE_HWIP][0] = IP_VERSION(4, 0, 0);
+		adev->ip_versions[DCI_HWIP][0] = IP_VERSION(12, 0, 1);
+		break;
+	case CHIP_RAVEN:
+		vega10_reg_base_init(adev);
+		adev->sdma.num_instances = 1;
+		adev->vcn.num_vcn_inst = 1;
+		if (adev->apu_flags & AMD_APU_IS_RAVEN2) {
+			adev->ip_versions[MMHUB_HWIP][0] = IP_VERSION(9, 2, 0);
+			adev->ip_versions[ATHUB_HWIP][0] = IP_VERSION(9, 2, 0);
+			adev->ip_versions[OSSSYS_HWIP][0] = IP_VERSION(4, 1, 1);
+			adev->ip_versions[HDP_HWIP][0] = IP_VERSION(4, 1, 1);
+			adev->ip_versions[SDMA0_HWIP][0] = IP_VERSION(4, 1, 1);
+			adev->ip_versions[DF_HWIP][0] = IP_VERSION(2, 1, 1);
+			adev->ip_versions[NBIO_HWIP][0] = IP_VERSION(7, 0, 1);
+			adev->ip_versions[UMC_HWIP][0] = IP_VERSION(7, 5, 0);
+			adev->ip_versions[MP0_HWIP][0] = IP_VERSION(10, 0, 1);
+			adev->ip_versions[MP1_HWIP][0] = IP_VERSION(10, 0, 1);
+			adev->ip_versions[THM_HWIP][0] = IP_VERSION(10, 1, 0);
+			adev->ip_versions[SMUIO_HWIP][0] = IP_VERSION(10, 0, 1);
+			adev->ip_versions[GC_HWIP][0] = IP_VERSION(9, 2, 2);
+			adev->ip_versions[UVD_HWIP][0] = IP_VERSION(1, 0, 1);
+			adev->ip_versions[DCE_HWIP][0] = IP_VERSION(1, 0, 1);
+		} else {
+			adev->ip_versions[MMHUB_HWIP][0] = IP_VERSION(9, 1, 0);
+			adev->ip_versions[ATHUB_HWIP][0] = IP_VERSION(9, 1, 0);
+			adev->ip_versions[OSSSYS_HWIP][0] = IP_VERSION(4, 1, 0);
+			adev->ip_versions[HDP_HWIP][0] = IP_VERSION(4, 1, 0);
+			adev->ip_versions[SDMA0_HWIP][0] = IP_VERSION(4, 1, 0);
+			adev->ip_versions[DF_HWIP][0] = IP_VERSION(2, 1, 0);
+			adev->ip_versions[NBIO_HWIP][0] = IP_VERSION(7, 0, 0);
+			adev->ip_versions[UMC_HWIP][0] = IP_VERSION(7, 0, 0);
+			adev->ip_versions[MP0_HWIP][0] = IP_VERSION(10, 0, 0);
+			adev->ip_versions[MP1_HWIP][0] = IP_VERSION(10, 0, 0);
+			adev->ip_versions[THM_HWIP][0] = IP_VERSION(10, 0, 0);
+			adev->ip_versions[SMUIO_HWIP][0] = IP_VERSION(10, 0, 0);
+			adev->ip_versions[GC_HWIP][0] = IP_VERSION(9, 1, 0);
+			adev->ip_versions[UVD_HWIP][0] = IP_VERSION(1, 0, 0);
+			adev->ip_versions[DCE_HWIP][0] = IP_VERSION(1, 0, 0);
+		}
+		break;
+	case CHIP_VEGA20:
+		vega20_reg_base_init(adev);
+		adev->sdma.num_instances = 2;
+		adev->ip_versions[MMHUB_HWIP][0] = IP_VERSION(9, 4, 0);
+		adev->ip_versions[ATHUB_HWIP][0] = IP_VERSION(9, 4, 0);
+		adev->ip_versions[OSSSYS_HWIP][0] = IP_VERSION(4, 2, 0);
+		adev->ip_versions[HDP_HWIP][0] = IP_VERSION(4, 2, 0);
+		adev->ip_versions[SDMA0_HWIP][0] = IP_VERSION(4, 2, 0);
+		adev->ip_versions[SDMA1_HWIP][0] = IP_VERSION(4, 2, 0);
+		adev->ip_versions[DF_HWIP][0] = IP_VERSION(3, 6, 0);
+		adev->ip_versions[NBIO_HWIP][0] = IP_VERSION(7, 4, 0);
+		adev->ip_versions[UMC_HWIP][0] = IP_VERSION(6, 1, 1);
+		adev->ip_versions[MP0_HWIP][0] = IP_VERSION(11, 0, 2);
+		adev->ip_versions[MP1_HWIP][0] = IP_VERSION(11, 0, 2);
+		adev->ip_versions[THM_HWIP][0] = IP_VERSION(11, 0, 2);
+		adev->ip_versions[SMUIO_HWIP][0] = IP_VERSION(11, 0, 2);
+		adev->ip_versions[GC_HWIP][0] = IP_VERSION(9, 4, 0);
+		adev->ip_versions[UVD_HWIP][0] = IP_VERSION(7, 2, 0);
+		adev->ip_versions[UVD_HWIP][1] = IP_VERSION(7, 2, 0);
+		adev->ip_versions[VCE_HWIP][0] = IP_VERSION(4, 1, 0);
+		adev->ip_versions[DCI_HWIP][0] = IP_VERSION(12, 1, 0);
+		break;
+	case CHIP_ARCTURUS:
+		arct_reg_base_init(adev);
+		adev->sdma.num_instances = 8;
+		adev->vcn.num_vcn_inst = 2;
+		adev->ip_versions[MMHUB_HWIP][0] = IP_VERSION(9, 4, 1);
+		adev->ip_versions[ATHUB_HWIP][0] = IP_VERSION(9, 4, 1);
+		adev->ip_versions[OSSSYS_HWIP][0] = IP_VERSION(4, 2, 1);
+		adev->ip_versions[HDP_HWIP][0] = IP_VERSION(4, 2, 1);
+		adev->ip_versions[SDMA0_HWIP][0] = IP_VERSION(4, 2, 2);
+		adev->ip_versions[SDMA1_HWIP][0] = IP_VERSION(4, 2, 2);
+		adev->ip_versions[SDMA1_HWIP][1] = IP_VERSION(4, 2, 2);
+		adev->ip_versions[SDMA1_HWIP][2] = IP_VERSION(4, 2, 2);
+		adev->ip_versions[SDMA1_HWIP][3] = IP_VERSION(4, 2, 2);
+		adev->ip_versions[SDMA1_HWIP][4] = IP_VERSION(4, 2, 2);
+		adev->ip_versions[SDMA1_HWIP][5] = IP_VERSION(4, 2, 2);
+		adev->ip_versions[SDMA1_HWIP][6] = IP_VERSION(4, 2, 2);
+		adev->ip_versions[DF_HWIP][0] = IP_VERSION(3, 6, 1);
+		adev->ip_versions[NBIO_HWIP][0] = IP_VERSION(7, 4, 1);
+		adev->ip_versions[UMC_HWIP][0] = IP_VERSION(6, 1, 2);
+		adev->ip_versions[MP0_HWIP][0] = IP_VERSION(11, 0, 4);
+		adev->ip_versions[MP1_HWIP][0] = IP_VERSION(11, 0, 2);
+		adev->ip_versions[THM_HWIP][0] = IP_VERSION(11, 0, 3);
+		adev->ip_versions[SMUIO_HWIP][0] = IP_VERSION(11, 0, 3);
+		adev->ip_versions[GC_HWIP][0] = IP_VERSION(9, 4, 1);
+		adev->ip_versions[UVD_HWIP][0] = IP_VERSION(2, 5, 0);
+		adev->ip_versions[UVD_HWIP][1] = IP_VERSION(2, 5, 0);
+		break;
+	case CHIP_ALDEBARAN:
+		aldebaran_reg_base_init(adev);
+		adev->sdma.num_instances = 5;
+		adev->vcn.num_vcn_inst = 2;
+		adev->ip_versions[MMHUB_HWIP][0] = IP_VERSION(9, 4, 2);
+		adev->ip_versions[ATHUB_HWIP][0] = IP_VERSION(9, 4, 2);
+		adev->ip_versions[OSSSYS_HWIP][0] = IP_VERSION(4, 4, 0);
+		adev->ip_versions[HDP_HWIP][0] = IP_VERSION(4, 4, 0);
+		adev->ip_versions[SDMA0_HWIP][0] = IP_VERSION(4, 4, 0);
+		adev->ip_versions[SDMA0_HWIP][1] = IP_VERSION(4, 4, 0);
+		adev->ip_versions[SDMA0_HWIP][2] = IP_VERSION(4, 4, 0);
+		adev->ip_versions[SDMA0_HWIP][3] = IP_VERSION(4, 4, 0);
+		adev->ip_versions[SDMA0_HWIP][4] = IP_VERSION(4, 4, 0);
+		adev->ip_versions[DF_HWIP][0] = IP_VERSION(3, 6, 2);
+		adev->ip_versions[NBIO_HWIP][0] = IP_VERSION(7, 4, 4);
+		adev->ip_versions[UMC_HWIP][0] = IP_VERSION(6, 7, 0);
+		adev->ip_versions[MP0_HWIP][0] = IP_VERSION(13, 0, 2);
+		adev->ip_versions[MP1_HWIP][0] = IP_VERSION(13, 0, 2);
+		adev->ip_versions[THM_HWIP][0] = IP_VERSION(13, 0, 2);
+		adev->ip_versions[SMUIO_HWIP][0] = IP_VERSION(13, 0, 2);
+		adev->ip_versions[GC_HWIP][0] = IP_VERSION(9, 4, 2);
+		adev->ip_versions[UVD_HWIP][0] = IP_VERSION(2, 6, 0);
+		adev->ip_versions[UVD_HWIP][1] = IP_VERSION(2, 6, 0);
+		adev->ip_versions[XGMI_HWIP][0] = IP_VERSION(6, 1, 0);
+		break;
+	default:
+		r = amdgpu_discovery_reg_base_init(adev);
+		if (r)
+			return -EINVAL;
+
+		amdgpu_discovery_harvest_ip(adev);
+
+		if (!adev->mman.discovery_bin) {
+			DRM_ERROR("ip discovery uninitialized\n");
+			return -EINVAL;
+		}
+		break;
+	}
+
+	switch (adev->ip_versions[GC_HWIP][0]) {
+	case IP_VERSION(9, 0, 1):
+	case IP_VERSION(9, 2, 1):
+	case IP_VERSION(9, 4, 0):
+	case IP_VERSION(9, 4, 1):
+	case IP_VERSION(9, 4, 2):
+		adev->family = AMDGPU_FAMILY_AI;
+		break;
+	case IP_VERSION(9, 1, 0):
+	case IP_VERSION(9, 2, 2):
+	case IP_VERSION(9, 3, 0):
+		adev->family = AMDGPU_FAMILY_RV;
+		break;
+	case IP_VERSION(10, 1, 10):
+	case IP_VERSION(10, 1, 1):
+	case IP_VERSION(10, 1, 2):
+	case IP_VERSION(10, 1, 3):
+	case IP_VERSION(10, 3, 0):
+	case IP_VERSION(10, 3, 2):
+	case IP_VERSION(10, 3, 4):
+	case IP_VERSION(10, 3, 5):
+		adev->family = AMDGPU_FAMILY_NV;
+		break;
+	case IP_VERSION(10, 3, 1):
+		adev->family = AMDGPU_FAMILY_VGH;
+		break;
+	case IP_VERSION(10, 3, 3):
+		adev->family = AMDGPU_FAMILY_YC;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	if (adev->ip_versions[XGMI_HWIP][0] == IP_VERSION(4, 8, 0))
+		adev->gmc.xgmi.supported = true;
+
+	/* set NBIO version */
+	switch (adev->ip_versions[NBIO_HWIP][0]) {
+	case IP_VERSION(6, 1, 0):
+	case IP_VERSION(6, 2, 0):
+		adev->nbio.funcs = &nbio_v6_1_funcs;
+		adev->nbio.hdp_flush_reg = &nbio_v6_1_hdp_flush_reg;
+		break;
+	case IP_VERSION(7, 0, 0):
+	case IP_VERSION(7, 0, 1):
+	case IP_VERSION(2, 5, 0):
+		adev->nbio.funcs = &nbio_v7_0_funcs;
+		adev->nbio.hdp_flush_reg = &nbio_v7_0_hdp_flush_reg;
+		break;
+	case IP_VERSION(7, 4, 0):
+	case IP_VERSION(7, 4, 1):
+		adev->nbio.funcs = &nbio_v7_4_funcs;
+		adev->nbio.hdp_flush_reg = &nbio_v7_4_hdp_flush_reg;
+		break;
+	case IP_VERSION(7, 4, 4):
+		adev->nbio.funcs = &nbio_v7_4_funcs;
+		adev->nbio.hdp_flush_reg = &nbio_v7_4_hdp_flush_reg_ald;
+		break;
+	case IP_VERSION(7, 2, 0):
+	case IP_VERSION(7, 2, 1):
+	case IP_VERSION(7, 5, 0):
+		adev->nbio.funcs = &nbio_v7_2_funcs;
+		adev->nbio.hdp_flush_reg = &nbio_v7_2_hdp_flush_reg;
+		break;
+	case IP_VERSION(2, 1, 1):
+	case IP_VERSION(2, 3, 0):
+	case IP_VERSION(2, 3, 1):
+	case IP_VERSION(2, 3, 2):
+		adev->nbio.funcs = &nbio_v2_3_funcs;
+		adev->nbio.hdp_flush_reg = &nbio_v2_3_hdp_flush_reg;
+		break;
+	case IP_VERSION(3, 3, 0):
+	case IP_VERSION(3, 3, 1):
+	case IP_VERSION(3, 3, 2):
+	case IP_VERSION(3, 3, 3):
+		adev->nbio.funcs = &nbio_v2_3_funcs;
+		adev->nbio.hdp_flush_reg = &nbio_v2_3_hdp_flush_reg_sc;
+		break;
+	default:
+		break;
+	}
+
+	switch (adev->ip_versions[HDP_HWIP][0]) {
+	case IP_VERSION(4, 0, 0):
+	case IP_VERSION(4, 0, 1):
+	case IP_VERSION(4, 1, 0):
+	case IP_VERSION(4, 1, 1):
+	case IP_VERSION(4, 1, 2):
+	case IP_VERSION(4, 2, 0):
+	case IP_VERSION(4, 2, 1):
+	case IP_VERSION(4, 4, 0):
+		adev->hdp.funcs = &hdp_v4_0_funcs;
+		break;
+	case IP_VERSION(5, 0, 0):
+	case IP_VERSION(5, 0, 1):
+	case IP_VERSION(5, 0, 2):
+	case IP_VERSION(5, 0, 3):
+	case IP_VERSION(5, 0, 4):
+	case IP_VERSION(5, 2, 0):
+		adev->hdp.funcs = &hdp_v5_0_funcs;
+		break;
+	default:
+		break;
+	}
+
+	switch (adev->ip_versions[DF_HWIP][0]) {
+	case IP_VERSION(3, 6, 0):
+	case IP_VERSION(3, 6, 1):
+	case IP_VERSION(3, 6, 2):
+		adev->df.funcs = &df_v3_6_funcs;
+		break;
+	case IP_VERSION(2, 1, 0):
+	case IP_VERSION(2, 1, 1):
+	case IP_VERSION(2, 5, 0):
+	case IP_VERSION(3, 5, 1):
+	case IP_VERSION(3, 5, 2):
+		adev->df.funcs = &df_v1_7_funcs;
+		break;
+	default:
+		break;
+	}
+
+	switch (adev->ip_versions[SMUIO_HWIP][0]) {
+	case IP_VERSION(9, 0, 0):
+	case IP_VERSION(9, 0, 1):
+	case IP_VERSION(10, 0, 0):
+	case IP_VERSION(10, 0, 1):
+	case IP_VERSION(10, 0, 2):
+		adev->smuio.funcs = &smuio_v9_0_funcs;
+		break;
+	case IP_VERSION(11, 0, 0):
+	case IP_VERSION(11, 0, 2):
+	case IP_VERSION(11, 0, 3):
+	case IP_VERSION(11, 0, 4):
+	case IP_VERSION(11, 0, 7):
+	case IP_VERSION(11, 0, 8):
+		adev->smuio.funcs = &smuio_v11_0_funcs;
+		break;
+	case IP_VERSION(11, 0, 6):
+	case IP_VERSION(11, 0, 10):
+	case IP_VERSION(11, 0, 11):
+	case IP_VERSION(11, 5, 0):
+	case IP_VERSION(13, 0, 1):
+		adev->smuio.funcs = &smuio_v11_0_6_funcs;
+		break;
+	case IP_VERSION(13, 0, 2):
+		adev->smuio.funcs = &smuio_v13_0_funcs;
+		break;
+	default:
+		break;
+	}
+
+	r = amdgpu_discovery_set_common_ip_blocks(adev);
+	if (r)
+		return r;
+
+	r = amdgpu_discovery_set_gmc_ip_blocks(adev);
+	if (r)
+		return r;
+
+	/* For SR-IOV, PSP needs to be initialized before IH */
+	if (amdgpu_sriov_vf(adev)) {
+		r = amdgpu_discovery_set_psp_ip_blocks(adev);
+		if (r)
+			return r;
+		r = amdgpu_discovery_set_ih_ip_blocks(adev);
+		if (r)
+			return r;
+	} else {
+		r = amdgpu_discovery_set_ih_ip_blocks(adev);
+		if (r)
+			return r;
+
+		if (likely(adev->firmware.load_type == AMDGPU_FW_LOAD_PSP)) {
+			r = amdgpu_discovery_set_psp_ip_blocks(adev);
+			if (r)
+				return r;
+		}
+	}
+
+	if (likely(adev->firmware.load_type == AMDGPU_FW_LOAD_PSP)) {
+		r = amdgpu_discovery_set_smu_ip_blocks(adev);
+		if (r)
+			return r;
+	}
+
+	r = amdgpu_discovery_set_display_ip_blocks(adev);
+	if (r)
+		return r;
+
+	r = amdgpu_discovery_set_gc_ip_blocks(adev);
+	if (r)
+		return r;
+
+	r = amdgpu_discovery_set_sdma_ip_blocks(adev);
+	if (r)
+		return r;
+
+	if (adev->firmware.load_type == AMDGPU_FW_LOAD_DIRECT &&
+	    !amdgpu_sriov_vf(adev)) {
+		r = amdgpu_discovery_set_smu_ip_blocks(adev);
+		if (r)
+			return r;
+	}
+
+	r = amdgpu_discovery_set_mm_ip_blocks(adev);
+	if (r)
+		return r;
+
+	if (adev->enable_mes) {
+		r = amdgpu_discovery_set_mes_ip_blocks(adev);
+		if (r)
+			return r;
+	}
+
+	return 0;
+}
+

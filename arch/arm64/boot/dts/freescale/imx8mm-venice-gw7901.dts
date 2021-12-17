@@ -255,6 +255,10 @@
 	};
 };
 
+&disp_blk_ctrl {
+	status = "disabled";
+};
+
 &ecspi1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_spi1>;
@@ -280,6 +284,14 @@
 		speed = <1000>;
 		full-duplex;
 	};
+};
+
+&gpu_2d {
+	status = "disabled";
+};
+
+&gpu_3d {
+	status = "disabled";
 };
 
 &i2c1 {
@@ -630,6 +642,18 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_i2c4>;
 	status = "okay";
+};
+
+&pgc_gpu {
+	status = "disabled";
+};
+
+&pgc_gpumix {
+	status = "disabled";
+};
+
+&pgc_mipi {
+	status = "disabled";
 };
 
 &uart1 {

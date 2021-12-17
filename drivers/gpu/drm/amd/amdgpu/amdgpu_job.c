@@ -38,7 +38,7 @@ static enum drm_gpu_sched_stat amdgpu_job_timedout(struct drm_sched_job *s_job)
 	struct amdgpu_device *adev = ring->adev;
 	int idx;
 
-	if (!drm_dev_enter(&adev->ddev, &idx)) {
+	if (!drm_dev_enter(adev_to_drm(adev), &idx)) {
 		DRM_INFO("%s - device unplugged skipping recovery on scheduler:%s",
 			 __func__, s_job->sched->name);
 

@@ -704,9 +704,13 @@ int drm_sched_job_add_implicit_dependencies(struct drm_sched_job *job,
 	int ret;
 
 	dma_resv_for_each_fence(&cursor, obj->resv, write, fence) {
+		/* Make sure to grab an additional ref on the added fence */
+		dma_fence_get(fence);
 		ret = drm_sched_job_add_dependency(job, fence);
-		if (ret)
+		if (ret) {
+			dma_fence_put(fence);
 			return ret;
+		}
 	}
 	return 0;
 }

@@ -764,7 +764,7 @@ i915_gem_pwrite_ioctl(struct drm_device *dev, void *data,
 	 * perspective, requiring manual detiling by the client.
 	 */
 	if (!i915_gem_object_has_struct_page(obj) ||
-	    cpu_write_needs_clflush(obj))
+	    i915_gem_cpu_write_needs_clflush(obj))
 		/* Note that the gtt paths might fail with non-page-backed user
 		 * pointers (e.g. gtt mappings when moving data between
 		 * textures). Fallback to the shmem path in that case.
@@ -1005,7 +1005,8 @@ i915_gem_madvise_ioctl(struct drm_device *dev, void *data,
 			obj->ops->adjust_lru(obj);
 	}
 
-	if (i915_gem_object_has_pages(obj)) {
+	if (i915_gem_object_has_pages(obj) ||
+	    i915_gem_object_has_self_managed_shrink_list(obj)) {
 		unsigned long flags;
 
 		spin_lock_irqsave(&i915->mm.obj_lock, flags);
@@ -1138,8 +1139,6 @@ void i915_gem_driver_remove(struct drm_i915_private *dev_priv)
 void i915_gem_driver_release(struct drm_i915_private *dev_priv)
 {
 	intel_gt_driver_release(&dev_priv->gt);
-
-	intel_wa_list_free(&dev_priv->gt_wa_list);
 
 	intel_uc_cleanup_firmwares(&dev_priv->gt.uc);
 

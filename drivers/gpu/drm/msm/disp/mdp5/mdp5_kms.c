@@ -295,15 +295,12 @@ static int mdp5_disable(struct mdp5_kms *mdp5_kms)
 	mdp5_kms->enable_count--;
 	WARN_ON(mdp5_kms->enable_count < 0);
 
-	if (mdp5_kms->tbu_rt_clk)
-		clk_disable_unprepare(mdp5_kms->tbu_rt_clk);
-	if (mdp5_kms->tbu_clk)
-		clk_disable_unprepare(mdp5_kms->tbu_clk);
+	clk_disable_unprepare(mdp5_kms->tbu_rt_clk);
+	clk_disable_unprepare(mdp5_kms->tbu_clk);
 	clk_disable_unprepare(mdp5_kms->ahb_clk);
 	clk_disable_unprepare(mdp5_kms->axi_clk);
 	clk_disable_unprepare(mdp5_kms->core_clk);
-	if (mdp5_kms->lut_clk)
-		clk_disable_unprepare(mdp5_kms->lut_clk);
+	clk_disable_unprepare(mdp5_kms->lut_clk);
 
 	return 0;
 }
@@ -317,12 +314,9 @@ static int mdp5_enable(struct mdp5_kms *mdp5_kms)
 	clk_prepare_enable(mdp5_kms->ahb_clk);
 	clk_prepare_enable(mdp5_kms->axi_clk);
 	clk_prepare_enable(mdp5_kms->core_clk);
-	if (mdp5_kms->lut_clk)
-		clk_prepare_enable(mdp5_kms->lut_clk);
-	if (mdp5_kms->tbu_clk)
-		clk_prepare_enable(mdp5_kms->tbu_clk);
-	if (mdp5_kms->tbu_rt_clk)
-		clk_prepare_enable(mdp5_kms->tbu_rt_clk);
+	clk_prepare_enable(mdp5_kms->lut_clk);
+	clk_prepare_enable(mdp5_kms->tbu_clk);
+	clk_prepare_enable(mdp5_kms->tbu_rt_clk);
 
 	return 0;
 }

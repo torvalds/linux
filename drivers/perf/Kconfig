@@ -36,7 +36,7 @@ config ARM_CCI5xx_PMU
 
 config ARM_CCN
 	tristate "ARM CCN driver support"
-	depends on ARM || ARM64
+	depends on ARM || ARM64 || COMPILE_TEST
 	help
 	  PMU (perf) driver supporting the ARM CCN (Cache Coherent Network)
 	  interconnect.
@@ -62,7 +62,8 @@ config ARM_PMU_ACPI
 
 config ARM_SMMU_V3_PMU
 	 tristate "ARM SMMUv3 Performance Monitors Extension"
-	 depends on ARM64 && ACPI
+	 depends on (ARM64 && ACPI) || (COMPILE_TEST && 64BIT)
+	 depends on GENERIC_MSI_IRQ_DOMAIN
 	   help
 	   Provides support for the ARM SMMUv3 Performance Monitor Counter
 	   Groups (PMCG), which provide monitoring of transactions passing
@@ -80,7 +81,7 @@ config ARM_DSU_PMU
 
 config FSL_IMX8_DDR_PMU
 	tristate "Freescale i.MX8 DDR perf monitor"
-	depends on ARCH_MXC
+	depends on ARCH_MXC || COMPILE_TEST
 	  help
 	  Provides support for the DDR performance monitor in i.MX8, which
 	  can give information about memory throughput and other related
@@ -108,7 +109,8 @@ config QCOM_L3_PMU
 
 config THUNDERX2_PMU
 	tristate "Cavium ThunderX2 SoC PMU UNCORE"
-	depends on ARCH_THUNDER2 && ARM64 && ACPI && NUMA
+	depends on ARCH_THUNDER2 || COMPILE_TEST
+	depends on NUMA && ACPI
 	default m
 	help
 	   Provides support for ThunderX2 UNCORE events.
@@ -116,7 +118,7 @@ config THUNDERX2_PMU
 	   in the DDR4 Memory Controller (DMC).
 
 config XGENE_PMU
-        depends on ARCH_XGENE
+        depends on ARCH_XGENE || (COMPILE_TEST && 64BIT)
         bool "APM X-Gene SoC PMU"
         default n
         help

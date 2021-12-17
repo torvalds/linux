@@ -768,6 +768,8 @@ out_driver:
 }
 __initcall(sclp_vt220_tty_init);
 
+#ifdef CONFIG_SCLP_VT220_CONSOLE
+
 static void __sclp_vt220_flush_buffer(void)
 {
 	unsigned long flags;
@@ -783,8 +785,6 @@ static void __sclp_vt220_flush_buffer(void)
 	}
 	spin_unlock_irqrestore(&sclp_vt220_lock, flags);
 }
-
-#ifdef CONFIG_SCLP_VT220_CONSOLE
 
 static void
 sclp_vt220_con_write(struct console *con, const char *buf, unsigned int count)

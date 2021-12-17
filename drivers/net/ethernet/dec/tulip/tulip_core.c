@@ -339,7 +339,7 @@ static void tulip_up(struct net_device *dev)
 		}
 	} else {
 		/* This is set_rx_mode(), but without starting the transmitter. */
-		u16 *eaddrs = (u16 *)dev->dev_addr;
+		const u16 *eaddrs = (const u16 *)dev->dev_addr;
 		u16 *setup_frm = &tp->setup_frame[15*6];
 		dma_addr_t mapping;
 
@@ -1001,8 +1001,8 @@ static void build_setup_frame_hash(u16 *setup_frm, struct net_device *dev)
 	struct tulip_private *tp = netdev_priv(dev);
 	u16 hash_table[32];
 	struct netdev_hw_addr *ha;
+	const u16 *eaddrs;
 	int i;
-	u16 *eaddrs;
 
 	memset(hash_table, 0, sizeof(hash_table));
 	__set_bit_le(255, hash_table);			/* Broadcast entry */
@@ -1019,7 +1019,7 @@ static void build_setup_frame_hash(u16 *setup_frm, struct net_device *dev)
 	setup_frm = &tp->setup_frame[13*6];
 
 	/* Fill the final entry with our physical address. */
-	eaddrs = (u16 *)dev->dev_addr;
+	eaddrs = (const u16 *)dev->dev_addr;
 	*setup_frm++ = eaddrs[0]; *setup_frm++ = eaddrs[0];
 	*setup_frm++ = eaddrs[1]; *setup_frm++ = eaddrs[1];
 	*setup_frm++ = eaddrs[2]; *setup_frm++ = eaddrs[2];
@@ -1029,7 +1029,7 @@ static void build_setup_frame_perfect(u16 *setup_frm, struct net_device *dev)
 {
 	struct tulip_private *tp = netdev_priv(dev);
 	struct netdev_hw_addr *ha;
-	u16 *eaddrs;
+	const u16 *eaddrs;
 
 	/* We have <= 14 addresses so we can use the wonderful
 	   16 address perfect filtering of the Tulip. */
@@ -1044,7 +1044,7 @@ static void build_setup_frame_perfect(u16 *setup_frm, struct net_device *dev)
 	setup_frm = &tp->setup_frame[15*6];
 
 	/* Fill the final entry with our physical address. */
-	eaddrs = (u16 *)dev->dev_addr;
+	eaddrs = (const u16 *)dev->dev_addr;
 	*setup_frm++ = eaddrs[0]; *setup_frm++ = eaddrs[0];
 	*setup_frm++ = eaddrs[1]; *setup_frm++ = eaddrs[1];
 	*setup_frm++ = eaddrs[2]; *setup_frm++ = eaddrs[2];
@@ -1305,6 +1305,7 @@ static int tulip_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	int chip_idx = ent->driver_data;
 	const char *chip_name = tulip_tbl[chip_idx].chip_name;
 	unsigned int eeprom_missing = 0;
+	u8 addr[ETH_ALEN] __aligned(2);
 	unsigned int force_csr0 = 0;
 
 	board_idx++;
@@ -1506,13 +1507,15 @@ static int tulip_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 			do {
 				value = ioread32(ioaddr + CSR9);
 			} while (value < 0  && --boguscnt > 0);
-			put_unaligned_le16(value, ((__le16 *)dev->dev_addr) + i);
+			put_unaligned_le16(value, ((__le16 *)addr) + i);
 			sum += value & 0xffff;
 		}
+		eth_hw_addr_set(dev, addr);
 	} else if (chip_idx == COMET) {
 		/* No need to read the EEPROM. */
-		put_unaligned_le32(ioread32(ioaddr + 0xA4), dev->dev_addr);
-		put_unaligned_le16(ioread32(ioaddr + 0xA8), dev->dev_addr + 4);
+		put_unaligned_le32(ioread32(ioaddr + 0xA4), addr);
+		put_unaligned_le16(ioread32(ioaddr + 0xA8), addr + 4);
+		eth_hw_addr_set(dev, addr);
 		for (i = 0; i < 6; i ++)
 			sum += dev->dev_addr[i];
 	} else {
@@ -1575,20 +1578,23 @@ static int tulip_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 #endif
 
 		for (i = 0; i < 6; i ++) {
-			dev->dev_addr[i] = ee_data[i + sa_offset];
+			addr[i] = ee_data[i + sa_offset];
 			sum += ee_data[i + sa_offset];
 		}
+		eth_hw_addr_set(dev, addr);
 	}
 	/* Lite-On boards have the address byte-swapped. */
 	if ((dev->dev_addr[0] == 0xA0 ||
 	     dev->dev_addr[0] == 0xC0 ||
 	     dev->dev_addr[0] == 0x02) &&
-	    dev->dev_addr[1] == 0x00)
+	    dev->dev_addr[1] == 0x00) {
 		for (i = 0; i < 6; i+=2) {
-			char tmp = dev->dev_addr[i];
-			dev->dev_addr[i] = dev->dev_addr[i+1];
-			dev->dev_addr[i+1] = tmp;
+			addr[i] = dev->dev_addr[i+1];
+			addr[i+1] = dev->dev_addr[i];
 		}
+		eth_hw_addr_set(dev, addr);
+	}
+
 	/* On the Zynx 315 Etherarray and other multiport boards only the
 	   first Tulip has an EEPROM.
 	   On Sparc systems the mac address is held in the OBP property
@@ -1599,17 +1605,18 @@ static int tulip_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (sum == 0  || sum == 6*0xff) {
 #if defined(CONFIG_SPARC)
 		struct device_node *dp = pci_device_to_OF_node(pdev);
-		const unsigned char *addr;
+		const unsigned char *addr2;
 		int len;
 #endif
 		eeprom_missing = 1;
 		for (i = 0; i < 5; i++)
-			dev->dev_addr[i] = last_phys_addr[i];
-		dev->dev_addr[i] = last_phys_addr[i] + 1;
+			addr[i] = last_phys_addr[i];
+		addr[i] = last_phys_addr[i] + 1;
+		eth_hw_addr_set(dev, addr);
 #if defined(CONFIG_SPARC)
-		addr = of_get_property(dp, "local-mac-address", &len);
-		if (addr && len == ETH_ALEN)
-			memcpy(dev->dev_addr, addr, ETH_ALEN);
+		addr2 = of_get_property(dp, "local-mac-address", &len);
+		if (addr2 && len == ETH_ALEN)
+			eth_hw_addr_set(dev, addr2);
 #endif
 #if defined(__i386__) || defined(__x86_64__)	/* Patch up x86 BIOS bug. */
 		if (last_irq)

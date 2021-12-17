@@ -9,12 +9,21 @@
 
 #include "ice_ptp_hw.h"
 
-enum ice_ptp_pin {
+enum ice_ptp_pin_e810 {
 	GPIO_20 = 0,
 	GPIO_21,
 	GPIO_22,
 	GPIO_23,
-	NUM_ICE_PTP_PIN
+	NUM_PTP_PIN_E810
+};
+
+enum ice_ptp_pin_e810t {
+	GNSS = 0,
+	SMA1,
+	UFL1,
+	SMA2,
+	UFL2,
+	NUM_PTP_PINS_E810T
 };
 
 struct ice_perout_channel {
@@ -155,8 +164,11 @@ struct ice_ptp {
 #define PPS_CLK_SRC_CHAN		2
 #define PPS_PIN_INDEX			5
 #define TIME_SYNC_PIN_INDEX		4
-#define E810_N_EXT_TS			3
-#define E810_N_PER_OUT			4
+#define N_EXT_TS_E810			3
+#define N_PER_OUT_E810			4
+#define N_PER_OUT_E810T			3
+#define N_PER_OUT_E810T_NO_SMA		2
+#define N_EXT_TS_E810_NO_SMA		2
 
 #if IS_ENABLED(CONFIG_PTP_1588_CLOCK)
 struct ice_pf;
@@ -168,7 +180,7 @@ s8 ice_ptp_request_ts(struct ice_ptp_tx *tx, struct sk_buff *skb);
 void ice_ptp_process_ts(struct ice_pf *pf);
 
 void
-ice_ptp_rx_hwtstamp(struct ice_ring *rx_ring,
+ice_ptp_rx_hwtstamp(struct ice_rx_ring *rx_ring,
 		    union ice_32b_rx_flex_desc *rx_desc, struct sk_buff *skb);
 void ice_ptp_init(struct ice_pf *pf);
 void ice_ptp_release(struct ice_pf *pf);
@@ -196,7 +208,7 @@ ice_ptp_request_ts(struct ice_ptp_tx *tx, struct sk_buff *skb)
 
 static inline void ice_ptp_process_ts(struct ice_pf *pf) { }
 static inline void
-ice_ptp_rx_hwtstamp(struct ice_ring *rx_ring,
+ice_ptp_rx_hwtstamp(struct ice_rx_ring *rx_ring,
 		    union ice_32b_rx_flex_desc *rx_desc, struct sk_buff *skb) { }
 static inline void ice_ptp_init(struct ice_pf *pf) { }
 static inline void ice_ptp_release(struct ice_pf *pf) { }

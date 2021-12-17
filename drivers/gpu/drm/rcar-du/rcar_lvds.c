@@ -576,6 +576,9 @@ static int rcar_lvds_attach(struct drm_bridge *bridge,
 {
 	struct rcar_lvds *lvds = bridge_to_rcar_lvds(bridge);
 
+	if (!lvds->next_bridge)
+		return 0;
+
 	return drm_bridge_attach(bridge->encoder, lvds->next_bridge, bridge,
 				 flags);
 }
@@ -597,6 +600,14 @@ bool rcar_lvds_dual_link(struct drm_bridge *bridge)
 	return lvds->link_type != RCAR_LVDS_SINGLE_LINK;
 }
 EXPORT_SYMBOL_GPL(rcar_lvds_dual_link);
+
+bool rcar_lvds_is_connected(struct drm_bridge *bridge)
+{
+	struct rcar_lvds *lvds = bridge_to_rcar_lvds(bridge);
+
+	return lvds->next_bridge != NULL;
+}
+EXPORT_SYMBOL_GPL(rcar_lvds_is_connected);
 
 /* -----------------------------------------------------------------------------
  * Probe & Remove
@@ -802,7 +813,6 @@ static int rcar_lvds_probe(struct platform_device *pdev)
 {
 	const struct soc_device_attribute *attr;
 	struct rcar_lvds *lvds;
-	struct resource *mem;
 	int ret;
 
 	lvds = devm_kzalloc(&pdev->dev, sizeof(*lvds), GFP_KERNEL);
@@ -825,8 +835,7 @@ static int rcar_lvds_probe(struct platform_device *pdev)
 	lvds->bridge.funcs = &rcar_lvds_bridge_ops;
 	lvds->bridge.of_node = pdev->dev.of_node;
 
-	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	lvds->mmio = devm_ioremap_resource(&pdev->dev, mem);
+	lvds->mmio = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(lvds->mmio))
 		return PTR_ERR(lvds->mmio);
 

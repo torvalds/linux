@@ -549,7 +549,6 @@ static void __call_rcu_nocb_wake(struct rcu_data *rdp, bool was_alldone,
 		rcu_nocb_unlock_irqrestore(rdp, flags);
 		trace_rcu_nocb_wake(rcu_state.name, rdp->cpu, TPS("WakeNot"));
 	}
-	return;
 }
 
 /*
@@ -767,6 +766,7 @@ static int rcu_nocb_gp_kthread(void *arg)
 static inline bool nocb_cb_can_run(struct rcu_data *rdp)
 {
 	u8 flags = SEGCBLIST_OFFLOADED | SEGCBLIST_KTHREAD_CB;
+
 	return rcu_segcblist_test_flags(&rdp->cblist, flags);
 }
 

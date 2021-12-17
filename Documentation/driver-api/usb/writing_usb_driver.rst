@@ -57,9 +57,12 @@ structure. The skeleton driver declares a :c:type:`usb_driver` as::
 	    .name        = "skeleton",
 	    .probe       = skel_probe,
 	    .disconnect  = skel_disconnect,
-	    .fops        = &skel_fops,
-	    .minor       = USB_SKEL_MINOR_BASE,
+	    .suspend     = skel_suspend,
+	    .resume      = skel_resume,
+	    .pre_reset   = skel_pre_reset,
+	    .post_reset  = skel_post_reset,
 	    .id_table    = skel_table,
+	    .supports_autosuspend = 1,
     };
 
 
@@ -81,7 +84,7 @@ this user-space interaction. The skeleton driver needs this kind of
 interface, so it provides a minor starting number and a pointer to its
 :c:type:`file_operations` functions.
 
-The USB driver is then registered with a call to :c:func:`usb_register`,
+The USB driver is then registered with a call to usb_register(),
 usually in the driver's init function, as shown here::
 
     static int __init usb_skel_init(void)
@@ -102,7 +105,7 @@ usually in the driver's init function, as shown here::
 
 
 When the driver is unloaded from the system, it needs to deregister
-itself with the USB subsystem. This is done with the :c:func:`usb_deregister`
+itself with the USB subsystem. This is done with usb_deregister()
 function::
 
     static void __exit usb_skel_exit(void)
@@ -231,7 +234,7 @@ error message. This can be shown with the following code::
 			   skel->bulk_in_endpointAddr),
 			   skel->bulk_in_buffer,
 			   skel->bulk_in_size,
-			   &count, HZ*10);
+			   &count, 5000);
     /* if the read was successful, copy the data to user space */
     if (!retval) {
 	    if (copy_to_user (buffer, skel->bulk_in_buffer, count))

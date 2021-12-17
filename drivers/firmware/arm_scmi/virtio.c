@@ -82,7 +82,8 @@ static bool scmi_vio_have_vq_rx(struct virtio_device *vdev)
 }
 
 static int scmi_vio_feed_vq_rx(struct scmi_vio_channel *vioch,
-			       struct scmi_vio_msg *msg)
+			       struct scmi_vio_msg *msg,
+			       struct device *dev)
 {
 	struct scatterlist sg_in;
 	int rc;
@@ -94,8 +95,7 @@ static int scmi_vio_feed_vq_rx(struct scmi_vio_channel *vioch,
 
 	rc = virtqueue_add_inbuf(vioch->vqueue, &sg_in, 1, msg, GFP_ATOMIC);
 	if (rc)
-		dev_err_once(vioch->cinfo->dev,
-			     "failed to add to virtqueue (%d)\n", rc);
+		dev_err_once(dev, "failed to add to virtqueue (%d)\n", rc);
 	else
 		virtqueue_kick(vioch->vqueue);
 
@@ -108,20 +108,18 @@ static void scmi_finalize_message(struct scmi_vio_channel *vioch,
 				  struct scmi_vio_msg *msg)
 {
 	if (vioch->is_rx) {
-		scmi_vio_feed_vq_rx(vioch, msg);
+		scmi_vio_feed_vq_rx(vioch, msg, vioch->cinfo->dev);
 	} else {
-		unsigned long flags;
-
-		spin_lock_irqsave(&vioch->lock, flags);
+		/* Here IRQs are assumed to be already disabled by the caller */
+		spin_lock(&vioch->lock);
 		list_add(&msg->list, &vioch->free_list);
-		spin_unlock_irqrestore(&vioch->lock, flags);
+		spin_unlock(&vioch->lock);
 	}
 }
 
 static void scmi_vio_complete_cb(struct virtqueue *vqueue)
 {
 	unsigned long ready_flags;
-	unsigned long flags;
 	unsigned int length;
 	struct scmi_vio_channel *vioch;
 	struct scmi_vio_msg *msg;
@@ -140,7 +138,8 @@ static void scmi_vio_complete_cb(struct virtqueue *vqueue)
 			goto unlock_ready_out;
 		}
 
-		spin_lock_irqsave(&vioch->lock, flags);
+		/* IRQs already disabled here no need to irqsave */
+		spin_lock(&vioch->lock);
 		if (cb_enabled) {
 			virtqueue_disable_cb(vqueue);
 			cb_enabled = false;
@@ -151,7 +150,7 @@ static void scmi_vio_complete_cb(struct virtqueue *vqueue)
 				goto unlock_out;
 			cb_enabled = true;
 		}
-		spin_unlock_irqrestore(&vioch->lock, flags);
+		spin_unlock(&vioch->lock);
 
 		if (msg) {
 			msg->rx_len = length;
@@ -161,11 +160,18 @@ static void scmi_vio_complete_cb(struct virtqueue *vqueue)
 			scmi_finalize_message(vioch, msg);
 		}
 
+		/*
+		 * Release ready_lock and re-enable IRQs between loop iterations
+		 * to allow virtio_chan_free() to possibly kick in and set the
+		 * flag vioch->ready to false even in between processing of
+		 * messages, so as to force outstanding messages to be ignored
+		 * when system is shutting down.
+		 */
 		spin_unlock_irqrestore(&vioch->ready_lock, ready_flags);
 	}
 
 unlock_out:
-	spin_unlock_irqrestore(&vioch->lock, flags);
+	spin_unlock(&vioch->lock);
 unlock_ready_out:
 	spin_unlock_irqrestore(&vioch->ready_lock, ready_flags);
 }
@@ -263,7 +269,7 @@ static int virtio_chan_setup(struct scmi_chan_info *cinfo, struct device *dev,
 			list_add_tail(&msg->list, &vioch->free_list);
 			spin_unlock_irqrestore(&vioch->lock, flags);
 		} else {
-			scmi_vio_feed_vq_rx(vioch, msg);
+			scmi_vio_feed_vq_rx(vioch, msg, cinfo->dev);
 		}
 	}
 
@@ -384,8 +390,11 @@ static int scmi_vio_probe(struct virtio_device *vdev)
 	struct virtqueue *vqs[VIRTIO_SCMI_VQ_MAX_CNT];
 
 	/* Only one SCMI VirtiO device allowed */
-	if (scmi_vdev)
-		return -EINVAL;
+	if (scmi_vdev) {
+		dev_err(dev,
+			"One SCMI Virtio device was already initialized: only one allowed.\n");
+		return -EBUSY;
+	}
 
 	have_vq_rx = scmi_vio_have_vq_rx(vdev);
 	vq_cnt = have_vq_rx ? VIRTIO_SCMI_VQ_MAX_CNT : 1;
@@ -428,16 +437,25 @@ static int scmi_vio_probe(struct virtio_device *vdev)
 	}
 
 	vdev->priv = channels;
-	scmi_vdev = vdev;
+	/* Ensure initialized scmi_vdev is visible */
+	smp_store_mb(scmi_vdev, vdev);
 
 	return 0;
 }
 
 static void scmi_vio_remove(struct virtio_device *vdev)
 {
+	/*
+	 * Once we get here, virtio_chan_free() will have already been called by
+	 * the SCMI core for any existing channel and, as a consequence, all the
+	 * virtio channels will have been already marked NOT ready, causing any
+	 * outstanding message on any vqueue to be ignored by complete_cb: now
+	 * we can just stop processing buffers and destroy the vqueues.
+	 */
 	vdev->config->reset(vdev);
 	vdev->config->del_vqs(vdev);
-	scmi_vdev = NULL;
+	/* Ensure scmi_vdev is visible as NULL */
+	smp_store_mb(scmi_vdev, NULL);
 }
 
 static int scmi_vio_validate(struct virtio_device *vdev)
@@ -476,7 +494,7 @@ static int __init virtio_scmi_init(void)
 	return register_virtio_driver(&virtio_scmi_driver);
 }
 
-static void __exit virtio_scmi_exit(void)
+static void virtio_scmi_exit(void)
 {
 	unregister_virtio_driver(&virtio_scmi_driver);
 }

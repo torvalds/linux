@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: (GPL-2.0 OR MPL-1.1) */
-/* p80211netdev.h
+/*
  *
  * WLAN net device structure and functions
  *

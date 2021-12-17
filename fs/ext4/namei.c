@@ -1439,7 +1439,7 @@ static bool ext4_match(struct inode *parent,
 					fname->hinfo.minor_hash !=
 						EXT4_DIRENT_MINOR_HASH(de)) {
 
-					return 0;
+					return false;
 				}
 			}
 			return !ext4_ci_compare(parent, &cf, de->name,

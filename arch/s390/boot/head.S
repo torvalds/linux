@@ -184,35 +184,23 @@ iplstart:
 	bas	%r14,.Lloader		# load parameter file
 	ltr	%r2,%r2 		# got anything ?
 	bz	.Lnopf
-	chi	%r2,895
-	bnh	.Lnotrunc
-	la	%r2,895
+	l	%r3,MAX_COMMAND_LINE_SIZE+ARCH_OFFSET-PARMAREA(%r12)
+	ahi	%r3,-1
+	clr	%r2,%r3
+	bl	.Lnotrunc
+	lr	%r2,%r3
 .Lnotrunc:
 	l	%r4,.Linitrd
 	clc	0(3,%r4),.L_hdr		# if it is HDRx
 	bz	.Lagain1		# skip dataset header
 	clc	0(3,%r4),.L_eof		# if it is EOFx
 	bz	.Lagain1		# skip dateset trailer
-	la	%r5,0(%r4,%r2)
-	lr	%r3,%r2
-	la	%r3,COMMAND_LINE-PARMAREA(%r12) # load adr. of command line
-	mvc	0(256,%r3),0(%r4)
-	mvc	256(256,%r3),256(%r4)
-	mvc	512(256,%r3),512(%r4)
-	mvc	768(122,%r3),768(%r4)
-	slr	%r0,%r0
-	b	.Lcntlp
-.Ldelspc:
-	ic	%r0,0(%r2,%r3)
-	chi	%r0,0x20		# is it a space ?
-	be	.Lcntlp
-	ahi	%r2,1
-	b	.Leolp
-.Lcntlp:
-	brct	%r2,.Ldelspc
-.Leolp:
-	slr	%r0,%r0
-	stc	%r0,0(%r2,%r3)		# terminate buffer
+
+	lr	%r5,%r2
+	la	%r6,COMMAND_LINE-PARMAREA(%r12)
+	lr	%r7,%r2
+	ahi	%r7,1
+	mvcl	%r6,%r4
 .Lnopf:
 
 #
@@ -317,6 +305,7 @@ SYM_CODE_START_LOCAL(startup_normal)
 	xc	0x300(256),0x300
 	xc	0xe00(256),0xe00
 	xc	0xf00(256),0xf00
+	lctlg	%c0,%c15,.Lctl-.LPG0(%r13)	# load control registers
 	stcke	__LC_BOOT_CLOCK
 	mvc	__LC_LAST_UPDATE_CLOCK(8),__LC_BOOT_CLOCK+1
 	spt	6f-.LPG0(%r13)
@@ -335,6 +324,22 @@ SYM_CODE_END(startup_normal)
 	.quad	0x0000000180000000,startup_pgm_check_handler
 .Lio_new_psw:
 	.quad	0x0002000180000000,0x1f0	# disabled wait
+.Lctl:	.quad	0x04040000		# cr0: AFP registers & secondary space
+	.quad	0			# cr1: primary space segment table
+	.quad	0			# cr2: dispatchable unit control table
+	.quad	0			# cr3: instruction authorization
+	.quad	0xffff			# cr4: instruction authorization
+	.quad	0			# cr5: primary-aste origin
+	.quad	0			# cr6:	I/O interrupts
+	.quad	0			# cr7:	secondary space segment table
+	.quad	0x0000000000008000	# cr8:	access registers translation
+	.quad	0			# cr9:	tracing off
+	.quad	0			# cr10: tracing off
+	.quad	0			# cr11: tracing off
+	.quad	0			# cr12: tracing off
+	.quad	0			# cr13: home space segment table
+	.quad	0xc0000000		# cr14: machine check handling off
+	.quad	0			# cr15: linkage stack operations
 
 #include "head_kdump.S"
 
@@ -377,11 +382,10 @@ SYM_DATA_START(parmarea)
 	.quad	0			# OLDMEM_BASE
 	.quad	0			# OLDMEM_SIZE
 	.quad	kernel_version		# points to kernel version string
+	.quad	COMMAND_LINE_SIZE
 
 	.org	COMMAND_LINE
 	.byte	"root=/dev/ram0 ro"
 	.byte	0
 	.org	PARMAREA+__PARMAREA_SIZE
 SYM_DATA_END(parmarea)
-
-	.org	HEAD_END

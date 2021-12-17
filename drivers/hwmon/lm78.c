@@ -117,7 +117,7 @@ struct lm78_data {
 	int isa_addr;
 
 	struct mutex update_lock;
-	char valid;		/* !=0 if following fields are valid */
+	bool valid;		/* true if following fields are valid */
 	unsigned long last_updated;	/* In jiffies */
 
 	u8 in[7];		/* Register value */
@@ -772,7 +772,7 @@ static struct lm78_data *lm78_update_device(struct device *dev)
 		data->alarms = lm78_read_value(data, LM78_REG_ALARM1) +
 		    (lm78_read_value(data, LM78_REG_ALARM2) << 8);
 		data->last_updated = jiffies;
-		data->valid = 1;
+		data->valid = true;
 
 		data->fan_div[2] = 1;
 	}

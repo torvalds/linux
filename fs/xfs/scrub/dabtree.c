@@ -473,7 +473,7 @@ xchk_da_btree(
 	xchk_da_btree_rec_fn		scrub_fn,
 	void				*private)
 {
-	struct xchk_da_btree		ds = {};
+	struct xchk_da_btree		*ds;
 	struct xfs_mount		*mp = sc->mp;
 	struct xfs_da_state_blk		*blks;
 	struct xfs_da_node_entry	*key;
@@ -486,32 +486,35 @@ xchk_da_btree(
 		return 0;
 
 	/* Set up initial da state. */
-	ds.dargs.dp = sc->ip;
-	ds.dargs.whichfork = whichfork;
-	ds.dargs.trans = sc->tp;
-	ds.dargs.op_flags = XFS_DA_OP_OKNOENT;
-	ds.state = xfs_da_state_alloc(&ds.dargs);
-	ds.sc = sc;
-	ds.private = private;
+	ds = kmem_zalloc(sizeof(struct xchk_da_btree), KM_NOFS | KM_MAYFAIL);
+	if (!ds)
+		return -ENOMEM;
+	ds->dargs.dp = sc->ip;
+	ds->dargs.whichfork = whichfork;
+	ds->dargs.trans = sc->tp;
+	ds->dargs.op_flags = XFS_DA_OP_OKNOENT;
+	ds->state = xfs_da_state_alloc(&ds->dargs);
+	ds->sc = sc;
+	ds->private = private;
 	if (whichfork == XFS_ATTR_FORK) {
-		ds.dargs.geo = mp->m_attr_geo;
-		ds.lowest = 0;
-		ds.highest = 0;
+		ds->dargs.geo = mp->m_attr_geo;
+		ds->lowest = 0;
+		ds->highest = 0;
 	} else {
-		ds.dargs.geo = mp->m_dir_geo;
-		ds.lowest = ds.dargs.geo->leafblk;
-		ds.highest = ds.dargs.geo->freeblk;
+		ds->dargs.geo = mp->m_dir_geo;
+		ds->lowest = ds->dargs.geo->leafblk;
+		ds->highest = ds->dargs.geo->freeblk;
 	}
-	blkno = ds.lowest;
+	blkno = ds->lowest;
 	level = 0;
 
 	/* Find the root of the da tree, if present. */
-	blks = ds.state->path.blk;
-	error = xchk_da_btree_block(&ds, level, blkno);
+	blks = ds->state->path.blk;
+	error = xchk_da_btree_block(ds, level, blkno);
 	if (error)
 		goto out_state;
 	/*
-	 * We didn't find a block at ds.lowest, which means that there's
+	 * We didn't find a block at ds->lowest, which means that there's
 	 * no LEAF1/LEAFN tree (at least not where it's supposed to be),
 	 * so jump out now.
 	 */
@@ -523,16 +526,16 @@ xchk_da_btree(
 		/* Handle leaf block. */
 		if (blks[level].magic != XFS_DA_NODE_MAGIC) {
 			/* End of leaf, pop back towards the root. */
-			if (blks[level].index >= ds.maxrecs[level]) {
+			if (blks[level].index >= ds->maxrecs[level]) {
 				if (level > 0)
 					blks[level - 1].index++;
-				ds.tree_level++;
+				ds->tree_level++;
 				level--;
 				continue;
 			}
 
 			/* Dispatch record scrubbing. */
-			error = scrub_fn(&ds, level);
+			error = scrub_fn(ds, level);
 			if (error)
 				break;
 			if (xchk_should_terminate(sc, &error) ||
@@ -545,17 +548,17 @@ xchk_da_btree(
 
 
 		/* End of node, pop back towards the root. */
-		if (blks[level].index >= ds.maxrecs[level]) {
+		if (blks[level].index >= ds->maxrecs[level]) {
 			if (level > 0)
 				blks[level - 1].index++;
-			ds.tree_level++;
+			ds->tree_level++;
 			level--;
 			continue;
 		}
 
 		/* Hashes in order for scrub? */
-		key = xchk_da_btree_node_entry(&ds, level);
-		error = xchk_da_btree_hash(&ds, level, &key->hashval);
+		key = xchk_da_btree_node_entry(ds, level);
+		error = xchk_da_btree_hash(ds, level, &key->hashval);
 		if (error)
 			goto out;
 
@@ -564,11 +567,11 @@ xchk_da_btree(
 		level++;
 		if (level >= XFS_DA_NODE_MAXDEPTH) {
 			/* Too deep! */
-			xchk_da_set_corrupt(&ds, level - 1);
+			xchk_da_set_corrupt(ds, level - 1);
 			break;
 		}
-		ds.tree_level--;
-		error = xchk_da_btree_block(&ds, level, blkno);
+		ds->tree_level--;
+		error = xchk_da_btree_block(ds, level, blkno);
 		if (error)
 			goto out;
 		if (blks[level].bp == NULL)
@@ -587,6 +590,7 @@ out:
 	}
 
 out_state:
-	xfs_da_state_free(ds.state);
+	xfs_da_state_free(ds->state);
+	kmem_free(ds);
 	return error;
 }

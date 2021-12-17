@@ -127,7 +127,7 @@ void update_recvframe_phyinfo_88e(struct recv_frame *precvframe, struct phy_stat
 	struct adapter *padapter = precvframe->adapter;
 	struct rx_pkt_attrib *pattrib = &precvframe->attrib;
 	struct hal_data_8188e *pHalData = GET_HAL_DATA(padapter);
-	struct odm_phy_status_info *pPHYInfo  = (struct odm_phy_status_info *)(&pattrib->phy_info);
+	struct phy_info *pPHYInfo  = &pattrib->phy_info;
 	u8 *wlanhdr;
 	struct odm_per_pkt_info	pkt_info;
 	u8 *sa = NULL;

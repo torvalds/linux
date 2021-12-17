@@ -5,10 +5,7 @@
  *
  */
 
-#include <linux/blkdev.h>
-#include <linux/buffer_head.h>
 #include <linux/fs.h>
-#include <linux/nls.h>
 
 #include "debug.h"
 #include "ntfs.h"
@@ -336,7 +333,7 @@ int al_add_le(struct ntfs_inode *ni, enum ATTR_TYPE type, const __le16 *name,
 
 	if (attr && attr->non_res) {
 		err = ntfs_sb_write_run(ni->mi.sbi, &al->run, 0, al->le,
-					al->size);
+					al->size, 0);
 		if (err)
 			return err;
 		al->dirty = false;
@@ -423,7 +420,7 @@ next:
 	return true;
 }
 
-int al_update(struct ntfs_inode *ni)
+int al_update(struct ntfs_inode *ni, int sync)
 {
 	int err;
 	struct ATTRIB *attr;
@@ -445,7 +442,7 @@ int al_update(struct ntfs_inode *ni)
 		memcpy(resident_data(attr), al->le, al->size);
 	} else {
 		err = ntfs_sb_write_run(ni->mi.sbi, &al->run, 0, al->le,
-					al->size);
+					al->size, sync);
 		if (err)
 			goto out;
 

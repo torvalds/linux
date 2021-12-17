@@ -182,13 +182,10 @@ static void ftgmac100_initial_mac(struct ftgmac100 *priv)
 	u8 mac[ETH_ALEN];
 	unsigned int m;
 	unsigned int l;
-	void *addr;
 
-	addr = device_get_mac_address(priv->dev, mac, ETH_ALEN);
-	if (addr) {
-		ether_addr_copy(priv->netdev->dev_addr, mac);
+	if (!device_get_ethdev_address(priv->dev, priv->netdev)) {
 		dev_info(priv->dev, "Read MAC address %pM from device tree\n",
-			 mac);
+			 priv->netdev->dev_addr);
 		return;
 	}
 
@@ -203,7 +200,7 @@ static void ftgmac100_initial_mac(struct ftgmac100 *priv)
 	mac[5] = l & 0xff;
 
 	if (is_valid_ether_addr(mac)) {
-		ether_addr_copy(priv->netdev->dev_addr, mac);
+		eth_hw_addr_set(priv->netdev, mac);
 		dev_info(priv->dev, "Read MAC address %pM from chip\n", mac);
 	} else {
 		eth_hw_addr_random(priv->netdev);

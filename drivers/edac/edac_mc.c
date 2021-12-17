@@ -66,14 +66,12 @@ unsigned int edac_dimm_info_location(struct dimm_info *dimm, char *buf,
 	char *p = buf;
 
 	for (i = 0; i < mci->n_layers; i++) {
-		n = snprintf(p, len, "%s %d ",
+		n = scnprintf(p, len, "%s %d ",
 			      edac_layer_name[mci->layers[i].type],
 			      dimm->location[i]);
 		p += n;
 		len -= n;
 		count += n;
-		if (!len)
-			break;
 	}
 
 	return count;
@@ -341,19 +339,16 @@ static int edac_mc_alloc_dimms(struct mem_ctl_info *mci)
 		 */
 		len = sizeof(dimm->label);
 		p = dimm->label;
-		n = snprintf(p, len, "mc#%u", mci->mc_idx);
+		n = scnprintf(p, len, "mc#%u", mci->mc_idx);
 		p += n;
 		len -= n;
 		for (layer = 0; layer < mci->n_layers; layer++) {
-			n = snprintf(p, len, "%s#%u",
-				     edac_layer_name[mci->layers[layer].type],
-				     pos[layer]);
+			n = scnprintf(p, len, "%s#%u",
+				      edac_layer_name[mci->layers[layer].type],
+				      pos[layer]);
 			p += n;
 			len -= n;
 			dimm->location[layer] = pos[layer];
-
-			if (len <= 0)
-				break;
 		}
 
 		/* Link it to the csrows old API data */
@@ -1027,12 +1022,13 @@ void edac_mc_handle_error(const enum hw_event_mc_err_type type,
 			  const char *other_detail)
 {
 	struct dimm_info *dimm;
-	char *p;
+	char *p, *end;
 	int row = -1, chan = -1;
 	int pos[EDAC_MAX_LAYERS] = { top_layer, mid_layer, low_layer };
 	int i, n_labels = 0;
 	struct edac_raw_error_desc *e = &mci->error_desc;
 	bool any_memory = true;
+	const char *prefix;
 
 	edac_dbg(3, "MC%d\n", mci->mc_idx);
 
@@ -1087,6 +1083,8 @@ void edac_mc_handle_error(const enum hw_event_mc_err_type type,
 	 */
 	p = e->label;
 	*p = '\0';
+	end = p + sizeof(e->label);
+	prefix = "";
 
 	mci_for_each_dimm(mci, dimm) {
 		if (top_layer >= 0 && top_layer != dimm->location[0])
@@ -1114,12 +1112,8 @@ void edac_mc_handle_error(const enum hw_event_mc_err_type type,
 			p = e->label;
 			*p = '\0';
 		} else {
-			if (p != e->label) {
-				strcpy(p, OTHER_LABEL);
-				p += strlen(OTHER_LABEL);
-			}
-			strcpy(p, dimm->label);
-			p += strlen(p);
+			p += scnprintf(p, end - p, "%s%s", prefix, dimm->label);
+			prefix = OTHER_LABEL;
 		}
 
 		/*
@@ -1141,25 +1135,25 @@ void edac_mc_handle_error(const enum hw_event_mc_err_type type,
 	}
 
 	if (any_memory)
-		strcpy(e->label, "any memory");
+		strscpy(e->label, "any memory", sizeof(e->label));
 	else if (!*e->label)
-		strcpy(e->label, "unknown memory");
+		strscpy(e->label, "unknown memory", sizeof(e->label));
 
 	edac_inc_csrow(e, row, chan);
 
 	/* Fill the RAM location data */
 	p = e->location;
+	end = p + sizeof(e->location);
+	prefix = "";
 
 	for (i = 0; i < mci->n_layers; i++) {
 		if (pos[i] < 0)
 			continue;
 
-		p += sprintf(p, "%s:%d ",
-			     edac_layer_name[mci->layers[i].type],
-			     pos[i]);
+		p += scnprintf(p, end - p, "%s%s:%d", prefix,
+			       edac_layer_name[mci->layers[i].type], pos[i]);
+		prefix = " ";
 	}
-	if (p > e->location)
-		*(p - 1) = '\0';
 
 	edac_raw_mc_handle_error(e);
 }

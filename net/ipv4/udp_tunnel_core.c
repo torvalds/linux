@@ -2,11 +2,8 @@
 #include <linux/module.h>
 #include <linux/errno.h>
 #include <linux/socket.h>
-#include <linux/udp.h>
-#include <linux/types.h>
 #include <linux/kernel.h>
 #include <net/dst_metadata.h>
-#include <net/net_namespace.h>
 #include <net/udp.h>
 #include <net/udp_tunnel.h>
 

@@ -26,6 +26,11 @@ static const struct property_entry lid_device_props_l17[] = {
 	{},
 };
 
+static const struct property_entry lid_device_props_l4B[] = {
+	PROPERTY_ENTRY_U32("gpe", 0x4B),
+	{},
+};
+
 static const struct property_entry lid_device_props_l4D[] = {
 	PROPERTY_ENTRY_U32("gpe", 0x4D),
 	{},
@@ -157,6 +162,14 @@ static const struct dmi_system_id dmi_lid_device_table[] = {
 			DMI_EXACT_MATCH(DMI_PRODUCT_SKU, "Surface_Laptop_3_1872"),
 		},
 		.driver_data = (void *)lid_device_props_l4D,
+	},
+	{
+		.ident = "Surface Laptop Studio",
+		.matches = {
+			DMI_EXACT_MATCH(DMI_SYS_VENDOR, "Microsoft Corporation"),
+			DMI_EXACT_MATCH(DMI_PRODUCT_NAME, "Surface Laptop Studio"),
+		},
+		.driver_data = (void *)lid_device_props_l4B,
 	},
 	{ }
 };

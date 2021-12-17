@@ -23,7 +23,8 @@ static void burn_cpu(void)
 		++j;
 }
 
-void test_perf_link(void)
+/* TODO: often fails in concurrent mode */
+void serial_test_perf_link(void)
 {
 	struct test_perf_link *skel = NULL;
 	struct perf_event_attr attr;

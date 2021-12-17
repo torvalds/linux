@@ -90,18 +90,24 @@ enum vm_mem_backing_src_type {
 	NUM_SRC_TYPES,
 };
 
+#define DEFAULT_VM_MEM_SRC VM_MEM_SRC_ANONYMOUS
+
 struct vm_mem_backing_src_alias {
 	const char *name;
 	uint32_t flag;
 };
+
+#define MIN_RUN_DELAY_NS	200000UL
 
 bool thp_configured(void);
 size_t get_trans_hugepagesz(void);
 size_t get_def_hugetlb_pagesz(void);
 const struct vm_mem_backing_src_alias *vm_mem_backing_src_alias(uint32_t i);
 size_t get_backing_src_pagesz(uint32_t i);
-void backing_src_help(void);
+bool is_backing_src_hugetlb(uint32_t i);
+void backing_src_help(const char *flag);
 enum vm_mem_backing_src_type parse_backing_src_type(const char *type_name);
+long get_run_delay(void);
 
 /*
  * Whether or not the given source type is shared memory (as opposed to
@@ -110,6 +116,31 @@ enum vm_mem_backing_src_type parse_backing_src_type(const char *type_name);
 static inline bool backing_src_is_shared(enum vm_mem_backing_src_type t)
 {
 	return vm_mem_backing_src_alias(t)->flag & MAP_SHARED;
+}
+
+/* Aligns x up to the next multiple of size. Size must be a power of 2. */
+static inline uint64_t align_up(uint64_t x, uint64_t size)
+{
+	uint64_t mask = size - 1;
+
+	TEST_ASSERT(size != 0 && !(size & (size - 1)),
+		    "size not a power of 2: %lu", size);
+	return ((x + mask) & ~mask);
+}
+
+static inline uint64_t align_down(uint64_t x, uint64_t size)
+{
+	uint64_t x_aligned_up = align_up(x, size);
+
+	if (x == x_aligned_up)
+		return x;
+	else
+		return x_aligned_up - size;
+}
+
+static inline void *align_ptr_up(void *x, size_t size)
+{
+	return (void *)align_up((unsigned long)x, size);
 }
 
 #endif /* SELFTEST_KVM_TEST_UTIL_H */

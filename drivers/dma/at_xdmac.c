@@ -155,7 +155,7 @@
 #define		AT_XDMAC_CC_WRIP	(0x1 << 23)	/* Write in Progress (read only) */
 #define			AT_XDMAC_CC_WRIP_DONE		(0x0 << 23)
 #define			AT_XDMAC_CC_WRIP_IN_PROGRESS	(0x1 << 23)
-#define		AT_XDMAC_CC_PERID(i)	(0x7f & (i) << 24)	/* Channel Peripheral Identifier */
+#define		AT_XDMAC_CC_PERID(i)	((0x7f & (i)) << 24)	/* Channel Peripheral Identifier */
 #define AT_XDMAC_CDS_MSP	0x2C	/* Channel Data Stride Memory Set Pattern */
 #define AT_XDMAC_CSUS		0x30	/* Channel Source Microblock Stride */
 #define AT_XDMAC_CDUS		0x34	/* Channel Destination Microblock Stride */
@@ -1926,8 +1926,31 @@ static void at_xdmac_free_chan_resources(struct dma_chan *chan)
 	return;
 }
 
-#ifdef CONFIG_PM
-static int atmel_xdmac_prepare(struct device *dev)
+static void at_xdmac_axi_config(struct platform_device *pdev)
+{
+	struct at_xdmac	*atxdmac = (struct at_xdmac *)platform_get_drvdata(pdev);
+	bool dev_m2m = false;
+	u32 dma_requests;
+
+	if (!atxdmac->layout->axi_config)
+		return; /* Not supported */
+
+	if (!of_property_read_u32(pdev->dev.of_node, "dma-requests",
+				  &dma_requests)) {
+		dev_info(&pdev->dev, "controller in mem2mem mode.\n");
+		dev_m2m = true;
+	}
+
+	if (dev_m2m) {
+		at_xdmac_write(atxdmac, AT_XDMAC_GCFG, AT_XDMAC_GCFG_M2M);
+		at_xdmac_write(atxdmac, AT_XDMAC_GWAC, AT_XDMAC_GWAC_M2M);
+	} else {
+		at_xdmac_write(atxdmac, AT_XDMAC_GCFG, AT_XDMAC_GCFG_P2M);
+		at_xdmac_write(atxdmac, AT_XDMAC_GWAC, AT_XDMAC_GWAC_P2M);
+	}
+}
+
+static int __maybe_unused atmel_xdmac_prepare(struct device *dev)
 {
 	struct at_xdmac		*atxdmac = dev_get_drvdata(dev);
 	struct dma_chan		*chan, *_chan;
@@ -1941,12 +1964,8 @@ static int atmel_xdmac_prepare(struct device *dev)
 	}
 	return 0;
 }
-#else
-#	define atmel_xdmac_prepare NULL
-#endif
 
-#ifdef CONFIG_PM_SLEEP
-static int atmel_xdmac_suspend(struct device *dev)
+static int __maybe_unused atmel_xdmac_suspend(struct device *dev)
 {
 	struct at_xdmac		*atxdmac = dev_get_drvdata(dev);
 	struct dma_chan		*chan, *_chan;
@@ -1970,17 +1989,20 @@ static int atmel_xdmac_suspend(struct device *dev)
 	return 0;
 }
 
-static int atmel_xdmac_resume(struct device *dev)
+static int __maybe_unused atmel_xdmac_resume(struct device *dev)
 {
 	struct at_xdmac		*atxdmac = dev_get_drvdata(dev);
 	struct at_xdmac_chan	*atchan;
 	struct dma_chan		*chan, *_chan;
+	struct platform_device	*pdev = container_of(dev, struct platform_device, dev);
 	int			i;
 	int ret;
 
 	ret = clk_prepare_enable(atxdmac->clk);
 	if (ret)
 		return ret;
+
+	at_xdmac_axi_config(pdev);
 
 	/* Clear pending interrupts. */
 	for (i = 0; i < atxdmac->dma.chancnt; i++) {
@@ -2004,31 +2026,6 @@ static int atmel_xdmac_resume(struct device *dev)
 		}
 	}
 	return 0;
-}
-#endif /* CONFIG_PM_SLEEP */
-
-static void at_xdmac_axi_config(struct platform_device *pdev)
-{
-	struct at_xdmac	*atxdmac = (struct at_xdmac *)platform_get_drvdata(pdev);
-	bool dev_m2m = false;
-	u32 dma_requests;
-
-	if (!atxdmac->layout->axi_config)
-		return; /* Not supported */
-
-	if (!of_property_read_u32(pdev->dev.of_node, "dma-requests",
-				  &dma_requests)) {
-		dev_info(&pdev->dev, "controller in mem2mem mode.\n");
-		dev_m2m = true;
-	}
-
-	if (dev_m2m) {
-		at_xdmac_write(atxdmac, AT_XDMAC_GCFG, AT_XDMAC_GCFG_M2M);
-		at_xdmac_write(atxdmac, AT_XDMAC_GWAC, AT_XDMAC_GWAC_M2M);
-	} else {
-		at_xdmac_write(atxdmac, AT_XDMAC_GCFG, AT_XDMAC_GCFG_P2M);
-		at_xdmac_write(atxdmac, AT_XDMAC_GWAC, AT_XDMAC_GWAC_P2M);
-	}
 }
 
 static int at_xdmac_probe(struct platform_device *pdev)
@@ -2210,7 +2207,7 @@ static int at_xdmac_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static const struct dev_pm_ops atmel_xdmac_dev_pm_ops = {
+static const struct dev_pm_ops __maybe_unused atmel_xdmac_dev_pm_ops = {
 	.prepare	= atmel_xdmac_prepare,
 	SET_LATE_SYSTEM_SLEEP_PM_OPS(atmel_xdmac_suspend, atmel_xdmac_resume)
 };
@@ -2234,7 +2231,7 @@ static struct platform_driver at_xdmac_driver = {
 	.driver = {
 		.name		= "at_xdmac",
 		.of_match_table	= of_match_ptr(atmel_xdmac_dt_ids),
-		.pm		= &atmel_xdmac_dev_pm_ops,
+		.pm		= pm_ptr(&atmel_xdmac_dev_pm_ops),
 	}
 };
 

@@ -30,7 +30,6 @@
 #define UAC2_DEF_RES_DB		(1*256)		/* 1 dB */
 
 #define UAC2_DEF_REQ_NUM 2
-#define UAC2_DEF_FB_MAX 5
 #define UAC2_DEF_INT_REQ_NUM	10
 
 struct f_uac2_opts {

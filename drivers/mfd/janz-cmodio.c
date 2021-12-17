@@ -154,7 +154,7 @@ static ssize_t modulbus_number_show(struct device *dev,
 {
 	struct cmodio_device *priv = dev_get_drvdata(dev);
 
-	return snprintf(buf, PAGE_SIZE, "%x\n", priv->hex);
+	return sysfs_emit(buf, "%x\n", priv->hex);
 }
 
 static DEVICE_ATTR_RO(modulbus_number);

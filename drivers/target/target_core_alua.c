@@ -247,11 +247,11 @@ target_emulate_report_target_port_groups(struct se_cmd *cmd)
 		 * this CDB was received upon to determine this value individually
 		 * for ALUA target port group.
 		 */
-		spin_lock(&cmd->se_lun->lun_tg_pt_gp_lock);
-		tg_pt_gp = cmd->se_lun->lun_tg_pt_gp;
+		rcu_read_lock();
+		tg_pt_gp = rcu_dereference(cmd->se_lun->lun_tg_pt_gp);
 		if (tg_pt_gp)
 			buf[5] = tg_pt_gp->tg_pt_gp_implicit_trans_secs;
-		spin_unlock(&cmd->se_lun->lun_tg_pt_gp_lock);
+		rcu_read_unlock();
 	}
 	transport_kunmap_data_sg(cmd);
 
@@ -292,24 +292,24 @@ target_emulate_set_target_port_groups(struct se_cmd *cmd)
 	 * Determine if explicit ALUA via SET_TARGET_PORT_GROUPS is allowed
 	 * for the local tg_pt_gp.
 	 */
-	spin_lock(&l_lun->lun_tg_pt_gp_lock);
-	l_tg_pt_gp = l_lun->lun_tg_pt_gp;
+	rcu_read_lock();
+	l_tg_pt_gp = rcu_dereference(l_lun->lun_tg_pt_gp);
 	if (!l_tg_pt_gp) {
-		spin_unlock(&l_lun->lun_tg_pt_gp_lock);
+		rcu_read_unlock();
 		pr_err("Unable to access l_lun->tg_pt_gp\n");
 		rc = TCM_UNSUPPORTED_SCSI_OPCODE;
 		goto out;
 	}
 
 	if (!(l_tg_pt_gp->tg_pt_gp_alua_access_type & TPGS_EXPLICIT_ALUA)) {
-		spin_unlock(&l_lun->lun_tg_pt_gp_lock);
+		rcu_read_unlock();
 		pr_debug("Unable to process SET_TARGET_PORT_GROUPS"
 				" while TPGS_EXPLICIT_ALUA is disabled\n");
 		rc = TCM_UNSUPPORTED_SCSI_OPCODE;
 		goto out;
 	}
 	valid_states = l_tg_pt_gp->tg_pt_gp_alua_supported_states;
-	spin_unlock(&l_lun->lun_tg_pt_gp_lock);
+	rcu_read_unlock();
 
 	ptr = &buf[4]; /* Skip over RESERVED area in header */
 
@@ -662,17 +662,17 @@ target_alua_state_check(struct se_cmd *cmd)
 				" target port\n");
 		return TCM_ALUA_OFFLINE;
 	}
-
-	if (!lun->lun_tg_pt_gp)
+	rcu_read_lock();
+	tg_pt_gp = rcu_dereference(lun->lun_tg_pt_gp);
+	if (!tg_pt_gp) {
+		rcu_read_unlock();
 		return 0;
+	}
 
-	spin_lock(&lun->lun_tg_pt_gp_lock);
-	tg_pt_gp = lun->lun_tg_pt_gp;
 	out_alua_state = tg_pt_gp->tg_pt_gp_alua_access_state;
 	nonop_delay_msecs = tg_pt_gp->tg_pt_gp_nonop_delay_msecs;
 	tg_pt_gp_id = tg_pt_gp->tg_pt_gp_id;
-
-	spin_unlock(&lun->lun_tg_pt_gp_lock);
+	rcu_read_unlock();
 	/*
 	 * Process ALUA_ACCESS_STATE_ACTIVE_OPTIMIZED in a separate conditional
 	 * statement so the compiler knows explicitly to check this case first.
@@ -1219,10 +1219,10 @@ static int core_alua_set_tg_pt_secondary_state(
 	struct t10_alua_tg_pt_gp *tg_pt_gp;
 	int trans_delay_msecs;
 
-	spin_lock(&lun->lun_tg_pt_gp_lock);
-	tg_pt_gp = lun->lun_tg_pt_gp;
+	rcu_read_lock();
+	tg_pt_gp = rcu_dereference(lun->lun_tg_pt_gp);
 	if (!tg_pt_gp) {
-		spin_unlock(&lun->lun_tg_pt_gp_lock);
+		rcu_read_unlock();
 		pr_err("Unable to complete secondary state"
 				" transition\n");
 		return -EINVAL;
@@ -1246,7 +1246,7 @@ static int core_alua_set_tg_pt_secondary_state(
 		"implicit", config_item_name(&tg_pt_gp->tg_pt_gp_group.cg_item),
 		tg_pt_gp->tg_pt_gp_id, (offline) ? "OFFLINE" : "ONLINE");
 
-	spin_unlock(&lun->lun_tg_pt_gp_lock);
+	rcu_read_unlock();
 	/*
 	 * Do the optional transition delay after we set the secondary
 	 * ALUA access state.
@@ -1674,7 +1674,6 @@ int core_alua_set_tg_pt_gp_id(
 		pr_err("Maximum ALUA alua_tg_pt_gps_count:"
 			" 0x0000ffff reached\n");
 		spin_unlock(&dev->t10_alua.tg_pt_gps_lock);
-		kmem_cache_free(t10_alua_tg_pt_gp_cache, tg_pt_gp);
 		return -ENOSPC;
 	}
 again:
@@ -1755,13 +1754,14 @@ void core_alua_free_tg_pt_gp(
 			__target_attach_tg_pt_gp(lun,
 					dev->t10_alua.default_tg_pt_gp);
 		} else
-			lun->lun_tg_pt_gp = NULL;
+			rcu_assign_pointer(lun->lun_tg_pt_gp, NULL);
 		spin_unlock(&lun->lun_tg_pt_gp_lock);
 
 		spin_lock(&tg_pt_gp->tg_pt_gp_lock);
 	}
 	spin_unlock(&tg_pt_gp->tg_pt_gp_lock);
 
+	synchronize_rcu();
 	kmem_cache_free(t10_alua_tg_pt_gp_cache, tg_pt_gp);
 }
 
@@ -1806,7 +1806,7 @@ static void __target_attach_tg_pt_gp(struct se_lun *lun,
 	assert_spin_locked(&lun->lun_tg_pt_gp_lock);
 
 	spin_lock(&tg_pt_gp->tg_pt_gp_lock);
-	lun->lun_tg_pt_gp = tg_pt_gp;
+	rcu_assign_pointer(lun->lun_tg_pt_gp, tg_pt_gp);
 	list_add_tail(&lun->lun_tg_pt_gp_link, &tg_pt_gp->tg_pt_gp_lun_list);
 	tg_pt_gp->tg_pt_gp_members++;
 	spin_lock(&lun->lun_deve_lock);
@@ -1823,6 +1823,7 @@ void target_attach_tg_pt_gp(struct se_lun *lun,
 	spin_lock(&lun->lun_tg_pt_gp_lock);
 	__target_attach_tg_pt_gp(lun, tg_pt_gp);
 	spin_unlock(&lun->lun_tg_pt_gp_lock);
+	synchronize_rcu();
 }
 
 static void __target_detach_tg_pt_gp(struct se_lun *lun,
@@ -1834,8 +1835,6 @@ static void __target_detach_tg_pt_gp(struct se_lun *lun,
 	list_del_init(&lun->lun_tg_pt_gp_link);
 	tg_pt_gp->tg_pt_gp_members--;
 	spin_unlock(&tg_pt_gp->tg_pt_gp_lock);
-
-	lun->lun_tg_pt_gp = NULL;
 }
 
 void target_detach_tg_pt_gp(struct se_lun *lun)
@@ -1843,10 +1842,25 @@ void target_detach_tg_pt_gp(struct se_lun *lun)
 	struct t10_alua_tg_pt_gp *tg_pt_gp;
 
 	spin_lock(&lun->lun_tg_pt_gp_lock);
-	tg_pt_gp = lun->lun_tg_pt_gp;
-	if (tg_pt_gp)
+	tg_pt_gp = rcu_dereference_check(lun->lun_tg_pt_gp,
+				lockdep_is_held(&lun->lun_tg_pt_gp_lock));
+	if (tg_pt_gp) {
 		__target_detach_tg_pt_gp(lun, tg_pt_gp);
+		rcu_assign_pointer(lun->lun_tg_pt_gp, NULL);
+	}
 	spin_unlock(&lun->lun_tg_pt_gp_lock);
+	synchronize_rcu();
+}
+
+static void target_swap_tg_pt_gp(struct se_lun *lun,
+				 struct t10_alua_tg_pt_gp *old_tg_pt_gp,
+				 struct t10_alua_tg_pt_gp *new_tg_pt_gp)
+{
+	assert_spin_locked(&lun->lun_tg_pt_gp_lock);
+
+	if (old_tg_pt_gp)
+		__target_detach_tg_pt_gp(lun, old_tg_pt_gp);
+	__target_attach_tg_pt_gp(lun, new_tg_pt_gp);
 }
 
 ssize_t core_alua_show_tg_pt_gp_info(struct se_lun *lun, char *page)
@@ -1855,8 +1869,8 @@ ssize_t core_alua_show_tg_pt_gp_info(struct se_lun *lun, char *page)
 	struct t10_alua_tg_pt_gp *tg_pt_gp;
 	ssize_t len = 0;
 
-	spin_lock(&lun->lun_tg_pt_gp_lock);
-	tg_pt_gp = lun->lun_tg_pt_gp;
+	rcu_read_lock();
+	tg_pt_gp = rcu_dereference(lun->lun_tg_pt_gp);
 	if (tg_pt_gp) {
 		tg_pt_ci = &tg_pt_gp->tg_pt_gp_group.cg_item;
 		len += sprintf(page, "TG Port Alias: %s\nTG Port Group ID:"
@@ -1872,7 +1886,7 @@ ssize_t core_alua_show_tg_pt_gp_info(struct se_lun *lun, char *page)
 			"Offline" : "None",
 			core_alua_dump_status(lun->lun_tg_pt_secondary_stat));
 	}
-	spin_unlock(&lun->lun_tg_pt_gp_lock);
+	rcu_read_unlock();
 
 	return len;
 }
@@ -1919,7 +1933,8 @@ ssize_t core_alua_store_tg_pt_gp_info(
 	}
 
 	spin_lock(&lun->lun_tg_pt_gp_lock);
-	tg_pt_gp = lun->lun_tg_pt_gp;
+	tg_pt_gp = rcu_dereference_check(lun->lun_tg_pt_gp,
+				lockdep_is_held(&lun->lun_tg_pt_gp_lock));
 	if (tg_pt_gp) {
 		/*
 		 * Clearing an existing tg_pt_gp association, and replacing
@@ -1937,18 +1952,16 @@ ssize_t core_alua_store_tg_pt_gp_info(
 					&tg_pt_gp->tg_pt_gp_group.cg_item),
 				tg_pt_gp->tg_pt_gp_id);
 
-			__target_detach_tg_pt_gp(lun, tg_pt_gp);
-			__target_attach_tg_pt_gp(lun,
+			target_swap_tg_pt_gp(lun, tg_pt_gp,
 					dev->t10_alua.default_tg_pt_gp);
 			spin_unlock(&lun->lun_tg_pt_gp_lock);
 
-			return count;
+			goto sync_rcu;
 		}
-		__target_detach_tg_pt_gp(lun, tg_pt_gp);
 		move = 1;
 	}
 
-	__target_attach_tg_pt_gp(lun, tg_pt_gp_new);
+	target_swap_tg_pt_gp(lun, tg_pt_gp, tg_pt_gp_new);
 	spin_unlock(&lun->lun_tg_pt_gp_lock);
 	pr_debug("Target_Core_ConfigFS: %s %s/tpgt_%hu/%s to ALUA"
 		" Target Port Group: alua/%s, ID: %hu\n", (move) ?
@@ -1959,6 +1972,8 @@ ssize_t core_alua_store_tg_pt_gp_info(
 		tg_pt_gp_new->tg_pt_gp_id);
 
 	core_alua_put_tg_pt_gp_from_name(tg_pt_gp_new);
+sync_rcu:
+	synchronize_rcu();
 	return count;
 }
 

@@ -300,20 +300,15 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
  */
 int amdgpu_ib_pool_init(struct amdgpu_device *adev)
 {
-	unsigned size;
 	int r, i;
 
 	if (adev->ib_pool_ready)
 		return 0;
 
 	for (i = 0; i < AMDGPU_IB_POOL_MAX; i++) {
-		if (i == AMDGPU_IB_POOL_DIRECT)
-			size = PAGE_SIZE * 6;
-		else
-			size = AMDGPU_IB_POOL_SIZE;
-
 		r = amdgpu_sa_bo_manager_init(adev, &adev->ib_pools[i],
-					      size, AMDGPU_GPU_PAGE_SIZE,
+					      AMDGPU_IB_POOL_SIZE,
+					      AMDGPU_GPU_PAGE_SIZE,
 					      AMDGPU_GEM_DOMAIN_GTT);
 		if (r)
 			goto error;

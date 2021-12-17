@@ -354,6 +354,27 @@ void vmw_binding_add(struct vmw_ctx_binding_state *cbs,
 }
 
 /**
+ * vmw_binding_cb_offset_update: Update the offset of a cb binding
+ *
+ * @cbs: Pointer to the context binding state tracker.
+ * @shader_slot: The shader slot of the binding.
+ * @slot: The slot of the binding.
+ * @offsetInBytes: The new offset of the binding.
+ *
+ * Updates the offset of an existing cb binding in the context binding
+ * state structure @cbs.
+ */
+void vmw_binding_cb_offset_update(struct vmw_ctx_binding_state *cbs,
+				  u32 shader_slot, u32 slot, u32 offsetInBytes)
+{
+	struct vmw_ctx_bindinfo *loc =
+		vmw_binding_loc(cbs, vmw_ctx_binding_cb, shader_slot, slot);
+	struct vmw_ctx_bindinfo_cb *loc_cb =
+		(struct vmw_ctx_bindinfo_cb *)((u8 *) loc);
+	loc_cb->offset = offsetInBytes;
+}
+
+/**
  * vmw_binding_add_uav_index - Add UAV index for tracking.
  * @cbs: Pointer to the context binding state tracker.
  * @slot: UAV type to which bind this index.
@@ -1070,7 +1091,7 @@ static int vmw_emit_set_uav(struct vmw_ctx_binding_state *cbs)
 	size_t cmd_size, view_id_size;
 	const struct vmw_resource *ctx = vmw_cbs_context(cbs);
 
-	vmw_collect_view_ids(cbs, loc, SVGA3D_MAX_UAVIEWS);
+	vmw_collect_view_ids(cbs, loc, vmw_max_num_uavs(cbs->dev_priv));
 	view_id_size = cbs->bind_cmd_count*sizeof(uint32);
 	cmd_size = sizeof(*cmd) + view_id_size;
 	cmd = VMW_CMD_CTX_RESERVE(ctx->dev_priv, cmd_size, ctx->id);
@@ -1100,7 +1121,7 @@ static int vmw_emit_set_cs_uav(struct vmw_ctx_binding_state *cbs)
 	size_t cmd_size, view_id_size;
 	const struct vmw_resource *ctx = vmw_cbs_context(cbs);
 
-	vmw_collect_view_ids(cbs, loc, SVGA3D_MAX_UAVIEWS);
+	vmw_collect_view_ids(cbs, loc, vmw_max_num_uavs(cbs->dev_priv));
 	view_id_size = cbs->bind_cmd_count*sizeof(uint32);
 	cmd_size = sizeof(*cmd) + view_id_size;
 	cmd = VMW_CMD_CTX_RESERVE(ctx->dev_priv, cmd_size, ctx->id);
@@ -1327,8 +1348,7 @@ static int vmw_binding_scrub_so(struct vmw_ctx_bindinfo *bi, bool rebind)
 }
 
 /**
- * vmw_binding_state_alloc - Allocate a struct vmw_ctx_binding_state with
- * memory accounting.
+ * vmw_binding_state_alloc - Allocate a struct vmw_ctx_binding_state.
  *
  * @dev_priv: Pointer to a device private structure.
  *
@@ -1338,20 +1358,9 @@ struct vmw_ctx_binding_state *
 vmw_binding_state_alloc(struct vmw_private *dev_priv)
 {
 	struct vmw_ctx_binding_state *cbs;
-	struct ttm_operation_ctx ctx = {
-		.interruptible = false,
-		.no_wait_gpu = false
-	};
-	int ret;
-
-	ret = ttm_mem_global_alloc(vmw_mem_glob(dev_priv), sizeof(*cbs),
-				&ctx);
-	if (ret)
-		return ERR_PTR(ret);
 
 	cbs = vzalloc(sizeof(*cbs));
 	if (!cbs) {
-		ttm_mem_global_free(vmw_mem_glob(dev_priv), sizeof(*cbs));
 		return ERR_PTR(-ENOMEM);
 	}
 
@@ -1362,17 +1371,13 @@ vmw_binding_state_alloc(struct vmw_private *dev_priv)
 }
 
 /**
- * vmw_binding_state_free - Free a struct vmw_ctx_binding_state and its
- * memory accounting info.
+ * vmw_binding_state_free - Free a struct vmw_ctx_binding_state.
  *
  * @cbs: Pointer to the struct vmw_ctx_binding_state to be freed.
  */
 void vmw_binding_state_free(struct vmw_ctx_binding_state *cbs)
 {
-	struct vmw_private *dev_priv = cbs->dev_priv;
-
 	vfree(cbs);
-	ttm_mem_global_free(vmw_mem_glob(dev_priv), sizeof(*cbs));
 }
 
 /**

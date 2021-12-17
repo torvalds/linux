@@ -248,7 +248,6 @@ no_context:
 	}
 
 	unhandled_fault(address, tsk, regs);
-	do_exit(SIGKILL);
 
 /*
  * We ran out of memory, or some other thing happened to us that made

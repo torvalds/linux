@@ -39,7 +39,7 @@ static void workload_exec_failed_signal(int signo __maybe_unused,
  * if the number of exit event reported by the kernel is 1 or not
  * in order to check the kernel returns correct number of event.
  */
-int test__task_exit(struct test *test __maybe_unused, int subtest __maybe_unused)
+static int test__task_exit(struct test_suite *test __maybe_unused, int subtest __maybe_unused)
 {
 	int err = -1;
 	union perf_event *event;
@@ -151,3 +151,5 @@ out_delete_evlist:
 	evlist__delete(evlist);
 	return err;
 }
+
+DEFINE_SUITE("Number of exit events of a simple workload", task_exit);

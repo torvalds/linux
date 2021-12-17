@@ -34,9 +34,11 @@ struct i915_lut_handle {
 
 struct drm_i915_gem_object_ops {
 	unsigned int flags;
-#define I915_GEM_OBJECT_IS_SHRINKABLE	BIT(1)
-#define I915_GEM_OBJECT_IS_PROXY	BIT(2)
-#define I915_GEM_OBJECT_NO_MMAP		BIT(3)
+#define I915_GEM_OBJECT_IS_SHRINKABLE			BIT(1)
+/* Skip the shrinker management in set_pages/unset_pages */
+#define I915_GEM_OBJECT_SELF_MANAGED_SHRINK_LIST	BIT(2)
+#define I915_GEM_OBJECT_IS_PROXY			BIT(3)
+#define I915_GEM_OBJECT_NO_MMAP				BIT(4)
 
 	/* Interface between the GEM object and its backing storage.
 	 * get_pages() is called once prior to the use of the associated set
@@ -54,8 +56,11 @@ struct drm_i915_gem_object_ops {
 	int (*get_pages)(struct drm_i915_gem_object *obj);
 	void (*put_pages)(struct drm_i915_gem_object *obj,
 			  struct sg_table *pages);
-	void (*truncate)(struct drm_i915_gem_object *obj);
+	int (*truncate)(struct drm_i915_gem_object *obj);
 	void (*writeback)(struct drm_i915_gem_object *obj);
+	int (*shrinker_release_pages)(struct drm_i915_gem_object *obj,
+				      bool no_gpu_wait,
+				      bool should_writeback);
 
 	int (*pread)(struct drm_i915_gem_object *obj,
 		     const struct drm_i915_gem_pread *arg);
@@ -288,17 +293,23 @@ struct drm_i915_gem_object {
 	I915_SELFTEST_DECLARE(struct list_head st_link);
 
 	unsigned long flags;
-#define I915_BO_ALLOC_CONTIGUOUS BIT(0)
-#define I915_BO_ALLOC_VOLATILE   BIT(1)
-#define I915_BO_ALLOC_CPU_CLEAR  BIT(2)
-#define I915_BO_ALLOC_USER       BIT(3)
+#define I915_BO_ALLOC_CONTIGUOUS  BIT(0)
+#define I915_BO_ALLOC_VOLATILE    BIT(1)
+#define I915_BO_ALLOC_CPU_CLEAR   BIT(2)
+#define I915_BO_ALLOC_USER        BIT(3)
+/* Object is allowed to lose its contents on suspend / resume, even if pinned */
+#define I915_BO_ALLOC_PM_VOLATILE BIT(4)
+/* Object needs to be restored early using memcpy during resume */
+#define I915_BO_ALLOC_PM_EARLY    BIT(5)
 #define I915_BO_ALLOC_FLAGS (I915_BO_ALLOC_CONTIGUOUS | \
 			     I915_BO_ALLOC_VOLATILE | \
 			     I915_BO_ALLOC_CPU_CLEAR | \
-			     I915_BO_ALLOC_USER)
-#define I915_BO_READONLY         BIT(4)
-#define I915_TILING_QUIRK_BIT    5 /* unknown swizzling; do not release! */
-
+			     I915_BO_ALLOC_USER | \
+			     I915_BO_ALLOC_PM_VOLATILE | \
+			     I915_BO_ALLOC_PM_EARLY)
+#define I915_BO_READONLY          BIT(6)
+#define I915_TILING_QUIRK_BIT     7 /* unknown swizzling; do not release! */
+#define I915_BO_PROTECTED         BIT(8)
 	/**
 	 * @mem_flags - Mutable placement-related flags
 	 *
@@ -421,6 +432,33 @@ struct drm_i915_gem_object {
 	 * can freely bypass the CPU cache when touching the pages with the GPU,
 	 * where the kernel is completely unaware. On such platform we need
 	 * apply the sledgehammer-on-acquire regardless of the @cache_coherent.
+	 *
+	 * Special care is taken on non-LLC platforms, to prevent potential
+	 * information leak. The driver currently ensures:
+	 *
+	 *   1. All userspace objects, by default, have @cache_level set as
+	 *   I915_CACHE_NONE. The only exception is userptr objects, where we
+	 *   instead force I915_CACHE_LLC, but we also don't allow userspace to
+	 *   ever change the @cache_level for such objects. Another special case
+	 *   is dma-buf, which doesn't rely on @cache_dirty,  but there we
+	 *   always do a forced flush when acquiring the pages, if there is a
+	 *   chance that the pages can be read directly from main memory with
+	 *   the GPU.
+	 *
+	 *   2. All I915_CACHE_NONE objects have @cache_dirty initially true.
+	 *
+	 *   3. All swapped-out objects(i.e shmem) have @cache_dirty set to
+	 *   true.
+	 *
+	 *   4. The @cache_dirty is never freely reset before the initial
+	 *   flush, even if userspace adjusts the @cache_level through the
+	 *   i915_gem_set_caching_ioctl.
+	 *
+	 *   5. All @cache_dirty objects(including swapped-in) are initially
+	 *   flushed with a synchronous call to drm_clflush_sg in
+	 *   __i915_gem_object_set_pages. The @cache_dirty can be freely reset
+	 *   at this point. All further asynchronous clfushes are never security
+	 *   critical, i.e userspace is free to race against itself.
 	 */
 	unsigned int cache_dirty:1;
 
@@ -453,7 +491,35 @@ struct drm_i915_gem_object {
 		 * instead go through the pin/unpin interfaces.
 		 */
 		atomic_t pages_pin_count;
+
+		/**
+		 * @shrink_pin: Prevents the pages from being made visible to
+		 * the shrinker, while the shrink_pin is non-zero. Most users
+		 * should pretty much never have to care about this, outside of
+		 * some special use cases.
+		 *
+		 * By default most objects will start out as visible to the
+		 * shrinker(if I915_GEM_OBJECT_IS_SHRINKABLE) as soon as the
+		 * backing pages are attached to the object, like in
+		 * __i915_gem_object_set_pages(). They will then be removed the
+		 * shrinker list once the pages are released.
+		 *
+		 * The @shrink_pin is incremented by calling
+		 * i915_gem_object_make_unshrinkable(), which will also remove
+		 * the object from the shrinker list, if the pin count was zero.
+		 *
+		 * Callers will then typically call
+		 * i915_gem_object_make_shrinkable() or
+		 * i915_gem_object_make_purgeable() to decrement the pin count,
+		 * and make the pages visible again.
+		 */
 		atomic_t shrink_pin;
+
+		/**
+		 * @ttm_shrinkable: True when the object is using shmem pages
+		 * underneath. Protected by the object lock.
+		 */
+		bool ttm_shrinkable;
 
 		/**
 		 * Priority list of potential placements for this object.
@@ -479,6 +545,7 @@ struct drm_i915_gem_object {
 		 */
 		struct list_head region_link;
 
+		struct i915_refct_sgt *rsgt;
 		struct sg_table *pages;
 		void *mapping;
 
@@ -514,7 +581,7 @@ struct drm_i915_gem_object {
 		struct i915_gem_object_page_iter get_dma_page;
 
 		/**
-		 * Element within i915->mm.unbound_list or i915->mm.bound_list,
+		 * Element within i915->mm.shrink_list or i915->mm.purge_list,
 		 * locked by i915->mm.obj_lock.
 		 */
 		struct list_head link;
@@ -532,10 +599,18 @@ struct drm_i915_gem_object {
 	} mm;
 
 	struct {
-		struct sg_table *cached_io_st;
+		struct i915_refct_sgt *cached_io_rsgt;
 		struct i915_gem_object_page_iter get_io_page;
+		struct drm_i915_gem_object *backup;
 		bool created:1;
 	} ttm;
+
+	/*
+	 * Record which PXP key instance this object was created against (if
+	 * any), so we can use it to determine if the encryption is valid by
+	 * comparing against the current key instance.
+	 */
+	u32 pxp_key_instance;
 
 	/** Record of address bit 17 of each page at last unbind. */
 	unsigned long *bit_17;

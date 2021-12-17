@@ -852,7 +852,6 @@ struct irdma_roce_offload_info {
 	u16 err_rq_idx;
 	u32 qkey;
 	u32 dest_qp;
-	u32 local_qp;
 	u8 roce_tver;
 	u8 ack_credits;
 	u8 err_rq_idx_valid;
@@ -1256,7 +1255,7 @@ enum irdma_status_code irdma_sc_qp_modify(struct irdma_sc_qp *qp,
 					  u64 scratch, bool post_sq);
 void irdma_sc_send_lsmm(struct irdma_sc_qp *qp, void *lsmm_buf, u32 size,
 			irdma_stag stag);
-void irdma_sc_send_lsmm_nostag(struct irdma_sc_qp *qp, void *lsmm_buf, u32 size);
+
 void irdma_sc_send_rtt(struct irdma_sc_qp *qp, bool read);
 void irdma_sc_qp_setctx(struct irdma_sc_qp *qp, __le64 *qp_ctx,
 			struct irdma_qp_host_ctx_info *info);

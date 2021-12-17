@@ -26,7 +26,7 @@
 
 #define NVIC_ISER		0x000
 #define NVIC_ICER		0x080
-#define NVIC_IPR		0x300
+#define NVIC_IPR		0x400
 
 #define NVIC_MAX_BANKS		16
 /*
@@ -37,10 +37,25 @@
 
 static struct irq_domain *nvic_irq_domain;
 
+static void __nvic_handle_irq(irq_hw_number_t hwirq)
+{
+	generic_handle_domain_irq(nvic_irq_domain, hwirq);
+}
+
+/*
+ * TODO: restructure the ARMv7M entry logic so that this entry logic can live
+ * in arch code.
+ */
 asmlinkage void __exception_irq_entry
 nvic_handle_irq(irq_hw_number_t hwirq, struct pt_regs *regs)
 {
-	handle_domain_irq(nvic_irq_domain, hwirq, regs);
+	struct pt_regs *old_regs;
+
+	irq_enter();
+	old_regs = set_irq_regs(regs);
+	__nvic_handle_irq(hwirq);
+	set_irq_regs(old_regs);
+	irq_exit();
 }
 
 static int nvic_irq_domain_alloc(struct irq_domain *domain, unsigned int virq,

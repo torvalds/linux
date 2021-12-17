@@ -127,6 +127,8 @@ static const struct clk_pll_characteristics pll_characteristics = {
  * @t:		clock type
  * @f:		clock flags
  * @eid:	export index in sama7g5->chws[] array
+ * @safe_div:	intermediate divider need to be set on PRE_RATE_CHANGE
+ *		notification
  */
 static const struct {
 	const char *n;
@@ -136,6 +138,7 @@ static const struct {
 	unsigned long f;
 	u8 t;
 	u8 eid;
+	u8 safe_div;
 } sama7g5_plls[][PLL_ID_MAX] = {
 	[PLL_ID_CPU] = {
 		{ .n = "cpupll_fracck",
@@ -156,7 +159,12 @@ static const struct {
 		  .t = PLL_TYPE_DIV,
 		   /* This feeds CPU. It should not be disabled. */
 		  .f = CLK_IS_CRITICAL | CLK_SET_RATE_PARENT,
-		  .eid = PMC_CPUPLL, },
+		  .eid = PMC_CPUPLL,
+		  /*
+		   * Safe div=15 should be safe even for switching b/w 1GHz and
+		   * 90MHz (frac pll might go up to 1.2GHz).
+		   */
+		  .safe_div = 15, },
 	},
 
 	[PLL_ID_SYS] = {
@@ -377,6 +385,7 @@ static const struct {
 	u8 id;
 } sama7g5_periphck[] = {
 	{ .n = "pioA_clk",	.p = "mck0", .id = 11, },
+	{ .n = "securam_clk",	.p = "mck0", .id = 18, },
 	{ .n = "sfr_clk",	.p = "mck1", .id = 19, },
 	{ .n = "hsmc_clk",	.p = "mck1", .id = 21, },
 	{ .n = "xdmac0_clk",	.p = "mck1", .id = 22, },
@@ -841,7 +850,7 @@ static const struct {
 
 /* MCK0 characteristics. */
 static const struct clk_master_characteristics mck0_characteristics = {
-	.output = { .min = 50000000, .max = 200000000 },
+	.output = { .min = 32768, .max = 200000000 },
 	.divisors = { 1, 2, 4, 3, 5 },
 	.have_div3_pres = 1,
 };
@@ -966,7 +975,8 @@ static void __init sama7g5_pmc_setup(struct device_node *np)
 					sama7g5_plls[i][j].p, i,
 					sama7g5_plls[i][j].c,
 					sama7g5_plls[i][j].l,
-					sama7g5_plls[i][j].f);
+					sama7g5_plls[i][j].f,
+					sama7g5_plls[i][j].safe_div);
 				break;
 
 			default:
@@ -982,18 +992,9 @@ static void __init sama7g5_pmc_setup(struct device_node *np)
 	}
 
 	parent_names[0] = "cpupll_divpmcck";
-	hw = at91_clk_register_master_pres(regmap, "cpuck", 1, parent_names,
-					   &mck0_layout, &mck0_characteristics,
-					   &pmc_mck0_lock,
-					   CLK_SET_RATE_PARENT, 0);
-	if (IS_ERR(hw))
-		goto err_free;
-
-	sama7g5_pmc->chws[PMC_CPU] = hw;
-
-	hw = at91_clk_register_master_div(regmap, "mck0", "cpuck",
+	hw = at91_clk_register_master_div(regmap, "mck0", "cpupll_divpmcck",
 					  &mck0_layout, &mck0_characteristics,
-					  &pmc_mck0_lock, 0);
+					  &pmc_mck0_lock, CLK_GET_RATE_NOCACHE, 5);
 	if (IS_ERR(hw))
 		goto err_free;
 

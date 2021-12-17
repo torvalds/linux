@@ -7,7 +7,6 @@
 
 /dts-v1/;
 
-#include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/regulator/qcom,rpmh-regulator.h>
 #include "sdm845.dtsi"
 
@@ -361,9 +360,6 @@
 	qcom,dual-dsi-mode;
 	qcom,master-dsi;
 
-	#address-cells = <1>;
-	#size-cells = <0>;
-
 	ports {
 		port@1 {
 			endpoint {
@@ -439,7 +435,13 @@
 			   <GCC_LPASS_SWAY_CLK>;
 };
 
+&gmu {
+	status = "okay";
+};
+
 &gpu {
+	status = "okay";
+
 	zap-shader {
 		memory-region = <&gpu_mem>;
 		firmware-name = "qcom/sdm845/a630_zap.mbn";
@@ -457,10 +459,6 @@
 };
 
 &mdss {
-	status = "okay";
-};
-
-&mdss_mdp {
 	status = "okay";
 };
 
@@ -564,6 +562,10 @@
 
 	vdda-phy-supply = <&vdda_usb2_ss_1p2>;
 	vdda-pll-supply = <&vdda_usb2_ss_core>;
+};
+
+&venus {
+	status = "okay";
 };
 
 &wifi {

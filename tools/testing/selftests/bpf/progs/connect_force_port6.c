@@ -12,7 +12,6 @@
 #include <bpf_sockopt_helpers.h>
 
 char _license[] SEC("license") = "GPL";
-int _version SEC("version") = 1;
 
 struct svc_addr {
 	__be32 addr[4];

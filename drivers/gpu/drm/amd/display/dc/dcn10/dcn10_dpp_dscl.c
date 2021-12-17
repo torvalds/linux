@@ -39,6 +39,10 @@
 #define BLACK_OFFSET_RGB_Y 0x0
 #define BLACK_OFFSET_CBCR  0x8000
 
+#define VISUAL_CONFIRM_RECT_HEIGHT_DEFAULT 3
+#define VISUAL_CONFIRM_RECT_HEIGHT_MIN 1
+#define VISUAL_CONFIRM_RECT_HEIGHT_MAX 10
+
 #define REG(reg)\
 	dpp->tf_regs->reg
 
@@ -205,9 +209,17 @@ static void dpp1_power_on_dscl(
 	struct dcn10_dpp *dpp = TO_DCN10_DPP(dpp_base);
 
 	if (dpp->tf_regs->DSCL_MEM_PWR_CTRL) {
-		REG_UPDATE(DSCL_MEM_PWR_CTRL, LUT_MEM_PWR_FORCE, power_on ? 0 : 3);
-		if (power_on)
+		if (power_on) {
+			REG_UPDATE(DSCL_MEM_PWR_CTRL, LUT_MEM_PWR_FORCE, 0);
 			REG_WAIT(DSCL_MEM_PWR_STATUS, LUT_MEM_PWR_STATE, 0, 1, 5);
+		} else {
+			if (dpp->base.ctx->dc->debug.enable_mem_low_power.bits.dscl) {
+				dpp->base.ctx->dc->optimized_required = true;
+				dpp->base.deferred_reg_writes.bits.disable_dscl = true;
+			} else {
+				REG_UPDATE(DSCL_MEM_PWR_CTRL, LUT_MEM_PWR_FORCE, 3);
+			}
+		}
 	}
 }
 
@@ -677,8 +689,16 @@ static void dpp1_dscl_set_recout(struct dcn10_dpp *dpp,
 				 const struct rect *recout)
 {
 	int visual_confirm_on = 0;
+	unsigned short visual_confirm_rect_height = VISUAL_CONFIRM_RECT_HEIGHT_DEFAULT;
+
 	if (dpp->base.ctx->dc->debug.visual_confirm != VISUAL_CONFIRM_DISABLE)
 		visual_confirm_on = 1;
+
+	/* Check bounds to ensure the VC bar height was set to a sane value */
+	if ((dpp->base.ctx->dc->debug.visual_confirm_rect_height >= VISUAL_CONFIRM_RECT_HEIGHT_MIN) &&
+			(dpp->base.ctx->dc->debug.visual_confirm_rect_height <= VISUAL_CONFIRM_RECT_HEIGHT_MAX)) {
+		visual_confirm_rect_height = dpp->base.ctx->dc->debug.visual_confirm_rect_height;
+	}
 
 	REG_SET_2(RECOUT_START, 0,
 		  /* First pixel of RECOUT in the active OTG area */
@@ -691,7 +711,7 @@ static void dpp1_dscl_set_recout(struct dcn10_dpp *dpp,
 		  RECOUT_WIDTH, recout->width,
 		  /* Number of RECOUT vertical lines */
 		  RECOUT_HEIGHT, recout->height
-			 - visual_confirm_on * 2 * (dpp->base.inst + 1));
+			 - visual_confirm_on * 2 * (dpp->base.inst + visual_confirm_rect_height));
 }
 
 /**

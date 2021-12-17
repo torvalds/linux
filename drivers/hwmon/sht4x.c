@@ -23,7 +23,7 @@
 /*
  * I2C command delays (in microseconds)
  */
-#define SHT4X_MEAS_DELAY	1000
+#define SHT4X_MEAS_DELAY_HPM	8200	/* see t_MEAS,h in datasheet */
 #define SHT4X_DELAY_EXTRA	10000
 
 /*
@@ -90,7 +90,7 @@ static int sht4x_read_values(struct sht4x_data *data)
 	if (ret < 0)
 		goto unlock;
 
-	usleep_range(SHT4X_MEAS_DELAY, SHT4X_MEAS_DELAY + SHT4X_DELAY_EXTRA);
+	usleep_range(SHT4X_MEAS_DELAY_HPM, SHT4X_MEAS_DELAY_HPM + SHT4X_DELAY_EXTRA);
 
 	ret = i2c_master_recv(client, raw_data, SHT4X_RESPONSE_LENGTH);
 	if (ret != SHT4X_RESPONSE_LENGTH) {

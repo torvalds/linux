@@ -1153,17 +1153,19 @@ static void update_mac_address(struct net_device *ndev)
 static void read_mac_address(struct net_device *ndev, unsigned char *mac)
 {
 	if (mac[0] || mac[1] || mac[2] || mac[3] || mac[4] || mac[5]) {
-		memcpy(ndev->dev_addr, mac, ETH_ALEN);
+		eth_hw_addr_set(ndev, mac);
 	} else {
 		u32 mahr = sh_eth_read(ndev, MAHR);
 		u32 malr = sh_eth_read(ndev, MALR);
+		u8 addr[ETH_ALEN];
 
-		ndev->dev_addr[0] = (mahr >> 24) & 0xFF;
-		ndev->dev_addr[1] = (mahr >> 16) & 0xFF;
-		ndev->dev_addr[2] = (mahr >>  8) & 0xFF;
-		ndev->dev_addr[3] = (mahr >>  0) & 0xFF;
-		ndev->dev_addr[4] = (malr >>  8) & 0xFF;
-		ndev->dev_addr[5] = (malr >>  0) & 0xFF;
+		addr[0] = (mahr >> 24) & 0xFF;
+		addr[1] = (mahr >> 16) & 0xFF;
+		addr[2] = (mahr >>  8) & 0xFF;
+		addr[3] = (mahr >>  0) & 0xFF;
+		addr[4] = (malr >>  8) & 0xFF;
+		addr[5] = (malr >>  0) & 0xFF;
+		eth_hw_addr_set(ndev, addr);
 	}
 }
 

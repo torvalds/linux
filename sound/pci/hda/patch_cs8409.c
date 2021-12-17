@@ -750,6 +750,11 @@ static void cs42l42_resume(struct sub_codec *cs42l42)
 	if (cs42l42->full_scale_vol)
 		cs8409_i2c_write(cs42l42, 0x2001, 0x01);
 
+	/* we have to explicitly allow unsol event handling even during the
+	 * resume phase so that the jack event is processed properly
+	 */
+	snd_hda_codec_allow_unsol_events(cs42l42->codec);
+
 	cs42l42_enable_jack_detect(cs42l42);
 }
 
@@ -1206,6 +1211,9 @@ void dolphin_fixups(struct hda_codec *codec, const struct hda_fixup *fix, int ac
 
 		snd_hda_jack_add_kctl(codec, DOLPHIN_LO_PIN_NID, "Line Out", true,
 				      SND_JACK_HEADPHONE, NULL);
+
+		snd_hda_jack_add_kctl(codec, DOLPHIN_AMIC_PIN_NID, "Microphone", true,
+				      SND_JACK_MICROPHONE, NULL);
 
 		cs8409_fix_caps(codec, DOLPHIN_HP_PIN_NID);
 		cs8409_fix_caps(codec, DOLPHIN_LO_PIN_NID);

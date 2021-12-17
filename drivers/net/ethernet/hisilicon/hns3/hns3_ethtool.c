@@ -238,9 +238,11 @@ static void hns3_lb_clear_tx_ring(struct hns3_nic_priv *priv, u32 start_ringid,
 }
 
 /**
- * hns3_lp_run_test -  run loopback test
+ * hns3_lp_run_test - run loopback test
  * @ndev: net device
  * @mode: loopback type
+ *
+ * Return: %0 for success or a NIC loopback test error code on failure
  */
 static int hns3_lp_run_test(struct net_device *ndev, enum hnae3_loop mode)
 {
@@ -334,7 +336,8 @@ static void hns3_selftest_prepare(struct net_device *ndev,
 
 #if IS_ENABLED(CONFIG_VLAN_8021Q)
 	/* Disable the vlan filter for selftest does not support it */
-	if (h->ae_algo->ops->enable_vlan_filter)
+	if (h->ae_algo->ops->enable_vlan_filter &&
+	    ndev->features & NETIF_F_HW_VLAN_CTAG_FILTER)
 		h->ae_algo->ops->enable_vlan_filter(h, false);
 #endif
 
@@ -359,7 +362,8 @@ static void hns3_selftest_restore(struct net_device *ndev, bool if_running)
 		h->ae_algo->ops->halt_autoneg(h, false);
 
 #if IS_ENABLED(CONFIG_VLAN_8021Q)
-	if (h->ae_algo->ops->enable_vlan_filter)
+	if (h->ae_algo->ops->enable_vlan_filter &&
+	    ndev->features & NETIF_F_HW_VLAN_CTAG_FILTER)
 		h->ae_algo->ops->enable_vlan_filter(h, true);
 #endif
 
@@ -396,7 +400,7 @@ static void hns3_do_selftest(struct net_device *ndev, int (*st_param)[2],
 }
 
 /**
- * hns3_nic_self_test - self test
+ * hns3_self_test - self test
  * @ndev: net device
  * @eth_test: test cmd
  * @data: test result
@@ -606,7 +610,7 @@ static void hns3_get_drvinfo(struct net_device *netdev,
 		return;
 	}
 
-	strncpy(drvinfo->driver, h->pdev->driver->name,
+	strncpy(drvinfo->driver, dev_driver_string(&h->pdev->dev),
 		sizeof(drvinfo->driver));
 	drvinfo->driver[sizeof(drvinfo->driver) - 1] = '\0';
 
@@ -983,6 +987,7 @@ static int hns3_set_reset(struct net_device *netdev, u32 *flags)
 	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(h->pdev);
 	const struct hnae3_ae_ops *ops = h->ae_algo->ops;
 	const struct hns3_reset_type_map *rst_type_map;
+	enum ethtool_reset_flags rst_flags;
 	u32 i, size;
 
 	if (ops->ae_dev_resetting && ops->ae_dev_resetting(h))
@@ -1002,6 +1007,7 @@ static int hns3_set_reset(struct net_device *netdev, u32 *flags)
 	for (i = 0; i < size; i++) {
 		if (rst_type_map[i].rst_flags == *flags) {
 			rst_type = rst_type_map[i].rst_type;
+			rst_flags = rst_type_map[i].rst_flags;
 			break;
 		}
 	}
@@ -1016,6 +1022,8 @@ static int hns3_set_reset(struct net_device *netdev, u32 *flags)
 	ops->set_default_reset_request(ae_dev, rst_type);
 
 	ops->reset_event(h->pdev, h);
+
+	*flags &= ~rst_flags;
 
 	return 0;
 }

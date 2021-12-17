@@ -108,15 +108,15 @@ static ssize_t ad_partner_oper_port_state_show(struct slave *slave, char *buf)
 }
 static SLAVE_ATTR_RO(ad_partner_oper_port_state);
 
-static const struct slave_attribute *slave_attrs[] = {
-	&slave_attr_state,
-	&slave_attr_mii_status,
-	&slave_attr_link_failure_count,
-	&slave_attr_perm_hwaddr,
-	&slave_attr_queue_id,
-	&slave_attr_ad_aggregator_id,
-	&slave_attr_ad_actor_oper_port_state,
-	&slave_attr_ad_partner_oper_port_state,
+static const struct attribute *slave_attrs[] = {
+	&slave_attr_state.attr,
+	&slave_attr_mii_status.attr,
+	&slave_attr_link_failure_count.attr,
+	&slave_attr_perm_hwaddr.attr,
+	&slave_attr_queue_id.attr,
+	&slave_attr_ad_aggregator_id.attr,
+	&slave_attr_ad_actor_oper_port_state.attr,
+	&slave_attr_ad_partner_oper_port_state.attr,
 	NULL
 };
 
@@ -137,24 +137,10 @@ const struct sysfs_ops slave_sysfs_ops = {
 
 int bond_sysfs_slave_add(struct slave *slave)
 {
-	const struct slave_attribute **a;
-	int err;
-
-	for (a = slave_attrs; *a; ++a) {
-		err = sysfs_create_file(&slave->kobj, &((*a)->attr));
-		if (err) {
-			kobject_put(&slave->kobj);
-			return err;
-		}
-	}
-
-	return 0;
+	return sysfs_create_files(&slave->kobj, slave_attrs);
 }
 
 void bond_sysfs_slave_del(struct slave *slave)
 {
-	const struct slave_attribute **a;
-
-	for (a = slave_attrs; *a; ++a)
-		sysfs_remove_file(&slave->kobj, &((*a)->attr));
+	sysfs_remove_files(&slave->kobj, slave_attrs);
 }

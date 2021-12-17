@@ -146,8 +146,8 @@ static const struct reg_sequence y030xx067a_init_sequence[] = {
 	{ 0x09, REG09_SUB_BRIGHT_R(0x20) },
 	{ 0x0a, REG0A_SUB_BRIGHT_B(0x20) },
 	{ 0x0b, REG0B_HD_FREERUN | REG0B_VD_FREERUN },
-	{ 0x0c, REG0C_CONTRAST_R(0x10) },
-	{ 0x0d, REG0D_CONTRAST_G(0x10) },
+	{ 0x0c, REG0C_CONTRAST_R(0x00) },
+	{ 0x0d, REG0D_CONTRAST_G(0x00) },
 	{ 0x0e, REG0E_CONTRAST_B(0x10) },
 	{ 0x0f, 0 },
 	{ 0x10, REG10_BRIGHT(0x7f) },
@@ -272,16 +272,14 @@ static int y030xx067a_probe(struct spi_device *spi)
 		return -EINVAL;
 
 	priv->supply = devm_regulator_get(dev, "power");
-	if (IS_ERR(priv->supply)) {
-		dev_err(dev, "Failed to get power supply\n");
-		return PTR_ERR(priv->supply);
-	}
+	if (IS_ERR(priv->supply))
+		return dev_err_probe(dev, PTR_ERR(priv->supply),
+				     "Failed to get power supply\n");
 
 	priv->reset_gpio = devm_gpiod_get(dev, "reset", GPIOD_OUT_HIGH);
-	if (IS_ERR(priv->reset_gpio)) {
-		dev_err(dev, "Failed to get reset GPIO\n");
-		return PTR_ERR(priv->reset_gpio);
-	}
+	if (IS_ERR(priv->reset_gpio))
+		return dev_err_probe(dev, PTR_ERR(priv->reset_gpio),
+				     "Failed to get reset GPIO\n");
 
 	drm_panel_init(&priv->panel, dev, &y030xx067a_funcs,
 		       DRM_MODE_CONNECTOR_DPI);

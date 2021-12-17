@@ -20,12 +20,12 @@
 #include <linux/crypto.h>
 #include <crypto/streebog.h>
 #include <crypto/internal/akcipher.h>
+#include <crypto/internal/ecc.h>
 #include <crypto/akcipher.h>
 #include <linux/oid_registry.h>
 #include <linux/scatterlist.h>
 #include "ecrdsa_params.asn1.h"
 #include "ecrdsa_pub_key.asn1.h"
-#include "ecc.h"
 #include "ecrdsa_defs.h"
 
 #define ECRDSA_MAX_SIG_SIZE (2 * 512 / 8)

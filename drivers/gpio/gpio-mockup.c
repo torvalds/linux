@@ -476,10 +476,19 @@ static struct platform_device *gpio_mockup_pdevs[GPIO_MOCKUP_MAX_GC];
 
 static void gpio_mockup_unregister_pdevs(void)
 {
+	struct platform_device *pdev;
+	struct fwnode_handle *fwnode;
 	int i;
 
-	for (i = 0; i < GPIO_MOCKUP_MAX_GC; i++)
-		platform_device_unregister(gpio_mockup_pdevs[i]);
+	for (i = 0; i < GPIO_MOCKUP_MAX_GC; i++) {
+		pdev = gpio_mockup_pdevs[i];
+		if (!pdev)
+			continue;
+
+		fwnode = dev_fwnode(&pdev->dev);
+		platform_device_unregister(pdev);
+		fwnode_remove_software_node(fwnode);
+	}
 }
 
 static __init char **gpio_mockup_make_line_names(const char *label,
@@ -508,6 +517,7 @@ static int __init gpio_mockup_register_chip(int idx)
 	struct property_entry properties[GPIO_MOCKUP_MAX_PROP];
 	struct platform_device_info pdevinfo;
 	struct platform_device *pdev;
+	struct fwnode_handle *fwnode;
 	char **line_names = NULL;
 	char chip_label[32];
 	int prop = 0, base;
@@ -536,13 +546,18 @@ static int __init gpio_mockup_register_chip(int idx)
 					"gpio-line-names", line_names, ngpio);
 	}
 
+	fwnode = fwnode_create_software_node(properties, NULL);
+	if (IS_ERR(fwnode))
+		return PTR_ERR(fwnode);
+
 	pdevinfo.name = "gpio-mockup";
 	pdevinfo.id = idx;
-	pdevinfo.properties = properties;
+	pdevinfo.fwnode = fwnode;
 
 	pdev = platform_device_register_full(&pdevinfo);
 	kfree_strarray(line_names, ngpio);
 	if (IS_ERR(pdev)) {
+		fwnode_remove_software_node(fwnode);
 		pr_err("error registering device");
 		return PTR_ERR(pdev);
 	}

@@ -429,6 +429,7 @@ What:		/sys/bus/iio/devices/iio:deviceX/in_angl_scale
 What:		/sys/bus/iio/devices/iio:deviceX/in_intensity_x_scale
 What:		/sys/bus/iio/devices/iio:deviceX/in_intensity_y_scale
 What:		/sys/bus/iio/devices/iio:deviceX/in_intensity_z_scale
+What:		/sys/bus/iio/devices/iio:deviceX/in_concentration_co2_scale
 KernelVersion:	2.6.35
 Contact:	linux-iio@vger.kernel.org
 Description:
@@ -1957,3 +1958,44 @@ Description:
 		Specify the percent for light sensor relative to the channel
 		absolute value that a data field should change before an event
 		is generated. Units are a percentage of the prior reading.
+
+What:		/sys/bus/iio/devices/iio:deviceX/calibration_auto_enable
+Date:		June 2020
+KernelVersion:	5.8
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Some sensors have the ability to apply auto calibration at
+		runtime. For example, it may be necessary to compensate for
+		contaminant build-up in a measurement chamber or optical
+		element deterioration that would otherwise lead to sensor drift.
+
+		Writing 1 or 0 to this attribute will respectively activate or
+		deactivate this auto calibration function.
+
+		Upon reading, the current status is returned.
+
+What:		/sys/bus/iio/devices/iio:deviceX/calibration_forced_value
+Date:		June 2020
+KernelVersion:	5.8
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Some sensors have the ability to apply a manual calibration using
+		a known measurement value, perhaps obtained from an external
+		reference device.
+
+		Writing a value to this function will force such a calibration
+		change. For the scd30 the value should be from the range
+		[400 1 2000].
+
+		Note for the scd30 that a valid value may only be obtained once
+		it is has been written. Until then any read back of this value
+		should be ignored. As for the scd4x an error will be returned
+		immediately if the manual calibration has failed.
+
+What:		/sys/bus/iio/devices/iio:deviceX/calibration_forced_value_available
+KernelVersion:  5.15
+Contact:        linux-iio@vger.kernel.org
+Description:
+		Available range for the forced calibration value, expressed as:
+
+		- a range specified as "[min step max]"

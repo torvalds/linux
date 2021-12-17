@@ -36,10 +36,8 @@ void mlx5e_rep_encap_entry_detach(struct mlx5e_priv *priv,
 int mlx5e_rep_setup_tc(struct net_device *dev, enum tc_setup_type type,
 		       void *type_data);
 
-bool mlx5e_rep_tc_update_skb(struct mlx5_cqe64 *cqe,
-			     struct sk_buff *skb,
-			     struct mlx5e_tc_update_priv *tc_priv);
-void mlx5_rep_tc_post_napi_receive(struct mlx5e_tc_update_priv *tc_priv);
+void mlx5e_rep_tc_receive(struct mlx5_cqe64 *cqe, struct mlx5e_rq *rq,
+			  struct sk_buff *skb);
 
 #else /* CONFIG_MLX5_CLS_ACT */
 
@@ -66,13 +64,9 @@ static inline int
 mlx5e_rep_setup_tc(struct net_device *dev, enum tc_setup_type type,
 		   void *type_data) { return -EOPNOTSUPP; }
 
-struct mlx5e_tc_update_priv;
-static inline bool
-mlx5e_rep_tc_update_skb(struct mlx5_cqe64 *cqe,
-			struct sk_buff *skb,
-			struct mlx5e_tc_update_priv *tc_priv) { return true; }
 static inline void
-mlx5_rep_tc_post_napi_receive(struct mlx5e_tc_update_priv *tc_priv) {}
+mlx5e_rep_tc_receive(struct mlx5_cqe64 *cqe, struct mlx5e_rq *rq,
+		     struct sk_buff *skb) {}
 
 #endif /* CONFIG_MLX5_CLS_ACT */
 

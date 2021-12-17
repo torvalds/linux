@@ -35,10 +35,14 @@
 #include <drm/drm_fourcc.h>
 #include <drm/drm_plane_helper.h>
 
-#include "i915_trace.h"
+#include "gt/intel_rps.h"
+
 #include "intel_atomic_plane.h"
 #include "intel_cdclk.h"
+#include "intel_display_trace.h"
 #include "intel_display_types.h"
+#include "intel_fb.h"
+#include "intel_fb_pin.h"
 #include "intel_pm.h"
 #include "intel_sprite.h"
 
@@ -392,7 +396,7 @@ int intel_plane_atomic_check(struct intel_atomic_state *state,
 	const struct intel_plane_state *old_plane_state =
 		intel_atomic_get_old_plane_state(state, plane);
 	const struct intel_plane_state *new_master_plane_state;
-	struct intel_crtc *crtc = intel_get_crtc_for_pipe(i915, plane->pipe);
+	struct intel_crtc *crtc = intel_crtc_for_pipe(i915, plane->pipe);
 	const struct intel_crtc_state *old_crtc_state =
 		intel_atomic_get_old_crtc_state(state, crtc);
 	struct intel_crtc_state *new_crtc_state =
@@ -467,31 +471,72 @@ skl_next_plane_to_commit(struct intel_atomic_state *state,
 	return NULL;
 }
 
-void intel_update_plane(struct intel_plane *plane,
-			const struct intel_crtc_state *crtc_state,
-			const struct intel_plane_state *plane_state)
+void intel_plane_update_noarm(struct intel_plane *plane,
+			      const struct intel_crtc_state *crtc_state,
+			      const struct intel_plane_state *plane_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 
-	trace_intel_update_plane(&plane->base, crtc);
+	trace_intel_plane_update_noarm(&plane->base, crtc);
+
+	if (plane->update_noarm)
+		plane->update_noarm(plane, crtc_state, plane_state);
+}
+
+void intel_plane_update_arm(struct intel_plane *plane,
+			    const struct intel_crtc_state *crtc_state,
+			    const struct intel_plane_state *plane_state)
+{
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+
+	trace_intel_plane_update_arm(&plane->base, crtc);
 
 	if (crtc_state->uapi.async_flip && plane->async_flip)
 		plane->async_flip(plane, crtc_state, plane_state, true);
 	else
-		plane->update_plane(plane, crtc_state, plane_state);
+		plane->update_arm(plane, crtc_state, plane_state);
 }
 
-void intel_disable_plane(struct intel_plane *plane,
-			 const struct intel_crtc_state *crtc_state)
+void intel_plane_disable_arm(struct intel_plane *plane,
+			     const struct intel_crtc_state *crtc_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 
-	trace_intel_disable_plane(&plane->base, crtc);
-	plane->disable_plane(plane, crtc_state);
+	trace_intel_plane_disable_arm(&plane->base, crtc);
+	plane->disable_arm(plane, crtc_state);
 }
 
-void skl_update_planes_on_crtc(struct intel_atomic_state *state,
-			       struct intel_crtc *crtc)
+void intel_update_planes_on_crtc(struct intel_atomic_state *state,
+				 struct intel_crtc *crtc)
+{
+	struct intel_crtc_state *new_crtc_state =
+		intel_atomic_get_new_crtc_state(state, crtc);
+	u32 update_mask = new_crtc_state->update_planes;
+	struct intel_plane_state *new_plane_state;
+	struct intel_plane *plane;
+	int i;
+
+	if (new_crtc_state->uapi.async_flip)
+		return;
+
+	/*
+	 * Since we only write non-arming registers here,
+	 * the order does not matter even for skl+.
+	 */
+	for_each_new_intel_plane_in_state(state, plane, new_plane_state, i) {
+		if (crtc->pipe != plane->pipe ||
+		    !(update_mask & BIT(plane->id)))
+			continue;
+
+		/* TODO: for mailbox updates this should be skipped */
+		if (new_plane_state->uapi.visible ||
+		    new_plane_state->planar_slave)
+			intel_plane_update_noarm(plane, new_crtc_state, new_plane_state);
+	}
+}
+
+void skl_arm_planes_on_crtc(struct intel_atomic_state *state,
+			    struct intel_crtc *crtc)
 {
 	struct intel_crtc_state *old_crtc_state =
 		intel_atomic_get_old_crtc_state(state, crtc);
@@ -513,17 +558,20 @@ void skl_update_planes_on_crtc(struct intel_atomic_state *state,
 		struct intel_plane_state *new_plane_state =
 			intel_atomic_get_new_plane_state(state, plane);
 
+		/*
+		 * TODO: for mailbox updates intel_plane_update_noarm()
+		 * would have to be called here as well.
+		 */
 		if (new_plane_state->uapi.visible ||
-		    new_plane_state->planar_slave) {
-			intel_update_plane(plane, new_crtc_state, new_plane_state);
-		} else {
-			intel_disable_plane(plane, new_crtc_state);
-		}
+		    new_plane_state->planar_slave)
+			intel_plane_update_arm(plane, new_crtc_state, new_plane_state);
+		else
+			intel_plane_disable_arm(plane, new_crtc_state);
 	}
 }
 
-void i9xx_update_planes_on_crtc(struct intel_atomic_state *state,
-				struct intel_crtc *crtc)
+void i9xx_arm_planes_on_crtc(struct intel_atomic_state *state,
+			     struct intel_crtc *crtc)
 {
 	struct intel_crtc_state *new_crtc_state =
 		intel_atomic_get_new_crtc_state(state, crtc);
@@ -537,10 +585,14 @@ void i9xx_update_planes_on_crtc(struct intel_atomic_state *state,
 		    !(update_mask & BIT(plane->id)))
 			continue;
 
+		/*
+		 * TODO: for mailbox updates intel_plane_update_noarm()
+		 * would have to be called here as well.
+		 */
 		if (new_plane_state->uapi.visible)
-			intel_update_plane(plane, new_crtc_state, new_plane_state);
+			intel_plane_update_arm(plane, new_crtc_state, new_plane_state);
 		else
-			intel_disable_plane(plane, new_crtc_state);
+			intel_plane_disable_arm(plane, new_crtc_state);
 	}
 }
 
@@ -599,6 +651,214 @@ int intel_atomic_plane_check_clipping(struct intel_plane_state *plane_state,
 	}
 
 	return 0;
+}
+
+struct wait_rps_boost {
+	struct wait_queue_entry wait;
+
+	struct drm_crtc *crtc;
+	struct i915_request *request;
+};
+
+static int do_rps_boost(struct wait_queue_entry *_wait,
+			unsigned mode, int sync, void *key)
+{
+	struct wait_rps_boost *wait = container_of(_wait, typeof(*wait), wait);
+	struct i915_request *rq = wait->request;
+
+	/*
+	 * If we missed the vblank, but the request is already running it
+	 * is reasonable to assume that it will complete before the next
+	 * vblank without our intervention, so leave RPS alone.
+	 */
+	if (!i915_request_started(rq))
+		intel_rps_boost(rq);
+	i915_request_put(rq);
+
+	drm_crtc_vblank_put(wait->crtc);
+
+	list_del(&wait->wait.entry);
+	kfree(wait);
+	return 1;
+}
+
+static void add_rps_boost_after_vblank(struct drm_crtc *crtc,
+				       struct dma_fence *fence)
+{
+	struct wait_rps_boost *wait;
+
+	if (!dma_fence_is_i915(fence))
+		return;
+
+	if (DISPLAY_VER(to_i915(crtc->dev)) < 6)
+		return;
+
+	if (drm_crtc_vblank_get(crtc))
+		return;
+
+	wait = kmalloc(sizeof(*wait), GFP_KERNEL);
+	if (!wait) {
+		drm_crtc_vblank_put(crtc);
+		return;
+	}
+
+	wait->request = to_request(dma_fence_get(fence));
+	wait->crtc = crtc;
+
+	wait->wait.func = do_rps_boost;
+	wait->wait.flags = 0;
+
+	add_wait_queue(drm_crtc_vblank_waitqueue(crtc), &wait->wait);
+}
+
+/**
+ * intel_prepare_plane_fb - Prepare fb for usage on plane
+ * @_plane: drm plane to prepare for
+ * @_new_plane_state: the plane state being prepared
+ *
+ * Prepares a framebuffer for usage on a display plane.  Generally this
+ * involves pinning the underlying object and updating the frontbuffer tracking
+ * bits.  Some older platforms need special physical address handling for
+ * cursor planes.
+ *
+ * Returns 0 on success, negative error code on failure.
+ */
+static int
+intel_prepare_plane_fb(struct drm_plane *_plane,
+		       struct drm_plane_state *_new_plane_state)
+{
+	struct i915_sched_attr attr = { .priority = I915_PRIORITY_DISPLAY };
+	struct intel_plane *plane = to_intel_plane(_plane);
+	struct intel_plane_state *new_plane_state =
+		to_intel_plane_state(_new_plane_state);
+	struct intel_atomic_state *state =
+		to_intel_atomic_state(new_plane_state->uapi.state);
+	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
+	const struct intel_plane_state *old_plane_state =
+		intel_atomic_get_old_plane_state(state, plane);
+	struct drm_i915_gem_object *obj = intel_fb_obj(new_plane_state->hw.fb);
+	struct drm_i915_gem_object *old_obj = intel_fb_obj(old_plane_state->hw.fb);
+	int ret;
+
+	if (old_obj) {
+		const struct intel_crtc_state *crtc_state =
+			intel_atomic_get_new_crtc_state(state,
+							to_intel_crtc(old_plane_state->hw.crtc));
+
+		/* Big Hammer, we also need to ensure that any pending
+		 * MI_WAIT_FOR_EVENT inside a user batch buffer on the
+		 * current scanout is retired before unpinning the old
+		 * framebuffer. Note that we rely on userspace rendering
+		 * into the buffer attached to the pipe they are waiting
+		 * on. If not, userspace generates a GPU hang with IPEHR
+		 * point to the MI_WAIT_FOR_EVENT.
+		 *
+		 * This should only fail upon a hung GPU, in which case we
+		 * can safely continue.
+		 */
+		if (intel_crtc_needs_modeset(crtc_state)) {
+			ret = i915_sw_fence_await_reservation(&state->commit_ready,
+							      old_obj->base.resv, NULL,
+							      false, 0,
+							      GFP_KERNEL);
+			if (ret < 0)
+				return ret;
+		}
+	}
+
+	if (new_plane_state->uapi.fence) { /* explicit fencing */
+		i915_gem_fence_wait_priority(new_plane_state->uapi.fence,
+					     &attr);
+		ret = i915_sw_fence_await_dma_fence(&state->commit_ready,
+						    new_plane_state->uapi.fence,
+						    i915_fence_timeout(dev_priv),
+						    GFP_KERNEL);
+		if (ret < 0)
+			return ret;
+	}
+
+	if (!obj)
+		return 0;
+
+
+	ret = intel_plane_pin_fb(new_plane_state);
+	if (ret)
+		return ret;
+
+	i915_gem_object_wait_priority(obj, 0, &attr);
+
+	if (!new_plane_state->uapi.fence) { /* implicit fencing */
+		struct dma_resv_iter cursor;
+		struct dma_fence *fence;
+
+		ret = i915_sw_fence_await_reservation(&state->commit_ready,
+						      obj->base.resv, NULL,
+						      false,
+						      i915_fence_timeout(dev_priv),
+						      GFP_KERNEL);
+		if (ret < 0)
+			goto unpin_fb;
+
+		dma_resv_iter_begin(&cursor, obj->base.resv, false);
+		dma_resv_for_each_fence_unlocked(&cursor, fence) {
+			add_rps_boost_after_vblank(new_plane_state->hw.crtc,
+						   fence);
+		}
+		dma_resv_iter_end(&cursor);
+	} else {
+		add_rps_boost_after_vblank(new_plane_state->hw.crtc,
+					   new_plane_state->uapi.fence);
+	}
+
+	/*
+	 * We declare pageflips to be interactive and so merit a small bias
+	 * towards upclocking to deliver the frame on time. By only changing
+	 * the RPS thresholds to sample more regularly and aim for higher
+	 * clocks we can hopefully deliver low power workloads (like kodi)
+	 * that are not quite steady state without resorting to forcing
+	 * maximum clocks following a vblank miss (see do_rps_boost()).
+	 */
+	if (!state->rps_interactive) {
+		intel_rps_mark_interactive(&dev_priv->gt.rps, true);
+		state->rps_interactive = true;
+	}
+
+	return 0;
+
+unpin_fb:
+	intel_plane_unpin_fb(new_plane_state);
+
+	return ret;
+}
+
+/**
+ * intel_cleanup_plane_fb - Cleans up an fb after plane use
+ * @plane: drm plane to clean up for
+ * @_old_plane_state: the state from the previous modeset
+ *
+ * Cleans up a framebuffer that has just been removed from a plane.
+ */
+static void
+intel_cleanup_plane_fb(struct drm_plane *plane,
+		       struct drm_plane_state *_old_plane_state)
+{
+	struct intel_plane_state *old_plane_state =
+		to_intel_plane_state(_old_plane_state);
+	struct intel_atomic_state *state =
+		to_intel_atomic_state(old_plane_state->uapi.state);
+	struct drm_i915_private *dev_priv = to_i915(plane->dev);
+	struct drm_i915_gem_object *obj = intel_fb_obj(old_plane_state->hw.fb);
+
+	if (!obj)
+		return;
+
+	if (state->rps_interactive) {
+		intel_rps_mark_interactive(&dev_priv->gt.rps, false);
+		state->rps_interactive = false;
+	}
+
+	/* Should only be called after a successful intel_prepare_plane_fb()! */
+	intel_plane_unpin_fb(old_plane_state);
 }
 
 static const struct drm_plane_helper_funcs intel_plane_helper_funcs = {

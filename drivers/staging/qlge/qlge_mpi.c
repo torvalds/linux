@@ -862,7 +862,7 @@ int qlge_mb_wol_set_magic(struct qlge_adapter *qdev, u32 enable_wol)
 	struct mbox_params mbc;
 	struct mbox_params *mbcp = &mbc;
 	int status;
-	u8 *addr = qdev->ndev->dev_addr;
+	const u8 *addr = qdev->ndev->dev_addr;
 
 	memset(mbcp, 0, sizeof(struct mbox_params));
 

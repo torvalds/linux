@@ -31,7 +31,7 @@ static int tcf_skbedit_act(struct sk_buff *skb, const struct tc_action *a,
 	int action;
 
 	tcf_lastuse_update(&d->tcf_tm);
-	bstats_cpu_update(this_cpu_ptr(d->common.cpu_bstats), skb);
+	bstats_update(this_cpu_ptr(d->common.cpu_bstats), skb);
 
 	params = rcu_dereference_bh(d->params);
 	action = READ_ONCE(d->tcf_action);

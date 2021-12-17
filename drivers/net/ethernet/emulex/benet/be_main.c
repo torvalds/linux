@@ -272,7 +272,7 @@ void be_cq_notify(struct be_adapter *adapter, u16 qid, bool arm, u16 num_popped)
 	iowrite32(val, adapter->db + DB_CQ_OFFSET);
 }
 
-static int be_dev_mac_add(struct be_adapter *adapter, u8 *mac)
+static int be_dev_mac_add(struct be_adapter *adapter, const u8 *mac)
 {
 	int i;
 
@@ -369,7 +369,7 @@ static int be_mac_addr_set(struct net_device *netdev, void *p)
 	/* Remember currently programmed MAC */
 	ether_addr_copy(adapter->dev_mac, addr->sa_data);
 done:
-	ether_addr_copy(netdev->dev_addr, addr->sa_data);
+	eth_hw_addr_set(netdev, addr->sa_data);
 	dev_info(dev, "MAC address changed to %pM\n", addr->sa_data);
 	return 0;
 err:
@@ -4599,7 +4599,7 @@ static int be_mac_setup(struct be_adapter *adapter)
 		if (status)
 			return status;
 
-		memcpy(adapter->netdev->dev_addr, mac, ETH_ALEN);
+		eth_hw_addr_set(adapter->netdev, mac);
 		memcpy(adapter->netdev->perm_addr, mac, ETH_ALEN);
 
 		/* Initial MAC for BE3 VFs is already programmed by PF */
@@ -4621,7 +4621,6 @@ static void be_destroy_err_recovery_workq(void)
 	if (!be_err_recovery_workq)
 		return;
 
-	flush_workqueue(be_err_recovery_workq);
 	destroy_workqueue(be_err_recovery_workq);
 	be_err_recovery_workq = NULL;
 }

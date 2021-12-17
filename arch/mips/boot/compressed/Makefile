@@ -50,19 +50,9 @@ vmlinuzobjs-$(CONFIG_MIPS_ALCHEMY)		   += $(obj)/uart-alchemy.o
 vmlinuzobjs-$(CONFIG_ATH79)			   += $(obj)/uart-ath79.o
 endif
 
-extra-y += uart-ath79.c
-$(obj)/uart-ath79.c: $(srctree)/arch/mips/ath79/early_printk.c
-	$(call cmd,shipped)
-
 vmlinuzobjs-$(CONFIG_KERNEL_XZ) += $(obj)/ashldi3.o
 
-extra-y += ashldi3.c
-$(obj)/ashldi3.c: $(obj)/%.c: $(srctree)/lib/%.c FORCE
-	$(call if_changed,shipped)
-
-extra-y += bswapsi.c
-$(obj)/bswapsi.c: $(obj)/%.c: $(srctree)/arch/mips/lib/%.c FORCE
-	$(call if_changed,shipped)
+vmlinuzobjs-$(CONFIG_KERNEL_ZSTD) += $(obj)/bswapdi.o $(obj)/ashldi3.o
 
 targets := $(notdir $(vmlinuzobjs-y))
 

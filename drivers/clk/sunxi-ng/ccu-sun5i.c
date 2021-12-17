@@ -1012,7 +1012,7 @@ static void __init sun5i_ccu_init(struct device_node *node,
 	val &= ~GENMASK(7, 6);
 	writel(val | (2 << 6), reg + SUN5I_AHB_REG);
 
-	sunxi_ccu_probe(node, reg, desc);
+	of_sunxi_ccu_probe(node, reg, desc);
 }
 
 static void __init sun5i_a10s_ccu_setup(struct device_node *node)

@@ -663,16 +663,13 @@ int arch_dup_task_struct(struct task_struct *dst, struct task_struct *src)
 	return 0;
 }
 
-unsigned long get_wchan(struct task_struct *task)
+unsigned long __get_wchan(struct task_struct *task)
 {
 	unsigned long pc, fp, bias = 0;
 	struct thread_info *tp;
 	struct reg_window *rw;
         unsigned long ret = 0;
 	int count = 0; 
-
-	if (!task || task == current || task_is_running(task))
-		goto out;
 
 	tp = task_thread_info(task);
 	bias = STACK_BIAS;

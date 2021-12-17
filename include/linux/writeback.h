@@ -11,7 +11,6 @@
 #include <linux/flex_proportions.h>
 #include <linux/backing-dev-defs.h>
 #include <linux/blk_types.h>
-#include <linux/blk-cgroup.h>
 
 struct bio;
 
@@ -109,15 +108,12 @@ static inline int wbc_to_write_flags(struct writeback_control *wbc)
 	return flags;
 }
 
-static inline struct cgroup_subsys_state *
-wbc_blkcg_css(struct writeback_control *wbc)
-{
 #ifdef CONFIG_CGROUP_WRITEBACK
-	if (wbc->wb)
-		return wbc->wb->blkcg_css;
-#endif
-	return blkcg_root_css;
-}
+#define wbc_blkcg_css(wbc) \
+	((wbc)->wb ? (wbc)->wb->blkcg_css : blkcg_root_css)
+#else
+#define wbc_blkcg_css(wbc)		(blkcg_root_css)
+#endif /* CONFIG_CGROUP_WRITEBACK */
 
 /*
  * A wb_domain represents a domain that wb's (bdi_writeback's) belong to
@@ -393,7 +389,14 @@ void writeback_set_ratelimit(void);
 void tag_pages_for_writeback(struct address_space *mapping,
 			     pgoff_t start, pgoff_t end);
 
-void account_page_redirty(struct page *page);
+bool filemap_dirty_folio(struct address_space *mapping, struct folio *folio);
+void folio_account_redirty(struct folio *folio);
+static inline void account_page_redirty(struct page *page)
+{
+	folio_account_redirty(page_folio(page));
+}
+bool folio_redirty_for_writepage(struct writeback_control *, struct folio *);
+bool redirty_page_for_writepage(struct writeback_control *, struct page *);
 
 void sb_mark_inode_writeback(struct inode *inode);
 void sb_clear_inode_writeback(struct inode *inode);

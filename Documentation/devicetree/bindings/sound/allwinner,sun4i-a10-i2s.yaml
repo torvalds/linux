@@ -21,6 +21,9 @@ properties:
       - const: allwinner,sun8i-a83t-i2s
       - const: allwinner,sun8i-h3-i2s
       - items:
+          - const: allwinner,sun8i-r40-i2s
+          - const: allwinner,sun8i-h3-i2s
+      - items:
           - const: allwinner,sun8i-v3-i2s
           - const: allwinner,sun8i-h3-i2s
       - const: allwinner,sun50i-a64-codec-i2s
