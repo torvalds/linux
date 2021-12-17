@@ -91,11 +91,9 @@ static void free_iova_flush_queue(struct iova_domain *iovad)
 
 	iovad->fq         = NULL;
 	iovad->flush_cb   = NULL;
-	iovad->entry_dtor = NULL;
 }
 
-int init_iova_flush_queue(struct iova_domain *iovad,
-			  iova_flush_cb flush_cb, iova_entry_dtor entry_dtor)
+int init_iova_flush_queue(struct iova_domain *iovad, iova_flush_cb flush_cb)
 {
 	struct iova_fq __percpu *queue;
 	int cpu;
@@ -108,7 +106,6 @@ int init_iova_flush_queue(struct iova_domain *iovad,
 		return -ENOMEM;
 
 	iovad->flush_cb   = flush_cb;
-	iovad->entry_dtor = entry_dtor;
 
 	for_each_possible_cpu(cpu) {
 		struct iova_fq *fq;
@@ -547,6 +544,16 @@ free_iova_fast(struct iova_domain *iovad, unsigned long pfn, unsigned long size)
 }
 EXPORT_SYMBOL_GPL(free_iova_fast);
 
+static void fq_entry_dtor(struct page *freelist)
+{
+	while (freelist) {
+		unsigned long p = (unsigned long)page_address(freelist);
+
+		freelist = freelist->freelist;
+		free_page(p);
+	}
+}
+
 #define fq_ring_for_each(i, fq) \
 	for ((i) = (fq)->head; (i) != (fq)->tail; (i) = ((i) + 1) % IOVA_FQ_SIZE)
 
@@ -579,9 +586,7 @@ static void fq_ring_free(struct iova_domain *iovad, struct iova_fq *fq)
 		if (fq->entries[idx].counter >= counter)
 			break;
 
-		if (iovad->entry_dtor)
-			iovad->entry_dtor(fq->entries[idx].data);
-
+		fq_entry_dtor(fq->entries[idx].freelist);
 		free_iova_fast(iovad,
 			       fq->entries[idx].iova_pfn,
 			       fq->entries[idx].pages);
@@ -606,15 +611,12 @@ static void fq_destroy_all_entries(struct iova_domain *iovad)
 	 * bother to free iovas, just call the entry_dtor on all remaining
 	 * entries.
 	 */
-	if (!iovad->entry_dtor)
-		return;
-
 	for_each_possible_cpu(cpu) {
 		struct iova_fq *fq = per_cpu_ptr(iovad->fq, cpu);
 		int idx;
 
 		fq_ring_for_each(idx, fq)
-			iovad->entry_dtor(fq->entries[idx].data);
+			fq_entry_dtor(fq->entries[idx].freelist);
 	}
 }
 
@@ -639,7 +641,7 @@ static void fq_flush_timeout(struct timer_list *t)
 
 void queue_iova(struct iova_domain *iovad,
 		unsigned long pfn, unsigned long pages,
-		unsigned long data)
+		struct page *freelist)
 {
 	struct iova_fq *fq;
 	unsigned long flags;
@@ -673,7 +675,7 @@ void queue_iova(struct iova_domain *iovad,
 
 	fq->entries[idx].iova_pfn = pfn;
 	fq->entries[idx].pages    = pages;
-	fq->entries[idx].data     = data;
+	fq->entries[idx].freelist = freelist;
 	fq->entries[idx].counter  = atomic64_read(&iovad->fq_flush_start_cnt);
 
 	spin_unlock_irqrestore(&fq->lock, flags);
