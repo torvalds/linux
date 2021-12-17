@@ -152,21 +152,27 @@ static int tb_port_tmu_time_sync_enable(struct tb_port *port)
 
 static int tb_switch_tmu_set_time_disruption(struct tb_switch *sw, bool set)
 {
+	u32 val, offset, bit;
 	int ret;
-	u32 val;
 
-	ret = tb_sw_read(sw, &val, TB_CFG_SWITCH,
-			 sw->tmu.cap + TMU_RTR_CS_0, 1);
+	if (tb_switch_is_usb4(sw)) {
+		offset = sw->tmu.cap + TMU_RTR_CS_0;
+		bit = TMU_RTR_CS_0_TD;
+	} else {
+		offset = sw->cap_vsec_tmu + TB_TIME_VSEC_3_CS_26;
+		bit = TB_TIME_VSEC_3_CS_26_TD;
+	}
+
+	ret = tb_sw_read(sw, &val, TB_CFG_SWITCH, offset, 1);
 	if (ret)
 		return ret;
 
 	if (set)
-		val |= TMU_RTR_CS_0_TD;
+		val |= bit;
 	else
-		val &= ~TMU_RTR_CS_0_TD;
+		val &= ~bit;
 
-	return tb_sw_write(sw, &val, TB_CFG_SWITCH,
-			   sw->tmu.cap + TMU_RTR_CS_0, 1);
+	return tb_sw_write(sw, &val, TB_CFG_SWITCH, offset, 1);
 }
 
 /**

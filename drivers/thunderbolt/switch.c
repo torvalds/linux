@@ -2228,6 +2228,10 @@ struct tb_switch *tb_switch_alloc(struct tb *tb, struct device *parent,
 	if (ret > 0)
 		sw->cap_plug_events = ret;
 
+	ret = tb_switch_find_vse_cap(sw, TB_VSE_CAP_TIME2);
+	if (ret > 0)
+		sw->cap_vsec_tmu = ret;
+
 	ret = tb_switch_find_vse_cap(sw, TB_VSE_CAP_LINK_CONTROLLER);
 	if (ret > 0)
 		sw->cap_lc = ret;

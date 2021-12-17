@@ -446,6 +446,10 @@ struct tb_regs_hop {
 	u32 unknown3:3; /* set to zero */
 } __packed;
 
+/* TMU Thunderbolt 3 registers */
+#define TB_TIME_VSEC_3_CS_26		0x1a
+#define TB_TIME_VSEC_3_CS_26_TD		BIT(22)
+
 /* Common link controller registers */
 #define TB_LC_DESC			0x02
 #define TB_LC_DESC_NLC_MASK		GENMASK(3, 0)
