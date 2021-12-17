@@ -1234,8 +1234,15 @@ static void dwc3_core_stop_active_transfer(struct dwc3_ep *dep, bool force)
 	u32 cmd;
 	int ret;
 
+	/*
+	 * Do not allow endxfer if no transfer was started, or if the
+	 * delayed ep stop is set.  If delayed ep stop is set, the
+	 * endxfer is in progress by DWC3 gadget, and waiting for the
+	 * SETUP stage to occur.
+	 */
 	if (!(mdwc->hw_eps[dep->number].flags &
-			DWC3_MSM_HW_EP_TRANSFER_STARTED))
+			DWC3_MSM_HW_EP_TRANSFER_STARTED) ||
+		(dep->flags & DWC3_EP_DELAY_STOP))
 		return;
 
 	dwc3_msm_notify_event(dwc, DWC3_CONTROLLER_NOTIFY_DISABLE_UPDXFER,
@@ -1274,6 +1281,18 @@ static void dwc3_core_stop_active_transfer(struct dwc3_ep *dep, bool force)
 	memset(&params, 0, sizeof(params));
 	ret = dwc3_core_send_gadget_ep_cmd(dep, cmd, &params);
 	WARN_ON_ONCE(ret);
+	if (ret == -ETIMEDOUT && dep->dwc->ep0state != EP0_SETUP_PHASE) {
+		/*
+		 * Set DWC3_EP_DELAY_STOP and DWC3_EP_TRANSFER_STARTED
+		 * together, as endxfer will need to be handed over to DWC3
+		 * ep0 when it moves back to the SETUP phase.  If the transfer
+		 * started flag is not set, then the endxfer on GSI ep is
+		 * treated as a no-op.
+		 */
+		dep->flags |= DWC3_EP_DELAY_STOP | DWC3_EP_TRANSFER_STARTED;
+		dbg_event(0xFF, "core ENDXFER", ret);
+		goto out;
+	}
 	dep->resource_index = 0;
 
 	if (DWC3_IP_IS(DWC31) || DWC3_VER_IS_PRIOR(DWC3, 310A))
@@ -1285,7 +1304,7 @@ static void dwc3_core_stop_active_transfer(struct dwc3_ep *dep, bool force)
 	 */
 	if (dep->stream_capable)
 		dep->flags |= DWC3_EP_IGNORE_NEXT_NOSTREAM;
-
+out:
 	mdwc->hw_eps[dep->number].flags &= ~DWC3_MSM_HW_EP_TRANSFER_STARTED;
 }
 
