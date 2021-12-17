@@ -217,7 +217,6 @@ mediatek_gpio_bank_probe(struct device *dev,
 	memset(rg, 0, sizeof(*rg));
 
 	spin_lock_init(&rg->lock);
-	rg->chip.of_node = node;
 	rg->bank = bank;
 
 	dat = mtk->base + GPIO_REG_DATA + (rg->bank * GPIO_BANK_STRIDE);

@@ -749,7 +749,6 @@ static int tegra186_gpio_probe(struct platform_device *pdev)
 	gpio->gpio.names = (const char * const *)names;
 
 #if defined(CONFIG_OF_GPIO)
-	gpio->gpio.of_node = pdev->dev.of_node;
 	gpio->gpio.of_gpio_n_cells = 2;
 	gpio->gpio.of_xlate = tegra186_gpio_of_xlate;
 #endif /* CONFIG_OF_GPIO */

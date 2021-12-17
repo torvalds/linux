@@ -584,9 +584,6 @@ static int rockchip_gpiolib_register(struct rockchip_pin_bank *bank)
 	gc->ngpio = bank->nr_pins;
 	gc->label = bank->name;
 	gc->parent = bank->dev;
-#ifdef CONFIG_OF_GPIO
-	gc->of_node = of_node_get(bank->of_node);
-#endif
 
 	ret = gpiochip_add_data(gc, bank);
 	if (ret) {

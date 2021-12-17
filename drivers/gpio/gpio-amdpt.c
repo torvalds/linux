@@ -105,9 +105,7 @@ static int pt_gpio_probe(struct platform_device *pdev)
 	pt_gpio->gc.request          = pt_gpio_request;
 	pt_gpio->gc.free             = pt_gpio_free;
 	pt_gpio->gc.ngpio            = (uintptr_t)device_get_match_data(dev);
-#if defined(CONFIG_OF_GPIO)
-	pt_gpio->gc.of_node          = dev->of_node;
-#endif
+
 	ret = gpiochip_add_data(&pt_gpio->gc, pt_gpio);
 	if (ret) {
 		dev_err(dev, "Failed to register GPIO lib\n");

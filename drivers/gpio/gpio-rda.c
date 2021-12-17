@@ -240,8 +240,6 @@ static int rda_gpio_probe(struct platform_device *pdev)
 	rda_gpio->chip.label = dev_name(dev);
 	rda_gpio->chip.ngpio = ngpios;
 	rda_gpio->chip.base = -1;
-	rda_gpio->chip.parent = dev;
-	rda_gpio->chip.of_node = np;
 
 	if (rda_gpio->irq >= 0) {
 		rda_gpio->irq_chip.name = "rda-gpio",
