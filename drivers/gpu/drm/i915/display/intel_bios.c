@@ -2664,10 +2664,12 @@ bool intel_bios_is_port_edp(struct drm_i915_private *i915, enum port port)
 	return devdata && intel_bios_encoder_supports_edp(devdata);
 }
 
-static bool child_dev_is_dp_dual_mode(const struct child_device_config *child)
+static bool intel_bios_encoder_supports_dp_dual_mode(const struct intel_bios_encoder_data *devdata)
 {
-	if ((child->device_type & DEVICE_TYPE_DP_DUAL_MODE_BITS) !=
-	    (DEVICE_TYPE_DP_DUAL_MODE & DEVICE_TYPE_DP_DUAL_MODE_BITS))
+	const struct child_device_config *child = &devdata->child;
+
+	if (!intel_bios_encoder_supports_dp(devdata) ||
+	    !intel_bios_encoder_supports_hdmi(devdata))
 		return false;
 
 	if (dvo_port_type(child->dvo_port) == DVO_PORT_DPA)
@@ -2687,7 +2689,7 @@ bool intel_bios_is_port_dp_dual_mode(struct drm_i915_private *i915,
 	const struct intel_bios_encoder_data *devdata =
 		intel_bios_encoder_data_lookup(i915, port);
 
-	return devdata && child_dev_is_dp_dual_mode(&devdata->child);
+	return devdata && intel_bios_encoder_supports_dp_dual_mode(devdata);
 }
 
 /**
