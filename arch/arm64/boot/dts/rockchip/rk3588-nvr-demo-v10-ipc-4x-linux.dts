@@ -1,0 +1,209 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2021 Rockchip Electronics Co., Ltd.
+ *
+ */
+
+/dts-v1/;
+
+#include "rk3588-nvr-demo.dtsi"
+#include "rk3588-linux.dtsi"
+#include "rk3588-nvr-demo-v10-cam-4x.dtsi"
+
+/ {
+	model = "Rockchip RK3588 NVR DEMO LP4 V10 Board";
+	compatible = "rockchip,rk3588-nvr-demo-v10-ipc-4x",
+		     "rockchip,rk3588-nvr-demo-v10", "rockchip,rk3588";
+};
+
+&combphy0_ps {
+	status = "disabled";
+};
+
+&combphy1_ps {
+	status = "disabled";
+};
+
+&combphy2_psu {
+	status = "disabled";
+};
+
+&dp0 {
+	status = "disabled";
+};
+
+&dp0_in_vp0 {
+	status = "disabled";
+};
+
+&dp0_in_vp1 {
+	status = "disabled";
+};
+
+&dp0_in_vp2 {
+	status = "disabled";
+};
+
+&dp1 {
+	status = "disabled";
+};
+
+&dp1_in_vp0 {
+	status = "disabled";
+};
+
+&dp1_in_vp1 {
+	status = "disabled";
+};
+
+&dp1_in_vp2 {
+	status = "disabled";
+};
+
+&gmac1 {
+	status = "disabled";
+};
+
+&hdmi0 {
+	status = "disabled";
+};
+
+&hdmi0_in_vp0 {
+	status = "disabled";
+};
+
+&hdmi0_in_vp1 {
+	status = "disabled";
+};
+
+&hdmi0_in_vp2 {
+	status = "disabled";
+};
+
+&hdmi0_sound {
+	status = "disabled";
+};
+
+&hdmi1 {
+	status = "disabled";
+};
+
+&hdmi0_in_vp0 {
+	status = "disabled";
+};
+
+&hdmi0_in_vp1 {
+	status = "disabled";
+};
+
+&hdmi0_in_vp2 {
+	status = "disabled";
+};
+
+&hdmi1_sound {
+	status = "disabled";
+};
+
+&hdptxphy_hdmi0 {
+	status = "disabled";
+};
+
+&hdptxphy_hdmi1 {
+	status = "disabled";
+};
+
+&i2s5_8ch {
+	status = "disabled";
+};
+
+&pcie2x1l0 {
+	status = "disabled";
+};
+
+&pcie2x1l1 {
+	status = "disabled";
+};
+
+&pcie30phy {
+	status = "disabled";
+};
+
+&pcie3x4 {
+	status = "disabled";
+};
+
+&rkvdec0 {
+	status = "disabled";
+};
+
+&rkvdec0_mmu {
+	status = "disabled";
+};
+
+&rkvdec1_mmu {
+	status = "disabled";
+};
+
+&rkvdec_core1 {
+	status = "disabled";
+};
+
+&sata0 {
+	status = "disabled";
+};
+
+&sata1 {
+	status = "disabled";
+};
+
+&usbdp_phy1 {
+	status = "disabled";
+};
+
+&usbdrd3_1 {
+	status = "disabled";
+};
+
+&usbdrd_dwc3_1 {
+	status = "disabled";
+};
+
+&usb_host0_ehci {
+	status = "disabled";
+};
+
+&usb_host0_ohci {
+	status = "disabled";
+};
+
+&usb_host1_ehci {
+	status = "disabled";
+};
+
+&usb_host1_ohci {
+	status = "disabled";
+};
+
+&u2phy1 {
+	status = "disabled";
+};
+
+&u2phy1_otg {
+	status = "disabled";
+};
+
+&u2phy2 {
+	status = "disabled";
+};
+
+&u2phy2_host {
+	status = "disabled";
+};
+
+&u2phy3 {
+	status = "disabled";
+};
+
+&u2phy3_host {
+	status = "disabled";
+};
