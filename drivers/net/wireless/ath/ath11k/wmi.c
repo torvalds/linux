@@ -5639,7 +5639,11 @@ static int ath11k_wmi_tlv_fw_stats_data_parse(struct ath11k_base *ab,
 {
 	struct ath11k_fw_stats *stats = parse->stats;
 	const struct wmi_stats_event *ev = parse->ev;
-	int i;
+	struct ath11k *ar;
+	struct ath11k_vif *arvif;
+	struct ieee80211_sta *sta;
+	struct ath11k_sta *arsta;
+	int i, ret = 0;
 	const void *data = ptr;
 
 	if (!ev) {
@@ -5649,13 +5653,19 @@ static int ath11k_wmi_tlv_fw_stats_data_parse(struct ath11k_base *ab,
 
 	stats->stats_id = 0;
 
+	rcu_read_lock();
+
+	ar = ath11k_mac_get_ar_by_pdev_id(ab, ev->pdev_id);
+
 	for (i = 0; i < ev->num_pdev_stats; i++) {
 		const struct wmi_pdev_stats *src;
 		struct ath11k_fw_stats_pdev *dst;
 
 		src = data;
-		if (len < sizeof(*src))
-			return -EPROTO;
+		if (len < sizeof(*src)) {
+			ret = -EPROTO;
+			goto exit;
+		}
 
 		stats->stats_id = WMI_REQUEST_PDEV_STAT;
 
@@ -5677,10 +5687,29 @@ static int ath11k_wmi_tlv_fw_stats_data_parse(struct ath11k_base *ab,
 		struct ath11k_fw_stats_vdev *dst;
 
 		src = data;
-		if (len < sizeof(*src))
-			return -EPROTO;
+		if (len < sizeof(*src)) {
+			ret = -EPROTO;
+			goto exit;
+		}
 
 		stats->stats_id = WMI_REQUEST_VDEV_STAT;
+
+		arvif = ath11k_mac_get_arvif(ar, src->vdev_id);
+		if (arvif) {
+			sta = ieee80211_find_sta_by_ifaddr(ar->hw,
+							   arvif->bssid,
+							   NULL);
+			if (sta) {
+				arsta = (struct ath11k_sta *)sta->drv_priv;
+				arsta->rssi_beacon = src->beacon_snr;
+				ath11k_dbg(ab, ATH11K_DBG_WMI,
+					   "wmi stats vdev id %d snr %d\n",
+					   src->vdev_id, src->beacon_snr);
+			} else {
+				ath11k_warn(ab, "not found station for bssid %pM\n",
+					    arvif->bssid);
+			}
+		}
 
 		data += sizeof(*src);
 		len -= sizeof(*src);
@@ -5698,8 +5727,10 @@ static int ath11k_wmi_tlv_fw_stats_data_parse(struct ath11k_base *ab,
 		struct ath11k_fw_stats_bcn *dst;
 
 		src = data;
-		if (len < sizeof(*src))
-			return -EPROTO;
+		if (len < sizeof(*src)) {
+			ret = -EPROTO;
+			goto exit;
+		}
 
 		stats->stats_id = WMI_REQUEST_BCN_STAT;
 
@@ -5714,7 +5745,9 @@ static int ath11k_wmi_tlv_fw_stats_data_parse(struct ath11k_base *ab,
 		list_add_tail(&dst->list, &stats->bcn);
 	}
 
-	return 0;
+exit:
+	rcu_read_unlock();
+	return ret;
 }
 
 static int ath11k_wmi_tlv_fw_stats_parse(struct ath11k_base *ab,

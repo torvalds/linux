@@ -7811,6 +7811,9 @@ static void ath11k_mac_op_sta_statistics(struct ieee80211_hw *hw,
 {
 	struct ath11k_sta *arsta = (struct ath11k_sta *)sta->drv_priv;
 	struct ath11k *ar = arsta->arvif->ar;
+	s8 signal;
+	bool db2dbm = test_bit(WMI_TLV_SERVICE_HW_DB2DBM_CONVERSION_SUPPORT,
+			       ar->ab->wmi_ab.svc_map);
 
 	sinfo->rx_duration = arsta->rx_duration;
 	sinfo->filled |= BIT_ULL(NL80211_STA_INFO_RX_DURATION);
@@ -7843,9 +7846,22 @@ static void ath11k_mac_op_sta_statistics(struct ieee80211_hw *hw,
 		ath11k_mac_put_chain_rssi(sinfo, arsta, "fw stats", true);
 	}
 
-	/* TODO: Use real NF instead of default one. */
-	sinfo->signal = arsta->rssi_comb + ATH11K_DEFAULT_NOISE_FLOOR;
-	sinfo->filled |= BIT_ULL(NL80211_STA_INFO_SIGNAL);
+	signal = arsta->rssi_comb;
+	if (!signal &&
+	    arsta->arvif->vdev_type == WMI_VDEV_TYPE_STA &&
+	    ar->ab->hw_params.supports_rssi_stats &&
+	    !(ath11k_debugfs_get_fw_stats(ar, ar->pdev->pdev_id, 0,
+					WMI_REQUEST_VDEV_STAT)))
+		signal = arsta->rssi_beacon;
+
+	ath11k_dbg(ar->ab, ATH11K_DBG_MAC,
+		   "mac sta statistics db2dbm %u rssi comb %d rssi beacon %d\n",
+		   db2dbm, arsta->rssi_comb, arsta->rssi_beacon);
+
+	if (signal) {
+		sinfo->signal = db2dbm ? signal : signal + ATH11K_DEFAULT_NOISE_FLOOR;
+		sinfo->filled |= BIT_ULL(NL80211_STA_INFO_SIGNAL);
+	}
 }
 
 static const struct ieee80211_ops ath11k_ops = {
