@@ -684,8 +684,7 @@ static void tm_handler_work(struct work_struct *work)
 			}
 		} else {
 			ret = qcom_adc5_hw_scale(chan_prop->scale_fn_type,
-				&adc5_prescale_ratios[chan_prop->prescale],
-				adc->data, code, &temp);
+				chan_prop->prescale, adc->data, code, &temp);
 
 			if (ret < 0) {
 				pr_err("Invalid temperature reading, ret=%d, code=0x%x\n",
@@ -739,8 +738,7 @@ static int adc5_gen3_read_raw(struct iio_dev *indio_dev,
 			return ret;
 
 		ret = qcom_adc5_hw_scale(prop->scale_fn_type,
-			&adc5_prescale_ratios[prop->prescale],
-			adc->data,
+			prop->prescale, adc->data,
 			adc_code_volt, val);
 		if (ret < 0)
 			return ret;
@@ -793,8 +791,7 @@ int adc_tm_gen3_get_temp(void *data, int *temp)
 		return ret;
 
 	return qcom_adc5_hw_scale(prop->scale_fn_type,
-		&adc5_prescale_ratios[prop->prescale],
-		adc->data,
+		prop->prescale, adc->data,
 		adc_code_volt, temp);
 }
 
