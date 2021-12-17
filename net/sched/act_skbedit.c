@@ -347,7 +347,16 @@ static int tcf_skbedit_offload_act_setup(struct tc_action *act, void *entry_data
 		}
 		*index_inc = 1;
 	} else {
-		return -EOPNOTSUPP;
+		struct flow_offload_action *fl_action = entry_data;
+
+		if (is_tcf_skbedit_mark(act))
+			fl_action->id = FLOW_ACTION_MARK;
+		else if (is_tcf_skbedit_ptype(act))
+			fl_action->id = FLOW_ACTION_PTYPE;
+		else if (is_tcf_skbedit_priority(act))
+			fl_action->id = FLOW_ACTION_PRIORITY;
+		else
+			return -EOPNOTSUPP;
 	}
 
 	return 0;

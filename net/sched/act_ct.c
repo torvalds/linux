@@ -1505,7 +1505,9 @@ static int tcf_ct_offload_act_setup(struct tc_action *act, void *entry_data,
 		entry->ct.flow_table = tcf_ct_ft(act);
 		*index_inc = 1;
 	} else {
-		return -EOPNOTSUPP;
+		struct flow_offload_action *fl_action = entry_data;
+
+		fl_action->id = FLOW_ACTION_CT;
 	}
 
 	return 0;

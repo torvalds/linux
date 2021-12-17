@@ -303,7 +303,9 @@ static int tcf_sample_offload_act_setup(struct tc_action *act, void *entry_data,
 		tcf_offload_sample_get_group(entry, act);
 		*index_inc = 1;
 	} else {
-		return -EOPNOTSUPP;
+		struct flow_offload_action *fl_action = entry_data;
+
+		fl_action->id = FLOW_ACTION_SAMPLE;
 	}
 
 	return 0;

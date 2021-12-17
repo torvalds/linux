@@ -3488,8 +3488,8 @@ static int tc_setup_offload_act(struct tc_action *act,
 #endif
 }
 
-int tc_setup_offload_action(struct flow_action *flow_action,
-			    const struct tcf_exts *exts)
+int tc_setup_action(struct flow_action *flow_action,
+		    struct tc_action *actions[])
 {
 	int i, j, index, err = 0;
 	struct tc_action *act;
@@ -3498,11 +3498,11 @@ int tc_setup_offload_action(struct flow_action *flow_action,
 	BUILD_BUG_ON(TCA_ACT_HW_STATS_IMMEDIATE != FLOW_ACTION_HW_STATS_IMMEDIATE);
 	BUILD_BUG_ON(TCA_ACT_HW_STATS_DELAYED != FLOW_ACTION_HW_STATS_DELAYED);
 
-	if (!exts)
+	if (!actions)
 		return 0;
 
 	j = 0;
-	tcf_exts_for_each_action(i, act, exts) {
+	tcf_act_for_each_action(i, act, actions) {
 		struct flow_action_entry *entry;
 
 		entry = &flow_action->entries[j];
@@ -3530,6 +3530,19 @@ err_out:
 err_out_locked:
 	spin_unlock_bh(&act->tcfa_lock);
 	goto err_out;
+}
+
+int tc_setup_offload_action(struct flow_action *flow_action,
+			    const struct tcf_exts *exts)
+{
+#ifdef CONFIG_NET_CLS_ACT
+	if (!exts)
+		return 0;
+
+	return tc_setup_action(flow_action, exts->actions);
+#else
+	return 0;
+#endif
 }
 EXPORT_SYMBOL(tc_setup_offload_action);
 
