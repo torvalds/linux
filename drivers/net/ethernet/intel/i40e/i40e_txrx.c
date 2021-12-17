@@ -1673,6 +1673,8 @@ static bool i40e_alloc_mapped_page(struct i40e_ring *rx_ring,
 		return false;
 	}
 
+	rx_ring->rx_stats.page_alloc_count++;
+
 	/* map page for use */
 	dma = dma_map_page_attrs(rx_ring->dev, page, 0,
 				 i40e_rx_pg_size(rx_ring),
