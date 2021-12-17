@@ -3223,3 +3223,266 @@ struct tb_port *tb_switch_find_port(struct tb_switch *sw,
 
 	return NULL;
 }
+
+static int __tb_port_pm_secondary_set(struct tb_port *port, bool secondary)
+{
+	u32 phy;
+	int ret;
+
+	ret = tb_port_read(port, &phy, TB_CFG_PORT,
+			   port->cap_phy + LANE_ADP_CS_1, 1);
+	if (ret)
+		return ret;
+
+	if (secondary)
+		phy |= LANE_ADP_CS_1_PMS;
+	else
+		phy &= ~LANE_ADP_CS_1_PMS;
+
+	return tb_port_write(port, &phy, TB_CFG_PORT,
+			     port->cap_phy + LANE_ADP_CS_1, 1);
+}
+
+static int tb_port_pm_secondary_enable(struct tb_port *port)
+{
+	return __tb_port_pm_secondary_set(port, true);
+}
+
+static int tb_port_pm_secondary_disable(struct tb_port *port)
+{
+	return __tb_port_pm_secondary_set(port, false);
+}
+
+static int tb_switch_pm_secondary_resolve(struct tb_switch *sw)
+{
+	struct tb_switch *parent = tb_switch_parent(sw);
+	struct tb_port *up, *down;
+	int ret;
+
+	if (!tb_route(sw))
+		return 0;
+
+	up = tb_upstream_port(sw);
+	down = tb_port_at(tb_route(sw), parent);
+	ret = tb_port_pm_secondary_enable(up);
+	if (ret)
+		return ret;
+
+	return tb_port_pm_secondary_disable(down);
+}
+
+static bool tb_port_clx_supported(struct tb_port *port, enum tb_clx clx)
+{
+	u32 mask, val;
+	bool ret;
+
+	/* Don't enable CLx in case of two single-lane links */
+	if (!port->bonded && port->dual_link_port)
+		return false;
+
+	/* Don't enable CLx in case of inter-domain link */
+	if (port->xdomain)
+		return false;
+
+	if (!usb4_port_clx_supported(port))
+		return false;
+
+	switch (clx) {
+	case TB_CL0S:
+		/* CL0s support requires also CL1 support */
+		mask = LANE_ADP_CS_0_CL0S_SUPPORT | LANE_ADP_CS_0_CL1_SUPPORT;
+		break;
+
+	/* For now we support only CL0s. Not CL1, CL2 */
+	case TB_CL1:
+	case TB_CL2:
+	default:
+		return false;
+	}
+
+	ret = tb_port_read(port, &val, TB_CFG_PORT,
+			   port->cap_phy + LANE_ADP_CS_0, 1);
+	if (ret)
+		return false;
+
+	return !!(val & mask);
+}
+
+static inline bool tb_port_cl0s_supported(struct tb_port *port)
+{
+	return tb_port_clx_supported(port, TB_CL0S);
+}
+
+static int __tb_port_cl0s_set(struct tb_port *port, bool enable)
+{
+	u32 phy, mask;
+	int ret;
+
+	/* To enable CL0s also required to enable CL1 */
+	mask = LANE_ADP_CS_1_CL0S_ENABLE | LANE_ADP_CS_1_CL1_ENABLE;
+	ret = tb_port_read(port, &phy, TB_CFG_PORT,
+			   port->cap_phy + LANE_ADP_CS_1, 1);
+	if (ret)
+		return ret;
+
+	if (enable)
+		phy |= mask;
+	else
+		phy &= ~mask;
+
+	return tb_port_write(port, &phy, TB_CFG_PORT,
+			     port->cap_phy + LANE_ADP_CS_1, 1);
+}
+
+static int tb_port_cl0s_disable(struct tb_port *port)
+{
+	return __tb_port_cl0s_set(port, false);
+}
+
+static int tb_port_cl0s_enable(struct tb_port *port)
+{
+	return __tb_port_cl0s_set(port, true);
+}
+
+static int tb_switch_enable_cl0s(struct tb_switch *sw)
+{
+	struct tb_switch *parent = tb_switch_parent(sw);
+	bool up_cl0s_support, down_cl0s_support;
+	struct tb_port *up, *down;
+	int ret;
+
+	if (!tb_switch_is_usb4(sw))
+		return 0;
+
+	/*
+	 * Enable CLx for host router's downstream port as part of the
+	 * downstream router enabling procedure.
+	 */
+	if (!tb_route(sw))
+		return 0;
+
+	/* Enable CLx only for first hop router (depth = 1) */
+	if (tb_route(parent))
+		return 0;
+
+	ret = tb_switch_pm_secondary_resolve(sw);
+	if (ret)
+		return ret;
+
+	up = tb_upstream_port(sw);
+	down = tb_port_at(tb_route(sw), parent);
+
+	up_cl0s_support = tb_port_cl0s_supported(up);
+	down_cl0s_support = tb_port_cl0s_supported(down);
+
+	tb_port_dbg(up, "CL0s %ssupported\n",
+		    up_cl0s_support ? "" : "not ");
+	tb_port_dbg(down, "CL0s %ssupported\n",
+		    down_cl0s_support ? "" : "not ");
+
+	if (!up_cl0s_support || !down_cl0s_support)
+		return -EOPNOTSUPP;
+
+	ret = tb_port_cl0s_enable(up);
+	if (ret)
+		return ret;
+
+	ret = tb_port_cl0s_enable(down);
+	if (ret) {
+		tb_port_cl0s_disable(up);
+		return ret;
+	}
+
+	sw->clx = TB_CL0S;
+
+	tb_port_dbg(up, "CL0s enabled\n");
+	return 0;
+}
+
+/**
+ * tb_switch_enable_clx() - Enable CLx on upstream port of specified router
+ * @sw: Router to enable CLx for
+ * @clx: The CLx state to enable
+ *
+ * Enable CLx state only for first hop router. That is the most common
+ * use-case, that is intended for better thermal management, and so helps
+ * to improve performance. CLx is enabled only if both sides of the link
+ * support CLx, and if both sides of the link are not configured as two
+ * single lane links and only if the link is not inter-domain link. The
+ * complete set of conditions is descibed in CM Guide 1.0 section 8.1.
+ *
+ * Return: Returns 0 on success or an error code on failure.
+ */
+int tb_switch_enable_clx(struct tb_switch *sw, enum tb_clx clx)
+{
+	struct tb_switch *root_sw = sw->tb->root_switch;
+
+	/*
+	 * CLx is not enabled and validated on Intel USB4 platforms before
+	 * Alder Lake.
+	 */
+	if (root_sw->generation < 4 || tb_switch_is_tiger_lake(root_sw))
+		return 0;
+
+	switch (clx) {
+	case TB_CL0S:
+		return tb_switch_enable_cl0s(sw);
+
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
+static int tb_switch_disable_cl0s(struct tb_switch *sw)
+{
+	struct tb_switch *parent = tb_switch_parent(sw);
+	struct tb_port *up, *down;
+	int ret;
+
+	if (!tb_switch_is_usb4(sw))
+		return 0;
+
+	/*
+	 * Disable CLx for host router's downstream port as part of the
+	 * downstream router enabling procedure.
+	 */
+	if (!tb_route(sw))
+		return 0;
+
+	/* Disable CLx only for first hop router (depth = 1) */
+	if (tb_route(parent))
+		return 0;
+
+	up = tb_upstream_port(sw);
+	down = tb_port_at(tb_route(sw), parent);
+	ret = tb_port_cl0s_disable(up);
+	if (ret)
+		return ret;
+
+	ret = tb_port_cl0s_disable(down);
+	if (ret)
+		return ret;
+
+	sw->clx = TB_CLX_DISABLE;
+
+	tb_port_dbg(up, "CL0s disabled\n");
+	return 0;
+}
+
+/**
+ * tb_switch_disable_clx() - Disable CLx on upstream port of specified router
+ * @sw: Router to disable CLx for
+ * @clx: The CLx state to disable
+ *
+ * Return: Returns 0 on success or an error code on failure.
+ */
+int tb_switch_disable_clx(struct tb_switch *sw, enum tb_clx clx)
+{
+	switch (clx) {
+	case TB_CL0S:
+		return tb_switch_disable_cl0s(sw);
+
+	default:
+		return -EOPNOTSUPP;
+	}
+}

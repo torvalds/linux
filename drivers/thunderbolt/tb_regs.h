@@ -313,11 +313,15 @@ struct tb_regs_port_header {
 #define LANE_ADP_CS_0				0x00
 #define LANE_ADP_CS_0_SUPPORTED_WIDTH_MASK	GENMASK(25, 20)
 #define LANE_ADP_CS_0_SUPPORTED_WIDTH_SHIFT	20
+#define LANE_ADP_CS_0_CL0S_SUPPORT		BIT(26)
+#define LANE_ADP_CS_0_CL1_SUPPORT		BIT(27)
 #define LANE_ADP_CS_1				0x01
 #define LANE_ADP_CS_1_TARGET_WIDTH_MASK		GENMASK(9, 4)
 #define LANE_ADP_CS_1_TARGET_WIDTH_SHIFT	4
 #define LANE_ADP_CS_1_TARGET_WIDTH_SINGLE	0x1
 #define LANE_ADP_CS_1_TARGET_WIDTH_DUAL		0x3
+#define LANE_ADP_CS_1_CL0S_ENABLE		BIT(10)
+#define LANE_ADP_CS_1_CL1_ENABLE		BIT(11)
 #define LANE_ADP_CS_1_LD			BIT(14)
 #define LANE_ADP_CS_1_LB			BIT(15)
 #define LANE_ADP_CS_1_CURRENT_SPEED_MASK	GENMASK(19, 16)
@@ -326,6 +330,7 @@ struct tb_regs_port_header {
 #define LANE_ADP_CS_1_CURRENT_SPEED_GEN3	0x4
 #define LANE_ADP_CS_1_CURRENT_WIDTH_MASK	GENMASK(25, 20)
 #define LANE_ADP_CS_1_CURRENT_WIDTH_SHIFT	20
+#define LANE_ADP_CS_1_PMS			BIT(30)
 
 /* USB4 port registers */
 #define PORT_CS_1				0x01
@@ -341,6 +346,7 @@ struct tb_regs_port_header {
 #define PORT_CS_18				0x12
 #define PORT_CS_18_BE				BIT(8)
 #define PORT_CS_18_TCM				BIT(9)
+#define PORT_CS_18_CPS				BIT(10)
 #define PORT_CS_18_WOU4S			BIT(18)
 #define PORT_CS_19				0x13
 #define PORT_CS_19_PC				BIT(3)

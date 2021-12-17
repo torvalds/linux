@@ -669,7 +669,11 @@ static void tb_scan_port(struct tb_port *port)
 	tb_switch_lane_bonding_enable(sw);
 	/* Set the link configured */
 	tb_switch_configure_link(sw);
-	tb_switch_tmu_configure(sw, TB_SWITCH_TMU_RATE_HIFI, false);
+	if (tb_switch_enable_clx(sw, TB_CL0S))
+		tb_sw_warn(sw, "failed to enable CLx on upstream port\n");
+
+	tb_switch_tmu_configure(sw, TB_SWITCH_TMU_RATE_HIFI,
+				tb_switch_is_clx_enabled(sw));
 
 	if (tb_enable_tmu(sw))
 		tb_sw_warn(sw, "failed to enable TMU\n");
@@ -1419,6 +1423,9 @@ static void tb_restore_children(struct tb_switch *sw)
 	/* No need to restore if the router is already unplugged */
 	if (sw->is_unplugged)
 		return;
+
+	if (tb_switch_enable_clx(sw, TB_CL0S))
+		tb_sw_warn(sw, "failed to re-enable CLx on upstream port\n");
 
 	/*
 	 * tb_switch_tmu_configure() was already called when the switch was
