@@ -34,6 +34,7 @@
 #include "bpf-event.h"
 #include <internal/lib.h> // page_size
 #include "cgroup.h"
+#include "arm64-frame-pointer-unwind-support.h"
 
 #include <linux/ctype.h>
 #include <symbol/kallsyms.h>
@@ -2710,10 +2711,13 @@ static int find_prev_cpumode(struct ip_callchain *chain, struct thread *thread,
 	return err;
 }
 
-static u64 get_leaf_frame_caller(struct perf_sample *sample __maybe_unused,
-		struct thread *thread __maybe_unused, int usr_idx __maybe_unused)
+static u64 get_leaf_frame_caller(struct perf_sample *sample,
+		struct thread *thread, int usr_idx)
 {
-	return 0;
+	if (machine__normalized_is(thread->maps->machine, "arm64"))
+		return get_leaf_frame_caller_aarch64(sample, thread, usr_idx);
+	else
+		return 0;
 }
 
 static int thread__resolve_callchain_sample(struct thread *thread,
@@ -3114,12 +3118,17 @@ int machine__set_current_tid(struct machine *machine, int cpu, pid_t pid,
 }
 
 /*
- * Compares the raw arch string. N.B. see instead perf_env__arch() if a
- * normalized arch is needed.
+ * Compares the raw arch string. N.B. see instead perf_env__arch() or
+ * machine__normalized_is() if a normalized arch is needed.
  */
 bool machine__is(struct machine *machine, const char *arch)
 {
 	return machine && !strcmp(perf_env__raw_arch(machine->env), arch);
+}
+
+bool machine__normalized_is(struct machine *machine, const char *arch)
+{
+	return machine && !strcmp(perf_env__arch(machine->env), arch);
 }
 
 int machine__nr_cpus_avail(struct machine *machine)
