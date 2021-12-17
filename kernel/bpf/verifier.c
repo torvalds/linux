@@ -797,6 +797,25 @@ static void print_verifier_state(struct bpf_verifier_env *env,
 	mark_verifier_state_clean(env);
 }
 
+static inline u32 vlog_alignment(u32 pos)
+{
+	return round_up(max(pos + BPF_LOG_MIN_ALIGNMENT / 2, BPF_LOG_ALIGNMENT),
+			BPF_LOG_MIN_ALIGNMENT) - pos - 1;
+}
+
+static void print_insn_state(struct bpf_verifier_env *env,
+			     const struct bpf_func_state *state)
+{
+	if (env->prev_log_len && env->prev_log_len == env->log.len_used) {
+		/* remove new line character */
+		bpf_vlog_reset(&env->log, env->prev_log_len - 1);
+		verbose(env, "%*c;", vlog_alignment(env->prev_insn_print_len), ' ');
+	} else {
+		verbose(env, "%d:", env->insn_idx);
+	}
+	print_verifier_state(env, state, false);
+}
+
 /* copy array src of length n * size bytes to dst. dst is reallocated if it's too
  * small to hold src. This is different from krealloc since we don't want to preserve
  * the contents of dst.
@@ -2725,10 +2744,10 @@ static int __mark_chain_precision(struct bpf_verifier_env *env, int regno,
 			reg->precise = true;
 		}
 		if (env->log.level & BPF_LOG_LEVEL) {
-			print_verifier_state(env, func, false);
-			verbose(env, "parent %s regs=%x stack=%llx marks\n",
+			verbose(env, "parent %s regs=%x stack=%llx marks:",
 				new_marks ? "didn't have" : "already had",
 				reg_mask, stack_mask);
+			print_verifier_state(env, func, true);
 		}
 
 		if (!reg_mask && !stack_mask)
@@ -3423,11 +3442,8 @@ static int check_mem_region_access(struct bpf_verifier_env *env, u32 regno,
 	/* We may have adjusted the register pointing to memory region, so we
 	 * need to try adding each of min_value and max_value to off
 	 * to make sure our theoretical access will be safe.
-	 */
-	if (env->log.level & BPF_LOG_LEVEL)
-		print_verifier_state(env, state, false);
-
-	/* The minimum value is only important with signed
+	 *
+	 * The minimum value is only important with signed
 	 * comparisons where we can't assume the floor of a
 	 * value is 0.  If we are using signed variables for our
 	 * index'es we need to make sure that whatever we use
@@ -9438,7 +9454,7 @@ static int check_cond_jmp_op(struct bpf_verifier_env *env,
 		return -EACCES;
 	}
 	if (env->log.level & BPF_LOG_LEVEL)
-		print_verifier_state(env, this_branch->frame[this_branch->curframe], false);
+		print_insn_state(env, this_branch->frame[this_branch->curframe]);
 	return 0;
 }
 
@@ -11306,19 +11322,12 @@ static int do_check(struct bpf_verifier_env *env)
 		if (need_resched())
 			cond_resched();
 
-		if (env->log.level & BPF_LOG_LEVEL2 ||
-		    (env->log.level & BPF_LOG_LEVEL && do_print_state)) {
-			if (env->log.level & BPF_LOG_LEVEL2) {
-				if (verifier_state_scratched(env))
-					verbose(env, "%d:", env->insn_idx);
-			} else {
-				verbose(env, "\nfrom %d to %d%s:",
-					env->prev_insn_idx, env->insn_idx,
-					env->cur_state->speculative ?
-					" (speculative execution)" : "");
-			}
-			print_verifier_state(env, state->frame[state->curframe],
-					     false);
+		if (env->log.level & BPF_LOG_LEVEL2 && do_print_state) {
+			verbose(env, "\nfrom %d to %d%s:",
+				env->prev_insn_idx, env->insn_idx,
+				env->cur_state->speculative ?
+				" (speculative execution)" : "");
+			print_verifier_state(env, state->frame[state->curframe], true);
 			do_print_state = false;
 		}
 
@@ -11329,9 +11338,15 @@ static int do_check(struct bpf_verifier_env *env)
 				.private_data	= env,
 			};
 
+			if (verifier_state_scratched(env))
+				print_insn_state(env, state->frame[state->curframe]);
+
 			verbose_linfo(env, env->insn_idx, "; ");
+			env->prev_log_len = env->log.len_used;
 			verbose(env, "%d: ", env->insn_idx);
 			print_bpf_insn(&cbs, insn, env->allow_ptr_leaks);
+			env->prev_insn_print_len = env->log.len_used - env->prev_log_len;
+			env->prev_log_len = env->log.len_used;
 		}
 
 		if (bpf_prog_is_dev_bound(env->prog->aux)) {
