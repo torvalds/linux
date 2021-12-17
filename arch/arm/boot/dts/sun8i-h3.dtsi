@@ -282,6 +282,10 @@
 	compatible = "allwinner,sun8i-h3-de2-clk";
 };
 
+&mbus {
+	compatible = "allwinner,sun8i-h3-mbus";
+};
+
 &mmc0 {
 	compatible = "allwinner,sun7i-a20-mmc";
 	clocks = <&ccu CLK_BUS_MMC0>,
