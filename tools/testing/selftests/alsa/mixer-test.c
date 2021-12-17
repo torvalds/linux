@@ -276,6 +276,23 @@ bool ctl_value_index_valid(struct ctl_data *ctl, snd_ctl_elem_value_t *val,
 		}
 		break;
 
+	case SND_CTL_ELEM_TYPE_ENUMERATED:
+		int_val = snd_ctl_elem_value_get_enumerated(val, index);
+
+		if (int_val < 0) {
+			ksft_print_msg("%s.%d negative value %ld for enumeration\n",
+				       ctl->name, index, int_val);
+			return false;
+		}
+
+		if (int_val >= snd_ctl_elem_info_get_items(ctl->info)) {
+			ksft_print_msg("%s.%d value %ld more than item count %ld\n",
+				       ctl->name, index, int_val,
+				       snd_ctl_elem_info_get_items(ctl->info));
+			return false;
+		}
+		break;
+
 	default:
 		/* No tests for other types */
 		break;
