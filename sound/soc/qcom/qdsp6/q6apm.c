@@ -615,7 +615,7 @@ struct q6apm_graph *q6apm_graph_open(struct device *dev, q6apm_cb cb,
 	graph = kzalloc(sizeof(*graph), GFP_KERNEL);
 	if (!graph) {
 		ret = -ENOMEM;
-		goto err;
+		goto put_ar_graph;
 	}
 
 	graph->apm = apm;
@@ -631,13 +631,15 @@ struct q6apm_graph *q6apm_graph_open(struct device *dev, q6apm_cb cb,
 
 	graph->port = gpr_alloc_port(apm->gdev, dev, graph_callback, graph);
 	if (IS_ERR(graph->port)) {
-		kfree(graph);
 		ret = PTR_ERR(graph->port);
-		goto err;
+		goto free_graph;
 	}
 
 	return graph;
-err:
+
+free_graph:
+	kfree(graph);
+put_ar_graph:
 	kref_put(&ar_graph->refcount, q6apm_put_audioreach_graph);
 	return ERR_PTR(ret);
 }
