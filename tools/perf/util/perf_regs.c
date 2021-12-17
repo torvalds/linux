@@ -25,6 +25,9 @@ int perf_reg_value(u64 *valp, struct regs_dump *regs, int id)
 	int i, idx = 0;
 	u64 mask = regs->mask;
 
+	if ((u64)id >= PERF_SAMPLE_REGS_CACHE_SIZE)
+		return -EINVAL;
+
 	if (regs->cache_mask & (1ULL << id))
 		goto out;
 

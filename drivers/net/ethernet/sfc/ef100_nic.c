@@ -609,6 +609,9 @@ static size_t ef100_update_stats(struct efx_nic *efx,
 	ef100_common_stat_mask(mask);
 	ef100_ethtool_stat_mask(mask);
 
+	if (!mc_stats)
+		return 0;
+
 	efx_nic_copy_stats(efx, mc_stats);
 	efx_nic_update_stats(ef100_stat_desc, EF100_STAT_COUNT, mask,
 			     stats, mc_stats, false);

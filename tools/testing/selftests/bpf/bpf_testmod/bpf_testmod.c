@@ -33,6 +33,22 @@ noinline int bpf_testmod_loop_test(int n)
 	return sum;
 }
 
+__weak noinline struct file *bpf_testmod_return_ptr(int arg)
+{
+	static struct file f = {};
+
+	switch (arg) {
+	case 1: return (void *)EINVAL;		/* user addr */
+	case 2: return (void *)0xcafe4a11;	/* user addr */
+	case 3: return (void *)-EINVAL;		/* canonical, but invalid */
+	case 4: return (void *)(1ull << 60);	/* non-canonical and invalid */
+	case 5: return (void *)~(1ull << 30);	/* trigger extable */
+	case 6: return &f;			/* valid addr */
+	case 7: return (void *)((long)&f | 1);	/* kernel tricks */
+	default: return NULL;
+	}
+}
+
 noinline ssize_t
 bpf_testmod_test_read(struct file *file, struct kobject *kobj,
 		      struct bin_attribute *bin_attr,
@@ -43,6 +59,10 @@ bpf_testmod_test_read(struct file *file, struct kobject *kobj,
 		.off = off,
 		.len = len,
 	};
+	int i = 1;
+
+	while (bpf_testmod_return_ptr(i))
+		i++;
 
 	/* This is always true. Use the check to make sure the compiler
 	 * doesn't remove bpf_testmod_loop_test.

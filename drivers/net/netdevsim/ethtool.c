@@ -81,7 +81,10 @@ static int nsim_set_ringparam(struct net_device *dev,
 {
 	struct netdevsim *ns = netdev_priv(dev);
 
-	memcpy(&ns->ethtool.ring, ring, sizeof(ns->ethtool.ring));
+	ns->ethtool.ring.rx_pending = ring->rx_pending;
+	ns->ethtool.ring.rx_jumbo_pending = ring->rx_jumbo_pending;
+	ns->ethtool.ring.rx_mini_pending = ring->rx_mini_pending;
+	ns->ethtool.ring.tx_pending = ring->tx_pending;
 	return 0;
 }
 

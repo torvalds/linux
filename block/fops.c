@@ -341,8 +341,7 @@ static ssize_t __blkdev_direct_IO_async(struct kiocb *iocb,
 	} else {
 		ret = bio_iov_iter_get_pages(bio, iter);
 		if (unlikely(ret)) {
-			bio->bi_status = BLK_STS_IOERR;
-			bio_endio(bio);
+			bio_put(bio);
 			return ret;
 		}
 	}

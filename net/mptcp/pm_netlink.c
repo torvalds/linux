@@ -700,6 +700,9 @@ static void mptcp_pm_nl_rm_addr_or_subflow(struct mptcp_sock *msk,
 
 	msk_owned_by_me(msk);
 
+	if (sk->sk_state == TCP_LISTEN)
+		return;
+
 	if (!rm_list->nr)
 		return;
 
