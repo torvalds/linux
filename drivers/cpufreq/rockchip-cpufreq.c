@@ -178,6 +178,39 @@ out:
 	return ret;
 }
 
+static int rk3588_cpu_set_read_margin(struct device *dev,
+				      struct rockchip_opp_info *opp_info,
+				      unsigned long volt)
+{
+	bool is_found = false;
+	u32 rm;
+	int i;
+
+	if (!opp_info->grf || !opp_info->volt_rm_tbl)
+		return 0;
+
+	for (i = 0; opp_info->volt_rm_tbl[i].rm != VOLT_RM_TABLE_END; i++) {
+		if (volt >= opp_info->volt_rm_tbl[i].volt) {
+			rm = opp_info->volt_rm_tbl[i].rm;
+			is_found = true;
+			break;
+		}
+	}
+
+	if (!is_found)
+		return 0;
+
+	dev_dbg(dev, "set rm to %d\n", rm);
+	regmap_write(opp_info->grf, 0x20, 0x001c0000 | (rm << 2));
+	regmap_write(opp_info->grf, 0x28, 0x003c0000 | (rm << 2));
+	regmap_write(opp_info->grf, 0x2c, 0x003c0000 | (rm << 2));
+	regmap_write(opp_info->grf, 0x30, 0x00200020);
+	udelay(1);
+	regmap_write(opp_info->grf, 0x30, 0x00200000);
+
+	return 0;
+}
+
 static int rv1126_get_soc_info(struct device *dev, struct device_node *np,
 			       int *bin, int *process)
 {
@@ -213,6 +246,10 @@ static const struct rockchip_opp_data rk3399_cpu_opp_data = {
 	.get_soc_info = rk3399_get_soc_info,
 };
 
+static const struct rockchip_opp_data rk3588_cpu_opp_data = {
+	.set_read_margin = rk3588_cpu_set_read_margin,
+};
+
 static const struct rockchip_opp_data rv1126_cpu_opp_data = {
 	.get_soc_info = rv1126_get_soc_info,
 };
@@ -237,6 +274,10 @@ static const struct of_device_id rockchip_cpufreq_of_match[] = {
 	{
 		.compatible = "rockchip,rk3399",
 		.data = (void *)&rk3399_cpu_opp_data,
+	},
+	{
+		.compatible = "rockchip,rk3588",
+		.data = (void *)&rk3588_cpu_opp_data,
 	},
 	{
 		.compatible = "rockchip,rv1109",
@@ -292,6 +333,7 @@ static int cpu_opp_helper(struct dev_pm_set_opp_data *data)
 	struct device *dev = data->dev;
 	struct clk *clk = data->clk;
 	struct cluster_info *cluster;
+	struct rockchip_opp_info *opp_info;
 	unsigned long old_freq = data->old_opp.rate;
 	unsigned long new_freq = data->new_opp.rate;
 	int ret = 0;
@@ -299,6 +341,7 @@ static int cpu_opp_helper(struct dev_pm_set_opp_data *data)
 	cluster = rockchip_cluster_info_lookup(dev->id);
 	if (!cluster)
 		return -EINVAL;
+	opp_info = &cluster->opp_info;
 
 	/* Scaling up? Scale voltage before frequency */
 	if (new_freq >= old_freq) {
@@ -310,6 +353,9 @@ static int cpu_opp_helper(struct dev_pm_set_opp_data *data)
 						"vdd");
 		if (ret)
 			goto restore_voltage;
+		if (opp_info->data->set_read_margin)
+			opp_info->data->set_read_margin(dev, opp_info,
+							new_supply_vdd->u_volt);
 	}
 
 	/* Change frequency */
@@ -323,6 +369,9 @@ static int cpu_opp_helper(struct dev_pm_set_opp_data *data)
 
 	/* Scaling down? Scale voltage after frequency */
 	if (new_freq < old_freq) {
+		if (opp_info->data->set_read_margin)
+			opp_info->data->set_read_margin(dev, opp_info,
+							new_supply_vdd->u_volt);
 		ret = rockchip_cpufreq_set_volt(dev, vdd_reg, new_supply_vdd,
 						"vdd");
 		if (ret)
@@ -336,6 +385,9 @@ static int cpu_opp_helper(struct dev_pm_set_opp_data *data)
 	return 0;
 
 restore_freq:
+	if (opp_info->data->set_read_margin)
+		opp_info->data->set_read_margin(dev, opp_info,
+						old_supply_vdd->u_volt);
 	if (clk_set_rate(clk, old_freq))
 		dev_err(dev, "%s: failed to restore old-freq (%lu Hz)\n",
 			__func__, old_freq);
