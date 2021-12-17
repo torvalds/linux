@@ -296,24 +296,6 @@ check_mptcp_disabled()
 	return 0
 }
 
-check_mptcp_ulp_setsockopt()
-{
-	local t retval
-	t="ns_ulp-$sech-$(mktemp -u XXXXXX)"
-
-	ip netns add ${t} || exit $ksft_skip
-	if ! ip netns exec ${t} ./mptcp_connect -u -p 10000 -s TCP 127.0.0.1 2>&1; then
-		printf "setsockopt(..., TCP_ULP, \"mptcp\", ...) allowed\t[ FAIL ]\n"
-		retval=1
-		ret=$retval
-	else
-		printf "setsockopt(..., TCP_ULP, \"mptcp\", ...) blocked\t[ OK ]\n"
-		retval=0
-	fi
-	ip netns del ${t}
-	return $retval
-}
-
 # $1: IP address
 is_v6()
 {
@@ -779,8 +761,6 @@ make_file "$cin" "client"
 make_file "$sin" "server"
 
 check_mptcp_disabled
-
-check_mptcp_ulp_setsockopt
 
 stop_if_error "The kernel configuration is not valid for MPTCP"
 

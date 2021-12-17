@@ -59,7 +59,6 @@ static enum cfg_peek cfg_peek = CFG_NONE_PEEK;
 static const char *cfg_host;
 static const char *cfg_port	= "12000";
 static int cfg_sock_proto	= IPPROTO_MPTCP;
-static bool tcpulp_audit;
 static int pf = AF_INET;
 static int cfg_sndbuf;
 static int cfg_rcvbuf;
@@ -103,7 +102,6 @@ static void die_usage(void)
 	fprintf(stderr, "\t-s [MPTCP|TCP] -- use mptcp(default) or tcp sockets\n");
 	fprintf(stderr, "\t-m [poll|mmap|sendfile] -- use poll(default)/mmap+write/sendfile\n");
 	fprintf(stderr, "\t-M mark -- set socket packet mark\n");
-	fprintf(stderr, "\t-u -- check mptcp ulp\n");
 	fprintf(stderr, "\t-w num -- wait num sec before closing the socket\n");
 	fprintf(stderr, "\t-c cmsg -- test cmsg type <cmsg>\n");
 	fprintf(stderr, "\t-o option -- test sockopt <option>\n");
@@ -215,6 +213,42 @@ static void set_transparent(int fd, int pf)
 	}
 }
 
+static int do_ulp_so(int sock, const char *name)
+{
+	return setsockopt(sock, IPPROTO_TCP, TCP_ULP, name, strlen(name));
+}
+
+#define X(m)	xerror("%s:%u: %s: failed for proto %d at line %u", __FILE__, __LINE__, (m), proto, line)
+static void sock_test_tcpulp(int sock, int proto, unsigned int line)
+{
+	socklen_t buflen = 8;
+	char buf[8] = "";
+	int ret = getsockopt(sock, IPPROTO_TCP, TCP_ULP, buf, &buflen);
+
+	if (ret != 0)
+		X("getsockopt");
+
+	if (buflen > 0) {
+		if (strcmp(buf, "mptcp") != 0)
+			xerror("unexpected ULP '%s' for proto %d at line %u", buf, proto, line);
+		ret = do_ulp_so(sock, "tls");
+		if (ret == 0)
+			X("setsockopt");
+	} else if (proto == IPPROTO_MPTCP) {
+		ret = do_ulp_so(sock, "tls");
+		if (ret != -1)
+			X("setsockopt");
+	}
+
+	ret = do_ulp_so(sock, "mptcp");
+	if (ret != -1)
+		X("setsockopt");
+
+#undef X
+}
+
+#define SOCK_TEST_TCPULP(s, p) sock_test_tcpulp((s), (p), __LINE__)
+
 static int sock_listen_mptcp(const char * const listenaddr,
 			     const char * const port)
 {
@@ -238,6 +272,8 @@ static int sock_listen_mptcp(const char * const listenaddr,
 		if (sock < 0)
 			continue;
 
+		SOCK_TEST_TCPULP(sock, cfg_sock_proto);
+
 		if (-1 == setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &one,
 				     sizeof(one)))
 			perror("setsockopt");
@@ -260,50 +296,17 @@ static int sock_listen_mptcp(const char * const listenaddr,
 		return sock;
 	}
 
+	SOCK_TEST_TCPULP(sock, cfg_sock_proto);
+
 	if (listen(sock, 20)) {
 		perror("listen");
 		close(sock);
 		return -1;
 	}
 
+	SOCK_TEST_TCPULP(sock, cfg_sock_proto);
+
 	return sock;
-}
-
-static bool sock_test_tcpulp(const char * const remoteaddr,
-			     const char * const port)
-{
-	struct addrinfo hints = {
-		.ai_protocol = IPPROTO_TCP,
-		.ai_socktype = SOCK_STREAM,
-	};
-	struct addrinfo *a, *addr;
-	int sock = -1, ret = 0;
-	bool test_pass = false;
-
-	hints.ai_family = AF_INET;
-
-	xgetaddrinfo(remoteaddr, port, &hints, &addr);
-	for (a = addr; a; a = a->ai_next) {
-		sock = socket(a->ai_family, a->ai_socktype, IPPROTO_TCP);
-		if (sock < 0) {
-			perror("socket");
-			continue;
-		}
-		ret = setsockopt(sock, IPPROTO_TCP, TCP_ULP, "mptcp",
-				 sizeof("mptcp"));
-		if (ret == -1 && errno == EOPNOTSUPP)
-			test_pass = true;
-		close(sock);
-
-		if (test_pass)
-			break;
-		if (!ret)
-			fprintf(stderr,
-				"setsockopt(TCP_ULP) returned 0\n");
-		else
-			perror("setsockopt(TCP_ULP)");
-	}
-	return test_pass;
 }
 
 static int sock_connect_mptcp(const char * const remoteaddr,
@@ -326,6 +329,8 @@ static int sock_connect_mptcp(const char * const remoteaddr,
 			continue;
 		}
 
+		SOCK_TEST_TCPULP(sock, proto);
+
 		if (cfg_mark)
 			set_mark(sock, cfg_mark);
 
@@ -338,6 +343,8 @@ static int sock_connect_mptcp(const char * const remoteaddr,
 	}
 
 	freeaddrinfo(addr);
+	if (sock != -1)
+		SOCK_TEST_TCPULP(sock, proto);
 	return sock;
 }
 
@@ -954,6 +961,8 @@ int main_loop_s(int listensock)
 		check_sockaddr(pf, &ss, salen);
 		check_getpeername(remotesock, &ss, salen);
 
+		SOCK_TEST_TCPULP(remotesock, 0);
+
 		return copyfd_io(0, remotesock, 1);
 	}
 
@@ -1059,6 +1068,8 @@ int main_loop(void)
 
 	check_getpeername_connect(fd);
 
+	SOCK_TEST_TCPULP(fd, cfg_sock_proto);
+
 	if (cfg_rcvbuf)
 		set_rcvbuf(fd, cfg_rcvbuf);
 	if (cfg_sndbuf)
@@ -1151,7 +1162,7 @@ static void parse_opts(int argc, char **argv)
 {
 	int c;
 
-	while ((c = getopt(argc, argv, "6jr:lp:s:hut:T:m:S:R:w:M:P:c:o:")) != -1) {
+	while ((c = getopt(argc, argv, "6jr:lp:s:ht:T:m:S:R:w:M:P:c:o:")) != -1) {
 		switch (c) {
 		case 'j':
 			cfg_join = true;
@@ -1176,9 +1187,6 @@ static void parse_opts(int argc, char **argv)
 			break;
 		case 'h':
 			die_usage();
-			break;
-		case 'u':
-			tcpulp_audit = true;
 			break;
 		case '6':
 			pf = AF_INET6;
@@ -1232,9 +1240,6 @@ int main(int argc, char *argv[])
 
 	signal(SIGUSR1, handle_signal);
 	parse_opts(argc, argv);
-
-	if (tcpulp_audit)
-		return sock_test_tcpulp(cfg_host, cfg_port) ? 0 : 1;
 
 	if (listen_mode) {
 		int fd = sock_listen_mptcp(cfg_host, cfg_port);
