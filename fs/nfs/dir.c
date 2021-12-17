@@ -1819,6 +1819,14 @@ out:
 }
 EXPORT_SYMBOL_GPL(nfs_lookup);
 
+void nfs_d_prune_case_insensitive_aliases(struct inode *inode)
+{
+	/* Case insensitive server? Revalidate dentries */
+	if (inode && nfs_server_capable(inode, NFS_CAP_CASE_INSENSITIVE))
+		d_prune_aliases(inode);
+}
+EXPORT_SYMBOL_GPL(nfs_d_prune_case_insensitive_aliases);
+
 #if IS_ENABLED(CONFIG_NFS_V4)
 static int nfs4_lookup_revalidate(struct dentry *, unsigned int);
 
@@ -2199,8 +2207,10 @@ static void nfs_dentry_remove_handle_error(struct inode *dir,
 	switch (error) {
 	case -ENOENT:
 		d_delete(dentry);
-		fallthrough;
+		nfs_set_verifier(dentry, nfs_save_change_attribute(dir));
+		break;
 	case 0:
+		nfs_d_prune_case_insensitive_aliases(d_inode(dentry));
 		nfs_set_verifier(dentry, nfs_save_change_attribute(dir));
 	}
 }
