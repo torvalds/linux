@@ -41,20 +41,22 @@ static DEFINE_SPINLOCK(lock_me_up);
  * Make sure compiler does not optimize this function or stack frame away:
  * - function marked noinline
  * - stack variables are marked volatile
- * - stack variables are written (memset()) and read (pr_info())
- * - function has external effects (pr_info())
- * */
+ * - stack variables are written (memset()) and read (buf[..] passed as arg)
+ * - function may have external effects (memzero_explicit())
+ * - no tail recursion possible
+ */
 static int noinline recursive_loop(int remaining)
 {
 	volatile char buf[REC_STACK_SIZE];
+	volatile int ret;
 
 	memset((void *)buf, remaining & 0xFF, sizeof(buf));
-	pr_info("loop %d/%d ...\n", (int)buf[remaining % sizeof(buf)],
-		recur_count);
 	if (!remaining)
-		return 0;
+		ret = 0;
 	else
-		return recursive_loop(remaining - 1);
+		ret = recursive_loop((int)buf[remaining % sizeof(buf)] - 1);
+	memzero_explicit((void *)buf, sizeof(buf));
+	return ret;
 }
 
 /* If the depth is negative, use the default, otherwise keep parameter. */
