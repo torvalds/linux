@@ -2515,7 +2515,7 @@ static int rcu_torture_fwd_prog(void *args)
 			firsttime = false;
 			WRITE_ONCE(rcu_fwd_seq, rcu_fwd_seq + 1);
 		} else {
-			while (READ_ONCE(rcu_fwd_seq) == oldseq)
+			while (READ_ONCE(rcu_fwd_seq) == oldseq && !torture_must_stop())
 				schedule_timeout_interruptible(1);
 			oldseq = READ_ONCE(rcu_fwd_seq);
 		}
