@@ -2236,6 +2236,10 @@ struct tb_switch *tb_switch_alloc(struct tb *tb, struct device *parent,
 	if (ret > 0)
 		sw->cap_lc = ret;
 
+	ret = tb_switch_find_vse_cap(sw, TB_VSE_CAP_CP_LP);
+	if (ret > 0)
+		sw->cap_lp = ret;
+
 	/* Root switch is always authorized */
 	if (!route)
 		sw->authorized = true;
@@ -3042,6 +3046,13 @@ void tb_switch_suspend(struct tb_switch *sw, bool runtime)
 
 	tb_sw_dbg(sw, "suspending switch\n");
 
+	/*
+	 * Actually only needed for Titan Ridge but for simplicity can be
+	 * done for USB4 device too as CLx is re-enabled at resume.
+	 */
+	if (tb_switch_disable_clx(sw, TB_CL0S))
+		tb_sw_warn(sw, "failed to disable CLx on upstream port\n");
+
 	err = tb_plug_events_active(sw, false);
 	if (err)
 		return;
@@ -3309,6 +3320,7 @@ static int tb_switch_pm_secondary_resolve(struct tb_switch *sw)
 	return tb_port_pm_secondary_disable(down);
 }
 
+/* Called for USB4 or Titan Ridge routers only */
 static bool tb_port_clx_supported(struct tb_port *port, enum tb_clx clx)
 {
 	u32 mask, val;
@@ -3322,8 +3334,12 @@ static bool tb_port_clx_supported(struct tb_port *port, enum tb_clx clx)
 	if (port->xdomain)
 		return false;
 
-	if (!usb4_port_clx_supported(port))
+	if (tb_switch_is_usb4(port->sw)) {
+		if (!usb4_port_clx_supported(port))
+			return false;
+	} else if (!tb_lc_is_clx_supported(port)) {
 		return false;
+	}
 
 	switch (clx) {
 	case TB_CL0S:
@@ -3389,7 +3405,7 @@ static int tb_switch_enable_cl0s(struct tb_switch *sw)
 	struct tb_port *up, *down;
 	int ret;
 
-	if (!tb_switch_is_usb4(sw))
+	if (!tb_switch_is_clx_supported(sw))
 		return 0;
 
 	/*
@@ -3428,6 +3444,13 @@ static int tb_switch_enable_cl0s(struct tb_switch *sw)
 	ret = tb_port_cl0s_enable(down);
 	if (ret) {
 		tb_port_cl0s_disable(up);
+		return ret;
+	}
+
+	ret = tb_switch_mask_clx_objections(sw);
+	if (ret) {
+		tb_port_cl0s_disable(up);
+		tb_port_cl0s_disable(down);
 		return ret;
 	}
 
@@ -3477,7 +3500,7 @@ static int tb_switch_disable_cl0s(struct tb_switch *sw)
 	struct tb_port *up, *down;
 	int ret;
 
-	if (!tb_switch_is_usb4(sw))
+	if (!tb_switch_is_clx_supported(sw))
 		return 0;
 
 	/*
@@ -3523,4 +3546,135 @@ int tb_switch_disable_clx(struct tb_switch *sw, enum tb_clx clx)
 	default:
 		return -EOPNOTSUPP;
 	}
+}
+
+/**
+ * tb_switch_mask_clx_objections() - Mask CLx objections for a router
+ * @sw: Router to mask objections for
+ *
+ * Mask the objections coming from the second depth routers in order to
+ * stop these objections from interfering with the CLx states of the first
+ * depth link.
+ */
+int tb_switch_mask_clx_objections(struct tb_switch *sw)
+{
+	int up_port = sw->config.upstream_port_number;
+	u32 offset, val[2], mask_obj, unmask_obj;
+	int ret, i;
+
+	/* Only Titan Ridge of pre-USB4 devices support CLx states */
+	if (!tb_switch_is_titan_ridge(sw))
+		return 0;
+
+	if (!tb_route(sw))
+		return 0;
+
+	/*
+	 * In Titan Ridge there are only 2 dual-lane Thunderbolt ports:
+	 * Port A consists of lane adapters 1,2 and
+	 * Port B consists of lane adapters 3,4
+	 * If upstream port is A, (lanes are 1,2), we mask objections from
+	 * port B (lanes 3,4) and unmask objections from Port A and vice-versa.
+	 */
+	if (up_port == 1) {
+		mask_obj = TB_LOW_PWR_C0_PORT_B_MASK;
+		unmask_obj = TB_LOW_PWR_C1_PORT_A_MASK;
+		offset = TB_LOW_PWR_C1_CL1;
+	} else {
+		mask_obj = TB_LOW_PWR_C1_PORT_A_MASK;
+		unmask_obj = TB_LOW_PWR_C0_PORT_B_MASK;
+		offset = TB_LOW_PWR_C3_CL1;
+	}
+
+	ret = tb_sw_read(sw, &val, TB_CFG_SWITCH,
+			 sw->cap_lp + offset, ARRAY_SIZE(val));
+	if (ret)
+		return ret;
+
+	for (i = 0; i < ARRAY_SIZE(val); i++) {
+		val[i] |= mask_obj;
+		val[i] &= ~unmask_obj;
+	}
+
+	return tb_sw_write(sw, &val, TB_CFG_SWITCH,
+			   sw->cap_lp + offset, ARRAY_SIZE(val));
+}
+
+/*
+ * Can be used for read/write a specified PCIe bridge for any Thunderbolt 3
+ * device. For now used only for Titan Ridge.
+ */
+static int tb_switch_pcie_bridge_write(struct tb_switch *sw, unsigned int bridge,
+				       unsigned int pcie_offset, u32 value)
+{
+	u32 offset, command, val;
+	int ret;
+
+	if (sw->generation != 3)
+		return -EOPNOTSUPP;
+
+	offset = sw->cap_plug_events + TB_PLUG_EVENTS_PCIE_WR_DATA;
+	ret = tb_sw_write(sw, &value, TB_CFG_SWITCH, offset, 1);
+	if (ret)
+		return ret;
+
+	command = pcie_offset & TB_PLUG_EVENTS_PCIE_CMD_DW_OFFSET_MASK;
+	command |= BIT(bridge + TB_PLUG_EVENTS_PCIE_CMD_BR_SHIFT);
+	command |= TB_PLUG_EVENTS_PCIE_CMD_RD_WR_MASK;
+	command |= TB_PLUG_EVENTS_PCIE_CMD_COMMAND_VAL
+			<< TB_PLUG_EVENTS_PCIE_CMD_COMMAND_SHIFT;
+	command |= TB_PLUG_EVENTS_PCIE_CMD_REQ_ACK_MASK;
+
+	offset = sw->cap_plug_events + TB_PLUG_EVENTS_PCIE_CMD;
+
+	ret = tb_sw_write(sw, &command, TB_CFG_SWITCH, offset, 1);
+	if (ret)
+		return ret;
+
+	ret = tb_switch_wait_for_bit(sw, offset,
+				     TB_PLUG_EVENTS_PCIE_CMD_REQ_ACK_MASK, 0, 100);
+	if (ret)
+		return ret;
+
+	ret = tb_sw_read(sw, &val, TB_CFG_SWITCH, offset, 1);
+	if (ret)
+		return ret;
+
+	if (val & TB_PLUG_EVENTS_PCIE_CMD_TIMEOUT_MASK)
+		return -ETIMEDOUT;
+
+	return 0;
+}
+
+/**
+ * tb_switch_pcie_l1_enable() - Enable PCIe link to enter L1 state
+ * @sw: Router to enable PCIe L1
+ *
+ * For Titan Ridge switch to enter CLx state, its PCIe bridges shall enable
+ * entry to PCIe L1 state. Shall be called after the upstream PCIe tunnel
+ * was configured. Due to Intel platforms limitation, shall be called only
+ * for first hop switch.
+ */
+int tb_switch_pcie_l1_enable(struct tb_switch *sw)
+{
+	struct tb_switch *parent = tb_switch_parent(sw);
+	int ret;
+
+	if (!tb_route(sw))
+		return 0;
+
+	if (!tb_switch_is_titan_ridge(sw))
+		return 0;
+
+	/* Enable PCIe L1 enable only for first hop router (depth = 1) */
+	if (tb_route(parent))
+		return 0;
+
+	/* Write to downstream PCIe bridge #5 aka Dn4 */
+	ret = tb_switch_pcie_bridge_write(sw, 5, 0x143, 0x0c7806b1);
+	if (ret)
+		return ret;
+
+	/* Write to Upstream PCIe bridge #0 aka Up0 */
+	return tb_switch_pcie_bridge_write(sw, 0, 0x143, 0x0c5806b1);
 }

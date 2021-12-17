@@ -334,7 +334,12 @@ out:
  */
 int tb_switch_tmu_disable(struct tb_switch *sw)
 {
-	if (!tb_switch_is_usb4(sw))
+	/*
+	 * No need to disable TMU on devices that don't support CLx since
+	 * on these devices e.g. Alpine Ridge and earlier, the TMU mode
+	 * HiFi bi-directional is enabled by default and we don't change it.
+	 */
+	if (!tb_switch_is_clx_supported(sw))
 		return 0;
 
 	/* Already disabled? */
@@ -450,6 +455,31 @@ out:
 	return ret;
 }
 
+static int tb_switch_tmu_objection_mask(struct tb_switch *sw)
+{
+	u32 val;
+	int ret;
+
+	ret = tb_sw_read(sw, &val, TB_CFG_SWITCH,
+			 sw->cap_vsec_tmu + TB_TIME_VSEC_3_CS_9, 1);
+	if (ret)
+		return ret;
+
+	val &= ~TB_TIME_VSEC_3_CS_9_TMU_OBJ_MASK;
+
+	return tb_sw_write(sw, &val, TB_CFG_SWITCH,
+			   sw->cap_vsec_tmu + TB_TIME_VSEC_3_CS_9, 1);
+}
+
+static int tb_switch_tmu_unidirectional_enable(struct tb_switch *sw)
+{
+	struct tb_port *up = tb_upstream_port(sw);
+
+	return tb_port_tmu_write(up, TMU_ADP_CS_6,
+				 TMU_ADP_CS_6_DISABLE_TMU_OBJ_MASK,
+				 TMU_ADP_CS_6_DISABLE_TMU_OBJ_MASK);
+}
+
 /*
  * This function is called when the previous TMU mode was
  * TB_SWITCH_TMU_RATE_OFF.
@@ -497,11 +527,30 @@ static int tb_switch_tmu_hifi_enable(struct tb_switch *sw)
 	if (unidirectional && !sw->tmu.has_ucap)
 		return -EOPNOTSUPP;
 
-	if (!tb_switch_is_usb4(sw))
+	/*
+	 * No need to enable TMU on devices that don't support CLx since on
+	 * these devices e.g. Alpine Ridge and earlier, the TMU mode HiFi
+	 * bi-directional is enabled by default.
+	 */
+	if (!tb_switch_is_clx_supported(sw))
 		return 0;
 
 	if (tb_switch_tmu_hifi_is_enabled(sw, sw->tmu.unidirectional_request))
 		return 0;
+
+	if (tb_switch_is_titan_ridge(sw) && unidirectional) {
+		/* Titan Ridge supports only CL0s */
+		if (!tb_switch_is_cl0s_enabled(sw))
+			return -EOPNOTSUPP;
+
+		ret = tb_switch_tmu_objection_mask(sw);
+		if (ret)
+			return ret;
+
+		ret = tb_switch_tmu_unidirectional_enable(sw);
+		if (ret)
+			return ret;
+	}
 
 	ret = tb_switch_tmu_set_time_disruption(sw, true);
 	if (ret)

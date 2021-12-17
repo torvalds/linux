@@ -1092,6 +1092,13 @@ static int tb_tunnel_pci(struct tb *tb, struct tb_switch *sw)
 		return -EIO;
 	}
 
+	/*
+	 * PCIe L1 is needed to enable CL0s for Titan Ridge so enable it
+	 * here.
+	 */
+	if (tb_switch_pcie_l1_enable(sw))
+		tb_sw_warn(sw, "failed to enable PCIe L1 for Titan Ridge\n");
+
 	list_add_tail(&tunnel->list, &tcm->tunnel_list);
 	return 0;
 }

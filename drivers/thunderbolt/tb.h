@@ -140,6 +140,7 @@ enum tb_clx {
  * @cap_plug_events: Offset to the plug events capability (%0 if not found)
  * @cap_vsec_tmu: Offset to the TMU vendor specific capability (%0 if not found)
  * @cap_lc: Offset to the link controller capability (%0 if not found)
+ * @cap_lp: Offset to the low power (CLx for TBT) capability (%0 if not found)
  * @is_unplugged: The switch is going away
  * @drom: DROM of the switch (%NULL if not found)
  * @nvm: Pointer to the NVM if the switch has one (%NULL otherwise)
@@ -192,6 +193,7 @@ struct tb_switch {
 	int cap_plug_events;
 	int cap_vsec_tmu;
 	int cap_lc;
+	int cap_lp;
 	bool is_unplugged;
 	u8 *drom;
 	struct tb_nvm *nvm;
@@ -972,6 +974,19 @@ static inline bool tb_switch_is_cl0s_enabled(const struct tb_switch *sw)
 	return sw->clx == TB_CL0S;
 }
 
+/**
+ * tb_switch_is_clx_supported() - Is CLx supported on this type of router
+ * @sw: The router to check CLx support for
+ */
+static inline bool tb_switch_is_clx_supported(const struct tb_switch *sw)
+{
+	return tb_switch_is_usb4(sw) || tb_switch_is_titan_ridge(sw);
+}
+
+int tb_switch_mask_clx_objections(struct tb_switch *sw);
+
+int tb_switch_pcie_l1_enable(struct tb_switch *sw);
+
 int tb_wait_for_port(struct tb_port *port, bool wait_if_unplugged);
 int tb_port_add_nfc_credits(struct tb_port *port, int credits);
 int tb_port_clear_counter(struct tb_port *port, int counter);
@@ -1065,6 +1080,7 @@ void tb_lc_unconfigure_port(struct tb_port *port);
 int tb_lc_configure_xdomain(struct tb_port *port);
 void tb_lc_unconfigure_xdomain(struct tb_port *port);
 int tb_lc_start_lane_initialization(struct tb_port *port);
+bool tb_lc_is_clx_supported(struct tb_port *port);
 int tb_lc_set_wake(struct tb_switch *sw, unsigned int flags);
 int tb_lc_set_sleep(struct tb_switch *sw);
 bool tb_lc_lane_bonding_possible(struct tb_switch *sw);
