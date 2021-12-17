@@ -1522,7 +1522,7 @@ static void amd_iommu_ats_write_check_workaround(struct amd_iommu *iommu)
 }
 
 /*
- * This function clues the initialization function for one IOMMU
+ * This function glues the initialization function for one IOMMU
  * together and also allocates the command buffer and programs the
  * hardware. It does NOT enable the IOMMU. This is done afterwards.
  */
