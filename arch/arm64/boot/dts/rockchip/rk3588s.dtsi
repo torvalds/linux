@@ -1000,6 +1000,16 @@
 	gpu_opp_table: gpu-opp-table {
 		compatible = "operating-points-v2";
 
+		clocks = <&cru CLK_GPU>, <&cru PCLK_GPU_GRF>;
+		clock-names = "clk", "pclk";
+		rockchip,grf = <&gpu_grf>;
+		volt-mem-read-margin = <
+			855000	1
+			765000	2
+			675000	3
+			585000	4
+		>;
+
 		opp-198000000 {
 			opp-hz = /bits/ 64 <198000000>;
 			opp-microvolt = <750000 750000 950000>,
@@ -1222,6 +1232,11 @@
 	bigcore1_grf: syscon@fd592000 {
 		compatible = "rockchip,rk3588-bigcore1-grf", "syscon";
 		reg = <0x0 0xfd592000 0x0 0x100>;
+	};
+
+	gpu_grf: syscon@fd5a0000 {
+		compatible = "rockchip,rk3588-gpu-grf", "syscon";
+		reg = <0x0 0xfd5a0000 0x0 0x100>;
 	};
 
 	vop_grf: syscon@fd5a4000 {
