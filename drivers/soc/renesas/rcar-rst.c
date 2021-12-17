@@ -66,7 +66,7 @@ static const struct rst_config rcar_rst_gen3 __initconst = {
 	.set_rproc_boot_addr = rcar_rst_set_gen3_rproc_boot_addr,
 };
 
-static const struct rst_config rcar_rst_r8a779a0 __initconst = {
+static const struct rst_config rcar_rst_gen4 __initconst = {
 	.modemr = 0x00,		/* MODEMR0 and it has CPG related bits */
 };
 
@@ -100,8 +100,9 @@ static const struct of_device_id rcar_rst_matches[] __initconst = {
 	{ .compatible = "renesas,r8a77980-rst", .data = &rcar_rst_gen3 },
 	{ .compatible = "renesas,r8a77990-rst", .data = &rcar_rst_gen3 },
 	{ .compatible = "renesas,r8a77995-rst", .data = &rcar_rst_gen3 },
-	/* R-Car V3U */
-	{ .compatible = "renesas,r8a779a0-rst", .data = &rcar_rst_r8a779a0 },
+	/* R-Car Gen4 */
+	{ .compatible = "renesas,r8a779a0-rst", .data = &rcar_rst_gen4 },
+	{ .compatible = "renesas,r8a779f0-rst", .data = &rcar_rst_gen4 },
 	{ /* sentinel */ }
 };
 
