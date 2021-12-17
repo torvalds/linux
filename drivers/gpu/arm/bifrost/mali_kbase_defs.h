@@ -155,7 +155,7 @@
  * While, the number of clocks could be more than regulators,
  * as mentioned in power_control_init().
  */
-#define BASE_MAX_NR_CLOCKS_REGULATORS (3)
+#define BASE_MAX_NR_CLOCKS_REGULATORS (4)
 
 /* Forward declarations */
 struct kbase_context;
