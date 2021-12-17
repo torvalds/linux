@@ -291,8 +291,12 @@ void iwl_mvm_tlc_update_notif(struct iwl_mvm *mvm,
 	notif = (void *)pkt->data;
 	sta = rcu_dereference(mvm->fw_id_to_mac_id[notif->sta_id]);
 	if (IS_ERR_OR_NULL(sta)) {
-		IWL_ERR(mvm, "Invalid sta id (%d) in FW TLC notification\n",
-			notif->sta_id);
+		/* can happen in remove station flow where mvm removed internally
+		 * the station before removing from FW
+		 */
+		IWL_DEBUG_RATE(mvm,
+			       "Invalid mvm RCU pointer for sta id (%d) in TLC notification\n",
+			       notif->sta_id);
 		goto out;
 	}
 

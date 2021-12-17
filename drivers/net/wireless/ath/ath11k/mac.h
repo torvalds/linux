@@ -127,6 +127,13 @@ struct ath11k_generic_iter {
 
 extern const struct htt_rx_ring_tlv_filter ath11k_mac_mon_status_filter_default;
 
+#define ATH11K_SCAN_11D_INTERVAL		600000
+#define ATH11K_11D_INVALID_VDEV_ID		0xFFFF
+
+void ath11k_mac_11d_scan_start(struct ath11k *ar, u32 vdev_id, bool wait);
+void ath11k_mac_11d_scan_stop(struct ath11k *ar);
+void ath11k_mac_11d_scan_stop_all(struct ath11k_base *ab);
+
 void ath11k_mac_destroy(struct ath11k_base *ab);
 void ath11k_mac_unregister(struct ath11k_base *ab);
 int ath11k_mac_register(struct ath11k_base *ab);
@@ -144,6 +151,10 @@ void ath11k_mac_scan_finish(struct ath11k *ar);
 struct ath11k_vif *ath11k_mac_get_arvif(struct ath11k *ar, u32 vdev_id);
 struct ath11k_vif *ath11k_mac_get_arvif_by_vdev_id(struct ath11k_base *ab,
 						   u32 vdev_id);
+u8 ath11k_mac_get_target_pdev_id(struct ath11k *ar);
+u8 ath11k_mac_get_target_pdev_id_from_vif(struct ath11k_vif *arvif);
+struct ath11k_vif *ath11k_mac_get_vif_up(struct ath11k_base *ab);
+
 struct ath11k *ath11k_mac_get_ar_by_vdev_id(struct ath11k_base *ab, u32 vdev_id);
 struct ath11k *ath11k_mac_get_ar_by_pdev_id(struct ath11k_base *ab, u32 pdev_id);
 

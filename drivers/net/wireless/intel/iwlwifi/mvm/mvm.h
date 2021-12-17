@@ -94,11 +94,10 @@ struct iwl_mvm_phy_ctxt {
 
 	enum nl80211_chan_width width;
 
-	/*
-	 * TODO: This should probably be removed. Currently here only for rate
-	 * scaling algorithm
-	 */
 	struct ieee80211_channel *channel;
+
+	/* track for RLC config command */
+	u32 center_freq1;
 };
 
 struct iwl_mvm_time_event_data {
@@ -1138,6 +1137,8 @@ struct iwl_mvm {
  * @IWL_MVM_STATUS_FIRMWARE_RUNNING: firmware is running
  * @IWL_MVM_STATUS_NEED_FLUSH_P2P: need to flush P2P bcast STA
  * @IWL_MVM_STATUS_IN_D3: in D3 (or at least about to go into it)
+ * @IWL_MVM_STATUS_SUPPRESS_ERROR_LOG_ONCE: suppress one error log
+ *	if this is set, when intentionally triggered
  * @IWL_MVM_STATUS_STARTING: starting mac,
  *	used to disable restart flow while in STARTING state
  */
@@ -1151,6 +1152,7 @@ enum iwl_mvm_status {
 	IWL_MVM_STATUS_FIRMWARE_RUNNING,
 	IWL_MVM_STATUS_NEED_FLUSH_P2P,
 	IWL_MVM_STATUS_IN_D3,
+	IWL_MVM_STATUS_SUPPRESS_ERROR_LOG_ONCE,
 	IWL_MVM_STATUS_STARTING,
 };
 

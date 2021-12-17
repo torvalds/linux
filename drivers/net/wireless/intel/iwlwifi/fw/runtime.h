@@ -156,8 +156,12 @@ struct iwl_fw_runtime {
 	u8 sar_chain_b_profile;
 	struct iwl_geo_profile geo_profiles[ACPI_NUM_GEO_PROFILES_REV3];
 	u32 geo_rev;
+	u32 geo_num_profiles;
+	bool geo_enabled;
 	union iwl_ppag_table_cmd ppag_table;
 	u32 ppag_ver;
+	struct iwl_sar_offset_mapping_cmd sgom_table;
+	bool sgom_enabled;
 #endif
 };
 

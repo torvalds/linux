@@ -12,6 +12,8 @@
 #include "netdev.h"
 #include "cfg80211.h"
 
+#define SPI_MODALIAS		"wilc1000_spi"
+
 static bool enable_crc7;	/* protect SPI commands with CRC7 */
 module_param(enable_crc7, bool, 0644);
 MODULE_PARM_DESC(enable_crc7,
@@ -98,8 +100,6 @@ static int wilc_spi_reset(struct wilc *wilc);
  */
 #define DATA_PKT_LOG_SZ				DATA_PKT_LOG_SZ_MAX
 #define DATA_PKT_SZ				(1 << DATA_PKT_LOG_SZ)
-
-#define USE_SPI_DMA				0
 
 #define WILC_SPI_COMMAND_STAT_SUCCESS		0
 #define WILC_GET_RESP_HDR_START(h)		(((h) >> 4) & 0xf)
@@ -203,11 +203,18 @@ static const struct of_device_id wilc_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, wilc_of_match);
 
+static const struct spi_device_id wilc_spi_id[] = {
+	{ "wilc1000", 0 },
+	{ /* sentinel */ }
+};
+MODULE_DEVICE_TABLE(spi, wilc_spi_id);
+
 static struct spi_driver wilc_spi_driver = {
 	.driver = {
-		.name = MODALIAS,
+		.name = SPI_MODALIAS,
 		.of_match_table = wilc_of_match,
 	},
+	.id_table = wilc_spi_id,
 	.probe =  wilc_bus_probe,
 	.remove = wilc_bus_remove,
 };
@@ -240,7 +247,6 @@ static int wilc_spi_tx(struct wilc *wilc, u8 *b, u32 len)
 		memset(&msg, 0, sizeof(msg));
 		spi_message_init(&msg);
 		msg.spi = spi;
-		msg.is_dma_mapped = USE_SPI_DMA;
 		spi_message_add_tail(&tr, &msg);
 
 		ret = spi_sync(spi, &msg);
@@ -284,7 +290,6 @@ static int wilc_spi_rx(struct wilc *wilc, u8 *rb, u32 rlen)
 		memset(&msg, 0, sizeof(msg));
 		spi_message_init(&msg);
 		msg.spi = spi;
-		msg.is_dma_mapped = USE_SPI_DMA;
 		spi_message_add_tail(&tr, &msg);
 
 		ret = spi_sync(spi, &msg);
@@ -323,7 +328,6 @@ static int wilc_spi_tx_rx(struct wilc *wilc, u8 *wb, u8 *rb, u32 rlen)
 		memset(&msg, 0, sizeof(msg));
 		spi_message_init(&msg);
 		msg.spi = spi;
-		msg.is_dma_mapped = USE_SPI_DMA;
 
 		spi_message_add_tail(&tr, &msg);
 		ret = spi_sync(spi, &msg);

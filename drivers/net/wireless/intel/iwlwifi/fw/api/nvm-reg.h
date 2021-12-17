@@ -34,6 +34,11 @@ enum iwl_regulatory_and_nvm_subcmd_ids {
 	TAS_CONFIG = 0x3,
 
 	/**
+	 * @SAR_OFFSET_MAPPING_TABLE_CMD: &iwl_sar_offset_mapping_cmd
+	 */
+	SAR_OFFSET_MAPPING_TABLE_CMD = 0x4,
+
+	/**
 	 * @PNVM_INIT_COMPLETE_NTFY: &struct iwl_pnvm_init_complete_ntfy
 	 */
 	PNVM_INIT_COMPLETE_NTFY = 0xFE,

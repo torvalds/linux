@@ -2285,7 +2285,7 @@ static void rtw89_sta_info_get_iter(void *data, struct ieee80211_sta *sta)
 	switch (status->encoding) {
 	case RX_ENC_LEGACY:
 		seq_printf(m, "Legacy %d", status->rate_idx +
-			   (status->band == NL80211_BAND_5GHZ ? 4 : 0));
+			   (status->band != NL80211_BAND_2GHZ ? 4 : 0));
 		break;
 	case RX_ENC_HT:
 		seq_printf(m, "HT MCS-%d%s", status->rate_idx,

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2012-2014, 2018, 2020 Intel Corporation
+ * Copyright (C) 2012-2014, 2018, 2020-2021 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2016-2017 Intel Deutschland GmbH
  */
@@ -96,6 +96,21 @@ struct iwl_alive_ntf_v5 {
 	struct iwl_umac_alive umac_data;
 	struct iwl_sku_id sku_id;
 } __packed; /* UCODE_ALIVE_NTFY_API_S_VER_5 */
+
+struct iwl_imr_alive_info {
+	__le64 base_addr;
+	__le32 size;
+	__le32 enabled;
+} __packed; /* IMR_ALIVE_INFO_API_S_VER_1 */
+
+struct iwl_alive_ntf_v6 {
+	__le16 status;
+	__le16 flags;
+	struct iwl_lmac_alive lmac_data[2];
+	struct iwl_umac_alive umac_data;
+	struct iwl_sku_id sku_id;
+	struct iwl_imr_alive_info imr;
+} __packed; /* UCODE_ALIVE_NTFY_API_S_VER_6 */
 
 /**
  * enum iwl_extended_cfg_flag - commands driver may send before

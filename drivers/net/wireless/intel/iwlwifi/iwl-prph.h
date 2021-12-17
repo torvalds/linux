@@ -455,6 +455,13 @@ enum {
 #define UREG_DOORBELL_TO_ISR6_RESUME	BIT(19)
 #define UREG_DOORBELL_TO_ISR6_PNVM	BIT(20)
 
+/*
+ * From BZ family driver triggers this bit for suspend and resume
+ * The driver should update CSR_IPC_SLEEP_CONTROL before triggering
+ * this interrupt with suspend/resume value
+ */
+#define UREG_DOORBELL_TO_ISR6_SLEEP_CTRL	BIT(31)
+
 #define CNVI_MBOX_C			0xA3400C
 
 #define FSEQ_ERROR_CODE			0xA340C8

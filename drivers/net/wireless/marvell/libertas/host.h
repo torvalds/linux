@@ -308,7 +308,7 @@ struct txpd {
 	__le32 tx_packet_location;
 	/* Tx packet length */
 	__le16 tx_packet_length;
-	struct_group(tx_dest_addr,
+	struct_group_attr(tx_dest_addr, __packed,
 		/* First 2 byte of destination MAC address */
 		u8 tx_dest_addr_high[2];
 		/* Last 4 byte of destination MAC address */

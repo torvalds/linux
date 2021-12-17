@@ -1022,6 +1022,11 @@ static ssize_t iwl_dbgfs_fw_restart_write(struct iwl_mvm *mvm, char *buf,
 	if (mvm->fw_restart >= 0)
 		mvm->fw_restart++;
 
+	if (count == 6 && !strcmp(buf, "nolog\n")) {
+		set_bit(IWL_MVM_STATUS_SUPPRESS_ERROR_LOG_ONCE, &mvm->status);
+		set_bit(STATUS_SUPPRESS_CMD_ERROR_ONCE, &mvm->trans->status);
+	}
+
 	/* take the return value to make compiler happy - it will fail anyway */
 	ret = iwl_mvm_send_cmd_pdu(mvm,
 				   WIDE_ID(LONG_GROUP, REPLY_ERROR),
@@ -1037,6 +1042,9 @@ static ssize_t iwl_dbgfs_fw_nmi_write(struct iwl_mvm *mvm, char *buf,
 {
 	if (!iwl_mvm_firmware_running(mvm))
 		return -EIO;
+
+	if (count == 6 && !strcmp(buf, "nolog\n"))
+		set_bit(IWL_MVM_STATUS_SUPPRESS_ERROR_LOG_ONCE, &mvm->status);
 
 	iwl_force_nmi(mvm->trans);
 

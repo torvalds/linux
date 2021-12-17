@@ -213,8 +213,6 @@
 #define WILC_RX_BUFF_SIZE	(96 * 1024)
 #define WILC_TX_BUFF_SIZE	(64 * 1024)
 
-#define MODALIAS		"WILC_SPI"
-
 #define NQUEUES			4
 #define AC_BUFFER_SIZE		1000
 

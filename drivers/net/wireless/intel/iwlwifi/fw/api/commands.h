@@ -51,7 +51,7 @@ enum iwl_legacy_cmds {
 	 * @UCODE_ALIVE_NTFY:
 	 * Alive data from the firmware, as described in
 	 * &struct iwl_alive_ntf_v3 or &struct iwl_alive_ntf_v4 or
-	 * &struct iwl_alive_ntf_v5.
+	 * &struct iwl_alive_ntf_v5 or &struct iwl_alive_ntf_v6.
 	 */
 	UCODE_ALIVE_NTFY = 0x1,
 
@@ -72,7 +72,8 @@ enum iwl_legacy_cmds {
 
 	/**
 	 * @PHY_CONTEXT_CMD:
-	 * Add/modify/remove a PHY context, using &struct iwl_phy_context_cmd.
+	 * Add/modify/remove a PHY context, using &struct iwl_phy_context_cmd
+	 *	or &struct iwl_phy_context_cmd_v1.
 	 */
 	PHY_CONTEXT_CMD = 0x8,
 
@@ -356,7 +357,7 @@ enum iwl_legacy_cmds {
 	 * &struct iwl_notif_statistics_v11,
 	 * &struct iwl_notif_statistics_v10,
 	 * &struct iwl_notif_statistics,
-	 * &struct iwl_statistics_operational_ntfy
+	 * &struct iwl_statistics_operational_ntfy_ver_14
 	 */
 	STATISTICS_CMD = 0x9c,
 
@@ -365,6 +366,7 @@ enum iwl_legacy_cmds {
 	 * one of &struct iwl_notif_statistics_v10,
 	 * &struct iwl_notif_statistics_v11,
 	 * &struct iwl_notif_statistic,
+	 * &struct iwl_statistics_operational_ntfy_ver_14
 	 * &struct iwl_statistics_operational_ntfy
 	 */
 	STATISTICS_NOTIFICATION = 0x9d,
@@ -612,6 +614,11 @@ enum iwl_system_subcmd_ids {
 	 * @RFI_GET_FREQ_TABLE_CMD: &struct iwl_rfi_config_cmd
 	 */
 	RFI_GET_FREQ_TABLE_CMD = 0xc,
+
+	/**
+	 * @SYSTEM_FEATURES_CONTROL_CMD: &struct iwl_system_features_control_cmd
+	 */
+	SYSTEM_FEATURES_CONTROL_CMD = 0xd,
 };
 
 #endif /* __iwl_fw_api_commands_h__ */

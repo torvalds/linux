@@ -789,7 +789,7 @@ int iwl_sar_get_wgds_table(struct iwl_fw_runtime *fwrt)
 				 * looking up in ACPI
 				 */
 				if (wifi_pkg->package.count !=
-				    min_size + profile_size * num_profiles) {
+				    hdr_size + profile_size * num_profiles) {
 					ret = -EINVAL;
 					goto out_free;
 				}
@@ -852,6 +852,8 @@ read_table:
 		}
 	}
 
+	fwrt->geo_num_profiles = num_profiles;
+	fwrt->geo_enabled = true;
 	ret = 0;
 out_free:
 	kfree(data);

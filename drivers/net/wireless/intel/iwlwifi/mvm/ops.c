@@ -26,6 +26,7 @@
 #include "time-event.h"
 #include "fw-api.h"
 #include "fw/acpi.h"
+#include "fw/uefi.h"
 
 #define DRV_DESCRIPTION	"The new Intel(R) wireless AGN driver for Linux"
 MODULE_DESCRIPTION(DRV_DESCRIPTION);
@@ -78,7 +79,7 @@ static void iwl_mvm_nic_config(struct iwl_op_mode *op_mode)
 {
 	struct iwl_mvm *mvm = IWL_OP_MODE_GET_MVM(op_mode);
 	u8 radio_cfg_type, radio_cfg_step, radio_cfg_dash;
-	u32 reg_val = 0;
+	u32 reg_val;
 	u32 phy_config = iwl_mvm_get_phy_config(mvm);
 
 	radio_cfg_type = (phy_config & FW_PHY_CFG_RADIO_TYPE) >>
@@ -89,10 +90,7 @@ static void iwl_mvm_nic_config(struct iwl_op_mode *op_mode)
 			 FW_PHY_CFG_RADIO_DASH_POS;
 
 	/* SKU control */
-	reg_val |= CSR_HW_REV_STEP(mvm->trans->hw_rev) <<
-				CSR_HW_IF_CONFIG_REG_POS_MAC_STEP;
-	reg_val |= CSR_HW_REV_DASH(mvm->trans->hw_rev) <<
-				CSR_HW_IF_CONFIG_REG_POS_MAC_DASH;
+	reg_val = CSR_HW_REV_STEP_DASH(mvm->trans->hw_rev);
 
 	/* radio configuration */
 	reg_val |= radio_cfg_type << CSR_HW_IF_CONFIG_REG_POS_PHY_TYPE;
@@ -117,8 +115,7 @@ static void iwl_mvm_nic_config(struct iwl_op_mode *op_mode)
 		reg_val |= CSR_HW_IF_CONFIG_REG_D3_DEBUG;
 
 	iwl_trans_set_bits_mask(mvm->trans, CSR_HW_IF_CONFIG_REG,
-				CSR_HW_IF_CONFIG_REG_MSK_MAC_DASH |
-				CSR_HW_IF_CONFIG_REG_MSK_MAC_STEP |
+				CSR_HW_IF_CONFIG_REG_MSK_MAC_STEP_DASH |
 				CSR_HW_IF_CONFIG_REG_MSK_PHY_TYPE |
 				CSR_HW_IF_CONFIG_REG_MSK_PHY_STEP |
 				CSR_HW_IF_CONFIG_REG_MSK_PHY_DASH |
@@ -502,6 +499,9 @@ static const struct iwl_hcmd_names iwl_mvm_system_names[] = {
 	HCMD_NAME(SHARED_MEM_CFG_CMD),
 	HCMD_NAME(INIT_EXTENDED_CFG_CMD),
 	HCMD_NAME(FW_ERROR_RECOVERY_CMD),
+	HCMD_NAME(RFI_CONFIG_CMD),
+	HCMD_NAME(RFI_GET_FREQ_TABLE_CMD),
+	HCMD_NAME(SYSTEM_FEATURES_CONTROL_CMD),
 };
 
 /* Please keep this array *SORTED* by hex value.
@@ -534,6 +534,7 @@ static const struct iwl_hcmd_names iwl_mvm_data_path_names[] = {
 	HCMD_NAME(UPDATE_MU_GROUPS_CMD),
 	HCMD_NAME(TRIGGER_RX_QUEUES_NOTIF_CMD),
 	HCMD_NAME(STA_HE_CTXT_CMD),
+	HCMD_NAME(RLC_CONFIG_CMD),
 	HCMD_NAME(RFH_QUEUE_CONFIG_CMD),
 	HCMD_NAME(TLC_MNG_CONFIG_CMD),
 	HCMD_NAME(CHEST_COLLECTOR_FILTER_CONFIG_CMD),
@@ -1057,7 +1058,6 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 	};
 	int scan_size;
 	u32 min_backoff;
-	enum iwl_amsdu_size rb_size_default;
 	struct iwl_mvm_csme_conn_info *csme_conn_info __maybe_unused;
 
 	/*
@@ -1097,6 +1097,7 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 			    &iwl_mvm_sanitize_ops, mvm, dbgfs_dir);
 
 	iwl_mvm_get_acpi_tables(mvm);
+	iwl_uefi_get_sgom_table(trans, &mvm->fwrt);
 
 	mvm->init_status = 0;
 
@@ -1200,14 +1201,9 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 	trans_cfg.no_reclaim_cmds = no_reclaim_cmds;
 	trans_cfg.n_no_reclaim_cmds = ARRAY_SIZE(no_reclaim_cmds);
 
-	if (mvm->trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_AX210)
-		rb_size_default = IWL_AMSDU_2K;
-	else
-		rb_size_default = IWL_AMSDU_4K;
-
 	switch (iwlwifi_mod_params.amsdu_size) {
 	case IWL_AMSDU_DEF:
-		trans_cfg.rx_buf_size = rb_size_default;
+		trans_cfg.rx_buf_size = IWL_AMSDU_4K;
 		break;
 	case IWL_AMSDU_4K:
 		trans_cfg.rx_buf_size = IWL_AMSDU_4K;
@@ -1221,7 +1217,7 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 	default:
 		pr_err("%s: Unsupported amsdu_size: %d\n", KBUILD_MODNAME,
 		       iwlwifi_mod_params.amsdu_size);
-		trans_cfg.rx_buf_size = rb_size_default;
+		trans_cfg.rx_buf_size = IWL_AMSDU_4K;
 	}
 
 	trans->wide_cmd_header = true;
@@ -1850,7 +1846,9 @@ static void iwl_mvm_nic_error(struct iwl_op_mode *op_mode, bool sync)
 {
 	struct iwl_mvm *mvm = IWL_OP_MODE_GET_MVM(op_mode);
 
-	if (!test_bit(STATUS_TRANS_DEAD, &mvm->trans->status))
+	if (!test_bit(STATUS_TRANS_DEAD, &mvm->trans->status) &&
+	    !test_and_clear_bit(IWL_MVM_STATUS_SUPPRESS_ERROR_LOG_ONCE,
+				&mvm->status))
 		iwl_mvm_dump_nic_error_log(mvm);
 
 	if (sync) {
