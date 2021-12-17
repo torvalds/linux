@@ -430,18 +430,8 @@
 	/* MAX34417 @ 0x1e */
 };
 
-&pon {
-	pwrkey {
-		status = "okay";
-	};
-
-	resin {
-		compatible = "qcom,pm8941-resin";
-		interrupts = <0x0 0x8 0x1 IRQ_TYPE_EDGE_BOTH>;
-		debounce = <15625>;
-		bias-pull-up;
-		linux,code = <KEY_VOLUMEDOWN>;
-	};
+&pon_pwrkey {
+	status = "okay";
 };
 
 &qupv3_id_0 {
@@ -474,6 +464,12 @@
 &remoteproc_slpi {
 	status = "okay";
 	firmware-name = "qcom/sm8150/microsoft/slpi.mdt";
+};
+
+&pon_resin {
+	status = "okay";
+
+	linux,code = <KEY_VOLUMEDOWN>;
 };
 
 &tlmm {
