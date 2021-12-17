@@ -159,6 +159,11 @@ static void xdp_rxq_info_init(struct xdp_rxq_info *xdp_rxq)
 int xdp_rxq_info_reg(struct xdp_rxq_info *xdp_rxq,
 		     struct net_device *dev, u32 queue_index, unsigned int napi_id)
 {
+	if (!dev) {
+		WARN(1, "Missing net_device from driver");
+		return -ENODEV;
+	}
+
 	if (xdp_rxq->reg_state == REG_STATE_UNUSED) {
 		WARN(1, "Driver promised not to register this");
 		return -EINVAL;
@@ -167,11 +172,6 @@ int xdp_rxq_info_reg(struct xdp_rxq_info *xdp_rxq,
 	if (xdp_rxq->reg_state == REG_STATE_REGISTERED) {
 		WARN(1, "Missing unregister, handled but fix driver");
 		xdp_rxq_info_unreg(xdp_rxq);
-	}
-
-	if (!dev) {
-		WARN(1, "Missing net_device from driver");
-		return -ENODEV;
 	}
 
 	/* State either UNREGISTERED or NEW */
