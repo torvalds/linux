@@ -258,7 +258,6 @@ static void odm_Process_RSSIForDM(struct odm_dm_struct *dm_odm,
 						(pDM_FatTable->antsel_rx_keep_1 << 1) |
 						pDM_FatTable->antsel_rx_keep_0;
 				pDM_FatTable->antSumRSSI[antsel_tr_mux] += pPhyInfo->RxPWDBAll;
-				pDM_FatTable->antRSSIcnt[antsel_tr_mux]++;
 			}
 		}
 	} else if ((dm_odm->AntDivType == CG_TRX_HW_ANTDIV) || (dm_odm->AntDivType == CGCS_RX_HW_ANTDIV)) {
