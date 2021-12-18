@@ -4,6 +4,7 @@
 #define __LAN966X_MAIN_H__
 
 #include <linux/etherdevice.h>
+#include <linux/if_vlan.h>
 #include <linux/jiffies.h>
 #include <linux/phy.h>
 #include <linux/phylink.h>
@@ -22,7 +23,8 @@
 #define PGID_SRC			80
 #define PGID_ENTRIES			89
 
-#define PORT_PVID			0
+#define UNAWARE_PVID			0
+#define HOST_PVID			4095
 
 /* Reserved amount for (SRC, PRIO) at index 8*SRC + PRIO */
 #define QSYS_Q_RSRV			95
@@ -82,6 +84,9 @@ struct lan966x {
 	struct list_head mac_entries;
 	spinlock_t mac_lock; /* lock for mac_entries list */
 
+	u16 vlan_mask[VLAN_N_VID];
+	DECLARE_BITMAP(cpu_vlan_mask, VLAN_N_VID);
+
 	/* stats */
 	const struct lan966x_stat_layout *stats_layout;
 	u32 num_stats;
@@ -113,6 +118,8 @@ struct lan966x_port {
 
 	u8 chip_port;
 	u16 pvid;
+	u16 vid;
+	bool vlan_aware;
 
 	struct phylink_config phylink_config;
 	struct phylink_pcs phylink_pcs;
@@ -165,6 +172,23 @@ int lan966x_mac_add_entry(struct lan966x *lan966x,
 			  u16 vid);
 void lan966x_mac_purge_entries(struct lan966x *lan966x);
 irqreturn_t lan966x_mac_irq_handler(struct lan966x *lan966x);
+
+void lan966x_vlan_init(struct lan966x *lan966x);
+void lan966x_vlan_port_apply(struct lan966x_port *port);
+bool lan966x_vlan_cpu_member_cpu_vlan_mask(struct lan966x *lan966x, u16 vid);
+void lan966x_vlan_port_set_vlan_aware(struct lan966x_port *port,
+				      bool vlan_aware);
+int lan966x_vlan_port_set_vid(struct lan966x_port *port,
+			      u16 vid,
+			      bool pvid,
+			      bool untagged);
+void lan966x_vlan_port_add_vlan(struct lan966x_port *port,
+				u16 vid,
+				bool pvid,
+				bool untagged);
+void lan966x_vlan_port_del_vlan(struct lan966x_port *port, u16 vid);
+void lan966x_vlan_cpu_add_vlan(struct lan966x *lan966x, u16 vid);
+void lan966x_vlan_cpu_del_vlan(struct lan966x *lan966x, u16 vid);
 
 static inline void __iomem *lan_addr(void __iomem *base[],
 				     int id, int tinst, int tcnt,

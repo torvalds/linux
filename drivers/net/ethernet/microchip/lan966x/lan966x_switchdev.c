@@ -73,6 +73,10 @@ static int lan966x_port_attr_set(struct net_device *dev, const void *ctx,
 	case SWITCHDEV_ATTR_ID_BRIDGE_AGEING_TIME:
 		lan966x_port_ageing_set(port, attr->u.ageing_time);
 		break;
+	case SWITCHDEV_ATTR_ID_BRIDGE_VLAN_FILTERING:
+		lan966x_vlan_port_set_vlan_aware(port, attr->u.vlan_filtering);
+		lan966x_vlan_port_apply(port);
+		break;
 	default:
 		err = -EOPNOTSUPP;
 		break;
@@ -120,7 +124,10 @@ static void lan966x_port_bridge_leave(struct lan966x_port *port,
 	if (!lan966x->bridge_mask)
 		lan966x->bridge = NULL;
 
-	lan966x_mac_cpu_learn(lan966x, port->dev->dev_addr, PORT_PVID);
+	/* Set the port back to host mode */
+	lan966x_vlan_port_set_vlan_aware(port, false);
+	lan966x_vlan_port_set_vid(port, HOST_PVID, false, false);
+	lan966x_vlan_port_apply(port);
 }
 
 static int lan966x_port_changeupper(struct net_device *dev,
@@ -264,6 +271,91 @@ static int lan966x_switchdev_event(struct notifier_block *nb,
 	return NOTIFY_DONE;
 }
 
+static int lan966x_handle_port_vlan_add(struct lan966x_port *port,
+					const struct switchdev_obj *obj)
+{
+	const struct switchdev_obj_port_vlan *v = SWITCHDEV_OBJ_PORT_VLAN(obj);
+	struct lan966x *lan966x = port->lan966x;
+
+	/* When adding a port to a vlan, we get a callback for the port but
+	 * also for the bridge. When get the callback for the bridge just bail
+	 * out. Then when the bridge is added to the vlan, then we get a
+	 * callback here but in this case the flags has set:
+	 * BRIDGE_VLAN_INFO_BRENTRY. In this case it means that the CPU
+	 * port is added to the vlan, so the broadcast frames and unicast frames
+	 * with dmac of the bridge should be foward to CPU.
+	 */
+	if (netif_is_bridge_master(obj->orig_dev) &&
+	    !(v->flags & BRIDGE_VLAN_INFO_BRENTRY))
+		return 0;
+
+	if (!netif_is_bridge_master(obj->orig_dev))
+		lan966x_vlan_port_add_vlan(port, v->vid,
+					   v->flags & BRIDGE_VLAN_INFO_PVID,
+					   v->flags & BRIDGE_VLAN_INFO_UNTAGGED);
+	else
+		lan966x_vlan_cpu_add_vlan(lan966x, v->vid);
+
+	return 0;
+}
+
+static int lan966x_handle_port_obj_add(struct net_device *dev, const void *ctx,
+				       const struct switchdev_obj *obj,
+				       struct netlink_ext_ack *extack)
+{
+	struct lan966x_port *port = netdev_priv(dev);
+	int err;
+
+	if (ctx && ctx != port)
+		return 0;
+
+	switch (obj->id) {
+	case SWITCHDEV_OBJ_ID_PORT_VLAN:
+		err = lan966x_handle_port_vlan_add(port, obj);
+		break;
+	default:
+		err = -EOPNOTSUPP;
+		break;
+	}
+
+	return err;
+}
+
+static int lan966x_handle_port_vlan_del(struct lan966x_port *port,
+					const struct switchdev_obj *obj)
+{
+	const struct switchdev_obj_port_vlan *v = SWITCHDEV_OBJ_PORT_VLAN(obj);
+	struct lan966x *lan966x = port->lan966x;
+
+	if (!netif_is_bridge_master(obj->orig_dev))
+		lan966x_vlan_port_del_vlan(port, v->vid);
+	else
+		lan966x_vlan_cpu_del_vlan(lan966x, v->vid);
+
+	return 0;
+}
+
+static int lan966x_handle_port_obj_del(struct net_device *dev, const void *ctx,
+				       const struct switchdev_obj *obj)
+{
+	struct lan966x_port *port = netdev_priv(dev);
+	int err;
+
+	if (ctx && ctx != port)
+		return 0;
+
+	switch (obj->id) {
+	case SWITCHDEV_OBJ_ID_PORT_VLAN:
+		err = lan966x_handle_port_vlan_del(port, obj);
+		break;
+	default:
+		err = -EOPNOTSUPP;
+		break;
+	}
+
+	return err;
+}
+
 static int lan966x_switchdev_blocking_event(struct notifier_block *nb,
 					    unsigned long event,
 					    void *ptr)
@@ -272,6 +364,16 @@ static int lan966x_switchdev_blocking_event(struct notifier_block *nb,
 	int err;
 
 	switch (event) {
+	case SWITCHDEV_PORT_OBJ_ADD:
+		err = switchdev_handle_port_obj_add(dev, ptr,
+						    lan966x_netdevice_check,
+						    lan966x_handle_port_obj_add);
+		return notifier_from_errno(err);
+	case SWITCHDEV_PORT_OBJ_DEL:
+		err = switchdev_handle_port_obj_del(dev, ptr,
+						    lan966x_netdevice_check,
+						    lan966x_handle_port_obj_del);
+		return notifier_from_errno(err);
 	case SWITCHDEV_PORT_ATTR_SET:
 		err = switchdev_handle_port_attr_set(dev, ptr,
 						     lan966x_netdevice_check,
