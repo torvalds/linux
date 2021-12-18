@@ -92,14 +92,10 @@ static int compare_input_type(const void *ap, const void *bp)
  */
 static void reorder_outputs(unsigned int nums, hda_nid_t *pins)
 {
-	hda_nid_t nid;
-
 	switch (nums) {
 	case 3:
 	case 4:
-		nid = pins[1];
-		pins[1] = pins[2];
-		pins[2] = nid;
+		swap(pins[1], pins[2]);
 		break;
 	}
 }
