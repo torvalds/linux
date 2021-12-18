@@ -725,9 +725,6 @@ void odm_RefreshRateAdaptiveMask(struct odm_dm_struct *pDM_Odm)
 	u8 i;
 	struct adapter *pAdapter = pDM_Odm->Adapter;
 
-	if (!(pDM_Odm->SupportAbility & ODM_BB_RA_MASK))
-		return;
-
 	if (pAdapter->bDriverStopped)
 		return;
 
