@@ -323,7 +323,7 @@ static ssize_t show_global_state(const struct cluster_data *state, char *buf)
 					cpu_online(c->cpu));
 		count += scnprintf(buf + count, PAGE_SIZE - count,
 					"\tPaused: %u\n",
-					!cpu_active(c->cpu));
+					cpu_halted(c->cpu));
 		count += scnprintf(buf + count, PAGE_SIZE - count,
 					"\tFirst CPU: %u\n",
 						cluster->first_cpu);
@@ -766,13 +766,13 @@ static unsigned int get_active_cpu_count(const struct cluster_data *cluster)
 {
 	cpumask_t cpus;
 
-	cpumask_and(&cpus, &cluster->cpu_mask, cpu_active_mask);
+	cpumask_andnot(&cpus, &cluster->cpu_mask, cpu_halt_mask);
 	return cpumask_weight(&cpus);
 }
 
 static bool is_active(const struct cpu_data *state)
 {
-	return cpu_online(state->cpu) && cpu_active(state->cpu);
+	return cpu_online(state->cpu) && !cpu_halted(state->cpu);
 }
 
 static bool adjustment_possible(const struct cluster_data *cluster,
@@ -1101,7 +1101,7 @@ static int __try_to_resume(struct cluster_data *cluster, unsigned int need,
 
 		if (!cpumask_test_cpu(c->cpu, &cpus_paused_by_us))
 			continue;
-		if ((cpu_online(c->cpu) && cpu_active(c->cpu)) ||
+		if ((cpu_online(c->cpu) && !cpu_halted(c->cpu)) ||
 			(!force && c->not_preferred))
 			continue;
 		if (active_cpus + nr_pending == need)
@@ -1159,7 +1159,7 @@ static void core_ctl_pause_cpus(struct cpumask *cpus_to_pause)
 	cpumask_copy(&saved_cpus, cpus_to_pause);
 
 	if (cpumask_any(cpus_to_pause) < nr_cpu_ids) {
-		if (walt_pause_cpus(cpus_to_pause) < 0)
+		if (walt_halt_cpus(cpus_to_pause) < 0)
 			pr_debug("core_ctl pause operation failed cpus=%*pbl paused_by_us=%*pbl\n",
 				 cpumask_pr_args(cpus_to_pause),
 				 cpumask_pr_args(&cpus_paused_by_us));
@@ -1188,7 +1188,7 @@ static void core_ctl_resume_cpus(struct cpumask *cpus_to_unpause)
 	cpumask_copy(&saved_cpus, cpus_to_unpause);
 
 	if (cpumask_any(cpus_to_unpause) < nr_cpu_ids) {
-		if (walt_resume_cpus(cpus_to_unpause) < 0)
+		if (walt_start_cpus(cpus_to_unpause) < 0)
 			pr_debug("core_ctl resume operation failed cpus=%*pbl paused_by_us=%*pbl\n",
 				 cpumask_pr_args(cpus_to_unpause),
 				 cpumask_pr_args(&cpus_paused_by_us));
