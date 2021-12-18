@@ -247,14 +247,6 @@ dw_mipi_dsi_get_lane_mbps(void *priv_data, const struct drm_display_mode *mode,
 	int ret, bpp;
 	u32 val;
 
-	/* Update lane capabilities according to hw version */
-	dsi->lane_min_kbps = LANE_MIN_KBPS;
-	dsi->lane_max_kbps = LANE_MAX_KBPS;
-	if (dsi->hw_version == HWVER_131) {
-		dsi->lane_min_kbps *= 2;
-		dsi->lane_max_kbps *= 2;
-	}
-
 	pll_in_khz = (unsigned int)(clk_get_rate(dsi->pllref_clk) / 1000);
 
 	/* Compute requested pll out */
@@ -415,6 +407,14 @@ static int dw_mipi_dsi_stm_probe(struct platform_device *pdev)
 		ret = -ENODEV;
 		DRM_ERROR("bad dsi hardware version\n");
 		goto err_dsi_probe;
+	}
+
+	/* set lane capabilities according to hw version */
+	dsi->lane_min_kbps = LANE_MIN_KBPS;
+	dsi->lane_max_kbps = LANE_MAX_KBPS;
+	if (dsi->hw_version == HWVER_131) {
+		dsi->lane_min_kbps *= 2;
+		dsi->lane_max_kbps *= 2;
 	}
 
 	dw_mipi_dsi_stm_plat_data.base = dsi->base;
