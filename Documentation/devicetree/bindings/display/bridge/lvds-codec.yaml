@@ -39,6 +39,7 @@ properties:
           - const: lvds-encoder # Generic LVDS encoder compatible fallback
       - items:
           - enum:
+              - ti,ds90cf364a # For the DS90CF364A FPD-Link LVDS Receiver
               - ti,ds90cf384a # For the DS90CF384A FPD-Link LVDS Receiver
           - const: lvds-decoder # Generic LVDS decoders compatible fallback
       - enum:
