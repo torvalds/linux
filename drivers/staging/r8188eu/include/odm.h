@@ -408,7 +408,6 @@ struct odm_rf_cal {
 /*  ODM Dynamic common info value definition */
 
 struct fast_ant_train {
-	u8	Bssid[6];
 	u8	antsel_rx_keep_0;
 	u8	antsel_rx_keep_1;
 	u8	antsel_rx_keep_2;

@@ -56,11 +56,8 @@ static void odm_TRX_HWAntDivInit(struct odm_dm_struct *dm_odm)
 
 static void odm_FastAntTrainingInit(struct odm_dm_struct *dm_odm)
 {
-	u32	value32, i;
+	u32	value32;
 	struct fast_ant_train *dm_fat_tbl = &dm_odm->DM_FatTable;
-
-	for (i = 0; i < 6; i++)
-		dm_fat_tbl->Bssid[i] = 0;
 
 	dm_fat_tbl->TrainIdx = 0;
 	dm_fat_tbl->FAT_State = FAT_NORMAL_STATE;
