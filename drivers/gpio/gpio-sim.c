@@ -886,7 +886,8 @@ static int gpio_sim_device_activate_unlocked(struct gpio_sim_device *dev)
 
 	list_for_each_entry(bank, &dev->bank_list, siblings) {
 		bank->swnode = gpio_sim_make_bank_swnode(bank, swnode);
-		if (ret) {
+		if (IS_ERR(bank->swnode)) {
+			ret = PTR_ERR(bank->swnode);
 			gpio_sim_remove_swnode_recursive(swnode);
 			return ret;
 		}
