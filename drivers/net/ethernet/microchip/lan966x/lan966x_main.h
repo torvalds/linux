@@ -8,6 +8,7 @@
 #include <linux/jiffies.h>
 #include <linux/phy.h>
 #include <linux/phylink.h>
+#include <net/switchdev.h>
 
 #include "lan966x_regs.h"
 #include "lan966x_ifh.h"
@@ -100,6 +101,10 @@ struct lan966x {
 	/* interrupts */
 	int xtr_irq;
 	int ana_irq;
+
+	/* worqueue for fdb */
+	struct workqueue_struct *fdb_work;
+	struct list_head fdb_entries;
 };
 
 struct lan966x_port_config {
@@ -189,6 +194,15 @@ void lan966x_vlan_port_add_vlan(struct lan966x_port *port,
 void lan966x_vlan_port_del_vlan(struct lan966x_port *port, u16 vid);
 void lan966x_vlan_cpu_add_vlan(struct lan966x *lan966x, u16 vid);
 void lan966x_vlan_cpu_del_vlan(struct lan966x *lan966x, u16 vid);
+
+void lan966x_fdb_write_entries(struct lan966x *lan966x, u16 vid);
+void lan966x_fdb_erase_entries(struct lan966x *lan966x, u16 vid);
+int lan966x_fdb_init(struct lan966x *lan966x);
+void lan966x_fdb_deinit(struct lan966x *lan966x);
+int lan966x_handle_fdb(struct net_device *dev,
+		       struct net_device *orig_dev,
+		       unsigned long event, const void *ctx,
+		       const struct switchdev_notifier_fdb_info *fdb_info);
 
 static inline void __iomem *lan_addr(void __iomem *base[],
 				     int id, int tinst, int tcnt,

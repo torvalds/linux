@@ -293,6 +293,19 @@ static int lan966x_netdevice_event(struct notifier_block *nb,
 	return notifier_from_errno(ret);
 }
 
+static bool lan966x_foreign_dev_check(const struct net_device *dev,
+				      const struct net_device *foreign_dev)
+{
+	struct lan966x_port *port = netdev_priv(dev);
+	struct lan966x *lan966x = port->lan966x;
+
+	if (netif_is_bridge_master(foreign_dev))
+		if (lan966x->bridge != foreign_dev)
+			return true;
+
+	return false;
+}
+
 static int lan966x_switchdev_event(struct notifier_block *nb,
 				   unsigned long event, void *ptr)
 {
@@ -304,6 +317,14 @@ static int lan966x_switchdev_event(struct notifier_block *nb,
 		err = switchdev_handle_port_attr_set(dev, ptr,
 						     lan966x_netdevice_check,
 						     lan966x_port_attr_set);
+		return notifier_from_errno(err);
+	case SWITCHDEV_FDB_ADD_TO_DEVICE:
+	case SWITCHDEV_FDB_DEL_TO_DEVICE:
+		err = switchdev_handle_fdb_event_to_device(dev, event, ptr,
+							   lan966x_netdevice_check,
+							   lan966x_foreign_dev_check,
+							   lan966x_handle_fdb,
+							   NULL);
 		return notifier_from_errno(err);
 	}
 
