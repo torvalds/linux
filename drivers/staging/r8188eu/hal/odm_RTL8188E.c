@@ -63,7 +63,6 @@ static void odm_FastAntTrainingInit(struct odm_dm_struct *dm_odm)
 		dm_fat_tbl->Bssid[i] = 0;
 		dm_fat_tbl->antSumRSSI[i] = 0;
 		dm_fat_tbl->antRSSIcnt[i] = 0;
-		dm_fat_tbl->antAveRSSI[i] = 0;
 	}
 	dm_fat_tbl->TrainIdx = 0;
 	dm_fat_tbl->FAT_State = FAT_NORMAL_STATE;
