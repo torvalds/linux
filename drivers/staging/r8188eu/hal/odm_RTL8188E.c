@@ -59,10 +59,9 @@ static void odm_FastAntTrainingInit(struct odm_dm_struct *dm_odm)
 	u32	value32, i;
 	struct fast_ant_train *dm_fat_tbl = &dm_odm->DM_FatTable;
 
-	for (i = 0; i < 6; i++) {
+	for (i = 0; i < 6; i++)
 		dm_fat_tbl->Bssid[i] = 0;
-		dm_fat_tbl->antSumRSSI[i] = 0;
-	}
+
 	dm_fat_tbl->TrainIdx = 0;
 	dm_fat_tbl->FAT_State = FAT_NORMAL_STATE;
 
