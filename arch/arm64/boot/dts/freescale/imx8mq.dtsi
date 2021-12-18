@@ -1579,6 +1579,7 @@
 				 <&clk IMX8MQ_DRAM_PLL_OUT>,
 				 <&clk IMX8MQ_CLK_DRAM_ALT>,
 				 <&clk IMX8MQ_CLK_DRAM_APB>;
+			status = "disabled";
 		};
 
 		ddr-pmu@3d800000 {
