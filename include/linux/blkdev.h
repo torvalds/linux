@@ -45,7 +45,7 @@ struct blk_crypto_profile;
  */
 #define BLKCG_MAX_POLS		6
 
-static inline int blk_validate_block_size(unsigned int bsize)
+static inline int blk_validate_block_size(unsigned long bsize)
 {
 	if (bsize < 512 || bsize > PAGE_SIZE || !is_power_of_2(bsize))
 		return -EINVAL;
