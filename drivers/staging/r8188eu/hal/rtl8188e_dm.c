@@ -55,11 +55,9 @@ static void Update_ODM_ComInfo_88E(struct adapter *Adapter)
 
 	pdmpriv->InitODMFlag =	ODM_BB_DIG |
 				ODM_BB_RA_MASK |
-				ODM_BB_DYNAMIC_TXPWR |
 				ODM_BB_FA_CNT |
 				ODM_BB_RSSI_MONITOR |
 				ODM_BB_CCK_PD |
-				ODM_BB_PWR_SAVE |
 				ODM_MAC_EDCA_TURBO |
 				ODM_RF_CALIBRATION |
 				ODM_RF_TX_PWR_TRACK;

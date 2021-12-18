@@ -241,26 +241,19 @@ enum odm_common_info_def {
 enum odm_ability_def {
 	/*  BB ODM section BIT 0-15 */
 	ODM_BB_DIG			= BIT(0),
+
 	ODM_BB_RA_MASK			= BIT(1),
-	ODM_BB_DYNAMIC_TXPWR		= BIT(2),
 	ODM_BB_FA_CNT			= BIT(3),
 	ODM_BB_RSSI_MONITOR		= BIT(4),
 	ODM_BB_CCK_PD			= BIT(5),
 	ODM_BB_ANT_DIV			= BIT(6),
-	ODM_BB_PWR_SAVE			= BIT(7),
 	ODM_BB_PWR_TRA			= BIT(8),
-	ODM_BB_RATE_ADAPTIVE		= BIT(9),
-	ODM_BB_PATH_DIV			= BIT(10),
-	ODM_BB_PSD			= BIT(11),
-	ODM_BB_RXHP			= BIT(12),
 
 	/*  MAC DM section BIT 16-23 */
 	ODM_MAC_EDCA_TURBO		= BIT(16),
-	ODM_MAC_EARLY_MODE		= BIT(17),
 
 	/*  RF ODM section BIT 24-31 */
 	ODM_RF_TX_PWR_TRACK		= BIT(24),
-	ODM_RF_RX_GAIN_TRACK		= BIT(25),
 	ODM_RF_CALIBRATION		= BIT(26),
 };
 
