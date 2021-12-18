@@ -224,6 +224,7 @@ struct cryp_dma {
  * @phybase: Pointer to physical memory location of the cryp device.
  * @dev: Pointer to the devices dev structure.
  * @clk: Pointer to the device's clock control.
+ * @irq: IRQ number
  * @pwr_regulator: Pointer to the device's power control.
  * @power_status: Current status of the power.
  * @ctx_lock: Lock for current_ctx.
@@ -239,6 +240,7 @@ struct cryp_device_data {
 	phys_addr_t phybase;
 	struct device *dev;
 	struct clk *clk;
+	int irq;
 	struct regulator *pwr_regulator;
 	int power_status;
 	spinlock_t ctx_lock;
