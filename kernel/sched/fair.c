@@ -3668,7 +3668,7 @@ static inline void add_tg_cfs_propagate(struct cfs_rq *cfs_rq, long runnable_sum
  *
  * cfs_rq->avg is used for task_h_load() and update_cfs_share() for example.
  *
- * Returns true if the load decayed or we removed load.
+ * Return: true if the load decayed or we removed load.
  *
  * Since both these conditions indicate a changed cfs_rq->avg.load we should
  * call update_tg_load_avg() when this function returns true.
@@ -8573,6 +8573,8 @@ group_type group_classify(unsigned int imbalance_pct,
  *
  * If @sg does not have SMT siblings, only pull tasks if all of the SMT siblings
  * of @dst_cpu are idle and @sg has lower priority.
+ *
+ * Return: true if @dst_cpu can pull tasks, false otherwise.
  */
 static bool asym_smt_can_pull_tasks(int dst_cpu, struct sd_lb_stats *sds,
 				    struct sg_lb_stats *sgs,
@@ -8648,6 +8650,7 @@ sched_asym(struct lb_env *env, struct sd_lb_stats *sds,  struct sg_lb_stats *sgs
 /**
  * update_sg_lb_stats - Update sched_group's statistics for load balancing.
  * @env: The load balancing environment.
+ * @sds: Load-balancing data with statistics of the local group.
  * @group: sched_group whose statistics are to be updated.
  * @sgs: variable to hold the statistics for this group.
  * @sg_status: Holds flag indicating the status of the sched_group
@@ -9455,11 +9458,10 @@ static inline void calculate_imbalance(struct lb_env *env, struct sd_lb_stats *s
 /**
  * find_busiest_group - Returns the busiest group within the sched_domain
  * if there is an imbalance.
+ * @env: The load balancing environment.
  *
  * Also calculates the amount of runnable load which should be moved
  * to restore balance.
- *
- * @env: The load balancing environment.
  *
  * Return:	- The busiest group if imbalance exists.
  */
