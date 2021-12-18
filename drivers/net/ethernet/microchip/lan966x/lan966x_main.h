@@ -75,6 +75,9 @@ struct lan966x {
 
 	u8 base_mac[ETH_ALEN];
 
+	struct list_head mac_entries;
+	spinlock_t mac_lock; /* lock for mac_entries list */
+
 	/* stats */
 	const struct lan966x_stat_layout *stats_layout;
 	u32 num_stats;
@@ -87,6 +90,7 @@ struct lan966x {
 
 	/* interrupts */
 	int xtr_irq;
+	int ana_irq;
 };
 
 struct lan966x_port_config {
@@ -141,6 +145,8 @@ int lan966x_mac_forget(struct lan966x *lan966x,
 int lan966x_mac_cpu_learn(struct lan966x *lan966x, const char *addr, u16 vid);
 int lan966x_mac_cpu_forget(struct lan966x *lan966x, const char *addr, u16 vid);
 void lan966x_mac_init(struct lan966x *lan966x);
+void lan966x_mac_purge_entries(struct lan966x *lan966x);
+irqreturn_t lan966x_mac_irq_handler(struct lan966x *lan966x);
 
 static inline void __iomem *lan_addr(void __iomem *base[],
 				     int id, int tinst, int tcnt,

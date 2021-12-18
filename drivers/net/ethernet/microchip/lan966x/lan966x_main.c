@@ -527,6 +527,13 @@ recover:
 	return IRQ_HANDLED;
 }
 
+static irqreturn_t lan966x_ana_irq_handler(int irq, void *args)
+{
+	struct lan966x *lan966x = args;
+
+	return lan966x_mac_irq_handler(lan966x);
+}
+
 static void lan966x_cleanup_ports(struct lan966x *lan966x)
 {
 	struct lan966x_port *port;
@@ -554,6 +561,11 @@ static void lan966x_cleanup_ports(struct lan966x *lan966x)
 
 	disable_irq(lan966x->xtr_irq);
 	lan966x->xtr_irq = -ENXIO;
+
+	if (lan966x->ana_irq) {
+		disable_irq(lan966x->ana_irq);
+		lan966x->ana_irq = -ENXIO;
+	}
 }
 
 static int lan966x_probe_port(struct lan966x *lan966x, u32 p,
@@ -870,6 +882,15 @@ static int lan966x_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
+	lan966x->ana_irq = platform_get_irq_byname(pdev, "ana");
+	if (lan966x->ana_irq) {
+		err = devm_request_threaded_irq(&pdev->dev, lan966x->ana_irq, NULL,
+						lan966x_ana_irq_handler, IRQF_ONESHOT,
+						"ana irq", lan966x);
+		if (err)
+			return dev_err_probe(&pdev->dev, err, "Unable to use ana irq");
+	}
+
 	/* init switch */
 	lan966x_init(lan966x);
 	lan966x_stats_init(lan966x);
@@ -922,6 +943,8 @@ static int lan966x_remove(struct platform_device *pdev)
 	cancel_delayed_work_sync(&lan966x->stats_work);
 	destroy_workqueue(lan966x->stats_queue);
 	mutex_destroy(&lan966x->stats_lock);
+
+	lan966x_mac_purge_entries(lan966x);
 
 	return 0;
 }
