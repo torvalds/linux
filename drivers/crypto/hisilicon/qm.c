@@ -126,6 +126,8 @@
 #define QM_CQC_VFT			0x1
 #define QM_VFT_CFG			0x100060
 #define QM_VFT_CFG_OP_ENABLE		0x100054
+#define QM_PM_CTRL			0x100148
+#define QM_IDLE_DISABLE			BIT(9)
 
 #define QM_VFT_CFG_DATA_L		0x100064
 #define QM_VFT_CFG_DATA_H		0x100068
@@ -798,6 +800,19 @@ static void qm_db(struct hisi_qm *qm, u16 qn, u8 cmd, u16 index, u8 priority)
 		qn, cmd, index);
 
 	qm->ops->qm_db(qm, qn, cmd, index, priority);
+}
+
+static void qm_disable_clock_gate(struct hisi_qm *qm)
+{
+	u32 val;
+
+	/* if qm enables clock gating in Kunpeng930, qos will be inaccurate. */
+	if (qm->ver < QM_HW_V3)
+		return;
+
+	val = readl(qm->io_base + QM_PM_CTRL);
+	val |= QM_IDLE_DISABLE;
+	writel(val, qm->io_base +  QM_PM_CTRL);
 }
 
 static int qm_dev_mem_reset(struct hisi_qm *qm)
@@ -5935,6 +5950,7 @@ int hisi_qm_init(struct hisi_qm *qm)
 	}
 
 	if (qm->fun_type == QM_HW_PF) {
+		qm_disable_clock_gate(qm);
 		ret = qm_dev_mem_reset(qm);
 		if (ret) {
 			dev_err(dev, "failed to reset device memory\n");
@@ -6099,6 +6115,7 @@ static int qm_rebuild_for_resume(struct hisi_qm *qm)
 
 	qm_cmd_init(qm);
 	hisi_qm_dev_err_init(qm);
+	qm_disable_clock_gate(qm);
 	ret = qm_dev_mem_reset(qm);
 	if (ret)
 		pci_err(pdev, "failed to reset device memory\n");
