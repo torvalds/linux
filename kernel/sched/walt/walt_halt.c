@@ -61,9 +61,9 @@ void attach_tasks_core(struct list_head *tasks, struct rq *rq)
  * there's no concurrency possible, we hold the required locks anyway
  * because of lock validation efforts.
  *
- * force: if false, the function will skip CPU pinned kthreads.
+ * The function will skip CPU pinned kthreads.
  */
-static void migrate_tasks(struct rq *dead_rq, struct rq_flags *rf, bool force)
+static void migrate_tasks(struct rq *dead_rq, struct rq_flags *rf)
 {
 	struct rq *rq = dead_rq;
 	struct task_struct *next, *stop = rq->stop;
@@ -110,7 +110,7 @@ static void migrate_tasks(struct rq *dead_rq, struct rq_flags *rf, bool force)
 		 * kthread from the run-queue to continue.
 		 */
 
-		if (!force && is_per_cpu_kthread(next)) {
+		if (is_per_cpu_kthread(next)) {
 			detach_one_task_core(next, rq, &percpu_kthreads);
 			num_pinned_kthreads += 1;
 			continue;
@@ -135,18 +135,11 @@ static void migrate_tasks(struct rq *dead_rq, struct rq_flags *rf, bool force)
 		 * that case the above rq->__lock drop is a fail too.
 		 */
 		if (task_rq(next) != rq || !task_on_rq_queued(next)) {
-			/*
-			 * In the !force case, there is a hole between
-			 * rq_unlock() and rq_relock(), where another CPU might
-			 * not observe an up to date cpu_active_mask and try to
-			 * move tasks around.
-			 */
-			WARN_ON(force);
 			raw_spin_unlock(&next->pi_lock);
 			continue;
 		}
 
-		/* Find suitable destination for @next, with force if needed. */
+		/* Find suitable destination for @next */
 		dest_cpu = select_fallback_rq(dead_rq->cpu, next);
 		rq = __migrate_task(rq, rf, next, dest_cpu);
 		if (rq != dead_rq) {
@@ -170,13 +163,13 @@ static int drain_rq_cpu_stop(void *data)
 	struct rq_flags rf;
 
 	rq_lock_irqsave(rq, &rf);
-	migrate_tasks(rq, &rf, false);
+	migrate_tasks(rq, &rf);
 	rq_unlock_irqrestore(rq, &rf);
 
 	return 0;
 }
 
-static int sched_cpu_drain_rq(unsigned int cpu)
+static int cpu_drain_rq(unsigned int cpu)
 {
 	if (available_idle_cpu(cpu))
 		return 0;
@@ -205,7 +198,7 @@ static int halt_cpus(struct cpumask *cpus)
 		/* only drain online cpus */
 		if (cpu_online(cpu)) {
 			/* drain the online CPU */
-			ret = sched_cpu_drain_rq(cpu);
+			ret = cpu_drain_rq(cpu);
 		}
 
 		if (ret < 0) {
@@ -257,6 +250,7 @@ static void update_ref_counts(struct cpumask *cpus, bool halt)
 	}
 }
 
+/* remove cpus that are already halted */
 static void update_halt_cpus(struct cpumask *cpus)
 {
 	int cpu;
@@ -278,6 +272,8 @@ int walt_halt_cpus(struct cpumask *cpus)
 	mutex_lock(&halt_lock);
 
 	cpumask_copy(&requested_cpus, cpus);
+
+	/* remove cpus that are already halted */
 	update_halt_cpus(cpus);
 
 	if (cpumask_empty(cpus)) {
@@ -314,6 +310,8 @@ int walt_start_cpus(struct cpumask *cpus)
 	mutex_lock(&halt_lock);
 	cpumask_copy(&requested_cpus, cpus);
 	update_ref_counts(&requested_cpus, false);
+
+	/* remove cpus that should still be halted, due to ref-counts */
 	update_halt_cpus(cpus);
 
 	ret = start_cpus(cpus);
