@@ -5038,7 +5038,7 @@ static int __init sensors_nct6775_init(void)
 				   board_name);
 		if (err >= 0) {
 			/* if reading chip id via WMI succeeds, use WMI */
-			if (!nct6775_asuswmi_read(0, NCT6775_PORT_CHIPID, &tmp)) {
+			if (!nct6775_asuswmi_read(0, NCT6775_PORT_CHIPID, &tmp) && tmp) {
 				pr_info("Using Asus WMI to access %#x chip.\n", tmp);
 				access = access_asuswmi;
 			} else {
