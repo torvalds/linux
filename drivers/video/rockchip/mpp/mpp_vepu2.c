@@ -629,8 +629,16 @@ static int vepu_show_session_info(struct seq_file *seq, void *offset)
 static int vepu_procfs_init(struct mpp_dev *mpp)
 {
 	struct vepu_dev *enc = to_vepu_dev(mpp);
+	char name[32];
 
-	enc->procfs = proc_mkdir(mpp->dev->of_node->name, mpp->srv->procfs);
+	if (!mpp->dev || !mpp->dev->of_node || !mpp->dev->of_node->name ||
+	    !mpp->srv || !mpp->srv->procfs)
+		return -EINVAL;
+
+	snprintf(name, sizeof(name) - 1, "%s%d",
+		 mpp->dev->of_node->name, mpp->core_id);
+
+	enc->procfs = proc_mkdir(name, mpp->srv->procfs);
 	if (IS_ERR_OR_NULL(enc->procfs)) {
 		mpp_err("failed on open procfs\n");
 		enc->procfs = NULL;
@@ -992,6 +1000,8 @@ static int vepu_core_probe(struct platform_device *pdev)
 		match = of_match_node(mpp_vepu2_dt_match, pdev->dev.of_node);
 		if (match)
 			mpp->var = (struct mpp_dev_var *)match->data;
+
+		mpp->core_id = of_alias_get_id(pdev->dev.of_node, "jpege");
 	}
 
 	ret = mpp_dev_probe(mpp, pdev);
