@@ -2096,12 +2096,6 @@ static int rtw_wx_priv_null(struct net_device *dev, struct iw_request_info *a,
 	return -1;
 }
 
-static int dummy(struct net_device *dev, struct iw_request_info *a,
-		 union iwreq_data *wrqu, char *b)
-{
-	return -1;
-}
-
 static int rtw_wx_set_channel_plan(struct net_device *dev,
 			       struct iw_request_info *info,
 			       union iwreq_data *wrqu, char *extra)
@@ -4274,26 +4268,19 @@ static int rtw_test(
 
 static iw_handler rtw_handlers[] = {
 	IW_HANDLER(SIOCGIWNAME, rtw_wx_get_name),
-	IW_HANDLER(SIOCSIWNWID, dummy),
-	IW_HANDLER(SIOCGIWNWID, dummy),
 	IW_HANDLER(SIOCGIWFREQ, rtw_wx_get_freq),
 	IW_HANDLER(SIOCSIWMODE, rtw_wx_set_mode),
 	IW_HANDLER(SIOCGIWMODE, rtw_wx_get_mode),
-	IW_HANDLER(SIOCSIWSENS, dummy),
 	IW_HANDLER(SIOCGIWSENS, rtw_wx_get_sens),
 	IW_HANDLER(SIOCGIWRANGE, rtw_wx_get_range),
 	IW_HANDLER(SIOCSIWPRIV, rtw_wx_set_priv),
-	IW_HANDLER(SIOCSIWSPY, dummy),
-	IW_HANDLER(SIOCGIWSPY, dummy),
 	IW_HANDLER(SIOCSIWAP, rtw_wx_set_wap),
 	IW_HANDLER(SIOCGIWAP, rtw_wx_get_wap),
 	IW_HANDLER(SIOCSIWMLME, rtw_wx_set_mlme),
-	IW_HANDLER(SIOCGIWAPLIST, dummy),
 	IW_HANDLER(SIOCSIWSCAN, rtw_wx_set_scan),
 	IW_HANDLER(SIOCGIWSCAN, rtw_wx_get_scan),
 	IW_HANDLER(SIOCSIWESSID, rtw_wx_set_essid),
 	IW_HANDLER(SIOCGIWESSID, rtw_wx_get_essid),
-	IW_HANDLER(SIOCSIWNICKN, dummy),
 	IW_HANDLER(SIOCGIWNICKN, rtw_wx_get_nick),
 	IW_HANDLER(SIOCSIWRATE, rtw_wx_set_rate),
 	IW_HANDLER(SIOCGIWRATE, rtw_wx_get_rate),
@@ -4301,13 +4288,9 @@ static iw_handler rtw_handlers[] = {
 	IW_HANDLER(SIOCGIWRTS, rtw_wx_get_rts),
 	IW_HANDLER(SIOCSIWFRAG, rtw_wx_set_frag),
 	IW_HANDLER(SIOCGIWFRAG, rtw_wx_get_frag),
-	IW_HANDLER(SIOCSIWTXPOW, dummy),
-	IW_HANDLER(SIOCGIWTXPOW, dummy),
-	IW_HANDLER(SIOCSIWRETRY, dummy),
 	IW_HANDLER(SIOCGIWRETRY, rtw_wx_get_retry),
 	IW_HANDLER(SIOCSIWENCODE, rtw_wx_set_enc),
 	IW_HANDLER(SIOCGIWENCODE, rtw_wx_get_enc),
-	IW_HANDLER(SIOCSIWPOWER, dummy),
 	IW_HANDLER(SIOCGIWPOWER, rtw_wx_get_power),
 	IW_HANDLER(SIOCSIWGENIE, rtw_wx_set_gen_ie),
 	IW_HANDLER(SIOCSIWAUTH, rtw_wx_set_auth),
