@@ -2031,7 +2031,7 @@ static int mem_ioctl_no_mmu(struct hl_fpriv *hpriv, union hl_mem_args *args)
 
 	default:
 		dev_err(hdev->dev, "Unknown opcode for memory IOCTL\n");
-		rc = -ENOTTY;
+		rc = -EINVAL;
 		break;
 	}
 
@@ -2156,7 +2156,7 @@ int hl_mem_ioctl(struct hl_fpriv *hpriv, void *data)
 
 	default:
 		dev_err(hdev->dev, "Unknown opcode for memory IOCTL\n");
-		rc = -ENOTTY;
+		rc = -EINVAL;
 		break;
 	}
 

@@ -475,7 +475,7 @@ int hl_cb_ioctl(struct hl_fpriv *hpriv, void *data)
 		break;
 
 	default:
-		rc = -ENOTTY;
+		rc = -EINVAL;
 		break;
 	}
 

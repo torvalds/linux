@@ -693,7 +693,7 @@ static int _hl_info_ioctl(struct hl_fpriv *hpriv, void *data,
 
 	default:
 		dev_err(dev, "Invalid request %d\n", args->op);
-		rc = -ENOTTY;
+		rc = -EINVAL;
 		break;
 	}
 
@@ -748,7 +748,7 @@ static int hl_debug_ioctl(struct hl_fpriv *hpriv, void *data)
 
 	default:
 		dev_err(hdev->dev, "Invalid request %d\n", args->op);
-		rc = -ENOTTY;
+		rc = -EINVAL;
 		break;
 	}
 
