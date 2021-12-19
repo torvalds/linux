@@ -718,6 +718,8 @@ get_nvm_from_fw:
 	ret = iwl_trans_start_hw(mvm->trans);
 	if (ret) {
 		mutex_unlock(&mvm->mutex);
+		wiphy_unlock(mvm->hw->wiphy);
+		rtnl_unlock();
 		return ret;
 	}
 
