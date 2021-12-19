@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
 // Copyright (c) 2021, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 
+#include "en/tc_priv.h"
 #include "en_tc.h"
 #include "post_act.h"
 #include "mlx5_core.h"
@@ -89,7 +90,7 @@ mlx5e_tc_post_act_offload(struct mlx5e_post_act *post_act,
 	/* Post action rule matches on fte_id and executes original rule's tc rule action */
 	mlx5e_tc_match_to_reg_match(spec, FTEID_TO_REG, handle->id, MLX5_POST_ACTION_MASK);
 
-	handle->rule = mlx5_tc_rule_insert(post_act->priv, spec, handle->attr);
+	handle->rule = mlx5e_tc_rule_offload(post_act->priv, spec, handle->attr);
 	if (IS_ERR(handle->rule)) {
 		err = PTR_ERR(handle->rule);
 		netdev_warn(post_act->priv->netdev, "Failed to add post action rule");
@@ -152,7 +153,7 @@ void
 mlx5e_tc_post_act_unoffload(struct mlx5e_post_act *post_act,
 			    struct mlx5e_post_act_handle *handle)
 {
-	mlx5_tc_rule_delete(post_act->priv, handle->rule, handle->attr);
+	mlx5e_tc_rule_unoffload(post_act->priv, handle->rule, handle->attr);
 	handle->rule = NULL;
 }
 
