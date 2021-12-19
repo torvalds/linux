@@ -579,7 +579,9 @@ iwl_mvm_config_sched_scan_profiles(struct iwl_mvm *mvm,
 		profile->ssid_index = i;
 		/* Support any cipher and auth algorithm */
 		profile->unicast_cipher = 0xff;
-		profile->auth_alg = 0xff;
+		profile->auth_alg = IWL_AUTH_ALGO_UNSUPPORTED |
+			IWL_AUTH_ALGO_NONE | IWL_AUTH_ALGO_PSK | IWL_AUTH_ALGO_8021X |
+			IWL_AUTH_ALGO_SAE | IWL_AUTH_ALGO_8021X_SHA384 | IWL_AUTH_ALGO_OWE;
 		profile->network_type = IWL_NETWORK_TYPE_ANY;
 		profile->band_selection = IWL_SCAN_OFFLOAD_SELECT_ANY;
 		profile->client_bitmap = SCAN_CLIENT_SCHED_SCAN;

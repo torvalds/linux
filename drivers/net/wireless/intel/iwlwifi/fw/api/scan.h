@@ -82,6 +82,16 @@ enum iwl_scan_offload_band_selection {
 	IWL_SCAN_OFFLOAD_SELECT_ANY	= 0xc,
 };
 
+enum iwl_scan_offload_auth_alg {
+	IWL_AUTH_ALGO_UNSUPPORTED  = 0x00,
+	IWL_AUTH_ALGO_NONE         = 0x01,
+	IWL_AUTH_ALGO_PSK          = 0x02,
+	IWL_AUTH_ALGO_8021X        = 0x04,
+	IWL_AUTH_ALGO_SAE          = 0x08,
+	IWL_AUTH_ALGO_8021X_SHA384 = 0x10,
+	IWL_AUTH_ALGO_OWE          = 0x20,
+};
+
 /**
  * struct iwl_scan_offload_profile - SCAN_OFFLOAD_PROFILE_S
  * @ssid_index:		index to ssid list in fixed part
