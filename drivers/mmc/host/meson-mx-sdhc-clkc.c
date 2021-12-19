@@ -12,8 +12,6 @@
 
 #include "meson-mx-sdhc.h"
 
-#define MESON_SDHC_NUM_BUILTIN_CLKS	6
-
 struct meson_mx_sdhc_clkc {
 	struct clk_mux			src_sel;
 	struct clk_divider		div;
