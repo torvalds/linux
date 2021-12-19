@@ -303,7 +303,6 @@ mlx5_tc_rule_delete(struct mlx5e_priv *priv,
 
 struct mlx5_flow_handle *
 mlx5e_tc_rule_offload(struct mlx5e_priv *priv,
-		      struct mlx5e_tc_flow *flow,
 		      struct mlx5_flow_spec *spec,
 		      struct mlx5_flow_attr *attr)
 {
@@ -313,7 +312,7 @@ mlx5e_tc_rule_offload(struct mlx5e_priv *priv,
 		struct mlx5e_tc_mod_hdr_acts *mod_hdr_acts =
 			&attr->parse_attr->mod_hdr_acts;
 
-		return mlx5_tc_ct_flow_offload(get_ct_priv(priv), flow,
+		return mlx5_tc_ct_flow_offload(get_ct_priv(priv),
 					       spec, attr,
 					       mod_hdr_acts);
 	}
@@ -329,14 +328,13 @@ mlx5e_tc_rule_offload(struct mlx5e_priv *priv,
 
 void
 mlx5e_tc_rule_unoffload(struct mlx5e_priv *priv,
-			struct mlx5e_tc_flow *flow,
+			struct mlx5_flow_handle *rule,
 			struct mlx5_flow_attr *attr)
 {
 	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
-	struct mlx5_flow_handle *rule = flow->rule[0];
 
 	if (attr->flags & MLX5_ATTR_FLAG_CT) {
-		mlx5_tc_ct_delete_flow(get_ct_priv(priv), flow, attr);
+		mlx5_tc_ct_delete_flow(get_ct_priv(priv), attr);
 		return;
 	}
 
@@ -1136,7 +1134,7 @@ mlx5e_tc_add_nic_flow(struct mlx5e_priv *priv,
 	}
 
 	if (attr->flags & MLX5_ATTR_FLAG_CT)
-		flow->rule[0] = mlx5_tc_ct_flow_offload(get_ct_priv(priv), flow, &parse_attr->spec,
+		flow->rule[0] = mlx5_tc_ct_flow_offload(get_ct_priv(priv), &parse_attr->spec,
 							attr, &parse_attr->mod_hdr_acts);
 	else
 		flow->rule[0] = mlx5e_add_offloaded_nic_rule(priv, &parse_attr->spec,
@@ -1171,7 +1169,7 @@ static void mlx5e_tc_del_nic_flow(struct mlx5e_priv *priv,
 	flow_flag_clear(flow, OFFLOADED);
 
 	if (attr->flags & MLX5_ATTR_FLAG_CT)
-		mlx5_tc_ct_delete_flow(get_ct_priv(flow->priv), flow, attr);
+		mlx5_tc_ct_delete_flow(get_ct_priv(flow->priv), attr);
 	else if (!IS_ERR_OR_NULL(flow->rule[0]))
 		mlx5e_del_offloaded_nic_rule(priv, flow->rule[0], attr);
 
@@ -1210,7 +1208,7 @@ mlx5e_tc_offload_fdb_rules(struct mlx5_eswitch *esw,
 	if (attr->flags & MLX5_ATTR_FLAG_SLOW_PATH)
 		return mlx5_eswitch_add_offloaded_rule(esw, spec, attr);
 
-	rule = mlx5e_tc_rule_offload(flow->priv, flow, spec, attr);
+	rule = mlx5e_tc_rule_offload(flow->priv, spec, attr);
 
 	if (IS_ERR(rule))
 		return rule;
@@ -1224,7 +1222,7 @@ mlx5e_tc_offload_fdb_rules(struct mlx5_eswitch *esw,
 	return rule;
 
 err_rule1:
-	mlx5e_tc_rule_unoffload(flow->priv, flow, attr);
+	mlx5e_tc_rule_unoffload(flow->priv, rule, attr);
 	return flow->rule[1];
 }
 
@@ -1240,7 +1238,7 @@ void mlx5e_tc_unoffload_fdb_rules(struct mlx5_eswitch *esw,
 	if (attr->esw_attr->split_count)
 		mlx5_eswitch_del_fwd_rule(esw, flow->rule[1], attr);
 
-	mlx5e_tc_rule_unoffload(flow->priv, flow, attr);
+	mlx5e_tc_rule_unoffload(flow->priv, flow->rule[0], attr);
 }
 
 struct mlx5_flow_handle *

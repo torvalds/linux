@@ -116,13 +116,11 @@ mlx5_tc_ct_parse_action(struct mlx5_tc_ct_priv *priv,
 
 struct mlx5_flow_handle *
 mlx5_tc_ct_flow_offload(struct mlx5_tc_ct_priv *priv,
-			struct mlx5e_tc_flow *flow,
 			struct mlx5_flow_spec *spec,
 			struct mlx5_flow_attr *attr,
 			struct mlx5e_tc_mod_hdr_acts *mod_hdr_acts);
 void
 mlx5_tc_ct_delete_flow(struct mlx5_tc_ct_priv *priv,
-		       struct mlx5e_tc_flow *flow,
 		       struct mlx5_flow_attr *attr);
 
 bool
@@ -183,7 +181,6 @@ mlx5_tc_ct_parse_action(struct mlx5_tc_ct_priv *priv,
 
 static inline struct mlx5_flow_handle *
 mlx5_tc_ct_flow_offload(struct mlx5_tc_ct_priv *priv,
-			struct mlx5e_tc_flow *flow,
 			struct mlx5_flow_spec *spec,
 			struct mlx5_flow_attr *attr,
 			struct mlx5e_tc_mod_hdr_acts *mod_hdr_acts)
@@ -193,7 +190,6 @@ mlx5_tc_ct_flow_offload(struct mlx5_tc_ct_priv *priv,
 
 static inline void
 mlx5_tc_ct_delete_flow(struct mlx5_tc_ct_priv *priv,
-		       struct mlx5e_tc_flow *flow,
 		       struct mlx5_flow_attr *attr)
 {
 }
