@@ -41,15 +41,6 @@
      /*  msk: N/A */
      /*  value: N/A */
 
-/*---------------------------------------------*/
-/* 3 The value of base: 4 bits */
-/*---------------------------------------------*/
-   /*  define the base address of each block */
-#define PWR_BASEADDR_MAC		0x00
-#define PWR_BASEADDR_USB		0x01
-#define PWR_BASEADDR_PCIE		0x02
-#define PWR_BASEADDR_SDIO		0x03
-
 enum pwrseq_cmd_delat_unit {
 	PWRSEQ_DELAY_US,
 	PWRSEQ_DELAY_MS,
@@ -57,14 +48,12 @@ enum pwrseq_cmd_delat_unit {
 
 struct wl_pwr_cfg {
 	u16 offset;
-	u8 base:4;
 	u8 cmd:4;
 	u8 msk;
 	u8 value;
 };
 
 #define GET_PWR_CFG_OFFSET(__PWR_CMD)		__PWR_CMD.offset
-#define GET_PWR_CFG_BASE(__PWR_CMD)		__PWR_CMD.base
 #define GET_PWR_CFG_CMD(__PWR_CMD)		__PWR_CMD.cmd
 #define GET_PWR_CFG_MASK(__PWR_CMD)		__PWR_CMD.msk
 #define GET_PWR_CFG_VALUE(__PWR_CMD)		__PWR_CMD.value
