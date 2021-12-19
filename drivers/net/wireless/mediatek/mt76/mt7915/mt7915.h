@@ -86,11 +86,6 @@ enum mt7916_rxq_id {
 	MT7916_RXQ_BAND1,
 };
 
-struct mt7915_sta_key_conf {
-	s8 keyidx;
-	u8 key[16];
-};
-
 struct mt7915_twt_flow {
 	struct list_head list;
 	u64 start_tsf;
@@ -122,7 +117,7 @@ struct mt7915_sta {
 
 	struct mt76_sta_stats stats;
 
-	struct mt7915_sta_key_conf bip;
+	struct mt76_connac_sta_key_conf bip;
 
 	struct {
 		u8 flowid_mask;
@@ -422,9 +417,6 @@ int mt7915_mcu_add_tx_ba(struct mt7915_dev *dev,
 int mt7915_mcu_add_rx_ba(struct mt7915_dev *dev,
 			 struct ieee80211_ampdu_params *params,
 			 bool add);
-int mt7915_mcu_add_key(struct mt7915_dev *dev, struct ieee80211_vif *vif,
-		       struct mt7915_sta *msta, struct ieee80211_key_conf *key,
-		       enum set_key_cmd cmd);
 int mt7915_mcu_update_bss_color(struct mt7915_dev *dev, struct ieee80211_vif *vif,
 				struct cfg80211_he_bss_color *he_bss_color);
 int mt7915_mcu_add_beacon(struct ieee80211_hw *hw, struct ieee80211_vif *vif,

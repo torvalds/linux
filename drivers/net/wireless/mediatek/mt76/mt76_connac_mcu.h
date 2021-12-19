@@ -1587,4 +1587,9 @@ const struct ieee80211_sta_he_cap *
 mt76_connac_get_he_phy_cap(struct mt76_phy *phy, struct ieee80211_vif *vif);
 u8 mt76_connac_get_phy_mode(struct mt76_phy *phy, struct ieee80211_vif *vif,
 			    enum nl80211_band band, struct ieee80211_sta *sta);
+
+int mt76_connac_mcu_add_key(struct mt76_dev *dev, struct ieee80211_vif *vif,
+			    struct mt76_connac_sta_key_conf *sta_key_conf,
+			    struct ieee80211_key_conf *key, int mcu_cmd,
+			    struct mt76_wcid *wcid, enum set_key_cmd cmd);
 #endif /* __MT76_CONNAC_MCU_H */

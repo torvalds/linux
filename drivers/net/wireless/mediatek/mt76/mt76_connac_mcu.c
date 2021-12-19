@@ -2482,5 +2482,93 @@ void mt76_connac_mcu_reg_wr(struct mt76_dev *dev, u32 offset, u32 val)
 }
 EXPORT_SYMBOL_GPL(mt76_connac_mcu_reg_wr);
 
+static int
+mt76_connac_mcu_sta_key_tlv(struct mt76_connac_sta_key_conf *sta_key_conf,
+			    struct sk_buff *skb,
+			    struct ieee80211_key_conf *key,
+			    enum set_key_cmd cmd)
+{
+	struct sta_rec_sec *sec;
+	u32 len = sizeof(*sec);
+	struct tlv *tlv;
+
+	tlv = mt76_connac_mcu_add_tlv(skb, STA_REC_KEY_V2, sizeof(*sec));
+	sec = (struct sta_rec_sec *)tlv;
+	sec->add = cmd;
+
+	if (cmd == SET_KEY) {
+		struct sec_key *sec_key;
+		u8 cipher;
+
+		cipher = mt76_connac_mcu_get_cipher(key->cipher);
+		if (cipher == MCU_CIPHER_NONE)
+			return -EOPNOTSUPP;
+
+		sec_key = &sec->key[0];
+		sec_key->cipher_len = sizeof(*sec_key);
+
+		if (cipher == MCU_CIPHER_BIP_CMAC_128) {
+			sec_key->cipher_id = MCU_CIPHER_AES_CCMP;
+			sec_key->key_id = sta_key_conf->keyidx;
+			sec_key->key_len = 16;
+			memcpy(sec_key->key, sta_key_conf->key, 16);
+
+			sec_key = &sec->key[1];
+			sec_key->cipher_id = MCU_CIPHER_BIP_CMAC_128;
+			sec_key->cipher_len = sizeof(*sec_key);
+			sec_key->key_len = 16;
+			memcpy(sec_key->key, key->key, 16);
+			sec->n_cipher = 2;
+		} else {
+			sec_key->cipher_id = cipher;
+			sec_key->key_id = key->keyidx;
+			sec_key->key_len = key->keylen;
+			memcpy(sec_key->key, key->key, key->keylen);
+
+			if (cipher == MCU_CIPHER_TKIP) {
+				/* Rx/Tx MIC keys are swapped */
+				memcpy(sec_key->key + 16, key->key + 24, 8);
+				memcpy(sec_key->key + 24, key->key + 16, 8);
+			}
+
+			/* store key_conf for BIP batch update */
+			if (cipher == MCU_CIPHER_AES_CCMP) {
+				memcpy(sta_key_conf->key, key->key, key->keylen);
+				sta_key_conf->keyidx = key->keyidx;
+			}
+
+			len -= sizeof(*sec_key);
+			sec->n_cipher = 1;
+		}
+	} else {
+		len -= sizeof(sec->key);
+		sec->n_cipher = 0;
+	}
+	sec->len = cpu_to_le16(len);
+
+	return 0;
+}
+
+int mt76_connac_mcu_add_key(struct mt76_dev *dev, struct ieee80211_vif *vif,
+			    struct mt76_connac_sta_key_conf *sta_key_conf,
+			    struct ieee80211_key_conf *key, int mcu_cmd,
+			    struct mt76_wcid *wcid, enum set_key_cmd cmd)
+{
+	struct mt76_vif *mvif = (struct mt76_vif *)vif->drv_priv;
+	struct sk_buff *skb;
+	int ret;
+
+	skb = mt76_connac_mcu_alloc_sta_req(dev, mvif, wcid);
+	if (IS_ERR(skb))
+		return PTR_ERR(skb);
+
+	ret = mt76_connac_mcu_sta_key_tlv(sta_key_conf, skb, key, cmd);
+	if (ret)
+		return ret;
+
+	return mt76_mcu_skb_send_msg(dev, skb, mcu_cmd, true);
+}
+EXPORT_SYMBOL_GPL(mt76_connac_mcu_add_key);
+
 MODULE_AUTHOR("Lorenzo Bianconi <lorenzo@kernel.org>");
 MODULE_LICENSE("Dual BSD/GPL");

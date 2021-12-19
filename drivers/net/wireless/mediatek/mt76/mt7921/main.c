@@ -452,13 +452,18 @@ static int mt7921_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	mt76_wcid_key_setup(&dev->mt76, wcid,
 			    cmd == SET_KEY ? key : NULL);
 
-	err = mt7921_mcu_add_key(dev, vif, msta, key, cmd);
+	err = mt76_connac_mcu_add_key(&dev->mt76, vif, &msta->bip,
+				      key, MCU_UNI_CMD(STA_REC_UPDATE),
+				      &msta->wcid, cmd);
 	if (err)
 		goto out;
 
 	if (key->cipher == WLAN_CIPHER_SUITE_WEP104 ||
 	    key->cipher == WLAN_CIPHER_SUITE_WEP40)
-		err = mt7921_mcu_add_key(dev, vif, mvif->wep_sta, key, cmd);
+		err = mt76_connac_mcu_add_key(&dev->mt76, vif,
+					      &mvif->wep_sta->bip,
+					      key, MCU_UNI_CMD(STA_REC_UPDATE),
+					      &mvif->wep_sta->wcid, cmd);
 out:
 	mt7921_mutex_release(dev);
 

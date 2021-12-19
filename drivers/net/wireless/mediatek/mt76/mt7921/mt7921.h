@@ -89,11 +89,6 @@ enum mt7921_rxq_id {
 	MT7921_RXQ_MCU_WM = 0,
 };
 
-struct mt7921_sta_key_conf {
-	s8 keyidx;
-	u8 key[16];
-};
-
 struct mt7921_sta {
 	struct mt76_wcid wcid; /* must be first */
 
@@ -106,7 +101,7 @@ struct mt7921_sta {
 	unsigned long ampdu_state;
 	struct mt76_sta_stats stats;
 
-	struct mt7921_sta_key_conf bip;
+	struct mt76_connac_sta_key_conf bip;
 };
 
 DECLARE_EWMA(rssi, 10, 8);
@@ -296,9 +291,6 @@ int mt7921_wpdma_reset(struct mt7921_dev *dev, bool force);
 int mt7921_wpdma_reinit_cond(struct mt7921_dev *dev);
 void mt7921_dma_cleanup(struct mt7921_dev *dev);
 int mt7921_run_firmware(struct mt7921_dev *dev);
-int mt7921_mcu_add_key(struct mt7921_dev *dev, struct ieee80211_vif *vif,
-		       struct mt7921_sta *msta, struct ieee80211_key_conf *key,
-		       enum set_key_cmd cmd);
 int mt7921_mcu_sta_update(struct mt7921_dev *dev, struct ieee80211_sta *sta,
 			  struct ieee80211_vif *vif, bool enable,
 			  enum mt76_sta_info_state state);
