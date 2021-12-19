@@ -717,8 +717,7 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 
 	hw->netdev_features |= mvm->cfg->features;
 	if (!iwl_mvm_is_csum_supported(mvm))
-		hw->netdev_features &= ~(IWL_TX_CSUM_NETIF_FLAGS |
-					 NETIF_F_RXCSUM);
+		hw->netdev_features &= ~IWL_CSUM_NETIF_FLAGS_MASK;
 
 	if (mvm->cfg->vht_mu_mimo_supported)
 		wiphy_ext_feature_set(hw->wiphy,
