@@ -569,7 +569,9 @@ static int i915_driver_hw_probe(struct drm_i915_private *dev_priv)
 
 	i915_perf_init(dev_priv);
 
-	intel_gt_init_hw_early(to_gt(dev_priv), &dev_priv->ggtt);
+	ret = intel_gt_assign_ggtt(to_gt(dev_priv));
+	if (ret)
+		goto err_perf;
 
 	ret = i915_ggtt_probe_hw(dev_priv);
 	if (ret)

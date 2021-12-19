@@ -1737,26 +1737,28 @@ int i915_gem_gtt_mock_selftests(void)
 		SUBTEST(igt_gtt_insert),
 	};
 	struct drm_i915_private *i915;
-	struct i915_ggtt *ggtt;
+	struct intel_gt *gt;
 	int err;
 
 	i915 = mock_gem_device();
 	if (!i915)
 		return -ENOMEM;
 
-	ggtt = kmalloc(sizeof(*ggtt), GFP_KERNEL);
-	if (!ggtt) {
-		err = -ENOMEM;
+	/* allocate the ggtt */
+	err = intel_gt_assign_ggtt(to_gt(i915));
+	if (err)
 		goto out_put;
-	}
-	mock_init_ggtt(i915, ggtt);
 
-	err = i915_subtests(tests, ggtt);
+	gt = to_gt(i915);
+
+	mock_init_ggtt(gt);
+
+	err = i915_subtests(tests, gt->ggtt);
 
 	mock_device_flush(i915);
 	i915_gem_drain_freed_objects(i915);
-	mock_fini_ggtt(ggtt);
-	kfree(ggtt);
+	mock_fini_ggtt(gt->ggtt);
+
 out_put:
 	mock_destroy_device(i915);
 	return err;
