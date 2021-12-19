@@ -866,6 +866,7 @@ static int iwl_mvm_sar_geo_init(struct iwl_mvm *mvm)
 	u16 len;
 	u32 n_bands;
 	u32 n_profiles;
+	u32 sk = 0;
 	int ret;
 	u8 cmd_ver = iwl_fw_lookup_cmd_ver(mvm->fw, PHY_OPS_GROUP,
 					   PER_CHAIN_LIMIT_OFFSET_CMD,
@@ -925,19 +926,26 @@ static int iwl_mvm_sar_geo_init(struct iwl_mvm *mvm)
 	if (ret)
 		return 0;
 
+	/* Only set to South Korea if the table revision is 1 */
+	if (mvm->fwrt.geo_rev == 1)
+		sk = 1;
+
 	/*
-	 * Set the revision on versions that contain it.
+	 * Set the table_revision to South Korea (1) or not (0).  The
+	 * element name is misleading, as it doesn't contain the table
+	 * revision number, but whether the South Korea variation
+	 * should be used.
 	 * This must be done after calling iwl_sar_geo_init().
 	 */
 	if (cmd_ver == 5)
-		cmd.v5.table_revision = cpu_to_le32(mvm->fwrt.geo_rev);
+		cmd.v5.table_revision = cpu_to_le32(sk);
 	else if (cmd_ver == 4)
-		cmd.v4.table_revision = cpu_to_le32(mvm->fwrt.geo_rev);
+		cmd.v4.table_revision = cpu_to_le32(sk);
 	else if (cmd_ver == 3)
-		cmd.v3.table_revision = cpu_to_le32(mvm->fwrt.geo_rev);
+		cmd.v3.table_revision = cpu_to_le32(sk);
 	else if (fw_has_api(&mvm->fwrt.fw->ucode_capa,
 			    IWL_UCODE_TLV_API_SAR_TABLE_VER))
-		cmd.v2.table_revision = cpu_to_le32(mvm->fwrt.geo_rev);
+		cmd.v2.table_revision = cpu_to_le32(sk);
 
 	return iwl_mvm_send_cmd_pdu(mvm,
 				    WIDE_ID(PHY_OPS_GROUP,
