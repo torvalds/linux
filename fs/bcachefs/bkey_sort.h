@@ -37,11 +37,6 @@ struct btree_nr_keys
 bch2_sort_repack(struct bset *, struct btree *,
 		 struct btree_node_iter *,
 		 struct bkey_format *, bool);
-struct btree_nr_keys
-bch2_sort_repack_merge(struct bch_fs *,
-		       struct bset *, struct btree *,
-		       struct btree_node_iter *,
-		       struct bkey_format *, bool);
 
 unsigned bch2_sort_keys(struct bkey_packed *,
 			struct sort_iter *, bool);

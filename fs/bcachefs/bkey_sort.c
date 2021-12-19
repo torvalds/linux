@@ -117,23 +117,6 @@ bch2_key_sort_fix_overlapping(struct bch_fs *c, struct bset *dst,
 	return nr;
 }
 
-static void extent_sort_append(struct bch_fs *c,
-			       struct bkey_format *f,
-			       struct btree_nr_keys *nr,
-			       struct bkey_packed **out,
-			       struct bkey_s k)
-{
-	if (!bkey_deleted(k.k)) {
-		if (!bch2_bkey_pack_key(*out, k.k, f))
-			memcpy_u64s_small(*out, k.k, BKEY_U64s);
-
-		memcpy_u64s_small(bkeyp_val(f, *out), k.v, bkey_val_u64s(k.k));
-
-		btree_keys_account_key_add(nr, 0, *out);
-		*out = bkey_next(*out);
-	}
-}
-
 /* Sort + repack in a new format: */
 struct btree_nr_keys
 bch2_sort_repack(struct bset *dst, struct btree *src,
@@ -162,47 +145,6 @@ bch2_sort_repack(struct bset *dst, struct btree *src,
 	}
 
 	dst->u64s = cpu_to_le16((u64 *) out - dst->_data);
-	return nr;
-}
-
-/* Sort, repack, and call bch2_bkey_normalize() to drop stale pointers: */
-struct btree_nr_keys
-bch2_sort_repack_merge(struct bch_fs *c,
-		       struct bset *dst, struct btree *src,
-		       struct btree_node_iter *iter,
-		       struct bkey_format *out_f,
-		       bool filter_whiteouts)
-{
-	struct bkey_packed *out = vstruct_last(dst), *k_packed;
-	struct bkey_buf k;
-	struct btree_nr_keys nr;
-
-	memset(&nr, 0, sizeof(nr));
-	bch2_bkey_buf_init(&k);
-
-	while ((k_packed = bch2_btree_node_iter_next_all(iter, src))) {
-		if (filter_whiteouts && bkey_deleted(k_packed))
-			continue;
-
-		/*
-		 * NOTE:
-		 * bch2_bkey_normalize may modify the key we pass it (dropping
-		 * stale pointers) and we don't have a write lock on the src
-		 * node; we have to make a copy of the entire key before calling
-		 * normalize
-		 */
-		bch2_bkey_buf_realloc(&k, c, k_packed->u64s + BKEY_U64s);
-		bch2_bkey_unpack(src, k.k, k_packed);
-
-		if (filter_whiteouts &&
-		    bch2_bkey_normalize(c, bkey_i_to_s(k.k)))
-			continue;
-
-		extent_sort_append(c, out_f, &nr, &out, bkey_i_to_s(k.k));
-	}
-
-	dst->u64s = cpu_to_le16((u64 *) out - dst->_data);
-	bch2_bkey_buf_exit(&k, c);
 	return nr;
 }
 
