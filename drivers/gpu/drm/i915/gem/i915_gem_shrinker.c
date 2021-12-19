@@ -401,9 +401,9 @@ i915_gem_shrinker_vmap(struct notifier_block *nb, unsigned long event, void *ptr
 					       I915_SHRINK_VMAPS);
 
 	/* We also want to clear any cached iomaps as they wrap vmap */
-	mutex_lock(&i915->ggtt.vm.mutex);
+	mutex_lock(&to_gt(i915)->ggtt->vm.mutex);
 	list_for_each_entry_safe(vma, next,
-				 &i915->ggtt.vm.bound_list, vm_link) {
+				 &to_gt(i915)->ggtt->vm.bound_list, vm_link) {
 		unsigned long count = vma->node.size >> PAGE_SHIFT;
 		struct drm_i915_gem_object *obj = vma->obj;
 
@@ -418,7 +418,7 @@ i915_gem_shrinker_vmap(struct notifier_block *nb, unsigned long event, void *ptr
 
 		i915_gem_object_unlock(obj);
 	}
-	mutex_unlock(&i915->ggtt.vm.mutex);
+	mutex_unlock(&to_gt(i915)->ggtt->vm.mutex);
 
 	*(unsigned long *)ptr += freed_pages;
 	return NOTIFY_DONE;
