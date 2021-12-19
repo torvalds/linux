@@ -395,7 +395,7 @@ static void gen7_fbc_activate(struct drm_i915_private *dev_priv)
 			       SNB_CPU_FENCE_ENABLE | params->fence_id);
 		intel_de_write(dev_priv, DPFC_CPU_FENCE_OFFSET,
 			       params->fence_y_offset);
-	} else if (dev_priv->ggtt.num_fences) {
+	} else if (to_gt(dev_priv)->ggtt->num_fences) {
 		intel_de_write(dev_priv, SNB_DPFC_CTL_SA, 0);
 		intel_de_write(dev_priv, DPFC_CPU_FENCE_OFFSET, 0);
 	}
