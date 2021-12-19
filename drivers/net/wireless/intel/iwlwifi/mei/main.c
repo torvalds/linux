@@ -175,7 +175,7 @@ struct iwl_mei {
 };
 
 /**
- * iwl_mei_cache - cache for the parameters from iwlwifi
+ * struct iwl_mei_cache - cache for the parameters from iwlwifi
  * @ops: Callbacks to iwlwifi.
  * @netdev: The netdev that will be used to transmit / receive packets.
  * @conn_info: The connection info message triggered by iwlwifi's association.
@@ -191,7 +191,7 @@ struct iwl_mei {
  * is cached here so that we can buffer the configuration even if we don't have
  * a bind from the mei bus and hence, on iwl_mei structure.
  */
-static struct {
+struct iwl_mei_cache {
 	const struct iwl_mei_ops *ops;
 	struct net_device __rcu *netdev;
 	const struct iwl_sap_notif_connection_info *conn_info;
@@ -201,7 +201,9 @@ static struct {
 	u8 mac_address[6];
 	u8 nvm_address[6];
 	void *priv;
-} iwl_mei_cache = {
+};
+
+static struct iwl_mei_cache iwl_mei_cache = {
 	.rf_kill = SAP_HW_RFKILL_DEASSERTED | SAP_SW_RFKILL_DEASSERTED
 };
 
@@ -1781,7 +1783,7 @@ static void iwl_mei_dbgfs_unregister(struct iwl_mei *mei) {}
 
 #endif /* CONFIG_DEBUG_FS */
 
-/**
+/*
  * iwl_mei_probe - the probe function called by the mei bus enumeration
  *
  * This allocates the data needed by iwlmei and sets a pointer to this data
