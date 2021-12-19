@@ -124,7 +124,7 @@ struct iwl_fw_ini_region_internal_buffer {
  * @id: region id. Max id is &IWL_FW_INI_MAX_REGION_ID
  * @type: region type. One of &enum iwl_fw_ini_region_type
  * @sub_type: region sub type
- * @sub_type_ver: region sub type
+ * @sub_type_ver: region sub type version
  * @reserved: not in use
  * @name: region name
  * @dev_addr: device address configuration. Used by
@@ -482,5 +482,18 @@ enum iwl_fw_ini_trigger_apply_policy {
 	IWL_FW_INI_APPLY_POLICY_OVERRIDE_REGIONS	= BIT(8),
 	IWL_FW_INI_APPLY_POLICY_OVERRIDE_CFG		= BIT(9),
 	IWL_FW_INI_APPLY_POLICY_OVERRIDE_DATA		= BIT(10),
+};
+
+/**
+ * enum iwl_fw_ini_trigger_reset_fw_policy - Determines how to handle reset
+ *
+ * @IWL_FW_INI_RESET_FW_MODE_NOTHING: do not stop FW and reload (default)
+ * @IWL_FW_INI_RESET_FW_MODE_STOP_FW_ONLY: stop FW without reload FW
+ * @IWL_FW_INI_RESET_FW_MODE_STOP_AND_RELOAD_FW: stop FW with reload FW
+ */
+enum iwl_fw_ini_trigger_reset_fw_policy {
+	IWL_FW_INI_RESET_FW_MODE_NOTHING = 0,
+	IWL_FW_INI_RESET_FW_MODE_STOP_FW_ONLY,
+	IWL_FW_INI_RESET_FW_MODE_STOP_AND_RELOAD_FW
 };
 #endif
