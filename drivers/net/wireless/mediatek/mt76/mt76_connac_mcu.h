@@ -570,6 +570,7 @@ struct wtbl_raw {
 					 sizeof(struct sta_rec_muru) +	\
 					 sizeof(struct sta_rec_bfee) +	\
 					 sizeof(struct sta_rec_ra) +	\
+					 sizeof(struct sta_rec_sec) +	\
 					 sizeof(struct sta_rec_ra_fixed) + \
 					 sizeof(struct sta_rec_he_6g_capa) + \
 					 sizeof(struct tlv) +		\
@@ -1436,7 +1437,7 @@ mt76_connac_mcu_get_wlan_idx(struct mt76_dev *dev, struct mt76_wcid *wcid,
 {
 	*wlan_idx_hi = 0;
 
-	if (is_mt7921(dev)) {
+	if (is_mt7921(dev) || is_mt7915(dev)) {
 		*wlan_idx_lo = wcid ? to_wcid_lo(wcid->idx) : 0;
 		*wlan_idx_hi = wcid ? to_wcid_hi(wcid->idx) : 0;
 	} else {
@@ -1445,8 +1446,16 @@ mt76_connac_mcu_get_wlan_idx(struct mt76_dev *dev, struct mt76_wcid *wcid,
 }
 
 struct sk_buff *
+__mt76_connac_mcu_alloc_sta_req(struct mt76_dev *dev, struct mt76_vif *mvif,
+				struct mt76_wcid *wcid, int len);
+static inline struct sk_buff *
 mt76_connac_mcu_alloc_sta_req(struct mt76_dev *dev, struct mt76_vif *mvif,
-			      struct mt76_wcid *wcid);
+			      struct mt76_wcid *wcid)
+{
+	return __mt76_connac_mcu_alloc_sta_req(dev, mvif, wcid,
+					       MT76_CONNAC_STA_UPDATE_MAX_SIZE);
+}
+
 struct wtbl_req_hdr *
 mt76_connac_mcu_alloc_wtbl_req(struct mt76_dev *dev, struct mt76_wcid *wcid,
 			       int cmd, void *sta_wtbl, struct sk_buff **skb);

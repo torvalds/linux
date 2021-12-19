@@ -6,7 +6,7 @@
 
 #include <linux/interrupt.h>
 #include <linux/ktime.h>
-#include "../mt76.h"
+#include "../mt76_connac.h"
 #include "regs.h"
 
 #define MT7915_MAX_INTERFACES		19
@@ -478,11 +478,6 @@ int mt7915_mcu_fw_log_2_host(struct mt7915_dev *dev, u8 type, u8 ctrl);
 int mt7915_mcu_fw_dbg_ctrl(struct mt7915_dev *dev, u32 module, u8 level);
 void mt7915_mcu_rx_event(struct mt7915_dev *dev, struct sk_buff *skb);
 void mt7915_mcu_exit(struct mt7915_dev *dev);
-
-static inline bool is_mt7915(struct mt76_dev *dev)
-{
-	return mt76_chip(dev) == 0x7915;
-}
 
 static inline u16 mt7915_wtbl_size(struct mt7915_dev *dev)
 {
