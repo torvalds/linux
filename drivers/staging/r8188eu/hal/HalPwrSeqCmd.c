@@ -25,8 +25,7 @@ Major Change History:
  *	Assumption:
  *		We should follow specific format which was released from HW SD.
  */
-u8 HalPwrSeqCmdParsing(struct adapter *padapter, u8 fab_vers,
-		       u8 ifacetype, struct wl_pwr_cfg pwrseqcmd[])
+u8 HalPwrSeqCmdParsing(struct adapter *padapter, u8 ifacetype, struct wl_pwr_cfg pwrseqcmd[])
 {
 	struct wl_pwr_cfg pwrcfgcmd = {0};
 	u8 poll_bit = false;
@@ -39,9 +38,8 @@ u8 HalPwrSeqCmdParsing(struct adapter *padapter, u8 fab_vers,
 	do {
 		pwrcfgcmd = pwrseqcmd[aryidx];
 
-		/* 2 Only Handle the command whose FAB and Interface are matched */
-		if ((GET_PWR_CFG_FAB_MASK(pwrcfgcmd) & fab_vers) &&
-		    (GET_PWR_CFG_INTF_MASK(pwrcfgcmd) & ifacetype)) {
+		/* 2 Only Handle the command whose Interface is matched */
+		if ((GET_PWR_CFG_INTF_MASK(pwrcfgcmd) & ifacetype)) {
 			switch (GET_PWR_CFG_CMD(pwrcfgcmd)) {
 			case PWR_CMD_WRITE:
 				offset = GET_PWR_CFG_OFFSET(pwrcfgcmd);

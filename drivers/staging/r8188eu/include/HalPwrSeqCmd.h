@@ -58,13 +58,6 @@
 #define	PWR_INTF_PCI_MSK		BIT(2)
 #define	PWR_INTF_ALL_MSK		(BIT(0)|BIT(1)|BIT(2)|BIT(3))
 
-/*---------------------------------------------*/
-/* 3 The value of fab_msk: 4 bits */
-/*---------------------------------------------*/
-#define	PWR_FAB_TSMC_MSK		BIT(0)
-#define	PWR_FAB_UMC_MSK			BIT(1)
-#define	PWR_FAB_ALL_MSK			(BIT(0)|BIT(1)|BIT(2)|BIT(3))
-
 enum pwrseq_cmd_delat_unit {
 	PWRSEQ_DELAY_US,
 	PWRSEQ_DELAY_MS,
@@ -72,7 +65,6 @@ enum pwrseq_cmd_delat_unit {
 
 struct wl_pwr_cfg {
 	u16 offset;
-	u8 fab_msk:4;
 	u8 interface_msk:4;
 	u8 base:4;
 	u8 cmd:4;
@@ -81,7 +73,6 @@ struct wl_pwr_cfg {
 };
 
 #define GET_PWR_CFG_OFFSET(__PWR_CMD)		__PWR_CMD.offset
-#define GET_PWR_CFG_FAB_MASK(__PWR_CMD)		__PWR_CMD.fab_msk
 #define GET_PWR_CFG_INTF_MASK(__PWR_CMD)	__PWR_CMD.interface_msk
 #define GET_PWR_CFG_BASE(__PWR_CMD)		__PWR_CMD.base
 #define GET_PWR_CFG_CMD(__PWR_CMD)		__PWR_CMD.cmd
@@ -89,7 +80,6 @@ struct wl_pwr_cfg {
 #define GET_PWR_CFG_VALUE(__PWR_CMD)		__PWR_CMD.value
 
 /*	Prototype of protected function. */
-u8 HalPwrSeqCmdParsing(struct adapter *padapter, u8 FabVersion,
-		       u8 InterfaceType, struct wl_pwr_cfg PwrCfgCmd[]);
+u8 HalPwrSeqCmdParsing(struct adapter *padapter, u8 InterfaceType, struct wl_pwr_cfg PwrCfgCmd[]);
 
 #endif
