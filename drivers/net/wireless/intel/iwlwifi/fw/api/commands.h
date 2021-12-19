@@ -91,7 +91,8 @@ enum iwl_legacy_cmds {
 
 	/**
 	 * @SCAN_CFG_CMD:
-	 * uses &struct iwl_scan_config_v1 or &struct iwl_scan_config
+	 * uses &struct iwl_scan_config_v1, &struct iwl_scan_config_v2
+	 * or &struct iwl_scan_config
 	 */
 	SCAN_CFG_CMD = 0xc,
 
