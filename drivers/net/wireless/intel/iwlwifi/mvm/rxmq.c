@@ -172,8 +172,12 @@ static int iwl_mvm_create_skb(struct iwl_mvm *mvm, struct sk_buff *skb,
 	 * in the cases the hardware didn't handle, since it's rare to see
 	 * such packets, even though the hardware did calculate the checksum
 	 * in this case, just starting after the MAC header instead.
+	 *
+	 * Starting from Bz hardware, it calculates starting directly after
+	 * the MAC header, so that matches mac80211's expectation.
 	 */
-	if (skb->ip_summed == CHECKSUM_COMPLETE) {
+	if (skb->ip_summed == CHECKSUM_COMPLETE &&
+	    mvm->trans->trans_cfg->device_family < IWL_DEVICE_FAMILY_BZ) {
 		struct {
 			u8 hdr[6];
 			__be16 type;
