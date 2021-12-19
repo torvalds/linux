@@ -85,33 +85,6 @@ struct mt7915_fw_region {
 #define HE_PHY(p, c)			u8_get_bits(c, IEEE80211_HE_PHY_##p)
 #define HE_MAC(m, c)			u8_get_bits(c, IEEE80211_HE_MAC_##m)
 
-static enum mcu_cipher_type
-mt7915_mcu_get_cipher(int cipher)
-{
-	switch (cipher) {
-	case WLAN_CIPHER_SUITE_WEP40:
-		return MCU_CIPHER_WEP40;
-	case WLAN_CIPHER_SUITE_WEP104:
-		return MCU_CIPHER_WEP104;
-	case WLAN_CIPHER_SUITE_TKIP:
-		return MCU_CIPHER_TKIP;
-	case WLAN_CIPHER_SUITE_AES_CMAC:
-		return MCU_CIPHER_BIP_CMAC_128;
-	case WLAN_CIPHER_SUITE_CCMP:
-		return MCU_CIPHER_AES_CCMP;
-	case WLAN_CIPHER_SUITE_CCMP_256:
-		return MCU_CIPHER_CCMP_256;
-	case WLAN_CIPHER_SUITE_GCMP:
-		return MCU_CIPHER_GCMP;
-	case WLAN_CIPHER_SUITE_GCMP_256:
-		return MCU_CIPHER_GCMP_256;
-	case WLAN_CIPHER_SUITE_SMS4:
-		return MCU_CIPHER_WAPI;
-	default:
-		return MCU_CIPHER_NONE;
-	}
-}
-
 static u8 mt7915_mcu_chan_bw(struct cfg80211_chan_def *chandef)
 {
 	static const u8 width_to_bw[] = {
@@ -984,7 +957,7 @@ mt7915_mcu_sta_key_tlv(struct mt7915_sta *msta, struct sk_buff *skb,
 		struct sec_key *sec_key;
 		u8 cipher;
 
-		cipher = mt7915_mcu_get_cipher(key->cipher);
+		cipher = mt76_connac_mcu_get_cipher(key->cipher);
 		if (cipher == MCU_CIPHER_NONE)
 			return -EOPNOTSUPP;
 

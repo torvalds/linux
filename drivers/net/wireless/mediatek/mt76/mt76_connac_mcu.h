@@ -1428,6 +1428,33 @@ struct mt76_connac_config {
 	u8 data[320];
 } __packed;
 
+static inline enum mcu_cipher_type
+mt76_connac_mcu_get_cipher(int cipher)
+{
+	switch (cipher) {
+	case WLAN_CIPHER_SUITE_WEP40:
+		return MCU_CIPHER_WEP40;
+	case WLAN_CIPHER_SUITE_WEP104:
+		return MCU_CIPHER_WEP104;
+	case WLAN_CIPHER_SUITE_TKIP:
+		return MCU_CIPHER_TKIP;
+	case WLAN_CIPHER_SUITE_AES_CMAC:
+		return MCU_CIPHER_BIP_CMAC_128;
+	case WLAN_CIPHER_SUITE_CCMP:
+		return MCU_CIPHER_AES_CCMP;
+	case WLAN_CIPHER_SUITE_CCMP_256:
+		return MCU_CIPHER_CCMP_256;
+	case WLAN_CIPHER_SUITE_GCMP:
+		return MCU_CIPHER_GCMP;
+	case WLAN_CIPHER_SUITE_GCMP_256:
+		return MCU_CIPHER_GCMP_256;
+	case WLAN_CIPHER_SUITE_SMS4:
+		return MCU_CIPHER_WAPI;
+	default:
+		return MCU_CIPHER_NONE;
+	}
+}
+
 #define to_wcid_lo(id)		FIELD_GET(GENMASK(7, 0), (u16)id)
 #define to_wcid_hi(id)		FIELD_GET(GENMASK(9, 8), (u16)id)
 
