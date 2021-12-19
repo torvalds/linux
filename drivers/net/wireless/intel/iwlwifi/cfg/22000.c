@@ -9,7 +9,7 @@
 #include "iwl-prph.h"
 
 /* Highest firmware API version supported */
-#define IWL_22000_UCODE_API_MAX	68
+#define IWL_22000_UCODE_API_MAX	69
 
 /* Lowest firmware API version supported */
 #define IWL_22000_UCODE_API_MIN	39
