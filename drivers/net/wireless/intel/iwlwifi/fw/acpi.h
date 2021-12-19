@@ -114,6 +114,11 @@ struct iwl_geo_profile {
 	struct iwl_geo_profile_band bands[ACPI_GEO_NUM_BANDS_REV2];
 };
 
+/* Same thing as with SAR, all revisions fit in revision 2 */
+struct iwl_ppag_chain {
+	s8 subbands[ACPI_SAR_NUM_SUB_BANDS_REV2];
+};
+
 enum iwl_dsm_funcs_rev_0 {
 	DSM_FUNC_QUERY = 0,
 	DSM_FUNC_DISABLE_SRD = 1,

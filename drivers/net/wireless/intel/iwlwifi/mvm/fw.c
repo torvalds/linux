@@ -958,13 +958,8 @@ static int iwl_mvm_get_ppag_table(struct iwl_mvm *mvm)
 	union acpi_object *wifi_pkg, *data, *flags;
 	int i, j, ret, tbl_rev, num_sub_bands;
 	int idx = 2;
-	s8 *gain;
 
-	/*
-	 * The 'flags' field is the same in v1 and in v2 so we can just
-	 * use v1 to access it.
-	 */
-	mvm->fwrt.ppag_table.v1.flags = cpu_to_le32(0);
+	mvm->fwrt.ppag_flags = 0;
 
 	data = iwl_acpi_get_object(mvm->dev, ACPI_PPAG_METHOD);
 	if (IS_ERR(data))
@@ -976,8 +971,6 @@ static int iwl_mvm_get_ppag_table(struct iwl_mvm *mvm)
 	if (!IS_ERR(wifi_pkg)) {
 		if (tbl_rev == 1 || tbl_rev == 2) {
 			num_sub_bands = IWL_NUM_SUB_BANDS_V2;
-			gain = mvm->fwrt.ppag_table.v2.gain[0];
-			mvm->fwrt.ppag_ver = tbl_rev;
 			IWL_DEBUG_RADIO(mvm,
 					"Reading PPAG table v2 (tbl_rev=%d)\n",
 					tbl_rev);
@@ -997,8 +990,6 @@ static int iwl_mvm_get_ppag_table(struct iwl_mvm *mvm)
 			goto out_free;
 		}
 		num_sub_bands = IWL_NUM_SUB_BANDS_V1;
-		gain = mvm->fwrt.ppag_table.v1.gain[0];
-		mvm->fwrt.ppag_ver = 0;
 		IWL_DEBUG_RADIO(mvm, "Reading PPAG table v1 (tbl_rev=0)\n");
 		goto read_table;
 	}
@@ -1006,6 +997,7 @@ static int iwl_mvm_get_ppag_table(struct iwl_mvm *mvm)
 	goto out_free;
 
 read_table:
+	mvm->fwrt.ppag_ver = tbl_rev;
 	flags = &wifi_pkg->package.elements[1];
 
 	if (flags->type != ACPI_TYPE_INTEGER) {
@@ -1013,10 +1005,9 @@ read_table:
 		goto out_free;
 	}
 
-	mvm->fwrt.ppag_table.v1.flags = cpu_to_le32(flags->integer.value &
-						    IWL_PPAG_MASK);
+	mvm->fwrt.ppag_flags = flags->integer.value & IWL_PPAG_MASK;
 
-	if (!mvm->fwrt.ppag_table.v1.flags) {
+	if (!mvm->fwrt.ppag_flags) {
 		ret = 0;
 		goto out_free;
 	}
@@ -1036,15 +1027,15 @@ read_table:
 				goto out_free;
 			}
 
-			gain[i * num_sub_bands + j] = ent->integer.value;
+			mvm->fwrt.ppag_chains[i].subbands[j] = ent->integer.value;
 
 			if ((j == 0 &&
-			     (gain[i * num_sub_bands + j] > ACPI_PPAG_MAX_LB ||
-			      gain[i * num_sub_bands + j] < ACPI_PPAG_MIN_LB)) ||
+			     (mvm->fwrt.ppag_chains[i].subbands[j] > ACPI_PPAG_MAX_LB ||
+			      mvm->fwrt.ppag_chains[i].subbands[j] < ACPI_PPAG_MIN_LB)) ||
 			    (j != 0 &&
-			     (gain[i * num_sub_bands + j] > ACPI_PPAG_MAX_HB ||
-			      gain[i * num_sub_bands + j] < ACPI_PPAG_MIN_HB))) {
-				mvm->fwrt.ppag_table.v1.flags = cpu_to_le32(0);
+			     (mvm->fwrt.ppag_chains[i].subbands[j] > ACPI_PPAG_MAX_HB ||
+			      mvm->fwrt.ppag_chains[i].subbands[j] < ACPI_PPAG_MIN_HB))) {
+				mvm->fwrt.ppag_flags = 0;
 				ret = -EINVAL;
 				goto out_free;
 			}
@@ -1059,6 +1050,7 @@ out_free:
 
 int iwl_mvm_ppag_send_cmd(struct iwl_mvm *mvm)
 {
+	union iwl_ppag_table_cmd cmd;
 	u8 cmd_ver;
 	int i, j, ret, num_sub_bands, cmd_size;
 	s8 *gain;
@@ -1068,37 +1060,39 @@ int iwl_mvm_ppag_send_cmd(struct iwl_mvm *mvm)
 				"PPAG capability not supported by FW, command not sent.\n");
 		return 0;
 	}
-	if (!mvm->fwrt.ppag_table.v1.flags) {
+	if (!mvm->fwrt.ppag_flags) {
 		IWL_DEBUG_RADIO(mvm, "PPAG not enabled, command not sent.\n");
 		return 0;
 	}
 
+	/* The 'flags' field is the same in v1 and in v2 so we can just
+	 * use v1 to access it.
+	 */
+	cmd.v1.flags = cpu_to_le32(mvm->fwrt.ppag_flags);
 	cmd_ver = iwl_fw_lookup_cmd_ver(mvm->fw, PHY_OPS_GROUP,
 					PER_PLATFORM_ANT_GAIN_CMD,
 					IWL_FW_CMD_VER_UNKNOWN);
 	if (cmd_ver == 1) {
 		num_sub_bands = IWL_NUM_SUB_BANDS_V1;
-		gain = mvm->fwrt.ppag_table.v1.gain[0];
-		cmd_size = sizeof(mvm->fwrt.ppag_table.v1);
+		gain = cmd.v1.gain[0];
+		cmd_size = sizeof(cmd.v1);
 		if (mvm->fwrt.ppag_ver == 1 || mvm->fwrt.ppag_ver == 2) {
 			IWL_DEBUG_RADIO(mvm,
 					"PPAG table rev is %d but FW supports v1, sending truncated table\n",
 					mvm->fwrt.ppag_ver);
-			mvm->fwrt.ppag_table.v1.flags &=
-				cpu_to_le32(IWL_PPAG_ETSI_MASK);
+			cmd.v1.flags &= cpu_to_le32(IWL_PPAG_ETSI_MASK);
 		}
 	} else if (cmd_ver == 2 || cmd_ver == 3) {
 		num_sub_bands = IWL_NUM_SUB_BANDS_V2;
-		gain = mvm->fwrt.ppag_table.v2.gain[0];
-		cmd_size = sizeof(mvm->fwrt.ppag_table.v2);
+		gain = cmd.v2.gain[0];
+		cmd_size = sizeof(cmd.v2);
 		if (mvm->fwrt.ppag_ver == 0) {
 			IWL_DEBUG_RADIO(mvm,
 					"PPAG table is v1 but FW supports v2, sending padded table\n");
 		} else if (cmd_ver == 2 && mvm->fwrt.ppag_ver == 2) {
 			IWL_DEBUG_RADIO(mvm,
 					"PPAG table is v3 but FW supports v2, sending partial bitmap.\n");
-			mvm->fwrt.ppag_table.v1.flags &=
-				cpu_to_le32(IWL_PPAG_ETSI_MASK);
+			cmd.v1.flags &= cpu_to_le32(IWL_PPAG_ETSI_MASK);
 		}
 	} else {
 		IWL_DEBUG_RADIO(mvm, "Unsupported PPAG command version\n");
@@ -1107,6 +1101,8 @@ int iwl_mvm_ppag_send_cmd(struct iwl_mvm *mvm)
 
 	for (i = 0; i < IWL_NUM_CHAIN_LIMITS; i++) {
 		for (j = 0; j < num_sub_bands; j++) {
+			gain[i * num_sub_bands + j] =
+				mvm->fwrt.ppag_chains[i].subbands[j];
 			IWL_DEBUG_RADIO(mvm,
 					"PPAG table: chain[%d] band[%d]: gain = %d\n",
 					i, j, gain[i * num_sub_bands + j]);
@@ -1115,7 +1111,7 @@ int iwl_mvm_ppag_send_cmd(struct iwl_mvm *mvm)
 	IWL_DEBUG_RADIO(mvm, "Sending PER_PLATFORM_ANT_GAIN_CMD\n");
 	ret = iwl_mvm_send_cmd_pdu(mvm, WIDE_ID(PHY_OPS_GROUP,
 						PER_PLATFORM_ANT_GAIN_CMD),
-				   0, cmd_size, &mvm->fwrt.ppag_table);
+				   0, cmd_size, &cmd);
 	if (ret < 0)
 		IWL_ERR(mvm, "failed to send PER_PLATFORM_ANT_GAIN_CMD (%d)\n",
 			ret);
@@ -1154,7 +1150,7 @@ static int iwl_mvm_ppag_init(struct iwl_mvm *mvm)
 		IWL_DEBUG_RADIO(mvm,
 				"System vendor '%s' is not in the approved list, disabling PPAG.\n",
 				dmi_get_system_info(DMI_SYS_VENDOR));
-		mvm->fwrt.ppag_table.v1.flags = cpu_to_le32(0);
+		mvm->fwrt.ppag_flags = 0;
 		return 0;
 	}
 
