@@ -403,7 +403,7 @@ add_post_rule(struct mlx5_eswitch *esw, struct mlx5e_sample_flow *sample_flow,
 	post_attr->chain = 0;
 	post_attr->prio = 0;
 	post_attr->ft = default_tbl;
-	post_attr->flags = MLX5_ESW_ATTR_FLAG_NO_IN_PORT;
+	post_attr->flags = MLX5_ATTR_FLAG_NO_IN_PORT;
 
 	/* When offloading sample and encap action, if there is no valid
 	 * neigh data struct, a slow path rule is offloaded first. Source
@@ -581,7 +581,7 @@ mlx5e_tc_sample_offload(struct mlx5e_tc_psample *tc_psample,
 	if (tunnel_id)
 		pre_attr->action |= MLX5_FLOW_CONTEXT_ACTION_DECAP;
 	pre_attr->modify_hdr = sample_flow->restore->modify_hdr;
-	pre_attr->flags = MLX5_ESW_ATTR_FLAG_SAMPLE;
+	pre_attr->flags = MLX5_ATTR_FLAG_SAMPLE;
 	pre_attr->inner_match_level = attr->inner_match_level;
 	pre_attr->outer_match_level = attr->outer_match_level;
 	pre_attr->chain = attr->chain;

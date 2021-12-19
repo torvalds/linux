@@ -28,7 +28,7 @@ tc_act_parse_trap(struct mlx5e_tc_act_parse_state *parse_state,
 {
 	attr->action |= MLX5_FLOW_CONTEXT_ACTION_FWD_DEST |
 			MLX5_FLOW_CONTEXT_ACTION_COUNT;
-	attr->flags |= MLX5_ESW_ATTR_FLAG_SLOW_PATH;
+	attr->flags |= MLX5_ATTR_FLAG_SLOW_PATH;
 
 	return 0;
 }

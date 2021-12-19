@@ -89,6 +89,22 @@ struct mlx5_flow_attr {
 	};
 };
 
+enum {
+	MLX5_ATTR_FLAG_VLAN_HANDLED  = BIT(0),
+	MLX5_ATTR_FLAG_SLOW_PATH     = BIT(1),
+	MLX5_ATTR_FLAG_NO_IN_PORT    = BIT(2),
+	MLX5_ATTR_FLAG_SRC_REWRITE   = BIT(3),
+	MLX5_ATTR_FLAG_SAMPLE        = BIT(4),
+	MLX5_ATTR_FLAG_ACCEPT        = BIT(5),
+};
+
+/* Returns true if any of the flags that require skipping further TC/NF processing are set. */
+static inline bool
+mlx5e_tc_attr_flags_skip(u32 attr_flags)
+{
+	return attr_flags & (MLX5_ATTR_FLAG_SLOW_PATH | MLX5_ATTR_FLAG_ACCEPT);
+}
+
 struct mlx5_rx_tun_attr {
 	u16 decap_vport;
 	union {
