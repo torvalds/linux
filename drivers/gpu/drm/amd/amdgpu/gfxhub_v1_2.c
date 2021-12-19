@@ -483,33 +483,43 @@ static void gfxhub_v1_2_set_fault_enable_default(struct amdgpu_device *adev,
 
 static void gfxhub_v1_2_init(struct amdgpu_device *adev)
 {
-	struct amdgpu_vmhub *hub = &adev->vmhub[AMDGPU_GFXHUB(0)];
+	struct amdgpu_vmhub *hub;
+	int i;
 
-	hub->ctx0_ptb_addr_lo32 =
-		SOC15_REG_OFFSET(GC, 0,
+	for (i = 0; i < adev->gfx.num_xcd; i++) {
+		hub = &adev->vmhub[AMDGPU_GFXHUB(i)];
+
+		hub->ctx0_ptb_addr_lo32 =
+			SOC15_REG_OFFSET(GC, i,
 				regVM_CONTEXT0_PAGE_TABLE_BASE_ADDR_LO32);
-	hub->ctx0_ptb_addr_hi32 =
-		SOC15_REG_OFFSET(GC, 0,
+		hub->ctx0_ptb_addr_hi32 =
+			SOC15_REG_OFFSET(GC, i,
 				regVM_CONTEXT0_PAGE_TABLE_BASE_ADDR_HI32);
-	hub->vm_inv_eng0_sem =
-		SOC15_REG_OFFSET(GC, 0, regVM_INVALIDATE_ENG0_SEM);
-	hub->vm_inv_eng0_req =
-		SOC15_REG_OFFSET(GC, 0, regVM_INVALIDATE_ENG0_REQ);
-	hub->vm_inv_eng0_ack =
-		SOC15_REG_OFFSET(GC, 0, regVM_INVALIDATE_ENG0_ACK);
-	hub->vm_context0_cntl =
-		SOC15_REG_OFFSET(GC, 0, regVM_CONTEXT0_CNTL);
-	hub->vm_l2_pro_fault_status =
-		SOC15_REG_OFFSET(GC, 0, regVM_L2_PROTECTION_FAULT_STATUS);
-	hub->vm_l2_pro_fault_cntl =
-		SOC15_REG_OFFSET(GC, 0, regVM_L2_PROTECTION_FAULT_CNTL);
+		hub->vm_inv_eng0_sem =
+			SOC15_REG_OFFSET(GC, i, regVM_INVALIDATE_ENG0_SEM);
+		hub->vm_inv_eng0_req =
+			SOC15_REG_OFFSET(GC, i, regVM_INVALIDATE_ENG0_REQ);
+		hub->vm_inv_eng0_ack =
+			SOC15_REG_OFFSET(GC, i, regVM_INVALIDATE_ENG0_ACK);
+		hub->vm_context0_cntl =
+			SOC15_REG_OFFSET(GC, i, regVM_CONTEXT0_CNTL);
+		hub->vm_l2_pro_fault_status =
+			SOC15_REG_OFFSET(GC, i,
+				regVM_L2_PROTECTION_FAULT_STATUS);
+		hub->vm_l2_pro_fault_cntl =
+			SOC15_REG_OFFSET(GC, i, regVM_L2_PROTECTION_FAULT_CNTL);
 
-	hub->ctx_distance = regVM_CONTEXT1_CNTL - regVM_CONTEXT0_CNTL;
-	hub->ctx_addr_distance = regVM_CONTEXT1_PAGE_TABLE_BASE_ADDR_LO32 -
-		regVM_CONTEXT0_PAGE_TABLE_BASE_ADDR_LO32;
-	hub->eng_distance = regVM_INVALIDATE_ENG1_REQ - regVM_INVALIDATE_ENG0_REQ;
-	hub->eng_addr_distance = regVM_INVALIDATE_ENG1_ADDR_RANGE_LO32 -
-		regVM_INVALIDATE_ENG0_ADDR_RANGE_LO32;
+		hub->ctx_distance = regVM_CONTEXT1_CNTL -
+				regVM_CONTEXT0_CNTL;
+		hub->ctx_addr_distance =
+				regVM_CONTEXT1_PAGE_TABLE_BASE_ADDR_LO32 -
+				regVM_CONTEXT0_PAGE_TABLE_BASE_ADDR_LO32;
+		hub->eng_distance = regVM_INVALIDATE_ENG1_REQ -
+				regVM_INVALIDATE_ENG0_REQ;
+		hub->eng_addr_distance =
+				regVM_INVALIDATE_ENG1_ADDR_RANGE_LO32 -
+				regVM_INVALIDATE_ENG0_ADDR_RANGE_LO32;
+	}
 }
 
 
