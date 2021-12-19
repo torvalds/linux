@@ -82,6 +82,7 @@ struct mlx5_flow_attr {
 	u8 outer_match_level;
 	u8 ip_version;
 	u8 tun_ip_version;
+	int tunnel_id; /* mapped tunnel id */
 	u32 flags;
 	union {
 		struct mlx5_esw_flow_attr esw_attr[0];
@@ -262,9 +263,6 @@ int mlx5e_tc_match_to_reg_set_and_get_id(struct mlx5_core_dev *mdev,
 int mlx5e_tc_add_flow_mod_hdr(struct mlx5e_priv *priv,
 			      struct mlx5e_tc_flow *flow,
 			      struct mlx5_flow_attr *attr);
-
-struct mlx5e_tc_flow;
-u32 mlx5e_tc_get_flow_tun_id(struct mlx5e_tc_flow *flow);
 
 void mlx5e_tc_set_ethertype(struct mlx5_core_dev *mdev,
 			    struct flow_match_basic *match, bool outer,

@@ -308,7 +308,6 @@ mlx5e_tc_rule_offload(struct mlx5e_priv *priv,
 		      struct mlx5_flow_attr *attr)
 {
 	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
-	u32 tun_id = mlx5e_tc_get_flow_tun_id(flow);
 
 	if (attr->flags & MLX5_ATTR_FLAG_CT) {
 		struct mlx5e_tc_mod_hdr_acts *mod_hdr_acts =
@@ -323,7 +322,7 @@ mlx5e_tc_rule_offload(struct mlx5e_priv *priv,
 		return mlx5e_add_offloaded_nic_rule(priv, spec, attr);
 
 	if (attr->flags & MLX5_ATTR_FLAG_SAMPLE)
-		return mlx5e_tc_sample_offload(get_sample_priv(priv), spec, attr, tun_id);
+		return mlx5e_tc_sample_offload(get_sample_priv(priv), spec, attr);
 
 	return mlx5_eswitch_add_offloaded_rule(esw, spec, attr);
 }
@@ -1933,7 +1932,7 @@ static int mlx5e_get_flow_tunnel_id(struct mlx5e_priv *priv,
 		attr->action |= MLX5_FLOW_CONTEXT_ACTION_MOD_HDR;
 	}
 
-	flow->tunnel_id = value;
+	flow->attr->tunnel_id = value;
 	return 0;
 
 err_set:
@@ -1947,8 +1946,8 @@ err_enc_opts:
 
 static void mlx5e_put_flow_tunnel_id(struct mlx5e_tc_flow *flow)
 {
-	u32 enc_opts_id = flow->tunnel_id & ENC_OPTS_BITS_MASK;
-	u32 tun_id = flow->tunnel_id >> ENC_OPTS_BITS;
+	u32 enc_opts_id = flow->attr->tunnel_id & ENC_OPTS_BITS_MASK;
+	u32 tun_id = flow->attr->tunnel_id >> ENC_OPTS_BITS;
 	struct mlx5_rep_uplink_priv *uplink_priv;
 	struct mlx5e_rep_priv *uplink_rpriv;
 	struct mlx5_eswitch *esw;
@@ -1962,11 +1961,6 @@ static void mlx5e_put_flow_tunnel_id(struct mlx5e_tc_flow *flow)
 	if (enc_opts_id)
 		mapping_remove(uplink_priv->tunnel_enc_opts_mapping,
 			       enc_opts_id);
-}
-
-u32 mlx5e_tc_get_flow_tun_id(struct mlx5e_tc_flow *flow)
-{
-	return flow->tunnel_id;
 }
 
 void mlx5e_tc_set_ethertype(struct mlx5_core_dev *mdev,
