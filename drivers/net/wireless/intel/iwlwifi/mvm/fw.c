@@ -12,8 +12,6 @@
 #include "iwl-op-mode.h"
 #include "fw/img.h"
 #include "iwl-debug.h"
-#include "iwl-csr.h" /* for iwl_mvm_rx_card_state_notif */
-#include "iwl-io.h" /* for iwl_mvm_rx_card_state_notif */
 #include "iwl-prph.h"
 #include "fw/acpi.h"
 #include "fw/pnvm.h"
@@ -1822,20 +1820,6 @@ int iwl_mvm_load_d3_fw(struct iwl_mvm *mvm)
  error:
 	iwl_mvm_stop_device(mvm);
 	return ret;
-}
-
-void iwl_mvm_rx_card_state_notif(struct iwl_mvm *mvm,
-				 struct iwl_rx_cmd_buffer *rxb)
-{
-	struct iwl_rx_packet *pkt = rxb_addr(rxb);
-	struct iwl_card_state_notif *card_state_notif = (void *)pkt->data;
-	u32 flags = le32_to_cpu(card_state_notif->flags);
-
-	IWL_DEBUG_RF_KILL(mvm, "Card state received: HW:%s SW:%s CT:%s\n",
-			  (flags & HW_CARD_DISABLED) ? "Kill" : "On",
-			  (flags & SW_CARD_DISABLED) ? "Kill" : "On",
-			  (flags & CT_KILL_CARD_DISABLED) ?
-			  "Reached" : "Not reached");
 }
 
 void iwl_mvm_rx_mfuart_notif(struct iwl_mvm *mvm,

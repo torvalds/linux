@@ -331,9 +331,6 @@ static const struct iwl_rx_handlers iwl_mvm_rx_handlers[] = {
 		   iwl_mvm_rx_umac_scan_iter_complete_notif, RX_HANDLER_SYNC,
 		   struct iwl_umac_scan_iter_complete_notif),
 
-	RX_HANDLER(CARD_STATE_NOTIFICATION, iwl_mvm_rx_card_state_notif,
-		   RX_HANDLER_SYNC, struct iwl_card_state_notif),
-
 	RX_HANDLER(MISSED_BEACONS_NOTIFICATION, iwl_mvm_rx_missed_beacons_notif,
 		   RX_HANDLER_SYNC, struct iwl_missed_beacons_notif),
 
@@ -454,7 +451,6 @@ static const struct iwl_hcmd_names iwl_mvm_legacy_names[] = {
 	HCMD_NAME(STATISTICS_NOTIFICATION),
 	HCMD_NAME(EOSP_NOTIFICATION),
 	HCMD_NAME(REDUCE_TX_POWER_CMD),
-	HCMD_NAME(CARD_STATE_NOTIFICATION),
 	HCMD_NAME(MISSED_BEACONS_NOTIFICATION),
 	HCMD_NAME(TDLS_CONFIG_CMD),
 	HCMD_NAME(MAC_PM_POWER_TABLE),

@@ -1624,8 +1624,6 @@ void iwl_mvm_rx_ba_notif(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb);
 void iwl_mvm_rx_ant_coupling_notif(struct iwl_mvm *mvm,
 				   struct iwl_rx_cmd_buffer *rxb);
 void iwl_mvm_rx_fw_error(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb);
-void iwl_mvm_rx_card_state_notif(struct iwl_mvm *mvm,
-				 struct iwl_rx_cmd_buffer *rxb);
 void iwl_mvm_rx_mfuart_notif(struct iwl_mvm *mvm,
 			     struct iwl_rx_cmd_buffer *rxb);
 void iwl_mvm_rx_shared_mem_cfg_notif(struct iwl_mvm *mvm,

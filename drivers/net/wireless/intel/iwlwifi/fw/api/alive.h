@@ -158,15 +158,6 @@ enum iwl_card_state_flags {
 };
 
 /**
- * struct iwl_radio_version_notif - information on the card state
- * ( CARD_STATE_NOTIFICATION = 0xa1 )
- * @flags: &enum iwl_card_state_flags
- */
-struct iwl_card_state_notif {
-	__le32 flags;
-} __packed; /* CARD_STATE_NTFY_API_S_VER_1 */
-
-/**
  * enum iwl_error_recovery_flags - flags for error recovery cmd
  * @ERROR_RECOVERY_UPDATE_DB: update db from blob sent
  * @ERROR_RECOVERY_END_OF_RECOVERY: end of recovery
