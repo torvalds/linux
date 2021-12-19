@@ -32,6 +32,9 @@
 #define IWL_PPAG_MASK 3
 #define IWL_PPAG_ETSI_MASK BIT(0)
 
+#define IWL_TAS_US_MCC 0x5553
+#define IWL_TAS_CANADA_MCC 0x4341
+
 struct iwl_mvm_alive_data {
 	bool valid;
 	u32 scd_base_addr;
@@ -1183,12 +1186,30 @@ static const struct dmi_system_id dmi_tas_approved_list[] = {
 	{}
 };
 
+static bool iwl_mvm_add_to_tas_block_list(__le32 *list, __le32 *le_size, unsigned int mcc)
+{
+	int i;
+	u32 size = le32_to_cpu(*le_size);
+
+	/* Verify that there is room for another country */
+	if (size >= IWL_TAS_BLOCK_LIST_MAX)
+		return false;
+
+	for (i = 0; i < size; i++) {
+		if (list[i] == cpu_to_le32(mcc))
+			return true;
+	}
+
+	list[size++] = cpu_to_le32(mcc);
+	*le_size = cpu_to_le32(size);
+	return true;
+}
+
 static void iwl_mvm_tas_init(struct iwl_mvm *mvm)
 {
 	int ret;
 	struct iwl_tas_config_cmd_v3 cmd = {};
 	int cmd_size;
-	const struct ieee80211_regdomain *regd;
 
 	BUILD_BUG_ON(ARRAY_SIZE(cmd.block_list_array) <
 		     APCI_WTAS_BLACK_LIST_MAX);
@@ -1196,24 +1217,6 @@ static void iwl_mvm_tas_init(struct iwl_mvm *mvm)
 	if (!fw_has_capa(&mvm->fw->ucode_capa, IWL_UCODE_TLV_CAPA_TAS_CFG)) {
 		IWL_DEBUG_RADIO(mvm, "TAS not enabled in FW\n");
 		return;
-	}
-
-	/* Get the MCC from cfg80211 */
-	regd = wiphy_dereference(mvm->hw->wiphy, mvm->hw->wiphy->regd);
-
-	if (!regd) {
-		IWL_DEBUG_RADIO(mvm, "MCC is unavailable\n");
-		return;
-	}
-
-	if ((regd->alpha2[0] == 'U' && regd->alpha2[1] == 'S') ||
-	    (regd->alpha2[0] == 'C' && regd->alpha2[1] == 'A')) {
-		if (!dmi_check_system(dmi_tas_approved_list)) {
-			IWL_DEBUG_RADIO(mvm,
-					"System vendor '%s' is not in the approved list, disabling TAS.\n",
-					dmi_get_system_info(DMI_SYS_VENDOR));
-			return;
-		}
 	}
 
 	ret = iwl_acpi_get_tas(&mvm->fwrt, &cmd);
@@ -1226,6 +1229,20 @@ static void iwl_mvm_tas_init(struct iwl_mvm *mvm)
 
 	if (ret == 0)
 		return;
+
+	if (!dmi_check_system(dmi_tas_approved_list)) {
+		IWL_DEBUG_RADIO(mvm,
+				"System vendor '%s' is not in the approved list, disabling TAS in US and Canada.\n",
+				dmi_get_system_info(DMI_SYS_VENDOR));
+		if ((!iwl_mvm_add_to_tas_block_list(cmd.block_list_array,
+						    &cmd.block_list_size, IWL_TAS_US_MCC)) ||
+		    (!iwl_mvm_add_to_tas_block_list(cmd.block_list_array,
+						    &cmd.block_list_size, IWL_TAS_CANADA_MCC))) {
+			IWL_DEBUG_RADIO(mvm,
+					"Unable to add US/Canada to TAS block list, disabling TAS\n");
+			return;
+		}
+	}
 
 	cmd_size = iwl_fw_lookup_cmd_ver(mvm->fw, REGULATORY_AND_NVM_GROUP,
 					 TAS_CONFIG,
