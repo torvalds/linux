@@ -1826,8 +1826,6 @@ iwl_mvm_umac_scan_cfg_channels_v6_6g(struct iwl_mvm_scan_params *params,
 			}
 		}
 
-		flags = bssid_bitmap | (s_ssid_bitmap << 16);
-
 		if (cfg80211_channel_is_psc(params->channels[i]) &&
 		    psc_no_listen)
 			flags |= IWL_UHB_CHAN_CFG_FLAG_PSC_CHAN_NO_LISTEN;
@@ -1869,8 +1867,11 @@ iwl_mvm_umac_scan_cfg_channels_v6_6g(struct iwl_mvm_scan_params *params,
 					  (s_max > 1 || b_max > 3));
 		}
 		if ((allow_passive && force_passive) ||
-		    (!flags && !cfg80211_channel_is_psc(params->channels[i])))
+		    (!(bssid_bitmap | s_ssid_bitmap) &&
+		     !cfg80211_channel_is_psc(params->channels[i])))
 			flags |= IWL_UHB_CHAN_CFG_FLAG_FORCE_PASSIVE;
+		else
+			flags |= bssid_bitmap | (s_ssid_bitmap << 16);
 
 		channel_cfg[i].flags |= cpu_to_le32(flags);
 	}
