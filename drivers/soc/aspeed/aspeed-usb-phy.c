@@ -16,6 +16,14 @@ struct usb_phy_ctrl {
 	u32 set_bit;
 };
 
+static const struct of_device_id aspeed_usb_phy_dt_ids[] = {
+	{
+		.compatible = "aspeed,ast2600-uphyb",
+	},
+	{ }
+};
+MODULE_DEVICE_TABLE(of, aspeed_usb_phy_dt_ids);
+
 static int aspeed_usb_phy_probe(struct platform_device *pdev)
 {
 	struct device_node *node = pdev->dev.of_node;
@@ -43,14 +51,14 @@ static int aspeed_usb_phy_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static const struct of_device_id aspeed_usb_phy_dt_ids[] = {
-	{
-		.compatible = "aspeed,ast2600-uphyb",
-	},
-};
+static int aspeed_usb_phy_remove(struct platform_device *pdev)
+{
+	return 0;
+}
 
 static struct platform_driver aspeed_usb_phy_driver = {
 	.probe		= aspeed_usb_phy_probe,
+	.remove		= aspeed_usb_phy_remove,
 	.driver		= {
 		.name	= KBUILD_MODNAME,
 		.of_match_table	= aspeed_usb_phy_dt_ids,

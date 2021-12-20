@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-2.0-only
-obj-$(CONFIG_ASPEED_BMC_DEV)	+= aspeed-bmc-dev.o
+obj-$(CONFIG_ASPEED_BMC_DEV)		+= aspeed-bmc-dev.o
 obj-$(CONFIG_ASPEED_HOST_BMC_DEV)	+= aspeed-host-bmc-dev.o
 obj-$(CONFIG_ASPEED_LPC_CTRL)		+= aspeed-lpc-ctrl.o
 obj-$(CONFIG_ASPEED_LPC_SNOOP)		+= aspeed-lpc-snoop.o
@@ -16,4 +16,6 @@ obj-$(CONFIG_ASPEED_ESPI)		+= aspeed-espi-ctrl.o \
 obj-$(CONFIG_ASPEED_ESPI_MMBI)		+= aspeed-espi-mmbi.o
 obj-$(CONFIG_ASPEED_LPC_MAILBOX)	+= aspeed-lpc-mbox.o
 obj-$(CONFIG_ASPEED_UDMA)		+= aspeed-udma.o
-obj-$(CONFIG_ASPEED_LPC_PCC)	+= aspeed-lpc-pcc.o
+obj-$(CONFIG_ASPEED_LPC_PCC)		+= aspeed-lpc-pcc.o
+obj-$(CONFIG_SOC_ASPEED)		+= aspeed-usb-phy.o
+obj-$(CONFIG_SOC_ASPEED)		+= aspeed-usb-ahp.o
