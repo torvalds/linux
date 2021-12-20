@@ -20,7 +20,7 @@
 #include <linux/iopoll.h>
 #include <asm/io.h>
 
-//#include <linux/aspeed_pcie_io.h>
+#include <linux/aspeed_pcie_io.h>
 
 #include "h2x-ast2600.h"
 
@@ -63,6 +63,92 @@ MODULE_PARM_DESC(hotplug_event, "Using sw flag mechanism for hot-plug events or 
 #define PCIE_RC_INTC_ISR		BIT(2)
 #define PCIE_RC_INTB_ISR		BIT(1)
 #define PCIE_RC_INTA_ISR		BIT(0)
+
+
+void __iomem *h2x_reg_base;
+
+extern u8 aspeed_pcie_inb(u32 addr)
+{
+	int timeout = 0;
+	void __iomem *pcie_rc_base = h2x_reg_base + 0xc0;
+
+	writel(BIT(4) | readl(pcie_rc_base), pcie_rc_base);
+
+	writel(0x02000001, h2x_reg_base + 0x10);
+	writel(0x00002000 | (0x1 << (addr & 0x3)), h2x_reg_base + 0x14);
+	writel(addr & (~0x3), h2x_reg_base + 0x18);
+	writel(0x00000000, h2x_reg_base + 0x1c);
+
+	//trigger
+	writel((readl(h2x_reg_base + 0x24) & 0xf) | PCIE_TRIGGER_TX, h2x_reg_base + 0x24);
+
+	//wait tx idle
+	while (!(readl(h2x_reg_base + 0x24) & PCIE_TX_IDLE)) {
+		timeout++;
+		if (timeout > 10000)
+			return 0xff;
+	};
+
+	//write clr tx idle
+	writel(1, h2x_reg_base + 0x08);
+
+	timeout = 0;
+
+	while (!(readl(pcie_rc_base + 0x08) & PCIE_RC_RX_DONE_ISR)) {
+		timeout++;
+		if (timeout > 10)
+			break;
+
+		mdelay(1);
+	}
+	writel(readl(pcie_rc_base + 0x08), pcie_rc_base + 0x08);
+//	writel(BIT(4) | readl(pcie_rc_base), pcie_rc_base);
+	return ((readl(pcie_rc_base + 0x0C) >> ((addr & 0x3) * 8)) & 0xff);
+
+}
+EXPORT_SYMBOL_GPL(aspeed_pcie_inb);
+
+extern void aspeed_pcie_outb(u8 value, u32 addr)
+{
+	int timeout = 0;
+	u32 wvalue = value;
+	void __iomem *pcie_rc_base = h2x_reg_base + 0xc0;
+
+	writel(BIT(4) | readl(pcie_rc_base), pcie_rc_base);
+
+	writel(0x42000001, h2x_reg_base + 0x10);
+	writel(0x00002000 | (0x1 << (addr & 0x3)), h2x_reg_base + 0x14);
+	writel(addr & (~0x3), h2x_reg_base + 0x18);
+	writel(0x00000000, h2x_reg_base + 0x1c);
+
+	writel((wvalue << (8 * (addr & 0x3))), h2x_reg_base + 0x20);
+
+	//trigger
+	writel((readl(h2x_reg_base + 0x24) & 0xf) | PCIE_TRIGGER_TX, h2x_reg_base + 0x24);
+
+	//wait tx idle
+	while (!(readl(h2x_reg_base + 0x24) & PCIE_TX_IDLE)) {
+		timeout++;
+		if (timeout > 10000)
+			return;
+	};
+
+	//write clr tx idle
+	writel(1, h2x_reg_base + 0x08);
+
+	while (!(readl(pcie_rc_base + 0x08) & PCIE_RC_RX_DONE_ISR)) {
+		timeout++;
+		if (timeout > 10)
+			break;
+
+		mdelay(1);
+	}
+
+	writel(readl(pcie_rc_base + 0x08), pcie_rc_base + 0x08);
+	writel(BIT(4) | readl(pcie_rc_base), pcie_rc_base);
+
+}
+EXPORT_SYMBOL_GPL(aspeed_pcie_outb);
 
 extern int aspeed_h2x_rd_conf(struct pci_bus *bus, unsigned int devfn,
 				int where, int size, u32 *val)
@@ -420,6 +506,7 @@ extern void aspeed_h2x_set_slot_power_limit(struct aspeed_pcie *pcie)
 
 extern void aspeed_h2x_rc_init(struct aspeed_pcie *pcie)
 {
+	h2x_reg_base = pcie->h2xreg_base;
 	//clr intx isr
 	writel(0x0, pcie->h2x_rc_base + 0x04);
 
