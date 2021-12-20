@@ -1588,7 +1588,7 @@ static int __reserve_bytes(struct btrfs_fs_info *fs_info,
 /**
  * Trye to reserve metadata bytes from the block_rsv's space
  *
- * @root:       the root we're allocating for
+ * @fs_info:    the filesystem
  * @block_rsv:  block_rsv we're allocating for
  * @orig_bytes: number of bytes we want
  * @flush:      whether or not we can flush to make our reservation

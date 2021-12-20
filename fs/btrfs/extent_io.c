@@ -3184,13 +3184,12 @@ struct bio *btrfs_bio_clone_partial(struct bio *orig, u64 offset, u64 size)
 /**
  * Attempt to add a page to bio
  *
- * @bio:	destination bio
+ * @bio_ctrl:	record both the bio, and its bio_flags
  * @page:	page to add to the bio
  * @disk_bytenr:  offset of the new bio or to check whether we are adding
  *                a contiguous page to the previous one
- * @pg_offset:	starting offset in the page
  * @size:	portion of page that we want to write
- * @prev_bio_flags:  flags of previous bio to see if we can merge the current one
+ * @pg_offset:	starting offset in the page
  * @bio_flags:	flags of the current bio to see if we can merge them
  *
  * Attempt to add a page to bio considering stripe alignment etc.
