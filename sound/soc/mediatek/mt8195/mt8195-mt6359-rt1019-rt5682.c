@@ -1358,8 +1358,6 @@ static int mt8195_mt6359_rt1019_rt5682_dev_probe(struct platform_device *pdev)
 
 	ret = devm_snd_soc_register_card(&pdev->dev, card);
 	if (ret) {
-		dev_err(&pdev->dev, "%s snd_soc_register_card fail %d\n",
-			__func__, ret);
 		of_node_put(priv->hdmi_node);
 		of_node_put(priv->dp_node);
 		of_node_put(priv->platform_node);
