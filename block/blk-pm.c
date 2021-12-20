@@ -163,27 +163,19 @@ EXPORT_SYMBOL(blk_pre_runtime_resume);
 /**
  * blk_post_runtime_resume - Post runtime resume processing
  * @q: the queue of the device
- * @err: return value of the device's runtime_resume function
  *
  * Description:
- *    Update the queue's runtime status according to the return value of the
- *    device's runtime_resume function. If the resume was successful, call
- *    blk_set_runtime_active() to do the real work of restarting the queue.
+ *    For historical reasons, this routine merely calls blk_set_runtime_active()
+ *    to do the real work of restarting the queue.  It does this regardless of
+ *    whether the device's runtime-resume succeeded; even if it failed the
+ *    driver or error handler will need to communicate with the device.
  *
  *    This function should be called near the end of the device's
  *    runtime_resume callback.
  */
-void blk_post_runtime_resume(struct request_queue *q, int err)
+void blk_post_runtime_resume(struct request_queue *q)
 {
-	if (!q->dev)
-		return;
-	if (!err) {
-		blk_set_runtime_active(q);
-	} else {
-		spin_lock_irq(&q->queue_lock);
-		q->rpm_status = RPM_SUSPENDED;
-		spin_unlock_irq(&q->queue_lock);
-	}
+	blk_set_runtime_active(q);
 }
 EXPORT_SYMBOL(blk_post_runtime_resume);
 
@@ -201,7 +193,7 @@ EXPORT_SYMBOL(blk_post_runtime_resume);
  * runtime PM status and re-enable peeking requests from the queue. It
  * should be called before first request is added to the queue.
  *
- * This function is also called by blk_post_runtime_resume() for successful
+ * This function is also called by blk_post_runtime_resume() for
  * runtime resumes.  It does everything necessary to restart the queue.
  */
 void blk_set_runtime_active(struct request_queue *q)
