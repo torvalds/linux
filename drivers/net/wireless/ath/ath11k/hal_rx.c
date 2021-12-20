@@ -1038,7 +1038,9 @@ ath11k_hal_rx_parse_mon_status_tlv(struct ath11k_base *ab,
 
 		ru_tones = FIELD_GET(HAL_RX_HE_SIG_B1_MU_INFO_INFO0_RU_ALLOCATION,
 				     info0);
-		ppdu_info->ru_alloc = ath11k_he_ru_tones_to_nl80211_he_ru_alloc(ru_tones);
+		ppdu_info->ru_alloc =
+			ath11k_mac_phy_he_ru_to_nl80211_he_ru_alloc(ru_tones);
+
 		ppdu_info->reception_type = HAL_RX_RECEPTION_TYPE_MU_MIMO;
 		break;
 	}

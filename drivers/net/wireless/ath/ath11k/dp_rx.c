@@ -1360,25 +1360,6 @@ int ath11k_dp_htt_tlv_iter(struct ath11k_base *ab, const void *ptr, size_t len,
 	return 0;
 }
 
-static inline u32 ath11k_he_gi_to_nl80211_he_gi(u8 sgi)
-{
-	u32 ret = 0;
-
-	switch (sgi) {
-	case RX_MSDU_START_SGI_0_8_US:
-		ret = NL80211_RATE_INFO_HE_GI_0_8;
-		break;
-	case RX_MSDU_START_SGI_1_6_US:
-		ret = NL80211_RATE_INFO_HE_GI_1_6;
-		break;
-	case RX_MSDU_START_SGI_3_2_US:
-		ret = NL80211_RATE_INFO_HE_GI_3_2;
-		break;
-	}
-
-	return ret;
-}
-
 static void
 ath11k_update_per_peer_tx_stats(struct ath11k *ar,
 				struct htt_ppdu_stats *ppdu_stats, u8 user)
@@ -1497,14 +1478,15 @@ ath11k_update_per_peer_tx_stats(struct ath11k *ar,
 		arsta->txrate.mcs = mcs;
 		arsta->txrate.flags = RATE_INFO_FLAGS_HE_MCS;
 		arsta->txrate.he_dcm = dcm;
-		arsta->txrate.he_gi = ath11k_he_gi_to_nl80211_he_gi(sgi);
-		arsta->txrate.he_ru_alloc = ath11k_he_ru_tones_to_nl80211_he_ru_alloc(
-						(user_rate->ru_end -
+		arsta->txrate.he_gi = ath11k_mac_he_gi_to_nl80211_he_gi(sgi);
+		arsta->txrate.he_ru_alloc = ath11k_mac_phy_he_ru_to_nl80211_he_ru_alloc
+						((user_rate->ru_end -
 						 user_rate->ru_start) + 1);
 		break;
 	}
 
 	arsta->txrate.nss = nss;
+
 	arsta->txrate.bw = ath11k_mac_bw_to_mac80211_bw(bw);
 	arsta->tx_duration += tx_duration;
 	memcpy(&arsta->last_txrate, &arsta->txrate, sizeof(struct rate_info));
@@ -2384,7 +2366,7 @@ static void ath11k_dp_rx_h_rate(struct ath11k *ar, struct hal_rx_desc *rx_desc,
 		}
 		rx_status->encoding = RX_ENC_HE;
 		rx_status->nss = nss;
-		rx_status->he_gi = ath11k_he_gi_to_nl80211_he_gi(sgi);
+		rx_status->he_gi = ath11k_mac_he_gi_to_nl80211_he_gi(sgi);
 		rx_status->bw = ath11k_mac_bw_to_mac80211_bw(bw);
 		break;
 	}

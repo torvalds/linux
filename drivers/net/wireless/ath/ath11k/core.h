@@ -382,6 +382,7 @@ struct ath11k_sta {
 	struct work_struct update_wk;
 	struct work_struct set_4addr_wk;
 	struct rate_info txrate;
+	u32 peer_nss;
 	struct rate_info last_txrate;
 	u64 rx_duration;
 	u64 tx_duration;
