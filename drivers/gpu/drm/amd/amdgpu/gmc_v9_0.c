@@ -1701,7 +1701,6 @@ static int gmc_v9_0_sw_init(void *handle)
 	case IP_VERSION(9, 4, 0):
 	case IP_VERSION(9, 3, 0):
 	case IP_VERSION(9, 4, 2):
-	case IP_VERSION(9, 4, 3):
 		set_bit(AMDGPU_GFXHUB(0), adev->vmhubs_mask);
 		set_bit(AMDGPU_MMHUB0(0), adev->vmhubs_mask);
 
@@ -1726,6 +1725,12 @@ static int gmc_v9_0_sw_init(void *handle)
 		/* Keep the vm size same with Vega20 */
 		amdgpu_vm_adjust_size(adev, 256 * 1024, 9, 3, 48);
 		adev->gmc.translate_further = adev->vm_manager.num_level > 1;
+		break;
+	case IP_VERSION(9, 4, 3):
+		bitmap_set(adev->vmhubs_mask, AMDGPU_GFXHUB(0), adev->gfx.num_xcd);
+		bitmap_set(adev->vmhubs_mask, AMDGPU_MMHUB0(0), 1);
+
+		amdgpu_vm_adjust_size(adev, 256 * 1024, 9, 3, 48);
 		break;
 	default:
 		break;
