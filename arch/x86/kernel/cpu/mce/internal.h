@@ -35,7 +35,7 @@ int mce_gen_pool_add(struct mce *mce);
 int mce_gen_pool_init(void);
 struct llist_node *mce_gen_pool_prepare_records(void);
 
-int mce_severity(struct mce *a, struct pt_regs *regs, int tolerant, char **msg, bool is_excp);
+int mce_severity(struct mce *a, struct pt_regs *regs, char **msg, bool is_excp);
 struct dentry *mce_get_debugfs_dir(void);
 
 extern mce_banks_t mce_banks_ce_disabled;
@@ -127,7 +127,6 @@ struct mca_config {
 	bool ignore_ce;
 	bool print_all;
 
-	int tolerant;
 	int monarch_timeout;
 	int panic_timeout;
 	u32 rip_msr;
