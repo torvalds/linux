@@ -12,7 +12,8 @@
 #define MT7915_MAX_INTERFACES		19
 #define MT7915_MAX_WMM_SETS		4
 #define MT7915_WTBL_SIZE		288
-#define MT7915_WTBL_RESERVED		(MT7915_WTBL_SIZE - 1)
+#define MT7916_WTBL_SIZE		544
+#define MT7915_WTBL_RESERVED		(mt7915_wtbl_size(dev) - 1)
 #define MT7915_WTBL_STA			(MT7915_WTBL_RESERVED - \
 					 MT7915_MAX_INTERFACES)
 
@@ -478,6 +479,11 @@ void mt7915_mcu_exit(struct mt7915_dev *dev);
 static inline bool is_mt7915(struct mt76_dev *dev)
 {
 	return mt76_chip(dev) == 0x7915;
+}
+
+static inline u16 mt7915_wtbl_size(struct mt7915_dev *dev)
+{
+	return is_mt7915(&dev->mt76) ? MT7915_WTBL_SIZE : MT7916_WTBL_SIZE;
 }
 
 void mt7915_dual_hif_set_irq_mask(struct mt7915_dev *dev, bool write_reg,
