@@ -12,6 +12,7 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/rbtree.h>
+#include <linux/dma-mapping.h>
 
 /* iova structure */
 struct iova {
