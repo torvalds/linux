@@ -41,12 +41,23 @@ static int sas_queue_event(int event, struct sas_work *work,
 	return rc;
 }
 
-
-void __sas_drain_work(struct sas_ha_struct *ha)
+void sas_queue_deferred_work(struct sas_ha_struct *ha)
 {
 	struct sas_work *sw, *_sw;
 	int ret;
 
+	spin_lock_irq(&ha->lock);
+	list_for_each_entry_safe(sw, _sw, &ha->defer_q, drain_node) {
+		list_del_init(&sw->drain_node);
+		ret = sas_queue_work(ha, sw);
+		if (ret != 1)
+			sas_free_event(to_asd_sas_event(&sw->work));
+	}
+	spin_unlock_irq(&ha->lock);
+}
+
+void __sas_drain_work(struct sas_ha_struct *ha)
+{
 	set_bit(SAS_HA_DRAINING, &ha->state);
 	/* flush submitters */
 	spin_lock_irq(&ha->lock);
@@ -55,16 +66,8 @@ void __sas_drain_work(struct sas_ha_struct *ha)
 	drain_workqueue(ha->event_q);
 	drain_workqueue(ha->disco_q);
 
-	spin_lock_irq(&ha->lock);
 	clear_bit(SAS_HA_DRAINING, &ha->state);
-	list_for_each_entry_safe(sw, _sw, &ha->defer_q, drain_node) {
-		list_del_init(&sw->drain_node);
-		ret = sas_queue_work(ha, sw);
-		if (ret != 1)
-			sas_free_event(to_asd_sas_event(&sw->work));
-
-	}
-	spin_unlock_irq(&ha->lock);
+	sas_queue_deferred_work(ha);
 }
 
 int sas_drain_work(struct sas_ha_struct *ha)
