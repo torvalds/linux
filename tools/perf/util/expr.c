@@ -12,6 +12,7 @@
 #include "expr-bison.h"
 #include "expr-flex.h"
 #include "smt.h"
+#include <linux/err.h>
 #include <linux/kernel.h>
 #include <linux/zalloc.h>
 #include <ctype.h>
@@ -299,6 +300,10 @@ struct expr_parse_ctx *expr__ctx_new(void)
 		return NULL;
 
 	ctx->ids = hashmap__new(key_hash, key_equal, NULL);
+	if (IS_ERR(ctx->ids)) {
+		free(ctx);
+		return NULL;
+	}
 	ctx->runtime = 0;
 
 	return ctx;
