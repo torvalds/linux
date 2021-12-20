@@ -358,9 +358,11 @@
 			status = "disabled";
 		};
 
-		uphya: uphya@1e6a0800 {
-			compatible = "aspeed,ast2600-uphya";
-			reg = <0x1e6a0800 0x20>;
+		usb2ahp: usb2ahp {
+			compatible = "aspeed,ast2600-usb2ahp";
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_usb2ahp_default>;
+			status = "disabled";
 		};
 
 		udc: udc@1e6a2000 {
@@ -377,6 +379,7 @@
 			compatible = "aspeed,ast2600-uphyb";
 			reg = <0x1e6a2800 0x10>;
 			ctrl = <0x0 0x8>;
+			status = "disabled";
 		};
 
 		apb {

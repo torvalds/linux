@@ -1157,6 +1157,11 @@
 		groups = "USBA";
 	};
 
+	pinctrl_usb2ahp_default: usb2ahp_default {
+		function = "USB2AHP";
+		groups = "USBA";
+	};
+
 	pinctrl_usb11bhid_default: usb11bhid_default {
 		function = "USB11BHID";
 		groups = "USBB";

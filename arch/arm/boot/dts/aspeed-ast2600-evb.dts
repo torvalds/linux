@@ -610,6 +610,10 @@
 };
 #endif
 
+&uphyb {
+	status = "okay";
+};
+
 &sdc {
 	status = "okay";
 };
