@@ -897,7 +897,7 @@ static int do_xfer(const struct scmi_protocol_handle *ph,
 		ret = scmi_to_linux_errno(xfer->hdr.status);
 
 	if (info->desc->ops->mark_txdone)
-		info->desc->ops->mark_txdone(cinfo, ret);
+		info->desc->ops->mark_txdone(cinfo, ret, xfer);
 
 	trace_scmi_xfer_end(xfer->transfer_id, xfer->hdr.id,
 			    xfer->hdr.protocol_id, xfer->hdr.seq, ret);

@@ -441,7 +441,8 @@ static void scmi_optee_fetch_response(struct scmi_chan_info *cinfo,
 	shmem_fetch_response(shmem, xfer);
 }
 
-static void scmi_optee_mark_txdone(struct scmi_chan_info *cinfo, int ret)
+static void scmi_optee_mark_txdone(struct scmi_chan_info *cinfo, int ret,
+				   struct scmi_xfer *__unused)
 {
 	struct scmi_optee_channel *channel = cinfo->transport_info;
 

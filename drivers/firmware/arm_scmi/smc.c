@@ -209,7 +209,8 @@ static void smc_fetch_response(struct scmi_chan_info *cinfo,
 	shmem_fetch_response(scmi_info->shmem, xfer);
 }
 
-static void smc_mark_txdone(struct scmi_chan_info *cinfo, int ret)
+static void smc_mark_txdone(struct scmi_chan_info *cinfo, int ret,
+			    struct scmi_xfer *__unused)
 {
 	struct scmi_smc *scmi_info = cinfo->transport_info;
 

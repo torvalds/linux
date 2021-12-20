@@ -378,7 +378,8 @@ struct scmi_transport_ops {
 	unsigned int (*get_max_msg)(struct scmi_chan_info *base_cinfo);
 	int (*send_message)(struct scmi_chan_info *cinfo,
 			    struct scmi_xfer *xfer);
-	void (*mark_txdone)(struct scmi_chan_info *cinfo, int ret);
+	void (*mark_txdone)(struct scmi_chan_info *cinfo, int ret,
+			    struct scmi_xfer *xfer);
 	void (*fetch_response)(struct scmi_chan_info *cinfo,
 			       struct scmi_xfer *xfer);
 	void (*fetch_notification)(struct scmi_chan_info *cinfo,
