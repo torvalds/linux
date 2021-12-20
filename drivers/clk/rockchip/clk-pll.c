@@ -1527,6 +1527,13 @@ int rockchip_pll_clk_compensation(struct clk *clk, int ppm)
 		frac_mask = RK3399_PLLCON2_FRAC_MASK;
 		frac_shift = RK3399_PLLCON2_FRAC_SHIFT;
 		break;
+	case pll_rk3588:
+		pllcon0 = RK3588_PLLCON(0);
+		pllcon2 = RK3588_PLLCON(2);
+		fbdiv_mask = RK3588_PLLCON0_M_MASK;
+		frac_mask = RK3588_PLLCON2_K_MASK;
+		frac_shift = RK3588_PLLCON2_K_SHIFT;
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -1539,24 +1546,45 @@ int rockchip_pll_clk_compensation(struct clk *clk, int ppm)
 		fbdiv = readl_relaxed(pll->reg_base + pllcon0) & fbdiv_mask;
 	}
 
-	/*
-	 *   delta frac                 frac          ppm
-	 * -------------- = (fbdiv + ----------) * ---------
-	 *    1 << 24                 1 << 24       1000000
-	 *
-	 */
-	m = div64_u64((uint64_t)frac * ppm, 1000000);
-	n = div64_u64((uint64_t)ppm << 24, 1000000) * fbdiv;
+	switch (pll->type) {
+	case pll_rk3036:
+	case pll_rk3328:
+	case pll_rk3066:
+	case pll_rk3399:
+		/*
+		 *   delta frac                 frac          ppm
+		 * -------------- = (fbdiv + ----------) * ---------
+		 *    1 << 24                 1 << 24       1000000
+		 *
+		 */
+		m = div64_u64((uint64_t)frac * ppm, 1000000);
+		n = div64_u64((uint64_t)ppm << 24, 1000000) * fbdiv;
 
-	fracdiv = negative ? frac - (m + n) : frac + (m + n);
+		fracdiv = negative ? frac - (m + n) : frac + (m + n);
 
-	if (!frac || fracdiv > frac_mask)
+		if (!frac || fracdiv > frac_mask)
+			return -EINVAL;
+
+		pllcon = readl_relaxed(pll->reg_base + pllcon2);
+		pllcon &= ~(frac_mask << frac_shift);
+		pllcon |= fracdiv << frac_shift;
+		writel_relaxed(pllcon, pll->reg_base + pllcon2);
+		break;
+	case pll_rk3588:
+		m = div64_u64((uint64_t)frac * ppm, 100000);
+		n = div64_u64((uint64_t)ppm * 65535 * fbdiv, 100000);
+
+		fracdiv = negative ? frac - (div64_u64(m + n, 10)) : frac + (div64_u64(m + n, 10));
+
+		if (!frac || fracdiv > frac_mask)
+			return -EINVAL;
+
+		writel_relaxed(HIWORD_UPDATE(fracdiv, frac_mask, frac_shift),
+			       pll->reg_base + pllcon2);
+		break;
+	default:
 		return -EINVAL;
-
-	pllcon = readl_relaxed(pll->reg_base + pllcon2);
-	pllcon &= ~(frac_mask << frac_shift);
-	pllcon |= fracdiv << frac_shift;
-	writel_relaxed(pllcon, pll->reg_base + pllcon2);
+	}
 
 	return  0;
 }
