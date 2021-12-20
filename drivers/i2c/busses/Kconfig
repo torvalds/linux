@@ -963,16 +963,10 @@ config I2C_RK3X
 	  This driver can also be built as a module. If so, the module will
 	  be called i2c-rk3x.
 
-config HAVE_S3C2410_I2C
-	bool
-	help
-	  This will include I2C support for Samsung SoCs. If you want to
-	  include I2C support for any machine, kindly select this in the
-	  respective Kconfig file.
-
 config I2C_S3C2410
 	tristate "S3C/Exynos I2C Driver"
-	depends on HAVE_S3C2410_I2C || COMPILE_TEST
+	depends on ARCH_EXYNOS || ARCH_S3C24XX || ARCH_S3C64XX || \
+		   ARCH_S5PV210 || COMPILE_TEST
 	help
 	  Say Y here to include support for I2C controller in the
 	  Samsung SoCs (S3C, S5Pv210, Exynos).
