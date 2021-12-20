@@ -363,6 +363,9 @@ static int scmi_optee_chan_setup(struct scmi_chan_info *cinfo, struct device *de
 	if (ret)
 		goto err_close_sess;
 
+	/* Enable polling */
+	cinfo->no_completion_irq = true;
+
 	mutex_lock(&scmi_optee_private->mu);
 	list_add(&channel->link, &scmi_optee_private->channel_list);
 	mutex_unlock(&scmi_optee_private->mu);
@@ -423,9 +426,8 @@ static int scmi_optee_send_message(struct scmi_chan_info *cinfo,
 	shmem_tx_prepare(shmem, xfer);
 
 	ret = invoke_process_smt_channel(channel);
-
-	scmi_rx_callback(cinfo, shmem_read_header(shmem), NULL);
-	mutex_unlock(&channel->mu);
+	if (ret)
+		mutex_unlock(&channel->mu);
 
 	return ret;
 }
@@ -439,13 +441,11 @@ static void scmi_optee_fetch_response(struct scmi_chan_info *cinfo,
 	shmem_fetch_response(shmem, xfer);
 }
 
-static bool scmi_optee_poll_done(struct scmi_chan_info *cinfo,
-				 struct scmi_xfer *xfer)
+static void scmi_optee_mark_txdone(struct scmi_chan_info *cinfo, int ret)
 {
 	struct scmi_optee_channel *channel = cinfo->transport_info;
-	struct scmi_shared_mem *shmem = get_channel_shm(channel, xfer);
 
-	return shmem_poll_done(shmem, xfer);
+	mutex_unlock(&channel->mu);
 }
 
 static struct scmi_transport_ops scmi_optee_ops = {
@@ -454,9 +454,9 @@ static struct scmi_transport_ops scmi_optee_ops = {
 	.chan_setup = scmi_optee_chan_setup,
 	.chan_free = scmi_optee_chan_free,
 	.send_message = scmi_optee_send_message,
+	.mark_txdone = scmi_optee_mark_txdone,
 	.fetch_response = scmi_optee_fetch_response,
 	.clear_channel = scmi_optee_clear_channel,
-	.poll_done = scmi_optee_poll_done,
 };
 
 static int scmi_optee_ctx_match(struct tee_ioctl_version_data *ver, const void *data)
@@ -562,4 +562,5 @@ const struct scmi_desc scmi_optee_desc = {
 	.max_rx_timeout_ms = 30,
 	.max_msg = 20,
 	.max_msg_size = SCMI_OPTEE_MAX_MSG_SIZE,
+	.sync_cmds_completed_on_ret = true,
 };
