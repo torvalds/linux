@@ -86,14 +86,7 @@ static inline void svm_hv_vmcb_dirty_nested_enlightenments(
 	struct hv_enlightenments *hve =
 		(struct hv_enlightenments *)vmcb->control.reserved_sw;
 
-	/*
-	 * vmcb can be NULL if called during early vcpu init.
-	 * And its okay not to mark vmcb dirty during vcpu init
-	 * as we mark it dirty unconditionally towards end of vcpu
-	 * init phase.
-	 */
-	if (vmcb_is_clean(vmcb, VMCB_HV_NESTED_ENLIGHTENMENTS) &&
-	    hve->hv_enlightenments_control.msr_bitmap)
+	if (hve->hv_enlightenments_control.msr_bitmap)
 		vmcb_mark_dirty(vmcb, VMCB_HV_NESTED_ENLIGHTENMENTS);
 }
 
