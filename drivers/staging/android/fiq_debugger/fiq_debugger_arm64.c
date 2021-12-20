@@ -145,7 +145,7 @@ void fiq_debugger_dump_allregs(struct fiq_debugger_output *output,
 				READ_SPECIAL_REG(spsr_und));
 		output->printf(output, " spsr_fiq %08lx\n",
 				READ_SPECIAL_REG(spsr_fiq));
-		output->printf(output, " spsr_el2 %08lx\n",
+		output->printf(output, " elr_el2 %08lx\n",
 				READ_SPECIAL_REG(elr_el2));
 		output->printf(output, " spsr_el2 %08lx\n",
 				READ_SPECIAL_REG(spsr_el2));

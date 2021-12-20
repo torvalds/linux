@@ -960,13 +960,9 @@ static int __init rk_fiqdbg_probe(struct platform_device *pdev)
 	if (of_property_read_u32(np, "rockchip,irq-mode-enable", &irq_mode))
 		irq_mode = -1;
 
-	if (irq_mode == 1) {
-		signal_irq = -1;
-	} else {
-		signal_irq = irq_of_parse_and_map(np, 0);
-		if (!signal_irq)
-			return -EINVAL;
-	}
+	signal_irq = irq_of_parse_and_map(np, 0);
+	if (!signal_irq)
+		return -EINVAL;
 
 	if (of_property_read_u32(np, "rockchip,wake-irq", &wake_irq))
 		wake_irq = -1;
@@ -996,7 +992,7 @@ static int __init rk_fiqdbg_probe(struct platform_device *pdev)
 	}
 
 	/* parse serial hw irq */
-	if (!of_irq_parse_one(np, 0, &oirq))
+	if (irq_mode != 1 && !of_irq_parse_one(np, 0, &oirq))
 		serial_hwirq = oirq.args[1] + 32;
 
 	/* parse serial phy base address */

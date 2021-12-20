@@ -198,13 +198,10 @@ static inline bool fiq_debugger_have_fiq(struct fiq_debugger_state *state)
 	return (state->fiq >= 0);
 }
 
-#if defined(CONFIG_FIQ_GLUE) || defined(CONFIG_FIQ_DEBUGGER_TRUST_ZONE)
 static void fiq_debugger_force_irq(struct fiq_debugger_state *state)
 {
 	unsigned int irq = state->signal_irq;
 
-	if (WARN_ON(!fiq_debugger_have_fiq(state)))
-		return;
 	if (irq < 0)
 		return;
 
@@ -217,7 +214,6 @@ static void fiq_debugger_force_irq(struct fiq_debugger_state *state)
 			chip->irq_retrigger(irq_get_irq_data(irq));
 	}
 }
-#endif
 
 static void fiq_debugger_uart_enable(struct fiq_debugger_state *state)
 {
@@ -574,19 +570,16 @@ static void fiq_debugger_help(struct fiq_debugger_state *state)
 }
 
 #ifndef CONFIG_FIQ_DEBUGGER_MODULE
-static void fiq_debugger_take_affinity(void *info)
+static void fiq_debugger_take_affinity(struct fiq_debugger_state *state, int cpu)
 {
-	struct fiq_debugger_state *state = info;
 	struct cpumask cpumask;
 
 	cpumask_clear(&cpumask);
-	cpumask_set_cpu(get_cpu(), &cpumask);
-	put_cpu();
-
+	cpumask_set_cpu(cpu, &cpumask);
 	irq_set_affinity(state->uart_irq, &cpumask);
 }
 #else
-static void fiq_debugger_take_affinity(void *info)
+static void fiq_debugger_take_affinity(struct fiq_debugger_state *state, int cpu)
 {
 }
 #endif
@@ -598,9 +591,9 @@ static void fiq_debugger_switch_cpu(struct fiq_debugger_state *state, int cpu)
 		return;
 	}
 
-	if (!fiq_debugger_have_fiq(state))
-		smp_call_function_single(cpu, fiq_debugger_take_affinity, state,
-				false);
+	if (!fiq_debugger_have_fiq(state)) {
+		fiq_debugger_take_affinity(state, cpu);
+	}
 #ifdef CONFIG_ARCH_ROCKCHIP
 	else {
 #ifdef CONFIG_FIQ_DEBUGGER_TRUST_ZONE
@@ -1113,7 +1106,7 @@ static irqreturn_t fiq_debugger_uart_irq(int irq, void *dev)
 					      get_irq_regs(),
 					      current_thread_info());
 	if (not_done)
-		fiq_debugger_handle_irq_context(state);
+		fiq_debugger_force_irq(state);
 
 	return IRQ_HANDLED;
 }
@@ -1518,8 +1511,19 @@ static int fiq_debugger_probe(struct platform_device *pdev)
 		}
 #endif
 	} else {
-		ret = request_irq(state->uart_irq, fiq_debugger_uart_irq,
-				  IRQF_NO_SUSPEND, "debug", state);
+		irq_set_status_flags(state->uart_irq, IRQ_NOAUTOEN);
+
+		ret = request_nmi(state->uart_irq, fiq_debugger_uart_irq,
+				  IRQF_PERCPU, "debug", state);
+		if (ret) {
+			pr_err("%s: could not install nmi irq handler\n", __func__);
+			irq_clear_status_flags(state->uart_irq, IRQ_NOAUTOEN);
+			ret = request_irq(state->uart_irq, fiq_debugger_uart_irq,
+					  IRQF_NO_SUSPEND, "debug", state);
+		} else {
+			enable_nmi(state->uart_irq);
+		}
+
 		if (ret) {
 			pr_err("%s: could not install irq handler\n", __func__);
 			goto err_register_irq;
