@@ -1121,20 +1121,26 @@ static int vepu_remove(struct platform_device *pdev)
 
 static void vepu_shutdown(struct platform_device *pdev)
 {
-	int ret;
-	int val;
 	struct device *dev = &pdev->dev;
-	struct vepu_dev *enc = platform_get_drvdata(pdev);
-	struct mpp_dev *mpp = &enc->mpp;
 
-	dev_info(dev, "shutdown device\n");
+	if (!strstr(dev_name(dev), "ccu")) {
+		int ret;
+		int val;
+		struct vepu_dev *enc = platform_get_drvdata(pdev);
+		struct mpp_dev *mpp = &enc->mpp;
 
-	atomic_inc(&mpp->srv->shutdown_request);
-	ret = readx_poll_timeout(atomic_read,
-				 &mpp->task_count,
-				 val, val == 0, 20000, 200000);
-	if (ret == -ETIMEDOUT)
-		dev_err(dev, "wait total running time out\n");
+		dev_info(dev, "shutdown device\n");
+
+		if (mpp->srv)
+			atomic_inc(&mpp->srv->shutdown_request);
+
+		ret = readx_poll_timeout(atomic_read,
+					 &mpp->task_count,
+					 val, val == 0, 20000, 200000);
+		if (ret == -ETIMEDOUT)
+			dev_err(dev, "wait total running time out\n");
+	}
+	dev_info(dev, "shutdown success\n");
 }
 
 struct platform_driver rockchip_vepu2_driver = {
