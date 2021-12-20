@@ -13,6 +13,7 @@
 #include "bf.h"
 #include "debug.h"
 #include "wow.h"
+#include "sar.h"
 
 static void rtw_ops_tx(struct ieee80211_hw *hw,
 		       struct ieee80211_tx_control *control,
@@ -836,6 +837,16 @@ static void rtw_ops_cancel_hw_scan(struct ieee80211_hw *hw,
 	mutex_unlock(&rtwdev->mutex);
 }
 
+static int rtw_ops_set_sar_specs(struct ieee80211_hw *hw,
+				 const struct cfg80211_sar_specs *sar)
+{
+	struct rtw_dev *rtwdev = hw->priv;
+
+	rtw_set_sar_specs(rtwdev, sar);
+
+	return 0;
+}
+
 const struct ieee80211_ops rtw_ops = {
 	.tx			= rtw_ops_tx,
 	.wake_tx_queue		= rtw_ops_wake_tx_queue,
@@ -865,6 +876,7 @@ const struct ieee80211_ops rtw_ops = {
 	.reconfig_complete	= rtw_reconfig_complete,
 	.hw_scan		= rtw_ops_hw_scan,
 	.cancel_hw_scan		= rtw_ops_cancel_hw_scan,
+	.set_sar_specs          = rtw_ops_set_sar_specs,
 #ifdef CONFIG_PM
 	.suspend		= rtw_ops_suspend,
 	.resume			= rtw_ops_resume,

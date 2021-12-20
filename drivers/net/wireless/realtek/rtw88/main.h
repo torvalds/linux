@@ -1813,6 +1813,33 @@ struct rtw_fw_state {
 	u32 feature;
 };
 
+enum rtw_sar_sources {
+	RTW_SAR_SOURCE_NONE,
+	RTW_SAR_SOURCE_COMMON,
+};
+
+enum rtw_sar_bands {
+	RTW_SAR_BAND_0,
+	RTW_SAR_BAND_1,
+	/* RTW_SAR_BAND_2, not used now */
+	RTW_SAR_BAND_3,
+	RTW_SAR_BAND_4,
+
+	RTW_SAR_BAND_NR,
+};
+
+/* the union is reserved for other knids of SAR sources
+ * which might not re-use same format with array common.
+ */
+union rtw_sar_cfg {
+	s8 common[RTW_SAR_BAND_NR];
+};
+
+struct rtw_sar {
+	enum rtw_sar_sources src;
+	union rtw_sar_cfg cfg[RTW_RF_PATH_MAX][RTW_RATE_SECTION_MAX];
+};
+
 struct rtw_hal {
 	u32 rcr;
 
@@ -1861,6 +1888,9 @@ struct rtw_hal {
 			  [RTW_MAX_CHANNEL_NUM_5G];
 	s8 tx_pwr_tbl[RTW_RF_PATH_MAX]
 		     [DESC_RATE_MAX];
+
+	enum rtw_sar_bands sar_band;
+	struct rtw_sar sar;
 };
 
 struct rtw_path_div {

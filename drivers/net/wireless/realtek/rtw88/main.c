@@ -17,6 +17,7 @@
 #include "tx.h"
 #include "debug.h"
 #include "bf.h"
+#include "sar.h"
 
 bool rtw_disable_lps_deep_mode;
 EXPORT_SYMBOL(rtw_disable_lps_deep_mode);
@@ -750,6 +751,25 @@ void rtw_set_channel(struct rtw_dev *rtwdev)
 	hal->current_channel = center_chan;
 	hal->current_primary_channel_index = primary_chan_idx;
 	hal->current_band_type = center_chan > 14 ? RTW_BAND_5G : RTW_BAND_2G;
+
+	switch (center_chan) {
+	case 1 ... 14:
+		hal->sar_band = RTW_SAR_BAND_0;
+		break;
+	case 36 ... 64:
+		hal->sar_band = RTW_SAR_BAND_1;
+		break;
+	case 100 ... 144:
+		hal->sar_band = RTW_SAR_BAND_3;
+		break;
+	case 149 ... 177:
+		hal->sar_band = RTW_SAR_BAND_4;
+		break;
+	default:
+		WARN(1, "unknown ch(%u) to SAR band\n", center_chan);
+		hal->sar_band = RTW_SAR_BAND_0;
+		break;
+	}
 
 	for (i = RTW_CHANNEL_WIDTH_20; i <= RTW_MAX_CHANNEL_WIDTH; i++)
 		hal->cch_by_bw[i] = ch_param.cch_by_bw[i];
@@ -2036,6 +2056,8 @@ int rtw_register_hw(struct rtw_dev *rtwdev, struct ieee80211_hw *hw)
 #endif
 	rtw_set_supported_band(hw, rtwdev->chip);
 	SET_IEEE80211_PERM_ADDR(hw, rtwdev->efuse.addr);
+
+	hw->wiphy->sar_capa = &rtw_sar_capa;
 
 	ret = rtw_regd_init(rtwdev);
 	if (ret) {
