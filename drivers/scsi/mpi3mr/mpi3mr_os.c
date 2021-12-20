@@ -2052,6 +2052,66 @@ static void mpi3mr_energypackchg_evt_th(struct mpi3mr_ioc *mrioc,
 }
 
 /**
+ * mpi3mr_tempthreshold_evt_th - Temp threshold event tophalf
+ * @mrioc: Adapter instance reference
+ * @event_reply: event data
+ *
+ * Displays temperature threshold event details and fault code
+ * if any is hit due to temperature exceeding threshold.
+ *
+ * Return: Nothing
+ */
+static void mpi3mr_tempthreshold_evt_th(struct mpi3mr_ioc *mrioc,
+	struct mpi3_event_notification_reply *event_reply)
+{
+	struct mpi3_event_data_temp_threshold *evtdata =
+	    (struct mpi3_event_data_temp_threshold *)event_reply->event_data;
+
+	ioc_err(mrioc, "Temperature threshold levels %s%s%s exceeded for sensor: %d !!! Current temperature in Celsius: %d\n",
+	    (le16_to_cpu(evtdata->status) & 0x1) ? "Warning " : " ",
+	    (le16_to_cpu(evtdata->status) & 0x2) ? "Critical " : " ",
+	    (le16_to_cpu(evtdata->status) & 0x4) ? "Fatal " : " ", evtdata->sensor_num,
+	    le16_to_cpu(evtdata->current_temperature));
+	mpi3mr_print_fault_info(mrioc);
+}
+
+/**
+ * mpi3mr_cablemgmt_evt_th - Cable management event tophalf
+ * @mrioc: Adapter instance reference
+ * @event_reply: event data
+ *
+ * Displays Cable manegemt event details.
+ *
+ * Return: Nothing
+ */
+static void mpi3mr_cablemgmt_evt_th(struct mpi3mr_ioc *mrioc,
+	struct mpi3_event_notification_reply *event_reply)
+{
+	struct mpi3_event_data_cable_management *evtdata =
+	    (struct mpi3_event_data_cable_management *)event_reply->event_data;
+
+	switch (evtdata->status) {
+	case MPI3_EVENT_CABLE_MGMT_STATUS_INSUFFICIENT_POWER:
+	{
+		ioc_info(mrioc, "An active cable with receptacle_id %d cannot be powered.\n"
+		    "Devices connected to this cable are not detected.\n"
+		    "This cable requires %d mW of power.\n",
+		    evtdata->receptacle_id,
+		    le32_to_cpu(evtdata->active_cable_power_requirement));
+		break;
+	}
+	case MPI3_EVENT_CABLE_MGMT_STATUS_DEGRADED:
+	{
+		ioc_info(mrioc, "A cable with receptacle_id %d is not running at optimal speed\n",
+		    evtdata->receptacle_id);
+		break;
+	}
+	default:
+		break;
+	}
+}
+
+/**
  * mpi3mr_os_handle_events - Firmware event handler
  * @mrioc: Adapter instance reference
  * @event_reply: event data
@@ -2125,9 +2185,18 @@ void mpi3mr_os_handle_events(struct mpi3mr_ioc *mrioc,
 		mpi3mr_energypackchg_evt_th(mrioc, event_reply);
 		break;
 	}
+	case MPI3_EVENT_TEMP_THRESHOLD:
+	{
+		mpi3mr_tempthreshold_evt_th(mrioc, event_reply);
+		break;
+	}
+	case MPI3_EVENT_CABLE_MGMT:
+	{
+		mpi3mr_cablemgmt_evt_th(mrioc, event_reply);
+		break;
+	}
 	case MPI3_EVENT_ENCL_DEVICE_STATUS_CHANGE:
 	case MPI3_EVENT_SAS_DISCOVERY:
-	case MPI3_EVENT_CABLE_MGMT:
 	case MPI3_EVENT_SAS_DEVICE_DISCOVERY_ERROR:
 	case MPI3_EVENT_SAS_BROADCAST_PRIMITIVE:
 	case MPI3_EVENT_PCIE_ENUMERATION:
@@ -4247,8 +4316,8 @@ static int mpi3mr_resume(struct pci_dev *pdev)
 
 static const struct pci_device_id mpi3mr_pci_id_table[] = {
 	{
-		PCI_DEVICE_SUB(PCI_VENDOR_ID_LSI_LOGIC, 0x00A5,
-		    PCI_ANY_ID, PCI_ANY_ID)
+		PCI_DEVICE_SUB(MPI3_MFGPAGE_VENDORID_BROADCOM,
+		    MPI3_MFGPAGE_DEVID_SAS4116, PCI_ANY_ID, PCI_ANY_ID)
 	},
 	{ 0 }
 };
