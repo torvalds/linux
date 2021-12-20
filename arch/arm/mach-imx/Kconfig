@@ -21,18 +21,6 @@ config MXC_TZIC
 config MXC_AVIC
 	bool
 
-config MXC_DEBUG_BOARD
-	bool "Enable MXC debug board(for 3-stack)"
-	depends on MACH_MX27_3DS || MACH_MX31_3DS || MACH_MX35_3DS
-	help
-	  The debug board is an integral part of the MXC 3-stack(PDK)
-	  platforms, it can be attached or removed from the peripheral
-	  board. On debug board, several debug devices(ethernet, UART,
-	  buttons, LEDs and JTAG) are implemented. Between the MCU and
-	  these devices, a CPLD is added as a bridge which performs
-	  data/address de-multiplexing and decode, signal level shift,
-	  interrupt control and various board functions.
-
 config HAVE_IMX_ANATOP
 	bool
 
