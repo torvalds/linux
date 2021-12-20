@@ -354,16 +354,11 @@ static void netfs_rreq_write_to_cache_work(struct work_struct *work)
 	netfs_rreq_do_write_to_cache(rreq);
 }
 
-static void netfs_rreq_write_to_cache(struct netfs_read_request *rreq,
-				      bool was_async)
+static void netfs_rreq_write_to_cache(struct netfs_read_request *rreq)
 {
-	if (was_async) {
-		rreq->work.func = netfs_rreq_write_to_cache_work;
-		if (!queue_work(system_unbound_wq, &rreq->work))
-			BUG();
-	} else {
-		netfs_rreq_do_write_to_cache(rreq);
-	}
+	rreq->work.func = netfs_rreq_write_to_cache_work;
+	if (!queue_work(system_unbound_wq, &rreq->work))
+		BUG();
 }
 
 /*
@@ -558,7 +553,7 @@ again:
 	wake_up_bit(&rreq->flags, NETFS_RREQ_IN_PROGRESS);
 
 	if (test_bit(NETFS_RREQ_WRITE_TO_CACHE, &rreq->flags))
-		return netfs_rreq_write_to_cache(rreq, was_async);
+		return netfs_rreq_write_to_cache(rreq);
 
 	netfs_rreq_completed(rreq, was_async);
 }
@@ -960,7 +955,7 @@ int netfs_readpage(struct file *file,
 	rreq = netfs_alloc_read_request(ops, netfs_priv, file);
 	if (!rreq) {
 		if (netfs_priv)
-			ops->cleanup(netfs_priv, folio_file_mapping(folio));
+			ops->cleanup(folio_file_mapping(folio), netfs_priv);
 		folio_unlock(folio);
 		return -ENOMEM;
 	}
@@ -1191,7 +1186,7 @@ have_folio:
 		goto error;
 have_folio_no_wait:
 	if (netfs_priv)
-		ops->cleanup(netfs_priv, mapping);
+		ops->cleanup(mapping, netfs_priv);
 	*_folio = folio;
 	_leave(" = 0");
 	return 0;
@@ -1202,7 +1197,7 @@ error:
 	folio_unlock(folio);
 	folio_put(folio);
 	if (netfs_priv)
-		ops->cleanup(netfs_priv, mapping);
+		ops->cleanup(mapping, netfs_priv);
 	_leave(" = %d", ret);
 	return ret;
 }

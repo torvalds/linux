@@ -197,7 +197,6 @@ static void gfxhub_v2_1_init_tlb_regs(struct amdgpu_device *adev)
 			    ENABLE_ADVANCED_DRIVER_MODEL, 1);
 	tmp = REG_SET_FIELD(tmp, GCMC_VM_MX_L1_TLB_CNTL,
 			    SYSTEM_APERTURE_UNMAPPED_ACCESS, 0);
-	tmp = REG_SET_FIELD(tmp, GCMC_VM_MX_L1_TLB_CNTL, ECO_BITS, 0);
 	tmp = REG_SET_FIELD(tmp, GCMC_VM_MX_L1_TLB_CNTL,
 			    MTYPE, MTYPE_UC); /* UC, uncached */
 

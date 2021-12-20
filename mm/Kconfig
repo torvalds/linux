@@ -428,7 +428,7 @@ config THP_SWAP
 # UP and nommu archs use km based percpu allocator
 #
 config NEED_PER_CPU_KM
-	depends on !SMP
+	depends on !SMP || !MMU
 	bool
 	default y
 

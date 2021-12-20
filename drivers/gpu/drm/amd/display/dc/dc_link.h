@@ -226,6 +226,8 @@ static inline void get_edp_links(const struct dc *dc,
 	*edp_num = 0;
 	for (i = 0; i < dc->link_count; i++) {
 		// report any eDP links, even unconnected DDI's
+		if (!dc->links[i])
+			continue;
 		if (dc->links[i]->connector_signal == SIGNAL_TYPE_EDP) {
 			edp_links[*edp_num] = dc->links[i];
 			if (++(*edp_num) == MAX_NUM_EDP)

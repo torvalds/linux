@@ -4314,6 +4314,20 @@ static void set_btree_ioerr(struct page *page, struct extent_buffer *eb)
 		return;
 
 	/*
+	 * A read may stumble upon this buffer later, make sure that it gets an
+	 * error and knows there was an error.
+	 */
+	clear_bit(EXTENT_BUFFER_UPTODATE, &eb->bflags);
+
+	/*
+	 * We need to set the mapping with the io error as well because a write
+	 * error will flip the file system readonly, and then syncfs() will
+	 * return a 0 because we are readonly if we don't modify the err seq for
+	 * the superblock.
+	 */
+	mapping_set_error(page->mapping, -EIO);
+
+	/*
 	 * If we error out, we should add back the dirty_metadata_bytes
 	 * to make it consistent.
 	 */
@@ -6596,6 +6610,14 @@ int read_extent_buffer_pages(struct extent_buffer *eb, int wait, int mirror_num)
 
 	if (test_bit(EXTENT_BUFFER_UPTODATE, &eb->bflags))
 		return 0;
+
+	/*
+	 * We could have had EXTENT_BUFFER_UPTODATE cleared by the write
+	 * operation, which could potentially still be in flight.  In this case
+	 * we simply want to return an error.
+	 */
+	if (unlikely(test_bit(EXTENT_BUFFER_WRITE_ERR, &eb->bflags)))
+		return -EIO;
 
 	if (eb->fs_info->sectorsize < PAGE_SIZE)
 		return read_extent_buffer_subpage(eb, wait, mirror_num);

@@ -922,7 +922,14 @@ static void nvmet_tcp_handle_req_failure(struct nvmet_tcp_queue *queue,
 	size_t data_len = le32_to_cpu(req->cmd->common.dptr.sgl.length);
 	int ret;
 
-	if (!nvme_is_write(cmd->req.cmd) ||
+	/*
+	 * This command has not been processed yet, hence we are trying to
+	 * figure out if there is still pending data left to receive. If
+	 * we don't, we can simply prepare for the next pdu and bail out,
+	 * otherwise we will need to prepare a buffer and receive the
+	 * stale data before continuing forward.
+	 */
+	if (!nvme_is_write(cmd->req.cmd) || !data_len ||
 	    data_len > cmd->req.port->inline_data_size) {
 		nvmet_prepare_receive_pdu(queue);
 		return;

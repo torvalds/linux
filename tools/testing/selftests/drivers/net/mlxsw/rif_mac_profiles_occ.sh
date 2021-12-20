@@ -72,6 +72,35 @@ rif_mac_profile_replacement_test()
 	ip link set $h1.10 address $h1_10_mac
 }
 
+rif_mac_profile_consolidation_test()
+{
+	local count=$1; shift
+	local h1_20_mac
+
+	RET=0
+
+	if [[ $count -eq 1 ]]; then
+		return
+	fi
+
+	h1_20_mac=$(mac_get $h1.20)
+
+	# Set the MAC of $h1.20 to that of $h1.10 and confirm that they are
+	# using the same MAC profile.
+	ip link set $h1.20 address 00:11:11:11:11:11
+	check_err $?
+
+	occ=$(devlink -j resource show $DEVLINK_DEV \
+	      | jq '.[][][] | select(.name=="rif_mac_profiles") |.["occ"]')
+
+	[[ $occ -eq $((count - 1)) ]]
+	check_err $? "MAC profile occupancy did not decrease"
+
+	log_test "RIF MAC profile consolidation"
+
+	ip link set $h1.20 address $h1_20_mac
+}
+
 rif_mac_profile_shared_replacement_test()
 {
 	local count=$1; shift
@@ -104,6 +133,7 @@ rif_mac_profile_edit_test()
 	create_max_rif_mac_profiles $count
 
 	rif_mac_profile_replacement_test
+	rif_mac_profile_consolidation_test $count
 	rif_mac_profile_shared_replacement_test $count
 }
 

@@ -3683,7 +3683,7 @@ static int reconnect_caps_cb(struct inode *inode, struct ceph_cap *cap,
 	struct ceph_pagelist *pagelist = recon_state->pagelist;
 	struct dentry *dentry;
 	char *path;
-	int pathlen, err;
+	int pathlen = 0, err;
 	u64 pathbase;
 	u64 snap_follows;
 
@@ -3703,7 +3703,6 @@ static int reconnect_caps_cb(struct inode *inode, struct ceph_cap *cap,
 		}
 	} else {
 		path = NULL;
-		pathlen = 0;
 		pathbase = 0;
 	}
 
