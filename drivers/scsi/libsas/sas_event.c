@@ -104,11 +104,15 @@ void sas_enable_revalidation(struct sas_ha_struct *ha)
 		if (!test_and_clear_bit(ev, &d->pending))
 			continue;
 
-		if (list_empty(&port->phy_list))
+		spin_lock(&port->phy_list_lock);
+		if (list_empty(&port->phy_list)) {
+			spin_unlock(&port->phy_list_lock);
 			continue;
+		}
 
 		sas_phy = container_of(port->phy_list.next, struct asd_sas_phy,
 				port_phy_el);
+		spin_unlock(&port->phy_list_lock);
 		sas_notify_port_event(sas_phy,
 				PORTE_BROADCAST_RCVD, GFP_KERNEL);
 	}
