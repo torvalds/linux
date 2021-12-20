@@ -110,6 +110,7 @@ extern int prot_mask;
 #define MPI3MR_TSUPDATE_INTERVAL		900
 #define MPI3MR_DEFAULT_SHUTDOWN_TIME		120
 #define	MPI3MR_RAID_ERRREC_RESET_TIMEOUT	180
+#define MPI3MR_RESET_ACK_TIMEOUT		30
 
 #define MPI3MR_WATCHDOG_INTERVAL		1000 /* in milli seconds */
 
@@ -210,7 +211,8 @@ enum mpi3mr_reset_reason {
 	MPI3MR_RESET_FROM_GETPKGVER_TIMEOUT = 21,
 	MPI3MR_RESET_FROM_PELABORT_TIMEOUT = 22,
 	MPI3MR_RESET_FROM_SYSFS = 23,
-	MPI3MR_RESET_FROM_SYSFS_TIMEOUT = 24
+	MPI3MR_RESET_FROM_SYSFS_TIMEOUT = 24,
+	MPI3MR_RESET_FROM_FIRMWARE = 27,
 };
 
 /**
@@ -678,9 +680,9 @@ struct scmd_priv {
  * @removepend_bitmap: Remove pending bitmap
  * @delayed_rmhs_list: Delayed device removal list
  * @ts_update_counter: Timestamp update counter
- * @fault_dbg: Fault debug flag
  * @reset_in_progress: Reset in progress flag
  * @unrecoverable: Controller unrecoverable flag
+ * @prev_reset_result: Result of previous reset
  * @reset_mutex: Controller reset mutex
  * @reset_waitq: Controller reset  wait queue
  * @diagsave_timeout: Diagnostic information save timeout
@@ -804,9 +806,9 @@ struct mpi3mr_ioc {
 	struct list_head delayed_rmhs_list;
 
 	u32 ts_update_counter;
-	u8 fault_dbg;
 	u8 reset_in_progress;
 	u8 unrecoverable;
+	int prev_reset_result;
 	struct mutex reset_mutex;
 	wait_queue_head_t reset_waitq;
 
@@ -891,8 +893,6 @@ void mpi3mr_stop_watchdog(struct mpi3mr_ioc *mrioc);
 
 int mpi3mr_soft_reset_handler(struct mpi3mr_ioc *mrioc,
 			      u32 reset_reason, u8 snapdump);
-int mpi3mr_diagfault_reset_handler(struct mpi3mr_ioc *mrioc,
-				   u32 reset_reason);
 void mpi3mr_ioc_disable_intr(struct mpi3mr_ioc *mrioc);
 void mpi3mr_ioc_enable_intr(struct mpi3mr_ioc *mrioc);
 
@@ -906,6 +906,8 @@ void mpi3mr_flush_host_io(struct mpi3mr_ioc *mrioc);
 void mpi3mr_invalidate_devhandles(struct mpi3mr_ioc *mrioc);
 void mpi3mr_rfresh_tgtdevs(struct mpi3mr_ioc *mrioc);
 void mpi3mr_flush_delayed_rmhs_list(struct mpi3mr_ioc *mrioc);
+void mpi3mr_check_rh_fault_ioc(struct mpi3mr_ioc *mrioc, u32 reason_code);
+void mpi3mr_print_fault_info(struct mpi3mr_ioc *mrioc);
 void mpi3mr_check_rh_fault_ioc(struct mpi3mr_ioc *mrioc, u32 reason_code);
 
 #endif /*MPI3MR_H_INCLUDED*/

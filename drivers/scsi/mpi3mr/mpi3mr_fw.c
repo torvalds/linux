@@ -808,6 +808,7 @@ static const struct {
 	},
 	{ MPI3MR_RESET_FROM_SYSFS, "sysfs invocation" },
 	{ MPI3MR_RESET_FROM_SYSFS_TIMEOUT, "sysfs TM timeout" },
+	{ MPI3MR_RESET_FROM_FIRMWARE, "firmware asynchronus reset" },
 };
 
 /**
@@ -872,7 +873,7 @@ static const char *mpi3mr_reset_type_name(u16 reset_type)
  *
  * Return: Nothing.
  */
-static void mpi3mr_print_fault_info(struct mpi3mr_ioc *mrioc)
+void mpi3mr_print_fault_info(struct mpi3mr_ioc *mrioc)
 {
 	u32 ioc_status, code, code1, code2, code3;
 
@@ -970,25 +971,25 @@ static int mpi3mr_issue_and_process_mur(struct mpi3mr_ioc *mrioc,
 	ioc_config &= ~MPI3_SYSIF_IOC_CONFIG_ENABLE_IOC;
 	writel(ioc_config, &mrioc->sysif_regs->ioc_configuration);
 
-	timeout = mrioc->ready_timeout * 10;
+	timeout = MPI3MR_RESET_ACK_TIMEOUT * 10;
 	do {
 		ioc_status = readl(&mrioc->sysif_regs->ioc_status);
 		if ((ioc_status & MPI3_SYSIF_IOC_STATUS_RESET_HISTORY)) {
 			mpi3mr_clear_reset_history(mrioc);
-			ioc_config =
-			    readl(&mrioc->sysif_regs->ioc_configuration);
-			if (!((ioc_status & MPI3_SYSIF_IOC_STATUS_READY) ||
-			      (ioc_status & MPI3_SYSIF_IOC_STATUS_FAULT) ||
-			    (ioc_config & MPI3_SYSIF_IOC_CONFIG_ENABLE_IOC))) {
-				retval = 0;
-				break;
-			}
+			break;
+		}
+		if (ioc_status & MPI3_SYSIF_IOC_STATUS_FAULT) {
+			mpi3mr_print_fault_info(mrioc);
+			break;
 		}
 		msleep(100);
 	} while (--timeout);
 
-	ioc_status = readl(&mrioc->sysif_regs->ioc_status);
 	ioc_config = readl(&mrioc->sysif_regs->ioc_configuration);
+	if (timeout && !((ioc_status & MPI3_SYSIF_IOC_STATUS_READY) ||
+	      (ioc_status & MPI3_SYSIF_IOC_STATUS_FAULT) ||
+	      (ioc_config & MPI3_SYSIF_IOC_CONFIG_ENABLE_IOC)))
+		retval = 0;
 
 	ioc_info(mrioc, "Base IOC Sts/Config after %s MUR is (0x%x)/(0x%x)\n",
 	    (!retval) ? "successful" : "failed", ioc_status, ioc_config);
@@ -1117,7 +1118,6 @@ static inline bool
 mpi3mr_soft_reset_success(u32 ioc_status, u32 ioc_config)
 {
 	if (!((ioc_status & MPI3_SYSIF_IOC_STATUS_READY) ||
-	    (ioc_status & MPI3_SYSIF_IOC_STATUS_FAULT) ||
 	    (ioc_config & MPI3_SYSIF_IOC_CONFIG_ENABLE_IOC)))
 		return true;
 	return false;
@@ -1140,8 +1140,10 @@ static inline bool mpi3mr_diagfault_success(struct mpi3mr_ioc *mrioc,
 	if (!(ioc_status & MPI3_SYSIF_IOC_STATUS_FAULT))
 		return false;
 	fault = readl(&mrioc->sysif_regs->fault) & MPI3_SYSIF_FAULT_CODE_MASK;
-	if (fault == MPI3_SYSIF_FAULT_CODE_DIAG_FAULT_RESET)
+	if (fault == MPI3_SYSIF_FAULT_CODE_DIAG_FAULT_RESET) {
+		mpi3mr_print_fault_info(mrioc);
 		return true;
+	}
 	return false;
 }
 
@@ -1180,26 +1182,36 @@ static int mpi3mr_issue_reset(struct mpi3mr_ioc *mrioc, u16 reset_type,
 	u32 reset_reason)
 {
 	int retval = -1;
-	u8 unlock_retry_count, reset_retry_count = 0;
-	u32 host_diagnostic, timeout, ioc_status, ioc_config;
+	u8 unlock_retry_count = 0;
+	u32 host_diagnostic, ioc_status, ioc_config;
+	u32 timeout = MPI3MR_RESET_ACK_TIMEOUT * 10;
 
-	pci_cfg_access_lock(mrioc->pdev);
 	if ((reset_type != MPI3_SYSIF_HOST_DIAG_RESET_ACTION_SOFT_RESET) &&
 	    (reset_type != MPI3_SYSIF_HOST_DIAG_RESET_ACTION_DIAG_FAULT))
-		goto out;
+		return retval;
 	if (mrioc->unrecoverable)
-		goto out;
-retry_reset:
-	unlock_retry_count = 0;
+		return retval;
+	if (reset_reason == MPI3MR_RESET_FROM_FIRMWARE) {
+		retval = 0;
+		return retval;
+	}
+
+	ioc_info(mrioc, "%s reset due to %s(0x%x)\n",
+	    mpi3mr_reset_type_name(reset_type),
+	    mpi3mr_reset_rc_name(reset_reason), reset_reason);
+
 	mpi3mr_clear_reset_history(mrioc);
 	do {
 		ioc_info(mrioc,
 		    "Write magic sequence to unlock host diag register (retry=%d)\n",
 		    ++unlock_retry_count);
 		if (unlock_retry_count >= MPI3MR_HOSTDIAG_UNLOCK_RETRY_COUNT) {
-			writel(reset_reason, &mrioc->sysif_regs->scratchpad[0]);
+			ioc_err(mrioc,
+			    "%s reset failed due to unlock failure, host_diagnostic(0x%08x)\n",
+			    mpi3mr_reset_type_name(reset_type),
+			    host_diagnostic);
 			mrioc->unrecoverable = 1;
-			goto out;
+			return retval;
 		}
 
 		writel(MPI3_SYSIF_WRITE_SEQUENCE_KEY_VALUE_FLUSH,
@@ -1224,31 +1236,26 @@ retry_reset:
 	} while (!(host_diagnostic & MPI3_SYSIF_HOST_DIAG_DIAG_WRITE_ENABLE));
 
 	writel(reset_reason, &mrioc->sysif_regs->scratchpad[0]);
-	ioc_info(mrioc, "%s reset due to %s(0x%x)\n",
-	    mpi3mr_reset_type_name(reset_type),
-	    mpi3mr_reset_rc_name(reset_reason), reset_reason);
 	writel(host_diagnostic | reset_type,
 	    &mrioc->sysif_regs->host_diagnostic);
-	timeout = mrioc->ready_timeout * 10;
-	if (reset_type == MPI3_SYSIF_HOST_DIAG_RESET_ACTION_SOFT_RESET) {
+	switch (reset_type) {
+	case MPI3_SYSIF_HOST_DIAG_RESET_ACTION_SOFT_RESET:
 		do {
 			ioc_status = readl(&mrioc->sysif_regs->ioc_status);
-			if (ioc_status &
-			    MPI3_SYSIF_IOC_STATUS_RESET_HISTORY) {
+			ioc_config =
+			    readl(&mrioc->sysif_regs->ioc_configuration);
+			if ((ioc_status & MPI3_SYSIF_IOC_STATUS_RESET_HISTORY)
+			    && mpi3mr_soft_reset_success(ioc_status, ioc_config)
+			    ) {
 				mpi3mr_clear_reset_history(mrioc);
-				ioc_config =
-				    readl(&mrioc->sysif_regs->ioc_configuration);
-				if (mpi3mr_soft_reset_success(ioc_status,
-				    ioc_config)) {
-					retval = 0;
-					break;
-				}
+				retval = 0;
+				break;
 			}
 			msleep(100);
 		} while (--timeout);
-		writel(MPI3_SYSIF_WRITE_SEQUENCE_KEY_VALUE_2ND,
-		    &mrioc->sysif_regs->write_sequence);
-	} else if (reset_type == MPI3_SYSIF_HOST_DIAG_RESET_ACTION_DIAG_FAULT) {
+		mpi3mr_print_fault_info(mrioc);
+		break;
+	case MPI3_SYSIF_HOST_DIAG_RESET_ACTION_DIAG_FAULT:
 		do {
 			ioc_status = readl(&mrioc->sysif_regs->ioc_status);
 			if (mpi3mr_diagfault_success(mrioc, ioc_status)) {
@@ -1257,28 +1264,22 @@ retry_reset:
 			}
 			msleep(100);
 		} while (--timeout);
-		mpi3mr_clear_reset_history(mrioc);
-		writel(MPI3_SYSIF_WRITE_SEQUENCE_KEY_VALUE_2ND,
-		    &mrioc->sysif_regs->write_sequence);
-	}
-	if (retval && ((++reset_retry_count) < MPI3MR_MAX_RESET_RETRY_COUNT)) {
-		ioc_status = readl(&mrioc->sysif_regs->ioc_status);
-		ioc_config = readl(&mrioc->sysif_regs->ioc_configuration);
-		ioc_info(mrioc,
-		    "Base IOC Sts/Config after reset try %d is (0x%x)/(0x%x)\n",
-		    reset_retry_count, ioc_status, ioc_config);
-		goto retry_reset;
+		break;
+	default:
+		break;
 	}
 
-out:
-	pci_cfg_access_unlock(mrioc->pdev);
-	ioc_status = readl(&mrioc->sysif_regs->ioc_status);
+	writel(MPI3_SYSIF_WRITE_SEQUENCE_KEY_VALUE_2ND,
+	    &mrioc->sysif_regs->write_sequence);
+
 	ioc_config = readl(&mrioc->sysif_regs->ioc_configuration);
-
+	ioc_status = readl(&mrioc->sysif_regs->ioc_status);
 	ioc_info(mrioc,
-	    "Base IOC Sts/Config after %s reset is (0x%x)/(0x%x)\n",
-	    (!retval) ? "successful" : "failed", ioc_status,
+	    "ioc_status/ioc_onfig after %s reset is (0x%x)/(0x%x)\n",
+	    (!retval)?"successful":"failed", ioc_status,
 	    ioc_config);
+	if (retval)
+		mrioc->unrecoverable = 1;
 	return retval;
 }
 
@@ -2190,6 +2191,9 @@ static void mpi3mr_watchdog_work(struct work_struct *work)
 	enum mpi3mr_iocstate ioc_state;
 	u32 fault, host_diagnostic;
 
+	if (mrioc->reset_in_progress || mrioc->unrecoverable)
+		return;
+
 	if (mrioc->ts_update_counter++ >= MPI3MR_TSUPDATE_INTERVAL) {
 		mrioc->ts_update_counter = 0;
 		mpi3mr_sync_timestamp(mrioc);
@@ -2298,41 +2302,6 @@ void mpi3mr_stop_watchdog(struct mpi3mr_ioc *mrioc)
 			flush_workqueue(wq);
 		destroy_workqueue(wq);
 	}
-}
-
-/**
- * mpi3mr_kill_ioc - Kill the controller
- * @mrioc: Adapter instance reference
- * @reason: reason for the failure.
- *
- * If fault debug is enabled, display the fault info else issue
- * diag fault and freeze the system for controller debug
- * purpose.
- *
- * Return: Nothing.
- */
-static void mpi3mr_kill_ioc(struct mpi3mr_ioc *mrioc, u32 reason)
-{
-	enum mpi3mr_iocstate ioc_state;
-
-	if (!mrioc->fault_dbg)
-		return;
-
-	dump_stack();
-
-	ioc_state = mpi3mr_get_iocstate(mrioc);
-	if (ioc_state == MRIOC_STATE_FAULT)
-		mpi3mr_print_fault_info(mrioc);
-	else {
-		ioc_err(mrioc, "Firmware is halted due to the reason %d\n",
-		    reason);
-		mpi3mr_diagfault_reset_handler(mrioc, reason);
-	}
-	if (mrioc->fault_dbg == 2)
-		for (;;)
-			;
-	else
-		panic("panic in %s\n", __func__);
 }
 
 /**
@@ -4040,41 +4009,6 @@ static void mpi3mr_flush_drv_cmds(struct mpi3mr_ioc *mrioc)
 }
 
 /**
- * mpi3mr_diagfault_reset_handler - Diag fault reset handler
- * @mrioc: Adapter instance reference
- * @reset_reason: Reset reason code
- *
- * This is an handler for issuing diag fault reset from the
- * applications through IOCTL path to stop the execution of the
- * controller
- *
- * Return: 0 on success, non-zero on failure.
- */
-int mpi3mr_diagfault_reset_handler(struct mpi3mr_ioc *mrioc,
-	u32 reset_reason)
-{
-	int retval = 0;
-
-	ioc_info(mrioc, "Entry: reason code: %s\n",
-	    mpi3mr_reset_rc_name(reset_reason));
-	mrioc->reset_in_progress = 1;
-
-	mpi3mr_ioc_disable_intr(mrioc);
-
-	retval = mpi3mr_issue_reset(mrioc,
-	    MPI3_SYSIF_HOST_DIAG_RESET_ACTION_DIAG_FAULT, reset_reason);
-
-	if (retval) {
-		ioc_err(mrioc, "The diag fault reset failed: reason %d\n",
-		    reset_reason);
-		mpi3mr_ioc_enable_intr(mrioc);
-	}
-	ioc_info(mrioc, "%s\n", ((retval == 0) ? "SUCCESS" : "FAILED"));
-	mrioc->reset_in_progress = 0;
-	return retval;
-}
-
-/**
  * mpi3mr_soft_reset_handler - Reset the controller
  * @mrioc: Adapter instance reference
  * @reset_reason: Reset reason code
@@ -4102,34 +4036,44 @@ int mpi3mr_soft_reset_handler(struct mpi3mr_ioc *mrioc,
 	unsigned long flags;
 	u32 host_diagnostic, timeout = MPI3_SYSIF_DIAG_SAVE_TIMEOUT * 10;
 
-	if (mrioc->fault_dbg) {
-		if (snapdump)
-			mpi3mr_set_diagsave(mrioc);
-		mpi3mr_kill_ioc(mrioc, reset_reason);
-	}
-
+	/* Block the reset handler until diag save in progress*/
+	dprint_reset(mrioc,
+	    "soft_reset_handler: check and block on diagsave_timeout(%d)\n",
+	    mrioc->diagsave_timeout);
+	while (mrioc->diagsave_timeout)
+		ssleep(1);
 	/*
 	 * Block new resets until the currently executing one is finished and
 	 * return the status of the existing reset for all blocked resets
 	 */
+	dprint_reset(mrioc, "soft_reset_handler: acquiring reset_mutex\n");
 	if (!mutex_trylock(&mrioc->reset_mutex)) {
-		ioc_info(mrioc, "Another reset in progress\n");
-		return -1;
+		ioc_info(mrioc,
+		    "controller reset triggered by %s is blocked due to another reset in progress\n",
+		    mpi3mr_reset_rc_name(reset_reason));
+		do {
+			ssleep(1);
+		} while (mrioc->reset_in_progress == 1);
+		ioc_info(mrioc,
+		    "returning previous reset result(%d) for the reset triggered by %s\n",
+		    mrioc->prev_reset_result,
+		    mpi3mr_reset_rc_name(reset_reason));
+		return mrioc->prev_reset_result;
 	}
+	ioc_info(mrioc, "controller reset is triggered by %s\n",
+	    mpi3mr_reset_rc_name(reset_reason));
+
 	mrioc->reset_in_progress = 1;
+	mrioc->prev_reset_result = -1;
 
 	if ((!snapdump) && (reset_reason != MPI3MR_RESET_FROM_FAULT_WATCH) &&
+	    (reset_reason != MPI3MR_RESET_FROM_FIRMWARE) &&
 	    (reset_reason != MPI3MR_RESET_FROM_CIACTIV_FAULT)) {
 		for (i = 0; i < MPI3_EVENT_NOTIFY_EVENTMASK_WORDS; i++)
 			mrioc->event_masks[i] = -1;
 
-		retval = mpi3mr_issue_event_notification(mrioc);
-
-		if (retval) {
-			ioc_err(mrioc,
-			    "Failed to turn off events prior to reset %d\n",
-			    retval);
-		}
+		dprint_reset(mrioc, "soft_reset_handler: masking events\n");
+		mpi3mr_issue_event_notification(mrioc);
 	}
 
 	mpi3mr_wait_for_host_io(mrioc, MPI3MR_RESET_HOST_IOWAIT_TIMEOUT);
@@ -4177,8 +4121,8 @@ int mpi3mr_soft_reset_handler(struct mpi3mr_ioc *mrioc,
 
 out:
 	if (!retval) {
+		mrioc->diagsave_timeout = 0;
 		mrioc->reset_in_progress = 0;
-		scsi_unblock_requests(mrioc->shost);
 		mpi3mr_rfresh_tgtdevs(mrioc);
 		mrioc->ts_update_counter = 0;
 		spin_lock_irqsave(&mrioc->watchdog_lock, flags);
@@ -4194,8 +4138,9 @@ out:
 		mrioc->reset_in_progress = 0;
 		retval = -1;
 	}
-
+	mrioc->prev_reset_result = retval;
 	mutex_unlock(&mrioc->reset_mutex);
-	ioc_info(mrioc, "%s\n", ((retval == 0) ? "SUCCESS" : "FAILED"));
+	ioc_info(mrioc, "controller reset is %s\n",
+	    ((retval == 0) ? "successful" : "failed"));
 	return retval;
 }

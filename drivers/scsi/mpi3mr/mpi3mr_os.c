@@ -3073,32 +3073,42 @@ static int mpi3mr_scan_finished(struct Scsi_Host *shost,
 {
 	struct mpi3mr_ioc *mrioc = shost_priv(shost);
 	u32 pe_timeout = MPI3MR_PORTENABLE_TIMEOUT;
+	u32 ioc_status = readl(&mrioc->sysif_regs->ioc_status);
 
-	if (time >= (pe_timeout * HZ)) {
+	if ((ioc_status & MPI3_SYSIF_IOC_STATUS_RESET_HISTORY) ||
+	    (ioc_status & MPI3_SYSIF_IOC_STATUS_FAULT)) {
+		ioc_err(mrioc, "port enable failed due to fault or reset\n");
+		mpi3mr_print_fault_info(mrioc);
+		mrioc->scan_failed = MPI3_IOCSTATUS_INTERNAL_ERROR;
+		mrioc->scan_started = 0;
 		mrioc->init_cmds.is_waiting = 0;
 		mrioc->init_cmds.callback = NULL;
 		mrioc->init_cmds.state = MPI3MR_CMD_NOTUSED;
-		ioc_err(mrioc, "%s :port enable request timed out\n", __func__);
-		mrioc->is_driver_loading = 0;
-		mpi3mr_soft_reset_handler(mrioc,
-		    MPI3MR_RESET_FROM_PE_TIMEOUT, 1);
 	}
 
-	if (mrioc->scan_failed) {
-		ioc_err(mrioc,
-		    "%s :port enable failed with (ioc_status=0x%08x)\n",
-		    __func__, mrioc->scan_failed);
-		mrioc->is_driver_loading = 0;
-		mrioc->stop_drv_processing = 1;
-		return 1;
+	if (time >= (pe_timeout * HZ)) {
+		ioc_err(mrioc, "port enable failed due to time out\n");
+		mpi3mr_check_rh_fault_ioc(mrioc,
+		    MPI3MR_RESET_FROM_PE_TIMEOUT);
+		mrioc->scan_failed = MPI3_IOCSTATUS_INTERNAL_ERROR;
+		mrioc->scan_started = 0;
+		mrioc->init_cmds.is_waiting = 0;
+		mrioc->init_cmds.callback = NULL;
+		mrioc->init_cmds.state = MPI3MR_CMD_NOTUSED;
 	}
 
 	if (mrioc->scan_started)
 		return 0;
-	ioc_info(mrioc, "%s :port enable: SUCCESS\n", __func__);
+
+	if (mrioc->scan_failed) {
+		ioc_err(mrioc,
+		    "port enable failed with status=0x%04x\n",
+		    mrioc->scan_failed);
+	} else
+		ioc_info(mrioc, "port enable is successfully completed\n");
+
 	mpi3mr_start_watchdog(mrioc);
 	mrioc->is_driver_loading = 0;
-
 	return 1;
 }
 
