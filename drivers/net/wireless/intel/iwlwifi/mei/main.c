@@ -1703,6 +1703,7 @@ void iwl_mei_unregister_complete(void)
 			mei_cldev_get_drvdata(iwl_mei_global_cldev);
 
 		iwl_mei_send_sap_msg(mei->cldev, SAP_MSG_NOTIF_WIFIDR_DOWN);
+		mei->got_ownership = false;
 	}
 
 	mutex_unlock(&iwl_mei_mutex);
