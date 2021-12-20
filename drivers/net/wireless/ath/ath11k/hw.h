@@ -191,6 +191,7 @@ struct ath11k_hw_params {
 	bool alloc_cacheable_memory;
 	bool wakeup_mhi;
 	bool supports_rssi_stats;
+	bool fw_wmi_diag_event;
 };
 
 struct ath11k_hw_ops {
