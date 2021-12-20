@@ -2965,7 +2965,9 @@ static void clk_summary_show_subtree(struct seq_file *s, struct clk_core *c,
 {
 	struct clk_core *child;
 
+	clk_pm_runtime_get(c);
 	clk_summary_show_one(s, c, level);
+	clk_pm_runtime_put(c);
 
 	hlist_for_each_entry(child, &c->children, child_node)
 		clk_summary_show_subtree(s, child, level + 1);
