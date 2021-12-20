@@ -2799,49 +2799,52 @@ static int mpi3mr_build_sg_scmd(struct mpi3mr_ioc *mrioc,
 }
 
 /**
- * mpi3mr_print_response_code - print TM response as a string
- * @mrioc: Adapter instance reference
+ * mpi3mr_tm_response_name -  get TM response as a string
  * @resp_code: TM response code
  *
- * Print TM response code as a readable string.
+ * Convert known task management response code as a readable
+ * string.
  *
- * Return: Nothing.
+ * Return: response code string.
  */
-static void mpi3mr_print_response_code(struct mpi3mr_ioc *mrioc, u8 resp_code)
+static const char *mpi3mr_tm_response_name(u8 resp_code)
 {
 	char *desc;
 
 	switch (resp_code) {
-	case MPI3MR_RSP_TM_COMPLETE:
+	case MPI3_SCSITASKMGMT_RSPCODE_TM_COMPLETE:
 		desc = "task management request completed";
 		break;
-	case MPI3MR_RSP_INVALID_FRAME:
+	case MPI3_SCSITASKMGMT_RSPCODE_INVALID_FRAME:
 		desc = "invalid frame";
 		break;
-	case MPI3MR_RSP_TM_NOT_SUPPORTED:
+	case MPI3_SCSITASKMGMT_RSPCODE_TM_FUNCTION_NOT_SUPPORTED:
 		desc = "task management request not supported";
 		break;
-	case MPI3MR_RSP_TM_FAILED:
+	case MPI3_SCSITASKMGMT_RSPCODE_TM_FAILED:
 		desc = "task management request failed";
 		break;
-	case MPI3MR_RSP_TM_SUCCEEDED:
+	case MPI3_SCSITASKMGMT_RSPCODE_TM_SUCCEEDED:
 		desc = "task management request succeeded";
 		break;
-	case MPI3MR_RSP_TM_INVALID_LUN:
-		desc = "invalid lun";
+	case MPI3_SCSITASKMGMT_RSPCODE_TM_INVALID_LUN:
+		desc = "invalid LUN";
 		break;
-	case MPI3MR_RSP_TM_OVERLAPPED_TAG:
+	case MPI3_SCSITASKMGMT_RSPCODE_TM_OVERLAPPED_TAG:
 		desc = "overlapped tag attempted";
 		break;
-	case MPI3MR_RSP_IO_QUEUED_ON_IOC:
+	case MPI3_SCSITASKMGMT_RSPCODE_IO_QUEUED_ON_IOC:
 		desc = "task queued, however not sent to target";
+		break;
+	case MPI3_SCSITASKMGMT_RSPCODE_TM_NVME_DENIED:
+		desc = "task management request denied by NVMe device";
 		break;
 	default:
 		desc = "unknown";
 		break;
 	}
-	ioc_info(mrioc, "%s :response_code(0x%01x): %s\n", __func__,
-	    resp_code, desc);
+
+	return desc;
 }
 
 /**
@@ -2965,10 +2968,10 @@ static int mpi3mr_issue_tm(struct mpi3mr_ioc *mrioc, u8 tm_type,
 	*resp_code = le32_to_cpu(tm_reply->response_data) &
 	    MPI3MR_RI_MASK_RESPCODE;
 	switch (*resp_code) {
-	case MPI3MR_RSP_TM_SUCCEEDED:
-	case MPI3MR_RSP_TM_COMPLETE:
+	case MPI3_SCSITASKMGMT_RSPCODE_TM_SUCCEEDED:
+	case MPI3_SCSITASKMGMT_RSPCODE_TM_COMPLETE:
 		break;
-	case MPI3MR_RSP_IO_QUEUED_ON_IOC:
+	case MPI3_SCSITASKMGMT_RSPCODE_IO_QUEUED_ON_IOC:
 		if (tm_type != MPI3_SCSITASKMGMT_TASKTYPE_QUERY_TASK)
 			retval = -1;
 		break;
@@ -2977,14 +2980,11 @@ static int mpi3mr_issue_tm(struct mpi3mr_ioc *mrioc, u8 tm_type,
 		break;
 	}
 
-	ioc_info(mrioc,
-	    "%s :Issue TM: Completed TM type (0x%x) handle(0x%04x) ",
-	    __func__, tm_type, handle);
-	ioc_info(mrioc,
-	    "with ioc_status(0x%04x), loginfo(0x%08x), term_count(0x%08x)\n",
-	    drv_cmd->ioc_status, drv_cmd->ioc_loginfo,
-	    le32_to_cpu(tm_reply->termination_count));
-	mpi3mr_print_response_code(mrioc, *resp_code);
+	dprint_tm(mrioc,
+	    "task management request type(%d) completed for handle(0x%04x) with ioc_status(0x%04x), log_info(0x%08x), termination_count(%d), response:%s(0x%x)\n",
+	    tm_type, handle, drv_cmd->ioc_status, drv_cmd->ioc_loginfo,
+	    le32_to_cpu(tm_reply->termination_count),
+	    mpi3mr_tm_response_name(*resp_code), *resp_code);
 
 out_unlock:
 	drv_cmd->state = MPI3MR_CMD_NOTUSED;
