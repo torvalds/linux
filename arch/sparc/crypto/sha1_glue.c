@@ -17,6 +17,7 @@
 #include <linux/mm.h>
 #include <linux/types.h>
 #include <crypto/sha1.h>
+#include <crypto/sha1_base.h>
 
 #include <asm/pstate.h>
 #include <asm/elf.h>
@@ -25,17 +26,6 @@
 
 asmlinkage void sha1_sparc64_transform(u32 *digest, const char *data,
 				       unsigned int rounds);
-
-static int sha1_sparc64_init(struct shash_desc *desc)
-{
-	struct sha1_state *sctx = shash_desc_ctx(desc);
-
-	*sctx = (struct sha1_state){
-		.state = { SHA1_H0, SHA1_H1, SHA1_H2, SHA1_H3, SHA1_H4 },
-	};
-
-	return 0;
-}
 
 static void __sha1_sparc64_update(struct sha1_state *sctx, const u8 *data,
 				  unsigned int len, unsigned int partial)
@@ -128,7 +118,7 @@ static int sha1_sparc64_import(struct shash_desc *desc, const void *in)
 
 static struct shash_alg alg = {
 	.digestsize	=	SHA1_DIGEST_SIZE,
-	.init		=	sha1_sparc64_init,
+	.init		=	sha1_base_init,
 	.update		=	sha1_sparc64_update,
 	.final		=	sha1_sparc64_final,
 	.export		=	sha1_sparc64_export,
