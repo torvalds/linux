@@ -197,7 +197,6 @@ static void rda_gpio_irq_handler(struct irq_desc *desc)
 
 static int rda_gpio_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
 	struct device *dev = &pdev->dev;
 	struct gpio_irq_chip *girq;
 	struct rda_gpio *rda_gpio;
