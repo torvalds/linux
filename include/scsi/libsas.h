@@ -356,6 +356,7 @@ enum sas_ha_state {
 	SAS_HA_DRAINING,
 	SAS_HA_ATA_EH_ACTIVE,
 	SAS_HA_FROZEN,
+	SAS_HA_RESUMING,
 };
 
 struct sas_ha_struct {

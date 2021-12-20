@@ -362,6 +362,7 @@ void sas_prep_resume_ha(struct sas_ha_struct *ha)
 	int i;
 
 	set_bit(SAS_HA_REGISTERED, &ha->state);
+	set_bit(SAS_HA_RESUMING, &ha->state);
 
 	/* clear out any stale link events/data from the suspension path */
 	for (i = 0; i < ha->num_phys; i++) {
@@ -443,6 +444,7 @@ static void _sas_resume_ha(struct sas_ha_struct *ha, bool drain)
 	scsi_unblock_requests(ha->core.shost);
 	if (drain)
 		sas_drain_work(ha);
+	clear_bit(SAS_HA_RESUMING, &ha->state);
 
 	/* send event PORTE_BROADCAST_RCVD to identify some new inserted
 	 * disks for expander
