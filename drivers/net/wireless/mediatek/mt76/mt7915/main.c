@@ -1006,7 +1006,8 @@ static void mt7915_sta_statistics(struct ieee80211_hw *hw,
 	struct rate_info *txrate = &msta->wcid.rate;
 	struct rate_info rxrate = {};
 
-	if (!mt7915_mcu_get_rx_rate(phy, vif, sta, &rxrate)) {
+	if (is_mt7915(&phy->dev->mt76) &&
+	    !mt7915_mcu_get_rx_rate(phy, vif, sta, &rxrate)) {
 		sinfo->rxrate = rxrate;
 		sinfo->filled |= BIT_ULL(NL80211_STA_INFO_RX_BITRATE);
 	}

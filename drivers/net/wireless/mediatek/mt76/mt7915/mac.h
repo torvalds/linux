@@ -125,6 +125,12 @@ enum rx_pkt_type {
 #define MT_PRXV_RCPI2			GENMASK(23, 16)
 #define MT_PRXV_RCPI1			GENMASK(15, 8)
 #define MT_PRXV_RCPI0			GENMASK(7, 0)
+#define MT_PRXV_HT_SHORT_GI		GENMASK(16, 15)
+#define MT_PRXV_HT_STBC			GENMASK(23, 22)
+#define MT_PRXV_TX_MODE			GENMASK(27, 24)
+#define MT_PRXV_FRAME_MODE		GENMASK(14, 12)
+#define MT_PRXV_DCM			BIT(17)
+#define MT_PRXV_NUM_RX			BIT(20, 18)
 
 /* C-RXV */
 #define MT_CRXV_HT_STBC			GENMASK(1, 0)
