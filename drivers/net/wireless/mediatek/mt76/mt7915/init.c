@@ -508,41 +508,50 @@ static void mt7915_init_work(struct work_struct *work)
 
 static void mt7915_wfsys_reset(struct mt7915_dev *dev)
 {
-	u32 val = MT_TOP_PWR_KEY | MT_TOP_PWR_SW_PWR_ON | MT_TOP_PWR_PWR_ON;
-
 #define MT_MCU_DUMMY_RANDOM	GENMASK(15, 0)
 #define MT_MCU_DUMMY_DEFAULT	GENMASK(31, 16)
 
-	mt76_wr(dev, MT_MCU_WFDMA0_DUMMY_CR, MT_MCU_DUMMY_RANDOM);
+	if (is_mt7915(&dev->mt76)) {
+		u32 val = MT_TOP_PWR_KEY | MT_TOP_PWR_SW_PWR_ON | MT_TOP_PWR_PWR_ON;
 
-	/* change to software control */
-	val |= MT_TOP_PWR_SW_RST;
-	mt76_wr(dev, MT_TOP_PWR_CTRL, val);
+		mt76_wr(dev, MT_MCU_WFDMA0_DUMMY_CR, MT_MCU_DUMMY_RANDOM);
 
-	/* reset wfsys */
-	val &= ~MT_TOP_PWR_SW_RST;
-	mt76_wr(dev, MT_TOP_PWR_CTRL, val);
+		/* change to software control */
+		val |= MT_TOP_PWR_SW_RST;
+		mt76_wr(dev, MT_TOP_PWR_CTRL, val);
 
-	/* release wfsys then mcu re-excutes romcode */
-	val |= MT_TOP_PWR_SW_RST;
-	mt76_wr(dev, MT_TOP_PWR_CTRL, val);
+		/* reset wfsys */
+		val &= ~MT_TOP_PWR_SW_RST;
+		mt76_wr(dev, MT_TOP_PWR_CTRL, val);
 
-	/* switch to hw control */
-	val &= ~MT_TOP_PWR_SW_RST;
-	val |= MT_TOP_PWR_HW_CTRL;
-	mt76_wr(dev, MT_TOP_PWR_CTRL, val);
+		/* release wfsys then mcu re-excutes romcode */
+		val |= MT_TOP_PWR_SW_RST;
+		mt76_wr(dev, MT_TOP_PWR_CTRL, val);
 
-	/* check whether mcu resets to default */
-	if (!mt76_poll_msec(dev, MT_MCU_WFDMA0_DUMMY_CR, MT_MCU_DUMMY_DEFAULT,
-			    MT_MCU_DUMMY_DEFAULT, 1000)) {
-		dev_err(dev->mt76.dev, "wifi subsystem reset failure\n");
-		return;
+		/* switch to hw control */
+		val &= ~MT_TOP_PWR_SW_RST;
+		val |= MT_TOP_PWR_HW_CTRL;
+		mt76_wr(dev, MT_TOP_PWR_CTRL, val);
+
+		/* check whether mcu resets to default */
+		if (!mt76_poll_msec(dev, MT_MCU_WFDMA0_DUMMY_CR,
+				    MT_MCU_DUMMY_DEFAULT, MT_MCU_DUMMY_DEFAULT,
+				    1000)) {
+			dev_err(dev->mt76.dev, "wifi subsystem reset failure\n");
+			return;
+		}
+
+		/* wfsys reset won't clear host registers */
+		mt76_clear(dev, MT_TOP_MISC, MT_TOP_MISC_FW_STATE);
+
+		msleep(100);
+	} else {
+		mt76_set(dev, MT_WF_SUBSYS_RST, 0x1);
+		msleep(20);
+
+		mt76_clear(dev, MT_WF_SUBSYS_RST, 0x1);
+		msleep(20);
 	}
-
-	/* wfsys reset won't clear host registers */
-	mt76_clear(dev, MT_TOP_MISC, MT_TOP_MISC_FW_STATE);
-
-	msleep(100);
 }
 
 static int mt7915_init_hardware(struct mt7915_dev *dev)
@@ -564,15 +573,6 @@ static int mt7915_init_hardware(struct mt7915_dev *dev)
 		return ret;
 
 	set_bit(MT76_STATE_INITIALIZED, &dev->mphy.state);
-
-	/*
-	 * force firmware operation mode into normal state,
-	 * which should be set before firmware download stage.
-	 */
-	if (is_mt7915(&dev->mt76))
-		mt76_wr(dev, MT_SWDEF_MODE, MT_SWDEF_NORMAL_MODE);
-	else
-		mt76_wr(dev, MT_SWDEF_MODE_MT7916, MT_SWDEF_NORMAL_MODE);
 
 	ret = mt7915_mcu_init(dev);
 	if (ret) {
