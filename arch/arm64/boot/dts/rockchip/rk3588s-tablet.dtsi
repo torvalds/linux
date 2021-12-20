@@ -959,11 +959,23 @@
 	status = "okay";
 };
 
+&rkvenc_ccu {
+	status = "okay";
+};
+
 &rkvenc0 {
 	status = "okay";
 };
 
 &rkvenc0_mmu {
+	status = "okay";
+};
+
+&rkvenc1 {
+	status = "okay";
+};
+
+&rkvenc1_mmu {
 	status = "okay";
 };
 
