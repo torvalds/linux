@@ -2155,19 +2155,22 @@ static int unnote_qf_name(struct fs_context *fc, int qtype)
 #endif
 
 #define EXT4_SET_CTX(name)						\
-static inline void ctx_set_##name(struct ext4_fs_context *ctx, int flag)\
+static inline void ctx_set_##name(struct ext4_fs_context *ctx,		\
+				  unsigned long flag)			\
 {									\
 	ctx->mask_s_##name |= flag;					\
 	ctx->vals_s_##name |= flag;					\
 }									\
-static inline void ctx_clear_##name(struct ext4_fs_context *ctx, int flag)\
+static inline void ctx_clear_##name(struct ext4_fs_context *ctx,	\
+				    unsigned long flag)			\
 {									\
 	ctx->mask_s_##name |= flag;					\
 	ctx->vals_s_##name &= ~flag;					\
 }									\
-static inline bool ctx_test_##name(struct ext4_fs_context *ctx, int flag)\
+static inline unsigned long						\
+ctx_test_##name(struct ext4_fs_context *ctx, unsigned long flag)	\
 {									\
-	return ((ctx->vals_s_##name & flag) != 0);			\
+	return (ctx->vals_s_##name & flag);				\
 }									\
 
 EXT4_SET_CTX(flags);
@@ -2828,7 +2831,8 @@ static int ext4_check_opt_consistency(struct fs_context *fc,
 				 "Remounting file system with no journal "
 				 "so ignoring journalled data option");
 			ctx_clear_mount_opt(ctx, EXT4_MOUNT_DATA_FLAGS);
-		} else if (ctx->mask_s_mount_opt & EXT4_MOUNT_DATA_FLAGS) {
+		} else if (ctx_test_mount_opt(ctx, EXT4_MOUNT_DATA_FLAGS) !=
+			   test_opt(sb, DATA_FLAGS)) {
 			ext4_msg(NULL, KERN_ERR, "Cannot change data mode "
 				 "on remount");
 			return -EINVAL;
