@@ -7,6 +7,7 @@
  */
 
 #include <linux/arm-smccc.h>
+#include <linux/atomic.h>
 #include <linux/device.h>
 #include <linux/err.h>
 #include <linux/interrupt.h>
@@ -14,6 +15,7 @@
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
+#include <linux/processor.h>
 #include <linux/slab.h>
 
 #include "common.h"
@@ -23,14 +25,20 @@
  *
  * @cinfo: SCMI channel info
  * @shmem: Transmit/Receive shared memory area
- * @shmem_lock: Lock to protect access to Tx/Rx shared memory area
+ * @shmem_lock: Lock to protect access to Tx/Rx shared memory area.
+ *		Used when NOT operating in atomic mode.
+ * @inflight: Atomic flag to protect access to Tx/Rx shared memory area.
+ *	      Used when operating in atomic mode.
  * @func_id: smc/hvc call function id
  */
 
 struct scmi_smc {
 	struct scmi_chan_info *cinfo;
 	struct scmi_shared_mem __iomem *shmem;
+	/* Protect access to shmem area */
 	struct mutex shmem_lock;
+#define INFLIGHT_NONE	MSG_TOKEN_MAX
+	atomic_t inflight;
 	u32 func_id;
 };
 
@@ -52,6 +60,41 @@ static bool smc_chan_available(struct device *dev, int idx)
 
 	of_node_put(np);
 	return true;
+}
+
+static inline void smc_channel_lock_init(struct scmi_smc *scmi_info)
+{
+	if (IS_ENABLED(CONFIG_ARM_SCMI_TRANSPORT_SMC_ATOMIC_ENABLE))
+		atomic_set(&scmi_info->inflight, INFLIGHT_NONE);
+	else
+		mutex_init(&scmi_info->shmem_lock);
+}
+
+static bool smc_xfer_inflight(struct scmi_xfer *xfer, atomic_t *inflight)
+{
+	int ret;
+
+	ret = atomic_cmpxchg(inflight, INFLIGHT_NONE, xfer->hdr.seq);
+
+	return ret == INFLIGHT_NONE;
+}
+
+static inline void
+smc_channel_lock_acquire(struct scmi_smc *scmi_info,
+			 struct scmi_xfer *xfer __maybe_unused)
+{
+	if (IS_ENABLED(CONFIG_ARM_SCMI_TRANSPORT_SMC_ATOMIC_ENABLE))
+		spin_until_cond(smc_xfer_inflight(xfer, &scmi_info->inflight));
+	else
+		mutex_lock(&scmi_info->shmem_lock);
+}
+
+static inline void smc_channel_lock_release(struct scmi_smc *scmi_info)
+{
+	if (IS_ENABLED(CONFIG_ARM_SCMI_TRANSPORT_SMC_ATOMIC_ENABLE))
+		atomic_set(&scmi_info->inflight, INFLIGHT_NONE);
+	else
+		mutex_unlock(&scmi_info->shmem_lock);
 }
 
 static int smc_chan_setup(struct scmi_chan_info *cinfo, struct device *dev,
@@ -114,7 +157,7 @@ static int smc_chan_setup(struct scmi_chan_info *cinfo, struct device *dev,
 
 	scmi_info->func_id = func_id;
 	scmi_info->cinfo = cinfo;
-	mutex_init(&scmi_info->shmem_lock);
+	smc_channel_lock_init(scmi_info);
 	cinfo->transport_info = scmi_info;
 
 	return 0;
@@ -140,10 +183,10 @@ static int smc_send_message(struct scmi_chan_info *cinfo,
 	struct arm_smccc_res res;
 
 	/*
-	 * Channel lock will be released only once response has been
+	 * Channel will be released only once response has been
 	 * surely fully retrieved, so after .mark_txdone()
 	 */
-	mutex_lock(&scmi_info->shmem_lock);
+	smc_channel_lock_acquire(scmi_info, xfer);
 
 	shmem_tx_prepare(scmi_info->shmem, xfer);
 
@@ -151,7 +194,7 @@ static int smc_send_message(struct scmi_chan_info *cinfo,
 
 	/* Only SMCCC_RET_NOT_SUPPORTED is valid error code */
 	if (res.a0) {
-		mutex_unlock(&scmi_info->shmem_lock);
+		smc_channel_lock_release(scmi_info);
 		return -EOPNOTSUPP;
 	}
 
@@ -170,7 +213,7 @@ static void smc_mark_txdone(struct scmi_chan_info *cinfo, int ret)
 {
 	struct scmi_smc *scmi_info = cinfo->transport_info;
 
-	mutex_unlock(&scmi_info->shmem_lock);
+	smc_channel_lock_release(scmi_info);
 }
 
 static const struct scmi_transport_ops scmi_smc_ops = {
@@ -196,4 +239,5 @@ const struct scmi_desc scmi_smc_desc = {
 	 * from the shared memory area.
 	 */
 	.sync_cmds_completed_on_ret = true,
+	.atomic_enabled = IS_ENABLED(CONFIG_ARM_SCMI_TRANSPORT_SMC_ATOMIC_ENABLE),
 };
