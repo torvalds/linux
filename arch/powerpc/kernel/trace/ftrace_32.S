@@ -53,9 +53,6 @@ _GLOBAL(ftrace_stub)
 	blr
 
 _GLOBAL(ftrace_regs_caller)
-	/* Save the original return address in A's stack frame */
-	stw	r0,LRSAVE(r1)
-
 	/* Create our stack frame + pt_regs */
 	stwu	r1,-INT_FRAME_SIZE(r1)
 
