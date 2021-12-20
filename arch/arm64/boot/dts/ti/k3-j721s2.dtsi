@@ -1,8 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Device Tree Source for J721E SoC Family
+ * Device Tree Source for J721S2 SoC Family
  *
- * Copyright (C) 2016-2019 Texas Instruments Incorporated - https://www.ti.com/
+ * TRM (SPRUJ28 – NOVEMBER 2021) : http://www.ti.com/lit/pdf/spruj28
+ *
+ * Copyright (C) 2021 Texas Instruments Incorporated - https://www.ti.com/
+ *
  */
 
 #include <dt-bindings/interrupt-controller/irq.h>
@@ -11,8 +14,9 @@
 #include <dt-bindings/soc/ti,sci_pm_domain.h>
 
 / {
-	model = "Texas Instruments K3 J721E SoC";
-	compatible = "ti,j721e";
+
+	model = "Texas Instruments K3 J721S2 SoC";
+	compatible = "ti,j721s2";
 	interrupt-parent = <&gic500>;
 	#address-cells = <2>;
 	#size-cells = <2>;
@@ -30,10 +34,13 @@
 		serial9 = &main_uart7;
 		serial10 = &main_uart8;
 		serial11 = &main_uart9;
-		ethernet0 = &cpsw_port1;
 		mmc0 = &main_sdhci0;
 		mmc1 = &main_sdhci1;
-		mmc2 = &main_sdhci2;
+		can0 = &main_mcan16;
+		can1 = &mcu_mcan0;
+		can2 = &mcu_mcan1;
+		can3 = &main_mcan3;
+		can4 = &main_mcan5;
 	};
 
 	chosen { };
@@ -51,7 +58,6 @@
 					cpu = <&cpu1>;
 				};
 			};
-
 		};
 
 		cpu0: cpu@0 {
@@ -59,7 +65,7 @@
 			reg = <0x000>;
 			device_type = "cpu";
 			enable-method = "psci";
-			i-cache-size = <0xC000>;
+			i-cache-size = <0xc000>;
 			i-cache-line-size = <64>;
 			i-cache-sets = <256>;
 			d-cache-size = <0x8000>;
@@ -73,7 +79,7 @@
 			reg = <0x001>;
 			device_type = "cpu";
 			enable-method = "psci";
-			i-cache-size = <0xC000>;
+			i-cache-size = <0xc000>;
 			i-cache-line-size = <64>;
 			i-cache-sets = <256>;
 			d-cache-size = <0x8000>;
@@ -115,6 +121,7 @@
 			     <GIC_PPI 14 IRQ_TYPE_LEVEL_LOW>, /* cntpnsirq */
 			     <GIC_PPI 11 IRQ_TYPE_LEVEL_LOW>, /* cntvirq */
 			     <GIC_PPI 10 IRQ_TYPE_LEVEL_LOW>; /* cnthpirq */
+
 	};
 
 	pmu: pmu {
@@ -129,22 +136,15 @@
 		#size-cells = <2>;
 		ranges = <0x00 0x00100000 0x00 0x00100000 0x00 0x00020000>, /* ctrl mmr */
 			 <0x00 0x00600000 0x00 0x00600000 0x00 0x00031100>, /* GPIO */
-			 <0x00 0x00900000 0x00 0x00900000 0x00 0x00012000>, /* serdes */
-			 <0x00 0x00a40000 0x00 0x00a40000 0x00 0x00000800>, /* timesync router */
-			 <0x00 0x06000000 0x00 0x06000000 0x00 0x00400000>, /* USBSS0 */
-			 <0x00 0x06400000 0x00 0x06400000 0x00 0x00400000>, /* USBSS1 */
-			 <0x00 0x01000000 0x00 0x01000000 0x00 0x0af02400>, /* Most peripherals */
+			 <0x00 0x01000000 0x00 0x01000000 0x00 0x0d000000>, /* Most peripherals */
+			 <0x00 0x0d800000 0x00 0x0d800000 0x00 0x00800000>, /* PCIe Core*/
+			 <0x00 0x18000000 0x00 0x18000000 0x00 0x08000000>, /* PCIe1 DAT0 */
+			 <0x00 0x64800000 0x00 0x64800000 0x00 0x0070c000>, /* C71_1 */
+			 <0x00 0x65800000 0x00 0x65800000 0x00 0x0070c000>, /* C71_2 */
+			 <0x00 0x70000000 0x00 0x70000000 0x00 0x00400000>, /* MSMC RAM */
 			 <0x00 0x30000000 0x00 0x30000000 0x00 0x0c400000>, /* MAIN NAVSS */
-			 <0x00 0x0d000000 0x00 0x0d000000 0x00 0x01800000>, /* PCIe Core*/
-			 <0x00 0x0e000000 0x00 0x0e000000 0x00 0x01800000>, /* PCIe Core*/
-			 <0x00 0x10000000 0x00 0x10000000 0x00 0x10000000>, /* PCIe DAT */
-			 <0x00 0x64800000 0x00 0x64800000 0x00 0x00800000>, /* C71 */
-			 <0x44 0x00000000 0x44 0x00000000 0x00 0x08000000>, /* PCIe2 DAT */
-			 <0x44 0x10000000 0x44 0x10000000 0x00 0x08000000>, /* PCIe3 DAT */
-			 <0x4d 0x80800000 0x4d 0x80800000 0x00 0x00800000>, /* C66_0 */
-			 <0x4d 0x81800000 0x4d 0x81800000 0x00 0x00800000>, /* C66_1 */
+			 <0x41 0x00000000 0x41 0x00000000 0x01 0x00000000>, /* PCIe1 DAT1 */
 			 <0x4e 0x20000000 0x4e 0x20000000 0x00 0x00080000>, /* GPU */
-			 <0x00 0x70000000 0x00 0x70000000 0x00 0x00800000>, /* MSMC RAM */
 
 			 /* MCUSS_WKUP Range */
 			 <0x00 0x28380000 0x00 0x28380000 0x00 0x03880000>,
@@ -178,10 +178,12 @@
 				 <0x00 0x50000000 0x00 0x50000000 0x00 0x10000000>, /* FSS OSPI0/1 data region 0 */
 				 <0x05 0x00000000 0x05 0x00000000 0x01 0x00000000>, /* FSS OSPI0 data region 3 */
 				 <0x07 0x00000000 0x07 0x00000000 0x01 0x00000000>; /* FSS OSPI1 data region 3*/
+
 		};
+
 	};
 };
 
-/* Now include the peripherals for each bus segments */
-#include "k3-j721e-main.dtsi"
-#include "k3-j721e-mcu-wakeup.dtsi"
+/* Now include peripherals from each bus segment */
+#include "k3-j721s2-main.dtsi"
+#include "k3-j721s2-mcu-wakeup.dtsi"
