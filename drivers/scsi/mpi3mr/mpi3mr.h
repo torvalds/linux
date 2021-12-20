@@ -45,6 +45,7 @@
 #include "mpi/mpi30_init.h"
 #include "mpi/mpi30_ioc.h"
 #include "mpi/mpi30_sas.h"
+#include "mpi/mpi30_pci.h"
 #include "mpi3mr_debug.h"
 
 /* Global list and lock for storing multiple adapters managed by the driver */
@@ -121,7 +122,7 @@ extern int prot_mask;
 
 /* Definitions for Event replies and sense buffer allocated per controller */
 #define MPI3MR_NUM_EVT_REPLIES	64
-#define MPI3MR_SENSEBUF_SZ	256
+#define MPI3MR_SENSE_BUF_SZ	256
 #define MPI3MR_SENSEBUF_FACTOR	3
 #define MPI3MR_CHAINBUF_FACTOR	3
 #define MPI3MR_CHAINBUFDIX_FACTOR	2
@@ -263,7 +264,7 @@ struct mpi3mr_ioc_facts {
 	u16 max_vds;
 	u16 max_hpds;
 	u16 max_advhpds;
-	u16 max_raidpds;
+	u16 max_raid_pds;
 	u16 min_devhandle;
 	u16 max_devhandle;
 	u16 max_op_req_q;
