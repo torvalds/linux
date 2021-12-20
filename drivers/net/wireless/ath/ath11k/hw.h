@@ -151,6 +151,9 @@ struct ath11k_hw_params {
 	u32 svc_to_ce_map_len;
 
 	bool single_pdev_only;
+	u32 rfkill_pin;
+	u32 rfkill_cfg;
+	u32 rfkill_on_level;
 
 	bool rxdma1_enable;
 	int num_rxmda_per_pdev;
