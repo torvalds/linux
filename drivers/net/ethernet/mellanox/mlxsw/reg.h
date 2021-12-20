@@ -11318,7 +11318,7 @@ mlxsw_reg_mgpir_unpack(char *payload, u8 *num_of_devices,
  * -----------------------------------
  */
 #define MLXSW_REG_MFDE_ID 0x9200
-#define MLXSW_REG_MFDE_LEN 0x18
+#define MLXSW_REG_MFDE_LEN 0x30
 
 MLXSW_REG_DEFINE(mfde, MLXSW_REG_MFDE_ID, MLXSW_REG_MFDE_LEN);
 
@@ -11328,10 +11328,32 @@ MLXSW_REG_DEFINE(mfde, MLXSW_REG_MFDE_ID, MLXSW_REG_MFDE_LEN);
  */
 MLXSW_ITEM32(reg, mfde, irisc_id, 0x00, 24, 8);
 
+enum mlxsw_reg_mfde_severity {
+	/* Unrecoverable switch behavior */
+	MLXSW_REG_MFDE_SEVERITY_FATL = 2,
+	/* Unexpected state with possible systemic failure */
+	MLXSW_REG_MFDE_SEVERITY_NRML = 3,
+	/* Unexpected state without systemic failure */
+	MLXSW_REG_MFDE_SEVERITY_INTR = 5,
+};
+
+/* reg_mfde_severity
+ * The severity of the event.
+ * Access: RO
+ */
+MLXSW_ITEM32(reg, mfde, severity, 0x00, 16, 8);
+
 enum mlxsw_reg_mfde_event_id {
+	/* CRspace timeout */
 	MLXSW_REG_MFDE_EVENT_ID_CRSPACE_TO = 1,
 	/* KVD insertion machine stopped */
 	MLXSW_REG_MFDE_EVENT_ID_KVD_IM_STOP,
+	/* Triggered by MFGD.trigger_test */
+	MLXSW_REG_MFDE_EVENT_ID_TEST,
+	/* Triggered when firmware hits an assert */
+	MLXSW_REG_MFDE_EVENT_ID_FW_ASSERT,
+	/* Fatal error interrupt from hardware */
+	MLXSW_REG_MFDE_EVENT_ID_FATAL_CAUSE,
 };
 
 /* reg_mfde_event_id
@@ -11378,6 +11400,13 @@ MLXSW_ITEM32(reg, mfde, reg_attr_id, 0x04, 0, 16);
  */
 MLXSW_ITEM32(reg, mfde, crspace_to_log_address, 0x10, 0, 32);
 
+/* reg_mfde_crspace_to_oe
+ * 0 - New event
+ * 1 - Old event, occurred before MFGD activation.
+ * Access: RO
+ */
+MLXSW_ITEM32(reg, mfde, crspace_to_oe, 0x14, 24, 1);
+
 /* reg_mfde_crspace_to_log_id
  * Which irisc triggered the timeout.
  * Access: RO
@@ -11390,11 +11419,85 @@ MLXSW_ITEM32(reg, mfde, crspace_to_log_id, 0x14, 0, 4);
  */
 MLXSW_ITEM64(reg, mfde, crspace_to_log_ip, 0x18, 0, 64);
 
+/* reg_mfde_kvd_im_stop_oe
+ * 0 - New event
+ * 1 - Old event, occurred before MFGD activation.
+ * Access: RO
+ */
+MLXSW_ITEM32(reg, mfde, kvd_im_stop_oe, 0x10, 24, 1);
+
 /* reg_mfde_kvd_im_stop_pipes_mask
  * Bit per kvh pipe.
  * Access: RO
  */
 MLXSW_ITEM32(reg, mfde, kvd_im_stop_pipes_mask, 0x10, 0, 16);
+
+/* reg_mfde_fw_assert_var0-4
+ * Variables passed to assert.
+ * Access: RO
+ */
+MLXSW_ITEM32(reg, mfde, fw_assert_var0, 0x10, 0, 32);
+MLXSW_ITEM32(reg, mfde, fw_assert_var1, 0x14, 0, 32);
+MLXSW_ITEM32(reg, mfde, fw_assert_var2, 0x18, 0, 32);
+MLXSW_ITEM32(reg, mfde, fw_assert_var3, 0x1C, 0, 32);
+MLXSW_ITEM32(reg, mfde, fw_assert_var4, 0x20, 0, 32);
+
+/* reg_mfde_fw_assert_existptr
+ * The instruction pointer when assert was triggered.
+ * Access: RO
+ */
+MLXSW_ITEM32(reg, mfde, fw_assert_existptr, 0x24, 0, 32);
+
+/* reg_mfde_fw_assert_callra
+ * The return address after triggering assert.
+ * Access: RO
+ */
+MLXSW_ITEM32(reg, mfde, fw_assert_callra, 0x28, 0, 32);
+
+/* reg_mfde_fw_assert_oe
+ * 0 - New event
+ * 1 - Old event, occurred before MFGD activation.
+ * Access: RO
+ */
+MLXSW_ITEM32(reg, mfde, fw_assert_oe, 0x2C, 24, 1);
+
+/* reg_mfde_fw_assert_tile_v
+ * 0: The assert was from main
+ * 1: The assert was from a tile
+ * Access: RO
+ */
+MLXSW_ITEM32(reg, mfde, fw_assert_tile_v, 0x2C, 23, 1);
+
+/* reg_mfde_fw_assert_tile_index
+ * When tile_v=1, the tile_index that caused the assert.
+ * Access: RO
+ */
+MLXSW_ITEM32(reg, mfde, fw_assert_tile_index, 0x2C, 16, 6);
+
+/* reg_mfde_fw_assert_ext_synd
+ * A generated one-to-one identifier which is specific per-assert.
+ * Access: RO
+ */
+MLXSW_ITEM32(reg, mfde, fw_assert_ext_synd, 0x2C, 0, 16);
+
+/* reg_mfde_fatal_cause_id
+ * HW interrupt cause id.
+ * Access: RO
+ */
+MLXSW_ITEM32(reg, mfde, fatal_cause_id, 0x10, 0, 18);
+
+/* reg_mfde_fatal_cause_tile_v
+ * 0: The assert was from main
+ * 1: The assert was from a tile
+ * Access: RO
+ */
+MLXSW_ITEM32(reg, mfde, fatal_cause_tile_v, 0x14, 23, 1);
+
+/* reg_mfde_fatal_cause_tile_index
+ * When tile_v=1, the tile_index that caused the assert.
+ * Access: RO
+ */
+MLXSW_ITEM32(reg, mfde, fatal_cause_tile_index, 0x14, 16, 6);
 
 /* TNGCR - Tunneling NVE General Configuration Register
  * ----------------------------------------------------
