@@ -169,7 +169,7 @@ static void free_tty_struct(struct tty_struct *tty)
 {
 	tty_ldisc_deinit(tty);
 	put_device(tty->dev);
-	kfree(tty->write_buf);
+	kvfree(tty->write_buf);
 	tty->magic = 0xDEADDEAD;
 	kfree(tty);
 }
@@ -986,9 +986,6 @@ static inline ssize_t do_tty_write(
 	 * layer has problems with bigger chunks. It will
 	 * claim to be able to handle more characters than
 	 * it actually does.
-	 *
-	 * FIXME: This can probably go away now except that 64K chunks
-	 * are too likely to fail unless switched to vmalloc...
 	 */
 	chunk = 2048;
 	if (test_bit(TTY_NO_WRITE_SPLIT, &tty->flags))
@@ -1003,12 +1000,12 @@ static inline ssize_t do_tty_write(
 		if (chunk < 1024)
 			chunk = 1024;
 
-		buf_chunk = kmalloc(chunk, GFP_KERNEL);
+		buf_chunk = kvmalloc(chunk, GFP_KERNEL | __GFP_RETRY_MAYFAIL);
 		if (!buf_chunk) {
 			ret = -ENOMEM;
 			goto out;
 		}
-		kfree(tty->write_buf);
+		kvfree(tty->write_buf);
 		tty->write_cnt = chunk;
 		tty->write_buf = buf_chunk;
 	}
