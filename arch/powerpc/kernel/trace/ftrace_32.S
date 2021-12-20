@@ -59,13 +59,6 @@ ftrace_call:
 	mtlr	r0
 
 	addi	r1, r1, INT_FRAME_SIZE
-ftrace_caller_common:
-#ifdef CONFIG_FUNCTION_GRAPH_TRACER
-.globl ftrace_graph_call
-ftrace_graph_call:
-	b	ftrace_graph_stub
-_GLOBAL(ftrace_graph_stub)
-#endif
 	/* old link register ends up in ctr reg */
 	bctr
 
@@ -135,52 +128,10 @@ ftrace_regs_call:
 
 	/* Pop our stack frame */
 	addi r1, r1, INT_FRAME_SIZE
-
-	b	ftrace_caller_common
-
-#ifdef CONFIG_FUNCTION_GRAPH_TRACER
-_GLOBAL(ftrace_graph_caller)
-	stwu	r1,-48(r1)
-	stw	r3, 12(r1)
-	stw	r4, 16(r1)
-	stw	r5, 20(r1)
-	stw	r6, 24(r1)
-	stw	r7, 28(r1)
-	stw	r8, 32(r1)
-	stw	r9, 36(r1)
-	stw	r10,40(r1)
-
-	addi	r5, r1, 48
-	mfctr	r4		/* ftrace_caller has moved local addr here */
-	stw	r4, 44(r1)
-	mflr	r3		/* ftrace_caller has restored LR from stack */
-	subi	r4, r4, MCOUNT_INSN_SIZE
-
-	bl	prepare_ftrace_return
-	nop
-
-        /*
-         * prepare_ftrace_return gives us the address we divert to.
-         * Change the LR in the callers stack frame to this.
-         */
-	stw	r3,52(r1)
-	mtlr	r3
-	lwz	r0,44(r1)
-	mtctr	r0
-
-	lwz	r3, 12(r1)
-	lwz	r4, 16(r1)
-	lwz	r5, 20(r1)
-	lwz	r6, 24(r1)
-	lwz	r7, 28(r1)
-	lwz	r8, 32(r1)
-	lwz	r9, 36(r1)
-	lwz	r10,40(r1)
-
-	addi	r1, r1, 48
-
+	/* old link register ends up in ctr reg */
 	bctr
 
+#ifdef CONFIG_FUNCTION_GRAPH_TRACER
 _GLOBAL(return_to_handler)
 	/* need to save return values */
 	stwu	r1, -16(r1)

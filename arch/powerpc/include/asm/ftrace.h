@@ -38,6 +38,12 @@ static __always_inline void ftrace_instruction_pointer_set(struct ftrace_regs *f
 {
 	regs_set_return_ip(&fregs->regs, ip);
 }
+
+struct ftrace_ops;
+
+#define ftrace_graph_func ftrace_graph_func
+void ftrace_graph_func(unsigned long ip, unsigned long parent_ip,
+		       struct ftrace_ops *op, struct ftrace_regs *fregs);
 #endif
 #endif /* __ASSEMBLY__ */
 
