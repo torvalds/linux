@@ -1709,11 +1709,92 @@ static const struct mlxsw_listener mlxsw_core_health_listener =
 	MLXSW_EVENTL(mlxsw_core_health_listener_func, MFDE, MFDE);
 
 static int
+mlxsw_core_health_fw_fatal_dump_fatal_cause(const char *mfde_pl,
+					    struct devlink_fmsg *fmsg)
+{
+	u32 val, tile_v;
+	int err;
+
+	val = mlxsw_reg_mfde_fatal_cause_id_get(mfde_pl);
+	err = devlink_fmsg_u32_pair_put(fmsg, "cause_id", val);
+	if (err)
+		return err;
+	tile_v = mlxsw_reg_mfde_fatal_cause_tile_v_get(mfde_pl);
+	if (tile_v) {
+		val = mlxsw_reg_mfde_fatal_cause_tile_index_get(mfde_pl);
+		err = devlink_fmsg_u8_pair_put(fmsg, "tile_index", val);
+		if (err)
+			return err;
+	}
+
+	return 0;
+}
+
+static int
+mlxsw_core_health_fw_fatal_dump_fw_assert(const char *mfde_pl,
+					  struct devlink_fmsg *fmsg)
+{
+	u32 val, tile_v;
+	int err;
+
+	val = mlxsw_reg_mfde_fw_assert_var0_get(mfde_pl);
+	err = devlink_fmsg_u32_pair_put(fmsg, "var0", val);
+	if (err)
+		return err;
+	val = mlxsw_reg_mfde_fw_assert_var1_get(mfde_pl);
+	err = devlink_fmsg_u32_pair_put(fmsg, "var1", val);
+	if (err)
+		return err;
+	val = mlxsw_reg_mfde_fw_assert_var2_get(mfde_pl);
+	err = devlink_fmsg_u32_pair_put(fmsg, "var2", val);
+	if (err)
+		return err;
+	val = mlxsw_reg_mfde_fw_assert_var3_get(mfde_pl);
+	err = devlink_fmsg_u32_pair_put(fmsg, "var3", val);
+	if (err)
+		return err;
+	val = mlxsw_reg_mfde_fw_assert_var4_get(mfde_pl);
+	err = devlink_fmsg_u32_pair_put(fmsg, "var4", val);
+	if (err)
+		return err;
+	val = mlxsw_reg_mfde_fw_assert_existptr_get(mfde_pl);
+	err = devlink_fmsg_u32_pair_put(fmsg, "existptr", val);
+	if (err)
+		return err;
+	val = mlxsw_reg_mfde_fw_assert_callra_get(mfde_pl);
+	err = devlink_fmsg_u32_pair_put(fmsg, "callra", val);
+	if (err)
+		return err;
+	val = mlxsw_reg_mfde_fw_assert_oe_get(mfde_pl);
+	err = devlink_fmsg_bool_pair_put(fmsg, "old_event", val);
+	if (err)
+		return err;
+	tile_v = mlxsw_reg_mfde_fw_assert_tile_v_get(mfde_pl);
+	if (tile_v) {
+		val = mlxsw_reg_mfde_fw_assert_tile_index_get(mfde_pl);
+		err = devlink_fmsg_u8_pair_put(fmsg, "tile_index", val);
+		if (err)
+			return err;
+	}
+	val = mlxsw_reg_mfde_fw_assert_ext_synd_get(mfde_pl);
+	err = devlink_fmsg_u32_pair_put(fmsg, "ext_synd", val);
+	if (err)
+		return err;
+
+	return 0;
+}
+
+static int
 mlxsw_core_health_fw_fatal_dump_kvd_im_stop(const char *mfde_pl,
 					    struct devlink_fmsg *fmsg)
 {
 	u32 val;
+	int err;
 
+	val = mlxsw_reg_mfde_kvd_im_stop_oe_get(mfde_pl);
+	err = devlink_fmsg_bool_pair_put(fmsg, "old_event", val);
+	if (err)
+		return err;
 	val = mlxsw_reg_mfde_kvd_im_stop_pipes_mask_get(mfde_pl);
 	return devlink_fmsg_u32_pair_put(fmsg, "pipes_mask", val);
 }
@@ -1727,6 +1808,10 @@ mlxsw_core_health_fw_fatal_dump_crspace_to(const char *mfde_pl,
 
 	val = mlxsw_reg_mfde_crspace_to_log_address_get(mfde_pl);
 	err = devlink_fmsg_u32_pair_put(fmsg, "log_address", val);
+	if (err)
+		return err;
+	val = mlxsw_reg_mfde_crspace_to_oe_get(mfde_pl);
+	err = devlink_fmsg_bool_pair_put(fmsg, "old_event", val);
 	if (err)
 		return err;
 	val = mlxsw_reg_mfde_crspace_to_log_id_get(mfde_pl);
@@ -1774,6 +1859,15 @@ static int mlxsw_core_health_fw_fatal_dump(struct devlink_health_reporter *repor
 	case MLXSW_REG_MFDE_EVENT_ID_KVD_IM_STOP:
 		val_str = "KVD insertion machine stopped";
 		break;
+	case MLXSW_REG_MFDE_EVENT_ID_TEST:
+		val_str = "Test";
+		break;
+	case MLXSW_REG_MFDE_EVENT_ID_FW_ASSERT:
+		val_str = "FW assert";
+		break;
+	case MLXSW_REG_MFDE_EVENT_ID_FATAL_CAUSE:
+		val_str = "Fatal cause";
+		break;
 	default:
 		val_str = NULL;
 	}
@@ -1782,6 +1876,38 @@ static int mlxsw_core_health_fw_fatal_dump(struct devlink_health_reporter *repor
 		if (err)
 			return err;
 	}
+
+	err = devlink_fmsg_arr_pair_nest_end(fmsg);
+	if (err)
+		return err;
+
+	err = devlink_fmsg_arr_pair_nest_start(fmsg, "severity");
+	if (err)
+		return err;
+
+	val = mlxsw_reg_mfde_severity_get(mfde_pl);
+	err = devlink_fmsg_u8_pair_put(fmsg, "id", val);
+	if (err)
+		return err;
+	switch (val) {
+	case MLXSW_REG_MFDE_SEVERITY_FATL:
+		val_str = "Fatal";
+		break;
+	case MLXSW_REG_MFDE_SEVERITY_NRML:
+		val_str = "Normal";
+		break;
+	case MLXSW_REG_MFDE_SEVERITY_INTR:
+		val_str = "Debug";
+		break;
+	default:
+		val_str = NULL;
+	}
+	if (val_str) {
+		err = devlink_fmsg_string_pair_put(fmsg, "desc", val_str);
+		if (err)
+			return err;
+	}
+
 	err = devlink_fmsg_arr_pair_nest_end(fmsg);
 	if (err)
 		return err;
@@ -1839,6 +1965,11 @@ static int mlxsw_core_health_fw_fatal_dump(struct devlink_health_reporter *repor
 								  fmsg);
 	case MLXSW_REG_MFDE_EVENT_ID_KVD_IM_STOP:
 		return mlxsw_core_health_fw_fatal_dump_kvd_im_stop(mfde_pl,
+								   fmsg);
+	case MLXSW_REG_MFDE_EVENT_ID_FW_ASSERT:
+		return mlxsw_core_health_fw_fatal_dump_fw_assert(mfde_pl, fmsg);
+	case MLXSW_REG_MFDE_EVENT_ID_FATAL_CAUSE:
+		return mlxsw_core_health_fw_fatal_dump_fatal_cause(mfde_pl,
 								   fmsg);
 	}
 
