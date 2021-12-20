@@ -14,27 +14,20 @@
 /*
  * debug levels
  */
-#define MPI3_DEBUG			0x00000001
-#define MPI3_DEBUG_MSG_FRAME		0x00000002
-#define MPI3_DEBUG_SG			0x00000004
-#define MPI3_DEBUG_EVENTS		0x00000008
-#define MPI3_DEBUG_EVENT_WORK_TASK	0x00000010
-#define MPI3_DEBUG_INIT			0x00000020
-#define MPI3_DEBUG_EXIT			0x00000040
-#define MPI3_DEBUG_FAIL			0x00000080
-#define MPI3_DEBUG_TM			0x00000100
-#define MPI3_DEBUG_REPLY		0x00000200
-#define MPI3_DEBUG_HANDSHAKE		0x00000400
-#define MPI3_DEBUG_CONFIG		0x00000800
-#define MPI3_DEBUG_DL			0x00001000
-#define MPI3_DEBUG_RESET		0x00002000
-#define MPI3_DEBUG_SCSI			0x00004000
-#define MPI3_DEBUG_IOCTL		0x00008000
-#define MPI3_DEBUG_CSMISAS		0x00010000
-#define MPI3_DEBUG_SAS			0x00020000
-#define MPI3_DEBUG_TRANSPORT		0x00040000
-#define MPI3_DEBUG_TASK_SET_FULL	0x00080000
-#define MPI3_DEBUG_TRIGGER_DIAG		0x00200000
+
+#define MPI3_DEBUG_EVENT		0x00000001
+#define MPI3_DEBUG_EVENT_WORK_TASK	0x00000002
+#define MPI3_DEBUG_INIT		0x00000004
+#define MPI3_DEBUG_EXIT		0x00000008
+#define MPI3_DEBUG_TM			0x00000010
+#define MPI3_DEBUG_RESET		0x00000020
+#define MPI3_DEBUG_SCSI_ERROR		0x00000040
+#define MPI3_DEBUG_REPLY		0x00000080
+#define MPI3_DEBUG_IOCTL_ERROR		0x00008000
+#define MPI3_DEBUG_IOCTL_INFO		0x00010000
+#define MPI3_DEBUG_SCSI_INFO		0x00020000
+#define MPI3_DEBUG			0x01000000
+#define MPI3_DEBUG_SG			0x02000000
 
 
 /*
@@ -50,11 +43,103 @@
 #define ioc_info(ioc, fmt, ...) \
 	pr_info("%s: " fmt, (ioc)->name, ##__VA_ARGS__)
 
-
-#define dbgprint(IOC, FMT, ...) \
+#define dprint(ioc, fmt, ...) \
 	do { \
-		if (IOC->logging_level & MPI3_DEBUG) \
-			pr_info("%s: " FMT, (IOC)->name, ##__VA_ARGS__); \
+		if (ioc->logging_level & MPI3_DEBUG) \
+			pr_info("%s: " fmt, (ioc)->name, ##__VA_ARGS__); \
+	} while (0)
+
+#define dprint_event_th(ioc, fmt, ...) \
+	do { \
+		if (ioc->logging_level & MPI3_DEBUG_EVENT) \
+			pr_info("%s: " fmt, (ioc)->name, ##__VA_ARGS__); \
+	} while (0)
+
+#define dprint_event_bh(ioc, fmt, ...) \
+	do { \
+		if (ioc->logging_level & MPI3_DEBUG_EVENT_WORK_TASK) \
+			pr_info("%s: " fmt, (ioc)->name, ##__VA_ARGS__); \
+	} while (0)
+
+#define dprint_init(ioc, fmt, ...) \
+	do { \
+		if (ioc->logging_level & MPI3_DEBUG_INIT) \
+			pr_info("%s: " fmt, (ioc)->name, ##__VA_ARGS__); \
+	} while (0)
+
+#define dprint_exit(ioc, fmt, ...) \
+	do { \
+		if (ioc->logging_level & MPI3_DEBUG_EXIT) \
+			pr_info("%s: " fmt, (ioc)->name, ##__VA_ARGS__); \
+	} while (0)
+
+#define dprint_tm(ioc, fmt, ...) \
+	do { \
+		if (ioc->logging_level & MPI3_DEBUG_TM) \
+			pr_info("%s: " fmt, (ioc)->name, ##__VA_ARGS__); \
+	} while (0)
+
+#define dprint_reply(ioc, fmt, ...) \
+	do { \
+		if (ioc->logging_level & MPI3_DEBUG_REPLY) \
+			pr_info("%s: " fmt, (ioc)->name, ##__VA_ARGS__); \
+	} while (0)
+
+#define dprint_reset(ioc, fmt, ...) \
+	do { \
+		if (ioc->logging_level & MPI3_DEBUG_RESET) \
+			pr_info("%s: " fmt, (ioc)->name, ##__VA_ARGS__); \
+	} while (0)
+
+#define dprint_scsi_info(ioc, fmt, ...) \
+	do { \
+		if (ioc->logging_level & MPI3_DEBUG_SCSI_INFO) \
+			pr_info("%s: " fmt, (ioc)->name, ##__VA_ARGS__); \
+	} while (0)
+
+#define dprint_scsi_err(ioc, fmt, ...) \
+	do { \
+		if (ioc->logging_level & MPI3_DEBUG_SCSI_ERROR) \
+			pr_info("%s: " fmt, (ioc)->name, ##__VA_ARGS__); \
+	} while (0)
+
+#define dprint_scsi_command(ioc, SCMD, LOG_LEVEL) \
+	do { \
+		if (ioc->logging_level & LOG_LEVEL) \
+			scsi_print_command(SCMD); \
+	} while (0)
+
+
+#define dprint_ioctl_info(ioc, fmt, ...) \
+	do { \
+		if (ioc->logging_level & MPI3_DEBUG_IOCTL_INFO) \
+			pr_info("%s: " fmt, (ioc)->name, ##__VA_ARGS__); \
+	} while (0)
+
+#define dprint_ioctl_err(ioc, fmt, ...) \
+	do { \
+		if (ioc->logging_level & MPI3_DEBUG_IOCTL_ERROR) \
+			pr_info("%s: " fmt, (ioc)->name, ##__VA_ARGS__); \
 	} while (0)
 
 #endif /* MPT3SAS_DEBUG_H_INCLUDED */
+
+/**
+ * dprint_dump_req - print message frame contents
+ * @req: pointer to message frame
+ * @sz: number of dwords
+ */
+static inline void
+dprint_dump_req(void *req, int sz)
+{
+	int i;
+	__le32 *mfp = (__le32 *)req;
+
+	pr_info("request:\n\t");
+	for (i = 0; i < sz; i++) {
+		if (i && ((i % 8) == 0))
+			pr_info("\n\t");
+		pr_info("%08x ", le32_to_cpu(mfp[i]));
+	}
+	pr_info("\n");
+}
