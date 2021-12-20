@@ -34,13 +34,16 @@
  */
 _GLOBAL(ftrace_regs_caller)
 	/* Save the original return address in A's stack frame */
-	std	r0,LRSAVE(r1)
+#ifdef CONFIG_MPROFILE_KERNEL
+	PPC_STL	r0,LRSAVE(r1)
+#endif
 
 	/* Create our stack frame + pt_regs */
-	stdu	r1,-SWITCH_FRAME_SIZE(r1)
+	PPC_STLU	r1,-SWITCH_FRAME_SIZE(r1)
 
 	/* Save all gprs to pt_regs */
 	SAVE_GPR(0, r1)
+#ifdef CONFIG_PPC64
 	SAVE_GPRS(2, 11, r1)
 
 	/* Ok to continue? */
@@ -49,10 +52,13 @@ _GLOBAL(ftrace_regs_caller)
 	beq	ftrace_no_trace
 
 	SAVE_GPRS(12, 31, r1)
+#else
+	stmw	r2, GPR2(r1)
+#endif
 
 	/* Save previous stack pointer (r1) */
 	addi	r8, r1, SWITCH_FRAME_SIZE
-	std	r8, GPR1(r1)
+	PPC_STL	r8, GPR1(r1)
 
 	/* Load special regs for save below */
 	mfmsr   r8
@@ -63,10 +69,11 @@ _GLOBAL(ftrace_regs_caller)
 	/* Get the _mcount() call site out of LR */
 	mflr	r7
 	/* Save it as pt_regs->nip */
-	std     r7, _NIP(r1)
+	PPC_STL	r7, _NIP(r1)
 	/* Save the read LR in pt_regs->link */
-	std     r0, _LINK(r1)
+	PPC_STL	r0, _LINK(r1)
 
+#ifdef CONFIG_PPC64
 	/* Save callee's TOC in the ABI compliant location */
 	std	r2, 24(r1)
 	ld	r2,PACATOC(r13)	/* get kernel TOC in r2 */
@@ -74,8 +81,12 @@ _GLOBAL(ftrace_regs_caller)
 	addis	r3,r2,function_trace_op@toc@ha
 	addi	r3,r3,function_trace_op@toc@l
 	ld	r5,0(r3)
+#else
+	lis	r3,function_trace_op@ha
+	lwz	r5,function_trace_op@l(r3)
+#endif
 
-#ifdef CONFIG_LIVEPATCH
+#ifdef CONFIG_LIVEPATCH_64
 	mr	r14,r7		/* remember old NIP */
 #endif
 	/* Calculate ip from nip-4 into r3 for call below */
@@ -85,10 +96,10 @@ _GLOBAL(ftrace_regs_caller)
 	mr	r4, r0
 
 	/* Save special regs */
-	std     r8, _MSR(r1)
-	std     r9, _CTR(r1)
-	std     r10, _XER(r1)
-	std     r11, _CCR(r1)
+	PPC_STL	r8, _MSR(r1)
+	PPC_STL	r9, _CTR(r1)
+	PPC_STL	r10, _XER(r1)
+	PPC_STL	r11, _CCR(r1)
 
 	/* Load &pt_regs in r6 for call below */
 	addi    r6, r1 ,STACK_FRAME_OVERHEAD
@@ -100,27 +111,32 @@ ftrace_regs_call:
 	nop
 
 	/* Load ctr with the possibly modified NIP */
-	ld	r3, _NIP(r1)
+	PPC_LL	r3, _NIP(r1)
 	mtctr	r3
-#ifdef CONFIG_LIVEPATCH
+#ifdef CONFIG_LIVEPATCH_64
 	cmpd	r14, r3		/* has NIP been altered? */
 #endif
 
 	/* Restore gprs */
-	REST_GPR(0, r1)
+#ifdef CONFIG_PPC64
 	REST_GPRS(2, 31, r1)
+#else
+	lmw	r2, GPR2(r1)
+#endif
 
 	/* Restore possibly modified LR */
-	ld	r0, _LINK(r1)
+	PPC_LL	r0, _LINK(r1)
 	mtlr	r0
 
+#ifdef CONFIG_PPC64
 	/* Restore callee's TOC */
 	ld	r2, 24(r1)
+#endif
 
 	/* Pop our stack frame */
 	addi r1, r1, SWITCH_FRAME_SIZE
 
-#ifdef CONFIG_LIVEPATCH
+#ifdef CONFIG_LIVEPATCH_64
         /* Based on the cmpd above, if the NIP was altered handle livepatch */
 	bne-	livepatch_handler
 #endif
@@ -129,6 +145,7 @@ ftrace_regs_call:
 _GLOBAL(ftrace_stub)
 	blr
 
+#ifdef CONFIG_PPC64
 ftrace_no_trace:
 	mflr	r3
 	mtctr	r3
@@ -136,25 +153,31 @@ ftrace_no_trace:
 	addi	r1, r1, SWITCH_FRAME_SIZE
 	mtlr	r0
 	bctr
+#endif
 
 _GLOBAL(ftrace_caller)
 	/* Save the original return address in A's stack frame */
-	std	r0, LRSAVE(r1)
+#ifdef CONFIG_MPROFILE_KERNEL
+	PPC_STL	r0, LRSAVE(r1)
+#endif
 
 	/* Create our stack frame + pt_regs */
-	stdu	r1, -SWITCH_FRAME_SIZE(r1)
+	PPC_STLU	r1, -SWITCH_FRAME_SIZE(r1)
 
 	/* Save all gprs to pt_regs */
 	SAVE_GPRS(3, 10, r1)
 
+#ifdef CONFIG_PPC64
 	lbz	r3, PACA_FTRACE_ENABLED(r13)
 	cmpdi	r3, 0
 	beq	ftrace_no_trace
+#endif
 
 	/* Get the _mcount() call site out of LR */
 	mflr	r7
-	std     r7, _NIP(r1)
+	PPC_STL     r7, _NIP(r1)
 
+#ifdef CONFIG_PPC64
 	/* Save callee's TOC in the ABI compliant location */
 	std	r2, 24(r1)
 	ld	r2, PACATOC(r13)	/* get kernel TOC in r2 */
@@ -162,6 +185,10 @@ _GLOBAL(ftrace_caller)
 	addis	r3, r2, function_trace_op@toc@ha
 	addi	r3, r3, function_trace_op@toc@l
 	ld	r5, 0(r3)
+#else
+	lis	r3,function_trace_op@ha
+	lwz	r5,function_trace_op@l(r3)
+#endif
 
 #ifdef CONFIG_LIVEPATCH_64
 	SAVE_GPR(14, r1)
@@ -171,7 +198,7 @@ _GLOBAL(ftrace_caller)
 	subi    r3, r7, MCOUNT_INSN_SIZE
 
 	/* Put the original return address in r4 as parent_ip */
-	std	r0, _LINK(r1)
+	PPC_STL	r0, _LINK(r1)
 	mr	r4, r0
 
 	/* Load &pt_regs in r6 for call below */
@@ -183,7 +210,7 @@ ftrace_call:
 	bl	ftrace_stub
 	nop
 
-	ld	r3, _NIP(r1)
+	PPC_LL	r3, _NIP(r1)
 	mtctr	r3
 #ifdef CONFIG_LIVEPATCH_64
 	cmpd	r14, r3		/* has NIP been altered? */
@@ -193,11 +220,13 @@ ftrace_call:
 	/* Restore gprs */
 	REST_GPRS(3, 10, r1)
 
+#ifdef CONFIG_PPC64
 	/* Restore callee's TOC */
 	ld	r2, 24(r1)
+#endif
 
 	/* Restore possibly modified LR */
-	ld	r0, _LINK(r1)
+	PPC_LL	r0, _LINK(r1)
 	mtlr	r0
 
 	/* Pop our stack frame */
@@ -209,7 +238,7 @@ ftrace_call:
 #endif
 	bctr			/* jump after _mcount site */
 
-#ifdef CONFIG_LIVEPATCH
+#ifdef CONFIG_LIVEPATCH_64
 	/*
 	 * This function runs in the mcount context, between two functions. As
 	 * such it can only clobber registers which are volatile and used in
