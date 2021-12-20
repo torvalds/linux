@@ -27,17 +27,38 @@ _GLOBAL(_mcount)
 EXPORT_SYMBOL(_mcount)
 
 _GLOBAL(ftrace_caller)
-	MCOUNT_SAVE_FRAME
-	/* r3 ends up with link register */
+	stwu	r1, -INT_FRAME_SIZE(r1)
+
+	SAVE_GPRS(3, 10, r1)
+
+	addi	r8, r1, INT_FRAME_SIZE
+	stw	r8, GPR1(r1)
+
+	mflr	r3
+	stw	r3, _NIP(r1)
 	subi	r3, r3, MCOUNT_INSN_SIZE
+
+	stw	r0, _LINK(r1)
+	mr	r4, r0
+
 	lis	r5,function_trace_op@ha
 	lwz	r5,function_trace_op@l(r5)
-	li	r6, 0
+
+	addi	r6, r1, STACK_FRAME_OVERHEAD
 .globl ftrace_call
 ftrace_call:
 	bl	ftrace_stub
 	nop
-	MCOUNT_RESTORE_FRAME
+
+	lwz	r3, _NIP(r1)
+	mtctr	r3
+
+	REST_GPRS(3, 10, r1)
+
+	lwz	r0, _LINK(r1)
+	mtlr	r0
+
+	addi	r1, r1, INT_FRAME_SIZE
 ftrace_caller_common:
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 .globl ftrace_graph_call
