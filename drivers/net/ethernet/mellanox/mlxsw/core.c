@@ -1708,6 +1708,39 @@ static void mlxsw_core_health_listener_func(const struct mlxsw_reg_info *reg,
 static const struct mlxsw_listener mlxsw_core_health_listener =
 	MLXSW_EVENTL(mlxsw_core_health_listener_func, MFDE, MFDE);
 
+static int
+mlxsw_core_health_fw_fatal_dump_kvd_im_stop(const char *mfde_pl,
+					    struct devlink_fmsg *fmsg)
+{
+	u32 val;
+
+	val = mlxsw_reg_mfde_kvd_im_stop_pipes_mask_get(mfde_pl);
+	return devlink_fmsg_u32_pair_put(fmsg, "pipes_mask", val);
+}
+
+static int
+mlxsw_core_health_fw_fatal_dump_crspace_to(const char *mfde_pl,
+					   struct devlink_fmsg *fmsg)
+{
+	u32 val;
+	int err;
+
+	val = mlxsw_reg_mfde_crspace_to_log_address_get(mfde_pl);
+	err = devlink_fmsg_u32_pair_put(fmsg, "log_address", val);
+	if (err)
+		return err;
+	val = mlxsw_reg_mfde_crspace_to_log_id_get(mfde_pl);
+	err = devlink_fmsg_u8_pair_put(fmsg, "log_irisc_id", val);
+	if (err)
+		return err;
+	val = mlxsw_reg_mfde_crspace_to_log_ip_get(mfde_pl);
+	err = devlink_fmsg_u64_pair_put(fmsg, "log_ip", val);
+	if (err)
+		return err;
+
+	return 0;
+}
+
 static int mlxsw_core_health_fw_fatal_dump(struct devlink_health_reporter *reporter,
 					   struct devlink_fmsg *fmsg, void *priv_ctx,
 					   struct netlink_ext_ack *extack)
@@ -1800,24 +1833,13 @@ static int mlxsw_core_health_fw_fatal_dump(struct devlink_health_reporter *repor
 	if (err)
 		return err;
 
-	if (event_id == MLXSW_REG_MFDE_EVENT_ID_CRSPACE_TO) {
-		val = mlxsw_reg_mfde_crspace_to_log_address_get(mfde_pl);
-		err = devlink_fmsg_u32_pair_put(fmsg, "log_address", val);
-		if (err)
-			return err;
-		val = mlxsw_reg_mfde_crspace_to_log_id_get(mfde_pl);
-		err = devlink_fmsg_u8_pair_put(fmsg, "log_irisc_id", val);
-		if (err)
-			return err;
-		val = mlxsw_reg_mfde_crspace_to_log_ip_get(mfde_pl);
-		err = devlink_fmsg_u64_pair_put(fmsg, "log_ip", val);
-		if (err)
-			return err;
-	} else if (event_id == MLXSW_REG_MFDE_EVENT_ID_KVD_IM_STOP) {
-		val = mlxsw_reg_mfde_kvd_im_stop_pipes_mask_get(mfde_pl);
-		err = devlink_fmsg_u32_pair_put(fmsg, "pipes_mask", val);
-		if (err)
-			return err;
+	switch (event_id) {
+	case MLXSW_REG_MFDE_EVENT_ID_CRSPACE_TO:
+		return mlxsw_core_health_fw_fatal_dump_crspace_to(mfde_pl,
+								  fmsg);
+	case MLXSW_REG_MFDE_EVENT_ID_KVD_IM_STOP:
+		return mlxsw_core_health_fw_fatal_dump_kvd_im_stop(mfde_pl,
+								   fmsg);
 	}
 
 	return 0;
