@@ -117,6 +117,22 @@ struct rand_data {
 #define JENT_EHEALTH		9 /* Health test failed during initialization */
 #define JENT_ERCT		10 /* RCT failed during initialization */
 
+/*
+ * The output n bits can receive more than n bits of min entropy, of course,
+ * but the fixed output of the conditioning function can only asymptotically
+ * approach the output size bits of min entropy, not attain that bound. Random
+ * maps will tend to have output collisions, which reduces the creditable
+ * output entropy (that is what SP 800-90B Section 3.1.5.1.2 attempts to bound).
+ *
+ * The value "64" is justified in Appendix A.4 of the current 90C draft,
+ * and aligns with NIST's in "epsilon" definition in this document, which is
+ * that a string can be considered "full entropy" if you can bound the min
+ * entropy in each bit of output to at least 1-epsilon, where epsilon is
+ * required to be <= 2^(-32).
+ */
+#define JENT_ENTROPY_SAFETY_FACTOR	64
+
+#include <linux/fips.h>
 #include "jitterentropy.h"
 
 /***************************************************************************
@@ -542,7 +558,10 @@ static int jent_measure_jitter(struct rand_data *ec)
  */
 static void jent_gen_entropy(struct rand_data *ec)
 {
-	unsigned int k = 0;
+	unsigned int k = 0, safety_factor = 0;
+
+	if (fips_enabled)
+		safety_factor = JENT_ENTROPY_SAFETY_FACTOR;
 
 	/* priming of the ->prev_time value */
 	jent_measure_jitter(ec);
@@ -556,7 +575,7 @@ static void jent_gen_entropy(struct rand_data *ec)
 		 * We multiply the loop value with ->osr to obtain the
 		 * oversampling rate requested by the caller
 		 */
-		if (++k >= (DATA_SIZE_BITS * ec->osr))
+		if (++k >= ((DATA_SIZE_BITS + safety_factor) * ec->osr))
 			break;
 	}
 }
