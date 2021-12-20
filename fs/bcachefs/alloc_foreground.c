@@ -152,6 +152,7 @@ long bch2_bucket_alloc_new_fs(struct bch_dev *ca)
 
 	for (b = buckets->first_bucket; b < buckets->nbuckets; b++)
 		if (is_available_bucket(buckets->b[b].mark) &&
+		    (!ca->buckets_nouse || !test_bit(b, ca->buckets_nouse)) &&
 		    !buckets->b[b].mark.owned_by_allocator)
 			goto success;
 	b = -1;
