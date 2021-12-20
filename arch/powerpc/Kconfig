@@ -9,6 +9,10 @@ config 64BIT
 	bool
 	default y if PPC64
 
+config LIVEPATCH_64
+	def_bool PPC64
+	depends	on LIVEPATCH
+
 config MMU
 	bool
 	default y
@@ -221,7 +225,7 @@ config PPC
 	select HAVE_KPROBES_ON_FTRACE
 	select HAVE_KRETPROBES
 	select HAVE_LD_DEAD_CODE_DATA_ELIMINATION
-	select HAVE_LIVEPATCH			if HAVE_DYNAMIC_FTRACE_WITH_REGS && PPC64
+	select HAVE_LIVEPATCH			if HAVE_DYNAMIC_FTRACE_WITH_REGS
 	select HAVE_MOD_ARCH_SPECIFIC
 	select HAVE_NMI				if PERF_EVENTS || (PPC64 && PPC_BOOK3S)
 	select HAVE_OPTPROBES
