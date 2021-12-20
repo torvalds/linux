@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0 OR MIT)
 /dts-v1/;
+#include <dt-bindings/reset/starfive-jh7110.h>
 #include "starfive_jh7110_clk.dtsi"
 
 / {
@@ -565,10 +566,14 @@
 			clock-names = "vcodec";
 			reg-names = "control";
 		};
-		rst: reset-controller {
+		rstgen: reset-controller {
 			compatible = "starfive,jh7110-reset";
+			reg = <0x0 0x13020000 0x0 0x10000>,
+				<0x0 0x10230000 0x0 0x10000>,
+				<0x0 0x17000000 0x0 0x10000>;
+			reg-names = "syscrg", "stgcrg", "aoncrg";
 			#reset-cells = <1>;
-			reset-controller;
+			status = "okay";
 		};
 
 		/*gmac device configuration*/
