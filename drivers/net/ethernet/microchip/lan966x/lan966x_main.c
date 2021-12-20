@@ -108,12 +108,12 @@ static int lan966x_port_set_mac_address(struct net_device *dev, void *p)
 	int ret;
 
 	/* Learn the new net device MAC address in the mac table. */
-	ret = lan966x_mac_cpu_learn(lan966x, addr->sa_data, port->pvid);
+	ret = lan966x_mac_cpu_learn(lan966x, addr->sa_data, HOST_PVID);
 	if (ret)
 		return ret;
 
 	/* Then forget the previous one. */
-	ret = lan966x_mac_cpu_forget(lan966x, dev->dev_addr, port->pvid);
+	ret = lan966x_mac_cpu_forget(lan966x, dev->dev_addr, HOST_PVID);
 	if (ret)
 		return ret;
 
@@ -283,6 +283,12 @@ static void lan966x_ifh_set_ipv(void *ifh, u64 bypass)
 		IFH_POS_IPV, IFH_LEN * 4, PACK, 0);
 }
 
+static void lan966x_ifh_set_vid(void *ifh, u64 vid)
+{
+	packing(ifh, &vid, IFH_POS_TCI + IFH_WID_TCI - 1,
+		IFH_POS_TCI, IFH_LEN * 4, PACK, 0);
+}
+
 static int lan966x_port_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct lan966x_port *port = netdev_priv(dev);
@@ -294,30 +300,9 @@ static int lan966x_port_xmit(struct sk_buff *skb, struct net_device *dev)
 	lan966x_ifh_set_port(ifh, BIT_ULL(port->chip_port));
 	lan966x_ifh_set_qos_class(ifh, skb->priority >= 7 ? 0x7 : skb->priority);
 	lan966x_ifh_set_ipv(ifh, skb->priority >= 7 ? 0x7 : skb->priority);
+	lan966x_ifh_set_vid(ifh, skb_vlan_tag_get(skb));
 
 	return lan966x_port_ifh_xmit(skb, ifh, dev);
-}
-
-static void lan966x_set_promisc(struct lan966x_port *port, bool enable)
-{
-	struct lan966x *lan966x = port->lan966x;
-
-	lan_rmw(ANA_CPU_FWD_CFG_SRC_COPY_ENA_SET(enable),
-		ANA_CPU_FWD_CFG_SRC_COPY_ENA,
-		lan966x, ANA_CPU_FWD_CFG(port->chip_port));
-}
-
-static void lan966x_port_change_rx_flags(struct net_device *dev, int flags)
-{
-	struct lan966x_port *port = netdev_priv(dev);
-
-	if (!(flags & IFF_PROMISC))
-		return;
-
-	if (dev->flags & IFF_PROMISC)
-		lan966x_set_promisc(port, true);
-	else
-		lan966x_set_promisc(port, false);
 }
 
 static int lan966x_port_change_mtu(struct net_device *dev, int new_mtu)
@@ -369,7 +354,6 @@ static const struct net_device_ops lan966x_port_netdev_ops = {
 	.ndo_open			= lan966x_port_open,
 	.ndo_stop			= lan966x_port_stop,
 	.ndo_start_xmit			= lan966x_port_xmit,
-	.ndo_change_rx_flags		= lan966x_port_change_rx_flags,
 	.ndo_change_mtu			= lan966x_port_change_mtu,
 	.ndo_set_rx_mode		= lan966x_port_set_rx_mode,
 	.ndo_get_phys_port_name		= lan966x_port_get_phys_port_name,
@@ -377,6 +361,11 @@ static const struct net_device_ops lan966x_port_netdev_ops = {
 	.ndo_set_mac_address		= lan966x_port_set_mac_address,
 	.ndo_get_port_parent_id		= lan966x_port_get_parent_id,
 };
+
+bool lan966x_netdevice_check(const struct net_device *dev)
+{
+	return dev->netdev_ops == &lan966x_port_netdev_ops;
+}
 
 static int lan966x_port_xtr_status(struct lan966x *lan966x, u8 grp)
 {
@@ -514,6 +503,9 @@ static irqreturn_t lan966x_xtr_irq_handler(int irq, void *args)
 
 		skb->protocol = eth_type_trans(skb, dev);
 
+		if (lan966x->bridge_mask & BIT(src_port))
+			skb->offload_fwd_mark = 1;
+
 		netif_rx_ni(skb);
 		dev->stats.rx_bytes += len;
 		dev->stats.rx_packets++;
@@ -525,6 +517,13 @@ recover:
 	} while (lan_rd(lan966x, QS_XTR_DATA_PRESENT) & BIT(grp));
 
 	return IRQ_HANDLED;
+}
+
+static irqreturn_t lan966x_ana_irq_handler(int irq, void *args)
+{
+	struct lan966x *lan966x = args;
+
+	return lan966x_mac_irq_handler(lan966x);
 }
 
 static void lan966x_cleanup_ports(struct lan966x *lan966x)
@@ -554,6 +553,11 @@ static void lan966x_cleanup_ports(struct lan966x *lan966x)
 
 	disable_irq(lan966x->xtr_irq);
 	lan966x->xtr_irq = -ENXIO;
+
+	if (lan966x->ana_irq) {
+		disable_irq(lan966x->ana_irq);
+		lan966x->ana_irq = -ENXIO;
+	}
 }
 
 static int lan966x_probe_port(struct lan966x *lan966x, u32 p,
@@ -578,13 +582,14 @@ static int lan966x_probe_port(struct lan966x *lan966x, u32 p,
 	port->dev = dev;
 	port->lan966x = lan966x;
 	port->chip_port = p;
-	port->pvid = PORT_PVID;
 	lan966x->ports[p] = port;
 
 	dev->max_mtu = ETH_MAX_MTU;
 
 	dev->netdev_ops = &lan966x_port_netdev_ops;
 	dev->ethtool_ops = &lan966x_ethtool_ops;
+	dev->features |= NETIF_F_HW_VLAN_CTAG_TX |
+			 NETIF_F_HW_VLAN_STAG_TX;
 	dev->needed_headroom = IFH_LEN * sizeof(u32);
 
 	eth_hw_addr_gen(dev, lan966x->base_mac, p + 1);
@@ -631,6 +636,10 @@ static int lan966x_probe_port(struct lan966x *lan966x, u32 p,
 		return err;
 	}
 
+	lan966x_vlan_port_set_vlan_aware(port, 0);
+	lan966x_vlan_port_set_vid(port, HOST_PVID, false, false);
+	lan966x_vlan_port_apply(port);
+
 	return 0;
 }
 
@@ -640,6 +649,8 @@ static void lan966x_init(struct lan966x *lan966x)
 
 	/* MAC table initialization */
 	lan966x_mac_init(lan966x);
+
+	lan966x_vlan_init(lan966x);
 
 	/* Flush queues */
 	lan_wr(lan_rd(lan966x, QS_XTR_FLUSH) |
@@ -870,6 +881,15 @@ static int lan966x_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
+	lan966x->ana_irq = platform_get_irq_byname(pdev, "ana");
+	if (lan966x->ana_irq) {
+		err = devm_request_threaded_irq(&pdev->dev, lan966x->ana_irq, NULL,
+						lan966x_ana_irq_handler, IRQF_ONESHOT,
+						"ana irq", lan966x);
+		if (err)
+			return dev_err_probe(&pdev->dev, err, "Unable to use ana irq");
+	}
+
 	/* init switch */
 	lan966x_init(lan966x);
 	lan966x_stats_init(lan966x);
@@ -899,6 +919,10 @@ static int lan966x_probe(struct platform_device *pdev)
 		lan966x_port_init(lan966x->ports[p]);
 	}
 
+	err = lan966x_fdb_init(lan966x);
+	if (err)
+		goto cleanup_ports;
+
 	return 0;
 
 cleanup_ports:
@@ -923,6 +947,9 @@ static int lan966x_remove(struct platform_device *pdev)
 	destroy_workqueue(lan966x->stats_queue);
 	mutex_destroy(&lan966x->stats_lock);
 
+	lan966x_mac_purge_entries(lan966x);
+	lan966x_fdb_deinit(lan966x);
+
 	return 0;
 }
 
@@ -934,7 +961,32 @@ static struct platform_driver lan966x_driver = {
 		.of_match_table = lan966x_match,
 	},
 };
-module_platform_driver(lan966x_driver);
+
+static int __init lan966x_switch_driver_init(void)
+{
+	int ret;
+
+	lan966x_register_notifier_blocks();
+
+	ret = platform_driver_register(&lan966x_driver);
+	if (ret)
+		goto err;
+
+	return 0;
+
+err:
+	lan966x_unregister_notifier_blocks();
+	return ret;
+}
+
+static void __exit lan966x_switch_driver_exit(void)
+{
+	platform_driver_unregister(&lan966x_driver);
+	lan966x_unregister_notifier_blocks();
+}
+
+module_init(lan966x_switch_driver_init);
+module_exit(lan966x_switch_driver_exit);
 
 MODULE_DESCRIPTION("Microchip LAN966X switch driver");
 MODULE_AUTHOR("Horatiu Vultur <horatiu.vultur@microchip.com>");
