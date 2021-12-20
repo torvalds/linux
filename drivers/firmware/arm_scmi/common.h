@@ -416,6 +416,9 @@ struct scmi_device *scmi_child_dev_find(struct device *parent,
  *				Used by core internally only when polling is
  *				selected as a waiting for reply method: i.e.
  *				if a completion irq was found use that anyway.
+ * @atomic_enabled: Flag to indicate that this transport, which is assured not
+ *		    to sleep anywhere on the TX path, can be used in atomic mode
+ *		    when requested.
  */
 struct scmi_desc {
 	int (*transport_init)(void);
@@ -426,6 +429,7 @@ struct scmi_desc {
 	int max_msg_size;
 	const bool force_polling;
 	const bool sync_cmds_completed_on_ret;
+	const bool atomic_enabled;
 };
 
 #ifdef CONFIG_ARM_SCMI_TRANSPORT_MAILBOX

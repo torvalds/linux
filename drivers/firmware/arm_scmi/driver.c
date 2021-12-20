@@ -923,6 +923,20 @@ static void reset_rx_to_maxsz(const struct scmi_protocol_handle *ph,
  * @ph: Pointer to SCMI protocol handle
  * @xfer: Transfer to initiate and wait for response
  *
+ * Using asynchronous commands in atomic/polling mode should be avoided since
+ * it could cause long busy-waiting here, so ignore polling for the delayed
+ * response and WARN if it was requested for this command transaction since
+ * upper layers should refrain from issuing such kind of requests.
+ *
+ * The only other option would have been to refrain from using any asynchronous
+ * command even if made available, when an atomic transport is detected, and
+ * instead forcibly use the synchronous version (thing that can be easily
+ * attained at the protocol layer), but this would also have led to longer
+ * stalls of the channel for synchronous commands and possibly timeouts.
+ * (in other words there is usually a good reason if a platform provides an
+ *  asynchronous version of a command and we should prefer to use it...just not
+ *  when using atomic/polling mode)
+ *
  * Return: -ETIMEDOUT in case of no delayed response, if transmit error,
  *	return corresponding error, else if all goes well, return 0.
  */
@@ -934,12 +948,24 @@ static int do_xfer_with_response(const struct scmi_protocol_handle *ph,
 
 	xfer->async_done = &async_response;
 
+	/*
+	 * Delayed responses should not be polled, so an async command should
+	 * not have been used when requiring an atomic/poll context; WARN and
+	 * perform instead a sleeping wait.
+	 * (Note Async + IgnoreDelayedResponses are sent via do_xfer)
+	 */
+	WARN_ON_ONCE(xfer->hdr.poll_completion);
+
 	ret = do_xfer(ph, xfer);
 	if (!ret) {
-		if (!wait_for_completion_timeout(xfer->async_done, timeout))
+		if (!wait_for_completion_timeout(xfer->async_done, timeout)) {
+			dev_err(ph->dev,
+				"timed out in delayed resp(caller: %pS)\n",
+				(void *)_RET_IP_);
 			ret = -ETIMEDOUT;
-		else if (xfer->hdr.status)
+		} else if (xfer->hdr.status) {
 			ret = scmi_to_linux_errno(xfer->hdr.status);
+		}
 	}
 
 	xfer->async_done = NULL;
@@ -1371,6 +1397,22 @@ static void scmi_devm_protocol_put(struct scmi_device *sdev, u8 protocol_id)
 	ret = devres_release(&sdev->dev, scmi_devm_release_protocol,
 			     scmi_devm_protocol_match, &protocol_id);
 	WARN_ON(ret);
+}
+
+/**
+ * scmi_is_transport_atomic  - Method to check if underlying transport for an
+ * SCMI instance is configured as atomic.
+ *
+ * @handle: A reference to the SCMI platform instance.
+ *
+ * Return: True if transport is configured as atomic
+ */
+static bool scmi_is_transport_atomic(const struct scmi_handle *handle)
+{
+	struct scmi_info *info = handle_to_scmi_info(handle);
+
+	return info->desc->atomic_enabled &&
+		is_transport_polling_capable(info);
 }
 
 static inline
@@ -1910,6 +1952,7 @@ static int scmi_probe(struct platform_device *pdev)
 	handle->version = &info->version;
 	handle->devm_protocol_get = scmi_devm_protocol_get;
 	handle->devm_protocol_put = scmi_devm_protocol_put;
+	handle->is_transport_atomic = scmi_is_transport_atomic;
 
 	if (desc->ops->link_supplier) {
 		ret = desc->ops->link_supplier(dev);
@@ -1927,6 +1970,10 @@ static int scmi_probe(struct platform_device *pdev)
 
 	if (scmi_notification_init(handle))
 		dev_err(dev, "SCMI Notifications NOT available.\n");
+
+	if (info->desc->atomic_enabled && !is_transport_polling_capable(info))
+		dev_err(dev,
+			"Transport is not polling capable. Atomic mode not supported.\n");
 
 	/*
 	 * Trigger SCMI Base protocol initialization.
