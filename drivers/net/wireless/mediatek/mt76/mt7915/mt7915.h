@@ -353,7 +353,13 @@ static inline u8 mt7915_lmac_mapping(struct mt7915_dev *dev, u8 ac)
 
 extern const struct ieee80211_ops mt7915_ops;
 extern const struct mt76_testmode_ops mt7915_testmode_ops;
+extern struct pci_driver mt7915_pci_driver;
+extern struct pci_driver mt7915_hif_driver;
 
+int mt7915_mmio_probe(struct device *pdev,
+		      void __iomem *mem_base,
+		      u32 device_id,
+		      int irq, struct mt7915_hif *hif2);
 u32 mt7915_reg_map(struct mt7915_dev *dev, u32 addr);
 u64 __mt7915_get_tsf(struct ieee80211_hw *hw, struct mt7915_vif *mvif);
 int mt7915_register_device(struct mt7915_dev *dev);
@@ -487,7 +493,6 @@ void mt7915_mac_work(struct work_struct *work);
 void mt7915_mac_reset_work(struct work_struct *work);
 void mt7915_mac_sta_rc_work(struct work_struct *work);
 void mt7915_mac_update_stats(struct mt7915_phy *phy);
-int mt7915_mmio_init(struct mt76_dev *mdev, void __iomem *mem_base, int irq);
 void mt7915_mac_twt_teardown_flow(struct mt7915_dev *dev,
 				  struct mt7915_sta *msta,
 				  u8 flowid);
