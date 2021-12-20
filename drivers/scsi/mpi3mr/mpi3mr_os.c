@@ -1989,6 +1989,40 @@ out:
 }
 
 /**
+ * mpi3mr_preparereset_evt_th - Prepare for reset event tophalf
+ * @mrioc: Adapter instance reference
+ * @event_reply: event data
+ *
+ * Blocks and unblocks host level I/O based on the reason code
+ *
+ * Return: Nothing
+ */
+static void mpi3mr_preparereset_evt_th(struct mpi3mr_ioc *mrioc,
+	struct mpi3_event_notification_reply *event_reply)
+{
+	struct mpi3_event_data_prepare_for_reset *evtdata =
+	    (struct mpi3_event_data_prepare_for_reset *)event_reply->event_data;
+
+	if (evtdata->reason_code == MPI3_EVENT_PREPARE_RESET_RC_START) {
+		dprint_event_th(mrioc,
+		    "prepare for reset event top half with rc=start\n");
+		if (mrioc->prepare_for_reset)
+			return;
+		mrioc->prepare_for_reset = 1;
+		mrioc->prepare_for_reset_timeout_counter = 0;
+	} else if (evtdata->reason_code == MPI3_EVENT_PREPARE_RESET_RC_ABORT) {
+		dprint_event_th(mrioc,
+		    "prepare for reset top half with rc=abort\n");
+		mrioc->prepare_for_reset = 0;
+		mrioc->prepare_for_reset_timeout_counter = 0;
+	}
+	if ((event_reply->msg_flags & MPI3_EVENT_NOTIFY_MSGFLAGS_ACK_MASK)
+	    == MPI3_EVENT_NOTIFY_MSGFLAGS_ACK_REQUIRED)
+		mpi3mr_send_event_ack(mrioc, event_reply->event, NULL,
+		    le32_to_cpu(event_reply->event_context));
+}
+
+/**
  * mpi3mr_energypackchg_evt_th - Energy pack change evt tophalf
  * @mrioc: Adapter instance reference
  * @event_reply: event data
@@ -2073,6 +2107,12 @@ void mpi3mr_os_handle_events(struct mpi3mr_ioc *mrioc,
 	{
 		process_evt_bh = 1;
 		mpi3mr_pcietopochg_evt_th(mrioc, event_reply);
+		break;
+	}
+	case MPI3_EVENT_PREPARE_FOR_RESET:
+	{
+		mpi3mr_preparereset_evt_th(mrioc, event_reply);
+		ack_req = 0;
 		break;
 	}
 	case MPI3_EVENT_DEVICE_INFO_CHANGED:

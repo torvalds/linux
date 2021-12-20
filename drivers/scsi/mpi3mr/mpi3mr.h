@@ -114,6 +114,7 @@ extern int prot_mask;
 #define MPI3MR_TSUPDATE_INTERVAL		900
 #define MPI3MR_DEFAULT_SHUTDOWN_TIME		120
 #define	MPI3MR_RAID_ERRREC_RESET_TIMEOUT	180
+#define MPI3MR_PREPARE_FOR_RESET_TIMEOUT	180
 #define MPI3MR_RESET_ACK_TIMEOUT		30
 
 #define MPI3MR_WATCHDOG_INTERVAL		1000 /* in milli seconds */
@@ -693,6 +694,8 @@ struct scmd_priv {
  * @prev_reset_result: Result of previous reset
  * @reset_mutex: Controller reset mutex
  * @reset_waitq: Controller reset  wait queue
+ * @prepare_for_reset: Prepare for reset event received
+ * @prepare_for_reset_timeout_counter: Prepare for reset timeout
  * @diagsave_timeout: Diagnostic information save timeout
  * @logging_level: Controller debug logging level
  * @flush_io_count: I/O count to flush after reset
@@ -824,6 +827,9 @@ struct mpi3mr_ioc {
 	int prev_reset_result;
 	struct mutex reset_mutex;
 	wait_queue_head_t reset_waitq;
+
+	u8 prepare_for_reset;
+	u16 prepare_for_reset_timeout_counter;
 
 	u16 diagsave_timeout;
 	int logging_level;

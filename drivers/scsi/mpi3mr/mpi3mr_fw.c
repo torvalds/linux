@@ -2262,7 +2262,8 @@ static void mpi3mr_watchdog_work(struct work_struct *work)
 	    container_of(work, struct mpi3mr_ioc, watchdog_work.work);
 	unsigned long flags;
 	enum mpi3mr_iocstate ioc_state;
-	u32 fault, host_diagnostic;
+	u32 fault, host_diagnostic, ioc_status;
+	u32 reset_reason = MPI3MR_RESET_FROM_FAULT_WATCH;
 
 	if (mrioc->reset_in_progress || mrioc->unrecoverable)
 		return;
@@ -2272,43 +2273,55 @@ static void mpi3mr_watchdog_work(struct work_struct *work)
 		mpi3mr_sync_timestamp(mrioc);
 	}
 
+	if ((mrioc->prepare_for_reset) &&
+	    ((mrioc->prepare_for_reset_timeout_counter++) >=
+	     MPI3MR_PREPARE_FOR_RESET_TIMEOUT)) {
+		mpi3mr_soft_reset_handler(mrioc,
+		    MPI3MR_RESET_FROM_CIACTVRST_TIMER, 1);
+		return;
+	}
+
+	ioc_status = readl(&mrioc->sysif_regs->ioc_status);
+	if (ioc_status & MPI3_SYSIF_IOC_STATUS_RESET_HISTORY) {
+		mpi3mr_soft_reset_handler(mrioc, MPI3MR_RESET_FROM_FIRMWARE, 0);
+		return;
+	}
+
 	/*Check for fault state every one second and issue Soft reset*/
 	ioc_state = mpi3mr_get_iocstate(mrioc);
-	if (ioc_state == MRIOC_STATE_FAULT) {
-		fault = readl(&mrioc->sysif_regs->fault) &
-		    MPI3_SYSIF_FAULT_CODE_MASK;
-		host_diagnostic = readl(&mrioc->sysif_regs->host_diagnostic);
-		if (host_diagnostic & MPI3_SYSIF_HOST_DIAG_SAVE_IN_PROGRESS) {
-			if (!mrioc->diagsave_timeout) {
-				mpi3mr_print_fault_info(mrioc);
-				ioc_warn(mrioc, "Diag save in progress\n");
-			}
-			if ((mrioc->diagsave_timeout++) <=
-			    MPI3_SYSIF_DIAG_SAVE_TIMEOUT)
-				goto schedule_work;
-		} else
+	if (ioc_state != MRIOC_STATE_FAULT)
+		goto schedule_work;
+
+	fault = readl(&mrioc->sysif_regs->fault) & MPI3_SYSIF_FAULT_CODE_MASK;
+	host_diagnostic = readl(&mrioc->sysif_regs->host_diagnostic);
+	if (host_diagnostic & MPI3_SYSIF_HOST_DIAG_SAVE_IN_PROGRESS) {
+		if (!mrioc->diagsave_timeout) {
 			mpi3mr_print_fault_info(mrioc);
-		mrioc->diagsave_timeout = 0;
-
-		if (fault == MPI3_SYSIF_FAULT_CODE_POWER_CYCLE_REQUIRED) {
-			ioc_info(mrioc,
-			    "Factory Reset fault occurred marking controller as unrecoverable"
-			    );
-			mrioc->unrecoverable = 1;
-			goto out;
+			ioc_warn(mrioc, "diag save in progress\n");
 		}
-
-		if ((fault == MPI3_SYSIF_FAULT_CODE_DIAG_FAULT_RESET) ||
-		    (fault == MPI3_SYSIF_FAULT_CODE_SOFT_RESET_IN_PROGRESS) ||
-		    (mrioc->reset_in_progress))
-			goto out;
-		if (fault == MPI3_SYSIF_FAULT_CODE_CI_ACTIVATION_RESET)
-			mpi3mr_soft_reset_handler(mrioc,
-			    MPI3MR_RESET_FROM_CIACTIV_FAULT, 0);
-		else
-			mpi3mr_soft_reset_handler(mrioc,
-			    MPI3MR_RESET_FROM_FAULT_WATCH, 0);
+		if ((mrioc->diagsave_timeout++) <= MPI3_SYSIF_DIAG_SAVE_TIMEOUT)
+			goto schedule_work;
 	}
+
+	mpi3mr_print_fault_info(mrioc);
+	mrioc->diagsave_timeout = 0;
+
+	switch (fault) {
+	case MPI3_SYSIF_FAULT_CODE_POWER_CYCLE_REQUIRED:
+		ioc_info(mrioc,
+		    "controller requires system power cycle, marking controller as unrecoverable\n");
+		mrioc->unrecoverable = 1;
+		return;
+	case MPI3_SYSIF_FAULT_CODE_SOFT_RESET_IN_PROGRESS:
+		return;
+	case MPI3_SYSIF_FAULT_CODE_CI_ACTIVATION_RESET:
+		reset_reason = MPI3MR_RESET_FROM_CIACTIV_FAULT;
+		break;
+	default:
+		break;
+	}
+	mpi3mr_soft_reset_handler(mrioc, reset_reason, 0);
+	return;
 
 schedule_work:
 	spin_lock_irqsave(&mrioc->watchdog_lock, flags);
@@ -2317,7 +2330,6 @@ schedule_work:
 		    &mrioc->watchdog_work,
 		    msecs_to_jiffies(MPI3MR_WATCHDOG_INTERVAL));
 	spin_unlock_irqrestore(&mrioc->watchdog_lock, flags);
-out:
 	return;
 }
 
@@ -3488,6 +3500,7 @@ static int mpi3mr_enable_events(struct mpi3mr_ioc *mrioc)
 	mpi3mr_unmask_events(mrioc, MPI3_EVENT_SAS_BROADCAST_PRIMITIVE);
 	mpi3mr_unmask_events(mrioc, MPI3_EVENT_PCIE_TOPOLOGY_CHANGE_LIST);
 	mpi3mr_unmask_events(mrioc, MPI3_EVENT_PCIE_ENUMERATION);
+	mpi3mr_unmask_events(mrioc, MPI3_EVENT_PREPARE_FOR_RESET);
 	mpi3mr_unmask_events(mrioc, MPI3_EVENT_CABLE_MGMT);
 	mpi3mr_unmask_events(mrioc, MPI3_EVENT_ENERGY_PACK_CHANGE);
 
@@ -4223,6 +4236,10 @@ int mpi3mr_soft_reset_handler(struct mpi3mr_ioc *mrioc,
 	mpi3mr_cleanup_fwevt_list(mrioc);
 	mpi3mr_flush_host_io(mrioc);
 	mpi3mr_invalidate_devhandles(mrioc);
+	if (mrioc->prepare_for_reset) {
+		mrioc->prepare_for_reset = 0;
+		mrioc->prepare_for_reset_timeout_counter = 0;
+	}
 	mpi3mr_memset_buffers(mrioc);
 	retval = mpi3mr_reinit_ioc(mrioc, 0);
 	if (retval) {
