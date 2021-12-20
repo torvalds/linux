@@ -25,8 +25,6 @@
  * @shmem: Transmit/Receive shared memory area
  * @shmem_lock: Lock to protect access to Tx/Rx shared memory area
  * @func_id: smc/hvc call function id
- * @irq: Optional; employed when platforms indicates msg completion by intr.
- * @tx_complete: Optional, employed only when irq is valid.
  */
 
 struct scmi_smc {
@@ -34,15 +32,14 @@ struct scmi_smc {
 	struct scmi_shared_mem __iomem *shmem;
 	struct mutex shmem_lock;
 	u32 func_id;
-	int irq;
-	struct completion tx_complete;
 };
 
 static irqreturn_t smc_msg_done_isr(int irq, void *data)
 {
 	struct scmi_smc *scmi_info = data;
 
-	complete(&scmi_info->tx_complete);
+	scmi_rx_callback(scmi_info->cinfo,
+			 shmem_read_header(scmi_info->shmem), NULL);
 
 	return IRQ_HANDLED;
 }
@@ -111,8 +108,8 @@ static int smc_chan_setup(struct scmi_chan_info *cinfo, struct device *dev,
 			dev_err(dev, "failed to setup SCMI smc irq\n");
 			return ret;
 		}
-		init_completion(&scmi_info->tx_complete);
-		scmi_info->irq = irq;
+	} else {
+		cinfo->no_completion_irq = true;
 	}
 
 	scmi_info->func_id = func_id;
@@ -142,26 +139,22 @@ static int smc_send_message(struct scmi_chan_info *cinfo,
 	struct scmi_smc *scmi_info = cinfo->transport_info;
 	struct arm_smccc_res res;
 
+	/*
+	 * Channel lock will be released only once response has been
+	 * surely fully retrieved, so after .mark_txdone()
+	 */
 	mutex_lock(&scmi_info->shmem_lock);
 
 	shmem_tx_prepare(scmi_info->shmem, xfer);
 
-	if (scmi_info->irq)
-		reinit_completion(&scmi_info->tx_complete);
-
 	arm_smccc_1_1_invoke(scmi_info->func_id, 0, 0, 0, 0, 0, 0, 0, &res);
 
-	if (scmi_info->irq)
-		wait_for_completion(&scmi_info->tx_complete);
-
-	scmi_rx_callback(scmi_info->cinfo,
-			 shmem_read_header(scmi_info->shmem), NULL);
-
-	mutex_unlock(&scmi_info->shmem_lock);
-
 	/* Only SMCCC_RET_NOT_SUPPORTED is valid error code */
-	if (res.a0)
+	if (res.a0) {
+		mutex_unlock(&scmi_info->shmem_lock);
 		return -EOPNOTSUPP;
+	}
+
 	return 0;
 }
 
@@ -171,6 +164,13 @@ static void smc_fetch_response(struct scmi_chan_info *cinfo,
 	struct scmi_smc *scmi_info = cinfo->transport_info;
 
 	shmem_fetch_response(scmi_info->shmem, xfer);
+}
+
+static void smc_mark_txdone(struct scmi_chan_info *cinfo, int ret)
+{
+	struct scmi_smc *scmi_info = cinfo->transport_info;
+
+	mutex_unlock(&scmi_info->shmem_lock);
 }
 
 static bool
@@ -186,6 +186,7 @@ static const struct scmi_transport_ops scmi_smc_ops = {
 	.chan_setup = smc_chan_setup,
 	.chan_free = smc_chan_free,
 	.send_message = smc_send_message,
+	.mark_txdone = smc_mark_txdone,
 	.fetch_response = smc_fetch_response,
 	.poll_done = smc_poll_done,
 };
