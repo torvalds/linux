@@ -1810,6 +1810,12 @@ static int iwl_mei_probe(struct mei_cl_device *cldev,
 	mei_cldev_set_drvdata(cldev, mei);
 	mei->cldev = cldev;
 
+	/*
+	 * The CSME firmware needs to boot the internal WLAN client. Wait here
+	 * so that the DMA map request will succeed.
+	 */
+	msleep(20);
+
 	ret = iwl_mei_alloc_shared_mem(cldev);
 	if (ret)
 		goto free;
