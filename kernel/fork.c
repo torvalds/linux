@@ -2120,14 +2120,14 @@ static __latent_entropy struct task_struct *copy_process(
 	cgroup_fork(p);
 	if (p->flags & PF_KTHREAD) {
 		if (!set_kthread_struct(p))
-			goto bad_fork_cleanup_threadgroup_lock;
+			goto bad_fork_cleanup_delayacct;
 	}
 #ifdef CONFIG_NUMA
 	p->mempolicy = mpol_dup(p->mempolicy);
 	if (IS_ERR(p->mempolicy)) {
 		retval = PTR_ERR(p->mempolicy);
 		p->mempolicy = NULL;
-		goto bad_fork_cleanup_threadgroup_lock;
+		goto bad_fork_cleanup_delayacct;
 	}
 #endif
 #ifdef CONFIG_CPUSETS
@@ -2465,7 +2465,7 @@ bad_fork_cleanup_policy:
 #ifdef CONFIG_NUMA
 	mpol_put(p->mempolicy);
 #endif
-bad_fork_cleanup_threadgroup_lock:
+bad_fork_cleanup_delayacct:
 	delayacct_tsk_free(p);
 bad_fork_cleanup_count:
 	dec_rlimit_ucounts(task_ucounts(p), UCOUNT_RLIMIT_NPROC, 1);
