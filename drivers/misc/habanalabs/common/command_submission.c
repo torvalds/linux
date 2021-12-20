@@ -2453,9 +2453,19 @@ static int hl_cs_poll_fences(struct multi_cs_data *mcs_data, struct multi_cs_com
 			 * returns to user indicating CS completed before it finished
 			 * all of its mcs handling, to avoid race the next time the
 			 * user waits for mcs.
+			 * note: when reaching this case fence is definitely not NULL
+			 *       but NULL check was added to overcome static analysis
 			 */
-			if (!fence->mcs_handling_done)
+			if (fence && !fence->mcs_handling_done) {
+				/*
+				 * in case multi CS is completed but MCS handling not done
+				 * we "complete" the multi CS to prevent it from waiting
+				 * until time-out and the "multi-CS handling done" will have
+				 * another chance at the next iteration
+				 */
+				complete_all(&mcs_compl->completion);
 				break;
+			}
 
 			mcs_data->completion_bitmap |= BIT(i);
 			/*
