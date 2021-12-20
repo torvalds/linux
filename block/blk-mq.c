@@ -2549,6 +2549,14 @@ static void blk_mq_plug_issue_direct(struct blk_plug *plug, bool from_schedule)
 		blk_mq_commit_rqs(hctx, &queued, from_schedule);
 }
 
+static void __blk_mq_flush_plug_list(struct request_queue *q,
+				     struct blk_plug *plug)
+{
+	if (blk_queue_quiesced(q))
+		return;
+	q->mq_ops->queue_rqs(&plug->mq_list);
+}
+
 void blk_mq_flush_plug_list(struct blk_plug *plug, bool from_schedule)
 {
 	struct blk_mq_hw_ctx *this_hctx;
@@ -2580,7 +2588,7 @@ void blk_mq_flush_plug_list(struct blk_plug *plug, bool from_schedule)
 		if (q->mq_ops->queue_rqs &&
 		    !(rq->mq_hctx->flags & BLK_MQ_F_TAG_QUEUE_SHARED)) {
 			blk_mq_run_dispatch_ops(q,
-				q->mq_ops->queue_rqs(&plug->mq_list));
+				__blk_mq_flush_plug_list(q, plug));
 			if (rq_list_empty(plug->mq_list))
 				return;
 		}
