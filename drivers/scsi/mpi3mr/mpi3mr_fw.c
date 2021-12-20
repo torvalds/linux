@@ -3568,10 +3568,124 @@ out_failed_noretry:
 	return retval;
 }
 
+/**
+ * mpi3mr_reinit_ioc - Re-Initialize the controller
+ * @mrioc: Adapter instance reference
+ * @is_resume: Called from resume or reset path
+ *
+ * This the controller re-initialization routine, executed from
+ * the soft reset handler or resume callback. Creates
+ * operational reply queue pairs, allocate required memory for
+ * reply pool, sense buffer pool, issue IOC init request to the
+ * firmware, unmask the events and issue port enable to discover
+ * SAS/SATA/NVMe devices and RAID volumes.
+ *
+ * Return: 0 on success and non-zero on failure.
+ */
 int mpi3mr_reinit_ioc(struct mpi3mr_ioc *mrioc, u8 is_resume)
 {
+	int retval = 0;
+	u8 retry = 0;
+	struct mpi3_ioc_facts_data facts_data;
 
-	return 0;
+retry_init:
+	dprint_reset(mrioc, "bringing up the controller to ready state\n");
+	retval = mpi3mr_bring_ioc_ready(mrioc);
+	if (retval) {
+		ioc_err(mrioc, "failed to bring to ready state\n");
+		goto out_failed_noretry;
+	}
+
+	if (is_resume) {
+		dprint_reset(mrioc, "setting up single ISR\n");
+		retval = mpi3mr_setup_isr(mrioc, 1);
+		if (retval) {
+			ioc_err(mrioc, "failed to setup ISR\n");
+			goto out_failed_noretry;
+		}
+	} else
+		mpi3mr_ioc_enable_intr(mrioc);
+
+	dprint_reset(mrioc, "getting ioc_facts\n");
+	retval = mpi3mr_issue_iocfacts(mrioc, &facts_data);
+	if (retval) {
+		ioc_err(mrioc, "failed to get ioc_facts\n");
+		goto out_failed;
+	}
+
+	mpi3mr_process_factsdata(mrioc, &facts_data);
+
+	mpi3mr_print_ioc_info(mrioc);
+
+	dprint_reset(mrioc, "sending ioc_init\n");
+	retval = mpi3mr_issue_iocinit(mrioc);
+	if (retval) {
+		ioc_err(mrioc, "failed to send ioc_init\n");
+		goto out_failed;
+	}
+
+	dprint_reset(mrioc, "getting package version\n");
+	retval = mpi3mr_print_pkg_ver(mrioc);
+	if (retval) {
+		ioc_err(mrioc, "failed to get package version\n");
+		goto out_failed;
+	}
+
+	if (is_resume) {
+		dprint_reset(mrioc, "setting up multiple ISR\n");
+		retval = mpi3mr_setup_isr(mrioc, 0);
+		if (retval) {
+			ioc_err(mrioc, "failed to re-setup ISR\n");
+			goto out_failed_noretry;
+		}
+	}
+
+	dprint_reset(mrioc, "creating operational queue pairs\n");
+	retval = mpi3mr_create_op_queues(mrioc);
+	if (retval) {
+		ioc_err(mrioc, "failed to create operational queue pairs\n");
+		goto out_failed;
+	}
+
+	if (mrioc->shost->nr_hw_queues > mrioc->num_op_reply_q) {
+		ioc_err(mrioc,
+		    "cannot create minimum number of operatioanl queues expected:%d created:%d\n",
+		    mrioc->shost->nr_hw_queues, mrioc->num_op_reply_q);
+		goto out_failed_noretry;
+	}
+
+	dprint_reset(mrioc, "enabling events\n");
+	retval = mpi3mr_enable_events(mrioc);
+	if (retval) {
+		ioc_err(mrioc, "failed to enable events\n");
+		goto out_failed;
+	}
+
+	ioc_info(mrioc, "sending port enable\n");
+	retval = mpi3mr_issue_port_enable(mrioc, 0);
+	if (retval) {
+		ioc_err(mrioc, "failed to issue port enable\n");
+		goto out_failed;
+	}
+
+	ioc_info(mrioc, "controller %s completed successfully\n",
+	    (is_resume)?"resume":"re-initialization");
+	return retval;
+out_failed:
+	if (retry < 2) {
+		retry++;
+		ioc_warn(mrioc, "retrying controller %s, retry_count:%d\n",
+		    (is_resume)?"resume":"re-initialization", retry);
+		mpi3mr_memset_buffers(mrioc);
+		goto retry_init;
+	}
+out_failed_noretry:
+	ioc_err(mrioc, "controller %s is failed\n",
+	    (is_resume)?"resume":"re-initialization");
+	mpi3mr_issue_reset(mrioc, MPI3_SYSIF_HOST_DIAG_RESET_ACTION_DIAG_FAULT,
+	    MPI3MR_RESET_FROM_CTLR_CLEANUP);
+	mrioc->unrecoverable = 1;
+	return retval;
 }
 
 /**
