@@ -1,14 +1,9 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
-// Copyright (C) 2020 Purism SPC <kernel@puri.sm>
+// Copyright (C) 2021 Purism SPC <kernel@puri.sm>
 
 /dts-v1/;
 
-#include "imx8mq-librem5.dtsi"
-
-/ {
-	model = "Purism Librem 5r3";
-	compatible = "purism,librem5r3", "purism,librem5", "fsl,imx8mq";
-};
+#include "imx8mq-librem5-r3.dtsi"
 
 &a53_opp_table {
 	opp-1000000000 {
@@ -16,22 +11,6 @@
 	};
 };
 
-&accel_gyro {
-	mount-matrix =  "1",  "0",  "0",
-			"0",  "1",  "0",
-			"0",  "0", "-1";
-};
-
-&bq25895 {
-	ti,battery-regulation-voltage = <4200000>; /* uV */
-	ti,charge-current = <1500000>; /* uA */
-	ti,termination-current = <144000>;  /* uA */
-};
-
 &buck3_reg {
 	regulator-always-on;
-};
-
-&proximity {
-	proximity-near-level = <25>;
 };

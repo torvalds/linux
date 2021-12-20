@@ -167,6 +167,14 @@
 	};
 };
 
+&can0 {
+	status = "okay";
+};
+
+&can1 {
+	status = "okay";
+};
+
 &crypto {
 	status = "okay";
 };
@@ -226,10 +234,17 @@
 };
 
 &esdhc0 {
+	sd-uhs-sdr104;
+	sd-uhs-sdr50;
+	sd-uhs-sdr25;
+	sd-uhs-sdr12;
 	status = "okay";
 };
 
 &esdhc1 {
+	mmc-hs200-1_8v;
+	mmc-hs400-1_8v;
+	bus-width = <8>;
 	status = "okay";
 };
 
@@ -302,9 +317,15 @@
 			rtc@51 {
 				compatible = "nxp,pcf2129";
 				reg = <0x51>;
+				/* IRQ_RTC_B -> IRQ11_B(CPLD) -> IRQ11(CPU), active low */
+				interrupts-extended = <&extirq 11 IRQ_TYPE_LEVEL_LOW>;
 			};
 		};
 	};
+};
+
+&optee {
+	status = "okay";
 };
 
 &sata0 {
