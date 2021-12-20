@@ -539,6 +539,53 @@ static int dw_mci_exynos_prepare_hs400_tuning(struct dw_mci *host,
 	return 0;
 }
 
+static void dw_mci_exynos_set_data_timeout(struct dw_mci *host,
+					   unsigned int timeout_ns)
+{
+	u32 clk_div, tmout;
+	u64 tmp;
+	unsigned int tmp2;
+
+	clk_div = (mci_readl(host, CLKDIV) & 0xFF) * 2;
+	if (clk_div == 0)
+		clk_div = 1;
+
+	tmp = DIV_ROUND_UP_ULL((u64)timeout_ns * host->bus_hz, NSEC_PER_SEC);
+	tmp = DIV_ROUND_UP_ULL(tmp, clk_div);
+
+	/* TMOUT[7:0] (RESPONSE_TIMEOUT) */
+	tmout = 0xFF; /* Set maximum */
+
+	/*
+	 * Extended HW timer (max = 0x6FFFFF2):
+	 * ((TMOUT[10:8] - 1) * 0xFFFFFF + TMOUT[31:11] * 8)
+	 */
+	if (!tmp || tmp > 0x6FFFFF2)
+		tmout |= (0xFFFFFF << 8);
+	else {
+		/* TMOUT[10:8] */
+		tmp2 = (((unsigned int)tmp / 0xFFFFFF) + 1) & 0x7;
+		tmout |= tmp2 << 8;
+
+		/* TMOUT[31:11] */
+		tmp = tmp - ((tmp2 - 1) * 0xFFFFFF);
+		tmout |= (tmp & 0xFFFFF8) << 8;
+	}
+
+	mci_writel(host, TMOUT, tmout);
+	dev_dbg(host->dev, "timeout_ns: %u => TMOUT[31:8]: %#08x",
+		timeout_ns, tmout >> 8);
+}
+
+static u32 dw_mci_exynos_get_drto_clks(struct dw_mci *host)
+{
+	u32 drto_clks;
+
+	drto_clks = mci_readl(host, TMOUT) >> 8;
+
+	return (((drto_clks & 0x7) - 1) * 0xFFFFFF) + ((drto_clks & 0xFFFFF8));
+}
+
 /* Common capabilities of Exynos4/Exynos5 SoC */
 static unsigned long exynos_dwmmc_caps[4] = {
 	MMC_CAP_1_8V_DDR | MMC_CAP_8_BIT_DATA,
@@ -564,6 +611,8 @@ static const struct dw_mci_drv_data artpec_drv_data = {
 	.set_ios		= dw_mci_exynos_set_ios,
 	.parse_dt		= dw_mci_exynos_parse_dt,
 	.execute_tuning		= dw_mci_exynos_execute_tuning,
+	.set_data_timeout		= dw_mci_exynos_set_data_timeout,
+	.get_drto_clks		= dw_mci_exynos_get_drto_clks,
 };
 
 static const struct of_device_id dw_mci_exynos_match[] = {
