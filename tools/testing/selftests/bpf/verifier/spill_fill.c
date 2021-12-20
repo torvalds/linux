@@ -176,6 +176,38 @@
 	.prog_type = BPF_PROG_TYPE_SCHED_CLS,
 },
 {
+	"Spill u32 const scalars.  Refill as u64.  Offset to skb->data",
+	.insns = {
+	BPF_LDX_MEM(BPF_W, BPF_REG_2, BPF_REG_1,
+		    offsetof(struct __sk_buff, data)),
+	BPF_LDX_MEM(BPF_W, BPF_REG_3, BPF_REG_1,
+		    offsetof(struct __sk_buff, data_end)),
+	/* r6 = 0 */
+	BPF_MOV32_IMM(BPF_REG_6, 0),
+	/* r7 = 20 */
+	BPF_MOV32_IMM(BPF_REG_7, 20),
+	/* *(u32 *)(r10 -4) = r6 */
+	BPF_STX_MEM(BPF_W, BPF_REG_10, BPF_REG_6, -4),
+	/* *(u32 *)(r10 -8) = r7 */
+	BPF_STX_MEM(BPF_W, BPF_REG_10, BPF_REG_7, -8),
+	/* r4 = *(u64 *)(r10 -8) */
+	BPF_LDX_MEM(BPF_H, BPF_REG_4, BPF_REG_10, -8),
+	/* r0 = r2 */
+	BPF_MOV64_REG(BPF_REG_0, BPF_REG_2),
+	/* r0 += r4 R0=pkt R2=pkt R3=pkt_end R4=inv,umax=65535 */
+	BPF_ALU64_REG(BPF_ADD, BPF_REG_0, BPF_REG_4),
+	/* if (r0 > r3) R0=pkt,umax=65535 R2=pkt R3=pkt_end R4=inv,umax=65535 */
+	BPF_JMP_REG(BPF_JGT, BPF_REG_0, BPF_REG_3, 1),
+	/* r0 = *(u32 *)r2 R0=pkt,umax=65535 R2=pkt R3=pkt_end R4=inv20 */
+	BPF_LDX_MEM(BPF_W, BPF_REG_0, BPF_REG_2, 0),
+	BPF_MOV64_IMM(BPF_REG_0, 0),
+	BPF_EXIT_INSN(),
+	},
+	.result = REJECT,
+	.errstr = "invalid access to packet",
+	.prog_type = BPF_PROG_TYPE_SCHED_CLS,
+},
+{
 	"Spill a u32 const scalar.  Refill as u16 from fp-6.  Offset to skb->data",
 	.insns = {
 	BPF_LDX_MEM(BPF_W, BPF_REG_2, BPF_REG_1,

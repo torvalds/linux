@@ -17,6 +17,7 @@
 
 #define BLK_SFT_RSTN	0x0
 #define BLK_CLK_EN	0x4
+#define BLK_MIPI_RESET_DIV	0x8 /* Mini/Nano DISPLAY_BLK_CTRL only */
 
 struct imx8m_blk_ctrl_domain;
 
@@ -36,6 +37,15 @@ struct imx8m_blk_ctrl_domain_data {
 	const char *gpc_name;
 	u32 rst_mask;
 	u32 clk_mask;
+
+	/*
+	 * i.MX8M Mini and Nano have a third DISPLAY_BLK_CTRL register
+	 * which is used to control the reset for the MIPI Phy.
+	 * Since it's only present in certain circumstances,
+	 * an if-statement should be used before setting and clearing this
+	 * register.
+	 */
+	u32 mipi_phy_rst_mask;
 };
 
 #define DOMAIN_MAX_CLKS 3
@@ -78,6 +88,8 @@ static int imx8m_blk_ctrl_power_on(struct generic_pm_domain *genpd)
 
 	/* put devices into reset */
 	regmap_clear_bits(bc->regmap, BLK_SFT_RSTN, data->rst_mask);
+	if (data->mipi_phy_rst_mask)
+		regmap_clear_bits(bc->regmap, BLK_MIPI_RESET_DIV, data->mipi_phy_rst_mask);
 
 	/* enable upstream and blk-ctrl clocks to allow reset to propagate */
 	ret = clk_bulk_prepare_enable(data->num_clks, domain->clks);
@@ -99,6 +111,8 @@ static int imx8m_blk_ctrl_power_on(struct generic_pm_domain *genpd)
 
 	/* release reset */
 	regmap_set_bits(bc->regmap, BLK_SFT_RSTN, data->rst_mask);
+	if (data->mipi_phy_rst_mask)
+		regmap_set_bits(bc->regmap, BLK_MIPI_RESET_DIV, data->mipi_phy_rst_mask);
 
 	/* disable upstream clocks */
 	clk_bulk_disable_unprepare(data->num_clks, domain->clks);
@@ -120,6 +134,9 @@ static int imx8m_blk_ctrl_power_off(struct generic_pm_domain *genpd)
 	struct imx8m_blk_ctrl *bc = domain->bc;
 
 	/* put devices into reset and disable clocks */
+	if (data->mipi_phy_rst_mask)
+		regmap_clear_bits(bc->regmap, BLK_MIPI_RESET_DIV, data->mipi_phy_rst_mask);
+
 	regmap_clear_bits(bc->regmap, BLK_SFT_RSTN, data->rst_mask);
 	regmap_clear_bits(bc->regmap, BLK_CLK_EN, data->clk_mask);
 
@@ -480,6 +497,7 @@ static const struct imx8m_blk_ctrl_domain_data imx8mm_disp_blk_ctl_domain_data[]
 		.gpc_name = "mipi-dsi",
 		.rst_mask = BIT(5),
 		.clk_mask = BIT(8) | BIT(9),
+		.mipi_phy_rst_mask = BIT(17),
 	},
 	[IMX8MM_DISPBLK_PD_MIPI_CSI] = {
 		.name = "dispblk-mipi-csi",
@@ -488,6 +506,7 @@ static const struct imx8m_blk_ctrl_domain_data imx8mm_disp_blk_ctl_domain_data[]
 		.gpc_name = "mipi-csi",
 		.rst_mask = BIT(3) | BIT(4),
 		.clk_mask = BIT(10) | BIT(11),
+		.mipi_phy_rst_mask = BIT(16),
 	},
 };
 
