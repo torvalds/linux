@@ -2555,10 +2555,9 @@ static int mpi3mr_alloc_reply_sense_bufs(struct mpi3mr_ioc *mrioc)
 {
 	int retval = 0;
 	u32 sz, i;
-	dma_addr_t phy_addr;
 
 	if (mrioc->init_cmds.reply)
-		goto post_reply_sbuf;
+		return retval;
 
 	mrioc->init_cmds.reply = kzalloc(mrioc->facts.reply_sz, GFP_KERNEL);
 	if (!mrioc->init_cmds.reply)
@@ -2651,7 +2650,28 @@ static int mpi3mr_alloc_reply_sense_bufs(struct mpi3mr_ioc *mrioc)
 	if (!mrioc->sense_buf_q)
 		goto out_failed;
 
-post_reply_sbuf:
+	return retval;
+
+out_failed:
+	retval = -1;
+	return retval;
+}
+
+/**
+ * mpimr_initialize_reply_sbuf_queues - initialize reply sense
+ * buffers
+ * @mrioc: Adapter instance reference
+ *
+ * Helper function to initialize reply and sense buffers along
+ * with some debug prints.
+ *
+ * Return:  None.
+ */
+static void mpimr_initialize_reply_sbuf_queues(struct mpi3mr_ioc *mrioc)
+{
+	u32 sz, i;
+	dma_addr_t phy_addr;
+
 	sz = mrioc->num_reply_bufs * mrioc->facts.reply_sz;
 	ioc_info(mrioc,
 	    "reply buf pool(0x%p): depth(%d), frame_size(%d), pool_size(%d kB), reply_dma(0x%llx)\n",
@@ -2684,11 +2704,6 @@ post_reply_sbuf:
 	    i < mrioc->num_sense_bufs; i++, phy_addr += MPI3MR_SENSE_BUF_SZ)
 		mrioc->sense_buf_q[i] = cpu_to_le64(phy_addr);
 	mrioc->sense_buf_q[i] = cpu_to_le64(0);
-	return retval;
-
-out_failed:
-	retval = -1;
-	return retval;
 }
 
 /**
@@ -2715,6 +2730,8 @@ static int mpi3mr_issue_iocinit(struct mpi3mr_ioc *mrioc)
 		retval = -1;
 		goto out;
 	}
+	mpimr_initialize_reply_sbuf_queues(mrioc);
+
 	drv_info->information_length = cpu_to_le32(data_len);
 	strscpy(drv_info->driver_signature, "Broadcom", sizeof(drv_info->driver_signature));
 	strscpy(drv_info->os_name, utsname()->sysname, sizeof(drv_info->os_name));
@@ -2784,6 +2801,13 @@ static int mpi3mr_issue_iocinit(struct mpi3mr_ioc *mrioc)
 		goto out_unlock;
 	}
 
+	mrioc->reply_free_queue_host_index = mrioc->num_reply_bufs;
+	writel(mrioc->reply_free_queue_host_index,
+	    &mrioc->sysif_regs->reply_free_host_index);
+
+	mrioc->sbq_host_index = mrioc->num_sense_bufs;
+	writel(mrioc->sbq_host_index,
+	    &mrioc->sysif_regs->sense_buffer_free_host_index);
 out_unlock:
 	mrioc->init_cmds.state = MPI3MR_CMD_NOTUSED;
 	mutex_unlock(&mrioc->init_cmds.mutex);
@@ -3292,6 +3316,44 @@ out_failed:
 }
 
 /**
+ * mpi3mr_enable_events - Enable required events
+ * @mrioc: Adapter instance reference
+ *
+ * This routine unmasks the events required by the driver by
+ * sennding appropriate event mask bitmapt through an event
+ * notification request.
+ *
+ * Return: 0 on success and non-zero on failure.
+ */
+static int mpi3mr_enable_events(struct mpi3mr_ioc *mrioc)
+{
+	int retval = 0;
+	u32  i;
+
+	for (i = 0; i < MPI3_EVENT_NOTIFY_EVENTMASK_WORDS; i++)
+		mrioc->event_masks[i] = -1;
+
+	mpi3mr_unmask_events(mrioc, MPI3_EVENT_DEVICE_ADDED);
+	mpi3mr_unmask_events(mrioc, MPI3_EVENT_DEVICE_INFO_CHANGED);
+	mpi3mr_unmask_events(mrioc, MPI3_EVENT_DEVICE_STATUS_CHANGE);
+	mpi3mr_unmask_events(mrioc, MPI3_EVENT_ENCL_DEVICE_STATUS_CHANGE);
+	mpi3mr_unmask_events(mrioc, MPI3_EVENT_SAS_TOPOLOGY_CHANGE_LIST);
+	mpi3mr_unmask_events(mrioc, MPI3_EVENT_SAS_DISCOVERY);
+	mpi3mr_unmask_events(mrioc, MPI3_EVENT_SAS_DEVICE_DISCOVERY_ERROR);
+	mpi3mr_unmask_events(mrioc, MPI3_EVENT_SAS_BROADCAST_PRIMITIVE);
+	mpi3mr_unmask_events(mrioc, MPI3_EVENT_PCIE_TOPOLOGY_CHANGE_LIST);
+	mpi3mr_unmask_events(mrioc, MPI3_EVENT_PCIE_ENUMERATION);
+	mpi3mr_unmask_events(mrioc, MPI3_EVENT_CABLE_MGMT);
+	mpi3mr_unmask_events(mrioc, MPI3_EVENT_ENERGY_PACK_CHANGE);
+
+	retval = mpi3mr_issue_event_notification(mrioc);
+	if (retval)
+		ioc_err(mrioc, "failed to issue event notification %d\n",
+		    retval);
+	return retval;
+}
+
+/**
  * mpi3mr_init_ioc - Initialize the controller
  * @mrioc: Adapter instance reference
  * @init_type: Flag to indicate is the init_type
@@ -3313,7 +3375,7 @@ int mpi3mr_init_ioc(struct mpi3mr_ioc *mrioc, u8 init_type)
 	enum mpi3mr_iocstate ioc_state;
 	u64 base_info;
 	u32 timeout;
-	u32 ioc_status, ioc_config, i;
+	u32 ioc_status, ioc_config;
 	struct mpi3_ioc_facts_data facts_data;
 
 	mrioc->irqpoll_sleep = MPI3MR_IRQ_POLL_SLEEP;
@@ -3455,13 +3517,6 @@ int mpi3mr_init_ioc(struct mpi3mr_ioc *mrioc, u8 init_type)
 		    retval);
 		goto out_failed;
 	}
-	mrioc->reply_free_queue_host_index = mrioc->num_reply_bufs;
-	writel(mrioc->reply_free_queue_host_index,
-	    &mrioc->sysif_regs->reply_free_host_index);
-
-	mrioc->sbq_host_index = mrioc->num_sense_bufs;
-	writel(mrioc->sbq_host_index,
-	    &mrioc->sysif_regs->sense_buffer_free_host_index);
 
 	retval = mpi3mr_print_pkg_ver(mrioc);
 	if (retval) {
@@ -3494,25 +3549,9 @@ int mpi3mr_init_ioc(struct mpi3mr_ioc *mrioc, u8 init_type)
 		goto out_failed;
 	}
 
-	for (i = 0; i < MPI3_EVENT_NOTIFY_EVENTMASK_WORDS; i++)
-		mrioc->event_masks[i] = -1;
-
-	mpi3mr_unmask_events(mrioc, MPI3_EVENT_DEVICE_ADDED);
-	mpi3mr_unmask_events(mrioc, MPI3_EVENT_DEVICE_INFO_CHANGED);
-	mpi3mr_unmask_events(mrioc, MPI3_EVENT_DEVICE_STATUS_CHANGE);
-	mpi3mr_unmask_events(mrioc, MPI3_EVENT_ENCL_DEVICE_STATUS_CHANGE);
-	mpi3mr_unmask_events(mrioc, MPI3_EVENT_SAS_TOPOLOGY_CHANGE_LIST);
-	mpi3mr_unmask_events(mrioc, MPI3_EVENT_SAS_DISCOVERY);
-	mpi3mr_unmask_events(mrioc, MPI3_EVENT_SAS_DEVICE_DISCOVERY_ERROR);
-	mpi3mr_unmask_events(mrioc, MPI3_EVENT_SAS_BROADCAST_PRIMITIVE);
-	mpi3mr_unmask_events(mrioc, MPI3_EVENT_PCIE_TOPOLOGY_CHANGE_LIST);
-	mpi3mr_unmask_events(mrioc, MPI3_EVENT_PCIE_ENUMERATION);
-	mpi3mr_unmask_events(mrioc, MPI3_EVENT_CABLE_MGMT);
-	mpi3mr_unmask_events(mrioc, MPI3_EVENT_ENERGY_PACK_CHANGE);
-
-	retval = mpi3mr_issue_event_notification(mrioc);
+	retval = mpi3mr_enable_events(mrioc);
 	if (retval) {
-		ioc_err(mrioc, "Failed to issue event notification %d\n",
+		ioc_err(mrioc, "failed to enable events %d\n",
 		    retval);
 		goto out_failed;
 	}
