@@ -1573,7 +1573,7 @@ static int hns_roce_query_func_info(struct hns_roce_dev *hr_dev)
 	struct hns_roce_cmq_desc desc;
 	int ret;
 
-	if (hr_dev->pci_dev->revision < PCI_REVISION_ID_HIP09) {
+	if (hr_dev->pci_dev->revision == PCI_REVISION_ID_HIP08) {
 		hr_dev->func_num = 1;
 		return 0;
 	}
@@ -2390,7 +2390,7 @@ static int hns_roce_config_entry_size(struct hns_roce_dev *hr_dev)
 	struct hns_roce_caps *caps = &hr_dev->caps;
 	int ret;
 
-	if (hr_dev->pci_dev->revision < PCI_REVISION_ID_HIP09)
+	if (hr_dev->pci_dev->revision == PCI_REVISION_ID_HIP08)
 		return 0;
 
 	ret = config_hem_entry_size(hr_dev, HNS_ROCE_CFG_QPC_SIZE,
@@ -2964,8 +2964,8 @@ static int config_gmv_table(struct hns_roce_dev *hr_dev,
 	return hns_roce_cmq_send(hr_dev, desc, 2);
 }
 
-static int hns_roce_v2_set_gid(struct hns_roce_dev *hr_dev, u32 port,
-			       int gid_index, const union ib_gid *gid,
+static int hns_roce_v2_set_gid(struct hns_roce_dev *hr_dev, int gid_index,
+			       const union ib_gid *gid,
 			       const struct ib_gid_attr *attr)
 {
 	enum hns_roce_sgid_type sgid_type = GID_TYPE_FLAG_ROCE_V1;
@@ -3060,8 +3060,7 @@ static int set_mtpt_pbl(struct hns_roce_dev *hr_dev,
 }
 
 static int hns_roce_v2_write_mtpt(struct hns_roce_dev *hr_dev,
-				  void *mb_buf, struct hns_roce_mr *mr,
-				  unsigned long mtpt_idx)
+				  void *mb_buf, struct hns_roce_mr *mr)
 {
 	struct hns_roce_v2_mpt_entry *mpt_entry;
 	int ret;
@@ -6348,7 +6347,7 @@ static int hns_roce_hw_v2_init_instance(struct hnae3_handle *handle)
 	if (!id)
 		return 0;
 
-	if (id->driver_data && handle->pdev->revision < PCI_REVISION_ID_HIP09)
+	if (id->driver_data && handle->pdev->revision == PCI_REVISION_ID_HIP08)
 		return 0;
 
 	ret = __hns_roce_hw_v2_init_instance(handle);

@@ -32,7 +32,6 @@
  */
 
 #include <linux/pci.h>
-#include <linux/platform_device.h>
 #include <rdma/ib_addr.h>
 #include <rdma/ib_umem.h>
 #include <rdma/uverbs_ioctl.h>
@@ -110,12 +109,11 @@ void hns_roce_qp_event(struct hns_roce_dev *hr_dev, u32 qpn, int event_type)
 		return;
 	}
 
-	if (hr_dev->hw_rev != HNS_ROCE_HW_VER1 &&
-	    (event_type == HNS_ROCE_EVENT_TYPE_WQ_CATAS_ERROR ||
-	     event_type == HNS_ROCE_EVENT_TYPE_INV_REQ_LOCAL_WQ_ERROR ||
-	     event_type == HNS_ROCE_EVENT_TYPE_LOCAL_WQ_ACCESS_ERROR ||
-	     event_type == HNS_ROCE_EVENT_TYPE_XRCD_VIOLATION ||
-	     event_type == HNS_ROCE_EVENT_TYPE_INVALID_XRCETH)) {
+	if (event_type == HNS_ROCE_EVENT_TYPE_WQ_CATAS_ERROR ||
+	    event_type == HNS_ROCE_EVENT_TYPE_INV_REQ_LOCAL_WQ_ERROR ||
+	    event_type == HNS_ROCE_EVENT_TYPE_LOCAL_WQ_ACCESS_ERROR ||
+	    event_type == HNS_ROCE_EVENT_TYPE_XRCD_VIOLATION ||
+	    event_type == HNS_ROCE_EVENT_TYPE_INVALID_XRCETH) {
 		qp->state = IB_QPS_ERR;
 
 		flush_cqe(hr_dev, qp);
@@ -219,13 +217,7 @@ static int alloc_qpn(struct hns_roce_dev *hr_dev, struct hns_roce_qp *hr_qp)
 	int ret;
 
 	if (hr_qp->ibqp.qp_type == IB_QPT_GSI) {
-		/* when hw version is v1, the sqpn is allocated */
-		if (hr_dev->hw_rev == HNS_ROCE_HW_VER1)
-			num = HNS_ROCE_MAX_PORTS +
-			      hr_dev->iboe.phy_port[hr_qp->port];
-		else
-			num = 1;
-
+		num = 1;
 		hr_qp->doorbell_qpn = 1;
 	} else {
 		mutex_lock(&qp_table->bank_mutex);
@@ -324,11 +316,6 @@ static int alloc_qpc(struct hns_roce_dev *hr_dev, struct hns_roce_qp *hr_qp)
 	if (!hr_qp->qpn)
 		return -EINVAL;
 
-	/* In v1 engine, GSI QP context is saved in the RoCE hw's register */
-	if (hr_qp->ibqp.qp_type == IB_QPT_GSI &&
-	    hr_dev->hw_rev == HNS_ROCE_HW_VER1)
-		return 0;
-
 	/* Alloc memory for QPC */
 	ret = hns_roce_table_get(hr_dev, &qp_table->qp_table, hr_qp->qpn);
 	if (ret) {
@@ -406,11 +393,6 @@ void hns_roce_qp_remove(struct hns_roce_dev *hr_dev, struct hns_roce_qp *hr_qp)
 static void free_qpc(struct hns_roce_dev *hr_dev, struct hns_roce_qp *hr_qp)
 {
 	struct hns_roce_qp_table *qp_table = &hr_dev->qp_table;
-
-	/* In v1 engine, GSI QP context is saved in the RoCE hw's register */
-	if (hr_qp->ibqp.qp_type == IB_QPT_GSI &&
-	    hr_dev->hw_rev == HNS_ROCE_HW_VER1)
-		return;
 
 	if (hr_dev->caps.trrl_entry_sz)
 		hns_roce_table_put(hr_dev, &qp_table->trrl_table, hr_qp->qpn);
@@ -539,11 +521,6 @@ static void set_ext_sge_param(struct hns_roce_dev *hr_dev, u32 sq_wqe_cnt,
 	u32 wqe_sge_cnt;
 
 	hr_qp->sge.sge_shift = HNS_ROCE_SGE_SHIFT;
-
-	if (hr_dev->hw_rev == HNS_ROCE_HW_VER1) {
-		hr_qp->sq.max_gs = HNS_ROCE_SGE_IN_WQE;
-		return;
-	}
 
 	hr_qp->sq.max_gs = max(1U, cap->max_send_sge);
 
@@ -1210,7 +1187,7 @@ static int check_qp_type(struct hns_roce_dev *hr_dev, enum ib_qp_type type,
 			goto out;
 		break;
 	case IB_QPT_UD:
-		if (hr_dev->pci_dev->revision <= PCI_REVISION_ID_HIP08 &&
+		if (hr_dev->pci_dev->revision == PCI_REVISION_ID_HIP08 &&
 		    is_user)
 			goto out;
 		break;

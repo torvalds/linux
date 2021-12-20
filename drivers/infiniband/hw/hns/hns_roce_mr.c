@@ -31,7 +31,6 @@
  * SOFTWARE.
  */
 
-#include <linux/platform_device.h>
 #include <linux/vmalloc.h>
 #include <rdma/ib_umem.h>
 #include "hns_roce_device.h"
@@ -173,8 +172,7 @@ static int hns_roce_mr_enable(struct hns_roce_dev *hr_dev,
 	}
 
 	if (mr->type != MR_TYPE_FRMR)
-		ret = hr_dev->hw->write_mtpt(hr_dev, mailbox->buf, mr,
-					     mtpt_idx);
+		ret = hr_dev->hw->write_mtpt(hr_dev, mailbox->buf, mr);
 	else
 		ret = hr_dev->hw->frmr_write_mtpt(hr_dev, mailbox->buf, mr);
 	if (ret) {
@@ -363,12 +361,8 @@ int hns_roce_dereg_mr(struct ib_mr *ibmr, struct ib_udata *udata)
 	struct hns_roce_mr *mr = to_hr_mr(ibmr);
 	int ret = 0;
 
-	if (hr_dev->hw->dereg_mr) {
-		ret = hr_dev->hw->dereg_mr(hr_dev, mr, udata);
-	} else {
-		hns_roce_mr_free(hr_dev, mr);
-		kfree(mr);
-	}
+	hns_roce_mr_free(hr_dev, mr);
+	kfree(mr);
 
 	return ret;
 }
@@ -614,10 +608,7 @@ static int mtr_map_region(struct hns_roce_dev *hr_dev, struct hns_roce_mtr *mtr,
 			return -ENOBUFS;
 
 		for (i = 0; i < count && npage < max_count; i++) {
-			if (hr_dev->hw_rev == HNS_ROCE_HW_VER1)
-				addr = to_hr_hw_page_addr(pages[npage]);
-			else
-				addr = pages[npage];
+			addr = pages[npage];
 
 			mtts[i] = cpu_to_le64(addr);
 			npage++;
@@ -847,10 +838,7 @@ int hns_roce_mtr_find(struct hns_roce_dev *hr_dev, struct hns_roce_mtr *mtr,
 				continue;
 
 			addr = cfg->root_ba + (npage << HNS_HW_PAGE_SHIFT);
-			if (hr_dev->hw_rev == HNS_ROCE_HW_VER1)
-				mtt_buf[total] = to_hr_hw_page_addr(addr);
-			else
-				mtt_buf[total] = addr;
+			mtt_buf[total] = addr;
 
 			total++;
 		}
