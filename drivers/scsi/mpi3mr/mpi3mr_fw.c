@@ -312,6 +312,12 @@ mpi3mr_get_drv_cmd(struct mpi3mr_ioc *mrioc, u16 host_tag,
 		return &mrioc->dev_rmhs_cmds[idx];
 	}
 
+	if (host_tag >= MPI3MR_HOSTTAG_EVTACKCMD_MIN &&
+	    host_tag <= MPI3MR_HOSTTAG_EVTACKCMD_MAX) {
+		idx = host_tag - MPI3MR_HOSTTAG_EVTACKCMD_MIN;
+		return &mrioc->evtack_cmds[idx];
+	}
+
 	return NULL;
 }
 
@@ -2691,6 +2697,13 @@ static int mpi3mr_alloc_reply_sense_bufs(struct mpi3mr_ioc *mrioc)
 			goto out_failed;
 	}
 
+	for (i = 0; i < MPI3MR_NUM_EVTACKCMD; i++) {
+		mrioc->evtack_cmds[i].reply = kzalloc(mrioc->reply_sz,
+		    GFP_KERNEL);
+		if (!mrioc->evtack_cmds[i].reply)
+			goto out_failed;
+	}
+
 	mrioc->host_tm_cmds.reply = kzalloc(mrioc->reply_sz, GFP_KERNEL);
 	if (!mrioc->host_tm_cmds.reply)
 		goto out_failed;
@@ -2709,6 +2722,14 @@ static int mpi3mr_alloc_reply_sense_bufs(struct mpi3mr_ioc *mrioc)
 	mrioc->devrem_bitmap = kzalloc(mrioc->devrem_bitmap_sz,
 	    GFP_KERNEL);
 	if (!mrioc->devrem_bitmap)
+		goto out_failed;
+
+	mrioc->evtack_cmds_bitmap_sz = MPI3MR_NUM_EVTACKCMD / 8;
+	if (MPI3MR_NUM_EVTACKCMD % 8)
+		mrioc->evtack_cmds_bitmap_sz++;
+	mrioc->evtack_cmds_bitmap = kzalloc(mrioc->evtack_cmds_bitmap_sz,
+	    GFP_KERNEL);
+	if (!mrioc->evtack_cmds_bitmap)
 		goto out_failed;
 
 	mrioc->num_reply_bufs = mrioc->facts.max_reqs + MPI3MR_NUM_EVT_REPLIES;
@@ -3030,17 +3051,17 @@ out:
 }
 
 /**
- * mpi3mr_send_event_ack - Send event acknowledgment
+ * mpi3mr_process_event_ack - Process event acknowledgment
  * @mrioc: Adapter instance reference
  * @event: MPI3 event ID
- * @event_ctx: Event context
+ * @event_ctx: event context
  *
  * Send event acknowledgment through admin queue and wait for
  * it to complete.
  *
  * Return: 0 on success, non-zero on failures.
  */
-int mpi3mr_send_event_ack(struct mpi3mr_ioc *mrioc, u8 event,
+int mpi3mr_process_event_ack(struct mpi3mr_ioc *mrioc, u8 event,
 	u32 event_ctx)
 {
 	struct mpi3_event_ack_request evtack_req;
@@ -3803,8 +3824,13 @@ void mpi3mr_memset_buffers(struct mpi3mr_ioc *mrioc)
 		for (i = 0; i < MPI3MR_NUM_DEVRMCMD; i++)
 			memset(mrioc->dev_rmhs_cmds[i].reply, 0,
 			    sizeof(*mrioc->dev_rmhs_cmds[i].reply));
+		for (i = 0; i < MPI3MR_NUM_EVTACKCMD; i++)
+			memset(mrioc->evtack_cmds[i].reply, 0,
+			    sizeof(*mrioc->evtack_cmds[i].reply));
 		memset(mrioc->removepend_bitmap, 0, mrioc->dev_handle_bitmap_sz);
 		memset(mrioc->devrem_bitmap, 0, mrioc->devrem_bitmap_sz);
+		memset(mrioc->evtack_cmds_bitmap, 0,
+		    mrioc->evtack_cmds_bitmap_sz);
 	}
 
 	for (i = 0; i < mrioc->num_queues; i++) {
@@ -3898,11 +3924,19 @@ void mpi3mr_free_mem(struct mpi3mr_ioc *mrioc)
 	kfree(mrioc->host_tm_cmds.reply);
 	mrioc->host_tm_cmds.reply = NULL;
 
+	for (i = 0; i < MPI3MR_NUM_EVTACKCMD; i++) {
+		kfree(mrioc->evtack_cmds[i].reply);
+		mrioc->evtack_cmds[i].reply = NULL;
+	}
+
 	kfree(mrioc->removepend_bitmap);
 	mrioc->removepend_bitmap = NULL;
 
 	kfree(mrioc->devrem_bitmap);
 	mrioc->devrem_bitmap = NULL;
+
+	kfree(mrioc->evtack_cmds_bitmap);
+	mrioc->evtack_cmds_bitmap = NULL;
 
 	kfree(mrioc->chain_bitmap);
 	mrioc->chain_bitmap = NULL;
@@ -4079,6 +4113,11 @@ static void mpi3mr_flush_drv_cmds(struct mpi3mr_ioc *mrioc)
 		cmdptr = &mrioc->dev_rmhs_cmds[i];
 		mpi3mr_drv_cmd_comp_reset(mrioc, cmdptr);
 	}
+
+	for (i = 0; i < MPI3MR_NUM_EVTACKCMD; i++) {
+		cmdptr = &mrioc->evtack_cmds[i];
+		mpi3mr_drv_cmd_comp_reset(mrioc, cmdptr);
+	}
 }
 
 /**
@@ -4176,10 +4215,11 @@ int mpi3mr_soft_reset_handler(struct mpi3mr_ioc *mrioc,
 		goto out;
 	}
 
-	mpi3mr_flush_delayed_rmhs_list(mrioc);
+	mpi3mr_flush_delayed_cmd_lists(mrioc);
 	mpi3mr_flush_drv_cmds(mrioc);
 	memset(mrioc->devrem_bitmap, 0, mrioc->devrem_bitmap_sz);
 	memset(mrioc->removepend_bitmap, 0, mrioc->dev_handle_bitmap_sz);
+	memset(mrioc->evtack_cmds_bitmap, 0, mrioc->evtack_cmds_bitmap_sz);
 	mpi3mr_cleanup_fwevt_list(mrioc);
 	mpi3mr_flush_host_io(mrioc);
 	mpi3mr_invalidate_devhandles(mrioc);

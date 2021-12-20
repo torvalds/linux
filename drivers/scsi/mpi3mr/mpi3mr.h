@@ -96,7 +96,11 @@ extern int prot_mask;
 #define MPI3MR_HOSTTAG_DEVRMCMD_MAX	(MPI3MR_HOSTTAG_DEVRMCMD_MIN + \
 						MPI3MR_NUM_DEVRMCMD - 1)
 
-#define MPI3MR_INTERNAL_CMDS_RESVD     MPI3MR_HOSTTAG_DEVRMCMD_MAX
+#define MPI3MR_INTERNAL_CMDS_RESVD	MPI3MR_HOSTTAG_DEVRMCMD_MAX
+#define MPI3MR_NUM_EVTACKCMD		4
+#define MPI3MR_HOSTTAG_EVTACKCMD_MIN	(MPI3MR_HOSTTAG_DEVRMCMD_MAX + 1)
+#define MPI3MR_HOSTTAG_EVTACKCMD_MAX	(MPI3MR_HOSTTAG_EVTACKCMD_MIN + \
+					MPI3MR_NUM_EVTACKCMD - 1)
 
 /* Reduced resource count definition for crash kernel */
 #define MPI3MR_HOST_IOS_KDUMP		128
@@ -674,11 +678,15 @@ struct scmd_priv {
  * @chain_buf_lock: Chain buffer list lock
  * @host_tm_cmds: Command tracker for task management commands
  * @dev_rmhs_cmds: Command tracker for device removal commands
+ * @evtack_cmds: Command tracker for event ack commands
  * @devrem_bitmap_sz: Device removal bitmap size
  * @devrem_bitmap: Device removal bitmap
  * @dev_handle_bitmap_sz: Device handle bitmap size
  * @removepend_bitmap: Remove pending bitmap
  * @delayed_rmhs_list: Delayed device removal list
+ * @evtack_cmds_bitmap_sz: Event Ack bitmap size
+ * @evtack_cmds_bitmap: Event Ack bitmap
+ * @delayed_evtack_cmds_list: Delayed event acknowledgment list
  * @ts_update_counter: Timestamp update counter
  * @reset_in_progress: Reset in progress flag
  * @unrecoverable: Controller unrecoverable flag
@@ -800,11 +808,15 @@ struct mpi3mr_ioc {
 
 	struct mpi3mr_drv_cmd host_tm_cmds;
 	struct mpi3mr_drv_cmd dev_rmhs_cmds[MPI3MR_NUM_DEVRMCMD];
+	struct mpi3mr_drv_cmd evtack_cmds[MPI3MR_NUM_EVTACKCMD];
 	u16 devrem_bitmap_sz;
 	void *devrem_bitmap;
 	u16 dev_handle_bitmap_sz;
 	void *removepend_bitmap;
 	struct list_head delayed_rmhs_list;
+	u16 evtack_cmds_bitmap_sz;
+	void *evtack_cmds_bitmap;
+	struct list_head delayed_evtack_cmds_list;
 
 	u32 ts_update_counter;
 	u8 reset_in_progress;
@@ -862,6 +874,18 @@ struct delayed_dev_rmhs_node {
 	u8 iou_rc;
 };
 
+/**
+ * struct delayed_evt_ack_node - Delayed event ack node
+ * @list: list head
+ * @event: MPI3 event ID
+ * @event_ctx: event context
+ */
+struct delayed_evt_ack_node {
+	struct list_head list;
+	u8 event;
+	u32 event_ctx;
+};
+
 int mpi3mr_setup_resources(struct mpi3mr_ioc *mrioc);
 void mpi3mr_cleanup_resources(struct mpi3mr_ioc *mrioc);
 int mpi3mr_init_ioc(struct mpi3mr_ioc *mrioc);
@@ -898,7 +922,7 @@ void mpi3mr_ioc_disable_intr(struct mpi3mr_ioc *mrioc);
 void mpi3mr_ioc_enable_intr(struct mpi3mr_ioc *mrioc);
 
 enum mpi3mr_iocstate mpi3mr_get_iocstate(struct mpi3mr_ioc *mrioc);
-int mpi3mr_send_event_ack(struct mpi3mr_ioc *mrioc, u8 event,
+int mpi3mr_process_event_ack(struct mpi3mr_ioc *mrioc, u8 event,
 			  u32 event_ctx);
 
 void mpi3mr_wait_for_host_io(struct mpi3mr_ioc *mrioc, u32 timeout);
@@ -906,7 +930,7 @@ void mpi3mr_cleanup_fwevt_list(struct mpi3mr_ioc *mrioc);
 void mpi3mr_flush_host_io(struct mpi3mr_ioc *mrioc);
 void mpi3mr_invalidate_devhandles(struct mpi3mr_ioc *mrioc);
 void mpi3mr_rfresh_tgtdevs(struct mpi3mr_ioc *mrioc);
-void mpi3mr_flush_delayed_rmhs_list(struct mpi3mr_ioc *mrioc);
+void mpi3mr_flush_delayed_cmd_lists(struct mpi3mr_ioc *mrioc);
 void mpi3mr_check_rh_fault_ioc(struct mpi3mr_ioc *mrioc, u32 reason_code);
 void mpi3mr_print_fault_info(struct mpi3mr_ioc *mrioc);
 void mpi3mr_check_rh_fault_ioc(struct mpi3mr_ioc *mrioc, u32 reason_code);
