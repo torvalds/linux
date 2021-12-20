@@ -220,6 +220,12 @@ enum mpi3mr_reset_reason {
 	MPI3MR_RESET_FROM_FIRMWARE = 27,
 };
 
+/* Queue type definitions */
+enum queue_type {
+	MPI3MR_DEFAULT_QUEUE = 0,
+	MPI3MR_POLL_QUEUE,
+};
+
 /**
  * struct mpi3mr_compimg_ver - replica of component image
  * version defined in mpi30_image.h in host endianness
@@ -331,6 +337,7 @@ struct op_req_qinfo {
  * @pend_ios: Number of IOs pending in HW for this queue
  * @enable_irq_poll: Flag to indicate polling is enabled
  * @in_use: Queue is handled by poll/ISR
+ * @qtype: Type of queue (types defined in enum queue_type)
  */
 struct op_reply_qinfo {
 	u16 ci;
@@ -345,6 +352,7 @@ struct op_reply_qinfo {
 	atomic_t pend_ios;
 	bool enable_irq_poll;
 	atomic_t in_use;
+	enum queue_type qtype;
 };
 
 /**
@@ -703,6 +711,9 @@ struct scmd_priv {
  * @driver_info: Driver, Kernel, OS information to firmware
  * @change_count: Topology change count
  * @op_reply_q_offset: Operational reply queue offset with MSIx
+ * @default_qcount: Total Default queues
+ * @active_poll_qcount: Currently active poll queue count
+ * @requested_poll_qcount: User requested poll queue count
  */
 struct mpi3mr_ioc {
 	struct list_head list;
@@ -839,6 +850,10 @@ struct mpi3mr_ioc {
 	struct mpi3_driver_info_layout driver_info;
 	u16 change_count;
 	u16 op_reply_q_offset;
+
+	u16 default_qcount;
+	u16 active_poll_qcount;
+	u16 requested_poll_qcount;
 };
 
 /**
@@ -940,5 +955,8 @@ void mpi3mr_flush_delayed_cmd_lists(struct mpi3mr_ioc *mrioc);
 void mpi3mr_check_rh_fault_ioc(struct mpi3mr_ioc *mrioc, u32 reason_code);
 void mpi3mr_print_fault_info(struct mpi3mr_ioc *mrioc);
 void mpi3mr_check_rh_fault_ioc(struct mpi3mr_ioc *mrioc, u32 reason_code);
+int mpi3mr_process_op_reply_q(struct mpi3mr_ioc *mrioc,
+	struct op_reply_qinfo *op_reply_q);
+int mpi3mr_blk_mq_poll(struct Scsi_Host *shost, unsigned int queue_num);
 
 #endif /*MPI3MR_H_INCLUDED*/

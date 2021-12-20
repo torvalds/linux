@@ -3049,17 +3049,49 @@ static int mpi3mr_bios_param(struct scsi_device *sdev,
  * mpi3mr_map_queues - Map queues callback handler
  * @shost: SCSI host reference
  *
- * Call the blk_mq_pci_map_queues with from which operational
- * queue the mapping has to be done
+ * Maps default and poll queues.
  *
- * Return: return of blk_mq_pci_map_queues
+ * Return: return zero.
  */
 static int mpi3mr_map_queues(struct Scsi_Host *shost)
 {
 	struct mpi3mr_ioc *mrioc = shost_priv(shost);
+	int i, qoff, offset;
+	struct blk_mq_queue_map *map = NULL;
 
-	return blk_mq_pci_map_queues(&shost->tag_set.map[HCTX_TYPE_DEFAULT],
-	    mrioc->pdev, mrioc->op_reply_q_offset);
+	offset = mrioc->op_reply_q_offset;
+
+	for (i = 0, qoff = 0; i < HCTX_MAX_TYPES; i++) {
+		map = &shost->tag_set.map[i];
+
+		map->nr_queues  = 0;
+
+		if (i == HCTX_TYPE_DEFAULT)
+			map->nr_queues = mrioc->default_qcount;
+		else if (i == HCTX_TYPE_POLL)
+			map->nr_queues = mrioc->active_poll_qcount;
+
+		if (!map->nr_queues) {
+			BUG_ON(i == HCTX_TYPE_DEFAULT);
+			continue;
+		}
+
+		/*
+		 * The poll queue(s) doesn't have an IRQ (and hence IRQ
+		 * affinity), so use the regular blk-mq cpu mapping
+		 */
+		map->queue_offset = qoff;
+		if (i != HCTX_TYPE_POLL)
+			blk_mq_pci_map_queues(map, mrioc->pdev, offset);
+		else
+			blk_mq_map_queues(map);
+
+		qoff += map->nr_queues;
+		offset += map->nr_queues;
+	}
+
+	return 0;
+
 }
 
 /**
@@ -3873,6 +3905,7 @@ static struct scsi_host_template mpi3mr_driver_template = {
 	.eh_host_reset_handler		= mpi3mr_eh_host_reset,
 	.bios_param			= mpi3mr_bios_param,
 	.map_queues			= mpi3mr_map_queues,
+	.mq_poll                        = mpi3mr_blk_mq_poll,
 	.no_write_same			= 1,
 	.can_queue			= 1,
 	.this_id			= -1,
@@ -4105,6 +4138,9 @@ mpi3mr_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	}
 
 	shost->nr_hw_queues = mrioc->num_op_reply_q;
+	if (mrioc->active_poll_qcount)
+		shost->nr_maps = 3;
+
 	shost->can_queue = mrioc->max_host_ios;
 	shost->sg_tablesize = MPI3MR_SG_DEPTH;
 	shost->max_id = mrioc->facts.max_perids + 1;
