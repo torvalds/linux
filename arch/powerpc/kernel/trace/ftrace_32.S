@@ -162,22 +162,18 @@ _GLOBAL(ftrace_graph_caller)
 
 _GLOBAL(return_to_handler)
 	/* need to save return values */
-	stwu	r1, -32(r1)
-	stw	r3, 20(r1)
-	stw	r4, 16(r1)
-	stw	r31, 12(r1)
-	mr	r31, r1
+	stwu	r1, -16(r1)
+	stw	r3, 8(r1)
+	stw	r4, 12(r1)
 
 	bl	ftrace_return_to_handler
-	nop
 
 	/* return value has real return address */
 	mtlr	r3
 
-	lwz	r3, 20(r1)
-	lwz	r4, 16(r1)
-	lwz	r31,12(r1)
-	lwz	r1, 0(r1)
+	lwz	r3, 8(r1)
+	lwz	r4, 12(r1)
+	addi	r1, r1, 16
 
 	/* Jump back to real return address */
 	blr
