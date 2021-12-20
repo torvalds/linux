@@ -3344,9 +3344,22 @@ static bool mpi3mr_check_return_unmap(struct mpi3mr_ioc *mrioc,
 	struct scsi_cmnd *scmd)
 {
 	unsigned char *buf;
-	u16 param_len, desc_len;
+	u16 param_len, desc_len, trunc_param_len;
 
-	param_len = get_unaligned_be16(scmd->cmnd + 7);
+	trunc_param_len = param_len = get_unaligned_be16(scmd->cmnd + 7);
+
+	if (mrioc->pdev->revision) {
+		if ((param_len > 24) && ((param_len - 8) & 0xF)) {
+			trunc_param_len -= (param_len - 8) & 0xF;
+			dprint_scsi_command(mrioc, scmd, MPI3_DEBUG_SCSI_ERROR);
+			dprint_scsi_err(mrioc,
+			    "truncating param_len from (%d) to (%d)\n",
+			    param_len, trunc_param_len);
+			put_unaligned_be16(trunc_param_len, scmd->cmnd + 7);
+			dprint_scsi_command(mrioc, scmd, MPI3_DEBUG_SCSI_ERROR);
+		}
+		return false;
+	}
 
 	if (!param_len) {
 		ioc_warn(mrioc,
@@ -3406,12 +3419,12 @@ static bool mpi3mr_check_return_unmap(struct mpi3mr_ioc *mrioc,
 	}
 
 	if (param_len > (desc_len + 8)) {
+		trunc_param_len = desc_len + 8;
 		scsi_print_command(scmd);
-		ioc_warn(mrioc,
-		    "%s: Truncating param_len(%d) to desc_len+8(%d)\n",
-		    __func__, param_len, (desc_len + 8));
-		param_len = desc_len + 8;
-		put_unaligned_be16(param_len, scmd->cmnd + 7);
+		dprint_scsi_err(mrioc,
+		    "truncating param_len(%d) to desc_len+8(%d)\n",
+		    param_len, trunc_param_len);
+		put_unaligned_be16(trunc_param_len, scmd->cmnd + 7);
 		scsi_print_command(scmd);
 	}
 
@@ -3466,6 +3479,7 @@ static int mpi3mr_qcmd(struct Scsi_Host *shost,
 	u32 scsiio_flags = 0;
 	struct request *rq = scsi_cmd_to_rq(scmd);
 	int iprio_class;
+	u8 is_pcie_dev = 0;
 
 	sdev_priv_data = scmd->device->hostdata;
 	if (!sdev_priv_data || !sdev_priv_data->tgt_priv_data) {
@@ -3510,8 +3524,10 @@ static int mpi3mr_qcmd(struct Scsi_Host *shost,
 		goto out;
 	}
 
-	if ((scmd->cmnd[0] == UNMAP) &&
-	    (stgt_priv_data->dev_type == MPI3_DEVICE_DEVFORM_PCIE) &&
+	if (stgt_priv_data->dev_type == MPI3_DEVICE_DEVFORM_PCIE)
+		is_pcie_dev = 1;
+	if ((scmd->cmnd[0] == UNMAP) && is_pcie_dev &&
+	    (mrioc->pdev->device == MPI3_MFGPAGE_DEVID_SAS4116) &&
 	    mpi3mr_check_return_unmap(mrioc, scmd))
 		goto out;
 
