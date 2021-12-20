@@ -16,7 +16,7 @@
 #define RK3588_GRF_SOC_STATUS0		0x600
 #define RK3588_PHYREF_ALT_GATE		0xc38
 #define RK3588_FRAC_MAX_PRATE		1500000000
-#define RK3588_DCLK_MAX_PRATE		400000000
+#define RK3588_DCLK_MAX_PRATE		594000000
 
 enum rk3588_plls {
 	b0pll, b1pll, lpll, v0pll, aupll, cpll, gpll, npll, ppll,
