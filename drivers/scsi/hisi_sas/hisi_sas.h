@@ -158,6 +158,7 @@ enum hisi_sas_bit_err_type {
 enum hisi_sas_phy_event {
 	HISI_PHYE_PHY_UP   = 0U,
 	HISI_PHYE_LINK_RESET,
+	HISI_PHYE_PHY_UP_PM,
 	HISI_PHYES_NUM,
 };
 

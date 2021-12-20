@@ -1561,7 +1561,9 @@ static irqreturn_t phy_up_v3_hw(int phy_no, struct hisi_hba *hisi_hba)
 
 	phy->port_id = port_id;
 
-	hisi_sas_notify_phy_event(phy, HISI_PHYE_PHY_UP);
+	/* Call pm_runtime_put_sync() with pairs in hisi_sas_phyup_pm_work() */
+	pm_runtime_get_noresume(dev);
+	hisi_sas_notify_phy_event(phy, HISI_PHYE_PHY_UP_PM);
 
 	res = IRQ_HANDLED;
 
