@@ -609,6 +609,24 @@ static inline void scmi_clear_channel(struct scmi_info *info,
 		info->desc->ops->clear_channel(cinfo);
 }
 
+static inline bool is_polling_required(struct scmi_chan_info *cinfo,
+				       struct scmi_info *info)
+{
+	return cinfo->no_completion_irq || info->desc->force_polling;
+}
+
+static inline bool is_transport_polling_capable(struct scmi_info *info)
+{
+	return info->desc->ops->poll_done;
+}
+
+static inline bool is_polling_enabled(struct scmi_chan_info *cinfo,
+				      struct scmi_info *info)
+{
+	return is_polling_required(cinfo, info) &&
+		is_transport_polling_capable(info);
+}
+
 static void scmi_handle_notification(struct scmi_chan_info *cinfo,
 				     u32 msg_hdr, void *priv)
 {
@@ -817,6 +835,7 @@ static int do_xfer(const struct scmi_protocol_handle *ph,
 	struct device *dev = info->dev;
 	struct scmi_chan_info *cinfo;
 
+	/* Check for polling request on custom command xfers at first */
 	if (xfer->hdr.poll_completion && !info->desc->ops->poll_done) {
 		dev_warn_once(dev,
 			      "Polling mode is not supported by transport.\n");
@@ -826,6 +845,10 @@ static int do_xfer(const struct scmi_protocol_handle *ph,
 	cinfo = idr_find(&info->tx_idr, pi->proto->id);
 	if (unlikely(!cinfo))
 		return -EINVAL;
+
+	/* True ONLY if also supported by transport. */
+	if (is_polling_enabled(cinfo, info))
+		xfer->hdr.poll_completion = true;
 
 	/*
 	 * Initialise protocol id now from protocol handle to avoid it being
@@ -1526,6 +1549,16 @@ static int scmi_chan_setup(struct scmi_info *info, struct device *dev,
 	ret = info->desc->ops->chan_setup(cinfo, info->dev, tx);
 	if (ret)
 		return ret;
+
+	if (tx && is_polling_required(cinfo, info)) {
+		if (is_transport_polling_capable(info))
+			dev_info(dev,
+				 "Enabled polling mode TX channel - prot_id:%d\n",
+				 prot_id);
+		else
+			dev_warn(dev,
+				 "Polling mode NOT supported by transport.\n");
+	}
 
 idr_alloc:
 	ret = idr_alloc(idr, cinfo, prot_id, prot_id + 1, GFP_KERNEL);
