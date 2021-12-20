@@ -5623,7 +5623,7 @@ enum nl80211_if_combination_attrs {
  * @NL80211_PLINK_ESTAB: mesh peer link is established
  * @NL80211_PLINK_HOLDING: mesh peer link is being closed or cancelled
  * @NL80211_PLINK_BLOCKED: all frames transmitted from this mesh
- *	plink are discarded
+ *	plink are discarded, except for authentication frames
  * @NUM_NL80211_PLINK_STATES: number of peer link states
  * @MAX_NL80211_PLINK_STATES: highest numerical value of plink states
  */
