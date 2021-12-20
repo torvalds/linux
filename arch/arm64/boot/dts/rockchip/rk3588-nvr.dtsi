@@ -127,11 +127,39 @@
 	status = "okay";
 };
 
+&jpege_ccu {
+	status = "okay";
+};
+
 &jpege0 {
 	status = "okay";
 };
 
 &jpege0_mmu {
+	status = "okay";
+};
+
+&jpege1 {
+	status = "okay";
+};
+
+&jpege1_mmu {
+	status = "okay";
+};
+
+&jpege2 {
+	status = "okay";
+};
+
+&jpege2_mmu {
+	status = "okay";
+};
+
+&jpege3 {
+	status = "okay";
+};
+
+&jpege3_mmu {
 	status = "okay";
 };
 
