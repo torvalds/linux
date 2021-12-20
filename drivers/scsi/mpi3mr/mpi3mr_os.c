@@ -2659,8 +2659,9 @@ static int mpi3mr_issue_tm(struct mpi3mr_ioc *mrioc, u8 tm_type,
 		ioc_err(mrioc, "%s :Issue TM: command timed out\n", __func__);
 		drv_cmd->is_waiting = 0;
 		retval = -1;
-		mpi3mr_soft_reset_handler(mrioc,
-		    MPI3MR_RESET_FROM_TM_TIMEOUT, 1);
+		if (!(drv_cmd->state & MPI3MR_CMD_RESET))
+			mpi3mr_soft_reset_handler(mrioc,
+			    MPI3MR_RESET_FROM_TM_TIMEOUT, 1);
 		goto out_unlock;
 	}
 
