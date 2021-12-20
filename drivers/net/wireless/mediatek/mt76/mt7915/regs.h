@@ -741,7 +741,6 @@ enum offs_rev {
 #define MT_TOP_MISC_FW_STATE		GENMASK(2, 0)
 
 #define MT_HW_BOUND			0x70010020
-#define MT_HW_CHIPID			0x70010200
 #define MT_HW_REV			0x70010204
 #define MT_WF_SUBSYS_RST		0x70002600
 
