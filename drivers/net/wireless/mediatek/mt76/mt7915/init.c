@@ -307,6 +307,7 @@ mt7915_init_wiphy(struct ieee80211_hw *hw)
 {
 	struct mt7915_phy *phy = mt7915_hw_phy(hw);
 	struct wiphy *wiphy = hw->wiphy;
+	struct mt7915_dev *dev = phy->dev;
 
 	hw->queues = 4;
 	hw->max_rx_aggregation_subframes = IEEE80211_MAX_AMPDU_BUF;
@@ -349,14 +350,34 @@ mt7915_init_wiphy(struct ieee80211_hw *hw)
 		phy->mt76->sband_5g.sband.ht_cap.cap |=
 			IEEE80211_HT_CAP_LDPC_CODING |
 			IEEE80211_HT_CAP_MAX_AMSDU;
-		phy->mt76->sband_5g.sband.vht_cap.cap |=
-			IEEE80211_VHT_CAP_MAX_MPDU_LENGTH_7991 |
-			IEEE80211_VHT_CAP_MAX_A_MPDU_LENGTH_EXPONENT_MASK;
+
+		if (is_mt7915(&dev->mt76)) {
+			phy->mt76->sband_5g.sband.vht_cap.cap |=
+				IEEE80211_VHT_CAP_MAX_MPDU_LENGTH_7991 |
+				IEEE80211_VHT_CAP_MAX_A_MPDU_LENGTH_EXPONENT_MASK;
+
+			if (!dev->dbdc_support)
+				phy->mt76->sband_5g.sband.vht_cap.cap |=
+					IEEE80211_VHT_CAP_SHORT_GI_160 |
+					IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_160_80PLUS80MHZ;
+		} else {
+			phy->mt76->sband_5g.sband.vht_cap.cap |=
+				IEEE80211_VHT_CAP_MAX_MPDU_LENGTH_11454 |
+				IEEE80211_VHT_CAP_MAX_A_MPDU_LENGTH_EXPONENT_MASK;
+
+			/* mt7916 dbdc with 2g 2x2 bw40 and 5g 2x2 bw160c */
+			phy->mt76->sband_5g.sband.vht_cap.cap |=
+				IEEE80211_VHT_CAP_SHORT_GI_160 |
+				IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_160MHZ;
+		}
 	}
 
 	mt76_set_stream_caps(phy->mt76, true);
 	mt7915_set_stream_vht_txbf_caps(phy);
 	mt7915_set_stream_he_caps(phy);
+
+	wiphy->available_antennas_rx = phy->mt76->antenna_mask;
+	wiphy->available_antennas_tx = phy->mt76->antenna_mask;
 }
 
 static void
@@ -456,18 +477,26 @@ static int mt7915_register_ext_phy(struct mt7915_dev *dev)
 	phy = mphy->priv;
 	phy->dev = dev;
 	phy->mt76 = mphy;
-	mphy->chainmask = dev->chainmask & ~dev->mphy.chainmask;
-	mphy->antenna_mask = BIT(hweight8(mphy->chainmask)) - 1;
 
 	INIT_DELAYED_WORK(&mphy->mac_work, mt7915_mac_work);
 
-	mt7915_eeprom_parse_band_config(phy);
-	mt7915_init_wiphy(mphy->hw);
+	mt7915_eeprom_parse_hw_cap(dev, phy);
 
 	memcpy(mphy->macaddr, dev->mt76.eeprom.data + MT_EE_MAC_ADDR2,
 	       ETH_ALEN);
+	/* Make the secondary PHY MAC address local without overlapping with
+	 * the usual MAC address allocation scheme on multiple virtual interfaces
+	 */
+	if (!is_valid_ether_addr(mphy->macaddr)) {
+		memcpy(mphy->macaddr, dev->mt76.eeprom.data + MT_EE_MAC_ADDR,
+		       ETH_ALEN);
+		mphy->macaddr[0] |= 2;
+		mphy->macaddr[0] ^= BIT(7);
+	}
 	mt76_eeprom_override(mphy);
 
+	/* init wiphy according to mphy and phy */
+	mt7915_init_wiphy(mphy->hw);
 	ret = mt7915_init_tx_queues(phy, MT_TXQ_ID(1),
 				    MT7915_TX_RING_SIZE,
 				    MT_TXQ_RING_BASE(1));
@@ -561,7 +590,9 @@ static int mt7915_init_hardware(struct mt7915_dev *dev)
 	mt76_wr(dev, MT_INT_SOURCE_CSR, ~0);
 
 	INIT_WORK(&dev->init_work, mt7915_init_work);
-	dev->dbdc_support = !!(mt76_rr(dev, MT_HW_BOUND) & BIT(5));
+
+	dev->dbdc_support = is_mt7915(&dev->mt76) ?
+			    !!(mt76_rr(dev, MT_HW_BOUND) & BIT(5)) : true;
 
 	/* If MCU was already running, it is likely in a bad state */
 	if (mt76_get_field(dev, MT_TOP_MISC, MT_TOP_MISC_FW_STATE) >
@@ -587,7 +618,6 @@ static int mt7915_init_hardware(struct mt7915_dev *dev)
 	ret = mt7915_eeprom_init(dev);
 	if (ret < 0)
 		return ret;
-
 
 	if (dev->flash_mode) {
 		ret = mt7915_mcu_apply_group_cal(dev);
@@ -935,13 +965,6 @@ int mt7915_register_device(struct mt7915_dev *dev)
 
 	mt7915_init_wiphy(hw);
 
-	if (!dev->dbdc_support)
-		dev->mphy.sband_5g.sband.vht_cap.cap |=
-			IEEE80211_VHT_CAP_SHORT_GI_160 |
-			IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_160_80PLUS80MHZ;
-
-	dev->mphy.hw->wiphy->available_antennas_rx = dev->mphy.chainmask;
-	dev->mphy.hw->wiphy->available_antennas_tx = dev->mphy.chainmask;
 	dev->phy.dfs_state = -1;
 
 #ifdef CONFIG_NL80211_TESTMODE
