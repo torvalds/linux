@@ -13,6 +13,8 @@
 static int
 mpi3mr_issue_reset(struct mpi3mr_ioc *mrioc, u16 reset_type, u32 reset_reason);
 static int mpi3mr_setup_admin_qpair(struct mpi3mr_ioc *mrioc);
+static void mpi3mr_process_factsdata(struct mpi3mr_ioc *mrioc,
+	struct mpi3_ioc_facts_data *facts_data);
 
 #if defined(writeq) && defined(CONFIG_64BIT)
 static inline void mpi3mr_writeq(__u64 b, volatile void __iomem *addr)
@@ -376,7 +378,7 @@ static void mpi3mr_process_admin_reply_desc(struct mpi3mr_ioc *mrioc,
 			if (def_reply) {
 				cmdptr->state |= MPI3MR_CMD_REPLY_VALID;
 				memcpy((u8 *)cmdptr->reply, (u8 *)def_reply,
-				    mrioc->facts.reply_sz);
+				    mrioc->reply_sz);
 			}
 			if (cmdptr->is_waiting) {
 				complete(&cmdptr->done);
@@ -994,6 +996,66 @@ static int mpi3mr_issue_and_process_mur(struct mpi3mr_ioc *mrioc,
 	ioc_info(mrioc, "Base IOC Sts/Config after %s MUR is (0x%x)/(0x%x)\n",
 	    (!retval) ? "successful" : "failed", ioc_status, ioc_config);
 	return retval;
+}
+
+/**
+ * mpi3mr_revalidate_factsdata - validate IOCFacts parameters
+ * during reset/resume
+ * @mrioc: Adapter instance reference
+ *
+ * Return zero if the new IOCFacts parameters value is compatible with
+ * older values else return -EPERM
+ */
+static int
+mpi3mr_revalidate_factsdata(struct mpi3mr_ioc *mrioc)
+{
+	u16 dev_handle_bitmap_sz;
+	void *removepend_bitmap;
+
+	if (mrioc->facts.reply_sz > mrioc->reply_sz) {
+		ioc_err(mrioc,
+		    "cannot increase reply size from %d to %d\n",
+		    mrioc->reply_sz, mrioc->facts.reply_sz);
+		return -EPERM;
+	}
+
+	if (mrioc->facts.max_op_reply_q < mrioc->num_op_reply_q) {
+		ioc_err(mrioc,
+		    "cannot reduce number of operational reply queues from %d to %d\n",
+		    mrioc->num_op_reply_q,
+		    mrioc->facts.max_op_reply_q);
+		return -EPERM;
+	}
+
+	if (mrioc->facts.max_op_req_q < mrioc->num_op_req_q) {
+		ioc_err(mrioc,
+		    "cannot reduce number of operational request queues from %d to %d\n",
+		    mrioc->num_op_req_q, mrioc->facts.max_op_req_q);
+		return -EPERM;
+	}
+
+	dev_handle_bitmap_sz = mrioc->facts.max_devhandle / 8;
+	if (mrioc->facts.max_devhandle % 8)
+		dev_handle_bitmap_sz++;
+	if (dev_handle_bitmap_sz > mrioc->dev_handle_bitmap_sz) {
+		removepend_bitmap = krealloc(mrioc->removepend_bitmap,
+		    dev_handle_bitmap_sz, GFP_KERNEL);
+		if (!removepend_bitmap) {
+			ioc_err(mrioc,
+			    "failed to increase removepend_bitmap sz from: %d to %d\n",
+			    mrioc->dev_handle_bitmap_sz, dev_handle_bitmap_sz);
+			return -EPERM;
+		}
+		memset(removepend_bitmap + mrioc->dev_handle_bitmap_sz, 0,
+		    dev_handle_bitmap_sz - mrioc->dev_handle_bitmap_sz);
+		mrioc->removepend_bitmap = removepend_bitmap;
+		ioc_info(mrioc,
+		    "increased dev_handle_bitmap_sz from %d to %d\n",
+		    mrioc->dev_handle_bitmap_sz, dev_handle_bitmap_sz);
+		mrioc->dev_handle_bitmap_sz = dev_handle_bitmap_sz;
+	}
+
+	return 0;
 }
 
 /**
@@ -1854,8 +1916,13 @@ static int mpi3mr_create_op_queues(struct mpi3mr_ioc *mrioc)
 	    mrioc->intr_info_count - mrioc->op_reply_q_offset;
 	if (!mrioc->num_queues)
 		mrioc->num_queues = min_t(int, num_queues, msix_count_op_q);
-	num_queues = mrioc->num_queues;
-	ioc_info(mrioc, "Trying to create %d Operational Q pairs\n",
+	/*
+	 * During reset set the num_queues to the number of queues
+	 * that was set before the reset.
+	 */
+	num_queues = mrioc->num_op_reply_q ?
+	    mrioc->num_op_reply_q : mrioc->num_queues;
+	ioc_info(mrioc, "trying to create %d operational queue pairs\n",
 	    num_queues);
 
 	if (!mrioc->req_qinfo) {
@@ -2447,6 +2514,7 @@ static int mpi3mr_issue_iocfacts(struct mpi3mr_ioc *mrioc,
 		goto out_unlock;
 	}
 	memcpy(facts_data, (u8 *)data, data_len);
+	mpi3mr_process_factsdata(mrioc, facts_data);
 out_unlock:
 	mrioc->init_cmds.state = MPI3MR_CMD_NOTUSED;
 	mutex_unlock(&mrioc->init_cmds.mutex);
@@ -2593,12 +2661,6 @@ static void mpi3mr_process_factsdata(struct mpi3mr_ioc *mrioc,
 	ioc_info(mrioc, "DMA mask %d InitialPE status 0x%x\n",
 	    mrioc->facts.dma_mask, (facts_flags &
 	    MPI3_IOCFACTS_FLAGS_INITIAL_PORT_ENABLE_MASK));
-
-	mrioc->max_host_ios = mrioc->facts.max_reqs - MPI3MR_INTERNAL_CMDS_RESVD;
-
-	if (reset_devices)
-		mrioc->max_host_ios = min_t(int, mrioc->max_host_ios,
-		    MPI3MR_HOST_IOS_KDUMP);
 }
 
 /**
@@ -2618,18 +2680,18 @@ static int mpi3mr_alloc_reply_sense_bufs(struct mpi3mr_ioc *mrioc)
 	if (mrioc->init_cmds.reply)
 		return retval;
 
-	mrioc->init_cmds.reply = kzalloc(mrioc->facts.reply_sz, GFP_KERNEL);
+	mrioc->init_cmds.reply = kzalloc(mrioc->reply_sz, GFP_KERNEL);
 	if (!mrioc->init_cmds.reply)
 		goto out_failed;
 
 	for (i = 0; i < MPI3MR_NUM_DEVRMCMD; i++) {
-		mrioc->dev_rmhs_cmds[i].reply = kzalloc(mrioc->facts.reply_sz,
+		mrioc->dev_rmhs_cmds[i].reply = kzalloc(mrioc->reply_sz,
 		    GFP_KERNEL);
 		if (!mrioc->dev_rmhs_cmds[i].reply)
 			goto out_failed;
 	}
 
-	mrioc->host_tm_cmds.reply = kzalloc(mrioc->facts.reply_sz, GFP_KERNEL);
+	mrioc->host_tm_cmds.reply = kzalloc(mrioc->reply_sz, GFP_KERNEL);
 	if (!mrioc->host_tm_cmds.reply)
 		goto out_failed;
 
@@ -2655,7 +2717,7 @@ static int mpi3mr_alloc_reply_sense_bufs(struct mpi3mr_ioc *mrioc)
 	mrioc->sense_buf_q_sz = mrioc->num_sense_bufs + 1;
 
 	/* reply buffer pool, 16 byte align */
-	sz = mrioc->num_reply_bufs * mrioc->facts.reply_sz;
+	sz = mrioc->num_reply_bufs * mrioc->reply_sz;
 	mrioc->reply_buf_pool = dma_pool_create("reply_buf pool",
 	    &mrioc->pdev->dev, sz, 16, 0);
 	if (!mrioc->reply_buf_pool) {
@@ -2731,10 +2793,10 @@ static void mpimr_initialize_reply_sbuf_queues(struct mpi3mr_ioc *mrioc)
 	u32 sz, i;
 	dma_addr_t phy_addr;
 
-	sz = mrioc->num_reply_bufs * mrioc->facts.reply_sz;
+	sz = mrioc->num_reply_bufs * mrioc->reply_sz;
 	ioc_info(mrioc,
 	    "reply buf pool(0x%p): depth(%d), frame_size(%d), pool_size(%d kB), reply_dma(0x%llx)\n",
-	    mrioc->reply_buf, mrioc->num_reply_bufs, mrioc->facts.reply_sz,
+	    mrioc->reply_buf, mrioc->num_reply_bufs, mrioc->reply_sz,
 	    (sz / 1024), (unsigned long long)mrioc->reply_buf_dma);
 	sz = mrioc->reply_free_qsz * 8;
 	ioc_info(mrioc,
@@ -2754,7 +2816,7 @@ static void mpimr_initialize_reply_sbuf_queues(struct mpi3mr_ioc *mrioc)
 
 	/* initialize Reply buffer Queue */
 	for (i = 0, phy_addr = mrioc->reply_buf_dma;
-	    i < mrioc->num_reply_bufs; i++, phy_addr += mrioc->facts.reply_sz)
+	    i < mrioc->num_reply_bufs; i++, phy_addr += mrioc->reply_sz)
 		mrioc->reply_free_q[i] = cpu_to_le64(phy_addr);
 	mrioc->reply_free_q[i] = cpu_to_le64(0);
 
@@ -3459,7 +3521,13 @@ retry_init:
 		goto out_failed;
 	}
 
-	mpi3mr_process_factsdata(mrioc, &facts_data);
+	mrioc->max_host_ios = mrioc->facts.max_reqs - MPI3MR_INTERNAL_CMDS_RESVD;
+
+	if (reset_devices)
+		mrioc->max_host_ios = min_t(int, mrioc->max_host_ios,
+		    MPI3MR_HOST_IOS_KDUMP);
+
+	mrioc->reply_sz = mrioc->facts.reply_sz;
 
 	retval = mpi3mr_check_reset_dma_mask(mrioc);
 	if (retval) {
@@ -3582,7 +3650,12 @@ retry_init:
 		goto out_failed;
 	}
 
-	mpi3mr_process_factsdata(mrioc, &facts_data);
+	dprint_reset(mrioc, "validating ioc_facts\n");
+	retval = mpi3mr_revalidate_factsdata(mrioc);
+	if (retval) {
+		ioc_err(mrioc, "failed to revalidate ioc_facts data\n");
+		goto out_failed_noretry;
+	}
 
 	mpi3mr_print_ioc_info(mrioc);
 

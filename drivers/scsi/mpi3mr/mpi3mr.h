@@ -752,6 +752,7 @@ struct mpi3mr_ioc {
 	dma_addr_t reply_buf_dma_max_address;
 
 	u16 reply_free_qsz;
+	u16 reply_sz;
 	struct dma_pool *reply_free_q_pool;
 	__le64 *reply_free_q;
 	dma_addr_t reply_free_q_dma;
