@@ -10,6 +10,10 @@
 #include "mpi3mr.h"
 #include <linux/io-64-nonatomic-lo-hi.h>
 
+static int
+mpi3mr_issue_reset(struct mpi3mr_ioc *mrioc, u16 reset_type, u32 reset_reason);
+static int mpi3mr_setup_admin_qpair(struct mpi3mr_ioc *mrioc);
+
 #if defined(writeq) && defined(CONFIG_64BIT)
 static inline void mpi3mr_writeq(__u64 b, volatile void __iomem *addr)
 {
@@ -992,26 +996,105 @@ static int mpi3mr_issue_and_process_mur(struct mpi3mr_ioc *mrioc,
  * Set Enable IOC bit in IOC configuration register and wait for
  * the controller to become ready.
  *
- * Return: 0 on success, -1 on failure.
+ * Return: 0 on success, appropriate error on failure.
  */
 static int mpi3mr_bring_ioc_ready(struct mpi3mr_ioc *mrioc)
 {
-	u32 ioc_config, timeout;
-	enum mpi3mr_iocstate current_state;
+	u32 ioc_config, ioc_status, timeout;
+	int retval = 0;
+	enum mpi3mr_iocstate ioc_state;
+	u64 base_info;
 
+	ioc_status = readl(&mrioc->sysif_regs->ioc_status);
+	ioc_config = readl(&mrioc->sysif_regs->ioc_configuration);
+	base_info = lo_hi_readq(&mrioc->sysif_regs->ioc_information);
+	ioc_info(mrioc, "ioc_status(0x%08x), ioc_config(0x%08x), ioc_info(0x%016llx) at the bringup\n",
+	    ioc_status, ioc_config, base_info);
+
+	/*The timeout value is in 2sec unit, changing it to seconds*/
+	mrioc->ready_timeout =
+	    ((base_info & MPI3_SYSIF_IOC_INFO_LOW_TIMEOUT_MASK) >>
+	    MPI3_SYSIF_IOC_INFO_LOW_TIMEOUT_SHIFT) * 2;
+
+	ioc_info(mrioc, "ready timeout: %d seconds\n", mrioc->ready_timeout);
+
+	ioc_state = mpi3mr_get_iocstate(mrioc);
+	ioc_info(mrioc, "controller is in %s state during detection\n",
+	    mpi3mr_iocstate_name(ioc_state));
+
+	if (ioc_state == MRIOC_STATE_BECOMING_READY ||
+	    ioc_state == MRIOC_STATE_RESET_REQUESTED) {
+		timeout = mrioc->ready_timeout * 10;
+		do {
+			msleep(100);
+		} while (--timeout);
+
+		ioc_state = mpi3mr_get_iocstate(mrioc);
+		ioc_info(mrioc,
+		    "controller is in %s state after waiting to reset\n",
+		    mpi3mr_iocstate_name(ioc_state));
+	}
+
+	if (ioc_state == MRIOC_STATE_READY) {
+		ioc_info(mrioc, "issuing message unit reset (MUR) to bring to reset state\n");
+		retval = mpi3mr_issue_and_process_mur(mrioc,
+		    MPI3MR_RESET_FROM_BRINGUP);
+		ioc_state = mpi3mr_get_iocstate(mrioc);
+		if (retval)
+			ioc_err(mrioc,
+			    "message unit reset failed with error %d current state %s\n",
+			    retval, mpi3mr_iocstate_name(ioc_state));
+	}
+	if (ioc_state != MRIOC_STATE_RESET) {
+		mpi3mr_print_fault_info(mrioc);
+		ioc_info(mrioc, "issuing soft reset to bring to reset state\n");
+		retval = mpi3mr_issue_reset(mrioc,
+		    MPI3_SYSIF_HOST_DIAG_RESET_ACTION_SOFT_RESET,
+		    MPI3MR_RESET_FROM_BRINGUP);
+		if (retval) {
+			ioc_err(mrioc,
+			    "soft reset failed with error %d\n", retval);
+			goto out_failed;
+		}
+	}
+	ioc_state = mpi3mr_get_iocstate(mrioc);
+	if (ioc_state != MRIOC_STATE_RESET) {
+		ioc_err(mrioc,
+		    "cannot bring controller to reset state, current state: %s\n",
+		    mpi3mr_iocstate_name(ioc_state));
+		goto out_failed;
+	}
+	mpi3mr_clear_reset_history(mrioc);
+	retval = mpi3mr_setup_admin_qpair(mrioc);
+	if (retval) {
+		ioc_err(mrioc, "failed to setup admin queues: error %d\n",
+		    retval);
+		goto out_failed;
+	}
+
+	ioc_info(mrioc, "bringing controller to ready state\n");
 	ioc_config = readl(&mrioc->sysif_regs->ioc_configuration);
 	ioc_config |= MPI3_SYSIF_IOC_CONFIG_ENABLE_IOC;
 	writel(ioc_config, &mrioc->sysif_regs->ioc_configuration);
 
 	timeout = mrioc->ready_timeout * 10;
 	do {
-		current_state = mpi3mr_get_iocstate(mrioc);
-		if (current_state == MRIOC_STATE_READY)
+		ioc_state = mpi3mr_get_iocstate(mrioc);
+		if (ioc_state == MRIOC_STATE_READY) {
+			ioc_info(mrioc,
+			    "successfully transistioned to %s state\n",
+			    mpi3mr_iocstate_name(ioc_state));
 			return 0;
+		}
 		msleep(100);
 	} while (--timeout);
 
-	return -1;
+out_failed:
+	ioc_state = mpi3mr_get_iocstate(mrioc);
+	ioc_err(mrioc,
+	    "failed to bring to ready state,  current state: %s\n",
+	    mpi3mr_iocstate_name(ioc_state));
+	return retval;
 }
 
 /**
@@ -3372,10 +3455,6 @@ static int mpi3mr_enable_events(struct mpi3mr_ioc *mrioc)
 int mpi3mr_init_ioc(struct mpi3mr_ioc *mrioc, u8 init_type)
 {
 	int retval = 0;
-	enum mpi3mr_iocstate ioc_state;
-	u64 base_info;
-	u32 timeout;
-	u32 ioc_status, ioc_config;
 	struct mpi3_ioc_facts_data facts_data;
 
 	mrioc->irqpoll_sleep = MPI3MR_IRQ_POLL_SLEEP;
@@ -3388,74 +3467,6 @@ int mpi3mr_init_ioc(struct mpi3mr_ioc *mrioc, u8 init_type)
 			    retval);
 			goto out_nocleanup;
 		}
-	}
-
-	ioc_status = readl(&mrioc->sysif_regs->ioc_status);
-	ioc_config = readl(&mrioc->sysif_regs->ioc_configuration);
-
-	ioc_info(mrioc, "SOD status %x configuration %x\n",
-	    ioc_status, ioc_config);
-
-	base_info = lo_hi_readq(&mrioc->sysif_regs->ioc_information);
-	ioc_info(mrioc, "SOD base_info %llx\n",	base_info);
-
-	/*The timeout value is in 2sec unit, changing it to seconds*/
-	mrioc->ready_timeout =
-	    ((base_info & MPI3_SYSIF_IOC_INFO_LOW_TIMEOUT_MASK) >>
-	    MPI3_SYSIF_IOC_INFO_LOW_TIMEOUT_SHIFT) * 2;
-
-	ioc_info(mrioc, "IOC ready timeout %d\n", mrioc->ready_timeout);
-
-	ioc_state = mpi3mr_get_iocstate(mrioc);
-	ioc_info(mrioc, "IOC in %s state during detection\n",
-	    mpi3mr_iocstate_name(ioc_state));
-
-	if (ioc_state == MRIOC_STATE_BECOMING_READY ||
-	    ioc_state == MRIOC_STATE_RESET_REQUESTED) {
-		timeout = mrioc->ready_timeout * 10;
-		do {
-			msleep(100);
-		} while (--timeout);
-
-		ioc_state = mpi3mr_get_iocstate(mrioc);
-		ioc_info(mrioc,
-		    "IOC in %s state after waiting for reset time\n",
-		    mpi3mr_iocstate_name(ioc_state));
-	}
-
-	if (ioc_state == MRIOC_STATE_READY) {
-		retval = mpi3mr_issue_and_process_mur(mrioc,
-		    MPI3MR_RESET_FROM_BRINGUP);
-		if (retval) {
-			ioc_err(mrioc, "Failed to MU reset IOC error %d\n",
-			    retval);
-		}
-		ioc_state = mpi3mr_get_iocstate(mrioc);
-	}
-	if (ioc_state != MRIOC_STATE_RESET) {
-		mpi3mr_print_fault_info(mrioc);
-		retval = mpi3mr_issue_reset(mrioc,
-		    MPI3_SYSIF_HOST_DIAG_RESET_ACTION_SOFT_RESET,
-		    MPI3MR_RESET_FROM_BRINGUP);
-		if (retval) {
-			ioc_err(mrioc,
-			    "%s :Failed to soft reset IOC error %d\n",
-			    __func__, retval);
-			goto out_failed;
-		}
-	}
-	ioc_state = mpi3mr_get_iocstate(mrioc);
-	if (ioc_state != MRIOC_STATE_RESET) {
-		retval = -1;
-		ioc_err(mrioc, "Cannot bring IOC to reset state\n");
-		goto out_failed;
-	}
-
-	retval = mpi3mr_setup_admin_qpair(mrioc);
-	if (retval) {
-		ioc_err(mrioc, "Failed to setup admin Qs: error %d\n",
-		    retval);
-		goto out_failed;
 	}
 
 	retval = mpi3mr_bring_ioc_ready(mrioc);
