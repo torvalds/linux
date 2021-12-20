@@ -248,17 +248,17 @@
 
 &mipi_csi {
 	clock-frequency = <166000000>;
-	fsl,csis-hs-settle = <3>;
 	status = "okay";
 
-	port@0 {
-		reg = <0>;
+	ports {
+		port@0 {
+			reg = <0>;
 
-		mipi_from_sensor: endpoint {
-			remote-endpoint = <&ov2680_to_mipi>;
-			data-lanes = <1>;
+			mipi_from_sensor: endpoint {
+				remote-endpoint = <&ov2680_to_mipi>;
+				data-lanes = <1>;
+			};
 		};
-
 	};
 };
 

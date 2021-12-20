@@ -260,6 +260,10 @@
 	status = "okay";
 };
 
+&usbh1 {
+	disable-over-current;
+};
+
 &usdhc2 { /* SD card */
 	status = "okay";
 };
