@@ -860,7 +860,7 @@ static void mpi3mr_update_tgtdev(struct mpi3mr_ioc *mrioc,
 			tgtdev->dev_spec.pcie_inf.reset_to =
 			    pcieinf->controller_reset_to;
 			tgtdev->dev_spec.pcie_inf.abort_to =
-			    pcieinf->nv_me_abort_to;
+			    pcieinf->nvme_abort_to;
 		}
 		if (tgtdev->dev_spec.pcie_inf.mdts > (1024 * 1024))
 			tgtdev->dev_spec.pcie_inf.mdts = (1024 * 1024);
