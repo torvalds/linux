@@ -1891,7 +1891,7 @@ static void
 mt7915_dma_reset(struct mt7915_dev *dev)
 {
 	struct mt76_phy *mphy_ext = dev->mt76.phy2;
-	u32 hif1_ofs = MT_WFDMA1_PCIE1_BASE - MT_WFDMA1_BASE;
+	u32 hif1_ofs = MT_WFDMA0_PCIE1(0) - MT_WFDMA0(0);
 	int i;
 
 	mt76_clear(dev, MT_WFDMA0_GLO_CFG,
@@ -2052,9 +2052,11 @@ void mt7915_mac_update_stats(struct mt7915_phy *phy)
 	struct mib_stats *mib = &phy->mib;
 	bool ext_phy = phy != &dev->phy;
 	int i, aggr0, aggr1, cnt;
+	u32 val;
 
-	mib->fcs_err_cnt += mt76_get_field(dev, MT_MIB_SDR3(ext_phy),
-					   MT_MIB_SDR3_FCS_ERR_MASK);
+	cnt = mt76_rr(dev, MT_MIB_SDR3(ext_phy));
+	mib->fcs_err_cnt += is_mt7915(&dev->mt76) ? FIELD_GET(MT_MIB_SDR3_FCS_ERR_MASK, cnt) :
+		FIELD_GET(MT_MIB_SDR3_FCS_ERR_MASK_MT7916, cnt);
 
 	cnt = mt76_rr(dev, MT_MIB_SDR4(ext_phy));
 	mib->rx_fifo_full_cnt += FIELD_GET(MT_MIB_SDR4_RX_FIFO_FULL_MASK, cnt);
@@ -2081,10 +2083,14 @@ void mt7915_mac_update_stats(struct mt7915_phy *phy)
 	mib->tx_stop_q_empty_cnt += FIELD_GET(MT_MIB_SDR13_TX_STOP_Q_EMPTY_CNT_MASK, cnt);
 
 	cnt = mt76_rr(dev, MT_MIB_SDR14(ext_phy));
-	mib->tx_mpdu_attempts_cnt += FIELD_GET(MT_MIB_SDR14_TX_MPDU_ATTEMPTS_CNT_MASK, cnt);
+	mib->tx_mpdu_attempts_cnt += is_mt7915(&dev->mt76) ?
+		FIELD_GET(MT_MIB_SDR14_TX_MPDU_ATTEMPTS_CNT_MASK, cnt) :
+		FIELD_GET(MT_MIB_SDR14_TX_MPDU_ATTEMPTS_CNT_MASK_MT7916, cnt);
 
 	cnt = mt76_rr(dev, MT_MIB_SDR15(ext_phy));
-	mib->tx_mpdu_success_cnt += FIELD_GET(MT_MIB_SDR15_TX_MPDU_SUCCESS_CNT_MASK, cnt);
+	mib->tx_mpdu_success_cnt += is_mt7915(&dev->mt76) ?
+		FIELD_GET(MT_MIB_SDR15_TX_MPDU_SUCCESS_CNT_MASK, cnt) :
+		FIELD_GET(MT_MIB_SDR15_TX_MPDU_SUCCESS_CNT_MASK_MT7916, cnt);
 
 	cnt = mt76_rr(dev, MT_MIB_SDR22(ext_phy));
 	mib->rx_ampdu_cnt += cnt;
@@ -2093,7 +2099,9 @@ void mt7915_mac_update_stats(struct mt7915_phy *phy)
 	mib->rx_ampdu_bytes_cnt += cnt;
 
 	cnt = mt76_rr(dev, MT_MIB_SDR24(ext_phy));
-	mib->rx_ampdu_valid_subframe_cnt += FIELD_GET(MT_MIB_SDR24_RX_AMPDU_SF_CNT_MASK, cnt);
+	mib->rx_ampdu_valid_subframe_cnt += is_mt7915(&dev->mt76) ?
+		FIELD_GET(MT_MIB_SDR24_RX_AMPDU_SF_CNT_MASK, cnt) :
+		FIELD_GET(MT_MIB_SDR24_RX_AMPDU_SF_CNT_MASK_MT7916, cnt);
 
 	cnt = mt76_rr(dev, MT_MIB_SDR25(ext_phy));
 	mib->rx_ampdu_valid_subframe_bytes_cnt += cnt;
@@ -2105,11 +2113,14 @@ void mt7915_mac_update_stats(struct mt7915_phy *phy)
 	mib->tx_rwp_need_cnt += FIELD_GET(MT_MIB_SDR28_TX_RWP_NEED_CNT_MASK, cnt);
 
 	cnt = mt76_rr(dev, MT_MIB_SDR29(ext_phy));
-	mib->rx_pfdrop_cnt += FIELD_GET(MT_MIB_SDR29_RX_PFDROP_CNT_MASK, cnt);
+	mib->rx_pfdrop_cnt += is_mt7915(&dev->mt76) ?
+		FIELD_GET(MT_MIB_SDR29_RX_PFDROP_CNT_MASK, cnt) :
+		FIELD_GET(MT_MIB_SDR29_RX_PFDROP_CNT_MASK_MT7916, cnt);
 
-	cnt = mt76_rr(dev, MT_MIB_SDR30(ext_phy));
-	mib->rx_vec_queue_overflow_drop_cnt +=
-		FIELD_GET(MT_MIB_SDR30_RX_VEC_QUEUE_OVERFLOW_DROP_CNT_MASK, cnt);
+	cnt = mt76_rr(dev, MT_MIB_SDRVEC(ext_phy));
+	mib->rx_vec_queue_overflow_drop_cnt += is_mt7915(&dev->mt76) ?
+		FIELD_GET(MT_MIB_SDR30_RX_VEC_QUEUE_OVERFLOW_DROP_CNT_MASK, cnt) :
+		FIELD_GET(MT_MIB_SDR30_RX_VEC_QUEUE_OVERFLOW_DROP_CNT_MASK_MT7916, cnt);
 
 	cnt = mt76_rr(dev, MT_MIB_SDR31(ext_phy));
 	mib->rx_ba_cnt += cnt;
@@ -2117,10 +2128,13 @@ void mt7915_mac_update_stats(struct mt7915_phy *phy)
 	cnt = mt76_rr(dev, MT_MIB_SDR32(ext_phy));
 	mib->tx_pkt_ebf_cnt += FIELD_GET(MT_MIB_SDR32_TX_PKT_EBF_CNT_MASK, cnt);
 
-	cnt = mt76_rr(dev, MT_MIB_SDR33(ext_phy));
-	mib->tx_pkt_ibf_cnt += FIELD_GET(MT_MIB_SDR33_TX_PKT_IBF_CNT_MASK, cnt);
+	if (is_mt7915(&dev->mt76))
+		cnt = mt76_rr(dev, MT_MIB_SDR33(ext_phy));
+	mib->tx_pkt_ibf_cnt += is_mt7915(&dev->mt76) ?
+		       FIELD_GET(MT_MIB_SDR32_TX_PKT_IBF_CNT_MASK, cnt) :
+		       FIELD_GET(MT_MIB_SDR32_TX_PKT_IBF_CNT_MASK_MT7916, cnt);
 
-	cnt = mt76_rr(dev, MT_MIB_SDR34(ext_phy));
+	cnt = mt76_rr(dev, MT_MIB_SDRMUBF(ext_phy));
 	mib->tx_bf_cnt += FIELD_GET(MT_MIB_MU_BF_TX_CNT, cnt);
 
 	cnt = mt76_rr(dev, MT_MIB_DR8(ext_phy));
@@ -2158,26 +2172,54 @@ void mt7915_mac_update_stats(struct mt7915_phy *phy)
 	}
 
 	aggr0 = ext_phy ? ARRAY_SIZE(dev->mt76.aggr_stats) / 2 : 0;
-	for (i = 0, aggr1 = aggr0 + 4; i < 4; i++) {
-		u32 val;
+	if (is_mt7915(&dev->mt76)) {
+		for (i = 0, aggr1 = aggr0 + 4; i < 4; i++) {
+			val = mt76_rr(dev, MT_MIB_MB_SDR1(ext_phy, (i << 4)));
+			mib->ba_miss_cnt += FIELD_GET(MT_MIB_BA_MISS_COUNT_MASK, val);
+			mib->ack_fail_cnt +=
+				FIELD_GET(MT_MIB_ACK_FAIL_COUNT_MASK, val);
 
-		val = mt76_rr(dev, MT_MIB_MB_SDR1(ext_phy, i));
-		mib->ba_miss_cnt += FIELD_GET(MT_MIB_BA_MISS_COUNT_MASK, val);
-		mib->ack_fail_cnt +=
-			FIELD_GET(MT_MIB_ACK_FAIL_COUNT_MASK, val);
+			val = mt76_rr(dev, MT_MIB_MB_SDR0(ext_phy, (i << 4)));
+			mib->rts_cnt += FIELD_GET(MT_MIB_RTS_COUNT_MASK, val);
+			mib->rts_retries_cnt +=
+				FIELD_GET(MT_MIB_RTS_RETRIES_COUNT_MASK, val);
 
-		val = mt76_rr(dev, MT_MIB_MB_SDR0(ext_phy, i));
-		mib->rts_cnt += FIELD_GET(MT_MIB_RTS_COUNT_MASK, val);
-		mib->rts_retries_cnt +=
-			FIELD_GET(MT_MIB_RTS_RETRIES_COUNT_MASK, val);
+			val = mt76_rr(dev, MT_TX_AGG_CNT(ext_phy, i));
+			dev->mt76.aggr_stats[aggr0++] += val & 0xffff;
+			dev->mt76.aggr_stats[aggr0++] += val >> 16;
 
-		val = mt76_rr(dev, MT_TX_AGG_CNT(ext_phy, i));
-		dev->mt76.aggr_stats[aggr0++] += val & 0xffff;
-		dev->mt76.aggr_stats[aggr0++] += val >> 16;
+			val = mt76_rr(dev, MT_TX_AGG_CNT2(ext_phy, i));
+			dev->mt76.aggr_stats[aggr1++] += val & 0xffff;
+			dev->mt76.aggr_stats[aggr1++] += val >> 16;
+		}
+	} else {
+		for (i = 0; i < 2; i++) {
+			/* rts count */
+			val = mt76_rr(dev, MT_MIB_MB_SDR0(ext_phy, (i << 2)));
+			mib->rts_cnt += FIELD_GET(GENMASK(15, 0), val);
+			mib->rts_cnt += FIELD_GET(GENMASK(31, 16), val);
 
-		val = mt76_rr(dev, MT_TX_AGG_CNT2(ext_phy, i));
-		dev->mt76.aggr_stats[aggr1++] += val & 0xffff;
-		dev->mt76.aggr_stats[aggr1++] += val >> 16;
+			/* rts retry count */
+			val = mt76_rr(dev, MT_MIB_MB_SDR1(ext_phy, (i << 2)));
+			mib->rts_retries_cnt += FIELD_GET(GENMASK(15, 0), val);
+			mib->rts_retries_cnt += FIELD_GET(GENMASK(31, 16), val);
+
+			/* ba miss count */
+			val = mt76_rr(dev, MT_MIB_MB_SDR2(ext_phy, (i << 2)));
+			mib->ba_miss_cnt += FIELD_GET(GENMASK(15, 0), val);
+			mib->ba_miss_cnt += FIELD_GET(GENMASK(31, 16), val);
+
+			/* ack fail count */
+			val = mt76_rr(dev, MT_MIB_MB_BFTF(ext_phy, (i << 2)));
+			mib->ack_fail_cnt += FIELD_GET(GENMASK(15, 0), val);
+			mib->ack_fail_cnt += FIELD_GET(GENMASK(31, 16), val);
+		}
+
+		for (i = 0; i < 8; i++) {
+			val = mt76_rr(dev, MT_TX_AGG_CNT(ext_phy, i));
+			dev->mt76.aggr_stats[aggr0++] += FIELD_GET(GENMASK(15, 0), val);
+			dev->mt76.aggr_stats[aggr0++] += FIELD_GET(GENMASK(31, 16), val);
+		}
 	}
 }
 

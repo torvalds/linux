@@ -521,14 +521,14 @@ mt7915_tx_stats_show(struct seq_file *file, void *data)
 DEFINE_SHOW_ATTRIBUTE(mt7915_tx_stats);
 
 static void
-mt7915_hw_queue_read(struct seq_file *s, u32 base, u32 size,
+mt7915_hw_queue_read(struct seq_file *s, u32 size,
 		     const struct hw_queue_map *map)
 {
 	struct mt7915_phy *phy = s->private;
 	struct mt7915_dev *dev = phy->dev;
 	u32 i, val;
 
-	val = mt76_rr(dev, base + MT_FL_Q_EMPTY);
+	val = mt76_rr(dev, MT_FL_Q_EMPTY);
 	for (i = 0; i < size; i++) {
 		u32 ctrl, head, tail, queued;
 
@@ -536,13 +536,13 @@ mt7915_hw_queue_read(struct seq_file *s, u32 base, u32 size,
 			continue;
 
 		ctrl = BIT(31) | (map[i].pid << 10) | (map[i].qid << 24);
-		mt76_wr(dev, base + MT_FL_Q0_CTRL, ctrl);
+		mt76_wr(dev, MT_FL_Q0_CTRL, ctrl);
 
-		head = mt76_get_field(dev, base + MT_FL_Q2_CTRL,
+		head = mt76_get_field(dev, MT_FL_Q2_CTRL,
 				      GENMASK(11, 0));
-		tail = mt76_get_field(dev, base + MT_FL_Q2_CTRL,
+		tail = mt76_get_field(dev, MT_FL_Q2_CTRL,
 				      GENMASK(27, 16));
-		queued = mt76_get_field(dev, base + MT_FL_Q3_CTRL,
+		queued = mt76_get_field(dev, MT_FL_Q3_CTRL,
 					GENMASK(11, 0));
 
 		seq_printf(s, "\t%s: ", map[i].name);
@@ -570,8 +570,8 @@ mt7915_sta_hw_queue_read(void *data, struct ieee80211_sta *sta)
 		if (val & BIT(offs))
 			continue;
 
-		mt76_wr(dev, MT_PLE_BASE + MT_FL_Q0_CTRL, ctrl | msta->wcid.idx);
-		qlen = mt76_get_field(dev, MT_PLE_BASE + MT_FL_Q3_CTRL,
+		mt76_wr(dev, MT_FL_Q0_CTRL, ctrl | msta->wcid.idx);
+		qlen = mt76_get_field(dev, MT_FL_Q3_CTRL,
 				      GENMASK(11, 0));
 		seq_printf(s, "\tSTA %pM wcid %d: AC%d%d queued:%d\n",
 			   sta->addr, msta->wcid.idx,
@@ -633,7 +633,7 @@ mt7915_hw_queues_show(struct seq_file *file, void *data)
 		   val, head, tail);
 
 	seq_puts(file, "PLE non-empty queue info:\n");
-	mt7915_hw_queue_read(file, MT_PLE_BASE, ARRAY_SIZE(ple_queue_map),
+	mt7915_hw_queue_read(file, ARRAY_SIZE(ple_queue_map),
 			     &ple_queue_map[0]);
 
 	/* iterate per-sta ple queue */
@@ -641,7 +641,7 @@ mt7915_hw_queues_show(struct seq_file *file, void *data)
 					  mt7915_sta_hw_queue_read, file);
 	/* pse queue */
 	seq_puts(file, "PSE non-empty queue info:\n");
-	mt7915_hw_queue_read(file, MT_PSE_BASE, ARRAY_SIZE(pse_queue_map),
+	mt7915_hw_queue_read(file, ARRAY_SIZE(pse_queue_map),
 			     &pse_queue_map[0]);
 
 	return 0;

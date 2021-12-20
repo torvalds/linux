@@ -461,8 +461,9 @@ static int mt7915_register_ext_phy(struct mt7915_dev *dev)
 	       ETH_ALEN);
 	mt76_eeprom_override(mphy);
 
-	ret = mt7915_init_tx_queues(phy, MT7915_TXQ_BAND1,
-				    MT7915_TX_RING_SIZE);
+	ret = mt7915_init_tx_queues(phy, MT_TXQ_ID(1),
+				    MT7915_TX_RING_SIZE,
+				    MT_TXQ_RING_BASE(1));
 	if (ret)
 		goto error;
 
@@ -561,7 +562,10 @@ static int mt7915_init_hardware(struct mt7915_dev *dev)
 	 * force firmware operation mode into normal state,
 	 * which should be set before firmware download stage.
 	 */
-	mt76_wr(dev, MT_SWDEF_MODE, MT_SWDEF_NORMAL_MODE);
+	if (is_mt7915(&dev->mt76))
+		mt76_wr(dev, MT_SWDEF_MODE, MT_SWDEF_NORMAL_MODE);
+	else
+		mt76_wr(dev, MT_SWDEF_MODE_MT7916, MT_SWDEF_NORMAL_MODE);
 
 	ret = mt7915_mcu_init(dev);
 	if (ret) {

@@ -46,6 +46,7 @@
 
 #define MT7915_MAX_TWT_AGRT		16
 #define MT7915_MAX_STA_TWT_AGRT		8
+#define MT7915_MAX_QUEUE		(__MT_RXQ_MAX + __MT_MCUQ_MAX + 2)
 
 struct mt7915_vif;
 struct mt7915_sta;
@@ -66,6 +67,14 @@ enum mt7915_rxq_id {
 	MT7915_RXQ_MCU_WM = 0,
 	MT7915_RXQ_MCU_WA,
 	MT7915_RXQ_MCU_WA_EXT,
+};
+
+enum mt7916_rxq_id {
+	MT7916_RXQ_MCU_WM = 0,
+	MT7916_RXQ_MCU_WA,
+	MT7916_RXQ_MCU_WA_EXT = 3,
+	MT7916_RXQ_BAND0,
+	MT7916_RXQ_BAND1,
 };
 
 struct mt7915_sta_key_conf {
@@ -247,6 +256,10 @@ struct mt7915_dev {
 	};
 
 	struct mt7915_hif *hif2;
+	struct mt7915_reg_desc reg;
+	u8 q_id[MT7915_MAX_QUEUE];
+	u32 q_int_mask[MT7915_MAX_QUEUE];
+	u32 wfdma_mask;
 
 	const struct mt76_bus_ops *bus_ops;
 	struct tasklet_struct irq_tasklet;
@@ -281,6 +294,13 @@ struct mt7915_dev {
 		u8 table_mask;
 		u8 n_agrt;
 	} twt;
+};
+
+enum {
+	WFDMA0 = 0x0,
+	WFDMA1,
+	WFDMA_EXT,
+	__MT_WFDMA_MAX,
 };
 
 enum {
@@ -360,7 +380,6 @@ int mt7915_mmio_probe(struct device *pdev,
 		      void __iomem *mem_base,
 		      u32 device_id,
 		      int irq, struct mt7915_hif *hif2);
-u32 mt7915_reg_map(struct mt7915_dev *dev, u32 addr);
 u64 __mt7915_get_tsf(struct ieee80211_hw *hw, struct mt7915_vif *mvif);
 int mt7915_register_device(struct mt7915_dev *dev);
 void mt7915_unregister_device(struct mt7915_dev *dev);
@@ -505,7 +524,7 @@ int mt7915_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
 			  struct mt76_tx_info *tx_info);
 void mt7915_tx_complete_skb(struct mt76_dev *mdev, struct mt76_queue_entry *e);
 void mt7915_tx_token_put(struct mt7915_dev *dev);
-int mt7915_init_tx_queues(struct mt7915_phy *phy, int idx, int n_desc);
+int mt7915_init_tx_queues(struct mt7915_phy *phy, int idx, int n_desc, int ring_base);
 void mt7915_queue_rx_skb(struct mt76_dev *mdev, enum mt76_rxq_id q,
 			 struct sk_buff *skb);
 bool mt7915_rx_check(struct mt76_dev *mdev, void *data, int len);
