@@ -663,11 +663,12 @@ void bch2_fs_btree_key_cache_exit(struct btree_key_cache *bc)
 
 	rcu_read_lock();
 	tbl = rht_dereference_rcu(bc->table.tbl, &bc->table);
-	for (i = 0; i < tbl->size; i++)
-		rht_for_each_entry_rcu(ck, pos, tbl, i, hash) {
-			bkey_cached_evict(bc, ck);
-			list_add(&ck->list, &bc->freed);
-		}
+	if (tbl)
+		for (i = 0; i < tbl->size; i++)
+			rht_for_each_entry_rcu(ck, pos, tbl, i, hash) {
+				bkey_cached_evict(bc, ck);
+				list_add(&ck->list, &bc->freed);
+			}
 	rcu_read_unlock();
 
 	list_for_each_entry_safe(ck, n, &bc->freed, list) {

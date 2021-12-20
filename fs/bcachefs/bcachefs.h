@@ -705,6 +705,7 @@ struct bch_fs {
 	struct btree_path_buf  __percpu	*btree_paths_bufs;
 
 	struct srcu_struct	btree_trans_barrier;
+	bool			btree_trans_barrier_initialized;
 
 	struct btree_key_cache	btree_key_cache;
 

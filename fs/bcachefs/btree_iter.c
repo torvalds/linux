@@ -2984,22 +2984,27 @@ void bch2_btree_trans_to_text(struct printbuf *out, struct bch_fs *c)
 
 void bch2_fs_btree_iter_exit(struct bch_fs *c)
 {
+	if (c->btree_trans_barrier_initialized)
+		cleanup_srcu_struct(&c->btree_trans_barrier);
 	mempool_exit(&c->btree_trans_mem_pool);
 	mempool_exit(&c->btree_paths_pool);
-	cleanup_srcu_struct(&c->btree_trans_barrier);
 }
 
 int bch2_fs_btree_iter_init(struct bch_fs *c)
 {
 	unsigned nr = BTREE_ITER_MAX;
+	int ret;
 
 	INIT_LIST_HEAD(&c->btree_trans_list);
 	mutex_init(&c->btree_trans_lock);
 
-	return  init_srcu_struct(&c->btree_trans_barrier) ?:
-		mempool_init_kmalloc_pool(&c->btree_paths_pool, 1,
+	ret   = mempool_init_kmalloc_pool(&c->btree_paths_pool, 1,
 			sizeof(struct btree_path) * nr +
 			sizeof(struct btree_insert_entry) * nr) ?:
 		mempool_init_kmalloc_pool(&c->btree_trans_mem_pool, 1,
-					  BTREE_TRANS_MEM_MAX);
+					  BTREE_TRANS_MEM_MAX) ?:
+		init_srcu_struct(&c->btree_trans_barrier);
+	if (!ret)
+		c->btree_trans_barrier_initialized = true;
+	return ret;
 }
