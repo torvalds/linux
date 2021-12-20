@@ -446,6 +446,7 @@ static void _sas_resume_ha(struct sas_ha_struct *ha, bool drain)
 		sas_drain_work(ha);
 	clear_bit(SAS_HA_RESUMING, &ha->state);
 
+	sas_queue_deferred_work(ha);
 	/* send event PORTE_BROADCAST_RCVD to identify some new inserted
 	 * disks for expander
 	 */

@@ -139,6 +139,24 @@ static void sas_phy_event_worker(struct work_struct *work)
 	sas_free_event(ev);
 }
 
+/* defer works of new phys during suspend */
+static bool sas_defer_event(struct asd_sas_phy *phy, struct asd_sas_event *ev)
+{
+	struct sas_ha_struct *ha = phy->ha;
+	unsigned long flags;
+	bool deferred = false;
+
+	spin_lock_irqsave(&ha->lock, flags);
+	if (test_bit(SAS_HA_RESUMING, &ha->state) && !phy->suspended) {
+		struct sas_work *sw = &ev->work;
+
+		list_add_tail(&sw->drain_node, &ha->defer_q);
+		deferred = true;
+	}
+	spin_unlock_irqrestore(&ha->lock, flags);
+	return deferred;
+}
+
 int sas_notify_port_event(struct asd_sas_phy *phy, enum port_event event,
 			  gfp_t gfp_flags)
 {
@@ -153,6 +171,9 @@ int sas_notify_port_event(struct asd_sas_phy *phy, enum port_event event,
 		return -ENOMEM;
 
 	INIT_SAS_EVENT(ev, sas_port_event_worker, phy, event);
+
+	if (sas_defer_event(phy, ev))
+		return 0;
 
 	ret = sas_queue_event(event, &ev->work, ha);
 	if (ret != 1)
@@ -176,6 +197,9 @@ int sas_notify_phy_event(struct asd_sas_phy *phy, enum phy_event event,
 		return -ENOMEM;
 
 	INIT_SAS_EVENT(ev, sas_phy_event_worker, phy, event);
+
+	if (sas_defer_event(phy, ev))
+		return 0;
 
 	ret = sas_queue_event(event, &ev->work, ha);
 	if (ret != 1)
