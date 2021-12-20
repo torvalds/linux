@@ -440,6 +440,7 @@ static int aspeed_udma_probe(struct platform_device *pdev)
 static const struct of_device_id aspeed_udma_match[] = {
 	{ .compatible = "aspeed,ast2500-udma" },
 	{ .compatible = "aspeed,ast2600-udma" },
+	{ },
 };
 
 static struct platform_driver aspeed_udma_driver = {
