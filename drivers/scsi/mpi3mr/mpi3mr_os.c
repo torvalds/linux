@@ -831,6 +831,17 @@ static void mpi3mr_update_tgtdev(struct mpi3mr_ioc *mrioc,
 		scsi_tgt_priv_data->dev_type = tgtdev->dev_type;
 	}
 
+	switch (dev_pg0->access_status) {
+	case MPI3_DEVICE0_ASTATUS_NO_ERRORS:
+	case MPI3_DEVICE0_ASTATUS_PREPARE:
+	case MPI3_DEVICE0_ASTATUS_NEEDS_INITIALIZATION:
+	case MPI3_DEVICE0_ASTATUS_DEVICE_MISSING_DELAY:
+		break;
+	default:
+		tgtdev->is_hidden = 1;
+		break;
+	}
+
 	switch (tgtdev->dev_type) {
 	case MPI3_DEVICE_DEVFORM_SAS_SATA:
 	{
