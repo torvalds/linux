@@ -409,6 +409,13 @@ struct scmi_device *scmi_child_dev_find(struct device *parent,
  * @max_msg_size: Maximum size of data per message that can be handled.
  * @force_polling: Flag to force this whole transport to use SCMI core polling
  *		   mechanism instead of completion interrupts even if available.
+ * @sync_cmds_completed_on_ret: Flag to indicate that the transport assures
+ *				synchronous-command messages are atomically
+ *				completed on .send_message: no need to poll
+ *				actively waiting for a response.
+ *				Used by core internally only when polling is
+ *				selected as a waiting for reply method: i.e.
+ *				if a completion irq was found use that anyway.
  */
 struct scmi_desc {
 	int (*transport_init)(void);
@@ -418,6 +425,7 @@ struct scmi_desc {
 	int max_msg;
 	int max_msg_size;
 	const bool force_polling;
+	const bool sync_cmds_completed_on_ret;
 };
 
 #ifdef CONFIG_ARM_SCMI_TRANSPORT_MAILBOX
