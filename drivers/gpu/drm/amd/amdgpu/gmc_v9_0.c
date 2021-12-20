@@ -481,7 +481,7 @@ static int gmc_v9_0_vm_fault_interrupt_state(struct amdgpu_device *adev,
 
 	switch (state) {
 	case AMDGPU_IRQ_STATE_DISABLE:
-		for (j = 0; j < adev->num_vmhubs; j++) {
+		for_each_set_bit(j, adev->vmhubs_mask, AMDGPU_MAX_VMHUBS) {
 			hub = &adev->vmhub[j];
 			for (i = 0; i < 16; i++) {
 				reg = hub->vm_context0_cntl + i;
@@ -509,7 +509,7 @@ static int gmc_v9_0_vm_fault_interrupt_state(struct amdgpu_device *adev,
 		}
 		break;
 	case AMDGPU_IRQ_STATE_ENABLE:
-		for (j = 0; j < adev->num_vmhubs; j++) {
+		for_each_set_bit(j, adev->vmhubs_mask, AMDGPU_MAX_VMHUBS) {
 			hub = &adev->vmhub[j];
 			for (i = 0; i < 16; i++) {
 				reg = hub->vm_context0_cntl + i;
@@ -803,7 +803,7 @@ static void gmc_v9_0_flush_gpu_tlb(struct amdgpu_device *adev, uint32_t vmid,
 	u32 j, inv_req, inv_req2, tmp;
 	struct amdgpu_vmhub *hub;
 
-	BUG_ON(vmhub >= adev->num_vmhubs);
+	BUG_ON(vmhub >= AMDGPU_MAX_VMHUBS);
 
 	hub = &adev->vmhub[vmhub];
 	if (adev->gmc.xgmi.num_physical_nodes &&
@@ -987,7 +987,7 @@ static int gmc_v9_0_flush_gpu_tlb_pasid(struct amdgpu_device *adev,
 				&queried_pasid);
 		if (ret && queried_pasid == pasid) {
 			if (all_hub) {
-				for (i = 0; i < adev->num_vmhubs; i++)
+				for_each_set_bit(i, adev->vmhubs_mask, AMDGPU_MAX_VMHUBS)
 					gmc_v9_0_flush_gpu_tlb(adev, vmid,
 							i, flush_type);
 			} else {
@@ -1684,7 +1684,8 @@ static int gmc_v9_0_sw_init(void *handle)
 	switch (adev->ip_versions[GC_HWIP][0]) {
 	case IP_VERSION(9, 1, 0):
 	case IP_VERSION(9, 2, 2):
-		adev->num_vmhubs = 2;
+		set_bit(AMDGPU_GFXHUB(0), adev->vmhubs_mask);
+		set_bit(AMDGPU_MMHUB0(0), adev->vmhubs_mask);
 
 		if (adev->rev_id == 0x0 || adev->rev_id == 0x1) {
 			amdgpu_vm_adjust_size(adev, 256 * 1024, 9, 3, 48);
@@ -1701,8 +1702,8 @@ static int gmc_v9_0_sw_init(void *handle)
 	case IP_VERSION(9, 3, 0):
 	case IP_VERSION(9, 4, 2):
 	case IP_VERSION(9, 4, 3):
-		adev->num_vmhubs = 2;
-
+		set_bit(AMDGPU_GFXHUB(0), adev->vmhubs_mask);
+		set_bit(AMDGPU_MMHUB0(0), adev->vmhubs_mask);
 
 		/*
 		 * To fulfill 4-level page support,
@@ -1718,7 +1719,9 @@ static int gmc_v9_0_sw_init(void *handle)
 			adev->gmc.translate_further = adev->vm_manager.num_level > 1;
 		break;
 	case IP_VERSION(9, 4, 1):
-		adev->num_vmhubs = 3;
+		set_bit(AMDGPU_GFXHUB(0), adev->vmhubs_mask);
+		set_bit(AMDGPU_MMHUB0(0), adev->vmhubs_mask);
+		set_bit(AMDGPU_MMHUB1(0), adev->vmhubs_mask);
 
 		/* Keep the vm size same with Vega20 */
 		amdgpu_vm_adjust_size(adev, 256 * 1024, 9, 3, 48);
@@ -1944,7 +1947,7 @@ static int gmc_v9_0_hw_init(void *handle)
 			adev->gfxhub.funcs->set_fault_enable_default(adev, value);
 		adev->mmhub.funcs->set_fault_enable_default(adev, value);
 	}
-	for (i = 0; i < adev->num_vmhubs; ++i) {
+	for_each_set_bit(i, adev->vmhubs_mask, AMDGPU_MAX_VMHUBS) {
 		if (adev->in_s0ix && (i == AMDGPU_GFXHUB(0)))
 			continue;
 		gmc_v9_0_flush_gpu_tlb(adev, 0, i, 0);
