@@ -843,7 +843,7 @@ static int ad74413r_update_scan_mode(struct iio_dev *indio_dev,
 	u8 *rx_buf = &st->adc_samples_buf.rx_buf[-1 * AD74413R_FRAME_SIZE];
 	u8 *tx_buf = st->adc_samples_tx_buf;
 	unsigned int channel;
-	int ret;
+	int ret = -EINVAL;
 
 	mutex_lock(&st->lock);
 
