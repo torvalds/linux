@@ -721,6 +721,15 @@
 			#sound-dai-cells = <0>;
 		};
 		
+		ptc: pwm@120d0000 {
+			compatible = "starfive,pwm0";
+			reg = <0x0 0x120d0000 0x0 0x10000>;
+			reg-names = "control";
+			sifive,approx-period = <1000000>;
+			clocks = <&pwmclk>;
+			#pwm-cells=<3>;
+			sifive,npwm = <8>;
+		};
 		
 		ac108_mclk: ac108_mclk {
 			compatible = "fixed-clock";
