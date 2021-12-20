@@ -394,8 +394,15 @@ mt7915_mac_init_band(struct mt7915_dev *dev, u8 band)
 static void mt7915_mac_init(struct mt7915_dev *dev)
 {
 	int i;
+	u32 rx_len = is_mt7915(&dev->mt76) ? 0x400 : 0x680;
 
-	mt76_rmw_field(dev, MT_MDP_DCR1, MT_MDP_DCR1_MAX_RX_LEN, 0x400);
+	/* config pse qid6 wfdma port selection */
+	if (!is_mt7915(&dev->mt76) && dev->hif2)
+		mt76_rmw(dev, MT_WF_PP_TOP_RXQ_WFDMA_CF_5, 0,
+			 MT_WF_PP_TOP_RXQ_QID6_WFDMA_HIF_SEL_MASK);
+
+	mt76_rmw_field(dev, MT_MDP_DCR1, MT_MDP_DCR1_MAX_RX_LEN, rx_len);
+
 	/* enable hardware de-agg */
 	mt76_set(dev, MT_MDP_DCR0, MT_MDP_DCR0_DAMSDU_EN);
 

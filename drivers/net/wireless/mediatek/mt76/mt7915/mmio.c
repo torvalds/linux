@@ -486,6 +486,10 @@ static void mt7915_irq_tasklet(struct tasklet_struct *t)
 	if (intr & MT_INT_RX(MT_RXQ_MCU_WA))
 		napi_schedule(&dev->mt76.napi[MT_RXQ_MCU_WA]);
 
+	if (!is_mt7915(&dev->mt76) &&
+	    (intr & MT_INT_RX(MT_RXQ_MAIN_WA)))
+		napi_schedule(&dev->mt76.napi[MT_RXQ_MAIN_WA]);
+
 	if (intr & MT_INT_RX(MT_RXQ_EXT_WA))
 		napi_schedule(&dev->mt76.napi[MT_RXQ_EXT_WA]);
 

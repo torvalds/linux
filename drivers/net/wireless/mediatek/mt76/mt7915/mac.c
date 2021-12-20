@@ -801,6 +801,10 @@ mt7915_mac_fill_rx(struct mt7915_dev *dev, struct sk_buff *skb)
 	if (!status->wcid || !ieee80211_is_data_qos(fc))
 		return 0;
 
+	/* drop no data frame */
+	if (fc & cpu_to_le16(IEEE80211_STYPE_NULLFUNC))
+		return -EINVAL;
+
 	status->aggr = unicast &&
 		       !ieee80211_is_qos_nullfunc(fc);
 	status->qos_ctl = qos_ctl;
