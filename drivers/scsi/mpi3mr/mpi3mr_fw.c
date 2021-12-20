@@ -124,8 +124,9 @@ static void mpi3mr_repost_reply_buf(struct mpi3mr_ioc *mrioc,
 	u64 reply_dma)
 {
 	u32 old_idx = 0;
+	unsigned long flags;
 
-	spin_lock(&mrioc->reply_free_queue_lock);
+	spin_lock_irqsave(&mrioc->reply_free_queue_lock, flags);
 	old_idx  =  mrioc->reply_free_queue_host_index;
 	mrioc->reply_free_queue_host_index = (
 	    (mrioc->reply_free_queue_host_index ==
@@ -134,15 +135,16 @@ static void mpi3mr_repost_reply_buf(struct mpi3mr_ioc *mrioc,
 	mrioc->reply_free_q[old_idx] = cpu_to_le64(reply_dma);
 	writel(mrioc->reply_free_queue_host_index,
 	    &mrioc->sysif_regs->reply_free_host_index);
-	spin_unlock(&mrioc->reply_free_queue_lock);
+	spin_unlock_irqrestore(&mrioc->reply_free_queue_lock, flags);
 }
 
 void mpi3mr_repost_sense_buf(struct mpi3mr_ioc *mrioc,
 	u64 sense_buf_dma)
 {
 	u32 old_idx = 0;
+	unsigned long flags;
 
-	spin_lock(&mrioc->sbq_lock);
+	spin_lock_irqsave(&mrioc->sbq_lock, flags);
 	old_idx  =  mrioc->sbq_host_index;
 	mrioc->sbq_host_index = ((mrioc->sbq_host_index ==
 	    (mrioc->sense_buf_q_sz - 1)) ? 0 :
@@ -150,7 +152,7 @@ void mpi3mr_repost_sense_buf(struct mpi3mr_ioc *mrioc,
 	mrioc->sense_buf_q[old_idx] = cpu_to_le64(sense_buf_dma);
 	writel(mrioc->sbq_host_index,
 	    &mrioc->sysif_regs->sense_buffer_free_host_index);
-	spin_unlock(&mrioc->sbq_lock);
+	spin_unlock_irqrestore(&mrioc->sbq_lock, flags);
 }
 
 static void mpi3mr_print_event_data(struct mpi3mr_ioc *mrioc,
