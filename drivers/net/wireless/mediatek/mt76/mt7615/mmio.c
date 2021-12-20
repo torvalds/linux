@@ -135,6 +135,7 @@ static void mt7615_irq_tasklet(struct tasklet_struct *t)
 	if (is_mt7663(&dev->mt76)) {
 		mcu_int = mt76_rr(dev, MT_MCU2HOST_INT_STATUS);
 		mcu_int &= MT7663_MCU_CMD_ERROR_MASK;
+		mt76_wr(dev, MT_MCU2HOST_INT_STATUS, mcu_int);
 	} else {
 		mcu_int = mt76_rr(dev, MT_MCU_CMD);
 		mcu_int &= MT_MCU_CMD_ERROR_MASK;

@@ -361,16 +361,15 @@ mt7915_tm_reg_backup_restore(struct mt7915_phy *phy)
 		return;
 	}
 
-	if (b)
-		return;
+	if (!b) {
+		b = devm_kzalloc(dev->mt76.dev, 4 * n_regs, GFP_KERNEL);
+		if (!b)
+			return;
 
-	b = devm_kzalloc(dev->mt76.dev, 4 * n_regs, GFP_KERNEL);
-	if (!b)
-		return;
-
-	phy->test.reg_backup = b;
-	for (i = 0; i < n_regs; i++)
-		b[i] = mt76_rr(dev, reg_backup_list[i].band[ext_phy]);
+		phy->test.reg_backup = b;
+		for (i = 0; i < n_regs; i++)
+			b[i] = mt76_rr(dev, reg_backup_list[i].band[ext_phy]);
+	}
 
 	mt76_clear(dev, MT_AGG_PCR0(ext_phy, 0), MT_AGG_PCR0_MM_PROT |
 		   MT_AGG_PCR0_GF_PROT | MT_AGG_PCR0_ERP_PROT |

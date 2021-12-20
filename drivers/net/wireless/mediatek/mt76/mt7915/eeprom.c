@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: ISC
 /* Copyright (C) 2020 MediaTek Inc. */
 
+#include <linux/firmware.h>
 #include "mt7915.h"
 #include "eeprom.h"
 
@@ -9,6 +10,9 @@ static int mt7915_eeprom_load_precal(struct mt7915_dev *dev)
 	struct mt76_dev *mdev = &dev->mt76;
 	u8 *eeprom = mdev->eeprom.data;
 	u32 val = eeprom[MT_EE_DO_PRE_CAL];
+
+	if (!dev->flash_mode)
+		return 0;
 
 	if (val != (MT_EE_WIFI_CAL_DPD | MT_EE_WIFI_CAL_GROUP))
 		return 0;
@@ -19,30 +23,6 @@ static int mt7915_eeprom_load_precal(struct mt7915_dev *dev)
 		return -ENOMEM;
 
 	return mt76_get_of_eeprom(mdev, dev->cal, MT_EE_PRECAL, val);
-}
-
-static int mt7915_eeprom_load(struct mt7915_dev *dev)
-{
-	int ret;
-
-	ret = mt76_eeprom_init(&dev->mt76, MT7915_EEPROM_SIZE);
-	if (ret < 0)
-		return ret;
-
-	if (ret) {
-		dev->flash_mode = true;
-		ret = mt7915_eeprom_load_precal(dev);
-	} else {
-		u32 block_num, i;
-
-		block_num = DIV_ROUND_UP(MT7915_EEPROM_SIZE,
-					 MT7915_EEPROM_BLOCK_SIZE);
-		for (i = 0; i < block_num; i++)
-			mt7915_mcu_get_eeprom(dev,
-					      i * MT7915_EEPROM_BLOCK_SIZE);
-	}
-
-	return ret;
 }
 
 static int mt7915_check_eeprom(struct mt7915_dev *dev)
@@ -56,6 +36,66 @@ static int mt7915_check_eeprom(struct mt7915_dev *dev)
 	default:
 		return -EINVAL;
 	}
+}
+
+static int
+mt7915_eeprom_load_default(struct mt7915_dev *dev)
+{
+	char *default_bin = MT7915_EEPROM_DEFAULT;
+	u8 *eeprom = dev->mt76.eeprom.data;
+	const struct firmware *fw = NULL;
+	int ret;
+
+	if (dev->dbdc_support)
+		default_bin = MT7915_EEPROM_DEFAULT_DBDC;
+
+	ret = request_firmware(&fw, default_bin, dev->mt76.dev);
+	if (ret)
+		return ret;
+
+	if (!fw || !fw->data) {
+		dev_err(dev->mt76.dev, "Invalid default bin\n");
+		ret = -EINVAL;
+		goto out;
+	}
+
+	memcpy(eeprom, fw->data, MT7915_EEPROM_SIZE);
+	dev->flash_mode = true;
+
+out:
+	release_firmware(fw);
+
+	return ret;
+}
+
+static int mt7915_eeprom_load(struct mt7915_dev *dev)
+{
+	int ret;
+
+	ret = mt76_eeprom_init(&dev->mt76, MT7915_EEPROM_SIZE);
+	if (ret < 0)
+		return ret;
+
+	if (ret) {
+		dev->flash_mode = true;
+	} else {
+		u8 free_block_num;
+		u32 block_num, i;
+
+		mt7915_mcu_get_eeprom_free_block(dev, &free_block_num);
+		/* efuse info not enough */
+		if (free_block_num >= 29)
+			return -EINVAL;
+
+		/* read eeprom data from efuse */
+		block_num = DIV_ROUND_UP(MT7915_EEPROM_SIZE,
+					 MT7915_EEPROM_BLOCK_SIZE);
+		for (i = 0; i < block_num; i++)
+			mt7915_mcu_get_eeprom(dev,
+					      i * MT7915_EEPROM_BLOCK_SIZE);
+	}
+
+	return mt7915_check_eeprom(dev);
 }
 
 void mt7915_eeprom_parse_band_config(struct mt7915_phy *phy)
@@ -117,10 +157,17 @@ int mt7915_eeprom_init(struct mt7915_dev *dev)
 	int ret;
 
 	ret = mt7915_eeprom_load(dev);
-	if (ret < 0)
-		return ret;
+	if (ret < 0) {
+		if (ret != -EINVAL)
+			return ret;
 
-	ret = mt7915_check_eeprom(dev);
+		dev_warn(dev->mt76.dev, "eeprom load fail, use default bin\n");
+		ret = mt7915_eeprom_load_default(dev);
+		if (ret)
+			return ret;
+	}
+
+	ret = mt7915_eeprom_load_precal(dev);
 	if (ret)
 		return ret;
 
