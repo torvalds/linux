@@ -3821,21 +3821,26 @@ mpi3mr_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		ioc_err(mrioc, "failure at %s:%d/%s()!\n",
 		    __FILE__, __LINE__, __func__);
 		retval = -ENODEV;
-		goto out_fwevtthread_failed;
+		goto fwevtthread_failed;
 	}
 
 	mrioc->is_driver_loading = 1;
-	if (mpi3mr_init_ioc(mrioc, MPI3MR_IT_INIT)) {
-		ioc_err(mrioc, "failure at %s:%d/%s()!\n",
-		    __FILE__, __LINE__, __func__);
+	mrioc->cpu_count = num_online_cpus();
+	if (mpi3mr_setup_resources(mrioc)) {
+		ioc_err(mrioc, "setup resources failed\n");
 		retval = -ENODEV;
-		goto out_iocinit_failed;
+		goto resource_alloc_failed;
+	}
+	if (mpi3mr_init_ioc(mrioc)) {
+		ioc_err(mrioc, "initializing IOC failed\n");
+		retval = -ENODEV;
+		goto init_ioc_failed;
 	}
 
 	shost->nr_hw_queues = mrioc->num_op_reply_q;
 	shost->can_queue = mrioc->max_host_ios;
 	shost->sg_tablesize = MPI3MR_SG_DEPTH;
-	shost->max_id = mrioc->facts.max_perids;
+	shost->max_id = mrioc->facts.max_perids + 1;
 
 	retval = scsi_add_host(shost, &pdev->dev);
 	if (retval) {
@@ -3848,10 +3853,14 @@ mpi3mr_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	return retval;
 
 addhost_failed:
-	mpi3mr_cleanup_ioc(mrioc, MPI3MR_COMPLETE_CLEANUP);
-out_iocinit_failed:
+	mpi3mr_stop_watchdog(mrioc);
+	mpi3mr_cleanup_ioc(mrioc);
+init_ioc_failed:
+	mpi3mr_free_mem(mrioc);
+	mpi3mr_cleanup_resources(mrioc);
+resource_alloc_failed:
 	destroy_workqueue(mrioc->fwevt_worker_thread);
-out_fwevtthread_failed:
+fwevtthread_failed:
 	spin_lock(&mrioc_list_lock);
 	list_del(&mrioc->list);
 	spin_unlock(&mrioc_list_lock);
@@ -3864,6 +3873,7 @@ shost_failed:
  * mpi3mr_remove - PCI remove callback
  * @pdev: PCI device instance
  *
+ * Cleanup the IOC by issuing MUR and shutdown notification.
  * Free up all memory and resources associated with the
  * controllerand target devices, unregister the shost.
  *
@@ -3900,7 +3910,10 @@ static void mpi3mr_remove(struct pci_dev *pdev)
 		mpi3mr_tgtdev_del_from_list(mrioc, tgtdev);
 		mpi3mr_tgtdev_put(tgtdev);
 	}
-	mpi3mr_cleanup_ioc(mrioc, MPI3MR_COMPLETE_CLEANUP);
+	mpi3mr_stop_watchdog(mrioc);
+	mpi3mr_cleanup_ioc(mrioc);
+	mpi3mr_free_mem(mrioc);
+	mpi3mr_cleanup_resources(mrioc);
 
 	spin_lock(&mrioc_list_lock);
 	list_del(&mrioc->list);
@@ -3940,7 +3953,10 @@ static void mpi3mr_shutdown(struct pci_dev *pdev)
 	spin_unlock_irqrestore(&mrioc->fwevt_lock, flags);
 	if (wq)
 		destroy_workqueue(wq);
-	mpi3mr_cleanup_ioc(mrioc, MPI3MR_COMPLETE_CLEANUP);
+
+	mpi3mr_stop_watchdog(mrioc);
+	mpi3mr_cleanup_ioc(mrioc);
+	mpi3mr_cleanup_resources(mrioc);
 }
 
 #ifdef CONFIG_PM
@@ -3970,7 +3986,7 @@ static int mpi3mr_suspend(struct pci_dev *pdev, pm_message_t state)
 	mpi3mr_cleanup_fwevt_list(mrioc);
 	scsi_block_requests(shost);
 	mpi3mr_stop_watchdog(mrioc);
-	mpi3mr_cleanup_ioc(mrioc, MPI3MR_SUSPEND);
+	mpi3mr_cleanup_ioc(mrioc);
 
 	device_state = pci_choose_state(pdev, state);
 	ioc_info(mrioc, "pdev=0x%p, slot=%s, entering operating state [D%d]\n",
@@ -4019,7 +4035,11 @@ static int mpi3mr_resume(struct pci_dev *pdev)
 
 	mrioc->stop_drv_processing = 0;
 	mpi3mr_memset_buffers(mrioc);
-	mpi3mr_init_ioc(mrioc, MPI3MR_IT_RESUME);
+	r = mpi3mr_reinit_ioc(mrioc, 1);
+	if (r) {
+		ioc_err(mrioc, "resuming controller failed[%d]\n", r);
+		return r;
+	}
 	scsi_unblock_requests(shost);
 	mpi3mr_start_watchdog(mrioc);
 
