@@ -727,7 +727,7 @@ void amdgpu_amdkfd_ras_poison_consumption_handler(struct amdgpu_device *adev, bo
 
 	/* CPU MCA will handle page retirement if connected_to_cpu is 1 */
 	if (!adev->gmc.xgmi.connected_to_cpu)
-		amdgpu_umc_do_page_retirement(adev, &err_data, NULL, reset);
+		amdgpu_umc_poison_handler(adev, &err_data, reset);
 	else if (reset)
 		amdgpu_amdkfd_gpu_reset(adev);
 }
