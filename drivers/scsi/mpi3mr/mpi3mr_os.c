@@ -877,9 +877,11 @@ static void mpi3mr_update_tgtdev(struct mpi3mr_ioc *mrioc,
 			    le32_to_cpu(pcieinf->maximum_data_transfer_size);
 			tgtdev->dev_spec.pcie_inf.pgsz = pcieinf->page_size;
 			tgtdev->dev_spec.pcie_inf.reset_to =
-			    pcieinf->controller_reset_to;
+			    max_t(u8, pcieinf->controller_reset_to,
+			     MPI3MR_INTADMCMD_TIMEOUT);
 			tgtdev->dev_spec.pcie_inf.abort_to =
-			    pcieinf->nvme_abort_to;
+			    max_t(u8, pcieinf->nvme_abort_to,
+			    MPI3MR_INTADMCMD_TIMEOUT);
 		}
 		if (tgtdev->dev_spec.pcie_inf.mdts > (1024 * 1024))
 			tgtdev->dev_spec.pcie_inf.mdts = (1024 * 1024);
@@ -3597,6 +3599,7 @@ static struct scsi_host_template mpi3mr_driver_template = {
 	 */
 	.max_sectors			= 2048,
 	.cmd_per_lun			= MPI3MR_MAX_CMDS_LUN,
+	.max_segment_size		= 0xffffffff,
 	.track_queue_depth		= 1,
 	.cmd_size			= sizeof(struct scmd_priv),
 };
