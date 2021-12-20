@@ -754,23 +754,25 @@ static int setup_rt_frame(void *sig_return, struct ksignal *ksig,
 			  struct pt_regs *regs, sigset_t *set)
 {
 	struct rt_sigframe __user *frame;
-	int err = 0;
 
 	frame = get_sigframe(ksig, regs, sizeof(*frame));
 	if (!access_ok(frame, sizeof (*frame)))
 		return -EFAULT;
 
 	/* Create siginfo.  */
-	err |= copy_siginfo_to_user(&frame->rs_info, &ksig->info);
+	if (copy_siginfo_to_user(&frame->rs_info, &ksig->info))
+		return -EFAULT;
 
 	/* Create the ucontext.	 */
-	err |= __put_user(0, &frame->rs_uc.uc_flags);
-	err |= __put_user(NULL, &frame->rs_uc.uc_link);
-	err |= __save_altstack(&frame->rs_uc.uc_stack, regs->regs[29]);
-	err |= setup_sigcontext(regs, &frame->rs_uc.uc_mcontext);
-	err |= __copy_to_user(&frame->rs_uc.uc_sigmask, set, sizeof(*set));
-
-	if (err)
+	if (__put_user(0, &frame->rs_uc.uc_flags))
+		return -EFAULT;
+	if (__put_user(NULL, &frame->rs_uc.uc_link))
+		return -EFAULT;
+	if (__save_altstack(&frame->rs_uc.uc_stack, regs->regs[29]))
+		return -EFAULT;
+	if (setup_sigcontext(regs, &frame->rs_uc.uc_mcontext))
+		return -EFAULT;
+	if (__copy_to_user(&frame->rs_uc.uc_sigmask, set, sizeof(*set)))
 		return -EFAULT;
 
 	/*
