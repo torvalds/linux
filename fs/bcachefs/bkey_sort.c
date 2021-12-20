@@ -127,6 +127,7 @@ bch2_sort_repack(struct bset *dst, struct btree *src,
 	struct bkey_format *in_f = &src->format;
 	struct bkey_packed *in, *out = vstruct_last(dst);
 	struct btree_nr_keys nr;
+	bool transform = memcmp(out_f, &src->format, sizeof(*out_f));
 
 	memset(&nr, 0, sizeof(nr));
 
@@ -134,8 +135,10 @@ bch2_sort_repack(struct bset *dst, struct btree *src,
 		if (filter_whiteouts && bkey_deleted(in))
 			continue;
 
-		if (bch2_bkey_transform(out_f, out, bkey_packed(in)
-				       ? in_f : &bch2_bkey_format_current, in))
+		if (!transform)
+			bkey_copy(out, in);
+		else if (bch2_bkey_transform(out_f, out, bkey_packed(in)
+					     ? in_f : &bch2_bkey_format_current, in))
 			out->format = KEY_FORMAT_LOCAL_BTREE;
 		else
 			bch2_bkey_unpack(src, (void *) out, in);
