@@ -989,9 +989,13 @@ int bch2_fs_journal_start(struct journal *j, u64 cur_seq,
 	j->replay_journal_seq	= last_seq;
 	j->replay_journal_seq_end = cur_seq;
 	j->last_seq_ondisk	= last_seq;
+	j->flushed_seq_ondisk	= cur_seq - 1;
 	j->pin.front		= last_seq;
 	j->pin.back		= cur_seq;
 	atomic64_set(&j->seq, cur_seq - 1);
+
+	if (list_empty(journal_entries))
+		j->last_empty_seq = cur_seq - 1;
 
 	fifo_for_each_entry_ptr(p, &j->pin, seq)
 		journal_pin_list_init(p, 1);
@@ -1005,12 +1009,18 @@ int bch2_fs_journal_start(struct journal *j, u64 cur_seq,
 		if (seq < last_seq)
 			continue;
 
+		if (journal_entry_empty(&i->j))
+			j->last_empty_seq = le64_to_cpu(i->j.seq);
+
 		p = journal_seq_pin(j, seq);
 
 		p->devs.nr = 0;
 		for (ptr = 0; ptr < i->nr_ptrs; ptr++)
 			bch2_dev_list_add_dev(&p->devs, i->ptrs[ptr].dev);
 	}
+
+	if (list_empty(journal_entries))
+		j->last_empty_seq = cur_seq;
 
 	spin_lock(&j->lock);
 
