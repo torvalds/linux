@@ -5,9 +5,15 @@
 
 /dts-v1/;
 #include "mt8183-kukui-jacuzzi.dtsi"
+#include "mt8183-kukui-audio-ts3a227e-max98357a.dtsi"
 
-&mt6358codec {
-	mediatek,dmic-mode = <1>; /* one-wire */
+/ {
+	model = "Google cozmo board";
+	compatible = "google,cozmo", "mediatek,mt8183";
+};
+
+&i2c_tunnel {
+	google,remote-bus = <0>;
 };
 
 &i2c2 {
@@ -25,3 +31,6 @@
 	};
 };
 
+&qca_wifi {
+	qcom,ath10k-calibration-variant = "GO_COZMO";
+};
