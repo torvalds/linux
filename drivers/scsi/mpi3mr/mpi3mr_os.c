@@ -742,11 +742,18 @@ mpi3mr_update_sdev(struct scsi_device *sdev, void *data)
 	switch (tgtdev->dev_type) {
 	case MPI3_DEVICE_DEVFORM_PCIE:
 		/*The block layer hw sector size = 512*/
-		blk_queue_max_hw_sectors(sdev->request_queue,
-		    tgtdev->dev_spec.pcie_inf.mdts / 512);
-		blk_queue_virt_boundary(sdev->request_queue,
-		    ((1 << tgtdev->dev_spec.pcie_inf.pgsz) - 1));
-
+		if ((tgtdev->dev_spec.pcie_inf.dev_info &
+		    MPI3_DEVICE0_PCIE_DEVICE_INFO_TYPE_MASK) ==
+		    MPI3_DEVICE0_PCIE_DEVICE_INFO_TYPE_NVME_DEVICE) {
+			blk_queue_max_hw_sectors(sdev->request_queue,
+			    tgtdev->dev_spec.pcie_inf.mdts / 512);
+			if (tgtdev->dev_spec.pcie_inf.pgsz == 0)
+				blk_queue_virt_boundary(sdev->request_queue,
+				    ((1 << MPI3MR_DEFAULT_PGSZEXP) - 1));
+			else
+				blk_queue_virt_boundary(sdev->request_queue,
+				    ((1 << tgtdev->dev_spec.pcie_inf.pgsz) - 1));
+		}
 		break;
 	default:
 		break;
@@ -848,6 +855,7 @@ static void mpi3mr_update_tgtdev(struct mpi3mr_ioc *mrioc,
 		    &dev_pg0->device_specific.pcie_format;
 		u16 dev_info = le16_to_cpu(pcieinf->device_info);
 
+		tgtdev->dev_spec.pcie_inf.dev_info = dev_info;
 		tgtdev->dev_spec.pcie_inf.capb =
 		    le32_to_cpu(pcieinf->capabilities);
 		tgtdev->dev_spec.pcie_inf.mdts = MPI3MR_DEFAULT_MDTS;
@@ -864,8 +872,10 @@ static void mpi3mr_update_tgtdev(struct mpi3mr_ioc *mrioc,
 		}
 		if (tgtdev->dev_spec.pcie_inf.mdts > (1024 * 1024))
 			tgtdev->dev_spec.pcie_inf.mdts = (1024 * 1024);
-		if ((dev_info & MPI3_DEVICE0_PCIE_DEVICE_INFO_TYPE_MASK) !=
-		    MPI3_DEVICE0_PCIE_DEVICE_INFO_TYPE_NVME_DEVICE)
+		if (((dev_info & MPI3_DEVICE0_PCIE_DEVICE_INFO_TYPE_MASK) !=
+		    MPI3_DEVICE0_PCIE_DEVICE_INFO_TYPE_NVME_DEVICE) &&
+		    ((dev_info & MPI3_DEVICE0_PCIE_DEVICE_INFO_TYPE_MASK) !=
+		    MPI3_DEVICE0_PCIE_DEVICE_INFO_TYPE_SCSI_DEVICE))
 			tgtdev->is_hidden = 1;
 		if (!mrioc->shost)
 			break;
@@ -3190,10 +3200,18 @@ static int mpi3mr_slave_configure(struct scsi_device *sdev)
 	switch (tgt_dev->dev_type) {
 	case MPI3_DEVICE_DEVFORM_PCIE:
 		/*The block layer hw sector size = 512*/
-		blk_queue_max_hw_sectors(sdev->request_queue,
-		    tgt_dev->dev_spec.pcie_inf.mdts / 512);
-		blk_queue_virt_boundary(sdev->request_queue,
-		    ((1 << tgt_dev->dev_spec.pcie_inf.pgsz) - 1));
+		if ((tgt_dev->dev_spec.pcie_inf.dev_info &
+		    MPI3_DEVICE0_PCIE_DEVICE_INFO_TYPE_MASK) ==
+		    MPI3_DEVICE0_PCIE_DEVICE_INFO_TYPE_NVME_DEVICE) {
+			blk_queue_max_hw_sectors(sdev->request_queue,
+			    tgt_dev->dev_spec.pcie_inf.mdts / 512);
+			if (tgt_dev->dev_spec.pcie_inf.pgsz == 0)
+				blk_queue_virt_boundary(sdev->request_queue,
+				    ((1 << MPI3MR_DEFAULT_PGSZEXP) - 1));
+			else
+				blk_queue_virt_boundary(sdev->request_queue,
+				    ((1 << tgt_dev->dev_spec.pcie_inf.pgsz) - 1));
+		}
 		break;
 	default:
 		break;
