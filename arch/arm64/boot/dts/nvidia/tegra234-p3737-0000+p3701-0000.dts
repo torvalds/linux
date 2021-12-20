@@ -1,0 +1,24 @@
+// SPDX-License-Identifier: GPL-2.0
+/dts-v1/;
+
+#include "tegra234-p3701-0000.dtsi"
+#include "tegra234-p3737-0000.dtsi"
+
+/ {
+	model = "NVIDIA Jetson AGX Orin Developer Kit";
+	compatible = "nvidia,p3737-0000+p3701-0000", "nvidia,p3701-0000", "nvidia,tegra234";
+
+	aliases {
+		mmc3 = "/bus@0/mmc@3460000";
+		serial0 = &tcu;
+	};
+
+	chosen {
+		bootargs = "console=ttyS0,115200n8";
+		stdout-path = "serial0:115200n8";
+	};
+
+	serial {
+		status = "okay";
+	};
+};

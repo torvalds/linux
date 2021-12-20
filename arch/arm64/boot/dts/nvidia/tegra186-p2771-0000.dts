@@ -1945,19 +1945,19 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 
-			channel@0 {
+			input@0 {
 				reg = <0x0>;
 				label = "VDD_MUX";
 				shunt-resistor-micro-ohms = <20000>;
 			};
 
-			channel@1 {
+			input@1 {
 				reg = <0x1>;
 				label = "VDD_5V0_IO_SYS";
 				shunt-resistor-micro-ohms = <5000>;
 			};
 
-			channel@2 {
+			input@2 {
 				reg = <0x2>;
 				label = "VDD_3V3_SYS";
 				shunt-resistor-micro-ohms = <10000>;
@@ -1970,19 +1970,19 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 
-			channel@0 {
+			input@0 {
 				reg = <0x0>;
 				label = "VDD_3V3_IO_SLP";
 				shunt-resistor-micro-ohms = <10000>;
 			};
 
-			channel@1 {
+			input@1 {
 				reg = <0x1>;
 				label = "VDD_1V8_IO";
 				shunt-resistor-micro-ohms = <10000>;
 			};
 
-			channel@2 {
+			input@2 {
 				reg = <0x2>;
 				label = "VDD_M2_IN";
 				shunt-resistor-micro-ohms = <10000>;
@@ -2250,7 +2250,7 @@
 		};
 	};
 
-	vdd_sd: regulator@100 {
+	vdd_sd: regulator-vdd-sd {
 		compatible = "regulator-fixed";
 		regulator-name = "SD_CARD_SW_PWR";
 		regulator-min-microvolt = <3300000>;
@@ -2262,7 +2262,7 @@
 		vin-supply = <&vdd_3v3_sys>;
 	};
 
-	vdd_hdmi: regulator@101 {
+	vdd_hdmi: regulator-vdd-hdmi {
 		compatible = "regulator-fixed";
 		regulator-name = "VDD_HDMI_5V0";
 		regulator-min-microvolt = <5000000>;
@@ -2274,7 +2274,7 @@
 		vin-supply = <&vdd_5v0_sys>;
 	};
 
-	vdd_usb0: regulator@102 {
+	vdd_usb0: regulator-vdd-usb0 {
 		compatible = "regulator-fixed";
 		regulator-name = "VDD_USB0";
 		regulator-min-microvolt = <5000000>;
@@ -2286,7 +2286,7 @@
 		vin-supply = <&vdd_5v0_sys>;
 	};
 
-	vdd_usb1: regulator@103 {
+	vdd_usb1: regulator-vdd-usb1 {
 		compatible = "regulator-fixed";
 		regulator-name = "VDD_USB1";
 		regulator-min-microvolt = <5000000>;

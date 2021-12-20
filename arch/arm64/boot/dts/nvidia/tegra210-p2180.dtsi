@@ -301,7 +301,7 @@
 		vqmmc-supply = <&vdd_1v8>;
 	};
 
-	clk32k_in: clock@0 {
+	clk32k_in: clock-32k {
 		compatible = "fixed-clock";
 		clock-frequency = <32768>;
 		#clock-cells = <0>;
@@ -336,7 +336,7 @@
 		method = "smc";
 	};
 
-	vdd_gpu: regulator@100 {
+	vdd_gpu: regulator-vdd-gpu {
 		compatible = "pwm-regulator";
 		pwms = <&pwm 1 8000>;
 		regulator-name = "VDD_GPU";
