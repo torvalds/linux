@@ -51,6 +51,19 @@ patternProperties:
     description:
       Properties for single BUCK regulator.
 
+    properties:
+      op_mode:
+        $ref: /schemas/types.yaml#/definitions/uint32
+        enum: [0, 1, 2, 3]
+        default: 1
+        description: |
+          Describes the different operating modes of the regulator with power
+          mode change in SOC. The different possible values are:
+            0 - always off mode
+            1 - on in normal mode
+            2 - low power mode
+            3 - suspend mode
+
     required:
       - regulator-name
 
@@ -63,6 +76,18 @@ patternProperties:
       Properties for single BUCK regulator.
 
     properties:
+      op_mode:
+        $ref: /schemas/types.yaml#/definitions/uint32
+        enum: [0, 1, 2, 3]
+        default: 1
+        description: |
+          Describes the different operating modes of the regulator with power
+          mode change in SOC. The different possible values are:
+            0 - always off mode
+            1 - on in normal mode
+            2 - low power mode
+            3 - suspend mode
+
       s5m8767,pmic-ext-control-gpios:
         maxItems: 1
         description: |
