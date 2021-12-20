@@ -41,6 +41,7 @@ config SND_SOC_ALL_CODECS
 	imply SND_SOC_ADS117X
 	imply SND_SOC_AK4104
 	imply SND_SOC_AK4118
+	imply SND_SOC_AK4375
 	imply SND_SOC_AK4458
 	imply SND_SOC_AK4535
 	imply SND_SOC_AK4554
@@ -522,6 +523,16 @@ config SND_SOC_AK4118
 	tristate "AKM AK4118 CODEC"
 	depends on I2C
 	select REGMAP_I2C
+
+config SND_SOC_AK4375
+	tristate "AKM AK4375 CODEC"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  Enable support for the Asahi-Kasei AK4375 codec.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called snd-soc-ak4375.
 
 config SND_SOC_AK4458
 	tristate "AKM AK4458 CODEC"
