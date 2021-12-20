@@ -41,6 +41,10 @@
 		rkcif_mipi_lvds3= &rkcif_mipi_lvds3;
 		rkvenc0 = &rkvenc0;
 		rkvenc1 = &rkvenc1;
+		jpege0 = &jpege0;
+		jpege1 = &jpege1;
+		jpege2 = &jpege2;
+		jpege3 = &jpege3;
 		serial0 = &uart0;
 		serial1 = &uart1;
 		serial2 = &uart2;
@@ -1936,8 +1940,8 @@
 		status = "disabled";
 	};
 
-	jpege0: jpege@fdba0000 {
-		compatible = "rockchip,vpu-encoder-v2";
+	jpege0: jpege-core@fdba0000 {
+		compatible = "rockchip,vpu-encoder-v2-core";
 		reg = <0x0 0xfdba0000 0x0 0x400>;
 		interrupts = <GIC_SPI 122 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "irq_jpege0";
@@ -1968,7 +1972,7 @@
 		status = "disabled";
 	};
 
-	jpege_core1: jpege@fdba4000 {
+	jpege1: jpege-core@fdba4000 {
 		compatible = "rockchip,vpu-encoder-v2-core";
 		reg = <0x0 0xfdba4000 0x0 0x400>;
 		interrupts = <GIC_SPI 124 IRQ_TYPE_LEVEL_HIGH>;
@@ -2000,7 +2004,7 @@
 		status = "disabled";
 	};
 
-	jpege_core2: jpege@fdba8000 {
+	jpege2: jpege-core@fdba8000 {
 		compatible = "rockchip,vpu-encoder-v2-core";
 		reg = <0x0 0xfdba8000 0x0 0x400>;
 		interrupts = <GIC_SPI 126 IRQ_TYPE_LEVEL_HIGH>;
@@ -2032,7 +2036,7 @@
 		status = "disabled";
 	};
 
-	jpege_core3: jpege@fdbac000 {
+	jpege3: jpege-core@fdbac000 {
 		compatible = "rockchip,vpu-encoder-v2-core";
 		reg = <0x0 0xfdbac000 0x0 0x400>;
 		interrupts = <GIC_SPI 128 IRQ_TYPE_LEVEL_HIGH>;
