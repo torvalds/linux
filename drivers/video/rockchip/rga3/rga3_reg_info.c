@@ -1559,11 +1559,11 @@ void rga_cmd_to_rga3_cmd(struct rga_req *req_rga, struct rga3_req *req)
 
 	/* rgb to yuv */
 	/* 601 limit */
-	if ((req_rga->yuv2rgb_mode >> 2) == 1) {
+	if ((req_rga->yuv2rgb_mode >> 2) == 2) {
 		req->win0.r2y_mode = 0;
 		req->win1.r2y_mode = 0;
 	/* 601 full */
-	} else if ((req_rga->yuv2rgb_mode >> 2) == 2) {
+	} else if ((req_rga->yuv2rgb_mode >> 2) == 1) {
 		req->win0.r2y_mode = 2;
 		req->win1.r2y_mode = 2;
 	/* 709 limit */
