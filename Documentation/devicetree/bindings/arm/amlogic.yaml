@@ -183,6 +183,12 @@ properties:
               - amlogic,ad401
           - const: amlogic,a1
 
+      - description: Boards with the Amlogic Meson S4 S805X2 SoC
+        items:
+          - enum:
+              - amlogic,aq222
+          - const: amlogic,s4
+
 additionalProperties: true
 
 ...
