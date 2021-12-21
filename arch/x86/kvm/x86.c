@@ -906,7 +906,8 @@ int kvm_set_cr0(struct kvm_vcpu *vcpu, unsigned long cr0)
 	    !load_pdptrs(vcpu, kvm_read_cr3(vcpu)))
 		return 1;
 
-	if (!(cr0 & X86_CR0_PG) && kvm_read_cr4_bits(vcpu, X86_CR4_PCIDE))
+	if (!(cr0 & X86_CR0_PG) &&
+	    (is_64_bit_mode(vcpu) || kvm_read_cr4_bits(vcpu, X86_CR4_PCIDE)))
 		return 1;
 
 	static_call(kvm_x86_set_cr0)(vcpu, cr0);
@@ -1343,7 +1344,7 @@ static const u32 msrs_to_save_all[] = {
 	MSR_IA32_UMWAIT_CONTROL,
 
 	MSR_ARCH_PERFMON_FIXED_CTR0, MSR_ARCH_PERFMON_FIXED_CTR1,
-	MSR_ARCH_PERFMON_FIXED_CTR0 + 2, MSR_ARCH_PERFMON_FIXED_CTR0 + 3,
+	MSR_ARCH_PERFMON_FIXED_CTR0 + 2,
 	MSR_CORE_PERF_FIXED_CTR_CTRL, MSR_CORE_PERF_GLOBAL_STATUS,
 	MSR_CORE_PERF_GLOBAL_CTRL, MSR_CORE_PERF_GLOBAL_OVF_CTRL,
 	MSR_ARCH_PERFMON_PERFCTR0, MSR_ARCH_PERFMON_PERFCTR1,
@@ -3424,7 +3425,7 @@ int kvm_set_msr_common(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 
 		if (!msr_info->host_initiated)
 			return 1;
-		if (guest_cpuid_has(vcpu, X86_FEATURE_PDCM) && kvm_get_msr_feature(&msr_ent))
+		if (kvm_get_msr_feature(&msr_ent))
 			return 1;
 		if (data & ~msr_ent.data)
 			return 1;
@@ -7144,7 +7145,13 @@ static int emulator_pio_in(struct kvm_vcpu *vcpu, int size,
 			   unsigned short port, void *val, unsigned int count)
 {
 	if (vcpu->arch.pio.count) {
-		/* Complete previous iteration.  */
+		/*
+		 * Complete a previous iteration that required userspace I/O.
+		 * Note, @count isn't guaranteed to match pio.count as userspace
+		 * can modify ECX before rerunning the vCPU.  Ignore any such
+		 * shenanigans as KVM doesn't support modifying the rep count,
+		 * and the emulator ensures @count doesn't overflow the buffer.
+		 */
 	} else {
 		int r = __emulator_pio_in(vcpu, size, port, count);
 		if (!r)
@@ -7153,7 +7160,6 @@ static int emulator_pio_in(struct kvm_vcpu *vcpu, int size,
 		/* Results already available, fall through.  */
 	}
 
-	WARN_ON(count != vcpu->arch.pio.count);
 	complete_emulator_pio_in(vcpu, val);
 	return 1;
 }
@@ -9043,14 +9049,7 @@ static void post_kvm_run_save(struct kvm_vcpu *vcpu)
 {
 	struct kvm_run *kvm_run = vcpu->run;
 
-	/*
-	 * if_flag is obsolete and useless, so do not bother
-	 * setting it for SEV-ES guests.  Userspace can just
-	 * use kvm_run->ready_for_interrupt_injection.
-	 */
-	kvm_run->if_flag = !vcpu->arch.guest_state_protected
-		&& (kvm_get_rflags(vcpu) & X86_EFLAGS_IF) != 0;
-
+	kvm_run->if_flag = static_call(kvm_x86_get_if_flag)(vcpu);
 	kvm_run->cr8 = kvm_get_cr8(vcpu);
 	kvm_run->apic_base = kvm_get_apic_base(vcpu);
 
