@@ -334,9 +334,8 @@ mcp251xfd_regmap_crc_read(void *context,
 		 *
 		 * If the highest bit in the lowest byte is flipped
 		 * the transferred CRC matches the calculated one. We
-		 * assume for now the CRC calculation in the chip
-		 * works on wrong data and the transferred data is
-		 * correct.
+		 * assume for now the CRC operates on the correct
+		 * data.
 		 */
 		if (reg == MCP251XFD_REG_TBC &&
 		    ((buf_rx->data[0] & 0xf8) == 0x0 ||
@@ -350,10 +349,8 @@ mcp251xfd_regmap_crc_read(void *context,
 								  val_len);
 			if (!err) {
 				/* If CRC is now correct, assume
-				 * transferred data was OK, flip bit
-				 * back to original value.
+				 * flipped data is OK.
 				 */
-				buf_rx->data[0] ^= 0x80;
 				goto out;
 			}
 		}
