@@ -321,6 +321,36 @@ int ata_tport_add(struct device *parent,
 	return error;
 }
 
+/**
+ *     ata_port_classify - determine device type based on ATA-spec signature
+ *     @ap: ATA port device on which the classification should be run
+ *     @tf: ATA taskfile register set for device to be identified
+ *
+ *     A wrapper around ata_dev_classify() to provide additional logging
+ *
+ *     RETURNS:
+ *     Device type, %ATA_DEV_ATA, %ATA_DEV_ATAPI, %ATA_DEV_PMP,
+ *     %ATA_DEV_ZAC, or %ATA_DEV_UNKNOWN the event of failure.
+ */
+unsigned int ata_port_classify(struct ata_port *ap,
+			       const struct ata_taskfile *tf)
+{
+	int i;
+	unsigned int class = ata_dev_classify(tf);
+
+	/* Start with index '1' to skip the 'unknown' entry */
+	for (i = 1; i < ARRAY_SIZE(ata_class_names); i++) {
+		if (ata_class_names[i].value == class) {
+			ata_port_dbg(ap, "found %s device by sig\n",
+				     ata_class_names[i].name);
+			return class;
+		}
+	}
+
+	ata_port_info(ap, "found unknown device (class %u)\n", class);
+	return class;
+}
+EXPORT_SYMBOL_GPL(ata_port_classify);
 
 /*
  * ATA link attributes
