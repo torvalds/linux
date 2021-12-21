@@ -508,18 +508,14 @@ static int socfpga_a10_fpga_probe(struct platform_device *pdev)
 		return -EBUSY;
 	}
 
-	mgr = devm_fpga_mgr_create(dev, "SoCFPGA Arria10 FPGA Manager",
-				   &socfpga_a10_fpga_mgr_ops, priv);
-	if (!mgr)
-		return -ENOMEM;
+	mgr = fpga_mgr_register(dev, "SoCFPGA Arria10 FPGA Manager",
+				&socfpga_a10_fpga_mgr_ops, priv);
+	if (IS_ERR(mgr)) {
+		clk_disable_unprepare(priv->clk);
+		return PTR_ERR(mgr);
+	}
 
 	platform_set_drvdata(pdev, mgr);
-
-	ret = fpga_mgr_register(mgr);
-	if (ret) {
-		clk_disable_unprepare(priv->clk);
-		return ret;
-	}
 
 	return 0;
 }
