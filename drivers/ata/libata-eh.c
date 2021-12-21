@@ -533,8 +533,6 @@ void ata_scsi_error(struct Scsi_Host *host)
 	unsigned long flags;
 	LIST_HEAD(eh_work_q);
 
-	DPRINTK("ENTER\n");
-
 	spin_lock_irqsave(host->host_lock, flags);
 	list_splice_init(&host->eh_cmd_q, &eh_work_q);
 	spin_unlock_irqrestore(host->host_lock, flags);
@@ -548,7 +546,6 @@ void ata_scsi_error(struct Scsi_Host *host)
 	/* finish or retry handled scmd's and clean up */
 	WARN_ON(!list_empty(&eh_work_q));
 
-	DPRINTK("EXIT\n");
 }
 
 /**
@@ -940,7 +937,7 @@ void ata_std_sched_eh(struct ata_port *ap)
 	ata_eh_set_pending(ap, 1);
 	scsi_schedule_eh(ap->scsi_host);
 
-	DPRINTK("port EH scheduled\n");
+	trace_ata_std_sched_eh(ap);
 }
 EXPORT_SYMBOL_GPL(ata_std_sched_eh);
 
@@ -1070,7 +1067,7 @@ static void __ata_port_freeze(struct ata_port *ap)
 
 	ap->pflags |= ATA_PFLAG_FROZEN;
 
-	DPRINTK("ata%u port frozen\n", ap->print_id);
+	trace_ata_port_freeze(ap);
 }
 
 /**
@@ -1147,7 +1144,7 @@ void ata_eh_thaw_port(struct ata_port *ap)
 
 	spin_unlock_irqrestore(ap->lock, flags);
 
-	DPRINTK("ata%u port thawed\n", ap->print_id);
+	trace_ata_port_thaw(ap);
 }
 
 static void ata_eh_scsidone(struct scsi_cmnd *scmd)
@@ -1287,6 +1284,8 @@ void ata_eh_about_to_do(struct ata_link *link, struct ata_device *dev,
 	struct ata_eh_context *ehc = &link->eh_context;
 	unsigned long flags;
 
+	trace_ata_eh_about_to_do(link, dev ? dev->devno : 0, action);
+
 	spin_lock_irqsave(ap->lock, flags);
 
 	ata_eh_clear_action(link, dev, ehi, action);
@@ -1316,6 +1315,8 @@ void ata_eh_done(struct ata_link *link, struct ata_device *dev,
 		 unsigned int action)
 {
 	struct ata_eh_context *ehc = &link->eh_context;
+
+	trace_ata_eh_done(link, dev ? dev->devno : 0, action);
 
 	ata_eh_clear_action(link, dev, &ehc->i, action);
 }
@@ -1421,8 +1422,6 @@ static void ata_eh_request_sense(struct ata_queued_cmd *qc,
 		return;
 	}
 
-	DPRINTK("ATA request sense\n");
-
 	ata_tf_init(dev, &tf);
 	tf.flags |= ATA_TFLAG_ISADDR | ATA_TFLAG_DEVICE;
 	tf.flags |= ATA_TFLAG_LBA | ATA_TFLAG_LBA48;
@@ -1462,8 +1461,6 @@ unsigned int atapi_eh_request_sense(struct ata_device *dev,
 		{ REQUEST_SENSE, 0, 0, 0, SCSI_SENSE_BUFFERSIZE, 0 };
 	struct ata_port *ap = dev->link->ap;
 	struct ata_taskfile tf;
-
-	DPRINTK("ATAPI request sense\n");
 
 	memset(sense_buf, 0, SCSI_SENSE_BUFFERSIZE);
 
@@ -1928,8 +1925,6 @@ static void ata_eh_link_autopsy(struct ata_link *link)
 	u32 serror;
 	int rc;
 
-	DPRINTK("ENTER\n");
-
 	if (ehc->i.flags & ATA_EHI_NO_AUTOPSY)
 		return;
 
@@ -2036,7 +2031,6 @@ static void ata_eh_link_autopsy(struct ata_link *link)
 		ehc->i.action |= ata_eh_speed_down(dev, eflags, all_err_mask);
 		trace_ata_eh_link_autopsy(dev, ehc->i.action, all_err_mask);
 	}
-	DPRINTK("EXIT\n");
 }
 
 /**
@@ -2936,8 +2930,6 @@ static int ata_eh_revalidate_and_attach(struct ata_link *link,
 	unsigned long flags;
 	int rc = 0;
 
-	DPRINTK("ENTER\n");
-
 	/* For PATA drive side cable detection to work, IDENTIFY must
 	 * be done backwards such that PDIAG- is released by the slave
 	 * device before the master device is identified.
@@ -3051,7 +3043,6 @@ static int ata_eh_revalidate_and_attach(struct ata_link *link,
 
  err:
 	*r_failed_dev = dev;
-	DPRINTK("EXIT rc=%d\n", rc);
 	return rc;
 }
 
@@ -3566,8 +3557,6 @@ int ata_eh_recover(struct ata_port *ap, ata_prereset_fn_t prereset,
 	int rc, nr_fails;
 	unsigned long flags, deadline;
 
-	DPRINTK("ENTER\n");
-
 	/* prep for recovery */
 	ata_for_each_link(link, ap, EDGE) {
 		struct ata_eh_context *ehc = &link->eh_context;
@@ -3775,7 +3764,6 @@ int ata_eh_recover(struct ata_port *ap, ata_prereset_fn_t prereset,
 	if (rc && r_failed_link)
 		*r_failed_link = link;
 
-	DPRINTK("EXIT, rc=%d\n", rc);
 	return rc;
 }
 

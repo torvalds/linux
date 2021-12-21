@@ -490,6 +490,37 @@ TRACE_EVENT(ata_eh_link_autopsy_qc,
 		  __parse_eh_err_mask(__entry->eh_err_mask))
 );
 
+DECLARE_EVENT_CLASS(ata_eh_action_template,
+
+	TP_PROTO(struct ata_link *link, unsigned int devno, unsigned int eh_action),
+
+	TP_ARGS(link, devno, eh_action),
+
+	TP_STRUCT__entry(
+		__field( unsigned int,	ata_port )
+		__field( unsigned int,	ata_dev	)
+		__field( unsigned int,	eh_action )
+	),
+
+	TP_fast_assign(
+		__entry->ata_port	= link->ap->print_id;
+		__entry->ata_dev	= link->pmp + devno;
+		__entry->eh_action	= eh_action;
+	),
+
+	TP_printk("ata_port=%u ata_dev=%u eh_action=%s",
+		  __entry->ata_port, __entry->ata_dev,
+		  __parse_eh_action(__entry->eh_action))
+);
+
+DEFINE_EVENT(ata_eh_action_template, ata_eh_about_to_do,
+	     TP_PROTO(struct ata_link *link, unsigned int devno, unsigned int eh_action),
+	     TP_ARGS(link, devno, eh_action));
+
+DEFINE_EVENT(ata_eh_action_template, ata_eh_done,
+	     TP_PROTO(struct ata_link *link, unsigned int devno, unsigned int eh_action),
+	     TP_ARGS(link, devno, eh_action));
+
 DECLARE_EVENT_CLASS(ata_link_reset_begin_template,
 
 	TP_PROTO(struct ata_link *link, unsigned int *class, unsigned long deadline),
@@ -569,6 +600,35 @@ DEFINE_EVENT(ata_link_reset_end_template, ata_link_postreset,
 DEFINE_EVENT(ata_link_reset_end_template, ata_slave_postreset,
 	     TP_PROTO(struct ata_link *link, unsigned int *class, int rc),
 	     TP_ARGS(link, class, rc));
+
+DECLARE_EVENT_CLASS(ata_port_eh_begin_template,
+
+	TP_PROTO(struct ata_port *ap),
+
+	TP_ARGS(ap),
+
+	TP_STRUCT__entry(
+		__field( unsigned int,	ata_port )
+	),
+
+	TP_fast_assign(
+		__entry->ata_port	= ap->print_id;
+	),
+
+	TP_printk("ata_port=%u", __entry->ata_port)
+);
+
+DEFINE_EVENT(ata_port_eh_begin_template, ata_std_sched_eh,
+	     TP_PROTO(struct ata_port *ap),
+	     TP_ARGS(ap));
+
+DEFINE_EVENT(ata_port_eh_begin_template, ata_port_freeze,
+	     TP_PROTO(struct ata_port *ap),
+	     TP_ARGS(ap));
+
+DEFINE_EVENT(ata_port_eh_begin_template, ata_port_thaw,
+	     TP_PROTO(struct ata_port *ap),
+	     TP_ARGS(ap));
 
 DECLARE_EVENT_CLASS(ata_sff_hsm_template,
 
