@@ -2080,16 +2080,15 @@ void ata_eh_autopsy(struct ata_port *ap)
 }
 
 /**
- *	ata_get_cmd_descript - get description for ATA command
- *	@command: ATA command code to get description for
+ *	ata_get_cmd_name - get name for ATA command
+ *	@command: ATA command code to get name for
  *
- *	Return a textual description of the given command, or NULL if the
- *	command is not known.
+ *	Return a textual name of the given command or "unknown"
  *
  *	LOCKING:
  *	None
  */
-const char *ata_get_cmd_descript(u8 command)
+const char *ata_get_cmd_name(u8 command)
 {
 #ifdef CONFIG_ATA_VERBOSE_ERROR
 	static const struct
@@ -2197,9 +2196,9 @@ const char *ata_get_cmd_descript(u8 command)
 			return cmd_descr[i].text;
 #endif
 
-	return NULL;
+	return "unknown";
 }
-EXPORT_SYMBOL_GPL(ata_get_cmd_descript);
+EXPORT_SYMBOL_GPL(ata_get_cmd_name);
 
 /**
  *	ata_eh_link_report - report error handling to user
@@ -2348,12 +2347,9 @@ static void ata_eh_link_report(struct ata_link *link)
 			}
 			__scsi_format_command(cdb_buf, sizeof(cdb_buf),
 					      cdb, cdb_len);
-		} else {
-			const char *descr = ata_get_cmd_descript(cmd->command);
-			if (descr)
-				ata_dev_err(qc->dev, "failed command: %s\n",
-					    descr);
-		}
+		} else
+			ata_dev_err(qc->dev, "failed command: %s\n",
+				    ata_get_cmd_name(cmd->command));
 
 		ata_dev_err(qc->dev,
 			"cmd %02x/%02x:%02x:%02x:%02x:%02x/%02x:%02x:%02x:%02x:%02x/%02x "

@@ -664,9 +664,7 @@ static int ata_acpi_run_tf(struct ata_device *dev,
 		pptf = &ptf;
 	}
 
-	descr = ata_get_cmd_descript(tf.command);
-	if (!descr)
-		descr = "unknown";
+	descr = ata_get_cmd_name(tf.command);
 
 	if (!ata_acpi_filter_tf(dev, &tf, pptf)) {
 		rtf = tf;
