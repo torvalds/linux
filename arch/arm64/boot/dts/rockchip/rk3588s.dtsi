@@ -1022,8 +1022,8 @@
 	gpu_opp_table: gpu-opp-table {
 		compatible = "operating-points-v2";
 
-		clocks = <&cru CLK_GPU>, <&cru PCLK_GPU_GRF>;
-		clock-names = "clk", "pclk";
+		clocks = <&cru CLK_GPU>;
+		clock-names = "clk";
 		rockchip,grf = <&gpu_grf>;
 		volt-mem-read-margin = <
 			855000	1
@@ -1578,8 +1578,7 @@
 			/* These power domains are grouped by VD_GPU */
 			power-domain@RK3588_PD_GPU {
 				reg = <RK3588_PD_GPU>;
-				clocks = <&cru PCLK_GPU_ROOT>,
-					 <&cru CLK_GPU>,
+				clocks = <&cru CLK_GPU>,
 					 <&cru CLK_GPU_COREGROUP>,
 					 <&cru CLK_GPU_STACKS>;
 				pm_qos = <&qos_gpu_m0>,
@@ -1885,8 +1884,8 @@
 		#size-cells = <0>;
 		pvtm@4 {
 			reg = <4>;
-			clocks = <&cru CLK_GPU_PVTM>, <&cru PCLK_GPU_PVTM>;
-			clock-names = "clk", "pclk";
+			clocks = <&cru CLK_GPU_PVTM>;
+			clock-names = "clk";
 			resets = <&cru SRST_GPU_PVTM>, <&cru SRST_P_GPU_PVTM>;
 			reset-names = "rts", "rst-p";
 		};
