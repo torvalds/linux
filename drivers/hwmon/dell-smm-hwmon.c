@@ -113,12 +113,12 @@ MODULE_PARM_DESC(fan_max, "Maximum configurable fan speed (default: autodetect)"
 
 struct smm_regs {
 	unsigned int eax;
-	unsigned int ebx __packed;
-	unsigned int ecx __packed;
-	unsigned int edx __packed;
-	unsigned int esi __packed;
-	unsigned int edi __packed;
-};
+	unsigned int ebx;
+	unsigned int ecx;
+	unsigned int edx;
+	unsigned int esi;
+	unsigned int edi;
+} __packed;
 
 static const char * const temp_labels[] = {
 	"CPU",
