@@ -5848,7 +5848,7 @@ static int set_file_mode_info(struct ksmbd_file *fp,
  * smb2_set_info_file() - handler for smb2 set info command
  * @work:	smb work containing set info command buffer
  * @fp:		ksmbd_file pointer
- * @info_class:	smb2 set info class
+ * @req:	request buffer pointer
  * @share:	ksmbd_share_config pointer
  *
  * Return:	0 on success, otherwise error
