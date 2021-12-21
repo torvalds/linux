@@ -209,6 +209,7 @@
 #define PLL_PCG_POSTDIV_SEL(x)		UPDATE(x, 7, 4)
 #define PLL_PCG_CLK_SEL_MASK		GENMASK(3, 1)
 #define PLL_PCG_CLK_SEL(x)		UPDATE(x, 3, 1)
+#define PLL_PCG_CLK_EN			BIT(0)
 #define CMN_REG0087			0x021C
 #define PLL_FRL_MODE_EN			BIT(3)
 #define PLL_TX_HS_CLK_EN		BIT(2)
@@ -698,6 +699,7 @@ struct rockchip_hdptx_phy {
 	struct regmap *grf;
 
 	int irq;
+	int id;
 
 	struct phy *phy;
 	struct clk_bulk_data *clks;
@@ -706,7 +708,8 @@ struct rockchip_hdptx_phy {
 
 	/* clk provider */
 	struct clk_hw hw;
-	struct clk *pclk;
+	struct clk *dclk;
+	unsigned long rate;
 
 	struct reset_control *phy_reset;
 	struct reset_control *apb_reset;
@@ -717,6 +720,8 @@ struct rockchip_hdptx_phy {
 	struct reset_control *lcpll_reset;
 
 	bool earc_en;
+	bool dclk_en;
+	bool pll_locked;
 };
 
 struct lcpll_config lcpll_cfg[] = {
@@ -759,14 +764,44 @@ struct ropll_config ropll_tmds_cfg[] = {
 	{ 2970000, 124, 124, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 62, 1, 16, 5, 0,
 		1, 1, 0, 0x20, 0x0c, 1, 0x0e, 0, 0,
 	},
+	{ 1620000, 135, 135, 1, 1, 3, 1, 1, 0, 1, 1, 1, 1, 4, 0, 3, 5, 5, 0x10,
+		1, 0, 0x20, 0x0c, 1, 0x0e, 0, 0,
+	},
+	{ 1856250, 155, 155, 1, 1, 3, 1, 1, 1, 1, 1, 1, 1, 62, 1, 16, 5, 0,
+		1, 1, 0, 0x20, 0x0c, 1, 0x0e, 0, 0,
+	},
 	{ 1485000, 0x7b, 0x7b, 1, 1, 3, 1, 1, 1, 1, 1, 1, 1, 4, 0, 3, 5, 5, 0x10,
 		1, 0, 0x20, 0x0c, 1, 0x0e, 0, 0,
+	},
+	{ 1462500, 122, 122, 1, 1, 4, 1, 1, 1, 1, 1, 1, 1, 244, 1, 16, 1, 0, 1,
+		1, 0, 0x20, 0x0c, 1, 0x0e, 0, 0,
+	},
+	{ 1065000, 89, 89, 1, 1, 3, 1, 1, 1, 1, 1, 1, 1, 89, 1, 16, 1, 0, 1,
+		1, 0, 0x20, 0x0c, 1, 0x0e, 0, 0,
+	},
+	{ 1080000, 135, 135, 1, 1, 5, 1, 1, 0, 1, 0, 1, 1, 0x9, 0, 0x05, 0, 0x14,
+		0x18, 1, 0, 0x20, 0x0c, 1, 0x0e, 0, 0,
+	},
+	{ 855000, 125, 125, 1, 1, 6, 1, 1, 1, 1, 1, 1, 1, 80, 1, 16, 2, 0,
+		1, 1, 0, 0x20, 0x0c, 1, 0x0e, 0, 0,
+	},
+	{ 835000, 105, 105, 1, 1, 5, 1, 1, 1, 1, 1, 1, 1, 42, 1, 16, 1, 0,
+		1, 1, 0, 0x20, 0x0c, 1, 0x0e, 0, 0,
+	},
+	{ 928125, 155, 155, 1, 1, 7, 1, 1, 1, 1, 1, 1, 1, 62, 1, 16, 5, 0,
+		1, 1, 0, 0x20, 0x0c, 1, 0x0e, 0, 0,
 	},
 	{ 742500, 124, 124, 1, 1, 7, 1, 1, 1, 1, 1, 1, 1, 62, 1, 16, 5, 0,
 		1, 1, 0, 0x20, 0x0c, 1, 0x0e, 0, 0,
 	},
+	{ 650000, 162, 162, 1, 1, 11, 1, 1, 1, 1, 1, 1, 1, 54, 0, 16, 3, 0,
+		1, 1, 0, 0x20, 0x0c, 1, 0x0e, 0, 0,
+	},
 	{ 337500, 0x70, 0x70, 1, 1, 0xf, 1, 1, 1, 1, 1, 1, 1, 0x2, 0, 0x01, 5, 1,
 		1, 1, 0, 0x20, 0x0c, 1, 0x0e, 0, 0,
+	},
+	{ 400000, 100, 100, 1, 1, 11, 1, 1, 0, 1, 0, 1, 1, 0x9, 0, 0x05, 0, 0x14,
+		0x18, 1, 0, 0x20, 0x0c, 1, 0x0e, 0, 0,
 	},
 	{ 270000, 0x5a, 0x5a, 1, 1, 0xf, 1, 1, 0, 1, 0, 1, 1, 0x9, 0, 0x05, 0, 0x14,
 		0x18, 1, 0, 0x20, 0x0c, 1, 0x0e, 0, 0,
@@ -850,6 +885,7 @@ static inline u8 hdptx_grf_read(struct rockchip_hdptx_phy *hdptx, u32 reg)
 static void hdptx_pre_power_up(struct rockchip_hdptx_phy *hdptx)
 {
 	u32 val = 0;
+	int ret;
 
 	reset_control_assert(hdptx->apb_reset);
 	usleep_range(10, 20);
@@ -859,8 +895,78 @@ static void hdptx_pre_power_up(struct rockchip_hdptx_phy *hdptx)
 	reset_control_assert(hdptx->cmn_reset);
 	reset_control_assert(hdptx->init_reset);
 
+	ret = clk_bulk_prepare_enable(hdptx->nr_clks, hdptx->clks);
+	if (ret) {
+		dev_err(hdptx->dev, "failed to enable clocks\n");
+		return;
+	}
+
 	val = (HDPTX_I_PLL_EN | HDPTX_I_BIAS_EN | HDPTX_I_BGR_EN) << 16;
 	hdptx_grf_write(hdptx, GRF_HDPTX_CON0, val);
+}
+
+static int hdptx_post_enable_lane(struct rockchip_hdptx_phy *hdptx)
+{
+	u32 val = 0;
+	int i;
+
+	reset_control_deassert(hdptx->lane_reset);
+
+	val = (HDPTX_I_BIAS_EN | HDPTX_I_BGR_EN) << 16 | HDPTX_I_BIAS_EN |
+		HDPTX_I_BGR_EN;
+	hdptx_grf_write(hdptx, GRF_HDPTX_CON0, val);
+
+	for (i = 0; i < 20; i++) {
+		val = hdptx_grf_read(hdptx, GRF_HDPTX_STATUS);
+
+		if (val & HDPTX_O_PHY_RDY && val & HDPTX_O_PLL_LOCK_DONE)
+			break;
+		udelay(100);
+	}
+
+	if (i == 20) {
+		dev_err(hdptx->dev, "hdptx phy lane can't ready!\n");
+		return -EINVAL;
+	}
+
+	dev_err(hdptx->dev, "hdptx phy lane locked!\n");
+
+	return 0;
+}
+
+static int hdptx_post_enable_pll(struct rockchip_hdptx_phy *hdptx)
+{
+	u32 val = 0;
+	int i;
+
+	val = (HDPTX_I_BIAS_EN | HDPTX_I_BGR_EN) << 16 | HDPTX_I_BIAS_EN |
+		HDPTX_I_BGR_EN;
+	hdptx_grf_write(hdptx, GRF_HDPTX_CON0, val);
+	udelay(10);
+	reset_control_deassert(hdptx->init_reset);
+	udelay(10);
+	val = HDPTX_I_PLL_EN << 16 | HDPTX_I_PLL_EN;
+	hdptx_grf_write(hdptx, GRF_HDPTX_CON0, val);
+	udelay(10);
+	reset_control_deassert(hdptx->cmn_reset);
+
+	for (i = 0; i < 20; i++) {
+		val = hdptx_grf_read(hdptx, GRF_HDPTX_STATUS);
+
+		if (val & HDPTX_O_PHY_CLK_RDY)
+			break;
+		udelay(20);
+	}
+
+	if (i == 20) {
+		dev_err(hdptx->dev, "hdptx phy pll can't lock!\n");
+		return -EINVAL;
+	}
+
+	hdptx->pll_locked = true;
+	dev_err(hdptx->dev, "hdptx phy pll locked!\n");
+
+	return 0;
 }
 
 static int hdptx_post_power_up(struct rockchip_hdptx_phy *hdptx)
@@ -996,12 +1102,14 @@ static void hdptx_earc_config(struct rockchip_hdptx_phy *hdptx)
 	hdptx_update_bits(hdptx, SB_REG0123, SB_READY_MASK, SB_READY(1));
 }
 
-static int hdptx_ropll_tmds_mode_config(struct rockchip_hdptx_phy *hdptx, u32 rate)
+static int hdptx_ropll_cmn_config(struct rockchip_hdptx_phy *hdptx, unsigned long bit_rate)
 {
-	u32 bit_rate = rate & DATA_RATE_MASK;
-	u8 color_depth = (rate & COLOR_DEPTH_MASK) ? 1 : 0;
+	int bus_width = phy_get_bus_width(hdptx->phy);
+	u8 color_depth = (bus_width & COLOR_DEPTH_MASK) ? 1 : 0;
 	struct ropll_config *cfg = ropll_tmds_cfg;
 
+	dev_info(hdptx->dev, "%s bus_width:%x rate:%lu\n", __func__, bus_width, bit_rate);
+	hdptx->rate = bit_rate * 100;
 
 	for (; cfg->bit_rate != ~0; cfg++)
 		if (bit_rate == cfg->bit_rate)
@@ -1143,7 +1251,9 @@ static int hdptx_ropll_tmds_mode_config(struct rockchip_hdptx_phy *hdptx, u32 ra
 		       PLL_PCG_POSTDIV_SEL(cfg->pms_sdiv));
 
 	hdptx_update_bits(hdptx, CMN_REG0086, PLL_PCG_CLK_SEL_MASK,
-		       PLL_PCG_CLK_SEL(color_depth));
+			  PLL_PCG_CLK_SEL(color_depth));
+
+	hdptx_update_bits(hdptx, CMN_REG0086, PLL_PCG_CLK_EN, PLL_PCG_CLK_EN);
 
 	hdptx_write(hdptx, CMN_REG0087, 0x04);
 	hdptx_write(hdptx, CMN_REG0089, 0x00);
@@ -1162,6 +1272,22 @@ static int hdptx_ropll_tmds_mode_config(struct rockchip_hdptx_phy *hdptx, u32 ra
 	hdptx_write(hdptx, CMN_REG0099, 0x04);
 	hdptx_write(hdptx, CMN_REG009A, 0x11);
 	hdptx_write(hdptx, CMN_REG009B, 0x00);
+
+	return hdptx_post_enable_pll(hdptx);
+}
+
+static int hdptx_ropll_tmds_mode_config(struct rockchip_hdptx_phy *hdptx, u32 rate)
+{
+	u32 bit_rate = rate & DATA_RATE_MASK;
+
+	if (!hdptx->pll_locked) {
+		int ret;
+
+		ret = hdptx_ropll_cmn_config(hdptx, bit_rate);
+		if (ret)
+			return ret;
+	}
+
 	hdptx_write(hdptx, SB_REG0114, 0x00);
 	hdptx_write(hdptx, SB_REG0115, 0x00);
 	hdptx_write(hdptx, SB_REG0116, 0x00);
@@ -1250,7 +1376,7 @@ static int hdptx_ropll_tmds_mode_config(struct rockchip_hdptx_phy *hdptx, u32 ra
 	if (hdptx->earc_en)
 		hdptx_earc_config(hdptx);
 
-	return hdptx_post_power_up(hdptx);
+	return hdptx_post_enable_lane(hdptx);
 }
 
 static int hdptx_ropll_frl_mode_config(struct rockchip_hdptx_phy *hdptx, u32 rate)
@@ -1706,13 +1832,6 @@ static int rockchip_hdptx_phy_power_on(struct phy *phy)
 	struct rockchip_hdptx_phy *hdptx = phy_get_drvdata(phy);
 	int bus_width = phy_get_bus_width(hdptx->phy);
 	int bit_rate = bus_width & DATA_RATE_MASK;
-	int ret;
-
-	ret = clk_bulk_prepare_enable(hdptx->nr_clks, hdptx->clks);
-	if (ret) {
-		dev_err(hdptx->dev, "failed to enable clocks\n");
-		return ret;
-	}
 
 	dev_info(hdptx->dev, "bus_width:0x%x,bit_rate:%d\n", bus_width, bit_rate);
 	if (bus_width & HDMI_EARC_MASK)
@@ -1748,7 +1867,7 @@ static int rockchip_hdptx_phy_power_off(struct phy *phy)
 
 	val = (HDPTX_I_PLL_EN | HDPTX_I_BIAS_EN | HDPTX_I_BGR_EN) << 16;
 	hdptx_grf_write(hdptx, GRF_HDPTX_CON0, val);
-
+	hdptx->pll_locked = false;
 	clk_bulk_disable_unprepare(hdptx->nr_clks, hdptx->clks);
 
 	return 0;
@@ -1775,6 +1894,122 @@ static void rockchip_hdptx_phy_runtime_disable(void *data)
 	pm_runtime_disable(hdptx->dev);
 }
 
+static int hdptx_phy_clk_is_prepared(struct clk_hw *hw)
+{
+	struct rockchip_hdptx_phy *hdptx = to_rockchip_hdptx_phy(hw);
+
+	return hdptx->dclk_en;
+}
+
+static int hdptx_phy_clk_prepare(struct clk_hw *hw)
+{
+	struct rockchip_hdptx_phy *hdptx = to_rockchip_hdptx_phy(hw);
+
+	hdptx->dclk_en = true;
+	return 0;
+}
+
+static void hdptx_phy_clk_unprepare(struct clk_hw *hw)
+{
+	struct rockchip_hdptx_phy *hdptx = to_rockchip_hdptx_phy(hw);
+
+	hdptx->dclk_en = false;
+}
+
+static unsigned long hdptx_phy_clk_recalc_rate(struct clk_hw *hw,
+					       unsigned long parent_rate)
+{
+	struct rockchip_hdptx_phy *hdptx = to_rockchip_hdptx_phy(hw);
+
+	return hdptx->rate;
+}
+
+static long hdptx_phy_clk_round_rate(struct clk_hw *hw, unsigned long rate,
+					 unsigned long *parent_rate)
+{
+	struct ropll_config *cfg = ropll_tmds_cfg;
+	u32 bit_rate = rate / 100;
+
+	for (; cfg->bit_rate != ~0; cfg++)
+		if (bit_rate == cfg->bit_rate)
+			break;
+
+	if (cfg->bit_rate == ~0)
+		return -EINVAL;
+
+	return rate;
+}
+
+static int hdptx_phy_clk_set_rate(struct clk_hw *hw, unsigned long rate,
+				      unsigned long parent_rate)
+{
+	struct rockchip_hdptx_phy *hdptx = to_rockchip_hdptx_phy(hw);
+	int bus_width = phy_get_bus_width(hdptx->phy);
+	u8 color_depth = (bus_width & COLOR_DEPTH_MASK) ? 1 : 0;
+
+	if (color_depth)
+		rate = (rate / 100) * 5 / 4;
+	else
+		rate = rate / 100;
+	return hdptx_ropll_cmn_config(hdptx, rate);
+}
+
+static const struct clk_ops hdptx_phy_clk_ops = {
+	.prepare = hdptx_phy_clk_prepare,
+	.unprepare = hdptx_phy_clk_unprepare,
+	.is_prepared = hdptx_phy_clk_is_prepared,
+	.recalc_rate = hdptx_phy_clk_recalc_rate,
+	.round_rate = hdptx_phy_clk_round_rate,
+	.set_rate = hdptx_phy_clk_set_rate,
+};
+
+static int rockchip_hdptx_phy_clk_register(struct rockchip_hdptx_phy *hdptx)
+{
+	struct device *dev = hdptx->dev;
+	struct device_node *np = dev->of_node;
+	struct clk_init_data init = {};
+	struct clk *refclk;
+	const char *parent_name;
+	int ret;
+
+	refclk = devm_clk_get(dev, "ref");
+	if (IS_ERR(refclk)) {
+		dev_err(dev, "failed to get ref clock\n");
+		return PTR_ERR(refclk);
+	}
+
+	parent_name = __clk_get_name(refclk);
+
+	init.parent_names = &parent_name;
+	init.num_parents = 1;
+	init.flags = 0;
+	if (!hdptx->id)
+		init.name = "clk_hdmiphy_pixel0";
+	else
+		init.name = "clk_hdmiphy_pixel1";
+	init.ops = &hdptx_phy_clk_ops;
+
+	/* optional override of the clock name */
+	of_property_read_string(np, "clock-output-names", &init.name);
+
+	hdptx->hw.init = &init;
+
+	hdptx->dclk = devm_clk_register(dev, &hdptx->hw);
+	if (IS_ERR(hdptx->dclk)) {
+		ret = PTR_ERR(hdptx->dclk);
+		dev_err(dev, "failed to register clock: %d\n", ret);
+		return ret;
+	}
+
+	ret = of_clk_add_provider(np, of_clk_src_simple_get, hdptx->dclk);
+	if (ret) {
+		dev_err(dev, "failed to register OF clock provider: %d\n", ret);
+		return ret;
+	}
+
+	return 0;
+}
+
 static int rockchip_hdptx_phy_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -1791,6 +2026,10 @@ static int rockchip_hdptx_phy_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	hdptx->dev = dev;
+
+	hdptx->id = of_alias_get_id(dev->of_node, "hdptxhdmi");
+	if (hdptx->id < 0)
+		hdptx->id = 0;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	regs = devm_ioremap_resource(dev, res);
@@ -1920,6 +2159,10 @@ static int rockchip_hdptx_phy_probe(struct platform_device *pdev)
 	hdptx_grf_write(hdptx, GRF_HDPTX_CON0, val);
 
 	clk_bulk_disable_unprepare(hdptx->nr_clks, hdptx->clks);
+
+	ret = rockchip_hdptx_phy_clk_register(hdptx);
+	if (ret)
+		goto err_regsmap;
 
 	platform_set_drvdata(pdev, hdptx);
 	dev_info(dev, "hdptx phy init success\n");
