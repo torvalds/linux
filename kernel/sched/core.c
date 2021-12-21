@@ -9425,7 +9425,7 @@ void __init sched_init(void)
 	 * if we want to avoid special-casing it in code that deals with per-CPU
 	 * kthreads.
 	 */
-	WARN_ON(set_kthread_struct(current));
+	WARN_ON(!set_kthread_struct(current));
 
 	/*
 	 * Make us the idle thread. Technically, schedule() should not be
