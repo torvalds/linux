@@ -411,13 +411,12 @@ static void cw_update_time_to_empty(struct cw_battery *cw_bat)
 	int time_to_empty;
 
 	time_to_empty = cw_get_time_to_empty(cw_bat);
-	if (time_to_empty < 0)
+	if (time_to_empty < 0) {
 		dev_err(cw_bat->dev, "Failed to get time to empty from gauge: %d\n",
 			time_to_empty);
-	else if (cw_bat->time_to_empty != time_to_empty) {
-		cw_bat->time_to_empty = time_to_empty;
-		cw_bat->battery_changed = true;
+		return;
 	}
+	cw_bat->time_to_empty = time_to_empty;
 }
 
 static void cw_bat_work(struct work_struct *work)
