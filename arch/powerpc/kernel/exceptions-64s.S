@@ -90,19 +90,6 @@ name:
 	addis	reg,reg,(ABS_ADDR(label))@h
 
 /*
- * Branch to label using its 0xC000 address. This results in instruction
- * address suitable for MSR[IR]=0 or 1, which allows relocation to be turned
- * on using mtmsr rather than rfid.
- *
- * This could set the 0xc bits for !RELOCATABLE as an immediate, rather than
- * load KBASE for a slight optimisation.
- */
-#define BRANCH_TO_C000(reg, label)					\
-	__LOAD_FAR_HANDLER(reg, label);					\
-	mtctr	reg;							\
-	bctr
-
-/*
  * Interrupt code generation macros
  */
 #define IVEC		.L_IVEC_\name\()	/* Interrupt vector address */
@@ -974,7 +961,9 @@ TRAMP_REAL_BEGIN(system_reset_idle_wake)
 	/* We are waking up from idle, so may clobber any volatile register */
 	cmpwi	cr1,r5,2
 	bltlr	cr1	/* no state loss, return to idle caller with r3=SRR1 */
-	BRANCH_TO_C000(r12, DOTSYM(idle_return_gpr_loss))
+	__LOAD_FAR_HANDLER(r12, DOTSYM(idle_return_gpr_loss))
+	mtctr	r12
+	bctr
 #endif
 
 #ifdef CONFIG_PPC_PSERIES
