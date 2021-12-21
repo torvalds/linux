@@ -182,9 +182,8 @@ enum {
  * Prototypes
  */
 static void sata_dwc_bmdma_start_by_tag(struct ata_queued_cmd *qc, u8 tag);
-static int sata_dwc_qc_complete(struct ata_port *ap, struct ata_queued_cmd *qc,
-				u32 check_status);
-static void sata_dwc_dma_xfer_complete(struct ata_port *ap, u32 check_status);
+static int sata_dwc_qc_complete(struct ata_port *ap, struct ata_queued_cmd *qc);
+static void sata_dwc_dma_xfer_complete(struct ata_port *ap);
 static void sata_dwc_clear_dmacr(struct sata_dwc_device_port *hsdevp, u8 tag);
 
 #ifdef CONFIG_SATA_DWC_OLD_DMA
@@ -324,7 +323,7 @@ static void dma_dwc_xfer_done(void *hsdev_instance)
 	}
 
 	if ((hsdevp->dma_interrupt_count % 2) == 0)
-		sata_dwc_dma_xfer_complete(ap, 1);
+		sata_dwc_dma_xfer_complete(ap);
 
 	spin_unlock_irqrestore(&host->lock, flags);
 }
@@ -556,7 +555,7 @@ static irqreturn_t sata_dwc_isr(int irq, void *dev_instance)
 
 		if (status & ATA_ERR) {
 			dev_dbg(ap->dev, "interrupt ATA_ERR (0x%x)\n", status);
-			sata_dwc_qc_complete(ap, qc, 1);
+			sata_dwc_qc_complete(ap, qc);
 			handled = 1;
 			goto DONE;
 		}
@@ -581,13 +580,13 @@ DRVSTILLBUSY:
 			}
 
 			if ((hsdevp->dma_interrupt_count % 2) == 0)
-				sata_dwc_dma_xfer_complete(ap, 1);
+				sata_dwc_dma_xfer_complete(ap);
 		} else if (ata_is_pio(qc->tf.protocol)) {
 			ata_sff_hsm_move(ap, qc, status, 0);
 			handled = 1;
 			goto DONE;
 		} else {
-			if (unlikely(sata_dwc_qc_complete(ap, qc, 1)))
+			if (unlikely(sata_dwc_qc_complete(ap, qc)))
 				goto DRVSTILLBUSY;
 		}
 
@@ -647,7 +646,7 @@ DRVSTILLBUSY:
 		if (status & ATA_ERR) {
 			dev_dbg(ap->dev, "%s ATA_ERR (0x%x)\n", __func__,
 				status);
-			sata_dwc_qc_complete(ap, qc, 1);
+			sata_dwc_qc_complete(ap, qc);
 			handled = 1;
 			goto DONE;
 		}
@@ -662,9 +661,9 @@ DRVSTILLBUSY:
 				dev_warn(ap->dev, "%s: DMA not pending?\n",
 					__func__);
 			if ((hsdevp->dma_interrupt_count % 2) == 0)
-				sata_dwc_dma_xfer_complete(ap, 1);
+				sata_dwc_dma_xfer_complete(ap);
 		} else {
-			if (unlikely(sata_dwc_qc_complete(ap, qc, 1)))
+			if (unlikely(sata_dwc_qc_complete(ap, qc)))
 				goto STILLBUSY;
 		}
 		continue;
@@ -719,7 +718,7 @@ static void sata_dwc_clear_dmacr(struct sata_dwc_device_port *hsdevp, u8 tag)
 	}
 }
 
-static void sata_dwc_dma_xfer_complete(struct ata_port *ap, u32 check_status)
+static void sata_dwc_dma_xfer_complete(struct ata_port *ap)
 {
 	struct ata_queued_cmd *qc;
 	struct sata_dwc_device_port *hsdevp = HSDEVP_FROM_AP(ap);
@@ -742,15 +741,14 @@ static void sata_dwc_dma_xfer_complete(struct ata_port *ap, u32 check_status)
 		}
 
 		hsdevp->dma_pending[tag] = SATA_DWC_DMA_PENDING_NONE;
-		sata_dwc_qc_complete(ap, qc, check_status);
+		sata_dwc_qc_complete(ap, qc);
 		ap->link.active_tag = ATA_TAG_POISON;
 	} else {
-		sata_dwc_qc_complete(ap, qc, check_status);
+		sata_dwc_qc_complete(ap, qc);
 	}
 }
 
-static int sata_dwc_qc_complete(struct ata_port *ap, struct ata_queued_cmd *qc,
-				u32 check_status)
+static int sata_dwc_qc_complete(struct ata_port *ap, struct ata_queued_cmd *qc)
 {
 	u8 status = 0;
 	u32 mask = 0x0;
@@ -758,7 +756,6 @@ static int sata_dwc_qc_complete(struct ata_port *ap, struct ata_queued_cmd *qc,
 	struct sata_dwc_device *hsdev = HSDEV_FROM_AP(ap);
 	struct sata_dwc_device_port *hsdevp = HSDEVP_FROM_AP(ap);
 	hsdev->sactive_queued = 0;
-	dev_dbg(ap->dev, "%s checkstatus? %x\n", __func__, check_status);
 
 	if (hsdevp->dma_pending[tag] == SATA_DWC_DMA_PENDING_TX)
 		dev_err(ap->dev, "TX DMA PENDING\n");
