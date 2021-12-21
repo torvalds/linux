@@ -2932,7 +2932,7 @@ cleanup_bmc_device(struct kref *ref)
 	 * with removing the device attributes while reading a device
 	 * attribute.
 	 */
-	schedule_work(&bmc->remove_work);
+	queue_work(remove_work_wq, &bmc->remove_work);
 }
 
 /*
