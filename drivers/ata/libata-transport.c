@@ -163,7 +163,7 @@ static struct {
 	{ AC_ERR_INVALID,		"InvalidArg" },
 	{ AC_ERR_OTHER,			"Unknown" },
 	{ AC_ERR_NODEV_HINT,		"NoDeviceHint" },
-	{ AC_ERR_NCQ,		 	"NCQError" }
+	{ AC_ERR_NCQ,			"NCQError" }
 };
 ata_bitfield_name_match(err, ata_err_names)
 
@@ -327,7 +327,7 @@ int ata_tport_add(struct device *parent,
  */
 static int noop(int x) { return x; }
 
-#define ata_link_show_linkspeed(field, format)			        \
+#define ata_link_show_linkspeed(field, format)				\
 static ssize_t								\
 show_ata_link_##field(struct device *dev,				\
 		      struct device_attribute *attr, char *buf)		\
@@ -416,7 +416,7 @@ int ata_tlink_add(struct ata_link *link)
 	dev->release = ata_tlink_release;
 	if (ata_is_host_link(link))
 		dev_set_name(dev, "link%d", ap->print_id);
-        else
+	else
 		dev_set_name(dev, "link%d.%d", ap->print_id, link->pmp);
 
 	transport_setup_device(dev);
@@ -472,7 +472,7 @@ ata_dev_attr(xfer, dma_mode);
 ata_dev_attr(xfer, xfer_mode);
 
 
-#define ata_dev_show_simple(field, format_string, cast)		\
+#define ata_dev_show_simple(field, format_string, cast)			\
 static ssize_t								\
 show_ata_dev_##field(struct device *dev,				\
 		     struct device_attribute *attr, char *buf)		\
@@ -482,9 +482,9 @@ show_ata_dev_##field(struct device *dev,				\
 	return scnprintf(buf, 20, format_string, cast ata_dev->field);	\
 }
 
-#define ata_dev_simple_attr(field, format_string, type)	\
+#define ata_dev_simple_attr(field, format_string, type)		\
 	ata_dev_show_simple(field, format_string, (type))	\
-static DEVICE_ATTR(field, S_IRUGO, 			\
+	static DEVICE_ATTR(field, S_IRUGO,			\
 		   show_ata_dev_##field, NULL)
 
 ata_dev_simple_attr(spdn_cnt, "%d\n", int);
@@ -502,7 +502,7 @@ static int ata_show_ering(struct ata_ering_entry *ent, void *void_arg)
 
 	seconds = div_u64_rem(ent->timestamp, HZ, &rem);
 	arg->written += sprintf(arg->buf + arg->written,
-			        "[%5llu.%09lu]", seconds,
+				"[%5llu.%09lu]", seconds,
 				rem * NSEC_PER_SEC / HZ);
 	arg->written += get_ata_err_names(ent->err_mask,
 					  arg->buf + arg->written);
@@ -667,7 +667,7 @@ static int ata_tdev_add(struct ata_device *ata_dev)
 	dev->release = ata_tdev_release;
 	if (ata_is_host_link(link))
 		dev_set_name(dev, "dev%d.%d", ap->print_id,ata_dev->devno);
-        else
+	else
 		dev_set_name(dev, "dev%d.%d.0", ap->print_id, link->pmp);
 
 	transport_setup_device(dev);
@@ -689,7 +689,7 @@ static int ata_tdev_add(struct ata_device *ata_dev)
  */
 
 #define SETUP_TEMPLATE(attrb, field, perm, test)			\
-	i->private_##attrb[count] = dev_attr_##field;		       	\
+	i->private_##attrb[count] = dev_attr_##field;			\
 	i->private_##attrb[count].attr.mode = perm;			\
 	i->attrb[count] = &i->private_##attrb[count];			\
 	if (test)							\
