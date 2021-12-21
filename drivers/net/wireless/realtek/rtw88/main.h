@@ -22,6 +22,9 @@
 #define RTW_MAX_SEC_CAM_NUM		32
 #define MAX_PG_CAM_BACKUP_NUM		8
 
+#define RTW_SCAN_MAX_SSIDS		4
+#define RTW_SCAN_MAX_IE_LEN		128
+
 #define RTW_MAX_PATTERN_NUM		12
 #define RTW_MAX_PATTERN_MASK_SIZE	16
 #define RTW_MAX_PATTERN_SIZE		128
@@ -81,11 +84,9 @@ struct rtw_hci {
 	 IS_CH_5G_BAND_3(channel) || IS_CH_5G_BAND_4(channel))
 
 enum rtw_supported_band {
-	RTW_BAND_2G = 1 << 0,
-	RTW_BAND_5G = 1 << 1,
-	RTW_BAND_60G = 1 << 2,
-
-	RTW_BAND_MAX,
+	RTW_BAND_2G = BIT(NL80211_BAND_2GHZ),
+	RTW_BAND_5G = BIT(NL80211_BAND_5GHZ),
+	RTW_BAND_60G = BIT(NL80211_BAND_60GHZ),
 };
 
 /* now, support upto 80M bw */
@@ -630,6 +631,8 @@ struct rtw_rx_pkt_stat {
 	s8 rx_snr[RTW_RF_PATH_MAX];
 	u8 rx_evm[RTW_RF_PATH_MAX];
 	s8 cfo_tail[RTW_RF_PATH_MAX];
+	u16 freq;
+	u8 band;
 
 	struct rtw_sta_info *si;
 	struct ieee80211_vif *vif;
@@ -800,6 +803,8 @@ struct rtw_vif {
 	struct list_head rsvd_page_list;
 	struct ieee80211_tx_queue_params tx_params[IEEE80211_NUM_ACS];
 	const struct rtw_vif_port *conf;
+	struct cfg80211_scan_request *scan_req;
+	struct ieee80211_scan_ies *scan_ies;
 
 	struct rtw_traffic_stats stats;
 
@@ -1819,6 +1824,7 @@ struct rtw_hal {
 
 	u8 ps_mode;
 	u8 current_channel;
+	u8 current_primary_channel_index;
 	u8 current_band_width;
 	u8 current_band_type;
 
@@ -1865,12 +1871,37 @@ struct rtw_path_div {
 	u16 path_b_cnt;
 };
 
+struct rtw_chan_info {
+	int pri_ch_idx;
+	int action_id;
+	int bw;
+	u8 extra_info;
+	u8 channel;
+	u16 timeout;
+};
+
+struct rtw_chan_list {
+	u32 buf_size;
+	u32 ch_num;
+	u32 size;
+	u16 addr;
+};
+
+struct rtw_hw_scan_info {
+	struct ieee80211_vif *scanning_vif;
+	u8 probe_pg_size;
+	u8 op_pri_ch_idx;
+	u8 op_chan;
+	u8 op_bw;
+};
+
 struct rtw_dev {
 	struct ieee80211_hw *hw;
 	struct device *dev;
 
 	struct rtw_hci hci;
 
+	struct rtw_hw_scan_info scan_info;
 	struct rtw_chip_info *chip;
 	struct rtw_hal hal;
 	struct rtw_fifo_conf fifo;
@@ -2023,6 +2054,7 @@ static inline int rtw_chip_dump_fw_crash(struct rtw_dev *rtwdev)
 	return 0;
 }
 
+void rtw_set_rx_freq_band(struct rtw_rx_pkt_stat *pkt_stat, u8 channel);
 void rtw_get_channel_params(struct cfg80211_chan_def *chandef,
 			    struct rtw_channel_params *ch_param);
 bool check_hw_ready(struct rtw_dev *rtwdev, u32 addr, u32 mask, u32 target);
@@ -2037,6 +2069,9 @@ void rtw_vif_port_config(struct rtw_dev *rtwdev, struct rtw_vif *rtwvif,
 			 u32 config);
 void rtw_tx_report_purge_timer(struct timer_list *t);
 void rtw_update_sta_info(struct rtw_dev *rtwdev, struct rtw_sta_info *si);
+void rtw_core_scan_start(struct rtw_dev *rtwdev, struct rtw_vif *rtwvif,
+			 const u8 *mac_addr, bool hw_scan);
+void rtw_core_scan_complete(struct rtw_dev *rtwdev, struct ieee80211_vif *vif);
 int rtw_core_start(struct rtw_dev *rtwdev);
 void rtw_core_stop(struct rtw_dev *rtwdev);
 int rtw_chip_info_setup(struct rtw_dev *rtwdev);
