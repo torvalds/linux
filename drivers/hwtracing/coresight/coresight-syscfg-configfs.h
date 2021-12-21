@@ -15,6 +15,8 @@
 struct cscfg_fs_config {
 	struct cscfg_config_desc *config_desc;
 	struct config_group group;
+	bool active;
+	int preset;
 };
 
 /* container for feature view */
@@ -41,5 +43,7 @@ int cscfg_configfs_init(struct cscfg_manager *cscfg_mgr);
 void cscfg_configfs_release(struct cscfg_manager *cscfg_mgr);
 int cscfg_configfs_add_config(struct cscfg_config_desc *config_desc);
 int cscfg_configfs_add_feature(struct cscfg_feature_desc *feat_desc);
+void cscfg_configfs_del_config(struct cscfg_config_desc *config_desc);
+void cscfg_configfs_del_feature(struct cscfg_feature_desc *feat_desc);
 
 #endif /* CORESIGHT_SYSCFG_CONFIGFS_H */
