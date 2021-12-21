@@ -279,7 +279,12 @@ int set_task_ioprio(struct task_struct *task, int ioprio)
 			return -ENOMEM;
 
 		task_lock(task);
-		if (task->io_context || (task->flags & PF_EXITING)) {
+		if (task->flags & PF_EXITING) {
+			err = -ESRCH;
+			kmem_cache_free(iocontext_cachep, ioc);
+			goto out;
+		}
+		if (task->io_context) {
 			kmem_cache_free(iocontext_cachep, ioc);
 			ioc = task->io_context;
 		} else {
@@ -287,8 +292,9 @@ int set_task_ioprio(struct task_struct *task, int ioprio)
 		}
 	}
 	task->io_context->ioprio = ioprio;
+out:
 	task_unlock(task);
-	return 0;
+	return err;
 }
 EXPORT_SYMBOL_GPL(set_task_ioprio);
 
