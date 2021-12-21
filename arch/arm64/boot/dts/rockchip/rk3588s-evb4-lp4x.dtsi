@@ -797,9 +797,8 @@
 };
 
 &spi2 {
-	pinctrl-names = "default", "high_speed";
+	pinctrl-names = "default";
 	pinctrl-0 = <&spi2m2_cs0 &spi2m2_pins>;
-	pinctrl-1 = <&spi2m2_cs0 &spi2m2_pins_hs>;
 	num-cs = <1>;
 };
 
