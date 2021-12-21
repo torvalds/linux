@@ -695,7 +695,7 @@ interrupt_return_macro hsrr
 
 	.globl __end_soft_masked
 __end_soft_masked:
-DEFINE_FIXED_SYMBOL(__end_soft_masked)
+DEFINE_FIXED_SYMBOL(__end_soft_masked, text)
 #endif /* CONFIG_PPC_BOOK3S */
 
 #ifdef CONFIG_PPC_BOOK3S

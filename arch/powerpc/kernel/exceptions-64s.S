@@ -48,7 +48,7 @@
 	.balign IFETCH_ALIGN_BYTES;				\
 	.global name;						\
 	_ASM_NOKPROBE_SYMBOL(name);				\
-	DEFINE_FIXED_SYMBOL(name);				\
+	DEFINE_FIXED_SYMBOL(name, text);			\
 name:
 
 #define TRAMP_REAL_BEGIN(name)					\
@@ -76,18 +76,18 @@ name:
 	ld	reg,PACAKBASE(r13);	/* get high part of &label */	\
 	ori	reg,reg,FIXED_SYMBOL_ABS_ADDR(label)
 
-#define __LOAD_HANDLER(reg, label)					\
+#define __LOAD_HANDLER(reg, label, section)					\
 	ld	reg,PACAKBASE(r13);					\
-	ori	reg,reg,(ABS_ADDR(label))@l
+	ori	reg,reg,(ABS_ADDR(label, section))@l
 
 /*
  * Branches from unrelocated code (e.g., interrupts) to labels outside
  * head-y require >64K offsets.
  */
-#define __LOAD_FAR_HANDLER(reg, label)					\
+#define __LOAD_FAR_HANDLER(reg, label, section)					\
 	ld	reg,PACAKBASE(r13);					\
-	ori	reg,reg,(ABS_ADDR(label))@l;				\
-	addis	reg,reg,(ABS_ADDR(label))@h
+	ori	reg,reg,(ABS_ADDR(label, section))@l;				\
+	addis	reg,reg,(ABS_ADDR(label, section))@h
 
 /*
  * Interrupt code generation macros
@@ -381,7 +381,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_CFAR)
  * This switches to virtual mode and sets MSR[RI].
  */
 .macro __GEN_COMMON_ENTRY name
-DEFINE_FIXED_SYMBOL(\name\()_common_real)
+DEFINE_FIXED_SYMBOL(\name\()_common_real, text)
 \name\()_common_real:
 	.if IKVM_REAL
 		KVMTEST \name kvm_interrupt
@@ -404,7 +404,7 @@ DEFINE_FIXED_SYMBOL(\name\()_common_real)
 	.endif
 
 	.balign IFETCH_ALIGN_BYTES
-DEFINE_FIXED_SYMBOL(\name\()_common_virt)
+DEFINE_FIXED_SYMBOL(\name\()_common_virt, text)
 \name\()_common_virt:
 	.if IKVM_VIRT
 		KVMTEST \name kvm_interrupt
@@ -418,7 +418,7 @@ DEFINE_FIXED_SYMBOL(\name\()_common_virt)
  * want to run in real mode.
  */
 .macro __GEN_REALMODE_COMMON_ENTRY name
-DEFINE_FIXED_SYMBOL(\name\()_common_real)
+DEFINE_FIXED_SYMBOL(\name\()_common_real, text)
 \name\()_common_real:
 	.if IKVM_REAL
 		KVMTEST \name kvm_interrupt
@@ -852,12 +852,12 @@ SOFT_MASK_TABLE(0xc000000000003000, 0xc000000000004000)
 
 #ifdef CONFIG_RELOCATABLE
 TRAMP_VIRT_BEGIN(system_call_vectored_tramp)
-	__LOAD_HANDLER(r10, system_call_vectored_common)
+	__LOAD_HANDLER(r10, system_call_vectored_common, virt_trampolines)
 	mtctr	r10
 	bctr
 
 TRAMP_VIRT_BEGIN(system_call_vectored_sigill_tramp)
-	__LOAD_HANDLER(r10, system_call_vectored_sigill)
+	__LOAD_HANDLER(r10, system_call_vectored_sigill, virt_trampolines)
 	mtctr	r10
 	bctr
 #endif
@@ -961,7 +961,7 @@ TRAMP_REAL_BEGIN(system_reset_idle_wake)
 	/* We are waking up from idle, so may clobber any volatile register */
 	cmpwi	cr1,r5,2
 	bltlr	cr1	/* no state loss, return to idle caller with r3=SRR1 */
-	__LOAD_FAR_HANDLER(r12, DOTSYM(idle_return_gpr_loss))
+	__LOAD_FAR_HANDLER(r12, DOTSYM(idle_return_gpr_loss), real_trampolines)
 	mtctr	r12
 	bctr
 #endif
@@ -1960,12 +1960,12 @@ END_FTR_SECTION_IFSET(CPU_FTR_REAL_LE)
 	HMT_MEDIUM
 
 	.if ! \virt
-	__LOAD_HANDLER(r10, system_call_common_real)
+	__LOAD_HANDLER(r10, system_call_common_real, real_vectors)
 	mtctr	r10
 	bctr
 	.else
 #ifdef CONFIG_RELOCATABLE
-	__LOAD_HANDLER(r10, system_call_common)
+	__LOAD_HANDLER(r10, system_call_common, virt_vectors)
 	mtctr	r10
 	bctr
 #else
@@ -2019,7 +2019,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_HAS_PPR)
 	 * Requires __LOAD_FAR_HANDLER beause kvmppc_hcall lives
 	 * outside the head section.
 	 */
-	__LOAD_FAR_HANDLER(r10, kvmppc_hcall)
+	__LOAD_FAR_HANDLER(r10, kvmppc_hcall, real_trampolines)
 	mtctr   r10
 	bctr
 #else
@@ -3061,7 +3061,7 @@ USE_FIXED_SECTION(virt_trampolines)
 	.align	7
 	.globl	__end_interrupts
 __end_interrupts:
-DEFINE_FIXED_SYMBOL(__end_interrupts)
+DEFINE_FIXED_SYMBOL(__end_interrupts, virt_trampolines)
 
 CLOSE_FIXED_SECTION(real_vectors);
 CLOSE_FIXED_SECTION(real_trampolines);
