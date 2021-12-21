@@ -18,6 +18,7 @@ properties:
       - items:
           - enum:
               - renesas,r9a07g044-sci     # RZ/G2{L,LC}
+              - renesas,r9a07g054-sci     # RZ/V2L
           - const: renesas,sci            # generic SCI compatible UART
 
       - items:
@@ -67,6 +68,7 @@ if:
       contains:
         enum:
           - renesas,r9a07g044-sci
+          - renesas,r9a07g054-sci
 then:
   properties:
     resets:
