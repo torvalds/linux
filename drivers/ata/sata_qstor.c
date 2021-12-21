@@ -374,8 +374,8 @@ static inline unsigned int qs_intr_pkt(struct ata_host *host)
 			struct qs_port_priv *pp = ap->private_data;
 			struct ata_queued_cmd *qc;
 
-			DPRINTK("SFF=%08x%08x: sCHAN=%u sHST=%d sDST=%02x\n",
-					sff1, sff0, port_no, sHST, sDST);
+			dev_dbg(host->dev, "SFF=%08x%08x: sHST=%d sDST=%02x\n",
+				sff1, sff0, sHST, sDST);
 			handled = 1;
 			if (!pp || pp->state != qs_state_pkt)
 				continue;
