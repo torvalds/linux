@@ -15,7 +15,6 @@
 struct rtw89_dev;
 
 extern const struct ieee80211_ops rtw89_ops;
-extern const struct rtw89_chip_info rtw8852a_chip_info;
 
 #define MASKBYTE0 0xff
 #define MASKBYTE1 0xff00
@@ -420,9 +419,6 @@ enum rtw89_regulation_type {
 	RTW89_QATAR	= 13,
 	RTW89_REGD_NUM,
 };
-
-extern const u8 rtw89_rs_idx_max[RTW89_RS_MAX];
-extern const u8 rtw89_rs_nss_max[RTW89_RS_MAX];
 
 struct rtw89_txpwr_byrate {
 	s8 cck[RTW89_RATE_CCK_MAX];
@@ -2245,6 +2241,10 @@ struct rtw89_chip_info {
 	u8 rf_para_dlink_num;
 	const struct rtw89_btc_rf_trx_para *rf_para_dlink;
 	u8 ps_mode_supported;
+};
+
+struct rtw89_driver_info {
+	const struct rtw89_chip_info *chip;
 };
 
 enum rtw89_hcifc_mode {

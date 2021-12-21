@@ -670,16 +670,16 @@ enum mac_ax_err_info {
 	MAC_AX_SET_ERR_MAX,
 };
 
-extern const struct rtw89_hfc_prec_cfg rtw_hfc_preccfg_pcie;
-extern const struct rtw89_dle_size wde_size0;
-extern const struct rtw89_dle_size wde_size4;
-extern const struct rtw89_dle_size ple_size0;
-extern const struct rtw89_dle_size ple_size4;
-extern const struct rtw89_wde_quota wde_qt0;
-extern const struct rtw89_wde_quota wde_qt4;
-extern const struct rtw89_ple_quota ple_qt4;
-extern const struct rtw89_ple_quota ple_qt5;
-extern const struct rtw89_ple_quota ple_qt13;
+extern const struct rtw89_hfc_prec_cfg rtw89_hfc_preccfg_pcie;
+extern const struct rtw89_dle_size rtw89_wde_size0;
+extern const struct rtw89_dle_size rtw89_wde_size4;
+extern const struct rtw89_dle_size rtw89_ple_size0;
+extern const struct rtw89_dle_size rtw89_ple_size4;
+extern const struct rtw89_wde_quota rtw89_wde_qt0;
+extern const struct rtw89_wde_quota rtw89_wde_qt4;
+extern const struct rtw89_ple_quota rtw89_ple_qt4;
+extern const struct rtw89_ple_quota rtw89_ple_qt5;
+extern const struct rtw89_ple_quota rtw89_ple_qt13;
 
 static inline u32 rtw89_mac_reg_by_idx(u32 reg_base, u8 band)
 {

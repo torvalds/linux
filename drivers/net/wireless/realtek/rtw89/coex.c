@@ -4370,6 +4370,7 @@ void rtw89_btc_ntfy_wl_rfk(struct rtw89_dev *rtwdev, u8 phy_map,
 		rtwdev->is_bt_iqk_timeout = true;
 	}
 }
+EXPORT_SYMBOL(rtw89_btc_ntfy_wl_rfk);
 
 struct rtw89_btc_wl_sta_iter_data {
 	struct rtw89_dev *rtwdev;

@@ -568,6 +568,7 @@ u8 rtw89_phy_get_txsc(struct rtw89_dev *rtwdev,
 
 	return txsc_idx;
 }
+EXPORT_SYMBOL(rtw89_phy_get_txsc);
 
 u32 rtw89_phy_read_rf(struct rtw89_dev *rtwdev, enum rtw89_rf_path rf_path,
 		      u32 addr, u32 mask)
@@ -972,6 +973,7 @@ void rtw89_phy_write32_idx(struct rtw89_dev *rtwdev, u32 addr, u32 mask,
 		addr += rtw89_phy0_phy1_offset(rtwdev, addr);
 	rtw89_phy_write32_mask(rtwdev, addr, mask, data);
 }
+EXPORT_SYMBOL(rtw89_phy_write32_idx);
 
 void rtw89_phy_set_phy_regs(struct rtw89_dev *rtwdev, u32 addr, u32 mask,
 			    u32 val)
@@ -995,6 +997,7 @@ void rtw89_phy_write_reg3_tbl(struct rtw89_dev *rtwdev,
 		rtw89_phy_write32_mask(rtwdev, reg3->addr, reg3->mask, reg3->data);
 	}
 }
+EXPORT_SYMBOL(rtw89_phy_write_reg3_tbl);
 
 const u8 rtw89_rs_idx_max[] = {
 	[RTW89_RS_CCK] = RTW89_RATE_CCK_MAX,
@@ -1003,6 +1006,7 @@ const u8 rtw89_rs_idx_max[] = {
 	[RTW89_RS_HEDCM] = RTW89_RATE_HEDCM_MAX,
 	[RTW89_RS_OFFSET] = RTW89_RATE_OFFSET_MAX,
 };
+EXPORT_SYMBOL(rtw89_rs_idx_max);
 
 const u8 rtw89_rs_nss_max[] = {
 	[RTW89_RS_CCK] = 1,
@@ -1011,6 +1015,7 @@ const u8 rtw89_rs_nss_max[] = {
 	[RTW89_RS_HEDCM] = RTW89_NSS_HEDCM_MAX,
 	[RTW89_RS_OFFSET] = 1,
 };
+EXPORT_SYMBOL(rtw89_rs_nss_max);
 
 static const u8 _byr_of_rs[] = {
 	[RTW89_RS_CCK] = offsetof(struct rtw89_txpwr_byrate, cck),
@@ -1044,6 +1049,7 @@ void rtw89_phy_load_txpwr_byrate(struct rtw89_dev *rtwdev,
 		}
 	}
 }
+EXPORT_SYMBOL(rtw89_phy_load_txpwr_byrate);
 
 #define _phy_txpwr_rf_to_mac(rtwdev, txpwr_rf)				\
 ({									\
@@ -1074,6 +1080,7 @@ s8 rtw89_phy_read_txpwr_byrate(struct rtw89_dev *rtwdev,
 
 	return _phy_txpwr_rf_to_mac(rtwdev, byr[idx]);
 }
+EXPORT_SYMBOL(rtw89_phy_read_txpwr_byrate);
 
 static u8 rtw89_channel_to_idx(struct rtw89_dev *rtwdev, u8 channel)
 {
@@ -1124,6 +1131,7 @@ s8 rtw89_phy_read_txpwr_limit(struct rtw89_dev *rtwdev,
 
 	return min(lmt, sar);
 }
+EXPORT_SYMBOL(rtw89_phy_read_txpwr_limit);
 
 #define __fill_txpwr_limit_nonbf_bf(ptr, bw, ntx, rs, ch)		\
 	do {								\
@@ -1222,6 +1230,7 @@ void rtw89_phy_fill_txpwr_limit(struct rtw89_dev *rtwdev,
 		break;
 	}
 }
+EXPORT_SYMBOL(rtw89_phy_fill_txpwr_limit);
 
 static s8 rtw89_phy_read_txpwr_limit_ru(struct rtw89_dev *rtwdev,
 					u8 ru, u8 ntx, u8 ch)
@@ -1340,6 +1349,7 @@ void rtw89_phy_fill_txpwr_limit_ru(struct rtw89_dev *rtwdev,
 		break;
 	}
 }
+EXPORT_SYMBOL(rtw89_phy_fill_txpwr_limit_ru);
 
 struct rtw89_phy_iter_ra_data {
 	struct rtw89_dev *rtwdev;

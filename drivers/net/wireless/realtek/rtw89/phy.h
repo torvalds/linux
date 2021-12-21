@@ -265,6 +265,9 @@ const struct rtw89_phy_reg3_tbl _name ## _tbl = {	\
 	.size = ARRAY_SIZE(_name),			\
 }
 
+extern const u8 rtw89_rs_idx_max[RTW89_RS_MAX];
+extern const u8 rtw89_rs_nss_max[RTW89_RS_MAX];
+
 static inline void rtw89_phy_write8(struct rtw89_dev *rtwdev,
 				    u32 addr, u8 data)
 {

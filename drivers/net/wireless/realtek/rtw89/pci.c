@@ -2932,11 +2932,11 @@ static const struct rtw89_hci_ops rtw89_pci_ops = {
 	.napi_poll	= rtw89_pci_napi_poll,
 };
 
-static int rtw89_pci_probe(struct pci_dev *pdev,
-			   const struct pci_device_id *id)
+int rtw89_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	struct ieee80211_hw *hw;
 	struct rtw89_dev *rtwdev;
+	const struct rtw89_driver_info *info;
 	int driver_data_size;
 	int ret;
 
@@ -2957,13 +2957,8 @@ static int rtw89_pci_probe(struct pci_dev *pdev,
 
 	SET_IEEE80211_DEV(rtwdev->hw, &pdev->dev);
 
-	switch (id->driver_data) {
-	case RTL8852A:
-		rtwdev->chip = &rtw8852a_chip_info;
-		break;
-	default:
-		return -ENOENT;
-	}
+	info = (const struct rtw89_driver_info *)id->driver_data;
+	rtwdev->chip = info->chip;
 
 	ret = rtw89_core_init(rtwdev);
 	if (ret) {
@@ -3022,8 +3017,9 @@ err_release_hw:
 
 	return ret;
 }
+EXPORT_SYMBOL(rtw89_pci_probe);
 
-static void rtw89_pci_remove(struct pci_dev *pdev)
+void rtw89_pci_remove(struct pci_dev *pdev)
 {
 	struct ieee80211_hw *hw = pci_get_drvdata(pdev);
 	struct rtw89_dev *rtwdev;
@@ -3038,22 +3034,7 @@ static void rtw89_pci_remove(struct pci_dev *pdev)
 	rtw89_core_deinit(rtwdev);
 	ieee80211_free_hw(hw);
 }
-
-static const struct pci_device_id rtw89_pci_id_table[] = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_REALTEK, 0x8852), .driver_data = RTL8852A },
-	{ PCI_DEVICE(PCI_VENDOR_ID_REALTEK, 0xa85a), .driver_data = RTL8852A },
-	{},
-};
-MODULE_DEVICE_TABLE(pci, rtw89_pci_id_table);
-
-static struct pci_driver rtw89_pci_driver = {
-	.name		= "rtw89_pci",
-	.id_table	= rtw89_pci_id_table,
-	.probe		= rtw89_pci_probe,
-	.remove		= rtw89_pci_remove,
-	.driver.pm	= &rtw89_pm_ops,
-};
-module_pci_driver(rtw89_pci_driver);
+EXPORT_SYMBOL(rtw89_pci_remove);
 
 MODULE_AUTHOR("Realtek Corporation");
 MODULE_DESCRIPTION("Realtek 802.11ax wireless PCI driver");

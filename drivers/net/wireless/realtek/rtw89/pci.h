@@ -627,4 +627,9 @@ static inline bool rtw89_pci_ltr_is_err_reg_val(u32 val)
 
 extern const struct dev_pm_ops rtw89_pm_ops;
 
+struct pci_device_id;
+
+int rtw89_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id);
+void rtw89_pci_remove(struct pci_dev *pdev);
+
 #endif

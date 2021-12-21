@@ -481,9 +481,10 @@ int rtw89_mac_set_err_status(struct rtw89_dev *rtwdev, u32 err)
 }
 EXPORT_SYMBOL(rtw89_mac_set_err_status);
 
-const struct rtw89_hfc_prec_cfg rtw_hfc_preccfg_pcie = {
+const struct rtw89_hfc_prec_cfg rtw89_hfc_preccfg_pcie = {
 	2, 40, 0, 0, 1, 0, 0, 0
 };
+EXPORT_SYMBOL(rtw89_hfc_preccfg_pcie);
 
 static int hfc_reset_param(struct rtw89_dev *rtwdev)
 {
@@ -1136,49 +1137,58 @@ static int rtw89_mac_sys_init(struct rtw89_dev *rtwdev)
 }
 
 /* PCIE 64 */
-const struct rtw89_dle_size wde_size0 = {
+const struct rtw89_dle_size rtw89_wde_size0 = {
 	RTW89_WDE_PG_64, 4095, 1,
 };
+EXPORT_SYMBOL(rtw89_wde_size0);
 
 /* DLFW */
-const struct rtw89_dle_size wde_size4 = {
+const struct rtw89_dle_size rtw89_wde_size4 = {
 	RTW89_WDE_PG_64, 0, 4096,
 };
+EXPORT_SYMBOL(rtw89_wde_size4);
 
 /* PCIE */
-const struct rtw89_dle_size ple_size0 = {
+const struct rtw89_dle_size rtw89_ple_size0 = {
 	RTW89_PLE_PG_128, 1520, 16,
 };
+EXPORT_SYMBOL(rtw89_ple_size0);
 
 /* DLFW */
-const struct rtw89_dle_size ple_size4 = {
+const struct rtw89_dle_size rtw89_ple_size4 = {
 	RTW89_PLE_PG_128, 64, 1472,
 };
+EXPORT_SYMBOL(rtw89_ple_size4);
 
 /* PCIE 64 */
-const struct rtw89_wde_quota wde_qt0 = {
+const struct rtw89_wde_quota rtw89_wde_qt0 = {
 	3792, 196, 0, 107,
 };
+EXPORT_SYMBOL(rtw89_wde_qt0);
 
 /* DLFW */
-const struct rtw89_wde_quota wde_qt4 = {
+const struct rtw89_wde_quota rtw89_wde_qt4 = {
 	0, 0, 0, 0,
 };
+EXPORT_SYMBOL(rtw89_wde_qt4);
 
 /* PCIE SCC */
-const struct rtw89_ple_quota ple_qt4 = {
+const struct rtw89_ple_quota rtw89_ple_qt4 = {
 	264, 0, 16, 20, 26, 13, 356, 0, 32, 40, 8,
 };
+EXPORT_SYMBOL(rtw89_ple_qt4);
 
 /* PCIE SCC */
-const struct rtw89_ple_quota ple_qt5 = {
+const struct rtw89_ple_quota rtw89_ple_qt5 = {
 	264, 0, 32, 20, 64, 13, 1101, 0, 64, 128, 120,
 };
+EXPORT_SYMBOL(rtw89_ple_qt5);
 
 /* DLFW */
-const struct rtw89_ple_quota ple_qt13 = {
+const struct rtw89_ple_quota rtw89_ple_qt13 = {
 	0, 0, 16, 48, 0, 0, 0, 0, 0, 0, 0
 };
+EXPORT_SYMBOL(rtw89_ple_qt13);
 
 static const struct rtw89_dle_mem *get_dle_mem_cfg(struct rtw89_dev *rtwdev,
 						   enum rtw89_qta_mode mode)
@@ -2116,6 +2126,7 @@ int rtw89_mac_stop_sch_tx(struct rtw89_dev *rtwdev, u8 mac_idx,
 
 	return 0;
 }
+EXPORT_SYMBOL(rtw89_mac_stop_sch_tx);
 
 int rtw89_mac_resume_sch_tx(struct rtw89_dev *rtwdev, u8 mac_idx, u16 tx_en)
 {
@@ -2127,6 +2138,7 @@ int rtw89_mac_resume_sch_tx(struct rtw89_dev *rtwdev, u8 mac_idx, u16 tx_en)
 
 	return 0;
 }
+EXPORT_SYMBOL(rtw89_mac_resume_sch_tx);
 
 static u16 rtw89_mac_dle_buf_req(struct rtw89_dev *rtwdev, u16 buf_len,
 				 bool wd)
@@ -3192,6 +3204,7 @@ error:
 
 	return false;
 }
+EXPORT_SYMBOL(rtw89_mac_get_txpwr_cr);
 
 int rtw89_mac_cfg_ppdu_status(struct rtw89_dev *rtwdev, u8 mac_idx, bool enable)
 {
@@ -3216,6 +3229,7 @@ int rtw89_mac_cfg_ppdu_status(struct rtw89_dev *rtwdev, u8 mac_idx, bool enable)
 
 	return ret;
 }
+EXPORT_SYMBOL(rtw89_mac_cfg_ppdu_status);
 
 void rtw89_mac_update_rts_threshold(struct rtw89_dev *rtwdev, u8 mac_idx)
 {
@@ -3349,6 +3363,7 @@ int rtw89_mac_coex_init(struct rtw89_dev *rtwdev, const struct rtw89_mac_ax_coex
 
 	return 0;
 }
+EXPORT_SYMBOL(rtw89_mac_coex_init);
 
 int rtw89_mac_cfg_gnt(struct rtw89_dev *rtwdev,
 		      const struct rtw89_mac_ax_coex_gnt *gnt_cfg)
