@@ -15,7 +15,7 @@
 static int init_fake_lmem_bar(struct intel_memory_region *mem)
 {
 	struct drm_i915_private *i915 = mem->i915;
-	struct i915_ggtt *ggtt = &i915->ggtt;
+	struct i915_ggtt *ggtt = to_gt(i915)->ggtt;
 	unsigned long n;
 	int ret;
 
@@ -131,7 +131,7 @@ intel_gt_setup_fake_lmem(struct intel_gt *gt)
 	if (!i915->params.fake_lmem_start)
 		return ERR_PTR(-ENODEV);
 
-	GEM_BUG_ON(i915_ggtt_has_aperture(&i915->ggtt));
+	GEM_BUG_ON(i915_ggtt_has_aperture(to_gt(i915)->ggtt));
 
 	/* Your mappable aperture belongs to me now! */
 	mappable_end = pci_resource_len(pdev, 2);
