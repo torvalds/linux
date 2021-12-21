@@ -444,8 +444,10 @@ static int gpio_sim_probe(struct platform_device *pdev)
 
 	device_for_each_child_node(dev, swnode) {
 		ret = gpio_sim_add_bank(swnode, dev);
-		if (ret)
+		if (ret) {
+			fwnode_handle_put(swnode);
 			return ret;
+		}
 	}
 
 	return 0;
