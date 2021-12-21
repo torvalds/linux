@@ -352,7 +352,7 @@ static int qmp_cdev_set_cur_state(struct thermal_cooling_device *cdev,
 	return ret;
 }
 
-static struct thermal_cooling_device_ops qmp_cooling_device_ops = {
+static const struct thermal_cooling_device_ops qmp_cooling_device_ops = {
 	.get_max_state = qmp_cdev_get_max_state,
 	.get_cur_state = qmp_cdev_get_cur_state,
 	.set_cur_state = qmp_cdev_set_cur_state,

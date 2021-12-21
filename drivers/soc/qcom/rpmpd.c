@@ -102,7 +102,6 @@ struct rpmpd {
 	const bool active_only;
 	unsigned int corner;
 	bool enabled;
-	const char *res_name;
 	const int res_type;
 	const int res_id;
 	struct qcom_smd_rpm *rpm;
@@ -396,6 +395,45 @@ static const struct rpmpd_desc sm6115_desc = {
 	.max_state = RPM_SMD_LEVEL_TURBO_NO_CPR,
 };
 
+/* sm6125 RPM Power domains */
+DEFINE_RPMPD_PAIR(sm6125, vddcx, vddcx_ao, RWCX, LEVEL, 0);
+DEFINE_RPMPD_VFL(sm6125, vddcx_vfl, RWCX, 0);
+
+DEFINE_RPMPD_PAIR(sm6125, vddmx, vddmx_ao, RWMX, LEVEL, 0);
+DEFINE_RPMPD_VFL(sm6125, vddmx_vfl, RWMX, 0);
+
+static struct rpmpd *sm6125_rpmpds[] = {
+	[SM6125_VDDCX] =		&sm6125_vddcx,
+	[SM6125_VDDCX_AO] =		&sm6125_vddcx_ao,
+	[SM6125_VDDCX_VFL] =		&sm6125_vddcx_vfl,
+	[SM6125_VDDMX] =		&sm6125_vddmx,
+	[SM6125_VDDMX_AO] =		&sm6125_vddmx_ao,
+	[SM6125_VDDMX_VFL] =		&sm6125_vddmx_vfl,
+};
+
+static const struct rpmpd_desc sm6125_desc = {
+	.rpmpds = sm6125_rpmpds,
+	.num_pds = ARRAY_SIZE(sm6125_rpmpds),
+	.max_state = RPM_SMD_LEVEL_BINNING,
+};
+
+static struct rpmpd *qcm2290_rpmpds[] = {
+	[QCM2290_VDDCX] = &sm6115_vddcx,
+	[QCM2290_VDDCX_AO] = &sm6115_vddcx_ao,
+	[QCM2290_VDDCX_VFL] = &sm6115_vddcx_vfl,
+	[QCM2290_VDDMX] = &sm6115_vddmx,
+	[QCM2290_VDDMX_AO] = &sm6115_vddmx_ao,
+	[QCM2290_VDDMX_VFL] = &sm6115_vddmx_vfl,
+	[QCM2290_VDD_LPI_CX] = &sm6115_vdd_lpi_cx,
+	[QCM2290_VDD_LPI_MX] = &sm6115_vdd_lpi_mx,
+};
+
+static const struct rpmpd_desc qcm2290_desc = {
+	.rpmpds = qcm2290_rpmpds,
+	.num_pds = ARRAY_SIZE(qcm2290_rpmpds),
+	.max_state = RPM_SMD_LEVEL_TURBO_NO_CPR,
+};
+
 static const struct of_device_id rpmpd_match_table[] = {
 	{ .compatible = "qcom,mdm9607-rpmpd", .data = &mdm9607_desc },
 	{ .compatible = "qcom,msm8916-rpmpd", .data = &msm8916_desc },
@@ -405,9 +443,11 @@ static const struct of_device_id rpmpd_match_table[] = {
 	{ .compatible = "qcom,msm8994-rpmpd", .data = &msm8994_desc },
 	{ .compatible = "qcom,msm8996-rpmpd", .data = &msm8996_desc },
 	{ .compatible = "qcom,msm8998-rpmpd", .data = &msm8998_desc },
+	{ .compatible = "qcom,qcm2290-rpmpd", .data = &qcm2290_desc },
 	{ .compatible = "qcom,qcs404-rpmpd", .data = &qcs404_desc },
 	{ .compatible = "qcom,sdm660-rpmpd", .data = &sdm660_desc },
 	{ .compatible = "qcom,sm6115-rpmpd", .data = &sm6115_desc },
+	{ .compatible = "qcom,sm6125-rpmpd", .data = &sm6125_desc },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, rpmpd_match_table);
