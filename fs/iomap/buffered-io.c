@@ -895,27 +895,6 @@ iomap_file_unshare(struct inode *inode, loff_t pos, loff_t len,
 }
 EXPORT_SYMBOL_GPL(iomap_file_unshare);
 
-static s64 __iomap_zero_iter(struct iomap_iter *iter, loff_t pos, u64 length)
-{
-	struct folio *folio;
-	int status;
-	size_t offset;
-	size_t bytes = min_t(u64, SIZE_MAX, length);
-
-	status = iomap_write_begin(iter, pos, bytes, &folio);
-	if (status)
-		return status;
-
-	offset = offset_in_folio(folio, pos);
-	if (bytes > folio_size(folio) - offset)
-		bytes = folio_size(folio) - offset;
-
-	folio_zero_range(folio, offset, bytes);
-	folio_mark_accessed(folio);
-
-	return iomap_write_end(iter, pos, bytes, bytes, folio);
-}
-
 static loff_t iomap_zero_iter(struct iomap_iter *iter, bool *did_zero)
 {
 	struct iomap *iomap = &iter->iomap;
@@ -929,14 +908,34 @@ static loff_t iomap_zero_iter(struct iomap_iter *iter, bool *did_zero)
 		return length;
 
 	do {
-		s64 bytes;
+		struct folio *folio;
+		int status;
+		size_t offset;
+		size_t bytes = min_t(u64, SIZE_MAX, length);
 
-		if (IS_DAX(iter->inode))
-			bytes = dax_iomap_zero(pos, length, iomap);
-		else
-			bytes = __iomap_zero_iter(iter, pos, length);
-		if (bytes < 0)
-			return bytes;
+		if (IS_DAX(iter->inode)) {
+			s64 tmp = dax_iomap_zero(pos, bytes, iomap);
+			if (tmp < 0)
+				return tmp;
+			bytes = tmp;
+			goto good;
+		}
+
+		status = iomap_write_begin(iter, pos, bytes, &folio);
+		if (status)
+			return status;
+
+		offset = offset_in_folio(folio, pos);
+		if (bytes > folio_size(folio) - offset)
+			bytes = folio_size(folio) - offset;
+
+		folio_zero_range(folio, offset, bytes);
+		folio_mark_accessed(folio);
+
+		bytes = iomap_write_end(iter, pos, bytes, bytes, folio);
+good:
+		if (WARN_ON_ONCE(bytes == 0))
+			return -EIO;
 
 		pos += bytes;
 		length -= bytes;
