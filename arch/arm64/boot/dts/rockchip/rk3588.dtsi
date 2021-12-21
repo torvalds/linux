@@ -19,6 +19,8 @@
 		ethernet0 = &gmac0;
 		hdptx0 = &hdptxphy0;
 		hdptx1 = &hdptxphy1;
+		hdptxhdmi0 = &hdptxphy_hdmi0;
+		hdptxhdmi1 = &hdptxphy_hdmi1;
 		hdmi0 = &hdmi0;
 		hdmi1 = &hdmi1;
 		rkcif_mipi_lvds4= &rkcif_mipi_lvds4;
@@ -716,6 +718,7 @@
 			      "lcpll";
 		rockchip,grf = <&hdptxphy1_grf>;
 		#phy-cells = <0>;
+		#clock-cells = <0>;
 		status = "disabled";
 	};
 

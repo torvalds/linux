@@ -4812,6 +4812,7 @@
 			      "lcpll";
 		rockchip,grf = <&hdptxphy0_grf>;
 		#phy-cells = <0>;
+		#clock-cells = <0>;
 		status = "disabled";
 	};
 
