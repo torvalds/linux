@@ -82,8 +82,8 @@ static int ehci_hcd_sh_probe(struct platform_device *pdev)
 		return -ENODEV;
 
 	irq = platform_get_irq(pdev, 0);
-	if (irq < 0) {
-		ret = irq;
+	if (irq <= 0) {
+		ret = -ENODEV;
 		goto fail_create_hcd;
 	}
 
