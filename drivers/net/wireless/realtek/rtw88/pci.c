@@ -611,6 +611,9 @@ static void rtw_pci_deep_ps_enter(struct rtw_dev *rtwdev)
 	bool tx_empty = true;
 	u8 queue;
 
+	if (rtw_fw_feature_check(&rtwdev->fw, FW_FEATURE_TX_WAKE))
+		goto enter_deep_ps;
+
 	lockdep_assert_held(&rtwpci->irq_lock);
 
 	/* Deep PS state is not allowed to TX-DMA */
@@ -636,7 +639,7 @@ static void rtw_pci_deep_ps_enter(struct rtw_dev *rtwdev)
 			"TX path not empty, cannot enter deep power save state\n");
 		return;
 	}
-
+enter_deep_ps:
 	set_bit(RTW_FLAG_LEISURE_PS_DEEP, rtwdev->flags);
 	rtw_power_mode_change(rtwdev, true);
 }
@@ -807,7 +810,8 @@ static void rtw_pci_tx_kick_off_queue(struct rtw_dev *rtwdev, u8 queue)
 	bd_idx = rtw_pci_tx_queue_idx_addr[queue];
 
 	spin_lock_bh(&rtwpci->irq_lock);
-	rtw_pci_deep_ps_leave(rtwdev);
+	if (!rtw_fw_feature_check(&rtwdev->fw, FW_FEATURE_TX_WAKE))
+		rtw_pci_deep_ps_leave(rtwdev);
 	rtw_write16(rtwdev, bd_idx, ring->r.wp & TRX_BD_IDX_MASK);
 	spin_unlock_bh(&rtwpci->irq_lock);
 }
