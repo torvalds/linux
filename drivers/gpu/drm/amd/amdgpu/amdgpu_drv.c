@@ -331,10 +331,11 @@ module_param_named(aspm, amdgpu_aspm, int, 0444);
 
 /**
  * DOC: runpm (int)
- * Override for runtime power management control for dGPUs in PX/HG laptops. The amdgpu driver can dynamically power down
- * the dGPU on PX/HG laptops when it is idle. The default is -1 (auto enable). Setting the value to 0 disables this functionality.
+ * Override for runtime power management control for dGPUs. The amdgpu driver can dynamically power down
+ * the dGPUs when they are idle if supported. The default is -1 (auto enable).
+ * Setting the value to 0 disables this functionality.
  */
-MODULE_PARM_DESC(runpm, "PX runtime pm (2 = force enable with BAMACO, 1 = force enable with BACO, 0 = disable, -1 = PX only default)");
+MODULE_PARM_DESC(runpm, "PX runtime pm (2 = force enable with BAMACO, 1 = force enable with BACO, 0 = disable, -1 = auto)");
 module_param_named(runpm, amdgpu_runtime_pm, int, 0444);
 
 /**
