@@ -78,6 +78,9 @@
 #define DRV_NAME	"sata_sx4"
 #define DRV_VERSION	"0.12"
 
+static int dimm_test;
+module_param(dimm_test, int, 0644);
+MODULE_PARM_DESC(dimm_test, "Enable DIMM test during startup (1 = enabled)");
 
 enum {
 	PDC_MMIO_BAR		= 3,
@@ -211,10 +214,8 @@ static unsigned int pdc20621_i2c_read(struct ata_host *host,
 				      u32 device, u32 subaddr, u32 *pdata);
 static int pdc20621_prog_dimm0(struct ata_host *host);
 static unsigned int pdc20621_prog_dimm_global(struct ata_host *host);
-#ifdef ATA_VERBOSE_DEBUG
 static void pdc20621_get_from_dimm(struct ata_host *host,
 				   void *psource, u32 offset, u32 size);
-#endif
 static void pdc20621_put_to_dimm(struct ata_host *host,
 				 void *psource, u32 offset, u32 size);
 static void pdc20621_irq_clear(struct ata_port *ap);
@@ -575,7 +576,6 @@ static void pdc20621_pop_hdma(struct ata_queued_cmd *qc)
 	pp->hdma_cons++;
 }
 
-#ifdef ATA_VERBOSE_DEBUG
 static void pdc20621_dump_hdma(struct ata_queued_cmd *qc)
 {
 	struct ata_port *ap = qc->ap;
@@ -585,14 +585,10 @@ static void pdc20621_dump_hdma(struct ata_queued_cmd *qc)
 	dimm_mmio += (port_no * PDC_DIMM_WINDOW_STEP);
 	dimm_mmio += PDC_DIMM_HOST_PKT;
 
-	printk(KERN_ERR "HDMA[0] == 0x%08X\n", readl(dimm_mmio));
-	printk(KERN_ERR "HDMA[1] == 0x%08X\n", readl(dimm_mmio + 4));
-	printk(KERN_ERR "HDMA[2] == 0x%08X\n", readl(dimm_mmio + 8));
-	printk(KERN_ERR "HDMA[3] == 0x%08X\n", readl(dimm_mmio + 12));
+	ata_port_dbg(ap, "HDMA 0x%08X 0x%08X 0x%08X 0x%08X\n",
+		     readl(dimm_mmio), readl(dimm_mmio + 4),
+		     readl(dimm_mmio + 8), readl(dimm_mmio + 12));
 }
-#else
-static inline void pdc20621_dump_hdma(struct ata_queued_cmd *qc) { }
-#endif /* ATA_VERBOSE_DEBUG */
 
 static void pdc20621_packet_start(struct ata_queued_cmd *qc)
 {
@@ -938,7 +934,6 @@ static void pdc_sata_setup_port(struct ata_ioports *port, void __iomem *base)
 }
 
 
-#ifdef ATA_VERBOSE_DEBUG
 static void pdc20621_get_from_dimm(struct ata_host *host, void *psource,
 				   u32 offset, u32 size)
 {
@@ -988,7 +983,6 @@ static void pdc20621_get_from_dimm(struct ata_host *host, void *psource,
 		memcpy_fromio(psource, dimm_mmio, size / 4);
 	}
 }
-#endif
 
 
 static void pdc20621_put_to_dimm(struct ata_host *host, void *psource,
@@ -1301,8 +1295,7 @@ static unsigned int pdc20621_dimm_init(struct ata_host *host)
 		return 1;
 	}
 
-#ifdef ATA_VERBOSE_DEBUG
-	{
+	if (dimm_test) {
 		u8 test_parttern1[40] =
 			{0x55,0xAA,'P','r','o','m','i','s','e',' ',
 			'N','o','t',' ','Y','e','t',' ',
@@ -1316,19 +1309,20 @@ static unsigned int pdc20621_dimm_init(struct ata_host *host)
 
 		pdc20621_put_to_dimm(host, test_parttern1, 0x10040, 40);
 		pdc20621_get_from_dimm(host, test_parttern2, 0x40, 40);
-		printk(KERN_ERR "%x, %x, %s\n", test_parttern2[0],
+		dev_info(host->dev, "DIMM test pattern 1: %x, %x, %s\n", test_parttern2[0],
 		       test_parttern2[1], &(test_parttern2[2]));
 		pdc20621_get_from_dimm(host, test_parttern2, 0x10040,
 				       40);
-		printk(KERN_ERR "%x, %x, %s\n", test_parttern2[0],
-		       test_parttern2[1], &(test_parttern2[2]));
+		dev_info(host->dev, "DIMM test pattern 2: %x, %x, %s\n",
+			 test_parttern2[0],
+			 test_parttern2[1], &(test_parttern2[2]));
 
 		pdc20621_put_to_dimm(host, test_parttern1, 0x40, 40);
 		pdc20621_get_from_dimm(host, test_parttern2, 0x40, 40);
-		printk(KERN_ERR "%x, %x, %s\n", test_parttern2[0],
-		       test_parttern2[1], &(test_parttern2[2]));
+		dev_info(host->dev, "DIMM test pattern 3: %x, %x, %s\n",
+			 test_parttern2[0],
+			 test_parttern2[1], &(test_parttern2[2]));
 	}
-#endif
 
 	/* ECC initiliazation. */
 
