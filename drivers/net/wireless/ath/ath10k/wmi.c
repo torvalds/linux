@@ -2613,6 +2613,7 @@ int ath10k_wmi_event_mgmt_rx(struct ath10k *ar, struct sk_buff *skb)
 	if (ieee80211_is_beacon(hdr->frame_control) ||
 	    ieee80211_is_probe_resp(hdr->frame_control)) {
 		struct ieee80211_mgmt *mgmt = (void *)skb->data;
+		enum cfg80211_bss_frame_type ftype;
 		u8 *ies;
 		int ies_ch;
 
@@ -2623,9 +2624,14 @@ int ath10k_wmi_event_mgmt_rx(struct ath10k *ar, struct sk_buff *skb)
 
 		ies = mgmt->u.beacon.variable;
 
+		if (ieee80211_is_beacon(mgmt->frame_control))
+			ftype = CFG80211_BSS_FTYPE_BEACON;
+		else
+			ftype = CFG80211_BSS_FTYPE_PRESP;
+
 		ies_ch = cfg80211_get_ies_channel_number(mgmt->u.beacon.variable,
 							 skb_tail_pointer(skb) - ies,
-							 sband->band);
+							 sband->band, ftype);
 
 		if (ies_ch > 0 && ies_ch != channel) {
 			ath10k_dbg(ar, ATH10K_DBG_MGMT,
