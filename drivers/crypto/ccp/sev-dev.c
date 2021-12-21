@@ -260,7 +260,7 @@ static void sev_write_init_ex_file_if_required(int cmd_id)
 		break;
 	default:
 		return;
-	};
+	}
 
 	sev_write_init_ex_file();
 }
