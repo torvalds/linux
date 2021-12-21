@@ -51,8 +51,6 @@ static int rga_mm_map_dma_buffer(struct rga_external_buffer *external_buffer,
 		return  -ENOMEM;
 	}
 
-	internal_buffer->type = RGA_DMA_BUFFER;
-
 	for (i = 0; i < internal_buffer->dma_buffer_size; i++) {
 		/* If the physical address is greater than 4G, there is no need to map RGA2. */
 		if ((rga_drvdata->rga_scheduler[i]->core == RGA2_SCHEDULER_CORE0) &&
@@ -92,9 +90,11 @@ static int rga_mm_unmap_buffer(struct rga_internal_buffer *internal_buffer)
 		rga_mm_unmap_dma_buffer(internal_buffer);
 		break;
 	case RGA_VIRTUAL_ADDRESS:
-		// TODO
+		internal_buffer->vir_addr = 0;
+		break;
 	case RGA_PHYSICAL_ADDRESS:
-		// TODO
+		internal_buffer->phy_addr = 0;
+		break;
 	default:
 		pr_err("Illegal external buffer!\n");
 		return -EFAULT;
@@ -110,6 +110,8 @@ static int rga_mm_map_buffer(struct rga_external_buffer *external_buffer,
 
 	switch (external_buffer->type) {
 	case RGA_DMA_BUFFER:
+		internal_buffer->type = RGA_DMA_BUFFER;
+
 		ret = rga_mm_map_dma_buffer(external_buffer, internal_buffer);
 		if (ret < 0) {
 			pr_err("%s map dma_buf error!\n", __func__);
@@ -117,9 +119,15 @@ static int rga_mm_map_buffer(struct rga_external_buffer *external_buffer,
 		}
 		break;
 	case RGA_VIRTUAL_ADDRESS:
-		// TODO
+		internal_buffer->type = RGA_VIRTUAL_ADDRESS;
+
+		internal_buffer->vir_addr = external_buffer->memory;
+		break;
 	case RGA_PHYSICAL_ADDRESS:
-		// TODO
+		internal_buffer->type = RGA_PHYSICAL_ADDRESS;
+
+		internal_buffer->phy_addr = external_buffer->memory;
+		break;
 	default:
 		pr_err("Illegal external buffer!\n");
 		return -EFAULT;
@@ -179,9 +187,23 @@ rga_mm_internal_buffer_lookup_external(struct rga_mm *mm_session,
 		dma_buf_put(dma_buf);
 		break;
 	case RGA_VIRTUAL_ADDRESS:
-		// TODO
+		idr_for_each_entry(&mm_session->memory_idr, temp_buffer, id) {
+			if (temp_buffer->vir_addr == external_buffer->memory) {
+				output_buffer = temp_buffer;
+				break;
+			}
+		}
+
+		break;
 	case RGA_PHYSICAL_ADDRESS:
-		// TODO
+		idr_for_each_entry(&mm_session->memory_idr, temp_buffer, id) {
+			if (temp_buffer->phy_addr == external_buffer->memory) {
+				output_buffer = temp_buffer;
+				break;
+			}
+		}
+
+		break;
 	default:
 		pr_err("Illegal external buffer!\n");
 		return NULL;
