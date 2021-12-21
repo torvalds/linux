@@ -77,7 +77,7 @@ static int asix_check_host_enable(struct usbnet *dev, int in_pm)
 				    0, 0, 1, &smsr, in_pm);
 		if (ret == -ENODEV)
 			break;
-		else if (ret < 0)
+		else if (ret < sizeof(smsr))
 			continue;
 		else if (smsr & AX_HOST_EN)
 			break;
