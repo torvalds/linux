@@ -830,20 +830,38 @@ static void sh_mobile_i2c_release_dma(struct sh_mobile_i2c_data *pd)
 
 static int sh_mobile_i2c_hook_irqs(struct platform_device *dev, struct sh_mobile_i2c_data *pd)
 {
-	struct resource *res;
-	resource_size_t n;
+	struct device_node *np = dev_of_node(&dev->dev);
 	int k = 0, ret;
 
-	while ((res = platform_get_resource(dev, IORESOURCE_IRQ, k))) {
-		for (n = res->start; n <= res->end; n++) {
-			ret = devm_request_irq(&dev->dev, n, sh_mobile_i2c_isr,
-					  0, dev_name(&dev->dev), pd);
+	if (np) {
+		int irq;
+
+		while ((irq = platform_get_irq_optional(dev, k)) != -ENXIO) {
+			if (irq < 0)
+				return irq;
+			ret = devm_request_irq(&dev->dev, irq, sh_mobile_i2c_isr,
+					       0, dev_name(&dev->dev), pd);
 			if (ret) {
-				dev_err(&dev->dev, "cannot request IRQ %pa\n", &n);
+				dev_err(&dev->dev, "cannot request IRQ %d\n", irq);
 				return ret;
 			}
+			k++;
+		};
+	} else {
+		struct resource *res;
+		resource_size_t n;
+
+		while ((res = platform_get_resource(dev, IORESOURCE_IRQ, k))) {
+			for (n = res->start; n <= res->end; n++) {
+				ret = devm_request_irq(&dev->dev, n, sh_mobile_i2c_isr,
+						       0, dev_name(&dev->dev), pd);
+				if (ret) {
+					dev_err(&dev->dev, "cannot request IRQ %pa\n", &n);
+					return ret;
+				}
+			}
+			k++;
 		}
-		k++;
 	}
 
 	return k > 0 ? 0 : -ENOENT;
