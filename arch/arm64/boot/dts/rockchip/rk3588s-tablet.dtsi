@@ -373,7 +373,7 @@
 		ti,input-current-cdp = <2000000>;
 		ti,minimum-sys-voltage = <7400000>;
 		ti,otg-voltage = <5000000>;
-		ti,otg-current = <500000>;
+		ti,otg-current = <1500000>;
 		pd-charge-only = <0>;
 		regulators {
 			vbus5v0_typec: vbus5v0-typec {
