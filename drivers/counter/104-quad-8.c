@@ -14,6 +14,7 @@
 #include <linux/interrupt.h>
 #include <linux/isa.h>
 #include <linux/kernel.h>
+#include <linux/list.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/types.h>
@@ -44,7 +45,6 @@ MODULE_PARM_DESC(irq, "ACCES 104-QUAD-8 interrupt line numbers");
  * @ab_enable:		array of A and B inputs enable configurations
  * @preset_enable:	array of set_to_preset_on_index attribute configurations
  * @irq_trigger:	array of current IRQ trigger function configurations
- * @next_irq_trigger:	array of next IRQ trigger function configurations
  * @synchronous_mode:	array of index function synchronous mode configurations
  * @index_polarity:	array of index function polarity configurations
  * @cable_fault_enable:	differential encoder cable status enable configurations
@@ -61,7 +61,6 @@ struct quad8 {
 	unsigned int ab_enable[QUAD8_NUM_COUNTERS];
 	unsigned int preset_enable[QUAD8_NUM_COUNTERS];
 	unsigned int irq_trigger[QUAD8_NUM_COUNTERS];
-	unsigned int next_irq_trigger[QUAD8_NUM_COUNTERS];
 	unsigned int synchronous_mode[QUAD8_NUM_COUNTERS];
 	unsigned int index_polarity[QUAD8_NUM_COUNTERS];
 	unsigned int cable_fault_enable;
@@ -390,7 +389,6 @@ static int quad8_action_read(struct counter_device *counter,
 }
 
 enum {
-	QUAD8_EVENT_NONE = -1,
 	QUAD8_EVENT_CARRY = 0,
 	QUAD8_EVENT_COMPARE = 1,
 	QUAD8_EVENT_CARRY_BORROW = 2,
@@ -402,34 +400,49 @@ static int quad8_events_configure(struct counter_device *counter)
 	struct quad8 *const priv = counter->priv;
 	unsigned long irq_enabled = 0;
 	unsigned long irqflags;
-	size_t channel;
+	struct counter_event_node *event_node;
+	unsigned int next_irq_trigger;
 	unsigned long ior_cfg;
 	unsigned long base_offset;
 
 	spin_lock_irqsave(&priv->lock, irqflags);
 
-	/* Enable interrupts for the requested channels, disable for the rest */
-	for (channel = 0; channel < QUAD8_NUM_COUNTERS; channel++) {
-		if (priv->next_irq_trigger[channel] == QUAD8_EVENT_NONE)
-			continue;
-
-		if (priv->irq_trigger[channel] != priv->next_irq_trigger[channel]) {
-			/* Save new IRQ function configuration */
-			priv->irq_trigger[channel] = priv->next_irq_trigger[channel];
-
-			/* Load configuration to I/O Control Register */
-			ior_cfg = priv->ab_enable[channel] |
-				  priv->preset_enable[channel] << 1 |
-				  priv->irq_trigger[channel] << 3;
-			base_offset = priv->base + 2 * channel + 1;
-			outb(QUAD8_CTR_IOR | ior_cfg, base_offset);
+	list_for_each_entry(event_node, &counter->events_list, l) {
+		switch (event_node->event) {
+		case COUNTER_EVENT_OVERFLOW:
+			next_irq_trigger = QUAD8_EVENT_CARRY;
+			break;
+		case COUNTER_EVENT_THRESHOLD:
+			next_irq_trigger = QUAD8_EVENT_COMPARE;
+			break;
+		case COUNTER_EVENT_OVERFLOW_UNDERFLOW:
+			next_irq_trigger = QUAD8_EVENT_CARRY_BORROW;
+			break;
+		case COUNTER_EVENT_INDEX:
+			next_irq_trigger = QUAD8_EVENT_INDEX;
+			break;
+		default:
+			/* should never reach this path */
+			spin_unlock_irqrestore(&priv->lock, irqflags);
+			return -EINVAL;
 		}
 
-		/* Reset next IRQ trigger function configuration */
-		priv->next_irq_trigger[channel] = QUAD8_EVENT_NONE;
+		/* Skip configuration if it is the same as previously set */
+		if (priv->irq_trigger[event_node->channel] == next_irq_trigger)
+			continue;
+
+		/* Save new IRQ function configuration */
+		priv->irq_trigger[event_node->channel] = next_irq_trigger;
+
+		/* Load configuration to I/O Control Register */
+		ior_cfg = priv->ab_enable[event_node->channel] |
+			  priv->preset_enable[event_node->channel] << 1 |
+			  priv->irq_trigger[event_node->channel] << 3;
+		base_offset = priv->base + 2 * event_node->channel + 1;
+		outb(QUAD8_CTR_IOR | ior_cfg, base_offset);
 
 		/* Enable IRQ line */
-		irq_enabled |= BIT(channel);
+		irq_enabled |= BIT(event_node->channel);
 	}
 
 	outb(irq_enabled, priv->base + QUAD8_REG_INDEX_INTERRUPT);
@@ -442,35 +455,20 @@ static int quad8_events_configure(struct counter_device *counter)
 static int quad8_watch_validate(struct counter_device *counter,
 				const struct counter_watch *watch)
 {
-	struct quad8 *const priv = counter->priv;
+	struct counter_event_node *event_node;
 
 	if (watch->channel > QUAD8_NUM_COUNTERS - 1)
 		return -EINVAL;
 
 	switch (watch->event) {
 	case COUNTER_EVENT_OVERFLOW:
-		if (priv->next_irq_trigger[watch->channel] == QUAD8_EVENT_NONE)
-			priv->next_irq_trigger[watch->channel] = QUAD8_EVENT_CARRY;
-		else if (priv->next_irq_trigger[watch->channel] != QUAD8_EVENT_CARRY)
-			return -EINVAL;
-		return 0;
 	case COUNTER_EVENT_THRESHOLD:
-		if (priv->next_irq_trigger[watch->channel] == QUAD8_EVENT_NONE)
-			priv->next_irq_trigger[watch->channel] = QUAD8_EVENT_COMPARE;
-		else if (priv->next_irq_trigger[watch->channel] != QUAD8_EVENT_COMPARE)
-			return -EINVAL;
-		return 0;
 	case COUNTER_EVENT_OVERFLOW_UNDERFLOW:
-		if (priv->next_irq_trigger[watch->channel] == QUAD8_EVENT_NONE)
-			priv->next_irq_trigger[watch->channel] = QUAD8_EVENT_CARRY_BORROW;
-		else if (priv->next_irq_trigger[watch->channel] != QUAD8_EVENT_CARRY_BORROW)
-			return -EINVAL;
-		return 0;
 	case COUNTER_EVENT_INDEX:
-		if (priv->next_irq_trigger[watch->channel] == QUAD8_EVENT_NONE)
-			priv->next_irq_trigger[watch->channel] = QUAD8_EVENT_INDEX;
-		else if (priv->next_irq_trigger[watch->channel] != QUAD8_EVENT_INDEX)
-			return -EINVAL;
+		list_for_each_entry(event_node, &counter->next_events_list, l)
+			if (watch->channel == event_node->channel &&
+				watch->event != event_node->event)
+				return -EINVAL;
 		return 0;
 	default:
 		return -EINVAL;
@@ -1183,8 +1181,6 @@ static int quad8_probe(struct device *dev, unsigned int id)
 		outb(QUAD8_CTR_IOR, base_offset + 1);
 		/* Disable index function; negative index polarity */
 		outb(QUAD8_CTR_IDR, base_offset + 1);
-		/* Initialize next IRQ trigger function configuration */
-		priv->next_irq_trigger[i] = QUAD8_EVENT_NONE;
 	}
 	/* Disable Differential Encoder Cable Status for all channels */
 	outb(0xFF, base[id] + QUAD8_DIFF_ENCODER_CABLE_STATUS);
