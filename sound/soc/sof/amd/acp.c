@@ -219,7 +219,7 @@ int configure_and_run_sha_dma(struct acp_dev_data *adata, void *image_addr,
 		return -EINVAL;
 	}
 
-	return ret;
+	return 0;
 }
 
 int acp_dma_status(struct acp_dev_data *adata, unsigned char ch)
