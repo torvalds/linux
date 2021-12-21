@@ -77,6 +77,18 @@
 		default-brightness-level = <200>;
 	};
 
+	charge-animation {
+		compatible = "rockchip,uboot-charge";
+		rockchip,uboot-charge-on = <1>;
+		rockchip,android-charge-on = <0>;
+		rockchip,uboot-low-power-voltage = <6800>;
+		rockchip,screen-on-voltage = <6900>;
+		rockchip,uboot-exit-charge-voltage = <7000>;
+		rockchip,uboot-exit-charge-level = <2>;
+		rockchip,uboot-exit-charge-auto = <1>;
+		status = "okay";
+	};
+
 	es7202_sound_micarray: es7202-sound-micarray {
 		status = "okay";
 		compatible = "simple-audio-card";
