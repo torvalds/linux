@@ -264,6 +264,11 @@
 	connect = <&vp3_out_dsi0>;
 };
 
+&route_dsi1 {
+	status = "disabled";
+	connect = <&vp3_out_dsi1>;
+};
+
 &sdmmc {
 	status = "okay";
 	vmmc-supply = <&vcc_3v3_sd_s0>;

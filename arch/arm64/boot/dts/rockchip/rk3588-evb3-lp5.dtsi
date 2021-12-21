@@ -1118,6 +1118,11 @@
 	connect = <&vp3_out_dsi0>;
 };
 
+&route_dsi1 {
+	status = "disabled";
+	connect = <&vp3_out_dsi1>;
+};
+
 &sata1 {
 	status = "okay";
 };
