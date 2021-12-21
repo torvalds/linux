@@ -132,8 +132,6 @@ static acpi_status sdw_intel_acpi_cb(acpi_handle handle, u32 level,
 		return AE_NOT_FOUND;
 	}
 
-	info->handle = handle;
-
 	/*
 	 * On some Intel platforms, multiple children of the HDAS
 	 * device can be found, but only one of them is the SoundWire
@@ -143,6 +141,9 @@ static acpi_status sdw_intel_acpi_cb(acpi_handle handle, u32 level,
 	 */
 	if (FIELD_GET(GENMASK(31, 28), adr) != SDW_LINK_TYPE)
 		return AE_OK; /* keep going */
+
+	/* found the correct SoundWire controller */
+	info->handle = handle;
 
 	/* device found, stop namespace walk */
 	return AE_CTRL_TERMINATE;
