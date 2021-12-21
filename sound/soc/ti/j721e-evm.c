@@ -464,13 +464,9 @@ static int j721e_get_clocks(struct device *dev,
 	int ret;
 
 	clocks->target = devm_clk_get(dev, prefix);
-	if (IS_ERR(clocks->target)) {
-		ret = PTR_ERR(clocks->target);
-		if (ret != -EPROBE_DEFER)
-			dev_err(dev, "failed to acquire %s: %d\n",
-				prefix, ret);
-		return ret;
-	}
+	if (IS_ERR(clocks->target))
+		return dev_err_probe(dev, PTR_ERR(clocks->target),
+				     "failed to acquire %s\n", prefix);
 
 	clk_name = kasprintf(GFP_KERNEL, "%s-48000", prefix);
 	if (clk_name) {

@@ -1238,8 +1238,8 @@ int audio_graph2_parse_of(struct asoc_simple_priv *priv, struct device *dev,
 err:
 	devm_kfree(dev, li);
 
-	if ((ret < 0) && (ret != -EPROBE_DEFER))
-		dev_err(dev, "parse error %d\n", ret);
+	if (ret < 0)
+		dev_err_probe(dev, ret, "parse error\n");
 
 	return ret;
 }
