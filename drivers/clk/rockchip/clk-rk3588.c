@@ -1331,9 +1331,6 @@ static struct rockchip_clk_branch rk3588_clk_branches[] __initdata = {
 			RK3588_CLKGATE_CON(70), 10, GFLAGS),
 
 	/* gpu */
-	COMPOSITE_NODIV(PCLK_GPU_ROOT, "pclk_gpu_root", mux_100m_50m_24m_p, 0,
-			RK3588_CLKSEL_CON(161), 0, 2, MFLAGS,
-			RK3588_CLKGATE_CON(66), 13, GFLAGS),
 	COMPOSITE(CLK_GPU_SRC, "clk_gpu_src", gpll_cpll_aupll_npll_spll_p, 0,
 			RK3588_CLKSEL_CON(158), 5, 3, MFLAGS, 0, 5, DFLAGS,
 			RK3588_CLKGATE_CON(66), 1, GFLAGS),
@@ -1344,14 +1341,10 @@ static struct rockchip_clk_branch rk3588_clk_branches[] __initdata = {
 	COMPOSITE_NOMUX(CLK_GPU_STACKS, "clk_gpu_stacks", "clk_gpu_src", 0,
 			RK3588_CLKSEL_CON(159), 0, 5, DFLAGS,
 			RK3588_CLKGATE_CON(66), 7, GFLAGS),
-	GATE(PCLK_GPU_PVTM, "pclk_gpu_pvtm", "pclk_gpu_root", 0,
-			RK3588_CLKGATE_CON(66), 15, GFLAGS),
 	GATE(CLK_GPU_PVTM, "clk_gpu_pvtm", "xin24m", 0,
 			RK3588_CLKGATE_CON(67), 0, GFLAGS),
 	GATE(CLK_CORE_GPU_PVTM, "clk_core_gpu_pvtm", "clk_gpu_src", 0,
 			RK3588_CLKGATE_CON(67), 1, GFLAGS),
-	GATE(PCLK_GPU_GRF, "pclk_gpu_grf", "pclk_gpu_root", CLK_IGNORE_UNUSED,
-			RK3588_CLKGATE_CON(67), 2, GFLAGS),
 
 	/* isp1 */
 	COMPOSITE(ACLK_ISP1_ROOT, "aclk_isp1_root", gpll_cpll_aupll_spll_p, 0,
