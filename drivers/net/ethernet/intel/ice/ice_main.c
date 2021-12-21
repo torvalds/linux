@@ -4126,13 +4126,14 @@ static void ice_log_pkg_init(struct ice_hw *hw, enum ice_ddp_state state)
 		break;
 	case ICE_DDP_PKG_LOAD_ERROR:
 		dev_err(dev, "An error occurred on the device while loading the DDP package.  The device will be reset.\n");
-			/* poll for reset to complete */
-			if (ice_check_reset(hw))
-				dev_err(dev, "Error resetting device. Please reload the driver\n");
+		/* poll for reset to complete */
+		if (ice_check_reset(hw))
+			dev_err(dev, "Error resetting device. Please reload the driver\n");
 		break;
 	case ICE_DDP_PKG_ERR:
 	default:
 		dev_err(dev, "An unknown error occurred when loading the DDP package.  Entering Safe Mode.\n");
+		break;
 	}
 }
 
