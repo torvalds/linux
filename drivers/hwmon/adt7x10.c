@@ -397,11 +397,6 @@ int adt7x10_probe(struct device *dev, const char *name, int irq,
 }
 EXPORT_SYMBOL_GPL(adt7x10_probe);
 
-void adt7x10_remove(struct device *dev, int irq)
-{
-}
-EXPORT_SYMBOL_GPL(adt7x10_remove);
-
 #ifdef CONFIG_PM_SLEEP
 
 static int adt7x10_suspend(struct device *dev)

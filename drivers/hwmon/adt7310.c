@@ -142,12 +142,6 @@ static int adt7310_spi_probe(struct spi_device *spi)
 			     regmap);
 }
 
-static int adt7310_spi_remove(struct spi_device *spi)
-{
-	adt7x10_remove(&spi->dev, spi->irq);
-	return 0;
-}
-
 static const struct spi_device_id adt7310_id[] = {
 	{ "adt7310", 0 },
 	{ "adt7320", 0 },
@@ -161,7 +155,6 @@ static struct spi_driver adt7310_driver = {
 		.pm	= ADT7X10_DEV_PM_OPS,
 	},
 	.probe		= adt7310_spi_probe,
-	.remove		= adt7310_spi_remove,
 	.id_table	= adt7310_id,
 };
 module_spi_driver(adt7310_driver);

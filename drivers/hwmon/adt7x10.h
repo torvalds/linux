@@ -20,8 +20,6 @@ struct device;
 int adt7x10_probe(struct device *dev, const char *name, int irq,
 		  struct regmap *regmap);
 
-void adt7x10_remove(struct device *dev, int irq);
-
 #ifdef CONFIG_PM_SLEEP
 extern const struct dev_pm_ops adt7x10_dev_pm_ops;
 #define ADT7X10_DEV_PM_OPS (&adt7x10_dev_pm_ops)
