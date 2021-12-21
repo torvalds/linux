@@ -432,18 +432,6 @@ config SATA_DWC_OLD_DMA
 	  This option enables support for old device trees without the
 	  "dmas" property.
 
-config SATA_DWC_DEBUG
-	bool "Debugging driver version"
-	depends on SATA_DWC
-	help
-	  This option enables debugging output in the driver.
-
-config SATA_DWC_VDEBUG
-	bool "Verbose debug output"
-	depends on SATA_DWC_DEBUG
-	help
-	  This option enables the taskfile dumping and NCQ debugging.
-
 config SATA_HIGHBANK
 	tristate "Calxeda Highbank SATA support"
 	depends on ARCH_HIGHBANK || COMPILE_TEST

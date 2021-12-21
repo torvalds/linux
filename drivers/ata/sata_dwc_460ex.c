@@ -14,14 +14,6 @@
  *          COPYRIGHT (C) 2005  SYNOPSYS, INC.  ALL RIGHTS RESERVED
  */
 
-#ifdef CONFIG_SATA_DWC_DEBUG
-#define DEBUG
-#endif
-
-#ifdef CONFIG_SATA_DWC_VDEBUG
-#define VERBOSE_DEBUG
-#endif
-
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/device.h>
