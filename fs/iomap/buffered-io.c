@@ -895,8 +895,8 @@ static loff_t iomap_zero_iter(struct iomap_iter *iter, bool *did_zero)
 		mark_page_accessed(page);
 
 		bytes = iomap_write_end(iter, pos, bytes, bytes, page);
-		if (bytes < 0)
-			return bytes;
+		if (WARN_ON_ONCE(bytes == 0))
+			return -EIO;
 
 		pos += bytes;
 		length -= bytes;
