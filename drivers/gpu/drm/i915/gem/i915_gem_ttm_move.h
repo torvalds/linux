@@ -18,23 +18,6 @@ struct ttm_tt;
 struct drm_i915_gem_object;
 struct i915_refct_sgt;
 
-/**
- * struct i915_deps - Collect dependencies into a single dma-fence
- * @single: Storage for pointer if the collection is a single fence.
- * @fences: Allocated array of fence pointers if more than a single fence;
- * otherwise points to the address of @single.
- * @num_deps: Current number of dependency fences.
- * @fences_size: Size of the @fences array in number of pointers.
- * @gfp: Allocation mode.
- */
-struct i915_deps {
-	struct dma_fence *single;
-	struct dma_fence **fences;
-	unsigned int num_deps;
-	unsigned int fences_size;
-	gfp_t gfp;
-};
-
 int i915_ttm_move_notify(struct ttm_buffer_object *bo);
 
 I915_SELFTEST_DECLARE(void i915_ttm_migrate_set_failure_modes(bool gpu_migration,

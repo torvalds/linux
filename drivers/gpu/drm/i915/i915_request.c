@@ -31,7 +31,6 @@
 #include <linux/sched/signal.h>
 
 #include "gem/i915_gem_context.h"
-#include "gem/i915_gem_ttm_move.h"
 #include "gt/intel_breadcrumbs.h"
 #include "gt/intel_context.h"
 #include "gt/intel_engine.h"
@@ -42,6 +41,7 @@
 #include "gt/intel_rps.h"
 
 #include "i915_active.h"
+#include "i915_deps.h"
 #include "i915_drv.h"
 #include "i915_trace.h"
 #include "intel_pm.h"
