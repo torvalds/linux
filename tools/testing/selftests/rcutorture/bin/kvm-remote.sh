@@ -155,18 +155,23 @@ do
 	echo Downloading tarball to $i `date` | tee -a "$oldrun/remote-log"
 	cat $T/binres.tgz | ssh $i "cd /tmp; tar -xzf -"
 	ret=$?
-	if test "$ret" -ne 0
-	then
-		echo Unable to download $T/binres.tgz to system $i, waiting and then retrying. | tee -a "$oldrun/remote-log"
+	tries=0
+	while test "$ret" -ne 0
+	do
+		echo Unable to download $T/binres.tgz to system $i, waiting and then retrying.  $tries prior retries. | tee -a "$oldrun/remote-log"
 		sleep 60
 		cat $T/binres.tgz | ssh $i "cd /tmp; tar -xzf -"
 		ret=$?
 		if test "$ret" -ne 0
 		then
-			echo Unable to download $T/binres.tgz to system $i, giving up. | tee -a "$oldrun/remote-log"
-			exit 10
+			if test "$tries" > 5
+			then
+				echo Unable to download $T/binres.tgz to system $i, giving up. | tee -a "$oldrun/remote-log"
+				exit 10
+			fi
 		fi
-	fi
+		tries=$((tries+1))
+	done
 done
 
 # Function to check for presence of a file on the specified system.
