@@ -3,8 +3,6 @@
  * Copyright © 2021 Intel Corporation
  */
 
-#include <linux/dma-fence-array.h>
-
 #include <drm/ttm/ttm_bo_driver.h>
 
 #include "i915_drv.h"
@@ -44,17 +42,12 @@ void i915_ttm_migrate_set_failure_modes(bool gpu_migration,
 #endif
 
 /**
- * DOC: Set of utilities to dynamically collect dependencies and
- * eventually coalesce them into a single fence which is fed into
- * the GT migration code, since it only accepts a single dependency
- * fence.
- * The single fence returned from these utilities, in the case of
- * dependencies from multiple fence contexts, a struct dma_fence_array,
- * since the i915 request code can break that up and await the individual
- * fences.
+ * DOC: Set of utilities to dynamically collect dependencies into a
+ * structure which is fed into the GT migration code.
  *
  * Once we can do async unbinding, this is also needed to coalesce
- * the migration fence with the unbind fences.
+ * the migration fence with the unbind fences if these are coalesced
+ * post-migration.
  *
  * While collecting the individual dependencies, we store the refcounted
  * struct dma_fence pointers in a realloc-managed pointer array, since
@@ -65,31 +58,12 @@ void i915_ttm_migrate_set_failure_modes(bool gpu_migration,
  * A struct i915_deps need to be initialized using i915_deps_init().
  * If i915_deps_add_dependency() or i915_deps_add_resv() return an
  * error code they will internally call i915_deps_fini(), which frees
- * all internal references and allocations. After a call to
- * i915_deps_to_fence(), or i915_deps_sync(), the struct should similarly
- * be viewed as uninitialized.
+ * all internal references and allocations.
  *
  * We might want to break this out into a separate file as a utility.
  */
 
 #define I915_DEPS_MIN_ALLOC_CHUNK 8U
-
-/**
- * struct i915_deps - Collect dependencies into a single dma-fence
- * @single: Storage for pointer if the collection is a single fence.
- * @fence: Allocated array of fence pointers if more than a single fence;
- * otherwise points to the address of @single.
- * @num_deps: Current number of dependency fences.
- * @fences_size: Size of the @fences array in number of pointers.
- * @gfp: Allocation mode.
- */
-struct i915_deps {
-	struct dma_fence *single;
-	struct dma_fence **fences;
-	unsigned int num_deps;
-	unsigned int fences_size;
-	gfp_t gfp;
-};
 
 static void i915_deps_reset_fences(struct i915_deps *deps)
 {
@@ -163,7 +137,7 @@ unref:
 	return ret;
 }
 
-static int i915_deps_sync(struct i915_deps *deps,
+static int i915_deps_sync(const struct i915_deps *deps,
 			  const struct ttm_operation_ctx *ctx)
 {
 	struct dma_fence **fences = deps->fences;
@@ -183,7 +157,6 @@ static int i915_deps_sync(struct i915_deps *deps,
 			break;
 	}
 
-	i915_deps_fini(deps);
 	return ret;
 }
 
@@ -219,34 +192,6 @@ static int i915_deps_add_dependency(struct i915_deps *deps,
 	}
 
 	return i915_deps_grow(deps, fence, ctx);
-}
-
-static struct dma_fence *i915_deps_to_fence(struct i915_deps *deps,
-					    const struct ttm_operation_ctx *ctx)
-{
-	struct dma_fence_array *array;
-
-	if (deps->num_deps == 0)
-		return NULL;
-
-	if (deps->num_deps == 1) {
-		deps->num_deps = 0;
-		return deps->fences[0];
-	}
-
-	/*
-	 * TODO: Alter the allocation mode here to not try too hard to
-	 * make things async.
-	 */
-	array = dma_fence_array_create(deps->num_deps, deps->fences, 0, 0,
-				       false);
-	if (!array)
-		return ERR_PTR(i915_deps_sync(deps, ctx));
-
-	deps->fences = NULL;
-	i915_deps_reset_fences(deps);
-
-	return &array->base;
 }
 
 static int i915_deps_add_resv(struct i915_deps *deps, struct dma_resv *resv,
@@ -387,7 +332,7 @@ static struct dma_fence *i915_ttm_accel_move(struct ttm_buffer_object *bo,
 					     struct ttm_resource *dst_mem,
 					     struct ttm_tt *dst_ttm,
 					     struct sg_table *dst_st,
-					     struct dma_fence *dep)
+					     const struct i915_deps *deps)
 {
 	struct drm_i915_private *i915 = container_of(bo->bdev, typeof(*i915),
 						     bdev);
@@ -411,7 +356,7 @@ static struct dma_fence *i915_ttm_accel_move(struct ttm_buffer_object *bo,
 			return ERR_PTR(-EINVAL);
 
 		intel_engine_pm_get(to_gt(i915)->migrate.context->engine);
-		ret = intel_context_migrate_clear(to_gt(i915)->migrate.context, dep,
+		ret = intel_context_migrate_clear(to_gt(i915)->migrate.context, deps,
 						  dst_st->sgl, dst_level,
 						  i915_ttm_gtt_binds_lmem(dst_mem),
 						  0, &rq);
@@ -425,7 +370,7 @@ static struct dma_fence *i915_ttm_accel_move(struct ttm_buffer_object *bo,
 		src_level = i915_ttm_cache_level(i915, bo->resource, src_ttm);
 		intel_engine_pm_get(to_gt(i915)->migrate.context->engine);
 		ret = intel_context_migrate_copy(to_gt(i915)->migrate.context,
-						 dep, src_rsgt->table.sgl,
+						 deps, src_rsgt->table.sgl,
 						 src_level,
 						 i915_ttm_gtt_binds_lmem(bo->resource),
 						 dst_st->sgl, dst_level,
@@ -610,10 +555,11 @@ i915_ttm_memcpy_work_arm(struct i915_ttm_memcpy_work *work,
 }
 
 static struct dma_fence *
-__i915_ttm_move(struct ttm_buffer_object *bo, bool clear,
+__i915_ttm_move(struct ttm_buffer_object *bo,
+		const struct ttm_operation_ctx *ctx, bool clear,
 		struct ttm_resource *dst_mem, struct ttm_tt *dst_ttm,
 		struct i915_refct_sgt *dst_rsgt, bool allow_accel,
-		struct dma_fence *move_dep)
+		const struct i915_deps *move_deps)
 {
 	struct i915_ttm_memcpy_work *copy_work = NULL;
 	struct i915_ttm_memcpy_arg _arg, *arg = &_arg;
@@ -621,7 +567,7 @@ __i915_ttm_move(struct ttm_buffer_object *bo, bool clear,
 
 	if (allow_accel) {
 		fence = i915_ttm_accel_move(bo, clear, dst_mem, dst_ttm,
-					    &dst_rsgt->table, move_dep);
+					    &dst_rsgt->table, move_deps);
 
 		/*
 		 * We only need to intercept the error when moving to lmem.
@@ -655,8 +601,8 @@ __i915_ttm_move(struct ttm_buffer_object *bo, bool clear,
 
 		if (!IS_ERR(fence))
 			goto out;
-	} else if (move_dep) {
-		int err = dma_fence_wait(move_dep, true);
+	} else if (move_deps) {
+		int err = i915_deps_sync(move_deps, ctx);
 
 		if (err)
 			return ERR_PTR(err);
@@ -680,29 +626,21 @@ out:
 	return fence;
 }
 
-static struct dma_fence *prev_fence(struct ttm_buffer_object *bo,
-				    struct ttm_operation_ctx *ctx)
+static int
+prev_deps(struct ttm_buffer_object *bo, struct ttm_operation_ctx *ctx,
+	  struct i915_deps *deps)
 {
-	struct i915_deps deps;
 	int ret;
 
-	/*
-	 * Instead of trying hard with GFP_KERNEL to allocate memory,
-	 * the dependency collection will just sync if it doesn't
-	 * succeed.
-	 */
-	i915_deps_init(&deps, GFP_KERNEL | __GFP_NORETRY | __GFP_NOWARN);
-	ret = i915_deps_add_dependency(&deps, bo->moving, ctx);
+	ret = i915_deps_add_dependency(deps, bo->moving, ctx);
 	if (!ret)
 		/*
 		 * TODO: Only await excl fence here, and shared fences before
 		 * signaling the migration fence.
 		 */
-		ret = i915_deps_add_resv(&deps, bo->base.resv, true, false, ctx);
-	if (ret)
-		return ERR_PTR(ret);
+		ret = i915_deps_add_resv(deps, bo->base.resv, true, false, ctx);
 
-	return i915_deps_to_fence(&deps, ctx);
+	return ret;
 }
 
 /**
@@ -756,16 +694,18 @@ int i915_ttm_move(struct ttm_buffer_object *bo, bool evict,
 
 	clear = !i915_ttm_cpu_maps_iomem(bo->resource) && (!ttm || !ttm_tt_is_populated(ttm));
 	if (!(clear && ttm && !(ttm->page_flags & TTM_TT_FLAG_ZERO_ALLOC))) {
-		struct dma_fence *dep = prev_fence(bo, ctx);
+		struct i915_deps deps;
 
-		if (IS_ERR(dep)) {
+		i915_deps_init(&deps, GFP_KERNEL | __GFP_NORETRY | __GFP_NOWARN);
+		ret = prev_deps(bo, ctx, &deps);
+		if (ret) {
 			i915_refct_sgt_put(dst_rsgt);
-			return PTR_ERR(dep);
+			return ret;
 		}
 
-		migration_fence = __i915_ttm_move(bo, clear, dst_mem, bo->ttm,
-						  dst_rsgt, true, dep);
-		dma_fence_put(dep);
+		migration_fence = __i915_ttm_move(bo, ctx, clear, dst_mem, bo->ttm,
+						  dst_rsgt, true, &deps);
+		i915_deps_fini(&deps);
 	}
 
 	/* We can possibly get an -ERESTARTSYS here */
@@ -826,7 +766,7 @@ int i915_gem_obj_copy_ttm(struct drm_i915_gem_object *dst,
 		.interruptible = intr,
 	};
 	struct i915_refct_sgt *dst_rsgt;
-	struct dma_fence *copy_fence, *dep_fence;
+	struct dma_fence *copy_fence;
 	struct i915_deps deps;
 	int ret, shared_err;
 
@@ -847,15 +787,12 @@ int i915_gem_obj_copy_ttm(struct drm_i915_gem_object *dst,
 	if (ret)
 		return ret;
 
-	dep_fence = i915_deps_to_fence(&deps, &ctx);
-	if (IS_ERR(dep_fence))
-		return PTR_ERR(dep_fence);
-
 	dst_rsgt = i915_ttm_resource_get_st(dst, dst_bo->resource);
-	copy_fence = __i915_ttm_move(src_bo, false, dst_bo->resource,
+	copy_fence = __i915_ttm_move(src_bo, &ctx, false, dst_bo->resource,
 				     dst_bo->ttm, dst_rsgt, allow_accel,
-				     dep_fence);
+				     &deps);
 
+	i915_deps_fini(&deps);
 	i915_refct_sgt_put(dst_rsgt);
 	if (IS_ERR_OR_NULL(copy_fence))
 		return PTR_ERR_OR_ZERO(copy_fence);

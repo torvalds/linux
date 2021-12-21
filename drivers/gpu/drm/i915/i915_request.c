@@ -31,6 +31,7 @@
 #include <linux/sched/signal.h>
 
 #include "gem/i915_gem_context.h"
+#include "gem/i915_gem_ttm_move.h"
 #include "gt/intel_breadcrumbs.h"
 #include "gt/intel_context.h"
 #include "gt/intel_engine.h"
@@ -1538,6 +1539,27 @@ i915_request_await_dma_fence(struct i915_request *rq, struct dma_fence *fence)
 			intel_timeline_sync_set(i915_request_timeline(rq),
 						fence);
 	} while (--nchild);
+
+	return 0;
+}
+
+/**
+ * i915_request_await_deps - set this request to (async) wait upon a struct
+ * i915_deps dma_fence collection
+ * @rq: request we are wishing to use
+ * @deps: The struct i915_deps containing the dependencies.
+ *
+ * Returns 0 if successful, negative error code on error.
+ */
+int i915_request_await_deps(struct i915_request *rq, const struct i915_deps *deps)
+{
+	int i, err;
+
+	for (i = 0; i < deps->num_deps; ++i) {
+		err = i915_request_await_dma_fence(rq, deps->fences[i]);
+		if (err)
+			return err;
+	}
 
 	return 0;
 }
