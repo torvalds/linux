@@ -1018,7 +1018,8 @@ static int wait_task_zombie(struct wait_opts *wo, struct task_struct *p)
 		return 0;
 
 	if (unlikely(wo->wo_flags & WNOWAIT)) {
-		status = p->exit_code;
+		status = (p->signal->flags & SIGNAL_GROUP_EXIT)
+			? p->signal->group_exit_code : p->exit_code;
 		get_task_struct(p);
 		read_unlock(&tasklist_lock);
 		sched_annotate_sleep();
