@@ -71,12 +71,6 @@
 /* NEW: debug levels */
 #define HAVE_LIBATA_MSG 1
 
-enum {
-	ATA_MSG_DRV	= 0x0001,
-};
-
-#define ata_msg_drv(p)    ((p)->msg_enable & ATA_MSG_DRV)
-
 static inline u32 ata_msg_init(int dval, int default_msg_enable_bits)
 {
 	if (dval < 0 || dval >= (sizeof(u32) * 8))

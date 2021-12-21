@@ -1214,8 +1214,7 @@ void ata_dev_disable(struct ata_device *dev)
 	if (!ata_dev_enabled(dev))
 		return;
 
-	if (ata_msg_drv(dev->link->ap))
-		ata_dev_warn(dev, "disabled\n");
+	ata_dev_warn(dev, "disable device\n");
 	ata_acpi_on_disable(dev);
 	ata_down_xfermask_limit(dev, ATA_DNXFER_FORCE_PIO0 | ATA_DNXFER_QUIET);
 	dev->class++;

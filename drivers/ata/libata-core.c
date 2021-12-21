@@ -2354,7 +2354,6 @@ static void ata_dev_config_trusted(struct ata_device *dev)
 
 static int ata_dev_config_lba(struct ata_device *dev)
 {
-	struct ata_port *ap = dev->link->ap;
 	const u16 *id = dev->id;
 	const char *lba_desc;
 	char ncq_desc[24];
@@ -2376,7 +2375,7 @@ static int ata_dev_config_lba(struct ata_device *dev)
 	ret = ata_dev_config_ncq(dev, ncq_desc, sizeof(ncq_desc));
 
 	/* print device info to dmesg */
-	if (ata_msg_drv(ap) && ata_dev_print_info(dev))
+	if (ata_dev_print_info(dev))
 		ata_dev_info(dev,
 			     "%llu sectors, multi %u: %s %s\n",
 			     (unsigned long long)dev->n_sectors,
@@ -2387,7 +2386,6 @@ static int ata_dev_config_lba(struct ata_device *dev)
 
 static void ata_dev_config_chs(struct ata_device *dev)
 {
-	struct ata_port *ap = dev->link->ap;
 	const u16 *id = dev->id;
 
 	if (ata_id_current_chs_valid(id)) {
@@ -2403,7 +2401,7 @@ static void ata_dev_config_chs(struct ata_device *dev)
 	}
 
 	/* print device info to dmesg */
-	if (ata_msg_drv(ap) && ata_dev_print_info(dev))
+	if (ata_dev_print_info(dev))
 		ata_dev_info(dev,
 			     "%llu sectors, multi %u, CHS %u/%u/%u\n",
 			     (unsigned long long)dev->n_sectors,
@@ -2644,7 +2642,7 @@ int ata_dev_configure(struct ata_device *dev)
 		}
 
 		/* print device info to dmesg */
-		if (ata_msg_drv(ap) && print_info)
+		if (print_info)
 			ata_dev_info(dev, "%s: %s, %s, max %s\n",
 				     revbuf, modelbuf, fwrevbuf,
 				     ata_mode_string(xfer_mask));
@@ -2664,7 +2662,7 @@ int ata_dev_configure(struct ata_device *dev)
 		ata_dev_config_cpr(dev);
 		dev->cdb_len = 32;
 
-		if (ata_msg_drv(ap) && print_info)
+		if (print_info)
 			ata_dev_print_features(dev);
 	}
 
@@ -2721,7 +2719,7 @@ int ata_dev_configure(struct ata_device *dev)
 		}
 
 		/* print device info to dmesg */
-		if (ata_msg_drv(ap) && print_info)
+		if (print_info)
 			ata_dev_info(dev,
 				     "ATAPI: %s, %s, max %s%s%s%s\n",
 				     modelbuf, fwrevbuf,
@@ -2738,7 +2736,7 @@ int ata_dev_configure(struct ata_device *dev)
 	/* Limit PATA drive on SATA cable bridge transfers to udma5,
 	   200 sectors */
 	if (ata_dev_knobble(dev)) {
-		if (ata_msg_drv(ap) && print_info)
+		if (print_info)
 			ata_dev_info(dev, "applying bridge limits\n");
 		dev->udma_mask &= ATA_UDMA5;
 		dev->max_sectors = ATA_MAX_SECTORS;
@@ -5330,11 +5328,6 @@ struct ata_port *ata_port_alloc(struct ata_host *host)
 	ap->local_port_no = -1;
 	ap->host = host;
 	ap->dev = host->dev;
-
-#if defined(ATA_VERBOSE_DEBUG)
-	/* turn on all debugging levels */
-	ap->msg_enable = 0x0001;
-#endif
 
 	mutex_init(&ap->scsi_scan_mutex);
 	INIT_DELAYED_WORK(&ap->hotplug_task, ata_scsi_hotplug);
