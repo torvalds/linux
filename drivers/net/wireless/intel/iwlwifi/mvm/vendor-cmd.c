@@ -4,6 +4,7 @@
  */
 #include "mvm.h"
 #include <linux/nl80211-vnd-intel.h>
+#include <net/netlink.h>
 
 static const struct nla_policy
 iwl_mvm_vendor_attr_policy[NUM_IWL_MVM_VENDOR_ATTR] = {

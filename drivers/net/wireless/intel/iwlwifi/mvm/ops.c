@@ -5,6 +5,7 @@
  * Copyright (C) 2016-2017 Intel Deutschland GmbH
  */
 #include <linux/module.h>
+#include <linux/rtnetlink.h>
 #include <linux/vmalloc.h>
 #include <net/mac80211.h>
 
