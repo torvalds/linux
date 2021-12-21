@@ -1179,15 +1179,16 @@ static unsigned int pdc20621_prog_dimm_global(struct ata_host *host)
 	/* Turn on for ECC */
 	if (!pdc20621_i2c_read(host, PDC_DIMM0_SPD_DEV_ADDRESS,
 			       PDC_DIMM_SPD_TYPE, &spd0)) {
-		pr_err("Failed in i2c read: device=%#x, subaddr=%#x\n",
-		       PDC_DIMM0_SPD_DEV_ADDRESS, PDC_DIMM_SPD_TYPE);
+		dev_err(host->dev,
+			"Failed in i2c read: device=%#x, subaddr=%#x\n",
+			PDC_DIMM0_SPD_DEV_ADDRESS, PDC_DIMM_SPD_TYPE);
 		return 1;
 	}
 	if (spd0 == 0x02) {
 		data |= (0x01 << 16);
 		writel(data, mmio + PDC_SDRAM_CONTROL);
 		readl(mmio + PDC_SDRAM_CONTROL);
-		printk(KERN_ERR "Local DIMM ECC Enabled\n");
+		dev_err(host->dev, "Local DIMM ECC Enabled\n");
 	}
 
 	/* DIMM Initialization Select/Enable (bit 18/19) */
@@ -1279,7 +1280,7 @@ static unsigned int pdc20621_dimm_init(struct ata_host *host)
 	   and program the DIMM Module Controller.
 	*/
 	if (!(speed = pdc20621_detect_dimm(host))) {
-		printk(KERN_ERR "Detect Local DIMM Fail\n");
+		dev_err(host->dev, "Detect Local DIMM Fail\n");
 		return 1;	/* DIMM error */
 	}
 	dev_dbg(host->dev, "Local DIMM Speed = %d\n", speed);
