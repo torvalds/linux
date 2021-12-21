@@ -1571,9 +1571,8 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 			else
 				ata_qc_complete(qc);
 
-			if (ata_msg_warn(ap))
-				ata_dev_warn(dev, "qc timeout (cmd 0x%x)\n",
-					     command);
+			ata_dev_warn(dev, "qc timeout (cmd 0x%x)\n",
+				     command);
 		}
 
 		spin_unlock_irqrestore(ap->lock, flags);
@@ -1932,9 +1931,8 @@ retry:
 	return 0;
 
  err_out:
-	if (ata_msg_warn(ap))
-		ata_dev_warn(dev, "failed to IDENTIFY (%s, err_mask=0x%x)\n",
-			     reason, err_mask);
+	ata_dev_warn(dev, "failed to IDENTIFY (%s, err_mask=0x%x)\n",
+		     reason, err_mask);
 	return rc;
 }
 
@@ -2683,8 +2681,7 @@ int ata_dev_configure(struct ata_device *dev)
 
 		rc = atapi_cdb_len(id);
 		if ((rc < 12) || (rc > ATAPI_CDB_LEN)) {
-			if (ata_msg_warn(ap))
-				ata_dev_warn(dev, "unsupported CDB len\n");
+			ata_dev_warn(dev, "unsupported CDB len %d\n", rc);
 			rc = -EINVAL;
 			goto err_out_nosup;
 		}
@@ -5342,11 +5339,11 @@ struct ata_port *ata_port_alloc(struct ata_host *host)
 
 #if defined(ATA_VERBOSE_DEBUG)
 	/* turn on all debugging levels */
-	ap->msg_enable = 0x000F;
+	ap->msg_enable = 0x0007;
 #elif defined(ATA_DEBUG)
-	ap->msg_enable = ATA_MSG_DRV | ATA_MSG_INFO | ATA_MSG_WARN;
+	ap->msg_enable = ATA_MSG_DRV | ATA_MSG_INFO;
 #else
-	ap->msg_enable = ATA_MSG_DRV | ATA_MSG_WARN;
+	ap->msg_enable = ATA_MSG_DRV;
 #endif
 
 	mutex_init(&ap->scsi_scan_mutex);
