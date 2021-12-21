@@ -727,16 +727,20 @@ static int fetch_irq_lantiq(struct device *dev, struct ltq_uart_port *ltq_port)
 {
 	struct uart_port *port = &ltq_port->port;
 	struct platform_device *pdev = to_platform_device(dev);
+	int irq;
 
-	ltq_port->tx_irq = platform_get_irq(pdev, 0);
-	if (ltq_port->tx_irq < 0)
-		return ltq_port->tx_irq;
-	ltq_port->rx_irq = platform_get_irq(pdev, 1);
-	if (ltq_port->rx_irq < 0)
-		return ltq_port->rx_irq;
-	ltq_port->err_irq = platform_get_irq(pdev, 2);
-	if (ltq_port->err_irq < 0)
-		return ltq_port->err_irq;
+	irq = platform_get_irq(pdev, 0);
+	if (irq < 0)
+		return irq;
+	ltq_port->tx_irq = irq;
+	irq = platform_get_irq(pdev, 1);
+	if (irq < 0)
+		return irq;
+	ltq_port->rx_irq = irq;
+	irq = platform_get_irq(pdev, 2);
+	if (irq < 0)
+		return irq;
+	ltq_port->err_irq = irq;
 
 	port->irq = ltq_port->tx_irq;
 
