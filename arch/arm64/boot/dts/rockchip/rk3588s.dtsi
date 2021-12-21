@@ -4000,9 +4000,8 @@
 		clock-names = "spiclk", "apb_pclk";
 		dmas = <&dmac0 14>, <&dmac0 15>;
 		dma-names = "tx", "rx";
-		pinctrl-names = "default", "high_speed";
+		pinctrl-names = "default";
 		pinctrl-0 = <&spi0m0_cs0 &spi0m0_cs1 &spi0m0_pins>;
-		pinctrl-1 = <&spi0m0_cs0 &spi0m0_cs1 &spi0m0_pins_hs>;
 		num-cs = <2>;
 		status = "disabled";
 	};
@@ -4017,9 +4016,8 @@
 		clock-names = "spiclk", "apb_pclk";
 		dmas = <&dmac0 16>, <&dmac0 17>;
 		dma-names = "tx", "rx";
-		pinctrl-names = "default", "high_speed";
+		pinctrl-names = "default";
 		pinctrl-0 = <&spi1m1_cs0 &spi1m1_cs1 &spi1m1_pins>;
-		pinctrl-1 = <&spi1m1_cs0 &spi1m1_cs1 &spi1m1_pins_hs>;
 		num-cs = <2>;
 		status = "disabled";
 	};
@@ -4034,9 +4032,8 @@
 		clock-names = "spiclk", "apb_pclk";
 		dmas = <&dmac1 15>, <&dmac1 16>;
 		dma-names = "tx", "rx";
-		pinctrl-names = "default", "high_speed";
+		pinctrl-names = "default";
 		pinctrl-0 = <&spi2m2_cs0 &spi2m2_cs1 &spi2m2_pins>;
-		pinctrl-1 = <&spi2m2_cs0 &spi2m2_cs1 &spi2m2_pins_hs>;
 		num-cs = <2>;
 		status = "disabled";
 	};
@@ -4051,9 +4048,8 @@
 		clock-names = "spiclk", "apb_pclk";
 		dmas = <&dmac1 17>, <&dmac1 18>;
 		dma-names = "tx", "rx";
-		pinctrl-names = "default", "high_speed";
+		pinctrl-names = "default";
 		pinctrl-0 = <&spi3m1_cs0 &spi3m1_cs1 &spi3m1_pins>;
-		pinctrl-1 = <&spi3m1_cs0 &spi3m1_cs1 &spi3m1_pins_hs>;
 		num-cs = <2>;
 		status = "disabled";
 	};
@@ -4431,9 +4427,8 @@
 		clock-names = "spiclk", "apb_pclk";
 		dmas = <&dmac2 13>, <&dmac2 14>;
 		dma-names = "tx", "rx";
-		pinctrl-names = "default", "high_speed";
+		pinctrl-names = "default";
 		pinctrl-0 = <&spi4m0_cs0 &spi4m0_cs1 &spi4m0_pins>;
-		pinctrl-1 = <&spi4m0_cs0 &spi4m0_cs1 &spi4m0_pins_hs>;
 		num-cs = <2>;
 		status = "disabled";
 	};
