@@ -5686,6 +5686,10 @@ static void make_discard_request(struct mddev *mddev, struct bio *bi)
 	struct stripe_head *sh;
 	int stripe_sectors;
 
+	/* We need to handle this when io_uring supports discard/trim */
+	if (WARN_ON_ONCE(bi->bi_opf & REQ_NOWAIT))
+		return;
+
 	if (mddev->reshape_position != MaxSector)
 		/* Skip discard while reshape is happening */
 		return;
@@ -5819,6 +5823,17 @@ static bool raid5_make_request(struct mddev *mddev, struct bio * bi)
 	last_sector = bio_end_sector(bi);
 	bi->bi_next = NULL;
 
+	/* Bail out if conflicts with reshape and REQ_NOWAIT is set */
+	if ((bi->bi_opf & REQ_NOWAIT) &&
+	    (conf->reshape_progress != MaxSector) &&
+	    (mddev->reshape_backwards
+	    ? (logical_sector > conf->reshape_progress && logical_sector <= conf->reshape_safe)
+	    : (logical_sector >= conf->reshape_safe && logical_sector < conf->reshape_progress))) {
+		bio_wouldblock_error(bi);
+		if (rw == WRITE)
+			md_write_end(mddev);
+		return true;
+	}
 	md_account_bio(mddev, &bi);
 	prepare_to_wait(&conf->wait_for_overlap, &w, TASK_UNINTERRUPTIBLE);
 	for (; logical_sector < last_sector; logical_sector += RAID5_STRIPE_SECTORS(conf)) {
