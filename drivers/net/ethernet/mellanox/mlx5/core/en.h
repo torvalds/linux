@@ -984,7 +984,7 @@ struct mlx5e_profile {
 };
 
 #define mlx5e_profile_feature_cap(profile, feature)	\
-	((profile)->features & (MLX5E_PROFILE_FEATURE_## feature))
+	((profile)->features & BIT(MLX5E_PROFILE_FEATURE_##feature))
 
 void mlx5e_build_ptys2ethtool_map(void);
 
