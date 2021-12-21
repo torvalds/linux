@@ -2585,11 +2585,11 @@
   __traceiter_android_vh_alter_rwsem_list_add
   __traceiter_android_vh_arch_set_freq_scale
   __traceiter_android_vh_binder_alloc_new_buf_locked
-  __traceiter_android_vh_binder_new_ref
   __traceiter_android_vh_binder_del_ref
-  __traceiter_android_vh_binder_proc_transaction
+  __traceiter_android_vh_binder_new_ref
   __traceiter_android_vh_binder_preset
   __traceiter_android_vh_binder_priority_skip
+  __traceiter_android_vh_binder_proc_transaction
   __traceiter_android_vh_binder_proc_transaction_end
   __traceiter_android_vh_binder_reply
   __traceiter_android_vh_binder_restore_priority
@@ -2627,6 +2627,7 @@
   __traceiter_android_vh_ftrace_oops_enter
   __traceiter_android_vh_ftrace_oops_exit
   __traceiter_android_vh_ftrace_size_check
+  __traceiter_android_vh_futex_sleep_start
   __traceiter_android_vh_get_from_fragment_pool
   __traceiter_android_vh_gpio_block_read
   __traceiter_android_vh_include_reserved_zone
@@ -2780,11 +2781,11 @@
   __tracepoint_android_vh_alter_rwsem_list_add
   __tracepoint_android_vh_arch_set_freq_scale
   __tracepoint_android_vh_binder_alloc_new_buf_locked
-  __tracepoint_android_vh_binder_new_ref
   __tracepoint_android_vh_binder_del_ref
-  __tracepoint_android_vh_binder_proc_transaction
+  __tracepoint_android_vh_binder_new_ref
   __tracepoint_android_vh_binder_preset
   __tracepoint_android_vh_binder_priority_skip
+  __tracepoint_android_vh_binder_proc_transaction
   __tracepoint_android_vh_binder_proc_transaction_end
   __tracepoint_android_vh_binder_reply
   __tracepoint_android_vh_binder_restore_priority
@@ -2822,6 +2823,7 @@
   __tracepoint_android_vh_ftrace_oops_enter
   __tracepoint_android_vh_ftrace_oops_exit
   __tracepoint_android_vh_ftrace_size_check
+  __tracepoint_android_vh_futex_sleep_start
   __tracepoint_android_vh_get_from_fragment_pool
   __tracepoint_android_vh_gpio_block_read
   __tracepoint_android_vh_include_reserved_zone
