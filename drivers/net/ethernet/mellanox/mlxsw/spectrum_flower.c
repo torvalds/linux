@@ -508,7 +508,8 @@ static int mlxsw_sp_flower_parse(struct mlxsw_sp *mlxsw_sp,
 		struct flow_match_vlan match;
 
 		flow_rule_match_vlan(rule, &match);
-		if (mlxsw_sp_flow_block_is_egress_bound(block)) {
+		if (mlxsw_sp_flow_block_is_egress_bound(block) &&
+		    match.mask->vlan_id) {
 			NL_SET_ERR_MSG_MOD(f->common.extack, "vlan_id key is not supported on egress");
 			return -EOPNOTSUPP;
 		}
