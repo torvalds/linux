@@ -3330,7 +3330,7 @@ err_unlock:
 	up_read(&block->cb_lock);
 	if (take_rtnl)
 		rtnl_unlock();
-	return ok_count < 0 ? ok_count : 0;
+	return min(ok_count, 0);
 }
 EXPORT_SYMBOL(tc_setup_cb_add);
 
@@ -3386,7 +3386,7 @@ err_unlock:
 	up_read(&block->cb_lock);
 	if (take_rtnl)
 		rtnl_unlock();
-	return ok_count < 0 ? ok_count : 0;
+	return min(ok_count, 0);
 }
 EXPORT_SYMBOL(tc_setup_cb_replace);
 
@@ -3424,7 +3424,7 @@ retry:
 	up_read(&block->cb_lock);
 	if (take_rtnl)
 		rtnl_unlock();
-	return ok_count < 0 ? ok_count : 0;
+	return min(ok_count, 0);
 }
 EXPORT_SYMBOL(tc_setup_cb_destroy);
 
