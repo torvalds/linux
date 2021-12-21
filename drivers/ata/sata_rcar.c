@@ -379,12 +379,6 @@ static void sata_rcar_tf_load(struct ata_port *ap,
 		iowrite32(tf->hob_lbal, ioaddr->lbal_addr);
 		iowrite32(tf->hob_lbam, ioaddr->lbam_addr);
 		iowrite32(tf->hob_lbah, ioaddr->lbah_addr);
-		VPRINTK("hob: feat 0x%X nsect 0x%X, lba 0x%X 0x%X 0x%X\n",
-			tf->hob_feature,
-			tf->hob_nsect,
-			tf->hob_lbal,
-			tf->hob_lbam,
-			tf->hob_lbah);
 	}
 
 	if (is_addr) {
@@ -393,18 +387,10 @@ static void sata_rcar_tf_load(struct ata_port *ap,
 		iowrite32(tf->lbal, ioaddr->lbal_addr);
 		iowrite32(tf->lbam, ioaddr->lbam_addr);
 		iowrite32(tf->lbah, ioaddr->lbah_addr);
-		VPRINTK("feat 0x%X nsect 0x%X lba 0x%X 0x%X 0x%X\n",
-			tf->feature,
-			tf->nsect,
-			tf->lbal,
-			tf->lbam,
-			tf->lbah);
 	}
 
-	if (tf->flags & ATA_TFLAG_DEVICE) {
+	if (tf->flags & ATA_TFLAG_DEVICE)
 		iowrite32(tf->device, ioaddr->device_addr);
-		VPRINTK("device 0x%X\n", tf->device);
-	}
 
 	ata_wait_idle(ap);
 }
@@ -537,7 +523,6 @@ static void sata_rcar_bmdma_fill_sg(struct ata_queued_cmd *qc)
 
 		prd[si].addr = cpu_to_le32(addr);
 		prd[si].flags_len = cpu_to_le32(sg_len);
-		VPRINTK("PRD[%u] = (0x%X, 0x%X)\n", si, addr, sg_len);
 	}
 
 	/* end-of-table flag */
