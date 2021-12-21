@@ -118,4 +118,5 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588s-evb3-lp4x-v10-rk630-bt656-to-cvbs.dts
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588s-evb3-lp4x-v10-sii9022-bt1120-to-hdmi.dts
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588s-evb4-lp4x-v10.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588s-evb4-lp4x-v10-linux.dtb
+dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588s-tablet-rk806-single-v10.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588s-tablet-v10.dtb
