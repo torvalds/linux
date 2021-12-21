@@ -121,6 +121,7 @@ struct walt_rq {
 	u64			last_cc_update;
 	u64			cycles;
 	struct list_head	mvp_tasks;
+	int                     num_mvp_tasks;
 	u64			latest_clock;
 };
 
@@ -942,7 +943,7 @@ extern struct rq *__migrate_task(struct rq *rq, struct rq_flags *rf,
 
 DECLARE_PER_CPU(u64, rt_task_arrival_time);
 extern int walt_get_mvp_task_prio(struct task_struct *p);
-extern void walt_cfs_deactivate_mvp_task(struct task_struct *p);
+extern void walt_cfs_deactivate_mvp_task(struct rq *rq, struct task_struct *p);
 
 enum WALT_DEBUG_FEAT {
 	WALT_BUG_UPSTREAM,

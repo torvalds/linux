@@ -3834,6 +3834,7 @@ static void walt_sched_init_rq(struct rq *rq)
 	}
 	wrq->notif_pending = false;
 
+	wrq->num_mvp_tasks = 0;
 	INIT_LIST_HEAD(&wrq->mvp_tasks);
 }
 
@@ -4329,7 +4330,7 @@ static void walt_do_sched_yield(void *unused, struct rq *rq)
 
 	lockdep_assert_held(&rq->__lock);
 	if (!list_empty(&wts->mvp_list) && wts->mvp_list.next)
-		walt_cfs_deactivate_mvp_task(curr);
+		walt_cfs_deactivate_mvp_task(rq, curr);
 
 	if (per_cpu(rt_task_arrival_time, cpu_of(rq)))
 		per_cpu(rt_task_arrival_time, cpu_of(rq)) = 0;
