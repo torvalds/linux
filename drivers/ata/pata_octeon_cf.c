@@ -477,23 +477,11 @@ static void octeon_cf_tf_load16(struct ata_port *ap,
 		__raw_writew(tf->hob_feature << 8, base + 0xc);
 		__raw_writew(tf->hob_nsect | tf->hob_lbal << 8, base + 2);
 		__raw_writew(tf->hob_lbam | tf->hob_lbah << 8, base + 4);
-		VPRINTK("hob: feat 0x%X nsect 0x%X, lba 0x%X 0x%X 0x%X\n",
-			tf->hob_feature,
-			tf->hob_nsect,
-			tf->hob_lbal,
-			tf->hob_lbam,
-			tf->hob_lbah);
 	}
 	if (is_addr) {
 		__raw_writew(tf->feature << 8, base + 0xc);
 		__raw_writew(tf->nsect | tf->lbal << 8, base + 2);
 		__raw_writew(tf->lbam | tf->lbah << 8, base + 4);
-		VPRINTK("feat 0x%X nsect 0x%X, lba 0x%X 0x%X 0x%X\n",
-			tf->feature,
-			tf->nsect,
-			tf->lbal,
-			tf->lbam,
-			tf->lbah);
 	}
 	ata_wait_idle(ap);
 }
@@ -553,8 +541,6 @@ static void octeon_cf_dma_start(struct ata_queued_cmd *qc)
 	union cvmx_mio_boot_dma_intx mio_boot_dma_int;
 	struct scatterlist *sg;
 
-	VPRINTK("%d scatterlists\n", qc->n_elem);
-
 	/* Get the scatter list entry we need to DMA into */
 	sg = qc->cursg;
 	BUG_ON(!sg);
@@ -595,10 +581,6 @@ static void octeon_cf_dma_start(struct ata_queued_cmd *qc)
 
 	mio_boot_dma_cfg.s.adr = sg_dma_address(sg);
 
-	VPRINTK("%s %d bytes address=%p\n",
-		(mio_boot_dma_cfg.s.rw) ? "write" : "read", sg->length,
-		(void *)(unsigned long)mio_boot_dma_cfg.s.adr);
-
 	cvmx_write_csr(cf_port->dma_base + DMA_CFG, mio_boot_dma_cfg.u64);
 }
 
@@ -617,9 +599,7 @@ static unsigned int octeon_cf_dma_finished(struct ata_port *ap,
 	union cvmx_mio_boot_dma_intx dma_int;
 	u8 status;
 
-	VPRINTK("ata%u: protocol %d task_state %d\n",
-		ap->print_id, qc->tf.protocol, ap->hsm_task_state);
-
+	trace_ata_bmdma_stop(qc, &qc->tf, qc->tag);
 
 	if (ap->hsm_task_state != HSM_ST_LAST)
 		return 0;
