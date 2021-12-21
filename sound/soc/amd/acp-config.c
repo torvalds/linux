@@ -90,7 +90,7 @@ struct snd_soc_acpi_mach snd_soc_acpi_amd_sof_machines[] = {
 		.machine_quirk = snd_soc_acpi_codec_list,
 		.quirk_data = &amp_rt1019,
 		.fw_filename = "sof-rn.ri",
-		.sof_tplg_filename = "sof-acp.tplg",
+		.sof_tplg_filename = "sof-rn-rt5682-rt1019.tplg",
 	},
 	{
 		.id = "10EC5682",
@@ -99,7 +99,7 @@ struct snd_soc_acpi_mach snd_soc_acpi_amd_sof_machines[] = {
 		.machine_quirk = snd_soc_acpi_codec_list,
 		.quirk_data = &amp_max,
 		.fw_filename = "sof-rn.ri",
-		.sof_tplg_filename = "sof-acp.tplg",
+		.sof_tplg_filename = "sof-rn-rt5682-max98360.tplg",
 	},
 	{
 		.id = "RTL5682",
@@ -108,7 +108,7 @@ struct snd_soc_acpi_mach snd_soc_acpi_amd_sof_machines[] = {
 		.machine_quirk = snd_soc_acpi_codec_list,
 		.quirk_data = &amp_max,
 		.fw_filename = "sof-rn.ri",
-		.sof_tplg_filename = "sof-acp.tplg",
+		.sof_tplg_filename = "sof-rn-rt5682-max98360.tplg",
 	},
 	{
 		.id = "AMDI1019",
