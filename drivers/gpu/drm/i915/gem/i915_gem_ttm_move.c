@@ -195,19 +195,14 @@ static int i915_deps_add_dependency(struct i915_deps *deps,
 }
 
 static int i915_deps_add_resv(struct i915_deps *deps, struct dma_resv *resv,
-			      bool all, const bool no_excl,
 			      const struct ttm_operation_ctx *ctx)
 {
 	struct dma_resv_iter iter;
 	struct dma_fence *fence;
+	int ret;
 
 	dma_resv_assert_held(resv);
-	dma_resv_for_each_fence(&iter, resv, all, fence) {
-		int ret;
-
-		if (no_excl && dma_resv_iter_is_exclusive(&iter))
-			continue;
-
+	dma_resv_for_each_fence(&iter, resv, true, fence) {
 		ret = i915_deps_add_dependency(deps, fence, ctx);
 		if (ret)
 			return ret;
@@ -634,11 +629,7 @@ prev_deps(struct ttm_buffer_object *bo, struct ttm_operation_ctx *ctx,
 
 	ret = i915_deps_add_dependency(deps, bo->moving, ctx);
 	if (!ret)
-		/*
-		 * TODO: Only await excl fence here, and shared fences before
-		 * signaling the migration fence.
-		 */
-		ret = i915_deps_add_resv(deps, bo->base.resv, true, false, ctx);
+		ret = i915_deps_add_resv(deps, bo->base.resv, ctx);
 
 	return ret;
 }
@@ -768,22 +759,21 @@ int i915_gem_obj_copy_ttm(struct drm_i915_gem_object *dst,
 	struct i915_refct_sgt *dst_rsgt;
 	struct dma_fence *copy_fence;
 	struct i915_deps deps;
-	int ret, shared_err;
+	int ret;
 
 	assert_object_held(dst);
 	assert_object_held(src);
 	i915_deps_init(&deps, GFP_KERNEL | __GFP_NORETRY | __GFP_NOWARN);
 
-	/*
-	 * We plan to add a shared fence only for the source. If that
-	 * fails, we await all source fences before commencing
-	 * the copy instead of only the exclusive.
-	 */
-	shared_err = dma_resv_reserve_shared(src_bo->base.resv, 1);
-	ret = i915_deps_add_resv(&deps, dst_bo->base.resv, true, false, &ctx);
-	if (!ret)
-		ret = i915_deps_add_resv(&deps, src_bo->base.resv,
-					 !!shared_err, false, &ctx);
+	ret = dma_resv_reserve_shared(src_bo->base.resv, 1);
+	if (ret)
+		return ret;
+
+	ret = i915_deps_add_resv(&deps, dst_bo->base.resv, &ctx);
+	if (ret)
+		return ret;
+
+	ret = i915_deps_add_resv(&deps, src_bo->base.resv, &ctx);
 	if (ret)
 		return ret;
 
@@ -798,12 +788,7 @@ int i915_gem_obj_copy_ttm(struct drm_i915_gem_object *dst,
 		return PTR_ERR_OR_ZERO(copy_fence);
 
 	dma_resv_add_excl_fence(dst_bo->base.resv, copy_fence);
-
-	/* If we failed to reserve a shared slot, add an exclusive fence */
-	if (shared_err)
-		dma_resv_add_excl_fence(src_bo->base.resv, copy_fence);
-	else
-		dma_resv_add_shared_fence(src_bo->base.resv, copy_fence);
+	dma_resv_add_shared_fence(src_bo->base.resv, copy_fence);
 
 	dma_fence_put(copy_fence);
 
