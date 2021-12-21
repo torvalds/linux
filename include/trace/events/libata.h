@@ -151,6 +151,9 @@
 const char *libata_trace_parse_status(struct trace_seq*, unsigned char);
 #define __parse_status(s) libata_trace_parse_status(p, s)
 
+const char *libata_trace_parse_host_stat(struct trace_seq *, unsigned char);
+#define __parse_host_stat(s) libata_trace_parse_host_stat(p, s)
+
 const char *libata_trace_parse_eh_action(struct trace_seq *, unsigned int);
 #define __parse_eh_action(a) libata_trace_parse_eh_action(p, a)
 
@@ -298,6 +301,128 @@ DEFINE_EVENT(ata_qc_complete_template, ata_qc_complete_failed,
 DEFINE_EVENT(ata_qc_complete_template, ata_qc_complete_done,
 	     TP_PROTO(struct ata_queued_cmd *qc),
 	     TP_ARGS(qc));
+
+TRACE_EVENT(ata_tf_load,
+
+	TP_PROTO(struct ata_port *ap, const struct ata_taskfile *tf),
+
+	TP_ARGS(ap, tf),
+
+	TP_STRUCT__entry(
+		__field( unsigned int,	ata_port )
+		__field( unsigned char,	cmd	)
+		__field( unsigned char,	dev	)
+		__field( unsigned char,	lbal	)
+		__field( unsigned char,	lbam	)
+		__field( unsigned char,	lbah	)
+		__field( unsigned char,	nsect	)
+		__field( unsigned char,	feature	)
+		__field( unsigned char,	hob_lbal )
+		__field( unsigned char,	hob_lbam )
+		__field( unsigned char,	hob_lbah )
+		__field( unsigned char,	hob_nsect )
+		__field( unsigned char,	hob_feature )
+		__field( unsigned char,	proto	)
+	),
+
+	TP_fast_assign(
+		__entry->ata_port	= ap->print_id;
+		__entry->proto		= tf->protocol;
+		__entry->cmd		= tf->command;
+		__entry->dev		= tf->device;
+		__entry->lbal		= tf->lbal;
+		__entry->lbam		= tf->lbam;
+		__entry->lbah		= tf->lbah;
+		__entry->hob_lbal	= tf->hob_lbal;
+		__entry->hob_lbam	= tf->hob_lbam;
+		__entry->hob_lbah	= tf->hob_lbah;
+		__entry->feature	= tf->feature;
+		__entry->hob_feature	= tf->hob_feature;
+		__entry->nsect		= tf->nsect;
+		__entry->hob_nsect	= tf->hob_nsect;
+	),
+
+	TP_printk("ata_port=%u proto=%s cmd=%s%s " \
+		  " tf=(%02x/%02x:%02x:%02x:%02x:%02x/%02x:%02x:%02x:%02x:%02x/%02x)",
+		  __entry->ata_port,
+		  show_protocol_name(__entry->proto),
+		  show_opcode_name(__entry->cmd),
+		  __parse_subcmd(__entry->cmd, __entry->feature, __entry->hob_nsect),
+		  __entry->cmd, __entry->feature, __entry->nsect,
+		  __entry->lbal, __entry->lbam, __entry->lbah,
+		  __entry->hob_feature, __entry->hob_nsect,
+		  __entry->hob_lbal, __entry->hob_lbam, __entry->hob_lbah,
+		  __entry->dev)
+);
+
+DECLARE_EVENT_CLASS(ata_exec_command_template,
+
+	TP_PROTO(struct ata_port *ap, const struct ata_taskfile *tf, unsigned int tag),
+
+	TP_ARGS(ap, tf, tag),
+
+	TP_STRUCT__entry(
+		__field( unsigned int,	ata_port )
+		__field( unsigned int,	tag	)
+		__field( unsigned char,	cmd	)
+		__field( unsigned char,	feature	)
+		__field( unsigned char,	hob_nsect )
+		__field( unsigned char,	proto	)
+	),
+
+	TP_fast_assign(
+		__entry->ata_port	= ap->print_id;
+		__entry->tag		= tag;
+		__entry->proto		= tf->protocol;
+		__entry->cmd		= tf->command;
+		__entry->feature	= tf->feature;
+		__entry->hob_nsect	= tf->hob_nsect;
+	),
+
+	TP_printk("ata_port=%u tag=%d proto=%s cmd=%s%s",
+		  __entry->ata_port, __entry->tag,
+		  show_protocol_name(__entry->proto),
+		  show_opcode_name(__entry->cmd),
+		  __parse_subcmd(__entry->cmd, __entry->feature, __entry->hob_nsect))
+);
+
+DEFINE_EVENT(ata_exec_command_template, ata_exec_command,
+	     TP_PROTO(struct ata_port *ap, const struct ata_taskfile *tf, unsigned int tag),
+	     TP_ARGS(ap, tf, tag));
+
+DEFINE_EVENT(ata_exec_command_template, ata_bmdma_setup,
+	     TP_PROTO(struct ata_port *ap, const struct ata_taskfile *tf, unsigned int tag),
+	     TP_ARGS(ap, tf, tag));
+
+DEFINE_EVENT(ata_exec_command_template, ata_bmdma_start,
+	     TP_PROTO(struct ata_port *ap, const struct ata_taskfile *tf, unsigned int tag),
+	     TP_ARGS(ap, tf, tag));
+
+DEFINE_EVENT(ata_exec_command_template, ata_bmdma_stop,
+	     TP_PROTO(struct ata_port *ap, const struct ata_taskfile *tf, unsigned int tag),
+	     TP_ARGS(ap, tf, tag));
+
+TRACE_EVENT(ata_bmdma_status,
+
+	TP_PROTO(struct ata_port *ap, unsigned int host_stat),
+
+	TP_ARGS(ap, host_stat),
+
+	TP_STRUCT__entry(
+		__field( unsigned int,	ata_port )
+		__field( unsigned int,	tag	)
+		__field( unsigned char,	host_stat )
+	),
+
+	TP_fast_assign(
+		__entry->ata_port	= ap->print_id;
+		__entry->host_stat	= host_stat;
+	),
+
+	TP_printk("ata_port=%u host_stat=%s",
+		  __entry->ata_port,
+		  __parse_host_stat(__entry->host_stat))
+);
 
 TRACE_EVENT(ata_eh_link_autopsy,
 

@@ -39,6 +39,24 @@ libata_trace_parse_status(struct trace_seq *p, unsigned char status)
 }
 
 const char *
+libata_trace_parse_host_stat(struct trace_seq *p, unsigned char host_stat)
+{
+	const char *ret = trace_seq_buffer_ptr(p);
+
+	trace_seq_printf(p, "{ ");
+	if (host_stat & ATA_DMA_INTR)
+		trace_seq_printf(p, "INTR ");
+	if (host_stat & ATA_DMA_ERR)
+		trace_seq_printf(p, "ERR ");
+	if (host_stat & ATA_DMA_ACTIVE)
+		trace_seq_printf(p, "ACTIVE ");
+	trace_seq_putc(p, '}');
+	trace_seq_putc(p, 0);
+
+	return ret;
+}
+
+const char *
 libata_trace_parse_eh_action(struct trace_seq *p, unsigned int eh_action)
 {
 	const char *ret = trace_seq_buffer_ptr(p);

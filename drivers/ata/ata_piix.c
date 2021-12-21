@@ -77,6 +77,7 @@
 #include <scsi/scsi_host.h>
 #include <linux/libata.h>
 #include <linux/dmi.h>
+#include <trace/events/libata.h>
 
 #define DRV_NAME	"ata_piix"
 #define DRV_VERSION	"2.13"
@@ -816,10 +817,15 @@ static int piix_sidpr_set_lpm(struct ata_link *link, enum ata_lpm_policy policy,
 
 static bool piix_irq_check(struct ata_port *ap)
 {
+	unsigned char host_stat;
+
 	if (unlikely(!ap->ioaddr.bmdma_addr))
 		return false;
 
-	return ap->ops->bmdma_status(ap) & ATA_DMA_INTR;
+	host_stat = ap->ops->bmdma_status(ap);
+	trace_ata_bmdma_status(ap, host_stat);
+
+	return host_stat & ATA_DMA_INTR;
 }
 
 #ifdef CONFIG_PM_SLEEP

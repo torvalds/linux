@@ -31,6 +31,7 @@
 #include <scsi/scsi_host.h>
 #include <scsi/scsi_device.h>
 #include <linux/libata.h>
+#include <trace/events/libata.h>
 
 #define DRV_NAME			"sata_nv"
 #define DRV_VERSION			"3.5"
@@ -1434,8 +1435,6 @@ static unsigned int nv_adma_qc_issue(struct ata_queued_cmd *qc)
 
 	writew(qc->hw_tag, mmio + NV_ADMA_APPEND);
 
-	DPRINTK("Issued tag %u\n", qc->hw_tag);
-
 	return 0;
 }
 
@@ -2013,18 +2012,16 @@ static unsigned int nv_swncq_issue_atacmd(struct ata_port *ap,
 	if (qc == NULL)
 		return 0;
 
-	DPRINTK("Enter\n");
-
 	writel((1 << qc->hw_tag), pp->sactive_block);
 	pp->last_issue_tag = qc->hw_tag;
 	pp->dhfis_bits &= ~(1 << qc->hw_tag);
 	pp->dmafis_bits &= ~(1 << qc->hw_tag);
 	pp->qc_active |= (0x1 << qc->hw_tag);
 
+	trace_ata_tf_load(ap, &qc->tf);
 	ap->ops->sff_tf_load(ap, &qc->tf);	 /* load tf registers */
+	trace_ata_exec_command(ap, &qc->tf, qc->hw_tag);
 	ap->ops->sff_exec_command(ap, &qc->tf);
-
-	DPRINTK("Issued tag %u\n", qc->hw_tag);
 
 	return 0;
 }
@@ -2036,8 +2033,6 @@ static unsigned int nv_swncq_qc_issue(struct ata_queued_cmd *qc)
 
 	if (qc->tf.protocol != ATA_PROT_NCQ)
 		return ata_bmdma_qc_issue(qc);
-
-	DPRINTK("Enter\n");
 
 	if (!pp->qc_active)
 		nv_swncq_issue_atacmd(ap, qc);
@@ -2083,6 +2078,7 @@ static int nv_swncq_sdbfis(struct ata_port *ap)
 	u8 lack_dhfis = 0;
 
 	host_stat = ap->ops->bmdma_status(ap);
+	trace_ata_bmdma_status(ap, host_stat);
 	if (unlikely(host_stat & ATA_DMA_ERR)) {
 		/* error when transferring data to/from memory */
 		ata_ehi_clear_desc(ehi);
