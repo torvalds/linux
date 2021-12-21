@@ -164,7 +164,7 @@ const char *libata_trace_parse_subcmd(struct trace_seq *, unsigned char,
 				      unsigned char, unsigned char);
 #define __parse_subcmd(c,f,h) libata_trace_parse_subcmd(p, c, f, h)
 
-TRACE_EVENT(ata_qc_issue,
+DECLARE_EVENT_CLASS(ata_qc_issue_template,
 
 	TP_PROTO(struct ata_queued_cmd *qc),
 
@@ -222,6 +222,14 @@ TRACE_EVENT(ata_qc_issue,
 		  __entry->hob_lbal, __entry->hob_lbam, __entry->hob_lbah,
 		  __entry->dev)
 );
+
+DEFINE_EVENT(ata_qc_issue_template, ata_qc_prep,
+	     TP_PROTO(struct ata_queued_cmd *qc),
+	     TP_ARGS(qc));
+
+DEFINE_EVENT(ata_qc_issue_template, ata_qc_issue,
+	     TP_PROTO(struct ata_queued_cmd *qc),
+	     TP_ARGS(qc));
 
 DECLARE_EVENT_CLASS(ata_qc_complete_template,
 

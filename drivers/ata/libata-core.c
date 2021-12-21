@@ -4892,6 +4892,7 @@ void ata_qc_issue(struct ata_queued_cmd *qc)
 		return;
 	}
 
+	trace_ata_qc_prep(qc);
 	qc->err_mask |= ap->ops->qc_prep(qc);
 	if (unlikely(qc->err_mask))
 		goto err;
