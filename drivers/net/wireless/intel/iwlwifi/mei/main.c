@@ -1705,6 +1705,7 @@ void iwl_mei_unregister_complete(void)
 			mei_cldev_get_drvdata(iwl_mei_global_cldev);
 
 		iwl_mei_send_sap_msg(mei->cldev, SAP_MSG_NOTIF_WIFIDR_DOWN);
+		mei->got_ownership = false;
 	}
 
 	mutex_unlock(&iwl_mei_mutex);
@@ -1810,6 +1811,12 @@ static int iwl_mei_probe(struct mei_cl_device *cldev,
 
 	mei_cldev_set_drvdata(cldev, mei);
 	mei->cldev = cldev;
+
+	/*
+	 * The CSME firmware needs to boot the internal WLAN client. Wait here
+	 * so that the DMA map request will succeed.
+	 */
+	msleep(20);
 
 	ret = iwl_mei_alloc_shared_mem(cldev);
 	if (ret)

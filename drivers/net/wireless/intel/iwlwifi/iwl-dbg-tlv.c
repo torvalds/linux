@@ -233,6 +233,7 @@ static int iwl_dbg_tlv_alloc_trigger(struct iwl_trans *trans,
 	const struct iwl_fw_ini_trigger_tlv *trig = (const void *)tlv->data;
 	struct iwl_fw_ini_trigger_tlv *dup_trig;
 	u32 tp = le32_to_cpu(trig->time_point);
+	u32 rf = le32_to_cpu(trig->reset_fw);
 	struct iwl_ucode_tlv *dup = NULL;
 	int ret;
 
@@ -247,6 +248,10 @@ static int iwl_dbg_tlv_alloc_trigger(struct iwl_trans *trans,
 		return -EINVAL;
 	}
 
+	IWL_DEBUG_FW(trans,
+		     "WRT: time point %u for trigger TLV with reset_fw %u\n",
+		     tp, rf);
+	trans->dbg.last_tp_resetfw = 0xFF;
 	if (!le32_to_cpu(trig->occurrences)) {
 		dup = kmemdup(tlv, sizeof(*tlv) + le32_to_cpu(tlv->length),
 				GFP_KERNEL);
@@ -300,13 +305,20 @@ static int (*dbg_tlv_alloc[])(struct iwl_trans *trans,
 void iwl_dbg_tlv_alloc(struct iwl_trans *trans, const struct iwl_ucode_tlv *tlv,
 		       bool ext)
 {
-	const struct iwl_fw_ini_header *hdr = (const void *)&tlv->data[0];
-	u32 type = le32_to_cpu(tlv->type);
-	u32 tlv_idx = type - IWL_UCODE_TLV_DEBUG_BASE;
-	u32 domain = le32_to_cpu(hdr->domain);
 	enum iwl_ini_cfg_state *cfg_state = ext ?
 		&trans->dbg.external_ini_cfg : &trans->dbg.internal_ini_cfg;
+	const struct iwl_fw_ini_header *hdr = (const void *)&tlv->data[0];
+	u32 type;
+	u32 tlv_idx;
+	u32 domain;
 	int ret;
+
+	if (le32_to_cpu(tlv->length) < sizeof(*hdr))
+		return;
+
+	type = le32_to_cpu(tlv->type);
+	tlv_idx = type - IWL_UCODE_TLV_DEBUG_BASE;
+	domain = le32_to_cpu(hdr->domain);
 
 	if (domain != IWL_FW_INI_DOMAIN_ALWAYS_ON &&
 	    !(domain & trans->dbg.domains_bitmap)) {
@@ -1159,6 +1171,8 @@ iwl_dbg_tlv_tp_trigger(struct iwl_fw_runtime *fwrt, bool sync,
 		u32 num_data = iwl_tlv_array_len(&node->tlv, dump_data.trig,
 						 data);
 		int ret, i;
+		u32 tp = le32_to_cpu(dump_data.trig->time_point);
+
 
 		if (!num_data) {
 			ret = iwl_fw_dbg_ini_collect(fwrt, &dump_data, sync);
@@ -1177,8 +1191,42 @@ iwl_dbg_tlv_tp_trigger(struct iwl_fw_runtime *fwrt, bool sync,
 				break;
 			}
 		}
-	}
 
+		fwrt->trans->dbg.restart_required = FALSE;
+		IWL_DEBUG_INFO(fwrt, "WRT: tp %d, reset_fw %d\n",
+			       tp, dump_data.trig->reset_fw);
+		IWL_DEBUG_INFO(fwrt, "WRT: restart_required %d, last_tp_resetfw %d\n",
+			       fwrt->trans->dbg.restart_required,
+			       fwrt->trans->dbg.last_tp_resetfw);
+
+		if (fwrt->trans->trans_cfg->device_family ==
+		    IWL_DEVICE_FAMILY_9000) {
+			fwrt->trans->dbg.restart_required = TRUE;
+		} else if (tp == IWL_FW_INI_TIME_POINT_FW_ASSERT &&
+			   fwrt->trans->dbg.last_tp_resetfw ==
+			   IWL_FW_INI_RESET_FW_MODE_STOP_FW_ONLY) {
+			fwrt->trans->dbg.restart_required = FALSE;
+			fwrt->trans->dbg.last_tp_resetfw = 0xFF;
+			IWL_DEBUG_FW(fwrt, "WRT: FW_ASSERT due to reset_fw_mode-no restart\n");
+		} else if (le32_to_cpu(dump_data.trig->reset_fw) ==
+			   IWL_FW_INI_RESET_FW_MODE_STOP_AND_RELOAD_FW) {
+			IWL_DEBUG_INFO(fwrt, "WRT: stop and reload firmware\n");
+			fwrt->trans->dbg.restart_required = TRUE;
+		} else if (le32_to_cpu(dump_data.trig->reset_fw) ==
+			   IWL_FW_INI_RESET_FW_MODE_STOP_FW_ONLY) {
+			IWL_DEBUG_INFO(fwrt, "WRT: stop only and no reload firmware\n");
+			fwrt->trans->dbg.restart_required = FALSE;
+			fwrt->trans->dbg.last_tp_resetfw =
+				le32_to_cpu(dump_data.trig->reset_fw);
+		} else if (le32_to_cpu(dump_data.trig->reset_fw) ==
+			   IWL_FW_INI_RESET_FW_MODE_NOTHING) {
+			IWL_DEBUG_INFO(fwrt,
+				       "WRT: nothing need to be done after debug collection\n");
+		} else {
+			IWL_ERR(fwrt, "WRT: wrong resetfw %d\n",
+				le32_to_cpu(dump_data.trig->reset_fw));
+		}
+	}
 	return 0;
 }
 

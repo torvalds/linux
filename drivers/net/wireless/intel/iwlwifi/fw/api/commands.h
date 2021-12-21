@@ -91,7 +91,8 @@ enum iwl_legacy_cmds {
 
 	/**
 	 * @SCAN_CFG_CMD:
-	 * uses &struct iwl_scan_config_v1 or &struct iwl_scan_config
+	 * uses &struct iwl_scan_config_v1, &struct iwl_scan_config_v2
+	 * or &struct iwl_scan_config
 	 */
 	SCAN_CFG_CMD = 0xc,
 
@@ -383,13 +384,6 @@ enum iwl_legacy_cmds {
 	 * &struct iwl_dev_tx_power_cmd
 	 */
 	REDUCE_TX_POWER_CMD = 0x9f,
-
-	/**
-	 * @CARD_STATE_NOTIFICATION:
-	 * Card state (RF/CT kill) notification,
-	 * uses &struct iwl_card_state_notif
-	 */
-	CARD_STATE_NOTIFICATION = 0xa1,
 
 	/**
 	 * @MISSED_BEACONS_NOTIFICATION: &struct iwl_missed_beacons_notif
