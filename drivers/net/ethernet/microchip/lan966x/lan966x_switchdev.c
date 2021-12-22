@@ -25,18 +25,72 @@ static void lan966x_port_set_mcast_flood(struct lan966x_port *port,
 		port->lan966x, ANA_PGID(PGID_MC));
 }
 
+static void lan966x_port_set_ucast_flood(struct lan966x_port *port,
+					 bool enabled)
+{
+	u32 val = lan_rd(port->lan966x, ANA_PGID(PGID_UC));
+
+	val = ANA_PGID_PGID_GET(val);
+	if (enabled)
+		val |= BIT(port->chip_port);
+	else
+		val &= ~BIT(port->chip_port);
+
+	lan_rmw(ANA_PGID_PGID_SET(val),
+		ANA_PGID_PGID,
+		port->lan966x, ANA_PGID(PGID_UC));
+}
+
+static void lan966x_port_set_bcast_flood(struct lan966x_port *port,
+					 bool enabled)
+{
+	u32 val = lan_rd(port->lan966x, ANA_PGID(PGID_BC));
+
+	val = ANA_PGID_PGID_GET(val);
+	if (enabled)
+		val |= BIT(port->chip_port);
+	else
+		val &= ~BIT(port->chip_port);
+
+	lan_rmw(ANA_PGID_PGID_SET(val),
+		ANA_PGID_PGID,
+		port->lan966x, ANA_PGID(PGID_BC));
+}
+
+static void lan966x_port_set_learning(struct lan966x_port *port, bool enabled)
+{
+	lan_rmw(ANA_PORT_CFG_LEARN_ENA_SET(enabled),
+		ANA_PORT_CFG_LEARN_ENA,
+		port->lan966x, ANA_PORT_CFG(port->chip_port));
+
+	port->learn_ena = enabled;
+}
+
 static void lan966x_port_bridge_flags(struct lan966x_port *port,
 				      struct switchdev_brport_flags flags)
 {
 	if (flags.mask & BR_MCAST_FLOOD)
 		lan966x_port_set_mcast_flood(port,
 					     !!(flags.val & BR_MCAST_FLOOD));
+
+	if (flags.mask & BR_FLOOD)
+		lan966x_port_set_ucast_flood(port,
+					     !!(flags.val & BR_FLOOD));
+
+	if (flags.mask & BR_BCAST_FLOOD)
+		lan966x_port_set_bcast_flood(port,
+					     !!(flags.val & BR_BCAST_FLOOD));
+
+	if (flags.mask & BR_LEARNING)
+		lan966x_port_set_learning(port,
+					  !!(flags.val & BR_LEARNING));
 }
 
 static int lan966x_port_pre_bridge_flags(struct lan966x_port *port,
 					 struct switchdev_brport_flags flags)
 {
-	if (flags.mask & ~BR_MCAST_FLOOD)
+	if (flags.mask & ~(BR_MCAST_FLOOD | BR_FLOOD | BR_BCAST_FLOOD |
+			   BR_LEARNING))
 		return -EINVAL;
 
 	return 0;
@@ -65,7 +119,8 @@ static void lan966x_port_stp_state_set(struct lan966x_port *port, u8 state)
 	struct lan966x *lan966x = port->lan966x;
 	bool learn_ena = false;
 
-	if (state == BR_STATE_FORWARDING || state == BR_STATE_LEARNING)
+	if ((state == BR_STATE_FORWARDING || state == BR_STATE_LEARNING) &&
+	    port->learn_ena)
 		learn_ena = true;
 
 	if (state == BR_STATE_FORWARDING)
@@ -128,6 +183,7 @@ static int lan966x_port_bridge_join(struct lan966x_port *port,
 				    struct net_device *bridge,
 				    struct netlink_ext_ack *extack)
 {
+	struct switchdev_brport_flags flags = {0};
 	struct lan966x *lan966x = port->lan966x;
 	struct net_device *dev = port->dev;
 	int err;
@@ -150,13 +206,22 @@ static int lan966x_port_bridge_join(struct lan966x_port *port,
 
 	lan966x->bridge_mask |= BIT(port->chip_port);
 
+	flags.mask = BR_LEARNING | BR_FLOOD | BR_MCAST_FLOOD | BR_BCAST_FLOOD;
+	flags.val = flags.mask;
+	lan966x_port_bridge_flags(port, flags);
+
 	return 0;
 }
 
 static void lan966x_port_bridge_leave(struct lan966x_port *port,
 				      struct net_device *bridge)
 {
+	struct switchdev_brport_flags flags = {0};
 	struct lan966x *lan966x = port->lan966x;
+
+	flags.mask = BR_LEARNING | BR_FLOOD | BR_MCAST_FLOOD | BR_BCAST_FLOOD;
+	flags.val = flags.mask & ~BR_LEARNING;
+	lan966x_port_bridge_flags(port, flags);
 
 	lan966x->bridge_mask &= ~BIT(port->chip_port);
 

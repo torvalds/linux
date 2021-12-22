@@ -715,8 +715,10 @@ static void lan966x_init(struct lan966x *lan966x)
 	/* There are 8 priorities */
 	for (i = 0; i < 8; ++i)
 		lan_rmw(ANA_FLOODING_FLD_MULTICAST_SET(PGID_MC) |
+			ANA_FLOODING_FLD_UNICAST_SET(PGID_UC) |
 			ANA_FLOODING_FLD_BROADCAST_SET(PGID_BC),
 			ANA_FLOODING_FLD_MULTICAST |
+			ANA_FLOODING_FLD_UNICAST |
 			ANA_FLOODING_FLD_BROADCAST,
 			lan966x, ANA_FLOODING(i));
 
@@ -767,6 +769,11 @@ static void lan966x_init(struct lan966x *lan966x)
 	lan_rmw(GENMASK(lan966x->num_phys_ports - 1, 0),
 		ANA_PGID_PGID,
 		lan966x, ANA_PGID(PGID_MCIPV4));
+
+	/* Unicast to all other ports */
+	lan_rmw(GENMASK(lan966x->num_phys_ports - 1, 0),
+		ANA_PGID_PGID,
+		lan966x, ANA_PGID(PGID_UC));
 
 	/* Broadcast to the CPU port and to other ports */
 	lan_rmw(ANA_PGID_PGID_SET(BIT(CPU_PORT) | GENMASK(lan966x->num_phys_ports - 1, 0)),

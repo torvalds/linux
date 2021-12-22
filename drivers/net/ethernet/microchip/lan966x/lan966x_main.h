@@ -126,6 +126,8 @@ struct lan966x_port {
 	u16 vid;
 	bool vlan_aware;
 
+	bool learn_ena;
+
 	struct phylink_config phylink_config;
 	struct phylink_pcs phylink_pcs;
 	struct lan966x_port_config config;
