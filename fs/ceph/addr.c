@@ -4,6 +4,7 @@
 #include <linux/backing-dev.h>
 #include <linux/fs.h>
 #include <linux/mm.h>
+#include <linux/swap.h>
 #include <linux/pagemap.h>
 #include <linux/slab.h>
 #include <linux/pagevec.h>
@@ -174,7 +175,7 @@ static int ceph_releasepage(struct page *page, gfp_t gfp)
 		return 0;
 
 	if (PageFsCache(page)) {
-		if (!gfpflags_allow_blocking(gfp) || !(gfp & __GFP_FS))
+		if (current_is_kswapd() || !(gfp & __GFP_FS))
 			return 0;
 		wait_on_page_fscache(page);
 	}

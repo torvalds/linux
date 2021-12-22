@@ -8,6 +8,7 @@
 #ifndef _NFS_FSCACHE_H
 #define _NFS_FSCACHE_H
 
+#include <linux/swap.h>
 #include <linux/nfs_fs.h>
 #include <linux/nfs_mount.h>
 #include <linux/nfs4_mount.h>
@@ -52,7 +53,7 @@ extern void __nfs_readpage_to_fscache(struct inode *, struct page *);
 static inline int nfs_fscache_release_page(struct page *page, gfp_t gfp)
 {
 	if (PageFsCache(page)) {
-		if (!gfpflags_allow_blocking(gfp) || !(gfp & __GFP_FS))
+		if (current_is_kswapd() || !(gfp & __GFP_FS))
 			return false;
 		wait_on_page_fscache(page);
 		fscache_note_page_release(nfs_i_fscache(page->mapping->host));
