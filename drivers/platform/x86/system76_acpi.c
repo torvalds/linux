@@ -35,6 +35,7 @@ struct system76_data {
 	union acpi_object *nfan;
 	union acpi_object *ntmp;
 	struct input_dev *input;
+	bool has_open_ec;
 };
 
 static const struct acpi_device_id device_ids[] = {
@@ -279,20 +280,12 @@ static struct acpi_battery_hook system76_battery_hook = {
 
 static void system76_battery_init(void)
 {
-	acpi_handle handle;
-
-	handle = ec_get_handle();
-	if (handle && acpi_has_method(handle, "GBCT"))
-		battery_hook_register(&system76_battery_hook);
+	battery_hook_register(&system76_battery_hook);
 }
 
 static void system76_battery_exit(void)
 {
-	acpi_handle handle;
-
-	handle = ec_get_handle();
-	if (handle && acpi_has_method(handle, "GBCT"))
-		battery_hook_unregister(&system76_battery_hook);
+	battery_hook_unregister(&system76_battery_hook);
 }
 
 // Get the airplane mode LED brightness
@@ -673,6 +666,10 @@ static int system76_add(struct acpi_device *acpi_dev)
 	acpi_dev->driver_data = data;
 	data->acpi_dev = acpi_dev;
 
+	// Some models do not run open EC firmware. Check for an ACPI method
+	// that only exists on open EC to guard functionality specific to it.
+	data->has_open_ec = acpi_has_method(acpi_device_handle(data->acpi_dev), "NFAN");
+
 	err = system76_get(data, "INIT");
 	if (err)
 		return err;
@@ -718,27 +715,31 @@ static int system76_add(struct acpi_device *acpi_dev)
 	if (err)
 		goto error;
 
-	err = system76_get_object(data, "NFAN", &data->nfan);
-	if (err)
-		goto error;
+	if (data->has_open_ec) {
+		err = system76_get_object(data, "NFAN", &data->nfan);
+		if (err)
+			goto error;
 
-	err = system76_get_object(data, "NTMP", &data->ntmp);
-	if (err)
-		goto error;
+		err = system76_get_object(data, "NTMP", &data->ntmp);
+		if (err)
+			goto error;
 
-	data->therm = devm_hwmon_device_register_with_info(&acpi_dev->dev,
-		"system76_acpi", data, &thermal_chip_info, NULL);
-	err = PTR_ERR_OR_ZERO(data->therm);
-	if (err)
-		goto error;
+		data->therm = devm_hwmon_device_register_with_info(&acpi_dev->dev,
+			"system76_acpi", data, &thermal_chip_info, NULL);
+		err = PTR_ERR_OR_ZERO(data->therm);
+		if (err)
+			goto error;
 
-	system76_battery_init();
+		system76_battery_init();
+	}
 
 	return 0;
 
 error:
-	kfree(data->ntmp);
-	kfree(data->nfan);
+	if (data->has_open_ec) {
+		kfree(data->ntmp);
+		kfree(data->nfan);
+	}
 	return err;
 }
 
@@ -749,13 +750,14 @@ static int system76_remove(struct acpi_device *acpi_dev)
 
 	data = acpi_driver_data(acpi_dev);
 
-	system76_battery_exit();
+	if (data->has_open_ec) {
+		system76_battery_exit();
+		kfree(data->nfan);
+		kfree(data->ntmp);
+	}
 
 	devm_led_classdev_unregister(&acpi_dev->dev, &data->ap_led);
 	devm_led_classdev_unregister(&acpi_dev->dev, &data->kb_led);
-
-	kfree(data->nfan);
-	kfree(data->ntmp);
 
 	system76_get(data, "FINI");
 
