@@ -137,8 +137,10 @@ static int ar934x_spi_transfer_one_message(struct spi_controller *master,
 					reg >>= 8;
 				}
 			}
+			spi_delay_exec(&t->word_delay, t);
 		}
 		m->actual_length += t->len;
+		spi_transfer_delay_exec(t);
 	}
 
 msg_done:
