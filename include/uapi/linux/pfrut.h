@@ -171,4 +171,92 @@ struct pfru_updated_result {
 	__u64 high_exec_time;
 };
 
+/**
+ * struct pfrt_log_data_info - Log Data from telemetry service.
+ * @status: Indicator of whether this update succeed.
+ * @ext_status: Implementation specific update result.
+ * @chunk1_addr_lo: Low 32bit physical address of the telemetry data chunk1
+ *                  starting address.
+ * @chunk1_addr_hi: High 32bit physical address of the telemetry data chunk1
+ *                  starting address.
+ * @chunk2_addr_lo: Low 32bit physical address of the telemetry data chunk2
+ *                  starting address.
+ * @chunk2_addr_hi: High 32bit physical address of the telemetry data chunk2
+ *                  starting address.
+ * @max_data_size: Maximum supported size of data of all data chunks combined.
+ * @chunk1_size: Data size in bytes of the telemetry data chunk1 buffer.
+ * @chunk2_size: Data size in bytes of the telemetry data chunk2 buffer.
+ * @rollover_cnt: Number of times telemetry data buffer is overwritten
+ *                since telemetry buffer reset.
+ * @reset_cnt: Number of times telemetry services resets that results in
+ *             rollover count and data chunk buffers are reset.
+ */
+struct pfrt_log_data_info {
+	__u32 status;
+	__u32 ext_status;
+	__u64 chunk1_addr_lo;
+	__u64 chunk1_addr_hi;
+	__u64 chunk2_addr_lo;
+	__u64 chunk2_addr_hi;
+	__u32 max_data_size;
+	__u32 chunk1_size;
+	__u32 chunk2_size;
+	__u32 rollover_cnt;
+	__u32 reset_cnt;
+};
+
+/**
+ * struct pfrt_log_info - Telemetry log information.
+ * @log_level: The telemetry log level.
+ * @log_type: The telemetry log type(history and execution).
+ * @log_revid: The telemetry log revision id.
+ */
+struct pfrt_log_info {
+	__u32 log_level;
+	__u32 log_type;
+	__u32 log_revid;
+};
+
+/**
+ * PFRT_LOG_IOC_SET_INFO - _IOW(PFRUT_IOCTL_MAGIC, 0x06,
+ *				struct pfrt_log_info)
+ *
+ * Return:
+ * * 0			- success
+ * * -EFAULT		- fail to get the setting parameter
+ * * -EINVAL		- fail to set the log level
+ *
+ * Set the PFRT log level and log type. The input information is
+ * a struct pfrt_log_info.
+ */
+#define PFRT_LOG_IOC_SET_INFO _IOW(PFRUT_IOCTL_MAGIC, 0x06, struct pfrt_log_info)
+
+/**
+ * PFRT_LOG_IOC_GET_INFO - _IOR(PFRUT_IOCTL_MAGIC, 0x07,
+ *				struct pfrt_log_info)
+ *
+ * Return:
+ * * 0			- success
+ * * -EINVAL		- fail to get the log level
+ * * -EFAULT		- fail to copy the result back to userspace
+ *
+ * Retrieve log level and log type of the telemetry. The information is
+ * a struct pfrt_log_info.
+ */
+#define PFRT_LOG_IOC_GET_INFO _IOR(PFRUT_IOCTL_MAGIC, 0x07, struct pfrt_log_info)
+
+/**
+ * PFRT_LOG_IOC_GET_DATA_INFO - _IOR(PFRUT_IOCTL_MAGIC, 0x08,
+ *				     struct pfrt_log_data_info)
+ *
+ * Return:
+ * * 0			- success
+ * * -EINVAL		- fail to get the log buffer information
+ * * -EFAULT		- fail to copy the log buffer information to userspace
+ *
+ * Retrieve data information about the telemetry. The information
+ * is a struct pfrt_log_data_info.
+ */
+#define PFRT_LOG_IOC_GET_DATA_INFO _IOR(PFRUT_IOCTL_MAGIC, 0x08, struct pfrt_log_data_info)
+
 #endif /* __PFRUT_H__ */
