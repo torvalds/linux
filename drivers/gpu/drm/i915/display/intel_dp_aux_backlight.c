@@ -35,6 +35,7 @@
  */
 
 #include "intel_display_types.h"
+#include "intel_dp.h"
 #include "intel_dp_aux_backlight.h"
 #include "intel_panel.h"
 
@@ -105,6 +106,8 @@ intel_dp_aux_supports_hdr_backlight(struct intel_connector *connector)
 	struct intel_panel *panel = &connector->panel;
 	int ret;
 	u8 tcon_cap[4];
+
+	intel_dp_wait_source_oui(intel_dp);
 
 	ret = drm_dp_dpcd_read(aux, INTEL_EDP_HDR_TCON_CAP0, tcon_cap, sizeof(tcon_cap));
 	if (ret != sizeof(tcon_cap))
@@ -203,6 +206,8 @@ intel_dp_aux_hdr_enable_backlight(const struct intel_crtc_state *crtc_state,
 	struct intel_dp *intel_dp = enc_to_intel_dp(connector->encoder);
 	int ret;
 	u8 old_ctrl, ctrl;
+
+	intel_dp_wait_source_oui(intel_dp);
 
 	ret = drm_dp_dpcd_readb(&intel_dp->aux, INTEL_EDP_HDR_GETSET_CTRL_PARAMS, &old_ctrl);
 	if (ret != 1) {

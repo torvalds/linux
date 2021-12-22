@@ -2185,17 +2185,14 @@ void mlx5e_close_channels(struct mlx5e_channels *chs)
 	chs->num = 0;
 }
 
-static int mlx5e_modify_tirs_lro(struct mlx5e_priv *priv)
+static int mlx5e_modify_tirs_packet_merge(struct mlx5e_priv *priv)
 {
 	struct mlx5e_rx_res *res = priv->rx_res;
-	struct mlx5e_lro_param lro_param;
 
-	lro_param = mlx5e_get_lro_param(&priv->channels.params);
-
-	return mlx5e_rx_res_lro_set_param(res, &lro_param);
+	return mlx5e_rx_res_packet_merge_set_param(res, &priv->channels.params.packet_merge);
 }
 
-static MLX5E_DEFINE_PREACTIVATE_WRAPPER_CTX(mlx5e_modify_tirs_lro);
+static MLX5E_DEFINE_PREACTIVATE_WRAPPER_CTX(mlx5e_modify_tirs_packet_merge);
 
 static int mlx5e_set_mtu(struct mlx5_core_dev *mdev,
 			 struct mlx5e_params *params, u16 mtu)
@@ -3270,16 +3267,25 @@ static int set_feature_lro(struct net_device *netdev, bool enable)
 	}
 
 	new_params = *cur_params;
-	new_params.lro_en = enable;
 
-	if (cur_params->rq_wq_type == MLX5_WQ_TYPE_LINKED_LIST_STRIDING_RQ) {
-		if (mlx5e_rx_mpwqe_is_linear_skb(mdev, cur_params, NULL) ==
-		    mlx5e_rx_mpwqe_is_linear_skb(mdev, &new_params, NULL))
-			reset = false;
+	if (enable)
+		new_params.packet_merge.type = MLX5E_PACKET_MERGE_LRO;
+	else if (new_params.packet_merge.type == MLX5E_PACKET_MERGE_LRO)
+		new_params.packet_merge.type = MLX5E_PACKET_MERGE_NONE;
+	else
+		goto out;
+
+	if (!(cur_params->packet_merge.type == MLX5E_PACKET_MERGE_SHAMPO &&
+	      new_params.packet_merge.type == MLX5E_PACKET_MERGE_LRO)) {
+		if (cur_params->rq_wq_type == MLX5_WQ_TYPE_LINKED_LIST_STRIDING_RQ) {
+			if (mlx5e_rx_mpwqe_is_linear_skb(mdev, cur_params, NULL) ==
+			    mlx5e_rx_mpwqe_is_linear_skb(mdev, &new_params, NULL))
+				reset = false;
+		}
 	}
 
 	err = mlx5e_safe_switch_params(priv, &new_params,
-				       mlx5e_modify_tirs_lro_ctx, NULL, reset);
+				       mlx5e_modify_tirs_packet_merge_ctx, NULL, reset);
 out:
 	mutex_unlock(&priv->state_lock);
 	return err;
@@ -3606,7 +3612,7 @@ int mlx5e_change_mtu(struct net_device *netdev, int new_mtu,
 		goto out;
 	}
 
-	if (params->lro_en)
+	if (params->packet_merge.type == MLX5E_PACKET_MERGE_LRO)
 		reset = false;
 
 	if (params->rq_wq_type == MLX5_WQ_TYPE_LINKED_LIST_STRIDING_RQ) {
@@ -4063,8 +4069,8 @@ static int mlx5e_xdp_allowed(struct mlx5e_priv *priv, struct bpf_prog *prog)
 	struct net_device *netdev = priv->netdev;
 	struct mlx5e_params new_params;
 
-	if (priv->channels.params.lro_en) {
-		netdev_warn(netdev, "can't set XDP while LRO is on, disable LRO first\n");
+	if (priv->channels.params.packet_merge.type != MLX5E_PACKET_MERGE_NONE) {
+		netdev_warn(netdev, "can't set XDP while HW-GRO/LRO is on, disable them first\n");
 		return -EINVAL;
 	}
 
@@ -4321,9 +4327,10 @@ void mlx5e_build_nic_params(struct mlx5e_priv *priv, struct mlx5e_xsk *xsk, u16 
 	    params->rq_wq_type == MLX5_WQ_TYPE_LINKED_LIST_STRIDING_RQ) {
 		/* No XSK params: checking the availability of striding RQ in general. */
 		if (!mlx5e_rx_mpwqe_is_linear_skb(mdev, params, NULL))
-			params->lro_en = !slow_pci_heuristic(mdev);
+			params->packet_merge.type = slow_pci_heuristic(mdev) ?
+				MLX5E_PACKET_MERGE_NONE : MLX5E_PACKET_MERGE_LRO;
 	}
-	params->lro_timeout = mlx5e_choose_lro_timeout(mdev, MLX5E_DEFAULT_LRO_TIMEOUT);
+	params->packet_merge.timeout = mlx5e_choose_lro_timeout(mdev, MLX5E_DEFAULT_LRO_TIMEOUT);
 
 	/* CQ moderation params */
 	rx_cq_period_mode = MLX5_CAP_GEN(mdev, cq_period_start_from_cqe) ?
@@ -4608,7 +4615,6 @@ static int mlx5e_init_nic_rx(struct mlx5e_priv *priv)
 {
 	struct mlx5_core_dev *mdev = priv->mdev;
 	enum mlx5e_rx_res_features features;
-	struct mlx5e_lro_param lro_param;
 	int err;
 
 	priv->rx_res = mlx5e_rx_res_alloc();
@@ -4626,9 +4632,9 @@ static int mlx5e_init_nic_rx(struct mlx5e_priv *priv)
 	features = MLX5E_RX_RES_FEATURE_XSK | MLX5E_RX_RES_FEATURE_PTP;
 	if (priv->channels.params.tunneled_offload_en)
 		features |= MLX5E_RX_RES_FEATURE_INNER_FT;
-	lro_param = mlx5e_get_lro_param(&priv->channels.params);
 	err = mlx5e_rx_res_init(priv->rx_res, priv->mdev, features,
-				priv->max_nch, priv->drop_rq.rqn, &lro_param,
+				priv->max_nch, priv->drop_rq.rqn,
+				&priv->channels.params.packet_merge,
 				priv->channels.params.num_channels);
 	if (err)
 		goto err_close_drop_rq;

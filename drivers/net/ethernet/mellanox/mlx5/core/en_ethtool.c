@@ -1954,8 +1954,8 @@ static int set_pflag_rx_striding_rq(struct net_device *netdev, bool enable)
 			return -EOPNOTSUPP;
 		if (!mlx5e_striding_rq_possible(mdev, &priv->channels.params))
 			return -EINVAL;
-	} else if (priv->channels.params.lro_en) {
-		netdev_warn(netdev, "Can't set legacy RQ with LRO, disable LRO first\n");
+	} else if (priv->channels.params.packet_merge.type != MLX5E_PACKET_MERGE_NONE) {
+		netdev_warn(netdev, "Can't set legacy RQ with HW-GRO/LRO, disable them first\n");
 		return -EINVAL;
 	}
 

@@ -164,12 +164,6 @@ u32 ipa_cmd_pipeline_clear_count(void);
 void ipa_cmd_pipeline_clear_wait(struct ipa *ipa);
 
 /**
- * ipa_cmd_pipeline_clear() - Clear the hardware pipeline
- * @ipa:	- IPA pointer
- */
-void ipa_cmd_pipeline_clear(struct ipa *ipa);
-
-/**
  * ipa_cmd_trans_alloc() - Allocate a transaction for the command TX endpoint
  * @ipa:	IPA pointer
  * @tre_count:	Number of elements in the transaction

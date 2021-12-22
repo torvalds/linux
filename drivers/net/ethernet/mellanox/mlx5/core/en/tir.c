@@ -70,24 +70,24 @@ void mlx5e_tir_builder_build_rqt(struct mlx5e_tir_builder *builder, u32 tdn,
 	MLX5_SET(tirc, tirc, tunneled_offload_en, inner_ft_support);
 }
 
-void mlx5e_tir_builder_build_lro(struct mlx5e_tir_builder *builder,
-				 const struct mlx5e_lro_param *lro_param)
+void mlx5e_tir_builder_build_packet_merge(struct mlx5e_tir_builder *builder,
+					  const struct mlx5e_packet_merge_param *pkt_merge_param)
 {
 	void *tirc = mlx5e_tir_builder_get_tirc(builder);
 	const unsigned int rough_max_l2_l3_hdr_sz = 256;
 
 	if (builder->modify)
-		MLX5_SET(modify_tir_in, builder->in, bitmask.lro, 1);
+		MLX5_SET(modify_tir_in, builder->in, bitmask.packet_merge, 1);
 
-	if (!lro_param->enabled)
+	if (pkt_merge_param->type == MLX5E_PACKET_MERGE_NONE)
 		return;
 
-	MLX5_SET(tirc, tirc, lro_enable_mask,
-		 MLX5_TIRC_LRO_ENABLE_MASK_IPV4_LRO |
-		 MLX5_TIRC_LRO_ENABLE_MASK_IPV6_LRO);
+	MLX5_SET(tirc, tirc, packet_merge_mask,
+		 MLX5_TIRC_PACKET_MERGE_MASK_IPV4_LRO |
+		 MLX5_TIRC_PACKET_MERGE_MASK_IPV6_LRO);
 	MLX5_SET(tirc, tirc, lro_max_ip_payload_size,
 		 (MLX5E_PARAMS_DEFAULT_LRO_WQE_SZ - rough_max_l2_l3_hdr_sz) >> 8);
-	MLX5_SET(tirc, tirc, lro_timeout_period_usecs, lro_param->timeout);
+	MLX5_SET(tirc, tirc, lro_timeout_period_usecs, pkt_merge_param->timeout);
 }
 
 static int mlx5e_hfunc_to_hw(u8 hfunc)

@@ -87,7 +87,8 @@ bool mlx5e_rx_is_linear_skb(struct mlx5e_params *params,
 	u32 linear_frag_sz = max(mlx5e_rx_get_linear_frag_sz(params, xsk),
 				 mlx5e_rx_get_linear_frag_sz(params, NULL));
 
-	return !params->lro_en && linear_frag_sz <= PAGE_SIZE;
+	return params->packet_merge.type == MLX5E_PACKET_MERGE_NONE &&
+		linear_frag_sz <= PAGE_SIZE;
 }
 
 bool mlx5e_verify_rx_mpwqe_strides(struct mlx5_core_dev *mdev,
@@ -164,19 +165,8 @@ u16 mlx5e_get_rq_headroom(struct mlx5_core_dev *mdev,
 		mlx5e_rx_is_linear_skb(params, xsk) :
 		mlx5e_rx_mpwqe_is_linear_skb(mdev, params, xsk);
 
-	return is_linear_skb ? mlx5e_get_linear_rq_headroom(params, xsk) : 0;
-}
-
-struct mlx5e_lro_param mlx5e_get_lro_param(struct mlx5e_params *params)
-{
-	struct mlx5e_lro_param lro_param;
-
-	lro_param = (struct mlx5e_lro_param) {
-		.enabled = params->lro_en,
-		.timeout = params->lro_timeout,
-	};
-
-	return lro_param;
+	return is_linear_skb || params->packet_merge.type == MLX5E_PACKET_MERGE_SHAMPO ?
+		mlx5e_get_linear_rq_headroom(params, xsk) : 0;
 }
 
 u16 mlx5e_calc_sq_stop_room(struct mlx5_core_dev *mdev, struct mlx5e_params *params)
@@ -485,10 +475,11 @@ static void mlx5e_build_rx_cq_param(struct mlx5_core_dev *mdev,
 
 static u8 rq_end_pad_mode(struct mlx5_core_dev *mdev, struct mlx5e_params *params)
 {
+	bool lro_en = params->packet_merge.type == MLX5E_PACKET_MERGE_LRO;
 	bool ro = pcie_relaxed_ordering_enabled(mdev->pdev) &&
 		MLX5_CAP_GEN(mdev, relaxed_ordering_write);
 
-	return ro && params->lro_en ?
+	return ro && lro_en ?
 		MLX5_WQ_END_PAD_MODE_NONE : MLX5_WQ_END_PAD_MODE_ALIGN;
 }
 

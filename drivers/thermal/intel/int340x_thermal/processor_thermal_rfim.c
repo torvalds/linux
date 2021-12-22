@@ -29,7 +29,7 @@ static const char * const fivr_strings[] = {
 };
 
 static const struct mmio_reg tgl_fivr_mmio_regs[] = {
-	{ 0, 0x5A18, 3, 0x7, 12}, /* vco_ref_code_lo */
+	{ 0, 0x5A18, 3, 0x7, 11}, /* vco_ref_code_lo */
 	{ 0, 0x5A18, 8, 0xFF, 16}, /* vco_ref_code_hi */
 	{ 0, 0x5A08, 8, 0xFF, 0}, /* spread_spectrum_pct */
 	{ 0, 0x5A08, 1, 0x1, 8}, /* spread_spectrum_clk_enable */

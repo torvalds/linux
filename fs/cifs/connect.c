@@ -1220,6 +1220,10 @@ static int match_server(struct TCP_Server_Info *server, struct smb3_fs_context *
 	if (ctx->nosharesock)
 		return 0;
 
+	/* this server does not share socket */
+	if (server->nosharesock)
+		return 0;
+
 	/* If multidialect negotiation see if existing sessions match one */
 	if (strcmp(ctx->vals->version_string, SMB3ANY_VERSION_STRING) == 0) {
 		if (server->vals->protocol_id < SMB30_PROT_ID)
@@ -1369,6 +1373,9 @@ cifs_get_tcp_session(struct smb3_fs_context *ctx)
 		rc = -ENOMEM;
 		goto out_err;
 	}
+
+	if (ctx->nosharesock)
+		tcp_ses->nosharesock = true;
 
 	tcp_ses->ops = ctx->ops;
 	tcp_ses->vals = ctx->vals;

@@ -2491,6 +2491,9 @@ ql_dbg(uint level, scsi_qla_host_t *vha, uint id, const char *fmt, ...)
 	struct va_format vaf;
 	char pbuf[64];
 
+	if (!ql_mask_match(level) && !trace_ql_dbg_log_enabled())
+		return;
+
 	va_start(va, fmt);
 
 	vaf.fmt = fmt;

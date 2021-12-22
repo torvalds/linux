@@ -244,6 +244,17 @@ enum mlx5e_priv_flag {
 
 #define MLX5E_GET_PFLAG(params, pflag) (!!((params)->pflags & (BIT(pflag))))
 
+enum packet_merge {
+	MLX5E_PACKET_MERGE_NONE,
+	MLX5E_PACKET_MERGE_LRO,
+	MLX5E_PACKET_MERGE_SHAMPO,
+};
+
+struct mlx5e_packet_merge_param {
+	enum packet_merge type;
+	u32 timeout;
+};
+
 struct mlx5e_params {
 	u8  log_sq_size;
 	u8  rq_wq_type;
@@ -258,13 +269,12 @@ struct mlx5e_params {
 	bool tunneled_offload_en;
 	struct dim_cq_moder rx_cq_moderation;
 	struct dim_cq_moder tx_cq_moderation;
-	bool lro_en;
+	struct mlx5e_packet_merge_param packet_merge;
 	u8  tx_min_inline_mode;
 	bool vlan_strip_disable;
 	bool scatter_fcs_en;
 	bool rx_dim_enabled;
 	bool tx_dim_enabled;
-	u32 lro_timeout;
 	u32 pflags;
 	struct bpf_prog *xdp_prog;
 	struct mlx5e_xsk *xsk;
