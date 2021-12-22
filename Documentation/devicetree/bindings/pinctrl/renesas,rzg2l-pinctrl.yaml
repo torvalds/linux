@@ -76,6 +76,7 @@ additionalProperties:
         output-impedance-ohms:
           enum: [ 33, 50, 66, 100 ]
         power-source:
+          description: I/O voltage in millivolt.
           enum: [ 1800, 2500, 3300 ]
         slew-rate: true
         gpio-hog: true
