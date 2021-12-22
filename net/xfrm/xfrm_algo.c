@@ -341,6 +341,26 @@ static struct xfrm_algo_desc aalg_list[] = {
 
 	.pfkey_supported = 0,
 },
+{
+	.name = "hmac(sm3)",
+	.compat = "sm3",
+
+	.uinfo = {
+		.auth = {
+			.icv_truncbits = 256,
+			.icv_fullbits = 256,
+		}
+	},
+
+	.pfkey_supported = 1,
+
+	.desc = {
+		.sadb_alg_id = SADB_X_AALG_SM3_256HMAC,
+		.sadb_alg_ivlen = 0,
+		.sadb_alg_minbits = 256,
+		.sadb_alg_maxbits = 256
+	}
+},
 };
 
 static struct xfrm_algo_desc ealg_list[] = {
