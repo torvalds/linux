@@ -6561,21 +6561,14 @@ static void vop2_setup_port_mux(struct vop2_video_port *vp, uint16_t port_mux_cf
 	spin_unlock(&vop2->reg_lock);
 }
 
-static void vop2_setup_layer_mixer_for_vp(struct vop2_video_port *vp,
-					  const struct vop2_zpos *vop2_zpos)
+static u16 vop2_calc_bg_ovl_and_port_mux(struct vop2_video_port *vp)
 {
 	struct vop2_video_port *prev_vp;
 	struct vop2 *vop2 = vp->vop2;
-	u8 port_id = vp->id;
 	const struct vop2_data *vop2_data = vop2->data;
-	uint8_t nr_layers = vp->nr_layers;
-	const struct vop2_zpos *zpos;
-	struct vop2_win *win;
-	struct vop2_layer *layer;
 	u16 port_mux_cfg = 0;
 	u8 port_mux;
 	u8 used_layers = 0;
-	u8 layer_id, win_phys_id;
 	int i;
 
 	for (i = 0; i < vop2_data->nr_vps - 1; i++) {
@@ -6608,6 +6601,26 @@ static void vop2_setup_layer_mixer_for_vp(struct vop2_video_port *vp,
 
 	port_mux_cfg |= 7 << (4 * (vop2->data->nr_vps - 1));
 
+	return port_mux_cfg;
+}
+
+static void vop2_setup_layer_mixer_for_vp(struct vop2_video_port *vp,
+					  const struct vop2_zpos *vop2_zpos)
+{
+	struct vop2_video_port *prev_vp;
+	struct vop2 *vop2 = vp->vop2;
+	u8 port_id = vp->id;
+	uint8_t nr_layers = vp->nr_layers;
+	const struct vop2_zpos *zpos;
+	struct vop2_win *win;
+	struct vop2_layer *layer;
+	u8 used_layers = 0;
+	u8 layer_id, win_phys_id;
+	u16 port_mux_cfg;
+	int i;
+
+	port_mux_cfg = vop2_calc_bg_ovl_and_port_mux(vp);
+
 	/*
 	 * Win and layer must map one by one, if a win is selected
 	 * by two layers, unexpected error may happen.
@@ -6615,7 +6628,6 @@ static void vop2_setup_layer_mixer_for_vp(struct vop2_video_port *vp,
 	 * old win of the layer to the layer where the new win comes from.
 	 *
 	 */
-	used_layers = 0;
 	for (i = 0; i < port_id; i++) {
 		prev_vp = &vop2->vps[i];
 		used_layers += hweight32(prev_vp->win_mask);
@@ -6853,6 +6865,9 @@ static void vop2_crtc_atomic_begin(struct drm_crtc *crtc, struct drm_crtc_state 
 
 		}
 
+	} else {
+		vop2_calc_bg_ovl_and_port_mux(vp);
+		vop2_setup_dly_for_vp(vp);
 	}
 
 	/* The pre alpha overlay of Cluster still need process in one win mode. */
