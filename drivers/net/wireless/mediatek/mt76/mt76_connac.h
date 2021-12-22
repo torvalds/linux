@@ -110,6 +110,11 @@ static inline bool is_mt7915(struct mt76_dev *dev)
 	return mt76_chip(dev) == 0x7915;
 }
 
+static inline bool is_mt7916(struct mt76_dev *dev)
+{
+	return mt76_chip(dev) == 0x7906;
+}
+
 static inline u8 mt76_connac_chan_bw(struct cfg80211_chan_def *chandef)
 {
 	static const u8 width_to_bw[] = {
