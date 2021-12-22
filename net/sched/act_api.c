@@ -186,12 +186,19 @@ static int offload_action_init(struct flow_offload_action *fl_action,
 			       enum offload_act_command  cmd,
 			       struct netlink_ext_ack *extack)
 {
+	int err;
+
 	fl_action->extack = extack;
 	fl_action->command = cmd;
 	fl_action->index = act->tcfa_index;
 
-	if (act->ops->offload_act_setup)
-		return act->ops->offload_act_setup(act, fl_action, NULL, false);
+	if (act->ops->offload_act_setup) {
+		spin_lock_bh(&act->tcfa_lock);
+		err = act->ops->offload_act_setup(act, fl_action, NULL,
+						  false);
+		spin_unlock_bh(&act->tcfa_lock);
+		return err;
+	}
 
 	return -EOPNOTSUPP;
 }
