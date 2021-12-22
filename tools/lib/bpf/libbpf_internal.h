@@ -188,6 +188,8 @@ static inline void libbpf_strlcpy(char *dst, const char *src, size_t sz)
 	dst[i] = '\0';
 }
 
+__u32 get_kernel_version(void);
+
 struct btf;
 struct btf_type;
 

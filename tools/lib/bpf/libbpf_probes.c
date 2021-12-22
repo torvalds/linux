@@ -48,22 +48,6 @@ static int get_vendor_id(int ifindex)
 	return strtol(buf, NULL, 0);
 }
 
-static int get_kernel_version(void)
-{
-	int version, subversion, patchlevel;
-	struct utsname utsn;
-
-	/* Return 0 on failure, and attempt to probe with empty kversion */
-	if (uname(&utsn))
-		return 0;
-
-	if (sscanf(utsn.release, "%d.%d.%d",
-		   &version, &subversion, &patchlevel) != 3)
-		return 0;
-
-	return (version << 16) + (subversion << 8) + patchlevel;
-}
-
 static int probe_prog_load(enum bpf_prog_type prog_type,
 			   const struct bpf_insn *insns, size_t insns_cnt,
 			   char *log_buf, size_t log_buf_sz,
