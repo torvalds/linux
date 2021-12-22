@@ -373,7 +373,9 @@ static ssize_t bch2_read_bfloat_failed(struct file *file, char __user *buf,
 
 	bch2_trans_init(&trans, i->c, 0, 0);
 
-	bch2_trans_iter_init(&trans, &iter, i->id, i->from, BTREE_ITER_PREFETCH);
+	bch2_trans_iter_init(&trans, &iter, i->id, i->from,
+			     BTREE_ITER_PREFETCH|
+			     BTREE_ITER_ALL_SNAPSHOTS);
 
 	while ((k = bch2_btree_iter_peek(&iter)).k &&
 	       !(err = bkey_err(k))) {
