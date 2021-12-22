@@ -2369,7 +2369,7 @@ static struct vbt_header *spi_oprom_get_vbt(struct drm_i915_private *i915)
 	vbt_size = intel_uncore_read(&i915->uncore, PRIMARY_SPI_TRIGGER);
 	vbt_size &= 0xffff;
 
-	vbt = kzalloc(vbt_size, GFP_KERNEL);
+	vbt = kzalloc(round_up(vbt_size, 4), GFP_KERNEL);
 	if (!vbt)
 		goto err_not_found;
 
