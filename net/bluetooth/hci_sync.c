@@ -5195,29 +5195,28 @@ int hci_le_create_conn_sync(struct hci_dev *hdev, struct hci_conn *conn)
 	u8 own_addr_type;
 	int err;
 
-	/* Disable advertising if we're active. For central role
-	 * connections most controllers will refuse to connect if
-	 * advertising is enabled, and for peripheral role connections we
-	 * anyway have to disable it in order to start directed
-	 * advertising. Any registered advertisements will be
-	 * re-enabled after the connection attempt is finished.
-	 */
-	hci_pause_advertising_sync(hdev);
-
 	/* If requested to connect as peripheral use directed advertising */
 	if (conn->role == HCI_ROLE_SLAVE) {
-		/* If we're active scanning most controllers are unable
-		 * to initiate advertising. Simply reject the attempt.
+		/* If we're active scanning and the controller doesn't support
+		 * simultaneous roles simply reject the attempt.
 		 */
 		if (hci_dev_test_flag(hdev, HCI_LE_SCAN) &&
-		    hdev->le_scan_type == LE_SCAN_ACTIVE) {
+		    hdev->le_scan_type == LE_SCAN_ACTIVE &&
+		    !hci_dev_le_state_simultaneous(hdev)) {
 			hci_conn_del(conn);
 			return -EBUSY;
 		}
 
+		/* Pause advertising while doing directed advertising. */
+		hci_pause_advertising_sync(hdev);
+
 		err = hci_le_directed_advertising_sync(hdev, conn);
 		goto done;
 	}
+
+	/* Disable advertising if simultaneous roles is not supported. */
+	if (!hci_dev_le_state_simultaneous(hdev))
+		hci_pause_advertising_sync(hdev);
 
 	params = hci_conn_params_lookup(hdev, &conn->dst, conn->dst_type);
 	if (params) {
@@ -5276,6 +5275,7 @@ int hci_le_create_conn_sync(struct hci_dev *hdev, struct hci_conn *conn)
 				       HCI_CMD_TIMEOUT, NULL);
 
 done:
+	/* Re-enable advertising after the connection attempt is finished. */
 	hci_resume_advertising_sync(hdev);
 	return err;
 }

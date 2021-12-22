@@ -3916,10 +3916,7 @@ static int read_exp_features_info(struct sock *sk, struct hci_dev *hdev,
 #endif
 
 	if (hdev) {
-		if (test_bit(HCI_QUIRK_VALID_LE_STATES, &hdev->quirks) &&
-		    (hdev->le_states[4] & 0x08) &&	/* Central */
-		    (hdev->le_states[4] & 0x40) &&	/* Peripheral */
-		    (hdev->le_states[3] & 0x10))	/* Simultaneous */
+		if (hci_dev_le_state_simultaneous(hdev))
 			flags = BIT(0);
 		else
 			flags = 0;
