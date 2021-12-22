@@ -184,6 +184,15 @@ int mmc_send_op_cond(struct mmc_host *host, u32 ocr, u32 *rocr)
 		if (err)
 			break;
 
+		/*
+		 * According to eMMC specification v5.1 section A6.1, the R3
+		 * response value should be 0x00FF8080, 0x40FF8080, 0x80FF8080
+		 * or 0xC0FF8080. The EMMC device may be abnormal if a wrong
+		 * OCR data is configured.
+		 */
+		if ((cmd.resp[0] & 0xFFFFFF) != 0x00FF8080)
+			continue;
+
 		/* wait until reset completes */
 		if (mmc_host_is_spi(host)) {
 			if (!(cmd.resp[0] & R1_SPI_IDLE))
