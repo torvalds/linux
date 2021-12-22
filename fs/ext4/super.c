@@ -2246,6 +2246,8 @@ static int ext4_parse_param(struct fs_context *fc, struct fs_parameter *param)
 		ctx_set_mount_flags(ctx, EXT4_MF_FS_ABORTED);
 		return 0;
 	case Opt_i_version:
+		ext4_msg(NULL, KERN_WARNING, deprecated_msg, param->key, "5.20");
+		ext4_msg(NULL, KERN_WARNING, "Use iversion instead\n");
 		ctx_set_flags(ctx, SB_I_VERSION);
 		return 0;
 	case Opt_inlinecrypt:
@@ -2874,6 +2876,14 @@ static int ext4_apply_options(struct fs_context *fc, struct super_block *sb)
 	sbi->s_mount_flags |= ctx->vals_s_mount_flags;
 	sb->s_flags &= ~ctx->mask_s_flags;
 	sb->s_flags |= ctx->vals_s_flags;
+
+	/*
+	 * i_version differs from common mount option iversion so we have
+	 * to let vfs know that it was set, otherwise it would get cleared
+	 * on remount
+	 */
+	if (ctx->mask_s_flags & SB_I_VERSION)
+		fc->sb_flags |= SB_I_VERSION;
 
 #define APPLY(X) ({ if (ctx->spec & EXT4_SPEC_##X) sbi->X = ctx->X; })
 	APPLY(s_commit_interval);
@@ -4342,8 +4352,7 @@ err_out:
 	return NULL;
 }
 
-static int __ext4_fill_super(struct fs_context *fc, struct super_block *sb,
-			     int silent)
+static int __ext4_fill_super(struct fs_context *fc, struct super_block *sb)
 {
 	struct buffer_head *bh, **group_desc;
 	struct ext4_super_block *es = NULL;
@@ -4363,6 +4372,7 @@ static int __ext4_fill_super(struct fs_context *fc, struct super_block *sb,
 	int err = 0;
 	ext4_group_t first_not_zeroed;
 	struct ext4_fs_context *ctx = fc->fs_private;
+	int silent = fc->sb_flags & SB_SILENT;
 
 	/* Set defaults for the variables that will be set during parsing */
 	ctx->journal_ioprio = DEFAULT_JOURNAL_IOPRIO;
@@ -5540,7 +5550,7 @@ static int ext4_fill_super(struct super_block *sb, struct fs_context *fc)
 	if (ctx->spec & EXT4_SPEC_s_sb_block)
 		sbi->s_sb_block = ctx->s_sb_block;
 
-	ret = __ext4_fill_super(fc, sb, fc->sb_flags & SB_SILENT);
+	ret = __ext4_fill_super(fc, sb);
 	if (ret < 0)
 		goto free_sbi;
 
@@ -6199,13 +6209,12 @@ struct ext4_mount_options {
 #endif
 };
 
-static int __ext4_remount(struct fs_context *fc, struct super_block *sb,
-			  int *flags)
+static int __ext4_remount(struct fs_context *fc, struct super_block *sb)
 {
 	struct ext4_fs_context *ctx = fc->fs_private;
 	struct ext4_super_block *es;
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
-	unsigned long old_sb_flags, vfs_flags;
+	unsigned long old_sb_flags;
 	struct ext4_mount_options old_opts;
 	ext4_group_t g;
 	int err = 0;
@@ -6244,14 +6253,6 @@ static int __ext4_remount(struct fs_context *fc, struct super_block *sb,
 	if (sbi->s_journal && sbi->s_journal->j_task->io_context)
 		ctx->journal_ioprio =
 			sbi->s_journal->j_task->io_context->ioprio;
-
-	/*
-	 * Some options can be enabled by ext4 and/or by VFS mount flag
-	 * either way we need to make sure it matches in both *flags and
-	 * s_flags. Copy those selected flags from *flags to s_flags
-	 */
-	vfs_flags = SB_I_VERSION;
-	sb->s_flags = (sb->s_flags & ~vfs_flags) | (*flags & vfs_flags);
 
 	ext4_apply_options(fc, sb);
 
@@ -6306,13 +6307,13 @@ static int __ext4_remount(struct fs_context *fc, struct super_block *sb,
 	/* Flush outstanding errors before changing fs state */
 	flush_work(&sbi->s_error_work);
 
-	if ((bool)(*flags & SB_RDONLY) != sb_rdonly(sb)) {
+	if ((bool)(fc->sb_flags & SB_RDONLY) != sb_rdonly(sb)) {
 		if (ext4_test_mount_flag(sb, EXT4_MF_FS_ABORTED)) {
 			err = -EROFS;
 			goto restore_opts;
 		}
 
-		if (*flags & SB_RDONLY) {
+		if (fc->sb_flags & SB_RDONLY) {
 			err = sync_filesystem(sb);
 			if (err < 0)
 				goto restore_opts;
@@ -6460,13 +6461,6 @@ static int __ext4_remount(struct fs_context *fc, struct super_block *sb,
 	if (!ext4_has_feature_mmp(sb) || sb_rdonly(sb))
 		ext4_stop_mmpd(sbi);
 
-	/*
-	 * Some options can be enabled by ext4 and/or by VFS mount flag
-	 * either way we need to make sure it matches in both *flags and
-	 * s_flags. Copy those selected flags from s_flags to *flags
-	 */
-	*flags = (*flags & ~vfs_flags) | (sb->s_flags & vfs_flags);
-
 	return 0;
 
 restore_opts:
@@ -6498,7 +6492,6 @@ restore_opts:
 static int ext4_reconfigure(struct fs_context *fc)
 {
 	struct super_block *sb = fc->root->d_sb;
-	int flags = fc->sb_flags;
 	int ret;
 
 	fc->s_fs_info = EXT4_SB(sb);
@@ -6507,7 +6500,7 @@ static int ext4_reconfigure(struct fs_context *fc)
 	if (ret < 0)
 		return ret;
 
-	ret = __ext4_remount(fc, sb, &flags);
+	ret = __ext4_remount(fc, sb);
 	if (ret < 0)
 		return ret;
 
