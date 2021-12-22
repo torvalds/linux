@@ -102,7 +102,10 @@ mt76s_rx_run_queue(struct mt76_dev *dev, enum mt76_rxq_id qid,
 
 	buf = page_address(page);
 
+	sdio_claim_host(sdio->func);
 	err = sdio_readsb(sdio->func, buf, MCR_WRDR(qid), len);
+	sdio_release_host(sdio->func);
+
 	if (err < 0) {
 		dev_err(dev->dev, "sdio read data failed:%d\n", err);
 		put_page(page);
@@ -214,7 +217,10 @@ static int __mt76s_xmit_queue(struct mt76_dev *dev, u8 *data, int len)
 	if (len > sdio->func->cur_blksize)
 		len = roundup(len, sdio->func->cur_blksize);
 
+	sdio_claim_host(sdio->func);
 	err = sdio_writesb(sdio->func, MCR_WTDR1, data, len);
+	sdio_release_host(sdio->func);
+
 	if (err)
 		dev_err(dev->dev, "sdio write failed: %d\n", err);
 
@@ -298,6 +304,7 @@ void mt76s_txrx_worker(struct mt76_sdio *sdio)
 	/* disable interrupt */
 	sdio_claim_host(sdio->func);
 	sdio_writel(sdio->func, WHLPCR_INT_EN_CLR, MCR_WHLPCR, NULL);
+	sdio_release_host(sdio->func);
 
 	do {
 		nframes = 0;
@@ -327,6 +334,7 @@ void mt76s_txrx_worker(struct mt76_sdio *sdio)
 	} while (nframes > 0);
 
 	/* enable interrupt */
+	sdio_claim_host(sdio->func);
 	sdio_writel(sdio->func, WHLPCR_INT_EN_SET, MCR_WHLPCR, NULL);
 	sdio_release_host(sdio->func);
 }
