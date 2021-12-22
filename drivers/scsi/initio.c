@@ -2847,7 +2847,8 @@ static int initio_probe_one(struct pci_dev *pdev,
 
 	for (; num_scb >= MAX_TARGETS + 3; num_scb--) {
 		i = num_scb * sizeof(struct scsi_ctrl_blk);
-		if ((scb = kzalloc(i, GFP_DMA)) != NULL)
+		scb = kzalloc(i, GFP_KERNEL);
+		if (scb)
 			break;
 	}
 
