@@ -1706,6 +1706,13 @@ static int rockchip_hdptx_phy_power_on(struct phy *phy)
 	struct rockchip_hdptx_phy *hdptx = phy_get_drvdata(phy);
 	int bus_width = phy_get_bus_width(hdptx->phy);
 	int bit_rate = bus_width & DATA_RATE_MASK;
+	int ret;
+
+	ret = clk_bulk_prepare_enable(hdptx->nr_clks, hdptx->clks);
+	if (ret) {
+		dev_err(hdptx->dev, "failed to enable clocks\n");
+		return ret;
+	}
 
 	dev_info(hdptx->dev, "bus_width:0x%x,bit_rate:%d\n", bus_width, bit_rate);
 	if (bus_width & HDMI_EARC_MASK)
@@ -1725,10 +1732,24 @@ static int rockchip_hdptx_phy_power_on(struct phy *phy)
 static int rockchip_hdptx_phy_power_off(struct phy *phy)
 {
 	struct rockchip_hdptx_phy *hdptx = phy_get_drvdata(phy);
+	u32 val;
 
-	hdptx_update_bits(hdptx, CMN_REG0086, ROPLL_SDM_NUM_SIGN_RBR_MASK,
-		       PLL_PCG_CLK_SEL(0));
-	hdptx_write(hdptx, LNTOP_REG0207, 0x00);
+	hdptx_write(hdptx, LANE_REG0300, 0x82);
+	hdptx_write(hdptx, SB_REG010F, 0xc1);
+	hdptx_write(hdptx, SB_REG0110, 0x1);
+	hdptx_write(hdptx, LANE_REG0301, 0x80);
+	hdptx_write(hdptx, LANE_REG0401, 0x80);
+	hdptx_write(hdptx, LANE_REG0501, 0x80);
+	hdptx_write(hdptx, LANE_REG0601, 0x80);
+
+	reset_control_assert(hdptx->lane_reset);
+	reset_control_assert(hdptx->cmn_reset);
+	reset_control_assert(hdptx->init_reset);
+
+	val = (HDPTX_I_PLL_EN | HDPTX_I_BIAS_EN | HDPTX_I_BGR_EN) << 16;
+	hdptx_grf_write(hdptx, GRF_HDPTX_CON0, val);
+
+	clk_bulk_disable_unprepare(hdptx->nr_clks, hdptx->clks);
 
 	return 0;
 }
@@ -1763,6 +1784,7 @@ static int rockchip_hdptx_phy_probe(struct platform_device *pdev)
 	struct resource *res;
 	void __iomem *regs;
 	int ret;
+	u32 val;
 
 	hdptx = devm_kzalloc(dev, sizeof(*hdptx), GFP_KERNEL);
 	if (!hdptx)
@@ -1870,6 +1892,27 @@ static int rockchip_hdptx_phy_probe(struct platform_device *pdev)
 		ret = PTR_ERR(phy_provider);
 		goto err_regsmap;
 	}
+
+	reset_control_assert(hdptx->apb_reset);
+	udelay(10);
+	reset_control_deassert(hdptx->apb_reset);
+
+	/*
+	 * the default state of hdmiphy power on, power consumption
+	 * is high. some configurations need to be adjusted.
+	 */
+	hdptx_write(hdptx, LANE_REG0300, 0x82);
+	hdptx_write(hdptx, SB_REG010F, 0xc1);
+	hdptx_write(hdptx, SB_REG0110, 0x1);
+	hdptx_write(hdptx, LANE_REG0301, 0x80);
+	hdptx_write(hdptx, LANE_REG0401, 0x80);
+	hdptx_write(hdptx, LANE_REG0501, 0x80);
+	hdptx_write(hdptx, LANE_REG0601, 0x80);
+
+	val = (HDPTX_I_PLL_EN | HDPTX_I_BIAS_EN | HDPTX_I_BGR_EN) << 16;
+	hdptx_grf_write(hdptx, GRF_HDPTX_CON0, val);
+
+	clk_bulk_disable_unprepare(hdptx->nr_clks, hdptx->clks);
 
 	platform_set_drvdata(pdev, hdptx);
 	dev_info(dev, "hdptx phy init success\n");
