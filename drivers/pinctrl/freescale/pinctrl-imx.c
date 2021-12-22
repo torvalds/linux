@@ -667,7 +667,7 @@ static int imx_pinctrl_parse_functions(struct device_node *np,
 
 	group_names = devm_kcalloc(ipctl->dev, func->num_group_names,
 				   sizeof(char *), GFP_KERNEL);
-	if (!func->group_names)
+	if (!group_names)
 		return -ENOMEM;
 	for_each_child_of_node(np, child)
 		group_names[i] = child->name;
