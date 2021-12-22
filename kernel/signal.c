@@ -1823,6 +1823,7 @@ int force_sig_perf(void __user *addr, u32 type, u64 sig_data)
  * force_sig_seccomp - signals the task to allow in-process syscall emulation
  * @syscall: syscall number to send to userland
  * @reason: filter-supplied reason code to send to userland (via si_errno)
+ * @force_coredump: true to trigger a coredump
  *
  * Forces a SIGSYS with a code of SYS_SECCOMP and related sigsys info.
  */
@@ -2872,13 +2873,13 @@ out:
 }
 
 /**
- * signal_delivered - 
+ * signal_delivered - called after signal delivery to update blocked signals
  * @ksig:		kernel signal struct
  * @stepping:		nonzero if debugger single-step or block-step in use
  *
  * This function should be called when a signal has successfully been
  * delivered. It updates the blocked signals accordingly (@ksig->ka.sa.sa_mask
- * is always blocked, and the signal itself is blocked unless %SA_NODEFER
+ * is always blocked), and the signal itself is blocked unless %SA_NODEFER
  * is set in @ksig->ka.sa.sa_flags.  Tracing is notified.
  */
 static void signal_delivered(struct ksignal *ksig, int stepping)
