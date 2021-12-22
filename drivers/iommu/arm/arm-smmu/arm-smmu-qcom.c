@@ -1400,9 +1400,20 @@ out:
 static DEFINE_MUTEX(capture_reg_lock);
 static DEFINE_SPINLOCK(testbus_lock);
 
-#ifdef CONFIG_IOMMU_DEBUGFS
-static struct dentry *debugfs_capturebus_dir;
-#endif
+__maybe_unused static struct dentry *get_iommu_test_dir(void)
+{
+	struct dentry *iommu_test_dir;
+	int ret;
+
+	iommu_test_dir = debugfs_lookup("iommu-test", NULL);
+	if (IS_ERR_OR_NULL(iommu_test_dir)) {
+		ret = PTR_ERR(iommu_test_dir);
+		pr_err_ratelimited("Unable to find iommu-test directory, ret=%d\n",
+				ret);
+		return NULL;
+	}
+	return iommu_test_dir;
+}
 
 #ifdef CONFIG_ARM_SMMU_TESTBUS_DEBUGFS
 static struct dentry *debugfs_testbus_dir;
@@ -1557,14 +1568,15 @@ static const struct file_operations arm_smmu_debug_tcu_testbus_fops = {
 
 static int qsmmuv500_tcu_testbus_init(struct arm_smmu_device *smmu)
 {
-	struct dentry *testbus_dir;
+	struct dentry *testbus_dir, *iommu_test_dir;
 
-	if (!iommu_debugfs_dir)
+	iommu_test_dir = get_iommu_test_dir();
+	if (!iommu_test_dir)
 		return 0;
 
 	if (!debugfs_testbus_dir) {
 		debugfs_testbus_dir = debugfs_create_dir("testbus",
-						       iommu_debugfs_dir);
+						       iommu_test_dir);
 		if (IS_ERR(debugfs_testbus_dir)) {
 			pr_err_ratelimited("Couldn't create iommu/testbus debugfs directory\n");
 			return -ENODEV;
@@ -1649,14 +1661,15 @@ static const struct file_operations arm_smmu_debug_tbu_testbus_fops = {
 
 static int qsmmuv500_tbu_testbus_init(struct qsmmuv500_tbu_device *tbu)
 {
-	struct dentry *testbus_dir;
+	struct dentry *testbus_dir, *iommu_test_dir;
 
-	if (!iommu_debugfs_dir)
+	iommu_test_dir = get_iommu_test_dir();
+	if (!iommu_test_dir)
 		return 0;
 
 	if (!debugfs_testbus_dir) {
 		debugfs_testbus_dir = debugfs_create_dir("testbus",
-						       iommu_debugfs_dir);
+						       iommu_test_dir);
 		if (IS_ERR(debugfs_testbus_dir)) {
 			pr_err_ratelimited("Couldn't create iommu/testbus debugfs directory\n");
 			return -ENODEV;
@@ -2057,17 +2070,20 @@ static const struct file_operations arm_smmu_debug_capturebus_config_fops = {
 	.read	= arm_smmu_debug_capturebus_config_read,
 };
 
-#ifdef CONFIG_IOMMU_DEBUGFS
+#ifdef CONFIG_ARM_SMMU_CAPTUREBUS_DEBUGFS
+static struct dentry *debugfs_capturebus_dir;
+
 static int qsmmuv500_capturebus_init(struct qsmmuv500_tbu_device *tbu)
 {
-	struct dentry *capturebus_dir;
+	struct dentry *capturebus_dir, *iommu_test_dir;
 
-	if (!iommu_debugfs_dir)
+	iommu_test_dir = get_iommu_test_dir();
+	if (!iommu_test_dir)
 		return 0;
 
 	if (!debugfs_capturebus_dir) {
 		debugfs_capturebus_dir = debugfs_create_dir(
-					 "capturebus", iommu_debugfs_dir);
+					 "capturebus", iommu_test_dir);
 		if (IS_ERR(debugfs_capturebus_dir)) {
 			dev_err_ratelimited(tbu->dev, "Couldn't create iommu/capturebus debugfs directory\n");
 			return PTR_ERR(debugfs_capturebus_dir);
