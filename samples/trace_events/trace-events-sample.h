@@ -155,7 +155,7 @@
  *
  *         To assign this string, use the helper macro __assign_str_len().
  *
- *         __assign_str(foo, bar, len);
+ *         __assign_str_len(foo, bar, len);
  *
  *         Then len + 1 is allocated to the ring buffer, and a nul terminating
  *         byte is added. This is similar to:
