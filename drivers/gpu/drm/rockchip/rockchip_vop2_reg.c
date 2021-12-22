@@ -2681,6 +2681,7 @@ static const struct vop2_ctrl rk3588_vop_ctrl = {
 	.dp0_pin_pol = VOP_REG(RK3568_DSP_IF_POL, 0x7, 8),
 	.dp1_pin_pol = VOP_REG(RK3568_DSP_IF_POL, 0x7, 12),
 	.gamma_port_sel = VOP_REG(RK3568_LUT_PORT_SEL, 0x3, 12),
+	.pd_off_imd = VOP_REG(RK3568_SYS_PD_CTRL, 0x1, 31),
 	.win_vp_id[ROCKCHIP_VOP2_CLUSTER0] = VOP_REG(RK3568_OVL_PORT_SEL, 0x3, 16),
 	.win_vp_id[ROCKCHIP_VOP2_CLUSTER1] = VOP_REG(RK3568_OVL_PORT_SEL, 0x3, 18),
 	.win_vp_id[ROCKCHIP_VOP2_CLUSTER2] = VOP_REG(RK3568_OVL_PORT_SEL, 0x3, 20),

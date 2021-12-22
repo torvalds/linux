@@ -1033,6 +1033,7 @@ struct vop2_ctrl {
 	struct vop_reg bt1120_yc_swap;
 	struct vop_reg bt656_yc_swap;
 	struct vop_reg gamma_port_sel;
+	struct vop_reg pd_off_imd;
 
 	struct vop_reg otp_en;
 	struct vop_reg reg_done_frm;

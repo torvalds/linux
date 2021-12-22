@@ -3187,6 +3187,7 @@ static void vop2_initial(struct drm_crtc *crtc)
 		else
 			memcpy(vop2->regsbak, vop2->regs, vop2->len);
 
+		VOP_CTRL_SET(vop2, pd_off_imd, 0);
 		VOP_MODULE_SET(vop2, wb, axi_yrgb_id, 0xd);
 		VOP_MODULE_SET(vop2, wb, axi_uv_id, 0xe);
 		vop2_wb_cfg_done(vp);
@@ -3224,6 +3225,19 @@ static void vop2_initial(struct drm_crtc *crtc)
 			      vp->id, ret);
 }
 
+static void vop2_power_off_all_pd(struct vop2 *vop2)
+{
+	struct vop2_power_domain *pd, *n;
+
+	VOP_CTRL_SET(vop2, pd_off_imd, 1);
+	list_for_each_entry_safe(pd, n, &vop2->pd_list_head, list) {
+		VOP_MODULE_SET(vop2, pd->data, pd, 1);
+		vop2_wait_power_domain_off(pd);
+		pd->on = false;
+		pd->module_on = false;
+	}
+}
+
 static void vop2_disable(struct drm_crtc *crtc)
 {
 	struct vop2_video_port *vp = to_vop2_video_port(crtc);
@@ -3243,6 +3257,8 @@ static void vop2_disable(struct drm_crtc *crtc)
 		rockchip_drm_dma_detach_device(vop2->drm_dev, vop2->dev);
 		vop2->is_iommu_enabled = false;
 	}
+	if (vop2->version == VOP_VERSION_RK3588)
+		vop2_power_off_all_pd(vop2);
 
 	pm_runtime_put_sync(vop2->dev);
 
