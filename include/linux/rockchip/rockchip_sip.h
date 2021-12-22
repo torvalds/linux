@@ -52,6 +52,7 @@
 #define SIP_SDEI_FIQ_DBG_SWITCH_CPU	0x82000020
 #define SIP_SDEI_FIQ_DBG_GET_EVENT_ID	0x82000021
 #define RK_SIP_FIQ_CTRL			0x82000024
+#define SIP_HDCP_CONFIG			0x82000025
 
 /* Rockchip Sip version */
 #define SIP_IMPLEMENT_V1                (1)
@@ -138,6 +139,7 @@ typedef enum {
 	SHARE_PAGE_TYPE_DDRFSP,
 	SHARE_PAGE_TYPE_DDR_ADDRMAP,
 	SHARE_PAGE_TYPE_LAST_LOG,
+	SHARE_PAGE_TYPE_HDCP,
 	SHARE_PAGE_TYPE_MAX,
 } share_page_type_t;
 
@@ -146,6 +148,25 @@ enum {
 	RK_SIP_FIQ_CTRL_FIQ_EN = 1,
 	RK_SIP_FIQ_CTRL_FIQ_DIS,
 	RK_SIP_FIQ_CTRL_SET_AFF
+};
+
+/* hdcp function types */
+enum {
+	HDCP_FUNC_STORAGE_INCRYPT = 1,
+	HDCP_FUNC_KEY_LOAD,
+	HDCP_FUNC_ENCRYPT_MODE
+};
+
+/* support hdcp device list */
+enum {
+	DP_TX0,
+	DP_TX1,
+	EDP_TX0,
+	EDP_TX1,
+	HDMI_TX0,
+	HDMI_TX1,
+	HDMI_RX,
+	MAX_DEVICE,
 };
 
 /*
@@ -174,6 +195,8 @@ u32 sip_smc_secure_reg_read(u32 addr_phy);
 struct arm_smccc_res sip_smc_bus_config(u32 arg0, u32 arg1, u32 arg2);
 struct dram_addrmap_info *sip_smc_get_dram_map(void);
 
+void __iomem *sip_hdcp_request_share_memory(int id);
+struct arm_smccc_res sip_hdcp_config(u32 arg0, u32 arg1, u32 arg2);
 /***************************fiq debugger **************************************/
 void sip_fiq_debugger_enable_fiq(bool enable, uint32_t tgt_cpu);
 void sip_fiq_debugger_enable_debug(bool enable);
@@ -253,6 +276,17 @@ static inline int sip_smc_soc_bus_div(u32 arg0, u32 arg1, u32 arg2)
 static inline struct dram_addrmap_info *sip_smc_get_dram_map(void)
 {
 	return NULL;
+}
+
+static inline void __iomem *sip_hdcp_request_share_memory(int id)
+{
+	return NULL;
+}
+
+static inline struct arm_smccc_res sip_hdcp_config(u32 arg0, u32 arg1, u32 arg2)
+{
+	struct arm_smccc_res tmp = {0};
+	return tmp;
 }
 
 /***************************fiq debugger **************************************/
