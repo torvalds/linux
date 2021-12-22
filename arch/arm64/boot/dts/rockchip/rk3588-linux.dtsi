@@ -79,6 +79,11 @@
 	};
 };
 
+&display_subsystem {
+	memory-region = <&drm_logo>;
+	memory-region-names = "drm-logo";
+};
+
 &rng {
 	status = "okay";
 };
