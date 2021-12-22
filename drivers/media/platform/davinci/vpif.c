@@ -456,8 +456,6 @@ static int vpif_probe(struct platform_device *pdev)
 	pm_runtime_enable(&pdev->dev);
 	pm_runtime_get(&pdev->dev);
 
-	dev_info(&pdev->dev, "vpif probe success\n");
-
 	/*
 	 * If VPIF Node has endpoints, assume "new" DT support,
 	 * where capture and display drivers don't have DT nodes
