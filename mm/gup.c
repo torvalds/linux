@@ -2425,7 +2425,8 @@ static int gup_hugepte(pte_t *ptep, unsigned long sz, unsigned long addr,
 		       struct page **pages, int *nr)
 {
 	unsigned long pte_end;
-	struct page *head, *page;
+	struct page *page;
+	struct folio *folio;
 	pte_t pte;
 	int refs;
 
@@ -2441,21 +2442,20 @@ static int gup_hugepte(pte_t *ptep, unsigned long sz, unsigned long addr,
 	/* hugepages are never "special" */
 	VM_BUG_ON(!pfn_valid(pte_pfn(pte)));
 
-	head = pte_page(pte);
-	page = nth_page(head, (addr & (sz - 1)) >> PAGE_SHIFT);
+	page = nth_page(pte_page(pte), (addr & (sz - 1)) >> PAGE_SHIFT);
 	refs = record_subpages(page, addr, end, pages + *nr);
 
-	head = try_grab_compound_head(head, refs, flags);
-	if (!head)
+	folio = try_grab_folio(page, refs, flags);
+	if (!folio)
 		return 0;
 
 	if (unlikely(pte_val(pte) != pte_val(*ptep))) {
-		put_compound_head(head, refs, flags);
+		gup_put_folio(folio, refs, flags);
 		return 0;
 	}
 
 	*nr += refs;
-	SetPageReferenced(head);
+	folio_set_referenced(folio);
 	return 1;
 }
 
