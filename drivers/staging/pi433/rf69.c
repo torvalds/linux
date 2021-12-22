@@ -470,9 +470,9 @@ static int rf69_set_bandwidth_intern(struct spi_device *spi, u8 reg,
 		return -EINVAL;
 	}
 
-	if ((mantisse != mantisse16) &&
-	    (mantisse != mantisse20) &&
-	    (mantisse != mantisse24)) {
+	if (mantisse != mantisse16 &&
+	    mantisse != mantisse20 &&
+	    mantisse != mantisse24) {
 		dev_dbg(&spi->dev, "set: illegal bandwidth mantisse %u", mantisse);
 		return -EINVAL;
 	}
