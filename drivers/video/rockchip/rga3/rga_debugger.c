@@ -19,6 +19,7 @@
 #include "rga.h"
 #include "rga_debugger.h"
 #include "rga_drv.h"
+#include "rga_mm.h"
 
 #define RGA_DEBUGGER_ROOT_NAME "rkrga"
 
@@ -162,11 +163,61 @@ static int rga_scheduler_show(struct seq_file *m, void *data)
 	return 0;
 }
 
+static int rga_mm_session_show(struct seq_file *m, void *data)
+{
+	int id, i;
+	struct rga_mm *mm_session = NULL;
+	struct rga_internal_buffer *dump_buffer;
+
+	mm_session = rga_drvdata->mm;
+
+	mutex_lock(&mm_session->lock);
+
+	seq_puts(m, "rga_mm dump:\n");
+	seq_printf(m, "buffer count = %d\n", mm_session->buffer_count);
+	seq_puts(m, "===============================================================\n");
+
+	idr_for_each_entry(&mm_session->memory_idr, dump_buffer, id) {
+		seq_printf(m, "handle = %d	refcount = %d	mm_flag = 0x%x\n",
+			   dump_buffer->handle, kref_read(&dump_buffer->refcount),
+			   dump_buffer->mm_flag);
+
+		switch (dump_buffer->type) {
+		case RGA_DMA_BUFFER:
+			seq_puts(m, "dma_buffer:\n");
+			for (i = 0; i < dump_buffer->dma_buffer_size; i++) {
+				seq_printf(m, "\t core %d:\n", dump_buffer->dma_buffer[i].core);
+				seq_printf(m, "\t\t dma_buf = %p, iova = 0x%lx\n",
+					   dump_buffer->dma_buffer[i].dma_buf,
+					   (unsigned long)dump_buffer->dma_buffer[i].iova);
+			}
+			break;
+		case RGA_VIRTUAL_ADDRESS:
+			seq_puts(m, "virtual address:\n");
+			seq_printf(m, "\t va = 0x%lx\n", (unsigned long)dump_buffer->vir_addr);
+			break;
+		case RGA_PHYSICAL_ADDRESS:
+			seq_puts(m, "physical address:\n");
+			seq_printf(m, "\t pa = 0x%lx\n", (unsigned long)dump_buffer->phy_addr);
+			break;
+		default:
+			seq_puts(m, "Illegal external buffer!\n");
+			break;
+		}
+
+		seq_puts(m, "---------------------------------------------------------------\n");
+	}
+	mutex_unlock(&mm_session->lock);
+
+	return 0;
+}
+
 struct rga_debugger_list rga_debugger_root_list[] = {
 	{"debug", rga_debug_show, rga_debug_write, NULL},
 	{"driver_version", rga_version_show, NULL, NULL},
 	{"load", rga_load_show, NULL, NULL},
 	{"scheduler_status", rga_scheduler_show, NULL, NULL},
+	{"mm_session", rga_mm_session_show, NULL, NULL},
 };
 
 static ssize_t rga_debugger_write(struct file *file, const char __user *ubuf,

@@ -226,18 +226,45 @@ rga_mm_internal_buffer_lookup_handle(struct rga_mm *mm_session, uint32_t handle)
 
 void rga_mm_dump_info(struct rga_mm *mm_session)
 {
-	int id;
-	struct rga_internal_buffer *temp_buffer;
+	int id, i;
+	struct rga_internal_buffer *dump_buffer;
 
 	WARN_ON(!mutex_is_locked(&mm_session->lock));
 
 	pr_info("rga mm info:\n");
-	pr_info("buffer count = %d\n", mm_session->buffer_count);
 
-	idr_for_each_entry(&mm_session->memory_idr, temp_buffer, id) {
-		pr_info("ID[%d] dma_buf = %p, handle = %d, refcount = %d, mm_flag = %x\n",
-			id, temp_buffer->dma_buffer[0].dma_buf, temp_buffer->handle,
-			kref_read(&temp_buffer->refcount), temp_buffer->mm_flag);
+	pr_info("buffer count = %d\n", mm_session->buffer_count);
+	pr_info("===============================================================\n");
+
+	idr_for_each_entry(&mm_session->memory_idr, dump_buffer, id) {
+		pr_info("handle = %d	refcount = %d	mm_flag = 0x%x\n",
+			dump_buffer->handle, kref_read(&dump_buffer->refcount),
+			dump_buffer->mm_flag);
+
+		switch (dump_buffer->type) {
+		case RGA_DMA_BUFFER:
+			pr_info("dma_buffer:\n");
+			for (i = 0; i < dump_buffer->dma_buffer_size; i++) {
+				pr_info("\t core %d:\n", dump_buffer->dma_buffer[i].core);
+				pr_info("\t\t dma_buf = %p, iova = 0x%lx\n",
+					dump_buffer->dma_buffer[i].dma_buf,
+					(unsigned long)dump_buffer->dma_buffer[i].iova);
+			}
+			break;
+		case RGA_VIRTUAL_ADDRESS:
+			pr_info("virtual address:\n");
+			pr_info("\t va = 0x%lx\n", (unsigned long)dump_buffer->vir_addr);
+			break;
+		case RGA_PHYSICAL_ADDRESS:
+			pr_info("physical address:\n");
+			pr_info("\t pa = 0x%lx\n", (unsigned long)dump_buffer->phy_addr);
+			break;
+		default:
+			pr_err("Illegal external buffer!\n");
+			break;
+		}
+
+		pr_info("---------------------------------------------------------------\n");
 	}
 }
 
