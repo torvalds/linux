@@ -596,14 +596,6 @@ static int aspeed_kcs_probe(struct platform_device *pdev)
 	int nr_addrs;
 	u32 addrs[2];
 
-	np = pdev->dev.of_node->parent;
-	if (!of_device_is_compatible(np, "aspeed,ast2400-lpc-v2") &&
-	    !of_device_is_compatible(np, "aspeed,ast2500-lpc-v2") &&
-	    !of_device_is_compatible(np, "aspeed,ast2600-lpc-v2")) {
-		dev_err(&pdev->dev, "unsupported LPC device binding\n");
-		return -ENODEV;
-	}
-
 	ops = of_device_get_match_data(&pdev->dev);
 	if (!ops)
 		return -EINVAL;
