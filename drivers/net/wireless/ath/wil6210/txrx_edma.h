@@ -48,6 +48,9 @@
 
 #define WIL_RX_EDMA_MID_VALID_BIT		BIT(20)
 
+#define WIL_RX_EDMA_AMSDU_BASIC_MASK		0x1
+#define WIL_RX_EDMA_DS_TYPE_WDS			0x3
+
 #define WIL_EDMA_DESC_TX_MAC_CFG_0_QID_POS 16
 #define WIL_EDMA_DESC_TX_MAC_CFG_0_QID_LEN 6
 
@@ -456,6 +459,21 @@ static inline int wil_rx_status_get_fc1(struct wil6210_priv *wil, void *msg)
 
 	return WIL_GET_BITS(((struct wil_rx_status_extended *)msg)->ext.d1,
 			    0, 5) << 2;
+}
+
+static inline int wil_rx_status_get_ds_type(struct wil6210_priv *wil, void *msg)
+{
+	if (wil->use_compressed_rx_status)
+		return 0;
+
+	return WIL_GET_BITS(((struct wil_rx_status_extended *)msg)->ext.d0,
+			    19, 20);
+}
+
+static inline int wil_rx_status_is_basic_amsdu(void *msg)
+{
+	return (WIL_GET_BITS(((struct wil_rx_status_compressed *)msg)->d1,
+			     28, 29) == WIL_RX_EDMA_AMSDU_BASIC_MASK);
 }
 
 static inline __le16 wil_rx_status_get_seq(struct wil6210_priv *wil, void *msg)
