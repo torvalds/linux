@@ -14,7 +14,7 @@ static inline void
 _futex_spin_lock(u32 __user *uaddr)
 {
 	extern u32 lws_lock_start[];
-	long index = ((long)uaddr & 0x3f8) >> 1;
+	long index = ((long)uaddr & 0x7f8) >> 1;
 	arch_spinlock_t *s = (arch_spinlock_t *)&lws_lock_start[index];
 	preempt_disable();
 	arch_spin_lock(s);
@@ -24,7 +24,7 @@ static inline void
 _futex_spin_unlock(u32 __user *uaddr)
 {
 	extern u32 lws_lock_start[];
-	long index = ((long)uaddr & 0x3f8) >> 1;
+	long index = ((long)uaddr & 0x7f8) >> 1;
 	arch_spinlock_t *s = (arch_spinlock_t *)&lws_lock_start[index];
 	arch_spin_unlock(s);
 	preempt_enable();
