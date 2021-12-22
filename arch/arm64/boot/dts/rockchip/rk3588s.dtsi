@@ -637,6 +637,12 @@
 				     <&cpu_b0>, <&cpu_b1>, <&cpu_b2>, <&cpu_b3>;
 	};
 
+	cpuinfo {
+		compatible = "rockchip,cpuinfo";
+		nvmem-cells = <&otp_id>, <&otp_cpu_version>, <&cpu_code>;
+		nvmem-cell-names = "id", "cpu-version", "cpu-code";
+	};
+
 	csi2_dcphy0: csi2-dcphy0 {
 		compatible = "rockchip,rk3588-csi2-dcphy";
 		rockchip,hw = <&csi2_dcphy0_hw>;
@@ -4463,6 +4469,18 @@
 		resets = <&cru SRST_OTPC_NS>, <&cru SRST_P_OTPC_NS>,
 			 <&cru SRST_OTPC_ARB>;
 		reset-names = "otpc", "apb", "arb";
+
+		/* Data cells */
+		cpu_code: cpu-code@2 {
+			reg = <0x02 0x2>;
+		};
+		otp_id: id@7 {
+			reg = <0x07 0x10>;
+		};
+		otp_cpu_version: cpu-version@1c {
+			reg = <0x1c 0x1>;
+			bits = <3 3>;
+		};
 	};
 
 	mailbox2: mailbox@fece0000 {
