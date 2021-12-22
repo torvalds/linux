@@ -895,6 +895,8 @@ int dw_spi_add_host(struct device *dev, struct dw_spi *dws)
 	if (!master)
 		return -ENOMEM;
 
+	device_set_node(&master->dev, dev_fwnode(dev));
+
 	dws->master = master;
 	dws->dma_addr = (dma_addr_t)(dws->paddr + DW_SPI_DR);
 
@@ -931,8 +933,6 @@ int dw_spi_add_host(struct device *dev, struct dw_spi *dws)
 	if (dws->mem_ops.exec_op)
 		master->mem_ops = &dws->mem_ops;
 	master->max_speed_hz = dws->max_freq;
-	master->dev.of_node = dev->of_node;
-	master->dev.fwnode = dev->fwnode;
 	master->flags = SPI_MASTER_GPIO_SS;
 	master->auto_runtime_pm = true;
 
