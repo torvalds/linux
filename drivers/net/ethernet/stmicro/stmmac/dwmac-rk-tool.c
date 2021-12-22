@@ -612,7 +612,12 @@ static int dwmac_rk_rx_validate(struct stmmac_priv *priv,
 	}
 
 	frame_len -= ETH_FCS_LEN;
+	prefetch(skb->data - NET_IP_ALIGN);
 	skb_put(skb, frame_len);
+	dma_unmap_single(priv->device,
+			 lb_priv->rx_skbuff_dma,
+			 lb_priv->dma_buf_sz,
+			 DMA_FROM_DEVICE);
 
 	ret = dwmac_rk_loopback_validate(priv, lb_priv, skb);
 	dwmac_rk_rx_clean(priv, lb_priv);
@@ -1187,6 +1192,21 @@ static void dwmac_rk_mtl_configuration(struct stmmac_priv *priv)
 	dwmac_rk_mac_enable_rx_queues(priv);
 }
 
+static void dwmac_rk_mmc_setup(struct stmmac_priv *priv)
+{
+	unsigned int mode = MMC_CNTRL_RESET_ON_READ | MMC_CNTRL_COUNTER_RESET |
+			    MMC_CNTRL_PRESET | MMC_CNTRL_FULL_HALF_PRESET;
+
+	stmmac_mmc_intr_all_mask(priv, priv->mmcaddr);
+
+	if (priv->dma_cap.rmon) {
+		stmmac_mmc_ctrl(priv, priv->mmcaddr, mode);
+		memset(&priv->mmc, 0, sizeof(struct stmmac_counters));
+	} else {
+		netdev_info(priv->dev, "No MAC Management Counters available\n");
+	}
+}
+
 static int dwmac_rk_init(struct net_device *dev,
 			 struct dwmac_rk_lb_priv *lb_priv)
 {
@@ -1227,6 +1247,8 @@ static int dwmac_rk_init(struct net_device *dev,
 	stmmac_core_init(priv, priv->hw, dev);
 
 	dwmac_rk_mtl_configuration(priv);
+
+	dwmac_rk_mmc_setup(priv);
 
 	ret = priv->hw->mac->rx_ipc(priv->hw);
 	if (!ret) {
