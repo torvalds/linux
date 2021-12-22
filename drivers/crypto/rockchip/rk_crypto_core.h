@@ -109,6 +109,7 @@ struct rk_alg_ctx {
 	dma_addr_t			addr_out;
 
 	bool				aligned;
+	bool				is_dma;
 	int				align_size;
 	int				chunk_size;
 };
