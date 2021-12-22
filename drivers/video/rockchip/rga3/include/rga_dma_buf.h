@@ -15,12 +15,11 @@ int rga_buf_size_cal(unsigned long yrgb_addr, unsigned long uv_addr,
 		      unsigned long v_addr, int format, uint32_t w,
 		      uint32_t h, unsigned long *StartAddr, unsigned long *size);
 
-void rga_dma_print_session_info(struct rga_dma_session *session);
-
-int rga_dma_import_fd(int fd);
-int rga_dma_release_fd(int fd);
-
 int rga_dma_buf_get(struct rga_job *job);
+
+int rga_dma_map_fd(int fd, struct rga_dma_buffer *rga_dma_buffer,
+		   enum dma_data_direction dir, struct device *rga_dev);
+void rga_dma_unmap_fd(struct rga_dma_buffer *rga_dma_buffer);
 
 int rga_dma_get_info(struct rga_job *job);
 void rga_dma_put_info(struct rga_job *job);

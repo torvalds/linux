@@ -743,6 +743,66 @@ static int rga_dma_memory_check(struct rga_dma_buffer_t *rga_dma_buffer,
 	return ret;
 }
 
+int rga_dma_map_fd(int fd, struct rga_dma_buffer *rga_dma_buffer,
+		   enum dma_data_direction dir, struct device *rga_dev)
+{
+	struct dma_buf *dma_buf = NULL;
+	struct dma_buf_attachment *attach = NULL;
+	struct sg_table *sgt = NULL;
+	int ret = 0;
+
+	dma_buf = dma_buf_get(fd);
+	if (IS_ERR(dma_buf)) {
+		pr_err("dma_buf_get fail fd[%d]\n", fd);
+		ret = -EINVAL;
+		return ret;
+	}
+
+	attach = dma_buf_attach(dma_buf, rga_dev);
+	if (IS_ERR(attach)) {
+		pr_err("Failed to attach dma_buf\n");
+		ret = -EINVAL;
+		goto err_get_attach;
+	}
+
+	sgt = dma_buf_map_attachment(attach, dir);
+	if (IS_ERR(sgt)) {
+		pr_err("Failed to map src attachment\n");
+		ret = -EINVAL;
+		goto err_get_sgt;
+	}
+
+	rga_dma_buffer->dma_buf = dma_buf;
+	rga_dma_buffer->attach = attach;
+	rga_dma_buffer->sgt = sgt;
+	rga_dma_buffer->size = sg_dma_len(sgt->sgl);
+	rga_dma_buffer->dir = dir;
+
+	return ret;
+
+err_get_sgt:
+	if (attach)
+		dma_buf_detach(dma_buf, attach);
+err_get_attach:
+	if (dma_buf)
+		dma_buf_put(dma_buf);
+
+	return ret;
+}
+
+void rga_dma_unmap_fd(struct rga_dma_buffer *rga_dma_buffer)
+{
+	if (rga_dma_buffer->attach && rga_dma_buffer->sgt)
+		dma_buf_unmap_attachment(rga_dma_buffer->attach,
+					 rga_dma_buffer->sgt,
+					 rga_dma_buffer->dir);
+
+	if (rga_dma_buffer->attach) {
+		dma_buf_detach(rga_dma_buffer->dma_buf, rga_dma_buffer->attach);
+		dma_buf_put(rga_dma_buffer->dma_buf);
+	}
+}
+
 static int rga_dma_map_buffer(struct dma_buf *dma_buf,
 				 struct rga_dma_buffer_t *rga_dma_buffer,
 				 enum dma_data_direction dir, struct device *rga_dev)

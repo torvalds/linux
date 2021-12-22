@@ -13,6 +13,8 @@
 
 #define RGA_IOC_GET_DRVIER_VERSION	RGA_IOR(0x1, struct rga_version_t)
 #define RGA_IOC_GET_HW_VERSION		RGA_IOR(0x2, struct rga_hw_versions_t)
+#define RGA_IOC_IMPORT_BUFFER		RGA_IOWR(0x3, struct rga_buffer_pool)
+#define RGA_IOC_RELEASE_BUFFER		RGA_IOW(0x4, struct rga_buffer_pool)
 
 #define RGA_BLIT_SYNC			0x5017
 #define RGA_BLIT_ASYNC			0x5018
@@ -30,6 +32,8 @@
 
 #define SCALE_DOWN_LARGE		1
 #define SCALE_UP_LARGE			1
+
+#define RGA_BUFFER_POOL_SIZE_MAX 40
 
 #define RGA3_MAJOR_VERSION_MASK	 (0xF0000000)
 #define RGA3_MINOR_VERSION_MASK	 (0x0FF00000)
@@ -58,6 +62,12 @@
 		RGA_MODE_ROTATE_270 | \
 		RGA_MODE_X_MIRROR | \
 		RGA_MODE_Y_MIRROR)
+
+enum rga_memory_type {
+	RGA_DMA_BUFFER = 0,
+	RGA_VIRTUAL_ADDRESS,
+	RGA_PHYSICAL_ADDRESS
+};
 
 enum rga_scale_up_mode {
 	RGA_SCALE_UP_NONE	= 0x0,
@@ -167,6 +177,18 @@ struct rga_version_t {
 
 struct rga_hw_versions_t {
 	struct rga_version_t version[RGA_HW_SIZE];
+	uint32_t size;
+};
+
+struct rga_external_buffer {
+	uint64_t memory;
+	uint32_t type;
+
+	uint32_t handle;
+};
+
+struct rga_buffer_pool {
+	struct rga_external_buffer __user *buffers;
 	uint32_t size;
 };
 

@@ -131,6 +131,10 @@ struct rga_iommu_dma_cookie {
 	struct iova_domain  iovad;
 };
 
+/*
+ * legacy: Wait for the import process to completely replace the current
+ * dma_map and remove it
+ */
 struct rga_dma_buffer_t {
 	/* DMABUF information */
 	struct dma_buf *dma_buf;
@@ -160,18 +164,41 @@ struct rga_dma_buffer_t {
 	bool use_viraddr;
 };
 
-struct rga_dma_buffer_pool {
-	int __user *fd;
-	int size;
+struct rga_dma_buffer {
+	/* DMABUF information */
+	struct dma_buf *dma_buf;
+	struct dma_buf_attachment *attach;
+	struct sg_table *sgt;
+
+	dma_addr_t iova;
+	unsigned long size;
+	void *vmap_ptr;
+	enum dma_data_direction dir;
 };
 
-struct rga_dma_session {
-	struct mutex lock;
-	/* cached dma buffer list */
-	struct list_head cached_list;
+struct rga_internal_buffer {
+	/* DMA buffer */
+	struct rga_dma_buffer dma_buffer;
 
-	/* the count of buffer in the cached_list */
-	int buffer_count;
+	/* virtual address */
+	uint64_t vir_addr;
+
+	/* physical address */
+	uint64_t phy_addr;
+
+	/* cached pagetable. */
+	struct sg_table *sgt;
+	uint64_t pt_size;
+
+	/* memory type. */
+	uint32_t type;
+
+	uint32_t handle;
+
+	/* It indicates whether the buffer is cached */
+	bool cached;
+
+	struct kref refcount;
 };
 
 /*
@@ -268,7 +295,7 @@ struct rga_drvdata_t {
 	struct delayed_work power_off_work;
 	struct wake_lock wake_lock;
 
-	struct rga_dma_session *dma_session;
+	struct rga_mm *mm;
 
 #ifdef CONFIG_ROCKCHIP_RGA_DEBUGGER
 	struct rga_debugger *debugger;

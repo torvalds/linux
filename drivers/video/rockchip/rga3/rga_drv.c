@@ -10,6 +10,7 @@
 #include "rga2_reg_info.h"
 #include "rga3_reg_info.h"
 #include "rga_dma_buf.h"
+#include "rga_mm.h"
 
 #include "rga_job.h"
 #include "rga_fence.h"
@@ -99,6 +100,124 @@ int rga_power_disable(struct rga_scheduler_t *rga_scheduler)
 }
 
 #endif //CONFIG_ROCKCHIP_FPGA
+
+static long rga_ioctl_import_buffer(unsigned long arg)
+{
+	int i;
+	int ret = 0;
+	struct rga_buffer_pool buffer_pool;
+	struct rga_external_buffer *external_buffer = NULL;
+
+	if (unlikely(copy_from_user(&buffer_pool,
+				    (struct rga_buffer_pool *)arg,
+				    sizeof(buffer_pool)))) {
+		pr_err("rga_buffer_pool copy_from_user failed!\n");
+		return -EFAULT;
+	}
+
+	if (buffer_pool.size > RGA_BUFFER_POOL_SIZE_MAX) {
+		pr_err("Cannot import more than %d buffers at a time!\n",
+		       RGA_BUFFER_POOL_SIZE_MAX);
+		return -EFBIG;
+	}
+
+	if (buffer_pool.buffers == NULL) {
+		pr_err("Import buffers is NULL!\n");
+		return -EFAULT;
+	}
+
+	external_buffer = kmalloc(sizeof(struct rga_external_buffer) * buffer_pool.size,
+				  GFP_KERNEL);
+	if (external_buffer == NULL) {
+		pr_err("external buffer list alloc error!\n");
+		return -ENOMEM;
+	}
+
+	if (unlikely(copy_from_user(external_buffer, buffer_pool.buffers,
+				    sizeof(struct rga_external_buffer) * buffer_pool.size))) {
+		pr_err("rga_buffer_pool external_buffer list copy_from_user failed\n");
+		ret = -EFAULT;
+
+		goto err_free_external_buffer;
+	}
+
+	for (i = 0; i < buffer_pool.size; i++) {
+		ret = rga_mm_import_buffer(&external_buffer[i]);
+		if (ret < 0) {
+			pr_err("buffer[%d] mm import buffer failed!\n", i);
+
+			goto err_free_external_buffer;
+		}
+
+		external_buffer[i].handle = ret;
+	}
+
+	if (unlikely(copy_to_user(buffer_pool.buffers, external_buffer,
+				  sizeof(struct rga_external_buffer) * buffer_pool.size))) {
+		pr_err("rga_buffer_pool external_buffer list copy_to_user failed\n");
+		ret = -EFAULT;
+
+		goto err_free_external_buffer;
+	}
+
+err_free_external_buffer:
+	kfree(external_buffer);
+	return ret;
+}
+
+static long rga_ioctl_release_buffer(unsigned long arg)
+{
+	int i;
+	int ret = 0;
+	struct rga_buffer_pool buffer_pool;
+	struct rga_external_buffer *external_buffer = NULL;
+
+	if (unlikely(copy_from_user(&buffer_pool,
+				    (struct rga_buffer_pool *)arg,
+				    sizeof(buffer_pool)))) {
+		pr_err("rga_buffer_pool  copy_from_user failed!\n");
+		return -EFAULT;
+	}
+
+	if (buffer_pool.size > RGA_BUFFER_POOL_SIZE_MAX) {
+		pr_err("Cannot release more than %d buffers at a time!\n",
+		       RGA_BUFFER_POOL_SIZE_MAX);
+		return -EFBIG;
+	}
+
+	if (buffer_pool.buffers == NULL) {
+		pr_err("Release buffers is NULL!\n");
+		return -EFAULT;
+	}
+
+	external_buffer = kmalloc(sizeof(struct rga_external_buffer) * buffer_pool.size,
+				  GFP_KERNEL);
+	if (external_buffer == NULL) {
+		pr_err("external buffer list alloc error!\n");
+		return -ENOMEM;
+	}
+
+	if (unlikely(copy_from_user(external_buffer, buffer_pool.buffers,
+				    sizeof(struct rga_external_buffer) * buffer_pool.size))) {
+		pr_err("rga_buffer_pool external_buffer list copy_from_user failed\n");
+		ret = -EFAULT;
+
+		goto err_free_external_buffer;
+	}
+
+	for (i = 0; i < buffer_pool.size; i++) {
+		ret = rga_mm_release_buffer(external_buffer[i].handle);
+		if (ret < 0) {
+			pr_err("buffer[%d] mm release buffer failed!\n", i);
+
+			goto err_free_external_buffer;
+		}
+	}
+
+err_free_external_buffer:
+	kfree(external_buffer);
+	return ret;
+}
 
 static long rga_ioctl(struct file *file, uint32_t cmd, unsigned long arg)
 {
@@ -218,6 +337,16 @@ static long rga_ioctl(struct file *file, uint32_t cmd, unsigned long arg)
 			ret = -EFAULT;
 		else
 			ret = true;
+
+		break;
+
+	case RGA_IOC_IMPORT_BUFFER:
+		ret = rga_ioctl_import_buffer(arg);
+
+		break;
+
+	case RGA_IOC_RELEASE_BUFFER:
+		ret = rga_ioctl_release_buffer(arg);
 
 		break;
 
@@ -765,6 +894,8 @@ static int __init rga_init(void)
 		return ret;
 	}
 
+	rga_mm_init(&rga_drvdata->mm);
+
 #ifdef CONFIG_ROCKCHIP_RGA_DEBUGGER
 	rga_debugger_init(&rga_drvdata->debugger);
 #endif
@@ -783,6 +914,8 @@ static void __exit rga_exit(void)
 #ifdef CONFIG_ROCKCHIP_RGA_DEBUGGER
 	rga_debugger_remove(&rga_drvdata->debugger);
 #endif
+
+	rga_mm_remove(&rga_drvdata->mm);
 
 	wake_lock_destroy(&rga_drvdata->wake_lock);
 
