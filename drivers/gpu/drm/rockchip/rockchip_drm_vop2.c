@@ -1694,6 +1694,8 @@ static bool vop2_win_uv_swap(uint32_t format)
 	case DRM_FORMAT_NV15:
 	case DRM_FORMAT_NV20:
 	case DRM_FORMAT_NV30:
+	case DRM_FORMAT_YUYV:
+	case DRM_FORMAT_UYVY:
 		return true;
 	default:
 		return false;
