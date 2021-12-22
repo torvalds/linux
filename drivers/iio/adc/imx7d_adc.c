@@ -522,12 +522,11 @@ static int imx7d_adc_probe(struct platform_device *pdev)
 
 	imx7d_adc_feature_config(info);
 
-	ret = imx7d_adc_enable(&indio_dev->dev);
+	ret = imx7d_adc_enable(dev);
 	if (ret)
 		return ret;
 
-	ret = devm_add_action_or_reset(dev, __imx7d_adc_disable,
-				       &indio_dev->dev);
+	ret = devm_add_action_or_reset(dev, __imx7d_adc_disable, dev);
 	if (ret)
 		return ret;
 

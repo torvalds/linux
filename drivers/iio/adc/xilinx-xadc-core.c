@@ -107,6 +107,7 @@ static const unsigned int XADC_ZYNQ_UNMASK_TIMEOUT = 500;
 #define XADC_AXI_INT_ALARM_MASK		0x3c0f
 
 #define XADC_FLAGS_BUFFERED BIT(0)
+#define XADC_FLAGS_IRQ_OPTIONAL BIT(1)
 
 /*
  * The XADC hardware supports a samplerate of up to 1MSPS. Unfortunately it does
@@ -562,7 +563,7 @@ static const struct xadc_ops xadc_7s_axi_ops = {
 	.get_dclk_rate = xadc_axi_get_dclk,
 	.update_alarm = xadc_axi_update_alarm,
 	.interrupt_handler = xadc_axi_interrupt_handler,
-	.flags = XADC_FLAGS_BUFFERED,
+	.flags = XADC_FLAGS_BUFFERED | XADC_FLAGS_IRQ_OPTIONAL,
 	.type = XADC_TYPE_S7,
 };
 
@@ -573,7 +574,7 @@ static const struct xadc_ops xadc_us_axi_ops = {
 	.get_dclk_rate = xadc_axi_get_dclk,
 	.update_alarm = xadc_axi_update_alarm,
 	.interrupt_handler = xadc_axi_interrupt_handler,
-	.flags = XADC_FLAGS_BUFFERED,
+	.flags = XADC_FLAGS_BUFFERED | XADC_FLAGS_IRQ_OPTIONAL,
 	.type = XADC_TYPE_US,
 };
 
@@ -943,7 +944,7 @@ static int xadc_read_raw(struct iio_dev *indio_dev,
 				*val = 1000;
 				break;
 			}
-			*val2 = chan->scan_type.realbits;
+			*val2 = bits;
 			return IIO_VAL_FRACTIONAL_LOG2;
 		case IIO_TEMP:
 			/* Temp in C = (val * 503.975) / 2**bits - 273.15 */
@@ -1182,7 +1183,7 @@ static const struct of_device_id xadc_of_match_table[] = {
 MODULE_DEVICE_TABLE(of, xadc_of_match_table);
 
 static int xadc_parse_dt(struct iio_dev *indio_dev, struct device_node *np,
-	unsigned int *conf)
+	unsigned int *conf, int irq)
 {
 	struct device *dev = indio_dev->dev.parent;
 	struct xadc *xadc = iio_priv(indio_dev);
@@ -1195,6 +1196,7 @@ static int xadc_parse_dt(struct iio_dev *indio_dev, struct device_node *np,
 	u32 ext_mux_chan;
 	u32 reg;
 	int ret;
+	int i;
 
 	*conf = 0;
 
@@ -1273,6 +1275,14 @@ static int xadc_parse_dt(struct iio_dev *indio_dev, struct device_node *np,
 	}
 	of_node_put(chan_node);
 
+	/* No IRQ => no events */
+	if (irq <= 0) {
+		for (i = 0; i < num_channels; i++) {
+			channels[i].event_spec = NULL;
+			channels[i].num_event_specs = 0;
+		}
+	}
+
 	indio_dev->num_channels = num_channels;
 	indio_dev->channels = devm_krealloc(dev, channels,
 					    sizeof(*channels) * num_channels,
@@ -1307,6 +1317,7 @@ static int xadc_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	const struct of_device_id *id;
+	const struct xadc_ops *ops;
 	struct iio_dev *indio_dev;
 	unsigned int bipolar_mask;
 	unsigned int conf0;
@@ -1322,9 +1333,12 @@ static int xadc_probe(struct platform_device *pdev)
 	if (!id)
 		return -EINVAL;
 
-	irq = platform_get_irq(pdev, 0);
-	if (irq <= 0)
-		return -ENXIO;
+	ops = id->data;
+
+	irq = platform_get_irq_optional(pdev, 0);
+	if (irq < 0 &&
+	    (irq != -ENXIO || !(ops->flags & XADC_FLAGS_IRQ_OPTIONAL)))
+		return irq;
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*xadc));
 	if (!indio_dev)
@@ -1345,7 +1359,7 @@ static int xadc_probe(struct platform_device *pdev)
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->info = &xadc_info;
 
-	ret = xadc_parse_dt(indio_dev, dev->of_node, &conf0);
+	ret = xadc_parse_dt(indio_dev, dev->of_node, &conf0, irq);
 	if (ret)
 		return ret;
 
@@ -1357,14 +1371,16 @@ static int xadc_probe(struct platform_device *pdev)
 		if (ret)
 			return ret;
 
-		xadc->convst_trigger = xadc_alloc_trigger(indio_dev, "convst");
-		if (IS_ERR(xadc->convst_trigger))
-			return PTR_ERR(xadc->convst_trigger);
+		if (irq > 0) {
+			xadc->convst_trigger = xadc_alloc_trigger(indio_dev, "convst");
+			if (IS_ERR(xadc->convst_trigger))
+				return PTR_ERR(xadc->convst_trigger);
 
-		xadc->samplerate_trigger = xadc_alloc_trigger(indio_dev,
-			"samplerate");
-		if (IS_ERR(xadc->samplerate_trigger))
-			return PTR_ERR(xadc->samplerate_trigger);
+			xadc->samplerate_trigger = xadc_alloc_trigger(indio_dev,
+				"samplerate");
+			if (IS_ERR(xadc->samplerate_trigger))
+				return PTR_ERR(xadc->samplerate_trigger);
+		}
 	}
 
 	xadc->clk = devm_clk_get(dev, NULL);
@@ -1396,15 +1412,17 @@ static int xadc_probe(struct platform_device *pdev)
 		}
 	}
 
-	ret = devm_request_irq(dev, irq, xadc->ops->interrupt_handler, 0,
-			       dev_name(dev), indio_dev);
-	if (ret)
-		return ret;
+	if (irq > 0) {
+		ret = devm_request_irq(dev, irq, xadc->ops->interrupt_handler,
+				       0, dev_name(dev), indio_dev);
+		if (ret)
+			return ret;
 
-	ret = devm_add_action_or_reset(dev, xadc_cancel_delayed_work,
-				       &xadc->zynq_unmask_work);
-	if (ret)
-		return ret;
+		ret = devm_add_action_or_reset(dev, xadc_cancel_delayed_work,
+					       &xadc->zynq_unmask_work);
+		if (ret)
+			return ret;
+	}
 
 	ret = xadc->ops->setup(pdev, indio_dev, irq);
 	if (ret)
