@@ -89,6 +89,10 @@ HOSTCFLAGS_calc_vmlinuz_load_addr.o += $(LINUXINCLUDE)
 # Calculate the load address of the compressed kernel image
 hostprogs := calc_vmlinuz_load_addr
 
+ifneq (0x0,$(CONFIG_ZBOOT_LOAD_ADDRESS))
+zload-y	= $(CONFIG_ZBOOT_LOAD_ADDRESS)
+endif
+
 ifneq ($(zload-y),)
 VMLINUZ_LOAD_ADDRESS := $(zload-y)
 else

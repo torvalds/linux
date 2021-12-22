@@ -2115,6 +2115,16 @@ config MIPS_VA_BITS_48
 
 	  If unsure, say N.
 
+config ZBOOT_LOAD_ADDRESS
+	hex "Compressed kernel load address"
+	default 0xffffffff80400000 if BCM47XX
+	default 0x0
+	depends on SYS_SUPPORTS_ZBOOT
+	help
+	  The address to load compressed kernel, aka vmlinuz.
+
+	  This is only used if non-zero.
+
 choice
 	prompt "Kernel page size"
 	default PAGE_SIZE_4KB
