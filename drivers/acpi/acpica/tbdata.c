@@ -249,7 +249,7 @@ acpi_tb_acquire_temp_table(struct acpi_table_desc *table_desc,
 	case ACPI_TABLE_ORIGIN_EXTERNAL_VIRTUAL:
 
 		if (!table) {
-			return_ACPI_STATUS(AE_BAD_PARAMETER);
+			return (AE_BAD_PARAMETER);
 		}
 
 		break;
