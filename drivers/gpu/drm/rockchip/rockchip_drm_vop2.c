@@ -1677,6 +1677,8 @@ static bool vop2_afbc_uv_swap(uint32_t format)
 	switch (format) {
 	case DRM_FORMAT_NV12:
 	case DRM_FORMAT_NV16:
+	case DRM_FORMAT_YUYV:
+	case DRM_FORMAT_Y210:
 	case DRM_FORMAT_YUV420_8BIT:
 	case DRM_FORMAT_YUV420_10BIT:
 		return true;
