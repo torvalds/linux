@@ -168,8 +168,8 @@ acpi_ev_address_space_dispatch(union acpi_operand_object *region_obj,
 
 			ctx->internal_buffer =
 			    field_obj->field.internal_pcc_buffer;
-			ctx->length = region_obj->region.length;
-			ctx->subspace_id = region_obj->region.address;
+			ctx->length = (u16)region_obj->region.length;
+			ctx->subspace_id = (u8)region_obj->region.address;
 		}
 
 		/*
