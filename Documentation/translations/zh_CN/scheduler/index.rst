@@ -21,6 +21,7 @@ Linux调度器
     sched-arch
     sched-bwc
     sched-design-CFS
+    sched-domains
     sched-capacity
 
 
@@ -28,7 +29,6 @@ TODOList:
 
     sched-bwc
     sched-deadline
-    sched-domains
     sched-energy
     sched-nice-design
     sched-rt-group
