@@ -1609,8 +1609,8 @@ int __bch2_foreground_maybe_merge(struct btree_trans *trans,
 		? bpos_predecessor(b->data->min_key)
 		: bpos_successor(b->data->max_key);
 
-	sib_path = bch2_path_get(trans, false, path->btree_id,
-				 sib_pos, U8_MAX, level, true);
+	sib_path = bch2_path_get(trans, path->btree_id, sib_pos,
+				 U8_MAX, level, BTREE_ITER_INTENT);
 	ret = bch2_btree_path_traverse(trans, sib_path, false);
 	if (ret)
 		goto err;
