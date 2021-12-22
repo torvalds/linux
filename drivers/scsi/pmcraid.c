@@ -3221,8 +3221,8 @@ static struct pmcraid_sglist *pmcraid_alloc_sglist(int buflen)
 		return NULL;
 
 	sglist->order = order;
-	sgl_alloc_order(buflen, order, false,
-			GFP_KERNEL | GFP_DMA | __GFP_ZERO, &sglist->num_sg);
+	sgl_alloc_order(buflen, order, false, GFP_KERNEL | __GFP_ZERO,
+			&sglist->num_sg);
 
 	return sglist;
 }
