@@ -154,7 +154,7 @@ typedef struct acpi_aest_processor_tlb {
 /* 2R: Processor Generic Resource Substructure */
 
 typedef struct acpi_aest_processor_generic {
-	u8 *resource;
+	u32 resource;
 
 } acpi_aest_processor_generic;
 
