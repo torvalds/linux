@@ -127,7 +127,6 @@ static DECLARE_TLV_DB_SCALE(hpg_tlv, -4200, 20, 0);
 
 static const char * const ak4375_ovolcn_select_texts[]	= { "Dependent", "Independent" };
 static const char * const ak4375_mdac_select_texts[]	= { "x1", "x1/2" };
-static const char * const ak4375_inv_select_texts[]	= { "Normal", "Inverting" };
 static const char * const ak4375_cpmode_select_texts[]	= {
 	"Automatic Switching",
 	"+-VDD Operation",
@@ -157,12 +156,6 @@ static const struct soc_enum ak4375_mdacl_enum =
 static const struct soc_enum ak4375_mdacr_enum =
 	SOC_ENUM_SINGLE(AK4375_07_DAC_MONO_MIXING, 6,
 			ARRAY_SIZE(ak4375_mdac_select_texts), ak4375_mdac_select_texts);
-static const struct soc_enum ak4375_invl_enum =
-	SOC_ENUM_SINGLE(AK4375_07_DAC_MONO_MIXING, 3,
-			ARRAY_SIZE(ak4375_inv_select_texts), ak4375_inv_select_texts);
-static const struct soc_enum ak4375_invr_enum =
-	SOC_ENUM_SINGLE(AK4375_07_DAC_MONO_MIXING, 7,
-			ARRAY_SIZE(ak4375_inv_select_texts), ak4375_inv_select_texts);
 static const struct soc_enum ak4375_cpmode_enum =
 	SOC_ENUM_SINGLE(AK4375_03_POWER_MANAGEMENT4, 2,
 			ARRAY_SIZE(ak4375_cpmode_select_texts), ak4375_cpmode_select_texts);
@@ -176,11 +169,11 @@ static const struct snd_kcontrol_new ak4375_snd_controls[] = {
 	SOC_SINGLE_TLV("HP-Amp Analog Volume",
 		       AK4375_0D_HP_VOLUME_CONTROL, 0, 0x1f, 0, hpg_tlv),
 
+	SOC_DOUBLE("DAC Signal Invert Switch", AK4375_07_DAC_MONO_MIXING, 3, 7, 1, 0),
+
 	SOC_ENUM("Digital Volume Control", ak4375_ovolcn_enum),
 	SOC_ENUM("DACL Signal Level", ak4375_mdacl_enum),
 	SOC_ENUM("DACR Signal Level", ak4375_mdacr_enum),
-	SOC_ENUM("DACL Signal Invert", ak4375_invl_enum),
-	SOC_ENUM("DACR Signal Invert", ak4375_invr_enum),
 	SOC_ENUM("Charge Pump Mode", ak4375_cpmode_enum),
 	SOC_ENUM("DAC Digital Filter Mode", ak4375_digfil_enum),
 };
