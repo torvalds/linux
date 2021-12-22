@@ -1363,7 +1363,7 @@ struct io_comp_batch {
 })
 
 #define rq_list_for_each(listptr, pos)			\
-	for (pos = rq_list_peek((listptr)); pos; pos = rq_list_next(pos)) \
+	for (pos = rq_list_peek((listptr)); pos; pos = rq_list_next(pos))
 
 #define rq_list_next(rq)	(rq)->rq_next
 #define rq_list_empty(list)	((list) == (struct request *) NULL)
