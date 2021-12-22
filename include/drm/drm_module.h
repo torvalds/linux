@@ -4,6 +4,7 @@
 #define DRM_MODULE_H
 
 #include <linux/pci.h>
+#include <linux/platform_device.h>
 
 #include <drm/drm_drv.h>
 
@@ -91,5 +92,34 @@ drm_pci_unregister_driver_if_modeset(struct pci_driver *pci_drv, int modeset)
 #define drm_module_pci_driver_if_modeset(__pci_drv, __modeset) \
 	module_driver(__pci_drv, drm_pci_register_driver_if_modeset, \
 		      drm_pci_unregister_driver_if_modeset, __modeset)
+
+/*
+ * Platform drivers
+ */
+
+static inline int __init
+drm_platform_driver_register(struct platform_driver *platform_drv)
+{
+	if (drm_firmware_drivers_only())
+		return -ENODEV;
+
+	return platform_driver_register(platform_drv);
+}
+
+/**
+ * drm_module_platform_driver - Register a DRM driver for platform devices
+ * @__platform_drv: the platform driver structure
+ *
+ * Registers a DRM driver for devices on the platform bus. The helper
+ * macro behaves like module_platform_driver() but tests the state of
+ * drm_firmware_drivers_only(). For more complex module initialization,
+ * use module_init() and module_exit() directly.
+ *
+ * Each module may only use this macro once. Calling it replaces
+ * module_init() and module_exit().
+ */
+#define drm_module_platform_driver(__platform_drv) \
+	module_driver(__platform_drv, drm_platform_driver_register, \
+		      platform_driver_unregister)
 
 #endif
