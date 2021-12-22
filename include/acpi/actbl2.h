@@ -1683,7 +1683,10 @@ struct acpi_nhlt_linux_specific_data {
 	u8 device_id[16];
 	u8 device_instance_id;
 	u8 device_port_id;
-	u8 filler[18];
+};
+
+struct acpi_nhlt_linux_specific_data_b {
+	u8 specific_data[18];
 };
 
 struct acpi_nhlt_table_terminator {
