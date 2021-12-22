@@ -1010,5 +1010,5 @@
 	};
 };
 
-#include "starfive_jh7110_pinctrl.dtsi"
+/*#include "starfive_jh7110_pinctrl.dtsi"*/
 #include "starfive_jh7110_audio.dtsi"
