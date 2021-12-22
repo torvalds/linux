@@ -85,7 +85,9 @@
 #define PHY_TYPE(x)			UPDATE(x, 0, 0)
 #define DSI2_PHY_CLK_CFG		0X0104
 #define PHY_LPTX_CLK_DIV(x)		UPDATE(x, 12, 8)
+#define CLK_TYPE_MASK			BIT(0)
 #define NON_CONTINUOUS_CLK		BIT(0)
+#define CONTIUOUS_CLK			0
 #define DSI2_PHY_LP2HS_MAN_CFG		0x010c
 #define PHY_LP2HS_TIME(x)		UPDATE(x, 28, 0)
 #define DSI2_PHY_HS2LP_MAN_CFG		0x0114
@@ -348,22 +350,11 @@ static void dw_mipi_dsi2_irq_enable(struct dw_mipi_dsi2 *dsi2, bool enable)
 
 static void mipi_dcphy_power_on(struct dw_mipi_dsi2 *dsi2)
 {
-	int ret;
-
 	if (dsi2->phy_enabled)
 		return;
 
-	if (dsi2->dcphy) {
-		if (!dsi2->c_option) {
-			ret = phy_set_mode(dsi2->dcphy, PHY_MODE_MIPI_DPHY);
-			if (ret)
-				DRM_DEV_ERROR(dsi2->dev,
-					      "failed to set phy mode: %d\n",
-					      ret);
-		}
-
+	if (dsi2->dcphy)
 		phy_power_on(dsi2->dcphy);
-	}
 
 	dsi2->phy_enabled = true;
 }
@@ -511,6 +502,10 @@ static void dw_mipi_dsi2_set_lane_rate(struct dw_mipi_dsi2 *dsi2)
 	phy_mipi_dphy_get_default_config(target_pclk, bpp, lanes,
 					 &dsi2->phy_opts.mipi_dphy);
 
+	if (dsi2->dcphy)
+		if (!dsi2->c_option)
+			phy_set_mode(dsi2->dcphy, PHY_MODE_MIPI_DPHY);
+
 	phy_configure(dsi2->dcphy, &dsi2->phy_opts);
 	hs_clk_rate = dsi2->phy_opts.mipi_dphy.hs_clk_rate;
 	dsi2->lane_hs_rate = DIV_ROUND_UP(hs_clk_rate, USEC_PER_SEC);
@@ -546,8 +541,11 @@ static void dw_mipi_dsi2_phy_clk_mode_cfg(struct dw_mipi_dsi2 *dsi2)
 	u32 sys_clk, esc_clk_div;
 	u32 val = 0;
 
-	if (dsi2->mode_flags & MIPI_DSI_CLOCK_NON_CONTINUOUS)
-		val |= NON_CONTINUOUS_CLK;
+	/*
+	 * clk_type should be NON_CONTINUOUS_CLK before
+	 * initial deskew calibration be sent.
+	 */
+	val |= NON_CONTINUOUS_CLK;
 
 	/* The maximum value of the escape clock frequency is 20MHz */
 	sys_clk = clk_get_rate(dsi2->sys_clk) / USEC_PER_SEC;
@@ -776,6 +774,15 @@ static void dw_mipi_dsi2_pre_enable(struct dw_mipi_dsi2 *dsi2)
 	dw_mipi_dsi2_tx_option_set(dsi2);
 	dw_mipi_dsi2_irq_enable(dsi2, 1);
 	mipi_dcphy_power_on(dsi2);
+
+	/*
+	 * initial deskew calibration is send after phy_power_on,
+	 * then we can configure clk_type.
+	 */
+	if (!(dsi2->mode_flags & MIPI_DSI_CLOCK_NON_CONTINUOUS))
+		regmap_update_bits(dsi2->regmap, DSI2_PHY_CLK_CFG,
+				   CLK_TYPE_MASK, CONTIUOUS_CLK);
+
 	regmap_write(dsi2->regmap, DSI2_PWR_UP, POWER_UP);
 	dw_mipi_dsi2_set_cmd_mode(dsi2);
 
