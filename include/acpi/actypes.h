@@ -1221,6 +1221,10 @@ struct acpi_mem_space_context {
 	struct acpi_mem_mapping *first_mm;
 };
 
+struct acpi_data_table_space_context {
+	void *pointer;
+};
+
 /*
  * struct acpi_memory_list is used only if the ACPICA local cache is enabled
  */
