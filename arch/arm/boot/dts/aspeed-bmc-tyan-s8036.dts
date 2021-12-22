@@ -6,8 +6,8 @@
 #include <dt-bindings/interrupt-controller/irq.h>
 
 / {
-	model = "Tyan S7106 BMC";
-	compatible = "tyan,s7106-bmc", "aspeed,ast2500";
+	model = "Tyan S8036 BMC";
+	compatible = "tyan,s8036-bmc", "aspeed,ast2500";
 
 	chosen {
 		stdout-path = &uart5;
@@ -142,7 +142,6 @@
 	 * an "invalid" IO address and an IRQ that is not used by the
 	 * BMC.
 	 */
-
 	aspeed,lpc-io-reg = <0xffff>;
 	aspeed,lpc-interrupts = <15 IRQ_TYPE_LEVEL_HIGH>;
 };
@@ -177,19 +176,13 @@
 			&pinctrl_pwm3_default
 			&pinctrl_pwm4_default>;
 
-	/* CPU fan #0 */
+	/* CPU fan */
 	fan@0 {
 		reg = <0x00>;
 		aspeed,fan-tach-ch = /bits/ 8 <0x00>;
 	};
 
-	/* CPU fan #1 */
-	fan@1 {
-		reg = <0x01>;
-		aspeed,fan-tach-ch = /bits/ 8 <0x01>;
-	};
-
-	/* PWM group for chassis fans #1, #2, #3 and #4  */
+	/* PWM group for chassis fans #1, #2, #3 and #4 */
 	fan@2 {
 		reg = <0x03>;
 		aspeed,fan-tach-ch = /bits/ 8 <0x02>;
@@ -223,47 +216,12 @@
 };
 
 &i2c0 {
+	/* Directly connected to Sideband-Temperature Sensor Interface (APML) */
 	status = "okay";
-
-	/* Hardware monitor with temperature sensors */
-	nct7802@28 {
-		compatible = "nuvoton,nct7802";
-		reg = <0x28>;
-
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		channel@0 { /* LTD */
-			reg = <0>;
-		};
-
-		channel@1 { /* RTD1 */
-			reg = <1>;
-			sensor-type = "temperature";
-			temperature-mode = "thermistor";
-		};
-
-		channel@2 { /* RTD2 */
-			reg = <2>;
-			sensor-type = "temperature";
-			temperature-mode = "thermistor";
-		};
-
-		channel@3 { /* RTD3 */
-			reg = <3>;
-			sensor-type = "temperature";
-		};
-	};
-
-	/* Also connected to:
-	 * - IPMB pin header
-	 * - CPU #0 memory error LED @ 0x3A
-	 * - CPU #1 memory error LED @ 0x3C
-	 */
 };
 
 &i2c1 {
-	/* Directly connected to PCH SMBUS #0 */
+	/* Directly connected to IPMB HDR. */
 	status = "okay";
 };
 
@@ -275,13 +233,11 @@
 		compatible = "atmel,24c256";
 		reg = <0x50>;
 	};
-
 	/* Also connected to:
-	 * - fan header
-	 * - mini-SAS HD connector
-	 * - SSATA SGPIO
-	 * - via switch (BMC_SMB3_PCH_IE_SML3_EN, active low)
-	 *   to PCH SMBUS #3
+	 * - BCM5720
+	 * - FPGA
+	 * - FAN HDR
+	 * - FPIO HDR
 	 */
 };
 
@@ -312,63 +268,60 @@
 		reg = <0x59>;
 	};
 
-	/* Also connected to:
-	 * - PCH SMBUS #1
-	 */
 };
 
 &i2c4 {
 	status = "okay";
-
-	/* Connected to:
-	 * - PCH SMBUS #2
-	 */
-
-	/* Connected via switch to:
-	 * - CPU #0 channels ABC VDDQ @ 0x80
-	 * - CPU #0 channels DEF VDDQ @ 0x81
-	 * - CPU #1 channels ABC VDDQ @ 0x82
-	 * - CPU #1 channels DEF VDDQ @ 0x83
-	 * - CPU #0 VCCIO & VMCP @ 0x52
-	 * - CPU #1 VCCIO & VMCP @ 0x53
-	 * - CPU #0 VCCIN @ 0xC0
-	 * - CPU #0 VSA @ 0xC2
-	 * - CPU #1 VCCIN @ 0xC4
-	 * - CPU #1 VSA @ 0xC6
-	 * - J110
-	 */
 };
 
 &i2c5 {
 	status = "okay";
+	/* Hardware monitor with temperature sensors */
+	nct7802@28 {
+		compatible = "nuvoton,nct7802";
+		reg = <0x28>;
+		#address-cells = <1>;
+		#size-cells = <0>;
 
-	/* Connected via switch (PCH_BMC_SMB_SW_P) to:
-	 * - mainboard FRU @ 0xAE
-	 * - XDP connector
-	 * - ME debug header
-	 * - clock buffer @ 0xD8
-	 * - i2c4 via switch (PCH_VR_SMBUS_SW_P; controlled by PCH)
-	 * - PCH SMBUS
+		channel@0 { /* LTD */
+			reg = <0>;
+			status = "okay";
+		};
+
+		channel@1 { /* RTD1 */
+			reg = <1>;
+			status = "okay";
+			sensor-type = "temperature";
+			temperature-mode = "thermistor";
+		};
+
+		channel@2 { /* RTD2 */
+			reg = <2>;
+			status = "okay";
+			sensor-type = "temperature";
+			temperature-mode = "thermistor";
+		};
+
+		channel@3 { /* RTD3 */
+			reg = <3>;
+			status = "okay";
+			sensor-type = "temperature";
+		};
+	};
+
+	/* Also connected to:
+	 * - PCA9544
+	 * - CLK BUFF
+	 * - OCP FRU
 	 */
 };
 
 &i2c6 {
 	status = "okay";
-
-	/* Connected via switch (BMC_PE_SMB_EN_1_N) to
-	 * bus mux (selector BMC_PE_SMB_SW_BIT[1..0]) to:
-	 * - 0,0: PCIE slot 1, SMB #1
-	 * - 0,1: PCIE slot 1, SMB #2
-	 * - 1,0: PCIE slot 2, SMB #1
-	 * - 1,1: PCIE slot 2, SMB #2
-	 */
-
-	/* Connected via switch (BMC_PE_SMB_EN_2_N) to
-	 * bus mux (selector BMC_PE_SMB_SW_BIT[1..0]) to:
-	 * - 0,0: OCP0 (A) SMB
-	 * - 0,1: OCP0 (C) SMB
-	 * - 1,0: OCP1 (A) SMB
-	 * - 1,1: NC
+	/* Connected to:
+	 * - PCA9548 @0xE0
+	 * - PCA9548 @0xE2
+	 * - PCA9544 @0xE4
 	 */
 };
 
@@ -443,53 +396,39 @@
 	gpio-line-names =
 	/*A0*/		"",
 	/*A1*/		"",
-	/*A2*/		"led-identify", /* in/out: BMC_IDLED_ON_N */
+	/*A2*/		"led-identify", /* in/out: BMC_CHASSIS_ID_LED_L */
 	/*A3*/		"",
 	/*A4*/		"",
 	/*A5*/		"",
 	/*A6*/		"",
 	/*A7*/		"",
 	/*B0-B7*/	"","","","","","","","",
-	/*C0*/		"",
-	/*C1*/		"",
-	/*C2*/		"",
-	/*C3*/		"",
-	/*C4*/		"id-button", /* in/out: BMC_IDBTN_IN_OUT_N */
-	/*C5*/		"post-complete", /* in: FM_BIOS_POST_CMPLT_N */
-	/*C6*/		"",
-	/*C7*/		"",
+	/*C0-C7*/	"","","","","","","","",
 	/*D0*/		"",
 	/*D1*/		"",
-	/*D2*/		"power-chassis-good", /* in: SYS_PWROK_BUF */
-	/*D3*/		"platform-reset", /* in: SYS_PLTRST_N */
+	/*D2*/		"power-chassis-good", /* in: PWR_GOOD_LED -- Check if this is Z3?*/
+	/*D3*/		"platform-reset", /* in: RESET_LED_L */
 	/*D4*/		"",
 	/*D5*/		"",
 	/*D6*/		"",
 	/*D7*/		"",
-	/*E0*/		"power-button", /* in: BMC_PWBTN_IN_N */
-	/*E1*/		"power-chassis-control", /* out: BMC_PWRBTN_OUT_N */
-	/*E2*/		"reset-button", /* in: BMC_RSTBTN_IN_N */
-	/*E3*/		"reset-control", /* out: BMC_RSTBTN_OUT_N */
-	/*E4*/		"nmi-button", /* in: BMC_NMIBTN_IN_N */
-	/*E5*/		"nmi-control", /* out: BMC_NMIBTN_OUT_N */
-	/*E6*/		"",
-	/*E7*/		"led-heartbeat", /* out: BMC_HEARTBRAT_LED_N */
+	/*E0*/		"power-button", /* in: BMC_SYS_MON_PWR_BTN_L */
+	/*E1*/		"power-chassis-control", /* out: BMC_ASSERT_PWR_BTN */
+	/*E2*/		"reset-button", /* in: BMC_SYS_MOS_RST_BTN_L*/
+	/*E3*/		"reset-control", /* out: BMC_ASSERT_RST_BTN */
+	/*E4*/		"nmi-button", /* in: BMC_SYS_MON_NMI_BTN_L */
+	/*E5*/		"nmi-control", /* out: BMC_ASSERT_NMI_BTN */
+	/*E6*/		"TSI_RESERT",
+	/*E7*/		"led-heartbeat", /* out: BMC_GPIOE7 */
 	/*F0*/		"",
-	/*F1*/		"clear-cmos-control", /* out: BMC_CLR_CMOS_N */
+	/*F1*/		"clear-cmos-control", /* out: BMC_ASSERT_CLR_CMOS_L */
 	/*F2*/		"",
 	/*F3*/		"",
-	/*F4*/		"led-fault", /* out: AST_HW_FAULT_N */
-	/*F5*/		"",
-	/*F6*/		"",
+	/*F4*/		"led-fault", /* out: BMC_HWM_FAULT_LED_L */
+	/*F5*/		"BMC_SYS_FAULT_LED_L",
+	/*F6*/		"BMC_ASSERT_BIOS_WP_L",
 	/*F7*/		"",
-	/*G0*/		"BMC_PE_SMB_EN_1_N", /* out */
-	/*G1*/		"BMC_PE_SMB_EN_2_N", /* out */
-	/*G2*/		"",
-	/*G3*/		"",
-	/*G4*/		"",
-	/*G5*/		"",
-	/*G6*/		"",
-	/*G7*/		"",
+	/*G0-G7*/	"","","","","","","","",
 	/*H0-H7*/	"","","","","","","","",
 	/*I0-I7*/	"","","","","","","","",
 	/*J0-J7*/	"","","","","","","","",
@@ -503,9 +442,9 @@
 	/*Q1*/		"",
 	/*Q2*/		"",
 	/*Q3*/		"",
-	/*Q4*/		"BMC_PE_SMB_SW_BIT0", /* out */
-	/*Q5*/		"BMC_PE_SMB_SW_BIT1", /* out */
-	/*Q6*/		"",
+	/*Q4*/		"",
+	/*Q5*/		"",
+	/*Q6*/		"id-button", /* in: BMC_CHASSIS_ID_BTN_L */
 	/*Q7*/		"",
 	/*R0-R7*/	"","","","","","","","",
 	/*S0-S7*/	"","","","","","","","",
@@ -515,14 +454,17 @@
 	/*W0-W7*/	"","","","","","","","",
 	/*X0-X7*/	"","","","","","","","",
 	/*Y0-Y7*/	"","","","","","","","",
-	/*Z0-Z7*/	"","","","","","","","",
+	/*Z0-Z2*/	"","","",
+	/*Z3*/		"post-complete", /* BMC_SYS_MON_PWROK */
+	/*Z4-Z7*/	"","","","",
 	/*AA0*/		"",
 	/*AA1*/		"",
 	/*AA2*/		"",
-	/*AA3*/		"BMC_SMB3_PCH_IE_SML3_EN", /* out */
+	/*AA3*/		"",
 	/*AA4*/		"",
 	/*AA5*/		"",
 	/*AA6*/		"",
-	/*AA7*/		"",
-	/*AB0-AB7*/	"","","","","","","","";
+	/*AA7*/		"BMC_ASSERT_BMC_READY",
+	/*AB0*/		"BMC_SPD_SEL",
+	/*AB1-AB7*/	"","","","","","","";
 };

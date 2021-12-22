@@ -1506,6 +1506,7 @@ dtb-$(CONFIG_ARCH_ASPEED) += \
 	aspeed-bmc-arm-stardragon4800-rep2.dtb \
 	aspeed-bmc-asrock-e3c246d4i.dtb \
 	aspeed-bmc-bytedance-g220a.dtb \
+	aspeed-bmc-facebook-bletchley.dtb \
 	aspeed-bmc-facebook-cloudripper.dtb \
 	aspeed-bmc-facebook-cmm.dtb \
 	aspeed-bmc-facebook-elbert.dtb \
@@ -1543,4 +1544,8 @@ dtb-$(CONFIG_ARCH_ASPEED) += \
 	aspeed-bmc-quanta-q71l.dtb \
 	aspeed-bmc-supermicro-x11spi.dtb \
 	aspeed-bmc-inventec-transformers.dtb \
-	aspeed-bmc-tyan-s7106.dtb
+	aspeed-bmc-tyan-s7106.dtb \
+	aspeed-bmc-tyan-s8036.dtb \
+	aspeed-bmc-vegman-n110.dtb \
+	aspeed-bmc-vegman-rx20.dtb \
+	aspeed-bmc-vegman-sx20.dtb
