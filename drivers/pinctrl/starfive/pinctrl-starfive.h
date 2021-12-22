@@ -75,7 +75,7 @@ struct starfive_iopad_sel_func_inf {
 
 struct starfive_pinctrl {
 	struct device *dev;
-	struct pinctrl_dev *pctl;
+	struct pinctrl_dev *pctl_dev;
 	void __iomem *padctl_base;
 	void __iomem *gpio_base;
 	unsigned int padctl_gpio_base;
