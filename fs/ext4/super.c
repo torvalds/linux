@@ -1703,8 +1703,7 @@ enum {
 	Opt_usrquota, Opt_grpquota, Opt_prjquota, Opt_i_version,
 	Opt_dax, Opt_dax_always, Opt_dax_inode, Opt_dax_never,
 	Opt_stripe, Opt_delalloc, Opt_nodelalloc, Opt_warn_on_error,
-	Opt_nowarn_on_error, Opt_mblk_io_submit,
-	Opt_lazytime, Opt_nolazytime, Opt_debug_want_extra_isize,
+	Opt_nowarn_on_error, Opt_mblk_io_submit, Opt_debug_want_extra_isize,
 	Opt_nomblk_io_submit, Opt_block_validity, Opt_noblock_validity,
 	Opt_inode_readahead_blks, Opt_journal_ioprio,
 	Opt_dioread_nolock, Opt_dioread_lock,
@@ -1818,8 +1817,6 @@ static const struct fs_parameter_spec ext4_param_specs[] = {
 	fsparam_flag	("nodelalloc",		Opt_nodelalloc),
 	fsparam_flag	("warn_on_error",	Opt_warn_on_error),
 	fsparam_flag	("nowarn_on_error",	Opt_nowarn_on_error),
-	fsparam_flag	("lazytime",		Opt_lazytime),
-	fsparam_flag	("nolazytime",		Opt_nolazytime),
 	fsparam_u32	("debug_want_extra_isize",
 						Opt_debug_want_extra_isize),
 	fsparam_flag	("mblk_io_submit",	Opt_removed),
@@ -2250,12 +2247,6 @@ static int ext4_parse_param(struct fs_context *fc, struct fs_parameter *param)
 		return 0;
 	case Opt_i_version:
 		ctx_set_flags(ctx, SB_I_VERSION);
-		return 0;
-	case Opt_lazytime:
-		ctx_set_flags(ctx, SB_LAZYTIME);
-		return 0;
-	case Opt_nolazytime:
-		ctx_clear_flags(ctx, SB_LAZYTIME);
 		return 0;
 	case Opt_inlinecrypt:
 #ifdef CONFIG_FS_ENCRYPTION_INLINE_CRYPT
@@ -6259,7 +6250,7 @@ static int __ext4_remount(struct fs_context *fc, struct super_block *sb,
 	 * either way we need to make sure it matches in both *flags and
 	 * s_flags. Copy those selected flags from *flags to s_flags
 	 */
-	vfs_flags = SB_LAZYTIME | SB_I_VERSION;
+	vfs_flags = SB_I_VERSION;
 	sb->s_flags = (sb->s_flags & ~vfs_flags) | (*flags & vfs_flags);
 
 	ext4_apply_options(fc, sb);
