@@ -95,7 +95,10 @@ static int mt7915_pci_hif2_probe(struct pci_dev *pdev)
 static int mt7915_pci_probe(struct pci_dev *pdev,
 			    const struct pci_device_id *id)
 {
+	struct mt7915_dev *dev;
+	struct mt76_dev *mdev;
 	struct mt7915_hif *hif2;
+	int irq;
 	int ret;
 
 	ret = pcim_enable_device(pdev);
@@ -117,18 +120,63 @@ static int mt7915_pci_probe(struct pci_dev *pdev,
 	if (id->device == 0x7916 || id->device == 0x790a)
 		return mt7915_pci_hif2_probe(pdev);
 
-	ret = pci_alloc_irq_vectors(pdev, 1, 1, PCI_IRQ_ALL_TYPES);
-	if (ret < 0)
-		return ret;
+	dev = mt7915_mmio_probe(&pdev->dev, pcim_iomap_table(pdev)[0],
+				id->device);
+	if (IS_ERR(dev))
+		return PTR_ERR(dev);
 
+	mdev = &dev->mt76;
 	hif2 = mt7915_pci_init_hif2(pdev);
 
-	ret = mt7915_mmio_probe(&pdev->dev, pcim_iomap_table(pdev)[0],
-				id->device, pdev->irq, hif2);
-	if (!ret)
-		return 0;
+	ret = pci_alloc_irq_vectors(pdev, 1, 1, PCI_IRQ_ALL_TYPES);
+	if (ret < 0)
+		goto free_device;
 
+	irq = pdev->irq;
+	ret = devm_request_irq(mdev->dev, irq, mt7915_irq_handler,
+			       IRQF_SHARED, KBUILD_MODNAME, dev);
+	if (ret)
+		goto free_irq_vector;
+
+	mt76_wr(dev, MT_INT_MASK_CSR, 0);
+
+	/* master switch of PCIe tnterrupt enable */
+	mt76_wr(dev, MT_PCIE_MAC_INT_ENABLE, 0xff);
+
+	if (hif2) {
+		dev->hif2 = hif2;
+
+		mt76_wr(dev, MT_INT1_MASK_CSR, 0);
+		/* master switch of PCIe tnterrupt enable */
+		if (is_mt7915(mdev))
+			mt76_wr(dev, MT_PCIE1_MAC_INT_ENABLE, 0xff);
+		else
+			mt76_wr(dev, MT_PCIE1_MAC_INT_ENABLE_MT7916, 0xff);
+
+		ret = devm_request_irq(mdev->dev, dev->hif2->irq,
+				       mt7915_irq_handler, IRQF_SHARED,
+				       KBUILD_MODNAME "-hif", dev);
+		if (ret)
+			goto free_hif2;
+	}
+
+	ret = mt7915_register_device(dev);
+	if (ret)
+		goto free_hif2_irq;
+
+	return 0;
+
+free_hif2_irq:
+	if (dev->hif2)
+		devm_free_irq(mdev->dev, dev->hif2->irq, dev);
+free_hif2:
+	if (dev->hif2)
+		put_device(dev->hif2->dev);
+	devm_free_irq(mdev->dev, irq, dev);
+free_irq_vector:
 	pci_free_irq_vectors(pdev);
+free_device:
+	mt76_free_device(&dev->mt76);
 
 	return ret;
 }

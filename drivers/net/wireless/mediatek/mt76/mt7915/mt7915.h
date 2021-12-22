@@ -380,10 +380,9 @@ extern const struct mt76_testmode_ops mt7915_testmode_ops;
 extern struct pci_driver mt7915_pci_driver;
 extern struct pci_driver mt7915_hif_driver;
 
-int mt7915_mmio_probe(struct device *pdev,
-		      void __iomem *mem_base,
-		      u32 device_id,
-		      int irq, struct mt7915_hif *hif2);
+struct mt7915_dev *mt7915_mmio_probe(struct device *pdev,
+				     void __iomem *mem_base, u32 device_id);
+irqreturn_t mt7915_irq_handler(int irq, void *dev_instance);
 u64 __mt7915_get_tsf(struct ieee80211_hw *hw, struct mt7915_vif *mvif);
 int mt7915_register_device(struct mt7915_dev *dev);
 void mt7915_unregister_device(struct mt7915_dev *dev);
