@@ -174,11 +174,15 @@ struct rga_dma_buffer {
 	unsigned long size;
 	void *vmap_ptr;
 	enum dma_data_direction dir;
+
+	/* The core of the mapping */
+	int core;
 };
 
 struct rga_internal_buffer {
 	/* DMA buffer */
-	struct rga_dma_buffer dma_buffer;
+	struct rga_dma_buffer *dma_buffer;
+	uint32_t dma_buffer_size;
 
 	/* virtual address */
 	uint64_t vir_addr;
@@ -195,8 +199,7 @@ struct rga_internal_buffer {
 
 	uint32_t handle;
 
-	/* It indicates whether the buffer is cached */
-	bool cached;
+	uint32_t mm_flag;
 
 	struct kref refcount;
 };

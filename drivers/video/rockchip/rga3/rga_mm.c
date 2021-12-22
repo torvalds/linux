@@ -11,15 +11,85 @@
 #include "rga_mm.h"
 #include "rga_dma_buf.h"
 
-static void rga_mm_kref_release_buffer(struct kref *ref)
+/* If it is within 0~4G, return 1 (true). */
+static int rga_mm_check_range_sgt(struct sg_table *sgt)
 {
-	struct rga_internal_buffer *internal_buffer;
+	int i;
+	struct scatterlist *sg;
+	phys_addr_t s_phys = 0;
 
-	internal_buffer = container_of(ref, struct rga_internal_buffer, refcount);
+	for_each_sgtable_sg(sgt, sg, i) {
+		s_phys = sg_phys(sg);
+		if ((s_phys > 0xffffffff) || (s_phys + sg->length > 0xffffffff))
+			return 0;
+	}
 
+	return 1;
+}
+
+static void rga_mm_unmap_dma_buffer(struct rga_internal_buffer *internal_buffer)
+{
+	int i;
+
+	for (i = 0; i < internal_buffer->dma_buffer_size; i++)
+		rga_dma_unmap_fd(&internal_buffer->dma_buffer[i]);
+
+	kfree(internal_buffer->dma_buffer);
+	internal_buffer->dma_buffer = NULL;
+}
+
+static int rga_mm_map_dma_buffer(struct rga_external_buffer *external_buffer,
+	struct rga_internal_buffer *internal_buffer)
+{
+	int ret, i;
+
+	internal_buffer->dma_buffer_size = rga_drvdata->num_of_scheduler;
+	internal_buffer->dma_buffer = kcalloc(internal_buffer->dma_buffer_size,
+					      sizeof(struct rga_dma_buffer), GFP_KERNEL);
+	if (internal_buffer->dma_buffer == NULL) {
+		pr_err("%s alloc internal_buffer error!\n", __func__);
+		return  -ENOMEM;
+	}
+
+	internal_buffer->type = RGA_DMA_BUFFER;
+
+	for (i = 0; i < internal_buffer->dma_buffer_size; i++) {
+		/* If the physical address is greater than 4G, there is no need to map RGA2. */
+		if ((rga_drvdata->rga_scheduler[i]->core == RGA2_SCHEDULER_CORE0) &&
+		    (~internal_buffer->mm_flag & RGA_MM_UNDER_4G))
+			continue;
+
+		ret = rga_dma_map_fd((int)external_buffer->memory,
+				     &internal_buffer->dma_buffer[i],
+				     DMA_BIDIRECTIONAL,
+				     rga_drvdata->rga_scheduler[i]->dev);
+		if (ret < 0) {
+			pr_err("%s core[%d] map dma buffer error!\n",
+				__func__, rga_drvdata->rga_scheduler[0]->core);
+			goto FREE_RGA_DMA_BUF;
+		}
+
+		internal_buffer->dma_buffer[i].core = rga_drvdata->rga_scheduler[i]->core;
+
+		/* At first, check whether the physical address is greater than 4G. */
+		if (i == 0)
+			if (rga_mm_check_range_sgt(internal_buffer->dma_buffer[0].sgt))
+				internal_buffer->mm_flag |= RGA_MM_UNDER_4G;
+	}
+
+	return 0;
+
+FREE_RGA_DMA_BUF:
+	rga_mm_unmap_dma_buffer(internal_buffer);
+
+	return ret;
+}
+
+static int rga_mm_unmap_buffer(struct rga_internal_buffer *internal_buffer)
+{
 	switch (internal_buffer->type) {
 	case RGA_DMA_BUFFER:
-		rga_dma_unmap_fd(&internal_buffer->dma_buffer);
+		rga_mm_unmap_dma_buffer(internal_buffer);
 		break;
 	case RGA_VIRTUAL_ADDRESS:
 		// TODO
@@ -27,8 +97,43 @@ static void rga_mm_kref_release_buffer(struct kref *ref)
 		// TODO
 	default:
 		pr_err("Illegal external buffer!\n");
-		return;
+		return -EFAULT;
 	}
+
+	return 0;
+}
+
+static int rga_mm_map_buffer(struct rga_external_buffer *external_buffer,
+	struct rga_internal_buffer *internal_buffer)
+{
+	int ret;
+
+	switch (external_buffer->type) {
+	case RGA_DMA_BUFFER:
+		ret = rga_mm_map_dma_buffer(external_buffer, internal_buffer);
+		if (ret < 0) {
+			pr_err("%s map dma_buf error!\n", __func__);
+			return ret;
+		}
+		break;
+	case RGA_VIRTUAL_ADDRESS:
+		// TODO
+	case RGA_PHYSICAL_ADDRESS:
+		// TODO
+	default:
+		pr_err("Illegal external buffer!\n");
+		return -EFAULT;
+	}
+
+	return 0;
+}
+
+static void rga_mm_kref_release_buffer(struct kref *ref)
+{
+	struct rga_internal_buffer *internal_buffer;
+
+	internal_buffer = container_of(ref, struct rga_internal_buffer, refcount);
+	rga_mm_unmap_buffer(internal_buffer);
 
 	idr_remove(&rga_drvdata->mm->memory_idr, internal_buffer->handle);
 	kfree(internal_buffer);
@@ -65,7 +170,7 @@ rga_mm_internal_buffer_lookup_external(struct rga_mm *mm_session,
 			return (struct rga_internal_buffer *)dma_buf;
 
 		idr_for_each_entry(&mm_session->memory_idr, temp_buffer, id) {
-			if (temp_buffer->dma_buffer.dma_buf == dma_buf) {
+			if (temp_buffer->dma_buffer[0].dma_buf == dma_buf) {
 				output_buffer = temp_buffer;
 				break;
 			}
@@ -108,9 +213,9 @@ void rga_mm_dump_info(struct rga_mm *mm_session)
 	pr_info("buffer count = %d\n", mm_session->buffer_count);
 
 	idr_for_each_entry(&mm_session->memory_idr, temp_buffer, id) {
-		pr_info("ID[%d] dma_buf = %p, handle = %d, refcount = %d, cached = %d\n",
-			id, temp_buffer->dma_buffer.dma_buf, temp_buffer->handle,
-			kref_read(&temp_buffer->refcount), temp_buffer->cached);
+		pr_info("ID[%d] dma_buf = %p, handle = %d, refcount = %d, mm_flag = %x\n",
+			id, temp_buffer->dma_buffer[0].dma_buf, temp_buffer->handle,
+			kref_read(&temp_buffer->refcount), temp_buffer->mm_flag);
 	}
 }
 
@@ -146,29 +251,9 @@ uint32_t rga_mm_import_buffer(struct rga_external_buffer *external_buffer)
 		return -ENOMEM;
 	}
 
-	switch (external_buffer->type) {
-	case RGA_DMA_BUFFER:
-		ret = rga_dma_map_fd((int)external_buffer->memory,
-				     &internal_buffer->dma_buffer,
-				     DMA_BIDIRECTIONAL,
-				     rga_drvdata->rga_scheduler[0]->dev);
-		if (ret < 0) {
-			pr_err("%s map dma buffer error!\n", __func__);
-			goto FREE_INTERNAL_BUFFER;
-		}
-
-		internal_buffer->cached = true;
-		internal_buffer->type = RGA_DMA_BUFFER;
-		break;
-	case RGA_VIRTUAL_ADDRESS:
-		// TODO
-	case RGA_PHYSICAL_ADDRESS:
-		// TODO
-	default:
-		pr_err("Illegal external buffer!\n");
-		ret = -EFAULT;
+	ret = rga_mm_map_buffer(external_buffer, internal_buffer);
+	if (ret < 0)
 		goto FREE_INTERNAL_BUFFER;
-	}
 
 	kref_init(&internal_buffer->refcount);
 

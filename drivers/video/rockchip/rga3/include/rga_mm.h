@@ -11,6 +11,11 @@
 
 #include "rga_drv.h"
 
+enum memory_flag {
+	/* It will identify whether the buffer is within 0 ~ 4G. */
+	RGA_MM_UNDER_4G	= 1 << 0,
+};
+
 struct rga_mm {
 	struct mutex lock;
 

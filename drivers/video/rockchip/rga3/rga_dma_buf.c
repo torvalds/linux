@@ -775,6 +775,7 @@ int rga_dma_map_fd(int fd, struct rga_dma_buffer *rga_dma_buffer,
 	rga_dma_buffer->dma_buf = dma_buf;
 	rga_dma_buffer->attach = attach;
 	rga_dma_buffer->sgt = sgt;
+	rga_dma_buffer->iova = sg_dma_address(sgt->sgl);
 	rga_dma_buffer->size = sg_dma_len(sgt->sgl);
 	rga_dma_buffer->dir = dir;
 
