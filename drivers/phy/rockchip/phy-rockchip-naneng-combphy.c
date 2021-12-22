@@ -143,9 +143,9 @@ static int rockchip_combphy_pcie_init(struct rockchip_combphy_priv *priv)
 	}
 
 	if (priv->cfg->force_det_out) {
-		val = readl(priv->mmio + (0xd << 2));
+		val = readl(priv->mmio + (0x19 << 2));
 		val |= BIT(5);
-		writel(val, priv->mmio + (0xd << 2));
+		writel(val, priv->mmio + (0x19 << 2));
 	}
 
 	return ret;
