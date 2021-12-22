@@ -540,6 +540,12 @@
 		    interrupts = <14>;
 		    clocks = <&jpuclk>;
 		    clock-names = "axi_clk", "core_clk", "apb_clk";
+			resets = <&rstgen RSTN_U0_CODAJ12_AXI>,
+				<&rstgen RSTN_U0_CODAJ12_CORE>,
+				<&rstgen RSTN_U0_CODAJ12_APB>;
+			reset-names = "rst_axi",
+				"rst_core",
+				"rst_apb";
 		    status = "okay";
 		};
 
@@ -555,6 +561,16 @@
 				"apb_clk",
 				"aximem_128b";
 		    //starfive,vdec_noc_ctrl;
+		    resets = <&rstgen RSTN_U0_WAVE511_AXI>,
+				<&rstgen RSTN_U0_WAVE511_BPU>,
+				<&rstgen RSTN_U0_WAVE511_VCE>,
+				<&rstgen RSTN_U0_WAVE511_APB>,
+				<&rstgen RSTN_U0_AXIMEM_128B_AXI>;
+		    reset-names = "rst_axi",
+				"rst_bpu",
+				"rst_vce",
+				"rst_apb",
+				"rst_sram";
 		    status = "okay";
 		};
 		vpu_enc:vpu_enc@130B0000 {
