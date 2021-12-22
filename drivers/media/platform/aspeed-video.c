@@ -957,7 +957,7 @@ static void aspeed_video_get_resolution(struct aspeed_video *video)
 	u32 src_lr_edge;
 	u32 src_tb_edge;
 	u32 sync;
-	u32 htotal;
+	u32 htotal, vtotal, vsync, hsync;
 	struct v4l2_bt_timings *det = &video->detected_timings;
 
 	det->width = MIN_WIDTH;
@@ -1004,59 +1004,54 @@ static void aspeed_video_get_resolution(struct aspeed_video *video)
 		mds = aspeed_video_read(video, VE_MODE_DETECT_STATUS);
 		sync = aspeed_video_read(video, VE_SYNC_STATUS);
 		htotal = aspeed_video_read(video, VE_H_TOTAL_PIXELS);
+		vtotal = FIELD_GET(VE_MODE_DETECT_V_LINES, mds);
+		vsync = FIELD_GET(VE_SYNC_STATUS_VSYNC, sync);
+		hsync = FIELD_GET(VE_SYNC_STATUS_HSYNC, sync);
 
-		video->frame_bottom = FIELD_GET(VE_SRC_TB_EDGE_DET_BOT,
-						src_tb_edge);
-		video->frame_top = FIELD_GET(VE_SRC_TB_EDGE_DET_TOP,
-					     src_tb_edge);
-		det->vsync = FIELD_GET(VE_SYNC_STATUS_VSYNC, sync);
+		video->frame_bottom = FIELD_GET(VE_SRC_TB_EDGE_DET_BOT, src_tb_edge);
+		video->frame_top = FIELD_GET(VE_SRC_TB_EDGE_DET_TOP, src_tb_edge);
+
 		/*
-		 * Workaround for polarity detection
-		 * Use sync(VR098) counts from sync's rising edge till falling
-		 * edge to tell sync polarity.
+		 * This is a workaround for polarity detection when the sync
+		 * value is larger than half.
 		 */
-		if (det->vsync > (FIELD_GET(VE_MODE_DETECT_V_LINES, mds) >> 1))
+		if (vsync > (vtotal / 2))
 			det->polarities &= ~V4L2_DV_VSYNC_POS_POL;
 		else
 			det->polarities |= V4L2_DV_VSYNC_POS_POL;
+
 		if (det->polarities & V4L2_DV_VSYNC_POS_POL) {
-			det->vbackporch = video->frame_top - det->vsync;
-			det->vfrontporch =
-				FIELD_GET(VE_MODE_DETECT_V_LINES, mds) -
-				video->frame_bottom;
+			det->vbackporch = video->frame_top - vsync;
+			det->vfrontporch = vtotal - video->frame_bottom;
+			det->vsync = vsync;
 		} else {
-			det->vsync = FIELD_GET(VE_MODE_DETECT_V_LINES, mds) -
-				     det->vsync;
 			det->vbackporch = video->frame_top;
-			det->vfrontporch =
-				FIELD_GET(VE_MODE_DETECT_V_LINES, mds) -
-				video->frame_bottom - det->vsync;
+			det->vfrontporch = vsync - video->frame_bottom;
+			det->vsync = vtotal - vsync;
 		}
 		if (video->frame_top > video->frame_bottom)
 			continue;
 
-		video->frame_right = FIELD_GET(VE_SRC_LR_EDGE_DET_RT,
-					       src_lr_edge);
-		video->frame_left = FIELD_GET(VE_SRC_LR_EDGE_DET_LEFT,
-					      src_lr_edge);
-		det->hsync = FIELD_GET(VE_SYNC_STATUS_HSYNC, sync);
+		video->frame_right = FIELD_GET(VE_SRC_LR_EDGE_DET_RT, src_lr_edge);
+		video->frame_left = FIELD_GET(VE_SRC_LR_EDGE_DET_LEFT, src_lr_edge);
+
 		/*
-		 * Workaround for polarity detection
-		 * Use sync(VR098) counts from sync's rising edge till falling
-		 * edge to tell sync polarity.
+		 * This is a workaround for polarity detection when the sync
+		 * value is larger than half.
 		 */
-		if (det->hsync > (htotal >> 1))
+		if (hsync > (htotal / 2))
 			det->polarities &= ~V4L2_DV_HSYNC_POS_POL;
 		else
 			det->polarities |= V4L2_DV_HSYNC_POS_POL;
+
 		if (det->polarities & V4L2_DV_HSYNC_POS_POL) {
-			det->hbackporch = video->frame_left - det->hsync;
+			det->hbackporch = video->frame_left - hsync;
 			det->hfrontporch = htotal - video->frame_right;
+			det->hsync = hsync;
 		} else {
-			det->hsync = htotal - det->hsync;
 			det->hbackporch = video->frame_left;
-			det->hfrontporch = htotal - video->frame_right -
-					   det->hsync;
+			det->hfrontporch = hsync - video->frame_right;
+			det->hsync = htotal - hsync;
 		}
 		if (video->frame_left > video->frame_right)
 			continue;
