@@ -1977,6 +1977,19 @@ cifs_set_cifscreds(struct smb3_fs_context *ctx, struct cifs_ses *ses)
 		}
 	}
 
+	ctx->workstation_name = kstrdup(ses->workstation_name, GFP_KERNEL);
+	if (!ctx->workstation_name) {
+		cifs_dbg(FYI, "Unable to allocate memory for workstation_name\n");
+		rc = -ENOMEM;
+		kfree(ctx->username);
+		ctx->username = NULL;
+		kfree_sensitive(ctx->password);
+		ctx->password = NULL;
+		kfree(ctx->domainname);
+		ctx->domainname = NULL;
+		goto out_key_put;
+	}
+
 out_key_put:
 	up_read(&key->sem);
 	key_put(key);
