@@ -2443,12 +2443,11 @@ static void sysc_reinit_modules(struct sysc_soc_info *soc)
 	struct sysc_module *module;
 	struct list_head *pos;
 	struct sysc *ddata;
-	int error = 0;
 
 	list_for_each(pos, &sysc_soc->restored_modules) {
 		module = list_entry(pos, struct sysc_module, node);
 		ddata = module->ddata;
-		error = sysc_reinit_module(ddata, ddata->enabled);
+		sysc_reinit_module(ddata, ddata->enabled);
 	}
 }
 
