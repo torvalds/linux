@@ -32,12 +32,14 @@ enum data_formats {
 
 enum digest_type {
 	DIGEST_TYPE_IMA,
+	DIGEST_TYPE_VERITY,
 	DIGEST_TYPE__LAST
 };
 
-#define DIGEST_TYPE_NAME_LEN_MAX 4	/* including NUL */
+#define DIGEST_TYPE_NAME_LEN_MAX 7	/* including NUL */
 static const char * const digest_type_name[DIGEST_TYPE__LAST] = {
-	[DIGEST_TYPE_IMA] = "ima"
+	[DIGEST_TYPE_IMA] = "ima",
+	[DIGEST_TYPE_VERITY] = "verity"
 };
 
 static int ima_write_template_field_data(const void *data, const u32 datalen,
@@ -297,7 +299,7 @@ static int ima_eventdigest_init_common(const u8 *digest, u32 digestsize,
 	 *
 	 *    where 'DATA_FMT_DIGEST' is the original digest format ('d')
 	 *      with a hash size limitation of 20 bytes,
-	 *    where <digest type> is "ima",
+	 *    where <digest type> is either "ima" or "verity",
 	 *    where <hash algo> is the hash_algo_name[] string.
 	 */
 	u8 buffer[DIGEST_TYPE_NAME_LEN_MAX + CRYPTO_MAX_ALG_NAME + 2 +
@@ -432,6 +434,8 @@ int ima_eventdigest_ngv2_init(struct ima_event_data *event_data,
 	cur_digestsize = event_data->iint->ima_hash->length;
 
 	hash_algo = event_data->iint->ima_hash->algo;
+	if (event_data->iint->flags & IMA_VERITY_REQUIRED)
+		digest_type = DIGEST_TYPE_VERITY;
 out:
 	return ima_eventdigest_init_common(cur_digest, cur_digestsize,
 					   digest_type, hash_algo,

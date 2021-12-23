@@ -27,8 +27,9 @@ Description:
 				[fowner=] [fgroup=]]
 			lsm:	[[subj_user=] [subj_role=] [subj_type=]
 				 [obj_user=] [obj_role=] [obj_type=]]
-			option:	[[appraise_type=]] [template=] [permit_directio]
-				[appraise_flag=] [appraise_algos=] [keyrings=]
+			option:	[digest_type=] [template=] [permit_directio]
+				[appraise_type=] [appraise_flag=]
+				[appraise_algos=] [keyrings=]
 		  base:
 			func:= [BPRM_CHECK][MMAP_CHECK][CREDS_CHECK][FILE_CHECK][MODULE_CHECK]
 				[FIRMWARE_CHECK]
@@ -51,6 +52,9 @@ Description:
 			appraise_flag:= [check_blacklist]
 			Currently, blacklist check is only for files signed with appended
 			signature.
+			digest_type:= verity
+			    Require fs-verity's file digest instead of the
+			    regular IMA file hash.
 			keyrings:= list of keyrings
 			(eg, .builtin_trusted_keys|.ima). Only valid
 			when action is "measure" and func is KEY_CHECK.
@@ -149,3 +153,9 @@ Description:
 		security.ima xattr of a file:
 
 			appraise func=SETXATTR_CHECK appraise_algos=sha256,sha384,sha512
+
+		Example of a 'measure' rule requiring fs-verity's digests
+		with indication of type of digest in the measurement list.
+
+			measure func=FILE_CHECK digest_type=verity \
+				template=ima-ngv2
