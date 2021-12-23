@@ -657,7 +657,7 @@ loop:
  */
 void io_wq_worker_running(struct task_struct *tsk)
 {
-	struct io_worker *worker = tsk->pf_io_worker;
+	struct io_worker *worker = tsk->worker_private;
 
 	if (!worker)
 		return;
@@ -675,7 +675,7 @@ void io_wq_worker_running(struct task_struct *tsk)
  */
 void io_wq_worker_sleeping(struct task_struct *tsk)
 {
-	struct io_worker *worker = tsk->pf_io_worker;
+	struct io_worker *worker = tsk->worker_private;
 
 	if (!worker)
 		return;
@@ -694,7 +694,7 @@ void io_wq_worker_sleeping(struct task_struct *tsk)
 static void io_init_new_worker(struct io_wqe *wqe, struct io_worker *worker,
 			       struct task_struct *tsk)
 {
-	tsk->pf_io_worker = worker;
+	tsk->worker_private = worker;
 	worker->task = tsk;
 	set_cpus_allowed_ptr(tsk, wqe->cpu_mask);
 	tsk->flags |= PF_NO_SETAFFINITY;

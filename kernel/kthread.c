@@ -72,7 +72,7 @@ enum KTHREAD_BITS {
 static inline struct kthread *to_kthread(struct task_struct *k)
 {
 	WARN_ON(!(k->flags & PF_KTHREAD));
-	return (__force void *)k->set_child_tid;
+	return k->worker_private;
 }
 
 /*
@@ -80,7 +80,7 @@ static inline struct kthread *to_kthread(struct task_struct *k)
  *
  * Per construction; when:
  *
- *   (p->flags & PF_KTHREAD) && p->set_child_tid
+ *   (p->flags & PF_KTHREAD) && p->worker_private
  *
  * the task is both a kthread and struct kthread is persistent. However
  * PF_KTHREAD on it's own is not, kernel_thread() can exec() (See umh.c and
@@ -88,7 +88,7 @@ static inline struct kthread *to_kthread(struct task_struct *k)
  */
 static inline struct kthread *__to_kthread(struct task_struct *p)
 {
-	void *kthread = (__force void *)p->set_child_tid;
+	void *kthread = p->worker_private;
 	if (kthread && !(p->flags & PF_KTHREAD))
 		kthread = NULL;
 	return kthread;
@@ -109,11 +109,7 @@ bool set_kthread_struct(struct task_struct *p)
 	init_completion(&kthread->parked);
 	p->vfork_done = &kthread->exited;
 
-	/*
-	 * We abuse ->set_child_tid to avoid the new member and because it
-	 * can't be wrongly copied by copy_process().
-	 */
-	p->set_child_tid = (__force void __user *)kthread;
+	p->worker_private = kthread;
 	return true;
 }
 
@@ -128,7 +124,7 @@ void free_kthread_struct(struct task_struct *k)
 #ifdef CONFIG_BLK_CGROUP
 	WARN_ON_ONCE(kthread && kthread->blkcg_css);
 #endif
-	k->set_child_tid = (__force void __user *)NULL;
+	k->worker_private = NULL;
 	kfree(kthread);
 }
 
