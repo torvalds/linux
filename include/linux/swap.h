@@ -328,7 +328,7 @@ static inline swp_entry_t folio_swap_entry(struct folio *folio)
 
 /* linux/mm/workingset.c */
 void workingset_age_nonresident(struct lruvec *lruvec, unsigned long nr_pages);
-void *workingset_eviction(struct page *page, struct mem_cgroup *target_memcg);
+void *workingset_eviction(struct folio *folio, struct mem_cgroup *target_memcg);
 void workingset_refault(struct folio *folio, void *shadow);
 void workingset_activation(struct folio *folio);
 

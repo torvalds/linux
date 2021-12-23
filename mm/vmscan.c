@@ -1242,6 +1242,7 @@ static pageout_t pageout(struct page *page, struct address_space *mapping)
 static int __remove_mapping(struct address_space *mapping, struct page *page,
 			    bool reclaimed, struct mem_cgroup *target_memcg)
 {
+	struct folio *folio = page_folio(page);
 	int refcount;
 	void *shadow = NULL;
 
@@ -1289,7 +1290,7 @@ static int __remove_mapping(struct address_space *mapping, struct page *page,
 		swp_entry_t swap = { .val = page_private(page) };
 		mem_cgroup_swapout(page, swap);
 		if (reclaimed && !mapping_exiting(mapping))
-			shadow = workingset_eviction(page, target_memcg);
+			shadow = workingset_eviction(folio, target_memcg);
 		__delete_from_swap_cache(page, swap, shadow);
 		xa_unlock_irq(&mapping->i_pages);
 		put_swap_page(page, swap);
@@ -1315,8 +1316,8 @@ static int __remove_mapping(struct address_space *mapping, struct page *page,
 		 */
 		if (reclaimed && page_is_file_lru(page) &&
 		    !mapping_exiting(mapping) && !dax_mapping(mapping))
-			shadow = workingset_eviction(page, target_memcg);
-		__delete_from_page_cache(page, shadow);
+			shadow = workingset_eviction(folio, target_memcg);
+		__filemap_remove_folio(folio, shadow);
 		xa_unlock_irq(&mapping->i_pages);
 		if (mapping_shrinkable(mapping))
 			inode_add_lru(mapping->host);
