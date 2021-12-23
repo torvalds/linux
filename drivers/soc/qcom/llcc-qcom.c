@@ -632,9 +632,8 @@ static int qcom_llcc_probe(struct platform_device *pdev)
 	for (i = 0; i < num_banks; i++)
 		drv_data->offsets[i] = i * BANK_OFFSET_STRIDE;
 
-	drv_data->bitmap = devm_kcalloc(dev,
-	BITS_TO_LONGS(drv_data->max_slices), sizeof(unsigned long),
-						GFP_KERNEL);
+	drv_data->bitmap = devm_bitmap_zalloc(dev, drv_data->max_slices,
+					      GFP_KERNEL);
 	if (!drv_data->bitmap) {
 		ret = -ENOMEM;
 		goto err;
