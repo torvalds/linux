@@ -1912,65 +1912,13 @@ static const unsigned int keysc_out11_1_mux[] = {
 	PORT143_KEYOUT11_MARK,
 };
 /* - LCD -------------------------------------------------------------------- */
-static const unsigned int lcd_data8_pins[] = {
-	/* D[0:7] */
-	192, 193, 194, 195, 196, 197, 198, 199,
-};
-static const unsigned int lcd_data8_mux[] = {
-	LCDD0_MARK, LCDD1_MARK, LCDD2_MARK, LCDD3_MARK,
-	LCDD4_MARK, LCDD5_MARK, LCDD6_MARK, LCDD7_MARK,
-};
-static const unsigned int lcd_data9_pins[] = {
-	/* D[0:8] */
-	192, 193, 194, 195, 196, 197, 198, 199,
-	200,
-};
-static const unsigned int lcd_data9_mux[] = {
-	LCDD0_MARK, LCDD1_MARK, LCDD2_MARK, LCDD3_MARK,
-	LCDD4_MARK, LCDD5_MARK, LCDD6_MARK, LCDD7_MARK,
-	LCDD8_MARK,
-};
-static const unsigned int lcd_data12_pins[] = {
-	/* D[0:11] */
-	192, 193, 194, 195, 196, 197, 198, 199,
-	200, 201, 202, 203,
-};
-static const unsigned int lcd_data12_mux[] = {
-	LCDD0_MARK, LCDD1_MARK, LCDD2_MARK, LCDD3_MARK,
-	LCDD4_MARK, LCDD5_MARK, LCDD6_MARK, LCDD7_MARK,
-	LCDD8_MARK, LCDD9_MARK, LCDD10_MARK, LCDD11_MARK,
-};
-static const unsigned int lcd_data16_pins[] = {
-	/* D[0:15] */
-	192, 193, 194, 195, 196, 197, 198, 199,
-	200, 201, 202, 203, 204, 205, 206, 207,
-};
-static const unsigned int lcd_data16_mux[] = {
-	LCDD0_MARK, LCDD1_MARK, LCDD2_MARK, LCDD3_MARK,
-	LCDD4_MARK, LCDD5_MARK, LCDD6_MARK, LCDD7_MARK,
-	LCDD8_MARK, LCDD9_MARK, LCDD10_MARK, LCDD11_MARK,
-	LCDD12_MARK, LCDD13_MARK, LCDD14_MARK, LCDD15_MARK,
-};
-static const unsigned int lcd_data18_pins[] = {
-	/* D[0:17] */
-	192, 193, 194, 195, 196, 197, 198, 199,
-	200, 201, 202, 203, 204, 205, 206, 207,
-	208, 209,
-};
-static const unsigned int lcd_data18_mux[] = {
-	LCDD0_MARK, LCDD1_MARK, LCDD2_MARK, LCDD3_MARK,
-	LCDD4_MARK, LCDD5_MARK, LCDD6_MARK, LCDD7_MARK,
-	LCDD8_MARK, LCDD9_MARK, LCDD10_MARK, LCDD11_MARK,
-	LCDD12_MARK, LCDD13_MARK, LCDD14_MARK, LCDD15_MARK,
-	LCDD16_MARK, LCDD17_MARK,
-};
-static const unsigned int lcd_data24_pins[] = {
+static const unsigned int lcd_data_pins[] = {
 	/* D[0:23] */
 	192, 193, 194, 195, 196, 197, 198, 199,
 	200, 201, 202, 203, 204, 205, 206, 207,
 	208, 209, 210, 211, 212, 213, 214, 215
 };
-static const unsigned int lcd_data24_mux[] = {
+static const unsigned int lcd_data_mux[] = {
 	LCDD0_MARK, LCDD1_MARK, LCDD2_MARK, LCDD3_MARK,
 	LCDD4_MARK, LCDD5_MARK, LCDD6_MARK, LCDD7_MARK,
 	LCDD8_MARK, LCDD9_MARK, LCDD10_MARK, LCDD11_MARK,
@@ -2007,65 +1955,13 @@ static const unsigned int lcd_sys_mux[] = {
 	LCDCS__MARK, LCDWR__MARK, LCDRD__MARK, LCDRS_MARK,
 };
 /* - LCD2 ------------------------------------------------------------------- */
-static const unsigned int lcd2_data8_pins[] = {
-	/* D[0:7] */
-	128, 129, 142, 143, 144, 145, 138, 139,
-};
-static const unsigned int lcd2_data8_mux[] = {
-	LCD2D0_MARK, LCD2D1_MARK, LCD2D2_MARK, LCD2D3_MARK,
-	LCD2D4_MARK, LCD2D5_MARK, LCD2D6_MARK, LCD2D7_MARK,
-};
-static const unsigned int lcd2_data9_pins[] = {
-	/* D[0:8] */
-	128, 129, 142, 143, 144, 145, 138, 139,
-	140,
-};
-static const unsigned int lcd2_data9_mux[] = {
-	LCD2D0_MARK, LCD2D1_MARK, LCD2D2_MARK, LCD2D3_MARK,
-	LCD2D4_MARK, LCD2D5_MARK, LCD2D6_MARK, LCD2D7_MARK,
-	LCD2D8_MARK,
-};
-static const unsigned int lcd2_data12_pins[] = {
-	/* D[0:11] */
-	128, 129, 142, 143, 144, 145, 138, 139,
-	140, 141, 130, 131,
-};
-static const unsigned int lcd2_data12_mux[] = {
-	LCD2D0_MARK, LCD2D1_MARK, LCD2D2_MARK, LCD2D3_MARK,
-	LCD2D4_MARK, LCD2D5_MARK, LCD2D6_MARK, LCD2D7_MARK,
-	LCD2D8_MARK, LCD2D9_MARK, LCD2D10_MARK, LCD2D11_MARK,
-};
-static const unsigned int lcd2_data16_pins[] = {
-	/* D[0:15] */
-	128, 129, 142, 143, 144, 145, 138, 139,
-	140, 141, 130, 131, 132, 133, 134, 135,
-};
-static const unsigned int lcd2_data16_mux[] = {
-	LCD2D0_MARK, LCD2D1_MARK, LCD2D2_MARK, LCD2D3_MARK,
-	LCD2D4_MARK, LCD2D5_MARK, LCD2D6_MARK, LCD2D7_MARK,
-	LCD2D8_MARK, LCD2D9_MARK, LCD2D10_MARK, LCD2D11_MARK,
-	LCD2D12_MARK, LCD2D13_MARK, LCD2D14_MARK, LCD2D15_MARK,
-};
-static const unsigned int lcd2_data18_pins[] = {
-	/* D[0:17] */
-	128, 129, 142, 143, 144, 145, 138, 139,
-	140, 141, 130, 131, 132, 133, 134, 135,
-	136, 137,
-};
-static const unsigned int lcd2_data18_mux[] = {
-	LCD2D0_MARK, LCD2D1_MARK, LCD2D2_MARK, LCD2D3_MARK,
-	LCD2D4_MARK, LCD2D5_MARK, LCD2D6_MARK, LCD2D7_MARK,
-	LCD2D8_MARK, LCD2D9_MARK, LCD2D10_MARK, LCD2D11_MARK,
-	LCD2D12_MARK, LCD2D13_MARK, LCD2D14_MARK, LCD2D15_MARK,
-	LCD2D16_MARK, LCD2D17_MARK,
-};
-static const unsigned int lcd2_data24_pins[] = {
+static const unsigned int lcd2_data_pins[] = {
 	/* D[0:23] */
 	128, 129, 142, 143, 144, 145, 138, 139,
 	140, 141, 130, 131, 132, 133, 134, 135,
 	136, 137, 146, 147, 234, 235, 238, 239
 };
-static const unsigned int lcd2_data24_mux[] = {
+static const unsigned int lcd2_data_mux[] = {
 	LCD2D0_MARK, LCD2D1_MARK, LCD2D2_MARK, LCD2D3_MARK,
 	LCD2D4_MARK, LCD2D5_MARK, LCD2D6_MARK, LCD2D7_MARK,
 	LCD2D8_MARK, LCD2D9_MARK, LCD2D10_MARK, LCD2D11_MARK,
@@ -3136,22 +3032,22 @@ static const struct sh_pfc_pin_group pinmux_groups[] = {
 	SH_PFC_PIN_GROUP(keysc_out10_1),
 	SH_PFC_PIN_GROUP(keysc_out11_0),
 	SH_PFC_PIN_GROUP(keysc_out11_1),
-	SH_PFC_PIN_GROUP(lcd_data8),
-	SH_PFC_PIN_GROUP(lcd_data9),
-	SH_PFC_PIN_GROUP(lcd_data12),
-	SH_PFC_PIN_GROUP(lcd_data16),
-	SH_PFC_PIN_GROUP(lcd_data18),
-	SH_PFC_PIN_GROUP(lcd_data24),
+	BUS_DATA_PIN_GROUP(lcd_data, 8),
+	BUS_DATA_PIN_GROUP(lcd_data, 9),
+	BUS_DATA_PIN_GROUP(lcd_data, 12),
+	BUS_DATA_PIN_GROUP(lcd_data, 16),
+	BUS_DATA_PIN_GROUP(lcd_data, 18),
+	BUS_DATA_PIN_GROUP(lcd_data, 24),
 	SH_PFC_PIN_GROUP(lcd_display),
 	SH_PFC_PIN_GROUP(lcd_lclk),
 	SH_PFC_PIN_GROUP(lcd_sync),
 	SH_PFC_PIN_GROUP(lcd_sys),
-	SH_PFC_PIN_GROUP(lcd2_data8),
-	SH_PFC_PIN_GROUP(lcd2_data9),
-	SH_PFC_PIN_GROUP(lcd2_data12),
-	SH_PFC_PIN_GROUP(lcd2_data16),
-	SH_PFC_PIN_GROUP(lcd2_data18),
-	SH_PFC_PIN_GROUP(lcd2_data24),
+	BUS_DATA_PIN_GROUP(lcd2_data, 8),
+	BUS_DATA_PIN_GROUP(lcd2_data, 9),
+	BUS_DATA_PIN_GROUP(lcd2_data, 12),
+	BUS_DATA_PIN_GROUP(lcd2_data, 16),
+	BUS_DATA_PIN_GROUP(lcd2_data, 18),
+	BUS_DATA_PIN_GROUP(lcd2_data, 24),
 	SH_PFC_PIN_GROUP(lcd2_sync_0),
 	SH_PFC_PIN_GROUP(lcd2_sync_1),
 	SH_PFC_PIN_GROUP(lcd2_sys_0),
