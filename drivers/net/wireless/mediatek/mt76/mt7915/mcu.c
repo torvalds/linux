@@ -705,26 +705,6 @@ mt7915_mcu_bss_hw_amsdu_tlv(struct sk_buff *skb)
 }
 
 static void
-mt7915_mcu_bss_ext_tlv(struct sk_buff *skb, struct mt7915_vif *mvif)
-{
-/* SIFS 20us + 512 byte beacon tranmitted by 1Mbps (3906us) */
-#define BCN_TX_ESTIMATE_TIME	(4096 + 20)
-	struct bss_info_ext_bss *ext;
-	int ext_bss_idx, tsf_offset;
-	struct tlv *tlv;
-
-	ext_bss_idx = mvif->mt76.omac_idx - EXT_BSSID_START;
-	if (ext_bss_idx < 0)
-		return;
-
-	tlv = mt76_connac_mcu_add_tlv(skb, BSS_INFO_EXT_BSS, sizeof(*ext));
-
-	ext = (struct bss_info_ext_bss *)tlv;
-	tsf_offset = ext_bss_idx * BCN_TX_ESTIMATE_TIME;
-	ext->mbss_tsf_offset = cpu_to_le32(tsf_offset);
-}
-
-static void
 mt7915_mcu_bss_bmc_tlv(struct sk_buff *skb, struct mt7915_phy *phy)
 {
 	struct bss_info_bmc_rate *bmc;
@@ -818,7 +798,7 @@ int mt7915_mcu_add_bss_info(struct mt7915_phy *phy,
 
 		if (mvif->mt76.omac_idx >= EXT_BSSID_START &&
 		    mvif->mt76.omac_idx < REPEATER_BSSID_START)
-			mt7915_mcu_bss_ext_tlv(skb, mvif);
+			mt76_connac_mcu_bss_ext_tlv(skb, &mvif->mt76);
 	}
 out:
 	return mt76_mcu_skb_send_msg(&dev->mt76, skb,

@@ -1593,6 +1593,7 @@ int mt76_connac_mcu_add_key(struct mt76_dev *dev, struct ieee80211_vif *vif,
 			    struct ieee80211_key_conf *key, int mcu_cmd,
 			    struct mt76_wcid *wcid, enum set_key_cmd cmd);
 
+void mt76_connac_mcu_bss_ext_tlv(struct sk_buff *skb, struct mt76_vif *mvif);
 void mt76_connac_mcu_bss_omac_tlv(struct sk_buff *skb,
 				  struct ieee80211_vif *vif);
 #endif /* __MT76_CONNAC_MCU_H */
