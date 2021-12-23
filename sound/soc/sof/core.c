@@ -106,8 +106,8 @@ void snd_sof_get_status(struct snd_sof_dev *sdev, u32 panic_code,
 out:
 	dev_err(sdev->dev, "panic at %s:%d\n", panic_info->filename,
 		panic_info->linenum);
-	sof_oops(sdev, oops);
-	sof_stack(sdev, oops, stack, stack_words);
+	sof_oops(sdev, KERN_ERR, oops);
+	sof_stack(sdev, KERN_ERR, oops, stack, stack_words);
 }
 EXPORT_SYMBOL(snd_sof_get_status);
 

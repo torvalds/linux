@@ -309,8 +309,8 @@ struct snd_sof_dsp_ops {
 
 /* DSP architecture specific callbacks for oops and stack dumps */
 struct dsp_arch_ops {
-	void (*dsp_oops)(struct snd_sof_dev *sdev, void *oops);
-	void (*dsp_stack)(struct snd_sof_dev *sdev, void *oops,
+	void (*dsp_oops)(struct snd_sof_dev *sdev, const char *level, void *oops);
+	void (*dsp_stack)(struct snd_sof_dev *sdev, const char *level, void *oops,
 			  u32 *stack, u32 stack_words);
 };
 
@@ -573,16 +573,17 @@ int snd_sof_debugfs_add_region_item_iomem(struct snd_sof_dev *sdev,
 /*
  * DSP Architectures.
  */
-static inline void sof_stack(struct snd_sof_dev *sdev, void *oops, u32 *stack,
-			     u32 stack_words)
+static inline void sof_stack(struct snd_sof_dev *sdev, const char *level,
+			     void *oops, u32 *stack, u32 stack_words)
 {
-		sof_dsp_arch_ops(sdev)->dsp_stack(sdev, oops, stack, stack_words);
+		sof_dsp_arch_ops(sdev)->dsp_stack(sdev, level,  oops, stack,
+						  stack_words);
 }
 
-static inline void sof_oops(struct snd_sof_dev *sdev, void *oops)
+static inline void sof_oops(struct snd_sof_dev *sdev, const char *level, void *oops)
 {
 	if (sof_dsp_arch_ops(sdev)->dsp_oops)
-		sof_dsp_arch_ops(sdev)->dsp_oops(sdev, oops);
+		sof_dsp_arch_ops(sdev)->dsp_oops(sdev, level, oops);
 }
 
 extern const struct dsp_arch_ops sof_xtensa_arch_ops;
