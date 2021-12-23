@@ -2426,18 +2426,11 @@ static const unsigned int scifb_ctrl_1_mux[] = {
 	SCIFB_RTS_PORT172_MARK, SCIFB_CTS_PORT173_MARK,
 };
 /* - SDHI0 ------------------------------------------------------------------ */
-static const unsigned int sdhi0_data1_pins[] = {
-	/* D0 */
-	77,
-};
-static const unsigned int sdhi0_data1_mux[] = {
-	SDHI0_D0_MARK,
-};
-static const unsigned int sdhi0_data4_pins[] = {
+static const unsigned int sdhi0_data_pins[] = {
 	/* D[0:3] */
 	77, 78, 79, 80,
 };
-static const unsigned int sdhi0_data4_mux[] = {
+static const unsigned int sdhi0_data_mux[] = {
 	SDHI0_D0_MARK, SDHI0_D1_MARK, SDHI0_D2_MARK, SDHI0_D3_MARK,
 };
 static const unsigned int sdhi0_ctrl_pins[] = {
@@ -2462,18 +2455,11 @@ static const unsigned int sdhi0_wp_mux[] = {
 	SDHI0_WP_MARK,
 };
 /* - SDHI1 ------------------------------------------------------------------ */
-static const unsigned int sdhi1_data1_pins[] = {
-	/* D0 */
-	68,
-};
-static const unsigned int sdhi1_data1_mux[] = {
-	SDHI1_D0_MARK,
-};
-static const unsigned int sdhi1_data4_pins[] = {
+static const unsigned int sdhi1_data_pins[] = {
 	/* D[0:3] */
 	68, 69, 70, 71,
 };
-static const unsigned int sdhi1_data4_mux[] = {
+static const unsigned int sdhi1_data_mux[] = {
 	SDHI1_D0_MARK, SDHI1_D1_MARK, SDHI1_D2_MARK, SDHI1_D3_MARK,
 };
 static const unsigned int sdhi1_ctrl_pins[] = {
@@ -2498,18 +2484,11 @@ static const unsigned int sdhi1_wp_mux[] = {
 	SDHI1_WP_MARK,
 };
 /* - SDHI2 ------------------------------------------------------------------ */
-static const unsigned int sdhi2_data1_pins[] = {
-	/* D0 */
-	205,
-};
-static const unsigned int sdhi2_data1_mux[] = {
-	SDHI2_D0_MARK,
-};
-static const unsigned int sdhi2_data4_pins[] = {
+static const unsigned int sdhi2_data_pins[] = {
 	/* D[0:3] */
 	205, 206, 207, 208,
 };
-static const unsigned int sdhi2_data4_mux[] = {
+static const unsigned int sdhi2_data_mux[] = {
 	SDHI2_D0_MARK, SDHI2_D1_MARK, SDHI2_D2_MARK, SDHI2_D3_MARK,
 };
 static const unsigned int sdhi2_ctrl_pins[] = {
@@ -2747,18 +2726,18 @@ static const struct sh_pfc_pin_group pinmux_groups[] = {
 	SH_PFC_PIN_GROUP(scifb_data_1),
 	SH_PFC_PIN_GROUP(scifb_clk_1),
 	SH_PFC_PIN_GROUP(scifb_ctrl_1),
-	SH_PFC_PIN_GROUP(sdhi0_data1),
-	SH_PFC_PIN_GROUP(sdhi0_data4),
+	BUS_DATA_PIN_GROUP(sdhi0_data, 1),
+	BUS_DATA_PIN_GROUP(sdhi0_data, 4),
 	SH_PFC_PIN_GROUP(sdhi0_ctrl),
 	SH_PFC_PIN_GROUP(sdhi0_cd),
 	SH_PFC_PIN_GROUP(sdhi0_wp),
-	SH_PFC_PIN_GROUP(sdhi1_data1),
-	SH_PFC_PIN_GROUP(sdhi1_data4),
+	BUS_DATA_PIN_GROUP(sdhi1_data, 1),
+	BUS_DATA_PIN_GROUP(sdhi1_data, 4),
 	SH_PFC_PIN_GROUP(sdhi1_ctrl),
 	SH_PFC_PIN_GROUP(sdhi1_cd),
 	SH_PFC_PIN_GROUP(sdhi1_wp),
-	SH_PFC_PIN_GROUP(sdhi2_data1),
-	SH_PFC_PIN_GROUP(sdhi2_data4),
+	BUS_DATA_PIN_GROUP(sdhi2_data, 1),
+	BUS_DATA_PIN_GROUP(sdhi2_data, 4),
 	SH_PFC_PIN_GROUP(sdhi2_ctrl),
 	SH_PFC_PIN_GROUP(sdhi2_cd_0),
 	SH_PFC_PIN_GROUP(sdhi2_wp_0),
