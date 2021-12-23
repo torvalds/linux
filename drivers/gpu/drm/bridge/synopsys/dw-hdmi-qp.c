@@ -1206,6 +1206,30 @@ static void hdmi_config_drm_infoframe(struct dw_hdmi_qp *hdmi,
 		  hdr_metadata->hdmi_metadata_type1.eotf);
 }
 
+/* Filter out invalid setups to avoid configuring SCDC and scrambling */
+static bool dw_hdmi_support_scdc(struct dw_hdmi_qp *hdmi,
+				 const struct drm_display_info *display)
+{
+	/* Disable if no DDC bus */
+	if (!hdmi->ddc)
+		return false;
+
+	/* Disable if SCDC is not supported, or if an HF-VSDB block is absent */
+	if (!display->hdmi.scdc.supported ||
+	    !display->hdmi.scdc.scrambling.supported)
+		return false;
+
+	/*
+	 * Disable if display only support low TMDS rates and scrambling
+	 * for low rates is not supported either
+	 */
+	if (!display->hdmi.scdc.scrambling.low_rates &&
+	    display->max_tmds_clock <= 340000)
+		return false;
+
+	return true;
+}
+
 static int hdmi_set_frl_mask(int frl_rate)
 {
 	switch (frl_rate) {
@@ -1282,12 +1306,14 @@ static int hdmi_start_flt(struct dw_hdmi_qp *hdmi, u8 rate)
 #define HDMI_MODE_FRL_MASK     BIT(30)
 
 static void hdmi_set_op_mode(struct dw_hdmi_qp *hdmi,
-			     struct dw_hdmi_link_config *link_cfg)
+			     struct dw_hdmi_link_config *link_cfg,
+			     const struct drm_connector *connector)
 {
 	int frl_rate;
 
 	hdmi_writel(hdmi, 0, FLT_CONFIG0);
-	drm_scdc_writeb(hdmi->ddc, 0x31, 0);
+	if (dw_hdmi_support_scdc(hdmi, &connector->display_info))
+		drm_scdc_writeb(hdmi->ddc, 0x31, 0);
 	msleep(20);
 	if (!link_cfg->frl_mode) {
 		dev_info(hdmi->dev, "dw hdmi qp use tmds mode\n");
@@ -1449,16 +1475,18 @@ static int dw_hdmi_qp_setup(struct dw_hdmi_qp *hdmi,
 		hdmi_modb(hdmi, 0, OPMODE_DVI, LINK_CONFIG0);
 		hdmi_modb(hdmi, HDCP2_BYPASS, HDCP2_BYPASS, HDCP2LOGIC_CONFIG0);
 		if (!link_cfg->frl_mode) {
-			drm_scdc_readb(hdmi->ddc, SCDC_SINK_VERSION, &bytes);
-			drm_scdc_writeb(hdmi->ddc, SCDC_SOURCE_VERSION,
-					min_t(u8, bytes, SCDC_MIN_SOURCE_VERSION));
 			if (vmode->mtmdsclock > HDMI14_MAX_TMDSCLK) {
+				drm_scdc_readb(hdmi->ddc, SCDC_SINK_VERSION, &bytes);
+				drm_scdc_writeb(hdmi->ddc, SCDC_SOURCE_VERSION,
+						min_t(u8, bytes, SCDC_MIN_SOURCE_VERSION));
 				drm_scdc_set_high_tmds_clock_ratio(hdmi->ddc, 1);
 				drm_scdc_set_scrambling(hdmi->ddc, 1);
 				hdmi_writel(hdmi, 1, SCRAMB_CONFIG0);
 			} else {
-				drm_scdc_set_high_tmds_clock_ratio(hdmi->ddc, 0);
-				drm_scdc_set_scrambling(hdmi->ddc, 0);
+				if (dw_hdmi_support_scdc(hdmi, &connector->display_info)) {
+					drm_scdc_set_high_tmds_clock_ratio(hdmi->ddc, 0);
+					drm_scdc_set_scrambling(hdmi->ddc, 0);
+				}
 				hdmi_writel(hdmi, 0, SCRAMB_CONFIG0);
 			}
 		}
@@ -1466,7 +1494,7 @@ static int dw_hdmi_qp_setup(struct dw_hdmi_qp *hdmi,
 		hdmi_config_AVI(hdmi, connector, mode);
 		hdmi_config_CVTEM(hdmi);
 		hdmi_config_drm_infoframe(hdmi, connector);
-		hdmi_set_op_mode(hdmi, link_cfg);
+		hdmi_set_op_mode(hdmi, link_cfg, connector);
 	} else {
 		hdmi_modb(hdmi, OPMODE_DVI, OPMODE_DVI, LINK_CONFIG0);
 		dev_info(hdmi->dev, "%s DVI mode\n", __func__);
