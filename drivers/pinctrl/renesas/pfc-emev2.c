@@ -749,23 +749,14 @@ static const unsigned int cf_ctrl_mux[] = {
 	CF_CDB2_MARK,
 };
 
-static const unsigned int cf_data8_pins[] = {
-	/* CF_D[0:7] */
-	77, 78, 79, 80,
-	81, 82, 83, 84,
-};
-static const unsigned int cf_data8_mux[] = {
-	CF_D00_MARK, CF_D01_MARK, CF_D02_MARK, CF_D03_MARK,
-	CF_D04_MARK, CF_D05_MARK, CF_D06_MARK, CF_D07_MARK,
-};
-static const unsigned int cf_data16_pins[] = {
+static const unsigned int cf_data_pins[] = {
 	/* CF_D[0:15] */
 	77, 78, 79, 80,
 	81, 82, 83, 84,
 	85, 86, 87, 88,
 	89, 90, 91, 92,
 };
-static const unsigned int cf_data16_mux[] = {
+static const unsigned int cf_data_mux[] = {
 	CF_D00_MARK, CF_D01_MARK, CF_D02_MARK, CF_D03_MARK,
 	CF_D04_MARK, CF_D05_MARK, CF_D06_MARK, CF_D07_MARK,
 	CF_D08_MARK, CF_D09_MARK, CF_D10_MARK, CF_D11_MARK,
@@ -1131,8 +1122,8 @@ static const struct sh_pfc_pin_group pinmux_groups[] = {
 	SH_PFC_PIN_GROUP(cam),
 
 	SH_PFC_PIN_GROUP(cf_ctrl),
-	SH_PFC_PIN_GROUP(cf_data8),
-	SH_PFC_PIN_GROUP(cf_data16),
+	BUS_DATA_PIN_GROUP(cf_data, 8),
+	BUS_DATA_PIN_GROUP(cf_data, 16),
 
 	SH_PFC_PIN_GROUP(dtv_a),
 	SH_PFC_PIN_GROUP(dtv_b),
