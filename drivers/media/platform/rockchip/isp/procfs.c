@@ -124,7 +124,7 @@ static void isp21_show(struct rkisp_device *dev, struct seq_file *p)
 		"SHARPEN",
 		"RKSHARPEN"
 	};
-	u32 val;
+	u32 val, tmp;
 
 	val = rkisp_read(dev, ISP_DPCC0_MODE, false);
 	seq_printf(p, "%-10s %s(0x%x)\n", "DPCC0", (val & 1) ? "ON" : "OFF", val);
@@ -177,9 +177,21 @@ static void isp21_show(struct rkisp_device *dev, struct seq_file *p)
 	val = rkisp_read(dev, ISP_LDCH_STS, false);
 	seq_printf(p, "%-10s %s(0x%x)\n", "LDCH", (val & 1) ? "ON" : "OFF", val);
 	val = rkisp_read(dev, ISP_CTRL, false);
-	seq_printf(p, "%-10s %s(0x%x)\n", "CSM",
-		(val & full_range_flg) ? "FULL" : "LIMITED", val);
-
+	tmp = rkisp_read(dev, ISP_CC_COEFF_0, false);
+	seq_printf(p, "%-10s %s(0x%x), y_offs:0x%x c_offs:0x%x\n"
+		   "\t   coeff Y:0x%x 0x%x 0x%x CB:0x%x 0x%x 0x%x CR:0x%x 0x%x 0x%x\n",
+		   "CSM", (val & full_range_flg) ? "FULL" : "LIMIT", val,
+		   (tmp >> 24) & 0x3f,
+		   (tmp >> 16) & 0xff ? (tmp >> 16) & 0xff : 128,
+		   tmp & 0x1ff,
+		   rkisp_read(dev, ISP_CC_COEFF_1, false),
+		   rkisp_read(dev, ISP_CC_COEFF_2, false),
+		   rkisp_read(dev, ISP_CC_COEFF_3, false),
+		   rkisp_read(dev, ISP_CC_COEFF_4, false),
+		   rkisp_read(dev, ISP_CC_COEFF_5, false),
+		   rkisp_read(dev, ISP_CC_COEFF_6, false),
+		   rkisp_read(dev, ISP_CC_COEFF_7, false),
+		   rkisp_read(dev, ISP_CC_COEFF_8, false));
 	val = rkisp_read(dev, ISP_AFM_CTRL, false);
 	seq_printf(p, "%-10s %s(0x%x)\n", "SIAF", (val & 1) ? "ON" : "OFF", val);
 	val = rkisp_read(dev, CIF_ISP_AWB_PROP_V10, false);
@@ -224,7 +236,7 @@ static void isp30_show(struct rkisp_device *dev, struct seq_file *p)
 		"SHARPEN",
 		"RKSHARPEN"
 	};
-	u32 val;
+	u32 val, tmp;
 
 	val = rkisp_read(dev, ISP3X_CMSK_CTRL0, false);
 	seq_printf(p, "%-10s %s(0x%x)\n", "CMSK", (val & 1) ? "ON" : "OFF", val);
@@ -279,7 +291,21 @@ static void isp30_show(struct rkisp_device *dev, struct seq_file *p)
 	val = rkisp_read(dev, ISP3X_LDCH_STS, false);
 	seq_printf(p, "%-10s %s(0x%x)\n", "LDCH", (val & 1) ? "ON" : "OFF", val);
 	val = rkisp_read(dev, ISP3X_ISP_CTRL0, false);
-	seq_printf(p, "%-10s %s(0x%x)\n", "CSM", (val & full_range_flg) ? "FULL" : "LIMIT", val);
+	tmp = rkisp_read(dev, ISP3X_ISP_CC_COEFF_0, false);
+	seq_printf(p, "%-10s %s(0x%x), y_offs:0x%x c_offs:0x%x\n"
+		   "\t   coeff Y:0x%x 0x%x 0x%x CB:0x%x 0x%x 0x%x CR:0x%x 0x%x 0x%x\n",
+		   "CSM", (val & full_range_flg) ? "FULL" : "LIMIT", val,
+		   (tmp >> 24) & 0x3f,
+		   (tmp >> 16) & 0xff ? (tmp >> 16) & 0xff : 128,
+		   tmp & 0x1ff,
+		   rkisp_read(dev, ISP3X_ISP_CC_COEFF_1, false),
+		   rkisp_read(dev, ISP3X_ISP_CC_COEFF_2, false),
+		   rkisp_read(dev, ISP3X_ISP_CC_COEFF_3, false),
+		   rkisp_read(dev, ISP3X_ISP_CC_COEFF_4, false),
+		   rkisp_read(dev, ISP3X_ISP_CC_COEFF_5, false),
+		   rkisp_read(dev, ISP3X_ISP_CC_COEFF_6, false),
+		   rkisp_read(dev, ISP3X_ISP_CC_COEFF_7, false),
+		   rkisp_read(dev, ISP3X_ISP_CC_COEFF_8, false));
 	val = rkisp_read(dev, ISP3X_CAC_CTRL, false);
 	seq_printf(p, "%-10s %s(0x%x)\n", "CAC", (val & 1) ? "ON" : "OFF", val);
 	val = rkisp_read(dev, ISP3X_GAIN_CTRL, false);

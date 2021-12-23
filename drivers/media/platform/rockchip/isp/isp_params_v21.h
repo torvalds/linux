@@ -137,7 +137,7 @@ struct rkisp_isp_params_v21_ops {
 	void (*bay3d_enable)(struct rkisp_isp_params_vdev *params_vdev,
 			     bool en);
 	void (*csm_config)(struct rkisp_isp_params_vdev *params_vdev,
-			   bool full_range);
+			   const struct isp21_csm_cfg *arg);
 };
 
 struct rkisp_isp_params_val_v21 {

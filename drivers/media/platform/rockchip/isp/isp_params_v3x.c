@@ -3610,6 +3610,51 @@ isp_cac_enable(struct rkisp_isp_params_vdev *params_vdev, bool en, u32 id)
 	isp3_param_write(params_vdev, val, ISP3X_CAC_CTRL, id);
 }
 
+static void
+isp_csm_config(struct rkisp_isp_params_vdev *params_vdev,
+	       const struct isp21_csm_cfg *arg, u32 id)
+{
+	u32 i, val, eff_ctrl, cproc_ctrl;
+
+	for (i = 0; i < ISP3X_CSM_COEFF_NUM; i++) {
+		if (i == 0)
+			val = (arg->csm_y_offset & 0x3f) << 24 |
+			      (arg->csm_c_offset & 0xff) << 16 |
+			      (arg->csm_coeff[i] & 0x1ff);
+		else
+			val = arg->csm_coeff[i] & 0x1ff;
+		isp3_param_write(params_vdev, val, ISP3X_ISP_CC_COEFF_0 + i * 4, id);
+	}
+
+	val = CIF_ISP_CTRL_ISP_CSM_Y_FULL_ENA | CIF_ISP_CTRL_ISP_CSM_C_FULL_ENA;
+	if (arg->csm_full_range) {
+		params_vdev->quantization = V4L2_QUANTIZATION_FULL_RANGE;
+		isp3_param_set_bits(params_vdev, ISP3X_ISP_CTRL0, val, id);
+	} else {
+		params_vdev->quantization = V4L2_QUANTIZATION_LIM_RANGE;
+		isp3_param_clear_bits(params_vdev, ISP3X_ISP_CTRL0, val, id);
+	}
+
+	eff_ctrl = isp3_param_read(params_vdev, ISP3X_IMG_EFF_CTRL, id);
+	if (eff_ctrl & CIF_IMG_EFF_CTRL_ENABLE) {
+		if (arg->csm_full_range)
+			eff_ctrl |= CIF_IMG_EFF_CTRL_YCBCR_FULL;
+		else
+			eff_ctrl &= ~CIF_IMG_EFF_CTRL_YCBCR_FULL;
+		isp3_param_write(params_vdev, eff_ctrl, ISP3X_IMG_EFF_CTRL, id);
+	}
+
+	cproc_ctrl = isp3_param_read(params_vdev, ISP3X_CPROC_CTRL, id);
+	if (cproc_ctrl & CIF_C_PROC_CTR_ENABLE) {
+		val = CIF_C_PROC_YOUT_FULL | CIF_C_PROC_YIN_FULL | CIF_C_PROC_COUT_FULL;
+		if (eff_ctrl & CIF_IMG_EFF_CTRL_ENABLE || !arg->csm_full_range)
+			cproc_ctrl &= ~val;
+		else
+			cproc_ctrl |= val;
+		isp3_param_write(params_vdev, cproc_ctrl, ISP3X_CPROC_CTRL, id);
+	}
+}
+
 struct rkisp_isp_params_ops_v3x isp_params_ops_v3x = {
 	.dpcc_config = isp_dpcc_config,
 	.dpcc_enable = isp_dpcc_enable,
@@ -3627,6 +3672,7 @@ struct rkisp_isp_params_ops_v3x isp_params_ops_v3x = {
 	.ccm_enable = isp_ccm_enable,
 	.goc_config = isp_goc_config,
 	.goc_enable = isp_goc_enable,
+	.csm_config = isp_csm_config,
 	.cproc_config = isp_cproc_config,
 	.cproc_enable = isp_cproc_enable,
 	.ie_config = isp_ie_config,
@@ -3724,6 +3770,9 @@ void __isp_isr_other_config(struct rkisp_isp_params_vdev *params_vdev,
 
 	if ((module_cfg_update & ISP3X_MODULE_GOC))
 		ops->goc_config(params_vdev, &new_params->others.gammaout_cfg, id);
+
+	if ((module_cfg_update & ISP3X_MODULE_CSM))
+		ops->csm_config(params_vdev, &new_params->others.csm_cfg, id);
 
 	if ((module_cfg_update & ISP3X_MODULE_CPROC))
 		ops->cproc_config(params_vdev, &new_params->others.cproc_cfg, id);

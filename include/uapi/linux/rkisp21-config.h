@@ -17,6 +17,7 @@
 #define ISP2X_MODULE_CNR			BIT_ULL(39)
 #define ISP2X_MODULE_SHARP			BIT_ULL(40)
 #define ISP2X_MODULE_DRC			BIT_ULL(41)
+#define ISP2X_MODULE_CSM			BIT_ULL(43)
 
 #define ISP21_DHAZ_ENH_CURVE_NUM		17
 #define ISP21_DHAZ_HIST_IIR_NUM			64
@@ -28,6 +29,15 @@
 #define ISP21_BAY3D_XY_NUM			16
 #define ISP21_SHARP_X_NUM			7
 #define ISP21_SHARP_Y_NUM			8
+#define ISP21_CSM_COEFF_NUM			9
+
+struct isp21_csm_cfg {
+	u8 csm_full_range;
+	u16 csm_y_offset;
+	u16 csm_c_offset;
+
+	u32 csm_coeff[ISP21_CSM_COEFF_NUM];
+} __attribute__ ((packed));
 
 struct isp21_bls_cfg {
 	u8 enable_auto;
@@ -717,6 +727,7 @@ struct isp21_isp_other_cfg {
 	struct isp21_ynr_cfg ynr_cfg;
 	struct isp21_cnr_cfg cnr_cfg;
 	struct isp21_sharp_cfg sharp_cfg;
+	struct isp21_csm_cfg csm_cfg;
 } __attribute__ ((packed));
 
 struct isp21_isp_meas_cfg {
