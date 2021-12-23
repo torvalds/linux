@@ -1232,21 +1232,21 @@ static int adc3xxx_i2c_probe(struct i2c_client *i2c,
 
 	ret = adc3xxx_parse_dt_gpio(adc3xxx, "ti,dmdin-gpio1", &adc3xxx->gpio_cfg[0]);
 	if (ret < 0)
-		return ret;
+		goto err_unprepare_mclk;
 	ret = adc3xxx_parse_dt_gpio(adc3xxx, "ti,dmclk-gpio2", &adc3xxx->gpio_cfg[1]);
 	if (ret < 0)
-		return ret;
+		goto err_unprepare_mclk;
 	ret = adc3xxx_parse_dt_micbias(adc3xxx, "ti,micbias1-vg", &adc3xxx->micbias_vg[0]);
 	if (ret < 0)
-		return ret;
+		goto err_unprepare_mclk;
 	ret = adc3xxx_parse_dt_micbias(adc3xxx, "ti,micbias2-vg", &adc3xxx->micbias_vg[1]);
 	if (ret < 0)
-		return ret;
+		goto err_unprepare_mclk;
 
 	adc3xxx->regmap = devm_regmap_init_i2c(i2c, &adc3xxx_regmap);
 	if (IS_ERR(adc3xxx->regmap)) {
 		ret = PTR_ERR(adc3xxx->regmap);
-		return ret;
+		goto err_unprepare_mclk;
 	}
 
 	i2c_set_clientdata(i2c, adc3xxx);
@@ -1263,9 +1263,15 @@ static int adc3xxx_i2c_probe(struct i2c_client *i2c,
 
 	ret = snd_soc_register_component(dev,
 			&soc_component_dev_adc3xxx, &adc3xxx_dai, 1);
-	if (ret < 0)
+	if (ret < 0) {
 		dev_err(dev, "Failed to register codec: %d\n", ret);
+		goto err_unprepare_mclk;
+	}
 
+	return 0;
+
+err_unprepare_mclk:
+	clk_disable_unprepare(adc3xxx->mclk);
 	return ret;
 }
 
