@@ -1062,7 +1062,7 @@ static int rockchip_drm_create_properties(struct drm_device *dev)
 		return -ENOMEM;
 	private->share_id_prop = prop;
 
-	prop = drm_property_create_range(dev, DRM_MODE_PROP_ATOMIC,
+	prop = drm_property_create_range(dev, DRM_MODE_PROP_ATOMIC | DRM_MODE_PROP_IMMUTABLE,
 					 "CONNECTOR_ID", 0, 0xf);
 	if (!prop)
 		return -ENOMEM;
