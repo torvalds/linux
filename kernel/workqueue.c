@@ -918,10 +918,6 @@ void wq_worker_sleeping(struct task_struct *task)
 	}
 
 	/*
-	 * The counterpart of the following dec_and_test, implied mb,
-	 * worklist not empty test sequence is in insert_work().
-	 * Please read comment there.
-	 *
 	 * NOT_RUNNING is clear.  This means that we're bound to and
 	 * running on the local cpu w/ rq lock held and preemption
 	 * disabled, which in turn means that none else could be
@@ -1371,13 +1367,6 @@ static void insert_work(struct pool_workqueue *pwq, struct work_struct *work,
 	set_work_pwq(work, pwq, extra_flags);
 	list_add_tail(&work->entry, head);
 	get_pwq(pwq);
-
-	/*
-	 * Ensure either wq_worker_sleeping() sees the above
-	 * list_add_tail() or we see zero nr_running to avoid workers lying
-	 * around lazily while there are works to be processed.
-	 */
-	smp_mb();
 
 	if (__need_more_worker(pool))
 		wake_up_worker(pool);
