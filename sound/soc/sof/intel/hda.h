@@ -273,7 +273,7 @@
 #define BXT_D0I3_DELAY 5000
 
 #define FW_CL_STREAM_NUMBER		0x1
-#define HDA_FW_BOOT_ATTEMPTS	3
+#define HDA_FW_BOOT_ATTEMPTS		3
 
 /* ADSPCS - Audio DSP Control & Status */
 
