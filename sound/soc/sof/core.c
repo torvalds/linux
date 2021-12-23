@@ -27,6 +27,22 @@ MODULE_PARM_DESC(sof_debug, "SOF core debug options (0x0 all off)");
 #define TIMEOUT_DEFAULT_IPC_MS  500
 #define TIMEOUT_DEFAULT_BOOT_MS 2000
 
+/**
+ * sof_debug_check_flag - check if a given flag(s) is set in sof_core_debug
+ * @mask: Flag or combination of flags to check
+ *
+ * Returns true if all bits set in mask is also set in sof_core_debug, otherwise
+ * false
+ */
+bool sof_debug_check_flag(int mask)
+{
+	if ((sof_core_debug & mask) == mask)
+		return true;
+
+	return false;
+}
+EXPORT_SYMBOL(sof_debug_check_flag);
+
 /*
  * FW Panic/fault handling.
  */

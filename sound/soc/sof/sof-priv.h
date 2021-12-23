@@ -43,6 +43,7 @@
 
 /* global debug state set by SOF_DBG_ flags */
 extern int sof_core_debug;
+bool sof_debug_check_flag(int mask);
 
 /* max BARs mmaped devices can use */
 #define SND_SOF_BARS	8
