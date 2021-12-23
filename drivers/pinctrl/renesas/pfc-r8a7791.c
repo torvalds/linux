@@ -2298,13 +2298,6 @@ static const unsigned int hscif1_data_d_pins[] = {
 static const unsigned int hscif1_data_d_mux[] = {
 	HRX1_D_MARK, HTX1_D_MARK,
 };
-static const unsigned int hscif1_data_e_pins[] = {
-	/* RX, TX */
-	RCAR_GP_PIN(7, 14), RCAR_GP_PIN(7, 15),
-};
-static const unsigned int hscif1_data_e_mux[] = {
-	HRX1_C_MARK, HTX1_C_MARK,
-};
 static const unsigned int hscif1_clk_e_pins[] = {
 	/* SCK */
 	RCAR_GP_PIN(2, 6),
@@ -4543,7 +4536,7 @@ static const struct {
 		SH_PFC_PIN_GROUP(hscif1_clk_c),
 		SH_PFC_PIN_GROUP(hscif1_ctrl_c),
 		SH_PFC_PIN_GROUP(hscif1_data_d),
-		SH_PFC_PIN_GROUP(hscif1_data_e),
+		SH_PFC_PIN_GROUP_ALIAS(hscif1_data_e, hscif1_data_c),
 		SH_PFC_PIN_GROUP(hscif1_clk_e),
 		SH_PFC_PIN_GROUP(hscif1_ctrl_e),
 		SH_PFC_PIN_GROUP(hscif2_data),
