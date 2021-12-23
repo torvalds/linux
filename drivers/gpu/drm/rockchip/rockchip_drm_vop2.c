@@ -487,8 +487,9 @@ struct vop2_wb_connector_state {
 struct vop2_video_port {
 	struct rockchip_crtc rockchip_crtc;
 	struct vop2 *vop2;
-	struct clk *dclk;
 	struct reset_control *dclk_rst;
+	struct clk *dclk;
+	struct clk *dclk_parent;
 	uint8_t id;
 	bool layer_sel_update;
 	const struct vop2_video_port_regs *regs;
@@ -709,6 +710,8 @@ struct vop2 {
 	struct clk *hclk;
 	struct clk *aclk;
 	struct clk *pclk;
+	struct clk *hdmi0_phy_pll;
+	struct clk *hdmi1_phy_pll;
 	struct reset_control *ahb_rst;
 	struct reset_control *axi_rst;
 
@@ -5282,6 +5285,17 @@ static int vop2_cru_set_rate(struct vop2_clk *if_pixclk, struct vop2_clk *if_dcl
 	return ret;
 }
 
+static void vop2_clk_set_parent(struct clk *clk, struct clk *parent)
+{
+	int ret = 0;
+
+	if (parent)
+		ret = clk_set_parent(clk, parent);
+	if (ret < 0)
+		DRM_WARN("failed to set %s as parent for %s\n",
+			 __clk_get_name(parent), __clk_get_name(clk));
+}
+
 static int vop2_set_dsc_clk(struct drm_crtc *crtc, u8 dsc_id)
 {
 	struct vop2_video_port *vp = to_vop2_video_port(crtc);
@@ -6183,6 +6197,18 @@ static void vop2_crtc_atomic_enable(struct drm_crtc *crtc, struct drm_crtc_state
 	snprintf(clk_name, sizeof(clk_name), "dclk%d", vp->id);
 	dclk = vop2_clk_get(vop2, clk_name);
 	if (dclk) {
+		/*
+		 * use HDMI_PHY_PLL as dclk source under 4K@60
+		 * otherwise use system cru as dclk source.
+		 */
+		if (vcstate->output_type == DRM_MODE_CONNECTOR_HDMIA) {
+			if (adjusted_mode->crtc_clock > VOP2_MAX_DCLK_RATE)
+				vop2_clk_set_parent(vp->dclk, vp->dclk_parent);
+			else if (vcstate->output_if & VOP_OUTPUT_IF_HDMI0)
+				vop2_clk_set_parent(vp->dclk, vop2->hdmi0_phy_pll);
+			else if (vcstate->output_if & VOP_OUTPUT_IF_HDMI1)
+				vop2_clk_set_parent(vp->dclk, vop2->hdmi1_phy_pll);
+		}
 		clk_set_rate(vp->dclk, dclk->rate);
 		DRM_DEV_INFO(vop2->dev, "set %s to %ld, get %ld\n",
 			      __clk_get_name(vp->dclk), dclk->rate, clk_get_rate(vp->dclk));
@@ -8206,7 +8232,7 @@ static int vop2_create_crtc(struct vop2 *vop2)
 	uint32_t possible_crtcs;
 	uint64_t soc_id;
 	uint32_t registered_num_crtcs = 0;
-	char dclk_name[9];
+	char clk_name[16];
 	int i = 0, j = 0, k = 0;
 	int ret = 0;
 	bool be_used_for_primary_plane = false;
@@ -8259,16 +8285,23 @@ static int vop2_create_crtc(struct vop2 *vop2)
 		else
 			soc_id = vp_data->soc_id[0];
 
-		snprintf(dclk_name, sizeof(dclk_name), "dclk_vp%d", vp->id);
-		vp->dclk_rst = devm_reset_control_get_optional(vop2->dev, dclk_name);
+		snprintf(clk_name, sizeof(clk_name), "dclk_vp%d", vp->id);
+		vp->dclk_rst = devm_reset_control_get_optional(vop2->dev, clk_name);
 		if (IS_ERR(vp->dclk_rst)) {
 			DRM_DEV_ERROR(vop2->dev, "failed to get dclk reset\n");
 			return PTR_ERR(vp->dclk_rst);
 		}
 
-		vp->dclk = devm_clk_get(vop2->dev, dclk_name);
+		vp->dclk = devm_clk_get(vop2->dev, clk_name);
 		if (IS_ERR(vp->dclk)) {
-			DRM_DEV_ERROR(vop2->dev, "failed to get %s\n", dclk_name);
+			DRM_DEV_ERROR(vop2->dev, "failed to get %s\n", clk_name);
+			return PTR_ERR(vp->dclk);
+		}
+
+		snprintf(clk_name, sizeof(clk_name), "dclk_src_vp%d", vp->id);
+		vp->dclk_parent = devm_clk_get_optional(vop2->dev, clk_name);
+		if (IS_ERR(vp->dclk)) {
+			DRM_DEV_ERROR(vop2->dev, "failed to get %s\n", clk_name);
 			return PTR_ERR(vp->dclk);
 		}
 
@@ -8704,6 +8737,20 @@ static int vop2_bind(struct device *dev, struct device *master, void *data)
 	if (IS_ERR(vop2->pclk)) {
 		DRM_DEV_ERROR(vop2->dev, "failed to get pclk source\n");
 		return PTR_ERR(vop2->pclk);
+	}
+
+	vop2->hdmi0_phy_pll = devm_clk_get_optional(vop2->dev, "hdmi0_phy_pll");
+	if (IS_ERR(vop2->hdmi0_phy_pll)) {
+		dev_warn(vop2->dev, "failed to get hdmi0_phy_pll: %ld\n",
+			 PTR_ERR(vop2->hdmi0_phy_pll));
+		vop2->hdmi0_phy_pll = NULL;
+	}
+
+	vop2->hdmi1_phy_pll = devm_clk_get_optional(vop2->dev, "hdmi1_phy_pll");
+	if (IS_ERR(vop2->hdmi1_phy_pll)) {
+		dev_warn(vop2->dev, "failed to get hdmi1_phy_pll: %ld\n",
+			 PTR_ERR(vop2->hdmi1_phy_pll));
+		vop2->hdmi1_phy_pll = NULL;
 	}
 
 	vop2->ahb_rst = devm_reset_control_get_optional(vop2->dev, "ahb");
