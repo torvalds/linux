@@ -742,37 +742,6 @@ out:
 }
 
 /** starec & wtbl **/
-static void
-mt7915_mcu_wtbl_ba_tlv(struct sk_buff *skb,
-		       struct ieee80211_ampdu_params *params,
-		       bool enable, bool tx, void *sta_wtbl,
-		       void *wtbl_tlv)
-{
-	struct wtbl_ba *ba;
-	struct tlv *tlv;
-
-	tlv = mt76_connac_mcu_add_nested_tlv(skb, WTBL_BA, sizeof(*ba),
-					     wtbl_tlv, sta_wtbl);
-
-	ba = (struct wtbl_ba *)tlv;
-	ba->tid = params->tid;
-
-	if (tx) {
-		ba->ba_type = MT_BA_TYPE_ORIGINATOR;
-		ba->sn = enable ? cpu_to_le16(params->ssn) : 0;
-		ba->ba_en = enable;
-	} else {
-		memcpy(ba->peer_addr, params->sta->addr, ETH_ALEN);
-		ba->ba_type = MT_BA_TYPE_RECIPIENT;
-		ba->rst_ba_tid = params->tid;
-		ba->rst_ba_sel = RST_BA_MAC_TID_MATCH;
-		ba->rst_ba_sb = 1;
-	}
-
-	if (enable)
-		ba->ba_winsize = cpu_to_le16(params->buf_size);
-}
-
 static int
 mt7915_mcu_sta_ba(struct mt7915_dev *dev,
 		  struct ieee80211_ampdu_params *params,
@@ -800,8 +769,8 @@ mt7915_mcu_sta_ba(struct mt7915_dev *dev,
 	if (IS_ERR(wtbl_hdr))
 		return PTR_ERR(wtbl_hdr);
 
-	mt7915_mcu_wtbl_ba_tlv(skb, params, enable, tx, sta_wtbl, wtbl_hdr);
-
+	mt76_connac_mcu_wtbl_ba_tlv(&dev->mt76, skb, params, enable, tx,
+				    sta_wtbl, wtbl_hdr);
 	ret = mt76_mcu_skb_send_msg(&dev->mt76, skb,
 				    MCU_EXT_CMD(STA_REC_UPDATE), true);
 	if (ret)

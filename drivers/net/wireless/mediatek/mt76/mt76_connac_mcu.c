@@ -1015,7 +1015,7 @@ void mt76_connac_mcu_wtbl_ba_tlv(struct mt76_dev *dev, struct sk_buff *skb,
 		ba->rst_ba_sb = 1;
 	}
 
-	if (is_mt7921(dev)) {
+	if (is_mt7921(dev) || is_mt7915(dev)) {
 		ba->ba_winsize = enable ? cpu_to_le16(params->buf_size) : 0;
 		return;
 	}
