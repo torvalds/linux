@@ -2153,3 +2153,8 @@ int __init ext4_fc_init_dentry_cache(void)
 
 	return 0;
 }
+
+void ext4_fc_destroy_dentry_cache(void)
+{
+	kmem_cache_destroy(ext4_fc_dentry_cachep);
+}
