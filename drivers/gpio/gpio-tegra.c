@@ -691,7 +691,6 @@ static int tegra_gpio_probe(struct platform_device *pdev)
 	tgi->gc.base			= 0;
 	tgi->gc.ngpio			= tgi->bank_count * 32;
 	tgi->gc.parent			= &pdev->dev;
-	tgi->gc.of_node			= pdev->dev.of_node;
 
 	tgi->ic.name			= "GPIO";
 	tgi->ic.irq_ack			= tegra_gpio_irq_ack;
