@@ -930,7 +930,7 @@ void snd_sof_free_debug(struct snd_sof_dev *sdev)
 EXPORT_SYMBOL_GPL(snd_sof_free_debug);
 
 static const struct soc_fw_state_info {
-	enum snd_sof_fw_state state;
+	enum sof_fw_state state;
 	const char *name;
 } fw_state_dbg[] = {
 	{SOF_FW_BOOT_NOT_STARTED, "SOF_FW_BOOT_NOT_STARTED"},

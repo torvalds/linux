@@ -18,7 +18,7 @@
 struct snd_sof_dsp_ops;
 
 /**
- * enum snd_sof_fw_state - DSP firmware state definitions
+ * enum sof_fw_state - DSP firmware state definitions
  * @SOF_FW_BOOT_NOT_STARTED:	firmware boot is not yet started
  * @SOF_FW_BOOT_PREPARE:	preparing for boot (firmware loading for exaqmple)
  * @SOF_FW_BOOT_IN_PROGRESS:	firmware boot is in progress
@@ -28,7 +28,7 @@ struct snd_sof_dsp_ops;
  * @SOF_FW_BOOT_COMPLETE:	firmware is booted up and functional
  * @SOF_FW_CRASHED:		firmware crashed after successful boot
  */
-enum snd_sof_fw_state {
+enum sof_fw_state {
 	SOF_FW_BOOT_NOT_STARTED = 0,
 	SOF_FW_BOOT_PREPARE,
 	SOF_FW_BOOT_IN_PROGRESS,

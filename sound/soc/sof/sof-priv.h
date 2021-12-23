@@ -399,7 +399,7 @@ struct snd_sof_dev {
 
 	/* DSP firmware boot */
 	wait_queue_head_t boot_wait;
-	enum snd_sof_fw_state fw_state;
+	enum sof_fw_state fw_state;
 	bool first_boot;
 
 	/* work queue in case the probe is implemented in two steps */
@@ -591,7 +591,7 @@ extern const struct dsp_arch_ops sof_xtensa_arch_ops;
  * Firmware state tracking
  */
 static inline void sof_set_fw_state(struct snd_sof_dev *sdev,
-				    enum snd_sof_fw_state new_state)
+				    enum sof_fw_state new_state)
 {
 	if (sdev->fw_state == new_state)
 		return;
