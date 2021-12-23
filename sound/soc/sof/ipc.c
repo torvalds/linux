@@ -302,7 +302,7 @@ static int sof_ipc_tx_message_unlocked(struct snd_sof_ipc *ipc, u32 header,
 	struct snd_sof_ipc_msg *msg;
 	int ret;
 
-	if (ipc->disable_ipc_tx)
+	if (ipc->disable_ipc_tx || sdev->fw_state == SOF_FW_CRASHED)
 		return -ENODEV;
 
 	/*

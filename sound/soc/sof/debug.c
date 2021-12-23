@@ -939,6 +939,7 @@ static const struct soc_fw_state_info {
 	{SOF_FW_BOOT_FAILED, "SOF_FW_BOOT_FAILED"},
 	{SOF_FW_BOOT_READY_FAILED, "SOF_FW_BOOT_READY_FAILED"},
 	{SOF_FW_BOOT_COMPLETE, "SOF_FW_BOOT_COMPLETE"},
+	{SOF_FW_CRASHED, "SOF_FW_CRASHED"},
 };
 
 static void snd_sof_dbg_print_fw_state(struct snd_sof_dev *sdev)
