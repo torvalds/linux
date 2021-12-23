@@ -324,7 +324,7 @@ EXPORT_SYMBOL_GPL(acpi_get_pci_dev);
  * acpi_pci_osc_control_set - Request control of PCI root _OSC features.
  * @handle: ACPI handle of a PCI root bridge (or PCIe Root Complex).
  * @mask: Mask of _OSC bits to request control of, place to store control mask.
- * @req: Mask of _OSC bits the control of is essential to the caller.
+ * @support: _OSC supported capability.
  *
  * Run _OSC query for @mask and if that is successful, compare the returned
  * mask of control bits with @req.  If all of the @req bits are set in the
