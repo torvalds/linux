@@ -1638,33 +1638,14 @@ static const struct sh_pfc_pin pinmux_pins[] = {
 };
 
 /* - BSC -------------------------------------------------------------------- */
-static const unsigned int bsc_data8_pins[] = {
-	/* D[0:7] */
-	157, 156, 155, 154, 153, 152, 151, 150,
-};
-static const unsigned int bsc_data8_mux[] = {
-	D0_NAF0_MARK, D1_NAF1_MARK, D2_NAF2_MARK, D3_NAF3_MARK,
-	D4_NAF4_MARK, D5_NAF5_MARK, D6_NAF6_MARK, D7_NAF7_MARK,
-};
-static const unsigned int bsc_data16_pins[] = {
-	/* D[0:15] */
-	157, 156, 155, 154, 153, 152, 151, 150,
-	149, 148, 147, 146, 145, 144, 143, 142,
-};
-static const unsigned int bsc_data16_mux[] = {
-	D0_NAF0_MARK, D1_NAF1_MARK, D2_NAF2_MARK, D3_NAF3_MARK,
-	D4_NAF4_MARK, D5_NAF5_MARK, D6_NAF6_MARK, D7_NAF7_MARK,
-	D8_NAF8_MARK, D9_NAF9_MARK, D10_NAF10_MARK, D11_NAF11_MARK,
-	D12_NAF12_MARK, D13_NAF13_MARK, D14_NAF14_MARK, D15_NAF15_MARK,
-};
-static const unsigned int bsc_data32_pins[] = {
+static const unsigned int bsc_data_pins[] = {
 	/* D[0:31] */
 	157, 156, 155, 154, 153, 152, 151, 150,
 	149, 148, 147, 146, 145, 144, 143, 142,
 	171, 170, 169, 168, 167, 166, 173, 172,
 	165, 164, 163, 162, 161, 160, 159, 158,
 };
-static const unsigned int bsc_data32_mux[] = {
+static const unsigned int bsc_data_mux[] = {
 	D0_NAF0_MARK, D1_NAF1_MARK, D2_NAF2_MARK, D3_NAF3_MARK,
 	D4_NAF4_MARK, D5_NAF5_MARK, D6_NAF6_MARK, D7_NAF7_MARK,
 	D8_NAF8_MARK, D9_NAF9_MARK, D10_NAF10_MARK, D11_NAF11_MARK,
@@ -1723,25 +1704,11 @@ static const unsigned int bsc_cs6a_pins[] = {
 static const unsigned int bsc_cs6a_mux[] = {
 	CS6A_MARK,
 };
-static const unsigned int bsc_rd_we8_pins[] = {
-	/* RD, WE[0] */
-	115, 113,
-};
-static const unsigned int bsc_rd_we8_mux[] = {
-	RD_FSC_MARK, WE0_FWE_MARK,
-};
-static const unsigned int bsc_rd_we16_pins[] = {
-	/* RD, WE[0:1] */
-	115, 113, 112,
-};
-static const unsigned int bsc_rd_we16_mux[] = {
-	RD_FSC_MARK, WE0_FWE_MARK, WE1_MARK,
-};
-static const unsigned int bsc_rd_we32_pins[] = {
+static const unsigned int bsc_rd_we_pins[] = {
 	/* RD, WE[0:3] */
 	115, 113, 112, 108, 107,
 };
-static const unsigned int bsc_rd_we32_mux[] = {
+static const unsigned int bsc_rd_we_mux[] = {
 	RD_FSC_MARK, WE0_FWE_MARK, WE1_MARK, WE2_ICIORD_MARK, WE3_ICIOWR_MARK,
 };
 static const unsigned int bsc_bs_pins[] = {
@@ -2750,9 +2717,9 @@ static const unsigned int tpu0_to3_mux[] = {
 };
 
 static const struct sh_pfc_pin_group pinmux_groups[] = {
-	SH_PFC_PIN_GROUP(bsc_data8),
-	SH_PFC_PIN_GROUP(bsc_data16),
-	SH_PFC_PIN_GROUP(bsc_data32),
+	BUS_DATA_PIN_GROUP(bsc_data, 8),
+	BUS_DATA_PIN_GROUP(bsc_data, 16),
+	BUS_DATA_PIN_GROUP(bsc_data, 32),
 	SH_PFC_PIN_GROUP(bsc_cs0),
 	SH_PFC_PIN_GROUP(bsc_cs2),
 	SH_PFC_PIN_GROUP(bsc_cs4),
@@ -2760,9 +2727,9 @@ static const struct sh_pfc_pin_group pinmux_groups[] = {
 	SH_PFC_PIN_GROUP(bsc_cs5a_1),
 	SH_PFC_PIN_GROUP(bsc_cs5b),
 	SH_PFC_PIN_GROUP(bsc_cs6a),
-	SH_PFC_PIN_GROUP(bsc_rd_we8),
-	SH_PFC_PIN_GROUP(bsc_rd_we16),
-	SH_PFC_PIN_GROUP(bsc_rd_we32),
+	SH_PFC_PIN_GROUP_SUBSET(bsc_rd_we8, bsc_rd_we, 0, 2),
+	SH_PFC_PIN_GROUP_SUBSET(bsc_rd_we16, bsc_rd_we, 0, 3),
+	SH_PFC_PIN_GROUP_SUBSET(bsc_rd_we32, bsc_rd_we, 0, 5),
 	SH_PFC_PIN_GROUP(bsc_bs),
 	SH_PFC_PIN_GROUP(bsc_rdwr),
 	SH_PFC_PIN_GROUP(ceu0_data_0_7),
