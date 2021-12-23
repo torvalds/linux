@@ -836,47 +836,6 @@ mt7615_mcu_bss_basic_tlv(struct sk_buff *skb, struct ieee80211_vif *vif,
 	return 0;
 }
 
-static void
-mt7615_mcu_bss_omac_tlv(struct sk_buff *skb, struct ieee80211_vif *vif)
-{
-	struct mt7615_vif *mvif = (struct mt7615_vif *)vif->drv_priv;
-	u8 omac_idx = mvif->mt76.omac_idx;
-	struct bss_info_omac *omac;
-	struct tlv *tlv;
-	u32 type = 0;
-
-	tlv = mt76_connac_mcu_add_tlv(skb, BSS_INFO_OMAC, sizeof(*omac));
-
-	switch (vif->type) {
-	case NL80211_IFTYPE_MONITOR:
-	case NL80211_IFTYPE_MESH_POINT:
-	case NL80211_IFTYPE_AP:
-		if (vif->p2p)
-			type = CONNECTION_P2P_GO;
-		else
-			type = CONNECTION_INFRA_AP;
-		break;
-	case NL80211_IFTYPE_STATION:
-		if (vif->p2p)
-			type = CONNECTION_P2P_GC;
-		else
-			type = CONNECTION_INFRA_STA;
-		break;
-	case NL80211_IFTYPE_ADHOC:
-		type = CONNECTION_IBSS_ADHOC;
-		break;
-	default:
-		WARN_ON(1);
-		break;
-	}
-
-	omac = (struct bss_info_omac *)tlv;
-	omac->conn_type = cpu_to_le32(type);
-	omac->omac_idx = mvif->mt76.omac_idx;
-	omac->band_idx = mvif->mt76.band_idx;
-	omac->hw_bss_idx = omac_idx > EXT_BSSID_START ? HW_BSSID_0 : omac_idx;
-}
-
 /* SIFS 20us + 512 byte beacon tranmitted by 1Mbps (3906us) */
 #define BCN_TX_ESTIMATE_TIME (4096 + 20)
 static void
@@ -913,7 +872,7 @@ mt7615_mcu_add_bss(struct mt7615_phy *phy, struct ieee80211_vif *vif,
 		return PTR_ERR(skb);
 
 	if (enable)
-		mt7615_mcu_bss_omac_tlv(skb, vif);
+		mt76_connac_mcu_bss_omac_tlv(skb, vif);
 
 	mt7615_mcu_bss_basic_tlv(skb, vif, sta, phy, enable);
 

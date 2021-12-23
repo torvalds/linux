@@ -316,6 +316,48 @@ mt76_connac_mcu_alloc_wtbl_req(struct mt76_dev *dev, struct mt76_wcid *wcid,
 }
 EXPORT_SYMBOL_GPL(mt76_connac_mcu_alloc_wtbl_req);
 
+void mt76_connac_mcu_bss_omac_tlv(struct sk_buff *skb,
+				  struct ieee80211_vif *vif)
+{
+	struct mt76_vif *mvif = (struct mt76_vif *)vif->drv_priv;
+	u8 omac_idx = mvif->omac_idx;
+	struct bss_info_omac *omac;
+	struct tlv *tlv;
+	u32 type = 0;
+
+	switch (vif->type) {
+	case NL80211_IFTYPE_MONITOR:
+	case NL80211_IFTYPE_MESH_POINT:
+	case NL80211_IFTYPE_AP:
+		if (vif->p2p)
+			type = CONNECTION_P2P_GO;
+		else
+			type = CONNECTION_INFRA_AP;
+		break;
+	case NL80211_IFTYPE_STATION:
+		if (vif->p2p)
+			type = CONNECTION_P2P_GC;
+		else
+			type = CONNECTION_INFRA_STA;
+		break;
+	case NL80211_IFTYPE_ADHOC:
+		type = CONNECTION_IBSS_ADHOC;
+		break;
+	default:
+		WARN_ON(1);
+		break;
+	}
+
+	tlv = mt76_connac_mcu_add_tlv(skb, BSS_INFO_OMAC, sizeof(*omac));
+
+	omac = (struct bss_info_omac *)tlv;
+	omac->conn_type = cpu_to_le32(type);
+	omac->omac_idx = mvif->omac_idx;
+	omac->band_idx = mvif->band_idx;
+	omac->hw_bss_idx = omac_idx > EXT_BSSID_START ? HW_BSSID_0 : omac_idx;
+}
+EXPORT_SYMBOL_GPL(mt76_connac_mcu_bss_omac_tlv);
+
 void mt76_connac_mcu_sta_basic_tlv(struct sk_buff *skb,
 				   struct ieee80211_vif *vif,
 				   struct ieee80211_sta *sta,

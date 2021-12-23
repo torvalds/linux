@@ -552,43 +552,6 @@ mt7915_mcu_bss_basic_tlv(struct sk_buff *skb, struct ieee80211_vif *vif,
 	return 0;
 }
 
-static void
-mt7915_mcu_bss_omac_tlv(struct sk_buff *skb, struct ieee80211_vif *vif)
-{
-	struct mt7915_vif *mvif = (struct mt7915_vif *)vif->drv_priv;
-	struct bss_info_omac *omac;
-	struct tlv *tlv;
-	u32 type = 0;
-	u8 idx;
-
-	tlv = mt76_connac_mcu_add_tlv(skb, BSS_INFO_OMAC, sizeof(*omac));
-
-	switch (vif->type) {
-	case NL80211_IFTYPE_MONITOR:
-	case NL80211_IFTYPE_MESH_POINT:
-	case NL80211_IFTYPE_AP:
-		type = CONNECTION_INFRA_AP;
-		break;
-	case NL80211_IFTYPE_STATION:
-		type = CONNECTION_INFRA_STA;
-		break;
-	case NL80211_IFTYPE_ADHOC:
-		type = CONNECTION_IBSS_ADHOC;
-		break;
-	default:
-		WARN_ON(1);
-		break;
-	}
-
-	omac = (struct bss_info_omac *)tlv;
-	idx = mvif->mt76.omac_idx > EXT_BSSID_START ? HW_BSSID_0
-						    : mvif->mt76.omac_idx;
-	omac->conn_type = cpu_to_le32(type);
-	omac->omac_idx = mvif->mt76.omac_idx;
-	omac->band_idx = mvif->mt76.band_idx;
-	omac->hw_bss_idx = idx;
-}
-
 struct mt7915_he_obss_narrow_bw_ru_data {
 	bool tolerated;
 };
@@ -837,7 +800,7 @@ int mt7915_mcu_add_bss_info(struct mt7915_phy *phy,
 
 	/* bss_omac must be first */
 	if (enable)
-		mt7915_mcu_bss_omac_tlv(skb, vif);
+		mt76_connac_mcu_bss_omac_tlv(skb, vif);
 
 	mt7915_mcu_bss_basic_tlv(skb, vif, phy, enable);
 
