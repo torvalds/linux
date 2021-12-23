@@ -162,7 +162,7 @@ struct worker_pool {
 	int			nr_workers;	/* L: total number of workers */
 	int			nr_idle;	/* L: currently idle workers */
 
-	struct list_head	idle_list;	/* X: list of idle workers */
+	struct list_head	idle_list;	/* L: list of idle workers */
 	struct timer_list	idle_timer;	/* L: worker idle timeout */
 	struct timer_list	mayday_timer;	/* L: SOS timer for workers */
 
@@ -826,7 +826,7 @@ static bool too_many_workers(struct worker_pool *pool)
  * Wake up functions.
  */
 
-/* Return the first idle worker.  Safe with preemption disabled */
+/* Return the first idle worker.  Called with pool->lock held. */
 static struct worker *first_idle_worker(struct worker_pool *pool)
 {
 	if (unlikely(list_empty(&pool->idle_list)))
@@ -917,13 +917,6 @@ void wq_worker_sleeping(struct task_struct *task)
 		return;
 	}
 
-	/*
-	 * NOT_RUNNING is clear.  This means that we're bound to and
-	 * running on the local cpu w/ rq lock held and preemption
-	 * disabled, which in turn means that none else could be
-	 * manipulating idle_list, so dereferencing idle_list without pool
-	 * lock is safe.
-	 */
 	if (atomic_dec_and_test(&pool->nr_running) &&
 	    !list_empty(&pool->worklist)) {
 		next = first_idle_worker(pool);
