@@ -20,7 +20,7 @@ mlx5e_hv_vhca_fill_ring_stats(struct mlx5e_priv *priv, int ch,
 	struct mlx5e_channel_stats *stats;
 	int tc;
 
-	stats = &priv->channel_stats[ch];
+	stats = priv->channel_stats[ch];
 	data->rx_packets = stats->rq.packets;
 	data->rx_bytes   = stats->rq.bytes;
 

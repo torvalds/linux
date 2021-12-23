@@ -463,7 +463,7 @@ static MLX5E_DECLARE_STATS_GRP_OP_UPDATE_STATS(sw)
 
 	for (i = 0; i < priv->stats_nch; i++) {
 		struct mlx5e_channel_stats *channel_stats =
-			&priv->channel_stats[i];
+			priv->channel_stats[i];
 		int j;
 
 		mlx5e_stats_grp_sw_update_stats_rq_stats(s, &channel_stats->rq);
@@ -2197,21 +2197,21 @@ static MLX5E_DECLARE_STATS_GRP_OP_FILL_STATS(channels)
 	for (i = 0; i < max_nch; i++)
 		for (j = 0; j < NUM_CH_STATS; j++)
 			data[idx++] =
-				MLX5E_READ_CTR64_CPU(&priv->channel_stats[i].ch,
+				MLX5E_READ_CTR64_CPU(&priv->channel_stats[i]->ch,
 						     ch_stats_desc, j);
 
 	for (i = 0; i < max_nch; i++) {
 		for (j = 0; j < NUM_RQ_STATS; j++)
 			data[idx++] =
-				MLX5E_READ_CTR64_CPU(&priv->channel_stats[i].rq,
+				MLX5E_READ_CTR64_CPU(&priv->channel_stats[i]->rq,
 						     rq_stats_desc, j);
 		for (j = 0; j < NUM_XSKRQ_STATS * is_xsk; j++)
 			data[idx++] =
-				MLX5E_READ_CTR64_CPU(&priv->channel_stats[i].xskrq,
+				MLX5E_READ_CTR64_CPU(&priv->channel_stats[i]->xskrq,
 						     xskrq_stats_desc, j);
 		for (j = 0; j < NUM_RQ_XDPSQ_STATS; j++)
 			data[idx++] =
-				MLX5E_READ_CTR64_CPU(&priv->channel_stats[i].rq_xdpsq,
+				MLX5E_READ_CTR64_CPU(&priv->channel_stats[i]->rq_xdpsq,
 						     rq_xdpsq_stats_desc, j);
 	}
 
@@ -2219,17 +2219,17 @@ static MLX5E_DECLARE_STATS_GRP_OP_FILL_STATS(channels)
 		for (i = 0; i < max_nch; i++)
 			for (j = 0; j < NUM_SQ_STATS; j++)
 				data[idx++] =
-					MLX5E_READ_CTR64_CPU(&priv->channel_stats[i].sq[tc],
+					MLX5E_READ_CTR64_CPU(&priv->channel_stats[i]->sq[tc],
 							     sq_stats_desc, j);
 
 	for (i = 0; i < max_nch; i++) {
 		for (j = 0; j < NUM_XSKSQ_STATS * is_xsk; j++)
 			data[idx++] =
-				MLX5E_READ_CTR64_CPU(&priv->channel_stats[i].xsksq,
+				MLX5E_READ_CTR64_CPU(&priv->channel_stats[i]->xsksq,
 						     xsksq_stats_desc, j);
 		for (j = 0; j < NUM_XDPSQ_STATS; j++)
 			data[idx++] =
-				MLX5E_READ_CTR64_CPU(&priv->channel_stats[i].xdpsq,
+				MLX5E_READ_CTR64_CPU(&priv->channel_stats[i]->xdpsq,
 						     xdpsq_stats_desc, j);
 	}
 
