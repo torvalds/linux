@@ -887,7 +887,7 @@ void wq_worker_running(struct task_struct *task)
  */
 void wq_worker_sleeping(struct task_struct *task)
 {
-	struct worker *next, *worker = kthread_data(task);
+	struct worker *worker = kthread_data(task);
 	struct worker_pool *pool;
 
 	/*
@@ -918,11 +918,8 @@ void wq_worker_sleeping(struct task_struct *task)
 	}
 
 	if (atomic_dec_and_test(&pool->nr_running) &&
-	    !list_empty(&pool->worklist)) {
-		next = first_idle_worker(pool);
-		if (next)
-			wake_up_process(next->task);
-	}
+	    !list_empty(&pool->worklist))
+		wake_up_worker(pool);
 	raw_spin_unlock_irq(&pool->lock);
 }
 
