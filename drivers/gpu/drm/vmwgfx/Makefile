@@ -13,6 +13,5 @@ vmwgfx-y := vmwgfx_execbuf.o vmwgfx_gmr.o vmwgfx_hashtab.o vmwgfx_kms.o vmwgfx_d
 	    vmwgfx_gem.o
 
 vmwgfx-$(CONFIG_DRM_FBDEV_EMULATION) += vmwgfx_fb.o
-vmwgfx-$(CONFIG_TRANSPARENT_HUGEPAGE) += vmwgfx_thp.o
 
 obj-$(CONFIG_DRM_VMWGFX) := vmwgfx.o

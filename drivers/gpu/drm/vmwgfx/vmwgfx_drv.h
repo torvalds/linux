@@ -59,11 +59,8 @@
 #define VMWGFX_DRIVER_MINOR 20
 #define VMWGFX_DRIVER_PATCHLEVEL 0
 #define VMWGFX_FIFO_STATIC_SIZE (1024*1024)
-#define VMWGFX_MAX_RELOCATIONS 2048
-#define VMWGFX_MAX_VALIDATIONS 2048
 #define VMWGFX_MAX_DISPLAYS 16
 #define VMWGFX_CMD_BOUNCE_INIT_SIZE 32768
-#define VMWGFX_ENABLE_SCREEN_TARGET_OTABLE 1
 
 #define VMWGFX_PCI_ID_SVGA2              0x0405
 #define VMWGFX_PCI_ID_SVGA3              0x0406
@@ -1564,11 +1561,6 @@ void vmw_bo_dirty_unmap(struct vmw_buffer_object *vbo,
 vm_fault_t vmw_bo_vm_fault(struct vm_fault *vmf);
 vm_fault_t vmw_bo_vm_mkwrite(struct vm_fault *vmf);
 
-/* Transparent hugepage support - vmwgfx_thp.c */
-#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-extern int vmw_thp_init(struct vmw_private *dev_priv);
-void vmw_thp_fini(struct vmw_private *dev_priv);
-#endif
 
 /**
  * VMW_DEBUG_KMS - Debug output for kernel mode-setting
