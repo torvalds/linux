@@ -924,6 +924,35 @@ static void __init sh_pfc_check_bias_reg(const struct sh_pfc_soc_info *info,
 		sh_pfc_check_pin(info, bias->puen, bias->pins[i]);
 }
 
+static void __init sh_pfc_compare_groups(const char *drvname,
+					 const struct sh_pfc_pin_group *a,
+					 const struct sh_pfc_pin_group *b)
+{
+	unsigned int i;
+	size_t len;
+
+	if (same_name(a->name, b->name))
+		sh_pfc_err("group %s: name conflict\n", a->name);
+
+	if (a->nr_pins > b->nr_pins)
+		swap(a, b);
+
+	len = a->nr_pins * sizeof(a->pins[0]);
+	for (i = 0; i <= b->nr_pins - a->nr_pins; i++) {
+		if (a->pins == b->pins + i || a->mux == b->mux + i ||
+		    memcmp(a->pins, b->pins + i, len) ||
+		    memcmp(a->mux, b->mux + i, len))
+			continue;
+
+		if (a->nr_pins == b->nr_pins)
+			sh_pfc_warn("group %s can be an alias for %s\n",
+				    a->name, b->name);
+		else
+			sh_pfc_warn("group %s is a subset of %s\n", a->name,
+				    b->name);
+	}
+}
+
 static void __init sh_pfc_check_info(const struct sh_pfc_soc_info *info)
 {
 	const struct pinmux_bias_reg *bias_regs = info->bias_regs;
@@ -1000,11 +1029,9 @@ static void __init sh_pfc_check_info(const struct sh_pfc_soc_info *info)
 			sh_pfc_err("empty group %u\n", i);
 			continue;
 		}
-		for (j = 0; j < i; j++) {
-			if (same_name(group->name, info->groups[j].name))
-				sh_pfc_err("group %s: name conflict\n",
-					   group->name);
-		}
+		for (j = 0; j < i; j++)
+			sh_pfc_compare_groups(drvname, group, &info->groups[j]);
+
 		if (!refcnts[i])
 			sh_pfc_err("orphan group %s\n", group->name);
 		else if (refcnts[i] > 1)
