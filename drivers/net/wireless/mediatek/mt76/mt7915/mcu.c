@@ -743,25 +743,6 @@ out:
 
 /** starec & wtbl **/
 static void
-mt7915_mcu_sta_ba_tlv(struct sk_buff *skb,
-		      struct ieee80211_ampdu_params *params,
-		      bool enable, bool tx)
-{
-	struct sta_rec_ba *ba;
-	struct tlv *tlv;
-
-	tlv = mt76_connac_mcu_add_tlv(skb, STA_REC_BA, sizeof(*ba));
-
-	ba = (struct sta_rec_ba *)tlv;
-	ba->ba_type = tx ? MT_BA_TYPE_ORIGINATOR : MT_BA_TYPE_RECIPIENT;
-	ba->winsize = cpu_to_le16(params->buf_size);
-	ba->ssn = cpu_to_le16(params->ssn);
-	ba->ba_en = enable << params->tid;
-	ba->amsdu = params->amsdu;
-	ba->tid = params->tid;
-}
-
-static void
 mt7915_mcu_wtbl_ba_tlv(struct sk_buff *skb,
 		       struct ieee80211_ampdu_params *params,
 		       bool enable, bool tx, void *sta_wtbl,
@@ -831,7 +812,7 @@ mt7915_mcu_sta_ba(struct mt7915_dev *dev,
 	if (IS_ERR(skb))
 		return PTR_ERR(skb);
 
-	mt7915_mcu_sta_ba_tlv(skb, params, enable, tx);
+	mt76_connac_mcu_sta_ba_tlv(skb, params, enable, tx);
 
 	return mt76_mcu_skb_send_msg(&dev->mt76, skb,
 				     MCU_EXT_CMD(STA_REC_UPDATE), true);
