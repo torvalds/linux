@@ -70,47 +70,19 @@ struct sh_pfc_pin {
 	BUILD_BUG_ON_ZERO(first + n > ARRAY_SIZE(data##_mux)),		\
 }
 
+/*
+ * Define a pin group for the data pins of a resizable bus.
+ * An optional 'suffix' argument is accepted, to be used when the same group
+ * can appear on a different set of pins.
+ */
+#define BUS_DATA_PIN_GROUP(base, n, ...)				\
+	SH_PFC_PIN_GROUP_SUBSET(base##n##__VA_ARGS__, base##__VA_ARGS__, 0, n)
+
 struct sh_pfc_pin_group {
 	const char *name;
 	const unsigned int *pins;
 	const unsigned int *mux;
 	unsigned int nr_pins;
-};
-
-/*
- * Using union vin_data{,12,16} saves memory occupied by the VIN data pins.
- * VIN_DATA_PIN_GROUP() is a macro used to describe the VIN pin groups
- * in this case. It accepts an optional 'version' argument used when the
- * same group can appear on a different set of pins.
- */
-#define VIN_DATA_PIN_GROUP(n, s, ...) {					\
-	.name = #n#s#__VA_ARGS__,					\
-	.pins = n##__VA_ARGS__##_pins.data##s,				\
-	.mux = n##__VA_ARGS__##_mux.data##s,				\
-	.nr_pins = ARRAY_SIZE(n##__VA_ARGS__##_pins.data##s),		\
-}
-
-union vin_data12 {
-	unsigned int data12[12];
-	unsigned int data10[10];
-	unsigned int data8[8];
-};
-
-union vin_data16 {
-	unsigned int data16[16];
-	unsigned int data12[12];
-	unsigned int data10[10];
-	unsigned int data8[8];
-};
-
-union vin_data {
-	unsigned int data24[24];
-	unsigned int data20[20];
-	unsigned int data16[16];
-	unsigned int data12[12];
-	unsigned int data10[10];
-	unsigned int data8[8];
-	unsigned int data4[4];
 };
 
 #define SH_PFC_FUNCTION(n) {						\

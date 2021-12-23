@@ -4225,43 +4225,39 @@ static const unsigned int usb1_mux[] = {
 	USB1_OVC_MARK,
 };
 /* - VIN0 ------------------------------------------------------------------- */
-static const union vin_data vin0_data_pins = {
-	.data24 = {
-		/* B */
-		RCAR_GP_PIN(4, 5), RCAR_GP_PIN(4, 6),
-		RCAR_GP_PIN(4, 7), RCAR_GP_PIN(4, 8),
-		RCAR_GP_PIN(4, 9), RCAR_GP_PIN(4, 10),
-		RCAR_GP_PIN(4, 11), RCAR_GP_PIN(4, 12),
-		/* G */
-		RCAR_GP_PIN(4, 13), RCAR_GP_PIN(4, 14),
-		RCAR_GP_PIN(4, 15), RCAR_GP_PIN(4, 16),
-		RCAR_GP_PIN(4, 17), RCAR_GP_PIN(4, 18),
-		RCAR_GP_PIN(4, 19), RCAR_GP_PIN(4, 20),
-		/* R */
-		RCAR_GP_PIN(4, 21), RCAR_GP_PIN(4, 22),
-		RCAR_GP_PIN(4, 23), RCAR_GP_PIN(4, 24),
-		RCAR_GP_PIN(4, 25), RCAR_GP_PIN(4, 26),
-		RCAR_GP_PIN(4, 27), RCAR_GP_PIN(4, 28),
-	},
+static const unsigned int vin0_data_pins[] = {
+	/* B */
+	RCAR_GP_PIN(4, 5), RCAR_GP_PIN(4, 6),
+	RCAR_GP_PIN(4, 7), RCAR_GP_PIN(4, 8),
+	RCAR_GP_PIN(4, 9), RCAR_GP_PIN(4, 10),
+	RCAR_GP_PIN(4, 11), RCAR_GP_PIN(4, 12),
+	/* G */
+	RCAR_GP_PIN(4, 13), RCAR_GP_PIN(4, 14),
+	RCAR_GP_PIN(4, 15), RCAR_GP_PIN(4, 16),
+	RCAR_GP_PIN(4, 17), RCAR_GP_PIN(4, 18),
+	RCAR_GP_PIN(4, 19), RCAR_GP_PIN(4, 20),
+	/* R */
+	RCAR_GP_PIN(4, 21), RCAR_GP_PIN(4, 22),
+	RCAR_GP_PIN(4, 23), RCAR_GP_PIN(4, 24),
+	RCAR_GP_PIN(4, 25), RCAR_GP_PIN(4, 26),
+	RCAR_GP_PIN(4, 27), RCAR_GP_PIN(4, 28),
 };
-static const union vin_data vin0_data_mux = {
-	.data24 = {
-		/* B */
-		VI0_DATA0_VI0_B0_MARK, VI0_DATA1_VI0_B1_MARK,
-		VI0_DATA2_VI0_B2_MARK, VI0_DATA3_VI0_B3_MARK,
-		VI0_DATA4_VI0_B4_MARK, VI0_DATA5_VI0_B5_MARK,
-		VI0_DATA6_VI0_B6_MARK, VI0_DATA7_VI0_B7_MARK,
-		/* G */
-		VI0_G0_MARK, VI0_G1_MARK,
-		VI0_G2_MARK, VI0_G3_MARK,
-		VI0_G4_MARK, VI0_G5_MARK,
-		VI0_G6_MARK, VI0_G7_MARK,
-		/* R */
-		VI0_R0_MARK, VI0_R1_MARK,
-		VI0_R2_MARK, VI0_R3_MARK,
-		VI0_R4_MARK, VI0_R5_MARK,
-		VI0_R6_MARK, VI0_R7_MARK,
-	},
+static const unsigned int vin0_data_mux[] = {
+	/* B */
+	VI0_DATA0_VI0_B0_MARK, VI0_DATA1_VI0_B1_MARK,
+	VI0_DATA2_VI0_B2_MARK, VI0_DATA3_VI0_B3_MARK,
+	VI0_DATA4_VI0_B4_MARK, VI0_DATA5_VI0_B5_MARK,
+	VI0_DATA6_VI0_B6_MARK, VI0_DATA7_VI0_B7_MARK,
+	/* G */
+	VI0_G0_MARK, VI0_G1_MARK,
+	VI0_G2_MARK, VI0_G3_MARK,
+	VI0_G4_MARK, VI0_G5_MARK,
+	VI0_G6_MARK, VI0_G7_MARK,
+	/* R */
+	VI0_R0_MARK, VI0_R1_MARK,
+	VI0_R2_MARK, VI0_R3_MARK,
+	VI0_R4_MARK, VI0_R5_MARK,
+	VI0_R6_MARK, VI0_R7_MARK,
 };
 static const unsigned int vin0_data18_pins[] = {
 	/* B */
@@ -4356,43 +4352,39 @@ static const unsigned int vin1_clk_pins[] = {
 static const unsigned int vin1_clk_mux[] = {
 	VI1_CLK_MARK,
 };
-static const union vin_data vin1_data_b_pins = {
-	.data24 = {
-		/* B */
-		RCAR_GP_PIN(3, 0), RCAR_GP_PIN(3, 1),
-		RCAR_GP_PIN(3, 8), RCAR_GP_PIN(3, 9),
-		RCAR_GP_PIN(3, 10), RCAR_GP_PIN(3, 11),
-		RCAR_GP_PIN(3, 12), RCAR_GP_PIN(3, 13),
-		/* G */
-		RCAR_GP_PIN(6, 24), RCAR_GP_PIN(6, 25),
-		RCAR_GP_PIN(6, 26), RCAR_GP_PIN(6, 27),
-		RCAR_GP_PIN(6, 28), RCAR_GP_PIN(6, 29),
-		RCAR_GP_PIN(7, 21), RCAR_GP_PIN(7, 22),
-		/* R */
-		RCAR_GP_PIN(7, 5), RCAR_GP_PIN(7, 6),
-		RCAR_GP_PIN(2, 15), RCAR_GP_PIN(2, 16),
-		RCAR_GP_PIN(2, 17), RCAR_GP_PIN(2, 18),
-		RCAR_GP_PIN(2, 19), RCAR_GP_PIN(2, 20),
-	},
+static const unsigned int vin1_data_b_pins[] = {
+	/* B */
+	RCAR_GP_PIN(3, 0), RCAR_GP_PIN(3, 1),
+	RCAR_GP_PIN(3, 8), RCAR_GP_PIN(3, 9),
+	RCAR_GP_PIN(3, 10), RCAR_GP_PIN(3, 11),
+	RCAR_GP_PIN(3, 12), RCAR_GP_PIN(3, 13),
+	/* G */
+	RCAR_GP_PIN(6, 24), RCAR_GP_PIN(6, 25),
+	RCAR_GP_PIN(6, 26), RCAR_GP_PIN(6, 27),
+	RCAR_GP_PIN(6, 28), RCAR_GP_PIN(6, 29),
+	RCAR_GP_PIN(7, 21), RCAR_GP_PIN(7, 22),
+	/* R */
+	RCAR_GP_PIN(7, 5), RCAR_GP_PIN(7, 6),
+	RCAR_GP_PIN(2, 15), RCAR_GP_PIN(2, 16),
+	RCAR_GP_PIN(2, 17), RCAR_GP_PIN(2, 18),
+	RCAR_GP_PIN(2, 19), RCAR_GP_PIN(2, 20),
 };
-static const union vin_data vin1_data_b_mux = {
-	.data24 = {
-		/* B */
-		VI1_DATA0_B_MARK, VI1_DATA1_B_MARK,
-		VI1_DATA2_B_MARK, VI1_DATA3_B_MARK,
-		VI1_DATA4_B_MARK, VI1_DATA5_B_MARK,
-		VI1_DATA6_B_MARK, VI1_DATA7_B_MARK,
-		/* G */
-		VI1_G0_B_MARK, VI1_G1_B_MARK,
-		VI1_G2_B_MARK, VI1_G3_B_MARK,
-		VI1_G4_B_MARK, VI1_G5_B_MARK,
-		VI1_G6_B_MARK, VI1_G7_B_MARK,
-		/* R */
-		VI1_R0_B_MARK, VI1_R1_B_MARK,
-		VI1_R2_B_MARK, VI1_R3_B_MARK,
-		VI1_R4_B_MARK, VI1_R5_B_MARK,
-		VI1_R6_B_MARK, VI1_R7_B_MARK,
-	},
+static const unsigned int vin1_data_b_mux[] = {
+	/* B */
+	VI1_DATA0_B_MARK, VI1_DATA1_B_MARK,
+	VI1_DATA2_B_MARK, VI1_DATA3_B_MARK,
+	VI1_DATA4_B_MARK, VI1_DATA5_B_MARK,
+	VI1_DATA6_B_MARK, VI1_DATA7_B_MARK,
+	/* G */
+	VI1_G0_B_MARK, VI1_G1_B_MARK,
+	VI1_G2_B_MARK, VI1_G3_B_MARK,
+	VI1_G4_B_MARK, VI1_G5_B_MARK,
+	VI1_G6_B_MARK, VI1_G7_B_MARK,
+	/* R */
+	VI1_R0_B_MARK, VI1_R1_B_MARK,
+	VI1_R2_B_MARK, VI1_R3_B_MARK,
+	VI1_R4_B_MARK, VI1_R5_B_MARK,
+	VI1_R6_B_MARK, VI1_R7_B_MARK,
 };
 static const unsigned int vin1_data18_b_pins[] = {
 	/* B */
@@ -4809,13 +4801,13 @@ static const struct {
 		SH_PFC_PIN_GROUP(tpu_to3),
 		SH_PFC_PIN_GROUP(usb0),
 		SH_PFC_PIN_GROUP(usb1),
-		VIN_DATA_PIN_GROUP(vin0_data, 24),
-		VIN_DATA_PIN_GROUP(vin0_data, 20),
+		BUS_DATA_PIN_GROUP(vin0_data, 24),
+		BUS_DATA_PIN_GROUP(vin0_data, 20),
 		SH_PFC_PIN_GROUP(vin0_data18),
-		VIN_DATA_PIN_GROUP(vin0_data, 16),
-		VIN_DATA_PIN_GROUP(vin0_data, 12),
-		VIN_DATA_PIN_GROUP(vin0_data, 10),
-		VIN_DATA_PIN_GROUP(vin0_data, 8),
+		BUS_DATA_PIN_GROUP(vin0_data, 16),
+		BUS_DATA_PIN_GROUP(vin0_data, 12),
+		BUS_DATA_PIN_GROUP(vin0_data, 10),
+		BUS_DATA_PIN_GROUP(vin0_data, 8),
 		SH_PFC_PIN_GROUP(vin0_sync),
 		SH_PFC_PIN_GROUP(vin0_field),
 		SH_PFC_PIN_GROUP(vin0_clkenb),
@@ -4825,13 +4817,13 @@ static const struct {
 		SH_PFC_PIN_GROUP(vin1_field),
 		SH_PFC_PIN_GROUP(vin1_clkenb),
 		SH_PFC_PIN_GROUP(vin1_clk),
-		VIN_DATA_PIN_GROUP(vin1_data, 24, _b),
-		VIN_DATA_PIN_GROUP(vin1_data, 20, _b),
+		BUS_DATA_PIN_GROUP(vin1_data, 24, _b),
+		BUS_DATA_PIN_GROUP(vin1_data, 20, _b),
 		SH_PFC_PIN_GROUP(vin1_data18_b),
-		VIN_DATA_PIN_GROUP(vin1_data, 16, _b),
-		VIN_DATA_PIN_GROUP(vin1_data, 12, _b),
-		VIN_DATA_PIN_GROUP(vin1_data, 10, _b),
-		VIN_DATA_PIN_GROUP(vin1_data, 8, _b),
+		BUS_DATA_PIN_GROUP(vin1_data, 16, _b),
+		BUS_DATA_PIN_GROUP(vin1_data, 12, _b),
+		BUS_DATA_PIN_GROUP(vin1_data, 10, _b),
+		BUS_DATA_PIN_GROUP(vin1_data, 8, _b),
 		SH_PFC_PIN_GROUP(vin1_sync_b),
 		SH_PFC_PIN_GROUP(vin1_field_b),
 		SH_PFC_PIN_GROUP(vin1_clkenb_b),
