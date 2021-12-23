@@ -5,11 +5,11 @@
 # Check all traps to make sure they are triggered under the right
 # conditions.
 
-# +--------------------+
-# | H1 (vrf)           |
-# |    + $h1           |
-# |    | 192.0.2.1/28  |
-# +----|---------------+
+# +------------------------+
+# | H1 (vrf)               |
+# |    + $h1               |
+# |    | 2001:db8:1::1/64  |
+# +----|-------------------+
 #      |
 # +----|----------------------------------------------------------------------+
 # | SW |                                                                      |
@@ -17,18 +17,18 @@
 # | |  + $swp1                   BR1 (802.1d)                               | |
 # | |                                                                       | |
 # | |  + vx1 (vxlan)                                                        | |
-# | |    local 192.0.2.17                                                   | |
+# | |    local 2001:db8:3::1                                                | |
 # | |    id 1000 dstport $VXPORT                                            | |
 # | +-----------------------------------------------------------------------+ |
 # |                                                                           |
 # |    + $rp1                                                                 |
-# |    | 192.0.2.17/28                                                        |
+# |    | 2001:db8:3::1/64                                                     |
 # +----|----------------------------------------------------------------------+
 #      |
 # +----|--------------------------------------------------------+
 # |    |                                             VRF2       |
 # |    + $rp2                                                   |
-# |      192.0.2.18/28                                          |
+# |      2001:db8:3::2/64                                       |
 # |                                                             |
 # +-------------------------------------------------------------+
 
@@ -49,12 +49,12 @@ export VXPORT
 
 h1_create()
 {
-	simple_if_init $h1 192.0.2.1/28
+	simple_if_init $h1 2001:db8:1::1/64
 }
 
 h1_destroy()
 {
-	simple_if_fini $h1 192.0.2.1/28
+	simple_if_fini $h1 2001:db8:1::1/64
 }
 
 switch_create()
@@ -69,19 +69,20 @@ switch_create()
 	ip link set dev $swp1 master br1
 	ip link set dev $swp1 up
 
-	ip link add name vx1 type vxlan id 1000 local 192.0.2.17 \
-		dstport "$VXPORT" nolearning noudpcsum tos inherit ttl 100
+	ip link add name vx1 type vxlan id 1000 local 2001:db8:3::1 \
+		dstport "$VXPORT" nolearning udp6zerocsumrx udp6zerocsumtx \
+		tos inherit ttl 100
 	ip link set dev vx1 master br1
 	ip link set dev vx1 up
 
-	ip address add dev $rp1 192.0.2.17/28
 	ip link set dev $rp1 up
+	ip address add dev $rp1 2001:db8:3::1/64
 }
 
 switch_destroy()
 {
+	ip address del dev $rp1 2001:db8:3::1/64
 	ip link set dev $rp1 down
-	ip address del dev $rp1 192.0.2.17/28
 
 	ip link set dev vx1 down
 	ip link set dev vx1 nomaster
@@ -97,12 +98,12 @@ switch_destroy()
 
 vrf2_create()
 {
-	simple_if_init $rp2 192.0.2.18/28
+	simple_if_init $rp2 2001:db8:3::2/64
 }
 
 vrf2_destroy()
 {
-	simple_if_fini $rp2 192.0.2.18/28
+	simple_if_fini $rp2 2001:db8:3::2/64
 }
 
 setup_prepare()
@@ -133,7 +134,9 @@ cleanup()
 
 ecn_payload_get()
 {
-	dest_mac=$(mac_get $h1)
+	local dest_mac=$(mac_get $h1)
+	local saddr="20:01:0d:b8:00:01:00:00:00:00:00:00:00:00:00:03"
+	local daddr="20:01:0d:b8:00:01:00:00:00:00:00:00:00:00:00:01"
 	p=$(:
 		)"08:"$(                      : VXLAN flags
 		)"00:00:00:"$(                : VXLAN reserved
@@ -141,17 +144,18 @@ ecn_payload_get()
 		)"00:"$(                      : VXLAN reserved
 		)"$dest_mac:"$(               : ETH daddr
 		)"00:00:00:00:00:00:"$(       : ETH saddr
-		)"08:00:"$(                   : ETH type
-		)"45:"$(                      : IP version + IHL
-		)"00:"$(                      : IP TOS
-		)"00:14:"$(                   : IP total length
-		)"00:00:"$(                   : IP identification
-		)"20:00:"$(                   : IP flags + frag off
-		)"40:"$(                      : IP TTL
-		)"00:"$(                      : IP proto
-		)"D6:E5:"$(                   : IP header csum
-		)"c0:00:02:03:"$(             : IP saddr: 192.0.2.3
-		)"c0:00:02:01:"$(             : IP daddr: 192.0.2.1
+		)"86:dd:"$(                   : ETH type
+		)"6"$(                        : IP version
+		)"0:0"$(		      : Traffic class
+		)"0:00:00:"$(                 : Flow label
+		)"00:08:"$(                   : Payload length
+		)"3a:"$(                      : Next header
+		)"04:"$(                      : Hop limit
+		)"$saddr:"$(                  : IP saddr
+		)"$daddr:"$(		      : IP daddr
+		)"80:"$(                      : ICMPv6.type
+		)"00:"$(                      : ICMPv6.code
+		)"00:"$(                      : ICMPv6.checksum
 		)
 	echo $p
 }
@@ -166,14 +170,15 @@ ecn_decap_test()
 
 	RET=0
 
-	tc filter add dev $swp1 egress protocol ip pref 1 handle 101 \
-		flower src_ip 192.0.2.3 dst_ip 192.0.2.1 action pass
+	tc filter add dev $swp1 egress protocol ipv6 pref 1 handle 101 \
+		flower src_ip 2001:db8:1::3 dst_ip 2001:db8:1::1 action pass
 
 	rp1_mac=$(mac_get $rp1)
 	payload=$(ecn_payload_get)
 
-	ip vrf exec v$rp2 $MZ $rp2 -c 0 -d 1msec -b $rp1_mac -B 192.0.2.17 \
-		-t udp sp=12345,dp=$VXPORT,tos=$outer_tos,p=$payload -q &
+	ip vrf exec v$rp2 $MZ -6 $rp2 -c 0 -d 1msec -b $rp1_mac \
+		-B 2001:db8:3::1 -t udp \
+		sp=12345,dp=$VXPORT,tos=$outer_tos,p=$payload -q &
 	mz_pid=$!
 
 	devlink_trap_exception_test $trap_name
@@ -184,12 +189,14 @@ ecn_decap_test()
 	log_test "$desc: Inner ECN is not ECT and outer is $ecn_desc"
 
 	kill $mz_pid && wait $mz_pid &> /dev/null
-	tc filter del dev $swp1 egress protocol ip pref 1 handle 101 flower
+	tc filter del dev $swp1 egress protocol ipv6 pref 1 handle 101 flower
 }
 
 reserved_bits_payload_get()
 {
-	dest_mac=$(mac_get $h1)
+	local dest_mac=$(mac_get $h1)
+	local saddr="20:01:0d:b8:00:01:00:00:00:00:00:00:00:00:00:03"
+	local daddr="20:01:0d:b8:00:01:00:00:00:00:00:00:00:00:00:01"
 	p=$(:
 		)"08:"$(                      : VXLAN flags
 		)"01:00:00:"$(                : VXLAN reserved
@@ -197,17 +204,18 @@ reserved_bits_payload_get()
 		)"00:"$(                      : VXLAN reserved
 		)"$dest_mac:"$(               : ETH daddr
 		)"00:00:00:00:00:00:"$(       : ETH saddr
-		)"08:00:"$(                   : ETH type
-		)"45:"$(                      : IP version + IHL
-		)"00:"$(                      : IP TOS
-		)"00:14:"$(                   : IP total length
-		)"00:00:"$(                   : IP identification
-		)"20:00:"$(                   : IP flags + frag off
-		)"40:"$(                      : IP TTL
-		)"00:"$(                      : IP proto
-		)"00:00:"$(                   : IP header csum
-		)"c0:00:02:03:"$(             : IP saddr: 192.0.2.3
-		)"c0:00:02:01:"$(             : IP daddr: 192.0.2.1
+		)"86:dd:"$(                   : ETH type
+		)"6"$(                        : IP version
+		)"0:0"$(		      : Traffic class
+		)"0:00:00:"$(                 : Flow label
+		)"00:08:"$(                   : Payload length
+		)"3a:"$(                      : Next header
+		)"04:"$(                      : Hop limit
+		)"$saddr:"$(                  : IP saddr
+		)"$daddr:"$(		      : IP daddr
+		)"80:"$(                      : ICMPv6.type
+		)"00:"$(                      : ICMPv6.code
+		)"00:"$(                      : ICMPv6.checksum
 		)
 	echo $p
 }
@@ -237,13 +245,14 @@ corrupted_packet_test()
 
 	# In case of too short packet, there is no any inner packet,
 	# so the matching will always succeed
-	tc filter add dev $swp1 egress protocol ip pref 1 handle 101 \
-		flower skip_hw src_ip 192.0.2.3 dst_ip 192.0.2.1 action pass
+	tc filter add dev $swp1 egress protocol ipv6 pref 1 handle 101 \
+		flower skip_hw src_ip 2001:db8:3::1 dst_ip 2001:db8:1::1 \
+		action pass
 
 	rp1_mac=$(mac_get $rp1)
 	payload=$($payload_get)
-	ip vrf exec v$rp2 $MZ $rp2 -c 0 -d 1msec -b $rp1_mac \
-		-B 192.0.2.17 -t udp sp=12345,dp=$VXPORT,p=$payload -q &
+	ip vrf exec v$rp2 $MZ -6 $rp2 -c 0 -d 1msec -b $rp1_mac \
+		-B 2001:db8:3::1 -t udp sp=12345,dp=$VXPORT,p=$payload -q &
 	mz_pid=$!
 
 	devlink_trap_exception_test $trap_name
@@ -254,7 +263,7 @@ corrupted_packet_test()
 	log_test "$desc"
 
 	kill $mz_pid && wait $mz_pid &> /dev/null
-	tc filter del dev $swp1 egress protocol ip pref 1 handle 101 flower
+	tc filter del dev $swp1 egress protocol ipv6 pref 1 handle 101 flower
 }
 
 decap_error_test()
@@ -271,26 +280,29 @@ decap_error_test()
 
 mc_smac_payload_get()
 {
-	dest_mac=$(mac_get $h1)
-	source_mac=01:02:03:04:05:06
+	local dest_mac=$(mac_get $h1)
+	local source_mac="01:02:03:04:05:06"
+	local saddr="20:01:0d:b8:00:01:00:00:00:00:00:00:00:00:00:03"
+	local daddr="20:01:0d:b8:00:01:00:00:00:00:00:00:00:00:00:01"
 	p=$(:
 		)"08:"$(                      : VXLAN flags
 		)"00:00:00:"$(                : VXLAN reserved
 		)"00:03:e8:"$(                : VXLAN VNI : 1000
 		)"00:"$(                      : VXLAN reserved
 		)"$dest_mac:"$(               : ETH daddr
-		)"$source_mac:"$(             : ETH saddr
-		)"08:00:"$(                   : ETH type
-		)"45:"$(                      : IP version + IHL
-		)"00:"$(                      : IP TOS
-		)"00:14:"$(                   : IP total length
-		)"00:00:"$(                   : IP identification
-		)"20:00:"$(                   : IP flags + frag off
-		)"40:"$(                      : IP TTL
-		)"00:"$(                      : IP proto
-		)"00:00:"$(                   : IP header csum
-		)"c0:00:02:03:"$(             : IP saddr: 192.0.2.3
-		)"c0:00:02:01:"$(             : IP daddr: 192.0.2.1
+		)"$source_mac:"$(	      : ETH saddr
+		)"86:dd:"$(                   : ETH type
+		)"6"$(                        : IP version
+		)"0:0"$(		      : Traffic class
+		)"0:00:00:"$(                 : Flow label
+		)"00:08:"$(                   : Payload length
+		)"3a:"$(                      : Next header
+		)"04:"$(                      : Hop limit
+		)"$saddr:"$(                  : IP saddr
+		)"$daddr:"$(		      : IP daddr
+		)"80:"$(                      : ICMPv6.type
+		)"00:"$(                      : ICMPv6.code
+		)"00:"$(                      : ICMPv6.checksum
 		)
 	echo $p
 }
@@ -304,21 +316,21 @@ overlay_smac_is_mc_test()
 
 	# The matching will be checked on devlink_trap_drop_test()
 	# and the filter will be removed on devlink_trap_drop_cleanup()
-	tc filter add dev $swp1 egress protocol ip pref 1 handle 101 \
+	tc filter add dev $swp1 egress protocol ipv6 pref 1 handle 101 \
 		flower src_mac 01:02:03:04:05:06 action pass
 
 	rp1_mac=$(mac_get $rp1)
 	payload=$(mc_smac_payload_get)
 
-	ip vrf exec v$rp2 $MZ $rp2 -c 0 -d 1msec -b $rp1_mac \
-		-B 192.0.2.17 -t udp sp=12345,dp=$VXPORT,p=$payload -q &
+	ip vrf exec v$rp2 $MZ -6 $rp2 -c 0 -d 1msec -b $rp1_mac \
+		-B 2001:db8:3::1 -t udp sp=12345,dp=$VXPORT,p=$payload -q &
 	mz_pid=$!
 
 	devlink_trap_drop_test $trap_name $swp1 101
 
 	log_test "Overlay source MAC is multicast"
 
-	devlink_trap_drop_cleanup $mz_pid $swp1 "ip" 1 101
+	devlink_trap_drop_cleanup $mz_pid $swp1 "ipv6" 1 101
 }
 
 trap cleanup EXIT
