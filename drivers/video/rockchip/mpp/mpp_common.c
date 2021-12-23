@@ -584,10 +584,8 @@ int mpp_dev_reset(struct mpp_dev *mpp)
 	mpp_reset_down_write(mpp->reset_group);
 	atomic_set(&mpp->reset_request, 0);
 
-	rockchip_save_qos(mpp->dev);
 	if (mpp->hw_ops->reset)
 		mpp->hw_ops->reset(mpp);
-	rockchip_restore_qos(mpp->dev);
 
 	/* Note: if the domain does not change, iommu attach will be return
 	 * as an empty operation. Therefore, force to close and then open,
