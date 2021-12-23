@@ -1603,4 +1603,7 @@ int mt76_connac_mcu_bss_basic_tlv(struct sk_buff *skb,
 				  bool enable);
 void mt76_connac_mcu_sta_uapsd(struct sk_buff *skb, struct ieee80211_vif *vif,
 			       struct ieee80211_sta *sta);
+void mt76_connac_mcu_wtbl_smps_tlv(struct sk_buff *skb,
+				   struct ieee80211_sta *sta,
+				   void *sta_wtbl, void *wtbl_tlv);
 #endif /* __MT76_CONNAC_MCU_H */
