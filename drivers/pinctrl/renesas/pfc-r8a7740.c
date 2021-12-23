@@ -2140,25 +2140,11 @@ static const unsigned int lcd1_sys_mux[] = {
 	LCD1_CS_MARK, LCD1_WR_MARK, LCD1_RD_MARK, LCD1_RS_MARK,
 };
 /* - MMCIF ------------------------------------------------------------------ */
-static const unsigned int mmc0_data1_0_pins[] = {
-	/* D[0] */
-	68,
-};
-static const unsigned int mmc0_data1_0_mux[] = {
-	MMC0_D0_PORT68_MARK,
-};
-static const unsigned int mmc0_data4_0_pins[] = {
-	/* D[0:3] */
-	68, 69, 70, 71,
-};
-static const unsigned int mmc0_data4_0_mux[] = {
-	MMC0_D0_PORT68_MARK, MMC0_D1_PORT69_MARK, MMC0_D2_PORT70_MARK, MMC0_D3_PORT71_MARK,
-};
-static const unsigned int mmc0_data8_0_pins[] = {
+static const unsigned int mmc0_data_0_pins[] = {
 	/* D[0:7] */
 	68, 69, 70, 71, 72, 73, 74, 75,
 };
-static const unsigned int mmc0_data8_0_mux[] = {
+static const unsigned int mmc0_data_0_mux[] = {
 	MMC0_D0_PORT68_MARK, MMC0_D1_PORT69_MARK, MMC0_D2_PORT70_MARK, MMC0_D3_PORT71_MARK,
 	MMC0_D4_PORT72_MARK, MMC0_D5_PORT73_MARK, MMC0_D6_PORT74_MARK, MMC0_D7_PORT75_MARK,
 };
@@ -2170,25 +2156,11 @@ static const unsigned int mmc0_ctrl_0_mux[] = {
 	MMC0_CMD_PORT67_MARK, MMC0_CLK_PORT66_MARK,
 };
 
-static const unsigned int mmc0_data1_1_pins[] = {
-	/* D[0] */
-	149,
-};
-static const unsigned int mmc0_data1_1_mux[] = {
-	MMC1_D0_PORT149_MARK,
-};
-static const unsigned int mmc0_data4_1_pins[] = {
-	/* D[0:3] */
-	149, 148, 147, 146,
-};
-static const unsigned int mmc0_data4_1_mux[] = {
-	MMC1_D0_PORT149_MARK, MMC1_D1_PORT148_MARK, MMC1_D2_PORT147_MARK, MMC1_D3_PORT146_MARK,
-};
-static const unsigned int mmc0_data8_1_pins[] = {
+static const unsigned int mmc0_data_1_pins[] = {
 	/* D[0:7] */
 	149, 148, 147, 146, 145, 144, 143, 142,
 };
-static const unsigned int mmc0_data8_1_mux[] = {
+static const unsigned int mmc0_data_1_mux[] = {
 	MMC1_D0_PORT149_MARK, MMC1_D1_PORT148_MARK, MMC1_D2_PORT147_MARK, MMC1_D3_PORT146_MARK,
 	MMC1_D4_PORT145_MARK, MMC1_D5_PORT144_MARK, MMC1_D6_PORT143_MARK, MMC1_D7_PORT142_MARK,
 };
@@ -2732,13 +2704,13 @@ static const struct sh_pfc_pin_group pinmux_groups[] = {
 	SH_PFC_PIN_GROUP(lcd1_lclk),
 	SH_PFC_PIN_GROUP(lcd1_sync),
 	SH_PFC_PIN_GROUP(lcd1_sys),
-	SH_PFC_PIN_GROUP(mmc0_data1_0),
-	SH_PFC_PIN_GROUP(mmc0_data4_0),
-	SH_PFC_PIN_GROUP(mmc0_data8_0),
+	BUS_DATA_PIN_GROUP(mmc0_data, 1, _0),
+	BUS_DATA_PIN_GROUP(mmc0_data, 4, _0),
+	BUS_DATA_PIN_GROUP(mmc0_data, 8, _0),
 	SH_PFC_PIN_GROUP(mmc0_ctrl_0),
-	SH_PFC_PIN_GROUP(mmc0_data1_1),
-	SH_PFC_PIN_GROUP(mmc0_data4_1),
-	SH_PFC_PIN_GROUP(mmc0_data8_1),
+	BUS_DATA_PIN_GROUP(mmc0_data, 1, _1),
+	BUS_DATA_PIN_GROUP(mmc0_data, 4, _1),
+	BUS_DATA_PIN_GROUP(mmc0_data, 8, _1),
 	SH_PFC_PIN_GROUP(mmc0_ctrl_1),
 	SH_PFC_PIN_GROUP(scifa0_data),
 	SH_PFC_PIN_GROUP(scifa0_clk),
