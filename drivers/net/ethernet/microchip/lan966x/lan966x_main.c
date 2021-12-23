@@ -322,7 +322,7 @@ static int lan966x_mc_unsync(struct net_device *dev, const unsigned char *addr)
 	struct lan966x_port *port = netdev_priv(dev);
 	struct lan966x *lan966x = port->lan966x;
 
-	return lan966x_mac_forget(lan966x, addr, port->pvid, ENTRYTYPE_LOCKED);
+	return lan966x_mac_forget(lan966x, addr, HOST_PVID, ENTRYTYPE_LOCKED);
 }
 
 static int lan966x_mc_sync(struct net_device *dev, const unsigned char *addr)
@@ -330,7 +330,7 @@ static int lan966x_mc_sync(struct net_device *dev, const unsigned char *addr)
 	struct lan966x_port *port = netdev_priv(dev);
 	struct lan966x *lan966x = port->lan966x;
 
-	return lan966x_mac_cpu_learn(lan966x, addr, port->pvid);
+	return lan966x_mac_cpu_learn(lan966x, addr, HOST_PVID);
 }
 
 static void lan966x_port_set_rx_mode(struct net_device *dev)
@@ -594,7 +594,7 @@ static int lan966x_probe_port(struct lan966x *lan966x, u32 p,
 
 	eth_hw_addr_gen(dev, lan966x->base_mac, p + 1);
 
-	lan966x_mac_learn(lan966x, PGID_CPU, dev->dev_addr, port->pvid,
+	lan966x_mac_learn(lan966x, PGID_CPU, dev->dev_addr, HOST_PVID,
 			  ENTRYTYPE_LOCKED);
 
 	port->phylink_config.dev = &port->dev->dev;
