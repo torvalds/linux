@@ -1578,6 +1578,14 @@ static int ksz886x_cable_test_get_status(struct phy_device *phydev,
 #define LAN_EXT_PAGE_ACCESS_ADDRESS_DATA		0x17
 #define LAN_EXT_PAGE_ACCESS_CTRL_EP_FUNC		0x4000
 
+#define LAN8814_QSGMII_SOFT_RESET			0x43
+#define LAN8814_QSGMII_SOFT_RESET_BIT			BIT(0)
+#define LAN8814_QSGMII_PCS1G_ANEG_CONFIG		0x13
+#define LAN8814_QSGMII_PCS1G_ANEG_CONFIG_ANEG_ENA	BIT(3)
+#define LAN8814_ALIGN_SWAP				0x4a
+#define LAN8814_ALIGN_TX_A_B_SWAP			0x1
+#define LAN8814_ALIGN_TX_A_B_SWAP_MASK			GENMASK(2, 0)
+
 #define LAN8804_ALIGN_SWAP				0x4a
 #define LAN8804_ALIGN_TX_A_B_SWAP			0x1
 #define LAN8804_ALIGN_TX_A_B_SWAP_MASK			GENMASK(2, 0)
@@ -1611,6 +1619,29 @@ static int lanphy_write_page_reg(struct phy_device *phydev, int page, u16 addr,
 			   val);
 		return val;
 	}
+	return 0;
+}
+
+static int lan8814_config_init(struct phy_device *phydev)
+{
+	int val;
+
+	/* Reset the PHY */
+	val = lanphy_read_page_reg(phydev, 4, LAN8814_QSGMII_SOFT_RESET);
+	val |= LAN8814_QSGMII_SOFT_RESET_BIT;
+	lanphy_write_page_reg(phydev, 4, LAN8814_QSGMII_SOFT_RESET, val);
+
+	/* Disable ANEG with QSGMII PCS Host side */
+	val = lanphy_read_page_reg(phydev, 5, LAN8814_QSGMII_PCS1G_ANEG_CONFIG);
+	val &= ~LAN8814_QSGMII_PCS1G_ANEG_CONFIG_ANEG_ENA;
+	lanphy_write_page_reg(phydev, 5, LAN8814_QSGMII_PCS1G_ANEG_CONFIG, val);
+
+	/* MDI-X setting for swap A,B transmit */
+	val = lanphy_read_page_reg(phydev, 2, LAN8814_ALIGN_SWAP);
+	val &= ~LAN8814_ALIGN_TX_A_B_SWAP_MASK;
+	val |= LAN8814_ALIGN_TX_A_B_SWAP;
+	lanphy_write_page_reg(phydev, 2, LAN8814_ALIGN_SWAP, val);
+
 	return 0;
 }
 
@@ -1858,6 +1889,7 @@ static struct phy_driver ksphy_driver[] = {
 	.phy_id		= PHY_ID_LAN8814,
 	.phy_id_mask	= MICREL_PHY_ID_MASK,
 	.name		= "Microchip INDY Gigabit Quad PHY",
+	.config_init	= lan8814_config_init,
 	.driver_data	= &ksz9021_type,
 	.probe		= kszphy_probe,
 	.soft_reset	= genphy_soft_reset,
