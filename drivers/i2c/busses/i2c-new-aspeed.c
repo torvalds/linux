@@ -461,8 +461,9 @@ static u32 aspeed_select_i2c_clock(struct aspeed_new_i2c_bus *i2c_bus)
 			divisor += inc;
 		}
 		baseclk_idx &= 0xf;
-		scl_high = ((divisor >> 1) - 1) & 0xf;
-		scl_low = (divisor - scl_high - 2) & 0xf;
+		scl_low = ((divisor * 9) / 16) - 1;
+		scl_low = min_t(u32, scl_low, 0xf);
+		scl_high = (divisor - scl_low - 2) & 0xf;
 		/* Divisor : Base Clock : tCKHighMin : tCK High : tCK Low  */
 		data = ((scl_high - 1) << 20) | (scl_high << 16) | (scl_low << 12) | (baseclk_idx);
 	} else {
