@@ -2592,40 +2592,25 @@ static const unsigned int mlb_3pin_mux[] = {
 #endif /* CONFIG_PINCTRL_PFC_R8A7791 || CONFIG_PINCTRL_PFC_R8A7793 */
 
 /* - MMCIF ------------------------------------------------------------------ */
-static const unsigned int mmc_data1_pins[] = {
-	/* D[0] */
-	RCAR_GP_PIN(6, 18),
-};
-static const unsigned int mmc_data1_mux[] = {
-	MMC_D0_MARK,
-};
-static const unsigned int mmc_data4_pins[] = {
-	/* D[0:3] */
-	RCAR_GP_PIN(6, 18), RCAR_GP_PIN(6, 19),
-	RCAR_GP_PIN(6, 20), RCAR_GP_PIN(6, 21),
-};
-static const unsigned int mmc_data4_mux[] = {
-	MMC_D0_MARK, MMC_D1_MARK, MMC_D2_MARK, MMC_D3_MARK,
-};
-static const unsigned int mmc_data8_pins[] = {
+static const unsigned int mmc_data_pins[] = {
 	/* D[0:7] */
 	RCAR_GP_PIN(6, 18), RCAR_GP_PIN(6, 19),
 	RCAR_GP_PIN(6, 20), RCAR_GP_PIN(6, 21),
 	RCAR_GP_PIN(6, 22), RCAR_GP_PIN(6, 23),
 	RCAR_GP_PIN(6, 28), RCAR_GP_PIN(6, 29),
 };
-static const unsigned int mmc_data8_mux[] = {
+static const unsigned int mmc_data_mux[] = {
 	MMC_D0_MARK, MMC_D1_MARK, MMC_D2_MARK, MMC_D3_MARK,
 	MMC_D4_MARK, MMC_D5_MARK, MMC_D6_MARK, MMC_D7_MARK,
 };
-static const unsigned int mmc_data8_b_pins[] = {
+static const unsigned int mmc_data_b_pins[] = {
 	/* D[0:7] */
 	RCAR_GP_PIN(6, 18), RCAR_GP_PIN(6, 19),
 	RCAR_GP_PIN(6, 20), RCAR_GP_PIN(6, 21),
 	RCAR_GP_PIN(6, 22), RCAR_GP_PIN(6, 23),
 	RCAR_GP_PIN(6, 6), RCAR_GP_PIN(6, 7),
 };
-static const unsigned int mmc_data8_b_mux[] = {
+static const unsigned int mmc_data_b_mux[] = {
 	MMC_D0_MARK, MMC_D1_MARK, MMC_D2_MARK, MMC_D3_MARK,
 	MMC_D4_MARK, MMC_D5_MARK, MMC_D6_B_MARK, MMC_D7_B_MARK,
 };
@@ -4576,10 +4561,10 @@ static const struct {
 		SH_PFC_PIN_GROUP(intc_irq1),
 		SH_PFC_PIN_GROUP(intc_irq2),
 		SH_PFC_PIN_GROUP(intc_irq3),
-		SH_PFC_PIN_GROUP(mmc_data1),
-		SH_PFC_PIN_GROUP(mmc_data4),
-		SH_PFC_PIN_GROUP(mmc_data8),
-		SH_PFC_PIN_GROUP(mmc_data8_b),
+		BUS_DATA_PIN_GROUP(mmc_data, 1),
+		BUS_DATA_PIN_GROUP(mmc_data, 4),
+		BUS_DATA_PIN_GROUP(mmc_data, 8),
+		BUS_DATA_PIN_GROUP(mmc_data, 8, _b),
 		SH_PFC_PIN_GROUP(mmc_ctrl),
 		SH_PFC_PIN_GROUP(msiof0_clk),
 		SH_PFC_PIN_GROUP(msiof0_sync),
