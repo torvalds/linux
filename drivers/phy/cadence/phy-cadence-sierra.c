@@ -34,6 +34,7 @@
 #define SIERRA_CMN_PLLLC_LF_COEFF_MODE1_PREG		0x49
 #define SIERRA_CMN_PLLLC_LF_COEFF_MODE0_PREG		0x4A
 #define SIERRA_CMN_PLLLC_LOCK_CNTSTART_PREG		0x4B
+#define SIERRA_CMN_PLLLC_CLK1_PREG			0x4D
 #define SIERRA_CMN_PLLLC_BWCAL_MODE1_PREG		0x4F
 #define SIERRA_CMN_PLLLC_BWCAL_MODE0_PREG		0x50
 #define SIERRA_CMN_PLLLC_DSMCORR_PREG			0x51
@@ -203,7 +204,7 @@
 #define SIERRA_MAX_LANES				16
 #define PLL_LOCK_TIME					100000
 
-#define CDNS_SIERRA_OUTPUT_CLOCKS			2
+#define CDNS_SIERRA_OUTPUT_CLOCKS			3
 #define CDNS_SIERRA_INPUT_CLOCKS			5
 enum cdns_sierra_clock_input {
 	PHY_CLK,
@@ -226,10 +227,15 @@ static const struct reg_field pllctrl_lock =
 				REG_FIELD(SIERRA_PLLCTRL_STATUS_PREG, 0, 0);
 static const struct reg_field phy_iso_link_ctrl_1 =
 				REG_FIELD(SIERRA_PHY_ISO_LINK_CTRL, 1, 1);
+static const struct reg_field cmn_plllc_clk1outdiv_preg =
+				REG_FIELD(SIERRA_CMN_PLLLC_CLK1_PREG, 0, 6);
+static const struct reg_field cmn_plllc_clk1_en_preg =
+				REG_FIELD(SIERRA_CMN_PLLLC_CLK1_PREG, 12, 12);
 
 static const char * const clk_names[] = {
 	[CDNS_SIERRA_PLL_CMNLC] = "pll_cmnlc",
 	[CDNS_SIERRA_PLL_CMNLC1] = "pll_cmnlc1",
+	[CDNS_SIERRA_DERIVED_REFCLK] = "refclk_der",
 };
 
 enum cdns_sierra_cmn_plllc {
@@ -276,6 +282,16 @@ static u32 cdns_sierra_pll_mux_table[][SIERRA_NUM_CMN_PLLC_PARENTS] = {
 	[CMN_PLLLC] = { 0, 1 },
 	[CMN_PLLLC1] = { 1, 0 },
 };
+
+struct cdns_sierra_derived_refclk {
+	struct clk_hw           hw;
+	struct regmap_field     *cmn_plllc_clk1outdiv_preg;
+	struct regmap_field     *cmn_plllc_clk1_en_preg;
+	struct clk_init_data	clk_data;
+};
+
+#define to_cdns_sierra_derived_refclk(_hw)	\
+			container_of(_hw, struct cdns_sierra_derived_refclk, hw)
 
 enum cdns_sierra_phy_type {
 	TYPE_NONE,
@@ -766,6 +782,91 @@ static int cdns_sierra_phy_register_pll_mux(struct cdns_sierra_phy *sp)
 	return 0;
 }
 
+static int cdns_sierra_derived_refclk_enable(struct clk_hw *hw)
+{
+	struct cdns_sierra_derived_refclk *derived_refclk = to_cdns_sierra_derived_refclk(hw);
+
+	regmap_field_write(derived_refclk->cmn_plllc_clk1_en_preg, 0x1);
+
+	/* Programming to get 100Mhz clock output in ref_der_clk_out 5GHz VCO/50 = 100MHz */
+	regmap_field_write(derived_refclk->cmn_plllc_clk1outdiv_preg, 0x2E);
+
+	return 0;
+}
+
+static void cdns_sierra_derived_refclk_disable(struct clk_hw *hw)
+{
+	struct cdns_sierra_derived_refclk *derived_refclk = to_cdns_sierra_derived_refclk(hw);
+
+	regmap_field_write(derived_refclk->cmn_plllc_clk1_en_preg, 0);
+}
+
+static int cdns_sierra_derived_refclk_is_enabled(struct clk_hw *hw)
+{
+	struct cdns_sierra_derived_refclk *derived_refclk = to_cdns_sierra_derived_refclk(hw);
+	int val;
+
+	regmap_field_read(derived_refclk->cmn_plllc_clk1_en_preg, &val);
+
+	return !!val;
+}
+
+static const struct clk_ops cdns_sierra_derived_refclk_ops = {
+	.enable = cdns_sierra_derived_refclk_enable,
+	.disable = cdns_sierra_derived_refclk_disable,
+	.is_enabled = cdns_sierra_derived_refclk_is_enabled,
+};
+
+static int cdns_sierra_derived_refclk_register(struct cdns_sierra_phy *sp)
+{
+	struct cdns_sierra_derived_refclk *derived_refclk;
+	struct device *dev = sp->dev;
+	struct regmap_field *field;
+	struct clk_init_data *init;
+	struct regmap *regmap;
+	char clk_name[100];
+	struct clk *clk;
+
+	derived_refclk = devm_kzalloc(dev, sizeof(*derived_refclk), GFP_KERNEL);
+	if (!derived_refclk)
+		return -ENOMEM;
+
+	snprintf(clk_name, sizeof(clk_name), "%s_%s", dev_name(dev),
+		 clk_names[CDNS_SIERRA_DERIVED_REFCLK]);
+
+	init = &derived_refclk->clk_data;
+
+	init->ops = &cdns_sierra_derived_refclk_ops;
+	init->flags = 0;
+	init->name = clk_name;
+
+	regmap = sp->regmap_common_cdb;
+
+	field = devm_regmap_field_alloc(dev, regmap, cmn_plllc_clk1outdiv_preg);
+	if (IS_ERR(field)) {
+		dev_err(dev, "cmn_plllc_clk1outdiv_preg reg field init failed\n");
+		return PTR_ERR(field);
+	}
+	derived_refclk->cmn_plllc_clk1outdiv_preg = field;
+
+	field = devm_regmap_field_alloc(dev, regmap, cmn_plllc_clk1_en_preg);
+	if (IS_ERR(field)) {
+		dev_err(dev, "cmn_plllc_clk1_en_preg reg field init failed\n");
+		return PTR_ERR(field);
+	}
+	derived_refclk->cmn_plllc_clk1_en_preg = field;
+
+	derived_refclk->hw.init = init;
+
+	clk = devm_clk_register(dev, &derived_refclk->hw);
+	if (IS_ERR(clk))
+		return PTR_ERR(clk);
+
+	sp->output_clks[CDNS_SIERRA_DERIVED_REFCLK] = clk;
+
+	return 0;
+}
+
 static void cdns_sierra_clk_unregister(struct cdns_sierra_phy *sp)
 {
 	struct device *dev = sp->dev;
@@ -783,6 +884,12 @@ static int cdns_sierra_clk_register(struct cdns_sierra_phy *sp)
 	ret = cdns_sierra_phy_register_pll_mux(sp);
 	if (ret) {
 		dev_err(dev, "Failed to pll mux clocks\n");
+		return ret;
+	}
+
+	ret = cdns_sierra_derived_refclk_register(sp);
+	if (ret) {
+		dev_err(dev, "Failed to register derived refclk\n");
 		return ret;
 	}
 
