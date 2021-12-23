@@ -746,6 +746,7 @@ static int sh_pfc_suspend_init(struct sh_pfc *pfc) { return 0; }
 static unsigned int sh_pfc_errors __initdata;
 static unsigned int sh_pfc_warnings __initdata;
 static bool sh_pfc_bias_done __initdata;
+static bool sh_pfc_drive_done __initdata;
 static struct {
 	u32 reg;
 	u32 bits;
@@ -901,6 +902,8 @@ check_enum_ids:
 static void __init sh_pfc_check_drive_reg(const struct sh_pfc_soc_info *info,
 					  const struct pinmux_drive_reg *drive)
 {
+	const char *drvname = info->name;
+	const struct sh_pfc_pin *pin;
 	unsigned int i;
 
 	for (i = 0; i < ARRAY_SIZE(drive->fields); i++) {
@@ -913,7 +916,10 @@ static void __init sh_pfc_check_drive_reg(const struct sh_pfc_soc_info *info,
 				 GENMASK(field->offset + field->size - 1,
 					 field->offset));
 
-		sh_pfc_find_pin(info, drive->reg, field->pin);
+		pin = sh_pfc_find_pin(info, drive->reg, field->pin);
+		if (pin && !(pin->configs & SH_PFC_PIN_CFG_DRIVE_STRENGTH))
+			sh_pfc_err("drive_reg 0x%x: field %u: pin %s lacks SH_PFC_PIN_CFG_DRIVE_STRENGTH flag\n",
+				   drive->reg, i, pin->name);
 	}
 }
 
@@ -992,6 +998,7 @@ static void __init sh_pfc_compare_groups(const char *drvname,
 
 static void __init sh_pfc_check_info(const struct sh_pfc_soc_info *info)
 {
+	const struct pinmux_drive_reg *drive_regs = info->drive_regs;
 	const struct pinmux_bias_reg *bias_regs = info->bias_regs;
 	const char *drvname = info->name;
 	unsigned int *refcnts;
@@ -1001,6 +1008,7 @@ static void __init sh_pfc_check_info(const struct sh_pfc_soc_info *info)
 	sh_pfc_num_regs = 0;
 	sh_pfc_num_enums = 0;
 	sh_pfc_bias_done = false;
+	sh_pfc_drive_done = false;
 
 	/* Check pins */
 	for (i = 0; i < info->nr_pins; i++) {
@@ -1053,6 +1061,26 @@ static void __init sh_pfc_check_info(const struct sh_pfc_soc_info *info)
 			     !bias_reg->pud))
 				sh_pfc_err("pin %s: SH_PFC_PIN_CFG_PULL_DOWN flag set but pin not in bias_regs\n",
 					   pin->name);
+		}
+
+		if (pin->configs & SH_PFC_PIN_CFG_DRIVE_STRENGTH) {
+			if (!drive_regs) {
+				sh_pfc_err_once(drive, "SH_PFC_PIN_CFG_DRIVE_STRENGTH flag set but drive_regs missing\n");
+			} else {
+				for (j = 0; drive_regs[j / 8].reg; j++) {
+					if (!drive_regs[j / 8].fields[j % 8].pin &&
+					    !drive_regs[j / 8].fields[j % 8].offset &&
+					    !drive_regs[j / 8].fields[j % 8].size)
+						continue;
+
+					if (drive_regs[j / 8].fields[j % 8].pin == pin->pin)
+						break;
+				}
+
+				if (!drive_regs[j / 8].reg)
+					sh_pfc_err("pin %s: SH_PFC_PIN_CFG_DRIVE_STRENGTH flag set but not in drive_regs\n",
+						   pin->name);
+			}
 		}
 	}
 
