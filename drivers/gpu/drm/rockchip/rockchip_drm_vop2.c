@@ -5580,14 +5580,18 @@ static void vop2_crtc_enable_dsc(struct drm_crtc *crtc, struct drm_crtc_state *o
 			DRM_ERROR("Unsupported bpp less than: %d\n", dsc->min_bits_per_pixel);
 
 		/*
-		 * dly_num = 3 * T(one-line) / T (dsc_cds)
+		 * dly_num = delay_line_num * T(one-line) / T (dsc_cds)
 		 * T (one-line) = 1/v_pixclk_mhz * htotal = htotal/v_pixclk_mhz
 		 * T (dsc_cds) = 1 / dsc_cds_rate_mhz
-		 * dly_num = 3 * htotal * dsc_cds_rate_mhz / v_pixclk_mhz;
+		 * delay_line_num: according the pps initial_xmit_delay to adjust vop dsc delay
+		 *                 delay_line_num = 4 - BPP / 8
+		 *                                = (64 - target_bpp / 8) / 16
+		 *
+		 * dly_num = htotal * dsc_cds_rate_mhz / v_pixclk_mhz * (64 - target_bpp / 8) / 16;
 		 */
 		do_div(dsc_cds_rate, 1000000); /* hz to Mhz */
 		dsc_cds_rate_mhz = dsc_cds_rate;
-		dly_num = 3 * htotal * dsc_cds_rate_mhz / v_pixclk_mhz;
+		dly_num = htotal * dsc_cds_rate_mhz / v_pixclk_mhz * (64 - target_bpp / 8) / 16;
 		VOP_MODULE_SET(vop2, dsc, dsc_init_dly_mode, 0);
 		VOP_MODULE_SET(vop2, dsc, dsc_init_dly_num, dly_num);
 
