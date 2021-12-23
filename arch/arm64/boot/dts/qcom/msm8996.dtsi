@@ -2693,7 +2693,7 @@
 		};
 
 		sdhc1: sdhci@7464900 {
-			compatible = "qcom,sdhci-msm-v4";
+			compatible = "qcom,msm8996-sdhci", "qcom,sdhci-msm-v4";
 			reg = <0x07464900 0x11c>, <0x07464000 0x800>;
 			reg-names = "hc_mem", "core_mem";
 
@@ -2716,7 +2716,7 @@
 		};
 
 		sdhc2: sdhci@74a4900 {
-			compatible = "qcom,sdhci-msm-v4";
+			compatible = "qcom,msm8996-sdhci", "qcom,sdhci-msm-v4";
 			reg = <0x074a4900 0x314>, <0x074a4000 0x800>;
 			reg-names = "hc_mem", "core_mem";
 
