@@ -3072,7 +3072,7 @@ r8a77995_pin_to_bias_reg(const struct sh_pfc *pfc, unsigned int pin,
 	const struct pinmux_bias_reg *reg;
 	unsigned int bit;
 
-	reg = rcar_pin_to_bias_reg(pfc, pin, &bit);
+	reg = rcar_pin_to_bias_reg(pfc->info, pin, &bit);
 	if (!reg)
 		return reg;
 

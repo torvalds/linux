@@ -835,16 +835,16 @@ int sh_pfc_register_pinctrl(struct sh_pfc *pfc)
 }
 
 const struct pinmux_bias_reg *
-rcar_pin_to_bias_reg(const struct sh_pfc *pfc, unsigned int pin,
+rcar_pin_to_bias_reg(const struct sh_pfc_soc_info *info, unsigned int pin,
 		     unsigned int *bit)
 {
 	unsigned int i, j;
 
-	for (i = 0; pfc->info->bias_regs[i].puen || pfc->info->bias_regs[i].pud; i++) {
-		for (j = 0; j < ARRAY_SIZE(pfc->info->bias_regs[i].pins); j++) {
-			if (pfc->info->bias_regs[i].pins[j] == pin) {
+	for (i = 0; info->bias_regs[i].puen || info->bias_regs[i].pud; i++) {
+		for (j = 0; j < ARRAY_SIZE(info->bias_regs[i].pins); j++) {
+			if (info->bias_regs[i].pins[j] == pin) {
 				*bit = j;
-				return &pfc->info->bias_regs[i];
+				return &info->bias_regs[i];
 			}
 		}
 	}
@@ -859,7 +859,7 @@ unsigned int rcar_pinmux_get_bias(struct sh_pfc *pfc, unsigned int pin)
 	const struct pinmux_bias_reg *reg;
 	unsigned int bit;
 
-	reg = rcar_pin_to_bias_reg(pfc, pin, &bit);
+	reg = rcar_pin_to_bias_reg(pfc->info, pin, &bit);
 	if (!reg)
 		return PIN_CONFIG_BIAS_DISABLE;
 
@@ -885,7 +885,7 @@ void rcar_pinmux_set_bias(struct sh_pfc *pfc, unsigned int pin,
 	u32 enable, updown;
 	unsigned int bit;
 
-	reg = rcar_pin_to_bias_reg(pfc, pin, &bit);
+	reg = rcar_pin_to_bias_reg(pfc->info, pin, &bit);
 	if (!reg)
 		return;
 
