@@ -5623,6 +5623,9 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 
 static int r8a7794_pin_to_pocctrl(struct sh_pfc *pfc, unsigned int pin, u32 *pocctrl)
 {
+	if (pin < RCAR_GP_PIN(6, 0) || pin > RCAR_GP_PIN(6, 23))
+		return -EINVAL;
+
 	*pocctrl = 0xe606006c;
 
 	switch (pin & 0x1f) {
