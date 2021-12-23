@@ -39,6 +39,14 @@ properties:
     $ref: /schemas/types.yaml#/definitions/string
     description: User visible long sound card name
 
+  pin-switches:
+    description: List of widget names for which pin switches should be created.
+    $ref: /schemas/types.yaml#/definitions/string-array
+
+  widgets:
+    description: User specified audio sound widgets.
+    $ref: /schemas/types.yaml#/definitions/non-unique-string-array
+
   # Only valid for some compatibles (see allOf if below)
   reg: true
   reg-names: true
@@ -251,7 +259,15 @@ examples:
         reg-names = "mic-iomux", "spkr-iomux";
 
         model = "msm8916";
+        widgets =
+            "Speaker", "Speaker",
+            "Headphone", "Headphones";
+        pin-switches = "Speaker";
         audio-routing =
+            "Speaker", "Speaker Amp OUT",
+            "Speaker Amp IN", "HPH_R",
+            "Headphones", "HPH_L",
+            "Headphones", "HPH_R",
             "AMIC1", "MIC BIAS Internal1",
             "AMIC2", "MIC BIAS Internal2",
             "AMIC3", "MIC BIAS Internal3";
