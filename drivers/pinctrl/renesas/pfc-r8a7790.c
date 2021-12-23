@@ -3960,18 +3960,6 @@ static const unsigned int vin2_data18_mux[] = {
 	VI2_R4_MARK, VI2_R5_MARK,
 	VI2_R6_MARK, VI2_R7_MARK,
 };
-static const unsigned int vin2_g8_pins[] = {
-	RCAR_GP_PIN(0, 27), RCAR_GP_PIN(0, 28),
-	RCAR_GP_PIN(0, 29), RCAR_GP_PIN(1, 10),
-	RCAR_GP_PIN(1, 4), RCAR_GP_PIN(1, 5),
-	RCAR_GP_PIN(1, 6), RCAR_GP_PIN(1, 7),
-};
-static const unsigned int vin2_g8_mux[] = {
-	VI2_G0_MARK, VI2_G1_MARK,
-	VI2_G2_MARK, VI2_G3_MARK,
-	VI2_G4_MARK, VI2_G5_MARK,
-	VI2_G6_MARK, VI2_G7_MARK,
-};
 static const unsigned int vin2_sync_pins[] = {
 	RCAR_GP_PIN(1, 16), /* HSYNC */
 	RCAR_GP_PIN(1, 21), /* VSYNC */
@@ -4346,7 +4334,7 @@ static const struct {
 		BUS_DATA_PIN_GROUP(vin2_data, 16),
 		BUS_DATA_PIN_GROUP(vin2_data, 8),
 		BUS_DATA_PIN_GROUP(vin2_data, 4),
-		SH_PFC_PIN_GROUP(vin2_g8),
+		SH_PFC_PIN_GROUP_SUBSET(vin2_g8, vin2_data, 8, 8),
 		SH_PFC_PIN_GROUP(vin2_sync),
 		SH_PFC_PIN_GROUP(vin2_field),
 		SH_PFC_PIN_GROUP(vin2_clkenb),
