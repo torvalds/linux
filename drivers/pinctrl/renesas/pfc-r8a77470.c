@@ -1595,30 +1595,14 @@ static const unsigned int i2c4_e_mux[] = {
 	SCL4_E_MARK, SDA4_E_MARK,
 };
 /* - MMC -------------------------------------------------------------------- */
-static const unsigned int mmc_data1_pins[] = {
-	/* D0 */
-	RCAR_GP_PIN(0, 15),
-};
-static const unsigned int mmc_data1_mux[] = {
-	MMC0_D0_SDHI1_D0_MARK,
-};
-static const unsigned int mmc_data4_pins[] = {
-	/* D[0:3] */
-	RCAR_GP_PIN(0, 15), RCAR_GP_PIN(0, 16),
-	RCAR_GP_PIN(0, 17), RCAR_GP_PIN(0, 18),
-};
-static const unsigned int mmc_data4_mux[] = {
-	MMC0_D0_SDHI1_D0_MARK, MMC0_D1_SDHI1_D1_MARK,
-	MMC0_D2_SDHI1_D2_MARK, MMC0_D3_SDHI1_D3_MARK,
-};
-static const unsigned int mmc_data8_pins[] = {
+static const unsigned int mmc_data_pins[] = {
 	/* D[0:3] */
 	RCAR_GP_PIN(0, 15), RCAR_GP_PIN(0, 16),
 	RCAR_GP_PIN(0, 17), RCAR_GP_PIN(0, 18),
 	RCAR_GP_PIN(0, 19), RCAR_GP_PIN(0, 20),
 	RCAR_GP_PIN(0, 21), RCAR_GP_PIN(0, 22),
 };
-static const unsigned int mmc_data8_mux[] = {
+static const unsigned int mmc_data_mux[] = {
 	MMC0_D0_SDHI1_D0_MARK, MMC0_D1_SDHI1_D1_MARK,
 	MMC0_D2_SDHI1_D2_MARK, MMC0_D3_SDHI1_D3_MARK,
 	MMC0_D4_MARK, MMC0_D5_MARK,
@@ -1954,29 +1938,6 @@ static const unsigned int sdhi0_wp_mux[] = {
 	SD0_WP_MARK,
 };
 /* - SDHI1 ------------------------------------------------------------------ */
-static const unsigned int sdhi1_data1_pins[] = {
-	/* D0 */
-	RCAR_GP_PIN(0, 15),
-};
-static const unsigned int sdhi1_data1_mux[] = {
-	MMC0_D0_SDHI1_D0_MARK,
-};
-static const unsigned int sdhi1_data4_pins[] = {
-	/* D[0:3] */
-	RCAR_GP_PIN(0, 15), RCAR_GP_PIN(0, 16),
-	RCAR_GP_PIN(0, 17), RCAR_GP_PIN(0, 18),
-};
-static const unsigned int sdhi1_data4_mux[] = {
-	MMC0_D0_SDHI1_D0_MARK, MMC0_D1_SDHI1_D1_MARK,
-	MMC0_D2_SDHI1_D2_MARK, MMC0_D3_SDHI1_D3_MARK,
-};
-static const unsigned int sdhi1_ctrl_pins[] = {
-	/* CLK, CMD */
-	RCAR_GP_PIN(0, 13), RCAR_GP_PIN(0, 14),
-};
-static const unsigned int sdhi1_ctrl_mux[] = {
-	MMC0_CLK_SDHI1_CLK_MARK, MMC0_CMD_SDHI1_CMD_MARK,
-};
 static const unsigned int sdhi1_cd_pins[] = {
 	/* CD */
 	RCAR_GP_PIN(0, 19),
@@ -2235,9 +2196,9 @@ static const struct sh_pfc_pin_group pinmux_groups[] = {
 	SH_PFC_PIN_GROUP(i2c4_c),
 	SH_PFC_PIN_GROUP(i2c4_d),
 	SH_PFC_PIN_GROUP(i2c4_e),
-	SH_PFC_PIN_GROUP(mmc_data1),
-	SH_PFC_PIN_GROUP(mmc_data4),
-	SH_PFC_PIN_GROUP(mmc_data8),
+	BUS_DATA_PIN_GROUP(mmc_data, 1),
+	BUS_DATA_PIN_GROUP(mmc_data, 4),
+	BUS_DATA_PIN_GROUP(mmc_data, 8),
 	SH_PFC_PIN_GROUP(mmc_ctrl),
 	SH_PFC_PIN_GROUP(qspi0_ctrl),
 	SH_PFC_PIN_GROUP(qspi0_data2),
@@ -2283,9 +2244,9 @@ static const struct sh_pfc_pin_group pinmux_groups[] = {
 	SH_PFC_PIN_GROUP(sdhi0_ctrl),
 	SH_PFC_PIN_GROUP(sdhi0_cd),
 	SH_PFC_PIN_GROUP(sdhi0_wp),
-	SH_PFC_PIN_GROUP(sdhi1_data1),
-	SH_PFC_PIN_GROUP(sdhi1_data4),
-	SH_PFC_PIN_GROUP(sdhi1_ctrl),
+	SH_PFC_PIN_GROUP_SUBSET(sdhi1_data1, mmc_data, 0, 1),
+	SH_PFC_PIN_GROUP_SUBSET(sdhi1_data4, mmc_data, 0, 4),
+	SH_PFC_PIN_GROUP_ALIAS(sdhi1_ctrl, mmc_ctrl),
 	SH_PFC_PIN_GROUP(sdhi1_cd),
 	SH_PFC_PIN_GROUP(sdhi1_wp),
 	SH_PFC_PIN_GROUP(sdhi2_data1),
