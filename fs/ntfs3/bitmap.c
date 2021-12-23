@@ -1333,9 +1333,7 @@ int wnd_extend(struct wnd_bitmap *wnd, size_t new_bits)
 		if (!new_free)
 			return -ENOMEM;
 
-		if (new_free != wnd->free_bits)
-			memcpy(new_free, wnd->free_bits,
-			       wnd->nwnd * sizeof(short));
+		memcpy(new_free, wnd->free_bits, wnd->nwnd * sizeof(short));
 		memset(new_free + wnd->nwnd, 0,
 		       (new_wnd - wnd->nwnd) * sizeof(short));
 		kfree(wnd->free_bits);
