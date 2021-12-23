@@ -1161,6 +1161,28 @@ static void __init sh_pfc_check_info(const struct sh_pfc_soc_info *info)
 	for (i = 0; bias_regs && (bias_regs[i].puen || bias_regs[i].pud); i++)
 		sh_pfc_check_bias_reg(info, &bias_regs[i]);
 
+	for (i = 0; bias_regs &&
+		    (bias_regs[i / 32].puen || bias_regs[i / 32].pud); i++) {
+		if (bias_regs[i / 32].pins[i % 32] == SH_PFC_PIN_NONE)
+			continue;
+
+		for (j = 0; j < i; j++) {
+			if (bias_regs[i / 32].pins[i % 32] !=
+			    bias_regs[j / 32].pins[j % 32])
+				continue;
+
+			if (bias_regs[i / 32].puen && bias_regs[j / 32].puen)
+				sh_pfc_err("bias_reg 0x%x:%u/0x%x:%u: pin conflict\n",
+					   bias_regs[i / 32].puen, i % 32,
+					   bias_regs[j / 32].puen, j % 32);
+			if (bias_regs[i / 32].pud && bias_regs[j / 32].pud)
+				sh_pfc_err("bias_reg 0x%x:%u/0x%x:%u: pin conflict\n",
+					   bias_regs[i / 32].pud, i % 32,
+					   bias_regs[j / 32].pud, j % 32);
+		}
+
+	}
+
 	/* Check ioctrl registers */
 	for (i = 0; info->ioctrl_regs && info->ioctrl_regs[i].reg; i++)
 		sh_pfc_check_reg(drvname, info->ioctrl_regs[i].reg, U32_MAX);
