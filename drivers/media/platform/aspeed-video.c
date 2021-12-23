@@ -1699,6 +1699,7 @@ static void aspeed_video_resolution_work(struct work_struct *work)
 	struct delayed_work *dwork = to_delayed_work(work);
 	struct aspeed_video *video = container_of(dwork, struct aspeed_video,
 						  res_work);
+	bool is_res_chg = false;
 
 	aspeed_video_on(video);
 
@@ -1712,8 +1713,15 @@ static void aspeed_video_resolution_work(struct work_struct *work)
 
 	aspeed_video_get_resolution(video);
 
-	if (video->detected_timings.width != video->active_timings.width ||
-	    video->detected_timings.height != video->active_timings.height) {
+	if (video->v4l2_input_status)
+		goto done;
+
+	is_res_chg = memcmp(&video->active_timings, &video->detected_timings,
+			    sizeof(video->active_timings));
+	video->active_timings = video->detected_timings;
+	aspeed_video_set_resolution(video);
+
+	if (is_res_chg) {
 		static const struct v4l2_event ev = {
 			.type = V4L2_EVENT_SOURCE_CHANGE,
 			.u.src_change.changes = V4L2_EVENT_SRC_CH_RESOLUTION,
