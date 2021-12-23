@@ -375,17 +375,6 @@ struct snd_sof_ipc_msg {
 	bool ipc_complete;
 };
 
-enum snd_sof_fw_state {
-	SOF_FW_BOOT_NOT_STARTED = 0,
-	SOF_FW_BOOT_PREPARE,
-	SOF_FW_BOOT_IN_PROGRESS,
-	SOF_FW_BOOT_FAILED,
-	SOF_FW_BOOT_READY_FAILED, /* firmware booted but fw_ready op failed */
-	SOF_FW_BOOT_READY_OK,
-	SOF_FW_BOOT_COMPLETE,
-	SOF_FW_CRASHED,
-};
-
 /*
  * SOF Device Level.
  */
