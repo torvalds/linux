@@ -171,34 +171,6 @@ BPF_MEM | <size> | BPF_LDX means::
 
 Where size is one of: BPF_B or BPF_H or BPF_W or BPF_DW.
 
-Packet access instructions
---------------------------
-
-eBPF has two non-generic instructions: (BPF_ABS | <size> | BPF_LD) and
-(BPF_IND | <size> | BPF_LD) which are used to access packet data.
-
-They had to be carried over from classic BPF to have strong performance of
-socket filters running in eBPF interpreter. These instructions can only
-be used when interpreter context is a pointer to ``struct sk_buff`` and
-have seven implicit operands. Register R6 is an implicit input that must
-contain pointer to sk_buff. Register R0 is an implicit output which contains
-the data fetched from the packet. Registers R1-R5 are scratch registers
-and must not be used to store the data across BPF_ABS | BPF_LD or
-BPF_IND | BPF_LD instructions.
-
-These instructions have implicit program exit condition as well. When
-eBPF program is trying to access the data beyond the packet boundary,
-the interpreter will abort the execution of the program. JIT compilers
-therefore must preserve this property. src_reg and imm32 fields are
-explicit inputs to these instructions.
-
-For example::
-
-  BPF_IND | BPF_W | BPF_LD means:
-
-    R0 = ntohl(*(u32 *) (((struct sk_buff *) R6)->data + src_reg + imm32))
-    and R1 - R5 were scratched.
-
 Atomic operations
 -----------------
 
@@ -252,3 +224,30 @@ zero.
 eBPF has one 16-byte instruction: ``BPF_LD | BPF_DW | BPF_IMM`` which consists
 of two consecutive ``struct bpf_insn`` 8-byte blocks and interpreted as single
 instruction that loads 64-bit immediate value into a dst_reg.
+
+Packet access instructions
+--------------------------
+
+eBPF has two non-generic instructions: (BPF_ABS | <size> | BPF_LD) and
+(BPF_IND | <size> | BPF_LD) which are used to access packet data.
+
+They had to be carried over from classic BPF to have strong performance of
+socket filters running in eBPF interpreter. These instructions can only
+be used when interpreter context is a pointer to ``struct sk_buff`` and
+have seven implicit operands. Register R6 is an implicit input that must
+contain pointer to sk_buff. Register R0 is an implicit output which contains
+the data fetched from the packet. Registers R1-R5 are scratch registers
+and must not be used to store the data across BPF_ABS | BPF_LD or
+BPF_IND | BPF_LD instructions.
+
+These instructions have implicit program exit condition as well. When
+eBPF program is trying to access the data beyond the packet boundary,
+the interpreter will abort the execution of the program. JIT compilers
+therefore must preserve this property. src_reg and imm32 fields are
+explicit inputs to these instructions.
+
+For example, BPF_IND | BPF_W | BPF_LD means::
+
+  R0 = ntohl(*(u32 *) (((struct sk_buff *) R6)->data + src_reg + imm32))
+
+and R1 - R5 are clobbered.
