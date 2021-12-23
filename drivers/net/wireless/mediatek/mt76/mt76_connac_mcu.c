@@ -530,7 +530,7 @@ void mt76_connac_mcu_wtbl_generic_tlv(struct mt76_dev *dev,
 		generic->muar_idx = mvif->omac_idx;
 		generic->qos = sta->wme;
 	} else {
-		if (is_mt7921(dev) &&
+		if ((is_mt7921(dev) || is_mt7915(dev)) &&
 		    vif->type == NL80211_IFTYPE_STATION)
 			memcpy(generic->peer_addr, vif->bss_conf.bssid,
 			       ETH_ALEN);
@@ -548,7 +548,7 @@ void mt76_connac_mcu_wtbl_generic_tlv(struct mt76_dev *dev,
 	rx->rca2 = 1;
 	rx->rv = 1;
 
-	if (is_mt7921(dev))
+	if (is_mt7921(dev) || is_mt7915(dev))
 		return;
 
 	tlv = mt76_connac_mcu_add_nested_tlv(skb, WTBL_SPE, sizeof(*spe),
