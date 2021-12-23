@@ -171,12 +171,11 @@ void snd_sof_dsp_panic(struct snd_sof_dev *sdev, u32 offset, bool non_recoverabl
 	 * if all dumps should be printed
 	 */
 	if (non_recoverable || sof_debug_check_flag(SOF_DBG_PRINT_ALL_DUMPS)) {
-		dev_err(sdev->dev, "DSP panic!\n");
-
 		/* We want to see the DSP panic! */
 		sdev->dbg_dump_printed = false;
 
-		snd_sof_dsp_dbg_dump(sdev, SOF_DBG_DUMP_REGS | SOF_DBG_DUMP_MBOX);
+		snd_sof_dsp_dbg_dump(sdev, "DSP panic!",
+				     SOF_DBG_DUMP_REGS | SOF_DBG_DUMP_MBOX);
 		snd_sof_trace_notify_for_error(sdev);
 	}
 }

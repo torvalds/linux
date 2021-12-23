@@ -955,7 +955,7 @@ static void snd_sof_dbg_print_fw_state(struct snd_sof_dev *sdev)
 	dev_err(sdev->dev, "fw_state: UNKNOWN (%d)\n", sdev->fw_state);
 }
 
-void snd_sof_dsp_dbg_dump(struct snd_sof_dev *sdev, u32 flags)
+void snd_sof_dsp_dbg_dump(struct snd_sof_dev *sdev, const char *msg, u32 flags)
 {
 	bool print_all = sof_debug_check_flag(SOF_DBG_PRINT_ALL_DUMPS);
 
@@ -964,11 +964,15 @@ void snd_sof_dsp_dbg_dump(struct snd_sof_dev *sdev, u32 flags)
 
 	if (sof_ops(sdev)->dbg_dump && !sdev->dbg_dump_printed) {
 		dev_err(sdev->dev, "------------[ DSP dump start ]------------\n");
+		if (msg)
+			dev_err(sdev->dev, "%s\n", msg);
 		snd_sof_dbg_print_fw_state(sdev);
 		sof_ops(sdev)->dbg_dump(sdev, flags);
 		dev_err(sdev->dev, "------------[ DSP dump end ]------------\n");
 		if (!print_all)
 			sdev->dbg_dump_printed = true;
+	} else if (msg) {
+		dev_err(sdev->dev, "%s\n", msg);
 	}
 }
 EXPORT_SYMBOL(snd_sof_dsp_dbg_dump);
@@ -997,7 +1001,8 @@ void snd_sof_handle_fw_exception(struct snd_sof_dev *sdev)
 
 	/* dump vital information to the logs */
 	snd_sof_ipc_dump(sdev);
-	snd_sof_dsp_dbg_dump(sdev, SOF_DBG_DUMP_REGS | SOF_DBG_DUMP_MBOX);
+	snd_sof_dsp_dbg_dump(sdev, "Firmware exception",
+			     SOF_DBG_DUMP_REGS | SOF_DBG_DUMP_MBOX);
 	snd_sof_trace_notify_for_error(sdev);
 }
 EXPORT_SYMBOL(snd_sof_handle_fw_exception);

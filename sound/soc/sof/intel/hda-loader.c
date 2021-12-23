@@ -88,6 +88,7 @@ static int cl_dsp_init(struct snd_sof_dev *sdev, int stream_tag)
 	const struct sof_intel_dsp_desc *chip = hda->desc;
 	unsigned int status;
 	unsigned long mask;
+	char *dump_msg;
 	u32 flags, j;
 	int ret;
 	int i;
@@ -189,9 +190,12 @@ err:
 	if (hda->boot_iteration == HDA_FW_BOOT_ATTEMPTS)
 		flags &= ~SOF_DBG_DUMP_OPTIONAL;
 
-	snd_sof_dsp_dbg_dump(sdev, flags);
+	dump_msg = kasprintf(GFP_KERNEL, "Boot iteration failed: %d/%d",
+			     hda->boot_iteration, HDA_FW_BOOT_ATTEMPTS);
+	snd_sof_dsp_dbg_dump(sdev, dump_msg, flags);
 	hda_dsp_core_reset_power_down(sdev, chip->host_managed_cores_mask);
 
+	kfree(dump_msg);
 	return ret;
 }
 
@@ -421,12 +425,11 @@ int hda_dsp_cl_boot_firmware(struct snd_sof_dev *sdev)
 	 */
 	hda->boot_iteration = HDA_FW_BOOT_ATTEMPTS;
 	ret = cl_copy_fw(sdev, stream);
-	if (!ret) {
+	if (!ret)
 		dev_dbg(sdev->dev, "Firmware download successful, booting...\n");
-	} else {
-		snd_sof_dsp_dbg_dump(sdev, SOF_DBG_DUMP_PCI | SOF_DBG_DUMP_MBOX);
-		dev_err(sdev->dev, "error: load fw failed ret: %d\n", ret);
-	}
+	else
+		snd_sof_dsp_dbg_dump(sdev, "Firmware download failed",
+				     SOF_DBG_DUMP_PCI | SOF_DBG_DUMP_MBOX);
 
 cleanup:
 	/*

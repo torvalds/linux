@@ -274,7 +274,7 @@ snd_sof_dsp_set_power_state(struct snd_sof_dev *sdev,
 }
 
 /* debug */
-void snd_sof_dsp_dbg_dump(struct snd_sof_dev *sdev, u32 flags);
+void snd_sof_dsp_dbg_dump(struct snd_sof_dev *sdev, const char *msg, u32 flags);
 
 static inline int snd_sof_debugfs_add_region_item(struct snd_sof_dev *sdev,
 		enum snd_sof_fw_blk_type blk_type, u32 offset, size_t size,
