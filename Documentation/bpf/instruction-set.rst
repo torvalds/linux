@@ -203,7 +203,7 @@ Some core changes of the eBPF format from classic BPF:
     bpf_exit
 
   After the call the registers R1-R5 contain junk values and cannot be read.
-  An in-kernel `eBPF verifier`_ is used to validate eBPF programs.
+  An in-kernel verifier.rst is used to validate eBPF programs.
 
 Also in the new design, eBPF is limited to 4096 insns, which means that any
 program will terminate quickly and will only call a fixed number of kernel
@@ -234,7 +234,7 @@ optimizations, socket filters and seccomp are using it as assembler. Tracing
 filters may use it as assembler to generate code from kernel. In kernel usage
 may not be bounded by security considerations, since generated eBPF code
 may be optimizing internal code path and not being exposed to the user space.
-Safety of eBPF can come from the `eBPF verifier`_. In such use cases as
+Safety of eBPF can come from the verifier.rst. In such use cases as
 described, it may be used as safe instruction set.
 
 Just like the original BPF, eBPF runs within a controlled environment,
@@ -462,6 +462,3 @@ of two consecutive ``struct bpf_insn`` 8-byte blocks and interpreted as single
 instruction that loads 64-bit immediate value into a dst_reg.
 Classic BPF has similar instruction: ``BPF_LD | BPF_W | BPF_IMM`` which loads
 32-bit immediate value into a register.
-
-.. Links:
-.. _eBPF verifier: verifiers.rst
