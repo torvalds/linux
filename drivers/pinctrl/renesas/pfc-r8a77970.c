@@ -1377,22 +1377,6 @@ static const unsigned int qspi0_ctrl_pins[] = {
 static const unsigned int qspi0_ctrl_mux[] = {
 	QSPI0_SPCLK_MARK, QSPI0_SSL_MARK,
 };
-static const unsigned int qspi0_data2_pins[] = {
-	/* MOSI_IO0, MISO_IO1 */
-	RCAR_GP_PIN(5, 1), RCAR_GP_PIN(5, 2),
-};
-static const unsigned int qspi0_data2_mux[] = {
-	QSPI0_MOSI_IO0_MARK, QSPI0_MISO_IO1_MARK,
-};
-static const unsigned int qspi0_data4_pins[] = {
-	/* MOSI_IO0, MISO_IO1, IO2, IO3 */
-	RCAR_GP_PIN(5, 1), RCAR_GP_PIN(5, 2),
-	RCAR_GP_PIN(5, 3), RCAR_GP_PIN(5, 4),
-};
-static const unsigned int qspi0_data4_mux[] = {
-	QSPI0_MOSI_IO0_MARK, QSPI0_MISO_IO1_MARK,
-	QSPI0_IO2_MARK, QSPI0_IO3_MARK
-};
 
 /* - QSPI1 ------------------------------------------------------------------ */
 static const unsigned int qspi1_ctrl_pins[] = {
@@ -1402,36 +1386,14 @@ static const unsigned int qspi1_ctrl_pins[] = {
 static const unsigned int qspi1_ctrl_mux[] = {
 	QSPI1_SPCLK_MARK, QSPI1_SSL_MARK,
 };
-static const unsigned int qspi1_data2_pins[] = {
-	/* MOSI_IO0, MISO_IO1 */
-	RCAR_GP_PIN(5, 7), RCAR_GP_PIN(5, 8),
-};
-static const unsigned int qspi1_data2_mux[] = {
-	QSPI1_MOSI_IO0_MARK, QSPI1_MISO_IO1_MARK,
-};
-static const unsigned int qspi1_data4_pins[] = {
-	/* MOSI_IO0, MISO_IO1, IO2, IO3 */
-	RCAR_GP_PIN(5, 7), RCAR_GP_PIN(5, 8),
-	RCAR_GP_PIN(5, 9), RCAR_GP_PIN(5, 10),
-};
-static const unsigned int qspi1_data4_mux[] = {
-	QSPI1_MOSI_IO0_MARK, QSPI1_MISO_IO1_MARK,
-	QSPI1_IO2_MARK, QSPI1_IO3_MARK
-};
 
 /* - RPC -------------------------------------------------------------------- */
-static const unsigned int rpc_clk1_pins[] = {
+static const unsigned int rpc_clk_pins[] = {
 	/* Octal-SPI flash: C/SCLK */
-	RCAR_GP_PIN(5, 0),
-};
-static const unsigned int rpc_clk1_mux[] = {
-	QSPI0_SPCLK_MARK,
-};
-static const unsigned int rpc_clk2_pins[] = {
 	/* HyperFlash: CK, CK# */
 	RCAR_GP_PIN(5, 0), RCAR_GP_PIN(5, 6),
 };
-static const unsigned int rpc_clk2_mux[] = {
+static const unsigned int rpc_clk_mux[] = {
 	QSPI0_SPCLK_MARK, QSPI1_SPCLK_MARK,
 };
 static const unsigned int rpc_ctrl_pins[] = {
@@ -1798,13 +1760,13 @@ static const struct sh_pfc_pin_group pinmux_groups[] = {
 	SH_PFC_PIN_GROUP(pwm4_a),
 	SH_PFC_PIN_GROUP(pwm4_b),
 	SH_PFC_PIN_GROUP(qspi0_ctrl),
-	SH_PFC_PIN_GROUP(qspi0_data2),
-	SH_PFC_PIN_GROUP(qspi0_data4),
+	SH_PFC_PIN_GROUP_SUBSET(qspi0_data2, rpc_data, 0, 2),
+	SH_PFC_PIN_GROUP_SUBSET(qspi0_data4, rpc_data, 0, 4),
 	SH_PFC_PIN_GROUP(qspi1_ctrl),
-	SH_PFC_PIN_GROUP(qspi1_data2),
-	SH_PFC_PIN_GROUP(qspi1_data4),
-	SH_PFC_PIN_GROUP(rpc_clk1),
-	SH_PFC_PIN_GROUP(rpc_clk2),
+	SH_PFC_PIN_GROUP_SUBSET(qspi1_data2, rpc_data, 4, 2),
+	SH_PFC_PIN_GROUP_SUBSET(qspi1_data4, rpc_data, 4, 4),
+	BUS_DATA_PIN_GROUP(rpc_clk, 1),
+	BUS_DATA_PIN_GROUP(rpc_clk, 2),
 	SH_PFC_PIN_GROUP(rpc_ctrl),
 	SH_PFC_PIN_GROUP(rpc_data),
 	SH_PFC_PIN_GROUP(rpc_reset),
