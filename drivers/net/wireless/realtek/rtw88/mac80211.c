@@ -13,6 +13,7 @@
 #include "bf.h"
 #include "debug.h"
 #include "wow.h"
+#include "sar.h"
 
 static void rtw_ops_tx(struct ieee80211_hw *hw,
 		       struct ieee80211_tx_control *control,
@@ -161,6 +162,7 @@ static int rtw_ops_add_interface(struct ieee80211_hw *hw,
 	rtwvif->stats.rx_unicast = 0;
 	rtwvif->stats.tx_cnt = 0;
 	rtwvif->stats.rx_cnt = 0;
+	rtwvif->scan_req = NULL;
 	memset(&rtwvif->bfee, 0, sizeof(struct rtw_bfee));
 	rtwvif->conf = &rtw_vif_port[port];
 	rtw_txq_init(rtwdev, vif->txq);
@@ -372,9 +374,15 @@ static void rtw_ops_bss_info_changed(struct ieee80211_hw *hw,
 			rtw_coex_media_status_notify(rtwdev, conf->assoc);
 			if (rtw_bf_support)
 				rtw_bf_assoc(rtwdev, vif, conf);
+			rtw_store_op_chan(rtwdev);
 		} else {
 			rtw_leave_lps(rtwdev);
 			rtw_bf_disassoc(rtwdev, vif, conf);
+			/* Abort ongoing scan if cancel_scan isn't issued
+			 * when disconnected by peer
+			 */
+			if (test_bit(RTW_FLAG_SCANNING, rtwdev->flags))
+				rtw_hw_scan_abort(rtwdev, vif);
 		}
 
 		config |= PORT_SET_NET_TYPE;
@@ -594,22 +602,9 @@ static void rtw_ops_sw_scan_start(struct ieee80211_hw *hw,
 {
 	struct rtw_dev *rtwdev = hw->priv;
 	struct rtw_vif *rtwvif = (struct rtw_vif *)vif->drv_priv;
-	u32 config = 0;
 
 	mutex_lock(&rtwdev->mutex);
-
-	rtw_leave_lps(rtwdev);
-
-	ether_addr_copy(rtwvif->mac_addr, mac_addr);
-	config |= PORT_SET_MAC_ADDR;
-	rtw_vif_port_config(rtwdev, rtwvif, config);
-
-	rtw_coex_scan_notify(rtwdev, COEX_SCAN_START);
-	rtw_core_fw_scan_notify(rtwdev, true);
-
-	set_bit(RTW_FLAG_DIG_DISABLE, rtwdev->flags);
-	set_bit(RTW_FLAG_SCANNING, rtwdev->flags);
-
+	rtw_core_scan_start(rtwdev, rtwvif, mac_addr, false);
 	mutex_unlock(&rtwdev->mutex);
 }
 
@@ -617,22 +612,9 @@ static void rtw_ops_sw_scan_complete(struct ieee80211_hw *hw,
 				     struct ieee80211_vif *vif)
 {
 	struct rtw_dev *rtwdev = hw->priv;
-	struct rtw_vif *rtwvif = (struct rtw_vif *)vif->drv_priv;
-	u32 config = 0;
 
 	mutex_lock(&rtwdev->mutex);
-
-	clear_bit(RTW_FLAG_SCANNING, rtwdev->flags);
-	clear_bit(RTW_FLAG_DIG_DISABLE, rtwdev->flags);
-
-	rtw_core_fw_scan_notify(rtwdev, false);
-
-	ether_addr_copy(rtwvif->mac_addr, vif->addr);
-	config |= PORT_SET_MAC_ADDR;
-	rtw_vif_port_config(rtwdev, rtwvif, config);
-
-	rtw_coex_scan_notify(rtwdev, COEX_SCAN_FINISH);
-
+	rtw_core_scan_complete(rtwdev, vif);
 	mutex_unlock(&rtwdev->mutex);
 }
 
@@ -815,6 +797,56 @@ static void rtw_reconfig_complete(struct ieee80211_hw *hw,
 	mutex_unlock(&rtwdev->mutex);
 }
 
+static int rtw_ops_hw_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+			   struct ieee80211_scan_request *req)
+{
+	struct rtw_dev *rtwdev = hw->priv;
+	int ret;
+
+	if (!rtw_fw_feature_check(&rtwdev->fw, FW_FEATURE_SCAN_OFFLOAD))
+		return 1;
+
+	if (test_bit(RTW_FLAG_SCANNING, rtwdev->flags))
+		return -EBUSY;
+
+	mutex_lock(&rtwdev->mutex);
+	rtw_hw_scan_start(rtwdev, vif, req);
+	ret = rtw_hw_scan_offload(rtwdev, vif, true);
+	if (ret) {
+		rtw_hw_scan_abort(rtwdev, vif);
+		rtw_err(rtwdev, "HW scan failed with status: %d\n", ret);
+	}
+	mutex_unlock(&rtwdev->mutex);
+
+	return ret;
+}
+
+static void rtw_ops_cancel_hw_scan(struct ieee80211_hw *hw,
+				   struct ieee80211_vif *vif)
+{
+	struct rtw_dev *rtwdev = hw->priv;
+
+	if (!rtw_fw_feature_check(&rtwdev->fw, FW_FEATURE_SCAN_OFFLOAD))
+		return;
+
+	if (!test_bit(RTW_FLAG_SCANNING, rtwdev->flags))
+		return;
+
+	mutex_lock(&rtwdev->mutex);
+	rtw_hw_scan_abort(rtwdev, vif);
+	mutex_unlock(&rtwdev->mutex);
+}
+
+static int rtw_ops_set_sar_specs(struct ieee80211_hw *hw,
+				 const struct cfg80211_sar_specs *sar)
+{
+	struct rtw_dev *rtwdev = hw->priv;
+
+	rtw_set_sar_specs(rtwdev, sar);
+
+	return 0;
+}
+
 const struct ieee80211_ops rtw_ops = {
 	.tx			= rtw_ops_tx,
 	.wake_tx_queue		= rtw_ops_wake_tx_queue,
@@ -842,6 +874,9 @@ const struct ieee80211_ops rtw_ops = {
 	.set_antenna		= rtw_ops_set_antenna,
 	.get_antenna		= rtw_ops_get_antenna,
 	.reconfig_complete	= rtw_reconfig_complete,
+	.hw_scan		= rtw_ops_hw_scan,
+	.cancel_hw_scan		= rtw_ops_cancel_hw_scan,
+	.set_sar_specs          = rtw_ops_set_sar_specs,
 #ifdef CONFIG_PM
 	.suspend		= rtw_ops_suspend,
 	.resume			= rtw_ops_resume,

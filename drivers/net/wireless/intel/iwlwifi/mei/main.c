@@ -175,7 +175,7 @@ struct iwl_mei {
 };
 
 /**
- * iwl_mei_cache - cache for the parameters from iwlwifi
+ * struct iwl_mei_cache - cache for the parameters from iwlwifi
  * @ops: Callbacks to iwlwifi.
  * @netdev: The netdev that will be used to transmit / receive packets.
  * @conn_info: The connection info message triggered by iwlwifi's association.
@@ -191,7 +191,7 @@ struct iwl_mei {
  * is cached here so that we can buffer the configuration even if we don't have
  * a bind from the mei bus and hence, on iwl_mei structure.
  */
-static struct {
+struct iwl_mei_cache {
 	const struct iwl_mei_ops *ops;
 	struct net_device __rcu *netdev;
 	const struct iwl_sap_notif_connection_info *conn_info;
@@ -201,7 +201,9 @@ static struct {
 	u8 mac_address[6];
 	u8 nvm_address[6];
 	void *priv;
-} iwl_mei_cache = {
+};
+
+static struct iwl_mei_cache iwl_mei_cache = {
 	.rf_kill = SAP_HW_RFKILL_DEASSERTED | SAP_SW_RFKILL_DEASSERTED
 };
 
@@ -1703,6 +1705,7 @@ void iwl_mei_unregister_complete(void)
 			mei_cldev_get_drvdata(iwl_mei_global_cldev);
 
 		iwl_mei_send_sap_msg(mei->cldev, SAP_MSG_NOTIF_WIFIDR_DOWN);
+		mei->got_ownership = false;
 	}
 
 	mutex_unlock(&iwl_mei_mutex);
@@ -1781,7 +1784,7 @@ static void iwl_mei_dbgfs_unregister(struct iwl_mei *mei) {}
 
 #endif /* CONFIG_DEBUG_FS */
 
-/**
+/*
  * iwl_mei_probe - the probe function called by the mei bus enumeration
  *
  * This allocates the data needed by iwlmei and sets a pointer to this data
@@ -1808,6 +1811,12 @@ static int iwl_mei_probe(struct mei_cl_device *cldev,
 
 	mei_cldev_set_drvdata(cldev, mei);
 	mei->cldev = cldev;
+
+	/*
+	 * The CSME firmware needs to boot the internal WLAN client. Wait here
+	 * so that the DMA map request will succeed.
+	 */
+	msleep(20);
 
 	ret = iwl_mei_alloc_shared_mem(cldev);
 	if (ret)

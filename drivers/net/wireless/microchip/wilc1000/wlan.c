@@ -1254,7 +1254,7 @@ void wilc_wlan_cleanup(struct net_device *dev)
 	wilc->rx_buffer = NULL;
 	kfree(wilc->tx_buffer);
 	wilc->tx_buffer = NULL;
-	wilc->hif_func->hif_deinit(NULL);
+	wilc->hif_func->hif_deinit(wilc);
 }
 
 static int wilc_wlan_cfg_commit(struct wilc_vif *vif, int type,
@@ -1443,31 +1443,30 @@ release:
 
 u32 wilc_get_chipid(struct wilc *wilc, bool update)
 {
-	static u32 chipid;
-	u32 tempchipid = 0;
+	u32 chipid = 0;
 	u32 rfrevid = 0;
 
-	if (chipid == 0 || update) {
-		wilc->hif_func->hif_read_reg(wilc, WILC_CHIPID, &tempchipid);
+	if (wilc->chipid == 0 || update) {
+		wilc->hif_func->hif_read_reg(wilc, WILC_CHIPID, &chipid);
 		wilc->hif_func->hif_read_reg(wilc, WILC_RF_REVISION_ID,
 					     &rfrevid);
-		if (!is_wilc1000(tempchipid)) {
-			chipid = 0;
-			return chipid;
+		if (!is_wilc1000(chipid)) {
+			wilc->chipid = 0;
+			return wilc->chipid;
 		}
-		if (tempchipid == WILC_1000_BASE_ID_2A) { /* 0x1002A0 */
+		if (chipid == WILC_1000_BASE_ID_2A) { /* 0x1002A0 */
 			if (rfrevid != 0x1)
-				tempchipid = WILC_1000_BASE_ID_2A_REV1;
-		} else if (tempchipid == WILC_1000_BASE_ID_2B) { /* 0x1002B0 */
+				chipid = WILC_1000_BASE_ID_2A_REV1;
+		} else if (chipid == WILC_1000_BASE_ID_2B) { /* 0x1002B0 */
 			if (rfrevid == 0x4)
-				tempchipid = WILC_1000_BASE_ID_2B_REV1;
+				chipid = WILC_1000_BASE_ID_2B_REV1;
 			else if (rfrevid != 0x3)
-				tempchipid = WILC_1000_BASE_ID_2B_REV2;
+				chipid = WILC_1000_BASE_ID_2B_REV2;
 		}
 
-		chipid = tempchipid;
+		wilc->chipid = chipid;
 	}
-	return chipid;
+	return wilc->chipid;
 }
 
 int wilc_wlan_init(struct net_device *dev)

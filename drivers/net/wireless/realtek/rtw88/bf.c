@@ -130,7 +130,8 @@ void rtw_bf_cfg_sounding(struct rtw_dev *rtwdev, struct rtw_vif *vif,
 		  BIT_WMAC_USE_NDPARATE |
 		  (csi_rsc << 13);
 
-	rtw_write8(rtwdev, REG_SND_PTCL_CTRL, RTW_SND_CTRL_SOUNDING);
+	rtw_write8_mask(rtwdev, REG_SND_PTCL_CTRL, BIT_MASK_BEAMFORM,
+			RTW_SND_CTRL_SOUNDING);
 	rtw_write8(rtwdev, REG_SND_PTCL_CTRL + 3, 0x26);
 	rtw_write8_clr(rtwdev, REG_RXFLTMAP1, BIT_RXFLTMAP1_BF_REPORT_POLL);
 	rtw_write8_clr(rtwdev, REG_RXFLTMAP4, BIT_RXFLTMAP4_BF_REPORT_POLL);
@@ -177,7 +178,7 @@ void rtw_bf_del_bfer_entry_mu(struct rtw_dev *rtwdev)
 
 void rtw_bf_del_sounding(struct rtw_dev *rtwdev)
 {
-	rtw_write8(rtwdev, REG_SND_PTCL_CTRL, 0);
+	rtw_write8_mask(rtwdev, REG_SND_PTCL_CTRL, BIT_MASK_BEAMFORM, 0);
 }
 
 void rtw_bf_enable_bfee_su(struct rtw_dev *rtwdev, struct rtw_vif *vif,
@@ -204,7 +205,8 @@ void rtw_bf_enable_bfee_su(struct rtw_dev *rtwdev, struct rtw_vif *vif,
 	}
 
 	/* Sounding protocol control */
-	rtw_write8(rtwdev, REG_SND_PTCL_CTRL, RTW_SND_CTRL_SOUNDING);
+	rtw_write8_mask(rtwdev, REG_SND_PTCL_CTRL, BIT_MASK_BEAMFORM,
+			RTW_SND_CTRL_SOUNDING);
 
 	/* MAC address/Partial AID of Beamformer */
 	for (i = 0; i < ETH_ALEN; i++)
@@ -273,7 +275,8 @@ void rtw_bf_remove_bfee_su(struct rtw_dev *rtwdev,
 	struct rtw_bf_info *bfinfo = &rtwdev->bf_info;
 
 	rtw_dbg(rtwdev, RTW_DBG_BF, "remove as a su bfee\n");
-	rtw_write8(rtwdev, REG_SND_PTCL_CTRL, RTW_SND_CTRL_REMOVE);
+	rtw_write8_mask(rtwdev, REG_SND_PTCL_CTRL, BIT_MASK_BEAMFORM,
+			RTW_SND_CTRL_REMOVE);
 
 	switch (bfee->su_reg_index) {
 	case 0:
@@ -298,7 +301,8 @@ void rtw_bf_remove_bfee_mu(struct rtw_dev *rtwdev,
 {
 	struct rtw_bf_info *bfinfo = &rtwdev->bf_info;
 
-	rtw_write8(rtwdev, REG_SND_PTCL_CTRL, RTW_SND_CTRL_REMOVE);
+	rtw_write8_mask(rtwdev, REG_SND_PTCL_CTRL, BIT_MASK_BEAMFORM,
+			RTW_SND_CTRL_REMOVE);
 
 	rtw_bf_del_bfer_entry_mu(rtwdev);
 

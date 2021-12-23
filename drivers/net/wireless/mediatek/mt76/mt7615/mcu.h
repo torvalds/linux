@@ -76,35 +76,6 @@ struct mt7615_uni_txd {
 	u8 reserved2[4];
 } __packed __aligned(4);
 
-/* event table */
-enum {
-	MCU_EVENT_TARGET_ADDRESS_LEN = 0x01,
-	MCU_EVENT_FW_START = 0x01,
-	MCU_EVENT_GENERIC = 0x01,
-	MCU_EVENT_ACCESS_REG = 0x02,
-	MCU_EVENT_MT_PATCH_SEM = 0x04,
-	MCU_EVENT_REG_ACCESS = 0x05,
-	MCU_EVENT_SCAN_DONE = 0x0d,
-	MCU_EVENT_ROC = 0x10,
-	MCU_EVENT_BSS_ABSENCE  = 0x11,
-	MCU_EVENT_BSS_BEACON_LOSS = 0x13,
-	MCU_EVENT_CH_PRIVILEGE = 0x18,
-	MCU_EVENT_SCHED_SCAN_DONE = 0x23,
-	MCU_EVENT_EXT = 0xed,
-	MCU_EVENT_RESTART_DL = 0xef,
-	MCU_EVENT_COREDUMP = 0xf0,
-};
-
-/* ext event table */
-enum {
-	MCU_EXT_EVENT_PS_SYNC = 0x5,
-	MCU_EXT_EVENT_FW_LOG_2_HOST = 0x13,
-	MCU_EXT_EVENT_THERMAL_PROTECT = 0x22,
-	MCU_EXT_EVENT_ASSERT_DUMP = 0x23,
-	MCU_EXT_EVENT_RDD_REPORT = 0x3a,
-	MCU_EXT_EVENT_CSA_NOTIFY = 0x4f,
-};
-
 enum {
     MT_SKU_CCK_1_2 = 0,
     MT_SKU_CCK_55_11,
@@ -234,20 +205,6 @@ struct mt7615_mcu_rdd_report {
 #define MCU_PKT_ID		0xa0
 
 enum {
-	MCU_Q_QUERY,
-	MCU_Q_SET,
-	MCU_Q_RESERVED,
-	MCU_Q_NA
-};
-
-enum {
-	MCU_S2D_H2N,
-	MCU_S2D_C2N,
-	MCU_S2D_H2C,
-	MCU_S2D_H2CN
-};
-
-enum {
 	MCU_ATE_SET_FREQ_OFFSET = 0xa,
 	MCU_ATE_SET_TX_POWER_CONTROL = 0x15,
 };
@@ -281,21 +238,6 @@ struct mt7615_roc_tlv {
 } __packed;
 
 enum {
-	PATCH_NOT_DL_SEM_FAIL	 = 0x0,
-	PATCH_IS_DL		 = 0x1,
-	PATCH_NOT_DL_SEM_SUCCESS = 0x2,
-	PATCH_REL_SEM_SUCCESS	 = 0x3
-};
-
-enum {
-	FW_STATE_INITIAL          = 0,
-	FW_STATE_FW_DOWNLOAD      = 1,
-	FW_STATE_NORMAL_OPERATION = 2,
-	FW_STATE_NORMAL_TRX       = 3,
-	FW_STATE_CR4_RDY          = 7
-};
-
-enum {
 	FW_STATE_PWR_ON = 1,
 	FW_STATE_N9_RDY = 2,
 };
@@ -310,75 +252,6 @@ enum {
 	DBDC_TYPE_BF,
 	DBDC_TYPE_PTA,
 	__DBDC_TYPE_MAX,
-};
-
-struct bss_info_omac {
-	__le16 tag;
-	__le16 len;
-	u8 hw_bss_idx;
-	u8 omac_idx;
-	u8 band_idx;
-	u8 rsv0;
-	__le32 conn_type;
-	u32 rsv1;
-} __packed;
-
-struct bss_info_basic {
-	__le16 tag;
-	__le16 len;
-	__le32 network_type;
-	u8 active;
-	u8 rsv0;
-	__le16 bcn_interval;
-	u8 bssid[ETH_ALEN];
-	u8 wmm_idx;
-	u8 dtim_period;
-	u8 bmc_tx_wlan_idx;
-	u8 cipher; /* not used */
-	u8 phymode; /* not used */
-	u8 rsv1[5];
-} __packed;
-
-struct bss_info_rf_ch {
-	__le16 tag;
-	__le16 len;
-	u8 pri_ch;
-	u8 central_ch0;
-	u8 central_ch1;
-	u8 bw;
-} __packed;
-
-struct bss_info_ext_bss {
-	__le16 tag;
-	__le16 len;
-	__le32 mbss_tsf_offset; /* in unit of us */
-	u8 rsv[8];
-} __packed;
-
-enum {
-	BSS_INFO_OMAC,
-	BSS_INFO_BASIC,
-	BSS_INFO_RF_CH, /* optional, for BT/LTE coex */
-	BSS_INFO_PM, /* sta only */
-	BSS_INFO_UAPSD, /* sta only */
-	BSS_INFO_ROAM_DETECTION, /* obsoleted */
-	BSS_INFO_LQ_RM, /* obsoleted */
-	BSS_INFO_EXT_BSS,
-	BSS_INFO_BMC_INFO, /* for bmc rate control in CR4 */
-	BSS_INFO_SYNC_MODE, /* obsoleted */
-	BSS_INFO_RA,
-	BSS_INFO_MAX_NUM
-};
-
-enum {
-	CH_SWITCH_NORMAL = 0,
-	CH_SWITCH_SCAN = 3,
-	CH_SWITCH_MCC = 4,
-	CH_SWITCH_DFS = 5,
-	CH_SWITCH_BACKGROUND_SCAN_START = 6,
-	CH_SWITCH_BACKGROUND_SCAN_RUNNING = 7,
-	CH_SWITCH_BACKGROUND_SCAN_STOP = 8,
-	CH_SWITCH_SCAN_BYPASS_DPD = 9
 };
 
 #endif
