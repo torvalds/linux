@@ -253,7 +253,7 @@ struct cdns_regmap_cdb_context {
 struct cdns_sierra_phy {
 	struct device *dev;
 	struct regmap *regmap;
-	struct cdns_sierra_data *init_data;
+	const struct cdns_sierra_data *init_data;
 	struct cdns_sierra_inst phys[SIERRA_MAX_LANES];
 	struct reset_control *phy_rst;
 	struct reset_control *apb_rst;
@@ -595,8 +595,6 @@ static int cdns_sierra_get_optional(struct cdns_sierra_inst *inst,
 	return 0;
 }
 
-static const struct of_device_id cdns_sierra_id_table[];
-
 static struct regmap *cdns_regmap_init(struct device *dev, void __iomem *base,
 				       u32 block_offset, u8 reg_offset_shift,
 				       const struct regmap_config *config)
@@ -829,8 +827,7 @@ static int cdns_sierra_phy_probe(struct platform_device *pdev)
 	struct cdns_sierra_phy *sp;
 	struct phy_provider *phy_provider;
 	struct device *dev = &pdev->dev;
-	const struct of_device_id *match;
-	struct cdns_sierra_data *data;
+	const struct cdns_sierra_data *data;
 	unsigned int id_value;
 	int i, ret, node = 0;
 	void __iomem *base;
@@ -840,11 +837,9 @@ static int cdns_sierra_phy_probe(struct platform_device *pdev)
 		return -ENODEV;
 
 	/* Get init data for this PHY */
-	match = of_match_device(cdns_sierra_id_table, dev);
-	if (!match)
+	data = of_device_get_match_data(dev);
+	if (!data)
 		return -EINVAL;
-
-	data = (struct cdns_sierra_data *)match->data;
 
 	sp = devm_kzalloc(dev, sizeof(*sp), GFP_KERNEL);
 	if (!sp)
