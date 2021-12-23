@@ -262,7 +262,7 @@ struct mc_msi {
 	DECLARE_BITMAP(used, MC_NUM_MSI_IRQS);
 };
 
-struct mc_port {
+struct mc_pcie {
 	void __iomem *axi_base_addr;
 	struct device *dev;
 	struct irq_domain *intx_domain;
@@ -382,7 +382,7 @@ static struct {
 
 static char poss_clks[][5] = { "fic0", "fic1", "fic2", "fic3" };
 
-static void mc_pcie_enable_msi(struct mc_port *port, void __iomem *base)
+static void mc_pcie_enable_msi(struct mc_pcie *port, void __iomem *base)
 {
 	struct mc_msi *msi = &port->msi;
 	u32 cap_offset = MC_MSI_CAP_CTRL_OFFSET;
@@ -405,7 +405,7 @@ static void mc_pcie_enable_msi(struct mc_port *port, void __iomem *base)
 
 static void mc_handle_msi(struct irq_desc *desc)
 {
-	struct mc_port *port = irq_desc_get_handler_data(desc);
+	struct mc_pcie *port = irq_desc_get_handler_data(desc);
 	struct device *dev = port->dev;
 	struct mc_msi *msi = &port->msi;
 	void __iomem *bridge_base_addr =
@@ -428,7 +428,7 @@ static void mc_handle_msi(struct irq_desc *desc)
 
 static void mc_msi_bottom_irq_ack(struct irq_data *data)
 {
-	struct mc_port *port = irq_data_get_irq_chip_data(data);
+	struct mc_pcie *port = irq_data_get_irq_chip_data(data);
 	void __iomem *bridge_base_addr =
 		port->axi_base_addr + MC_PCIE_BRIDGE_ADDR;
 	u32 bitpos = data->hwirq;
@@ -443,7 +443,7 @@ static void mc_msi_bottom_irq_ack(struct irq_data *data)
 
 static void mc_compose_msi_msg(struct irq_data *data, struct msi_msg *msg)
 {
-	struct mc_port *port = irq_data_get_irq_chip_data(data);
+	struct mc_pcie *port = irq_data_get_irq_chip_data(data);
 	phys_addr_t addr = port->msi.vector_phy;
 
 	msg->address_lo = lower_32_bits(addr);
@@ -470,7 +470,7 @@ static struct irq_chip mc_msi_bottom_irq_chip = {
 static int mc_irq_msi_domain_alloc(struct irq_domain *domain, unsigned int virq,
 				   unsigned int nr_irqs, void *args)
 {
-	struct mc_port *port = domain->host_data;
+	struct mc_pcie *port = domain->host_data;
 	struct mc_msi *msi = &port->msi;
 	void __iomem *bridge_base_addr =
 		port->axi_base_addr + MC_PCIE_BRIDGE_ADDR;
@@ -503,7 +503,7 @@ static void mc_irq_msi_domain_free(struct irq_domain *domain, unsigned int virq,
 				   unsigned int nr_irqs)
 {
 	struct irq_data *d = irq_domain_get_irq_data(domain, virq);
-	struct mc_port *port = irq_data_get_irq_chip_data(d);
+	struct mc_pcie *port = irq_data_get_irq_chip_data(d);
 	struct mc_msi *msi = &port->msi;
 
 	mutex_lock(&msi->lock);
@@ -534,7 +534,7 @@ static struct msi_domain_info mc_msi_domain_info = {
 	.chip = &mc_msi_irq_chip,
 };
 
-static int mc_allocate_msi_domains(struct mc_port *port)
+static int mc_allocate_msi_domains(struct mc_pcie *port)
 {
 	struct device *dev = port->dev;
 	struct fwnode_handle *fwnode = of_node_to_fwnode(dev->of_node);
@@ -562,7 +562,7 @@ static int mc_allocate_msi_domains(struct mc_port *port)
 
 static void mc_handle_intx(struct irq_desc *desc)
 {
-	struct mc_port *port = irq_desc_get_handler_data(desc);
+	struct mc_pcie *port = irq_desc_get_handler_data(desc);
 	struct device *dev = port->dev;
 	void __iomem *bridge_base_addr =
 		port->axi_base_addr + MC_PCIE_BRIDGE_ADDR;
@@ -585,7 +585,7 @@ static void mc_handle_intx(struct irq_desc *desc)
 
 static void mc_ack_intx_irq(struct irq_data *data)
 {
-	struct mc_port *port = irq_data_get_irq_chip_data(data);
+	struct mc_pcie *port = irq_data_get_irq_chip_data(data);
 	void __iomem *bridge_base_addr =
 		port->axi_base_addr + MC_PCIE_BRIDGE_ADDR;
 	u32 mask = BIT(data->hwirq + PM_MSI_INT_INTX_SHIFT);
@@ -595,7 +595,7 @@ static void mc_ack_intx_irq(struct irq_data *data)
 
 static void mc_mask_intx_irq(struct irq_data *data)
 {
-	struct mc_port *port = irq_data_get_irq_chip_data(data);
+	struct mc_pcie *port = irq_data_get_irq_chip_data(data);
 	void __iomem *bridge_base_addr =
 		port->axi_base_addr + MC_PCIE_BRIDGE_ADDR;
 	unsigned long flags;
@@ -611,7 +611,7 @@ static void mc_mask_intx_irq(struct irq_data *data)
 
 static void mc_unmask_intx_irq(struct irq_data *data)
 {
-	struct mc_port *port = irq_data_get_irq_chip_data(data);
+	struct mc_pcie *port = irq_data_get_irq_chip_data(data);
 	void __iomem *bridge_base_addr =
 		port->axi_base_addr + MC_PCIE_BRIDGE_ADDR;
 	unsigned long flags;
@@ -698,7 +698,7 @@ static u32 local_events(void __iomem *addr)
 	return val;
 }
 
-static u32 get_events(struct mc_port *port)
+static u32 get_events(struct mc_pcie *port)
 {
 	void __iomem *bridge_base_addr =
 		port->axi_base_addr + MC_PCIE_BRIDGE_ADDR;
@@ -715,7 +715,7 @@ static u32 get_events(struct mc_port *port)
 
 static irqreturn_t mc_event_handler(int irq, void *dev_id)
 {
-	struct mc_port *port = dev_id;
+	struct mc_pcie *port = dev_id;
 	struct device *dev = port->dev;
 	struct irq_data *data;
 
@@ -731,7 +731,7 @@ static irqreturn_t mc_event_handler(int irq, void *dev_id)
 
 static void mc_handle_event(struct irq_desc *desc)
 {
-	struct mc_port *port = irq_desc_get_handler_data(desc);
+	struct mc_pcie *port = irq_desc_get_handler_data(desc);
 	unsigned long events;
 	u32 bit;
 	struct irq_chip *chip = irq_desc_get_chip(desc);
@@ -748,7 +748,7 @@ static void mc_handle_event(struct irq_desc *desc)
 
 static void mc_ack_event_irq(struct irq_data *data)
 {
-	struct mc_port *port = irq_data_get_irq_chip_data(data);
+	struct mc_pcie *port = irq_data_get_irq_chip_data(data);
 	u32 event = data->hwirq;
 	void __iomem *addr;
 	u32 mask;
@@ -763,7 +763,7 @@ static void mc_ack_event_irq(struct irq_data *data)
 
 static void mc_mask_event_irq(struct irq_data *data)
 {
-	struct mc_port *port = irq_data_get_irq_chip_data(data);
+	struct mc_pcie *port = irq_data_get_irq_chip_data(data);
 	u32 event = data->hwirq;
 	void __iomem *addr;
 	u32 mask;
@@ -793,7 +793,7 @@ static void mc_mask_event_irq(struct irq_data *data)
 
 static void mc_unmask_event_irq(struct irq_data *data)
 {
-	struct mc_port *port = irq_data_get_irq_chip_data(data);
+	struct mc_pcie *port = irq_data_get_irq_chip_data(data);
 	u32 event = data->hwirq;
 	void __iomem *addr;
 	u32 mask;
@@ -881,7 +881,7 @@ static int mc_pcie_init_clks(struct device *dev)
 	return 0;
 }
 
-static int mc_pcie_init_irq_domains(struct mc_port *port)
+static int mc_pcie_init_irq_domains(struct mc_pcie *port)
 {
 	struct device *dev = port->dev;
 	struct device_node *node = dev->of_node;
@@ -957,7 +957,7 @@ static void mc_pcie_setup_window(void __iomem *bridge_base_addr, u32 index,
 }
 
 static int mc_pcie_setup_windows(struct platform_device *pdev,
-				 struct mc_port *port)
+				 struct mc_pcie *port)
 {
 	void __iomem *bridge_base_addr =
 		port->axi_base_addr + MC_PCIE_BRIDGE_ADDR;
@@ -983,7 +983,7 @@ static int mc_platform_init(struct pci_config_window *cfg)
 {
 	struct device *dev = cfg->parent;
 	struct platform_device *pdev = to_platform_device(dev);
-	struct mc_port *port;
+	struct mc_pcie *port;
 	void __iomem *bridge_base_addr;
 	void __iomem *ctrl_base_addr;
 	int ret;
