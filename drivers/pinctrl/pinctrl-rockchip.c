@@ -2258,7 +2258,7 @@ static void rk3588_calc_drv_reg_and_bit(struct rockchip_pin_bank *bank,
 }
 
 #define RK3588_SMT_BITS_PER_PIN		1
-#define RK3588_SMT_PINS_PER_REG		16
+#define RK3588_SMT_PINS_PER_REG		8
 
 static int rk3588_calc_schmitt_reg_and_bit(struct rockchip_pin_bank *bank,
 					   int pin_num,
