@@ -58,6 +58,18 @@ struct sh_pfc_pin {
 }
 #define SH_PFC_PIN_GROUP(name)	SH_PFC_PIN_GROUP_ALIAS(name, name)
 
+/*
+ * Define a pin group referring to a subset of an array of pins.
+ */
+#define SH_PFC_PIN_GROUP_SUBSET(_name, data, first, n) {		\
+	.name = #_name,							\
+	.pins = data##_pins + first,					\
+	.mux = data##_mux + first,					\
+	.nr_pins = n +							\
+	BUILD_BUG_ON_ZERO(first + n > ARRAY_SIZE(data##_pins)) +	\
+	BUILD_BUG_ON_ZERO(first + n > ARRAY_SIZE(data##_mux)),		\
+}
+
 struct sh_pfc_pin_group {
 	const char *name;
 	const unsigned int *pins;
