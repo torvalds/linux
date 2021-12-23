@@ -94,6 +94,21 @@ struct desc_ptr {
 	uint64_t address;
 } __attribute__((packed));
 
+struct kvm_x86_state {
+	struct kvm_xsave *xsave;
+	struct kvm_vcpu_events events;
+	struct kvm_mp_state mp_state;
+	struct kvm_regs regs;
+	struct kvm_xcrs xcrs;
+	struct kvm_sregs sregs;
+	struct kvm_debugregs debugregs;
+	union {
+		struct kvm_nested_state nested;
+		char nested_[16384];
+	};
+	struct kvm_msrs msrs;
+};
+
 static inline uint64_t get_desc64_base(const struct desc64 *desc)
 {
 	return ((uint64_t)desc->base3 << 32) |
@@ -350,7 +365,6 @@ static inline unsigned long get_xmm(int n)
 
 bool is_intel_cpu(void);
 
-struct kvm_x86_state;
 struct kvm_x86_state *vcpu_save_state(struct kvm_vm *vm, uint32_t vcpuid);
 void vcpu_load_state(struct kvm_vm *vm, uint32_t vcpuid,
 		     struct kvm_x86_state *state);
