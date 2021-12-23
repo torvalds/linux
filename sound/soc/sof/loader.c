@@ -838,7 +838,6 @@ int snd_sof_run_firmware(struct snd_sof_dev *sdev)
 		snd_sof_dsp_dbg_dump(sdev, "Firmware boot failure due to timeout",
 				     SOF_DBG_DUMP_REGS | SOF_DBG_DUMP_MBOX |
 				     SOF_DBG_DUMP_TEXT | SOF_DBG_DUMP_PCI);
-		sof_set_fw_state(sdev, SOF_FW_BOOT_FAILED);
 		return -EIO;
 	}
 

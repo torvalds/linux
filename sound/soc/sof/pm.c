@@ -130,6 +130,7 @@ static int sof_resume(struct device *dev, bool runtime_resume)
 		dev_err(sdev->dev,
 			"error: failed to load DSP firmware after resume %d\n",
 			ret);
+		sof_set_fw_state(sdev, SOF_FW_BOOT_FAILED);
 		return ret;
 	}
 
@@ -144,6 +145,7 @@ static int sof_resume(struct device *dev, bool runtime_resume)
 		dev_err(sdev->dev,
 			"error: failed to boot DSP firmware after resume %d\n",
 			ret);
+		sof_set_fw_state(sdev, SOF_FW_BOOT_FAILED);
 		return ret;
 	}
 

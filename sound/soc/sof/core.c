@@ -202,6 +202,7 @@ static int sof_probe_continue(struct snd_sof_dev *sdev)
 	if (ret < 0) {
 		dev_err(sdev->dev, "error: failed to load DSP firmware %d\n",
 			ret);
+		sof_set_fw_state(sdev, SOF_FW_BOOT_FAILED);
 		goto fw_load_err;
 	}
 
@@ -215,6 +216,7 @@ static int sof_probe_continue(struct snd_sof_dev *sdev)
 	if (ret < 0) {
 		dev_err(sdev->dev, "error: failed to boot DSP firmware %d\n",
 			ret);
+		sof_set_fw_state(sdev, SOF_FW_BOOT_FAILED);
 		goto fw_run_err;
 	}
 
