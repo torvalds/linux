@@ -747,6 +747,7 @@ static unsigned int sh_pfc_errors __initdata;
 static unsigned int sh_pfc_warnings __initdata;
 static bool sh_pfc_bias_done __initdata;
 static bool sh_pfc_drive_done __initdata;
+static bool sh_pfc_power_done __initdata;
 static struct {
 	u32 reg;
 	u32 bits;
@@ -1009,6 +1010,7 @@ static void __init sh_pfc_check_info(const struct sh_pfc_soc_info *info)
 	sh_pfc_num_enums = 0;
 	sh_pfc_bias_done = false;
 	sh_pfc_drive_done = false;
+	sh_pfc_power_done = false;
 
 	/* Check pins */
 	for (i = 0; i < info->nr_pins; i++) {
@@ -1081,6 +1083,18 @@ static void __init sh_pfc_check_info(const struct sh_pfc_soc_info *info)
 					sh_pfc_err("pin %s: SH_PFC_PIN_CFG_DRIVE_STRENGTH flag set but not in drive_regs\n",
 						   pin->name);
 			}
+		}
+
+		if (pin->configs & SH_PFC_PIN_CFG_IO_VOLTAGE) {
+			if (!info->ops || !info->ops->pin_to_pocctrl)
+				sh_pfc_err_once(power, "SH_PFC_PIN_CFG_IO_VOLTAGE flag set but .pin_to_pocctrl() not implemented\n");
+			else if (info->ops->pin_to_pocctrl(pin->pin, &x) < 0)
+				sh_pfc_err("pin %s: SH_PFC_PIN_CFG_IO_VOLTAGE set but invalid pin_to_pocctrl()\n",
+					   pin->name);
+		} else if (info->ops && info->ops->pin_to_pocctrl &&
+			   info->ops->pin_to_pocctrl(pin->pin, &x) >= 0) {
+			sh_pfc_warn("pin %s: SH_PFC_PIN_CFG_IO_VOLTAGE not set but valid pin_to_pocctrl()\n",
+				    pin->name);
 		}
 	}
 
