@@ -21,11 +21,11 @@
 #include <linux/err.h>
 #include <linux/i2c.h>
 #include <linux/init.h>
-#include <linux/jiffies.h>
 #include <linux/hwmon.h>
 #include <linux/hwmon-sysfs.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
+#include <linux/regmap.h>
 #include <linux/slab.h>
 #include <linux/sysfs.h>
 
@@ -77,7 +77,7 @@ enum chips { lm83, lm82 };
 				 (val) < 0 ? ((val) - 500) / 1000 : \
 				 ((val) + 500) / 1000)
 
-static const u8 LM83_REG_R_TEMP[] = {
+static const u8 LM83_REG_TEMP[] = {
 	LM83_REG_R_LOCAL_TEMP,
 	LM83_REG_R_REMOTE1_TEMP,
 	LM83_REG_R_REMOTE2_TEMP,
@@ -89,61 +89,81 @@ static const u8 LM83_REG_R_TEMP[] = {
 	LM83_REG_R_TCRIT,
 };
 
-static const u8 LM83_REG_W_HIGH[] = {
-	LM83_REG_W_LOCAL_HIGH,
-	LM83_REG_W_REMOTE1_HIGH,
-	LM83_REG_W_REMOTE2_HIGH,
-	LM83_REG_W_REMOTE3_HIGH,
-	LM83_REG_W_TCRIT,
-};
-
 /*
  * Client data (each client gets its own)
  */
 
 struct lm83_data {
-	struct i2c_client *client;
+	struct regmap *regmap;
 	const struct attribute_group *groups[3];
-	struct mutex update_lock;
-	bool valid; /* false until following fields are valid */
-	unsigned long last_updated; /* in jiffies */
-
-	/* registers values */
-	s8 temp[9];	/* 0..3: input 1-4,
-			   4..7: high limit 1-4,
-			   8   : critical limit */
-	u16 alarms; /* bitvector, combined */
 };
 
-static struct lm83_data *lm83_update_device(struct device *dev)
+/* regmap code */
+
+static int lm83_regmap_reg_read(void *context, unsigned int reg, unsigned int *val)
 {
-	struct lm83_data *data = dev_get_drvdata(dev);
-	struct i2c_client *client = data->client;
+	struct i2c_client *client = context;
+	int ret;
 
-	mutex_lock(&data->update_lock);
+	ret = i2c_smbus_read_byte_data(client, reg);
+	if (ret < 0)
+		return ret;
 
-	if (time_after(jiffies, data->last_updated + HZ * 2) || !data->valid) {
-		int nr;
+	*val = ret;
+	return 0;
+}
 
-		dev_dbg(&client->dev, "Updating lm83 data.\n");
-		for (nr = 0; nr < 9; nr++) {
-			data->temp[nr] =
-			    i2c_smbus_read_byte_data(client,
-			    LM83_REG_R_TEMP[nr]);
-		}
-		data->alarms =
-		    i2c_smbus_read_byte_data(client, LM83_REG_R_STATUS1)
-		    + (i2c_smbus_read_byte_data(client, LM83_REG_R_STATUS2)
-		    << 8);
+/*
+ * The regmap write function maps read register addresses to write register
+ * addresses. This is necessary for regmap register caching to work.
+ * An alternative would be to clear the regmap cache whenever a register is
+ * written, but that would be much more expensive.
+ */
+static int lm83_regmap_reg_write(void *context, unsigned int reg, unsigned int val)
+{
+	struct i2c_client *client = context;
 
-		data->last_updated = jiffies;
-		data->valid = true;
+	switch (reg) {
+	case LM83_REG_R_CONFIG:
+	case LM83_REG_R_LOCAL_HIGH:
+	case LM83_REG_R_REMOTE2_HIGH:
+		reg += 0x06;
+		break;
+	case LM83_REG_R_REMOTE1_HIGH:
+	case LM83_REG_R_REMOTE3_HIGH:
+	case LM83_REG_R_TCRIT:
+		reg += 0x18;
+		break;
+	default:
+		break;
 	}
 
-	mutex_unlock(&data->update_lock);
-
-	return data;
+	return i2c_smbus_write_byte_data(client, reg, val);
 }
+
+static bool lm83_regmap_is_volatile(struct device *dev, unsigned int reg)
+{
+	switch (reg) {
+	case LM83_REG_R_LOCAL_TEMP:
+	case LM83_REG_R_REMOTE1_TEMP:
+	case LM83_REG_R_REMOTE2_TEMP:
+	case LM83_REG_R_REMOTE3_TEMP:
+	case LM83_REG_R_STATUS1:
+	case LM83_REG_R_STATUS2:
+		return true;
+	default:
+		return false;
+	}
+}
+
+static const struct regmap_config lm83_regmap_config = {
+	.reg_bits = 8,
+	.val_bits = 8,
+	.cache_type = REGCACHE_RBTREE,
+	.volatile_reg = lm83_regmap_is_volatile,
+	.reg_read = lm83_regmap_reg_read,
+	.reg_write = lm83_regmap_reg_write,
+};
 
 /*
  * Sysfs stuff
@@ -153,8 +173,15 @@ static ssize_t temp_show(struct device *dev, struct device_attribute *devattr,
 			 char *buf)
 {
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
-	struct lm83_data *data = lm83_update_device(dev);
-	return sprintf(buf, "%d\n", TEMP_FROM_REG(data->temp[attr->index]));
+	struct lm83_data *data = dev_get_drvdata(dev);
+	unsigned int regval;
+	int ret;
+
+	ret = regmap_read(data->regmap, LM83_REG_TEMP[attr->index], &regval);
+	if (ret)
+		return ret;
+
+	return sprintf(buf, "%d\n", TEMP_FROM_REG((s8)regval));
 }
 
 static ssize_t temp_store(struct device *dev,
@@ -163,38 +190,57 @@ static ssize_t temp_store(struct device *dev,
 {
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
 	struct lm83_data *data = dev_get_drvdata(dev);
-	struct i2c_client *client = data->client;
+	unsigned int regval;
 	long val;
-	int nr = attr->index;
 	int err;
 
 	err = kstrtol(buf, 10, &val);
 	if (err < 0)
 		return err;
 
-	mutex_lock(&data->update_lock);
-	data->temp[nr] = TEMP_TO_REG(val);
-	i2c_smbus_write_byte_data(client, LM83_REG_W_HIGH[nr - 4],
-				  data->temp[nr]);
-	mutex_unlock(&data->update_lock);
-	return count;
+	regval = TEMP_TO_REG(val);
+	err = regmap_write(data->regmap, LM83_REG_TEMP[attr->index], regval);
+	return err ? : count;
 }
 
 static ssize_t alarms_show(struct device *dev, struct device_attribute *dummy,
 			   char *buf)
 {
-	struct lm83_data *data = lm83_update_device(dev);
-	return sprintf(buf, "%d\n", data->alarms);
+	struct lm83_data *data = dev_get_drvdata(dev);
+	unsigned int alarms, regval;
+	int err;
+
+	err = regmap_read(data->regmap, LM83_REG_R_STATUS1, &regval);
+	if (err < 0)
+		return err;
+	alarms = regval;
+	err = regmap_read(data->regmap, LM83_REG_R_STATUS2, &regval);
+	if (err < 0)
+		return err;
+	alarms |= regval << 8;
+
+	return sprintf(buf, "%u\n", alarms);
 }
 
 static ssize_t alarm_show(struct device *dev,
 			  struct device_attribute *devattr, char *buf)
 {
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
-	struct lm83_data *data = lm83_update_device(dev);
+	struct lm83_data *data = dev_get_drvdata(dev);
 	int bitnr = attr->index;
+	unsigned int alarm;
+	int reg, err;
 
-	return sprintf(buf, "%d\n", (data->alarms >> bitnr) & 1);
+	if (bitnr < 8) {
+		reg = LM83_REG_R_STATUS1;
+	} else {
+		reg = LM83_REG_R_STATUS2;
+		bitnr -= 8;
+	}
+	err = regmap_read(data->regmap, reg, &alarm);
+	if (err < 0)
+		return err;
+	return sprintf(buf, "%d\n", (alarm >> bitnr) & 1);
 }
 
 static SENSOR_DEVICE_ATTR_RO(temp1_input, temp, 0);
@@ -326,16 +372,17 @@ MODULE_DEVICE_TABLE(i2c, lm83_id);
 
 static int lm83_probe(struct i2c_client *client)
 {
+	struct device *dev = &client->dev;
 	struct device *hwmon_dev;
 	struct lm83_data *data;
 
-	data = devm_kzalloc(&client->dev, sizeof(struct lm83_data),
-			    GFP_KERNEL);
+	data = devm_kzalloc(dev, sizeof(struct lm83_data), GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
 
-	data->client = client;
-	mutex_init(&data->update_lock);
+	data->regmap = devm_regmap_init(dev, NULL, client, &lm83_regmap_config);
+	if (IS_ERR(data->regmap))
+		return PTR_ERR(data->regmap);
 
 	/*
 	 * Register sysfs hooks
@@ -347,8 +394,7 @@ static int lm83_probe(struct i2c_client *client)
 	if (i2c_match_id(lm83_id, client)->driver_data == lm83)
 		data->groups[1] = &lm83_group_opt;
 
-	hwmon_dev = devm_hwmon_device_register_with_groups(&client->dev,
-							   client->name,
+	hwmon_dev = devm_hwmon_device_register_with_groups(dev, client->name,
 							   data, data->groups);
 	return PTR_ERR_OR_ZERO(hwmon_dev);
 }
