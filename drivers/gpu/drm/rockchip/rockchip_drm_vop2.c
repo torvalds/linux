@@ -5338,7 +5338,7 @@ static int vop2_calc_if_clk(struct drm_crtc *crtc, const struct vop2_connector_i
 	char dclk_core_div_shift = 2;
 	char K = 1;
 	char clk_name[32];
-	struct vop2_clk *dclk_core, *dclk_out;
+	struct vop2_clk *dclk_core, *dclk_out, *dclk;
 	int ret;
 	bool dsc_txp_clk_is_biggest = false;
 	u8 dsc_id = vcstate->output_if & (VOP_OUTPUT_IF_MIPI0 | VOP_OUTPUT_IF_HDMI0) ? 0 : 1;
@@ -5417,6 +5417,24 @@ static int vop2_calc_if_clk(struct drm_crtc *crtc, const struct vop2_connector_i
 			} else {
 				vop2_set_dsc_clk(crtc, dsc_id);
 			}
+		}
+	}
+
+	/*
+	 * HDMI use 1:1 dclk for rgb/yuv444, 1:2 for yuv420 when
+	 * pixclk <= 600
+	 * We want use HDMI PHY clk as dclk source for DP/HDMI.
+	 * The max freq of HDMI PHY CLK is 600 MHZ.
+	 * When used for HDMI, the input freq and v_pixclk must
+	 * keep 1:1 for rgb/yuv444, 1:2 for yuv420
+	 */
+	if (vcstate->output_type == DRM_MODE_CONNECTOR_HDMIA) {
+		snprintf(clk_name, sizeof(clk_name), "dclk%d", vp->id);
+		dclk = vop2_clk_get(vop2, clk_name);
+		if (v_pixclk <= (VOP2_MAX_DCLK_RATE * 1000)) {
+			if (vcstate->output_mode == ROCKCHIP_OUT_MODE_YUV420)
+				v_pixclk = v_pixclk >> 1;
+			clk_set_rate(dclk->hw.clk, v_pixclk);
 		}
 	}
 
