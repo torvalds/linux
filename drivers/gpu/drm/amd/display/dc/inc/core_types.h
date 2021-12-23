@@ -367,6 +367,7 @@ struct pipe_ctx {
 	struct pll_settings pll_settings;
 
 	uint8_t pipe_idx;
+	uint8_t pipe_idx_syncd;
 
 	struct pipe_ctx *top_pipe;
 	struct pipe_ctx *bottom_pipe;

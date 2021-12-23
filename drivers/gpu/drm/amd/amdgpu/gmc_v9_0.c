@@ -523,7 +523,7 @@ static int gmc_v9_0_process_interrupt(struct amdgpu_device *adev,
 
 		/* Process it onyl if it's the first fault for this address */
 		if (entry->ih != &adev->irq.ih_soft &&
-		    amdgpu_gmc_filter_faults(adev, addr, entry->pasid,
+		    amdgpu_gmc_filter_faults(adev, entry->ih, addr, entry->pasid,
 					     entry->timestamp))
 			return 1;
 
@@ -1294,7 +1294,8 @@ static int gmc_v9_0_late_init(void *handle)
 	if (!amdgpu_sriov_vf(adev) &&
 	    (adev->ip_versions[UMC_HWIP][0] == IP_VERSION(6, 0, 0))) {
 		if (!(adev->ras_enabled & (1 << AMDGPU_RAS_BLOCK__UMC))) {
-			if (adev->df.funcs->enable_ecc_force_par_wr_rmw)
+			if (adev->df.funcs &&
+			    adev->df.funcs->enable_ecc_force_par_wr_rmw)
 				adev->df.funcs->enable_ecc_force_par_wr_rmw(adev, false);
 		}
 	}
@@ -1505,9 +1506,11 @@ static int gmc_v9_0_sw_init(void *handle)
 			chansize = 64;
 		else
 			chansize = 128;
-
-		numchan = adev->df.funcs->get_hbm_channel_number(adev);
-		adev->gmc.vram_width = numchan * chansize;
+		if (adev->df.funcs &&
+		    adev->df.funcs->get_hbm_channel_number) {
+			numchan = adev->df.funcs->get_hbm_channel_number(adev);
+			adev->gmc.vram_width = numchan * chansize;
+		}
 	}
 
 	adev->gmc.vram_type = vram_type;
@@ -1714,10 +1717,14 @@ static int gmc_v9_0_gart_enable(struct amdgpu_device *adev)
 		return -EINVAL;
 	}
 
+	if (amdgpu_sriov_vf(adev) && amdgpu_in_reset(adev))
+		goto skip_pin_bo;
+
 	r = amdgpu_gart_table_vram_pin(adev);
 	if (r)
 		return r;
 
+skip_pin_bo:
 	r = adev->gfxhub.funcs->gart_enable(adev);
 	if (r)
 		return r;
@@ -1742,7 +1749,7 @@ static int gmc_v9_0_hw_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	bool value;
-	int r, i;
+	int i;
 
 	/* The sequence of these two function calls matters.*/
 	gmc_v9_0_init_golden_registers(adev);
@@ -1777,9 +1784,7 @@ static int gmc_v9_0_hw_init(void *handle)
 	if (adev->umc.funcs && adev->umc.funcs->init_registers)
 		adev->umc.funcs->init_registers(adev);
 
-	r = gmc_v9_0_gart_enable(adev);
-
-	return r;
+	return gmc_v9_0_gart_enable(adev);
 }
 
 /**
@@ -1807,6 +1812,14 @@ static int gmc_v9_0_hw_fini(void *handle)
 		DRM_DEBUG("For SRIOV client, shouldn't do anything.\n");
 		return 0;
 	}
+
+	/*
+	 * Pair the operations did in gmc_v9_0_hw_init and thus maintain
+	 * a correct cached state for GMC. Otherwise, the "gate" again
+	 * operation on S3 resuming will fail due to wrong cached state.
+	 */
+	if (adev->mmhub.funcs->update_power_gating)
+		adev->mmhub.funcs->update_power_gating(adev, false);
 
 	amdgpu_irq_put(adev, &adev->gmc.ecc_irq, 0);
 	amdgpu_irq_put(adev, &adev->gmc.vm_fault, 0);

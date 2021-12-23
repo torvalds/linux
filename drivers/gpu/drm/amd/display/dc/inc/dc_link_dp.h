@@ -170,6 +170,7 @@ uint8_t dc_dp_initialize_scrambling_data_symbols(
 
 enum dc_status dp_set_fec_ready(struct dc_link *link, bool ready);
 void dp_set_fec_enable(struct dc_link *link, bool enable);
+struct link_encoder *dp_get_link_enc(struct dc_link *link);
 bool dp_set_dsc_enable(struct pipe_ctx *pipe_ctx, bool enable);
 bool dp_set_dsc_pps_sdp(struct pipe_ctx *pipe_ctx, bool enable, bool immediate_update);
 void dp_set_dsc_on_stream(struct pipe_ctx *pipe_ctx, bool enable);
@@ -217,4 +218,5 @@ bool is_dp_128b_132b_signal(struct pipe_ctx *pipe_ctx);
 void reset_dp_hpo_stream_encoders_for_link(struct dc_link *link);
 
 bool dp_retrieve_lttpr_cap(struct dc_link *link);
+void edp_panel_backlight_power_on(struct dc_link *link);
 #endif /* __DC_LINK_DP_H__ */

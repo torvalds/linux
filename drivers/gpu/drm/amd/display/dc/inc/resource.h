@@ -34,6 +34,10 @@
 #define MEMORY_TYPE_HBM 2
 
 
+#define IS_PIPE_SYNCD_VALID(pipe) ((((pipe)->pipe_idx_syncd) & 0x80)?1:0)
+#define GET_PIPE_SYNCD_FROM_PIPE(pipe) ((pipe)->pipe_idx_syncd & 0x7F)
+#define SET_PIPE_SYNCD_TO_PIPE(pipe, pipe_syncd) ((pipe)->pipe_idx_syncd = (0x80 | pipe_syncd))
+
 enum dce_version resource_parse_asic_id(
 		struct hw_asic_id asic_id);
 
@@ -205,5 +209,12 @@ int get_num_odm_splits(struct pipe_ctx *pipe);
 struct hpo_dp_link_encoder *resource_get_unused_hpo_dp_link_encoder(
 		const struct resource_pool *pool);
 #endif
+
+void reset_syncd_pipes_from_disabled_pipes(struct dc *dc,
+	struct dc_state *context);
+
+void check_syncd_pipes_for_disabled_master_pipe(struct dc *dc,
+	struct dc_state *context,
+	uint8_t disabled_master_pipe_idx);
 
 #endif /* DRIVERS_GPU_DRM_AMD_DC_DEV_DC_INC_RESOURCE_H_ */

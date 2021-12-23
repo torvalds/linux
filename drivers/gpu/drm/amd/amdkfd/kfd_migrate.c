@@ -108,8 +108,8 @@ error_free:
  * svm_migrate_copy_memory_gart - sdma copy data between ram and vram
  *
  * @adev: amdgpu device the sdma ring running
- * @src: source page address array
- * @dst: destination page address array
+ * @sys: system DMA pointer to be copied
+ * @vram: vram destination DMA pointer
  * @npages: number of pages to copy
  * @direction: enum MIGRATION_COPY_DIR
  * @mfence: output, sdma fence to signal after sdma is done

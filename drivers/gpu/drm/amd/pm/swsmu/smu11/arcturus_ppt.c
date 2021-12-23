@@ -295,16 +295,6 @@ static int arcturus_allocate_dpm_context(struct smu_context *smu)
 		return -ENOMEM;
 	smu_dpm->dpm_context_size = sizeof(struct smu_11_0_dpm_context);
 
-	smu_dpm->dpm_current_power_state = kzalloc(sizeof(struct smu_power_state),
-				       GFP_KERNEL);
-	if (!smu_dpm->dpm_current_power_state)
-		return -ENOMEM;
-
-	smu_dpm->dpm_request_power_state = kzalloc(sizeof(struct smu_power_state),
-				       GFP_KERNEL);
-	if (!smu_dpm->dpm_request_power_state)
-		return -ENOMEM;
-
 	return 0;
 }
 
@@ -1389,14 +1379,6 @@ static int arcturus_get_power_profile_mode(struct smu_context *smu,
 					   char *buf)
 {
 	DpmActivityMonitorCoeffInt_t activity_monitor;
-	static const char *profile_name[] = {
-					"BOOTUP_DEFAULT",
-					"3D_FULL_SCREEN",
-					"POWER_SAVING",
-					"VIDEO",
-					"VR",
-					"COMPUTE",
-					"CUSTOM"};
 	static const char *title[] = {
 			"PROFILE_INDEX(NAME)",
 			"CLOCK_TYPE(NAME)",
@@ -1453,7 +1435,7 @@ static int arcturus_get_power_profile_mode(struct smu_context *smu,
 		}
 
 		size += sysfs_emit_at(buf, size, "%2d %14s%s\n",
-			i, profile_name[i], (i == smu->power_profile_mode) ? "*" : " ");
+			i, amdgpu_pp_profile_name[i], (i == smu->power_profile_mode) ? "*" : " ");
 
 		if (smu_version >= 0x360d00) {
 			size += sysfs_emit_at(buf, size, "%19s %d(%13s) %7d %7d %7d %7d %7d %7d %7d %7d %7d\n",

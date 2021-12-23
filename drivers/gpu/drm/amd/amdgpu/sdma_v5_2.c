@@ -368,8 +368,6 @@ static void sdma_v5_2_ring_emit_ib(struct amdgpu_ring *ring,
  * sdma_v5_2_ring_emit_mem_sync - flush the IB by graphics cache rinse
  *
  * @ring: amdgpu ring pointer
- * @job: job to retrieve vmid from
- * @ib: IB object to schedule
  *
  * flush the IB by graphics cache rinse.
  */

@@ -481,6 +481,7 @@ struct stb_context {
 };
 
 #define WORKLOAD_POLICY_MAX 7
+
 struct smu_context
 {
 	struct amdgpu_device            *adev;
