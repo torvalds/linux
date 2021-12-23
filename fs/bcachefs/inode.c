@@ -4,6 +4,7 @@
 #include "btree_key_cache.h"
 #include "bkey_methods.h"
 #include "btree_update.h"
+#include "buckets.h"
 #include "error.h"
 #include "extents.h"
 #include "extent_update.h"
@@ -588,6 +589,8 @@ static int bch2_inode_delete_keys(struct btree_trans *trans,
 	int ret = 0;
 
 	while (!ret || ret == -EINTR) {
+		struct disk_reservation disk_res =
+			bch2_disk_reservation_init(trans->c, 0);
 		struct btree_iter iter;
 		struct bkey_s_c k;
 		struct bkey_i delete;
@@ -630,8 +633,9 @@ static int bch2_inode_delete_keys(struct btree_trans *trans,
 		}
 
 		ret = bch2_trans_update(trans, &iter, &delete, 0) ?:
-		      bch2_trans_commit(trans, NULL, NULL,
+		      bch2_trans_commit(trans, &disk_res, NULL,
 					BTREE_INSERT_NOFAIL);
+		bch2_disk_reservation_put(trans->c, &disk_res);
 err:
 		offset = iter.pos.offset;
 		bch2_trans_iter_exit(trans, &iter);
