@@ -1777,35 +1777,11 @@ static const unsigned int irda_1_mux[] = {
 	PORT49_IRDA_OUT_MARK, PORT53_IRDA_IN_MARK, PORT54_IRDA_FIRSEL_MARK,
 };
 /* - KEYSC ------------------------------------------------------------------ */
-static const unsigned int keysc_in5_pins[] = {
-	/* KEYIN[0:4] */
-	66, 67, 68, 69, 70,
-};
-static const unsigned int keysc_in5_mux[] = {
-	KEYIN0_MARK, KEYIN1_MARK, KEYIN2_MARK, KEYIN3_MARK,
-	KEYIN4_MARK,
-};
-static const unsigned int keysc_in6_pins[] = {
-	/* KEYIN[0:5] */
-	66, 67, 68, 69, 70, 71,
-};
-static const unsigned int keysc_in6_mux[] = {
-	KEYIN0_MARK, KEYIN1_MARK, KEYIN2_MARK, KEYIN3_MARK,
-	KEYIN4_MARK, KEYIN5_MARK,
-};
-static const unsigned int keysc_in7_pins[] = {
-	/* KEYIN[0:6] */
-	66, 67, 68, 69, 70, 71, 72,
-};
-static const unsigned int keysc_in7_mux[] = {
-	KEYIN0_MARK, KEYIN1_MARK, KEYIN2_MARK, KEYIN3_MARK,
-	KEYIN4_MARK, KEYIN5_MARK, KEYIN6_MARK,
-};
-static const unsigned int keysc_in8_pins[] = {
+static const unsigned int keysc_in_pins[] = {
 	/* KEYIN[0:7] */
 	66, 67, 68, 69, 70, 71, 72, 73,
 };
-static const unsigned int keysc_in8_mux[] = {
+static const unsigned int keysc_in_mux[] = {
 	KEYIN0_MARK, KEYIN1_MARK, KEYIN2_MARK, KEYIN3_MARK,
 	KEYIN4_MARK, KEYIN5_MARK, KEYIN6_MARK, KEYIN7_MARK,
 };
@@ -3138,10 +3114,10 @@ static const struct sh_pfc_pin_group pinmux_groups[] = {
 	SH_PFC_PIN_GROUP(i2c3_2),
 	SH_PFC_PIN_GROUP(irda_0),
 	SH_PFC_PIN_GROUP(irda_1),
-	SH_PFC_PIN_GROUP(keysc_in5),
-	SH_PFC_PIN_GROUP(keysc_in6),
-	SH_PFC_PIN_GROUP(keysc_in7),
-	SH_PFC_PIN_GROUP(keysc_in8),
+	BUS_DATA_PIN_GROUP(keysc_in, 5),
+	BUS_DATA_PIN_GROUP(keysc_in, 6),
+	BUS_DATA_PIN_GROUP(keysc_in, 7),
+	BUS_DATA_PIN_GROUP(keysc_in, 8),
 	SH_PFC_PIN_GROUP(keysc_out04),
 	SH_PFC_PIN_GROUP(keysc_out5),
 	SH_PFC_PIN_GROUP(keysc_out6_0),
