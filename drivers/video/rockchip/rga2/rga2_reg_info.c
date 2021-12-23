@@ -594,7 +594,9 @@ static void RGA2_set_reg_dst_info(u8 *base, struct rga2_req *msg)
 	/* Warning */
 	line_width_real = dst_fmt_y4_en ? ((msg->dst.act_w) >>1) : msg->dst.act_w;
 
-	if (msg->dst.format < 0x18) {
+	if (msg->dst.format < 0x18 ||
+	    (msg->dst.format >= RGA2_FORMAT_ARGB_8888 &&
+	     msg->dst.format <= RGA2_FORMAT_ABGR_4444)) {
 		/* 270 degree & Mirror V*/
 		y_ld_addr = yrgb_addr + (msg->dst.act_h - 1) * (d_stride);
 		/* 90 degree & Mirror H  */
