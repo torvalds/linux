@@ -148,11 +148,11 @@ int fixup_exception(struct pt_regs *regs)
 		 * Fix up get_user() and put_user().
 		 * ASM_EXCEPTIONTABLE_ENTRY_EFAULT() sets the least-significant
 		 * bit in the relative address of the fixup routine to indicate
-		 * that %r8 should be loaded with -EFAULT to report a userspace
-		 * access error.
+		 * that gr[ASM_EXCEPTIONTABLE_REG] should be loaded with
+		 * -EFAULT to report a userspace access error.
 		 */
 		if (fix->fixup & 1) {
-			regs->gr[8] = -EFAULT;
+			regs->gr[ASM_EXCEPTIONTABLE_REG] = -EFAULT;
 
 			/* zero target register for get_user() */
 			if (parisc_acctyp(0, regs->iir) == VM_READ) {
