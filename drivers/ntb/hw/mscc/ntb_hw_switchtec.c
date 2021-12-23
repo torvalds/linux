@@ -297,7 +297,7 @@ static int switchtec_ntb_mw_set_trans(struct ntb_dev *ntb, int pidx, int widx,
 		 * (see CMA_CONFIG_ALIGNMENT)
 		 */
 		dev_err(&sndev->stdev->dev,
-			"ERROR: Memory window address is not aligned to it's size!\n");
+			"ERROR: Memory window address is not aligned to its size!\n");
 		return -EINVAL;
 	}
 
