@@ -302,7 +302,7 @@ static int sof_ipc_tx_message_unlocked(struct snd_sof_ipc *ipc, u32 header,
 	struct snd_sof_ipc_msg *msg;
 	int ret;
 
-	if (ipc->disable_ipc_tx)
+	if (ipc->disable_ipc_tx || sdev->fw_state != SOF_FW_BOOT_COMPLETE)
 		return -ENODEV;
 
 	/*
@@ -536,7 +536,7 @@ void snd_sof_ipc_msgs_rx(struct snd_sof_dev *sdev)
 			if (err < 0)
 				sof_set_fw_state(sdev, SOF_FW_BOOT_READY_FAILED);
 			else
-				sof_set_fw_state(sdev, SOF_FW_BOOT_COMPLETE);
+				sof_set_fw_state(sdev, SOF_FW_BOOT_READY_OK);
 
 			/* wake up firmware loader */
 			wake_up(&sdev->boot_wait);

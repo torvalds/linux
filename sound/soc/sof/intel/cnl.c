@@ -82,9 +82,24 @@ irqreturn_t cnl_ipc_irq_thread(int irq, void *context)
 			 msg, msg_ext);
 
 		/* handle messages from DSP */
-		if ((hipctdr & SOF_IPC_PANIC_MAGIC_MASK) ==
-		   SOF_IPC_PANIC_MAGIC) {
-			snd_sof_dsp_panic(sdev, HDA_DSP_PANIC_OFFSET(msg_ext));
+		if ((hipctdr & SOF_IPC_PANIC_MAGIC_MASK) == SOF_IPC_PANIC_MAGIC) {
+			struct sof_intel_hda_dev *hda = sdev->pdata->hw_pdata;
+			bool non_recoverable = true;
+
+			/*
+			 * This is a PANIC message!
+			 *
+			 * If it is arriving during firmware boot and it is not
+			 * the last boot attempt then change the non_recoverable
+			 * to false as the DSP might be able to boot in the next
+			 * iteration(s)
+			 */
+			if (sdev->fw_state == SOF_FW_BOOT_IN_PROGRESS &&
+			    hda->boot_iteration < HDA_FW_BOOT_ATTEMPTS)
+				non_recoverable = false;
+
+			snd_sof_dsp_panic(sdev, HDA_DSP_PANIC_OFFSET(msg_ext),
+					  non_recoverable);
 		} else {
 			snd_sof_ipc_msgs_rx(sdev);
 		}

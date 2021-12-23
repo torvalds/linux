@@ -930,7 +930,7 @@ void snd_sof_free_debug(struct snd_sof_dev *sdev)
 EXPORT_SYMBOL_GPL(snd_sof_free_debug);
 
 static const struct soc_fw_state_info {
-	enum snd_sof_fw_state state;
+	enum sof_fw_state state;
 	const char *name;
 } fw_state_dbg[] = {
 	{SOF_FW_BOOT_NOT_STARTED, "SOF_FW_BOOT_NOT_STARTED"},
@@ -938,37 +938,47 @@ static const struct soc_fw_state_info {
 	{SOF_FW_BOOT_IN_PROGRESS, "SOF_FW_BOOT_IN_PROGRESS"},
 	{SOF_FW_BOOT_FAILED, "SOF_FW_BOOT_FAILED"},
 	{SOF_FW_BOOT_READY_FAILED, "SOF_FW_BOOT_READY_FAILED"},
+	{SOF_FW_BOOT_READY_OK, "SOF_FW_BOOT_READY_OK"},
 	{SOF_FW_BOOT_COMPLETE, "SOF_FW_BOOT_COMPLETE"},
+	{SOF_FW_CRASHED, "SOF_FW_CRASHED"},
 };
 
-static void snd_sof_dbg_print_fw_state(struct snd_sof_dev *sdev)
+static void snd_sof_dbg_print_fw_state(struct snd_sof_dev *sdev, const char *level)
 {
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(fw_state_dbg); i++) {
 		if (sdev->fw_state == fw_state_dbg[i].state) {
-			dev_err(sdev->dev, "fw_state: %s (%d)\n", fw_state_dbg[i].name, i);
+			dev_printk(level, sdev->dev, "fw_state: %s (%d)\n",
+				   fw_state_dbg[i].name, i);
 			return;
 		}
 	}
 
-	dev_err(sdev->dev, "fw_state: UNKNOWN (%d)\n", sdev->fw_state);
+	dev_printk(level, sdev->dev, "fw_state: UNKNOWN (%d)\n", sdev->fw_state);
 }
 
-void snd_sof_dsp_dbg_dump(struct snd_sof_dev *sdev, u32 flags)
+void snd_sof_dsp_dbg_dump(struct snd_sof_dev *sdev, const char *msg, u32 flags)
 {
-	bool print_all = !!(sof_core_debug & SOF_DBG_PRINT_ALL_DUMPS);
+	char *level = flags & SOF_DBG_DUMP_OPTIONAL ? KERN_DEBUG : KERN_ERR;
+	bool print_all = sof_debug_check_flag(SOF_DBG_PRINT_ALL_DUMPS);
 
 	if (flags & SOF_DBG_DUMP_OPTIONAL && !print_all)
 		return;
 
 	if (sof_ops(sdev)->dbg_dump && !sdev->dbg_dump_printed) {
-		dev_err(sdev->dev, "------------[ DSP dump start ]------------\n");
-		snd_sof_dbg_print_fw_state(sdev);
+		dev_printk(level, sdev->dev,
+			   "------------[ DSP dump start ]------------\n");
+		if (msg)
+			dev_printk(level, sdev->dev, "%s\n", msg);
+		snd_sof_dbg_print_fw_state(sdev, level);
 		sof_ops(sdev)->dbg_dump(sdev, flags);
-		dev_err(sdev->dev, "------------[ DSP dump end ]------------\n");
+		dev_printk(level, sdev->dev,
+			   "------------[ DSP dump end ]------------\n");
 		if (!print_all)
 			sdev->dbg_dump_printed = true;
+	} else if (msg) {
+		dev_printk(level, sdev->dev, "%s\n", msg);
 	}
 }
 EXPORT_SYMBOL(snd_sof_dsp_dbg_dump);
@@ -979,7 +989,7 @@ static void snd_sof_ipc_dump(struct snd_sof_dev *sdev)
 		dev_err(sdev->dev, "------------[ IPC dump start ]------------\n");
 		sof_ops(sdev)->ipc_dump(sdev);
 		dev_err(sdev->dev, "------------[ IPC dump end ]------------\n");
-		if (!(sof_core_debug & SOF_DBG_PRINT_ALL_DUMPS))
+		if (!sof_debug_check_flag(SOF_DBG_PRINT_ALL_DUMPS))
 			sdev->ipc_dump_printed = true;
 	}
 }
@@ -987,7 +997,7 @@ static void snd_sof_ipc_dump(struct snd_sof_dev *sdev)
 void snd_sof_handle_fw_exception(struct snd_sof_dev *sdev)
 {
 	if (IS_ENABLED(CONFIG_SND_SOC_SOF_DEBUG_RETAIN_DSP_CONTEXT) ||
-	    (sof_core_debug & SOF_DBG_RETAIN_CTX)) {
+	    sof_debug_check_flag(SOF_DBG_RETAIN_CTX)) {
 		/* should we prevent DSP entering D3 ? */
 		if (!sdev->ipc_dump_printed)
 			dev_info(sdev->dev,
@@ -997,7 +1007,8 @@ void snd_sof_handle_fw_exception(struct snd_sof_dev *sdev)
 
 	/* dump vital information to the logs */
 	snd_sof_ipc_dump(sdev);
-	snd_sof_dsp_dbg_dump(sdev, SOF_DBG_DUMP_REGS | SOF_DBG_DUMP_MBOX);
+	snd_sof_dsp_dbg_dump(sdev, "Firmware exception",
+			     SOF_DBG_DUMP_REGS | SOF_DBG_DUMP_MBOX);
 	snd_sof_trace_notify_for_error(sdev);
 }
 EXPORT_SYMBOL(snd_sof_handle_fw_exception);
