@@ -536,7 +536,7 @@ void snd_sof_ipc_msgs_rx(struct snd_sof_dev *sdev)
 			if (err < 0)
 				sof_set_fw_state(sdev, SOF_FW_BOOT_READY_FAILED);
 			else
-				sof_set_fw_state(sdev, SOF_FW_BOOT_COMPLETE);
+				sof_set_fw_state(sdev, SOF_FW_BOOT_READY_OK);
 
 			/* wake up firmware loader */
 			wake_up(&sdev->boot_wait);
