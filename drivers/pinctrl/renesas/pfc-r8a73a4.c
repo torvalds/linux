@@ -1449,25 +1449,11 @@ IRQC_PINS_MUX(327, 55);
 IRQC_PINS_MUX(328, 56);
 IRQC_PINS_MUX(329, 57);
 /* - MMCIF0 ----------------------------------------------------------------- */
-static const unsigned int mmc0_data1_pins[] = {
-	/* D[0] */
-	164,
-};
-static const unsigned int mmc0_data1_mux[] = {
-	MMCD0_0_MARK,
-};
-static const unsigned int mmc0_data4_pins[] = {
-	/* D[0:3] */
-	164, 165, 166, 167,
-};
-static const unsigned int mmc0_data4_mux[] = {
-	MMCD0_0_MARK, MMCD0_1_MARK, MMCD0_2_MARK, MMCD0_3_MARK,
-};
-static const unsigned int mmc0_data8_pins[] = {
+static const unsigned int mmc0_data_pins[] = {
 	/* D[0:7] */
 	164, 165, 166, 167, 168, 169, 170, 171,
 };
-static const unsigned int mmc0_data8_mux[] = {
+static const unsigned int mmc0_data_mux[] = {
 	MMCD0_0_MARK, MMCD0_1_MARK, MMCD0_2_MARK, MMCD0_3_MARK,
 	MMCD0_4_MARK, MMCD0_5_MARK, MMCD0_6_MARK, MMCD0_7_MARK,
 };
@@ -1479,25 +1465,11 @@ static const unsigned int mmc0_ctrl_mux[] = {
 	MMCCMD0_MARK, MMCCLK0_MARK,
 };
 /* - MMCIF1 ----------------------------------------------------------------- */
-static const unsigned int mmc1_data1_pins[] = {
-	/* D[0] */
-	199,
-};
-static const unsigned int mmc1_data1_mux[] = {
-	MMCD1_0_MARK,
-};
-static const unsigned int mmc1_data4_pins[] = {
-	/* D[0:3] */
-	199, 198, 197, 196,
-};
-static const unsigned int mmc1_data4_mux[] = {
-	MMCD1_0_MARK, MMCD1_1_MARK, MMCD1_2_MARK, MMCD1_3_MARK,
-};
-static const unsigned int mmc1_data8_pins[] = {
+static const unsigned int mmc1_data_pins[] = {
 	/* D[0:7] */
 	199, 198, 197, 196, 195, 194, 193, 192,
 };
-static const unsigned int mmc1_data8_mux[] = {
+static const unsigned int mmc1_data_mux[] = {
 	MMCD1_0_MARK, MMCD1_1_MARK, MMCD1_2_MARK, MMCD1_3_MARK,
 	MMCD1_4_MARK, MMCD1_5_MARK, MMCD1_6_MARK, MMCD1_7_MARK,
 };
@@ -1843,13 +1815,13 @@ static const struct sh_pfc_pin_group pinmux_groups[] = {
 	SH_PFC_PIN_GROUP(irqc_irq55),
 	SH_PFC_PIN_GROUP(irqc_irq56),
 	SH_PFC_PIN_GROUP(irqc_irq57),
-	SH_PFC_PIN_GROUP(mmc0_data1),
-	SH_PFC_PIN_GROUP(mmc0_data4),
-	SH_PFC_PIN_GROUP(mmc0_data8),
+	BUS_DATA_PIN_GROUP(mmc0_data, 1),
+	BUS_DATA_PIN_GROUP(mmc0_data, 4),
+	BUS_DATA_PIN_GROUP(mmc0_data, 8),
 	SH_PFC_PIN_GROUP(mmc0_ctrl),
-	SH_PFC_PIN_GROUP(mmc1_data1),
-	SH_PFC_PIN_GROUP(mmc1_data4),
-	SH_PFC_PIN_GROUP(mmc1_data8),
+	BUS_DATA_PIN_GROUP(mmc1_data, 1),
+	BUS_DATA_PIN_GROUP(mmc1_data, 4),
+	BUS_DATA_PIN_GROUP(mmc1_data, 8),
 	SH_PFC_PIN_GROUP(mmc1_ctrl),
 	SH_PFC_PIN_GROUP(scifa0_data),
 	SH_PFC_PIN_GROUP(scifa0_clk),
