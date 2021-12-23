@@ -1191,12 +1191,9 @@ static void RGA3_set_reg_overlap_info(u8 *base, struct rga3_req *msg)
 	}
 
 	/* 1: ABB mode, 0: ABC mode， ABB cannot support fbc in&out */
-	if ((msg->win0.rd_mode != 1) && (msg->win1.rd_mode != 1)
-			&& msg->wr.rd_mode != 1) {
-		if (msg->win0.yrgb_addr == msg->wr.yrgb_addr)
-			reg = ((reg & (~m_RGA3_OVLP_CTRL_SW_OVLP_MODE)) |
-				(s_RGA3_OVLP_CTRL_SW_OVLP_MODE(1)));
-	}
+	if (msg->win0.yrgb_addr == msg->wr.yrgb_addr)
+		reg = ((reg & (~m_RGA3_OVLP_CTRL_SW_OVLP_MODE)) |
+			(s_RGA3_OVLP_CTRL_SW_OVLP_MODE(1)));
 
 	/* 1: yuv field, 0: rgb field */
 	if (msg->wr.format >= RGA2_FORMAT_BGR_565)
@@ -1222,12 +1219,7 @@ int rga3_gen_reg_info(u8 *base, struct rga3_req *msg)
 	case BITBLT_MODE:
 		RGA3_set_reg_win0_info(base, msg);
 		RGA3_set_reg_win1_info(base, msg);
-
-		if (msg->alpha_mode_0 != 0 || msg->alpha_mode_1 != 0 ||
-			msg->win0_a_global_val != 0 ||
-			msg->win1_a_global_val != 0)
-			RGA3_set_reg_overlap_info(base, msg);
-
+		RGA3_set_reg_overlap_info(base, msg);
 		RGA3_set_reg_wr_info(base, msg);
 		break;
 	default:
