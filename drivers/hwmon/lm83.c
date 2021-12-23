@@ -341,9 +341,9 @@ static int lm83_detect(struct i2c_client *client,
 		break;
 	default:
 		/* identification failed */
-		dev_info(&adapter->dev,
-			 "Unsupported chip (man_id=0x%02X, chip_id=0x%02X)\n",
-			 man_id, chip_id);
+		dev_dbg(&adapter->dev,
+			"Unsupported chip (man_id=0x%02X, chip_id=0x%02X)\n",
+			man_id, chip_id);
 		return -ENODEV;
 	}
 
