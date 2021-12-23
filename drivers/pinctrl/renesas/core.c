@@ -1154,8 +1154,26 @@ static void __init sh_pfc_check_info(const struct sh_pfc_soc_info *info)
 		sh_pfc_check_cfg_reg(drvname, &info->cfg_regs[i]);
 
 	/* Check drive strength registers */
-	for (i = 0; info->drive_regs && info->drive_regs[i].reg; i++)
-		sh_pfc_check_drive_reg(info, &info->drive_regs[i]);
+	for (i = 0; drive_regs && drive_regs[i].reg; i++)
+		sh_pfc_check_drive_reg(info, &drive_regs[i]);
+
+	for (i = 0; drive_regs && drive_regs[i / 8].reg; i++) {
+		if (!drive_regs[i / 8].fields[i % 8].pin &&
+		    !drive_regs[i / 8].fields[i % 8].offset &&
+		    !drive_regs[i / 8].fields[i % 8].size)
+			continue;
+
+		for (j = 0; j < i; j++) {
+			if (drive_regs[i / 8].fields[i % 8].pin ==
+			    drive_regs[j / 8].fields[j % 8].pin &&
+			    drive_regs[j / 8].fields[j % 8].offset &&
+			    drive_regs[j / 8].fields[j % 8].size) {
+				sh_pfc_err("drive_reg 0x%x:%u/0x%x:%u: pin conflict\n",
+					   drive_regs[i / 8].reg, i % 8,
+					   drive_regs[j / 8].reg, j % 8);
+			}
+		}
+	}
 
 	/* Check bias registers */
 	for (i = 0; bias_regs && (bias_regs[i].puen || bias_regs[i].pud); i++)
