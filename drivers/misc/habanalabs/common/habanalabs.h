@@ -31,14 +31,15 @@
 #define HL_NAME				"habanalabs"
 
 /* Use upper bits of mmap offset to store habana driver specific information.
- * bits[63:61] - Encode mmap type
+ * bits[63:59] - Encode mmap type
  * bits[45:0]  - mmap offset value
  *
  * NOTE: struct vm_area_struct.vm_pgoff uses offset in pages. Hence, these
  *  defines are w.r.t to PAGE_SIZE
  */
-#define HL_MMAP_TYPE_SHIFT		(61 - PAGE_SHIFT)
-#define HL_MMAP_TYPE_MASK		(0x7ull << HL_MMAP_TYPE_SHIFT)
+#define HL_MMAP_TYPE_SHIFT		(59 - PAGE_SHIFT)
+#define HL_MMAP_TYPE_MASK		(0x1full << HL_MMAP_TYPE_SHIFT)
+#define HL_MMAP_TYPE_TS_BUFF		(0x10ull << HL_MMAP_TYPE_SHIFT)
 #define HL_MMAP_TYPE_BLOCK		(0x4ull << HL_MMAP_TYPE_SHIFT)
 #define HL_MMAP_TYPE_CB			(0x2ull << HL_MMAP_TYPE_SHIFT)
 
@@ -710,6 +711,40 @@ struct hl_cb_mgr {
 };
 
 /**
+ * struct hl_ts_mgr - describes the timestamp registration memory manager.
+ * @ts_lock: protects ts_handles.
+ * @ts_handles: an idr to hold all ts bufferes handles.
+ */
+struct hl_ts_mgr {
+	spinlock_t		ts_lock;
+	struct idr		ts_handles;
+};
+
+/**
+ * struct hl_ts_buff - describes a timestamp buffer.
+ * @refcount: reference counter for usage of the buffer.
+ * @hdev: pointer to device this buffer belongs to.
+ * @mmap: true if the buff is currently mapped to user.
+ * @kernel_buff_address: Holds the internal buffer's kernel virtual address.
+ * @user_buff_address: Holds the user buffer's kernel virtual address.
+ * @id: the buffer ID.
+ * @mmap_size: Holds the buffer size that was mmaped.
+ * @kernel_buff_size: Holds the internal kernel buffer size.
+ * @user_buff_size: Holds the user buffer size.
+ */
+struct hl_ts_buff {
+	struct kref		refcount;
+	struct hl_device	*hdev;
+	atomic_t		mmap;
+	void			*kernel_buff_address;
+	void			*user_buff_address;
+	u32			id;
+	u32			mmap_size;
+	u32			kernel_buff_size;
+	u32			user_buff_size;
+};
+
+/**
  * struct hl_cb - describes a Command Buffer.
  * @refcount: reference counter for usage of the CB.
  * @hdev: pointer to device this CB belongs to.
@@ -887,8 +922,53 @@ struct hl_user_interrupt {
 };
 
 /**
+ * struct timestamp_reg_free_node - holds the timestamp registration free objects node
+ * @free_objects_node: node in the list free_obj_jobs
+ * @cq_cb: pointer to cq command buffer to be freed
+ * @ts_buff: pointer to timestamp buffer to be freed
+ */
+struct timestamp_reg_free_node {
+	struct list_head	free_objects_node;
+	struct hl_cb		*cq_cb;
+	struct hl_ts_buff	*ts_buff;
+};
+
+/* struct timestamp_reg_work_obj - holds the timestamp registration free objects job
+ * the job will be to pass over the free_obj_jobs list and put refcount to objects
+ * in each node of the list
+ * @free_obj: workqueue object to free timestamp registration node objects
+ * @hdev: pointer to the device structure
+ * @free_obj_head: list of free jobs nodes (node type timestamp_reg_free_node)
+ */
+struct timestamp_reg_work_obj {
+	struct work_struct	free_obj;
+	struct hl_device	*hdev;
+	struct list_head	*free_obj_head;
+};
+
+/* struct timestamp_reg_info - holds the timestamp registration related data.
+ * @ts_buff: pointer to the timestamp buffer which include both user/kernel buffers.
+ *           relevant only when doing timestamps records registration.
+ * @cq_cb: pointer to CQ counter CB.
+ * @timestamp_kernel_addr: timestamp handle address, where to set timestamp
+ *                         relevant only when doing timestamps records
+ *                         registration.
+ * @in_use: indicates if the node already in use. relevant only when doing
+ *          timestamps records registration, since in this case the driver
+ *          will have it's own buffer which serve as a records pool instead of
+ *          allocating records dynamically.
+ */
+struct timestamp_reg_info {
+	struct hl_ts_buff	*ts_buff;
+	struct hl_cb		*cq_cb;
+	u64			*timestamp_kernel_addr;
+	u8			in_use;
+};
+
+/**
  * struct hl_user_pending_interrupt - holds a context to a user thread
  *                                    pending on an interrupt
+ * @ts_reg_info: holds the timestamps registration nodes info
  * @wait_list_node: node in the list of user threads pending on an interrupt
  * @fence: hl fence object for interrupt completion
  * @cq_target_value: CQ target value
@@ -896,10 +976,11 @@ struct hl_user_interrupt {
  *                  handler for taget value comparison
  */
 struct hl_user_pending_interrupt {
-	struct list_head	wait_list_node;
-	struct hl_fence		fence;
-	u64			cq_target_value;
-	u64			*cq_kernel_addr;
+	struct timestamp_reg_info	ts_reg_info;
+	struct list_head		wait_list_node;
+	struct hl_fence			fence;
+	u64				cq_target_value;
+	u64				*cq_kernel_addr;
 };
 
 /**
@@ -1833,6 +1914,7 @@ struct hl_debug_params {
  * @ctx: current executing context. TODO: remove for multiple ctx per process
  * @ctx_mgr: context manager to handle multiple context for this FD.
  * @cb_mgr: command buffer manager to handle multiple buffers for this FD.
+ * @ts_mem_mgr: timestamp registration manager for alloc/free/map timestamp buffers.
  * @debugfs_list: list of relevant ASIC debugfs.
  * @dev_node: node in the device list of file private data
  * @refcount: number of related contexts.
@@ -1845,6 +1927,7 @@ struct hl_fpriv {
 	struct hl_ctx		*ctx;
 	struct hl_ctx_mgr	ctx_mgr;
 	struct hl_cb_mgr	cb_mgr;
+	struct hl_ts_mgr	ts_mem_mgr;
 	struct list_head	debugfs_list;
 	struct list_head	dev_node;
 	struct kref		refcount;
@@ -2517,7 +2600,7 @@ struct hl_reset_info {
  * @cq_wq: work queues of completion queues for executing work in process
  *         context.
  * @eq_wq: work queue of event queue for executing work in process context.
- * @sob_reset_wq: work queue for sob reset executions.
+ * @ts_free_obj_wq: work queue for timestamp registration objects release.
  * @kernel_ctx: Kernel driver context structure.
  * @kernel_queues: array of hl_hw_queue.
  * @cs_mirror_list: CS mirror list for TDR.
@@ -2645,7 +2728,7 @@ struct hl_device {
 	struct hl_user_interrupt	common_user_interrupt;
 	struct workqueue_struct		**cq_wq;
 	struct workqueue_struct		*eq_wq;
-	struct workqueue_struct		*sob_reset_wq;
+	struct workqueue_struct		*ts_free_obj_wq;
 	struct hl_ctx			*kernel_ctx;
 	struct hl_hw_queue		*kernel_queues;
 	struct list_head		cs_mirror_list;
@@ -3128,6 +3211,11 @@ __printf(4, 5) int hl_snprintf_resize(char **buf, size_t *size, size_t *offset,
 					const char *format, ...);
 char *hl_format_as_binary(char *buf, size_t buf_len, u32 n);
 const char *hl_sync_engine_to_string(enum hl_sync_engine_type engine_type);
+void hl_ts_mgr_init(struct hl_ts_mgr *mgr);
+void hl_ts_mgr_fini(struct hl_device *hdev, struct hl_ts_mgr *mgr);
+int hl_ts_mmap(struct hl_fpriv *hpriv, struct vm_area_struct *vma);
+struct hl_ts_buff *hl_ts_get(struct hl_device *hdev, struct hl_ts_mgr *mgr, u32 handle);
+void hl_ts_put(struct hl_ts_buff *buff);
 
 #ifdef CONFIG_DEBUG_FS
 

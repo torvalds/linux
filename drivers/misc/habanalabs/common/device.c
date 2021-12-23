@@ -145,6 +145,7 @@ static int hl_device_release(struct inode *inode, struct file *filp)
 	hl_release_pending_user_interrupts(hpriv->hdev);
 
 	hl_cb_mgr_fini(hdev, &hpriv->cb_mgr);
+	hl_ts_mgr_fini(hpriv->hdev, &hpriv->ts_mem_mgr);
 	hl_ctx_mgr_fini(hdev, &hpriv->ctx_mgr);
 
 	if (!hl_hpriv_put(hpriv))
@@ -209,6 +210,9 @@ static int hl_mmap(struct file *filp, struct vm_area_struct *vma)
 
 	case HL_MMAP_TYPE_BLOCK:
 		return hl_hw_block_mmap(hpriv, vma);
+
+	case HL_MMAP_TYPE_TS_BUFF:
+		return hl_ts_mmap(hpriv, vma);
 	}
 
 	return -EINVAL;
@@ -410,10 +414,10 @@ static int device_early_init(struct hl_device *hdev)
 		goto free_cq_wq;
 	}
 
-	hdev->sob_reset_wq = alloc_workqueue("hl-sob-reset", WQ_UNBOUND, 0);
-	if (!hdev->sob_reset_wq) {
+	hdev->ts_free_obj_wq = alloc_workqueue("hl-ts-free-obj", WQ_UNBOUND, 0);
+	if (!hdev->ts_free_obj_wq) {
 		dev_err(hdev->dev,
-			"Failed to allocate SOB reset workqueue\n");
+			"Failed to allocate Timestamp registration free workqueue\n");
 		rc = -ENOMEM;
 		goto free_eq_wq;
 	}
@@ -422,7 +426,7 @@ static int device_early_init(struct hl_device *hdev)
 					GFP_KERNEL);
 	if (!hdev->hl_chip_info) {
 		rc = -ENOMEM;
-		goto free_sob_reset_wq;
+		goto free_ts_free_wq;
 	}
 
 	rc = hl_mmu_if_set_funcs(hdev);
@@ -461,8 +465,8 @@ free_cb_mgr:
 	hl_cb_mgr_fini(hdev, &hdev->kernel_cb_mgr);
 free_chip_info:
 	kfree(hdev->hl_chip_info);
-free_sob_reset_wq:
-	destroy_workqueue(hdev->sob_reset_wq);
+free_ts_free_wq:
+	destroy_workqueue(hdev->ts_free_obj_wq);
 free_eq_wq:
 	destroy_workqueue(hdev->eq_wq);
 free_cq_wq:
@@ -501,7 +505,7 @@ static void device_early_fini(struct hl_device *hdev)
 
 	kfree(hdev->hl_chip_info);
 
-	destroy_workqueue(hdev->sob_reset_wq);
+	destroy_workqueue(hdev->ts_free_obj_wq);
 	destroy_workqueue(hdev->eq_wq);
 	destroy_workqueue(hdev->device_reset_work.wq);
 

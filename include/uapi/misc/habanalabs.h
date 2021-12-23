@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
  *
- * Copyright 2016-2020 HabanaLabs, Ltd.
+ * Copyright 2016-2021 HabanaLabs, Ltd.
  * All Rights Reserved.
  *
  */
@@ -29,6 +29,9 @@
  * 8 monitors reserved for sync stream
  */
 #define GAUDI_FIRST_AVAILABLE_W_S_MONITOR		72
+
+/* Max number of elements in timestamps registration buffers */
+#define	TS_MAX_ELEMENTS_NUM				(1 << 20) /* 1MB */
 
 /*
  * Goya queue Numbering
@@ -695,10 +698,12 @@ struct hl_cb_in {
 	__u64 cb_handle;
 	/* HL_CB_OP_* */
 	__u32 op;
+
 	/* Size of CB. Maximum size is HL_MAX_CB_SIZE. The minimum size that
 	 * will be allocated, regardless of this parameter's value, is PAGE_SIZE
 	 */
 	__u32 cb_size;
+
 	/* Context ID - Currently not in use */
 	__u32 ctx_id;
 	/* HL_CB_FLAGS_* */
@@ -964,6 +969,7 @@ union hl_cs_args {
 #define HL_WAIT_CS_FLAGS_INTERRUPT_MASK		0xFFF00000
 #define HL_WAIT_CS_FLAGS_MULTI_CS		0x4
 #define HL_WAIT_CS_FLAGS_INTERRUPT_KERNEL_CQ	0x10
+#define HL_WAIT_CS_FLAGS_REGISTER_INTERRUPT	0x20
 
 #define HL_WAIT_MULTI_CS_LIST_MAX_LEN	32
 
@@ -1036,6 +1042,20 @@ struct hl_wait_cs_in {
 	 * relevant only when HL_WAIT_CS_FLAGS_INTERRUPT_KERNEL_CQ is set
 	 */
 	__u64 cq_counters_offset;
+
+	/*
+	 * Timestamp_handle timestamps buffer handle.
+	 * relevant only when HL_WAIT_CS_FLAGS_REGISTER_INTERRUPT is set
+	 */
+	__u64 timestamp_handle;
+
+	/*
+	 * Timestamp_offset is offset inside the timestamp buffer pointed by timestamp_handle above.
+	 * upon interrupt, if the cq reached the target value then driver will write
+	 * timestamp to this offset.
+	 * relevant only when HL_WAIT_CS_FLAGS_REGISTER_INTERRUPT is set
+	 */
+	__u64 timestamp_offset;
 };
 
 #define HL_WAIT_CS_STATUS_COMPLETED	0
@@ -1081,6 +1101,14 @@ union hl_wait_cs_args {
  * and to export an FD of that DMA-BUF back to the caller
  */
 #define HL_MEM_OP_EXPORT_DMABUF_FD	5
+
+/* Opcode to create timestamps pool for user interrupts registration support
+ * The memory will be allocated by the kernel driver, A timestamp buffer which the user
+ * will get handle to it for mmap, and another internal buffer used by the
+ * driver for registration management
+ * The memory will be freed when the user closes the file descriptor(ctx close)
+ */
+#define HL_MEM_OP_TS_ALLOC		6
 
 /* Memory flags */
 #define HL_MEM_CONTIGUOUS	0x1
@@ -1173,9 +1201,14 @@ struct hl_mem_in {
 	 * DMA-BUF file/FD flags.
 	 */
 	__u32 flags;
+
 	/* Context ID - Currently not in use */
 	__u32 ctx_id;
-	__u32 pad;
+
+	/* number of timestamp elements
+	 * used only when HL_MEM_OP_TS_ALLOC opcode
+	 */
+	__u32 num_of_elements;
 };
 
 struct hl_mem_out {
