@@ -142,7 +142,13 @@ void snd_sof_dsp_update_bits_forced(struct snd_sof_dev *sdev, u32 bar,
 }
 EXPORT_SYMBOL(snd_sof_dsp_update_bits_forced);
 
-void snd_sof_dsp_panic(struct snd_sof_dev *sdev, u32 offset)
+/**
+ * snd_sof_dsp_panic - handle a received DSP panic message
+ * @sdev: Pointer to the device's sdev
+ * @offset: offset of panic information
+ * @non_recoverable: the panic is fatal, no recovery will be done by the caller
+ */
+void snd_sof_dsp_panic(struct snd_sof_dev *sdev, u32 offset, bool non_recoverable)
 {
 	/*
 	 * if DSP is not ready and the dsp_oops_offset is not yet set, use the
@@ -160,12 +166,18 @@ void snd_sof_dsp_panic(struct snd_sof_dev *sdev, u32 offset)
 			 "%s: dsp_oops_offset %zu differs from panic offset %u\n",
 			 __func__, sdev->dsp_oops_offset, offset);
 
-	dev_err(sdev->dev, "DSP panic!\n");
+	/*
+	 * Only print the panic information if we have non recoverable panic or
+	 * if all dumps should be printed
+	 */
+	if (non_recoverable || sof_debug_check_flag(SOF_DBG_PRINT_ALL_DUMPS)) {
+		dev_err(sdev->dev, "DSP panic!\n");
 
-	/* We want to see the DSP panic! */
-	sdev->dbg_dump_printed = false;
+		/* We want to see the DSP panic! */
+		sdev->dbg_dump_printed = false;
 
-	snd_sof_dsp_dbg_dump(sdev, SOF_DBG_DUMP_REGS | SOF_DBG_DUMP_MBOX);
-	snd_sof_trace_notify_for_error(sdev);
+		snd_sof_dsp_dbg_dump(sdev, SOF_DBG_DUMP_REGS | SOF_DBG_DUMP_MBOX);
+		snd_sof_trace_notify_for_error(sdev);
+	}
 }
 EXPORT_SYMBOL(snd_sof_dsp_panic);

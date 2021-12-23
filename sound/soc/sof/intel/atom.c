@@ -165,8 +165,8 @@ irqreturn_t atom_irq_thread(int irq, void *context)
 
 		/* Handle messages from DSP Core */
 		if ((ipcd & SOF_IPC_PANIC_MAGIC_MASK) == SOF_IPC_PANIC_MAGIC) {
-			snd_sof_dsp_panic(sdev, PANIC_OFFSET(ipcd) +
-					  MBOX_OFFSET);
+			snd_sof_dsp_panic(sdev, PANIC_OFFSET(ipcd) + MBOX_OFFSET,
+					  true);
 		} else {
 			snd_sof_ipc_msgs_rx(sdev);
 		}

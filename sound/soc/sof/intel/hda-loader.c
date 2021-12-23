@@ -413,9 +413,13 @@ int hda_dsp_cl_boot_firmware(struct snd_sof_dev *sdev)
 		hda_sdw_process_wakeen(sdev);
 
 	/*
-	 * at this point DSP ROM has been initialized and
-	 * should be ready for code loading and firmware boot
+	 * Set the boot_iteration to the last attempt, indicating that the
+	 * DSP ROM has been initialized and from this point there will be no
+	 * retry done to boot.
+	 *
+	 * Continue with code loading and firmware boot
 	 */
+	hda->boot_iteration = HDA_FW_BOOT_ATTEMPTS;
 	ret = cl_copy_fw(sdev, stream);
 	if (!ret) {
 		dev_dbg(sdev->dev, "Firmware download successful, booting...\n");

@@ -97,7 +97,7 @@ static void imx8_dsp_handle_request(struct imx_dsp_ipc *ipc)
 
 	/* Check to see if the message is a panic code (0x0dead***) */
 	if ((p & SOF_IPC_PANIC_MAGIC_MASK) == SOF_IPC_PANIC_MAGIC)
-		snd_sof_dsp_panic(priv->sdev, p);
+		snd_sof_dsp_panic(priv->sdev, p, true);
 	else
 		snd_sof_ipc_msgs_rx(priv->sdev);
 }

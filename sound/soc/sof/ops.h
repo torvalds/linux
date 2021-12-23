@@ -643,5 +643,5 @@ int snd_sof_dsp_register_poll(struct snd_sof_dev *sdev, u32 bar, u32 offset,
 			      u32 mask, u32 target, u32 timeout_ms,
 			      u32 interval_us);
 
-void snd_sof_dsp_panic(struct snd_sof_dev *sdev, u32 offset);
+void snd_sof_dsp_panic(struct snd_sof_dev *sdev, u32 offset, bool non_recoverable);
 #endif
