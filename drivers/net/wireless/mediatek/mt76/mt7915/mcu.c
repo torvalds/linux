@@ -1023,49 +1023,6 @@ mt7915_mcu_sta_amsdu_tlv(struct sk_buff *skb, struct ieee80211_vif *vif,
 }
 
 static void
-mt7915_mcu_wtbl_ht_tlv(struct sk_buff *skb, struct ieee80211_vif *vif,
-		       struct ieee80211_sta *sta, void *sta_wtbl,
-		       void *wtbl_tlv)
-{
-	struct mt7915_vif *mvif = (struct mt7915_vif *)vif->drv_priv;
-	struct wtbl_ht *ht = NULL;
-	struct tlv *tlv;
-
-	/* wtbl ht */
-	if (sta->ht_cap.ht_supported) {
-		tlv = mt76_connac_mcu_add_nested_tlv(skb, WTBL_HT, sizeof(*ht),
-						     wtbl_tlv, sta_wtbl);
-		ht = (struct wtbl_ht *)tlv;
-		ht->ldpc = mvif->cap.ldpc &&
-			   (sta->ht_cap.cap & IEEE80211_HT_CAP_LDPC_CODING);
-		ht->af = sta->ht_cap.ampdu_factor;
-		ht->mm = sta->ht_cap.ampdu_density;
-		ht->ht = true;
-	}
-
-	/* wtbl vht */
-	if (sta->vht_cap.vht_supported) {
-		struct wtbl_vht *vht;
-		u8 af;
-
-		tlv = mt76_connac_mcu_add_nested_tlv(skb, WTBL_VHT,
-						     sizeof(*vht), wtbl_tlv,
-						     sta_wtbl);
-		vht = (struct wtbl_vht *)tlv;
-		vht->ldpc = mvif->cap.ldpc &&
-			    (sta->vht_cap.cap & IEEE80211_VHT_CAP_RXLDPC);
-		vht->vht = true;
-
-		af = FIELD_GET(IEEE80211_VHT_CAP_MAX_A_MPDU_LENGTH_EXPONENT_MASK,
-			       sta->vht_cap.cap);
-		if (ht)
-			ht->af = max_t(u8, ht->af, af);
-	}
-
-	mt76_connac_mcu_wtbl_smps_tlv(skb, sta, sta_wtbl, wtbl_tlv);
-}
-
-static void
 mt7915_mcu_wtbl_hdr_trans_tlv(struct sk_buff *skb, struct ieee80211_vif *vif,
 			      struct ieee80211_sta *sta,
 			      void *sta_wtbl, void *wtbl_tlv)
@@ -1117,7 +1074,8 @@ mt7915_mcu_sta_wtbl_tlv(struct mt7915_dev *dev, struct sk_buff *skb,
 	mt7915_mcu_wtbl_hdr_trans_tlv(skb, vif, sta, tlv, wtbl_hdr);
 
 	if (sta)
-		mt7915_mcu_wtbl_ht_tlv(skb, vif, sta, tlv, wtbl_hdr);
+		mt76_connac_mcu_wtbl_ht_tlv(&dev->mt76, skb, sta, tlv,
+					    wtbl_hdr, mvif->cap.ldpc);
 
 	return 0;
 }
