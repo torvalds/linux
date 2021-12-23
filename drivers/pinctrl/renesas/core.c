@@ -745,6 +745,7 @@ static int sh_pfc_suspend_init(struct sh_pfc *pfc) { return 0; }
 
 static unsigned int sh_pfc_errors __initdata;
 static unsigned int sh_pfc_warnings __initdata;
+static bool sh_pfc_bias_done __initdata;
 static struct {
 	u32 reg;
 	u32 bits;
@@ -758,6 +759,15 @@ static u32 sh_pfc_num_enums __initdata;
 		pr_err("%s: " fmt, drvname, ##__VA_ARGS__);	\
 		sh_pfc_errors++;				\
 	} while (0)
+
+#define sh_pfc_err_once(type, fmt, ...)				\
+	do {							\
+		if (!sh_pfc_ ## type ## _done) {		\
+			sh_pfc_ ## type ## _done = true;	\
+			sh_pfc_err(fmt, ##__VA_ARGS__);		\
+		}						\
+	} while (0)
+
 #define sh_pfc_warn(fmt, ...)					\
 	do {							\
 		pr_warn("%s: " fmt, drvname, ##__VA_ARGS__);	\
@@ -836,21 +846,22 @@ static void __init sh_pfc_check_reg_enums(const char *drvname, u32 reg,
 	}
 }
 
-static void __init sh_pfc_check_pin(const struct sh_pfc_soc_info *info,
-				    u32 reg, unsigned int pin)
+static const struct sh_pfc_pin __init *sh_pfc_find_pin(
+	const struct sh_pfc_soc_info *info, u32 reg, unsigned int pin)
 {
 	const char *drvname = info->name;
 	unsigned int i;
 
 	if (pin == SH_PFC_PIN_NONE)
-		return;
+		return NULL;
 
 	for (i = 0; i < info->nr_pins; i++) {
 		if (pin == info->pins[i].pin)
-			return;
+			return &info->pins[i];
 	}
 
 	sh_pfc_err("reg 0x%x: pin %u not found\n", reg, pin);
+	return NULL;
 }
 
 static void __init sh_pfc_check_cfg_reg(const char *drvname,
@@ -902,13 +913,15 @@ static void __init sh_pfc_check_drive_reg(const struct sh_pfc_soc_info *info,
 				 GENMASK(field->offset + field->size - 1,
 					 field->offset));
 
-		sh_pfc_check_pin(info, drive->reg, field->pin);
+		sh_pfc_find_pin(info, drive->reg, field->pin);
 	}
 }
 
 static void __init sh_pfc_check_bias_reg(const struct sh_pfc_soc_info *info,
 					 const struct pinmux_bias_reg *bias)
 {
+	const char *drvname = info->name;
+	const struct sh_pfc_pin *pin;
 	unsigned int i;
 	u32 bits;
 
@@ -920,8 +933,32 @@ static void __init sh_pfc_check_bias_reg(const struct sh_pfc_soc_info *info,
 		sh_pfc_check_reg(info->name, bias->puen, bits);
 	if (bias->pud)
 		sh_pfc_check_reg(info->name, bias->pud, bits);
-	for (i = 0; i < ARRAY_SIZE(bias->pins); i++)
-		sh_pfc_check_pin(info, bias->puen, bias->pins[i]);
+	for (i = 0; i < ARRAY_SIZE(bias->pins); i++) {
+		pin = sh_pfc_find_pin(info, bias->puen, bias->pins[i]);
+		if (!pin)
+			continue;
+
+		if (bias->puen && bias->pud) {
+			/*
+			 * Pull-enable and pull-up/down control registers
+			 * As some SoCs have pins that support only pull-up
+			 * or pull-down, we just check for one of them
+			 */
+			if (!(pin->configs & SH_PFC_PIN_CFG_PULL_UP_DOWN))
+				sh_pfc_err("bias_reg 0x%x:%u: pin %s lacks one or more SH_PFC_PIN_CFG_PULL_* flags\n",
+					   bias->puen, i, pin->name);
+		} else if (bias->puen) {
+			/* Pull-up control register only */
+			if (!(pin->configs & SH_PFC_PIN_CFG_PULL_UP))
+				sh_pfc_err("bias_reg 0x%x:%u: pin %s lacks SH_PFC_PIN_CFG_PULL_UP flag\n",
+					   bias->puen, i, pin->name);
+		} else if (bias->pud) {
+			/* Pull-down control register only */
+			if (!(pin->configs & SH_PFC_PIN_CFG_PULL_DOWN))
+				sh_pfc_err("bias_reg 0x%x:%u: pin %s lacks SH_PFC_PIN_CFG_PULL_DOWN flag\n",
+					   bias->pud, i, pin->name);
+		}
+	}
 }
 
 static void __init sh_pfc_compare_groups(const char *drvname,
@@ -963,10 +1000,12 @@ static void __init sh_pfc_check_info(const struct sh_pfc_soc_info *info)
 	pr_info("sh_pfc: Checking %s\n", drvname);
 	sh_pfc_num_regs = 0;
 	sh_pfc_num_enums = 0;
+	sh_pfc_bias_done = false;
 
 	/* Check pins */
 	for (i = 0; i < info->nr_pins; i++) {
 		const struct sh_pfc_pin *pin = &info->pins[i];
+		unsigned int x;
 
 		if (!pin->name) {
 			sh_pfc_err("empty pin %u\n", i);
@@ -987,6 +1026,33 @@ static void __init sh_pfc_check_info(const struct sh_pfc_soc_info *info)
 				sh_pfc_err("pin %s/%s: enum_id %u conflict\n",
 					   pin->name, pin2->name,
 					   pin->enum_id);
+		}
+
+		if (pin->configs & SH_PFC_PIN_CFG_PULL_UP_DOWN) {
+			if (!info->ops || !info->ops->get_bias ||
+			    !info->ops->set_bias)
+				sh_pfc_err_once(bias, "SH_PFC_PIN_CFG_PULL_* flag set but .[gs]et_bias() not implemented\n");
+
+			if (!bias_regs &&
+			     (!info->ops || !info->ops->pin_to_portcr))
+				sh_pfc_err_once(bias, "SH_PFC_PIN_CFG_PULL_UP flag set but no bias_regs defined and .pin_to_portcr() not implemented\n");
+		}
+
+		if ((pin->configs & SH_PFC_PIN_CFG_PULL_UP_DOWN) && bias_regs) {
+			const struct pinmux_bias_reg *bias_reg =
+				rcar_pin_to_bias_reg(info, pin->pin, &x);
+
+			if (!bias_reg ||
+			    ((pin->configs & SH_PFC_PIN_CFG_PULL_UP) &&
+			     !bias_reg->puen))
+				sh_pfc_err("pin %s: SH_PFC_PIN_CFG_PULL_UP flag set but pin not in bias_regs\n",
+					   pin->name);
+
+			if (!bias_reg ||
+			    ((pin->configs & SH_PFC_PIN_CFG_PULL_DOWN) &&
+			     !bias_reg->pud))
+				sh_pfc_err("pin %s: SH_PFC_PIN_CFG_PULL_DOWN flag set but pin not in bias_regs\n",
+					   pin->name);
 		}
 	}
 
