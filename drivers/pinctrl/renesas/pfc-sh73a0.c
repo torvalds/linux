@@ -4137,9 +4137,9 @@ static const unsigned int sh73a0_portcr_offsets[] = {
 	0x00002000, 0x00002000, 0x00003000, 0x00003000, 0x00002000,
 };
 
-static void __iomem *sh73a0_pin_to_portcr(struct sh_pfc *pfc, unsigned int pin)
+static int sh73a0_pin_to_portcr(unsigned int pin)
 {
-	return pfc->windows->virt + sh73a0_portcr_offsets[pin >> 5] + pin;
+	return sh73a0_portcr_offsets[pin >> 5] + pin;
 }
 
 /* -----------------------------------------------------------------------------
