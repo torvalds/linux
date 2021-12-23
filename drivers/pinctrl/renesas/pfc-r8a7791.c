@@ -3198,19 +3198,12 @@ static const unsigned int qspi_ctrl_pins[] = {
 static const unsigned int qspi_ctrl_mux[] = {
 	SPCLK_MARK, SSL_MARK,
 };
-static const unsigned int qspi_data2_pins[] = {
-	/* MOSI_IO0, MISO_IO1 */
-	RCAR_GP_PIN(1, 5), RCAR_GP_PIN(1, 6),
-};
-static const unsigned int qspi_data2_mux[] = {
-	MOSI_IO0_MARK, MISO_IO1_MARK,
-};
-static const unsigned int qspi_data4_pins[] = {
+static const unsigned int qspi_data_pins[] = {
 	/* MOSI_IO0, MISO_IO1, IO2, IO3 */
 	RCAR_GP_PIN(1, 5), RCAR_GP_PIN(1, 6), RCAR_GP_PIN(1, 7),
 	RCAR_GP_PIN(1, 8),
 };
-static const unsigned int qspi_data4_mux[] = {
+static const unsigned int qspi_data_mux[] = {
 	MOSI_IO0_MARK, MISO_IO1_MARK, IO2_MARK, IO3_MARK,
 };
 
@@ -3221,19 +3214,12 @@ static const unsigned int qspi_ctrl_b_pins[] = {
 static const unsigned int qspi_ctrl_b_mux[] = {
 	SPCLK_B_MARK, SSL_B_MARK,
 };
-static const unsigned int qspi_data2_b_pins[] = {
-	/* MOSI_IO0, MISO_IO1 */
-	RCAR_GP_PIN(6, 1), RCAR_GP_PIN(6, 2),
-};
-static const unsigned int qspi_data2_b_mux[] = {
-	MOSI_IO0_B_MARK, MISO_IO1_B_MARK,
-};
-static const unsigned int qspi_data4_b_pins[] = {
+static const unsigned int qspi_data_b_pins[] = {
 	/* MOSI_IO0, MISO_IO1, IO2, IO3 */
 	RCAR_GP_PIN(6, 1), RCAR_GP_PIN(6, 2), RCAR_GP_PIN(6, 3),
 	RCAR_GP_PIN(6, 4),
 };
-static const unsigned int qspi_data4_b_mux[] = {
+static const unsigned int qspi_data_b_mux[] = {
 	MOSI_IO0_B_MARK, MISO_IO1_B_MARK, IO2_B_MARK, IO3_B_MARK,
 };
 /* - SCIF0 ------------------------------------------------------------------ */
@@ -4648,11 +4634,11 @@ static const struct {
 		SH_PFC_PIN_GROUP(pwm5_b),
 		SH_PFC_PIN_GROUP(pwm6),
 		SH_PFC_PIN_GROUP(qspi_ctrl),
-		SH_PFC_PIN_GROUP(qspi_data2),
-		SH_PFC_PIN_GROUP(qspi_data4),
+		BUS_DATA_PIN_GROUP(qspi_data, 2),
+		BUS_DATA_PIN_GROUP(qspi_data, 4),
 		SH_PFC_PIN_GROUP(qspi_ctrl_b),
-		SH_PFC_PIN_GROUP(qspi_data2_b),
-		SH_PFC_PIN_GROUP(qspi_data4_b),
+		BUS_DATA_PIN_GROUP(qspi_data, 2, _b),
+		BUS_DATA_PIN_GROUP(qspi_data, 4, _b),
 		SH_PFC_PIN_GROUP(scif0_data),
 		SH_PFC_PIN_GROUP(scif0_data_b),
 		SH_PFC_PIN_GROUP(scif0_data_c),
