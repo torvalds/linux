@@ -156,15 +156,13 @@
  *    fast commit recovery even if that area is invalidated by later full
  *    commits.
  *
- * 1) Make fast commit atomic updates more fine grained. Today, a fast commit
- *    eligible update must be protected within ext4_fc_start_update() and
- *    ext4_fc_stop_update(). These routines are called at much higher
- *    routines. This can be made more fine grained by combining with
- *    ext4_journal_start().
+ * 1) Fast commit's commit path locks the entire file system during fast
+ *    commit. This has significant performance penalty. Instead of that, we
+ *    should use ext4_fc_start/stop_update functions to start inode level
+ *    updates from ext4_journal_start/stop. Once we do that we can drop file
+ *    system locking during commit path.
  *
- * 2) Same above for ext4_fc_start_ineligible() and ext4_fc_stop_ineligible()
- *
- * 3) Handle more ineligible cases.
+ * 2) Handle more ineligible cases.
  */
 
 #include <trace/events/ext4.h>
