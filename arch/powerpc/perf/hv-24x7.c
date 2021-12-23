@@ -756,7 +756,7 @@ static ssize_t catalog_event_len_validate(struct hv_24x7_event_data *event,
 	}
 
 	if (calc_ev_end > ev_end) {
-		pr_warn("event %zu exceeds it's own length: event=%pK, end=%pK, offset=%zu, calc_ev_end=%pK\n",
+		pr_warn("event %zu exceeds its own length: event=%pK, end=%pK, offset=%zu, calc_ev_end=%pK\n",
 			event_idx, event, ev_end, offset, calc_ev_end);
 		return -1;
 	}
