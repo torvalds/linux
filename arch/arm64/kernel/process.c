@@ -365,15 +365,15 @@ void __show_regs(struct pt_regs *regs)
 
 		pr_cont("\n");
 	}
-	if (!user_mode(regs))
-		show_extra_register_data(regs, 256);
-	printk("\n");
 }
 
 void show_regs(struct pt_regs * regs)
 {
 	__show_regs(regs);
 	dump_backtrace(regs, NULL, KERN_DEFAULT);
+
+	if (!user_mode(regs))
+		show_extra_register_data(regs, 256);
 }
 EXPORT_SYMBOL_GPL(show_regs);
 
