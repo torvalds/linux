@@ -660,7 +660,7 @@ static const struct gce_plat gce_plat_v5 = {
 	.thread_nr = 24,
 	.shift = 3,
 	.control_by_sw = true,
-	.gce_num = 2
+	.gce_num = 1
 };
 
 static const struct gce_plat gce_plat_v6 = {
