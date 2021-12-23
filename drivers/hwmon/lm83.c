@@ -272,10 +272,10 @@ static const struct attribute_group lm83_group_opt = {
  */
 
 /* Return 0 if detection is successful, -ENODEV otherwise */
-static int lm83_detect(struct i2c_client *new_client,
+static int lm83_detect(struct i2c_client *client,
 		       struct i2c_board_info *info)
 {
-	struct i2c_adapter *adapter = new_client->adapter;
+	struct i2c_adapter *adapter = client->adapter;
 	const char *name;
 	u8 man_id, chip_id;
 
@@ -283,20 +283,20 @@ static int lm83_detect(struct i2c_client *new_client,
 		return -ENODEV;
 
 	/* Detection */
-	if ((i2c_smbus_read_byte_data(new_client, LM83_REG_R_STATUS1) & 0xA8) ||
-	    (i2c_smbus_read_byte_data(new_client, LM83_REG_R_STATUS2) & 0x48) ||
-	    (i2c_smbus_read_byte_data(new_client, LM83_REG_R_CONFIG) & 0x41)) {
+	if ((i2c_smbus_read_byte_data(client, LM83_REG_R_STATUS1) & 0xA8) ||
+	    (i2c_smbus_read_byte_data(client, LM83_REG_R_STATUS2) & 0x48) ||
+	    (i2c_smbus_read_byte_data(client, LM83_REG_R_CONFIG) & 0x41)) {
 		dev_dbg(&adapter->dev, "LM83 detection failed at 0x%02x\n",
-			new_client->addr);
+			client->addr);
 		return -ENODEV;
 	}
 
 	/* Identification */
-	man_id = i2c_smbus_read_byte_data(new_client, LM83_REG_R_MAN_ID);
+	man_id = i2c_smbus_read_byte_data(client, LM83_REG_R_MAN_ID);
 	if (man_id != 0x01)	/* National Semiconductor */
 		return -ENODEV;
 
-	chip_id = i2c_smbus_read_byte_data(new_client, LM83_REG_R_CHIP_ID);
+	chip_id = i2c_smbus_read_byte_data(client, LM83_REG_R_CHIP_ID);
 	switch (chip_id) {
 	case 0x03:
 		name = "lm83";
@@ -324,17 +324,17 @@ static const struct i2c_device_id lm83_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, lm83_id);
 
-static int lm83_probe(struct i2c_client *new_client)
+static int lm83_probe(struct i2c_client *client)
 {
 	struct device *hwmon_dev;
 	struct lm83_data *data;
 
-	data = devm_kzalloc(&new_client->dev, sizeof(struct lm83_data),
+	data = devm_kzalloc(&client->dev, sizeof(struct lm83_data),
 			    GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
 
-	data->client = new_client;
+	data->client = client;
 	mutex_init(&data->update_lock);
 
 	/*
@@ -344,11 +344,11 @@ static int lm83_probe(struct i2c_client *new_client)
 	 * declare 1 and 3 common, and then 2 and 4 only for the LM83.
 	 */
 	data->groups[0] = &lm83_group;
-	if (i2c_match_id(lm83_id, new_client)->driver_data == lm83)
+	if (i2c_match_id(lm83_id, client)->driver_data == lm83)
 		data->groups[1] = &lm83_group_opt;
 
-	hwmon_dev = devm_hwmon_device_register_with_groups(&new_client->dev,
-							   new_client->name,
+	hwmon_dev = devm_hwmon_device_register_with_groups(&client->dev,
+							   client->name,
 							   data, data->groups);
 	return PTR_ERR_OR_ZERO(hwmon_dev);
 }
