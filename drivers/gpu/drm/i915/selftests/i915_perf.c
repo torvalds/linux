@@ -424,7 +424,7 @@ int i915_perf_live_selftests(struct drm_i915_private *i915)
 	if (!perf->metrics_kobj || !perf->ops.enable_metric_set)
 		return 0;
 
-	if (intel_gt_is_wedged(&i915->gt))
+	if (intel_gt_is_wedged(to_gt(i915)))
 		return 0;
 
 	err = alloc_empty_config(&i915->perf);

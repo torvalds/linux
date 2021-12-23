@@ -262,6 +262,8 @@ static void __i915_gem_object_free_mmaps(struct drm_i915_gem_object *obj)
  */
 void __i915_gem_object_pages_fini(struct drm_i915_gem_object *obj)
 {
+	assert_object_held(obj);
+
 	if (!list_empty(&obj->vma.list)) {
 		struct i915_vma *vma;
 
@@ -328,7 +330,16 @@ static void __i915_gem_free_objects(struct drm_i915_private *i915,
 			obj->ops->delayed_free(obj);
 			continue;
 		}
+
+		if (!i915_gem_object_trylock(obj, NULL)) {
+			/* busy, toss it back to the pile */
+			if (llist_add(&obj->freed, &i915->mm.free_list))
+				queue_delayed_work(i915->wq, &i915->mm.free_work, msecs_to_jiffies(10));
+			continue;
+		}
+
 		__i915_gem_object_pages_fini(obj);
+		i915_gem_object_unlock(obj);
 		__i915_gem_free_object(obj);
 
 		/* But keep the pointer alive for RCU-protected lookups */
@@ -348,7 +359,7 @@ void i915_gem_flush_free_objects(struct drm_i915_private *i915)
 static void __i915_gem_free_work(struct work_struct *work)
 {
 	struct drm_i915_private *i915 =
-		container_of(work, struct drm_i915_private, mm.free_work);
+		container_of(work, struct drm_i915_private, mm.free_work.work);
 
 	i915_gem_flush_free_objects(i915);
 }
@@ -380,7 +391,7 @@ static void i915_gem_free_object(struct drm_gem_object *gem_obj)
 	 */
 
 	if (llist_add(&obj->freed, &i915->mm.free_list))
-		queue_work(i915->wq, &i915->mm.free_work);
+		queue_delayed_work(i915->wq, &i915->mm.free_work, 0);
 }
 
 void __i915_gem_object_flush_frontbuffer(struct drm_i915_gem_object *obj,
@@ -705,7 +716,7 @@ bool i915_gem_object_placement_possible(struct drm_i915_gem_object *obj,
 
 void i915_gem_init__objects(struct drm_i915_private *i915)
 {
-	INIT_WORK(&i915->mm.free_work, __i915_gem_free_work);
+	INIT_DELAYED_WORK(&i915->mm.free_work, __i915_gem_free_work);
 }
 
 void i915_objects_module_exit(void)

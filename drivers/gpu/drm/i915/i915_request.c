@@ -42,6 +42,7 @@
 #include "gt/intel_rps.h"
 
 #include "i915_active.h"
+#include "i915_deps.h"
 #include "i915_drv.h"
 #include "i915_trace.h"
 #include "intel_pm.h"
@@ -308,6 +309,7 @@ void i915_request_free_capture_list(struct i915_capture_list *capture)
 		struct i915_capture_list *next = capture->next;
 
 		i915_vma_snapshot_put(capture->vma_snapshot);
+		kfree(capture);
 		capture = next;
 	}
 }
@@ -1538,6 +1540,27 @@ i915_request_await_dma_fence(struct i915_request *rq, struct dma_fence *fence)
 			intel_timeline_sync_set(i915_request_timeline(rq),
 						fence);
 	} while (--nchild);
+
+	return 0;
+}
+
+/**
+ * i915_request_await_deps - set this request to (async) wait upon a struct
+ * i915_deps dma_fence collection
+ * @rq: request we are wishing to use
+ * @deps: The struct i915_deps containing the dependencies.
+ *
+ * Returns 0 if successful, negative error code on error.
+ */
+int i915_request_await_deps(struct i915_request *rq, const struct i915_deps *deps)
+{
+	int i, err;
+
+	for (i = 0; i < deps->num_deps; ++i) {
+		err = i915_request_await_dma_fence(rq, deps->fences[i]);
+		if (err)
+			return err;
+	}
 
 	return 0;
 }

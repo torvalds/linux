@@ -8,6 +8,7 @@
 #include "intel_guc.h"
 #include "intel_guc_ads.h"
 #include "intel_guc_submission.h"
+#include "gt/intel_rps.h"
 #include "intel_uc.h"
 
 #include "i915_drv.h"
@@ -462,6 +463,8 @@ static int __uc_init_hw(struct intel_uc *uc)
 	else
 		attempts = 1;
 
+	intel_rps_raise_unslice(&uc_to_gt(uc)->rps);
+
 	while (attempts--) {
 		/*
 		 * Always reset the GuC just before (re)loading, so
@@ -499,6 +502,9 @@ static int __uc_init_hw(struct intel_uc *uc)
 		ret = intel_guc_slpc_enable(&guc->slpc);
 		if (ret)
 			goto err_submission;
+	} else {
+		/* Restore GT back to RPn for non-SLPC path */
+		intel_rps_lower_unslice(&uc_to_gt(uc)->rps);
 	}
 
 	drm_info(&i915->drm, "%s firmware %s version %u.%u %s:%s\n",
@@ -529,6 +535,9 @@ err_submission:
 err_log_capture:
 	__uc_capture_load_err_log(uc);
 err_out:
+	/* Return GT back to RPn */
+	intel_rps_lower_unslice(&uc_to_gt(uc)->rps);
+
 	__uc_sanitize(uc);
 
 	if (!ret) {
