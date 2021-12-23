@@ -417,7 +417,7 @@ static void rga_input_fence_signaled(struct dma_fence *fence,
 	kfree(waiter);
 }
 
-int rga_commit(struct rga_req *rga_command_base, int flags)
+int rga_job_commit(struct rga_req *rga_command_base, int flags)
 {
 	struct rga_job *job = NULL;
 	struct rga_scheduler_t *scheduler = NULL;
@@ -545,8 +545,8 @@ running_job_abort:
 	return ret;
 }
 
-int rga_kernel_commit(struct rga_req *rga_command_base,
-			 struct rga_mpi_job_t *mpi_job, int flags)
+int rga_job_mpi_commit(struct rga_req *rga_command_base,
+		       struct rga_mpi_job_t *mpi_job, int flags)
 {
 	struct rga_job *job = NULL;
 	struct rga_scheduler_t *scheduler = NULL;
@@ -558,9 +558,11 @@ int rga_kernel_commit(struct rga_req *rga_command_base,
 		return -ENOMEM;
 	}
 
-	job->dma_buf_src0 = mpi_job->dma_buf_src0;
-	job->dma_buf_src1 = mpi_job->dma_buf_src1;
-	job->dma_buf_dst = mpi_job->dma_buf_dst;
+	if (mpi_job != NULL) {
+		job->dma_buf_src0 = mpi_job->dma_buf_src0;
+		job->dma_buf_src1 = mpi_job->dma_buf_src1;
+		job->dma_buf_dst = mpi_job->dma_buf_dst;
+	}
 
 	if (flags == RGA_BLIT_ASYNC) {
 		//TODO:

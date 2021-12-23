@@ -18,10 +18,10 @@
 #define RGA_JOB_SYNC (1 << 2)
 
 void rga_job_done(struct rga_scheduler_t *rga_scheduler, int ret);
-int rga_commit(struct rga_req *rga_command_base, int flags);
+int rga_job_commit(struct rga_req *rga_command_base, int flags);
 
-int rga_kernel_commit(struct rga_req *rga_command_base,
-	struct rga_mpi_job_t *mpi_job, int flags);
+int rga_job_mpi_commit(struct rga_req *rga_command_base,
+		       struct rga_mpi_job_t *mpi_job, int flags);
 
 int rga_job_assign(struct rga_job *job);
 

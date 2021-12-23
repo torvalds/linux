@@ -41,15 +41,35 @@ int rga_mpi_commit(struct rga_req *cmd, struct rga_mpi_job_t *mpi_job)
 {
 	int ret;
 
-	ret = rga_kernel_commit(cmd, mpi_job, RGA_BLIT_SYNC);
+	if (RGA_DEBUG_MSG)
+		rga_cmd_print_debug_info(cmd);
+
+	ret = rga_job_mpi_commit(cmd, mpi_job, RGA_BLIT_SYNC);
 	if (ret < 0) {
-		pr_err("rga_kernel_commit failed\n");
+		pr_err("%s, commit mpi job failed\n", __func__);
 		return ret;
 	}
 
 	return ret;
 }
 EXPORT_SYMBOL_GPL(rga_mpi_commit);
+
+int rga_kernel_commit(struct rga_req *cmd)
+{
+	int ret;
+
+	if (RGA_DEBUG_MSG)
+		rga_cmd_print_debug_info(cmd);
+
+	ret = rga_job_commit(cmd, RGA_BLIT_SYNC);
+	if (ret < 0) {
+		pr_err("%s, commit kernel job failed\n", __func__);
+		return ret;
+	}
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(rga_kernel_commit);
 
 #ifndef CONFIG_ROCKCHIP_FPGA
 int rga_power_enable(struct rga_scheduler_t *rga_scheduler)
@@ -252,9 +272,9 @@ static long rga_ioctl(struct file *file, uint32_t cmd, unsigned long arg)
 		if (RGA_DEBUG_MSG)
 			rga_cmd_print_debug_info(&req_rga);
 
-		ret = rga_commit(&req_rga, cmd);
+		ret = rga_job_commit(&req_rga, cmd);
 		if (ret < 0) {
-			pr_err("rga_commit failed\n");
+			pr_err("rga_job_commit failed\n");
 			break;
 		}
 
