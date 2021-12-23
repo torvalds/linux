@@ -1151,6 +1151,7 @@ struct drm_amdgpu_info_video_caps {
 #define AMDGPU_FAMILY_NV			143 /* Navi10 */
 #define AMDGPU_FAMILY_VGH			144 /* Van Gogh */
 #define AMDGPU_FAMILY_YC			146 /* Yellow Carp */
+#define AMDGPU_FAMILY_GC_10_3_7			151 /* GC 10.3.7 */
 
 #if defined(__cplusplus)
 }
