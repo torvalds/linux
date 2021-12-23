@@ -4335,7 +4335,7 @@ static int set_le_simultaneous_roles_func(struct sock *sk, struct hci_dev *hdev,
 			hci_dev_clear_flag(hdev, HCI_LE_SIMULTANEOUS_ROLES);
 	}
 
-	bt_dev_info(hdev, "LE simultanous roles enable %d changed %d",
+	bt_dev_info(hdev, "LE simultaneous roles enable %d changed %d",
 		    val, changed);
 
 	memcpy(rp.uuid, le_simultaneous_roles_uuid, 16);
