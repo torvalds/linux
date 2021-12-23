@@ -957,7 +957,7 @@ static void snd_sof_dbg_print_fw_state(struct snd_sof_dev *sdev)
 
 void snd_sof_dsp_dbg_dump(struct snd_sof_dev *sdev, u32 flags)
 {
-	bool print_all = !!(sof_core_debug & SOF_DBG_PRINT_ALL_DUMPS);
+	bool print_all = sof_debug_check_flag(SOF_DBG_PRINT_ALL_DUMPS);
 
 	if (flags & SOF_DBG_DUMP_OPTIONAL && !print_all)
 		return;
@@ -979,7 +979,7 @@ static void snd_sof_ipc_dump(struct snd_sof_dev *sdev)
 		dev_err(sdev->dev, "------------[ IPC dump start ]------------\n");
 		sof_ops(sdev)->ipc_dump(sdev);
 		dev_err(sdev->dev, "------------[ IPC dump end ]------------\n");
-		if (!(sof_core_debug & SOF_DBG_PRINT_ALL_DUMPS))
+		if (!sof_debug_check_flag(SOF_DBG_PRINT_ALL_DUMPS))
 			sdev->ipc_dump_printed = true;
 	}
 }
@@ -987,7 +987,7 @@ static void snd_sof_ipc_dump(struct snd_sof_dev *sdev)
 void snd_sof_handle_fw_exception(struct snd_sof_dev *sdev)
 {
 	if (IS_ENABLED(CONFIG_SND_SOC_SOF_DEBUG_RETAIN_DSP_CONTEXT) ||
-	    (sof_core_debug & SOF_DBG_RETAIN_CTX)) {
+	    sof_debug_check_flag(SOF_DBG_RETAIN_CTX)) {
 		/* should we prevent DSP entering D3 ? */
 		if (!sdev->ipc_dump_printed)
 			dev_info(sdev->dev,

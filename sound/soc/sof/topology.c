@@ -1695,12 +1695,12 @@ static int sof_widget_load_pipeline(struct snd_soc_component *scomp, int index,
 		goto err;
 	}
 
-	if (sof_core_debug & SOF_DBG_DISABLE_MULTICORE)
+	if (sof_debug_check_flag(SOF_DBG_DISABLE_MULTICORE))
 		pipeline->core = SOF_DSP_PRIMARY_CORE;
 
-	if (sof_core_debug & SOF_DBG_DYNAMIC_PIPELINES_OVERRIDE)
-		swidget->dynamic_pipeline_widget = sof_core_debug &
-			SOF_DBG_DYNAMIC_PIPELINES_ENABLE;
+	if (sof_debug_check_flag(SOF_DBG_DYNAMIC_PIPELINES_OVERRIDE))
+		swidget->dynamic_pipeline_widget =
+			sof_debug_check_flag(SOF_DBG_DYNAMIC_PIPELINES_ENABLE);
 
 	dev_dbg(scomp->dev, "pipeline %s: period %d pri %d mips %d core %d frames %d dynamic %d\n",
 		swidget->widget->name, pipeline->period, pipeline->priority,
@@ -2295,7 +2295,7 @@ static int sof_widget_ready(struct snd_soc_component *scomp, int index,
 		return ret;
 	}
 
-	if (sof_core_debug & SOF_DBG_DISABLE_MULTICORE)
+	if (sof_debug_check_flag(SOF_DBG_DISABLE_MULTICORE))
 		comp.core = SOF_DSP_PRIMARY_CORE;
 
 	swidget->core = comp.core;
@@ -3542,7 +3542,7 @@ static int sof_complete(struct snd_soc_component *scomp)
 	}
 
 	/* verify topology components loading including dynamic pipelines */
-	if (sof_core_debug & SOF_DBG_VERIFY_TPLG) {
+	if (sof_debug_check_flag(SOF_DBG_VERIFY_TPLG)) {
 		ret = sof_set_up_pipelines(sdev, true);
 		if (ret < 0) {
 			dev_err(sdev->dev, "error: topology verification failed %d\n", ret);

@@ -42,7 +42,6 @@
 #define SOF_DBG_DUMP_OPTIONAL		BIT(4) /* only dump if SOF_DBG_PRINT_ALL_DUMPS is set */
 
 /* global debug state set by SOF_DBG_ flags */
-extern int sof_core_debug;
 bool sof_debug_check_flag(int mask);
 
 /* max BARs mmaped devices can use */
