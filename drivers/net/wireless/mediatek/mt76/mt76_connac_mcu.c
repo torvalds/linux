@@ -462,13 +462,17 @@ void mt76_connac_mcu_wtbl_hdr_trans_tlv(struct sk_buff *skb,
 					     sizeof(*htr),
 					     wtbl_tlv, sta_wtbl);
 	htr = (struct wtbl_hdr_trans *)tlv;
-	htr->no_rx_trans = !test_bit(MT_WCID_FLAG_HDR_TRANS, &wcid->flags);
+	htr->no_rx_trans = true;
 
 	if (vif->type == NL80211_IFTYPE_STATION)
 		htr->to_ds = true;
 	else
 		htr->from_ds = true;
 
+	if (!wcid)
+		return;
+
+	htr->no_rx_trans = !test_bit(MT_WCID_FLAG_HDR_TRANS, &wcid->flags);
 	if (test_bit(MT_WCID_FLAG_4ADDR, &wcid->flags)) {
 		htr->to_ds = true;
 		htr->from_ds = true;

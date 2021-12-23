@@ -1022,35 +1022,6 @@ mt7915_mcu_sta_amsdu_tlv(struct sk_buff *skb, struct ieee80211_vif *vif,
 	msta->wcid.amsdu = true;
 }
 
-static void
-mt7915_mcu_wtbl_hdr_trans_tlv(struct sk_buff *skb, struct ieee80211_vif *vif,
-			      struct ieee80211_sta *sta,
-			      void *sta_wtbl, void *wtbl_tlv)
-{
-	struct mt7915_sta *msta;
-	struct wtbl_hdr_trans *htr = NULL;
-	struct tlv *tlv;
-
-	tlv = mt76_connac_mcu_add_nested_tlv(skb, WTBL_HDR_TRANS, sizeof(*htr),
-					     wtbl_tlv, sta_wtbl);
-	htr = (struct wtbl_hdr_trans *)tlv;
-	htr->no_rx_trans = true;
-	if (vif->type == NL80211_IFTYPE_STATION)
-		htr->to_ds = true;
-	else
-		htr->from_ds = true;
-
-	if (!sta)
-		return;
-
-	msta = (struct mt7915_sta *)sta->drv_priv;
-	htr->no_rx_trans = !test_bit(MT_WCID_FLAG_HDR_TRANS, &msta->wcid.flags);
-	if (test_bit(MT_WCID_FLAG_4ADDR, &msta->wcid.flags)) {
-		htr->to_ds = true;
-		htr->from_ds = true;
-	}
-}
-
 static int
 mt7915_mcu_sta_wtbl_tlv(struct mt7915_dev *dev, struct sk_buff *skb,
 			struct ieee80211_vif *vif, struct ieee80211_sta *sta)
@@ -1058,9 +1029,11 @@ mt7915_mcu_sta_wtbl_tlv(struct mt7915_dev *dev, struct sk_buff *skb,
 	struct mt7915_vif *mvif = (struct mt7915_vif *)vif->drv_priv;
 	struct mt7915_sta *msta;
 	struct wtbl_req_hdr *wtbl_hdr;
+	struct mt76_wcid *wcid;
 	struct tlv *tlv;
 
 	msta = sta ? (struct mt7915_sta *)sta->drv_priv : &mvif->sta;
+	wcid = sta ? &msta->wcid : NULL;
 
 	tlv = mt76_connac_mcu_add_tlv(skb, STA_REC_WTBL, sizeof(struct tlv));
 	wtbl_hdr = mt76_connac_mcu_alloc_wtbl_req(&dev->mt76, &msta->wcid,
@@ -1071,8 +1044,7 @@ mt7915_mcu_sta_wtbl_tlv(struct mt7915_dev *dev, struct sk_buff *skb,
 
 	mt76_connac_mcu_wtbl_generic_tlv(&dev->mt76, skb, vif, sta, tlv,
 					 wtbl_hdr);
-	mt7915_mcu_wtbl_hdr_trans_tlv(skb, vif, sta, tlv, wtbl_hdr);
-
+	mt76_connac_mcu_wtbl_hdr_trans_tlv(skb, vif, wcid, tlv, wtbl_hdr);
 	if (sta)
 		mt76_connac_mcu_wtbl_ht_tlv(&dev->mt76, skb, sta, tlv,
 					    wtbl_hdr, mvif->cap.ldpc);
@@ -1098,8 +1070,8 @@ int mt7915_mcu_sta_update_hdr_trans(struct mt7915_dev *dev,
 	if (IS_ERR(wtbl_hdr))
 		return PTR_ERR(wtbl_hdr);
 
-	mt7915_mcu_wtbl_hdr_trans_tlv(skb, vif, sta, NULL, wtbl_hdr);
-
+	mt76_connac_mcu_wtbl_hdr_trans_tlv(skb, vif, &msta->wcid, NULL,
+					   wtbl_hdr);
 	return mt76_mcu_skb_send_msg(&dev->mt76, skb, MCU_EXT_CMD(WTBL_UPDATE),
 				     true);
 }
