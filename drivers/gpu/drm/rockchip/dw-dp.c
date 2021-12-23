@@ -1922,7 +1922,7 @@ static u32 *dw_dp_bridge_atomic_get_output_bus_fmts(struct drm_bridge *bridge,
 	for (i = 0; i < ARRAY_SIZE(possible_output_fmts); i++) {
 		const struct dw_dp_output_format *fmt = &possible_output_fmts[i];
 
-		if (fmt->bpc > di->bpc)
+		if (fmt->bpc > conn_state->max_bpc)
 			continue;
 
 		if (!(di->color_formats & fmt->color_format))
