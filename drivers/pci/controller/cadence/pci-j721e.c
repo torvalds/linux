@@ -354,7 +354,7 @@ static int j721e_pcie_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct device_node *node = dev->of_node;
 	struct pci_host_bridge *bridge;
-	struct j721e_pcie_data *data;
+	const struct j721e_pcie_data *data;
 	struct cdns_pcie *cdns_pcie;
 	struct j721e_pcie *pcie;
 	struct cdns_pcie_rc *rc;
@@ -367,7 +367,7 @@ static int j721e_pcie_probe(struct platform_device *pdev)
 	int ret;
 	int irq;
 
-	data = (struct j721e_pcie_data *)of_device_get_match_data(dev);
+	data = of_device_get_match_data(dev);
 	if (!data)
 		return -EINVAL;
 
