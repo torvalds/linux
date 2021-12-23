@@ -6989,7 +6989,7 @@ static const struct pinmux_bias_reg pinmux_bias_regs[] = {
 	{ /* sentinel */ },
 };
 
-static const struct sh_pfc_soc_operations r8a7791_pinmux_ops = {
+static const struct sh_pfc_soc_operations r8a7791_pfc_ops = {
 	.pin_to_pocctrl = r8a7791_pin_to_pocctrl,
 	.get_bias = rcar_pinmux_get_bias,
 	.set_bias = rcar_pinmux_set_bias,
@@ -6998,7 +6998,7 @@ static const struct sh_pfc_soc_operations r8a7791_pinmux_ops = {
 #ifdef CONFIG_PINCTRL_PFC_R8A7743
 const struct sh_pfc_soc_info r8a7743_pinmux_info = {
 	.name = "r8a77430_pfc",
-	.ops = &r8a7791_pinmux_ops,
+	.ops = &r8a7791_pfc_ops,
 	.unlock_reg = 0xe6060000, /* PMMR */
 
 	.function = { PINMUX_FUNCTION_BEGIN, PINMUX_FUNCTION_END },
@@ -7021,7 +7021,7 @@ const struct sh_pfc_soc_info r8a7743_pinmux_info = {
 #ifdef CONFIG_PINCTRL_PFC_R8A7744
 const struct sh_pfc_soc_info r8a7744_pinmux_info = {
 	.name = "r8a77440_pfc",
-	.ops = &r8a7791_pinmux_ops,
+	.ops = &r8a7791_pfc_ops,
 	.unlock_reg = 0xe6060000, /* PMMR */
 
 	.function = { PINMUX_FUNCTION_BEGIN, PINMUX_FUNCTION_END },
@@ -7044,7 +7044,7 @@ const struct sh_pfc_soc_info r8a7744_pinmux_info = {
 #ifdef CONFIG_PINCTRL_PFC_R8A7791
 const struct sh_pfc_soc_info r8a7791_pinmux_info = {
 	.name = "r8a77910_pfc",
-	.ops = &r8a7791_pinmux_ops,
+	.ops = &r8a7791_pfc_ops,
 	.unlock_reg = 0xe6060000, /* PMMR */
 
 	.function = { PINMUX_FUNCTION_BEGIN, PINMUX_FUNCTION_END },
@@ -7069,7 +7069,7 @@ const struct sh_pfc_soc_info r8a7791_pinmux_info = {
 #ifdef CONFIG_PINCTRL_PFC_R8A7793
 const struct sh_pfc_soc_info r8a7793_pinmux_info = {
 	.name = "r8a77930_pfc",
-	.ops = &r8a7791_pinmux_ops,
+	.ops = &r8a7791_pfc_ops,
 	.unlock_reg = 0xe6060000, /* PMMR */
 
 	.function = { PINMUX_FUNCTION_BEGIN, PINMUX_FUNCTION_END },

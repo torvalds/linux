@@ -4429,7 +4429,7 @@ static const struct pinmux_bias_reg pinmux_bias_regs[] = {
 	{ /* sentinel */ },
 };
 
-static const struct sh_pfc_soc_operations pinmux_ops = {
+static const struct sh_pfc_soc_operations r8a779a0_pfc_ops = {
 	.pin_to_pocctrl = r8a779a0_pin_to_pocctrl,
 	.get_bias = rcar_pinmux_get_bias,
 	.set_bias = rcar_pinmux_set_bias,
@@ -4437,7 +4437,7 @@ static const struct sh_pfc_soc_operations pinmux_ops = {
 
 const struct sh_pfc_soc_info r8a779a0_pinmux_info = {
 	.name = "r8a779a0_pfc",
-	.ops = &pinmux_ops,
+	.ops = &r8a779a0_pfc_ops,
 	.unlock_reg = 0x1ff,	/* PMMRn mask */
 
 	.function = { PINMUX_FUNCTION_BEGIN, PINMUX_FUNCTION_END },

@@ -3281,14 +3281,14 @@ static const struct pinmux_bias_reg pinmux_bias_regs[] = {
 	{ /* sentinel */ }
 };
 
-static const struct sh_pfc_soc_operations r8a7792_pinmux_ops = {
+static const struct sh_pfc_soc_operations r8a7792_pfc_ops = {
 	.get_bias = rcar_pinmux_get_bias,
 	.set_bias = rcar_pinmux_set_bias,
 };
 
 const struct sh_pfc_soc_info r8a7792_pinmux_info = {
 	.name = "r8a77920_pfc",
-	.ops = &r8a7792_pinmux_ops,
+	.ops = &r8a7792_pfc_ops,
 	.unlock_reg = 0xe6060000, /* PMMR */
 
 	.function = { PINMUX_FUNCTION_BEGIN, PINMUX_FUNCTION_END },

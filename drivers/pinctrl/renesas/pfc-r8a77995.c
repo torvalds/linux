@@ -3158,7 +3158,7 @@ static void r8a77995_pinmux_set_bias(struct sh_pfc *pfc, unsigned int pin,
 	sh_pfc_write(pfc, reg->puen, enable);
 }
 
-static const struct sh_pfc_soc_operations r8a77995_pinmux_ops = {
+static const struct sh_pfc_soc_operations r8a77995_pfc_ops = {
 	.pin_to_pocctrl = r8a77995_pin_to_pocctrl,
 	.get_bias = r8a77995_pinmux_get_bias,
 	.set_bias = r8a77995_pinmux_set_bias,
@@ -3166,7 +3166,7 @@ static const struct sh_pfc_soc_operations r8a77995_pinmux_ops = {
 
 const struct sh_pfc_soc_info r8a77995_pinmux_info = {
 	.name = "r8a77995_pfc",
-	.ops = &r8a77995_pinmux_ops,
+	.ops = &r8a77995_pfc_ops,
 	.unlock_reg = 0xe6060000, /* PMMR */
 
 	.function = { PINMUX_FUNCTION_BEGIN, PINMUX_FUNCTION_END },
