@@ -315,10 +315,11 @@ int snd_sof_prepare(struct device *dev)
 	sdev->system_suspend_target = SOF_SUSPEND_S3;
 
 	/*
-	 * if the firmware is crashed then we try to aim for S3 to reboot the
-	 * firmware
+	 * if the firmware is crashed or boot failed then we try to aim for S3
+	 * to reboot the firmware
 	 */
-	if (sdev->fw_state == SOF_FW_CRASHED)
+	if (sdev->fw_state == SOF_FW_CRASHED ||
+	    sdev->fw_state == SOF_FW_BOOT_FAILED)
 		return 0;
 
 	if (!desc->use_acpi_target_states)
