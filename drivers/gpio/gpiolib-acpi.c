@@ -1339,6 +1339,9 @@ void acpi_gpio_dev_init(struct gpio_chip *gc, struct gpio_device *gdev)
 	/* Set default fwnode to parent's one if present */
 	if (gc->parent)
 		ACPI_COMPANION_SET(&gdev->dev, ACPI_COMPANION(gc->parent));
+
+	if (gc->fwnode)
+		device_set_node(&gdev->dev, gc->fwnode);
 }
 
 static int acpi_gpio_package_count(const union acpi_object *obj)
