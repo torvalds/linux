@@ -6584,6 +6584,21 @@ static bool rtl8153_in_nway(struct r8152 *tp)
 		return true;
 }
 
+static void r8156_mdio_force_mode(struct r8152 *tp)
+{
+	u16 data;
+
+	/* Select force mode through 0xa5b4 bit 15
+	 * 0: MDIO force mode
+	 * 1: MMD force mode
+	 */
+	data = ocp_reg_read(tp, 0xa5b4);
+	if (data & BIT(15)) {
+		data &= ~BIT(15);
+		ocp_reg_write(tp, 0xa5b4, data);
+	}
+}
+
 static void set_carrier(struct r8152 *tp)
 {
 	struct net_device *netdev = tp->netdev;
@@ -8016,6 +8031,7 @@ static void r8156_init(struct r8152 *tp)
 	ocp_data |= ACT_ODMA;
 	ocp_write_byte(tp, MCU_TYPE_USB, USB_BMU_CONFIG, ocp_data);
 
+	r8156_mdio_force_mode(tp);
 	rtl_tally_reset(tp);
 
 	tp->coalesce = 15000;	/* 15 us */
@@ -8145,6 +8161,7 @@ static void r8156b_init(struct r8152 *tp)
 	ocp_data &= ~(RX_AGG_DISABLE | RX_ZERO_EN);
 	ocp_write_word(tp, MCU_TYPE_USB, USB_USB_CTRL, ocp_data);
 
+	r8156_mdio_force_mode(tp);
 	rtl_tally_reset(tp);
 
 	tp->coalesce = 15000;	/* 15 us */
