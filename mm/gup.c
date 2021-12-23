@@ -146,12 +146,6 @@ static void gup_put_folio(struct folio *folio, int refs, unsigned int flags)
 	folio_put_refs(folio, refs);
 }
 
-static void put_compound_head(struct page *page, int refs, unsigned int flags)
-{
-	VM_BUG_ON_PAGE(PageTail(page), page);
-	gup_put_folio((struct folio *)page, refs, flags);
-}
-
 /**
  * try_grab_page() - elevate a page's refcount by a flag-dependent amount
  * @page:    pointer to page to be grabbed
@@ -214,20 +208,19 @@ void unpin_user_page(struct page *page)
 }
 EXPORT_SYMBOL(unpin_user_page);
 
-static inline struct page *compound_range_next(struct page *start,
+static inline struct folio *gup_folio_range_next(struct page *start,
 		unsigned long npages, unsigned long i, unsigned int *ntails)
 {
-	struct page *next, *page;
+	struct page *next = nth_page(start, i);
+	struct folio *folio = page_folio(next);
 	unsigned int nr = 1;
 
-	next = nth_page(start, i);
-	page = compound_head(next);
-	if (PageHead(page))
+	if (folio_test_large(folio))
 		nr = min_t(unsigned int, npages - i,
-			   compound_nr(page) - page_nth(page, next));
+			   folio_nr_pages(folio) - folio_page_idx(folio, next));
 
 	*ntails = nr;
-	return page;
+	return folio;
 }
 
 static inline struct folio *gup_folio_next(struct page **list,
@@ -335,15 +328,18 @@ EXPORT_SYMBOL(unpin_user_pages_dirty_lock);
 void unpin_user_page_range_dirty_lock(struct page *page, unsigned long npages,
 				      bool make_dirty)
 {
-	unsigned long index;
-	struct page *head;
-	unsigned int ntails;
+	unsigned long i;
+	struct folio *folio;
+	unsigned int nr;
 
-	for (index = 0; index < npages; index += ntails) {
-		head = compound_range_next(page, npages, index, &ntails);
-		if (make_dirty && !PageDirty(head))
-			set_page_dirty_lock(head);
-		put_compound_head(head, ntails, FOLL_PIN);
+	for (i = 0; i < npages; i += nr) {
+		folio = gup_folio_range_next(page, npages, i, &nr);
+		if (make_dirty && !folio_test_dirty(folio)) {
+			folio_lock(folio);
+			folio_mark_dirty(folio);
+			folio_unlock(folio);
+		}
+		gup_put_folio(folio, nr, FOLL_PIN);
 	}
 }
 EXPORT_SYMBOL(unpin_user_page_range_dirty_lock);
