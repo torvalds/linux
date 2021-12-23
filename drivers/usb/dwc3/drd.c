@@ -420,6 +420,12 @@ static void dwc3_drd_update(struct dwc3 *dwc)
 		id = extcon_get_state(dwc->edev, EXTCON_USB_HOST);
 		if (id < 0)
 			id = 0;
+
+#if defined(CONFIG_ARCH_ROCKCHIP) && defined(CONFIG_NO_GKI)
+		dwc->desired_role_sw_mode = (id ? USB_DR_MODE_HOST :
+					     USB_DR_MODE_PERIPHERAL);
+#endif
+
 		dwc3_set_mode(dwc, id ?
 			      DWC3_GCTL_PRTCAP_HOST :
 			      DWC3_GCTL_PRTCAP_DEVICE);
