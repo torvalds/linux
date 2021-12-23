@@ -1212,9 +1212,14 @@ void vcpu_load_state(struct kvm_vm *vm, uint32_t vcpuid, struct kvm_x86_state *s
 	struct vcpu *vcpu = vcpu_find(vm, vcpuid);
 	int r;
 
-	r = ioctl(vcpu->fd, KVM_SET_XSAVE, state->xsave);
-        TEST_ASSERT(r == 0, "Unexpected result from KVM_SET_XSAVE, r: %i",
+	r = ioctl(vcpu->fd, KVM_SET_SREGS, &state->sregs);
+	TEST_ASSERT(r == 0, "Unexpected result from KVM_SET_SREGS, r: %i",
                 r);
+
+	r = ioctl(vcpu->fd, KVM_SET_MSRS, &state->msrs);
+	TEST_ASSERT(r == state->msrs.nmsrs,
+		"Unexpected result from KVM_SET_MSRS, r: %i (failed at %x)",
+		r, r == state->msrs.nmsrs ? -1 : state->msrs.entries[r].index);
 
 	if (kvm_check_cap(KVM_CAP_XCRS)) {
 		r = ioctl(vcpu->fd, KVM_SET_XCRS, &state->xcrs);
@@ -1222,13 +1227,9 @@ void vcpu_load_state(struct kvm_vm *vm, uint32_t vcpuid, struct kvm_x86_state *s
 			    r);
 	}
 
-	r = ioctl(vcpu->fd, KVM_SET_SREGS, &state->sregs);
-        TEST_ASSERT(r == 0, "Unexpected result from KVM_SET_SREGS, r: %i",
+	r = ioctl(vcpu->fd, KVM_SET_XSAVE, state->xsave);
+	TEST_ASSERT(r == 0, "Unexpected result from KVM_SET_XSAVE, r: %i",
                 r);
-
-	r = ioctl(vcpu->fd, KVM_SET_MSRS, &state->msrs);
-        TEST_ASSERT(r == state->msrs.nmsrs, "Unexpected result from KVM_SET_MSRS, r: %i (failed at %x)",
-                r, r == state->msrs.nmsrs ? -1 : state->msrs.entries[r].index);
 
 	r = ioctl(vcpu->fd, KVM_SET_VCPU_EVENTS, &state->events);
         TEST_ASSERT(r == 0, "Unexpected result from KVM_SET_VCPU_EVENTS, r: %i",
