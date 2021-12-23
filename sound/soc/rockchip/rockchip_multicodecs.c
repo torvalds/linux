@@ -256,6 +256,13 @@ static void adc_jack_handler(struct work_struct *work)
 
 		return;
 	}
+	if (!mc_data->adc) {
+		/* no ADC, so is headphone */
+		snd_soc_jack_report(jack_headset, SND_JACK_HEADPHONE, SND_JACK_HEADSET);
+		extcon_set_state_sync(mc_data->extcon, EXTCON_JACK_HEADPHONE, true);
+		extcon_set_state_sync(mc_data->extcon, EXTCON_JACK_MICROPHONE, false);
+		return;
+	}
 	ret = iio_read_channel_processed(mc_data->adc, &adc);
 	if (ret < 0) {
 		/* failed to read ADC, so assume headphone */
@@ -671,8 +678,10 @@ static int rk_multicodecs_probe(struct platform_device *pdev)
 	mc_data->adc = devm_iio_channel_get(&pdev->dev, "adc-detect");
 
 	if (IS_ERR(mc_data->adc)) {
-		if (PTR_ERR(mc_data->adc) != -EPROBE_DEFER)
+		if (PTR_ERR(mc_data->adc) != -EPROBE_DEFER) {
+			mc_data->adc = NULL;
 			dev_warn(&pdev->dev, "Failed to get ADC channel");
+		}
 	} else {
 		if (mc_data->adc->channel->type != IIO_VOLTAGE)
 			return -EINVAL;
