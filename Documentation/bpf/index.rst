@@ -21,6 +21,7 @@ that goes into great technical depth about the BPF Architecture.
    helpers
    programs
    maps
+   classic_vs_extended.rst
    bpf_licensing
    test_debug
    other
