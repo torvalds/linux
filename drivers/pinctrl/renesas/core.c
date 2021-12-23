@@ -777,10 +777,7 @@ static bool __init is0s(const u16 *enum_ids, unsigned int n)
 
 static bool __init same_name(const char *a, const char *b)
 {
-	if (!a || !b)
-		return false;
-
-	return !strcmp(a, b);
+	return a && b && !strcmp(a, b);
 }
 
 static void __init sh_pfc_check_reg(const char *drvname, u32 reg, u32 bits)
