@@ -254,7 +254,7 @@ struct sh_pfc_soc_operations {
 	unsigned int (*get_bias)(struct sh_pfc *pfc, unsigned int pin);
 	void (*set_bias)(struct sh_pfc *pfc, unsigned int pin,
 			 unsigned int bias);
-	int (*pin_to_pocctrl)(struct sh_pfc *pfc, unsigned int pin, u32 *pocctrl);
+	int (*pin_to_pocctrl)(unsigned int pin, u32 *pocctrl);
 	void __iomem * (*pin_to_portcr)(struct sh_pfc *pfc, unsigned int pin);
 };
 
