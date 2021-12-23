@@ -230,20 +230,19 @@ static inline struct page *compound_range_next(struct page *start,
 	return page;
 }
 
-static inline struct page *compound_next(struct page **list,
+static inline struct folio *gup_folio_next(struct page **list,
 		unsigned long npages, unsigned long i, unsigned int *ntails)
 {
-	struct page *page;
+	struct folio *folio = page_folio(list[i]);
 	unsigned int nr;
 
-	page = compound_head(list[i]);
 	for (nr = i + 1; nr < npages; nr++) {
-		if (compound_head(list[nr]) != page)
+		if (page_folio(list[nr]) != folio)
 			break;
 	}
 
 	*ntails = nr - i;
-	return page;
+	return folio;
 }
 
 /**
@@ -271,17 +270,17 @@ static inline struct page *compound_next(struct page **list,
 void unpin_user_pages_dirty_lock(struct page **pages, unsigned long npages,
 				 bool make_dirty)
 {
-	unsigned long index;
-	struct page *head;
-	unsigned int ntails;
+	unsigned long i;
+	struct folio *folio;
+	unsigned int nr;
 
 	if (!make_dirty) {
 		unpin_user_pages(pages, npages);
 		return;
 	}
 
-	for (index = 0; index < npages; index += ntails) {
-		head = compound_next(pages, npages, index, &ntails);
+	for (i = 0; i < npages; i += nr) {
+		folio = gup_folio_next(pages, npages, i, &nr);
 		/*
 		 * Checking PageDirty at this point may race with
 		 * clear_page_dirty_for_io(), but that's OK. Two key
@@ -302,9 +301,12 @@ void unpin_user_pages_dirty_lock(struct page **pages, unsigned long npages,
 		 * written back, so it gets written back again in the
 		 * next writeback cycle. This is harmless.
 		 */
-		if (!PageDirty(head))
-			set_page_dirty_lock(head);
-		put_compound_head(head, ntails, FOLL_PIN);
+		if (!folio_test_dirty(folio)) {
+			folio_lock(folio);
+			folio_mark_dirty(folio);
+			folio_unlock(folio);
+		}
+		gup_put_folio(folio, nr, FOLL_PIN);
 	}
 }
 EXPORT_SYMBOL(unpin_user_pages_dirty_lock);
@@ -357,9 +359,9 @@ EXPORT_SYMBOL(unpin_user_page_range_dirty_lock);
  */
 void unpin_user_pages(struct page **pages, unsigned long npages)
 {
-	unsigned long index;
-	struct page *head;
-	unsigned int ntails;
+	unsigned long i;
+	struct folio *folio;
+	unsigned int nr;
 
 	/*
 	 * If this WARN_ON() fires, then the system *might* be leaking pages (by
@@ -369,9 +371,9 @@ void unpin_user_pages(struct page **pages, unsigned long npages)
 	if (WARN_ON(IS_ERR_VALUE(npages)))
 		return;
 
-	for (index = 0; index < npages; index += ntails) {
-		head = compound_next(pages, npages, index, &ntails);
-		put_compound_head(head, ntails, FOLL_PIN);
+	for (i = 0; i < npages; i += nr) {
+		folio = gup_folio_next(pages, npages, i, &nr);
+		gup_put_folio(folio, nr, FOLL_PIN);
 	}
 }
 EXPORT_SYMBOL(unpin_user_pages);
