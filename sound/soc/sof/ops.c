@@ -167,18 +167,21 @@ void snd_sof_dsp_panic(struct snd_sof_dev *sdev, u32 offset, bool non_recoverabl
 			 __func__, sdev->dsp_oops_offset, offset);
 
 	/*
-	 * Only print the panic information if we have non recoverable panic or
-	 * if all dumps should be printed
+	 * Set the fw_state to crashed only in case of non recoverable DSP panic
+	 * event.
+	 * Use different message within the snd_sof_dsp_dbg_dump() depending on
+	 * the non_recoverable flag.
 	 */
-	if (non_recoverable || sof_debug_check_flag(SOF_DBG_PRINT_ALL_DUMPS)) {
-		/* We want to see the DSP panic! */
-		sdev->dbg_dump_printed = false;
-
+	sdev->dbg_dump_printed = false;
+	if (non_recoverable) {
 		snd_sof_dsp_dbg_dump(sdev, "DSP panic!",
 				     SOF_DBG_DUMP_REGS | SOF_DBG_DUMP_MBOX);
-		if (non_recoverable)
-			sof_set_fw_state(sdev, SOF_FW_CRASHED);
+		sof_set_fw_state(sdev, SOF_FW_CRASHED);
 		snd_sof_trace_notify_for_error(sdev);
+	} else {
+		snd_sof_dsp_dbg_dump(sdev,
+				     "DSP panic (recovery will be attempted)",
+				     SOF_DBG_DUMP_REGS | SOF_DBG_DUMP_MBOX);
 	}
 }
 EXPORT_SYMBOL(snd_sof_dsp_panic);
