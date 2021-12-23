@@ -418,9 +418,8 @@ void mt76_connac_mcu_sta_basic_tlv(struct sk_buff *skb,
 }
 EXPORT_SYMBOL_GPL(mt76_connac_mcu_sta_basic_tlv);
 
-static void
-mt76_connac_mcu_sta_uapsd(struct sk_buff *skb, struct ieee80211_vif *vif,
-			  struct ieee80211_sta *sta)
+void mt76_connac_mcu_sta_uapsd(struct sk_buff *skb, struct ieee80211_vif *vif,
+			       struct ieee80211_sta *sta)
 {
 	struct sta_rec_uapsd *uapsd;
 	struct tlv *tlv;
@@ -449,6 +448,7 @@ mt76_connac_mcu_sta_uapsd(struct sk_buff *skb, struct ieee80211_vif *vif,
 	}
 	uapsd->max_sp = sta->max_sp;
 }
+EXPORT_SYMBOL_GPL(mt76_connac_mcu_sta_uapsd);
 
 void mt76_connac_mcu_wtbl_hdr_trans_tlv(struct sk_buff *skb,
 					struct ieee80211_vif *vif,

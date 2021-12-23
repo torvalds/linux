@@ -1601,4 +1601,6 @@ int mt76_connac_mcu_bss_basic_tlv(struct sk_buff *skb,
 				  struct ieee80211_sta *sta,
 				  struct mt76_phy *phy, u8 wlan_idx,
 				  bool enable);
+void mt76_connac_mcu_sta_uapsd(struct sk_buff *skb, struct ieee80211_vif *vif,
+			       struct ieee80211_sta *sta);
 #endif /* __MT76_CONNAC_MCU_H */
