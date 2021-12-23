@@ -19,19 +19,10 @@ The eBPF calling convention is defined as:
 R0 - R5 are scratch registers and eBPF programs needs to spill/fill them if
 necessary across calls.
 
-eBPF opcode encoding
-====================
+Instruction classes
+===================
 
-For arithmetic and jump instructions the 8-bit 'opcode' field is divided into
-three parts::
-
-  +----------------+--------+--------------------+
-  |   4 bits       |  1 bit |   3 bits           |
-  | operation code | source | instruction class  |
-  +----------------+--------+--------------------+
-  (MSB)                                      (LSB)
-
-Three LSB bits store instruction class which is one of:
+The three LSB bits of the 'opcode' field store the instruction class:
 
   ========= =====
   class     value
@@ -46,17 +37,34 @@ Three LSB bits store instruction class which is one of:
   BPF_ALU64 0x07
   ========= =====
 
-When BPF_CLASS(code) == BPF_ALU or BPF_JMP, 4th bit encodes source operand ...
+Arithmetic and jump instructions
+================================
 
-::
+For arithmetic and jump instructions (BPF_ALU, BPF_ALU64, BPF_JMP and
+BPF_JMP32), the 8-bit 'opcode' field is divided into three parts:
 
-  BPF_K     0x00 /* use 32-bit immediate as source operand */
-  BPF_X     0x08 /* use 'src_reg' register as source operand */
+  ==============  ======  =================
+  4 bits (MSB)    1 bit   3 bits (LSB)
+  ==============  ======  =================
+  operation code  source  instruction class
+  ==============  ======  =================
 
-... and four MSB bits store operation code.
+The 4th bit encodes the source operand:
 
-If BPF_CLASS(code) == BPF_ALU or BPF_ALU64 BPF_OP(code) is one of::
+  ======  =====  ========================================
+  source  value  description
+  ======  =====  ========================================
+  BPF_K   0x00   use 32-bit immediate as source operand
+  BPF_X   0x08   use 'src_reg' register as source operand
+  ======  =====  ========================================
 
+The four MSB bits store the operation code.
+
+For class BPF_ALU or BPF_ALU64:
+
+  ========  =====  =========================
+  code      value  description
+  ========  =====  =========================
   BPF_ADD   0x00
   BPF_SUB   0x10
   BPF_MUL   0x20
@@ -68,26 +76,31 @@ If BPF_CLASS(code) == BPF_ALU or BPF_ALU64 BPF_OP(code) is one of::
   BPF_NEG   0x80
   BPF_MOD   0x90
   BPF_XOR   0xa0
-  BPF_MOV   0xb0  /* mov reg to reg */
-  BPF_ARSH  0xc0  /* sign extending shift right */
-  BPF_END   0xd0  /* endianness conversion */
+  BPF_MOV   0xb0   mov reg to reg
+  BPF_ARSH  0xc0   sign extending shift right
+  BPF_END   0xd0   endianness conversion
+  ========  =====  =========================
 
-If BPF_CLASS(code) == BPF_JMP or BPF_JMP32 BPF_OP(code) is one of::
+For class BPF_JMP or BPF_JMP32:
 
-  BPF_JA    0x00  /* BPF_JMP only */
+  ========  =====  =========================
+  code      value  description
+  ========  =====  =========================
+  BPF_JA    0x00   BPF_JMP only
   BPF_JEQ   0x10
   BPF_JGT   0x20
   BPF_JGE   0x30
   BPF_JSET  0x40
-  BPF_JNE   0x50  /* jump != */
-  BPF_JSGT  0x60  /* signed '>' */
-  BPF_JSGE  0x70  /* signed '>=' */
-  BPF_CALL  0x80  /* function call */
-  BPF_EXIT  0x90  /*  function return */
-  BPF_JLT   0xa0  /* unsigned '<' */
-  BPF_JLE   0xb0  /* unsigned '<=' */
-  BPF_JSLT  0xc0  /* signed '<' */
-  BPF_JSLE  0xd0  /* signed '<=' */
+  BPF_JNE   0x50   jump '!='
+  BPF_JSGT  0x60   signed '>'
+  BPF_JSGE  0x70   signed '>='
+  BPF_CALL  0x80   function call
+  BPF_EXIT  0x90   function return
+  BPF_JLT   0xa0   unsigned '<'
+  BPF_JLE   0xb0   unsigned '<='
+  BPF_JSLT  0xc0   signed '<'
+  BPF_JSLE  0xd0   signed '<='
+  ========  =====  =========================
 
 So BPF_ADD | BPF_X | BPF_ALU means::
 
@@ -108,37 +121,58 @@ the return value into register R0 before doing a BPF_EXIT. Class 6 is used as
 BPF_JMP32 to mean exactly the same operations as BPF_JMP, but with 32-bit wide
 operands for the comparisons instead.
 
-For load and store instructions the 8-bit 'code' field is divided as::
 
-  +--------+--------+-------------------+
-  | 3 bits | 2 bits |   3 bits          |
-  |  mode  |  size  | instruction class |
-  +--------+--------+-------------------+
-  (MSB)                             (LSB)
+Load and store instructions
+===========================
 
-Size modifier is one of ...
+For load and store instructions (BPF_LD, BPF_LDX, BPF_ST and BPF_STX), the
+8-bit 'opcode' field is divided as:
 
-::
+  ============  ======  =================
+  3 bits (MSB)  2 bits  3 bits (LSB)
+  ============  ======  =================
+  mode          size    instruction class
+  ============  ======  =================
 
-  BPF_W   0x00    /* word */
-  BPF_H   0x08    /* half word */
-  BPF_B   0x10    /* byte */
-  BPF_DW  0x18    /* double word */
+The size modifier is one of:
 
-... which encodes size of load/store operation::
+  =============  =====  =====================
+  size modifier  value  description
+  =============  =====  =====================
+  BPF_W          0x00   word        (4 bytes)
+  BPF_H          0x08   half word   (2 bytes)
+  BPF_B          0x10   byte
+  BPF_DW         0x18   double word (8 bytes)
+  =============  =====  =====================
 
- B  - 1 byte
- H  - 2 byte
- W  - 4 byte
- DW - 8 byte
+The mode modifier is one of:
 
-Mode modifier is one of::
+  =============  =====  =====================
+  mode modifier  value  description
+  =============  =====  =====================
+  BPF_IMM        0x00   used for 64-bit mov
+  BPF_ABS        0x20
+  BPF_IND        0x40
+  BPF_MEM        0x60
+  BPF_ATOMIC     0xc0   atomic operations
+  =============  =====  =====================
 
-  BPF_IMM     0x00  /* used for 64-bit mov */
-  BPF_ABS     0x20
-  BPF_IND     0x40
-  BPF_MEM     0x60
-  BPF_ATOMIC  0xc0  /* atomic operations */
+BPF_MEM | <size> | BPF_STX means::
+
+  *(size *) (dst_reg + off) = src_reg
+
+BPF_MEM | <size> | BPF_ST means::
+
+  *(size *) (dst_reg + off) = imm32
+
+BPF_MEM | <size> | BPF_LDX means::
+
+  dst_reg = *(size *) (src_reg + off)
+
+Where size is one of: BPF_B or BPF_H or BPF_W or BPF_DW.
+
+Packet access instructions
+--------------------------
 
 eBPF has two non-generic instructions: (BPF_ABS | <size> | BPF_LD) and
 (BPF_IND | <size> | BPF_LD) which are used to access packet data.
@@ -165,15 +199,10 @@ For example::
     R0 = ntohl(*(u32 *) (((struct sk_buff *) R6)->data + src_reg + imm32))
     and R1 - R5 were scratched.
 
-eBPF has generic load/store operations::
+Atomic operations
+-----------------
 
-    BPF_MEM | <size> | BPF_STX:  *(size *) (dst_reg + off) = src_reg
-    BPF_MEM | <size> | BPF_ST:   *(size *) (dst_reg + off) = imm32
-    BPF_MEM | <size> | BPF_LDX:  dst_reg = *(size *) (src_reg + off)
-
-Where size is one of: BPF_B or BPF_H or BPF_W or BPF_DW.
-
-It also includes atomic operations, which use the immediate field for extra
+eBPF includes atomic operations, which use the immediate field for extra
 encoding::
 
    .imm = BPF_ADD, .code = BPF_ATOMIC | BPF_W  | BPF_STX: lock xadd *(u32 *)(dst_reg + off16) += src_reg
@@ -216,6 +245,9 @@ the atomics features, while keeping a lower ``-mcpu`` version, you can use
 You may encounter ``BPF_XADD`` - this is a legacy name for ``BPF_ATOMIC``,
 referring to the exclusive-add operation encoded when the immediate field is
 zero.
+
+16-byte instructions
+--------------------
 
 eBPF has one 16-byte instruction: ``BPF_LD | BPF_DW | BPF_IMM`` which consists
 of two consecutive ``struct bpf_insn`` 8-byte blocks and interpreted as single
