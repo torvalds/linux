@@ -2778,19 +2778,12 @@ static const unsigned int qspi_ctrl_pins[] = {
 static const unsigned int qspi_ctrl_mux[] = {
 	SPCLK_MARK, SSL_MARK,
 };
-static const unsigned int qspi_data2_pins[] = {
-	/* MOSI_IO0, MISO_IO1 */
-	RCAR_GP_PIN(1, 5), RCAR_GP_PIN(1, 6),
-};
-static const unsigned int qspi_data2_mux[] = {
-	MOSI_IO0_MARK, MISO_IO1_MARK,
-};
-static const unsigned int qspi_data4_pins[] = {
+static const unsigned int qspi_data_pins[] = {
 	/* MOSI_IO0, MISO_IO1, IO2, IO3 */
 	RCAR_GP_PIN(1, 5), RCAR_GP_PIN(1, 6), RCAR_GP_PIN(1, 7),
 	RCAR_GP_PIN(1, 8),
 };
-static const unsigned int qspi_data4_mux[] = {
+static const unsigned int qspi_data_mux[] = {
 	MOSI_IO0_MARK, MISO_IO1_MARK, IO2_MARK, IO3_MARK,
 };
 /* - SCIF0 ------------------------------------------------------------------ */
@@ -4228,8 +4221,8 @@ static const struct {
 		SH_PFC_PIN_GROUP(pwm5),
 		SH_PFC_PIN_GROUP(pwm6),
 		SH_PFC_PIN_GROUP(qspi_ctrl),
-		SH_PFC_PIN_GROUP(qspi_data2),
-		SH_PFC_PIN_GROUP(qspi_data4),
+		BUS_DATA_PIN_GROUP(qspi_data, 2),
+		BUS_DATA_PIN_GROUP(qspi_data, 4),
 		SH_PFC_PIN_GROUP(scif0_data),
 		SH_PFC_PIN_GROUP(scif0_clk),
 		SH_PFC_PIN_GROUP(scif0_ctrl),
