@@ -1148,7 +1148,7 @@ EXPORT_SYMBOL_GPL(mt76_connac_mcu_sta_ba_tlv);
 
 int mt76_connac_mcu_sta_ba(struct mt76_dev *dev, struct mt76_vif *mvif,
 			   struct ieee80211_ampdu_params *params,
-			   bool enable, bool tx)
+			   int cmd, bool enable, bool tx)
 {
 	struct mt76_wcid *wcid = (struct mt76_wcid *)params->sta->drv_priv;
 	struct wtbl_req_hdr *wtbl_hdr;
@@ -1171,8 +1171,7 @@ int mt76_connac_mcu_sta_ba(struct mt76_dev *dev, struct mt76_vif *mvif,
 	mt76_connac_mcu_wtbl_ba_tlv(dev, skb, params, enable, tx, sta_wtbl,
 				    wtbl_hdr);
 
-	ret = mt76_mcu_skb_send_msg(dev, skb,
-				    MCU_UNI_CMD(STA_REC_UPDATE), true);
+	ret = mt76_mcu_skb_send_msg(dev, skb, cmd, true);
 	if (ret)
 		return ret;
 
@@ -1182,8 +1181,7 @@ int mt76_connac_mcu_sta_ba(struct mt76_dev *dev, struct mt76_vif *mvif,
 
 	mt76_connac_mcu_sta_ba_tlv(skb, params, enable, tx);
 
-	return mt76_mcu_skb_send_msg(dev, skb,
-				     MCU_UNI_CMD(STA_REC_UPDATE), true);
+	return mt76_mcu_skb_send_msg(dev, skb, cmd, true);
 }
 EXPORT_SYMBOL_GPL(mt76_connac_mcu_sta_ba);
 

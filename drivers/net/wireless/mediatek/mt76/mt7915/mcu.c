@@ -742,63 +742,31 @@ out:
 }
 
 /** starec & wtbl **/
-static int
-mt7915_mcu_sta_ba(struct mt7915_dev *dev,
-		  struct ieee80211_ampdu_params *params,
-		  bool enable, bool tx)
-{
-	struct mt7915_sta *msta = (struct mt7915_sta *)params->sta->drv_priv;
-	struct mt7915_vif *mvif = msta->vif;
-	struct wtbl_req_hdr *wtbl_hdr;
-	struct tlv *sta_wtbl;
-	struct sk_buff *skb;
-	int ret;
-
-	if (enable && tx && !params->amsdu)
-		msta->wcid.amsdu = false;
-
-	skb = mt76_connac_mcu_alloc_sta_req(&dev->mt76, &mvif->mt76,
-					    &msta->wcid);
-	if (IS_ERR(skb))
-		return PTR_ERR(skb);
-
-	sta_wtbl = mt76_connac_mcu_add_tlv(skb, STA_REC_WTBL,
-					   sizeof(struct tlv));
-	wtbl_hdr = mt76_connac_mcu_alloc_wtbl_req(&dev->mt76, &msta->wcid,
-						  WTBL_SET, sta_wtbl, &skb);
-	if (IS_ERR(wtbl_hdr))
-		return PTR_ERR(wtbl_hdr);
-
-	mt76_connac_mcu_wtbl_ba_tlv(&dev->mt76, skb, params, enable, tx,
-				    sta_wtbl, wtbl_hdr);
-	ret = mt76_mcu_skb_send_msg(&dev->mt76, skb,
-				    MCU_EXT_CMD(STA_REC_UPDATE), true);
-	if (ret)
-		return ret;
-
-	skb = mt76_connac_mcu_alloc_sta_req(&dev->mt76, &mvif->mt76,
-					    &msta->wcid);
-	if (IS_ERR(skb))
-		return PTR_ERR(skb);
-
-	mt76_connac_mcu_sta_ba_tlv(skb, params, enable, tx);
-
-	return mt76_mcu_skb_send_msg(&dev->mt76, skb,
-				     MCU_EXT_CMD(STA_REC_UPDATE), true);
-}
-
 int mt7915_mcu_add_tx_ba(struct mt7915_dev *dev,
 			 struct ieee80211_ampdu_params *params,
 			 bool enable)
 {
-	return mt7915_mcu_sta_ba(dev, params, enable, true);
+	struct mt7915_sta *msta = (struct mt7915_sta *)params->sta->drv_priv;
+	struct mt7915_vif *mvif = msta->vif;
+
+	if (enable && !params->amsdu)
+		msta->wcid.amsdu = false;
+
+	return mt76_connac_mcu_sta_ba(&dev->mt76, &mvif->mt76, params,
+				      MCU_EXT_CMD(STA_REC_UPDATE),
+				      enable, true);
 }
 
 int mt7915_mcu_add_rx_ba(struct mt7915_dev *dev,
 			 struct ieee80211_ampdu_params *params,
 			 bool enable)
 {
-	return mt7915_mcu_sta_ba(dev, params, enable, false);
+	struct mt7915_sta *msta = (struct mt7915_sta *)params->sta->drv_priv;
+	struct mt7915_vif *mvif = msta->vif;
+
+	return mt76_connac_mcu_sta_ba(&dev->mt76, &mvif->mt76, params,
+				      MCU_EXT_CMD(STA_REC_UPDATE),
+				      enable, false);
 }
 
 static void

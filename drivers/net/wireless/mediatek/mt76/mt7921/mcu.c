@@ -429,6 +429,7 @@ int mt7921_mcu_uni_tx_ba(struct mt7921_dev *dev,
 		msta->wcid.amsdu = false;
 
 	return mt76_connac_mcu_sta_ba(&dev->mt76, &msta->vif->mt76, params,
+				      MCU_UNI_CMD(STA_REC_UPDATE),
 				      enable, true);
 }
 
@@ -439,6 +440,7 @@ int mt7921_mcu_uni_rx_ba(struct mt7921_dev *dev,
 	struct mt7921_sta *msta = (struct mt7921_sta *)params->sta->drv_priv;
 
 	return mt76_connac_mcu_sta_ba(&dev->mt76, &msta->vif->mt76, params,
+				      MCU_UNI_CMD(STA_REC_UPDATE),
 				      enable, false);
 }
 

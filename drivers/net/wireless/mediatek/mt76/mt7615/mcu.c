@@ -1191,7 +1191,8 @@ mt7615_mcu_uni_tx_ba(struct mt7615_dev *dev,
 	struct mt7615_sta *sta = (struct mt7615_sta *)params->sta->drv_priv;
 
 	return mt76_connac_mcu_sta_ba(&dev->mt76, &sta->vif->mt76, params,
-				      enable, true);
+				      MCU_UNI_CMD(STA_REC_UPDATE), enable,
+				      true);
 }
 
 static int
