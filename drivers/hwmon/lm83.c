@@ -66,17 +66,6 @@ enum chips { lm83, lm82 };
 #define LM83_REG_R_TCRIT		0x42
 #define LM83_REG_W_TCRIT		0x5A
 
-/*
- * Conversions and various macros
- * The LM83 uses signed 8-bit values with LSB = 1 degree Celsius.
- */
-
-#define TEMP_FROM_REG(val)	((val) * 1000)
-#define TEMP_TO_REG(val)	((val) <= -128000 ? -128 : \
-				 (val) >= 127000 ? 127 : \
-				 (val) < 0 ? ((val) - 500) / 1000 : \
-				 ((val) + 500) / 1000)
-
 static const u8 LM83_REG_TEMP[] = {
 	LM83_REG_R_LOCAL_TEMP,
 	LM83_REG_R_REMOTE1_TEMP,
@@ -181,7 +170,7 @@ static ssize_t temp_show(struct device *dev, struct device_attribute *devattr,
 	if (ret)
 		return ret;
 
-	return sprintf(buf, "%d\n", TEMP_FROM_REG((s8)regval));
+	return sprintf(buf, "%d\n", (s8)regval * 1000);
 }
 
 static ssize_t temp_store(struct device *dev,
@@ -198,7 +187,7 @@ static ssize_t temp_store(struct device *dev,
 	if (err < 0)
 		return err;
 
-	regval = TEMP_TO_REG(val);
+	regval = DIV_ROUND_CLOSEST(clamp_val(val, -128000, 127000), 1000);
 	err = regmap_write(data->regmap, LM83_REG_TEMP[attr->index], regval);
 	return err ? : count;
 }
