@@ -70,8 +70,8 @@ void atom_dump(struct snd_sof_dev *sdev, u32 flags)
 	panic = snd_sof_dsp_read64(sdev, DSP_BAR, SHIM_IPCX);
 	atom_get_registers(sdev, &xoops, &panic_info, stack,
 			   STACK_DUMP_SIZE);
-	snd_sof_get_status(sdev, status, panic, &xoops, &panic_info, stack,
-			   STACK_DUMP_SIZE);
+	sof_print_oops_and_stack(sdev, KERN_ERR, status, panic, &xoops,
+				 &panic_info, stack, STACK_DUMP_SIZE);
 
 	/* provide some context for firmware debug */
 	imrx = snd_sof_dsp_read64(sdev, DSP_BAR, SHIM_IMRX);

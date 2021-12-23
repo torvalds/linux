@@ -68,23 +68,33 @@ static const struct sof_panic_msg panic_msg[] = {
 	{SOF_IPC_PANIC_ASSERT, "assertion failed"},
 };
 
-/*
+/**
+ * sof_print_oops_and_stack - Handle the printing of DSP oops and stack trace
+ * @sdev: Pointer to the device's sdev
+ * @level: prink log level to use for the printing
+ * @panic_code: the panic code
+ * @tracep_code: tracepoint code
+ * @oops: Pointer to DSP specific oops data
+ * @panic_info: Pointer to the received panic information message
+ * @stack: Pointer to the call stack data
+ * @stack_words: Number of words in the stack data
+ *
  * helper to be called from .dbg_dump callbacks. No error code is
  * provided, it's left as an exercise for the caller of .dbg_dump
  * (typically IPC or loader)
  */
-void snd_sof_get_status(struct snd_sof_dev *sdev, u32 panic_code,
-			u32 tracep_code, void *oops,
-			struct sof_ipc_panic_info *panic_info,
-			void *stack, size_t stack_words)
+void sof_print_oops_and_stack(struct snd_sof_dev *sdev, const char *level,
+			      u32 panic_code, u32 tracep_code, void *oops,
+			      struct sof_ipc_panic_info *panic_info,
+			      void *stack, size_t stack_words)
 {
 	u32 code;
 	int i;
 
 	/* is firmware dead ? */
 	if ((panic_code & SOF_IPC_PANIC_MAGIC_MASK) != SOF_IPC_PANIC_MAGIC) {
-		dev_err(sdev->dev, "unexpected fault %#010x trace %#010x\n",
-			panic_code, tracep_code);
+		dev_printk(level, sdev->dev, "unexpected fault %#010x trace %#010x\n",
+			   panic_code, tracep_code);
 		return; /* no fault ? */
 	}
 
@@ -92,24 +102,25 @@ void snd_sof_get_status(struct snd_sof_dev *sdev, u32 panic_code,
 
 	for (i = 0; i < ARRAY_SIZE(panic_msg); i++) {
 		if (panic_msg[i].id == code) {
-			dev_err(sdev->dev, "reason: %s (%#x)\n", panic_msg[i].msg,
-				code & SOF_IPC_PANIC_CODE_MASK);
-			dev_err(sdev->dev, "trace point: %#010x\n", tracep_code);
+			dev_printk(level, sdev->dev, "reason: %s (%#x)\n",
+				   panic_msg[i].msg, code & SOF_IPC_PANIC_CODE_MASK);
+			dev_printk(level, sdev->dev, "trace point: %#010x\n", tracep_code);
 			goto out;
 		}
 	}
 
 	/* unknown error */
-	dev_err(sdev->dev, "unknown panic code: %#x\n", code & SOF_IPC_PANIC_CODE_MASK);
-	dev_err(sdev->dev, "trace point: %#010x\n", tracep_code);
+	dev_printk(level, sdev->dev, "unknown panic code: %#x\n",
+		   code & SOF_IPC_PANIC_CODE_MASK);
+	dev_printk(level, sdev->dev, "trace point: %#010x\n", tracep_code);
 
 out:
-	dev_err(sdev->dev, "panic at %s:%d\n", panic_info->filename,
-		panic_info->linenum);
-	sof_oops(sdev, KERN_ERR, oops);
-	sof_stack(sdev, KERN_ERR, oops, stack, stack_words);
+	dev_printk(level, sdev->dev, "panic at %s:%d\n", panic_info->filename,
+		   panic_info->linenum);
+	sof_oops(sdev, level, oops);
+	sof_stack(sdev, level, oops, stack, stack_words);
 }
-EXPORT_SYMBOL(snd_sof_get_status);
+EXPORT_SYMBOL(sof_print_oops_and_stack);
 
 /*
  *			FW Boot State Transition Diagram
