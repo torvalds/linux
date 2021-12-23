@@ -474,7 +474,7 @@ static const struct hda_dsp_msg_code hda_dsp_rom_msg[] = {
 	{HDA_DSP_ROM_NULL_FW_ENTRY,	"error: null FW entry point"},
 };
 
-static void hda_dsp_get_status(struct snd_sof_dev *sdev)
+static void hda_dsp_get_status(struct snd_sof_dev *sdev, const char *level)
 {
 	u32 status;
 	int i;
@@ -484,8 +484,8 @@ static void hda_dsp_get_status(struct snd_sof_dev *sdev)
 
 	for (i = 0; i < ARRAY_SIZE(hda_dsp_rom_msg); i++) {
 		if (status == hda_dsp_rom_msg[i].code) {
-			dev_err(sdev->dev, "%s - code %8.8x\n",
-				hda_dsp_rom_msg[i].msg, status);
+			dev_printk(level, sdev->dev, "%s - code %8.8x\n",
+				   hda_dsp_rom_msg[i].msg, status);
 			return;
 		}
 	}
@@ -523,7 +523,8 @@ static void hda_dsp_get_registers(struct snd_sof_dev *sdev,
 }
 
 /* dump the first 8 dwords representing the extended ROM status */
-static void hda_dsp_dump_ext_rom_status(struct snd_sof_dev *sdev, u32 flags)
+static void hda_dsp_dump_ext_rom_status(struct snd_sof_dev *sdev, const char *level,
+					u32 flags)
 {
 	char msg[128];
 	int len = 0;
@@ -535,18 +536,19 @@ static void hda_dsp_dump_ext_rom_status(struct snd_sof_dev *sdev, u32 flags)
 		len += snprintf(msg + len, sizeof(msg) - len, " 0x%x", value);
 	}
 
-	dev_err(sdev->dev, "extended rom status: %s", msg);
+	dev_printk(level, sdev->dev, "extended rom status: %s", msg);
 
 }
 
 void hda_dsp_dump(struct snd_sof_dev *sdev, u32 flags)
 {
+	char *level = flags & SOF_DBG_DUMP_OPTIONAL ? KERN_DEBUG : KERN_ERR;
 	struct sof_ipc_dsp_oops_xtensa xoops;
 	struct sof_ipc_panic_info panic_info;
 	u32 stack[HDA_DSP_STACK_DUMP_SIZE];
 
 	/* print ROM/FW status */
-	hda_dsp_get_status(sdev);
+	hda_dsp_get_status(sdev, level);
 
 	if (flags & SOF_DBG_DUMP_REGS) {
 		u32 status = snd_sof_dsp_read(sdev, HDA_DSP_BAR, HDA_DSP_SRAM_REG_FW_STATUS);
@@ -554,10 +556,10 @@ void hda_dsp_dump(struct snd_sof_dev *sdev, u32 flags)
 
 		hda_dsp_get_registers(sdev, &xoops, &panic_info, stack,
 				      HDA_DSP_STACK_DUMP_SIZE);
-		sof_print_oops_and_stack(sdev, KERN_ERR, status, panic, &xoops,
+		sof_print_oops_and_stack(sdev, level, status, panic, &xoops,
 					 &panic_info, stack, HDA_DSP_STACK_DUMP_SIZE);
 	} else {
-		hda_dsp_dump_ext_rom_status(sdev, flags);
+		hda_dsp_dump_ext_rom_status(sdev, level, flags);
 	}
 }
 
