@@ -564,7 +564,7 @@ static void intel_pdi_init(struct sdw_intel *sdw,
 {
 	void __iomem *shim = sdw->link_res->shim;
 	unsigned int link_id = sdw->instance;
-	int pcm_cap, pdm_cap;
+	int pcm_cap;
 
 	/* PCM Stream Capability */
 	pcm_cap = intel_readw(shim, SDW_SHIM_PCMSCAP(link_id));
@@ -575,41 +575,25 @@ static void intel_pdi_init(struct sdw_intel *sdw,
 
 	dev_dbg(sdw->cdns.dev, "PCM cap bd:%d in:%d out:%d\n",
 		config->pcm_bd, config->pcm_in, config->pcm_out);
-
-	/* PDM Stream Capability */
-	pdm_cap = intel_readw(shim, SDW_SHIM_PDMSCAP(link_id));
-
-	config->pdm_bd = FIELD_GET(SDW_SHIM_PDMSCAP_BSS, pdm_cap);
-	config->pdm_in = FIELD_GET(SDW_SHIM_PDMSCAP_ISS, pdm_cap);
-	config->pdm_out = FIELD_GET(SDW_SHIM_PDMSCAP_OSS, pdm_cap);
-
-	dev_dbg(sdw->cdns.dev, "PDM cap bd:%d in:%d out:%d\n",
-		config->pdm_bd, config->pdm_in, config->pdm_out);
 }
 
 static int
-intel_pdi_get_ch_cap(struct sdw_intel *sdw, unsigned int pdi_num, bool pcm)
+intel_pdi_get_ch_cap(struct sdw_intel *sdw, unsigned int pdi_num)
 {
 	void __iomem *shim = sdw->link_res->shim;
 	unsigned int link_id = sdw->instance;
 	int count;
 
-	if (pcm) {
-		count = intel_readw(shim, SDW_SHIM_PCMSYCHC(link_id, pdi_num));
+	count = intel_readw(shim, SDW_SHIM_PCMSYCHC(link_id, pdi_num));
 
-		/*
-		 * WORKAROUND: on all existing Intel controllers, pdi
-		 * number 2 reports channel count as 1 even though it
-		 * supports 8 channels. Performing hardcoding for pdi
-		 * number 2.
-		 */
-		if (pdi_num == 2)
-			count = 7;
-
-	} else {
-		count = intel_readw(shim, SDW_SHIM_PDMSCAP(link_id));
-		count = FIELD_GET(SDW_SHIM_PDMSCAP_CPSS, count);
-	}
+	/*
+	 * WORKAROUND: on all existing Intel controllers, pdi
+	 * number 2 reports channel count as 1 even though it
+	 * supports 8 channels. Performing hardcoding for pdi
+	 * number 2.
+	 */
+	if (pdi_num == 2)
+		count = 7;
 
 	/* zero based values for channel count in register */
 	count++;
@@ -620,12 +604,12 @@ intel_pdi_get_ch_cap(struct sdw_intel *sdw, unsigned int pdi_num, bool pcm)
 static int intel_pdi_get_ch_update(struct sdw_intel *sdw,
 				   struct sdw_cdns_pdi *pdi,
 				   unsigned int num_pdi,
-				   unsigned int *num_ch, bool pcm)
+				   unsigned int *num_ch)
 {
 	int i, ch_count = 0;
 
 	for (i = 0; i < num_pdi; i++) {
-		pdi->ch_count = intel_pdi_get_ch_cap(sdw, pdi->num, pcm);
+		pdi->ch_count = intel_pdi_get_ch_cap(sdw, pdi->num);
 		ch_count += pdi->ch_count;
 		pdi++;
 	}
@@ -635,25 +619,23 @@ static int intel_pdi_get_ch_update(struct sdw_intel *sdw,
 }
 
 static int intel_pdi_stream_ch_update(struct sdw_intel *sdw,
-				      struct sdw_cdns_streams *stream, bool pcm)
+				      struct sdw_cdns_streams *stream)
 {
 	intel_pdi_get_ch_update(sdw, stream->bd, stream->num_bd,
-				&stream->num_ch_bd, pcm);
+				&stream->num_ch_bd);
 
 	intel_pdi_get_ch_update(sdw, stream->in, stream->num_in,
-				&stream->num_ch_in, pcm);
+				&stream->num_ch_in);
 
 	intel_pdi_get_ch_update(sdw, stream->out, stream->num_out,
-				&stream->num_ch_out, pcm);
+				&stream->num_ch_out);
 
 	return 0;
 }
 
 static int intel_pdi_ch_update(struct sdw_intel *sdw)
 {
-	/* First update PCM streams followed by PDM streams */
-	intel_pdi_stream_ch_update(sdw, &sdw->cdns.pcm, true);
-	intel_pdi_stream_ch_update(sdw, &sdw->cdns.pdm, false);
+	intel_pdi_stream_ch_update(sdw, &sdw->cdns.pcm);
 
 	return 0;
 }
@@ -840,7 +822,6 @@ static int intel_hw_params(struct snd_pcm_substream *substream,
 	struct sdw_port_config *pconfig;
 	int ch, dir;
 	int ret;
-	bool pcm = true;
 
 	dma = snd_soc_dai_get_dma_data(dai, substream);
 	if (!dma)
@@ -852,13 +833,7 @@ static int intel_hw_params(struct snd_pcm_substream *substream,
 	else
 		dir = SDW_DATA_DIR_TX;
 
-	if (dma->stream_type == SDW_STREAM_PDM)
-		pcm = false;
-
-	if (pcm)
-		pdi = sdw_cdns_alloc_pdi(cdns, &cdns->pcm, ch, dir, dai->id);
-	else
-		pdi = sdw_cdns_alloc_pdi(cdns, &cdns->pdm, ch, dir, dai->id);
+	pdi = sdw_cdns_alloc_pdi(cdns, &cdns->pcm, ch, dir, dai->id);
 
 	if (!pdi) {
 		ret = -EINVAL;
@@ -888,12 +863,7 @@ static int intel_hw_params(struct snd_pcm_substream *substream,
 	sconfig.frame_rate = params_rate(params);
 	sconfig.type = dma->stream_type;
 
-	if (dma->stream_type == SDW_STREAM_PDM) {
-		sconfig.frame_rate *= 50;
-		sconfig.bps = 1;
-	} else {
-		sconfig.bps = snd_pcm_format_width(params_format(params));
-	}
+	sconfig.bps = snd_pcm_format_width(params_format(params));
 
 	/* Port configuration */
 	pconfig = kzalloc(sizeof(*pconfig), GFP_KERNEL);
@@ -1012,13 +982,7 @@ static void intel_shutdown(struct snd_pcm_substream *substream,
 static int intel_pcm_set_sdw_stream(struct snd_soc_dai *dai,
 				    void *stream, int direction)
 {
-	return cdns_set_sdw_stream(dai, stream, true, direction);
-}
-
-static int intel_pdm_set_sdw_stream(struct snd_soc_dai *dai,
-				    void *stream, int direction)
-{
-	return cdns_set_sdw_stream(dai, stream, false, direction);
+	return cdns_set_sdw_stream(dai, stream, direction);
 }
 
 static void *intel_get_sdw_stream(struct snd_soc_dai *dai,
@@ -1133,16 +1097,6 @@ static const struct snd_soc_dai_ops intel_pcm_dai_ops = {
 	.get_stream = intel_get_sdw_stream,
 };
 
-static const struct snd_soc_dai_ops intel_pdm_dai_ops = {
-	.startup = intel_startup,
-	.hw_params = intel_hw_params,
-	.prepare = intel_prepare,
-	.hw_free = intel_hw_free,
-	.shutdown = intel_shutdown,
-	.set_stream = intel_pdm_set_sdw_stream,
-	.get_stream = intel_get_sdw_stream,
-};
-
 static const struct snd_soc_component_driver dai_component = {
 	.name           = "soundwire",
 	.suspend	= intel_component_dais_suspend
@@ -1151,7 +1105,7 @@ static const struct snd_soc_component_driver dai_component = {
 static int intel_create_dai(struct sdw_cdns *cdns,
 			    struct snd_soc_dai_driver *dais,
 			    enum intel_pdi_type type,
-			    u32 num, u32 off, u32 max_ch, bool pcm)
+			    u32 num, u32 off, u32 max_ch)
 {
 	int i;
 
@@ -1180,10 +1134,7 @@ static int intel_create_dai(struct sdw_cdns *cdns,
 			dais[i].capture.formats = SNDRV_PCM_FMTBIT_S16_LE;
 		}
 
-		if (pcm)
-			dais[i].ops = &intel_pcm_dai_ops;
-		else
-			dais[i].ops = &intel_pdm_dai_ops;
+		dais[i].ops = &intel_pcm_dai_ops;
 	}
 
 	return 0;
@@ -1197,7 +1148,7 @@ static int intel_register_dai(struct sdw_intel *sdw)
 	int num_dai, ret, off = 0;
 
 	/* DAIs are created based on total number of PDIs supported */
-	num_dai = cdns->pcm.num_pdi + cdns->pdm.num_pdi;
+	num_dai = cdns->pcm.num_pdi;
 
 	dais = devm_kcalloc(cdns->dev, num_dai, sizeof(*dais), GFP_KERNEL);
 	if (!dais)
@@ -1207,39 +1158,19 @@ static int intel_register_dai(struct sdw_intel *sdw)
 	stream = &cdns->pcm;
 
 	ret = intel_create_dai(cdns, dais, INTEL_PDI_IN, cdns->pcm.num_in,
-			       off, stream->num_ch_in, true);
+			       off, stream->num_ch_in);
 	if (ret)
 		return ret;
 
 	off += cdns->pcm.num_in;
 	ret = intel_create_dai(cdns, dais, INTEL_PDI_OUT, cdns->pcm.num_out,
-			       off, stream->num_ch_out, true);
+			       off, stream->num_ch_out);
 	if (ret)
 		return ret;
 
 	off += cdns->pcm.num_out;
 	ret = intel_create_dai(cdns, dais, INTEL_PDI_BD, cdns->pcm.num_bd,
-			       off, stream->num_ch_bd, true);
-	if (ret)
-		return ret;
-
-	/* Create PDM DAIs */
-	stream = &cdns->pdm;
-	off += cdns->pcm.num_bd;
-	ret = intel_create_dai(cdns, dais, INTEL_PDI_IN, cdns->pdm.num_in,
-			       off, stream->num_ch_in, false);
-	if (ret)
-		return ret;
-
-	off += cdns->pdm.num_in;
-	ret = intel_create_dai(cdns, dais, INTEL_PDI_OUT, cdns->pdm.num_out,
-			       off, stream->num_ch_out, false);
-	if (ret)
-		return ret;
-
-	off += cdns->pdm.num_out;
-	ret = intel_create_dai(cdns, dais, INTEL_PDI_BD, cdns->pdm.num_bd,
-			       off, stream->num_ch_bd, false);
+			       off, stream->num_ch_bd);
 	if (ret)
 		return ret;
 
