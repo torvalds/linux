@@ -2651,37 +2651,6 @@ int mt7915_mcu_set_tx(struct mt7915_dev *dev, struct ieee80211_vif *vif)
 	return mt7915_mcu_update_edca(dev, &req);
 }
 
-int mt7915_mcu_set_pm(struct mt7915_dev *dev, int band, int enter)
-{
-#define ENTER_PM_STATE		1
-#define EXIT_PM_STATE		2
-	struct {
-		u8 pm_number;
-		u8 pm_state;
-		u8 bssid[ETH_ALEN];
-		u8 dtim_period;
-		u8 wlan_idx_lo;
-		__le16 bcn_interval;
-		__le32 aid;
-		__le32 rx_filter;
-		u8 band_idx;
-		u8 wlan_idx_hi;
-		u8 rsv[2];
-		__le32 feature;
-		u8 omac_idx;
-		u8 wmm_idx;
-		u8 bcn_loss_cnt;
-		u8 bcn_sp_duration;
-	} __packed req = {
-		.pm_number = 5,
-		.pm_state = (enter) ? ENTER_PM_STATE : EXIT_PM_STATE,
-		.band_idx = band,
-	};
-
-	return mt76_mcu_send_msg(&dev->mt76, MCU_EXT_CMD(PM_STATE_CTRL), &req,
-				 sizeof(req), true);
-}
-
 int mt7915_mcu_rdd_cmd(struct mt7915_dev *dev,
 		       enum mt7915_rdd_cmd cmd, u8 index,
 		       u8 rx_sel, u8 val)

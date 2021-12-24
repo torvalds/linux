@@ -34,7 +34,7 @@ static int mt7915_start(struct ieee80211_hw *hw)
 	running = mt7915_dev_running(dev);
 
 	if (!running) {
-		ret = mt7915_mcu_set_pm(dev, 0, 0);
+		ret = mt76_connac_mcu_set_pm(&dev->mt76, 0, 0);
 		if (ret)
 			goto out;
 
@@ -50,7 +50,7 @@ static int mt7915_start(struct ieee80211_hw *hw)
 	}
 
 	if (phy != &dev->phy) {
-		ret = mt7915_mcu_set_pm(dev, 1, 0);
+		ret = mt76_connac_mcu_set_pm(&dev->mt76, 1, 0);
 		if (ret)
 			goto out;
 
@@ -106,12 +106,12 @@ static void mt7915_stop(struct ieee80211_hw *hw)
 	clear_bit(MT76_STATE_RUNNING, &phy->mt76->state);
 
 	if (phy != &dev->phy) {
-		mt7915_mcu_set_pm(dev, 1, 1);
+		mt76_connac_mcu_set_pm(&dev->mt76, 1, 1);
 		mt7915_mcu_set_mac(dev, 1, false, false);
 	}
 
 	if (!mt7915_dev_running(dev)) {
-		mt7915_mcu_set_pm(dev, 0, 1);
+		mt76_connac_mcu_set_pm(&dev->mt76, 0, 1);
 		mt7915_mcu_set_mac(dev, 0, false, false);
 	}
 

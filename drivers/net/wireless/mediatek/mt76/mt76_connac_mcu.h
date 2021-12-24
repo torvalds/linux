@@ -1609,4 +1609,5 @@ void mt76_connac_mcu_sta_uapsd(struct sk_buff *skb, struct ieee80211_vif *vif,
 void mt76_connac_mcu_wtbl_smps_tlv(struct sk_buff *skb,
 				   struct ieee80211_sta *sta,
 				   void *sta_wtbl, void *wtbl_tlv);
+int mt76_connac_mcu_set_pm(struct mt76_dev *dev, int band, int enter);
 #endif /* __MT76_CONNAC_MCU_H */
