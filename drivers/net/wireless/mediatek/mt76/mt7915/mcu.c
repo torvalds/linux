@@ -1941,21 +1941,6 @@ out:
 				     MCU_EXT_CMD(BSS_INFO_UPDATE), true);
 }
 
-static int mt7915_mcu_start_firmware(struct mt7915_dev *dev, u32 addr,
-				     u32 option)
-{
-	struct {
-		__le32 option;
-		__le32 addr;
-	} req = {
-		.option = cpu_to_le32(option),
-		.addr = cpu_to_le32(addr),
-	};
-
-	return mt76_mcu_send_msg(&dev->mt76, MCU_CMD(FW_START_REQ), &req,
-				 sizeof(req), true);
-}
-
 static int mt7915_mcu_restart(struct mt76_dev *dev)
 {
 	struct {
@@ -2175,7 +2160,7 @@ mt7915_mcu_send_ram_firmware(struct mt7915_dev *dev,
 	if (is_wa)
 		option |= FW_START_WORKING_PDA_CR4;
 
-	return mt7915_mcu_start_firmware(dev, override, option);
+	return mt76_connac_mcu_start_firmware(&dev->mt76, override, option);
 }
 
 static int mt7915_load_ram(struct mt7915_dev *dev)
