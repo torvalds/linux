@@ -858,6 +858,7 @@ static int switchtec_ntb_init_sndev(struct switchtec_ntb *sndev)
 	tpart_vec |= ioread32(&sndev->mmio_ntb->ntp_info[self].target_part_low);
 
 	part_map = ioread64(&sndev->mmio_ntb->ep_map);
+	tpart_vec &= part_map;
 	part_map &= ~(1 << sndev->self_partition);
 
 	if (!tpart_vec) {
