@@ -31,6 +31,8 @@ struct btree_and_journal_iter {
 	}			last;
 };
 
+int bch2_journal_key_insert_take(struct bch_fs *, enum btree_id,
+				 unsigned, struct bkey_i *);
 int bch2_journal_key_insert(struct bch_fs *, enum btree_id,
 			    unsigned, struct bkey_i *);
 int bch2_journal_key_delete(struct bch_fs *, enum btree_id,

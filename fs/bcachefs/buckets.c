@@ -1217,19 +1217,13 @@ not_found:
 	 */
 	if (fsck_err(c, "%llu:%llu len %u points to nonexistent indirect extent %llu",
 		     p.k->p.inode, p.k->p.offset, p.k->size, *idx)) {
-		struct bkey_i_error *new;
+		struct bkey_i_error new;
 
-		new = kmalloc(sizeof(*new), GFP_KERNEL);
-		if (!new) {
-			bch_err(c, "%s: error allocating new key", __func__);
-			return -ENOMEM;
-		}
-
-		bkey_init(&new->k);
-		new->k.type	= KEY_TYPE_error;
-		new->k.p	= p.k->p;
-		new->k.size	= p.k->size;
-		ret = bch2_journal_key_insert(c, BTREE_ID_extents, 0, &new->k_i);
+		bkey_init(&new.k);
+		new.k.type	= KEY_TYPE_error;
+		new.k.p		= p.k->p;
+		new.k.size	= p.k->size;
+		ret = bch2_journal_key_insert(c, BTREE_ID_extents, 0, &new.k_i);
 	}
 fsck_err:
 	return ret;
