@@ -1726,6 +1726,8 @@ have_slot:
 	if (ret)
 		goto err_late;
 
+	ca->new_fs_bucket_idx = 0;
+
 	if (ca->mi.state == BCH_MEMBER_STATE_rw) {
 		ret = __bch2_dev_read_write(c, ca);
 		if (ret)

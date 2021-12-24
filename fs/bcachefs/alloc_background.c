@@ -513,6 +513,18 @@ static bool bch2_can_invalidate_bucket(struct bch_dev *ca, size_t b,
 	    test_bit(b, ca->buckets_nouse))
 		return false;
 
+	if (ca->new_fs_bucket_idx) {
+		/*
+		 * Device or filesystem is still being initialized, and we
+		 * haven't fully marked superblocks & journal:
+		 */
+		if (is_superblock_bucket(ca, b))
+			return false;
+
+		if (b < ca->new_fs_bucket_idx)
+			return false;
+	}
+
 	gc_gen = bucket_gc_gen(bucket(ca, b));
 
 	ca->inc_gen_needs_gc		+= gc_gen >= BUCKET_GC_GEN_MAX / 2;

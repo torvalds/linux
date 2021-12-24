@@ -453,6 +453,7 @@ struct bch_dev {
 	struct bch_dev_usage __percpu	*usage_gc;
 
 	/* Allocator: */
+	u64			new_fs_bucket_idx;
 	struct task_struct __rcu *alloc_thread;
 
 	/*

@@ -194,6 +194,27 @@ static inline struct bch_devs_mask bch2_online_devs(struct bch_fs *c)
 	return devs;
 }
 
+static inline bool is_superblock_bucket(struct bch_dev *ca, u64 b)
+{
+	struct bch_sb_layout *layout = &ca->disk_sb.sb->layout;
+	u64 b_offset	= bucket_to_sector(ca, b);
+	u64 b_end	= bucket_to_sector(ca, b + 1);
+	unsigned i;
+
+	if (!b)
+		return true;
+
+	for (i = 0; i < layout->nr_superblocks; i++) {
+		u64 offset = le64_to_cpu(layout->sb_offset[i]);
+		u64 end = offset + (1 << layout->sb_max_size_bits);
+
+		if (!(offset >= b_end || end <= b_offset))
+			return true;
+	}
+
+	return false;
+}
+
 struct bch_fs *bch2_dev_to_fs(dev_t);
 struct bch_fs *bch2_uuid_to_fs(__uuid_t);
 

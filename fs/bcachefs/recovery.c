@@ -1429,6 +1429,8 @@ int bch2_fs_initialize(struct bch_fs *c)
 			percpu_ref_put(&ca->ref);
 			goto err;
 		}
+
+		ca->new_fs_bucket_idx = 0;
 	}
 
 	err = "error creating root snapshot node";

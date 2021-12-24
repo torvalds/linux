@@ -144,21 +144,15 @@ static void verify_not_stale(struct bch_fs *c, const struct open_buckets *obs)
 /* _only_ for allocating the journal on a new device: */
 long bch2_bucket_alloc_new_fs(struct bch_dev *ca)
 {
-	struct bucket_array *buckets;
-	ssize_t b;
+	while (ca->new_fs_bucket_idx < ca->mi.nbuckets) {
+		u64 b = ca->new_fs_bucket_idx++;
 
-	rcu_read_lock();
-	buckets = bucket_array(ca);
+		if (!is_superblock_bucket(ca, b) &&
+		    (!ca->buckets_nouse || !test_bit(b, ca->buckets_nouse)))
+			return b;
+	}
 
-	for (b = buckets->first_bucket; b < buckets->nbuckets; b++)
-		if (is_available_bucket(buckets->b[b].mark) &&
-		    (!ca->buckets_nouse || !test_bit(b, ca->buckets_nouse)) &&
-		    !buckets->b[b].mark.owned_by_allocator)
-			goto success;
-	b = -1;
-success:
-	rcu_read_unlock();
-	return b;
+	return -1;
 }
 
 static inline unsigned open_buckets_reserved(enum alloc_reserve reserve)
