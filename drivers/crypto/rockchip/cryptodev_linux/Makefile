@@ -5,5 +5,6 @@ cryptodev-objs := ioctl.o \
 		cryptlib.o \
 		authenc.o \
 		zc.o \
-		util.o
+		util.o \
+		rk_cryptodev.o
 
