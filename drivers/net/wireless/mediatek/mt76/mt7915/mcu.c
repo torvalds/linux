@@ -1941,31 +1941,6 @@ out:
 				     MCU_EXT_CMD(BSS_INFO_UPDATE), true);
 }
 
-static int mt7915_mcu_patch_sem_ctrl(struct mt7915_dev *dev, bool get)
-{
-	struct {
-		__le32 op;
-	} req = {
-		.op = cpu_to_le32(get ? PATCH_SEM_GET : PATCH_SEM_RELEASE),
-	};
-
-	return mt76_mcu_send_msg(&dev->mt76, MCU_CMD(PATCH_SEM_CONTROL), &req,
-				 sizeof(req), true);
-}
-
-static int mt7915_mcu_start_patch(struct mt7915_dev *dev)
-{
-	struct {
-		u8 check_crc;
-		u8 reserved[3];
-	} req = {
-		.check_crc = 0,
-	};
-
-	return mt76_mcu_send_msg(&dev->mt76, MCU_CMD(PATCH_FINISH_REQ), &req,
-				 sizeof(req), true);
-}
-
 static int mt7915_driver_own(struct mt7915_dev *dev, u8 band)
 {
 	mt76_wr(dev, MT_TOP_LPCR_HOST_BAND(band), MT_TOP_LPCR_HOST_DRV_OWN);
@@ -2011,7 +1986,7 @@ static int mt7915_load_patch(struct mt7915_dev *dev)
 	const char *patch;
 	int i, ret, sem;
 
-	sem = mt7915_mcu_patch_sem_ctrl(dev, 1);
+	sem = mt76_connac_mcu_patch_sem_ctrl(&dev->mt76, 1);
 	switch (sem) {
 	case PATCH_IS_DL:
 		return 0;
@@ -2070,12 +2045,12 @@ static int mt7915_load_patch(struct mt7915_dev *dev)
 		}
 	}
 
-	ret = mt7915_mcu_start_patch(dev);
+	ret = mt76_connac_mcu_start_patch(&dev->mt76);
 	if (ret)
 		dev_err(dev->mt76.dev, "Failed to start patch\n");
 
 out:
-	sem = mt7915_mcu_patch_sem_ctrl(dev, 0);
+	sem = mt76_connac_mcu_patch_sem_ctrl(&dev->mt76, 0);
 	switch (sem) {
 	case PATCH_REL_SEM_SUCCESS:
 		break;
