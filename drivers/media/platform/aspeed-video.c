@@ -780,6 +780,18 @@ static irqreturn_t aspeed_video_irq(int irq, void *arg)
 		u32 frame_size = aspeed_video_read(video,
 						   video->comp_size_read);
 
+		aspeed_video_update(video, VE_SEQ_CTRL,
+				    VE_SEQ_CTRL_TRIG_CAPTURE |
+				    VE_SEQ_CTRL_FORCE_IDLE |
+				    VE_SEQ_CTRL_TRIG_COMP, 0);
+		aspeed_video_update(video, VE_INTERRUPT_CTRL,
+				    VE_INTERRUPT_COMP_COMPLETE, 0);
+		aspeed_video_write(video, VE_INTERRUPT_STATUS,
+				   VE_INTERRUPT_COMP_COMPLETE);
+		sts &= ~VE_INTERRUPT_COMP_COMPLETE;
+
+		aspeed_video_swap_src_buf(video);
+
 		update_perf(&video->perf);
 
 		spin_lock(&video->lock);
@@ -810,18 +822,6 @@ static irqreturn_t aspeed_video_irq(int irq, void *arg)
 			}
 		}
 		spin_unlock(&video->lock);
-
-		aspeed_video_update(video, VE_SEQ_CTRL,
-				    VE_SEQ_CTRL_TRIG_CAPTURE |
-				    VE_SEQ_CTRL_FORCE_IDLE |
-				    VE_SEQ_CTRL_TRIG_COMP, 0);
-		aspeed_video_update(video, VE_INTERRUPT_CTRL,
-				    VE_INTERRUPT_COMP_COMPLETE, 0);
-		aspeed_video_write(video, VE_INTERRUPT_STATUS,
-				   VE_INTERRUPT_COMP_COMPLETE);
-		sts &= ~VE_INTERRUPT_COMP_COMPLETE;
-
-		aspeed_video_swap_src_buf(video);
 
 		if (test_bit(VIDEO_STREAMING, &video->flags) && !empty)
 			aspeed_video_start_frame(video);
