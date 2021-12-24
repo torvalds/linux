@@ -1891,27 +1891,6 @@ int mt7615_mcu_del_wtbl_all(struct mt7615_dev *dev)
 				 &req, sizeof(req), true);
 }
 
-int mt7615_mcu_rdd_cmd(struct mt7615_dev *dev,
-		       enum mt7615_rdd_cmd cmd, u8 index,
-		       u8 rx_sel, u8 val)
-{
-	struct {
-		u8 ctrl;
-		u8 rdd_idx;
-		u8 rdd_rx_sel;
-		u8 val;
-		u8 rsv[4];
-	} req = {
-		.ctrl = cmd,
-		.rdd_idx = index,
-		.rdd_rx_sel = rx_sel,
-		.val = val,
-	};
-
-	return mt76_mcu_send_msg(&dev->mt76, MCU_EXT_CMD(SET_RDD_CTRL),
-				 &req, sizeof(req), true);
-}
-
 int mt7615_mcu_set_fcc5_lpn(struct mt7615_dev *dev, int val)
 {
 	struct {

@@ -403,9 +403,6 @@ int mt7615_mcu_set_chan_info(struct mt7615_phy *phy, int cmd);
 int mt7615_mcu_set_wmm(struct mt7615_dev *dev, u8 queue,
 		       const struct ieee80211_tx_queue_params *params);
 void mt7615_mcu_rx_event(struct mt7615_dev *dev, struct sk_buff *skb);
-int mt7615_mcu_rdd_cmd(struct mt7615_dev *dev,
-		       enum mt7615_rdd_cmd cmd, u8 index,
-		       u8 rx_sel, u8 val);
 int mt7615_mcu_rdd_send_pattern(struct mt7615_dev *dev);
 int mt7615_mcu_fw_log_2_host(struct mt7615_dev *dev, u8 ctrl);
 

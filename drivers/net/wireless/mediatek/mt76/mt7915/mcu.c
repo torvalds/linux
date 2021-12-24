@@ -2528,27 +2528,6 @@ int mt7915_mcu_set_tx(struct mt7915_dev *dev, struct ieee80211_vif *vif)
 	return mt7915_mcu_update_edca(dev, &req);
 }
 
-int mt7915_mcu_rdd_cmd(struct mt7915_dev *dev,
-		       enum mt7915_rdd_cmd cmd, u8 index,
-		       u8 rx_sel, u8 val)
-{
-	struct {
-		u8 ctrl;
-		u8 rdd_idx;
-		u8 rdd_rx_sel;
-		u8 val;
-		u8 rsv[4];
-	} __packed req = {
-		.ctrl = cmd,
-		.rdd_idx = index,
-		.rdd_rx_sel = rx_sel,
-		.val = val,
-	};
-
-	return mt76_mcu_send_msg(&dev->mt76, MCU_EXT_CMD(SET_RDD_CTRL), &req,
-				 sizeof(req), true);
-}
-
 int mt7915_mcu_set_fcc5_lpn(struct mt7915_dev *dev, int val)
 {
 	struct {

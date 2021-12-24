@@ -2346,20 +2346,24 @@ static void mt7915_dfs_stop_radar_detector(struct mt7915_phy *phy)
 	struct mt7915_dev *dev = phy->dev;
 
 	if (phy->rdd_state & BIT(0))
-		mt7915_mcu_rdd_cmd(dev, RDD_STOP, 0, MT_RX_SEL0, 0);
+		mt76_connac_mcu_rdd_cmd(&dev->mt76, RDD_STOP, 0,
+					MT_RX_SEL0, 0);
 	if (phy->rdd_state & BIT(1))
-		mt7915_mcu_rdd_cmd(dev, RDD_STOP, 1, MT_RX_SEL0, 0);
+		mt76_connac_mcu_rdd_cmd(&dev->mt76, RDD_STOP, 1,
+					MT_RX_SEL0, 0);
 }
 
 static int mt7915_dfs_start_rdd(struct mt7915_dev *dev, int chain)
 {
 	int err;
 
-	err = mt7915_mcu_rdd_cmd(dev, RDD_START, chain, MT_RX_SEL0, 0);
+	err = mt76_connac_mcu_rdd_cmd(&dev->mt76, RDD_START, chain,
+				      MT_RX_SEL0, 0);
 	if (err < 0)
 		return err;
 
-	return mt7915_mcu_rdd_cmd(dev, RDD_DET_MODE, chain, MT_RX_SEL0, 1);
+	return mt76_connac_mcu_rdd_cmd(&dev->mt76, RDD_DET_MODE, chain,
+				       MT_RX_SEL0, 1);
 }
 
 static int mt7915_dfs_start_radar_detector(struct mt7915_phy *phy)
@@ -2370,7 +2374,8 @@ static int mt7915_dfs_start_radar_detector(struct mt7915_phy *phy)
 	int err;
 
 	/* start CAC */
-	err = mt7915_mcu_rdd_cmd(dev, RDD_CAC_START, ext_phy, MT_RX_SEL0, 0);
+	err = mt76_connac_mcu_rdd_cmd(&dev->mt76, RDD_CAC_START, ext_phy,
+				      MT_RX_SEL0, 0);
 	if (err < 0)
 		return err;
 
@@ -2459,13 +2464,13 @@ int mt7915_dfs_init_radar_detector(struct mt7915_phy *phy)
 		if (chandef->chan->dfs_state != NL80211_DFS_AVAILABLE)
 			return mt7915_dfs_start_radar_detector(phy);
 
-		return mt7915_mcu_rdd_cmd(dev, RDD_CAC_END, ext_phy,
-					  MT_RX_SEL0, 0);
+		return mt76_connac_mcu_rdd_cmd(&dev->mt76, RDD_CAC_END,
+					       ext_phy, MT_RX_SEL0, 0);
 	}
 
 stop:
-	err = mt7915_mcu_rdd_cmd(dev, RDD_NORMAL_START, ext_phy,
-				 MT_RX_SEL0, 0);
+	err = mt76_connac_mcu_rdd_cmd(&dev->mt76, RDD_NORMAL_START, ext_phy,
+				      MT_RX_SEL0, 0);
 	if (err < 0)
 		return err;
 
