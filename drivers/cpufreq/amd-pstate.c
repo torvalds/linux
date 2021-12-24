@@ -44,6 +44,7 @@
 #include <asm/processor.h>
 #include <asm/cpufeature.h>
 #include <asm/cpu_device_id.h>
+#include "amd-pstate-trace.h"
 
 #define AMD_PSTATE_TRANSITION_LATENCY	0x20000
 #define AMD_PSTATE_TRANSITION_DELAY	500
@@ -219,6 +220,9 @@ static void amd_pstate_update(struct amd_cpudata *cpudata, u32 min_perf,
 
 	value &= ~AMD_CPPC_MAX_PERF(~0L);
 	value |= AMD_CPPC_MAX_PERF(max_perf);
+
+	trace_amd_pstate_perf(min_perf, des_perf, max_perf,
+			      cpudata->cpu, (value != prev), fast_switch);
 
 	if (value == prev)
 		return;
