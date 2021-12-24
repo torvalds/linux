@@ -67,25 +67,6 @@ struct mt7921_fw_region {
 #define MT_STA_BFER			BIT(0)
 #define MT_STA_BFEE			BIT(1)
 
-#define FW_FEATURE_SET_ENCRYPT		BIT(0)
-#define FW_FEATURE_SET_KEY_IDX		GENMASK(2, 1)
-#define FW_FEATURE_ENCRY_MODE		BIT(4)
-#define FW_FEATURE_OVERRIDE_ADDR	BIT(5)
-
-#define DL_MODE_ENCRYPT			BIT(0)
-#define DL_MODE_KEY_IDX			GENMASK(2, 1)
-#define DL_MODE_RESET_SEC_IV		BIT(3)
-#define DL_MODE_WORKING_PDA_CR4		BIT(4)
-#define DL_CONFIG_ENCRY_MODE_SEL	BIT(6)
-#define DL_MODE_NEED_RSP		BIT(31)
-
-#define FW_START_OVERRIDE		BIT(0)
-#define FW_START_WORKING_PDA_CR4	BIT(2)
-
-#define PATCH_SEC_NOT_SUPPORT		GENMASK(31, 0)
-#define PATCH_SEC_TYPE_MASK		GENMASK(15, 0)
-#define PATCH_SEC_TYPE_INFO		0x2
-
 #define PATCH_SEC_ENC_TYPE_MASK		GENMASK(31, 24)
 #define PATCH_SEC_ENC_TYPE_PLAIN		0x00
 #define PATCH_SEC_ENC_TYPE_AES			0x01
@@ -583,22 +564,6 @@ out:
 	return ret;
 }
 
-static u32 mt7921_mcu_gen_dl_mode(u8 feature_set, bool is_wa)
-{
-	u32 ret = 0;
-
-	ret |= (feature_set & FW_FEATURE_SET_ENCRYPT) ?
-	       (DL_MODE_ENCRYPT | DL_MODE_RESET_SEC_IV) : 0;
-	ret |= (feature_set & FW_FEATURE_ENCRY_MODE) ?
-	       DL_CONFIG_ENCRY_MODE_SEL : 0;
-	ret |= FIELD_PREP(DL_MODE_KEY_IDX,
-			  FIELD_GET(FW_FEATURE_SET_KEY_IDX, feature_set));
-	ret |= DL_MODE_NEED_RSP;
-	ret |= is_wa ? DL_MODE_WORKING_PDA_CR4 : 0;
-
-	return ret;
-}
-
 static int
 mt7921_mcu_send_ram_firmware(struct mt7921_dev *dev,
 			     const struct mt7921_fw_trailer *hdr,
@@ -616,7 +581,8 @@ mt7921_mcu_send_ram_firmware(struct mt7921_dev *dev,
 
 		region = (const struct mt7921_fw_region *)((const u8 *)hdr -
 			 (hdr->n_region - i) * sizeof(*region));
-		mode = mt7921_mcu_gen_dl_mode(region->feature_set, is_wa);
+		mode = mt76_connac_mcu_gen_dl_mode(&dev->mt76,
+						   region->feature_set, is_wa);
 		len = le32_to_cpu(region->len);
 		addr = le32_to_cpu(region->addr);
 

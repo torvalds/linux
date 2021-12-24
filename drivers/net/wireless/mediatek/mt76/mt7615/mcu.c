@@ -71,19 +71,6 @@ struct mt7663_fw_buf {
 
 #define IMG_CRC_LEN			4
 
-#define FW_FEATURE_SET_ENCRYPT		BIT(0)
-#define FW_FEATURE_SET_KEY_IDX		GENMASK(2, 1)
-
-#define DL_MODE_ENCRYPT			BIT(0)
-#define DL_MODE_KEY_IDX			GENMASK(2, 1)
-#define DL_MODE_RESET_SEC_IV		BIT(3)
-#define DL_MODE_WORKING_PDA_CR4		BIT(4)
-#define DL_MODE_VALID_RAM_ENTRY         BIT(5)
-#define DL_MODE_NEED_RSP		BIT(31)
-
-#define FW_START_OVERRIDE		BIT(0)
-#define FW_START_WORKING_PDA_CR4	BIT(2)
-
 void mt7615_mcu_fill_msg(struct mt7615_dev *dev, struct sk_buff *skb,
 			 int cmd, int *wait_seq)
 {
@@ -1303,20 +1290,6 @@ release_fw:
 	return ret;
 }
 
-static u32 mt7615_mcu_gen_dl_mode(u8 feature_set, bool is_cr4)
-{
-	u32 ret = 0;
-
-	ret |= (feature_set & FW_FEATURE_SET_ENCRYPT) ?
-	       (DL_MODE_ENCRYPT | DL_MODE_RESET_SEC_IV) : 0;
-	ret |= FIELD_PREP(DL_MODE_KEY_IDX,
-			  FIELD_GET(FW_FEATURE_SET_KEY_IDX, feature_set));
-	ret |= DL_MODE_NEED_RSP;
-	ret |= is_cr4 ? DL_MODE_WORKING_PDA_CR4 : 0;
-
-	return ret;
-}
-
 static int
 mt7615_mcu_send_ram_firmware(struct mt7615_dev *dev,
 			     const struct mt7615_fw_trailer *hdr,
@@ -1327,7 +1300,8 @@ mt7615_mcu_send_ram_firmware(struct mt7615_dev *dev,
 	u32 len, addr, mode;
 
 	for (i = 0; i < n_region; i++) {
-		mode = mt7615_mcu_gen_dl_mode(hdr[i].feature_set, is_cr4);
+		mode = mt76_connac_mcu_gen_dl_mode(&dev->mt76,
+						   hdr[i].feature_set, is_cr4);
 		len = le32_to_cpu(hdr[i].len) + IMG_CRC_LEN;
 		addr = le32_to_cpu(hdr[i].addr);
 
@@ -1575,7 +1549,8 @@ static int mt7663_load_n9(struct mt7615_dev *dev, const char *name)
 		dev_info(dev->mt76.dev, "Parsing tailer Region: %d\n", i);
 
 		buf = (const struct mt7663_fw_buf *)(base_addr - shift);
-		mode = mt7615_mcu_gen_dl_mode(buf->feature_set, false);
+		mode = mt76_connac_mcu_gen_dl_mode(&dev->mt76,
+						   buf->feature_set, false);
 		addr = le32_to_cpu(buf->img_dest_addr);
 		len = le32_to_cpu(buf->img_size);
 

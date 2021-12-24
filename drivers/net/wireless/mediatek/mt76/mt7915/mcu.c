@@ -66,22 +66,6 @@ struct mt7915_fw_region {
 
 #define MCU_PATCH_ADDRESS		0x200000
 
-#define FW_FEATURE_SET_ENCRYPT		BIT(0)
-#define FW_FEATURE_SET_KEY_IDX		GENMASK(2, 1)
-#define FW_FEATURE_OVERRIDE_ADDR	BIT(5)
-
-#define DL_MODE_ENCRYPT			BIT(0)
-#define DL_MODE_KEY_IDX			GENMASK(2, 1)
-#define DL_MODE_RESET_SEC_IV		BIT(3)
-#define DL_MODE_WORKING_PDA_CR4		BIT(4)
-#define DL_MODE_NEED_RSP		BIT(31)
-
-#define FW_START_OVERRIDE		BIT(0)
-#define FW_START_WORKING_PDA_CR4	BIT(2)
-
-#define PATCH_SEC_TYPE_MASK		GENMASK(15, 0)
-#define PATCH_SEC_TYPE_INFO		0x2
-
 #define HE_PHY(p, c)			u8_get_bits(c, IEEE80211_HE_PHY_##p)
 #define HE_MAC(m, c)			u8_get_bits(c, IEEE80211_HE_MAC_##m)
 
@@ -2042,20 +2026,6 @@ out:
 	return ret;
 }
 
-static u32 mt7915_mcu_gen_dl_mode(u8 feature_set, bool is_wa)
-{
-	u32 ret = 0;
-
-	ret |= (feature_set & FW_FEATURE_SET_ENCRYPT) ?
-	       (DL_MODE_ENCRYPT | DL_MODE_RESET_SEC_IV) : 0;
-	ret |= FIELD_PREP(DL_MODE_KEY_IDX,
-			  FIELD_GET(FW_FEATURE_SET_KEY_IDX, feature_set));
-	ret |= DL_MODE_NEED_RSP;
-	ret |= is_wa ? DL_MODE_WORKING_PDA_CR4 : 0;
-
-	return ret;
-}
-
 static int
 mt7915_mcu_send_ram_firmware(struct mt7915_dev *dev,
 			     const struct mt7915_fw_trailer *hdr,
@@ -2071,7 +2041,8 @@ mt7915_mcu_send_ram_firmware(struct mt7915_dev *dev,
 
 		region = (const struct mt7915_fw_region *)((const u8 *)hdr -
 			 (hdr->n_region - i) * sizeof(*region));
-		mode = mt7915_mcu_gen_dl_mode(region->feature_set, is_wa);
+		mode = mt76_connac_mcu_gen_dl_mode(&dev->mt76,
+						   region->feature_set, is_wa);
 		len = le32_to_cpu(region->len);
 		addr = le32_to_cpu(region->addr);
 
