@@ -163,13 +163,13 @@ static int aspeed_jtag_set_freq(struct jtag *jtag, u32 freq)
 	 * AST2500: TCK period = Period of PCLK * (JTAG14[10:0] + 1) * 2
 	 */
 	if (aspeed_jtag->config->jtag_version == 6)
-		div = DIV_ROUND_CLOSEST(aspeed_jtag->clkin, freq);
+		div = DIV_ROUND_UP(aspeed_jtag->clkin, freq) - 1;
 	else
-		div = DIV_ROUND_CLOSEST(aspeed_jtag->clkin, freq * 2);
-	if (div >= 1)
-		div = div - 1;
-	if (div > JTAG_TCK_DIVISOR_MASK)
+		div = DIV_ROUND_UP(aspeed_jtag->clkin, freq * 2) - 1;
+	if (div > JTAG_TCK_DIVISOR_MASK) {
+		pr_warn("The actual frequency will faster than required\n");
 		div = JTAG_TCK_DIVISOR_MASK;
+	}
 	JTAG_DBUG("%d target freq = %d div = %d", aspeed_jtag->clkin, freq,
 		  div);
 	/*
