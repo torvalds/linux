@@ -967,9 +967,6 @@ static int config_req_id_table(struct switchtec_ntb *sndev,
 	if (rc)
 		return rc;
 
-	iowrite32(NTB_PART_CTRL_ID_PROT_DIS,
-		  &mmio_ctrl->partition_ctrl);
-
 	for (i = 0; i < count; i++) {
 		iowrite32(req_ids[i] << 16 | NTB_CTRL_REQ_ID_EN,
 			  &mmio_ctrl->req_id_table[i]);
