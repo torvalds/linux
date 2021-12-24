@@ -189,10 +189,7 @@ static int sdw_params_stream(struct device *dev,
 	struct snd_soc_dai *d = params_data->dai;
 	struct snd_soc_dapm_widget *w;
 
-	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
-		w = d->playback_widget;
-	else
-		w = d->capture_widget;
+	w = snd_soc_dai_get_widget(d, substream->stream);
 
 	return sdw_dai_config_ipc(sdev, w, params_data->link_id, params_data->alh_stream_id,
 				  d->id, true);
@@ -206,10 +203,7 @@ static int sdw_free_stream(struct device *dev,
 	struct snd_soc_dai *d = free_data->dai;
 	struct snd_soc_dapm_widget *w;
 
-	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
-		w = d->playback_widget;
-	else
-		w = d->capture_widget;
+	w = snd_soc_dai_get_widget(d, substream->stream);
 
 	/* send invalid stream_id */
 	return sdw_dai_config_ipc(sdev, w, free_data->link_id, 0xFFFF, d->id, false);
