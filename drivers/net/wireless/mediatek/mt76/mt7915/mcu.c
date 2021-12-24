@@ -1957,28 +1957,6 @@ static int mt7915_driver_own(struct mt7915_dev *dev, u8 band)
 	return 0;
 }
 
-static int mt7915_mcu_init_download(struct mt7915_dev *dev, u32 addr,
-				    u32 len, u32 mode)
-{
-	struct {
-		__le32 addr;
-		__le32 len;
-		__le32 mode;
-	} req = {
-		.addr = cpu_to_le32(addr),
-		.len = cpu_to_le32(len),
-		.mode = cpu_to_le32(mode),
-	};
-	int attr;
-
-	if (req.addr == cpu_to_le32(MCU_PATCH_ADDRESS))
-		attr = MCU_CMD(PATCH_START_REQ);
-	else
-		attr = MCU_CMD(TARGET_ADDRESS_LEN_REQ);
-
-	return mt76_mcu_send_msg(&dev->mt76, attr, &req, sizeof(req), true);
-}
-
 static int mt7915_load_patch(struct mt7915_dev *dev)
 {
 	const struct mt7915_patch_hdr *hdr;
@@ -2030,8 +2008,8 @@ static int mt7915_load_patch(struct mt7915_dev *dev)
 		len = be32_to_cpu(sec->info.len);
 		dl = fw->data + be32_to_cpu(sec->offs);
 
-		ret = mt7915_mcu_init_download(dev, addr, len,
-					       DL_MODE_NEED_RSP);
+		ret = mt76_connac_mcu_init_download(&dev->mt76, addr, len,
+						    DL_MODE_NEED_RSP);
 		if (ret) {
 			dev_err(dev->mt76.dev, "Download request failed\n");
 			goto out;
@@ -2100,7 +2078,8 @@ mt7915_mcu_send_ram_firmware(struct mt7915_dev *dev,
 		if (region->feature_set & FW_FEATURE_OVERRIDE_ADDR)
 			override = addr;
 
-		err = mt7915_mcu_init_download(dev, addr, len, mode);
+		err = mt76_connac_mcu_init_download(&dev->mt76, addr, len,
+						    mode);
 		if (err) {
 			dev_err(dev->mt76.dev, "Download request failed\n");
 			return err;
