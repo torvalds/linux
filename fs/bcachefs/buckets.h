@@ -91,18 +91,6 @@ static inline enum bch_data_type ptr_data_type(const struct bkey *k,
 	return ptr->cached ? BCH_DATA_cached : BCH_DATA_user;
 }
 
-static inline struct bucket_mark ptr_bucket_mark(struct bch_dev *ca,
-						 const struct bch_extent_ptr *ptr)
-{
-	struct bucket_mark m;
-
-	rcu_read_lock();
-	m = READ_ONCE(PTR_BUCKET(ca, ptr, 0)->mark);
-	rcu_read_unlock();
-
-	return m;
-}
-
 static inline int gen_cmp(u8 a, u8 b)
 {
 	return (s8) (a - b);
@@ -122,7 +110,13 @@ static inline int gen_after(u8 a, u8 b)
 static inline u8 ptr_stale(struct bch_dev *ca,
 			   const struct bch_extent_ptr *ptr)
 {
-	return gen_after(ptr_bucket_mark(ca, ptr).gen, ptr->gen);
+	u8 ret;
+
+	rcu_read_lock();
+	ret = gen_after(PTR_BUCKET(ca, ptr, 0)->mark.gen, ptr->gen);
+	rcu_read_unlock();
+
+	return ret;
 }
 
 /* bucket gc marks */
