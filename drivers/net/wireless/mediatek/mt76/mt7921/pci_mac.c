@@ -314,6 +314,7 @@ int mt7921e_mac_reset(struct mt7921_dev *dev)
 	}
 	local_bh_enable();
 
+	dev->fw_assert = false;
 	clear_bit(MT76_MCU_RESET, &dev->mphy.state);
 
 	mt76_wr(dev, MT_WFDMA0_HOST_INT_ENA,
