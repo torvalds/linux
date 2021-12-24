@@ -1802,6 +1802,17 @@ static int fusb302_pm_resume(struct device *dev)
 {
 	struct fusb302_chip *chip = dev->driver_data;
 	unsigned long flags;
+	u8 pwr;
+	int ret = 0;
+
+	/*
+	 * When the power of fusb302 is lost or i2c read failed in PM S/R
+	 * process, we must reset the tcpm port first to ensure the devices
+	 * can attach again.
+	 */
+	ret = fusb302_i2c_read(chip, FUSB_REG_POWER, &pwr);
+	if (pwr != FUSB_REG_POWER_PWR_ALL || ret < 0)
+		tcpm_tcpc_reset(chip->tcpm_port);
 
 	spin_lock_irqsave(&chip->irq_lock, flags);
 	if (chip->irq_while_suspended) {
