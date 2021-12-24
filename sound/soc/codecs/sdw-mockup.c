@@ -138,7 +138,7 @@ static int sdw_mockup_pcm_hw_free(struct snd_pcm_substream *substream,
 static const struct snd_soc_dai_ops sdw_mockup_ops = {
 	.hw_params	= sdw_mockup_pcm_hw_params,
 	.hw_free	= sdw_mockup_pcm_hw_free,
-	.set_sdw_stream	= sdw_mockup_set_sdw_stream,
+	.set_stream	= sdw_mockup_set_sdw_stream,
 	.shutdown	= sdw_mockup_shutdown,
 };
 
