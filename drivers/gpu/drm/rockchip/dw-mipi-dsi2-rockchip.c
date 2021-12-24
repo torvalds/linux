@@ -547,9 +547,9 @@ static void dw_mipi_dsi2_phy_clk_mode_cfg(struct dw_mipi_dsi2 *dsi2)
 	 */
 	val |= NON_CONTINUOUS_CLK;
 
-	/* The maximum value of the escape clock frequency is 20MHz */
+	/* The Escape clock ranges from 1MHz to 20MHz. */
 	sys_clk = clk_get_rate(dsi2->sys_clk) / USEC_PER_SEC;
-	esc_clk_div = DIV_ROUND_UP(sys_clk, 20 * 2);
+	esc_clk_div = DIV_ROUND_UP(sys_clk, 10 * 2);
 	val |= PHY_LPTX_CLK_DIV(esc_clk_div);
 
 	regmap_write(dsi2->regmap, DSI2_PHY_CLK_CFG, val);
