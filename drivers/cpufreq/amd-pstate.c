@@ -183,6 +183,39 @@ static int amd_pstate_target(struct cpufreq_policy *policy,
 	return 0;
 }
 
+static void amd_pstate_adjust_perf(unsigned int cpu,
+				   unsigned long _min_perf,
+				   unsigned long target_perf,
+				   unsigned long capacity)
+{
+	unsigned long max_perf, min_perf, des_perf,
+		      cap_perf, lowest_nonlinear_perf;
+	struct cpufreq_policy *policy = cpufreq_cpu_get(cpu);
+	struct amd_cpudata *cpudata = policy->driver_data;
+
+	cap_perf = READ_ONCE(cpudata->highest_perf);
+	lowest_nonlinear_perf = READ_ONCE(cpudata->lowest_nonlinear_perf);
+
+	des_perf = cap_perf;
+	if (target_perf < capacity)
+		des_perf = DIV_ROUND_UP(cap_perf * target_perf, capacity);
+
+	min_perf = READ_ONCE(cpudata->highest_perf);
+	if (_min_perf < capacity)
+		min_perf = DIV_ROUND_UP(cap_perf * _min_perf, capacity);
+
+	if (min_perf < lowest_nonlinear_perf)
+		min_perf = lowest_nonlinear_perf;
+
+	max_perf = cap_perf;
+	if (max_perf < min_perf)
+		max_perf = min_perf;
+
+	des_perf = clamp_t(unsigned long, des_perf, min_perf, max_perf);
+
+	amd_pstate_update(cpudata, min_perf, des_perf, max_perf, true);
+}
+
 static int amd_get_min_freq(struct amd_cpudata *cpudata)
 {
 	struct cppc_perf_caps cppc_perf;
@@ -299,6 +332,8 @@ static int amd_pstate_cpu_init(struct cpufreq_policy *policy)
 	/* It will be updated by governor */
 	policy->cur = policy->cpuinfo.min_freq;
 
+	policy->fast_switch_possible = true;
+
 	/* Initial processor data capability frequencies */
 	cpudata->max_freq = max_freq;
 	cpudata->min_freq = min_freq;
@@ -329,6 +364,7 @@ static struct cpufreq_driver amd_pstate_driver = {
 	.flags		= CPUFREQ_CONST_LOOPS | CPUFREQ_NEED_UPDATE_LIMITS,
 	.verify		= amd_pstate_verify,
 	.target		= amd_pstate_target,
+	.adjust_perf    = amd_pstate_adjust_perf,
 	.init		= amd_pstate_cpu_init,
 	.exit		= amd_pstate_cpu_exit,
 	.name		= "amd-pstate",
