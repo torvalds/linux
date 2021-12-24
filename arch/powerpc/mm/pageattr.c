@@ -46,6 +46,12 @@ static int change_page_attr(pte_t *ptep, unsigned long addr, void *data)
 	case SET_MEMORY_X:
 		pte_update_delta(ptep, addr, _PAGE_KERNEL_RO, _PAGE_KERNEL_ROX);
 		break;
+	case SET_MEMORY_NP:
+		pte_update(&init_mm, addr, ptep, _PAGE_PRESENT, 0, 0);
+		break;
+	case SET_MEMORY_P:
+		pte_update(&init_mm, addr, ptep, 0, _PAGE_PRESENT, 0);
+		break;
 	default:
 		WARN_ON_ONCE(1);
 		break;
@@ -89,37 +95,4 @@ int change_memory_attr(unsigned long addr, int numpages, long action)
 
 	return apply_to_existing_page_range(&init_mm, start, size,
 					    change_page_attr, (void *)action);
-}
-
-/*
- * Set the attributes of a page:
- *
- * This function is used by PPC32 at the end of init to set final kernel memory
- * protection. It includes changing the maping of the page it is executing from
- * and data pages it is using.
- */
-static int set_page_attr(pte_t *ptep, unsigned long addr, void *data)
-{
-	pgprot_t prot = __pgprot((unsigned long)data);
-
-	spin_lock(&init_mm.page_table_lock);
-
-	set_pte_at(&init_mm, addr, ptep, pte_modify(*ptep, prot));
-	flush_tlb_kernel_range(addr, addr + PAGE_SIZE);
-
-	spin_unlock(&init_mm.page_table_lock);
-
-	return 0;
-}
-
-int set_memory_attr(unsigned long addr, int numpages, pgprot_t prot)
-{
-	unsigned long start = ALIGN_DOWN(addr, PAGE_SIZE);
-	unsigned long sz = numpages * PAGE_SIZE;
-
-	if (numpages <= 0)
-		return 0;
-
-	return apply_to_existing_page_range(&init_mm, start, sz, set_page_attr,
-					    (void *)pgprot_val(prot));
 }
