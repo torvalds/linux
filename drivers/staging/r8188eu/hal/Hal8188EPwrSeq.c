@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Copyright(c) 2007 - 2011 Realtek Corporation. */
 
-#include "../include/HalPwrSeqCmd.h"
+#include "../include/Hal8188EPwrSeq.h"
 #include "../include/rtl8188e_hal.h"
 
 struct wl_pwr_cfg rtl8188E_power_on_flow[] = {
