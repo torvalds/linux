@@ -1383,9 +1383,6 @@ int bch2_fs_initialize(struct bch_fs *c)
 		c->disk_sb.sb->features[0] |= cpu_to_le64(BCH_SB_FEATURES_ALL);
 		bch2_write_super(c);
 	}
-
-	for_each_online_member(ca, c, i)
-		bch2_mark_dev_superblock(c, ca, 0);
 	mutex_unlock(&c->sb_lock);
 
 	set_bit(BCH_FS_ALLOC_READ_DONE, &c->flags);

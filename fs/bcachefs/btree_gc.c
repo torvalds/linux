@@ -1056,22 +1056,12 @@ static void mark_metadata_sectors(struct bch_fs *c, struct bch_dev *ca,
 	} while (start < end);
 }
 
-void bch2_mark_dev_superblock(struct bch_fs *c, struct bch_dev *ca,
-			      unsigned flags)
+static void bch2_mark_dev_superblock(struct bch_fs *c, struct bch_dev *ca,
+				     unsigned flags)
 {
 	struct bch_sb_layout *layout = &ca->disk_sb.sb->layout;
 	unsigned i;
 	u64 b;
-
-	/*
-	 * This conditional is kind of gross, but we may be called from the
-	 * device add path, before the new device has actually been added to the
-	 * running filesystem:
-	 */
-	if (c) {
-		lockdep_assert_held(&c->sb_lock);
-		percpu_down_read(&c->mark_lock);
-	}
 
 	for (i = 0; i < layout->nr_superblocks; i++) {
 		u64 offset = le64_to_cpu(layout->sb_offset[i]);
@@ -1091,9 +1081,6 @@ void bch2_mark_dev_superblock(struct bch_fs *c, struct bch_dev *ca,
 					  ca->mi.bucket_size,
 					  gc_phase(GC_PHASE_SB), flags);
 	}
-
-	if (c)
-		percpu_up_read(&c->mark_lock);
 }
 
 static void bch2_mark_superblocks(struct bch_fs *c)

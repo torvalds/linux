@@ -369,13 +369,6 @@ static void bch2_dev_usage_update(struct bch_fs *c, struct bch_dev *ca,
 	struct bch_fs_usage *fs_usage;
 	struct bch_dev_usage *u;
 
-	/*
-	 * Hack for bch2_fs_initialize path, where we're first marking sb and
-	 * journal non-transactionally:
-	 */
-	if (!journal_seq && !test_bit(BCH_FS_INITIALIZED, &c->flags))
-		journal_seq = 1;
-
 	preempt_disable();
 	fs_usage = fs_usage_ptr(c, journal_seq, gc);
 	u = dev_usage_ptr(ca, journal_seq, gc);
@@ -536,19 +529,6 @@ static inline void update_cached_sectors_list(struct btree_trans *trans,
 	update_replicas_list(trans, &r.e, sectors);
 }
 
-#define do_mark_fn(fn, c, pos, flags, ...)				\
-({									\
-	int gc, ret = 0;						\
-									\
-	percpu_rwsem_assert_held(&c->mark_lock);			\
-									\
-	for (gc = 0; gc < 2 && !ret; gc++)				\
-		if (!gc == !(flags & BTREE_TRIGGER_GC) ||		\
-		    (gc && gc_visited(c, pos)))				\
-			ret = fn(c, __VA_ARGS__, gc);			\
-	ret;								\
-})
-
 void bch2_mark_alloc_bucket(struct bch_fs *c, struct bch_dev *ca,
 			    size_t b, bool owned_by_allocator)
 {
@@ -659,17 +639,27 @@ static int bch2_mark_alloc(struct btree_trans *trans,
 	overflow;						\
 })
 
-static int __bch2_mark_metadata_bucket(struct bch_fs *c, struct bch_dev *ca,
-				       size_t b, enum bch_data_type data_type,
-				       unsigned sectors, bool gc)
+void bch2_mark_metadata_bucket(struct bch_fs *c, struct bch_dev *ca,
+			       size_t b, enum bch_data_type data_type,
+			       unsigned sectors, struct gc_pos pos,
+			       unsigned flags)
 {
-	struct bucket *g = __bucket(ca, b, gc);
+	struct bucket *g;
 	struct bucket_mark old, new;
 	bool overflow;
 
+	BUG_ON(!(flags & BTREE_TRIGGER_GC));
 	BUG_ON(data_type != BCH_DATA_sb &&
 	       data_type != BCH_DATA_journal);
 
+	/*
+	 * Backup superblock might be past the end of our normal usable space:
+	 */
+	if (b >= ca->mi.nbuckets)
+		return;
+
+	percpu_down_read(&c->mark_lock);
+	g = __bucket(ca, b, true);
 	old = bucket_cmpxchg(g, new, ({
 		new.data_type	= data_type;
 		overflow = checked_add(new.dirty_sectors, sectors);
@@ -687,32 +677,8 @@ static int __bch2_mark_metadata_bucket(struct bch_fs *c, struct bch_dev *ca,
 		bch2_data_types[old.data_type ?: data_type],
 		old.dirty_sectors, sectors);
 
-	if (c)
-		bch2_dev_usage_update(c, ca, old, new, 0, gc);
-
-	return 0;
-}
-
-void bch2_mark_metadata_bucket(struct bch_fs *c, struct bch_dev *ca,
-			       size_t b, enum bch_data_type type,
-			       unsigned sectors, struct gc_pos pos,
-			       unsigned flags)
-{
-	BUG_ON(type != BCH_DATA_sb &&
-	       type != BCH_DATA_journal);
-
-	/*
-	 * Backup superblock might be past the end of our normal usable space:
-	 */
-	if (b >= ca->mi.nbuckets)
-		return;
-
-	if (likely(c)) {
-		do_mark_fn(__bch2_mark_metadata_bucket, c, pos, flags,
-			   ca, b, type, sectors);
-	} else {
-		__bch2_mark_metadata_bucket(c, ca, b, type, sectors, 0);
-	}
+	bch2_dev_usage_update(c, ca, old, new, 0, true);
+	percpu_up_read(&c->mark_lock);
 }
 
 static s64 ptr_disk_sectors(s64 sectors, struct extent_ptr_decoded p)
