@@ -499,6 +499,17 @@ STORE(bch2_fs)
 
 	/* Debugging: */
 
+	if (!test_bit(BCH_FS_RW, &c->flags))
+		return -EROFS;
+
+	if (attr == &sysfs_prune_cache) {
+		struct shrink_control sc;
+
+		sc.gfp_mask = GFP_KERNEL;
+		sc.nr_to_scan = strtoul_or_return(buf);
+		c->btree_cache.shrink.scan_objects(&c->btree_cache.shrink, &sc);
+	}
+
 	if (attr == &sysfs_trigger_gc) {
 		/*
 		 * Full gc is currently incompatible with btree key cache:
@@ -510,14 +521,6 @@ STORE(bch2_fs)
 #else
 		bch2_gc_gens(c);
 #endif
-	}
-
-	if (attr == &sysfs_prune_cache) {
-		struct shrink_control sc;
-
-		sc.gfp_mask = GFP_KERNEL;
-		sc.nr_to_scan = strtoul_or_return(buf);
-		c->btree_cache.shrink.scan_objects(&c->btree_cache.shrink, &sc);
 	}
 
 #ifdef CONFIG_BCACHEFS_TESTS

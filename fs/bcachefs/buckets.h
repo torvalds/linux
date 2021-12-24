@@ -97,12 +97,6 @@ static inline size_t PTR_BUCKET_NR(const struct bch_dev *ca,
 	return sector_to_bucket(ca, ptr->offset);
 }
 
-static inline struct bucket *PTR_BUCKET(struct bch_dev *ca,
-					const struct bch_extent_ptr *ptr)
-{
-	return bucket(ca, PTR_BUCKET_NR(ca, ptr));
-}
-
 static inline struct bucket *PTR_GC_BUCKET(struct bch_dev *ca,
 					   const struct bch_extent_ptr *ptr)
 {

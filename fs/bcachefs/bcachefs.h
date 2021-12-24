@@ -452,6 +452,7 @@ struct bch_dev {
 	 */
 	struct bucket_array __rcu *buckets[2];
 	struct bucket_gens __rcu *bucket_gens;
+	u8			*oldest_gen;
 	unsigned long		*buckets_nouse;
 	struct rw_semaphore	bucket_lock;
 
@@ -806,6 +807,7 @@ struct bch_fs {
 	 * it's not while a gc is in progress.
 	 */
 	struct rw_semaphore	gc_lock;
+	struct mutex		gc_gens_lock;
 
 	/* IO PATH */
 	struct semaphore	io_in_flight;

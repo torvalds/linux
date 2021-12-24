@@ -682,6 +682,7 @@ static struct bch_fs *bch2_fs_alloc(struct bch_sb *sb, struct bch_opts opts)
 	INIT_WORK(&c->read_only_work, bch2_fs_read_only_work);
 
 	init_rwsem(&c->gc_lock);
+	mutex_init(&c->gc_gens_lock);
 
 	for (i = 0; i < BCH_TIME_STAT_NR; i++)
 		bch2_time_stats_init(&c->times[i]);

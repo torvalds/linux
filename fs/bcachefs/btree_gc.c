@@ -1787,9 +1787,8 @@ static bool gc_btree_gens_key(struct bch_fs *c, struct bkey_s_c k)
 	percpu_down_read(&c->mark_lock);
 	bkey_for_each_ptr(ptrs, ptr) {
 		struct bch_dev *ca = bch_dev_bkey_exists(c, ptr->dev);
-		struct bucket *g = PTR_BUCKET(ca, ptr);
 
-		if (gen_after(g->mark.gen, ptr->gen) > 16) {
+		if (ptr_stale(ca, ptr) > 16) {
 			percpu_up_read(&c->mark_lock);
 			return true;
 		}
@@ -1797,10 +1796,10 @@ static bool gc_btree_gens_key(struct bch_fs *c, struct bkey_s_c k)
 
 	bkey_for_each_ptr(ptrs, ptr) {
 		struct bch_dev *ca = bch_dev_bkey_exists(c, ptr->dev);
-		struct bucket *g = PTR_BUCKET(ca, ptr);
+		u8 *gen = &ca->oldest_gen[PTR_BUCKET_NR(ca, ptr)];
 
-		if (gen_after(g->gc_gen, ptr->gen))
-			g->gc_gen = ptr->gen;
+		if (gen_after(*gen, ptr->gen))
+			*gen = ptr->gen;
 	}
 	percpu_up_read(&c->mark_lock);
 
@@ -1811,23 +1810,22 @@ static bool gc_btree_gens_key(struct bch_fs *c, struct bkey_s_c k)
  * For recalculating oldest gen, we only need to walk keys in leaf nodes; btree
  * node pointers currently never have cached pointers that can become stale:
  */
-static int bch2_gc_btree_gens(struct bch_fs *c, enum btree_id btree_id)
+static int bch2_gc_btree_gens(struct btree_trans *trans, enum btree_id btree_id)
 {
-	struct btree_trans trans;
+	struct bch_fs *c = trans->c;
 	struct btree_iter iter;
 	struct bkey_s_c k;
 	struct bkey_buf sk;
 	int ret = 0, commit_err = 0;
 
 	bch2_bkey_buf_init(&sk);
-	bch2_trans_init(&trans, c, 0, 0);
 
-	bch2_trans_iter_init(&trans, &iter, btree_id, POS_MIN,
+	bch2_trans_iter_init(trans, &iter, btree_id, POS_MIN,
 			     BTREE_ITER_PREFETCH|
 			     BTREE_ITER_NOT_EXTENTS|
 			     BTREE_ITER_ALL_SNAPSHOTS);
 
-	while ((bch2_trans_begin(&trans),
+	while ((bch2_trans_begin(trans),
 		k = bch2_btree_iter_peek(&iter)).k) {
 		ret = bkey_err(k);
 
@@ -1843,10 +1841,10 @@ static int bch2_gc_btree_gens(struct bch_fs *c, enum btree_id btree_id)
 			bch2_extent_normalize(c, bkey_i_to_s(sk.k));
 
 			commit_err =
-				bch2_trans_update(&trans, &iter, sk.k, 0) ?:
-				bch2_trans_commit(&trans, NULL, NULL,
-						       BTREE_INSERT_NOWAIT|
-						       BTREE_INSERT_NOFAIL);
+				bch2_trans_update(trans, &iter, sk.k, 0) ?:
+				bch2_trans_commit(trans, NULL, NULL,
+						  BTREE_INSERT_NOWAIT|
+						  BTREE_INSERT_NOFAIL);
 			if (commit_err == -EINTR) {
 				commit_err = 0;
 				continue;
@@ -1855,20 +1853,42 @@ static int bch2_gc_btree_gens(struct bch_fs *c, enum btree_id btree_id)
 
 		bch2_btree_iter_advance(&iter);
 	}
-	bch2_trans_iter_exit(&trans, &iter);
+	bch2_trans_iter_exit(trans, &iter);
 
-	bch2_trans_exit(&trans);
 	bch2_bkey_buf_exit(&sk, c);
 
 	return ret;
 }
 
+static int bch2_alloc_write_oldest_gen(struct btree_trans *trans, struct btree_iter *iter)
+{
+	struct bch_dev *ca = bch_dev_bkey_exists(trans->c, iter->pos.inode);
+	struct bkey_s_c k;
+	struct bkey_alloc_unpacked u;
+	int ret;
+
+	k = bch2_btree_iter_peek_slot(iter);
+	ret = bkey_err(k);
+	if (ret)
+		return ret;
+
+	u = bch2_alloc_unpack(k);
+
+	if (u.oldest_gen == ca->oldest_gen[iter->pos.offset])
+		return 0;
+
+	u.oldest_gen = ca->oldest_gen[iter->pos.offset];
+
+	return bch2_alloc_write(trans, iter, &u, BTREE_TRIGGER_NORUN);
+}
+
 int bch2_gc_gens(struct bch_fs *c)
 {
+	struct btree_trans trans;
+	struct btree_iter iter;
+	struct bkey_s_c k;
 	struct bch_dev *ca;
-	struct bucket_array *buckets;
-	struct bucket *g;
-	u64 start_time = local_clock();
+	u64 b, start_time = local_clock();
 	unsigned i;
 	int ret;
 
@@ -1877,36 +1897,53 @@ int bch2_gc_gens(struct bch_fs *c)
 	 * introduces a deadlock in the RO path - we currently take the state
 	 * lock at the start of going RO, thus the gc thread may get stuck:
 	 */
+	if (!mutex_trylock(&c->gc_gens_lock))
+		return 0;
+
 	down_read(&c->gc_lock);
+	bch2_trans_init(&trans, c, 0, 0);
 
 	for_each_member_device(ca, c, i) {
-		down_read(&ca->bucket_lock);
-		buckets = bucket_array(ca);
+		struct bucket_gens *gens;
 
-		for_each_bucket(g, buckets)
-			g->gc_gen = g->mark.gen;
-		up_read(&ca->bucket_lock);
+		BUG_ON(ca->oldest_gen);
+
+		ca->oldest_gen = kvmalloc(ca->mi.nbuckets, GFP_KERNEL);
+		if (!ca->oldest_gen) {
+			percpu_ref_put(&ca->ref);
+			ret = -ENOMEM;
+			goto err;
+		}
+
+		gens = bucket_gens(ca);
+
+		for (b = gens->first_bucket;
+		     b < gens->nbuckets; b++)
+			ca->oldest_gen[b] = gens->b[b];
 	}
 
 	for (i = 0; i < BTREE_ID_NR; i++)
 		if ((1 << i) & BTREE_ID_HAS_PTRS) {
 			c->gc_gens_btree = i;
 			c->gc_gens_pos = POS_MIN;
-			ret = bch2_gc_btree_gens(c, i);
+			ret = bch2_gc_btree_gens(&trans, i);
 			if (ret) {
 				bch_err(c, "error recalculating oldest_gen: %i", ret);
 				goto err;
 			}
 		}
 
-	for_each_member_device(ca, c, i) {
-		down_read(&ca->bucket_lock);
-		buckets = bucket_array(ca);
-
-		for_each_bucket(g, buckets)
-			g->oldest_gen = g->gc_gen;
-		up_read(&ca->bucket_lock);
+	for_each_btree_key(&trans, iter, BTREE_ID_alloc, POS_MIN,
+			   BTREE_ITER_PREFETCH, k, ret) {
+		ret = __bch2_trans_do(&trans, NULL, NULL,
+				      BTREE_INSERT_NOFAIL,
+				bch2_alloc_write_oldest_gen(&trans, &iter));
+		if (ret) {
+			bch_err(c, "error writing oldest_gen: %i", ret);
+			break;
+		}
 	}
+	bch2_trans_iter_exit(&trans, &iter);
 
 	c->gc_gens_btree	= 0;
 	c->gc_gens_pos		= POS_MIN;
@@ -1915,7 +1952,14 @@ int bch2_gc_gens(struct bch_fs *c)
 
 	bch2_time_stats_update(&c->times[BCH_TIME_btree_gc], start_time);
 err:
+	for_each_member_device(ca, c, i) {
+		kvfree(ca->oldest_gen);
+		ca->oldest_gen = NULL;
+	}
+
+	bch2_trans_exit(&trans);
 	up_read(&c->gc_lock);
+	mutex_unlock(&c->gc_gens_lock);
 	return ret;
 }
 
