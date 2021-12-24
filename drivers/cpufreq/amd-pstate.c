@@ -48,6 +48,20 @@
 #define AMD_PSTATE_TRANSITION_LATENCY	0x20000
 #define AMD_PSTATE_TRANSITION_DELAY	500
 
+/*
+ * TODO: We need more time to fine tune processors with shared memory solution
+ * with community together.
+ *
+ * There are some performance drops on the CPU benchmarks which reports from
+ * Suse. We are co-working with them to fine tune the shared memory solution. So
+ * we disable it by default to go acpi-cpufreq on these processors and add a
+ * module parameter to be able to enable it manually for debugging.
+ */
+static bool shared_mem = false;
+module_param(shared_mem, bool, 0444);
+MODULE_PARM_DESC(shared_mem,
+		 "enable amd-pstate on processors with shared memory solution (false = disabled (default), true = enabled)");
+
 static struct cpufreq_driver amd_pstate_driver;
 
 /**
@@ -85,12 +99,32 @@ struct amd_cpudata {
 	u32	lowest_nonlinear_freq;
 };
 
-static inline int amd_pstate_enable(bool enable)
+static inline int pstate_enable(bool enable)
 {
 	return wrmsrl_safe(MSR_AMD_CPPC_ENABLE, enable);
 }
 
-static int amd_pstate_init_perf(struct amd_cpudata *cpudata)
+static int cppc_enable(bool enable)
+{
+	int cpu, ret = 0;
+
+	for_each_present_cpu(cpu) {
+		ret = cppc_set_enable(cpu, enable);
+		if (ret)
+			return ret;
+	}
+
+	return ret;
+}
+
+DEFINE_STATIC_CALL(amd_pstate_enable, pstate_enable);
+
+static inline int amd_pstate_enable(bool enable)
+{
+	return static_call(amd_pstate_enable)(enable);
+}
+
+static int pstate_init_perf(struct amd_cpudata *cpudata)
 {
 	u64 cap1;
 
@@ -113,14 +147,62 @@ static int amd_pstate_init_perf(struct amd_cpudata *cpudata)
 	return 0;
 }
 
-static void amd_pstate_update_perf(struct amd_cpudata *cpudata, u32 min_perf,
-				   u32 des_perf, u32 max_perf, bool fast_switch)
+static int cppc_init_perf(struct amd_cpudata *cpudata)
+{
+	struct cppc_perf_caps cppc_perf;
+
+	int ret = cppc_get_perf_caps(cpudata->cpu, &cppc_perf);
+	if (ret)
+		return ret;
+
+	WRITE_ONCE(cpudata->highest_perf, amd_get_highest_perf());
+
+	WRITE_ONCE(cpudata->nominal_perf, cppc_perf.nominal_perf);
+	WRITE_ONCE(cpudata->lowest_nonlinear_perf,
+		   cppc_perf.lowest_nonlinear_perf);
+	WRITE_ONCE(cpudata->lowest_perf, cppc_perf.lowest_perf);
+
+	return 0;
+}
+
+DEFINE_STATIC_CALL(amd_pstate_init_perf, pstate_init_perf);
+
+static inline int amd_pstate_init_perf(struct amd_cpudata *cpudata)
+{
+	return static_call(amd_pstate_init_perf)(cpudata);
+}
+
+static void pstate_update_perf(struct amd_cpudata *cpudata, u32 min_perf,
+			       u32 des_perf, u32 max_perf, bool fast_switch)
 {
 	if (fast_switch)
 		wrmsrl(MSR_AMD_CPPC_REQ, READ_ONCE(cpudata->cppc_req_cached));
 	else
 		wrmsrl_on_cpu(cpudata->cpu, MSR_AMD_CPPC_REQ,
 			      READ_ONCE(cpudata->cppc_req_cached));
+}
+
+static void cppc_update_perf(struct amd_cpudata *cpudata,
+			     u32 min_perf, u32 des_perf,
+			     u32 max_perf, bool fast_switch)
+{
+	struct cppc_perf_ctrls perf_ctrls;
+
+	perf_ctrls.max_perf = max_perf;
+	perf_ctrls.min_perf = min_perf;
+	perf_ctrls.desired_perf = des_perf;
+
+	cppc_set_perf(cpudata->cpu, &perf_ctrls);
+}
+
+DEFINE_STATIC_CALL(amd_pstate_update_perf, pstate_update_perf);
+
+static inline void amd_pstate_update_perf(struct amd_cpudata *cpudata,
+					  u32 min_perf, u32 des_perf,
+					  u32 max_perf, bool fast_switch)
+{
+	static_call(amd_pstate_update_perf)(cpudata, min_perf, des_perf,
+					    max_perf, fast_switch);
 }
 
 static void amd_pstate_update(struct amd_cpudata *cpudata, u32 min_perf,
@@ -332,7 +414,8 @@ static int amd_pstate_cpu_init(struct cpufreq_policy *policy)
 	/* It will be updated by governor */
 	policy->cur = policy->cpuinfo.min_freq;
 
-	policy->fast_switch_possible = true;
+	if (boot_cpu_has(X86_FEATURE_CPPC))
+		policy->fast_switch_possible = true;
 
 	/* Initial processor data capability frequencies */
 	cpudata->max_freq = max_freq;
@@ -364,7 +447,6 @@ static struct cpufreq_driver amd_pstate_driver = {
 	.flags		= CPUFREQ_CONST_LOOPS | CPUFREQ_NEED_UPDATE_LIMITS,
 	.verify		= amd_pstate_verify,
 	.target		= amd_pstate_target,
-	.adjust_perf    = amd_pstate_adjust_perf,
 	.init		= amd_pstate_cpu_init,
 	.exit		= amd_pstate_cpu_exit,
 	.name		= "amd-pstate",
@@ -387,8 +469,15 @@ static int __init amd_pstate_init(void)
 		return -EEXIST;
 
 	/* capability check */
-	if (!boot_cpu_has(X86_FEATURE_CPPC)) {
-		pr_debug("AMD CPPC MSR based functionality is not supported\n");
+	if (boot_cpu_has(X86_FEATURE_CPPC)) {
+		pr_debug("AMD CPPC MSR based functionality is supported\n");
+		amd_pstate_driver.adjust_perf = amd_pstate_adjust_perf;
+	} else if (shared_mem) {
+		static_call_update(amd_pstate_enable, cppc_enable);
+		static_call_update(amd_pstate_init_perf, cppc_init_perf);
+		static_call_update(amd_pstate_update_perf, cppc_update_perf);
+	} else {
+		pr_info("This processor supports shared memory solution, you can enable it with amd_pstate.shared_mem=1\n");
 		return -ENODEV;
 	}
 
