@@ -139,10 +139,10 @@ enum pf2vf_compat_response {
 };
 
 enum ring_reset_result {
-	RPRESET_SUCCESS				= 0x01,
-	RPRESET_NOT_SUPPORTED			= 0x02,
-	RPRESET_INVAL_BANK			= 0x03,
-	RPRESET_TIMEOUT				= 0x04,
+	RPRESET_SUCCESS				= 0x00,
+	RPRESET_NOT_SUPPORTED			= 0x01,
+	RPRESET_INVAL_BANK			= 0x02,
+	RPRESET_TIMEOUT				= 0x03,
 };
 
 #define ADF_VF2PF_RNG_RESET_RP_MASK		GENMASK(1, 0)
