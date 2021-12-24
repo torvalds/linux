@@ -20,7 +20,6 @@ int sk_storage_result = -1;
 struct local_storage {
 	struct inode *exec_inode;
 	__u32 value;
-	struct bpf_spin_lock lock;
 };
 
 struct {
@@ -58,9 +57,7 @@ int BPF_PROG(unlink_hook, struct inode *dir, struct dentry *victim)
 				       bpf_get_current_task_btf(), 0, 0);
 	if (storage) {
 		/* Don't let an executable delete itself */
-		bpf_spin_lock(&storage->lock);
 		is_self_unlink = storage->exec_inode == victim->d_inode;
-		bpf_spin_unlock(&storage->lock);
 		if (is_self_unlink)
 			return -EPERM;
 	}
@@ -68,7 +65,7 @@ int BPF_PROG(unlink_hook, struct inode *dir, struct dentry *victim)
 	return 0;
 }
 
-SEC("lsm/inode_rename")
+SEC("lsm.s/inode_rename")
 int BPF_PROG(inode_rename, struct inode *old_dir, struct dentry *old_dentry,
 	     struct inode *new_dir, struct dentry *new_dentry,
 	     unsigned int flags)
@@ -89,10 +86,8 @@ int BPF_PROG(inode_rename, struct inode *old_dir, struct dentry *old_dentry,
 	if (!storage)
 		return 0;
 
-	bpf_spin_lock(&storage->lock);
 	if (storage->value != DUMMY_STORAGE_VALUE)
 		inode_storage_result = -1;
-	bpf_spin_unlock(&storage->lock);
 
 	err = bpf_inode_storage_delete(&inode_storage_map, old_dentry->d_inode);
 	if (!err)
@@ -101,7 +96,7 @@ int BPF_PROG(inode_rename, struct inode *old_dir, struct dentry *old_dentry,
 	return 0;
 }
 
-SEC("lsm/socket_bind")
+SEC("lsm.s/socket_bind")
 int BPF_PROG(socket_bind, struct socket *sock, struct sockaddr *address,
 	     int addrlen)
 {
@@ -117,10 +112,8 @@ int BPF_PROG(socket_bind, struct socket *sock, struct sockaddr *address,
 	if (!storage)
 		return 0;
 
-	bpf_spin_lock(&storage->lock);
 	if (storage->value != DUMMY_STORAGE_VALUE)
 		sk_storage_result = -1;
-	bpf_spin_unlock(&storage->lock);
 
 	err = bpf_sk_storage_delete(&sk_storage_map, sock->sk);
 	if (!err)
@@ -129,7 +122,7 @@ int BPF_PROG(socket_bind, struct socket *sock, struct sockaddr *address,
 	return 0;
 }
 
-SEC("lsm/socket_post_create")
+SEC("lsm.s/socket_post_create")
 int BPF_PROG(socket_post_create, struct socket *sock, int family, int type,
 	     int protocol, int kern)
 {
@@ -144,9 +137,7 @@ int BPF_PROG(socket_post_create, struct socket *sock, int family, int type,
 	if (!storage)
 		return 0;
 
-	bpf_spin_lock(&storage->lock);
 	storage->value = DUMMY_STORAGE_VALUE;
-	bpf_spin_unlock(&storage->lock);
 
 	return 0;
 }
@@ -154,7 +145,7 @@ int BPF_PROG(socket_post_create, struct socket *sock, int family, int type,
 /* This uses the local storage to remember the inode of the binary that a
  * process was originally executing.
  */
-SEC("lsm/bprm_committed_creds")
+SEC("lsm.s/bprm_committed_creds")
 void BPF_PROG(exec, struct linux_binprm *bprm)
 {
 	__u32 pid = bpf_get_current_pid_tgid() >> 32;
@@ -166,18 +157,13 @@ void BPF_PROG(exec, struct linux_binprm *bprm)
 	storage = bpf_task_storage_get(&task_storage_map,
 				       bpf_get_current_task_btf(), 0,
 				       BPF_LOCAL_STORAGE_GET_F_CREATE);
-	if (storage) {
-		bpf_spin_lock(&storage->lock);
+	if (storage)
 		storage->exec_inode = bprm->file->f_inode;
-		bpf_spin_unlock(&storage->lock);
-	}
 
 	storage = bpf_inode_storage_get(&inode_storage_map, bprm->file->f_inode,
 					0, BPF_LOCAL_STORAGE_GET_F_CREATE);
 	if (!storage)
 		return;
 
-	bpf_spin_lock(&storage->lock);
 	storage->value = DUMMY_STORAGE_VALUE;
-	bpf_spin_unlock(&storage->lock);
 }
