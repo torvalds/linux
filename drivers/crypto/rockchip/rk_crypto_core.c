@@ -22,6 +22,7 @@
 #include "rk_crypto_core.h"
 #include "rk_crypto_v1.h"
 #include "rk_crypto_v2.h"
+#include "cryptodev_linux/rk_cryptodev_int.h"
 
 #define RK_CRYPTO_V1_SOC_DATA_INIT(names) {\
 	.use_soft_aes192 = false,\
@@ -789,6 +790,8 @@ static int rk_crypto_probe(struct platform_device *pdev)
 		goto err_register_alg;
 	}
 
+	rk_cryptodev_register_dev(rk_dev->dev, "rk_crypto");
+
 	dev_info(dev, "Crypto Accelerator successfully registered\n");
 	return 0;
 
@@ -802,6 +805,8 @@ err_crypto:
 static int rk_crypto_remove(struct platform_device *pdev)
 {
 	struct rk_crypto_dev *rk_dev = platform_get_drvdata(pdev);
+
+	rk_cryptodev_unregister_dev(rk_dev->dev);
 
 	del_timer_sync(&rk_dev->timer);
 
