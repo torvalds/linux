@@ -43,10 +43,6 @@ struct sof_conn_stream {
 };
 
 struct mt8195_mt6359_rt1019_rt5682_priv {
-	struct device_node *platform_node;
-	struct device_node *adsp_node;
-	struct device_node *hdmi_node;
-	struct device_node *dp_node;
 	struct snd_soc_jack headset_jack;
 	struct snd_soc_jack dp_jack;
 	struct snd_soc_jack hdmi_jack;
@@ -1257,6 +1253,7 @@ static int mt8195_mt6359_rt1019_rt5682_dev_probe(struct platform_device *pdev)
 	struct snd_soc_card *card = &mt8195_mt6359_rt1019_rt5682_soc_card;
 	struct snd_soc_dai_link *dai_link;
 	struct mt8195_mt6359_rt1019_rt5682_priv *priv;
+	struct device_node *platform_node, *adsp_node, *dp_node, *hdmi_node;
 	int is5682s = 0;
 	int init6359 = 0;
 	int sof_on = 0;
@@ -1278,18 +1275,20 @@ static int mt8195_mt6359_rt1019_rt5682_dev_probe(struct platform_device *pdev)
 	if (!priv)
 		return -ENOMEM;
 
-	priv->platform_node = of_parse_phandle(pdev->dev.of_node,
-					       "mediatek,platform", 0);
-	if (!priv->platform_node) {
+	platform_node = of_parse_phandle(pdev->dev.of_node,
+					 "mediatek,platform", 0);
+	if (!platform_node) {
 		dev_dbg(&pdev->dev, "Property 'platform' missing or invalid\n");
 		return -EINVAL;
 	}
 
-	/* dai link */
-	priv->adsp_node = of_parse_phandle(pdev->dev.of_node,
-					   "mediatek,adsp", 0);
-	if (priv->adsp_node)
+	adsp_node = of_parse_phandle(pdev->dev.of_node, "mediatek,adsp", 0);
+	if (adsp_node)
 		sof_on = 1;
+
+	dp_node = of_parse_phandle(pdev->dev.of_node, "mediatek,dptx-codec", 0);
+	hdmi_node = of_parse_phandle(pdev->dev.of_node,
+				     "mediatek,hdmi-codec", 0);
 
 	if (of_property_read_bool(pdev->dev.of_node, "mediatek,dai-link")) {
 		ret = mt8195_dailink_parse_of(card, pdev->dev.of_node,
@@ -1306,31 +1305,25 @@ static int mt8195_mt6359_rt1019_rt5682_dev_probe(struct platform_device *pdev)
 	for_each_card_prelinks(card, i, dai_link) {
 		if (!dai_link->platforms->name) {
 			if (!strncmp(dai_link->name, "AFE_SOF", strlen("AFE_SOF")) && sof_on)
-				dai_link->platforms->of_node = priv->adsp_node;
+				dai_link->platforms->of_node = adsp_node;
 			else
-				dai_link->platforms->of_node = priv->platform_node;
+				dai_link->platforms->of_node = platform_node;
 		}
 
 		if (strcmp(dai_link->name, "DPTX_BE") == 0) {
-			priv->dp_node =
-				of_parse_phandle(pdev->dev.of_node,
-						 "mediatek,dptx-codec", 0);
-			if (!priv->dp_node) {
+			if (!dp_node) {
 				dev_dbg(&pdev->dev, "No property 'dptx-codec'\n");
 			} else {
-				dai_link->codecs->of_node = priv->dp_node;
+				dai_link->codecs->of_node = dp_node;
 				dai_link->codecs->name = NULL;
 				dai_link->codecs->dai_name = "i2s-hifi";
 				dai_link->init = mt8195_dptx_codec_init;
 			}
 		} else if (strcmp(dai_link->name, "ETDM3_OUT_BE") == 0) {
-			priv->hdmi_node =
-				of_parse_phandle(pdev->dev.of_node,
-						 "mediatek,hdmi-codec", 0);
-			if (!priv->hdmi_node) {
+			if (!hdmi_node) {
 				dev_dbg(&pdev->dev, "No property 'hdmi-codec'\n");
 			} else {
-				dai_link->codecs->of_node = priv->hdmi_node;
+				dai_link->codecs->of_node = hdmi_node;
 				dai_link->codecs->name = NULL;
 				dai_link->codecs->dai_name = "i2s-hifi";
 				dai_link->init = mt8195_hdmi_codec_init;
@@ -1357,28 +1350,12 @@ static int mt8195_mt6359_rt1019_rt5682_dev_probe(struct platform_device *pdev)
 	snd_soc_card_set_drvdata(card, priv);
 
 	ret = devm_snd_soc_register_card(&pdev->dev, card);
-	if (ret) {
-		of_node_put(priv->hdmi_node);
-		of_node_put(priv->dp_node);
-		of_node_put(priv->platform_node);
-		of_node_put(priv->adsp_node);
-	}
 
+	of_node_put(platform_node);
+	of_node_put(adsp_node);
+	of_node_put(dp_node);
+	of_node_put(hdmi_node);
 	return ret;
-}
-
-static int mt8195_mt6359_rt1019_rt5682_dev_remove(struct platform_device *pdev)
-{
-	struct snd_soc_card *card = platform_get_drvdata(pdev);
-	struct mt8195_mt6359_rt1019_rt5682_priv *priv =
-		snd_soc_card_get_drvdata(card);
-
-	of_node_put(priv->hdmi_node);
-	of_node_put(priv->dp_node);
-	of_node_put(priv->platform_node);
-	of_node_put(priv->adsp_node);
-
-	return 0;
 }
 
 #ifdef CONFIG_OF
@@ -1402,7 +1379,6 @@ static struct platform_driver mt8195_mt6359_rt1019_rt5682_driver = {
 		.pm = &mt8195_mt6359_rt1019_rt5682_pm_ops,
 	},
 	.probe = mt8195_mt6359_rt1019_rt5682_dev_probe,
-	.remove = mt8195_mt6359_rt1019_rt5682_dev_remove,
 };
 
 module_platform_driver(mt8195_mt6359_rt1019_rt5682_driver);
