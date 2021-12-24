@@ -2750,5 +2750,19 @@ int mt76_connac_mcu_set_pm(struct mt76_dev *dev, int band, int enter)
 }
 EXPORT_SYMBOL_GPL(mt76_connac_mcu_set_pm);
 
+int mt76_connac_mcu_restart(struct mt76_dev *dev)
+{
+	struct {
+		u8 power_mode;
+		u8 rsv[3];
+	} req = {
+		.power_mode = 1,
+	};
+
+	return mt76_mcu_send_msg(dev, MCU_CMD(NIC_POWER_CTRL), &req,
+				 sizeof(req), false);
+}
+EXPORT_SYMBOL_GPL(mt76_connac_mcu_restart);
+
 MODULE_AUTHOR("Lorenzo Bianconi <lorenzo@kernel.org>");
 MODULE_LICENSE("Dual BSD/GPL");

@@ -42,7 +42,7 @@ int mt7921e_mcu_init(struct mt7921_dev *dev)
 		.headroom = sizeof(struct mt7921_mcu_txd),
 		.mcu_skb_send_msg = mt7921_mcu_send_message,
 		.mcu_parse_response = mt7921_mcu_parse_response,
-		.mcu_restart = mt7921_mcu_restart,
+		.mcu_restart = mt76_connac_mcu_restart,
 	};
 	int err;
 

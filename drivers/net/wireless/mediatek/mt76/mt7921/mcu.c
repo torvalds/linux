@@ -444,20 +444,6 @@ int mt7921_mcu_uni_rx_ba(struct mt7921_dev *dev,
 				      enable, false);
 }
 
-int mt7921_mcu_restart(struct mt76_dev *dev)
-{
-	struct {
-		u8 power_mode;
-		u8 rsv[3];
-	} req = {
-		.power_mode = 1,
-	};
-
-	return mt76_mcu_send_msg(dev, MCU_CMD(NIC_POWER_CTRL), &req,
-				 sizeof(req), false);
-}
-EXPORT_SYMBOL_GPL(mt7921_mcu_restart);
-
 static u32 mt7921_get_data_mode(struct mt7921_dev *dev, u32 info)
 {
 	u32 mode = DL_MODE_NEED_RSP;
