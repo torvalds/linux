@@ -1078,14 +1078,11 @@ static int ethoc_probe(struct platform_device *pdev)
 
 
 	/* obtain device IRQ number */
-	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
-	if (!res) {
-		dev_err(&pdev->dev, "cannot obtain IRQ\n");
-		ret = -ENXIO;
+	ret = platform_get_irq(pdev, 0);
+	if (ret < 0)
 		goto free;
-	}
 
-	netdev->irq = res->start;
+	netdev->irq = ret;
 
 	/* setup driver-private data */
 	priv = netdev_priv(netdev);
