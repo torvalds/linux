@@ -165,7 +165,7 @@ static struct kobj_type bus_ktype = {
 
 static int bus_uevent_filter(struct kset *kset, struct kobject *kobj)
 {
-	struct kobj_type *ktype = get_ktype(kobj);
+	const struct kobj_type *ktype = get_ktype(kobj);
 
 	if (ktype == &bus_ktype)
 		return 1;

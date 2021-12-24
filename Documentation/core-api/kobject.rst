@@ -118,7 +118,7 @@ Initialization of kobjects
 Code which creates a kobject must, of course, initialize that object. Some
 of the internal fields are setup with a (mandatory) call to kobject_init()::
 
-    void kobject_init(struct kobject *kobj, struct kobj_type *ktype);
+    void kobject_init(struct kobject *kobj, const struct kobj_type *ktype);
 
 The ktype is required for a kobject to be created properly, as every kobject
 must have an associated kobj_type.  After calling kobject_init(), to
@@ -156,7 +156,7 @@ kobject_name()::
 There is a helper function to both initialize and add the kobject to the
 kernel at the same time, called surprisingly enough kobject_init_and_add()::
 
-    int kobject_init_and_add(struct kobject *kobj, struct kobj_type *ktype,
+    int kobject_init_and_add(struct kobject *kobj, const struct kobj_type *ktype,
                              struct kobject *parent, const char *fmt, ...);
 
 The arguments are the same as the individual kobject_init() and

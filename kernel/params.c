@@ -928,7 +928,7 @@ static const struct sysfs_ops module_sysfs_ops = {
 
 static int uevent_filter(struct kset *kset, struct kobject *kobj)
 {
-	struct kobj_type *ktype = get_ktype(kobj);
+	const struct kobj_type *ktype = get_ktype(kobj);
 
 	if (ktype == &module_ktype)
 		return 1;

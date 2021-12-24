@@ -66,7 +66,7 @@ struct kobject {
 	struct list_head	entry;
 	struct kobject		*parent;
 	struct kset		*kset;
-	struct kobj_type	*ktype;
+	const struct kobj_type	*ktype;
 	struct kernfs_node	*sd; /* sysfs directory entry */
 	struct kref		kref;
 #ifdef CONFIG_DEBUG_KOBJECT_RELEASE
@@ -90,13 +90,13 @@ static inline const char *kobject_name(const struct kobject *kobj)
 	return kobj->name;
 }
 
-extern void kobject_init(struct kobject *kobj, struct kobj_type *ktype);
+extern void kobject_init(struct kobject *kobj, const struct kobj_type *ktype);
 extern __printf(3, 4) __must_check
 int kobject_add(struct kobject *kobj, struct kobject *parent,
 		const char *fmt, ...);
 extern __printf(4, 5) __must_check
 int kobject_init_and_add(struct kobject *kobj,
-			 struct kobj_type *ktype, struct kobject *parent,
+			 const struct kobj_type *ktype, struct kobject *parent,
 			 const char *fmt, ...);
 
 extern void kobject_del(struct kobject *kobj);
@@ -217,7 +217,7 @@ static inline void kset_put(struct kset *k)
 	kobject_put(&k->kobj);
 }
 
-static inline struct kobj_type *get_ktype(struct kobject *kobj)
+static inline const struct kobj_type *get_ktype(struct kobject *kobj)
 {
 	return kobj->ktype;
 }
