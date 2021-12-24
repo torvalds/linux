@@ -1174,7 +1174,7 @@ static const struct vop2_video_port_data rk3588_vop_video_ports[] = {
 	 .dclk_max = 600000000,
 	 .max_output = { 7680, 4320 },
 	 /* hdr2sdr sdr2hdr hdr2hdr sdr2sdr */
-	 .pre_scan_max_dly = { 76, 65, 53, 54 },
+	 .pre_scan_max_dly = { 76, 65, 65, 54 },
 	 .intr = &rk3568_vp0_intr,
 	 .hdr_table = &rk3568_vop_hdr_table,
 	 .regs = &rk3588_vop_vp0_regs,
@@ -1188,7 +1188,7 @@ static const struct vop2_video_port_data rk3588_vop_video_ports[] = {
 	 .cubic_lut_len = 729, /* 9x9x9 */
 	 .dclk_max = 600000000,
 	 .max_output = { 4096, 2304 },
-	 .pre_scan_max_dly = { 76, 65, 53, 54 },
+	 .pre_scan_max_dly = { 76, 65, 65, 54 },
 	 .intr = &rk3568_vp1_intr,
 	 /* vp1 share the same hdr curve with vp0 */
 	 .hdr_table = &rk3568_vop_hdr_table,
