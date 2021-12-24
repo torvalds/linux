@@ -38,8 +38,16 @@ static inline unsigned long __my_cpu_offset(void)
 #ifdef CONFIG_CPU_V6
 	    "1:							\n\t"
 	    "	.subsection 1					\n\t"
+#if !(defined(MODULE) && defined(CONFIG_ARM_MODULE_PLTS)) && \
+    !(defined(CONFIG_LD_IS_LLD) && CONFIG_LLD_VERSION < 140000)
 	    "2: " LOAD_SYM_ARMV6(%0, __per_cpu_offset) "	\n\t"
 	    "	b	1b					\n\t"
+#else
+	    "2: ldr	%0, 3f					\n\t"
+	    "	ldr	%0, [%0]				\n\t"
+	    "	b	1b					\n\t"
+	    "3:	.long	__per_cpu_offset			\n\t"
+#endif
 	    "	.previous					\n\t"
 	    "	.pushsection \".alt.smp.init\", \"a\"		\n\t"
 	    "	.long	0b - .					\n\t"

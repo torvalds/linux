@@ -37,8 +37,16 @@ static inline __attribute_const__ struct task_struct *get_current(void)
 #ifdef CONFIG_CPU_V6
 	    "1:							\n\t"
 	    "	.subsection 1					\n\t"
+#if !(defined(MODULE) && defined(CONFIG_ARM_MODULE_PLTS)) && \
+    !(defined(CONFIG_LD_IS_LLD) && CONFIG_LLD_VERSION < 140000)
 	    "2: " LOAD_SYM_ARMV6(%0, __current) "		\n\t"
 	    "	b	1b					\n\t"
+#else
+	    "2:	ldr	%0, 3f					\n\t"
+	    "	ldr	%0, [%0]				\n\t"
+	    "	b	1b					\n\t"
+	    "3:	.long	__current				\n\t"
+#endif
 	    "	.previous					\n\t"
 	    "	.pushsection \".alt.smp.init\", \"a\"		\n\t"
 	    "	.long	0b - .					\n\t"
@@ -46,8 +54,9 @@ static inline __attribute_const__ struct task_struct *get_current(void)
 	    "	.popsection					\n\t"
 #endif
 	    : "=r"(cur));
-#elif __LINUX_ARM_ARCH__>=7 || \
-      (defined(MODULE) && defined(CONFIG_ARM_MODULE_PLTS))
+#elif __LINUX_ARM_ARCH__>= 7 || \
+      (defined(MODULE) && defined(CONFIG_ARM_MODULE_PLTS)) || \
+      (defined(CONFIG_LD_IS_LLD) && CONFIG_LLD_VERSION < 140000)
 	cur = __current;
 #else
 	asm(LOAD_SYM_ARMV6(%0, __current) : "=r"(cur));
