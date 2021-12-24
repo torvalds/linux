@@ -393,7 +393,7 @@ struct sock {
 #define sk_rxhash		__sk_common.skc_rxhash
 
 	/* early demux fields */
-	struct dst_entry	*sk_rx_dst;
+	struct dst_entry __rcu	*sk_rx_dst;
 	int			sk_rx_dst_ifindex;
 	u32			sk_rx_dst_cookie;
 

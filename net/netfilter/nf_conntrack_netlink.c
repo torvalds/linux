@@ -1195,8 +1195,6 @@ restart:
 		}
 		hlist_nulls_for_each_entry(h, n, &nf_conntrack_hash[cb->args[0]],
 					   hnnode) {
-			if (NF_CT_DIRECTION(h) != IP_CT_DIR_ORIGINAL)
-				continue;
 			ct = nf_ct_tuplehash_to_ctrack(h);
 			if (nf_ct_is_expired(ct)) {
 				if (i < ARRAY_SIZE(nf_ct_evict) &&
@@ -1206,6 +1204,9 @@ restart:
 			}
 
 			if (!net_eq(net, nf_ct_net(ct)))
+				continue;
+
+			if (NF_CT_DIRECTION(h) != IP_CT_DIR_ORIGINAL)
 				continue;
 
 			if (cb->args[1]) {
