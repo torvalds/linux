@@ -1546,7 +1546,7 @@
 			reg = <0x00290000 0x10000>;
 		};
 
-		spmi_bus: qcom,spmi@400f000 {
+		spmi_bus: spmi@400f000 {
 			compatible = "qcom,spmi-pmic-arb";
 			reg = <0x0400f000 0x1000>,
 			      <0x04400000 0x800000>,
