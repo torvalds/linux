@@ -334,6 +334,14 @@ static int lm83_detect(struct i2c_client *client,
 	chip_id = i2c_smbus_read_byte_data(client, LM83_REG_R_CHIP_ID);
 	switch (chip_id) {
 	case 0x03:
+		/*
+		 * According to the LM82 datasheet dated March 2013, recent
+		 * revisions of LM82 have a die revision of 0x03. This was
+		 * confirmed with a real chip. Further details in this revision
+		 * of the LM82 datasheet strongly suggest that LM82 is just a
+		 * repackaged LM83. It is therefore impossible to distinguish
+		 * those chips from LM83, and they will be misdetected as LM83.
+		 */
 		name = "lm83";
 		break;
 	case 0x01:
