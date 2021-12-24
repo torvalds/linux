@@ -28,28 +28,39 @@
 
 	es8388_sound: es8388-sound {
 		status = "okay";
-		compatible = "simple-audio-card";
-		simple-audio-card,format = "i2s";
-		simple-audio-card,mclk-fs = <256>;
-		simple-audio-card,name = "rockchip,es8388-codec";
-		simple-audio-card,dai-link@0 {
-			format = "i2s";
-			cpu {
-				sound-dai = <&i2s0_8ch>;
-			};
-			codec {
-				sound-dai = <&es8388>;
-			};
-		};
-	};
-
-	rk_headset: rk-headset {
-		status = "okay";
-		compatible = "rockchip_headset";
-		headset_gpio = <&gpio1 RK_PD0 GPIO_ACTIVE_LOW>;
+		compatible = "rockchip,multicodecs-card";
+		rockchip,card-name = "rockchip-es8388";
+		hp-det-gpio = <&gpio1 RK_PD0 GPIO_ACTIVE_LOW>;
+		io-channels = <&saradc 3>;
+		io-channel-names = "adc-detect";
+		keyup-threshold-microvolt = <1800000>;
+		poll-interval = <100>;
+		spk-con-gpio = <&gpio4 RK_PA5 GPIO_ACTIVE_HIGH>;
+		hp-con-gpio = <&gpio4 RK_PA4 GPIO_ACTIVE_HIGH>;
+		rockchip,format = "i2s";
+		rockchip,mclk-fs = <256>;
+		rockchip,cpu = <&i2s0_8ch>;
+		rockchip,codec = <&es8388>;
+		rockchip,audio-routing =
+			"Headphone", "LOUT1",
+			"Headphone", "ROUT1",
+			"Speaker", "LOUT2",
+			"Speaker", "ROUT2",
+			"Headphone", "Headphone Power",
+			"Headphone", "Headphone Power",
+			"Speaker", "Speaker Power",
+			"Speaker", "Speaker Power",
+			"LINPUT1", "Main Mic",
+			"LINPUT2", "Main Mic",
+			"RINPUT1", "Headset Mic",
+			"RINPUT2", "Headset Mic";
 		pinctrl-names = "default";
 		pinctrl-0 = <&hp_det>;
-		io-channels = <&saradc 3>;
+		play-pause-key {
+			label = "playpause";
+			linux,code = <KEY_PLAYPAUSE>;
+			press-threshold-microvolt = <2000>;
+		};
 	};
 
 	vbus5v0_typec: vbus5v0-typec {
@@ -817,15 +828,13 @@
 		assigned-clock-rates = <12288000>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&i2s0_mclk>;
-		spk-con-gpio = <&gpio4 RK_PA5 GPIO_ACTIVE_HIGH>;
-		hp-con-gpio = <&gpio4 RK_PA4 GPIO_ACTIVE_HIGH>;
-		extcon = <&rk_headset>;
 	};
 
 	es7202: es7202@32 {
 		status = "okay";
 		#sound-dai-cells = <0>;
 		compatible = "ES7202_PDM_ADC_1";
+		power-supply = <&vcc_1v8_s0>;	/* only 1v8 or 3v3, default is 3v3 */
 		reg = <0x32>;
 	};
 };
