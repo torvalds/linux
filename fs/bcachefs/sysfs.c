@@ -177,7 +177,6 @@ read_attribute(extent_migrate_done);
 read_attribute(extent_migrate_raced);
 
 rw_attribute(discard);
-rw_attribute(cache_replacement_policy);
 rw_attribute(label);
 
 rw_attribute(copy_gc_enabled);
@@ -826,14 +825,6 @@ SHOW(bch2_dev)
 		return out.pos - buf;
 	}
 
-	if (attr == &sysfs_cache_replacement_policy) {
-		bch2_string_opt_to_text(&out,
-					bch2_cache_replacement_policies,
-					ca->mi.replacement);
-		pr_buf(&out, "\n");
-		return out.pos - buf;
-	}
-
 	if (attr == &sysfs_state_rw) {
 		bch2_string_opt_to_text(&out, bch2_member_states,
 					ca->mi.state);
@@ -893,22 +884,6 @@ STORE(bch2_dev)
 		mutex_unlock(&c->sb_lock);
 	}
 
-	if (attr == &sysfs_cache_replacement_policy) {
-		ssize_t v = __sysfs_match_string(bch2_cache_replacement_policies, -1, buf);
-
-		if (v < 0)
-			return v;
-
-		mutex_lock(&c->sb_lock);
-		mi = &bch2_sb_get_members(c->disk_sb.sb)->members[ca->dev_idx];
-
-		if ((unsigned) v != BCH_MEMBER_REPLACEMENT(mi)) {
-			SET_BCH_MEMBER_REPLACEMENT(mi, v);
-			bch2_write_super(c);
-		}
-		mutex_unlock(&c->sb_lock);
-	}
-
 	if (attr == &sysfs_label) {
 		char *tmp;
 		int ret;
@@ -939,7 +914,6 @@ struct attribute *bch2_dev_files[] = {
 
 	/* settings: */
 	&sysfs_discard,
-	&sysfs_cache_replacement_policy,
 	&sysfs_state_rw,
 	&sysfs_label,
 

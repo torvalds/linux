@@ -628,76 +628,6 @@ static void find_reclaimable_buckets_lru(struct bch_fs *c, struct bch_dev *ca)
 	up_read(&ca->bucket_lock);
 }
 
-static void find_reclaimable_buckets_fifo(struct bch_fs *c, struct bch_dev *ca)
-{
-	struct bucket_array *buckets = bucket_array(ca);
-	struct bucket_mark m;
-	size_t b, start;
-
-	if (ca->fifo_last_bucket <  ca->mi.first_bucket ||
-	    ca->fifo_last_bucket >= ca->mi.nbuckets)
-		ca->fifo_last_bucket = ca->mi.first_bucket;
-
-	start = ca->fifo_last_bucket;
-
-	do {
-		ca->fifo_last_bucket++;
-		if (ca->fifo_last_bucket == ca->mi.nbuckets)
-			ca->fifo_last_bucket = ca->mi.first_bucket;
-
-		b = ca->fifo_last_bucket;
-		m = READ_ONCE(buckets->b[b].mark);
-
-		if (bch2_can_invalidate_bucket(ca, b, m)) {
-			struct alloc_heap_entry e = { .bucket = b, .nr = 1, };
-
-			heap_add(&ca->alloc_heap, e, bucket_alloc_cmp, NULL);
-			if (heap_full(&ca->alloc_heap))
-				break;
-		}
-
-		cond_resched();
-	} while (ca->fifo_last_bucket != start);
-}
-
-static void find_reclaimable_buckets_random(struct bch_fs *c, struct bch_dev *ca)
-{
-	struct bucket_array *buckets = bucket_array(ca);
-	struct bucket_mark m;
-	size_t checked, i;
-
-	for (checked = 0;
-	     checked < ca->mi.nbuckets / 2;
-	     checked++) {
-		size_t b = bch2_rand_range(ca->mi.nbuckets -
-					   ca->mi.first_bucket) +
-			ca->mi.first_bucket;
-
-		m = READ_ONCE(buckets->b[b].mark);
-
-		if (bch2_can_invalidate_bucket(ca, b, m)) {
-			struct alloc_heap_entry e = { .bucket = b, .nr = 1, };
-
-			heap_add(&ca->alloc_heap, e, bucket_alloc_cmp, NULL);
-			if (heap_full(&ca->alloc_heap))
-				break;
-		}
-
-		cond_resched();
-	}
-
-	sort(ca->alloc_heap.data,
-	     ca->alloc_heap.used,
-	     sizeof(ca->alloc_heap.data[0]),
-	     bucket_idx_cmp, NULL);
-
-	/* remove duplicates: */
-	for (i = 0; i + 1 < ca->alloc_heap.used; i++)
-		if (ca->alloc_heap.data[i].bucket ==
-		    ca->alloc_heap.data[i + 1].bucket)
-			ca->alloc_heap.data[i].nr = 0;
-}
-
 static size_t find_reclaimable_buckets(struct bch_fs *c, struct bch_dev *ca)
 {
 	size_t i, nr = 0;
@@ -705,17 +635,7 @@ static size_t find_reclaimable_buckets(struct bch_fs *c, struct bch_dev *ca)
 	ca->inc_gen_needs_gc			= 0;
 	ca->inc_gen_really_needs_gc		= 0;
 
-	switch (ca->mi.replacement) {
-	case BCH_CACHE_REPLACEMENT_lru:
-		find_reclaimable_buckets_lru(c, ca);
-		break;
-	case BCH_CACHE_REPLACEMENT_fifo:
-		find_reclaimable_buckets_fifo(c, ca);
-		break;
-	case BCH_CACHE_REPLACEMENT_random:
-		find_reclaimable_buckets_random(c, ca);
-		break;
-	}
+	find_reclaimable_buckets_lru(c, ca);
 
 	heap_resort(&ca->alloc_heap, bucket_alloc_cmp, NULL);
 

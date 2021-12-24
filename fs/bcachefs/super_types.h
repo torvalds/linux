@@ -30,7 +30,6 @@ struct bch_member_cpu {
 	u16			bucket_size;	/* sectors */
 	u16			group;
 	u8			state;
-	u8			replacement;
 	u8			discard;
 	u8			data_allowed;
 	u8			durability;

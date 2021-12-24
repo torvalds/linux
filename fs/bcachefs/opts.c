@@ -66,11 +66,6 @@ const char * const bch2_data_types[] = {
 	NULL
 };
 
-const char * const bch2_cache_replacement_policies[] = {
-	BCH_CACHE_REPLACEMENT_POLICIES()
-	NULL
-};
-
 const char * const bch2_member_states[] = {
 	BCH_MEMBER_STATES()
 	NULL

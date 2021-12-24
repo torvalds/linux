@@ -19,7 +19,6 @@ extern const char * const bch2_compression_opts[];
 extern const char * const bch2_str_hash_types[];
 extern const char * const bch2_str_hash_opts[];
 extern const char * const bch2_data_types[];
-extern const char * const bch2_cache_replacement_policies[];
 extern const char * const bch2_member_states[];
 extern const char * const bch2_d_types[];
 

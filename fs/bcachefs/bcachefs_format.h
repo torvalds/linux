@@ -1067,8 +1067,7 @@ struct bch_member {
 };
 
 LE64_BITMASK(BCH_MEMBER_STATE,		struct bch_member, flags[0],  0,  4)
-/* 4-10 unused, was TIER, HAS_(META)DATA */
-LE64_BITMASK(BCH_MEMBER_REPLACEMENT,	struct bch_member, flags[0], 10, 14)
+/* 4-14 unused, was TIER, HAS_(META)DATA, REPLACEMENT */
 LE64_BITMASK(BCH_MEMBER_DISCARD,	struct bch_member, flags[0], 14, 15)
 LE64_BITMASK(BCH_MEMBER_DATA_ALLOWED,	struct bch_member, flags[0], 15, 20)
 LE64_BITMASK(BCH_MEMBER_GROUP,		struct bch_member, flags[0], 20, 28)
@@ -1090,18 +1089,6 @@ enum bch_member_state {
 	BCH_MEMBER_STATES()
 #undef x
 	BCH_MEMBER_STATE_NR
-};
-
-#define BCH_CACHE_REPLACEMENT_POLICIES()	\
-	x(lru,		0)			\
-	x(fifo,		1)			\
-	x(random,	2)
-
-enum bch_cache_replacement_policies {
-#define x(t, n) BCH_CACHE_REPLACEMENT_##t = n,
-	BCH_CACHE_REPLACEMENT_POLICIES()
-#undef x
-	BCH_CACHE_REPLACEMENT_NR
 };
 
 struct bch_sb_field_members {
