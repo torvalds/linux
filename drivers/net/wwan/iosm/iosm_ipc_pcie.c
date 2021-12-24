@@ -340,6 +340,9 @@ static int __maybe_unused ipc_pcie_suspend_s2idle(struct iosm_pcie *ipc_pcie)
 
 	ipc_imem_pm_s2idle_sleep(ipc_pcie->imem, true);
 
+	/* Let PCI core know this device should stay at D0 */
+	pci_save_state(ipc_pcie->pci);
+
 	return 0;
 }
 
