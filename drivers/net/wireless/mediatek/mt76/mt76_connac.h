@@ -115,6 +115,29 @@ static inline bool is_mt7916(struct mt76_dev *dev)
 	return mt76_chip(dev) == 0x7906;
 }
 
+static inline bool is_mt7622(struct mt76_dev *dev)
+{
+	if (!IS_ENABLED(CONFIG_MT7622_WMAC))
+		return false;
+
+	return mt76_chip(dev) == 0x7622;
+}
+
+static inline bool is_mt7615(struct mt76_dev *dev)
+{
+	return mt76_chip(dev) == 0x7615 || mt76_chip(dev) == 0x7611;
+}
+
+static inline bool is_mt7611(struct mt76_dev *dev)
+{
+	return mt76_chip(dev) == 0x7611;
+}
+
+static inline bool is_connac_v1(struct mt76_dev *dev)
+{
+	return is_mt7615(dev) || is_mt7663(dev) || is_mt7622(dev);
+}
+
 static inline u8 mt76_connac_chan_bw(struct cfg80211_chan_def *chandef)
 {
 	static const u8 width_to_bw[] = {

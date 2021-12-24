@@ -409,24 +409,6 @@ int mt7615_mcu_rdd_cmd(struct mt7615_dev *dev,
 int mt7615_mcu_rdd_send_pattern(struct mt7615_dev *dev);
 int mt7615_mcu_fw_log_2_host(struct mt7615_dev *dev, u8 ctrl);
 
-static inline bool is_mt7622(struct mt76_dev *dev)
-{
-	if (!IS_ENABLED(CONFIG_MT7622_WMAC))
-		return false;
-
-	return mt76_chip(dev) == 0x7622;
-}
-
-static inline bool is_mt7615(struct mt76_dev *dev)
-{
-	return mt76_chip(dev) == 0x7615 || mt76_chip(dev) == 0x7611;
-}
-
-static inline bool is_mt7611(struct mt76_dev *dev)
-{
-	return mt76_chip(dev) == 0x7611;
-}
-
 static inline void mt7615_irq_enable(struct mt7615_dev *dev, u32 mask)
 {
 	mt76_set_irq_mask(&dev->mt76, 0, 0, mask);
