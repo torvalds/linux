@@ -668,10 +668,10 @@ static size_t find_reclaimable_buckets(struct bch_fs *c, struct bch_dev *ca)
 }
 
 static int bucket_invalidate_btree(struct btree_trans *trans,
-				   struct bch_dev *ca, u64 b)
+				   struct bch_dev *ca, u64 b,
+				   struct bkey_alloc_unpacked *u)
 {
 	struct bch_fs *c = trans->c;
-	struct bkey_alloc_unpacked u;
 	struct btree_iter iter;
 	int ret;
 
@@ -685,16 +685,16 @@ static int bucket_invalidate_btree(struct btree_trans *trans,
 	if (ret)
 		goto err;
 
-	u = alloc_mem_to_key(c, &iter);
+	*u = alloc_mem_to_key(c, &iter);
 
-	u.gen++;
-	u.data_type	= 0;
-	u.dirty_sectors	= 0;
-	u.cached_sectors = 0;
-	u.read_time	= atomic64_read(&c->io_clock[READ].now);
-	u.write_time	= atomic64_read(&c->io_clock[WRITE].now);
+	u->gen++;
+	u->data_type		= 0;
+	u->dirty_sectors	= 0;
+	u->cached_sectors	= 0;
+	u->read_time		= atomic64_read(&c->io_clock[READ].now);
+	u->write_time		= atomic64_read(&c->io_clock[WRITE].now);
 
-	ret = bch2_alloc_write(trans, &iter, &u,
+	ret = bch2_alloc_write(trans, &iter, u,
 			       BTREE_TRIGGER_BUCKET_INVALIDATE);
 err:
 	bch2_trans_iter_exit(trans, &iter);
@@ -704,10 +704,17 @@ err:
 static int bch2_invalidate_one_bucket(struct bch_fs *c, struct bch_dev *ca,
 				      u64 *journal_seq, unsigned flags)
 {
-	struct bucket *g;
-	struct bucket_mark m;
+	struct bkey_alloc_unpacked u;
 	size_t b;
+	u64 commit_seq = 0;
 	int ret = 0;
+
+	/*
+	 * If the read-only path is trying to shut down, we can't be generating
+	 * new btree updates:
+	 */
+	if (test_bit(BCH_FS_ALLOCATOR_STOPPING, &c->flags))
+		return 1;
 
 	BUG_ON(!ca->alloc_heap.used ||
 	       !ca->alloc_heap.data[0].nr);
@@ -715,10 +722,6 @@ static int bch2_invalidate_one_bucket(struct bch_fs *c, struct bch_dev *ca,
 
 	/* first, put on free_inc and mark as owned by allocator: */
 	percpu_down_read(&c->mark_lock);
-	g = bucket(ca, b);
-	m = READ_ONCE(g->mark);
-
-	BUG_ON(m.dirty_sectors);
 
 	bch2_mark_alloc_bucket(c, ca, b, true);
 
@@ -727,39 +730,15 @@ static int bch2_invalidate_one_bucket(struct bch_fs *c, struct bch_dev *ca,
 	BUG_ON(!fifo_push(&ca->free_inc, b));
 	spin_unlock(&c->freelist_lock);
 
-	/*
-	 * If we're not invalidating cached data, we only increment the bucket
-	 * gen in memory here, the incremented gen will be updated in the btree
-	 * by bch2_trans_mark_pointer():
-	 */
-	if (!m.data_type &&
-	    !bch2_bucket_needs_journal_commit(&c->buckets_waiting_for_journal,
-					      c->journal.flushed_seq_ondisk,
-					      ca->dev_idx, b)) {
-		bucket_cmpxchg(g, m, m.gen++);
-		*bucket_gen(ca, b) = m.gen;
-		percpu_up_read(&c->mark_lock);
-		goto out;
-	}
-
 	percpu_up_read(&c->mark_lock);
 
-	/*
-	 * If the read-only path is trying to shut down, we can't be generating
-	 * new btree updates:
-	 */
-	if (test_bit(BCH_FS_ALLOCATOR_STOPPING, &c->flags)) {
-		ret = 1;
-		goto out;
-	}
-
-	ret = bch2_trans_do(c, NULL, journal_seq,
+	ret = bch2_trans_do(c, NULL, &commit_seq,
 			    BTREE_INSERT_NOCHECK_RW|
 			    BTREE_INSERT_NOFAIL|
 			    BTREE_INSERT_JOURNAL_RESERVED|
 			    flags,
-			    bucket_invalidate_btree(&trans, ca, b));
-out:
+			    bucket_invalidate_btree(&trans, ca, b, &u));
+
 	if (!ret) {
 		/* remove from alloc_heap: */
 		struct alloc_heap_entry e, *top = ca->alloc_heap.data;
@@ -769,6 +748,19 @@ out:
 
 		if (!top->nr)
 			heap_pop(&ca->alloc_heap, e, bucket_alloc_cmp, NULL);
+
+		/*
+		 * If we invalidating cached data then we need to wait on the
+		 * journal commit:
+		 */
+		if (u.data_type)
+			*journal_seq = max(*journal_seq, commit_seq);
+
+		/*
+		 * We already waiting on u.alloc_seq when we filtered out
+		 * buckets that need journal commit:
+		 */
+		BUG_ON(*journal_seq > u.journal_seq);
 	} else {
 		size_t b2;
 
