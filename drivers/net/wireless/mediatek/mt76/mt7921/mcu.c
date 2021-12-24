@@ -960,30 +960,6 @@ int mt7921_mcu_set_eeprom(struct mt7921_dev *dev)
 }
 EXPORT_SYMBOL_GPL(mt7921_mcu_set_eeprom);
 
-int mt7921_mcu_get_eeprom(struct mt7921_dev *dev, u32 offset)
-{
-	struct mt7921_mcu_eeprom_info req = {
-		.addr = cpu_to_le32(round_down(offset, 16)),
-	};
-	struct mt7921_mcu_eeprom_info *res;
-	struct sk_buff *skb;
-	int ret;
-	u8 *buf;
-
-	ret = mt76_mcu_send_and_get_msg(&dev->mt76,
-					MCU_EXT_QUERY(EFUSE_ACCESS),
-					&req, sizeof(req), true, &skb);
-	if (ret)
-		return ret;
-
-	res = (struct mt7921_mcu_eeprom_info *)skb->data;
-	buf = dev->mt76.eeprom.data + le32_to_cpu(res->addr);
-	memcpy(buf, res->data, 16);
-	dev_kfree_skb(skb);
-
-	return 0;
-}
-
 int mt7921_mcu_uni_bss_ps(struct mt7921_dev *dev, struct ieee80211_vif *vif)
 {
 	struct mt7921_vif *mvif = (struct mt7921_vif *)vif->drv_priv;
