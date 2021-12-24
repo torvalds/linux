@@ -1379,8 +1379,8 @@
 			num-lanes = <1>;
 			#address-cells = <3>;
 			#size-cells = <2>;
-			ranges = <0x81000000 0 0 0x0fe00000 0 0x00100000   /* I/O */
-				  0x82000000 0 0x08000000 0x08000000 0 0x07e00000>; /* memory */
+			ranges = <0x81000000 0 0          0x0fe00000 0 0x00100000>, /* I/O */
+				 <0x82000000 0 0x08000000 0x08000000 0 0x07e00000>; /* mem */
 			interrupts = <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "msi";
 			#interrupt-cells = <1>;
