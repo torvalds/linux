@@ -1559,7 +1559,8 @@
 					#size-cells = <0>;
 					clocks = <&cru HCLK_NPU_ROOT>,
 						 <&cru PCLK_NPU_ROOT>,
-						 <&cru CLK_NPU_DSU0>;
+						 <&cru CLK_NPU_DSU0>,
+						 <&cru HCLK_NPU_CM0_ROOT>;
 					pm_qos = <&qos_npu0_mwr>,
 						 <&qos_npu0_mro>,
 						 <&qos_mcu_npu>;
