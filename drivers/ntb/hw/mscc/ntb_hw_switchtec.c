@@ -955,7 +955,7 @@ static int config_req_id_table(struct switchtec_ntb *sndev,
 	u32 error;
 	u32 proxy_id;
 
-	if (ioread32(&mmio_ctrl->req_id_table_size) < count) {
+	if (ioread16(&mmio_ctrl->req_id_table_size) < count) {
 		dev_err(&sndev->stdev->dev,
 			"Not enough requester IDs available.\n");
 		return -EFAULT;
