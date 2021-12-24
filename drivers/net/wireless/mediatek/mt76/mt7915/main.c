@@ -65,7 +65,8 @@ static int mt7915_start(struct ieee80211_hw *hw)
 		mt7915_mac_enable_nf(dev, 1);
 	}
 
-	ret = mt7915_mcu_set_rts_thresh(phy, 0x92b);
+	ret = mt76_connac_mcu_set_rts_thresh(&dev->mt76, 0x92b,
+					     phy != &dev->phy);
 	if (ret)
 		goto out;
 
@@ -747,7 +748,7 @@ static int mt7915_set_rts_threshold(struct ieee80211_hw *hw, u32 val)
 	int ret;
 
 	mutex_lock(&dev->mt76.mutex);
-	ret = mt7915_mcu_set_rts_thresh(phy, val);
+	ret = mt76_connac_mcu_set_rts_thresh(&dev->mt76, val, phy != &dev->phy);
 	mutex_unlock(&dev->mt76.mutex);
 
 	return ret;

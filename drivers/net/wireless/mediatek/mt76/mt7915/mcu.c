@@ -2483,26 +2483,6 @@ int mt7915_mcu_set_scs(struct mt7915_dev *dev, u8 band, bool enable)
 				 sizeof(req), false);
 }
 
-int mt7915_mcu_set_rts_thresh(struct mt7915_phy *phy, u32 val)
-{
-	struct mt7915_dev *dev = phy->dev;
-	struct {
-		u8 prot_idx;
-		u8 band;
-		u8 rsv[2];
-		__le32 len_thresh;
-		__le32 pkt_thresh;
-	} __packed req = {
-		.prot_idx = 1,
-		.band = phy != &dev->phy,
-		.len_thresh = cpu_to_le32(val),
-		.pkt_thresh = cpu_to_le32(0x2),
-	};
-
-	return mt76_mcu_send_msg(&dev->mt76, MCU_EXT_CMD(PROTECT_CTRL), &req,
-				 sizeof(req), true);
-}
-
 int mt7915_mcu_update_edca(struct mt7915_dev *dev, void *param)
 {
 	struct mt7915_mcu_tx *req = (struct mt7915_mcu_tx *)param;
