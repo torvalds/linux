@@ -186,6 +186,7 @@
 
 /* sb_reg010F */
 #define OVRD_SB_VREG_EN				BIT(7)
+#define SB_VREG_EN				BIT(6)
 #define ANA_SB_VREG_GAIN_CTRL			GENMASK(3, 0)
 
 /* sb_reg0110 */
@@ -193,7 +194,6 @@
 #define ANA_SB_VREG_REF_SEL			BIT(0)
 
 /* sb_reg0113 */
-#define SB_VREG_EN				BIT(6)
 #define SB_RX_RCAL_OPT_CODE			GENMASK(5, 4)
 #define SB_RX_RTERM_CTRL			GENMASK(3, 0)
 
@@ -250,6 +250,10 @@
 
 /* lntop_reg0207 */
 #define LANE_EN					GENMASK(3, 0)
+
+/* lane_reg0301 */
+#define OVRD_LN_TX_DRV_EI_EN			BIT(7)
+#define LN_TX_DRV_EI_EN				BIT(6)
 
 /* lane_reg0303 */
 #define OVRD_LN_TX_DRV_LVL_CTRL			BIT(5)
@@ -874,9 +878,21 @@ static int rockchip_hdptx_phy_dp_aux_init(struct rockchip_hdptx_phy *hdptx)
 
 static void rockchip_hdptx_phy_reset(struct rockchip_hdptx_phy *hdptx)
 {
+	u32 lane;
+
 	reset_control_assert(hdptx->lane_reset);
 	reset_control_assert(hdptx->cmn_reset);
 	reset_control_assert(hdptx->init_reset);
+
+	reset_control_assert(hdptx->apb_reset);
+	udelay(10);
+	reset_control_deassert(hdptx->apb_reset);
+
+	for (lane = 0; lane < 4; lane++)
+		regmap_update_bits(hdptx->regmap, LANE_REG(lane, 0x0c04),
+				   OVRD_LN_TX_DRV_EI_EN | LN_TX_DRV_EI_EN,
+				   FIELD_PREP(OVRD_LN_TX_DRV_EI_EN, 1) |
+				   FIELD_PREP(LN_TX_DRV_EI_EN, 0));
 
 	rockchip_grf_write(hdptx->grf, HDPTXPHY_GRF_CON0, PLL_EN,
 			   FIELD_PREP(PLL_EN, 0));
@@ -910,10 +926,6 @@ static int rockchip_hdptx_phy_power_on(struct phy *phy)
 		return 0;
 
 	rockchip_hdptx_phy_reset(hdptx);
-
-	reset_control_assert(hdptx->apb_reset);
-	udelay(10);
-	reset_control_deassert(hdptx->apb_reset);
 
 	for (lane = 0; lane < 4; lane++) {
 		u32 invert = hdptx->lane_polarity_invert[lane];
