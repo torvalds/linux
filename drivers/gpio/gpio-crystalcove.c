@@ -370,7 +370,14 @@ static int crystalcove_gpio_probe(struct platform_device *pdev)
 		return retval;
 	}
 
-	return devm_gpiochip_add_data(&pdev->dev, &cg->chip, cg);
+	retval = devm_gpiochip_add_data(&pdev->dev, &cg->chip, cg);
+	if (retval)
+		return retval;
+
+	/* Distuingish IRQ domain from others sharing (MFD) the same fwnode */
+	irq_domain_update_bus_token(cg->chip.irq.domain, DOMAIN_BUS_WIRED);
+
+	return 0;
 }
 
 static struct platform_driver crystalcove_gpio_driver = {
