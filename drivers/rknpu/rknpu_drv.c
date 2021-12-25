@@ -30,6 +30,7 @@
 #include <linux/pm_domain.h>
 #include <linux/pm_runtime.h>
 #include <linux/devfreq_cooling.h>
+#include <linux/regmap.h>
 
 #include <drm/drm_device.h>
 #include <drm/drm_ioctl.h>
@@ -517,9 +518,17 @@ static int npu_opp_helper(struct dev_pm_set_opp_data *data)
 	struct regulator *vdd_reg = data->regulators[0];
 	struct regulator *mem_reg = data->regulators[1];
 	struct clk *clk = data->clk;
+	struct rknpu_device *rknpu_dev = dev_get_drvdata(dev);
+	struct rockchip_opp_info *opp_info = &rknpu_dev->opp_info;
 	unsigned long old_freq = data->old_opp.rate;
 	unsigned long new_freq = data->new_opp.rate;
 	int ret = 0;
+
+	ret = clk_bulk_prepare_enable(opp_info->num_clks,  opp_info->clks);
+	if (ret < 0) {
+		LOG_DEV_ERROR(dev, "failed to enable opp clks\n");
+		return ret;
+	}
 
 	/* Scaling up? Scale voltage before frequency */
 	if (new_freq >= old_freq) {
@@ -539,6 +548,9 @@ static int npu_opp_helper(struct dev_pm_set_opp_data *data)
 				      new_supply_vdd->u_volt);
 			goto restore_voltage;
 		}
+		if (opp_info->data->set_read_margin)
+			opp_info->data->set_read_margin(dev, opp_info,
+							new_supply_vdd->u_volt);
 	}
 
 	/* Change frequency */
@@ -547,11 +559,14 @@ static int npu_opp_helper(struct dev_pm_set_opp_data *data)
 	ret = clk_set_rate(clk, new_freq);
 	if (ret) {
 		LOG_DEV_ERROR(dev, "failed to set clk rate: %d\n", ret);
-		goto restore_voltage;
+		goto restore_rm;
 	}
 
 	/* Scaling down? Scale voltage after frequency */
 	if (new_freq < old_freq) {
+		if (opp_info->data->set_read_margin)
+			opp_info->data->set_read_margin(dev, opp_info,
+							new_supply_vdd->u_volt);
 		ret = regulator_set_voltage(vdd_reg, new_supply_vdd->u_volt,
 					    INT_MAX);
 		if (ret) {
@@ -570,15 +585,22 @@ static int npu_opp_helper(struct dev_pm_set_opp_data *data)
 		}
 	}
 
+	clk_bulk_disable_unprepare(opp_info->num_clks, opp_info->clks);
+
 	return 0;
 
 restore_freq:
 	if (clk_set_rate(clk, old_freq))
 		LOG_DEV_ERROR(dev, "failed to restore old-freq %lu Hz\n",
 			      old_freq);
+restore_rm:
+	if (opp_info->data->set_read_margin)
+		opp_info->data->set_read_margin(dev, opp_info,
+						old_supply_vdd->u_volt);
 restore_voltage:
 	regulator_set_voltage(mem_reg, old_supply_mem->u_volt, INT_MAX);
 	regulator_set_voltage(vdd_reg, old_supply_vdd->u_volt, INT_MAX);
+	clk_bulk_disable_unprepare(opp_info->num_clks, opp_info->clks);
 
 	return ret;
 }
@@ -649,6 +671,59 @@ static struct devfreq_cooling_power npu_cooling_power = {
 	.get_static_power = &npu_get_static_power,
 };
 
+static int rk3588_npu_set_read_margin(struct device *dev,
+				      struct rockchip_opp_info *opp_info,
+				      unsigned long volt)
+{
+	bool is_found = false;
+	u32 rm = 0, offset = 0, val = 0;
+	int i, ret = 0;
+
+	if (!opp_info->grf || !opp_info->volt_rm_tbl)
+		return 0;
+
+	for (i = 0; opp_info->volt_rm_tbl[i].rm != VOLT_RM_TABLE_END; i++) {
+		if (volt >= opp_info->volt_rm_tbl[i].volt) {
+			rm = opp_info->volt_rm_tbl[i].rm;
+			is_found = true;
+			break;
+		}
+	}
+
+	if (!is_found)
+		return 0;
+	if (rm == opp_info->current_rm)
+		return 0;
+
+	LOG_DEV_DEBUG(dev, "set rm to %d\n", rm);
+
+	for (i = 0; i < 3; i++) {
+		ret = regmap_read(opp_info->grf, offset, &val);
+		if (ret < 0) {
+			dev_err(dev, "failed to get rm from 0x%x\n", offset);
+			return ret;
+		}
+		val &= ~0x1c;
+		regmap_write(opp_info->grf, offset, val | (rm << 2));
+		offset += 4;
+	}
+	opp_info->current_rm = rm;
+
+	return 0;
+}
+
+static const struct rockchip_opp_data rk3588_npu_opp_data = {
+	.set_read_margin = rk3588_npu_set_read_margin,
+};
+
+static const struct of_device_id rockchip_npu_of_match[] = {
+	{
+		.compatible = "rockchip,rk3588",
+		.data = (void *)&rk3588_npu_opp_data,
+	},
+	{},
+};
+
 static int rknpu_devfreq_init(struct rknpu_device *rknpu_dev)
 {
 	struct device *dev = rknpu_dev->dev;
@@ -676,8 +751,9 @@ static int rknpu_devfreq_init(struct rknpu_device *rknpu_dev)
 			return PTR_ERR(reg_table);
 	}
 
-	ret = rockchip_init_opp_table(dev, NULL, "npu_leakage", "rknpu");
-
+	rockchip_get_opp_data(rockchip_npu_of_match, &rknpu_dev->opp_info);
+	ret = rockchip_init_opp_table(dev, &rknpu_dev->opp_info,
+				      "npu_leakage", "rknpu");
 	if (ret) {
 		LOG_DEV_ERROR(dev, "failed to init_opp_table\n");
 		return ret;
@@ -706,6 +782,7 @@ static int rknpu_devfreq_init(struct rknpu_device *rknpu_dev)
 	rknpu_dev->devfreq->last_status.busy_time = 1;
 
 	npu_mdevp.data = rknpu_dev->devfreq;
+	npu_mdevp.opp_info = &rknpu_dev->opp_info;
 	rknpu_dev->mdev_info =
 		rockchip_system_monitor_register(dev, &npu_mdevp);
 	if (IS_ERR(rknpu_dev->mdev_info)) {
@@ -927,10 +1004,6 @@ static int rknpu_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, rknpu_dev);
 
-#ifndef FPGA_PLATFORM
-	rknpu_devfreq_init(rknpu_dev);
-#endif
-
 	pm_runtime_enable(dev);
 
 	if (of_count_phandle_with_args(dev->of_node, "power-domains",
@@ -950,6 +1023,10 @@ static int rknpu_probe(struct platform_device *pdev)
 	ret = rknpu_power_on(rknpu_dev);
 	if (ret)
 		goto err_remove_drm;
+
+#ifndef FPGA_PLATFORM
+	rknpu_devfreq_init(rknpu_dev);
+#endif
 
 	return 0;
 

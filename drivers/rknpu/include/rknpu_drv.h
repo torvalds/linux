@@ -14,6 +14,7 @@
 #include <linux/spinlock.h>
 #include <linux/regulator/consumer.h>
 #include <linux/version.h>
+#include <soc/rockchip/rockchip_opp_select.h>
 
 #include "rknpu_job.h"
 #include "rknpu_fence.h"
@@ -96,6 +97,7 @@ struct rknpu_device {
 	struct ipa_power_model_data *model_data;
 	struct thermal_cooling_device *devfreq_cooling;
 	struct devfreq *devfreq;
+	struct rockchip_opp_info opp_info;
 	unsigned long current_freq;
 	unsigned long current_volt;
 	int bypass_irq_handler;
