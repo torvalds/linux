@@ -27,6 +27,7 @@
 #include <linux/wait.h>
 #include <linux/sched.h>
 #include <linux/clk.h>
+#include <linux/clk-provider.h>
 #include <linux/pm_domain.h>
 #include <linux/pm_runtime.h>
 #include <linux/devfreq_cooling.h>
@@ -48,6 +49,8 @@
 #include "rknpu_gem.h"
 #include "rknpu_fence.h"
 #include "rknpu_drv.h"
+
+#define POWER_DOWN_FREQ	200000000
 
 static int bypass_irq_handler;
 module_param(bypass_irq_handler, int, 0644);
@@ -610,6 +613,7 @@ static int npu_devfreq_target(struct device *dev, unsigned long *freq,
 {
 	struct rknpu_device *rknpu_dev = dev_get_drvdata(dev);
 	struct dev_pm_opp *opp;
+	unsigned long opp_volt;
 	int ret = 0;
 
 	if (!npu_mdevp.is_checked)
@@ -618,6 +622,7 @@ static int npu_devfreq_target(struct device *dev, unsigned long *freq,
 	opp = devfreq_recommended_opp(dev, freq, flags);
 	if (IS_ERR(opp))
 		return PTR_ERR(opp);
+	opp_volt = dev_pm_opp_get_voltage(opp);
 	dev_pm_opp_put(opp);
 
 	rockchip_monitor_volt_adjust_lock(rknpu_dev->mdev_info);
@@ -627,6 +632,7 @@ static int npu_devfreq_target(struct device *dev, unsigned long *freq,
 		if (rknpu_dev->devfreq)
 			rknpu_dev->devfreq->last_status.current_frequency =
 				*freq;
+		rknpu_dev->current_volt = opp_volt;
 	}
 	rockchip_monitor_volt_adjust_unlock(rknpu_dev->mdev_info);
 
@@ -790,6 +796,7 @@ static int rknpu_devfreq_init(struct rknpu_device *rknpu_dev)
 		rknpu_dev->mdev_info = NULL;
 		npu_mdevp.is_checked = true;
 	}
+	rknpu_dev->current_volt = regulator_get_voltage(rknpu_dev->vdd);
 
 	of_property_read_u32(dev->of_node, "dynamic-power-coefficient",
 			     (u32 *)&npu_cooling_power.dyn_power_coeff);
@@ -918,6 +925,8 @@ static int rknpu_probe(struct platform_device *pdev)
 	rknpu_reset_get(rknpu_dev);
 
 	rknpu_dev->num_clks = devm_clk_bulk_get_all(dev, &rknpu_dev->clks);
+	if (strstr(__clk_get_name(rknpu_dev->clks[0].clk), "scmi"))
+		rknpu_dev->scmi_clk = rknpu_dev->clks[0].clk;
 
 #ifndef FPGA_PLATFORM
 	rknpu_dev->vdd = devm_regulator_get_optional(dev, "rknpu");
@@ -1064,12 +1073,60 @@ static int rknpu_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static int rknpu_runtime_suspend(struct device *dev)
+{
+	struct rknpu_device *rknpu_dev = dev_get_drvdata(dev);
+
+	if (rknpu_dev->scmi_clk) {
+		if (clk_set_rate(rknpu_dev->scmi_clk, POWER_DOWN_FREQ))
+			LOG_DEV_ERROR(dev, "failed to restore clk rate\n");
+	}
+
+	return 0;
+}
+
+static int rknpu_runtime_resume(struct device *dev)
+{
+	struct rknpu_device *rknpu_dev = dev_get_drvdata(dev);
+	struct rockchip_opp_info *opp_info = &rknpu_dev->opp_info;
+	int ret = 0;
+
+	if (!rknpu_dev->current_freq || !rknpu_dev->current_volt)
+		return 0;
+
+	ret = clk_bulk_prepare_enable(opp_info->num_clks,  opp_info->clks);
+	if (ret) {
+		LOG_DEV_ERROR(dev, "failed to enable opp clks\n");
+		return ret;
+	}
+
+	if (rknpu_dev->scmi_clk) {
+		if (clk_set_rate(rknpu_dev->scmi_clk, rknpu_dev->current_freq))
+			LOG_DEV_ERROR(dev, "failed to set power down rate\n");
+	}
+
+	if (opp_info->data->set_read_margin)
+		opp_info->data->set_read_margin(dev, opp_info,
+						rknpu_dev->current_volt);
+
+	clk_bulk_disable_unprepare(opp_info->num_clks, opp_info->clks);
+
+	return ret;
+}
+
+static const struct dev_pm_ops rknpu_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
+				pm_runtime_force_resume)
+	SET_RUNTIME_PM_OPS(rknpu_runtime_suspend, rknpu_runtime_resume, NULL)
+};
+
 static struct platform_driver rknpu_driver = {
 	.probe = rknpu_probe,
 	.remove = rknpu_remove,
 	.driver = {
 		.owner = THIS_MODULE,
 		.name = "RKNPU",
+		.pm = &rknpu_pm_ops,
 		.of_match_table = of_match_ptr(rknpu_of_match),
 	},
 };

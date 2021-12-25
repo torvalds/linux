@@ -105,6 +105,7 @@ struct rknpu_device {
 	struct device *genpd_dev_npu0;
 	struct device *genpd_dev_npu1;
 	struct device *genpd_dev_npu2;
+	struct clk *scmi_clk;
 	bool multiple_domains;
 };
 
