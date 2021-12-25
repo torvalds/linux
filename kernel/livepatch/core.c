@@ -1047,8 +1047,10 @@ int klp_enable_patch(struct klp_patch *patch)
 		return -EINVAL;
 	}
 
-	if (!try_module_get(patch->mod))
+	if (!try_module_get(patch->mod)) {
+		mutex_unlock(&klp_mutex);
 		return -ENODEV;
+	}
 
 	klp_init_patch_early(patch);
 
