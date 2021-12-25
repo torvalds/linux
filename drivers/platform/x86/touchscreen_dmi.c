@@ -107,6 +107,9 @@ static const struct property_entry chuwi_hi10_plus_props[] = {
 	PROPERTY_ENTRY_STRING("firmware-name", "gsl1680-chuwi-hi10plus.fw"),
 	PROPERTY_ENTRY_U32("silead,max-fingers", 10),
 	PROPERTY_ENTRY_BOOL("silead,home-button"),
+	PROPERTY_ENTRY_BOOL("silead,pen-supported"),
+	PROPERTY_ENTRY_U32("silead,pen-resolution-x", 8),
+	PROPERTY_ENTRY_U32("silead,pen-resolution-y", 8),
 	{ }
 };
 
@@ -136,6 +139,9 @@ static const struct property_entry chuwi_hi10_pro_props[] = {
 	PROPERTY_ENTRY_U32_ARRAY("silead,efi-fw-min-max", chuwi_hi10_pro_efi_min_max),
 	PROPERTY_ENTRY_U32("silead,max-fingers", 10),
 	PROPERTY_ENTRY_BOOL("silead,home-button"),
+	PROPERTY_ENTRY_BOOL("silead,pen-supported"),
+	PROPERTY_ENTRY_U32("silead,pen-resolution-x", 8),
+	PROPERTY_ENTRY_U32("silead,pen-resolution-y", 8),
 	{ }
 };
 
