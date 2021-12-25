@@ -279,7 +279,7 @@ static inline unsigned long nf_ct_expires(const struct nf_conn *ct)
 {
 	s32 timeout = READ_ONCE(ct->timeout) - nfct_time_stamp;
 
-	return timeout > 0 ? timeout : 0;
+	return max(timeout, 0);
 }
 
 static inline bool nf_ct_is_expired(const struct nf_conn *ct)
