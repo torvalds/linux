@@ -173,7 +173,7 @@ static int rk628_combtxphy_lvds_power_on(struct rk628_combtxphy *combtxphy)
 		     SW_PLL_FRAC_DIV(combtxphy->frac_div) |
 		     SW_RATE(combtxphy->rate_div / 2));
 	regmap_update_bits(combtxphy->regmap, COMBTXPHY_CON0,
-			   SW_PD_PLL | SW_TX_PD_MASK, 0);
+			   SW_PD_PLL, 0);
 
 	ret = regmap_read_poll_timeout(combtxphy->grf, GRF_DPHY0_STATUS,
 				       val, val & DPHY_PHYLOCK, 0, 1000);
@@ -184,7 +184,7 @@ static int rk628_combtxphy_lvds_power_on(struct rk628_combtxphy *combtxphy)
 
 	usleep_range(100, 200);
 	regmap_update_bits(combtxphy->regmap, COMBTXPHY_CON0,
-			   SW_TX_IDLE_MASK, 0);
+			   SW_TX_IDLE_MASK | SW_TX_PD_MASK, 0);
 
 	return 0;
 }
@@ -476,9 +476,6 @@ static int rk628_combtxphy_probe(struct platform_device *pdev)
 		dev_err(dev, "failed to allocate register map: %d\n", ret);
 		return ret;
 	}
-
-	regmap_write(combtxphy->regmap, COMBTXPHY_CON0,
-		     SW_TX_IDLE(0x3ff) | SW_TX_PD(0x3ff) | SW_PD_PLL);
 
 	phy = devm_phy_create(dev, NULL, &rk628_combtxphy_ops);
 	if (IS_ERR(phy)) {
