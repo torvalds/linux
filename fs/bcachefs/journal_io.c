@@ -1445,7 +1445,7 @@ void bch2_journal_write(struct closure *cl)
 	SET_JSET_BIG_ENDIAN(jset, CPU_BIG_ENDIAN);
 	SET_JSET_CSUM_TYPE(jset, bch2_meta_checksum_type(c));
 
-	if (journal_entry_empty(jset))
+	if (!JSET_NO_FLUSH(jset) && journal_entry_empty(jset))
 		j->last_empty_seq = le64_to_cpu(jset->seq);
 
 	if (bch2_csum_type_is_encryption(JSET_CSUM_TYPE(jset)))

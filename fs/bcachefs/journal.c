@@ -641,6 +641,7 @@ int bch2_journal_flush_seq(struct journal *j, u64 seq)
 
 int bch2_journal_meta(struct journal *j)
 {
+	struct journal_buf *buf;
 	struct journal_res res;
 	int ret;
 
@@ -649,6 +650,10 @@ int bch2_journal_meta(struct journal *j)
 	ret = bch2_journal_res_get(j, &res, jset_u64s(0), 0);
 	if (ret)
 		return ret;
+
+	buf = j->buf + (res.seq & JOURNAL_BUF_MASK);
+	buf->must_flush = true;
+	set_bit(JOURNAL_NEED_WRITE, &j->flags);
 
 	bch2_journal_res_put(j, &res);
 

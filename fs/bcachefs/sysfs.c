@@ -131,7 +131,6 @@ do {									\
 		return strtoi_h(buf, &var) ?: (ssize_t) size;		\
 } while (0)
 
-write_attribute(trigger_journal_flush);
 write_attribute(trigger_gc);
 write_attribute(prune_cache);
 rw_attribute(btree_gc_periodic);
@@ -482,9 +481,6 @@ STORE(bch2_fs)
 
 	/* Debugging: */
 
-	if (attr == &sysfs_trigger_journal_flush)
-		bch2_journal_meta(&c->journal);
-
 	if (attr == &sysfs_trigger_gc) {
 		/*
 		 * Full gc is currently incompatible with btree key cache:
@@ -574,7 +570,6 @@ struct attribute *bch2_fs_internal_files[] = {
 	&sysfs_io_timers_read,
 	&sysfs_io_timers_write,
 
-	&sysfs_trigger_journal_flush,
 	&sysfs_trigger_gc,
 	&sysfs_prune_cache,
 
