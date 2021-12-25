@@ -124,12 +124,10 @@ static struct cgroup *cgroup_rstat_cpu_pop_updated(struct cgroup *pos,
 
 			prstatc = cgroup_rstat_cpu(parent, cpu);
 			nextp = &prstatc->updated_children;
-			while (true) {
+			while (*nextp != pos) {
 				struct cgroup_rstat_cpu *nrstatc;
 
 				nrstatc = cgroup_rstat_cpu(*nextp, cpu);
-				if (*nextp == pos)
-					break;
 				WARN_ON_ONCE(*nextp == parent);
 				nextp = &nrstatc->updated_next;
 			}
