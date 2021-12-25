@@ -6,6 +6,7 @@
  */
 
 #include "bcachefs.h"
+#include "alloc_background.h"
 #include "alloc_foreground.h"
 #include "btree_iter.h"
 #include "btree_update.h"
@@ -137,18 +138,106 @@ static inline int fragmentation_cmp(copygc_heap *heap,
 	return cmp_int(l.fragmentation, r.fragmentation);
 }
 
+static int walk_buckets_to_copygc(struct bch_fs *c)
+{
+	copygc_heap *h = &c->copygc_heap;
+	struct btree_trans trans;
+	struct btree_iter iter;
+	struct bkey_s_c k;
+	struct bkey_alloc_unpacked u;
+	int ret;
+
+	bch2_trans_init(&trans, c, 0, 0);
+
+	for_each_btree_key(&trans, iter, BTREE_ID_alloc, POS_MIN,
+			   BTREE_ITER_PREFETCH, k, ret) {
+		struct bch_dev *ca = bch_dev_bkey_exists(c, iter.pos.inode);
+		struct copygc_heap_entry e;
+
+		u = bch2_alloc_unpack(k);
+
+		if (u.data_type != BCH_DATA_user ||
+		    u.dirty_sectors >= ca->mi.bucket_size ||
+		    bch2_bucket_is_open(c, iter.pos.inode, iter.pos.offset))
+			continue;
+
+		e = (struct copygc_heap_entry) {
+			.dev		= iter.pos.inode,
+			.gen		= u.gen,
+			.replicas	= 1 + u.stripe_redundancy,
+			.fragmentation	= u.dirty_sectors * (1U << 15)
+				/ ca->mi.bucket_size,
+			.sectors	= u.dirty_sectors,
+			.offset		= bucket_to_sector(ca, iter.pos.offset),
+		};
+		heap_add_or_replace(h, e, -fragmentation_cmp, NULL);
+
+	}
+	bch2_trans_iter_exit(&trans, &iter);
+
+	bch2_trans_exit(&trans);
+	return ret;
+}
+
+static int bucket_inorder_cmp(const void *_l, const void *_r)
+{
+	const struct copygc_heap_entry *l = _l;
+	const struct copygc_heap_entry *r = _r;
+
+	return cmp_int(l->dev, r->dev) ?: cmp_int(l->offset, r->offset);
+}
+
+static int check_copygc_was_done(struct bch_fs *c,
+				 u64 *sectors_not_moved,
+				 u64 *buckets_not_moved)
+{
+	copygc_heap *h = &c->copygc_heap;
+	struct btree_trans trans;
+	struct btree_iter iter;
+	struct bkey_s_c k;
+	struct bkey_alloc_unpacked u;
+	struct copygc_heap_entry *i;
+	int ret = 0;
+
+	sort(h->data, h->used, sizeof(h->data[0]), bucket_inorder_cmp, NULL);
+
+	bch2_trans_init(&trans, c, 0, 0);
+	bch2_trans_iter_init(&trans, &iter, BTREE_ID_alloc, POS_MIN, 0);
+
+	for (i = h->data; i < h->data + h->used; i++) {
+		struct bch_dev *ca = bch_dev_bkey_exists(c, i->dev);
+
+		bch2_btree_iter_set_pos(&iter, POS(i->dev, sector_to_bucket(ca, i->offset)));
+
+		ret = lockrestart_do(&trans,
+				bkey_err(k = bch2_btree_iter_peek_slot(&iter)));
+		if (ret)
+			break;
+
+		u = bch2_alloc_unpack(k);
+
+		if (u.gen == i->gen && u.dirty_sectors) {
+			*sectors_not_moved += u.dirty_sectors;
+			*buckets_not_moved += 1;
+		}
+	}
+	bch2_trans_iter_exit(&trans, &iter);
+
+	bch2_trans_exit(&trans);
+	return ret;
+}
+
 static int bch2_copygc(struct bch_fs *c)
 {
 	copygc_heap *h = &c->copygc_heap;
 	struct copygc_heap_entry e, *i;
-	struct bucket_array *buckets;
 	struct bch_move_stats move_stats;
 	u64 sectors_to_move = 0, sectors_to_write = 0, sectors_not_moved = 0;
 	u64 sectors_reserved = 0;
 	u64 buckets_to_move, buckets_not_moved = 0;
 	struct bch_dev *ca;
 	unsigned dev_idx;
-	size_t b, heap_size = 0;
+	size_t heap_size = 0;
 	int ret;
 
 	bch_move_stats_init(&move_stats, "copygc");
@@ -178,34 +267,12 @@ static int bch2_copygc(struct bch_fs *c)
 		spin_lock(&ca->fs->freelist_lock);
 		sectors_reserved += fifo_used(&ca->free[RESERVE_MOVINGGC]) * ca->mi.bucket_size;
 		spin_unlock(&ca->fs->freelist_lock);
+	}
 
-		down_read(&ca->bucket_lock);
-		buckets = bucket_array(ca);
-
-		for (b = buckets->first_bucket; b < buckets->nbuckets; b++) {
-			struct bucket *g = buckets->b + b;
-			struct bucket_mark m = READ_ONCE(g->mark);
-			struct copygc_heap_entry e;
-
-			if (m.owned_by_allocator ||
-			    m.data_type != BCH_DATA_user ||
-			    m.dirty_sectors >= ca->mi.bucket_size)
-				continue;
-
-			WARN_ON(m.stripe && !g->stripe_redundancy);
-
-			e = (struct copygc_heap_entry) {
-				.dev		= dev_idx,
-				.gen		= m.gen,
-				.replicas	= 1 + g->stripe_redundancy,
-				.fragmentation	= m.dirty_sectors * (1U << 15)
-					/ ca->mi.bucket_size,
-				.sectors	= m.dirty_sectors,
-				.offset		= bucket_to_sector(ca, b),
-			};
-			heap_add_or_replace(h, e, -fragmentation_cmp, NULL);
-		}
-		up_read(&ca->bucket_lock);
+	ret = walk_buckets_to_copygc(c);
+	if (ret) {
+		bch2_fs_fatal_error(c, "error walking buckets to copygc!");
+		return ret;
 	}
 
 	if (!h->used) {
@@ -251,30 +318,18 @@ static int bch2_copygc(struct bch_fs *c)
 			     writepoint_ptr(&c->copygc_write_point),
 			     copygc_pred, NULL,
 			     &move_stats);
-
-	for_each_rw_member(ca, c, dev_idx) {
-		down_read(&ca->bucket_lock);
-		buckets = bucket_array(ca);
-		for (i = h->data; i < h->data + h->used; i++) {
-			struct bucket_mark m;
-			size_t b;
-
-			if (i->dev != dev_idx)
-				continue;
-
-			b = sector_to_bucket(ca, i->offset);
-			m = READ_ONCE(buckets->b[b].mark);
-
-			if (i->gen == m.gen &&
-			    m.dirty_sectors) {
-				sectors_not_moved += m.dirty_sectors;
-				buckets_not_moved++;
-			}
-		}
-		up_read(&ca->bucket_lock);
+	if (ret) {
+		bch_err(c, "error %i from bch2_move_data() in copygc", ret);
+		return ret;
 	}
 
-	if (sectors_not_moved && !ret)
+	ret = check_copygc_was_done(c, &sectors_not_moved, &buckets_not_moved);
+	if (ret) {
+		bch_err(c, "error %i from check_copygc_was_done()", ret);
+		return ret;
+	}
+
+	if (sectors_not_moved)
 		bch_warn_ratelimited(c,
 			"copygc finished but %llu/%llu sectors, %llu/%llu buckets not moved (move stats: moved %llu sectors, raced %llu keys, %llu sectors)",
 			 sectors_not_moved, sectors_to_move,
