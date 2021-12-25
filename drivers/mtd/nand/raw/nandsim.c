@@ -979,15 +979,8 @@ static int ns_read_error(unsigned int page_no)
 
 static int ns_setup_wear_reporting(struct mtd_info *mtd)
 {
-	size_t mem;
-
 	wear_eb_count = div_u64(mtd->size, mtd->erasesize);
-	mem = wear_eb_count * sizeof(unsigned long);
-	if (mem / sizeof(unsigned long) != wear_eb_count) {
-		NS_ERR("Too many erase blocks for wear reporting\n");
-		return -ENOMEM;
-	}
-	erase_block_wear = kzalloc(mem, GFP_KERNEL);
+	erase_block_wear = kcalloc(wear_eb_count, sizeof(unsigned long), GFP_KERNEL);
 	if (!erase_block_wear) {
 		NS_ERR("Too many erase blocks for wear reporting\n");
 		return -ENOMEM;
