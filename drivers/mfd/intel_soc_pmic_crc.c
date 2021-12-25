@@ -44,6 +44,10 @@ static const struct resource adc_resources[] = {
 	DEFINE_RES_IRQ_NAMED(CRYSTAL_COVE_IRQ_ADC, "ADC"),
 };
 
+static const struct resource charger_resources[] = {
+	DEFINE_RES_IRQ_NAMED(CRYSTAL_COVE_IRQ_CHGR, "CHGR"),
+};
+
 static const struct resource gpio_resources[] = {
 	DEFINE_RES_IRQ_NAMED(CRYSTAL_COVE_IRQ_GPIO, "GPIO"),
 };
@@ -68,6 +72,11 @@ static struct mfd_cell crystal_cove_byt_dev[] = {
 		.name = "crystal_cove_adc",
 		.num_resources = ARRAY_SIZE(adc_resources),
 		.resources = adc_resources,
+	},
+	{
+		.name = "crystal_cove_charger",
+		.num_resources = ARRAY_SIZE(charger_resources),
+		.resources = charger_resources,
 	},
 	{
 		.name = "crystal_cove_gpio",
