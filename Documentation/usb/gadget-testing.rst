@@ -931,7 +931,7 @@ The uac1 function provides these attributes in its function directory:
 	p_volume_min     playback volume control min value (in 1/256 dB)
 	p_volume_max     playback volume control max value (in 1/256 dB)
 	p_volume_res     playback volume control resolution (in 1/256 dB)
-	req_number       the number of pre-allocated request for both capture
+	req_number       the number of pre-allocated requests for both capture
 	                 and playback
 	================ ====================================================
 
