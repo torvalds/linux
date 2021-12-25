@@ -1731,14 +1731,6 @@ static void ns_switch_state(struct nandsim *ns)
 			"state: %s, nxstate: %s\n",
 		       ns_get_state_name(ns->state),
 		       ns_get_state_name(ns->nxstate));
-
-		/* See, whether we need to do some action */
-		if ((ns->state & ACTION_MASK) &&
-		    ns_do_state_action(ns, ns->state) < 0) {
-			ns_switch_to_ready_state(ns, NS_STATUS_FAILED(ns));
-			return;
-		}
-
 	} else {
 		/*
 		 * We don't yet know which operation we perform.
@@ -1755,12 +1747,13 @@ static void ns_switch_state(struct nandsim *ns)
 
 		if (ns_find_operation(ns, 0))
 			return;
+	}
 
-		if ((ns->state & ACTION_MASK) &&
-		    ns_do_state_action(ns, ns->state) < 0) {
-			ns_switch_to_ready_state(ns, NS_STATUS_FAILED(ns));
-			return;
-		}
+	/* See, whether we need to do some action */
+	if ((ns->state & ACTION_MASK) &&
+	    ns_do_state_action(ns, ns->state) < 0) {
+		ns_switch_to_ready_state(ns, NS_STATUS_FAILED(ns));
+		return;
 	}
 
 	/* For 16x devices column means the page offset in words */
