@@ -193,6 +193,130 @@ void find_controls(void)
 	snd_config_delete(config);
 }
 
+bool ctl_value_index_valid(struct ctl_data *ctl, snd_ctl_elem_value_t *val,
+			   int index)
+{
+	long int_val;
+	long long int64_val;
+
+	switch (snd_ctl_elem_info_get_type(ctl->info)) {
+	case SND_CTL_ELEM_TYPE_NONE:
+		ksft_print_msg("%s.%d Invalid control type NONE\n",
+			       ctl->name, index);
+		return false;
+
+	case SND_CTL_ELEM_TYPE_BOOLEAN:
+		int_val = snd_ctl_elem_value_get_boolean(val, index);
+		switch (int_val) {
+		case 0:
+		case 1:
+			break;
+		default:
+			ksft_print_msg("%s.%d Invalid boolean value %ld\n",
+				       ctl->name, index, int_val);
+			return false;
+		}
+		break;
+
+	case SND_CTL_ELEM_TYPE_INTEGER:
+		int_val = snd_ctl_elem_value_get_integer(val, index);
+
+		if (int_val < snd_ctl_elem_info_get_min(ctl->info)) {
+			ksft_print_msg("%s.%d value %ld less than minimum %ld\n",
+				       ctl->name, index, int_val,
+				       snd_ctl_elem_info_get_min(ctl->info));
+			return false;
+		}
+
+		if (int_val > snd_ctl_elem_info_get_max(ctl->info)) {
+			ksft_print_msg("%s.%d value %ld more than maximum %ld\n",
+				       ctl->name, index, int_val,
+				       snd_ctl_elem_info_get_max(ctl->info));
+			return false;
+		}
+
+		/* Only check step size if there is one and we're in bounds */
+		if (snd_ctl_elem_info_get_step(ctl->info) &&
+		    (int_val - snd_ctl_elem_info_get_min(ctl->info) %
+		     snd_ctl_elem_info_get_step(ctl->info))) {
+			ksft_print_msg("%s.%d value %ld invalid for step %ld minimum %ld\n",
+				       ctl->name, index, int_val,
+				       snd_ctl_elem_info_get_step(ctl->info),
+				       snd_ctl_elem_info_get_min(ctl->info));
+			return false;
+		}
+		break;
+
+	case SND_CTL_ELEM_TYPE_INTEGER64:
+		int64_val = snd_ctl_elem_value_get_integer64(val, index);
+
+		if (int64_val < snd_ctl_elem_info_get_min64(ctl->info)) {
+			ksft_print_msg("%s.%d value %lld less than minimum %lld\n",
+				       ctl->name, index, int64_val,
+				       snd_ctl_elem_info_get_min64(ctl->info));
+			return false;
+		}
+
+		if (int64_val > snd_ctl_elem_info_get_max64(ctl->info)) {
+			ksft_print_msg("%s.%d value %lld more than maximum %lld\n",
+				       ctl->name, index, int64_val,
+				       snd_ctl_elem_info_get_max(ctl->info));
+			return false;
+		}
+
+		/* Only check step size if there is one and we're in bounds */
+		if (snd_ctl_elem_info_get_step64(ctl->info) &&
+		    (int64_val - snd_ctl_elem_info_get_min64(ctl->info)) %
+		    snd_ctl_elem_info_get_step64(ctl->info)) {
+			ksft_print_msg("%s.%d value %lld invalid for step %lld minimum %lld\n",
+				       ctl->name, index, int64_val,
+				       snd_ctl_elem_info_get_step64(ctl->info),
+				       snd_ctl_elem_info_get_min64(ctl->info));
+			return false;
+		}
+		break;
+
+	case SND_CTL_ELEM_TYPE_ENUMERATED:
+		int_val = snd_ctl_elem_value_get_enumerated(val, index);
+
+		if (int_val < 0) {
+			ksft_print_msg("%s.%d negative value %ld for enumeration\n",
+				       ctl->name, index, int_val);
+			return false;
+		}
+
+		if (int_val >= snd_ctl_elem_info_get_items(ctl->info)) {
+			ksft_print_msg("%s.%d value %ld more than item count %ld\n",
+				       ctl->name, index, int_val,
+				       snd_ctl_elem_info_get_items(ctl->info));
+			return false;
+		}
+		break;
+
+	default:
+		/* No tests for other types */
+		break;
+	}
+
+	return true;
+}
+
+/*
+ * Check that the provided value meets the constraints for the
+ * provided control.
+ */
+bool ctl_value_valid(struct ctl_data *ctl, snd_ctl_elem_value_t *val)
+{
+	int i;
+	bool valid = true;
+
+	for (i = 0; i < snd_ctl_elem_info_get_count(ctl->info); i++)
+		if (!ctl_value_index_valid(ctl, val, i))
+			valid = false;
+
+	return valid;
+}
+
 /*
  * Check that we can read the default value and it is valid. Write
  * tests use the read value to restore the default.
@@ -200,8 +324,6 @@ void find_controls(void)
 void test_ctl_get_value(struct ctl_data *ctl)
 {
 	int err;
-	long int_val;
-	long long int64_val;
 
 	/* If the control is turned off let's be polite */
 	if (snd_ctl_elem_info_is_inactive(ctl->info)) {
@@ -226,90 +348,8 @@ void test_ctl_get_value(struct ctl_data *ctl)
 		goto out;
 	}
 
-	switch (snd_ctl_elem_info_get_type(ctl->info)) {
-	case SND_CTL_ELEM_TYPE_NONE:
-		ksft_print_msg("%s Invalid control type NONE\n", ctl->name);
-		err = -1;
-		break;
-
-	case SND_CTL_ELEM_TYPE_BOOLEAN:
-		int_val = snd_ctl_elem_value_get_boolean(ctl->def_val, 0);
-		switch (int_val) {
-		case 0:
-		case 1:
-			break;
-		default:
-			ksft_print_msg("%s Invalid boolean value %ld\n",
-				       ctl->name, int_val);
-			err = -1;
-			break;
-		}
-		break;
-
-	case SND_CTL_ELEM_TYPE_INTEGER:
-		int_val = snd_ctl_elem_value_get_integer(ctl->def_val, 0);
-
-		if (int_val < snd_ctl_elem_info_get_min(ctl->info)) {
-			ksft_print_msg("%s value %ld less than minimum %ld\n",
-				       ctl->name, int_val,
-				       snd_ctl_elem_info_get_min(ctl->info));
-			err = -1;
-		}
-
-		if (int_val > snd_ctl_elem_info_get_max(ctl->info)) {
-			ksft_print_msg("%s value %ld more than maximum %ld\n",
-				       ctl->name, int_val,
-				       snd_ctl_elem_info_get_max(ctl->info));
-			err = -1;
-		}
-
-		/* Only check step size if there is one and we're in bounds */
-		if (err >= 0 && snd_ctl_elem_info_get_step(ctl->info) &&
-		    (int_val - snd_ctl_elem_info_get_min(ctl->info) %
-		     snd_ctl_elem_info_get_step(ctl->info))) {
-			ksft_print_msg("%s value %ld invalid for step %ld minimum %ld\n",
-				       ctl->name, int_val,
-				       snd_ctl_elem_info_get_step(ctl->info),
-				       snd_ctl_elem_info_get_min(ctl->info));
-			err = -1;
-		}
-		break;
-
-	case SND_CTL_ELEM_TYPE_INTEGER64:
-		int64_val = snd_ctl_elem_value_get_integer64(ctl->def_val, 0);
-
-		if (int64_val < snd_ctl_elem_info_get_min64(ctl->info)) {
-			ksft_print_msg("%s value %lld less than minimum %lld\n",
-				       ctl->name, int64_val,
-				       snd_ctl_elem_info_get_min64(ctl->info));
-			err = -1;
-		}
-
-		if (int64_val > snd_ctl_elem_info_get_max64(ctl->info)) {
-			ksft_print_msg("%s value %lld more than maximum %lld\n",
-				       ctl->name, int64_val,
-				       snd_ctl_elem_info_get_max(ctl->info));
-			err = -1;
-		}
-
-		/* Only check step size if there is one and we're in bounds */
-		if (err >= 0 && snd_ctl_elem_info_get_step64(ctl->info) &&
-		    (int64_val - snd_ctl_elem_info_get_min64(ctl->info)) %
-		    snd_ctl_elem_info_get_step64(ctl->info)) {
-			ksft_print_msg("%s value %lld invalid for step %lld minimum %lld\n",
-				       ctl->name, int64_val,
-				       snd_ctl_elem_info_get_step64(ctl->info),
-				       snd_ctl_elem_info_get_min64(ctl->info));
-			err = -1;
-		}
-		break;
-
-	default:
-		/* No tests for other types */
-		ksft_test_result_skip("get_value.%d.%d\n",
-				      ctl->card->card, ctl->elem);
-		return;
-	}
+	if (!ctl_value_valid(ctl, ctl->def_val))
+		err = -EINVAL;
 
 out:
 	ksft_test_result(err >= 0, "get_value.%d.%d\n",
