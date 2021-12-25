@@ -201,6 +201,9 @@ MODULE_PARM_DESC(bch,		 "Enable BCH ecc and set how many bits should "
 /* Calculate the OOB offset in flash RAM image by (row, column) address */
 #define NS_RAW_OFFSET_OOB(ns) (NS_RAW_OFFSET(ns) + ns->geom.pgsz)
 
+/* Calculate the byte shift in the next page to access */
+#define NS_PAGE_BYTE_SHIFT(ns) ((ns)->regs.column + (ns)->regs.off)
+
 /* After a command is input, the simulator goes to one of the following states */
 #define STATE_CMD_READ0        0x00000001 /* read data from the beginning of page */
 #define STATE_CMD_READ1        0x00000002 /* read data from the second half of page */
@@ -1382,7 +1385,7 @@ static inline union ns_mem *NS_GET_PAGE(struct nandsim *ns)
  */
 static inline u_char *NS_PAGE_BYTE_OFF(struct nandsim *ns)
 {
-	return NS_GET_PAGE(ns)->byte + ns->regs.column + ns->regs.off;
+	return NS_GET_PAGE(ns)->byte + NS_PAGE_BYTE_SHIFT(ns);
 }
 
 static int ns_do_read_error(struct nandsim *ns, int num)
@@ -1408,7 +1411,7 @@ static void ns_do_bit_flips(struct nandsim *ns, int num)
 			ns->buf.byte[pos / 8] ^= (1 << (pos % 8));
 			NS_WARN("read_page: flipping bit %d in page %d "
 				"reading from %d ecc: corrected=%u failed=%u\n",
-				pos, ns->regs.row, ns->regs.column + ns->regs.off,
+				pos, ns->regs.row, NS_PAGE_BYTE_SHIFT(ns),
 				nsmtd->ecc_stats.corrected, nsmtd->ecc_stats.failed);
 		}
 	}
@@ -1430,7 +1433,7 @@ static void ns_read_page(struct nandsim *ns, int num)
 			ssize_t tx;
 
 			NS_DBG("read_page: page %d written, reading from %d\n",
-				ns->regs.row, ns->regs.column + ns->regs.off);
+				ns->regs.row, NS_PAGE_BYTE_SHIFT(ns));
 			if (ns_do_read_error(ns, num))
 				return;
 			pos = (loff_t)NS_RAW_OFFSET(ns) + ns->regs.off;
@@ -1451,7 +1454,7 @@ static void ns_read_page(struct nandsim *ns, int num)
 		memset(ns->buf.byte, 0xFF, num);
 	} else {
 		NS_DBG("read_page: page %d allocated, reading from %d\n",
-			ns->regs.row, ns->regs.column + ns->regs.off);
+			ns->regs.row, NS_PAGE_BYTE_SHIFT(ns));
 		if (ns_do_read_error(ns, num))
 			return;
 		memcpy(ns->buf.byte, NS_PAGE_BYTE_OFF(ns), num);
@@ -1502,7 +1505,7 @@ static int ns_prog_page(struct nandsim *ns, int num)
 		int all;
 
 		NS_DBG("prog_page: writing page %d\n", ns->regs.row);
-		pg_off = ns->file_buf + ns->regs.column + ns->regs.off;
+		pg_off = ns->file_buf + NS_PAGE_BYTE_SHIFT(ns);
 		off = (loff_t)NS_RAW_OFFSET(ns) + ns->regs.off;
 		if (!test_bit(ns->regs.row, ns->pages_written)) {
 			all = 1;
@@ -1591,7 +1594,7 @@ static int ns_do_state_action(struct nandsim *ns, uint32_t action)
 			NS_ERR("do_state_action: column number is too large\n");
 			break;
 		}
-		num = ns->geom.pgszoob - ns->regs.off - ns->regs.column;
+		num = ns->geom.pgszoob - NS_PAGE_BYTE_SHIFT(ns);
 		ns_read_page(ns, num);
 
 		NS_DBG("do_state_action: (ACTION_CPY:) copy %d bytes to int buf, raw offset %d\n",
@@ -1659,7 +1662,7 @@ static int ns_do_state_action(struct nandsim *ns, uint32_t action)
 			return -1;
 		}
 
-		num = ns->geom.pgszoob - ns->regs.off - ns->regs.column;
+		num = ns->geom.pgszoob - NS_PAGE_BYTE_SHIFT(ns);
 		if (num != ns->regs.count) {
 			NS_ERR("do_state_action: too few bytes were input (%d instead of %d)\n",
 					ns->regs.count, num);
@@ -1803,7 +1806,7 @@ static void ns_switch_state(struct nandsim *ns)
 		switch (NS_STATE(ns->state)) {
 			case STATE_DATAIN:
 			case STATE_DATAOUT:
-				ns->regs.num = ns->geom.pgszoob - ns->regs.off - ns->regs.column;
+				ns->regs.num = ns->geom.pgszoob - NS_PAGE_BYTE_SHIFT(ns);
 				break;
 
 			case STATE_DATAOUT_ID:
