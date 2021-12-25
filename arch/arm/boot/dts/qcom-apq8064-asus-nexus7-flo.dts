@@ -218,7 +218,6 @@
 			vdd-supply = <&pm8921_l8>;
 			vddio-supply = <&pm8921_lvs7>;
 			avdd-supply = <&pm8921_l11>;
-			vcss-supply = <&ext_3p3v>;
 
 			panel@0 {
 				reg = <0>;
