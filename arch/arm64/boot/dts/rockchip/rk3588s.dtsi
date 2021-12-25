@@ -4595,12 +4595,9 @@
 		reg = <0x0 0xfed60000 0x0 0x2000>;
 		clocks = <&cru CLK_USB2PHY_HDPTXRXPHY_REF>, <&cru PCLK_HDPTX0>;
 		clock-names = "ref", "apb";
-		resets = <&cru SRST_HDPTX0>, <&cru SRST_P_HDPTX0>,
-			 <&cru SRST_HDPTX0_INIT>, <&cru SRST_HDPTX0_CMN>,
-			 <&cru SRST_HDPTX0_LANE>, <&cru SRST_HDPTX0_ROPLL>,
-			 <&cru SRST_HDPTX0_LCPLL>;
-		reset-names = "phy", "apb", "init", "cmn", "lane", "ropll",
-			      "lcpll";
+		resets = <&cru SRST_P_HDPTX0>, <&cru SRST_HDPTX0_INIT>,
+			 <&cru SRST_HDPTX0_CMN>, <&cru SRST_HDPTX0_LANE>;
+		reset-names = "apb", "init", "cmn", "lane";
 		rockchip,grf = <&hdptxphy0_grf>;
 		#phy-cells = <0>;
 		status = "disabled";
