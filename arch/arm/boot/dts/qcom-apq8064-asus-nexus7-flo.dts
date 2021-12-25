@@ -212,7 +212,7 @@
 			};
 		};
 
-		dsi0: mdss_dsi@4700000 {
+		dsi0: dsi@4700000 {
 			status = "okay";
 			vdda-supply = <&pm8921_l2>;/*VDD_MIPI1 to 4*/
 			vdd-supply = <&pm8921_l8>;

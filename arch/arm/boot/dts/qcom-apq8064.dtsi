@@ -1238,7 +1238,7 @@
 			reg = <0x5700000 0x70>;
 		};
 
-		dsi0: mdss_dsi@4700000 {
+		dsi0: dsi@4700000 {
 			compatible = "qcom,mdss-dsi-ctrl";
 			label = "MDSS DSI CTRL->0";
 			#address-cells = <1>;
@@ -1268,6 +1268,7 @@
 						<&dsi0_phy 1>;
 			syscon-sfpb = <&mmss_sfpb>;
 			phys = <&dsi0_phy>;
+			phy-names = "dsi";
 			ports {
 				#address-cells = <1>;
 				#size-cells = <0>;
