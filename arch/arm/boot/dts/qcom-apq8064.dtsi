@@ -1368,10 +1368,10 @@
 
 		pcie: pci@1b500000 {
 			compatible = "qcom,pcie-apq8064", "snps,dw-pcie";
-			reg = <0x1b500000 0x1000
-			       0x1b502000 0x80
-			       0x1b600000 0x100
-			       0x0ff00000 0x100000>;
+			reg = <0x1b500000 0x1000>,
+			      <0x1b502000 0x80>,
+			      <0x1b600000 0x100>,
+			      <0x0ff00000 0x100000>;
 			reg-names = "dbi", "elbi", "parf", "config";
 			device_type = "pci";
 			linux,pci-domain = <0>;
