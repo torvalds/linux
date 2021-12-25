@@ -26,6 +26,31 @@
 		select-gpios = <&gpio_exp_75 13 GPIO_ACTIVE_HIGH>;
 	};
 
+	hdmi1-out {
+		compatible = "hdmi-connector";
+		type = "a";
+
+		port {
+			hdmi1_con: endpoint {
+				remote-endpoint = <&adv7513_out>;
+			};
+		};
+	};
+
+	hdmi_1v8: regulator-hdmi-1v8 {
+		compatible = "regulator-fixed";
+		regulator-name = "hdmi-1v8";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+	};
+
+	hdmi_3v3: regulator-hdmi-3v3 {
+		compatible = "regulator-fixed";
+		regulator-name = "hdmi-3v3";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+	};
+
 	snd_3p3v: regulator-snd_3p3v {
 		compatible = "regulator-fixed";
 		regulator-name = "snd-3.3v";
@@ -65,6 +90,10 @@
 	status = "okay";
 };
 
+&du_out_rgb {
+	remote-endpoint = <&adv7513_in>;
+};
+
 &ehci0 {
 	dr_mode = "otg";
 	status = "okay";
@@ -90,6 +119,58 @@
 		#size-cells = <0>;
 		reg = <0x71>;
 		reset-gpios = <&gpio5 3 GPIO_ACTIVE_LOW>;
+
+		/* HDMIoSDA, HDMIoSCL */
+		i2c@4 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <4>;
+
+			hdmi@3d {
+				compatible = "adi,adv7513";
+				reg = <0x3d>;
+
+				pinctrl-0 = <&hdmi1_pins>;
+				pinctrl-names = "default";
+
+				interrupt-parent = <&gpio2>;
+				interrupts = <14 IRQ_TYPE_LEVEL_LOW>;
+
+				clocks = <&cs2000>;
+				clock-names = "cec";
+
+				pd-gpios = <&gpio_exp_75 5 GPIO_ACTIVE_LOW>;
+
+				avdd-supply = <&hdmi_1v8>;
+				dvdd-supply = <&hdmi_1v8>;
+				pvdd-supply = <&hdmi_1v8>;
+				dvdd-3v-supply = <&hdmi_3v3>;
+				bgvdd-supply = <&hdmi_1v8>;
+
+				adi,input-depth = <8>;
+				adi,input-colorspace = "rgb";
+				adi,input-clock = "1x";
+
+				ports {
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					port@0 {
+						reg = <0>;
+						adv7513_in: endpoint {
+							remote-endpoint = <&du_out_rgb>;
+						};
+					};
+
+					port@1 {
+						reg = <1>;
+						adv7513_out: endpoint {
+							remote-endpoint = <&hdmi1_con>;
+						};
+					};
+				};
+			};
+		};
 
 		/* Audio_SDA, Audio_SCL */
 		i2c@7 {
@@ -262,6 +343,19 @@
 	can1_pins: can1 {
 		groups = "can1_data";
 		function = "can1";
+	};
+
+	hdmi1_pins: hdmi1 {
+		adv7513-interrupt {
+			pins = "GP_2_14";
+			bias-pull-up;
+		};
+
+		du {
+			groups = "du_rgb888", "du_sync", "du_clk_out_0",
+				 "du_disp";
+			function = "du";
+		};
 	};
 
 	hscif0_pins: hscif0 {
