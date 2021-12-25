@@ -124,13 +124,16 @@ static const struct ts_dmi_data chuwi_hi10_plus_data = {
 	.properties     = chuwi_hi10_plus_props,
 };
 
+static const u32 chuwi_hi10_pro_efi_min_max[] = { 8, 1911, 8, 1271 };
+
 static const struct property_entry chuwi_hi10_pro_props[] = {
-	PROPERTY_ENTRY_U32("touchscreen-min-x", 8),
-	PROPERTY_ENTRY_U32("touchscreen-min-y", 8),
-	PROPERTY_ENTRY_U32("touchscreen-size-x", 1912),
-	PROPERTY_ENTRY_U32("touchscreen-size-y", 1272),
+	PROPERTY_ENTRY_U32("touchscreen-min-x", 80),
+	PROPERTY_ENTRY_U32("touchscreen-min-y", 26),
+	PROPERTY_ENTRY_U32("touchscreen-size-x", 1962),
+	PROPERTY_ENTRY_U32("touchscreen-size-y", 1254),
 	PROPERTY_ENTRY_BOOL("touchscreen-swapped-x-y"),
 	PROPERTY_ENTRY_STRING("firmware-name", "gsl1680-chuwi-hi10-pro.fw"),
+	PROPERTY_ENTRY_U32_ARRAY("silead,efi-fw-min-max", chuwi_hi10_pro_efi_min_max),
 	PROPERTY_ENTRY_U32("silead,max-fingers", 10),
 	PROPERTY_ENTRY_BOOL("silead,home-button"),
 	{ }
