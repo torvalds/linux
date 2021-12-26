@@ -34,21 +34,15 @@ enum LED_STATE_871x {
 	RTW_LED_OFF = 2,
 	LED_BLINK_NORMAL = 3,
 	LED_BLINK_SLOWLY = 4,
-	LED_BLINK_POWER_ON = 5,
 	LED_BLINK_SCAN = 6, /*  LED is blinking during scanning period,
 			     * the # of times to blink is depend on time
 			     * for scanning. */
-	LED_BLINK_NO_LINK = 7, /*  LED is blinking during no link state. */
 	LED_BLINK_StartToBlink = 8,/*  Customzied for Sercomm Printer
 				    * Server case */
 	LED_BLINK_TXRX = 9,
 	LED_BLINK_WPS = 10,	/*  LED is blinkg during WPS communication */
 	LED_BLINK_WPS_STOP = 11,	/* for ALPHA */
-	LED_BLINK_WPS_STOP_OVERLAP = 12,	/* for BELKIN */
 	LED_BLINK_RUNTOP = 13, /*  Customized for RunTop */
-	LED_BLINK_CAMEO = 14,
-	LED_BLINK_XAVI = 15,
-	LED_BLINK_ALWAYS_ON = 16,
 };
 
 struct LED_871x {
