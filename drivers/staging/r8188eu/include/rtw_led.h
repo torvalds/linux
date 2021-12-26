@@ -18,8 +18,8 @@ enum LED_CTL_MODE {
 	LED_CTL_START_TO_LINK = 8,
 	LED_CTL_START_WPS = 9,
 	LED_CTL_STOP_WPS = 10,
-	LED_CTL_START_WPS_BOTTON = 11, /* added for runtop */
-	LED_CTL_STOP_WPS_FAIL = 12, /* added for ALPHA */
+	LED_CTL_START_WPS_BOTTON = 11,
+	LED_CTL_STOP_WPS_FAIL = 12,
 };
 
 enum LED_STATE_871x {
@@ -35,7 +35,7 @@ enum LED_STATE_871x {
 				    * Server case */
 	LED_BLINK_TXRX = 9,
 	LED_BLINK_WPS = 10,	/*  LED is blinkg during WPS communication */
-	LED_BLINK_WPS_STOP = 11,	/* for ALPHA */
+	LED_BLINK_WPS_STOP = 11,
 	LED_BLINK_RUNTOP = 13, /*  Customized for RunTop */
 };
 
@@ -54,7 +54,6 @@ struct LED_871x {
 
 	u32 BlinkTimes; /*  Number of times to toggle led state for blinking. */
 
-	/*  ALPHA, added by chiyoko, 20090106 */
 	bool bLedNoLinkBlinkInProgress;
 	bool bLedLinkBlinkInProgress;
 	bool bLedScanBlinkInProgress;
@@ -64,12 +63,10 @@ struct LED_871x {
 void LedControl8188eu(struct adapter *padapter, enum LED_CTL_MODE	LedAction);
 
 struct led_priv{
-	/* add for led control */
 	struct LED_871x			SwLed0;
 	bool	bRegUseLed;
 	void (*LedControlHandler)(struct adapter *padapter,
 				  enum LED_CTL_MODE LedAction);
-	/* add for led control */
 };
 
 #define rtw_led_control(adapt, action) \
