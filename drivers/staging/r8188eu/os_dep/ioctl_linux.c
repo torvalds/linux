@@ -4176,8 +4176,6 @@ static int rtw_pm_set(struct net_device *dev,
 	return ret;
 }
 
-extern int wifirate2_ratetbl_inx(unsigned char rate);
-
 static iw_handler rtw_handlers[] = {
 	IW_HANDLER(SIOCGIWNAME, rtw_wx_get_name),
 	IW_HANDLER(SIOCGIWFREQ, rtw_wx_get_freq),
