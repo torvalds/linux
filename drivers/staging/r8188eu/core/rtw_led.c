@@ -3,6 +3,7 @@
 
 #include "../include/drv_types.h"
 #include "../include/rtw_led.h"
+#include "../include/rtl8188e_spec.h"
 
 void BlinkWorkItemCallback(struct work_struct *work)
 {
@@ -26,6 +27,36 @@ void ResetLedStatus(struct LED_871x *pLed)
 	pLed->bLedLinkBlinkInProgress = false;
 	pLed->bLedStartToLinkBlinkInProgress = false;
 	pLed->bLedScanBlinkInProgress = false;
+}
+
+static void SwLedOn(struct adapter *padapter, struct LED_871x *pLed)
+{
+	u8	LedCfg;
+
+	if (padapter->bSurpriseRemoved || padapter->bDriverStopped)
+		return;
+
+	LedCfg = rtw_read8(padapter, REG_LEDCFG2);
+	rtw_write8(padapter, REG_LEDCFG2, (LedCfg & 0xf0) | BIT(5) | BIT(6)); /*  SW control led0 on. */
+	pLed->bLedOn = true;
+}
+
+static void SwLedOff(struct adapter *padapter, struct LED_871x *pLed)
+{
+	u8	LedCfg;
+
+	if (padapter->bSurpriseRemoved || padapter->bDriverStopped)
+		goto exit;
+
+	LedCfg = rtw_read8(padapter, REG_LEDCFG2);/* 0x4E */
+
+	LedCfg &= 0x90; /*  Set to software control. */
+	rtw_write8(padapter, REG_LEDCFG2, (LedCfg | BIT(3)));
+	LedCfg = rtw_read8(padapter, REG_MAC_PINMUX_CFG);
+	LedCfg &= 0xFE;
+	rtw_write8(padapter, REG_MAC_PINMUX_CFG, LedCfg);
+exit:
+	pLed->bLedOn = false;
 }
 
 void InitLed871x(struct adapter *padapter, struct LED_871x *pLed)

@@ -6,38 +6,6 @@
 #include "../include/rtl8188e_hal.h"
 #include "../include/rtl8188e_led.h"
 
-/*  LED object. */
-
-void SwLedOn(struct adapter *padapter, struct LED_871x *pLed)
-{
-	u8	LedCfg;
-
-	if (padapter->bSurpriseRemoved || padapter->bDriverStopped)
-		return;
-
-	LedCfg = rtw_read8(padapter, REG_LEDCFG2);
-	rtw_write8(padapter, REG_LEDCFG2, (LedCfg & 0xf0) | BIT(5) | BIT(6)); /*  SW control led0 on. */
-	pLed->bLedOn = true;
-}
-
-void SwLedOff(struct adapter *padapter, struct LED_871x *pLed)
-{
-	u8	LedCfg;
-
-	if (padapter->bSurpriseRemoved || padapter->bDriverStopped)
-		goto exit;
-
-	LedCfg = rtw_read8(padapter, REG_LEDCFG2);/* 0x4E */
-
-	LedCfg &= 0x90; /*  Set to software control. */
-	rtw_write8(padapter, REG_LEDCFG2, (LedCfg | BIT(3)));
-	LedCfg = rtw_read8(padapter, REG_MAC_PINMUX_CFG);
-	LedCfg &= 0xFE;
-	rtw_write8(padapter, REG_MAC_PINMUX_CFG, LedCfg);
-exit:
-	pLed->bLedOn = false;
-}
-
 /*  Interface to manipulate LED objects. */
 /*  Default LED behavior. */
 
