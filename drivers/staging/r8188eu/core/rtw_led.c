@@ -59,13 +59,6 @@ exit:
 	pLed->bLedOn = false;
 }
 
-void DeInitLed871x(struct LED_871x *pLed)
-{
-	cancel_delayed_work_sync(&pLed->blink_work);
-	ResetLedStatus(pLed);
-	SwLedOff(pLed->padapter, pLed);
-}
-
 static void SwLedBlink1(struct LED_871x *pLed)
 {
 	struct adapter *padapter = pLed->padapter;
@@ -423,8 +416,11 @@ void rtl8188eu_InitSwLeds(struct adapter *padapter)
 void rtl8188eu_DeInitSwLeds(struct adapter *padapter)
 {
 	struct led_priv	*ledpriv = &padapter->ledpriv;
+	struct LED_871x *pLed = &ledpriv->SwLed0;
 
-	DeInitLed871x(&ledpriv->SwLed0);
+	cancel_delayed_work_sync(&pLed->blink_work);
+	ResetLedStatus(pLed);
+	SwLedOff(padapter, pLed);
 }
 
 void LedControl8188eu(struct adapter *padapter, enum LED_CTL_MODE LedAction)
