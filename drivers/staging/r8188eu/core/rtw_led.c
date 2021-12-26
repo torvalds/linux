@@ -411,8 +411,6 @@ void rtl8188eu_InitSwLeds(struct adapter *padapter)
 	struct led_priv *pledpriv = &padapter->ledpriv;
 	struct LED_871x *pLed = &pledpriv->SwLed0;
 
-	pledpriv->LedControlHandler = LedControl8188eu;
-
 	pLed->padapter = padapter;
 	ResetLedStatus(pLed);
 	INIT_DELAYED_WORK(&pLed->blink_work, blink_work);
@@ -428,7 +426,7 @@ void rtl8188eu_DeInitSwLeds(struct adapter *padapter)
 	SwLedOff(padapter, pLed);
 }
 
-void LedControl8188eu(struct adapter *padapter, enum LED_CTL_MODE LedAction)
+void rtw_led_control(struct adapter *padapter, enum LED_CTL_MODE LedAction)
 {
 	struct led_priv *ledpriv = &padapter->ledpriv;
 	struct registry_priv *registry_par;

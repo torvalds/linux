@@ -60,22 +60,14 @@ struct LED_871x {
 	struct delayed_work blink_work;
 };
 
-void LedControl8188eu(struct adapter *padapter, enum LED_CTL_MODE	LedAction);
-
 struct led_priv{
 	struct LED_871x			SwLed0;
 	bool	bRegUseLed;
-	void (*LedControlHandler)(struct adapter *padapter,
-				  enum LED_CTL_MODE LedAction);
 };
-
-#define rtw_led_control(adapt, action) \
-	do { \
-		if ((adapt)->ledpriv.LedControlHandler) \
-			(adapt)->ledpriv.LedControlHandler((adapt), (action)); \
-	} while (0)
 
 void rtl8188eu_InitSwLeds(struct adapter *padapter);
 void rtl8188eu_DeInitSwLeds(struct adapter *padapter);
+
+void rtw_led_control(struct adapter *padapter, enum LED_CTL_MODE LedAction);
 
 #endif /* __RTW_LED_H_ */
