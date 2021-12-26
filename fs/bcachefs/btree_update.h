@@ -141,13 +141,4 @@ static inline int bch2_trans_commit(struct btree_trans *trans,
 	     (_i) < (_trans)->updates + (_trans)->nr_updates;		\
 	     (_i)++)
 
-struct bkey_i *__bch2_btree_trans_peek_updates(struct btree_iter *);
-
-static inline struct bkey_i *btree_trans_peek_updates(struct btree_iter *iter)
-{
-	return iter->flags & BTREE_ITER_WITH_UPDATES
-		? __bch2_btree_trans_peek_updates(iter)
-		: NULL;
-}
-
 #endif /* _BCACHEFS_BTREE_UPDATE_H */

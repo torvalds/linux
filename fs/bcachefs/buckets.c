@@ -1429,25 +1429,22 @@ static int bch2_trans_start_alloc_update(struct btree_trans *trans, struct btree
 {
 	struct bch_fs *c = trans->c;
 	struct bch_dev *ca = bch_dev_bkey_exists(c, ptr->dev);
-	struct bpos pos = POS(ptr->dev, PTR_BUCKET_NR(ca, ptr));
-	struct bkey_i *update;
+	struct bkey_s_c k;
 	int ret;
 
-	bch2_trans_iter_init(trans, iter, BTREE_ID_alloc, pos,
+	bch2_trans_iter_init(trans, iter, BTREE_ID_alloc,
+			     POS(ptr->dev, PTR_BUCKET_NR(ca, ptr)),
+			     BTREE_ITER_WITH_UPDATES|
 			     BTREE_ITER_CACHED|
-			     BTREE_ITER_CACHED_NOFILL|
 			     BTREE_ITER_INTENT);
-	ret = bch2_btree_iter_traverse(iter);
+	k = bch2_btree_iter_peek_slot(iter);
+	ret = bkey_err(k);
 	if (ret) {
 		bch2_trans_iter_exit(trans, iter);
 		return ret;
 	}
 
-	update = __bch2_btree_trans_peek_updates(iter);
-	*u = update && !bpos_cmp(update->k.p, pos)
-		? bch2_alloc_unpack(bkey_i_to_s_c(update))
-		: alloc_mem_to_key(c, iter);
-
+	*u = bch2_alloc_unpack(k);
 	return 0;
 }
 

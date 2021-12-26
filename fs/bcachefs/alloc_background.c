@@ -464,19 +464,20 @@ int bch2_bucket_io_time_reset(struct btree_trans *trans, unsigned dev,
 {
 	struct bch_fs *c = trans->c;
 	struct btree_iter iter;
+	struct bkey_s_c k;
 	struct bkey_alloc_unpacked u;
 	u64 *time, now;
 	int ret = 0;
 
 	bch2_trans_iter_init(trans, &iter, BTREE_ID_alloc, POS(dev, bucket_nr),
 			     BTREE_ITER_CACHED|
-			     BTREE_ITER_CACHED_NOFILL|
 			     BTREE_ITER_INTENT);
-	ret = bch2_btree_iter_traverse(&iter);
+	k = bch2_btree_iter_peek_slot(&iter);
+	ret = bkey_err(k);
 	if (ret)
 		goto out;
 
-	u = alloc_mem_to_key(c, &iter);
+	u = bch2_alloc_unpack(k);
 
 	time = rw == READ ? &u.read_time : &u.write_time;
 	now = atomic64_read(&c->io_clock[rw].now);
@@ -673,20 +674,20 @@ static int bucket_invalidate_btree(struct btree_trans *trans,
 {
 	struct bch_fs *c = trans->c;
 	struct btree_iter iter;
+	struct bkey_s_c k;
 	int ret;
 
 	bch2_trans_iter_init(trans, &iter, BTREE_ID_alloc,
 			     POS(ca->dev_idx, b),
 			     BTREE_ITER_CACHED|
-			     BTREE_ITER_CACHED_NOFILL|
 			     BTREE_ITER_INTENT);
 
-	ret = bch2_btree_iter_traverse(&iter);
+	k = bch2_btree_iter_peek_slot(&iter);
+	ret = bkey_err(k);
 	if (ret)
 		goto err;
 
-	*u = alloc_mem_to_key(c, &iter);
-
+	*u = bch2_alloc_unpack(k);
 	u->gen++;
 	u->data_type		= 0;
 	u->dirty_sectors	= 0;

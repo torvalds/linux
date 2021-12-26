@@ -2183,6 +2183,7 @@ inline bool bch2_btree_iter_rewind(struct btree_iter *iter)
 	return ret;
 }
 
+static noinline
 struct bkey_i *__bch2_btree_trans_peek_updates(struct btree_iter *iter)
 {
 	struct btree_insert_entry *i;
@@ -2200,6 +2201,13 @@ struct bkey_i *__bch2_btree_trans_peek_updates(struct btree_iter *iter)
 	}
 
 	return ret;
+}
+
+static inline struct bkey_i *btree_trans_peek_updates(struct btree_iter *iter)
+{
+	return iter->flags & BTREE_ITER_WITH_UPDATES
+		? __bch2_btree_trans_peek_updates(iter)
+		: NULL;
 }
 
 static struct bkey_i *__btree_trans_peek_journal(struct btree_trans *trans,
