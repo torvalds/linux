@@ -1162,16 +1162,6 @@ use_clean:
 	if (ret)
 		goto err;
 
-	/*
-	 * After an unclean shutdown, skip then next few journal sequence
-	 * numbers as they may have been referenced by btree writes that
-	 * happened before their corresponding journal writes - those btree
-	 * writes need to be ignored, by skipping and blacklisting the next few
-	 * journal sequence numbers:
-	 */
-	if (!c->sb.clean)
-		journal_seq += 8;
-
 	if (blacklist_seq != journal_seq) {
 		ret = bch2_journal_seq_blacklist_add(c,
 					blacklist_seq, journal_seq);
@@ -1309,7 +1299,8 @@ use_clean:
 	}
 
 	if (!(c->sb.compat & (1ULL << BCH_COMPAT_extents_above_btree_updates_done)) ||
-	    !(c->sb.compat & (1ULL << BCH_COMPAT_bformat_overflow_done))) {
+	    !(c->sb.compat & (1ULL << BCH_COMPAT_bformat_overflow_done)) ||
+	    le16_to_cpu(c->sb.version_min) < bcachefs_metadata_version_btree_ptr_sectors_written) {
 		struct bch_move_stats stats;
 
 		bch_move_stats_init(&stats, "recovery");
@@ -1326,6 +1317,15 @@ use_clean:
 	}
 
 	mutex_lock(&c->sb_lock);
+	/*
+	 * With journal replay done, we can clear the journal seq blacklist
+	 * table:
+	 */
+	BUG_ON(!test_bit(JOURNAL_REPLAY_DONE, &c->journal.flags));
+	BUG_ON(le16_to_cpu(c->sb.version_min) < bcachefs_metadata_version_btree_ptr_sectors_written);
+
+	bch2_sb_resize_journal_seq_blacklist(&c->disk_sb, 0);
+
 	if (c->opts.version_upgrade) {
 		c->disk_sb.sb->version = cpu_to_le16(bcachefs_metadata_version_current);
 		c->disk_sb.sb->features[0] |= cpu_to_le64(BCH_SB_FEATURES_ALL);
@@ -1348,10 +1348,6 @@ use_clean:
 	if (write_sb)
 		bch2_write_super(c);
 	mutex_unlock(&c->sb_lock);
-
-	if (c->journal_seq_blacklist_table &&
-	    c->journal_seq_blacklist_table->nr > 128)
-		queue_work(system_long_wq, &c->journal_seq_blacklist_gc_work);
 
 	ret = 0;
 out:
