@@ -98,6 +98,7 @@ struct monitor_dev_info {
 	unsigned long high_temp_max_volt;
 	unsigned int video_4k_freq;
 	unsigned int reboot_freq;
+	unsigned int init_freq;
 	unsigned int status_min_limit;
 	unsigned int status_max_limit;
 	unsigned int early_min_volt;

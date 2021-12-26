@@ -675,6 +675,8 @@ static int monitor_device_parse_dt(struct device *dev,
 	if (!np)
 		return -EINVAL;
 
+	of_property_read_u32(np, "rockchip,init-freq", &info->init_freq);
+
 	ret = monitor_device_parse_wide_temp_config(np, info);
 	ret &= monitor_device_parse_status_config(np, info);
 	ret &= monitor_device_parse_early_min_volt(np, info);
@@ -1107,7 +1109,12 @@ int rockchip_monitor_check_rate_volt(struct monitor_dev_info *info)
 		old_mem_volt = regulator_get_voltage(mem_reg);
 	}
 
-	new_rate = old_rate;
+	if (info->init_freq) {
+		new_rate = info->init_freq * 1000;
+		info->init_freq = 0;
+	} else {
+		new_rate = old_rate;
+	}
 	opp = dev_pm_opp_find_freq_ceil(dev, &new_rate);
 	if (IS_ERR(opp)) {
 		opp = dev_pm_opp_find_freq_floor(dev, &new_rate);
