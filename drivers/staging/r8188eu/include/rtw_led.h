@@ -74,15 +74,6 @@ struct LED_871x {
 	struct delayed_work blink_work;
 };
 
-#define IS_LED_WPS_BLINKING(_LED_871x)					\
-	(((struct LED_871x *)_LED_871x)->CurrLedState == LED_BLINK_WPS || \
-	((struct LED_871x *)_LED_871x)->CurrLedState == LED_BLINK_WPS_STOP || \
-	((struct LED_871x *)_LED_871x)->bLedWPSBlinkInProgress)
-
-#define IS_LED_BLINKING(_LED_871x)					\
-	(((struct LED_871x *)_LED_871x)->bLedWPSBlinkInProgress	||	\
-	((struct LED_871x *)_LED_871x)->bLedScanBlinkInProgress)
-
 void LedControl8188eu(struct adapter *padapter, enum LED_CTL_MODE	LedAction);
 
 struct led_priv{

@@ -5,6 +5,11 @@
 #include "../include/rtw_led.h"
 #include "../include/rtl8188e_spec.h"
 
+#define IS_LED_WPS_BLINKING(l) \
+	((l)->CurrLedState == LED_BLINK_WPS || \
+	(l)->CurrLedState == LED_BLINK_WPS_STOP || \
+	(l)->bLedWPSBlinkInProgress)
+
 static void ResetLedStatus(struct LED_871x *pLed)
 {
 	pLed->CurrLedState = RTW_LED_OFF; /*  Current LED state. */
