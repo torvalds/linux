@@ -43,6 +43,29 @@
  * reference _after_ doing the index update that makes its allocation reachable.
  */
 
+static void bch2_open_bucket_hash_add(struct bch_fs *c, struct open_bucket *ob)
+{
+	open_bucket_idx_t idx = ob - c->open_buckets;
+	open_bucket_idx_t *slot = open_bucket_hashslot(c, ob->dev, ob->bucket);
+
+	ob->hash = *slot;
+	*slot = idx;
+}
+
+static void bch2_open_bucket_hash_remove(struct bch_fs *c, struct open_bucket *ob)
+{
+	open_bucket_idx_t idx = ob - c->open_buckets;
+	open_bucket_idx_t *slot = open_bucket_hashslot(c, ob->dev, ob->bucket);
+
+	while (*slot != idx) {
+		BUG_ON(!*slot);
+		slot = &c->open_buckets[*slot].hash;
+	}
+
+	*slot = ob->hash;
+	ob->hash = 0;
+}
+
 void __bch2_open_bucket_put(struct bch_fs *c, struct open_bucket *ob)
 {
 	struct bch_dev *ca = bch_dev_bkey_exists(c, ob->dev);
@@ -63,6 +86,8 @@ void __bch2_open_bucket_put(struct bch_fs *c, struct open_bucket *ob)
 	percpu_up_read(&c->mark_lock);
 
 	spin_lock(&c->freelist_lock);
+	bch2_open_bucket_hash_remove(c, ob);
+
 	ob->freelist = c->open_buckets_freelist;
 	c->open_buckets_freelist = ob - c->open_buckets;
 
@@ -99,7 +124,6 @@ static struct open_bucket *bch2_open_bucket_alloc(struct bch_fs *c)
 	c->open_buckets_nr_free--;
 	return ob;
 }
-
 
 static void open_bucket_free_unused(struct bch_fs *c,
 				    struct write_point *wp,
@@ -253,6 +277,9 @@ out:
 	ob->bucket	= b;
 	spin_unlock(&ob->lock);
 
+	ca->nr_open_buckets++;
+	bch2_open_bucket_hash_add(c, ob);
+
 	if (c->blocked_allocate_open_bucket) {
 		bch2_time_stats_update(
 			&c->times[BCH_TIME_blocked_allocate_open_bucket],
@@ -267,7 +294,6 @@ out:
 		c->blocked_allocate = 0;
 	}
 
-	ca->nr_open_buckets++;
 	spin_unlock(&c->freelist_lock);
 
 	bch2_wake_allocator(ca);

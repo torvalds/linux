@@ -37,12 +37,16 @@ typedef FIFO(long)	alloc_fifo;
 #define WRITE_POINT_HASH_NR	32
 #define WRITE_POINT_MAX		32
 
+/*
+ * 0 is never a valid open_bucket_idx_t:
+ */
 typedef u16			open_bucket_idx_t;
 
 struct open_bucket {
 	spinlock_t		lock;
 	atomic_t		pin;
 	open_bucket_idx_t	freelist;
+	open_bucket_idx_t	hash;
 
 	/*
 	 * When an open bucket has an ec_stripe attached, this is the index of

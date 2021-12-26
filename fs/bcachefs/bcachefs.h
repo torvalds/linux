@@ -756,10 +756,12 @@ struct bch_fs {
 	struct closure_waitlist	freelist_wait;
 	u64			blocked_allocate;
 	u64			blocked_allocate_open_bucket;
+
 	open_bucket_idx_t	open_buckets_freelist;
 	open_bucket_idx_t	open_buckets_nr_free;
 	struct closure_waitlist	open_buckets_wait;
 	struct open_bucket	open_buckets[OPEN_BUCKETS_COUNT];
+	open_bucket_idx_t	open_buckets_hash[OPEN_BUCKETS_COUNT];
 
 	struct write_point	btree_write_point;
 	struct write_point	rebalance_write_point;

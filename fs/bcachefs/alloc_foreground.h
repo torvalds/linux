@@ -91,6 +91,30 @@ static inline void bch2_open_bucket_get(struct bch_fs *c,
 	}
 }
 
+static inline open_bucket_idx_t *open_bucket_hashslot(struct bch_fs *c,
+						  unsigned dev, u64 bucket)
+{
+	return c->open_buckets_hash +
+		(jhash_3words(dev, bucket, bucket >> 32, 0) &
+		 (OPEN_BUCKETS_COUNT - 1));
+}
+
+static inline bool bch2_bucket_is_open(struct bch_fs *c, unsigned dev, u64 bucket)
+{
+	open_bucket_idx_t slot = *open_bucket_hashslot(c, dev, bucket);
+
+	while (slot) {
+		struct open_bucket *ob = &c->open_buckets[slot];
+
+		if (ob->dev == dev && ob->bucket == bucket)
+			return true;
+
+		slot = ob->hash;
+	}
+
+	return false;
+}
+
 int bch2_bucket_alloc_set(struct bch_fs *, struct open_buckets *,
 		      struct dev_stripe_state *, struct bch_devs_mask *,
 		      unsigned, unsigned *, bool *, enum alloc_reserve,
