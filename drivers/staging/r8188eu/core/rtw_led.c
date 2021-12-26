@@ -41,6 +41,7 @@ void DeInitLed871x(struct LED_871x *pLed)
 {
 	cancel_delayed_work_sync(&pLed->blink_work);
 	ResetLedStatus(pLed);
+	SwLedOff(pLed->padapter, pLed);
 }
 
 static void SwLedBlink1(struct LED_871x *pLed)
