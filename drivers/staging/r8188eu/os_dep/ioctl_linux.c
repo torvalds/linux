@@ -2126,16 +2126,6 @@ static int rtw_wx_set_mtk_wps_ie(struct net_device *dev,
 	return 0;
 }
 
-/*
- *	For all data larger than 16 octets, we need to use a
- *	pointer to memory allocated in user space.
- */
-static  int rtw_drvext_hdl(struct net_device *dev, struct iw_request_info *info,
-						union iwreq_data *wrqu, char *extra)
-{
-	return 0;
-}
-
 static int rtw_get_ap_info(struct net_device *dev,
 			       struct iw_request_info *info,
 			       union iwreq_data *wrqu, char *extra)
@@ -4376,7 +4366,7 @@ static const struct iw_priv_args rtw_private_args[] = {
 static iw_handler rtw_private_handler[] = {
 rtw_wx_write32,				/* 0x00 */
 rtw_wx_read32,				/* 0x01 */
-rtw_drvext_hdl,				/* 0x02 */
+	NULL,				/* 0x02 */
 NULL,					/* 0x03 */
 /*  for MM DTV platform */
 	rtw_get_ap_info,		/* 0x04 */
