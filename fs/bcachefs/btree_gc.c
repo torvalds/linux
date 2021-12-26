@@ -504,8 +504,8 @@ static int bch2_check_fix_ptrs(struct bch_fs *c, enum btree_id btree_id,
 	 */
 	bkey_for_each_ptr_decode(k->k, ptrs, p, entry) {
 		struct bch_dev *ca = bch_dev_bkey_exists(c, p.ptr.dev);
-		struct bucket *g = PTR_BUCKET(ca, &p.ptr, true);
-		struct bucket *g2 = PTR_BUCKET(ca, &p.ptr, false);
+		struct bucket *g = PTR_GC_BUCKET(ca, &p.ptr);
+		struct bucket *g2 = PTR_BUCKET(ca, &p.ptr);
 		enum bch_data_type data_type = bch2_bkey_ptr_data_type(*k, &entry->ptr);
 
 		if (fsck_err_on(!g->gen_valid, c,
@@ -643,14 +643,14 @@ static int bch2_check_fix_ptrs(struct bch_fs *c, enum btree_id btree_id,
 			ptrs = bch2_bkey_ptrs(bkey_i_to_s(new));
 			bkey_for_each_ptr(ptrs, ptr) {
 				struct bch_dev *ca = bch_dev_bkey_exists(c, ptr->dev);
-				struct bucket *g = PTR_BUCKET(ca, ptr, true);
+				struct bucket *g = PTR_GC_BUCKET(ca, ptr);
 
 				ptr->gen = g->mark.gen;
 			}
 		} else {
 			bch2_bkey_drop_ptrs(bkey_i_to_s(new), ptr, ({
 				struct bch_dev *ca = bch_dev_bkey_exists(c, ptr->dev);
-				struct bucket *g = PTR_BUCKET(ca, ptr, true);
+				struct bucket *g = PTR_GC_BUCKET(ca, ptr);
 				enum bch_data_type data_type = bch2_bkey_ptr_data_type(*k, ptr);
 
 				(ptr->cached &&
@@ -737,7 +737,7 @@ static int bch2_gc_mark_key(struct btree_trans *trans, enum btree_id btree_id,
 	ptrs = bch2_bkey_ptrs_c(*k);
 	bkey_for_each_ptr(ptrs, ptr) {
 		struct bch_dev *ca = bch_dev_bkey_exists(c, ptr->dev);
-		struct bucket *g = PTR_BUCKET(ca, ptr, true);
+		struct bucket *g = PTR_GC_BUCKET(ca, ptr);
 
 		if (gen_after(g->oldest_gen, ptr->gen))
 			g->oldest_gen = ptr->gen;
@@ -1753,7 +1753,7 @@ static bool gc_btree_gens_key(struct bch_fs *c, struct bkey_s_c k)
 	percpu_down_read(&c->mark_lock);
 	bkey_for_each_ptr(ptrs, ptr) {
 		struct bch_dev *ca = bch_dev_bkey_exists(c, ptr->dev);
-		struct bucket *g = PTR_BUCKET(ca, ptr, false);
+		struct bucket *g = PTR_BUCKET(ca, ptr);
 
 		if (gen_after(g->mark.gen, ptr->gen) > 16) {
 			percpu_up_read(&c->mark_lock);
@@ -1763,7 +1763,7 @@ static bool gc_btree_gens_key(struct bch_fs *c, struct bkey_s_c k)
 
 	bkey_for_each_ptr(ptrs, ptr) {
 		struct bch_dev *ca = bch_dev_bkey_exists(c, ptr->dev);
-		struct bucket *g = PTR_BUCKET(ca, ptr, false);
+		struct bucket *g = PTR_BUCKET(ca, ptr);
 
 		if (gen_after(g->gc_gen, ptr->gen))
 			g->gc_gen = ptr->gen;

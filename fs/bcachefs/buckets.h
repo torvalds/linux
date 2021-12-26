@@ -53,6 +53,11 @@ static inline struct bucket *__bucket(struct bch_dev *ca, size_t b, bool gc)
 	return buckets->b + b;
 }
 
+static inline struct bucket *gc_bucket(struct bch_dev *ca, size_t b)
+{
+	return __bucket(ca, b, true);
+}
+
 static inline struct bucket *bucket(struct bch_dev *ca, size_t b)
 {
 	return __bucket(ca, b, false);
@@ -75,10 +80,15 @@ static inline size_t PTR_BUCKET_NR(const struct bch_dev *ca,
 }
 
 static inline struct bucket *PTR_BUCKET(struct bch_dev *ca,
-					const struct bch_extent_ptr *ptr,
-					bool gc)
+					const struct bch_extent_ptr *ptr)
 {
-	return __bucket(ca, PTR_BUCKET_NR(ca, ptr), gc);
+	return bucket(ca, PTR_BUCKET_NR(ca, ptr));
+}
+
+static inline struct bucket *PTR_GC_BUCKET(struct bch_dev *ca,
+					   const struct bch_extent_ptr *ptr)
+{
+	return gc_bucket(ca, PTR_BUCKET_NR(ca, ptr));
 }
 
 static inline enum bch_data_type ptr_data_type(const struct bkey *k,
@@ -113,7 +123,7 @@ static inline u8 ptr_stale(struct bch_dev *ca,
 	u8 ret;
 
 	rcu_read_lock();
-	ret = gen_after(PTR_BUCKET(ca, ptr, 0)->mark.gen, ptr->gen);
+	ret = gen_after(PTR_BUCKET(ca, ptr)->mark.gen, ptr->gen);
 	rcu_read_unlock();
 
 	return ret;
