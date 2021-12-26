@@ -2112,13 +2112,6 @@ static int rtw_wx_set_channel_plan(struct net_device *dev,
 	return 0;
 }
 
-static int rtw_wx_set_mtk_wps_probe_ie(struct net_device *dev,
-		struct iw_request_info *a,
-		union iwreq_data *wrqu, char *b)
-{
-	return 0;
-}
-
 static int rtw_wx_set_mtk_wps_ie(struct net_device *dev,
 				struct iw_request_info *info,
 				union iwreq_data *wrqu, char *extra)
@@ -4307,10 +4300,6 @@ static const struct iw_priv_args rtw_private_args[] = {
 		IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1, 0, "wps_start"
 	},
 	{
-		SIOCIWFIRSTPRIV + 0x8,
-		IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1, 0, "wps_prob_req_ie"
-	},
-	{
 		SIOCIWFIRSTPRIV + 0x9,
 		IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1, 0, "wps_assoc_req_ie"
 	},
@@ -4375,7 +4364,7 @@ NULL,					/* 0x03 */
 	rtw_wps_start,			/* 0x06 */
 
 	NULL,				/* 0x07 */
-	rtw_wx_set_mtk_wps_probe_ie,	/* 0x08 */
+	NULL,				/* 0x08 */
 	rtw_wx_set_mtk_wps_ie,		/* 0x09 */
 
 /*  Set Channel depend on the country code */
