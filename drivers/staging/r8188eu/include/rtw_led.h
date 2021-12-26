@@ -63,7 +63,6 @@ struct LED_871x {
 	/*  ALPHA, added by chiyoko, 20090106 */
 	u8 bLedNoLinkBlinkInProgress;
 	u8 bLedLinkBlinkInProgress;
-	u8 bLedStartToLinkBlinkInProgress;
 	u8 bLedScanBlinkInProgress;
 	struct delayed_work blink_work;
 };

@@ -23,7 +23,6 @@ static void ResetLedStatus(struct LED_871x *pLed)
 
 	pLed->bLedNoLinkBlinkInProgress = false;
 	pLed->bLedLinkBlinkInProgress = false;
-	pLed->bLedStartToLinkBlinkInProgress = false;
 	pLed->bLedScanBlinkInProgress = false;
 }
 
