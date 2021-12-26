@@ -2090,12 +2090,6 @@ static int rtw_wx_write_rf(struct net_device *dev,
 	return 0;
 }
 
-static int rtw_wx_priv_null(struct net_device *dev, struct iw_request_info *a,
-		 union iwreq_data *wrqu, char *b)
-{
-	return -1;
-}
-
 static int rtw_wx_set_channel_plan(struct net_device *dev,
 			       struct iw_request_info *info,
 			       union iwreq_data *wrqu, char *extra)
@@ -4385,9 +4379,9 @@ NULL,					/* 0x03 */
 	rtw_tdls_get,			/* 0x15 */
 
 	rtw_pm_set,			/* 0x16 */
-	rtw_wx_priv_null,		/* 0x17 */
+	NULL,				/* 0x17 */
 	rtw_rereg_nd_name,		/* 0x18 */
-	rtw_wx_priv_null,		/* 0x19 */
+	NULL,				/* 0x19 */
 
 	NULL,				/* 0x1A */
 	NULL,				/* 0x1B */
