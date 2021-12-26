@@ -731,6 +731,7 @@ static int bch2_btree_iter_verify_ret(struct btree_iter *iter, struct bkey_s_c k
 					  k.k->p.snapshot));
 
 	bch2_trans_iter_init(trans, &copy, iter->btree_id, iter->pos,
+			     BTREE_ITER_NOPRESERVE|
 			     BTREE_ITER_ALL_SNAPSHOTS);
 	prev = bch2_btree_iter_prev(&copy);
 	if (!prev.k)
