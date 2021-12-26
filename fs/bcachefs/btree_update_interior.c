@@ -236,7 +236,7 @@ retry:
 	}
 
 	bkey_btree_ptr_v2_init(&tmp.k);
-	bch2_alloc_sectors_append_ptrs(c, wp, &tmp.k, btree_sectors(c));
+	bch2_alloc_sectors_append_ptrs(c, wp, &tmp.k, btree_sectors(c), false);
 
 	bch2_open_bucket_get(c, wp, &ob);
 	bch2_alloc_sectors_done(c, wp);

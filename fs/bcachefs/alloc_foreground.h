@@ -106,7 +106,7 @@ struct write_point *bch2_alloc_sectors_start(struct bch_fs *,
 					     struct closure *);
 
 void bch2_alloc_sectors_append_ptrs(struct bch_fs *, struct write_point *,
-				    struct bkey_i *, unsigned);
+				    struct bkey_i *, unsigned, bool);
 void bch2_alloc_sectors_done(struct bch_fs *, struct write_point *);
 
 void bch2_open_buckets_stop_dev(struct bch_fs *, struct bch_dev *,

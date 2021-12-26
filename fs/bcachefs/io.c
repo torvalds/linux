@@ -746,7 +746,6 @@ static void init_append_extent(struct bch_write_op *op,
 			       struct bch_extent_crc_unpacked crc)
 {
 	struct bkey_i_extent *e;
-	struct bch_extent_ptr *ptr;
 
 	op->pos.offset += crc.uncompressed_size;
 
@@ -760,11 +759,8 @@ static void init_append_extent(struct bch_write_op *op,
 	    crc.nonce)
 		bch2_extent_crc_append(&e->k_i, crc);
 
-	bch2_alloc_sectors_append_ptrs(op->c, wp, &e->k_i, crc.compressed_size);
-
-	if (op->flags & BCH_WRITE_CACHED)
-		extent_for_each_ptr(extent_i_to_s(e), ptr)
-			ptr->cached = true;
+	bch2_alloc_sectors_append_ptrs(op->c, wp, &e->k_i, crc.compressed_size,
+				       op->flags & BCH_WRITE_CACHED);
 
 	bch2_keylist_push(&op->insert_keys);
 }
