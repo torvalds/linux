@@ -354,6 +354,7 @@ static int bch2_alloc_read_fn(struct btree_trans *trans, struct bkey_s_c k)
 	g = bucket(ca, k.k->p.offset);
 	u = bch2_alloc_unpack(k);
 
+	*bucket_gen(ca, k.k->p.offset) = u.gen;
 	g->_mark.gen		= u.gen;
 	g->_mark.data_type	= u.data_type;
 	g->_mark.dirty_sectors	= u.dirty_sectors;
@@ -748,6 +749,7 @@ static int bch2_invalidate_one_bucket(struct bch_fs *c, struct bch_dev *ca,
 	    !bucket_needs_journal_commit(m, c->journal.last_seq_ondisk)) {
 		BUG_ON(m.data_type);
 		bucket_cmpxchg(g, m, m.gen++);
+		*bucket_gen(ca, b) = m.gen;
 		percpu_up_read(&c->mark_lock);
 		goto out;
 	}

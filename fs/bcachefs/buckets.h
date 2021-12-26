@@ -63,6 +63,24 @@ static inline struct bucket *bucket(struct bch_dev *ca, size_t b)
 	return __bucket(ca, b, false);
 }
 
+static inline struct bucket_gens *bucket_gens(struct bch_dev *ca)
+{
+	return rcu_dereference_check(ca->bucket_gens,
+				     !ca->fs ||
+				     percpu_rwsem_is_held(&ca->fs->mark_lock) ||
+				     lockdep_is_held(&ca->fs->gc_lock) ||
+				     lockdep_is_held(&ca->bucket_lock));
+
+}
+
+static inline u8 *bucket_gen(struct bch_dev *ca, size_t b)
+{
+	struct bucket_gens *gens = bucket_gens(ca);
+
+	BUG_ON(b < gens->first_bucket || b >= gens->nbuckets);
+	return gens->b + b;
+}
+
 /*
  * bucket_gc_gen() returns the difference between the bucket's current gen and
  * the oldest gen of any pointer into that bucket in the btree.
@@ -123,7 +141,7 @@ static inline u8 ptr_stale(struct bch_dev *ca,
 	u8 ret;
 
 	rcu_read_lock();
-	ret = gen_after(PTR_BUCKET(ca, ptr)->mark.gen, ptr->gen);
+	ret = gen_after(*bucket_gen(ca, PTR_BUCKET_NR(ca, ptr)), ptr->gen);
 	rcu_read_unlock();
 
 	return ret;

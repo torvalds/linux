@@ -161,7 +161,7 @@ static void verify_not_stale(struct bch_fs *c, const struct open_buckets *obs)
 	open_bucket_for_each(c, obs, ob, i) {
 		struct bch_dev *ca = bch_dev_bkey_exists(c, ob->dev);
 
-		BUG_ON(bucket(ca, ob->bucket)->mark.gen != ob->gen);
+		BUG_ON(*bucket_gen(ca, ob->bucket) != ob->gen);
 	}
 	rcu_read_unlock();
 #endif
@@ -273,7 +273,7 @@ out:
 	ob->sectors_free = ca->mi.bucket_size;
 	ob->alloc_reserve = reserve;
 	ob->dev		= ca->dev_idx;
-	ob->gen		= bucket(ca, b)->mark.gen;
+	ob->gen		= *bucket_gen(ca, b);
 	ob->bucket	= b;
 	spin_unlock(&ob->lock);
 

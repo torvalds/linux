@@ -52,6 +52,13 @@ struct bucket_array {
 	struct bucket		b[];
 };
 
+struct bucket_gens {
+	struct rcu_head		rcu;
+	u16			first_bucket;
+	size_t			nbuckets;
+	u8			b[];
+};
+
 struct bch_dev_usage {
 	u64			buckets_ec;
 	u64			buckets_unavailable;
