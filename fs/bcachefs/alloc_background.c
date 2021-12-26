@@ -340,46 +340,46 @@ void bch2_alloc_to_text(struct printbuf *out, struct bch_fs *c,
 #undef  x
 }
 
-static int bch2_alloc_read_fn(struct btree_trans *trans, struct bkey_s_c k)
-{
-	struct bch_fs *c = trans->c;
-	struct bch_dev *ca;
-	struct bucket *g;
-	struct bkey_alloc_unpacked u;
-
-	if (!bkey_is_alloc(k.k))
-		return 0;
-
-	ca = bch_dev_bkey_exists(c, k.k->p.inode);
-	g = bucket(ca, k.k->p.offset);
-	u = bch2_alloc_unpack(k);
-
-	*bucket_gen(ca, k.k->p.offset) = u.gen;
-	g->_mark.gen		= u.gen;
-	g->_mark.data_type	= u.data_type;
-	g->_mark.dirty_sectors	= u.dirty_sectors;
-	g->_mark.cached_sectors	= u.cached_sectors;
-	g->_mark.stripe		= u.stripe != 0;
-	g->stripe		= u.stripe;
-	g->stripe_redundancy	= u.stripe_redundancy;
-	g->io_time[READ]	= u.read_time;
-	g->io_time[WRITE]	= u.write_time;
-	g->oldest_gen		= u.oldest_gen;
-	g->gen_valid		= 1;
-
-	return 0;
-}
-
 int bch2_alloc_read(struct bch_fs *c)
 {
 	struct btree_trans trans;
+	struct btree_iter iter;
+	struct bkey_s_c k;
+	struct bch_dev *ca;
+	struct bucket *g;
+	struct bkey_alloc_unpacked u;
 	int ret;
 
 	bch2_trans_init(&trans, c, 0, 0);
 	down_read(&c->gc_lock);
-	ret = bch2_btree_and_journal_walk(&trans, BTREE_ID_alloc, bch2_alloc_read_fn);
+
+	for_each_btree_key(&trans, iter, BTREE_ID_alloc, POS_MIN,
+			   BTREE_ITER_PREFETCH, k, ret) {
+		if (!bkey_is_alloc(k.k))
+			continue;
+
+		ca = bch_dev_bkey_exists(c, k.k->p.inode);
+		g = bucket(ca, k.k->p.offset);
+		u = bch2_alloc_unpack(k);
+
+		*bucket_gen(ca, k.k->p.offset) = u.gen;
+		g->_mark.gen		= u.gen;
+		g->_mark.data_type	= u.data_type;
+		g->_mark.dirty_sectors	= u.dirty_sectors;
+		g->_mark.cached_sectors	= u.cached_sectors;
+		g->_mark.stripe		= u.stripe != 0;
+		g->stripe		= u.stripe;
+		g->stripe_redundancy	= u.stripe_redundancy;
+		g->io_time[READ]	= u.read_time;
+		g->io_time[WRITE]	= u.write_time;
+		g->oldest_gen		= u.oldest_gen;
+		g->gen_valid		= 1;
+	}
+	bch2_trans_iter_exit(&trans, &iter);
+
 	up_read(&c->gc_lock);
 	bch2_trans_exit(&trans);
+
 	if (ret) {
 		bch_err(c, "error reading alloc info: %i", ret);
 		return ret;

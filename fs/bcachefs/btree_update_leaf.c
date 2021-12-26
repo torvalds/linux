@@ -711,7 +711,7 @@ static inline int do_bch2_trans_commit(struct btree_trans *trans,
 
 	ret = bch2_trans_commit_write_locked(trans, stopped_at, trace_ip);
 
-	if (!ret && unlikely(!test_bit(JOURNAL_REPLAY_DONE, &c->journal.flags)))
+	if (!ret && unlikely(trans->journal_replay_not_finished))
 		bch2_drop_overwrites_from_journal(trans);
 
 	trans_for_each_update(trans, i)

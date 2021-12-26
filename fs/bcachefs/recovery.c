@@ -59,23 +59,21 @@ static void zero_out_btree_mem_ptr(struct journal_keys *keys)
 static int __journal_key_cmp(enum btree_id	l_btree_id,
 			     unsigned		l_level,
 			     struct bpos	l_pos,
-			     struct journal_key *r)
+			     const struct journal_key *r)
 {
 	return (cmp_int(l_btree_id,	r->btree_id) ?:
 		cmp_int(l_level,	r->level) ?:
 		bpos_cmp(l_pos,	r->k->k.p));
 }
 
-static int journal_key_cmp(struct journal_key *l, struct journal_key *r)
+static int journal_key_cmp(const struct journal_key *l, const struct journal_key *r)
 {
-	return (cmp_int(l->btree_id,	r->btree_id) ?:
-		cmp_int(l->level,	r->level) ?:
-		bpos_cmp(l->k->k.p,	r->k->k.p));
+	return __journal_key_cmp(l->btree_id, l->level, l->k->k.p, r);
 }
 
-static size_t journal_key_search(struct journal_keys *journal_keys,
-				 enum btree_id id, unsigned level,
-				 struct bpos pos)
+size_t bch2_journal_key_search(struct journal_keys *journal_keys,
+			       enum btree_id id, unsigned level,
+			       struct bpos pos)
 {
 	size_t l = 0, r = journal_keys->nr, m;
 
@@ -125,7 +123,7 @@ int bch2_journal_key_insert_take(struct bch_fs *c, enum btree_id id,
 	};
 	struct journal_keys *keys = &c->journal_keys;
 	struct journal_iter *iter;
-	unsigned idx = journal_key_search(keys, id, level, k->k.p);
+	size_t idx = bch2_journal_key_search(keys, id, level, k->k.p);
 
 	BUG_ON(test_bit(BCH_FS_RW, &c->flags));
 
@@ -164,6 +162,11 @@ int bch2_journal_key_insert_take(struct bch_fs *c, enum btree_id id,
 	return 0;
 }
 
+/*
+ * Can only be used from the recovery thread while we're still RO - can't be
+ * used once we've got RW, as journal_keys is at that point used by multiple
+ * threads:
+ */
 int bch2_journal_key_insert(struct bch_fs *c, enum btree_id id,
 			    unsigned level, struct bkey_i *k)
 {
@@ -196,7 +199,7 @@ void bch2_journal_key_overwritten(struct bch_fs *c, enum btree_id btree,
 				  unsigned level, struct bpos pos)
 {
 	struct journal_keys *keys = &c->journal_keys;
-	size_t idx = journal_key_search(keys, btree, level, pos);
+	size_t idx = bch2_journal_key_search(keys, btree, level, pos);
 
 	if (idx < keys->nr &&
 	    keys->d[idx].btree_id	== btree &&
@@ -207,15 +210,18 @@ void bch2_journal_key_overwritten(struct bch_fs *c, enum btree_id btree,
 
 static struct bkey_i *bch2_journal_iter_peek(struct journal_iter *iter)
 {
-	struct journal_key *k = iter->idx - iter->keys->nr
-		? iter->keys->d + iter->idx : NULL;
+	struct journal_key *k = iter->keys->d + iter->idx;
 
-	if (k &&
-	    k->btree_id	== iter->btree_id &&
-	    k->level	== iter->level)
-		return k->k;
+	while (k < iter->keys->d + iter->keys->nr &&
+	       k->btree_id	== iter->btree_id &&
+	       k->level		== iter->level) {
+		if (!k->overwritten)
+			return k->k;
 
-	iter->idx = iter->keys->nr;
+		iter->idx++;
+		k = iter->keys->d + iter->idx;
+	}
+
 	return NULL;
 }
 
@@ -238,8 +244,7 @@ static void bch2_journal_iter_init(struct bch_fs *c,
 	iter->btree_id	= id;
 	iter->level	= level;
 	iter->keys	= &c->journal_keys;
-	iter->idx	= journal_key_search(&c->journal_keys, id, level, pos);
-	list_add(&iter->list, &c->journal_iters);
+	iter->idx	= bch2_journal_key_search(&c->journal_keys, id, level, pos);
 }
 
 static struct bkey_s_c bch2_journal_iter_peek_btree(struct btree_and_journal_iter *iter)
@@ -325,106 +330,33 @@ void bch2_btree_and_journal_iter_exit(struct btree_and_journal_iter *iter)
 	bch2_journal_iter_exit(&iter->journal);
 }
 
-void bch2_btree_and_journal_iter_init_node_iter(struct btree_and_journal_iter *iter,
-						struct bch_fs *c,
-						struct btree *b)
+void __bch2_btree_and_journal_iter_init_node_iter(struct btree_and_journal_iter *iter,
+						  struct bch_fs *c,
+						  struct btree *b,
+						  struct btree_node_iter node_iter,
+						  struct bpos pos)
 {
 	memset(iter, 0, sizeof(*iter));
 
 	iter->b = b;
-	bch2_btree_node_iter_init_from_start(&iter->node_iter, iter->b);
-	bch2_journal_iter_init(c, &iter->journal,
-			       b->c.btree_id, b->c.level, b->data->min_key);
+	iter->node_iter = node_iter;
+	bch2_journal_iter_init(c, &iter->journal, b->c.btree_id, b->c.level, pos);
+	INIT_LIST_HEAD(&iter->journal.list);
 }
 
-/* Walk btree, overlaying keys from the journal: */
-
-static void btree_and_journal_iter_prefetch(struct bch_fs *c, struct btree *b,
-					   struct btree_and_journal_iter iter)
+/*
+ * this version is used by btree_gc before filesystem has gone RW and
+ * multithreaded, so uses the journal_iters list:
+ */
+void bch2_btree_and_journal_iter_init_node_iter(struct btree_and_journal_iter *iter,
+						struct bch_fs *c,
+						struct btree *b)
 {
-	unsigned i = 0, nr = b->c.level > 1 ? 2 : 16;
-	struct bkey_s_c k;
-	struct bkey_buf tmp;
+	struct btree_node_iter node_iter;
 
-	BUG_ON(!b->c.level);
-
-	bch2_bkey_buf_init(&tmp);
-
-	while (i < nr &&
-	       (k = bch2_btree_and_journal_iter_peek(&iter)).k) {
-		bch2_bkey_buf_reassemble(&tmp, c, k);
-
-		bch2_btree_node_prefetch(c, NULL, NULL, tmp.k,
-					b->c.btree_id, b->c.level - 1);
-
-		bch2_btree_and_journal_iter_advance(&iter);
-		i++;
-	}
-
-	bch2_bkey_buf_exit(&tmp, c);
-}
-
-static int bch2_btree_and_journal_walk_recurse(struct btree_trans *trans, struct btree *b,
-				enum btree_id btree_id,
-				btree_walk_key_fn key_fn)
-{
-	struct bch_fs *c = trans->c;
-	struct btree_and_journal_iter iter;
-	struct bkey_s_c k;
-	struct bkey_buf tmp;
-	struct btree *child;
-	int ret = 0;
-
-	bch2_bkey_buf_init(&tmp);
-	bch2_btree_and_journal_iter_init_node_iter(&iter, c, b);
-
-	while ((k = bch2_btree_and_journal_iter_peek(&iter)).k) {
-		if (b->c.level) {
-			bch2_bkey_buf_reassemble(&tmp, c, k);
-
-			child = bch2_btree_node_get_noiter(c, tmp.k,
-						b->c.btree_id, b->c.level - 1,
-						false);
-
-			ret = PTR_ERR_OR_ZERO(child);
-			if (ret)
-				break;
-
-			btree_and_journal_iter_prefetch(c, b, iter);
-
-			ret = bch2_btree_and_journal_walk_recurse(trans, child,
-					btree_id, key_fn);
-			six_unlock_read(&child->c.lock);
-		} else {
-			ret = key_fn(trans, k);
-		}
-
-		if (ret)
-			break;
-
-		bch2_btree_and_journal_iter_advance(&iter);
-	}
-
-	bch2_btree_and_journal_iter_exit(&iter);
-	bch2_bkey_buf_exit(&tmp, c);
-	return ret;
-}
-
-int bch2_btree_and_journal_walk(struct btree_trans *trans, enum btree_id btree_id,
-				btree_walk_key_fn key_fn)
-{
-	struct bch_fs *c = trans->c;
-	struct btree *b = c->btree_roots[btree_id].b;
-	int ret = 0;
-
-	if (btree_node_fake(b))
-		return 0;
-
-	six_lock_read(&b->c.lock, NULL, NULL);
-	ret = bch2_btree_and_journal_walk_recurse(trans, b, btree_id, key_fn);
-	six_unlock_read(&b->c.lock);
-
-	return ret;
+	bch2_btree_node_iter_init_from_start(&node_iter, b);
+	__bch2_btree_and_journal_iter_init_node_iter(iter, c, b, node_iter, b->data->min_key);
+	list_add(&iter->journal.list, &c->journal_iters);
 }
 
 /* sort and dedup all keys in the journal: */
@@ -449,9 +381,7 @@ static int journal_sort_key_cmp(const void *_l, const void *_r)
 	const struct journal_key *l = _l;
 	const struct journal_key *r = _r;
 
-	return  cmp_int(l->btree_id,	r->btree_id) ?:
-		cmp_int(l->level,	r->level) ?:
-		bpos_cmp(l->k->k.p, r->k->k.p) ?:
+	return  journal_key_cmp(l, r) ?:
 		cmp_int(l->journal_seq, r->journal_seq) ?:
 		cmp_int(l->journal_offset, r->journal_offset);
 }

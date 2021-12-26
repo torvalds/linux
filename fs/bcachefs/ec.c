@@ -1558,50 +1558,48 @@ void bch2_stripes_heap_start(struct bch_fs *c)
 			bch2_stripes_heap_insert(c, m, iter.pos);
 }
 
-static int bch2_stripes_read_fn(struct btree_trans *trans, struct bkey_s_c k)
-{
-	const struct bch_stripe *s;
-	struct bch_fs *c = trans->c;
-	struct stripe *m;
-	unsigned i;
-	int ret = 0;
-
-	if (k.k->type != KEY_TYPE_stripe)
-		return 0;
-
-	ret = __ec_stripe_mem_alloc(c, k.k->p.offset, GFP_KERNEL);
-	if (ret)
-		return ret;
-
-	s = bkey_s_c_to_stripe(k).v;
-
-	m = genradix_ptr(&c->stripes, k.k->p.offset);
-	m->alive	= true;
-	m->sectors	= le16_to_cpu(s->sectors);
-	m->algorithm	= s->algorithm;
-	m->nr_blocks	= s->nr_blocks;
-	m->nr_redundant	= s->nr_redundant;
-	m->blocks_nonempty = 0;
-
-	for (i = 0; i < s->nr_blocks; i++)
-		m->blocks_nonempty += !!stripe_blockcount_get(s, i);
-
-	spin_lock(&c->ec_stripes_heap_lock);
-	bch2_stripes_heap_update(c, m, k.k->p.offset);
-	spin_unlock(&c->ec_stripes_heap_lock);
-
-	return ret;
-}
-
 int bch2_stripes_read(struct bch_fs *c)
 {
 	struct btree_trans trans;
+	struct btree_iter iter;
+	struct bkey_s_c k;
+	const struct bch_stripe *s;
+	struct stripe *m;
+	unsigned i;
 	int ret;
 
 	bch2_trans_init(&trans, c, 0, 0);
-	ret = bch2_btree_and_journal_walk(&trans, BTREE_ID_stripes,
-					  bch2_stripes_read_fn);
+
+	for_each_btree_key(&trans, iter, BTREE_ID_stripes, POS_MIN,
+			   BTREE_ITER_PREFETCH, k, ret) {
+		if (k.k->type != KEY_TYPE_stripe)
+			continue;
+
+		ret = __ec_stripe_mem_alloc(c, k.k->p.offset, GFP_KERNEL);
+		if (ret)
+			break;
+
+		s = bkey_s_c_to_stripe(k).v;
+
+		m = genradix_ptr(&c->stripes, k.k->p.offset);
+		m->alive	= true;
+		m->sectors	= le16_to_cpu(s->sectors);
+		m->algorithm	= s->algorithm;
+		m->nr_blocks	= s->nr_blocks;
+		m->nr_redundant	= s->nr_redundant;
+		m->blocks_nonempty = 0;
+
+		for (i = 0; i < s->nr_blocks; i++)
+			m->blocks_nonempty += !!stripe_blockcount_get(s, i);
+
+		spin_lock(&c->ec_stripes_heap_lock);
+		bch2_stripes_heap_update(c, m, k.k->p.offset);
+		spin_unlock(&c->ec_stripes_heap_lock);
+	}
+	bch2_trans_iter_exit(&trans, &iter);
+
 	bch2_trans_exit(&trans);
+
 	if (ret)
 		bch_err(c, "error reading stripes: %i", ret);
 

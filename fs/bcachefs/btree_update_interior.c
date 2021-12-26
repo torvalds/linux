@@ -16,6 +16,7 @@
 #include "journal.h"
 #include "journal_reclaim.h"
 #include "keylist.h"
+#include "recovery.h"
 #include "replicas.h"
 #include "super-io.h"
 #include "trace.h"
@@ -1145,6 +1146,9 @@ static void bch2_insert_fixup_btree_ptr(struct btree_update *as,
 
 	BUG_ON(insert->k.type == KEY_TYPE_btree_ptr_v2 &&
 	       !btree_ptr_sectors_written(insert));
+
+	if (unlikely(!test_bit(JOURNAL_REPLAY_DONE, &c->journal.flags)))
+		bch2_journal_key_overwritten(c, b->c.btree_id, b->c.level, insert->k.p);
 
 	invalid = bch2_bkey_invalid(c, bkey_i_to_s_c(insert), btree_node_type(b)) ?:
 		bch2_bkey_in_btree_node(b, bkey_i_to_s_c(insert));

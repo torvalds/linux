@@ -1342,59 +1342,6 @@ static int bch2_gc_start(struct bch_fs *c,
 	return 0;
 }
 
-static int bch2_gc_reflink_done_initial_fn(struct btree_trans *trans,
-					   struct bkey_s_c k)
-{
-	struct bch_fs *c = trans->c;
-	struct reflink_gc *r;
-	const __le64 *refcount = bkey_refcount_c(k);
-	char buf[200];
-	int ret = 0;
-
-	if (!refcount)
-		return 0;
-
-	r = genradix_ptr(&c->reflink_gc_table, c->reflink_gc_idx++);
-	if (!r)
-		return -ENOMEM;
-
-	if (!r ||
-	    r->offset != k.k->p.offset ||
-	    r->size != k.k->size) {
-		bch_err(c, "unexpected inconsistency walking reflink table at gc finish");
-		return -EINVAL;
-	}
-
-	if (fsck_err_on(r->refcount != le64_to_cpu(*refcount), c,
-			"reflink key has wrong refcount:\n"
-			"  %s\n"
-			"  should be %u",
-			(bch2_bkey_val_to_text(&PBUF(buf), c, k), buf),
-			r->refcount)) {
-		struct bkey_i *new;
-
-		new = kmalloc(bkey_bytes(k.k), GFP_KERNEL);
-		if (!new) {
-			ret = -ENOMEM;
-			goto fsck_err;
-		}
-
-		bkey_reassemble(new, k);
-
-		if (!r->refcount) {
-			new->k.type = KEY_TYPE_deleted;
-			new->k.size = 0;
-		} else {
-			*bkey_refcount(new) = cpu_to_le64(r->refcount);
-		}
-
-		ret = bch2_journal_key_insert(c, BTREE_ID_reflink, 0, new);
-		kfree(new);
-	}
-fsck_err:
-	return ret;
-}
-
 static int bch2_gc_reflink_done(struct bch_fs *c, bool initial,
 				bool metadata_only)
 {
@@ -1411,14 +1358,6 @@ static int bch2_gc_reflink_done(struct bch_fs *c, bool initial,
 
 	bch2_trans_init(&trans, c, 0, 0);
 
-	if (initial) {
-		c->reflink_gc_idx = 0;
-
-		ret = bch2_btree_and_journal_walk(&trans, BTREE_ID_reflink,
-				bch2_gc_reflink_done_initial_fn);
-		goto out;
-	}
-
 	for_each_btree_key(&trans, iter, BTREE_ID_reflink, POS_MIN,
 			   BTREE_ITER_PREFETCH, k, ret) {
 		const __le64 *refcount = bkey_refcount_c(k);
@@ -1426,7 +1365,7 @@ static int bch2_gc_reflink_done(struct bch_fs *c, bool initial,
 		if (!refcount)
 			continue;
 
-		r = genradix_ptr(&c->reflink_gc_table, idx);
+		r = genradix_ptr(&c->reflink_gc_table, idx++);
 		if (!r ||
 		    r->offset != k.k->p.offset ||
 		    r->size != k.k->size) {
@@ -1456,7 +1395,9 @@ static int bch2_gc_reflink_done(struct bch_fs *c, bool initial,
 			else
 				*bkey_refcount(new) = cpu_to_le64(r->refcount);
 
-			ret = __bch2_trans_do(&trans, NULL, NULL, 0,
+			ret = initial
+			       ? bch2_journal_key_insert(c, BTREE_ID_stripes, 0, new)
+			       : __bch2_trans_do(&trans, NULL, NULL, 0,
 					__bch2_btree_insert(&trans, BTREE_ID_reflink, new));
 			kfree(new);
 
@@ -1466,57 +1407,8 @@ static int bch2_gc_reflink_done(struct bch_fs *c, bool initial,
 	}
 fsck_err:
 	bch2_trans_iter_exit(&trans, &iter);
-out:
 	c->reflink_gc_nr = 0;
 	bch2_trans_exit(&trans);
-	return ret;
-}
-
-static int bch2_gc_stripes_done_initial_fn(struct btree_trans *trans,
-					   struct bkey_s_c k)
-{
-	struct bch_fs *c = trans->c;
-	struct gc_stripe *m;
-	const struct bch_stripe *s;
-	char buf[200];
-	unsigned i;
-	int ret = 0;
-
-	if (k.k->type != KEY_TYPE_stripe)
-		return 0;
-
-	s = bkey_s_c_to_stripe(k).v;
-
-	m = genradix_ptr(&c->gc_stripes, k.k->p.offset);
-
-	for (i = 0; i < s->nr_blocks; i++)
-		if (stripe_blockcount_get(s, i) != (m ? m->block_sectors[i] : 0))
-			goto inconsistent;
-	return 0;
-inconsistent:
-	if (fsck_err_on(true, c,
-			"stripe has wrong block sector count %u:\n"
-			"  %s\n"
-			"  should be %u", i,
-			(bch2_bkey_val_to_text(&PBUF(buf), c, k), buf),
-			m ? m->block_sectors[i] : 0)) {
-		struct bkey_i_stripe *new;
-
-		new = kmalloc(bkey_bytes(k.k), GFP_KERNEL);
-		if (!new) {
-			ret = -ENOMEM;
-			goto fsck_err;
-		}
-
-		bkey_reassemble(&new->k_i, k);
-
-		for (i = 0; i < new->v.nr_blocks; i++)
-			stripe_blockcount_set(&new->v, i, m ? m->block_sectors[i] : 0);
-
-		ret = bch2_journal_key_insert(c, BTREE_ID_stripes, 0, &new->k_i);
-		kfree(new);
-	}
-fsck_err:
 	return ret;
 }
 
@@ -1524,6 +1416,12 @@ static int bch2_gc_stripes_done(struct bch_fs *c, bool initial,
 				bool metadata_only)
 {
 	struct btree_trans trans;
+	struct btree_iter iter;
+	struct bkey_s_c k;
+	struct gc_stripe *m;
+	const struct bch_stripe *s;
+	char buf[200];
+	unsigned i;
 	int ret = 0;
 
 	if (metadata_only)
@@ -1531,37 +1429,50 @@ static int bch2_gc_stripes_done(struct bch_fs *c, bool initial,
 
 	bch2_trans_init(&trans, c, 0, 0);
 
-	if (initial) {
-		ret = bch2_btree_and_journal_walk(&trans, BTREE_ID_stripes,
-				bch2_gc_stripes_done_initial_fn);
-	} else {
-		BUG();
+	for_each_btree_key(&trans, iter, BTREE_ID_stripes, POS_MIN,
+			   BTREE_ITER_PREFETCH, k, ret) {
+		if (k.k->type != KEY_TYPE_stripe)
+			continue;
+
+		s = bkey_s_c_to_stripe(k).v;
+		m = genradix_ptr(&c->gc_stripes, k.k->p.offset);
+
+		for (i = 0; i < s->nr_blocks; i++)
+			if (stripe_blockcount_get(s, i) != (m ? m->block_sectors[i] : 0))
+				goto inconsistent;
+		continue;
+inconsistent:
+		if (fsck_err_on(true, c,
+				"stripe has wrong block sector count %u:\n"
+				"  %s\n"
+				"  should be %u", i,
+				(bch2_bkey_val_to_text(&PBUF(buf), c, k), buf),
+				m ? m->block_sectors[i] : 0)) {
+			struct bkey_i_stripe *new;
+
+			new = kmalloc(bkey_bytes(k.k), GFP_KERNEL);
+			if (!new) {
+				ret = -ENOMEM;
+				break;
+			}
+
+			bkey_reassemble(&new->k_i, k);
+
+			for (i = 0; i < new->v.nr_blocks; i++)
+				stripe_blockcount_set(&new->v, i, m ? m->block_sectors[i] : 0);
+
+			ret = initial
+				? bch2_journal_key_insert(c, BTREE_ID_stripes, 0, &new->k_i)
+				: __bch2_trans_do(&trans, NULL, NULL, 0,
+					__bch2_btree_insert(&trans, BTREE_ID_reflink, &new->k_i));
+			kfree(new);
+		}
 	}
+fsck_err:
+	bch2_trans_iter_exit(&trans, &iter);
 
 	bch2_trans_exit(&trans);
 	return ret;
-}
-
-static int bch2_gc_reflink_start_initial_fn(struct btree_trans *trans,
-					    struct bkey_s_c k)
-{
-
-	struct bch_fs *c = trans->c;
-	struct reflink_gc *r;
-	const __le64 *refcount = bkey_refcount_c(k);
-
-	if (!refcount)
-		return 0;
-
-	r = genradix_ptr_alloc(&c->reflink_gc_table, c->reflink_gc_nr++,
-			       GFP_KERNEL);
-	if (!r)
-		return -ENOMEM;
-
-	r->offset	= k.k->p.offset;
-	r->size		= k.k->size;
-	r->refcount	= 0;
-	return 0;
 }
 
 static int bch2_gc_reflink_start(struct bch_fs *c, bool initial,
@@ -1578,12 +1489,6 @@ static int bch2_gc_reflink_start(struct bch_fs *c, bool initial,
 
 	bch2_trans_init(&trans, c, 0, 0);
 	c->reflink_gc_nr = 0;
-
-	if (initial) {
-		ret = bch2_btree_and_journal_walk(&trans, BTREE_ID_reflink,
-						bch2_gc_reflink_start_initial_fn);
-		goto out;
-	}
 
 	for_each_btree_key(&trans, iter, BTREE_ID_reflink, POS_MIN,
 			   BTREE_ITER_PREFETCH, k, ret) {
@@ -1604,7 +1509,7 @@ static int bch2_gc_reflink_start(struct bch_fs *c, bool initial,
 		r->refcount	= 0;
 	}
 	bch2_trans_iter_exit(&trans, &iter);
-out:
+
 	bch2_trans_exit(&trans);
 	return ret;
 }
