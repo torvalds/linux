@@ -4178,13 +4178,6 @@ static int rtw_pm_set(struct net_device *dev,
 
 extern int wifirate2_ratetbl_inx(unsigned char rate);
 
-static int rtw_tdls(struct net_device *dev,
-		    struct iw_request_info *info,
-		    union iwreq_data *wrqu, char *extra)
-{
-	return 0;
-}
-
 static int rtw_test(
 	struct net_device *dev,
 	struct iw_request_info *info,
@@ -4309,10 +4302,6 @@ static const struct iw_priv_args rtw_private_args[] = {
 		IW_PRIV_TYPE_CHAR | P2P_PRIVATE_IOCTL_SET_LEN, IW_PRIV_TYPE_CHAR | IFNAMSIZ, "p2p_get2"
 	},
 	{
-		SIOCIWFIRSTPRIV + 0x14,
-		IW_PRIV_TYPE_CHAR  | 64, 0, "tdls"
-	},
-	{
 		SIOCIWFIRSTPRIV + 0x16,
 		IW_PRIV_TYPE_CHAR | 64, 0, "pm_set"
 	},
@@ -4352,7 +4341,7 @@ NULL,					/* 0x03 */
 	rtw_p2p_get2,			/* 0x12 */
 
 	NULL,				/* 0x13 */
-	rtw_tdls,			/* 0x14 */
+	NULL,				/* 0x14 */
 	NULL,				/* 0x15 */
 
 	rtw_pm_set,			/* 0x16 */
