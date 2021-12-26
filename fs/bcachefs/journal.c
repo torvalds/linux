@@ -789,7 +789,7 @@ static int __bch2_set_nr_journal_buckets(struct bch_dev *ca, unsigned nr,
 				goto err;
 			}
 
-			b = sector_to_bucket(ca, ob->ptr.offset);
+			b = ob->bucket;
 		}
 
 		if (c)

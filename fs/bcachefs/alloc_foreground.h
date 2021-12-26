@@ -85,7 +85,7 @@ static inline void bch2_open_bucket_get(struct bch_fs *c,
 	unsigned i;
 
 	open_bucket_for_each(c, &wp->ptrs, ob, i) {
-		ob->type = wp->type;
+		ob->data_type = wp->data_type;
 		atomic_inc(&ob->pin);
 		ob_push(c, ptrs, ob);
 	}
@@ -105,6 +105,7 @@ struct write_point *bch2_alloc_sectors_start(struct bch_fs *,
 					     unsigned,
 					     struct closure *);
 
+struct bch_extent_ptr bch2_ob_ptr(struct bch_fs *, struct open_bucket *);
 void bch2_alloc_sectors_append_ptrs(struct bch_fs *, struct write_point *,
 				    struct bkey_i *, unsigned, bool);
 void bch2_alloc_sectors_done(struct bch_fs *, struct write_point *);
@@ -126,5 +127,7 @@ static inline struct write_point_specifier writepoint_ptr(struct write_point *wp
 }
 
 void bch2_fs_allocator_foreground_init(struct bch_fs *);
+
+void bch2_open_buckets_to_text(struct printbuf *, struct bch_fs *);
 
 #endif /* _BCACHEFS_ALLOC_FOREGROUND_H */

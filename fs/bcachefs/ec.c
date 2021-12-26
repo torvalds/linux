@@ -1063,7 +1063,7 @@ void *bch2_writepoint_ec_buf(struct bch_fs *c, struct write_point *wp)
 	if (!ob)
 		return NULL;
 
-	ca	= bch_dev_bkey_exists(c, ob->ptr.dev);
+	ca	= bch_dev_bkey_exists(c, ob->dev);
 	offset	= ca->mi.bucket_size - ob->sectors_free;
 
 	return ob->ec->new_stripe.data[ob->ec_idx] + (offset << 9);
@@ -1318,7 +1318,7 @@ static int new_stripe_alloc_buckets(struct bch_fs *c, struct ec_stripe_head *h,
 			BUG_ON(j >= h->s->nr_data + h->s->nr_parity);
 
 			h->s->blocks[j] = buckets.v[i];
-			h->s->new_stripe.key.v.ptrs[j] = ob->ptr;
+			h->s->new_stripe.key.v.ptrs[j] = bch2_ob_ptr(c, ob);
 			__set_bit(j, h->s->blocks_gotten);
 		}
 
@@ -1346,7 +1346,7 @@ static int new_stripe_alloc_buckets(struct bch_fs *c, struct ec_stripe_head *h,
 			BUG_ON(j >= h->s->nr_data);
 
 			h->s->blocks[j] = buckets.v[i];
-			h->s->new_stripe.key.v.ptrs[j] = ob->ptr;
+			h->s->new_stripe.key.v.ptrs[j] = bch2_ob_ptr(c, ob);
 			__set_bit(j, h->s->blocks_gotten);
 		}
 
@@ -1535,7 +1535,7 @@ void bch2_ec_stop_dev(struct bch_fs *c, struct bch_dev *ca)
 				continue;
 
 			ob = c->open_buckets + h->s->blocks[i];
-			if (ob->ptr.dev == ca->dev_idx)
+			if (ob->dev == ca->dev_idx)
 				goto found;
 		}
 		goto unlock;

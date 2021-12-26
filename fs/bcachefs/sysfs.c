@@ -10,6 +10,7 @@
 
 #include "bcachefs.h"
 #include "alloc_background.h"
+#include "alloc_foreground.h"
 #include "sysfs.h"
 #include "btree_cache.h"
 #include "btree_io.h"
@@ -723,7 +724,7 @@ static void dev_alloc_debug_to_text(struct printbuf *out, struct bch_dev *ca)
 	memset(nr, 0, sizeof(nr));
 
 	for (i = 0; i < ARRAY_SIZE(c->open_buckets); i++)
-		nr[c->open_buckets[i].type]++;
+		nr[c->open_buckets[i].data_type]++;
 
 	pr_buf(out,
 	       "\t\t buckets\t sectors      fragmented\n"

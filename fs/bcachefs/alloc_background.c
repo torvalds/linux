@@ -1066,7 +1066,7 @@ static bool bch2_dev_has_open_write_point(struct bch_fs *c, struct bch_dev *ca)
 	     ob++) {
 		spin_lock(&ob->lock);
 		if (ob->valid && !ob->on_partial_list &&
-		    ob->ptr.dev == ca->dev_idx)
+		    ob->dev == ca->dev_idx)
 			ret = true;
 		spin_unlock(&ob->lock);
 	}
@@ -1212,23 +1212,4 @@ int bch2_dev_allocator_start(struct bch_dev *ca)
 void bch2_fs_allocator_background_init(struct bch_fs *c)
 {
 	spin_lock_init(&c->freelist_lock);
-}
-
-void bch2_open_buckets_to_text(struct printbuf *out, struct bch_fs *c)
-{
-	struct open_bucket *ob;
-
-	for (ob = c->open_buckets;
-	     ob < c->open_buckets + ARRAY_SIZE(c->open_buckets);
-	     ob++) {
-		spin_lock(&ob->lock);
-		if (ob->valid && !ob->on_partial_list) {
-			pr_buf(out, "%zu ref %u type %s\n",
-			       ob - c->open_buckets,
-			       atomic_read(&ob->pin),
-			       bch2_data_types[ob->type]);
-		}
-		spin_unlock(&ob->lock);
-	}
-
 }

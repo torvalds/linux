@@ -45,7 +45,7 @@
 
 void __bch2_open_bucket_put(struct bch_fs *c, struct open_bucket *ob)
 {
-	struct bch_dev *ca = bch_dev_bkey_exists(c, ob->ptr.dev);
+	struct bch_dev *ca = bch_dev_bkey_exists(c, ob->dev);
 
 	if (ob->ec) {
 		bch2_ec_bucket_written(c, ob);
@@ -55,9 +55,9 @@ void __bch2_open_bucket_put(struct bch_fs *c, struct open_bucket *ob)
 	percpu_down_read(&c->mark_lock);
 	spin_lock(&ob->lock);
 
-	bch2_mark_alloc_bucket(c, ca, PTR_BUCKET_NR(ca, &ob->ptr), false);
+	bch2_mark_alloc_bucket(c, ca, ob->bucket, false);
 	ob->valid = false;
-	ob->type = 0;
+	ob->data_type = 0;
 
 	spin_unlock(&ob->lock);
 	percpu_up_read(&c->mark_lock);
@@ -81,8 +81,7 @@ void bch2_open_bucket_write_error(struct bch_fs *c,
 	unsigned i;
 
 	open_bucket_for_each(c, obs, ob, i)
-		if (ob->ptr.dev == dev &&
-		    ob->ec)
+		if (ob->dev == dev && ob->ec)
 			bch2_ec_bucket_cancel(c, ob);
 }
 
@@ -95,18 +94,19 @@ static struct open_bucket *bch2_open_bucket_alloc(struct bch_fs *c)
 	ob = c->open_buckets + c->open_buckets_freelist;
 	c->open_buckets_freelist = ob->freelist;
 	atomic_set(&ob->pin, 1);
-	ob->type = 0;
+	ob->data_type = 0;
 
 	c->open_buckets_nr_free--;
 	return ob;
 }
 
+
 static void open_bucket_free_unused(struct bch_fs *c,
 				    struct write_point *wp,
 				    struct open_bucket *ob)
 {
-	struct bch_dev *ca = bch_dev_bkey_exists(c, ob->ptr.dev);
-	bool may_realloc = wp->type == BCH_DATA_user;
+	struct bch_dev *ca = bch_dev_bkey_exists(c, ob->dev);
+	bool may_realloc = wp->data_type == BCH_DATA_user;
 
 	BUG_ON(ca->open_buckets_partial_nr >
 	       ARRAY_SIZE(ca->open_buckets_partial));
@@ -133,11 +133,13 @@ static void verify_not_stale(struct bch_fs *c, const struct open_buckets *obs)
 	struct open_bucket *ob;
 	unsigned i;
 
+	rcu_read_lock();
 	open_bucket_for_each(c, obs, ob, i) {
-		struct bch_dev *ca = bch_dev_bkey_exists(c, ob->ptr.dev);
+		struct bch_dev *ca = bch_dev_bkey_exists(c, ob->dev);
 
-		BUG_ON(ptr_stale(ca, &ob->ptr));
+		BUG_ON(bucket(ca, ob->bucket)->mark.gen != ob->gen);
 	}
+	rcu_read_unlock();
 #endif
 }
 
@@ -246,13 +248,9 @@ out:
 	ob->valid	= true;
 	ob->sectors_free = ca->mi.bucket_size;
 	ob->alloc_reserve = reserve;
-	ob->ptr		= (struct bch_extent_ptr) {
-		.type	= 1 << BCH_EXTENT_ENTRY_ptr,
-		.gen	= bucket(ca, b)->mark.gen,
-		.offset	= bucket_to_sector(ca, b),
-		.dev	= ca->dev_idx,
-	};
-
+	ob->dev		= ca->dev_idx;
+	ob->gen		= bucket(ca, b)->mark.gen;
+	ob->bucket	= b;
 	spin_unlock(&ob->lock);
 
 	if (c->blocked_allocate_open_bucket) {
@@ -333,9 +331,9 @@ static void add_new_bucket(struct bch_fs *c,
 			   struct open_bucket *ob)
 {
 	unsigned durability =
-		bch_dev_bkey_exists(c, ob->ptr.dev)->mi.durability;
+		bch_dev_bkey_exists(c, ob->dev)->mi.durability;
 
-	__clear_bit(ob->ptr.dev, devs_may_alloc->d);
+	__clear_bit(ob->dev, devs_may_alloc->d);
 	*nr_effective	+= (flags & BUCKET_ALLOC_USE_DURABILITY)
 		? durability : 1;
 	*have_cache	|= !durability;
@@ -445,13 +443,13 @@ static int bucket_alloc_from_stripe(struct bch_fs *c,
 				continue;
 
 			ob = c->open_buckets + h->s->blocks[ec_idx];
-			if (ob->ptr.dev == devs_sorted.devs[i] &&
+			if (ob->dev == devs_sorted.devs[i] &&
 			    !test_and_set_bit(ec_idx, h->s->blocks_allocated))
 				goto got_bucket;
 		}
 	goto out_put_head;
 got_bucket:
-	ca = bch_dev_bkey_exists(c, ob->ptr.dev);
+	ca = bch_dev_bkey_exists(c, ob->dev);
 
 	ob->ec_idx	= ec_idx;
 	ob->ec		= h->s;
@@ -481,12 +479,12 @@ static void get_buckets_from_writepoint(struct bch_fs *c,
 	unsigned i;
 
 	open_bucket_for_each(c, &wp->ptrs, ob, i) {
-		struct bch_dev *ca = bch_dev_bkey_exists(c, ob->ptr.dev);
+		struct bch_dev *ca = bch_dev_bkey_exists(c, ob->dev);
 
 		if (*nr_effective < nr_replicas &&
-		    test_bit(ob->ptr.dev, devs_may_alloc->d) &&
+		    test_bit(ob->dev, devs_may_alloc->d) &&
 		    (ca->mi.durability ||
-		     (wp->type == BCH_DATA_user && !*have_cache)) &&
+		     (wp->data_type == BCH_DATA_user && !*have_cache)) &&
 		    (ob->ec || !need_ec)) {
 			add_new_bucket(c, ptrs, devs_may_alloc,
 				       nr_effective, have_cache,
@@ -518,7 +516,7 @@ static int open_bucket_add_buckets(struct bch_fs *c,
 	unsigned i;
 
 	rcu_read_lock();
-	devs = target_rw_devs(c, wp->type, target);
+	devs = target_rw_devs(c, wp->data_type, target);
 	rcu_read_unlock();
 
 	/* Don't allocate from devices we already have pointers to: */
@@ -526,7 +524,7 @@ static int open_bucket_add_buckets(struct bch_fs *c,
 		__clear_bit(devs_have->devs[i], devs.d);
 
 	open_bucket_for_each(c, ptrs, ob, i)
-		__clear_bit(ob->ptr.dev, devs.d);
+		__clear_bit(ob->dev, devs.d);
 
 	if (erasure_code) {
 		if (!ec_open_bucket(c, ptrs)) {
@@ -586,7 +584,7 @@ void bch2_open_buckets_stop_dev(struct bch_fs *c, struct bch_dev *ca,
 	unsigned i, j;
 
 	open_bucket_for_each(c, obs, ob, i) {
-		bool drop = !ca || ob->ptr.dev == ca->dev_idx;
+		bool drop = !ca || ob->dev == ca->dev_idx;
 
 		if (!drop && ob->ec) {
 			mutex_lock(&ob->ec->lock);
@@ -595,7 +593,7 @@ void bch2_open_buckets_stop_dev(struct bch_fs *c, struct bch_dev *ca,
 					continue;
 
 				ob2 = c->open_buckets + ob->ec->blocks[j];
-				drop |= ob2->ptr.dev == ca->dev_idx;
+				drop |= ob2->dev == ca->dev_idx;
 			}
 			mutex_unlock(&ob->ec->lock);
 		}
@@ -779,11 +777,11 @@ retry:
 
 	wp = writepoint_find(c, write_point.v);
 
-	if (wp->type == BCH_DATA_user)
+	if (wp->data_type == BCH_DATA_user)
 		ob_flags |= BUCKET_MAY_ALLOC_PARTIAL;
 
 	/* metadata may not allocate on cache devices: */
-	if (wp->type != BCH_DATA_user)
+	if (wp->data_type != BCH_DATA_user)
 		have_cache = true;
 
 	if (!target || (flags & BCH_WRITE_ONLY_SPECIFIED_DEVS)) {
@@ -861,6 +859,20 @@ err:
 	}
 }
 
+struct bch_extent_ptr bch2_ob_ptr(struct bch_fs *c, struct open_bucket *ob)
+{
+	struct bch_dev *ca = bch_dev_bkey_exists(c, ob->dev);
+
+	return (struct bch_extent_ptr) {
+		.type	= 1 << BCH_EXTENT_ENTRY_ptr,
+		.gen	= ob->gen,
+		.dev	= ob->dev,
+		.offset	= bucket_to_sector(ca, ob->bucket) +
+			ca->mi.bucket_size -
+			ob->sectors_free,
+	};
+}
+
 /*
  * Append pointers to the space we just allocated to @k, and mark @sectors space
  * as allocated out of @ob
@@ -877,14 +889,13 @@ void bch2_alloc_sectors_append_ptrs(struct bch_fs *c, struct write_point *wp,
 	wp->sectors_free -= sectors;
 
 	open_bucket_for_each(c, &wp->ptrs, ob, i) {
-		struct bch_dev *ca = bch_dev_bkey_exists(c, ob->ptr.dev);
-		struct bch_extent_ptr ptr = ob->ptr;
+		struct bch_dev *ca = bch_dev_bkey_exists(c, ob->dev);
+		struct bch_extent_ptr ptr = bch2_ob_ptr(c, ob);
 
 		ptr.cached = cached ||
 			(!ca->mi.durability &&
-			 wp->type == BCH_DATA_user);
+			 wp->data_type == BCH_DATA_user);
 
-		ptr.offset += ca->mi.bucket_size - ob->sectors_free;
 		bch2_bkey_append_ptr(k, ptr);
 
 		BUG_ON(sectors > ob->sectors_free);
@@ -915,7 +926,7 @@ static inline void writepoint_init(struct write_point *wp,
 				   enum bch_data_type type)
 {
 	mutex_init(&wp->lock);
-	wp->type = type;
+	wp->data_type = type;
 }
 
 void bch2_fs_allocator_foreground_init(struct bch_fs *c)
@@ -951,4 +962,23 @@ void bch2_fs_allocator_foreground_init(struct bch_fs *c)
 		hlist_add_head_rcu(&wp->node,
 				   writepoint_hash(c, wp->write_point));
 	}
+}
+
+void bch2_open_buckets_to_text(struct printbuf *out, struct bch_fs *c)
+{
+	struct open_bucket *ob;
+
+	for (ob = c->open_buckets;
+	     ob < c->open_buckets + ARRAY_SIZE(c->open_buckets);
+	     ob++) {
+		spin_lock(&ob->lock);
+		if (ob->valid && !ob->on_partial_list) {
+			pr_buf(out, "%zu ref %u type %s\n",
+			       ob - c->open_buckets,
+			       atomic_read(&ob->pin),
+			       bch2_data_types[ob->data_type]);
+		}
+		spin_unlock(&ob->lock);
+	}
+
 }
