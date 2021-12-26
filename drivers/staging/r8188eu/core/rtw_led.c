@@ -5,13 +5,6 @@
 #include "../include/rtw_led.h"
 #include "../include/rtl8188e_spec.h"
 
-void BlinkWorkItemCallback(struct work_struct *work)
-{
-	struct delayed_work *dwork = to_delayed_work(work);
-	struct LED_871x *pLed = container_of(dwork, struct LED_871x, blink_work);
-	BlinkHandler(pLed);
-}
-
 static void ResetLedStatus(struct LED_871x *pLed)
 {
 	pLed->CurrLedState = RTW_LED_OFF; /*  Current LED state. */
@@ -391,8 +384,10 @@ static void SwLedControlMode1(struct adapter *padapter, enum LED_CTL_MODE LedAct
 	}
 }
 
-void BlinkHandler(struct LED_871x *pLed)
+static void blink_work(struct work_struct *work)
 {
+	struct delayed_work *dwork = to_delayed_work(work);
+	struct LED_871x *pLed = container_of(dwork, struct LED_871x, blink_work);
 	struct adapter *padapter = pLed->padapter;
 
 	if ((padapter->bSurpriseRemoved) || (padapter->bDriverStopped))
@@ -410,7 +405,7 @@ void rtl8188eu_InitSwLeds(struct adapter *padapter)
 
 	pLed->padapter = padapter;
 	ResetLedStatus(pLed);
-	INIT_DELAYED_WORK(&pLed->blink_work, BlinkWorkItemCallback);
+	INIT_DELAYED_WORK(&pLed->blink_work, blink_work);
 }
 
 void rtl8188eu_DeInitSwLeds(struct adapter *padapter)

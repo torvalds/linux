@@ -100,11 +100,7 @@ struct led_priv{
 			(adapt)->ledpriv.LedControlHandler((adapt), (action)); \
 	} while (0)
 
-void BlinkWorkItemCallback(struct work_struct *work);
-
 void rtl8188eu_InitSwLeds(struct adapter *padapter);
 void rtl8188eu_DeInitSwLeds(struct adapter *padapter);
-
-void BlinkHandler(struct LED_871x * pLed);
 
 #endif /* __RTW_LED_H_ */
