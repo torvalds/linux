@@ -1,9 +1,13 @@
 // SPDX-License-Identifier: ISC
 /* Copyright (C) 2020 MediaTek Inc. */
 
+#include <linux/relay.h>
 #include "mt7915.h"
 #include "eeprom.h"
 #include "mcu.h"
+#include "mac.h"
+
+#define FW_BIN_LOG_MAGIC	0x44e98caf
 
 /** global debugfs **/
 
@@ -311,16 +315,31 @@ mt7915_fw_debug_wm_set(void *data, u64 val)
 		DEBUG_SPL,
 		DEBUG_RPT_RX,
 	} debug;
+	bool tx, rx, en;
 	int ret;
 
 	dev->fw_debug_wm = val ? MCU_FW_LOG_TO_HOST : 0;
 
-	ret = mt7915_mcu_fw_log_2_host(dev, MCU_FW_LOG_WM, dev->fw_debug_wm);
+	if (dev->fw_debug_bin)
+		val = 16;
+	else
+		val = dev->fw_debug_wm;
+
+	tx = dev->fw_debug_wm || (dev->fw_debug_bin & BIT(1));
+	rx = dev->fw_debug_wm || (dev->fw_debug_bin & BIT(2));
+	en = dev->fw_debug_wm || (dev->fw_debug_bin & BIT(0));
+
+	ret = mt7915_mcu_fw_log_2_host(dev, MCU_FW_LOG_WM, val);
 	if (ret)
 		return ret;
 
 	for (debug = DEBUG_TXCMD; debug <= DEBUG_RPT_RX; debug++) {
-		ret = mt7915_mcu_fw_dbg_ctrl(dev, debug, !!dev->fw_debug_wm);
+		if (debug == DEBUG_RPT_RX)
+			val = en && rx;
+		else
+			val = en && tx;
+
+		ret = mt7915_mcu_fw_dbg_ctrl(dev, debug, val);
 		if (ret)
 			return ret;
 	}
@@ -375,6 +394,65 @@ mt7915_fw_debug_wa_get(void *data, u64 *val)
 
 DEFINE_DEBUGFS_ATTRIBUTE(fops_fw_debug_wa, mt7915_fw_debug_wa_get,
 			 mt7915_fw_debug_wa_set, "%lld\n");
+
+static struct dentry *
+create_buf_file_cb(const char *filename, struct dentry *parent, umode_t mode,
+		   struct rchan_buf *buf, int *is_global)
+{
+	struct dentry *f;
+
+	f = debugfs_create_file("fwlog_data", mode, parent, buf,
+				&relay_file_operations);
+	if (IS_ERR(f))
+		return NULL;
+
+	*is_global = 1;
+
+	return f;
+}
+
+static int
+remove_buf_file_cb(struct dentry *f)
+{
+	debugfs_remove(f);
+
+	return 0;
+}
+
+static int
+mt7915_fw_debug_bin_set(void *data, u64 val)
+{
+	static struct rchan_callbacks relay_cb = {
+		.create_buf_file = create_buf_file_cb,
+		.remove_buf_file = remove_buf_file_cb,
+	};
+	struct mt7915_dev *dev = data;
+
+	if (!dev->relay_fwlog)
+		dev->relay_fwlog = relay_open("fwlog_data", dev->debugfs_dir,
+					    1500, 512, &relay_cb, NULL);
+	if (!dev->relay_fwlog)
+		return -ENOMEM;
+
+	dev->fw_debug_bin = val;
+
+	relay_reset(dev->relay_fwlog);
+
+	return mt7915_fw_debug_wm_set(dev, dev->fw_debug_wm);
+}
+
+static int
+mt7915_fw_debug_bin_get(void *data, u64 *val)
+{
+	struct mt7915_dev *dev = data;
+
+	*val = dev->fw_debug_bin;
+
+	return 0;
+}
+
+DEFINE_DEBUGFS_ATTRIBUTE(fops_fw_debug_bin, mt7915_fw_debug_bin_get,
+			 mt7915_fw_debug_bin_set, "%lld\n");
 
 static int
 mt7915_fw_util_wm_show(struct seq_file *file, void *data)
@@ -757,6 +835,7 @@ int mt7915_init_debugfs(struct mt7915_phy *phy)
 	debugfs_create_file("tx_stats", 0400, dir, phy, &mt7915_tx_stats_fops);
 	debugfs_create_file("fw_debug_wm", 0600, dir, dev, &fops_fw_debug_wm);
 	debugfs_create_file("fw_debug_wa", 0600, dir, dev, &fops_fw_debug_wa);
+	debugfs_create_file("fw_debug_bin", 0600, dir, dev, &fops_fw_debug_bin);
 	debugfs_create_file("fw_util_wm", 0400, dir, dev,
 			    &mt7915_fw_util_wm_fops);
 	debugfs_create_file("fw_util_wa", 0400, dir, dev,
@@ -775,7 +854,66 @@ int mt7915_init_debugfs(struct mt7915_phy *phy)
 				    &fops_radar_trigger);
 	}
 
+	if (!ext_phy)
+		dev->debugfs_dir = dir;
+
 	return 0;
+}
+
+static void
+mt7915_debugfs_write_fwlog(struct mt7915_dev *dev, const void *hdr, int hdrlen,
+			 const void *data, int len)
+{
+	static DEFINE_SPINLOCK(lock);
+	unsigned long flags;
+	void *dest;
+
+	spin_lock_irqsave(&lock, flags);
+	dest = relay_reserve(dev->relay_fwlog, hdrlen + len + 4);
+	if (dest) {
+		*(u32 *)dest = hdrlen + len;
+		dest += 4;
+
+		if (hdrlen) {
+			memcpy(dest, hdr, hdrlen);
+			dest += hdrlen;
+		}
+
+		memcpy(dest, data, len);
+		relay_flush(dev->relay_fwlog);
+	}
+	spin_unlock_irqrestore(&lock, flags);
+}
+
+void mt7915_debugfs_rx_fw_monitor(struct mt7915_dev *dev, const void *data, int len)
+{
+	struct {
+		__le32 magic;
+		__le32 timestamp;
+		__le16 msg_type;
+		__le16 len;
+	} hdr = {
+		.magic = cpu_to_le32(FW_BIN_LOG_MAGIC),
+		.msg_type = PKT_TYPE_RX_FW_MONITOR,
+	};
+
+	if (!dev->relay_fwlog)
+		return;
+
+	hdr.timestamp = mt76_rr(dev, MT_LPON_FRCR(0));
+	hdr.len = *(__le16 *)data;
+	mt7915_debugfs_write_fwlog(dev, &hdr, sizeof(hdr), data, len);
+}
+
+bool mt7915_debugfs_rx_log(struct mt7915_dev *dev, const void *data, int len)
+{
+	if (get_unaligned_le32(data) != FW_BIN_LOG_MAGIC)
+		return false;
+
+	if (dev->relay_fwlog)
+		mt7915_debugfs_write_fwlog(dev, NULL, 0, data, len);
+
+	return true;
 }
 
 #ifdef CONFIG_MAC80211_DEBUGFS

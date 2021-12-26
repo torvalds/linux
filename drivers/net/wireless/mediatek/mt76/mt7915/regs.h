@@ -50,6 +50,7 @@ enum offs_rev {
 	AGG_ATCR3,
 	LPON_UTTR0,
 	LPON_UTTR1,
+	LPON_FRCR,
 	MIB_SDR3,
 	MIB_SDR4,
 	MIB_SDR5,
@@ -238,6 +239,7 @@ enum offs_rev {
 
 #define MT_LPON_UTTR0(_band)		MT_WF_LPON(_band, __OFFS(LPON_UTTR0))
 #define MT_LPON_UTTR1(_band)		MT_WF_LPON(_band, __OFFS(LPON_UTTR1))
+#define MT_LPON_FRCR(_band)		MT_WF_LPON(_band, __OFFS(LPON_FRCR))
 
 #define MT_LPON_TCR(_band, n)		MT_WF_LPON(_band, 0x0a8 +	\
 						   (((n) * 4) << 1))

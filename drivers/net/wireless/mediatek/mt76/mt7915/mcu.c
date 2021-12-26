@@ -368,9 +368,13 @@ mt7915_mcu_rx_log_message(struct mt7915_dev *dev, struct sk_buff *skb)
 	struct mt7915_mcu_rxd *rxd = (struct mt7915_mcu_rxd *)skb->data;
 	const char *data = (char *)&rxd[1];
 	const char *type;
+	int len = skb->len - sizeof(*rxd);
 
 	switch (rxd->s2d_index) {
 	case 0:
+		if (mt7915_debugfs_rx_log(dev, data, len))
+			return;
+
 		type = "WM";
 		break;
 	case 2:
@@ -381,8 +385,7 @@ mt7915_mcu_rx_log_message(struct mt7915_dev *dev, struct sk_buff *skb)
 		break;
 	}
 
-	wiphy_info(mt76_hw(dev)->wiphy, "%s: %.*s", type,
-		   (int)(skb->len - sizeof(*rxd)), data);
+	wiphy_info(mt76_hw(dev)->wiphy, "%s: %.*s", type, len, data);
 }
 
 static void

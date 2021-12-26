@@ -291,6 +291,10 @@ struct mt7915_dev {
 	bool ibf;
 	u8 fw_debug_wm;
 	u8 fw_debug_wa;
+	u8 fw_debug_bin;
+
+	struct dentry *debugfs_dir;
+	struct rchan *relay_fwlog;
 
 	void *cal;
 
@@ -537,6 +541,8 @@ void mt7915_update_channel(struct mt76_phy *mphy);
 int mt7915_mcu_muru_debug_set(struct mt7915_dev *dev, bool enable);
 int mt7915_mcu_muru_debug_get(struct mt7915_phy *phy, void *ms);
 int mt7915_init_debugfs(struct mt7915_phy *phy);
+void mt7915_debugfs_rx_fw_monitor(struct mt7915_dev *dev, const void *data, int len);
+bool mt7915_debugfs_rx_log(struct mt7915_dev *dev, const void *data, int len);
 #ifdef CONFIG_MAC80211_DEBUGFS
 void mt7915_sta_add_debugfs(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			    struct ieee80211_sta *sta, struct dentry *dir);

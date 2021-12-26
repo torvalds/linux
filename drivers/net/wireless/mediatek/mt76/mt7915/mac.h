@@ -23,6 +23,7 @@ enum rx_pkt_type {
 	PKT_TYPE_RETRIEVE,
 	PKT_TYPE_TXRX_NOTIFY,
 	PKT_TYPE_RX_EVENT,
+	PKT_TYPE_RX_FW_MONITOR = 0x0c,
 };
 
 /* RXD DW1 */
