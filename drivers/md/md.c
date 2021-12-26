@@ -8421,7 +8421,7 @@ int md_setup_cluster(struct mddev *mddev, int nodes)
 	spin_lock(&pers_lock);
 	/* ensure module won't be unloaded */
 	if (!md_cluster_ops || !try_module_get(md_cluster_mod)) {
-		pr_warn("can't find md-cluster module or get it's reference.\n");
+		pr_warn("can't find md-cluster module or get its reference.\n");
 		spin_unlock(&pers_lock);
 		return -ENOENT;
 	}
