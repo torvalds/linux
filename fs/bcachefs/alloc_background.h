@@ -38,39 +38,22 @@ static inline bool bkey_alloc_unpacked_cmp(struct bkey_alloc_unpacked l,
 	;
 }
 
+struct bkey_alloc_buf {
+	struct bkey_i	k;
+	struct bch_alloc_v3 v;
+
+#define x(_name,  _bits)		+ _bits / 8
+	u8		_pad[0 + BCH_ALLOC_FIELDS_V2()];
+#undef  x
+} __attribute__((packed, aligned(8)));
+
 struct bkey_alloc_unpacked bch2_alloc_unpack(struct bkey_s_c);
+struct bkey_alloc_buf *bch2_alloc_pack(struct btree_trans *,
+				       const struct bkey_alloc_unpacked);
 int bch2_alloc_write(struct btree_trans *, struct btree_iter *,
 		     struct bkey_alloc_unpacked *, unsigned);
 
 int bch2_bucket_io_time_reset(struct btree_trans *, unsigned, size_t, int);
-
-static inline struct bkey_alloc_unpacked
-alloc_mem_to_key(struct bch_fs *c, struct btree_iter *iter)
-{
-	struct bch_dev *ca;
-	struct bucket *g;
-	struct bkey_alloc_unpacked ret;
-
-	percpu_down_read(&c->mark_lock);
-	ca	= bch_dev_bkey_exists(c, iter->pos.inode);
-	g	= bucket(ca, iter->pos.offset);
-	ret	= (struct bkey_alloc_unpacked) {
-		.dev		= iter->pos.inode,
-		.bucket		= iter->pos.offset,
-		.gen		= g->mark.gen,
-		.oldest_gen	= g->oldest_gen,
-		.data_type	= g->mark.data_type,
-		.dirty_sectors	= g->mark.dirty_sectors,
-		.cached_sectors	= g->mark.cached_sectors,
-		.read_time	= g->io_time[READ],
-		.write_time	= g->io_time[WRITE],
-		.stripe		= g->stripe,
-		.stripe_redundancy = g->stripe_redundancy,
-	};
-	percpu_up_read(&c->mark_lock);
-
-	return ret;
-}
 
 #define ALLOC_SCAN_BATCH(ca)		max_t(size_t, 1, (ca)->mi.nbuckets >> 9)
 
@@ -101,7 +84,7 @@ static inline bool bkey_is_alloc(const struct bkey *k)
 		k->type == KEY_TYPE_alloc_v3;
 }
 
-int bch2_alloc_read(struct bch_fs *);
+int bch2_alloc_read(struct bch_fs *, bool, bool);
 
 static inline void bch2_wake_allocator(struct bch_dev *ca)
 {
@@ -139,7 +122,6 @@ void bch2_dev_allocator_quiesce(struct bch_fs *, struct bch_dev *);
 void bch2_dev_allocator_stop(struct bch_dev *);
 int bch2_dev_allocator_start(struct bch_dev *);
 
-int bch2_alloc_write_all(struct bch_fs *, unsigned);
 void bch2_fs_allocator_background_init(struct bch_fs *);
 
 #endif /* _BCACHEFS_ALLOC_BACKGROUND_H */

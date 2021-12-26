@@ -1113,7 +1113,11 @@ use_clean:
 
 	bch_verbose(c, "starting alloc read");
 	err = "error reading allocation information";
-	ret = bch2_alloc_read(c);
+
+	down_read(&c->gc_lock);
+	ret = bch2_alloc_read(c, false, false);
+	up_read(&c->gc_lock);
+
 	if (ret)
 		goto err;
 	bch_verbose(c, "alloc read done");
@@ -1170,23 +1174,6 @@ use_clean:
 		goto err;
 	if (c->opts.verbose || !c->sb.clean)
 		bch_info(c, "journal replay done");
-
-	if (test_bit(BCH_FS_NEED_ALLOC_WRITE, &c->flags) &&
-	    !c->opts.nochanges) {
-		/*
-		 * note that even when filesystem was clean there might be work
-		 * to do here, if we ran gc (because of fsck) which recalculated
-		 * oldest_gen:
-		 */
-		bch_verbose(c, "writing allocation info");
-		err = "error writing out alloc info";
-		ret = bch2_alloc_write_all(c, BTREE_INSERT_LAZY_RW);
-		if (ret) {
-			bch_err(c, "error writing alloc info");
-			goto err;
-		}
-		bch_verbose(c, "alloc write done");
-	}
 
 	if (c->sb.version < bcachefs_metadata_version_snapshot_2) {
 		bch2_fs_lazy_rw(c);
