@@ -12,7 +12,7 @@ void BlinkWorkItemCallback(struct work_struct *work)
 	BlinkHandler(pLed);
 }
 
-void ResetLedStatus(struct LED_871x *pLed)
+static void ResetLedStatus(struct LED_871x *pLed)
 {
 	pLed->CurrLedState = RTW_LED_OFF; /*  Current LED state. */
 	pLed->bLedOn = false; /*  true if LED is ON, false if LED is OFF. */

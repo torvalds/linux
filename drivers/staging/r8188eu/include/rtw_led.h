@@ -102,8 +102,6 @@ struct led_priv{
 
 void BlinkWorkItemCallback(struct work_struct *work);
 
-void ResetLedStatus(struct LED_871x * pLed);
-
 void rtl8188eu_InitSwLeds(struct adapter *padapter);
 void rtl8188eu_DeInitSwLeds(struct adapter *padapter);
 
