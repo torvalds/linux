@@ -46,18 +46,18 @@ struct LED_871x {
 	enum LED_STATE_871x	BlinkingLedState; /*  Next state for blinking,
 				   * either RTW_LED_ON or RTW_LED_OFF are. */
 
-	u8 bLedOn; /*  true if LED is ON, false if LED is OFF. */
+	bool bLedOn; /*  true if LED is ON, false if LED is OFF. */
 
-	u8 bLedBlinkInProgress; /*  true if it is blinking, false o.w.. */
+	bool bLedBlinkInProgress; /*  true if it is blinking, false o.w.. */
 
-	u8 bLedWPSBlinkInProgress;
+	bool bLedWPSBlinkInProgress;
 
 	u32 BlinkTimes; /*  Number of times to toggle led state for blinking. */
 
 	/*  ALPHA, added by chiyoko, 20090106 */
-	u8 bLedNoLinkBlinkInProgress;
-	u8 bLedLinkBlinkInProgress;
-	u8 bLedScanBlinkInProgress;
+	bool bLedNoLinkBlinkInProgress;
+	bool bLedLinkBlinkInProgress;
+	bool bLedScanBlinkInProgress;
 	struct delayed_work blink_work;
 };
 
@@ -66,7 +66,7 @@ void LedControl8188eu(struct adapter *padapter, enum LED_CTL_MODE	LedAction);
 struct led_priv{
 	/* add for led control */
 	struct LED_871x			SwLed0;
-	u8	bRegUseLed;
+	bool	bRegUseLed;
 	void (*LedControlHandler)(struct adapter *padapter,
 				  enum LED_CTL_MODE LedAction);
 	/* add for led control */
