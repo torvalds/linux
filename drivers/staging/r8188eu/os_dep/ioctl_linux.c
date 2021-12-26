@@ -4185,13 +4185,6 @@ static int rtw_tdls(struct net_device *dev,
 	return 0;
 }
 
-static int rtw_tdls_get(struct net_device *dev,
-				struct iw_request_info *info,
-				union iwreq_data *wrqu, char *extra)
-{
-	return 0;
-}
-
 static int rtw_test(
 	struct net_device *dev,
 	struct iw_request_info *info,
@@ -4320,10 +4313,6 @@ static const struct iw_priv_args rtw_private_args[] = {
 		IW_PRIV_TYPE_CHAR  | 64, 0, "tdls"
 	},
 	{
-		SIOCIWFIRSTPRIV + 0x15,
-		IW_PRIV_TYPE_CHAR | P2P_PRIVATE_IOCTL_SET_LEN, IW_PRIV_TYPE_CHAR | IW_PRIV_SIZE_FIXED | P2P_PRIVATE_IOCTL_SET_LEN, "tdls_get"
-	},
-	{
 		SIOCIWFIRSTPRIV + 0x16,
 		IW_PRIV_TYPE_CHAR | 64, 0, "pm_set"
 	},
@@ -4364,7 +4353,7 @@ NULL,					/* 0x03 */
 
 	NULL,				/* 0x13 */
 	rtw_tdls,			/* 0x14 */
-	rtw_tdls_get,			/* 0x15 */
+	NULL,				/* 0x15 */
 
 	rtw_pm_set,			/* 0x16 */
 	NULL,				/* 0x17 */
