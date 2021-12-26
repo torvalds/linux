@@ -197,7 +197,6 @@ static void SwLedControlMode1(struct adapter *padapter, enum LED_CTL_MODE LedAct
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 
 	switch (LedAction) {
-	case LED_CTL_POWER_ON:
 	case LED_CTL_START_TO_LINK:
 	case LED_CTL_NO_LINK:
 		if (!pLed->bLedNoLinkBlinkInProgress) {
@@ -447,8 +446,7 @@ void rtw_led_control(struct adapter *padapter, enum LED_CTL_MODE LedAction)
 	    (LedAction == LED_CTL_TX || LedAction == LED_CTL_RX ||
 	     LedAction == LED_CTL_SITE_SURVEY ||
 	     LedAction == LED_CTL_LINK ||
-	     LedAction == LED_CTL_NO_LINK ||
-	     LedAction == LED_CTL_POWER_ON))
+	     LedAction == LED_CTL_NO_LINK))
 		return;
 
 	SwLedControlMode1(padapter, LedAction);

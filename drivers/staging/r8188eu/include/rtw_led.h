@@ -8,7 +8,6 @@
 #include "drv_types.h"
 
 enum LED_CTL_MODE {
-	LED_CTL_POWER_ON = 1,
 	LED_CTL_LINK = 2,
 	LED_CTL_NO_LINK = 3,
 	LED_CTL_TX = 4,
