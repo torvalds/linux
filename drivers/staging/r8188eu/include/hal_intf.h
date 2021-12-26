@@ -100,12 +100,6 @@ enum hal_odm_variable {
 
 typedef s32 (*c2h_id_filter)(u8 id);
 
-#define RF_CHANGE_BY_INIT	0
-#define RF_CHANGE_BY_IPS	BIT(28)
-#define RF_CHANGE_BY_PS		BIT(29)
-#define RF_CHANGE_BY_HW		BIT(30)
-#define RF_CHANGE_BY_SW		BIT(31)
-
 #define is_boot_from_eeprom(adapter) (adapter->eeprompriv.EepromOrEfuse)
 
 void rtl8188eu_interface_configure(struct adapter *adapt);

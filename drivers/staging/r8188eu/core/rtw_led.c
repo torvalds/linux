@@ -207,14 +207,6 @@ void rtw_led_control(struct adapter *padapter, enum LED_CTL_MODE LedAction)
 	if (!registry_par->led_enable)
 		return;
 
-	if ((padapter->pwrctrlpriv.rf_pwrstate != rf_on &&
-	     padapter->pwrctrlpriv.rfoff_reason > RF_CHANGE_BY_PS) &&
-	    (LedAction == LED_CTL_TX || LedAction == LED_CTL_RX ||
-	     LedAction == LED_CTL_SITE_SURVEY ||
-	     LedAction == LED_CTL_LINK ||
-	     LedAction == LED_CTL_NO_LINK))
-		return;
-
 	switch (LedAction) {
 	case LED_CTL_START_TO_LINK:
 	case LED_CTL_NO_LINK:
