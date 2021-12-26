@@ -59,15 +59,6 @@ exit:
 	pLed->bLedOn = false;
 }
 
-void InitLed871x(struct adapter *padapter, struct LED_871x *pLed)
-{
-	pLed->padapter = padapter;
-
-	ResetLedStatus(pLed);
-
-	INIT_DELAYED_WORK(&pLed->blink_work, BlinkWorkItemCallback);
-}
-
 void DeInitLed871x(struct LED_871x *pLed)
 {
 	cancel_delayed_work_sync(&pLed->blink_work);
@@ -420,10 +411,13 @@ void BlinkHandler(struct LED_871x *pLed)
 void rtl8188eu_InitSwLeds(struct adapter *padapter)
 {
 	struct led_priv *pledpriv = &padapter->ledpriv;
+	struct LED_871x *pLed = &pledpriv->SwLed0;
 
 	pledpriv->LedControlHandler = LedControl8188eu;
 
-	InitLed871x(padapter, &pledpriv->SwLed0);
+	pLed->padapter = padapter;
+	ResetLedStatus(pLed);
+	INIT_DELAYED_WORK(&pLed->blink_work, BlinkWorkItemCallback);
 }
 
 void rtl8188eu_DeInitSwLeds(struct adapter *padapter)
