@@ -1086,7 +1086,7 @@ static const struct of_device_id dim2_of_match[] = {
 		.data = plat_data + RCAR_H2
 	},
 	{
-		.compatible = "rcar,medialb-dim2",
+		.compatible = "renesas,rcar-gen3-mlp",
 		.data = plat_data + RCAR_M3
 	},
 	{
