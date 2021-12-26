@@ -8,7 +8,6 @@
 #include "../include/rtw_efuse.h"
 
 #include "../include/rtl8188e_hal.h"
-#include "../include/rtl8188e_led.h"
 #include "../include/rtw_iol.h"
 #include "../include/usb_ops.h"
 #include "../include/usb_osintf.h"

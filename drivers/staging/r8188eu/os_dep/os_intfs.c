@@ -11,7 +11,7 @@
 #include "../include/rtw_ioctl.h"
 #include "../include/usb_osintf.h"
 #include "../include/rtw_br_ext.h"
-#include "../include/rtl8188e_led.h"
+#include "../include/rtw_led.h"
 #include "../include/rtl8188e_dm.h"
 
 MODULE_LICENSE("GPL");

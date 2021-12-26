@@ -417,6 +417,22 @@ void BlinkHandler(struct LED_871x *pLed)
 	SwLedBlink1(pLed);
 }
 
+void rtl8188eu_InitSwLeds(struct adapter *padapter)
+{
+	struct led_priv *pledpriv = &padapter->ledpriv;
+
+	pledpriv->LedControlHandler = LedControl8188eu;
+
+	InitLed871x(padapter, &pledpriv->SwLed0);
+}
+
+void rtl8188eu_DeInitSwLeds(struct adapter *padapter)
+{
+	struct led_priv	*ledpriv = &padapter->ledpriv;
+
+	DeInitLed871x(&ledpriv->SwLed0);
+}
+
 void LedControl8188eu(struct adapter *padapter, enum LED_CTL_MODE LedAction)
 {
 	struct led_priv *ledpriv = &padapter->ledpriv;

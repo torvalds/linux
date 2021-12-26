@@ -107,6 +107,9 @@ void ResetLedStatus(struct LED_871x * pLed);
 void InitLed871x(struct adapter *padapter, struct LED_871x *pLed);
 void DeInitLed871x(struct LED_871x *pLed);
 
+void rtl8188eu_InitSwLeds(struct adapter *padapter);
+void rtl8188eu_DeInitSwLeds(struct adapter *padapter);
+
 void BlinkHandler(struct LED_871x * pLed);
 
 #endif /* __RTW_LED_H_ */
