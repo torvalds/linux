@@ -29,6 +29,7 @@
 
 #define BR_MULTICAST_DEFAULT_HASH_MAX 4096
 #define BR_MULTICAST_QUERY_INTVL_MIN msecs_to_jiffies(1000)
+#define BR_MULTICAST_STARTUP_QUERY_INTVL_MIN BR_MULTICAST_QUERY_INTVL_MIN
 
 #define BR_HWDOM_MAX BITS_PER_LONG
 
@@ -971,6 +972,8 @@ size_t br_multicast_querier_state_size(void);
 size_t br_rports_size(const struct net_bridge_mcast *brmctx);
 void br_multicast_set_query_intvl(struct net_bridge_mcast *brmctx,
 				  unsigned long val);
+void br_multicast_set_startup_query_intvl(struct net_bridge_mcast *brmctx,
+					  unsigned long val);
 
 static inline bool br_group_is_l2(const struct br_ip *group)
 {
