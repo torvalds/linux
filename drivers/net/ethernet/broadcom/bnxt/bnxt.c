@@ -2429,7 +2429,7 @@ static int __bnxt_poll_work(struct bnxt *bp, struct bnxt_cp_ring_info *cpr,
 	}
 
 	if (event & BNXT_REDIRECT_EVENT)
-		xdp_do_flush_map();
+		xdp_do_flush();
 
 	if (event & BNXT_TX_EVENT) {
 		struct bnxt_tx_ring_info *txr = bnapi->tx_ring;
