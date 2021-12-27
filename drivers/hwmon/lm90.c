@@ -123,7 +123,7 @@ static const unsigned short normal_i2c[] = {
 	0x4d, 0x4e, 0x4f, I2C_CLIENT_END };
 
 enum chips { adm1023, adm1032, adt7461, adt7461a, adt7481,
-	g781, lm84, lm86, lm90, lm99,
+	g781, lm84, lm90, lm99,
 	max1617, max6642, max6646, max6648, max6654, max6657, max6659, max6680, max6696,
 	sa56004, tmp451, tmp461, w83l771,
 };
@@ -235,8 +235,8 @@ static const struct i2c_device_id lm90_id[] = {
 	{ "g781", g781 },
 	{ "gl523sm", max1617 },
 	{ "lm84", lm84 },
-	{ "lm86", lm86 },
-	{ "lm89", lm86 },
+	{ "lm86", lm90 },
+	{ "lm89", lm90 },
 	{ "lm90", lm90 },
 	{ "lm99", lm99 },
 	{ "max1617", max1617 },
@@ -289,11 +289,11 @@ static const struct of_device_id __maybe_unused lm90_of_match[] = {
 	},
 	{
 		.compatible = "national,lm86",
-		.data = (void *)lm86
+		.data = (void *)lm90
 	},
 	{
 		.compatible = "national,lm89",
-		.data = (void *)lm86
+		.data = (void *)lm90
 	},
 	{
 		.compatible = "national,lm99",
@@ -442,13 +442,6 @@ static const struct lm90_params lm90_params[] = {
 	[lm84] = {
 		.flags = LM90_HAVE_ALARMS,
 		.resolution = 8,
-	},
-	[lm86] = {
-		.flags = LM90_HAVE_OFFSET | LM90_HAVE_REM_LIMIT_EXT
-		  | LM90_HAVE_CRIT | LM90_HAVE_ALARMS | LM90_HAVE_LOW
-		  | LM90_HAVE_CONVRATE | LM90_HAVE_REMOTE_EXT,
-		.alert_alarms = 0x7b,
-		.max_convrate = 9,
 	},
 	[lm90] = {
 		.flags = LM90_HAVE_OFFSET | LM90_HAVE_REM_LIMIT_EXT
