@@ -1324,6 +1324,7 @@ static int do_rename(struct inode *old_dir, struct dentry *old_dentry,
 
 	if (flags & RENAME_WHITEOUT) {
 		union ubifs_dev_desc *dev = NULL;
+		struct ubifs_budget_req wht_req;
 
 		dev = kmalloc(sizeof(union ubifs_dev_desc), GFP_NOFS);
 		if (!dev) {
@@ -1345,6 +1346,20 @@ static int do_rename(struct inode *old_dir, struct dentry *old_dentry,
 		whiteout_ui->data = dev;
 		whiteout_ui->data_len = ubifs_encode_dev(dev, MKDEV(0, 0));
 		ubifs_assert(c, !whiteout_ui->dirty);
+
+		memset(&wht_req, 0, sizeof(struct ubifs_budget_req));
+		wht_req.dirtied_ino = 1;
+		wht_req.dirtied_ino_d = ALIGN(whiteout_ui->data_len, 8);
+		/*
+		 * To avoid deadlock between space budget (holds ui_mutex and
+		 * waits wb work) and writeback work(waits ui_mutex), do space
+		 * budget before ubifs inodes locked.
+		 */
+		err = ubifs_budget_space(c, &wht_req);
+		if (err) {
+			iput(whiteout);
+			goto out_release;
+		}
 	}
 
 	lock_4_inodes(old_dir, new_dir, new_inode, whiteout);
@@ -1419,16 +1434,6 @@ static int do_rename(struct inode *old_dir, struct dentry *old_dentry,
 	}
 
 	if (whiteout) {
-		struct ubifs_budget_req wht_req = { .dirtied_ino = 1,
-				.dirtied_ino_d = \
-				ALIGN(ubifs_inode(whiteout)->data_len, 8) };
-
-		err = ubifs_budget_space(c, &wht_req);
-		if (err) {
-			iput(whiteout);
-			goto out_release;
-		}
-
 		inc_nlink(whiteout);
 		mark_inode_dirty(whiteout);
 
