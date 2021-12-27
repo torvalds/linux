@@ -5,6 +5,7 @@
 #include "guest_modes.h"
 
 #ifdef __aarch64__
+#include "processor.h"
 enum vm_guest_mode vm_mode_default;
 #endif
 
@@ -17,20 +18,24 @@ void guest_modes_append_default(void)
 #else
 	{
 		unsigned int limit = kvm_check_cap(KVM_CAP_ARM_VM_IPA_SIZE);
+		bool ps4k, ps16k, ps64k;
 		int i;
+
+		aarch64_get_supported_page_sizes(limit, &ps4k, &ps16k, &ps64k);
 
 		vm_mode_default = NUM_VM_MODES;
 
 		if (limit >= 52)
-			guest_mode_append(VM_MODE_P52V48_64K, true, true);
+			guest_mode_append(VM_MODE_P52V48_64K, ps64k, ps64k);
 		if (limit >= 48) {
-			guest_mode_append(VM_MODE_P48V48_4K, true, true);
-			guest_mode_append(VM_MODE_P48V48_64K, true, true);
+			guest_mode_append(VM_MODE_P48V48_4K, ps4k, ps4k);
+			guest_mode_append(VM_MODE_P48V48_64K, ps64k, ps64k);
 		}
 		if (limit >= 40) {
-			guest_mode_append(VM_MODE_P40V48_4K, true, true);
-			guest_mode_append(VM_MODE_P40V48_64K, true, true);
-			vm_mode_default = VM_MODE_P40V48_4K;
+			guest_mode_append(VM_MODE_P40V48_4K, ps4k, ps4k);
+			guest_mode_append(VM_MODE_P40V48_64K, ps64k, ps64k);
+			if (ps4k)
+				vm_mode_default = VM_MODE_P40V48_4K;
 		}
 
 		/*
