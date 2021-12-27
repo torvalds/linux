@@ -118,6 +118,7 @@ struct monitor_dev_profile {
 	int (*high_temp_adjust)(struct monitor_dev_info *info, bool is_low);
 	int (*update_volt)(struct monitor_dev_info *info);
 	struct cpumask allowed_cpus;
+	struct rockchip_opp_info *opp_info;
 };
 
 #if IS_ENABLED(CONFIG_ROCKCHIP_SYSTEM_MONITOR)

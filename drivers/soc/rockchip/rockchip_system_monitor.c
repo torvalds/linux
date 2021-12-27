@@ -28,6 +28,7 @@
 #include <linux/uaccess.h>
 #include <linux/version.h>
 #include <linux/delay.h>
+#include <soc/rockchip/rockchip_opp_select.h>
 #include <soc/rockchip/rockchip_system_monitor.h>
 #include <soc/rockchip/rockchip-system-status.h>
 
@@ -1064,11 +1065,22 @@ void rockchip_monitor_volt_adjust_unlock(struct monitor_dev_info *info)
 }
 EXPORT_SYMBOL(rockchip_monitor_volt_adjust_unlock);
 
+static int rockchip_monitor_set_read_margin(struct device *dev,
+					    struct rockchip_opp_info *opp_info,
+					    unsigned long volt)
+{
+	if (opp_info && opp_info->data->set_read_margin)
+		return opp_info->data->set_read_margin(dev, opp_info, volt);
+
+	return 0;
+}
+
 int rockchip_monitor_check_rate_volt(struct monitor_dev_info *info)
 {
 	struct device *dev = info->dev;
 	struct regulator *vdd_reg = NULL;
 	struct regulator *mem_reg = NULL;
+	struct rockchip_opp_info *opp_info = info->devp->opp_info;
 	struct dev_pm_opp *opp;
 	unsigned long old_rate, new_rate, new_volt, new_mem_volt;
 	int old_volt, old_mem_volt;
@@ -1078,6 +1090,14 @@ int rockchip_monitor_check_rate_volt(struct monitor_dev_info *info)
 		return 0;
 
 	mutex_lock(&info->volt_adjust_mutex);
+	if (opp_info) {
+		ret = clk_bulk_prepare_enable(opp_info->num_clks,
+					      opp_info->clks);
+		if (ret) {
+			dev_err(dev, "failed to enable opp clks\n");
+			goto unlock;
+		}
+	}
 
 	vdd_reg = info->regulators[0];
 	old_rate = clk_get_rate(info->clk);
@@ -1131,6 +1151,7 @@ int rockchip_monitor_check_rate_volt(struct monitor_dev_info *info)
 				__func__, new_volt);
 			goto restore_voltage;
 		}
+		rockchip_monitor_set_read_margin(dev, opp_info, new_volt);
 		if (new_rate == old_rate)
 			goto unlock;
 	}
@@ -1139,10 +1160,11 @@ int rockchip_monitor_check_rate_volt(struct monitor_dev_info *info)
 	if (ret) {
 		dev_err(dev, "%s: failed to set clock rate: %lu\n",
 			__func__, new_rate);
-		goto restore_voltage;
+		goto restore_rm;
 	}
 
 	if (new_rate < old_rate) {
+		rockchip_monitor_set_read_margin(dev, opp_info, new_volt);
 		ret = regulator_set_voltage(vdd_reg, new_volt,
 					    INT_MAX);
 		if (ret) {
@@ -1160,17 +1182,21 @@ int rockchip_monitor_check_rate_volt(struct monitor_dev_info *info)
 			}
 		}
 	}
-	goto unlock;
+	goto disable_clk;
 
 restore_freq:
 	if (clk_set_rate(info->clk, old_rate))
 		dev_err(dev, "%s: failed to restore old-freq (%lu Hz)\n",
 			__func__, old_rate);
+restore_rm:
+	rockchip_monitor_set_read_margin(dev, opp_info, new_volt);
 restore_voltage:
 	if (info->regulator_count > 1)
 		regulator_set_voltage(mem_reg, old_mem_volt, INT_MAX);
 	regulator_set_voltage(vdd_reg, old_volt, INT_MAX);
-
+disable_clk:
+	if (opp_info)
+		clk_bulk_disable_unprepare(opp_info->num_clks, opp_info->clks);
 unlock:
 	mutex_unlock(&info->volt_adjust_mutex);
 
