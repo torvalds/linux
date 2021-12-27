@@ -288,18 +288,20 @@ int smc_wr_tx_send_wait(struct smc_link *link, struct smc_wr_tx_pend_priv *priv,
 			unsigned long timeout)
 {
 	struct smc_wr_tx_pend *pend;
+	u32 pnd_idx;
 	int rc;
 
 	pend = container_of(priv, struct smc_wr_tx_pend, priv);
 	pend->compl_requested = 1;
-	init_completion(&link->wr_tx_compl[pend->idx]);
+	pnd_idx = pend->idx;
+	init_completion(&link->wr_tx_compl[pnd_idx]);
 
 	rc = smc_wr_tx_send(link, priv);
 	if (rc)
 		return rc;
 	/* wait for completion by smc_wr_tx_process_cqe() */
 	rc = wait_for_completion_interruptible_timeout(
-					&link->wr_tx_compl[pend->idx], timeout);
+					&link->wr_tx_compl[pnd_idx], timeout);
 	if (rc <= 0)
 		rc = -ENODATA;
 	if (rc > 0)
