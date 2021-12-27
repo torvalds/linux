@@ -892,13 +892,6 @@ static inline int head_compound_pincount(struct page *head)
 	return atomic_read(compound_pincount_ptr(head));
 }
 
-static inline int compound_pincount(struct page *page)
-{
-	VM_BUG_ON_PAGE(!PageCompound(page), page);
-	page = compound_head(page);
-	return head_compound_pincount(page);
-}
-
 static inline void set_compound_order(struct page *page, unsigned int order)
 {
 	page[1].compound_order = order;
@@ -1236,68 +1229,9 @@ void unpin_user_page_range_dirty_lock(struct page *page, unsigned long npages,
 				      bool make_dirty);
 void unpin_user_pages(struct page **pages, unsigned long npages);
 
-/**
- * page_maybe_dma_pinned - Report if a page is pinned for DMA.
- * @page: The page.
- *
- * This function checks if a page has been pinned via a call to
- * a function in the pin_user_pages() family.
- *
- * For non-huge pages, the return value is partially fuzzy: false is not fuzzy,
- * because it means "definitely not pinned for DMA", but true means "probably
- * pinned for DMA, but possibly a false positive due to having at least
- * GUP_PIN_COUNTING_BIAS worth of normal page references".
- *
- * False positives are OK, because: a) it's unlikely for a page to get that many
- * refcounts, and b) all the callers of this routine are expected to be able to
- * deal gracefully with a false positive.
- *
- * For huge pages, the result will be exactly correct. That's because we have
- * more tracking data available: the 3rd struct page in the compound page is
- * used to track the pincount (instead using of the GUP_PIN_COUNTING_BIAS
- * scheme).
- *
- * For more information, please see Documentation/core-api/pin_user_pages.rst.
- *
- * Return: True, if it is likely that the page has been "dma-pinned".
- * False, if the page is definitely not dma-pinned.
- */
-static inline bool page_maybe_dma_pinned(struct page *page)
-{
-	if (PageCompound(page))
-		return compound_pincount(page) > 0;
-
-	/*
-	 * page_ref_count() is signed. If that refcount overflows, then
-	 * page_ref_count() returns a negative value, and callers will avoid
-	 * further incrementing the refcount.
-	 *
-	 * Here, for that overflow case, use the signed bit to count a little
-	 * bit higher via unsigned math, and thus still get an accurate result.
-	 */
-	return ((unsigned int)page_ref_count(compound_head(page))) >=
-		GUP_PIN_COUNTING_BIAS;
-}
-
 static inline bool is_cow_mapping(vm_flags_t flags)
 {
 	return (flags & (VM_SHARED | VM_MAYWRITE)) == VM_MAYWRITE;
-}
-
-/*
- * This should most likely only be called during fork() to see whether we
- * should break the cow immediately for a page on the src mm.
- */
-static inline bool page_needs_cow_for_dma(struct vm_area_struct *vma,
-					  struct page *page)
-{
-	if (!is_cow_mapping(vma->vm_flags))
-		return false;
-
-	if (!test_bit(MMF_HAS_PINNED, &vma->vm_mm->flags))
-		return false;
-
-	return page_maybe_dma_pinned(page);
 }
 
 #if defined(CONFIG_SPARSEMEM) && !defined(CONFIG_SPARSEMEM_VMEMMAP)
@@ -1547,6 +1481,69 @@ static inline unsigned long folio_pfn(struct folio *folio)
 static inline atomic_t *folio_pincount_ptr(struct folio *folio)
 {
 	return &folio_page(folio, 1)->compound_pincount;
+}
+
+/**
+ * folio_maybe_dma_pinned - Report if a folio may be pinned for DMA.
+ * @folio: The folio.
+ *
+ * This function checks if a folio has been pinned via a call to
+ * a function in the pin_user_pages() family.
+ *
+ * For small folios, the return value is partially fuzzy: false is not fuzzy,
+ * because it means "definitely not pinned for DMA", but true means "probably
+ * pinned for DMA, but possibly a false positive due to having at least
+ * GUP_PIN_COUNTING_BIAS worth of normal folio references".
+ *
+ * False positives are OK, because: a) it's unlikely for a folio to
+ * get that many refcounts, and b) all the callers of this routine are
+ * expected to be able to deal gracefully with a false positive.
+ *
+ * For large folios, the result will be exactly correct. That's because
+ * we have more tracking data available: the compound_pincount is used
+ * instead of the GUP_PIN_COUNTING_BIAS scheme.
+ *
+ * For more information, please see Documentation/core-api/pin_user_pages.rst.
+ *
+ * Return: True, if it is likely that the page has been "dma-pinned".
+ * False, if the page is definitely not dma-pinned.
+ */
+static inline bool folio_maybe_dma_pinned(struct folio *folio)
+{
+	if (folio_test_large(folio))
+		return atomic_read(folio_pincount_ptr(folio)) > 0;
+
+	/*
+	 * folio_ref_count() is signed. If that refcount overflows, then
+	 * folio_ref_count() returns a negative value, and callers will avoid
+	 * further incrementing the refcount.
+	 *
+	 * Here, for that overflow case, use the sign bit to count a little
+	 * bit higher via unsigned math, and thus still get an accurate result.
+	 */
+	return ((unsigned int)folio_ref_count(folio)) >=
+		GUP_PIN_COUNTING_BIAS;
+}
+
+static inline bool page_maybe_dma_pinned(struct page *page)
+{
+	return folio_maybe_dma_pinned(page_folio(page));
+}
+
+/*
+ * This should most likely only be called during fork() to see whether we
+ * should break the cow immediately for a page on the src mm.
+ */
+static inline bool page_needs_cow_for_dma(struct vm_area_struct *vma,
+					  struct page *page)
+{
+	if (!is_cow_mapping(vma->vm_flags))
+		return false;
+
+	if (!test_bit(MMF_HAS_PINNED, &vma->vm_mm->flags))
+		return false;
+
+	return page_maybe_dma_pinned(page);
 }
 
 /* MIGRATE_CMA and ZONE_MOVABLE do not allow pin pages */
