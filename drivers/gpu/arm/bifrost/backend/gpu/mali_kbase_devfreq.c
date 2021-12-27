@@ -141,7 +141,8 @@ int kbase_devfreq_opp_helper(struct dev_pm_set_opp_data *data)
 	unsigned long new_freq = data->new_opp.rate;
 	int ret = 0;
 
-	if (clk_bulk_prepare_enable(opp_info->num_clks,  opp_info->clks) < 0) {
+	ret = clk_bulk_prepare_enable(opp_info->num_clks,  opp_info->clks);
+	if (ret) {
 		dev_err(dev, "failed to enable opp clks\n");
 		return ret;
 	}
@@ -172,7 +173,7 @@ int kbase_devfreq_opp_helper(struct dev_pm_set_opp_data *data)
 	ret = clk_set_rate(clk, new_freq);
 	if (ret) {
 		dev_err(dev, "failed to set clk rate: %d\n", ret);
-		goto restore_voltage;
+		goto restore_rm;
 	}
 
 	/* Scaling down? Scale voltage after frequency */
@@ -201,15 +202,16 @@ int kbase_devfreq_opp_helper(struct dev_pm_set_opp_data *data)
 	return 0;
 
 restore_freq:
+	if (clk_set_rate(clk, old_freq))
+		dev_err(dev, "failed to restore old-freq %lu Hz\n", old_freq);
+restore_rm:
 	if (opp_info->data->set_read_margin)
 		opp_info->data->set_read_margin(dev, opp_info,
 						old_supply_vdd->u_volt);
-	if (clk_set_rate(clk, old_freq))
-		dev_err(dev, "failed to restore old-freq %lu Hz\n", old_freq);
-	clk_bulk_disable_unprepare(opp_info->num_clks, opp_info->clks);
 restore_voltage:
 	regulator_set_voltage(mem_reg, old_supply_mem->u_volt, INT_MAX);
 	regulator_set_voltage(vdd_reg, old_supply_vdd->u_volt, INT_MAX);
+	clk_bulk_disable_unprepare(opp_info->num_clks, opp_info->clks);
 
 	return ret;
 }
@@ -741,6 +743,7 @@ int kbase_devfreq_init(struct kbase_device *kbdev)
 	}
 
 	mali_mdevp.data = kbdev->devfreq;
+	mali_mdevp.opp_info = &kbdev->opp_info;
 	kbdev->mdev_info = rockchip_system_monitor_register(kbdev->dev,
 			&mali_mdevp);
 	if (IS_ERR(kbdev->mdev_info)) {

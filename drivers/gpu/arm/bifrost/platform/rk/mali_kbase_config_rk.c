@@ -467,6 +467,8 @@ static int rk3588_gpu_set_read_margin(struct device *dev,
 
 	if (!is_found)
 		return 0;
+	if (rm == opp_info->current_rm)
+		return 0;
 
 	dev_dbg(dev, "set rm to %d\n", rm);
 
@@ -485,6 +487,8 @@ static int rk3588_gpu_set_read_margin(struct device *dev,
 	}
 	val &= ~0x1c;
 	regmap_write(opp_info->grf, 0x28, val | (rm << 2));
+
+	opp_info->current_rm = rm;
 
 	return 0;
 }
