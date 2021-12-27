@@ -53,6 +53,9 @@ enum prestera_cmd_type_t {
 	PRESTERA_CMD_TYPE_VTCAM_IFACE_BIND = 0x560,
 	PRESTERA_CMD_TYPE_VTCAM_IFACE_UNBIND = 0x561,
 
+	PRESTERA_CMD_TYPE_ROUTER_VR_CREATE = 0x630,
+	PRESTERA_CMD_TYPE_ROUTER_VR_DELETE = 0x631,
+
 	PRESTERA_CMD_TYPE_RXTX_INIT = 0x800,
 
 	PRESTERA_CMD_TYPE_LAG_MEMBER_ADD = 0x900,
@@ -480,6 +483,18 @@ struct prestera_msg_rxtx_resp {
 	__le32 map_addr;
 };
 
+struct prestera_msg_vr_req {
+	struct prestera_msg_cmd cmd;
+	__le16 vr_id;
+	u8 __pad[2];
+};
+
+struct prestera_msg_vr_resp {
+	struct prestera_msg_ret ret;
+	__le16 vr_id;
+	u8 __pad[2];
+};
+
 struct prestera_msg_lag_req {
 	struct prestera_msg_cmd cmd;
 	__le32 port;
@@ -549,6 +564,7 @@ static void prestera_hw_build_tests(void)
 	BUILD_BUG_ON(sizeof(struct prestera_msg_acl_action) != 32);
 	BUILD_BUG_ON(sizeof(struct prestera_msg_counter_req) != 16);
 	BUILD_BUG_ON(sizeof(struct prestera_msg_counter_stats) != 16);
+	BUILD_BUG_ON(sizeof(struct prestera_msg_vr_req) != 8);
 
 	/* check responses */
 	BUILD_BUG_ON(sizeof(struct prestera_msg_common_resp) != 8);
@@ -561,6 +577,7 @@ static void prestera_hw_build_tests(void)
 	BUILD_BUG_ON(sizeof(struct prestera_msg_rxtx_resp) != 12);
 	BUILD_BUG_ON(sizeof(struct prestera_msg_vtcam_resp) != 16);
 	BUILD_BUG_ON(sizeof(struct prestera_msg_counter_resp) != 24);
+	BUILD_BUG_ON(sizeof(struct prestera_msg_vr_resp) != 12);
 
 	/* check events */
 	BUILD_BUG_ON(sizeof(struct prestera_msg_event_port) != 20);
@@ -1750,6 +1767,31 @@ int prestera_hw_bridge_port_delete(struct prestera_port *port, u16 bridge_id)
 
 	return prestera_cmd(port->sw, PRESTERA_CMD_TYPE_BRIDGE_PORT_DELETE,
 			    &req.cmd, sizeof(req));
+}
+
+int prestera_hw_vr_create(struct prestera_switch *sw, u16 *vr_id)
+{
+	int err;
+	struct prestera_msg_vr_resp resp;
+	struct prestera_msg_vr_req req;
+
+	err = prestera_cmd_ret(sw, PRESTERA_CMD_TYPE_ROUTER_VR_CREATE,
+			       &req.cmd, sizeof(req), &resp.ret, sizeof(resp));
+	if (err)
+		return err;
+
+	*vr_id = __le16_to_cpu(resp.vr_id);
+	return err;
+}
+
+int prestera_hw_vr_delete(struct prestera_switch *sw, u16 vr_id)
+{
+	struct prestera_msg_vr_req req = {
+		.vr_id = __cpu_to_le16(vr_id),
+	};
+
+	return prestera_cmd(sw, PRESTERA_CMD_TYPE_ROUTER_VR_DELETE, &req.cmd,
+			    sizeof(req));
 }
 
 int prestera_hw_rxtx_init(struct prestera_switch *sw,
