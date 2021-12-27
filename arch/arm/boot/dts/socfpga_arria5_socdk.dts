@@ -7,7 +7,7 @@
 
 / {
 	model = "Altera SOCFPGA Arria V SoC Development Kit";
-	compatible = "altr,socfpga-arria5", "altr,socfpga";
+	compatible = "altr,socfpga-arria5-socdk", "altr,socfpga-arria5", "altr,socfpga";
 
 	chosen {
 		bootargs = "earlyprintk";
