@@ -199,6 +199,8 @@ static int rk3588_cpu_set_read_margin(struct device *dev,
 
 	if (!is_found)
 		return 0;
+	if (rm == opp_info->current_rm)
+		return 0;
 
 	dev_dbg(dev, "set rm to %d\n", rm);
 	regmap_write(opp_info->grf, 0x20, 0x001c0000 | (rm << 2));
@@ -207,6 +209,8 @@ static int rk3588_cpu_set_read_margin(struct device *dev,
 	regmap_write(opp_info->grf, 0x30, 0x00200020);
 	udelay(1);
 	regmap_write(opp_info->grf, 0x30, 0x00200000);
+
+	opp_info->current_rm = rm;
 
 	return 0;
 }
@@ -364,7 +368,7 @@ static int cpu_opp_helper(struct dev_pm_set_opp_data *data)
 	ret = clk_set_rate(clk, new_freq);
 	if (ret) {
 		dev_err(dev, "%s: failed to set clk rate: %d\n", __func__, ret);
-		goto restore_voltage;
+		goto restore_rm;
 	}
 
 	/* Scaling down? Scale voltage after frequency */
@@ -385,12 +389,13 @@ static int cpu_opp_helper(struct dev_pm_set_opp_data *data)
 	return 0;
 
 restore_freq:
-	if (opp_info->data->set_read_margin)
-		opp_info->data->set_read_margin(dev, opp_info,
-						old_supply_vdd->u_volt);
 	if (clk_set_rate(clk, old_freq))
 		dev_err(dev, "%s: failed to restore old-freq (%lu Hz)\n",
 			__func__, old_freq);
+restore_rm:
+	if (opp_info->data->set_read_margin)
+		opp_info->data->set_read_margin(dev, opp_info,
+						old_supply_vdd->u_volt);
 restore_voltage:
 	rockchip_cpufreq_set_volt(dev, mem_reg, old_supply_mem, "mem");
 	rockchip_cpufreq_set_volt(dev, vdd_reg, old_supply_vdd, "vdd");
@@ -438,6 +443,7 @@ static int rockchip_cpufreq_cluster_init(int cpu, struct cluster_info *cluster)
 
 	rockchip_get_opp_data(rockchip_cpufreq_of_match, opp_info);
 	if (opp_info->data && opp_info->data->set_read_margin) {
+		opp_info->current_rm = UINT_MAX;
 		opp_info->grf = syscon_regmap_lookup_by_phandle(np,
 								"rockchip,grf");
 		if (IS_ERR(opp_info->grf))
@@ -554,6 +560,7 @@ static int rockchip_cpufreq_notifier(struct notifier_block *nb,
 		mdevp->high_temp_adjust = rockchip_monitor_cpu_high_temp_adjust;
 		mdevp->update_volt = rockchip_monitor_check_rate_volt;
 		mdevp->data = (void *)policy;
+		mdevp->opp_info = &cluster->opp_info;
 		cpumask_copy(&mdevp->allowed_cpus, policy->cpus);
 		mdev_info = rockchip_system_monitor_register(dev, mdevp);
 		if (IS_ERR(mdev_info)) {
