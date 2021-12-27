@@ -315,6 +315,8 @@ extern int nfs4_set_rw_stateid(nfs4_stateid *stateid,
 		const struct nfs_open_context *ctx,
 		const struct nfs_lock_context *l_ctx,
 		fmode_t fmode);
+extern void nfs4_bitmask_set(__u32 bitmask[], const __u32 src[],
+			     struct inode *inode, unsigned long cache_validity);
 extern int nfs4_proc_getattr(struct nfs_server *server, struct nfs_fh *fhandle,
 			     struct nfs_fattr *fattr, struct inode *inode);
 extern int update_open_stateid(struct nfs4_state *state,
