@@ -673,6 +673,9 @@ static enum std_req_rc ast_vhub_set_port_feature(struct ast_vhub_ep *ep,
 		ast_vhub_port_reset(vhub, port);
 		return std_req_complete;
 	case USB_PORT_FEAT_POWER:
+		ast_vhub_change_port_stat(vhub, port,
+					  0, USB_PORT_STAT_POWER,
+					  false);
 		/*
 		 * On Power-on, we mark the connected flag changed,
 		 * if there's a connected device, some hosts will
@@ -749,9 +752,6 @@ static enum std_req_rc ast_vhub_get_port_stat(struct ast_vhub_ep *ep,
 
 	stat = vhub->ports[port].status;
 	chg = vhub->ports[port].change;
-
-	/* We always have power */
-	stat |= USB_PORT_STAT_POWER;
 
 	EPDBG(ep, " port status=%04x change=%04x\n", stat, chg);
 
