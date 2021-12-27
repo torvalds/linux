@@ -886,6 +886,15 @@ static void rockchip_hdptx_phy_reset(struct rockchip_hdptx_phy *hdptx)
 			   FIELD_PREP(BGR_EN, 0));
 }
 
+static bool rockchip_hdptx_phy_enabled(struct rockchip_hdptx_phy *hdptx)
+{
+	u32 status;
+
+	regmap_read(hdptx->grf, HDPTXPHY_GRF_STATUS0, &status);
+
+	return FIELD_GET(SB_RDY, status);
+}
+
 static int rockchip_hdptx_phy_power_on(struct phy *phy)
 {
 	struct rockchip_hdptx_phy *hdptx = phy_get_drvdata(phy);
@@ -896,6 +905,9 @@ static int rockchip_hdptx_phy_power_on(struct phy *phy)
 	ret = clk_bulk_prepare_enable(hdptx->nr_clks, hdptx->clks);
 	if (ret)
 		return ret;
+
+	if (rockchip_hdptx_phy_enabled(hdptx))
+		return 0;
 
 	rockchip_hdptx_phy_reset(hdptx);
 
