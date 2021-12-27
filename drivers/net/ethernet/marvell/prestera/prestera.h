@@ -225,6 +225,29 @@ struct prestera_event {
 	};
 };
 
+enum prestera_if_type {
+	/* the interface is of port type (dev,port) */
+	PRESTERA_IF_PORT_E = 0,
+
+	/* the interface is of lag type (lag-id) */
+	PRESTERA_IF_LAG_E = 1,
+
+	/* the interface is of Vid type (vlan-id) */
+	PRESTERA_IF_VID_E = 3,
+};
+
+struct prestera_iface {
+	enum prestera_if_type type;
+	struct {
+		u32 hw_dev_num;
+		u32 port_num;
+	} dev_port;
+	u32 hw_dev_num;
+	u16 vr_id;
+	u16 lag_id;
+	u16 vlan_id;
+};
+
 struct prestera_switchdev;
 struct prestera_span;
 struct prestera_rxtx;
