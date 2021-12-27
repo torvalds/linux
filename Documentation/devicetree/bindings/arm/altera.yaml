@@ -16,6 +16,8 @@ properties:
     oneOf:
       - description: Arria 5 boards
         items:
+          - enum:
+              - altr,socfpga-arria5-socdk
           - const: altr,socfpga-arria5
           - const: altr,socfpga
 
