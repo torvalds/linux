@@ -397,8 +397,6 @@ static int aspeed_jtag_hw_set_tap_state(struct aspeed_jtag_info *aspeed_jtag,
 {
 	int ret;
 
-	aspeed_jtag_write(aspeed_jtag, 0, ASPEED_JTAG_SW); //dis sw mode
-	mdelay(2);
 	if (endstate == JTAG_STATE_TLRESET) {
 		ret = aspeed_jtag_run_to_tlr(aspeed_jtag);
 	} else if (endstate == JTAG_STATE_IDLE) {
@@ -657,7 +655,7 @@ static void aspeed_hw_jtag_xfer(struct aspeed_jtag_info *aspeed_jtag,
 	u32 fifo_reg = xfer->type ? ASPEED_JTAG_DATA : ASPEED_JTAG_INST;
 	u32 *xfer_data_32 = (u32 *)xfer_data;
 
-	aspeed_jtag_write(aspeed_jtag, 0, ASPEED_JTAG_SW); //dis sw mode
+
 
 	while (remain_xfer) {
 		if (remain_xfer > aspeed_jtag->config->jtag_buff_len) {
@@ -886,13 +884,20 @@ static int aspeed_jtag_bitbang(struct jtag *jtag,
 	return 0;
 }
 
+static inline void aspeed_jtag_xfer_mode_set(struct aspeed_jtag_info *aspeed_jtag, u32 mode)
+{
+	if (mode == JTAG_XFER_HW_MODE)
+		aspeed_jtag_write(aspeed_jtag, 0, ASPEED_JTAG_SW);
+	aspeed_jtag->mode = mode;
+}
+
 static int aspeed_jtag_mode_set(struct jtag *jtag, struct jtag_mode *jtag_mode)
 {
 	struct aspeed_jtag_info *aspeed_jtag = jtag_priv(jtag);
 
 	switch (jtag_mode->feature) {
 	case JTAG_XFER_MODE:
-		aspeed_jtag->mode = jtag_mode->mode;
+		aspeed_jtag_xfer_mode_set(aspeed_jtag, jtag_mode->mode);
 		break;
 	case JTAG_CONTROL_MODE:
 		return -ENOTSUPP;
@@ -999,7 +1004,7 @@ static int aspeed_jtag_probe(struct platform_device *pdev)
 			  JTAG_DATA_PAUSE | JTAG_DATA_COMPLETE,
 			  ASPEED_JTAG_ISR);
 
-	aspeed_jtag->mode = JTAG_XFER_HW_MODE;
+	aspeed_jtag_xfer_mode_set(aspeed_jtag, JTAG_XFER_HW_MODE);
 	aspeed_jtag->flag = 0;
 	aspeed_jtag->sts = JTAG_STATE_IDLE;
 	init_waitqueue_head(&aspeed_jtag->jtag_wq);
