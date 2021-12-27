@@ -13,12 +13,30 @@ properties:
   $nodename:
     const: "/"
   compatible:
-    items:
-      - enum:
-          - altr,socfpga-cyclone5
-          - altr,socfpga-arria5
-          - altr,socfpga-arria10
-      - const: altr,socfpga
+    oneOf:
+      - description: Arria 5 boards
+        items:
+          - const: altr,socfpga-arria5
+          - const: altr,socfpga
+
+      - description: Arria 10 boards
+        items:
+          - const: altr,socfpga-arria10
+          - const: altr,socfpga
+
+      - description: Cyclone 5 boards
+        items:
+          - enum:
+              - altr,socfpga-cyclone5-socdk
+              - denx,mcvevk
+              - ebv,socrates
+              - macnica,sodia
+              - novtech,chameleon96
+              - samtec,vining
+              - terasic,de0-atlas
+              - terasic,socfpga-cyclone5-sockit
+          - const: altr,socfpga-cyclone5
+          - const: altr,socfpga
 
 additionalProperties: true
 
