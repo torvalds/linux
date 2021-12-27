@@ -1723,6 +1723,8 @@ int analogix_dp_loader_protect(struct analogix_dp_device *dp)
 		return ret;
 	}
 
+	analogix_dp_phy_power_on(dp);
+
 	dp->dpms_mode = DRM_MODE_DPMS_ON;
 
 	return 0;
