@@ -41,6 +41,7 @@ extern int cryptodev_verbosity;
 
 struct fcrypt {
 	struct list_head list;
+	struct list_head dma_map_list;
 	struct mutex sem;
 };
 

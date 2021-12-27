@@ -6,6 +6,59 @@
 #define __RK_CRYPTODEV_INT_H__
 
 #include <linux/device.h>
+#include "crypto/rk_cryptodev.h"
+#include "cryptodev_int.h"
+
+/* compatibility stuff */
+#ifdef CONFIG_COMPAT
+#include <linux/compat.h>
+
+/* input of RIOCCRYPT_FD */
+struct compat_crypt_fd_op {
+	uint32_t	ses;		/* session identifier */
+	uint16_t	op;		/* COP_ENCRYPT or COP_DECRYPT */
+	uint16_t	flags;		/* see COP_FLAG_* */
+	uint32_t	len;		/* length of source data */
+	int		src_fd;		/* source data */
+	int		dst_fd;		/* pointer to output data */
+	compat_uptr_t	mac;/* pointer to output data for hash/MAC operations */
+	compat_uptr_t	iv;/* initialization vector for encryption operations */
+};
+
+/* input of RIOCCRYPT_FD_MAP/RIOCCRYPT_FD_UNMAP */
+struct compat_crypt_fd_map_op {
+	int		dma_fd;		/* session identifier */
+	uint32_t	phys_addr;	/* physics addr */
+};
+
+/* compat ioctls, defined for the above structs */
+#define COMPAT_RIOCCRYPT_FD		_IOWR('r', 104, struct compat_crypt_fd_op)
+#define COMPAT_RIOCCRYPT_FD_MAP		_IOWR('r', 105, struct compat_crypt_fd_map_op)
+#define COMPAT_RIOCCRYPT_FD_UNMAP	_IOW('r',  106, struct compat_crypt_fd_map_op)
+#define COMPAT_RIOCCRYPT_CPU_ACCESS	_IOW('r',  107, struct compat_crypt_fd_map_op)
+#define COMPAT_RIOCCRYPT_DEV_ACCESS	_IOW('r',  108, struct compat_crypt_fd_map_op)
+
+
+#endif /* CONFIG_COMPAT */
+
+/* kernel-internal extension to struct crypt_op */
+struct kernel_crypt_fd_op {
+	struct crypt_fd_op cop;
+
+	int ivlen;
+	__u8 iv[EALG_MAX_BLOCK_LEN];
+
+	int digestsize;
+	uint8_t hash_output[AALG_MAX_RESULT_LEN];
+
+	struct task_struct *task;
+	struct mm_struct *mm;
+};
+
+/* kernel-internal extension to struct crypt_fd_map_op */
+struct kernel_crypt_fd_map_op {
+	struct crypt_fd_map_op mop;
+};
 
 #if IS_ENABLED(CONFIG_CRYPTO_DEV_ROCKCHIP_DEV)
 int rk_cryptodev_register_dev(struct device *dev, const char *name);
@@ -21,5 +74,11 @@ static inline int rk_cryptodev_unregister_dev(struct device *dev)
 	return 0;
 }
 #endif
+
+long
+rk_cryptodev_ioctl(struct fcrypt *fcr, unsigned int cmd, unsigned long arg_);
+
+long
+rk_compat_cryptodev_ioctl(struct fcrypt *fcr, unsigned int cmd, unsigned long arg_);
 
 #endif

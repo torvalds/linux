@@ -54,6 +54,8 @@
 #include "version.h"
 #include "cipherapi.h"
 
+#include "rk_cryptodev_int.h"
+
 MODULE_AUTHOR("Nikos Mavrogiannopoulos <nmav@gnutls.org>");
 MODULE_DESCRIPTION("CryptoDev driver");
 MODULE_LICENSE("GPL");
@@ -560,6 +562,7 @@ cryptodev_open(struct inode *inode, struct file *filp)
 	mutex_init(&pcr->done.lock);
 
 	INIT_LIST_HEAD(&pcr->fcrypt.list);
+	INIT_LIST_HEAD(&pcr->fcrypt.dma_map_list);
 	INIT_LIST_HEAD(&pcr->free.list);
 	INIT_LIST_HEAD(&pcr->todo.list);
 	INIT_LIST_HEAD(&pcr->done.list);
@@ -1002,7 +1005,7 @@ cryptodev_ioctl(struct file *filp, unsigned int cmd, unsigned long arg_)
 		return kcop_to_user(&kcop, fcr, arg);
 #endif
 	default:
-		return -EINVAL;
+		return rk_cryptodev_ioctl(fcr, cmd, arg_);
 	}
 }
 
@@ -1160,7 +1163,7 @@ cryptodev_compat_ioctl(struct file *file, unsigned int cmd, unsigned long arg_)
 		return compat_kcop_to_user(&kcop, fcr, arg);
 #endif
 	default:
-		return -EINVAL;
+		return rk_compat_cryptodev_ioctl(fcr, cmd, arg_);
 	}
 }
 
