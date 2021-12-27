@@ -218,7 +218,8 @@ enum rk_cipher_mode {
 		.base.cra_name		= #algo_name,\
 		.base.cra_driver_name	= #driver_name,\
 		.base.cra_priority	= RK_CRYPTO_PRIORITY,\
-		.base.cra_flags		= CRYPTO_ALG_ASYNC |\
+		.base.cra_flags		= CRYPTO_ALG_KERN_DRIVER_ONLY |\
+					  CRYPTO_ALG_ASYNC |\
 					  CRYPTO_ALG_NEED_FALLBACK,\
 		.base.cra_blocksize	= cipher_algo##_BLOCK_SIZE,\
 		.base.cra_ctxsize	= sizeof(struct rk_cipher_ctx),\
@@ -245,7 +246,8 @@ enum rk_cipher_mode {
 		.base.cra_name		= #algo_name,\
 		.base.cra_driver_name	= #driver_name,\
 		.base.cra_priority	= RK_CRYPTO_PRIORITY,\
-		.base.cra_flags		= CRYPTO_ALG_ASYNC |\
+		.base.cra_flags		= CRYPTO_ALG_KERN_DRIVER_ONLY |\
+					  CRYPTO_ALG_ASYNC |\
 					  CRYPTO_ALG_NEED_FALLBACK,\
 		.base.cra_blocksize	= cipher_algo##_BLOCK_SIZE,\
 		.base.cra_ctxsize	= sizeof(struct rk_cipher_ctx),\
@@ -282,8 +284,9 @@ enum rk_cipher_mode {
 				.cra_name = #algo_name,\
 				.cra_driver_name = #algo_name"-rk",\
 				.cra_priority = RK_CRYPTO_PRIORITY,\
-				.cra_flags = CRYPTO_ALG_ASYNC |\
-						 CRYPTO_ALG_NEED_FALLBACK,\
+				.cra_flags = CRYPTO_ALG_KERN_DRIVER_ONLY |\
+					     CRYPTO_ALG_ASYNC |\
+					     CRYPTO_ALG_NEED_FALLBACK,\
 				.cra_blocksize = hash_algo##_BLOCK_SIZE,\
 				.cra_ctxsize = sizeof(struct rk_ahash_ctx),\
 				.cra_alignmask = 3,\
@@ -315,8 +318,9 @@ enum rk_cipher_mode {
 				.cra_name = "hmac(" #algo_name ")",\
 				.cra_driver_name = "hmac-" #algo_name "-rk",\
 				.cra_priority = RK_CRYPTO_PRIORITY,\
-				.cra_flags = CRYPTO_ALG_ASYNC |\
-						 CRYPTO_ALG_NEED_FALLBACK,\
+				.cra_flags = CRYPTO_ALG_KERN_DRIVER_ONLY |\
+					     CRYPTO_ALG_ASYNC |\
+					     CRYPTO_ALG_NEED_FALLBACK,\
 				.cra_blocksize = hash_algo##_BLOCK_SIZE,\
 				.cra_ctxsize = sizeof(struct rk_ahash_ctx),\
 				.cra_alignmask = 3,\
