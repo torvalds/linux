@@ -61,6 +61,20 @@
 #define PERF_STATUS_THROTTLE_TIME_MASK 0xffffffff
 #define PP_POLICY_MASK         0x1F
 
+/*
+ * SPR has different layout for Psys Domain PowerLimit registers.
+ * There are 17 bits of PL1 and PL2 instead of 15 bits.
+ * The Enable bits and TimeWindow bits are also shifted as a result.
+ */
+#define PSYS_POWER_LIMIT1_MASK       0x1FFFF
+#define PSYS_POWER_LIMIT1_ENABLE     BIT(17)
+
+#define PSYS_POWER_LIMIT2_MASK       (0x1FFFFULL<<32)
+#define PSYS_POWER_LIMIT2_ENABLE     BIT_ULL(49)
+
+#define PSYS_TIME_WINDOW1_MASK       (0x7FULL<<19)
+#define PSYS_TIME_WINDOW2_MASK       (0x7FULL<<51)
+
 /* Non HW constants */
 #define RAPL_PRIMITIVE_DERIVED       BIT(1)	/* not from raw data */
 #define RAPL_PRIMITIVE_DUMMY         BIT(2)
@@ -97,6 +111,7 @@ struct rapl_defaults {
 				    bool to_raw);
 	unsigned int dram_domain_energy_unit;
 	unsigned int psys_domain_energy_unit;
+	bool spr_psys_bits;
 };
 static struct rapl_defaults *rapl_defaults;
 
@@ -669,11 +684,50 @@ static struct rapl_primitive_info rpi[] = {
 			    RAPL_DOMAIN_REG_PERF, TIME_UNIT, 0),
 	PRIMITIVE_INFO_INIT(PRIORITY_LEVEL, PP_POLICY_MASK, 0,
 			    RAPL_DOMAIN_REG_POLICY, ARBITRARY_UNIT, 0),
+	PRIMITIVE_INFO_INIT(PSYS_POWER_LIMIT1, PSYS_POWER_LIMIT1_MASK, 0,
+			    RAPL_DOMAIN_REG_LIMIT, POWER_UNIT, 0),
+	PRIMITIVE_INFO_INIT(PSYS_POWER_LIMIT2, PSYS_POWER_LIMIT2_MASK, 32,
+			    RAPL_DOMAIN_REG_LIMIT, POWER_UNIT, 0),
+	PRIMITIVE_INFO_INIT(PSYS_PL1_ENABLE, PSYS_POWER_LIMIT1_ENABLE, 17,
+			    RAPL_DOMAIN_REG_LIMIT, ARBITRARY_UNIT, 0),
+	PRIMITIVE_INFO_INIT(PSYS_PL2_ENABLE, PSYS_POWER_LIMIT2_ENABLE, 49,
+			    RAPL_DOMAIN_REG_LIMIT, ARBITRARY_UNIT, 0),
+	PRIMITIVE_INFO_INIT(PSYS_TIME_WINDOW1, PSYS_TIME_WINDOW1_MASK, 19,
+			    RAPL_DOMAIN_REG_LIMIT, TIME_UNIT, 0),
+	PRIMITIVE_INFO_INIT(PSYS_TIME_WINDOW2, PSYS_TIME_WINDOW2_MASK, 51,
+			    RAPL_DOMAIN_REG_LIMIT, TIME_UNIT, 0),
 	/* non-hardware */
 	PRIMITIVE_INFO_INIT(AVERAGE_POWER, 0, 0, 0, POWER_UNIT,
 			    RAPL_PRIMITIVE_DERIVED),
 	{NULL, 0, 0, 0},
 };
+
+static enum rapl_primitives
+prim_fixups(struct rapl_domain *rd, enum rapl_primitives prim)
+{
+	if (!rapl_defaults->spr_psys_bits)
+		return prim;
+
+	if (rd->id != RAPL_DOMAIN_PLATFORM)
+		return prim;
+
+	switch (prim) {
+	case POWER_LIMIT1:
+		return PSYS_POWER_LIMIT1;
+	case POWER_LIMIT2:
+		return PSYS_POWER_LIMIT2;
+	case PL1_ENABLE:
+		return PSYS_PL1_ENABLE;
+	case PL2_ENABLE:
+		return PSYS_PL2_ENABLE;
+	case TIME_WINDOW1:
+		return PSYS_TIME_WINDOW1;
+	case TIME_WINDOW2:
+		return PSYS_TIME_WINDOW2;
+	default:
+		return prim;
+	}
+}
 
 /* Read primitive data based on its related struct rapl_primitive_info.
  * if xlate flag is set, return translated data based on data units, i.e.
@@ -692,7 +746,8 @@ static int rapl_read_data_raw(struct rapl_domain *rd,
 			      enum rapl_primitives prim, bool xlate, u64 *data)
 {
 	u64 value;
-	struct rapl_primitive_info *rp = &rpi[prim];
+	enum rapl_primitives prim_fixed = prim_fixups(rd, prim);
+	struct rapl_primitive_info *rp = &rpi[prim_fixed];
 	struct reg_action ra;
 	int cpu;
 
@@ -738,7 +793,8 @@ static int rapl_write_data_raw(struct rapl_domain *rd,
 			       enum rapl_primitives prim,
 			       unsigned long long value)
 {
-	struct rapl_primitive_info *rp = &rpi[prim];
+	enum rapl_primitives prim_fixed = prim_fixups(rd, prim);
+	struct rapl_primitive_info *rp = &rpi[prim_fixed];
 	int cpu;
 	u64 bits;
 	struct reg_action ra;
@@ -981,6 +1037,7 @@ static const struct rapl_defaults rapl_defaults_spr_server = {
 	.compute_time_window = rapl_compute_time_window_core,
 	.dram_domain_energy_unit = 15300,
 	.psys_domain_energy_unit = 1000000000,
+	.spr_psys_bits = true,
 };
 
 static const struct rapl_defaults rapl_defaults_byt = {
