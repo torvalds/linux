@@ -388,6 +388,11 @@ static int ast_vhub_epn_queue(struct usb_ep* u_ep, struct usb_request *u_req,
 	} else
 		u_req->dma = 0;
 
+	if (ep->dev->wakeup_en) {
+		EPVDBG(ep, "Wakeup host first\n");
+		ast_vhub_hub_wake_all(vhub);
+	}
+
 	EPVDBG(ep, "enqueue req @%p\n", req);
 	EPVDBG(ep, " l=%d dma=0x%x zero=%d noshort=%d noirq=%d is_in=%d\n",
 	       u_req->length, (u32)u_req->dma, u_req->zero,
