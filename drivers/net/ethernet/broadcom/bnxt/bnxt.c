@@ -2044,7 +2044,9 @@ static u16 bnxt_agg_ring_id_to_grp_idx(struct bnxt *bp, u16 ring_id)
 
 static void bnxt_event_error_report(struct bnxt *bp, u32 data1, u32 data2)
 {
-	switch (BNXT_EVENT_ERROR_REPORT_TYPE(data1)) {
+	u32 err_type = BNXT_EVENT_ERROR_REPORT_TYPE(data1);
+
+	switch (err_type) {
 	case ASYNC_EVENT_CMPL_ERROR_REPORT_BASE_EVENT_DATA1_ERROR_TYPE_INVALID_SIGNAL:
 		netdev_err(bp->dev, "1PPS: Received invalid signal on pin%lu from the external source. Please fix the signal and reconfigure the pin\n",
 			   BNXT_EVENT_INVALID_SIGNAL_DATA(data2));
@@ -2052,8 +2054,12 @@ static void bnxt_event_error_report(struct bnxt *bp, u32 data1, u32 data2)
 	case ASYNC_EVENT_CMPL_ERROR_REPORT_BASE_EVENT_DATA1_ERROR_TYPE_PAUSE_STORM:
 		netdev_warn(bp->dev, "Pause Storm detected!\n");
 		break;
+	case ASYNC_EVENT_CMPL_ERROR_REPORT_BASE_EVENT_DATA1_ERROR_TYPE_DOORBELL_DROP_THRESHOLD:
+		netdev_warn(bp->dev, "One or more MMIO doorbells dropped by the device!\n");
+		break;
 	default:
-		netdev_err(bp->dev, "FW reported unknown error type\n");
+		netdev_err(bp->dev, "FW reported unknown error type %u\n",
+			   err_type);
 		break;
 	}
 }
