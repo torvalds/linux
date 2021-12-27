@@ -1753,7 +1753,6 @@ static int storvsc_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *scmnd)
 	struct hv_device *dev = host_dev->dev;
 	struct storvsc_cmd_request *cmd_request = scsi_cmd_priv(scmnd);
 	struct scatterlist *sgl;
-	unsigned int sg_count;
 	struct vmscsi_request *vm_srb;
 	struct vmbus_packet_mpb_array  *payload;
 	u32 payload_sz;
@@ -1826,18 +1825,17 @@ static int storvsc_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *scmnd)
 	memcpy(vm_srb->cdb, scmnd->cmnd, vm_srb->cdb_length);
 
 	sgl = (struct scatterlist *)scsi_sglist(scmnd);
-	sg_count = scsi_sg_count(scmnd);
 
 	length = scsi_bufflen(scmnd);
 	payload = (struct vmbus_packet_mpb_array *)&cmd_request->mpb;
 	payload_sz = sizeof(cmd_request->mpb);
 
-	if (sg_count) {
+	if (scsi_sg_count(scmnd)) {
 		unsigned long offset_in_hvpg = offset_in_hvpage(sgl->offset);
 		unsigned int hvpg_count = HVPFN_UP(offset_in_hvpg + length);
 		struct scatterlist *sg;
 		unsigned long hvpfn, hvpfns_to_add;
-		int j, i = 0;
+		int j, i = 0, sg_count;
 
 		if (hvpg_count > MAX_PAGE_BUFFER_COUNT) {
 
