@@ -1878,7 +1878,7 @@ static int gmac_clk_enable(struct rk_priv_data *bsp_priv, bool enable)
 			 * if (!IS_ERR(bsp_priv->clk_mac))
 			 *	clk_prepare_enable(bsp_priv->clk_mac);
 			 */
-			mdelay(5);
+			usleep_range(100, 200);
 			bsp_priv->clk_enabled = true;
 		}
 	} else {
