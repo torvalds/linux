@@ -847,6 +847,7 @@ struct bnxt_coal {
 	u16			idle_thresh;
 	u8			bufs_per_record;
 	u8			budget;
+	u16			flags;
 };
 
 struct bnxt_tpa_info {
