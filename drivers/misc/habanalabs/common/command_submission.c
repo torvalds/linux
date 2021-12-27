@@ -2063,13 +2063,16 @@ static int cs_ioctl_signal_wait(struct hl_fpriv *hpriv, enum hl_cs_type cs_type,
 			idp = &ctx->sig_mgr.handles;
 			idr_for_each_entry(idp, encaps_sig_hdl, id) {
 				if (encaps_sig_hdl->cs_seq == signal_seq) {
-					handle_found = true;
-					/* get refcount to protect removing
-					 * this handle from idr, needed when
-					 * multiple wait cs are used with offset
+					/* get refcount to protect removing this handle from idr,
+					 * needed when multiple wait cs are used with offset
 					 * to wait on reserved encaps signals.
+					 * Since kref_put of this handle is executed outside the
+					 * current lock, it is possible that the handle refcount
+					 * is 0 but it yet to be removed from the list. In this
+					 * case need to consider the handle as not valid.
 					 */
-					kref_get(&encaps_sig_hdl->refcount);
+					if (kref_get_unless_zero(&encaps_sig_hdl->refcount))
+						handle_found = true;
 					break;
 				}
 			}
