@@ -238,6 +238,7 @@ void aarch64_vcpu_setup(struct kvm_vm *vm, uint32_t vcpuid, struct kvm_vcpu_init
 	get_reg(vm, vcpuid, KVM_ARM64_SYS_REG(SYS_SCTLR_EL1), &sctlr_el1);
 	get_reg(vm, vcpuid, KVM_ARM64_SYS_REG(SYS_TCR_EL1), &tcr_el1);
 
+	/* Configure base granule size */
 	switch (vm->mode) {
 	case VM_MODE_P52V48_4K:
 		TEST_FAIL("AArch64 does not support 4K sized pages "
@@ -246,23 +247,29 @@ void aarch64_vcpu_setup(struct kvm_vm *vm, uint32_t vcpuid, struct kvm_vcpu_init
 		TEST_FAIL("AArch64 does not support 4K sized pages "
 			  "with ANY-bit physical address ranges");
 	case VM_MODE_P52V48_64K:
+	case VM_MODE_P48V48_64K:
+	case VM_MODE_P40V48_64K:
 		tcr_el1 |= 1ul << 14; /* TG0 = 64KB */
+		break;
+	case VM_MODE_P48V48_4K:
+	case VM_MODE_P40V48_4K:
+		tcr_el1 |= 0ul << 14; /* TG0 = 4KB */
+		break;
+	default:
+		TEST_FAIL("Unknown guest mode, mode: 0x%x", vm->mode);
+	}
+
+	/* Configure output size */
+	switch (vm->mode) {
+	case VM_MODE_P52V48_64K:
 		tcr_el1 |= 6ul << 32; /* IPS = 52 bits */
 		break;
 	case VM_MODE_P48V48_4K:
-		tcr_el1 |= 0ul << 14; /* TG0 = 4KB */
-		tcr_el1 |= 5ul << 32; /* IPS = 48 bits */
-		break;
 	case VM_MODE_P48V48_64K:
-		tcr_el1 |= 1ul << 14; /* TG0 = 64KB */
 		tcr_el1 |= 5ul << 32; /* IPS = 48 bits */
 		break;
 	case VM_MODE_P40V48_4K:
-		tcr_el1 |= 0ul << 14; /* TG0 = 4KB */
-		tcr_el1 |= 2ul << 32; /* IPS = 40 bits */
-		break;
 	case VM_MODE_P40V48_64K:
-		tcr_el1 |= 1ul << 14; /* TG0 = 64KB */
 		tcr_el1 |= 2ul << 32; /* IPS = 40 bits */
 		break;
 	default:
