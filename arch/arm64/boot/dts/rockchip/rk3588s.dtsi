@@ -1058,6 +1058,9 @@
 		power-domains = <&power RK3588_PD_GPU>;
 		operating-points-v2 = <&gpu_opp_table>;
 
+		upthreshold = <30>;
+		downdifferential = <10>;
+
 		status = "disabled";
 	};
 
