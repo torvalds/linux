@@ -85,6 +85,11 @@
  *  VERSION     : 01-00-30
  *  10 Dec 2021 : 1. Added Module parameter to count Link partner pause frames and output to ethtool.
  *  VERSION     : 01-00-31
+ *  27 Dec 2021 : 1. Support for eMAC Reset and unused clock disable during Suspend and restoring it back during resume.
+		  2. Resetting and disabling of unused clocks for eMAC Port, when no-found PHY for that particular port.
+		  3. Valid phy-address and mii-pointer NULL check in tc956xmac_suspend().
+		  4. Version update.
+ *  VERSION     : 01-00-32
  */
 
 #include <linux/clk.h>
@@ -4278,13 +4283,16 @@ static int tc956xmac_open(struct net_device *dev)
 	rd_val = readl(priv->ioaddr + NCLKCTRL0_OFFSET);
 	rd_val |= (1 << 18); /* MSIGENCEN=1 */
 #ifdef EEE_MAC_CONTROLLED_MODE
-	rd_val |= 0x67000000;
+	if (priv->port_num == RM_PF0_ID) {
+		rd_val |= (NCLKCTRL0_MAC0312CLKEN | NCLKCTRL0_MAC0125CLKEN);
+	}
+	rd_val |= (NCLKCTRL0_POEPLLCEN | NCLKCTRL0_SGMPCIEN | NCLKCTRL0_REFCLKOCEN);
 #endif
 	writel(rd_val, priv->ioaddr + NCLKCTRL0_OFFSET);
 	rd_val = readl(priv->ioaddr + NRSTCTRL0_OFFSET);
 	rd_val &= ~(1 << 18); /* MSIGENSRST=0 */
 #ifdef EEE_MAC_CONTROLLED_MODE
-	rd_val &= ~(NRSTCTRL0_MAC0RST | NRSTCTRL0_MAC0RST);
+	//rd_val &= ~(NRSTCTRL0_MAC0RST | NRSTCTRL0_MAC0RST);
 #endif
 	writel(rd_val, priv->ioaddr + NRSTCTRL0_OFFSET);
 
@@ -10262,7 +10270,10 @@ int tc956xmac_dvr_probe(struct device *device,
 #ifdef EEPROM_MAC_ADDR
 	u32 mac_addr;
 #endif
-
+#ifndef TC956X_WITHOUT_MDIO
+	void *nrst_reg, *nclk_reg;
+	u32 nrst_val, nclk_val;
+#endif
 #ifdef TC956X
 	KPRINT_INFO("HFR0 Val = 0x%08x", readl(res->addr + mac_offset_base +
 							XGMAC_HW_FEATURE0_BASE));
@@ -10706,6 +10717,26 @@ error_mdio_register:
 				priv->plat->tx_dma_ch_owner[queue] == USE_IN_TC956X_SW)
 			netif_napi_del(&ch->tx_napi);
 	}
+#ifndef TC956X_WITHOUT_MDIO
+	if (priv->port_num == 0) {
+		nrst_reg = priv->tc956x_SFR_pci_base_addr + NRSTCTRL0_OFFSET;
+		nclk_reg = priv->tc956x_SFR_pci_base_addr + NCLKCTRL0_OFFSET;
+	} else {
+		nrst_reg = priv->tc956x_SFR_pci_base_addr + NRSTCTRL1_OFFSET;
+		nclk_reg = priv->tc956x_SFR_pci_base_addr + NCLKCTRL1_OFFSET;
+	}
+	nrst_val = readl(nrst_reg);
+	nclk_val = readl(nclk_reg);
+	KPRINT_INFO("%s : Port %d Rd RST Reg:%x, CLK Reg:%x", __func__, priv->port_num,
+		nrst_val, nclk_val);
+	/* Assert reset and Disable Clock for EMAC */
+	nrst_val = nrst_val | NRSTCTRL_EMAC_MASK;
+	nclk_val = nclk_val & ~NCLKCTRL_EMAC_MASK;
+	writel(nrst_val, nrst_reg);
+	writel(nclk_val, nclk_reg);
+	KPRINT_INFO("%s : Port %d Wr RST Reg:%x, CLK Reg:%x", __func__, priv->port_num,
+		readl(nrst_reg), readl(nclk_reg));
+#endif
 error_hw_init:
 #ifndef TC956X
 	destroy_workqueue(priv->wq);
@@ -10790,17 +10821,19 @@ int tc956xmac_suspend(struct device *dev)
 {
 	struct net_device *ndev = dev_get_drvdata(dev);
 	struct tc956xmac_priv *priv = netdev_priv(ndev);
-	struct phy_device *phydev; /* For cancelling Work queue */
+	struct phy_device *phydev = NULL; /* For cancelling Work queue */
 	int addr = priv->plat->phy_addr;
-	phydev = mdiobus_get_phy(priv->mii, addr);
+
+	KPRINT_INFO("---> %s : Port %d", __func__, priv->port_num);
+	if ((priv->plat->phy_addr != -1) && (priv->mii != NULL))
+		phydev = mdiobus_get_phy(priv->mii, addr);
 
 	if (!ndev)
 		return 0;
 
-	KPRINT_INFO("---> %s : Port %d", __func__, priv->port_num);
-
 	if (!phydev) {
-		netdev_err(priv->dev, "no phy at addr %d\n", addr);
+		DBGPR_FUNC(priv->device, "%s Error : No phy at Addr %d or MDIO Unavailable \n", 
+			__func__, addr);
 		return 0;
 	}
 

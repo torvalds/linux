@@ -41,6 +41,8 @@
  *  VERSION     : 01-00-23
  *  03 Dec 2021 : 1. Max C22/C45 PHY address changed to PHY_MAX_ADDR.
  *  VERSION     : 01-00-29
+ *  27 Dec 2021 : 1. Initialisation of mii private variable.
+ *  VERSION     : 01-00-32
  */
 
 #include <linux/gpio/consumer.h>
@@ -653,6 +655,7 @@ bus_register_fail:
 	mutex_unlock(&new_bus->mdio_lock);
 
 	mdiobus_free(new_bus);
+	priv->mii = NULL;
 	return err;
 }
 

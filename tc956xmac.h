@@ -106,6 +106,9 @@
  *  VERSION     : 01-00-30
  *  10 Dec 2021 : 1. Version update
  *  VERSION     : 01-00-31
+ *  27 Dec 2021 : 1. Support for eMAC Reset and unused clock disable during Suspend and restoring it back during resume.
+		  2. Version update.
+ *  VERSION     : 01-00-32
  */
 
 #ifndef __TC956XMAC_H__
@@ -158,7 +161,7 @@
 #ifdef TC956X
 
 #define TC956X_RESOURCE_NAME	"tc956x_pci-eth"
-#define DRV_MODULE_VERSION	"V_01-00-31"
+#define DRV_MODULE_VERSION	"V_01-00-32"
 #define TC956X_FW_MAX_SIZE	(64*1024)
 
 #define ATR_AXI4_SLV_BASE		0x0800
@@ -634,6 +637,8 @@ struct tc956xmac_priv {
 #endif
 	/* Work struct for handling phy interrupt */
 	struct work_struct emac_phy_work;
+	u32 pm_saved_emac_rst; /* Save and restore EMAC Resets during suspend-resume sequence */
+	u32 pm_saved_emac_clk; /* Save and restore EMAC Clocks during suspend-resume sequence */
 
 };
 

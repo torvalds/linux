@@ -113,6 +113,9 @@
  *  10 Dec 2021 : 1. Added Module parameter to count Link partner pause frames and output to ethtool.
 		  2. Version update.
  *  VERSION     : 01-00-31
+ *  27 Dec 2021 : 1. Support for eMAC Reset and unused clock disable during Suspend and restoring it back during resume.
+		  2. Version update.
+ *  VERSION     : 01-00-32
  */
 
 #include <linux/clk-provider.h>
@@ -171,7 +174,7 @@ static unsigned int mac1_txq1_size = TX_QUEUE1_SIZE;
 unsigned int mac0_en_lp_pause_frame_cnt = DISABLE;
 unsigned int mac1_en_lp_pause_frame_cnt = DISABLE;
 
-static const struct tc956x_version tc956x_drv_version = {0, 1, 0, 0, 3, 1};
+static const struct tc956x_version tc956x_drv_version = {0, 1, 0, 0, 3, 2};
 
 static int tc956xmac_pm_usage_counter; /* Device Usage Counter */
 struct mutex tc956x_pm_suspend_lock; /* This mutex is shared between all available EMAC ports. */
@@ -216,6 +219,84 @@ static struct tc956xmac_rx_parser_entry snps_rxp_entries_filter_phy_pause_frames
 /* 4th entry */{.match_data = 0x00000000, .match_en = 0x00000000, .af = 1, .rf = 0, .im = 0, .nc = 0, .res1 = 0, .frame_offset = 0, .res2 = 0, .ok_index = 0, .res3 = 0, .dma_ch_no = 1, .res4 = 0,},
 };
 
+/*!
+ * \brief API to save and restore clock and reset during suspend-resume.
+ *
+ * \details This fucntion saves the EMAC clock and reset bits before
+ * suspend. And restores the same settings after resume.
+ *
+ * \param[in] priv - pointer to device private structure.
+ * \param[in] state - identify SUSPEND and RESUME operation.
+ *
+ * \return None
+ */
+static void tc956xmac_pm_set_power(struct tc956xmac_priv *priv, enum TC956X_PORT_PM_STATE state)
+{
+	void *nrst_reg, *nclk_reg, *commonclk_reg;
+	u32 nrst_val, nclk_val, commonclk_val;
+	KPRINT_INFO("-->%s : Port %d", __func__, priv->port_num);
+	/* Select register address by port */
+	if (priv->port_num == 0) {
+		nrst_reg = priv->tc956x_SFR_pci_base_addr + NRSTCTRL0_OFFSET;
+		nclk_reg = priv->tc956x_SFR_pci_base_addr + NCLKCTRL0_OFFSET;
+	} else {
+		nrst_reg = priv->tc956x_SFR_pci_base_addr + NRSTCTRL1_OFFSET;
+		nclk_reg = priv->tc956x_SFR_pci_base_addr + NCLKCTRL1_OFFSET;
+	}
+
+	if (state == SUSPEND) {
+		KPRINT_INFO("%s : Port %d Set Power for Suspend", __func__, priv->port_num);
+		/* Modify register for reset, clock and MSI_OUTEN */
+		nrst_val = readl(nrst_reg);
+		nclk_val = readl(nclk_reg);
+		KPRINT_INFO("%s : Port %d Rd RST Reg:%x, CLK Reg:%x", __func__, priv->port_num, 
+			nrst_val, nclk_val);
+		/* Save values before Asserting reset and Clock Disable */
+		priv->pm_saved_emac_rst = nrst_val & NRSTCTRL_EMAC_MASK;
+		priv->pm_saved_emac_clk = nclk_val & NCLKCTRL_EMAC_MASK;
+		nrst_val = nrst_val | NRSTCTRL_EMAC_MASK;
+		nclk_val = nclk_val & ~NCLKCTRL_EMAC_MASK;
+		writel(nrst_val, nrst_reg);
+		writel(nclk_val, nclk_reg);
+		if (tc956xmac_pm_usage_counter == TC956X_ALL_MAC_PORT_SUSPENDED) {
+			commonclk_reg = priv->tc956x_SFR_pci_base_addr + NCLKCTRL0_OFFSET;
+			commonclk_val = readl(commonclk_reg);
+			KPRINT_INFO("%s : Port %d Common CLK Rd Reg:%x", __func__, priv->port_num, 
+				commonclk_val);
+			/* Clear Common Clocks only when both port suspends */
+			commonclk_val = commonclk_val & ~NCLKCTRL0_COMMON_EMAC_MASK;
+			writel(commonclk_val, commonclk_reg);
+			KPRINT_INFO("%s : Port %d Common CLK Wr Reg:%x", __func__, priv->port_num, 
+				commonclk_val);
+		}
+	} else if (state == RESUME) {
+		KPRINT_INFO("%s : Port %d Set Power for Resume", __func__, priv->port_num);
+		if (tc956xmac_pm_usage_counter == TC956X_ALL_MAC_PORT_SUSPENDED) {
+			commonclk_reg = priv->tc956x_SFR_pci_base_addr + NCLKCTRL0_OFFSET;
+			commonclk_val = readl(commonclk_reg);
+			KPRINT_INFO("%s : Port %d Common CLK Rd Reg:%x", __func__, priv->port_num, 
+				commonclk_val);
+			/* Clear Common Clocks only when both port suspends */
+			commonclk_val = commonclk_val | NCLKCTRL0_COMMON_EMAC_MASK;
+			writel(commonclk_val, commonclk_reg);
+			KPRINT_INFO("%s : Port %d Common CLK WR Reg:%x", __func__, priv->port_num, 
+				commonclk_val);
+		}
+		nrst_val = readl(nrst_reg);
+		nclk_val = readl(nclk_reg);
+		KPRINT_INFO("%s : Port %d Rd RST Reg:%x, CLK Reg:%x", __func__, priv->port_num, 
+			nrst_val, nclk_val);
+		/* Restore values same as before suspend */
+		nrst_val = (nrst_val & ~NRSTCTRL_EMAC_MASK) | priv->pm_saved_emac_rst;
+		writel(nclk_val, nclk_reg);
+		writel(nrst_val, nrst_reg);
+	}
+	KPRINT_INFO("%s : Port %d priv->pm_saved_emac_rst %x priv->pm_saved_emac_clk %x", __func__, 
+		priv->port_num, priv->pm_saved_emac_rst, priv->pm_saved_emac_clk);
+	KPRINT_INFO("%s : Port %d Wr RST Reg:%x, CLK Reg:%x", __func__, priv->port_num, 
+		readl(nrst_reg), readl(nclk_reg));
+	KPRINT_INFO("<--%s : Port %d", __func__, priv->port_num);
+}
 #ifdef DMA_OFFLOAD_ENABLE
 struct pci_dev* port0_pdev;
 #endif
@@ -2182,7 +2263,6 @@ static int tc956xmac_pci_probe(struct pci_dev *pdev,
 	res.port_num &= RSCMNG_PFN;
 #endif
 
-
 #ifdef DISABLE_EMAC_PORT1
 #ifdef TC956X
 	if (res.port_num == RM_PF1_ID) {
@@ -2766,7 +2846,6 @@ static int tc956x_pcie_suspend(struct device *dev)
 		}
 	}
 #endif
-
 	DBGPR_FUNC(&(pdev->dev), "%s : Port %d - Platform Suspend", __func__, priv->port_num);
 
 	ret = tc956x_platform_suspend(priv);
@@ -2774,6 +2853,8 @@ static int tc956x_pcie_suspend(struct device *dev)
 		NMSGPR_ERR(&(pdev->dev), "%s: error in calling tc956x_platform_suspend", pci_name(pdev));
 		goto err;
 	}
+
+	tc956xmac_pm_set_power(priv, SUSPEND);
 
 	ret = tc956x_pcie_pm_pci(pdev, SUSPEND);
 	if (ret < 0)
@@ -2994,6 +3075,8 @@ static int tc956x_pcie_resume(struct device *dev)
 	ret = tc956x_pcie_pm_enable_pci(pdev);
 	if (ret < 0)
 		goto err;
+
+	tc956xmac_pm_set_power(priv, RESUME);
 
 	DBGPR_FUNC(&(pdev->dev), "%s : Port %d - Platform Resume", __func__, priv->port_num);
 	ret = tc956x_platform_resume(priv);

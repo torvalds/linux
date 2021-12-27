@@ -69,6 +69,8 @@
  *  VERSION     : 01-00-30
  *  10 Dec 2021 : 1. Added link partner pause frame count debug counters to ethtool statistics.
  *  VERSION     : 01-00-31
+ *  27 Dec 2021 : 1. Support for eMAC Reset and unused clock disable during Suspend and restoring it back during resume.
+ *  VERSION     : 01-00-32
  */
 
 #ifndef __COMMON_H__
@@ -699,6 +701,13 @@ enum packets_types {
 #define NRSTCTRL1_MAC1RST1	BIT(7)
 #define NRSTCTRL1_MAC1PMARST1	BIT(30)
 #define NRSTCTRL1_MAC1PONRST1	BIT(31)
+#define NRSTCTRL_EMAC_MASK     (NRSTCTRL0_MAC0RST | NRSTCTRL0_MAC0PMARST | \
+				 NRSTCTRL0_MAC0PONRST)
+#define NCLKCTRL_EMAC_MASK     (NCLKCTRL0_MAC0TXCEN | NCLKCTRL0_MAC0RXCEN | \
+				 NCLKCTRL0_MAC0125CLKEN | NCLKCTRL0_MAC0312CLKEN | \
+				 NCLKCTRL1_MAC1RMCEN | NCLKCTRL0_MAC0ALLCLKEN)
+#define NCLKCTRL0_COMMON_EMAC_MASK     (NCLKCTRL0_POEPLLCEN | NCLKCTRL0_SGMPCIEN | \
+				 NCLKCTRL0_REFCLKOCEN)
 #define NBUSCTRL_OFFSET		(0x1014)
 #endif
 
