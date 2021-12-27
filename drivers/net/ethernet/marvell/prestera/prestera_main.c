@@ -902,6 +902,10 @@ static int prestera_switch_init(struct prestera_switch *sw)
 	if (err)
 		return err;
 
+	err = prestera_router_init(sw);
+	if (err)
+		goto err_router_init;
+
 	err = prestera_switchdev_init(sw);
 	if (err)
 		goto err_swdev_register;
@@ -958,6 +962,8 @@ err_handlers_register:
 err_rxtx_register:
 	prestera_switchdev_fini(sw);
 err_swdev_register:
+	prestera_router_fini(sw);
+err_router_init:
 	prestera_netdev_event_handler_unregister(sw);
 	prestera_hw_switch_fini(sw);
 

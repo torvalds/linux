@@ -270,10 +270,18 @@ struct prestera_switch {
 	u32 mtu_min;
 	u32 mtu_max;
 	u8 id;
+	struct prestera_router *router;
 	struct prestera_lag *lags;
 	struct prestera_counter *counter;
 	u8 lag_member_max;
 	u8 lag_max;
+};
+
+struct prestera_router {
+	struct prestera_switch *sw;
+	struct list_head vr_list;
+	struct list_head rif_entry_list;
+	bool aborted;
 };
 
 struct prestera_rxtx_params {
@@ -302,6 +310,9 @@ struct prestera_port *prestera_port_find_by_hwid(struct prestera_switch *sw,
 						 u32 dev_id, u32 hw_id);
 
 int prestera_port_autoneg_set(struct prestera_port *port, u64 link_modes);
+
+int prestera_router_init(struct prestera_switch *sw);
+void prestera_router_fini(struct prestera_switch *sw);
 
 struct prestera_port *prestera_find_port(struct prestera_switch *sw, u32 id);
 
