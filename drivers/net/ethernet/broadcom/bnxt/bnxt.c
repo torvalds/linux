@@ -2632,6 +2632,7 @@ static int bnxt_poll_p5(struct napi_struct *napi, int budget)
 {
 	struct bnxt_napi *bnapi = container_of(napi, struct bnxt_napi, napi);
 	struct bnxt_cp_ring_info *cpr = &bnapi->cp_ring;
+	struct bnxt_cp_ring_info *cpr_rx;
 	u32 raw_cons = cpr->cp_raw_cons;
 	struct bnxt *bp = bnapi->bp;
 	struct nqe_cn *nqcmp;
@@ -2659,7 +2660,7 @@ static int bnxt_poll_p5(struct napi_struct *napi, int budget)
 			if (napi_complete_done(napi, work_done))
 				BNXT_DB_NQ_ARM_P5(&cpr->cp_db,
 						  cpr->cp_raw_cons);
-			return work_done;
+			goto poll_done;
 		}
 
 		/* The valid test of the entry must be done first before
@@ -2684,6 +2685,17 @@ static int bnxt_poll_p5(struct napi_struct *napi, int budget)
 	if (raw_cons != cpr->cp_raw_cons) {
 		cpr->cp_raw_cons = raw_cons;
 		BNXT_DB_NQ_P5(&cpr->cp_db, raw_cons);
+	}
+poll_done:
+	cpr_rx = cpr->cp_ring_arr[BNXT_RX_HDL];
+	if (cpr_rx && (bp->flags & BNXT_FLAG_DIM)) {
+		struct dim_sample dim_sample = {};
+
+		dim_update_sample(cpr->event_ctr,
+				  cpr_rx->rx_packets,
+				  cpr_rx->rx_bytes,
+				  &dim_sample);
+		net_dim(&cpr->dim, dim_sample);
 	}
 	return work_done;
 }
