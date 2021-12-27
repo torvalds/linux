@@ -594,7 +594,7 @@ static void find_reclaimable_buckets_lru(struct bch_fs *c, struct bch_dev *ca)
 	buckets = bucket_array(ca);
 	ca->alloc_heap.used = 0;
 	now = atomic64_read(&c->io_clock[READ].now);
-	last_seq_ondisk = c->journal.last_seq_ondisk;
+	last_seq_ondisk = c->journal.flushed_seq_ondisk;
 
 	/*
 	 * Find buckets with lowest read priority, by building a maxheap sorted

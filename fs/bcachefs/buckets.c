@@ -50,7 +50,7 @@ static inline void fs_usage_data_type_to_base(struct bch_fs_usage *fs_usage,
 void bch2_bucket_seq_cleanup(struct bch_fs *c)
 {
 	u64 journal_seq = atomic64_read(&c->journal.seq);
-	u16 last_seq_ondisk = c->journal.last_seq_ondisk;
+	u16 last_seq_ondisk = c->journal.flushed_seq_ondisk;
 	struct bch_dev *ca;
 	struct bucket_array *buckets;
 	struct bucket *g;
