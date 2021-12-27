@@ -32,14 +32,14 @@
 /*****************************************************************************
 * 1.Included header files
 *****************************************************************************/
-#include "../focaltech_core.h"
-#include "../focaltech_flash.h"
+#include "focaltech_core.h"
+#include "focaltech_flash.h"
 
 /*****************************************************************************
 * Global variable or extern global variabls/functions
 *****************************************************************************/
 u8 pb_file_ft8006m[] = {
-#include "../include/pramboot/FT8006M_Pramboot_V1.6_20180426_le.h"
+#include "include/pramboot/FT8006M_Pramboot_V1.6_20180426_le.h"
 };
 
 /*****************************************************************************

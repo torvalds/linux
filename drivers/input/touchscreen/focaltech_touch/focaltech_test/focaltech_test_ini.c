@@ -128,22 +128,6 @@ static int fts_strncmp(const char *cs, const char *ct, int count)
     return 0;
 }
 
-static int isspace(int x)
-{
-    if (x == ' ' || x == '\t' || x == '\n' || x == '\f' || x == '\b' || x == '\r')
-        return 1;
-    else
-        return 0;
-}
-
-static int isdigit(int x)
-{
-    if (x <= '9' && x >= '0')
-        return 1;
-    else
-        return 0;
-}
-
 static long fts_atol(char *nptr)
 {
     int c; /* current char */

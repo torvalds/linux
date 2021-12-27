@@ -5,14 +5,15 @@
 
 # Each configuration option enables a list of files.
 
-obj-y	+=  focaltech_core.o
-obj-y	+=  focaltech_ex_fun.o
-obj-y	+=  focaltech_ex_mode.o
-obj-y	+=  focaltech_flash.o
-obj-y	+=  focaltech_gesture.o
-obj-y	+=  focaltech_esdcheck.o
-obj-y   +=  focaltech_i2c.o
-obj-y   +=  focaltech_point_report_check.o
-obj-y   +=  focaltech_flash/
-obj-y   +=  focaltech_test/
+obj-$(CONFIG_TOUCHSCREEN_FTS) += focaltech-ts.o
+focaltech-ts-y += focaltech_core.o
+focaltech-ts-y += focaltech_ex_fun.o
+focaltech-ts-y += focaltech_ex_mode.o
+focaltech-ts-y += focaltech_flash.o
+focaltech-ts-y += focaltech_gesture.o
+focaltech-ts-y += focaltech_esdcheck.o
+focaltech-ts-y += focaltech_i2c.o
+focaltech-ts-y += focaltech_point_report_check.o
+focaltech-ts-y += focaltech_upgrade_ft8201.o
+focaltech-ts-y += focaltech_test/
 

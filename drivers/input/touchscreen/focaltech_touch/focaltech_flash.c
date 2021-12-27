@@ -35,6 +35,7 @@
 #include "focaltech_core.h"
 #include "focaltech_flash.h"
 
+#define vfs_read(fp, buf, len, pos) kernel_read(fp, buf, len, pos)
 /*****************************************************************************
 * Static variables
 *****************************************************************************/
