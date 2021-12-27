@@ -53,11 +53,10 @@ The number of bits that the PAC occupies in a pointer is 55 minus the
 virtual address size configured by the kernel. For example, with a
 virtual address size of 48, the PAC is 7 bits wide.
 
-Recent versions of GCC can compile code with APIAKey-based return
-address protection when passed the -msign-return-address option. This
-uses instructions in the HINT space (unless -march=armv8.3-a or higher
-is also passed), and such code can run on systems without the pointer
-authentication extension.
+When ARM64_PTR_AUTH_KERNEL is selected, the kernel will be compiled
+with HINT space pointer authentication instructions protecting
+function returns. Kernels built with this option will work on hardware
+with or without pointer authentication support.
 
 In addition to exec(), keys can also be reinitialized to random values
 using the PR_PAC_RESET_KEYS prctl. A bitmask of PR_PAC_APIAKEY,
