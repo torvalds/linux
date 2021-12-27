@@ -53,6 +53,7 @@
 #define EDP_PHY_GRF_CON10		0x0028
 #define EDP_PHY_AUX_RCV_PD_SEL(x)	HIWORD_UPDATE(x,  5,  5)
 #define EDP_PHY_AUX_DRV_PD_SEL(x)	HIWORD_UPDATE(x,  4,  4)
+#define EDP_PHY_AUX_IDLE_MASK		BIT(2)
 #define EDP_PHY_AUX_IDLE(x)		HIWORD_UPDATE(x,  2,  2)
 #define EDP_PHY_AUX_RCV_PD(x)		HIWORD_UPDATE(x,  1,  1)
 #define EDP_PHY_AUX_DRV_PD(x)		HIWORD_UPDATE(x,  0,  0)
@@ -248,12 +249,27 @@ static int rockchip_edp_phy_configure(struct phy *phy,
 	return 0;
 }
 
+static bool rockchip_edp_phy_enabled(struct rockchip_edp_phy *edpphy)
+{
+	u32 val;
+
+	val = readl(edpphy->regs + EDP_PHY_GRF_CON10);
+
+	if (val & EDP_PHY_AUX_IDLE_MASK)
+		return false;
+
+	return true;
+}
+
 static int rockchip_edp_phy_power_on(struct phy *phy)
 {
 	struct rockchip_edp_phy *edpphy = phy_get_drvdata(phy);
 
 	clk_prepare_enable(edpphy->pclk);
 	clk_prepare_enable(edpphy->refclk);
+
+	if (rockchip_edp_phy_enabled(edpphy))
+		return 0;
 
 	reset_control_assert(edpphy->apb_reset);
 	usleep_range(100, 101);
