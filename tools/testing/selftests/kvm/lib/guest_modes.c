@@ -29,17 +29,21 @@ void guest_modes_append_default(void)
 			guest_mode_append(VM_MODE_P52V48_64K, ps64k, ps64k);
 		if (limit >= 48) {
 			guest_mode_append(VM_MODE_P48V48_4K, ps4k, ps4k);
+			guest_mode_append(VM_MODE_P48V48_16K, ps16k, ps16k);
 			guest_mode_append(VM_MODE_P48V48_64K, ps64k, ps64k);
 		}
 		if (limit >= 40) {
 			guest_mode_append(VM_MODE_P40V48_4K, ps4k, ps4k);
+			guest_mode_append(VM_MODE_P40V48_16K, ps16k, ps16k);
 			guest_mode_append(VM_MODE_P40V48_64K, ps64k, ps64k);
 			if (ps4k)
 				vm_mode_default = VM_MODE_P40V48_4K;
 		}
 		if (limit >= 36) {
 			guest_mode_append(VM_MODE_P36V48_4K, ps4k, ps4k);
+			guest_mode_append(VM_MODE_P36V48_16K, ps16k, ps16k);
 			guest_mode_append(VM_MODE_P36V48_64K, ps64k, ps64k);
+			guest_mode_append(VM_MODE_P36V47_16K, ps16k, ps16k);
 		}
 
 		/*
