@@ -654,8 +654,17 @@ static void aspeed_hw_jtag_xfer(struct aspeed_jtag_info *aspeed_jtag,
 	int i, tmp_idx = 0;
 	u32 fifo_reg = xfer->type ? ASPEED_JTAG_DATA : ASPEED_JTAG_INST;
 	u32 *xfer_data_32 = (u32 *)xfer_data;
+	enum jtag_tapstate endstate;
 
-
+	/* Translate the end tap status to the stable tap status for hw mode */
+	if (xfer->endstate == JTAG_STATE_PAUSEDR ||
+	    xfer->endstate == JTAG_STATE_SHIFTDR)
+		endstate = JTAG_STATE_PAUSEDR;
+	else if (xfer->endstate == JTAG_STATE_PAUSEIR ||
+		 xfer->endstate == JTAG_STATE_SHIFTIR)
+		endstate = JTAG_STATE_PAUSEIR;
+	else
+		endstate = JTAG_STATE_IDLE;
 
 	while (remain_xfer) {
 		if (remain_xfer > aspeed_jtag->config->jtag_buff_len) {
@@ -689,10 +698,10 @@ static void aspeed_hw_jtag_xfer(struct aspeed_jtag_info *aspeed_jtag,
 						  fifo_reg);
 			ndelay(aspeed_jtag->tck_period);
 			if (xfer->type == JTAG_SIR_XFER)
-				aspeed_hw_ir_scan(aspeed_jtag, xfer->endstate,
+				aspeed_hw_ir_scan(aspeed_jtag, endstate,
 						  shift_bits);
 			else
-				aspeed_hw_dr_scan(aspeed_jtag, xfer->endstate,
+				aspeed_hw_dr_scan(aspeed_jtag, endstate,
 						  shift_bits);
 		}
 
