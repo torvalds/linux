@@ -1094,7 +1094,11 @@ static int bch2_mark_stripe(struct btree_trans *trans,
 			spin_unlock(&c->ec_stripes_heap_lock);
 		}
 	} else {
-		struct gc_stripe *m = genradix_ptr(&c->gc_stripes, idx);
+		struct gc_stripe *m =
+			genradix_ptr_alloc(&c->gc_stripes, idx, GFP_KERNEL);
+
+		if (!m)
+			return -ENOMEM;
 
 		/*
 		 * This will be wrong when we bring back runtime gc: we should

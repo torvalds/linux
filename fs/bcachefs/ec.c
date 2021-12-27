@@ -1608,46 +1608,6 @@ int bch2_stripes_read(struct bch_fs *c)
 	return ret;
 }
 
-int bch2_ec_mem_alloc(struct bch_fs *c, bool gc)
-{
-	struct btree_trans trans;
-	struct btree_iter iter;
-	struct bkey_s_c k;
-	size_t i, idx = 0;
-	int ret = 0;
-
-	bch2_trans_init(&trans, c, 0, 0);
-	bch2_trans_iter_init(&trans, &iter, BTREE_ID_stripes, POS(0, U64_MAX), 0);
-
-	k = bch2_btree_iter_prev(&iter);
-	ret = bkey_err(k);
-	if (!ret && k.k)
-		idx = k.k->p.offset + 1;
-
-	bch2_trans_iter_exit(&trans, &iter);
-	bch2_trans_exit(&trans);
-	if (ret)
-		return ret;
-
-	if (!idx)
-		return 0;
-
-	if (!gc &&
-	    !init_heap(&c->ec_stripes_heap, roundup_pow_of_two(idx),
-		       GFP_KERNEL))
-		return -ENOMEM;
-#if 0
-	ret = genradix_prealloc(&c->stripes[gc], idx, GFP_KERNEL);
-#else
-	for (i = 0; i < idx; i++)
-		if (!gc
-		    ? !genradix_ptr_alloc(&c->stripes, i, GFP_KERNEL)
-		    : !genradix_ptr_alloc(&c->gc_stripes, i, GFP_KERNEL))
-			return -ENOMEM;
-#endif
-	return 0;
-}
-
 void bch2_stripes_heap_to_text(struct printbuf *out, struct bch_fs *c)
 {
 	ec_stripes_heap *h = &c->ec_stripes_heap;

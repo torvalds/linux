@@ -217,8 +217,6 @@ void bch2_stripes_heap_start(struct bch_fs *);
 
 int bch2_stripes_read(struct bch_fs *);
 
-int bch2_ec_mem_alloc(struct bch_fs *, bool);
-
 void bch2_stripes_heap_to_text(struct printbuf *, struct bch_fs *);
 void bch2_new_stripes_to_text(struct printbuf *, struct bch_fs *);
 

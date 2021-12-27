@@ -1270,7 +1270,6 @@ static int bch2_gc_start(struct bch_fs *c,
 {
 	struct bch_dev *ca = NULL;
 	unsigned i;
-	int ret;
 
 	BUG_ON(c->usage_gc);
 
@@ -1300,12 +1299,6 @@ static int bch2_gc_start(struct bch_fs *c,
 			percpu_ref_put(&ca->ref);
 			return -ENOMEM;
 		}
-	}
-
-	ret = bch2_ec_mem_alloc(c, true);
-	if (ret) {
-		bch_err(c, "error allocating ec gc mem");
-		return ret;
 	}
 
 	percpu_down_write(&c->mark_lock);
