@@ -135,6 +135,7 @@ static void meson_mx_sdhc_start_cmd(struct mmc_host *mmc,
 				    struct mmc_command *cmd)
 {
 	struct meson_mx_sdhc_host *host = mmc_priv(mmc);
+	bool manual_stop = false;
 	u32 ictl, send;
 	int pack_len;
 
@@ -172,11 +173,26 @@ static void meson_mx_sdhc_start_cmd(struct mmc_host *mmc,
 		else
 			/* software flush: */
 			ictl |= MESON_SDHC_ICTL_DATA_XFER_OK;
+
+		/*
+		 * Mimic the logic from the vendor driver where (only)
+		 * SD_IO_RW_EXTENDED commands with more than one block set the
+		 * MESON_SDHC_MISC_MANUAL_STOP bit. This fixes the firmware
+		 * download in the brcmfmac driver for a BCM43362/1 card.
+		 * Without this sdio_memcpy_toio() (with a size of 219557
+		 * bytes) times out if MESON_SDHC_MISC_MANUAL_STOP is not set.
+		 */
+		manual_stop = cmd->data->blocks > 1 &&
+			      cmd->opcode == SD_IO_RW_EXTENDED;
 	} else {
 		pack_len = 0;
 
 		ictl |= MESON_SDHC_ICTL_RESP_OK;
 	}
+
+	regmap_update_bits(host->regmap, MESON_SDHC_MISC,
+			   MESON_SDHC_MISC_MANUAL_STOP,
+			   manual_stop ? MESON_SDHC_MISC_MANUAL_STOP : 0);
 
 	if (cmd->opcode == MMC_STOP_TRANSMISSION)
 		send |= MESON_SDHC_SEND_DATA_STOP;
