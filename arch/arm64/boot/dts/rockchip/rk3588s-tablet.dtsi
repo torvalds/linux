@@ -1001,6 +1001,11 @@
 	status = "okay";
 };
 
+&route_edp0 {
+	connect = <&vp2_out_edp0>;
+	status = "okay";
+};
+
 &saradc {
 	status = "okay";
 	vref-supply = <&avcc_1v8_s0>;
