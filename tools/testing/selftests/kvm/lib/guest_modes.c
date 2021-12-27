@@ -4,22 +4,46 @@
  */
 #include "guest_modes.h"
 
+#ifdef __aarch64__
+enum vm_guest_mode vm_mode_default;
+#endif
+
 struct guest_mode guest_modes[NUM_VM_MODES];
 
 void guest_modes_append_default(void)
 {
+#ifndef __aarch64__
 	guest_mode_append(VM_MODE_DEFAULT, true, true);
-
-#ifdef __aarch64__
-	guest_mode_append(VM_MODE_P40V48_64K, true, true);
+#else
 	{
 		unsigned int limit = kvm_check_cap(KVM_CAP_ARM_VM_IPA_SIZE);
+		int i;
+
+		vm_mode_default = NUM_VM_MODES;
+
 		if (limit >= 52)
 			guest_mode_append(VM_MODE_P52V48_64K, true, true);
 		if (limit >= 48) {
 			guest_mode_append(VM_MODE_P48V48_4K, true, true);
 			guest_mode_append(VM_MODE_P48V48_64K, true, true);
 		}
+		if (limit >= 40) {
+			guest_mode_append(VM_MODE_P40V48_4K, true, true);
+			guest_mode_append(VM_MODE_P40V48_64K, true, true);
+			vm_mode_default = VM_MODE_P40V48_4K;
+		}
+
+		/*
+		 * Pick the first supported IPA size if the default
+		 * isn't available.
+		 */
+		for (i = 0; vm_mode_default == NUM_VM_MODES && i < NUM_VM_MODES; i++) {
+			if (guest_modes[i].supported && guest_modes[i].enabled)
+				vm_mode_default = i;
+		}
+
+		TEST_ASSERT(vm_mode_default != NUM_VM_MODES,
+			    "No supported mode!");
 	}
 #endif
 #ifdef __s390x__
