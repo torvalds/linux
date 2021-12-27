@@ -85,6 +85,9 @@ static struct rga_job *rga_job_alloc(struct rga_req *rga_command_base)
 	if (!job)
 		return NULL;
 
+	spin_lock_init(&job->fence_lock);
+	INIT_LIST_HEAD(&job->head);
+
 	job->timestamp = ktime_get();
 
 	job->rga_command_base = *rga_command_base;
