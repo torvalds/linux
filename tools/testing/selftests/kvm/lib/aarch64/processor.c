@@ -432,3 +432,12 @@ uint32_t guest_get_vcpuid(void)
 {
 	return read_sysreg(tpidr_el1);
 }
+
+/*
+ * arm64 doesn't have a true default mode, so start by computing the
+ * available IPA space and page sizes early.
+ */
+void __attribute__((constructor)) init_guest_modes(void)
+{
+       guest_modes_append_default();
+}
