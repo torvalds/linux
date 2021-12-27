@@ -23,6 +23,9 @@ properties:
 
       - description: Arria 10 boards
         items:
+          - enum:
+              - altr,socfpga-arria10-socdk
+              - enclustra,mercury-aa1
           - const: altr,socfpga-arria10
           - const: altr,socfpga
 
