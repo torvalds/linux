@@ -6496,8 +6496,8 @@ static void bnxt_hwrm_set_coal_params(struct bnxt *bp,
 	struct hwrm_ring_cmpl_ring_cfg_aggint_params_input *req)
 {
 	struct bnxt_coal_cap *coal_cap = &bp->coal_cap;
+	u16 val, tmr, max, flags = hw_coal->flags;
 	u32 cmpl_params = coal_cap->cmpl_params;
-	u16 val, tmr, max, flags = 0;
 
 	max = hw_coal->bufs_per_record * 128;
 	if (hw_coal->budget)
@@ -6540,8 +6540,6 @@ static void bnxt_hwrm_set_coal_params(struct bnxt *bp,
 			cpu_to_le16(BNXT_COAL_CMPL_AGGR_TMR_DURING_INT_ENABLE);
 	}
 
-	if (cmpl_params & RING_AGGINT_QCAPS_RESP_CMPL_PARAMS_TIMER_RESET)
-		flags |= RING_CMPL_RING_CFG_AGGINT_PARAMS_REQ_FLAGS_TIMER_RESET;
 	if ((cmpl_params & RING_AGGINT_QCAPS_RESP_CMPL_PARAMS_RING_IDLE) &&
 	    hw_coal->idle_thresh && hw_coal->coal_ticks < hw_coal->idle_thresh)
 		flags |= RING_CMPL_RING_CFG_AGGINT_PARAMS_REQ_FLAGS_RING_IDLE;
@@ -11897,7 +11895,13 @@ static void bnxt_cleanup_pci(struct bnxt *bp)
 
 static void bnxt_init_dflt_coal(struct bnxt *bp)
 {
+	struct bnxt_coal_cap *coal_cap = &bp->coal_cap;
 	struct bnxt_coal *coal;
+	u16 flags = 0;
+
+	if (coal_cap->cmpl_params &
+	    RING_AGGINT_QCAPS_RESP_CMPL_PARAMS_TIMER_RESET)
+		flags |= RING_CMPL_RING_CFG_AGGINT_PARAMS_REQ_FLAGS_TIMER_RESET;
 
 	/* Tick values in micro seconds.
 	 * 1 coal_buf x bufs_per_record = 1 completion record.
@@ -11910,6 +11914,7 @@ static void bnxt_init_dflt_coal(struct bnxt *bp)
 	coal->idle_thresh = 50;
 	coal->bufs_per_record = 2;
 	coal->budget = 64;		/* NAPI budget */
+	coal->flags = flags;
 
 	coal = &bp->tx_coal;
 	coal->coal_ticks = 28;
@@ -11917,6 +11922,7 @@ static void bnxt_init_dflt_coal(struct bnxt *bp)
 	coal->coal_ticks_irq = 2;
 	coal->coal_bufs_irq = 2;
 	coal->bufs_per_record = 1;
+	coal->flags = flags;
 
 	bp->stats_coal_ticks = BNXT_DEF_STATS_COAL_TICKS;
 }
@@ -12402,8 +12408,6 @@ static int bnxt_init_board(struct pci_dev *pdev, struct net_device *dev)
 
 	bp->rx_ring_size = BNXT_DEFAULT_RX_RING_SIZE;
 	bp->tx_ring_size = BNXT_DEFAULT_TX_RING_SIZE;
-
-	bnxt_init_dflt_coal(bp);
 
 	timer_setup(&bp->timer, bnxt_timer, 0);
 	bp->current_interval = BNXT_TIMER_INTERVAL;
@@ -13423,6 +13427,8 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 
 	bnxt_fw_init_one_p3(bp);
+
+	bnxt_init_dflt_coal(bp);
 
 	if (dev->hw_features & BNXT_HW_FEATURE_VLAN_ALL_RX)
 		bp->flags |= BNXT_FLAG_STRIP_VLAN;
