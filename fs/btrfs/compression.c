@@ -96,10 +96,10 @@ static int compression_compress_pages(int type, struct list_head *ws,
 	}
 }
 
-static int compression_decompress_bio(int type, struct list_head *ws,
-		struct compressed_bio *cb)
+static int compression_decompress_bio(struct list_head *ws,
+				      struct compressed_bio *cb)
 {
-	switch (type) {
+	switch (cb->compress_type) {
 	case BTRFS_COMPRESS_ZLIB: return zlib_decompress_bio(ws, cb);
 	case BTRFS_COMPRESS_LZO:  return lzo_decompress_bio(ws, cb);
 	case BTRFS_COMPRESS_ZSTD: return zstd_decompress_bio(ws, cb);
@@ -1360,7 +1360,7 @@ static int btrfs_decompress_bio(struct compressed_bio *cb)
 	int type = cb->compress_type;
 
 	workspace = get_workspace(type, 0);
-	ret = compression_decompress_bio(type, workspace, cb);
+	ret = compression_decompress_bio(workspace, cb);
 	put_workspace(type, workspace);
 
 	return ret;
