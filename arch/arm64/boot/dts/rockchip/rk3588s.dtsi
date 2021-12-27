@@ -315,7 +315,7 @@
 			reg = <0x0>;
 			enable-method = "psci";
 			capacity-dmips-mhz = <530>;
-			clocks = <&cru ARMCLK_L>;
+			clocks = <&scmi_clk SCMI_CLK_CPUL>;
 			operating-points-v2 = <&cluster0_opp_table>;
 			cpu-idle-states = <&CPU_SLEEP>;
 		};
@@ -326,7 +326,7 @@
 			reg = <0x100>;
 			enable-method = "psci";
 			capacity-dmips-mhz = <530>;
-			clocks = <&cru ARMCLK_L>;
+			clocks = <&scmi_clk SCMI_CLK_CPUL>;
 			operating-points-v2 = <&cluster0_opp_table>;
 			cpu-idle-states = <&CPU_SLEEP>;
 		};
@@ -337,7 +337,7 @@
 			reg = <0x200>;
 			enable-method = "psci";
 			capacity-dmips-mhz = <530>;
-			clocks = <&cru ARMCLK_L>;
+			clocks = <&scmi_clk SCMI_CLK_CPUL>;
 			operating-points-v2 = <&cluster0_opp_table>;
 			cpu-idle-states = <&CPU_SLEEP>;
 		};
@@ -348,7 +348,7 @@
 			reg = <0x300>;
 			enable-method = "psci";
 			capacity-dmips-mhz = <530>;
-			clocks = <&cru ARMCLK_L>;
+			clocks = <&scmi_clk SCMI_CLK_CPUL>;
 			operating-points-v2 = <&cluster0_opp_table>;
 			cpu-idle-states = <&CPU_SLEEP>;
 		};
