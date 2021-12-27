@@ -281,6 +281,8 @@ struct prestera_router {
 	struct prestera_switch *sw;
 	struct list_head vr_list;
 	struct list_head rif_entry_list;
+	struct notifier_block inetaddr_nb;
+	struct notifier_block inetaddr_valid_nb;
 	bool aborted;
 };
 
@@ -327,6 +329,8 @@ struct prestera_port *prestera_port_dev_lower_find(struct net_device *dev);
 int prestera_port_pvid_set(struct prestera_port *port, u16 vid);
 
 bool prestera_netdev_check(const struct net_device *dev);
+
+int prestera_is_valid_mac_addr(struct prestera_port *port, const u8 *addr);
 
 bool prestera_port_is_lag_member(const struct prestera_port *port);
 

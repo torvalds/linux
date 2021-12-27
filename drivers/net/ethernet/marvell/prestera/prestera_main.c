@@ -163,7 +163,7 @@ static netdev_tx_t prestera_port_xmit(struct sk_buff *skb,
 	return prestera_rxtx_xmit(netdev_priv(dev), skb);
 }
 
-static int prestera_is_valid_mac_addr(struct prestera_port *port, u8 *addr)
+int prestera_is_valid_mac_addr(struct prestera_port *port, const u8 *addr)
 {
 	if (!is_valid_ether_addr(addr))
 		return -EADDRNOTAVAIL;
