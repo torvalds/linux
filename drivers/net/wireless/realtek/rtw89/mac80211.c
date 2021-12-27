@@ -108,8 +108,8 @@ static int rtw89_ops_add_interface(struct ieee80211_hw *hw,
 	rtw89_traffic_stats_init(rtwdev, &rtwvif->stats);
 	rtw89_vif_type_mapping(vif, false);
 	rtwvif->port = rtw89_core_acquire_bit_map(rtwdev->hw_port,
-						  RTW89_MAX_HW_PORT_NUM);
-	if (rtwvif->port == RTW89_MAX_HW_PORT_NUM) {
+						  RTW89_PORT_NUM);
+	if (rtwvif->port == RTW89_PORT_NUM) {
 		ret = -ENOSPC;
 		goto out;
 	}

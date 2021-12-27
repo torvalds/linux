@@ -32,7 +32,6 @@ extern const struct ieee80211_ops rtw89_ops;
 #define MAX_RSSI 110
 #define RSSI_FACTOR 1
 #define RTW89_RSSI_RAW_TO_DBM(rssi) ((s8)((rssi) >> RSSI_FACTOR) - MAX_RSSI)
-#define RTW89_MAX_HW_PORT_NUM 5
 
 #define RTW89_HTC_MASK_VARIANT GENMASK(1, 0)
 #define RTW89_HTC_VARIANT_HE 3
@@ -1044,7 +1043,7 @@ struct rtw89_btc_wl_role_info { /* struct size must be n*4 bytes */
 	u8 connect_cnt;
 	u8 link_mode;
 	union rtw89_btc_wl_role_info_map role_map;
-	struct rtw89_btc_wl_active_role active_role[RTW89_MAX_HW_PORT_NUM];
+	struct rtw89_btc_wl_active_role active_role[RTW89_PORT_NUM];
 };
 
 struct rtw89_btc_wl_ver_info {
@@ -1147,7 +1146,7 @@ struct rtw89_btc_rf_para {
 };
 
 struct rtw89_btc_wl_info {
-	struct rtw89_btc_wl_link_info link_info[RTW89_MAX_HW_PORT_NUM];
+	struct rtw89_btc_wl_link_info link_info[RTW89_PORT_NUM];
 	struct rtw89_btc_wl_rfk_info rfk_info;
 	struct rtw89_btc_wl_ver_info  ver_info;
 	struct rtw89_btc_wl_afh_info afh_info;
@@ -2805,7 +2804,7 @@ struct rtw89_dev {
 
 	struct rtw89_ser ser;
 
-	DECLARE_BITMAP(hw_port, RTW89_MAX_HW_PORT_NUM);
+	DECLARE_BITMAP(hw_port, RTW89_PORT_NUM);
 	DECLARE_BITMAP(mac_id_map, RTW89_MAX_MAC_ID_NUM);
 	DECLARE_BITMAP(flags, NUM_OF_RTW89_FLAGS);
 

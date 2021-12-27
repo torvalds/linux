@@ -1212,7 +1212,7 @@ fail:
 	return -EBUSY;
 }
 
-#define H2C_LEN_CXDRVINFO_ROLE (4 + 12 * RTW89_MAX_HW_PORT_NUM + H2C_LEN_CXDRVHDR)
+#define H2C_LEN_CXDRVINFO_ROLE (4 + 12 * RTW89_PORT_NUM + H2C_LEN_CXDRVHDR)
 int rtw89_fw_h2c_cxdrv_role(struct rtw89_dev *rtwdev)
 {
 	struct rtw89_btc *btc = &rtwdev->btc;
@@ -1251,7 +1251,7 @@ int rtw89_fw_h2c_cxdrv_role(struct rtw89_dev *rtwdev)
 	RTW89_SET_FWCMD_CXROLE_ROLE_P2P_GO(cmd, bpos->p2p_go);
 	RTW89_SET_FWCMD_CXROLE_ROLE_NAN(cmd, bpos->nan);
 
-	for (i = 0; i < RTW89_MAX_HW_PORT_NUM; i++, active++) {
+	for (i = 0; i < RTW89_PORT_NUM; i++, active++) {
 		RTW89_SET_FWCMD_CXROLE_ACT_CONNECTED(cmd, active->connected, i);
 		RTW89_SET_FWCMD_CXROLE_ACT_PID(cmd, active->pid, i);
 		RTW89_SET_FWCMD_CXROLE_ACT_PHY(cmd, active->phy, i);
