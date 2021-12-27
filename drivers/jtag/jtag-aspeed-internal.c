@@ -858,7 +858,7 @@ static struct aspeed_jtag_config jtag_config = {
 
 static struct aspeed_jtag_config jtag_g6_config = {
 	.jtag_version = 6,
-	.jtag_buff_len = 512,
+	.jtag_buff_len = 32,
 };
 
 static const struct of_device_id aspeed_jtag_of_matches[] = {
