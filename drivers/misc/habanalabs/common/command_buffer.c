@@ -57,7 +57,7 @@ static int cb_map_mem(struct hl_ctx *ctx, struct hl_cb *cb)
 		}
 
 		va_block->start = virt_addr;
-		va_block->end = virt_addr + page_size;
+		va_block->end = virt_addr + page_size - 1;
 		va_block->size = page_size;
 		list_add_tail(&va_block->node, &cb->va_block_list);
 	}
@@ -80,13 +80,13 @@ static int cb_map_mem(struct hl_ctx *ctx, struct hl_cb *cb)
 		offset += va_block->size;
 	}
 
-	hdev->asic_funcs->mmu_invalidate_cache(hdev, false, VM_TYPE_USERPTR);
+	rc = hl_mmu_invalidate_cache(hdev, false, MMU_OP_USERPTR | MMU_OP_SKIP_LOW_CACHE_INV);
 
 	mutex_unlock(&ctx->mmu_lock);
 
 	cb->is_mmu_mapped = true;
 
-	return 0;
+	return rc;
 
 err_va_umap:
 	list_for_each_entry(va_block, &cb->va_block_list, node) {
@@ -97,7 +97,7 @@ err_va_umap:
 		offset -= va_block->size;
 	}
 
-	hdev->asic_funcs->mmu_invalidate_cache(hdev, true, VM_TYPE_USERPTR);
+	rc = hl_mmu_invalidate_cache(hdev, true, MMU_OP_USERPTR);
 
 	mutex_unlock(&ctx->mmu_lock);
 
@@ -126,7 +126,7 @@ static void cb_unmap_mem(struct hl_ctx *ctx, struct hl_cb *cb)
 					"Failed to unmap CB's va 0x%llx\n",
 					va_block->start);
 
-	hdev->asic_funcs->mmu_invalidate_cache(hdev, true, VM_TYPE_USERPTR);
+	hl_mmu_invalidate_cache(hdev, true, MMU_OP_USERPTR);
 
 	mutex_unlock(&ctx->mmu_lock);
 
@@ -250,8 +250,7 @@ int hl_cb_create(struct hl_device *hdev, struct hl_cb_mgr *mgr,
 	 * Can't use generic function to check this because of special case
 	 * where we create a CB as part of the reset process
 	 */
-	if ((hdev->disabled) || ((atomic_read(&hdev->in_reset)) &&
-					(ctx_id != HL_KERNEL_ASID_ID))) {
+	if ((hdev->disabled) || (hdev->reset_info.in_reset && (ctx_id != HL_KERNEL_ASID_ID))) {
 		dev_warn_ratelimited(hdev->dev,
 			"Device is disabled or in reset. Can't create new CBs\n");
 		rc = -EBUSY;
@@ -380,8 +379,9 @@ int hl_cb_destroy(struct hl_device *hdev, struct hl_cb_mgr *mgr, u64 cb_handle)
 }
 
 static int hl_cb_info(struct hl_device *hdev, struct hl_cb_mgr *mgr,
-			u64 cb_handle, u32 *usage_cnt)
+			u64 cb_handle, u32 flags, u32 *usage_cnt, u64 *device_va)
 {
+	struct hl_vm_va_block *va_block;
 	struct hl_cb *cb;
 	u32 handle;
 	int rc = 0;
@@ -402,7 +402,18 @@ static int hl_cb_info(struct hl_device *hdev, struct hl_cb_mgr *mgr,
 		goto out;
 	}
 
-	*usage_cnt = atomic_read(&cb->cs_cnt);
+	if (flags & HL_CB_FLAGS_GET_DEVICE_VA) {
+		va_block = list_first_entry(&cb->va_block_list, struct hl_vm_va_block, node);
+		if (va_block) {
+			*device_va = va_block->start;
+		} else {
+			dev_err(hdev->dev, "CB is not mapped to the device's MMU\n");
+			rc = -EINVAL;
+			goto out;
+		}
+	} else {
+		*usage_cnt = atomic_read(&cb->cs_cnt);
+	}
 
 out:
 	spin_unlock(&mgr->cb_lock);
@@ -414,7 +425,7 @@ int hl_cb_ioctl(struct hl_fpriv *hpriv, void *data)
 	union hl_cb_args *args = data;
 	struct hl_device *hdev = hpriv->hdev;
 	enum hl_device_status status;
-	u64 handle = 0;
+	u64 handle = 0, device_va;
 	u32 usage_cnt = 0;
 	int rc;
 
@@ -450,13 +461,20 @@ int hl_cb_ioctl(struct hl_fpriv *hpriv, void *data)
 
 	case HL_CB_OP_INFO:
 		rc = hl_cb_info(hdev, &hpriv->cb_mgr, args->in.cb_handle,
-				&usage_cnt);
-		memset(args, 0, sizeof(*args));
-		args->out.usage_cnt = usage_cnt;
+				args->in.flags,
+				&usage_cnt,
+				&device_va);
+
+		memset(&args->out, 0, sizeof(args->out));
+
+		if (args->in.flags & HL_CB_FLAGS_GET_DEVICE_VA)
+			args->out.device_va = device_va;
+		else
+			args->out.usage_cnt = usage_cnt;
 		break;
 
 	default:
-		rc = -ENOTTY;
+		rc = -EINVAL;
 		break;
 	}
 

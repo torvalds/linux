@@ -357,8 +357,8 @@ void gaudi_init_security(struct hl_device *hdev);
 void gaudi_ack_protection_bits_errors(struct hl_device *hdev);
 void gaudi_add_device_attr(struct hl_device *hdev,
 			struct attribute_group *dev_attr_grp);
-int gaudi_debug_coresight(struct hl_device *hdev, void *data);
-void gaudi_halt_coresight(struct hl_device *hdev);
+int gaudi_debug_coresight(struct hl_device *hdev, struct hl_ctx *ctx, void *data);
+void gaudi_halt_coresight(struct hl_device *hdev, struct hl_ctx *ctx);
 void gaudi_mmu_prepare_reg(struct hl_device *hdev, u64 reg, u32 asid);
 
 #endif /* GAUDIP_H_ */

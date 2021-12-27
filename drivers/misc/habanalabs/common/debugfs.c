@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 
 /*
- * Copyright 2016-2019 HabanaLabs, Ltd.
+ * Copyright 2016-2021 HabanaLabs, Ltd.
  * All Rights Reserved.
  */
 
@@ -15,18 +15,24 @@
 #define MMU_ADDR_BUF_SIZE	40
 #define MMU_ASID_BUF_SIZE	10
 #define MMU_KBUF_SIZE		(MMU_ADDR_BUF_SIZE + MMU_ASID_BUF_SIZE)
+#define I2C_MAX_TRANSACTION_LEN	8
 
 static struct dentry *hl_debug_root;
 
 static int hl_debugfs_i2c_read(struct hl_device *hdev, u8 i2c_bus, u8 i2c_addr,
-				u8 i2c_reg, long *val)
+				u8 i2c_reg, u8 i2c_len, u64 *val)
 {
 	struct cpucp_packet pkt;
-	u64 result;
 	int rc;
 
 	if (!hl_device_operational(hdev, NULL))
 		return -EBUSY;
+
+	if (i2c_len > I2C_MAX_TRANSACTION_LEN) {
+		dev_err(hdev->dev, "I2C transaction length %u, exceeds maximum of %u\n",
+				i2c_len, I2C_MAX_TRANSACTION_LEN);
+		return -EINVAL;
+	}
 
 	memset(&pkt, 0, sizeof(pkt));
 
@@ -35,12 +41,10 @@ static int hl_debugfs_i2c_read(struct hl_device *hdev, u8 i2c_bus, u8 i2c_addr,
 	pkt.i2c_bus = i2c_bus;
 	pkt.i2c_addr = i2c_addr;
 	pkt.i2c_reg = i2c_reg;
+	pkt.i2c_len = i2c_len;
 
 	rc = hdev->asic_funcs->send_cpu_message(hdev, (u32 *) &pkt, sizeof(pkt),
-						0, &result);
-
-	*val = (long) result;
-
+						0, val);
 	if (rc)
 		dev_err(hdev->dev, "Failed to read from I2C, error %d\n", rc);
 
@@ -48,13 +52,19 @@ static int hl_debugfs_i2c_read(struct hl_device *hdev, u8 i2c_bus, u8 i2c_addr,
 }
 
 static int hl_debugfs_i2c_write(struct hl_device *hdev, u8 i2c_bus, u8 i2c_addr,
-				u8 i2c_reg, u32 val)
+				u8 i2c_reg, u8 i2c_len, u64 val)
 {
 	struct cpucp_packet pkt;
 	int rc;
 
 	if (!hl_device_operational(hdev, NULL))
 		return -EBUSY;
+
+	if (i2c_len > I2C_MAX_TRANSACTION_LEN) {
+		dev_err(hdev->dev, "I2C transaction length %u, exceeds maximum of %u\n",
+				i2c_len, I2C_MAX_TRANSACTION_LEN);
+		return -EINVAL;
+	}
 
 	memset(&pkt, 0, sizeof(pkt));
 
@@ -63,6 +73,7 @@ static int hl_debugfs_i2c_write(struct hl_device *hdev, u8 i2c_bus, u8 i2c_addr,
 	pkt.i2c_bus = i2c_bus;
 	pkt.i2c_addr = i2c_addr;
 	pkt.i2c_reg = i2c_reg;
+	pkt.i2c_len = i2c_len;
 	pkt.value = cpu_to_le64(val);
 
 	rc = hdev->asic_funcs->send_cpu_message(hdev, (u32 *) &pkt, sizeof(pkt),
@@ -235,6 +246,8 @@ static int vm_show(struct seq_file *s, void *data)
 	struct hl_vm_hash_node *hnode;
 	struct hl_userptr *userptr;
 	struct hl_vm_phys_pg_pack *phys_pg_pack = NULL;
+	struct hl_va_range *va_range;
+	struct hl_vm_va_block *va_block;
 	enum vm_type *vm_type;
 	bool once = true;
 	u64 j;
@@ -313,6 +326,25 @@ static int vm_show(struct seq_file *s, void *data)
 	}
 
 	spin_unlock(&dev_entry->ctx_mem_hash_spinlock);
+
+	ctx = hl_get_compute_ctx(dev_entry->hdev);
+	if (ctx) {
+		seq_puts(s, "\nVA ranges:\n\n");
+		for (i = HL_VA_RANGE_TYPE_HOST ; i < HL_VA_RANGE_TYPE_MAX ; ++i) {
+			va_range = ctx->va_range[i];
+			seq_printf(s, "   va_range %d\n", i);
+			seq_puts(s, "---------------------\n");
+			mutex_lock(&va_range->lock);
+			list_for_each_entry(va_block, &va_range->list, node) {
+				seq_printf(s, "%#16llx - %#16llx (%#llx)\n",
+					   va_block->start, va_block->end,
+					   va_block->size);
+			}
+			mutex_unlock(&va_range->lock);
+			seq_puts(s, "\n");
+		}
+		hl_ctx_put(ctx);
+	}
 
 	if (!once)
 		seq_puts(s, "\n");
@@ -407,7 +439,7 @@ static int mmu_show(struct seq_file *s, void *data)
 	if (dev_entry->mmu_asid == HL_KERNEL_ASID_ID)
 		ctx = hdev->kernel_ctx;
 	else
-		ctx = hdev->compute_ctx;
+		ctx = hl_get_compute_ctx(hdev);
 
 	if (!ctx) {
 		dev_err(hdev->dev, "no ctx available\n");
@@ -495,7 +527,7 @@ static int engines_show(struct seq_file *s, void *data)
 	struct hl_dbg_device_entry *dev_entry = entry->dev_entry;
 	struct hl_device *hdev = dev_entry->hdev;
 
-	if (atomic_read(&hdev->in_reset)) {
+	if (hdev->reset_info.in_reset) {
 		dev_warn_ratelimited(hdev->dev,
 				"Can't check device idle during reset\n");
 		return 0;
@@ -560,13 +592,15 @@ static int device_va_to_pa(struct hl_device *hdev, u64 virt_addr, u32 size,
 			u64 *phys_addr)
 {
 	struct hl_vm_phys_pg_pack *phys_pg_pack;
-	struct hl_ctx *ctx = hdev->compute_ctx;
+	struct hl_ctx *ctx;
 	struct hl_vm_hash_node *hnode;
 	u64 end_address, range_size;
 	struct hl_userptr *userptr;
 	enum vm_type *vm_type;
 	bool valid = false;
 	int i, rc = 0;
+
+	ctx = hl_get_compute_ctx(hdev);
 
 	if (!ctx) {
 		dev_err(hdev->dev, "no ctx available\n");
@@ -624,7 +658,7 @@ static ssize_t hl_data_read32(struct file *f, char __user *buf,
 	ssize_t rc;
 	u32 val;
 
-	if (atomic_read(&hdev->in_reset)) {
+	if (hdev->reset_info.in_reset) {
 		dev_warn_ratelimited(hdev->dev, "Can't read during reset\n");
 		return 0;
 	}
@@ -660,7 +694,7 @@ static ssize_t hl_data_write32(struct file *f, const char __user *buf,
 	u32 value;
 	ssize_t rc;
 
-	if (atomic_read(&hdev->in_reset)) {
+	if (hdev->reset_info.in_reset) {
 		dev_warn_ratelimited(hdev->dev, "Can't write during reset\n");
 		return 0;
 	}
@@ -697,7 +731,7 @@ static ssize_t hl_data_read64(struct file *f, char __user *buf,
 	ssize_t rc;
 	u64 val;
 
-	if (atomic_read(&hdev->in_reset)) {
+	if (hdev->reset_info.in_reset) {
 		dev_warn_ratelimited(hdev->dev, "Can't read during reset\n");
 		return 0;
 	}
@@ -733,7 +767,7 @@ static ssize_t hl_data_write64(struct file *f, const char __user *buf,
 	u64 value;
 	ssize_t rc;
 
-	if (atomic_read(&hdev->in_reset)) {
+	if (hdev->reset_info.in_reset) {
 		dev_warn_ratelimited(hdev->dev, "Can't write during reset\n");
 		return 0;
 	}
@@ -768,7 +802,7 @@ static ssize_t hl_dma_size_write(struct file *f, const char __user *buf,
 	ssize_t rc;
 	u32 size;
 
-	if (atomic_read(&hdev->in_reset)) {
+	if (hdev->reset_info.in_reset) {
 		dev_warn_ratelimited(hdev->dev, "Can't DMA during reset\n");
 		return 0;
 	}
@@ -874,22 +908,22 @@ static ssize_t hl_i2c_data_read(struct file *f, char __user *buf,
 	struct hl_dbg_device_entry *entry = file_inode(f)->i_private;
 	struct hl_device *hdev = entry->hdev;
 	char tmp_buf[32];
-	long val;
+	u64 val;
 	ssize_t rc;
 
 	if (*ppos)
 		return 0;
 
 	rc = hl_debugfs_i2c_read(hdev, entry->i2c_bus, entry->i2c_addr,
-			entry->i2c_reg, &val);
+			entry->i2c_reg, entry->i2c_len, &val);
 	if (rc) {
 		dev_err(hdev->dev,
-			"Failed to read from I2C bus %d, addr %d, reg %d\n",
-			entry->i2c_bus, entry->i2c_addr, entry->i2c_reg);
+			"Failed to read from I2C bus %d, addr %d, reg %d, len %d\n",
+			entry->i2c_bus, entry->i2c_addr, entry->i2c_reg, entry->i2c_len);
 		return rc;
 	}
 
-	sprintf(tmp_buf, "0x%02lx\n", val);
+	sprintf(tmp_buf, "%#02llx\n", val);
 	rc = simple_read_from_buffer(buf, count, ppos, tmp_buf,
 			strlen(tmp_buf));
 
@@ -901,19 +935,19 @@ static ssize_t hl_i2c_data_write(struct file *f, const char __user *buf,
 {
 	struct hl_dbg_device_entry *entry = file_inode(f)->i_private;
 	struct hl_device *hdev = entry->hdev;
-	u32 value;
+	u64 value;
 	ssize_t rc;
 
-	rc = kstrtouint_from_user(buf, count, 16, &value);
+	rc = kstrtou64_from_user(buf, count, 16, &value);
 	if (rc)
 		return rc;
 
 	rc = hl_debugfs_i2c_write(hdev, entry->i2c_bus, entry->i2c_addr,
-			entry->i2c_reg, value);
+			entry->i2c_reg, entry->i2c_len, value);
 	if (rc) {
 		dev_err(hdev->dev,
-			"Failed to write 0x%02x to I2C bus %d, addr %d, reg %d\n",
-			value, entry->i2c_bus, entry->i2c_addr, entry->i2c_reg);
+			"Failed to write %#02llx to I2C bus %d, addr %d, reg %d, len %d\n",
+			value, entry->i2c_bus, entry->i2c_addr, entry->i2c_reg, entry->i2c_len);
 		return rc;
 	}
 
@@ -1043,7 +1077,7 @@ static ssize_t hl_clk_gate_write(struct file *f, const char __user *buf,
 	u64 value;
 	ssize_t rc;
 
-	if (atomic_read(&hdev->in_reset)) {
+	if (hdev->reset_info.in_reset) {
 		dev_warn_ratelimited(hdev->dev,
 				"Can't change clock gating during reset\n");
 		return 0;
@@ -1085,7 +1119,7 @@ static ssize_t hl_stop_on_err_write(struct file *f, const char __user *buf,
 	u32 value;
 	ssize_t rc;
 
-	if (atomic_read(&hdev->in_reset)) {
+	if (hdev->reset_info.in_reset) {
 		dev_warn_ratelimited(hdev->dev,
 				"Can't change stop on error during reset\n");
 		return 0;
@@ -1396,6 +1430,11 @@ void hl_debugfs_add_device(struct hl_device *hdev)
 				dev_entry->root,
 				&dev_entry->i2c_reg);
 
+	debugfs_create_u8("i2c_len",
+				0644,
+				dev_entry->root,
+				&dev_entry->i2c_len);
+
 	debugfs_create_file("i2c_data",
 				0644,
 				dev_entry->root,
@@ -1458,7 +1497,7 @@ void hl_debugfs_add_device(struct hl_device *hdev)
 	debugfs_create_x8("skip_reset_on_timeout",
 				0644,
 				dev_entry->root,
-				&hdev->skip_reset_on_timeout);
+				&hdev->reset_info.skip_reset_on_timeout);
 
 	debugfs_create_file("state_dump",
 				0600,

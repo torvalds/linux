@@ -32,6 +32,7 @@ enum cpu_boot_err {
 	CPU_BOOT_ERR_DEVICE_UNUSABLE_FAIL = 13,
 	CPU_BOOT_ERR_BOOT_FW_CRIT_ERR = 18,
 	CPU_BOOT_ERR_BINNING_FAIL = 19,
+	CPU_BOOT_ERR_TPM_FAIL = 20,
 	CPU_BOOT_ERR_ENABLED = 31,
 	CPU_BOOT_ERR_SCND_EN = 63,
 	CPU_BOOT_ERR_LAST = 64 /* we have 2 registers of 32 bits */
@@ -108,6 +109,8 @@ enum cpu_boot_err {
  *					malfunctioning components might still be
  *					in use.
  *
+ * CPU_BOOT_ERR0_TPM_FAIL		TPM verification flow failed.
+ *
  * CPU_BOOT_ERR0_ENABLED		Error registers enabled.
  *					This is a main indication that the
  *					running FW populates the error
@@ -130,6 +133,7 @@ enum cpu_boot_err {
 #define CPU_BOOT_ERR0_DEVICE_UNUSABLE_FAIL	(1 << CPU_BOOT_ERR_DEVICE_UNUSABLE_FAIL)
 #define CPU_BOOT_ERR0_BOOT_FW_CRIT_ERR		(1 << CPU_BOOT_ERR_BOOT_FW_CRIT_ERR)
 #define CPU_BOOT_ERR0_BINNING_FAIL		(1 << CPU_BOOT_ERR_BINNING_FAIL)
+#define CPU_BOOT_ERR0_TPM_FAIL			(1 << CPU_BOOT_ERR_TPM_FAIL)
 #define CPU_BOOT_ERR0_ENABLED			(1 << CPU_BOOT_ERR_ENABLED)
 #define CPU_BOOT_ERR1_ENABLED			(1 << CPU_BOOT_ERR_ENABLED)
 
