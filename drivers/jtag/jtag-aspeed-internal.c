@@ -979,7 +979,7 @@ static int aspeed_jtag_probe(struct platform_device *pdev)
 		goto out;
 	}
 	aspeed_jtag->reset =
-		devm_reset_control_get_exclusive(&pdev->dev, "jtag");
+		devm_reset_control_get_exclusive(&pdev->dev, NULL);
 	if (IS_ERR(aspeed_jtag->reset)) {
 		dev_err(&pdev->dev, "can't get jtag reset\n");
 		return PTR_ERR(aspeed_jtag->reset);
