@@ -29,6 +29,7 @@ struct rockchip_opp_info {
 	struct regmap *grf;
 	struct clk_bulk_data *clks;
 	int num_clks;
+	u32 current_rm;
 };
 
 #if IS_ENABLED(CONFIG_ROCKCHIP_OPP)

@@ -1179,6 +1179,7 @@ int rockchip_init_opp_table(struct device *dev, struct rockchip_opp_info *info,
 		info->num_clks = num_clks;
 	}
 	if (info->data && info->data->set_read_margin) {
+		info->current_rm = UINT_MAX;
 		info->grf = syscon_regmap_lookup_by_phandle(np, "rockchip,grf");
 		if (IS_ERR(info->grf))
 			info->grf = NULL;
