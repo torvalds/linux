@@ -204,23 +204,23 @@ static void RGA3_set_reg_win0_info(u8 *base, struct rga3_req *msg)
 		win_format = 0x5;
 		pixel_width = 3;
 		win_interleaved = 2;
+		win_pix_swp = 1;
 		break;
 	case RGA2_FORMAT_BGR_888:
 		win_format = 0x5;
 		pixel_width = 3;
 		win_interleaved = 2;
-		win_pix_swp = 1;
 		break;
 	case RGA2_FORMAT_RGB_565:
 		win_format = 0x4;
 		pixel_width = 2;
 		win_interleaved = 2;
+		win_pix_swp = 1;
 		break;
 	case RGA2_FORMAT_BGR_565:
 		win_format = 0x4;
 		pixel_width = 2;
 		win_interleaved = 2;
-		win_pix_swp = 1;
 		break;
 
 	case RGA2_FORMAT_YVYU_422:
@@ -619,23 +619,23 @@ static void RGA3_set_reg_win1_info(u8 *base, struct rga3_req *msg)
 		win_format = 0x5;
 		pixel_width = 3;
 		win_interleaved = 2;
+		win_pix_swp = 1;
 		break;
 	case RGA2_FORMAT_BGR_888:
 		win_format = 0x5;
 		pixel_width = 3;
 		win_interleaved = 2;
-		win_pix_swp = 1;
 		break;
 	case RGA2_FORMAT_RGB_565:
 		win_format = 0x4;
 		pixel_width = 2;
 		win_interleaved = 2;
+		win_pix_swp = 1;
 		break;
 	case RGA2_FORMAT_BGR_565:
 		win_format = 0x4;
 		pixel_width = 2;
 		win_interleaved = 2;
-		win_pix_swp = 1;
 		break;
 
 	case RGA2_FORMAT_YVYU_422:
