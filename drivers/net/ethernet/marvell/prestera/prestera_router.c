@@ -4,9 +4,21 @@
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/inetdevice.h>
+#include <net/switchdev.h>
 
 #include "prestera.h"
 #include "prestera_router_hw.h"
+
+/* This util to be used, to convert kernel rules for default vr in hw_vr */
+static u32 prestera_fix_tb_id(u32 tb_id)
+{
+	if (tb_id == RT_TABLE_UNSPEC ||
+	    tb_id == RT_TABLE_LOCAL ||
+	    tb_id == RT_TABLE_DEFAULT)
+		tb_id = RT_TABLE_MAIN;
+
+	return tb_id;
+}
 
 static int __prestera_inetaddr_port_event(struct net_device *port_dev,
 					  unsigned long event,
@@ -14,6 +26,9 @@ static int __prestera_inetaddr_port_event(struct net_device *port_dev,
 {
 	struct prestera_port *port = netdev_priv(port_dev);
 	int err;
+	struct prestera_rif_entry *re;
+	struct prestera_rif_entry_key re_key = {};
+	u32 kern_tb_id;
 
 	err = prestera_is_valid_mac_addr(port, port_dev->dev_addr);
 	if (err) {
@@ -21,9 +36,34 @@ static int __prestera_inetaddr_port_event(struct net_device *port_dev,
 		return err;
 	}
 
+	kern_tb_id = l3mdev_fib_table(port_dev);
+	re_key.iface.type = PRESTERA_IF_PORT_E;
+	re_key.iface.dev_port.hw_dev_num  = port->dev_id;
+	re_key.iface.dev_port.port_num  = port->hw_id;
+	re = prestera_rif_entry_find(port->sw, &re_key);
+
 	switch (event) {
 	case NETDEV_UP:
+		if (re) {
+			NL_SET_ERR_MSG_MOD(extack, "rif_entry already exist");
+			return -EEXIST;
+		}
+		re = prestera_rif_entry_create(port->sw, &re_key,
+					       prestera_fix_tb_id(kern_tb_id),
+					       port_dev->dev_addr);
+		if (!re) {
+			NL_SET_ERR_MSG_MOD(extack, "Can't create rif_entry");
+			return -EINVAL;
+		}
+		dev_hold(port_dev);
+		break;
 	case NETDEV_DOWN:
+		if (!re) {
+			NL_SET_ERR_MSG_MOD(extack, "rif_entry not exist");
+			return -EEXIST;
+		}
+		prestera_rif_entry_destroy(port->sw, re);
+		dev_put(port_dev);
 		break;
 	}
 
