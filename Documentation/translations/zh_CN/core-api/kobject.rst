@@ -325,10 +325,9 @@ ksets
 结构体kset_uevent_ops来处理它::
 
   struct kset_uevent_ops {
-          int (* const filter)(struct kset *kset, struct kobject *kobj);
-          const char *(* const name)(struct kset *kset, struct kobject *kobj);
-          int (* const uevent)(struct kset *kset, struct kobject *kobj,
-                        struct kobj_uevent_env *env);
+          int (* const filter)(struct kobject *kobj);
+          const char *(* const name)(struct kobject *kobj);
+          int (* const uevent)(struct kobject *kobj, struct kobj_uevent_env *env);
   };
 
 

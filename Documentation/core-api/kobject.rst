@@ -373,10 +373,9 @@ If a kset wishes to control the uevent operations of the kobjects
 associated with it, it can use the struct kset_uevent_ops to handle it::
 
   struct kset_uevent_ops {
-          int (* const filter)(struct kset *kset, struct kobject *kobj);
-          const char *(* const name)(struct kset *kset, struct kobject *kobj);
-          int (* const uevent)(struct kset *kset, struct kobject *kobj,
-                        struct kobj_uevent_env *env);
+          int (* const filter)(struct kobject *kobj);
+          const char *(* const name)(struct kobject *kobj);
+          int (* const uevent)(struct kobject *kobj, struct kobj_uevent_env *env);
   };
 
 
