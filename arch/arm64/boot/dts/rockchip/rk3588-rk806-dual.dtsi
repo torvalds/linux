@@ -324,7 +324,7 @@
 				regulator-ramp-delay = <12500>;
 				regulator-name = "vcc_3v3_s3";
 				regulator-state-mem {
-					regulator-off-in-suspend;
+					regulator-on-in-suspend;
 					regulator-suspend-microvolt = <3300000>;
 				};
 			};
