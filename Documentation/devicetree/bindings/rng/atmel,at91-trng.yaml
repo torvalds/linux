@@ -13,9 +13,14 @@ maintainers:
 
 properties:
   compatible:
-    enum:
-      - atmel,at91sam9g45-trng
-      - microchip,sam9x60-trng
+    oneOf:
+      - enum:
+          - atmel,at91sam9g45-trng
+          - microchip,sam9x60-trng
+      - items:
+          - enum:
+              - microchip,sama7g5-trng
+          - const: atmel,at91sam9g45-trng
 
   clocks:
     maxItems: 1
