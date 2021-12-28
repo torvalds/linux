@@ -318,6 +318,34 @@ DEFINE_EVENT(btree_node, btree_set_root,
 	TP_ARGS(c, b)
 );
 
+TRACE_EVENT(btree_cache_scan,
+	TP_PROTO(unsigned long nr_to_scan_pages,
+		 unsigned long nr_to_scan_nodes,
+		 unsigned long can_free_nodes,
+		 long ret),
+	TP_ARGS(nr_to_scan_pages, nr_to_scan_nodes, can_free_nodes, ret),
+
+	TP_STRUCT__entry(
+		__field(unsigned long,	nr_to_scan_pages	)
+		__field(unsigned long,	nr_to_scan_nodes	)
+		__field(unsigned long,	can_free_nodes		)
+		__field(long,		ret			)
+	),
+
+	TP_fast_assign(
+		__entry->nr_to_scan_pages	= nr_to_scan_pages;
+		__entry->nr_to_scan_nodes	= nr_to_scan_nodes;
+		__entry->can_free_nodes		= can_free_nodes;
+		__entry->ret			= ret;
+	),
+
+	TP_printk("scanned for %lu pages, %lu nodes, can free %lu nodes, ret %li",
+		  __entry->nr_to_scan_pages,
+		  __entry->nr_to_scan_nodes,
+		  __entry->can_free_nodes,
+		  __entry->ret)
+);
+
 /* Garbage collection */
 
 DEFINE_EVENT(btree_node, btree_gc_rewrite_node,

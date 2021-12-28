@@ -275,6 +275,7 @@ static unsigned long bch2_btree_cache_scan(struct shrinker *shrink,
 	unsigned long touched = 0;
 	unsigned long freed = 0;
 	unsigned i, flags;
+	unsigned long ret = SHRINK_STOP;
 
 	if (bch2_btree_shrinker_disabled)
 		return SHRINK_STOP;
@@ -283,7 +284,7 @@ static unsigned long bch2_btree_cache_scan(struct shrinker *shrink,
 	if (sc->gfp_mask & __GFP_FS)
 		mutex_lock(&bc->lock);
 	else if (!mutex_trylock(&bc->lock))
-		return -1;
+		goto out_norestore;
 
 	flags = memalloc_nofs_save();
 
@@ -358,8 +359,14 @@ restart:
 
 	mutex_unlock(&bc->lock);
 out:
+	ret = (unsigned long) freed * btree_pages(c);
 	memalloc_nofs_restore(flags);
-	return (unsigned long) freed * btree_pages(c);
+out_norestore:
+	trace_btree_cache_scan(sc->nr_to_scan,
+			       sc->nr_to_scan / btree_pages(c),
+			       btree_cache_can_free(bc),
+			       ret);
+	return ret;
 }
 
 static unsigned long bch2_btree_cache_count(struct shrinker *shrink,
