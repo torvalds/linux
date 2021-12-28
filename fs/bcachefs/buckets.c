@@ -535,20 +535,6 @@ void bch2_mark_alloc_bucket(struct bch_fs *c, struct bch_dev *ca,
 	BUG_ON(owned_by_allocator == old.owned_by_allocator);
 }
 
-static inline u8 bkey_alloc_gen(struct bkey_s_c k)
-{
-	switch (k.k->type) {
-	case KEY_TYPE_alloc:
-		return bkey_s_c_to_alloc(k).v->gen;
-	case KEY_TYPE_alloc_v2:
-		return bkey_s_c_to_alloc_v2(k).v->gen;
-	case KEY_TYPE_alloc_v3:
-		return bkey_s_c_to_alloc_v3(k).v->gen;
-	default:
-		return 0;
-	}
-}
-
 static int bch2_mark_alloc(struct btree_trans *trans,
 			   struct bkey_s_c old, struct bkey_s_c new,
 			   unsigned flags)
@@ -556,15 +542,12 @@ static int bch2_mark_alloc(struct btree_trans *trans,
 	bool gc = flags & BTREE_TRIGGER_GC;
 	u64 journal_seq = trans->journal_res.seq;
 	struct bch_fs *c = trans->c;
-	struct bkey_alloc_unpacked u;
+	struct bkey_alloc_unpacked old_u = bch2_alloc_unpack(old);
+	struct bkey_alloc_unpacked new_u = bch2_alloc_unpack(new);
 	struct bch_dev *ca;
 	struct bucket *g;
 	struct bucket_mark old_m, m;
 	int ret = 0;
-
-	/* We don't do anything for deletions - do we?: */
-	if (!bkey_is_alloc(new.k))
-		return 0;
 
 	/*
 	 * alloc btree is read in by bch2_alloc_read, not gc:
@@ -573,13 +556,24 @@ static int bch2_mark_alloc(struct btree_trans *trans,
 	    !(flags & BTREE_TRIGGER_BUCKET_INVALIDATE))
 		return 0;
 
-	if (flags & BTREE_TRIGGER_INSERT) {
+	if ((flags & BTREE_TRIGGER_INSERT) &&
+	    !old_u.data_type != !new_u.data_type &&
+	    new.k->type == KEY_TYPE_alloc_v3) {
 		struct bch_alloc_v3 *v = (struct bch_alloc_v3 *) new.v;
+		u64 old_journal_seq = le64_to_cpu(v->journal_seq);
 
 		BUG_ON(!journal_seq);
-		BUG_ON(new.k->type != KEY_TYPE_alloc_v3);
 
-		v->journal_seq = cpu_to_le64(journal_seq);
+		/*
+		 * If the btree updates referring to a bucket weren't flushed
+		 * before the bucket became empty again, then the we don't have
+		 * to wait on a journal flush before we can reuse the bucket:
+		 */
+		new_u.journal_seq = !new_u.data_type &&
+			(journal_seq == old_journal_seq ||
+			 bch2_journal_noflush_seq(&c->journal, old_journal_seq))
+			? 0 : journal_seq;
+		v->journal_seq = cpu_to_le64(new_u.journal_seq);
 	}
 
 	ca = bch_dev_bkey_exists(c, new.k->p.inode);
@@ -587,20 +581,18 @@ static int bch2_mark_alloc(struct btree_trans *trans,
 	if (new.k->p.offset >= ca->mi.nbuckets)
 		return 0;
 
-	u = bch2_alloc_unpack(new);
-
 	percpu_down_read(&c->mark_lock);
-	if (!gc && u.gen != bkey_alloc_gen(old))
-		*bucket_gen(ca, new.k->p.offset) = u.gen;
+	if (!gc && new_u.gen != old_u.gen)
+		*bucket_gen(ca, new.k->p.offset) = new_u.gen;
 
 	g = __bucket(ca, new.k->p.offset, gc);
 
 	old_m = bucket_cmpxchg(g, m, ({
-		m.gen			= u.gen;
-		m.data_type		= u.data_type;
-		m.dirty_sectors		= u.dirty_sectors;
-		m.cached_sectors	= u.cached_sectors;
-		m.stripe		= u.stripe != 0;
+		m.gen			= new_u.gen;
+		m.data_type		= new_u.data_type;
+		m.dirty_sectors		= new_u.dirty_sectors;
+		m.cached_sectors	= new_u.cached_sectors;
+		m.stripe		= new_u.stripe != 0;
 
 		if (journal_seq) {
 			m.journal_seq_valid	= 1;
@@ -610,12 +602,12 @@ static int bch2_mark_alloc(struct btree_trans *trans,
 
 	bch2_dev_usage_update(c, ca, old_m, m, journal_seq, gc);
 
-	g->io_time[READ]	= u.read_time;
-	g->io_time[WRITE]	= u.write_time;
-	g->oldest_gen		= u.oldest_gen;
+	g->io_time[READ]	= new_u.read_time;
+	g->io_time[WRITE]	= new_u.write_time;
+	g->oldest_gen		= new_u.oldest_gen;
 	g->gen_valid		= 1;
-	g->stripe		= u.stripe;
-	g->stripe_redundancy	= u.stripe_redundancy;
+	g->stripe		= new_u.stripe;
+	g->stripe_redundancy	= new_u.stripe_redundancy;
 	percpu_up_read(&c->mark_lock);
 
 	/*
