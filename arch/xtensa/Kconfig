@@ -227,6 +227,15 @@ config HOTPLUG_CPU
 
 	  Say N if you want to disable CPU hotplug.
 
+config SECONDARY_RESET_VECTOR
+	bool "Secondary cores use alternative reset vector"
+	default y
+	depends on HAVE_SMP
+	help
+	  Secondary cores may be configured to use alternative reset vector,
+	  or all cores may use primary reset vector.
+	  Say Y here to supply handler for the alternative reset location.
+
 config FAST_SYSCALL_XTENSA
 	bool "Enable fast atomic syscalls"
 	default n

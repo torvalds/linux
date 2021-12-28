@@ -349,7 +349,7 @@ void __init setup_arch(char **cmdline_p)
 
 #endif /* CONFIG_VECTORS_ADDR */
 
-#ifdef CONFIG_SMP
+#ifdef CONFIG_SECONDARY_RESET_VECTOR
 	mem_reserve(__pa(_SecondaryResetVector_text_start),
 		    __pa(_SecondaryResetVector_text_end));
 #endif
