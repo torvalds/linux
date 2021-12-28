@@ -114,7 +114,7 @@ void bch2_hprint(struct printbuf *buf, s64 v)
 	 * 103 is magic: t is in the range [-1023, 1023] and we want
 	 * to turn it into [-9, 9]
 	 */
-	if (u && v < 100 && v > -100)
+	if (u && t && v < 100 && v > -100)
 		pr_buf(buf, ".%i", t / 103);
 	if (u)
 		pr_buf(buf, "%c", si_units[u]);
