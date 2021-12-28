@@ -3535,6 +3535,11 @@ int rkcif_update_sensor_info(struct rkcif_stream *stream)
 				 __func__, terminal_sensor->sd->name);
 			return ret;
 		}
+	} else {
+		v4l2_err(&stream->cifdev->v4l2_dev,
+			 "%s: stream[%d] get remote terminal sensor failed!\n",
+			 __func__, stream->id);
+		return -ENODEV;
 	}
 
 	if (terminal_sensor->mbus.type == V4L2_MBUS_CSI2_DPHY ||

@@ -1166,6 +1166,12 @@ static int subdev_asyn_register_itf(struct rkcif_device *dev)
 	struct sditf_priv *sditf = dev->sditf;
 	int ret = 0;
 
+	ret = rkcif_update_sensor_info(&dev->stream[0]);
+	if (ret) {
+		v4l2_err(&dev->v4l2_dev,
+			 "There is not terminal subdev, not synchronized with ISP\n");
+		return 0;
+	}
 	if (sditf)
 		ret = v4l2_async_register_subdev_sensor_common(&sditf->sd);
 
