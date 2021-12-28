@@ -458,6 +458,7 @@ struct mpp_taskqueue {
 	u32 task_capacity;
 
 	/* multi-core task distribution */
+	atomic_t reset_request;
 	struct mpp_dev *cores[MPP_MAX_CORE_NUM];
 	unsigned long core_idle;
 	u32 core_count;
@@ -595,6 +596,7 @@ int mpp_task_dump_reg(struct mpp_dev *mpp,
 		      struct mpp_task *task);
 int mpp_task_dump_hw_reg(struct mpp_dev *mpp,
 			 struct mpp_task *task);
+void mpp_free_task(struct kref *ref);
 
 int mpp_session_deinit(struct mpp_session *session);
 

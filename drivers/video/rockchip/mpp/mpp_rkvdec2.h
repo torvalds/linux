@@ -51,6 +51,8 @@
 #define RKVDEC_START_EN			BIT(0)
 
 #define RKVDEC_REG_YSTRIDE_INDEX	20
+#define RKVDEC_REG_CORE_CTRL_INDEX	28
+#define RKVDEC_REG_FILM_IDX_MASK	(0x3ff0000)
 
 #define RKVDEC_REG_RLC_BASE		0x200
 #define RKVDEC_REG_RLC_BASE_INDEX	(128)
@@ -145,6 +147,8 @@ struct rkvdec2_task {
 
 	/* event for task wait timeout or session timeout */
 	wait_queue_head_t wait;
+	/* link table DMA buffer */
+	struct mpp_dma_buffer *table;
 };
 
 struct rkvdec2_session_priv {
@@ -191,8 +195,18 @@ struct rkvdec2_dev {
 	/* for link mode */
 	struct rkvdec_link_dev *link_dec;
 	struct mpp_dma_buffer *fix;
+
+	/* for ccu link mode */
+	struct rkvdec2_ccu *ccu;
+	u32 core_mask;
+	bool disable_work;
+	u32 task_index;
 };
 
+int mpp_set_rcbbuf(struct mpp_dev *mpp, struct mpp_session *session,
+		   struct mpp_task *task);
+int rkvdec2_task_init(struct mpp_dev *mpp, struct mpp_session *session,
+		      struct rkvdec2_task *task, struct mpp_task_msgs *msgs);
 void *rkvdec2_alloc_task(struct mpp_session *session,
 			 struct mpp_task_msgs *msgs);
 int rkvdec2_free_task(struct mpp_session *session, struct mpp_task *mpp_task);
@@ -201,5 +215,6 @@ int rkvdec2_free_session(struct mpp_session *session);
 
 int rkvdec2_result(struct mpp_dev *mpp, struct mpp_task *mpp_task,
 		   struct mpp_task_msgs *msgs);
+int rkvdec2_reset(struct mpp_dev *mpp);
 
 #endif

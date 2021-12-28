@@ -86,7 +86,6 @@ const char *enc_info_item_name[ENC_INFO_BUTT] = {
 
 #endif
 
-static void mpp_free_task(struct kref *ref);
 static void mpp_attach_workqueue(struct mpp_dev *mpp,
 				 struct mpp_taskqueue *queue);
 
@@ -386,7 +385,7 @@ mpp_session_get_pending_task(struct mpp_session *session)
 	return task;
 }
 
-static void mpp_free_task(struct kref *ref)
+void mpp_free_task(struct kref *ref)
 {
 	struct mpp_dev *mpp;
 	struct mpp_session *session;
@@ -719,24 +718,25 @@ done:
 	mutex_unlock(&queue->session_lock);
 }
 
+static inline struct mpp_dev *
+mpp_get_task_used_device(const struct mpp_task *task, const struct mpp_session *session)
+{
+	return task->mpp ? task->mpp : session->mpp;
+}
+
 static int mpp_wait_result_default(struct mpp_session *session,
-			       struct mpp_task_msgs *msgs)
+				   struct mpp_task_msgs *msgs)
 {
 	int ret;
 	struct mpp_task *task;
-	struct mpp_dev *mpp = session->mpp;
-
-	if (unlikely(!mpp)) {
-		mpp_err("pid %d clinet %d found invalid wait result function\n",
-			session->pid, session->device_type);
-		return -EINVAL;
-	}
+	struct mpp_dev *mpp;
 
 	task = mpp_session_get_pending_task(session);
 	if (!task) {
 		mpp_err("session %p pending list is empty!\n", session);
 		return -EIO;
 	}
+	mpp = mpp_get_task_used_device(task, session);
 
 	ret = wait_event_timeout(task->wait,
 				 test_bit(TASK_STATE_DONE, &task->state),
@@ -865,6 +865,7 @@ struct mpp_taskqueue *mpp_taskqueue_init(struct device *dev)
 
 	/* default taskqueue has max 16 task capacity */
 	queue->task_capacity = MPP_MAX_TASK_CAPACITY;
+	atomic_set(&queue->reset_request, 0);
 
 	return queue;
 }
@@ -1601,7 +1602,7 @@ int mpp_task_init(struct mpp_session *session,
 int mpp_task_finish(struct mpp_session *session,
 		    struct mpp_task *task)
 {
-	struct mpp_dev *mpp = task->mpp ? task->mpp : session->mpp;
+	struct mpp_dev *mpp = mpp_get_task_used_device(task, session);
 
 	if (mpp->dev_ops->finish)
 		mpp->dev_ops->finish(mpp, task);
@@ -1624,7 +1625,7 @@ int mpp_task_finalize(struct mpp_session *session,
 		      struct mpp_task *task)
 {
 	struct mpp_mem_region *mem_region = NULL, *n;
-	struct mpp_dev *mpp = session->mpp;
+	struct mpp_dev *mpp = mpp_get_task_used_device(task, session);
 
 	/* release memory region attach to this registers table. */
 	list_for_each_entry_safe(mem_region, n,
@@ -1727,7 +1728,7 @@ static int mpp_iommu_handle(struct iommu_domain *iommu,
 	if (!task || !task->session)
 		return -EIO;
 	/* get mpp from cur task */
-	mpp = task->session->mpp;
+	mpp = mpp_get_task_used_device(task, task->session);
 	dev_err(mpp->dev, "fault addr 0x%08lx status %x\n", iova, status);
 
 	mpp_task_dump_mem_region(mpp, task);

@@ -21,6 +21,8 @@
 #define RKVDEC_LINK_BIT_IRQ_DIS		BIT(2)
 #define RKVDEC_LINK_BIT_IRQ		BIT(8)
 #define RKVDEC_LINK_BIT_IRQ_RAW		BIT(9)
+#define RKVDEC_LINK_BIT_CORE_WORK_MODE	BIT(16)
+#define RKVDEC_LINK_BIT_CCU_WORK_MODE	BIT(17)
 
 #define RKVDEC_LINK_CFG_ADDR_BASE	0x004
 
@@ -42,6 +44,35 @@
 #define RKVDEC_LINK_NEXT_ADDR_BASE	0x01c
 
 #define RKVDEC_LINK_REG_CYCLE_CNT	179
+
+/* define for ccu link hardware */
+#define RKVDEC_CCU_CTRL_BASE		0x000
+#define RKVDEC_CCU_BIT_AUTOGATE		BIT(0)
+#define RKVDEC_CCU_BIT_FIX_RCB		BIT(20)
+
+#define RKVDEC_CCU_CFG_ADDR_BASE	0x004
+#define RKVDEC_CCU_LINK_MODE_BASE	0x008
+#define RKVDEC_CCU_BIT_ADD_MODE		BIT(31)
+
+#define RKVDEC_CCU_CFG_DONE_BASE	0x00c
+#define RKVDEC_CCU_BIT_CFG_DONE		BIT(0)
+
+#define RKVDEC_CCU_DEC_NUM_BASE		0x010
+#define RKVDEC_CCU_TOTAL_NUM_BASE	0x014
+
+#define RKVDEC_CCU_WORK_BASE		0x018
+#define RKVDEC_CCU_BIT_WORK_EN		BIT(0)
+
+#define RKVDEC_CCU_SEND_NUM_BASE	0x024
+#define RKVDEC_CCU_WORK_MODE_BASE	0x040
+#define RKVDEC_CCU_BIT_WORK_MODE	BIT(0)
+
+#define RKVDEC_CCU_CORE_WORK_BASE	0x044
+#define RKVDEC_CCU_CORE_STA_BASE	0x048
+#define RKVDEC_CCU_CORE_IDLE_BASE	0x04c
+#define RKVDEC_CCU_CORE_ERR_BASE	0x054
+
+#define RKVDEC_CCU_CORE_RW_MASK		0x30000
 
 struct rkvdec_link_dev {
 	struct device *dev;
@@ -101,6 +132,19 @@ struct rkvdec_link_dev {
 	u32 stuff_cnt;
 };
 
+struct rkvdec2_ccu {
+	struct device *dev;
+	/* register base */
+	void __iomem *reg_base;
+
+	atomic_t power_enabled;
+	struct mpp_clk_info aclk_info;
+#ifdef CONFIG_ROCKCHIP_MPP_PROC_FS
+	struct proc_dir_entry *procfs;
+#endif
+	struct reset_control *rst_a;
+};
+
 int rkvdec_link_dump(struct mpp_dev *mpp);
 
 int rkvdec2_link_init(struct platform_device *pdev, struct rkvdec2_dev *dec);
@@ -114,5 +158,12 @@ int rkvdec2_link_wait_result(struct mpp_session *session,
 			     struct mpp_task_msgs *msgs);
 void rkvdec2_link_worker(struct kthread_work *work_s);
 void rkvdec2_link_session_deinit(struct mpp_session *session);
+
+/* for ccu link */
+int rkvdec2_attach_ccu(struct device *dev, struct rkvdec2_dev *dec);
+int rkvdec2_ccu_link_init(struct platform_device *pdev, struct rkvdec2_dev *dec);
+void *rkvdec2_ccu_alloc_task(struct mpp_session *session, struct mpp_task_msgs *msgs);
+irqreturn_t rkvdec2_soft_ccu_irq(int irq, void *param);
+void rkvdec2_soft_ccu_worker(struct kthread_work *work_s);
 
 #endif

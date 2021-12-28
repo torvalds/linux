@@ -7,6 +7,8 @@
  *	Ding Wei, leo.ding@rock-chips.com
  *
  */
+#include <linux/pm_runtime.h>
+
 #include "mpp_debug.h"
 #include "mpp_common.h"
 #include "mpp_iommu.h"
@@ -150,9 +152,8 @@ static int rkvdec2_extract_task_msg(struct mpp_session *session,
 	return 0;
 }
 
-static int mpp_set_rcbbuf(struct mpp_dev *mpp,
-			  struct mpp_session *session,
-			  struct rkvdec2_task *task)
+int mpp_set_rcbbuf(struct mpp_dev *mpp, struct mpp_session *session,
+		   struct mpp_task *task)
 {
 	struct rkvdec2_dev *dec = to_rkvdec2_dev(mpp);
 	struct rkvdec2_session_priv *priv = session->priv;
@@ -172,10 +173,11 @@ static int mpp_set_rcbbuf(struct mpp_dev *mpp,
 		for (i = 0; i < rcb_inf->cnt; i++) {
 			reg_idx = rcb_inf->elem[i].index;
 			rcb_size = rcb_inf->elem[i].size;
-			if (!rcb_size ||
-			    rcb_offset > dec->sram_size ||
-			    (rcb_offset + rcb_size) > dec->rcb_size)
+			if ((rcb_offset + rcb_size) > dec->rcb_size) {
+				mpp_debug(DEBUG_SRAM_INFO,
+					  "rcb: reg %d use original buffer\n", reg_idx);
 				continue;
+			}
 			mpp_debug(DEBUG_SRAM_INFO, "rcb: reg %d offset %d, size %d\n",
 				  reg_idx, rcb_offset, rcb_size);
 			task->reg[reg_idx] = dec->rcb_iova + rcb_offset;
@@ -188,41 +190,34 @@ done:
 	return 0;
 }
 
-void *rkvdec2_alloc_task(struct mpp_session *session,
-			 struct mpp_task_msgs *msgs)
+int rkvdec2_task_init(struct mpp_dev *mpp, struct mpp_session *session,
+		      struct rkvdec2_task *task, struct mpp_task_msgs *msgs)
 {
 	int ret;
-	struct mpp_task *mpp_task = NULL;
-	struct rkvdec2_task *task = NULL;
-	struct mpp_dev *mpp = session->mpp;
+	struct mpp_task *mpp_task = &task->mpp_task;
 
 	mpp_debug_enter();
 
-	task = kzalloc(sizeof(*task), GFP_KERNEL);
-	if (!task)
-		return NULL;
-
-	mpp_task = &task->mpp_task;
 	mpp_task_init(session, mpp_task);
 	mpp_task->hw_info = mpp->var->hw_info;
 	mpp_task->reg = task->reg;
 	/* extract reqs for current task */
 	ret = rkvdec2_extract_task_msg(session, task, msgs);
 	if (ret)
-		goto fail;
+		return ret;
 
 	/* process fd in register */
 	if (!(msgs->flags & MPP_FLAGS_REG_FD_NO_TRANS)) {
 		u32 fmt = RKVDEC_GET_FORMAT(task->reg[RKVDEC_REG_FORMAT_INDEX]);
 
-		ret = mpp_translate_reg_address(session, &task->mpp_task,
+		ret = mpp_translate_reg_address(session, mpp_task,
 						fmt, task->reg, &task->off_inf);
 		if (ret)
 			goto fail;
 
-		mpp_translate_reg_offset_info(&task->mpp_task, &task->off_inf, task->reg);
+		mpp_translate_reg_offset_info(mpp_task, &task->off_inf, task->reg);
 	}
-	mpp_set_rcbbuf(mpp, session, task);
+
 	task->strm_addr = task->reg[RKVDEC_REG_RLC_BASE_INDEX];
 	task->clk_mode = CLK_MODE_NORMAL;
 	task->slot_idx = -1;
@@ -242,14 +237,33 @@ void *rkvdec2_alloc_task(struct mpp_session *session,
 
 	mpp_debug_leave();
 
-	return mpp_task;
+	return 0;
 
 fail:
 	mpp_task_dump_mem_region(mpp, mpp_task);
 	mpp_task_dump_reg(mpp, mpp_task);
 	mpp_task_finalize(session, mpp_task);
-	kfree(task);
-	return NULL;
+	return ret;
+}
+
+void *rkvdec2_alloc_task(struct mpp_session *session,
+			 struct mpp_task_msgs *msgs)
+{
+	int ret;
+	struct rkvdec2_task *task;
+
+	task = kzalloc(sizeof(*task), GFP_KERNEL);
+	if (!task)
+		return NULL;
+
+	ret = rkvdec2_task_init(session->mpp, session, task, msgs);
+	if (ret) {
+		kfree(task);
+		return NULL;
+	}
+	mpp_set_rcbbuf(session->mpp, session, &task->mpp_task);
+
+	return &task->mpp_task;
 }
 
 static void *rkvdec2_rk3568_alloc_task(struct mpp_session *session,
@@ -583,8 +597,15 @@ static int rkvdec2_show_pref_sel_offset(struct seq_file *file, void *v)
 static int rkvdec2_procfs_init(struct mpp_dev *mpp)
 {
 	struct rkvdec2_dev *dec = to_rkvdec2_dev(mpp);
+	char name[32];
 
-	dec->procfs = proc_mkdir(mpp->dev->of_node->name, mpp->srv->procfs);
+	if (!mpp->dev || !mpp->dev->of_node || !mpp->dev->of_node->name ||
+	    !mpp->srv || !mpp->srv->procfs)
+		return -EINVAL;
+
+	snprintf(name, sizeof(name) - 1, "%s%d",
+		 mpp->dev->of_node->name, mpp->core_id);
+	dec->procfs = proc_mkdir(name, mpp->srv->procfs);
 	if (IS_ERR_OR_NULL(dec->procfs)) {
 		mpp_err("failed on open procfs\n");
 		dec->procfs = NULL;
@@ -604,6 +625,8 @@ static int rkvdec2_procfs_init(struct mpp_dev *mpp)
 			   dec->procfs, rkvdec2_show_pref_sel_offset);
 	mpp_procfs_create_u32("task_count", 0644,
 			      dec->procfs, &mpp->task_index);
+	mpp_procfs_create_u32("disable_work", 0644,
+			      dec->procfs, &dec->disable_work);
 
 	return 0;
 }
@@ -781,7 +804,7 @@ static int rkvdec2_set_freq(struct mpp_dev *mpp,
 	return 0;
 }
 
-static int rkvdec2_reset(struct mpp_dev *mpp)
+int rkvdec2_reset(struct mpp_dev *mpp)
 {
 	struct rkvdec2_dev *dec = to_rkvdec2_dev(mpp);
 
@@ -883,8 +906,63 @@ static const struct of_device_id mpp_rkvdec2_dt_match[] = {
 		.data = &rkvdec_rk3568_data,
 	},
 #endif
+#ifdef CONFIG_CPU_RK3588
+	{
+		.compatible = "rockchip,rkv-decoder-v2-ccu",
+	},
+#endif
 	{},
 };
+
+static int rkvdec2_ccu_remove(struct device *dev)
+{
+	device_init_wakeup(dev, false);
+	pm_runtime_disable(dev);
+
+	return 0;
+}
+
+static int rkvdec2_ccu_probe(struct platform_device *pdev)
+{
+	struct rkvdec2_ccu *ccu;
+	struct resource *res;
+	struct device *dev = &pdev->dev;
+
+	ccu = devm_kzalloc(dev, sizeof(*ccu), GFP_KERNEL);
+	if (!ccu)
+		return -ENOMEM;
+
+	ccu->dev = dev;
+	atomic_set(&ccu->power_enabled, 0);
+	platform_set_drvdata(pdev, ccu);
+
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "ccu");
+	if (!res) {
+		dev_err(dev, "no memory resource defined\n");
+		return -ENODEV;
+	}
+
+	ccu->reg_base = devm_ioremap(dev, res->start, resource_size(res));
+	if (!ccu->reg_base) {
+		dev_err(dev, "ioremap failed for resource %pR\n", res);
+		return -ENODEV;
+	}
+
+	device_init_wakeup(dev, true);
+	pm_runtime_enable(dev);
+
+	ccu->aclk_info.clk = devm_clk_get(dev, "aclk_ccu");
+	if (!ccu->aclk_info.clk)
+		mpp_err("failed on clk_get ccu aclk\n");
+
+	ccu->rst_a = devm_reset_control_get(dev, "video_ccu");
+	if (ccu->rst_a)
+		mpp_safe_unreset(ccu->rst_a);
+	else
+		mpp_err("failed on clk_get ccu reset\n");
+
+	return 0;
+}
 
 static int rkvdec2_alloc_rcbbuf(struct platform_device *pdev, struct rkvdec2_dev *dec)
 {
@@ -987,7 +1065,70 @@ err_sram_map:
 	return ret;
 }
 
-static int rkvdec2_probe(struct platform_device *pdev)
+static int rkvdec2_core_probe(struct platform_device *pdev)
+{
+	int ret;
+	struct rkvdec2_dev *dec;
+	struct mpp_dev *mpp;
+	struct device *dev = &pdev->dev;
+
+	dec = devm_kzalloc(dev, sizeof(*dec), GFP_KERNEL);
+	if (!dec)
+		return -ENOMEM;
+
+	mpp = &dec->mpp;
+	platform_set_drvdata(pdev, dec);
+
+	if (dev->of_node) {
+		struct device_node *np = pdev->dev.of_node;
+		const struct of_device_id *match;
+
+		match = of_match_node(mpp_rkvdec2_dt_match, dev->of_node);
+		if (match)
+			mpp->var = (struct mpp_dev_var *)match->data;
+		mpp->core_id = of_alias_get_id(np, "rkvdec");
+	}
+
+	ret = mpp_dev_probe(mpp, pdev);
+	if (ret) {
+		dev_err(dev, "probe sub driver failed\n");
+		return ret;
+	}
+	/* attach core to ccu */
+	ret = rkvdec2_attach_ccu(dev, dec);
+	if (ret) {
+		dev_err(dev, "attach ccu failed\n");
+		return ret;
+	}
+
+	/* alloc rcb buffer */
+	rkvdec2_alloc_rcbbuf(pdev, dec);
+
+	/* set device for link */
+	rkvdec2_ccu_link_init(pdev, dec);
+
+	mpp->dev_ops->alloc_task = rkvdec2_ccu_alloc_task;
+	mpp->dev_ops->task_worker = rkvdec2_soft_ccu_worker;
+	kthread_init_work(&mpp->work, rkvdec2_soft_ccu_worker);
+
+	/* get irq request */
+	ret = devm_request_threaded_irq(dev, mpp->irq, rkvdec2_soft_ccu_irq, NULL,
+					IRQF_SHARED, dev_name(dev), mpp);
+	if (ret) {
+		dev_err(dev, "register interrupter runtime failed\n");
+		return -EINVAL;
+	}
+	mpp->session_max_buffers = RKVDEC_SESSION_MAX_BUFFERS;
+	rkvdec2_procfs_init(mpp);
+
+	/* if is main-core, register to mpp service */
+	if (mpp->core_id == 0)
+		mpp_dev_register_srv(mpp, mpp->srv);
+
+	return ret;
+}
+
+static int rkvdec2_probe_default(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct rkvdec2_dev *dec = NULL;
@@ -995,7 +1136,6 @@ static int rkvdec2_probe(struct platform_device *pdev)
 	const struct of_device_id *match = NULL;
 	int ret = 0;
 
-	dev_info(dev, "probing start\n");
 	dec = devm_kzalloc(dev, sizeof(*dec), GFP_KERNEL);
 	if (!dec)
 		return -ENOMEM;
@@ -1042,9 +1182,28 @@ static int rkvdec2_probe(struct platform_device *pdev)
 	rkvdec2_link_procfs_init(mpp);
 	/* register current device to mpp service */
 	mpp_dev_register_srv(mpp, mpp->srv);
+
+	return ret;
+}
+
+static int rkvdec2_probe(struct platform_device *pdev)
+{
+	int ret;
+	struct device *dev = &pdev->dev;
+	struct device_node *np = dev->of_node;
+
+	dev_info(dev, "%s, probing start\n", np->name);
+
+	if (strstr(np->name, "ccu"))
+		ret = rkvdec2_ccu_probe(pdev);
+	else if (strstr(np->name, "core"))
+		ret = rkvdec2_core_probe(pdev);
+	else
+		ret = rkvdec2_probe_default(pdev);
+
 	dev_info(dev, "probing finish\n");
 
-	return 0;
+	return ret;
 }
 
 static int rkvdec2_free_rcbbuf(struct platform_device *pdev, struct rkvdec2_dev *dec)
@@ -1067,33 +1226,43 @@ static int rkvdec2_free_rcbbuf(struct platform_device *pdev, struct rkvdec2_dev 
 static int rkvdec2_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct rkvdec2_dev *dec = platform_get_drvdata(pdev);
 
-	dev_info(dev, "remove device\n");
-	rkvdec2_free_rcbbuf(pdev, dec);
-	mpp_dev_remove(&dec->mpp);
-	rkvdec2_procfs_remove(&dec->mpp);
-	rkvdec2_link_remove(&dec->mpp, dec->link_dec);
+	if (strstr(dev_name(dev), "ccu")) {
+		dev_info(dev, "remove ccu device\n");
+		rkvdec2_ccu_remove(dev);
+	} else {
+		struct rkvdec2_dev *dec = platform_get_drvdata(pdev);
+
+		dev_info(dev, "remove device\n");
+
+		rkvdec2_free_rcbbuf(pdev, dec);
+		mpp_dev_remove(&dec->mpp);
+		rkvdec2_procfs_remove(&dec->mpp);
+		rkvdec2_link_remove(&dec->mpp, dec->link_dec);
+	}
 
 	return 0;
 }
 
 static void rkvdec2_shutdown(struct platform_device *pdev)
 {
-	int ret;
-	int val;
 	struct device *dev = &pdev->dev;
-	struct rkvdec2_dev *dec = platform_get_drvdata(pdev);
-	struct mpp_dev *mpp = &dec->mpp;
 
-	dev_info(dev, "shutdown device\n");
+	if (!strstr(dev_name(dev), "ccu")) {
+		int ret;
+		int val;
+		struct rkvdec2_dev *dec = platform_get_drvdata(pdev);
+		struct mpp_dev *mpp = &dec->mpp;
 
-	atomic_inc(&mpp->srv->shutdown_request);
-	ret = readx_poll_timeout(atomic_read,
-				 &mpp->task_count,
-				 val, val == 0, 20000, 200000);
-	if (ret == -ETIMEDOUT)
-		dev_err(dev, "wait total running time out\n");
+		dev_info(dev, "shutdown device\n");
+
+		atomic_inc(&mpp->srv->shutdown_request);
+		ret = readx_poll_timeout(atomic_read,
+					&mpp->task_count,
+					val, val == 0, 20000, 200000);
+		if (ret == -ETIMEDOUT)
+			dev_err(dev, "wait total running time out\n");
+	}
 }
 
 struct platform_driver rockchip_rkvdec2_driver = {
