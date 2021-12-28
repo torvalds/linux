@@ -1474,6 +1474,13 @@
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges = <0x0 0x0 0xfd600000 0x100000>;
+		/* start address and size should be 4k algin */
+		rkvdec0_sram: rkvdec-sram@0 {
+			reg = <0 0x80000>;
+		};
+		rkvdec1_sram: rkvdec-sram@80000 {
+			reg = <0x80000 0x80000>;
+		};
 	};
 
 	cru: clock-controller@fd7c0000 {
@@ -2395,35 +2402,42 @@
 		clocks = <&cru ACLK_RKVDEC_CCU>;
 		clock-names = "aclk_ccu";
 		assigned-clocks = <&cru ACLK_RKVDEC_CCU>;
-		assigned-clock-rates = <800000000>;
+		assigned-clock-rates = <600000000>;
 		resets = <&cru SRST_A_RKVDEC_CCU>;
 		reset-names = "video_ccu";
+		power-domains = <&power RK3588_PD_RKVDEC0>;
 		status = "disabled";
 	};
 
-	rkvdec0: rkvdec@fdc38000 {
+	rkvdec0: rkvdec-core@fdc38000 {
 		compatible = "rockchip,rkv-decoder-v2";
-		reg = <0x0 0xfdc38100 0x0 0x400>;
-		reg-names = "regs";
+		reg = <0x0 0xfdc38100 0x0 0x400>, <0x0 0xfdc38000 0x0 0x100>;
+		reg-names = "regs", "link";
 		interrupts = <GIC_SPI 95 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "irq_rkvdec0";
 		clocks = <&cru ACLK_RKVDEC0>, <&cru HCLK_RKVDEC0>, <&cru CLK_RKVDEC0_CORE>,
 			 <&cru CLK_RKVDEC0_CA>, <&cru CLK_RKVDEC0_HEVC_CA>;
 		clock-names = "aclk_vcodec", "hclk_vcodec", "clk_core",
 			      "clk_cabac", "clk_hevc_cabac";
-		rockchip,normal-rates = <600000000>, <0>, <600000000>,
-					<600000000>, <800000000>;
+		rockchip,normal-rates = <800000000>, <0>, <600000000>,
+					<600000000>, <1000000000>;
 		assigned-clocks = <&cru ACLK_RKVDEC0>, <&cru CLK_RKVDEC0_CORE>,
 				  <&cru CLK_RKVDEC0_CA>, <&cru CLK_RKVDEC0_HEVC_CA>;
-		assigned-clock-rates = <600000000>, <600000000>,
-				       <600000000>, <800000000>;
+		assigned-clock-rates = <800000000>, <600000000>,
+				       <600000000>, <1000000000>;
 		resets = <&cru SRST_A_RKVDEC0>, <&cru SRST_H_RKVDEC0>, <&cru SRST_RKVDEC0_CORE>,
 			 <&cru SRST_RKVDEC0_CA>, <&cru SRST_RKVDEC0_HEVC_CA>;
 		reset-names = "video_a", "video_h", "video_core",
 			      "video_cabac", "video_hevc_cabac";
 		iommus = <&rkvdec0_mmu>;
 		rockchip,srv = <&mpp_srv>;
+		rockchip,ccu = <&rkvdec_ccu>;
+		rockchip,core-mask = <0x00010001>;
 		rockchip,taskqueue-node = <9>;
+		rockchip,sram = <&rkvdec0_sram>;
+		/* rcb_iova: start and size */
+		rockchip,rcb-iova = <0x10000000 0x100000>;
+		rockchip,rcb-min-width = <512>;
 		power-domains = <&power RK3588_PD_RKVDEC0>;
 		status = "disabled";
 	};
@@ -2443,22 +2457,22 @@
 		status = "disabled";
 	};
 
-	rkvdec_core1: rkvdec@fdc48000 {
-		compatible = "rockchip,rkv-decoder-v2-core";
-		reg = <0x0 0xfdc48100 0x0 0x400>;
-		reg-names = "regs";
+	rkvdec1: rkvdec-core@fdc48000 {
+		compatible = "rockchip,rkv-decoder-v2";
+		reg = <0x0 0xfdc48100 0x0 0x400>, <0x0 0xfdc48000 0x0 0x100>;
+		reg-names = "regs", "link";
 		interrupts = <GIC_SPI 97 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "irq_rkvdec1";
 		clocks = <&cru ACLK_RKVDEC1>, <&cru HCLK_RKVDEC1>, <&cru CLK_RKVDEC1_CORE>,
 			 <&cru CLK_RKVDEC1_CA>, <&cru CLK_RKVDEC1_HEVC_CA>;
 		clock-names = "aclk_vcodec", "hclk_vcodec", "clk_core",
 			      "clk_cabac", "clk_hevc_cabac";
-		rockchip,normal-rates = <600000000>, <0>, <600000000>,
-					<600000000>, <800000000>;
+		rockchip,normal-rates = <800000000>, <0>, <600000000>,
+					<600000000>, <1000000000>;
 		assigned-clocks = <&cru ACLK_RKVDEC1>, <&cru CLK_RKVDEC1_CORE>,
 				  <&cru CLK_RKVDEC1_CA>, <&cru CLK_RKVDEC1_HEVC_CA>;
-		assigned-clock-rates = <600000000>, <600000000>,
-				       <600000000>, <800000000>;
+		assigned-clock-rates = <800000000>, <600000000>,
+				       <600000000>, <1000000000>;
 		resets = <&cru SRST_A_RKVDEC1>, <&cru SRST_H_RKVDEC1>, <&cru SRST_RKVDEC1_CORE>,
 			 <&cru SRST_RKVDEC1_CA>, <&cru SRST_RKVDEC1_HEVC_CA>;
 		reset-names = "video_a", "video_h", "video_core",
@@ -2466,7 +2480,12 @@
 		iommus = <&rkvdec1_mmu>;
 		rockchip,srv = <&mpp_srv>;
 		rockchip,ccu = <&rkvdec_ccu>;
+		rockchip,core-mask = <0x00020002>;
 		rockchip,taskqueue-node = <9>;
+		rockchip,sram = <&rkvdec1_sram>;
+		/* rcb_iova: start and size */
+		rockchip,rcb-iova = <0x10100000 0x100000>;
+		rockchip,rcb-min-width = <512>;
 		power-domains = <&power RK3588_PD_RKVDEC1>;
 		status = "disabled";
 	};
