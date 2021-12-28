@@ -251,15 +251,7 @@ static void odm_Process_RSSIForDM(struct odm_dm_struct *dm_odm,
 	isCCKrate = ((pPktinfo->Rate >= DESC92C_RATE1M) && (pPktinfo->Rate <= DESC92C_RATE11M)) ? true : false;
 
 	/* Smart Antenna Debug Message------------------  */
-	if (dm_odm->AntDivType == CG_TRX_SMART_ANTDIV) {
-		if (pDM_FatTable->FAT_State == FAT_TRAINING_STATE) {
-			if (pPktinfo->bPacketToSelf) {
-				antsel_tr_mux = (pDM_FatTable->antsel_rx_keep_2 << 2) |
-						(pDM_FatTable->antsel_rx_keep_1 << 1) |
-						pDM_FatTable->antsel_rx_keep_0;
-			}
-		}
-	} else if ((dm_odm->AntDivType == CG_TRX_HW_ANTDIV) || (dm_odm->AntDivType == CGCS_RX_HW_ANTDIV)) {
+	if ((dm_odm->AntDivType == CG_TRX_HW_ANTDIV) || (dm_odm->AntDivType == CGCS_RX_HW_ANTDIV)) {
 		if (pPktinfo->bPacketToSelf || pPktinfo->bPacketBeacon) {
 			antsel_tr_mux = (pDM_FatTable->antsel_rx_keep_2 << 2) |
 					(pDM_FatTable->antsel_rx_keep_1 << 1) | pDM_FatTable->antsel_rx_keep_0;
