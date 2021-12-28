@@ -2660,8 +2660,10 @@ static void lm90_alert(struct i2c_client *client, enum i2c_alert_protocol type,
 
 		if ((data->flags & LM90_HAVE_BROKEN_ALERT) &&
 		    (data->current_alarms & data->alert_alarms)) {
-			dev_dbg(&client->dev, "Disabling ALERT#\n");
-			lm90_update_confreg(data, data->config | 0x80);
+			if (!(data->config & 0x80)) {
+				dev_dbg(&client->dev, "Disabling ALERT#\n");
+				lm90_update_confreg(data, data->config | 0x80);
+			}
 			schedule_delayed_work(&data->alert_work,
 				max_t(int, HZ, msecs_to_jiffies(data->update_interval)));
 		}
