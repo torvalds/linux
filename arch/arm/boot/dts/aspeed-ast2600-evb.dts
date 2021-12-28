@@ -271,6 +271,10 @@
 	status = "okay";
 };
 
+&mctp0 {
+	status = "okay";
+};
+
 &pwm {
 	status = "okay";
 	pinctrl-names = "default";
