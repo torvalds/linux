@@ -57,9 +57,6 @@ static void odm_TRX_HWAntDivInit(struct odm_dm_struct *dm_odm)
 static void odm_FastAntTrainingInit(struct odm_dm_struct *dm_odm)
 {
 	u32	value32;
-	struct fast_ant_train *dm_fat_tbl = &dm_odm->DM_FatTable;
-
-	dm_fat_tbl->TrainIdx = 0;
 
 	/* MAC Setting */
 	value32 = ODM_GetMACReg(dm_odm, 0x4c, bMaskDWord);
