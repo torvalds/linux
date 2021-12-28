@@ -281,13 +281,19 @@ static unsigned long bch2_btree_cache_scan(struct shrinker *shrink,
 
 	i = 0;
 	list_for_each_entry_safe(b, t, &bc->freeable, list) {
+		/*
+		 * Leave a few nodes on the freeable list, so that a btree split
+		 * won't have to hit the system allocator:
+		 */
+		if (++i <= 3)
+			continue;
+
 		touched++;
 
 		if (freed >= nr)
 			break;
 
-		if (++i > 3 &&
-		    !btree_node_reclaim(c, b)) {
+		if (!btree_node_reclaim(c, b)) {
 			btree_node_data_free(c, b);
 			six_unlock_write(&b->c.lock);
 			six_unlock_intent(&b->c.lock);
