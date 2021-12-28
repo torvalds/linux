@@ -1121,6 +1121,7 @@ __be32
 nfsd_commit(struct svc_rqst *rqstp, struct svc_fh *fhp,
                loff_t offset, unsigned long count, __be32 *verf)
 {
+	struct nfsd_net		*nn;
 	struct nfsd_file	*nf;
 	loff_t			end = LLONG_MAX;
 	__be32			err = nfserr_inval;
@@ -1137,6 +1138,7 @@ nfsd_commit(struct svc_rqst *rqstp, struct svc_fh *fhp,
 			NFSD_MAY_WRITE|NFSD_MAY_NOT_BREAK_LEASE, &nf);
 	if (err)
 		goto out;
+	nn = net_generic(nf->nf_net, nfsd_net_id);
 	if (EX_ISSYNC(fhp->fh_export)) {
 		errseq_t since = READ_ONCE(nf->nf_file->f_wb_err);
 		int err2;
@@ -1144,8 +1146,7 @@ nfsd_commit(struct svc_rqst *rqstp, struct svc_fh *fhp,
 		err2 = vfs_fsync_range(nf->nf_file, offset, end, 0);
 		switch (err2) {
 		case 0:
-			nfsd_copy_boot_verifier(verf, net_generic(nf->nf_net,
-						nfsd_net_id));
+			nfsd_copy_boot_verifier(verf, nn);
 			err2 = filemap_check_wb_err(nf->nf_file->f_mapping,
 						    since);
 			err = nfserrno(err2);
@@ -1154,13 +1155,11 @@ nfsd_commit(struct svc_rqst *rqstp, struct svc_fh *fhp,
 			err = nfserr_notsupp;
 			break;
 		default:
-			nfsd_reset_boot_verifier(net_generic(nf->nf_net,
-						 nfsd_net_id));
+			nfsd_reset_boot_verifier(nn);
 			err = nfserrno(err2);
 		}
 	} else
-		nfsd_copy_boot_verifier(verf, net_generic(nf->nf_net,
-					nfsd_net_id));
+		nfsd_copy_boot_verifier(verf, nn);
 
 	nfsd_file_put(nf);
 out:
