@@ -704,6 +704,44 @@ int bch2_journal_flush(struct journal *j)
 	return bch2_journal_flush_seq(j, seq);
 }
 
+/*
+ * bch2_journal_noflush_seq - tell the journal not to issue any flushes before
+ * @seq
+ */
+bool bch2_journal_noflush_seq(struct journal *j, u64 seq)
+{
+	struct bch_fs *c = container_of(j, struct bch_fs, journal);
+	u64 unwritten_seq;
+	bool ret = false;
+
+	if (!(c->sb.features & (1ULL << BCH_FEATURE_journal_no_flush)))
+		return false;
+
+	if (seq <= c->journal.flushed_seq_ondisk)
+		return false;
+
+	spin_lock(&j->lock);
+	if (seq <= c->journal.flushed_seq_ondisk)
+		goto out;
+
+	for (unwritten_seq = last_unwritten_seq(j);
+	     unwritten_seq < seq;
+	     unwritten_seq++) {
+		struct journal_buf *buf = journal_seq_to_buf(j, unwritten_seq);
+
+		/* journal write is already in flight, and was a flush write: */
+		if (unwritten_seq == last_unwritten_seq(j) && !buf->noflush)
+			goto out;
+
+		buf->noflush = true;
+	}
+
+	ret = true;
+out:
+	spin_unlock(&j->lock);
+	return ret;
+}
+
 /* block/unlock the journal: */
 
 void bch2_journal_unblock(struct journal *j)

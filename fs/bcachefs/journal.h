@@ -475,6 +475,7 @@ void bch2_journal_flush_async(struct journal *, struct closure *);
 
 int bch2_journal_flush_seq(struct journal *, u64);
 int bch2_journal_flush(struct journal *);
+bool bch2_journal_noflush_seq(struct journal *, u64);
 int bch2_journal_meta(struct journal *);
 
 void bch2_journal_halt(struct journal *);
