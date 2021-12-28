@@ -411,6 +411,9 @@ static int erofs_read_superblock(struct super_block *sb)
 
 	/* handle multiple devices */
 	ret = erofs_init_devices(sb, dsb);
+
+	if (erofs_sb_has_ztailpacking(sbi))
+		erofs_info(sb, "EXPERIMENTAL compressed inline data feature in use. Use at your own risk!");
 out:
 	kunmap(page);
 	put_page(page);
