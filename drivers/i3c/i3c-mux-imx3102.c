@@ -85,7 +85,6 @@ static ssize_t i3c_mux_imx3102_release_chan(struct file *filp,
 	struct regmap *regmap;
 	int ret;
 	u8 select;
-	u8 data[2];
 
 	imx3102 = dev_get_drvdata(container_of(kobj, struct device, kobj));
 	if (!imx3102) {
@@ -101,9 +100,7 @@ static ssize_t i3c_mux_imx3102_release_chan(struct file *filp,
 
 	/* invert the bit to change the ownership */
 	select ^= IMX3102_PORT_SEL_M1;
-	data[0] = 0;
-	data[1] = select;
-	regmap_raw_write(regmap, IMX3102_PORT_SEL, data, 2);
+	regmap_raw_write(regmap, IMX3102_PORT_SEL, &select, 1);
 
 out:
 	return count;
@@ -136,10 +133,11 @@ static int i3c_mux_imx3102_probe(struct i3c_device *i3cdev)
 	struct regmap *regmap;
 	struct regmap_config imx3102_i3c_regmap_config = {
 		.reg_bits = 8,
+		.pad_bits = 8,
 		.val_bits = 8,
 	};
 	int ret;
-	u8 data[4];
+	u8 data[2];
 
 	if (dev->type == &i3c_masterdev_type)
 		return -ENOTSUPP;
@@ -185,11 +183,10 @@ static int i3c_mux_imx3102_probe(struct i3c_device *i3cdev)
 	dev_dbg(dev, "device ID %02x %02x\n", data[0], data[1]);
 
 	/* enable the slave port */
-	regmap_raw_read(regmap, IMX3102_PORT_CONF, &data[1], 2);
-	data[0] = 0;
-	data[1] |= IMX3102_PORT_CONF_S_EN | IMX3102_PORT_CONF_M1_EN;
-	data[2] |= IMX3102_PORT_SEL_S_EN;
-	regmap_raw_write(regmap, IMX3102_PORT_CONF, data, 3);
+	regmap_raw_read(regmap, IMX3102_PORT_CONF, &data[0], 2);
+	data[0] |= IMX3102_PORT_CONF_S_EN | IMX3102_PORT_CONF_M1_EN;
+	data[1] |= IMX3102_PORT_SEL_S_EN;
+	regmap_raw_write(regmap, IMX3102_PORT_CONF, data, 2);
 
 	/* send SETAASA to bring the devices behind the mux to I3C mode */
 	i3c_device_send_ccc_cmd(i3cdev, I3C_CCC_SETAASA);
