@@ -529,7 +529,7 @@ void pinctrl_set_reg(volatile void __iomem *addr,u32 data,u32 shift,u32 mask)
 static int starfive_jh7110_sys_direction_input(struct gpio_chip *gc,
 							unsigned offset)
 {
-	struct starfive_pinctrl *chip= gpiochip_get_data(gc);
+	struct starfive_pinctrl *chip = gpiochip_get_data(gc);
 	unsigned long flags;
 	unsigned int v;
 
@@ -550,7 +550,7 @@ static int starfive_jh7110_sys_direction_output(struct gpio_chip *gc,
 							unsigned offset,
 							int value)
 {
-	struct starfive_pinctrl *chip= gpiochip_get_data(gc);
+	struct starfive_pinctrl *chip = gpiochip_get_data(gc);
 	unsigned long flags;
 	unsigned int v;
 
@@ -574,7 +574,7 @@ static int starfive_jh7110_sys_direction_output(struct gpio_chip *gc,
 static int starfive_jh7110_sys_get_direction(struct gpio_chip *gc,
 							unsigned offset)
 {
-	struct starfive_pinctrl *chip= gpiochip_get_data(gc);
+	struct starfive_pinctrl *chip = gpiochip_get_data(gc);
 	unsigned int v;
 
 	if (offset >= gc->ngpio)
@@ -587,7 +587,7 @@ static int starfive_jh7110_sys_get_direction(struct gpio_chip *gc,
 static int starfive_jh7110_sys_get_value(struct gpio_chip *gc,
 						unsigned offset)
 {
-	struct starfive_pinctrl *chip= gpiochip_get_data(gc);
+	struct starfive_pinctrl *chip = gpiochip_get_data(gc);
 	int value;
 
 	if (offset >= gc->ngpio)
@@ -606,7 +606,7 @@ static void starfive_jh7110_sys_set_value(struct gpio_chip *gc,
 						unsigned offset,
 						int value)
 {
-	struct starfive_pinctrl *chip= gpiochip_get_data(gc);
+	struct starfive_pinctrl *chip = gpiochip_get_data(gc);
 	unsigned long flags;
 	unsigned int v;
 
@@ -645,8 +645,8 @@ static void starfive_jh7110_sys_set_ie(struct starfive_pinctrl *chip,
 static int starfive_jh7110_sys_irq_set_type(struct irq_data *d,
 							unsigned trigger)
 {
-	struct gpio_chip *gc= irq_data_get_irq_chip_data(d);
-	struct starfive_pinctrl *chip= gpiochip_get_data(gc);
+	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
+	struct starfive_pinctrl *chip = gpiochip_get_data(gc);
 	int offset= irqd_to_hwirq(d);
 	unsigned int reg_is, reg_ibe, reg_iev;
 	int reg_offset, index;
@@ -727,8 +727,8 @@ static int starfive_jh7110_sys_irq_set_type(struct irq_data *d,
 /* chained_irq_{enter,exit} already mask the parent */
 static void starfive_jh7110_sys_irq_mask(struct irq_data *d)
 {
-	struct gpio_chip *gc= irq_data_get_irq_chip_data(d);
-	struct starfive_pinctrl *chip= gpiochip_get_data(gc);
+	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
+	struct starfive_pinctrl *chip = gpiochip_get_data(gc);
 	unsigned int value;
 	int offset= irqd_to_hwirq(d);
 	int reg_offset, index;
@@ -751,8 +751,8 @@ static void starfive_jh7110_sys_irq_mask(struct irq_data *d)
 
 static void starfive_jh7110_sys_irq_unmask(struct irq_data *d)
 {
-	struct gpio_chip *gc= irq_data_get_irq_chip_data(d);
-	struct starfive_pinctrl *chip= gpiochip_get_data(gc);
+	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
+	struct starfive_pinctrl *chip = gpiochip_get_data(gc);
 	unsigned int value;
 	int offset= irqd_to_hwirq(d);
 	int reg_offset, index;
@@ -775,9 +775,9 @@ static void starfive_jh7110_sys_irq_unmask(struct irq_data *d)
 
 static void starfive_jh7110_sys_irq_enable(struct irq_data *d)
 {
-	struct gpio_chip *gc= irq_data_get_irq_chip_data(d);
-	struct starfive_pinctrl *chip= gpiochip_get_data(gc);
-	int offset= irqd_to_hwirq(d);
+	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
+	struct starfive_pinctrl *chip = gpiochip_get_data(gc);
+	int offset = irqd_to_hwirq(d);
 
 	starfive_jh7110_sys_irq_unmask(d);
 	assign_bit(offset, &chip->enabled, 1);
@@ -785,9 +785,9 @@ static void starfive_jh7110_sys_irq_enable(struct irq_data *d)
 
 static void starfive_jh7110_sys_irq_disable(struct irq_data *d)
 {
-	struct gpio_chip *gc= irq_data_get_irq_chip_data(d);
-	struct starfive_pinctrl *chip= gpiochip_get_data(gc);
-	int offset= irqd_to_hwirq(d) % MAX_GPIO; // must not fail
+	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
+	struct starfive_pinctrl *chip = gpiochip_get_data(gc);
+	int offset = irqd_to_hwirq(d) % MAX_GPIO; // must not fail
 
 	assign_bit(offset, &chip->enabled, 0);
 	starfive_jh7110_sys_set_ie(chip, offset);
@@ -808,7 +808,7 @@ static irqreturn_t starfive_jh7110_sys_irq_handler(int irq, void *gc)
 	int reg_offset, index;
 	unsigned int value;
 	unsigned long flags;
-	struct starfive_pinctrl *chip= gc;
+	struct starfive_pinctrl *chip = gc;
 
 	for (offset= 0; offset < 64; offset++) {
 		if(offset < 32) {
@@ -836,16 +836,12 @@ static irqreturn_t starfive_jh7110_sys_irq_handler(int irq, void *gc)
 static int starfive_jh7110_sys_gpio_register(struct platform_device *pdev,
 						struct starfive_pinctrl *pctl)
 {
-	struct device *dev= &pdev->dev;
-	struct device_node *node = pdev->dev.of_node;
-	struct device_node *irq_parent;
-	struct irq_domain *parent;
-	struct gpio_irq_chip *girq;
+	struct device *dev = &pdev->dev;
 	int irq, ret, ngpio;
 	int loop;
-	
+
 	ngpio = 64;
-	
+
 	pctl->gc.direction_input = starfive_jh7110_sys_direction_input;
 	pctl->gc.direction_output = starfive_jh7110_sys_direction_output;
 	pctl->gc.get_direction = starfive_jh7110_sys_get_direction;
@@ -857,38 +853,24 @@ static int starfive_jh7110_sys_gpio_register(struct platform_device *pdev,
 	pctl->gc.parent = dev;
 	pctl->gc.owner = THIS_MODULE;
 
-	irq_parent = of_irq_find_parent(node);
-	if (!irq_parent) {
-		dev_err(dev, "no IRQ parent node\n");
-		return -ENODEV;
-	}
-	parent = irq_find_host(irq_parent);
-	if (!parent) {
-		dev_err(dev, "no IRQ parent domain\n");
-		return -ENODEV;
-	}
-
-	girq = &pctl->gc.irq;
-	girq->chip = &starfive_jh7110_sys_irqchip;
-	girq->fwnode = of_node_to_fwnode(node);
-	girq->parent_domain = parent;
-	//girq->child_to_parent_hwirq = starfive_gpio_child_to_parent_hwirq;
-	girq->handler = handle_simple_irq;
-	girq->default_type = IRQ_TYPE_NONE;
-
-	/* Disable all GPIO interrupts before enabling parent interrupts */
-	iowrite32(0, pctl->padctl_base + GPIO_IE_HIGH);
-	iowrite32(0, pctl->padctl_base + GPIO_IE_LOW);
-	pctl->enabled = 0;
-
-	platform_set_drvdata(pdev, pctl);
-
 	ret = gpiochip_add_data(&pctl->gc, pctl);
 	if (ret){
 		dev_err(dev, "gpiochip_add_data ret=%d!\n", ret);
 		return ret;
 	}
 
+	/* Disable all GPIO interrupts before enabling parent interrupts */
+	iowrite32(0, pctl->padctl_base + GPIO_IE_HIGH);
+	iowrite32(0, pctl->padctl_base + GPIO_IE_LOW);
+	pctl->enabled = 0;
+
+	ret = gpiochip_irqchip_add(&pctl->gc, &starfive_jh7110_sys_irqchip, 0,
+				   handle_simple_irq, IRQ_TYPE_NONE);
+	if (ret) {
+		dev_err(dev, "could not add irqchip\n");
+		gpiochip_remove(&pctl->gc);
+		return ret;
+	}
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
 		dev_err(dev, "Cannot get IRQ resource\n");
@@ -913,6 +895,7 @@ static int starfive_jh7110_sys_gpio_register(struct platform_device *pdev,
 
 	dev_info(dev, "SiFive GPIO chip registered %d GPIOs\n", ngpio);
 
+
 	return 0;
 }
 
@@ -921,19 +904,19 @@ static int starfive_jh7110_sys_gpio_register(struct platform_device *pdev,
 static int starfive_jh7110_pinconf_get(struct pinctrl_dev *pctldev, unsigned pin_id,
 				unsigned long *config)
 {
-	struct starfive_pinctrl *pctl= pinctrl_dev_get_drvdata(pctldev);
-	const struct starfive_pinctrl_soc_info *info= pctl->info;
-	const struct starfive_pin_reg *pin_reg= &pctl->pin_regs[pin_id];
+	struct starfive_pinctrl *pctl = pinctrl_dev_get_drvdata(pctldev);
+	const struct starfive_pinctrl_soc_info *info = pctl->info;
+	const struct starfive_pin_reg *pin_reg = &pctl->pin_regs[pin_id];
 	u32 value;
 		
-	if (pin_reg->io_conf_reg== -1) {
+	if (pin_reg->io_conf_reg == -1) {
 		dev_err(pctl->dev, "Pin(%s) does not support config function\n",
 			info->pins[pin_id].name);
 		return -EINVAL;
 	}
 	
-	value= readl_relaxed(pctl->padctl_base + pin_reg->io_conf_reg);
-	*config= value & 0xff; 
+	value = readl_relaxed(pctl->padctl_base + pin_reg->io_conf_reg);
+	*config = value & 0xff; 
 	return 0;
 }
 		       
@@ -941,14 +924,14 @@ static int starfive_jh7110_pinconf_set(struct pinctrl_dev *pctldev,
 				unsigned pin_id, unsigned long *configs,
 				unsigned num_configs)
 {
-	struct starfive_pinctrl *pctl= pinctrl_dev_get_drvdata(pctldev);
-	const struct starfive_pinctrl_soc_info *info= pctl->info;
-	const struct starfive_pin_reg *pin_reg= &pctl->pin_regs[pin_id];
+	struct starfive_pinctrl *pctl = pinctrl_dev_get_drvdata(pctldev);
+	const struct starfive_pinctrl_soc_info *info = pctl->info;
+	const struct starfive_pin_reg *pin_reg = &pctl->pin_regs[pin_id];
 	int i;
 	u32 value;
 	unsigned long flags;
 
-	if (pin_reg->io_conf_reg== -1) {
+	if (pin_reg->io_conf_reg == -1) {
 		dev_err(pctl->dev, "Pin(%s) does not support config function\n",
 			info->pins[pin_id].name);
 		return -EINVAL;
@@ -956,8 +939,8 @@ static int starfive_jh7110_pinconf_set(struct pinctrl_dev *pctldev,
 	
 	raw_spin_lock_irqsave(&pctl->lock, flags);
 	for (i= 0; i < num_configs; i++) {
-		value= readl_relaxed(pctl->padctl_base + pin_reg->io_conf_reg);
-		value= value|(configs[i] & 0xFF);
+		value = readl_relaxed(pctl->padctl_base + pin_reg->io_conf_reg);
+		value = value|(configs[i] & 0xFF);
 		writel_relaxed(value, pctl->padctl_base + pin_reg->io_conf_reg);
 	} 
 	raw_spin_unlock_irqrestore(&pctl->lock, flags);
@@ -968,17 +951,17 @@ static int starfive_jh7110_pinconf_set(struct pinctrl_dev *pctldev,
 static int starfive_jh7110_sys_pmx_set_one_pin_mux(struct starfive_pinctrl *pctl,
 						struct starfive_pin *pin)
 {
-	const struct starfive_pinctrl_soc_info *info= pctl->info;
-	struct starfive_pin_config *pin_config= &pin->pin_config;
+	const struct starfive_pinctrl_soc_info *info = pctl->info;
+	struct starfive_pin_config *pin_config = &pin->pin_config;
 	const struct starfive_pin_reg *pin_reg;
 	unsigned int gpio,pin_id;
 	int i;
 	unsigned long flags;
 	int n,shift;
 
-	gpio= pin->pin_config.gpio_num;
-	pin_id= pin->pin;
-	pin_reg= &pctl->pin_regs[pin_id];
+	gpio = pin->pin_config.gpio_num;
+	pin_id = pin->pin;
+	pin_reg = &pctl->pin_regs[pin_id];
 		
 	raw_spin_lock_irqsave(&pctl->lock, flags);
 	if(pin_reg->func_sel_reg != -1){
@@ -987,7 +970,7 @@ static int starfive_jh7110_sys_pmx_set_one_pin_mux(struct starfive_pinctrl *pctl
 			pin_reg->func_sel_mask);
 	}
 	
-	shift= (gpio & GPIO_INDEX_MASK) << GPIO_BYTE_SHIFT;
+	shift = (gpio & GPIO_INDEX_MASK) << GPIO_BYTE_SHIFT;
 	if(pin_reg->gpo_dout_reg != -1){
 		pinctrl_write_reg(pctl->padctl_base + pin_reg->gpo_dout_reg, 
 				0x7F<<shift, pin_config->gpio_dout<<shift);
@@ -998,9 +981,9 @@ static int starfive_jh7110_sys_pmx_set_one_pin_mux(struct starfive_pinctrl *pctl
 				0x3F<<shift, pin_config->gpio_doen<<shift);
 	}
 
-	for(i= 0; i < pin_config->gpio_din_num; i++){
-		n= pin_config->gpio_din_reg[i] >> 2;
-		shift= (pin_config->gpio_din_reg[i] & 3) << 3;
+	for(i = 0; i < pin_config->gpio_din_num; i++){
+		n = pin_config->gpio_din_reg[i] >> 2;
+		shift = (pin_config->gpio_din_reg[i] & 3) << 3;
 		pinctrl_write_reg(pctl->padctl_base + info->din_reg_base + n * 4,
 					0x3F<<shift, (gpio+2)<<shift);
 	}
@@ -1022,9 +1005,9 @@ static void starfive_jh7110_sys_parse_pin_config(struct starfive_pinctrl *pctl,
 						const __be32 *list_p,
 						struct device_node *np)
 {
-	const struct starfive_pinctrl_soc_info *info= pctl->info;
+	const struct starfive_pinctrl_soc_info *info = pctl->info;
 	struct starfive_pin_reg *pin_reg;
-	const __be32 *list= list_p;
+	const __be32 *list = list_p;
 	const __be32 *list_din;
 	int size;
 	int size_din;
@@ -1033,10 +1016,10 @@ static void starfive_jh7110_sys_parse_pin_config(struct starfive_pinctrl *pctl,
 	int i;
 	int n;
 	
-	pin_size= 4;
-	*pins_id= be32_to_cpu(*list);
-	pin_reg= &pctl->pin_regs[*pins_id];
-	pin_data->pin= *pins_id;
+	pin_size = 4;
+	*pins_id = be32_to_cpu(*list);
+	pin_reg = &pctl->pin_regs[*pins_id];
+	pin_data->pin = *pins_id;
 
 	if(pin_data->pin > PAD_QSPI_DATA3){
 		dev_err(pctl->dev,"err pin num\n");
@@ -1044,48 +1027,47 @@ static void starfive_jh7110_sys_parse_pin_config(struct starfive_pinctrl *pctl,
 	}
 
 	if(pin_data->pin < PAD_GMAC1_MDC){
-		pin_reg->io_conf_reg= (pin_data->pin * GPO_PDA_CFG_OFFSET) 
+		pin_reg->io_conf_reg = (pin_data->pin * GPO_PDA_CFG_OFFSET) 
 					+ SYS_GPO_PDA_0_74_CFG_BASE_REG;
 	}
 	else if(pin_data->pin > PAD_GMAC1_TXC){
-		pin_reg->io_conf_reg= (pin_data->pin * GPO_PDA_CFG_OFFSET) 
+		pin_reg->io_conf_reg = (pin_data->pin * GPO_PDA_CFG_OFFSET) 
 					+ SYS_GPO_PDA_89_94_CFG_BASE_REG;		
 	}
 
 	if (!of_property_read_u32(np, "sf,pin-ioconfig", &value)) {
-		pin_data->pin_config.io_config= value;
+		pin_data->pin_config.io_config = value;
 	}
 
-	list= of_get_property(np, "sf,pinmux", &size);
+	list = of_get_property(np, "sf,pinmux", &size);
 	if (list) {
-		pin_reg->func_sel_reg= be32_to_cpu(*list++);
-		pin_reg->func_sel_shift= be32_to_cpu(*list++);
-		pin_reg->func_sel_mask= be32_to_cpu(*list++);
-		pin_data->pin_config.pinmux_func= be32_to_cpu(*list++);
+		pin_reg->func_sel_reg = be32_to_cpu(*list++);
+		pin_reg->func_sel_shift = be32_to_cpu(*list++);
+		pin_reg->func_sel_mask = be32_to_cpu(*list++);
+		pin_data->pin_config.pinmux_func = be32_to_cpu(*list++);
 	}
 
-	list= of_get_property(np, "sf,pin-syscon", &size);
+	list = of_get_property(np, "sf,pin-syscon", &size);
 	if (list) {
-		pin_reg->syscon_reg= be32_to_cpu(*list++);
-		pin_data->pin_config.syscon= be32_to_cpu(*list++);
+		pin_reg->syscon_reg = be32_to_cpu(*list++);
+		pin_data->pin_config.syscon = be32_to_cpu(*list++);
 	}	
 
 	if(pin_data->pin < PAD_SD0_CLK){
-
-		pin_data->pin_config.gpio_num= pin_data->pin;
+		pin_data->pin_config.gpio_num = pin_data->pin;
 		n= pin_data->pin_config.gpio_num >> GPIO_NUM_SHIFT;
 	
 		if (!of_property_read_u32(np, "sf,pin-gpio-dout", &value)) {
-			pin_data->pin_config.gpio_dout= value;
-			pin_reg->gpo_dout_reg= info->dout_reg_base + n * 4;
+			pin_data->pin_config.gpio_dout = value;
+			pin_reg->gpo_dout_reg = info->dout_reg_base + n * 4;
 		}
 		
 		if (!of_property_read_u32(np, "sf,pin-gpio-doen", &value)) {
-			pin_data->pin_config.gpio_doen= value;
-			pin_reg->gpo_doen_reg= info->doen_reg_base + n * 4;
+			pin_data->pin_config.gpio_doen = value;
+			pin_reg->gpo_doen_reg = info->doen_reg_base + n * 4;
 		}
 
-		list_din= of_get_property(np, "sf,pin-gpio-din", &size_din);
+		list_din = of_get_property(np, "sf,pin-gpio-din", &size_din);
 		if (list_din) {
 			if (!size_din || size_din % pin_size) {
 				dev_err(pctl->dev, 
@@ -1099,43 +1081,43 @@ static void starfive_jh7110_sys_parse_pin_config(struct starfive_pinctrl *pctl,
 								 sizeof(s32),
 								 GFP_KERNEL);
 			
-			for(i= 0; i < pin_data->pin_config.gpio_din_num; i++){
-				value= be32_to_cpu(*list_din++);
-				pin_data->pin_config.gpio_din_reg[i]= value;
+			for(i = 0; i < pin_data->pin_config.gpio_din_num; i++){
+				value = be32_to_cpu(*list_din++);
+				pin_data->pin_config.gpio_din_reg[i] = value;
 			}
 		}
 	}
 	return;
 }
 
-static const struct starfive_pinctrl_soc_info starfive_jh7110_sys_pinctrl_info= {
-	.pins= starfive_jh7110_sys_pinctrl_pads,
-	.npins= ARRAY_SIZE(starfive_jh7110_sys_pinctrl_pads),
-	.flags= 1,
-	.dout_reg_base= SYS_GPO_DOUT_CFG_BASE_REG,
-	.doen_reg_base= SYS_GPO_DOEN_CFG_BASE_REG,
-	.din_reg_base= SYS_GPI_DIN_CFG_BASE_REG,
-	.starfive_pinconf_get= starfive_jh7110_pinconf_get,
-	.starfive_pinconf_set= starfive_jh7110_pinconf_set,
-	.starfive_pmx_set_one_pin_mux= starfive_jh7110_sys_pmx_set_one_pin_mux,
-	.starfive_gpio_register= starfive_jh7110_sys_gpio_register,
-	.starfive_pinctrl_parse_pin= starfive_jh7110_sys_parse_pin_config,
+static const struct starfive_pinctrl_soc_info starfive_jh7110_sys_pinctrl_info = {
+	.pins = starfive_jh7110_sys_pinctrl_pads,
+	.npins = ARRAY_SIZE(starfive_jh7110_sys_pinctrl_pads),
+	.flags = 1,
+	.dout_reg_base = SYS_GPO_DOUT_CFG_BASE_REG,
+	.doen_reg_base = SYS_GPO_DOEN_CFG_BASE_REG,
+	.din_reg_base = SYS_GPI_DIN_CFG_BASE_REG,
+	.starfive_pinconf_get = starfive_jh7110_pinconf_get,
+	.starfive_pinconf_set = starfive_jh7110_pinconf_set,
+	.starfive_pmx_set_one_pin_mux = starfive_jh7110_sys_pmx_set_one_pin_mux,
+	.starfive_gpio_register = starfive_jh7110_sys_gpio_register,
+	.starfive_pinctrl_parse_pin = starfive_jh7110_sys_parse_pin_config,
 };
 
 static int starfive_jh7110_aon_pmx_set_one_pin_mux(struct starfive_pinctrl *pctl,
 					struct starfive_pin *pin)
 {
-	const struct starfive_pinctrl_soc_info *info= pctl->info;
-	struct starfive_pin_config *pin_config= &pin->pin_config;
+	const struct starfive_pinctrl_soc_info *info = pctl->info;
+	struct starfive_pin_config *pin_config = &pin->pin_config;
 	const struct starfive_pin_reg *pin_reg;
 	unsigned int gpio,pin_id;
 	int i;
 	unsigned long flags;
 	int n,shift;
 	
-	gpio= pin->pin_config.gpio_num;
-	pin_id= pin->pin;
-	pin_reg= &pctl->pin_regs[pin_id];
+	gpio = pin->pin_config.gpio_num;
+	pin_id = pin->pin;
+	pin_reg = &pctl->pin_regs[pin_id];
 	
 	raw_spin_lock_irqsave(&pctl->lock, flags);
 	if(pin_reg->func_sel_reg != -1){
@@ -1145,7 +1127,7 @@ static int starfive_jh7110_aon_pmx_set_one_pin_mux(struct starfive_pinctrl *pctl
 				pin_reg->func_sel_mask);
 	}
 	
-	shift= (gpio & GPIO_INDEX_MASK) << GPIO_BYTE_SHIFT;
+	shift = (gpio & GPIO_INDEX_MASK) << GPIO_BYTE_SHIFT;
 	if(pin_reg->gpo_dout_reg != -1){
 		pinctrl_write_reg(pctl->padctl_base + pin_reg->gpo_dout_reg, 
 				0xF << shift,
@@ -1160,9 +1142,9 @@ static int starfive_jh7110_aon_pmx_set_one_pin_mux(struct starfive_pinctrl *pctl
 		
 	}
 
-	for(i= 0; i < pin_config->gpio_din_num; i++){
-		n= pin_config->gpio_din_reg[i] >> 2;
-		shift= (pin_config->gpio_din_reg[i] & 3) << 3;
+	for(i = 0; i < pin_config->gpio_din_num; i++){
+		n = pin_config->gpio_din_reg[i] >> 2;
+		shift = (pin_config->gpio_din_reg[i] & 3) << 3;
 		pinctrl_write_reg(pctl->padctl_base + info->din_reg_base + n * 4, 
 				0x7 << shift,
 				(gpio+2) << shift);
@@ -1186,10 +1168,10 @@ static void starfive_jh7110_aon_parse_pin_config(struct starfive_pinctrl *pctl,
 							struct starfive_pin *pin_data,
 							const __be32 *list_p,
 							struct device_node *np)
-		{
-	const struct starfive_pinctrl_soc_info *info= pctl->info;
+{
+	const struct starfive_pinctrl_soc_info *info = pctl->info;
 	struct starfive_pin_reg *pin_reg;
-	const __be32 *list= list_p;
+	const __be32 *list = list_p;
 	const __be32 *list_din;
 	int size;
 	int size_din;
@@ -1197,10 +1179,10 @@ static void starfive_jh7110_aon_parse_pin_config(struct starfive_pinctrl *pctl,
 	u32 value;
 	int i;
 		
-	pin_size= 4;
-	*pins_id= be32_to_cpu(*list);
-	pin_reg= &pctl->pin_regs[*pins_id];
-	pin_data->pin= *pins_id;
+	pin_size = 4;
+	*pins_id = be32_to_cpu(*list);
+	pin_reg = &pctl->pin_regs[*pins_id];
+	pin_data->pin = *pins_id;
 	
 	if(pin_data->pin > PAD_GMAC0_TXC){
 		dev_err(pctl->dev,"err pin num\n");
@@ -1208,91 +1190,83 @@ static void starfive_jh7110_aon_parse_pin_config(struct starfive_pinctrl *pctl,
 	}
 	
 	if(pin_data->pin < PAD_GMAC0_MDC){
-		pin_reg->io_conf_reg= (pin_data->pin * GPO_PDA_CFG_OFFSET) + 
+		pin_reg->io_conf_reg = (pin_data->pin * GPO_PDA_CFG_OFFSET) + 
 					AON_GPO_PDA_0_5_CFG_BASE_REG;
 	}
 
 	if (!of_property_read_u32(np, "sf,pin-ioconfig", &value)) {
-		pin_data->pin_config.io_config= value;
+		pin_data->pin_config.io_config = value;
 	}
 
-
-	list= of_get_property(np, "sf,pinmux", &size);
+	list = of_get_property(np, "sf,pinmux", &size);
 	if (list) {
-		pin_reg->func_sel_reg= be32_to_cpu(*list++);
-		pin_reg->func_sel_shift= be32_to_cpu(*list++);
-		pin_reg->func_sel_mask= be32_to_cpu(*list++);
-		pin_data->pin_config.pinmux_func= be32_to_cpu(*list++);
+		pin_reg->func_sel_reg = be32_to_cpu(*list++);
+		pin_reg->func_sel_shift = be32_to_cpu(*list++);
+		pin_reg->func_sel_mask = be32_to_cpu(*list++);
+		pin_data->pin_config.pinmux_func = be32_to_cpu(*list++);
 	}
 	
-	list= of_get_property(np, "sf,pin-syscon", &size);
+	list = of_get_property(np, "sf,pin-syscon", &size);
 	if (list) {
-		pin_reg->syscon_reg= be32_to_cpu(*list++);
-		pin_data->pin_config.syscon= be32_to_cpu(*list++);
+		pin_reg->syscon_reg = be32_to_cpu(*list++);
+		pin_data->pin_config.syscon = be32_to_cpu(*list++);
 	}
 
 	if((pin_data->pin >= PAD_RGPIO0) && (pin_data->pin <= PAD_RGPIO3)){
-		pin_data->pin_config.gpio_num= pin_data->pin;
-		pin_reg->gpo_dout_reg= info->dout_reg_base;
-		pin_reg->gpo_doen_reg= info->doen_reg_base;
+		pin_data->pin_config.gpio_num = pin_data->pin;
+		pin_reg->gpo_dout_reg = info->dout_reg_base;
+		pin_reg->gpo_doen_reg = info->doen_reg_base;
 
 		if (!of_property_read_u32(np, "sf,pin-gpio-dout", &value)) {
-			pin_data->pin_config.gpio_dout= value;
+			pin_data->pin_config.gpio_dout = value;
 		}
-		
 		
 		if (!of_property_read_u32(np, "sf,pin-gpio-doen", &value)) {
-			pin_data->pin_config.gpio_doen= value;
+			pin_data->pin_config.gpio_doen = value;
 		}
 		
-		
-		list_din= of_get_property(np, "sf,pin-gpio-din", &size_din);
+		list_din = of_get_property(np, "sf,pin-gpio-din", &size_din);
 		if (list_din) {
 			if (!size_din || size_din % pin_size) {
 				dev_err(pctl->dev, 
 					"Invalid sf,pin-gpio-din property in node\n");
 				return;
 			}
-			
-			pin_data->pin_config.gpio_din_num= size_din / pin_size;
-			pin_data->pin_config.gpio_din_reg= devm_kcalloc(pctl->dev,
-			 						pin_data->pin_config.gpio_din_num,
-			 						sizeof(s32),
-			 						GFP_KERNEL);
-			
-			for(i= 0; i < pin_data->pin_config.gpio_din_num; i++){
-				value= be32_to_cpu(*list_din++);
-				pin_data->pin_config.gpio_din_reg[i]= value;
+			pin_data->pin_config.gpio_din_num = size_din / pin_size;
+			pin_data->pin_config.gpio_din_reg = devm_kcalloc(pctl->dev,
+									pin_data->pin_config.gpio_din_num,
+									sizeof(s32),
+									GFP_KERNEL);
+			for(i = 0; i < pin_data->pin_config.gpio_din_num; i++){
+				value = be32_to_cpu(*list_din++);
+				pin_data->pin_config.gpio_din_reg[i] = value;
 			}
 		}
 	}
-
 	return;
 }
 
-
-static const struct starfive_pinctrl_soc_info starfive_jh7110_aon_pinctrl_info= {
-	.pins= starfive_jh7110_aon_pinctrl_pads,
-	.npins= ARRAY_SIZE(starfive_jh7110_aon_pinctrl_pads),
-	.flags= 1,
-	.dout_reg_base= AON_GPO_DOUT_CFG_BASE_REG,
-	.doen_reg_base= AON_GPO_DOEN_CFG_BASE_REG,
-	.din_reg_base= AON_GPI_DIN_CFG_BASE_REG,
-	.starfive_pinconf_get= starfive_jh7110_pinconf_get,
-	.starfive_pinconf_set= starfive_jh7110_pinconf_set,
-	.starfive_pmx_set_one_pin_mux= starfive_jh7110_aon_pmx_set_one_pin_mux,
-	.starfive_pinctrl_parse_pin= starfive_jh7110_aon_parse_pin_config,
+static const struct starfive_pinctrl_soc_info starfive_jh7110_aon_pinctrl_info = {
+	.pins = starfive_jh7110_aon_pinctrl_pads,
+	.npins = ARRAY_SIZE(starfive_jh7110_aon_pinctrl_pads),
+	.flags = 1,
+	.dout_reg_base = AON_GPO_DOUT_CFG_BASE_REG,
+	.doen_reg_base = AON_GPO_DOEN_CFG_BASE_REG,
+	.din_reg_base = AON_GPI_DIN_CFG_BASE_REG,
+	.starfive_pinconf_get = starfive_jh7110_pinconf_get,
+	.starfive_pinconf_set = starfive_jh7110_pinconf_set,
+	.starfive_pmx_set_one_pin_mux = starfive_jh7110_aon_pmx_set_one_pin_mux,
+	.starfive_pinctrl_parse_pin = starfive_jh7110_aon_parse_pin_config,
 };
 
-
-static const struct of_device_id starfive_jh7110_pinctrl_of_match[]= {
+static const struct of_device_id starfive_jh7110_pinctrl_of_match[] = {
 	{
-		.compatible= "starfive_jh7110-sys-pinctrl",
-		.data= &starfive_jh7110_sys_pinctrl_info,
+		.compatible = "starfive_jh7110-sys-pinctrl",
+		.data = &starfive_jh7110_sys_pinctrl_info,
 	},
 	{ 
-		.compatible= "starfive_jh7110-aon-pinctrl", 
-		.data= &starfive_jh7110_aon_pinctrl_info, 
+		.compatible = "starfive_jh7110-aon-pinctrl", 
+		.data = &starfive_jh7110_aon_pinctrl_info, 
 	},
 	{ /* sentinel */ }
 };
@@ -1301,20 +1275,19 @@ static int starfive_jh7110_pinctrl_probe(struct platform_device *pdev)
 {
 	const struct starfive_pinctrl_soc_info *pinctrl_info;
 
-	pinctrl_info= of_device_get_match_data(&pdev->dev);
+	pinctrl_info = of_device_get_match_data(&pdev->dev);
 	if (!pinctrl_info)
 		return -ENODEV;
 	
-
 	return starfive_pinctrl_probe(pdev, pinctrl_info);
 }
 
-static struct platform_driver starfive_jh7110_pinctrl_driver= {
-	.driver= {
-		.name= "starfive_jh7110-pinctrl",
-		.of_match_table= of_match_ptr(starfive_jh7110_pinctrl_of_match),
+static struct platform_driver starfive_jh7110_pinctrl_driver = {
+	.driver = {
+		.name = "starfive_jh7110-pinctrl",
+		.of_match_table = of_match_ptr(starfive_jh7110_pinctrl_of_match),
 	},
-	.probe= starfive_jh7110_pinctrl_probe,
+	.probe = starfive_jh7110_pinctrl_probe,
 };
 
 static int __init starfive_jh7110_pinctrl_init(void)

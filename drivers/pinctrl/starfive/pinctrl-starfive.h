@@ -24,17 +24,17 @@
 #include <linux/pinctrl/pinconf-generic.h>
 #include <linux/pinctrl/pinmux.h>
 
-#define MAX_GPIO					64
+#define MAX_GPIO				64
 
 /************vic7100 reg**************/ 
 #define STARFIVE_PINS_SIZE 			4
 //pinmux
-#define PINMUX_GPIO_NUM_MASK		0xFF
-#define PINMUX_GPIO_FUNC_MASK		0xF00
+#define PINMUX_GPIO_NUM_MASK			0xFF
+#define PINMUX_GPIO_FUNC_MASK			0xF00
 #define PINMUX_GPIO_FUNC			0x100
 /************vic7100 reg**************/ 
 
-#define STARFIVE_USE_SCU		BIT(0)
+#define STARFIVE_USE_SCU			BIT(0)
 
 struct platform_device;
 
@@ -72,7 +72,6 @@ struct starfive_iopad_sel_func_inf {
 	unsigned int padctl_gpio0;
 };
 
-
 struct starfive_pinctrl {
 	struct device *dev;
 	struct pinctrl_dev *pctl_dev;
@@ -92,7 +91,6 @@ struct starfive_pinctrl {
 	unsigned long enabled;
 	unsigned trigger[MAX_GPIO];
 };
-
 
 struct starfive_pinctrl_soc_info {
 	const struct pinctrl_pin_desc *pins;
@@ -122,11 +120,10 @@ struct starfive_pinctrl_soc_info {
 	int (*starfive_gpio_register)(struct platform_device *pdev,
 				struct starfive_pinctrl *ipctl);
 	void (*starfive_pinctrl_parse_pin)(struct starfive_pinctrl *ipctl,
-				       unsigned int *pins_id, struct starfive_pin *pin_data,
-				       const __be32 *list_p,
-				       struct device_node *np);
+					unsigned int *pins_id, struct starfive_pin *pin_data,
+					const __be32 *list_p,
+					struct device_node *np);
 };
-
 
 #define	STARFIVE_PINCTRL_PIN(pin) PINCTRL_PIN(pin, #pin)
 

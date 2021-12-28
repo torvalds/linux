@@ -402,7 +402,7 @@ static int starfive_pinctrl_parse_groups(struct device_node *np,
 	
 	return 0;
 }
-				    
+					
 static int starfive_pinctrl_parse_functions(struct device_node *np,
 					struct starfive_pinctrl *pctl,
 					u32 index)
@@ -530,7 +530,7 @@ int starfive_pinctrl_probe(struct platform_device *pdev,
 		if (ret) 
 			return ret;
 	}
-  
+
 	starfive_pinctrl_desc = devm_kzalloc(&pdev->dev, sizeof(*starfive_pinctrl_desc),
 					GFP_KERNEL);
 	if (!starfive_pinctrl_desc)
@@ -568,7 +568,7 @@ int starfive_pinctrl_probe(struct platform_device *pdev,
 		return ret;
 	}
 	
- 	ret = pinctrl_enable(pctl->pctl_dev);
+	ret = pinctrl_enable(pctl->pctl_dev);
 	if (ret) {
 		dev_err(&pdev->dev, 
 			"pin controller failed to start\n");
