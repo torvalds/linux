@@ -62,7 +62,7 @@ static inline void smc_wr_tx_set_wr_id(atomic_long_t *wr_tx_id, long val)
 
 static inline bool smc_wr_tx_link_hold(struct smc_link *link)
 {
-	if (!smc_link_usable(link))
+	if (!smc_link_sendable(link))
 		return false;
 	atomic_inc(&link->wr_tx_refcnt);
 	return true;
