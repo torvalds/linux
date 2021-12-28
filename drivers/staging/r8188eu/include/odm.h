@@ -387,7 +387,6 @@ struct fast_ant_train {
 	u8	antsel_rx_keep_0;
 	u8	antsel_rx_keep_1;
 	u8	antsel_rx_keep_2;
-	u8	FAT_State;
 	u32	TrainIdx;
 	u8	antsel_a[ODM_ASSOCIATE_ENTRY_NUM];
 	u8	antsel_b[ODM_ASSOCIATE_ENTRY_NUM];
@@ -398,11 +397,6 @@ struct fast_ant_train {
 	u32	AuxAnt_Cnt[ODM_ASSOCIATE_ENTRY_NUM];
 	u8	RxIdleAnt;
 	bool	bBecomeLinked;
-};
-
-enum fat_state {
-	FAT_NORMAL_STATE		= 0,
-	FAT_TRAINING_STATE		= 1,
 };
 
 enum ant_div_type {
