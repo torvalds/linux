@@ -659,8 +659,10 @@ static int xgene_hwmon_probe(struct platform_device *pdev)
 
 		acpi_id = acpi_match_device(pdev->dev.driver->acpi_match_table,
 					    &pdev->dev);
-		if (!acpi_id)
-			return -EINVAL;
+		if (!acpi_id) {
+			rc = -EINVAL;
+			goto out_mbox_free;
+		}
 
 		version = (int)acpi_id->driver_data;
 
