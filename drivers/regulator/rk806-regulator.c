@@ -1152,7 +1152,10 @@ static int __maybe_unused rk806_suspend(struct device *dev)
 	for (i = RK806_ID_DCDC1; i < RK806_ID_END; i++)
 		rk806_field_write(rk806, BUCK1_VSEL_CTR_SEL + i, CTR_BY_NO_EFFECT);
 
-	rk806_field_write(rk806, PWRCTRL1_FUN, PWRCTRL_SLP_FUN);
+	rk806_field_write(rk806, PWRCTRL1_FUN, PWRCTRL_DVS_FUN);
+
+	for (i = RK806_ID_DCDC1; i < RK806_ID_END; i++)
+		rk806_field_write(rk806, BUCK1_VSEL_CTR_SEL + i, CTR_BY_PWRCTRL1);
 
 	return 0;
 }
@@ -1160,6 +1163,10 @@ static int __maybe_unused rk806_suspend(struct device *dev)
 static int __maybe_unused rk806_resume(struct device *dev)
 {
 	struct rk806 *rk806 = dev_get_drvdata(dev->parent);
+	int i;
+
+	for (i = RK806_ID_DCDC1; i < RK806_ID_END; i++)
+		rk806_field_write(rk806, BUCK1_VSEL_CTR_SEL + i, CTR_BY_NO_EFFECT);
 
 	rk806_field_write(rk806, PWRCTRL1_FUN, PWRCTRL_NULL_FUN);
 
