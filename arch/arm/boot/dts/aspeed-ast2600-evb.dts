@@ -736,6 +736,7 @@
 	memory-region = <&video_engine_memory>;
 };
 
+#if 0
 /*
  * I3C loopback: connect I3C0 (slave) to I3C1 (master)
  * Three devices will be created under /sys/bus/i3c/devices
@@ -753,6 +754,153 @@
 &i3c1 {
 	status = "okay";
 };
+#else
+/*
+ * Aspeed I3C daughter card configuration
+ *
+ * IMX3102: 2-to-1 multiplexier
+ * SPD5118: SPD Hub device
+ *
+ * +------------------   +
+ * | SoC                 |
+ * |                     |
+ * | I3C controller #0 - | --+
+ * |                     |    \                 SPD5118@50
+ * |                     |     +-----------+    |
+ * |                     |     | IMX3102@f | ---+--+---- i3c bus
+ * |                     |     +-----------+       |
+ * |                     |    /                    SPD5118@51
+ * | I3C controller #1 - | --+
+ * |                     |
+ * |                     |
+ * | I3C controller #2 - | --+
+ * |                     |    \                 SPD5118@52
+ * |                     |     +-----------+    |
+ * |                     |     | IMX3102@f | ---+--+---- i3c bus
+ * |                     |     +-----------+       |
+ * |                     |    /                    SPD5118@53
+ * | I3C controller #3 - | --+
+ * |                     |
+ * +---------------------+
+ */
+&i3c0 {
+	status = "okay";
+	jdec-spd;
+	/* Renesas IMX3102 multiplexer w/ thermal sensor */
+	imx3102_0: i3cmux@0f,4cc31020000 {
+		reg = <0x0f 0x4cc 0x31020000>;
+		assigned-address = <0x0f>;
+		dcr = <0xd1>;
+		bcr = <0x6>;
+	};
+
+	/* Renesas SPD5118 */
+	spd5118_0_0: spd@50,4cc51180000 {
+		reg = <0x50 0x4cc 0x51180000>;
+		assigned-address = <0x50>;
+		dcr = <0xda>;
+		bcr = <0x6>;
+	};
+
+	/* Renesas SPD5118 */
+	spd5118_0_1: spd@51,4cc51181000 {
+		reg = <0x51 0x4cc 0x51181000>;
+		assigned-address = <0x51>;
+		dcr = <0xda>;
+		bcr = <0x6>;
+	};
+};
+
+&i3c1 {
+	status = "okay";
+	jdec-spd;
+	/* Renesas IMX3102 multiplexer w/ thermal sensor */
+	imx3102_1: i3cmux@0f,4cc31020000 {
+		reg = <0x0f 0x4cc 0x31020000>;
+		assigned-address = <0x0f>;
+		dcr = <0xd1>;
+		bcr = <0x6>;
+	};
+
+	/* Renesas SPD5118 */
+	spd5118_1_0: spd@50,4cc51180000 {
+		reg = <0x50 0x4cc 0x51180000>;
+		assigned-address = <0x50>;
+		dcr = <0xda>;
+		bcr = <0x6>;
+	};
+
+	/* Renesas SPD5118 */
+	spd5118_1_1: spd@51,4cc51181000 {
+		reg = <0x51 0x4cc 0x51181000>;
+		assigned-address = <0x51>;
+		dcr = <0xda>;
+		bcr = <0x6>;
+	};
+};
+
+&i3c2 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_i3c3_default>;
+
+	jdec-spd;
+	/* Renesas IMX3102 multiplexer w/ thermal sensor */
+	imx3102_2: i3cmux@0f,4cc31020000 {
+		reg = <0x0f 0x4cc 0x31020000>;
+		assigned-address = <0x0f>;
+		dcr = <0xd1>;
+		bcr = <0x6>;
+	};
+
+	/* Renesas SPD5118 */
+	spd5118_2_0: spd@52,4cc51180000 {
+		reg = <0x52 0x4cc 0x51180000>;
+		assigned-address = <0x52>;
+		dcr = <0xda>;
+		bcr = <0x6>;
+	};
+
+	/* Renesas SPD5118 */
+	spd5118_2_1: spd@53,4cc51181000 {
+		reg = <0x53 0x4cc 0x51181000>;
+		assigned-address = <0x53>;
+		dcr = <0xda>;
+		bcr = <0x6>;
+	};
+};
+
+&i3c3 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_i3c4_default>;
+
+	jdec-spd;
+	/* Renesas IMX3102 multiplexer w/ thermal sensor */
+	imx3102_3: i3cmux@0f,4cc31020000 {
+		reg = <0x0f 0x4cc 0x31020000>;
+		assigned-address = <0x0f>;
+		dcr = <0xd1>;
+		bcr = <0x6>;
+	};
+
+	/* Renesas SPD5118 */
+	spd5118_3_0: spd@52,4cc51180000 {
+		reg = <0x52 0x4cc 0x51180000>;
+		assigned-address = <0x52>;
+		dcr = <0xda>;
+		bcr = <0x6>;
+	};
+
+	/* Renesas SPD5118 */
+	spd5118_3_1: spd@53,4cc51181000 {
+		reg = <0x53 0x4cc 0x51181000>;
+		assigned-address = <0x53>;
+		dcr = <0xda>;
+		bcr = <0x6>;
+	};
+};
+#endif
 
 &ssp {
 	memory-region = <&ssp_memory>;
