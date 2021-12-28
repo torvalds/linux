@@ -1642,9 +1642,10 @@ mt7615_mac_tx_free_token(struct mt7615_dev *dev, u16 token)
 	mt7615_txwi_free(dev, txwi);
 }
 
-static void mt7615_mac_tx_free(struct mt7615_dev *dev, struct sk_buff *skb)
+static void mt7615_mac_tx_free(struct mt7615_dev *dev, void *data, int len)
 {
-	struct mt7615_tx_free *free = (struct mt7615_tx_free *)skb->data;
+	struct mt7615_tx_free *free = (struct mt7615_tx_free *)data;
+	void *end = data + len;
 	u8 i, count;
 
 	mt76_queue_tx_cleanup(dev, dev->mphy.q_tx[MT_TXQ_PSD], false);
@@ -1659,16 +1660,20 @@ static void mt7615_mac_tx_free(struct mt7615_dev *dev, struct sk_buff *skb)
 	if (is_mt7615(&dev->mt76)) {
 		__le16 *token = &free->token[0];
 
+		if (WARN_ON_ONCE((void *)&token[count] > end))
+			return;
+
 		for (i = 0; i < count; i++)
 			mt7615_mac_tx_free_token(dev, le16_to_cpu(token[i]));
 	} else {
 		__le32 *token = (__le32 *)&free->token[0];
 
+		if (WARN_ON_ONCE((void *)&token[count] > end))
+			return;
+
 		for (i = 0; i < count; i++)
 			mt7615_mac_tx_free_token(dev, le32_to_cpu(token[i]));
 	}
-
-	dev_kfree_skb(skb);
 
 	rcu_read_lock();
 	mt7615_mac_sta_poll(dev);
@@ -1676,6 +1681,28 @@ static void mt7615_mac_tx_free(struct mt7615_dev *dev, struct sk_buff *skb)
 
 	mt76_worker_schedule(&dev->mt76.tx_worker);
 }
+
+bool mt7615_rx_check(struct mt76_dev *mdev, void *data, int len)
+{
+	struct mt7615_dev *dev = container_of(mdev, struct mt7615_dev, mt76);
+	__le32 *rxd = (__le32 *)data;
+	__le32 *end = (__le32 *)&rxd[len / 4];
+	enum rx_pkt_type type;
+
+	type = FIELD_GET(MT_RXD0_PKT_TYPE, le32_to_cpu(rxd[0]));
+	switch (type) {
+	case PKT_TYPE_TXRX_NOTIFY:
+		mt7615_mac_tx_free(dev, data, len);
+		return false;
+	case PKT_TYPE_TXS:
+		for (rxd++; rxd + 7 <= end; rxd += 7)
+			mt7615_mac_add_txs(dev, rxd);
+		return false;
+	default:
+		return true;
+	}
+}
+EXPORT_SYMBOL_GPL(mt7615_rx_check);
 
 void mt7615_queue_rx_skb(struct mt76_dev *mdev, enum mt76_rxq_id q,
 			 struct sk_buff *skb)
@@ -1698,7 +1725,8 @@ void mt7615_queue_rx_skb(struct mt76_dev *mdev, enum mt76_rxq_id q,
 		dev_kfree_skb(skb);
 		break;
 	case PKT_TYPE_TXRX_NOTIFY:
-		mt7615_mac_tx_free(dev, skb);
+		mt7615_mac_tx_free(dev, skb->data, skb->len);
+		dev_kfree_skb(skb);
 		break;
 	case PKT_TYPE_RX_EVENT:
 		mt7615_mcu_rx_event(dev, skb);
