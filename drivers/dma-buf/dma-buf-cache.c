@@ -29,7 +29,7 @@ static int dma_buf_cache_destructor(struct dma_buf *dmabuf, void *dtor_data)
 
 	mutex_lock(&data->lock);
 	list_for_each_entry_safe(cache, tmp, &data->head, list) {
-		if (cache->sg_table)
+		if (!IS_ERR_OR_NULL(cache->sg_table))
 			dma_buf_unmap_attachment(cache->attach,
 						 cache->sg_table,
 						 cache->direction);
@@ -83,6 +83,7 @@ EXPORT_SYMBOL(dma_buf_cache_detach);
 struct dma_buf_attachment *dma_buf_cache_attach(struct dma_buf *dmabuf,
 						struct device *dev)
 {
+	struct dma_buf_attachment *attach;
 	struct dma_buf_cache_list *data;
 	struct dma_buf_cache *cache;
 
@@ -117,8 +118,13 @@ struct dma_buf_attachment *dma_buf_cache_attach(struct dma_buf *dmabuf,
 		return ERR_PTR(-ENOMEM);
 
 	/* Cache attachment */
-	cache->attach = dma_buf_attach(dmabuf, dev);
+	attach = dma_buf_attach(dmabuf, dev);
+	if (!IS_ERR_OR_NULL(attach)) {
+		kfree(cache);
+		return attach;
+	}
 
+	cache->attach = attach;
 	mutex_lock(&data->lock);
 	list_add(&cache->list, &data->head);
 	mutex_unlock(&data->lock);
@@ -162,9 +168,6 @@ struct sg_table *dma_buf_cache_map_attachment(struct dma_buf_attachment *attach,
 	/* Cache map */
 	cache->sg_table = dma_buf_map_attachment(attach, direction);
 	cache->direction = direction;
-
-	if (!cache->sg_table)
-		return ERR_PTR(-ENOMEM);
 
 	return cache->sg_table;
 }
