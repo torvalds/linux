@@ -121,6 +121,16 @@
  * 4. add frame loss info to procfs
  * 5. fix monitor no working
  * 6. disable scl dma write if no output buffer
+ *
+ * v1.8.0
+ * 1. sync alloc buf with dma sg case
+ * 2. remove tnr iir first frame skip
+ * 3. replace iommu detach/attach
+ * 4. solving ispp compilation problems
+ * 5. add the stream_v20
+ * 6. add rk3588 config
+ * 7. Make rkispp_module_work_event() static
+ * 8. add the iqtool module
  */
 
 #define RKISPP_DRIVER_VERSION ISPP_API_VERSION

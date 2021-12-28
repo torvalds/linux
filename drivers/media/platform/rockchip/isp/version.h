@@ -169,6 +169,54 @@
  * 13.disable tmo interrupt
  * 14.fix bottom image for debayer with extend line
  * 15.unregister dmarx at driver remove
+ *
+ * v1.8.0:
+ * 1.sync alloc buf with dma sg case
+ * 2.sync multi vir dev stream on/off
+ * 3.replace iommu detach/attach
+ * 4.adjust params common api
+ * 5.add isp3.0
+ * 6.params and stats for isp3.0
+ * 7.vicap direct to isp3.0
+ * 8.bridge v30 connect to ispp
+ * 9.add rk3588 config
+ * 10.add cmsk config for isp30
+ * 11.dual isp unite process image
+ * 12.params and stats for dual isp unite
+ * 13.sync dhaz params for dual isp unite
+ * 14.fbc support crop
+ * 15.add dual isp unite config
+ * 16.useless version return -EINVAL
+ * 17.fix first frame abnormal
+ * 18.fix isp30 config for cnr with gain off
+ * 19.fix NULL Pointer for stats v3x
+ * 20.add constraint to gaus_en/viir_en/v1_fir_sel of rawaf
+ * 21.fix dhaz config with dual unite isp
+ * 22.fix isp30 fbc config
+ * 23.isp3 max clk to 702M
+ * 24.fix fbc iommu err with multi device case
+ * 25.fix first params config two times for readback mode
+ * 26.fix ynr/cnr/baynr reg config
+ * 27.fix rawhist weight config error for multi device
+ * 28.bigmode by max width and size for isp30
+ * 29.add isp30 debug to procfs
+ * 30.fix scale resolution limit
+ * 31.fix bigmode for multi device
+ * 32.fix fbc stop iommu page fault for isp30
+ * 33.fix rawawb with rawlsc no stats
+ * 34.fix bay3d mi no update
+ * 35.dynamic memory alloc for params and stats function
+ * 36.limit ldch and gain for isp30
+ * 37.fix multi stream mpfbc reg config error
+ * 38.support stream crop for unite isp
+ * 39.fix hdrmge config error for isp30 read back mode
+ * 40.lsc table from sram for isp30
+ * 41.3a params config first
+ * 42.config aebig by af when aemode is on
+ * 43.add missing highlight in af stats
+ * 44.add the iqtool module
+ * 45.add csm params config for isp3
+ * 46.fix CSI2RX_DATA_IDS_1 config err
  */
 
 #define RKISP_DRIVER_VERSION RKISP_API_VERSION
