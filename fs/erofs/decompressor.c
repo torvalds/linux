@@ -121,7 +121,7 @@ static int z_erofs_lz4_prepare_dstpages(struct z_erofs_lz4_decompress_ctx *ctx,
 
 static void *z_erofs_lz4_handle_overlap(struct z_erofs_lz4_decompress_ctx *ctx,
 			void *inpage, unsigned int *inputmargin, int *maptype,
-			bool support_0padding)
+			bool may_inplace)
 {
 	struct z_erofs_decompress_req *rq = ctx->rq;
 	unsigned int omargin, total, i, j;
@@ -130,7 +130,7 @@ static void *z_erofs_lz4_handle_overlap(struct z_erofs_lz4_decompress_ctx *ctx,
 
 	if (rq->inplace_io) {
 		omargin = PAGE_ALIGN(ctx->oend) - ctx->oend;
-		if (rq->partial_decoding || !support_0padding ||
+		if (rq->partial_decoding || !may_inplace ||
 		    omargin < LZ4_DECOMPRESS_INPLACE_MARGIN(rq->inputsize))
 			goto docopy;
 
@@ -206,15 +206,13 @@ static int z_erofs_lz4_decompress_mem(struct z_erofs_lz4_decompress_ctx *ctx,
 				      u8 *out)
 {
 	struct z_erofs_decompress_req *rq = ctx->rq;
+	bool support_0padding = false, may_inplace = false;
 	unsigned int inputmargin;
 	u8 *headpage, *src;
-	bool support_0padding;
 	int ret, maptype;
 
 	DBG_BUGON(*rq->in == NULL);
 	headpage = kmap_atomic(*rq->in);
-	inputmargin = 0;
-	support_0padding = false;
 
 	/* LZ4 decompression inplace is only safe if zero_padding is enabled */
 	if (erofs_sb_has_zero_padding(EROFS_SB(rq->sb))) {
@@ -226,11 +224,13 @@ static int z_erofs_lz4_decompress_mem(struct z_erofs_lz4_decompress_ctx *ctx,
 			kunmap_atomic(headpage);
 			return ret;
 		}
+		may_inplace = !((rq->pageofs_in + rq->inputsize) &
+				(EROFS_BLKSIZ - 1));
 	}
 
 	inputmargin = rq->pageofs_in;
 	src = z_erofs_lz4_handle_overlap(ctx, headpage, &inputmargin,
-					 &maptype, support_0padding);
+					 &maptype, may_inplace);
 	if (IS_ERR(src))
 		return PTR_ERR(src);
 
@@ -320,7 +320,8 @@ static int z_erofs_shifted_transform(struct z_erofs_decompress_req *rq,
 {
 	const unsigned int nrpages_out =
 		PAGE_ALIGN(rq->pageofs_out + rq->outputsize) >> PAGE_SHIFT;
-	const unsigned int righthalf = PAGE_SIZE - rq->pageofs_out;
+	const unsigned int righthalf = min_t(unsigned int, rq->outputsize,
+					     PAGE_SIZE - rq->pageofs_out);
 	unsigned char *src, *dst;
 
 	if (nrpages_out > 2) {
@@ -333,7 +334,7 @@ static int z_erofs_shifted_transform(struct z_erofs_decompress_req *rq,
 		return 0;
 	}
 
-	src = kmap_atomic(*rq->in);
+	src = kmap_atomic(*rq->in) + rq->pageofs_in;
 	if (rq->out[0]) {
 		dst = kmap_atomic(rq->out[0]);
 		memcpy(dst + rq->pageofs_out, src, righthalf);
