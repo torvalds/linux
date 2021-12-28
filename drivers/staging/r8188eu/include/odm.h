@@ -468,7 +468,6 @@ struct odm_dm_struct {
 	struct rtl_ps	DM_PSTable;
 	struct false_alarm_stats FalseAlmCnt;
 	struct sw_ant_switch DM_SWAT_Table;
-	bool		RSSI_test;
 
 	struct edca_turbo DM_EDCA_Table;
 

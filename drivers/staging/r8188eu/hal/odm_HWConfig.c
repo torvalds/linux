@@ -358,10 +358,8 @@ void ODM_PhyStatusQuery(struct odm_dm_struct *dm_odm,
 			struct odm_per_pkt_info *pPktinfo,
 			struct adapter *adapt)
 {
-	odm_RxPhyStatus92CSeries_Parsing(dm_odm, pPhyInfo, pPhyStatus,
-					 pPktinfo, adapt);
-	if (!dm_odm->RSSI_test)
-		odm_Process_RSSIForDM(dm_odm, pPhyInfo, pPktinfo);
+	odm_RxPhyStatus92CSeries_Parsing(dm_odm, pPhyInfo, pPhyStatus, pPktinfo, adapt);
+	odm_Process_RSSIForDM(dm_odm, pPhyInfo, pPktinfo);
 }
 
 enum HAL_STATUS ODM_ConfigRFWithHeaderFile(struct odm_dm_struct *dm_odm,
