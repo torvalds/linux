@@ -469,7 +469,7 @@
 			};
 
 			pcie: pcie@1e6ed200 {
-				compatible = "aspeed,ast2600-pcie";
+				compatible = "aspeed,ast2600-pcie", "syscon";
 				reg = <0x1e6ed200 0x100>, <0x1e770000 0x200>;
 				reg-names = "pciereg", "h2xreg";
 				device_type = "pci";
@@ -549,6 +549,29 @@
 						      <&scu_ic0 ASPEED_AST2600_SCU_IC0_PCIE_PERST_LO_TO_HI>;
 				aspeed,pcie-device = "bmc";
 				aspeed,scu = <&syscon>;
+				status = "disabled";
+			};
+
+			mctp0: mctp@1e6e8000 {
+				compatible = "aspeed,ast2600-mctp";
+				reg = <0x1e6e8000 0x30>;
+				interrupts-extended = <&gic GIC_SPI 26 IRQ_TYPE_LEVEL_HIGH>, <&scu_ic0 ASPEED_AST2600_SCU_IC0_PCIE_PERST_LO_TO_HI>;
+				interrupt-names = "mctp", "pcie";
+				resets = <&syscon ASPEED_RESET_DEV_MCTP>;
+				aspeed,scu = <&syscon>;
+				aspeed,pcieh = <&pcie_ep>;
+				status = "disabled";
+			};
+
+			mctp1: mctp@1e6f9000 {
+				compatible = "aspeed,ast2600-mctp";
+				reg = <0x1e6f9000 0x30>;
+				interrupts-extended = <&scu_ic0 ASPEED_AST2600_SCU_IC0_PCIE_RCRST_LO_TO_HI>;
+				interrupt-names = "pcie";
+				pcie_rc;
+				resets = <&syscon ASPEED_RESET_RC_MCTP>, <&syscon ASPEED_RESET_DEV_MCTP>;
+				aspeed,scu = <&syscon>;
+				aspeed,pcieh = <&pcie>;
 				status = "disabled";
 			};
 
