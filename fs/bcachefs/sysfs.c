@@ -266,8 +266,12 @@ static int bch2_compression_stats_to_text(struct printbuf *out, struct bch_fs *c
 	struct btree_trans trans;
 	struct btree_iter iter;
 	struct bkey_s_c k;
-	u64 nr_uncompressed_extents = 0, uncompressed_sectors = 0,
+	enum btree_id id;
+	u64 nr_uncompressed_extents = 0,
 	    nr_compressed_extents = 0,
+	    nr_incompressible_extents = 0,
+	    uncompressed_sectors = 0,
+	    incompressible_sectors = 0,
 	    compressed_sectors_compressed = 0,
 	    compressed_sectors_uncompressed = 0;
 	int ret;
@@ -277,47 +281,72 @@ static int bch2_compression_stats_to_text(struct printbuf *out, struct bch_fs *c
 
 	bch2_trans_init(&trans, c, 0, 0);
 
-	for_each_btree_key(&trans, iter, BTREE_ID_extents, POS_MIN, 0, k, ret)
-		if (k.k->type == KEY_TYPE_extent) {
-			struct bkey_s_c_extent e = bkey_s_c_to_extent(k);
+	for (id = 0; id < BTREE_ID_NR; id++) {
+		if (!((1U << id) & BTREE_ID_HAS_PTRS))
+			continue;
+
+		for_each_btree_key(&trans, iter, id, POS_MIN,
+				   BTREE_ITER_ALL_SNAPSHOTS, k, ret) {
+			struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
 			const union bch_extent_entry *entry;
 			struct extent_ptr_decoded p;
+			bool compressed = false, uncompressed = false, incompressible = false;
 
-			extent_for_each_ptr_decode(e, p, entry) {
-				if (!crc_is_compressed(p.crc)) {
-					nr_uncompressed_extents++;
-					uncompressed_sectors += e.k->size;
-				} else {
-					nr_compressed_extents++;
+			bkey_for_each_ptr_decode(k.k, ptrs, p, entry) {
+				switch (p.crc.compression_type) {
+				case BCH_COMPRESSION_TYPE_none:
+					uncompressed = true;
+					uncompressed_sectors += k.k->size;
+					break;
+				case BCH_COMPRESSION_TYPE_incompressible:
+					incompressible = true;
+					incompressible_sectors += k.k->size;
+					break;
+				default:
 					compressed_sectors_compressed +=
 						p.crc.compressed_size;
 					compressed_sectors_uncompressed +=
 						p.crc.uncompressed_size;
+					compressed = true;
+					break;
 				}
-
-				/* only looking at the first ptr */
-				break;
 			}
+
+			if (incompressible)
+				nr_incompressible_extents++;
+			else if (uncompressed)
+				nr_uncompressed_extents++;
+			else if (compressed)
+				nr_compressed_extents++;
 		}
-	bch2_trans_iter_exit(&trans, &iter);
+		bch2_trans_iter_exit(&trans, &iter);
+	}
 
 	bch2_trans_exit(&trans);
+
 	if (ret)
 		return ret;
 
-	pr_buf(out,
-	       "uncompressed data:\n"
-	       "	nr extents:			%llu\n"
-	       "	size (bytes):			%llu\n"
-	       "compressed data:\n"
-	       "	nr extents:			%llu\n"
-	       "	compressed size (bytes):	%llu\n"
-	       "	uncompressed size (bytes):	%llu\n",
-	       nr_uncompressed_extents,
-	       uncompressed_sectors << 9,
-	       nr_compressed_extents,
-	       compressed_sectors_compressed << 9,
-	       compressed_sectors_uncompressed << 9);
+	pr_buf(out, "uncompressed:\n");
+	pr_buf(out, "	nr extents:		%llu\n", nr_uncompressed_extents);
+	pr_buf(out, "	size:			");
+	bch2_hprint(out, uncompressed_sectors << 9);
+	pr_buf(out, "\n");
+
+	pr_buf(out, "compressed:\n");
+	pr_buf(out, "	nr extents:		%llu\n", nr_compressed_extents);
+	pr_buf(out, "	compressed size:	");
+	bch2_hprint(out, compressed_sectors_compressed << 9);
+	pr_buf(out, "\n");
+	pr_buf(out, "	uncompressed size:	");
+	bch2_hprint(out, compressed_sectors_uncompressed << 9);
+	pr_buf(out, "\n");
+
+	pr_buf(out, "incompressible:\n");
+	pr_buf(out, "	nr extents:		%llu\n", nr_incompressible_extents);
+	pr_buf(out, "	size:			");
+	bch2_hprint(out, incompressible_sectors << 9);
+	pr_buf(out, "\n");
 	return 0;
 }
 
