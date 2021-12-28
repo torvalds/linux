@@ -897,6 +897,7 @@ static int smc_lgr_create(struct smc_sock *smc, struct smc_init_info *ini)
 			smc_wr_free_lgr_mem(lgr);
 			goto free_wq;
 		}
+		lgr->net = smc_ib_net(lnk->smcibdev);
 		lgr_list = &smc_lgr_list.list;
 		lgr_lock = &smc_lgr_list.lock;
 		atomic_inc(&lgr_cnt);
@@ -1585,7 +1586,8 @@ void smcr_port_add(struct smc_ib_device *smcibdev, u8 ibport)
 		if (strncmp(smcibdev->pnetid[ibport - 1], lgr->pnet_id,
 			    SMC_MAX_PNETID_LEN) ||
 		    lgr->type == SMC_LGR_SYMMETRIC ||
-		    lgr->type == SMC_LGR_ASYMMETRIC_PEER)
+		    lgr->type == SMC_LGR_ASYMMETRIC_PEER ||
+		    !rdma_dev_access_netns(smcibdev->ibdev, lgr->net))
 			continue;
 
 		/* trigger local add link processing */
@@ -1743,8 +1745,10 @@ static bool smcr_lgr_match(struct smc_link_group *lgr, u8 smcr_version,
 			   u8 peer_systemid[],
 			   u8 peer_gid[],
 			   u8 peer_mac_v1[],
-			   enum smc_lgr_role role, u32 clcqpn)
+			   enum smc_lgr_role role, u32 clcqpn,
+			   struct net *net)
 {
+	struct smc_link *lnk;
 	int i;
 
 	if (memcmp(lgr->peer_systemid, peer_systemid, SMC_SYSTEMID_LEN) ||
@@ -1752,12 +1756,17 @@ static bool smcr_lgr_match(struct smc_link_group *lgr, u8 smcr_version,
 		return false;
 
 	for (i = 0; i < SMC_LINKS_PER_LGR_MAX; i++) {
-		if (!smc_link_active(&lgr->lnk[i]))
+		lnk = &lgr->lnk[i];
+
+		if (!smc_link_active(lnk))
 			continue;
-		if ((lgr->role == SMC_SERV || lgr->lnk[i].peer_qpn == clcqpn) &&
-		    !memcmp(lgr->lnk[i].peer_gid, peer_gid, SMC_GID_SIZE) &&
+		/* use verbs API to check netns, instead of lgr->net */
+		if (!rdma_dev_access_netns(lnk->smcibdev->ibdev, net))
+			return false;
+		if ((lgr->role == SMC_SERV || lnk->peer_qpn == clcqpn) &&
+		    !memcmp(lnk->peer_gid, peer_gid, SMC_GID_SIZE) &&
 		    (smcr_version == SMC_V2 ||
-		     !memcmp(lgr->lnk[i].peer_mac, peer_mac_v1, ETH_ALEN)))
+		     !memcmp(lnk->peer_mac, peer_mac_v1, ETH_ALEN)))
 			return true;
 	}
 	return false;
@@ -1773,6 +1782,7 @@ static bool smcd_lgr_match(struct smc_link_group *lgr,
 int smc_conn_create(struct smc_sock *smc, struct smc_init_info *ini)
 {
 	struct smc_connection *conn = &smc->conn;
+	struct net *net = sock_net(&smc->sk);
 	struct list_head *lgr_list;
 	struct smc_link_group *lgr;
 	enum smc_lgr_role role;
@@ -1799,7 +1809,7 @@ int smc_conn_create(struct smc_sock *smc, struct smc_init_info *ini)
 		     smcr_lgr_match(lgr, ini->smcr_version,
 				    ini->peer_systemid,
 				    ini->peer_gid, ini->peer_mac, role,
-				    ini->ib_clcqpn)) &&
+				    ini->ib_clcqpn, net)) &&
 		    !lgr->sync_err &&
 		    (ini->smcd_version == SMC_V2 ||
 		     lgr->vlan_id == ini->vlan_id) &&

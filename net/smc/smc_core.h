@@ -306,6 +306,8 @@ struct smc_link_group {
 			u8			nexthop_mac[ETH_ALEN];
 			u8			uses_gateway;
 			__be32			saddr;
+						/* net namespace */
+			struct net		*net;
 		};
 		struct { /* SMC-D */
 			u64			peer_gid;
