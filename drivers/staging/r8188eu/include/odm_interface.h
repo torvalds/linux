@@ -4,13 +4,6 @@
 #ifndef	__ODM_INTERFACE_H__
 #define __ODM_INTERFACE_H__
 
-enum odm_h2c_cmd {
-	ODM_H2C_RSSI_REPORT = 0,
-	ODM_H2C_PSD_RESULT= 1,
-	ODM_H2C_PathDiv = 2,
-	ODM_MAX_H2CCMD
-};
-
 /*  2012/02/17 MH For non-MP compile pass only. Linux does not support workitem. */
 /*  Suggest HW team to use thread instead of workitem. Windows also support the feature. */
 typedef void (*RT_WORKITEM_CALL_BACK)(void *pContext);
