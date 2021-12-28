@@ -6655,8 +6655,8 @@ static void __ov50c40_power_off(struct ov50c40 *ov50c40)
 
 	if (ov50c40->is_thunderboot_ng) {
 		ov50c40->is_thunderboot_ng = false;
-		regulator_bulk_disable(OV50C40_NUM_SUPPLIES, ov50c40->supplies);
 	}
+	regulator_bulk_disable(OV50C40_NUM_SUPPLIES, ov50c40->supplies);
 }
 
 static int ov50c40_runtime_resume(struct device *dev)
