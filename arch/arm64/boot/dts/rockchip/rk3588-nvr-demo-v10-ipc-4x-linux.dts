@@ -140,14 +140,6 @@
 	status = "disabled";
 };
 
-&rkvdec1_mmu {
-	status = "disabled";
-};
-
-&rkvdec_core1 {
-	status = "disabled";
-};
-
 &sata0 {
 	status = "disabled";
 };
