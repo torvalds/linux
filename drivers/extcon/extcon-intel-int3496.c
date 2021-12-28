@@ -121,11 +121,11 @@ static int int3496_probe(struct platform_device *pdev)
 
 	data->gpio_vbus_en = devm_gpiod_get(dev, "vbus", GPIOD_ASIS);
 	if (IS_ERR(data->gpio_vbus_en))
-		dev_info(dev, "can't request VBUS EN GPIO\n");
+		dev_dbg(dev, "can't request VBUS EN GPIO\n");
 
 	data->gpio_usb_mux = devm_gpiod_get(dev, "mux", GPIOD_ASIS);
 	if (IS_ERR(data->gpio_usb_mux))
-		dev_info(dev, "can't request USB MUX GPIO\n");
+		dev_dbg(dev, "can't request USB MUX GPIO\n");
 
 	/* register extcon device */
 	data->edev = devm_extcon_dev_allocate(dev, int3496_cable);
