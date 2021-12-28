@@ -14,6 +14,7 @@
  * 1. fix 8K@12 mipi freq index.
  * 2. fix set_fmt & ioctl get mode unmatched issue.
  * 3. add debug info.
+ * V0.0X01.0X07 correct bayer pattern to match register setting
  */
 #define DEBUG
 #include <linux/clk.h>
@@ -39,7 +40,7 @@
 #include <linux/of_graph.h>
 #include "otp_eeprom.h"
 
-#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x06)
+#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x07)
 
 #ifndef V4L2_CID_DIGITAL_GAIN
 #define V4L2_CID_DIGITAL_GAIN		V4L2_CID_GAIN
@@ -5732,7 +5733,7 @@ static const struct other_data ov50c40_spd = {
  */
 static const struct ov50c40_mode supported_modes_dphy[] = {
 	{
-		.bus_fmt = MEDIA_BUS_FMT_SBGGR10_1X10,
+		.bus_fmt = MEDIA_BUS_FMT_SGBRG10_1X10,
 		.width = 4096,
 		.height = 3072,
 		.max_fps = {
@@ -5750,7 +5751,7 @@ static const struct ov50c40_mode supported_modes_dphy[] = {
 		.vc[PAD0] = V4L2_MBUS_CSI2_CHANNEL_0,
 	},
 	{
-		.bus_fmt = MEDIA_BUS_FMT_SBGGR10_1X10,
+		.bus_fmt = MEDIA_BUS_FMT_SGBRG10_1X10,
 		.width = 4096,
 		.height = 3072,
 		.max_fps = {
@@ -5768,7 +5769,7 @@ static const struct ov50c40_mode supported_modes_dphy[] = {
 		.vc[PAD0] = V4L2_MBUS_CSI2_CHANNEL_0,
 	},
 	{
-		.bus_fmt = MEDIA_BUS_FMT_SBGGR10_1X10,
+		.bus_fmt = MEDIA_BUS_FMT_SGBRG10_1X10,
 		.width = 8192,
 		.height = 6144,
 		.max_fps = {
@@ -5786,7 +5787,7 @@ static const struct ov50c40_mode supported_modes_dphy[] = {
 		.vc[PAD0] = V4L2_MBUS_CSI2_CHANNEL_0,
 	},
 	{
-		.bus_fmt = MEDIA_BUS_FMT_SBGGR10_1X10,
+		.bus_fmt = MEDIA_BUS_FMT_SGBRG10_1X10,
 		.width = 8192,
 		.height = 6144,
 		.max_fps = {
@@ -5804,7 +5805,7 @@ static const struct ov50c40_mode supported_modes_dphy[] = {
 		.vc[PAD0] = V4L2_MBUS_CSI2_CHANNEL_0,
 	},
 	{
-		.bus_fmt = MEDIA_BUS_FMT_SBGGR10_1X10,
+		.bus_fmt = MEDIA_BUS_FMT_SGBRG10_1X10,
 		.width = 4096,
 		.height = 3072,
 		.max_fps = {
@@ -5824,7 +5825,7 @@ static const struct ov50c40_mode supported_modes_dphy[] = {
 
 static const struct ov50c40_mode supported_modes_cphy[] = {
 	{
-		.bus_fmt = MEDIA_BUS_FMT_SBGGR10_1X10,
+		.bus_fmt = MEDIA_BUS_FMT_SGBRG10_1X10,
 		.width = 4096,
 		.height = 3072,
 		.max_fps = {
@@ -5842,7 +5843,7 @@ static const struct ov50c40_mode supported_modes_cphy[] = {
 		.vc[PAD0] = V4L2_MBUS_CSI2_CHANNEL_0,
 	},
 	{
-		.bus_fmt = MEDIA_BUS_FMT_SBGGR10_1X10,
+		.bus_fmt = MEDIA_BUS_FMT_SGBRG10_1X10,
 		.width = 4096,
 		.height = 3072,
 		.max_fps = {
@@ -5860,7 +5861,7 @@ static const struct ov50c40_mode supported_modes_cphy[] = {
 		.vc[PAD0] = V4L2_MBUS_CSI2_CHANNEL_0,
 	},
 	{
-		.bus_fmt = MEDIA_BUS_FMT_SBGGR10_1X10,
+		.bus_fmt = MEDIA_BUS_FMT_SGBRG10_1X10,
 		.width = 8192,
 		.height = 6144,
 		.max_fps = {
