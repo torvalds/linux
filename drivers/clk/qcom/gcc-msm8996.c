@@ -54,8 +54,8 @@ static struct clk_alpha_pll gpll0_early = {
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
 			.name = "gpll0_early",
-			.parent_hws = (const struct clk_hw*[]){
-				&xo.hw,
+			.parent_data = &(const struct clk_parent_data){
+				.fw_name = "cxo", .name = "xo_board",
 			},
 			.num_parents = 1,
 			.ops = &clk_alpha_pll_ops,
@@ -131,8 +131,8 @@ static struct clk_alpha_pll gpll4_early = {
 		.enable_mask = BIT(4),
 		.hw.init = &(struct clk_init_data){
 			.name = "gpll4_early",
-			.parent_hws = (const struct clk_hw*[]){
-				&xo.hw,
+			.parent_data = &(const struct clk_parent_data){
+				.fw_name = "cxo", .name = "xo_board",
 			},
 			.num_parents = 1,
 			.ops = &clk_alpha_pll_ops,
@@ -167,7 +167,7 @@ static const struct parent_map gcc_xo_gpll0_map[] = {
 };
 
 static const struct clk_parent_data gcc_xo_gpll0[] = {
-	{ .hw = &xo.hw },
+	{ .fw_name = "cxo", .name = "xo_board" },
 	{ .hw = &gpll0.clkr.hw }
 };
 
@@ -177,7 +177,7 @@ static const struct parent_map gcc_xo_sleep_clk_map[] = {
 };
 
 static const struct clk_parent_data gcc_xo_sleep_clk[] = {
-	{ .hw = &xo.hw },
+	{ .fw_name = "cxo", .name = "xo_board" },
 	{ .fw_name = "sleep_clk", .name = "sleep_clk" }
 };
 
@@ -188,7 +188,7 @@ static const struct parent_map gcc_xo_gpll0_gpll0_early_div_map[] = {
 };
 
 static const struct clk_parent_data gcc_xo_gpll0_gpll0_early_div[] = {
-	{ .hw = &xo.hw },
+	{ .fw_name = "cxo", .name = "xo_board" },
 	{ .hw = &gpll0.clkr.hw },
 	{ .hw = &gpll0_early_div.hw }
 };
@@ -200,7 +200,7 @@ static const struct parent_map gcc_xo_gpll0_gpll4_map[] = {
 };
 
 static const struct clk_parent_data gcc_xo_gpll0_gpll4[] = {
-	{ .hw = &xo.hw },
+	{ .fw_name = "cxo", .name = "xo_board" },
 	{ .hw = &gpll0.clkr.hw },
 	{ .hw = &gpll4.clkr.hw }
 };
@@ -212,7 +212,7 @@ static const struct parent_map gcc_xo_gpll0_aud_ref_clk_map[] = {
 };
 
 static const struct clk_parent_data gcc_xo_gpll0_aud_ref_clk[] = {
-	{ .hw = &xo.hw },
+	{ .fw_name = "cxo", .name = "xo_board" },
 	{ .hw = &gpll0.clkr.hw },
 	{ .fw_name = "aud_ref_clk", .name = "aud_ref_clk" }
 };
@@ -225,7 +225,7 @@ static const struct parent_map gcc_xo_gpll0_sleep_clk_gpll0_early_div_map[] = {
 };
 
 static const struct clk_parent_data gcc_xo_gpll0_sleep_clk_gpll0_early_div[] = {
-	{ .hw = &xo.hw },
+	{ .fw_name = "cxo", .name = "xo_board" },
 	{ .hw = &gpll0.clkr.hw },
 	{ .fw_name = "sleep_clk", .name = "sleep_clk" },
 	{ .hw = &gpll0_early_div.hw }
@@ -239,7 +239,7 @@ static const struct parent_map gcc_xo_gpll0_gpll4_gpll0_early_div_map[] = {
 };
 
 static const struct clk_parent_data gcc_xo_gpll0_gpll4_gpll0_early_div[] = {
-	{ .hw = &xo.hw },
+	{ .fw_name = "cxo", .name = "xo_board" },
 	{ .hw = &gpll0.clkr.hw },
 	{ .hw = &gpll4.clkr.hw },
 	{ .hw = &gpll0_early_div.hw }
