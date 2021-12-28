@@ -511,6 +511,26 @@
 				};
 			};
 
+			jtag0: jtag@1e6e4000 {
+				compatible = "aspeed,ast2600-jtag";
+				reg= <0x1e6e4000 0x20>;
+				interrupts = <GIC_SPI 27 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&syscon ASPEED_CLK_AHB>;
+				resets = <&syscon ASPEED_RESET_JTAG_MASTER>;
+				status = "disabled";
+			};
+
+			jtag1: jtag@1e6e4100 {
+				compatible = "aspeed,ast2600-jtag";
+				reg= <0x1e6e4100 0x20>;
+				interrupts = <GIC_SPI 53 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&syscon ASPEED_CLK_AHB>;
+				resets = <&syscon ASPEED_RESET_JTAG_MASTER2>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_jtagm_default>;
+				status = "disabled";
+			};
+
 			gfx: display@1e6e6000 {
 				compatible = "aspeed,ast2600-gfx", "syscon";
 				reg = <0x1e6e6000 0x1000>;
