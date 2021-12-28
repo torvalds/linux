@@ -184,6 +184,24 @@ docopy:
 	return src;
 }
 
+/*
+ * Get the exact inputsize with zero_padding feature.
+ *  - For LZ4, it should work if zero_padding feature is on (5.3+);
+ *  - For MicroLZMA, it'd be enabled all the time.
+ */
+int z_erofs_fixup_insize(struct z_erofs_decompress_req *rq, const char *padbuf,
+			 unsigned int padbufsize)
+{
+	const char *padend;
+
+	padend = memchr_inv(padbuf, 0, padbufsize);
+	if (!padend)
+		return -EFSCORRUPTED;
+	rq->inputsize -= padend - padbuf;
+	rq->pageofs_in += padend - padbuf;
+	return 0;
+}
+
 static int z_erofs_lz4_decompress_mem(struct z_erofs_lz4_decompress_ctx *ctx,
 				      u8 *out)
 {
@@ -198,21 +216,19 @@ static int z_erofs_lz4_decompress_mem(struct z_erofs_lz4_decompress_ctx *ctx,
 	inputmargin = 0;
 	support_0padding = false;
 
-	/* decompression inplace is only safe when zero_padding is enabled */
+	/* LZ4 decompression inplace is only safe if zero_padding is enabled */
 	if (erofs_sb_has_zero_padding(EROFS_SB(rq->sb))) {
 		support_0padding = true;
-
-		while (!headpage[inputmargin & ~PAGE_MASK])
-			if (!(++inputmargin & ~PAGE_MASK))
-				break;
-
-		if (inputmargin >= rq->inputsize) {
+		ret = z_erofs_fixup_insize(rq, headpage + rq->pageofs_in,
+				min_t(unsigned int, rq->inputsize,
+				      EROFS_BLKSIZ - rq->pageofs_in));
+		if (ret) {
 			kunmap_atomic(headpage);
-			return -EIO;
+			return ret;
 		}
 	}
 
-	rq->inputsize -= inputmargin;
+	inputmargin = rq->pageofs_in;
 	src = z_erofs_lz4_handle_overlap(ctx, headpage, &inputmargin,
 					 &maptype, support_0padding);
 	if (IS_ERR(src))
