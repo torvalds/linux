@@ -913,12 +913,6 @@ exit:
 /*	EEPROM/EFUSE Content Parsing */
 /*  */
 /*  */
-static void _ReadLEDSetting(struct adapter *Adapter, u8 *PROMContent, bool AutoloadFail)
-{
-	struct led_priv *pledpriv = &Adapter->ledpriv;
-
-	pledpriv->bRegUseLed = true;
-}
 
 static void Hal_EfuseParseMACAddr_8188EU(struct adapter *adapt, u8 *hwinfo, bool AutoLoadFail)
 {
@@ -938,6 +932,7 @@ static void Hal_EfuseParseMACAddr_8188EU(struct adapter *adapt, u8 *hwinfo, bool
 void ReadAdapterInfo8188EU(struct adapter *Adapter)
 {
 	struct eeprom_priv *eeprom = &Adapter->eeprompriv;
+	struct led_priv *ledpriv = &Adapter->ledpriv;
 	u8 eeValue;
 
 	/*  Read EEPROM size before call any EEPROM function */
@@ -965,7 +960,7 @@ void ReadAdapterInfo8188EU(struct adapter *Adapter)
 	Hal_ReadAntennaDiversity88E(Adapter, eeprom->efuse_eeprom_data, eeprom->bautoload_fail_flag);
 	Hal_ReadThermalMeter_88E(Adapter, eeprom->efuse_eeprom_data, eeprom->bautoload_fail_flag);
 
-	_ReadLEDSetting(Adapter, eeprom->efuse_eeprom_data, eeprom->bautoload_fail_flag);
+	ledpriv->bRegUseLed = true;
 }
 
 static void ResumeTxBeacon(struct adapter *adapt)
