@@ -48,14 +48,8 @@ struct rtw_dig {
 };
 
 struct rtl_ps {
-	u8		pre_cca_state;
-	u8		cur_cca_state;
-
 	u8		pre_rf_state;
 	u8		cur_rf_state;
-
-	int		rssi_val_min;
-
 	u8		initialize;
 	u32		reg_874;
 	u32		reg_c70;
@@ -542,12 +536,6 @@ enum odm_bb_config_type {
 /* 3=========================================================== */
 /* 3 BB Power Save */
 /* 3=========================================================== */
-
-enum dm_1r_cca {
-	CCA_1R = 0,
-	CCA_2R = 1,
-	CCA_MAX = 2,
-};
 
 enum dm_rf {
 	RF_Save = 0,

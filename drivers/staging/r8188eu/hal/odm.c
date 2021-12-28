@@ -574,11 +574,8 @@ void odm_DynamicBBPowerSavingInit(struct odm_dm_struct *pDM_Odm)
 {
 	struct rtl_ps *pDM_PSTable = &pDM_Odm->DM_PSTable;
 
-	pDM_PSTable->pre_cca_state = CCA_MAX;
-	pDM_PSTable->cur_cca_state = CCA_MAX;
 	pDM_PSTable->pre_rf_state = RF_MAX;
 	pDM_PSTable->cur_rf_state = RF_MAX;
-	pDM_PSTable->rssi_val_min = 0;
 	pDM_PSTable->initialize = 0;
 }
 
