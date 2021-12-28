@@ -348,6 +348,9 @@ static int smc_nl_fill_lgr(struct smc_link_group *lgr,
 		goto errattr;
 	if (nla_put_u8(skb, SMC_NLA_LGR_R_VLAN_ID, lgr->vlan_id))
 		goto errattr;
+	if (nla_put_u64_64bit(skb, SMC_NLA_LGR_R_NET_COOKIE,
+			      lgr->net->net_cookie, SMC_NLA_LGR_R_PAD))
+		goto errattr;
 	memcpy(smc_target, lgr->pnet_id, SMC_MAX_PNETID_LEN);
 	smc_target[SMC_MAX_PNETID_LEN] = 0;
 	if (nla_put_string(skb, SMC_NLA_LGR_R_PNETID, smc_target))
