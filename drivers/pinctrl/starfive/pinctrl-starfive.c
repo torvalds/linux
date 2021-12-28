@@ -514,16 +514,9 @@ int starfive_pinctrl_probe(struct platform_device *pdev,
 		pctl->pin_regs[i].syscon_reg = -1;
 	}
 	
-	pctl->padctl_base = devm_platform_ioremap_resource_byname(pdev, "padctl");
+	pctl->padctl_base = devm_platform_ioremap_resource_byname(pdev, "control");
 	if (IS_ERR(pctl->padctl_base))
 		return PTR_ERR(pctl->padctl_base);
-	
-	pctl->gpio_base = devm_platform_ioremap_resource_byname(pdev, "gpio");
-	if (IS_ERR(pctl->gpio_base))
-	{
-		dev_err(&pdev->dev, 
-			"[dts]no gpio base config\n");
-	}
 	
 	if (info->starfive_iopad_sel_func) {
 		ret = info->starfive_iopad_sel_func(pctl,value);
