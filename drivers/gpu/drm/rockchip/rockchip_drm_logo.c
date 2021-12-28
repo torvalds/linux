@@ -158,7 +158,7 @@ rockchip_drm_free_reserved_area(void *start, void *end, int poison, const char *
 	return pages;
 }
 
-static void rockchip_free_loader_memory(struct drm_device *drm)
+void rockchip_free_loader_memory(struct drm_device *drm)
 {
 	struct rockchip_drm_private *private = drm->dev_private;
 	struct rockchip_logo *logo;

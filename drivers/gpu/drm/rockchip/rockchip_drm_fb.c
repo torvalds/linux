@@ -19,6 +19,7 @@
 #include "rockchip_drm_drv.h"
 #include "rockchip_drm_fb.h"
 #include "rockchip_drm_gem.h"
+#include "rockchip_drm_logo.h"
 
 static bool is_rockchip_logo_fb(struct drm_framebuffer *fb)
 {
@@ -34,6 +35,9 @@ static void rockchip_drm_fb_destroy(struct drm_framebuffer *fb)
 	if (is_rockchip_logo_fb(fb)) {
 		struct rockchip_drm_logo_fb *rockchip_logo_fb = to_rockchip_logo_fb(fb);
 
+#ifndef MODULE
+		rockchip_free_loader_memory(fb->dev);
+#endif
 		kfree(rockchip_logo_fb);
 	} else {
 		for (i = 0; i < 4; i++) {

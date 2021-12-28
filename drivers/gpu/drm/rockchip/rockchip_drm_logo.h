@@ -37,5 +37,6 @@ struct rockchip_drm_mode_set {
 };
 
 void rockchip_drm_show_logo(struct drm_device *drm_dev);
+void rockchip_free_loader_memory(struct drm_device *drm);
 
 #endif
