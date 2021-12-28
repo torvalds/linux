@@ -291,6 +291,10 @@
 			&pinctrl_pwm14g1_default>;
 };
 
+&jtag1 {
+	status = "okay";
+};
+
 &tach {
 	status = "okay";
 	pinctrl-names = "default";
