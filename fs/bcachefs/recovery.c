@@ -1298,33 +1298,14 @@ use_clean:
 		bch_verbose(c, "quotas done");
 	}
 
-	if (!(c->sb.compat & (1ULL << BCH_COMPAT_extents_above_btree_updates_done)) ||
-	    !(c->sb.compat & (1ULL << BCH_COMPAT_bformat_overflow_done)) ||
-	    le16_to_cpu(c->sb.version_min) < bcachefs_metadata_version_btree_ptr_sectors_written) {
-		struct bch_move_stats stats;
-
-		bch_move_stats_init(&stats, "recovery");
-
-		bch_info(c, "scanning for old btree nodes");
-		ret = bch2_fs_read_write(c);
-		if (ret)
-			goto err;
-
-		ret = bch2_scan_old_btree_nodes(c, &stats);
-		if (ret)
-			goto err;
-		bch_info(c, "scanning for old btree nodes done");
-	}
-
 	mutex_lock(&c->sb_lock);
 	/*
 	 * With journal replay done, we can clear the journal seq blacklist
 	 * table:
 	 */
 	BUG_ON(!test_bit(JOURNAL_REPLAY_DONE, &c->journal.flags));
-	BUG_ON(le16_to_cpu(c->sb.version_min) < bcachefs_metadata_version_btree_ptr_sectors_written);
-
-	bch2_sb_resize_journal_seq_blacklist(&c->disk_sb, 0);
+	if (le16_to_cpu(c->sb.version_min) >= bcachefs_metadata_version_btree_ptr_sectors_written)
+		bch2_sb_resize_journal_seq_blacklist(&c->disk_sb, 0);
 
 	if (c->opts.version_upgrade) {
 		c->disk_sb.sb->version = cpu_to_le16(bcachefs_metadata_version_current);
@@ -1348,6 +1329,24 @@ use_clean:
 	if (write_sb)
 		bch2_write_super(c);
 	mutex_unlock(&c->sb_lock);
+
+	if (!(c->sb.compat & (1ULL << BCH_COMPAT_extents_above_btree_updates_done)) ||
+	    !(c->sb.compat & (1ULL << BCH_COMPAT_bformat_overflow_done)) ||
+	    le16_to_cpu(c->sb.version_min) < bcachefs_metadata_version_btree_ptr_sectors_written) {
+		struct bch_move_stats stats;
+
+		bch_move_stats_init(&stats, "recovery");
+
+		bch_info(c, "scanning for old btree nodes");
+		ret = bch2_fs_read_write(c);
+		if (ret)
+			goto err;
+
+		ret = bch2_scan_old_btree_nodes(c, &stats);
+		if (ret)
+			goto err;
+		bch_info(c, "scanning for old btree nodes done");
+	}
 
 	ret = 0;
 out:
