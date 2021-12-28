@@ -35,6 +35,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/component.h>
 #include <linux/regmap.h>
+#include <linux/reset.h>
 #include <linux/mfd/syscon.h>
 #include <linux/delay.h>
 #include <linux/swab.h>
@@ -485,6 +486,7 @@ struct vop2_video_port {
 	struct rockchip_crtc rockchip_crtc;
 	struct vop2 *vop2;
 	struct clk *dclk;
+	struct reset_control *dclk_rst;
 	uint8_t id;
 	bool layer_sel_update;
 	const struct vop2_video_port_regs *regs;
@@ -700,6 +702,8 @@ struct vop2 {
 	struct clk *hclk;
 	struct clk *aclk;
 	struct clk *pclk;
+	struct reset_control *ahb_rst;
+	struct reset_control *axi_rst;
 
 	/* list_head of internal clk */
 	struct list_head clk_list_head;
@@ -987,6 +991,23 @@ static struct drm_crtc *vop2_find_crtc_by_plane_mask(struct vop2 *vop2, uint8_t 
 	return NULL;
 }
 
+static int vop2_clk_reset(struct reset_control *rstc)
+{
+	int ret;
+
+	if (!rstc)
+		return 0;
+
+	ret = reset_control_assert(rstc);
+	if (ret < 0)
+		DRM_WARN("failed to assert reset\n");
+	udelay(10);
+	ret = reset_control_deassert(rstc);
+	if (ret < 0)
+		DRM_WARN("failed to deassert reset\n");
+
+	return ret;
+}
 
 static void vop2_load_hdr2sdr_table(struct vop2_video_port *vp)
 {
@@ -3368,6 +3389,7 @@ static void vop2_crtc_atomic_disable(struct drm_crtc *crtc,
 
 	vcstate->splice_mode = false;
 	vp->splice_mode_right = false;
+	vp->loader_protect = false;
 	vop2_unlock(vop2);
 
 	vop2->active_vp_mask &= ~BIT(vp->id);
@@ -4551,6 +4573,7 @@ static int vop2_crtc_loader_protect(struct drm_crtc *crtc, bool on)
 		return 0;
 
 	if (on) {
+		vp->loader_protect = true;
 		vop2->active_vp_mask |= BIT(vp->id);
 		vop2_set_system_status(vop2);
 		vop2_initial(crtc);
@@ -4562,10 +4585,8 @@ static int vop2_crtc_loader_protect(struct drm_crtc *crtc, bool on)
 			cubic_lut_mst = cubic_lut->offset + private->cubic_lut_dma_addr;
 			VOP_MODULE_SET(vop2, vp, cubic_lut_mst, cubic_lut_mst);
 		}
-		vp->loader_protect = true;
 	} else {
 		vop2_crtc_atomic_disable(crtc, NULL);
-		vp->loader_protect = false;
 	}
 
 	return 0;
@@ -6133,6 +6154,9 @@ static void vop2_crtc_atomic_enable(struct drm_crtc *crtc, struct drm_crtc_state
 	 *
 	 */
 	VOP_MODULE_SET(vop2, vp, standby, 0);
+
+	if (!vp->loader_protect)
+		vop2_clk_reset(vp->dclk_rst);
 
 	drm_crtc_vblank_on(crtc);
 out:
@@ -8081,6 +8105,12 @@ static int vop2_create_crtc(struct vop2 *vop2)
 			soc_id = vp_data->soc_id[0];
 
 		snprintf(dclk_name, sizeof(dclk_name), "dclk_vp%d", vp->id);
+		vp->dclk_rst = devm_reset_control_get_optional(vop2->dev, dclk_name);
+		if (IS_ERR(vp->dclk_rst)) {
+			DRM_DEV_ERROR(vop2->dev, "failed to get dclk reset\n");
+			return PTR_ERR(vp->dclk_rst);
+		}
+
 		vp->dclk = devm_clk_get(vop2->dev, dclk_name);
 		if (IS_ERR(vp->dclk)) {
 			DRM_DEV_ERROR(vop2->dev, "failed to get %s\n", dclk_name);
@@ -8519,6 +8549,18 @@ static int vop2_bind(struct device *dev, struct device *master, void *data)
 	if (IS_ERR(vop2->pclk)) {
 		DRM_DEV_ERROR(vop2->dev, "failed to get pclk source\n");
 		return PTR_ERR(vop2->pclk);
+	}
+
+	vop2->ahb_rst = devm_reset_control_get_optional(vop2->dev, "ahb");
+	if (IS_ERR(vop2->ahb_rst)) {
+		DRM_DEV_ERROR(vop2->dev, "failed to get ahb reset\n");
+		return PTR_ERR(vop2->ahb_rst);
+	}
+
+	vop2->axi_rst = devm_reset_control_get_optional(vop2->dev, "axi");
+	if (IS_ERR(vop2->axi_rst)) {
+		DRM_DEV_ERROR(vop2->dev, "failed to get axi reset\n");
+		return PTR_ERR(vop2->axi_rst);
 	}
 
 	vop2->irq = platform_get_irq(pdev, 0);
