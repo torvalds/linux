@@ -179,10 +179,11 @@ static struct attribute *cppc_attrs[] = {
 	&lowest_freq.attr,
 	NULL
 };
+ATTRIBUTE_GROUPS(cppc);
 
 static struct kobj_type cppc_ktype = {
 	.sysfs_ops = &kobj_sysfs_ops,
-	.default_attrs = cppc_attrs,
+	.default_groups = cppc_groups,
 };
 
 static int check_pcc_chan(int pcc_ss_id, bool chk_err_bit)
