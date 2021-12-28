@@ -394,10 +394,6 @@
 				regulator-always-on;
 			};
 
-			ldo16_reg: LDO16 {
-				regulator-name = "ldo16";
-			};
-
 			ldo17_reg: LDO17 {
 				regulator-name = "cam_sensor_core";
 				regulator-min-microvolt = <1200000>;
@@ -425,10 +421,6 @@
 				regulator-name = "vddf_2v8";
 				regulator-min-microvolt = <2850000>;
 				regulator-max-microvolt = <2850000>;
-			};
-
-			ldo22_reg: LDO22 {
-				regulator-name = "ldo22";
 			};
 
 			ldo23_reg: LDO23 {
@@ -475,10 +467,6 @@
 				regulator-min-microvolt = <1200000>;
 				regulator-max-microvolt = <1200000>;
 				regulator-always-on;
-			};
-
-			ldo31_reg: LDO31 {
-				regulator-name = "ldo31";
 			};
 
 			/* On revisions with ti,ina231 this is sensor VS */
