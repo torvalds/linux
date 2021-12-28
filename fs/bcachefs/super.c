@@ -1605,18 +1605,24 @@ int bch2_dev_add(struct bch_fs *c, const char *path)
 	int ret;
 
 	ret = bch2_read_super(path, &opts, &sb);
-	if (ret)
+	if (ret) {
+		bch_err(c, "device add error: error reading super: %i", ret);
 		return ret;
+	}
 
 	err = bch2_sb_validate(&sb);
-	if (err)
+	if (err) {
+		bch_err(c, "device add error: error validating super: %s", err);
 		return -EINVAL;
+	}
 
 	dev_mi = bch2_sb_get_members(sb.sb)->members[sb.sb->dev_idx];
 
 	err = bch2_dev_may_add(sb.sb, c);
-	if (err)
+	if (err) {
+		bch_err(c, "device add error: %s", err);
 		return -EINVAL;
+	}
 
 	ca = __bch2_dev_alloc(c, &dev_mi);
 	if (!ca) {
@@ -1630,24 +1636,27 @@ int bch2_dev_add(struct bch_fs *c, const char *path)
 		return ret;
 	}
 
-	err = "journal alloc failed";
 	ret = bch2_dev_journal_alloc(ca);
-	if (ret)
+	if (ret) {
+		bch_err(c, "device add error: journal alloc failed");
 		goto err;
+	}
 
 	down_write(&c->state_lock);
 	mutex_lock(&c->sb_lock);
 
-	err = "insufficient space in new superblock";
 	ret = bch2_sb_from_fs(c, ca);
-	if (ret)
+	if (ret) {
+		bch_err(c, "device add error: new device superblock too small");
 		goto err_unlock;
+	}
 
 	mi = bch2_sb_get_members(ca->disk_sb.sb);
 
 	if (!bch2_sb_resize_members(&ca->disk_sb,
 				le32_to_cpu(mi->field.u64s) +
 				sizeof(dev_mi) / sizeof(u64))) {
+		bch_err(c, "device add error: new device superblock too small");
 		ret = -ENOSPC;
 		goto err_unlock;
 	}
@@ -1660,7 +1669,7 @@ int bch2_dev_add(struct bch_fs *c, const char *path)
 		if (!bch2_dev_exists(c->disk_sb.sb, mi, dev_idx))
 			goto have_slot;
 no_slot:
-	err = "no slots available in superblock";
+	bch_err(c, "device add error: already have maximum number of devices");
 	ret = -ENOSPC;
 	goto err_unlock;
 
@@ -1669,12 +1678,12 @@ have_slot:
 	u64s = (sizeof(struct bch_sb_field_members) +
 		sizeof(struct bch_member) * nr_devices) / sizeof(u64);
 
-	err = "no space in superblock for member info";
-	ret = -ENOSPC;
-
 	mi = bch2_sb_resize_members(&c->disk_sb, u64s);
-	if (!mi)
+	if (!mi) {
+		bch_err(c, "device add error: no room in superblock for member info");
+		ret = -ENOSPC;
 		goto err_unlock;
+	}
 
 	/* success: */
 
@@ -1690,17 +1699,20 @@ have_slot:
 
 	bch2_dev_usage_journal_reserve(c);
 
-	err = "error marking superblock";
 	ret = bch2_trans_mark_dev_sb(c, ca);
-	if (ret)
+	if (ret) {
+		bch_err(c, "device add error: error marking new superblock: %i", ret);
 		goto err_late;
+	}
 
 	ca->new_fs_bucket_idx = 0;
 
 	if (ca->mi.state == BCH_MEMBER_STATE_rw) {
 		ret = __bch2_dev_read_write(c, ca);
-		if (ret)
+		if (ret) {
+			bch_err(c, "device add error: error going RW on new device: %i", ret);
 			goto err_late;
+		}
 	}
 
 	up_write(&c->state_lock);
@@ -1713,11 +1725,9 @@ err:
 	if (ca)
 		bch2_dev_free(ca);
 	bch2_free_super(&sb);
-	bch_err(c, "Unable to add device: %s", err);
 	return ret;
 err_late:
 	up_write(&c->state_lock);
-	bch_err(c, "Error going rw after adding device: %s", err);
 	return -EINVAL;
 }
 
