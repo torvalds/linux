@@ -741,7 +741,7 @@ static inline void cgroup_throttle_swaprate(struct page *page, gfp_t gfp_mask)
 #endif
 
 #ifdef CONFIG_MEMCG_SWAP
-extern void mem_cgroup_swapout(struct page *page, swp_entry_t entry);
+void mem_cgroup_swapout(struct folio *folio, swp_entry_t entry);
 extern int __mem_cgroup_try_charge_swap(struct page *page, swp_entry_t entry);
 static inline int mem_cgroup_try_charge_swap(struct page *page, swp_entry_t entry)
 {
@@ -761,7 +761,7 @@ static inline void mem_cgroup_uncharge_swap(swp_entry_t entry, unsigned int nr_p
 extern long mem_cgroup_get_nr_swap_pages(struct mem_cgroup *memcg);
 extern bool mem_cgroup_swap_full(struct page *page);
 #else
-static inline void mem_cgroup_swapout(struct page *page, swp_entry_t entry)
+static inline void mem_cgroup_swapout(struct folio *folio, swp_entry_t entry)
 {
 }
 
