@@ -206,9 +206,6 @@ static bool btree_insert_key_leaf(struct btree_trans *trans,
 	int old_live_u64s = b->nr.live_u64s;
 	int live_u64s_added, u64s_added;
 
-	EBUG_ON(!insert->level &&
-		!test_bit(BCH_FS_BTREE_INTERIOR_REPLAY_DONE, &c->flags));
-
 	if (unlikely(!bch2_btree_bset_insert_key(trans, insert->path, b,
 					&insert_l(insert)->iter, insert->k)))
 		return false;

@@ -16,8 +16,7 @@ static inline bool bch2_btree_key_cache_must_wait(struct bch_fs *c)
 	size_t nr_keys = atomic_long_read(&c->btree_key_cache.nr_keys);
 	size_t max_dirty = 4096 + (nr_keys * 3) / 4;
 
-	return nr_dirty > max_dirty &&
-		test_bit(JOURNAL_RECLAIM_STARTED, &c->journal.flags);
+	return nr_dirty > max_dirty;
 }
 
 int bch2_btree_key_cache_journal_flush(struct journal *,

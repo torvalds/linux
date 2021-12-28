@@ -45,7 +45,7 @@ static void btree_node_interior_verify(struct bch_fs *c, struct btree *b)
 
 	BUG_ON(!b->c.level);
 
-	if (!test_bit(BCH_FS_BTREE_INTERIOR_REPLAY_DONE, &c->flags))
+	if (!test_bit(JOURNAL_REPLAY_DONE, &c->journal.flags))
 		return;
 
 	bch2_btree_node_iter_init_from_start(&iter, b);
@@ -1850,9 +1850,6 @@ void async_btree_node_rewrite_work(struct work_struct *work)
 void bch2_btree_node_rewrite_async(struct bch_fs *c, struct btree *b)
 {
 	struct async_btree_rewrite *a;
-
-	if (!test_bit(BCH_FS_BTREE_INTERIOR_REPLAY_DONE, &c->flags))
-		return;
 
 	if (!percpu_ref_tryget(&c->writes))
 		return;
