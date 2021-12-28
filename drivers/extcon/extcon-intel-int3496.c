@@ -91,10 +91,12 @@ static int int3496_probe(struct platform_device *pdev)
 	struct int3496_data *data;
 	int ret;
 
-	ret = devm_acpi_dev_add_driver_gpios(dev, acpi_int3496_default_gpios);
-	if (ret) {
-		dev_err(dev, "can't add GPIO ACPI mapping\n");
-		return ret;
+	if (has_acpi_companion(dev)) {
+		ret = devm_acpi_dev_add_driver_gpios(dev, acpi_int3496_default_gpios);
+		if (ret) {
+			dev_err(dev, "can't add GPIO ACPI mapping\n");
+			return ret;
+		}
 	}
 
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
@@ -165,12 +167,19 @@ static const struct acpi_device_id int3496_acpi_match[] = {
 };
 MODULE_DEVICE_TABLE(acpi, int3496_acpi_match);
 
+static const struct platform_device_id int3496_ids[] = {
+	{ .name = "intel-int3496" },
+	{},
+};
+MODULE_DEVICE_TABLE(platform, int3496_ids);
+
 static struct platform_driver int3496_driver = {
 	.driver = {
 		.name = "intel-int3496",
 		.acpi_match_table = int3496_acpi_match,
 	},
 	.probe = int3496_probe,
+	.id_table = int3496_ids,
 };
 
 module_platform_driver(int3496_driver);
