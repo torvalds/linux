@@ -2400,8 +2400,7 @@ ext4_rec_len_from_disk(__le16 dlen, unsigned blocksize)
 
 static inline __le16 ext4_rec_len_to_disk(unsigned len, unsigned blocksize)
 {
-	if ((len > blocksize) || (blocksize > (1 << 18)) || (len & 3))
-		BUG();
+	BUG_ON((len > blocksize) || (blocksize > (1 << 18)) || (len & 3));
 #if (PAGE_SIZE >= 65536)
 	if (len < 65536)
 		return cpu_to_le16(len);
