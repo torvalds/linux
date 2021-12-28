@@ -132,11 +132,23 @@
 	status = "disabled";
 };
 
+&rkvdec_ccu {
+	status = "disabled";
+};
+
 &rkvdec0 {
 	status = "disabled";
 };
 
 &rkvdec0_mmu {
+	status = "disabled";
+};
+
+&rkvdec1 {
+	status = "disabled";
+};
+
+&rkvdec1_mmu {
 	status = "disabled";
 };
 

@@ -197,11 +197,23 @@
 	status = "okay";
 };
 
+&rkvdec_ccu {
+	status = "okay";
+};
+
 &rkvdec0 {
 	status = "okay";
 };
 
 &rkvdec0_mmu {
+	status = "okay";
+};
+
+&rkvdec1 {
+	status = "okay";
+};
+
+&rkvdec1_mmu {
 	status = "okay";
 };
 
