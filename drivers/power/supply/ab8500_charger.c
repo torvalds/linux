@@ -3665,11 +3665,13 @@ static int ab8500_charger_probe(struct platform_device *pdev)
 	}
 	if (!match) {
 		dev_err(dev, "no matching components\n");
-		return -ENODEV;
+		ret = -ENODEV;
+		goto remove_ab8500_bm;
 	}
 	if (IS_ERR(match)) {
 		dev_err(dev, "could not create component match\n");
-		return PTR_ERR(match);
+		ret = PTR_ERR(match);
+		goto remove_ab8500_bm;
 	}
 
 	/* Notifier for external charger enabling */
@@ -3710,6 +3712,8 @@ out_charger_notifier:
 	if (!di->ac_chg.enabled)
 		blocking_notifier_chain_unregister(
 			&charger_notifier_list, &charger_nb);
+remove_ab8500_bm:
+	ab8500_bm_of_remove(di->usb_chg.psy, di->bm);
 	return ret;
 }
 
