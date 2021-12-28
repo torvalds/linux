@@ -3276,8 +3276,6 @@ static void vop2_crtc_disable_dsc(struct vop2 *vop2, u8 dsc_id)
 	VOP_MODULE_SET(vop2, dsc, dsc_en, 0);
 	VOP_MODULE_SET(vop2, dsc, dsc_cfg_done, 0);
 	VOP_MODULE_SET(vop2, dsc, rst_deassert, 0);
-
-	dsc->attach_vp_id = -1;
 }
 
 static void vop2_crtc_atomic_disable(struct drm_crtc *crtc,
@@ -3312,8 +3310,11 @@ static void vop2_crtc_atomic_disable(struct drm_crtc *crtc,
 		if (dual_channel) {
 			vop2_power_domain_put(vop2->dscs[0].pd);
 			vop2_power_domain_put(vop2->dscs[1].pd);
+			vop2->dscs[0].attach_vp_id = -1;
+			vop2->dscs[1].attach_vp_id = -1;
 		} else {
 			vop2_power_domain_put(vop2->dscs[vcstate->dsc_id].pd);
+			vop2->dscs[vcstate->dsc_id].attach_vp_id = -1;
 		}
 		vop2->dscs[vcstate->dsc_id].enabled = false;
 		vcstate->dsc_enable = false;
