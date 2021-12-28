@@ -84,8 +84,11 @@ static void rk_pm_power_off_delay_work(struct work_struct *work)
 		container_of(to_delayed_work(work), struct rk_context, work);
 	struct kbase_device *kbdev = platform->kbdev;
 
+	mutex_lock(&platform->lock);
+
 	if (!platform->is_powered) {
 		D("mali_dev is already powered off.");
+		mutex_unlock(&platform->lock);
 		return;
 	}
 
@@ -94,10 +97,14 @@ static void rk_pm_power_off_delay_work(struct work_struct *work)
 		pm_runtime_put_sync_suspend(kbdev->dev);
 	}
 
+	rk_pm_disable_clk(kbdev);
+
 	rk_pm_disable_regulator(kbdev);
 
 	platform->is_powered = false;
 	wake_unlock(&platform->wake_lock);
+
+	mutex_unlock(&platform->lock);
 }
 
 static int kbase_platform_rk_init(struct kbase_device *kbdev)
@@ -139,6 +146,8 @@ static int kbase_platform_rk_init(struct kbase_device *kbdev)
 
 	kbdev->platform_context = (void *)platform;
 	pm_runtime_enable(kbdev->dev);
+
+	mutex_init(&platform->lock);
 
 	return 0;
 
@@ -192,22 +201,27 @@ static int rk_pm_callback_power_on(struct kbase_device *kbdev)
 
 	cancel_delayed_work_sync(&platform->work);
 
-	err = rk_pm_enable_clk(kbdev);
-	if (err) {
-		E("failed to enable clk: %d", err);
-		return err;
-	}
+	mutex_lock(&platform->lock);
 
 	if (platform->is_powered) {
 		D("mali_device is already powered.");
-		return 0;
+		ret = 0;
+		goto out;
 	}
 
 	/* we must enable vdd_gpu before pd_gpu_in_chip. */
 	err = rk_pm_enable_regulator(kbdev);
 	if (err) {
 		E("fail to enable regulator, err : %d.", err);
-		return err;
+		ret = err;
+		goto out;
+	}
+
+	err = rk_pm_enable_clk(kbdev);
+	if (err) {
+		E("failed to enable clk: %d", err);
+		ret = err;
+		goto out;
 	}
 
 	/* 若 mali_dev 的 runtime_pm 是 enabled 的, 则... */
@@ -219,7 +233,8 @@ static int rk_pm_callback_power_on(struct kbase_device *kbdev)
 		err = pm_runtime_get_sync(kbdev->dev);
 		if (err < 0) {
 			E("failed to runtime resume device: %d.", err);
-			return err;
+			ret = err;
+			goto out;
 		} else if (err == 1) { /* runtime_pm_status is still active */
 			D("chip has NOT been powered off, no need to re-init.");
 			ret = 0;
@@ -229,6 +244,8 @@ static int rk_pm_callback_power_on(struct kbase_device *kbdev)
 	platform->is_powered = true;
 	wake_lock(&platform->wake_lock);
 
+out:
+	mutex_unlock(&platform->lock);
 	return ret;
 }
 
@@ -236,7 +253,8 @@ static void rk_pm_callback_power_off(struct kbase_device *kbdev)
 {
 	struct rk_context *platform = get_rk_context(kbdev);
 
-	rk_pm_disable_clk(kbdev);
+	D("enter");
+
 	queue_delayed_work(platform->power_off_wq, &platform->work,
 			   msecs_to_jiffies(platform->delay_ms));
 }

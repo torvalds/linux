@@ -48,6 +48,9 @@ struct rk_context {
 
 	/* debug only, the period in ms to count gpu_utilisation. */
 	unsigned int utilisation_period;
+
+	/* to protect operations on 'is_powered' and clks, pd, vd of gpu. */
+	struct mutex lock;
 };
 
 /*---------------------------------------------------------------------------*/
