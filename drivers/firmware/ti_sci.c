@@ -3412,7 +3412,7 @@ static int ti_sci_probe(struct platform_device *pdev)
 		ret = register_restart_handler(&info->nb);
 		if (ret) {
 			dev_err(dev, "reboot registration fail(%d)\n", ret);
-			return ret;
+			goto out;
 		}
 	}
 
