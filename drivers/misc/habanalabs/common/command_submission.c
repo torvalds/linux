@@ -2739,7 +2739,7 @@ static int hl_multi_cs_wait_ioctl(struct hl_fpriv *hpriv, void *data)
 		mcs_data.update_ts = false;
 		rc = hl_cs_poll_fences(&mcs_data, mcs_compl);
 
-		if (mcs_data.completion_bitmap)
+		if (rc || mcs_data.completion_bitmap)
 			break;
 
 		/*
