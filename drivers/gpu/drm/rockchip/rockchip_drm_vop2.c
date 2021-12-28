@@ -6693,7 +6693,6 @@ static void vop2_setup_layer_mixer_for_vp(struct vop2_video_port *vp,
 		layer = &vop2->layers[layer_id];
 		win = vop2_find_win_by_phys_id(vop2, win_phys_id);
 		new_layer_cfg = vop2_layer_cfg_update(layer, new_layer_cfg, win->layer_sel_id);
-		win->layer_id = layer->id;
 		win->layer_id = layer_id;
 		layer->win_phys_id = win_phys_id;
 	}
