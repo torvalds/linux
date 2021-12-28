@@ -205,6 +205,11 @@ static int bch2_copygc(struct bch_fs *c)
 		up_read(&ca->bucket_lock);
 	}
 
+	if (!h->used) {
+		bch_err_ratelimited(c, "copygc requested to run but found no buckets to move!");
+		return 0;
+	}
+
 	/*
 	 * Our btree node allocations also come out of RESERVE_MOVINGGC:
 	 */
