@@ -552,6 +552,14 @@ static void odm_HwAntDiv(struct odm_dm_struct *pDM_Odm)
 	ODM_AntennaDiversity_88E(pDM_Odm);
 }
 
+static void ODM_EdcaTurboInit(struct odm_dm_struct *pDM_Odm)
+{
+	struct adapter *Adapter = pDM_Odm->Adapter;
+	pDM_Odm->DM_EDCA_Table.bCurrentTurboEDCA = false;
+	pDM_Odm->DM_EDCA_Table.bIsCurRDLState = false;
+	Adapter->recvpriv.bIsAnyNonBEPkts = false;
+}
+
 /* 3 Export Interface */
 
 /*  2011/09/21 MH Add to describe different team necessary resource allocate?? */
@@ -866,16 +874,6 @@ void ODM_TXPowerTrackingCheck(struct odm_dm_struct *pDM_Odm)
 		pDM_Odm->RFCalibrateInfo.TM_Trigger = 0;
 	}
 }
-
-/* EDCA Turbo */
-void ODM_EdcaTurboInit(struct odm_dm_struct *pDM_Odm)
-{
-	struct adapter *Adapter = pDM_Odm->Adapter;
-	pDM_Odm->DM_EDCA_Table.bCurrentTurboEDCA = false;
-	pDM_Odm->DM_EDCA_Table.bIsCurRDLState = false;
-	Adapter->recvpriv.bIsAnyNonBEPkts = false;
-
-}	/*  ODM_InitEdcaTurbo */
 
 void odm_EdcaTurboCheck(struct odm_dm_struct *pDM_Odm)
 {
