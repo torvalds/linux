@@ -12,6 +12,7 @@
 #include <linux/module.h>
 #include <linux/fs_struct.h>
 #include <linux/swap.h>
+#include <linux/siphash.h>
 
 #include <linux/sunrpc/stats.h>
 #include <linux/sunrpc/svcsock.h>
@@ -344,33 +345,57 @@ static bool nfsd_needs_lockd(struct nfsd_net *nn)
 	return nfsd_vers(nn, 2, NFSD_TEST) || nfsd_vers(nn, 3, NFSD_TEST);
 }
 
+/**
+ * nfsd_copy_boot_verifier - Atomically copy a write verifier
+ * @verf: buffer in which to receive the verifier cookie
+ * @nn: NFS net namespace
+ *
+ * This function provides a wait-free mechanism for copying the
+ * namespace's boot verifier without tearing it.
+ */
 void nfsd_copy_boot_verifier(__be32 verf[2], struct nfsd_net *nn)
 {
 	int seq = 0;
 
 	do {
-		read_seqbegin_or_lock(&nn->boot_lock, &seq);
-		/*
-		 * This is opaque to client, so no need to byte-swap. Use
-		 * __force to keep sparse happy. y2038 time_t overflow is
-		 * irrelevant in this usage
-		 */
-		verf[0] = (__force __be32)nn->nfssvc_boot.tv_sec;
-		verf[1] = (__force __be32)nn->nfssvc_boot.tv_nsec;
-	} while (need_seqretry(&nn->boot_lock, seq));
-	done_seqretry(&nn->boot_lock, seq);
+		read_seqbegin_or_lock(&nn->writeverf_lock, &seq);
+		memcpy(verf, nn->writeverf, sizeof(*verf));
+	} while (need_seqretry(&nn->writeverf_lock, seq));
+	done_seqretry(&nn->writeverf_lock, seq);
 }
 
 static void nfsd_reset_boot_verifier_locked(struct nfsd_net *nn)
 {
-	ktime_get_raw_ts64(&nn->nfssvc_boot);
+	struct timespec64 now;
+	u64 verf;
+
+	/*
+	 * Because the time value is hashed, y2038 time_t overflow
+	 * is irrelevant in this usage.
+	 */
+	ktime_get_raw_ts64(&now);
+	verf = siphash_2u64(now.tv_sec, now.tv_nsec, &nn->siphash_key);
+	memcpy(nn->writeverf, &verf, sizeof(nn->writeverf));
 }
 
+/**
+ * nfsd_reset_boot_verifier - Generate a new boot verifier
+ * @nn: NFS net namespace
+ *
+ * This function updates the ->writeverf field of @nn. This field
+ * contains an opaque cookie that, according to Section 18.32.3 of
+ * RFC 8881, "the client can use to determine whether a server has
+ * changed instance state (e.g., server restart) between a call to
+ * WRITE and a subsequent call to either WRITE or COMMIT.  This
+ * cookie MUST be unchanged during a single instance of the NFSv4.1
+ * server and MUST be unique between instances of the NFSv4.1
+ * server."
+ */
 void nfsd_reset_boot_verifier(struct nfsd_net *nn)
 {
-	write_seqlock(&nn->boot_lock);
+	write_seqlock(&nn->writeverf_lock);
 	nfsd_reset_boot_verifier_locked(nn);
-	write_sequnlock(&nn->boot_lock);
+	write_sequnlock(&nn->writeverf_lock);
 }
 
 static int nfsd_startup_net(struct net *net, const struct cred *cred)
