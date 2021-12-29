@@ -539,7 +539,7 @@ void ODM_DMInit(struct odm_dm_struct *pDM_Odm)
 	odm_RateAdaptiveMaskInit(pDM_Odm);
 
 	odm_DynamicBBPowerSavingInit(pDM_Odm);
-	odm_TXPowerTrackingInit(pDM_Odm);
+	odm_TXPowerTrackingThermalMeterInit(pDM_Odm);
 	ODM_EdcaTurboInit(pDM_Odm);
 	ODM_RAInfo_Init_all(pDM_Odm);
 	if ((pDM_Odm->AntDivType == CG_TRX_HW_ANTDIV)	||
@@ -828,11 +828,6 @@ bool ODM_RAStateCheck(struct odm_dm_struct *pDM_Odm, s32 RSSI, bool bForceUpdate
 /* 3============================================================ */
 /* 3 Tx Power Tracking */
 /* 3============================================================ */
-
-void odm_TXPowerTrackingInit(struct odm_dm_struct *pDM_Odm)
-{
-	odm_TXPowerTrackingThermalMeterInit(pDM_Odm);
-}
 
 void odm_TXPowerTrackingThermalMeterInit(struct odm_dm_struct *pDM_Odm)
 {
