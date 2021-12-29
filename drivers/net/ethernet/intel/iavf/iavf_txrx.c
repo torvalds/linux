@@ -1366,7 +1366,7 @@ static struct sk_buff *iavf_build_skb(struct iavf_ring *rx_ring,
 	net_prefetch(va);
 
 	/* build an skb around the page buffer */
-	skb = build_skb(va - IAVF_SKB_PAD, truesize);
+	skb = napi_build_skb(va - IAVF_SKB_PAD, truesize);
 	if (unlikely(!skb))
 		return NULL;
 
