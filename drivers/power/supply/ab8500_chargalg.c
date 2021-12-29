@@ -1866,11 +1866,12 @@ static ssize_t ab8500_chargalg_sysfs_charger(struct kobject *kobj,
 	return entry->store(di, buf, length);
 }
 
-static struct attribute *ab8500_chargalg_chg[] = {
+static struct attribute *ab8500_chargalg_attrs[] = {
 	&ab8500_chargalg_en_charger.attr,
 	&ab8500_chargalg_curr_step.attr,
 	NULL,
 };
+ATTRIBUTE_GROUPS(ab8500_chargalg);
 
 static const struct sysfs_ops ab8500_chargalg_sysfs_ops = {
 	.show = ab8500_chargalg_sysfs_show,
@@ -1879,7 +1880,7 @@ static const struct sysfs_ops ab8500_chargalg_sysfs_ops = {
 
 static struct kobj_type ab8500_chargalg_ktype = {
 	.sysfs_ops = &ab8500_chargalg_sysfs_ops,
-	.default_attrs = ab8500_chargalg_chg,
+	.default_groups = ab8500_chargalg_groups,
 };
 
 /**
