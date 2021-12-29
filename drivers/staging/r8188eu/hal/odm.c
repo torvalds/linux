@@ -311,6 +311,32 @@ static void odm_CommonInfoSelfInit(struct odm_dm_struct *pDM_Odm)
 	pDM_Odm->RFPathRxEnable = (u8)rtl8188e_PHY_QueryBBReg(adapter, 0xc04, 0x0F);
 }
 
+static void odm_CommonInfoSelfUpdate(struct odm_dm_struct *pDM_Odm)
+{
+	u8 EntryCnt = 0;
+	u8 i;
+	struct sta_info *pEntry;
+
+	if (*pDM_Odm->pBandWidth == ODM_BW40M) {
+		if (*pDM_Odm->pSecChOffset == 1)
+			pDM_Odm->ControlChannel = *pDM_Odm->pChannel - 2;
+		else if (*pDM_Odm->pSecChOffset == 2)
+			pDM_Odm->ControlChannel = *pDM_Odm->pChannel + 2;
+	} else {
+		pDM_Odm->ControlChannel = *pDM_Odm->pChannel;
+	}
+
+	for (i = 0; i < ODM_ASSOCIATE_ENTRY_NUM; i++) {
+		pEntry = pDM_Odm->pODM_StaInfo[i];
+		if (IS_STA_VALID(pEntry))
+			EntryCnt++;
+	}
+	if (EntryCnt == 1)
+		pDM_Odm->bOneEntryOnly = true;
+	else
+		pDM_Odm->bOneEntryOnly = false;
+}
+
 /* 3 Export Interface */
 
 /*  2011/09/21 MH Add to describe different team necessary resource allocate?? */
@@ -432,32 +458,6 @@ void ODM_CmnInfoUpdate(struct odm_dm_struct *pDM_Odm, u32 CmnInfo, u64 Value)
 		pDM_Odm->RSSI_Min = (u8)Value;
 		break;
 	}
-}
-
-void odm_CommonInfoSelfUpdate(struct odm_dm_struct *pDM_Odm)
-{
-	u8 EntryCnt = 0;
-	u8 i;
-	struct sta_info *pEntry;
-
-	if (*pDM_Odm->pBandWidth == ODM_BW40M) {
-		if (*pDM_Odm->pSecChOffset == 1)
-			pDM_Odm->ControlChannel = *pDM_Odm->pChannel - 2;
-		else if (*pDM_Odm->pSecChOffset == 2)
-			pDM_Odm->ControlChannel = *pDM_Odm->pChannel + 2;
-	} else {
-		pDM_Odm->ControlChannel = *pDM_Odm->pChannel;
-	}
-
-	for (i = 0; i < ODM_ASSOCIATE_ENTRY_NUM; i++) {
-		pEntry = pDM_Odm->pODM_StaInfo[i];
-		if (IS_STA_VALID(pEntry))
-			EntryCnt++;
-	}
-	if (EntryCnt == 1)
-		pDM_Odm->bOneEntryOnly = true;
-	else
-		pDM_Odm->bOneEntryOnly = false;
 }
 
 void ODM_Write_DIG(struct odm_dm_struct *pDM_Odm, u8 CurrentIGI)
