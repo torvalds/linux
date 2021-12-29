@@ -63,8 +63,10 @@ static int x86_acpi_irq_helper_get(const struct x86_acpi_irq_data *data)
 	case X86_ACPI_IRQ_TYPE_GPIOINT:
 		/* Like acpi_dev_gpio_irq_get(), but without parsing ACPI resources */
 		chip = gpiochip_find(data->chip, x86_acpi_irq_helper_gpiochip_find);
-		if (!chip)
-			return -EPROBE_DEFER;
+		if (!chip) {
+			pr_err("error cannot find GPIO chip %s\n", data->chip);
+			return -ENODEV;
+		}
 
 		gpiod = gpiochip_get_desc(chip, data->index);
 		if (IS_ERR(gpiod)) {
