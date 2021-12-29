@@ -3,9 +3,9 @@
 
 #include "../include/odm_precomp.h"
 
-void odm_ConfigRFReg_8188E(struct odm_dm_struct *pDM_Odm, u32 Addr,
-			   u32 Data, enum rf_radio_path RF_PATH,
-			   u32 RegAddr)
+static void odm_ConfigRFReg_8188E(struct odm_dm_struct *pDM_Odm, u32 Addr,
+				  u32 Data, enum rf_radio_path RF_PATH,
+				  u32 RegAddr)
 {
 	if (Addr == 0xffe) {
 		msleep(50);
