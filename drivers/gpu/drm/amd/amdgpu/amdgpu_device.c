@@ -3939,8 +3939,8 @@ void amdgpu_device_fini_sw(struct amdgpu_device *adev)
  */
 static void amdgpu_device_evict_resources(struct amdgpu_device *adev)
 {
-	/* No need to evict vram on APUs for suspend to ram */
-	if (adev->in_s3 && (adev->flags & AMD_IS_APU))
+	/* No need to evict vram on APUs for suspend to ram or s2idle */
+	if ((adev->in_s3 || adev->in_s0ix) && (adev->flags & AMD_IS_APU))
 		return;
 
 	if (amdgpu_ttm_evict_resources(adev, TTM_PL_VRAM))
