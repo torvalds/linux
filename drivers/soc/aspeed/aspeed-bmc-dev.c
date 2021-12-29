@@ -12,6 +12,9 @@
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
 
+#include <linux/wait.h>
+#include <linux/workqueue.h>
+
 #include <linux/regmap.h>
 #include <linux/interrupt.h>
 #include <linux/mfd/syscon.h>
@@ -20,6 +23,7 @@
 
 #define DEVICE_NAME     "bmc-device"
 #define SCU_TRIGGER_MSI
+
 struct aspeed_bmc_device {
 	unsigned char *host2bmc_base_virt;
 	struct device *dev;
@@ -29,7 +33,14 @@ struct aspeed_bmc_device {
 	dma_addr_t bmc_mem_phy;
 	struct bin_attribute	bin0;
 	struct bin_attribute	bin1;
-	struct regmap			*scu;
+
+	/* Queue waiters for idle engine */
+	wait_queue_head_t tx_wait0;
+	wait_queue_head_t tx_wait1;
+	wait_queue_head_t rx_wait0;
+	wait_queue_head_t rx_wait1;
+
+	struct regmap		*scu;
 
 //	phys_addr_t		mem_base;
 //	resource_size_t		mem_size;
@@ -42,7 +53,6 @@ struct aspeed_bmc_device {
 };
 
 #define BMC_MEM_BAR_SIZE		0x100000
-#define BMC_QUEUE_SIZE			(16 * 4)
 /* =================== SCU Define ================================================ */
 #define ASPEED_SCU04				0x04
 #define AST2600A3_SCU04	0x05030303
@@ -139,16 +149,25 @@ static ssize_t aspeed_host2bmc_queue1_rx(struct file *filp, struct kobject *kobj
 {
 	struct aspeed_bmc_device *bmc_device = dev_get_drvdata(container_of(kobj, struct device, kobj));
 	u32 *data = (u32 *) buf;
-	int rc;
+	u32 scu_id;
+	int ret;
 
-	if (readl(bmc_device->reg_base + ASPEED_BMC_HOST2BMC_STS) & HOST2BMC_Q1_EMPTY)
-		rc = 0;
-	else {
-		data[0] = readl(bmc_device->reg_base + ASPEED_BMC_HOST2BMC_Q1);
-		rc = 4;
+	ret = wait_event_interruptible(bmc_device->rx_wait0,
+		!(readl(bmc_device->reg_base + ASPEED_BMC_HOST2BMC_STS) & HOST2BMC_Q1_EMPTY));
+	if (ret)
+		return -EINTR;
+
+	data[0] = readl(bmc_device->reg_base + ASPEED_BMC_HOST2BMC_Q1);
+	regmap_read(bmc_device->scu, ASPEED_SCU04, &scu_id);
+	if (scu_id == AST2600A3_SCU04) {
+		writel(BMC2HOST_INT_STS_DOORBELL | BMC2HOST_ENABLE_INTB, bmc_device->reg_base + ASPEED_BMC_BMC2HOST_STS);
+	} else {
+		//A0 : BIT(12) A1 : BIT(15)
+		regmap_update_bits(bmc_device->scu, 0x560, BIT(15), BIT(15));
+		regmap_update_bits(bmc_device->scu, 0x560, BIT(15), 0);
 	}
 
-	return rc;
+	return sizeof(u32);
 }
 
 static ssize_t aspeed_host2bmc_queue2_rx(struct file *filp, struct kobject *kobj,
@@ -156,15 +175,25 @@ static ssize_t aspeed_host2bmc_queue2_rx(struct file *filp, struct kobject *kobj
 {
 	struct aspeed_bmc_device *bmc_device = dev_get_drvdata(container_of(kobj, struct device, kobj));
 	u32 *data = (u32 *) buf;
-	int rc;
+	u32 scu_id;
+	int ret;
 
-	if (!(readl(bmc_device->reg_base + ASPEED_BMC_HOST2BMC_STS) & HOST2BMC_Q2_EMPTY)) {
-		data[0] = readl(bmc_device->reg_base + ASPEED_BMC_HOST2BMC_Q2);
-		rc = 4;
-	} else
-		rc = 0;
+	ret = wait_event_interruptible(bmc_device->rx_wait1,
+		!(readl(bmc_device->reg_base + ASPEED_BMC_HOST2BMC_STS) & HOST2BMC_Q2_EMPTY));
+	if (ret)
+		return -EINTR;
 
-	return rc;
+	data[0] = readl(bmc_device->reg_base + ASPEED_BMC_HOST2BMC_Q2);
+	regmap_read(bmc_device->scu, ASPEED_SCU04, &scu_id);
+	if (scu_id == AST2600A3_SCU04) {
+		writel(BMC2HOST_INT_STS_DOORBELL | BMC2HOST_ENABLE_INTB, bmc_device->reg_base + ASPEED_BMC_BMC2HOST_STS);
+	} else {
+		//A0 : BIT(12) A1 : BIT(15)
+		regmap_update_bits(bmc_device->scu, 0x560, BIT(15), BIT(15));
+		regmap_update_bits(bmc_device->scu, 0x560, BIT(15), 0);
+	}
+
+	return sizeof(u32);
 }
 
 static ssize_t aspeed_bmc2host_queue1_tx(struct file *filp, struct kobject *kobj,
@@ -173,30 +202,34 @@ static ssize_t aspeed_bmc2host_queue1_tx(struct file *filp, struct kobject *kobj
 	struct aspeed_bmc_device *bmc_device = dev_get_drvdata(container_of(kobj, struct device, kobj));
 	u32 tx_buff;
 	u32 scu_id;
-	int rc;
+	int ret;
 
-	if (count != 4)
+	if (count != sizeof(u32))
 		return -EINVAL;
 
-	if (readl(bmc_device->reg_base + ASPEED_BMC_BMC2HOST_STS) & BMC2HOST_Q1_FULL)
-		rc = -ENOSPC;
-	else {
-		memcpy(&tx_buff, buf, 4);
-		writel(tx_buff, bmc_device->reg_base + ASPEED_BMC_BMC2HOST_Q1);
-		/* trigger to host
-		 * Only After AST2600A3 support DoorBell MSI
-		 */
-		regmap_read(bmc_device->scu, ASPEED_SCU04, &scu_id);
-		if (scu_id == AST2600A3_SCU04) {
-			writel(BMC2HOST_INT_STS_DOORBELL | BMC2HOST_ENABLE_INTB, bmc_device->reg_base + ASPEED_BMC_BMC2HOST_STS);
-		} else {
-			//A0 : BIT(12) A1 : BIT(15)
-			regmap_update_bits(bmc_device->scu, 0x560, BIT(15), BIT(15));
-			regmap_update_bits(bmc_device->scu, 0x560, BIT(15), 0);
-		}
-		rc = 4;
+	ret = wait_event_interruptible(bmc_device->tx_wait0,
+		!(readl(bmc_device->reg_base + ASPEED_BMC_BMC2HOST_STS) & BMC2HOST_Q1_FULL));
+	if (ret)
+		return -EINTR;
+
+
+//	if (copy_from_user((void *)&tx_buff, buf, sizeof(u32)))
+//		return -EFAULT;
+	memcpy(&tx_buff, buf, 4);
+	writel(tx_buff, bmc_device->reg_base + ASPEED_BMC_BMC2HOST_Q1);
+	/* trigger to host
+	 * Only After AST2600A3 support DoorBell MSI
+	 */
+	regmap_read(bmc_device->scu, ASPEED_SCU04, &scu_id);
+	if (scu_id == AST2600A3_SCU04) {
+		writel(BMC2HOST_INT_STS_DOORBELL | BMC2HOST_ENABLE_INTB, bmc_device->reg_base + ASPEED_BMC_BMC2HOST_STS);
+	} else {
+		//A0 : BIT(12) A1 : BIT(15)
+		regmap_update_bits(bmc_device->scu, 0x560, BIT(15), BIT(15));
+		regmap_update_bits(bmc_device->scu, 0x560, BIT(15), 0);
 	}
-	return rc;
+
+	return sizeof(u32);
 }
 
 static ssize_t aspeed_bmc2host_queue2_tx(struct file *filp, struct kobject *kobj,
@@ -205,30 +238,34 @@ static ssize_t aspeed_bmc2host_queue2_tx(struct file *filp, struct kobject *kobj
 	struct aspeed_bmc_device *bmc_device = dev_get_drvdata(container_of(kobj, struct device, kobj));
 	u32 tx_buff = 0;
 	u32 scu_id;
-	int rc;
+	int ret;
 
-	if (count != 4)
+	if (count != sizeof(u32))
 		return -EINVAL;
 
-	if (readl(bmc_device->reg_base + ASPEED_BMC_BMC2HOST_STS) & BMC2HOST_Q2_FULL)
-		rc = -ENOSPC;
-	else {
-		memcpy(&tx_buff, buf, 4);
-		writel(tx_buff, bmc_device->reg_base + ASPEED_BMC_BMC2HOST_Q2);
-		/* trigger to host
-		 * Only After AST2600A3 support DoorBell MSI
-		 */
-		regmap_read(bmc_device->scu, ASPEED_SCU04, &scu_id);
-		if (scu_id == AST2600A3_SCU04) {
-			writel(BMC2HOST_INT_STS_DOORBELL | BMC2HOST_ENABLE_INTB, bmc_device->reg_base + ASPEED_BMC_BMC2HOST_STS);
-		} else {
-			//A0 : BIT(12) A1 : BIT(15)
-			regmap_update_bits(bmc_device->scu, 0x560, BIT(15), BIT(15));
-			regmap_update_bits(bmc_device->scu, 0x560, BIT(15), 0);
-		}
-		rc = 4;
+	ret = wait_event_interruptible(bmc_device->tx_wait0,
+		!(readl(bmc_device->reg_base + ASPEED_BMC_BMC2HOST_STS) & BMC2HOST_Q2_FULL));
+	if (ret)
+		return -EINTR;
+
+
+//	if (copy_from_user((void *)&tx_buff, buf, sizeof(u32)))
+//		return -EFAULT;
+	memcpy(&tx_buff, buf, 4);
+	writel(tx_buff, bmc_device->reg_base + ASPEED_BMC_BMC2HOST_Q2);
+	/* trigger to host
+	 * Only After AST2600A3 support DoorBell MSI
+	 */
+	regmap_read(bmc_device->scu, ASPEED_SCU04, &scu_id);
+	if (scu_id == AST2600A3_SCU04) {
+		writel(BMC2HOST_INT_STS_DOORBELL | BMC2HOST_ENABLE_INTB, bmc_device->reg_base + ASPEED_BMC_BMC2HOST_STS);
+	} else {
+		//A0 : BIT(12) A1 : BIT(15)
+		regmap_update_bits(bmc_device->scu, 0x560, BIT(15), BIT(15));
+		regmap_update_bits(bmc_device->scu, 0x560, BIT(15), 0);
 	}
-	return rc;
+
+	return sizeof(u32);
 }
 
 static irqreturn_t aspeed_bmc_dev_isr(int irq, void *dev_id)
@@ -236,8 +273,6 @@ static irqreturn_t aspeed_bmc_dev_isr(int irq, void *dev_id)
 	struct aspeed_bmc_device *bmc_device = dev_id;
 
 	u32 host2bmc_q_sts = readl(bmc_device->reg_base + ASPEED_BMC_HOST2BMC_STS);
-
-//	printk("%s host2bmc_q_sts is %x\n", __FUNCTION__, host2bmc_q_sts);
 
 	if (host2bmc_q_sts & HOST2BMC_INT_STS_DOORBELL)
 		writel(HOST2BMC_INT_STS_DOORBELL, bmc_device->reg_base + ASPEED_BMC_HOST2BMC_STS);
@@ -250,6 +285,19 @@ static irqreturn_t aspeed_bmc_dev_isr(int irq, void *dev_id)
 
 	if (host2bmc_q_sts & HOST2BMC_Q2_FULL)
 		dev_info(bmc_device->dev, "Q2 Full\n");
+
+
+	if (!(readl(bmc_device->reg_base + ASPEED_BMC_BMC2HOST_STS) & BMC2HOST_Q1_FULL))
+		wake_up_interruptible(&bmc_device->tx_wait0);
+
+	if (!(readl(bmc_device->reg_base + ASPEED_BMC_HOST2BMC_STS) & HOST2BMC_Q1_EMPTY))
+		wake_up_interruptible(&bmc_device->rx_wait0);
+
+	if (!(readl(bmc_device->reg_base + ASPEED_BMC_BMC2HOST_STS) & BMC2HOST_Q2_FULL))
+		wake_up_interruptible(&bmc_device->tx_wait1);
+
+	if (!(readl(bmc_device->reg_base + ASPEED_BMC_HOST2BMC_STS) & HOST2BMC_Q2_EMPTY))
+		wake_up_interruptible(&bmc_device->rx_wait1);
 
 	return IRQ_HANDLED;
 }
@@ -307,6 +355,11 @@ static int aspeed_bmc_device_probe(struct platform_device *pdev)
 	bmc_device = devm_kzalloc(&pdev->dev, sizeof(struct aspeed_bmc_device), GFP_KERNEL);
 	if (!bmc_device)
 		return -ENOMEM;
+
+	init_waitqueue_head(&bmc_device->tx_wait0);
+	init_waitqueue_head(&bmc_device->tx_wait1);
+	init_waitqueue_head(&bmc_device->rx_wait0);
+	init_waitqueue_head(&bmc_device->rx_wait1);
 
 	bmc_device->dev = dev;
 	bmc_device->reg_base = devm_platform_ioremap_resource(pdev, 0);
