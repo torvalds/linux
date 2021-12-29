@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Copyright (c) 2019, Intel Corporation. */
 
+#include <linux/filter.h>
+
 #include "ice_txrx_lib.h"
 #include "ice_eswitch.h"
 #include "ice_lib.h"

@@ -12,6 +12,8 @@
  *  Author(s):  Ursula Braun <ubraun@linux.vnet.ibm.com>
  */
 
+#include <linux/etherdevice.h>
+#include <linux/if_vlan.h>
 #include <linux/random.h>
 #include <linux/workqueue.h>
 #include <linux/scatterlist.h>

@@ -56,7 +56,6 @@
 #include <linux/wait.h>
 #include <linux/cgroup-defs.h>
 #include <linux/rbtree.h>
-#include <linux/filter.h>
 #include <linux/rculist_nulls.h>
 #include <linux/poll.h>
 #include <linux/sockptr.h>
@@ -249,6 +248,7 @@ struct sock_common {
 };
 
 struct bpf_local_storage;
+struct sk_filter;
 
 /**
   *	struct sock - network layer representation of sockets

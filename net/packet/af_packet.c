@@ -49,6 +49,7 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/ethtool.h>
+#include <linux/filter.h>
 #include <linux/types.h>
 #include <linux/mm.h>
 #include <linux/capability.h>

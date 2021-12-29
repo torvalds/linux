@@ -8,6 +8,7 @@
 #define _BPF_LOCAL_STORAGE_H
 
 #include <linux/bpf.h>
+#include <linux/filter.h>
 #include <linux/rculist.h>
 #include <linux/list.h>
 #include <linux/hash.h>
