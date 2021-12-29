@@ -17,7 +17,7 @@
 #include <linux/sysfs.h>
 #include <linux/interrupt.h>
 
-/* #define USE_INTERRUPT */
+/* #define USE_INTERRUPTS */
 /******************************************************************************/
 union chassis_ctrl_register {
 	u32 value;
