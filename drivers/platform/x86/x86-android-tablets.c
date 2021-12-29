@@ -17,6 +17,7 @@
 #include <linux/gpio/machine.h>
 #include <linux/i2c.h>
 #include <linux/irq.h>
+#include <linux/irqdomain.h>
 #include <linux/module.h>
 #include <linux/mod_devicetable.h>
 #include <linux/string.h>
@@ -31,11 +32,13 @@ enum x86_acpi_irq_type {
 	X86_ACPI_IRQ_TYPE_NONE,
 	X86_ACPI_IRQ_TYPE_APIC,
 	X86_ACPI_IRQ_TYPE_GPIOINT,
+	X86_ACPI_IRQ_TYPE_PMIC,
 };
 
 struct x86_acpi_irq_data {
-	char *chip;   /* GPIO chip label (GPIOINT) */
+	char *chip;   /* GPIO chip label (GPIOINT) or PMIC ACPI path (PMIC) */
 	enum x86_acpi_irq_type type;
+	enum irq_domain_bus_token domain;
 	int index;
 	int trigger;  /* ACPI_EDGE_SENSITIVE / ACPI_LEVEL_SENSITIVE */
 	int polarity; /* ACPI_ACTIVE_HIGH / ACPI_ACTIVE_LOW / ACPI_ACTIVE_BOTH */
@@ -48,9 +51,14 @@ static int x86_acpi_irq_helper_gpiochip_find(struct gpio_chip *gc, void *data)
 
 static int x86_acpi_irq_helper_get(const struct x86_acpi_irq_data *data)
 {
+	struct irq_fwspec fwspec = { };
+	struct irq_domain *domain;
+	struct acpi_device *adev;
 	struct gpio_desc *gpiod;
 	struct gpio_chip *chip;
 	unsigned int irq_type;
+	acpi_handle handle;
+	acpi_status status;
 	int irq, ret;
 
 	switch (data->type) {
@@ -86,6 +94,27 @@ static int x86_acpi_irq_helper_get(const struct x86_acpi_irq_data *data)
 			irq_set_irq_type(irq, irq_type);
 
 		return irq;
+	case X86_ACPI_IRQ_TYPE_PMIC:
+		status = acpi_get_handle(NULL, data->chip, &handle);
+		if (ACPI_FAILURE(status)) {
+			pr_err("error could not get %s handle\n", data->chip);
+			return -ENODEV;
+		}
+
+		acpi_bus_get_device(handle, &adev);
+		if (!adev) {
+			pr_err("error could not get %s adev\n", data->chip);
+			return -ENODEV;
+		}
+
+		fwspec.fwnode = acpi_fwnode_handle(adev);
+		domain = irq_find_matching_fwspec(&fwspec, data->domain);
+		if (!domain) {
+			pr_err("error could not find IRQ domain for %s\n", data->chip);
+			return -ENODEV;
+		}
+
+		return irq_create_mapping(domain, data->index);
 	default:
 		return 0;
 	}
