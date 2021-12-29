@@ -21,11 +21,11 @@ static struct dma_fence *msm_job_run(struct drm_sched_job *job)
 	pm_runtime_get_sync(&gpu->pdev->dev);
 
 	/* TODO move submit path over to using a per-ring lock.. */
-	mutex_lock(&gpu->dev->struct_mutex);
+	mutex_lock(&gpu->lock);
 
 	msm_gpu_submit(gpu, submit);
 
-	mutex_unlock(&gpu->dev->struct_mutex);
+	mutex_unlock(&gpu->lock);
 
 	pm_runtime_put(&gpu->pdev->dev);
 
