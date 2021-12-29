@@ -544,6 +544,14 @@ static void odm_InitHybridAntDiv(struct odm_dm_struct *pDM_Odm)
 	ODM_AntennaDiversityInit_88E(pDM_Odm);
 }
 
+static void odm_HwAntDiv(struct odm_dm_struct *pDM_Odm)
+{
+	if (!(pDM_Odm->SupportAbility & ODM_BB_ANT_DIV))
+		return;
+
+	ODM_AntennaDiversity_88E(pDM_Odm);
+}
+
 /* 3 Export Interface */
 
 /*  2011/09/21 MH Add to describe different team necessary resource allocate?? */
@@ -857,14 +865,6 @@ void ODM_TXPowerTrackingCheck(struct odm_dm_struct *pDM_Odm)
 		odm_TXPowerTrackingCallback_ThermalMeter_8188E(Adapter);
 		pDM_Odm->RFCalibrateInfo.TM_Trigger = 0;
 	}
-}
-
-void odm_HwAntDiv(struct odm_dm_struct *pDM_Odm)
-{
-	if (!(pDM_Odm->SupportAbility & ODM_BB_ANT_DIV))
-		return;
-
-	ODM_AntennaDiversity_88E(pDM_Odm);
 }
 
 /* EDCA Turbo */
