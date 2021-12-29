@@ -11,6 +11,7 @@ struct aspeed_gfx {
 	struct reset_control		*rst_crt;
 	struct reset_control		*rst_engine;
 	struct regmap			*scu;
+	u8				dp_support;
 
 	u32				dac_reg;
 	u32				int_clr_reg;
@@ -127,3 +128,7 @@ int aspeed_gfx_create_output(struct drm_device *drm);
 #define PCIE_PERST_L_T_H	BIT(18)
 #define PCIE_PERST_H_T_L	BIT(19)
 #define STS_PERST_STATUS	(PCIE_PERST_L_T_H|PCIE_PERST_H_T_L)
+
+/* DP function define */
+#define SCU_DP_STATUS		0x100 /* SCU100 VGA function handshake */
+#define DP_EXECUTE		0x2E /* DP Status */

@@ -174,6 +174,25 @@ static irqreturn_t aspeed_gfx_irq_handler(int irq, void *data)
 	return IRQ_NONE;
 }
 
+static int aspeed_adaptor_detect(struct drm_device *drm)
+{
+	struct aspeed_gfx *priv = to_aspeed_gfx(drm);
+	u32 reg = 0;
+
+	switch (priv->flags & CLK_MASK) {
+	case CLK_G6:
+		/* check AST DP is executed or not*/
+		regmap_read(priv->scu, SCU_DP_STATUS, &reg);
+		if (((reg>>8) & DP_EXECUTE) == DP_EXECUTE)
+			priv->dp_support = 0x1;
+		break;
+	default:
+		priv->dp_support = 0x0;
+		break;
+	}
+	return 0;
+}
+
 static int aspeed_gfx_reset(struct drm_device *drm)
 {
 	struct platform_device *pdev = to_platform_device(drm->dev);
@@ -279,6 +298,13 @@ static int aspeed_gfx_load(struct drm_device *drm)
 		return PTR_ERR(priv->clk);
 	}
 	clk_prepare_enable(priv->clk);
+
+	ret = aspeed_adaptor_detect(drm);
+	if (ret) {
+		dev_err(&pdev->dev,
+			"missing or invalid adaptor controller device tree entry");
+		return ret;
+	}
 
 	/* Sanitize control registers */
 	writel(0, priv->base + CRT_CTRL1);
