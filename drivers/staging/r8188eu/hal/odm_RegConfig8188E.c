@@ -7,7 +7,7 @@ void odm_ConfigRFReg_8188E(struct odm_dm_struct *pDM_Odm, u32 Addr,
 			   u32 Data, enum rf_radio_path RF_PATH,
 			   u32 RegAddr)
 {
-    if (Addr == 0xffe) {
+	if (Addr == 0xffe) {
 		ODM_sleep_ms(50);
 	} else if (Addr == 0xfd) {
 		ODM_delay_ms(5);
