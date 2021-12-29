@@ -1215,57 +1215,41 @@ static void samsung_mipi_dcphy_bias_block_disable(struct samsung_mipi_dcphy *sam
 
 static void samsung_mipi_dphy_lane_enable(struct samsung_mipi_dcphy *samsung)
 {
-	u32 sts;
-	int ret;
-
 	regmap_write(samsung->regmap, DPHY_MC_GNR_CON1, T_PHY_READY(0x2000));
-	regmap_write(samsung->regmap, COMBO_MD0_GNR_CON1, T_PHY_READY(0x2000));
-	regmap_write(samsung->regmap, COMBO_MD1_GNR_CON1, T_PHY_READY(0x2000));
-	regmap_write(samsung->regmap, COMBO_MD2_GNR_CON1, T_PHY_READY(0x2000));
-	regmap_write(samsung->regmap, DPHY_MD3_GNR_CON1, T_PHY_READY(0x2000));
-
 	regmap_update_bits(samsung->regmap, DPHY_MC_GNR_CON0,
 			   PHY_ENABLE, PHY_ENABLE);
-	regmap_update_bits(samsung->regmap, COMBO_MD0_GNR_CON0,
-			   PHY_ENABLE, PHY_ENABLE);
-	regmap_update_bits(samsung->regmap, COMBO_MD1_GNR_CON0,
-			   PHY_ENABLE, PHY_ENABLE);
-	regmap_update_bits(samsung->regmap, COMBO_MD2_GNR_CON0,
-			   PHY_ENABLE, PHY_ENABLE);
-	regmap_update_bits(samsung->regmap, DPHY_MD3_GNR_CON0,
-			   PHY_ENABLE, PHY_ENABLE);
 
-	ret = regmap_read_poll_timeout(samsung->regmap, DPHY_MC_GNR_CON0,
-				       sts, (sts & PHY_READY), 200, 2000);
-	if (ret < 0)
-		dev_err(samsung->dev, "D-PHY clk lane is not locked\n");
-
-	ret = regmap_read_poll_timeout(samsung->regmap, COMBO_MD0_GNR_CON0,
-				       sts, (sts & PHY_READY), 200, 2000);
-	if (ret < 0)
-		dev_err(samsung->dev, "D-PHY Data0 lane is not locked\n");
-
-	ret = regmap_read_poll_timeout(samsung->regmap, COMBO_MD1_GNR_CON0,
-				       sts, (sts & PHY_READY), 200, 2000);
-	if (ret < 0)
-		dev_err(samsung->dev, "D-PHY Data1 lane is not locked\n");
-
-	ret = regmap_read_poll_timeout(samsung->regmap, COMBO_MD2_GNR_CON0,
-				       sts, (sts & PHY_READY), 200, 2000);
-	if (ret < 0)
-		dev_err(samsung->dev, "D-PHY Data2 lane is not locked\n");
-
-	ret = regmap_read_poll_timeout(samsung->regmap, DPHY_MD3_GNR_CON0,
-				       sts, (sts & PHY_READY), 200, 2000);
-	if (ret < 0)
-		dev_err(samsung->dev, "D-PHY Data3 lane is not locked\n");
+	switch (samsung->lanes) {
+	case 4:
+		regmap_write(samsung->regmap, DPHY_MD3_GNR_CON1,
+			     T_PHY_READY(0x2000));
+		regmap_update_bits(samsung->regmap, DPHY_MD3_GNR_CON0,
+				   PHY_ENABLE, PHY_ENABLE);
+		fallthrough;
+	case 3:
+		regmap_write(samsung->regmap, COMBO_MD2_GNR_CON1,
+			     T_PHY_READY(0x2000));
+		regmap_update_bits(samsung->regmap, COMBO_MD2_GNR_CON0,
+				   PHY_ENABLE, PHY_ENABLE);
+		fallthrough;
+	case 2:
+		regmap_write(samsung->regmap, COMBO_MD1_GNR_CON1,
+			     T_PHY_READY(0x2000));
+		regmap_update_bits(samsung->regmap, COMBO_MD1_GNR_CON0,
+				   PHY_ENABLE, PHY_ENABLE);
+		fallthrough;
+	case 1:
+	default:
+		regmap_write(samsung->regmap, COMBO_MD0_GNR_CON1,
+			     T_PHY_READY(0x2000));
+		regmap_update_bits(samsung->regmap, COMBO_MD0_GNR_CON0,
+				   PHY_ENABLE, PHY_ENABLE);
+		break;
+	}
 }
 
 static void samsung_mipi_cphy_lane_enable(struct samsung_mipi_dcphy *samsung)
 {
-	u32 sts;
-	int ret;
-
 	regmap_write(samsung->regmap, COMBO_MD0_GNR_CON1, T_PHY_READY(0x2000));
 	regmap_write(samsung->regmap, COMBO_MD1_GNR_CON1, T_PHY_READY(0x2000));
 	regmap_write(samsung->regmap, COMBO_MD2_GNR_CON1, T_PHY_READY(0x2000));
@@ -1276,22 +1260,6 @@ static void samsung_mipi_cphy_lane_enable(struct samsung_mipi_dcphy *samsung)
 			   PHY_ENABLE, PHY_ENABLE);
 	regmap_update_bits(samsung->regmap, COMBO_MD2_GNR_CON0,
 			   PHY_ENABLE, PHY_ENABLE);
-
-	/* 200us is needed for locking the PLL */
-	ret = regmap_read_poll_timeout(samsung->regmap, COMBO_MD0_GNR_CON0,
-				       sts, (sts & PHY_READY), 200, 2000);
-	if (ret < 0)
-		dev_err(samsung->dev, "C-PHY Data0 lane is not locked\n");
-
-	ret = regmap_read_poll_timeout(samsung->regmap, COMBO_MD1_GNR_CON0,
-				       sts, (sts & PHY_READY), 200, 2000);
-	if (ret < 0)
-		dev_err(samsung->dev, "C-PHY Data1 lane is not locked\n");
-
-	ret = regmap_read_poll_timeout(samsung->regmap, COMBO_MD2_GNR_CON0,
-				       sts, (sts & PHY_READY), 200, 2000);
-	if (ret < 0)
-		dev_err(samsung->dev, "C-PHY Data2 lane is not locked\n");
 }
 
 static void samsung_mipi_dphy_lane_disable(struct samsung_mipi_dcphy *samsung)
