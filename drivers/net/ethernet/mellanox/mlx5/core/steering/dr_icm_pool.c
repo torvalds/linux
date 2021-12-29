@@ -4,7 +4,6 @@
 #include "dr_types.h"
 
 #define DR_ICM_MODIFY_HDR_ALIGN_BASE 64
-#define DR_ICM_SYNC_THRESHOLD_POOL (64 * 1024 * 1024)
 
 struct mlx5dr_icm_pool {
 	enum mlx5dr_icm_type icm_type;
@@ -324,10 +323,14 @@ dr_icm_chunk_create(struct mlx5dr_icm_pool *pool,
 
 static bool dr_icm_pool_is_sync_required(struct mlx5dr_icm_pool *pool)
 {
-	if (pool->hot_memory_size > DR_ICM_SYNC_THRESHOLD_POOL)
-		return true;
+	int allow_hot_size;
 
-	return false;
+	/* sync when hot memory reaches half of the pool size */
+	allow_hot_size =
+		mlx5dr_icm_pool_chunk_size_to_byte(pool->max_log_chunk_sz,
+						   pool->icm_type) / 2;
+
+	return pool->hot_memory_size > allow_hot_size;
 }
 
 static int dr_icm_pool_sync_all_buddy_pools(struct mlx5dr_icm_pool *pool)
