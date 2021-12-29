@@ -132,7 +132,7 @@ run_test() {
 	local rcv=`ip netns exec $NS_DST $ipt"-save" -c | grep 'dport 8000' | \
 							  sed -e 's/\[//' -e 's/:.*//'`
 	if [ $rcv != $pkts ]; then
-		echo " fail - received $rvs packets, expected $pkts"
+		echo " fail - received $rcv packets, expected $pkts"
 		ret=1
 		return
 	fi
