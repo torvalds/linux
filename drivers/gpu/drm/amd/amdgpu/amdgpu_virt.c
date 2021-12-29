@@ -727,6 +727,10 @@ void amdgpu_detect_virtualization(struct amdgpu_device *adev)
 			vi_set_virt_ops(adev);
 			break;
 		case CHIP_VEGA10:
+			soc15_set_virt_ops(adev);
+			/* send a dummy GPU_INIT_DATA request to host on vega10 */
+			amdgpu_virt_request_init_data(adev);
+			break;
 		case CHIP_VEGA20:
 		case CHIP_ARCTURUS:
 		case CHIP_ALDEBARAN:
