@@ -491,6 +491,11 @@ static void binder_inc_node_tmpref_ilocked(struct binder_node *node);
 static bool binder_has_work_ilocked(struct binder_thread *thread,
 				    bool do_proc_work)
 {
+	int ret = 0;
+
+	trace_android_vh_binder_has_work_ilocked(thread, do_proc_work, &ret);
+	if (ret)
+		return true;
 	return thread->process_todo ||
 		thread->looper_need_return ||
 		(do_proc_work &&
@@ -3620,6 +3625,7 @@ static int binder_thread_write(struct binder_proc *proc,
 			}
 			thread->looper |= BINDER_LOOPER_STATE_REGISTERED;
 			binder_inner_proc_unlock(proc);
+			trace_android_vh_binder_looper_state_registered(thread, proc);
 			break;
 		case BC_ENTER_LOOPER:
 			binder_debug(BINDER_DEBUG_THREADS,
@@ -4044,6 +4050,7 @@ retry:
 			binder_inner_proc_unlock(proc);
 			break;
 		}
+		trace_android_vh_binder_thread_read(&list, proc, thread);
 		w = binder_dequeue_work_head_ilocked(list);
 		if (binder_worklist_empty_ilocked(&thread->todo))
 			thread->process_todo = false;
@@ -4510,6 +4517,7 @@ static void binder_free_proc(struct binder_proc *proc)
 	put_task_struct(proc->tsk);
 	put_cred(eproc->cred);
 	binder_stats_deleted(BINDER_STAT_PROC);
+	trace_android_vh_binder_free_proc(proc);
 	kfree(eproc);
 }
 
@@ -4608,6 +4616,7 @@ static int binder_thread_release(struct binder_proc *proc,
 	if (send_reply)
 		binder_send_failed_reply(send_reply, BR_DEAD_REPLY);
 	binder_release_work(proc, &thread->todo);
+	trace_android_vh_binder_thread_release(proc, thread);
 	binder_thread_dec_tmpref(thread);
 	return active_transactions;
 }
@@ -4684,6 +4693,7 @@ static int binder_ioctl_write_read(struct file *filp,
 		if (!binder_worklist_empty_ilocked(&proc->todo))
 			binder_wakeup_proc_ilocked(proc);
 		binder_inner_proc_unlock(proc);
+		trace_android_vh_binder_read_done(proc, thread);
 		if (ret < 0) {
 			if (copy_to_user(ubuf, &bwr, sizeof(bwr)))
 				ret = -EFAULT;
