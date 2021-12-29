@@ -1522,6 +1522,11 @@ static int rk3308_codec_dac_lineout_disable(struct rk3308_codec_priv *rk3308)
 
 static int rk3308_codec_dac_hpout_enable(struct rk3308_codec_priv *rk3308)
 {
+	regmap_update_bits(rk3308->regmap, RK3308_DAC_ANA_CON01,
+			   RK3308_DAC_HPOUT_POP_SOUND_L_MSK |
+			   RK3308_DAC_HPOUT_POP_SOUND_R_MSK,
+			   RK3308_DAC_HPOUT_POP_SOUND_L_WORK |
+			   RK3308_DAC_HPOUT_POP_SOUND_R_WORK);
 	udelay(20);
 
 	/* Step 07 */
@@ -1577,6 +1582,12 @@ static int rk3308_codec_dac_hpout_disable(struct rk3308_codec_priv *rk3308)
 			   RK3308_DAC_L_HPOUT_MUTE |
 			   RK3308_DAC_R_HPOUT_MUTE);
 
+	udelay(20);
+	regmap_update_bits(rk3308->regmap, RK3308_DAC_ANA_CON01,
+			   RK3308_DAC_HPOUT_POP_SOUND_L_MSK |
+			   RK3308_DAC_HPOUT_POP_SOUND_R_MSK,
+			   RK3308_DAC_HPOUT_POP_SOUND_L_DIS |
+			   RK3308_DAC_HPOUT_POP_SOUND_R_DIS);
 	return 0;
 }
 
