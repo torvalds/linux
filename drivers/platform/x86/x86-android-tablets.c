@@ -142,6 +142,7 @@ struct x86_serdev_info {
 };
 
 struct x86_dev_info {
+	const char * const *modules;
 	struct gpiod_lookup_table **gpiod_lookup_tables;
 	const struct x86_i2c_client_info *i2c_client_info;
 	const struct platform_device_info *pdev_info;
@@ -427,6 +428,13 @@ static __init int x86_android_tablet_init(void)
 		return -ENODEV;
 
 	dev_info = id->driver_data;
+
+	/*
+	 * Since this runs from module_init() it cannot use -EPROBE_DEFER,
+	 * instead pre-load any modules which are listed as requirements.
+	 */
+	for (i = 0; dev_info->modules && dev_info->modules[i]; i++)
+		request_module(dev_info->modules[i]);
 
 	gpiod_lookup_tables = dev_info->gpiod_lookup_tables;
 	for (i = 0; gpiod_lookup_tables && gpiod_lookup_tables[i]; i++)
