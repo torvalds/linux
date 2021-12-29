@@ -528,6 +528,14 @@ static void odm_RSSIMonitorCheck(struct odm_dm_struct *pDM_Odm)
 	ODM_CmnInfoUpdate(&pHalData->odmpriv, ODM_CMNINFO_RSSI_MIN, pdmpriv->MinUndecoratedPWDBForDM);
 }
 
+static void odm_TXPowerTrackingThermalMeterInit(struct odm_dm_struct *pDM_Odm)
+{
+	pDM_Odm->RFCalibrateInfo.bTXPowerTracking = true;
+	pDM_Odm->RFCalibrateInfo.TXPowercount = 0;
+	pDM_Odm->RFCalibrateInfo.bTXPowerTrackingInit = false;
+	pDM_Odm->RFCalibrateInfo.TxPowerTrackControl = true;
+}
+
 /* 3 Export Interface */
 
 /*  2011/09/21 MH Add to describe different team necessary resource allocate?? */
@@ -823,18 +831,6 @@ bool ODM_RAStateCheck(struct odm_dm_struct *pDM_Odm, s32 RSSI, bool bForceUpdate
 		return true;
 	}
 	return false;
-}
-
-/* 3============================================================ */
-/* 3 Tx Power Tracking */
-/* 3============================================================ */
-
-void odm_TXPowerTrackingThermalMeterInit(struct odm_dm_struct *pDM_Odm)
-{
-	pDM_Odm->RFCalibrateInfo.bTXPowerTracking = true;
-	pDM_Odm->RFCalibrateInfo.TXPowercount = 0;
-	pDM_Odm->RFCalibrateInfo.bTXPowerTrackingInit = false;
-	pDM_Odm->RFCalibrateInfo.TxPowerTrackControl = true;
 }
 
 void ODM_TXPowerTrackingCheck(struct odm_dm_struct *pDM_Odm)
