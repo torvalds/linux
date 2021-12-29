@@ -14,15 +14,15 @@ void odm_ConfigRFReg_8188E(struct odm_dm_struct *pDM_Odm, u32 Addr,
 	} else if (Addr == 0xfc) {
 		ODM_delay_ms(1);
 	} else if (Addr == 0xfb) {
-		ODM_delay_us(50);
+		udelay(50);
 	} else if (Addr == 0xfa) {
-		ODM_delay_us(5);
+		udelay(5);
 	} else if (Addr == 0xf9) {
-		ODM_delay_us(1);
+		udelay(1);
 	} else {
 		rtl8188e_PHY_SetRFReg(pDM_Odm->Adapter, RF_PATH, RegAddr, bRFRegOffsetMask, Data);
 		/*  Add 1us delay between BB/RF register setting. */
-		ODM_delay_us(1);
+		udelay(1);
 	}
 }
 
@@ -43,7 +43,7 @@ void odm_ConfigBB_AGC_8188E(struct odm_dm_struct *pDM_Odm, u32 Addr, u32 Bitmask
 {
 	rtl8188e_PHY_SetBBReg(pDM_Odm->Adapter, Addr, Bitmask, Data);
 	/*  Add 1us delay between BB/RF register setting. */
-	ODM_delay_us(1);
+	udelay(1);
 }
 
 void odm_ConfigBB_PHY_REG_PG_8188E(struct odm_dm_struct *pDM_Odm, u32 Addr,
@@ -56,11 +56,11 @@ void odm_ConfigBB_PHY_REG_PG_8188E(struct odm_dm_struct *pDM_Odm, u32 Addr,
 	else if (Addr == 0xfc)
 		ODM_delay_ms(1);
 	else if (Addr == 0xfb)
-		ODM_delay_us(50);
+		udelay(50);
 	else if (Addr == 0xfa)
-		ODM_delay_us(5);
+		udelay(5);
 	else if (Addr == 0xf9)
-		ODM_delay_us(1);
+		udelay(1);
 	else
 		storePwrIndexDiffRateOffset(pDM_Odm->Adapter, Addr, Bitmask, Data);
 }
@@ -74,17 +74,17 @@ void odm_ConfigBB_PHY_8188E(struct odm_dm_struct *pDM_Odm, u32 Addr, u32 Bitmask
 	} else if (Addr == 0xfc) {
 		ODM_delay_ms(1);
 	} else if (Addr == 0xfb) {
-		ODM_delay_us(50);
+		udelay(50);
 	} else if (Addr == 0xfa) {
-		ODM_delay_us(5);
+		udelay(5);
 	} else if (Addr == 0xf9) {
-		ODM_delay_us(1);
+		udelay(1);
 	} else {
 		if (Addr == 0xa24)
 			pDM_Odm->RFCalibrateInfo.RegA24 = Data;
 		rtl8188e_PHY_SetBBReg(pDM_Odm->Adapter, Addr, Bitmask, Data);
 
 		/*  Add 1us delay between BB/RF register setting. */
-		ODM_delay_us(1);
+		udelay(1);
 	}
 }

@@ -15,8 +15,3 @@ void ODM_delay_ms(u32 ms)
 {
 	mdelay(ms);
 }
-
-void ODM_delay_us(u32 us)
-{
-	udelay(us);
-}
