@@ -271,7 +271,8 @@ ltq_etop_hw_init(struct net_device *dev)
 		int irq = LTQ_DMA_CH0_INT + i;
 		struct ltq_etop_chan *ch = &priv->ch[i];
 
-		ch->idx = ch->dma.nr = i;
+		ch->dma.nr = i;
+		ch->idx = ch->dma.nr;
 		ch->dma.dev = &priv->pdev->dev;
 
 		if (IS_TX(i)) {
