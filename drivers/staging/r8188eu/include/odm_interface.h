@@ -16,7 +16,4 @@ typedef void (*RT_WORKITEM_CALL_BACK)(void *pContext);
 s32 ODM_CompareMemory(struct odm_dm_struct *pDM_Odm, void *pBuf1, void *pBuf2,
 		      u32 length);
 
-/*  ODM Timer relative API. */
-void ODM_delay_ms(u32 ms);
-
 #endif	/*  __ODM_INTERFACE_H__ */

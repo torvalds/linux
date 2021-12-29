@@ -382,7 +382,7 @@ phy_PathA_IQK_8188E(struct adapter *adapt)
 
 	/*  delay x ms */
 	/* PlatformStallExecution(IQK_DELAY_TIME_88E*1000); */
-	ODM_delay_ms(IQK_DELAY_TIME_88E);
+	mdelay(IQK_DELAY_TIME_88E);
 
 	/*  Check failed */
 	regeac = rtl8188e_PHY_QueryBBReg(adapt, rRx_Power_After_IQK_A_2, bMaskDWord);
@@ -434,7 +434,7 @@ phy_PathA_RxIQK(struct adapter *adapt)
 	rtl8188e_PHY_SetBBReg(adapt, rIQK_AGC_Pts, bMaskDWord, 0xf8000000);
 
 	/*  delay x ms */
-	ODM_delay_ms(IQK_DELAY_TIME_88E);
+	mdelay(IQK_DELAY_TIME_88E);
 
 	/*  Check failed */
 	regeac = rtl8188e_PHY_QueryBBReg(adapt, rRx_Power_After_IQK_A_2, bMaskDWord);
@@ -478,7 +478,7 @@ phy_PathA_RxIQK(struct adapter *adapt)
 
 	/*  delay x ms */
 	/* PlatformStallExecution(IQK_DELAY_TIME_88E*1000); */
-	ODM_delay_ms(IQK_DELAY_TIME_88E);
+	mdelay(IQK_DELAY_TIME_88E);
 
 	/*  Check failed */
 	regeac = rtl8188e_PHY_QueryBBReg(adapt, rRx_Power_After_IQK_A_2, bMaskDWord);
@@ -1000,7 +1000,7 @@ void PHY_LCCalibrate_8188E(struct adapter *adapt)
 		return;
 
 	while (*dm_odm->pbScanInProcess && timecount < timeout) {
-		ODM_delay_ms(50);
+		mdelay(50);
 		timecount += 50;
 	}
 
