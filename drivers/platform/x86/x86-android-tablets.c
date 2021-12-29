@@ -209,6 +209,116 @@ static struct gpiod_lookup_table int3496_gpo2_pin22_gpios = {
 	},
 };
 
+/* Asus ME176C tablets have an Android factory img with everything hardcoded */
+static const char * const asus_me176c_accel_mount_matrix[] = {
+	"-1", "0", "0",
+	"0", "1", "0",
+	"0", "0", "1"
+};
+
+static const struct property_entry asus_me176c_accel_props[] = {
+	PROPERTY_ENTRY_STRING_ARRAY("mount-matrix", asus_me176c_accel_mount_matrix),
+	{ }
+};
+
+static const struct software_node asus_me176c_accel_node = {
+	.properties = asus_me176c_accel_props,
+};
+
+static const struct x86_i2c_client_info asus_me176c_i2c_clients[] __initconst = {
+	{
+		/* bq24190 battery charger */
+		.board_info = {
+			.type = "bq24190",
+			.addr = 0x6b,
+			.dev_name = "bq24190",
+			.swnode = &bq24190_node,
+			.platform_data = &bq24190_pdata,
+		},
+		.adapter_path = "\\_SB_.I2C1",
+		.irq_data = {
+			.type = X86_ACPI_IRQ_TYPE_PMIC,
+			.chip = "\\_SB_.I2C7.PMIC",
+			.domain = DOMAIN_BUS_WAKEUP,
+			.index = 0,
+		},
+	}, {
+		/* ug3105 battery monitor */
+		.board_info = {
+			.type = "ug3105",
+			.addr = 0x70,
+			.dev_name = "ug3105",
+		},
+		.adapter_path = "\\_SB_.I2C1",
+	}, {
+		/* ak09911 compass */
+		.board_info = {
+			.type = "ak09911",
+			.addr = 0x0c,
+			.dev_name = "ak09911",
+		},
+		.adapter_path = "\\_SB_.I2C5",
+	}, {
+		/* kxtj21009 accel */
+		.board_info = {
+			.type = "kxtj21009",
+			.addr = 0x0f,
+			.dev_name = "kxtj21009",
+			.swnode = &asus_me176c_accel_node,
+		},
+		.adapter_path = "\\_SB_.I2C5",
+	}, {
+		/* goodix touchscreen */
+		.board_info = {
+			.type = "GDIX1001:00",
+			.addr = 0x14,
+			.dev_name = "goodix_ts",
+		},
+		.adapter_path = "\\_SB_.I2C6",
+		.irq_data = {
+			.type = X86_ACPI_IRQ_TYPE_APIC,
+			.index = 0x45,
+			.trigger = ACPI_EDGE_SENSITIVE,
+			.polarity = ACPI_ACTIVE_LOW,
+		},
+	},
+};
+
+static const struct x86_serdev_info asus_me176c_serdevs[] __initconst = {
+	{
+		.ctrl_hid = "80860F0A",
+		.ctrl_uid = "2",
+		.ctrl_devname = "serial0",
+		.serdev_hid = "BCM2E3A",
+	},
+};
+
+static struct gpiod_lookup_table asus_me176c_goodix_gpios = {
+	.dev_id = "i2c-goodix_ts",
+	.table = {
+		GPIO_LOOKUP("INT33FC:00", 60, "reset", GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP("INT33FC:02", 28, "irq", GPIO_ACTIVE_HIGH),
+		{ }
+	},
+};
+
+static struct gpiod_lookup_table *asus_me176c_gpios[] = {
+	&int3496_gpo2_pin22_gpios,
+	&asus_me176c_goodix_gpios,
+	NULL
+};
+
+static const struct x86_dev_info asus_me176c_info __initconst = {
+	.i2c_client_info = asus_me176c_i2c_clients,
+	.i2c_client_count = ARRAY_SIZE(asus_me176c_i2c_clients),
+	.pdev_info = int3496_pdevs,
+	.pdev_count = ARRAY_SIZE(int3496_pdevs),
+	.serdev_info = asus_me176c_serdevs,
+	.serdev_count = ARRAY_SIZE(asus_me176c_serdevs),
+	.gpiod_lookup_tables = asus_me176c_gpios,
+	.modules = bq24190_modules,
+};
+
 /* Asus TF103C tablets have an Android factory img with everything hardcoded */
 static const char * const asus_tf103c_accel_mount_matrix[] = {
 	"0", "-1", "0",
@@ -425,6 +535,14 @@ static const struct x86_dev_info xiaomi_mipad2_info __initconst = {
 };
 
 static const struct dmi_system_id x86_android_tablet_ids[] __initconst = {
+	{
+		/* Asus MeMO Pad 7 ME176C */
+		.matches = {
+			DMI_EXACT_MATCH(DMI_SYS_VENDOR, "ASUSTeK COMPUTER INC."),
+			DMI_EXACT_MATCH(DMI_PRODUCT_NAME, "ME176C"),
+		},
+		.driver_data = (void *)&asus_me176c_info,
+	},
 	{
 		/* Asus TF103C */
 		.matches = {
