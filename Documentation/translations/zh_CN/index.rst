@@ -108,6 +108,7 @@ TODOList:
    cpu-freq/index
    iio/index
    infiniband/index
+   power/index
    virt/index
    sound/index
    filesystems/index
@@ -129,7 +130,6 @@ TODOList:
 * netlabel/index
 * networking/index
 * pcmcia/index
-* power/index
 * target/index
 * timers/index
 * spi/index
