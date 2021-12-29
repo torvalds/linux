@@ -200,7 +200,8 @@ def setupTools(app):
                        "graphviz from https://www.graphviz.org")
     if inkscape_cmd:
         kernellog.verbose(app, "use inkscape(1) from: " + inkscape_cmd)
-        inkscape_ver = subprocess.check_output([inkscape_cmd, '--version'])
+        inkscape_ver = subprocess.check_output([inkscape_cmd, '--version'],
+                                               stderr=subprocess.DEVNULL)
         ver_one_ptn = b'Inkscape 1'
         inkscape_ver_one = re.search(ver_one_ptn, inkscape_ver)
         convert_cmd = None
@@ -373,17 +374,32 @@ def svg2pdf(app, svg_fname, pdf_fname):
 
     """
     cmd = [convert_cmd, svg_fname, pdf_fname]
+    cmd_name = 'convert(1)'
 
     if inkscape_cmd:
+        cmd_name = 'inkscape(1)'
         if inkscape_ver_one:
             cmd = [inkscape_cmd, '-o', pdf_fname, svg_fname]
         else:
             cmd = [inkscape_cmd, '-z', '--export-pdf=%s' % pdf_fname, svg_fname]
 
-    # use stdout and stderr from parent
-    exit_code = subprocess.call(cmd)
+    try:
+        warning_msg = subprocess.check_output(cmd, stderr=subprocess.STDOUT)
+        exit_code = 0
+    except subprocess.CalledProcessError as err:
+        warning_msg = err.output
+        exit_code = err.returncode
+        pass
+
     if exit_code != 0:
         kernellog.warn(app, "Error #%d when calling: %s" % (exit_code, " ".join(cmd)))
+        if warning_msg:
+            kernellog.warn(app, "Warning msg from %s: %s"
+                           % (cmd_name, str(warning_msg, 'utf-8')))
+    elif warning_msg:
+        kernellog.verbose(app, "Warning msg from %s (likely harmless):\n%s"
+                          % (cmd_name, str(warning_msg, 'utf-8')))
+
     return bool(exit_code == 0)
 
 def svg2pdf_by_rsvg(app, svg_fname, pdf_fname):
