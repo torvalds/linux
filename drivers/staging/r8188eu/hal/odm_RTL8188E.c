@@ -9,7 +9,7 @@ static void odm_RX_HWAntDivInit(struct odm_dm_struct *dm_odm)
 	u32	value32;
 
 	/* MAC Setting */
-	value32 = ODM_GetMACReg(dm_odm, ODM_REG_ANTSEL_PIN_11N, bMaskDWord);
+	value32 = rtl8188e_PHY_QueryBBReg(adapter, ODM_REG_ANTSEL_PIN_11N, bMaskDWord);
 	rtl8188e_PHY_SetBBReg(adapter, ODM_REG_ANTSEL_PIN_11N, bMaskDWord, value32 | (BIT(23) | BIT(25))); /* Reg4C[25]=1, Reg4C[23]=1 for pin output */
 	/* Pin Settings */
 	ODM_SetBBReg(dm_odm, ODM_REG_PIN_CTRL_11N, BIT(9) | BIT(8), 0);/* Reg870[8]=1'b0, Reg870[9]=1'b0	antsel antselb by HW */
@@ -31,7 +31,7 @@ static void odm_TRX_HWAntDivInit(struct odm_dm_struct *dm_odm)
 	u32	value32;
 
 	/* MAC Setting */
-	value32 = ODM_GetMACReg(dm_odm, ODM_REG_ANTSEL_PIN_11N, bMaskDWord);
+	value32 = rtl8188e_PHY_QueryBBReg(adapter, ODM_REG_ANTSEL_PIN_11N, bMaskDWord);
 	rtl8188e_PHY_SetBBReg(adapter, ODM_REG_ANTSEL_PIN_11N, bMaskDWord, value32 | (BIT(23) | BIT(25))); /* Reg4C[25]=1, Reg4C[23]=1 for pin output */
 	/* Pin Settings */
 	ODM_SetBBReg(dm_odm, ODM_REG_PIN_CTRL_11N, BIT(9) | BIT(8), 0);/* Reg870[8]=1'b0, Reg870[9]=1'b0		antsel antselb by HW */
@@ -62,9 +62,9 @@ static void odm_FastAntTrainingInit(struct odm_dm_struct *dm_odm)
 	u32	value32;
 
 	/* MAC Setting */
-	value32 = ODM_GetMACReg(dm_odm, 0x4c, bMaskDWord);
+	value32 = rtl8188e_PHY_QueryBBReg(adapter, 0x4c, bMaskDWord);
 	rtl8188e_PHY_SetBBReg(adapter, 0x4c, bMaskDWord, value32 | (BIT(23) | BIT(25))); /* Reg4C[25]=1, Reg4C[23]=1 for pin output */
-	value32 = ODM_GetMACReg(dm_odm,  0x7B4, bMaskDWord);
+	value32 = rtl8188e_PHY_QueryBBReg(adapter,  0x7B4, bMaskDWord);
 	rtl8188e_PHY_SetBBReg(adapter, 0x7b4, bMaskDWord, value32 | (BIT(16) | BIT(17))); /* Reg7B4[16]=1 enable antenna training, Reg7B4[17]=1 enable A2 match */
 
 	/* Match MAC ADDR */
