@@ -21,6 +21,7 @@
 #include <linux/module.h>
 #include <linux/mod_devicetable.h>
 #include <linux/platform_device.h>
+#include <linux/power/bq24190_charger.h>
 #include <linux/serdev.h>
 #include <linux/string.h>
 /* For gpio_get_desc() which is EXPORT_SYMBOL_GPL() */
@@ -152,6 +153,162 @@ struct x86_dev_info {
 	int serdev_count;
 };
 
+/* Generic / shared bq24190 settings */
+static const char * const bq24190_suppliers[] = { "tusb1210-psy" };
+
+static const struct property_entry bq24190_props[] = {
+	PROPERTY_ENTRY_STRING_ARRAY("supplied-from", bq24190_suppliers),
+	PROPERTY_ENTRY_BOOL("omit-battery-class"),
+	PROPERTY_ENTRY_BOOL("disable-reset"),
+	{ }
+};
+
+static const struct software_node bq24190_node = {
+	.properties = bq24190_props,
+};
+
+/* For enableing the bq24190 5V boost based on id-pin */
+static struct regulator_consumer_supply intel_int3496_consumer = {
+	.supply = "vbus",
+	.dev_name = "intel-int3496",
+};
+
+static const struct regulator_init_data bq24190_vbus_init_data = {
+	.constraints = {
+		.name = "bq24190_vbus",
+		.valid_ops_mask = REGULATOR_CHANGE_STATUS,
+	},
+	.consumer_supplies = &intel_int3496_consumer,
+	.num_consumer_supplies = 1,
+};
+
+static struct bq24190_platform_data bq24190_pdata = {
+	.regulator_init_data = &bq24190_vbus_init_data,
+};
+
+static const char * const bq24190_modules[] __initconst = {
+	"crystal_cove_charger", /* For the bq24190 IRQ */
+	"bq24190_charger",      /* For the Vbus regulator for intel-int3496 */
+	NULL
+};
+
+/* Generic pdevs array and gpio-lookups for micro USB ID pin handling */
+static const struct platform_device_info int3496_pdevs[] __initconst = {
+	{
+		/* For micro USB ID pin handling */
+		.name = "intel-int3496",
+		.id = PLATFORM_DEVID_NONE,
+	},
+};
+
+static struct gpiod_lookup_table int3496_gpo2_pin22_gpios = {
+	.dev_id = "intel-int3496",
+	.table = {
+		GPIO_LOOKUP("INT33FC:02", 22, "id", GPIO_ACTIVE_HIGH),
+		{ }
+	},
+};
+
+/* Asus TF103C tablets have an Android factory img with everything hardcoded */
+static const char * const asus_tf103c_accel_mount_matrix[] = {
+	"0", "-1", "0",
+	"-1", "0", "0",
+	"0", "0", "1"
+};
+
+static const struct property_entry asus_tf103c_accel_props[] = {
+	PROPERTY_ENTRY_STRING_ARRAY("mount-matrix", asus_tf103c_accel_mount_matrix),
+	{ }
+};
+
+static const struct software_node asus_tf103c_accel_node = {
+	.properties = asus_tf103c_accel_props,
+};
+
+static const struct property_entry asus_tf103c_touchscreen_props[] = {
+	PROPERTY_ENTRY_STRING("compatible", "atmel,atmel_mxt_ts"),
+	{ }
+};
+
+static const struct software_node asus_tf103c_touchscreen_node = {
+	.properties = asus_tf103c_touchscreen_props,
+};
+
+static const struct x86_i2c_client_info asus_tf103c_i2c_clients[] __initconst = {
+	{
+		/* bq24190 battery charger */
+		.board_info = {
+			.type = "bq24190",
+			.addr = 0x6b,
+			.dev_name = "bq24190",
+			.swnode = &bq24190_node,
+			.platform_data = &bq24190_pdata,
+		},
+		.adapter_path = "\\_SB_.I2C1",
+		.irq_data = {
+			.type = X86_ACPI_IRQ_TYPE_PMIC,
+			.chip = "\\_SB_.I2C7.PMIC",
+			.domain = DOMAIN_BUS_WAKEUP,
+			.index = 0,
+		},
+	}, {
+		/* ug3105 battery monitor */
+		.board_info = {
+			.type = "ug3105",
+			.addr = 0x70,
+			.dev_name = "ug3105",
+		},
+		.adapter_path = "\\_SB_.I2C1",
+	}, {
+		/* ak09911 compass */
+		.board_info = {
+			.type = "ak09911",
+			.addr = 0x0c,
+			.dev_name = "ak09911",
+		},
+		.adapter_path = "\\_SB_.I2C5",
+	}, {
+		/* kxtj21009 accel */
+		.board_info = {
+			.type = "kxtj21009",
+			.addr = 0x0f,
+			.dev_name = "kxtj21009",
+			.swnode = &asus_tf103c_accel_node,
+		},
+		.adapter_path = "\\_SB_.I2C5",
+	}, {
+		/* atmel touchscreen */
+		.board_info = {
+			.type = "atmel_mxt_ts",
+			.addr = 0x4a,
+			.dev_name = "atmel_mxt_ts",
+			.swnode = &asus_tf103c_touchscreen_node,
+		},
+		.adapter_path = "\\_SB_.I2C6",
+		.irq_data = {
+			.type = X86_ACPI_IRQ_TYPE_GPIOINT,
+			.chip = "INT33FC:02",
+			.index = 28,
+			.trigger = ACPI_EDGE_SENSITIVE,
+			.polarity = ACPI_ACTIVE_LOW,
+		},
+	},
+};
+
+static struct gpiod_lookup_table *asus_tf103c_gpios[] = {
+	&int3496_gpo2_pin22_gpios,
+	NULL
+};
+
+static const struct x86_dev_info asus_tf103c_info __initconst = {
+	.i2c_client_info = asus_tf103c_i2c_clients,
+	.i2c_client_count = ARRAY_SIZE(asus_tf103c_i2c_clients),
+	.pdev_info = int3496_pdevs,
+	.pdev_count = ARRAY_SIZE(int3496_pdevs),
+	.gpiod_lookup_tables = asus_tf103c_gpios,
+	.modules = bq24190_modules,
+};
+
 /*
  * When booted with the BIOS set to Android mode the Chuwi Hi8 (CWI509) DSDT
  * contains a whole bunch of bogus ACPI I2C devices and is missing entries
@@ -268,6 +425,14 @@ static const struct x86_dev_info xiaomi_mipad2_info __initconst = {
 };
 
 static const struct dmi_system_id x86_android_tablet_ids[] __initconst = {
+	{
+		/* Asus TF103C */
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "ASUSTeK COMPUTER INC."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "TF103C"),
+		},
+		.driver_data = (void *)&asus_tf103c_info,
+	},
 	{
 		/* Chuwi Hi8 (CWI509) */
 		.matches = {
