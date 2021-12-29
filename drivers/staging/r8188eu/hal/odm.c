@@ -429,6 +429,33 @@ static void odm_FalseAlarmCounterStatistics(struct odm_dm_struct *pDM_Odm)
 	FalseAlmCnt->Cnt_CCA_all = FalseAlmCnt->Cnt_OFDM_CCA + FalseAlmCnt->Cnt_CCK_CCA;
 }
 
+static void odm_CCKPacketDetectionThresh(struct odm_dm_struct *pDM_Odm)
+{
+	u8 CurCCK_CCAThres;
+	struct false_alarm_stats *FalseAlmCnt = &pDM_Odm->FalseAlmCnt;
+
+	if (!(pDM_Odm->SupportAbility & (ODM_BB_CCK_PD | ODM_BB_FA_CNT)))
+		return;
+	if (pDM_Odm->bLinked) {
+		if (pDM_Odm->RSSI_Min > 25) {
+			CurCCK_CCAThres = 0xcd;
+		} else if ((pDM_Odm->RSSI_Min <= 25) && (pDM_Odm->RSSI_Min > 10)) {
+			CurCCK_CCAThres = 0x83;
+		} else {
+			if (FalseAlmCnt->Cnt_Cck_fail > 1000)
+				CurCCK_CCAThres = 0x83;
+			else
+				CurCCK_CCAThres = 0x40;
+		}
+	} else {
+		if (FalseAlmCnt->Cnt_Cck_fail > 1000)
+			CurCCK_CCAThres = 0x83;
+		else
+			CurCCK_CCAThres = 0x40;
+	}
+	ODM_Write_CCK_CCA_Thres(pDM_Odm, CurCCK_CCAThres);
+}
+
 /* 3 Export Interface */
 
 /*  2011/09/21 MH Add to describe different team necessary resource allocate?? */
@@ -561,37 +588,6 @@ void ODM_Write_DIG(struct odm_dm_struct *pDM_Odm, u8 CurrentIGI)
 		rtl8188e_PHY_SetBBReg(adapter, ODM_REG_IGI_A_11N, ODM_BIT_IGI_11N, CurrentIGI);
 		pDM_DigTable->CurIGValue = CurrentIGI;
 	}
-}
-
-/* 3============================================================ */
-/* 3 CCK Packet Detect Threshold */
-/* 3============================================================ */
-
-void odm_CCKPacketDetectionThresh(struct odm_dm_struct *pDM_Odm)
-{
-	u8 CurCCK_CCAThres;
-	struct false_alarm_stats *FalseAlmCnt = &pDM_Odm->FalseAlmCnt;
-
-	if (!(pDM_Odm->SupportAbility & (ODM_BB_CCK_PD | ODM_BB_FA_CNT)))
-		return;
-	if (pDM_Odm->bLinked) {
-		if (pDM_Odm->RSSI_Min > 25) {
-			CurCCK_CCAThres = 0xcd;
-		} else if ((pDM_Odm->RSSI_Min <= 25) && (pDM_Odm->RSSI_Min > 10)) {
-			CurCCK_CCAThres = 0x83;
-		} else {
-			if (FalseAlmCnt->Cnt_Cck_fail > 1000)
-				CurCCK_CCAThres = 0x83;
-			else
-				CurCCK_CCAThres = 0x40;
-		}
-	} else {
-		if (FalseAlmCnt->Cnt_Cck_fail > 1000)
-			CurCCK_CCAThres = 0x83;
-		else
-			CurCCK_CCAThres = 0x40;
-	}
-	ODM_Write_CCK_CCA_Thres(pDM_Odm, CurCCK_CCAThres);
 }
 
 void ODM_Write_CCK_CCA_Thres(struct odm_dm_struct *pDM_Odm, u8 CurCCK_CCAThres)
