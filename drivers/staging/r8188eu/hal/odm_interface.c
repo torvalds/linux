@@ -4,8 +4,3 @@
 #include "../include/odm_precomp.h"
 /*  ODM IO Relative API. */
 
-/*  ODM Memory relative API. */
-s32 ODM_CompareMemory(struct odm_dm_struct *pDM_Odm, void *pBuf1, void *pBuf2, u32 length)
-{
-	return !memcmp(pBuf1, pBuf2, length);
-}
