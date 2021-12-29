@@ -20,6 +20,7 @@
 #include <linux/irqdomain.h>
 #include <linux/module.h>
 #include <linux/mod_devicetable.h>
+#include <linux/platform_device.h>
 #include <linux/string.h>
 /* For gpio_get_desc() which is EXPORT_SYMBOL_GPL() */
 #include "../../gpio/gpiolib.h"
@@ -128,7 +129,9 @@ struct x86_i2c_client_info {
 
 struct x86_dev_info {
 	const struct x86_i2c_client_info *i2c_client_info;
+	const struct platform_device_info *pdev_info;
 	int i2c_client_count;
+	int pdev_count;
 };
 
 /*
@@ -269,7 +272,9 @@ static const struct dmi_system_id x86_android_tablet_ids[] __initconst = {
 MODULE_DEVICE_TABLE(dmi, x86_android_tablet_ids);
 
 static int i2c_client_count;
+static int pdev_count;
 static struct i2c_client **i2c_clients;
+static struct platform_device **pdevs;
 
 static __init int x86_instantiate_i2c_client(const struct x86_dev_info *dev_info,
 					     int idx)
@@ -309,6 +314,11 @@ static void x86_android_tablet_cleanup(void)
 {
 	int i;
 
+	for (i = 0; i < pdev_count; i++)
+		platform_device_unregister(pdevs[i]);
+
+	kfree(pdevs);
+
 	for (i = 0; i < i2c_client_count; i++)
 		i2c_unregister_device(i2c_clients[i]);
 
@@ -327,21 +337,35 @@ static __init int x86_android_tablet_init(void)
 
 	dev_info = id->driver_data;
 
-	i2c_client_count = dev_info->i2c_client_count;
-
-	i2c_clients = kcalloc(i2c_client_count, sizeof(*i2c_clients), GFP_KERNEL);
+	i2c_clients = kcalloc(dev_info->i2c_client_count, sizeof(*i2c_clients), GFP_KERNEL);
 	if (!i2c_clients)
 		return -ENOMEM;
 
-	for (i = 0; i < dev_info->i2c_client_count; i++) {
+	i2c_client_count = dev_info->i2c_client_count;
+	for (i = 0; i < i2c_client_count; i++) {
 		ret = x86_instantiate_i2c_client(dev_info, i);
 		if (ret < 0) {
 			x86_android_tablet_cleanup();
-			break;
+			return ret;
 		}
 	}
 
-	return ret;
+	pdevs = kcalloc(dev_info->pdev_count, sizeof(*pdevs), GFP_KERNEL);
+	if (!pdevs) {
+		x86_android_tablet_cleanup();
+		return -ENOMEM;
+	}
+
+	pdev_count = dev_info->pdev_count;
+	for (i = 0; i < pdev_count; i++) {
+		pdevs[i] = platform_device_register_full(&dev_info->pdev_info[i]);
+		if (IS_ERR(pdevs[i])) {
+			x86_android_tablet_cleanup();
+			return PTR_ERR(pdevs[i]);
+		}
+	}
+
+	return 0;
 }
 
 module_init(x86_android_tablet_init);
