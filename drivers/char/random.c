@@ -2301,6 +2301,7 @@ void add_hwgenerator_randomness(const char *buffer, size_t count,
 
 	if (unlikely(crng_init == 0)) {
 		size_t ret = crng_fast_load(buffer, count);
+		mix_pool_bytes(poolp, buffer, ret);
 		count -= ret;
 		buffer += ret;
 		if (!count || crng_init == 0)
