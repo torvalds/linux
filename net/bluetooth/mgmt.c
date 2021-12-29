@@ -335,6 +335,12 @@ static int mgmt_event(u16 event, struct hci_dev *hdev, void *data, u16 len,
 			       HCI_SOCK_TRUSTED, skip_sk);
 }
 
+static int mgmt_event_skb(struct sk_buff *skb, struct sock *skip_sk)
+{
+	return mgmt_send_event_skb(HCI_CHANNEL_CONTROL, skb, HCI_SOCK_TRUSTED,
+				   skip_sk);
+}
+
 static u8 le_addr_type(u8 mgmt_addr_type)
 {
 	if (mgmt_addr_type == BDADDR_LE_PUBLIC)
@@ -3876,7 +3882,7 @@ static const u8 offload_codecs_uuid[16] = {
 };
 
 /* 671b10b5-42c0-4696-9227-eb28d1b049d6 */
-static const u8 simult_central_periph_uuid[16] = {
+static const u8 le_simultaneous_roles_uuid[16] = {
 	0xd6, 0x49, 0xb0, 0xd1, 0x28, 0xeb, 0x27, 0x92,
 	0x96, 0x46, 0xc0, 0x42, 0xb5, 0x10, 0x1b, 0x67,
 };
@@ -3909,16 +3915,13 @@ static int read_exp_features_info(struct sock *sk, struct hci_dev *hdev,
 	}
 #endif
 
-	if (hdev) {
-		if (test_bit(HCI_QUIRK_VALID_LE_STATES, &hdev->quirks) &&
-		    (hdev->le_states[4] & 0x08) &&	/* Central */
-		    (hdev->le_states[4] & 0x40) &&	/* Peripheral */
-		    (hdev->le_states[3] & 0x10))	/* Simultaneous */
+	if (hdev && hci_dev_le_state_simultaneous(hdev)) {
+		if (hci_dev_test_flag(hdev, HCI_LE_SIMULTANEOUS_ROLES))
 			flags = BIT(0);
 		else
 			flags = 0;
 
-		memcpy(rp->features[idx].uuid, simult_central_periph_uuid, 16);
+		memcpy(rp->features[idx].uuid, le_simultaneous_roles_uuid, 16);
 		rp->features[idx].flags = cpu_to_le32(flags);
 		idx++;
 	}
@@ -3978,35 +3981,24 @@ static int exp_ll_privacy_feature_changed(bool enabled, struct hci_dev *hdev,
 	memcpy(ev.uuid, rpa_resolution_uuid, 16);
 	ev.flags = cpu_to_le32((enabled ? BIT(0) : 0) | BIT(1));
 
+	if (enabled && privacy_mode_capable(hdev))
+		set_bit(HCI_CONN_FLAG_DEVICE_PRIVACY, hdev->conn_flags);
+	else
+		clear_bit(HCI_CONN_FLAG_DEVICE_PRIVACY, hdev->conn_flags);
+
 	return mgmt_limited_event(MGMT_EV_EXP_FEATURE_CHANGED, hdev,
 				  &ev, sizeof(ev),
 				  HCI_MGMT_EXP_FEATURE_EVENTS, skip);
 
 }
 
-#ifdef CONFIG_BT_FEATURE_DEBUG
-static int exp_debug_feature_changed(bool enabled, struct sock *skip)
+static int exp_feature_changed(struct hci_dev *hdev, const u8 *uuid,
+			       bool enabled, struct sock *skip)
 {
 	struct mgmt_ev_exp_feature_changed ev;
 
 	memset(&ev, 0, sizeof(ev));
-	memcpy(ev.uuid, debug_uuid, 16);
-	ev.flags = cpu_to_le32(enabled ? BIT(0) : 0);
-
-	return mgmt_limited_event(MGMT_EV_EXP_FEATURE_CHANGED, NULL,
-				  &ev, sizeof(ev),
-				  HCI_MGMT_EXP_FEATURE_EVENTS, skip);
-}
-#endif
-
-static int exp_quality_report_feature_changed(bool enabled,
-					      struct hci_dev *hdev,
-					      struct sock *skip)
-{
-	struct mgmt_ev_exp_feature_changed ev;
-
-	memset(&ev, 0, sizeof(ev));
-	memcpy(ev.uuid, quality_report_uuid, 16);
+	memcpy(ev.uuid, uuid, 16);
 	ev.flags = cpu_to_le32(enabled ? BIT(0) : 0);
 
 	return mgmt_limited_event(MGMT_EV_EXP_FEATURE_CHANGED, hdev,
@@ -4036,17 +4028,18 @@ static int set_zero_key_func(struct sock *sk, struct hci_dev *hdev,
 		bt_dbg_set(false);
 
 		if (changed)
-			exp_debug_feature_changed(false, sk);
+			exp_feature_changed(NULL, ZERO_KEY, false, sk);
 	}
 #endif
 
 	if (hdev && use_ll_privacy(hdev) && !hdev_is_powered(hdev)) {
-		bool changed = hci_dev_test_flag(hdev, HCI_ENABLE_LL_PRIVACY);
+		bool changed;
 
-		hci_dev_clear_flag(hdev, HCI_ENABLE_LL_PRIVACY);
-
+		changed = hci_dev_test_and_clear_flag(hdev,
+						      HCI_ENABLE_LL_PRIVACY);
 		if (changed)
-			exp_ll_privacy_feature_changed(false, hdev, sk);
+			exp_feature_changed(hdev, rpa_resolution_uuid, false,
+					    sk);
 	}
 
 	hci_sock_set_flag(sk, HCI_MGMT_EXP_FEATURE_EVENTS);
@@ -4097,7 +4090,7 @@ static int set_debug_func(struct sock *sk, struct hci_dev *hdev,
 				&rp, sizeof(rp));
 
 	if (changed)
-		exp_debug_feature_changed(val, sk);
+		exp_feature_changed(hdev, debug_uuid, val, sk);
 
 	return err;
 }
@@ -4139,15 +4132,15 @@ static int set_rpa_resolution_func(struct sock *sk, struct hci_dev *hdev,
 	val = !!cp->param[0];
 
 	if (val) {
-		changed = !hci_dev_test_flag(hdev, HCI_ENABLE_LL_PRIVACY);
-		hci_dev_set_flag(hdev, HCI_ENABLE_LL_PRIVACY);
+		changed = !hci_dev_test_and_set_flag(hdev,
+						     HCI_ENABLE_LL_PRIVACY);
 		hci_dev_clear_flag(hdev, HCI_ADVERTISING);
 
 		/* Enable LL privacy + supported settings changed */
 		flags = BIT(0) | BIT(1);
 	} else {
-		changed = hci_dev_test_flag(hdev, HCI_ENABLE_LL_PRIVACY);
-		hci_dev_clear_flag(hdev, HCI_ENABLE_LL_PRIVACY);
+		changed = hci_dev_test_and_clear_flag(hdev,
+						      HCI_ENABLE_LL_PRIVACY);
 
 		/* Disable LL privacy + supported settings changed */
 		flags = BIT(1);
@@ -4235,25 +4228,11 @@ static int set_quality_report_func(struct sock *sk, struct hci_dev *hdev,
 				&rp, sizeof(rp));
 
 	if (changed)
-		exp_quality_report_feature_changed(val, hdev, sk);
+		exp_feature_changed(hdev, quality_report_uuid, val, sk);
 
 unlock_quality_report:
 	hci_req_sync_unlock(hdev);
 	return err;
-}
-
-static int exp_offload_codec_feature_changed(bool enabled, struct hci_dev *hdev,
-					     struct sock *skip)
-{
-	struct mgmt_ev_exp_feature_changed ev;
-
-	memset(&ev, 0, sizeof(ev));
-	memcpy(ev.uuid, offload_codecs_uuid, 16);
-	ev.flags = cpu_to_le32(enabled ? BIT(0) : 0);
-
-	return mgmt_limited_event(MGMT_EV_EXP_FEATURE_CHANGED, hdev,
-				  &ev, sizeof(ev),
-				  HCI_MGMT_EXP_FEATURE_EVENTS, skip);
 }
 
 static int set_offload_codec_func(struct sock *sk, struct hci_dev *hdev,
@@ -4309,7 +4288,65 @@ static int set_offload_codec_func(struct sock *sk, struct hci_dev *hdev,
 				&rp, sizeof(rp));
 
 	if (changed)
-		exp_offload_codec_feature_changed(val, hdev, sk);
+		exp_feature_changed(hdev, offload_codecs_uuid, val, sk);
+
+	return err;
+}
+
+static int set_le_simultaneous_roles_func(struct sock *sk, struct hci_dev *hdev,
+					  struct mgmt_cp_set_exp_feature *cp,
+					  u16 data_len)
+{
+	bool val, changed;
+	int err;
+	struct mgmt_rp_set_exp_feature rp;
+
+	/* Command requires to use a valid controller index */
+	if (!hdev)
+		return mgmt_cmd_status(sk, MGMT_INDEX_NONE,
+				       MGMT_OP_SET_EXP_FEATURE,
+				       MGMT_STATUS_INVALID_INDEX);
+
+	/* Parameters are limited to a single octet */
+	if (data_len != MGMT_SET_EXP_FEATURE_SIZE + 1)
+		return mgmt_cmd_status(sk, hdev->id,
+				       MGMT_OP_SET_EXP_FEATURE,
+				       MGMT_STATUS_INVALID_PARAMS);
+
+	/* Only boolean on/off is supported */
+	if (cp->param[0] != 0x00 && cp->param[0] != 0x01)
+		return mgmt_cmd_status(sk, hdev->id,
+				       MGMT_OP_SET_EXP_FEATURE,
+				       MGMT_STATUS_INVALID_PARAMS);
+
+	val = !!cp->param[0];
+	changed = (val != hci_dev_test_flag(hdev, HCI_LE_SIMULTANEOUS_ROLES));
+
+	if (!hci_dev_le_state_simultaneous(hdev)) {
+		return mgmt_cmd_status(sk, hdev->id,
+				       MGMT_OP_SET_EXP_FEATURE,
+				       MGMT_STATUS_NOT_SUPPORTED);
+	}
+
+	if (changed) {
+		if (val)
+			hci_dev_set_flag(hdev, HCI_LE_SIMULTANEOUS_ROLES);
+		else
+			hci_dev_clear_flag(hdev, HCI_LE_SIMULTANEOUS_ROLES);
+	}
+
+	bt_dev_info(hdev, "LE simultaneous roles enable %d changed %d",
+		    val, changed);
+
+	memcpy(rp.uuid, le_simultaneous_roles_uuid, 16);
+	rp.flags = cpu_to_le32(val ? BIT(0) : 0);
+	hci_sock_set_flag(sk, HCI_MGMT_EXP_FEATURE_EVENTS);
+	err = mgmt_cmd_complete(sk, hdev->id,
+				MGMT_OP_SET_EXP_FEATURE, 0,
+				&rp, sizeof(rp));
+
+	if (changed)
+		exp_feature_changed(hdev, le_simultaneous_roles_uuid, val, sk);
 
 	return err;
 }
@@ -4326,6 +4363,7 @@ static const struct mgmt_exp_feature {
 	EXP_FEAT(rpa_resolution_uuid, set_rpa_resolution_func),
 	EXP_FEAT(quality_report_uuid, set_quality_report_func),
 	EXP_FEAT(offload_codecs_uuid, set_offload_codec_func),
+	EXP_FEAT(le_simultaneous_roles_uuid, set_le_simultaneous_roles_func),
 
 	/* end with a null feature */
 	EXP_FEAT(NULL, NULL)
@@ -4349,8 +4387,6 @@ static int set_exp_feature(struct sock *sk, struct hci_dev *hdev,
 			       MGMT_STATUS_NOT_SUPPORTED);
 }
 
-#define SUPPORTED_DEVICE_FLAGS() ((1U << HCI_CONN_FLAG_MAX) - 1)
-
 static int get_device_flags(struct sock *sk, struct hci_dev *hdev, void *data,
 			    u16 data_len)
 {
@@ -4358,7 +4394,7 @@ static int get_device_flags(struct sock *sk, struct hci_dev *hdev, void *data,
 	struct mgmt_rp_get_device_flags rp;
 	struct bdaddr_list_with_flags *br_params;
 	struct hci_conn_params *params;
-	u32 supported_flags = SUPPORTED_DEVICE_FLAGS();
+	u32 supported_flags;
 	u32 current_flags = 0;
 	u8 status = MGMT_STATUS_INVALID_PARAMS;
 
@@ -4366,6 +4402,9 @@ static int get_device_flags(struct sock *sk, struct hci_dev *hdev, void *data,
 		   &cp->addr.bdaddr, cp->addr.type);
 
 	hci_dev_lock(hdev);
+
+	bitmap_to_arr32(&supported_flags, hdev->conn_flags,
+			__HCI_CONN_NUM_FLAGS);
 
 	memset(&rp, 0, sizeof(rp));
 
@@ -4376,7 +4415,8 @@ static int get_device_flags(struct sock *sk, struct hci_dev *hdev, void *data,
 		if (!br_params)
 			goto done;
 
-		current_flags = br_params->current_flags;
+		bitmap_to_arr32(&current_flags, br_params->flags,
+				__HCI_CONN_NUM_FLAGS);
 	} else {
 		params = hci_conn_params_lookup(hdev, &cp->addr.bdaddr,
 						le_addr_type(cp->addr.type));
@@ -4384,7 +4424,8 @@ static int get_device_flags(struct sock *sk, struct hci_dev *hdev, void *data,
 		if (!params)
 			goto done;
 
-		current_flags = params->current_flags;
+		bitmap_to_arr32(&current_flags, params->flags,
+				__HCI_CONN_NUM_FLAGS);
 	}
 
 	bacpy(&rp.addr.bdaddr, &cp->addr.bdaddr);
@@ -4422,12 +4463,15 @@ static int set_device_flags(struct sock *sk, struct hci_dev *hdev, void *data,
 	struct bdaddr_list_with_flags *br_params;
 	struct hci_conn_params *params;
 	u8 status = MGMT_STATUS_INVALID_PARAMS;
-	u32 supported_flags = SUPPORTED_DEVICE_FLAGS();
+	u32 supported_flags;
 	u32 current_flags = __le32_to_cpu(cp->current_flags);
 
 	bt_dev_dbg(hdev, "Set device flags %pMR (type 0x%x) = 0x%x",
 		   &cp->addr.bdaddr, cp->addr.type,
 		   __le32_to_cpu(current_flags));
+
+	bitmap_to_arr32(&supported_flags, hdev->conn_flags,
+			__HCI_CONN_NUM_FLAGS);
 
 	if ((supported_flags | current_flags) != supported_flags) {
 		bt_dev_warn(hdev, "Bad flag given (0x%x) vs supported (0x%0x)",
@@ -4443,7 +4487,7 @@ static int set_device_flags(struct sock *sk, struct hci_dev *hdev, void *data,
 							      cp->addr.type);
 
 		if (br_params) {
-			br_params->current_flags = current_flags;
+			bitmap_from_u64(br_params->flags, current_flags);
 			status = MGMT_STATUS_SUCCESS;
 		} else {
 			bt_dev_warn(hdev, "No such BR/EDR device %pMR (0x%x)",
@@ -4453,8 +4497,15 @@ static int set_device_flags(struct sock *sk, struct hci_dev *hdev, void *data,
 		params = hci_conn_params_lookup(hdev, &cp->addr.bdaddr,
 						le_addr_type(cp->addr.type));
 		if (params) {
-			params->current_flags = current_flags;
+			bitmap_from_u64(params->flags, current_flags);
 			status = MGMT_STATUS_SUCCESS;
+
+			/* Update passive scan if HCI_CONN_FLAG_DEVICE_PRIVACY
+			 * has been set.
+			 */
+			if (test_bit(HCI_CONN_FLAG_DEVICE_PRIVACY,
+				     params->flags))
+				hci_update_passive_scan(hdev);
 		} else {
 			bt_dev_warn(hdev, "No such LE device %pMR (0x%x)",
 				    &cp->addr.bdaddr,
@@ -6979,6 +7030,7 @@ static int add_device(struct sock *sk, struct hci_dev *hdev,
 	struct hci_conn_params *params;
 	int err;
 	u32 current_flags = 0;
+	u32 supported_flags;
 
 	bt_dev_dbg(hdev, "sock %p", sk);
 
@@ -7050,7 +7102,8 @@ static int add_device(struct sock *sk, struct hci_dev *hdev,
 		params = hci_conn_params_lookup(hdev, &cp->addr.bdaddr,
 						addr_type);
 		if (params)
-			current_flags = params->current_flags;
+			bitmap_to_arr32(&current_flags, params->flags,
+					__HCI_CONN_NUM_FLAGS);
 	}
 
 	err = hci_cmd_sync_queue(hdev, add_device_sync, NULL, NULL);
@@ -7059,8 +7112,10 @@ static int add_device(struct sock *sk, struct hci_dev *hdev,
 
 added:
 	device_added(sk, hdev, &cp->addr.bdaddr, cp->addr.type, cp->action);
+	bitmap_to_arr32(&supported_flags, hdev->conn_flags,
+			__HCI_CONN_NUM_FLAGS);
 	device_flags_changed(NULL, hdev, &cp->addr.bdaddr, cp->addr.type,
-			     SUPPORTED_DEVICE_FLAGS(), current_flags);
+			     supported_flags, current_flags);
 
 	err = mgmt_cmd_complete(sk, hdev->id, MGMT_OP_ADD_DEVICE,
 				MGMT_STATUS_SUCCESS, &cp->addr,
@@ -8999,11 +9054,19 @@ void mgmt_new_conn_param(struct hci_dev *hdev, bdaddr_t *bdaddr,
 void mgmt_device_connected(struct hci_dev *hdev, struct hci_conn *conn,
 			   u8 *name, u8 name_len)
 {
-	char buf[512];
-	struct mgmt_ev_device_connected *ev = (void *) buf;
+	struct sk_buff *skb;
+	struct mgmt_ev_device_connected *ev;
 	u16 eir_len = 0;
 	u32 flags = 0;
 
+	if (conn->le_adv_data_len > 0)
+		skb = mgmt_alloc_skb(hdev, MGMT_EV_DEVICE_CONNECTED,
+				     conn->le_adv_data_len);
+	else
+		skb = mgmt_alloc_skb(hdev, MGMT_EV_DEVICE_CONNECTED,
+				     2 + name_len + 5);
+
+	ev = skb_put(skb, sizeof(*ev));
 	bacpy(&ev->addr.bdaddr, &conn->dst);
 	ev->addr.type = link_to_bdaddr(conn->type, conn->dst_type);
 
@@ -9017,24 +9080,26 @@ void mgmt_device_connected(struct hci_dev *hdev, struct hci_conn *conn,
 	 * adding any BR/EDR data to the LE adv.
 	 */
 	if (conn->le_adv_data_len > 0) {
-		memcpy(&ev->eir[eir_len],
-		       conn->le_adv_data, conn->le_adv_data_len);
+		skb_put_data(skb, conn->le_adv_data, conn->le_adv_data_len);
 		eir_len = conn->le_adv_data_len;
 	} else {
-		if (name_len > 0)
+		if (name_len > 0) {
 			eir_len = eir_append_data(ev->eir, 0, EIR_NAME_COMPLETE,
 						  name, name_len);
+			skb_put(skb, eir_len);
+		}
 
-		if (memcmp(conn->dev_class, "\0\0\0", 3) != 0)
+		if (memcmp(conn->dev_class, "\0\0\0", 3) != 0) {
 			eir_len = eir_append_data(ev->eir, eir_len,
 						  EIR_CLASS_OF_DEV,
 						  conn->dev_class, 3);
+			skb_put(skb, 5);
+		}
 	}
 
 	ev->eir_len = cpu_to_le16(eir_len);
 
-	mgmt_event(MGMT_EV_DEVICE_CONNECTED, hdev, buf,
-		    sizeof(*ev) + eir_len, NULL);
+	mgmt_event_skb(skb, NULL);
 }
 
 static void disconnect_rsp(struct mgmt_pending_cmd *cmd, void *data)
@@ -9528,9 +9593,8 @@ void mgmt_device_found(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 link_type,
 		       u8 addr_type, u8 *dev_class, s8 rssi, u32 flags,
 		       u8 *eir, u16 eir_len, u8 *scan_rsp, u8 scan_rsp_len)
 {
-	char buf[512];
-	struct mgmt_ev_device_found *ev = (void *)buf;
-	size_t ev_size;
+	struct sk_buff *skb;
+	struct mgmt_ev_device_found *ev;
 
 	/* Don't send events for a non-kernel initiated discovery. With
 	 * LE one exception is if we have pend_le_reports > 0 in which
@@ -9565,13 +9629,13 @@ void mgmt_device_found(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 link_type,
 		}
 	}
 
-	/* Make sure that the buffer is big enough. The 5 extra bytes
-	 * are for the potential CoD field.
-	 */
-	if (sizeof(*ev) + eir_len + scan_rsp_len + 5 > sizeof(buf))
+	/* Allocate skb. The 5 extra bytes are for the potential CoD field */
+	skb = mgmt_alloc_skb(hdev, MGMT_EV_DEVICE_FOUND,
+			     sizeof(*ev) + eir_len + scan_rsp_len + 5);
+	if (!skb)
 		return;
 
-	memset(buf, 0, sizeof(buf));
+	ev = skb_put(skb, sizeof(*ev));
 
 	/* In case of device discovery with BR/EDR devices (pre 1.2), the
 	 * RSSI value was reported as 0 when not available. This behavior
@@ -9592,44 +9656,57 @@ void mgmt_device_found(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 link_type,
 
 	if (eir_len > 0)
 		/* Copy EIR or advertising data into event */
-		memcpy(ev->eir, eir, eir_len);
+		skb_put_data(skb, eir, eir_len);
 
-	if (dev_class && !eir_get_data(ev->eir, eir_len, EIR_CLASS_OF_DEV,
-				       NULL))
-		eir_len = eir_append_data(ev->eir, eir_len, EIR_CLASS_OF_DEV,
-					  dev_class, 3);
+	if (dev_class && !eir_get_data(eir, eir_len, EIR_CLASS_OF_DEV, NULL)) {
+		u8 eir_cod[5];
+
+		eir_len += eir_append_data(eir_cod, 0, EIR_CLASS_OF_DEV,
+					   dev_class, 3);
+		skb_put_data(skb, eir_cod, sizeof(eir_cod));
+	}
 
 	if (scan_rsp_len > 0)
 		/* Append scan response data to event */
-		memcpy(ev->eir + eir_len, scan_rsp, scan_rsp_len);
+		skb_put_data(skb, scan_rsp, scan_rsp_len);
 
 	ev->eir_len = cpu_to_le16(eir_len + scan_rsp_len);
-	ev_size = sizeof(*ev) + eir_len + scan_rsp_len;
 
-	mgmt_event(MGMT_EV_DEVICE_FOUND, hdev, ev, ev_size, NULL);
+	mgmt_event_skb(skb, NULL);
 }
 
 void mgmt_remote_name(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 link_type,
 		      u8 addr_type, s8 rssi, u8 *name, u8 name_len)
 {
+	struct sk_buff *skb;
 	struct mgmt_ev_device_found *ev;
-	char buf[sizeof(*ev) + HCI_MAX_NAME_LENGTH + 2];
 	u16 eir_len;
+	u32 flags;
 
-	ev = (struct mgmt_ev_device_found *) buf;
+	if (name_len)
+		skb = mgmt_alloc_skb(hdev, MGMT_EV_DEVICE_FOUND, 2 + name_len);
+	else
+		skb = mgmt_alloc_skb(hdev, MGMT_EV_DEVICE_FOUND, 0);
 
-	memset(buf, 0, sizeof(buf));
-
+	ev = skb_put(skb, sizeof(*ev));
 	bacpy(&ev->addr.bdaddr, bdaddr);
 	ev->addr.type = link_to_bdaddr(link_type, addr_type);
 	ev->rssi = rssi;
 
-	eir_len = eir_append_data(ev->eir, 0, EIR_NAME_COMPLETE, name,
-				  name_len);
+	if (name) {
+		eir_len = eir_append_data(ev->eir, 0, EIR_NAME_COMPLETE, name,
+					  name_len);
+		flags = 0;
+		skb_put(skb, eir_len);
+	} else {
+		eir_len = 0;
+		flags = MGMT_DEV_FOUND_NAME_REQUEST_FAILED;
+	}
 
 	ev->eir_len = cpu_to_le16(eir_len);
+	ev->flags = cpu_to_le32(flags);
 
-	mgmt_event(MGMT_EV_DEVICE_FOUND, hdev, ev, sizeof(*ev) + eir_len, NULL);
+	mgmt_event_skb(skb, NULL);
 }
 
 void mgmt_discovering(struct hci_dev *hdev, u8 discovering)

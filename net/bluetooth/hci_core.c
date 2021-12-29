@@ -2153,7 +2153,7 @@ int hci_bdaddr_list_add_with_flags(struct list_head *list, bdaddr_t *bdaddr,
 
 	bacpy(&entry->bdaddr, bdaddr);
 	entry->bdaddr_type = type;
-	entry->current_flags = flags;
+	bitmap_from_u64(entry->flags, flags);
 
 	list_add(&entry->list, list);
 
@@ -2629,6 +2629,12 @@ int hci_register_dev(struct hci_dev *hdev)
 	if (test_bit(HCI_QUIRK_RAW_DEVICE, &hdev->quirks))
 		hci_dev_set_flag(hdev, HCI_UNCONFIGURED);
 
+	/* Mark Remote Wakeup connection flag as supported if driver has wakeup
+	 * callback.
+	 */
+	if (hdev->wakeup)
+		set_bit(HCI_CONN_FLAG_REMOTE_WAKEUP, hdev->conn_flags);
+
 	hci_sock_dev_event(hdev, HCI_DEV_REG);
 	hci_dev_hold(hdev);
 
@@ -2906,7 +2912,7 @@ int hci_unregister_cb(struct hci_cb *cb)
 }
 EXPORT_SYMBOL(hci_unregister_cb);
 
-static void hci_send_frame(struct hci_dev *hdev, struct sk_buff *skb)
+static int hci_send_frame(struct hci_dev *hdev, struct sk_buff *skb)
 {
 	int err;
 
@@ -2929,14 +2935,17 @@ static void hci_send_frame(struct hci_dev *hdev, struct sk_buff *skb)
 
 	if (!test_bit(HCI_RUNNING, &hdev->flags)) {
 		kfree_skb(skb);
-		return;
+		return -EINVAL;
 	}
 
 	err = hdev->send(hdev, skb);
 	if (err < 0) {
 		bt_dev_err(hdev, "sending frame failed (%d)", err);
 		kfree_skb(skb);
+		return err;
 	}
+
+	return 0;
 }
 
 /* Send HCI command */
@@ -3843,10 +3852,15 @@ static void hci_cmd_work(struct work_struct *work)
 
 		hdev->sent_cmd = skb_clone(skb, GFP_KERNEL);
 		if (hdev->sent_cmd) {
+			int res;
 			if (hci_req_status_pend(hdev))
 				hci_dev_set_flag(hdev, HCI_CMD_PENDING);
 			atomic_dec(&hdev->cmd_cnt);
-			hci_send_frame(hdev, skb);
+
+			res = hci_send_frame(hdev, skb);
+			if (res < 0)
+				__hci_cmd_sync_cancel(hdev, -res);
+
 			if (test_bit(HCI_RESET, &hdev->flags))
 				cancel_delayed_work(&hdev->cmd_timer);
 			else

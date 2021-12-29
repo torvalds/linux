@@ -64,7 +64,6 @@ int hci_req_sync(struct hci_dev *hdev, int (*req)(struct hci_request *req,
 int __hci_req_sync(struct hci_dev *hdev, int (*func)(struct hci_request *req,
 						     unsigned long opt),
 		   unsigned long opt, u32 timeout, u8 *hci_status);
-void hci_req_sync_cancel(struct hci_dev *hdev, int err);
 
 struct sk_buff *hci_prepare_cmd(struct hci_dev *hdev, u16 opcode, u32 plen,
 				const void *param);
@@ -81,8 +80,6 @@ void hci_req_add_le_passive_scan(struct hci_request *req);
 void hci_req_prepare_suspend(struct hci_dev *hdev, enum suspended_state next);
 
 void hci_req_disable_address_resolution(struct hci_dev *hdev);
-void __hci_req_pause_adv_instances(struct hci_request *req);
-int hci_req_resume_adv_instances(struct hci_dev *hdev);
 void hci_req_reenable_advertising(struct hci_dev *hdev);
 void __hci_req_enable_advertising(struct hci_request *req);
 void __hci_req_disable_advertising(struct hci_request *req);

@@ -111,17 +111,6 @@ void hci_req_sync_complete(struct hci_dev *hdev, u8 result, u16 opcode,
 	}
 }
 
-void hci_req_sync_cancel(struct hci_dev *hdev, int err)
-{
-	bt_dev_dbg(hdev, "err 0x%2.2x", err);
-
-	if (hdev->req_status == HCI_REQ_PEND) {
-		hdev->req_result = err;
-		hdev->req_status = HCI_REQ_CANCELED;
-		wake_up_interruptible(&hdev->req_wait_q);
-	}
-}
-
 /* Execute request and wait for completion. */
 int __hci_req_sync(struct hci_dev *hdev, int (*func)(struct hci_request *req,
 						     unsigned long opt),
@@ -492,8 +481,8 @@ static int add_to_accept_list(struct hci_request *req,
 	}
 
 	/* During suspend, only wakeable devices can be in accept list */
-	if (hdev->suspended && !hci_conn_test_flag(HCI_CONN_FLAG_REMOTE_WAKEUP,
-						   params->current_flags))
+	if (hdev->suspended &&
+	    !test_bit(HCI_CONN_FLAG_REMOTE_WAKEUP, params->flags))
 		return 0;
 
 	*num_entries += 1;
@@ -827,56 +816,6 @@ static void cancel_adv_timeout(struct hci_dev *hdev)
 		hdev->adv_instance_timeout = 0;
 		cancel_delayed_work(&hdev->adv_instance_expire);
 	}
-}
-
-/* This function requires the caller holds hdev->lock */
-void __hci_req_pause_adv_instances(struct hci_request *req)
-{
-	bt_dev_dbg(req->hdev, "Pausing advertising instances");
-
-	/* Call to disable any advertisements active on the controller.
-	 * This will succeed even if no advertisements are configured.
-	 */
-	__hci_req_disable_advertising(req);
-
-	/* If we are using software rotation, pause the loop */
-	if (!ext_adv_capable(req->hdev))
-		cancel_adv_timeout(req->hdev);
-}
-
-/* This function requires the caller holds hdev->lock */
-static void __hci_req_resume_adv_instances(struct hci_request *req)
-{
-	struct adv_info *adv;
-
-	bt_dev_dbg(req->hdev, "Resuming advertising instances");
-
-	if (ext_adv_capable(req->hdev)) {
-		/* Call for each tracked instance to be re-enabled */
-		list_for_each_entry(adv, &req->hdev->adv_instances, list) {
-			__hci_req_enable_ext_advertising(req,
-							 adv->instance);
-		}
-
-	} else {
-		/* Schedule for most recent instance to be restarted and begin
-		 * the software rotation loop
-		 */
-		__hci_req_schedule_adv_instance(req,
-						req->hdev->cur_adv_instance,
-						true);
-	}
-}
-
-/* This function requires the caller holds hdev->lock */
-int hci_req_resume_adv_instances(struct hci_dev *hdev)
-{
-	struct hci_request req;
-
-	hci_req_init(&req, hdev);
-	__hci_req_resume_adv_instances(&req);
-
-	return hci_req_run(&req, NULL);
 }
 
 static bool adv_cur_instance_is_scannable(struct hci_dev *hdev)
@@ -2703,7 +2642,7 @@ void hci_request_setup(struct hci_dev *hdev)
 
 void hci_request_cancel_all(struct hci_dev *hdev)
 {
-	hci_req_sync_cancel(hdev, ENODEV);
+	__hci_cmd_sync_cancel(hdev, ENODEV);
 
 	cancel_work_sync(&hdev->discov_update);
 	cancel_work_sync(&hdev->scan_update);
