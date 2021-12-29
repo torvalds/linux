@@ -171,6 +171,138 @@ static void odm_DIGInit(struct odm_dm_struct *pDM_Odm)
 	pDM_Odm->bDMInitialGainEnable = true;
 }
 
+static void odm_DIG(struct odm_dm_struct *pDM_Odm)
+{
+	struct rtw_dig *pDM_DigTable = &pDM_Odm->DM_DigTable;
+	struct false_alarm_stats *pFalseAlmCnt = &pDM_Odm->FalseAlmCnt;
+	u8 DIG_Dynamic_MIN;
+	u8 DIG_MaxOfMin;
+	bool FirstConnect, FirstDisConnect;
+	u8 dm_dig_max, dm_dig_min;
+	u8 CurrentIGI = pDM_DigTable->CurIGValue;
+
+	if (!(pDM_Odm->SupportAbility & ODM_BB_FA_CNT))
+		return;
+
+	if (*pDM_Odm->pbScanInProcess)
+		return;
+
+	/* add by Neil Chen to avoid PSD is processing */
+	if (!pDM_Odm->bDMInitialGainEnable)
+		return;
+
+	DIG_Dynamic_MIN = pDM_DigTable->DIG_Dynamic_MIN_0;
+	FirstConnect = (pDM_Odm->bLinked) && (!pDM_DigTable->bMediaConnect_0);
+	FirstDisConnect = (!pDM_Odm->bLinked) && (pDM_DigTable->bMediaConnect_0);
+
+	/* 1 Boundary Decision */
+	dm_dig_max = DM_DIG_MAX_NIC;
+	dm_dig_min = DM_DIG_MIN_NIC;
+	DIG_MaxOfMin = DM_DIG_MAX_AP;
+
+	if (pDM_Odm->bLinked) {
+		/* 2 8723A Series, offset need to be 10 */
+		/* 2 Modify DIG upper bound */
+		if ((pDM_Odm->RSSI_Min + 20) > dm_dig_max)
+			pDM_DigTable->rx_gain_range_max = dm_dig_max;
+		else if ((pDM_Odm->RSSI_Min + 20) < dm_dig_min)
+			pDM_DigTable->rx_gain_range_max = dm_dig_min;
+		else
+			pDM_DigTable->rx_gain_range_max = pDM_Odm->RSSI_Min + 20;
+		/* 2 Modify DIG lower bound */
+		if (pDM_Odm->bOneEntryOnly) {
+			if (pDM_Odm->RSSI_Min < dm_dig_min)
+				DIG_Dynamic_MIN = dm_dig_min;
+			else if (pDM_Odm->RSSI_Min > DIG_MaxOfMin)
+				DIG_Dynamic_MIN = DIG_MaxOfMin;
+			else
+				DIG_Dynamic_MIN = pDM_Odm->RSSI_Min;
+		} else if (pDM_Odm->SupportAbility & ODM_BB_ANT_DIV) {
+			/* 1 Lower Bound for 88E AntDiv */
+			if (pDM_Odm->AntDivType == CG_TRX_HW_ANTDIV)
+				DIG_Dynamic_MIN = (u8)pDM_DigTable->AntDiv_RSSI_max;
+		} else {
+			DIG_Dynamic_MIN = dm_dig_min;
+		}
+	} else {
+		pDM_DigTable->rx_gain_range_max = dm_dig_max;
+		DIG_Dynamic_MIN = dm_dig_min;
+	}
+
+	/* 1 Modify DIG lower bound, deal with abnormally large false alarm */
+	if (pFalseAlmCnt->Cnt_all > 10000) {
+		if (pDM_DigTable->LargeFAHit != 3)
+			pDM_DigTable->LargeFAHit++;
+		if (pDM_DigTable->ForbiddenIGI < CurrentIGI) {
+			pDM_DigTable->ForbiddenIGI = CurrentIGI;
+			pDM_DigTable->LargeFAHit = 1;
+		}
+
+		if (pDM_DigTable->LargeFAHit >= 3) {
+			if ((pDM_DigTable->ForbiddenIGI + 1) > pDM_DigTable->rx_gain_range_max)
+				pDM_DigTable->rx_gain_range_min = pDM_DigTable->rx_gain_range_max;
+			else
+				pDM_DigTable->rx_gain_range_min = (pDM_DigTable->ForbiddenIGI + 1);
+			pDM_DigTable->Recover_cnt = 3600; /* 3600=2hr */
+		}
+
+	} else {
+		/* Recovery mechanism for IGI lower bound */
+		if (pDM_DigTable->Recover_cnt != 0) {
+			pDM_DigTable->Recover_cnt--;
+		} else {
+			if (pDM_DigTable->LargeFAHit < 3) {
+				if ((pDM_DigTable->ForbiddenIGI - 1) < DIG_Dynamic_MIN) { /* DM_DIG_MIN) */
+					pDM_DigTable->ForbiddenIGI = DIG_Dynamic_MIN; /* DM_DIG_MIN; */
+					pDM_DigTable->rx_gain_range_min = DIG_Dynamic_MIN; /* DM_DIG_MIN; */
+				} else {
+					pDM_DigTable->ForbiddenIGI--;
+					pDM_DigTable->rx_gain_range_min = (pDM_DigTable->ForbiddenIGI + 1);
+				}
+			} else {
+				pDM_DigTable->LargeFAHit = 0;
+			}
+		}
+	}
+
+	/* 1 Adjust initial gain by false alarm */
+	if (pDM_Odm->bLinked) {
+		if (FirstConnect) {
+			CurrentIGI = pDM_Odm->RSSI_Min;
+		} else {
+			if (pFalseAlmCnt->Cnt_all > DM_DIG_FA_TH2)
+				CurrentIGI = CurrentIGI + 4;/* pDM_DigTable->CurIGValue = pDM_DigTable->PreIGValue+2; */
+			else if (pFalseAlmCnt->Cnt_all > DM_DIG_FA_TH1)
+				CurrentIGI = CurrentIGI + 2;/* pDM_DigTable->CurIGValue = pDM_DigTable->PreIGValue+1; */
+			else if (pFalseAlmCnt->Cnt_all < DM_DIG_FA_TH0)
+				CurrentIGI = CurrentIGI - 2;/* pDM_DigTable->CurIGValue =pDM_DigTable->PreIGValue-1; */
+		}
+	} else {
+		if (FirstDisConnect) {
+			CurrentIGI = pDM_DigTable->rx_gain_range_min;
+		} else {
+			/* 2012.03.30 LukeLee: enable DIG before link but with very high thresholds */
+			if (pFalseAlmCnt->Cnt_all > 10000)
+				CurrentIGI = CurrentIGI + 2;/* pDM_DigTable->CurIGValue = pDM_DigTable->PreIGValue+2; */
+			else if (pFalseAlmCnt->Cnt_all > 8000)
+				CurrentIGI = CurrentIGI + 1;/* pDM_DigTable->CurIGValue = pDM_DigTable->PreIGValue+1; */
+			else if (pFalseAlmCnt->Cnt_all < 500)
+				CurrentIGI = CurrentIGI - 1;/* pDM_DigTable->CurIGValue =pDM_DigTable->PreIGValue-1; */
+		}
+	}
+	/* 1 Check initial gain by upper/lower bound */
+	if (CurrentIGI > pDM_DigTable->rx_gain_range_max)
+		CurrentIGI = pDM_DigTable->rx_gain_range_max;
+	if (CurrentIGI < pDM_DigTable->rx_gain_range_min)
+		CurrentIGI = pDM_DigTable->rx_gain_range_min;
+
+	/* 2 High power RSSI threshold */
+
+	ODM_Write_DIG(pDM_Odm, CurrentIGI);/* ODM_Write_DIG(pDM_Odm, pDM_DigTable->CurIGValue); */
+	pDM_DigTable->bMediaConnect_0 = pDM_Odm->bLinked;
+	pDM_DigTable->DIG_Dynamic_MIN_0 = DIG_Dynamic_MIN;
+}
+
 /* 3 Export Interface */
 
 /*  2011/09/21 MH Add to describe different team necessary resource allocate?? */
@@ -337,138 +469,6 @@ void ODM_Write_DIG(struct odm_dm_struct *pDM_Odm, u8 CurrentIGI)
 		rtl8188e_PHY_SetBBReg(adapter, ODM_REG_IGI_A_11N, ODM_BIT_IGI_11N, CurrentIGI);
 		pDM_DigTable->CurIGValue = CurrentIGI;
 	}
-}
-
-void odm_DIG(struct odm_dm_struct *pDM_Odm)
-{
-	struct rtw_dig *pDM_DigTable = &pDM_Odm->DM_DigTable;
-	struct false_alarm_stats *pFalseAlmCnt = &pDM_Odm->FalseAlmCnt;
-	u8 DIG_Dynamic_MIN;
-	u8 DIG_MaxOfMin;
-	bool FirstConnect, FirstDisConnect;
-	u8 dm_dig_max, dm_dig_min;
-	u8 CurrentIGI = pDM_DigTable->CurIGValue;
-
-	if (!(pDM_Odm->SupportAbility & ODM_BB_FA_CNT))
-		return;
-
-	if (*pDM_Odm->pbScanInProcess)
-		return;
-
-	/* add by Neil Chen to avoid PSD is processing */
-	if (!pDM_Odm->bDMInitialGainEnable)
-		return;
-
-	DIG_Dynamic_MIN = pDM_DigTable->DIG_Dynamic_MIN_0;
-	FirstConnect = (pDM_Odm->bLinked) && (!pDM_DigTable->bMediaConnect_0);
-	FirstDisConnect = (!pDM_Odm->bLinked) && (pDM_DigTable->bMediaConnect_0);
-
-	/* 1 Boundary Decision */
-	dm_dig_max = DM_DIG_MAX_NIC;
-	dm_dig_min = DM_DIG_MIN_NIC;
-	DIG_MaxOfMin = DM_DIG_MAX_AP;
-
-	if (pDM_Odm->bLinked) {
-		/* 2 8723A Series, offset need to be 10 */
-		/* 2 Modify DIG upper bound */
-		if ((pDM_Odm->RSSI_Min + 20) > dm_dig_max)
-			pDM_DigTable->rx_gain_range_max = dm_dig_max;
-		else if ((pDM_Odm->RSSI_Min + 20) < dm_dig_min)
-			pDM_DigTable->rx_gain_range_max = dm_dig_min;
-		else
-			pDM_DigTable->rx_gain_range_max = pDM_Odm->RSSI_Min + 20;
-		/* 2 Modify DIG lower bound */
-		if (pDM_Odm->bOneEntryOnly) {
-			if (pDM_Odm->RSSI_Min < dm_dig_min)
-				DIG_Dynamic_MIN = dm_dig_min;
-			else if (pDM_Odm->RSSI_Min > DIG_MaxOfMin)
-				DIG_Dynamic_MIN = DIG_MaxOfMin;
-			else
-				DIG_Dynamic_MIN = pDM_Odm->RSSI_Min;
-		} else if (pDM_Odm->SupportAbility & ODM_BB_ANT_DIV) {
-			/* 1 Lower Bound for 88E AntDiv */
-			if (pDM_Odm->AntDivType == CG_TRX_HW_ANTDIV)
-				DIG_Dynamic_MIN = (u8)pDM_DigTable->AntDiv_RSSI_max;
-		} else {
-			DIG_Dynamic_MIN = dm_dig_min;
-		}
-	} else {
-		pDM_DigTable->rx_gain_range_max = dm_dig_max;
-		DIG_Dynamic_MIN = dm_dig_min;
-	}
-
-	/* 1 Modify DIG lower bound, deal with abnormally large false alarm */
-	if (pFalseAlmCnt->Cnt_all > 10000) {
-		if (pDM_DigTable->LargeFAHit != 3)
-			pDM_DigTable->LargeFAHit++;
-		if (pDM_DigTable->ForbiddenIGI < CurrentIGI) {
-			pDM_DigTable->ForbiddenIGI = CurrentIGI;
-			pDM_DigTable->LargeFAHit = 1;
-		}
-
-		if (pDM_DigTable->LargeFAHit >= 3) {
-			if ((pDM_DigTable->ForbiddenIGI + 1) > pDM_DigTable->rx_gain_range_max)
-				pDM_DigTable->rx_gain_range_min = pDM_DigTable->rx_gain_range_max;
-			else
-				pDM_DigTable->rx_gain_range_min = (pDM_DigTable->ForbiddenIGI + 1);
-			pDM_DigTable->Recover_cnt = 3600; /* 3600=2hr */
-		}
-
-	} else {
-		/* Recovery mechanism for IGI lower bound */
-		if (pDM_DigTable->Recover_cnt != 0) {
-			pDM_DigTable->Recover_cnt--;
-		} else {
-			if (pDM_DigTable->LargeFAHit < 3) {
-				if ((pDM_DigTable->ForbiddenIGI - 1) < DIG_Dynamic_MIN) { /* DM_DIG_MIN) */
-					pDM_DigTable->ForbiddenIGI = DIG_Dynamic_MIN; /* DM_DIG_MIN; */
-					pDM_DigTable->rx_gain_range_min = DIG_Dynamic_MIN; /* DM_DIG_MIN; */
-				} else {
-					pDM_DigTable->ForbiddenIGI--;
-					pDM_DigTable->rx_gain_range_min = (pDM_DigTable->ForbiddenIGI + 1);
-				}
-			} else {
-				pDM_DigTable->LargeFAHit = 0;
-			}
-		}
-	}
-
-	/* 1 Adjust initial gain by false alarm */
-	if (pDM_Odm->bLinked) {
-		if (FirstConnect) {
-			CurrentIGI = pDM_Odm->RSSI_Min;
-		} else {
-			if (pFalseAlmCnt->Cnt_all > DM_DIG_FA_TH2)
-					CurrentIGI = CurrentIGI + 4;/* pDM_DigTable->CurIGValue = pDM_DigTable->PreIGValue+2; */
-			else if (pFalseAlmCnt->Cnt_all > DM_DIG_FA_TH1)
-					CurrentIGI = CurrentIGI + 2;/* pDM_DigTable->CurIGValue = pDM_DigTable->PreIGValue+1; */
-			else if (pFalseAlmCnt->Cnt_all < DM_DIG_FA_TH0)
-					CurrentIGI = CurrentIGI - 2;/* pDM_DigTable->CurIGValue =pDM_DigTable->PreIGValue-1; */
-		}
-	} else {
-		if (FirstDisConnect) {
-			CurrentIGI = pDM_DigTable->rx_gain_range_min;
-		} else {
-			/* 2012.03.30 LukeLee: enable DIG before link but with very high thresholds */
-			if (pFalseAlmCnt->Cnt_all > 10000)
-				CurrentIGI = CurrentIGI + 2;/* pDM_DigTable->CurIGValue = pDM_DigTable->PreIGValue+2; */
-			else if (pFalseAlmCnt->Cnt_all > 8000)
-				CurrentIGI = CurrentIGI + 1;/* pDM_DigTable->CurIGValue = pDM_DigTable->PreIGValue+1; */
-			else if (pFalseAlmCnt->Cnt_all < 500)
-				CurrentIGI = CurrentIGI - 1;/* pDM_DigTable->CurIGValue =pDM_DigTable->PreIGValue-1; */
-		}
-	}
-	/* 1 Check initial gain by upper/lower bound */
-	if (CurrentIGI > pDM_DigTable->rx_gain_range_max)
-		CurrentIGI = pDM_DigTable->rx_gain_range_max;
-	if (CurrentIGI < pDM_DigTable->rx_gain_range_min)
-		CurrentIGI = pDM_DigTable->rx_gain_range_min;
-
-	/* 2 High power RSSI threshold */
-
-	ODM_Write_DIG(pDM_Odm, CurrentIGI);/* ODM_Write_DIG(pDM_Odm, pDM_DigTable->CurIGValue); */
-	pDM_DigTable->bMediaConnect_0 = pDM_Odm->bLinked;
-	pDM_DigTable->DIG_Dynamic_MIN_0 = DIG_Dynamic_MIN;
 }
 
 /* 3============================================================ */
