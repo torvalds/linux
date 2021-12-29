@@ -558,8 +558,6 @@ extern	u8 CCKSwingTable_Ch14 [CCK_TABLE_SIZE][8];
 void ODM_Write_DIG(struct odm_dm_struct *pDM_Odm, u8 CurrentIGI);
 void ODM_Write_CCK_CCA_Thres(struct odm_dm_struct *pDM_Odm, u8 CurCCK_CCAThres);
 
-void ODM_SetAntenna(struct odm_dm_struct *pDM_Odm, u8 Antenna);
-
 void ODM_RF_Saving(struct odm_dm_struct *pDM_Odm, u8 bForceInNormal);
 
 void ODM_TXPowerTrackingCheck(struct odm_dm_struct *pDM_Odm);
