@@ -275,6 +275,10 @@
 	status = "okay";
 };
 
+&chassis {
+	status = "okay";
+};
+
 &pwm {
 	status = "okay";
 	pinctrl-names = "default";
