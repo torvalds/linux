@@ -830,7 +830,7 @@ static int enetc_imdio_create(struct enetc_pf *pf)
 	struct device *dev = &pf->si->pdev->dev;
 	struct enetc_mdio_priv *mdio_priv;
 	struct phylink_pcs *phylink_pcs;
-	struct mdio_device *pcs;
+	struct mdio_device *mdio_device;
 	struct mii_bus *bus;
 	int err;
 
@@ -854,16 +854,16 @@ static int enetc_imdio_create(struct enetc_pf *pf)
 		goto free_mdio_bus;
 	}
 
-	pcs = mdio_device_create(bus, 0);
-	if (IS_ERR(pcs)) {
-		err = PTR_ERR(pcs);
-		dev_err(dev, "cannot create pcs (%d)\n", err);
+	mdio_device = mdio_device_create(bus, 0);
+	if (IS_ERR(mdio_device)) {
+		err = PTR_ERR(mdio_device);
+		dev_err(dev, "cannot create mdio device (%d)\n", err);
 		goto unregister_mdiobus;
 	}
 
-	phylink_pcs = lynx_pcs_create(pcs);
+	phylink_pcs = lynx_pcs_create(mdio_device);
 	if (!phylink_pcs) {
-		mdio_device_free(pcs);
+		mdio_device_free(mdio_device);
 		err = -ENOMEM;
 		dev_err(dev, "cannot create lynx pcs (%d)\n", err);
 		goto unregister_mdiobus;
