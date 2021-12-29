@@ -283,16 +283,6 @@ static inline struct inode *folio_inode(struct folio *folio)
 	return folio->mapping->host;
 }
 
-static inline bool page_cache_add_speculative(struct page *page, int count)
-{
-	return folio_ref_try_add_rcu((struct folio *)page, count);
-}
-
-static inline bool page_cache_get_speculative(struct page *page)
-{
-	return page_cache_add_speculative(page, 1);
-}
-
 /**
  * folio_attach_private - Attach private data to a folio.
  * @folio: Folio to attach data to.

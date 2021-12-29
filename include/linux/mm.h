@@ -1215,10 +1215,9 @@ static inline void put_page(struct page *page)
  * applications that don't have huge page reference counts, this won't be an
  * issue.
  *
- * Locking: the lockless algorithm described in page_cache_get_speculative()
- * and page_cache_gup_pin_speculative() provides safe operation for
- * get_user_pages and page_mkclean and other calls that race to set up page
- * table entries.
+ * Locking: the lockless algorithm described in folio_try_get_rcu()
+ * provides safe operation for get_user_pages(), page_mkclean() and
+ * other calls that race to set up page table entries.
  */
 #define GUP_PIN_COUNTING_BIAS (1U << 10)
 
