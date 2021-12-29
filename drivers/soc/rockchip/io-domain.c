@@ -19,6 +19,7 @@
 #include <linux/regulator/of_regulator.h>
 #include <linux/regulator/driver.h>
 #include <linux/regulator/machine.h>
+#include <linux/rockchip/cpu.h>
 #include "../../regulator/internal.h"
 
 #define MAX_SUPPLIES		16
@@ -812,6 +813,10 @@ static int rockchip_iodomain_probe(struct platform_device *pdev)
 		int uV;
 
 		if (!supply_name)
+			continue;
+
+		/* PX30s pmuio1 not support 1v8 mode switch. */
+		if (soc_is_px30s() && (!strcmp(supply_name, "pmuio1")))
 			continue;
 
 		reg = devm_regulator_get_optional(iod->dev, supply_name);
