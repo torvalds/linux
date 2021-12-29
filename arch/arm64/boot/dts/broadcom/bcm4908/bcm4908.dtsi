@@ -273,9 +273,9 @@
 		#size-cells = <1>;
 		ranges = <0x00 0x00 0xff800000 0x3000>;
 
-		timer: timer@400 {
-			compatible = "brcm,bcm6328-timer", "syscon";
-			reg = <0x400 0x3c>;
+		twd: timer-mfd@400 {
+			compatible = "brcm,bcm4908-twd", "simple-mfd", "syscon";
+			reg = <0x400 0x4c>;
 		};
 
 		gpio0: gpio-controller@500 {
@@ -330,7 +330,7 @@
 
 	reboot {
 		compatible = "syscon-reboot";
-		regmap = <&timer>;
+		regmap = <&twd>;
 		offset = <0x34>;
 		mask = <1>;
 	};
