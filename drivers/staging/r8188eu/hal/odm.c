@@ -337,6 +337,15 @@ static void odm_CommonInfoSelfUpdate(struct odm_dm_struct *pDM_Odm)
 		pDM_Odm->bOneEntryOnly = false;
 }
 
+static void odm_RateAdaptiveMaskInit(struct odm_dm_struct *pDM_Odm)
+{
+	struct odm_rate_adapt *pOdmRA = &pDM_Odm->RateAdaptive;
+
+	pOdmRA->RATRState = DM_RATR_STA_INIT;
+	pOdmRA->HighRSSIThresh = 50;
+	pOdmRA->LowRSSIThresh = 20;
+}
+
 /* 3 Export Interface */
 
 /*  2011/09/21 MH Add to describe different team necessary resource allocate?? */
@@ -645,15 +654,6 @@ void ODM_RF_Saving(struct odm_dm_struct *pDM_Odm, u8 bForceInNormal)
 /* 3============================================================ */
 /* 3 Rate Adaptive */
 /* 3============================================================ */
-
-void odm_RateAdaptiveMaskInit(struct odm_dm_struct *pDM_Odm)
-{
-	struct odm_rate_adapt *pOdmRA = &pDM_Odm->RateAdaptive;
-
-	pOdmRA->RATRState = DM_RATR_STA_INIT;
-	pOdmRA->HighRSSIThresh = 50;
-	pOdmRA->LowRSSIThresh = 20;
-}
 
 u32 ODM_Get_Rate_Bitmap(struct odm_dm_struct *pDM_Odm, u32 macid, u32 ra_mask, u8 rssi_level)
 {
