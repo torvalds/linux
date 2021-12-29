@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Copyright(c) 2007 - 2011 Realtek Corporation. */
 
-/*  include files */
-
 #include "../include/odm_precomp.h"
 
 /* avoid to warn in FreeBSD ==> To DO modify */
@@ -637,8 +635,6 @@ dm_CheckEdcaTurbo_EXIT:
 	precvpriv->last_rx_bytes = precvpriv->rx_bytes;
 }
 
-/* 3 Export Interface */
-
 /*  2011/09/21 MH Add to describe different team necessary resource allocate?? */
 void ODM_DMInit(struct odm_dm_struct *pDM_Odm)
 {
@@ -696,7 +692,6 @@ void ODM_CmnInfoInit(struct odm_dm_struct *pDM_Odm, enum odm_common_info_def Cmn
 	case    ODM_CMNINFO_RF_ANTENNA_TYPE:
 		pDM_Odm->AntDivType = (u8)Value;
 		break;
-	/* To remove the compiler warning, must add an empty default statement to handle the other values. */
 	default:
 		/* do nothing */
 		break;
@@ -734,7 +729,6 @@ void ODM_CmnInfoHook(struct odm_dm_struct *pDM_Odm, enum odm_common_info_def Cmn
 	case	ODM_CMNINFO_POWER_SAVING:
 		pDM_Odm->pbPowerSaving = (bool *)pValue;
 		break;
-	/* To remove the compiler warning, must add an empty default statement to handle the other values. */
 	default:
 		/* do nothing */
 		break;
@@ -835,13 +829,6 @@ void ODM_RF_Saving(struct odm_dm_struct *pDM_Odm, u8 bForceInNormal)
 		pDM_PSTable->pre_rf_state = pDM_PSTable->cur_rf_state;
 	}
 }
-
-/* 3============================================================ */
-/* 3 RATR MASK */
-/* 3============================================================ */
-/* 3============================================================ */
-/* 3 Rate Adaptive */
-/* 3============================================================ */
 
 u32 ODM_Get_Rate_Bitmap(struct odm_dm_struct *pDM_Odm, u32 macid, u32 ra_mask, u8 rssi_level)
 {
