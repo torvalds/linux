@@ -560,6 +560,83 @@ static void ODM_EdcaTurboInit(struct odm_dm_struct *pDM_Odm)
 	Adapter->recvpriv.bIsAnyNonBEPkts = false;
 }
 
+static void odm_EdcaTurboCheck(struct odm_dm_struct *pDM_Odm)
+{
+	struct adapter *Adapter = pDM_Odm->Adapter;
+	u32	trafficIndex;
+	u32	edca_param;
+	u64	cur_tx_bytes = 0;
+	u64	cur_rx_bytes = 0;
+	u8	bbtchange = false;
+	struct hal_data_8188e *pHalData = &Adapter->haldata;
+	struct xmit_priv		*pxmitpriv = &Adapter->xmitpriv;
+	struct recv_priv		*precvpriv = &Adapter->recvpriv;
+	struct registry_priv	*pregpriv = &Adapter->registrypriv;
+	struct mlme_ext_priv	*pmlmeext = &Adapter->mlmeextpriv;
+	struct mlme_ext_info	*pmlmeinfo = &pmlmeext->mlmext_info;
+
+	if (!(pDM_Odm->SupportAbility & ODM_MAC_EDCA_TURBO))
+		return;
+
+	if (pregpriv->wifi_spec == 1)
+		goto dm_CheckEdcaTurbo_EXIT;
+
+	if (pmlmeinfo->assoc_AP_vendor >=  HT_IOT_PEER_MAX)
+		goto dm_CheckEdcaTurbo_EXIT;
+
+	/*  Check if the status needs to be changed. */
+	if ((bbtchange) || (!precvpriv->bIsAnyNonBEPkts)) {
+		cur_tx_bytes = pxmitpriv->tx_bytes - pxmitpriv->last_tx_bytes;
+		cur_rx_bytes = precvpriv->rx_bytes - precvpriv->last_rx_bytes;
+
+		/* traffic, TX or RX */
+		if ((pmlmeinfo->assoc_AP_vendor == HT_IOT_PEER_RALINK) ||
+		    (pmlmeinfo->assoc_AP_vendor == HT_IOT_PEER_ATHEROS)) {
+			if (cur_tx_bytes > (cur_rx_bytes << 2)) {
+				/*  Uplink TP is present. */
+				trafficIndex = UP_LINK;
+			} else {
+				/*  Balance TP is present. */
+				trafficIndex = DOWN_LINK;
+			}
+		} else {
+			if (cur_rx_bytes > (cur_tx_bytes << 2)) {
+				/*  Downlink TP is present. */
+				trafficIndex = DOWN_LINK;
+			} else {
+				/*  Balance TP is present. */
+				trafficIndex = UP_LINK;
+			}
+		}
+
+		if ((pDM_Odm->DM_EDCA_Table.prv_traffic_idx != trafficIndex) || (!pDM_Odm->DM_EDCA_Table.bCurrentTurboEDCA)) {
+			if ((pmlmeinfo->assoc_AP_vendor == HT_IOT_PEER_CISCO) && (pmlmeext->cur_wireless_mode & WIRELESS_11_24N))
+				edca_param = EDCAParam[pmlmeinfo->assoc_AP_vendor][trafficIndex];
+			else
+				edca_param = EDCAParam[HT_IOT_PEER_UNKNOWN][trafficIndex];
+
+			rtw_write32(Adapter, REG_EDCA_BE_PARAM, edca_param);
+
+			pDM_Odm->DM_EDCA_Table.prv_traffic_idx = trafficIndex;
+		}
+
+		pDM_Odm->DM_EDCA_Table.bCurrentTurboEDCA = true;
+	} else {
+		/*  Turn Off EDCA turbo here. */
+		/*  Restore original EDCA according to the declaration of AP. */
+		if (pDM_Odm->DM_EDCA_Table.bCurrentTurboEDCA) {
+			rtw_write32(Adapter, REG_EDCA_BE_PARAM, pHalData->AcParam_BE);
+			pDM_Odm->DM_EDCA_Table.bCurrentTurboEDCA = false;
+		}
+	}
+
+dm_CheckEdcaTurbo_EXIT:
+	/*  Set variables for next time. */
+	precvpriv->bIsAnyNonBEPkts = false;
+	pxmitpriv->last_tx_bytes = pxmitpriv->tx_bytes;
+	precvpriv->last_rx_bytes = precvpriv->rx_bytes;
+}
+
 /* 3 Export Interface */
 
 /*  2011/09/21 MH Add to describe different team necessary resource allocate?? */
@@ -873,81 +950,4 @@ void ODM_TXPowerTrackingCheck(struct odm_dm_struct *pDM_Odm)
 		odm_TXPowerTrackingCallback_ThermalMeter_8188E(Adapter);
 		pDM_Odm->RFCalibrateInfo.TM_Trigger = 0;
 	}
-}
-
-void odm_EdcaTurboCheck(struct odm_dm_struct *pDM_Odm)
-{
-	struct adapter *Adapter = pDM_Odm->Adapter;
-	u32	trafficIndex;
-	u32	edca_param;
-	u64	cur_tx_bytes = 0;
-	u64	cur_rx_bytes = 0;
-	u8	bbtchange = false;
-	struct hal_data_8188e *pHalData = &Adapter->haldata;
-	struct xmit_priv		*pxmitpriv = &Adapter->xmitpriv;
-	struct recv_priv		*precvpriv = &Adapter->recvpriv;
-	struct registry_priv	*pregpriv = &Adapter->registrypriv;
-	struct mlme_ext_priv	*pmlmeext = &Adapter->mlmeextpriv;
-	struct mlme_ext_info	*pmlmeinfo = &pmlmeext->mlmext_info;
-
-	if (!(pDM_Odm->SupportAbility & ODM_MAC_EDCA_TURBO))
-		return;
-
-	if (pregpriv->wifi_spec == 1)
-		goto dm_CheckEdcaTurbo_EXIT;
-
-	if (pmlmeinfo->assoc_AP_vendor >=  HT_IOT_PEER_MAX)
-		goto dm_CheckEdcaTurbo_EXIT;
-
-	/*  Check if the status needs to be changed. */
-	if ((bbtchange) || (!precvpriv->bIsAnyNonBEPkts)) {
-		cur_tx_bytes = pxmitpriv->tx_bytes - pxmitpriv->last_tx_bytes;
-		cur_rx_bytes = precvpriv->rx_bytes - precvpriv->last_rx_bytes;
-
-		/* traffic, TX or RX */
-		if ((pmlmeinfo->assoc_AP_vendor == HT_IOT_PEER_RALINK) ||
-		    (pmlmeinfo->assoc_AP_vendor == HT_IOT_PEER_ATHEROS)) {
-			if (cur_tx_bytes > (cur_rx_bytes << 2)) {
-				/*  Uplink TP is present. */
-				trafficIndex = UP_LINK;
-			} else {
-				/*  Balance TP is present. */
-				trafficIndex = DOWN_LINK;
-			}
-		} else {
-			if (cur_rx_bytes > (cur_tx_bytes << 2)) {
-				/*  Downlink TP is present. */
-				trafficIndex = DOWN_LINK;
-			} else {
-				/*  Balance TP is present. */
-				trafficIndex = UP_LINK;
-			}
-		}
-
-		if ((pDM_Odm->DM_EDCA_Table.prv_traffic_idx != trafficIndex) || (!pDM_Odm->DM_EDCA_Table.bCurrentTurboEDCA)) {
-			if ((pmlmeinfo->assoc_AP_vendor == HT_IOT_PEER_CISCO) && (pmlmeext->cur_wireless_mode & WIRELESS_11_24N))
-				edca_param = EDCAParam[pmlmeinfo->assoc_AP_vendor][trafficIndex];
-			else
-				edca_param = EDCAParam[HT_IOT_PEER_UNKNOWN][trafficIndex];
-
-			rtw_write32(Adapter, REG_EDCA_BE_PARAM, edca_param);
-
-			pDM_Odm->DM_EDCA_Table.prv_traffic_idx = trafficIndex;
-		}
-
-		pDM_Odm->DM_EDCA_Table.bCurrentTurboEDCA = true;
-	} else {
-		/*  Turn Off EDCA turbo here. */
-		/*  Restore original EDCA according to the declaration of AP. */
-		 if (pDM_Odm->DM_EDCA_Table.bCurrentTurboEDCA) {
-			rtw_write32(Adapter, REG_EDCA_BE_PARAM, pHalData->AcParam_BE);
-			pDM_Odm->DM_EDCA_Table.bCurrentTurboEDCA = false;
-		}
-	}
-
-dm_CheckEdcaTurbo_EXIT:
-	/*  Set variables for next time. */
-	precvpriv->bIsAnyNonBEPkts = false;
-	pxmitpriv->last_tx_bytes = pxmitpriv->tx_bytes;
-	precvpriv->last_rx_bytes = precvpriv->rx_bytes;
 }

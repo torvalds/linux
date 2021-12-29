@@ -31,6 +31,4 @@
 #include "odm_RegConfig8188E.h"
 #include "odm_RTL8188E.h"
 
-void odm_EdcaTurboCheck(struct odm_dm_struct *pDM_Odm);
-
 #endif	/*  __ODM_PRECOMP_H__ */
