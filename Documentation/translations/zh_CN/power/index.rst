@@ -14,6 +14,8 @@
 .. toctree::
     :maxdepth: 1
 
+    opp
+
 TODOList:
 
     * apm-acpi
@@ -22,7 +24,6 @@ TODOList:
     * drivers-testing
     * energy-model
     * freezing-of-tasks
-    * opp
     * pci
     * pm_qos_interface
     * power_supply_class
