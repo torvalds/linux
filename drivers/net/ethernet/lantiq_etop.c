@@ -111,9 +111,9 @@ ltq_etop_alloc_skb(struct ltq_etop_chan *ch)
 	ch->skb[ch->dma.desc] = netdev_alloc_skb(ch->netdev, MAX_DMA_DATA_LEN);
 	if (!ch->skb[ch->dma.desc])
 		return -ENOMEM;
-	ch->dma.desc_base[ch->dma.desc].addr = dma_map_single(&priv->pdev->dev,
-		ch->skb[ch->dma.desc]->data, MAX_DMA_DATA_LEN,
-		DMA_FROM_DEVICE);
+	ch->dma.desc_base[ch->dma.desc].addr =
+		dma_map_single(&priv->pdev->dev, ch->skb[ch->dma.desc]->data,
+			       MAX_DMA_DATA_LEN, DMA_FROM_DEVICE);
 	ch->dma.desc_base[ch->dma.desc].addr =
 		CPHYSADDR(ch->skb[ch->dma.desc]->data);
 	ch->dma.desc_base[ch->dma.desc].ctl =
@@ -135,7 +135,7 @@ ltq_etop_hw_receive(struct ltq_etop_chan *ch)
 	spin_lock_irqsave(&priv->lock, flags);
 	if (ltq_etop_alloc_skb(ch)) {
 		netdev_err(ch->netdev,
-			"failed to allocate new rx buffer, stopping DMA\n");
+			   "failed to allocate new rx buffer, stopping DMA\n");
 		ltq_dma_close(&ch->dma);
 	}
 	ch->dma.desc++;
@@ -185,7 +185,7 @@ ltq_etop_poll_tx(struct napi_struct *napi, int budget)
 		dev_kfree_skb_any(ch->skb[ch->tx_free]);
 		ch->skb[ch->tx_free] = NULL;
 		memset(&ch->dma.desc_base[ch->tx_free], 0,
-			sizeof(struct ltq_dma_desc));
+		       sizeof(struct ltq_dma_desc));
 		ch->tx_free++;
 		ch->tx_free %= LTQ_DESC_NUM;
 	}
@@ -247,18 +247,18 @@ ltq_etop_hw_init(struct net_device *dev)
 
 	switch (priv->pldata->mii_mode) {
 	case PHY_INTERFACE_MODE_RMII:
-		ltq_etop_w32_mask(ETOP_MII_MASK,
-			ETOP_MII_REVERSE, LTQ_ETOP_CFG);
+		ltq_etop_w32_mask(ETOP_MII_MASK, ETOP_MII_REVERSE,
+				  LTQ_ETOP_CFG);
 		break;
 
 	case PHY_INTERFACE_MODE_MII:
-		ltq_etop_w32_mask(ETOP_MII_MASK,
-			ETOP_MII_NORMAL, LTQ_ETOP_CFG);
+		ltq_etop_w32_mask(ETOP_MII_MASK, ETOP_MII_NORMAL,
+				  LTQ_ETOP_CFG);
 		break;
 
 	default:
 		netdev_err(dev, "unknown mii mode %d\n",
-			priv->pldata->mii_mode);
+			   priv->pldata->mii_mode);
 		return -ENOTSUPP;
 	}
 
@@ -401,7 +401,7 @@ ltq_etop_mdio_init(struct net_device *dev)
 	priv->mii_bus->write = ltq_etop_mdio_wr;
 	priv->mii_bus->name = "ltq_mii";
 	snprintf(priv->mii_bus->id, MII_BUS_ID_SIZE, "%s-%x",
-		priv->pdev->name, priv->pdev->id);
+		 priv->pdev->name, priv->pdev->id);
 	if (mdiobus_register(priv->mii_bus)) {
 		err = -ENXIO;
 		goto err_out_free_mdiobus;
@@ -542,7 +542,7 @@ ltq_etop_set_mac_address(struct net_device *dev, void *p)
 		spin_lock_irqsave(&priv->lock, flags);
 		ltq_etop_w32(*((u32 *)dev->dev_addr), LTQ_ETOP_MAC_DA0);
 		ltq_etop_w32(*((u16 *)&dev->dev_addr[4]) << 16,
-			LTQ_ETOP_MAC_DA1);
+			     LTQ_ETOP_MAC_DA1);
 		spin_unlock_irqrestore(&priv->lock, flags);
 	}
 	return ret;
@@ -655,15 +655,15 @@ ltq_etop_probe(struct platform_device *pdev)
 	}
 
 	res = devm_request_mem_region(&pdev->dev, res->start,
-		resource_size(res), dev_name(&pdev->dev));
+				      resource_size(res), dev_name(&pdev->dev));
 	if (!res) {
 		dev_err(&pdev->dev, "failed to request etop resource\n");
 		err = -EBUSY;
 		goto err_out;
 	}
 
-	ltq_etop_membase = devm_ioremap(&pdev->dev,
-		res->start, resource_size(res));
+	ltq_etop_membase = devm_ioremap(&pdev->dev, res->start,
+					resource_size(res));
 	if (!ltq_etop_membase) {
 		dev_err(&pdev->dev, "failed to remap etop engine %d\n",
 			pdev->id);
@@ -702,10 +702,10 @@ ltq_etop_probe(struct platform_device *pdev)
 	for (i = 0; i < MAX_DMA_CHAN; i++) {
 		if (IS_TX(i))
 			netif_napi_add(dev, &priv->ch[i].napi,
-				ltq_etop_poll_tx, 8);
+				       ltq_etop_poll_tx, 8);
 		else if (IS_RX(i))
 			netif_napi_add(dev, &priv->ch[i].napi,
-				ltq_etop_poll_rx, 32);
+				       ltq_etop_poll_rx, 32);
 		priv->ch[i].netdev = dev;
 	}
 
