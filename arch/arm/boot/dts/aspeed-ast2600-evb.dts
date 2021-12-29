@@ -632,6 +632,7 @@
 
 #if 0
 &gfx {
+	pcie-reset-detect;
 	status = "okay";
 	memory-region = <&gfx_memory>;
 };

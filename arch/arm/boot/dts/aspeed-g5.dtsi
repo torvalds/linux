@@ -265,8 +265,10 @@
 				clocks = <&syscon ASPEED_CLK_GATE_D1CLK>;
 				resets = <&syscon ASPEED_RESET_CRT1>;
 				syscon = <&syscon>;
+				interrupts-extended = <&vic 0x19>,
+				<&scu_ic ASPEED_AST2500_SCU_IC_PCIE_RESET_LO_TO_HI>,
+				<&scu_ic ASPEED_AST2500_SCU_IC_PCIE_RESET_HI_TO_LO>;
 				status = "disabled";
-				interrupts = <0x19>;
 			};
 
 			xdma: xdma@1e6e7000 {

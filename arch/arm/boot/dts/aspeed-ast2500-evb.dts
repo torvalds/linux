@@ -132,10 +132,13 @@
 	status = "okay";
 };
 
+#if 0
 &gfx {
-     status = "okay";
-     memory-region = <&gfx_memory>;
+	pcie-reset-detect;
+	status = "okay";
+	memory-region = <&gfx_memory>;
 };
+#endif
 
 &video {
 	status = "okay";
