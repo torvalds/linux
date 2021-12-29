@@ -14,8 +14,17 @@
 #include "rtl8188e_xmit.h"
 #include "rtl8188e_cmd.h"
 #include "rtw_efuse.h"
-#include "odm_precomp.h"
+#include "odm_types.h"
 #include "odm.h"
+#include "odm_HWConfig.h"
+#include "odm_RegDefine11N.h"
+#include "HalPhyRf_8188e.h"
+#include "Hal8188ERateAdaptive.h"
+#include "HalHWImg8188E_MAC.h"
+#include "HalHWImg8188E_RF.h"
+#include "HalHWImg8188E_BB.h"
+#include "odm_RegConfig8188E.h"
+#include "odm_RTL8188E.h"
 
 /* 		RTL8188E Power Configuration CMDs for USB/SDIO interfaces */
 #define Rtl8188E_NIC_PWR_ON_FLOW		rtl8188E_power_on_flow

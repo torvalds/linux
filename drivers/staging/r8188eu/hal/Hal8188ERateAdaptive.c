@@ -1,20 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
-/* Copyright (c) Realtek Semiconductor Corp.
-Module Name:
-	RateAdaptive.c
+/* Copyright (c) Realtek Semiconductor Corp. */
 
-Abstract:
-	Implement Rate Adaptive functions for common operations.
-
-Major Change History:
-	When       Who               What
-	---------- ---------------   -------------------------------
-	2011-08-12 Page            Create.
-
---*/
-#include "../include/odm_precomp.h"
-
-/*  Rate adaptive parameters */
+#include "../include/drv_types.h"
 
 static u8 RETRY_PENALTY[PERENTRY][RETRYSIZE + 1] = {
 		{5, 4, 3, 2, 0, 3},      /* 92 , idx = 0 */
