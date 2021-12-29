@@ -456,6 +456,78 @@ static void odm_CCKPacketDetectionThresh(struct odm_dm_struct *pDM_Odm)
 	ODM_Write_CCK_CCA_Thres(pDM_Odm, CurCCK_CCAThres);
 }
 
+static void FindMinimumRSSI(struct adapter *pAdapter)
+{
+	struct hal_data_8188e *pHalData = &pAdapter->haldata;
+	struct dm_priv	*pdmpriv = &pHalData->dmpriv;
+	struct mlme_priv	*pmlmepriv = &pAdapter->mlmepriv;
+
+	/* 1 1.Determine the minimum RSSI */
+	if (!check_fwstate(pmlmepriv, _FW_LINKED) &&
+	    pdmpriv->EntryMinUndecoratedSmoothedPWDB == 0)
+		pdmpriv->MinUndecoratedPWDBForDM = 0;
+
+	pdmpriv->MinUndecoratedPWDBForDM = pdmpriv->EntryMinUndecoratedSmoothedPWDB;
+}
+
+static void odm_RSSIMonitorCheck(struct odm_dm_struct *pDM_Odm)
+{
+	struct adapter *Adapter = pDM_Odm->Adapter;
+	struct hal_data_8188e *pHalData = &Adapter->haldata;
+	struct dm_priv	*pdmpriv = &pHalData->dmpriv;
+	int	i;
+	int	tmpEntryMaxPWDB = 0, tmpEntryMinPWDB = 0xff;
+	u8	sta_cnt = 0;
+	u32 PWDB_rssi[NUM_STA] = {0};/* 0~15]:MACID, [16~31]:PWDB_rssi */
+	struct sta_info *psta;
+
+	if (!(pDM_Odm->SupportAbility & ODM_BB_RSSI_MONITOR))
+		return;
+
+	if (!check_fwstate(&Adapter->mlmepriv, _FW_LINKED))
+		return;
+
+	for (i = 0; i < ODM_ASSOCIATE_ENTRY_NUM; i++) {
+		psta = pDM_Odm->pODM_StaInfo[i];
+		if (IS_STA_VALID(psta) &&
+		    (psta->state & WIFI_ASOC_STATE) &&
+		    !is_broadcast_ether_addr(psta->hwaddr) &&
+		    memcmp(psta->hwaddr, myid(&Adapter->eeprompriv), ETH_ALEN)) {
+			if (psta->rssi_stat.UndecoratedSmoothedPWDB < tmpEntryMinPWDB)
+				tmpEntryMinPWDB = psta->rssi_stat.UndecoratedSmoothedPWDB;
+
+			if (psta->rssi_stat.UndecoratedSmoothedPWDB > tmpEntryMaxPWDB)
+				tmpEntryMaxPWDB = psta->rssi_stat.UndecoratedSmoothedPWDB;
+			if (psta->rssi_stat.UndecoratedSmoothedPWDB != (-1))
+				PWDB_rssi[sta_cnt++] = (psta->mac_id | (psta->rssi_stat.UndecoratedSmoothedPWDB << 16));
+		}
+	}
+
+	for (i = 0; i < sta_cnt; i++) {
+		if (PWDB_rssi[i] != (0)) {
+			if (pHalData->fw_ractrl) {
+				/*  Report every sta's RSSI to FW */
+			} else {
+				ODM_RA_SetRSSI_8188E(
+				&pHalData->odmpriv, (PWDB_rssi[i] & 0xFF), (u8)((PWDB_rssi[i] >> 16) & 0xFF));
+			}
+		}
+	}
+
+	if (tmpEntryMaxPWDB != 0)	/*  If associated entry is found */
+		pdmpriv->EntryMaxUndecoratedSmoothedPWDB = tmpEntryMaxPWDB;
+	else
+		pdmpriv->EntryMaxUndecoratedSmoothedPWDB = 0;
+
+	if (tmpEntryMinPWDB != 0xff) /*  If associated entry is found */
+		pdmpriv->EntryMinUndecoratedSmoothedPWDB = tmpEntryMinPWDB;
+	else
+		pdmpriv->EntryMinUndecoratedSmoothedPWDB = 0;
+
+	FindMinimumRSSI(Adapter);
+	ODM_CmnInfoUpdate(&pHalData->odmpriv, ODM_CMNINFO_RSSI_MIN, pdmpriv->MinUndecoratedPWDBForDM);
+}
+
 /* 3 Export Interface */
 
 /*  2011/09/21 MH Add to describe different team necessary resource allocate?? */
@@ -751,82 +823,6 @@ bool ODM_RAStateCheck(struct odm_dm_struct *pDM_Odm, s32 RSSI, bool bForceUpdate
 		return true;
 	}
 	return false;
-}
-
-/* 3============================================================ */
-/* 3 RSSI Monitor */
-/* 3============================================================ */
-
-static void FindMinimumRSSI(struct adapter *pAdapter)
-{
-	struct hal_data_8188e *pHalData = &pAdapter->haldata;
-	struct dm_priv	*pdmpriv = &pHalData->dmpriv;
-	struct mlme_priv	*pmlmepriv = &pAdapter->mlmepriv;
-
-	/* 1 1.Determine the minimum RSSI */
-	if (!check_fwstate(pmlmepriv, _FW_LINKED) &&
-	    pdmpriv->EntryMinUndecoratedSmoothedPWDB == 0)
-		pdmpriv->MinUndecoratedPWDBForDM = 0;
-
-	pdmpriv->MinUndecoratedPWDBForDM = pdmpriv->EntryMinUndecoratedSmoothedPWDB;
-}
-
-void odm_RSSIMonitorCheck(struct odm_dm_struct *pDM_Odm)
-{
-	struct adapter *Adapter = pDM_Odm->Adapter;
-	struct hal_data_8188e *pHalData = &Adapter->haldata;
-	struct dm_priv	*pdmpriv = &pHalData->dmpriv;
-	int	i;
-	int	tmpEntryMaxPWDB = 0, tmpEntryMinPWDB = 0xff;
-	u8	sta_cnt = 0;
-	u32 PWDB_rssi[NUM_STA] = {0};/* 0~15]:MACID, [16~31]:PWDB_rssi */
-	struct sta_info *psta;
-
-	if (!(pDM_Odm->SupportAbility & ODM_BB_RSSI_MONITOR))
-		return;
-
-	if (!check_fwstate(&Adapter->mlmepriv, _FW_LINKED))
-		return;
-
-	for (i = 0; i < ODM_ASSOCIATE_ENTRY_NUM; i++) {
-		psta = pDM_Odm->pODM_StaInfo[i];
-		if (IS_STA_VALID(psta) &&
-		    (psta->state & WIFI_ASOC_STATE) &&
-		    !is_broadcast_ether_addr(psta->hwaddr) &&
-		    memcmp(psta->hwaddr, myid(&Adapter->eeprompriv), ETH_ALEN)) {
-			if (psta->rssi_stat.UndecoratedSmoothedPWDB < tmpEntryMinPWDB)
-				tmpEntryMinPWDB = psta->rssi_stat.UndecoratedSmoothedPWDB;
-
-			if (psta->rssi_stat.UndecoratedSmoothedPWDB > tmpEntryMaxPWDB)
-				tmpEntryMaxPWDB = psta->rssi_stat.UndecoratedSmoothedPWDB;
-			if (psta->rssi_stat.UndecoratedSmoothedPWDB != (-1))
-				PWDB_rssi[sta_cnt++] = (psta->mac_id | (psta->rssi_stat.UndecoratedSmoothedPWDB << 16));
-		}
-	}
-
-	for (i = 0; i < sta_cnt; i++) {
-		if (PWDB_rssi[i] != (0)) {
-			if (pHalData->fw_ractrl) {
-				/*  Report every sta's RSSI to FW */
-			} else {
-				ODM_RA_SetRSSI_8188E(
-				&pHalData->odmpriv, (PWDB_rssi[i] & 0xFF), (u8)((PWDB_rssi[i] >> 16) & 0xFF));
-			}
-		}
-	}
-
-	if (tmpEntryMaxPWDB != 0)	/*  If associated entry is found */
-		pdmpriv->EntryMaxUndecoratedSmoothedPWDB = tmpEntryMaxPWDB;
-	else
-		pdmpriv->EntryMaxUndecoratedSmoothedPWDB = 0;
-
-	if (tmpEntryMinPWDB != 0xff) /*  If associated entry is found */
-		pdmpriv->EntryMinUndecoratedSmoothedPWDB = tmpEntryMinPWDB;
-	else
-		pdmpriv->EntryMinUndecoratedSmoothedPWDB = 0;
-
-	FindMinimumRSSI(Adapter);
-	ODM_CmnInfoUpdate(&pHalData->odmpriv, ODM_CMNINFO_RSSI_MIN, pdmpriv->MinUndecoratedPWDBForDM);
 }
 
 /* 3============================================================ */
