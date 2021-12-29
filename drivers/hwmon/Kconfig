@@ -397,6 +397,16 @@ config SENSORS_ASPEED
 	  This driver can also be built as a module. If so, the module
 	  will be called aspeed_pwm_tacho.
 
+config SENSORS_ASPEED_CHASSIS
+	tristate "ASPEED CHASSIS Driver"
+	depends on ARCH_ASPEED || COMPILE_TEST
+	help
+	  This driver provides support for Aspeed ast2600 chassis intruded
+	  detect support.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called aspeed-chassis.
+
 config SENSORS_TACH_ASPEED_AST2600
 	tristate "ASPEED ast2600 Tachometer support"
 	select REGMAP
