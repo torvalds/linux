@@ -65,8 +65,8 @@
 /* use 2 static channels for TX/RX */
 #define LTQ_ETOP_TX_CHANNEL	1
 #define LTQ_ETOP_RX_CHANNEL	6
-#define IS_TX(x)		(x == LTQ_ETOP_TX_CHANNEL)
-#define IS_RX(x)		(x == LTQ_ETOP_RX_CHANNEL)
+#define IS_TX(x)		((x) == LTQ_ETOP_TX_CHANNEL)
+#define IS_RX(x)		((x) == LTQ_ETOP_RX_CHANNEL)
 
 #define ltq_etop_r32(x)		ltq_r32(ltq_etop_membase + (x))
 #define ltq_etop_w32(x, y)	ltq_w32(x, ltq_etop_membase + (y))
