@@ -456,10 +456,10 @@ err:
 	return ret;
 }
 
-static int bch2_snapshot_node_create(struct btree_trans *trans, u32 parent,
-				     u32 *new_snapids,
-				     u32 *snapshot_subvols,
-				     unsigned nr_snapids)
+int bch2_snapshot_node_create(struct btree_trans *trans, u32 parent,
+			      u32 *new_snapids,
+			      u32 *snapshot_subvols,
+			      unsigned nr_snapids)
 {
 	struct btree_iter iter;
 	struct bkey_i_snapshot *n;

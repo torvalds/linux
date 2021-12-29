@@ -122,6 +122,10 @@ int bch2_snapshot_get_subvol(struct btree_trans *, u32,
 			     struct bch_subvolume *);
 int bch2_subvolume_get_snapshot(struct btree_trans *, u32, u32 *);
 
+/* only exported for tests: */
+int bch2_snapshot_node_create(struct btree_trans *, u32,
+			      u32 *, u32 *, unsigned);
+
 int bch2_subvolume_delete(struct btree_trans *, u32);
 int bch2_subvolume_unlink(struct btree_trans *, u32);
 int bch2_subvolume_create(struct btree_trans *, u64, u32,

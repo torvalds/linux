@@ -4,6 +4,7 @@
 #include "bcachefs.h"
 #include "btree_update.h"
 #include "journal_reclaim.h"
+#include "subvolume.h"
 #include "tests.h"
 
 #include "linux/kthread.h"
@@ -461,6 +462,70 @@ static int test_extent_overwrite_all(struct bch_fs *c, u64 nr)
 		__test_extent_overwrite(c, 32, 64, 32, 128);
 }
 
+/* snapshot unit tests */
+
+/* Test skipping over keys in unrelated snapshots: */
+static int test_snapshot_filter(struct bch_fs *c, u32 snapid_lo, u32 snapid_hi)
+{
+	struct btree_trans trans;
+	struct btree_iter iter;
+	struct bkey_s_c k;
+	struct bkey_i_cookie cookie;
+	int ret;
+
+	bkey_cookie_init(&cookie.k_i);
+	cookie.k.p.snapshot = snapid_hi;
+	ret = bch2_btree_insert(c, BTREE_ID_xattrs, &cookie.k_i,
+				NULL, NULL, 0);
+	if (ret)
+		return ret;
+
+	bch2_trans_init(&trans, c, 0, 0);
+	bch2_trans_iter_init(&trans, &iter, BTREE_ID_xattrs,
+			     SPOS(0, 0, snapid_lo), 0);
+	k = bch2_btree_iter_peek(&iter);
+
+	BUG_ON(k.k->p.snapshot != U32_MAX);
+
+	bch2_trans_iter_exit(&trans, &iter);
+	bch2_trans_exit(&trans);
+	return ret;
+}
+
+static int test_snapshots(struct bch_fs *c, u64 nr)
+{
+	struct bkey_i_cookie cookie;
+	u32 snapids[2];
+	u32 snapid_subvols[2] = { 1, 1 };
+	int ret;
+
+	bkey_cookie_init(&cookie.k_i);
+	cookie.k.p.snapshot = U32_MAX;
+	ret = bch2_btree_insert(c, BTREE_ID_xattrs, &cookie.k_i,
+				NULL, NULL, 0);
+	if (ret)
+		return ret;
+
+	ret = bch2_trans_do(c, NULL, NULL, 0,
+		      bch2_snapshot_node_create(&trans, U32_MAX,
+						snapids,
+						snapid_subvols,
+						2));
+	if (ret)
+		return ret;
+
+	if (snapids[0] > snapids[1])
+		swap(snapids[0], snapids[1]);
+
+	ret = test_snapshot_filter(c, snapids[0], snapids[1]);
+	if (ret) {
+		bch_err(c, "err %i from test_snapshot_filter", ret);
+		return ret;
+	}
+
+	return 0;
+}
+
 /* perf tests */
 
 static u64 test_rand(void)
@@ -789,8 +854,10 @@ static int btree_perf_test_thread(void *data)
 	}
 
 	ret = j->fn(j->c, div64_u64(j->nr, j->nr_threads));
-	if (ret)
+	if (ret) {
+		bch_err(j->c, "%ps: error %i", j->fn, ret);
 		j->ret = ret;
+	}
 
 	if (atomic_dec_and_test(&j->done)) {
 		j->finish = sched_clock();
@@ -842,6 +909,8 @@ int bch2_btree_perf_test(struct bch_fs *c, const char *testname,
 	perf_test(test_extent_overwrite_back);
 	perf_test(test_extent_overwrite_middle);
 	perf_test(test_extent_overwrite_all);
+
+	perf_test(test_snapshots);
 
 	if (!j.fn) {
 		pr_err("unknown test %s", testname);
