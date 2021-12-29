@@ -21,6 +21,7 @@
 #include <linux/module.h>
 #include <linux/mod_devicetable.h>
 #include <linux/platform_device.h>
+#include <linux/serdev.h>
 #include <linux/string.h>
 /* For gpio_get_desc() which is EXPORT_SYMBOL_GPL() */
 #include "../../gpio/gpiolib.h"
@@ -127,11 +128,26 @@ struct x86_i2c_client_info {
 	struct x86_acpi_irq_data irq_data;
 };
 
+struct x86_serdev_info {
+	const char *ctrl_hid;
+	const char *ctrl_uid;
+	const char *ctrl_devname;
+	/*
+	 * ATM the serdev core only supports of or ACPI matching; and sofar all
+	 * Android x86 tablets DSDTs have usable serdev nodes, but sometimes
+	 * under the wrong controller. So we just tie the existing serdev ACPI
+	 * node to the right controller.
+	 */
+	const char *serdev_hid;
+};
+
 struct x86_dev_info {
 	const struct x86_i2c_client_info *i2c_client_info;
 	const struct platform_device_info *pdev_info;
+	const struct x86_serdev_info *serdev_info;
 	int i2c_client_count;
 	int pdev_count;
+	int serdev_count;
 };
 
 /*
@@ -273,8 +289,10 @@ MODULE_DEVICE_TABLE(dmi, x86_android_tablet_ids);
 
 static int i2c_client_count;
 static int pdev_count;
+static int serdev_count;
 static struct i2c_client **i2c_clients;
 static struct platform_device **pdevs;
+static struct serdev_device **serdevs;
 
 static __init int x86_instantiate_i2c_client(const struct x86_dev_info *dev_info,
 					     int idx)
@@ -310,9 +328,77 @@ static __init int x86_instantiate_i2c_client(const struct x86_dev_info *dev_info
 	return 0;
 }
 
+static __init int x86_instantiate_serdev(const struct x86_serdev_info *info, int idx)
+{
+	struct acpi_device *ctrl_adev, *serdev_adev;
+	struct serdev_device *serdev;
+	struct device *ctrl_dev;
+	int ret = -ENODEV;
+
+	ctrl_adev = acpi_dev_get_first_match_dev(info->ctrl_hid, info->ctrl_uid, -1);
+	if (!ctrl_adev) {
+		pr_err("error could not get %s/%s ctrl adev\n",
+		       info->ctrl_hid, info->ctrl_uid);
+		return -ENODEV;
+	}
+
+	serdev_adev = acpi_dev_get_first_match_dev(info->serdev_hid, NULL, -1);
+	if (!serdev_adev) {
+		pr_err("error could not get %s serdev adev\n", info->serdev_hid);
+		goto put_ctrl_adev;
+	}
+
+	/* get_first_physical_node() returns a weak ref, no need to put() it */
+	ctrl_dev = acpi_get_first_physical_node(ctrl_adev);
+	if (!ctrl_dev)	{
+		pr_err("error could not get %s/%s ctrl physical dev\n",
+		       info->ctrl_hid, info->ctrl_uid);
+		goto put_serdev_adev;
+	}
+
+	/* ctrl_dev now points to the controller's parent, get the controller */
+	ctrl_dev = device_find_child_by_name(ctrl_dev, info->ctrl_devname);
+	if (!ctrl_dev) {
+		pr_err("error could not get %s/%s %s ctrl dev\n",
+		       info->ctrl_hid, info->ctrl_uid, info->ctrl_devname);
+		goto put_serdev_adev;
+	}
+
+	serdev = serdev_device_alloc(to_serdev_controller(ctrl_dev));
+	if (!serdev) {
+		ret = -ENOMEM;
+		goto put_serdev_adev;
+	}
+
+	ACPI_COMPANION_SET(&serdev->dev, serdev_adev);
+	acpi_device_set_enumerated(serdev_adev);
+
+	ret = serdev_device_add(serdev);
+	if (ret) {
+		dev_err(&serdev->dev, "error %d adding serdev\n", ret);
+		serdev_device_put(serdev);
+		goto put_serdev_adev;
+	}
+
+	serdevs[idx] = serdev;
+
+put_serdev_adev:
+	acpi_dev_put(serdev_adev);
+put_ctrl_adev:
+	acpi_dev_put(ctrl_adev);
+	return ret;
+}
+
 static void x86_android_tablet_cleanup(void)
 {
 	int i;
+
+	for (i = 0; i < serdev_count; i++) {
+		if (serdevs[i])
+			serdev_device_remove(serdevs[i]);
+	}
+
+	kfree(serdevs);
 
 	for (i = 0; i < pdev_count; i++)
 		platform_device_unregister(pdevs[i]);
@@ -362,6 +448,21 @@ static __init int x86_android_tablet_init(void)
 		if (IS_ERR(pdevs[i])) {
 			x86_android_tablet_cleanup();
 			return PTR_ERR(pdevs[i]);
+		}
+	}
+
+	serdevs = kcalloc(dev_info->serdev_count, sizeof(*serdevs), GFP_KERNEL);
+	if (!serdevs) {
+		x86_android_tablet_cleanup();
+		return -ENOMEM;
+	}
+
+	serdev_count = dev_info->serdev_count;
+	for (i = 0; i < serdev_count; i++) {
+		ret = x86_instantiate_serdev(&dev_info->serdev_info[i], i);
+		if (ret < 0) {
+			x86_android_tablet_cleanup();
+			return ret;
 		}
 	}
 
