@@ -570,7 +570,7 @@ static int bch2_quota_remove(struct super_block *sb, unsigned uflags)
 		ret = bch2_btree_delete_range(c, BTREE_ID_quotas,
 					      POS(QTYP_USR, 0),
 					      POS(QTYP_USR + 1, 0),
-					      NULL);
+					      0, NULL);
 		if (ret)
 			return ret;
 	}
@@ -582,7 +582,7 @@ static int bch2_quota_remove(struct super_block *sb, unsigned uflags)
 		ret = bch2_btree_delete_range(c, BTREE_ID_quotas,
 					      POS(QTYP_GRP, 0),
 					      POS(QTYP_GRP + 1, 0),
-					      NULL);
+					      0, NULL);
 		if (ret)
 			return ret;
 	}
@@ -594,7 +594,7 @@ static int bch2_quota_remove(struct super_block *sb, unsigned uflags)
 		ret = bch2_btree_delete_range(c, BTREE_ID_quotas,
 					      POS(QTYP_PRJ, 0),
 					      POS(QTYP_PRJ + 1, 0),
-					      NULL);
+					      0, NULL);
 		if (ret)
 			return ret;
 	}

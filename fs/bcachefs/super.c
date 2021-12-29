@@ -1484,7 +1484,7 @@ static int bch2_dev_remove_alloc(struct bch_fs *c, struct bch_dev *ca)
 	return bch2_btree_delete_range(c, BTREE_ID_alloc,
 				       POS(ca->dev_idx, 0),
 				       POS(ca->dev_idx + 1, 0),
-				       NULL);
+				       0, NULL);
 }
 
 int bch2_dev_remove(struct bch_fs *c, struct bch_dev *ca, int flags)

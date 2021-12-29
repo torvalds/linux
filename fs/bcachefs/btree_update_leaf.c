@@ -1475,7 +1475,7 @@ retry:
 		 */
 		delete.k.p = iter.pos;
 
-		if (btree_node_type_is_extents(id)) {
+		if (iter.flags & BTREE_ITER_IS_EXTENTS) {
 			unsigned max_sectors =
 				KEY_SIZE_MAX & (~0 << trans->c->block_bits);
 
@@ -1512,8 +1512,10 @@ retry:
  */
 int bch2_btree_delete_range(struct bch_fs *c, enum btree_id id,
 			    struct bpos start, struct bpos end,
+			    unsigned iter_flags,
 			    u64 *journal_seq)
 {
 	return bch2_trans_do(c, NULL, journal_seq, 0,
-			     bch2_btree_delete_range_trans(&trans, id, start, end, 0, journal_seq));
+			     bch2_btree_delete_range_trans(&trans, id, start, end,
+							   iter_flags, journal_seq));
 }

@@ -677,7 +677,7 @@ static int ec_stripe_delete(struct bch_fs *c, size_t idx)
 	return bch2_btree_delete_range(c, BTREE_ID_stripes,
 				       POS(0, idx),
 				       POS(0, idx + 1),
-				       NULL);
+				       0, NULL);
 }
 
 static void ec_stripe_delete_work(struct work_struct *work)
