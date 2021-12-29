@@ -345,17 +345,17 @@ static const struct phylink_pcs_ops lynx_pcs_phylink_ops = {
 
 struct phylink_pcs *lynx_pcs_create(struct mdio_device *mdio)
 {
-	struct lynx_pcs *lynx_pcs;
+	struct lynx_pcs *lynx;
 
-	lynx_pcs = kzalloc(sizeof(*lynx_pcs), GFP_KERNEL);
-	if (!lynx_pcs)
+	lynx = kzalloc(sizeof(*lynx), GFP_KERNEL);
+	if (!lynx)
 		return NULL;
 
-	lynx_pcs->mdio = mdio;
-	lynx_pcs->pcs.ops = &lynx_pcs_phylink_ops;
-	lynx_pcs->pcs.poll = true;
+	lynx->mdio = mdio;
+	lynx->pcs.ops = &lynx_pcs_phylink_ops;
+	lynx->pcs.poll = true;
 
-	return lynx_to_phylink_pcs(lynx_pcs);
+	return lynx_to_phylink_pcs(lynx);
 }
 EXPORT_SYMBOL(lynx_pcs_create);
 
