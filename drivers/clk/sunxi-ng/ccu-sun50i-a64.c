@@ -5,7 +5,7 @@
 
 #include <linux/clk-provider.h>
 #include <linux/io.h>
-#include <linux/of_address.h>
+#include <linux/module.h>
 #include <linux/platform_device.h>
 
 #include "ccu_common.h"
@@ -980,4 +980,7 @@ static struct platform_driver sun50i_a64_ccu_driver = {
 		.of_match_table	= sun50i_a64_ccu_ids,
 	},
 };
-builtin_platform_driver(sun50i_a64_ccu_driver);
+module_platform_driver(sun50i_a64_ccu_driver);
+
+MODULE_IMPORT_NS(SUNXI_CCU);
+MODULE_LICENSE("GPL");
