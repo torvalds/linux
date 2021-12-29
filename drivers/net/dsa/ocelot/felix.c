@@ -21,7 +21,6 @@
 #include <linux/of_net.h>
 #include <linux/pci.h>
 #include <linux/of.h>
-#include <linux/pcs-lynx.h>
 #include <net/pkt_sched.h>
 #include <net/dsa.h>
 #include "felix.h"
@@ -832,7 +831,7 @@ static void felix_phylink_mac_config(struct dsa_switch *ds, int port,
 	struct dsa_port *dp = dsa_to_port(ds, port);
 
 	if (felix->pcs && felix->pcs[port])
-		phylink_set_pcs(dp->pl, &felix->pcs[port]->pcs);
+		phylink_set_pcs(dp->pl, felix->pcs[port]);
 }
 
 static void felix_phylink_mac_link_down(struct dsa_switch *ds, int port,

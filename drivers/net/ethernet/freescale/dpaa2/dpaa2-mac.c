@@ -2,6 +2,7 @@
 /* Copyright 2019 NXP */
 
 #include <linux/acpi.h>
+#include <linux/pcs-lynx.h>
 #include <linux/property.h>
 
 #include "dpaa2-eth.h"
@@ -204,11 +205,13 @@ static int dpaa2_pcs_create(struct dpaa2_mac *mac,
 
 static void dpaa2_pcs_destroy(struct dpaa2_mac *mac)
 {
-	struct lynx_pcs *pcs = mac->pcs;
+	struct phylink_pcs *phylink_pcs = mac->pcs;
 
-	if (pcs) {
-		struct device *dev = &pcs->mdio->dev;
-		lynx_pcs_destroy(pcs);
+	if (phylink_pcs) {
+		struct mdio_device *mdio = lynx_get_mdio_device(phylink_pcs);
+		struct device *dev = &mdio->dev;
+
+		lynx_pcs_destroy(phylink_pcs);
 		put_device(dev);
 		mac->pcs = NULL;
 	}
@@ -292,7 +295,7 @@ int dpaa2_mac_connect(struct dpaa2_mac *mac)
 	mac->phylink = phylink;
 
 	if (mac->pcs)
-		phylink_set_pcs(mac->phylink, &mac->pcs->pcs);
+		phylink_set_pcs(mac->phylink, mac->pcs);
 
 	err = phylink_fwnode_phy_connect(mac->phylink, dpmac_node, 0);
 	if (err) {
