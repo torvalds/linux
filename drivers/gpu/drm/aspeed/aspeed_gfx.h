@@ -18,6 +18,7 @@ struct aspeed_gfx {
 	u32				throd_val;
 	u32				scan_line_max;
 	u32				flags;
+	u32				pcie_int_reg;
 
 	struct drm_simple_display_pipe	pipe;
 	struct drm_connector		connector;
@@ -111,6 +112,7 @@ int aspeed_gfx_create_output(struct drm_device *drm);
 
 /* SCU control */
 #define SCU_G6_CLK_COURCE		0x300
+#define CRT_FROM_SOC		BIT(16)
 
 /* GFX FLAGS */
 #define RESET_MASK			BIT(0)
@@ -120,3 +122,8 @@ int aspeed_gfx_create_output(struct drm_device *drm);
 
 #define G6_CLK_MASK			(BIT(8) | BIT(9) | BIT(10))
 #define G6_USB_40_CLK			BIT(9)
+
+/* PCIE interrupt */
+#define PCIE_PERST_L_T_H	BIT(18)
+#define PCIE_PERST_H_T_L	BIT(19)
+#define STS_PERST_STATUS	(PCIE_PERST_L_T_H|PCIE_PERST_H_T_L)

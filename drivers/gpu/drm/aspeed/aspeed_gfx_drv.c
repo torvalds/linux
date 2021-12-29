@@ -65,6 +65,7 @@ struct aspeed_gfx_config {
 	u32 throd_val;		/* Default Threshold Seting */
 	u32 scan_line_max;	/* Max memory size of one scan line */
 	u32 gfx_flags;		/* Flags for gfx chip caps */
+	u32 pcie_int_reg;	/* pcie interrupt */
 };
 
 static const struct aspeed_gfx_config ast2400_config = {
@@ -74,6 +75,7 @@ static const struct aspeed_gfx_config ast2400_config = {
 	.throd_val = CRT_THROD_LOW(0x1e) | CRT_THROD_HIGH(0x12),
 	.scan_line_max = 64,
 	.gfx_flags = 0,
+	.pcie_int_reg = 0x18,
 };
 
 static const struct aspeed_gfx_config ast2500_config = {
@@ -83,6 +85,7 @@ static const struct aspeed_gfx_config ast2500_config = {
 	.throd_val = CRT_THROD_LOW(0x24) | CRT_THROD_HIGH(0x3c),
 	.scan_line_max = 128,
 	.gfx_flags = 0,
+	.pcie_int_reg = 0x18,
 };
 
 static const struct aspeed_gfx_config ast2600_config = {
@@ -92,6 +95,7 @@ static const struct aspeed_gfx_config ast2600_config = {
 	.throd_val = CRT_THROD_LOW(0x50) | CRT_THROD_HIGH(0x70),
 	.scan_line_max = 128,
 	.gfx_flags = RESET_G6 | CLK_G6,
+	.pcie_int_reg = 0x560,
 };
 
 static const struct of_device_id aspeed_gfx_match[] = {
@@ -123,6 +127,34 @@ static int aspeed_gfx_setup_mode_config(struct drm_device *drm)
 	drm->mode_config.funcs = &aspeed_gfx_mode_config_funcs;
 
 	return ret;
+}
+
+static irqreturn_t aspeed_host_irq_handler(int irq, void *data)
+{
+	struct drm_device *drm = data;
+	struct aspeed_gfx *priv = to_aspeed_gfx(drm);
+	u32 reg;
+
+	regmap_read(priv->scu, priv->pcie_int_reg, &reg);
+
+	if (reg & STS_PERST_STATUS) {
+		if (reg & PCIE_PERST_L_T_H) {
+			dev_dbg(drm->dev, "pcie active.\n");
+
+			/*Change the CRT back to host*/
+			regmap_update_bits(priv->scu, priv->dac_reg,
+			CRT_FROM_SOC, 0);
+		} else if (reg & PCIE_PERST_H_T_L) {
+			dev_dbg(drm->dev, "pcie de-active.\n");
+
+			/*Change the CRT back to soc*/
+			regmap_update_bits(priv->scu, priv->dac_reg,
+			CRT_FROM_SOC, CRT_FROM_SOC);
+		}
+		return IRQ_HANDLED;
+	}
+
+	return IRQ_NONE;
 }
 
 static irqreturn_t aspeed_gfx_irq_handler(int irq, void *data)
@@ -206,13 +238,17 @@ static int aspeed_gfx_load(struct drm_device *drm)
 	priv->throd_val = config->throd_val;
 	priv->scan_line_max = config->scan_line_max;
 	priv->flags = config->gfx_flags;
+	priv->pcie_int_reg = config->pcie_int_reg;
 
 	priv->scu = syscon_regmap_lookup_by_phandle(np, "syscon");
 	if (IS_ERR(priv->scu)) {
 		priv->scu = syscon_regmap_lookup_by_compatible("aspeed,ast2500-scu");
 		if (IS_ERR(priv->scu)) {
-			dev_err(&pdev->dev, "failed to find SCU regmap\n");
-			return PTR_ERR(priv->scu);
+			priv->scu = syscon_regmap_lookup_by_compatible("aspeed,ast2600-scu");
+			if (IS_ERR(priv->scu)) {
+				dev_err(&pdev->dev, "failed to find SCU regmap\n");
+				return PTR_ERR(priv->scu);
+			}
 		}
 	}
 
@@ -275,6 +311,28 @@ static int aspeed_gfx_load(struct drm_device *drm)
 	if (ret < 0) {
 		dev_err(drm->dev, "Failed to install IRQ handler\n");
 		return ret;
+	}
+
+	/* install pcie reset detect */
+	if (of_property_read_bool(np, "pcie-reset-detect")) {
+
+		dev_dbg(drm->dev, "hook pcie reset.\n");
+
+		/* Special watch the host power up / down */
+		ret = devm_request_irq(drm->dev, platform_get_irq(pdev, 1),
+					   aspeed_host_irq_handler,
+					   IRQF_SHARED, "aspeed host active", drm);
+		if (ret < 0) {
+			dev_err(drm->dev, "Failed to install HOST active handler\n");
+			return ret;
+		}
+		ret = devm_request_irq(drm->dev, platform_get_irq(pdev, 2),
+					   aspeed_host_irq_handler,
+					   IRQF_SHARED, "aspeed host deactive", drm);
+		if (ret < 0) {
+			dev_err(drm->dev, "Failed to install HOST de-active handler\n");
+			return ret;
+		}
 	}
 
 	drm_mode_config_reset(drm);

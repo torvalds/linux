@@ -60,7 +60,7 @@ static void aspeed_gfx_enable_controller(struct aspeed_gfx *priv)
 	u32 ctrl2 = readl(priv->base + CRT_CTRL2);
 
 	/* Set DAC source for display output to Graphics CRT (GFX) */
-	regmap_update_bits(priv->scu, priv->dac_reg, BIT(16), BIT(16));
+	regmap_update_bits(priv->scu, priv->dac_reg, CRT_FROM_SOC, CRT_FROM_SOC);
 
 	writel(ctrl1 | CRT_CTRL_EN, priv->base + CRT_CTRL1);
 	writel(ctrl2 | CRT_CTRL_DAC_EN, priv->base + CRT_CTRL2);
@@ -74,7 +74,7 @@ static void aspeed_gfx_disable_controller(struct aspeed_gfx *priv)
 	writel(ctrl1 & ~CRT_CTRL_EN, priv->base + CRT_CTRL1);
 	writel(ctrl2 & ~CRT_CTRL_DAC_EN, priv->base + CRT_CTRL2);
 
-	regmap_update_bits(priv->scu, priv->dac_reg, BIT(16), 0);
+	regmap_update_bits(priv->scu, priv->dac_reg, CRT_FROM_SOC, 0);
 }
 
 static void aspeed_gfx_set_clk(struct aspeed_gfx *priv)
