@@ -303,6 +303,14 @@ static void odm_DIG(struct odm_dm_struct *pDM_Odm)
 	pDM_DigTable->DIG_Dynamic_MIN_0 = DIG_Dynamic_MIN;
 }
 
+static void odm_CommonInfoSelfInit(struct odm_dm_struct *pDM_Odm)
+{
+	struct adapter *adapter = pDM_Odm->Adapter;
+
+	pDM_Odm->bCckHighPower = (bool)rtl8188e_PHY_QueryBBReg(adapter, 0x824, BIT(9));
+	pDM_Odm->RFPathRxEnable = (u8)rtl8188e_PHY_QueryBBReg(adapter, 0xc04, 0x0F);
+}
+
 /* 3 Export Interface */
 
 /*  2011/09/21 MH Add to describe different team necessary resource allocate?? */
@@ -424,14 +432,6 @@ void ODM_CmnInfoUpdate(struct odm_dm_struct *pDM_Odm, u32 CmnInfo, u64 Value)
 		pDM_Odm->RSSI_Min = (u8)Value;
 		break;
 	}
-}
-
-void odm_CommonInfoSelfInit(struct odm_dm_struct *pDM_Odm)
-{
-	struct adapter *adapter = pDM_Odm->Adapter;
-
-	pDM_Odm->bCckHighPower = (bool)rtl8188e_PHY_QueryBBReg(adapter, 0x824, BIT(9));
-	pDM_Odm->RFPathRxEnable = (u8)rtl8188e_PHY_QueryBBReg(adapter, 0xc04, 0x0F);
 }
 
 void odm_CommonInfoSelfUpdate(struct odm_dm_struct *pDM_Odm)
