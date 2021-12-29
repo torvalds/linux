@@ -526,6 +526,18 @@
 				status = "disabled";
 			};
 
+			display_port: dp@1e6eb000 {
+				compatible = "aspeed,ast2600-displayport", "syscon";
+				reg = <0x1e6eb000 0x200>;
+				status = "disabled";
+			};
+
+			display_port_mcu: dpmcu@18000000 {
+				compatible = "aspeed,ast2600-displayport-mcu", "syscon";
+				reg = <0x18000000 0xF00>;
+				status = "disabled";
+			};
+
 			gfx: display@1e6e6000 {
 				compatible = "aspeed,ast2600-gfx", "syscon";
 				reg = <0x1e6e6000 0x1000>;
