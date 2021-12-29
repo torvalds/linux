@@ -346,6 +346,24 @@ static void odm_RateAdaptiveMaskInit(struct odm_dm_struct *pDM_Odm)
 	pOdmRA->LowRSSIThresh = 20;
 }
 
+static void odm_RefreshRateAdaptiveMask(struct odm_dm_struct *pDM_Odm)
+{
+	u8 i;
+	struct adapter *pAdapter = pDM_Odm->Adapter;
+
+	if (pAdapter->bDriverStopped)
+		return;
+
+	for (i = 0; i < ODM_ASSOCIATE_ENTRY_NUM; i++) {
+		struct sta_info *pstat = pDM_Odm->pODM_StaInfo[i];
+
+		if (IS_STA_VALID(pstat)) {
+			if (ODM_RAStateCheck(pDM_Odm, pstat->rssi_stat.UndecoratedSmoothedPWDB, false, &pstat->rssi_level))
+				rtw_hal_update_ra_mask(pAdapter, i, pstat->rssi_level);
+		}
+	}
+}
+
 /* 3 Export Interface */
 
 /*  2011/09/21 MH Add to describe different team necessary resource allocate?? */
@@ -701,39 +719,6 @@ u32 ODM_Get_Rate_Bitmap(struct odm_dm_struct *pDM_Odm, u32 macid, u32 ra_mask, u
 	}
 
 	return rate_bitmap;
-}
-
-/*-----------------------------------------------------------------------------
- * Function:	odm_RefreshRateAdaptiveMask()
- *
- * Overview:	Update rate table mask according to rssi
- *
- * Input:		NONE
- *
- * Output:		NONE
- *
- * Return:		NONE
- *
- * Revised History:
- *	When		Who		Remark
- *	05/27/2009	hpfan	Create Version 0.
- *
- *---------------------------------------------------------------------------*/
-void odm_RefreshRateAdaptiveMask(struct odm_dm_struct *pDM_Odm)
-{
-	u8 i;
-	struct adapter *pAdapter = pDM_Odm->Adapter;
-
-	if (pAdapter->bDriverStopped)
-		return;
-
-	for (i = 0; i < ODM_ASSOCIATE_ENTRY_NUM; i++) {
-		struct sta_info *pstat = pDM_Odm->pODM_StaInfo[i];
-		if (IS_STA_VALID(pstat)) {
-			if (ODM_RAStateCheck(pDM_Odm, pstat->rssi_stat.UndecoratedSmoothedPWDB, false, &pstat->rssi_level))
-				rtw_hal_update_ra_mask(pAdapter, i, pstat->rssi_level);
-		}
-	}
 }
 
 /*  Return Value: bool */
