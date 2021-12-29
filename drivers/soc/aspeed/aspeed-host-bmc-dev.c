@@ -11,6 +11,9 @@
 #include <linux/file.h>
 #include <linux/fs.h>
 #include <linux/interrupt.h>
+#include <linux/wait.h>
+#include <linux/workqueue.h>
+
 
 #include <linux/miscdevice.h>
 #include <linux/module.h>
@@ -65,6 +68,12 @@ struct aspeed_pci_bmc_dev {
 	struct kernfs_node	*kn0;
 	struct kernfs_node	*kn1;
 
+	/* Queue waiters for idle engine */
+	wait_queue_head_t tx_wait0;
+	wait_queue_head_t tx_wait1;
+	wait_queue_head_t rx_wait0;
+	wait_queue_head_t rx_wait1;
+
 	void *serial_priv;
 
 	u8 IntLine;
@@ -116,16 +125,16 @@ static ssize_t aspeed_pci_bmc_dev_queue1_rx(struct file *filp, struct kobject *k
 {
 	struct aspeed_pci_bmc_dev *pci_bmc_device = dev_get_drvdata(container_of(kobj, struct device, kobj));
 	u32 *data = (u32 *) buf;
-	int rc;
+	int ret;
 
-	if (readl(pci_bmc_device->msg_bar_reg + ASPEED_PCI_BMC_BMC2HOST_STS) & BMC2HOST_Q1_EMPTY)
-		rc = 0;
-	else {
-		data[0] = readl(pci_bmc_device->msg_bar_reg + ASPEED_PCI_BMC_BMC2HOST_Q1);
-		rc = 4;
-	}
+	ret = wait_event_interruptible(pci_bmc_device->rx_wait0,
+		!(readl(pci_bmc_device->msg_bar_reg + ASPEED_PCI_BMC_BMC2HOST_STS) & BMC2HOST_Q1_EMPTY));
+	if (ret)
+		return -EINTR;
 
-	return rc;
+	data[0] = readl(pci_bmc_device->msg_bar_reg + ASPEED_PCI_BMC_BMC2HOST_Q1);
+	writel(HOST2BMC_INT_STS_DOORBELL | HOST2BMC_ENABLE_INTB, pci_bmc_device->msg_bar_reg + ASPEED_PCI_BMC_HOST2BMC_STS);
+	return sizeof(u32);
 }
 
 static ssize_t aspeed_pci_bmc_dev_queue2_rx(struct file *filp, struct kobject *kobj,
@@ -133,15 +142,16 @@ static ssize_t aspeed_pci_bmc_dev_queue2_rx(struct file *filp, struct kobject *k
 {
 	struct aspeed_pci_bmc_dev *pci_bmc_device = dev_get_drvdata(container_of(kobj, struct device, kobj));
 	u32 *data = (u32 *) buf;
-	int rc;
+	int ret;
 
-	if (!(readl(pci_bmc_device->msg_bar_reg + ASPEED_PCI_BMC_BMC2HOST_STS) & BMC2HOST_Q2_EMPTY)) {
-		data[0] = readl(pci_bmc_device->msg_bar_reg + ASPEED_PCI_BMC_BMC2HOST_Q2);
-		rc = 4;
-	} else
-		rc = 0;
+	ret = wait_event_interruptible(pci_bmc_device->rx_wait1,
+		!(readl(pci_bmc_device->msg_bar_reg + ASPEED_PCI_BMC_BMC2HOST_STS) & BMC2HOST_Q2_EMPTY));
+	if (ret)
+		return -EINTR;
 
-	return rc;
+	data[0] = readl(pci_bmc_device->msg_bar_reg + ASPEED_PCI_BMC_BMC2HOST_Q2);
+	writel(HOST2BMC_INT_STS_DOORBELL | HOST2BMC_ENABLE_INTB, pci_bmc_device->msg_bar_reg + ASPEED_PCI_BMC_HOST2BMC_STS);
+	return sizeof(u32);
 }
 
 static ssize_t aspeed_pci_bmc_dev_queue1_tx(struct file *filp, struct kobject *kobj,
@@ -149,21 +159,22 @@ static ssize_t aspeed_pci_bmc_dev_queue1_tx(struct file *filp, struct kobject *k
 {
 	struct aspeed_pci_bmc_dev *pci_bmc_device = dev_get_drvdata(container_of(kobj, struct device, kobj));
 	u32 tx_buff;
-	int rc;
+	int ret;
 
-	if (count != 4)
+	if (count != sizeof(u32))
 		return -EINVAL;
 
-	if (readl(pci_bmc_device->msg_bar_reg + ASPEED_PCI_BMC_HOST2BMC_STS) & HOST2BMC_Q1_FULL)
-		rc = -ENOSPC;
-	else {
-		memcpy(&tx_buff, buf, 4);
-		writel(tx_buff, pci_bmc_device->msg_bar_reg + ASPEED_PCI_BMC_HOST2BMC_Q1);
-		//trigger to host
-		writel(HOST2BMC_INT_STS_DOORBELL | HOST2BMC_ENABLE_INTB, pci_bmc_device->msg_bar_reg + ASPEED_PCI_BMC_HOST2BMC_STS);
-		rc = 4;
-	}
-	return rc;
+	ret = wait_event_interruptible(pci_bmc_device->tx_wait0,
+		!(readl(pci_bmc_device->msg_bar_reg + ASPEED_PCI_BMC_HOST2BMC_STS) & HOST2BMC_Q1_FULL));
+	if (ret)
+		return -EINTR;
+
+	memcpy(&tx_buff, buf, 4);
+	writel(tx_buff, pci_bmc_device->msg_bar_reg + ASPEED_PCI_BMC_HOST2BMC_Q1);
+	//trigger to host
+	writel(HOST2BMC_INT_STS_DOORBELL | HOST2BMC_ENABLE_INTB, pci_bmc_device->msg_bar_reg + ASPEED_PCI_BMC_HOST2BMC_STS);
+
+	return sizeof(u32);
 }
 
 static ssize_t aspeed_pci_bmc_dev_queue2_tx(struct file *filp, struct kobject *kobj,
@@ -171,21 +182,22 @@ static ssize_t aspeed_pci_bmc_dev_queue2_tx(struct file *filp, struct kobject *k
 {
 	struct aspeed_pci_bmc_dev *pci_bmc_device = dev_get_drvdata(container_of(kobj, struct device, kobj));
 	u32 tx_buff = 0;
-	int rc;
+	int ret;
 
-	if (count != 4)
+	if (count != sizeof(u32))
 		return -EINVAL;
 
-	if (readl(pci_bmc_device->msg_bar_reg + ASPEED_PCI_BMC_HOST2BMC_STS) & HOST2BMC_Q2_FULL)
-		rc = -ENOSPC;
-	else {
-		memcpy(&tx_buff, buf, 4);
-		writel(tx_buff, pci_bmc_device->msg_bar_reg + ASPEED_PCI_BMC_HOST2BMC_Q2);
-		//trigger to host
-		writel(HOST2BMC_INT_STS_DOORBELL | HOST2BMC_ENABLE_INTB, pci_bmc_device->msg_bar_reg + ASPEED_PCI_BMC_HOST2BMC_STS);
-		rc = 4;
-	}
-	return rc;
+	ret = wait_event_interruptible(pci_bmc_device->tx_wait0,
+		!(readl(pci_bmc_device->msg_bar_reg + ASPEED_PCI_BMC_HOST2BMC_STS) & HOST2BMC_Q2_FULL));
+	if (ret)
+		return -EINTR;
+
+	memcpy(&tx_buff, buf, 4);
+	writel(tx_buff, pci_bmc_device->msg_bar_reg + ASPEED_PCI_BMC_HOST2BMC_Q2);
+	//trigger to host
+	writel(HOST2BMC_INT_STS_DOORBELL | HOST2BMC_ENABLE_INTB, pci_bmc_device->msg_bar_reg + ASPEED_PCI_BMC_HOST2BMC_STS);
+
+	return sizeof(u32);
 }
 
 irqreturn_t aspeed_pci_host_bmc_device_interrupt(int irq, void *dev_id)
@@ -204,6 +216,20 @@ irqreturn_t aspeed_pci_host_bmc_device_interrupt(int irq, void *dev_id)
 
 	if (bmc2host_q_sts & BMC2HOST_Q2_FULL)
 		dev_info(pci_bmc_device->dev, "Q2 Full\n");
+
+
+	//check q1
+	if (!(readl(pci_bmc_device->msg_bar_reg + ASPEED_PCI_BMC_HOST2BMC_STS) & HOST2BMC_Q1_FULL))
+		wake_up_interruptible(&pci_bmc_device->tx_wait0);
+
+	if (!(readl(pci_bmc_device->msg_bar_reg + ASPEED_PCI_BMC_BMC2HOST_STS) & BMC2HOST_Q1_EMPTY))
+		wake_up_interruptible(&pci_bmc_device->rx_wait0);
+	//chech q2
+	if (!(readl(pci_bmc_device->msg_bar_reg + ASPEED_PCI_BMC_HOST2BMC_STS) & HOST2BMC_Q2_FULL))
+		wake_up_interruptible(&pci_bmc_device->tx_wait1);
+
+	if (!(readl(pci_bmc_device->msg_bar_reg + ASPEED_PCI_BMC_BMC2HOST_STS) & BMC2HOST_Q2_EMPTY))
+		wake_up_interruptible(&pci_bmc_device->rx_wait1);
 
 	return IRQ_HANDLED;
 
@@ -262,6 +288,11 @@ static int aspeed_pci_host_bmc_device_probe(struct pci_dev *pdev, const struct p
 		dev_err(&pdev->dev, "kmalloc() returned NULL memory.\n");
 		goto out_err;
 	}
+
+	init_waitqueue_head(&pci_bmc_dev->tx_wait0);
+	init_waitqueue_head(&pci_bmc_dev->tx_wait1);
+	init_waitqueue_head(&pci_bmc_dev->rx_wait0);
+	init_waitqueue_head(&pci_bmc_dev->rx_wait1);
 
 	//Get MEM bar
 	pci_bmc_dev->mem_bar_base = pci_resource_start(pdev, 0);
