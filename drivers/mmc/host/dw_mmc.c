@@ -3670,7 +3670,7 @@ int dw_mci_runtime_resume(struct device *dev)
 		mci_writel(host, INTMASK, ret);
 	}
 
-	if (host->slot->mmc->pm_flags & MMC_PM_KEEP_POWER)
+	if (host->slot && host->slot->mmc->pm_flags & MMC_PM_KEEP_POWER)
 		dw_mci_set_ios(host->slot->mmc, &host->slot->mmc->ios);
 
 	/* Force setup bus to guarantee available clock output */
