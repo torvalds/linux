@@ -364,6 +364,15 @@ static void odm_RefreshRateAdaptiveMask(struct odm_dm_struct *pDM_Odm)
 	}
 }
 
+static void odm_DynamicBBPowerSavingInit(struct odm_dm_struct *pDM_Odm)
+{
+	struct rtl_ps *pDM_PSTable = &pDM_Odm->DM_PSTable;
+
+	pDM_PSTable->pre_rf_state = RF_MAX;
+	pDM_PSTable->cur_rf_state = RF_MAX;
+	pDM_PSTable->initialize = 0;
+}
+
 /* 3 Export Interface */
 
 /*  2011/09/21 MH Add to describe different team necessary resource allocate?? */
@@ -597,18 +606,6 @@ void ODM_Write_CCK_CCA_Thres(struct odm_dm_struct *pDM_Odm, u8 CurCCK_CCAThres)
 		rtw_write8(pDM_Odm->Adapter, ODM_REG_CCK_CCA_11N, CurCCK_CCAThres);
 	pDM_DigTable->PreCCK_CCAThres = pDM_DigTable->CurCCK_CCAThres;
 	pDM_DigTable->CurCCK_CCAThres = CurCCK_CCAThres;
-}
-
-/* 3============================================================ */
-/* 3 BB Power Save */
-/* 3============================================================ */
-void odm_DynamicBBPowerSavingInit(struct odm_dm_struct *pDM_Odm)
-{
-	struct rtl_ps *pDM_PSTable = &pDM_Odm->DM_PSTable;
-
-	pDM_PSTable->pre_rf_state = RF_MAX;
-	pDM_PSTable->cur_rf_state = RF_MAX;
-	pDM_PSTable->initialize = 0;
 }
 
 void ODM_RF_Saving(struct odm_dm_struct *pDM_Odm, u8 bForceInNormal)
