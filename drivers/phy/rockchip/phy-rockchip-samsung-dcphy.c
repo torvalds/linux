@@ -1682,6 +1682,9 @@ static int samsung_mipi_dcphy_power_on(struct phy *phy)
 	enum phy_mode mode = phy_get_mode(phy);
 
 	pm_runtime_get_sync(samsung->dev);
+	reset_control_assert(samsung->apb_rst);
+	udelay(1);
+	reset_control_deassert(samsung->apb_rst);
 
 	switch (mode) {
 	case PHY_MODE_MIPI_DPHY:
