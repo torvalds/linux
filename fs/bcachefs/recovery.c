@@ -561,8 +561,8 @@ static int bch2_journal_replay_key(struct bch_fs *c, struct journal_key *k)
 
 static int journal_sort_seq_cmp(const void *_l, const void *_r)
 {
-	const struct journal_key *l = _l;
-	const struct journal_key *r = _r;
+	const struct journal_key *l = *((const struct journal_key **)_l);
+	const struct journal_key *r = *((const struct journal_key **)_r);
 
 	return  cmp_int(r->level,	l->level) ?:
 		cmp_int(l->journal_seq, r->journal_seq) ?:
@@ -570,19 +570,30 @@ static int journal_sort_seq_cmp(const void *_l, const void *_r)
 		bpos_cmp(l->k->k.p,	r->k->k.p);
 }
 
-static int bch2_journal_replay(struct bch_fs *c,
-			       struct journal_keys keys)
+static int bch2_journal_replay(struct bch_fs *c)
 {
+	struct journal_keys *keys = &c->journal_keys;
+	struct journal_key **keys_sorted, *k;
 	struct journal *j = &c->journal;
 	struct bch_dev *ca;
-	struct journal_key *i;
+	unsigned idx;
+	size_t i;
 	u64 seq;
-	int ret, idx;
+	int ret;
 
-	sort(keys.d, keys.nr, sizeof(keys.d[0]), journal_sort_seq_cmp, NULL);
+	keys_sorted = kmalloc_array(sizeof(*keys_sorted), keys->nr, GFP_KERNEL);
+	if (!keys_sorted)
+		return -ENOMEM;
 
-	if (keys.nr)
-		replay_now_at(j, keys.journal_seq_base);
+	for (i = 0; i < keys->nr; i++)
+		keys_sorted[i] = &keys->d[i];
+
+	sort(keys_sorted, keys->nr,
+	     sizeof(keys_sorted[0]),
+	     journal_sort_seq_cmp, NULL);
+
+	if (keys->nr)
+		replay_now_at(j, keys->journal_seq_base);
 
 	seq = j->replay_journal_seq;
 
@@ -590,12 +601,14 @@ static int bch2_journal_replay(struct bch_fs *c,
 	 * First replay updates to the alloc btree - these will only update the
 	 * btree key cache:
 	 */
-	for_each_journal_key(keys, i) {
+	for (i = 0; i < keys->nr; i++) {
+		k = keys_sorted[i];
+
 		cond_resched();
 
-		if (!i->level && i->btree_id == BTREE_ID_alloc) {
-			j->replay_journal_seq = keys.journal_seq_base + i->journal_seq;
-			ret = bch2_journal_replay_key(c, i);
+		if (!k->level && k->btree_id == BTREE_ID_alloc) {
+			j->replay_journal_seq = keys->journal_seq_base + k->journal_seq;
+			ret = bch2_journal_replay_key(c, k);
 			if (ret)
 				goto err;
 		}
@@ -609,12 +622,14 @@ static int bch2_journal_replay(struct bch_fs *c,
 	/*
 	 * Next replay updates to interior btree nodes:
 	 */
-	for_each_journal_key(keys, i) {
+	for (i = 0; i < keys->nr; i++) {
+		k = keys_sorted[i];
+
 		cond_resched();
 
-		if (i->level) {
-			j->replay_journal_seq = keys.journal_seq_base + i->journal_seq;
-			ret = bch2_journal_replay_key(c, i);
+		if (k->level) {
+			j->replay_journal_seq = keys->journal_seq_base + k->journal_seq;
+			ret = bch2_journal_replay_key(c, k);
 			if (ret)
 				goto err;
 		}
@@ -634,15 +649,17 @@ static int bch2_journal_replay(struct bch_fs *c,
 	/*
 	 * Now replay leaf node updates:
 	 */
-	for_each_journal_key(keys, i) {
+	for (i = 0; i < keys->nr; i++) {
+		k = keys_sorted[i];
+
 		cond_resched();
 
-		if (i->level || i->btree_id == BTREE_ID_alloc)
+		if (k->level || k->btree_id == BTREE_ID_alloc)
 			continue;
 
-		replay_now_at(j, keys.journal_seq_base + i->journal_seq);
+		replay_now_at(j, keys->journal_seq_base + k->journal_seq);
 
-		ret = bch2_journal_replay_key(c, i);
+		ret = bch2_journal_replay_key(c, k);
 		if (ret)
 			goto err;
 	}
@@ -652,10 +669,14 @@ static int bch2_journal_replay(struct bch_fs *c,
 
 	bch2_journal_set_replay_done(j);
 	bch2_journal_flush_all_pins(j);
+	kfree(keys_sorted);
+
 	return bch2_journal_error(j);
 err:
 	bch_err(c, "journal replay: error %d while replaying key at btree %s level %u",
-		ret, bch2_btree_ids[i->btree_id], i->level);
+		ret, bch2_btree_ids[k->btree_id], k->level);
+	kfree(keys_sorted);
+
 	return ret;
 }
 
@@ -1227,7 +1248,7 @@ use_clean:
 
 	bch_verbose(c, "starting journal replay");
 	err = "journal replay failed";
-	ret = bch2_journal_replay(c, c->journal_keys);
+	ret = bch2_journal_replay(c);
 	if (ret)
 		goto err;
 	bch_verbose(c, "journal replay done");
