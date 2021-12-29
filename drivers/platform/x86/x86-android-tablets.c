@@ -491,6 +491,86 @@ static const struct x86_dev_info chuwi_hi8_info __initconst = {
 };
 
 /*
+ * Whitelabel (sold as various brands) TM800A550L tablets.
+ * These tablet's DSDT contains a whole bunch of bogus ACPI I2C devices
+ * (removed through acpi_quirk_skip_i2c_client_enumeration()) and
+ * the touchscreen fwnode has the wrong GPIOs.
+ */
+static const char * const whitelabel_tm800a550l_accel_mount_matrix[] = {
+	"-1", "0", "0",
+	"0", "1", "0",
+	"0", "0", "1"
+};
+
+static const struct property_entry whitelabel_tm800a550l_accel_props[] = {
+	PROPERTY_ENTRY_STRING_ARRAY("mount-matrix", whitelabel_tm800a550l_accel_mount_matrix),
+	{ }
+};
+
+static const struct software_node whitelabel_tm800a550l_accel_node = {
+	.properties = whitelabel_tm800a550l_accel_props,
+};
+
+static const struct property_entry whitelabel_tm800a550l_goodix_props[] = {
+	PROPERTY_ENTRY_STRING("firmware-name", "gt912-tm800a550l.fw"),
+	PROPERTY_ENTRY_STRING("goodix,config-name", "gt912-tm800a550l.cfg"),
+	PROPERTY_ENTRY_U32("goodix,main-clk", 54),
+	{ }
+};
+
+static const struct software_node whitelabel_tm800a550l_goodix_node = {
+	.properties = whitelabel_tm800a550l_goodix_props,
+};
+
+static const struct x86_i2c_client_info whitelabel_tm800a550l_i2c_clients[] __initconst = {
+	{
+		/* goodix touchscreen */
+		.board_info = {
+			.type = "GDIX1001:00",
+			.addr = 0x14,
+			.dev_name = "goodix_ts",
+			.swnode = &whitelabel_tm800a550l_goodix_node,
+		},
+		.adapter_path = "\\_SB_.I2C2",
+		.irq_data = {
+			.type = X86_ACPI_IRQ_TYPE_APIC,
+			.index = 0x44,
+			.trigger = ACPI_EDGE_SENSITIVE,
+			.polarity = ACPI_ACTIVE_HIGH,
+		},
+	}, {
+		/* kxcj91008 accel */
+		.board_info = {
+			.type = "kxcj91008",
+			.addr = 0x0f,
+			.dev_name = "kxcj91008",
+			.swnode = &whitelabel_tm800a550l_accel_node,
+		},
+		.adapter_path = "\\_SB_.I2C3",
+	},
+};
+
+static struct gpiod_lookup_table whitelabel_tm800a550l_goodix_gpios = {
+	.dev_id = "i2c-goodix_ts",
+	.table = {
+		GPIO_LOOKUP("INT33FC:01", 26, "reset", GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP("INT33FC:02", 3, "irq", GPIO_ACTIVE_HIGH),
+		{ }
+	},
+};
+
+static struct gpiod_lookup_table *whitelabel_tm800a550l_gpios[] = {
+	&whitelabel_tm800a550l_goodix_gpios,
+	NULL
+};
+
+static const struct x86_dev_info whitelabel_tm800a550l_info __initconst = {
+	.i2c_client_info = whitelabel_tm800a550l_i2c_clients,
+	.i2c_client_count = ARRAY_SIZE(whitelabel_tm800a550l_i2c_clients),
+	.gpiod_lookup_tables = whitelabel_tm800a550l_gpios,
+};
+
+/*
  * If the EFI bootloader is not Xiaomi's own signed Android loader, then the
  * Xiaomi Mi Pad 2 X86 tablet sets OSID in the DSDT to 1 (Windows), causing
  * a bunch of devices to be hidden.
@@ -560,7 +640,18 @@ static const struct dmi_system_id x86_android_tablet_ids[] __initconst = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "S806"),
 		},
 		.driver_data = (void *)&chuwi_hi8_info,
-	}, {
+	},
+	{
+		/* Whitelabel (sold as various brands) TM800A550L */
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "AMI Corporation"),
+			DMI_MATCH(DMI_BOARD_NAME, "Aptio CRB"),
+			/* Above strings are too generic, also match on BIOS version */
+			DMI_MATCH(DMI_BIOS_VERSION, "ZY-8-BI-PX4S70VTR400-X423B-005-D"),
+		},
+		.driver_data = (void *)&whitelabel_tm800a550l_info,
+	},
+	{
 		/* Xiaomi Mi Pad 2 */
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Xiaomi Inc"),
