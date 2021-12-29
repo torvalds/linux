@@ -51,6 +51,7 @@ import os
 from os import path
 import subprocess
 from hashlib import sha1
+import re
 from docutils import nodes
 from docutils.statemachine import ViewList
 from docutils.parsers.rst import directives
@@ -111,6 +112,8 @@ def pass_handle(self, node):           # pylint: disable=W0613
 
 # Graphviz's dot(1) support
 dot_cmd = None
+# dot(1) -Tpdf should be used
+dot_Tpdf = False
 
 # ImageMagick' convert(1) support
 convert_cmd = None
@@ -165,7 +168,7 @@ def setupTools(app):
 
     This function is called once, when the builder is initiated.
     """
-    global dot_cmd, convert_cmd, rsvg_convert_cmd   # pylint: disable=W0603
+    global dot_cmd, dot_Tpdf, convert_cmd, rsvg_convert_cmd   # pylint: disable=W0603
     kernellog.verbose(app, "kfigure: check installed tools ...")
 
     dot_cmd = which('dot')
@@ -174,6 +177,16 @@ def setupTools(app):
 
     if dot_cmd:
         kernellog.verbose(app, "use dot(1) from: " + dot_cmd)
+
+        try:
+            dot_Thelp_list = subprocess.check_output([dot_cmd, '-Thelp'],
+                                    stderr=subprocess.STDOUT)
+        except subprocess.CalledProcessError as err:
+            dot_Thelp_list = err.output
+            pass
+
+        dot_Tpdf_ptn = b'pdf'
+        dot_Tpdf = re.search(dot_Tpdf_ptn, dot_Thelp_list)
     else:
         kernellog.warn(app, "dot(1) not found, for better output quality install "
                        "graphviz from https://www.graphviz.org")
@@ -185,9 +198,17 @@ def setupTools(app):
             "ImageMagick (https://www.imagemagick.org)")
     if rsvg_convert_cmd:
         kernellog.verbose(app, "use rsvg-convert(1) from: " + rsvg_convert_cmd)
+        kernellog.verbose(app, "use 'dot -Tsvg' and rsvg-convert(1) for DOT -> PDF conversion")
+        dot_Tpdf = False
     else:
-        kernellog.verbose(app, "rsvg-convert(1) not found, "
-                          "falling back to raster image conversion")
+        kernellog.verbose(app,
+            "rsvg-convert(1) not found.\n"
+            "  SVG -> PDF conversion by convert() can be poor quality.\n"
+            "  Install librsvg (https://gitlab.gnome.org/GNOME/librsvg)")
+        if dot_Tpdf:
+            kernellog.verbose(app, "use 'dot -Tpdf' for DOT -> PDF conversion")
+        else:
+            kernellog.verbose(app, "use 'dot -Tsvg' and convert(1) for DOT -> PDF conversion")
 
 
 # integrate conversion tools
@@ -277,11 +298,12 @@ def convert_image(img_node, translator, src_fname=None):
 
             if in_ext == '.dot':
                 kernellog.verbose(app, 'convert DOT to: {out}/' + _name)
-                if translator.builder.format == 'latex':
+                if translator.builder.format == 'latex' and not dot_Tpdf:
                     svg_fname = path.join(translator.builder.outdir, fname + '.svg')
                     ok1 = dot2format(app, src_fname, svg_fname)
                     ok2 = svg2pdf_by_rsvg(app, svg_fname, dst_fname)
                     ok = ok1 and ok2
+
                 else:
                     ok = dot2format(app, src_fname, dst_fname)
 
