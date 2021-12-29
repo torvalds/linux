@@ -2701,6 +2701,7 @@ int mt76_connac_mcu_bss_basic_tlv(struct sk_buff *skb,
 	bss->bmc_wcid_hi = to_wcid_hi(wlan_idx);
 	bss->wmm_idx = mvif->wmm_idx;
 	bss->active = enable;
+	bss->cipher = mvif->cipher;
 
 	if (vif->type != NL80211_IFTYPE_MONITOR) {
 		struct cfg80211_chan_def *chandef = &phy->chandef;
