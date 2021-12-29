@@ -317,7 +317,7 @@ static int cri_fifos_wait_avail(struct dw_mipi_dsi2 *dsi2)
 
 	mask = CRI_BUSY | CRT_FIFOS_NOT_EMPTY;
 	ret = regmap_read_poll_timeout(dsi2->regmap, DSI2_CORE_STATUS, sts,
-				       !(sts & mask), 1000,
+				       !(sts & mask), 0,
 				       CMD_PKT_STATUS_TIMEOUT_US);
 	if (ret < 0) {
 		DRM_DEV_ERROR(dsi2->dev, "command interface is busy\n");
