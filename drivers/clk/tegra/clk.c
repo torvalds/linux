@@ -9,14 +9,19 @@
 #include <linux/delay.h>
 #include <linux/io.h>
 #include <linux/of.h>
+#include <linux/of_device.h>
 #include <linux/clk/tegra.h>
+#include <linux/platform_device.h>
+#include <linux/pm_runtime.h>
 #include <linux/reset-controller.h>
+#include <linux/string.h>
 
 #include <soc/tegra/fuse.h>
 
 #include "clk.h"
 
 /* Global data of Tegra CPU CAR ops */
+static struct device_node *tegra_car_np;
 static struct tegra_cpu_car_ops dummy_car_ops;
 struct tegra_cpu_car_ops *tegra_cpu_car_ops = &dummy_car_ops;
 
@@ -261,8 +266,8 @@ void __init tegra_init_dup_clks(struct tegra_clk_duplicate *dup_list,
 	}
 }
 
-void __init tegra_init_from_table(struct tegra_clk_init_table *tbl,
-				  struct clk *clks[], int clk_max)
+void tegra_init_from_table(struct tegra_clk_init_table *tbl,
+			   struct clk *clks[], int clk_max)
 {
 	struct clk *clk;
 
@@ -320,6 +325,8 @@ void __init tegra_add_of_provider(struct device_node *np,
 {
 	int i;
 
+	tegra_car_np = np;
+
 	for (i = 0; i < clk_num; i++) {
 		if (IS_ERR(clks[i])) {
 			pr_err
@@ -348,7 +355,7 @@ void __init tegra_init_special_resets(unsigned int num,
 	special_reset_deassert = deassert;
 }
 
-void __init tegra_register_devclks(struct tegra_devclk *dev_clks, int num)
+void tegra_register_devclks(struct tegra_devclk *dev_clks, int num)
 {
 	int i;
 
@@ -370,6 +377,68 @@ struct clk ** __init tegra_lookup_dt_id(int clk_id,
 		return &clks[tegra_clk[clk_id].dt_id];
 	else
 		return NULL;
+}
+
+static struct device_node *tegra_clk_get_of_node(struct clk_hw *hw)
+{
+	struct device_node *np;
+	char *node_name;
+
+	node_name = kstrdup(hw->init->name, GFP_KERNEL);
+	if (!node_name)
+		return NULL;
+
+	strreplace(node_name, '_', '-');
+
+	for_each_child_of_node(tegra_car_np, np) {
+		if (!strcmp(np->name, node_name))
+			break;
+	}
+
+	kfree(node_name);
+
+	return np;
+}
+
+struct clk *tegra_clk_dev_register(struct clk_hw *hw)
+{
+	struct platform_device *pdev, *parent;
+	const char *dev_name = NULL;
+	struct device *dev = NULL;
+	struct device_node *np;
+
+	np = tegra_clk_get_of_node(hw);
+
+	if (!of_device_is_available(np))
+		goto put_node;
+
+	dev_name = kasprintf(GFP_KERNEL, "tegra_clk_%s", hw->init->name);
+	if (!dev_name)
+		goto put_node;
+
+	parent = of_find_device_by_node(tegra_car_np);
+	if (parent) {
+		pdev = of_platform_device_create(np, dev_name, &parent->dev);
+		put_device(&parent->dev);
+
+		if (!pdev) {
+			pr_err("%s: failed to create device for %pOF\n",
+			       __func__, np);
+			goto free_name;
+		}
+
+		dev = &pdev->dev;
+		pm_runtime_enable(dev);
+	} else {
+		WARN(1, "failed to find device for %pOF\n", tegra_car_np);
+	}
+
+free_name:
+	kfree(dev_name);
+put_node:
+	of_node_put(np);
+
+	return clk_register(dev, hw);
 }
 
 tegra_clk_apply_init_table_func tegra_clk_apply_init_table;
