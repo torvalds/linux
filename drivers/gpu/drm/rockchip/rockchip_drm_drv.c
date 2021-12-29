@@ -1874,6 +1874,8 @@ static int __init rockchip_drm_init(void)
 	if (ret)
 		goto err_unreg_drivers;
 
+	rockchip_gem_get_ddr_info();
+
 	return 0;
 
 err_unreg_drivers:

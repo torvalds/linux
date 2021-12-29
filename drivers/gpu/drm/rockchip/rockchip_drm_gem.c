@@ -17,9 +17,13 @@
 #include <linux/iommu.h>
 #include <linux/pagemap.h>
 #include <linux/vmalloc.h>
+#include <linux/rockchip/rockchip_sip.h>
 
 #include "rockchip_drm_drv.h"
 #include "rockchip_drm_gem.h"
+
+static u32 bank_bit_first = 12;
+static u32 bank_bit_mask = 0x7;
 
 struct page_info {
 	struct page *page;
@@ -100,6 +104,17 @@ static void rockchip_gem_free_list(struct list_head lists[])
 	}
 }
 
+void rockchip_gem_get_ddr_info(void)
+{
+	struct dram_addrmap_info *ddr_map_info;
+
+	ddr_map_info = sip_smc_get_dram_map();
+	if (ddr_map_info) {
+		bank_bit_first = ddr_map_info->bank_bit_first;
+		bank_bit_mask = ddr_map_info->bank_bit_mask;
+	}
+}
+
 static int rockchip_gem_get_pages(struct rockchip_gem_object *rk_obj)
 {
 	struct drm_device *drm = rk_obj->base.dev;
@@ -114,7 +129,7 @@ static int rockchip_gem_get_pages(struct rockchip_gem_object *rk_obj)
 	struct list_head lists[PG_ROUND];
 	dma_addr_t phys;
 	int end = 0;
-	unsigned int bit12_14;
+	unsigned int bit_index;
 	unsigned int block_index[PG_ROUND] = {0};
 	struct page_info *info;
 	unsigned int maximum;
@@ -139,6 +154,9 @@ static int rockchip_gem_get_pages(struct rockchip_gem_object *rk_obj)
 		goto err_put_pages;
 	}
 
+	DRM_DEBUG_KMS("bank_bit_first = 0x%x, bank_bit_mask = 0x%x\n",
+		      bank_bit_first, bank_bit_mask);
+
 	cur_page = 0;
 	remain = n_pages;
 	/* look for the end of the current chunk */
@@ -150,7 +168,7 @@ static int rockchip_gem_get_pages(struct rockchip_gem_object *rk_obj)
 		}
 
 		chunk_pages = j - cur_page;
-		if (chunk_pages > 7) {
+		if (chunk_pages >= PG_ROUND) {
 			for (i = 0; i < chunk_pages; i++)
 				dst_pages[end + i] = pages[cur_page + i];
 			end += chunk_pages;
@@ -165,9 +183,9 @@ static int rockchip_gem_get_pages(struct rockchip_gem_object *rk_obj)
 				INIT_LIST_HEAD(&info->list);
 				info->page = pages[cur_page + i];
 				phys = page_to_phys(info->page);
-				bit12_14 = (phys >> 12) & 0x7;
-				list_add_tail(&info->list, &lists[bit12_14]);
-				block_index[bit12_14]++;
+				bit_index = ((phys >> bank_bit_first) & bank_bit_mask) % PG_ROUND;
+				list_add_tail(&info->list, &lists[bit_index]);
+				block_index[bit_index]++;
 			}
 		}
 
