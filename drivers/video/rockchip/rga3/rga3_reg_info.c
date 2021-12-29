@@ -2084,11 +2084,16 @@ int rga3_set_reg(struct rga_job *job, struct rga_scheduler_t *scheduler)
 			 rga_read(RGA3_INT_EN, scheduler),
 			 rga_read(RGA3_INT_RAW, scheduler));
 
-		pr_err("status0 = %x, status1 = %x, set cmd use time = %lld\n",
+		pr_err("status0 = %x, status1 = %x\n",
 			 rga_read(RGA3_STATUS0, scheduler),
-			 rga_read(RGA3_STATUS1, scheduler),
-			 ktime_to_us(ktime_sub(now, job->timestamp)));
+			 rga_read(RGA3_STATUS1, scheduler));
 	}
+
+	if (RGA_DEBUG_TIME)
+		pr_err("set cmd use time = %lld\n", ktime_to_us(ktime_sub(now, job->running_time)));
+
+	job->timestamp = now;
+	job->running_time = now;
 
 	rga_write(1, RGA3_SYS_CTRL, scheduler);
 

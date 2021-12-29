@@ -89,6 +89,7 @@ static struct rga_job *rga_job_alloc(struct rga_req *rga_command_base)
 	INIT_LIST_HEAD(&job->head);
 
 	job->timestamp = ktime_get();
+	job->running_time = ktime_get();
 
 	job->rga_command_base = *rga_command_base;
 
@@ -267,23 +268,25 @@ void rga_job_done(struct rga_scheduler_t *rga_scheduler, int ret)
 	struct rga_job *job;
 	unsigned long flags;
 
-	ktime_t now;
+	ktime_t now = ktime_get();
 
 	spin_lock_irqsave(&rga_scheduler->irq_lock, flags);
 
 	job = rga_scheduler->running_job;
 	rga_scheduler->running_job = NULL;
 
+	rga_scheduler->timer.busy_time += ktime_us_delta(now, job->timestamp);
+
 	spin_unlock_irqrestore(&rga_scheduler->irq_lock, flags);
 
 	job->flags |= RGA_JOB_DONE;
 	job->ret = ret;
 
-	now = ktime_get();
-
 	if (RGA_DEBUG_TIME)
 		pr_err("%s use time = %lld\n", __func__,
-			ktime_to_us(ktime_sub(now, job->timestamp)));
+			ktime_us_delta(now, job->running_time));
+
+	job->running_time = now;
 
 	if (job->core == RGA2_SCHEDULER_CORE0)
 		rga2_dma_flush_cache_for_virtual_address(&job->vir_page_table,
@@ -446,7 +449,7 @@ static inline int rga_job_wait(struct rga_scheduler_t *rga_scheduler,
 
 	if (RGA_DEBUG_TIME)
 		pr_err("%s use time = %lld\n", __func__,
-			 ktime_to_us(ktime_sub(now, job->timestamp)));
+			 ktime_to_us(ktime_sub(now, job->running_time)));
 
 	return ret;
 }

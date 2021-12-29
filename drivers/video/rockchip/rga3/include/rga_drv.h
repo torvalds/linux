@@ -51,14 +51,15 @@
 #include <linux/iova.h>
 #include <linux/dma-iommu.h>
 #include <linux/dma-map-ops.h>
+#include <linux/hrtimer.h>
 
 #include "rga.h"
 #include "rga_debugger.h"
 
 #define RGA_CORE_REG_OFFSET 0x10000
 
-/* sample interval: 100ms */
-#define RGA_LOAD_INTERVAL 100000
+/* sample interval: 1000ms */
+#define RGA_LOAD_INTERVAL 1000000000
 
 #if ((defined(CONFIG_RK_IOMMU) || defined(CONFIG_ROCKCHIP_IOMMU)) \
 	&& defined(CONFIG_ION_ROCKCHIP))
@@ -246,6 +247,7 @@ struct rga_job {
 	struct dma_fence *in_fence;
 	spinlock_t fence_lock;
 	ktime_t timestamp;
+	ktime_t running_time;
 	unsigned int flags;
 	int job_id;
 	int priority;
@@ -260,6 +262,11 @@ struct rga_backend_ops {
 	int (*set_reg)(struct rga_job *job, struct rga_scheduler_t *scheduler);
 	int (*init_reg)(struct rga_job *job);
 	void (*soft_reset)(struct rga_scheduler_t *scheduler);
+};
+
+struct rga_timer {
+	u32 busy_time;
+	u32 busy_time_record;
 };
 
 struct rga_scheduler_t {
@@ -281,7 +288,8 @@ struct rga_scheduler_t {
 	int irq;
 	struct rga_version_t version;
 	int core;
-	unsigned int core_offset;
+
+	struct rga_timer timer;
 };
 
 struct rga_drvdata_t {

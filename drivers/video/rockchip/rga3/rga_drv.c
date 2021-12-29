@@ -23,6 +23,10 @@ struct rga2_mmu_info_t rga2_mmu_info;
 
 struct rga_drvdata_t *rga_drvdata;
 
+/* set hrtimer */
+static struct hrtimer timer;
+static ktime_t kt;
+
 static const struct rga_backend_ops rga3_ops = {
 	.get_version = rga3_get_version,
 	.set_reg = rga3_set_reg,
@@ -70,6 +74,51 @@ int rga_kernel_commit(struct rga_req *cmd)
 	return ret;
 }
 EXPORT_SYMBOL_GPL(rga_kernel_commit);
+
+static enum hrtimer_restart hrtimer_handler(struct hrtimer *timer)
+{
+	struct rga_drvdata_t *rga = rga_drvdata;
+	struct rga_scheduler_t *scheduler = NULL;
+	struct rga_job *job = NULL;
+	unsigned long flags;
+	int i;
+
+	ktime_t now = ktime_get();
+
+	for (i = 0; i < rga->num_of_scheduler; i++) {
+		scheduler = rga->rga_scheduler[i];
+
+		spin_lock_irqsave(&scheduler->irq_lock, flags);
+
+		/* if timer action on job running */
+		job = scheduler->running_job;
+		if (job) {
+			scheduler->timer.busy_time += ktime_us_delta(now, job->timestamp);
+			job->timestamp = now;
+		}
+
+		scheduler->timer.busy_time_record = scheduler->timer.busy_time;
+		scheduler->timer.busy_time = 0;
+
+		spin_unlock_irqrestore(&scheduler->irq_lock, flags);
+	}
+
+	hrtimer_forward_now(timer, kt);
+	return HRTIMER_RESTART;
+}
+
+static void rga_init_timer(void)
+{
+	kt = ktime_set(0, RGA_LOAD_INTERVAL);
+	hrtimer_init(&timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+	hrtimer_start(&timer, kt, HRTIMER_MODE_REL);
+	timer.function = hrtimer_handler;
+}
+
+static void rga_cancel_timer(void)
+{
+	hrtimer_cancel(&timer);
+}
 
 #ifndef CONFIG_ROCKCHIP_FPGA
 int rga_power_enable(struct rga_scheduler_t *rga_scheduler)
@@ -901,6 +950,8 @@ static int __init rga_init(void)
 		return ret;
 	}
 
+	rga_init_timer();
+
 	rga_drvdata->fence_ctx = rga_fence_context_alloc();
 	if (IS_ERR(rga_drvdata->fence_ctx)) {
 		pr_err("failed to allocate fence context for RGA\n");
@@ -940,6 +991,8 @@ static void __exit rga_exit(void)
 	wake_lock_destroy(&rga_drvdata->wake_lock);
 
 	rga_fence_context_free(rga_drvdata->fence_ctx);
+
+	rga_cancel_timer();
 
 	platform_driver_unregister(&rga3_core0_driver);
 	platform_driver_unregister(&rga3_core1_driver);

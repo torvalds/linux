@@ -138,8 +138,31 @@ static int rga_version_show(struct seq_file *m, void *data)
 
 static int rga_load_show(struct seq_file *m, void *data)
 {
-	seq_printf(m, "%s: v%s\n", DRIVER_DESC, DRIVER_VERSION);
+	struct rga_scheduler_t *rga_scheduler = NULL;
+	unsigned long flags;
+	int i;
+	int load;
+	u32 busy_time_total;
 
+	seq_printf(m, "num of scheduler = %d\n", rga_drvdata->num_of_scheduler);
+	seq_printf(m, "================= load ==================\n");
+
+	for (i = 0; i < rga_drvdata->num_of_scheduler; i++) {
+		rga_scheduler = rga_drvdata->rga_scheduler[i];
+
+		seq_printf(m, "scheduler[%d]: %s\n",
+			i, dev_driver_string(rga_scheduler->dev));
+
+		spin_lock_irqsave(&rga_scheduler->irq_lock, flags);
+
+		busy_time_total = rga_scheduler->timer.busy_time_record;
+
+		spin_unlock_irqrestore(&rga_scheduler->irq_lock, flags);
+
+		load = (busy_time_total * 100000 / RGA_LOAD_INTERVAL);
+		seq_printf(m, "load = %d", load);
+		seq_printf(m, "-----------------------------------\n");
+	}
 	return 0;
 }
 
@@ -154,8 +177,8 @@ static int rga_scheduler_show(struct seq_file *m, void *data)
 	for (i = 0; i < rga_drvdata->num_of_scheduler; i++) {
 		rga_scheduler = rga_drvdata->rga_scheduler[i];
 
-		seq_printf(m, "scheduler[%d]: core = %d\n",
-			i, rga_scheduler->core);
+		seq_printf(m, "scheduler[%d]: %s\n",
+			i, dev_driver_string(rga_scheduler->dev));
 		seq_printf(m, "-----------------------------------\n");
 		seq_printf(m, "pd_ref = %d\n", rga_scheduler->pd_refcount);
 	}

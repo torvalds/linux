@@ -2487,12 +2487,15 @@ int rga2_set_reg(struct rga_job *job, struct rga_scheduler_t *scheduler)
 	rga_write(rga_read(RGA2_INT, scheduler) | (0x1 << 10) | (0x1 << 9) |
 		 (0x1 << 8), RGA2_INT, scheduler);
 
-	if (RGA_DEBUG_MSG) {
+	if (RGA_DEBUG_TIME) {
 		pr_err("sys_ctrl = %x, int = %x, set cmd use time = %lld\n",
 			 rga_read(RGA2_SYS_CTRL, scheduler),
 			 rga_read(RGA2_INT, scheduler),
-			 ktime_to_us(ktime_sub(now, job->timestamp)));
+			 ktime_to_us(ktime_sub(now, job->running_time)));
 	}
+
+	job->timestamp = now;
+	job->running_time = now;
 
 	rga_write(1, RGA2_CMD_CTRL, scheduler);
 
