@@ -69,6 +69,12 @@ KernelVersion:  5.1
 Contact:        ogabbay@kernel.org
 Description:    Displays the device's version from the eFuse
 
+What:           /sys/class/habanalabs/hl<n>/fw_os_ver
+Date:           Dec 2021
+KernelVersion:  5.18
+Contact:        ogabbay@kernel.org
+Description:    Version of the firmware OS running on the device's CPU
+
 What:           /sys/class/habanalabs/hl<n>/hard_reset
 Date:           Jan 2019
 KernelVersion:  5.1

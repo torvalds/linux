@@ -156,6 +156,14 @@ static ssize_t thermal_ver_show(struct device *dev,
 	return sprintf(buf, "%s", hdev->asic_prop.cpucp_info.thermal_version);
 }
 
+static ssize_t fw_os_ver_show(struct device *dev,
+				struct device_attribute *attr, char *buf)
+{
+	struct hl_device *hdev = dev_get_drvdata(dev);
+
+	return sprintf(buf, "%s", hdev->asic_prop.cpucp_info.fw_os_version);
+}
+
 static ssize_t preboot_btl_ver_show(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
@@ -370,6 +378,7 @@ static DEVICE_ATTR_RO(soft_reset_cnt);
 static DEVICE_ATTR_RO(status);
 static DEVICE_ATTR_RO(thermal_ver);
 static DEVICE_ATTR_RO(uboot_ver);
+static DEVICE_ATTR_RO(fw_os_ver);
 
 static struct bin_attribute bin_attr_eeprom = {
 	.attr = {.name = "eeprom", .mode = (0444)},
@@ -393,6 +402,7 @@ static struct attribute *hl_dev_attrs[] = {
 	&dev_attr_status.attr,
 	&dev_attr_thermal_ver.attr,
 	&dev_attr_uboot_ver.attr,
+	&dev_attr_fw_os_ver.attr,
 	NULL,
 };
 
