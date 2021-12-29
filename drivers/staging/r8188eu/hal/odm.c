@@ -142,6 +142,35 @@ u8 CCKSwingTable_Ch14[CCK_TABLE_SIZE][8] = {
 #define		RxDefaultAnt1		0x65a9
 #define	RxDefaultAnt2		0x569a
 
+static void odm_DIGInit(struct odm_dm_struct *pDM_Odm)
+{
+	struct rtw_dig *pDM_DigTable = &pDM_Odm->DM_DigTable;
+	struct adapter *adapter = pDM_Odm->Adapter;
+
+	pDM_DigTable->CurIGValue = (u8)rtl8188e_PHY_QueryBBReg(adapter, ODM_REG_IGI_A_11N, ODM_BIT_IGI_11N);
+	pDM_DigTable->RssiLowThresh	= DM_DIG_THRESH_LOW;
+	pDM_DigTable->RssiHighThresh	= DM_DIG_THRESH_HIGH;
+	pDM_DigTable->FALowThresh	= DM_false_ALARM_THRESH_LOW;
+	pDM_DigTable->FAHighThresh	= DM_false_ALARM_THRESH_HIGH;
+	pDM_DigTable->rx_gain_range_max = DM_DIG_MAX_NIC;
+	pDM_DigTable->rx_gain_range_min = DM_DIG_MIN_NIC;
+	pDM_DigTable->BackoffVal = DM_DIG_BACKOFF_DEFAULT;
+	pDM_DigTable->BackoffVal_range_max = DM_DIG_BACKOFF_MAX;
+	pDM_DigTable->BackoffVal_range_min = DM_DIG_BACKOFF_MIN;
+	pDM_DigTable->PreCCK_CCAThres = 0xFF;
+	pDM_DigTable->CurCCK_CCAThres = 0x83;
+	pDM_DigTable->ForbiddenIGI = DM_DIG_MIN_NIC;
+	pDM_DigTable->LargeFAHit = 0;
+	pDM_DigTable->Recover_cnt = 0;
+	pDM_DigTable->DIG_Dynamic_MIN_0 = DM_DIG_MIN_NIC;
+	pDM_DigTable->DIG_Dynamic_MIN_1 = DM_DIG_MIN_NIC;
+	pDM_DigTable->bMediaConnect_0 = false;
+	pDM_DigTable->bMediaConnect_1 = false;
+
+	/* To Initialize pDM_Odm->bDMInitialGainEnable == false to avoid DIG error */
+	pDM_Odm->bDMInitialGainEnable = true;
+}
+
 /* 3 Export Interface */
 
 /*  2011/09/21 MH Add to describe different team necessary resource allocate?? */
@@ -308,35 +337,6 @@ void ODM_Write_DIG(struct odm_dm_struct *pDM_Odm, u8 CurrentIGI)
 		rtl8188e_PHY_SetBBReg(adapter, ODM_REG_IGI_A_11N, ODM_BIT_IGI_11N, CurrentIGI);
 		pDM_DigTable->CurIGValue = CurrentIGI;
 	}
-}
-
-void odm_DIGInit(struct odm_dm_struct *pDM_Odm)
-{
-	struct rtw_dig *pDM_DigTable = &pDM_Odm->DM_DigTable;
-	struct adapter *adapter = pDM_Odm->Adapter;
-
-	pDM_DigTable->CurIGValue = (u8)rtl8188e_PHY_QueryBBReg(adapter, ODM_REG_IGI_A_11N, ODM_BIT_IGI_11N);
-	pDM_DigTable->RssiLowThresh	= DM_DIG_THRESH_LOW;
-	pDM_DigTable->RssiHighThresh	= DM_DIG_THRESH_HIGH;
-	pDM_DigTable->FALowThresh	= DM_false_ALARM_THRESH_LOW;
-	pDM_DigTable->FAHighThresh	= DM_false_ALARM_THRESH_HIGH;
-	pDM_DigTable->rx_gain_range_max = DM_DIG_MAX_NIC;
-	pDM_DigTable->rx_gain_range_min = DM_DIG_MIN_NIC;
-	pDM_DigTable->BackoffVal = DM_DIG_BACKOFF_DEFAULT;
-	pDM_DigTable->BackoffVal_range_max = DM_DIG_BACKOFF_MAX;
-	pDM_DigTable->BackoffVal_range_min = DM_DIG_BACKOFF_MIN;
-	pDM_DigTable->PreCCK_CCAThres = 0xFF;
-	pDM_DigTable->CurCCK_CCAThres = 0x83;
-	pDM_DigTable->ForbiddenIGI = DM_DIG_MIN_NIC;
-	pDM_DigTable->LargeFAHit = 0;
-	pDM_DigTable->Recover_cnt = 0;
-	pDM_DigTable->DIG_Dynamic_MIN_0 = DM_DIG_MIN_NIC;
-	pDM_DigTable->DIG_Dynamic_MIN_1 = DM_DIG_MIN_NIC;
-	pDM_DigTable->bMediaConnect_0 = false;
-	pDM_DigTable->bMediaConnect_1 = false;
-
-	/* To Initialize pDM_Odm->bDMInitialGainEnable == false to avoid DIG error */
-	pDM_Odm->bDMInitialGainEnable = true;
 }
 
 void odm_DIG(struct odm_dm_struct *pDM_Odm)
