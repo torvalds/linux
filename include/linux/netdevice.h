@@ -2098,7 +2098,7 @@ struct net_device {
 #if IS_ENABLED(CONFIG_TIPC)
 	struct tipc_bearer __rcu *tipc_ptr;
 #endif
-#if IS_ENABLED(CONFIG_IRDA) || IS_ENABLED(CONFIG_ATALK)
+#if IS_ENABLED(CONFIG_ATALK)
 	void 			*atalk_ptr;
 #endif
 	struct in_device __rcu	*ip_ptr;
