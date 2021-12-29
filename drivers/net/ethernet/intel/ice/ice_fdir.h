@@ -182,6 +182,7 @@ struct ice_fdir_fltr {
 
 	/* filter control */
 	u16 q_index;
+	u16 orig_q_index;
 	u16 dest_vsi;
 	u8 dest_ctl;
 	u8 cnt_ena;

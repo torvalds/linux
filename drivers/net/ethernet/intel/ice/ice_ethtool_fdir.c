@@ -5,6 +5,7 @@
 
 #include "ice.h"
 #include "ice_lib.h"
+#include "ice_fdir.h"
 #include "ice_flow.h"
 
 static struct in6_addr full_ipv6_addr_mask = {
@@ -205,7 +206,7 @@ int ice_get_ethtool_fdir_entry(struct ice_hw *hw, struct ethtool_rxnfc *cmd)
 	if (rule->dest_ctl == ICE_FLTR_PRGM_DESC_DEST_DROP_PKT)
 		fsp->ring_cookie = RX_CLS_FLOW_DISC;
 	else
-		fsp->ring_cookie = rule->q_index;
+		fsp->ring_cookie = rule->orig_q_index;
 
 	idx = ice_ethtool_flow_to_fltr(fsp->flow_type);
 	if (idx == ICE_FLTR_PTYPE_NONF_NONE) {
@@ -254,6 +255,80 @@ release_lock:
 	if (!val)
 		cmd->rule_cnt = cnt;
 	return val;
+}
+
+/**
+ * ice_fdir_remap_entries - update the FDir entries in profile
+ * @prof: FDir structure pointer
+ * @tun: tunneled or non-tunneled packet
+ * @idx: FDir entry index
+ */
+static void
+ice_fdir_remap_entries(struct ice_fd_hw_prof *prof, int tun, int idx)
+{
+	if (idx != prof->cnt && tun < ICE_FD_HW_SEG_MAX) {
+		int i;
+
+		for (i = idx; i < (prof->cnt - 1); i++) {
+			u64 old_entry_h;
+
+			old_entry_h = prof->entry_h[i + 1][tun];
+			prof->entry_h[i][tun] = old_entry_h;
+			prof->vsi_h[i] = prof->vsi_h[i + 1];
+		}
+
+		prof->entry_h[i][tun] = 0;
+		prof->vsi_h[i] = 0;
+	}
+}
+
+/**
+ * ice_fdir_rem_adq_chnl - remove an ADQ channel from HW filter rules
+ * @hw: hardware structure containing filter list
+ * @vsi_idx: VSI handle
+ */
+void ice_fdir_rem_adq_chnl(struct ice_hw *hw, u16 vsi_idx)
+{
+	int status, flow;
+
+	if (!hw->fdir_prof)
+		return;
+
+	for (flow = 0; flow < ICE_FLTR_PTYPE_MAX; flow++) {
+		struct ice_fd_hw_prof *prof = hw->fdir_prof[flow];
+		int tun, i;
+
+		if (!prof || !prof->cnt)
+			continue;
+
+		for (tun = 0; tun < ICE_FD_HW_SEG_MAX; tun++) {
+			u64 prof_id;
+
+			prof_id = flow + tun * ICE_FLTR_PTYPE_MAX;
+
+			for (i = 0; i < prof->cnt; i++) {
+				if (prof->vsi_h[i] != vsi_idx)
+					continue;
+
+				prof->entry_h[i][tun] = 0;
+				prof->vsi_h[i] = 0;
+				break;
+			}
+
+			/* after clearing FDir entries update the remaining */
+			ice_fdir_remap_entries(prof, tun, i);
+
+			/* find flow profile corresponding to prof_id and clear
+			 * vsi_idx from bitmap.
+			 */
+			status = ice_flow_rem_vsi_prof(hw, vsi_idx, prof_id);
+			if (status) {
+				dev_err(ice_hw_to_dev(hw), "ice_flow_rem_vsi_prof() failed status=%d\n",
+					status);
+			}
+		}
+		prof->cnt--;
+	}
 }
 
 /**
@@ -514,6 +589,28 @@ ice_fdir_alloc_flow_prof(struct ice_hw *hw, enum ice_fltr_ptype flow)
 }
 
 /**
+ * ice_fdir_prof_vsi_idx - find or insert a vsi_idx in structure
+ * @prof: pointer to flow director HW profile
+ * @vsi_idx: vsi_idx to locate
+ *
+ * return the index of the vsi_idx. if vsi_idx is not found insert it
+ * into the vsi_h table.
+ */
+static u16
+ice_fdir_prof_vsi_idx(struct ice_fd_hw_prof *prof, int vsi_idx)
+{
+	u16 idx = 0;
+
+	for (idx = 0; idx < prof->cnt; idx++)
+		if (prof->vsi_h[idx] == vsi_idx)
+			return idx;
+
+	if (idx == prof->cnt)
+		prof->vsi_h[prof->cnt++] = vsi_idx;
+	return idx;
+}
+
+/**
  * ice_fdir_set_hw_fltr_rule - Configure HW tables to generate a FDir rule
  * @pf: pointer to the PF structure
  * @seg: protocol header description pointer
@@ -532,8 +629,10 @@ ice_fdir_set_hw_fltr_rule(struct ice_pf *pf, struct ice_flow_seg_info *seg,
 	struct ice_hw *hw = &pf->hw;
 	u64 entry1_h = 0;
 	u64 entry2_h = 0;
+	bool del_last;
 	u64 prof_id;
 	int err;
+	int idx;
 
 	main_vsi = ice_get_main_vsi(pf);
 	if (!main_vsi)
@@ -603,8 +702,60 @@ ice_fdir_set_hw_fltr_rule(struct ice_pf *pf, struct ice_flow_seg_info *seg,
 	if (!hw_prof->cnt)
 		hw_prof->cnt = 2;
 
+	for (idx = 1; idx < ICE_CHNL_MAX_TC; idx++) {
+		u16 vsi_idx;
+		u16 vsi_h;
+
+		if (!ice_is_adq_active(pf) || !main_vsi->tc_map_vsi[idx])
+			continue;
+
+		entry1_h = 0;
+		vsi_h = main_vsi->tc_map_vsi[idx]->idx;
+		err = ice_flow_add_entry(hw, ICE_BLK_FD, prof_id,
+					 main_vsi->idx, vsi_h,
+					 ICE_FLOW_PRIO_NORMAL, seg,
+					 &entry1_h);
+		if (err) {
+			dev_err(dev, "Could not add Channel VSI %d to flow group\n",
+				idx);
+			goto err_unroll;
+		}
+
+		vsi_idx = ice_fdir_prof_vsi_idx(hw_prof,
+						main_vsi->tc_map_vsi[idx]->idx);
+		hw_prof->entry_h[vsi_idx][tun] = entry1_h;
+	}
+
 	return 0;
 
+err_unroll:
+	entry1_h = 0;
+	hw_prof->fdir_seg[tun] = NULL;
+
+	/* The variable del_last will be used to determine when to clean up
+	 * the VSI group data. The VSI data is not needed if there are no
+	 * segments.
+	 */
+	del_last = true;
+	for (idx = 0; idx < ICE_FD_HW_SEG_MAX; idx++)
+		if (hw_prof->fdir_seg[idx]) {
+			del_last = false;
+			break;
+		}
+
+	for (idx = 0; idx < hw_prof->cnt; idx++) {
+		u16 vsi_num = ice_get_hw_vsi_num(hw, hw_prof->vsi_h[idx]);
+
+		if (!hw_prof->entry_h[idx][tun])
+			continue;
+		ice_rem_prof_id_flow(hw, ICE_BLK_FD, vsi_num, prof_id);
+		ice_flow_rem_entry(hw, ICE_BLK_FD, hw_prof->entry_h[idx][tun]);
+		hw_prof->entry_h[idx][tun] = 0;
+		if (del_last)
+			hw_prof->vsi_h[idx] = 0;
+	}
+	if (del_last)
+		hw_prof->cnt = 0;
 err_entry:
 	ice_rem_prof_id_flow(hw, ICE_BLK_FD,
 			     ice_get_hw_vsi_num(hw, main_vsi->idx), prof_id);
@@ -1169,6 +1320,31 @@ err_exit:
 }
 
 /**
+ * ice_update_per_q_fltr
+ * @vsi: ptr to VSI
+ * @q_index: queue index
+ * @inc: true to increment or false to decrement per queue filter count
+ *
+ * This function is used to keep track of per queue sideband filters
+ */
+static void ice_update_per_q_fltr(struct ice_vsi *vsi, u32 q_index, bool inc)
+{
+	struct ice_rx_ring *rx_ring;
+
+	if (!vsi->num_rxq || q_index >= vsi->num_rxq)
+		return;
+
+	rx_ring = vsi->rx_rings[q_index];
+	if (!rx_ring || !rx_ring->ch)
+		return;
+
+	if (inc)
+		atomic_inc(&rx_ring->ch->num_sb_fltr);
+	else
+		atomic_dec_if_positive(&rx_ring->ch->num_sb_fltr);
+}
+
+/**
  * ice_fdir_write_fltr - send a flow director filter to the hardware
  * @pf: PF data structure
  * @input: filter structure
@@ -1314,13 +1490,32 @@ int ice_fdir_create_dflt_rules(struct ice_pf *pf)
 }
 
 /**
+ * ice_fdir_del_all_fltrs - Delete all flow director filters
+ * @vsi: the VSI being changed
+ *
+ * This function needs to be called while holding hw->fdir_fltr_lock
+ */
+void ice_fdir_del_all_fltrs(struct ice_vsi *vsi)
+{
+	struct ice_fdir_fltr *f_rule, *tmp;
+	struct ice_pf *pf = vsi->back;
+	struct ice_hw *hw = &pf->hw;
+
+	list_for_each_entry_safe(f_rule, tmp, &hw->fdir_list_head, fltr_node) {
+		ice_fdir_write_all_fltr(pf, f_rule, false);
+		ice_fdir_update_cntrs(hw, f_rule->flow_type, false);
+		list_del(&f_rule->fltr_node);
+		devm_kfree(ice_pf_to_dev(pf), f_rule);
+	}
+}
+
+/**
  * ice_vsi_manage_fdir - turn on/off flow director
  * @vsi: the VSI being changed
  * @ena: boolean value indicating if this is an enable or disable request
  */
 void ice_vsi_manage_fdir(struct ice_vsi *vsi, bool ena)
 {
-	struct ice_fdir_fltr *f_rule, *tmp;
 	struct ice_pf *pf = vsi->back;
 	struct ice_hw *hw = &pf->hw;
 	enum ice_fltr_ptype flow;
@@ -1334,13 +1529,8 @@ void ice_vsi_manage_fdir(struct ice_vsi *vsi, bool ena)
 	mutex_lock(&hw->fdir_fltr_lock);
 	if (!test_and_clear_bit(ICE_FLAG_FD_ENA, pf->flags))
 		goto release_lock;
-	list_for_each_entry_safe(f_rule, tmp, &hw->fdir_list_head, fltr_node) {
-		/* ignore return value */
-		ice_fdir_write_all_fltr(pf, f_rule, false);
-		ice_fdir_update_cntrs(hw, f_rule->flow_type, false);
-		list_del(&f_rule->fltr_node);
-		devm_kfree(ice_hw_to_dev(hw), f_rule);
-	}
+
+	ice_fdir_del_all_fltrs(vsi);
 
 	if (hw->fdir_prof)
 		for (flow = ICE_FLTR_PTYPE_NONF_NONE; flow < ICE_FLTR_PTYPE_MAX;
@@ -1391,11 +1581,16 @@ ice_fdir_update_list_entry(struct ice_pf *pf, struct ice_fdir_fltr *input,
 {
 	struct ice_fdir_fltr *old_fltr;
 	struct ice_hw *hw = &pf->hw;
+	struct ice_vsi *vsi;
 	int err = -ENOENT;
 
 	/* Do not update filters during reset */
 	if (ice_is_reset_in_progress(pf->state))
 		return -EBUSY;
+
+	vsi = ice_get_main_vsi(pf);
+	if (!vsi)
+		return -EINVAL;
 
 	old_fltr = ice_fdir_find_fltr_by_idx(hw, fltr_idx);
 	if (old_fltr) {
@@ -1403,6 +1598,8 @@ ice_fdir_update_list_entry(struct ice_pf *pf, struct ice_fdir_fltr *input,
 		if (err)
 			return err;
 		ice_fdir_update_cntrs(hw, old_fltr->flow_type, false);
+		/* update sb-filters count, specific to ring->channel */
+		ice_update_per_q_fltr(vsi, old_fltr->orig_q_index, false);
 		if (!input && !hw->fdir_fltr_cnt[old_fltr->flow_type])
 			/* we just deleted the last filter of flow_type so we
 			 * should also delete the HW filter info.
@@ -1414,6 +1611,8 @@ ice_fdir_update_list_entry(struct ice_pf *pf, struct ice_fdir_fltr *input,
 	if (!input)
 		return err;
 	ice_fdir_list_add_fltr(hw, input);
+	/* update sb-filters count, specific to ring->channel */
+	ice_update_per_q_fltr(vsi, input->orig_q_index, true);
 	ice_fdir_update_cntrs(hw, input->flow_type, true);
 	return 0;
 }
@@ -1453,6 +1652,39 @@ int ice_del_fdir_ethtool(struct ice_vsi *vsi, struct ethtool_rxnfc *cmd)
 }
 
 /**
+ * ice_update_ring_dest_vsi - update dest ring and dest VSI
+ * @vsi: pointer to target VSI
+ * @dest_vsi: ptr to dest VSI index
+ * @ring: ptr to dest ring
+ *
+ * This function updates destination VSI and queue if user specifies
+ * target queue which falls in channel's (aka ADQ) queue region
+ */
+static void
+ice_update_ring_dest_vsi(struct ice_vsi *vsi, u16 *dest_vsi, u32 *ring)
+{
+	struct ice_channel *ch;
+
+	list_for_each_entry(ch, &vsi->ch_list, list) {
+		if (!ch->ch_vsi)
+			continue;
+
+		/* make sure to locate corresponding channel based on "queue"
+		 * specified
+		 */
+		if ((*ring < ch->base_q) ||
+		    (*ring >= (ch->base_q + ch->num_rxq)))
+			continue;
+
+		/* update the dest_vsi based on channel */
+		*dest_vsi = ch->ch_vsi->idx;
+
+		/* update the "ring" to be correct based on channel */
+		*ring -= ch->base_q;
+	}
+}
+
+/**
  * ice_set_fdir_input_set - Set the input set for Flow Director
  * @vsi: pointer to target VSI
  * @fsp: pointer to ethtool Rx flow specification
@@ -1463,6 +1695,7 @@ ice_set_fdir_input_set(struct ice_vsi *vsi, struct ethtool_rx_flow_spec *fsp,
 		       struct ice_fdir_fltr *input)
 {
 	u16 dest_vsi, q_index = 0;
+	u16 orig_q_index = 0;
 	struct ice_pf *pf;
 	struct ice_hw *hw;
 	int flow_type;
@@ -1489,6 +1722,8 @@ ice_set_fdir_input_set(struct ice_vsi *vsi, struct ethtool_rx_flow_spec *fsp,
 		if (ring >= vsi->num_rxq)
 			return -EINVAL;
 
+		orig_q_index = ring;
+		ice_update_ring_dest_vsi(vsi, &dest_vsi, &ring);
 		dest_ctl = ICE_FLTR_PRGM_DESC_DEST_DIRECT_PKT_QINDEX;
 		q_index = ring;
 	}
@@ -1497,6 +1732,11 @@ ice_set_fdir_input_set(struct ice_vsi *vsi, struct ethtool_rx_flow_spec *fsp,
 	input->q_index = q_index;
 	flow_type = fsp->flow_type & ~FLOW_EXT;
 
+	/* Record the original queue index as specified by user.
+	 * with channel configuration 'q_index' becomes relative
+	 * to TC (channel).
+	 */
+	input->orig_q_index = orig_q_index;
 	input->dest_vsi = dest_vsi;
 	input->dest_ctl = dest_ctl;
 	input->fltr_status = ICE_FLTR_PRGM_DESC_FD_STATUS_FD_ID;
@@ -1684,6 +1924,8 @@ int ice_add_fdir_ethtool(struct ice_vsi *vsi, struct ethtool_rxnfc *cmd)
 
 remove_sw_rule:
 	ice_fdir_update_cntrs(hw, input->flow_type, false);
+	/* update sb-filters count, specific to ring->channel */
+	ice_update_per_q_fltr(vsi, input->orig_q_index, false);
 	list_del(&input->fltr_node);
 release_lock:
 	mutex_unlock(&hw->fdir_fltr_lock);

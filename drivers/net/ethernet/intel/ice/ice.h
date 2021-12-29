@@ -112,7 +112,6 @@
 #define ICE_MAX_RXQS_PER_TC		256	/* Used when setting VSI context per TC Rx queues */
 
 #define ICE_CHNL_START_TC		1
-#define ICE_CHNL_MAX_TC			16
 
 #define ICE_MAX_RESET_WAIT		20
 
@@ -201,6 +200,7 @@ struct ice_channel {
 	struct ice_aqc_vsi_props info;
 	u64 max_tx_rate;
 	u64 min_tx_rate;
+	atomic_t num_sb_fltr;
 	struct ice_vsi *ch_vsi;
 };
 
@@ -792,6 +792,9 @@ static inline void ice_clear_sriov_cap(struct ice_pf *pf)
 #define ICE_FD_STAT_PF_IDX(base_idx) \
 			((base_idx) * ICE_FD_STAT_CTR_BLOCK_COUNT)
 #define ICE_FD_SB_STAT_IDX(base_idx) ICE_FD_STAT_PF_IDX(base_idx)
+#define ICE_FD_STAT_CH			1
+#define ICE_FD_CH_STAT_IDX(base_idx) \
+			(ICE_FD_STAT_PF_IDX(base_idx) + ICE_FD_STAT_CH)
 
 /**
  * ice_is_adq_active - any active ADQs
@@ -852,6 +855,7 @@ void ice_unplug_aux_dev(struct ice_pf *pf);
 int ice_init_rdma(struct ice_pf *pf);
 const char *ice_aq_str(enum ice_aq_err aq_err);
 bool ice_is_wol_supported(struct ice_hw *hw);
+void ice_fdir_del_all_fltrs(struct ice_vsi *vsi);
 int
 ice_fdir_write_fltr(struct ice_pf *pf, struct ice_fdir_fltr *input, bool add,
 		    bool is_tun);
@@ -862,6 +866,7 @@ int ice_get_ethtool_fdir_entry(struct ice_hw *hw, struct ethtool_rxnfc *cmd);
 int
 ice_get_fdir_fltr_ids(struct ice_hw *hw, struct ethtool_rxnfc *cmd,
 		      u32 *rule_locs);
+void ice_fdir_rem_adq_chnl(struct ice_hw *hw, u16 vsi_idx);
 void ice_fdir_release_flows(struct ice_hw *hw);
 void ice_fdir_replay_flows(struct ice_hw *hw);
 void ice_fdir_replay_fltrs(struct ice_pf *pf);

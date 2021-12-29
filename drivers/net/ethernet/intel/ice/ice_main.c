@@ -7440,6 +7440,67 @@ ice_validate_mqprio_qopt(struct ice_vsi *vsi,
 }
 
 /**
+ * ice_add_vsi_to_fdir - add a VSI to the flow director group for PF
+ * @pf: ptr to PF device
+ * @vsi: ptr to VSI
+ */
+static int ice_add_vsi_to_fdir(struct ice_pf *pf, struct ice_vsi *vsi)
+{
+	struct device *dev = ice_pf_to_dev(pf);
+	bool added = false;
+	struct ice_hw *hw;
+	int flow;
+
+	if (!(vsi->num_gfltr || vsi->num_bfltr))
+		return -EINVAL;
+
+	hw = &pf->hw;
+	for (flow = 0; flow < ICE_FLTR_PTYPE_MAX; flow++) {
+		struct ice_fd_hw_prof *prof;
+		int tun, status;
+		u64 entry_h;
+
+		if (!(hw->fdir_prof && hw->fdir_prof[flow] &&
+		      hw->fdir_prof[flow]->cnt))
+			continue;
+
+		for (tun = 0; tun < ICE_FD_HW_SEG_MAX; tun++) {
+			enum ice_flow_priority prio;
+			u64 prof_id;
+
+			/* add this VSI to FDir profile for this flow */
+			prio = ICE_FLOW_PRIO_NORMAL;
+			prof = hw->fdir_prof[flow];
+			prof_id = flow + tun * ICE_FLTR_PTYPE_MAX;
+			status = ice_flow_add_entry(hw, ICE_BLK_FD, prof_id,
+						    prof->vsi_h[0], vsi->idx,
+						    prio, prof->fdir_seg[tun],
+						    &entry_h);
+			if (status) {
+				dev_err(dev, "channel VSI idx %d, not able to add to group %d\n",
+					vsi->idx, flow);
+				continue;
+			}
+
+			prof->entry_h[prof->cnt][tun] = entry_h;
+		}
+
+		/* store VSI for filter replay and delete */
+		prof->vsi_h[prof->cnt] = vsi->idx;
+		prof->cnt++;
+
+		added = true;
+		dev_dbg(dev, "VSI idx %d added to fdir group %d\n", vsi->idx,
+			flow);
+	}
+
+	if (!added)
+		dev_dbg(dev, "VSI idx %d not added to fdir groups\n", vsi->idx);
+
+	return 0;
+}
+
+/**
  * ice_add_channel - add a channel by adding VSI
  * @pf: ptr to PF device
  * @sw_id: underlying HW switching element ID
@@ -7462,6 +7523,8 @@ static int ice_add_channel(struct ice_pf *pf, u16 sw_id, struct ice_channel *ch)
 		dev_err(dev, "create chnl VSI failure\n");
 		return -EINVAL;
 	}
+
+	ice_add_vsi_to_fdir(pf, vsi);
 
 	ch->sw_id = sw_id;
 	ch->vsi_num = vsi->vsi_num;
@@ -7763,6 +7826,15 @@ static void ice_remove_q_channels(struct ice_vsi *vsi, bool rem_fltr)
 	if (rem_fltr)
 		ice_rem_all_chnl_fltrs(pf);
 
+	/* remove ntuple filters since queue configuration is being changed */
+	if  (vsi->netdev->features & NETIF_F_NTUPLE) {
+		struct ice_hw *hw = &pf->hw;
+
+		mutex_lock(&hw->fdir_fltr_lock);
+		ice_fdir_del_all_fltrs(vsi);
+		mutex_unlock(&hw->fdir_fltr_lock);
+	}
+
 	/* perform cleanup for channels if they exist */
 	list_for_each_entry_safe(ch, ch_tmp, &vsi->ch_list, list) {
 		struct ice_vsi *ch_vsi;
@@ -7792,6 +7864,9 @@ static void ice_remove_q_channels(struct ice_vsi *vsi, bool rem_fltr)
 					rx_ring->q_vector->ch = NULL;
 			}
 		}
+
+		/* Release FD resources for the channel VSI */
+		ice_fdir_rem_adq_chnl(&pf->hw, ch->ch_vsi->idx);
 
 		/* clear the VSI from scheduler tree */
 		ice_rm_vsi_lan_cfg(ch->ch_vsi->port_info, ch->ch_vsi->idx);

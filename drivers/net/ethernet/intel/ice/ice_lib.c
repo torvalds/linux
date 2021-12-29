@@ -570,10 +570,16 @@ static int ice_alloc_fd_res(struct ice_vsi *vsi)
 	struct ice_pf *pf = vsi->back;
 	u32 g_val, b_val;
 
-	/* Flow Director filters are only allocated/assigned to the PF VSI which
-	 * passes the traffic. The CTRL VSI is only used to add/delete filters
-	 * so we don't allocate resources to it
+	/* Flow Director filters are only allocated/assigned to the PF VSI or
+	 * CHNL VSI which passes the traffic. The CTRL VSI is only used to
+	 * add/delete filters so resources are not allocated to it
 	 */
+	if (!test_bit(ICE_FLAG_FD_ENA, pf->flags))
+		return -EPERM;
+
+	if (!(vsi->type == ICE_VSI_PF || vsi->type == ICE_VSI_VF ||
+	      vsi->type == ICE_VSI_CHNL))
+		return -EPERM;
 
 	/* FD filters from guaranteed pool per VSI */
 	g_val = pf->hw.func_caps.fd_fltr_guar;
@@ -585,19 +591,56 @@ static int ice_alloc_fd_res(struct ice_vsi *vsi)
 	if (!b_val)
 		return -EPERM;
 
-	if (!(vsi->type == ICE_VSI_PF || vsi->type == ICE_VSI_VF))
-		return -EPERM;
+	/* PF main VSI gets only 64 FD resources from guaranteed pool
+	 * when ADQ is configured.
+	 */
+#define ICE_PF_VSI_GFLTR	64
 
-	if (!test_bit(ICE_FLAG_FD_ENA, pf->flags))
-		return -EPERM;
+	/* determine FD filter resources per VSI from shared(best effort) and
+	 * dedicated pool
+	 */
+	if (vsi->type == ICE_VSI_PF) {
+		vsi->num_gfltr = g_val;
+		/* if MQPRIO is configured, main VSI doesn't get all FD
+		 * resources from guaranteed pool. PF VSI gets 64 FD resources
+		 */
+		if (test_bit(ICE_FLAG_TC_MQPRIO, pf->flags)) {
+			if (g_val < ICE_PF_VSI_GFLTR)
+				return -EPERM;
+			/* allow bare minimum entries for PF VSI */
+			vsi->num_gfltr = ICE_PF_VSI_GFLTR;
+		}
 
-	vsi->num_gfltr = g_val / pf->num_alloc_vsi;
-
-	/* each VSI gets same "best_effort" quota */
-	vsi->num_bfltr = b_val;
-
-	if (vsi->type == ICE_VSI_VF) {
+		/* each VSI gets same "best_effort" quota */
+		vsi->num_bfltr = b_val;
+	} else if (vsi->type == ICE_VSI_VF) {
 		vsi->num_gfltr = 0;
+
+		/* each VSI gets same "best_effort" quota */
+		vsi->num_bfltr = b_val;
+	} else {
+		struct ice_vsi *main_vsi;
+		int numtc;
+
+		main_vsi = ice_get_main_vsi(pf);
+		if (!main_vsi)
+			return -EPERM;
+
+		if (!main_vsi->all_numtc)
+			return -EINVAL;
+
+		/* figure out ADQ numtc */
+		numtc = main_vsi->all_numtc - ICE_CHNL_START_TC;
+
+		/* only one TC but still asking resources for channels,
+		 * invalid config
+		 */
+		if (numtc < ICE_CHNL_START_TC)
+			return -EPERM;
+
+		g_val -= ICE_PF_VSI_GFLTR;
+		/* channel VSIs gets equal share from guaranteed pool */
+		vsi->num_gfltr = g_val / numtc;
 
 		/* each VSI gets same "best_effort" quota */
 		vsi->num_bfltr = b_val;
@@ -942,7 +985,7 @@ static void ice_set_fd_vsi_ctx(struct ice_vsi_ctx *ctxt, struct ice_vsi *vsi)
 	u16 dflt_q, report_q, val;
 
 	if (vsi->type != ICE_VSI_PF && vsi->type != ICE_VSI_CTRL &&
-	    vsi->type != ICE_VSI_VF)
+	    vsi->type != ICE_VSI_VF && vsi->type != ICE_VSI_CHNL)
 		return;
 
 	val = ICE_AQ_VSI_PROP_FLOW_DIR_VALID;

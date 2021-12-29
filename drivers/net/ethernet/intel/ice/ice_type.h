@@ -6,6 +6,7 @@
 
 #define ICE_BYTES_PER_WORD	2
 #define ICE_BYTES_PER_DWORD	4
+#define ICE_CHNL_MAX_TC		16
 
 #include "ice_hw_autogen.h"
 #include "ice_osdep.h"
@@ -229,8 +230,8 @@ enum ice_fd_hw_seg {
 	ICE_FD_HW_SEG_MAX,
 };
 
-/* 2 VSI = 1 ICE_VSI_PF + 1 ICE_VSI_CTRL */
-#define ICE_MAX_FDIR_VSI_PER_FILTER	2
+/* 1 ICE_VSI_PF + 1 ICE_VSI_CTRL + ICE_CHNL_MAX_TC */
+#define ICE_MAX_FDIR_VSI_PER_FILTER	(2 + ICE_CHNL_MAX_TC)
 
 struct ice_fd_hw_prof {
 	struct ice_flow_seg_info *fdir_seg[ICE_FD_HW_SEG_MAX];
