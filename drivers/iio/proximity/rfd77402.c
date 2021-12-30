@@ -310,7 +310,7 @@ static int rfd77402_resume(struct device *dev)
 static SIMPLE_DEV_PM_OPS(rfd77402_pm_ops, rfd77402_suspend, rfd77402_resume);
 
 static const struct i2c_device_id rfd77402_id[] = {
-	{ "rfd77402", 0},
+	{ "rfd77402", 0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, rfd77402_id);
