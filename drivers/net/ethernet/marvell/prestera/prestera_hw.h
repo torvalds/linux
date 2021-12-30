@@ -137,6 +137,7 @@ struct prestera_rxtx_params;
 struct prestera_acl_hw_action_info;
 struct prestera_acl_iface;
 struct prestera_counter_stats;
+struct prestera_iface;
 
 /* Switch API */
 int prestera_hw_switch_init(struct prestera_switch *sw);
@@ -237,6 +238,16 @@ int prestera_hw_span_get(const struct prestera_port *port, u8 *span_id);
 int prestera_hw_span_bind(const struct prestera_port *port, u8 span_id);
 int prestera_hw_span_unbind(const struct prestera_port *port);
 int prestera_hw_span_release(struct prestera_switch *sw, u8 span_id);
+
+/* Router API */
+int prestera_hw_rif_create(struct prestera_switch *sw,
+			   struct prestera_iface *iif, u8 *mac, u16 *rif_id);
+int prestera_hw_rif_delete(struct prestera_switch *sw, u16 rif_id,
+			   struct prestera_iface *iif);
+
+/* Virtual Router API */
+int prestera_hw_vr_create(struct prestera_switch *sw, u16 *vr_id);
+int prestera_hw_vr_delete(struct prestera_switch *sw, u16 vr_id);
 
 /* Event handlers */
 int prestera_hw_event_handler_register(struct prestera_switch *sw,
