@@ -511,6 +511,18 @@ static struct monitor_dev_profile npu_mdevp = {
 	.update_volt = rockchip_monitor_check_rate_volt,
 };
 
+static int rknpu_set_read_margin(struct device *dev,
+				 struct rockchip_opp_info *opp_info,
+				 unsigned long volt)
+{
+	if (opp_info->data && opp_info->data->set_read_margin) {
+		opp_info->data->set_read_margin(dev, opp_info, volt);
+		opp_info->volt_rm = volt;
+	}
+
+	return 0;
+}
+
 static int npu_opp_helper(struct dev_pm_set_opp_data *data)
 {
 	struct device *dev = data->dev;
@@ -551,9 +563,7 @@ static int npu_opp_helper(struct dev_pm_set_opp_data *data)
 				      new_supply_vdd->u_volt);
 			goto restore_voltage;
 		}
-		if (opp_info->data->set_read_margin)
-			opp_info->data->set_read_margin(dev, opp_info,
-							new_supply_vdd->u_volt);
+		rknpu_set_read_margin(dev, opp_info, new_supply_vdd->u_volt);
 	}
 
 	/* Change frequency */
@@ -567,9 +577,7 @@ static int npu_opp_helper(struct dev_pm_set_opp_data *data)
 
 	/* Scaling down? Scale voltage after frequency */
 	if (new_freq < old_freq) {
-		if (opp_info->data->set_read_margin)
-			opp_info->data->set_read_margin(dev, opp_info,
-							new_supply_vdd->u_volt);
+		rknpu_set_read_margin(dev, opp_info, new_supply_vdd->u_volt);
 		ret = regulator_set_voltage(vdd_reg, new_supply_vdd->u_volt,
 					    INT_MAX);
 		if (ret) {
@@ -597,9 +605,7 @@ restore_freq:
 		LOG_DEV_ERROR(dev, "failed to restore old-freq %lu Hz\n",
 			      old_freq);
 restore_rm:
-	if (opp_info->data->set_read_margin)
-		opp_info->data->set_read_margin(dev, opp_info,
-						old_supply_vdd->u_volt);
+	rknpu_set_read_margin(dev, opp_info, old_supply_vdd->u_volt);
 restore_voltage:
 	regulator_set_voltage(mem_reg, old_supply_mem->u_volt, INT_MAX);
 	regulator_set_voltage(vdd_reg, old_supply_vdd->u_volt, INT_MAX);
@@ -796,6 +802,7 @@ static int rknpu_devfreq_init(struct rknpu_device *rknpu_dev)
 		rknpu_dev->mdev_info = NULL;
 		npu_mdevp.is_checked = true;
 	}
+	rknpu_dev->current_freq = clk_get_rate(rknpu_dev->clks[0].clk);
 	rknpu_dev->current_volt = regulator_get_voltage(rknpu_dev->vdd);
 
 	of_property_read_u32(dev->of_node, "dynamic-power-coefficient",
@@ -1076,11 +1083,13 @@ static int rknpu_remove(struct platform_device *pdev)
 static int rknpu_runtime_suspend(struct device *dev)
 {
 	struct rknpu_device *rknpu_dev = dev_get_drvdata(dev);
+	struct rockchip_opp_info *opp_info = &rknpu_dev->opp_info;
 
 	if (rknpu_dev->scmi_clk) {
 		if (clk_set_rate(rknpu_dev->scmi_clk, POWER_DOWN_FREQ))
 			LOG_DEV_ERROR(dev, "failed to restore clk rate\n");
 	}
+	opp_info->current_rm = UINT_MAX;
 
 	return 0;
 }
@@ -1105,9 +1114,9 @@ static int rknpu_runtime_resume(struct device *dev)
 			LOG_DEV_ERROR(dev, "failed to set power down rate\n");
 	}
 
-	if (opp_info->data->set_read_margin)
+	if (opp_info->data && opp_info->data->set_read_margin)
 		opp_info->data->set_read_margin(dev, opp_info,
-						rknpu_dev->current_volt);
+						opp_info->volt_rm);
 
 	clk_bulk_disable_unprepare(opp_info->num_clks, opp_info->clks);
 
