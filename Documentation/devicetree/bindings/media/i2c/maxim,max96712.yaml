@@ -1,0 +1,111 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+# Copyright (C) 2021 Renesas Electronics Corp.
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/media/i2c/maxim,max96712.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Quad GMSL2 to CSI-2 Deserializer with GMSL1 Compatibility
+
+maintainers:
+  - Niklas Söderlund <niklas.soderlund+renesas@ragnatech.se>
+
+description: |
+  The MAX96712 deserializer converts GMSL2 or GMSL1 serial inputs into MIPI
+  CSI-2 D-PHY or C-PHY formatted outputs. The device allows each link to
+  simultaneously transmit bidirectional control-channel data while forward
+  video transmissions are in progress. The MAX96712 can accommodate as many as
+  four remotely located sensors using industry-standard coax or STP
+  interconnects.
+
+  Each GMSL2 serial link operates at a fixed rate of 3Gbps or 6Gbps in the
+  forward direction and 187.5Mbps in the reverse direction. In GMSL1 mode, the
+  MAX96712 can be paired with first-generation 3.12Gbps or 1.5Gbps GMSL1
+  serializers or operate up to 3.12Gbps with GMSL2 serializers in GMSL1 mode.
+
+properties:
+  compatible:
+    const: maxim,max96712
+
+  reg:
+    description: I2C device address
+    maxItems: 1
+
+  enable-gpios: true
+
+  ports:
+    $ref: /schemas/graph.yaml#/properties/ports
+
+    properties:
+      port@0:
+        $ref: /schemas/graph.yaml#/properties/port
+        description: GMSL Input 0
+
+      port@1:
+        $ref: /schemas/graph.yaml#/properties/port
+        description: GMSL Input 1
+
+      port@2:
+        $ref: /schemas/graph.yaml#/properties/port
+        description: GMSL Input 2
+
+      port@3:
+        $ref: /schemas/graph.yaml#/properties/port
+        description: GMSL Input 3
+
+      port@4:
+        $ref: /schemas/graph.yaml#/$defs/port-base
+        unevaluatedProperties: false
+        description: CSI-2 Output
+
+        properties:
+          endpoint:
+            $ref: /schemas/media/video-interfaces.yaml#
+            unevaluatedProperties: false
+
+            properties:
+              data-lanes: true
+
+            required:
+              - data-lanes
+
+    required:
+      - port@4
+
+required:
+  - compatible
+  - reg
+  - ports
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+
+    i2c@e6508000 {
+            #address-cells = <1>;
+            #size-cells = <0>;
+
+            reg = <0 0xe6508000>;
+
+            gmsl0: gmsl-deserializer@49 {
+                    compatible = "maxim,max96712";
+                    reg = <0x49>;
+                    enable-gpios = <&pca9654_a 0 GPIO_ACTIVE_HIGH>;
+
+                    ports {
+                            #address-cells = <1>;
+                            #size-cells = <0>;
+
+                            port@4 {
+                                    reg = <4>;
+                                    max96712_out0: endpoint {
+                                            clock-lanes = <0>;
+                                            data-lanes = <1 2 3 4>;
+                                            remote-endpoint = <&csi40_in>;
+                                    };
+                            };
+                    };
+            };
+    };
