@@ -329,6 +329,8 @@ struct counter_device {
 	struct mutex ops_exist_lock;
 };
 
+void *counter_priv(const struct counter_device *const counter);
+
 int counter_register(struct counter_device *const counter);
 void counter_unregister(struct counter_device *const counter);
 int devm_counter_register(struct device *dev,

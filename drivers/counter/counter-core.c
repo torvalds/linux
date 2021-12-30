@@ -46,6 +46,18 @@ static struct bus_type counter_bus_type = {
 static dev_t counter_devt;
 
 /**
+ * counter_priv - access counter device private data
+ * @counter: counter device
+ *
+ * Get the counter device private data
+ */
+void *counter_priv(const struct counter_device *const counter)
+{
+	return counter->priv;
+}
+EXPORT_SYMBOL_GPL(counter_priv);
+
+/**
  * counter_register - register Counter to the system
  * @counter:	pointer to Counter to register
  *
