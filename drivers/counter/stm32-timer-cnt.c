@@ -29,7 +29,6 @@ struct stm32_timer_regs {
 };
 
 struct stm32_timer_cnt {
-	struct counter_device counter;
 	struct regmap *regmap;
 	struct clk *clk;
 	u32 max_arr;
@@ -317,31 +316,38 @@ static int stm32_timer_cnt_probe(struct platform_device *pdev)
 	struct stm32_timers *ddata = dev_get_drvdata(pdev->dev.parent);
 	struct device *dev = &pdev->dev;
 	struct stm32_timer_cnt *priv;
+	struct counter_device *counter;
+	int ret;
 
 	if (IS_ERR_OR_NULL(ddata))
 		return -EINVAL;
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
-	if (!priv)
+	counter = devm_counter_alloc(dev, sizeof(*priv));
+	if (!counter)
 		return -ENOMEM;
+
+	priv = counter_priv(counter);
 
 	priv->regmap = ddata->regmap;
 	priv->clk = ddata->clk;
 	priv->max_arr = ddata->max_arr;
 
-	priv->counter.name = dev_name(dev);
-	priv->counter.parent = dev;
-	priv->counter.ops = &stm32_timer_cnt_ops;
-	priv->counter.counts = &stm32_counts;
-	priv->counter.num_counts = 1;
-	priv->counter.signals = stm32_signals;
-	priv->counter.num_signals = ARRAY_SIZE(stm32_signals);
-	priv->counter.priv = priv;
+	counter->name = dev_name(dev);
+	counter->parent = dev;
+	counter->ops = &stm32_timer_cnt_ops;
+	counter->counts = &stm32_counts;
+	counter->num_counts = 1;
+	counter->signals = stm32_signals;
+	counter->num_signals = ARRAY_SIZE(stm32_signals);
 
 	platform_set_drvdata(pdev, priv);
 
 	/* Register Counter device */
-	return devm_counter_register(dev, &priv->counter);
+	ret = devm_counter_add(dev, counter);
+	if (ret < 0)
+		dev_err_probe(dev, ret, "Failed to add counter\n");
+
+	return ret;
 }
 
 static int __maybe_unused stm32_timer_cnt_suspend(struct device *dev)
