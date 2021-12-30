@@ -65,6 +65,7 @@ struct rkisp_isp_params_vdev {
 	bool first_params;
 	bool first_cfg_params;
 	bool hdrtmo_en;
+	bool afaemode_en;
 
 	enum v4l2_quantization quantization;
 	enum rkisp_fmt_raw_pat_type raw_type;

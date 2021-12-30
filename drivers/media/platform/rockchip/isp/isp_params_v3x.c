@@ -985,6 +985,35 @@ isp_ie_enable(struct rkisp_isp_params_vdev *params_vdev, bool en, u32 id)
 }
 
 static void
+isp_rawaebig_config_foraf(struct rkisp_isp_params_vdev *params_vdev,
+		    const struct isp3x_rawaf_meas_cfg *arg, u32 id)
+{
+	u32 block_hsize, block_vsize;
+	u32 addr, value;
+	u32 wnd_num_idx = 2;
+	const u32 ae_wnd_num[] = {
+		1, 5, 15, 15
+	};
+
+	addr = ISP3X_RAWAE_BIG1_BASE;
+	value = isp3_param_read(params_vdev, addr + ISP3X_RAWAE_BIG_CTRL, id);
+	value &= ISP3X_RAWAE_BIG_EN;
+
+	value |= ISP3X_RAWAE_BIG_WND0_NUM(wnd_num_idx);
+	isp3_param_write(params_vdev, value, addr + ISP3X_RAWAE_BIG_CTRL, id);
+
+	isp3_param_write(params_vdev,
+			 ISP_PACK_2SHORT(arg->win[0].h_offs, arg->win[0].v_offs),
+			 addr + ISP3X_RAWAE_BIG_OFFSET, id);
+
+	block_hsize = arg->win[0].h_size / ae_wnd_num[wnd_num_idx];
+	block_vsize = arg->win[0].v_size / ae_wnd_num[wnd_num_idx];
+	isp3_param_write(params_vdev,
+			 ISP_PACK_2SHORT(block_hsize, block_vsize),
+			 addr + ISP3X_RAWAE_BIG_BLK_SIZE, id);
+}
+
+static void
 isp_rawaf_config(struct rkisp_isp_params_vdev *params_vdev,
 		 const struct isp3x_rawaf_meas_cfg *arg, u32 id)
 {
@@ -1127,6 +1156,26 @@ isp_rawaf_config(struct rkisp_isp_params_vdev *params_vdev,
 	ctrl &= ~(ISP3X_RAWAF_SEL(3));
 	ctrl |= ISP3X_RAWAF_SEL(arg->rawaf_sel);
 	isp3_param_write(params_vdev, ctrl, ISP3X_VI_ISP_PATH, id);
+
+	params_vdev->afaemode_en = arg->ae_mode;
+	if (params_vdev->afaemode_en)
+		isp_rawaebig_config_foraf(params_vdev, arg, id);
+}
+
+static void
+isp_rawaebig_enable_foraf(struct rkisp_isp_params_vdev *params_vdev, bool en, u32 id)
+{
+	u32 exp_ctrl;
+	u32 addr = ISP3X_RAWAE_BIG1_BASE;
+
+	exp_ctrl = isp3_param_read(params_vdev, addr + ISP3X_RAWAE_BIG_CTRL, id);
+	exp_ctrl &= ~ISP3X_REG_WR_MASK;
+	if (en)
+		exp_ctrl |= ISP3X_MODULE_EN;
+	else
+		exp_ctrl &= ~ISP3X_MODULE_EN;
+
+	isp3_param_write(params_vdev, exp_ctrl, addr + ISP3X_RAWAE_BIG_CTRL, id);
 }
 
 static void
@@ -1141,6 +1190,11 @@ isp_rawaf_enable(struct rkisp_isp_params_vdev *params_vdev, bool en, u32 id)
 		afm_ctrl &= ~ISP3X_RAWAF_EN;
 
 	isp3_param_write(params_vdev, afm_ctrl, ISP3X_RAWAF_CTRL, id);
+	if (params_vdev->afaemode_en) {
+		isp_rawaebig_enable_foraf(params_vdev, en, id);
+		if (!en)
+			params_vdev->afaemode_en = false;
+	}
 }
 
 static void
@@ -3845,6 +3899,9 @@ void __isp_isr_meas_config(struct rkisp_isp_params_vdev *params_vdev,
 		 "%s id:%d seq:%d module_cfg_update:0x%llx\n",
 		 __func__, id, new_params->frame_id, module_cfg_update);
 
+	if ((module_cfg_update & ISP3X_MODULE_RAWAF))
+		ops->rawaf_config(params_vdev, &new_params->meas.rawaf, id);
+
 	if ((module_cfg_update & ISP3X_MODULE_RAWAE0))
 		ops->rawae0_config(params_vdev, &new_params->meas.rawae0, id);
 
@@ -3854,7 +3911,7 @@ void __isp_isr_meas_config(struct rkisp_isp_params_vdev *params_vdev,
 	if ((module_cfg_update & ISP3X_MODULE_RAWAE2))
 		ops->rawae2_config(params_vdev, &new_params->meas.rawae2, id);
 
-	if ((module_cfg_update & ISP3X_MODULE_RAWAE3))
+	if ((module_cfg_update & ISP3X_MODULE_RAWAE3) && !params_vdev->afaemode_en)
 		ops->rawae3_config(params_vdev, &new_params->meas.rawae3, id);
 
 	if ((module_cfg_update & ISP3X_MODULE_RAWHIST0))
@@ -3871,9 +3928,6 @@ void __isp_isr_meas_config(struct rkisp_isp_params_vdev *params_vdev,
 
 	if ((module_cfg_update & ISP3X_MODULE_RAWAWB))
 		ops->rawawb_config(params_vdev, &new_params->meas.rawawb, id);
-
-	if ((module_cfg_update & ISP3X_MODULE_RAWAF))
-		ops->rawaf_config(params_vdev, &new_params->meas.rawaf, id);
 }
 
 static __maybe_unused
@@ -3893,6 +3947,9 @@ void __isp_isr_meas_en(struct rkisp_isp_params_vdev *params_vdev,
 		 "%s id:%d seq:%d module_en_update:0x%llx module_ens:0x%llx\n",
 		 __func__, id, new_params->frame_id, module_en_update, module_ens);
 
+	if (module_en_update & ISP3X_MODULE_RAWAF)
+		ops->rawaf_enable(params_vdev, !!(module_ens & ISP3X_MODULE_RAWAF), id);
+
 	if (module_en_update & ISP3X_MODULE_RAWAE0)
 		ops->rawae0_enable(params_vdev, !!(module_ens & ISP3X_MODULE_RAWAE0), id);
 
@@ -3902,7 +3959,7 @@ void __isp_isr_meas_en(struct rkisp_isp_params_vdev *params_vdev,
 	if (module_en_update & ISP3X_MODULE_RAWAE2)
 		ops->rawae2_enable(params_vdev, !!(module_ens & ISP3X_MODULE_RAWAE2), id);
 
-	if (module_en_update & ISP3X_MODULE_RAWAE3)
+	if ((module_en_update & ISP3X_MODULE_RAWAE3) && !params_vdev->afaemode_en)
 		ops->rawae3_enable(params_vdev, !!(module_ens & ISP3X_MODULE_RAWAE3), id);
 
 	if (module_en_update & ISP3X_MODULE_RAWHIST0)
@@ -3919,9 +3976,6 @@ void __isp_isr_meas_en(struct rkisp_isp_params_vdev *params_vdev,
 
 	if (module_en_update & ISP3X_MODULE_RAWAWB)
 		ops->rawawb_enable(params_vdev, !!(module_ens & ISP3X_MODULE_RAWAWB), id);
-
-	if (module_en_update & ISP3X_MODULE_RAWAF)
-		ops->rawaf_enable(params_vdev, !!(module_ens & ISP3X_MODULE_RAWAF), id);
 }
 
 static __maybe_unused

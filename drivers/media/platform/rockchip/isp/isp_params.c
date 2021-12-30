@@ -213,6 +213,7 @@ rkisp_params_vb2_start_streaming(struct vb2_queue *queue, unsigned int count)
 
 	params_vdev->is_first_cfg = true;
 	params_vdev->hdrtmo_en = false;
+	params_vdev->afaemode_en = false;
 	params_vdev->cur_buf = NULL;
 	spin_lock_irqsave(&params_vdev->config_lock, flags);
 	params_vdev->streamon = true;
