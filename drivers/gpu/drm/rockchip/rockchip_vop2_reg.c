@@ -650,6 +650,7 @@ static const struct vop2_wb_data rk3568_vop_wb_data = {
 	.formats = formats_wb,
 	.nformats = ARRAY_SIZE(formats_wb),
 	.max_output = { 1920, 1080 },
+	.fifo_depth =  1920 * 4 / 16,
 	.regs = &rk3568_vop_wb_regs,
 };
 

@@ -852,6 +852,7 @@ struct vop2_wb_data {
 	const uint32_t *formats;
 	struct vop_rect max_output;
 	const struct vop2_wb_regs *regs;
+	uint32_t fifo_depth;
 };
 
 struct vop2_video_port_data {

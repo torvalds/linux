@@ -2730,6 +2730,8 @@ static void vop2_wb_commit(struct drm_crtc *crtc)
 		spin_unlock_irqrestore(&wb->job_lock, flags);
 
 		fifo_throd = fb->pitches[0] >> 4;
+		if (fifo_throd >= vop2->data->wb->fifo_depth)
+			fifo_throd = vop2->data->wb->fifo_depth;
 		r2y = is_yuv_support(fb->format->format) && (!is_yuv_output(vcstate->bus_format));
 
 		/*
