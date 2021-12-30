@@ -17,6 +17,7 @@
 #include <linux/platform_device.h>
 #include <linux/pm_opp.h>
 #include <linux/pm_qos.h>
+#include <linux/pm_runtime.h>
 #include <linux/regulator/consumer.h>
 #include <linux/regulator/coupler.h>
 #include <linux/regulator/driver.h>
@@ -819,7 +820,7 @@ static void rockchip_low_temp_adjust(struct monitor_dev_info *info,
 		info->is_low_temp = is_low;
 
 	if (devp->update_volt)
-		devp->update_volt(info);
+		devp->update_volt(info, false);
 }
 
 static void rockchip_high_temp_adjust(struct monitor_dev_info *info,
@@ -1071,13 +1072,18 @@ static int rockchip_monitor_set_read_margin(struct device *dev,
 					    struct rockchip_opp_info *opp_info,
 					    unsigned long volt)
 {
-	if (opp_info && opp_info->data->set_read_margin)
-		return opp_info->data->set_read_margin(dev, opp_info, volt);
+
+	if (opp_info && opp_info->data && opp_info->data->set_read_margin) {
+		if (pm_runtime_active(dev))
+			opp_info->data->set_read_margin(dev, opp_info, volt);
+		opp_info->volt_rm = volt;
+	}
 
 	return 0;
 }
 
-int rockchip_monitor_check_rate_volt(struct monitor_dev_info *info)
+int rockchip_monitor_check_rate_volt(struct monitor_dev_info *info,
+				     bool is_set_clk)
 {
 	struct device *dev = info->dev;
 	struct regulator *vdd_reg = NULL;
@@ -1128,7 +1134,6 @@ int rockchip_monitor_check_rate_volt(struct monitor_dev_info *info)
 		new_mem_volt = opp->supplies[1].u_volt;
 	dev_pm_opp_put(opp);
 
-
 	if (old_rate == new_rate) {
 		if (info->regulator_count > 1) {
 			if (old_volt == new_volt &&
@@ -1163,8 +1168,7 @@ int rockchip_monitor_check_rate_volt(struct monitor_dev_info *info)
 			goto unlock;
 	}
 
-	ret = clk_set_rate(info->clk, new_rate);
-	if (ret) {
+	if (is_set_clk && clk_set_rate(info->clk, new_rate)) {
 		dev_err(dev, "%s: failed to set clock rate: %lu\n",
 			__func__, new_rate);
 		goto restore_rm;
@@ -1192,11 +1196,11 @@ int rockchip_monitor_check_rate_volt(struct monitor_dev_info *info)
 	goto disable_clk;
 
 restore_freq:
-	if (clk_set_rate(info->clk, old_rate))
+	if (is_set_clk && clk_set_rate(info->clk, old_rate))
 		dev_err(dev, "%s: failed to restore old-freq (%lu Hz)\n",
 			__func__, old_rate);
 restore_rm:
-	rockchip_monitor_set_read_margin(dev, opp_info, new_volt);
+	rockchip_monitor_set_read_margin(dev, opp_info, old_volt);
 restore_voltage:
 	if (info->regulator_count > 1)
 		regulator_set_voltage(mem_reg, old_mem_volt, INT_MAX);
@@ -1230,14 +1234,14 @@ rockchip_system_monitor_register(struct device *dev,
 
 	rockchip_system_monitor_parse_supplies(dev, info);
 	if (monitor_device_parse_dt(dev, info)) {
-		rockchip_monitor_check_rate_volt(info);
+		rockchip_monitor_check_rate_volt(info, true);
 		kfree(info);
 		return ERR_PTR(-EINVAL);
 	}
 
 	rockchip_system_monitor_early_regulator_init(info);
 	rockchip_system_monitor_wide_temp_init(info);
-	rockchip_monitor_check_rate_volt(info);
+	rockchip_monitor_check_rate_volt(info, true);
 	devp->is_checked = true;
 	rockchip_system_monitor_freq_qos_requset(info);
 

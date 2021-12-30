@@ -29,6 +29,7 @@ struct rockchip_opp_info {
 	struct regmap *grf;
 	struct clk_bulk_data *clks;
 	int num_clks;
+	unsigned long volt_rm;
 	u32 current_rm;
 };
 
