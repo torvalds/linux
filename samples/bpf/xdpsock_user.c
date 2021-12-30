@@ -14,6 +14,7 @@
 #include <arpa/inet.h>
 #include <locale.h>
 #include <net/ethernet.h>
+#include <netinet/ether.h>
 #include <net/if.h>
 #include <poll.h>
 #include <pthread.h>
@@ -90,6 +91,10 @@ static u32 opt_pkt_fill_pattern = 0x12345678;
 static bool opt_vlan_tag;
 static u16 opt_pkt_vlan_id = VLAN_VID__DEFAULT;
 static u16 opt_pkt_vlan_pri = VLAN_PRI__DEFAULT;
+static struct ether_addr opt_txdmac = {{ 0x3c, 0xfd, 0xfe,
+					 0x9e, 0x7f, 0x71 }};
+static struct ether_addr opt_txsmac = {{ 0xec, 0xb1, 0xd7,
+					 0x98, 0x3a, 0xc0 }};
 static bool opt_extra_stats;
 static bool opt_quiet;
 static bool opt_app_stats;
@@ -785,8 +790,8 @@ static void gen_eth_hdr_data(void)
 					  sizeof(struct vlan_ethhdr));
 
 		/* ethernet & VLAN header */
-		memcpy(veth_hdr->h_dest, "\x3c\xfd\xfe\x9e\x7f\x71", ETH_ALEN);
-		memcpy(veth_hdr->h_source, "\xec\xb1\xd7\x98\x3a\xc0", ETH_ALEN);
+		memcpy(veth_hdr->h_dest, &opt_txdmac, ETH_ALEN);
+		memcpy(veth_hdr->h_source, &opt_txsmac, ETH_ALEN);
 		veth_hdr->h_vlan_proto = htons(ETH_P_8021Q);
 		vlan_tci = opt_pkt_vlan_id & VLAN_VID_MASK;
 		vlan_tci |= (opt_pkt_vlan_pri << VLAN_PRIO_SHIFT) & VLAN_PRIO_MASK;
@@ -802,8 +807,8 @@ static void gen_eth_hdr_data(void)
 					  sizeof(struct ethhdr));
 
 		/* ethernet header */
-		memcpy(eth_hdr->h_dest, "\x3c\xfd\xfe\x9e\x7f\x71", ETH_ALEN);
-		memcpy(eth_hdr->h_source, "\xec\xb1\xd7\x98\x3a\xc0", ETH_ALEN);
+		memcpy(eth_hdr->h_dest, &opt_txdmac, ETH_ALEN);
+		memcpy(eth_hdr->h_source, &opt_txsmac, ETH_ALEN);
 		eth_hdr->h_proto = htons(ETH_P_IP);
 	}
 
@@ -967,6 +972,8 @@ static struct option long_options[] = {
 	{"tx-vlan", no_argument, 0, 'V'},
 	{"tx-vlan-id", required_argument, 0, 'J'},
 	{"tx-vlan-pri", required_argument, 0, 'K'},
+	{"tx-dmac", required_argument, 0, 'G'},
+	{"tx-smac", required_argument, 0, 'H'},
 	{"extra-stats", no_argument, 0, 'x'},
 	{"quiet", no_argument, 0, 'Q'},
 	{"app-stats", no_argument, 0, 'a'},
@@ -1010,6 +1017,8 @@ static void usage(const char *prog)
 		"  -V, --tx-vlan        Send VLAN tagged  packets (For -t|--txonly)\n"
 		"  -J, --tx-vlan-id=n   Tx VLAN ID [1-4095]. Default: %d (For -V|--tx-vlan)\n"
 		"  -K, --tx-vlan-pri=n  Tx VLAN Priority [0-7]. Default: %d (For -V|--tx-vlan)\n"
+		"  -G, --tx-dmac=<MAC>  Dest MAC addr of TX frame in aa:bb:cc:dd:ee:ff format (For -V|--tx-vlan)\n"
+		"  -H, --tx-smac=<MAC>  Src MAC addr of TX frame in aa:bb:cc:dd:ee:ff format (For -V|--tx-vlan)\n"
 		"  -x, --extra-stats	Display extra statistics.\n"
 		"  -Q, --quiet          Do not display any stats.\n"
 		"  -a, --app-stats	Display application (syscall) statistics.\n"
@@ -1032,7 +1041,7 @@ static void parse_command_line(int argc, char **argv)
 	opterr = 0;
 
 	for (;;) {
-		c = getopt_long(argc, argv, "Frtli:q:pSNn:czf:muMd:b:C:s:P:VJ:K:xQaI:BR",
+		c = getopt_long(argc, argv, "Frtli:q:pSNn:czf:muMd:b:C:s:P:VJ:K:G:H:xQaI:BR",
 				long_options, &option_index);
 		if (c == -1)
 			break;
@@ -1121,6 +1130,22 @@ static void parse_command_line(int argc, char **argv)
 			break;
 		case 'K':
 			opt_pkt_vlan_pri = atoi(optarg);
+			break;
+		case 'G':
+			if (!ether_aton_r(optarg,
+					  (struct ether_addr *)&opt_txdmac)) {
+				fprintf(stderr, "Invalid dmac address:%s\n",
+					optarg);
+				usage(basename(argv[0]));
+			}
+			break;
+		case 'H':
+			if (!ether_aton_r(optarg,
+					  (struct ether_addr *)&opt_txsmac)) {
+				fprintf(stderr, "Invalid smac address:%s\n",
+					optarg);
+				usage(basename(argv[0]));
+			}
 			break;
 		case 'x':
 			opt_extra_stats = 1;
