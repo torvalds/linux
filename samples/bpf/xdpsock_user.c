@@ -31,6 +31,7 @@
 #include <sys/un.h>
 #include <time.h>
 #include <unistd.h>
+#include <sched.h>
 
 #include <bpf/libbpf.h>
 #include <bpf/xsk.h>
@@ -65,6 +66,8 @@
 
 #define NSEC_PER_SEC		1000000000UL
 #define NSEC_PER_USEC		1000
+
+#define SCHED_PRI__DEFAULT	0
 
 typedef __u64 u64;
 typedef __u32 u32;
@@ -123,6 +126,8 @@ static bool opt_busy_poll;
 static bool opt_reduced_cap;
 static clockid_t opt_clock = CLOCK_MONOTONIC;
 static unsigned long opt_tx_cycle_ns;
+static int opt_schpolicy = SCHED_OTHER;
+static int opt_schprio = SCHED_PRI__DEFAULT;
 
 struct vlan_ethhdr {
 	unsigned char h_dest[6];
@@ -198,6 +203,15 @@ static const struct clockid_map {
 	{ NULL }
 };
 
+static const struct sched_map {
+	const char *name;
+	int policy;
+} schmap[] = {
+	{ "OTHER", SCHED_OTHER },
+	{ "FIFO", SCHED_FIFO },
+	{ NULL }
+};
+
 static int num_socks;
 struct xsk_socket_info *xsks[MAX_SOCKS];
 int sock;
@@ -209,6 +223,20 @@ static int get_clockid(clockid_t *id, const char *name)
 	for (clk = clockids_map; clk->name; clk++) {
 		if (strcasecmp(clk->name, name) == 0) {
 			*id = clk->clockid;
+			return 0;
+		}
+	}
+
+	return -1;
+}
+
+static int get_schpolicy(int *policy, const char *name)
+{
+	const struct sched_map *sch;
+
+	for (sch = schmap; sch->name; sch++) {
+		if (strcasecmp(sch->name, name) == 0) {
+			*policy = sch->policy;
 			return 0;
 		}
 	}
@@ -1019,6 +1047,8 @@ static struct option long_options[] = {
 	{"tx-dmac", required_argument, 0, 'G'},
 	{"tx-smac", required_argument, 0, 'H'},
 	{"tx-cycle", required_argument, 0, 'T'},
+	{"policy", required_argument, 0, 'W'},
+	{"schpri", required_argument, 0, 'U'},
 	{"extra-stats", no_argument, 0, 'x'},
 	{"quiet", no_argument, 0, 'Q'},
 	{"app-stats", no_argument, 0, 'a'},
@@ -1066,6 +1096,8 @@ static void usage(const char *prog)
 		"  -G, --tx-dmac=<MAC>  Dest MAC addr of TX frame in aa:bb:cc:dd:ee:ff format (For -V|--tx-vlan)\n"
 		"  -H, --tx-smac=<MAC>  Src MAC addr of TX frame in aa:bb:cc:dd:ee:ff format (For -V|--tx-vlan)\n"
 		"  -T, --tx-cycle=n     Tx cycle time in micro-seconds (For -t|--txonly).\n"
+		"  -W, --policy=POLICY  Schedule policy. Default: SCHED_OTHER\n"
+		"  -U, --schpri=n       Schedule priority. Default: %d\n"
 		"  -x, --extra-stats	Display extra statistics.\n"
 		"  -Q, --quiet          Do not display any stats.\n"
 		"  -a, --app-stats	Display application (syscall) statistics.\n"
@@ -1076,7 +1108,8 @@ static void usage(const char *prog)
 	fprintf(stderr, str, prog, XSK_UMEM__DEFAULT_FRAME_SIZE,
 		opt_batch_size, MIN_PKT_SIZE, MIN_PKT_SIZE,
 		XSK_UMEM__DEFAULT_FRAME_SIZE, opt_pkt_fill_pattern,
-		VLAN_VID__DEFAULT, VLAN_PRI__DEFAULT);
+		VLAN_VID__DEFAULT, VLAN_PRI__DEFAULT,
+		SCHED_PRI__DEFAULT);
 
 	exit(EXIT_FAILURE);
 }
@@ -1088,7 +1121,8 @@ static void parse_command_line(int argc, char **argv)
 	opterr = 0;
 
 	for (;;) {
-		c = getopt_long(argc, argv, "Frtli:q:pSNn:w:czf:muMd:b:C:s:P:VJ:K:G:H:T:xQaI:BR",
+		c = getopt_long(argc, argv,
+				"Frtli:q:pSNn:w:czf:muMd:b:C:s:P:VJ:K:G:H:T:W:U:xQaI:BR",
 				long_options, &option_index);
 		if (c == -1)
 			break;
@@ -1205,6 +1239,17 @@ static void parse_command_line(int argc, char **argv)
 		case 'T':
 			opt_tx_cycle_ns = atoi(optarg);
 			opt_tx_cycle_ns *= NSEC_PER_USEC;
+			break;
+		case 'W':
+			if (get_schpolicy(&opt_schpolicy, optarg)) {
+				fprintf(stderr,
+					"ERROR: Invalid policy %s. Default to SCHED_OTHER.\n",
+					optarg);
+				opt_schpolicy = SCHED_OTHER;
+			}
+			break;
+		case 'U':
+			opt_schprio = atoi(optarg);
 			break;
 		case 'x':
 			opt_extra_stats = 1;
@@ -1780,6 +1825,7 @@ int main(int argc, char **argv)
 	struct __user_cap_data_struct data[2] = { { 0 } };
 	struct rlimit r = {RLIM_INFINITY, RLIM_INFINITY};
 	bool rx = false, tx = false;
+	struct sched_param schparam;
 	struct xsk_umem_info *umem;
 	struct bpf_object *obj;
 	int xsks_map_fd = 0;
@@ -1881,6 +1927,16 @@ int main(int argc, char **argv)
 	prev_time = get_nsecs();
 	start_time = prev_time;
 
+	/* Configure sched priority for better wake-up accuracy */
+	memset(&schparam, 0, sizeof(schparam));
+	schparam.sched_priority = opt_schprio;
+	ret = sched_setscheduler(0, opt_schpolicy, &schparam);
+	if (ret) {
+		fprintf(stderr, "Error(%d) in setting priority(%d): %s\n",
+			errno, opt_schprio, strerror(errno));
+		goto out;
+	}
+
 	if (opt_bench == BENCH_RXDROP)
 		rx_drop_all();
 	else if (opt_bench == BENCH_TXONLY)
@@ -1888,6 +1944,7 @@ int main(int argc, char **argv)
 	else
 		l2fwd_all();
 
+out:
 	benchmark_done = true;
 
 	if (!opt_quiet)
