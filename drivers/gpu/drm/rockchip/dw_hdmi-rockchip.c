@@ -230,6 +230,9 @@ struct rockchip_hdmi {
 	struct next_hdr_sink_data next_hdr_data;
 	struct dw_hdmi_link_config link_cfg;
 	struct gpio_desc *enable_gpio;
+
+	struct delayed_work work;
+	struct workqueue_struct *workqueue;
 };
 
 #define to_rockchip_hdmi(x)	container_of(x, struct rockchip_hdmi, x)
@@ -1204,6 +1207,18 @@ static int rockchip_hdmi_update_phy_table(struct rockchip_hdmi *hdmi,
 	return 0;
 }
 
+static void repo_hpd_event(struct work_struct *p_work)
+{
+	struct rockchip_hdmi *hdmi = container_of(p_work, struct rockchip_hdmi, work.work);
+	bool change;
+
+	change = drm_helper_hpd_irq_event(hdmi->encoder.dev);
+	if (change) {
+		dev_dbg(hdmi->dev, "hpd stat changed:%d\n", hdmi->hpd_stat);
+		dw_hdmi_qp_cec_set_hpd(hdmi->hdmi_qp, hdmi->hpd_stat, change);
+	}
+}
+
 static irqreturn_t rockchip_hdmi_hardirq(int irq, void *dev_id)
 {
 	struct rockchip_hdmi *hdmi = dev_id;
@@ -1231,6 +1246,7 @@ static irqreturn_t rockchip_hdmi_irq(int irq, void *dev_id)
 {
 	struct rockchip_hdmi *hdmi = dev_id;
 	u32 intr_stat, val;
+	int msecs;
 	bool stat;
 
 	regmap_read(hdmi->regmap, RK3588_GRF_SOC_STATUS1, &intr_stat);
@@ -1256,13 +1272,14 @@ static irqreturn_t rockchip_hdmi_irq(int irq, void *dev_id)
 
 	regmap_write(hdmi->regmap, RK3588_GRF_SOC_CON2, val);
 
-	if (hdmi->hpd_stat != stat) {
-		bool change = false;
-
-		hdmi->hpd_stat = stat;
-		change = drm_helper_hpd_irq_event(hdmi->encoder.dev);
-		dw_hdmi_qp_cec_set_hpd(hdmi->hdmi_qp, stat, change);
+	if (stat) {
+		hdmi->hpd_stat = true;
+		msecs = 150;
+	} else {
+		hdmi->hpd_stat = false;
+		msecs = 20;
 	}
+	mod_delayed_work(hdmi->workqueue, &hdmi->work, msecs_to_jiffies(msecs));
 
 	if (!hdmi->id) {
 		val = HIWORD_UPDATE(RK3588_HDMI0_HPD_INT_CLR,
@@ -1277,6 +1294,12 @@ static irqreturn_t rockchip_hdmi_irq(int irq, void *dev_id)
 	regmap_write(hdmi->regmap, RK3588_GRF_SOC_CON2, val);
 
 	return IRQ_HANDLED;
+}
+
+static void init_hpd_work(struct rockchip_hdmi *hdmi)
+{
+	hdmi->workqueue = create_workqueue("hpd_queue");
+	INIT_DELAYED_WORK(&hdmi->work, repo_hpd_event);
 }
 
 static int rockchip_hdmi_parse_dt(struct rockchip_hdmi *hdmi)
@@ -2953,6 +2976,7 @@ static int dw_hdmi_rockchip_bind(struct device *dev, struct device *master,
 					    RK3588_HDMI1_GRANT_SEL);
 			regmap_write(hdmi->vo1_regmap, RK3588_GRF_VO1_CON9, val);
 		}
+		init_hpd_work(hdmi);
 	}
 
 	ret = clk_prepare_enable(hdmi->phyref_clk);
@@ -3062,6 +3086,10 @@ static void dw_hdmi_rockchip_unbind(struct device *dev, struct device *master,
 {
 	struct rockchip_hdmi *hdmi = dev_get_drvdata(dev);
 
+	cancel_delayed_work(&hdmi->work);
+	flush_workqueue(hdmi->workqueue);
+	destroy_workqueue(hdmi->workqueue);
+
 	if (hdmi->sub_dev.connector)
 		rockchip_drm_unregister_sub_dev(&hdmi->sub_dev);
 
@@ -3098,7 +3126,8 @@ static void dw_hdmi_rockchip_shutdown(struct platform_device *pdev)
 
 	if (!hdmi)
 		return;
-
+	cancel_delayed_work(&hdmi->work);
+	flush_workqueue(hdmi->workqueue);
 	dw_hdmi_suspend(hdmi->hdmi);
 	pm_runtime_put_sync(&pdev->dev);
 }
