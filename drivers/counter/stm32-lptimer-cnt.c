@@ -20,7 +20,6 @@
 #include <linux/types.h>
 
 struct stm32_lptim_cnt {
-	struct counter_device counter;
 	struct device *dev;
 	struct regmap *regmap;
 	struct clk *clk;
@@ -411,14 +410,17 @@ static struct counter_count stm32_lptim_in1_counts = {
 static int stm32_lptim_cnt_probe(struct platform_device *pdev)
 {
 	struct stm32_lptimer *ddata = dev_get_drvdata(pdev->dev.parent);
+	struct counter_device *counter;
 	struct stm32_lptim_cnt *priv;
+	int ret;
 
 	if (IS_ERR_OR_NULL(ddata))
 		return -EINVAL;
 
-	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
-	if (!priv)
+	counter = devm_counter_alloc(&pdev->dev, sizeof(*priv));
+	if (!counter)
 		return -ENOMEM;
+	priv = counter_priv(counter);
 
 	priv->dev = &pdev->dev;
 	priv->regmap = ddata->regmap;
@@ -426,23 +428,26 @@ static int stm32_lptim_cnt_probe(struct platform_device *pdev)
 	priv->ceiling = STM32_LPTIM_MAX_ARR;
 
 	/* Initialize Counter device */
-	priv->counter.name = dev_name(&pdev->dev);
-	priv->counter.parent = &pdev->dev;
-	priv->counter.ops = &stm32_lptim_cnt_ops;
+	counter->name = dev_name(&pdev->dev);
+	counter->parent = &pdev->dev;
+	counter->ops = &stm32_lptim_cnt_ops;
 	if (ddata->has_encoder) {
-		priv->counter.counts = &stm32_lptim_enc_counts;
-		priv->counter.num_signals = ARRAY_SIZE(stm32_lptim_cnt_signals);
+		counter->counts = &stm32_lptim_enc_counts;
+		counter->num_signals = ARRAY_SIZE(stm32_lptim_cnt_signals);
 	} else {
-		priv->counter.counts = &stm32_lptim_in1_counts;
-		priv->counter.num_signals = 1;
+		counter->counts = &stm32_lptim_in1_counts;
+		counter->num_signals = 1;
 	}
-	priv->counter.num_counts = 1;
-	priv->counter.signals = stm32_lptim_cnt_signals;
-	priv->counter.priv = priv;
+	counter->num_counts = 1;
+	counter->signals = stm32_lptim_cnt_signals;
 
 	platform_set_drvdata(pdev, priv);
 
-	return devm_counter_register(&pdev->dev, &priv->counter);
+	ret = devm_counter_add(&pdev->dev, counter);
+	if (ret < 0)
+		return dev_err_probe(&pdev->dev, ret, "Failed to add counter\n");
+
+	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
