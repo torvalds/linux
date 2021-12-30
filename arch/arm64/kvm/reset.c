@@ -99,7 +99,7 @@ static int kvm_vcpu_finalize_sve(struct kvm_vcpu *vcpu)
 
 	/*
 	 * Responsibility for these properties is shared between
-	 * kvm_arm_init_arch_resources(), kvm_vcpu_enable_sve() and
+	 * kvm_arm_init_sve(), kvm_vcpu_enable_sve() and
 	 * set_sve_vls().  Double-check here just to be sure:
 	 */
 	if (WARN_ON(!sve_vl_valid(vl) || vl > sve_max_virtualisable_vl() ||
