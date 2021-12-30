@@ -24,6 +24,7 @@
 #include <linux/ptrace.h>
 #include <linux/sched/clock.h>
 #include <linux/slab.h>
+#include <soc/rockchip/rockchip_sip.h>
 
 #ifdef CONFIG_64BIT
 #define PSCI_FN_NATIVE(version, name)	PSCI_##version##_FN64_##name
@@ -204,6 +205,35 @@ struct arm_smccc_res sip_smc_bus_config(u32 arg0, u32 arg1, u32 arg2)
 	return res;
 }
 EXPORT_SYMBOL_GPL(sip_smc_bus_config);
+
+struct dram_addrmap_info *sip_smc_get_dram_map(void)
+{
+	struct arm_smccc_res res;
+	static struct dram_addrmap_info *map;
+
+	if (map)
+		return map;
+
+	/* Request share memory size 4KB */
+	res = sip_smc_request_share_mem(1, SHARE_PAGE_TYPE_DDR_ADDRMAP);
+	if (res.a0 != 0) {
+		pr_err("no ATF memory for init\n");
+		return NULL;
+	}
+
+	map = (struct dram_addrmap_info *)res.a1;
+
+	res = sip_smc_dram(SHARE_PAGE_TYPE_DDR_ADDRMAP, 0,
+			   ROCKCHIP_SIP_CONFIG_DRAM_ADDRMAP_GET);
+	if (res.a0) {
+		pr_err("rockchip_sip_config_dram_init error:%lx\n", res.a0);
+		map = NULL;
+		return NULL;
+	}
+
+	return map;
+}
+EXPORT_SYMBOL_GPL(sip_smc_get_dram_map);
 
 struct arm_smccc_res sip_smc_lastlog_request(void)
 {
