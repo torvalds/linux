@@ -23,15 +23,26 @@
 /* To compile this assembly code:
  *
  * Navi1x:
- *   cpp -DASIC_TARGET_NAVI1X=1 cwsr_trap_handler_gfx10.asm -P -o nv1x.sp3
- *   sp3-nv1x nv1x.sp3 -hex nv1x.hex
+ *   cpp -DASIC_FAMILY=CHIP_NAVI10 cwsr_trap_handler_gfx10.asm -P -o nv1x.sp3
+ *   sp3 nv1x.sp3 -hex nv1x.hex
  *
- * Others:
- *   cpp -DASIC_TARGET_NAVI1X=0 cwsr_trap_handler_gfx10.asm -P -o gfx10.sp3
- *   sp3-gfx10 gfx10.sp3 -hex gfx10.hex
+ * gfx10:
+ *   cpp -DASIC_FAMILY=CHIP_SIENNA_CICHLID cwsr_trap_handler_gfx10.asm -P -o gfx10.sp3
+ *   sp3 gfx10.sp3 -hex gfx10.hex
+ *
+ * gfx11:
+ *   cpp -DASIC_FAMILY=CHIP_PLUM_BONITO cwsr_trap_handler_gfx10.asm -P -o gfx11.sp3
+ *   sp3 gfx11.sp3 -hex gfx11.hex
  */
 
-#define NO_SQC_STORE !ASIC_TARGET_NAVI1X
+#define CHIP_NAVI10 26
+#define CHIP_SIENNA_CICHLID 30
+#define CHIP_PLUM_BONITO 36
+
+#define NO_SQC_STORE (ASIC_FAMILY >= CHIP_SIENNA_CICHLID)
+#define HAVE_XNACK (ASIC_FAMILY < CHIP_SIENNA_CICHLID)
+#define HAVE_SENDMSG_RTN (ASIC_FAMILY >= CHIP_PLUM_BONITO)
+#define HAVE_BUFFER_LDS_LOAD (ASIC_FAMILY < CHIP_PLUM_BONITO)
 
 var SINGLE_STEP_MISSED_WORKAROUND		= 1	//workaround for lost MODE.DEBUG_EN exception when SAVECTX raised
 
@@ -41,14 +52,17 @@ var SQ_WAVE_STATUS_ECC_ERR_MASK			= 0x20000
 
 var SQ_WAVE_LDS_ALLOC_LDS_SIZE_SHIFT		= 12
 var SQ_WAVE_LDS_ALLOC_LDS_SIZE_SIZE		= 9
-var SQ_WAVE_GPR_ALLOC_VGPR_SIZE_SHIFT		= 8
-var SQ_WAVE_GPR_ALLOC_VGPR_SIZE_SIZE		= 6
-var SQ_WAVE_GPR_ALLOC_SGPR_SIZE_SHIFT		= 24
-var SQ_WAVE_GPR_ALLOC_SGPR_SIZE_SIZE		= 4
+var SQ_WAVE_GPR_ALLOC_VGPR_SIZE_SIZE		= 8
 var SQ_WAVE_LDS_ALLOC_VGPR_SHARED_SIZE_SHIFT	= 24
 var SQ_WAVE_LDS_ALLOC_VGPR_SHARED_SIZE_SIZE	= 4
 var SQ_WAVE_IB_STS2_WAVE64_SHIFT		= 11
 var SQ_WAVE_IB_STS2_WAVE64_SIZE			= 1
+
+#if ASIC_FAMILY < CHIP_PLUM_BONITO
+var SQ_WAVE_GPR_ALLOC_VGPR_SIZE_SHIFT		= 8
+#else
+var SQ_WAVE_GPR_ALLOC_VGPR_SIZE_SHIFT		= 12
+#endif
 
 var SQ_WAVE_TRAPSTS_SAVECTX_MASK		= 0x400
 var SQ_WAVE_TRAPSTS_EXCP_MASK			= 0x1FF
@@ -231,15 +245,20 @@ end
 	s_cbranch_scc1	L_SAVE
 
 L_FETCH_2ND_TRAP:
-#if ASIC_TARGET_NAVI1X
+#if HAVE_XNACK
 	save_and_clear_ib_sts(ttmp14, ttmp15)
 #endif
 
 	// Read second-level TBA/TMA from first-level TMA and jump if available.
 	// ttmp[2:5] and ttmp12 can be used (others hold SPI-initialized debug data)
 	// ttmp12 holds SQ_WAVE_STATUS
+#if HAVE_SENDMSG_RTN
+	s_sendmsg_rtn_b64       [ttmp14, ttmp15], sendmsg(MSG_RTN_GET_TMA)
+	s_waitcnt       lgkmcnt(0)
+#else
 	s_getreg_b32	ttmp14, hwreg(HW_REG_SHADER_TMA_LO)
 	s_getreg_b32	ttmp15, hwreg(HW_REG_SHADER_TMA_HI)
+#endif
 	s_lshl_b64	[ttmp14, ttmp15], [ttmp14, ttmp15], 0x8
 
 	s_load_dword    ttmp2, [ttmp14, ttmp15], 0x10 glc:1			// debug trap enabled flag
@@ -282,7 +301,7 @@ L_TRAP_CASE:
 L_EXIT_TRAP:
 	s_and_b32	ttmp1, ttmp1, 0xFFFF
 
-#if ASIC_TARGET_NAVI1X
+#if HAVE_XNACK
 	restore_ib_sts(ttmp14, ttmp15)
 #endif
 
@@ -298,7 +317,7 @@ L_SAVE:
 	s_mov_b32	s_save_tmp, 0
 	s_setreg_b32	hwreg(HW_REG_TRAPSTS, SQ_WAVE_TRAPSTS_SAVECTX_SHIFT, 1), s_save_tmp	//clear saveCtx bit
 
-#if ASIC_TARGET_NAVI1X
+#if HAVE_XNACK
 	save_and_clear_ib_sts(s_save_tmp, s_save_trapsts)
 #endif
 
@@ -307,9 +326,13 @@ L_SAVE:
 	s_mov_b32	s_save_exec_hi, exec_hi
 	s_mov_b64	exec, 0x0						//clear EXEC to get ready to receive
 
+#if HAVE_SENDMSG_RTN
+	s_sendmsg_rtn_b64       [exec_lo, exec_hi], sendmsg(MSG_RTN_SAVE_WAVE)
+#else
 	s_sendmsg	sendmsg(MSG_SAVEWAVE)					//send SPI a message and wait for SPI's write to EXEC
+#endif
 
-#if ASIC_TARGET_NAVI1X
+#if ASIC_FAMILY < CHIP_SIENNA_CICHLID
 L_SLEEP:
 	// sleep 1 (64clk) is not enough for 8 waves per SIMD, which will cause
 	// SQ hang, since the 7,8th wave could not get arbit to exec inst, while
@@ -389,7 +412,7 @@ L_SLEEP:
 	s_mov_b32	s_save_mem_offset, 0x0
 	get_wave_size(s_wave_size)
 
-#if ASIC_TARGET_NAVI1X
+#if HAVE_XNACK
 	// Save and clear vector XNACK state late to free up SGPRs.
 	s_getreg_b32	s_save_xnack_mask, hwreg(HW_REG_SHADER_XNACK_MASK)
 	s_setreg_imm32_b32	hwreg(HW_REG_SHADER_XNACK_MASK), 0x0
@@ -777,7 +800,13 @@ L_RESTORE_LDS_NORMAL:
 	s_cbranch_scc1	L_RESTORE_LDS_LOOP_W64
 
 L_RESTORE_LDS_LOOP_W32:
+#if HAVE_BUFFER_LDS_LOAD
 	buffer_load_dword	v0, v0, s_restore_buf_rsrc0, s_restore_mem_offset lds:1	// first 64DW
+#else
+	buffer_load_dword       v0, v0, s_restore_buf_rsrc0, s_restore_mem_offset
+	s_waitcnt	vmcnt(0)
+	ds_store_addtid_b32     v0
+#endif
 	s_add_u32	m0, m0, 128						// 128 DW
 	s_add_u32	s_restore_mem_offset, s_restore_mem_offset, 128		//mem offset increased by 128DW
 	s_cmp_lt_u32	m0, s_restore_alloc_size				//scc=(m0 < s_restore_alloc_size) ? 1 : 0
@@ -785,7 +814,13 @@ L_RESTORE_LDS_LOOP_W32:
 	s_branch	L_RESTORE_VGPR
 
 L_RESTORE_LDS_LOOP_W64:
+#if HAVE_BUFFER_LDS_LOAD
 	buffer_load_dword	v0, v0, s_restore_buf_rsrc0, s_restore_mem_offset lds:1	// first 64DW
+#else
+	buffer_load_dword       v0, v0, s_restore_buf_rsrc0, s_restore_mem_offset
+	s_waitcnt	vmcnt(0)
+	ds_store_addtid_b32     v0
+#endif
 	s_add_u32	m0, m0, 256						// 256 DW
 	s_add_u32	s_restore_mem_offset, s_restore_mem_offset, 256		//mem offset increased by 256DW
 	s_cmp_lt_u32	m0, s_restore_alloc_size				//scc=(m0 < s_restore_alloc_size) ? 1 : 0
@@ -996,7 +1031,7 @@ L_RESTORE_HWREG:
 	s_and_b32	s_restore_m0, SQ_WAVE_TRAPSTS_PRE_SAVECTX_MASK, s_restore_trapsts
 	s_setreg_b32	hwreg(HW_REG_TRAPSTS, SQ_WAVE_TRAPSTS_PRE_SAVECTX_SHIFT, SQ_WAVE_TRAPSTS_PRE_SAVECTX_SIZE), s_restore_m0
 
-#if ASIC_TARGET_NAVI1X
+#if HAVE_XNACK
 	s_setreg_b32	hwreg(HW_REG_SHADER_XNACK_MASK), s_restore_xnack_mask
 #endif
 
@@ -1019,7 +1054,7 @@ L_RESTORE_HWREG:
 	s_load_dword	ttmp13, [s_restore_ttmps_lo, s_restore_ttmps_hi], 0x74 glc:1
 	s_waitcnt	lgkmcnt(0)
 
-#if ASIC_TARGET_NAVI1X
+#if HAVE_XNACK
 	restore_ib_sts(s_restore_tmp, s_restore_m0)
 #endif
 
