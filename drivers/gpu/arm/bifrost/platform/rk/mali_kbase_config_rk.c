@@ -32,8 +32,11 @@
 #include <linux/soc/rockchip/pvtm.h>
 #include <linux/thermal.h>
 #include <soc/rockchip/rockchip_opp_select.h>
+#include <soc/rockchip/rockchip_system_monitor.h>
 
 #include "mali_kbase_rk.h"
+
+#define POWER_DOWN_FREQ	200000000
 
 /**
  * @file mali_kbase_config_rk.c
@@ -92,10 +95,12 @@ static void rk_pm_power_off_delay_work(struct work_struct *work)
 		return;
 	}
 
+	rockchip_monitor_volt_adjust_lock(kbdev->mdev_info);
 	if (pm_runtime_enabled(kbdev->dev)) {
 		D("to put_sync_suspend mali_dev.");
 		pm_runtime_put_sync_suspend(kbdev->dev);
 	}
+	rockchip_monitor_volt_adjust_unlock(kbdev->mdev_info);
 
 	rk_pm_disable_clk(kbdev);
 
@@ -186,11 +191,38 @@ struct kbase_platform_funcs_conf platform_funcs = {
 
 static int rk_pm_callback_runtime_on(struct kbase_device *kbdev)
 {
+	struct rockchip_opp_info *opp_info = &kbdev->opp_info;
+	int ret = 0;
+
+	if (!kbdev->current_nominal_freq)
+		return 0;
+
+	ret = clk_bulk_prepare_enable(opp_info->num_clks,  opp_info->clks);
+	if (ret) {
+		dev_err(kbdev->dev, "failed to enable opp clks\n");
+		return ret;
+	}
+	if (kbdev->scmi_clk) {
+		if (clk_set_rate(kbdev->scmi_clk, kbdev->current_nominal_freq))
+			dev_err(kbdev->dev, "failed to restore clk rate\n");
+	}
+	if (opp_info->data && opp_info->data->set_read_margin)
+		opp_info->data->set_read_margin(kbdev->dev, opp_info,
+						opp_info->volt_rm);
+	clk_bulk_disable_unprepare(opp_info->num_clks, opp_info->clks);
+
 	return 0;
 }
 
 static void rk_pm_callback_runtime_off(struct kbase_device *kbdev)
 {
+	struct rockchip_opp_info *opp_info = &kbdev->opp_info;
+
+	if (kbdev->scmi_clk) {
+		if (clk_set_rate(kbdev->scmi_clk, POWER_DOWN_FREQ))
+			dev_err(kbdev->dev, "failed to set power down rate\n");
+	}
+	opp_info->current_rm = UINT_MAX;
 }
 
 static int rk_pm_callback_power_on(struct kbase_device *kbdev)
@@ -224,6 +256,7 @@ static int rk_pm_callback_power_on(struct kbase_device *kbdev)
 		goto out;
 	}
 
+	rockchip_monitor_volt_adjust_lock(kbdev->mdev_info);
 	/* 若 mali_dev 的 runtime_pm 是 enabled 的, 则... */
 	if (pm_runtime_enabled(kbdev->dev)) {
 		D("to resume mali_dev syncly.");
@@ -240,6 +273,7 @@ static int rk_pm_callback_power_on(struct kbase_device *kbdev)
 			ret = 0;
 		}
 	}
+	rockchip_monitor_volt_adjust_unlock(kbdev->mdev_info);
 
 	platform->is_powered = true;
 	wake_lock(&platform->wake_lock);

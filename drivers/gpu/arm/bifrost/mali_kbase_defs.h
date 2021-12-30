@@ -670,6 +670,7 @@ struct kbase_process {
  * @irqs.flags:            irq flags
  * @clocks:                Pointer to the input clock resources referenced by
  *                         the GPU device node.
+ * @scmi_clk:              Pointer to the input scmi clock resources
  * @nr_clocks:             Number of clocks set in the clocks array.
  * @regulators:            Pointer to the structs corresponding to the
  *                         regulators referenced by the GPU device node.
@@ -971,6 +972,7 @@ struct kbase_device {
 	} irqs[3];
 
 	struct clk *clocks[BASE_MAX_NR_CLOCKS_REGULATORS];
+	struct clk *scmi_clk;
 	unsigned int nr_clocks;
 #if IS_ENABLED(CONFIG_REGULATOR)
 	struct regulator *regulators[BASE_MAX_NR_CLOCKS_REGULATORS];

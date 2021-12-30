@@ -28,6 +28,7 @@
 
 #include <linux/of.h>
 #include <linux/clk.h>
+#include <linux/clk-provider.h>
 #include <linux/devfreq.h>
 #if IS_ENABLED(CONFIG_DEVFREQ_THERMAL)
 #include <linux/devfreq_cooling.h>
@@ -35,6 +36,7 @@
 
 #include <linux/version.h>
 #include <linux/pm_opp.h>
+#include <linux/pm_runtime.h>
 #include "mali_kbase_devfreq.h"
 
 #include <soc/rockchip/rockchip_ipa.h>
@@ -125,6 +127,20 @@ void kbase_devfreq_opp_translate(struct kbase_device *kbdev, unsigned long freq,
 	}
 }
 
+static int kbase_devfreq_set_read_margin(struct device *dev,
+					 struct rockchip_opp_info *opp_info,
+					 unsigned long volt,
+					 bool is_set_rm)
+{
+	if (opp_info->data && opp_info->data->set_read_margin) {
+		if (is_set_rm)
+			opp_info->data->set_read_margin(dev, opp_info, volt);
+		opp_info->volt_rm = volt;
+	}
+
+	return 0;
+}
+
 int kbase_devfreq_opp_helper(struct dev_pm_set_opp_data *data)
 {
 	struct device *dev = data->dev;
@@ -139,7 +155,15 @@ int kbase_devfreq_opp_helper(struct dev_pm_set_opp_data *data)
 	struct rockchip_opp_info *opp_info = &kbdev->opp_info;
 	unsigned long old_freq = data->old_opp.rate;
 	unsigned long new_freq = data->new_opp.rate;
+	bool is_set_rm = true;
+	bool is_set_clk = true;
 	int ret = 0;
+
+	if (!pm_runtime_active(dev)) {
+		is_set_rm = false;
+		if (kbdev->scmi_clk)
+			is_set_clk = false;
+	}
 
 	ret = clk_bulk_prepare_enable(opp_info->num_clks,  opp_info->clks);
 	if (ret) {
@@ -163,24 +187,23 @@ int kbase_devfreq_opp_helper(struct dev_pm_set_opp_data *data)
 				new_supply_vdd->u_volt);
 			goto restore_voltage;
 		}
-		if (opp_info->data->set_read_margin)
-			opp_info->data->set_read_margin(dev, opp_info,
-							new_supply_vdd->u_volt);
+		kbase_devfreq_set_read_margin(dev, opp_info,
+					      new_supply_vdd->u_volt,
+					      is_set_rm);
 	}
 
 	/* Change frequency */
 	dev_dbg(dev, "switching OPP: %lu Hz --> %lu Hz\n", old_freq, new_freq);
-	ret = clk_set_rate(clk, new_freq);
-	if (ret) {
+	if (is_set_clk && clk_set_rate(clk, new_freq)) {
 		dev_err(dev, "failed to set clk rate: %d\n", ret);
 		goto restore_rm;
 	}
 
 	/* Scaling down? Scale voltage after frequency */
 	if (new_freq < old_freq) {
-		if (opp_info->data->set_read_margin)
-			opp_info->data->set_read_margin(dev, opp_info,
-							new_supply_vdd->u_volt);
+		kbase_devfreq_set_read_margin(dev, opp_info,
+					      new_supply_vdd->u_volt,
+					      is_set_rm);
 		ret = regulator_set_voltage(vdd_reg, new_supply_vdd->u_volt,
 					    INT_MAX);
 		if (ret) {
@@ -202,12 +225,11 @@ int kbase_devfreq_opp_helper(struct dev_pm_set_opp_data *data)
 	return 0;
 
 restore_freq:
-	if (clk_set_rate(clk, old_freq))
+	if (is_set_clk && clk_set_rate(clk, old_freq))
 		dev_err(dev, "failed to restore old-freq %lu Hz\n", old_freq);
 restore_rm:
-	if (opp_info->data->set_read_margin)
-		opp_info->data->set_read_margin(dev, opp_info,
-						old_supply_vdd->u_volt);
+	kbase_devfreq_set_read_margin(dev, opp_info, old_supply_vdd->u_volt,
+				      is_set_rm);
 restore_voltage:
 	regulator_set_voltage(mem_reg, old_supply_mem->u_volt, INT_MAX);
 	regulator_set_voltage(vdd_reg, old_supply_vdd->u_volt, INT_MAX);
@@ -673,6 +695,8 @@ int kbase_devfreq_init(struct kbase_device *kbdev)
 		else
 			kbdev->current_freqs[i] = 0;
 	}
+	if (strstr(__clk_get_name(kbdev->clocks[0]), "scmi"))
+		kbdev->scmi_clk = kbdev->clocks[0];
 	kbdev->current_nominal_freq = kbdev->current_freqs[0];
 
 	opp = devfreq_recommended_opp(kbdev->dev, &kbdev->current_nominal_freq, 0);
