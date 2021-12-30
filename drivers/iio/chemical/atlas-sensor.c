@@ -589,11 +589,11 @@ static const struct iio_info atlas_info = {
 };
 
 static const struct i2c_device_id atlas_id[] = {
-	{ "atlas-ph-sm", ATLAS_PH_SM},
-	{ "atlas-ec-sm", ATLAS_EC_SM},
-	{ "atlas-orp-sm", ATLAS_ORP_SM},
-	{ "atlas-do-sm", ATLAS_DO_SM},
-	{ "atlas-rtd-sm", ATLAS_RTD_SM},
+	{ "atlas-ph-sm", ATLAS_PH_SM },
+	{ "atlas-ec-sm", ATLAS_EC_SM },
+	{ "atlas-orp-sm", ATLAS_ORP_SM },
+	{ "atlas-do-sm", ATLAS_DO_SM },
+	{ "atlas-rtd-sm", ATLAS_RTD_SM },
 	{}
 };
 MODULE_DEVICE_TABLE(i2c, atlas_id);
