@@ -61,6 +61,10 @@ static void aspeed_gfx_enable_controller(struct aspeed_gfx *priv)
 
 	/* Set DAC source for display output to Graphics CRT (GFX) */
 	regmap_update_bits(priv->scu, priv->dac_reg, CRT_FROM_SOC, CRT_FROM_SOC);
+	if (priv->dp_support) {
+		regmap_update_bits(priv->scu, priv->dac_reg,
+		DP_FROM_SOC, DP_FROM_SOC);
+	}
 
 	writel(ctrl1 | CRT_CTRL_EN, priv->base + CRT_CTRL1);
 	writel(ctrl2 | CRT_CTRL_DAC_EN, priv->base + CRT_CTRL2);
@@ -81,8 +85,8 @@ static void aspeed_gfx_set_clk(struct aspeed_gfx *priv)
 {
 	switch (priv->flags & CLK_MASK) {
 	case CLK_G6:
-		regmap_update_bits(priv->scu, SCU_G6_CLK_COURCE, G6_CLK_MASK, 0x0);
-		regmap_update_bits(priv->scu, SCU_G6_CLK_COURCE, G6_CLK_MASK, G6_USB_40_CLK);
+		regmap_update_bits(priv->scu, SCU_G6_CLK_SOURCE, G6_CLK_MASK, 0x0);
+		regmap_update_bits(priv->scu, SCU_G6_CLK_SOURCE, G6_CLK_MASK, G6_USB_40_CLK);
 		break;
 	default:
 		break;

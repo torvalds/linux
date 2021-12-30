@@ -114,8 +114,10 @@ int aspeed_gfx_create_output(struct drm_device *drm);
 #define CRT_THROD_HIGH(x)		((x) << 8)
 
 /* SCU control */
-#define SCU_G6_CLK_COURCE		0x300
-#define CRT_FROM_SOC		BIT(16)
+#define SCU_G6_CLK_SOURCE		0x300
+#define SCU_G6_CLK_SEL3			0x308 /* SCU308 clock selection register set 3 */
+#define CRT_FROM_SOC			BIT(16)
+#define DP_FROM_SOC			BIT(18)
 
 /* GFX FLAGS */
 #define RESET_MASK			BIT(0)
@@ -127,14 +129,19 @@ int aspeed_gfx_create_output(struct drm_device *drm);
 #define G6_USB_40_CLK			BIT(9)
 
 /* PCIE interrupt */
-#define PCIE_PERST_L_T_H	BIT(18)
-#define PCIE_PERST_H_T_L	BIT(19)
-#define STS_PERST_STATUS	(PCIE_PERST_L_T_H|PCIE_PERST_H_T_L)
+#define PCIE_PERST_L_T_H		BIT(18)
+#define PCIE_PERST_H_T_L		BIT(19)
+#define STS_PERST_STATUS		(PCIE_PERST_L_T_H|PCIE_PERST_H_T_L)
 
 /* Adaptor function define */
-/* AST2600: DP define */
-#define DP_CP_NAME		"aspeed,ast2600-displayport"
-#define DP_MCU_CP_NAME		"aspeed,ast2600-displayport-mcu"
-
-#define SCU_DP_STATUS		0x100 /* SCU100 VGA function handshake */
-#define DP_EXECUTE		0x2E /* DP Status */
+/* AST2600: DP adaptor define */
+#define DP_CP_NAME			"aspeed,ast2600-displayport"
+#define DP_MCU_CP_NAME			"aspeed,ast2600-displayport-mcu"
+/* AST2600 */
+#define SCU_DP_STATUS			0x100 /* SCU100 VGA function handshake */
+#define DP_EXECUTE			0x2E /* DP Status */
+/* AST2600 DP */
+#define DP_SOURCE			0xb8  /* DPB8 dp source */
+#define DP_CONTROL_FROM_SOC		(BIT(24)|BIT(28))
+/* AST2600 DP MCU */
+#define DP_RESOLUTION			0xde0  /* DPMCUDE0 dp resolution */

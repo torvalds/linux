@@ -140,14 +140,32 @@ static irqreturn_t aspeed_host_irq_handler(int irq, void *data)
 	if (reg & STS_PERST_STATUS) {
 		if (reg & PCIE_PERST_L_T_H) {
 			dev_dbg(drm->dev, "pcie active.\n");
+			/*Change the DP back to host*/
+			if (priv->dp_support) {
+				/*Change the DP back to host*/
+				regmap_update_bits(priv->dp,
+				DP_SOURCE, DP_CONTROL_FROM_SOC, 0);
+				dev_dbg(drm->dev, "dp set at 0 int L_T_H.\n");
+				regmap_update_bits(priv->scu,
+				priv->dac_reg, DP_FROM_SOC, 0);
+			}
 
 			/*Change the CRT back to host*/
 			regmap_update_bits(priv->scu, priv->dac_reg,
 			CRT_FROM_SOC, 0);
 		} else if (reg & PCIE_PERST_H_T_L) {
 			dev_dbg(drm->dev, "pcie de-active.\n");
+			/*Change the DP into host*/
+			if (priv->dp_support) {
+				/*Change the DP back to soc*/
+				regmap_update_bits(priv->dp, DP_SOURCE,
+				DP_CONTROL_FROM_SOC, DP_CONTROL_FROM_SOC);
+				dev_dbg(drm->dev, "dp set at 11 int H_T_L.\n");
+				regmap_update_bits(priv->scu, priv->dac_reg,
+				DP_FROM_SOC, DP_FROM_SOC);
+			}
 
-			/*Change the CRT back to soc*/
+			/*Change the CRT into soc*/
 			regmap_update_bits(priv->scu, priv->dac_reg,
 			CRT_FROM_SOC, CRT_FROM_SOC);
 		}
@@ -383,6 +401,12 @@ static int aspeed_gfx_load(struct drm_device *drm)
 
 static void aspeed_gfx_unload(struct drm_device *drm)
 {
+	struct aspeed_gfx *priv = drm->dev_private;
+
+	/* change the dp setting is coming from host side */
+	if (priv->dp_support)
+		regmap_update_bits(priv->dp, DP_SOURCE, DP_CONTROL_FROM_SOC, 0);
+
 	drm_kms_helper_poll_fini(drm);
 }
 
