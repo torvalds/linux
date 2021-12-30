@@ -114,6 +114,7 @@ static u32 opt_num_xsks = 1;
 static u32 prog_id;
 static bool opt_busy_poll;
 static bool opt_reduced_cap;
+static clockid_t opt_clock = CLOCK_MONOTONIC;
 
 struct vlan_ethhdr {
 	unsigned char h_dest[6];
@@ -178,15 +179,40 @@ struct xsk_socket_info {
 	u32 outstanding_tx;
 };
 
+static const struct clockid_map {
+	const char *name;
+	clockid_t clockid;
+} clockids_map[] = {
+	{ "REALTIME", CLOCK_REALTIME },
+	{ "TAI", CLOCK_TAI },
+	{ "BOOTTIME", CLOCK_BOOTTIME },
+	{ "MONOTONIC", CLOCK_MONOTONIC },
+	{ NULL }
+};
+
 static int num_socks;
 struct xsk_socket_info *xsks[MAX_SOCKS];
 int sock;
+
+static int get_clockid(clockid_t *id, const char *name)
+{
+	const struct clockid_map *clk;
+
+	for (clk = clockids_map; clk->name; clk++) {
+		if (strcasecmp(clk->name, name) == 0) {
+			*id = clk->clockid;
+			return 0;
+		}
+	}
+
+	return -1;
+}
 
 static unsigned long get_nsecs(void)
 {
 	struct timespec ts;
 
-	clock_gettime(CLOCK_MONOTONIC, &ts);
+	clock_gettime(opt_clock, &ts);
 	return ts.tv_sec * 1000000000UL + ts.tv_nsec;
 }
 
@@ -965,6 +991,7 @@ static struct option long_options[] = {
 	{"shared-umem", no_argument, 0, 'M'},
 	{"force", no_argument, 0, 'F'},
 	{"duration", required_argument, 0, 'd'},
+	{"clock", required_argument, 0, 'w'},
 	{"batch-size", required_argument, 0, 'b'},
 	{"tx-pkt-count", required_argument, 0, 'C'},
 	{"tx-pkt-size", required_argument, 0, 's'},
@@ -1006,6 +1033,7 @@ static void usage(const char *prog)
 		"  -F, --force		Force loading the XDP prog\n"
 		"  -d, --duration=n	Duration in secs to run command.\n"
 		"			Default: forever.\n"
+		"  -w, --clock=CLOCK	Clock NAME (default MONOTONIC).\n"
 		"  -b, --batch-size=n	Batch size for sending or receiving\n"
 		"			packets. Default: %d\n"
 		"  -C, --tx-pkt-count=n	Number of packets to send.\n"
@@ -1041,7 +1069,7 @@ static void parse_command_line(int argc, char **argv)
 	opterr = 0;
 
 	for (;;) {
-		c = getopt_long(argc, argv, "Frtli:q:pSNn:czf:muMd:b:C:s:P:VJ:K:G:H:xQaI:BR",
+		c = getopt_long(argc, argv, "Frtli:q:pSNn:w:czf:muMd:b:C:s:P:VJ:K:G:H:xQaI:BR",
 				long_options, &option_index);
 		if (c == -1)
 			break;
@@ -1074,6 +1102,14 @@ static void parse_command_line(int argc, char **argv)
 			break;
 		case 'n':
 			opt_interval = atoi(optarg);
+			break;
+		case 'w':
+			if (get_clockid(&opt_clock, optarg)) {
+				fprintf(stderr,
+					"ERROR: Invalid clock %s. Default to CLOCK_MONOTONIC.\n",
+					optarg);
+				opt_clock = CLOCK_MONOTONIC;
+			}
 			break;
 		case 'z':
 			opt_xdp_bind_flags |= XDP_ZEROCOPY;
