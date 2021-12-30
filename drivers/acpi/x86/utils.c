@@ -273,14 +273,16 @@ static const struct dmi_system_id acpi_quirk_skip_dmi_ids[] = {
 			DMI_EXACT_MATCH(DMI_PRODUCT_NAME, "ME176C"),
 		},
 		.driver_data = (void *)(ACPI_QUIRK_SKIP_I2C_CLIENTS |
-					ACPI_QUIRK_UART1_TTY_UART2_SKIP),
+					ACPI_QUIRK_UART1_TTY_UART2_SKIP |
+					ACPI_QUIRK_SKIP_ACPI_AC_AND_BATTERY),
 	},
 	{
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "ASUSTeK COMPUTER INC."),
 			DMI_MATCH(DMI_PRODUCT_NAME, "TF103C"),
 		},
-		.driver_data = (void *)ACPI_QUIRK_SKIP_I2C_CLIENTS,
+		.driver_data = (void *)(ACPI_QUIRK_SKIP_I2C_CLIENTS |
+					ACPI_QUIRK_SKIP_ACPI_AC_AND_BATTERY),
 	},
 	{
 		/* Whitelabel (sold as various brands) TM800A550L */
@@ -290,7 +292,8 @@ static const struct dmi_system_id acpi_quirk_skip_dmi_ids[] = {
 			/* Above strings are too generic, also match on BIOS version */
 			DMI_MATCH(DMI_BIOS_VERSION, "ZY-8-BI-PX4S70VTR400-X423B-005-D"),
 		},
-		.driver_data = (void *)ACPI_QUIRK_SKIP_I2C_CLIENTS,
+		.driver_data = (void *)(ACPI_QUIRK_SKIP_I2C_CLIENTS |
+					ACPI_QUIRK_SKIP_ACPI_AC_AND_BATTERY),
 	},
 #endif
 	{}
