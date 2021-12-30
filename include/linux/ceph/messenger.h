@@ -461,6 +461,7 @@ struct ceph_connection {
 	struct ceph_msg *out_msg;        /* sending message (== tail of
 					    out_sent) */
 
+	struct page *bounce_page;
 	u32 in_front_crc, in_middle_crc, in_data_crc;  /* calculated crc */
 
 	struct timespec64 last_keepalive_ack; /* keepalive2 ack stamp */
