@@ -13,10 +13,12 @@
 #include <linux/ioam6.h>
 #include <linux/ioam6_genl.h>
 #include <linux/rhashtable.h>
+#include <linux/netdevice.h>
 
 #include <net/addrconf.h>
 #include <net/genetlink.h>
 #include <net/ioam6.h>
+#include <net/sch_generic.h>
 
 static void ioam6_ns_release(struct ioam6_namespace *ns)
 {
@@ -717,7 +719,19 @@ static void __ioam6_fill_trace_data(struct sk_buff *skb,
 
 	/* queue depth */
 	if (trace->type.bit6) {
-		*(__be32 *)data = cpu_to_be32(IOAM6_U32_UNAVAILABLE);
+		struct netdev_queue *queue;
+		struct Qdisc *qdisc;
+		__u32 qlen, backlog;
+
+		if (skb_dst(skb)->dev->flags & IFF_LOOPBACK) {
+			*(__be32 *)data = cpu_to_be32(IOAM6_U32_UNAVAILABLE);
+		} else {
+			queue = skb_get_tx_queue(skb_dst(skb)->dev, skb);
+			qdisc = rcu_dereference(queue->qdisc);
+			qdisc_qstats_qlen_backlog(qdisc, &qlen, &backlog);
+
+			*(__be32 *)data = cpu_to_be32(backlog);
+		}
 		data += sizeof(__be32);
 	}
 
