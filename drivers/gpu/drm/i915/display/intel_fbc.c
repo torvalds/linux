@@ -1384,8 +1384,10 @@ static void __intel_fbc_enable(struct intel_atomic_state *state,
 		if (fbc->state.plane != plane)
 			return;
 
-		if (intel_fbc_is_ok(plane_state))
+		if (intel_fbc_is_ok(plane_state)) {
+			intel_fbc_update_state(state, crtc, plane);
 			return;
+		}
 
 		__intel_fbc_disable(fbc);
 	}
