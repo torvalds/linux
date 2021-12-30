@@ -10,6 +10,7 @@
 
 #include <linux/acpi.h>
 #include <linux/dmi.h>
+#include <linux/platform_device.h>
 #include <asm/cpu_device_id.h>
 #include <asm/intel-family.h>
 #include "../internal.h"
@@ -160,3 +161,113 @@ bool force_storage_d3(void)
 {
 	return x86_match_cpu(storage_d3_cpu_ids);
 }
+
+#if IS_ENABLED(CONFIG_X86_ANDROID_TABLETS)
+/*
+ * x86 ACPI boards which ship with only Android as their factory image usually
+ * declare a whole bunch of bogus I2C devices in their ACPI tables and sometimes
+ * there are issues with serdev devices on these boards too, e.g. the resource
+ * points to the wrong serdev_controller.
+ *
+ * Instantiating I2C / serdev devs for these bogus devs causes various issues,
+ * e.g. GPIO/IRQ resource conflicts because sometimes drivers do bind to them.
+ * The Android x86 kernel fork shipped on these devices has some special code
+ * to remove the bogus I2C clients (and AFAICT serdevs are ignored completely).
+ *
+ * The acpi_quirk_skip_*_enumeration() functions below are used by the I2C or
+ * serdev code to skip instantiating any I2C or serdev devs on broken boards.
+ *
+ * In case of I2C an exception is made for HIDs on the i2c_acpi_known_good_ids
+ * list. These are known to always be correct (and in case of the audio-codecs
+ * the drivers heavily rely on the codec being enumerated through ACPI).
+ *
+ * Note these boards typically do actually have I2C and serdev devices,
+ * just different ones then the ones described in their DSDT. The devices
+ * which are actually present are manually instantiated by the
+ * drivers/platform/x86/x86-android-tablets.c kernel module.
+ */
+#define ACPI_QUIRK_SKIP_I2C_CLIENTS				BIT(0)
+#define ACPI_QUIRK_UART1_TTY_UART2_SKIP				BIT(1)
+
+static const struct dmi_system_id acpi_skip_serial_bus_enumeration_ids[] = {
+	{
+		.matches = {
+			DMI_EXACT_MATCH(DMI_SYS_VENDOR, "ASUSTeK COMPUTER INC."),
+			DMI_EXACT_MATCH(DMI_PRODUCT_NAME, "ME176C"),
+		},
+		.driver_data = (void *)(ACPI_QUIRK_SKIP_I2C_CLIENTS |
+					ACPI_QUIRK_UART1_TTY_UART2_SKIP),
+	},
+	{
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "ASUSTeK COMPUTER INC."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "TF103C"),
+		},
+		.driver_data = (void *)ACPI_QUIRK_SKIP_I2C_CLIENTS,
+	},
+	{
+		/* Whitelabel (sold as various brands) TM800A550L */
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "AMI Corporation"),
+			DMI_MATCH(DMI_BOARD_NAME, "Aptio CRB"),
+			/* Above strings are too generic, also match on BIOS version */
+			DMI_MATCH(DMI_BIOS_VERSION, "ZY-8-BI-PX4S70VTR400-X423B-005-D"),
+		},
+		.driver_data = (void *)ACPI_QUIRK_SKIP_I2C_CLIENTS,
+	},
+	{}
+};
+
+static const struct acpi_device_id i2c_acpi_known_good_ids[] = {
+	{ "10EC5640", 0 }, /* RealTek ALC5640 audio codec */
+	{ "INT33F4", 0 },  /* X-Powers AXP288 PMIC */
+	{ "INT33FD", 0 },  /* Intel Crystal Cove PMIC */
+	{ "NPCE69A", 0 },  /* Asus Transformer keyboard dock */
+	{}
+};
+
+bool acpi_quirk_skip_i2c_client_enumeration(struct acpi_device *adev)
+{
+	const struct dmi_system_id *dmi_id;
+	long quirks;
+
+	dmi_id = dmi_first_match(acpi_skip_serial_bus_enumeration_ids);
+	if (!dmi_id)
+		return false;
+
+	quirks = (unsigned long)dmi_id->driver_data;
+	if (!(quirks & ACPI_QUIRK_SKIP_I2C_CLIENTS))
+		return false;
+
+	return acpi_match_device_ids(adev, i2c_acpi_known_good_ids);
+}
+EXPORT_SYMBOL_GPL(acpi_quirk_skip_i2c_client_enumeration);
+
+int acpi_quirk_skip_serdev_enumeration(struct device *controller_parent, bool *skip)
+{
+	struct acpi_device *adev = ACPI_COMPANION(controller_parent);
+	const struct dmi_system_id *dmi_id;
+	long quirks = 0;
+
+	*skip = false;
+
+	/* !dev_is_platform() to not match on PNP enumerated debug UARTs */
+	if (!adev || !adev->pnp.unique_id || !dev_is_platform(controller_parent))
+		return 0;
+
+	dmi_id = dmi_first_match(acpi_skip_serial_bus_enumeration_ids);
+	if (dmi_id)
+		quirks = (unsigned long)dmi_id->driver_data;
+
+	if (quirks & ACPI_QUIRK_UART1_TTY_UART2_SKIP) {
+		if (!strcmp(adev->pnp.unique_id, "1"))
+			return -ENODEV; /* Create tty cdev instead of serdev */
+
+		if (!strcmp(adev->pnp.unique_id, "2"))
+			*skip = true;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(acpi_quirk_skip_serdev_enumeration);
+#endif
