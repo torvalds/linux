@@ -1690,6 +1690,7 @@ static bool acpi_device_enumeration_by_parent(struct acpi_device *device)
 {
 	struct list_head resource_list;
 	bool is_serial_bus_slave = false;
+	static const struct acpi_device_id ignore_serial_bus_ids[] = {
 	/*
 	 * These devices have multiple I2cSerialBus resources and an i2c-client
 	 * must be instantiated for each, each with its own i2c_device_id.
@@ -1698,11 +1699,18 @@ static bool acpi_device_enumeration_by_parent(struct acpi_device *device)
 	 * drivers/platform/x86/i2c-multi-instantiate.c driver, which knows
 	 * which i2c_device_id to use for each resource.
 	 */
-	static const struct acpi_device_id i2c_multi_instantiate_ids[] = {
 		{"BSG1160", },
 		{"BSG2150", },
 		{"INT33FE", },
 		{"INT3515", },
+	/*
+	 * HIDs of device with an UartSerialBusV2 resource for which userspace
+	 * expects a regular tty cdev to be created (instead of the in kernel
+	 * serdev) and which have a kernel driver which expects a platform_dev
+	 * such as the rfkill-gpio driver.
+	 */
+		{"BCM4752", },
+		{"LNV4752", },
 		{}
 	};
 
@@ -1716,8 +1724,7 @@ static bool acpi_device_enumeration_by_parent(struct acpi_device *device)
 	     fwnode_property_present(&device->fwnode, "baud")))
 		return true;
 
-	/* Instantiate a pdev for the i2c-multi-instantiate drv to bind to */
-	if (!acpi_match_device_ids(device, i2c_multi_instantiate_ids))
+	if (!acpi_match_device_ids(device, ignore_serial_bus_ids))
 		return false;
 
 	INIT_LIST_HEAD(&resource_list);
