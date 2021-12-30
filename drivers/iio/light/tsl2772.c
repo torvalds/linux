@@ -1902,7 +1902,7 @@ static const struct i2c_device_id tsl2772_idtable[] = {
 	{ "tmd2672", tmd2672 },
 	{ "tsl2772", tsl2772 },
 	{ "tmd2772", tmd2772 },
-	{ "apds9930", apds9930},
+	{ "apds9930", apds9930 },
 	{}
 };
 
