@@ -243,7 +243,7 @@ nfsd_file_do_unhash(struct nfsd_file *nf)
 	trace_nfsd_file_unhash(nf);
 
 	if (nfsd_file_check_write_error(nf))
-		nfsd_reset_boot_verifier(net_generic(nf->nf_net, nfsd_net_id));
+		nfsd_reset_write_verifier(net_generic(nf->nf_net, nfsd_net_id));
 	--nfsd_file_hashtbl[nf->nf_hashval].nfb_count;
 	hlist_del_rcu(&nf->nf_node);
 	atomic_long_dec(&nfsd_filecache_count);

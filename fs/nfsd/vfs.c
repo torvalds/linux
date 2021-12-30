@@ -559,8 +559,8 @@ __be32 nfsd4_clone_file_range(struct svc_rqst *rqstp,
 					&nfsd4_get_cstate(rqstp)->current_fh,
 					dst_pos,
 					count, status);
-			nfsd_reset_boot_verifier(net_generic(nf_dst->nf_net,
-						 nfsd_net_id));
+			nfsd_reset_write_verifier(net_generic(nf_dst->nf_net,
+						  nfsd_net_id));
 			ret = nfserrno(status);
 		}
 	}
@@ -1013,10 +1013,10 @@ nfsd_vfs_write(struct svc_rqst *rqstp, struct svc_fh *fhp, struct nfsd_file *nf,
 	iov_iter_kvec(&iter, WRITE, vec, vlen, *cnt);
 	since = READ_ONCE(file->f_wb_err);
 	if (verf)
-		nfsd_copy_boot_verifier(verf, nn);
+		nfsd_copy_write_verifier(verf, nn);
 	host_err = vfs_iter_write(file, &iter, &pos, flags);
 	if (host_err < 0) {
-		nfsd_reset_boot_verifier(nn);
+		nfsd_reset_write_verifier(nn);
 		goto out_nfserr;
 	}
 	*cnt = host_err;
@@ -1029,7 +1029,7 @@ nfsd_vfs_write(struct svc_rqst *rqstp, struct svc_fh *fhp, struct nfsd_file *nf,
 	if (stable && use_wgather) {
 		host_err = wait_for_concurrent_writes(file);
 		if (host_err < 0)
-			nfsd_reset_boot_verifier(nn);
+			nfsd_reset_write_verifier(nn);
 	}
 
 out_nfserr:
@@ -1142,7 +1142,7 @@ nfsd_commit(struct svc_rqst *rqstp, struct svc_fh *fhp,
 		err2 = vfs_fsync_range(nf->nf_file, offset, end, 0);
 		switch (err2) {
 		case 0:
-			nfsd_copy_boot_verifier(verf, nn);
+			nfsd_copy_write_verifier(verf, nn);
 			err2 = filemap_check_wb_err(nf->nf_file->f_mapping,
 						    since);
 			break;
@@ -1150,11 +1150,11 @@ nfsd_commit(struct svc_rqst *rqstp, struct svc_fh *fhp,
 			err = nfserr_notsupp;
 			break;
 		default:
-			nfsd_reset_boot_verifier(nn);
+			nfsd_reset_write_verifier(nn);
 		}
 		err = nfserrno(err2);
 	} else
-		nfsd_copy_boot_verifier(verf, nn);
+		nfsd_copy_write_verifier(verf, nn);
 
 	nfsd_file_put(nf);
 out:

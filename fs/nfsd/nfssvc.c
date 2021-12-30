@@ -346,14 +346,14 @@ static bool nfsd_needs_lockd(struct nfsd_net *nn)
 }
 
 /**
- * nfsd_copy_boot_verifier - Atomically copy a write verifier
+ * nfsd_copy_write_verifier - Atomically copy a write verifier
  * @verf: buffer in which to receive the verifier cookie
  * @nn: NFS net namespace
  *
  * This function provides a wait-free mechanism for copying the
- * namespace's boot verifier without tearing it.
+ * namespace's write verifier without tearing it.
  */
-void nfsd_copy_boot_verifier(__be32 verf[2], struct nfsd_net *nn)
+void nfsd_copy_write_verifier(__be32 verf[2], struct nfsd_net *nn)
 {
 	int seq = 0;
 
@@ -364,7 +364,7 @@ void nfsd_copy_boot_verifier(__be32 verf[2], struct nfsd_net *nn)
 	done_seqretry(&nn->writeverf_lock, seq);
 }
 
-static void nfsd_reset_boot_verifier_locked(struct nfsd_net *nn)
+static void nfsd_reset_write_verifier_locked(struct nfsd_net *nn)
 {
 	struct timespec64 now;
 	u64 verf;
@@ -379,7 +379,7 @@ static void nfsd_reset_boot_verifier_locked(struct nfsd_net *nn)
 }
 
 /**
- * nfsd_reset_boot_verifier - Generate a new boot verifier
+ * nfsd_reset_write_verifier - Generate a new write verifier
  * @nn: NFS net namespace
  *
  * This function updates the ->writeverf field of @nn. This field
@@ -391,10 +391,10 @@ static void nfsd_reset_boot_verifier_locked(struct nfsd_net *nn)
  * server and MUST be unique between instances of the NFSv4.1
  * server."
  */
-void nfsd_reset_boot_verifier(struct nfsd_net *nn)
+void nfsd_reset_write_verifier(struct nfsd_net *nn)
 {
 	write_seqlock(&nn->writeverf_lock);
-	nfsd_reset_boot_verifier_locked(nn);
+	nfsd_reset_write_verifier_locked(nn);
 	write_sequnlock(&nn->writeverf_lock);
 }
 
@@ -683,7 +683,7 @@ int nfsd_create_serv(struct net *net)
 		register_inet6addr_notifier(&nfsd_inet6addr_notifier);
 #endif
 	}
-	nfsd_reset_boot_verifier(nn);
+	nfsd_reset_write_verifier(nn);
 	return 0;
 }
 
