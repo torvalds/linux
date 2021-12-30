@@ -18,6 +18,7 @@
 
 #define HUSB311_VID		0x2E99
 #define HUSB311_PID		0x0311
+#define HUSB311_TCPC_POWER	0x90
 #define HUSB311_TCPC_I2C_RESET	0x9E
 #define HUSB311_TCPC_SOFTRESET	0xA0
 #define HUSB311_TCPC_FILTER	0xA1
@@ -31,6 +32,11 @@ struct husb311_chip {
 	struct regulator *vbus;
 	bool vbus_on;
 };
+
+static int husb311_read8(struct husb311_chip *chip, unsigned int reg, u8 *val)
+{
+	return regmap_raw_read(chip->data.regmap, reg, val, sizeof(u8));
+}
 
 static int husb311_write8(struct husb311_chip *chip, unsigned int reg, u8 val)
 {
@@ -209,6 +215,53 @@ static int husb311_remove(struct i2c_client *client)
 	return 0;
 }
 
+static int husb311_pm_suspend(struct device *dev)
+{
+	struct husb311_chip *chip = dev->driver_data;
+	int ret = 0;
+	u8 pwr;
+
+	/*
+	 * Disable 12M oscillator to save power consumption, and it will be
+	 * enabled automatically when INT occur after system resume.
+	 */
+	ret = husb311_read8(chip, HUSB311_TCPC_POWER, &pwr);
+	if (ret < 0)
+		return ret;
+
+	pwr &= ~BIT(0);
+	ret = husb311_write8(chip, HUSB311_TCPC_POWER, pwr);
+	if (ret < 0)
+		return ret;
+
+	return 0;
+}
+
+static int husb311_pm_resume(struct device *dev)
+{
+	struct husb311_chip *chip = dev->driver_data;
+	int ret = 0;
+	u8 pwr;
+
+	/*
+	 * When the power of husb311 is lost or i2c read failed in PM S/R
+	 * process, we must reset the tcpm port first to ensure the devices
+	 * can attach again.
+	 */
+	ret = husb311_read8(chip, HUSB311_TCPC_POWER, &pwr);
+	if (pwr & BIT(0) || ret < 0) {
+		ret = husb311_sw_reset(chip);
+		if (ret < 0) {
+			dev_err(chip->dev, "fail to soft reset, ret = %d\n", ret);
+			return ret;
+		}
+
+		tcpm_tcpc_reset(tcpci_get_tcpm_port(chip->tcpci));
+	}
+
+	return 0;
+}
+
 static const struct i2c_device_id husb311_id[] = {
 	{ "husb311", 0 },
 	{ }
@@ -223,9 +276,15 @@ static const struct of_device_id husb311_of_match[] = {
 MODULE_DEVICE_TABLE(of, husb311_of_match);
 #endif
 
+static const struct dev_pm_ops husb311_pm_ops = {
+	.suspend = husb311_pm_suspend,
+	.resume = husb311_pm_resume,
+};
+
 static struct i2c_driver husb311_i2c_driver = {
 	.driver = {
 		.name = "husb311",
+		.pm = &husb311_pm_ops,
 		.of_match_table = of_match_ptr(husb311_of_match),
 	},
 	.probe = husb311_probe,
