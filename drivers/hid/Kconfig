@@ -984,6 +984,16 @@ config HID_SEMITEK
 	- Woo-dy
 	- X-Bows Nature/Knight
 
+config HID_SIGMAMICRO
+	tristate "SiGma Micro-based keyboards"
+	depends on USB_HID
+	help
+	  Support for keyboards that use the SiGma Micro (a.k.a SigmaChip) IC.
+
+	  Supported devices:
+	  - Landslides KR-700
+	  - Rapoo V500
+
 config HID_SONY
 	tristate "Sony PS2/3/4 accessories"
 	depends on USB_HID
