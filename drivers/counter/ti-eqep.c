@@ -89,7 +89,7 @@ struct ti_eqep_cnt {
 
 static struct ti_eqep_cnt *ti_eqep_count_from_counter(struct counter_device *counter)
 {
-	return container_of(counter, struct ti_eqep_cnt, counter);
+	return counter_priv(counter);
 }
 
 static int ti_eqep_count_read(struct counter_device *counter,
