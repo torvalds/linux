@@ -1632,18 +1632,18 @@ static int ltr501_resume(struct device *dev)
 static SIMPLE_DEV_PM_OPS(ltr501_pm_ops, ltr501_suspend, ltr501_resume);
 
 static const struct acpi_device_id ltr_acpi_match[] = {
-	{"LTER0501", ltr501},
-	{"LTER0559", ltr559},
-	{"LTER0301", ltr301},
+	{ "LTER0501", ltr501 },
+	{ "LTER0559", ltr559 },
+	{ "LTER0301", ltr301 },
 	{ },
 };
 MODULE_DEVICE_TABLE(acpi, ltr_acpi_match);
 
 static const struct i2c_device_id ltr501_id[] = {
-	{ "ltr501", ltr501},
-	{ "ltr559", ltr559},
-	{ "ltr301", ltr301},
-	{ "ltr303", ltr303},
+	{ "ltr501", ltr501 },
+	{ "ltr559", ltr559 },
+	{ "ltr301", ltr301 },
+	{ "ltr303", ltr303 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, ltr501_id);
