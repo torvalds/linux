@@ -1441,6 +1441,8 @@ mlx5e_tc_add_fdb_flow(struct mlx5e_priv *priv,
 							metadata);
 			if (err)
 				goto err_out;
+
+			attr->action |= MLX5_FLOW_CONTEXT_ACTION_MOD_HDR;
 		}
 	}
 
