@@ -30,10 +30,7 @@ bool mlx5_sf_dev_allocated(const struct mlx5_core_dev *dev)
 {
 	struct mlx5_sf_dev_table *table = dev->priv.sf_dev_table;
 
-	if (!mlx5_sf_dev_supported(dev))
-		return false;
-
-	return !xa_empty(&table->devices);
+	return table && !xa_empty(&table->devices);
 }
 
 static ssize_t sfnum_show(struct device *dev, struct device_attribute *attr, char *buf)
