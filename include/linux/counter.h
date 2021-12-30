@@ -314,8 +314,6 @@ struct counter_device {
 	struct counter_comp *ext;
 	size_t num_ext;
 
-	void *priv;
-
 	struct device dev;
 	struct cdev chrdev;
 	struct list_head events_list;
@@ -327,25 +325,15 @@ struct counter_device {
 	spinlock_t events_in_lock;
 	struct mutex events_out_lock;
 	struct mutex ops_exist_lock;
-
-	/*
-	 * This can go away once all drivers are converted to
-	 * counter_alloc()/counter_add().
-	 */
-	bool legacy_device;
 };
 
 void *counter_priv(const struct counter_device *const counter);
-
-int counter_register(struct counter_device *const counter);
 
 struct counter_device *counter_alloc(size_t sizeof_priv);
 void counter_put(struct counter_device *const counter);
 int counter_add(struct counter_device *const counter);
 
 void counter_unregister(struct counter_device *const counter);
-int devm_counter_register(struct device *dev,
-			  struct counter_device *const counter);
 struct counter_device *devm_counter_alloc(struct device *dev,
 					  size_t sizeof_priv);
 int devm_counter_add(struct device *dev,

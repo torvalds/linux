@@ -43,8 +43,7 @@ static void counter_device_release(struct device *dev)
 	counter_chrdev_remove(counter);
 	ida_free(&counter_ida, dev->id);
 
-	if (!counter->legacy_device)
-		kfree(container_of(counter, struct counter_device_allochelper, counter));
+	kfree(container_of(counter, struct counter_device_allochelper, counter));
 }
 
 static struct device_type counter_device_type = {
@@ -67,75 +66,12 @@ static dev_t counter_devt;
  */
 void *counter_priv(const struct counter_device *const counter)
 {
-	if (counter->legacy_device) {
-		return counter->priv;
-	} else {
-		struct counter_device_allochelper *ch =
-			container_of(counter, struct counter_device_allochelper, counter);
+	struct counter_device_allochelper *ch =
+		container_of(counter, struct counter_device_allochelper, counter);
 
-		return &ch->privdata;
-	}
+	return &ch->privdata;
 }
 EXPORT_SYMBOL_GPL(counter_priv);
-
-/**
- * counter_register - register Counter to the system
- * @counter:	pointer to Counter to register
- *
- * This function registers a Counter to the system. A sysfs "counter" directory
- * will be created and populated with sysfs attributes correlating with the
- * Counter Signals, Synapses, and Counts respectively.
- *
- * RETURNS:
- * 0 on success, negative error number on failure.
- */
-int counter_register(struct counter_device *const counter)
-{
-	struct device *const dev = &counter->dev;
-	int id;
-	int err;
-
-	counter->legacy_device = true;
-
-	/* Acquire unique ID */
-	id = ida_alloc(&counter_ida, GFP_KERNEL);
-	if (id < 0)
-		return id;
-
-	mutex_init(&counter->ops_exist_lock);
-
-	/* Configure device structure for Counter */
-	dev->id = id;
-	dev->type = &counter_device_type;
-	dev->bus = &counter_bus_type;
-	dev->devt = MKDEV(MAJOR(counter_devt), id);
-	if (counter->parent) {
-		dev->parent = counter->parent;
-		dev->of_node = counter->parent->of_node;
-	}
-	device_initialize(dev);
-
-	err = counter_sysfs_add(counter);
-	if (err < 0)
-		goto err_free_id;
-
-	err = counter_chrdev_add(counter);
-	if (err < 0)
-		goto err_free_id;
-
-	err = cdev_device_add(&counter->chrdev, dev);
-	if (err < 0)
-		goto err_remove_chrdev;
-
-	return 0;
-
-err_remove_chrdev:
-	counter_chrdev_remove(counter);
-err_free_id:
-	put_device(dev);
-	return err;
-}
-EXPORT_SYMBOL_GPL(counter_register);
 
 /**
  * counter_alloc - allocate a counter_device
@@ -245,9 +181,6 @@ void counter_unregister(struct counter_device *const counter)
 	wake_up(&counter->events_wait);
 
 	mutex_unlock(&counter->ops_exist_lock);
-
-	if (counter->legacy_device)
-		put_device(&counter->dev);
 }
 EXPORT_SYMBOL_GPL(counter_unregister);
 
@@ -255,31 +188,6 @@ static void devm_counter_release(void *counter)
 {
 	counter_unregister(counter);
 }
-
-/**
- * devm_counter_register - Resource-managed counter_register
- * @dev:	device to allocate counter_device for
- * @counter:	pointer to Counter to register
- *
- * Managed counter_register. The Counter registered with this function is
- * automatically unregistered on driver detach. This function calls
- * counter_register internally. Refer to that function for more information.
- *
- * RETURNS:
- * 0 on success, negative error number on failure.
- */
-int devm_counter_register(struct device *dev,
-			  struct counter_device *const counter)
-{
-	int err;
-
-	err = counter_register(counter);
-	if (err < 0)
-		return err;
-
-	return devm_add_action_or_reset(dev, devm_counter_release, counter);
-}
-EXPORT_SYMBOL_GPL(devm_counter_register);
 
 static void devm_counter_put(void *counter)
 {
