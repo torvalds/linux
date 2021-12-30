@@ -269,8 +269,6 @@ static int ftm_quaddec_probe(struct platform_device *pdev)
 	if (!ftm)
 		return -ENOMEM;
 
-	platform_set_drvdata(pdev, ftm);
-
 	io = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!io) {
 		dev_err(&pdev->dev, "Failed to get memory region\n");
