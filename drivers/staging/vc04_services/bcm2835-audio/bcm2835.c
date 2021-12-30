@@ -52,20 +52,14 @@ static int bcm2835_devm_add_vchi_ctx(struct device *dev)
 	return 0;
 }
 
-typedef int (*bcm2835_audio_newpcm_func)(struct bcm2835_chip *chip,
-					 const char *name,
-					 enum snd_bcm2835_route route,
-					 u32 numchannels);
-
-typedef int (*bcm2835_audio_newctl_func)(struct bcm2835_chip *chip);
-
 struct bcm2835_audio_driver {
 	struct device_driver driver;
 	const char *shortname;
 	const char *longname;
 	int minchannels;
-	bcm2835_audio_newpcm_func newpcm;
-	bcm2835_audio_newctl_func newctl;
+	int (*newpcm)(struct bcm2835_chip *chip, const char *name,
+		      enum snd_bcm2835_route route, u32 numchannels);
+	int (*newctl)(struct bcm2835_chip *chip);
 	enum snd_bcm2835_route route;
 };
 
