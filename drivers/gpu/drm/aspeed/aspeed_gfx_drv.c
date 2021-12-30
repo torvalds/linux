@@ -183,11 +183,26 @@ static int aspeed_adaptor_detect(struct drm_device *drm)
 	case CLK_G6:
 		/* check AST DP is executed or not*/
 		regmap_read(priv->scu, SCU_DP_STATUS, &reg);
-		if (((reg>>8) & DP_EXECUTE) == DP_EXECUTE)
+		if (((reg>>8) & DP_EXECUTE) == DP_EXECUTE) {
 			priv->dp_support = 0x1;
+
+			priv->dp = syscon_regmap_lookup_by_compatible(DP_CP_NAME);
+			if (IS_ERR(priv->dp)) {
+				dev_err(drm->dev, "failed to find DP regmap\n");
+				return PTR_ERR(priv->dp);
+			}
+
+			priv->dpmcu = syscon_regmap_lookup_by_compatible(DP_MCU_CP_NAME);
+			if (IS_ERR(priv->dpmcu)) {
+				dev_err(drm->dev, "failed to find DP MCU regmap\n");
+				return PTR_ERR(priv->dpmcu);
+			}
+		}
 		break;
 	default:
 		priv->dp_support = 0x0;
+		priv->dp = NULL;
+		priv->dpmcu = NULL;
 		break;
 	}
 	return 0;

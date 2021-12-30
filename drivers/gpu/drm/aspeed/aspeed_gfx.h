@@ -11,6 +11,8 @@ struct aspeed_gfx {
 	struct reset_control		*rst_crt;
 	struct reset_control		*rst_engine;
 	struct regmap			*scu;
+	struct regmap			*dp;
+	struct regmap			*dpmcu;
 	u8				dp_support;
 
 	u32				dac_reg;
@@ -129,6 +131,10 @@ int aspeed_gfx_create_output(struct drm_device *drm);
 #define PCIE_PERST_H_T_L	BIT(19)
 #define STS_PERST_STATUS	(PCIE_PERST_L_T_H|PCIE_PERST_H_T_L)
 
-/* DP function define */
+/* Adaptor function define */
+/* AST2600: DP define */
+#define DP_CP_NAME		"aspeed,ast2600-displayport"
+#define DP_MCU_CP_NAME		"aspeed,ast2600-displayport-mcu"
+
 #define SCU_DP_STATUS		0x100 /* SCU100 VGA function handshake */
 #define DP_EXECUTE		0x2E /* DP Status */
