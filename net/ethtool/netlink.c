@@ -638,7 +638,6 @@ static void ethnl_default_notify(struct net_device *dev, unsigned int cmd,
 	if (ret < 0)
 		goto err_cleanup;
 	reply_len = ret + ethnl_reply_header_size();
-	ret = -ENOMEM;
 	skb = genlmsg_new(reply_len, GFP_KERNEL);
 	if (!skb)
 		goto err_cleanup;
