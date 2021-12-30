@@ -27,6 +27,7 @@
 #define TESTI_DAT_MASK		GENMASK(13, 6)
 #define TESTI_ADR_MASK		GENMASK(5, 1)
 #define TESTI_WR_EN		BIT(0)
+#define TESTIO_PHY_SHIFT	16
 
 #define PCL_PHY_TEST_O		0x2004
 #define TESTO_DAT_MASK		GENMASK(7, 0)
@@ -39,6 +40,10 @@
 #define SG_USBPCIESEL		0x590
 #define SG_USBPCIESEL_PCIE	BIT(0)
 
+/* SC */
+#define SC_US3SRCSEL		0x2244
+#define SC_US3SRCSEL_2LANE	GENMASK(9, 8)
+
 #define PCL_PHY_R00		0
 #define   RX_EQ_ADJ_EN		BIT(3)		/* enable for EQ adjustment */
 #define PCL_PHY_R06		6
@@ -47,6 +52,9 @@
 #define PCL_PHY_R26		26
 #define   VCO_CTRL		GENMASK(7, 4)	/* Tx VCO adjustment value */
 #define   VCO_CTRL_INIT_VAL	5
+#define PCL_PHY_R28		28
+#define   VCOPLL_CLMP		GENMASK(3, 2)	/* Tx VCOPLL clamp mode */
+#define   VCOPLL_CLMP_VAL	0
 
 struct uniphier_pciephy_priv {
 	void __iomem *base;
@@ -58,43 +66,57 @@ struct uniphier_pciephy_priv {
 
 struct uniphier_pciephy_soc_data {
 	bool is_legacy;
+	bool is_dual_phy;
 	void (*set_phymode)(struct regmap *regmap);
 };
 
 static void uniphier_pciephy_testio_write(struct uniphier_pciephy_priv *priv,
-					  u32 data)
+					  int id, u32 data)
 {
+	if (id)
+		data <<= TESTIO_PHY_SHIFT;
+
 	/* need to read TESTO twice after accessing TESTI */
 	writel(data, priv->base + PCL_PHY_TEST_I);
 	readl(priv->base + PCL_PHY_TEST_O);
 	readl(priv->base + PCL_PHY_TEST_O);
 }
 
+static u32 uniphier_pciephy_testio_read(struct uniphier_pciephy_priv *priv, int id)
+{
+	u32 val = readl(priv->base + PCL_PHY_TEST_O);
+
+	if (id)
+		val >>= TESTIO_PHY_SHIFT;
+
+	return val & TESTO_DAT_MASK;
+}
+
 static void uniphier_pciephy_set_param(struct uniphier_pciephy_priv *priv,
-				       u32 reg, u32 mask, u32 param)
+				       int id, u32 reg, u32 mask, u32 param)
 {
 	u32 val;
 
 	/* read previous data */
 	val  = FIELD_PREP(TESTI_DAT_MASK, 1);
 	val |= FIELD_PREP(TESTI_ADR_MASK, reg);
-	uniphier_pciephy_testio_write(priv, val);
-	val = readl(priv->base + PCL_PHY_TEST_O) & TESTO_DAT_MASK;
+	uniphier_pciephy_testio_write(priv, id, val);
+	val = uniphier_pciephy_testio_read(priv, id);
 
 	/* update value */
 	val &= ~mask;
 	val |= mask & param;
 	val = FIELD_PREP(TESTI_DAT_MASK, val);
 	val |= FIELD_PREP(TESTI_ADR_MASK, reg);
-	uniphier_pciephy_testio_write(priv, val);
-	uniphier_pciephy_testio_write(priv, val | TESTI_WR_EN);
-	uniphier_pciephy_testio_write(priv, val);
+	uniphier_pciephy_testio_write(priv, id, val);
+	uniphier_pciephy_testio_write(priv, id, val | TESTI_WR_EN);
+	uniphier_pciephy_testio_write(priv, id, val);
 
 	/* read current data as dummy */
 	val  = FIELD_PREP(TESTI_DAT_MASK, 1);
 	val |= FIELD_PREP(TESTI_ADR_MASK, reg);
-	uniphier_pciephy_testio_write(priv, val);
-	readl(priv->base + PCL_PHY_TEST_O);
+	uniphier_pciephy_testio_write(priv, id, val);
+	uniphier_pciephy_testio_read(priv, id);
 }
 
 static void uniphier_pciephy_assert(struct uniphier_pciephy_priv *priv)
@@ -120,7 +142,7 @@ static int uniphier_pciephy_init(struct phy *phy)
 {
 	struct uniphier_pciephy_priv *priv = phy_get_drvdata(phy);
 	u32 val;
-	int ret;
+	int ret, id;
 
 	ret = clk_prepare_enable(priv->clk);
 	if (ret)
@@ -148,12 +170,16 @@ static int uniphier_pciephy_init(struct phy *phy)
 	if (priv->data->is_legacy)
 		return 0;
 
-	uniphier_pciephy_set_param(priv, PCL_PHY_R00,
+	for (id = 0; id < (priv->data->is_dual_phy ? 2 : 1); id++) {
+		uniphier_pciephy_set_param(priv, id, PCL_PHY_R00,
 				   RX_EQ_ADJ_EN, RX_EQ_ADJ_EN);
-	uniphier_pciephy_set_param(priv, PCL_PHY_R06, RX_EQ_ADJ,
+		uniphier_pciephy_set_param(priv, id, PCL_PHY_R06, RX_EQ_ADJ,
 				   FIELD_PREP(RX_EQ_ADJ, RX_EQ_ADJ_VAL));
-	uniphier_pciephy_set_param(priv, PCL_PHY_R26, VCO_CTRL,
+		uniphier_pciephy_set_param(priv, id, PCL_PHY_R26, VCO_CTRL,
 				   FIELD_PREP(VCO_CTRL, VCO_CTRL_INIT_VAL));
+		uniphier_pciephy_set_param(priv, id, PCL_PHY_R28, VCOPLL_CLMP,
+				   FIELD_PREP(VCOPLL_CLMP, VCOPLL_CLMP_VAL));
+	}
 	usleep_range(1, 10);
 
 	uniphier_pciephy_deassert(priv);
@@ -261,17 +287,31 @@ static void uniphier_pciephy_ld20_setmode(struct regmap *regmap)
 			   SG_USBPCIESEL_PCIE, SG_USBPCIESEL_PCIE);
 }
 
+static void uniphier_pciephy_nx1_setmode(struct regmap *regmap)
+{
+	regmap_update_bits(regmap, SC_US3SRCSEL,
+			   SC_US3SRCSEL_2LANE, SC_US3SRCSEL_2LANE);
+}
+
 static const struct uniphier_pciephy_soc_data uniphier_pro5_data = {
 	.is_legacy = true,
 };
 
 static const struct uniphier_pciephy_soc_data uniphier_ld20_data = {
 	.is_legacy = false,
+	.is_dual_phy = false,
 	.set_phymode = uniphier_pciephy_ld20_setmode,
 };
 
 static const struct uniphier_pciephy_soc_data uniphier_pxs3_data = {
 	.is_legacy = false,
+	.is_dual_phy = false,
+};
+
+static const struct uniphier_pciephy_soc_data uniphier_nx1_data = {
+	.is_legacy = false,
+	.is_dual_phy = true,
+	.set_phymode = uniphier_pciephy_nx1_setmode,
 };
 
 static const struct of_device_id uniphier_pciephy_match[] = {
@@ -286,6 +326,10 @@ static const struct of_device_id uniphier_pciephy_match[] = {
 	{
 		.compatible = "socionext,uniphier-pxs3-pcie-phy",
 		.data = &uniphier_pxs3_data,
+	},
+	{
+		.compatible = "socionext,uniphier-nx1-pcie-phy",
+		.data = &uniphier_nx1_data,
 	},
 	{ /* sentinel */ },
 };
