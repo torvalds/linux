@@ -8,6 +8,8 @@
  * Copyright (C) 2013-2015 Intel Corporation. All rights reserved.
  */
 
+#define pr_fmt(fmt) "ACPI: " fmt
+
 #include <linux/acpi.h>
 #include <linux/dmi.h>
 #include <linux/platform_device.h>
@@ -210,7 +212,6 @@ bool force_storage_d3(void)
 	return x86_match_cpu(storage_d3_cpu_ids);
 }
 
-#if IS_ENABLED(CONFIG_X86_ANDROID_TABLETS)
 /*
  * x86 ACPI boards which ship with only Android as their factory image usually
  * declare a whole bunch of bogus I2C devices in their ACPI tables and sometimes
@@ -236,8 +237,36 @@ bool force_storage_d3(void)
  */
 #define ACPI_QUIRK_SKIP_I2C_CLIENTS				BIT(0)
 #define ACPI_QUIRK_UART1_TTY_UART2_SKIP				BIT(1)
+#define ACPI_QUIRK_SKIP_ACPI_AC_AND_BATTERY			BIT(2)
+#define ACPI_QUIRK_USE_ACPI_AC_AND_BATTERY			BIT(3)
 
-static const struct dmi_system_id acpi_skip_serial_bus_enumeration_ids[] = {
+static const struct dmi_system_id acpi_quirk_skip_dmi_ids[] = {
+	/*
+	 * 1. Devices with only the skip / don't-skip AC and battery quirks,
+	 *    sorted alphabetically.
+	 */
+	{
+		/* ECS EF20EA, AXP288 PMIC but uses separate fuel-gauge */
+		.matches = {
+			DMI_MATCH(DMI_PRODUCT_NAME, "EF20EA"),
+		},
+		.driver_data = (void *)ACPI_QUIRK_USE_ACPI_AC_AND_BATTERY
+	},
+	{
+		/* Lenovo Ideapad Miix 320, AXP288 PMIC, separate fuel-gauge */
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "80XF"),
+			DMI_MATCH(DMI_PRODUCT_VERSION, "Lenovo MIIX 320-10ICR"),
+		},
+		.driver_data = (void *)ACPI_QUIRK_USE_ACPI_AC_AND_BATTERY
+	},
+
+	/*
+	 * 2. Devices which also have the skip i2c/serdev quirks and which
+	 *    need the x86-android-tablets module to properly work.
+	 */
+#if IS_ENABLED(CONFIG_X86_ANDROID_TABLETS)
 	{
 		.matches = {
 			DMI_EXACT_MATCH(DMI_SYS_VENDOR, "ASUSTeK COMPUTER INC."),
@@ -263,9 +292,11 @@ static const struct dmi_system_id acpi_skip_serial_bus_enumeration_ids[] = {
 		},
 		.driver_data = (void *)ACPI_QUIRK_SKIP_I2C_CLIENTS,
 	},
+#endif
 	{}
 };
 
+#if IS_ENABLED(CONFIG_X86_ANDROID_TABLETS)
 static const struct acpi_device_id i2c_acpi_known_good_ids[] = {
 	{ "10EC5640", 0 }, /* RealTek ALC5640 audio codec */
 	{ "INT33F4", 0 },  /* X-Powers AXP288 PMIC */
@@ -279,7 +310,7 @@ bool acpi_quirk_skip_i2c_client_enumeration(struct acpi_device *adev)
 	const struct dmi_system_id *dmi_id;
 	long quirks;
 
-	dmi_id = dmi_first_match(acpi_skip_serial_bus_enumeration_ids);
+	dmi_id = dmi_first_match(acpi_quirk_skip_dmi_ids);
 	if (!dmi_id)
 		return false;
 
@@ -303,7 +334,7 @@ int acpi_quirk_skip_serdev_enumeration(struct device *controller_parent, bool *s
 	if (!adev || !adev->pnp.unique_id || !dev_is_platform(controller_parent))
 		return 0;
 
-	dmi_id = dmi_first_match(acpi_skip_serial_bus_enumeration_ids);
+	dmi_id = dmi_first_match(acpi_quirk_skip_dmi_ids);
 	if (dmi_id)
 		quirks = (unsigned long)dmi_id->driver_data;
 
@@ -319,3 +350,41 @@ int acpi_quirk_skip_serdev_enumeration(struct device *controller_parent, bool *s
 }
 EXPORT_SYMBOL_GPL(acpi_quirk_skip_serdev_enumeration);
 #endif
+
+/* Lists of PMIC ACPI HIDs with an (often better) native charger driver */
+static const struct {
+	const char *hid;
+	int hrv;
+} acpi_skip_ac_and_battery_pmic_ids[] = {
+	{ "INT33F4", -1 }, /* X-Powers AXP288 PMIC */
+	{ "INT34D3",  3 }, /* Intel Cherrytrail Whiskey Cove PMIC */
+};
+
+bool acpi_quirk_skip_acpi_ac_and_battery(void)
+{
+	const struct dmi_system_id *dmi_id;
+	long quirks = 0;
+	int i;
+
+	dmi_id = dmi_first_match(acpi_quirk_skip_dmi_ids);
+	if (dmi_id)
+		quirks = (unsigned long)dmi_id->driver_data;
+
+	if (quirks & ACPI_QUIRK_SKIP_ACPI_AC_AND_BATTERY)
+		return true;
+
+	if (quirks & ACPI_QUIRK_USE_ACPI_AC_AND_BATTERY)
+		return false;
+
+	for (i = 0; i < ARRAY_SIZE(acpi_skip_ac_and_battery_pmic_ids); i++) {
+		if (acpi_dev_present(acpi_skip_ac_and_battery_pmic_ids[i].hid, "1",
+				     acpi_skip_ac_and_battery_pmic_ids[i].hrv)) {
+			pr_info_once("found native %s PMIC, skipping ACPI AC and battery devices\n",
+				     acpi_skip_ac_and_battery_pmic_ids[i].hid);
+			return true;
+		}
+	}
+
+	return false;
+}
+EXPORT_SYMBOL_GPL(acpi_quirk_skip_acpi_ac_and_battery);
