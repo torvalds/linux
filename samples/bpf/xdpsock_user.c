@@ -113,6 +113,7 @@ static u32 irq_no;
 static int irqs_at_init = -1;
 static int opt_poll;
 static int opt_interval = 1;
+static int opt_retries = 3;
 static u32 opt_xdp_bind_flags = XDP_USE_NEED_WAKEUP;
 static u32 opt_umem_flags;
 static int opt_unaligned_chunks;
@@ -1028,6 +1029,7 @@ static struct option long_options[] = {
 	{"xdp-skb", no_argument, 0, 'S'},
 	{"xdp-native", no_argument, 0, 'N'},
 	{"interval", required_argument, 0, 'n'},
+	{"retries", required_argument, 0, 'O'},
 	{"zero-copy", no_argument, 0, 'z'},
 	{"copy", no_argument, 0, 'c'},
 	{"frame-size", required_argument, 0, 'f'},
@@ -1072,6 +1074,7 @@ static void usage(const char *prog)
 		"  -S, --xdp-skb=n	Use XDP skb-mod\n"
 		"  -N, --xdp-native=n	Enforce XDP native mode\n"
 		"  -n, --interval=n	Specify statistics update interval (default 1 sec).\n"
+		"  -O, --retries=n	Specify time-out retries (1s interval) attempt (default 3).\n"
 		"  -z, --zero-copy      Force zero-copy mode.\n"
 		"  -c, --copy           Force copy mode.\n"
 		"  -m, --no-need-wakeup Turn off use of driver need wakeup flag.\n"
@@ -1122,7 +1125,7 @@ static void parse_command_line(int argc, char **argv)
 
 	for (;;) {
 		c = getopt_long(argc, argv,
-				"Frtli:q:pSNn:w:czf:muMd:b:C:s:P:VJ:K:G:H:T:W:U:xQaI:BR",
+				"Frtli:q:pSNn:w:O:czf:muMd:b:C:s:P:VJ:K:G:H:T:W:U:xQaI:BR",
 				long_options, &option_index);
 		if (c == -1)
 			break;
@@ -1163,6 +1166,9 @@ static void parse_command_line(int argc, char **argv)
 					optarg);
 				opt_clock = CLOCK_MONOTONIC;
 			}
+			break;
+		case 'O':
+			opt_retries = atoi(optarg);
 			break;
 		case 'z':
 			opt_xdp_bind_flags |= XDP_ZEROCOPY;
@@ -1509,7 +1515,8 @@ static void complete_tx_only_all(void)
 				pending = !!xsks[i]->outstanding_tx;
 			}
 		}
-	} while (pending);
+		sleep(1);
+	} while (pending && opt_retries-- > 0);
 }
 
 static void tx_only_all(void)
