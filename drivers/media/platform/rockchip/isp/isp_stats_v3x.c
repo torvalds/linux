@@ -649,6 +649,7 @@ rkisp_stats_get_rawaf_meas_ddr(struct rkisp_isp_stats_vdev *stats_vdev,
 	af->afm_sum_b = isp3_stats_read(stats_vdev, ISP3X_RAWAF_SUM_B, id);
 	af->afm_lum_b = isp3_stats_read(stats_vdev, ISP3X_RAWAF_LUM_B, id);
 	af->int_state = isp3_stats_read(stats_vdev, ISP3X_RAWAF_INT_STATE, id);
+	af->highlit_cnt_winb = isp3_stats_read(stats_vdev, ISP3X_RAWAF_HIGHLIT_CNT_WINB, id);
 
 	for (i = 0; i < ISP3X_RAWAF_SUMDATA_NUM; i++) {
 		af->ramdata[i].v1 = ddr_addr[i * 4];
