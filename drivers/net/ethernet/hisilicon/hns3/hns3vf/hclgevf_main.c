@@ -92,6 +92,32 @@ static const u32 tqp_intr_reg_addr_list[] = {HCLGEVF_TQP_INTR_CTRL_REG,
 					     HCLGEVF_TQP_INTR_GL2_REG,
 					     HCLGEVF_TQP_INTR_RL_REG};
 
+/* hclgevf_cmd_send - send command to command queue
+ * @hw: pointer to the hw struct
+ * @desc: prefilled descriptor for describing the command
+ * @num : the number of descriptors to be sent
+ *
+ * This is the main send command for command queue, it
+ * sends the queue, cleans the queue, etc
+ */
+int hclgevf_cmd_send(struct hclgevf_hw *hw, struct hclge_desc *desc, int num)
+{
+	return hclge_comm_cmd_send(&hw->hw, desc, num, false);
+}
+
+void hclgevf_arq_init(struct hclgevf_dev *hdev)
+{
+	struct hclge_comm_cmq *cmdq = &hdev->hw.hw.cmq;
+
+	spin_lock(&cmdq->crq.lock);
+	/* initialize the pointers of async rx queue of mailbox */
+	hdev->arq.hdev = hdev;
+	hdev->arq.head = 0;
+	hdev->arq.tail = 0;
+	atomic_set(&hdev->arq.count, 0);
+	spin_unlock(&cmdq->crq.lock);
+}
+
 static struct hclgevf_dev *hclgevf_ae_get_hdev(struct hnae3_handle *handle)
 {
 	if (!handle->client)

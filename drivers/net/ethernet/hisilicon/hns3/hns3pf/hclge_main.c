@@ -479,6 +479,20 @@ static const struct key_info tuple_key_info[] = {
 	  offsetof(struct hclge_fd_rule, tuples_mask.l4_user_def) },
 };
 
+/**
+ * hclge_cmd_send - send command to command queue
+ * @hw: pointer to the hw struct
+ * @desc: prefilled descriptor for describing the command
+ * @num : the number of descriptors to be sent
+ *
+ * This is the main send command for command queue, it
+ * sends the queue, cleans the queue, etc
+ **/
+int hclge_cmd_send(struct hclge_hw *hw, struct hclge_desc *desc, int num)
+{
+	return hclge_comm_cmd_send(&hw->hw, desc, num, true);
+}
+
 static int hclge_mac_update_stats_defective(struct hclge_dev *hdev)
 {
 #define HCLGE_MAC_CMD_NUM 21
