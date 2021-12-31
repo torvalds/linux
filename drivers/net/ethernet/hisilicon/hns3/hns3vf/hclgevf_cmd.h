@@ -6,9 +6,8 @@
 #include <linux/io.h>
 #include <linux/types.h>
 #include "hnae3.h"
+#include "hclge_comm_cmd.h"
 
-#define HCLGEVF_CMDQ_TX_TIMEOUT		30000
-#define HCLGEVF_CMDQ_CLEAR_WAIT_TIME	200
 #define HCLGEVF_CMDQ_RX_INVLD_B		0
 #define HCLGEVF_CMDQ_RX_OUTVLD_B	1
 
@@ -16,83 +15,6 @@ struct hclgevf_hw;
 struct hclgevf_dev;
 
 #define HCLGEVF_SYNC_RX_RING_HEAD_EN_B	4
-struct hclgevf_firmware_compat_cmd {
-	__le32 compat;
-	u8 rsv[20];
-};
-
-struct hclgevf_desc {
-	__le16 opcode;
-	__le16 flag;
-	__le16 retval;
-	__le16 rsv;
-	__le32 data[6];
-};
-
-struct hclgevf_desc_cb {
-	dma_addr_t dma;
-	void *va;
-	u32 length;
-};
-
-struct hclgevf_cmq_ring {
-	dma_addr_t desc_dma_addr;
-	struct hclgevf_desc *desc;
-	struct hclgevf_desc_cb *desc_cb;
-	struct hclgevf_dev  *dev;
-	u32 head;
-	u32 tail;
-
-	u16 buf_size;
-	u16 desc_num;
-	int next_to_use;
-	int next_to_clean;
-	u8 flag;
-	spinlock_t lock; /* Command queue lock */
-};
-
-enum hclgevf_cmd_return_status {
-	HCLGEVF_CMD_EXEC_SUCCESS	= 0,
-	HCLGEVF_CMD_NO_AUTH		= 1,
-	HCLGEVF_CMD_NOT_SUPPORTED	= 2,
-	HCLGEVF_CMD_QUEUE_FULL		= 3,
-	HCLGEVF_CMD_NEXT_ERR		= 4,
-	HCLGEVF_CMD_UNEXE_ERR		= 5,
-	HCLGEVF_CMD_PARA_ERR		= 6,
-	HCLGEVF_CMD_RESULT_ERR		= 7,
-	HCLGEVF_CMD_TIMEOUT		= 8,
-	HCLGEVF_CMD_HILINK_ERR		= 9,
-	HCLGEVF_CMD_QUEUE_ILLEGAL	= 10,
-	HCLGEVF_CMD_INVALID		= 11,
-};
-
-enum hclgevf_cmd_status {
-	HCLGEVF_STATUS_SUCCESS	= 0,
-	HCLGEVF_ERR_CSQ_FULL	= -1,
-	HCLGEVF_ERR_CSQ_TIMEOUT	= -2,
-	HCLGEVF_ERR_CSQ_ERROR	= -3
-};
-
-struct hclgevf_cmq {
-	struct hclgevf_cmq_ring csq;
-	struct hclgevf_cmq_ring crq;
-	u16 tx_timeout; /* Tx timeout */
-	enum hclgevf_cmd_status last_status;
-};
-
-#define HCLGEVF_CMD_FLAG_IN_VALID_SHIFT		0
-#define HCLGEVF_CMD_FLAG_OUT_VALID_SHIFT	1
-#define HCLGEVF_CMD_FLAG_NEXT_SHIFT		2
-#define HCLGEVF_CMD_FLAG_WR_OR_RD_SHIFT		3
-#define HCLGEVF_CMD_FLAG_NO_INTR_SHIFT		4
-#define HCLGEVF_CMD_FLAG_ERR_INTR_SHIFT		5
-
-#define HCLGEVF_CMD_FLAG_IN		BIT(HCLGEVF_CMD_FLAG_IN_VALID_SHIFT)
-#define HCLGEVF_CMD_FLAG_OUT		BIT(HCLGEVF_CMD_FLAG_OUT_VALID_SHIFT)
-#define HCLGEVF_CMD_FLAG_NEXT		BIT(HCLGEVF_CMD_FLAG_NEXT_SHIFT)
-#define HCLGEVF_CMD_FLAG_WR		BIT(HCLGEVF_CMD_FLAG_WR_OR_RD_SHIFT)
-#define HCLGEVF_CMD_FLAG_NO_INTR	BIT(HCLGEVF_CMD_FLAG_NO_INTR_SHIFT)
-#define HCLGEVF_CMD_FLAG_ERR_INTR	BIT(HCLGEVF_CMD_FLAG_ERR_INTR_SHIFT)
 
 enum hclgevf_opcode_type {
 	/* Generic command */
@@ -154,34 +76,6 @@ struct hclgevf_ctrl_vector_chain {
 	__le16 tqp_type_and_id[HCLGEVF_VECTOR_ELEMENTS_PER_CMD];
 	u8 vfid;
 	u8 resv;
-};
-
-enum HCLGEVF_CAP_BITS {
-	HCLGEVF_CAP_UDP_GSO_B,
-	HCLGEVF_CAP_QB_B,
-	HCLGEVF_CAP_FD_FORWARD_TC_B,
-	HCLGEVF_CAP_PTP_B,
-	HCLGEVF_CAP_INT_QL_B,
-	HCLGEVF_CAP_HW_TX_CSUM_B,
-	HCLGEVF_CAP_TX_PUSH_B,
-	HCLGEVF_CAP_PHY_IMP_B,
-	HCLGEVF_CAP_TQP_TXRX_INDEP_B,
-	HCLGEVF_CAP_HW_PAD_B,
-	HCLGEVF_CAP_STASH_B,
-	HCLGEVF_CAP_UDP_TUNNEL_CSUM_B,
-	HCLGEVF_CAP_RXD_ADV_LAYOUT_B = 15,
-};
-
-enum HCLGEVF_API_CAP_BITS {
-	HCLGEVF_API_CAP_FLEX_RSS_TBL_B,
-};
-
-#define HCLGEVF_QUERY_CAP_LENGTH		3
-struct hclgevf_query_version_cmd {
-	__le32 firmware;
-	__le32 hardware;
-	__le32 api_caps;
-	__le32 caps[HCLGEVF_QUERY_CAP_LENGTH]; /* capabilities of device */
 };
 
 #define HCLGEVF_MSIX_OFT_ROCEE_S       0
@@ -273,9 +167,6 @@ struct hclgevf_cfg_tx_queue_pointer_cmd {
 	u8 rsv[14];
 };
 
-#define HCLGEVF_TYPE_CRQ		0
-#define HCLGEVF_TYPE_CSQ		1
-
 /* this bit indicates that the driver is ready for hardware reset */
 #define HCLGEVF_NIC_SW_RST_RDY_B	16
 #define HCLGEVF_NIC_SW_RST_RDY		BIT(HCLGEVF_NIC_SW_RST_RDY_B)
@@ -284,6 +175,10 @@ struct hclgevf_cfg_tx_queue_pointer_cmd {
 #define HCLGEVF_NIC_CMQ_DESC_NUM_S	3
 
 #define HCLGEVF_QUERY_DEV_SPECS_BD_NUM		4
+
+#define hclgevf_cmd_setup_basic_desc(desc, opcode, is_read) \
+	hclge_comm_cmd_setup_basic_desc(desc, (enum hclge_comm_opcode_type)opcode, \
+					is_read)
 
 struct hclgevf_dev_specs_0_cmd {
 	__le32 rsv0;
@@ -305,38 +200,6 @@ struct hclgevf_dev_specs_1_cmd {
 	u8 rsv1[18];
 };
 
-/* capabilities bits map between imp firmware and local driver */
-struct hclgevf_caps_bit_map {
-	u16 imp_bit;
-	u16 local_bit;
-};
-
-static inline void hclgevf_write_reg(void __iomem *base, u32 reg, u32 value)
-{
-	writel(value, base + reg);
-}
-
-static inline u32 hclgevf_read_reg(u8 __iomem *base, u32 reg)
-{
-	u8 __iomem *reg_addr = READ_ONCE(base);
-
-	return readl(reg_addr + reg);
-}
-
-#define hclgevf_write_dev(a, reg, value) \
-	hclgevf_write_reg((a)->io_base, reg, value)
-#define hclgevf_read_dev(a, reg) \
-	hclgevf_read_reg((a)->io_base, reg)
-
-#define HCLGEVF_SEND_SYNC(flag) \
-	((flag) & HCLGEVF_CMD_FLAG_NO_INTR)
-
-int hclgevf_cmd_init(struct hclgevf_dev *hdev);
-void hclgevf_cmd_uninit(struct hclgevf_dev *hdev);
-int hclgevf_cmd_queue_init(struct hclgevf_dev *hdev);
-
-int hclgevf_cmd_send(struct hclgevf_hw *hw, struct hclgevf_desc *desc, int num);
-void hclgevf_cmd_setup_basic_desc(struct hclgevf_desc *desc,
-				  enum hclgevf_opcode_type opcode,
-				  bool is_read);
+int hclgevf_cmd_send(struct hclgevf_hw *hw, struct hclge_desc *desc, int num);
+void hclgevf_arq_init(struct hclgevf_dev *hdev);
 #endif

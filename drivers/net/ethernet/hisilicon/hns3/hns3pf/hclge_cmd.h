@@ -7,80 +7,18 @@
 #include <linux/io.h>
 #include <linux/etherdevice.h>
 #include "hnae3.h"
-
-#define HCLGE_CMDQ_TX_TIMEOUT		30000
-#define HCLGE_CMDQ_CLEAR_WAIT_TIME	200
-#define HCLGE_DESC_DATA_LEN		6
+#include "hclge_comm_cmd.h"
 
 struct hclge_dev;
-struct hclge_desc {
-	__le16 opcode;
 
 #define HCLGE_CMDQ_RX_INVLD_B		0
 #define HCLGE_CMDQ_RX_OUTVLD_B		1
-
-	__le16 flag;
-	__le16 retval;
-	__le16 rsv;
-	__le32 data[HCLGE_DESC_DATA_LEN];
-};
-
-struct hclge_cmq_ring {
-	dma_addr_t desc_dma_addr;
-	struct hclge_desc *desc;
-	struct hclge_dev *dev;
-	u32 head;
-	u32 tail;
-
-	u16 buf_size;
-	u16 desc_num;
-	int next_to_use;
-	int next_to_clean;
-	u8 ring_type; /* cmq ring type */
-	spinlock_t lock; /* Command queue lock */
-};
-
-enum hclge_cmd_return_status {
-	HCLGE_CMD_EXEC_SUCCESS	= 0,
-	HCLGE_CMD_NO_AUTH	= 1,
-	HCLGE_CMD_NOT_SUPPORTED	= 2,
-	HCLGE_CMD_QUEUE_FULL	= 3,
-	HCLGE_CMD_NEXT_ERR	= 4,
-	HCLGE_CMD_UNEXE_ERR	= 5,
-	HCLGE_CMD_PARA_ERR	= 6,
-	HCLGE_CMD_RESULT_ERR	= 7,
-	HCLGE_CMD_TIMEOUT	= 8,
-	HCLGE_CMD_HILINK_ERR	= 9,
-	HCLGE_CMD_QUEUE_ILLEGAL	= 10,
-	HCLGE_CMD_INVALID	= 11,
-};
-
-enum hclge_cmd_status {
-	HCLGE_STATUS_SUCCESS	= 0,
-	HCLGE_ERR_CSQ_FULL	= -1,
-	HCLGE_ERR_CSQ_TIMEOUT	= -2,
-	HCLGE_ERR_CSQ_ERROR	= -3,
-};
 
 struct hclge_misc_vector {
 	u8 __iomem *addr;
 	int vector_irq;
 	char name[HNAE3_INT_NAME_LEN];
 };
-
-struct hclge_cmq {
-	struct hclge_cmq_ring csq;
-	struct hclge_cmq_ring crq;
-	u16 tx_timeout;
-	enum hclge_cmd_status last_status;
-};
-
-#define HCLGE_CMD_FLAG_IN	BIT(0)
-#define HCLGE_CMD_FLAG_OUT	BIT(1)
-#define HCLGE_CMD_FLAG_NEXT	BIT(2)
-#define HCLGE_CMD_FLAG_WR	BIT(3)
-#define HCLGE_CMD_FLAG_NO_INTR	BIT(4)
-#define HCLGE_CMD_FLAG_ERR_INTR	BIT(5)
 
 enum hclge_opcode_type {
 	/* Generic commands */
@@ -325,6 +263,10 @@ enum hclge_opcode_type {
 	HCLGE_OPC_QUERY_LINK_DIAGNOSIS	= 0x702A,
 };
 
+#define hclge_cmd_setup_basic_desc(desc, opcode, is_read) \
+	hclge_comm_cmd_setup_basic_desc(desc, (enum hclge_comm_opcode_type)opcode, \
+					is_read)
+
 #define HCLGE_TQP_REG_OFFSET		0x80000
 #define HCLGE_TQP_REG_SIZE		0x200
 
@@ -389,38 +331,6 @@ struct hclge_rx_priv_buff_cmd {
 	__le16 buf_num[HCLGE_MAX_TC_NUM];
 	__le16 shared_buf;
 	u8 rsv[6];
-};
-
-enum HCLGE_CAP_BITS {
-	HCLGE_CAP_UDP_GSO_B,
-	HCLGE_CAP_QB_B,
-	HCLGE_CAP_FD_FORWARD_TC_B,
-	HCLGE_CAP_PTP_B,
-	HCLGE_CAP_INT_QL_B,
-	HCLGE_CAP_HW_TX_CSUM_B,
-	HCLGE_CAP_TX_PUSH_B,
-	HCLGE_CAP_PHY_IMP_B,
-	HCLGE_CAP_TQP_TXRX_INDEP_B,
-	HCLGE_CAP_HW_PAD_B,
-	HCLGE_CAP_STASH_B,
-	HCLGE_CAP_UDP_TUNNEL_CSUM_B,
-	HCLGE_CAP_RAS_IMP_B = 12,
-	HCLGE_CAP_FEC_B = 13,
-	HCLGE_CAP_PAUSE_B = 14,
-	HCLGE_CAP_RXD_ADV_LAYOUT_B = 15,
-	HCLGE_CAP_PORT_VLAN_BYPASS_B = 17,
-};
-
-enum HCLGE_API_CAP_BITS {
-	HCLGE_API_CAP_FLEX_RSS_TBL_B,
-};
-
-#define HCLGE_QUERY_CAP_LENGTH		3
-struct hclge_query_version_cmd {
-	__le32 firmware;
-	__le32 hardware;
-	__le32 api_caps;
-	__le32 caps[HCLGE_QUERY_CAP_LENGTH]; /* capabilities of device */
 };
 
 #define HCLGE_RX_PRIV_EN_B	15
@@ -1015,16 +925,6 @@ struct hclge_common_lb_cmd {
 #define HCLGE_DEFAULT_NON_DCB_DV	0x7800	/* 30K byte */
 #define HCLGE_NON_DCB_ADDITIONAL_BUF	0x1400	/* 5120 byte */
 
-#define HCLGE_TYPE_CRQ			0
-#define HCLGE_TYPE_CSQ			1
-
-/* this bit indicates that the driver is ready for hardware reset */
-#define HCLGE_NIC_SW_RST_RDY_B		16
-#define HCLGE_NIC_SW_RST_RDY		BIT(HCLGE_NIC_SW_RST_RDY_B)
-
-#define HCLGE_NIC_CMQ_DESC_NUM		1024
-#define HCLGE_NIC_CMQ_DESC_NUM_S	3
-
 #define HCLGE_LED_LOCATE_STATE_S	0
 #define HCLGE_LED_LOCATE_STATE_M	GENMASK(1, 0)
 
@@ -1147,16 +1047,6 @@ struct hclge_query_ppu_pf_other_int_dfx_cmd {
 	u8 rsv[4];
 };
 
-#define HCLGE_LINK_EVENT_REPORT_EN_B	0
-#define HCLGE_NCSI_ERROR_REPORT_EN_B	1
-#define HCLGE_PHY_IMP_EN_B		2
-#define HCLGE_MAC_STATS_EXT_EN_B	3
-#define HCLGE_SYNC_RX_RING_HEAD_EN_B	4
-struct hclge_firmware_compat_cmd {
-	__le32 compat;
-	u8 rsv[20];
-};
-
 #define HCLGE_SFP_INFO_CMD_NUM	6
 #define HCLGE_SFP_INFO_BD0_LEN	20
 #define HCLGE_SFP_INFO_BDX_LEN	24
@@ -1239,44 +1129,10 @@ struct hclge_phy_reg_cmd {
 	u8 rsv1[18];
 };
 
-/* capabilities bits map between imp firmware and local driver */
-struct hclge_caps_bit_map {
-	u16 imp_bit;
-	u16 local_bit;
-};
-
-int hclge_cmd_init(struct hclge_dev *hdev);
-static inline void hclge_write_reg(void __iomem *base, u32 reg, u32 value)
-{
-	writel(value, base + reg);
-}
-
-#define hclge_write_dev(a, reg, value) \
-	hclge_write_reg((a)->io_base, reg, value)
-#define hclge_read_dev(a, reg) \
-	hclge_read_reg((a)->io_base, reg)
-
-static inline u32 hclge_read_reg(u8 __iomem *base, u32 reg)
-{
-	u8 __iomem *reg_addr = READ_ONCE(base);
-
-	return readl(reg_addr + reg);
-}
-
-#define HCLGE_SEND_SYNC(flag) \
-	((flag) & HCLGE_CMD_FLAG_NO_INTR)
-
 struct hclge_hw;
 int hclge_cmd_send(struct hclge_hw *hw, struct hclge_desc *desc, int num);
-void hclge_cmd_setup_basic_desc(struct hclge_desc *desc,
-				enum hclge_opcode_type opcode, bool is_read);
-void hclge_cmd_reuse_desc(struct hclge_desc *desc, bool is_read);
-
-enum hclge_cmd_status hclge_cmd_mdio_write(struct hclge_hw *hw,
-					   struct hclge_desc *desc);
-enum hclge_cmd_status hclge_cmd_mdio_read(struct hclge_hw *hw,
-					  struct hclge_desc *desc);
-
-void hclge_cmd_uninit(struct hclge_dev *hdev);
-int hclge_cmd_queue_init(struct hclge_dev *hdev);
+enum hclge_comm_cmd_status hclge_cmd_mdio_write(struct hclge_hw *hw,
+						struct hclge_desc *desc);
+enum hclge_comm_cmd_status hclge_cmd_mdio_read(struct hclge_hw *hw,
+					       struct hclge_desc *desc);
 #endif
