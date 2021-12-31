@@ -1,0 +1,16 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2021 Rockchip Electronics Co., Ltd.
+ *
+ */
+
+/dts-v1/;
+
+#include "rk3588-toybrick-x0.dtsi"
+#include "rk3588-android.dtsi"
+#include "rk3588-toybrick-imx258.dtsi"
+
+/ {
+	model = "Rockchip RK3588 TOYBRICK LP4 X10 Board";
+	compatible = "rockchip,rk3588-toybrick-x10-android", "rockchip,rk3588";
+};
