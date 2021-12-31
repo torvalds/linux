@@ -1525,7 +1525,8 @@ static bool mlx5_flow_dests_cmp(struct mlx5_flow_destination *d1,
 				struct mlx5_flow_destination *d2)
 {
 	if (d1->type == d2->type) {
-		if ((d1->type == MLX5_FLOW_DESTINATION_TYPE_VPORT &&
+		if (((d1->type == MLX5_FLOW_DESTINATION_TYPE_VPORT ||
+		      d1->type == MLX5_FLOW_DESTINATION_TYPE_UPLINK) &&
 		     d1->vport.num == d2->vport.num &&
 		     d1->vport.flags == d2->vport.flags &&
 		     ((d1->vport.flags & MLX5_FLOW_DEST_VPORT_VHCA_ID) ?
@@ -3081,6 +3082,11 @@ int mlx5_init_fs(struct mlx5_core_dev *dev)
 
 	steering->dev = dev;
 	dev->priv.steering = steering;
+
+	if (mlx5_fs_dr_is_supported(dev))
+		steering->mode = MLX5_FLOW_STEERING_MODE_SMFS;
+	else
+		steering->mode = MLX5_FLOW_STEERING_MODE_DMFS;
 
 	steering->fgs_cache = kmem_cache_create("mlx5_fs_fgs",
 						sizeof(struct mlx5_flow_group), 0,
