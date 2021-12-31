@@ -98,34 +98,6 @@ struct hclgevf_ctrl_vector_chain {
 	u8 resv;
 };
 
-enum HCLGEVF_CAP_BITS {
-	HCLGEVF_CAP_UDP_GSO_B,
-	HCLGEVF_CAP_QB_B,
-	HCLGEVF_CAP_FD_FORWARD_TC_B,
-	HCLGEVF_CAP_PTP_B,
-	HCLGEVF_CAP_INT_QL_B,
-	HCLGEVF_CAP_HW_TX_CSUM_B,
-	HCLGEVF_CAP_TX_PUSH_B,
-	HCLGEVF_CAP_PHY_IMP_B,
-	HCLGEVF_CAP_TQP_TXRX_INDEP_B,
-	HCLGEVF_CAP_HW_PAD_B,
-	HCLGEVF_CAP_STASH_B,
-	HCLGEVF_CAP_UDP_TUNNEL_CSUM_B,
-	HCLGEVF_CAP_RXD_ADV_LAYOUT_B = 15,
-};
-
-enum HCLGEVF_API_CAP_BITS {
-	HCLGEVF_API_CAP_FLEX_RSS_TBL_B,
-};
-
-#define HCLGEVF_QUERY_CAP_LENGTH		3
-struct hclgevf_query_version_cmd {
-	__le32 firmware;
-	__le32 hardware;
-	__le32 api_caps;
-	__le32 caps[HCLGEVF_QUERY_CAP_LENGTH]; /* capabilities of device */
-};
-
 #define HCLGEVF_MSIX_OFT_ROCEE_S       0
 #define HCLGEVF_MSIX_OFT_ROCEE_M       (0xffff << HCLGEVF_MSIX_OFT_ROCEE_S)
 #define HCLGEVF_VEC_NUM_S              0
@@ -215,9 +187,6 @@ struct hclgevf_cfg_tx_queue_pointer_cmd {
 	u8 rsv[14];
 };
 
-#define HCLGEVF_TYPE_CRQ		0
-#define HCLGEVF_TYPE_CSQ		1
-
 /* this bit indicates that the driver is ready for hardware reset */
 #define HCLGEVF_NIC_SW_RST_RDY_B	16
 #define HCLGEVF_NIC_SW_RST_RDY		BIT(HCLGEVF_NIC_SW_RST_RDY_B)
@@ -226,6 +195,10 @@ struct hclgevf_cfg_tx_queue_pointer_cmd {
 #define HCLGEVF_NIC_CMQ_DESC_NUM_S	3
 
 #define HCLGEVF_QUERY_DEV_SPECS_BD_NUM		4
+
+#define hclgevf_cmd_setup_basic_desc(desc, opcode, is_read) \
+	hclge_comm_cmd_setup_basic_desc(desc, (enum hclge_comm_opcode_type)opcode, \
+					is_read)
 
 struct hclgevf_dev_specs_0_cmd {
 	__le32 rsv0;
@@ -247,18 +220,9 @@ struct hclgevf_dev_specs_1_cmd {
 	u8 rsv1[18];
 };
 
-/* capabilities bits map between imp firmware and local driver */
-struct hclgevf_caps_bit_map {
-	u16 imp_bit;
-	u16 local_bit;
-};
-
 int hclgevf_cmd_init(struct hclgevf_dev *hdev);
 void hclgevf_cmd_uninit(struct hclgevf_dev *hdev);
 int hclgevf_cmd_queue_init(struct hclgevf_dev *hdev);
 
 int hclgevf_cmd_send(struct hclgevf_hw *hw, struct hclge_desc *desc, int num);
-void hclgevf_cmd_setup_basic_desc(struct hclge_desc *desc,
-				  enum hclgevf_opcode_type opcode,
-				  bool is_read);
 #endif
