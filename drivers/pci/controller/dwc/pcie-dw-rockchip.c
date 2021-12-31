@@ -1830,6 +1830,9 @@ static int rk_pcie_really_probe(void *p)
 
 	device_init_wakeup(dev, true);
 
+	/* Enable async system PM for multiports SoC */
+	device_enable_async_suspend(dev);
+
 	return 0;
 
 remove_irq_domain:
