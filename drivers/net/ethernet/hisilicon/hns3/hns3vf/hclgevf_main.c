@@ -106,7 +106,7 @@ static int hclgevf_tqps_update_stats(struct hnae3_handle *handle)
 {
 	struct hnae3_knic_private_info *kinfo = &handle->kinfo;
 	struct hclgevf_dev *hdev = hclgevf_ae_get_hdev(handle);
-	struct hclgevf_desc desc;
+	struct hclge_desc desc;
 	struct hclgevf_tqp *tqp;
 	int status;
 	int i;
@@ -611,7 +611,7 @@ static int hclgevf_set_rss_algo_key(struct hclgevf_dev *hdev,
 {
 	struct hclgevf_rss_config_cmd *req;
 	unsigned int key_offset = 0;
-	struct hclgevf_desc desc;
+	struct hclge_desc desc;
 	int key_counts;
 	int key_size;
 	int ret;
@@ -655,7 +655,7 @@ static int hclgevf_set_rss_indir_table(struct hclgevf_dev *hdev)
 {
 	const u8 *indir = hdev->rss_cfg.rss_indirection_tbl;
 	struct hclgevf_rss_indirection_table_cmd *req;
-	struct hclgevf_desc desc;
+	struct hclge_desc desc;
 	int rss_cfg_tbl_num;
 	int status;
 	int i, j;
@@ -692,7 +692,7 @@ static int hclgevf_set_rss_tc_mode(struct hclgevf_dev *hdev,  u16 rss_size)
 	u16 tc_offset[HCLGEVF_MAX_TC_NUM];
 	u16 tc_valid[HCLGEVF_MAX_TC_NUM];
 	u16 tc_size[HCLGEVF_MAX_TC_NUM];
-	struct hclgevf_desc desc;
+	struct hclge_desc desc;
 	u16 roundup_size;
 	unsigned int i;
 	int status;
@@ -961,7 +961,7 @@ static int hclgevf_set_rss_tuple(struct hnae3_handle *handle,
 	struct hclgevf_dev *hdev = hclgevf_ae_get_hdev(handle);
 	struct hclgevf_rss_cfg *rss_cfg = &hdev->rss_cfg;
 	struct hclgevf_rss_input_tuple_cmd *req;
-	struct hclgevf_desc desc;
+	struct hclge_desc desc;
 	int ret;
 
 	if (hdev->ae_dev->dev_version < HNAE3_DEVICE_VERSION_V2)
@@ -1074,7 +1074,7 @@ static int hclgevf_set_rss_input_tuple(struct hclgevf_dev *hdev,
 				       struct hclgevf_rss_cfg *rss_cfg)
 {
 	struct hclgevf_rss_input_tuple_cmd *req;
-	struct hclgevf_desc desc;
+	struct hclge_desc desc;
 	int ret;
 
 	hclgevf_cmd_setup_basic_desc(&desc, HCLGEVF_OPC_RSS_INPUT_TUPLE, false);
@@ -1273,7 +1273,7 @@ static int hclgevf_tqp_enable_cmd_send(struct hclgevf_dev *hdev, u16 tqp_id,
 				       u16 stream_id, bool enable)
 {
 	struct hclgevf_cfg_com_tqp_queue_cmd *req;
-	struct hclgevf_desc desc;
+	struct hclge_desc desc;
 
 	req = (struct hclgevf_cfg_com_tqp_queue_cmd *)desc.data;
 
@@ -2572,7 +2572,7 @@ static int hclgevf_init_roce_base_info(struct hclgevf_dev *hdev)
 static int hclgevf_config_gro(struct hclgevf_dev *hdev)
 {
 	struct hclgevf_cfg_gro_status_cmd *req;
-	struct hclgevf_desc desc;
+	struct hclge_desc desc;
 	int ret;
 
 	if (!hnae3_dev_gro_supported(hdev))
@@ -3121,7 +3121,7 @@ static void hclgevf_pci_uninit(struct hclgevf_dev *hdev)
 static int hclgevf_query_vf_resource(struct hclgevf_dev *hdev)
 {
 	struct hclgevf_query_res_cmd *req;
-	struct hclgevf_desc desc;
+	struct hclge_desc desc;
 	int ret;
 
 	hclgevf_cmd_setup_basic_desc(&desc, HCLGEVF_OPC_QUERY_VF_RSRC, true);
@@ -3184,7 +3184,7 @@ static void hclgevf_set_default_dev_specs(struct hclgevf_dev *hdev)
 }
 
 static void hclgevf_parse_dev_specs(struct hclgevf_dev *hdev,
-				    struct hclgevf_desc *desc)
+				    struct hclge_desc *desc)
 {
 	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(hdev->pdev);
 	struct hclgevf_dev_specs_0_cmd *req0;
@@ -3220,7 +3220,7 @@ static void hclgevf_check_dev_specs(struct hclgevf_dev *hdev)
 
 static int hclgevf_query_dev_specs(struct hclgevf_dev *hdev)
 {
-	struct hclgevf_desc desc[HCLGEVF_QUERY_DEV_SPECS_BD_NUM];
+	struct hclge_desc desc[HCLGEVF_QUERY_DEV_SPECS_BD_NUM];
 	int ret;
 	int i;
 

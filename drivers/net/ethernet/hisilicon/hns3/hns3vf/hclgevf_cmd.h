@@ -6,6 +6,7 @@
 #include <linux/io.h>
 #include <linux/types.h>
 #include "hnae3.h"
+#include "hclge_comm_cmd.h"
 
 #define HCLGEVF_CMDQ_TX_TIMEOUT		30000
 #define HCLGEVF_CMDQ_CLEAR_WAIT_TIME	200
@@ -21,14 +22,6 @@ struct hclgevf_firmware_compat_cmd {
 	u8 rsv[20];
 };
 
-struct hclgevf_desc {
-	__le16 opcode;
-	__le16 flag;
-	__le16 retval;
-	__le16 rsv;
-	__le32 data[6];
-};
-
 struct hclgevf_desc_cb {
 	dma_addr_t dma;
 	void *va;
@@ -37,7 +30,7 @@ struct hclgevf_desc_cb {
 
 struct hclgevf_cmq_ring {
 	dma_addr_t desc_dma_addr;
-	struct hclgevf_desc *desc;
+	struct hclge_desc *desc;
 	struct hclgevf_desc_cb *desc_cb;
 	struct hclgevf_dev  *dev;
 	u32 head;
@@ -335,8 +328,8 @@ int hclgevf_cmd_init(struct hclgevf_dev *hdev);
 void hclgevf_cmd_uninit(struct hclgevf_dev *hdev);
 int hclgevf_cmd_queue_init(struct hclgevf_dev *hdev);
 
-int hclgevf_cmd_send(struct hclgevf_hw *hw, struct hclgevf_desc *desc, int num);
-void hclgevf_cmd_setup_basic_desc(struct hclgevf_desc *desc,
+int hclgevf_cmd_send(struct hclgevf_hw *hw, struct hclge_desc *desc, int num);
+void hclgevf_cmd_setup_basic_desc(struct hclge_desc *desc,
 				  enum hclgevf_opcode_type opcode,
 				  bool is_read);
 #endif

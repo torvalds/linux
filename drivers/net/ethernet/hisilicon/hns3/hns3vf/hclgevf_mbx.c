@@ -97,7 +97,7 @@ int hclgevf_send_mbx_msg(struct hclgevf_dev *hdev,
 			 u8 *resp_data, u16 resp_len)
 {
 	struct hclge_mbx_vf_to_pf_cmd *req;
-	struct hclgevf_desc desc;
+	struct hclge_desc desc;
 	int status;
 
 	req = (struct hclge_mbx_vf_to_pf_cmd *)desc.data;
@@ -213,7 +213,7 @@ void hclgevf_mbx_handler(struct hclgevf_dev *hdev)
 {
 	struct hclge_mbx_pf_to_vf_cmd *req;
 	struct hclgevf_cmq_ring *crq;
-	struct hclgevf_desc *desc;
+	struct hclge_desc *desc;
 	u16 flag;
 
 	crq = &hdev->hw.cmq.crq;
