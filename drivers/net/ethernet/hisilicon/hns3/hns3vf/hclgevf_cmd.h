@@ -8,8 +8,6 @@
 #include "hnae3.h"
 #include "hclge_comm_cmd.h"
 
-#define HCLGEVF_CMDQ_TX_TIMEOUT		30000
-#define HCLGEVF_CMDQ_CLEAR_WAIT_TIME	200
 #define HCLGEVF_CMDQ_RX_INVLD_B		0
 #define HCLGEVF_CMDQ_RX_OUTVLD_B	1
 
@@ -17,24 +15,6 @@ struct hclgevf_hw;
 struct hclgevf_dev;
 
 #define HCLGEVF_SYNC_RX_RING_HEAD_EN_B	4
-struct hclgevf_firmware_compat_cmd {
-	__le32 compat;
-	u8 rsv[20];
-};
-
-#define HCLGEVF_CMD_FLAG_IN_VALID_SHIFT		0
-#define HCLGEVF_CMD_FLAG_OUT_VALID_SHIFT	1
-#define HCLGEVF_CMD_FLAG_NEXT_SHIFT		2
-#define HCLGEVF_CMD_FLAG_WR_OR_RD_SHIFT		3
-#define HCLGEVF_CMD_FLAG_NO_INTR_SHIFT		4
-#define HCLGEVF_CMD_FLAG_ERR_INTR_SHIFT		5
-
-#define HCLGEVF_CMD_FLAG_IN		BIT(HCLGEVF_CMD_FLAG_IN_VALID_SHIFT)
-#define HCLGEVF_CMD_FLAG_OUT		BIT(HCLGEVF_CMD_FLAG_OUT_VALID_SHIFT)
-#define HCLGEVF_CMD_FLAG_NEXT		BIT(HCLGEVF_CMD_FLAG_NEXT_SHIFT)
-#define HCLGEVF_CMD_FLAG_WR		BIT(HCLGEVF_CMD_FLAG_WR_OR_RD_SHIFT)
-#define HCLGEVF_CMD_FLAG_NO_INTR	BIT(HCLGEVF_CMD_FLAG_NO_INTR_SHIFT)
-#define HCLGEVF_CMD_FLAG_ERR_INTR	BIT(HCLGEVF_CMD_FLAG_ERR_INTR_SHIFT)
 
 enum hclgevf_opcode_type {
 	/* Generic command */
@@ -220,9 +200,6 @@ struct hclgevf_dev_specs_1_cmd {
 	u8 rsv1[18];
 };
 
-int hclgevf_cmd_init(struct hclgevf_dev *hdev);
-void hclgevf_cmd_uninit(struct hclgevf_dev *hdev);
-int hclgevf_cmd_queue_init(struct hclgevf_dev *hdev);
-
 int hclgevf_cmd_send(struct hclgevf_hw *hw, struct hclge_desc *desc, int num);
+void hclgevf_arq_init(struct hclgevf_dev *hdev);
 #endif

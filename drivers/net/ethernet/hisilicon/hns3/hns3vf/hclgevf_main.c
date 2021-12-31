@@ -40,20 +40,20 @@ static const u8 hclgevf_hash_key[] = {
 
 MODULE_DEVICE_TABLE(pci, ae_algovf_pci_tbl);
 
-static const u32 cmdq_reg_addr_list[] = {HCLGEVF_NIC_CSQ_BASEADDR_L_REG,
-					 HCLGEVF_NIC_CSQ_BASEADDR_H_REG,
-					 HCLGEVF_NIC_CSQ_DEPTH_REG,
-					 HCLGEVF_NIC_CSQ_TAIL_REG,
-					 HCLGEVF_NIC_CSQ_HEAD_REG,
-					 HCLGEVF_NIC_CRQ_BASEADDR_L_REG,
-					 HCLGEVF_NIC_CRQ_BASEADDR_H_REG,
-					 HCLGEVF_NIC_CRQ_DEPTH_REG,
-					 HCLGEVF_NIC_CRQ_TAIL_REG,
-					 HCLGEVF_NIC_CRQ_HEAD_REG,
-					 HCLGEVF_VECTOR0_CMDQ_SRC_REG,
-					 HCLGEVF_VECTOR0_CMDQ_STATE_REG,
-					 HCLGEVF_CMDQ_INTR_EN_REG,
-					 HCLGEVF_CMDQ_INTR_GEN_REG};
+static const u32 cmdq_reg_addr_list[] = {HCLGE_COMM_NIC_CSQ_BASEADDR_L_REG,
+					 HCLGE_COMM_NIC_CSQ_BASEADDR_H_REG,
+					 HCLGE_COMM_NIC_CSQ_DEPTH_REG,
+					 HCLGE_COMM_NIC_CSQ_TAIL_REG,
+					 HCLGE_COMM_NIC_CSQ_HEAD_REG,
+					 HCLGE_COMM_NIC_CRQ_BASEADDR_L_REG,
+					 HCLGE_COMM_NIC_CRQ_BASEADDR_H_REG,
+					 HCLGE_COMM_NIC_CRQ_DEPTH_REG,
+					 HCLGE_COMM_NIC_CRQ_TAIL_REG,
+					 HCLGE_COMM_NIC_CRQ_HEAD_REG,
+					 HCLGE_COMM_VECTOR0_CMDQ_SRC_REG,
+					 HCLGE_COMM_VECTOR0_CMDQ_STATE_REG,
+					 HCLGE_COMM_CMDQ_INTR_EN_REG,
+					 HCLGE_COMM_CMDQ_INTR_GEN_REG};
 
 static const u32 common_reg_addr_list[] = {HCLGEVF_MISC_VECTOR_REG_BASE,
 					   HCLGEVF_RST_ING,
@@ -1894,13 +1894,13 @@ static void hclgevf_reset_handshake(struct hclgevf_dev *hdev, bool enable)
 {
 	u32 reg_val;
 
-	reg_val = hclgevf_read_dev(&hdev->hw, HCLGEVF_NIC_CSQ_DEPTH_REG);
+	reg_val = hclgevf_read_dev(&hdev->hw, HCLGE_COMM_NIC_CSQ_DEPTH_REG);
 	if (enable)
 		reg_val |= HCLGEVF_NIC_SW_RST_RDY;
 	else
 		reg_val &= ~HCLGEVF_NIC_SW_RST_RDY;
 
-	hclgevf_write_dev(&hdev->hw, HCLGEVF_NIC_CSQ_DEPTH_REG,
+	hclgevf_write_dev(&hdev->hw, HCLGE_COMM_NIC_CSQ_DEPTH_REG,
 			  reg_val);
 }
 
@@ -1980,9 +1980,9 @@ static void hclgevf_dump_rst_info(struct hclgevf_dev *hdev)
 	dev_info(&hdev->pdev->dev, "vector0 interrupt enable status: 0x%x\n",
 		 hclgevf_read_dev(&hdev->hw, HCLGEVF_MISC_VECTOR_REG_BASE));
 	dev_info(&hdev->pdev->dev, "vector0 interrupt status: 0x%x\n",
-		 hclgevf_read_dev(&hdev->hw, HCLGEVF_VECTOR0_CMDQ_STATE_REG));
+		 hclgevf_read_dev(&hdev->hw, HCLGE_COMM_VECTOR0_CMDQ_STATE_REG));
 	dev_info(&hdev->pdev->dev, "handshake status: 0x%x\n",
-		 hclgevf_read_dev(&hdev->hw, HCLGEVF_NIC_CSQ_DEPTH_REG));
+		 hclgevf_read_dev(&hdev->hw, HCLGE_COMM_NIC_CSQ_DEPTH_REG));
 	dev_info(&hdev->pdev->dev, "function reset status: 0x%x\n",
 		 hclgevf_read_dev(&hdev->hw, HCLGEVF_RST_ING));
 	dev_info(&hdev->pdev->dev, "hdev state: 0x%lx\n", hdev->state);
@@ -2418,7 +2418,7 @@ static void hclgevf_service_task(struct work_struct *work)
 
 static void hclgevf_clear_event_cause(struct hclgevf_dev *hdev, u32 regclr)
 {
-	hclgevf_write_dev(&hdev->hw, HCLGEVF_VECTOR0_CMDQ_SRC_REG, regclr);
+	hclgevf_write_dev(&hdev->hw, HCLGE_COMM_VECTOR0_CMDQ_SRC_REG, regclr);
 }
 
 static enum hclgevf_evt_cause hclgevf_check_evt_cause(struct hclgevf_dev *hdev,
@@ -2428,7 +2428,7 @@ static enum hclgevf_evt_cause hclgevf_check_evt_cause(struct hclgevf_dev *hdev,
 
 	/* fetch the events from their corresponding regs */
 	cmdq_stat_reg = hclgevf_read_dev(&hdev->hw,
-					 HCLGEVF_VECTOR0_CMDQ_STATE_REG);
+					 HCLGE_COMM_VECTOR0_CMDQ_STATE_REG);
 	if (BIT(HCLGEVF_VECTOR0_RST_INT_B) & cmdq_stat_reg) {
 		rst_ing_reg = hclgevf_read_dev(&hdev->hw, HCLGEVF_RST_ING);
 		dev_info(&hdev->pdev->dev,
@@ -3234,7 +3234,7 @@ static int hclgevf_query_dev_specs(struct hclgevf_dev *hdev)
 	for (i = 0; i < HCLGEVF_QUERY_DEV_SPECS_BD_NUM - 1; i++) {
 		hclgevf_cmd_setup_basic_desc(&desc[i],
 					     HCLGEVF_OPC_QUERY_DEV_SPECS, true);
-		desc[i].flag |= cpu_to_le16(HCLGEVF_CMD_FLAG_NEXT);
+		desc[i].flag |= cpu_to_le16(HCLGE_COMM_CMD_FLAG_NEXT);
 	}
 	hclgevf_cmd_setup_basic_desc(&desc[i], HCLGEVF_OPC_QUERY_DEV_SPECS,
 				     true);
@@ -3316,7 +3316,10 @@ static int hclgevf_reset_hdev(struct hclgevf_dev *hdev)
 		return ret;
 	}
 
-	ret = hclgevf_cmd_init(hdev);
+	hclgevf_arq_init(hdev);
+	ret = hclge_comm_cmd_init(hdev->ae_dev, &hdev->hw.hw,
+				  &hdev->fw_version, false,
+				  hdev->reset_pending);
 	if (ret) {
 		dev_err(&pdev->dev, "cmd failed %d\n", ret);
 		return ret;
@@ -3362,11 +3365,14 @@ static int hclgevf_init_hdev(struct hclgevf_dev *hdev)
 	if (ret)
 		goto err_devlink_init;
 
-	ret = hclgevf_cmd_queue_init(hdev);
+	ret = hclge_comm_cmd_queue_init(hdev->pdev, &hdev->hw.hw);
 	if (ret)
 		goto err_cmd_queue_init;
 
-	ret = hclgevf_cmd_init(hdev);
+	hclgevf_arq_init(hdev);
+	ret = hclge_comm_cmd_init(hdev->ae_dev, &hdev->hw.hw,
+				  &hdev->fw_version, false,
+				  hdev->reset_pending);
 	if (ret)
 		goto err_cmd_init;
 
@@ -3466,7 +3472,7 @@ err_misc_irq_init:
 	hclgevf_state_uninit(hdev);
 	hclgevf_uninit_msi(hdev);
 err_cmd_init:
-	hclgevf_cmd_uninit(hdev);
+	hclge_comm_cmd_uninit(hdev->ae_dev, false, &hdev->hw.hw);
 err_cmd_queue_init:
 	hclgevf_devlink_uninit(hdev);
 err_devlink_init:
@@ -3490,7 +3496,7 @@ static void hclgevf_uninit_hdev(struct hclgevf_dev *hdev)
 		hclgevf_uninit_msi(hdev);
 	}
 
-	hclgevf_cmd_uninit(hdev);
+	hclge_comm_cmd_uninit(hdev->ae_dev, false, &hdev->hw.hw);
 	hclgevf_devlink_uninit(hdev);
 	hclgevf_pci_uninit(hdev);
 	hclgevf_uninit_mac_list(hdev);

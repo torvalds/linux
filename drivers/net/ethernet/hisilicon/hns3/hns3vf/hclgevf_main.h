@@ -32,21 +32,6 @@
 #define HCLGEVF_VECTOR_REG_OFFSET	0x4
 #define HCLGEVF_VECTOR_VF_OFFSET		0x100000
 
-/* bar registers for cmdq */
-#define HCLGEVF_NIC_CSQ_BASEADDR_L_REG		0x27000
-#define HCLGEVF_NIC_CSQ_BASEADDR_H_REG		0x27004
-#define HCLGEVF_NIC_CSQ_DEPTH_REG		0x27008
-#define HCLGEVF_NIC_CSQ_TAIL_REG		0x27010
-#define HCLGEVF_NIC_CSQ_HEAD_REG		0x27014
-#define HCLGEVF_NIC_CRQ_BASEADDR_L_REG		0x27018
-#define HCLGEVF_NIC_CRQ_BASEADDR_H_REG		0x2701C
-#define HCLGEVF_NIC_CRQ_DEPTH_REG		0x27020
-#define HCLGEVF_NIC_CRQ_TAIL_REG		0x27024
-#define HCLGEVF_NIC_CRQ_HEAD_REG		0x27028
-
-#define HCLGEVF_CMDQ_INTR_EN_REG		0x27108
-#define HCLGEVF_CMDQ_INTR_GEN_REG		0x2710C
-
 /* bar registers for common func */
 #define HCLGEVF_GRO_EN_REG			0x28000
 #define HCLGEVF_RXD_ADV_LAYOUT_EN_REG		0x28008
@@ -86,10 +71,6 @@
 #define HCLGEVF_TQP_INTR_GL2_REG		0x20300
 #define HCLGEVF_TQP_INTR_RL_REG			0x20900
 
-/* Vector0 interrupt CMDQ event source register(RW) */
-#define HCLGEVF_VECTOR0_CMDQ_SRC_REG	0x27100
-/* Vector0 interrupt CMDQ event status register(RO) */
-#define HCLGEVF_VECTOR0_CMDQ_STATE_REG	0x27104
 /* CMDQ register bits for RX event(=MBX event) */
 #define HCLGEVF_VECTOR0_RX_CMDQ_INT_B	1
 /* RST register bits for RESET event */

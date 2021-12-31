@@ -152,7 +152,7 @@ int hclgevf_send_mbx_msg(struct hclgevf_dev *hdev,
 
 static bool hclgevf_cmd_crq_empty(struct hclgevf_hw *hw)
 {
-	u32 tail = hclgevf_read_dev(hw, HCLGEVF_NIC_CRQ_TAIL_REG);
+	u32 tail = hclgevf_read_dev(hw, HCLGE_COMM_NIC_CRQ_TAIL_REG);
 
 	return tail == hw->hw.cmq.crq.next_to_use;
 }
@@ -271,7 +271,7 @@ void hclgevf_mbx_handler(struct hclgevf_dev *hdev)
 	}
 
 	/* Write back CMDQ_RQ header pointer, M7 need this pointer */
-	hclgevf_write_dev(&hdev->hw, HCLGEVF_NIC_CRQ_HEAD_REG,
+	hclgevf_write_dev(&hdev->hw, HCLGE_COMM_NIC_CRQ_HEAD_REG,
 			  crq->next_to_use);
 }
 
