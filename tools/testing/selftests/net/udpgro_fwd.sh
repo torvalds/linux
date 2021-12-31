@@ -193,7 +193,8 @@ for family in 4 6; do
 		SUFFIX="64 nodad"
 		VXDEV=vxlan6
 		IPT=ip6tables
-		PING="ping6"
+		# Use ping6 on systems where ping doesn't handle IPv6
+		ping -w 1 -c 1 ::1 > /dev/null 2>&1 || PING="ping6"
 	fi
 
 	echo "IPv$family"
