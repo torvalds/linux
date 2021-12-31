@@ -185,6 +185,7 @@ static ssize_t dbgfs_target_ids_write(struct file *file,
 		const char __user *buf, size_t count, loff_t *ppos)
 {
 	struct damon_ctx *ctx = file->private_data;
+	struct damon_target *t, *next_t;
 	char *kbuf, *nrs;
 	unsigned long *targets;
 	ssize_t nr_targets;
@@ -222,6 +223,13 @@ static ssize_t dbgfs_target_ids_write(struct file *file,
 			dbgfs_put_pids(targets, nr_targets);
 		ret = -EBUSY;
 		goto unlock_out;
+	}
+
+	/* remove previously set targets */
+	damon_for_each_target_safe(t, next_t, ctx) {
+		if (targetid_is_pid(ctx))
+			put_pid((struct pid *)t->id);
+		damon_destroy_target(t);
 	}
 
 	err = damon_set_targets(ctx, targets, nr_targets);
