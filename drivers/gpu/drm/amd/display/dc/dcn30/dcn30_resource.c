@@ -840,7 +840,7 @@ static const struct dc_debug_options debug_defaults_drv = {
 	.timing_trace = false,
 	.clock_trace = true,
 	.disable_pplib_clock_request = true,
-	.pipe_split_policy = MPC_SPLIT_AVOID_MULT_DISP,
+	.pipe_split_policy = MPC_SPLIT_DYNAMIC,
 	.force_single_disp_pipe_split = false,
 	.disable_dcc = DCC_ENABLE,
 	.vsr_support = true,
@@ -1760,17 +1760,6 @@ static bool dcn30_split_stream_for_mpc_or_odm(
 {
 	int pipe_idx = sec_pipe->pipe_idx;
 	const struct resource_pool *pool = dc->res_pool;
-
-	if (pri_pipe->plane_state) {
-		/* ODM + window MPO, where MPO window is on left half only */
-		if (pri_pipe->plane_state->clip_rect.x + pri_pipe->plane_state->clip_rect.width <=
-				pri_pipe->stream->src.x + pri_pipe->stream->src.width/2)
-			return true;
-
-		/* ODM + window MPO, where MPO window is on right half only */
-		if (pri_pipe->plane_state->clip_rect.x >= pri_pipe->stream->src.width/2)
-			return true;
-	}
 
 	*sec_pipe = *pri_pipe;
 

@@ -856,6 +856,8 @@ struct kfd_process {
 	struct svm_range_list svms;
 
 	bool xnack_enabled;
+
+	atomic_t poison;
 };
 
 #define KFD_PROCESS_TABLE_SIZE 5 /* bits: 32 entries */

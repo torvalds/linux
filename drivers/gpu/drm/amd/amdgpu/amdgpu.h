@@ -812,6 +812,7 @@ struct amd_powerplay {
 
 #define AMDGPU_RESET_MAGIC_NUM 64
 #define AMDGPU_MAX_DF_PERFMONS 4
+#define AMDGPU_PRODUCT_NAME_LEN 64
 struct amdgpu_device {
 	struct device			*dev;
 	struct pci_dev			*pdev;
@@ -1082,7 +1083,7 @@ struct amdgpu_device {
 
 	/* Chip product information */
 	char				product_number[16];
-	char				product_name[32];
+	char				product_name[AMDGPU_PRODUCT_NAME_LEN];
 	char				serial[20];
 
 	atomic_t			throttling_logging_enabled;

@@ -1274,7 +1274,7 @@ static void dcn20_adjust_adaptive_sync_v_startup(
 static bool is_dp_128b_132b_signal(struct pipe_ctx *pipe_ctx)
 {
 	return (pipe_ctx->stream_res.hpo_dp_stream_enc &&
-			pipe_ctx->stream->link->hpo_dp_link_enc &&
+			pipe_ctx->link_res.hpo_dp_link_enc &&
 			dc_is_dp_signal(pipe_ctx->stream->signal));
 }
 

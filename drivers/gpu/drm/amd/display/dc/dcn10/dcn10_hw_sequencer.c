@@ -468,8 +468,6 @@ void dcn10_log_hw_state(struct dc *dc,
 	log_mpc_crc(dc, log_ctx);
 
 	{
-		int hpo_dp_link_enc_count = 0;
-
 		if (pool->hpo_dp_stream_enc_count > 0) {
 			DTN_INFO("DP HPO S_ENC:  Enabled  OTG   Format   Depth   Vid   SDP   Compressed  Link\n");
 			for (i = 0; i < pool->hpo_dp_stream_enc_count; i++) {
@@ -500,18 +498,14 @@ void dcn10_log_hw_state(struct dc *dc,
 		}
 
 		/* log DP HPO L_ENC section if any hpo_dp_link_enc exists */
-		for (i = 0; i < dc->link_count; i++)
-			if (dc->links[i]->hpo_dp_link_enc)
-				hpo_dp_link_enc_count++;
-
-		if (hpo_dp_link_enc_count) {
+		if (pool->hpo_dp_link_enc_count) {
 			DTN_INFO("DP HPO L_ENC:  Enabled  Mode   Lanes   Stream  Slots   VC Rate X    VC Rate Y\n");
 
-			for (i = 0; i < dc->link_count; i++) {
-				struct hpo_dp_link_encoder *hpo_dp_link_enc = dc->links[i]->hpo_dp_link_enc;
+			for (i = 0; i < pool->hpo_dp_link_enc_count; i++) {
+				struct hpo_dp_link_encoder *hpo_dp_link_enc = pool->hpo_dp_link_enc[i];
 				struct hpo_dp_link_enc_state hpo_dp_le_state = {0};
 
-				if (hpo_dp_link_enc && hpo_dp_link_enc->funcs->read_state) {
+				if (hpo_dp_link_enc->funcs->read_state) {
 					hpo_dp_link_enc->funcs->read_state(hpo_dp_link_enc, &hpo_dp_le_state);
 					DTN_INFO("[%d]:                 %d  %6s     %d        %d      %d     %d     %d\n",
 							hpo_dp_link_enc->inst,
