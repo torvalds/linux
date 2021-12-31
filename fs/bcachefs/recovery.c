@@ -185,6 +185,19 @@ int bch2_journal_key_delete(struct bch_fs *c, enum btree_id id,
 	return bch2_journal_key_insert(c, id, level, &whiteout);
 }
 
+void bch2_journal_key_overwritten(struct bch_fs *c, enum btree_id btree,
+				  unsigned level, struct bpos pos)
+{
+	struct journal_keys *keys = &c->journal_keys;
+	size_t idx = journal_key_search(keys, btree, level, pos);
+
+	if (idx < keys->nr &&
+	    keys->d[idx].btree_id	== btree &&
+	    keys->d[idx].level		== level &&
+	    !bpos_cmp(keys->d[idx].k->k.p, pos))
+		keys->d[idx].overwritten = true;
+}
+
 static struct bkey_i *bch2_journal_iter_peek(struct journal_iter *iter)
 {
 	struct journal_key *k = iter->idx - iter->keys->nr
@@ -539,8 +552,16 @@ static int __bch2_journal_replay_key(struct btree_trans *trans,
 	bch2_trans_node_iter_init(trans, &iter, k->btree_id, k->k->k.p,
 				  BTREE_MAX_DEPTH, k->level,
 				  iter_flags);
-	ret   = bch2_btree_iter_traverse(&iter) ?:
-		bch2_trans_update(trans, &iter, k->k, BTREE_TRIGGER_NORUN);
+	ret = bch2_btree_iter_traverse(&iter);
+	if (ret)
+		goto out;
+
+	/* Must be checked with btree locked: */
+	if (k->overwritten)
+		goto out;
+
+	ret = bch2_trans_update(trans, &iter, k->k, BTREE_TRIGGER_NORUN);
+out:
 	bch2_trans_iter_exit(trans, &iter);
 	return ret;
 }

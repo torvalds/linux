@@ -15,6 +15,7 @@
 #include "journal.h"
 #include "journal_reclaim.h"
 #include "keylist.h"
+#include "recovery.h"
 #include "subvolume.h"
 #include "replicas.h"
 #include "trace.h"
@@ -625,6 +626,14 @@ fail:
 	return btree_trans_restart(trans);
 }
 
+static noinline void bch2_drop_overwrites_from_journal(struct btree_trans *trans)
+{
+	struct btree_insert_entry *i;
+
+	trans_for_each_update(trans, i)
+		bch2_journal_key_overwritten(trans->c, i->btree_id, i->level, i->k->k.p);
+}
+
 /*
  * Get journal reservation, take write locks, and attempt to do btree update(s):
  */
@@ -701,6 +710,9 @@ static inline int do_bch2_trans_commit(struct btree_trans *trans,
 		return ret;
 
 	ret = bch2_trans_commit_write_locked(trans, stopped_at, trace_ip);
+
+	if (!ret && unlikely(!test_bit(JOURNAL_REPLAY_DONE, &c->journal.flags)))
+		bch2_drop_overwrites_from_journal(trans);
 
 	trans_for_each_update(trans, i)
 		if (!same_leaf_as_prev(trans, i))
