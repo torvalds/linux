@@ -3945,12 +3945,9 @@ static void update_psp_stream_config(struct pipe_ctx *pipe_ctx, bool dpms_off)
 		config.dig_be = pipe_ctx->stream->link->link_enc_hw_inst;
 #if defined(CONFIG_DRM_AMD_DC_DCN)
 		config.stream_enc_idx = pipe_ctx->stream_res.stream_enc->id - ENGINE_ID_DIGA;
-		
+
 		if (pipe_ctx->stream->link->ep_type == DISPLAY_ENDPOINT_PHY ||
 				pipe_ctx->stream->link->ep_type == DISPLAY_ENDPOINT_USB4_DPIA) {
-			link_enc = pipe_ctx->stream->link->link_enc;
-			config.dio_output_type = pipe_ctx->stream->link->ep_type;
-			config.dio_output_idx = link_enc->transmitter - TRANSMITTER_UNIPHY_A;
 			if (pipe_ctx->stream->link->ep_type == DISPLAY_ENDPOINT_PHY)
 				link_enc = pipe_ctx->stream->link->link_enc;
 			else if (pipe_ctx->stream->link->ep_type == DISPLAY_ENDPOINT_USB4_DPIA)
