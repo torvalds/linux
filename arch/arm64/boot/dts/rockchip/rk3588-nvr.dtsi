@@ -62,6 +62,10 @@
 	};
 };
 
+&CPU_SLEEP {
+	status = "disabled";
+};
+
 &cluster0_opp_table {
 	/delete-node/ opp-408000000;
 	/delete-node/ opp-600000000;
