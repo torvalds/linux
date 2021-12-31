@@ -4,7 +4,10 @@
  * Copyright (C) 2018 Marek Vasut <marex@denx.de>
  */
 
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/input/input.h>
 #include <dt-bindings/leds/common.h>
+#include <dt-bindings/pwm/pwm.h>
 
 / {
 	chosen {
