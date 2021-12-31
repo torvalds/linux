@@ -567,9 +567,10 @@ static int bch2_journal_replay(struct bch_fs *c,
 			       struct journal_keys keys)
 {
 	struct journal *j = &c->journal;
+	struct bch_dev *ca;
 	struct journal_key *i;
 	u64 seq;
-	int ret;
+	int ret, idx;
 
 	sort(keys.d, keys.nr, sizeof(keys.d[0]), journal_sort_seq_cmp, NULL);
 
@@ -592,6 +593,11 @@ static int bch2_journal_replay(struct bch_fs *c,
 				goto err;
 		}
 	}
+
+	/* Now we can start the allocator threads: */
+	set_bit(BCH_FS_ALLOC_REPLAY_DONE, &c->flags);
+	for_each_member_device(ca, c, idx)
+		bch2_wake_allocator(ca);
 
 	/*
 	 * Next replay updates to interior btree nodes:
@@ -1391,6 +1397,7 @@ int bch2_fs_initialize(struct bch_fs *c)
 	for (i = 0; i < BTREE_ID_NR; i++)
 		bch2_btree_root_alloc(c, i);
 
+	set_bit(BCH_FS_ALLOC_REPLAY_DONE, &c->flags);
 	set_bit(BCH_FS_BTREE_INTERIOR_REPLAY_DONE, &c->flags);
 	set_bit(JOURNAL_RECLAIM_STARTED, &c->journal.flags);
 

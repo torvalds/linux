@@ -900,7 +900,8 @@ static void discard_one_bucket(struct bch_fs *c, struct bch_dev *ca, u64 b)
 static bool allocator_thread_running(struct bch_dev *ca)
 {
 	unsigned state = ca->mi.state == BCH_MEMBER_STATE_rw &&
-		test_bit(BCH_FS_ALLOCATOR_RUNNING, &ca->fs->flags)
+		test_bit(BCH_FS_ALLOCATOR_RUNNING, &ca->fs->flags) &&
+		test_bit(BCH_FS_ALLOC_REPLAY_DONE, &ca->fs->flags)
 		? ALLOCATOR_running
 		: ALLOCATOR_stopped;
 	alloc_thread_set_state(ca, state);
