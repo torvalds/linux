@@ -331,12 +331,14 @@ static void mpp_session_attach_workqueue(struct mpp_session *session,
 static void mpp_session_detach_workqueue(struct mpp_session *session)
 {
 	struct mpp_taskqueue *queue;
+	struct mpp_dev *mpp;
 
 	if (!session->mpp || !session->mpp->queue)
 		return;
 
 	mpp_dbg_session("session %p:%d detach\n", session, session->index);
-	queue = session->mpp->queue;
+	mpp = session->mpp;
+	queue = mpp->queue;
 
 	mutex_lock(&queue->session_lock);
 	list_del_init(&session->session_link);
@@ -344,7 +346,7 @@ static void mpp_session_detach_workqueue(struct mpp_session *session)
 	queue->detach_count++;
 	mutex_unlock(&queue->session_lock);
 
-	mpp_taskqueue_trigger_work(session->mpp);
+	mpp_taskqueue_trigger_work(mpp);
 }
 
 static int
