@@ -27,6 +27,9 @@
 #define HCLGE_COMM_TYPE_CRQ			0
 #define HCLGE_COMM_TYPE_CSQ			1
 
+#define HCLGE_COMM_CMDQ_CLEAR_WAIT_TIME		200
+
+/* bar registers for cmdq */
 #define HCLGE_COMM_NIC_CSQ_BASEADDR_L_REG	0x27000
 #define HCLGE_COMM_NIC_CSQ_BASEADDR_H_REG	0x27004
 #define HCLGE_COMM_NIC_CSQ_DEPTH_REG		0x27008
@@ -37,11 +40,20 @@
 #define HCLGE_COMM_NIC_CRQ_DEPTH_REG		0x27020
 #define HCLGE_COMM_NIC_CRQ_TAIL_REG		0x27024
 #define HCLGE_COMM_NIC_CRQ_HEAD_REG		0x27028
+/* Vector0 interrupt CMDQ event source register(RW) */
+#define HCLGE_COMM_VECTOR0_CMDQ_SRC_REG		0x27100
+/* Vector0 interrupt CMDQ event status register(RO) */
+#define HCLGE_COMM_VECTOR0_CMDQ_STATE_REG	0x27104
+#define HCLGE_COMM_CMDQ_INTR_EN_REG		0x27108
+#define HCLGE_COMM_CMDQ_INTR_GEN_REG		0x2710C
+#define HCLGE_COMM_CMDQ_INTR_STS_REG		0x27104
 
 /* this bit indicates that the driver is ready for hardware reset */
 #define HCLGE_COMM_NIC_SW_RST_RDY_B		16
 #define HCLGE_COMM_NIC_SW_RST_RDY		BIT(HCLGE_COMM_NIC_SW_RST_RDY_B)
 #define HCLGE_COMM_NIC_CMQ_DESC_NUM_S		3
+#define HCLGE_COMM_NIC_CMQ_DESC_NUM		1024
+#define HCLGE_COMM_CMDQ_TX_TIMEOUT		30000
 
 enum hclge_comm_cmd_return_status {
 	HCLGE_COMM_CMD_EXEC_SUCCESS	= 0,
@@ -205,4 +217,11 @@ void hclge_comm_free_cmd_desc(struct hclge_comm_cmq_ring *ring);
 void hclge_comm_cmd_setup_basic_desc(struct hclge_desc *desc,
 				     enum hclge_comm_opcode_type opcode,
 				     bool is_read);
+void hclge_comm_cmd_uninit(struct hnae3_ae_dev *ae_dev, bool is_pf,
+			   struct hclge_comm_hw *hw);
+int hclge_comm_cmd_queue_init(struct pci_dev *pdev, struct hclge_comm_hw *hw);
+int hclge_comm_cmd_init(struct hnae3_ae_dev *ae_dev, struct hclge_comm_hw *hw,
+			u32 *fw_version, bool is_pf,
+			unsigned long reset_pending);
+
 #endif
