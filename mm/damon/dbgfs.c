@@ -353,6 +353,7 @@ static ssize_t dbgfs_target_ids_write(struct file *file,
 		const char __user *buf, size_t count, loff_t *ppos)
 {
 	struct damon_ctx *ctx = file->private_data;
+	struct damon_target *t, *next_t;
 	bool id_is_pid = true;
 	char *kbuf, *nrs;
 	unsigned long *targets;
@@ -397,8 +398,12 @@ static ssize_t dbgfs_target_ids_write(struct file *file,
 		goto unlock_out;
 	}
 
-	/* remove targets with previously-set primitive */
-	damon_set_targets(ctx, NULL, 0);
+	/* remove previously set targets */
+	damon_for_each_target_safe(t, next_t, ctx) {
+		if (targetid_is_pid(ctx))
+			put_pid((struct pid *)t->id);
+		damon_destroy_target(t);
+	}
 
 	/* Configure the context for the address space type */
 	if (id_is_pid)
