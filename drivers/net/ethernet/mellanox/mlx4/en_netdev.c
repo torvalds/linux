@@ -33,6 +33,7 @@
 
 #include <linux/bpf.h>
 #include <linux/etherdevice.h>
+#include <linux/filter.h>
 #include <linux/tcp.h>
 #include <linux/if_vlan.h>
 #include <linux/delay.h>

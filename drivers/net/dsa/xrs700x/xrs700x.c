@@ -5,6 +5,7 @@
  */
 
 #include <net/dsa.h>
+#include <linux/etherdevice.h>
 #include <linux/if_bridge.h>
 #include <linux/of_device.h>
 #include <linux/netdev_features.h>

@@ -60,7 +60,7 @@ u32 mana_run_xdp(struct net_device *ndev, struct mana_rxq *rxq,
 		break;
 
 	default:
-		bpf_warn_invalid_xdp_action(act);
+		bpf_warn_invalid_xdp_action(ndev, prog, act);
 	}
 
 out:

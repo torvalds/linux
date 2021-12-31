@@ -11,6 +11,7 @@
 #include <linux/net.h>
 #include <linux/igmp.h>
 #include <linux/workqueue.h>
+#include <net/sch_generic.h>
 #include <net/net_namespace.h>
 #include <net/ip.h>
 #include <net/udp.h>

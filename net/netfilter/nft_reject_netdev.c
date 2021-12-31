@@ -4,6 +4,7 @@
  * Copyright (c) 2020 Jose M. Guisado <guigom@riseup.net>
  */
 
+#include <linux/etherdevice.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/module.h>

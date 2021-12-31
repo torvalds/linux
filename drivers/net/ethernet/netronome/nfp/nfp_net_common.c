@@ -1944,7 +1944,7 @@ static int nfp_net_rx(struct nfp_net_rx_ring *rx_ring, int budget)
 							    xdp_prog, act);
 				continue;
 			default:
-				bpf_warn_invalid_xdp_action(act);
+				bpf_warn_invalid_xdp_action(dp->netdev, xdp_prog, act);
 				fallthrough;
 			case XDP_ABORTED:
 				trace_xdp_exception(dp->netdev, xdp_prog, act);

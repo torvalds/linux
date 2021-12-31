@@ -642,12 +642,32 @@ probe_helpers_for_progtype(enum bpf_prog_type prog_type, bool supported_type,
 		printf("\n");
 }
 
-static void
-probe_large_insn_limit(const char *define_prefix, __u32 ifindex)
+/*
+ * Probe for availability of kernel commit (5.3):
+ *
+ * c04c0d2b968a ("bpf: increase complexity limit and maximum program size")
+ */
+static void probe_large_insn_limit(const char *define_prefix, __u32 ifindex)
 {
+	LIBBPF_OPTS(bpf_prog_load_opts, opts,
+		.prog_ifindex = ifindex,
+	);
+	struct bpf_insn insns[BPF_MAXINSNS + 1];
 	bool res;
+	int i, fd;
 
-	res = bpf_probe_large_insn_limit(ifindex);
+	for (i = 0; i < BPF_MAXINSNS; i++)
+		insns[i] = BPF_MOV64_IMM(BPF_REG_0, 1);
+	insns[BPF_MAXINSNS] = BPF_EXIT_INSN();
+
+	errno = 0;
+	fd = bpf_prog_load(BPF_PROG_TYPE_SCHED_CLS, NULL, "GPL",
+			   insns, ARRAY_SIZE(insns), &opts);
+	res = fd >= 0 || (errno != E2BIG && errno != EINVAL);
+
+	if (fd >= 0)
+		close(fd);
+
 	print_bool_feature("have_large_insn_limit",
 			   "Large program size limit",
 			   "LARGE_INSN_LIMIT",

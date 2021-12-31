@@ -313,12 +313,18 @@ LIBBPF_API struct btf_dump *btf_dump__new_deprecated(const struct btf *btf,
  *
  * The rest works just like in case of ___libbpf_override() usage with symbol
  * versioning.
+ *
+ * C++ compilers don't support __builtin_types_compatible_p(), so at least
+ * don't screw up compilation for them and let C++ users pick btf_dump__new
+ * vs btf_dump__new_deprecated explicitly.
  */
+#ifndef __cplusplus
 #define btf_dump__new(a1, a2, a3, a4) __builtin_choose_expr(				\
 	__builtin_types_compatible_p(typeof(a4), btf_dump_printf_fn_t) ||		\
 	__builtin_types_compatible_p(typeof(a4), void(void *, const char *, va_list)),	\
 	btf_dump__new_deprecated((void *)a1, (void *)a2, (void *)a3, (void *)a4),	\
 	btf_dump__new((void *)a1, (void *)a2, (void *)a3, (void *)a4))
+#endif
 
 LIBBPF_API void btf_dump__free(struct btf_dump *d);
 

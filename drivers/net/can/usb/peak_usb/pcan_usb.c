@@ -8,6 +8,7 @@
  *
  * Many thanks to Klaus Hitschler <klaus.hitschler@gmx.de>
  */
+#include <asm/unaligned.h>
 #include <linux/netdevice.h>
 #include <linux/usb.h>
 #include <linux/module.h>

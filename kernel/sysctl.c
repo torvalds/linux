@@ -33,6 +33,7 @@
 #include <linux/security.h>
 #include <linux/ctype.h>
 #include <linux/kmemleak.h>
+#include <linux/filter.h>
 #include <linux/fs.h>
 #include <linux/init.h>
 #include <linux/kernel.h>

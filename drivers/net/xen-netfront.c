@@ -948,7 +948,7 @@ static u32 xennet_run_xdp(struct netfront_queue *queue, struct page *pdata,
 		break;
 
 	default:
-		bpf_warn_invalid_xdp_action(act);
+		bpf_warn_invalid_xdp_action(queue->info->netdev, prog, act);
 	}
 
 	return act;

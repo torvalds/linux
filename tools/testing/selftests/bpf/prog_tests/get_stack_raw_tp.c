@@ -89,7 +89,7 @@ void test_get_stack_raw_tp(void)
 {
 	const char *file = "./test_get_stack_rawtp.o";
 	const char *file_err = "./test_get_stack_rawtp_err.o";
-	const char *prog_name = "raw_tracepoint/sys_enter";
+	const char *prog_name = "bpf_prog1";
 	int i, err, prog_fd, exp_cnt = MAX_CNT_RAWTP;
 	struct perf_buffer *pb = NULL;
 	struct bpf_link *link = NULL;
@@ -107,7 +107,7 @@ void test_get_stack_raw_tp(void)
 	if (CHECK(err, "prog_load raw tp", "err %d errno %d\n", err, errno))
 		return;
 
-	prog = bpf_object__find_program_by_title(obj, prog_name);
+	prog = bpf_object__find_program_by_name(obj, prog_name);
 	if (CHECK(!prog, "find_probe", "prog '%s' not found\n", prog_name))
 		goto close_prog;
 

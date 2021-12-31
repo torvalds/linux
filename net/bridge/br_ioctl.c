@@ -8,6 +8,7 @@
  */
 
 #include <linux/capability.h>
+#include <linux/compat.h>
 #include <linux/kernel.h>
 #include <linux/if_bridge.h>
 #include <linux/netdevice.h>

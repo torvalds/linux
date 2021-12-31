@@ -23,7 +23,6 @@
 #include <bpf/libbpf.h>
 
 #include "bpf_util.h"
-#include "bpf_rlimit.h"
 #include "test_maps.h"
 #include "testing_helpers.h"
 
