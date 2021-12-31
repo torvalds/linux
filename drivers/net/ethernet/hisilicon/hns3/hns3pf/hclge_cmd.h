@@ -9,9 +9,6 @@
 #include "hnae3.h"
 #include "hclge_comm_cmd.h"
 
-#define HCLGE_CMDQ_TX_TIMEOUT		30000
-#define HCLGE_CMDQ_CLEAR_WAIT_TIME	200
-
 struct hclge_dev;
 
 #define HCLGE_CMDQ_RX_INVLD_B		0
@@ -928,9 +925,6 @@ struct hclge_common_lb_cmd {
 #define HCLGE_DEFAULT_NON_DCB_DV	0x7800	/* 30K byte */
 #define HCLGE_NON_DCB_ADDITIONAL_BUF	0x1400	/* 5120 byte */
 
-#define HCLGE_NIC_CMQ_DESC_NUM		1024
-#define HCLGE_NIC_CMQ_DESC_NUM_S	3
-
 #define HCLGE_LED_LOCATE_STATE_S	0
 #define HCLGE_LED_LOCATE_STATE_M	GENMASK(1, 0)
 
@@ -1135,15 +1129,10 @@ struct hclge_phy_reg_cmd {
 	u8 rsv1[18];
 };
 
-int hclge_cmd_init(struct hclge_dev *hdev);
-
 struct hclge_hw;
 int hclge_cmd_send(struct hclge_hw *hw, struct hclge_desc *desc, int num);
 enum hclge_comm_cmd_status hclge_cmd_mdio_write(struct hclge_hw *hw,
 						struct hclge_desc *desc);
 enum hclge_comm_cmd_status hclge_cmd_mdio_read(struct hclge_hw *hw,
 					       struct hclge_desc *desc);
-
-void hclge_cmd_uninit(struct hclge_dev *hdev);
-int hclge_cmd_queue_init(struct hclge_dev *hdev);
 #endif

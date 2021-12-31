@@ -91,20 +91,20 @@ static const struct pci_device_id ae_algo_pci_tbl[] = {
 
 MODULE_DEVICE_TABLE(pci, ae_algo_pci_tbl);
 
-static const u32 cmdq_reg_addr_list[] = {HCLGE_NIC_CSQ_BASEADDR_L_REG,
-					 HCLGE_NIC_CSQ_BASEADDR_H_REG,
-					 HCLGE_NIC_CSQ_DEPTH_REG,
-					 HCLGE_NIC_CSQ_TAIL_REG,
-					 HCLGE_NIC_CSQ_HEAD_REG,
-					 HCLGE_NIC_CRQ_BASEADDR_L_REG,
-					 HCLGE_NIC_CRQ_BASEADDR_H_REG,
-					 HCLGE_NIC_CRQ_DEPTH_REG,
-					 HCLGE_NIC_CRQ_TAIL_REG,
-					 HCLGE_NIC_CRQ_HEAD_REG,
-					 HCLGE_VECTOR0_CMDQ_SRC_REG,
-					 HCLGE_CMDQ_INTR_STS_REG,
-					 HCLGE_CMDQ_INTR_EN_REG,
-					 HCLGE_CMDQ_INTR_GEN_REG};
+static const u32 cmdq_reg_addr_list[] = {HCLGE_COMM_NIC_CSQ_BASEADDR_L_REG,
+					 HCLGE_COMM_NIC_CSQ_BASEADDR_H_REG,
+					 HCLGE_COMM_NIC_CSQ_DEPTH_REG,
+					 HCLGE_COMM_NIC_CSQ_TAIL_REG,
+					 HCLGE_COMM_NIC_CSQ_HEAD_REG,
+					 HCLGE_COMM_NIC_CRQ_BASEADDR_L_REG,
+					 HCLGE_COMM_NIC_CRQ_BASEADDR_H_REG,
+					 HCLGE_COMM_NIC_CRQ_DEPTH_REG,
+					 HCLGE_COMM_NIC_CRQ_TAIL_REG,
+					 HCLGE_COMM_NIC_CRQ_HEAD_REG,
+					 HCLGE_COMM_VECTOR0_CMDQ_SRC_REG,
+					 HCLGE_COMM_CMDQ_INTR_STS_REG,
+					 HCLGE_COMM_CMDQ_INTR_EN_REG,
+					 HCLGE_COMM_CMDQ_INTR_GEN_REG};
 
 static const u32 common_reg_addr_list[] = {HCLGE_MISC_VECTOR_REG_BASE,
 					   HCLGE_PF_OTHER_INT_REG,
@@ -4032,13 +4032,13 @@ static void hclge_reset_handshake(struct hclge_dev *hdev, bool enable)
 {
 	u32 reg_val;
 
-	reg_val = hclge_read_dev(&hdev->hw, HCLGE_NIC_CSQ_DEPTH_REG);
+	reg_val = hclge_read_dev(&hdev->hw, HCLGE_COMM_NIC_CSQ_DEPTH_REG);
 	if (enable)
 		reg_val |= HCLGE_COMM_NIC_SW_RST_RDY;
 	else
 		reg_val &= ~HCLGE_COMM_NIC_SW_RST_RDY;
 
-	hclge_write_dev(&hdev->hw, HCLGE_NIC_CSQ_DEPTH_REG, reg_val);
+	hclge_write_dev(&hdev->hw, HCLGE_COMM_NIC_CSQ_DEPTH_REG, reg_val);
 }
 
 static int hclge_func_reset_notify_vf(struct hclge_dev *hdev)
@@ -4075,7 +4075,7 @@ static int hclge_reset_prepare_wait(struct hclge_dev *hdev)
 		/* After performaning pf reset, it is not necessary to do the
 		 * mailbox handling or send any command to firmware, because
 		 * any mailbox handling or command to firmware is only valid
-		 * after hclge_cmd_init is called.
+		 * after hclge_comm_cmd_init is called.
 		 */
 		set_bit(HCLGE_COMM_STATE_CMD_DISABLE, &hdev->hw.hw.comm_state);
 		hdev->rst_stats.pf_rst_cnt++;
@@ -11775,12 +11775,13 @@ static int hclge_init_ae_dev(struct hnae3_ae_dev *ae_dev)
 		goto err_pci_uninit;
 
 	/* Firmware command queue initialize */
-	ret = hclge_cmd_queue_init(hdev);
+	ret = hclge_comm_cmd_queue_init(hdev->pdev, &hdev->hw.hw);
 	if (ret)
 		goto err_devlink_uninit;
 
 	/* Firmware command initialize */
-	ret = hclge_cmd_init(hdev);
+	ret = hclge_comm_cmd_init(hdev->ae_dev, &hdev->hw.hw, &hdev->fw_version,
+				  true, hdev->reset_pending);
 	if (ret)
 		goto err_cmd_uninit;
 
@@ -11953,7 +11954,7 @@ err_msi_irq_uninit:
 err_msi_uninit:
 	pci_free_irq_vectors(pdev);
 err_cmd_uninit:
-	hclge_cmd_uninit(hdev);
+	hclge_comm_cmd_uninit(hdev->ae_dev, true, &hdev->hw.hw);
 err_devlink_uninit:
 	hclge_devlink_uninit(hdev);
 err_pci_uninit:
@@ -12204,7 +12205,8 @@ static int hclge_reset_ae_dev(struct hnae3_ae_dev *ae_dev)
 		hclge_reset_umv_space(hdev);
 	}
 
-	ret = hclge_cmd_init(hdev);
+	ret = hclge_comm_cmd_init(hdev->ae_dev, &hdev->hw.hw, &hdev->fw_version,
+				  true, hdev->reset_pending);
 	if (ret) {
 		dev_err(&pdev->dev, "Cmd queue init failed\n");
 		return ret;
@@ -12344,7 +12346,7 @@ static void hclge_uninit_ae_dev(struct hnae3_ae_dev *ae_dev)
 	hclge_config_nic_hw_error(hdev, false);
 	hclge_config_rocee_ras_interrupt(hdev, false);
 
-	hclge_cmd_uninit(hdev);
+	hclge_comm_cmd_uninit(hdev->ae_dev, true, &hdev->hw.hw);
 	hclge_misc_irq_uninit(hdev);
 	hclge_devlink_uninit(hdev);
 	hclge_pci_uninit(hdev);

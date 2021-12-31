@@ -661,7 +661,7 @@ static void hclge_handle_link_change_event(struct hclge_dev *hdev,
 
 static bool hclge_cmd_crq_empty(struct hclge_hw *hw)
 {
-	u32 tail = hclge_read_dev(hw, HCLGE_NIC_CRQ_TAIL_REG);
+	u32 tail = hclge_read_dev(hw, HCLGE_COMM_NIC_CRQ_TAIL_REG);
 
 	return tail == hw->hw.cmq.crq.next_to_use;
 }
@@ -868,5 +868,6 @@ void hclge_mbx_handler(struct hclge_dev *hdev)
 	}
 
 	/* Write back CMDQ_RQ header pointer, M7 need this pointer */
-	hclge_write_dev(&hdev->hw, HCLGE_NIC_CRQ_HEAD_REG, crq->next_to_use);
+	hclge_write_dev(&hdev->hw, HCLGE_COMM_NIC_CRQ_HEAD_REG,
+			crq->next_to_use);
 }
