@@ -11,9 +11,9 @@
 
 #include <linux/ethtool.h>
 #include <linux/init.h>
-#include <linux/signal.h>
 #include <linux/module.h>
 #include <linux/netdevice.h>
+#include <linux/signal.h>
 #include <linux/usb.h>
 
 #include <linux/can.h>
