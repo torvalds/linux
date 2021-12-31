@@ -20,6 +20,8 @@ extern const char * const bch2_str_hash_types[];
 extern const char * const bch2_str_hash_opts[];
 extern const char * const bch2_data_types[];
 extern const char * const bch2_member_states[];
+extern const char * const bch2_jset_entry_types[];
+extern const char * const bch2_fs_usage_types[];
 extern const char * const bch2_d_types[];
 
 static inline const char *bch2_d_type_str(unsigned d_type)

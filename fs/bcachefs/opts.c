@@ -71,6 +71,16 @@ const char * const bch2_member_states[] = {
 	NULL
 };
 
+const char * const bch2_jset_entry_types[] = {
+	BCH_JSET_ENTRY_TYPES()
+	NULL
+};
+
+const char * const bch2_fs_usage_types[] = {
+	BCH_FS_USAGE_TYPES()
+	NULL
+};
+
 #undef x
 
 const char * const bch2_d_types[BCH_DT_MAX] = {

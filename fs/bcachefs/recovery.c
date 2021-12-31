@@ -714,15 +714,15 @@ static int journal_replay_entry_early(struct bch_fs *c,
 			container_of(entry, struct jset_entry_usage, entry);
 
 		switch (entry->btree_id) {
-		case FS_USAGE_RESERVED:
+		case BCH_FS_USAGE_reserved:
 			if (entry->level < BCH_REPLICAS_MAX)
 				c->usage_base->persistent_reserved[entry->level] =
 					le64_to_cpu(u->v);
 			break;
-		case FS_USAGE_INODES:
+		case BCH_FS_USAGE_inodes:
 			c->usage_base->nr_inodes = le64_to_cpu(u->v);
 			break;
-		case FS_USAGE_KEY_VERSION:
+		case BCH_FS_USAGE_key_version:
 			atomic64_set(&c->key_version,
 				     le64_to_cpu(u->v));
 			break;
@@ -742,10 +742,7 @@ static int journal_replay_entry_early(struct bch_fs *c,
 		struct jset_entry_dev_usage *u =
 			container_of(entry, struct jset_entry_dev_usage, entry);
 		struct bch_dev *ca = bch_dev_bkey_exists(c, le32_to_cpu(u->dev));
-		unsigned bytes = jset_u64s(le16_to_cpu(entry->u64s)) * sizeof(u64);
-		unsigned nr_types = (bytes - sizeof(struct jset_entry_dev_usage)) /
-			sizeof(struct jset_entry_dev_usage_type);
-		unsigned i;
+		unsigned i, nr_types = jset_entry_dev_usage_nr_types(u);
 
 		ca->usage_base->buckets_ec		= le64_to_cpu(u->buckets_ec);
 		ca->usage_base->buckets_unavailable	= le64_to_cpu(u->buckets_unavailable);

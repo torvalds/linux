@@ -76,6 +76,7 @@
 #include <asm/byteorder.h>
 #include <linux/kernel.h>
 #include <linux/uuid.h>
+#include "vstructs.h"
 
 #ifdef __KERNEL__
 typedef uuid_t __uuid_t;
@@ -1699,11 +1700,16 @@ struct jset_entry_blacklist_v2 {
 	__le64			end;
 };
 
+#define BCH_FS_USAGE_TYPES()			\
+	x(reserved,		0)		\
+	x(inodes,		1)		\
+	x(key_version,		2)
+
 enum {
-	FS_USAGE_RESERVED		= 0,
-	FS_USAGE_INODES			= 1,
-	FS_USAGE_KEY_VERSION		= 2,
-	FS_USAGE_NR			= 3
+#define x(f, nr)	BCH_FS_USAGE_##f	= nr,
+	BCH_FS_USAGE_TYPES()
+#undef x
+	BCH_FS_USAGE_NR
 };
 
 struct jset_entry_usage {
@@ -1740,6 +1746,12 @@ struct jset_entry_dev_usage {
 
 	struct jset_entry_dev_usage_type d[];
 } __attribute__((packed));
+
+static inline unsigned jset_entry_dev_usage_nr_types(struct jset_entry_dev_usage *u)
+{
+	return (vstruct_bytes(&u->entry) - sizeof(struct jset_entry_dev_usage)) /
+		sizeof(struct jset_entry_dev_usage_type);
+}
 
 struct jset_entry_log {
 	struct jset_entry	entry;
