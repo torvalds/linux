@@ -7,13 +7,41 @@
 
 #include "hnae3.h"
 
+#define HCLGE_COMM_CMD_FLAG_IN			BIT(0)
+#define HCLGE_COMM_CMD_FLAG_NEXT		BIT(2)
+#define HCLGE_COMM_CMD_FLAG_WR			BIT(3)
 #define HCLGE_COMM_CMD_FLAG_NO_INTR		BIT(4)
 
 #define HCLGE_COMM_SEND_SYNC(flag) \
 	((flag) & HCLGE_COMM_CMD_FLAG_NO_INTR)
 
+#define HCLGE_COMM_LINK_EVENT_REPORT_EN_B	0
+#define HCLGE_COMM_NCSI_ERROR_REPORT_EN_B	1
+#define HCLGE_COMM_PHY_IMP_EN_B			2
+#define HCLGE_COMM_MAC_STATS_EXT_EN_B		3
+#define HCLGE_COMM_SYNC_RX_RING_HEAD_EN_B	4
+
+#define hclge_comm_dev_phy_imp_supported(ae_dev) \
+	test_bit(HNAE3_DEV_SUPPORT_PHY_IMP_B, (ae_dev)->caps)
+
+#define HCLGE_COMM_TYPE_CRQ			0
+#define HCLGE_COMM_TYPE_CSQ			1
+
+#define HCLGE_COMM_NIC_CSQ_BASEADDR_L_REG	0x27000
+#define HCLGE_COMM_NIC_CSQ_BASEADDR_H_REG	0x27004
+#define HCLGE_COMM_NIC_CSQ_DEPTH_REG		0x27008
 #define HCLGE_COMM_NIC_CSQ_TAIL_REG		0x27010
 #define HCLGE_COMM_NIC_CSQ_HEAD_REG		0x27014
+#define HCLGE_COMM_NIC_CRQ_BASEADDR_L_REG	0x27018
+#define HCLGE_COMM_NIC_CRQ_BASEADDR_H_REG	0x2701C
+#define HCLGE_COMM_NIC_CRQ_DEPTH_REG		0x27020
+#define HCLGE_COMM_NIC_CRQ_TAIL_REG		0x27024
+#define HCLGE_COMM_NIC_CRQ_HEAD_REG		0x27028
+
+/* this bit indicates that the driver is ready for hardware reset */
+#define HCLGE_COMM_NIC_SW_RST_RDY_B		16
+#define HCLGE_COMM_NIC_SW_RST_RDY		BIT(HCLGE_COMM_NIC_SW_RST_RDY_B)
+#define HCLGE_COMM_NIC_CMQ_DESC_NUM_S		3
 
 enum hclge_comm_cmd_return_status {
 	HCLGE_COMM_CMD_EXEC_SUCCESS	= 0,
@@ -44,6 +72,46 @@ enum hclge_comm_special_cmd {
 	HCLGE_COMM_QUERY_ALL_ERR_INFO		= 0x1517,
 };
 
+enum HCLGE_COMM_CAP_BITS {
+	HCLGE_COMM_CAP_UDP_GSO_B,
+	HCLGE_COMM_CAP_QB_B,
+	HCLGE_COMM_CAP_FD_FORWARD_TC_B,
+	HCLGE_COMM_CAP_PTP_B,
+	HCLGE_COMM_CAP_INT_QL_B,
+	HCLGE_COMM_CAP_HW_TX_CSUM_B,
+	HCLGE_COMM_CAP_TX_PUSH_B,
+	HCLGE_COMM_CAP_PHY_IMP_B,
+	HCLGE_COMM_CAP_TQP_TXRX_INDEP_B,
+	HCLGE_COMM_CAP_HW_PAD_B,
+	HCLGE_COMM_CAP_STASH_B,
+	HCLGE_COMM_CAP_UDP_TUNNEL_CSUM_B,
+	HCLGE_COMM_CAP_RAS_IMP_B = 12,
+	HCLGE_COMM_CAP_FEC_B = 13,
+	HCLGE_COMM_CAP_PAUSE_B = 14,
+	HCLGE_COMM_CAP_RXD_ADV_LAYOUT_B = 15,
+	HCLGE_COMM_CAP_PORT_VLAN_BYPASS_B = 17,
+};
+
+enum HCLGE_COMM_API_CAP_BITS {
+	HCLGE_COMM_API_CAP_FLEX_RSS_TBL_B,
+};
+
+enum hclge_comm_opcode_type {
+	HCLGE_COMM_OPC_QUERY_FW_VER		= 0x0001,
+	HCLGE_COMM_OPC_IMP_COMPAT_CFG		= 0x701A,
+};
+
+/* capabilities bits map between imp firmware and local driver */
+struct hclge_comm_caps_bit_map {
+	u16 imp_bit;
+	u16 local_bit;
+};
+
+struct hclge_comm_firmware_compat_cmd {
+	__le32 compat;
+	u8 rsv[20];
+};
+
 enum hclge_comm_cmd_state {
 	HCLGE_COMM_STATE_CMD_DISABLE,
 };
@@ -51,6 +119,14 @@ enum hclge_comm_cmd_state {
 struct hclge_comm_errcode {
 	u32 imp_errcode;
 	int common_errno;
+};
+
+#define HCLGE_COMM_QUERY_CAP_LENGTH		3
+struct hclge_comm_query_version_cmd {
+	__le32 firmware;
+	__le32 hardware;
+	__le32 api_caps;
+	__le32 caps[HCLGE_COMM_QUERY_CAP_LENGTH]; /* capabilities of device */
 };
 
 #define HCLGE_DESC_DATA_LEN		6
@@ -115,7 +191,18 @@ static inline u32 hclge_comm_read_reg(u8 __iomem *base, u32 reg)
 #define hclge_comm_read_dev(a, reg) \
 	hclge_comm_read_reg((a)->io_base, reg)
 
+void hclge_comm_cmd_init_regs(struct hclge_comm_hw *hw);
+int hclge_comm_cmd_query_version_and_capability(struct hnae3_ae_dev *ae_dev,
+						struct hclge_comm_hw *hw,
+						u32 *fw_version, bool is_pf);
+int hclge_comm_alloc_cmd_queue(struct hclge_comm_hw *hw, int ring_type);
 int hclge_comm_cmd_send(struct hclge_comm_hw *hw, struct hclge_desc *desc,
 			int num, bool is_pf);
-
+void hclge_comm_cmd_reuse_desc(struct hclge_desc *desc, bool is_read);
+int hclge_comm_firmware_compat_config(struct hnae3_ae_dev *ae_dev, bool is_pf,
+				      struct hclge_comm_hw *hw, bool en);
+void hclge_comm_free_cmd_desc(struct hclge_comm_cmq_ring *ring);
+void hclge_comm_cmd_setup_basic_desc(struct hclge_desc *desc,
+				     enum hclge_comm_opcode_type opcode,
+				     bool is_read);
 #endif
