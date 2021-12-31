@@ -7,23 +7,16 @@
 #include <linux/io.h>
 #include <linux/etherdevice.h>
 #include "hnae3.h"
+#include "hclge_comm_cmd.h"
 
 #define HCLGE_CMDQ_TX_TIMEOUT		30000
 #define HCLGE_CMDQ_CLEAR_WAIT_TIME	200
 #define HCLGE_DESC_DATA_LEN		6
 
 struct hclge_dev;
-struct hclge_desc {
-	__le16 opcode;
 
 #define HCLGE_CMDQ_RX_INVLD_B		0
 #define HCLGE_CMDQ_RX_OUTVLD_B		1
-
-	__le16 flag;
-	__le16 retval;
-	__le16 rsv;
-	__le32 data[HCLGE_DESC_DATA_LEN];
-};
 
 struct hclge_cmq_ring {
 	dma_addr_t desc_dma_addr;

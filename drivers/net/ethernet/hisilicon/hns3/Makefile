@@ -6,6 +6,7 @@
 ccflags-y += -I$(srctree)/$(src)
 ccflags-y += -I$(srctree)/drivers/net/ethernet/hisilicon/hns3/hns3pf
 ccflags-y += -I$(srctree)/drivers/net/ethernet/hisilicon/hns3/hns3vf
+ccflags-y += -I$(srctree)/drivers/net/ethernet/hisilicon/hns3/hns3_common
 
 obj-$(CONFIG_HNS3) += hnae3.o
 
