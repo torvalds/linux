@@ -859,7 +859,9 @@ static void hdmi_select_link_config(struct rockchip_hdmi *hdmi,
 	max_dsc_rate_per_lane =
 		hdmi->dsc_cap.max_frl_rate_per_lane;
 
-	if (mode->clock >= HDMI_8K60_RATE) {
+	if (mode->clock >= HDMI_8K60_RATE &&
+	    !hdmi_bus_fmt_is_yuv420(hdmi->bus_format) &&
+	    !hdmi_bus_fmt_is_yuv422(hdmi->bus_format)) {
 		hdmi->link_cfg.dsc_mode = true;
 		hdmi->link_cfg.frl_lanes = max_dsc_lanes;
 		hdmi->link_cfg.rate_per_lane = max_dsc_rate_per_lane;
@@ -1879,6 +1881,7 @@ dw_hdmi_rockchip_encoder_atomic_check(struct drm_encoder *encoder,
 				       &output_mode, &bus_format, &bus_width,
 				       &hdmi->enc_out_encoding, &s->eotf);
 
+	s->bus_format = bus_format;
 	if (hdmi->is_hdmi_qp) {
 		color_depth = hdmi_bus_fmt_color_depth(bus_format);
 		hdmi_select_link_config(hdmi, crtc_state);
@@ -1926,7 +1929,6 @@ dw_hdmi_rockchip_encoder_atomic_check(struct drm_encoder *encoder,
 		s->output_if |= VOP_OUTPUT_IF_HDMI1;
 
 	s->output_mode = output_mode;
-	s->bus_format = bus_format;
 	hdmi->bus_format = s->bus_format;
 
 	hdmi->mode_changed = crtc_state->mode_changed;
@@ -1939,11 +1941,6 @@ dw_hdmi_rockchip_encoder_atomic_check(struct drm_encoder *encoder,
 		s->color_space = V4L2_COLORSPACE_REC709;
 	else
 		s->color_space = V4L2_COLORSPACE_SMPTE170M;
-
-	s->dsc_enable = 0;
-
-	if (hdmi->link_cfg.dsc_mode)
-		dw_hdmi_qp_dsc_configure(hdmi, s, crtc_state);
 
 	return 0;
 }
@@ -2466,6 +2463,14 @@ static void dw_hdmi_rockchip_encoder_mode_set(struct drm_encoder *encoder,
 					      struct drm_display_mode *adj)
 {
 	struct rockchip_hdmi *hdmi = to_rockchip_hdmi(encoder);
+	struct drm_crtc *crtc = encoder->crtc;
+	struct rockchip_crtc_state *s = to_rockchip_crtc_state(crtc->state);
+
+	s->dsc_enable = 0;
+	if (hdmi->link_cfg.dsc_mode) {
+		s->dsc_enable = 1;
+		dw_hdmi_qp_dsc_configure(hdmi, s, crtc->state);
+	}
 
 	clk_set_rate(hdmi->phyref_clk, adj->crtc_clock * 1000);
 }
