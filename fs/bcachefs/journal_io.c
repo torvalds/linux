@@ -478,6 +478,14 @@ fsck_err:
 	return ret;
 }
 
+static int journal_entry_validate_log(struct bch_fs *c,
+				      const char *where,
+				      struct jset_entry *entry,
+				      unsigned version, int big_endian, int write)
+{
+	return 0;
+}
+
 struct jset_entry_ops {
 	int (*validate)(struct bch_fs *, const char *,
 			struct jset_entry *, unsigned, int, int);

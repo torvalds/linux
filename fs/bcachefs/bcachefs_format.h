@@ -1430,6 +1430,7 @@ LE64_BITMASK(BCH_SB_INODES_USE_KEY_CACHE,struct bch_sb, flags[3], 29, 30);
 LE64_BITMASK(BCH_SB_JOURNAL_FLUSH_DELAY,struct bch_sb, flags[3], 30, 62);
 LE64_BITMASK(BCH_SB_JOURNAL_FLUSH_DISABLED,struct bch_sb, flags[3], 62, 63);
 LE64_BITMASK(BCH_SB_JOURNAL_RECLAIM_DELAY,struct bch_sb, flags[4], 0, 32);
+LE64_BITMASK(BCH_SB_JOURNAL_TRANSACTION_NAMES,struct bch_sb, flags[4], 32, 33);
 
 /*
  * Features:
@@ -1667,7 +1668,8 @@ static inline __u64 __bset_magic(struct bch_sb *sb)
 	x(usage,		5)		\
 	x(data_usage,		6)		\
 	x(clock,		7)		\
-	x(dev_usage,		8)
+	x(dev_usage,		8)		\
+	x(log,			9)
 
 enum {
 #define x(f, nr)	BCH_JSET_ENTRY_##f	= nr,
@@ -1737,6 +1739,11 @@ struct jset_entry_dev_usage {
 	__le64			buckets_unavailable;
 
 	struct jset_entry_dev_usage_type d[];
+} __attribute__((packed));
+
+struct jset_entry_log {
+	struct jset_entry	entry;
+	u8			d[];
 } __attribute__((packed));
 
 /*

@@ -327,6 +327,11 @@ enum opt_type {
 	  OPT_BOOL(),							\
 	  NO_SB_OPT,			false,				\
 	  NULL,		"Read all journal entries, not just dirty ones")\
+	x(journal_transaction_names,	u8,				\
+	  OPT_FS|OPT_FORMAT|OPT_MOUNT|OPT_RUNTIME,			\
+	  OPT_BOOL(),							\
+	  BCH_SB_JOURNAL_TRANSACTION_NAMES, true,			\
+	  NULL,		"Log transaction function names in journal")	\
 	x(noexcl,			u8,				\
 	  OPT_FS|OPT_MOUNT,						\
 	  OPT_BOOL(),							\
