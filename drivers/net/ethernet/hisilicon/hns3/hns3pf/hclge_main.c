@@ -1568,7 +1568,7 @@ static int hclge_query_dev_specs(struct hclge_dev *hdev)
 	for (i = 0; i < HCLGE_QUERY_DEV_SPECS_BD_NUM - 1; i++) {
 		hclge_cmd_setup_basic_desc(&desc[i], HCLGE_OPC_QUERY_DEV_SPECS,
 					   true);
-		desc[i].flag |= cpu_to_le16(HCLGE_CMD_FLAG_NEXT);
+		desc[i].flag |= cpu_to_le16(HCLGE_COMM_CMD_FLAG_NEXT);
 	}
 	hclge_cmd_setup_basic_desc(&desc[i], HCLGE_OPC_QUERY_DEV_SPECS, true);
 
@@ -2422,9 +2422,9 @@ static int hclge_rx_priv_wl_config(struct hclge_dev *hdev,
 
 		/* The first descriptor set the NEXT bit to 1 */
 		if (i == 0)
-			desc[i].flag |= cpu_to_le16(HCLGE_CMD_FLAG_NEXT);
+			desc[i].flag |= cpu_to_le16(HCLGE_COMM_CMD_FLAG_NEXT);
 		else
-			desc[i].flag &= ~cpu_to_le16(HCLGE_CMD_FLAG_NEXT);
+			desc[i].flag &= ~cpu_to_le16(HCLGE_COMM_CMD_FLAG_NEXT);
 
 		for (j = 0; j < HCLGE_TC_NUM_ONE_DESC; j++) {
 			u32 idx = i * HCLGE_TC_NUM_ONE_DESC + j;
@@ -2467,9 +2467,9 @@ static int hclge_common_thrd_config(struct hclge_dev *hdev,
 
 		/* The first descriptor set the NEXT bit to 1 */
 		if (i == 0)
-			desc[i].flag |= cpu_to_le16(HCLGE_CMD_FLAG_NEXT);
+			desc[i].flag |= cpu_to_le16(HCLGE_COMM_CMD_FLAG_NEXT);
 		else
-			desc[i].flag &= ~cpu_to_le16(HCLGE_CMD_FLAG_NEXT);
+			desc[i].flag &= ~cpu_to_le16(HCLGE_COMM_CMD_FLAG_NEXT);
 
 		for (j = 0; j < HCLGE_TC_NUM_ONE_DESC; j++) {
 			tc = &s_buf->tc_thrd[i * HCLGE_TC_NUM_ONE_DESC + j];
@@ -3240,7 +3240,7 @@ static int hclge_get_phy_link_ksettings(struct hnae3_handle *handle,
 
 	hclge_cmd_setup_basic_desc(&desc[0], HCLGE_OPC_PHY_LINK_KSETTING,
 				   true);
-	desc[0].flag |= cpu_to_le16(HCLGE_CMD_FLAG_NEXT);
+	desc[0].flag |= cpu_to_le16(HCLGE_COMM_CMD_FLAG_NEXT);
 	hclge_cmd_setup_basic_desc(&desc[1], HCLGE_OPC_PHY_LINK_KSETTING,
 				   true);
 
@@ -3297,7 +3297,7 @@ hclge_set_phy_link_ksettings(struct hnae3_handle *handle,
 
 	hclge_cmd_setup_basic_desc(&desc[0], HCLGE_OPC_PHY_LINK_KSETTING,
 				   false);
-	desc[0].flag |= cpu_to_le16(HCLGE_CMD_FLAG_NEXT);
+	desc[0].flag |= cpu_to_le16(HCLGE_COMM_CMD_FLAG_NEXT);
 	hclge_cmd_setup_basic_desc(&desc[1], HCLGE_OPC_PHY_LINK_KSETTING,
 				   false);
 
@@ -3875,7 +3875,7 @@ static void hclge_func_reset_sync_vf(struct hclge_dev *hdev)
 			return;
 		}
 		msleep(HCLGE_PF_RESET_SYNC_TIME);
-		hclge_cmd_reuse_desc(&desc, true);
+		hclge_comm_cmd_reuse_desc(&desc, true);
 	} while (cnt++ < HCLGE_PF_RESET_SYNC_CNT);
 
 	dev_warn(&hdev->pdev->dev, "sync with VF timeout!\n");
@@ -4034,9 +4034,9 @@ static void hclge_reset_handshake(struct hclge_dev *hdev, bool enable)
 
 	reg_val = hclge_read_dev(&hdev->hw, HCLGE_NIC_CSQ_DEPTH_REG);
 	if (enable)
-		reg_val |= HCLGE_NIC_SW_RST_RDY;
+		reg_val |= HCLGE_COMM_NIC_SW_RST_RDY;
 	else
-		reg_val &= ~HCLGE_NIC_SW_RST_RDY;
+		reg_val &= ~HCLGE_COMM_NIC_SW_RST_RDY;
 
 	hclge_write_dev(&hdev->hw, HCLGE_NIC_CSQ_DEPTH_REG, reg_val);
 }
@@ -5903,9 +5903,9 @@ static int hclge_fd_tcam_config(struct hclge_dev *hdev, u8 stage, bool sel_x,
 	int ret;
 
 	hclge_cmd_setup_basic_desc(&desc[0], HCLGE_OPC_FD_TCAM_OP, false);
-	desc[0].flag |= cpu_to_le16(HCLGE_CMD_FLAG_NEXT);
+	desc[0].flag |= cpu_to_le16(HCLGE_COMM_CMD_FLAG_NEXT);
 	hclge_cmd_setup_basic_desc(&desc[1], HCLGE_OPC_FD_TCAM_OP, false);
-	desc[1].flag |= cpu_to_le16(HCLGE_CMD_FLAG_NEXT);
+	desc[1].flag |= cpu_to_le16(HCLGE_COMM_CMD_FLAG_NEXT);
 	hclge_cmd_setup_basic_desc(&desc[2], HCLGE_OPC_FD_TCAM_OP, false);
 
 	req1 = (struct hclge_fd_tcam_config_1_cmd *)desc[0].data;
@@ -7899,7 +7899,7 @@ static int hclge_config_switch_param(struct hclge_dev *hdev, int vfid,
 	}
 
 	/* modify and write new config parameter */
-	hclge_cmd_reuse_desc(&desc, false);
+	hclge_comm_cmd_reuse_desc(&desc, false);
 	req->switch_param = (req->switch_param & param_mask) | switch_param;
 	req->param_mask = param_mask;
 
@@ -7993,7 +7993,7 @@ static int hclge_set_app_loopback(struct hclge_dev *hdev, bool en)
 	/* 3 Config mac work mode with loopback flag
 	 * and its original configure parameters
 	 */
-	hclge_cmd_reuse_desc(&desc, false);
+	hclge_comm_cmd_reuse_desc(&desc, false);
 	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
 	if (ret)
 		dev_err(&hdev->pdev->dev,
@@ -8566,14 +8566,14 @@ static int hclge_lookup_mac_vlan_tbl(struct hclge_vport *vport,
 
 	hclge_cmd_setup_basic_desc(&desc[0], HCLGE_OPC_MAC_VLAN_ADD, true);
 	if (is_mc) {
-		desc[0].flag |= cpu_to_le16(HCLGE_CMD_FLAG_NEXT);
+		desc[0].flag |= cpu_to_le16(HCLGE_COMM_CMD_FLAG_NEXT);
 		memcpy(desc[0].data,
 		       req,
 		       sizeof(struct hclge_mac_vlan_tbl_entry_cmd));
 		hclge_cmd_setup_basic_desc(&desc[1],
 					   HCLGE_OPC_MAC_VLAN_ADD,
 					   true);
-		desc[1].flag |= cpu_to_le16(HCLGE_CMD_FLAG_NEXT);
+		desc[1].flag |= cpu_to_le16(HCLGE_COMM_CMD_FLAG_NEXT);
 		hclge_cmd_setup_basic_desc(&desc[2],
 					   HCLGE_OPC_MAC_VLAN_ADD,
 					   true);
@@ -8623,12 +8623,12 @@ static int hclge_add_mac_vlan_tbl(struct hclge_vport *vport,
 							   resp_code,
 							   HCLGE_MAC_VLAN_ADD);
 	} else {
-		hclge_cmd_reuse_desc(&mc_desc[0], false);
-		mc_desc[0].flag |= cpu_to_le16(HCLGE_CMD_FLAG_NEXT);
-		hclge_cmd_reuse_desc(&mc_desc[1], false);
-		mc_desc[1].flag |= cpu_to_le16(HCLGE_CMD_FLAG_NEXT);
-		hclge_cmd_reuse_desc(&mc_desc[2], false);
-		mc_desc[2].flag &= cpu_to_le16(~HCLGE_CMD_FLAG_NEXT);
+		hclge_comm_cmd_reuse_desc(&mc_desc[0], false);
+		mc_desc[0].flag |= cpu_to_le16(HCLGE_COMM_CMD_FLAG_NEXT);
+		hclge_comm_cmd_reuse_desc(&mc_desc[1], false);
+		mc_desc[1].flag |= cpu_to_le16(HCLGE_COMM_CMD_FLAG_NEXT);
+		hclge_comm_cmd_reuse_desc(&mc_desc[2], false);
+		mc_desc[2].flag &= cpu_to_le16(~HCLGE_COMM_CMD_FLAG_NEXT);
 		memcpy(mc_desc[0].data, req,
 		       sizeof(struct hclge_mac_vlan_tbl_entry_cmd));
 		ret = hclge_cmd_send(&hdev->hw, mc_desc, 3);
@@ -9753,7 +9753,7 @@ static int hclge_set_vlan_filter_ctrl(struct hclge_dev *hdev, u8 vlan_type,
 	}
 
 	/* modify and write new config parameter */
-	hclge_cmd_reuse_desc(&desc, false);
+	hclge_comm_cmd_reuse_desc(&desc, false);
 	req->vlan_fe = filter_en ?
 			(req->vlan_fe | fe_type) : (req->vlan_fe & ~fe_type);
 
@@ -9879,7 +9879,7 @@ static int hclge_set_vf_vlan_filter_cmd(struct hclge_dev *hdev, u16 vfid,
 	hclge_cmd_setup_basic_desc(&desc[1],
 				   HCLGE_OPC_VLAN_FILTER_VF_CFG, false);
 
-	desc[0].flag |= cpu_to_le16(HCLGE_CMD_FLAG_NEXT);
+	desc[0].flag |= cpu_to_le16(HCLGE_COMM_CMD_FLAG_NEXT);
 
 	vf_byte_off = vfid / 8;
 	vf_byte_val = 1 << (vfid % 8);
@@ -12610,7 +12610,7 @@ int hclge_query_bd_num_cmd_send(struct hclge_dev *hdev, struct hclge_desc *desc)
 	for (i = 0; i < HCLGE_GET_DFX_REG_TYPE_CNT - 1; i++) {
 		hclge_cmd_setup_basic_desc(&desc[i], HCLGE_OPC_DFX_BD_NUM,
 					   true);
-		desc[i].flag |= cpu_to_le16(HCLGE_CMD_FLAG_NEXT);
+		desc[i].flag |= cpu_to_le16(HCLGE_COMM_CMD_FLAG_NEXT);
 	}
 
 	/* initialize the last command BD */
@@ -12654,7 +12654,7 @@ static int hclge_dfx_reg_cmd_send(struct hclge_dev *hdev,
 
 	hclge_cmd_setup_basic_desc(desc, cmd, true);
 	for (i = 0; i < bd_num - 1; i++) {
-		desc->flag |= cpu_to_le16(HCLGE_CMD_FLAG_NEXT);
+		desc->flag |= cpu_to_le16(HCLGE_COMM_CMD_FLAG_NEXT);
 		desc++;
 		hclge_cmd_setup_basic_desc(desc, cmd, true);
 	}
@@ -13087,7 +13087,7 @@ static u16 hclge_get_sfp_eeprom_info(struct hclge_dev *hdev, u32 offset,
 
 		/* bd0~bd4 need next flag */
 		if (i < HCLGE_SFP_INFO_CMD_NUM - 1)
-			desc[i].flag |= cpu_to_le16(HCLGE_CMD_FLAG_NEXT);
+			desc[i].flag |= cpu_to_le16(HCLGE_COMM_CMD_FLAG_NEXT);
 	}
 
 	/* setup bd0, this bd contains offset and read length. */
