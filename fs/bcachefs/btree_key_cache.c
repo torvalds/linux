@@ -147,19 +147,23 @@ bkey_cached_reuse(struct btree_key_cache *c)
 }
 
 static struct bkey_cached *
-btree_key_cache_create(struct btree_key_cache *c,
+btree_key_cache_create(struct bch_fs *c,
 		       enum btree_id btree_id,
 		       struct bpos pos)
 {
+	struct btree_key_cache *bc = &c->btree_key_cache;
 	struct bkey_cached *ck;
 	bool was_new = true;
 
-	ck = bkey_cached_alloc(c);
+	ck = bkey_cached_alloc(bc);
 
 	if (unlikely(!ck)) {
-		ck = bkey_cached_reuse(c);
-		if (unlikely(!ck))
+		ck = bkey_cached_reuse(bc);
+		if (unlikely(!ck)) {
+			bch_err(c, "error allocating memory for key cache item, btree %s",
+				bch2_btree_ids[btree_id]);
 			return ERR_PTR(-ENOMEM);
+		}
 
 		was_new = false;
 	}
@@ -176,7 +180,7 @@ btree_key_cache_create(struct btree_key_cache *c,
 	ck->valid		= false;
 	ck->flags		= 1U << BKEY_CACHED_ACCESSED;
 
-	if (unlikely(rhashtable_lookup_insert_fast(&c->table,
+	if (unlikely(rhashtable_lookup_insert_fast(&bc->table,
 					  &ck->hash,
 					  bch2_btree_key_cache_params))) {
 		/* We raced with another fill: */
@@ -186,15 +190,15 @@ btree_key_cache_create(struct btree_key_cache *c,
 			six_unlock_intent(&ck->c.lock);
 			kfree(ck);
 		} else {
-			mutex_lock(&c->lock);
-			bkey_cached_free(c, ck);
-			mutex_unlock(&c->lock);
+			mutex_lock(&bc->lock);
+			bkey_cached_free(bc, ck);
+			mutex_unlock(&bc->lock);
 		}
 
 		return NULL;
 	}
 
-	atomic_long_inc(&c->nr_keys);
+	atomic_long_inc(&bc->nr_keys);
 
 	six_unlock_write(&ck->c.lock);
 
@@ -205,6 +209,7 @@ static int btree_key_cache_fill(struct btree_trans *trans,
 				struct btree_path *ck_path,
 				struct bkey_cached *ck)
 {
+	struct bch_fs *c = trans->c;
 	struct btree_iter iter;
 	struct bkey_s_c k;
 	unsigned new_u64s = 0;
@@ -234,6 +239,8 @@ static int btree_key_cache_fill(struct btree_trans *trans,
 		new_u64s = roundup_pow_of_two(new_u64s);
 		new_k = kmalloc(new_u64s * sizeof(u64), GFP_NOFS);
 		if (!new_k) {
+			bch_err(c, "error allocating memory for key cache key, btree %s u64s %u",
+				bch2_btree_ids[ck->key.btree_id], new_u64s);
 			ret = -ENOMEM;
 			goto err;
 		}
@@ -294,8 +301,7 @@ retry:
 			return 0;
 		}
 
-		ck = btree_key_cache_create(&c->btree_key_cache,
-					    path->btree_id, path->pos);
+		ck = btree_key_cache_create(c, path->btree_id, path->pos);
 		ret = PTR_ERR_OR_ZERO(ck);
 		if (ret)
 			goto err;

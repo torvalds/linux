@@ -926,9 +926,11 @@ static int bch2_mark_stripe_ptr(struct btree_trans *trans,
 	BUG_ON(!(flags & BTREE_TRIGGER_GC));
 
 	m = genradix_ptr_alloc(&c->gc_stripes, p.idx, GFP_KERNEL);
-
-	if (!m)
+	if (!m) {
+		bch_err(c, "error allocating memory for gc_stripes, idx %llu",
+			(u64) p.idx);
 		return -ENOMEM;
+	}
 
 	spin_lock(&c->ec_stripes_heap_lock);
 
@@ -1039,7 +1041,7 @@ static int bch2_mark_stripe(struct btree_trans *trans,
 	bool gc = flags & BTREE_TRIGGER_GC;
 	u64 journal_seq = trans->journal_res.seq;
 	struct bch_fs *c = trans->c;
-	size_t idx = new.k->p.offset;
+	u64 idx = new.k->p.offset;
 	const struct bch_stripe *old_s = old.k->type == KEY_TYPE_stripe
 		? bkey_s_c_to_stripe(old).v : NULL;
 	const struct bch_stripe *new_s = new.k->type == KEY_TYPE_stripe
@@ -1057,7 +1059,7 @@ static int bch2_mark_stripe(struct btree_trans *trans,
 
 			bch2_bkey_val_to_text(&PBUF(buf1), c, old);
 			bch2_bkey_val_to_text(&PBUF(buf2), c, new);
-			bch_err_ratelimited(c, "error marking nonexistent stripe %zu while marking\n"
+			bch_err_ratelimited(c, "error marking nonexistent stripe %llu while marking\n"
 					    "old %s\n"
 					    "new %s", idx, buf1, buf2);
 			bch2_inconsistent_error(c);
@@ -1089,9 +1091,11 @@ static int bch2_mark_stripe(struct btree_trans *trans,
 		struct gc_stripe *m =
 			genradix_ptr_alloc(&c->gc_stripes, idx, GFP_KERNEL);
 
-		if (!m)
+		if (!m) {
+			bch_err(c, "error allocating memory for gc_stripes, idx %llu",
+				idx);
 			return -ENOMEM;
-
+		}
 		/*
 		 * This will be wrong when we bring back runtime gc: we should
 		 * be unmarking the old key and then marking the new key

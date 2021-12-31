@@ -308,6 +308,7 @@ btree_key_can_insert_cached(struct btree_trans *trans,
 			    struct btree_path *path,
 			    unsigned u64s)
 {
+	struct bch_fs *c = trans->c;
 	struct bkey_cached *ck = (void *) path->l[0].b;
 	unsigned new_u64s;
 	struct bkey_i *new_k;
@@ -315,7 +316,7 @@ btree_key_can_insert_cached(struct btree_trans *trans,
 	EBUG_ON(path->level);
 
 	if (!test_bit(BKEY_CACHED_DIRTY, &ck->flags) &&
-	    bch2_btree_key_cache_must_wait(trans->c) &&
+	    bch2_btree_key_cache_must_wait(c) &&
 	    !(trans->flags & BTREE_INSERT_JOURNAL_RECLAIM))
 		return BTREE_INSERT_NEED_JOURNAL_RECLAIM;
 
@@ -330,8 +331,11 @@ btree_key_can_insert_cached(struct btree_trans *trans,
 
 	new_u64s	= roundup_pow_of_two(u64s);
 	new_k		= krealloc(ck->k, new_u64s * sizeof(u64), GFP_NOFS);
-	if (!new_k)
+	if (!new_k) {
+		bch_err(c, "error allocating memory for key cache key, btree %s u64s %u",
+			bch2_btree_ids[path->btree_id], new_u64s);
 		return -ENOMEM;
+	}
 
 	ck->u64s	= new_u64s;
 	ck->k		= new_k;

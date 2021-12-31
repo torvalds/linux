@@ -564,14 +564,17 @@ static struct inode_walker inode_walker_init(void)
 	return (struct inode_walker) { 0, };
 }
 
-static int inode_walker_realloc(struct inode_walker *w)
+static int inode_walker_realloc(struct bch_fs *c, struct inode_walker *w)
 {
 	if (w->nr == w->size) {
 		size_t new_size = max_t(size_t, 8UL, w->size * 2);
 		void *d = krealloc(w->d, new_size * sizeof(w->d[0]),
 				   GFP_KERNEL);
-		if (!d)
+		if (!d) {
+			bch_err(c, "fsck: error allocating memory for inode_walker, size %zu",
+				new_size);
 			return -ENOMEM;
+		}
 
 		w->d = d;
 		w->size = new_size;
@@ -586,7 +589,7 @@ static int add_inode(struct bch_fs *c, struct inode_walker *w,
 	struct bch_inode_unpacked u;
 	int ret;
 
-	ret = inode_walker_realloc(w);
+	ret = inode_walker_realloc(c, w);
 	if (ret)
 		return ret;
 
@@ -647,7 +650,7 @@ found:
 		while (i && w->d[i - 1].snapshot > pos.snapshot)
 			--i;
 
-		ret = inode_walker_realloc(w);
+		ret = inode_walker_realloc(c, w);
 		if (ret)
 			return ret;
 
@@ -1812,7 +1815,8 @@ static bool path_is_dup(struct pathbuf *p, u64 inum, u32 snapshot)
 	return false;
 }
 
-static int path_down(struct pathbuf *p, u64 inum, u32 snapshot)
+static int path_down(struct bch_fs *c, struct pathbuf *p,
+		     u64 inum, u32 snapshot)
 {
 	if (p->nr == p->size) {
 		size_t new_size = max_t(size_t, 256UL, p->size * 2);
@@ -1820,6 +1824,8 @@ static int path_down(struct pathbuf *p, u64 inum, u32 snapshot)
 				   new_size * sizeof(p->entries[0]),
 				   GFP_KERNEL);
 		if (!n) {
+			bch_err(c, "fsck: error allocating memory for pathbuf, size %zu",
+				new_size);
 			return -ENOMEM;
 		}
 
@@ -1893,7 +1899,7 @@ static int check_path(struct btree_trans *trans,
 		if (!S_ISDIR(inode->bi_mode))
 			break;
 
-		ret = path_down(p, inode->bi_inum, snapshot);
+		ret = path_down(c, p, inode->bi_inum, snapshot);
 		if (ret) {
 			bch_err(c, "memory allocation failure");
 			return ret;
@@ -1998,12 +2004,15 @@ struct nlink_table {
 	}		*d;
 };
 
-static int add_nlink(struct nlink_table *t, u64 inum, u32 snapshot)
+static int add_nlink(struct bch_fs *c, struct nlink_table *t,
+		     u64 inum, u32 snapshot)
 {
 	if (t->nr == t->size) {
 		size_t new_size = max_t(size_t, 128UL, t->size * 2);
 		void *d = kvmalloc(new_size * sizeof(t->d[0]), GFP_KERNEL);
 		if (!d) {
+			bch_err(c, "fsck: error allocating memory for nlink_table, size %zu",
+				new_size);
 			return -ENOMEM;
 		}
 
@@ -2093,7 +2102,7 @@ static int check_nlinks_find_hardlinks(struct bch_fs *c,
 		if (!u.bi_nlink)
 			continue;
 
-		ret = add_nlink(t, k.k->p.offset, k.k->p.snapshot);
+		ret = add_nlink(c, t, k.k->p.offset, k.k->p.snapshot);
 		if (ret) {
 			*end = k.k->p.offset;
 			ret = 0;
