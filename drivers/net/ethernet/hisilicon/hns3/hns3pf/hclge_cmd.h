@@ -11,61 +11,16 @@
 
 #define HCLGE_CMDQ_TX_TIMEOUT		30000
 #define HCLGE_CMDQ_CLEAR_WAIT_TIME	200
-#define HCLGE_DESC_DATA_LEN		6
 
 struct hclge_dev;
 
 #define HCLGE_CMDQ_RX_INVLD_B		0
 #define HCLGE_CMDQ_RX_OUTVLD_B		1
 
-struct hclge_cmq_ring {
-	dma_addr_t desc_dma_addr;
-	struct hclge_desc *desc;
-	struct hclge_dev *dev;
-	u32 head;
-	u32 tail;
-
-	u16 buf_size;
-	u16 desc_num;
-	int next_to_use;
-	int next_to_clean;
-	u8 ring_type; /* cmq ring type */
-	spinlock_t lock; /* Command queue lock */
-};
-
-enum hclge_cmd_return_status {
-	HCLGE_CMD_EXEC_SUCCESS	= 0,
-	HCLGE_CMD_NO_AUTH	= 1,
-	HCLGE_CMD_NOT_SUPPORTED	= 2,
-	HCLGE_CMD_QUEUE_FULL	= 3,
-	HCLGE_CMD_NEXT_ERR	= 4,
-	HCLGE_CMD_UNEXE_ERR	= 5,
-	HCLGE_CMD_PARA_ERR	= 6,
-	HCLGE_CMD_RESULT_ERR	= 7,
-	HCLGE_CMD_TIMEOUT	= 8,
-	HCLGE_CMD_HILINK_ERR	= 9,
-	HCLGE_CMD_QUEUE_ILLEGAL	= 10,
-	HCLGE_CMD_INVALID	= 11,
-};
-
-enum hclge_cmd_status {
-	HCLGE_STATUS_SUCCESS	= 0,
-	HCLGE_ERR_CSQ_FULL	= -1,
-	HCLGE_ERR_CSQ_TIMEOUT	= -2,
-	HCLGE_ERR_CSQ_ERROR	= -3,
-};
-
 struct hclge_misc_vector {
 	u8 __iomem *addr;
 	int vector_irq;
 	char name[HNAE3_INT_NAME_LEN];
-};
-
-struct hclge_cmq {
-	struct hclge_cmq_ring csq;
-	struct hclge_cmq_ring crq;
-	u16 tx_timeout;
-	enum hclge_cmd_status last_status;
 };
 
 #define HCLGE_CMD_FLAG_IN	BIT(0)
@@ -1239,25 +1194,6 @@ struct hclge_caps_bit_map {
 };
 
 int hclge_cmd_init(struct hclge_dev *hdev);
-static inline void hclge_write_reg(void __iomem *base, u32 reg, u32 value)
-{
-	writel(value, base + reg);
-}
-
-#define hclge_write_dev(a, reg, value) \
-	hclge_write_reg((a)->io_base, reg, value)
-#define hclge_read_dev(a, reg) \
-	hclge_read_reg((a)->io_base, reg)
-
-static inline u32 hclge_read_reg(u8 __iomem *base, u32 reg)
-{
-	u8 __iomem *reg_addr = READ_ONCE(base);
-
-	return readl(reg_addr + reg);
-}
-
-#define HCLGE_SEND_SYNC(flag) \
-	((flag) & HCLGE_CMD_FLAG_NO_INTR)
 
 struct hclge_hw;
 int hclge_cmd_send(struct hclge_hw *hw, struct hclge_desc *desc, int num);
@@ -1265,10 +1201,10 @@ void hclge_cmd_setup_basic_desc(struct hclge_desc *desc,
 				enum hclge_opcode_type opcode, bool is_read);
 void hclge_cmd_reuse_desc(struct hclge_desc *desc, bool is_read);
 
-enum hclge_cmd_status hclge_cmd_mdio_write(struct hclge_hw *hw,
-					   struct hclge_desc *desc);
-enum hclge_cmd_status hclge_cmd_mdio_read(struct hclge_hw *hw,
-					  struct hclge_desc *desc);
+enum hclge_comm_cmd_status hclge_cmd_mdio_write(struct hclge_hw *hw,
+						struct hclge_desc *desc);
+enum hclge_comm_cmd_status hclge_cmd_mdio_read(struct hclge_hw *hw,
+					       struct hclge_desc *desc);
 
 void hclge_cmd_uninit(struct hclge_dev *hdev);
 int hclge_cmd_queue_init(struct hclge_dev *hdev);
