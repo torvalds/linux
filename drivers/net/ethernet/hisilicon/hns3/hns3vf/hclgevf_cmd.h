@@ -22,57 +22,6 @@ struct hclgevf_firmware_compat_cmd {
 	u8 rsv[20];
 };
 
-struct hclgevf_desc_cb {
-	dma_addr_t dma;
-	void *va;
-	u32 length;
-};
-
-struct hclgevf_cmq_ring {
-	dma_addr_t desc_dma_addr;
-	struct hclge_desc *desc;
-	struct hclgevf_desc_cb *desc_cb;
-	struct hclgevf_dev  *dev;
-	u32 head;
-	u32 tail;
-
-	u16 buf_size;
-	u16 desc_num;
-	int next_to_use;
-	int next_to_clean;
-	u8 flag;
-	spinlock_t lock; /* Command queue lock */
-};
-
-enum hclgevf_cmd_return_status {
-	HCLGEVF_CMD_EXEC_SUCCESS	= 0,
-	HCLGEVF_CMD_NO_AUTH		= 1,
-	HCLGEVF_CMD_NOT_SUPPORTED	= 2,
-	HCLGEVF_CMD_QUEUE_FULL		= 3,
-	HCLGEVF_CMD_NEXT_ERR		= 4,
-	HCLGEVF_CMD_UNEXE_ERR		= 5,
-	HCLGEVF_CMD_PARA_ERR		= 6,
-	HCLGEVF_CMD_RESULT_ERR		= 7,
-	HCLGEVF_CMD_TIMEOUT		= 8,
-	HCLGEVF_CMD_HILINK_ERR		= 9,
-	HCLGEVF_CMD_QUEUE_ILLEGAL	= 10,
-	HCLGEVF_CMD_INVALID		= 11,
-};
-
-enum hclgevf_cmd_status {
-	HCLGEVF_STATUS_SUCCESS	= 0,
-	HCLGEVF_ERR_CSQ_FULL	= -1,
-	HCLGEVF_ERR_CSQ_TIMEOUT	= -2,
-	HCLGEVF_ERR_CSQ_ERROR	= -3
-};
-
-struct hclgevf_cmq {
-	struct hclgevf_cmq_ring csq;
-	struct hclgevf_cmq_ring crq;
-	u16 tx_timeout; /* Tx timeout */
-	enum hclgevf_cmd_status last_status;
-};
-
 #define HCLGEVF_CMD_FLAG_IN_VALID_SHIFT		0
 #define HCLGEVF_CMD_FLAG_OUT_VALID_SHIFT	1
 #define HCLGEVF_CMD_FLAG_NEXT_SHIFT		2
@@ -303,26 +252,6 @@ struct hclgevf_caps_bit_map {
 	u16 imp_bit;
 	u16 local_bit;
 };
-
-static inline void hclgevf_write_reg(void __iomem *base, u32 reg, u32 value)
-{
-	writel(value, base + reg);
-}
-
-static inline u32 hclgevf_read_reg(u8 __iomem *base, u32 reg)
-{
-	u8 __iomem *reg_addr = READ_ONCE(base);
-
-	return readl(reg_addr + reg);
-}
-
-#define hclgevf_write_dev(a, reg, value) \
-	hclgevf_write_reg((a)->io_base, reg, value)
-#define hclgevf_read_dev(a, reg) \
-	hclgevf_read_reg((a)->io_base, reg)
-
-#define HCLGEVF_SEND_SYNC(flag) \
-	((flag) & HCLGEVF_CMD_FLAG_NO_INTR)
 
 int hclgevf_cmd_init(struct hclgevf_dev *hdev);
 void hclgevf_cmd_uninit(struct hclgevf_dev *hdev);

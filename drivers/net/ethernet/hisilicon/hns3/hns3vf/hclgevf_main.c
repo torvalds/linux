@@ -420,11 +420,11 @@ static int hclgevf_alloc_tqps(struct hclgevf_dev *hdev)
 		 * HCLGEVF_TQP_MAX_SIZE_DEV_V2.
 		 */
 		if (i < HCLGEVF_TQP_MAX_SIZE_DEV_V2)
-			tqp->q.io_base = hdev->hw.io_base +
+			tqp->q.io_base = hdev->hw.hw.io_base +
 					 HCLGEVF_TQP_REG_OFFSET +
 					 i * HCLGEVF_TQP_REG_SIZE;
 		else
-			tqp->q.io_base = hdev->hw.io_base +
+			tqp->q.io_base = hdev->hw.hw.io_base +
 					 HCLGEVF_TQP_REG_OFFSET +
 					 HCLGEVF_TQP_EXT_REG_OFFSET +
 					 (i - HCLGEVF_TQP_MAX_SIZE_DEV_V2) *
@@ -539,7 +539,7 @@ static int hclgevf_set_handle_info(struct hclgevf_dev *hdev)
 	nic->pdev = hdev->pdev;
 	nic->numa_node_mask = hdev->numa_node_mask;
 	nic->flags |= HNAE3_SUPPORT_VF;
-	nic->kinfo.io_base = hdev->hw.io_base;
+	nic->kinfo.io_base = hdev->hw.hw.io_base;
 
 	ret = hclgevf_knic_setup(hdev);
 	if (ret)
@@ -576,7 +576,7 @@ static int hclgevf_get_vector(struct hnae3_handle *handle, u16 vector_num,
 		for (i = HCLGEVF_MISC_VECTOR_NUM + 1; i < hdev->num_msi; i++) {
 			if (hdev->vector_status[i] == HCLGEVF_INVALID_VPORT) {
 				vector->vector = pci_irq_vector(hdev->pdev, i);
-				vector->io_addr = hdev->hw.io_base +
+				vector->io_addr = hdev->hw.hw.io_base +
 					HCLGEVF_VECTOR_REG_BASE +
 					(i - 1) * HCLGEVF_VECTOR_REG_OFFSET;
 				hdev->vector_status[i] = 0;
@@ -1862,13 +1862,13 @@ static int hclgevf_reset_wait(struct hclgevf_dev *hdev)
 	int ret;
 
 	if (hdev->reset_type == HNAE3_VF_RESET)
-		ret = readl_poll_timeout(hdev->hw.io_base +
+		ret = readl_poll_timeout(hdev->hw.hw.io_base +
 					 HCLGEVF_VF_RST_ING, val,
 					 !(val & HCLGEVF_VF_RST_ING_BIT),
 					 HCLGEVF_RESET_WAIT_US,
 					 HCLGEVF_RESET_WAIT_TIMEOUT_US);
 	else
-		ret = readl_poll_timeout(hdev->hw.io_base +
+		ret = readl_poll_timeout(hdev->hw.hw.io_base +
 					 HCLGEVF_RST_ING, val,
 					 !(val & HCLGEVF_RST_ING_BITS),
 					 HCLGEVF_RESET_WAIT_US,
@@ -1951,7 +1951,7 @@ static int hclgevf_reset_prepare_wait(struct hclgevf_dev *hdev)
 		hdev->rst_stats.vf_func_rst_cnt++;
 	}
 
-	set_bit(HCLGEVF_STATE_CMD_DISABLE, &hdev->state);
+	set_bit(HCLGE_COMM_STATE_CMD_DISABLE, &hdev->hw.hw.comm_state);
 	/* inform hardware that preparatory work is done */
 	msleep(HCLGEVF_RESET_SYNC_TIME);
 	hclgevf_reset_handshake(hdev, true);
@@ -2219,7 +2219,7 @@ static void hclgevf_get_misc_vector(struct hclgevf_dev *hdev)
 
 	vector->vector_irq = pci_irq_vector(hdev->pdev,
 					    HCLGEVF_MISC_VECTOR_NUM);
-	vector->addr = hdev->hw.io_base + HCLGEVF_MISC_VECTOR_REG_BASE;
+	vector->addr = hdev->hw.hw.io_base + HCLGEVF_MISC_VECTOR_REG_BASE;
 	/* vector status always valid for Vector 0 */
 	hdev->vector_status[HCLGEVF_MISC_VECTOR_NUM] = 0;
 	hdev->vector_irq[HCLGEVF_MISC_VECTOR_NUM] = vector->vector_irq;
@@ -2340,7 +2340,7 @@ static void hclgevf_keep_alive(struct hclgevf_dev *hdev)
 	struct hclge_vf_to_pf_msg send_msg;
 	int ret;
 
-	if (test_bit(HCLGEVF_STATE_CMD_DISABLE, &hdev->state))
+	if (test_bit(HCLGE_COMM_STATE_CMD_DISABLE, &hdev->hw.hw.comm_state))
 		return;
 
 	hclgevf_build_send_msg(&send_msg, HCLGE_MBX_KEEP_ALIVE, 0);
@@ -2435,7 +2435,7 @@ static enum hclgevf_evt_cause hclgevf_check_evt_cause(struct hclgevf_dev *hdev,
 			 "receive reset interrupt 0x%x!\n", rst_ing_reg);
 		set_bit(HNAE3_VF_RESET, &hdev->reset_pending);
 		set_bit(HCLGEVF_RESET_PENDING, &hdev->reset_state);
-		set_bit(HCLGEVF_STATE_CMD_DISABLE, &hdev->state);
+		set_bit(HCLGE_COMM_STATE_CMD_DISABLE, &hdev->hw.hw.comm_state);
 		*clearval = ~(1U << HCLGEVF_VECTOR0_RST_INT_B);
 		hdev->rst_stats.vf_rst_cnt++;
 		/* set up VF hardware reset status, its PF will clear
@@ -2559,8 +2559,8 @@ static int hclgevf_init_roce_base_info(struct hclgevf_dev *hdev)
 	roce->rinfo.base_vector = hdev->roce_base_msix_offset;
 
 	roce->rinfo.netdev = nic->kinfo.netdev;
-	roce->rinfo.roce_io_base = hdev->hw.io_base;
-	roce->rinfo.roce_mem_base = hdev->hw.mem_base;
+	roce->rinfo.roce_io_base = hdev->hw.hw.io_base;
+	roce->rinfo.roce_mem_base = hdev->hw.hw.mem_base;
 
 	roce->pdev = nic->pdev;
 	roce->ae_algo = nic->ae_algo;
@@ -3042,11 +3042,11 @@ static int hclgevf_dev_mem_map(struct hclgevf_dev *hdev)
 	if (!(pci_select_bars(pdev, IORESOURCE_MEM) & BIT(HCLGEVF_MEM_BAR)))
 		return 0;
 
-	hw->mem_base = devm_ioremap_wc(&pdev->dev,
-				       pci_resource_start(pdev,
-							  HCLGEVF_MEM_BAR),
-				       pci_resource_len(pdev, HCLGEVF_MEM_BAR));
-	if (!hw->mem_base) {
+	hw->hw.mem_base =
+		devm_ioremap_wc(&pdev->dev,
+				pci_resource_start(pdev, HCLGEVF_MEM_BAR),
+				pci_resource_len(pdev, HCLGEVF_MEM_BAR));
+	if (!hw->hw.mem_base) {
 		dev_err(&pdev->dev, "failed to map device memory\n");
 		return -EFAULT;
 	}
@@ -3080,9 +3080,8 @@ static int hclgevf_pci_init(struct hclgevf_dev *hdev)
 
 	pci_set_master(pdev);
 	hw = &hdev->hw;
-	hw->hdev = hdev;
-	hw->io_base = pci_iomap(pdev, 2, 0);
-	if (!hw->io_base) {
+	hw->hw.io_base = pci_iomap(pdev, 2, 0);
+	if (!hw->hw.io_base) {
 		dev_err(&pdev->dev, "can't map configuration register space\n");
 		ret = -ENOMEM;
 		goto err_clr_master;
@@ -3095,7 +3094,7 @@ static int hclgevf_pci_init(struct hclgevf_dev *hdev)
 	return 0;
 
 err_unmap_io_base:
-	pci_iounmap(pdev, hdev->hw.io_base);
+	pci_iounmap(pdev, hdev->hw.hw.io_base);
 err_clr_master:
 	pci_clear_master(pdev);
 	pci_release_regions(pdev);
@@ -3109,10 +3108,10 @@ static void hclgevf_pci_uninit(struct hclgevf_dev *hdev)
 {
 	struct pci_dev *pdev = hdev->pdev;
 
-	if (hdev->hw.mem_base)
-		devm_iounmap(&pdev->dev, hdev->hw.mem_base);
+	if (hdev->hw.hw.mem_base)
+		devm_iounmap(&pdev->dev, hdev->hw.hw.mem_base);
 
-	pci_iounmap(pdev, hdev->hw.io_base);
+	pci_iounmap(pdev, hdev->hw.hw.io_base);
 	pci_clear_master(pdev);
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);
@@ -3703,7 +3702,7 @@ static bool hclgevf_get_cmdq_stat(struct hnae3_handle *handle)
 {
 	struct hclgevf_dev *hdev = hclgevf_ae_get_hdev(handle);
 
-	return test_bit(HCLGEVF_STATE_CMD_DISABLE, &hdev->state);
+	return test_bit(HCLGE_COMM_STATE_CMD_DISABLE, &hdev->hw.hw.comm_state);
 }
 
 static bool hclgevf_ae_dev_resetting(struct hnae3_handle *handle)

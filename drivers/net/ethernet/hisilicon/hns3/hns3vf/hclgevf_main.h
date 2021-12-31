@@ -133,6 +133,11 @@
 
 #define HCLGEVF_STATS_TIMER_INTERVAL	36U
 
+#define hclgevf_read_dev(a, reg) \
+	hclge_comm_read_reg((a)->hw.io_base, reg)
+#define hclgevf_write_dev(a, reg, value) \
+	hclge_comm_write_reg((a)->hw.io_base, reg, value)
+
 enum hclgevf_evt_cause {
 	HCLGEVF_VECTOR0_EVENT_RST,
 	HCLGEVF_VECTOR0_EVENT_MBX,
@@ -154,7 +159,6 @@ enum hclgevf_states {
 	HCLGEVF_STATE_RST_HANDLING,
 	HCLGEVF_STATE_MBX_SERVICE_SCHED,
 	HCLGEVF_STATE_MBX_HANDLING,
-	HCLGEVF_STATE_CMD_DISABLE,
 	HCLGEVF_STATE_LINK_UPDATING,
 	HCLGEVF_STATE_PROMISC_CHANGED,
 	HCLGEVF_STATE_RST_FAIL,
@@ -173,12 +177,9 @@ struct hclgevf_mac {
 };
 
 struct hclgevf_hw {
-	void __iomem *io_base;
-	void __iomem *mem_base;
+	struct hclge_comm_hw hw;
 	int num_vec;
-	struct hclgevf_cmq cmq;
 	struct hclgevf_mac mac;
-	void *hdev; /* hchgevf device it is part of */
 };
 
 /* TQP stats */
