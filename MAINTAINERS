@@ -1370,10 +1370,13 @@ F:	include/uapi/linux/apm_bios.h
 
 APPARMOR SECURITY MODULE
 M:	John Johansen <john.johansen@canonical.com>
-L:	apparmor@lists.ubuntu.com (subscribers-only, general discussion)
+L:	apparmor@lists.ubuntu.com (moderated for non-subscribers)
 S:	Supported
-W:	wiki.apparmor.net
+W:	apparmor.net
+B:	https://gitlab.com/apparmor/apparmor-kernel
+C:	irc://irc.oftc.net/apparmor
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jj/linux-apparmor
+T:	https://gitlab.com/apparmor/apparmor-kernel.git
 F:	Documentation/admin-guide/LSM/apparmor.rst
 F:	security/apparmor/
 
