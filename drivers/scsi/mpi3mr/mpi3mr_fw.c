@@ -2174,7 +2174,7 @@ out:
  * mpi3mr_check_rh_fault_ioc - check reset history and fault
  * controller
  * @mrioc: Adapter instance reference
- * @reason_code, reason code for the fault.
+ * @reason_code: reason code for the fault.
  *
  * This routine will save snapdump and fault the controller with
  * the given reason code if it is not already in the fault or
@@ -3633,7 +3633,6 @@ static int mpi3mr_enable_events(struct mpi3mr_ioc *mrioc)
 /**
  * mpi3mr_init_ioc - Initialize the controller
  * @mrioc: Adapter instance reference
- * @init_type: Flag to indicate is the init_type
  *
  * This the controller initialization routine, executed either
  * after soft reset or from pci probe callback.
@@ -4174,7 +4173,7 @@ static void mpi3mr_issue_ioc_shutdown(struct mpi3mr_ioc *mrioc)
 /**
  * mpi3mr_cleanup_ioc - Cleanup controller
  * @mrioc: Adapter instance reference
-
+ *
  * controller cleanup handler, Message unit reset or soft reset
  * and shutdown notification is issued to the controller.
  *
