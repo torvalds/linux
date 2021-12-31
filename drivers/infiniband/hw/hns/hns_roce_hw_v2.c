@@ -2141,7 +2141,6 @@ static void apply_func_caps(struct hns_roce_dev *hr_dev)
 	caps->cqc_timer_entry_sz = HNS_ROCE_V2_CQC_TIMER_ENTRY_SZ;
 	caps->mtt_entry_sz = HNS_ROCE_V2_MTT_ENTRY_SZ;
 
-	caps->eqe_hop_num = HNS_ROCE_EQE_HOP_NUM;
 	caps->pbl_hop_num = HNS_ROCE_PBL_HOP_NUM;
 	caps->qpc_timer_hop_num = HNS_ROCE_HOP_NUM_0;
 	caps->cqc_timer_hop_num = HNS_ROCE_HOP_NUM_0;
@@ -2158,6 +2157,7 @@ static void apply_func_caps(struct hns_roce_dev *hr_dev)
 				  (u32)priv->handle->rinfo.num_vectors - 2);
 
 	if (hr_dev->pci_dev->revision >= PCI_REVISION_ID_HIP09) {
+		caps->eqe_hop_num = HNS_ROCE_V3_EQE_HOP_NUM;
 		caps->ceqe_size = HNS_ROCE_V3_EQE_SIZE;
 		caps->aeqe_size = HNS_ROCE_V3_EQE_SIZE;
 
@@ -2178,6 +2178,7 @@ static void apply_func_caps(struct hns_roce_dev *hr_dev)
 	} else {
 		u32 func_num = max_t(u32, 1, hr_dev->func_num);
 
+		caps->eqe_hop_num = HNS_ROCE_V2_EQE_HOP_NUM;
 		caps->ceqe_size = HNS_ROCE_CEQE_SIZE;
 		caps->aeqe_size = HNS_ROCE_AEQE_SIZE;
 		caps->gid_table_len[0] /= func_num;
