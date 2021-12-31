@@ -374,6 +374,7 @@ static int mxsfb_remove(struct platform_device *pdev)
 	struct drm_device *drm = platform_get_drvdata(pdev);
 
 	drm_dev_unregister(drm);
+	drm_atomic_helper_shutdown(drm);
 	mxsfb_unload(drm);
 	drm_dev_put(drm);
 
