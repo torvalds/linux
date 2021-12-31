@@ -291,13 +291,12 @@ mt7921_pm_set(void *data, u64 val)
 	pm->enable = false;
 	mt76_connac_pm_wake(&dev->mphy, pm);
 
+	pm->enable = val;
 	ieee80211_iterate_active_interfaces(mt76_hw(dev),
 					    IEEE80211_IFACE_ITER_RESUME_ALL,
 					    mt7921_pm_interface_iter, dev);
 
 	mt76_connac_mcu_set_deep_sleep(&dev->mt76, pm->ds_enable);
-
-	pm->enable = val;
 	mt76_connac_power_save_sched(&dev->mphy, pm);
 out:
 	mutex_unlock(&dev->mt76.mutex);
