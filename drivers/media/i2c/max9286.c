@@ -139,6 +139,7 @@
 struct max9286_source {
 	struct v4l2_subdev *sd;
 	struct fwnode_handle *fwnode;
+	struct regulator *regulator;
 };
 
 struct max9286_asd {
@@ -169,6 +170,7 @@ struct max9286_priv {
 	u32 init_rev_chan_mv;
 	u32 rev_chan_mv;
 
+	bool use_gpio_poc;
 	u32 gpio_poc[2];
 
 	struct v4l2_ctrl_handler ctrls;
@@ -1088,9 +1090,6 @@ static int max9286_parse_gpios(struct max9286_priv *priv)
 	struct device *dev = &priv->client->dev;
 	int ret;
 
-	/* GPIO values default to high */
-	priv->gpio_state = BIT(0) | BIT(1);
-
 	/*
 	 * Parse the "gpio-poc" vendor property. If the property is not
 	 * specified the camera power is controlled by a regulator.
@@ -1102,18 +1101,7 @@ static int max9286_parse_gpios(struct max9286_priv *priv)
 		 * If gpio lines are not used for the camera power, register
 		 * a gpio controller for consumers.
 		 */
-		ret = max9286_register_gpio(priv);
-		if (ret)
-			return ret;
-
-		priv->regulator = devm_regulator_get(dev, "poc");
-		if (IS_ERR(priv->regulator)) {
-			return dev_err_probe(dev, PTR_ERR(priv->regulator),
-					     "Unable to get PoC regulator (%ld)\n",
-					     PTR_ERR(priv->regulator));
-		}
-
-		return 0;
+		return max9286_register_gpio(priv);
 	}
 
 	/* If the property is specified make sure it is well formed. */
@@ -1124,21 +1112,75 @@ static int max9286_parse_gpios(struct max9286_priv *priv)
 		return -EINVAL;
 	}
 
+	priv->use_gpio_poc = true;
 	return 0;
+}
+
+static int max9286_poc_power_on(struct max9286_priv *priv)
+{
+	struct max9286_source *source;
+	unsigned int enabled = 0;
+	int ret;
+
+	/* Enable the global regulator if available. */
+	if (priv->regulator)
+		return regulator_enable(priv->regulator);
+
+	if (priv->use_gpio_poc)
+		return max9286_gpio_set(priv, priv->gpio_poc[0],
+					!priv->gpio_poc[1]);
+
+	/* Otherwise use the per-port regulators. */
+	for_each_source(priv, source) {
+		ret = regulator_enable(source->regulator);
+		if (ret < 0)
+			goto error;
+
+		enabled |= BIT(to_index(priv, source));
+	}
+
+	return 0;
+
+error:
+	for_each_source(priv, source) {
+		if (enabled & BIT(to_index(priv, source)))
+			regulator_disable(source->regulator);
+	}
+
+	return ret;
+}
+
+static int max9286_poc_power_off(struct max9286_priv *priv)
+{
+	struct max9286_source *source;
+	int ret = 0;
+
+	if (priv->regulator)
+		return regulator_disable(priv->regulator);
+
+	if (priv->use_gpio_poc)
+		return max9286_gpio_set(priv, priv->gpio_poc[0],
+					priv->gpio_poc[1]);
+
+	for_each_source(priv, source) {
+		int err;
+
+		err = regulator_disable(source->regulator);
+		if (!ret)
+			ret = err;
+	}
+
+	return ret;
 }
 
 static int max9286_poc_enable(struct max9286_priv *priv, bool enable)
 {
 	int ret;
 
-	/* If the regulator is not available, use gpio to control power. */
-	if (!priv->regulator)
-		ret = max9286_gpio_set(priv, priv->gpio_poc[0],
-				       enable ^ priv->gpio_poc[1]);
-	else if (enable)
-		ret = regulator_enable(priv->regulator);
+	if (enable)
+		ret = max9286_poc_power_on(priv);
 	else
-		ret = regulator_disable(priv->regulator);
+		ret = max9286_poc_power_off(priv);
 
 	if (ret < 0)
 		dev_err(&priv->client->dev, "Unable to turn power %s\n",
@@ -1317,6 +1359,44 @@ static int max9286_parse_dt(struct max9286_priv *priv)
 	return 0;
 }
 
+static int max9286_get_poc_supplies(struct max9286_priv *priv)
+{
+	struct device *dev = &priv->client->dev;
+	struct max9286_source *source;
+	int ret;
+
+	/* Start by getting the global regulator. */
+	priv->regulator = devm_regulator_get_optional(dev, "poc");
+	if (!IS_ERR(priv->regulator))
+		return 0;
+
+	if (PTR_ERR(priv->regulator) != -ENODEV)
+		return dev_err_probe(dev, PTR_ERR(priv->regulator),
+				     "Unable to get PoC regulator\n");
+
+	/* If there's no global regulator, get per-port regulators. */
+	dev_dbg(dev,
+		"No global PoC regulator, looking for per-port regulators\n");
+	priv->regulator = NULL;
+
+	for_each_source(priv, source) {
+		unsigned int index = to_index(priv, source);
+		char name[10];
+
+		snprintf(name, sizeof(name), "port%u-poc", index);
+		source->regulator = devm_regulator_get(dev, name);
+		if (IS_ERR(source->regulator)) {
+			ret = PTR_ERR(source->regulator);
+			dev_err_probe(dev, ret,
+				      "Unable to get port %u PoC regulator\n",
+				      index);
+			return ret;
+		}
+	}
+
+	return 0;
+}
+
 static int max9286_probe(struct i2c_client *client)
 {
 	struct max9286_priv *priv;
@@ -1329,6 +1409,9 @@ static int max9286_probe(struct i2c_client *client)
 	mutex_init(&priv->mutex);
 
 	priv->client = client;
+
+	/* GPIO values default to high */
+	priv->gpio_state = BIT(0) | BIT(1);
 
 	priv->gpiod_pwdn = devm_gpiod_get_optional(&client->dev, "enable",
 						   GPIOD_OUT_HIGH);
@@ -1362,7 +1445,13 @@ static int max9286_probe(struct i2c_client *client)
 
 	ret = max9286_parse_dt(priv);
 	if (ret)
-		goto err_powerdown;
+		goto err_cleanup_dt;
+
+	if (!priv->use_gpio_poc) {
+		ret = max9286_get_poc_supplies(priv);
+		if (ret)
+			goto err_cleanup_dt;
+	}
 
 	ret = max9286_init(priv);
 	if (ret < 0)
