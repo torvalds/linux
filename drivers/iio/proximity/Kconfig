@@ -112,11 +112,17 @@ config SRF04
 	  To compile this driver as a module, choose M here: the
 	  module will be called srf04.
 
+config SX_COMMON
+	tristate
+	help
+	  Common Semtech proximity sensor code.
+
 config SX9310
 	tristate "SX9310/SX9311 Semtech proximity sensor"
 	select IIO_BUFFER
 	select IIO_TRIGGERED_BUFFER
 	select REGMAP_I2C
+	select SX_COMMON
 	depends on I2C
 	help
 	  Say Y here to build a driver for Semtech's SX9310/SX9311 capacitive
