@@ -39,7 +39,7 @@ properties:
     maxItems: 1
 
   poc-supply:
-    description: Regulator providing Power over Coax to the cameras
+    description: Regulator providing Power over Coax to all the ports
 
   enable-gpios:
     description: GPIO connected to the \#PWDN pin with inverted polarity
@@ -182,21 +182,36 @@ properties:
 
             additionalProperties: false
 
+patternProperties:
+  "^port[0-3]-poc-supply$":
+    description: Regulator providing Power over Coax for a particular port
+
 required:
   - compatible
   - reg
   - ports
   - i2c-mux
 
-# If 'maxim,gpio-poc' is present, then 'poc-supply' and 'gpio-controller'
-# are not allowed.
-if:
-  required:
-    - maxim,gpio-poc
-then:
-  properties:
-    poc-supply: false
-    gpio-controller: false
+allOf:
+  # Only one way of specifying power supplies is allowed: 'maxim,gpio-poc',
+  # 'poc-supply' or per-port poc-supply. Additionally, if 'maxim,gpio-poc' is
+  # present, then 'gpio-controller' isn't allowed.
+  - if:
+      required:
+        - maxim,gpio-poc
+    then:
+      properties:
+        poc-supply: false
+        gpio-controller: false
+      patternProperties:
+        "^port[0-3]-poc-supply$": false
+
+  - if:
+      required:
+        - poc-supply
+    then:
+      patternProperties:
+        "^port[0-3]-poc-supply$": false
 
 additionalProperties: false
 
