@@ -691,10 +691,16 @@ found:
 		}
 
 		ret = bch2_journal_key_insert_take(c, btree_id, level, new);
+
 		if (ret)
 			kfree(new);
-		else
+		else {
+			bch2_bkey_val_to_text(&PBUF(buf), c, *k);
+			bch_info(c, "updated %s", buf);
+			bch2_bkey_val_to_text(&PBUF(buf), c, bkey_i_to_s_c(new));
+			bch_info(c, "new key %s", buf);
 			*k = bkey_i_to_s_c(new);
+		}
 	}
 fsck_err:
 	return ret;
