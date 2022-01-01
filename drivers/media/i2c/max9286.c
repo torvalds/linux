@@ -81,10 +81,13 @@
 #define MAX9286_DATATYPE_RGB565		(1 << 0)
 #define MAX9286_DATATYPE_RGB888		(0 << 0)
 /* Register 0x15 */
+#define MAX9286_CSI_IMAGE_TYP		BIT(7)
 #define MAX9286_VC(n)			((n) << 5)
 #define MAX9286_VCTYPE			BIT(4)
 #define MAX9286_CSIOUTEN		BIT(3)
-#define MAX9286_0X15_RESV		(3 << 0)
+#define MAX9286_SWP_ENDIAN		BIT(2)
+#define MAX9286_EN_CCBSYB_CLK_STR	BIT(1)
+#define MAX9286_EN_GPI_CCBSYB		BIT(0)
 /* Register 0x1b */
 #define MAX9286_SWITCHIN(n)		(1 << ((n) + 4))
 #define MAX9286_ENEQ(n)			(1 << (n))
@@ -529,10 +532,12 @@ static void max9286_set_video_format(struct max9286_priv *priv,
 		return;
 
 	/*
-	 * Video format setup:
-	 * Disable CSI output, VC is set according to Link number.
+	 * Video format setup: disable CSI output, set VC according to Link
+	 * number, enable I2C clock stretching when CCBSY is low, enable CCBSY
+	 * in external GPI-to-GPO mode.
 	 */
-	max9286_write(priv, 0x15, MAX9286_VCTYPE | MAX9286_0X15_RESV);
+	max9286_write(priv, 0x15, MAX9286_VCTYPE | MAX9286_EN_CCBSYB_CLK_STR |
+		      MAX9286_EN_GPI_CCBSYB);
 
 	/* Enable CSI-2 Lane D0-D3 only, DBL mode. */
 	max9286_write(priv, 0x12, MAX9286_CSIDBL | MAX9286_DBL |
@@ -814,13 +819,17 @@ static int max9286_s_stream(struct v4l2_subdev *sd, int enable)
 		}
 
 		/*
-		 * Enable CSI output, VC set according to link number.
-		 * Bit 7 must be set (chip manual says it's 0 and reserved).
+		 * Configure the CSI-2 output to line interleaved mode (W x (N
+		 * x H), as opposed to the (N x W) x H mode that outputs the
+		 * images stitched side-by-side) and enable it.
 		 */
-		max9286_write(priv, 0x15, 0x80 | MAX9286_VCTYPE |
-			      MAX9286_CSIOUTEN | MAX9286_0X15_RESV);
+		max9286_write(priv, 0x15, MAX9286_CSI_IMAGE_TYP | MAX9286_VCTYPE |
+			      MAX9286_CSIOUTEN | MAX9286_EN_CCBSYB_CLK_STR |
+			      MAX9286_EN_GPI_CCBSYB);
 	} else {
-		max9286_write(priv, 0x15, MAX9286_VCTYPE | MAX9286_0X15_RESV);
+		max9286_write(priv, 0x15, MAX9286_VCTYPE |
+			      MAX9286_EN_CCBSYB_CLK_STR |
+			      MAX9286_EN_GPI_CCBSYB);
 
 		/* Stop all cameras. */
 		for_each_source(priv, source)
