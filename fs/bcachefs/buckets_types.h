@@ -111,7 +111,7 @@ struct copygc_heap_entry {
 	u8			dev;
 	u8			gen;
 	u8			replicas;
-	u16			fragmentation;
+	u32			fragmentation;
 	u32			sectors;
 	u64			offset;
 };

@@ -678,6 +678,7 @@ enum btree_update_flags {
 	((1U << KEY_TYPE_alloc)|		\
 	 (1U << KEY_TYPE_alloc_v2)|		\
 	 (1U << KEY_TYPE_alloc_v3)|		\
+	 (1U << KEY_TYPE_alloc_v4)|		\
 	 (1U << KEY_TYPE_stripe)|		\
 	 (1U << KEY_TYPE_inode)|		\
 	 (1U << KEY_TYPE_inode_v2)|		\

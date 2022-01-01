@@ -10,48 +10,14 @@
 
 extern const char * const bch2_allocator_states[];
 
-struct bkey_alloc_unpacked {
-	u64		journal_seq;
-	u64		bucket;
-	u8		dev;
-	u8		gen;
-	u8		oldest_gen;
-	u8		data_type;
-#define x(_name, _bits)	u##_bits _name;
-	BCH_ALLOC_FIELDS_V2()
-#undef  x
-};
-
 /* How out of date a pointer gen is allowed to be: */
 #define BUCKET_GC_GEN_MAX	96U
 
-/* returns true if not equal */
-static inline bool bkey_alloc_unpacked_cmp(struct bkey_alloc_unpacked l,
-					   struct bkey_alloc_unpacked r)
-{
-	return  l.gen != r.gen			||
-		l.oldest_gen != r.oldest_gen	||
-		l.data_type != r.data_type
-#define x(_name, ...)	|| l._name != r._name
-	BCH_ALLOC_FIELDS_V2()
-#undef  x
-	;
-}
+struct bkey_i_alloc_v4 *
+bch2_trans_start_alloc_update(struct btree_trans *, struct btree_iter *, struct bpos);
 
-struct bkey_alloc_buf {
-	struct bkey_i	k;
-	struct bch_alloc_v3 v;
-
-#define x(_name,  _bits)		+ _bits / 8
-	u8		_pad[0 + BCH_ALLOC_FIELDS_V2()];
-#undef  x
-} __attribute__((packed, aligned(8)));
-
-struct bkey_alloc_unpacked bch2_alloc_unpack(struct bkey_s_c);
-struct bkey_alloc_buf *bch2_alloc_pack(struct btree_trans *,
-				       const struct bkey_alloc_unpacked);
-int bch2_alloc_write(struct btree_trans *, struct btree_iter *,
-		     struct bkey_alloc_unpacked *, unsigned);
+void bch2_alloc_to_v4(struct bkey_s_c, struct bch_alloc_v4 *);
+struct bkey_i_alloc_v4 *bch2_alloc_to_v4_mut(struct btree_trans *, struct bkey_s_c);
 
 int bch2_bucket_io_time_reset(struct btree_trans *, unsigned, size_t, int);
 
@@ -60,6 +26,8 @@ int bch2_bucket_io_time_reset(struct btree_trans *, unsigned, size_t, int);
 const char *bch2_alloc_v1_invalid(const struct bch_fs *, struct bkey_s_c);
 const char *bch2_alloc_v2_invalid(const struct bch_fs *, struct bkey_s_c);
 const char *bch2_alloc_v3_invalid(const struct bch_fs *, struct bkey_s_c);
+const char *bch2_alloc_v4_invalid(const struct bch_fs *, struct bkey_s_c k);
+void bch2_alloc_v4_swab(struct bkey_s);
 void bch2_alloc_to_text(struct printbuf *, struct bch_fs *, struct bkey_s_c);
 
 #define bch2_bkey_ops_alloc (struct bkey_ops) {		\
@@ -77,6 +45,13 @@ void bch2_alloc_to_text(struct printbuf *, struct bch_fs *, struct bkey_s_c);
 #define bch2_bkey_ops_alloc_v3 (struct bkey_ops) {	\
 	.key_invalid	= bch2_alloc_v3_invalid,	\
 	.val_to_text	= bch2_alloc_to_text,		\
+	.atomic_trigger	= bch2_mark_alloc,		\
+}
+
+#define bch2_bkey_ops_alloc_v4 (struct bkey_ops) {	\
+	.key_invalid	= bch2_alloc_v4_invalid,	\
+	.val_to_text	= bch2_alloc_to_text,		\
+	.swab		= bch2_alloc_v4_swab,		\
 	.atomic_trigger	= bch2_mark_alloc,		\
 }
 

@@ -1306,6 +1306,19 @@ static int bch2_gc_start(struct bch_fs *c,
 	return 0;
 }
 
+/* returns true if not equal */
+static inline bool bch2_alloc_v4_cmp(struct bch_alloc_v4 l,
+				     struct bch_alloc_v4 r)
+{
+	return  l.gen != r.gen				||
+		l.oldest_gen != r.oldest_gen		||
+		l.data_type != r.data_type		||
+		l.dirty_sectors	!= r.dirty_sectors	||
+		l.cached_sectors != r.cached_sectors	 ||
+		l.stripe_redundancy != r.stripe_redundancy ||
+		l.stripe != r.stripe;
+}
+
 static int bch2_alloc_write_key(struct btree_trans *trans,
 				struct btree_iter *iter,
 				bool metadata_only)
@@ -1314,8 +1327,8 @@ static int bch2_alloc_write_key(struct btree_trans *trans,
 	struct bch_dev *ca = bch_dev_bkey_exists(c, iter->pos.inode);
 	struct bucket *g;
 	struct bkey_s_c k;
-	struct bkey_alloc_unpacked old_u, new_u, gc_u;
-	struct bkey_alloc_buf *a;
+	struct bkey_i_alloc_v4 *a;
+	struct bch_alloc_v4 old, new, gc;
 	int ret;
 
 	k = bch2_btree_iter_peek_slot(iter);
@@ -1323,60 +1336,61 @@ static int bch2_alloc_write_key(struct btree_trans *trans,
 	if (ret)
 		return ret;
 
-	old_u = new_u = bch2_alloc_unpack(k);
+	bch2_alloc_to_v4(k, &old);
+	new = old;
 
 	percpu_down_read(&c->mark_lock);
 	g	= gc_bucket(ca, iter->pos.offset);
-	gc_u = (struct bkey_alloc_unpacked) {
-		.dev		= iter->pos.inode,
-		.bucket		= iter->pos.offset,
+	gc = (struct bch_alloc_v4) {
 		.gen		= g->mark.gen,
 		.data_type	= g->mark.data_type,
 		.dirty_sectors	= g->mark.dirty_sectors,
 		.cached_sectors	= g->mark.cached_sectors,
-		.read_time	= g->io_time[READ],
-		.write_time	= g->io_time[WRITE],
+		.io_time[READ]	= g->io_time[READ],
+		.io_time[WRITE]	= g->io_time[WRITE],
 		.stripe		= g->stripe,
 		.stripe_redundancy = g->stripe_redundancy,
 	};
 	percpu_up_read(&c->mark_lock);
 
 	if (metadata_only &&
-	    gc_u.data_type != BCH_DATA_sb &&
-	    gc_u.data_type != BCH_DATA_journal &&
-	    gc_u.data_type != BCH_DATA_btree)
+	    gc.data_type != BCH_DATA_sb &&
+	    gc.data_type != BCH_DATA_journal &&
+	    gc.data_type != BCH_DATA_btree)
 		return 0;
 
-	if (gen_after(old_u.gen, gc_u.gen))
+	if (gen_after(old.gen, gc.gen))
 		return 0;
 
 #define copy_bucket_field(_f)						\
-	if (fsck_err_on(new_u._f != gc_u._f, c,				\
+	if (fsck_err_on(new._f != gc._f, c,				\
 			"bucket %llu:%llu gen %u data type %s has wrong " #_f	\
 			": got %u, should be %u",			\
 			iter->pos.inode, iter->pos.offset,		\
-			new_u.gen,					\
-			bch2_data_types[new_u.data_type],		\
-			new_u._f, gc_u._f))				\
-		new_u._f = gc_u._f;					\
+			new.gen,					\
+			bch2_data_types[new.data_type],			\
+			new._f, gc._f))					\
+		new._f = gc._f;						\
 
 	copy_bucket_field(gen);
 	copy_bucket_field(data_type);
-	copy_bucket_field(stripe);
 	copy_bucket_field(dirty_sectors);
 	copy_bucket_field(cached_sectors);
 	copy_bucket_field(stripe_redundancy);
 	copy_bucket_field(stripe);
 #undef copy_bucket_field
 
-	if (!bkey_alloc_unpacked_cmp(old_u, new_u))
+	if (!bch2_alloc_v4_cmp(old, new))
 		return 0;
 
-	a = bch2_alloc_pack(trans, new_u);
-	if (IS_ERR(a))
-		return PTR_ERR(a);
+	a = bch2_alloc_to_v4_mut(trans, k);
+	ret = PTR_ERR_OR_ZERO(a);
+	if (ret)
+		return ret;
 
-	ret = bch2_trans_update(trans, iter, &a->k, BTREE_TRIGGER_NORUN);
+	a->v = new;
+
+	ret = bch2_trans_update(trans, iter, &a->k_i, BTREE_TRIGGER_NORUN);
 fsck_err:
 	return ret;
 }
@@ -1873,7 +1887,8 @@ static int bch2_alloc_write_oldest_gen(struct btree_trans *trans, struct btree_i
 {
 	struct bch_dev *ca = bch_dev_bkey_exists(trans->c, iter->pos.inode);
 	struct bkey_s_c k;
-	struct bkey_alloc_unpacked u;
+	struct bch_alloc_v4 a;
+	struct bkey_i_alloc_v4 *a_mut;
 	int ret;
 
 	k = bch2_btree_iter_peek_slot(iter);
@@ -1881,14 +1896,19 @@ static int bch2_alloc_write_oldest_gen(struct btree_trans *trans, struct btree_i
 	if (ret)
 		return ret;
 
-	u = bch2_alloc_unpack(k);
+	bch2_alloc_to_v4(k, &a);
 
-	if (u.oldest_gen == ca->oldest_gen[iter->pos.offset])
+	if (a.oldest_gen == ca->oldest_gen[iter->pos.offset])
 		return 0;
 
-	u.oldest_gen = ca->oldest_gen[iter->pos.offset];
+	a_mut = bch2_alloc_to_v4_mut(trans, k);
+	ret = PTR_ERR_OR_ZERO(a_mut);
+	if (ret)
+		return ret;
 
-	return bch2_alloc_write(trans, iter, &u, BTREE_TRIGGER_NORUN);
+	a_mut->v.oldest_gen = ca->oldest_gen[iter->pos.offset];
+
+	return bch2_trans_update(trans, iter, &a_mut->k_i, 0);
 }
 
 int bch2_gc_gens(struct bch_fs *c)

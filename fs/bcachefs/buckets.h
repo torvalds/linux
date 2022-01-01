@@ -97,6 +97,14 @@ static inline size_t PTR_BUCKET_NR(const struct bch_dev *ca,
 	return sector_to_bucket(ca, ptr->offset);
 }
 
+static inline struct bpos PTR_BUCKET_POS(const struct bch_fs *c,
+				   const struct bch_extent_ptr *ptr)
+{
+	struct bch_dev *ca = bch_dev_bkey_exists(c, ptr->dev);
+
+	return POS(ptr->dev, PTR_BUCKET_NR(ca, ptr));
+}
+
 static inline struct bucket *PTR_GC_BUCKET(struct bch_dev *ca,
 					   const struct bch_extent_ptr *ptr)
 {
