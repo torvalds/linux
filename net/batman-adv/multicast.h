@@ -44,7 +44,8 @@ enum batadv_forw_mode {
 
 enum batadv_forw_mode
 batadv_mcast_forw_mode(struct batadv_priv *bat_priv, struct sk_buff *skb,
-		       struct batadv_orig_node **mcast_single_orig);
+		       struct batadv_orig_node **mcast_single_orig,
+		       int *is_routable);
 
 int batadv_mcast_forw_send_orig(struct batadv_priv *bat_priv,
 				struct sk_buff *skb,
@@ -52,7 +53,7 @@ int batadv_mcast_forw_send_orig(struct batadv_priv *bat_priv,
 				struct batadv_orig_node *orig_node);
 
 int batadv_mcast_forw_send(struct batadv_priv *bat_priv, struct sk_buff *skb,
-			   unsigned short vid);
+			   unsigned short vid, int is_routable);
 
 void batadv_mcast_init(struct batadv_priv *bat_priv);
 
@@ -71,7 +72,8 @@ void batadv_mcast_purge_orig(struct batadv_orig_node *orig_node);
 
 static inline enum batadv_forw_mode
 batadv_mcast_forw_mode(struct batadv_priv *bat_priv, struct sk_buff *skb,
-		       struct batadv_orig_node **mcast_single_orig)
+		       struct batadv_orig_node **mcast_single_orig,
+		       int *is_routable)
 {
 	return BATADV_FORW_ALL;
 }
@@ -88,7 +90,7 @@ batadv_mcast_forw_send_orig(struct batadv_priv *bat_priv,
 
 static inline int
 batadv_mcast_forw_send(struct batadv_priv *bat_priv, struct sk_buff *skb,
-		       unsigned short vid)
+		       unsigned short vid, int is_routable)
 {
 	kfree_skb(skb);
 	return NET_XMIT_DROP;
