@@ -144,6 +144,11 @@ struct max9286_format_info {
 	u8 datatype;
 };
 
+struct max9286_i2c_speed {
+	u32 rate;
+	u8 mstbt;
+};
+
 struct max9286_source {
 	struct v4l2_subdev *sd;
 	struct fwnode_handle *fwnode;
@@ -177,6 +182,7 @@ struct max9286_priv {
 	/* The initial reverse control channel amplitude. */
 	u32 init_rev_chan_mv;
 	u32 rev_chan_mv;
+	u8 i2c_mstbt;
 
 	bool use_gpio_poc;
 	u32 gpio_poc[2];
@@ -252,6 +258,17 @@ static const struct max9286_format_info max9286_formats[] = {
 		.code = MEDIA_BUS_FMT_SRGGB12_1X12,
 		.datatype = MAX9286_DATATYPE_RAW12,
 	},
+};
+
+static const struct max9286_i2c_speed max9286_i2c_speeds[] = {
+	{ .rate =   8470, .mstbt = MAX9286_I2CMSTBT_8KBPS },
+	{ .rate =  28300, .mstbt = MAX9286_I2CMSTBT_28KBPS },
+	{ .rate =  84700, .mstbt = MAX9286_I2CMSTBT_84KBPS },
+	{ .rate = 105000, .mstbt = MAX9286_I2CMSTBT_105KBPS },
+	{ .rate = 173000, .mstbt = MAX9286_I2CMSTBT_173KBPS },
+	{ .rate = 339000, .mstbt = MAX9286_I2CMSTBT_339KBPS },
+	{ .rate = 533000, .mstbt = MAX9286_I2CMSTBT_533KBPS },
+	{ .rate = 837000, .mstbt = MAX9286_I2CMSTBT_837KBPS },
 };
 
 /* -----------------------------------------------------------------------------
@@ -374,7 +391,7 @@ error:
 static void max9286_configure_i2c(struct max9286_priv *priv, bool localack)
 {
 	u8 config = MAX9286_I2CSLVSH_469NS_234NS | MAX9286_I2CSLVTO_1024US |
-		    MAX9286_I2CMSTBT_105KBPS;
+		    priv->i2c_mstbt;
 
 	if (localack)
 		config |= MAX9286_I2CLOCACK;
@@ -1387,6 +1404,8 @@ static int max9286_parse_dt(struct max9286_priv *priv)
 	struct device_node *node = NULL;
 	unsigned int i2c_mux_mask = 0;
 	u32 reverse_channel_microvolt;
+	u32 i2c_clk_freq = 105000;
+	unsigned int i;
 
 	/* Balance the of_node_put() performed by of_find_node_by_name(). */
 	of_node_get(dev->of_node);
@@ -1477,6 +1496,23 @@ static int max9286_parse_dt(struct max9286_priv *priv)
 	}
 	of_node_put(node);
 
+	of_property_read_u32(dev->of_node, "maxim,i2c-remote-bus-hz",
+			     &i2c_clk_freq);
+	for (i = 0; i < ARRAY_SIZE(max9286_i2c_speeds); ++i) {
+		const struct max9286_i2c_speed *speed = &max9286_i2c_speeds[i];
+
+		if (speed->rate == i2c_clk_freq) {
+			priv->i2c_mstbt = speed->mstbt;
+			break;
+		}
+	}
+
+	if (i == ARRAY_SIZE(max9286_i2c_speeds)) {
+		dev_err(dev, "Invalid %s value %u\n", "maxim,i2c-remote-bus-hz",
+			i2c_clk_freq);
+		return -EINVAL;
+	}
+
 	/*
 	 * Parse the initial value of the reverse channel amplitude from
 	 * the firmware interface and convert it to millivolts.
@@ -1550,10 +1586,16 @@ static int max9286_probe(struct i2c_client *client)
 	/* GPIO values default to high */
 	priv->gpio_state = BIT(0) | BIT(1);
 
+	ret = max9286_parse_dt(priv);
+	if (ret)
+		goto err_cleanup_dt;
+
 	priv->gpiod_pwdn = devm_gpiod_get_optional(&client->dev, "enable",
 						   GPIOD_OUT_HIGH);
-	if (IS_ERR(priv->gpiod_pwdn))
-		return PTR_ERR(priv->gpiod_pwdn);
+	if (IS_ERR(priv->gpiod_pwdn)) {
+		ret = PTR_ERR(priv->gpiod_pwdn);
+		goto err_cleanup_dt;
+	}
 
 	gpiod_set_consumer_name(priv->gpiod_pwdn, "max9286-pwdn");
 	gpiod_set_value_cansleep(priv->gpiod_pwdn, 1);
@@ -1580,10 +1622,6 @@ static int max9286_probe(struct i2c_client *client)
 	if (ret)
 		goto err_powerdown;
 
-	ret = max9286_parse_dt(priv);
-	if (ret)
-		goto err_cleanup_dt;
-
 	if (!priv->use_gpio_poc) {
 		ret = max9286_get_poc_supplies(priv);
 		if (ret)
@@ -1596,10 +1634,10 @@ static int max9286_probe(struct i2c_client *client)
 
 	return 0;
 
-err_cleanup_dt:
-	max9286_cleanup_dt(priv);
 err_powerdown:
 	gpiod_set_value_cansleep(priv->gpiod_pwdn, 0);
+err_cleanup_dt:
+	max9286_cleanup_dt(priv);
 
 	return ret;
 }
