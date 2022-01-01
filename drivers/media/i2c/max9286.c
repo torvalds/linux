@@ -567,9 +567,12 @@ static void max9286_set_video_format(struct max9286_priv *priv,
 		      MAX9286_CSILANECNT(priv->csi2_data_lanes) |
 		      info->datatype);
 
-	/* Enable HS/VS encoding, use D14/15 for HS/VS, invert VS. */
-	max9286_write(priv, 0x0c, MAX9286_HVEN | MAX9286_INVVS |
-		      MAX9286_HVSRC_D14);
+	/*
+	 * Enable HS/VS encoding, use HS as line valid source, use D14/15 for
+	 * HS/VS, invert VS.
+	 */
+	max9286_write(priv, 0x0c, MAX9286_HVEN | MAX9286_DESEL |
+		      MAX9286_INVVS | MAX9286_HVSRC_D14);
 }
 
 static void max9286_set_fsync_period(struct max9286_priv *priv)
