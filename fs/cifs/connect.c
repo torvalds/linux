@@ -1894,9 +1894,11 @@ void cifs_put_smb_ses(struct cifs_ses *ses)
 		int i;
 
 		for (i = 1; i < chan_count; i++) {
-			spin_unlock(&ses->chan_lock);
+			if (ses->chans[i].iface) {
+				kref_put(&ses->chans[i].iface->refcount, release_iface);
+				ses->chans[i].iface = NULL;
+			}
 			cifs_put_tcp_session(ses->chans[i].server, 0);
-			spin_lock(&ses->chan_lock);
 			ses->chans[i].server = NULL;
 		}
 	}
