@@ -1156,6 +1156,7 @@ static int max9286_setup(struct max9286_priv *priv)
 		(2 << 6) | (1 << 4) | (0 << 2) | (3 << 0), /* 210x */
 		(3 << 6) | (2 << 4) | (1 << 2) | (0 << 0), /* 3210 */
 	};
+	int cfg;
 
 	/*
 	 * Set the I2C bus speed.
@@ -1177,21 +1178,23 @@ static int max9286_setup(struct max9286_priv *priv)
 	max9286_set_video_format(priv, &max9286_default_format);
 	max9286_set_fsync_period(priv);
 
+	cfg = max9286_read(priv, 0x1c);
+	if (cfg < 0)
+		return cfg;
+
+	dev_dbg(&priv->client->dev, "power-up config: %s immunity, %u-bit bus\n",
+		cfg & MAX9286_HIGHIMM(0) ? "high" : "legacy",
+		cfg & MAX9286_BWS ? 32 : cfg & MAX9286_HIBW ? 27 : 24);
+
 	if (priv->bus_width) {
-		int val;
-
-		val = max9286_read(priv, 0x1c);
-		if (val < 0)
-			return val;
-
-		val &= ~(MAX9286_HIBW | MAX9286_BWS);
+		cfg &= ~(MAX9286_HIBW | MAX9286_BWS);
 
 		if (priv->bus_width == 27)
-			val |= MAX9286_HIBW;
+			cfg |= MAX9286_HIBW;
 		else if (priv->bus_width == 32)
-			val |= MAX9286_BWS;
+			cfg |= MAX9286_BWS;
 
-		max9286_write(priv, 0x1c, val);
+		max9286_write(priv, 0x1c, cfg);
 	}
 
 	/*
