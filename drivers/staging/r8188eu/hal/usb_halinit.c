@@ -384,13 +384,6 @@ static void _InitEDCA(struct adapter *Adapter)
 	rtw_write32(Adapter, REG_EDCA_VO_PARAM, 0x002FA226);
 }
 
-static void _InitRDGSetting(struct adapter *Adapter)
-{
-	rtw_write8(Adapter, REG_RD_CTRL, 0xFF);
-	rtw_write16(Adapter, REG_RD_NAV_NXT, 0x200);
-	rtw_write8(Adapter, REG_RD_RESP_PKT_TH, 0x05);
-}
-
 static void _InitRetryFunction(struct adapter *Adapter)
 {
 	u8 value8;
@@ -711,9 +704,6 @@ u32 rtl8188eu_hal_init(struct adapter *Adapter)
 	value16 = rtw_read16(Adapter, REG_CR);
 	value16 |= (MACTXEN | MACRXEN);
 	rtw_write8(Adapter, REG_CR, value16);
-
-	if (haldata->bRDGEnable)
-		_InitRDGSetting(Adapter);
 
 	/* Enable TX Report */
 	/* Enable Tx Report Timer */
