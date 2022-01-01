@@ -50,6 +50,13 @@ properties:
   '#gpio-cells':
     const: 2
 
+  maxim,i2c-remote-bus-hz:
+    enum: [ 8470, 28300, 84700, 105000, 173000, 339000, 533000, 837000 ]
+    default: 105000
+    description: |
+      The I2C clock frequency for the remote I2C buses. The value must match
+      the configuration of the remote serializers.
+
   maxim,reverse-channel-microvolt:
     minimum: 30000
     maximum: 200000
@@ -234,6 +241,7 @@ examples:
             gpio-controller;
             #gpio-cells = <2>;
 
+            maxim,i2c-remote-bus-hz = <339000>;
             maxim,reverse-channel-microvolt = <170000>;
 
             ports {
