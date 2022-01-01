@@ -91,6 +91,11 @@
 /* Register 0x1b */
 #define MAX9286_SWITCHIN(n)		(1 << ((n) + 4))
 #define MAX9286_ENEQ(n)			(1 << (n))
+/* Register 0x1c */
+#define MAX9286_HIGHIMM(n)		BIT((n) + 4)
+#define MAX9286_I2CSEL			BIT(2)
+#define MAX9286_HIBW			BIT(1)
+#define MAX9286_BWS			BIT(0)
 /* Register 0x27 */
 #define MAX9286_LOCKED			BIT(7)
 /* Register 0x31 */
@@ -183,6 +188,7 @@ struct max9286_priv {
 	u32 init_rev_chan_mv;
 	u32 rev_chan_mv;
 	u8 i2c_mstbt;
+	u32 bus_width;
 
 	bool use_gpio_poc;
 	u32 gpio_poc[2];
@@ -1168,6 +1174,23 @@ static int max9286_setup(struct max9286_priv *priv)
 	max9286_set_video_format(priv, &max9286_default_format);
 	max9286_set_fsync_period(priv);
 
+	if (priv->bus_width) {
+		int val;
+
+		val = max9286_read(priv, 0x1c);
+		if (val < 0)
+			return val;
+
+		val &= ~(MAX9286_HIBW | MAX9286_BWS);
+
+		if (priv->bus_width == 27)
+			val |= MAX9286_HIBW;
+		else if (priv->bus_width == 32)
+			val |= MAX9286_BWS;
+
+		max9286_write(priv, 0x1c, val);
+	}
+
 	/*
 	 * The overlap window seems to provide additional validation by tracking
 	 * the delay between vsync and frame sync, generating an error if the
@@ -1495,6 +1518,23 @@ static int max9286_parse_dt(struct max9286_priv *priv)
 		priv->nsources++;
 	}
 	of_node_put(node);
+
+	of_property_read_u32(dev->of_node, "maxim,bus-width", &priv->bus_width);
+	switch (priv->bus_width) {
+	case 0:
+		/*
+		 * The property isn't specified in the device tree, the driver
+		 * will keep the default value selected by the BWS pin.
+		 */
+	case 24:
+	case 27:
+	case 32:
+		break;
+	default:
+		dev_err(dev, "Invalid %s value %u\n", "maxim,bus-width",
+			priv->bus_width);
+		return -EINVAL;
+	}
 
 	of_property_read_u32(dev->of_node, "maxim,i2c-remote-bus-hz",
 			     &i2c_clk_freq);
