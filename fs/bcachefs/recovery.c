@@ -613,8 +613,10 @@ static int bch2_journal_replay(struct bch_fs *c)
 	     sizeof(keys_sorted[0]),
 	     journal_sort_seq_cmp, NULL);
 
-	if (keys->nr)
+	if (keys->nr) {
+		bch_verbose(c, "starting journal replay, %zu keys", keys->nr);
 		replay_now_at(j, keys->journal_seq_base);
+	}
 
 	seq = j->replay_journal_seq;
 
@@ -1235,6 +1237,13 @@ use_clean:
 
 	set_bit(BCH_FS_ALLOC_READ_DONE, &c->flags);
 
+	/*
+	 * If we're not running fsck, this ensures bch2_fsck_err() calls are
+	 * instead interpreted as bch2_inconsistent_err() calls:
+	 */
+	if (!c->opts.fsck)
+		set_bit(BCH_FS_FSCK_DONE, &c->flags);
+
 	if (c->opts.fsck ||
 	    !(c->sb.compat & (1ULL << BCH_COMPAT_alloc_info)) ||
 	    !(c->sb.compat & (1ULL << BCH_COMPAT_alloc_metadata)) ||
@@ -1434,6 +1443,7 @@ int bch2_fs_initialize(struct bch_fs *c)
 
 	set_bit(BCH_FS_ALLOC_READ_DONE, &c->flags);
 	set_bit(BCH_FS_INITIAL_GC_DONE, &c->flags);
+	set_bit(BCH_FS_FSCK_DONE, &c->flags);
 
 	for (i = 0; i < BTREE_ID_NR; i++)
 		bch2_btree_root_alloc(c, i);
