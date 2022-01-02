@@ -1990,6 +1990,7 @@ recv_end:
 
 end:
 	release_sock(sk);
+	sk_defer_free_flush(sk);
 	if (psock)
 		sk_psock_put(sk, psock);
 	return copied ? : err;
