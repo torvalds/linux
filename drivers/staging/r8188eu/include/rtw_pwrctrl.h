@@ -19,10 +19,6 @@ enum power_mgnt {
 	PS_MODE_DTIM,
 	PS_MODE_VOIP,
 	PS_MODE_UAPSD_WMM,
-	PS_MODE_UAPSD,
-	PS_MODE_IBSS,
-	PS_MODE_WWLAN,
-	PM_Radio_Off,
 	PM_Card_Disable,
 	PS_MODE_NUM
 };
