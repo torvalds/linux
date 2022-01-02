@@ -116,11 +116,18 @@ int bch2_journal_key_insert_take(struct bch_fs *c, enum btree_id id,
 		.btree_id	= id,
 		.level		= level,
 		.k		= k,
-		.allocated	= true
+		.allocated	= true,
+		/*
+		 * Ensure these keys are done last by journal replay, to unblock
+		 * journal reclaim:
+		 */
+		.journal_seq	= U32_MAX,
 	};
 	struct journal_keys *keys = &c->journal_keys;
 	struct journal_iter *iter;
 	unsigned idx = journal_key_search(keys, id, level, k->k.p);
+
+	BUG_ON(test_bit(BCH_FS_RW, &c->flags));
 
 	if (idx < keys->nr &&
 	    journal_key_cmp(&n, &keys->d[idx]) == 0) {
