@@ -87,28 +87,21 @@ rtl8188e_PHY_RF6052SetCckTxPower(
 	struct hal_data_8188e *pHalData = &Adapter->haldata;
 	struct mlme_ext_priv *pmlmeext = &Adapter->mlmeextpriv;
 	u32 TxAGC[2] = {0, 0}, tmpval = 0, pwrtrac_value;
-	bool TurboScanOff = false;
 	u8 idx1, idx2;
 	u8 *ptr;
 	u8 direction;
-	/* FOR CE ,must disable turbo scan */
-	TurboScanOff = true;
 
 	if (pmlmeext->sitesurvey_res.state == SCAN_PROCESS) {
 		TxAGC[RF_PATH_A] = 0x3f3f3f3f;
 		TxAGC[RF_PATH_B] = 0x3f3f3f3f;
 
-		TurboScanOff = true;/* disable turbo scan */
-
-		if (TurboScanOff) {
-			for (idx1 = RF_PATH_A; idx1 <= RF_PATH_B; idx1++) {
-				TxAGC[idx1] =
-					pPowerlevel[idx1] | (pPowerlevel[idx1] << 8) |
-					(pPowerlevel[idx1] << 16) | (pPowerlevel[idx1] << 24);
-				/*  2010/10/18 MH For external PA module. We need to limit power index to be less than 0x20. */
-				if (TxAGC[idx1] > 0x20 && pHalData->ExternalPA)
-					TxAGC[idx1] = 0x20;
-			}
+		for (idx1 = RF_PATH_A; idx1 <= RF_PATH_B; idx1++) {
+			TxAGC[idx1] =
+				pPowerlevel[idx1] | (pPowerlevel[idx1] << 8) |
+				(pPowerlevel[idx1] << 16) | (pPowerlevel[idx1] << 24);
+			/*  2010/10/18 MH For external PA module. We need to limit power index to be less than 0x20. */
+			if (TxAGC[idx1] > 0x20 && pHalData->ExternalPA)
+				TxAGC[idx1] = 0x20;
 		}
 	} else {
 		for (idx1 = RF_PATH_A; idx1 <= RF_PATH_B; idx1++) {
