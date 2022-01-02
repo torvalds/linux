@@ -21,11 +21,6 @@
 #define EEPROM_EWEN_OPCODE		19      /*  Erase/write enable */
 #define EEPROM_EWDS_OPCODE		16      /*  Erase/write disable */
 
-/* Country codes */
-#define USA				0x555320
-#define EUROPE				0x1 /* temp, should be provided later */
-#define JAPAN				0x2 /* temp, should be provided later */
-
 #define	EEPROM_CID_DEFAULT		0x0
 #define	EEPROM_CID_ALPHA		0x1
 #define	EEPROM_CID_Senao		0x3

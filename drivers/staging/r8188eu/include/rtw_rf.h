@@ -6,27 +6,15 @@
 
 #include "rtw_cmd.h"
 
-#define OFDM_PHY		1
-#define MIXED_PHY		2
-#define CCK_PHY		3
-
 #define NumRates	(13)
 
 /*  slot time for 11g */
 #define SHORT_SLOT_TIME			9
 #define NON_SHORT_SLOT_TIME		20
 
-#define RTL8711_RF_MAX_SENS		6
-#define RTL8711_RF_DEF_SENS		4
-
 #define	MAX_CHANNEL_NUM			14	/* 2.4 GHz only */
 
 #define NUM_REGULATORYS	1
-
-/* Country codes */
-#define USA				0x555320
-#define EUROPE				0x1 /* temp, should be provided later */
-#define JAPAN				0x2 /* temp, should be provided later */
 
 struct	regulatory_class {
 	u32	starting_freq;				/* MHz, */
@@ -62,13 +50,6 @@ enum	_REG_PREAMBLE_MODE {
 	PREAMBLE_LONG	= 1,
 	PREAMBLE_AUTO	= 2,
 	PREAMBLE_SHORT	= 3,
-};
-
-enum rf90_radio_path {
-	RF90_PATH_A = 0,		/* Radio Path A */
-	RF90_PATH_B = 1,		/* Radio Path B */
-	RF90_PATH_C = 2,		/* Radio Path C */
-	RF90_PATH_D = 3			/* Radio Path D */
 };
 
 /*  Bandwidth Offset */
