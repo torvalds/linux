@@ -1659,6 +1659,21 @@ bool is_pmu_core(const char *name)
 	return !strcmp(name, "cpu") || is_arm_pmu_core(name);
 }
 
+static bool pmu_alias_is_duplicate(struct sevent *alias_a,
+				   struct sevent *alias_b)
+{
+	/* Different names -> never duplicates */
+	if (strcmp(alias_a->name, alias_b->name))
+		return false;
+
+	/* Don't remove duplicates for hybrid PMUs */
+	if (perf_pmu__is_hybrid(alias_a->pmu) &&
+	    perf_pmu__is_hybrid(alias_b->pmu))
+		return false;
+
+	return true;
+}
+
 void print_pmu_events(const char *event_glob, bool name_only, bool quiet_flag,
 			bool long_desc, bool details_flag, bool deprecated,
 			const char *pmu_name)
@@ -1744,12 +1759,8 @@ void print_pmu_events(const char *event_glob, bool name_only, bool quiet_flag,
 	qsort(aliases, len, sizeof(struct sevent), cmp_sevent);
 	for (j = 0; j < len; j++) {
 		/* Skip duplicates */
-		if (j > 0 && !strcmp(aliases[j].name, aliases[j - 1].name)) {
-			if (!aliases[j].pmu || !aliases[j - 1].pmu ||
-			    !strcmp(aliases[j].pmu, aliases[j - 1].pmu)) {
-				continue;
-			}
-		}
+		if (j > 0 && pmu_alias_is_duplicate(&aliases[j], &aliases[j - 1]))
+			continue;
 
 		if (name_only) {
 			printf("%s ", aliases[j].name);
