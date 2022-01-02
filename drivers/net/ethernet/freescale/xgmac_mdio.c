@@ -47,7 +47,6 @@ struct tgec_mdio_controller {
 #define MDIO_CTL_READ		BIT(15)
 
 #define MDIO_DATA(x)		(x & 0xffff)
-#define MDIO_DATA_BSY		BIT(31)
 
 struct mdio_fsl_priv {
 	struct	tgec_mdio_controller __iomem *mdio_base;
