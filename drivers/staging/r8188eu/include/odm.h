@@ -5,43 +5,21 @@
 #define __HALDMOUTSRC_H__
 
 struct rtw_dig {
-	u8		Dig_Enable_Flag;
-	u8		Dig_Ext_Port_Stage;
-
-	int		RssiLowThresh;
-	int		RssiHighThresh;
-
-	u32		FALowThresh;
-	u32		FAHighThresh;
-
-	u8		CurSTAConnectState;
-	u8		PreSTAConnectState;
-	u8		CurMultiSTAConnectState;
-
 	u8		PreIGValue;
 	u8		CurIGValue;
 	u8		BackupIGValue;
 
-	s8		BackoffVal;
-	s8		BackoffVal_range_max;
-	s8		BackoffVal_range_min;
 	u8		rx_gain_range_max;
 	u8		rx_gain_range_min;
-	u8		Rssi_val_min;
 
-	u8		PreCCK_CCAThres;
 	u8		CurCCK_CCAThres;
-	u8		PreCCKPDState;
-	u8		CurCCKPDState;
 
 	u8		LargeFAHit;
 	u8		ForbiddenIGI;
 	u32		Recover_cnt;
 
 	u8		DIG_Dynamic_MIN_0;
-	u8		DIG_Dynamic_MIN_1;
 	bool		bMediaConnect_0;
-	bool		bMediaConnect_1;
 
 	u32		AntDiv_RSSI_max;
 	u32		RSSI_max;
@@ -482,12 +460,6 @@ enum odm_bb_config_type {
     CONFIG_BB_PHY_REG_PG,
 };
 
-#define		DM_DIG_THRESH_HIGH	40
-#define		DM_DIG_THRESH_LOW	35
-
-#define		DM_false_ALARM_THRESH_LOW	400
-#define		DM_false_ALARM_THRESH_HIGH	1000
-
 #define		DM_DIG_MAX_NIC			0x4e
 #define		DM_DIG_MIN_NIC			0x1e /* 0x22/0x1c */
 
@@ -498,10 +470,6 @@ enum odm_bb_config_type {
 #define		DM_DIG_FA_TH0			0x200/* 0x20 */
 #define		DM_DIG_FA_TH1			0x300/* 0x100 */
 #define		DM_DIG_FA_TH2			0x400/* 0x200 */
-
-#define		DM_DIG_BACKOFF_MAX		12
-#define		DM_DIG_BACKOFF_MIN		-4
-#define		DM_DIG_BACKOFF_DEFAULT		10
 
 /* 3=========================================================== */
 /* 3 Rate Adaptive */
