@@ -1208,9 +1208,7 @@ enum mlx5_cap_type {
 	MLX5_CAP_FLOW_TABLE,
 	MLX5_CAP_ESWITCH_FLOW_TABLE,
 	MLX5_CAP_ESWITCH,
-	MLX5_CAP_RESERVED,
-	MLX5_CAP_VECTOR_CALC,
-	MLX5_CAP_QOS,
+	MLX5_CAP_QOS = 0xc,
 	MLX5_CAP_DEBUG,
 	MLX5_CAP_RESERVED_14,
 	MLX5_CAP_DEV_MEM,
@@ -1220,7 +1218,6 @@ enum mlx5_cap_type {
 	MLX5_CAP_DEV_EVENT = 0x14,
 	MLX5_CAP_IPSEC,
 	MLX5_CAP_CRYPTO = 0x1a,
-	MLX5_CAP_DEV_SHAMPO = 0x1d,
 	MLX5_CAP_MACSEC = 0x1f,
 	MLX5_CAP_GENERAL_2 = 0x20,
 	MLX5_CAP_PORT_SELECTION = 0x25,
@@ -1239,7 +1236,6 @@ enum mlx5_pcam_feature_groups {
 
 enum mlx5_mcam_reg_groups {
 	MLX5_MCAM_REGS_FIRST_128                    = 0x0,
-	MLX5_MCAM_REGS_0x9080_0x90FF                = 0x1,
 	MLX5_MCAM_REGS_0x9100_0x917F                = 0x2,
 	MLX5_MCAM_REGS_NUM                          = 0x3,
 };
@@ -1416,10 +1412,6 @@ enum mlx5_qcam_feature_groups {
 #define MLX5_CAP_ODP_MAX(mdev, cap)\
 	MLX5_GET(odp_cap, mdev->caps.hca[MLX5_CAP_ODP]->max, cap)
 
-#define MLX5_CAP_VECTOR_CALC(mdev, cap) \
-	MLX5_GET(vector_calc_cap, \
-		 mdev->caps.hca[MLX5_CAP_VECTOR_CALC]->cur, cap)
-
 #define MLX5_CAP_QOS(mdev, cap)\
 	MLX5_GET(qos_cap, mdev->caps.hca[MLX5_CAP_QOS]->cur, cap)
 
@@ -1435,10 +1427,6 @@ enum mlx5_qcam_feature_groups {
 #define MLX5_CAP_MCAM_REG(mdev, reg) \
 	MLX5_GET(mcam_reg, (mdev)->caps.mcam[MLX5_MCAM_REGS_FIRST_128], \
 		 mng_access_reg_cap_mask.access_regs.reg)
-
-#define MLX5_CAP_MCAM_REG1(mdev, reg) \
-	MLX5_GET(mcam_reg, (mdev)->caps.mcam[MLX5_MCAM_REGS_0x9080_0x90FF], \
-		 mng_access_reg_cap_mask.access_regs1.reg)
 
 #define MLX5_CAP_MCAM_REG2(mdev, reg) \
 	MLX5_GET(mcam_reg, (mdev)->caps.mcam[MLX5_MCAM_REGS_0x9100_0x917F], \
@@ -1484,9 +1472,6 @@ enum mlx5_qcam_feature_groups {
 
 #define MLX5_CAP_CRYPTO(mdev, cap)\
 	MLX5_GET(crypto_cap, (mdev)->caps.hca[MLX5_CAP_CRYPTO]->cur, cap)
-
-#define MLX5_CAP_DEV_SHAMPO(mdev, cap)\
-	MLX5_GET(shampo_cap, mdev->caps.hca_cur[MLX5_CAP_DEV_SHAMPO], cap)
 
 #define MLX5_CAP_MACSEC(mdev, cap)\
 	MLX5_GET(macsec_cap, (mdev)->caps.hca[MLX5_CAP_MACSEC]->cur, cap)

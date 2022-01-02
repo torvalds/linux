@@ -1314,33 +1314,6 @@ struct mlx5_ifc_odp_cap_bits {
 	u8         reserved_at_120[0x6E0];
 };
 
-struct mlx5_ifc_calc_op {
-	u8        reserved_at_0[0x10];
-	u8        reserved_at_10[0x9];
-	u8        op_swap_endianness[0x1];
-	u8        op_min[0x1];
-	u8        op_xor[0x1];
-	u8        op_or[0x1];
-	u8        op_and[0x1];
-	u8        op_max[0x1];
-	u8        op_add[0x1];
-};
-
-struct mlx5_ifc_vector_calc_cap_bits {
-	u8         calc_matrix[0x1];
-	u8         reserved_at_1[0x1f];
-	u8         reserved_at_20[0x8];
-	u8         max_vec_count[0x8];
-	u8         reserved_at_30[0xd];
-	u8         max_chunk_size[0x3];
-	struct mlx5_ifc_calc_op calc0;
-	struct mlx5_ifc_calc_op calc1;
-	struct mlx5_ifc_calc_op calc2;
-	struct mlx5_ifc_calc_op calc3;
-
-	u8         reserved_at_c0[0x720];
-};
-
 struct mlx5_ifc_tls_cap_bits {
 	u8         tls_1_2_aes_gcm_128[0x1];
 	u8         tls_1_3_aes_gcm_128[0x1];
@@ -3435,20 +3408,6 @@ struct mlx5_ifc_roce_addr_layout_bits {
 	u8         reserved_at_e0[0x20];
 };
 
-struct mlx5_ifc_shampo_cap_bits {
-	u8    reserved_at_0[0x3];
-	u8    shampo_log_max_reservation_size[0x5];
-	u8    reserved_at_8[0x3];
-	u8    shampo_log_min_reservation_size[0x5];
-	u8    shampo_min_mss_size[0x10];
-
-	u8    reserved_at_20[0x3];
-	u8    shampo_max_log_headers_entry_size[0x5];
-	u8    reserved_at_28[0x18];
-
-	u8    reserved_at_40[0x7c0];
-};
-
 struct mlx5_ifc_crypto_cap_bits {
 	u8    reserved_at_0[0x3];
 	u8    synchronize_dek[0x1];
@@ -3484,14 +3443,12 @@ union mlx5_ifc_hca_cap_union_bits {
 	struct mlx5_ifc_flow_table_eswitch_cap_bits flow_table_eswitch_cap;
 	struct mlx5_ifc_e_switch_cap_bits e_switch_cap;
 	struct mlx5_ifc_port_selection_cap_bits port_selection_cap;
-	struct mlx5_ifc_vector_calc_cap_bits vector_calc_cap;
 	struct mlx5_ifc_qos_cap_bits qos_cap;
 	struct mlx5_ifc_debug_cap_bits debug_cap;
 	struct mlx5_ifc_fpga_cap_bits fpga_cap;
 	struct mlx5_ifc_tls_cap_bits tls_cap;
 	struct mlx5_ifc_device_mem_cap_bits device_mem_cap;
 	struct mlx5_ifc_virtio_emulation_cap_bits virtio_emulation_cap;
-	struct mlx5_ifc_shampo_cap_bits shampo_cap;
 	struct mlx5_ifc_macsec_cap_bits macsec_cap;
 	struct mlx5_ifc_crypto_cap_bits crypto_cap;
 	u8         reserved_at_0[0x8000];
