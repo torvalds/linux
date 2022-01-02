@@ -754,11 +754,24 @@ int bch2_write_super(struct bch_fs *c)
 	closure_sync(cl);
 
 	for_each_online_member(ca, c, i) {
-		if (!ca->sb_write_error &&
-		    ca->disk_sb.seq !=
-		    le64_to_cpu(ca->sb_read_scratch->seq)) {
+		if (ca->sb_write_error)
+			continue;
+
+		if (le64_to_cpu(ca->sb_read_scratch->seq) < ca->disk_sb.seq) {
 			bch2_fs_fatal_error(c,
-				"Superblock modified by another process");
+				"Superblock write was silently dropped! (seq %llu expected %llu)",
+				le64_to_cpu(ca->sb_read_scratch->seq),
+				ca->disk_sb.seq);
+			percpu_ref_put(&ca->io_ref);
+			ret = -EROFS;
+			goto out;
+		}
+
+		if (le64_to_cpu(ca->sb_read_scratch->seq) > ca->disk_sb.seq) {
+			bch2_fs_fatal_error(c,
+				"Superblock modified by another process (seq %llu expected %llu)",
+				le64_to_cpu(ca->sb_read_scratch->seq),
+				ca->disk_sb.seq);
 			percpu_ref_put(&ca->io_ref);
 			ret = -EROFS;
 			goto out;
