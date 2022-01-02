@@ -163,7 +163,7 @@ struct rt_channel_plan {
 };
 
 struct rt_channel_plan_2g {
-	unsigned char	Channel[MAX_CHANNEL_NUM_2G];
+	unsigned char	Channel[MAX_CHANNEL_NUM];
 	unsigned char	Len;
 };
 
