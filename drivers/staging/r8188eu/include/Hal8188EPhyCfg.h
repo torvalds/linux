@@ -4,12 +4,6 @@
 #ifndef __INC_HAL8188EPHYCFG_H__
 #define __INC_HAL8188EPHYCFG_H__
 
-#define LOOP_LIMIT			5
-#define MAX_STALL_TIME			50		/* us */
-#define AntennaDiversityValue		0x80
-#define MAX_TXPWR_IDX_NMODE_92S		63
-#define Reset_Cnt_Limit			3
-
 #define MAX_AGGR_NUM			0x07
 
 enum rf_radio_path {
@@ -26,7 +20,6 @@ enum rf_radio_path {
 #define MAX_CHNL_GROUP_24G		6	/*  ch1~2, ch3~5, ch6~8,
 						 *ch9~11, ch12~13, CH 14
 						 * total three groups */
-#define CHANNEL_GROUP_MAX_88E		6
 
 struct bb_reg_def {
 	u32 rfintfs;		/*  set software control: */
