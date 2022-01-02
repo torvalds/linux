@@ -255,27 +255,6 @@ static void __exit qed_exit(void)
 }
 module_exit(qed_exit);
 
-/* Check if the DMA controller on the machine can properly handle the DMA
- * addressing required by the device.
- */
-static int qed_set_coherency_mask(struct qed_dev *cdev)
-{
-	struct device *dev = &cdev->pdev->dev;
-
-	if (dma_set_mask(dev, DMA_BIT_MASK(64)) == 0) {
-		if (dma_set_coherent_mask(dev, DMA_BIT_MASK(64)) != 0) {
-			DP_NOTICE(cdev,
-				  "Can't request 64-bit consistent allocations\n");
-			return -EIO;
-		}
-	} else if (dma_set_mask(dev, DMA_BIT_MASK(32)) != 0) {
-		DP_NOTICE(cdev, "Can't request 64b/32b DMA addresses\n");
-		return -EIO;
-	}
-
-	return 0;
-}
-
 static void qed_free_pci(struct qed_dev *cdev)
 {
 	struct pci_dev *pdev = cdev->pdev;
@@ -351,9 +330,12 @@ static int qed_init_pci(struct qed_dev *cdev, struct pci_dev *pdev)
 	if (IS_PF(cdev) && !cdev->pci_params.pm_cap)
 		DP_NOTICE(cdev, "Cannot find power management capability\n");
 
-	rc = qed_set_coherency_mask(cdev);
-	if (rc)
+	rc = dma_set_mask_and_coherent(&cdev->pdev->dev, DMA_BIT_MASK(64));
+	if (rc) {
+		DP_NOTICE(cdev, "Can't request DMA addresses\n");
+		rc = -EIO;
 		goto err2;
+	}
 
 	cdev->pci_params.mem_start = pci_resource_start(pdev, 0);
 	cdev->pci_params.mem_end = pci_resource_end(pdev, 0);
