@@ -35,7 +35,7 @@ static int z_erofs_fill_inode_lazy(struct inode *inode)
 	struct super_block *const sb = inode->i_sb;
 	int err, headnr;
 	erofs_off_t pos;
-	struct page *page;
+	struct erofs_buf buf = __EROFS_BUF_INITIALIZER;
 	void *kaddr;
 	struct z_erofs_map_header *h;
 
@@ -61,13 +61,12 @@ static int z_erofs_fill_inode_lazy(struct inode *inode)
 
 	pos = ALIGN(iloc(EROFS_SB(sb), vi->nid) + vi->inode_isize +
 		    vi->xattr_isize, 8);
-	page = erofs_get_meta_page(sb, erofs_blknr(pos));
-	if (IS_ERR(page)) {
-		err = PTR_ERR(page);
+	kaddr = erofs_read_metabuf(&buf, sb, erofs_blknr(pos),
+				   EROFS_KMAP_ATOMIC);
+	if (IS_ERR(kaddr)) {
+		err = PTR_ERR(kaddr);
 		goto out_unlock;
 	}
-
-	kaddr = kmap_atomic(page);
 
 	h = kaddr + erofs_blkoff(pos);
 	vi->z_advise = le16_to_cpu(h->h_advise);
@@ -101,20 +100,19 @@ static int z_erofs_fill_inode_lazy(struct inode *inode)
 		goto unmap_done;
 	}
 unmap_done:
-	kunmap_atomic(kaddr);
-	unlock_page(page);
-	put_page(page);
+	erofs_put_metabuf(&buf);
 	if (err)
 		goto out_unlock;
 
 	if (vi->z_advise & Z_EROFS_ADVISE_INLINE_PCLUSTER) {
-		struct erofs_map_blocks map = { .mpage = NULL };
+		struct erofs_map_blocks map = {
+			.buf = __EROFS_BUF_INITIALIZER
+		};
 
 		vi->z_idata_size = le16_to_cpu(h->h_idata_size);
 		err = z_erofs_do_map_blocks(inode, &map,
 					    EROFS_GET_BLOCKS_FINDTAIL);
-		if (map.mpage)
-			put_page(map.mpage);
+		erofs_put_metabuf(&map.buf);
 
 		if (!map.m_plen ||
 		    erofs_blkoff(map.m_pa) + map.m_plen > EROFS_BLKSIZ) {
@@ -151,31 +149,11 @@ static int z_erofs_reload_indexes(struct z_erofs_maprecorder *m,
 				  erofs_blk_t eblk)
 {
 	struct super_block *const sb = m->inode->i_sb;
-	struct erofs_map_blocks *const map = m->map;
-	struct page *mpage = map->mpage;
 
-	if (mpage) {
-		if (mpage->index == eblk) {
-			if (!m->kaddr)
-				m->kaddr = kmap_atomic(mpage);
-			return 0;
-		}
-
-		if (m->kaddr) {
-			kunmap_atomic(m->kaddr);
-			m->kaddr = NULL;
-		}
-		put_page(mpage);
-	}
-
-	mpage = erofs_get_meta_page(sb, eblk);
-	if (IS_ERR(mpage)) {
-		map->mpage = NULL;
-		return PTR_ERR(mpage);
-	}
-	m->kaddr = kmap_atomic(mpage);
-	unlock_page(mpage);
-	map->mpage = mpage;
+	m->kaddr = erofs_read_metabuf(&m->map->buf, sb, eblk,
+				      EROFS_KMAP_ATOMIC);
+	if (IS_ERR(m->kaddr))
+		return PTR_ERR(m->kaddr);
 	return 0;
 }
 
@@ -711,8 +689,7 @@ static int z_erofs_do_map_blocks(struct inode *inode,
 			map->m_flags |= EROFS_MAP_FULL_MAPPED;
 	}
 unmap_out:
-	if (m.kaddr)
-		kunmap_atomic(m.kaddr);
+	erofs_unmap_metabuf(&m.map->buf);
 
 out:
 	erofs_dbg("%s, m_la %llu m_pa %llu m_llen %llu m_plen %llu m_flags 0%o",
@@ -759,8 +736,7 @@ static int z_erofs_iomap_begin_report(struct inode *inode, loff_t offset,
 	struct erofs_map_blocks map = { .m_la = offset };
 
 	ret = z_erofs_map_blocks_iter(inode, &map, EROFS_GET_BLOCKS_FIEMAP);
-	if (map.mpage)
-		put_page(map.mpage);
+	erofs_put_metabuf(&map.buf);
 	if (ret < 0)
 		return ret;
 

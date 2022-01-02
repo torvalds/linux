@@ -9,19 +9,6 @@
 #include <linux/dax.h>
 #include <trace/events/erofs.h>
 
-struct page *erofs_get_meta_page(struct super_block *sb, erofs_blk_t blkaddr)
-{
-	struct address_space *const mapping = sb->s_bdev->bd_inode->i_mapping;
-	struct page *page;
-
-	page = read_cache_page_gfp(mapping, blkaddr,
-				   mapping_gfp_constraint(mapping, ~__GFP_FS));
-	/* should already be PageUptodate */
-	if (!IS_ERR(page))
-		lock_page(page);
-	return page;
-}
-
 void erofs_unmap_metabuf(struct erofs_buf *buf)
 {
 	if (buf->kmap_type == EROFS_KMAP)

@@ -698,20 +698,18 @@ restart_now:
 		goto err_out;
 
 	if (z_erofs_is_inline_pcluster(clt->pcl)) {
-		struct page *mpage;
+		void *mp;
 
-		mpage = erofs_get_meta_page(inode->i_sb,
-					    erofs_blknr(map->m_pa));
-		if (IS_ERR(mpage)) {
-			err = PTR_ERR(mpage);
+		mp = erofs_read_metabuf(&fe->map.buf, inode->i_sb,
+					erofs_blknr(map->m_pa), EROFS_NO_KMAP);
+		if (IS_ERR(mp)) {
+			err = PTR_ERR(mp);
 			erofs_err(inode->i_sb,
 				  "failed to get inline page, err %d", err);
 			goto err_out;
 		}
-		/* TODO: new subpage feature will get rid of it */
-		unlock_page(mpage);
-
-		WRITE_ONCE(clt->pcl->compressed_pages[0], mpage);
+		get_page(fe->map.buf.page);
+		WRITE_ONCE(clt->pcl->compressed_pages[0], fe->map.buf.page);
 		clt->mode = COLLECT_PRIMARY_FOLLOWED_NOINPLACE;
 	} else {
 		/* preload all compressed pages (can change mode if needed) */
@@ -1529,9 +1527,7 @@ static int z_erofs_readpage(struct file *file, struct page *page)
 	if (err)
 		erofs_err(inode->i_sb, "failed to read, err [%d]", err);
 
-	if (f.map.mpage)
-		put_page(f.map.mpage);
-
+	erofs_put_metabuf(&f.map.buf);
 	erofs_release_pages(&pagepool);
 	return err;
 }
@@ -1576,8 +1572,7 @@ static void z_erofs_readahead(struct readahead_control *rac)
 
 	z_erofs_runqueue(inode->i_sb, &f, &pagepool,
 			 z_erofs_get_sync_decompress_policy(sbi, nr_pages));
-	if (f.map.mpage)
-		put_page(f.map.mpage);
+	erofs_put_metabuf(&f.map.buf);
 	erofs_release_pages(&pagepool);
 }
 

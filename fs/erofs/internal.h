@@ -419,14 +419,14 @@ enum {
 #define EROFS_MAP_FULL_MAPPED	(1 << BH_FullMapped)
 
 struct erofs_map_blocks {
+	struct erofs_buf buf;
+
 	erofs_off_t m_pa, m_la;
 	u64 m_plen, m_llen;
 
 	unsigned short m_deviceid;
 	char m_algorithmformat;
 	unsigned int m_flags;
-
-	struct page *mpage;
 };
 
 /* Flags used by erofs_map_blocks_flatmode() */
@@ -474,7 +474,7 @@ struct erofs_map_dev {
 
 /* data.c */
 extern const struct file_operations erofs_file_fops;
-struct page *erofs_get_meta_page(struct super_block *sb, erofs_blk_t blkaddr);
+void erofs_unmap_metabuf(struct erofs_buf *buf);
 void erofs_put_metabuf(struct erofs_buf *buf);
 void *erofs_read_metabuf(struct erofs_buf *buf, struct super_block *sb,
 			 erofs_blk_t blkaddr, enum erofs_kmap_type type);
