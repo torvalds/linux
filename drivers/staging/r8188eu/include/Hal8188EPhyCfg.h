@@ -4,7 +4,6 @@
 #ifndef __INC_HAL8188EPHYCFG_H__
 #define __INC_HAL8188EPHYCFG_H__
 
-/*--------------------------Define Parameters-------------------------------*/
 #define LOOP_LIMIT			5
 #define MAX_STALL_TIME			50		/* us */
 #define AntennaDiversityValue		0x80
@@ -12,10 +11,6 @@
 #define Reset_Cnt_Limit			3
 
 #define MAX_AGGR_NUM			0x07
-
-/*--------------------------Define Parameters-------------------------------*/
-
-/*------------------------------Define structure----------------------------*/
 
 enum rf_radio_path {
 	RF_PATH_A = 0,			/* Radio Path A */
@@ -81,18 +76,7 @@ struct bb_reg_def {
 				 * Path A and B */
 };
 
-/*------------------------------Define structure----------------------------*/
-
-/*------------------------Export global variable----------------------------*/
-/*------------------------Export global variable----------------------------*/
-
-/*------------------------Export Marco Definition---------------------------*/
-/*------------------------Export Marco Definition---------------------------*/
-
-/*--------------------------Exported Function prototype---------------------*/
-/*  */
 /*  BB and RF register read/write */
-/*  */
 u32 rtl8188e_PHY_QueryBBReg(struct adapter *adapter, u32 regaddr, u32 mask);
 void rtl8188e_PHY_SetBBReg(struct adapter *Adapter, u32 RegAddr,
 			   u32 mask, u32 data);
@@ -119,6 +103,5 @@ void PHY_SwChnl8188E(struct adapter *adapter, u8 channel);
 
 void storePwrIndexDiffRateOffset(struct adapter *adapter, u32 regaddr,
 				 u32 mask, u32 data);
-/*--------------------------Exported Function prototype---------------------*/
 
-#endif	/*  __INC_HAL8192CPHYCFG_H */
+#endif
