@@ -351,7 +351,6 @@ void rtw_init_pwrctrl_priv(struct adapter *padapter)
 
 	pwrctrlpriv->pwr_state_check_interval = RTW_PWR_STATE_CHK_INTERVAL;
 	pwrctrlpriv->pwr_state_check_cnts = 0;
-	pwrctrlpriv->bInternalAutoSuspend = false;
 	pwrctrlpriv->bInSuspend = false;
 	pwrctrlpriv->bkeepfwalive = false;
 
@@ -396,7 +395,7 @@ int _rtw_pwr_wakeup(struct adapter *padapter, u32 ips_deffer_ms, const char *cal
 	}
 
 	/* System suspend is not allowed to wakeup */
-	if ((!pwrpriv->bInternalAutoSuspend) && pwrpriv->bInSuspend) {
+	if (pwrpriv->bInSuspend) {
 		while (pwrpriv->bInSuspend &&
 		       (rtw_get_passing_time_ms(start) <= 3000 ||
 		       (rtw_get_passing_time_ms(start) <= 500)))
@@ -405,12 +404,6 @@ int _rtw_pwr_wakeup(struct adapter *padapter, u32 ips_deffer_ms, const char *cal
 			DBG_88E("%s wait bInSuspend timeout\n", __func__);
 		else
 			DBG_88E("%s wait bInSuspend done\n", __func__);
-	}
-
-	/* block??? */
-	if ((pwrpriv->bInternalAutoSuspend)  && (padapter->net_closed)) {
-		ret = _FAIL;
-		goto exit;
 	}
 
 	/* I think this should be check in IPS, LPS, autosuspend functions... */

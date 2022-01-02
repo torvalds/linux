@@ -75,7 +75,6 @@ struct pwrctrl_priv {
 	s32		pnp_current_pwr_state;
 	u8		pnp_bstop_trx;
 
-	u8		bInternalAutoSuspend;
 	u8		bInSuspend;
 	u8		bSupportRemoteWakeup;
 	struct timer_list pwr_state_check_timer;

@@ -192,8 +192,7 @@ static void rtw_dev_unload(struct adapter *padapter)
 		if (padapter->intf_stop)
 			padapter->intf_stop(padapter);
 		/* s4. */
-		if (!padapter->pwrctrlpriv.bInternalAutoSuspend)
-			rtw_stop_drv_threads(padapter);
+		rtw_stop_drv_threads(padapter);
 
 		/* s5. */
 		if (!padapter->bSurpriseRemoved) {
