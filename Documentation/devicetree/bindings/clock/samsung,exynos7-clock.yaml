@@ -209,14 +209,17 @@ allOf:
     then:
       properties:
         clocks:
-          minItems: 4
-          maxItems: 4
+          minItems: 7
+          maxItems: 7
         clock-names:
           items:
             - const: fin_pll
             - const: dout_aclk_fsys1_200
             - const: dout_sclk_mmc0
             - const: dout_sclk_mmc1
+            - const: dout_sclk_ufsunipro20
+            - const: dout_sclk_phy_fsys1
+            - const: dout_sclk_phy_fsys1_26m
       required:
         - clock-names
         - clocks
