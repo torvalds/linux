@@ -144,6 +144,7 @@ static inline u8 exca_readb(struct yenta_socket *socket, unsigned reg)
 	return val;
 }
 
+/*
 static inline u8 exca_readw(struct yenta_socket *socket, unsigned reg)
 {
 	u16 val;
@@ -152,6 +153,7 @@ static inline u8 exca_readw(struct yenta_socket *socket, unsigned reg)
 	debug("%04x %04x\n", socket, reg, val);
 	return val;
 }
+*/
 
 static inline void exca_writeb(struct yenta_socket *socket, unsigned reg, u8 val)
 {
