@@ -56,34 +56,8 @@ struct false_alarm_stats {
 #define ODM_ASSOCIATE_ENTRY_NUM	32 /*  Max size of AsocEntry[]. */
 
 struct sw_ant_switch {
-	u8	try_flag;
-	s32	PreRSSI;
 	u8	CurAntenna;
-	u8	PreAntenna;
-	u8	RSSI_Trying;
-	u8	TestMode;
-	u8	bTriggerAntennaSwitch;
-	u8	SelectAntennaMap;
-	u8	RSSI_target;
-
-	/*  Before link Antenna Switch check */
-	u8	SWAS_NoLink_State;
-	u32	SWAS_NoLink_BK_Reg860;
-
-	s32	RSSI_sum_A;
-	s32	RSSI_sum_B;
-	s32	RSSI_cnt_A;
-	s32	RSSI_cnt_B;
-	u64	lastTxOkCnt;
-	u64	lastRxOkCnt;
-	u64	TXByteCnt_A;
-	u64	TXByteCnt_B;
-	u64	RXByteCnt_A;
-	u64	RXByteCnt_B;
-	u8	TrafficLoad;
-	struct timer_list SwAntennaSwitchTimer;
-	u8	TxAnt[ODM_ASSOCIATE_ENTRY_NUM];
-	u8	TargetSTA;
+	u8	SWAS_NoLink_State; /* Before link Antenna Switch check */
 	u8	RxIdleAnt;
 };
 
