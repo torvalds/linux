@@ -75,20 +75,6 @@ struct false_alarm_stats {
 	u32	Cnt_BW_LSC;	/* Gary */
 };
 
-struct rx_hpc {
-	u8		RXHP_flag;
-	u8		PSD_func_trigger;
-	u8		PSD_bitmap_RXHP[80];
-	u8		Pre_IGI;
-	u8		Cur_IGI;
-	u8		Pre_pw_th;
-	u8		Cur_pw_th;
-	bool		First_time_enter;
-	bool		RXHP_enable;
-	u8		TP_Mode;
-	struct timer_list PSDTimer;
-};
-
 #define ODM_ASSOCIATE_ENTRY_NUM	32 /*  Max size of AsocEntry[]. */
 
 struct sw_ant_switch {
