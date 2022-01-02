@@ -4004,12 +4004,6 @@ static int rtw_dbg_port(struct net_device *dev,
 			DBG_88E("turn %s the bShowGetP2PState Variable\n", (extra_arg == 1) ? "on" : "off");
 			padapter->bShowGetP2PState = extra_arg;
 			break;
-		case 0xaa:
-			if (extra_arg > 0x13)
-				extra_arg = 0xFF;
-			DBG_88E("chang data rate to :0x%02x\n", extra_arg);
-			padapter->fix_rate = extra_arg;
-			break;
 		case 0xdd:/* registers dump, 0 for mac reg, 1 for bb reg, 2 for rf reg */
 			if (extra_arg == 0)
 				mac_reg_dump(padapter);

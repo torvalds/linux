@@ -84,7 +84,6 @@ void rtl8188e_InitHalDm(struct adapter *Adapter)
 	dm_InitGPIOSetting(Adapter);
 	Update_ODM_ComInfo_88E(Adapter);
 	ODM_DMInit(dm_odm);
-	Adapter->fix_rate = 0xFF;
 }
 
 void rtl8188e_HalDmWatchDog(struct adapter *Adapter)

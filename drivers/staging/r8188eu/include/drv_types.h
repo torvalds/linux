@@ -264,8 +264,6 @@ struct adapter {
 	unsigned char			br_ip[4];
 	struct br_ext_info		ethBrExtInfo;
 
-	u8	fix_rate;
-
 	unsigned char     in_cta_test;
 };
 
