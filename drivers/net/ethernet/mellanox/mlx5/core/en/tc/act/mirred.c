@@ -45,14 +45,10 @@ verify_uplink_forwarding(struct mlx5e_priv *priv,
 					termination_table_raw_traffic)) {
 		NL_SET_ERR_MSG_MOD(extack,
 				   "devices are both uplink, can't offload forwarding");
-			pr_err("devices %s %s are both uplink, can't offload forwarding\n",
-			       priv->netdev->name, out_dev->name);
 			return -EOPNOTSUPP;
 	} else if (out_dev != rep_priv->netdev) {
 		NL_SET_ERR_MSG_MOD(extack,
 				   "devices are not the same uplink, can't offload forwarding");
-		pr_err("devices %s %s are both uplink but not the same, can't offload forwarding\n",
-		       priv->netdev->name, out_dev->name);
 		return -EOPNOTSUPP;
 	}
 	return 0;
@@ -160,10 +156,6 @@ tc_act_can_offload_mirred(struct mlx5e_tc_act_parse_state *parse_state,
 	}
 
 	NL_SET_ERR_MSG_MOD(extack, "devices are not on same switch HW, can't offload forwarding");
-	netdev_warn(priv->netdev,
-		    "devices %s %s not on same switch HW, can't offload forwarding\n",
-		    netdev_name(priv->netdev),
-		    out_dev->name);
 
 	return false;
 }
