@@ -117,7 +117,7 @@ struct csi_state {
 	struct v4l2_async_notifier notifier;
 	struct v4l2_subdev *src_sd;
 
-	struct v4l2_fwnode_bus_mipi_csi2 bus;
+	struct v4l2_mbus_config_mipi_csi2 bus;
 
 	struct mutex lock; /* Protect csi2_fmt, format_mbus, state, hs_settle */
 	const struct csi2_pix_format *csi2_fmt;

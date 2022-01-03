@@ -150,7 +150,7 @@ struct stm32_dcmi {
 	struct mutex			lock;
 	struct vb2_queue		queue;
 
-	struct v4l2_fwnode_bus_parallel	bus;
+	struct v4l2_mbus_config_parallel	bus;
 	enum v4l2_mbus_type		bus_type;
 	struct completion		complete;
 	struct clk			*mclk;

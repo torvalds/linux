@@ -118,7 +118,7 @@ struct rvin_parallel_entity {
 	struct v4l2_subdev *subdev;
 
 	enum v4l2_mbus_type mbus_type;
-	struct v4l2_fwnode_bus_parallel bus;
+	struct v4l2_mbus_config_parallel bus;
 
 	unsigned int source_pad;
 	unsigned int sink_pad;

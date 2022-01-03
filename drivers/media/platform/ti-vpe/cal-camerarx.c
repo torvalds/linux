@@ -47,7 +47,7 @@ static inline void camerarx_write(struct cal_camerarx *phy, u32 offset, u32 val)
 
 static s64 cal_camerarx_get_ext_link_freq(struct cal_camerarx *phy)
 {
-	struct v4l2_fwnode_bus_mipi_csi2 *mipi_csi2 = &phy->endpoint.bus.mipi_csi2;
+	struct v4l2_mbus_config_mipi_csi2 *mipi_csi2 = &phy->endpoint.bus.mipi_csi2;
 	u32 num_lanes = mipi_csi2->num_data_lanes;
 	const struct cal_format_info *fmtinfo;
 	u32 bpp;
@@ -76,7 +76,7 @@ static void cal_camerarx_lane_config(struct cal_camerarx *phy)
 	u32 val = cal_read(phy->cal, CAL_CSI2_COMPLEXIO_CFG(phy->instance));
 	u32 lane_mask = CAL_CSI2_COMPLEXIO_CFG_CLOCK_POSITION_MASK;
 	u32 polarity_mask = CAL_CSI2_COMPLEXIO_CFG_CLOCK_POL_MASK;
-	struct v4l2_fwnode_bus_mipi_csi2 *mipi_csi2 =
+	struct v4l2_mbus_config_mipi_csi2 *mipi_csi2 =
 		&phy->endpoint.bus.mipi_csi2;
 	int lane;
 
@@ -518,7 +518,7 @@ static int cal_camerarx_regmap_init(struct cal_dev *cal,
 static int cal_camerarx_parse_dt(struct cal_camerarx *phy)
 {
 	struct v4l2_fwnode_endpoint *endpoint = &phy->endpoint;
-	char data_lanes[V4L2_FWNODE_CSI2_MAX_DATA_LANES * 2];
+	char data_lanes[V4L2_MBUS_CSI2_MAX_DATA_LANES * 2];
 	struct device_node *ep_node;
 	unsigned int i;
 	int ret;

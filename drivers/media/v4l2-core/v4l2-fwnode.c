@@ -119,11 +119,11 @@ static int v4l2_fwnode_endpoint_parse_csi2_bus(struct fwnode_handle *fwnode,
 					       struct v4l2_fwnode_endpoint *vep,
 					       enum v4l2_mbus_type bus_type)
 {
-	struct v4l2_fwnode_bus_mipi_csi2 *bus = &vep->bus.mipi_csi2;
+	struct v4l2_mbus_config_mipi_csi2 *bus = &vep->bus.mipi_csi2;
 	bool have_clk_lane = false, have_data_lanes = false,
 		have_lane_polarities = false;
 	unsigned int flags = 0, lanes_used = 0;
-	u32 array[1 + V4L2_FWNODE_CSI2_MAX_DATA_LANES];
+	u32 array[1 + V4L2_MBUS_CSI2_MAX_DATA_LANES];
 	u32 clock_lane = 0;
 	unsigned int num_data_lanes = 0;
 	bool use_default_lane_mapping = false;
@@ -136,7 +136,7 @@ static int v4l2_fwnode_endpoint_parse_csi2_bus(struct fwnode_handle *fwnode,
 		use_default_lane_mapping = true;
 
 		num_data_lanes = min_t(u32, bus->num_data_lanes,
-				       V4L2_FWNODE_CSI2_MAX_DATA_LANES);
+				       V4L2_MBUS_CSI2_MAX_DATA_LANES);
 
 		clock_lane = bus->clock_lane;
 		if (clock_lane)
@@ -155,7 +155,7 @@ static int v4l2_fwnode_endpoint_parse_csi2_bus(struct fwnode_handle *fwnode,
 	rval = fwnode_property_count_u32(fwnode, "data-lanes");
 	if (rval > 0) {
 		num_data_lanes =
-			min_t(int, V4L2_FWNODE_CSI2_MAX_DATA_LANES, rval);
+			min_t(int, V4L2_MBUS_CSI2_MAX_DATA_LANES, rval);
 
 		fwnode_property_read_u32_array(fwnode, "data-lanes", array,
 					       num_data_lanes);
@@ -263,7 +263,7 @@ v4l2_fwnode_endpoint_parse_parallel_bus(struct fwnode_handle *fwnode,
 					struct v4l2_fwnode_endpoint *vep,
 					enum v4l2_mbus_type bus_type)
 {
-	struct v4l2_fwnode_bus_parallel *bus = &vep->bus.parallel;
+	struct v4l2_mbus_config_parallel *bus = &vep->bus.parallel;
 	unsigned int flags = 0;
 	u32 v;
 
@@ -369,7 +369,7 @@ v4l2_fwnode_endpoint_parse_csi1_bus(struct fwnode_handle *fwnode,
 				    struct v4l2_fwnode_endpoint *vep,
 				    enum v4l2_mbus_type bus_type)
 {
-	struct v4l2_fwnode_bus_mipi_csi1 *bus = &vep->bus.mipi_csi1;
+	struct v4l2_mbus_config_mipi_csi1 *bus = &vep->bus.mipi_csi1;
 	u32 v;
 
 	if (!fwnode_property_read_u32(fwnode, "clock-inv", &v)) {
