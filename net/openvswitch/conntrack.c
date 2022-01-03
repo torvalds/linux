@@ -25,6 +25,8 @@
 #include <net/netfilter/nf_nat.h>
 #endif
 
+#include <net/netfilter/nf_conntrack_act_ct.h>
+
 #include "datapath.h"
 #include "conntrack.h"
 #include "flow.h"
@@ -1045,6 +1047,8 @@ static int __ovs_ct_lookup(struct net *net, struct sw_flow_key *key,
 			 */
 			nf_ct_set_tcp_be_liberal(ct);
 		}
+
+		nf_conn_act_ct_ext_fill(skb, ct, ctinfo);
 	}
 
 	return 0;
@@ -1245,6 +1249,8 @@ static int ovs_ct_commit(struct net *net, struct sw_flow_key *key,
 					 &info->labels.mask);
 		if (err)
 			return err;
+
+		nf_conn_act_ct_ext_add(ct);
 	} else if (IS_ENABLED(CONFIG_NF_CONNTRACK_LABELS) &&
 		   labels_nonzero(&info->labels.mask)) {
 		err = ovs_ct_set_labels(ct, key, &info->labels.value,
