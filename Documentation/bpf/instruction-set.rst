@@ -173,15 +173,15 @@ The size modifier is one of:
 
 The mode modifier is one of:
 
-  =============  =====  =====================
+  =============  =====  ====================================
   mode modifier  value  description
-  =============  =====  =====================
+  =============  =====  ====================================
   BPF_IMM        0x00   used for 64-bit mov
-  BPF_ABS        0x20
-  BPF_IND        0x40
-  BPF_MEM        0x60
+  BPF_ABS        0x20   legacy BPF packet access
+  BPF_IND        0x40   legacy BPF packet access
+  BPF_MEM        0x60   all normal load and store operations
   BPF_ATOMIC     0xc0   atomic operations
-  =============  =====  =====================
+  =============  =====  ====================================
 
 BPF_MEM | <size> | BPF_STX means::
 
