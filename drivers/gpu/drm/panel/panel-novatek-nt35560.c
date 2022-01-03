@@ -32,13 +32,14 @@
 /*
  * Sony seems to use vendor ID 0x81
  */
-#define DISPLAY_SONY_ACX424AKP_ID1	0x811b
+#define DISPLAY_SONY_ACX424AKP_ID1	0x8103
 #define DISPLAY_SONY_ACX424AKP_ID2	0x811a
+#define DISPLAY_SONY_ACX424AKP_ID3	0x811b
 /*
- * The third ID looks like a bug, vendor IDs begin at 0x80
+ * The fourth ID looks like a bug, vendor IDs begin at 0x80
  * and panel 00 ... seems like default values.
  */
-#define DISPLAY_SONY_ACX424AKP_ID3	0x8000
+#define DISPLAY_SONY_ACX424AKP_ID4	0x8000
 
 struct nt35560 {
 	struct drm_panel panel;
@@ -225,6 +226,7 @@ static int nt35560_read_id(struct nt35560 *nt)
 	case DISPLAY_SONY_ACX424AKP_ID1:
 	case DISPLAY_SONY_ACX424AKP_ID2:
 	case DISPLAY_SONY_ACX424AKP_ID3:
+	case DISPLAY_SONY_ACX424AKP_ID4:
 		dev_info(nt->dev, "MTP vendor: %02x, version: %02x, panel: %02x\n",
 			 vendor, version, panel);
 		break;
