@@ -19,8 +19,22 @@ The eBPF calling convention is defined as:
 R0 - R5 are scratch registers and eBPF programs needs to spill/fill them if
 necessary across calls.
 
+Instruction encoding
+====================
+
+eBPF uses 64-bit instructions with the following encoding:
+
+ =============  =======  ===============  ====================  ============
+ 32 bits (MSB)  16 bits  4 bits           4 bits                8 bits (LSB)
+ =============  =======  ===============  ====================  ============
+ immediate      offset   source register  destination register  opcode
+ =============  =======  ===============  ====================  ============
+
+Note that most instructions do not use all of the fields.
+Unused fields shall be cleared to zero.
+
 Instruction classes
-===================
+-------------------
 
 The three LSB bits of the 'opcode' field store the instruction class:
 
