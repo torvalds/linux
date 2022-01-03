@@ -76,6 +76,7 @@ my %texlive = (
 	'ucs.sty'            => 'texlive-ucs',
 	'upquote.sty'        => 'texlive-upquote',
 	'wrapfig.sty'        => 'texlive-wrapfig',
+	'ctexhook.sty'       => 'texlive-ctex',
 );
 
 #
