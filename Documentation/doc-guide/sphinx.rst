@@ -261,12 +261,11 @@ please feel free to remove it.
 list tables
 -----------
 
-We recommend the use of *list table* formats. The *list table* formats are
-double-stage lists. Compared to the ASCII-art they might not be as
-comfortable for
-readers of the text files. Their advantage is that they are easy to
-create or modify and that the diff of a modification is much more meaningful,
-because it is limited to the modified content.
+The list-table formats can be useful for tables that are not easily laid
+out in the usual Sphinx ASCII-art formats.  These formats are nearly
+impossible for readers of the plain-text documents to understand, though,
+and should be avoided in the absence of a strong justification for their
+use.
 
 The ``flat-table`` is a double-stage list similar to the ``list-table`` with
 some additional features:
