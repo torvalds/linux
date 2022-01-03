@@ -47,6 +47,7 @@
 #include <net/netfilter/nf_conntrack_timeout.h>
 #include <net/netfilter/nf_conntrack_labels.h>
 #include <net/netfilter/nf_conntrack_synproxy.h>
+#include <net/netfilter/nf_conntrack_act_ct.h>
 #include <net/netfilter/nf_nat.h>
 #include <net/netfilter/nf_nat_helper.h>
 #include <net/netns/hash.h>
@@ -2626,7 +2627,7 @@ int nf_conntrack_set_hashsize(const char *val, const struct kernel_param *kp)
 static __always_inline unsigned int total_extension_size(void)
 {
 	/* remember to add new extensions below */
-	BUILD_BUG_ON(NF_CT_EXT_NUM > 9);
+	BUILD_BUG_ON(NF_CT_EXT_NUM > 10);
 
 	return sizeof(struct nf_ct_ext) +
 	       sizeof(struct nf_conn_help)
@@ -2649,6 +2650,9 @@ static __always_inline unsigned int total_extension_size(void)
 #endif
 #if IS_ENABLED(CONFIG_NETFILTER_SYNPROXY)
 		+ sizeof(struct nf_conn_synproxy)
+#endif
+#if IS_ENABLED(CONFIG_NET_ACT_CT)
+		+ sizeof(struct nf_conn_act_ct_ext)
 #endif
 	;
 };
