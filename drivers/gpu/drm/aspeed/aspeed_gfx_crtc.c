@@ -78,7 +78,12 @@ static void aspeed_gfx_disable_controller(struct aspeed_gfx *priv)
 	writel(ctrl1 & ~CRT_CTRL_EN, priv->base + CRT_CTRL1);
 	writel(ctrl2 & ~CRT_CTRL_DAC_EN, priv->base + CRT_CTRL2);
 
+	/* Set DAC source for display output to pcie host display */
 	regmap_update_bits(priv->scu, priv->dac_reg, CRT_FROM_SOC, 0);
+	if (priv->dp_support) {
+		regmap_update_bits(priv->scu, priv->dac_reg,
+		DP_FROM_SOC, 0);
+	}
 }
 
 static void aspeed_gfx_set_clk(struct aspeed_gfx *priv)
