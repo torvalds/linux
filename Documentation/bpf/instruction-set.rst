@@ -82,24 +82,24 @@ BPF_ALU uses 32-bit wide operands while BPF_ALU64 uses 64-bit wide operands for
 otherwise identical operations.
 The code field encodes the operation as below:
 
-  ========  =====  =========================
+  ========  =====  ==========================
   code      value  description
-  ========  =====  =========================
-  BPF_ADD   0x00
-  BPF_SUB   0x10
-  BPF_MUL   0x20
-  BPF_DIV   0x30
-  BPF_OR    0x40
-  BPF_AND   0x50
-  BPF_LSH   0x60
-  BPF_RSH   0x70
-  BPF_NEG   0x80
-  BPF_MOD   0x90
-  BPF_XOR   0xa0
-  BPF_MOV   0xb0   mov reg to reg
+  ========  =====  ==========================
+  BPF_ADD   0x00   dst += src
+  BPF_SUB   0x10   dst -= src
+  BPF_MUL   0x20   dst \*= src
+  BPF_DIV   0x30   dst /= src
+  BPF_OR    0x40   dst \|= src
+  BPF_AND   0x50   dst &= src
+  BPF_LSH   0x60   dst <<= src
+  BPF_RSH   0x70   dst >>= src
+  BPF_NEG   0x80   dst = ~src
+  BPF_MOD   0x90   dst %= src
+  BPF_XOR   0xa0   dst ^= src
+  BPF_MOV   0xb0   dst = src
   BPF_ARSH  0xc0   sign extending shift right
   BPF_END   0xd0   endianness conversion
-  ========  =====  =========================
+  ========  =====  ==========================
 
 BPF_ADD | BPF_X | BPF_ALU means::
 
