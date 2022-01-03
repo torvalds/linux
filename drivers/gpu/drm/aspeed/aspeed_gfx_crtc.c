@@ -23,6 +23,28 @@ drm_pipe_to_aspeed_gfx(struct drm_simple_display_pipe *pipe)
 	return container_of(pipe, struct aspeed_gfx, pipe);
 }
 
+static void aspeed_gfx_set_clock_source(struct aspeed_gfx *priv, int mode_width)
+{
+	regmap_update_bits(priv->scu, G6_CLK_SOURCE, G6_CLK_SOURCE_MASK, 0x0);
+	regmap_update_bits(priv->scu, G6_CLK_SEL3, G6_CLK_DIV_MASK, 0x0);
+
+	switch (mode_width) {
+	case 1024:
+		/* hpll div 16 = 75Mhz */
+		regmap_update_bits(priv->scu, G6_CLK_SOURCE,
+		G6_CLK_SOURCE_MASK, G6_CLK_SOURCE_HPLL);
+		regmap_update_bits(priv->scu, G6_CLK_SEL3,
+		G6_CLK_DIV_MASK, G6_CLK_DIV_16);
+		break;
+	case 800:
+	default:
+		/* usb 40Mhz */
+		regmap_update_bits(priv->scu, G6_CLK_SOURCE,
+		G6_CLK_SOURCE_MASK, G6_CLK_SOURCE_USB);
+		break;
+	}
+}
+
 static int aspeed_gfx_set_pixel_fmt(struct aspeed_gfx *priv, u32 *bpp)
 {
 	struct drm_crtc *crtc = &priv->pipe.crtc;
@@ -86,12 +108,11 @@ static void aspeed_gfx_disable_controller(struct aspeed_gfx *priv)
 	}
 }
 
-static void aspeed_gfx_set_clk(struct aspeed_gfx *priv)
+static void aspeed_gfx_set_clk(struct aspeed_gfx *priv, int mode_width)
 {
 	switch (priv->flags & CLK_MASK) {
 	case CLK_G6:
-		regmap_update_bits(priv->scu, SCU_G6_CLK_SOURCE, G6_CLK_MASK, 0x0);
-		regmap_update_bits(priv->scu, SCU_G6_CLK_SOURCE, G6_CLK_MASK, G6_USB_40_CLK);
+		aspeed_gfx_set_clock_source(priv, mode_width);
 		break;
 	default:
 		break;
@@ -101,6 +122,10 @@ static void aspeed_gfx_set_clk(struct aspeed_gfx *priv)
 static void aspeed_gfx_dp_mode_set(struct aspeed_gfx *priv, int mode_width)
 {
 	switch (mode_width) {
+	case 1024:
+		/* hpll div 16 = 75Mhz */
+		regmap_write(priv->dpmcu, DP_RESOLUTION, DP_1024);
+		break;
 	case 800:
 	default:
 		/* usb 40Mhz */
@@ -119,7 +144,7 @@ static void aspeed_gfx_crtc_mode_set_nofb(struct aspeed_gfx *priv)
 	if (err)
 		return;
 
-	aspeed_gfx_set_clk(priv);
+	aspeed_gfx_set_clk(priv, m->hdisplay);
 
 #if 0
 	/* TODO: we have only been able to test with the 40MHz USB clock. The

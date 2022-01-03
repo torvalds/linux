@@ -114,6 +114,7 @@ static const struct drm_mode_config_funcs aspeed_gfx_mode_config_funcs = {
 
 static int aspeed_gfx_setup_mode_config(struct drm_device *drm)
 {
+	struct aspeed_gfx *priv = to_aspeed_gfx(drm);
 	int ret;
 
 	ret = drmm_mode_config_init(drm);
@@ -122,8 +123,18 @@ static int aspeed_gfx_setup_mode_config(struct drm_device *drm)
 
 	drm->mode_config.min_width = 0;
 	drm->mode_config.min_height = 0;
-	drm->mode_config.max_width = 800;
-	drm->mode_config.max_height = 600;
+
+	switch (priv->flags & CLK_MASK) {
+	case CLK_G6:
+		drm->mode_config.max_width = 1024;
+		drm->mode_config.max_height = 768;
+		break;
+	default:
+		drm->mode_config.max_width = 800;
+		drm->mode_config.max_height = 600;
+		break;
+	}
+
 	drm->mode_config.funcs = &aspeed_gfx_mode_config_funcs;
 
 	return ret;

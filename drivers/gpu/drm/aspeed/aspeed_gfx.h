@@ -114,8 +114,14 @@ int aspeed_gfx_create_output(struct drm_device *drm);
 #define CRT_THROD_HIGH(x)		((x) << 8)
 
 /* SCU control */
-#define SCU_G6_CLK_SOURCE		0x300
-#define SCU_G6_CLK_SEL3			0x308 /* SCU308 clock selection register set 3 */
+#define G6_CLK_SOURCE			0x300
+#define G6_CLK_SOURCE_MASK		(BIT(8) | BIT(9) | BIT(10))
+#define G6_CLK_SOURCE_HPLL		(BIT(8) | BIT(9) | BIT(10))
+#define G6_CLK_SOURCE_USB		BIT(9)
+#define G6_CLK_SEL3			0x308
+#define G6_CLK_DIV_MASK			0x3F000
+#define G6_CLK_DIV_16			(BIT(16)|BIT(15)|BIT(13)|BIT(12))
+#define G6_USB_40_CLK			BIT(9)
 #define CRT_FROM_SOC			BIT(16)
 #define DP_FROM_SOC			BIT(18)
 
@@ -124,9 +130,6 @@ int aspeed_gfx_create_output(struct drm_device *drm);
 #define RESET_G6			BIT(0)
 #define CLK_MASK			BIT(4)
 #define CLK_G6				BIT(4)
-
-#define G6_CLK_MASK			(BIT(8) | BIT(9) | BIT(10))
-#define G6_USB_40_CLK			BIT(9)
 
 /* PCIE interrupt */
 #define PCIE_PERST_L_T_H		BIT(18)
@@ -146,3 +149,4 @@ int aspeed_gfx_create_output(struct drm_device *drm);
 /* AST2600 DP MCU */
 #define DP_RESOLUTION			0xde0  /* DPMCUDE0 dp resolution */
 #define DP_800				0x01050020 /* 800 x 600 60Hz */
+#define DP_1024				0x010a0020 /* 1024 x 768 70Hz */
