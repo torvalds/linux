@@ -125,24 +125,24 @@ BPF_JMP32 uses 32-bit wide operands while BPF_JMP uses 64-bit wide operands for
 otherwise identical operations.
 The code field encodes the operation as below:
 
-  ========  =====  =========================
-  code      value  description
-  ========  =====  =========================
-  BPF_JA    0x00   BPF_JMP only
-  BPF_JEQ   0x10
-  BPF_JGT   0x20
-  BPF_JGE   0x30
-  BPF_JSET  0x40
-  BPF_JNE   0x50   jump '!='
-  BPF_JSGT  0x60   signed '>'
-  BPF_JSGE  0x70   signed '>='
+  ========  =====  =========================  ============
+  code      value  description                notes
+  ========  =====  =========================  ============
+  BPF_JA    0x00   PC += off                  BPF_JMP only
+  BPF_JEQ   0x10   PC += off if dst == src
+  BPF_JGT   0x20   PC += off if dst > src     unsigned
+  BPF_JGE   0x30   PC += off if dst >= src    unsigned
+  BPF_JSET  0x40   PC += off if dst & src
+  BPF_JNE   0x50   PC += off if dst != src
+  BPF_JSGT  0x60   PC += off if dst > src     signed
+  BPF_JSGE  0x70   PC += off if dst >= src    signed
   BPF_CALL  0x80   function call
-  BPF_EXIT  0x90   function return
-  BPF_JLT   0xa0   unsigned '<'
-  BPF_JLE   0xb0   unsigned '<='
-  BPF_JSLT  0xc0   signed '<'
-  BPF_JSLE  0xd0   signed '<='
-  ========  =====  =========================
+  BPF_EXIT  0x90   function / program return  BPF_JMP only
+  BPF_JLT   0xa0   PC += off if dst < src     unsigned
+  BPF_JLE   0xb0   PC += off if dst <= src    unsigned
+  BPF_JSLT  0xc0   PC += off if dst < src     signed
+  BPF_JSLE  0xd0   PC += off if dst <= src    signed
+  ========  =====  =========================  ============
 
 The eBPF program needs to store the return value into register R0 before doing a
 BPF_EXIT.
