@@ -258,6 +258,12 @@
 				quality = <100>;
 			};
 
+			pcie_ep:pcie_ep@1e6ed000 {
+				compatible = "aspeed,ast2500-pcie-ep", "syscon";
+				reg = <0x1e6ed000 0x100>;
+				status = "disabled";
+			};
+
 			gfx: display@1e6e6000 {
 				compatible = "aspeed,ast2500-gfx", "syscon";
 				reg = <0x1e6e6000 0x1000>;
