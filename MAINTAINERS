@@ -1145,6 +1145,14 @@ S:	Supported
 W:	https://ez.analog.com/linux-software-drivers
 F:	drivers/power/supply/adp5061.c
 
+ANALOG DEVICES INC ADRF6780 DRIVER
+M:	Antoniu Miclaus <antoniu.miclaus@analog.com>
+L:	linux-iio@vger.kernel.org
+S:	Supported
+W:	https://ez.analog.com/linux-software-drivers
+F:	Documentation/devicetree/bindings/iio/frequency/adi,adrf6780.yaml
+F:	drivers/iio/frequency/adrf6780.c
+
 ANALOG DEVICES INC ADV7180 DRIVER
 M:	Lars-Peter Clausen <lars@metafoo.de>
 L:	linux-media@vger.kernel.org
