@@ -2324,16 +2324,17 @@ rtw89_debug_append_rx_rate(struct seq_file *m, struct rtw89_pkt_stat *pkt_stat,
 static const struct rtw89_rx_rate_cnt_info {
 	enum rtw89_hw_rate first_rate;
 	int len;
+	int ext;
 	const char *rate_mode;
 } rtw89_rx_rate_cnt_infos[] = {
-	{RTW89_HW_RATE_CCK1, 4, "Legacy:"},
-	{RTW89_HW_RATE_OFDM6, 8, "OFDM:"},
-	{RTW89_HW_RATE_MCS0, 8, "HT 0:"},
-	{RTW89_HW_RATE_MCS8, 8, "HT 1:"},
-	{RTW89_HW_RATE_VHT_NSS1_MCS0, 10, "VHT 1SS:"},
-	{RTW89_HW_RATE_VHT_NSS2_MCS0, 10, "VHT 2SS:"},
-	{RTW89_HW_RATE_HE_NSS1_MCS0, 12, "HE 1SS:"},
-	{RTW89_HW_RATE_HE_NSS2_MCS0, 12, "HE 2ss:"},
+	{RTW89_HW_RATE_CCK1, 4, 0, "Legacy:"},
+	{RTW89_HW_RATE_OFDM6, 8, 0, "OFDM:"},
+	{RTW89_HW_RATE_MCS0, 8, 0, "HT 0:"},
+	{RTW89_HW_RATE_MCS8, 8, 0, "HT 1:"},
+	{RTW89_HW_RATE_VHT_NSS1_MCS0, 10, 2, "VHT 1SS:"},
+	{RTW89_HW_RATE_VHT_NSS2_MCS0, 10, 2, "VHT 2SS:"},
+	{RTW89_HW_RATE_HE_NSS1_MCS0, 12, 0, "HE 1SS:"},
+	{RTW89_HW_RATE_HE_NSS2_MCS0, 12, 0, "HE 2ss:"},
 };
 
 static int rtw89_debug_priv_phy_info_get(struct seq_file *m, void *v)
@@ -2358,6 +2359,11 @@ static int rtw89_debug_priv_phy_info_get(struct seq_file *m, void *v)
 		seq_printf(m, "%10s [", info->rate_mode);
 		rtw89_debug_append_rx_rate(m, pkt_stat,
 					   info->first_rate, info->len);
+		if (info->ext) {
+			seq_puts(m, "][");
+			rtw89_debug_append_rx_rate(m, pkt_stat,
+						   info->first_rate + info->len, info->ext);
+		}
 		seq_puts(m, "]\n");
 	}
 
