@@ -10,12 +10,15 @@
  * Author: Linus Walleij
  * Based on code and know-how from Marcus Lorentzon
  * Copyright (C) ST-Ericsson SA 2010
+ * Based on code and know-how from Johan Olson and Joakim Wesslen
+ * Copyright (C) Sony Ericsson Mobile Communications 2010
  */
 #include <linux/backlight.h>
 #include <linux/delay.h>
 #include <linux/gpio/consumer.h>
 #include <linux/module.h>
 #include <linux/of.h>
+#include <linux/of_device.h>
 #include <linux/regulator/consumer.h>
 
 #include <video/mipi_display.h>
@@ -41,7 +44,13 @@
  */
 #define DISPLAY_SONY_ACX424AKP_ID4	0x8000
 
+struct nt35560_config {
+	const struct drm_display_mode *vid_mode;
+	const struct drm_display_mode *cmd_mode;
+};
+
 struct nt35560 {
+	const struct nt35560_config *conf;
 	struct drm_panel panel;
 	struct device *dev;
 	struct regulator *supply;
@@ -84,6 +93,49 @@ static const struct drm_display_mode sony_acx424akp_cmd_mode = {
 	 */
 	.width_mm = 48,
 	.height_mm = 84,
+};
+
+static const struct nt35560_config sony_acx424akp_data = {
+	.vid_mode = &sony_acx424akp_vid_mode,
+	.cmd_mode = &sony_acx424akp_cmd_mode,
+};
+
+static const struct drm_display_mode sony_acx424akm_vid_mode = {
+	.clock = 27234,
+	.hdisplay = 480,
+	.hsync_start = 480 + 15,
+	.hsync_end = 480 + 15 + 0,
+	.htotal = 480 + 15 + 0 + 15,
+	.vdisplay = 854,
+	.vsync_start = 854 + 14,
+	.vsync_end = 854 + 14 + 1,
+	.vtotal = 854 + 14 + 1 + 11,
+	.width_mm = 46,
+	.height_mm = 82,
+	.flags = DRM_MODE_FLAG_PVSYNC,
+};
+
+/*
+ * The timings are not very helpful as the display is used in
+ * command mode using the maximum HS frequency.
+ */
+static const struct drm_display_mode sony_acx424akm_cmd_mode = {
+	.clock = 35478,
+	.hdisplay = 480,
+	.hsync_start = 480 + 154,
+	.hsync_end = 480 + 154 + 16,
+	.htotal = 480 + 154 + 16 + 32,
+	.vdisplay = 854,
+	.vsync_start = 854 + 1,
+	.vsync_end = 854 + 1 + 1,
+	.vtotal = 854 + 1 + 1 + 1,
+	.width_mm = 46,
+	.height_mm = 82,
+};
+
+static const struct nt35560_config sony_acx424akm_data = {
+	.vid_mode = &sony_acx424akm_vid_mode,
+	.cmd_mode = &sony_acx424akm_cmd_mode,
 };
 
 static inline struct nt35560 *panel_to_nt35560(struct drm_panel *panel)
@@ -369,14 +421,15 @@ static int nt35560_get_modes(struct drm_panel *panel,
 			     struct drm_connector *connector)
 {
 	struct nt35560 *nt = panel_to_nt35560(panel);
+	const struct nt35560_config *conf = nt->conf;
 	struct drm_display_mode *mode;
 
 	if (nt->video_mode)
 		mode = drm_mode_duplicate(connector->dev,
-					  &sony_acx424akp_vid_mode);
+					  conf->vid_mode);
 	else
 		mode = drm_mode_duplicate(connector->dev,
-					  &sony_acx424akp_cmd_mode);
+					  conf->cmd_mode);
 	if (!mode) {
 		dev_err(panel->dev, "bad mode or failed to add mode\n");
 		return -EINVAL;
@@ -412,6 +465,12 @@ static int nt35560_probe(struct mipi_dsi_device *dsi)
 
 	mipi_dsi_set_drvdata(dsi, nt);
 	nt->dev = dev;
+
+	nt->conf = of_device_get_match_data(dev);
+	if (!nt->conf) {
+		dev_err(dev, "missing device configuration\n");
+		return -ENODEV;
+	}
 
 	dsi->lanes = 2;
 	dsi->format = MIPI_DSI_FMT_RGB888;
@@ -475,7 +534,14 @@ static int nt35560_remove(struct mipi_dsi_device *dsi)
 }
 
 static const struct of_device_id nt35560_of_match[] = {
-	{ .compatible = "sony,acx424akp" },
+	{
+		.compatible = "sony,acx424akp",
+		.data = &sony_acx424akp_data,
+	},
+	{
+		.compatible = "sony,acx424akm",
+		.data = &sony_acx424akm_data,
+	},
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, nt35560_of_match);
