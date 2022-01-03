@@ -432,6 +432,7 @@ struct bch_dev {
 	struct bch_sb_handle	disk_sb;
 	struct bch_sb		*sb_read_scratch;
 	int			sb_write_error;
+	dev_t			dev;
 
 	struct bch_devs_mask	self;
 

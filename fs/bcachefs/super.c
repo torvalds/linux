@@ -1257,6 +1257,8 @@ static int __bch2_dev_attach_bdev(struct bch_dev *ca, struct bch_sb_handle *sb)
 	ca->disk_sb = *sb;
 	memset(sb, 0, sizeof(*sb));
 
+	ca->dev = ca->disk_sb.bdev->bd_dev;
+
 	percpu_ref_reinit(&ca->io_ref);
 
 	return 0;
@@ -1875,7 +1877,7 @@ struct bch_dev *bch2_dev_lookup(struct bch_fs *c, const char *path)
 
 	rcu_read_lock();
 	for_each_member_device_rcu(ca, c, i, NULL)
-		if (ca->disk_sb.bdev->bd_dev == dev)
+		if (ca->dev == dev)
 			goto found;
 	ca = ERR_PTR(-ENOENT);
 found:

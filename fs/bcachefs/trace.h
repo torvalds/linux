@@ -387,7 +387,7 @@ TRACE_EVENT(alloc_scan,
 	),
 
 	TP_fast_assign(
-		__entry->dev		= ca->disk_sb.bdev->bd_dev;
+		__entry->dev		= ca->dev;
 		__entry->found		= found;
 		__entry->inc_gen	= inc_gen;
 		__entry->inc_gen_skipped = inc_gen_skipped;
@@ -409,7 +409,7 @@ TRACE_EVENT(invalidate,
 	),
 
 	TP_fast_assign(
-		__entry->dev		= ca->disk_sb.bdev->bd_dev;
+		__entry->dev		= ca->dev;
 		__entry->offset		= offset,
 		__entry->sectors	= sectors;
 	),
@@ -431,7 +431,7 @@ DECLARE_EVENT_CLASS(bucket_alloc,
 	),
 
 	TP_fast_assign(
-		__entry->dev		= ca->disk_sb.bdev->bd_dev;
+		__entry->dev		= ca->dev;
 		__entry->reserve	= reserve;
 	),
 

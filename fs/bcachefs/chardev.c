@@ -568,8 +568,11 @@ static long bch2_ioctl_disk_get_idx(struct bch_fs *c,
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
+	if (!dev)
+		return -EINVAL;
+
 	for_each_online_member(ca, c, i)
-		if (ca->disk_sb.bdev->bd_dev == dev) {
+		if (ca->dev == dev) {
 			percpu_ref_put(&ca->io_ref);
 			return i;
 		}
