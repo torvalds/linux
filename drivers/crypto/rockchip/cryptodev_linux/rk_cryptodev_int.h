@@ -81,4 +81,8 @@ rk_cryptodev_ioctl(struct fcrypt *fcr, unsigned int cmd, unsigned long arg_);
 long
 rk_compat_cryptodev_ioctl(struct fcrypt *fcr, unsigned int cmd, unsigned long arg_);
 
+const char *rk_get_cipher_name(uint32_t id, int *is_stream, int *is_aead);
+
+const char *rk_get_hash_name(uint32_t id, int *is_hmac);
+
 #endif

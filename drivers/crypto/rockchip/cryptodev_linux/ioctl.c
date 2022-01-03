@@ -179,8 +179,12 @@ crypto_create_session(struct fcrypt *fcr, struct session_op *sop)
 		stream = 1;
 		break;
 	default:
-		ddebug(1, "bad cipher: %d", sop->cipher);
-		return -EINVAL;
+		alg_name = rk_get_cipher_name(sop->cipher, &stream, &aead);
+		if (!alg_name) {
+			ddebug(1, "bad cipher: %d", sop->cipher);
+			return -EINVAL;
+		}
+		break;
 	}
 
 	switch (sop->mac) {
@@ -239,8 +243,12 @@ crypto_create_session(struct fcrypt *fcr, struct session_op *sop)
 		hmac_mode = 0;
 		break;
 	default:
-		ddebug(1, "bad mac: %d", sop->mac);
-		return -EINVAL;
+		hash_name = rk_get_hash_name(sop->mac, &hmac_mode);
+		if (!hash_name) {
+			ddebug(1, "bad mac: %d", sop->mac);
+			return -EINVAL;
+		}
+		break;
 	}
 
 	/* Create a session and put it to the list. Zeroing the structure helps

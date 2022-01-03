@@ -856,3 +856,99 @@ rk_compat_cryptodev_ioctl(struct fcrypt *fcr, unsigned int cmd, unsigned long ar
 
 #endif /* CONFIG_COMPAT */
 
+struct cipher_algo_name_map {
+	uint32_t	id;
+	const char	*name;
+	int		is_stream;
+	int		is_aead;
+};
+
+struct hash_algo_name_map {
+	uint32_t	id;
+	const char	*name;
+	int		is_hmac;
+};
+
+static const struct cipher_algo_name_map c_algo_map_tbl[] = {
+	{CRYPTO_RK_DES_ECB,     "ecb-des-rk",      0, 0},
+	{CRYPTO_RK_DES_CBC,     "cbc-des-rk",      0, 0},
+	{CRYPTO_RK_DES_CFB,     "cfb-des-rk",      0, 0},
+	{CRYPTO_RK_DES_OFB,     "ofb-des-rk",      0, 0},
+	{CRYPTO_RK_3DES_ECB,    "ecb-des3_ede-rk", 0, 0},
+	{CRYPTO_RK_3DES_CBC,    "cbc-des3_ede-rk", 0, 0},
+	{CRYPTO_RK_3DES_CFB,    "cfb-des3_ede-rk", 0, 0},
+	{CRYPTO_RK_3DES_OFB,    "ofb-des3_ede-rk", 0, 0},
+	{CRYPTO_RK_SM4_ECB,     "ecb-sm4-rk",      0, 0},
+	{CRYPTO_RK_SM4_CBC,     "cbc-sm4-rk",      0, 0},
+	{CRYPTO_RK_SM4_CFB,     "cfb-sm4-rk",      0, 0},
+	{CRYPTO_RK_SM4_OFB,     "ofb-sm4-rk",      0, 0},
+	{CRYPTO_RK_SM4_CTS,     "cts-sm4-rk",      0, 0},
+	{CRYPTO_RK_SM4_CTR,     "ctr-sm4-rk",      1, 0},
+	{CRYPTO_RK_SM4_XTS,     "xts-sm4-rk",      0, 0},
+	{CRYPTO_RK_SM4_CCM,     "ccm-sm4-rk",      1, 1},
+	{CRYPTO_RK_SM4_GCM,     "gcm-sm4-rk",      1, 1},
+	{CRYPTO_RK_SM4_CMAC,    NULL,              0, 0},
+	{CRYPTO_RK_SM4_CBC_MAC, NULL,              0, 0},
+	{CRYPTO_RK_AES_ECB,     "ecb-aes-rk",      0, 0},
+	{CRYPTO_RK_AES_CBC,     "cbc-aes-rk",      0, 0},
+	{CRYPTO_RK_AES_CFB,     "cfb-aes-rk",      0, 0},
+	{CRYPTO_RK_AES_OFB,     "ofb-aes-rk",      0, 0},
+	{CRYPTO_RK_AES_CTS,     "cts-aes-rk",      0, 0},
+	{CRYPTO_RK_AES_CTR,     "ctr-aes-rk",      1, 0},
+	{CRYPTO_RK_AES_XTS,     "xts-aes-rk",      0, 0},
+	{CRYPTO_RK_AES_CCM,     "ccm-aes-rk",      1, 1},
+	{CRYPTO_RK_AES_GCM,     "gcm-aes-rk",      1, 1},
+	{CRYPTO_RK_AES_CMAC,    NULL,              0, 0},
+	{CRYPTO_RK_AES_CBC_MAC, NULL,              0, 0},
+};
+
+static const struct hash_algo_name_map h_algo_map_tbl[] = {
+
+	{CRYPTO_RK_MD5,         "md5-rk",         0},
+	{CRYPTO_RK_SHA1,        "sha1-rk",        0},
+	{CRYPTO_RK_SHA224,      "sha224-rk",      0},
+	{CRYPTO_RK_SHA256,      "sha256-rk",      0},
+	{CRYPTO_RK_SHA384,      "sha384-rk",      0},
+	{CRYPTO_RK_SHA512,      "sha512-rk",      0},
+	{CRYPTO_RK_SHA512_224,  "sha512_224-rk",  0},
+	{CRYPTO_RK_SHA512_256,  "sha512_256-rk",  0},
+	{CRYPTO_RK_MD5_HMAC,    "hmac-md5-rk",    1},
+	{CRYPTO_RK_SHA1_HMAC,   "hmac-sha1-rk",   1},
+	{CRYPTO_RK_SHA256_HMAC, "hmac-sha256-rk", 1},
+	{CRYPTO_RK_SHA512_HMAC, "hmac-sha512-rk", 1},
+};
+
+const char *rk_get_cipher_name(uint32_t id, int *is_stream, int *is_aead)
+{
+	uint32_t i;
+
+	*is_stream  = 0;
+	*is_aead    = 0;
+
+	for (i = 0; i < ARRAY_SIZE(c_algo_map_tbl); i++) {
+		if (id == c_algo_map_tbl[i].id) {
+			*is_stream = c_algo_map_tbl[i].is_stream;
+			*is_aead   = c_algo_map_tbl[i].is_aead;
+			return c_algo_map_tbl[i].name;
+		}
+	}
+
+	return NULL;
+}
+
+const char *rk_get_hash_name(uint32_t id, int *is_hmac)
+{
+	uint32_t i;
+
+	*is_hmac    = 0;
+
+	for (i = 0; i < ARRAY_SIZE(h_algo_map_tbl); i++) {
+		if (id == h_algo_map_tbl[i].id) {
+			*is_hmac = h_algo_map_tbl[i].is_hmac;
+			return h_algo_map_tbl[i].name;
+		}
+	}
+
+	return NULL;
+}
+
