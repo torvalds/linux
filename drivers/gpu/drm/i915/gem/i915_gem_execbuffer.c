@@ -3017,7 +3017,7 @@ eb_composite_fence_create(struct i915_execbuffer *eb, int out_fence_fd)
 	fence_array = dma_fence_array_create(eb->num_batches,
 					     fences,
 					     eb->context->parallel.fence_context,
-					     eb->context->parallel.seqno,
+					     eb->context->parallel.seqno++,
 					     false);
 	if (!fence_array) {
 		kfree(fences);
