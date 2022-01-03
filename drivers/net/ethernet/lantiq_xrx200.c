@@ -27,6 +27,9 @@
 #define XRX200_DMA_TX		1
 #define XRX200_DMA_BURST_LEN	8
 
+#define XRX200_DMA_PACKET_COMPLETE	0
+#define XRX200_DMA_PACKET_IN_PROGRESS	1
+
 /* cpu port mac */
 #define PMAC_RX_IPG		0x0024
 #define PMAC_RX_IPG_MASK	0xf
@@ -61,6 +64,9 @@ struct xrx200_chan {
 	struct napi_struct napi;
 	struct ltq_dma_channel dma;
 	struct sk_buff *skb[LTQ_DESC_NUM];
+
+	struct sk_buff *skb_head;
+	struct sk_buff *skb_tail;
 
 	struct xrx200_priv *priv;
 };
@@ -205,7 +211,8 @@ static int xrx200_hw_receive(struct xrx200_chan *ch)
 	struct xrx200_priv *priv = ch->priv;
 	struct ltq_dma_desc *desc = &ch->dma.desc_base[ch->dma.desc];
 	struct sk_buff *skb = ch->skb[ch->dma.desc];
-	int len = (desc->ctl & LTQ_DMA_SIZE_MASK);
+	u32 ctl = desc->ctl;
+	int len = (ctl & LTQ_DMA_SIZE_MASK);
 	struct net_device *net_dev = priv->net_dev;
 	int ret;
 
@@ -221,12 +228,36 @@ static int xrx200_hw_receive(struct xrx200_chan *ch)
 	}
 
 	skb_put(skb, len);
-	skb->protocol = eth_type_trans(skb, net_dev);
-	netif_receive_skb(skb);
-	net_dev->stats.rx_packets++;
-	net_dev->stats.rx_bytes += len;
 
-	return 0;
+	/* add buffers to skb via skb->frag_list */
+	if (ctl & LTQ_DMA_SOP) {
+		ch->skb_head = skb;
+		ch->skb_tail = skb;
+	} else if (ch->skb_head) {
+		if (ch->skb_head == ch->skb_tail)
+			skb_shinfo(ch->skb_tail)->frag_list = skb;
+		else
+			ch->skb_tail->next = skb;
+		ch->skb_tail = skb;
+		skb_reserve(ch->skb_tail, -NET_IP_ALIGN);
+		ch->skb_head->len += skb->len;
+		ch->skb_head->data_len += skb->len;
+		ch->skb_head->truesize += skb->truesize;
+	}
+
+	if (ctl & LTQ_DMA_EOP) {
+		ch->skb_head->protocol = eth_type_trans(ch->skb_head, net_dev);
+		netif_receive_skb(ch->skb_head);
+		net_dev->stats.rx_packets++;
+		net_dev->stats.rx_bytes += ch->skb_head->len;
+		ch->skb_head = NULL;
+		ch->skb_tail = NULL;
+		ret = XRX200_DMA_PACKET_COMPLETE;
+	} else {
+		ret = XRX200_DMA_PACKET_IN_PROGRESS;
+	}
+
+	return ret;
 }
 
 static int xrx200_poll_rx(struct napi_struct *napi, int budget)
@@ -241,7 +272,9 @@ static int xrx200_poll_rx(struct napi_struct *napi, int budget)
 
 		if ((desc->ctl & (LTQ_DMA_OWN | LTQ_DMA_C)) == LTQ_DMA_C) {
 			ret = xrx200_hw_receive(ch);
-			if (ret)
+			if (ret == XRX200_DMA_PACKET_IN_PROGRESS)
+				continue;
+			if (ret != XRX200_DMA_PACKET_COMPLETE)
 				return ret;
 			rx++;
 		} else {
