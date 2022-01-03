@@ -17,10 +17,6 @@
  *
  * With one based indexing each level of the tree starts at a power of two -
  * good for cacheline alignment:
- *
- * Size parameter is treated as if we were using 0 based indexing, however:
- * valid nodes, and inorder indices, are in the range [1..size) - that is, there
- * are actually size - 1 elements
  */
 
 static inline unsigned eytzinger1_child(unsigned i, unsigned child)
@@ -42,12 +38,12 @@ static inline unsigned eytzinger1_right_child(unsigned i)
 
 static inline unsigned eytzinger1_first(unsigned size)
 {
-	return rounddown_pow_of_two(size - 1);
+	return rounddown_pow_of_two(size);
 }
 
 static inline unsigned eytzinger1_last(unsigned size)
 {
-	return rounddown_pow_of_two(size) - 1;
+	return rounddown_pow_of_two(size + 1) - 1;
 }
 
 /*
@@ -62,13 +58,13 @@ static inline unsigned eytzinger1_last(unsigned size)
 
 static inline unsigned eytzinger1_next(unsigned i, unsigned size)
 {
-	EBUG_ON(i >= size);
+	EBUG_ON(i > size);
 
-	if (eytzinger1_right_child(i) < size) {
+	if (eytzinger1_right_child(i) <= size) {
 		i = eytzinger1_right_child(i);
 
-		i <<= __fls(size) - __fls(i);
-		i >>= i >= size;
+		i <<= __fls(size + 1) - __fls(i);
+		i >>= i > size;
 	} else {
 		i >>= ffz(i) + 1;
 	}
@@ -78,14 +74,14 @@ static inline unsigned eytzinger1_next(unsigned i, unsigned size)
 
 static inline unsigned eytzinger1_prev(unsigned i, unsigned size)
 {
-	EBUG_ON(i >= size);
+	EBUG_ON(i > size);
 
-	if (eytzinger1_left_child(i) < size) {
+	if (eytzinger1_left_child(i) <= size) {
 		i = eytzinger1_left_child(i) + 1;
 
-		i <<= __fls(size) - __fls(i);
+		i <<= __fls(size + 1) - __fls(i);
 		i -= 1;
-		i >>= i >= size;
+		i >>= i > size;
 	} else {
 		i >>= __ffs(i) + 1;
 	}
@@ -95,17 +91,17 @@ static inline unsigned eytzinger1_prev(unsigned i, unsigned size)
 
 static inline unsigned eytzinger1_extra(unsigned size)
 {
-	return (size - rounddown_pow_of_two(size - 1)) << 1;
+	return (size + 1 - rounddown_pow_of_two(size)) << 1;
 }
 
 static inline unsigned __eytzinger1_to_inorder(unsigned i, unsigned size,
 					      unsigned extra)
 {
 	unsigned b = __fls(i);
-	unsigned shift = __fls(size - 1) - b;
+	unsigned shift = __fls(size) - b;
 	int s;
 
-	EBUG_ON(!i || i >= size);
+	EBUG_ON(!i || i > size);
 
 	i  ^= 1U << b;
 	i <<= 1;
@@ -130,7 +126,7 @@ static inline unsigned __inorder_to_eytzinger1(unsigned i, unsigned size,
 	unsigned shift;
 	int s;
 
-	EBUG_ON(!i || i >= size);
+	EBUG_ON(!i || i > size);
 
 	/*
 	 * sign bit trick:
@@ -144,7 +140,7 @@ static inline unsigned __inorder_to_eytzinger1(unsigned i, unsigned size,
 	shift = __ffs(i);
 
 	i >>= shift + 1;
-	i  |= 1U << (__fls(size - 1) - shift);
+	i  |= 1U << (__fls(size) - shift);
 
 	return i;
 }
@@ -185,39 +181,39 @@ static inline unsigned eytzinger0_right_child(unsigned i)
 
 static inline unsigned eytzinger0_first(unsigned size)
 {
-	return eytzinger1_first(size + 1) - 1;
+	return eytzinger1_first(size) - 1;
 }
 
 static inline unsigned eytzinger0_last(unsigned size)
 {
-	return eytzinger1_last(size + 1) - 1;
+	return eytzinger1_last(size) - 1;
 }
 
 static inline unsigned eytzinger0_next(unsigned i, unsigned size)
 {
-	return eytzinger1_next(i + 1, size + 1) - 1;
+	return eytzinger1_next(i + 1, size) - 1;
 }
 
 static inline unsigned eytzinger0_prev(unsigned i, unsigned size)
 {
-	return eytzinger1_prev(i + 1, size + 1) - 1;
+	return eytzinger1_prev(i + 1, size) - 1;
 }
 
 static inline unsigned eytzinger0_extra(unsigned size)
 {
-	return eytzinger1_extra(size + 1);
+	return eytzinger1_extra(size);
 }
 
 static inline unsigned __eytzinger0_to_inorder(unsigned i, unsigned size,
 					       unsigned extra)
 {
-	return __eytzinger1_to_inorder(i + 1, size + 1, extra) - 1;
+	return __eytzinger1_to_inorder(i + 1, size, extra) - 1;
 }
 
 static inline unsigned __inorder_to_eytzinger0(unsigned i, unsigned size,
 					       unsigned extra)
 {
-	return __inorder_to_eytzinger1(i + 1, size + 1, extra) - 1;
+	return __inorder_to_eytzinger1(i + 1, size, extra) - 1;
 }
 
 static inline unsigned eytzinger0_to_inorder(unsigned i, unsigned size)

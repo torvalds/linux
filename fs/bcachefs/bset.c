@@ -461,7 +461,7 @@ static inline struct bkey_packed *tree_to_bkey(const struct btree *b,
 					       unsigned j)
 {
 	return cacheline_to_bkey(b, t,
-			__eytzinger1_to_inorder(j, t->size, t->extra),
+			__eytzinger1_to_inorder(j, t->size - 1, t->extra),
 			bkey_float(b, t, j)->key_offset);
 }
 
@@ -723,7 +723,7 @@ retry:
 	t->extra = (t->size - rounddown_pow_of_two(t->size - 1)) << 1;
 
 	/* First we figure out where the first key in each cacheline is */
-	eytzinger1_for_each(j, t->size) {
+	eytzinger1_for_each(j, t->size - 1) {
 		while (bkey_to_cacheline(b, t, k) < cacheline)
 			prev = k, k = bkey_next(k);
 
@@ -755,7 +755,7 @@ retry:
 	}
 
 	/* Then we build the tree */
-	eytzinger1_for_each(j, t->size)
+	eytzinger1_for_each(j, t->size - 1)
 		make_bfloat(b, t, j,
 			    bkey_to_packed(&min_key),
 			    bkey_to_packed(&max_key));
@@ -857,7 +857,7 @@ static struct bkey_packed *__bkey_prev(struct btree *b, struct bset_tree *t,
 		do {
 			p = j ? tree_to_bkey(b, t,
 					__inorder_to_eytzinger1(j--,
-							t->size, t->extra))
+							t->size - 1, t->extra))
 			      : btree_bkey_first(b, t);
 		} while (p >= k);
 		break;
@@ -1137,7 +1137,7 @@ slowpath:
 		n = n * 2 + (cmp < 0);
 	} while (n < t->size);
 
-	inorder = __eytzinger1_to_inorder(n >> 1, t->size, t->extra);
+	inorder = __eytzinger1_to_inorder(n >> 1, t->size - 1, t->extra);
 
 	/*
 	 * n would have been the node we recursed to - the low bit tells us if
@@ -1148,7 +1148,7 @@ slowpath:
 		if (unlikely(!inorder))
 			return btree_bkey_first(b, t);
 
-		f = &base->f[eytzinger1_prev(n >> 1, t->size)];
+		f = &base->f[eytzinger1_prev(n >> 1, t->size - 1)];
 	}
 
 	return cacheline_to_bkey(b, t, inorder, f->key_offset);
@@ -1565,7 +1565,7 @@ void bch2_bfloat_to_text(struct printbuf *out, struct btree *b,
 	if (!inorder || inorder >= t->size)
 		return;
 
-	j = __inorder_to_eytzinger1(inorder, t->size, t->extra);
+	j = __inorder_to_eytzinger1(inorder, t->size - 1, t->extra);
 	if (k != tree_to_bkey(b, t, j))
 		return;
 
