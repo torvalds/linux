@@ -1573,17 +1573,16 @@ static int pxa_camera_set_bus_param(struct pxa_camera_dev *pcdev)
 		mbus_config |= V4L2_MBUS_PCLK_SAMPLE_FALLING;
 	mbus_config |= V4L2_MBUS_DATA_ACTIVE_HIGH;
 
-	cfg.flags = mbus_config;
-	ret = sensor_call(pcdev, pad, set_mbus_config, 0, &cfg);
+	ret = sensor_call(pcdev, pad, get_mbus_config, 0, &cfg);
 	if (ret < 0 && ret != -ENOIOCTLCMD) {
 		dev_err(pcdev_to_dev(pcdev),
-			"Failed to call set_mbus_config: %d\n", ret);
+			"Failed to call get_mbus_config: %d\n", ret);
 		return ret;
 	}
 
 	/*
-	 * If the requested media bus configuration has not been fully applied
-	 * make sure it is supported by the platform.
+	 * If the media bus configuration of the sensor differs, make sure it
+	 * is supported by the platform.
 	 *
 	 * PXA does not support V4L2_MBUS_DATA_ACTIVE_LOW and the bus mastering
 	 * roles should match.
