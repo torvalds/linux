@@ -359,7 +359,7 @@ static int csi2dc_get_mbus_config(struct csi2dc_device *csi2dc)
 
 	dev_dbg(csi2dc->dev, "subdev sending on channel %d\n", csi2dc->vc);
 
-	csi2dc->clk_gated = mbus_config.flags &
+	csi2dc->clk_gated = mbus_config.bus.parallel.flags &
 				V4L2_MBUS_CSI2_NONCONTINUOUS_CLOCK;
 
 	dev_dbg(csi2dc->dev, "mbus_config: %s clock\n",

@@ -603,7 +603,6 @@ static int rcsi2_get_active_lanes(struct rcar_csi2 *priv,
 				  unsigned int *lanes)
 {
 	struct v4l2_mbus_config mbus_config = { 0 };
-	unsigned int num_lanes = UINT_MAX;
 	int ret;
 
 	*lanes = priv->lanes;
@@ -626,23 +625,14 @@ static int rcsi2_get_active_lanes(struct rcar_csi2 *priv,
 		return -EINVAL;
 	}
 
-	if (mbus_config.flags & V4L2_MBUS_CSI2_1_LANE)
-		num_lanes = 1;
-	else if (mbus_config.flags & V4L2_MBUS_CSI2_2_LANE)
-		num_lanes = 2;
-	else if (mbus_config.flags & V4L2_MBUS_CSI2_3_LANE)
-		num_lanes = 3;
-	else if (mbus_config.flags & V4L2_MBUS_CSI2_4_LANE)
-		num_lanes = 4;
-
-	if (num_lanes > priv->lanes) {
+	if (mbus_config.bus.mipi_csi2.num_data_lanes > priv->lanes) {
 		dev_err(priv->dev,
 			"Unsupported mbus config: too many data lanes %u\n",
-			num_lanes);
+			mbus_config.bus.mipi_csi2.num_data_lanes);
 		return -EINVAL;
 	}
 
-	*lanes = num_lanes;
+	*lanes = mbus_config.bus.mipi_csi2.num_data_lanes;
 
 	return 0;
 }

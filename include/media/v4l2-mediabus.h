@@ -166,12 +166,26 @@ enum v4l2_mbus_type {
 
 /**
  * struct v4l2_mbus_config - media bus configuration
- * @type:	in: interface type
- * @flags:	in / out: configuration flags, depending on @type
+ * @type: interface type
+ * @bus: bus configuration data structure
+ * @bus.parallel: embedded &struct v4l2_mbus_config_parallel.
+ *		  Used if the bus is parallel or BT.656.
+ * @bus.mipi_csi1: embedded &struct v4l2_mbus_config_mipi_csi1.
+ *		   Used if the bus is MIPI Alliance's Camera Serial
+ *		   Interface version 1 (MIPI CSI1) or Standard
+ *		   Mobile Imaging Architecture's Compact Camera Port 2
+ *		   (SMIA CCP2).
+ * @bus.mipi_csi2: embedded &struct v4l2_mbus_config_mipi_csi2.
+ *		   Used if the bus is MIPI Alliance's Camera Serial
+ *		   Interface version 2 (MIPI CSI2).
  */
 struct v4l2_mbus_config {
 	enum v4l2_mbus_type type;
-	unsigned int flags;
+	union {
+		struct v4l2_mbus_config_parallel parallel;
+		struct v4l2_mbus_config_mipi_csi1 mipi_csi1;
+		struct v4l2_mbus_config_mipi_csi2 mipi_csi2;
+	} bus;
 };
 
 /**

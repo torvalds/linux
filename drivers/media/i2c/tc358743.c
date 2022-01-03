@@ -1613,24 +1613,8 @@ static int tc358743_get_mbus_config(struct v4l2_subdev *sd,
 	cfg->type = V4L2_MBUS_CSI2_DPHY;
 
 	/* Support for non-continuous CSI-2 clock is missing in the driver */
-	cfg->flags = V4L2_MBUS_CSI2_CONTINUOUS_CLOCK;
-
-	switch (state->csi_lanes_in_use) {
-	case 1:
-		cfg->flags |= V4L2_MBUS_CSI2_1_LANE;
-		break;
-	case 2:
-		cfg->flags |= V4L2_MBUS_CSI2_2_LANE;
-		break;
-	case 3:
-		cfg->flags |= V4L2_MBUS_CSI2_3_LANE;
-		break;
-	case 4:
-		cfg->flags |= V4L2_MBUS_CSI2_4_LANE;
-		break;
-	default:
-		return -EINVAL;
-	}
+	cfg->bus.mipi_csi2.flags = V4L2_MBUS_CSI2_CONTINUOUS_CLOCK;
+	cfg->bus.mipi_csi2.num_data_lanes = state->csi_lanes_in_use;
 
 	return 0;
 }

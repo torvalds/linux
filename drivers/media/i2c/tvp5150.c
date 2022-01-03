@@ -1198,8 +1198,10 @@ static int tvp5150_get_mbus_config(struct v4l2_subdev *sd,
 	struct tvp5150 *decoder = to_tvp5150(sd);
 
 	cfg->type = decoder->mbus_type;
-	cfg->flags = V4L2_MBUS_MASTER | V4L2_MBUS_PCLK_SAMPLE_RISING
-		   | V4L2_MBUS_FIELD_EVEN_LOW | V4L2_MBUS_DATA_ACTIVE_HIGH;
+	cfg->bus.parallel.flags = V4L2_MBUS_MASTER
+				| V4L2_MBUS_PCLK_SAMPLE_RISING
+				| V4L2_MBUS_FIELD_EVEN_LOW
+				| V4L2_MBUS_DATA_ACTIVE_HIGH;
 
 	return 0;
 }

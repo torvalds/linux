@@ -984,15 +984,15 @@ static int ov6650_get_mbus_config(struct v4l2_subdev *sd,
 	if (ret)
 		return ret;
 
-	cfg->flags = V4L2_MBUS_MASTER | V4L2_MBUS_DATA_ACTIVE_HIGH
-		   | ((comj & COMJ_VSYNC_HIGH)  ? V4L2_MBUS_VSYNC_ACTIVE_HIGH
-						: V4L2_MBUS_VSYNC_ACTIVE_LOW)
-		   | ((comf & COMF_HREF_LOW)    ? V4L2_MBUS_HSYNC_ACTIVE_LOW
-						: V4L2_MBUS_HSYNC_ACTIVE_HIGH)
-		   | ((comj & COMJ_PCLK_RISING) ? V4L2_MBUS_PCLK_SAMPLE_RISING
-						: V4L2_MBUS_PCLK_SAMPLE_FALLING);
 	cfg->type = V4L2_MBUS_PARALLEL;
 
+	cfg->bus.parallel.flags = V4L2_MBUS_MASTER | V4L2_MBUS_DATA_ACTIVE_HIGH
+		| ((comj & COMJ_VSYNC_HIGH)  ? V4L2_MBUS_VSYNC_ACTIVE_HIGH
+					     : V4L2_MBUS_VSYNC_ACTIVE_LOW)
+		| ((comf & COMF_HREF_LOW)    ? V4L2_MBUS_HSYNC_ACTIVE_LOW
+					     : V4L2_MBUS_HSYNC_ACTIVE_HIGH)
+		| ((comj & COMJ_PCLK_RISING) ? V4L2_MBUS_PCLK_SAMPLE_RISING
+					     : V4L2_MBUS_PCLK_SAMPLE_FALLING);
 	return 0;
 }
 

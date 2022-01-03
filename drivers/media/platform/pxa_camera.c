@@ -1587,24 +1587,26 @@ static int pxa_camera_set_bus_param(struct pxa_camera_dev *pcdev)
 	 * PXA does not support V4L2_MBUS_DATA_ACTIVE_LOW and the bus mastering
 	 * roles should match.
 	 */
-	if (cfg.flags != mbus_config) {
+	if (cfg.bus.parallel.flags != mbus_config) {
 		unsigned int pxa_mbus_role = mbus_config & (V4L2_MBUS_MASTER |
 							    V4L2_MBUS_SLAVE);
-		if (pxa_mbus_role != (cfg.flags & (V4L2_MBUS_MASTER |
-						   V4L2_MBUS_SLAVE))) {
+		unsigned int flags = cfg.bus.parallel.flags;
+
+		if (pxa_mbus_role != (flags & (V4L2_MBUS_MASTER |
+					       V4L2_MBUS_SLAVE))) {
 			dev_err(pcdev_to_dev(pcdev),
 				"Unsupported mbus configuration: bus mastering\n");
 			return -EINVAL;
 		}
 
-		if (cfg.flags & V4L2_MBUS_DATA_ACTIVE_LOW) {
+		if (flags & V4L2_MBUS_DATA_ACTIVE_LOW) {
 			dev_err(pcdev_to_dev(pcdev),
 				"Unsupported mbus configuration: DATA_ACTIVE_LOW\n");
 			return -EINVAL;
 		}
 	}
 
-	pxa_camera_setup_cicr(pcdev, cfg.flags, pixfmt);
+	pxa_camera_setup_cicr(pcdev, cfg.bus.parallel.flags, pixfmt);
 
 	return 0;
 }
