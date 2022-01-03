@@ -372,3 +372,7 @@
 	status = "okay";
 	aspeed,lpc-io-reg = <0xca4>;
 };
+
+&mbox {
+	status = "okay";
+};
