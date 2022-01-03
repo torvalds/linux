@@ -914,3 +914,7 @@
 &ssp {
 	memory-region = <&ssp_memory>;
 };
+
+&mbox {
+	status = "okay";
+};
