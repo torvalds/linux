@@ -816,7 +816,9 @@ int bch2_trans_commit_error(struct btree_trans *trans,
 	}
 
 	BUG_ON((ret == EINTR || ret == -EAGAIN) && !trans->restarted);
-	BUG_ON(ret == -ENOSPC && (trans->flags & BTREE_INSERT_NOFAIL));
+	BUG_ON(ret == -ENOSPC &&
+	       !(trans->flags & BTREE_INSERT_NOWAIT) &&
+	       (trans->flags & BTREE_INSERT_NOFAIL));
 
 	return ret;
 }
