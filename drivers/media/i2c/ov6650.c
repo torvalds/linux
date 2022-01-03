@@ -944,42 +944,6 @@ static int ov6650_get_mbus_config(struct v4l2_subdev *sd,
 	return 0;
 }
 
-/* Alter bus settings on camera side */
-static int ov6650_set_mbus_config(struct v4l2_subdev *sd,
-				  unsigned int pad,
-				  struct v4l2_mbus_config *cfg)
-{
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-	int ret = 0;
-
-	if (cfg->flags & V4L2_MBUS_PCLK_SAMPLE_RISING)
-		ret = ov6650_reg_rmw(client, REG_COMJ, COMJ_PCLK_RISING, 0);
-	else if (cfg->flags & V4L2_MBUS_PCLK_SAMPLE_FALLING)
-		ret = ov6650_reg_rmw(client, REG_COMJ, 0, COMJ_PCLK_RISING);
-	if (ret)
-		return ret;
-
-	if (cfg->flags & V4L2_MBUS_HSYNC_ACTIVE_LOW)
-		ret = ov6650_reg_rmw(client, REG_COMF, COMF_HREF_LOW, 0);
-	else if (cfg->flags & V4L2_MBUS_HSYNC_ACTIVE_HIGH)
-		ret = ov6650_reg_rmw(client, REG_COMF, 0, COMF_HREF_LOW);
-	if (ret)
-		return ret;
-
-	if (cfg->flags & V4L2_MBUS_VSYNC_ACTIVE_HIGH)
-		ret = ov6650_reg_rmw(client, REG_COMJ, COMJ_VSYNC_HIGH, 0);
-	else if (cfg->flags & V4L2_MBUS_VSYNC_ACTIVE_LOW)
-		ret = ov6650_reg_rmw(client, REG_COMJ, 0, COMJ_VSYNC_HIGH);
-	if (ret)
-		return ret;
-
-	/*
-	 * Update the configuration to report what is actually applied to
-	 * the hardware.
-	 */
-	return ov6650_get_mbus_config(sd, pad, cfg);
-}
-
 static const struct v4l2_subdev_video_ops ov6650_video_ops = {
 	.s_stream	= ov6650_s_stream,
 	.g_frame_interval = ov6650_g_frame_interval,
@@ -993,7 +957,6 @@ static const struct v4l2_subdev_pad_ops ov6650_pad_ops = {
 	.get_fmt	= ov6650_get_fmt,
 	.set_fmt	= ov6650_set_fmt,
 	.get_mbus_config = ov6650_get_mbus_config,
-	.set_mbus_config = ov6650_set_mbus_config,
 };
 
 static const struct v4l2_subdev_ops ov6650_subdev_ops = {
