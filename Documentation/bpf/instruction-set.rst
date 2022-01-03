@@ -38,18 +38,18 @@ Instruction classes
 
 The three LSB bits of the 'opcode' field store the instruction class:
 
-  ========= =====
-  class     value
-  ========= =====
-  BPF_LD    0x00
-  BPF_LDX   0x01
-  BPF_ST    0x02
-  BPF_STX   0x03
-  BPF_ALU   0x04
-  BPF_JMP   0x05
-  BPF_JMP32 0x06
-  BPF_ALU64 0x07
-  ========= =====
+  =========  =====  ===============================
+  class      value  description
+  =========  =====  ===============================
+  BPF_LD     0x00   non-standard load operations
+  BPF_LDX    0x01   load into register operations
+  BPF_ST     0x02   store from immediate operations
+  BPF_STX    0x03   store from register operations
+  BPF_ALU    0x04   32-bit arithmetic operations
+  BPF_JMP    0x05   64-bit jump operations
+  BPF_JMP32  0x06   32-bit jump operations
+  BPF_ALU64  0x07   64-bit arithmetic operations
+  =========  =====  ===============================
 
 Arithmetic and jump instructions
 ================================
