@@ -356,8 +356,8 @@ static struct mlx5_irq *irq_pool_request_affinity(struct mlx5_irq_pool *pool,
 	new_irq = irq_pool_create_irq(pool, affinity);
 	if (IS_ERR(new_irq)) {
 		if (!least_loaded_irq) {
-			mlx5_core_err(pool->dev, "Didn't find IRQ for cpu = %u\n",
-				      cpumask_first(affinity));
+			mlx5_core_err(pool->dev, "Didn't find a matching IRQ. err = %ld\n",
+				      PTR_ERR(new_irq));
 			mutex_unlock(&pool->lock);
 			return new_irq;
 		}
@@ -398,7 +398,7 @@ irq_pool_request_vector(struct mlx5_irq_pool *pool, int vecidx,
 	cpumask_copy(irq->mask, affinity);
 	if (!irq_pool_is_sf_pool(pool) && !pool->xa_num_irqs.max &&
 	    cpumask_empty(irq->mask))
-		cpumask_set_cpu(0, irq->mask);
+		cpumask_set_cpu(cpumask_first(cpu_online_mask), irq->mask);
 	irq_set_affinity_hint(irq->irqn, irq->mask);
 unlock:
 	mutex_unlock(&pool->lock);

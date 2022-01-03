@@ -677,8 +677,6 @@ static __poll_t xsk_poll(struct file *file, struct socket *sock,
 	struct xdp_sock *xs = xdp_sk(sk);
 	struct xsk_buff_pool *pool;
 
-	sock_poll_wait(file, sock, wait);
-
 	if (unlikely(!xsk_is_bound(xs)))
 		return mask;
 
@@ -690,6 +688,8 @@ static __poll_t xsk_poll(struct file *file, struct socket *sock,
 		else
 			/* Poll needs to drive Tx also in copy mode */
 			__xsk_sendmsg(sk);
+	} else {
+		sock_poll_wait(file, sock, wait);
 	}
 
 	if (xs->rx && !xskq_prod_is_empty(xs->rx))
