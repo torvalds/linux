@@ -74,7 +74,13 @@ The 4th bit encodes the source operand:
 
 The four MSB bits store the operation code.
 
-For class BPF_ALU or BPF_ALU64:
+
+Arithmetic instructions
+-----------------------
+
+BPF_ALU uses 32-bit wide operands while BPF_ALU64 uses 64-bit wide operands for
+otherwise identical operations.
+The code field encodes the operation as below:
 
   ========  =====  =========================
   code      value  description
@@ -95,7 +101,29 @@ For class BPF_ALU or BPF_ALU64:
   BPF_END   0xd0   endianness conversion
   ========  =====  =========================
 
-For class BPF_JMP or BPF_JMP32:
+BPF_ADD | BPF_X | BPF_ALU means::
+
+  dst_reg = (u32) dst_reg + (u32) src_reg;
+
+BPF_ADD | BPF_X | BPF_ALU64 means::
+
+  dst_reg = dst_reg + src_reg
+
+BPF_XOR | BPF_K | BPF_ALU means::
+
+  src_reg = (u32) src_reg ^ (u32) imm32
+
+BPF_XOR | BPF_K | BPF_ALU64 means::
+
+  src_reg = src_reg ^ imm32
+
+
+Jump instructions
+-----------------
+
+BPF_JMP32 uses 32-bit wide operands while BPF_JMP uses 64-bit wide operands for
+otherwise identical operations.
+The code field encodes the operation as below:
 
   ========  =====  =========================
   code      value  description
@@ -116,24 +144,8 @@ For class BPF_JMP or BPF_JMP32:
   BPF_JSLE  0xd0   signed '<='
   ========  =====  =========================
 
-So BPF_ADD | BPF_X | BPF_ALU means::
-
-  dst_reg = (u32) dst_reg + (u32) src_reg;
-
-Similarly, BPF_XOR | BPF_K | BPF_ALU means::
-
-  src_reg = (u32) src_reg ^ (u32) imm32
-
-eBPF is using BPF_MOV | BPF_X | BPF_ALU to represent A = B moves.  BPF_ALU64
-is used to mean exactly the same operations as BPF_ALU, but with 64-bit wide
-operands instead. So BPF_ADD | BPF_X | BPF_ALU64 means 64-bit addition, i.e.::
-
-  dst_reg = dst_reg + src_reg
-
-BPF_JMP | BPF_EXIT means function exit only. The eBPF program needs to store
-the return value into register R0 before doing a BPF_EXIT. Class 6 is used as
-BPF_JMP32 to mean exactly the same operations as BPF_JMP, but with 32-bit wide
-operands for the comparisons instead.
+The eBPF program needs to store the return value into register R0 before doing a
+BPF_EXIT.
 
 
 Load and store instructions
