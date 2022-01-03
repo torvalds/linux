@@ -361,7 +361,6 @@ void bch2_bset_init_first(struct btree *, struct bset *);
 void bch2_bset_init_next(struct bch_fs *, struct btree *,
 			 struct btree_node_entry *);
 void bch2_bset_build_aux_tree(struct btree *, struct bset_tree *, bool);
-void bch2_bset_fix_invalidated_key(struct btree *, struct bkey_packed *);
 
 void bch2_bset_insert(struct btree *, struct btree_node_iter *,
 		     struct bkey_packed *, struct bkey_i *, unsigned);

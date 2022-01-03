@@ -595,10 +595,10 @@ static inline unsigned bkey_mantissa(const struct bkey_packed *k,
 }
 
 __always_inline
-static inline void __make_bfloat(struct btree *b, struct bset_tree *t,
-				 unsigned j,
-				 struct bkey_packed *min_key,
-				 struct bkey_packed *max_key)
+static inline void make_bfloat(struct btree *b, struct bset_tree *t,
+			       unsigned j,
+			       struct bkey_packed *min_key,
+			       struct bkey_packed *max_key)
 {
 	struct bkey_float *f = bkey_float(b, t, j);
 	struct bkey_packed *m = tree_to_bkey(b, t, j);
@@ -665,34 +665,6 @@ static inline void __make_bfloat(struct btree *b, struct bset_tree *t,
 		mantissa |= ~(~0U << -exponent);
 
 	f->mantissa = mantissa;
-}
-
-static void make_bfloat(struct btree *b, struct bset_tree *t,
-			unsigned j,
-			struct bkey_packed *min_key,
-			struct bkey_packed *max_key)
-{
-	struct bkey_i *k;
-
-	if (is_power_of_2(j) &&
-	    !min_key->u64s) {
-		if (!bkey_pack_pos(min_key, b->data->min_key, b)) {
-			k = (void *) min_key;
-			bkey_init(&k->k);
-			k->k.p = b->data->min_key;
-		}
-	}
-
-	if (is_power_of_2(j + 1) &&
-	    !max_key->u64s) {
-		if (!bkey_pack_pos(max_key, b->data->max_key, b)) {
-			k = (void *) max_key;
-			bkey_init(&k->k);
-			k->k.p = b->data->max_key;
-		}
-	}
-
-	__make_bfloat(b, t, j, min_key, max_key);
 }
 
 /* bytes remaining - only valid for last bset: */
@@ -784,9 +756,9 @@ retry:
 
 	/* Then we build the tree */
 	eytzinger1_for_each(j, t->size)
-		__make_bfloat(b, t, j,
-			      bkey_to_packed(&min_key),
-			      bkey_to_packed(&max_key));
+		make_bfloat(b, t, j,
+			    bkey_to_packed(&min_key),
+			    bkey_to_packed(&max_key));
 }
 
 static void bset_alloc_tree(struct btree *b, struct bset_tree *t)
@@ -930,91 +902,6 @@ struct bkey_packed *bch2_bkey_prev_filter(struct btree *b,
 }
 
 /* Insert */
-
-static void rw_aux_tree_fix_invalidated_key(struct btree *b,
-					    struct bset_tree *t,
-					    struct bkey_packed *k)
-{
-	unsigned offset = __btree_node_key_to_offset(b, k);
-	unsigned j = rw_aux_tree_bsearch(b, t, offset);
-
-	if (j < t->size &&
-	    rw_aux_tree(b, t)[j].offset == offset)
-		rw_aux_tree_set(b, t, j, k);
-
-	bch2_bset_verify_rw_aux_tree(b, t);
-}
-
-static void ro_aux_tree_fix_invalidated_key(struct btree *b,
-					    struct bset_tree *t,
-					    struct bkey_packed *k)
-{
-	struct bkey_packed min_key, max_key;
-	unsigned inorder, j;
-
-	EBUG_ON(bset_aux_tree_type(t) != BSET_RO_AUX_TREE);
-
-	/* signal to make_bfloat() that they're uninitialized: */
-	min_key.u64s = max_key.u64s = 0;
-
-	if (bkey_next(k) == btree_bkey_last(b, t)) {
-		for (j = 1; j < t->size; j = j * 2 + 1)
-			make_bfloat(b, t, j, &min_key, &max_key);
-	}
-
-	inorder = bkey_to_cacheline(b, t, k);
-
-	if (inorder &&
-	    inorder < t->size) {
-		j = __inorder_to_eytzinger1(inorder, t->size, t->extra);
-
-		if (k == tree_to_bkey(b, t, j)) {
-			/* Fix the node this key corresponds to */
-			make_bfloat(b, t, j, &min_key, &max_key);
-
-			/* Children for which this key is the right boundary */
-			for (j = eytzinger1_left_child(j);
-			     j < t->size;
-			     j = eytzinger1_right_child(j))
-				make_bfloat(b, t, j, &min_key, &max_key);
-		}
-	}
-
-	if (inorder + 1 < t->size) {
-		j = __inorder_to_eytzinger1(inorder + 1, t->size, t->extra);
-
-		if (k == tree_to_prev_bkey(b, t, j)) {
-			make_bfloat(b, t, j, &min_key, &max_key);
-
-			/* Children for which this key is the left boundary */
-			for (j = eytzinger1_right_child(j);
-			     j < t->size;
-			     j = eytzinger1_left_child(j))
-				make_bfloat(b, t, j, &min_key, &max_key);
-		}
-	}
-}
-
-/**
- * bch2_bset_fix_invalidated_key() - given an existing  key @k that has been
- * modified, fix any auxiliary search tree by remaking all the nodes in the
- * auxiliary search tree that @k corresponds to
- */
-void bch2_bset_fix_invalidated_key(struct btree *b, struct bkey_packed *k)
-{
-	struct bset_tree *t = bch2_bkey_to_bset_inlined(b, k);
-
-	switch (bset_aux_tree_type(t)) {
-	case BSET_NO_AUX_TREE:
-		break;
-	case BSET_RO_AUX_TREE:
-		ro_aux_tree_fix_invalidated_key(b, t, k);
-		break;
-	case BSET_RW_AUX_TREE:
-		rw_aux_tree_fix_invalidated_key(b, t, k);
-		break;
-	}
-}
 
 static void bch2_bset_fix_lookup_table(struct btree *b,
 				       struct bset_tree *t,
