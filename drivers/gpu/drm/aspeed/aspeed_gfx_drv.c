@@ -203,6 +203,34 @@ static irqreturn_t aspeed_gfx_irq_handler(int irq, void *data)
 	return IRQ_NONE;
 }
 
+static int aspeed_pcie_active_detect(struct drm_device *drm)
+{
+	struct aspeed_gfx *priv = to_aspeed_gfx(drm);
+	u32 reg = 0;
+
+	/* map pcie ep resource */
+	priv->pcie_ep = syscon_regmap_lookup_by_compatible("aspeed,ast2500-pcie-ep");
+	if (IS_ERR(priv->pcie_ep)) {
+		priv->pcie_ep = syscon_regmap_lookup_by_compatible("aspeed,ast2600-pcie-ep");
+		if (IS_ERR(priv->pcie_ep)) {
+			dev_err(drm->dev, "failed to find pcie_ep regmap\n");
+			return PTR_ERR(priv->pcie_ep);
+		}
+	}
+
+	/* check pcie rst status */
+	regmap_read(priv->pcie_ep, PCIE_LINK_REG, &reg);
+	dev_dbg(drm->dev, "g6 drv link reg v %x\n", reg);
+
+	/* host vga is on or not */
+	if (reg & PCIE_LINK_STATUS)
+		priv->pcie_active = 0x1;
+	else
+		priv->pcie_active = 0x0;
+
+	return 0;
+}
+
 static int aspeed_adaptor_detect(struct drm_device *drm)
 {
 	struct aspeed_gfx *priv = to_aspeed_gfx(drm);
@@ -228,8 +256,10 @@ static int aspeed_adaptor_detect(struct drm_device *drm)
 			}
 
 			/* change the dp setting is coming from soc display */
-			regmap_update_bits(priv->dp, DP_SOURCE,
-			DP_CONTROL_FROM_SOC, DP_CONTROL_FROM_SOC);
+			if (!priv->pcie_active) {
+				regmap_update_bits(priv->dp, DP_SOURCE,
+				DP_CONTROL_FROM_SOC, DP_CONTROL_FROM_SOC);
+			}
 		}
 		break;
 	default:
@@ -346,6 +376,13 @@ static int aspeed_gfx_load(struct drm_device *drm)
 		return PTR_ERR(priv->clk);
 	}
 	clk_prepare_enable(priv->clk);
+
+	ret = aspeed_pcie_active_detect(drm);
+	if (ret) {
+		dev_err(&pdev->dev,
+			"missing or invalid pcie-ep controller device tree entry");
+		return ret;
+	}
 
 	ret = aspeed_adaptor_detect(drm);
 	if (ret) {

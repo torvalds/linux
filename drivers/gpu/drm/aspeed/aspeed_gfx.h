@@ -13,7 +13,9 @@ struct aspeed_gfx {
 	struct regmap			*scu;
 	struct regmap			*dp;
 	struct regmap			*dpmcu;
+	struct regmap			*pcie_ep;
 	u8				dp_support;
+	u8				pcie_active;
 
 	u32				dac_reg;
 	u32				int_clr_reg;
@@ -135,6 +137,10 @@ int aspeed_gfx_create_output(struct drm_device *drm);
 #define PCIE_PERST_L_T_H		BIT(18)
 #define PCIE_PERST_H_T_L		BIT(19)
 #define STS_PERST_STATUS		(PCIE_PERST_L_T_H|PCIE_PERST_H_T_L)
+
+/* PCIE end pointer define */
+#define PCIE_LINK_REG		0xD0
+#define PCIE_LINK_STATUS	BIT(20)
 
 /* Adaptor function define */
 /* AST2600: DP adaptor define */
