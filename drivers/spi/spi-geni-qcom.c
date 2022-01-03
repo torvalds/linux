@@ -164,6 +164,30 @@ static void handle_fifo_timeout(struct spi_master *spi,
 	}
 }
 
+static void handle_gpi_timeout(struct spi_master *spi, struct spi_message *msg)
+{
+	struct spi_geni_master *mas = spi_master_get_devdata(spi);
+
+	dmaengine_terminate_sync(mas->tx);
+	dmaengine_terminate_sync(mas->rx);
+}
+
+static void spi_geni_handle_err(struct spi_master *spi, struct spi_message *msg)
+{
+	struct spi_geni_master *mas = spi_master_get_devdata(spi);
+
+	switch (mas->cur_xfer_mode) {
+	case GENI_SE_FIFO:
+		handle_fifo_timeout(spi, msg);
+		break;
+	case GENI_GPI_DMA:
+		handle_gpi_timeout(spi, msg);
+		break;
+	default:
+		dev_err(mas->dev, "Abort on Mode:%d not supported", mas->cur_xfer_mode);
+	}
+}
+
 static bool spi_geni_is_abort_still_pending(struct spi_geni_master *mas)
 {
 	struct geni_se *se = &mas->se;
@@ -922,7 +946,7 @@ static int spi_geni_probe(struct platform_device *pdev)
 	spi->can_dma = geni_can_dma;
 	spi->dma_map_dev = dev->parent;
 	spi->auto_runtime_pm = true;
-	spi->handle_err = handle_fifo_timeout;
+	spi->handle_err = spi_geni_handle_err;
 	spi->use_gpio_descriptors = true;
 
 	init_completion(&mas->cs_done);
