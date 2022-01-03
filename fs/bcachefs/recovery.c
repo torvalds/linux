@@ -519,7 +519,7 @@ static int bch2_journal_replay(struct bch_fs *c)
 	size_t i;
 	int ret;
 
-	keys_sorted = kmalloc_array(sizeof(*keys_sorted), keys->nr, GFP_KERNEL);
+	keys_sorted = kvmalloc_array(sizeof(*keys_sorted), keys->nr, GFP_KERNEL);
 	if (!keys_sorted)
 		return -ENOMEM;
 
@@ -563,7 +563,7 @@ static int bch2_journal_replay(struct bch_fs *c)
 	bch2_journal_flush_all_pins(j);
 	ret = bch2_journal_error(j);
 err:
-	kfree(keys_sorted);
+	kvfree(keys_sorted);
 	return ret;
 }
 
