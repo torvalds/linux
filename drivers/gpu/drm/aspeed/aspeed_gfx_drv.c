@@ -215,6 +215,10 @@ static int aspeed_adaptor_detect(struct drm_device *drm)
 				dev_err(drm->dev, "failed to find DP MCU regmap\n");
 				return PTR_ERR(priv->dpmcu);
 			}
+
+			/* change the dp setting is coming from soc display */
+			regmap_update_bits(priv->dp, DP_SOURCE,
+			DP_CONTROL_FROM_SOC, DP_CONTROL_FROM_SOC);
 		}
 		break;
 	default:

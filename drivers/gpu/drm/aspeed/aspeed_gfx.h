@@ -145,3 +145,4 @@ int aspeed_gfx_create_output(struct drm_device *drm);
 #define DP_CONTROL_FROM_SOC		(BIT(24)|BIT(28))
 /* AST2600 DP MCU */
 #define DP_RESOLUTION			0xde0  /* DPMCUDE0 dp resolution */
+#define DP_800				0x01050020 /* 800 x 600 60Hz */

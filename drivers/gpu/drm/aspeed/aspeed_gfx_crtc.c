@@ -98,6 +98,17 @@ static void aspeed_gfx_set_clk(struct aspeed_gfx *priv)
 	}
 }
 
+static void aspeed_gfx_dp_mode_set(struct aspeed_gfx *priv, int mode_width)
+{
+	switch (mode_width) {
+	case 800:
+	default:
+		/* usb 40Mhz */
+		regmap_write(priv->dpmcu, DP_RESOLUTION, DP_800);
+		break;
+	}
+}
+
 static void aspeed_gfx_crtc_mode_set_nofb(struct aspeed_gfx *priv)
 {
 	struct drm_display_mode *m = &priv->pipe.crtc.state->adjusted_mode;
@@ -160,6 +171,10 @@ static void aspeed_gfx_crtc_mode_set_nofb(struct aspeed_gfx *priv)
 	 * per line, rounded up)
 	 */
 	writel(priv->throd_val, priv->base + CRT_THROD);
+
+	/* set the dp mode index */
+	if (priv->dp_support)
+		aspeed_gfx_dp_mode_set(priv, m->hdisplay);
 }
 
 static void aspeed_gfx_pipe_enable(struct drm_simple_display_pipe *pipe,
