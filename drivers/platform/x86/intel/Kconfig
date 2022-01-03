@@ -3,19 +3,6 @@
 # Intel x86 Platform Specific Drivers
 #
 
-menuconfig X86_PLATFORM_DRIVERS_INTEL
-	bool "Intel x86 Platform Specific Device Drivers"
-	default y
-	help
-	  Say Y here to get to see options for device drivers for
-	  various Intel x86 platforms, including vendor-specific
-	  drivers. This option alone does not add any kernel code.
-
-	  If you say N, all options in this submenu will be skipped
-	  and disabled.
-
-if X86_PLATFORM_DRIVERS_INTEL
-
 source "drivers/platform/x86/intel/atomisp2/Kconfig"
 source "drivers/platform/x86/intel/int1092/Kconfig"
 source "drivers/platform/x86/intel/int33fe/Kconfig"
@@ -183,5 +170,3 @@ config INTEL_UNCORE_FREQ_CONTROL
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called intel-uncore-frequency.
-
-endif # X86_PLATFORM_DRIVERS_INTEL
