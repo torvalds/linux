@@ -3795,7 +3795,7 @@ void smb2_reconnect_server(struct work_struct *work)
 	struct cifs_tcon *tcon, *tcon2;
 	struct list_head tmp_list, tmp_ses_list;
 	bool tcon_exist = false, ses_exist = false;
-	bool tcon_selected = false, ses_selected = false;
+	bool tcon_selected = false;
 	int rc;
 	bool resched = false;
 
@@ -3812,7 +3812,7 @@ void smb2_reconnect_server(struct work_struct *work)
 	spin_lock(&cifs_tcp_ses_lock);
 	list_for_each_entry(ses, &pserver->smb_ses_list, smb_ses_list) {
 
-		tcon_selected = ses_selected = false;
+		tcon_selected = false;
 
 		list_for_each_entry(tcon, &ses->tcon_list, tcon_list) {
 			if (tcon->need_reconnect || tcon->need_reopen_files) {
@@ -3838,7 +3838,7 @@ void smb2_reconnect_server(struct work_struct *work)
 		spin_lock(&ses->chan_lock);
 		if (!tcon_selected && cifs_chan_needs_reconnect(ses, server)) {
 			list_add_tail(&ses->rlist, &tmp_ses_list);
-			ses_selected = ses_exist = true;
+			ses_exist = true;
 			ses->ses_count++;
 		}
 		spin_unlock(&ses->chan_lock);
