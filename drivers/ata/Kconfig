@@ -256,7 +256,7 @@ config AHCI_TEGRA
 
 config AHCI_XGENE
 	tristate "APM X-Gene 6.0Gbps AHCI SATA host controller support"
-	depends on PHY_XGENE
+	depends on PHY_XGENE || COMPILE_TEST
 	select SATA_HOST
 	help
 	 This option enables support for APM X-Gene SoC SATA host controller.
