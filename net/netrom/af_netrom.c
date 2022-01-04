@@ -306,7 +306,7 @@ static int nr_setsockopt(struct socket *sock, int level, int optname,
 	if (optlen < sizeof(unsigned int))
 		return -EINVAL;
 
-	if (copy_from_sockptr(&opt, optval, sizeof(unsigned int)))
+	if (copy_from_sockptr(&opt, optval, sizeof(unsigned long)))
 		return -EFAULT;
 
 	switch (optname) {
