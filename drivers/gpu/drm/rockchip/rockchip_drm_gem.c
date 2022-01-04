@@ -934,7 +934,8 @@ int rockchip_gem_get_phys_ioctl(struct drm_device *dev, void *data,
 	args->phy_addr = page_to_phys(rk_obj->pages[0]);
 
 out:
-	drm_gem_object_put_locked(obj);
+	drm_gem_object_put(obj);
+
 	return ret;
 }
 
