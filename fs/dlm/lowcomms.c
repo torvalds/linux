@@ -1028,10 +1028,28 @@ static int accept_from_sock(struct listen_connection *con)
 	/* Get the new node's NODEID */
 	make_sockaddr(&peeraddr, 0, &len);
 	if (addr_to_nodeid(&peeraddr, &nodeid, &mark)) {
-		unsigned char *b=(unsigned char *)&peeraddr;
-		log_print("connect from non cluster node");
-		print_hex_dump_bytes("ss: ", DUMP_PREFIX_NONE, 
-				     b, sizeof(struct sockaddr_storage));
+		switch (peeraddr.ss_family) {
+		case AF_INET: {
+			struct sockaddr_in *sin = (struct sockaddr_in *)&peeraddr;
+
+			log_print("connect from non cluster IPv4 node %pI4",
+				  &sin->sin_addr);
+			break;
+		}
+#if IS_ENABLED(CONFIG_IPV6)
+		case AF_INET6: {
+			struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)&peeraddr;
+
+			log_print("connect from non cluster IPv6 node %pI6c",
+				  &sin6->sin6_addr);
+			break;
+		}
+#endif
+		default:
+			log_print("invalid family from non cluster node");
+			break;
+		}
+
 		sock_release(newsock);
 		return -1;
 	}
