@@ -163,6 +163,7 @@ static inline unsigned long nr_slots(u64 val)
  * when swiotlb_unencrypted_base is set. (e.g. for Hyper-V AMD SEV-SNP
  * Isolation VMs).
  */
+#ifdef CONFIG_HAS_IOMEM
 static void *swiotlb_mem_remap(struct io_tlb_mem *mem, unsigned long bytes)
 {
 	void *vaddr = NULL;
@@ -178,6 +179,12 @@ static void *swiotlb_mem_remap(struct io_tlb_mem *mem, unsigned long bytes)
 
 	return vaddr;
 }
+#else
+static void *swiotlb_mem_remap(struct io_tlb_mem *mem, unsigned long bytes)
+{
+	return NULL;
+}
+#endif
 
 /*
  * Early SWIOTLB allocation may be too early to allow an architecture to
