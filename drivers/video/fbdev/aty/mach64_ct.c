@@ -22,13 +22,11 @@ static u32 aty_pll_to_var_ct(const struct fb_info *info, const union aty_pll *pl
 
 u8 aty_ld_pll_ct(int offset, const struct atyfb_par *par)
 {
-	u8 res;
 
 	/* write addr byte */
 	aty_st_8(CLOCK_CNTL_ADDR, (offset << 2) & PLL_ADDR, par);
 	/* read the register value */
-	res = aty_ld_8(CLOCK_CNTL_DATA, par);
-	return res;
+	return aty_ld_8(CLOCK_CNTL_DATA, par);
 }
 
 static void aty_st_pll_ct(int offset, u8 val, const struct atyfb_par *par)
