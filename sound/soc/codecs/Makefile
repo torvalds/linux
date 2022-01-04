@@ -637,6 +637,7 @@ obj-$(CONFIG_SND_SOC_ZL38060)	+= snd-soc-zl38060.o
 obj-$(CONFIG_SND_SOC_ZX_AUD96P22) += snd-soc-zx-aud96p22.o
 
 # Amp
+obj-$(CONFIG_SND_SOC_AW87XXX)	+= aw87xxx/
 obj-$(CONFIG_SND_SOC_MAX9877)	+= snd-soc-max9877.o
 obj-$(CONFIG_SND_SOC_MAX98504)	+= snd-soc-max98504.o
 obj-$(CONFIG_SND_SOC_SIMPLE_AMPLIFIER)	+= snd-soc-simple-amplifier.o
