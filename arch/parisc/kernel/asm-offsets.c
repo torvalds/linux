@@ -37,6 +37,7 @@ int main(void)
 {
 	DEFINE(TASK_TI_FLAGS, offsetof(struct task_struct, thread_info.flags));
 	DEFINE(TASK_STACK, offsetof(struct task_struct, stack));
+	DEFINE(TASK_PAGEFAULT_DISABLED, offsetof(struct task_struct, pagefault_disabled));
 	BLANK();
 	DEFINE(TASK_REGS, offsetof(struct task_struct, thread.regs));
 	DEFINE(TASK_PT_PSW, offsetof(struct task_struct, thread.regs.gr[ 0]));
