@@ -206,7 +206,7 @@ config AHCI_CEVA
 
 config AHCI_MTK
 	tristate "MediaTek AHCI SATA support"
-	depends on ARCH_MEDIATEK
+	depends on ARCH_MEDIATEK || COMPILE_TEST
 	select MFD_SYSCON
 	select SATA_HOST
 	help
