@@ -893,37 +893,40 @@ void intel_pmu_lbr_read_64(struct cpu_hw_events *cpuc)
 	cpuc->lbr_stack.hw_idx = tos;
 }
 
+static DEFINE_STATIC_KEY_FALSE(x86_lbr_mispred);
+static DEFINE_STATIC_KEY_FALSE(x86_lbr_cycles);
+static DEFINE_STATIC_KEY_FALSE(x86_lbr_type);
+
 static __always_inline int get_lbr_br_type(u64 info)
 {
-	if (!static_cpu_has(X86_FEATURE_ARCH_LBR) || !x86_pmu.lbr_br_type)
-		return 0;
+	int type = 0;
 
-	return (info & LBR_INFO_BR_TYPE) >> LBR_INFO_BR_TYPE_OFFSET;
+	if (static_branch_likely(&x86_lbr_type))
+		type = (info & LBR_INFO_BR_TYPE) >> LBR_INFO_BR_TYPE_OFFSET;
+
+	return type;
 }
 
 static __always_inline bool get_lbr_mispred(u64 info)
 {
-	if (static_cpu_has(X86_FEATURE_ARCH_LBR) && !x86_pmu.lbr_mispred)
-		return 0;
+	bool mispred = 0;
 
-	return !!(info & LBR_INFO_MISPRED);
-}
+	if (static_branch_likely(&x86_lbr_mispred))
+		mispred = !!(info & LBR_INFO_MISPRED);
 
-static __always_inline bool get_lbr_predicted(u64 info)
-{
-	if (static_cpu_has(X86_FEATURE_ARCH_LBR) && !x86_pmu.lbr_mispred)
-		return 0;
-
-	return !(info & LBR_INFO_MISPRED);
+	return mispred;
 }
 
 static __always_inline u16 get_lbr_cycles(u64 info)
 {
-	if (static_cpu_has(X86_FEATURE_ARCH_LBR) &&
-	    !(x86_pmu.lbr_timed_lbr && info & LBR_INFO_CYC_CNT_VALID))
-		return 0;
+	u16 cycles = info & LBR_INFO_CYCLES;
 
-	return info & LBR_INFO_CYCLES;
+	if (static_cpu_has(X86_FEATURE_ARCH_LBR) &&
+	    (!static_branch_likely(&x86_lbr_cycles) ||
+	     !(info & LBR_INFO_CYC_CNT_VALID)))
+		cycles = 0;
+
+	return cycles;
 }
 
 static void intel_pmu_store_lbr(struct cpu_hw_events *cpuc,
@@ -951,7 +954,7 @@ static void intel_pmu_store_lbr(struct cpu_hw_events *cpuc,
 		e->from		= from;
 		e->to		= to;
 		e->mispred	= get_lbr_mispred(info);
-		e->predicted	= get_lbr_predicted(info);
+		e->predicted	= !e->mispred;
 		e->in_tx	= !!(info & LBR_INFO_IN_TX);
 		e->abort	= !!(info & LBR_INFO_ABORT);
 		e->cycles	= get_lbr_cycles(info);
@@ -1718,6 +1721,14 @@ void intel_pmu_lbr_init(void)
 		x86_pmu.lbr_to_cycles = 1;
 		break;
 	}
+
+	if (x86_pmu.lbr_has_info) {
+		/*
+		 * Only used in combination with baseline pebs.
+		 */
+		static_branch_enable(&x86_lbr_mispred);
+		static_branch_enable(&x86_lbr_cycles);
+	}
 }
 
 /*
@@ -1779,6 +1790,12 @@ void __init intel_pmu_arch_lbr_init(void)
 	x86_pmu.lbr_br_type = ecx.split.lbr_br_type;
 	x86_pmu.lbr_nr = lbr_nr;
 
+	if (x86_pmu.lbr_mispred)
+		static_branch_enable(&x86_lbr_mispred);
+	if (x86_pmu.lbr_timed_lbr)
+		static_branch_enable(&x86_lbr_cycles);
+	if (x86_pmu.lbr_br_type)
+		static_branch_enable(&x86_lbr_type);
 
 	arch_lbr_xsave = is_arch_lbr_xsave_available();
 	if (arch_lbr_xsave) {
