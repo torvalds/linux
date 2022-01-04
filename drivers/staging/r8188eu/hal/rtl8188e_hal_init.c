@@ -845,27 +845,19 @@ void rtl8188e_read_chip_version(struct adapter *padapter)
 	pHalData->VersionID = ChipVersion;
 }
 
-void rtl8188e_SetHalODMVar(struct adapter *Adapter, enum hal_odm_variable eVariable, void *pValue1, bool bSet)
+void rtl8188e_SetHalODMVar(struct adapter *Adapter, void *pValue1, bool bSet)
 {
 	struct hal_data_8188e *pHalData = &Adapter->haldata;
 	struct odm_dm_struct *podmpriv = &pHalData->odmpriv;
-	switch (eVariable) {
-	case HAL_ODM_STA_INFO:
-		{
-			struct sta_info *psta = (struct sta_info *)pValue1;
+	struct sta_info *psta = (struct sta_info *)pValue1;
 
-			if (bSet) {
-				DBG_88E("### Set STA_(%d) info\n", psta->mac_id);
-				podmpriv->pODM_StaInfo[psta->mac_id] = psta;
-				ODM_RAInfo_Init(podmpriv, psta->mac_id);
-			} else {
-				DBG_88E("### Clean STA_(%d) info\n", psta->mac_id);
-				podmpriv->pODM_StaInfo[psta->mac_id] = NULL;
-		       }
-		}
-		break;
-	default:
-		break;
+	if (bSet) {
+		DBG_88E("### Set STA_(%d) info\n", psta->mac_id);
+		podmpriv->pODM_StaInfo[psta->mac_id] = psta;
+		ODM_RAInfo_Init(podmpriv, psta->mac_id);
+	} else {
+		DBG_88E("### Clean STA_(%d) info\n", psta->mac_id);
+		podmpriv->pODM_StaInfo[psta->mac_id] = NULL;
 	}
 }
 

@@ -94,10 +94,6 @@ enum hal_def_variable {
 	HAL_DEF_DBG_DUMP_TXPKT,
 };
 
-enum hal_odm_variable {
-	HAL_ODM_STA_INFO,
-};
-
 typedef s32 (*c2h_id_filter)(u8 id);
 
 #define is_boot_from_eeprom(adapter) (adapter->eeprompriv.EepromOrEfuse)
@@ -105,8 +101,7 @@ typedef s32 (*c2h_id_filter)(u8 id);
 void rtl8188eu_interface_configure(struct adapter *adapt);
 void ReadAdapterInfo8188EU(struct adapter *Adapter);
 void rtl8188eu_init_default_value(struct adapter *adapt);
-void rtl8188e_SetHalODMVar(struct adapter *Adapter,
-			   enum hal_odm_variable eVariable, void *pValue1, bool bSet);
+void rtl8188e_SetHalODMVar(struct adapter *Adapter, void *pValue1, bool bSet);
 u32 rtl8188eu_InitPowerOn(struct adapter *adapt);
 void rtl8188e_EfusePowerSwitch(struct adapter *pAdapter, u8 PwrState);
 void rtl8188e_ReadEFuse(struct adapter *Adapter, u16 _offset, u16 _size_byte, u8 *pbuf);
