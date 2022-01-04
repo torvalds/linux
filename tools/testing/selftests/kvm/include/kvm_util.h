@@ -248,6 +248,8 @@ int _kvm_device_access(int dev_fd, uint32_t group, uint64_t attr,
 		       void *val, bool write);
 int kvm_device_access(int dev_fd, uint32_t group, uint64_t attr,
 		      void *val, bool write);
+void kvm_irq_line(struct kvm_vm *vm, uint32_t irq, int level);
+int _kvm_irq_line(struct kvm_vm *vm, uint32_t irq, int level);
 
 int _vcpu_has_device_attr(struct kvm_vm *vm, uint32_t vcpuid, uint32_t group,
 			  uint64_t attr);
@@ -257,6 +259,14 @@ int _vcpu_access_device_attr(struct kvm_vm *vm, uint32_t vcpuid, uint32_t group,
 			  uint64_t attr, void *val, bool write);
 int vcpu_access_device_attr(struct kvm_vm *vm, uint32_t vcpuid, uint32_t group,
 			 uint64_t attr, void *val, bool write);
+
+#define KVM_MAX_IRQ_ROUTES		4096
+
+struct kvm_irq_routing *kvm_gsi_routing_create(void);
+void kvm_gsi_routing_irqchip_add(struct kvm_irq_routing *routing,
+		uint32_t gsi, uint32_t pin);
+int _kvm_gsi_routing_write(struct kvm_vm *vm, struct kvm_irq_routing *routing);
+void kvm_gsi_routing_write(struct kvm_vm *vm, struct kvm_irq_routing *routing);
 
 const char *exit_reason_str(unsigned int exit_reason);
 
