@@ -599,7 +599,7 @@ config PATA_ATP867X
 
 config PATA_BK3710
 	tristate "Palmchip BK3710 PATA support"
-	depends on ARCH_DAVINCI
+	depends on ARCH_DAVINCI || COMPILE_TEST
 	select PATA_TIMINGS
 	help
 	  This option enables support for the integrated IDE controller on
