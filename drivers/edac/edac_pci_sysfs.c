@@ -135,9 +135,9 @@ INSTANCE_ATTR(pe_count, S_IRUGO, instance_pe_count_show, NULL);
 INSTANCE_ATTR(npe_count, S_IRUGO, instance_npe_count_show, NULL);
 
 /* pci instance attributes */
-static struct instance_attribute *pci_instance_attr[] = {
-	&attr_instance_pe_count,
-	&attr_instance_npe_count,
+static struct attribute *pci_instance_attr[] = {
+	&attr_instance_pe_count.attr,
+	&attr_instance_npe_count.attr,
 	NULL
 };
 
@@ -145,7 +145,7 @@ static struct instance_attribute *pci_instance_attr[] = {
 static struct kobj_type ktype_pci_instance = {
 	.release = edac_pci_instance_release,
 	.sysfs_ops = &pci_instance_ops,
-	.default_attrs = (struct attribute **)pci_instance_attr,
+	.default_attrs = pci_instance_attr,
 };
 
 /*
@@ -292,13 +292,13 @@ EDAC_PCI_ATTR(pci_parity_count, S_IRUGO, edac_pci_int_show, NULL);
 EDAC_PCI_ATTR(pci_nonparity_count, S_IRUGO, edac_pci_int_show, NULL);
 
 /* Base Attributes of the memory ECC object */
-static struct edac_pci_dev_attribute *edac_pci_attr[] = {
-	&edac_pci_attr_check_pci_errors,
-	&edac_pci_attr_edac_pci_log_pe,
-	&edac_pci_attr_edac_pci_log_npe,
-	&edac_pci_attr_edac_pci_panic_on_pe,
-	&edac_pci_attr_pci_parity_count,
-	&edac_pci_attr_pci_nonparity_count,
+static struct attribute *edac_pci_attr[] = {
+	&edac_pci_attr_check_pci_errors.attr,
+	&edac_pci_attr_edac_pci_log_pe.attr,
+	&edac_pci_attr_edac_pci_log_npe.attr,
+	&edac_pci_attr_edac_pci_panic_on_pe.attr,
+	&edac_pci_attr_pci_parity_count.attr,
+	&edac_pci_attr_pci_nonparity_count.attr,
 	NULL,
 };
 
@@ -327,7 +327,7 @@ static void edac_pci_release_main_kobj(struct kobject *kobj)
 static struct kobj_type ktype_edac_pci_main_kobj = {
 	.release = edac_pci_release_main_kobj,
 	.sysfs_ops = &edac_pci_sysfs_ops,
-	.default_attrs = (struct attribute **)edac_pci_attr,
+	.default_attrs = edac_pci_attr,
 };
 
 /**
