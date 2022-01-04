@@ -552,10 +552,10 @@ static int gpio_rcar_probe(struct platform_device *pdev)
 		goto err0;
 	}
 
-	if (devm_request_irq(dev, p->irq_parent, gpio_rcar_irq_handler,
-			     IRQF_SHARED, name, p)) {
+	ret = devm_request_irq(dev, p->irq_parent, gpio_rcar_irq_handler,
+			       IRQF_SHARED, name, p);
+	if (ret) {
 		dev_err(dev, "failed to request IRQ\n");
-		ret = -ENOENT;
 		goto err1;
 	}
 
