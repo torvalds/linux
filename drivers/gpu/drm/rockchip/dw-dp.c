@@ -13,6 +13,7 @@
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_bridge.h>
 #include <drm/drm_dp_helper.h>
+#include <drm/drm_hdcp.h>
 #include <drm/drm_of.h>
 #include <drm/drm_print.h>
 #include <drm/drm_probe_helper.h>
@@ -31,6 +32,8 @@
 #include <linux/gpio/consumer.h>
 #include <linux/phy/phy.h>
 #include <linux/mfd/syscon.h>
+#include <linux/rockchip/rockchip_sip.h>
+#include <linux/soc/rockchip/rk_vendor_storage.h>
 
 #include <sound/hdmi-codec.h>
 
@@ -56,6 +59,7 @@
 #define VIDEO_RESET				BIT(5)
 #define AUX_RESET				BIT(4)
 #define AUDIO_SAMPLER_RESET			BIT(3)
+#define HDCP_MODULE_RESET			BIT(2)
 #define PHY_SOFT_RESET				BIT(1)
 #define CONTROLLER_RESET			BIT(0)
 
@@ -157,9 +161,11 @@
 #define AUDIO_FIFO_OVERFLOW_STREAM0		BIT(5)
 #define SDP_EVENT_STREAM0			BIT(4)
 #define AUX_CMD_INVALID				BIT(3)
+#define HDCP_EVENT				BIT(2)
 #define AUX_REPLY_EVENT				BIT(1)
 #define HPD_EVENT				BIT(0)
 #define DPTX_GENERAL_INTERRUPT_ENABLE		0x0d04
+#define HDCP_EVENT_EN				BIT(2)
 #define AUX_REPLY_EVENT_EN			BIT(1)
 #define HPD_EVENT_EN				BIT(0)
 #define DPTX_HPD_STATUS				0x0d08
@@ -174,9 +180,88 @@
 #define HPD_PLUG_EN				BIT(1)
 #define HPD_IRQ_EN				BIT(0)
 
-#define DPTX_MAX_REGISTER			DPTX_HPD_INTERRUPT_ENABLE
+#define DPTX_HDCPCFG				0x0e00
+#define DPCD12PLUS				BIT(7)
+#define CP_IRQ					BIT(6)
+#define BYPENCRYPTION				BIT(5)
+#define HDCP_LOCK				BIT(4)
+#define ENCRYPTIONDISABLE			BIT(3)
+#define ENABLE_HDCP_13				BIT(2)
+#define ENABLE_HDCP				BIT(1)
+#define DPTX_HDCPOBS				0x0e04
+#define HDCP22_RE_AUTHENTICATION_REQ		BIT(31)
+#define HDCP22_AUTHENTICATION_FAILED		BIT(30)
+#define HDCP22_AUTHENTICATION_SUCCESS		BIT(29)
+#define HDCP22_CAPABLE_SINK			BIT(28)
+#define HDCP22_SINK_CAP_CHECK_COMPLETE		BIT(27)
+#define HDCP22_STATE				GENMASK(26, 24)
+#define HDCP22_BOOTED				BIT(23)
+#define HDCP13_BSTATUS				GENMASK(22, 19)
+#define REPEATER				BIT(18)
+#define HDCP_CAPABLE				BIT(17)
+#define STATEE					GENMASK(16, 14)
+#define STATEOEG				GENMASK(13, 11)
+#define STATER					GENMASK(10, 8)
+#define STATEA					GENMASK(7, 4)
+#define SUBSTATEA				GENMASK(3, 1)
+#define HDCPENGAGED				BIT(0)
+#define DPXT_HDCPAPIINTCLR			0x0e08
+#define DPTX_HDCPAPIINTSTAT			0x0e0c
+#define DPTX_HDCPAPIINTMSK			0x0e10
+#define HDCP22_GPIOINT				BIT(8)
+#define HDCP_ENGAGED				BIT(7)
+#define HDCP_FAILED				BIT(6)
+#define KSVSHA1CALCDONEINT			BIT(5)
+#define AUXRESPNACK7TIMES			BIT(4)
+#define AUXRESPTIMEOUT				BIT(3)
+#define AUXRESPDEFER7TIMES			BIT(2)
+#define KSVACCESSINT				BIT(0)
+#define DPTX_HDCPKSVMEMCTRL			0x0e18
+#define KSVSHA1STATUS				BIT(4)
+#define KSVMEMACCESS				BIT(1)
+#define KSVMEMREQUEST				BIT(0)
+#define DPTX_HDCPREG_BKSV0			0x3600
+#define DPTX_HDCPREG_BKSV1			0x3604
+#define DPTX_HDCPREG_ANCONF			0x3608
+#define OANBYPASS				BIT(0)
+#define DPTX_HDCPREG_AN0			0x360c
+#define DPTX_HDCPREG_AN1			0x3610
+#define DPTX_HDCPREG_RMLCTL			0x3614
+#define ODPK_DECRYPT_ENABLE			BIT(0)
+#define DPTX_HDCPREG_RMLSTS			0x3618
+#define IDPK_WR_OK_STS				BIT(6)
+#define	IDPK_DATA_INDEX				GENMASK(5, 0)
+#define DPTX_HDCPREG_SEED			0x361c
+#define DPTX_HDCPREG_DPK0			0x3620
+#define DPTX_HDCPREG_DPK1			0x3624
+#define DPTX_HDCP22GPIOSTS			0x3628
+#define DPTX_HDCP22GPIOCHNGSTS			0x362c
+#define DPTX_HDCPREG_DPK_CRC			0x3630
+
+#define HDCP_DATA_SIZE				330
+#define DP_HDCP1X_ID				6
+
+#define DPTX_MAX_REGISTER			DPTX_HDCPREG_DPK_CRC
 
 #define SDP_REG_BANK_SIZE			16
+
+enum {
+	HDCP_TX_NONE,
+	HDCP_TX_1,
+	HDCP_TX_2,
+};
+
+struct dw_dp_hdcp {
+	struct delayed_work check_work;
+	struct work_struct prop_work;
+	struct mutex mutex;
+	u64 value;
+	unsigned long check_link_interval;
+	int status;
+	u8 hdcp_content_type;
+	bool hdcp2_encrypted;
+	bool hdcp_encrypted;
+};
 
 struct drm_dp_link_caps {
 	bool enhanced_framing;
@@ -267,6 +352,7 @@ struct dw_dp {
 	struct clk *hclk;
 	struct clk *i2s_clk;
 	struct clk *spdif_clk;
+	struct clk *hdcp_clk;
 	struct reset_control *rstc;
 	struct regmap *grf;
 	struct completion complete;
@@ -301,8 +387,10 @@ struct dw_dp {
 	struct drm_property *color_format_property;
 	struct drm_property *color_depth_capacity;
 	struct drm_property *color_format_capacity;
+	struct drm_property *hdcp_state_property;
 
 	struct rockchip_drm_sub_dev sub_dev;
+	struct dw_dp_hdcp hdcp;
 };
 
 struct dw_dp_state {
@@ -396,6 +484,412 @@ static const struct dw_dp_output_format possible_output_fmts[] = {
 	{ MEDIA_BUS_FMT_RGB666_1X24_CPADHI, DRM_COLOR_FORMAT_RGB444,
 	  DPTX_VM_RGB_6BIT, 6, 18 },
 };
+
+static int dw_dp_hdcp_init_keys(struct dw_dp *dp)
+{
+	u32 val;
+	int size;
+	u8 hdcp_vendor_data[HDCP_DATA_SIZE + 1];
+	void __iomem *base;
+	struct arm_smccc_res res;
+
+	regmap_read(dp->regmap, DPTX_HDCPREG_RMLSTS, &val);
+	if (FIELD_GET(IDPK_DATA_INDEX, val) == 40) {
+		dev_info(dp->dev, "dpk keys already write\n");
+		return 0;
+	}
+
+	size = rk_vendor_read(DP_HDCP1X_ID, hdcp_vendor_data, HDCP_DATA_SIZE);
+	if (size < HDCP_DATA_SIZE)  {
+		dev_info(dp->dev, "HDCP: read size %d\n", size);
+		return -EINVAL;
+	}
+
+	base = sip_hdcp_request_share_memory(dp->id ? DP_TX1 : DP_TX0);
+	if (!base)
+		return -ENOMEM;
+
+	memcpy(base, hdcp_vendor_data, size);
+
+	res = sip_hdcp_config(HDCP_FUNC_KEY_LOAD, dp->id ? DP_TX1 : DP_TX0, 0);
+	if (IS_SIP_ERROR(res.a0)) {
+		dev_err(dp->dev, "load hdcp key failed\n");
+		return -EBUSY;
+	}
+
+	return 0;
+}
+
+static int dw_dp_hdcp_rng_init(struct dw_dp *dp)
+{
+	u32 random_val;
+
+	regmap_write(dp->regmap, DPTX_HDCPREG_ANCONF, OANBYPASS);
+	get_random_bytes(&random_val, sizeof(u32));
+	regmap_write(dp->regmap, DPTX_HDCPREG_AN0, random_val);
+	get_random_bytes(&random_val, sizeof(u32));
+	regmap_write(dp->regmap, DPTX_HDCPREG_AN1, random_val);
+
+	return 0;
+}
+
+static int dw_dp_hw_hdcp_init(struct dw_dp *dp)
+{
+	regmap_update_bits(dp->regmap, DPTX_SOFT_RESET_CTRL, HDCP_MODULE_RESET,
+			FIELD_PREP(HDCP_MODULE_RESET, 1));
+	udelay(10);
+	regmap_update_bits(dp->regmap, DPTX_SOFT_RESET_CTRL, HDCP_MODULE_RESET,
+			FIELD_PREP(HDCP_MODULE_RESET, 0));
+
+	regmap_update_bits(dp->regmap, DPTX_GENERAL_INTERRUPT_ENABLE,
+			HDCP_EVENT_EN, FIELD_PREP(HDCP_EVENT_EN, 1));
+
+	return 0;
+}
+
+static bool dw_dp_hdcp2_capable(struct dw_dp *dp)
+{
+	u8 rx_caps[3];
+	int ret;
+
+	ret = drm_dp_dpcd_read(&dp->aux, DP_HDCP_2_2_REG_RX_CAPS_OFFSET,
+			       rx_caps, HDCP_2_2_RXCAPS_LEN);
+	if (ret != HDCP_2_2_RXCAPS_LEN) {
+		dev_err(dp->dev, "get hdcp2 capable failed:%d\n", ret);
+		return false;
+	}
+
+	if (rx_caps[0] == HDCP_2_2_RX_CAPS_VERSION_VAL &&
+	    HDCP_2_2_DP_HDCP_CAPABLE(rx_caps[2]))
+		return true;
+
+	return false;
+}
+
+static int _dw_dp_hdcp2_disable(struct dw_dp *dp)
+{
+	struct dw_dp_hdcp *hdcp = &dp->hdcp;
+
+	regmap_update_bits(dp->regmap, DPTX_HDCPCFG, ENABLE_HDCP, 0);
+	clk_disable_unprepare(dp->hdcp_clk);
+
+	hdcp->status = HDCP_TX_NONE;
+
+	dp->hdcp.hdcp2_encrypted = false;
+
+	return 0;
+}
+
+static int dw_dp_hdcp2_auth_check(struct dw_dp *dp)
+{
+	u32 val;
+	int ret;
+
+	ret = regmap_read_poll_timeout(dp->regmap, DPTX_HDCPOBS, val,
+				       FIELD_GET(HDCP22_BOOTED, val), 1000, 1000000);
+	if (ret) {
+		dev_err(dp->dev, "wait HDCP2 controller booted timeout\n");
+		return ret;
+	}
+
+	ret = regmap_read_poll_timeout(dp->regmap, DPTX_HDCPOBS, val,
+				       FIELD_GET(HDCP22_CAPABLE_SINK
+						 | HDCP22_SINK_CAP_CHECK_COMPLETE, val),
+				       1000, 1000000);
+	if (ret) {
+		dev_err(dp->dev, "sink not support HDCP2\n");
+		return ret;
+	}
+
+	ret = regmap_read_poll_timeout(dp->regmap, DPTX_HDCPOBS, val,
+				       FIELD_GET(HDCP22_AUTHENTICATION_SUCCESS, val),
+				       1000, 2000000);
+	if (ret) {
+		dev_err(dp->dev, "wait hdcp22 controller auth timeout\n");
+		return ret;
+	}
+
+	dp->hdcp.hdcp2_encrypted = true;
+
+	dev_info(dp->dev, "HDCP2 authentication succeed\n");
+
+	return ret;
+}
+
+static int _dw_dp_hdcp2_enable(struct dw_dp *dp)
+{
+	struct dw_dp_hdcp *hdcp = &dp->hdcp;
+
+	hdcp->status = HDCP_TX_2;
+
+	clk_prepare_enable(dp->hdcp_clk);
+
+	regmap_update_bits(dp->regmap, DPTX_HDCPCFG, ENABLE_HDCP, ENABLE_HDCP);
+
+	return dw_dp_hdcp2_auth_check(dp);
+}
+
+static bool dw_dp_hdcp_capable(struct dw_dp *dp)
+{
+	int ret;
+	u8 bcaps;
+
+	ret = drm_dp_dpcd_readb(&dp->aux, DP_AUX_HDCP_BCAPS, &bcaps);
+	if (ret != 1) {
+		dev_err(dp->dev, "get hdcp capable failed:%d\n", ret);
+		return false;
+	}
+
+	return bcaps & DP_BCAPS_HDCP_CAPABLE;
+}
+
+static int _dw_dp_hdcp_disable(struct dw_dp *dp)
+{
+	struct dw_dp_hdcp *hdcp = &dp->hdcp;
+
+	regmap_update_bits(dp->regmap, DPTX_HDCPCFG, ENABLE_HDCP | ENABLE_HDCP_13, 0);
+
+	hdcp->status = HDCP_TX_NONE;
+
+	dp->hdcp.hdcp_encrypted = false;
+
+	return 0;
+}
+
+static int dw_dp_hdcp_auth_check(struct dw_dp *dp)
+{
+	u32 val;
+	int ret;
+
+	ret = regmap_read_poll_timeout(dp->regmap, DPTX_HDCPAPIINTSTAT, val,
+				       FIELD_GET(HDCP_ENGAGED, val), 1000, 1000000);
+	if (ret) {
+		if (val & HDCP_FAILED) {
+			dev_err(dp->dev, " HDCP authentication process failed\n");
+			regmap_write(dp->regmap, DPXT_HDCPAPIINTCLR, HDCP_FAILED);
+		}
+
+		if (val & AUXRESPNACK7TIMES) {
+			dev_err(dp->dev, "Aux received nack response continuously for 7 times\n");
+			regmap_write(dp->regmap, DPXT_HDCPAPIINTCLR, AUXRESPNACK7TIMES);
+		}
+
+		if (val & AUXRESPTIMEOUT) {
+			dev_err(dp->dev, "Aux did not receive a response and timedout\n");
+			regmap_write(dp->regmap, DPXT_HDCPAPIINTCLR, AUXRESPTIMEOUT);
+		}
+
+		if (val & AUXRESPDEFER7TIMES) {
+			dev_err(dp->dev, "Aux received defer response continuously for 7 times\n");
+			regmap_write(dp->regmap, DPXT_HDCPAPIINTCLR, AUXRESPDEFER7TIMES);
+		}
+
+		dev_err(dp->dev, "HDCP authentication timeout\n");
+	} else {
+		regmap_write(dp->regmap, DPXT_HDCPAPIINTCLR, HDCP_ENGAGED);
+		dp->hdcp.hdcp_encrypted = true;
+		dev_info(dp->dev, "HDCP authentication succeed\n");
+	}
+
+	return ret;
+}
+
+static int _dw_dp_hdcp_enable(struct dw_dp *dp)
+{
+	int ret;
+	u8 rev;
+	struct dw_dp_hdcp *hdcp = &dp->hdcp;
+
+	hdcp->status = HDCP_TX_1;
+
+	dw_dp_hdcp_rng_init(dp);
+
+	ret = dw_dp_hdcp_init_keys(dp);
+	if (ret)
+		return ret;
+
+	ret = drm_dp_dpcd_readb(&dp->aux, DP_DPCD_REV, &rev);
+	if (ret < 0)
+		return ret;
+
+	if (rev >= DP_DPCD_REV_12)
+		regmap_update_bits(dp->regmap, DPTX_HDCPCFG, DPCD12PLUS, DPCD12PLUS);
+
+	regmap_update_bits(dp->regmap, DPTX_HDCPCFG, ENABLE_HDCP | ENABLE_HDCP_13,
+			   ENABLE_HDCP | ENABLE_HDCP_13);
+
+	return dw_dp_hdcp_auth_check(dp);
+
+	return ret;
+}
+
+static int dw_dp_hdcp_enable(struct dw_dp *dp, u8 content_type)
+{
+	int ret = -EINVAL;
+
+	dp->hdcp.check_link_interval = DRM_HDCP_CHECK_PERIOD_MS;
+	mutex_lock(&dp->hdcp.mutex);
+	sip_hdcp_config(HDCP_FUNC_ENCRYPT_MODE, dp->id ? DP_TX1 : DP_TX0, 0x0);
+	dw_dp_hw_hdcp_init(dp);
+	if (dw_dp_hdcp2_capable(dp)) {
+		ret = _dw_dp_hdcp2_enable(dp);
+		if (!ret)
+			dp->hdcp.check_link_interval = DRM_HDCP2_CHECK_PERIOD_MS;
+		else
+			_dw_dp_hdcp2_disable(dp);
+	}
+
+	if (ret && dw_dp_hdcp_capable(dp) && content_type != DRM_MODE_HDCP_CONTENT_TYPE1) {
+		ret = _dw_dp_hdcp_enable(dp);
+		if (!ret)
+			dp->hdcp.check_link_interval = DRM_HDCP_CHECK_PERIOD_MS;
+		else
+			_dw_dp_hdcp_disable(dp);
+	}
+
+	if (ret)
+		goto out;
+
+	dp->hdcp.hdcp_content_type = content_type;
+	dp->hdcp.value = DRM_MODE_CONTENT_PROTECTION_ENABLED;
+	schedule_work(&dp->hdcp.prop_work);
+	schedule_delayed_work(&dp->hdcp.check_work, dp->hdcp.check_link_interval);
+
+out:
+	mutex_unlock(&dp->hdcp.mutex);
+	return ret;
+}
+
+static int dw_dp_hdcp_disable(struct dw_dp *dp)
+{
+	int ret = 0;
+
+	mutex_lock(&dp->hdcp.mutex);
+	if (dp->hdcp.value != DRM_MODE_CONTENT_PROTECTION_UNDESIRED) {
+		dp->hdcp.value = DRM_MODE_CONTENT_PROTECTION_UNDESIRED;
+		sip_hdcp_config(HDCP_FUNC_ENCRYPT_MODE, dp->id ? DP_TX1 : DP_TX0, 0x1);
+		ret = _dw_dp_hdcp_disable(dp);
+	}
+	mutex_unlock(&dp->hdcp.mutex);
+	cancel_delayed_work_sync(&dp->hdcp.check_work);
+
+	return ret;
+}
+
+static int _dw_dp_hdcp_check_link(struct dw_dp *dp)
+{
+	u8 bstatus;
+	int ret;
+
+	ret = drm_dp_dpcd_readb(&dp->aux, DP_AUX_HDCP_BSTATUS, &bstatus);
+	if (ret < 0)
+		return ret;
+
+	if (bstatus & (DP_BSTATUS_LINK_FAILURE | DP_BSTATUS_REAUTH_REQ))
+		return -EINVAL;
+
+	return 0;
+}
+
+static int dw_dp_hdcp_check_link(struct dw_dp *dp)
+{
+	int ret = 0;
+
+	mutex_lock(&dp->hdcp.mutex);
+
+	if (dp->hdcp.value == DRM_MODE_CONTENT_PROTECTION_UNDESIRED)
+		goto out;
+
+	ret = _dw_dp_hdcp_check_link(dp);
+	if (!ret)
+		goto out;
+
+	dev_info(dp->dev, "HDCP link failed, retrying authentication\n");
+
+	if (dp->hdcp.status == HDCP_TX_2) {
+		ret = _dw_dp_hdcp2_disable(dp);
+		if (ret) {
+			dp->hdcp.value = DRM_MODE_CONTENT_PROTECTION_DESIRED;
+			schedule_work(&dp->hdcp.prop_work);
+			goto out;
+		}
+
+		ret = _dw_dp_hdcp2_enable(dp);
+		if (ret) {
+			dp->hdcp.value = DRM_MODE_CONTENT_PROTECTION_DESIRED;
+			schedule_work(&dp->hdcp.prop_work);
+		}
+	} else if (dp->hdcp.status == HDCP_TX_1) {
+		ret = _dw_dp_hdcp_disable(dp);
+		if (ret) {
+			dp->hdcp.value = DRM_MODE_CONTENT_PROTECTION_DESIRED;
+			schedule_work(&dp->hdcp.prop_work);
+			goto out;
+		}
+
+		ret = _dw_dp_hdcp_enable(dp);
+		if (ret) {
+			dp->hdcp.value = DRM_MODE_CONTENT_PROTECTION_DESIRED;
+			schedule_work(&dp->hdcp.prop_work);
+		}
+	}
+
+out:
+	mutex_unlock(&dp->hdcp.mutex);
+	return ret;
+}
+
+static void dw_dp_hdcp_check_work(struct work_struct *work)
+{
+	struct delayed_work *d_work = to_delayed_work(work);
+	struct dw_dp_hdcp *hdcp =
+		container_of(d_work, struct dw_dp_hdcp, check_work);
+	struct dw_dp *dp =
+		container_of(hdcp, struct dw_dp, hdcp);
+
+	if (!dw_dp_hdcp_check_link(dp))
+		schedule_delayed_work(&hdcp->check_work,
+				      hdcp->check_link_interval);
+}
+
+static void dp_dp_hdcp_prop_work(struct work_struct *work)
+{
+	struct dw_dp_hdcp *hdcp =
+		container_of(work, struct dw_dp_hdcp, prop_work);
+	struct dw_dp *dp =
+		container_of(hdcp, struct dw_dp, hdcp);
+	struct drm_device *dev = dp->connector.dev;
+
+	drm_modeset_lock(&dev->mode_config.connection_mutex, NULL);
+	mutex_lock(&dp->hdcp.mutex);
+	if (dp->hdcp.value != DRM_MODE_CONTENT_PROTECTION_UNDESIRED)
+		drm_hdcp_update_content_protection(&dp->connector, dp->hdcp.value);
+	mutex_unlock(&dp->hdcp.mutex);
+	drm_modeset_unlock(&dev->mode_config.connection_mutex);
+}
+
+static void dw_dp_hdcp_init(struct dw_dp *dp)
+{
+	INIT_DELAYED_WORK(&dp->hdcp.check_work, dw_dp_hdcp_check_work);
+	INIT_WORK(&dp->hdcp.prop_work, dp_dp_hdcp_prop_work);
+	mutex_init(&dp->hdcp.mutex);
+}
+
+static void dw_dp_handle_hdcp_event(struct dw_dp *dp)
+{
+	u32 value;
+
+	mutex_lock(&dp->irq_lock);
+
+	regmap_read(dp->regmap, DPTX_HDCPAPIINTSTAT, &value);
+
+	if (value & HDCP22_GPIOINT) {
+		dev_info(dp->dev, "A change in HDCP22 GPIO Output status\n");
+		regmap_write(dp->regmap, DPXT_HDCPAPIINTCLR, HDCP22_GPIOINT);
+	}
+
+	mutex_unlock(&dp->irq_lock);
+}
 
 static const struct drm_prop_enum_list color_depth_enum_list[] = {
 	{ 0, "Automatic" },
@@ -629,6 +1123,14 @@ static int dw_dp_atomic_connector_get_property(struct drm_connector *connector,
 	} else if (property == dp->color_format_capacity) {
 		*val = info->color_formats;
 		return 0;
+	} else if (property == dp->hdcp_state_property) {
+		if (dp->hdcp.hdcp2_encrypted)
+			*val = RK_IF_HDCP_ENCRYPTED_LEVEL2;
+		else if (dp->hdcp.hdcp_encrypted)
+			*val = RK_IF_HDCP_ENCRYPTED_LEVEL1;
+		else
+			*val = RK_IF_HDCP_ENCRYPTED_NONE;
+		return 0;
 	}
 
 	dev_err(dp->dev, "Unknown property [PROP:%d:%s]\n",
@@ -654,6 +1156,8 @@ static int dw_dp_atomic_connector_set_property(struct drm_connector *connector,
 	} else if (property == dp->color_depth_capacity) {
 		return 0;
 	} else if (property == dp->color_format_capacity) {
+		return 0;
+	} else if (property == dp->hdcp_state_property) {
 		return 0;
 	}
 
@@ -721,6 +1225,42 @@ static int dw_dp_connector_get_modes(struct drm_connector *connector)
 	return num_modes;
 }
 
+static int dw_dp_hdcp_atomic_check(struct drm_connector *conn,
+					struct drm_atomic_state *state)
+{
+	struct drm_connector_state *old_state, *new_state;
+	struct drm_crtc_state *crtc_state;
+	u64 old_cp, new_cp;
+
+	old_state = drm_atomic_get_old_connector_state(state, conn);
+	new_state = drm_atomic_get_new_connector_state(state, conn);
+	old_cp = old_state->content_protection;
+	new_cp = new_state->content_protection;
+
+	if (old_state->hdcp_content_type != new_state->hdcp_content_type &&
+	    new_cp != DRM_MODE_CONTENT_PROTECTION_UNDESIRED) {
+		new_state->content_protection = DRM_MODE_CONTENT_PROTECTION_DESIRED;
+		goto mode_changed;
+	}
+
+	if (!new_state->crtc) {
+		if (old_cp == DRM_MODE_CONTENT_PROTECTION_ENABLED)
+			new_state->content_protection = DRM_MODE_CONTENT_PROTECTION_DESIRED;
+		return 0;
+	}
+
+	if (old_cp == new_cp ||
+	    (old_cp == DRM_MODE_CONTENT_PROTECTION_DESIRED &&
+	     new_cp == DRM_MODE_CONTENT_PROTECTION_ENABLED))
+		return 0;
+
+mode_changed:
+	crtc_state = drm_atomic_get_new_crtc_state(state, new_state->crtc);
+	crtc_state->mode_changed = true;
+
+	return 0;
+}
+
 static int dw_dp_connector_atomic_check(struct drm_connector *conn,
 					struct drm_atomic_state *state)
 {
@@ -733,6 +1273,8 @@ static int dw_dp_connector_atomic_check(struct drm_connector *conn,
 	new_state = drm_atomic_get_new_connector_state(state, conn);
 	dp_old_state = connector_to_dp_state(old_state);
 	dp_new_state = connector_to_dp_state(new_state);
+
+	dw_dp_hdcp_atomic_check(conn, state);
 
 	if (!new_state->crtc)
 		return 0;
@@ -2200,6 +2742,21 @@ static int dw_dp_connector_init(struct dw_dp *dp)
 	dp->color_format_capacity = prop;
 	drm_object_attach_property(&connector->base, prop, 0);
 
+	ret = drm_connector_attach_content_protection_property(&dp->connector, true);
+	if (ret) {
+		dev_err(dp->dev, "failed to attach content protection: %d\n", ret);
+		return ret;
+	}
+
+	prop = drm_property_create_range(connector->dev, 0, RK_IF_PROP_ENCRYPTED,
+					 RK_IF_HDCP_ENCRYPTED_NONE, RK_IF_HDCP_ENCRYPTED_LEVEL2);
+	if (!prop) {
+		dev_err(dp->dev, "create hdcp encrypted prop for dp%d failed\n", dp->id);
+		return -ENOMEM;
+	}
+	dp->hdcp_state_property = prop;
+	drm_object_attach_property(&connector->base, prop, RK_IF_HDCP_ENCRYPTED_NONE);
+
 	return 0;
 }
 
@@ -2340,7 +2897,13 @@ static void dw_dp_bridge_atomic_enable(struct drm_bridge *bridge,
 				       struct drm_bridge_state *old_state)
 {
 	struct dw_dp *dp = bridge_to_dp(bridge);
+	struct drm_atomic_state *state = old_state->base.state;
+	struct drm_connector *connector;
+	struct drm_connector_state *conn_state;
 	int ret;
+
+	connector = drm_atomic_get_new_connector_for_encoder(state, bridge->encoder);
+	conn_state = drm_atomic_get_new_connector_state(state, connector);
 
 	set_bit(0, dp->sdp_reg_bank);
 
@@ -2349,6 +2912,9 @@ static void dw_dp_bridge_atomic_enable(struct drm_bridge *bridge,
 		dev_err(dp->dev, "failed to enable link: %d\n", ret);
 		return;
 	}
+
+	if (conn_state->content_protection == DRM_MODE_CONTENT_PROTECTION_DESIRED)
+		dw_dp_hdcp_enable(dp, conn_state->hdcp_content_type);
 
 	ret = dw_dp_video_enable(dp);
 	if (ret < 0) {
@@ -2382,6 +2948,7 @@ static void dw_dp_bridge_atomic_disable(struct drm_bridge *bridge,
 {
 	struct dw_dp *dp = bridge_to_dp(bridge);
 
+	dw_dp_hdcp_disable(dp);
 	dw_dp_video_disable(dp);
 	dw_dp_link_disable(dp);
 	bitmap_zero(dp->sdp_reg_bank, SDP_REG_BANK_SIZE);
@@ -2630,6 +3197,13 @@ update_status:
 		dev_warn(dp->dev, "Could not write test response to sink\n");
 }
 
+static void dw_dp_hdcp_handle_cp_irq(struct dw_dp *dp)
+{
+	regmap_update_bits(dp->regmap, DPTX_HDCPCFG, CP_IRQ, CP_IRQ);
+	udelay(20);
+	regmap_update_bits(dp->regmap, DPTX_HDCPCFG, CP_IRQ, 0);
+}
+
 static void dw_dp_check_service_irq(struct dw_dp *dp)
 {
 	struct dw_dp_link *link = &dp->link;
@@ -2645,6 +3219,9 @@ static void dw_dp_check_service_irq(struct dw_dp *dp)
 
 	if (val & DP_AUTOMATED_TEST_REQUEST)
 		dw_dp_handle_test_request(dp);
+
+	if (val & DP_CP_IRQ)
+		dw_dp_hdcp_handle_cp_irq(dp);
 
 	if (val & DP_SINK_SPECIFIC_IRQ)
 		dev_info(dp->dev, "Sink specific irq unhandled\n");
@@ -2855,6 +3432,9 @@ static irqreturn_t dw_dp_irq_handler(int irq, void *data)
 			     AUX_REPLY_EVENT);
 		complete(&dp->complete);
 	}
+
+	if (value & HDCP_EVENT)
+		dw_dp_handle_hdcp_event(dp);
 
 	return IRQ_HANDLED;
 }
@@ -3142,6 +3722,8 @@ static const struct regmap_range dw_dp_readable_ranges[] = {
 	regmap_reg_range(DPTX_PHYIF_CTRL, DPTX_PHYIF_PWRDOWN_CTRL),
 	regmap_reg_range(DPTX_AUX_CMD, DPTX_AUX_DATA3),
 	regmap_reg_range(DPTX_GENERAL_INTERRUPT, DPTX_HPD_INTERRUPT_ENABLE),
+	regmap_reg_range(DPTX_HDCPCFG, DPTX_HDCPKSVMEMCTRL),
+	regmap_reg_range(DPTX_HDCPREG_BKSV0, DPTX_HDCPREG_DPK_CRC),
 };
 
 static const struct regmap_access_table dw_dp_readable_table = {
@@ -3219,6 +3801,11 @@ static int dw_dp_probe(struct platform_device *pdev)
 	if (IS_ERR(dp->hclk))
 		return dev_err_probe(dev, PTR_ERR(dp->hclk),
 				     "failed to get hclk\n");
+
+	dp->hdcp_clk = devm_clk_get(dev, "hdcp");
+	if (IS_ERR(dp->hdcp_clk))
+		return dev_err_probe(dev, PTR_ERR(dp->hdcp_clk),
+				     "failed to get hdcp clock\n");
 
 	dp->rstc = devm_reset_control_get(dev, NULL);
 	if (IS_ERR(dp->rstc))
@@ -3309,6 +3896,8 @@ static int dw_dp_probe(struct platform_device *pdev)
 		secondary->left = dp;
 		secondary->split_mode = true;
 	}
+
+	dw_dp_hdcp_init(dp);
 
 	return component_add(dev, &dw_dp_component_ops);
 }
