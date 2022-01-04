@@ -1722,7 +1722,7 @@ static u32 ata_pio_mask_no_iordy(const struct ata_device *adev)
  *	this function is wrapped or replaced by the driver
  */
 unsigned int ata_do_dev_read_id(struct ata_device *dev,
-					struct ata_taskfile *tf, u16 *id)
+				struct ata_taskfile *tf, __le16 *id)
 {
 	return ata_exec_internal(dev, tf, NULL, DMA_FROM_DEVICE,
 				     id, sizeof(id[0]) * ATA_ID_WORDS, 0);
@@ -1795,9 +1795,9 @@ retry:
 	tf.flags |= ATA_TFLAG_POLLING;
 
 	if (ap->ops->read_id)
-		err_mask = ap->ops->read_id(dev, &tf, id);
+		err_mask = ap->ops->read_id(dev, &tf, (__le16 *)id);
 	else
-		err_mask = ata_do_dev_read_id(dev, &tf, id);
+		err_mask = ata_do_dev_read_id(dev, &tf, (__le16 *)id);
 
 	if (err_mask) {
 		if (err_mask & AC_ERR_NODEV_HINT) {

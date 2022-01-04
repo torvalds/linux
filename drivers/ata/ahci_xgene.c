@@ -237,7 +237,7 @@ static bool xgene_ahci_is_memram_inited(struct xgene_ahci_context *ctx)
  * does not support DEVSLP.
  */
 static unsigned int xgene_ahci_read_id(struct ata_device *dev,
-				       struct ata_taskfile *tf, u16 *id)
+				       struct ata_taskfile *tf, __le16 *id)
 {
 	u32 err_mask;
 

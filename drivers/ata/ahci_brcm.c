@@ -246,7 +246,7 @@ static void brcm_sata_init(struct brcm_ahci_priv *priv)
 }
 
 static unsigned int brcm_ahci_read_id(struct ata_device *dev,
-				      struct ata_taskfile *tf, u16 *id)
+				      struct ata_taskfile *tf, __le16 *id)
 {
 	struct ata_port *ap = dev->link->ap;
 	struct ata_host *host = ap->host;
