@@ -42,18 +42,26 @@ enum vm_guest_mode {
 	VM_MODE_P52V48_4K,
 	VM_MODE_P52V48_64K,
 	VM_MODE_P48V48_4K,
+	VM_MODE_P48V48_16K,
 	VM_MODE_P48V48_64K,
 	VM_MODE_P40V48_4K,
+	VM_MODE_P40V48_16K,
 	VM_MODE_P40V48_64K,
 	VM_MODE_PXXV48_4K,	/* For 48bits VA but ANY bits PA */
 	VM_MODE_P47V64_4K,
 	VM_MODE_P44V64_4K,
+	VM_MODE_P36V48_4K,
+	VM_MODE_P36V48_16K,
+	VM_MODE_P36V48_64K,
+	VM_MODE_P36V47_16K,
 	NUM_VM_MODES,
 };
 
 #if defined(__aarch64__)
 
-#define VM_MODE_DEFAULT			VM_MODE_P40V48_4K
+extern enum vm_guest_mode vm_mode_default;
+
+#define VM_MODE_DEFAULT			vm_mode_default
 #define MIN_PAGE_SHIFT			12U
 #define ptes_per_page(page_size)	((page_size) / 8)
 
