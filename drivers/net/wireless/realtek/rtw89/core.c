@@ -1772,6 +1772,51 @@ void rtw89_core_release_all_bits_map(unsigned long *addr, unsigned int nbits)
 	bitmap_zero(addr, nbits);
 }
 
+int rtw89_core_acquire_sta_ba_entry(struct rtw89_sta *rtwsta, u8 tid, u8 *cam_idx)
+{
+	struct rtw89_ba_cam_entry *entry;
+	u8 idx;
+
+	idx = rtw89_core_acquire_bit_map(rtwsta->ba_cam_map, RTW89_BA_CAM_NUM);
+	if (idx == RTW89_BA_CAM_NUM) {
+		/* allocate a static BA CAM to tid=0, so replace the existing
+		 * one if BA CAM is full. Hardware will process the original tid
+		 * automatically.
+		 */
+		if (tid != 0)
+			return -ENOSPC;
+
+		idx = 0;
+	}
+
+	entry = &rtwsta->ba_cam_entry[idx];
+	entry->tid = tid;
+	*cam_idx = idx;
+
+	return 0;
+}
+
+int rtw89_core_release_sta_ba_entry(struct rtw89_sta *rtwsta, u8 tid, u8 *cam_idx)
+{
+	struct rtw89_ba_cam_entry *entry;
+	int i;
+
+	for (i = 0; i < RTW89_BA_CAM_NUM; i++) {
+		if (!test_bit(i, rtwsta->ba_cam_map))
+			continue;
+
+		entry = &rtwsta->ba_cam_entry[i];
+		if (entry->tid != tid)
+			continue;
+
+		rtw89_core_release_bit_map(rtwsta->ba_cam_map, i);
+		*cam_idx = i;
+		return 0;
+	}
+
+	return -ENOENT;
+}
+
 #define RTW89_TYPE_MAPPING(_type)	\
 	case NL80211_IFTYPE_ ## _type:	\
 		rtwvif->wifi_role = RTW89_WIFI_ROLE_ ## _type;	\

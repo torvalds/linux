@@ -555,11 +555,27 @@ fail:
 	return -EBUSY;
 }
 
-#define H2C_BA_CAM_LEN 4
-int rtw89_fw_h2c_ba_cam(struct rtw89_dev *rtwdev, bool valid, u8 macid,
-			struct ieee80211_ampdu_params *params)
+#define H2C_BA_CAM_LEN 8
+int rtw89_fw_h2c_ba_cam(struct rtw89_dev *rtwdev, struct rtw89_sta *rtwsta,
+			bool valid, struct ieee80211_ampdu_params *params)
 {
+	u8 macid = rtwsta->mac_id;
 	struct sk_buff *skb;
+	u8 entry_idx;
+	int ret;
+
+	ret = valid ?
+	      rtw89_core_acquire_sta_ba_entry(rtwsta, params->tid, &entry_idx) :
+	      rtw89_core_release_sta_ba_entry(rtwsta, params->tid, &entry_idx);
+	if (ret) {
+		/* it still works even if we don't have static BA CAM, because
+		 * hardware can create dynamic BA CAM automatically.
+		 */
+		rtw89_debug(rtwdev, RTW89_DBG_TXRX,
+			    "failed to %s entry tid=%d for h2c ba cam\n",
+			    valid ? "alloc" : "free", params->tid);
+		return 0;
+	}
 
 	skb = rtw89_fw_h2c_alloc_skb_with_hdr(H2C_BA_CAM_LEN);
 	if (!skb) {
@@ -568,6 +584,7 @@ int rtw89_fw_h2c_ba_cam(struct rtw89_dev *rtwdev, bool valid, u8 macid,
 	}
 	skb_put(skb, H2C_BA_CAM_LEN);
 	SET_BA_CAM_MACID(skb->data, macid);
+	SET_BA_CAM_ENTRY_IDX(skb->data, entry_idx);
 	if (!valid)
 		goto end;
 	SET_BA_CAM_VALID(skb->data, valid);
@@ -577,7 +594,7 @@ int rtw89_fw_h2c_ba_cam(struct rtw89_dev *rtwdev, bool valid, u8 macid,
 	else
 		SET_BA_CAM_BMAP_SIZE(skb->data, 0);
 	/* If init req is set, hw will set the ssn */
-	SET_BA_CAM_INIT_REQ(skb->data, 0);
+	SET_BA_CAM_INIT_REQ(skb->data, 1);
 	SET_BA_CAM_SSN(skb->data, params->ssn);
 
 end:

@@ -1226,6 +1226,26 @@ static inline void SET_BA_CAM_SSN(void *h2c, u32 val)
 	le32p_replace_bits((__le32 *)h2c, val, GENMASK(31, 20));
 }
 
+static inline void SET_BA_CAM_UID(void *h2c, u32 val)
+{
+	le32p_replace_bits((__le32 *)h2c + 1, val, GENMASK(7, 0));
+}
+
+static inline void SET_BA_CAM_STD_EN(void *h2c, u32 val)
+{
+	le32p_replace_bits((__le32 *)h2c + 1, val, BIT(8));
+}
+
+static inline void SET_BA_CAM_BAND(void *h2c, u32 val)
+{
+	le32p_replace_bits((__le32 *)h2c + 1, val, BIT(9));
+}
+
+static inline void SET_BA_CAM_ENTRY_IDX_V1(void *h2c, u32 val)
+{
+	le32p_replace_bits((__le32 *)h2c + 1, val, GENMASK(31, 28));
+}
+
 static inline void SET_LPS_PARM_MACID(void *h2c, u32 val)
 {
 	le32p_replace_bits((__le32 *)h2c, val, GENMASK(7, 0));
@@ -1785,8 +1805,9 @@ int rtw89_fw_h2c_raw(struct rtw89_dev *rtwdev, const u8 *buf, u16 len);
 void rtw89_fw_send_all_early_h2c(struct rtw89_dev *rtwdev);
 void rtw89_fw_free_all_early_h2c(struct rtw89_dev *rtwdev);
 int rtw89_fw_h2c_general_pkt(struct rtw89_dev *rtwdev, u8 macid);
-int rtw89_fw_h2c_ba_cam(struct rtw89_dev *rtwdev, bool valid, u8 macid,
-			struct ieee80211_ampdu_params *params);
+int rtw89_fw_h2c_ba_cam(struct rtw89_dev *rtwdev, struct rtw89_sta *rtwsta,
+			bool valid, struct ieee80211_ampdu_params *params);
+
 int rtw89_fw_h2c_lps_parm(struct rtw89_dev *rtwdev,
 			  struct rtw89_lps_parm *lps_param);
 struct sk_buff *rtw89_fw_h2c_alloc_skb_with_hdr(u32 len);

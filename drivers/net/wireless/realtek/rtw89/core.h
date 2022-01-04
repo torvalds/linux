@@ -1826,6 +1826,12 @@ struct rtw89_ra_report {
 
 DECLARE_EWMA(rssi, 10, 16);
 
+#define RTW89_BA_CAM_NUM 2
+
+struct rtw89_ba_cam_entry {
+	u8 tid;
+};
+
 struct rtw89_sta {
 	u8 mac_id;
 	bool disassoc;
@@ -1847,6 +1853,9 @@ struct rtw89_sta {
 	u32 ampdu_max_time:4;
 	bool cctl_tx_retry_limit;
 	u32 data_tx_cnt_lmt:6;
+
+	DECLARE_BITMAP(ba_cam_map, RTW89_BA_CAM_NUM);
+	struct rtw89_ba_cam_entry ba_cam_entry[RTW89_BA_CAM_NUM];
 };
 
 #define RTW89_MAX_ADDR_CAM_NUM		128
@@ -3370,6 +3379,8 @@ void rtw89_set_channel(struct rtw89_dev *rtwdev);
 u8 rtw89_core_acquire_bit_map(unsigned long *addr, unsigned long size);
 void rtw89_core_release_bit_map(unsigned long *addr, u8 bit);
 void rtw89_core_release_all_bits_map(unsigned long *addr, unsigned int nbits);
+int rtw89_core_acquire_sta_ba_entry(struct rtw89_sta *rtwsta, u8 tid, u8 *cam_idx);
+int rtw89_core_release_sta_ba_entry(struct rtw89_sta *rtwsta, u8 tid, u8 *cam_idx);
 void rtw89_vif_type_mapping(struct ieee80211_vif *vif, bool assoc);
 int rtw89_chip_info_setup(struct rtw89_dev *rtwdev);
 u16 rtw89_ra_report_to_bitrate(struct rtw89_dev *rtwdev, u8 rpt_rate);

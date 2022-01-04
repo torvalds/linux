@@ -476,7 +476,6 @@ static int rtw89_ops_ampdu_action(struct ieee80211_hw *hw,
 	case IEEE80211_AMPDU_TX_STOP_FLUSH_CONT:
 		mutex_lock(&rtwdev->mutex);
 		clear_bit(RTW89_TXQ_F_AMPDU, &rtwtxq->flags);
-		rtw89_fw_h2c_ba_cam(rtwdev, false, rtwsta->mac_id, params);
 		mutex_unlock(&rtwdev->mutex);
 		ieee80211_stop_tx_ba_cb_irqsafe(vif, sta->addr, tid);
 		break;
@@ -486,11 +485,17 @@ static int rtw89_ops_ampdu_action(struct ieee80211_hw *hw,
 		rtwsta->ampdu_params[tid].agg_num = params->buf_size;
 		rtwsta->ampdu_params[tid].amsdu = params->amsdu;
 		rtw89_leave_ps_mode(rtwdev);
-		rtw89_fw_h2c_ba_cam(rtwdev, true, rtwsta->mac_id, params);
 		mutex_unlock(&rtwdev->mutex);
 		break;
 	case IEEE80211_AMPDU_RX_START:
+		mutex_lock(&rtwdev->mutex);
+		rtw89_fw_h2c_ba_cam(rtwdev, rtwsta, true, params);
+		mutex_unlock(&rtwdev->mutex);
+		break;
 	case IEEE80211_AMPDU_RX_STOP:
+		mutex_lock(&rtwdev->mutex);
+		rtw89_fw_h2c_ba_cam(rtwdev, rtwsta, false, params);
+		mutex_unlock(&rtwdev->mutex);
 		break;
 	default:
 		WARN_ON(1);
