@@ -708,6 +708,48 @@ probe_bounded_loops(const char *define_prefix, __u32 ifindex)
 			   "BOUNDED_LOOPS");
 }
 
+/*
+ * Probe for the v2 instruction set extension introduced in commit 92b31a9af73b
+ * ("bpf: add BPF_J{LT,LE,SLT,SLE} instructions").
+ */
+static void
+probe_v2_isa_extension(const char *define_prefix, __u32 ifindex)
+{
+	struct bpf_insn insns[4] = {
+		BPF_MOV64_IMM(BPF_REG_0, 0),
+		BPF_JMP_IMM(BPF_JLT, BPF_REG_0, 0, 1),
+		BPF_MOV64_IMM(BPF_REG_0, 1),
+		BPF_EXIT_INSN()
+	};
+
+	probe_misc_feature(insns, ARRAY_SIZE(insns),
+			   define_prefix, ifindex,
+			   "have_v2_isa_extension",
+			   "ISA extension v2",
+			   "V2_ISA_EXTENSION");
+}
+
+/*
+ * Probe for the v3 instruction set extension introduced in commit 092ed0968bb6
+ * ("bpf: verifier support JMP32").
+ */
+static void
+probe_v3_isa_extension(const char *define_prefix, __u32 ifindex)
+{
+	struct bpf_insn insns[4] = {
+		BPF_MOV64_IMM(BPF_REG_0, 0),
+		BPF_JMP32_IMM(BPF_JLT, BPF_REG_0, 0, 1),
+		BPF_MOV64_IMM(BPF_REG_0, 1),
+		BPF_EXIT_INSN()
+	};
+
+	probe_misc_feature(insns, ARRAY_SIZE(insns),
+			   define_prefix, ifindex,
+			   "have_v3_isa_extension",
+			   "ISA extension v3",
+			   "V3_ISA_EXTENSION");
+}
+
 static void
 section_system_config(enum probe_component target, const char *define_prefix)
 {
@@ -823,6 +865,8 @@ static void section_misc(const char *define_prefix, __u32 ifindex)
 			    define_prefix);
 	probe_large_insn_limit(define_prefix, ifindex);
 	probe_bounded_loops(define_prefix, ifindex);
+	probe_v2_isa_extension(define_prefix, ifindex);
+	probe_v3_isa_extension(define_prefix, ifindex);
 	print_end_section();
 }
 
