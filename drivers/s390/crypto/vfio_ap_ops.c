@@ -186,11 +186,43 @@ end_free:
 }
 
 /**
+ * vfio_ap_validate_nib - validate a notification indicator byte (nib) address.
+ *
+ * @vcpu: the object representing the vcpu executing the PQAP(AQIC) instruction.
+ * @nib: the location for storing the nib address.
+ * @g_pfn: the location for storing the page frame number of the page containing
+ *	   the nib.
+ *
+ * When the PQAP(AQIC) instruction is executed, general register 2 contains the
+ * address of the notification indicator byte (nib) used for IRQ notification.
+ * This function parses the nib from gr2 and calculates the page frame
+ * number for the guest of the page containing the nib. The values are
+ * stored in @nib and @g_pfn respectively.
+ *
+ * The g_pfn of the nib is then validated to ensure the nib address is valid.
+ *
+ * Return: returns zero if the nib address is a valid; otherwise, returns
+ *	   -EINVAL.
+ */
+static int vfio_ap_validate_nib(struct kvm_vcpu *vcpu, unsigned long *nib,
+				unsigned long *g_pfn)
+{
+	*nib = vcpu->run->s.regs.gprs[2];
+	*g_pfn = *nib >> PAGE_SHIFT;
+
+	if (kvm_is_error_hva(gfn_to_hva(vcpu->kvm, *g_pfn)))
+		return -EINVAL;
+
+	return 0;
+}
+
+/**
  * vfio_ap_irq_enable - Enable Interruption for a APQN
  *
  * @q:	 the vfio_ap_queue holding AQIC parameters
  * @isc: the guest ISC to register with the GIB interface
- * @nib: the notification indicator byte to pin.
+ * @vcpu: the vcpu object containing the registers specifying the parameters
+ *	  passed to the PQAP(AQIC) instruction.
  *
  * Pin the NIB saved in *q
  * Register the guest ISC to GIB interface and retrieve the
@@ -206,22 +238,36 @@ end_free:
  */
 static struct ap_queue_status vfio_ap_irq_enable(struct vfio_ap_queue *q,
 						 int isc,
-						 unsigned long nib)
+						 struct kvm_vcpu *vcpu)
 {
+	unsigned long nib;
 	struct ap_qirq_ctrl aqic_gisa = {};
 	struct ap_queue_status status = {};
 	struct kvm_s390_gisa *gisa;
+	int nisc;
 	struct kvm *kvm;
 	unsigned long h_nib, g_pfn, h_pfn;
 	int ret;
 
-	g_pfn = nib >> PAGE_SHIFT;
+	/* Verify that the notification indicator byte address is valid */
+	if (vfio_ap_validate_nib(vcpu, &nib, &g_pfn)) {
+		VFIO_AP_DBF_WARN("%s: invalid NIB address: nib=%#lx, g_pfn=%#lx, apqn=%#04x\n",
+				 __func__, nib, g_pfn, q->apqn);
+
+		status.response_code = AP_RESPONSE_INVALID_ADDRESS;
+		return status;
+	}
+
 	ret = vfio_pin_pages(mdev_dev(q->matrix_mdev->mdev), &g_pfn, 1,
 			     IOMMU_READ | IOMMU_WRITE, &h_pfn);
 	switch (ret) {
 	case 1:
 		break;
 	default:
+		VFIO_AP_DBF_WARN("%s: vfio_pin_pages failed: rc=%d,"
+				 "nib=%#lx, g_pfn=%#lx, apqn=%#04x\n",
+				 __func__, ret, nib, g_pfn, q->apqn);
+
 		status.response_code = AP_RESPONSE_INVALID_ADDRESS;
 		return status;
 	}
@@ -231,7 +277,17 @@ static struct ap_queue_status vfio_ap_irq_enable(struct vfio_ap_queue *q,
 
 	h_nib = (h_pfn << PAGE_SHIFT) | (nib & ~PAGE_MASK);
 	aqic_gisa.gisc = isc;
-	aqic_gisa.isc = kvm_s390_gisc_register(kvm, isc);
+
+	nisc = kvm_s390_gisc_register(kvm, isc);
+	if (nisc < 0) {
+		VFIO_AP_DBF_WARN("%s: gisc registration failed: nisc=%d, isc=%d, apqn=%#04x\n",
+				 __func__, nisc, isc, q->apqn);
+
+		status.response_code = AP_RESPONSE_INVALID_GISA;
+		return status;
+	}
+
+	aqic_gisa.isc = nisc;
 	aqic_gisa.ir = 1;
 	aqic_gisa.gisa = (uint64_t)gisa >> 4;
 
@@ -253,6 +309,16 @@ static struct ap_queue_status vfio_ap_irq_enable(struct vfio_ap_queue *q,
 			status.response_code);
 		vfio_ap_irq_disable(q);
 		break;
+	}
+
+	if (status.response_code != AP_RESPONSE_NORMAL) {
+		VFIO_AP_DBF_WARN("%s: PQAP(AQIC) failed with status=%#02x: "
+				 "zone=%#x, ir=%#x, gisc=%#x, f=%#x,"
+				 "gisa=%#x, isc=%#x, apqn=%#04x\n",
+				 __func__, status.response_code,
+				 aqic_gisa.zone, aqic_gisa.ir, aqic_gisa.gisc,
+				 aqic_gisa.gf, aqic_gisa.gisa, aqic_gisa.isc,
+				 q->apqn);
 	}
 
 	return status;
@@ -372,8 +438,7 @@ static int handle_pqap(struct kvm_vcpu *vcpu)
 
 	/* If IR bit(16) is set we enable the interrupt */
 	if ((status >> (63 - 16)) & 0x01)
-		qstatus = vfio_ap_irq_enable(q, status & 0x07,
-					     vcpu->run->s.regs.gprs[2]);
+		qstatus = vfio_ap_irq_enable(q, status & 0x07, vcpu);
 	else
 		qstatus = vfio_ap_irq_disable(q);
 
