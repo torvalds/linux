@@ -26,6 +26,18 @@ menuconfig BLOCK
 
 if BLOCK
 
+config BLOCK_LEGACY_AUTOLOAD
+	bool "Legacy autoloading support"
+	help
+	  Enable loading modules and creating block device instances based on
+	  accesses through their device special file.  This is a historic Linux
+	  feature and makes no sense in a udev world where device files are
+	  created on demand.
+
+	  Say N here unless booting or other functionality broke without it, in
+	  which case you should also send a report to your distribution and
+	  linux-block@vger.kernel.org.
+
 config BLK_RQ_ALLOC_TIME
 	bool
 

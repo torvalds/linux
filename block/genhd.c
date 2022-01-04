@@ -185,7 +185,9 @@ static struct blk_major_name {
 	struct blk_major_name *next;
 	int major;
 	char name[16];
+#ifdef CONFIG_BLOCK_LEGACY_AUTOLOAD
 	void (*probe)(dev_t devt);
+#endif
 } *major_names[BLKDEV_MAJOR_HASH_SIZE];
 static DEFINE_MUTEX(major_names_lock);
 static DEFINE_SPINLOCK(major_names_spinlock);
@@ -275,7 +277,9 @@ int __register_blkdev(unsigned int major, const char *name,
 	}
 
 	p->major = major;
+#ifdef CONFIG_BLOCK_LEGACY_AUTOLOAD
 	p->probe = probe;
+#endif
 	strlcpy(p->name, name, sizeof(p->name));
 	p->next = NULL;
 	index = major_to_index(major);
@@ -679,6 +683,7 @@ static ssize_t disk_badblocks_store(struct device *dev,
 	return badblocks_store(disk->bb, page, len, 0);
 }
 
+#ifdef CONFIG_BLOCK_LEGACY_AUTOLOAD
 void blk_request_module(dev_t devt)
 {
 	unsigned int major = MAJOR(devt);
@@ -698,6 +703,7 @@ void blk_request_module(dev_t devt)
 		/* Make old-style 2.4 aliases work */
 		request_module("block-major-%d", MAJOR(devt));
 }
+#endif /* CONFIG_BLOCK_LEGACY_AUTOLOAD */
 
 /*
  * print a full list of all partitions - intended for places where the root
