@@ -125,6 +125,12 @@ enum {
 	 * requests between primary and secondary buses.
 	 */
 	PCI_BRIDGE_EMUL_NO_PREFMEM_FORWARD = BIT(0),
+
+	/*
+	 * PCI bridge does not support forwarding of IO requests between
+	 * primary and secondary buses.
+	 */
+	PCI_BRIDGE_EMUL_NO_IO_FORWARD = BIT(1),
 };
 
 int pci_bridge_emul_init(struct pci_bridge_emul *bridge,
