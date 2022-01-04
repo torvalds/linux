@@ -217,7 +217,7 @@ config AHCI_MTK
 
 config AHCI_MVEBU
 	tristate "Marvell EBU AHCI SATA support"
-	depends on ARCH_MVEBU
+	depends on ARCH_MVEBU || COMPILE_TEST
 	select SATA_HOST
 	help
 	  This option enables support for the Marvebu EBU SoC's
