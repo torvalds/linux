@@ -258,7 +258,6 @@ kobject_put()以避免错误的发生是一个很好的做法。
     struct kobj_type {
             void (*release)(struct kobject *kobj);
             const struct sysfs_ops *sysfs_ops;
-            struct attribute **default_attrs;
             const struct attribute_group **default_groups;
             const struct kobj_ns_type_operations *(*child_ns_type)(struct kobject *kobj);
             const void *(*namespace)(struct kobject *kobj);
@@ -271,10 +270,10 @@ kobject_init()或kobject_init_and_add()时必须指定一个指向该结构的
 指针。
 
 当然，kobj_type结构中的release字段是指向这种类型的kobject的release()
-方法的一个指针。另外两个字段（sysfs_ops 和 default_attrs）控制这种
+方法的一个指针。另外两个字段（sysfs_ops 和 default_groups）控制这种
 类型的对象如何在 sysfs 中被表示；它们超出了本文的范围。
 
-default_attrs 指针是一个默认属性的列表，它将为任何用这个 ktype 注册
+default_groups 指针是一个默认属性的列表，它将为任何用这个 ktype 注册
 的 kobject 自动创建。
 
 

@@ -299,7 +299,6 @@ kobj_type::
     struct kobj_type {
             void (*release)(struct kobject *kobj);
             const struct sysfs_ops *sysfs_ops;
-            struct attribute **default_attrs;
             const struct attribute_group **default_groups;
             const struct kobj_ns_type_operations *(*child_ns_type)(struct kobject *kobj);
             const void *(*namespace)(struct kobject *kobj);
@@ -313,10 +312,10 @@ call kobject_init() or kobject_init_and_add().
 
 The release field in struct kobj_type is, of course, a pointer to the
 release() method for this type of kobject. The other two fields (sysfs_ops
-and default_attrs) control how objects of this type are represented in
+and default_groups) control how objects of this type are represented in
 sysfs; they are beyond the scope of this document.
 
-The default_attrs pointer is a list of default attributes that will be
+The default_groups pointer is a list of default attributes that will be
 automatically created for any kobject that is registered with this ktype.
 
 
