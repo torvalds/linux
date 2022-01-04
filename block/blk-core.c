@@ -787,16 +787,20 @@ end_io:
 
 static void __submit_bio_fops(struct gendisk *disk, struct bio *bio)
 {
-	if (unlikely(bio_queue_enter(bio) != 0))
-		return;
-	if (submit_bio_checks(bio) && blk_crypto_bio_prep(&bio))
-		disk->fops->submit_bio(bio);
-	blk_queue_exit(disk->queue);
+	if (blk_crypto_bio_prep(&bio)) {
+		if (likely(bio_queue_enter(bio) == 0)) {
+			disk->fops->submit_bio(bio);
+			blk_queue_exit(disk->queue);
+		}
+	}
 }
 
 static void __submit_bio(struct bio *bio)
 {
 	struct gendisk *disk = bio->bi_bdev->bd_disk;
+
+	if (unlikely(!submit_bio_checks(bio)))
+		return;
 
 	if (!disk->fops->submit_bio)
 		blk_mq_submit_bio(bio);
