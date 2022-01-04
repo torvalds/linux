@@ -266,11 +266,14 @@ void do_page_fault(struct pt_regs *regs, unsigned long code,
 	unsigned long acc_type;
 	vm_fault_t fault = 0;
 	unsigned int flags;
+	char *msg;
 
 	tsk = current;
 	mm = tsk->mm;
-	if (!mm)
+	if (!mm) {
+		msg = "Page fault: no context";
 		goto no_context;
+	}
 
 	flags = FAULT_FLAG_DEFAULT;
 	if (user_mode(regs))
@@ -406,6 +409,7 @@ bad_area:
 		force_sig_fault(signo, si_code, (void __user *) address);
 		return;
 	}
+	msg = "Page fault: bad address";
 
 no_context:
 
@@ -413,11 +417,13 @@ no_context:
 		return;
 	}
 
-	parisc_terminate("Bad Address (null pointer deref?)", regs, code, address);
+	parisc_terminate(msg, regs, code, address);
 
-  out_of_memory:
+out_of_memory:
 	mmap_read_unlock(mm);
-	if (!user_mode(regs))
+	if (!user_mode(regs)) {
+		msg = "Page fault: out of memory";
 		goto no_context;
+	}
 	pagefault_out_of_memory();
 }
