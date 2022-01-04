@@ -14,6 +14,7 @@
 #include <linux/workqueue.h>
 #include <linux/refcount.h>
 #include <linux/xarray.h>
+#include <linux/if_macvlan.h>
 
 #include "lib/fs_chains.h"
 #include "en/tc_ct.h"
@@ -326,7 +327,33 @@ mlx5_tc_ct_rule_to_tuple_nat(struct mlx5_ct_tuple *tuple,
 }
 
 static int
-mlx5_tc_ct_set_tuple_match(struct mlx5e_priv *priv, struct mlx5_flow_spec *spec,
+mlx5_tc_ct_get_flow_source_match(struct mlx5_tc_ct_priv *ct_priv,
+				 struct net_device *ndev)
+{
+	struct mlx5e_priv *other_priv = netdev_priv(ndev);
+	struct mlx5_core_dev *mdev = ct_priv->dev;
+	bool vf_rep, uplink_rep;
+
+	vf_rep = mlx5e_eswitch_vf_rep(ndev) && mlx5_same_hw_devs(mdev, other_priv->mdev);
+	uplink_rep = mlx5e_eswitch_uplink_rep(ndev) && mlx5_same_hw_devs(mdev, other_priv->mdev);
+
+	if (vf_rep)
+		return MLX5_FLOW_CONTEXT_FLOW_SOURCE_LOCAL_VPORT;
+	if (uplink_rep)
+		return MLX5_FLOW_CONTEXT_FLOW_SOURCE_UPLINK;
+	if (is_vlan_dev(ndev))
+		return mlx5_tc_ct_get_flow_source_match(ct_priv, vlan_dev_real_dev(ndev));
+	if (netif_is_macvlan(ndev))
+		return mlx5_tc_ct_get_flow_source_match(ct_priv, macvlan_dev_real_dev(ndev));
+	if (mlx5e_get_tc_tun(ndev) || netif_is_lag_master(ndev))
+		return MLX5_FLOW_CONTEXT_FLOW_SOURCE_UPLINK;
+
+	return MLX5_FLOW_CONTEXT_FLOW_SOURCE_ANY_VPORT;
+}
+
+static int
+mlx5_tc_ct_set_tuple_match(struct mlx5_tc_ct_priv *ct_priv,
+			   struct mlx5_flow_spec *spec,
 			   struct flow_rule *rule)
 {
 	void *headers_c = MLX5_ADDR_OF(fte_match_param, spec->match_criteria,
@@ -341,8 +368,7 @@ mlx5_tc_ct_set_tuple_match(struct mlx5e_priv *priv, struct mlx5_flow_spec *spec,
 
 		flow_rule_match_basic(rule, &match);
 
-		mlx5e_tc_set_ethertype(priv->mdev, &match, true, headers_c,
-				       headers_v);
+		mlx5e_tc_set_ethertype(ct_priv->dev, &match, true, headers_c, headers_v);
 		MLX5_SET(fte_match_set_lyr_2_4, headers_c, ip_protocol,
 			 match.mask->ip_proto);
 		MLX5_SET(fte_match_set_lyr_2_4, headers_v, ip_protocol,
@@ -436,6 +462,23 @@ mlx5_tc_ct_set_tuple_match(struct mlx5e_priv *priv, struct mlx5_flow_spec *spec,
 			 ntohs(match.mask->flags));
 		MLX5_SET(fte_match_set_lyr_2_4, headers_v, tcp_flags,
 			 ntohs(match.key->flags));
+	}
+
+	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_META)) {
+		struct flow_match_meta match;
+
+		flow_rule_match_meta(rule, &match);
+
+		if (match.key->ingress_ifindex & match.mask->ingress_ifindex) {
+			struct net_device *dev;
+
+			dev = dev_get_by_index(&init_net, match.key->ingress_ifindex);
+			if (dev && MLX5_CAP_ESW_FLOWTABLE(ct_priv->dev, flow_source))
+				spec->flow_context.flow_source =
+					mlx5_tc_ct_get_flow_source_match(ct_priv, dev);
+
+			dev_put(dev);
+		}
 	}
 
 	return 0;
@@ -770,7 +813,7 @@ mlx5_tc_ct_entry_add_rule(struct mlx5_tc_ct_priv *ct_priv,
 	if (ct_priv->ns_type == MLX5_FLOW_NAMESPACE_FDB)
 		attr->esw_attr->in_mdev = priv->mdev;
 
-	mlx5_tc_ct_set_tuple_match(netdev_priv(ct_priv->netdev), spec, flow_rule);
+	mlx5_tc_ct_set_tuple_match(ct_priv, spec, flow_rule);
 	mlx5e_tc_match_to_reg_match(spec, ZONE_TO_REG, entry->tuple.zone, MLX5_CT_ZONE_MASK);
 
 	zone_rule->rule = mlx5_tc_rule_insert(priv, spec, attr);
