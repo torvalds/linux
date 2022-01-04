@@ -155,6 +155,34 @@ static void btree_ptr_to_v2(struct btree *b, struct bkey_i_btree_ptr_v2 *dst)
 	}
 }
 
+static void bch2_btree_node_update_key_early(struct bch_fs *c,
+					     enum btree_id btree, unsigned level,
+					     struct bkey_s_c old, struct bkey_i *new)
+{
+	struct btree *b;
+	struct bkey_buf tmp;
+	int ret;
+
+	bch2_bkey_buf_init(&tmp);
+	bch2_bkey_buf_reassemble(&tmp, c, old);
+
+	b = bch2_btree_node_get_noiter(c, tmp.k, btree, level, true);
+	if (!IS_ERR_OR_NULL(b)) {
+		mutex_lock(&c->btree_cache.lock);
+
+		bch2_btree_node_hash_remove(&c->btree_cache, b);
+
+		bkey_copy(&b->key, new);
+		ret = __bch2_btree_node_hash_insert(&c->btree_cache, b);
+		BUG_ON(ret);
+
+		mutex_unlock(&c->btree_cache.lock);
+		six_unlock_read(&b->c.lock);
+	}
+
+	bch2_bkey_buf_exit(&tmp, c);
+}
+
 static int set_node_min(struct bch_fs *c, struct btree *b, struct bpos new_min)
 {
 	struct bkey_i_btree_ptr_v2 *new;
@@ -524,19 +552,6 @@ static int bch2_check_fix_ptrs(struct bch_fs *c, enum btree_id btree_id,
 			}
 		}
 
-		if (fsck_err_on(data_type == BCH_DATA_btree &&
-				g->mark.gen != p.ptr.gen, c,
-				"bucket %u:%zu data type %s has metadata but wrong gen: %u != %u\n"
-				"while marking %s",
-				p.ptr.dev, PTR_BUCKET_NR(ca, &p.ptr),
-				bch2_data_types[ptr_data_type(k->k, &p.ptr)],
-				p.ptr.gen, g->mark.gen,
-				(bch2_bkey_val_to_text(&PBUF(buf), c, *k), buf))) {
-			g2->_mark.data_type	= g->_mark.data_type	= data_type;
-			g2->gen_valid		= g->gen_valid		= true;
-			set_bit(BCH_FS_NEED_ALLOC_WRITE, &c->flags);
-		}
-
 		if (fsck_err_on(gen_cmp(p.ptr.gen, g->mark.gen) > 0, c,
 				"bucket %u:%zu data type %s ptr gen in the future: %u > %u\n"
 				"while marking %s",
@@ -576,7 +591,7 @@ static int bch2_check_fix_ptrs(struct bch_fs *c, enum btree_id btree_id,
 				(bch2_bkey_val_to_text(&PBUF(buf), c, *k), buf)))
 			do_update = true;
 
-		if (p.ptr.gen != g->mark.gen)
+		if (data_type != BCH_DATA_btree && p.ptr.gen != g->mark.gen)
 			continue;
 
 		if (fsck_err_on(g->mark.data_type &&
@@ -691,16 +706,19 @@ found:
 		}
 
 		ret = bch2_journal_key_insert_take(c, btree_id, level, new);
-
-		if (ret)
+		if (ret) {
 			kfree(new);
-		else {
-			bch2_bkey_val_to_text(&PBUF(buf), c, *k);
-			bch_info(c, "updated %s", buf);
-			bch2_bkey_val_to_text(&PBUF(buf), c, bkey_i_to_s_c(new));
-			bch_info(c, "new key %s", buf);
-			*k = bkey_i_to_s_c(new);
+			return ret;
 		}
+
+		if (level)
+			bch2_btree_node_update_key_early(c, btree_id, level - 1, *k, new);
+
+		bch2_bkey_val_to_text(&PBUF(buf), c, *k);
+		bch_info(c, "updated %s", buf);
+		bch2_bkey_val_to_text(&PBUF(buf), c, bkey_i_to_s_c(new));
+		bch_info(c, "new key %s", buf);
+		*k = bkey_i_to_s_c(new);
 	}
 fsck_err:
 	return ret;
