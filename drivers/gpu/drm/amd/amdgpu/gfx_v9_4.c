@@ -863,7 +863,7 @@ static int gfx_v9_4_ras_error_count(struct amdgpu_device *adev,
 	return 0;
 }
 
-static int gfx_v9_4_query_ras_error_count(struct amdgpu_device *adev,
+static void gfx_v9_4_query_ras_error_count(struct amdgpu_device *adev,
 					  void *ras_error_status)
 {
 	struct ras_err_data *err_data = (struct ras_err_data *)ras_error_status;
@@ -872,7 +872,7 @@ static int gfx_v9_4_query_ras_error_count(struct amdgpu_device *adev,
 	uint32_t reg_value;
 
 	if (!amdgpu_ras_is_supported(adev, AMDGPU_RAS_BLOCK__GFX))
-		return -EINVAL;
+		return;
 
 	err_data->ue_count = 0;
 	err_data->ce_count = 0;
@@ -903,7 +903,6 @@ static int gfx_v9_4_query_ras_error_count(struct amdgpu_device *adev,
 
 	gfx_v9_4_query_utc_edc_status(adev, err_data);
 
-	return 0;
 }
 
 static void gfx_v9_4_reset_ras_error_count(struct amdgpu_device *adev)
@@ -1029,11 +1028,16 @@ static void gfx_v9_4_query_ras_error_status(struct amdgpu_device *adev)
 	mutex_unlock(&adev->grbm_idx_mutex);
 }
 
-const struct amdgpu_gfx_ras_funcs gfx_v9_4_ras_funcs = {
-        .ras_late_init = amdgpu_gfx_ras_late_init,
-        .ras_fini = amdgpu_gfx_ras_fini,
-        .ras_error_inject = &gfx_v9_4_ras_error_inject,
-        .query_ras_error_count = &gfx_v9_4_query_ras_error_count,
-        .reset_ras_error_count = &gfx_v9_4_reset_ras_error_count,
-        .query_ras_error_status = &gfx_v9_4_query_ras_error_status,
+
+const struct amdgpu_ras_block_hw_ops  gfx_v9_4_ras_ops = {
+	.ras_error_inject = &gfx_v9_4_ras_error_inject,
+	.query_ras_error_count = &gfx_v9_4_query_ras_error_count,
+	.reset_ras_error_count = &gfx_v9_4_reset_ras_error_count,
+	.query_ras_error_status = &gfx_v9_4_query_ras_error_status,
+};
+
+struct amdgpu_gfx_ras gfx_v9_4_ras = {
+	.ras_block = {
+		.hw_ops = &gfx_v9_4_ras_ops,
+	},
 };

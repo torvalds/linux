@@ -882,7 +882,7 @@ static int gfx_v9_0_get_cu_info(struct amdgpu_device *adev,
 static uint64_t gfx_v9_0_get_gpu_clock_counter(struct amdgpu_device *adev);
 static void gfx_v9_0_ring_emit_de_meta(struct amdgpu_ring *ring);
 static u64 gfx_v9_0_ring_get_rptr_compute(struct amdgpu_ring *ring);
-static int gfx_v9_0_query_ras_error_count(struct amdgpu_device *adev,
+static void gfx_v9_0_query_ras_error_count(struct amdgpu_device *adev,
 					  void *ras_error_status);
 static int gfx_v9_0_ras_error_inject(struct amdgpu_device *adev,
 				     void *inject_if);
@@ -2197,12 +2197,16 @@ static const struct amdgpu_gfx_funcs gfx_v9_0_gfx_funcs = {
         .select_me_pipe_q = &gfx_v9_0_select_me_pipe_q,
 };
 
-static const struct amdgpu_gfx_ras_funcs gfx_v9_0_ras_funcs = {
-	.ras_late_init = amdgpu_gfx_ras_late_init,
-	.ras_fini = amdgpu_gfx_ras_fini,
-	.ras_error_inject = &gfx_v9_0_ras_error_inject,
-	.query_ras_error_count = &gfx_v9_0_query_ras_error_count,
-	.reset_ras_error_count = &gfx_v9_0_reset_ras_error_count,
+const struct amdgpu_ras_block_hw_ops  gfx_v9_0_ras_ops = {
+		.ras_error_inject = &gfx_v9_0_ras_error_inject,
+		.query_ras_error_count = &gfx_v9_0_query_ras_error_count,
+		.reset_ras_error_count = &gfx_v9_0_reset_ras_error_count,
+};
+
+static struct amdgpu_gfx_ras gfx_v9_0_ras = {
+	.ras_block = {
+		.hw_ops = &gfx_v9_0_ras_ops,
+	},
 };
 
 static int gfx_v9_0_gpu_early_init(struct amdgpu_device *adev)
@@ -2231,7 +2235,7 @@ static int gfx_v9_0_gpu_early_init(struct amdgpu_device *adev)
 		DRM_INFO("fix gfx.config for vega12\n");
 		break;
 	case IP_VERSION(9, 4, 0):
-		adev->gfx.ras_funcs = &gfx_v9_0_ras_funcs;
+		adev->gfx.ras = &gfx_v9_0_ras;
 		adev->gfx.config.max_hw_contexts = 8;
 		adev->gfx.config.sc_prim_fifo_size_frontend = 0x20;
 		adev->gfx.config.sc_prim_fifo_size_backend = 0x100;
@@ -2258,7 +2262,7 @@ static int gfx_v9_0_gpu_early_init(struct amdgpu_device *adev)
 			gb_addr_config = RAVEN_GB_ADDR_CONFIG_GOLDEN;
 		break;
 	case IP_VERSION(9, 4, 1):
-		adev->gfx.ras_funcs = &gfx_v9_4_ras_funcs;
+		adev->gfx.ras = &gfx_v9_4_ras;
 		adev->gfx.config.max_hw_contexts = 8;
 		adev->gfx.config.sc_prim_fifo_size_frontend = 0x20;
 		adev->gfx.config.sc_prim_fifo_size_backend = 0x100;
@@ -2279,7 +2283,7 @@ static int gfx_v9_0_gpu_early_init(struct amdgpu_device *adev)
 		gb_addr_config |= 0x22010042;
 		break;
 	case IP_VERSION(9, 4, 2):
-		adev->gfx.ras_funcs = &gfx_v9_4_2_ras_funcs;
+		adev->gfx.ras = &gfx_v9_4_2_ras;
 		adev->gfx.config.max_hw_contexts = 8;
 		adev->gfx.config.sc_prim_fifo_size_frontend = 0x20;
 		adev->gfx.config.sc_prim_fifo_size_backend = 0x100;
@@ -2296,6 +2300,25 @@ static int gfx_v9_0_gpu_early_init(struct amdgpu_device *adev)
 	default:
 		BUG();
 		break;
+	}
+
+	if (adev->gfx.ras) {
+		err = amdgpu_ras_register_ras_block(adev, &adev->gfx.ras->ras_block);
+		if (err) {
+			DRM_ERROR("Failed to register gfx ras block!\n");
+			return err;
+		}
+
+		strcpy(adev->gfx.ras->ras_block.name,"gfx");
+		adev->gfx.ras->ras_block.block = AMDGPU_RAS_BLOCK__GFX;
+
+		/* If not define special ras_late_init function, use gfx default ras_late_init */
+		if (!adev->gfx.ras->ras_block.ras_late_init)
+				adev->gfx.ras->ras_block.ras_late_init = amdgpu_gfx_ras_late_init;
+
+		/* If not define special ras_fini function, use gfx default ras_fini */
+		if (!adev->gfx.ras->ras_block.ras_fini)
+				adev->gfx.ras->ras_block.ras_fini = amdgpu_gfx_ras_fini;
 	}
 
 	adev->gfx.config.gb_addr_config = gb_addr_config;
@@ -2513,9 +2536,8 @@ static int gfx_v9_0_sw_fini(void *handle)
 	int i;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	if (adev->gfx.ras_funcs &&
-	    adev->gfx.ras_funcs->ras_fini)
-		adev->gfx.ras_funcs->ras_fini(adev);
+	if (adev->gfx.ras && adev->gfx.ras->ras_block.ras_fini)
+		adev->gfx.ras->ras_block.ras_fini(adev);
 
 	for (i = 0; i < adev->gfx.num_gfx_rings; i++)
 		amdgpu_ring_fini(&adev->gfx.gfx_ring[i]);
@@ -4870,16 +4892,15 @@ static int gfx_v9_0_ecc_late_init(void *handle)
 	if (r)
 		return r;
 
-	if (adev->gfx.ras_funcs &&
-	    adev->gfx.ras_funcs->ras_late_init) {
-		r = adev->gfx.ras_funcs->ras_late_init(adev);
+	if (adev->gfx.ras && adev->gfx.ras->ras_block.ras_late_init) {
+		r = adev->gfx.ras->ras_block.ras_late_init(adev, NULL);
 		if (r)
 			return r;
 	}
 
-	if (adev->gfx.ras_funcs &&
-	    adev->gfx.ras_funcs->enable_watchdog_timer)
-		adev->gfx.ras_funcs->enable_watchdog_timer(adev);
+	if (adev->gfx.ras &&
+	    adev->gfx.ras->enable_watchdog_timer)
+		adev->gfx.ras->enable_watchdog_timer(adev);
 
 	return 0;
 }
@@ -6819,7 +6840,7 @@ static void gfx_v9_0_reset_ras_error_count(struct amdgpu_device *adev)
 	WREG32_SOC15(GC, 0, mmATC_L2_CACHE_4K_EDC_INDEX, 255);
 }
 
-static int gfx_v9_0_query_ras_error_count(struct amdgpu_device *adev,
+static void gfx_v9_0_query_ras_error_count(struct amdgpu_device *adev,
 					  void *ras_error_status)
 {
 	struct ras_err_data *err_data = (struct ras_err_data *)ras_error_status;
@@ -6828,7 +6849,7 @@ static int gfx_v9_0_query_ras_error_count(struct amdgpu_device *adev,
 	uint32_t reg_value;
 
 	if (!amdgpu_ras_is_supported(adev, AMDGPU_RAS_BLOCK__GFX))
-		return -EINVAL;
+		return;
 
 	err_data->ue_count = 0;
 	err_data->ce_count = 0;
@@ -6857,8 +6878,6 @@ static int gfx_v9_0_query_ras_error_count(struct amdgpu_device *adev,
 	mutex_unlock(&adev->grbm_idx_mutex);
 
 	gfx_v9_0_query_utc_edc_status(adev, err_data);
-
-	return 0;
 }
 
 static void gfx_v9_0_emit_mem_sync(struct amdgpu_ring *ring)

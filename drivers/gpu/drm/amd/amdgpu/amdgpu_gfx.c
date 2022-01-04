@@ -622,7 +622,7 @@ int amdgpu_get_gfx_off_status(struct amdgpu_device *adev, uint32_t *value)
 	return r;
 }
 
-int amdgpu_gfx_ras_late_init(struct amdgpu_device *adev)
+int amdgpu_gfx_ras_late_init(struct amdgpu_device *adev, void *ras_info)
 {
 	int r;
 	struct ras_fs_if fs_info = {
@@ -695,9 +695,9 @@ int amdgpu_gfx_process_ras_data_cb(struct amdgpu_device *adev,
 	 */
 	if (!amdgpu_ras_is_supported(adev, AMDGPU_RAS_BLOCK__GFX)) {
 		kgd2kfd_set_sram_ecc_flag(adev->kfd.dev);
-		if (adev->gfx.ras_funcs &&
-		    adev->gfx.ras_funcs->query_ras_error_count)
-			adev->gfx.ras_funcs->query_ras_error_count(adev, err_data);
+		if (adev->gfx.ras && adev->gfx.ras->ras_block.hw_ops &&
+		    adev->gfx.ras->ras_block.hw_ops->query_ras_error_count)
+			adev->gfx.ras->ras_block.hw_ops->query_ras_error_count(adev, err_data);
 		amdgpu_ras_reset_gpu(adev);
 	}
 	return AMDGPU_RAS_SUCCESS;
