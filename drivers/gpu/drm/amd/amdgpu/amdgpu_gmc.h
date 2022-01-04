@@ -29,6 +29,7 @@
 #include <linux/types.h>
 
 #include "amdgpu_irq.h"
+#include "amdgpu_ras.h"
 
 /* VA hole for 48bit addresses on Vega10 */
 #define AMDGPU_GMC_HOLE_START	0x0000800000000000ULL
@@ -135,12 +136,8 @@ struct amdgpu_gmc_funcs {
 	unsigned int (*get_vbios_fb_size)(struct amdgpu_device *adev);
 };
 
-struct amdgpu_xgmi_ras_funcs {
-	int (*ras_late_init)(struct amdgpu_device *adev);
-	void (*ras_fini)(struct amdgpu_device *adev);
-	int (*query_ras_error_count)(struct amdgpu_device *adev,
-				     void *ras_error_status);
-	void (*reset_ras_error_count)(struct amdgpu_device *adev);
+struct amdgpu_xgmi_ras {
+	struct amdgpu_ras_block_object ras_block;
 };
 
 struct amdgpu_xgmi {
@@ -159,7 +156,7 @@ struct amdgpu_xgmi {
 	struct ras_common_if *ras_if;
 	bool connected_to_cpu;
 	bool pending_reset;
-	const struct amdgpu_xgmi_ras_funcs *ras_funcs;
+	struct amdgpu_xgmi_ras *ras;
 };
 
 struct amdgpu_gmc {

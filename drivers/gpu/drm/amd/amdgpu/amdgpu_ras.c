@@ -1012,9 +1012,13 @@ int amdgpu_ras_query_error_status(struct amdgpu_device *adev,
 			adev->nbio.ras_funcs->query_ras_error_count(adev, &err_data);
 		break;
 	case AMDGPU_RAS_BLOCK__XGMI_WAFL:
-		if (adev->gmc.xgmi.ras_funcs &&
-		    adev->gmc.xgmi.ras_funcs->query_ras_error_count)
-			adev->gmc.xgmi.ras_funcs->query_ras_error_count(adev, &err_data);
+		if (!block_obj || !block_obj->hw_ops)	{
+			dev_info(adev->dev, "%s doesn't config ras function \n",
+				get_ras_block_str(&info->head));
+			return -EINVAL;
+		}
+		if (block_obj->hw_ops->query_ras_error_count)
+			block_obj->hw_ops->query_ras_error_count(adev, &err_data);
 		break;
 	case AMDGPU_RAS_BLOCK__HDP:
 		if (adev->hdp.ras_funcs &&
