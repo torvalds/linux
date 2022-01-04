@@ -1881,6 +1881,7 @@ static int __maybe_unused rockchip_dw_pcie_suspend(struct device *dev)
 
 	rk_pcie->in_suspend = true;
 
+	gpiod_set_value_cansleep(rk_pcie->rst_gpio, 0);
 	ret = rk_pcie_disable_power(rk_pcie);
 
 	return ret;
