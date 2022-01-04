@@ -1320,6 +1320,7 @@ static int __init acpi_init(void)
 		pr_debug("%s: kset create error\n", __func__);
 
 	init_prmt();
+	acpi_init_pcc();
 	result = acpi_bus_init();
 	if (result) {
 		kobject_put(acpi_kobj);
