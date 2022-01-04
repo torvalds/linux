@@ -741,8 +741,10 @@ static void __init __s5pv210_clk_init(struct device_node *np,
 				      bool is_s5p6442)
 {
 	struct samsung_clk_provider *ctx;
+	struct clk_hw **hws;
 
 	ctx = samsung_clk_init(np, reg_base, NR_CLKS);
+	hws = ctx->clk_data.hws;
 
 	samsung_clk_register_mux(ctx, early_mux_clks,
 					ARRAY_SIZE(early_mux_clks));
@@ -789,8 +791,10 @@ static void __init __s5pv210_clk_init(struct device_node *np,
 	pr_info("%s clocks: mout_apll = %ld, mout_mpll = %ld\n"
 		"\tmout_epll = %ld, mout_vpll = %ld\n",
 		is_s5p6442 ? "S5P6442" : "S5PV210",
-		_get_rate("mout_apll"), _get_rate("mout_mpll"),
-		_get_rate("mout_epll"), _get_rate("mout_vpll"));
+		clk_hw_get_rate(hws[MOUT_APLL]),
+		clk_hw_get_rate(hws[MOUT_MPLL]),
+		clk_hw_get_rate(hws[MOUT_EPLL]),
+		clk_hw_get_rate(hws[MOUT_VPLL]));
 }
 
 static void __init s5pv210_clk_dt_init(struct device_node *np)
