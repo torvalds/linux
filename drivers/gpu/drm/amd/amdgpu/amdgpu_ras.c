@@ -866,6 +866,40 @@ static int amdgpu_ras_enable_all_features(struct amdgpu_device *adev,
 }
 /* feature ctl end */
 
+int amdgpu_ras_block_match_default(struct amdgpu_ras_block_object* block_obj, enum amdgpu_ras_block block)
+{
+	if(!block_obj)
+		return -EINVAL;
+
+	if (block_obj->block == block)
+		return 0;
+
+	return -EINVAL;
+}
+
+static struct amdgpu_ras_block_object* amdgpu_ras_get_ras_block(struct amdgpu_device *adev,
+					enum amdgpu_ras_block block, uint32_t sub_block_index)
+{
+	struct amdgpu_ras_block_object *obj, *tmp;
+
+	if (block >= AMDGPU_RAS_BLOCK__LAST)
+		return NULL;
+
+	if (!amdgpu_ras_is_supported(adev, block))
+		return NULL;
+
+	list_for_each_entry_safe(obj, tmp, &adev->ras_list, node) {
+		if (obj->ras_block_match) {
+			if (obj->ras_block_match(obj, block, sub_block_index) == 0)
+				return obj;
+		} else {
+			if (amdgpu_ras_block_match_default(obj, block) == 0)
+				return obj;
+		}
+	}
+
+	return NULL;
+}
 
 static void amdgpu_ras_mca_query_error_status(struct amdgpu_device *adev,
 					      struct ras_common_if *ras_block,
@@ -2776,3 +2810,15 @@ static void amdgpu_register_bad_pages_mca_notifier(struct amdgpu_device *adev)
 	}
 }
 #endif
+/* Register each ip ras block into amdgpu ras */
+int amdgpu_ras_register_ras_block(struct amdgpu_device *adev,
+		struct amdgpu_ras_block_object* ras_block_obj)
+{
+	if (!adev || !ras_block_obj)
+		return -EINVAL;
+
+	INIT_LIST_HEAD(&ras_block_obj->node);
+	list_add_tail(&ras_block_obj->node, &adev->ras_list);
+
+	return 0;
+}

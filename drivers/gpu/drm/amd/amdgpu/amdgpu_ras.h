@@ -484,6 +484,33 @@ struct ras_debug_if {
 	};
 	int op;
 };
+
+struct amdgpu_ras_block_object {
+	/* block name */
+	char name[32];
+
+	enum amdgpu_ras_block block;
+
+	uint32_t sub_block_index;
+
+	/* ras block link */
+	struct list_head node;
+
+	int (*ras_block_match)(struct amdgpu_ras_block_object *block_obj, enum amdgpu_ras_block block, uint32_t sub_block_index);
+	int (*ras_late_init)(struct amdgpu_device *adev, void *ras_info);
+	void (*ras_fini)(struct amdgpu_device *adev);
+	const struct amdgpu_ras_block_hw_ops *hw_ops;
+};
+
+struct amdgpu_ras_block_hw_ops {
+	int  (*ras_error_inject)(struct amdgpu_device *adev, void *inject_if);
+	void (*query_ras_error_count)(struct amdgpu_device *adev,void *ras_error_status);
+	void (*query_ras_error_status)(struct amdgpu_device *adev);
+	void (*query_ras_error_address)(struct amdgpu_device *adev, void *ras_error_status);
+	void (*reset_ras_error_count)(struct amdgpu_device *adev);
+	void (*reset_ras_error_status)(struct amdgpu_device *adev);
+};
+
 /* work flow
  * vbios
  * 1: ras feature enable (enabled by default)
@@ -667,4 +694,5 @@ const char *get_ras_block_str(struct ras_common_if *ras_block);
 
 bool amdgpu_ras_is_poison_mode_supported(struct amdgpu_device *adev);
 
+int amdgpu_ras_register_ras_block(struct amdgpu_device *adev, struct amdgpu_ras_block_object* ras_block_obj);
 #endif

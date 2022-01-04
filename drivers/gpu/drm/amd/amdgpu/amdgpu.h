@@ -1091,6 +1091,8 @@ struct amdgpu_device {
 	uint32_t                        ip_versions[MAX_HWIP][HWIP_MAX_INSTANCE];
 
 	bool				ram_is_direct_mapped;
+
+	struct list_head                ras_list;
 };
 
 static inline struct amdgpu_device *drm_to_adev(struct drm_device *ddev)
