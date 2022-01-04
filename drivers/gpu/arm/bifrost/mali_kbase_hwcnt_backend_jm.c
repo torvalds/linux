@@ -28,6 +28,9 @@
 #include "mali_kbase_hwaccess_time.h"
 #include "mali_kbase_ccswe.h"
 
+#if IS_ENABLED(CONFIG_MALI_BIFROST_NO_MALI)
+#include "backend/gpu/mali_kbase_model_dummy.h"
+#endif /* CONFIG_MALI_BIFROST_NO_MALI */
 #include "backend/gpu/mali_kbase_clk_rate_trace_mgr.h"
 
 #include "backend/gpu/mali_kbase_pm_internal.h"
@@ -140,6 +143,11 @@ kbasep_hwcnt_backend_jm_gpu_info_init(struct kbase_device *kbdev,
 	if (!kbdev || !info)
 		return -EINVAL;
 
+#if IS_ENABLED(CONFIG_MALI_BIFROST_NO_MALI)
+	info->l2_count = KBASE_DUMMY_MODEL_MAX_MEMSYS_BLOCKS;
+	info->core_mask = (1ull << KBASE_DUMMY_MODEL_MAX_SHADER_CORES) - 1;
+	info->prfcnt_values_per_block = KBASE_HWCNT_V5_DEFAULT_VALUES_PER_BLOCK;
+#else /* CONFIG_MALI_BIFROST_NO_MALI */
 	{
 		const struct base_gpu_props *props = &kbdev->gpu_props.props;
 		const size_t l2_count = props->l2_props.num_l2_slices;
@@ -151,6 +159,7 @@ kbasep_hwcnt_backend_jm_gpu_info_init(struct kbase_device *kbdev,
 		info->prfcnt_values_per_block =
 			KBASE_HWCNT_V5_DEFAULT_VALUES_PER_BLOCK;
 	}
+#endif /* CONFIG_MALI_BIFROST_NO_MALI */
 
 	/* Determine the number of available clock domains. */
 	for (clk = 0; clk < BASE_MAX_NR_CLOCKS_REGULATORS; clk++) {
@@ -569,6 +578,11 @@ static int kbasep_hwcnt_backend_jm_dump_get(
 	struct kbase_hwcnt_backend_jm *backend_jm =
 		(struct kbase_hwcnt_backend_jm *)backend;
 	size_t clk;
+#if IS_ENABLED(CONFIG_MALI_BIFROST_NO_MALI)
+	struct kbase_device *kbdev;
+	unsigned long flags;
+	int errcode;
+#endif /* CONFIG_MALI_BIFROST_NO_MALI */
 
 	if (!backend_jm || !dst || !dst_enable_map ||
 	    (backend_jm->info->metadata != dst->metadata) ||
@@ -582,15 +596,32 @@ static int kbasep_hwcnt_backend_jm_dump_get(
 	/* Dump sample to the internal 64-bit user buffer. */
 	kbasep_hwcnt_backend_jm_dump_sample(backend_jm);
 
+	/* Extract elapsed cycle count for each clock domain if enabled. */
 	kbase_hwcnt_metadata_for_each_clock(dst_enable_map->metadata, clk) {
 		if (!kbase_hwcnt_clk_enable_map_enabled(
 			dst_enable_map->clk_enable_map, clk))
 			continue;
 
-		/* Extract elapsed cycle count for each clock domain. */
-		dst->clk_cnt_buf[clk] = backend_jm->cycle_count_elapsed[clk];
+		/* Reset the counter to zero if accumulation is off. */
+		if (!accumulate)
+			dst->clk_cnt_buf[clk] = 0;
+		dst->clk_cnt_buf[clk] += backend_jm->cycle_count_elapsed[clk];
 	}
 
+#if IS_ENABLED(CONFIG_MALI_BIFROST_NO_MALI)
+	kbdev = backend_jm->kctx->kbdev;
+
+	spin_lock_irqsave(&kbdev->hwaccess_lock, flags);
+
+	/* Update the current configuration information. */
+	errcode = kbasep_hwcnt_gpu_update_curr_config(kbdev,
+		&backend_jm->curr_config);
+
+	spin_unlock_irqrestore(&kbdev->hwaccess_lock, flags);
+
+	if (errcode)
+		return errcode;
+#endif /* CONFIG_MALI_BIFROST_NO_MALI */
 	return kbase_hwcnt_jm_dump_get(dst, backend_jm->to_user_buf,
 				       dst_enable_map, backend_jm->pm_core_mask,
 				       &backend_jm->curr_config, accumulate);
@@ -700,6 +731,9 @@ static int kbasep_hwcnt_backend_jm_create(
 	int errcode;
 	struct kbase_device *kbdev;
 	struct kbase_hwcnt_backend_jm *backend = NULL;
+#if IS_ENABLED(CONFIG_MALI_BIFROST_NO_MALI)
+	size_t page_count;
+#endif
 
 	WARN_ON(!info);
 	WARN_ON(!out_backend);
@@ -739,6 +773,13 @@ static int kbasep_hwcnt_backend_jm_create(
 	kbase_ccswe_init(&backend->ccswe_shader_cores);
 	backend->rate_listener.notify = kbasep_hwcnt_backend_jm_on_freq_change;
 
+#if IS_ENABLED(CONFIG_MALI_BIFROST_NO_MALI)
+	/* The dummy model needs the CPU mapping. */
+	page_count = PFN_UP(info->dump_bytes);
+	gpu_model_set_dummy_prfcnt_base_cpu(backend->cpu_dump_va, kbdev,
+					    backend->vmap->cpu_pages,
+					    page_count);
+#endif /* CONFIG_MALI_BIFROST_NO_MALI */
 
 	*out_backend = backend;
 	return 0;

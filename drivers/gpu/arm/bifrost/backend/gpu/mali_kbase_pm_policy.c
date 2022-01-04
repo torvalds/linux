@@ -36,8 +36,13 @@
 #include <linux/of.h>
 
 static const struct kbase_pm_policy *const all_policy_list[] = {
+#if IS_ENABLED(CONFIG_MALI_BIFROST_NO_MALI)
+	&kbase_pm_always_on_policy_ops,
 	&kbase_pm_coarse_demand_policy_ops,
-	&kbase_pm_always_on_policy_ops
+#else /* CONFIG_MALI_BIFROST_NO_MALI */
+	&kbase_pm_coarse_demand_policy_ops,
+	&kbase_pm_always_on_policy_ops,
+#endif /* CONFIG_MALI_BIFROST_NO_MALI */
 };
 
 void kbase_pm_policy_init(struct kbase_device *kbdev)

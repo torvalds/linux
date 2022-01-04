@@ -97,6 +97,13 @@ int dummy_array[] = {
 	/* info_val = bitmask of slots that gave an ACK for STATUS_UPDATE */
 	KBASE_KTRACE_CODE_MAKE_CODE(SLOTS_STATUS_UPDATE_ACK),
 
+	/* info_val[63:0] = GPU cycle counter, used mainly for benchmarking
+	 * purpose.
+	 */
+	KBASE_KTRACE_CODE_MAKE_CODE(GPU_IDLE_HANDLING_START),
+	KBASE_KTRACE_CODE_MAKE_CODE(MCU_HALTED),
+	KBASE_KTRACE_CODE_MAKE_CODE(MCU_IN_SLEEP),
+
 	/*
 	 * Group events
 	 */

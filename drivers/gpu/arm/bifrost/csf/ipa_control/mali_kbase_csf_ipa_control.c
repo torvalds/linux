@@ -43,7 +43,7 @@
 #define COMMAND_PROTECTED_ACK ((u32)4)
 #define COMMAND_RESET_ACK ((u32)5)
 
-/**
+/*
  * Default value for the TIMER register of the IPA Control interface,
  * expressed in milliseconds.
  *
@@ -53,22 +53,22 @@
  */
 #define TIMER_DEFAULT_VALUE_MS ((u32)10) /* 10 milliseconds */
 
-/**
+/*
  * Number of timer events per second.
  */
 #define TIMER_EVENTS_PER_SECOND ((u32)1000 / TIMER_DEFAULT_VALUE_MS)
 
-/**
+/*
  * Maximum number of loops polling the GPU before we assume the GPU has hung.
  */
 #define IPA_INACTIVE_MAX_LOOPS ((unsigned int)8000000)
 
-/**
+/*
  * Number of bits used to configure a performance counter in SELECT registers.
  */
 #define IPA_CONTROL_SELECT_BITS_PER_CNT ((u64)8)
 
-/**
+/*
  * Maximum value of a performance counter.
  */
 #define MAX_PRFCNT_VALUE (((u64)1 << 48) - 1)
@@ -251,9 +251,15 @@ static inline void calc_prfcnt_delta(struct kbase_device *kbdev,
 
 	delta_value *= prfcnt->scaling_factor;
 
-	if (!WARN_ON_ONCE(kbdev->csf.ipa_control.cur_gpu_rate == 0))
-		if (prfcnt->gpu_norm)
-			delta_value = div_u64(delta_value, kbdev->csf.ipa_control.cur_gpu_rate);
+	if (kbdev->csf.ipa_control.cur_gpu_rate == 0) {
+		static bool warned;
+
+		if (!warned) {
+			dev_warn(kbdev->dev, "%s: GPU freq is unexpectedly 0", __func__);
+			warned = true;
+		}
+	} else if (prfcnt->gpu_norm)
+		delta_value = div_u64(delta_value, kbdev->csf.ipa_control.cur_gpu_rate);
 
 	prfcnt->latest_raw_value = raw_value;
 
@@ -791,7 +797,7 @@ int kbase_ipa_control_query(struct kbase_device *kbdev, const void *client,
 	ipa_ctrl = &kbdev->csf.ipa_control;
 	session = (struct kbase_ipa_control_session *)client;
 
-	if (WARN_ON(!session->active)) {
+	if (!session->active) {
 		dev_err(kbdev->dev,
 			"%s: attempt to query inactive session", __func__);
 		return -EINVAL;

@@ -1053,8 +1053,8 @@ void kbase_arbiter_pm_update_gpu_freq(struct kbase_arbiter_freq *arb_freq,
 
 	mutex_lock(&arb_freq->arb_freq_lock);
 	if (arb_freq->arb_freq != freq) {
-		ndata.new_rate = freq * KHZ_TO_HZ;
-		ndata.old_rate = arb_freq->arb_freq * KHZ_TO_HZ;
+		ndata.new_rate = (unsigned long)freq * KHZ_TO_HZ;
+		ndata.old_rate = (unsigned long)arb_freq->arb_freq * KHZ_TO_HZ;
 		ndata.gpu_clk_handle = arb_freq;
 		arb_freq->arb_freq = freq;
 		arb_freq->freq_updated = true;

@@ -653,8 +653,8 @@ static inline bool kbase_jd_katom_is_protected(
 
 /**
  * kbase_atom_is_younger - query if one atom is younger by age than another
- * @katom_a the first atom
- * @katom_a the second atom
+ * @katom_a: the first atom
+ * @katom_a: the second atom
  *
  * Return: true if the first atom is strictly younger than the second, false
  * otherwise.

@@ -38,6 +38,9 @@
 #include <linux/log2.h>
 #include "mali_kbase_ccswe.h"
 
+#if IS_ENABLED(CONFIG_MALI_BIFROST_NO_MALI)
+#include <backend/gpu/mali_kbase_model_dummy.h>
+#endif /* CONFIG_MALI_BIFROST_NO_MALI */
 
 /** The number of nanoseconds in a second. */
 #define NSECS_IN_SEC 1000000000ull /* ns */
@@ -217,6 +220,26 @@ static void kbasep_hwcnt_backend_csf_if_fw_get_prfcnt_info(
 	struct kbase_hwcnt_backend_csf_if_ctx *ctx,
 	struct kbase_hwcnt_backend_csf_if_prfcnt_info *prfcnt_info)
 {
+#if IS_ENABLED(CONFIG_MALI_BIFROST_NO_MALI)
+	size_t dummy_model_blk_count;
+	struct kbase_hwcnt_backend_csf_if_fw_ctx *fw_ctx =
+		(struct kbase_hwcnt_backend_csf_if_fw_ctx *)ctx;
+
+	prfcnt_info->l2_count = KBASE_DUMMY_MODEL_MAX_MEMSYS_BLOCKS;
+	prfcnt_info->core_mask =
+		(1ull << KBASE_DUMMY_MODEL_MAX_SHADER_CORES) - 1;
+	/* 1 FE block + 1 Tiler block + l2_count blocks + shader_core blocks */
+	dummy_model_blk_count =
+		2 + prfcnt_info->l2_count + fls64(prfcnt_info->core_mask);
+	prfcnt_info->dump_bytes =
+		dummy_model_blk_count * KBASE_DUMMY_MODEL_BLOCK_SIZE;
+	prfcnt_info->prfcnt_block_size =
+		KBASE_HWCNT_V5_DEFAULT_VALUES_PER_BLOCK *
+		KBASE_HWCNT_VALUE_HW_BYTES;
+	prfcnt_info->clk_cnt = 1;
+	prfcnt_info->clearing_samples = true;
+	fw_ctx->buf_bytes = prfcnt_info->dump_bytes;
+#else
 	struct kbase_hwcnt_backend_csf_if_fw_ctx *fw_ctx;
 	struct kbase_device *kbdev;
 	u32 prfcnt_size;
@@ -261,6 +284,7 @@ static void kbasep_hwcnt_backend_csf_if_fw_get_prfcnt_info(
 	/* Total size must be multiple of block size. */
 	WARN_ON((prfcnt_info->dump_bytes % prfcnt_info->prfcnt_block_size) !=
 		0);
+#endif
 }
 
 static int kbasep_hwcnt_backend_csf_if_fw_ring_buf_alloc(
@@ -355,6 +379,11 @@ static int kbasep_hwcnt_backend_csf_if_fw_ring_buf_alloc(
 	*out_ring_buf =
 		(struct kbase_hwcnt_backend_csf_if_ring_buf *)fw_ring_buf;
 
+#if IS_ENABLED(CONFIG_MALI_BIFROST_NO_MALI)
+	/* The dummy model needs the CPU mapping. */
+	gpu_model_set_dummy_prfcnt_base_cpu(fw_ring_buf->cpu_dump_base, kbdev,
+					    phys, num_pages);
+#endif /* CONFIG_MALI_BIFROST_NO_MALI */
 
 	return 0;
 

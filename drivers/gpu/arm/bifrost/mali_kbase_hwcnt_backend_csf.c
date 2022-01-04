@@ -36,15 +36,23 @@
 #define BASE_MAX_NR_CLOCKS_REGULATORS 4
 #endif
 
+/* Backend watch dog timer interval in milliseconds: 1 second. */
+#define HWCNT_BACKEND_WATCHDOG_TIMER_INTERVAL_MS ((u32)1000)
+
 /**
  * enum kbase_hwcnt_backend_csf_dump_state - HWC CSF backend dumping states.
  *
  * @KBASE_HWCNT_BACKEND_CSF_DUMP_IDLE: Initial state, or the state if there is
  * an error.
  *
- * @KBASE_HWCNT_BACKEND_CSF_DUMP_REQUESTED: A dump has been requested and we are
- * waiting for an ACK, this ACK could come from either PRFCNT_ACK,
+ * @KBASE_HWCNT_BACKEND_CSF_DUMP_REQUESTED: A user dump has been requested and
+ * we are waiting for an ACK, this ACK could come from either PRFCNT_ACK,
  * PROTMODE_ENTER_ACK, or if an error occurs.
+ *
+ * @KBASE_HWCNT_BACKEND_CSF_DUMP_WATCHDOG_REQUESTED: A watchdog dump has been
+ * requested and we're waiting for an ACK - this ACK could come from either
+ * PRFCNT_ACK, or if an error occurs, PROTMODE_ENTER_ACK is not applied here
+ * since watchdog request can't be triggered in protected mode.
  *
  * @KBASE_HWCNT_BACKEND_CSF_DUMP_QUERYING_INSERT: Checking the insert
  * immediately after receiving the ACK, so we know which index corresponds to
@@ -60,18 +68,25 @@
  * @KBASE_HWCNT_BACKEND_CSF_DUMP_COMPLETED: The dump completed successfully.
  *
  * Valid state transitions:
- * IDLE -> REQUESTED (on dump request)
- * REQUESTED -> QUERYING_INSERT (on dump ack)
+ * IDLE -> REQUESTED (on user dump request)
+ * IDLE -> WATCHDOG_REQUESTED (on watchdog request)
+ * IDLE -> QUERYING_INSERT (on user dump request in protected mode)
+ * REQUESTED -> QUERYING_INSERT (on dump acknowledged from firmware)
+ * WATCHDOG_REQUESTED -> REQUESTED (on user dump request)
+ * WATCHDOG_REQUESTED -> COMPLETED (on dump acknowledged from firmware for watchdog request)
  * QUERYING_INSERT -> WORKER_LAUNCHED (on worker submission)
  * WORKER_LAUNCHED -> ACCUMULATING (while the worker is accumulating)
  * ACCUMULATING -> COMPLETED (on accumulation completion)
- * COMPLETED -> REQUESTED (on dump request)
+ * COMPLETED -> QUERYING_INSERT (on user dump request in protected mode)
+ * COMPLETED -> REQUESTED (on user dump request)
+ * COMPLETED -> WATCHDOG_REQUESTED (on watchdog request)
  * COMPLETED -> IDLE (on disable)
  * ANY -> IDLE (on error)
  */
 enum kbase_hwcnt_backend_csf_dump_state {
 	KBASE_HWCNT_BACKEND_CSF_DUMP_IDLE,
 	KBASE_HWCNT_BACKEND_CSF_DUMP_REQUESTED,
+	KBASE_HWCNT_BACKEND_CSF_DUMP_WATCHDOG_REQUESTED,
 	KBASE_HWCNT_BACKEND_CSF_DUMP_QUERYING_INSERT,
 	KBASE_HWCNT_BACKEND_CSF_DUMP_WORKER_LAUNCHED,
 	KBASE_HWCNT_BACKEND_CSF_DUMP_ACCUMULATING,
@@ -136,6 +151,7 @@ enum kbase_hwcnt_backend_csf_enable_state {
  * @counter_set:                  The performance counter set to use.
  * @metadata:                     Hardware counter metadata.
  * @prfcnt_info:                  Performance counter information.
+ * @watchdog_if:                  Watchdog interface object pointer.
  */
 struct kbase_hwcnt_backend_csf_info {
 	struct kbase_hwcnt_backend_csf *backend;
@@ -146,6 +162,7 @@ struct kbase_hwcnt_backend_csf_info {
 	enum kbase_hwcnt_set counter_set;
 	const struct kbase_hwcnt_metadata *metadata;
 	struct kbase_hwcnt_backend_csf_if_prfcnt_info prfcnt_info;
+	struct kbase_hwcnt_watchdog_interface *watchdog_if;
 };
 
 /**
@@ -192,6 +209,10 @@ struct kbase_hwcnt_csf_physical_layout {
  * @old_sample_buf:             HWC sample buffer to save the previous values
  *                              for delta calculation, size
  *                              prfcnt_info.dump_bytes.
+ * @watchdog_last_seen_insert_idx: The insert index which watchdog has last
+ *                                 seen, to check any new firmware automatic
+ *                                 samples generated during the watchdog
+ *                                 period.
  * @ring_buf:                   Opaque pointer for ring buffer object.
  * @ring_buf_cpu_base:          CPU base address of the allocated ring buffer.
  * @clk_enable_map:             The enable map specifying enabled clock domains.
@@ -204,6 +225,8 @@ struct kbase_hwcnt_csf_physical_layout {
  *                              it is completed accumulating up to the
  *                              insert_index_to_accumulate.
  *                              Should be initialized to the "complete" state.
+ * @user_requested:             Flag to indicate a dump_request called from
+ *                              user.
  * @hwc_dump_workq:             Single threaded work queue for HWC workers
  *                              execution.
  * @hwc_dump_work:              Worker to accumulate samples.
@@ -219,6 +242,7 @@ struct kbase_hwcnt_backend_csf {
 	u64 *to_user_buf;
 	u64 *accum_buf;
 	u32 *old_sample_buf;
+	u32 watchdog_last_seen_insert_idx;
 	struct kbase_hwcnt_backend_csf_if_ring_buf *ring_buf;
 	void *ring_buf_cpu_base;
 	u64 clk_enable_map;
@@ -226,6 +250,7 @@ struct kbase_hwcnt_backend_csf {
 	u64 prev_cycle_count[BASE_MAX_NR_CLOCKS_REGULATORS];
 	struct kbase_hwcnt_csf_physical_layout phys_layout;
 	struct completion dump_completed;
+	bool user_requested;
 	struct workqueue_struct *hwc_dump_workq;
 	struct work_struct hwc_dump_work;
 	struct work_struct hwc_threshold_work;
@@ -594,6 +619,10 @@ static void kbasep_hwcnt_backend_csf_accumulate_samples(
 	backend_csf->info->csf_if->lock(backend_csf->info->csf_if->ctx, &flags);
 	backend_csf->info->csf_if->set_extract_index(
 		backend_csf->info->csf_if->ctx, insert_index_to_stop);
+	/* Update the watchdog last seen index to check any new FW auto samples
+	 * in next watchdog callback.
+	 */
+	backend_csf->watchdog_last_seen_insert_idx = insert_index_to_stop;
 	backend_csf->info->csf_if->unlock(backend_csf->info->csf_if->ctx,
 					  flags);
 }
@@ -610,6 +639,67 @@ static void kbasep_hwcnt_backend_csf_change_es_and_wake_waiters(
 
 		wake_up(&backend_csf->enable_state_waitq);
 	}
+}
+
+static void kbasep_hwcnt_backend_watchdog_timer_cb(void *info)
+{
+	struct kbase_hwcnt_backend_csf_info *csf_info = info;
+	struct kbase_hwcnt_backend_csf *backend_csf;
+	unsigned long flags;
+
+	csf_info->csf_if->lock(csf_info->csf_if->ctx, &flags);
+
+	if (WARN_ON(!kbasep_hwcnt_backend_csf_backend_exists(csf_info))) {
+		csf_info->csf_if->unlock(csf_info->csf_if->ctx, flags);
+		return;
+	}
+
+	backend_csf = csf_info->backend;
+
+	/* Only do watchdog request when all conditions are met: */
+	if (/* 1. Backend is enabled. */
+	    (backend_csf->enable_state == KBASE_HWCNT_BACKEND_CSF_ENABLED) &&
+	    /* 2. FW is not in protected mode. */
+	    (!csf_info->fw_in_protected_mode) &&
+	    /* 3. dump state indicates no other dumping is in progress. */
+	    ((backend_csf->dump_state == KBASE_HWCNT_BACKEND_CSF_DUMP_IDLE) ||
+	     (backend_csf->dump_state ==
+	      KBASE_HWCNT_BACKEND_CSF_DUMP_COMPLETED))) {
+		u32 extract_index;
+		u32 insert_index;
+
+		/* Read the raw extract and insert indexes from the CSF interface. */
+		csf_info->csf_if->get_indexes(csf_info->csf_if->ctx,
+					      &extract_index, &insert_index);
+
+		/* Do watchdog request if no new FW auto samples. */
+		if (insert_index ==
+		    backend_csf->watchdog_last_seen_insert_idx) {
+			/* Trigger the watchdog request. */
+			csf_info->csf_if->dump_request(csf_info->csf_if->ctx);
+
+			/* A watchdog dump is required, change the state to
+			 * start the request process.
+			 */
+			backend_csf->dump_state =
+				KBASE_HWCNT_BACKEND_CSF_DUMP_WATCHDOG_REQUESTED;
+		}
+	}
+
+	/* Must schedule another callback when in the transitional state because
+	 * this function can be called for the first time before the performance
+	 * counter enabled interrupt.
+	 */
+	if ((backend_csf->enable_state == KBASE_HWCNT_BACKEND_CSF_ENABLED) ||
+	    (backend_csf->enable_state ==
+	     KBASE_HWCNT_BACKEND_CSF_TRANSITIONING_TO_ENABLED)) {
+		/* Reschedule the timer for next watchdog callback. */
+		csf_info->watchdog_if->modify(
+			csf_info->watchdog_if->timer,
+			HWCNT_BACKEND_WATCHDOG_TIMER_INTERVAL_MS);
+	}
+
+	csf_info->csf_if->unlock(csf_info->csf_if->ctx, flags);
 }
 
 /**
@@ -826,6 +916,7 @@ static int kbasep_hwcnt_backend_csf_dump_enable_nolock(
 	struct kbase_hwcnt_backend_csf *backend_csf =
 		(struct kbase_hwcnt_backend_csf *)backend;
 	struct kbase_hwcnt_backend_csf_if_enable enable;
+	int err;
 
 	if (!backend_csf || !enable_map ||
 	    (enable_map->metadata != backend_csf->info->metadata))
@@ -840,6 +931,13 @@ static int kbasep_hwcnt_backend_csf_dump_enable_nolock(
 	/* enable_state should be DISABLED before we transfer it to enabled */
 	if (backend_csf->enable_state != KBASE_HWCNT_BACKEND_CSF_DISABLED)
 		return -EIO;
+
+	err = backend_csf->info->watchdog_if->enable(
+		backend_csf->info->watchdog_if->timer,
+		HWCNT_BACKEND_WATCHDOG_TIMER_INTERVAL_MS,
+		kbasep_hwcnt_backend_watchdog_timer_cb, backend_csf->info);
+	if (err)
+		return err;
 
 	backend_csf->dump_state = KBASE_HWCNT_BACKEND_CSF_DUMP_IDLE;
 	WARN_ON(!completion_done(&backend_csf->dump_completed));
@@ -948,6 +1046,13 @@ kbasep_hwcnt_backend_csf_dump_disable(struct kbase_hwcnt_backend *backend)
 	backend_csf->info->csf_if->unlock(backend_csf->info->csf_if->ctx,
 					  flags);
 
+	/* Deregister the timer and block until any timer callback has completed.
+	 * We've transitioned out of the ENABLED state so we can guarantee it
+	 * won't reschedule itself.
+	 */
+	backend_csf->info->watchdog_if->disable(
+		backend_csf->info->watchdog_if->timer);
+
 	/* Block until any async work has completed. We have transitioned out of
 	 * the ENABLED state so we can guarantee no new work will concurrently
 	 * be submitted.
@@ -978,6 +1083,9 @@ kbasep_hwcnt_backend_csf_dump_disable(struct kbase_hwcnt_backend *backend)
 		break;
 	}
 
+	backend_csf->user_requested = false;
+	backend_csf->watchdog_last_seen_insert_idx = 0;
+
 	backend_csf->info->csf_if->unlock(backend_csf->info->csf_if->ctx,
 					  flags);
 
@@ -1006,6 +1114,7 @@ kbasep_hwcnt_backend_csf_dump_request(struct kbase_hwcnt_backend *backend,
 	struct kbase_hwcnt_backend_csf *backend_csf =
 		(struct kbase_hwcnt_backend_csf *)backend;
 	bool do_request = false;
+	bool watchdog_dumping = false;
 
 	if (!backend_csf)
 		return -EINVAL;
@@ -1022,6 +1131,7 @@ kbasep_hwcnt_backend_csf_dump_request(struct kbase_hwcnt_backend *backend,
 			KBASE_HWCNT_BACKEND_CSF_DUMP_COMPLETED;
 		*dump_time_ns = kbasep_hwcnt_backend_csf_timestamp_ns(backend);
 		kbasep_hwcnt_backend_csf_cc_update(backend_csf);
+		backend_csf->user_requested = true;
 		backend_csf->info->csf_if->unlock(
 			backend_csf->info->csf_if->ctx, flags);
 		return 0;
@@ -1035,11 +1145,21 @@ kbasep_hwcnt_backend_csf_dump_request(struct kbase_hwcnt_backend *backend,
 	}
 
 	/* Make sure that this is either the first request since enable or the
-	 * previous dump has completed, so we can avoid midway through a dump.
+	 * previous user dump has completed or a watchdog dump is in progress,
+	 * so we can avoid midway through a user dump.
+	 * If user request comes while a watchdog dumping is in progress,
+	 * the user request takes the ownership of the watchdog dumping sample by
+	 * changing the dump_state so the interrupt for the watchdog
+	 * request can be processed instead of ignored.
 	 */
 	if ((backend_csf->dump_state != KBASE_HWCNT_BACKEND_CSF_DUMP_IDLE) &&
 	    (backend_csf->dump_state !=
-	     KBASE_HWCNT_BACKEND_CSF_DUMP_COMPLETED)) {
+	     KBASE_HWCNT_BACKEND_CSF_DUMP_COMPLETED) &&
+	    (backend_csf->dump_state !=
+	     KBASE_HWCNT_BACKEND_CSF_DUMP_WATCHDOG_REQUESTED)) {
+		/* HWC is disabled or another user dump is ongoing,
+		 * or we're on fault.
+		 */
 		backend_csf->info->csf_if->unlock(
 			backend_csf->info->csf_if->ctx, flags);
 		/* HWC is disabled or another dump is ongoing, or we are on
@@ -1050,6 +1170,10 @@ kbasep_hwcnt_backend_csf_dump_request(struct kbase_hwcnt_backend *backend,
 
 	/* Reset the completion so dump_wait() has something to wait on. */
 	reinit_completion(&backend_csf->dump_completed);
+
+	if (backend_csf->dump_state ==
+	    KBASE_HWCNT_BACKEND_CSF_DUMP_WATCHDOG_REQUESTED)
+		watchdog_dumping = true;
 
 	if ((backend_csf->enable_state == KBASE_HWCNT_BACKEND_CSF_ENABLED) &&
 	    !backend_csf->info->fw_in_protected_mode) {
@@ -1078,15 +1202,29 @@ kbasep_hwcnt_backend_csf_dump_request(struct kbase_hwcnt_backend *backend,
 
 	*dump_time_ns = kbasep_hwcnt_backend_csf_timestamp_ns(backend);
 	kbasep_hwcnt_backend_csf_cc_update(backend_csf);
+	backend_csf->user_requested = true;
 
-	if (do_request)
-		backend_csf->info->csf_if->dump_request(
-			backend_csf->info->csf_if->ctx);
-	else
+	if (do_request) {
+		/* If a watchdog dumping is in progress, don't need to do
+		 * another request, just update the dump_state and take the
+		 * ownership of the sample which watchdog requested.
+		 */
+		if (!watchdog_dumping)
+			backend_csf->info->csf_if->dump_request(
+				backend_csf->info->csf_if->ctx);
+	} else
 		kbase_hwcnt_backend_csf_submit_dump_worker(backend_csf->info);
 
 	backend_csf->info->csf_if->unlock(backend_csf->info->csf_if->ctx,
 					  flags);
+
+	/* Modify watchdog timer to delay the regular check time since
+	 * just requested.
+	 */
+	backend_csf->info->watchdog_if->modify(
+		backend_csf->info->watchdog_if->timer,
+		HWCNT_BACKEND_WATCHDOG_TIMER_INTERVAL_MS);
+
 	return 0;
 }
 
@@ -1105,11 +1243,18 @@ kbasep_hwcnt_backend_csf_dump_wait(struct kbase_hwcnt_backend *backend)
 	wait_for_completion(&backend_csf->dump_completed);
 
 	backend_csf->info->csf_if->lock(backend_csf->info->csf_if->ctx, &flags);
-	/* Make sure the last dump actually succeeded. */
-	errcode = (backend_csf->dump_state ==
-		   KBASE_HWCNT_BACKEND_CSF_DUMP_COMPLETED) ?
-			  0 :
-			  -EIO;
+	/* Make sure the last dump actually succeeded when user requested is
+	 * set.
+	 */
+	if (backend_csf->user_requested &&
+	    ((backend_csf->dump_state ==
+	      KBASE_HWCNT_BACKEND_CSF_DUMP_COMPLETED) ||
+	     (backend_csf->dump_state ==
+	      KBASE_HWCNT_BACKEND_CSF_DUMP_WATCHDOG_REQUESTED)))
+		errcode = 0;
+	else
+		errcode = -EIO;
+
 	backend_csf->info->csf_if->unlock(backend_csf->info->csf_if->ctx,
 					  flags);
 
@@ -1155,13 +1300,16 @@ static int kbasep_hwcnt_backend_csf_dump_get(
 	    (dst_enable_map->metadata != dst->metadata))
 		return -EINVAL;
 
+	/* Extract elapsed cycle count for each clock domain if enabled. */
 	kbase_hwcnt_metadata_for_each_clock(dst_enable_map->metadata, clk) {
 		if (!kbase_hwcnt_clk_enable_map_enabled(
 			    dst_enable_map->clk_enable_map, clk))
 			continue;
 
-		/* Extract elapsed cycle count for each clock domain. */
-		dst->clk_cnt_buf[clk] = backend_csf->cycle_count_elapsed[clk];
+		/* Reset the counter to zero if accumulation is off. */
+		if (!accumulate)
+			dst->clk_cnt_buf[clk] = 0;
+		dst->clk_cnt_buf[clk] += backend_csf->cycle_count_elapsed[clk];
 	}
 
 	/* We just return the user buffer without checking the current state,
@@ -1279,6 +1427,8 @@ kbasep_hwcnt_backend_csf_create(struct kbase_hwcnt_backend_csf_info *csf_info,
 	backend_csf->enable_state = KBASE_HWCNT_BACKEND_CSF_DISABLED;
 	backend_csf->dump_state = KBASE_HWCNT_BACKEND_CSF_DUMP_IDLE;
 	complete_all(&backend_csf->dump_completed);
+	backend_csf->user_requested = false;
+	backend_csf->watchdog_last_seen_insert_idx = 0;
 
 	*out_backend = backend_csf;
 	return 0;
@@ -1401,38 +1551,41 @@ static void kbasep_hwcnt_backend_csf_info_destroy(
  *                 used to create backend interface.
  * @ring_buf_cnt: The buffer count of the CSF hwcnt backend ring buffer.
  *                MUST be power of 2.
+ * @watchdog_if:  Non-NULL pointer to a hwcnt watchdog interface structure used to create
+ *                backend interface.
  * @out_info:     Non-NULL pointer to where info is stored on success.
  * @return 0 on success, else error code.
  */
 static int kbasep_hwcnt_backend_csf_info_create(
 	struct kbase_hwcnt_backend_csf_if *csf_if, u32 ring_buf_cnt,
+	struct kbase_hwcnt_watchdog_interface *watchdog_if,
 	const struct kbase_hwcnt_backend_csf_info **out_info)
 {
 	struct kbase_hwcnt_backend_csf_info *info = NULL;
 
-	WARN_ON(!csf_if);
-	WARN_ON(!out_info);
-	WARN_ON(!is_power_of_2(ring_buf_cnt));
+	if (WARN_ON(!csf_if) || WARN_ON(!watchdog_if) || WARN_ON(!out_info) ||
+	    WARN_ON(!is_power_of_2(ring_buf_cnt)))
+		return -EINVAL;
 
-	info = kzalloc(sizeof(*info), GFP_KERNEL);
+	info = kmalloc(sizeof(*info), GFP_KERNEL);
 	if (!info)
 		return -ENOMEM;
 
+	*info = (struct kbase_hwcnt_backend_csf_info)
+	{
 #if defined(CONFIG_MALI_BIFROST_PRFCNT_SET_SECONDARY)
-	info->counter_set = KBASE_HWCNT_SET_SECONDARY;
+		.counter_set = KBASE_HWCNT_SET_SECONDARY,
 #elif defined(CONFIG_MALI_PRFCNT_SET_TERTIARY)
-	info->counter_set = KBASE_HWCNT_SET_TERTIARY;
+		.counter_set = KBASE_HWCNT_SET_TERTIARY,
 #else
-	/* Default to primary */
-	info->counter_set = KBASE_HWCNT_SET_PRIMARY;
+		/* Default to primary */
+		.counter_set = KBASE_HWCNT_SET_PRIMARY,
 #endif
-
-	info->backend = NULL;
-	info->csf_if = csf_if;
-	info->ring_buf_cnt = ring_buf_cnt;
-	info->fw_in_protected_mode = false;
-	info->unrecoverable_error_happened = false;
-
+		.backend = NULL, .csf_if = csf_if, .ring_buf_cnt = ring_buf_cnt,
+		.fw_in_protected_mode = false,
+		.unrecoverable_error_happened = false,
+		.watchdog_if = watchdog_if,
+	};
 	*out_info = info;
 
 	return 0;
@@ -1653,6 +1806,14 @@ void kbase_hwcnt_backend_csf_on_prfcnt_sample(
 		return;
 	backend_csf = csf_info->backend;
 
+	/* Skip the dump_work if it's a watchdog request. */
+	if (backend_csf->dump_state ==
+	    KBASE_HWCNT_BACKEND_CSF_DUMP_WATCHDOG_REQUESTED) {
+		backend_csf->dump_state =
+			KBASE_HWCNT_BACKEND_CSF_DUMP_COMPLETED;
+		return;
+	}
+
 	/* If the current state is not REQUESTED, this HWC sample will be
 	 * skipped and processed in next dump_request.
 	 */
@@ -1831,14 +1992,15 @@ void kbase_hwcnt_backend_csf_metadata_term(
 	}
 }
 
-int kbase_hwcnt_backend_csf_create(struct kbase_hwcnt_backend_csf_if *csf_if,
-				   u32 ring_buf_cnt,
-				   struct kbase_hwcnt_backend_interface *iface)
+int kbase_hwcnt_backend_csf_create(
+	struct kbase_hwcnt_backend_csf_if *csf_if, u32 ring_buf_cnt,
+	struct kbase_hwcnt_watchdog_interface *watchdog_if,
+	struct kbase_hwcnt_backend_interface *iface)
 {
 	int errcode;
 	const struct kbase_hwcnt_backend_csf_info *info = NULL;
 
-	if (!iface || !csf_if)
+	if (!iface || !csf_if || !watchdog_if)
 		return -EINVAL;
 
 	/* The buffer count must be power of 2 */
@@ -1846,7 +2008,7 @@ int kbase_hwcnt_backend_csf_create(struct kbase_hwcnt_backend_csf_if *csf_if,
 		return -EINVAL;
 
 	errcode = kbasep_hwcnt_backend_csf_info_create(csf_if, ring_buf_cnt,
-						       &info);
+						       watchdog_if, &info);
 	if (errcode)
 		return errcode;
 

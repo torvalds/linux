@@ -28,12 +28,12 @@
 /**
  * encode_chunk_ptr - Encode the address and size of a chunk as an integer.
  *
+ * @chunk_size: Size of a tiler heap chunk, in bytes.
+ * @chunk_addr: GPU virtual address of the same tiler heap chunk.
+ *
  * The size and address of the next chunk in a list are packed into a single
  * 64-bit value for storage in a chunk's header. This function returns that
  * value.
- *
- * @chunk_size: Size of a tiler heap chunk, in bytes.
- * @chunk_addr: GPU virtual address of the same tiler heap chunk.
  *
  * Return: Next chunk pointer suitable for writing into a chunk header.
  */
@@ -76,13 +76,13 @@ static struct kbase_csf_tiler_heap_chunk *get_last_chunk(
 /**
  * link_chunk - Link a chunk into a tiler heap
  *
+ * @heap:  Pointer to the tiler heap.
+ * @chunk: Pointer to the heap chunk to be linked.
+ *
  * Unless the @chunk is the first in the kernel's list of chunks belonging to
  * a given tiler heap, this function stores the size and address of the @chunk
  * in the header of the preceding chunk. This requires the GPU memory region
  * containing the header to be be mapped temporarily, which can fail.
- *
- * @heap:  Pointer to the tiler heap.
- * @chunk: Pointer to the heap chunk to be linked.
  *
  * Return: 0 if successful or a negative error code on failure.
  */
@@ -118,14 +118,14 @@ static int link_chunk(struct kbase_csf_tiler_heap *const heap,
 /**
  * init_chunk - Initialize and link a tiler heap chunk
  *
- * Zero-initialize a new chunk's header (including its pointer to the next
- * chunk, which doesn't exist yet) and then update the previous chunk's
- * header to link the new chunk into the chunk list.
- *
  * @heap:  Pointer to the tiler heap.
  * @chunk: Pointer to the heap chunk to be initialized and linked.
  * @link_with_prev: Flag to indicate if the new chunk needs to be linked with
  *                  the previously allocated chunk.
+ *
+ * Zero-initialize a new chunk's header (including its pointer to the next
+ * chunk, which doesn't exist yet) and then update the previous chunk's
+ * header to link the new chunk into the chunk list.
  *
  * Return: 0 if successful or a negative error code on failure.
  */
@@ -163,13 +163,13 @@ static int init_chunk(struct kbase_csf_tiler_heap *const heap,
 /**
  * create_chunk - Create a tiler heap chunk
  *
- * This function allocates a chunk of memory for a tiler heap and adds it to
- * the end of the list of chunks associated with that heap. The size of the
- * chunk is not a parameter because it is configured per-heap not per-chunk.
- *
  * @heap: Pointer to the tiler heap for which to allocate memory.
  * @link_with_prev: Flag to indicate if the chunk to be allocated needs to be
  *                  linked with the previously allocated chunk.
+ *
+ * This function allocates a chunk of memory for a tiler heap and adds it to
+ * the end of the list of chunks associated with that heap. The size of the
+ * chunk is not a parameter because it is configured per-heap not per-chunk.
  *
  * Return: 0 if successful or a negative error code on failure.
  */
@@ -237,15 +237,15 @@ static int create_chunk(struct kbase_csf_tiler_heap *const heap,
 /**
  * delete_chunk - Delete a tiler heap chunk
  *
+ * @heap:  Pointer to the tiler heap for which @chunk was allocated.
+ * @chunk: Pointer to a chunk to be deleted.
+ *
  * This function frees a tiler heap chunk previously allocated by @create_chunk
  * and removes it from the list of chunks associated with the heap.
  *
  * WARNING: The deleted chunk is not unlinked from the list of chunks used by
  *          the GPU, therefore it is only safe to use this function when
  *          deleting a heap.
- *
- * @heap:  Pointer to the tiler heap for which @chunk was allocated.
- * @chunk: Pointer to a chunk to be deleted.
  */
 static void delete_chunk(struct kbase_csf_tiler_heap *const heap,
 	struct kbase_csf_tiler_heap_chunk *const chunk)
@@ -264,10 +264,10 @@ static void delete_chunk(struct kbase_csf_tiler_heap *const heap,
 /**
  * delete_all_chunks - Delete all chunks belonging to a tiler heap
  *
+ * @heap: Pointer to a tiler heap.
+ *
  * This function empties the list of chunks associated with a tiler heap by
  * freeing all chunks previously allocated by @create_chunk.
- *
- * @heap: Pointer to a tiler heap.
  */
 static void delete_all_chunks(struct kbase_csf_tiler_heap *heap)
 {
@@ -284,11 +284,11 @@ static void delete_all_chunks(struct kbase_csf_tiler_heap *heap)
 /**
  * create_initial_chunks - Create the initial list of chunks for a tiler heap
  *
- * This function allocates a given number of chunks for a tiler heap and
- * adds them to the list of chunks associated with that heap.
- *
  * @heap:    Pointer to the tiler heap for which to allocate memory.
  * @nchunks: Number of chunks to create.
+ *
+ * This function allocates a given number of chunks for a tiler heap and
+ * adds them to the list of chunks associated with that heap.
  *
  * Return: 0 if successful or a negative error code on failure.
  */
@@ -310,12 +310,12 @@ static int create_initial_chunks(struct kbase_csf_tiler_heap *const heap,
 /**
  * delete_heap - Delete a tiler heap
  *
+ * @heap: Pointer to a tiler heap to be deleted.
+ *
  * This function frees any chunks allocated for a tiler heap previously
  * initialized by @kbase_csf_tiler_heap_init and removes it from the list of
  * heaps associated with the kbase context. The heap context structure used by
  * the firmware is also freed.
- *
- * @heap: Pointer to a tiler heap to be deleted.
  */
 static void delete_heap(struct kbase_csf_tiler_heap *heap)
 {
@@ -346,14 +346,14 @@ static void delete_heap(struct kbase_csf_tiler_heap *heap)
 /**
  * find_tiler_heap - Find a tiler heap from the address of its heap context
  *
+ * @kctx:        Pointer to the kbase context to search for a tiler heap.
+ * @heap_gpu_va: GPU virtual address of a heap context structure.
+ *
  * Each tiler heap managed by the kernel has an associated heap context
  * structure used by the firmware. This function finds a tiler heap object from
  * the GPU virtual address of its associated heap context. The heap context
  * should have been allocated by @kbase_csf_heap_context_allocator_alloc in the
  * same @kctx.
- *
- * @kctx:        Pointer to the kbase context to search for a tiler heap.
- * @heap_gpu_va: GPU virtual address of a heap context structure.
  *
  * Return: pointer to the tiler heap object, or NULL if not found.
  */
@@ -495,8 +495,11 @@ int kbase_csf_tiler_heap_init(struct kbase_context *const kctx,
 		dev_dbg(kctx->kbdev->dev, "Created tiler heap 0x%llX\n",
 			heap->gpu_va);
 		mutex_unlock(&kctx->csf.tiler_heaps.lock);
+		kctx->running_total_tiler_heap_nr_chunks += heap->chunk_count;
+		kctx->running_total_tiler_heap_memory += heap->chunk_size * heap->chunk_count;
+		if (kctx->running_total_tiler_heap_memory > kctx->peak_total_tiler_heap_memory)
+			kctx->peak_total_tiler_heap_memory = kctx->running_total_tiler_heap_memory;
 	}
-
 	return err;
 }
 
@@ -505,26 +508,35 @@ int kbase_csf_tiler_heap_term(struct kbase_context *const kctx,
 {
 	int err = 0;
 	struct kbase_csf_tiler_heap *heap = NULL;
+	u32 chunk_count = 0;
+	u64 heap_size = 0;
 
 	mutex_lock(&kctx->csf.tiler_heaps.lock);
 
 	heap = find_tiler_heap(kctx, heap_gpu_va);
-	if (likely(heap))
+	if (likely(heap)) {
+		chunk_count = heap->chunk_count;
+		heap_size = heap->chunk_size * chunk_count;
 		delete_heap(heap);
-	else
+	} else
 		err = -EINVAL;
 
 	mutex_unlock(&kctx->csf.tiler_heaps.lock);
-
+	if (likely(kctx->running_total_tiler_heap_memory >= heap_size))
+		kctx->running_total_tiler_heap_memory -= heap_size;
+	else
+		dev_warn(kctx->kbdev->dev,
+			 "Running total tiler heap memory lower than expected!");
+	if (likely(kctx->running_total_tiler_heap_nr_chunks >= chunk_count))
+		kctx->running_total_tiler_heap_nr_chunks -= chunk_count;
+	else
+		dev_warn(kctx->kbdev->dev,
+			 "Running total tiler chunk count lower than expected!");
 	return err;
 }
 
 /**
  * alloc_new_chunk - Allocate a new chunk for the tiler heap.
- *
- * This function will allocate a new chunk for the chunked tiler heap depending
- * on the settings provided by userspace when the heap was created and the
- * heap's statistics (like number of render passes in-flight).
  *
  * @heap:               Pointer to the tiler heap.
  * @nr_in_flight:       Number of render passes that are in-flight, must not be zero.
@@ -533,6 +545,10 @@ int kbase_csf_tiler_heap_term(struct kbase_context *const kctx,
  *                      the total number of render passes in flight
  * @new_chunk_ptr:      Where to store the GPU virtual address & size of the new
  *                      chunk allocated for the heap.
+ *
+ * This function will allocate a new chunk for the chunked tiler heap depending
+ * on the settings provided by userspace when the heap was created and the
+ * heap's statistics (like number of render passes in-flight).
  *
  * Return: 0 if a new chunk was allocated otherwise an appropriate negative
  *         error code.

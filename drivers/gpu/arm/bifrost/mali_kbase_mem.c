@@ -4468,8 +4468,8 @@ void kbase_trace_jit_report_gpu_mem_trace_enabled(struct kbase_context *kctx,
 
 	addr_start = reg->heap_info_gpu_addr - jit_report_gpu_mem_offset;
 
-	ptr = kbase_vmap(kctx, addr_start, KBASE_JIT_REPORT_GPU_MEM_SIZE,
-			&mapping);
+	ptr = kbase_vmap_prot(kctx, addr_start, KBASE_JIT_REPORT_GPU_MEM_SIZE,
+			KBASE_REG_CPU_RD, &mapping);
 	if (!ptr) {
 		dev_warn(kctx->kbdev->dev,
 				"%s: JIT start=0x%llx unable to map memory near end pointer %llx\n",

@@ -67,6 +67,9 @@ void kbase_backend_get_gpu_time_norequest(struct kbase_device *kbdev,
  */
 static bool timedwait_cycle_count_active(struct kbase_device *kbdev)
 {
+#if IS_ENABLED(CONFIG_MALI_BIFROST_NO_MALI)
+	return true;
+#else
 	bool success = false;
 	const unsigned int timeout = 100;
 	const unsigned long remaining = jiffies + msecs_to_jiffies(timeout);
@@ -79,6 +82,7 @@ static bool timedwait_cycle_count_active(struct kbase_device *kbdev)
 		}
 	}
 	return success;
+#endif
 }
 #endif
 

@@ -902,4 +902,4 @@ module_init(dma_buf_lock_init);
 module_exit(dma_buf_lock_exit);
 
 MODULE_LICENSE("GPL");
-
+MODULE_INFO(import_ns, "DMA_BUF");

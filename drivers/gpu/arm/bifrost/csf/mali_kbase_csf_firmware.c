@@ -31,6 +31,7 @@
 #include "device/mali_kbase_device.h"
 #include "backend/gpu/mali_kbase_pm_internal.h"
 #include "tl/mali_kbase_timeline_priv.h"
+#include "tl/mali_kbase_tracepoints.h"
 #include "mali_kbase_csf_tl_reader.h"
 #include "backend/gpu/mali_kbase_clk_rate_trace_mgr.h"
 #include <csf/ipa_control/mali_kbase_csf_ipa_control.h>
@@ -157,8 +158,7 @@ static bool entry_optional(u32 header)
 }
 
 /**
- * struct firmware_timeline_metadata -
- * Timeline metadata item within the MCU firmware
+ * struct firmware_timeline_metadata - Timeline metadata item within the MCU firmware
  *
  * @node: List head linking all timeline metadata to
  *        kbase_device:csf.firmware_timeline_metadata.
@@ -217,10 +217,11 @@ static int wait_mcu_status_value(struct kbase_device *kbdev, u32 val)
 	return (max_loops == 0) ? -1 : 0;
 }
 
-void kbase_csf_firmware_disable_mcu_wait(struct kbase_device *kbdev)
+void kbase_csf_firmware_disable_mcu(struct kbase_device *kbdev)
 {
-	if (wait_mcu_status_value(kbdev, MCU_CNTRL_DISABLE) < 0)
-		dev_err(kbdev->dev, "MCU failed to get disabled");
+	KBASE_TLSTREAM_TL_KBASE_CSFFW_FW_DISABLING(kbdev, kbase_backend_get_cycle_cnt(kbdev));
+
+	kbase_reg_write(kbdev, GPU_CONTROL_REG(MCU_CONTROL), MCU_CNTRL_DISABLE);
 }
 
 static void wait_for_firmware_stop(struct kbase_device *kbdev)
@@ -229,6 +230,13 @@ static void wait_for_firmware_stop(struct kbase_device *kbdev)
 		/* This error shall go away once MIDJM-2371 is closed */
 		dev_err(kbdev->dev, "Firmware failed to stop");
 	}
+
+	KBASE_TLSTREAM_TL_KBASE_CSFFW_FW_OFF(kbdev, kbase_backend_get_cycle_cnt(kbdev));
+}
+
+void kbase_csf_firmware_disable_mcu_wait(struct kbase_device *kbdev)
+{
+	wait_for_firmware_stop(kbdev);
 }
 
 static void stop_csf_firmware(struct kbase_device *kbdev)
@@ -463,16 +471,16 @@ out:
 /**
  * parse_memory_setup_entry() - Process an "interface memory setup" section
  *
+ * @kbdev: Kbase device structure
+ * @fw: The firmware image containing the section
+ * @entry: Pointer to the start of the section
+ * @size: Size (in bytes) of the section
+ *
  * Read an "interface memory setup" section from the firmware image and create
  * the necessary memory region including the MMU page tables. If successful
  * the interface will be added to the kbase_device:csf.firmware_interfaces list.
  *
  * Return: 0 if successful, negative error code on failure
- *
- * @kbdev: Kbase device structure
- * @fw: The firmware image containing the section
- * @entry: Pointer to the start of the section
- * @size: Size (in bytes) of the section
  */
 static int parse_memory_setup_entry(struct kbase_device *kbdev,
 		const struct firmware *fw,
@@ -724,6 +732,11 @@ static int parse_timeline_metadata_entry(struct kbase_device *kbdev,
 /**
  * load_firmware_entry() - Process an entry from a firmware image
  *
+ * @kbdev:  Kbase device
+ * @fw:     Firmware image containing the entry
+ * @offset: Byte offset within the image of the entry to load
+ * @header: Header word of the entry
+ *
  * Read an entry from a firmware image and do any necessary work (e.g. loading
  * the data into page accessible to the MCU).
  *
@@ -731,11 +744,6 @@ static int parse_timeline_metadata_entry(struct kbase_device *kbdev,
  * otherwise the function will fail with -EINVAL
  *
  * Return: 0 if successful, negative error code on failure
- *
- * @kbdev:  Kbase device
- * @fw:     Firmware image containing the entry
- * @offset: Byte offset within the image of the entry to load
- * @header: Header word of the entry
  */
 static int load_firmware_entry(struct kbase_device *kbdev,
 		const struct firmware *fw,
@@ -784,18 +792,6 @@ static int load_firmware_entry(struct kbase_device *kbdev,
 		}
 		return kbase_csf_firmware_cfg_option_entry_parse(
 			kbdev, fw, entry, size, updatable);
-	case CSF_FIRMWARE_ENTRY_TYPE_FUTF_TEST:
-#ifndef MALI_KBASE_BUILD
-		/* FW UTF option */
-		if (size < 2*sizeof(*entry)) {
-			dev_err(kbdev->dev, "FW UTF entry too short (size=%u)\n",
-					size);
-			return -EINVAL;
-		}
-		return mali_kutf_process_fw_utf_entry(kbdev, fw->data,
-						      fw->size, entry);
-#endif
-		break;
 	case CSF_FIRMWARE_ENTRY_TYPE_TRACE_BUFFER:
 		/* Trace buffer */
 		if (size < TRACE_BUFFER_ENTRY_NAME_OFFSET + sizeof(*entry)) {
@@ -1170,6 +1166,7 @@ u32 kbase_csf_firmware_csg_output(
 	dev_dbg(kbdev->dev, "csg output r: reg %08x val %08x\n", offset, val);
 	return val;
 }
+KBASE_EXPORT_TEST_API(kbase_csf_firmware_csg_output);
 
 void kbase_csf_firmware_global_input(
 	const struct kbase_csf_global_iface *const iface, const u32 offset,
@@ -1180,6 +1177,7 @@ void kbase_csf_firmware_global_input(
 	dev_dbg(kbdev->dev, "glob input w: reg %08x val %08x\n", offset, value);
 	input_page_write(iface->input, offset, value);
 }
+KBASE_EXPORT_TEST_API(kbase_csf_firmware_global_input);
 
 void kbase_csf_firmware_global_input_mask(
 	const struct kbase_csf_global_iface *const iface, const u32 offset,
@@ -1191,6 +1189,7 @@ void kbase_csf_firmware_global_input_mask(
 			offset, value, mask);
 	input_page_partial_write(iface->input, offset, value, mask);
 }
+KBASE_EXPORT_TEST_API(kbase_csf_firmware_global_input_mask);
 
 u32 kbase_csf_firmware_global_input_read(
 	const struct kbase_csf_global_iface *const iface, const u32 offset)
@@ -1211,6 +1210,7 @@ u32 kbase_csf_firmware_global_output(
 	dev_dbg(kbdev->dev, "glob output r: reg %08x val %08x\n", offset, val);
 	return val;
 }
+KBASE_EXPORT_TEST_API(kbase_csf_firmware_global_output);
 
 /**
  * handle_internal_firmware_fatal - Handler for CS internal firmware fault.
@@ -1484,8 +1484,7 @@ bool kbase_csf_firmware_core_attr_updated(struct kbase_device *kbdev)
 }
 
 /**
- * kbase_csf_firmware_reload_worker() -
- * reload the fw image and re-enable the MCU
+ * kbase_csf_firmware_reload_worker() - reload the fw image and re-enable the MCU
  * @work: CSF Work item for reloading the firmware.
  *
  * This helper function will reload the firmware image and re-enable the MCU.
@@ -1504,6 +1503,8 @@ static void kbase_csf_firmware_reload_worker(struct work_struct *work)
 	int err;
 
 	dev_info(kbdev->dev, "reloading firmware");
+
+	KBASE_TLSTREAM_TL_KBASE_CSFFW_FW_RELOADING(kbdev, kbase_backend_get_cycle_cnt(kbdev));
 
 	/* Reload just the data sections from firmware binary image */
 	err = reload_fw_data_sections(kbdev);
@@ -2017,10 +2018,6 @@ void kbase_csf_firmware_term(struct kbase_device *kbdev)
 		kfree(metadata);
 	}
 
-#ifndef MALI_KBASE_BUILD
-	mali_kutf_fw_utf_entry_cleanup(kbdev);
-#endif
-
 	/* This will also free up the region allocated for the shared interface
 	 * entry parsed from the firmware image.
 	 */
@@ -2144,6 +2141,8 @@ void kbase_csf_firmware_trigger_mcu_halt(struct kbase_device *kbdev)
 	struct kbase_csf_global_iface *global_iface = &kbdev->csf.global_iface;
 	unsigned long flags;
 
+	KBASE_TLSTREAM_TL_KBASE_CSFFW_FW_REQUEST_HALT(kbdev, kbase_backend_get_cycle_cnt(kbdev));
+
 	kbase_csf_scheduler_spin_lock(kbdev, &flags);
 	/* Validate there are no on-slot groups when sending the
 	 * halt request to firmware.
@@ -2155,11 +2154,24 @@ void kbase_csf_firmware_trigger_mcu_halt(struct kbase_device *kbdev)
 	kbase_csf_scheduler_spin_unlock(kbdev, flags);
 }
 
+void kbase_csf_firmware_enable_mcu(struct kbase_device *kbdev)
+{
+	KBASE_TLSTREAM_TL_KBASE_CSFFW_FW_ENABLING(kbdev, kbase_backend_get_cycle_cnt(kbdev));
+
+	/* Trigger the boot of MCU firmware, Use the AUTO mode as
+	 * otherwise on fast reset, to exit protected mode, MCU will
+	 * not reboot by itself to enter normal mode.
+	 */
+	kbase_reg_write(kbdev, GPU_CONTROL_REG(MCU_CONTROL), MCU_CNTRL_AUTO);
+}
+
 #ifdef KBASE_PM_RUNTIME
 void kbase_csf_firmware_trigger_mcu_sleep(struct kbase_device *kbdev)
 {
 	struct kbase_csf_global_iface *global_iface = &kbdev->csf.global_iface;
 	unsigned long flags;
+
+	KBASE_TLSTREAM_TL_KBASE_CSFFW_FW_REQUEST_SLEEP(kbdev, kbase_backend_get_cycle_cnt(kbdev));
 
 	kbase_csf_scheduler_spin_lock(kbdev, &flags);
 	set_global_request(global_iface, GLB_REQ_SLEEP_MASK);

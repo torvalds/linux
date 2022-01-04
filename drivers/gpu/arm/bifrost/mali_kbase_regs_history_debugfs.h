@@ -69,7 +69,7 @@ void kbase_io_history_dump(struct kbase_device *kbdev);
  */
 void kbasep_regs_history_debugfs_init(struct kbase_device *kbdev);
 
-#else /* defined(CONFIG_DEBUG_FS) && !IS_ENABLED(CONFIG_MALI_BIFROST_NO_MALI) */
+#else /* !defined(CONFIG_DEBUG_FS) || IS_ENABLED(CONFIG_MALI_BIFROST_NO_MALI) */
 
 #define kbase_io_history_init(...) ((int)0)
 

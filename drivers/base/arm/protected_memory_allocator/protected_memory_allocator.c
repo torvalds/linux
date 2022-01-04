@@ -62,9 +62,10 @@ struct simple_pma_device {
 };
 
 /**
- * Number of elements in array 'allocated_pages_bitfield_arr'. If the number of
- * pages required does not divide exactly by PAGES_PER_BITFIELD_ELEM, adds an
- * extra page for the remainder.
+ * ALLOC_PAGES_BITFIELD_ARR_SIZE() - Number of elements in array
+ *                                   'allocated_pages_bitfield_arr'
+ * If the number of pages required does not divide exactly by
+ * PAGES_PER_BITFIELD_ELEM, adds an extra page for the remainder.
  * @num_pages: number of pages
  */
 #define ALLOC_PAGES_BITFIELD_ARR_SIZE(num_pages) \

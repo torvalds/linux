@@ -24,7 +24,7 @@
 
 #include <mali_kbase.h>
 
-/**
+/*
  * Maximum index accepted to configure an IPA Control performance counter.
  */
 #define KBASE_IPA_CONTROL_CNT_MAX_IDX ((u8)64 * 3)

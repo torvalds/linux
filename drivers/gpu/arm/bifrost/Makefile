@@ -34,12 +34,21 @@ endif
 
 CONFIG_MALI_BIFROST ?= m
 ifeq ($(CONFIG_MALI_BIFROST),m)
+    CONFIG_MALI_PLATFORM_NAME ?= "devicetree"
     CONFIG_MALI_BIFROST_GATOR_SUPPORT ?= y
     CONFIG_MALI_ARBITRATION ?= n
     CONFIG_MALI_PARTITION_MANAGER ?= n
 
+    ifeq ($(origin CONFIG_MALI_ABITER_MODULES), undefined)
+        CONFIG_MALI_ARBITER_MODULES := $(CONFIG_MALI_ARBITRATION)
+    endif
+
+    ifeq ($(origin CONFIG_MALI_GPU_POWER_MODULES), undefined)
+        CONFIG_MALI_GPU_POWER_MODULES := $(CONFIG_MALI_ARBITRATION)
+    endif
+
     ifneq ($(CONFIG_MALI_BIFROST_NO_MALI),y)
-        # Prevent misuse when CONFIG_MALI_BIFROST_NO_MALI=y
+        # Prevent misuse when CONFIG_MALI_BIFROST_NO_MALI
         CONFIG_MALI_REAL_HW ?= y
     endif
 
@@ -135,6 +144,8 @@ ifeq ($(CONFIG_MALI_BIFROST),m)
 else
     # Prevent misuse when CONFIG_MALI_BIFROST=n
     CONFIG_MALI_ARBITRATION = n
+    CONFIG_MALI_ARBITER_MODULES = n
+    CONFIG_MALI_GPU_POWER_MODULES = n
     CONFIG_MALI_KUTF = n
     CONFIG_MALI_KUTF_IRQ_TEST = n
     CONFIG_MALI_KUTF_CLK_RATE_TRACE = n
@@ -148,6 +159,8 @@ CONFIGS := \
     CONFIG_MALI_BIFROST_DMA_FENCE \
     CONFIG_MALI_ARBITER_SUPPORT \
     CONFIG_MALI_ARBITRATION \
+    CONFIG_MALI_ARBITER_MODULES \
+    CONFIG_MALI_GPU_POWER_MODULES \
     CONFIG_MALI_PARTITION_MANAGER \
     CONFIG_MALI_REAL_HW \
     CONFIG_MALI_GEM5_BUILD \
@@ -191,6 +204,8 @@ MAKE_ARGS := $(foreach config,$(CONFIGS), \
                         $(value config)=$(value $(value config)), \
                         $(value config)=n))
 
+MAKE_ARGS += CONFIG_MALI_PLATFORM_NAME=$(CONFIG_MALI_PLATFORM_NAME)
+
 #
 # EXTRA_CFLAGS to define the custom CONFIGs on out-of-tree build
 #
@@ -200,6 +215,8 @@ MAKE_ARGS := $(foreach config,$(CONFIGS), \
 EXTRA_CFLAGS := $(foreach config,$(CONFIGS), \
                     $(if $(filter y m,$(value $(value config))), \
                         -D$(value config)=1))
+
+EXTRA_CFLAGS += -DCONFIG_MALI_PLATFORM_NAME=$(CONFIG_MALI_PLATFORM_NAME)
 
 #
 # KBUILD_EXTRA_SYMBOLS to prevent warnings about unknown functions

@@ -30,12 +30,12 @@
 /**
  * struct kbasep_pm_ca_policy_devfreq - Private structure for devfreq ca policy
  *
- * This contains data that is private to the devfreq core availability
- * policy.
- *
  * @cores_desired: Cores that the policy wants to be available
  * @cores_enabled: Cores that the policy is currently returning as available
  * @cores_used: Cores currently powered or transitioning
+ *
+ * This contains data that is private to the devfreq core availability
+ * policy.
  */
 struct kbasep_pm_ca_policy_devfreq {
 	u64 cores_desired;

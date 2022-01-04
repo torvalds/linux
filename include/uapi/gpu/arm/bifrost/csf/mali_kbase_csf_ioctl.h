@@ -46,10 +46,14 @@
  *   trace configurations with CSF trace_command.
  * 1.6:
  * - Added new HW performance counters interface to all GPUs.
+ * 1.7:
+ * - Added reserved field to QUEUE_GROUP_CREATE ioctl for future use
+ * 1.8:
+ * - Removed Kernel legacy HWC interface
  */
 
 #define BASE_UK_VERSION_MAJOR 1
-#define BASE_UK_VERSION_MINOR 5
+#define BASE_UK_VERSION_MINOR 8
 
 /**
  * struct kbase_ioctl_version_check - Check version compatibility between
@@ -179,6 +183,50 @@ struct kbase_ioctl_cs_queue_terminate {
 	_IOW(KBASE_IOCTL_TYPE, 41, struct kbase_ioctl_cs_queue_terminate)
 
 /**
+ * union kbase_ioctl_cs_queue_group_create_1_6 - Create a GPU command queue
+ *                                               group
+ * @in:               Input parameters
+ * @in.tiler_mask:    Mask of tiler endpoints the group is allowed to use.
+ * @in.fragment_mask: Mask of fragment endpoints the group is allowed to use.
+ * @in.compute_mask:  Mask of compute endpoints the group is allowed to use.
+ * @in.cs_min:        Minimum number of CSs required.
+ * @in.priority:      Queue group's priority within a process.
+ * @in.tiler_max:     Maximum number of tiler endpoints the group is allowed
+ *                    to use.
+ * @in.fragment_max:  Maximum number of fragment endpoints the group is
+ *                    allowed to use.
+ * @in.compute_max:   Maximum number of compute endpoints the group is allowed
+ *                    to use.
+ * @in.padding:       Currently unused, must be zero
+ * @out:              Output parameters
+ * @out.group_handle: Handle of a newly created queue group.
+ * @out.padding:      Currently unused, must be zero
+ * @out.group_uid:    UID of the queue group available to base.
+ */
+union kbase_ioctl_cs_queue_group_create_1_6 {
+	struct {
+		__u64 tiler_mask;
+		__u64 fragment_mask;
+		__u64 compute_mask;
+		__u8 cs_min;
+		__u8 priority;
+		__u8 tiler_max;
+		__u8 fragment_max;
+		__u8 compute_max;
+		__u8 padding[3];
+
+	} in;
+	struct {
+		__u8 group_handle;
+		__u8 padding[3];
+		__u32 group_uid;
+	} out;
+};
+
+#define KBASE_IOCTL_CS_QUEUE_GROUP_CREATE_1_6                                  \
+	_IOWR(KBASE_IOCTL_TYPE, 42, union kbase_ioctl_cs_queue_group_create_1_6)
+
+/**
  * union kbase_ioctl_cs_queue_group_create - Create a GPU command queue group
  * @in:               Input parameters
  * @in.tiler_mask:    Mask of tiler endpoints the group is allowed to use.
@@ -209,7 +257,7 @@ union kbase_ioctl_cs_queue_group_create {
 		__u8 fragment_max;
 		__u8 compute_max;
 		__u8 padding[3];
-
+		__u64 reserved;
 	} in;
 	struct {
 		__u8 group_handle;
@@ -218,8 +266,8 @@ union kbase_ioctl_cs_queue_group_create {
 	} out;
 };
 
-#define KBASE_IOCTL_CS_QUEUE_GROUP_CREATE \
-	_IOWR(KBASE_IOCTL_TYPE, 42, union kbase_ioctl_cs_queue_group_create)
+#define KBASE_IOCTL_CS_QUEUE_GROUP_CREATE                                      \
+	_IOWR(KBASE_IOCTL_TYPE, 58, union kbase_ioctl_cs_queue_group_create)
 
 /**
  * struct kbase_ioctl_cs_queue_group_term - Terminate a GPU command queue group

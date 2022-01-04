@@ -38,10 +38,10 @@ int kbase_csf_tiler_heap_context_init(struct kbase_context *kctx);
  * kbase_csf_tiler_heap_context_term - Terminate the tiler heaps context for a
  *                                     GPU address space
  *
+ * @kctx: Pointer to the kbase context being terminated.
+ *
  * This function deletes any chunked tiler heaps that weren't deleted before
  * context termination.
- *
- * @kctx: Pointer to the kbase context being terminated.
  */
 void kbase_csf_tiler_heap_context_term(struct kbase_context *kctx);
 
@@ -74,14 +74,14 @@ int kbase_csf_tiler_heap_init(struct kbase_context *kctx,
 /**
  * kbasep_cs_tiler_heap_term - Terminate a chunked tiler memory heap.
  *
+ * @kctx: Pointer to the kbase context in which the tiler heap was initialized.
+ * @gpu_heap_va: The GPU virtual address of the context that was set up for the
+ *               tiler heap.
+ *
  * This function will terminate a chunked tiler heap and cause all the chunks
  * (initial and those added during out-of-memory processing) to be freed.
  * It is the caller's responsibility to ensure no further operations on this
  * heap will happen before calling this function.
- *
- * @kctx: Pointer to the kbase context in which the tiler heap was initialized.
- * @gpu_heap_va: The GPU virtual address of the context that was set up for the
- *               tiler heap.
  *
  * Return: 0 if successful or a negative error code on failure.
  */
@@ -89,12 +89,6 @@ int kbase_csf_tiler_heap_term(struct kbase_context *kctx, u64 gpu_heap_va);
 
 /**
  * kbase_csf_tiler_heap_alloc_new_chunk - Allocate a new chunk for tiler heap.
- *
- * This function will allocate a new chunk for the chunked tiler heap depending
- * on the settings provided by userspace when the heap was created and the
- * heap's statistics (like number of render passes in-flight).
- * It would return an appropriate error code if a new chunk couldn't be
- * allocated.
  *
  * @kctx:               Pointer to the kbase context in which the tiler heap was initialized.
  * @gpu_heap_va:        GPU virtual address of the heap context.
@@ -104,6 +98,12 @@ int kbase_csf_tiler_heap_term(struct kbase_context *kctx, u64 gpu_heap_va);
  *                      the total number of render passes in flight
  * @new_chunk_ptr:      Where to store the GPU virtual address & size of the new
  *                      chunk allocated for the heap.
+ *
+ * This function will allocate a new chunk for the chunked tiler heap depending
+ * on the settings provided by userspace when the heap was created and the
+ * heap's statistics (like number of render passes in-flight).
+ * It would return an appropriate error code if a new chunk couldn't be
+ * allocated.
  *
  * Return: 0 if a new chunk was allocated otherwise an appropriate negative
  *         error code (like -EBUSY when a free chunk is expected to be

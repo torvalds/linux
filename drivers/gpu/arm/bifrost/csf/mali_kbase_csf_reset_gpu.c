@@ -576,6 +576,7 @@ int kbase_reset_gpu_silent(struct kbase_device *kbdev)
 
 	return 0;
 }
+KBASE_EXPORT_TEST_API(kbase_reset_gpu_silent);
 
 bool kbase_reset_gpu_is_active(struct kbase_device *kbdev)
 {

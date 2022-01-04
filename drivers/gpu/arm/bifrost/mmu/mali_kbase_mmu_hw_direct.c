@@ -128,22 +128,18 @@ static int wait_ready(struct kbase_device *kbdev,
 		unsigned int as_nr)
 {
 	unsigned int max_loops = KBASE_AS_INACTIVE_MAX_LOOPS;
-	u32 val = kbase_reg_read(kbdev, MMU_AS_REG(as_nr, AS_STATUS));
 
-	/* Wait for the MMU status to indicate there is no active command, in
-	 * case one is pending. Do not log remaining register accesses.
-	 */
-	while (--max_loops && (val & AS_STATUS_AS_ACTIVE))
-		val = kbase_reg_read(kbdev, MMU_AS_REG(as_nr, AS_STATUS));
+	/* Wait for the MMU status to indicate there is no active command. */
+	while (--max_loops &&
+	       kbase_reg_read(kbdev, MMU_AS_REG(as_nr, AS_STATUS)) &
+		       AS_STATUS_AS_ACTIVE) {
+		;
+	}
 
 	if (max_loops == 0) {
 		dev_err(kbdev->dev, "AS_ACTIVE bit stuck, might be caused by slow/unstable GPU clock or possible faulty FPGA connector\n");
 		return -1;
 	}
-
-	/* If waiting in loop was performed, log last read value. */
-	if (KBASE_AS_INACTIVE_MAX_LOOPS - 1 > max_loops)
-		kbase_reg_read(kbdev, MMU_AS_REG(as_nr, AS_STATUS));
 
 	return 0;
 }
@@ -215,6 +211,11 @@ int kbase_mmu_hw_do_operation(struct kbase_device *kbdev, struct kbase_as *as,
 {
 	int ret;
 	u64 lock_addr = 0x0;
+
+	if (WARN_ON(kbdev == NULL) ||
+	    WARN_ON(as == NULL) ||
+	    WARN_ON(op_param == NULL))
+		return -EINVAL;
 
 	lockdep_assert_held(&kbdev->mmu_hw_mutex);
 

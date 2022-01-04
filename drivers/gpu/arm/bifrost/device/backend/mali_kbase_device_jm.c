@@ -28,6 +28,9 @@
 #include <mali_kbase_ctx_sched.h>
 #include <mali_kbase_reset_gpu.h>
 
+#if IS_ENABLED(CONFIG_MALI_BIFROST_NO_MALI)
+#include <backend/gpu/mali_kbase_model_linux.h>
+#endif /* CONFIG_MALI_BIFROST_NO_MALI */
 
 #ifdef CONFIG_MALI_ARBITER_SUPPORT
 #include <arbiter/mali_kbase_arbiter_pm.h>
@@ -156,8 +159,13 @@ static void kbase_device_hwcnt_backend_jm_term(struct kbase_device *kbdev)
 }
 
 static const struct kbase_device_init dev_init[] = {
+#if IS_ENABLED(CONFIG_MALI_BIFROST_NO_MALI)
+	{ kbase_gpu_device_create, kbase_gpu_device_destroy,
+	  "Dummy model initialization failed" },
+#else
 	{ assign_irqs, NULL, "IRQ search failed" },
 	{ registers_map, registers_unmap, "Register map failed" },
+#endif
 	{ kbase_device_io_history_init, kbase_device_io_history_term,
 	  "Register access history initialization failed" },
 	{ kbase_device_pm_init, kbase_device_pm_term,
@@ -203,7 +211,6 @@ static const struct kbase_device_init dev_init[] = {
 	  "Performance counter instrumentation initialization failed" },
 	{ kbase_backend_late_init, kbase_backend_late_term,
 	  "Late backend initialization failed" },
-#ifdef MALI_KBASE_BUILD
 	{ kbase_debug_job_fault_dev_init, kbase_debug_job_fault_dev_term,
 	  "Job fault debug initialization failed" },
 	{ kbase_device_debugfs_init, kbase_device_debugfs_term,
@@ -225,7 +232,6 @@ static const struct kbase_device_init dev_init[] = {
 	  "Misc device registration failed" },
 	{ kbase_gpuprops_populate_user_buffer, kbase_gpuprops_free_user_buffer,
 	  "GPU property population failed" },
-#endif
 	{ NULL, kbase_dummy_job_wa_cleanup, NULL },
 	{ kbase_device_late_init, kbase_device_late_term,
 	  "Late device initialization failed" },

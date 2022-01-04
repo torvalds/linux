@@ -165,8 +165,10 @@ void kbase_pm_context_idle(struct kbase_device *kbdev);
  * @note the mechanisms used here rely on all user-space threads being frozen
  * by the OS before we suspend. Otherwise, an IOCTL could occur that powers up
  * the GPU e.g. via atom submission.
+ *
+ * Return: 0 on success.
  */
-void kbase_pm_suspend(struct kbase_device *kbdev);
+int kbase_pm_suspend(struct kbase_device *kbdev);
 
 /**
  * Resume the GPU, allow register accesses to it, and resume running atoms on
@@ -207,8 +209,10 @@ void kbase_pm_vsync_callback(int buffer_updated, void *data);
  * @note the mechanisms used here rely on all user-space threads being frozen
  * by the OS before we suspend. Otherwise, an IOCTL could occur that powers up
  * the GPU e.g. via atom submission.
+ *
+ * Return: 0 on success.
  */
-void kbase_pm_driver_suspend(struct kbase_device *kbdev);
+int kbase_pm_driver_suspend(struct kbase_device *kbdev);
 
 /**
  * kbase_pm_driver_resume() - Put GPU and driver in resume

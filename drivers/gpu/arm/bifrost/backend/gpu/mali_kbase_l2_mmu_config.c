@@ -26,7 +26,7 @@
 #include "mali_kbase_l2_mmu_config.h"
 
 /**
- * struct l2_mmu_config_limit_region
+ * struct l2_mmu_config_limit_region - L2 MMU limit field
  *
  * @value:    The default value to load into the L2_MMU_CONFIG register
  * @mask:     The shifted mask of the field in the L2_MMU_CONFIG register
@@ -39,7 +39,7 @@ struct l2_mmu_config_limit_region {
 };
 
 /**
- * struct l2_mmu_config_limit
+ * struct l2_mmu_config_limit - L2 MMU read and write limit
  *
  * @product_model:    The GPU for which this entry applies
  * @read:             Values for the read limit field

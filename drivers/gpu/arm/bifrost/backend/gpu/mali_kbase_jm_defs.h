@@ -38,10 +38,31 @@ struct rb_entry {
 	struct kbase_jd_atom *katom;
 };
 
+/* SLOT_RB_TAG_PURGED assumes a value that is different from
+ * NULL (SLOT_RB_NULL_TAG_VAL) and will not be the result of
+ * any valid pointer via macro translation: SLOT_RB_TAG_KCTX(x).
+ */
+#define SLOT_RB_TAG_PURGED ((u64)(1 << 1))
+#define SLOT_RB_NULL_TAG_VAL ((u64)0)
+
+/**
+ * SLOT_RB_TAG_KCTX() - a function-like macro for converting a pointer to a
+ *			u64 for serving as tagged value.
+ */
+#define SLOT_RB_TAG_KCTX(kctx) (u64)((uintptr_t)(kctx))
 /**
  * struct slot_rb - Slot ringbuffer
  * @entries:		Ringbuffer entries
- * @last_context:	The last context to submit a job on this slot
+ * @last_kctx_tagged:	The last context that submitted a job to the slot's
+ *			HEAD_NEXT register. The value is a tagged variant so
+ *			must not be dereferenced. It is used in operation to
+ *			track when shader core L1 caches might contain a
+ *			previous context's data, and so must only be set to
+ *			SLOT_RB_NULL_TAG_VAL after reset/powerdown of the
+ *			cores. In slot job submission, if there is a kctx
+ *			change, and the relevant katom is configured with
+ *			BASE_JD_REQ_SKIP_CACHE_START, a L1 read only cache
+ *			maintenace operation is enforced.
  * @read_idx:		Current read index of buffer
  * @write_idx:		Current write index of buffer
  * @job_chain_flag:	Flag used to implement jobchain disambiguation
@@ -49,7 +70,7 @@ struct rb_entry {
 struct slot_rb {
 	struct rb_entry entries[SLOT_RB_SIZE];
 
-	struct kbase_context *last_context;
+	u64 last_kctx_tagged;
 
 	u8 read_idx;
 	u8 write_idx;

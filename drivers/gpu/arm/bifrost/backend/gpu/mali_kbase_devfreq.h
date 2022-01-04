@@ -57,6 +57,7 @@ void kbase_devfreq_enqueue_work(struct kbase_device *kbdev,
  * This function will only perform translation if an operating-points-v2-mali
  * table is present in devicetree. If one is not present then it will return an
  * untranslated frequency (and corresponding voltage) and all cores enabled.
+ * The voltages returned are in micro Volts (uV).
  */
 void kbase_devfreq_opp_translate(struct kbase_device *kbdev, unsigned long freq,
 	u64 *core_mask, unsigned long *freqs, unsigned long *volts);

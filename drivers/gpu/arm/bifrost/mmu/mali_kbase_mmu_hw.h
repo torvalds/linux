@@ -78,7 +78,7 @@ enum kbase_mmu_op_type {
  * struct kbase_mmu_hw_op_param  - parameters for kbase_mmu_hw_do_operation()
  * @vpfn:          MMU Virtual Page Frame Number to start the operation on.
  * @nr:            Number of pages to work on.
- * @type:          Operation type (written to ASn_COMMAND).
+ * @op:            Operation type (written to ASn_COMMAND).
  * @kctx_id:       Kernel context ID for MMU command tracepoint
  * @mmu_sync_info: Indicates whether this call is synchronous wrt MMU ops.
  */

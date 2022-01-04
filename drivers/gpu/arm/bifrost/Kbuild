@@ -71,7 +71,7 @@ endif
 #
 
 # Driver version string which is returned to userspace via an ioctl
-MALI_RELEASE_NAME ?= '"g9p0-01eac0"'
+MALI_RELEASE_NAME ?= '"g10p0-01eac0"'
 # Set up defaults if not defined by build system
 ifeq ($(CONFIG_MALI_BIFROST_DEBUG), y)
     MALI_UNIT_TEST = 1
@@ -81,8 +81,6 @@ else
     MALI_CUSTOMER_RELEASE ?= 1
 endif
 MALI_COVERAGE ?= 0
-
-CONFIG_MALI_PLATFORM_NAME ?= "devicetree"
 
 # Kconfig passes in the name with quotes for in-tree builds - remove them.
 MALI_PLATFORM_DIR := $(shell echo $(CONFIG_MALI_PLATFORM_NAME))
@@ -122,7 +120,6 @@ ccflags-y = \
     -DMALI_RELEASE_NAME=$(MALI_RELEASE_NAME) \
     -DMALI_JIT_PRESSURE_LIMIT_BASE=$(MALI_JIT_PRESSURE_LIMIT_BASE) \
     -DMALI_INCREMENTAL_RENDERING=$(MALI_INCREMENTAL_RENDERING) \
-    -DMALI_KBASE_BUILD \
     -DMALI_PLATFORM_DIR=$(MALI_PLATFORM_DIR)
 
 
@@ -165,7 +162,6 @@ bifrost_kbase-y := \
     mali_kbase_hwcnt.o \
     mali_kbase_hwcnt_gpu.o \
     mali_kbase_hwcnt_gpu_narrow.o \
-    mali_kbase_hwcnt_legacy.o \
     mali_kbase_hwcnt_types.o \
     mali_kbase_hwcnt_virtualizer.o \
     mali_kbase_softjobs.o \
@@ -205,6 +201,7 @@ bifrost_kbase-$(CONFIG_SYNC_FILE) += \
 ifeq ($(CONFIG_MALI_CSF_SUPPORT),y)
     bifrost_kbase-y += \
         mali_kbase_hwcnt_backend_csf.o \
+        mali_kbase_hwcnt_watchdog_if_timer.o \
         mali_kbase_hwcnt_backend_csf_if_fw.o
 else
     bifrost_kbase-y += \

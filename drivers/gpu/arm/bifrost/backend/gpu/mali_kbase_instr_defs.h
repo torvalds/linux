@@ -38,8 +38,12 @@ enum kbase_instr_state {
 	KBASE_INSTR_STATE_IDLE,
 	/* Hardware is currently dumping a frame. */
 	KBASE_INSTR_STATE_DUMPING,
-	/* An error has occured during DUMPING (page fault). */
-	KBASE_INSTR_STATE_FAULT
+	/* An error has occurred during DUMPING (page fault). */
+	KBASE_INSTR_STATE_FAULT,
+	/* An unrecoverable error has occurred, a reset is the only way to exit
+	 * from unrecoverable error state.
+	 */
+	KBASE_INSTR_STATE_UNRECOVERABLE_ERROR,
 };
 
 /* Structure used for instrumentation and HW counters dumping */

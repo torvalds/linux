@@ -163,8 +163,6 @@ int kbase_context_common_init(struct kbase_context *kctx)
 
 	kctx->id = atomic_add_return(1, &(kctx->kbdev->ctx_num)) - 1;
 
-	mutex_init(&kctx->legacy_hwcnt_lock);
-
 	mutex_lock(&kctx->kbdev->kctx_list_lock);
 
 	err = kbase_insert_kctx_to_process(kctx);

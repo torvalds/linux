@@ -46,10 +46,10 @@ int kbase_backend_gpuprops_get(struct kbase_device *kbdev,
 	registers.core_features = kbase_reg_read(kbdev,
 				GPU_CONTROL_REG(CORE_FEATURES));
 #else /* !MALI_USE_CSF */
-	if (((registers.gpu_id & GPU_ID2_PRODUCT_MODEL) ==
-	     GPU_ID2_PRODUCT_TGRX) ||
-	    ((registers.gpu_id & GPU_ID2_PRODUCT_MODEL) ==
-	     GPU_ID2_PRODUCT_TVAX))
+	if (!(((registers.gpu_id & GPU_ID2_PRODUCT_MODEL) ==
+	       GPU_ID2_PRODUCT_TDUX) ||
+	      ((registers.gpu_id & GPU_ID2_PRODUCT_MODEL) ==
+	       GPU_ID2_PRODUCT_TODX)))
 		registers.core_features =
 			kbase_reg_read(kbdev, GPU_CONTROL_REG(CORE_FEATURES));
 #endif /* MALI_USE_CSF */

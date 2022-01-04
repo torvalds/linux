@@ -48,6 +48,7 @@ void kbase_context_debugfs_init(struct kbase_context *const kctx)
 	kbase_csf_queue_group_debugfs_init(kctx);
 	kbase_csf_kcpu_debugfs_init(kctx);
 	kbase_csf_tiler_heap_debugfs_init(kctx);
+	kbase_csf_tiler_heap_total_debugfs_init(kctx);
 	kbase_csf_cpu_queue_debugfs_init(kctx);
 }
 KBASE_EXPORT_SYMBOL(kbase_context_debugfs_init);

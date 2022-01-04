@@ -41,8 +41,89 @@
 #include <mmu/mali_kbase_mmu_internal.h>
 #include <mali_kbase_cs_experimental.h>
 #include <device/mali_kbase_device.h>
+#include <uapi/gpu/arm/bifrost/gpu/mali_kbase_gpu_id.h>
+#if !MALI_USE_CSF
+#include <mali_kbase_hwaccess_jm.h>
+#endif
 
 #include <mali_kbase_trace_gpu_mem.h>
+
+/**
+ * mmu_flush_cache_on_gpu_ctrl() - Check if cache flush needs to be done
+ * through GPU_CONTROL interface
+ * @kbdev:         kbase device to check GPU model ID on.
+ *
+ * This function returns whether a cache flush for page table update should
+ * run through GPU_CONTROL interface or MMU_AS_CONTROL interface.
+ *
+ * Return: True if cache flush should be done on GPU command.
+ */
+static bool mmu_flush_cache_on_gpu_ctrl(struct kbase_device *kbdev)
+{
+	uint32_t const arch_maj_cur = (kbdev->gpu_props.props.raw_props.gpu_id &
+				       GPU_ID2_ARCH_MAJOR) >>
+				      GPU_ID2_ARCH_MAJOR_SHIFT;
+
+	return arch_maj_cur > 11;
+}
+
+/**
+ * mmu_flush_invalidate_on_gpu_ctrl() - Flush and invalidate the GPU caches
+ * through GPU_CONTROL interface.
+ * @kbdev:         kbase device to issue the MMU operation on.
+ * @as:            address space to issue the MMU operation on.
+ * @op_param:      parameters for the operation.
+ *
+ * This wrapper function alternates AS_COMMAND_FLUSH_PT and AS_COMMAND_FLUSH_MEM
+ * to equivalent GPU_CONTROL command FLUSH_CACHES.
+ * The function first issue LOCK to MMU-AS with kbase_mmu_hw_do_operation().
+ * And issues cache-flush with kbase_gpu_cache_flush_and_busy_wait() function
+ * then issue UNLOCK to MMU-AS with kbase_mmu_hw_do_operation().
+ *
+ * Return: Zero if the operation was successful, non-zero otherwise.
+ */
+static int
+mmu_flush_invalidate_on_gpu_ctrl(struct kbase_device *kbdev,
+				 struct kbase_as *as,
+				 struct kbase_mmu_hw_op_param *op_param)
+{
+	u32 flush_op;
+	int ret, ret2;
+
+	if (WARN_ON(kbdev == NULL) ||
+	    WARN_ON(as == NULL) ||
+	    WARN_ON(op_param == NULL))
+		return -EINVAL;
+
+	lockdep_assert_held(&kbdev->hwaccess_lock);
+	lockdep_assert_held(&kbdev->mmu_hw_mutex);
+
+	/* Translate operation to command */
+	if (op_param->op == KBASE_MMU_OP_FLUSH_PT) {
+		flush_op = GPU_COMMAND_CACHE_CLN_INV_L2;
+	} else if (op_param->op == KBASE_MMU_OP_FLUSH_MEM) {
+		flush_op = GPU_COMMAND_CACHE_CLN_INV_L2_LSC;
+	} else {
+		dev_warn(kbdev->dev, "Invalid flush request (op = %d)\n",
+			 op_param->op);
+		return -EINVAL;
+	}
+
+	/* 1. Issue MMU_AS_CONTROL.COMMAND.LOCK operation. */
+	op_param->op = KBASE_MMU_OP_LOCK;
+	ret = kbase_mmu_hw_do_operation(kbdev, as, op_param);
+	if (ret)
+		return ret;
+
+	/* 2. Issue GPU_CONTROL.COMMAND.FLUSH_CACHES operation */
+	ret = kbase_gpu_cache_flush_and_busy_wait(kbdev, flush_op);
+
+	/* 3. Issue MMU_AS_CONTROL.COMMAND.UNLOCK operation. */
+	op_param->op = KBASE_MMU_OP_UNLOCK;
+	ret2 = kbase_mmu_hw_do_operation(kbdev, as, op_param);
+
+	return ret ?: ret2;
+}
 
 /**
  * kbase_mmu_flush_invalidate() - Flush and invalidate the GPU caches.
@@ -244,7 +325,11 @@ static void kbase_gpu_mmu_handle_write_faulting_as(struct kbase_device *kbdev,
 		.kctx_id = kctx_id,
 		.mmu_sync_info = mmu_sync_info,
 	};
-	kbase_mmu_hw_do_operation(kbdev, faulting_as, &op_param);
+	if (mmu_flush_cache_on_gpu_ctrl(kbdev)) {
+		mmu_flush_invalidate_on_gpu_ctrl(kbdev, faulting_as, &op_param);
+	} else {
+		kbase_mmu_hw_do_operation(kbdev, faulting_as, &op_param);
+	}
 
 	mutex_unlock(&kbdev->mmu_hw_mutex);
 
@@ -934,7 +1019,13 @@ page_fault_retry:
 			.kctx_id = kctx->id,
 			.mmu_sync_info = mmu_sync_info,
 		};
-		kbase_mmu_hw_do_operation(kbdev, faulting_as, &op_param);
+		if (mmu_flush_cache_on_gpu_ctrl(kbdev)) {
+			mmu_flush_invalidate_on_gpu_ctrl(kbdev, faulting_as,
+							 &op_param);
+		} else {
+			kbase_mmu_hw_do_operation(kbdev, faulting_as,
+						  &op_param);
+		}
 
 		mutex_unlock(&kbdev->mmu_hw_mutex);
 		/* AS transaction end */
@@ -1046,11 +1137,7 @@ static phys_addr_t kbase_mmu_alloc_pgd(struct kbase_device *kbdev,
 	int i;
 	struct page *p;
 
-#ifdef CONFIG_MALI_2MB_ALLOC
-	p = kbase_mem_pool_alloc(&kbdev->mem_pools.large[mmut->group_id]);
-#else /* CONFIG_MALI_2MB_ALLOC */
 	p = kbase_mem_pool_alloc(&kbdev->mem_pools.small[mmut->group_id]);
-#endif /* CONFIG_MALI_2MB_ALLOC */
 	if (!p)
 		return 0;
 
@@ -1087,12 +1174,7 @@ static phys_addr_t kbase_mmu_alloc_pgd(struct kbase_device *kbdev,
 	return page_to_phys(p);
 
 alloc_free:
-
-#ifdef CONFIG_MALI_2MB_ALLOC
-	kbase_mem_pool_free(&kbdev->mem_pools.large[mmut->group_id], p, false);
-#else /* CONFIG_MALI_2MB_ALLOC */
 	kbase_mem_pool_free(&kbdev->mem_pools.small[mmut->group_id], p, false);
-#endif /* CONFIG_MALI_2MB_ALLOC */
 
 	return 0;
 }
@@ -1341,11 +1423,7 @@ int kbase_mmu_insert_single_page(struct kbase_context *kctx, u64 vpfn,
 			 */
 			mutex_unlock(&kctx->mmu.mmu_lock);
 			err = kbase_mem_pool_grow(
-#ifdef CONFIG_MALI_2MB_ALLOC
-				&kbdev->mem_pools.large[
-#else
 				&kbdev->mem_pools.small[
-#endif
 					kctx->mmu.group_id],
 				MIDGARD_MMU_BOTTOMLEVEL);
 			mutex_lock(&kctx->mmu.mmu_lock);
@@ -1433,11 +1511,7 @@ static void kbase_mmu_free_pgd(struct kbase_device *kbdev,
 
 	p = pfn_to_page(PFN_DOWN(pgd));
 
-#ifdef CONFIG_MALI_2MB_ALLOC
-	kbase_mem_pool_free(&kbdev->mem_pools.large[mmut->group_id],
-#else
 	kbase_mem_pool_free(&kbdev->mem_pools.small[mmut->group_id],
-#endif
 			    p, dirty);
 
 	atomic_sub(1, &kbdev->memdev.used_pages);
@@ -1523,11 +1597,7 @@ int kbase_mmu_insert_pages_no_flush(struct kbase_device *kbdev,
 			 */
 			mutex_unlock(&mmut->mmu_lock);
 			err = kbase_mem_pool_grow(
-#ifdef CONFIG_MALI_2MB_ALLOC
-				&kbdev->mem_pools.large[mmut->group_id],
-#else
 				&kbdev->mem_pools.small[mmut->group_id],
-#endif
 				cur_level);
 			mutex_lock(&mmut->mmu_lock);
 		} while (!err);
@@ -1681,8 +1751,15 @@ static void kbase_mmu_flush_invalidate_noretain(struct kbase_context *kctx,
 		.kctx_id = kctx->id,
 		.mmu_sync_info = mmu_sync_info,
 	};
-	err = kbase_mmu_hw_do_operation(kbdev, &kbdev->as[kctx->as_nr],
-					&op_param);
+
+	if (mmu_flush_cache_on_gpu_ctrl(kbdev)) {
+		err = mmu_flush_invalidate_on_gpu_ctrl(
+			kbdev, &kbdev->as[kctx->as_nr], &op_param);
+	} else {
+		err = kbase_mmu_hw_do_operation(kbdev, &kbdev->as[kctx->as_nr],
+						&op_param);
+	}
+
 	if (err) {
 		/* Flush failed to complete, assume the
 		 * GPU has hung and perform a reset to recover
@@ -1744,7 +1821,13 @@ kbase_mmu_flush_invalidate_as(struct kbase_device *kbdev, struct kbase_as *as,
 	else
 		op_param.op = KBASE_MMU_OP_FLUSH_PT;
 
-	err = kbase_mmu_hw_do_operation(kbdev, as, &op_param);
+	if (mmu_flush_cache_on_gpu_ctrl(kbdev)) {
+		spin_lock_irqsave(&kbdev->hwaccess_lock, flags);
+		err = mmu_flush_invalidate_on_gpu_ctrl(kbdev, as, &op_param);
+		spin_unlock_irqrestore(&kbdev->hwaccess_lock, flags);
+	} else {
+		err = kbase_mmu_hw_do_operation(kbdev, as, &op_param);
+	}
 
 	if (err) {
 		/* Flush failed to complete, assume the GPU has hung and
@@ -1850,6 +1933,15 @@ void kbase_mmu_disable(struct kbase_context *kctx)
 	kbase_mmu_flush_invalidate_noretain(kctx, 0, ~0);
 
 	kctx->kbdev->mmu_mode->disable_as(kctx->kbdev, kctx->as_nr);
+#if !MALI_USE_CSF
+	/*
+	 * JM GPUs has some L1 read only caches that need to be invalidated
+	 * with START_FLUSH configuration. Purge the MMU disabled kctx from
+	 * the slot_rb tracking field so such invalidation is performed when
+	 * a new katom is executed on the affected slots.
+	 */
+	kbase_backend_slot_kctx_purge_locked(kctx->kbdev, kctx);
+#endif
 }
 KBASE_EXPORT_TEST_API(kbase_mmu_disable);
 
@@ -2271,11 +2363,7 @@ int kbase_mmu_init(struct kbase_device *const kbdev,
 		int err;
 
 		err = kbase_mem_pool_grow(
-#ifdef CONFIG_MALI_2MB_ALLOC
-			&kbdev->mem_pools.large[mmut->group_id],
-#else
 			&kbdev->mem_pools.small[mmut->group_id],
-#endif
 			MIDGARD_MMU_BOTTOMLEVEL);
 		if (err) {
 			kbase_mmu_term(kbdev, mmut);

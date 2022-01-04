@@ -760,6 +760,13 @@ static int kbase_jm_exit_protected_mode(struct kbase_device *kbdev,
 		/* ***TRANSITION TO HIGHER STATE*** */
 		fallthrough;
 	case KBASE_ATOM_EXIT_PROTECTED_RESET:
+		/* L2 cache has been turned off (which is needed prior to the reset of GPU
+		 * to exit the protected mode), so the override flag can be safely cleared.
+		 * Even if L2 cache is powered up again before the actual reset, it should
+		 * not be an issue (there are no jobs running on the GPU).
+		 */
+		kbase_pm_protected_override_disable(kbdev);
+
 		/* Issue the reset to the GPU */
 		err = kbase_gpu_protected_mode_reset(kbdev);
 
@@ -768,7 +775,6 @@ static int kbase_jm_exit_protected_mode(struct kbase_device *kbdev,
 
 		if (err) {
 			kbdev->protected_mode_transition = false;
-			kbase_pm_protected_override_disable(kbdev);
 
 			/* Failed to exit protected mode, fail atom */
 			katom[idx]->event_code = BASE_JD_EVENT_JOB_INVALID;
@@ -1069,9 +1075,9 @@ kbase_rb_atom_might_depend(const struct kbase_jd_atom *katom_a,
 /**
  * kbase_gpu_irq_evict - evict a slot's JSn_HEAD_NEXT atom from the HW if it is
  *                       related to a failed JSn_HEAD atom
- * @kbdev kbase device
- * @js job slot to check
- * @completion_code completion code of the failed atom
+ * @kbdev: kbase device
+ * @js: job slot to check
+ * @completion_code: completion code of the failed atom
  *
  * Note: 'STOPPED' atoms are considered 'failed', as they are in the HW, but
  * unlike other failure codes we _can_ re-run them.
@@ -1129,6 +1135,14 @@ bool kbase_gpu_irq_evict(struct kbase_device *kbdev, int js,
 		if (next_katom->core_req & BASE_JD_REQ_PERMON)
 			kbase_pm_release_gpu_cycle_counter_nolock(kbdev);
 
+		/* On evicting the next_katom, the last submission kctx on the
+		 * given job slot then reverts back to the one that owns katom.
+		 * The aim is to enable the next submission that can determine
+		 * if the read only shader core L1 cache should be invalidated.
+		 */
+		kbdev->hwaccess.backend.slot_rb[js].last_kctx_tagged =
+			SLOT_RB_TAG_KCTX(katom->kctx);
+
 		return true;
 	}
 
@@ -1137,11 +1151,11 @@ bool kbase_gpu_irq_evict(struct kbase_device *kbdev, int js,
 
 /**
  * kbase_gpu_complete_hw - complete the atom in a slot's JSn_HEAD
- * @kbdev kbase device
- * @js job slot to check
- * @completion_code completion code of the completed atom
- * @job_tail value read from JSn_TAIL, for STOPPED atoms
- * @end_timestamp pointer to approximate ktime value when the katom completed
+ * @kbdev: kbase device
+ * @js: job slot to check
+ * @completion_code: completion code of the completed atom
+ * @job_tail: value read from JSn_TAIL, for STOPPED atoms
+ * @end_timestamp: pointer to approximate ktime value when the katom completed
  *
  * Among other operations, this also executes step 2 of a 2-step process of
  * removing any related atoms from a slot's JSn_HEAD_NEXT (ringbuffer index 1),
@@ -1323,8 +1337,6 @@ void kbase_gpu_complete_hw(struct kbase_device *kbdev, int js,
 						ktime_to_ns(*end_timestamp),
 						(u32)next_katom->kctx->id, 0,
 						next_katom->work_id);
-			kbdev->hwaccess.backend.slot_rb[js].last_context =
-							next_katom->kctx;
 		} else {
 			char js_string[16];
 
@@ -1333,7 +1345,6 @@ void kbase_gpu_complete_hw(struct kbase_device *kbdev, int js,
 							sizeof(js_string)),
 						ktime_to_ns(ktime_get()), 0, 0,
 						0);
-			kbdev->hwaccess.backend.slot_rb[js].last_context = 0;
 		}
 	}
 #endif
@@ -1427,6 +1438,9 @@ void kbase_backend_reset(struct kbase_device *kbdev, ktime_t *end_timestamp)
 			katom->event_code = BASE_JD_EVENT_JOB_CANCELLED;
 			kbase_jm_complete(kbdev, katom, end_timestamp);
 		}
+
+		/* Clear the slot's last katom submission kctx on reset */
+		kbdev->hwaccess.backend.slot_rb[js].last_kctx_tagged = SLOT_RB_NULL_TAG_VAL;
 	}
 
 	/* Re-enable GPU hardware counters if we're resetting from protected
@@ -1649,6 +1663,11 @@ bool kbase_backend_soft_hard_stop_slot(struct kbase_device *kbdev,
 						kbase_gpu_remove_atom(kbdev,
 								katom_idx1,
 								action, true);
+						/* Revert the last_context. */
+						kbdev->hwaccess.backend.slot_rb[js]
+							.last_kctx_tagged =
+							SLOT_RB_TAG_KCTX(katom_idx0->kctx);
+
 						stop_x_dep_idx1 =
 					should_stop_x_dep_slot(katom_idx1);
 
@@ -1724,6 +1743,10 @@ bool kbase_backend_soft_hard_stop_slot(struct kbase_device *kbdev,
 					kbase_gpu_remove_atom(kbdev, katom_idx1,
 									action,
 									false);
+					/* Revert the last_context, or mark as purged */
+					kbdev->hwaccess.backend.slot_rb[js].last_kctx_tagged =
+						kctx_idx0 ? SLOT_RB_TAG_KCTX(katom_idx0->kctx) :
+							    SLOT_RB_TAG_PURGED;
 				} else {
 					/* idx0 has already completed - stop
 					 * idx1
@@ -1753,7 +1776,8 @@ void kbase_backend_cache_clean(struct kbase_device *kbdev,
 		struct kbase_jd_atom *katom)
 {
 	if (katom->need_cache_flush_cores_retained) {
-		kbase_gpu_start_cache_clean(kbdev);
+		kbase_gpu_start_cache_clean(kbdev,
+					    GPU_COMMAND_CACHE_CLN_INV_FULL);
 		kbase_gpu_wait_cache_clean(kbdev);
 
 		katom->need_cache_flush_cores_retained = false;
@@ -1810,4 +1834,35 @@ void kbase_gpu_dump_slots(struct kbase_device *kbdev)
 	}
 
 	spin_unlock_irqrestore(&kbdev->hwaccess_lock, flags);
+}
+
+void kbase_backend_slot_kctx_purge_locked(struct kbase_device *kbdev, struct kbase_context *kctx)
+{
+	int js;
+	bool tracked = false;
+
+	lockdep_assert_held(&kbdev->hwaccess_lock);
+
+	for (js = 0; js < kbdev->gpu_props.num_job_slots; js++) {
+		u64 tagged_kctx = kbdev->hwaccess.backend.slot_rb[js].last_kctx_tagged;
+
+		if (tagged_kctx == SLOT_RB_TAG_KCTX(kctx)) {
+			/* Marking the slot kctx tracking field is purged */
+			kbdev->hwaccess.backend.slot_rb[js].last_kctx_tagged = SLOT_RB_TAG_PURGED;
+			tracked = true;
+		}
+	}
+
+	if (tracked) {
+		/* The context had run some jobs before the purge, other slots
+		 * in SLOT_RB_NULL_TAG_VAL condition needs to be marked as
+		 * purged as well.
+		 */
+		for (js = 0; js < kbdev->gpu_props.num_job_slots; js++) {
+			if (kbdev->hwaccess.backend.slot_rb[js].last_kctx_tagged ==
+			    SLOT_RB_NULL_TAG_VAL)
+				kbdev->hwaccess.backend.slot_rb[js].last_kctx_tagged =
+					SLOT_RB_TAG_PURGED;
+		}
+	}
 }

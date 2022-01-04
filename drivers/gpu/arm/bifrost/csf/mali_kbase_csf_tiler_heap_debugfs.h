@@ -34,4 +34,11 @@ struct kbase_context;
  */
 void kbase_csf_tiler_heap_debugfs_init(struct kbase_context *kctx);
 
+/**
+ * kbase_csf_tiler_heap_total_debugfs_init() - Create a debugfs entry for per context tiler heap
+ *
+ * @kctx: The kbase_context for which to create the debugfs entry
+ */
+void kbase_csf_tiler_heap_total_debugfs_init(struct kbase_context *kctx);
+
 #endif /* _KBASE_CSF_TILER_HEAP_DEBUGFS_H_ */

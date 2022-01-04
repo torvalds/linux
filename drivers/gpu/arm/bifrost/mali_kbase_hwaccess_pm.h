@@ -85,8 +85,10 @@ void kbase_hwaccess_pm_halt(struct kbase_device *kbdev);
  * Perform any backend-specific actions to suspend the GPU
  *
  * @kbdev: The kbase device structure for the device (must be a valid pointer)
+ *
+ * Return: 0 if suspend was successful.
  */
-void kbase_hwaccess_pm_suspend(struct kbase_device *kbdev);
+int kbase_hwaccess_pm_suspend(struct kbase_device *kbdev);
 
 /**
  * Perform any backend-specific actions to resume the GPU from a suspend

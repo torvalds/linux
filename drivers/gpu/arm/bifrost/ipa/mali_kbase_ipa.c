@@ -537,11 +537,26 @@ static void opp_translate_freq_voltage(struct kbase_device *kbdev,
 				       unsigned long *freqs,
 				       unsigned long *volts)
 {
+#if IS_ENABLED(CONFIG_MALI_BIFROST_NO_MALI)
+	/* An arbitrary voltage and frequency value can be chosen for testing
+	 * in no mali configuration which may not match with any OPP level.
+	 */
+	freqs[KBASE_IPA_BLOCK_TYPE_TOP_LEVEL] = nominal_freq;
+	volts[KBASE_IPA_BLOCK_TYPE_TOP_LEVEL] = nominal_voltage;
+
+	freqs[KBASE_IPA_BLOCK_TYPE_SHADER_CORES] = nominal_freq;
+	volts[KBASE_IPA_BLOCK_TYPE_SHADER_CORES] = nominal_voltage;
+#else
 	u64 core_mask;
+	unsigned int i;
 
 	kbase_devfreq_opp_translate(kbdev, nominal_freq, &core_mask,
 				    freqs, volts);
 	CSTD_UNUSED(core_mask);
+
+	/* Convert micro volts to milli volts */
+	for (i = 0; i < kbdev->nr_clocks; i++)
+		volts[i] /= 1000;
 
 	if (kbdev->nr_clocks == 1) {
 		freqs[KBASE_IPA_BLOCK_TYPE_SHADER_CORES] =
@@ -549,6 +564,7 @@ static void opp_translate_freq_voltage(struct kbase_device *kbdev,
 		volts[KBASE_IPA_BLOCK_TYPE_SHADER_CORES] =
 			volts[KBASE_IPA_BLOCK_TYPE_TOP_LEVEL];
 	}
+#endif
 }
 
 #if KERNEL_VERSION(5, 10, 0) > LINUX_VERSION_CODE

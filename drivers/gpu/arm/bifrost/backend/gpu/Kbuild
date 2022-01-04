@@ -47,3 +47,8 @@ endif
 bifrost_kbase-$(CONFIG_MALI_BIFROST_DEVFREQ) += \
     backend/gpu/mali_kbase_devfreq.o
 
+# Dummy model
+bifrost_kbase-$(CONFIG_MALI_BIFROST_NO_MALI) += backend/gpu/mali_kbase_model_dummy.o
+bifrost_kbase-$(CONFIG_MALI_BIFROST_NO_MALI) += backend/gpu/mali_kbase_model_linux.o
+# HW error simulation
+bifrost_kbase-$(CONFIG_MALI_BIFROST_NO_MALI) += backend/gpu/mali_kbase_model_error_generator.o

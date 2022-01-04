@@ -746,6 +746,7 @@ struct kbase_process {
  * @hwcnt.addr:            HW counter address
  * @hwcnt.addr_bytes:      HW counter size in bytes
  * @hwcnt.backend:         Kbase instrumentation backend
+ * @hwcnt_watchdog_timer:  Hardware counter watchdog interface.
  * @hwcnt_gpu_iface:       Backend interface for GPU hardware counter access.
  * @hwcnt_gpu_ctx:         Context for GPU hardware counter access.
  *                         @hwaccess_lock must be held when calling
@@ -774,8 +775,8 @@ struct kbase_process {
  * @cache_clean_in_progress: Set when a cache clean has been started, and
  *                         cleared when it has finished. This prevents multiple
  *                         cache cleans being done simultaneously.
- * @cache_clean_queued:    Set if a cache clean is invoked while another is in
- *                         progress. If this happens, another cache clean needs
+ * @cache_clean_queued:    Pended cache clean operations invoked while another is
+ *                         in progress. If this is not 0, another cache clean needs
  *                         to be triggered immediately after completion of the
  *                         current one.
  * @cache_clean_wait:      Signalled when a cache clean has finished.
@@ -984,6 +985,15 @@ struct kbase_device {
 	char devname[DEVNAME_SIZE];
 	u32  id;
 
+#if IS_ENABLED(CONFIG_MALI_BIFROST_NO_MALI)
+	void *model;
+	struct kmem_cache *irq_slab;
+	struct workqueue_struct *irq_workq;
+	atomic_t serving_job_irq;
+	atomic_t serving_gpu_irq;
+	atomic_t serving_mmu_irq;
+	spinlock_t reg_op_lock;
+#endif /* CONFIG_MALI_BIFROST_NO_MALI */
 	struct kbase_pm_device_data pm;
 
 	struct kbase_mem_pool_group mem_pools;
@@ -1013,6 +1023,7 @@ struct kbase_device {
 
 #if MALI_USE_CSF
 	struct kbase_hwcnt_backend_csf_if hwcnt_backend_csf_if_fw;
+	struct kbase_hwcnt_watchdog_interface hwcnt_watchdog_timer;
 #else
 	struct kbase_hwcnt {
 		spinlock_t lock;
@@ -1042,7 +1053,7 @@ struct kbase_device {
 	u64 lowest_gpu_freq_khz;
 
 	bool cache_clean_in_progress;
-	bool cache_clean_queued;
+	u32 cache_clean_queued;
 	wait_queue_head_t cache_clean_wait;
 
 	void *platform_context;
@@ -1213,6 +1224,7 @@ struct kbase_device {
 	struct priority_control_manager_device *pcm_dev;
 
 	struct notifier_block oom_notifier_block;
+
 };
 
 /**
@@ -1570,6 +1582,12 @@ struct kbase_sub_alloc {
  *                        pages used for GPU allocations, done for the context,
  *                        to the memory consumed by the process.
  * @gpu_va_end:           End address of the GPU va space (in 4KB page units)
+ * @running_total_tiler_heap_nr_chunks: Running total of number of chunks in all
+ *                        tiler heaps of the kbase context.
+ * @running_total_tiler_heap_memory: Running total of the tiler heap memory in the
+ *                        kbase context.
+ * @peak_total_tiler_heap_memory: Peak value of the total tiler heap memory in the
+ *                        kbase context.
  * @jit_va:               Indicates if a JIT_VA zone has been created.
  * @mem_profile_data:     Buffer containing the profiling information provided by
  *                        Userspace, can be read through the mem_profile debugfs file.
@@ -1596,11 +1614,6 @@ struct kbase_sub_alloc {
  * @slots_pullable:       Bitmask of slots, indicating the slots for which the
  *                        context has pullable atoms in the runnable tree.
  * @work:                 Work structure used for deferred ASID assignment.
- * @legacy_hwcnt_cli:     Pointer to the legacy userspace hardware counters
- *                        client, there can be only such client per kbase
- *                        context.
- * @legacy_hwcnt_lock:    Lock used to prevent concurrent access to
- *                        @legacy_hwcnt_cli.
  * @completed_jobs:       List containing completed atoms for which base_jd_event is
  *                        to be posted.
  * @work_count:           Number of work items, corresponding to atoms, currently
@@ -1783,6 +1796,11 @@ struct kbase_context {
 	spinlock_t         mm_update_lock;
 	struct mm_struct __rcu *process_mm;
 	u64 gpu_va_end;
+#if MALI_USE_CSF
+	u32 running_total_tiler_heap_nr_chunks;
+	u64 running_total_tiler_heap_memory;
+	u64 peak_total_tiler_heap_memory;
+#endif
 	bool jit_va;
 
 #if IS_ENABLED(CONFIG_DEBUG_FS)
@@ -1796,10 +1814,6 @@ struct kbase_context {
 	struct list_head job_fault_resume_event_list;
 
 #endif /* CONFIG_DEBUG_FS */
-
-	struct kbase_hwcnt_legacy_client *legacy_hwcnt_cli;
-	struct mutex legacy_hwcnt_lock;
-
 	struct kbase_va_region *jit_alloc[1 + BASE_JIT_ALLOC_COUNT];
 	u8 jit_max_allocations;
 	u8 jit_current_allocations;

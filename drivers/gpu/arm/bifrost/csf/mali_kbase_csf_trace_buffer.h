@@ -34,6 +34,8 @@ struct kbase_device;
 /**
  * kbase_csf_firmware_trace_buffers_init - Initialize trace buffers
  *
+ * @kbdev: Device pointer
+ *
  * Allocate resources for trace buffers. In particular:
  * - One memory page of GPU-readable, CPU-writable memory is used for
  *   the Extract variables of all trace buffers.
@@ -52,8 +54,6 @@ struct kbase_device;
  * populated with data from the firmware image parsing.
  *
  * Return: 0 if success, or an error code on failure.
- *
- * @kbdev: Device pointer
  */
 int kbase_csf_firmware_trace_buffers_init(struct kbase_device *kbdev);
 
@@ -67,6 +67,11 @@ void kbase_csf_firmware_trace_buffers_term(struct kbase_device *kbdev);
 /**
  * kbase_csf_firmware_parse_trace_buffer_entry - Process a "trace buffer" section
  *
+ * @kbdev:     Kbase device structure
+ * @entry:     Pointer to the section
+ * @size:      Size (in bytes) of the section
+ * @updatable: Indicates whether config items can be updated with FIRMWARE_CONFIG_UPDATE
+ *
  * Read a "trace buffer" section adding metadata for the related trace buffer
  * to the kbase_device:csf.firmware_trace_buffers list.
  *
@@ -74,11 +79,6 @@ void kbase_csf_firmware_trace_buffers_term(struct kbase_device *kbdev);
  * will not be initialized.
  *
  * Return: 0 if successful, negative error code on failure.
- *
- * @kbdev:     Kbase device structure
- * @entry:     Pointer to the section
- * @size:      Size (in bytes) of the section
- * @updatable: Indicates whether config items can be updated with FIRMWARE_CONFIG_UPDATE
  */
 int kbase_csf_firmware_parse_trace_buffer_entry(struct kbase_device *kbdev,
 						const u32 *entry,
@@ -86,8 +86,9 @@ int kbase_csf_firmware_parse_trace_buffer_entry(struct kbase_device *kbdev,
 						bool updatable);
 
 /**
- * kbase_csf_firmware_reload_trace_buffers_data -
- * Reload trace buffers data for firmware reboot
+ * kbase_csf_firmware_reload_trace_buffers_data - Reload trace buffers data for firmware reboot
+ *
+ * @kbdev: Device pointer
  *
  * Helper function used when rebooting the firmware to reload the initial setup
  * for all the trace buffers which have been previously parsed and initialized.
@@ -99,43 +100,39 @@ int kbase_csf_firmware_parse_trace_buffer_entry(struct kbase_device *kbdev,
  *
  * In other words, the re-initialization done by this function will be
  * equivalent but not necessarily identical to the original initialization.
- *
- * @kbdev: Device pointer
  */
 void kbase_csf_firmware_reload_trace_buffers_data(struct kbase_device *kbdev);
 
 /**
  * kbase_csf_firmware_get_trace_buffer - Get a trace buffer
  *
- * Return: handle to a trace buffer, given the name, or NULL if a trace buffer
- *         with that name couldn't be found.
- *
  * @kbdev: Device pointer
  * @name:  Name of the trace buffer to find
+ *
+ * Return: handle to a trace buffer, given the name, or NULL if a trace buffer
+ *         with that name couldn't be found.
  */
 struct firmware_trace_buffer *kbase_csf_firmware_get_trace_buffer(
 	struct kbase_device *kbdev, const char *name);
 
 /**
- * kbase_csf_firmware_trace_buffer_get_trace_enable_bits_count -
- * Get number of trace enable bits for a trace buffer
- *
- * Return: Number of trace enable bits in a trace buffer.
+ * kbase_csf_firmware_trace_buffer_get_trace_enable_bits_count - Get number of trace enable bits for a trace buffer
  *
  * @trace_buffer: Trace buffer handle
+ *
+ * Return: Number of trace enable bits in a trace buffer.
  */
 unsigned int kbase_csf_firmware_trace_buffer_get_trace_enable_bits_count(
 	const struct firmware_trace_buffer *trace_buffer);
 
 /**
- * kbase_csf_firmware_trace_buffer_update_trace_enable_bit -
- * Update a trace enable bit
- *
- * Update the value of a given trace enable bit.
+ * kbase_csf_firmware_trace_buffer_update_trace_enable_bit - Update a trace enable bit
  *
  * @trace_buffer: Trace buffer handle
  * @bit:          Bit to update
  * @value:        New value for the given bit
+ *
+ * Update the value of a given trace enable bit.
  *
  * Return: 0 if successful, negative error code on failure.
  */
@@ -146,9 +143,9 @@ int kbase_csf_firmware_trace_buffer_update_trace_enable_bit(
 /**
  * kbase_csf_firmware_trace_buffer_is_empty - Empty trace buffer predicate
  *
- * Return: True if the trace buffer is empty, or false otherwise.
- *
  * @trace_buffer: Trace buffer handle
+ *
+ * Return: True if the trace buffer is empty, or false otherwise.
  */
 bool kbase_csf_firmware_trace_buffer_is_empty(
 	const struct firmware_trace_buffer *trace_buffer);
@@ -156,14 +153,14 @@ bool kbase_csf_firmware_trace_buffer_is_empty(
 /**
  * kbase_csf_firmware_trace_buffer_read_data - Read data from a trace buffer
  *
+ * @trace_buffer: Trace buffer handle
+ * @data:         Pointer to a client-allocated where data shall be written.
+ * @num_bytes:    Maximum number of bytes to read from the trace buffer.
+ *
  * Read available data from a trace buffer. The client provides a data buffer
  * of a given size and the maximum number of bytes to read.
  *
  * Return: Number of bytes read from the trace buffer.
- *
- * @trace_buffer: Trace buffer handle
- * @data:         Pointer to a client-allocated where data shall be written.
- * @num_bytes:    Maximum number of bytes to read from the trace buffer.
  */
 unsigned int kbase_csf_firmware_trace_buffer_read_data(
 	struct firmware_trace_buffer *trace_buffer, u8 *data, unsigned int num_bytes);

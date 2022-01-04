@@ -40,8 +40,7 @@ struct kbase_tlstream;
 struct kbase_device;
 
 /**
- * struct kbase_ts_converter -
- * System timestamp to CPU timestamp converter state.
+ * struct kbase_ts_converter - System timestamp to CPU timestamp converter state.
  *
  * @multiplier:		Numerator of the converter's fraction.
  * @divisor:		Denominator of the converter's fraction.
@@ -145,8 +144,7 @@ void kbase_csf_tl_reader_term(struct kbase_csf_tl_reader *self);
 int kbase_csf_tl_reader_flush_buffer(struct kbase_csf_tl_reader *self);
 
 /**
- * kbase_csf_tl_reader_start() -
- *	Start asynchronous copying of CSFFW timeline stream.
+ * kbase_csf_tl_reader_start() - Start asynchronous copying of CSFFW timeline stream.
  *
  * @self:	CSFFW TL Reader instance.
  * @kbdev:	Kbase device.
@@ -157,8 +155,7 @@ int kbase_csf_tl_reader_start(struct kbase_csf_tl_reader *self,
 	struct kbase_device *kbdev);
 
 /**
- * kbase_csf_tl_reader_stop() -
- *	Stop asynchronous copying of CSFFW timeline stream.
+ * kbase_csf_tl_reader_stop() - Stop asynchronous copying of CSFFW timeline stream.
  *
  * @self:	CSFFW TL Reader instance.
  */
@@ -166,8 +163,7 @@ void kbase_csf_tl_reader_stop(struct kbase_csf_tl_reader *self);
 
 #if IS_ENABLED(CONFIG_DEBUG_FS)
 /**
- * kbase_csf_tl_reader_debugfs_init() -
- *	Initialize debugfs for CSFFW Timelime Stream Reader.
+ * kbase_csf_tl_reader_debugfs_init() - Initialize debugfs for CSFFW Timelime Stream Reader.
  *
  * @kbdev:	Kbase device.
  */
@@ -175,8 +171,7 @@ void kbase_csf_tl_reader_debugfs_init(struct kbase_device *kbdev);
 #endif
 
 /**
- * kbase_csf_tl_reader_reset() -
- *	Reset CSFFW timeline reader, it should be called before reset CSFFW.
+ * kbase_csf_tl_reader_reset() - Reset CSFFW timeline reader, it should be called before reset CSFFW.
  *
  * @self:	CSFFW TL Reader instance.
  */

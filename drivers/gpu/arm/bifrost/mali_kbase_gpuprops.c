@@ -371,6 +371,7 @@ static void kbase_gpuprops_calculate_props(
 	gpu_id = kbdev->gpu_props.props.raw_props.gpu_id;
 
 #if MALI_USE_CSF
+	CSTD_UNUSED(gpu_id);
 	gpu_props->thread_props.max_registers =
 		KBASE_UBFX32(gpu_props->raw_props.thread_features,
 			     0U, 22);

@@ -275,6 +275,7 @@ int kbase_device_misc_init(struct kbase_device * const kbdev)
 	if (err)
 		goto dma_set_mask_failed;
 
+
 	/* There is no limit for Mali, so set to max. We only do this if dma_parms
 	 * is already allocated by the platform.
 	 */
@@ -344,6 +345,7 @@ void kbase_device_misc_term(struct kbase_device *kbdev)
 	kbase_ktrace_term(kbdev);
 
 	kbase_device_all_as_term(kbdev);
+
 
 	if (kbdev->oom_notifier_block.notifier_call)
 		unregister_oom_notifier(&kbdev->oom_notifier_block);

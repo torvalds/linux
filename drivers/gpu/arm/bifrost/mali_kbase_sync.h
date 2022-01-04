@@ -157,21 +157,6 @@ void kbase_sync_fence_in_remove(struct kbase_jd_atom *katom);
 void kbase_sync_fence_out_remove(struct kbase_jd_atom *katom);
 #endif /* !MALI_USE_CSF */
 
-/**
- * kbase_sync_fence_close_fd() - Close a file descriptor representing a fence
- * @fd: File descriptor to close
- */
-static inline void kbase_sync_fence_close_fd(int fd)
-{
-#if KERNEL_VERSION(5, 11, 0) <= LINUX_VERSION_CODE
-	close_fd(fd);
-#elif KERNEL_VERSION(4, 17, 0) <= LINUX_VERSION_CODE
-	ksys_close(fd);
-#else
-	sys_close(fd);
-#endif
-}
-
 #if !MALI_USE_CSF
 /**
  * kbase_sync_fence_in_info_get() - Retrieves information about input fence

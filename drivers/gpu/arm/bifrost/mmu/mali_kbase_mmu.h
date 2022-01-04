@@ -30,8 +30,9 @@ struct kbase_context;
 struct kbase_mmu_table;
 
 /**
- * MMU-synchronous caller info. A pointer to this type is passed down from the outer-most callers
- * in the kbase module - where the information resides as to the synchronous / asynchronous
+ * enum kbase_caller_mmu_sync_info - MMU-synchronous caller info.
+ * A pointer to this type is passed down from the outer-most callers in the kbase
+ * module - where the information resides as to the synchronous / asynchronous
  * nature of the call flow, with respect to MMU operations. ie - does the call flow relate to
  * existing GPU work does it come from requests (like ioctl) from user-space, power management,
  * etc.

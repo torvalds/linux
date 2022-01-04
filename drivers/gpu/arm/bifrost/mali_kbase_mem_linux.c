@@ -1029,7 +1029,7 @@ int kbase_mem_do_sync_imported(struct kbase_context *kctx,
 		struct kbase_va_region *reg, enum kbase_sync_type sync_fn)
 {
 	int ret = -EINVAL;
-	struct dma_buf *dma_buf;
+	struct dma_buf __maybe_unused *dma_buf;
 	enum dma_data_direction dir = DMA_BIDIRECTIONAL;
 
 	lockdep_assert_held(&kctx->reg_lock);
@@ -3217,8 +3217,12 @@ static unsigned long get_queue_doorbell_pfn(struct kbase_device *kbdev,
 	 * assigned one, otherwise a dummy page. Always return the
 	 * dummy page in no mali builds.
 	 */
+#if IS_ENABLED(CONFIG_MALI_BIFROST_NO_MALI)
+	return PFN_DOWN(as_phys_addr_t(kbdev->csf.dummy_db_page));
+#else
 	if (queue->doorbell_nr == KBASEP_USER_DB_NR_INVALID)
 		return PFN_DOWN(as_phys_addr_t(kbdev->csf.dummy_db_page));
+#endif
 	return (PFN_DOWN(kbdev->reg_start + CSF_HW_DOORBELL_PAGE_OFFSET +
 			 (u64)queue->doorbell_nr * CSF_HW_DOORBELL_PAGE_SIZE));
 }
@@ -3464,8 +3468,12 @@ static vm_fault_t kbase_csf_user_reg_vm_fault(struct vm_fault *vmf)
 	/* Don't map in the actual register page if GPU is powered down.
 	 * Always map in the dummy page in no mali builds.
 	 */
+#if IS_ENABLED(CONFIG_MALI_BIFROST_NO_MALI)
+	pfn = PFN_DOWN(as_phys_addr_t(kbdev->csf.dummy_user_reg_page));
+#else
 	if (!kbdev->pm.backend.gpu_powered)
 		pfn = PFN_DOWN(as_phys_addr_t(kbdev->csf.dummy_user_reg_page));
+#endif
 
 	ret = mgm_dev->ops.mgm_vmf_insert_pfn_prot(mgm_dev,
 						   KBASE_MEM_GROUP_CSF_FW, vma,

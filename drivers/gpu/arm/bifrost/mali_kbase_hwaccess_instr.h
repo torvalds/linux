@@ -144,4 +144,27 @@ void kbase_instr_backend_term(struct kbase_device *kbdev);
 void kbase_instr_backend_debugfs_init(struct kbase_device *kbdev);
 #endif
 
+/**
+ * kbase_instr_hwcnt_on_unrecoverable_error() - JM HWC instr backend function
+ *                                              called when unrecoverable errors
+ *                                              are detected.
+ * @kbdev: Kbase device
+ *
+ * This should be called on encountering errors that can only be recovered from
+ * with reset, or that may put HWC logic in state that could result in hang. For
+ * example, when HW becomes unresponsive.
+ *
+ * Caller requires kbdev->hwaccess_lock held.
+ */
+void kbase_instr_hwcnt_on_unrecoverable_error(struct kbase_device *kbdev);
+
+/**
+ * kbase_instr_hwcnt_on_before_reset() - JM HWC instr backend function to be
+ *                                       called immediately before a reset.
+ *                                       Takes us out of the unrecoverable
+ *                                       error state, if we were in it.
+ * @kbdev: Kbase device
+ */
+void kbase_instr_hwcnt_on_before_reset(struct kbase_device *kbdev);
+
 #endif /* _KBASE_HWACCESS_INSTR_H_ */

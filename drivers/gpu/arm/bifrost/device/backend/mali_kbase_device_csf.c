@@ -24,11 +24,15 @@
 
 #include <mali_kbase_hwaccess_backend.h>
 #include <mali_kbase_hwcnt_backend_csf_if_fw.h>
+#include <mali_kbase_hwcnt_watchdog_if_timer.h>
 #include <mali_kbase_ctx_sched.h>
 #include <mali_kbase_reset_gpu.h>
 #include <csf/mali_kbase_csf.h>
 #include <csf/ipa_control/mali_kbase_csf_ipa_control.h>
 
+#if IS_ENABLED(CONFIG_MALI_BIFROST_NO_MALI)
+#include <backend/gpu/mali_kbase_model_linux.h>
+#endif
 
 #include <mali_kbase.h>
 #include <backend/gpu/mali_kbase_irq_internal.h>
@@ -196,9 +200,31 @@ static void kbase_csf_early_term(struct kbase_device *kbdev)
 }
 
 /**
+ * kbase_device_hwcnt_watchdog_if_init - Create hardware counter watchdog
+ *                                       interface.
+ * @kbdev:	Device pointer
+ */
+static int kbase_device_hwcnt_watchdog_if_init(struct kbase_device *kbdev)
+{
+	return kbase_hwcnt_watchdog_if_timer_create(
+		&kbdev->hwcnt_watchdog_timer);
+}
+
+/**
+ * kbase_device_hwcnt_watchdog_if_term - Terminate hardware counter watchdog
+ *                                       interface.
+ * @kbdev:	Device pointer
+ */
+static void kbase_device_hwcnt_watchdog_if_term(struct kbase_device *kbdev)
+{
+	kbase_hwcnt_watchdog_if_timer_destroy(&kbdev->hwcnt_watchdog_timer);
+}
+
+/**
  * kbase_device_hwcnt_backend_csf_if_init - Create hardware counter backend
  *                                          firmware interface.
  * @kbdev:	Device pointer
+ * Return: 0 if successful or a negative error code on failure.
  */
 static int kbase_device_hwcnt_backend_csf_if_init(struct kbase_device *kbdev)
 {
@@ -226,7 +252,7 @@ static int kbase_device_hwcnt_backend_csf_init(struct kbase_device *kbdev)
 	return kbase_hwcnt_backend_csf_create(
 		&kbdev->hwcnt_backend_csf_if_fw,
 		KBASE_HWCNT_BACKEND_CSF_RING_BUFFER_COUNT,
-		&kbdev->hwcnt_gpu_iface);
+		&kbdev->hwcnt_watchdog_timer, &kbdev->hwcnt_gpu_iface);
 }
 
 /**
@@ -239,8 +265,13 @@ static void kbase_device_hwcnt_backend_csf_term(struct kbase_device *kbdev)
 }
 
 static const struct kbase_device_init dev_init[] = {
+#if IS_ENABLED(CONFIG_MALI_BIFROST_NO_MALI)
+	{ kbase_gpu_device_create, kbase_gpu_device_destroy,
+	  "Dummy model initialization failed" },
+#else
 	{ assign_irqs, NULL, "IRQ search failed" },
 	{ registers_map, registers_unmap, "Register map failed" },
+#endif
 	{ power_control_init, power_control_term,
 	  "Power control initialization failed" },
 	{ kbase_device_io_history_init, kbase_device_io_history_term,
@@ -270,6 +301,9 @@ static const struct kbase_device_init dev_init[] = {
 	  "Clock rate trace manager initialization failed" },
 	{ kbase_lowest_gpu_freq_init, NULL,
 	  "Lowest freq initialization failed" },
+	{ kbase_device_hwcnt_watchdog_if_init,
+	  kbase_device_hwcnt_watchdog_if_term,
+	  "GPU hwcnt backend watchdog interface creation failed" },
 	{ kbase_device_hwcnt_backend_csf_if_init,
 	  kbase_device_hwcnt_backend_csf_if_term,
 	  "GPU hwcnt backend CSF interface creation failed" },
@@ -283,7 +317,6 @@ static const struct kbase_device_init dev_init[] = {
 	{ kbase_csf_early_init, kbase_csf_early_term,
 	  "Early CSF initialization failed" },
 	{ NULL, kbase_device_firmware_hwcnt_term, NULL },
-#ifdef MALI_KBASE_BUILD
 	{ kbase_device_debugfs_init, kbase_device_debugfs_term,
 	  "DebugFS initialization failed" },
 	/* Sysfs init needs to happen before registering the device with
@@ -305,7 +338,6 @@ static const struct kbase_device_init dev_init[] = {
 	  "GPU property population failed" },
 	{ kbase_device_late_init, kbase_device_late_term,
 	  "Late device initialization failed" },
-#endif
 };
 
 static void kbase_device_term_partial(struct kbase_device *kbdev,
@@ -476,3 +508,4 @@ out:
 
 	return ret;
 }
+KBASE_EXPORT_TEST_API(kbase_device_firmware_init_once);

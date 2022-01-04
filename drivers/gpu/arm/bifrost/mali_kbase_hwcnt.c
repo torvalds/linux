@@ -158,7 +158,6 @@ int kbase_hwcnt_context_init(
 
 	return 0;
 
-	destroy_workqueue(hctx->wq);
 err_alloc_workqueue:
 	kfree(hctx);
 err_alloc_hctx:

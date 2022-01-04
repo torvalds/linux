@@ -32,7 +32,7 @@
  * @file: The seq_file for printing to
  * @data: The debugfs dentry private data, a pointer to kbase_context
  *
- * Return: Negative error code or 0 on success.
+ * Return: 0 in any case.
  */
 static int kbasep_csf_tiler_heap_debugfs_show(struct seq_file *file, void *data)
 {
@@ -65,13 +65,50 @@ static int kbasep_csf_tiler_heap_debugfs_show(struct seq_file *file, void *data)
 	return 0;
 }
 
+/**
+ * kbasep_csf_tiler_heap_total_debugfs_show() - Print the total memory allocated
+ *                                              for all tiler heaps in a context.
+ *
+ * @file: The seq_file for printing to
+ * @data: The debugfs dentry private data, a pointer to kbase_context
+ *
+ * Return: 0 in any case.
+ */
+static int kbasep_csf_tiler_heap_total_debugfs_show(struct seq_file *file, void *data)
+{
+	struct kbase_context *kctx = file->private;
+
+	seq_printf(file, "MALI_CSF_TILER_HEAP_DEBUGFS_VERSION: v%u\n",
+		   MALI_CSF_TILER_HEAP_DEBUGFS_VERSION);
+	seq_printf(file, "Total number of chunks of all heaps in the context: %lu\n",
+		   (unsigned long)kctx->running_total_tiler_heap_nr_chunks);
+	seq_printf(file, "Total allocated memory of all heaps in the context: %llu\n",
+		   (unsigned long long)kctx->running_total_tiler_heap_memory);
+	seq_printf(file, "Peak allocated tiler heap memory in the context: %llu\n",
+		   (unsigned long long)kctx->peak_total_tiler_heap_memory);
+
+	return 0;
+}
+
 static int kbasep_csf_tiler_heap_debugfs_open(struct inode *in, struct file *file)
 {
 	return single_open(file, kbasep_csf_tiler_heap_debugfs_show, in->i_private);
 }
 
+static int kbasep_csf_tiler_heap_total_debugfs_open(struct inode *in, struct file *file)
+{
+	return single_open(file, kbasep_csf_tiler_heap_total_debugfs_show, in->i_private);
+}
+
 static const struct file_operations kbasep_csf_tiler_heap_debugfs_fops = {
 	.open = kbasep_csf_tiler_heap_debugfs_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
+};
+
+static const struct file_operations kbasep_csf_tiler_heap_total_debugfs_fops = {
+	.open = kbasep_csf_tiler_heap_total_debugfs_open,
 	.read = seq_read,
 	.llseek = seq_lseek,
 	.release = single_release,
@@ -93,12 +130,31 @@ void kbase_csf_tiler_heap_debugfs_init(struct kbase_context *kctx)
 	}
 }
 
+void kbase_csf_tiler_heap_total_debugfs_init(struct kbase_context *kctx)
+{
+	struct dentry *file;
+
+	if (WARN_ON(!kctx || IS_ERR_OR_NULL(kctx->kctx_dentry)))
+		return;
+
+	file = debugfs_create_file("tiler_heaps_total", 0444, kctx->kctx_dentry,
+				   kctx, &kbasep_csf_tiler_heap_total_debugfs_fops);
+
+	if (IS_ERR_OR_NULL(file)) {
+		dev_warn(kctx->kbdev->dev,
+			"Unable to create total tiler heap allocated memory debugfs entry");
+	}
+}
 
 #else
 /*
  * Stub functions for when debugfs is disabled
  */
 void kbase_csf_tiler_heap_debugfs_init(struct kbase_context *kctx)
+{
+}
+
+void kbase_csf_tiler_heap_total_debugfs_init(struct kbase_context *kctx)
 {
 }
 

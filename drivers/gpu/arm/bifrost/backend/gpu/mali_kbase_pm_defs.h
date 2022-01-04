@@ -40,6 +40,11 @@ struct kbase_jd_atom;
 /**
  * enum kbase_pm_core_type - The types of core in a GPU.
  *
+ * @KBASE_PM_CORE_L2: The L2 cache
+ * @KBASE_PM_CORE_SHADER: Shader cores
+ * @KBASE_PM_CORE_TILER: Tiler cores
+ * @KBASE_PM_CORE_STACK: Core stacks
+ *
  * These enumerated values are used in calls to
  * - kbase_pm_get_present_cores()
  * - kbase_pm_get_active_cores()
@@ -49,11 +54,6 @@ struct kbase_jd_atom;
  * They specify which type of core should be acted on.  These values are set in
  * a manner that allows core_type_to_reg() function to be simpler and more
  * efficient.
- *
- * @KBASE_PM_CORE_L2: The L2 cache
- * @KBASE_PM_CORE_SHADER: Shader cores
- * @KBASE_PM_CORE_TILER: Tiler cores
- * @KBASE_PM_CORE_STACK: Core stacks
  */
 enum kbase_pm_core_type {
 	KBASE_PM_CORE_L2 = L2_PRESENT_LO,
@@ -215,9 +215,6 @@ union kbase_pm_policy_data {
 /**
  * struct kbase_pm_backend_data - Data stored per device for power management.
  *
- * This structure contains data for the power management framework. There is one
- * instance of this structure per device in the system.
- *
  * @pm_current_policy: The policy that is currently actively controlling the
  *                     power state.
  * @pm_policy_data:    Private data for current PM policy. This is automatically
@@ -324,6 +321,10 @@ union kbase_pm_policy_data {
  * @policy_change_lock: Used to serialize the policy change calls. In CSF case,
  *                      the change of policy may involve the scheduler to
  *                      suspend running CSGs and then reconfigure the MCU.
+ * @core_idle_wq: Workqueue for executing the @core_idle_work.
+ * @core_idle_work: Work item used to wait for undesired cores to become inactive.
+ *                  The work item is enqueued when Host controls the power for
+ *                  shader cores and down scaling of cores is performed.
  * @gpu_sleep_supported: Flag to indicate that if GPU sleep feature can be
  *                       supported by the kernel driver or not. If this
  *                       flag is not set, then HW state is directly saved
@@ -388,6 +389,9 @@ union kbase_pm_policy_data {
  *                         work function, kbase_pm_gpu_clock_control_worker.
  * @gpu_clock_control_work: work item to set GPU clock during L2 power cycle
  *                          using gpu_clock_control
+ *
+ * This structure contains data for the power management framework. There is one
+ * instance of this structure per device in the system.
  *
  * Note:
  * During an IRQ, @pm_current_policy can be NULL when the policy is being
@@ -455,6 +459,8 @@ struct kbase_pm_backend_data {
 	bool policy_change_clamp_state_to_off;
 	unsigned int csf_pm_sched_flags;
 	struct mutex policy_change_lock;
+	struct workqueue_struct *core_idle_wq;
+	struct work_struct core_idle_work;
 
 #ifdef KBASE_PM_RUNTIME
 	bool gpu_sleep_supported;
@@ -547,9 +553,6 @@ enum kbase_pm_policy_event {
 /**
  * struct kbase_pm_policy - Power policy structure.
  *
- * Each power policy exposes a (static) instance of this structure which
- * contains function pointers to the policy's methods.
- *
  * @name:               The name of this policy
  * @init:               Function called when the policy is selected
  * @term:               Function called when the policy is unselected
@@ -567,6 +570,8 @@ enum kbase_pm_policy_event {
  *                  Pre-defined required flags exist for each of the
  *                  ARM released policies, such as 'always_on', 'coarse_demand'
  *                  and etc.
+ * Each power policy exposes a (static) instance of this structure which
+ * contains function pointers to the policy's methods.
  */
 struct kbase_pm_policy {
 	char *name;

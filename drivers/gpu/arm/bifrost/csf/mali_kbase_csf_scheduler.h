@@ -23,6 +23,7 @@
 #define _KBASE_CSF_SCHEDULER_H_
 
 #include "mali_kbase_csf.h"
+#include "mali_kbase_csf_event.h"
 
 /**
  * kbase_csf_scheduler_queue_start() - Enable the running of GPU command queue
@@ -250,13 +251,13 @@ void kbase_csf_scheduler_enable_tick_timer(struct kbase_device *kbdev);
  * kbase_csf_scheduler_group_copy_suspend_buf - Suspend a queue
  *		group and copy suspend buffer.
  *
- * This function is called to suspend a queue group and copy the suspend_buffer
- * contents to the input buffer provided.
- *
  * @group:	Pointer to the queue group to be suspended.
  * @sus_buf:	Pointer to the structure which contains details of the
  *		user buffer and its kernel pinned pages to which we need to copy
  *		the group suspend buffer.
+ *
+ * This function is called to suspend a queue group and copy the suspend_buffer
+ * contents to the input buffer provided.
  *
  * Return:	0 on success, or negative on failure.
  */
@@ -425,8 +426,10 @@ void kbase_csf_scheduler_pm_resume(struct kbase_device *kbdev);
  *
  * This function will make the scheduler suspend all the running queue groups
  * and drop its power managemenet reference.
+ *
+ * Return: 0 on success.
  */
-void kbase_csf_scheduler_pm_suspend(struct kbase_device *kbdev);
+int kbase_csf_scheduler_pm_suspend(struct kbase_device *kbdev);
 
 /**
  * kbase_csf_scheduler_all_csgs_idle() - Check if the scheduler internal

@@ -27,5 +27,23 @@ config MALI_XEN
 	  virtualization setup for Mali
 	  If unsure, say N.
 
+config MALI_ARBITER_MODULES
+	tristate "Enable mali arbiter modules"
+	depends on MALI_ARBITRATION
+	default y
+	help
+	  Enables the build of the arbiter modules used in the reference
+	  virtualization setup for Mali
+	  If unsure, say N
+
+config MALI_GPU_POWER_MODULES
+	tristate "Enable gpu power modules"
+	depends on MALI_ARBITRATION
+	default y
+	help
+	  Enables the build of the gpu power modules used in the reference
+	  virtualization setup for Mali
+	  If unsure, say N
+
 
 source "drivers/gpu/arm/bifrost/arbitration/ptm/Kconfig"

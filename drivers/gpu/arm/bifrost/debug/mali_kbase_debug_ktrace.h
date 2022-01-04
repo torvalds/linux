@@ -49,6 +49,7 @@
 /**
  * kbase_ktrace_init - initialize kbase ktrace.
  * @kbdev: kbase device
+ * Return: 0 if successful or a negative error code on failure.
  */
 int kbase_ktrace_init(struct kbase_device *kbdev);
 

@@ -38,12 +38,6 @@
 /**
  * struct firmware_trace_buffer - Trace Buffer within the MCU firmware
  *
- * The firmware relays information to the host by writing on memory buffers
- * which are allocated and partially configured by the host. These buffers
- * are called Trace Buffers: each of them has a specific purpose and is
- * identified by a name and a set of memory addresses where the host can
- * set pointers to host-allocated structures.
- *
  * @kbdev:        Pointer to the Kbase device.
  * @node:         List head linking all trace buffers to
  *                kbase_device:csf.firmware_trace_buffers
@@ -73,6 +67,12 @@
  * @num_pages: Size of the data buffer, in pages.
  * @trace_enable_init_mask: Initial value for the trace enable bit mask.
  * @name:  NULL terminated string which contains the name of the trace buffer.
+ *
+ * The firmware relays information to the host by writing on memory buffers
+ * which are allocated and partially configured by the host. These buffers
+ * are called Trace Buffers: each of them has a specific purpose and is
+ * identified by a name and a set of memory addresses where the host can
+ * set pointers to host-allocated structures.
  */
 struct firmware_trace_buffer {
 	struct kbase_device *kbdev;
@@ -100,14 +100,14 @@ struct firmware_trace_buffer {
 /**
  * struct firmware_trace_buffer_data - Configuration data for trace buffers
  *
- * Describe how to set up a trace buffer interface.
- * Trace buffers are identified by name and they require a data buffer and
- * an initial mask of values for the trace enable bits.
- *
  * @name: Name identifier of the trace buffer
  * @trace_enable_init_mask: Initial value to assign to the trace enable bits
  * @size: Size of the data buffer to allocate for the trace buffer, in pages.
  *        The size of a data buffer must always be a power of 2.
+ *
+ * Describe how to set up a trace buffer interface.
+ * Trace buffers are identified by name and they require a data buffer and
+ * an initial mask of values for the trace enable bits.
  */
 struct firmware_trace_buffer_data {
 	char name[64];
@@ -121,14 +121,13 @@ struct firmware_trace_buffer_data {
  * This table contains the configuration data for the trace buffers that are
  * expected to be parsed from the firmware.
  */
-static const struct firmware_trace_buffer_data
-trace_buffer_data[] = {
-#ifndef MALI_KBASE_BUILD
-	{ "fwutf", {0}, 1 },
+static const struct firmware_trace_buffer_data trace_buffer_data[] = {
+#if MALI_UNIT_TEST
+	{ "fwutf", { 0 }, 1 },
 #endif
-	{ FW_TRACE_BUF_NAME, {0}, 4 },
-	{ "benchmark", {0}, 2 },
-	{ "timeline",  {0}, KBASE_CSF_TL_BUFFER_NR_PAGES },
+	{ FW_TRACE_BUF_NAME, { 0 }, 4 },
+	{ "benchmark", { 0 }, 2 },
+	{ "timeline", { 0 }, KBASE_CSF_TL_BUFFER_NR_PAGES },
 };
 
 int kbase_csf_firmware_trace_buffers_init(struct kbase_device *kbdev)

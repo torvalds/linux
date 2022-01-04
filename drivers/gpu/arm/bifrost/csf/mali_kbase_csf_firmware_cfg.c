@@ -29,10 +29,6 @@
 /**
  * struct firmware_config - Configuration item within the MCU firmware
  *
- * The firmware may expose configuration options. Each option has a name, the
- * address where the option is controlled and the minimum and maximum values
- * that the option can take.
- *
  * @node:        List head linking all options to
  *               kbase_device:csf.firmware_config
  * @kbdev:       Pointer to the Kbase device
@@ -47,6 +43,10 @@
  * @min:         The lowest legal value of the configuration option
  * @max:         The maximum legal value of the configuration option
  * @cur_val:     The current value of the configuration option
+ *
+ * The firmware may expose configuration options. Each option has a name, the
+ * address where the option is controlled and the minimum and maximum values
+ * that the option can take.
  */
 struct firmware_config {
 	struct list_head node;

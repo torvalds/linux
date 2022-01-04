@@ -171,34 +171,6 @@ struct kbase_ioctl_hwcnt_reader_setup {
 	_IOW(KBASE_IOCTL_TYPE, 8, struct kbase_ioctl_hwcnt_reader_setup)
 
 /**
- * struct kbase_ioctl_hwcnt_enable - Enable hardware counter collection
- * @dump_buffer:  GPU address to write counters to
- * @fe_bm:        counters selection bitmask (Front end)
- * @shader_bm:    counters selection bitmask (Shader)
- * @tiler_bm:     counters selection bitmask (Tiler)
- * @mmu_l2_bm:    counters selection bitmask (MMU_L2)
- */
-struct kbase_ioctl_hwcnt_enable {
-	__u64 dump_buffer;
-	__u32 fe_bm;
-	__u32 shader_bm;
-	__u32 tiler_bm;
-	__u32 mmu_l2_bm;
-};
-
-/* This IOCTL is deprecated as of R33, and will be removed in R35. */
-#define KBASE_IOCTL_HWCNT_ENABLE \
-	_IOW(KBASE_IOCTL_TYPE, 9, struct kbase_ioctl_hwcnt_enable)
-
-/* This IOCTL is deprecated as of R33, and will be removed in R35. */
-#define KBASE_IOCTL_HWCNT_DUMP \
-	_IO(KBASE_IOCTL_TYPE, 10)
-
-/* This IOCTL is deprecated as of R33, and will be removed in R35. */
-#define KBASE_IOCTL_HWCNT_CLEAR \
-	_IO(KBASE_IOCTL_TYPE, 11)
-
-/**
  * struct kbase_ioctl_hwcnt_values - Values to set dummy the dummy counters to.
  * @data:    Counter samples for the dummy model.
  * @size:    Size of the counter sample data.

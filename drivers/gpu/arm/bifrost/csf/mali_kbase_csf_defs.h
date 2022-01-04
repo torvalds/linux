@@ -30,6 +30,7 @@
 #include <linux/wait.h>
 
 #include "mali_kbase_csf_firmware.h"
+#include "mali_kbase_csf_event.h"
 
 /* Maximum number of KCPU command queues to be created per GPU address space.
  */
@@ -331,6 +332,7 @@ struct kbase_csf_notification {
  *                    queue.
  * @cs_fatal_info:    Records additional information about the CS fatal event.
  * @cs_fatal:         Records information about the CS fatal event.
+ * @pending:          Indicating whether the queue has new submitted work.
  */
 struct kbase_queue {
 	struct kbase_context *kctx;
@@ -364,6 +366,7 @@ struct kbase_queue {
 	struct work_struct fatal_event_work;
 	u64 cs_fatal_info;
 	u32 cs_fatal;
+	atomic_t pending;
 };
 
 /**
@@ -487,6 +490,7 @@ struct kbase_queue_group {
 	struct kbase_csf_notification error_tiler_oom;
 
 	struct work_struct timer_event_work;
+
 };
 
 /**
@@ -538,10 +542,6 @@ struct kbase_csf_cpu_queue_context {
 /**
  * struct kbase_csf_heap_context_allocator - Allocator of heap contexts
  *
- * Heap context structures are allocated by the kernel for use by the firmware.
- * The current implementation subdivides a single GPU memory region for use as
- * a sparse array.
- *
  * @kctx:     Pointer to the kbase context with which this allocator is
  *            associated.
  * @region:   Pointer to a GPU memory region from which heap context structures
@@ -552,6 +552,10 @@ struct kbase_csf_cpu_queue_context {
  * @lock:     Lock preventing concurrent access to the @in_use bitmap.
  * @in_use:   Bitmap that indicates which heap context structures are currently
  *            allocated (in @region).
+ *
+ * Heap context structures are allocated by the kernel for use by the firmware.
+ * The current implementation subdivides a single GPU memory region for use as
+ * a sparse array.
  */
 struct kbase_csf_heap_context_allocator {
 	struct kbase_context *kctx;
@@ -565,10 +569,6 @@ struct kbase_csf_heap_context_allocator {
  * struct kbase_csf_tiler_heap_context - Object representing the tiler heaps
  *                                       context for a GPU address space.
  *
- * This contains all of the CSF state relating to chunked tiler heaps for one
- * @kbase_context. It is not the same as a heap context structure allocated by
- * the kernel for use by the firmware.
- *
  * @lock:        Lock to prevent the concurrent access to tiler heaps (after the
  *               initialization), a tiler heap can be terminated whilst an OoM
  *               event is being handled for it.
@@ -576,6 +576,10 @@ struct kbase_csf_heap_context_allocator {
  * @ctx_alloc:   Allocator for heap context structures.
  * @nr_of_heaps: Total number of tiler heaps that were added during the
  *               life time of the context.
+ *
+ * This contains all of the CSF state relating to chunked tiler heaps for one
+ * @kbase_context. It is not the same as a heap context structure allocated by
+ * the kernel for use by the firmware.
  */
 struct kbase_csf_tiler_heap_context {
 	struct mutex lock;
@@ -617,6 +621,43 @@ struct kbase_csf_scheduler_context {
 };
 
 /**
+ * enum kbase_csf_event_callback_action - return type for CSF event callbacks.
+ *
+ * @KBASE_CSF_EVENT_CALLBACK_FIRST: Never set explicitly.
+ * It doesn't correspond to any action or type of event callback.
+ *
+ * @KBASE_CSF_EVENT_CALLBACK_KEEP: The callback will remain registered.
+ *
+ * @KBASE_CSF_EVENT_CALLBACK_REMOVE: The callback will be removed
+ * immediately upon return.
+ *
+ * @KBASE_CSF_EVENT_CALLBACK_LAST: Never set explicitly.
+ * It doesn't correspond to any action or type of event callback.
+ */
+enum kbase_csf_event_callback_action {
+	KBASE_CSF_EVENT_CALLBACK_FIRST = 0,
+	KBASE_CSF_EVENT_CALLBACK_KEEP,
+	KBASE_CSF_EVENT_CALLBACK_REMOVE,
+	KBASE_CSF_EVENT_CALLBACK_LAST,
+};
+
+/**
+ * struct kbase_csf_event - Object representing CSF event and error
+ *
+ * @callback_list:	List of callbacks which are registered to serve CSF
+ *			events.
+ * @error_list:		List for CS fatal errors in CSF context.
+ *			Link of fatal error is &struct_kbase_csf_notification.link.
+ * @lock:		Lock protecting access to @callback_list and
+ *			@error_list.
+ */
+struct kbase_csf_event {
+	struct list_head callback_list;
+	struct list_head error_list;
+	spinlock_t lock;
+};
+
+/**
  * struct kbase_csf_context - Object representing CSF for a GPU address space.
  *
  * @event_pages_head: A list of pages allocated for the event memory used by
@@ -647,10 +688,7 @@ struct kbase_csf_scheduler_context {
  *                    userspace mapping created for them on bind operation
  *                    hasn't been removed.
  * @kcpu_queues:      Kernel CPU command queues.
- * @event_lock:       Lock protecting access to @event_callback_list and
- *                    @error_list.
- * @event_callback_list: List of callbacks which are registered to serve CSF
- *                       events.
+ * @event:            CSF event object.
  * @tiler_heaps:      Chunked tiler memory heaps.
  * @wq:               Dedicated workqueue to process work items corresponding
  *                    to the OoM events raised for chunked tiler heaps being
@@ -661,10 +699,7 @@ struct kbase_csf_scheduler_context {
  *                    of the USER register page. Currently used only for sanity
  *                    checking.
  * @sched:            Object representing the scheduler's context
- * @error_list:       List for CS fatal errors in this context.
- *                    Link of fatal error is
- *                    &struct_kbase_csf_notification.link.
- *                    @event_lock needs to be held to access this list.
+ * @pending_submission_work: Work item to process pending kicked GPU command queues.
  * @cpu_queue:        CPU queue information. Only be available when DEBUG_FS
  *                    is enabled.
  */
@@ -677,14 +712,13 @@ struct kbase_csf_context {
 	struct kbase_queue_group *queue_groups[MAX_QUEUE_GROUP_NUM];
 	struct list_head queue_list;
 	struct kbase_csf_kcpu_queue_context kcpu_queues;
-	spinlock_t event_lock;
-	struct list_head event_callback_list;
+	struct kbase_csf_event event;
 	struct kbase_csf_tiler_heap_context tiler_heaps;
 	struct workqueue_struct *wq;
 	struct list_head link;
 	struct vm_area_struct *user_reg_vma;
 	struct kbase_csf_scheduler_context sched;
-	struct list_head error_list;
+	struct work_struct pending_submission_work;
 #if IS_ENABLED(CONFIG_DEBUG_FS)
 	struct kbase_csf_cpu_queue_context cpu_queue;
 #endif
@@ -882,12 +916,12 @@ struct kbase_csf_scheduler {
 	bool tick_timer_active;
 };
 
-/**
+/*
  * Number of GPU cycles per unit of the global progress timeout.
  */
 #define GLB_PROGRESS_TIMER_TIMEOUT_SCALE ((u64)1024)
 
-/**
+/*
  * Maximum value of the global progress timeout.
  */
 #define GLB_PROGRESS_TIMER_TIMEOUT_MAX \
@@ -895,12 +929,12 @@ struct kbase_csf_scheduler {
 		GLB_PROGRESS_TIMER_TIMEOUT_SHIFT) * \
 	GLB_PROGRESS_TIMER_TIMEOUT_SCALE)
 
-/**
+/*
  * Default GLB_PWROFF_TIMER_TIMEOUT value in unit of micro-seconds.
  */
 #define DEFAULT_GLB_PWROFF_TIMEOUT_US (800)
 
-/**
+/*
  * In typical operations, the management of the shader core power transitions
  * is delegated to the MCU/firmware. However, if the host driver is configured
  * to take direct control, one needs to disable the MCU firmware GLB_PWROFF
@@ -911,7 +945,7 @@ struct kbase_csf_scheduler {
 /* Index of the GPU_ACTIVE counter within the CSHW counter block */
 #define GPU_ACTIVE_CNT_IDX (4)
 
-/**
+/*
  * Maximum number of sessions that can be managed by the IPA Control component.
  */
 #if MALI_UNIT_TEST
@@ -937,13 +971,13 @@ enum kbase_ipa_core_type {
 	KBASE_IPA_CORE_TYPE_NUM
 };
 
-/**
+/*
  * Number of configurable counters per type of block on the IPA Control
  * interface.
  */
 #define KBASE_IPA_CONTROL_NUM_BLOCK_COUNTERS ((size_t)8)
 
-/**
+/*
  * Total number of configurable counters existing on the IPA Control interface.
  */
 #define KBASE_IPA_CONTROL_MAX_COUNTERS                                         \

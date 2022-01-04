@@ -63,6 +63,8 @@ void kbasep_ktrace_backend_format_msg(struct kbase_ktrace_msg *trace_msg,
  * @ktrace: kbase device's ktrace
  *
  * This may also empty the oldest entry in the ringbuffer to make space.
+ *
+ * Return: ktrace message
  */
 struct kbase_ktrace_msg *kbasep_ktrace_reserve(struct kbase_ktrace *ktrace);
 

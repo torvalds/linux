@@ -175,6 +175,7 @@
 /* Possible values of JS_CONFIG and JS_CONFIG_NEXT registers */
 #define JS_CONFIG_START_FLUSH_NO_ACTION        (0u << 0)
 #define JS_CONFIG_START_FLUSH_CLEAN            (1u << 8)
+#define JS_CONFIG_START_FLUSH_INV_SHADER_OTHER (2u << 8)
 #define JS_CONFIG_START_FLUSH_CLEAN_INVALIDATE (3u << 8)
 #define JS_CONFIG_START_MMU                    (1u << 10)
 #define JS_CONFIG_JOB_CHAIN_FLAG               (1u << 11)
@@ -264,6 +265,11 @@
 /* GPU_COMMAND cache flush alias to CSF command payload */
 #define GPU_COMMAND_CACHE_CLN_INV_L2 GPU_COMMAND_CLEAN_INV_CACHES
 #define GPU_COMMAND_CACHE_CLN_INV_L2_LSC GPU_COMMAND_CLEAN_INV_CACHES
+#define GPU_COMMAND_CACHE_CLN_INV_FULL GPU_COMMAND_CLEAN_INV_CACHES
+
+/* Merge cache flush commands */
+#define GPU_COMMAND_FLUSH_CACHE_MERGE(cmd1, cmd2)                              \
+	((cmd1) > (cmd2) ? (cmd1) : (cmd2))
 
 /* IRQ flags */
 #define GPU_FAULT               (1 << 0)    /* A GPU Fault has occurred */

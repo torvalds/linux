@@ -52,10 +52,8 @@
 /**
  * struct kbasep_pm_policy_coarse_demand - Private structure for coarse demand
  *                                         policy
- *
- * This contains data that is private to the coarse demand power policy.
- *
  * @dummy: Dummy member - no state needed
+ * This contains data that is private to the coarse demand power policy.
  */
 struct kbasep_pm_policy_coarse_demand {
 	int dummy;

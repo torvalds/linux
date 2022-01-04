@@ -29,9 +29,9 @@
 /**
  * kbase_pm_ca_init - Initialize core availability framework
  *
- * Must be called before calling any other core availability function
- *
  * @kbdev: The kbase device structure for the device (must be a valid pointer)
+ *
+ * Must be called before calling any other core availability function
  *
  * Return: 0 if the core availability framework was successfully initialized,
  *         -errno otherwise

@@ -250,6 +250,17 @@
 		 GPU_COMMAND_FLUSH_PAYLOAD_LSC_CLEAN_INVALIDATE |              \
 		 GPU_COMMAND_FLUSH_PAYLOAD_OTHER_NONE))
 
+/* Clean and invalidate L2, LSC, and Other caches */
+#define GPU_COMMAND_CACHE_CLN_INV_FULL                                         \
+	GPU_COMMAND_CODE_PAYLOAD(                                              \
+		GPU_COMMAND_CODE_FLUSH_CACHES,                                 \
+		(GPU_COMMAND_FLUSH_PAYLOAD_L2_CLEAN_INVALIDATE |               \
+		 GPU_COMMAND_FLUSH_PAYLOAD_LSC_CLEAN_INVALIDATE |              \
+		 GPU_COMMAND_FLUSH_PAYLOAD_OTHER_INVALIDATE))
+
+/* Merge cache flush commands */
+#define GPU_COMMAND_FLUSH_CACHE_MERGE(cmd1, cmd2) ((cmd1) | (cmd2))
+
 /* Places the GPU in protected mode */
 #define GPU_COMMAND_SET_PROTECTED_MODE \
 	GPU_COMMAND_CODE_PAYLOAD(GPU_COMMAND_CODE_SET_PROTECTED_MODE, 0)
