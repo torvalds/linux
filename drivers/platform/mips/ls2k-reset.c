@@ -38,6 +38,7 @@ static int ls2k_reset_init(void)
 	}
 
 	base = of_iomap(np, 0);
+	of_node_put(np);
 	if (!base) {
 		pr_info("Failed to map PM register base address\n");
 		return -ENOMEM;
@@ -46,7 +47,6 @@ static int ls2k_reset_init(void)
 	_machine_restart = ls2k_restart;
 	pm_power_off = ls2k_poweroff;
 
-	of_node_put(np);
 	return 0;
 }
 
