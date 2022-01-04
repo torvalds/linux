@@ -6,15 +6,17 @@
 #include "subvolume.h"
 #include "super-io.h"
 
-static const char *bch2_sb_validate_quota(struct bch_sb *sb,
-					  struct bch_sb_field *f)
+static int bch2_sb_validate_quota(struct bch_sb *sb, struct bch_sb_field *f,
+				  struct printbuf *err)
 {
 	struct bch_sb_field_quota *q = field_to_type(f, quota);
 
-	if (vstruct_bytes(&q->field) != sizeof(*q))
-		return "invalid field quota: wrong size";
+	if (vstruct_bytes(&q->field) < sizeof(*q)) {
+		pr_buf(err, "wrong size (got %llu should be %zu)",
+		       vstruct_bytes(&q->field), sizeof(*q));
+	}
 
-	return NULL;
+	return 0;
 }
 
 const struct bch_sb_field_ops bch_sb_field_ops_quota = {

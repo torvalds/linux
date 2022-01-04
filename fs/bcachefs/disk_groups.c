@@ -17,24 +17,20 @@ static int group_cmp(const void *_l, const void *_r)
 		strncmp(l->label, r->label, sizeof(l->label));
 }
 
-static const char *bch2_sb_disk_groups_validate(struct bch_sb *sb,
-						struct bch_sb_field *f)
+static int bch2_sb_disk_groups_validate(struct bch_sb *sb,
+					struct bch_sb_field *f,
+					struct printbuf *err)
 {
 	struct bch_sb_field_disk_groups *groups =
 		field_to_type(f, disk_groups);
 	struct bch_disk_group *g, *sorted = NULL;
-	struct bch_sb_field_members *mi;
-	struct bch_member *m;
-	unsigned i, nr_groups, len;
-	const char *err = NULL;
+	struct bch_sb_field_members *mi = bch2_sb_get_members(sb);
+	unsigned nr_groups = disk_groups_nr(groups);
+	unsigned i, len;
+	int ret = -EINVAL;
 
-	mi		= bch2_sb_get_members(sb);
-	groups		= bch2_sb_get_disk_groups(sb);
-	nr_groups	= disk_groups_nr(groups);
-
-	for (m = mi->members;
-	     m < mi->members + sb->nr_devices;
-	     m++) {
+	for (i = 0; i < sb->nr_devices; i++) {
+		struct bch_member *m = mi->members + i;
 		unsigned g;
 
 		if (!BCH_MEMBER_GROUP(m))
@@ -42,45 +38,53 @@ static const char *bch2_sb_disk_groups_validate(struct bch_sb *sb,
 
 		g = BCH_MEMBER_GROUP(m) - 1;
 
-		if (g >= nr_groups ||
-		    BCH_GROUP_DELETED(&groups->entries[g]))
-			return "disk has invalid group";
+		if (g >= nr_groups) {
+			pr_buf(err, "disk %u has invalid label %u (have %u)",
+			       i, g, nr_groups);
+			return -EINVAL;
+		}
+
+		if (BCH_GROUP_DELETED(&groups->entries[g])) {
+			pr_buf(err, "disk %u has deleted label %u", i, g);
+			return -EINVAL;
+		}
 	}
 
 	if (!nr_groups)
-		return NULL;
+		return 0;
 
-	for (g = groups->entries;
-	     g < groups->entries + nr_groups;
-	     g++) {
+	for (i = 0; i < nr_groups; i++) {
+		g = groups->entries + i;
+
 		if (BCH_GROUP_DELETED(g))
 			continue;
 
 		len = strnlen(g->label, sizeof(g->label));
 		if (!len) {
-			err = "group with empty label";
-			goto err;
+			pr_buf(err, "label %u empty", i);
+			return -EINVAL;
 		}
 	}
 
 	sorted = kmalloc_array(nr_groups, sizeof(*sorted), GFP_KERNEL);
 	if (!sorted)
-		return "cannot allocate memory";
+		return -ENOMEM;
 
 	memcpy(sorted, groups->entries, nr_groups * sizeof(*sorted));
 	sort(sorted, nr_groups, sizeof(*sorted), group_cmp, NULL);
 
-	for (i = 0; i + 1 < nr_groups; i++)
-		if (!BCH_GROUP_DELETED(sorted + i) &&
-		    !group_cmp(sorted + i, sorted + i + 1)) {
-			err = "duplicate groups";
+	for (g = sorted; g + 1 < sorted + nr_groups; g++)
+		if (!BCH_GROUP_DELETED(g) &&
+		    !group_cmp(&g[0], &g[1])) {
+			pr_buf(err, "duplicate label %llu.", BCH_GROUP_PARENT(g));
+			bch_scnmemcpy(err, g->label, strnlen(g->label, sizeof(g->label)));
 			goto err;
 		}
 
-	err = NULL;
+	ret = 0;
 err:
 	kfree(sorted);
-	return err;
+	return 0;
 }
 
 static void bch2_sb_disk_groups_to_text(struct printbuf *out,

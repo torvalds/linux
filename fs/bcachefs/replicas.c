@@ -41,18 +41,19 @@ void bch2_replicas_entry_to_text(struct printbuf *out,
 {
 	unsigned i;
 
-	pr_buf(out, "%s: %u/%u [",
-	       bch2_data_types[e->data_type],
-	       e->nr_required,
-	       e->nr_devs);
+	if (e->data_type < BCH_DATA_NR)
+		pr_buf(out, "%s", bch2_data_types[e->data_type]);
+	else
+		pr_buf(out, "(invalid data type %u)", e->data_type);
 
+	pr_buf(out, ": %u/%u [", e->nr_required, e->nr_devs);
 	for (i = 0; i < e->nr_devs; i++)
 		pr_buf(out, i ? " %u" : "%u", e->devs[i]);
 	pr_buf(out, "]");
 }
 
 void bch2_cpu_replicas_to_text(struct printbuf *out,
-			      struct bch_replicas_cpu *r)
+			       struct bch_replicas_cpu *r)
 {
 	struct bch_replicas_entry *e;
 	bool first = true;
@@ -815,67 +816,78 @@ static int bch2_cpu_replicas_to_sb_replicas(struct bch_fs *c,
 	return 0;
 }
 
-static const char *check_dup_replicas_entries(struct bch_replicas_cpu *cpu_r)
+static int bch2_cpu_replicas_validate(struct bch_replicas_cpu *cpu_r,
+				      struct bch_sb *sb,
+				      struct printbuf *err)
 {
-	unsigned i;
+	struct bch_sb_field_members *mi = bch2_sb_get_members(sb);
+	unsigned i, j;
 
 	sort_cmp_size(cpu_r->entries,
 		      cpu_r->nr,
 		      cpu_r->entry_size,
 		      memcmp, NULL);
 
-	for (i = 0; i + 1 < cpu_r->nr; i++) {
-		struct bch_replicas_entry *l =
+	for (i = 0; i < cpu_r->nr; i++) {
+		struct bch_replicas_entry *e =
 			cpu_replicas_entry(cpu_r, i);
-		struct bch_replicas_entry *r =
-			cpu_replicas_entry(cpu_r, i + 1);
 
-		BUG_ON(memcmp(l, r, cpu_r->entry_size) > 0);
+		if (e->data_type >= BCH_DATA_NR) {
+			pr_buf(err, "invalid data type in entry ");
+			bch2_replicas_entry_to_text(err, e);
+			return -EINVAL;
+		}
 
-		if (!memcmp(l, r, cpu_r->entry_size))
-			return "duplicate replicas entry";
+		if (!e->nr_devs) {
+			pr_buf(err, "no devices in entry ");
+			bch2_replicas_entry_to_text(err, e);
+			return -EINVAL;
+		}
+
+		if (e->nr_required > 1 &&
+		    e->nr_required >= e->nr_devs) {
+			pr_buf(err, "bad nr_required in entry ");
+			bch2_replicas_entry_to_text(err, e);
+			return -EINVAL;
+		}
+
+		for (j = 0; j < e->nr_devs; j++)
+			if (!bch2_dev_exists(sb, mi, e->devs[j])) {
+				pr_buf(err, "invalid device %u in entry ", e->devs[j]);
+				bch2_replicas_entry_to_text(err, e);
+				return -EINVAL;
+			}
+
+		if (i + 1 < cpu_r->nr) {
+			struct bch_replicas_entry *n =
+				cpu_replicas_entry(cpu_r, i + 1);
+
+			BUG_ON(memcmp(e, n, cpu_r->entry_size) > 0);
+
+			if (!memcmp(e, n, cpu_r->entry_size)) {
+				pr_buf(err, "duplicate replicas entry ");
+				bch2_replicas_entry_to_text(err, e);
+				return -EINVAL;
+			}
+		}
 	}
 
-	return NULL;
+	return 0;
 }
 
-static const char *bch2_sb_validate_replicas(struct bch_sb *sb, struct bch_sb_field *f)
+static int bch2_sb_validate_replicas(struct bch_sb *sb, struct bch_sb_field *f,
+				     struct printbuf *err)
 {
 	struct bch_sb_field_replicas *sb_r = field_to_type(f, replicas);
-	struct bch_sb_field_members *mi = bch2_sb_get_members(sb);
-	struct bch_replicas_cpu cpu_r = { .entries = NULL };
-	struct bch_replicas_entry *e;
-	const char *err;
-	unsigned i;
+	struct bch_replicas_cpu cpu_r;
+	int ret;
 
-	for_each_replicas_entry(sb_r, e) {
-		err = "invalid replicas entry: invalid data type";
-		if (e->data_type >= BCH_DATA_NR)
-			goto err;
-
-		err = "invalid replicas entry: no devices";
-		if (!e->nr_devs)
-			goto err;
-
-		err = "invalid replicas entry: bad nr_required";
-		if (e->nr_required > 1 &&
-		    e->nr_required >= e->nr_devs)
-			goto err;
-
-		err = "invalid replicas entry: invalid device";
-		for (i = 0; i < e->nr_devs; i++)
-			if (!bch2_dev_exists(sb, mi, e->devs[i]))
-				goto err;
-	}
-
-	err = "cannot allocate memory";
 	if (__bch2_sb_replicas_to_cpu_replicas(sb_r, &cpu_r))
-		goto err;
+		return -ENOMEM;
 
-	err = check_dup_replicas_entries(&cpu_r);
-err:
+	ret = bch2_cpu_replicas_validate(&cpu_r, sb, err);
 	kfree(cpu_r.entries);
-	return err;
+	return ret;
 }
 
 static void bch2_sb_replicas_to_text(struct printbuf *out,
@@ -900,38 +912,19 @@ const struct bch_sb_field_ops bch_sb_field_ops_replicas = {
 	.to_text	= bch2_sb_replicas_to_text,
 };
 
-static const char *bch2_sb_validate_replicas_v0(struct bch_sb *sb, struct bch_sb_field *f)
+static int bch2_sb_validate_replicas_v0(struct bch_sb *sb, struct bch_sb_field *f,
+					struct printbuf *err)
 {
 	struct bch_sb_field_replicas_v0 *sb_r = field_to_type(f, replicas_v0);
-	struct bch_sb_field_members *mi = bch2_sb_get_members(sb);
-	struct bch_replicas_cpu cpu_r = { .entries = NULL };
-	struct bch_replicas_entry_v0 *e;
-	const char *err;
-	unsigned i;
+	struct bch_replicas_cpu cpu_r;
+	int ret;
 
-	for_each_replicas_entry_v0(sb_r, e) {
-		err = "invalid replicas entry: invalid data type";
-		if (e->data_type >= BCH_DATA_NR)
-			goto err;
-
-		err = "invalid replicas entry: no devices";
-		if (!e->nr_devs)
-			goto err;
-
-		err = "invalid replicas entry: invalid device";
-		for (i = 0; i < e->nr_devs; i++)
-			if (!bch2_dev_exists(sb, mi, e->devs[i]))
-				goto err;
-	}
-
-	err = "cannot allocate memory";
 	if (__bch2_sb_replicas_v0_to_cpu_replicas(sb_r, &cpu_r))
-		goto err;
+		return -ENOMEM;
 
-	err = check_dup_replicas_entries(&cpu_r);
-err:
+	ret = bch2_cpu_replicas_validate(&cpu_r, sb, err);
 	kfree(cpu_r.entries);
-	return err;
+	return ret;
 }
 
 const struct bch_sb_field_ops bch_sb_field_ops_replicas_v0 = {

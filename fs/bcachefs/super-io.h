@@ -38,9 +38,8 @@ BCH_SB_FIELDS()
 extern const char * const bch2_sb_fields[];
 
 struct bch_sb_field_ops {
-	const char *	(*validate)(struct bch_sb *, struct bch_sb_field *);
-	void		(*to_text)(struct printbuf *, struct bch_sb *,
-				   struct bch_sb_field *);
+	int	(*validate)(struct bch_sb *, struct bch_sb_field *, struct printbuf *);
+	void	(*to_text)(struct printbuf *, struct bch_sb *, struct bch_sb_field *);
 };
 
 static inline __le64 bch2_sb_magic(struct bch_fs *c)
@@ -65,8 +64,6 @@ int bch2_sb_from_fs(struct bch_fs *, struct bch_dev *);
 
 void bch2_free_super(struct bch_sb_handle *);
 int bch2_sb_realloc(struct bch_sb_handle *, unsigned);
-
-const char *bch2_sb_validate(struct bch_sb_handle *);
 
 int bch2_read_super(const char *, struct bch_opts *, struct bch_sb_handle *);
 int bch2_write_super(struct bch_fs *);
