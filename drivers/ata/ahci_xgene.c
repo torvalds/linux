@@ -193,7 +193,7 @@ static unsigned int xgene_ahci_qc_issue(struct ata_queued_cmd *qc)
 	struct xgene_ahci_context *ctx = hpriv->plat_data;
 	int rc = 0;
 	u32 port_fbs;
-	void *port_mmio = ahci_port_base(ap);
+	void __iomem *port_mmio = ahci_port_base(ap);
 
 	/*
 	 * Write the pmp value to PxFBS.DEV
@@ -454,7 +454,7 @@ static int xgene_ahci_pmp_softreset(struct ata_link *link, unsigned int *class,
 	int pmp = sata_srst_pmp(link);
 	struct ata_port *ap = link->ap;
 	u32 rc;
-	void *port_mmio = ahci_port_base(ap);
+	void __iomem *port_mmio = ahci_port_base(ap);
 	u32 port_fbs;
 
 	/*
@@ -499,7 +499,7 @@ static int xgene_ahci_softreset(struct ata_link *link, unsigned int *class,
 	struct ata_port *ap = link->ap;
 	struct ahci_host_priv *hpriv = ap->host->private_data;
 	struct xgene_ahci_context *ctx = hpriv->plat_data;
-	void *port_mmio = ahci_port_base(ap);
+	void __iomem *port_mmio = ahci_port_base(ap);
 	u32 port_fbs;
 	u32 port_fbs_save;
 	u32 retry = 1;
