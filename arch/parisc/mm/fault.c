@@ -267,9 +267,6 @@ void do_page_fault(struct pt_regs *regs, unsigned long code,
 	vm_fault_t fault = 0;
 	unsigned int flags;
 
-	if (faulthandler_disabled())
-		goto no_context;
-
 	tsk = current;
 	mm = tsk->mm;
 	if (!mm)
