@@ -26,10 +26,10 @@
 
 #include <linux/debugfs.h>
 #include <linux/list.h>
-#include "amdgpu.h"
-#include "amdgpu_psp.h"
 #include "ta_ras_if.h"
 #include "amdgpu_ras_eeprom.h"
+
+struct amdgpu_iv_entry;
 
 #define AMDGPU_RAS_FLAG_INIT_BY_VBIOS		(0x1 << 0)
 
@@ -525,19 +525,6 @@ struct amdgpu_ras_block_hw_ops {
  * 8: feature disable
  */
 
-#define amdgpu_ras_get_context(adev)		((adev)->psp.ras_context.ras)
-#define amdgpu_ras_set_context(adev, ras_con)	((adev)->psp.ras_context.ras = (ras_con))
-
-/* check if ras is supported on block, say, sdma, gfx */
-static inline int amdgpu_ras_is_supported(struct amdgpu_device *adev,
-		unsigned int block)
-{
-	struct amdgpu_ras *ras = amdgpu_ras_get_context(adev);
-
-	if (block >= AMDGPU_RAS_BLOCK_COUNT)
-		return 0;
-	return ras && (adev->ras_enabled & (1 << block));
-}
 
 int amdgpu_ras_recovery_init(struct amdgpu_device *adev);
 
@@ -553,15 +540,6 @@ int amdgpu_ras_add_bad_pages(struct amdgpu_device *adev,
 		struct eeprom_table_record *bps, int pages);
 
 int amdgpu_ras_save_bad_pages(struct amdgpu_device *adev);
-
-static inline int amdgpu_ras_reset_gpu(struct amdgpu_device *adev)
-{
-	struct amdgpu_ras *ras = amdgpu_ras_get_context(adev);
-
-	if (atomic_cmpxchg(&ras->in_recovery, 0, 1) == 0)
-		schedule_work(&ras->recovery_work);
-	return 0;
-}
 
 static inline enum ta_ras_block
 amdgpu_ras_block_to_ta(enum amdgpu_ras_block block) {
@@ -693,6 +671,14 @@ int amdgpu_persistent_edc_harvesting_supported(struct amdgpu_device *adev);
 const char *get_ras_block_str(struct ras_common_if *ras_block);
 
 bool amdgpu_ras_is_poison_mode_supported(struct amdgpu_device *adev);
+
+int amdgpu_ras_is_supported(struct amdgpu_device *adev, unsigned int block);
+
+int amdgpu_ras_reset_gpu(struct amdgpu_device *adev);
+
+struct amdgpu_ras* amdgpu_ras_get_context(struct amdgpu_device *adev);
+
+int amdgpu_ras_set_context(struct amdgpu_device *adev, struct amdgpu_ras* ras_con);
 
 int amdgpu_ras_register_ras_block(struct amdgpu_device *adev, struct amdgpu_ras_block_object* ras_block_obj);
 #endif

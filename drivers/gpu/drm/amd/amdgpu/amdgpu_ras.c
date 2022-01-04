@@ -2810,6 +2810,45 @@ static void amdgpu_register_bad_pages_mca_notifier(struct amdgpu_device *adev)
 	}
 }
 #endif
+
+struct amdgpu_ras* amdgpu_ras_get_context(struct amdgpu_device *adev)
+{
+	if (!adev)
+		return NULL;
+
+	return adev->psp.ras_context.ras;
+}
+
+int amdgpu_ras_set_context(struct amdgpu_device *adev, struct amdgpu_ras* ras_con)
+{
+	if (!adev)
+	return -EINVAL;;
+
+	adev->psp.ras_context.ras = ras_con;
+	return 0;
+}
+
+/* check if ras is supported on block, say, sdma, gfx */
+int amdgpu_ras_is_supported(struct amdgpu_device *adev,
+		unsigned int block)
+{
+	struct amdgpu_ras *ras = amdgpu_ras_get_context(adev);
+
+	if (block >= AMDGPU_RAS_BLOCK_COUNT)
+		return 0;
+	return ras && (adev->ras_enabled & (1 << block));
+}
+
+int amdgpu_ras_reset_gpu(struct amdgpu_device *adev)
+{
+	struct amdgpu_ras *ras = amdgpu_ras_get_context(adev);
+
+	if (atomic_cmpxchg(&ras->in_recovery, 0, 1) == 0)
+		schedule_work(&ras->recovery_work);
+	return 0;
+}
+
+
 /* Register each ip ras block into amdgpu ras */
 int amdgpu_ras_register_ras_block(struct amdgpu_device *adev,
 		struct amdgpu_ras_block_object* ras_block_obj)

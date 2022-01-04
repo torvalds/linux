@@ -21,7 +21,7 @@
  *
  */
 
-#include "amdgpu_ras.h"
+#include "amdgpu.h"
 
 static int amdgpu_umc_do_page_retirement(struct amdgpu_device *adev,
 		void *ras_error_status,
