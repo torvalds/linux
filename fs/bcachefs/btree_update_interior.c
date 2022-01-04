@@ -955,7 +955,7 @@ retry:
 	 * instead of locking/reserving all the way to the root:
 	 */
 	if (!bch2_btree_path_upgrade(trans, path, U8_MAX)) {
-		trace_trans_restart_iter_upgrade(trans->ip, _RET_IP_,
+		trace_trans_restart_iter_upgrade(trans->fn, _RET_IP_,
 						 path->btree_id, &path->pos);
 		ret = btree_trans_restart(trans);
 		return ERR_PTR(ret);
@@ -1019,7 +1019,7 @@ retry:
 				BTREE_UPDATE_JOURNAL_RES,
 				journal_flags);
 		if (ret) {
-			trace_trans_restart_journal_preres_get(trans->ip, _RET_IP_);
+			trace_trans_restart_journal_preres_get(trans->fn, _RET_IP_);
 			goto err;
 		}
 

@@ -135,7 +135,6 @@ int __must_check bch2_write_inode(struct bch_fs *c,
 	int ret;
 
 	bch2_trans_init(&trans, c, 0, 512);
-	trans.ip = _RET_IP_;
 retry:
 	bch2_trans_begin(&trans);
 

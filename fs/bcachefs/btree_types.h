@@ -365,6 +365,7 @@ struct btree_trans_commit_hook {
 
 struct btree_trans {
 	struct bch_fs		*c;
+	const char		*fn;
 	struct list_head	list;
 	struct btree		*locking;
 	unsigned		locking_path_idx;
@@ -372,7 +373,6 @@ struct btree_trans {
 	u8			locking_btree_id;
 	u8			locking_level;
 	pid_t			pid;
-	unsigned long		ip;
 	int			srcu_idx;
 
 	u8			nr_sorted;

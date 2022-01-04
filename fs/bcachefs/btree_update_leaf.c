@@ -266,7 +266,7 @@ bch2_trans_journal_preres_get_cold(struct btree_trans *trans, unsigned u64s,
 		return ret;
 
 	if (!bch2_trans_relock(trans)) {
-		trace_trans_restart_journal_preres_get(trans->ip, trace_ip);
+		trace_trans_restart_journal_preres_get(trans->fn, trace_ip);
 		return -EINTR;
 	}
 
@@ -305,7 +305,8 @@ static noinline void journal_transaction_name(struct btree_trans *trans)
 	l->entry.pad[0]		= 0;
 	l->entry.pad[1]		= 0;
 	l->entry.pad[2]		= 0;
-	b = snprintf(l->d, buflen, "%ps", (void *) trans->ip);
+	b = min_t(unsigned, strlen(trans->fn), buflen);
+	memcpy(l->d, trans->fn, b);
 	while (b < buflen)
 		l->d[b++] = '\0';
 
@@ -426,7 +427,7 @@ bch2_trans_commit_write_locked(struct btree_trans *trans,
 	int ret;
 
 	if (race_fault()) {
-		trace_trans_restart_fault_inject(trans->ip, trace_ip);
+		trace_trans_restart_fault_inject(trans->fn, trace_ip);
 		trans->restarted = true;
 		return -EINTR;
 	}
@@ -619,7 +620,7 @@ fail:
 		bch2_btree_node_unlock_write_inlined(trans, i->path, insert_l(i)->b);
 	}
 
-	trace_trans_restart_would_deadlock_write(trans->ip);
+	trace_trans_restart_would_deadlock_write(trans->fn);
 	return btree_trans_restart(trans);
 }
 
@@ -650,9 +651,8 @@ static inline int do_bch2_trans_commit(struct btree_trans *trans,
 			char buf[200];
 
 			bch2_bkey_val_to_text(&PBUF(buf), c, bkey_i_to_s_c(i->k));
-			bch_err(c, "invalid bkey %s on insert from %ps -> %ps: %s\n",
-				buf, (void *) trans->ip,
-				(void *) i->ip_allocated, invalid);
+			bch_err(c, "invalid bkey %s on insert from %s -> %ps: %s\n",
+				buf, trans->fn, (void *) i->ip_allocated, invalid);
 			bch2_fatal_error(c);
 			return -EINVAL;
 		}
@@ -758,7 +758,7 @@ int bch2_trans_commit_error(struct btree_trans *trans,
 			return 0;
 
 		if (ret == -EINTR)
-			trace_trans_restart_btree_node_split(trans->ip, trace_ip,
+			trace_trans_restart_btree_node_split(trans->fn, trace_ip,
 						i->btree_id, &i->path->pos);
 		break;
 	case BTREE_INSERT_NEED_MARK_REPLICAS:
@@ -771,7 +771,7 @@ int bch2_trans_commit_error(struct btree_trans *trans,
 		if (bch2_trans_relock(trans))
 			return 0;
 
-		trace_trans_restart_mark_replicas(trans->ip, trace_ip);
+		trace_trans_restart_mark_replicas(trans->fn, trace_ip);
 		ret = -EINTR;
 		break;
 	case BTREE_INSERT_NEED_JOURNAL_RES:
@@ -791,13 +791,13 @@ int bch2_trans_commit_error(struct btree_trans *trans,
 		if (bch2_trans_relock(trans))
 			return 0;
 
-		trace_trans_restart_journal_res_get(trans->ip, trace_ip);
+		trace_trans_restart_journal_res_get(trans->fn, trace_ip);
 		ret = -EINTR;
 		break;
 	case BTREE_INSERT_NEED_JOURNAL_RECLAIM:
 		bch2_trans_unlock(trans);
 
-		trace_trans_blocked_journal_reclaim(trans->ip, trace_ip);
+		trace_trans_blocked_journal_reclaim(trans->fn, trace_ip);
 
 		wait_event_freezable(c->journal.reclaim_wait,
 				     (ret = journal_reclaim_wait_done(c)));
@@ -807,7 +807,7 @@ int bch2_trans_commit_error(struct btree_trans *trans,
 		if (bch2_trans_relock(trans))
 			return 0;
 
-		trace_trans_restart_journal_reclaim(trans->ip, trace_ip);
+		trace_trans_restart_journal_reclaim(trans->fn, trace_ip);
 		ret = -EINTR;
 		break;
 	default:
@@ -902,7 +902,7 @@ static int bch2_trans_commit_run_triggers(struct btree_trans *trans)
 				}
 
 				if (ret == -EINTR)
-					trace_trans_restart_mark(trans->ip, _RET_IP_,
+					trace_trans_restart_mark(trans->fn, _RET_IP_,
 							i->btree_id, &i->path->pos);
 				if (ret)
 					return ret;
@@ -932,7 +932,7 @@ static int bch2_trans_commit_run_triggers(struct btree_trans *trans)
 						BTREE_TRIGGER_OVERWRITE|i->flags);
 
 				if (ret == -EINTR)
-					trace_trans_restart_mark(trans->ip, _RET_IP_,
+					trace_trans_restart_mark(trans->fn, _RET_IP_,
 							i->btree_id, &i->path->pos);
 				if (ret)
 					return ret;
@@ -999,7 +999,7 @@ int __bch2_trans_commit(struct btree_trans *trans)
 		BUG_ON(!i->path->should_be_locked);
 
 		if (unlikely(!bch2_btree_path_upgrade(trans, i->path, i->level + 1))) {
-			trace_trans_restart_upgrade(trans->ip, _RET_IP_,
+			trace_trans_restart_upgrade(trans->fn, _RET_IP_,
 						    i->btree_id, &i->path->pos);
 			ret = btree_trans_restart(trans);
 			goto out;

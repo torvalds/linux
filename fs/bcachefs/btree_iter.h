@@ -379,8 +379,11 @@ __bch2_btree_iter_peek_and_restart(struct btree_trans *trans,
 /* new multiple iterator interface: */
 
 void bch2_dump_trans_paths_updates(struct btree_trans *);
-void bch2_trans_init(struct btree_trans *, struct bch_fs *, unsigned, size_t);
+void __bch2_trans_init(struct btree_trans *, struct bch_fs *,
+		       unsigned, size_t, const char *);
 void bch2_trans_exit(struct btree_trans *);
+
+#define bch2_trans_init(...)	__bch2_trans_init(__VA_ARGS__, __func__)
 
 void bch2_btree_trans_to_text(struct printbuf *, struct bch_fs *);
 
