@@ -111,6 +111,7 @@
 #define RT_GC_TIMEOUT (300*HZ)
 
 #define DEFAULT_MIN_PMTU (512 + 20 + 20)
+#define DEFAULT_MTU_EXPIRES (10 * 60 * HZ)
 
 static int ip_rt_max_size;
 static int ip_rt_redirect_number __read_mostly	= 9;
@@ -118,7 +119,6 @@ static int ip_rt_redirect_load __read_mostly	= HZ / 50;
 static int ip_rt_redirect_silence __read_mostly	= ((HZ / 50) << (9 + 1));
 static int ip_rt_error_cost __read_mostly	= HZ;
 static int ip_rt_error_burst __read_mostly	= 5 * HZ;
-static int ip_rt_mtu_expires __read_mostly	= 10 * 60 * HZ;
 static int ip_rt_min_advmss __read_mostly	= 256;
 
 static int ip_rt_gc_timeout __read_mostly	= RT_GC_TIMEOUT;
@@ -1025,7 +1025,7 @@ static void __ip_rt_update_pmtu(struct rtable *rt, struct flowi4 *fl4, u32 mtu)
 	}
 
 	if (rt->rt_pmtu == mtu && !lock &&
-	    time_before(jiffies, dst->expires - ip_rt_mtu_expires / 2))
+	    time_before(jiffies, dst->expires - net->ipv4.ip_rt_mtu_expires / 2))
 		return;
 
 	rcu_read_lock();
@@ -1035,7 +1035,7 @@ static void __ip_rt_update_pmtu(struct rtable *rt, struct flowi4 *fl4, u32 mtu)
 		fib_select_path(net, &res, fl4, NULL);
 		nhc = FIB_RES_NHC(res);
 		update_or_create_fnhe(nhc, fl4->daddr, 0, mtu, lock,
-				      jiffies + ip_rt_mtu_expires);
+				      jiffies + net->ipv4.ip_rt_mtu_expires);
 	}
 	rcu_read_unlock();
 }
@@ -3536,13 +3536,6 @@ static struct ctl_table ipv4_route_table[] = {
 		.proc_handler	= proc_dointvec,
 	},
 	{
-		.procname	= "mtu_expires",
-		.data		= &ip_rt_mtu_expires,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_jiffies,
-	},
-	{
 		.procname	= "min_adv_mss",
 		.data		= &ip_rt_min_advmss,
 		.maxlen		= sizeof(int),
@@ -3568,6 +3561,13 @@ static struct ctl_table ipv4_route_netns_table[] = {
 		.mode           = 0644,
 		.proc_handler   = proc_dointvec_minmax,
 		.extra1         = &ip_min_valid_pmtu,
+	},
+	{
+		.procname       = "mtu_expires",
+		.data           = &init_net.ipv4.ip_rt_mtu_expires,
+		.maxlen         = sizeof(int),
+		.mode           = 0644,
+		.proc_handler   = proc_dointvec_jiffies,
 	},
 	{ },
 };
@@ -3630,6 +3630,7 @@ static __net_init int netns_ip_rt_init(struct net *net)
 {
 	/* Set default value for namespaceified sysctls */
 	net->ipv4.ip_rt_min_pmtu = DEFAULT_MIN_PMTU;
+	net->ipv4.ip_rt_mtu_expires = DEFAULT_MTU_EXPIRES;
 	return 0;
 }
 

@@ -86,6 +86,7 @@ struct netns_ipv4 {
 	int sysctl_icmp_ratemask;
 
 	u32 ip_rt_min_pmtu;
+	int ip_rt_mtu_expires;
 
 	struct local_ports ip_local_ports;
 
