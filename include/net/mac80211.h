@@ -5614,6 +5614,9 @@ void ieee80211_iterate_active_interfaces_atomic(struct ieee80211_hw *hw,
  * This function iterates over the interfaces associated with a given
  * hardware that are currently active and calls the callback for them.
  * This version can only be used while holding the wiphy mutex.
+ * The driver must not call this with a lock held that it can also take in
+ * response to callbacks from mac80211, and it must not call this within
+ * callbacks made by mac80211 - both would result in deadlocks.
  *
  * @hw: the hardware struct of which the interfaces should be iterated over
  * @iter_flags: iteration flags, see &enum ieee80211_interface_iteration_flags
@@ -5626,6 +5629,24 @@ void ieee80211_iterate_active_interfaces_mtx(struct ieee80211_hw *hw,
 						u8 *mac,
 						struct ieee80211_vif *vif),
 					     void *data);
+
+/**
+ * ieee80211_iterate_stations - iterate stations
+ *
+ * This function iterates over all stations associated with a given
+ * hardware that are currently uploaded to the driver and calls the callback
+ * function for them.
+ * This function allows the iterator function to sleep, when the iterator
+ * function is atomic @ieee80211_iterate_stations_atomic can be used.
+ *
+ * @hw: the hardware struct of which the interfaces should be iterated over
+ * @iterator: the iterator function to call, cannot sleep
+ * @data: first argument of the iterator function
+ */
+void ieee80211_iterate_stations(struct ieee80211_hw *hw,
+				void (*iterator)(void *data,
+						 struct ieee80211_sta *sta),
+				void *data);
 
 /**
  * ieee80211_iterate_stations_atomic - iterate stations
