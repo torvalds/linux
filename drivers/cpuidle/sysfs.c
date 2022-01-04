@@ -335,6 +335,7 @@ static struct attribute *cpuidle_state_default_attrs[] = {
 	&attr_default_status.attr,
 	NULL
 };
+ATTRIBUTE_GROUPS(cpuidle_state_default);
 
 struct cpuidle_state_kobj {
 	struct cpuidle_state *state;
@@ -448,7 +449,7 @@ static void cpuidle_state_sysfs_release(struct kobject *kobj)
 
 static struct kobj_type ktype_state_cpuidle = {
 	.sysfs_ops = &cpuidle_state_sysfs_ops,
-	.default_attrs = cpuidle_state_default_attrs,
+	.default_groups = cpuidle_state_default_groups,
 	.release = cpuidle_state_sysfs_release,
 };
 
@@ -591,10 +592,11 @@ static struct attribute *cpuidle_driver_default_attrs[] = {
 	&attr_driver_name.attr,
 	NULL
 };
+ATTRIBUTE_GROUPS(cpuidle_driver_default);
 
 static struct kobj_type ktype_driver_cpuidle = {
 	.sysfs_ops = &cpuidle_driver_sysfs_ops,
-	.default_attrs = cpuidle_driver_default_attrs,
+	.default_groups = cpuidle_driver_default_groups,
 	.release = cpuidle_driver_sysfs_release,
 };
 
