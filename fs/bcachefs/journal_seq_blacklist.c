@@ -66,6 +66,12 @@ blacklist_entry_try_merge(struct bch_fs *c,
 	return bl;
 }
 
+static bool bl_entry_contig_or_overlaps(struct journal_seq_blacklist_entry *e,
+					u64 start, u64 end)
+{
+	return !(end < le64_to_cpu(e->start) || le64_to_cpu(e->end) < start);
+}
+
 int bch2_journal_seq_blacklist_add(struct bch_fs *c, u64 start, u64 end)
 {
 	struct bch_sb_field_journal_seq_blacklist *bl;
@@ -76,28 +82,21 @@ int bch2_journal_seq_blacklist_add(struct bch_fs *c, u64 start, u64 end)
 	bl = bch2_sb_get_journal_seq_blacklist(c->disk_sb.sb);
 	nr = blacklist_nr_entries(bl);
 
-	if (bl) {
-		for (i = 0; i < nr; i++) {
-			struct journal_seq_blacklist_entry *e =
-				bl->start + i;
+	for (i = 0; i < nr; i++) {
+		struct journal_seq_blacklist_entry *e =
+			bl->start + i;
 
-			if (start == le64_to_cpu(e->start) &&
-			    end   == le64_to_cpu(e->end))
-				goto out;
+		if (bl_entry_contig_or_overlaps(e, start, end)) {
+			e->start = cpu_to_le64(min(start, le64_to_cpu(e->start)));
+			e->end	= cpu_to_le64(max(end, le64_to_cpu(e->end)));
 
-			if (start <= le64_to_cpu(e->start) &&
-			    end   >= le64_to_cpu(e->end)) {
-				e->start = cpu_to_le64(start);
-				e->end	= cpu_to_le64(end);
-
-				if (i + 1 < nr)
-					bl = blacklist_entry_try_merge(c,
-								bl, i);
-				if (i)
-					bl = blacklist_entry_try_merge(c,
-								bl, i - 1);
-				goto out_write_sb;
-			}
+			if (i + 1 < nr)
+				bl = blacklist_entry_try_merge(c,
+							bl, i);
+			if (i)
+				bl = blacklist_entry_try_merge(c,
+							bl, i - 1);
+			goto out_write_sb;
 		}
 	}
 
