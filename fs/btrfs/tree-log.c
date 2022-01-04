@@ -270,12 +270,6 @@ void btrfs_end_log_trans(struct btrfs_root *root)
 	}
 }
 
-static int btrfs_write_tree_block(struct extent_buffer *buf)
-{
-	return filemap_fdatawrite_range(buf->pages[0]->mapping, buf->start,
-					buf->start + buf->len - 1);
-}
-
 static void btrfs_wait_tree_block_writeback(struct extent_buffer *buf)
 {
 	filemap_fdatawait_range(buf->pages[0]->mapping,
@@ -293,16 +287,6 @@ struct walk_control {
 	 * at transaction commit time while freeing a log tree
 	 */
 	int free;
-
-	/* should we write out the extent buffer?  This is used
-	 * while flushing the log tree to disk during a sync
-	 */
-	int write;
-
-	/* should we wait for the extent buffer io to finish?  Also used
-	 * while flushing the log tree to disk for a sync
-	 */
-	int wait;
 
 	/* pin only walk, we record which extents on disk belong to the
 	 * log trees
@@ -354,17 +338,15 @@ static int process_one_buffer(struct btrfs_root *log,
 			return ret;
 	}
 
-	if (wc->pin)
+	if (wc->pin) {
 		ret = btrfs_pin_extent_for_log_replay(wc->trans, eb->start,
 						      eb->len);
+		if (ret)
+			return ret;
 
-	if (!ret && btrfs_buffer_uptodate(eb, gen, 0)) {
-		if (wc->pin && btrfs_header_level(eb) == 0)
+		if (btrfs_buffer_uptodate(eb, gen, 0) &&
+		    btrfs_header_level(eb) == 0)
 			ret = btrfs_exclude_logged_extents(eb);
-		if (wc->write)
-			btrfs_write_tree_block(eb);
-		if (wc->wait)
-			btrfs_wait_tree_block_writeback(eb);
 	}
 	return ret;
 }
