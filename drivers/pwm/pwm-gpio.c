@@ -157,7 +157,6 @@ static int gpio_pwm_probe(struct platform_device *pdev)
 	pc->chip.npwm = 1;
 	pc->chip.of_xlate = of_pwm_xlate_with_flags;
 	pc->chip.of_pwm_n_cells = 3;
-	pc->chip.can_sleep = true;
 
 	pc->gpiod = devm_gpiod_get(&pdev->dev, "pwm", GPIOD_OUT_LOW);
 

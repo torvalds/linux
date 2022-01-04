@@ -181,6 +181,21 @@ config PWM_FSL_FTM
 	  To compile this driver as a module, choose M here: the module
 	  will be called pwm-fsl-ftm.
 
+config PWM_GPIO
+	tristate "Generic GPIO bit-banged PWM driver"
+	depends on OF
+	depends on GPIOLIB
+	help
+	  Some platforms do not offer any hardware PWM capabilities but do have
+	  General Purpose Input Output (GPIO) pins available. Using the kernels
+	  High-Resolution Timer API this driver tries to toggle GPIO using the
+	  generic kernel PWM framework. The maximum frequency and/or accuracy
+	  is dependent on several factors such as system load and the maximum
+	  speed a pin can be toggled at the hardware.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called pwm-gpio.
+
 config PWM_HIBVT
 	tristate "HiSilicon BVT PWM support"
 	depends on ARCH_HISI || COMPILE_TEST
