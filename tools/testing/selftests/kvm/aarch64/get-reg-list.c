@@ -1014,6 +1014,22 @@ static __u64 sve_rejects_set[] = {
 	KVM_REG_ARM64_SVE_VLS,
 };
 
+static __u64 pauth_addr_regs[] = {
+	ARM64_SYS_REG(3, 0, 2, 1, 0),	/* APIAKEYLO_EL1 */
+	ARM64_SYS_REG(3, 0, 2, 1, 1),	/* APIAKEYHI_EL1 */
+	ARM64_SYS_REG(3, 0, 2, 1, 2),	/* APIBKEYLO_EL1 */
+	ARM64_SYS_REG(3, 0, 2, 1, 3),	/* APIBKEYHI_EL1 */
+	ARM64_SYS_REG(3, 0, 2, 2, 0),	/* APDAKEYLO_EL1 */
+	ARM64_SYS_REG(3, 0, 2, 2, 1),	/* APDAKEYHI_EL1 */
+	ARM64_SYS_REG(3, 0, 2, 2, 2),	/* APDBKEYLO_EL1 */
+	ARM64_SYS_REG(3, 0, 2, 2, 3)	/* APDBKEYHI_EL1 */
+};
+
+static __u64 pauth_generic_regs[] = {
+	ARM64_SYS_REG(3, 0, 2, 3, 0),	/* APGAKEYLO_EL1 */
+	ARM64_SYS_REG(3, 0, 2, 3, 1),	/* APGAKEYHI_EL1 */
+};
+
 #define BASE_SUBLIST \
 	{ "base", .regs = base_regs, .regs_n = ARRAY_SIZE(base_regs), }
 #define VREGS_SUBLIST \
@@ -1025,6 +1041,21 @@ static __u64 sve_rejects_set[] = {
 	{ "sve", .capability = KVM_CAP_ARM_SVE, .feature = KVM_ARM_VCPU_SVE, .finalize = true, \
 	  .regs = sve_regs, .regs_n = ARRAY_SIZE(sve_regs), \
 	  .rejects_set = sve_rejects_set, .rejects_set_n = ARRAY_SIZE(sve_rejects_set), }
+#define PAUTH_SUBLIST							\
+	{								\
+		.name 		= "pauth_address",			\
+		.capability	= KVM_CAP_ARM_PTRAUTH_ADDRESS,		\
+		.feature	= KVM_ARM_VCPU_PTRAUTH_ADDRESS,		\
+		.regs		= pauth_addr_regs,			\
+		.regs_n		= ARRAY_SIZE(pauth_addr_regs),		\
+	},								\
+	{								\
+		.name 		= "pauth_generic",			\
+		.capability	= KVM_CAP_ARM_PTRAUTH_GENERIC,		\
+		.feature	= KVM_ARM_VCPU_PTRAUTH_GENERIC,		\
+		.regs		= pauth_generic_regs,			\
+		.regs_n		= ARRAY_SIZE(pauth_generic_regs),	\
+	}
 
 static struct vcpu_config vregs_config = {
 	.sublists = {
@@ -1056,11 +1087,30 @@ static struct vcpu_config sve_pmu_config = {
 	{0},
 	},
 };
+static struct vcpu_config pauth_config = {
+	.sublists = {
+	BASE_SUBLIST,
+	VREGS_SUBLIST,
+	PAUTH_SUBLIST,
+	{0},
+	},
+};
+static struct vcpu_config pauth_pmu_config = {
+	.sublists = {
+	BASE_SUBLIST,
+	VREGS_SUBLIST,
+	PAUTH_SUBLIST,
+	PMU_SUBLIST,
+	{0},
+	},
+};
 
 static struct vcpu_config *vcpu_configs[] = {
 	&vregs_config,
 	&vregs_pmu_config,
 	&sve_config,
 	&sve_pmu_config,
+	&pauth_config,
+	&pauth_pmu_config,
 };
 static int vcpu_configs_n = ARRAY_SIZE(vcpu_configs);

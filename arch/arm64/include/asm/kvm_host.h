@@ -297,9 +297,6 @@ struct kvm_vcpu_arch {
 	/* Exception Information */
 	struct kvm_vcpu_fault_info fault;
 
-	/* State of various workarounds, see kvm_asm.h for bit assignment */
-	u64 workaround_flags;
-
 	/* Miscellaneous vcpu state flags */
 	u64 flags;
 
