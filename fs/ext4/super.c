@@ -2636,8 +2636,10 @@ static void ext4_apply_quota_options(struct fs_context *fc,
 
 			qname = ctx->s_qf_names[i]; /* May be NULL */
 			ctx->s_qf_names[i] = NULL;
-			kfree(sbi->s_qf_names[i]);
-			rcu_assign_pointer(sbi->s_qf_names[i], qname);
+			qname = rcu_replace_pointer(sbi->s_qf_names[i], qname,
+						lockdep_is_held(&sb->s_umount));
+			if (qname)
+				kfree_rcu(qname);
 			set_opt(sb, QUOTA);
 		}
 	}
@@ -2691,7 +2693,7 @@ static int ext4_check_quota_consistency(struct fs_context *fc,
 				goto err_jquota_change;
 
 			if (sbi->s_qf_names[i] && ctx->s_qf_names[i] &&
-			    strcmp(sbi->s_qf_names[i],
+			    strcmp(get_qf_name(sb, sbi, i),
 				   ctx->s_qf_names[i]) != 0)
 				goto err_jquota_specified;
 		}
