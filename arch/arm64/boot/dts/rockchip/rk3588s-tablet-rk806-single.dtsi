@@ -235,19 +235,10 @@
 };
 
 &dp0 {
-	status = "okay";
+	status = "disabled";
 };
 
 &dp0_in_vp2 {
-	status = "okay";
-};
-
-/*
- * mipi_dcphy0 needs to be enabled
- * when dsi0 is enabled
- */
-&dsi0 {
-	rockchip,dual-channel = <&dsi1>;
 	status = "okay";
 };
 
@@ -259,8 +250,13 @@
 	status = "disabled";
 };
 
+/*
+ * mipi_dcphy0 needs to be enabled
+ * when dsi0 is enabled
+ */
 &dsi0 {
 	status = "okay";
+	rockchip,dual-channel = <&dsi1>;
 	//rockchip,lane-rate = <1000>;
 	dsi0_panel: panel@0 {
 		status = "okay";
@@ -1091,6 +1087,12 @@
 	status = "okay";
 };
 
+&i2c0 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c0m2_xfer>;
+};
+
 &i2c2 {
 	status = "okay";
 
@@ -1153,15 +1155,12 @@
 		status = "okay";
 	};
 
-	/*
-	 *aw87xxx_pa2@5b {
-	 *        compatible = "awinic,aw87xxx_pa";
-	 *        reg = <0x5b>;
-	 *        //reset-gpio = <&pio 1 0>;
-	 *        dev_index = < 1 >;
-	 *        status = "okay";
-	 *};
-	 */
+	aw87xxx_pa2@59 {
+		compatible = "awinic,aw87xxx_pa";
+		reg = <0x59>;
+		dev_index = < 1 >;
+		status = "okay";
+	};
 };
 
 &i2c4 {
@@ -1287,6 +1286,22 @@
 	status = "okay";
 };
 
+&jpegd {
+	status = "okay";
+};
+
+&jpegd_mmu {
+	status = "okay";
+};
+
+&jpege0 {
+	status = "okay";
+};
+
+&jpege0_mmu {
+	status = "okay";
+};
+
 &mipi_dcphy0 {
 	status = "okay";
 };
@@ -1295,18 +1310,16 @@
 	status = "okay";
 };
 
-&pwm13 {
-	status = "okay";
-	pinctrl-names = "active";
-	pinctrl-0 = <&pwm13m1_pins>;
-};
-
-&pdm0 {
+&mpp_srv {
 	status = "okay";
 };
 
 &pcie2x1l2 {
 	reset-gpios = <&gpio4 RK_PC1 GPIO_ACTIVE_HIGH>;
+	status = "okay";
+};
+
+&pdm0 {
 	status = "okay";
 };
 
@@ -1389,27 +1402,13 @@
 	};
 };
 
-&jpegd {
+&pwm13 {
 	status = "okay";
+	pinctrl-names = "active";
+	pinctrl-0 = <&pwm13m1_pins>;
 };
 
-&jpegd_mmu {
-	status = "okay";
-};
-
-&jpege0 {
-	status = "okay";
-};
-
-&jpege0_mmu {
-	status = "okay";
-};
-
-&mpp_srv {
-	status = "okay";
-};
-
-&rkvdec_ccu {
+&rga2 {
 	status = "okay";
 };
 
@@ -1429,7 +1428,7 @@
 	status = "okay";
 };
 
-&rga2 {
+&rkvdec_ccu {
 	status = "okay";
 };
 
@@ -1449,6 +1448,11 @@
 	status = "okay";
 };
 
+&route_dsi0 {
+	status = "disabled";
+	connect = <&vp2_out_dsi0>;
+};
+
 &saradc {
 	status = "okay";
 	vref-supply = <&vcc_1v8_s0>;
@@ -1463,6 +1467,13 @@
 	mmc-hs400-1_8v;
 	mmc-hs400-enhanced-strobe;
 	status = "okay";
+};
+
+&spi2 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&spi2m2_cs0 &spi2m2_pins>;
+	num-cs = <1>;
 };
 
 &tsadc {
@@ -1487,7 +1498,7 @@
 	status = "okay";
 };
 
-&usbdp_phy0_dp {
+&usbdp_phy0_u3 {
 	status = "okay";
 };
 
@@ -1500,8 +1511,8 @@
 	status = "okay";
 
 	maximum-speed = "high-speed";
-	phys = <&u2phy0_otg>;
-	phy-names = "usb2-phy";
+	/*phys = <&u2phy0_otg>;*/
+	/*phy-names = "usb2-phy";*/
 	usb-role-switch;
 	port {
 		#address-cells = <1>;
