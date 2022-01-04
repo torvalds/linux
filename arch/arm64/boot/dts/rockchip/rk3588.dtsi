@@ -129,6 +129,8 @@
 			compatible = "rockchip,rk3588-usb2phy";
 			reg = <0x4000 0x10>;
 			interrupts = <GIC_SPI 394 IRQ_TYPE_LEVEL_HIGH>;
+			resets = <&cru SRST_OTGPHY_U3_1>, <&cru SRST_P_USB2PHY_U3_1_GRF0>;
+			reset-names = "phy", "apb";
 			clocks = <&cru CLK_USB2PHY_HDPTXRXPHY_REF>;
 			clock-names = "phyclk";
 			clock-output-names = "usb480m_phy1";
