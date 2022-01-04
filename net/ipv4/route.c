@@ -110,6 +110,8 @@
 
 #define RT_GC_TIMEOUT (300*HZ)
 
+#define DEFAULT_MIN_PMTU (512 + 20 + 20)
+
 static int ip_rt_max_size;
 static int ip_rt_redirect_number __read_mostly	= 9;
 static int ip_rt_redirect_load __read_mostly	= HZ / 50;
@@ -117,7 +119,6 @@ static int ip_rt_redirect_silence __read_mostly	= ((HZ / 50) << (9 + 1));
 static int ip_rt_error_cost __read_mostly	= HZ;
 static int ip_rt_error_burst __read_mostly	= 5 * HZ;
 static int ip_rt_mtu_expires __read_mostly	= 10 * 60 * HZ;
-static u32 ip_rt_min_pmtu __read_mostly		= 512 + 20 + 20;
 static int ip_rt_min_advmss __read_mostly	= 256;
 
 static int ip_rt_gc_timeout __read_mostly	= RT_GC_TIMEOUT;
@@ -1018,9 +1019,9 @@ static void __ip_rt_update_pmtu(struct rtable *rt, struct flowi4 *fl4, u32 mtu)
 	if (old_mtu < mtu)
 		return;
 
-	if (mtu < ip_rt_min_pmtu) {
+	if (mtu < net->ipv4.ip_rt_min_pmtu) {
 		lock = true;
-		mtu = min(old_mtu, ip_rt_min_pmtu);
+		mtu = min(old_mtu, net->ipv4.ip_rt_min_pmtu);
 	}
 
 	if (rt->rt_pmtu == mtu && !lock &&
@@ -3542,14 +3543,6 @@ static struct ctl_table ipv4_route_table[] = {
 		.proc_handler	= proc_dointvec_jiffies,
 	},
 	{
-		.procname	= "min_pmtu",
-		.data		= &ip_rt_min_pmtu,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
-		.extra1		= &ip_min_valid_pmtu,
-	},
-	{
 		.procname	= "min_adv_mss",
 		.data		= &ip_rt_min_advmss,
 		.maxlen		= sizeof(int),
@@ -3561,12 +3554,20 @@ static struct ctl_table ipv4_route_table[] = {
 
 static const char ipv4_route_flush_procname[] = "flush";
 
-static struct ctl_table ipv4_route_flush_table[] = {
+static struct ctl_table ipv4_route_netns_table[] = {
 	{
 		.procname	= ipv4_route_flush_procname,
 		.maxlen		= sizeof(int),
 		.mode		= 0200,
 		.proc_handler	= ipv4_sysctl_rtcache_flush,
+	},
+	{
+		.procname       = "min_pmtu",
+		.data           = &init_net.ipv4.ip_rt_min_pmtu,
+		.maxlen         = sizeof(int),
+		.mode           = 0644,
+		.proc_handler   = proc_dointvec_minmax,
+		.extra1         = &ip_min_valid_pmtu,
 	},
 	{ },
 };
@@ -3575,9 +3576,11 @@ static __net_init int sysctl_route_net_init(struct net *net)
 {
 	struct ctl_table *tbl;
 
-	tbl = ipv4_route_flush_table;
+	tbl = ipv4_route_netns_table;
 	if (!net_eq(net, &init_net)) {
-		tbl = kmemdup(tbl, sizeof(ipv4_route_flush_table), GFP_KERNEL);
+		int i;
+
+		tbl = kmemdup(tbl, sizeof(ipv4_route_netns_table), GFP_KERNEL);
 		if (!tbl)
 			goto err_dup;
 
@@ -3586,6 +3589,12 @@ static __net_init int sysctl_route_net_init(struct net *net)
 			if (tbl[0].procname != ipv4_route_flush_procname)
 				tbl[0].procname = NULL;
 		}
+
+		/* Update the variables to point into the current struct net
+		 * except for the first element flush
+		 */
+		for (i = 1; i < ARRAY_SIZE(ipv4_route_netns_table) - 1; i++)
+			tbl[i].data += (void *)net - (void *)&init_net;
 	}
 	tbl[0].extra1 = net;
 
@@ -3595,7 +3604,7 @@ static __net_init int sysctl_route_net_init(struct net *net)
 	return 0;
 
 err_reg:
-	if (tbl != ipv4_route_flush_table)
+	if (tbl != ipv4_route_netns_table)
 		kfree(tbl);
 err_dup:
 	return -ENOMEM;
@@ -3607,7 +3616,7 @@ static __net_exit void sysctl_route_net_exit(struct net *net)
 
 	tbl = net->ipv4.route_hdr->ctl_table_arg;
 	unregister_net_sysctl_table(net->ipv4.route_hdr);
-	BUG_ON(tbl == ipv4_route_flush_table);
+	BUG_ON(tbl == ipv4_route_netns_table);
 	kfree(tbl);
 }
 
@@ -3616,6 +3625,17 @@ static __net_initdata struct pernet_operations sysctl_route_ops = {
 	.exit = sysctl_route_net_exit,
 };
 #endif
+
+static __net_init int netns_ip_rt_init(struct net *net)
+{
+	/* Set default value for namespaceified sysctls */
+	net->ipv4.ip_rt_min_pmtu = DEFAULT_MIN_PMTU;
+	return 0;
+}
+
+static struct pernet_operations __net_initdata ip_rt_ops = {
+	.init = netns_ip_rt_init,
+};
 
 static __net_init int rt_genid_init(struct net *net)
 {
@@ -3722,6 +3742,7 @@ int __init ip_rt_init(void)
 #ifdef CONFIG_SYSCTL
 	register_pernet_subsys(&sysctl_route_ops);
 #endif
+	register_pernet_subsys(&ip_rt_ops);
 	register_pernet_subsys(&rt_genid_ops);
 	register_pernet_subsys(&ipv4_inetpeer_ops);
 	return 0;
