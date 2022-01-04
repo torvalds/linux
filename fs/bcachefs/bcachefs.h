@@ -177,7 +177,11 @@
  */
 
 #undef pr_fmt
+#ifdef __KERNEL__
 #define pr_fmt(fmt) "bcachefs: %s() " fmt "\n", __func__
+#else
+#define pr_fmt(fmt) "%s() " fmt "\n", __func__
+#endif
 
 #include <linux/backing-dev-defs.h>
 #include <linux/bug.h>

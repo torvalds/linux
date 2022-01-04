@@ -1008,6 +1008,7 @@ int bch2_fs_recovery(struct bch_fs *c)
 	if (!c->sb.clean || c->opts.fsck || c->opts.keep_journal) {
 		struct journal_replay *i;
 
+		bch_verbose(c, "starting journal read");
 		ret = bch2_journal_read(c, &c->journal_entries,
 					&blacklist_seq, &journal_seq);
 		if (ret)

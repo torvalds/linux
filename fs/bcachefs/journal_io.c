@@ -892,6 +892,7 @@ static void bch2_journal_read_device(struct closure *cl)
 	struct journal_device *ja =
 		container_of(cl, struct journal_device, read);
 	struct bch_dev *ca = container_of(ja, struct bch_dev, journal);
+	struct bch_fs *c = ca->fs;
 	struct journal_list *jlist =
 		container_of(cl->parent, struct journal_list, cl);
 	struct journal_read_buf buf = { NULL, 0 };
@@ -943,6 +944,7 @@ static void bch2_journal_read_device(struct closure *cl)
 	ja->discard_idx = ja->dirty_idx_ondisk =
 		ja->dirty_idx = (ja->cur_idx + 1) % ja->nr;
 out:
+	bch_verbose(c, "journal read done on device %s, ret %i", ca->name, ret);
 	kvpfree(buf.data, buf.size);
 	percpu_ref_put(&ca->io_ref);
 	closure_return(cl);
