@@ -391,9 +391,9 @@ static int i915_swizzle_info(struct seq_file *m, void *data)
 	intel_wakeref_t wakeref;
 
 	seq_printf(m, "bit6 swizzle for X-tiling = %s\n",
-		   swizzle_string(dev_priv->ggtt.bit_6_swizzle_x));
+		   swizzle_string(to_gt(dev_priv)->ggtt->bit_6_swizzle_x));
 	seq_printf(m, "bit6 swizzle for Y-tiling = %s\n",
-		   swizzle_string(dev_priv->ggtt.bit_6_swizzle_y));
+		   swizzle_string(to_gt(dev_priv)->ggtt->bit_6_swizzle_y));
 
 	if (dev_priv->quirks & QUIRK_PIN_SWIZZLED_PAGES)
 		seq_puts(m, "L-shaped memory detected\n");
