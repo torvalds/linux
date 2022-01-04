@@ -2635,12 +2635,13 @@ static void ext4_apply_quota_options(struct fs_context *fc,
 				continue;
 
 			qname = ctx->s_qf_names[i]; /* May be NULL */
+			if (qname)
+				set_opt(sb, QUOTA);
 			ctx->s_qf_names[i] = NULL;
 			qname = rcu_replace_pointer(sbi->s_qf_names[i], qname,
 						lockdep_is_held(&sb->s_umount));
 			if (qname)
 				kfree_rcu(qname);
-			set_opt(sb, QUOTA);
 		}
 	}
 
