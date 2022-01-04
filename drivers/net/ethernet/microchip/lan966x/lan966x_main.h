@@ -30,6 +30,8 @@
 /* Reserved amount for (SRC, PRIO) at index 8*SRC + PRIO */
 #define QSYS_Q_RSRV			95
 
+#define CPU_PORT			8
+
 /* Reserved PGIDs */
 #define PGID_CPU			(PGID_AGGR - 6)
 #define PGID_UC				(PGID_AGGR - 5)
@@ -38,13 +40,15 @@
 #define PGID_MCIPV4			(PGID_AGGR - 2)
 #define PGID_MCIPV6			(PGID_AGGR - 1)
 
+/* Non-reserved PGIDs, used for general purpose */
+#define PGID_GP_START			(CPU_PORT + 1)
+#define PGID_GP_END			PGID_CPU
+
 #define LAN966X_SPEED_NONE		0
 #define LAN966X_SPEED_2500		1
 #define LAN966X_SPEED_1000		1
 #define LAN966X_SPEED_100		2
 #define LAN966X_SPEED_10		3
-
-#define CPU_PORT			8
 
 /* MAC table entry types.
  * ENTRYTYPE_NORMAL is subject to aging.
