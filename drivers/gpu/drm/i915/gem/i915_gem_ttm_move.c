@@ -525,7 +525,7 @@ int i915_ttm_move(struct ttm_buffer_object *bo, bool evict,
 			return ret;
 		}
 
-		migration_fence = __i915_ttm_move(bo, ctx, clear, dst_mem, bo->ttm,
+		migration_fence = __i915_ttm_move(bo, ctx, clear, dst_mem, ttm,
 						  dst_rsgt, true, &deps);
 		i915_deps_fini(&deps);
 	}
