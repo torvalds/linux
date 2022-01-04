@@ -184,7 +184,6 @@
 #else
 #define Q_MAX_SZ_SHIFT			(PAGE_SHIFT + MAX_ORDER - 1)
 #endif
-#define Q_MIN_SZ_SHIFT			(PAGE_SHIFT)
 
 /*
  * Stream table.
@@ -374,7 +373,7 @@
 /* Event queue */
 #define EVTQ_ENT_SZ_SHIFT		5
 #define EVTQ_ENT_DWORDS			((1 << EVTQ_ENT_SZ_SHIFT) >> 3)
-#define EVTQ_MAX_SZ_SHIFT		(Q_MIN_SZ_SHIFT - EVTQ_ENT_SZ_SHIFT)
+#define EVTQ_MAX_SZ_SHIFT		(Q_MAX_SZ_SHIFT - EVTQ_ENT_SZ_SHIFT)
 
 #define EVTQ_0_ID			GENMASK_ULL(7, 0)
 
@@ -400,7 +399,7 @@
 /* PRI queue */
 #define PRIQ_ENT_SZ_SHIFT		4
 #define PRIQ_ENT_DWORDS			((1 << PRIQ_ENT_SZ_SHIFT) >> 3)
-#define PRIQ_MAX_SZ_SHIFT		(Q_MIN_SZ_SHIFT - PRIQ_ENT_SZ_SHIFT)
+#define PRIQ_MAX_SZ_SHIFT		(Q_MAX_SZ_SHIFT - PRIQ_ENT_SZ_SHIFT)
 
 #define PRIQ_0_SID			GENMASK_ULL(31, 0)
 #define PRIQ_0_SSID			GENMASK_ULL(51, 32)
