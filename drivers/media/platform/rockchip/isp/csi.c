@@ -277,7 +277,7 @@ static int csi_config(struct rkisp_csi_device *csi)
 		bool is_feature_on = dev->hw_dev->is_feature_on;
 		u64 iq_feature = dev->hw_dev->iq_feature;
 		struct rkmodule_hdr_cfg hdr_cfg;
-		u32 val;
+		u32 val, mask;
 
 		dev->hdr.op_mode = HDR_NORMAL;
 		dev->hdr.esp_mode = HDR_NORMAL_VC;
@@ -311,15 +311,16 @@ static int csi_config(struct rkisp_csi_device *csi)
 		val = SW_CSI_ID1(csi->mipi_di[1]) |
 		      SW_CSI_ID2(csi->mipi_di[2]) |
 		      SW_CSI_ID3(csi->mipi_di[3]);
+		mask = SW_CSI_ID1(0xff) | SW_CSI_ID2(0xff) | SW_CSI_ID3(0xff);
 		/* CSI_ID0 is for dmarx when read back mode */
 		if (dev->hw_dev->is_single) {
 			val |= SW_CSI_ID0(csi->mipi_di[0]);
 			rkisp_write(dev, CSI2RX_DATA_IDS_1, val, true);
 		} else {
-			rkisp_set_bits(dev, CSI2RX_DATA_IDS_1, 0, val, true);
+			rkisp_set_bits(dev, CSI2RX_DATA_IDS_1, mask, val, true);
 			for (i = 0; i < dev->hw_dev->dev_num; i++)
 				rkisp_set_bits(dev->hw_dev->isp[i],
-					CSI2RX_DATA_IDS_1, 0, val, false);
+					CSI2RX_DATA_IDS_1, mask, val, false);
 		}
 		val = SW_CSI_ID4(csi->mipi_di[4]);
 		rkisp_write(dev, CSI2RX_DATA_IDS_2, val, true);
