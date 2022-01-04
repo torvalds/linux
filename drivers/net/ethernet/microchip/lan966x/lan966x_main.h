@@ -157,6 +157,11 @@ int lan966x_port_pcs_set(struct lan966x_port *port,
 			 struct lan966x_port_config *config);
 void lan966x_port_init(struct lan966x_port *port);
 
+int lan966x_mac_ip_learn(struct lan966x *lan966x,
+			 bool cpu_copy,
+			 const unsigned char mac[ETH_ALEN],
+			 unsigned int vid,
+			 enum macaccess_entry_type type);
 int lan966x_mac_learn(struct lan966x *lan966x, int port,
 		      const unsigned char mac[ETH_ALEN],
 		      unsigned int vid,
