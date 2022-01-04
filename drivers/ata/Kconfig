@@ -156,7 +156,7 @@ config AHCI_BRCM
 
 config AHCI_DA850
 	tristate "DaVinci DA850 AHCI SATA support"
-	depends on ARCH_DAVINCI_DA850
+	depends on ARCH_DAVINCI_DA850 || COMPILE_TEST
 	select SATA_HOST
 	help
 	  This option enables support for the DaVinci DA850 SoC's
