@@ -2326,7 +2326,7 @@ retry:
 
 	bch2_trans_iter_init(&trans, &iter, BTREE_ID_extents,
 			     SPOS(inum.inum, bvec_iter.bi_sector, snapshot),
-			     BTREE_ITER_SLOTS|BTREE_ITER_FILTER_SNAPSHOTS);
+			     BTREE_ITER_SLOTS);
 	while (1) {
 		unsigned bytes, sectors, offset_into_extent;
 		enum btree_id data_btree = BTREE_ID_extents;

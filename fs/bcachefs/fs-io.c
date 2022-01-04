@@ -1005,7 +1005,7 @@ retry:
 
 	bch2_trans_iter_init(trans, &iter, BTREE_ID_extents,
 			     SPOS(inum.inum, rbio->bio.bi_iter.bi_sector, snapshot),
-			     BTREE_ITER_SLOTS|BTREE_ITER_FILTER_SNAPSHOTS);
+			     BTREE_ITER_SLOTS);
 	while (1) {
 		struct bkey_s_c k;
 		unsigned bytes, sectors, offset_into_extent;
