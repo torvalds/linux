@@ -236,7 +236,7 @@ config AHCI_OCTEON
 
 config AHCI_SUNXI
 	tristate "Allwinner sunxi AHCI SATA support"
-	depends on ARCH_SUNXI
+	depends on ARCH_SUNXI || COMPILE_TEST
 	select SATA_HOST
 	help
 	  This option enables support for the Allwinner sunxi SoC's
