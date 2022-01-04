@@ -1385,6 +1385,12 @@ extern const struct attribute_group *ata_common_sdev_groups[];
 	.tag_alloc_policy	= BLK_TAG_ALLOC_RR,		\
 	.slave_configure	= ata_scsi_slave_config
 
+#define ATA_SUBBASE_SHT_QD(drv_name, drv_qd)			\
+	__ATA_BASE_SHT(drv_name),				\
+	.can_queue		= drv_qd,			\
+	.tag_alloc_policy	= BLK_TAG_ALLOC_RR,		\
+	.slave_configure	= ata_scsi_slave_config
+
 #define ATA_BASE_SHT(drv_name)					\
 	ATA_SUBBASE_SHT(drv_name),				\
 	.sdev_groups		= ata_common_sdev_groups
@@ -1394,6 +1400,11 @@ extern const struct attribute_group *ata_ncq_sdev_groups[];
 
 #define ATA_NCQ_SHT(drv_name)					\
 	ATA_SUBBASE_SHT(drv_name),				\
+	.sdev_groups		= ata_ncq_sdev_groups,		\
+	.change_queue_depth	= ata_scsi_change_queue_depth
+
+#define ATA_NCQ_SHT_QD(drv_name, drv_qd)			\
+	ATA_SUBBASE_SHT_QD(drv_name, drv_qd),			\
 	.sdev_groups		= ata_ncq_sdev_groups,		\
 	.change_queue_depth	= ata_scsi_change_queue_depth
 #endif
