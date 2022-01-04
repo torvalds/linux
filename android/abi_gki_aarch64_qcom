@@ -2091,6 +2091,7 @@
   rproc_put
   rproc_remove_subdev
   rproc_report_crash
+  rproc_set_firmware
   rproc_shutdown
   rtc_ktime_to_tm
   __rtc_register_device
