@@ -939,11 +939,13 @@ static void smmu_pmu_shutdown(struct platform_device *pdev)
 	smmu_pmu_disable(&smmu_pmu->pmu);
 }
 
+#ifdef CONFIG_OF
 static const struct of_device_id smmu_pmu_of_match[] = {
 	{ .compatible = "arm,smmu-v3-pmcg" },
 	{}
 };
 MODULE_DEVICE_TABLE(of, smmu_pmu_of_match);
+#endif
 
 static struct platform_driver smmu_pmu_driver = {
 	.driver = {
