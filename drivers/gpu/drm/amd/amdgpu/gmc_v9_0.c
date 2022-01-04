@@ -1269,7 +1269,8 @@ static void gmc_v9_0_set_gfxhub_funcs(struct amdgpu_device *adev)
 
 static void gmc_v9_0_set_hdp_ras_funcs(struct amdgpu_device *adev)
 {
-	adev->hdp.ras_funcs = &hdp_v4_0_ras_funcs;
+	adev->hdp.ras = &hdp_v4_0_ras;
+	amdgpu_ras_register_ras_block(adev, &adev->hdp.ras->ras_block);
 }
 
 static void gmc_v9_0_set_mca_funcs(struct amdgpu_device *adev)
@@ -1346,9 +1347,9 @@ static int gmc_v9_0_late_init(void *handle)
 		    adev->mmhub.ras_funcs->reset_ras_error_count)
 			adev->mmhub.ras_funcs->reset_ras_error_count(adev);
 
-		if (adev->hdp.ras_funcs &&
-		    adev->hdp.ras_funcs->reset_ras_error_count)
-			adev->hdp.ras_funcs->reset_ras_error_count(adev);
+		if (adev->hdp.ras && adev->hdp.ras->ras_block.hw_ops &&
+		    adev->hdp.ras->ras_block.hw_ops->reset_ras_error_count)
+			adev->hdp.ras->ras_block.hw_ops->reset_ras_error_count(adev);
 	}
 
 	r = amdgpu_gmc_ras_late_init(adev);
