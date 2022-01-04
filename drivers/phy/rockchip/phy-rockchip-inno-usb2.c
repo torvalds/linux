@@ -25,6 +25,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/power_supply.h>
 #include <linux/regmap.h>
+#include <linux/reset.h>
 #include <linux/mfd/syscon.h>
 #include <linux/usb/of.h>
 #include <linux/usb/otg.h>
@@ -280,6 +281,7 @@ struct rockchip_usb2phy_port {
  * @grf: General Register Files regmap.
  * @usbgrf: USB General Register Files regmap.
  * *phy_base: the base address of USB PHY.
+ * @phy_reset: phy reset control.
  * @clk: clock struct of phy input clk.
  * @clk480m: clock struct of phy output clk.
  * @clk480m_hw: clock struct of phy output clk management.
@@ -302,6 +304,7 @@ struct rockchip_usb2phy {
 	struct regmap	*grf;
 	struct regmap	*usbgrf;
 	void __iomem	*phy_base;
+	struct reset_control	*phy_reset;
 	struct clk	*clk;
 	struct clk	*clk480m;
 	struct clk_hw	clk480m_hw;
@@ -347,6 +350,25 @@ static inline bool property_enabled(struct regmap *base,
 
 	tmp = (orig & mask) >> reg->bitstart;
 	return tmp == reg->enable;
+}
+
+static int rockchip_usb2phy_reset(struct rockchip_usb2phy *rphy)
+{
+	int ret;
+
+	ret = reset_control_assert(rphy->phy_reset);
+	if (ret)
+		return ret;
+
+	udelay(10);
+
+	ret = reset_control_deassert(rphy->phy_reset);
+	if (ret)
+		return ret;
+
+	usleep_range(100, 200);
+
+	return 0;
 }
 
 static int rockchip_usb2phy_clk480m_prepare(struct clk_hw *hw)
@@ -760,6 +782,18 @@ static int rockchip_usb2phy_power_on(struct phy *phy)
 		goto unlock;
 
 	ret = property_enable(base, &rport->port_cfg->phy_sus, false);
+	if (ret)
+		goto unlock;
+
+	/*
+	 * For rk3588, it needs to reset phy when exit from
+	 * suspend mode with common_on_n 1'b1(aka REFCLK_LOGIC,
+	 * Bias, and PLL blocks are powered down) for lower
+	 * power consumption. If you don't want to reset phy,
+	 * please keep the common_on_n 1'b0 to set these blocks
+	 * remain powered.
+	 */
+	ret = rockchip_usb2phy_reset(rphy);
 	if (ret)
 		goto unlock;
 
@@ -2046,6 +2080,11 @@ static int rockchip_usb2phy_probe(struct platform_device *pdev)
 	pm_runtime_enable(dev);
 	pm_runtime_get_sync(dev);
 
+
+	rphy->phy_reset = devm_reset_control_get_optional(dev, "phy");
+	if (IS_ERR(rphy->phy_reset))
+		return PTR_ERR(rphy->phy_reset);
+
 	rphy->clk = of_clk_get_by_name(np, "phyclk");
 	if (!IS_ERR(rphy->clk)) {
 		clk_prepare_enable(rphy->clk);
@@ -2413,6 +2452,17 @@ static int rk3568_vbus_detect_control(struct rockchip_usb2phy *rphy, bool en)
 static int rk3588_usb2phy_tuning(struct rockchip_usb2phy *rphy)
 {
 	int ret = 0;
+
+	/* Deassert SIDDQ to power on analog block */
+	ret = regmap_write(rphy->grf, 0x0008,
+			   GENMASK(29, 29) | 0x0000);
+	if (ret)
+		return ret;
+
+	/* Do reset after exit IDDQ mode */
+	ret = rockchip_usb2phy_reset(rphy);
+	if (ret)
+		return ret;
 
 	if (rphy->phy_cfg->reg == 0x0000) {
 		/*
@@ -3178,7 +3228,7 @@ static const struct rockchip_usb2phy_cfg rk3588_phy_cfgs[] = {
 		.clkout_ctl	= { 0x0000, 0, 0, 1, 0 },
 		.port_cfgs	= {
 			[USB2PHY_PORT_OTG] = {
-				.phy_sus	= { 0x000c, 11, 11, 0, 0 },
+				.phy_sus	= { 0x000c, 11, 11, 0, 1 },
 				.bvalid_det_en	= { 0x0080, 1, 1, 0, 1 },
 				.bvalid_det_st	= { 0x0084, 1, 1, 0, 1 },
 				.bvalid_det_clr = { 0x0088, 1, 1, 0, 1 },
