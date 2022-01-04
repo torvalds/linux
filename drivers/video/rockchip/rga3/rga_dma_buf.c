@@ -943,7 +943,9 @@ static void rga_dma_put_channel_info(struct rga_dma_buffer_t **rga_dma_buffer, s
 		return;
 
 	rga_dma_unmap_buffer(buffer);
-	dma_buf_put(*dma_buf);
+	if (*dma_buf)
+		dma_buf_put(*dma_buf);
+
 	kfree(buffer);
 
 	*rga_dma_buffer = NULL;
