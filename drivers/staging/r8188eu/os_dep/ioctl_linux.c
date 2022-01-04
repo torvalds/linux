@@ -2998,7 +2998,7 @@ static int rtw_p2p_connect(struct net_device *dev,
 	struct list_head *plist, *phead;
 	struct __queue *queue	= &pmlmepriv->scanned_queue;
 	struct	wlan_network	*pnetwork = NULL;
-	uint uintPeerChannel = 0;
+	u32 peer_channel = 0;
 
 	/*	Commented by Albert 20110304 */
 	/*	The input data contains two informations. */
@@ -3028,7 +3028,7 @@ static int rtw_p2p_connect(struct net_device *dev,
 	while (phead != plist) {
 		pnetwork = container_of(plist, struct wlan_network, list);
 		if (!memcmp(pnetwork->network.MacAddress, peerMAC, ETH_ALEN)) {
-			uintPeerChannel = pnetwork->network.Configuration.DSConfig;
+			peer_channel = pnetwork->network.Configuration.DSConfig;
 			break;
 		}
 
@@ -3037,11 +3037,11 @@ static int rtw_p2p_connect(struct net_device *dev,
 
 	spin_unlock_bh(&pmlmepriv->scanned_queue.lock);
 
-	if (uintPeerChannel) {
+	if (peer_channel) {
 		memset(&pwdinfo->nego_req_info, 0x00, sizeof(struct tx_nego_req_info));
 		memset(&pwdinfo->groupid_info, 0x00, sizeof(struct group_id_info));
 
-		pwdinfo->nego_req_info.peer_channel_num[0] = uintPeerChannel;
+		pwdinfo->nego_req_info.peer_channel_num[0] = peer_channel;
 		memcpy(pwdinfo->nego_req_info.peerDevAddr, pnetwork->network.MacAddress, ETH_ALEN);
 		pwdinfo->nego_req_info.benable = true;
 
@@ -3076,7 +3076,7 @@ static int rtw_p2p_invite_req(struct net_device *dev,
 	struct list_head *plist, *phead;
 	struct __queue *queue	= &pmlmepriv->scanned_queue;
 	struct	wlan_network	*pnetwork = NULL;
-	uint uintPeerChannel = 0;
+	uint peer_channel = 0;
 	u8 attr_content[50] = {0x00};
 	u8 *p2pie;
 	uint p2pielen = 0, attr_contentlen = 0;
@@ -3132,13 +3132,13 @@ static int rtw_p2p_invite_req(struct net_device *dev,
 			if (rtw_get_p2p_attr_content(p2pie, p2pielen, P2P_ATTR_DEVICE_ID, attr_content, &attr_contentlen)) {
 				/*	Handle the P2P Device ID attribute of Beacon first */
 				if (!memcmp(attr_content, pinvite_req_info->peer_macaddr, ETH_ALEN)) {
-					uintPeerChannel = pnetwork->network.Configuration.DSConfig;
+					peer_channel = pnetwork->network.Configuration.DSConfig;
 					break;
 				}
 			} else if (rtw_get_p2p_attr_content(p2pie, p2pielen, P2P_ATTR_DEVICE_INFO, attr_content, &attr_contentlen)) {
 				/*	Handle the P2P Device Info attribute of probe response */
 				if (!memcmp(attr_content, pinvite_req_info->peer_macaddr, ETH_ALEN)) {
-					uintPeerChannel = pnetwork->network.Configuration.DSConfig;
+					peer_channel = pnetwork->network.Configuration.DSConfig;
 					break;
 				}
 			}
@@ -3148,7 +3148,7 @@ static int rtw_p2p_invite_req(struct net_device *dev,
 
 	spin_unlock_bh(&pmlmepriv->scanned_queue.lock);
 
-	if (uintPeerChannel) {
+	if (peer_channel) {
 		/*	Store the GO's bssid */
 		for (jj = 0, kk = 18; jj < ETH_ALEN; jj++, kk += 3)
 			pinvite_req_info->go_bssid[jj] = key_2char2num(extra[kk], extra[kk + 1]);
@@ -3157,12 +3157,12 @@ static int rtw_p2p_invite_req(struct net_device *dev,
 		pinvite_req_info->ssidlen = wrqu->data.length - 36;
 		memcpy(pinvite_req_info->go_ssid, &extra[36], (u32)pinvite_req_info->ssidlen);
 		pinvite_req_info->benable = true;
-		pinvite_req_info->peer_ch = uintPeerChannel;
+		pinvite_req_info->peer_ch = peer_channel;
 
 		rtw_p2p_set_pre_state(pwdinfo, rtw_p2p_state(pwdinfo));
 		rtw_p2p_set_state(pwdinfo, P2P_STATE_TX_INVITE_REQ);
 
-		set_channel_bwmode(padapter, uintPeerChannel, HAL_PRIME_CHNL_OFFSET_DONT_CARE, HT_CHANNEL_WIDTH_20);
+		set_channel_bwmode(padapter, peer_channel, HAL_PRIME_CHNL_OFFSET_DONT_CARE, HT_CHANNEL_WIDTH_20);
 
 		_set_timer(&pwdinfo->pre_tx_scan_timer, P2P_TX_PRESCAN_TIMEOUT);
 
@@ -3215,7 +3215,7 @@ static int rtw_p2p_prov_disc(struct net_device *dev,
 	struct list_head *plist, *phead;
 	struct __queue *queue	= &pmlmepriv->scanned_queue;
 	struct	wlan_network	*pnetwork = NULL;
-	uint uintPeerChannel = 0;
+	uint peer_channel = 0;
 	u8 attr_content[100] = {0x00};
 	u8 *p2pie;
 	uint p2pielen = 0, attr_contentlen = 0;
@@ -3265,7 +3265,7 @@ static int rtw_p2p_prov_disc(struct net_device *dev,
 	plist = phead->next;
 
 	while (phead != plist) {
-		if (uintPeerChannel != 0)
+		if (peer_channel != 0)
 			break;
 
 		pnetwork = container_of(plist, struct wlan_network, list);
@@ -3283,13 +3283,13 @@ static int rtw_p2p_prov_disc(struct net_device *dev,
 				if (rtw_get_p2p_attr_content(p2pie, p2pielen, P2P_ATTR_DEVICE_ID, attr_content, &attr_contentlen)) {
 					/*	Handle the P2P Device ID attribute of Beacon first */
 					if (!memcmp(attr_content, peerMAC, ETH_ALEN)) {
-						uintPeerChannel = pnetwork->network.Configuration.DSConfig;
+						peer_channel = pnetwork->network.Configuration.DSConfig;
 						break;
 					}
 				} else if (rtw_get_p2p_attr_content(p2pie, p2pielen, P2P_ATTR_DEVICE_INFO, attr_content, &attr_contentlen)) {
 					/*	Handle the P2P Device Info attribute of probe response */
 					if (!memcmp(attr_content, peerMAC, ETH_ALEN)) {
-						uintPeerChannel = pnetwork->network.Configuration.DSConfig;
+						peer_channel = pnetwork->network.Configuration.DSConfig;
 						break;
 					}
 				}
@@ -3304,11 +3304,11 @@ static int rtw_p2p_prov_disc(struct net_device *dev,
 
 	spin_unlock_bh(&pmlmepriv->scanned_queue.lock);
 
-	if (uintPeerChannel) {
-		DBG_88E("[%s] peer channel: %d!\n", __func__, uintPeerChannel);
+	if (peer_channel) {
+		DBG_88E("[%s] peer channel: %d!\n", __func__, peer_channel);
 		memcpy(pwdinfo->tx_prov_disc_info.peerIFAddr, pnetwork->network.MacAddress, ETH_ALEN);
 		memcpy(pwdinfo->tx_prov_disc_info.peerDevAddr, peerMAC, ETH_ALEN);
-		pwdinfo->tx_prov_disc_info.peer_channel_num[0] = (u16)uintPeerChannel;
+		pwdinfo->tx_prov_disc_info.peer_channel_num[0] = (u16)peer_channel;
 		pwdinfo->tx_prov_disc_info.benable = true;
 		rtw_p2p_set_pre_state(pwdinfo, rtw_p2p_state(pwdinfo));
 		rtw_p2p_set_state(pwdinfo, P2P_STATE_TX_PROVISION_DIS_REQ);
@@ -3320,7 +3320,7 @@ static int rtw_p2p_prov_disc(struct net_device *dev,
 			pwdinfo->tx_prov_disc_info.ssid.SsidLength = P2P_WILDCARD_SSID_LEN;
 		}
 
-		set_channel_bwmode(padapter, uintPeerChannel, HAL_PRIME_CHNL_OFFSET_DONT_CARE, HT_CHANNEL_WIDTH_20);
+		set_channel_bwmode(padapter, peer_channel, HAL_PRIME_CHNL_OFFSET_DONT_CARE, HT_CHANNEL_WIDTH_20);
 
 		_set_timer(&pwdinfo->pre_tx_scan_timer, P2P_TX_PRESCAN_TIMEOUT);
 
