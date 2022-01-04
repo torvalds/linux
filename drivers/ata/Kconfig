@@ -294,7 +294,7 @@ config SATA_GEMINI
 
 config SATA_AHCI_SEATTLE
 	tristate "AMD Seattle 6.0Gbps AHCI SATA host controller support"
-	depends on ARCH_SEATTLE
+	depends on ARCH_SEATTLE || COMPILE_TEST
 	select SATA_HOST
 	help
 	 This option enables support for AMD Seattle SATA host controller.
