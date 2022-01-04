@@ -109,6 +109,10 @@ struct lan966x {
 	/* worqueue for fdb */
 	struct workqueue_struct *fdb_work;
 	struct list_head fdb_entries;
+
+	/* mdb */
+	struct list_head mdb_entries;
+	struct list_head pgid_entries;
 };
 
 struct lan966x_port_config {
@@ -214,6 +218,15 @@ int lan966x_handle_fdb(struct net_device *dev,
 		       struct net_device *orig_dev,
 		       unsigned long event, const void *ctx,
 		       const struct switchdev_notifier_fdb_info *fdb_info);
+
+void lan966x_mdb_init(struct lan966x *lan966x);
+void lan966x_mdb_deinit(struct lan966x *lan966x);
+int lan966x_handle_port_mdb_add(struct lan966x_port *port,
+				const struct switchdev_obj *obj);
+int lan966x_handle_port_mdb_del(struct lan966x_port *port,
+				const struct switchdev_obj *obj);
+void lan966x_mdb_erase_entries(struct lan966x *lan966x, u16 vid);
+void lan966x_mdb_write_entries(struct lan966x *lan966x, u16 vid);
 
 static inline void __iomem *lan_addr(void __iomem *base[],
 				     int id, int tinst, int tcnt,

@@ -926,6 +926,7 @@ static int lan966x_probe(struct platform_device *pdev)
 		lan966x_port_init(lan966x->ports[p]);
 	}
 
+	lan966x_mdb_init(lan966x);
 	err = lan966x_fdb_init(lan966x);
 	if (err)
 		goto cleanup_ports;
@@ -955,6 +956,7 @@ static int lan966x_remove(struct platform_device *pdev)
 	mutex_destroy(&lan966x->stats_lock);
 
 	lan966x_mac_purge_entries(lan966x);
+	lan966x_mdb_deinit(lan966x);
 	lan966x_fdb_deinit(lan966x);
 
 	return 0;

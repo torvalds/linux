@@ -219,6 +219,7 @@ void lan966x_vlan_port_add_vlan(struct lan966x_port *port,
 	if (lan966x_vlan_cpu_member_cpu_vlan_mask(lan966x, vid)) {
 		lan966x_vlan_cpu_add_vlan_mask(lan966x, vid);
 		lan966x_fdb_write_entries(lan966x, vid);
+		lan966x_mdb_write_entries(lan966x, vid);
 	}
 
 	lan966x_vlan_port_set_vid(port, vid, pvid, untagged);
@@ -241,6 +242,7 @@ void lan966x_vlan_port_del_vlan(struct lan966x_port *port, u16 vid)
 	if (!lan966x_vlan_port_any_vlan_mask(lan966x, vid)) {
 		lan966x_vlan_cpu_del_vlan_mask(lan966x, vid);
 		lan966x_fdb_erase_entries(lan966x, vid);
+		lan966x_mdb_erase_entries(lan966x, vid);
 	}
 }
 
@@ -254,8 +256,10 @@ void lan966x_vlan_cpu_add_vlan(struct lan966x *lan966x, u16 vid)
 	 * information so when a front port is added then it would add also the
 	 * CPU port.
 	 */
-	if (lan966x_vlan_port_any_vlan_mask(lan966x, vid))
+	if (lan966x_vlan_port_any_vlan_mask(lan966x, vid)) {
 		lan966x_vlan_cpu_add_vlan_mask(lan966x, vid);
+		lan966x_mdb_write_entries(lan966x, vid);
+	}
 
 	lan966x_vlan_cpu_add_cpu_vlan_mask(lan966x, vid);
 	lan966x_fdb_write_entries(lan966x, vid);
@@ -267,6 +271,7 @@ void lan966x_vlan_cpu_del_vlan(struct lan966x *lan966x, u16 vid)
 	lan966x_vlan_cpu_del_cpu_vlan_mask(lan966x, vid);
 	lan966x_vlan_cpu_del_vlan_mask(lan966x, vid);
 	lan966x_fdb_erase_entries(lan966x, vid);
+	lan966x_mdb_erase_entries(lan966x, vid);
 }
 
 void lan966x_vlan_init(struct lan966x *lan966x)
