@@ -399,6 +399,7 @@ static ssize_t cable_state_show(struct device *dev,
 /**
  * extcon_sync() - Synchronize the state for an external connector.
  * @edev:	the extcon device
+ * @id:		the unique id indicating an external connector
  *
  * Note that this function send a notification in order to synchronize
  * the state and property of an external connector.
@@ -736,6 +737,9 @@ EXPORT_SYMBOL_GPL(extcon_set_property);
 
 /**
  * extcon_set_property_sync() - Set property of an external connector with sync.
+ * @edev:	the extcon device
+ * @id:		the unique id indicating an external connector
+ * @prop:	the property id indicating an extcon property
  * @prop_val:	the pointer including the new value of extcon property
  *
  * Note that when setting the property value of external connector,
