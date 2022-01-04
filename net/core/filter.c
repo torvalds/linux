@@ -4969,6 +4969,12 @@ static int _bpf_getsockopt(struct sock *sk, int level, int optname,
 			goto err_clear;
 
 		switch (optname) {
+		case SO_RCVBUF:
+			*((int *)optval) = sk->sk_rcvbuf;
+			break;
+		case SO_SNDBUF:
+			*((int *)optval) = sk->sk_sndbuf;
+			break;
 		case SO_MARK:
 			*((int *)optval) = sk->sk_mark;
 			break;
