@@ -1248,17 +1248,32 @@ static void gmc_v9_0_set_mmhub_ras_funcs(struct amdgpu_device *adev)
 {
 	switch (adev->ip_versions[MMHUB_HWIP][0]) {
 	case IP_VERSION(9, 4, 0):
-		adev->mmhub.ras_funcs = &mmhub_v1_0_ras_funcs;
+		adev->mmhub.ras = &mmhub_v1_0_ras;
 		break;
 	case IP_VERSION(9, 4, 1):
-		adev->mmhub.ras_funcs = &mmhub_v9_4_ras_funcs;
+		adev->mmhub.ras = &mmhub_v9_4_ras;
 		break;
 	case IP_VERSION(9, 4, 2):
-		adev->mmhub.ras_funcs = &mmhub_v1_7_ras_funcs;
+		adev->mmhub.ras = &mmhub_v1_7_ras;
 		break;
 	default:
 		/* mmhub ras is not available */
 		break;
+	}
+
+	if (adev->mmhub.ras) {
+		amdgpu_ras_register_ras_block(adev, &adev->mmhub.ras->ras_block);
+
+		strcpy(adev->mmhub.ras->ras_block.name,"mmhub");
+		adev->mmhub.ras->ras_block.block = AMDGPU_RAS_BLOCK__MMHUB;
+
+		/* If don't define special ras_late_init function, use default ras_late_init */
+		if (!adev->mmhub.ras->ras_block.ras_late_init)
+			adev->mmhub.ras->ras_block.ras_late_init = amdgpu_mmhub_ras_late_init;
+
+		/* If don't define special ras_fini function, use default ras_fini */
+		if (!adev->mmhub.ras->ras_block.ras_fini)
+			adev->mmhub.ras->ras_block.ras_fini = amdgpu_mmhub_ras_fini;
 	}
 }
 
@@ -1343,9 +1358,9 @@ static int gmc_v9_0_late_init(void *handle)
 	}
 
 	if (!amdgpu_persistent_edc_harvesting_supported(adev)) {
-		if (adev->mmhub.ras_funcs &&
-		    adev->mmhub.ras_funcs->reset_ras_error_count)
-			adev->mmhub.ras_funcs->reset_ras_error_count(adev);
+		if (adev->mmhub.ras && adev->mmhub.ras->ras_block.hw_ops &&
+		    adev->mmhub.ras->ras_block.hw_ops->reset_ras_error_count)
+			adev->mmhub.ras->ras_block.hw_ops->reset_ras_error_count(adev);
 
 		if (adev->hdp.ras && adev->hdp.ras->ras_block.hw_ops &&
 		    adev->hdp.ras->ras_block.hw_ops->reset_ras_error_count)

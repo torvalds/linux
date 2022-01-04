@@ -986,6 +986,7 @@ int amdgpu_ras_query_error_status(struct amdgpu_device *adev,
 		}
 		break;
 	case AMDGPU_RAS_BLOCK__GFX:
+	case AMDGPU_RAS_BLOCK__MMHUB:
 		if (!block_obj || !block_obj->hw_ops)   {
 			dev_info(adev->dev, "%s doesn't config ras function \n",
 						get_ras_block_str(&info->head));
@@ -996,15 +997,6 @@ int amdgpu_ras_query_error_status(struct amdgpu_device *adev,
 
 		if (block_obj->hw_ops->query_ras_error_status)
 			block_obj->hw_ops->query_ras_error_status(adev);
-		break;
-	case AMDGPU_RAS_BLOCK__MMHUB:
-		if (adev->mmhub.ras_funcs &&
-		    adev->mmhub.ras_funcs->query_ras_error_count)
-			adev->mmhub.ras_funcs->query_ras_error_count(adev, &err_data);
-
-		if (adev->mmhub.ras_funcs &&
-		    adev->mmhub.ras_funcs->query_ras_error_status)
-			adev->mmhub.ras_funcs->query_ras_error_status(adev);
 		break;
 	case AMDGPU_RAS_BLOCK__PCIE_BIF:
 		if (adev->nbio.ras_funcs &&
@@ -1089,6 +1081,7 @@ int amdgpu_ras_reset_error_status(struct amdgpu_device *adev,
 
 	switch (block) {
 	case AMDGPU_RAS_BLOCK__GFX:
+	case AMDGPU_RAS_BLOCK__MMHUB:
 		if (!block_obj || !block_obj->hw_ops)   {
 			dev_info(adev->dev, "%s doesn't config ras function \n", ras_block_str(block));
 			return -EINVAL;
@@ -1099,15 +1092,6 @@ int amdgpu_ras_reset_error_status(struct amdgpu_device *adev,
 
 		if (block_obj->hw_ops->reset_ras_error_status)
 			block_obj->hw_ops->reset_ras_error_status(adev);
-		break;
-	case AMDGPU_RAS_BLOCK__MMHUB:
-		if (adev->mmhub.ras_funcs &&
-		    adev->mmhub.ras_funcs->reset_ras_error_count)
-			adev->mmhub.ras_funcs->reset_ras_error_count(adev);
-
-		if (adev->mmhub.ras_funcs &&
-		    adev->mmhub.ras_funcs->reset_ras_error_status)
-			adev->mmhub.ras_funcs->reset_ras_error_status(adev);
 		break;
 	case AMDGPU_RAS_BLOCK__SDMA:
 		if (adev->sdma.funcs->reset_ras_error_count)
@@ -1825,24 +1809,19 @@ static void amdgpu_ras_error_status_query(struct amdgpu_device *adev,
 	 * Only two block need to query read/write
 	 * RspStatus at current state
 	 */
-	switch (info->head.block) {
-	case AMDGPU_RAS_BLOCK__GFX:
-		if (!block_obj || !block_obj->hw_ops)   {
-			dev_info(adev->dev, "%s doesn't config ras function \n", get_ras_block_str(&info->head));
-			return ;
-		}
+	if ((info->head.block != AMDGPU_RAS_BLOCK__GFX) &&
+		(info->head.block != AMDGPU_RAS_BLOCK__MMHUB))
+		return ;
 
-		if (block_obj->hw_ops->query_ras_error_status)
-			block_obj->hw_ops->query_ras_error_status(adev);
-		break;
-	case AMDGPU_RAS_BLOCK__MMHUB:
-		if (adev->mmhub.ras_funcs &&
-		    adev->mmhub.ras_funcs->query_ras_error_status)
-			adev->mmhub.ras_funcs->query_ras_error_status(adev);
-		break;
-	default:
-		break;
+	block_obj = amdgpu_ras_get_ras_block(adev, info->head.block, info->head.sub_block_index);
+	if (!block_obj || !block_obj->hw_ops) {
+		dev_info(adev->dev, "%s doesn't config ras function \n", get_ras_block_str(&info->head));
+		return ;
 	}
+
+	if (block_obj->hw_ops->query_ras_error_status)
+	block_obj->hw_ops->query_ras_error_status(adev);
+
 }
 
 static void amdgpu_ras_query_err_status(struct amdgpu_device *adev)
