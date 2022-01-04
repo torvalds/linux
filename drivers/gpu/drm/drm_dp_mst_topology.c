@@ -4196,7 +4196,7 @@ int drm_dp_mst_hpd_irq(struct drm_dp_mst_topology_mgr *mgr, u8 *esi, bool *handl
 	int ret = 0;
 	int sc;
 	*handled = false;
-	sc = esi[0] & 0x3f;
+	sc = DP_GET_SINK_COUNT(esi[0]);
 
 	if (sc != mgr->sink_count) {
 		mgr->sink_count = sc;
