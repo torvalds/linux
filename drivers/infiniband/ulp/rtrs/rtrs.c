@@ -18,7 +18,7 @@
 MODULE_DESCRIPTION("RDMA Transport Core");
 MODULE_LICENSE("GPL");
 
-struct rtrs_iu *rtrs_iu_alloc(u32 queue_size, size_t size, gfp_t gfp_mask,
+struct rtrs_iu *rtrs_iu_alloc(u32 iu_num, size_t size, gfp_t gfp_mask,
 			      struct ib_device *dma_dev,
 			      enum dma_data_direction dir,
 			      void (*done)(struct ib_cq *cq, struct ib_wc *wc))
@@ -26,10 +26,10 @@ struct rtrs_iu *rtrs_iu_alloc(u32 queue_size, size_t size, gfp_t gfp_mask,
 	struct rtrs_iu *ius, *iu;
 	int i;
 
-	ius = kcalloc(queue_size, sizeof(*ius), gfp_mask);
+	ius = kcalloc(iu_num, sizeof(*ius), gfp_mask);
 	if (!ius)
 		return NULL;
-	for (i = 0; i < queue_size; i++) {
+	for (i = 0; i < iu_num; i++) {
 		iu = &ius[i];
 		iu->direction = dir;
 		iu->buf = kzalloc(size, gfp_mask);
@@ -50,7 +50,7 @@ err:
 }
 EXPORT_SYMBOL_GPL(rtrs_iu_alloc);
 
-void rtrs_iu_free(struct rtrs_iu *ius, struct ib_device *ibdev, u32 queue_size)
+void rtrs_iu_free(struct rtrs_iu *ius, struct ib_device *ibdev, u32 queue_num)
 {
 	struct rtrs_iu *iu;
 	int i;
@@ -58,7 +58,7 @@ void rtrs_iu_free(struct rtrs_iu *ius, struct ib_device *ibdev, u32 queue_size)
 	if (!ius)
 		return;
 
-	for (i = 0; i < queue_size; i++) {
+	for (i = 0; i < queue_num; i++) {
 		iu = &ius[i];
 		ib_dma_unmap_single(ibdev, iu->dma_addr, iu->size, iu->direction);
 		kfree(iu->buf);
@@ -105,17 +105,20 @@ int rtrs_post_recv_empty(struct rtrs_con *con, struct ib_cqe *cqe)
 EXPORT_SYMBOL_GPL(rtrs_post_recv_empty);
 
 static int rtrs_post_send(struct ib_qp *qp, struct ib_send_wr *head,
-			     struct ib_send_wr *wr)
+			  struct ib_send_wr *wr, struct ib_send_wr *tail)
 {
 	if (head) {
-		struct ib_send_wr *tail = head;
+		struct ib_send_wr *next = head;
 
-		while (tail->next)
-			tail = tail->next;
-		tail->next = wr;
+		while (next->next)
+			next = next->next;
+		next->next = wr;
 	} else {
 		head = wr;
 	}
+
+	if (tail)
+		wr->next = tail;
 
 	return ib_post_send(qp, head, NULL);
 }
@@ -142,15 +145,16 @@ int rtrs_iu_post_send(struct rtrs_con *con, struct rtrs_iu *iu, size_t size,
 		.send_flags = IB_SEND_SIGNALED,
 	};
 
-	return rtrs_post_send(con->qp, head, &wr);
+	return rtrs_post_send(con->qp, head, &wr, NULL);
 }
 EXPORT_SYMBOL_GPL(rtrs_iu_post_send);
 
 int rtrs_iu_post_rdma_write_imm(struct rtrs_con *con, struct rtrs_iu *iu,
-				 struct ib_sge *sge, unsigned int num_sge,
-				 u32 rkey, u64 rdma_addr, u32 imm_data,
-				 enum ib_send_flags flags,
-				 struct ib_send_wr *head)
+				struct ib_sge *sge, unsigned int num_sge,
+				u32 rkey, u64 rdma_addr, u32 imm_data,
+				enum ib_send_flags flags,
+				struct ib_send_wr *head,
+				struct ib_send_wr *tail)
 {
 	struct ib_rdma_wr wr;
 	int i;
@@ -174,26 +178,32 @@ int rtrs_iu_post_rdma_write_imm(struct rtrs_con *con, struct rtrs_iu *iu,
 		if (WARN_ON(sge[i].length == 0))
 			return -EINVAL;
 
-	return rtrs_post_send(con->qp, head, &wr.wr);
+	return rtrs_post_send(con->qp, head, &wr.wr, tail);
 }
 EXPORT_SYMBOL_GPL(rtrs_iu_post_rdma_write_imm);
 
-int rtrs_post_rdma_write_imm_empty(struct rtrs_con *con, struct ib_cqe *cqe,
-				    u32 imm_data, enum ib_send_flags flags,
-				    struct ib_send_wr *head)
+static int rtrs_post_rdma_write_imm_empty(struct rtrs_con *con,
+					  struct ib_cqe *cqe,
+					  u32 imm_data,
+					  struct ib_send_wr *head)
 {
 	struct ib_rdma_wr wr;
+	struct rtrs_sess *sess = con->sess;
+	enum ib_send_flags sflags;
+
+	atomic_dec_if_positive(&con->sq_wr_avail);
+	sflags = (atomic_inc_return(&con->wr_cnt) % sess->signal_interval) ?
+		0 : IB_SEND_SIGNALED;
 
 	wr = (struct ib_rdma_wr) {
 		.wr.wr_cqe	= cqe,
-		.wr.send_flags	= flags,
+		.wr.send_flags	= sflags,
 		.wr.opcode	= IB_WR_RDMA_WRITE_WITH_IMM,
 		.wr.ex.imm_data	= cpu_to_be32(imm_data),
 	};
 
-	return rtrs_post_send(con->qp, head, &wr.wr);
+	return rtrs_post_send(con->qp, head, &wr.wr, NULL);
 }
-EXPORT_SYMBOL_GPL(rtrs_post_rdma_write_imm_empty);
 
 static void qp_event_handler(struct ib_event *ev, void *ctx)
 {
@@ -212,20 +222,20 @@ static void qp_event_handler(struct ib_event *ev, void *ctx)
 	}
 }
 
-static int create_cq(struct rtrs_con *con, int cq_vector, u16 cq_size,
+static int create_cq(struct rtrs_con *con, int cq_vector, int nr_cqe,
 		     enum ib_poll_context poll_ctx)
 {
 	struct rdma_cm_id *cm_id = con->cm_id;
 	struct ib_cq *cq;
 
-	cq = ib_alloc_cq(cm_id->device, con, cq_size,
-			 cq_vector, poll_ctx);
+	cq = ib_cq_pool_get(cm_id->device, nr_cqe, cq_vector, poll_ctx);
 	if (IS_ERR(cq)) {
 		rtrs_err(con->sess, "Creating completion queue failed, errno: %ld\n",
 			  PTR_ERR(cq));
 		return PTR_ERR(cq);
 	}
 	con->cq = cq;
+	con->nr_cqe = nr_cqe;
 
 	return 0;
 }
@@ -260,20 +270,20 @@ static int create_qp(struct rtrs_con *con, struct ib_pd *pd,
 }
 
 int rtrs_cq_qp_create(struct rtrs_sess *sess, struct rtrs_con *con,
-		       u32 max_send_sge, int cq_vector, int cq_size,
+		       u32 max_send_sge, int cq_vector, int nr_cqe,
 		       u32 max_send_wr, u32 max_recv_wr,
 		       enum ib_poll_context poll_ctx)
 {
 	int err;
 
-	err = create_cq(con, cq_vector, cq_size, poll_ctx);
+	err = create_cq(con, cq_vector, nr_cqe, poll_ctx);
 	if (err)
 		return err;
 
 	err = create_qp(con, sess->dev->ib_pd, max_send_wr, max_recv_wr,
 			max_send_sge);
 	if (err) {
-		ib_free_cq(con->cq);
+		ib_cq_pool_put(con->cq, con->nr_cqe);
 		con->cq = NULL;
 		return err;
 	}
@@ -290,7 +300,7 @@ void rtrs_cq_qp_destroy(struct rtrs_con *con)
 		con->qp = NULL;
 	}
 	if (con->cq) {
-		ib_free_cq(con->cq);
+		ib_cq_pool_put(con->cq, con->nr_cqe);
 		con->cq = NULL;
 	}
 }
@@ -310,8 +320,9 @@ void rtrs_send_hb_ack(struct rtrs_sess *sess)
 
 	imm = rtrs_to_imm(RTRS_HB_ACK_IMM, 0);
 	err = rtrs_post_rdma_write_imm_empty(usr_con, sess->hb_cqe, imm,
-					     0, NULL);
+					     NULL);
 	if (err) {
+		rtrs_err(sess, "send HB ACK failed, errno: %d\n", err);
 		sess->hb_err_handler(usr_con);
 		return;
 	}
@@ -329,6 +340,7 @@ static void hb_work(struct work_struct *work)
 	usr_con = sess->con[0];
 
 	if (sess->hb_missed_cnt > sess->hb_missed_max) {
+		rtrs_err(sess, "HB missed max reached.\n");
 		sess->hb_err_handler(usr_con);
 		return;
 	}
@@ -337,10 +349,14 @@ static void hb_work(struct work_struct *work)
 		schedule_hb(sess);
 		return;
 	}
+
+	sess->hb_last_sent = ktime_get();
+
 	imm = rtrs_to_imm(RTRS_HB_MSG_IMM, 0);
 	err = rtrs_post_rdma_write_imm_empty(usr_con, sess->hb_cqe, imm,
-					     0, NULL);
+					     NULL);
 	if (err) {
+		rtrs_err(sess, "HB send failed, errno: %d\n", err);
 		sess->hb_err_handler(usr_con);
 		return;
 	}
@@ -373,7 +389,6 @@ void rtrs_stop_hb(struct rtrs_sess *sess)
 {
 	cancel_delayed_work_sync(&sess->hb_dwork);
 	sess->hb_missed_cnt = 0;
-	sess->hb_missed_max = 0;
 }
 EXPORT_SYMBOL_GPL(rtrs_stop_hb);
 
@@ -462,6 +477,30 @@ int sockaddr_to_str(const struct sockaddr *addr, char *buf, size_t len)
 	return scnprintf(buf, len, "<invalid address family>");
 }
 EXPORT_SYMBOL(sockaddr_to_str);
+
+/**
+ * rtrs_addr_to_str() - convert rtrs_addr to a string "src@dst"
+ * @addr:	the rtrs_addr structure to be converted
+ * @buf:	string containing source and destination addr of a path
+ *		separated by '@' I.e. "ip:1.1.1.1@ip:1.1.1.2"
+ *		"ip:1.1.1.1@ip:1.1.1.2".
+ * @len:	string length
+ *
+ * The return value is the number of characters written into buf not
+ * including the trailing '\0'.
+ */
+int rtrs_addr_to_str(const struct rtrs_addr *addr, char *buf, size_t len)
+{
+	int cnt;
+
+	cnt = sockaddr_to_str((struct sockaddr *)addr->src,
+			      buf, len);
+	cnt += scnprintf(buf + cnt, len - cnt, "@");
+	sockaddr_to_str((struct sockaddr *)addr->dst,
+			buf + cnt, len - cnt);
+	return cnt;
+}
+EXPORT_SYMBOL(rtrs_addr_to_str);
 
 /**
  * rtrs_addr_to_sockaddr() - convert path string "src,dst" or "src@dst"

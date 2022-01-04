@@ -116,7 +116,7 @@ static int igt_gpu_reloc(void *arg)
 	if (IS_ERR(scratch))
 		return PTR_ERR(scratch);
 
-	map = i915_gem_object_pin_map(scratch, I915_MAP_WC);
+	map = i915_gem_object_pin_map_unlocked(scratch, I915_MAP_WC);
 	if (IS_ERR(map)) {
 		err = PTR_ERR(map);
 		goto err_scratch;
@@ -125,6 +125,10 @@ static int igt_gpu_reloc(void *arg)
 	intel_gt_pm_get(&eb.i915->gt);
 
 	for_each_uabi_engine(eb.engine, eb.i915) {
+		if (intel_engine_requires_cmd_parser(eb.engine) ||
+		    intel_engine_using_cmd_parser(eb.engine))
+			continue;
+
 		reloc_cache_init(&eb.reloc_cache, eb.i915);
 		memset(map, POISON_INUSE, 4096);
 

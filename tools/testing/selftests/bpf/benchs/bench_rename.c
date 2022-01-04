@@ -65,7 +65,7 @@ static void attach_bpf(struct bpf_program *prog)
 	struct bpf_link *link;
 
 	link = bpf_program__attach(prog);
-	if (IS_ERR(link)) {
+	if (!link) {
 		fprintf(stderr, "failed to attach program!\n");
 		exit(1);
 	}

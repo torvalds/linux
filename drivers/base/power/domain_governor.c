@@ -252,6 +252,7 @@ static bool __default_power_down_ok(struct dev_pm_domain *pd,
 /**
  * _default_power_down_ok - Default generic PM domain power off governor routine.
  * @pd: PM domain to check.
+ * @now: current ktime.
  *
  * This routine must be executed under the PM domain's lock.
  */

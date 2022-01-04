@@ -720,7 +720,7 @@ err0:
 }
 
 /**
- * cik_sdma_vm_copy_pages - update PTEs by copying them from the GART
+ * cik_sdma_vm_copy_pte - update PTEs by copying them from the GART
  *
  * @ib: indirect buffer to fill with commands
  * @pe: addr of the page entry
@@ -746,7 +746,7 @@ static void cik_sdma_vm_copy_pte(struct amdgpu_ib *ib,
 }
 
 /**
- * cik_sdma_vm_write_pages - update PTEs by writing them manually
+ * cik_sdma_vm_write_pte - update PTEs by writing them manually
  *
  * @ib: indirect buffer to fill with commands
  * @pe: addr of the page entry
@@ -775,7 +775,7 @@ static void cik_sdma_vm_write_pte(struct amdgpu_ib *ib, uint64_t pe,
 }
 
 /**
- * cik_sdma_vm_set_pages - update the page tables using sDMA
+ * cik_sdma_vm_set_pte_pde - update the page tables using sDMA
  *
  * @ib: indirect buffer to fill with commands
  * @pe: addr of the page entry
@@ -804,7 +804,7 @@ static void cik_sdma_vm_set_pte_pde(struct amdgpu_ib *ib, uint64_t pe,
 }
 
 /**
- * cik_sdma_vm_pad_ib - pad the IB to the required number of dw
+ * cik_sdma_ring_pad_ib - pad the IB to the required number of dw
  *
  * @ring: amdgpu_ring structure holding ring information
  * @ib: indirect buffer to fill with padding
@@ -984,10 +984,9 @@ static int cik_sdma_sw_init(void *handle)
 		sprintf(ring->name, "sdma%d", i);
 		r = amdgpu_ring_init(adev, ring, 1024,
 				     &adev->sdma.trap_irq,
-				     (i == 0) ?
-				     AMDGPU_SDMA_IRQ_INSTANCE0 :
+				     (i == 0) ? AMDGPU_SDMA_IRQ_INSTANCE0 :
 				     AMDGPU_SDMA_IRQ_INSTANCE1,
-				     AMDGPU_RING_PRIO_DEFAULT);
+				     AMDGPU_RING_PRIO_DEFAULT, NULL);
 		if (r)
 			return r;
 	}

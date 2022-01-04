@@ -3,7 +3,7 @@
 #include "mem-events.h"
 
 /* PowerPC does not support 'ldlat' parameter. */
-char *perf_mem_events__name(int i)
+char *perf_mem_events__name(int i, char *pmu_name __maybe_unused)
 {
 	if (i == PERF_MEM_EVENTS__LOAD)
 		return (char *) "cpu/mem-loads/";

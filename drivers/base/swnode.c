@@ -11,6 +11,8 @@
 #include <linux/property.h>
 #include <linux/slab.h>
 
+#include "base.h"
+
 struct swnode {
 	struct kobject kobj;
 	struct fwnode_handle fwnode;
@@ -1045,7 +1047,15 @@ int device_add_software_node(struct device *dev, const struct software_node *nod
 	}
 
 	set_secondary_fwnode(dev, &swnode->fwnode);
-	software_node_notify(dev, KOBJ_ADD);
+
+	/*
+	 * If the device has been fully registered by the time this function is
+	 * called, software_node_notify() must be called separately so that the
+	 * symlinks get created and the reference count of the node is kept in
+	 * balance.
+	 */
+	if (device_is_registered(dev))
+		software_node_notify(dev);
 
 	return 0;
 }
@@ -1065,7 +1075,9 @@ void device_remove_software_node(struct device *dev)
 	if (!swnode)
 		return;
 
-	software_node_notify(dev, KOBJ_REMOVE);
+	if (device_is_registered(dev))
+		software_node_notify_remove(dev);
+
 	set_secondary_fwnode(dev, NULL);
 	kobject_put(&swnode->kobj);
 }
@@ -1108,45 +1120,44 @@ int device_create_managed_software_node(struct device *dev,
 }
 EXPORT_SYMBOL_GPL(device_create_managed_software_node);
 
-int software_node_notify(struct device *dev, unsigned long action)
+void software_node_notify(struct device *dev)
 {
 	struct swnode *swnode;
 	int ret;
 
 	swnode = dev_to_swnode(dev);
 	if (!swnode)
-		return 0;
+		return;
 
-	switch (action) {
-	case KOBJ_ADD:
-		ret = sysfs_create_link_nowarn(&dev->kobj, &swnode->kobj,
-					       "software_node");
-		if (ret)
-			break;
+	ret = sysfs_create_link(&dev->kobj, &swnode->kobj, "software_node");
+	if (ret)
+		return;
 
-		ret = sysfs_create_link(&swnode->kobj, &dev->kobj,
-					dev_name(dev));
-		if (ret) {
-			sysfs_remove_link(&dev->kobj, "software_node");
-			break;
-		}
-		kobject_get(&swnode->kobj);
-		break;
-	case KOBJ_REMOVE:
-		sysfs_remove_link(&swnode->kobj, dev_name(dev));
+	ret = sysfs_create_link(&swnode->kobj, &dev->kobj, dev_name(dev));
+	if (ret) {
 		sysfs_remove_link(&dev->kobj, "software_node");
-		kobject_put(&swnode->kobj);
-
-		if (swnode->managed) {
-			set_secondary_fwnode(dev, NULL);
-			kobject_put(&swnode->kobj);
-		}
-		break;
-	default:
-		break;
+		return;
 	}
 
-	return 0;
+	kobject_get(&swnode->kobj);
+}
+
+void software_node_notify_remove(struct device *dev)
+{
+	struct swnode *swnode;
+
+	swnode = dev_to_swnode(dev);
+	if (!swnode)
+		return;
+
+	sysfs_remove_link(&swnode->kobj, dev_name(dev));
+	sysfs_remove_link(&dev->kobj, "software_node");
+	kobject_put(&swnode->kobj);
+
+	if (swnode->managed) {
+		set_secondary_fwnode(dev, NULL);
+		kobject_put(&swnode->kobj);
+	}
 }
 
 static int __init software_node_init(void)

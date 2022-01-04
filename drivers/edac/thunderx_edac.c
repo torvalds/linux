@@ -1368,7 +1368,7 @@ static int thunderx_ocx_probe(struct pci_dev *pdev,
 					      name, 1, "CCPI", 1,
 					      0, NULL, 0, idx);
 	if (!edac_dev) {
-		dev_err(&pdev->dev, "Cannot allocate EDAC device: %d\n", ret);
+		dev_err(&pdev->dev, "Cannot allocate EDAC device\n");
 		return -ENOMEM;
 	}
 	ocx = edac_dev->pvt_info;
@@ -1380,7 +1380,7 @@ static int thunderx_ocx_probe(struct pci_dev *pdev,
 
 	ocx->regs = pcim_iomap_table(pdev)[0];
 	if (!ocx->regs) {
-		dev_err(&pdev->dev, "Cannot map PCI resources: %d\n", ret);
+		dev_err(&pdev->dev, "Cannot map PCI resources\n");
 		ret = -ENODEV;
 		goto err_free;
 	}

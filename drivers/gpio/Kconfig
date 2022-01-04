@@ -321,9 +321,8 @@ config GPIO_HLWD
 
 config GPIO_ICH
 	tristate "Intel ICH GPIO"
-	depends on PCI && X86
-	select MFD_CORE
-	select LPC_ICH
+	depends on X86
+	depends on LPC_ICH
 	help
 	  Say yes here to support the GPIO functionality of a number of Intel
 	  ICH-based chipsets.  Currently supported devices: ICH6, ICH7, ICH8
@@ -502,11 +501,32 @@ config GPIO_RDA
 	help
 	  Say Y here to support RDA Micro GPIO controller.
 
+config GPIO_REALTEK_OTTO
+	tristate "Realtek Otto GPIO support"
+	depends on MACH_REALTEK_RTL
+	default MACH_REALTEK_RTL
+	select GPIO_GENERIC
+	select GPIOLIB_IRQCHIP
+	help
+	  The GPIO controller on the Otto MIPS platform supports up to two
+	  banks of 32 GPIOs, with edge triggered interrupts. The 32 GPIOs
+	  are grouped in four 8-bit wide ports.
+
+	  When built as a module, the module will be called realtek_otto_gpio.
+
 config GPIO_REG
 	bool
 	help
 	  A 32-bit single register GPIO fixed in/out implementation.  This
 	  can be used to represent any register as a set of GPIO signals.
+
+config GPIO_ROCKCHIP
+	tristate "Rockchip GPIO support"
+	depends on ARCH_ROCKCHIP || COMPILE_TEST
+	select GPIOLIB_IRQCHIP
+	default ARCH_ROCKCHIP
+	help
+	  Say yes here to support GPIO on Rockchip SoCs.
 
 config GPIO_SAMA5D2_PIOBU
 	tristate "SAMA5D2 PIOBU GPIO support"
@@ -770,6 +790,18 @@ config GPIO_MSC313
 	  Say Y here to support the main GPIO block on MStar/SigmaStar
 	  ARMv7 based SoCs.
 
+config GPIO_IDT3243X
+	tristate "IDT 79RC3243X GPIO support"
+	depends on MIKROTIK_RB532 || COMPILE_TEST
+	select GPIO_GENERIC
+	select GPIOLIB_IRQCHIP
+	help
+	  Select this option to enable GPIO driver for
+	  IDT 79RC3243X based devices like Mikrotik RB532.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called gpio-idt3243x.
+
 endmenu
 
 menu "Port-mapped I/O GPIO drivers"
@@ -847,9 +879,9 @@ config GPIO_IT87
 
 config GPIO_SCH
 	tristate "Intel SCH/TunnelCreek/Centerton/Quark X1000 GPIO"
-	depends on (X86 || COMPILE_TEST) && PCI
-	select MFD_CORE
-	select LPC_SCH
+	depends on (X86 || COMPILE_TEST) && ACPI
+	depends on LPC_SCH
+	select GPIOLIB_IRQCHIP
 	help
 	  Say yes here to support GPIO interface on Intel Poulsbo SCH,
 	  Intel Tunnel Creek processor, Intel Centerton processor or
@@ -1105,6 +1137,16 @@ config GPIO_BD70528
 	  This driver can also be built as a module. If so, the module
 	  will be called gpio-bd70528.
 
+config GPIO_BD71815
+	tristate "ROHM BD71815 PMIC GPIO support"
+	depends on MFD_ROHM_BD71828
+	help
+	  Support for GPO(s) on ROHM BD71815 PMIC. There are two GPOs
+	  available on the ROHM PMIC.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called gpio-bd71815.
+
 config GPIO_BD71828
 	tristate "ROHM BD71828 GPIO support"
 	depends on MFD_ROHM_BD71828
@@ -1345,7 +1387,7 @@ config GPIO_TPS65912
 
 config GPIO_TPS68470
 	bool "TPS68470 GPIO"
-	depends on MFD_TPS68470
+	depends on INTEL_SKL_INT3472
 	help
 	  Select this option to enable GPIO driver for the TPS68470
 	  chip family.
@@ -1361,6 +1403,7 @@ config GPIO_TPS68470
 config GPIO_TQMX86
 	tristate "TQ-Systems QTMX86 GPIO"
 	depends on MFD_TQMX86 || COMPILE_TEST
+	depends on HAS_IOPORT_MAP
 	select GPIOLIB_IRQCHIP
 	help
 	  This driver supports GPIO on the TQMX86 IO controller.
@@ -1428,6 +1471,7 @@ menu "PCI GPIO expanders"
 config GPIO_AMD8111
 	tristate "AMD 8111 GPIO driver"
 	depends on X86 || COMPILE_TEST
+	depends on HAS_IOPORT_MAP
 	help
 	  The AMD 8111 south bridge contains 32 GPIO pins which can be used.
 

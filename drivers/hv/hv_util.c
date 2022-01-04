@@ -17,7 +17,6 @@
 #include <linux/hyperv.h>
 #include <linux/clockchips.h>
 #include <linux/ptp_clock_kernel.h>
-#include <clocksource/hyperv_timer.h>
 #include <asm/mshyperv.h>
 
 #include "hyperv_vmbus.h"
@@ -735,10 +734,6 @@ static struct ptp_clock *hv_ptp_clock;
 
 static int hv_timesync_init(struct hv_util_service *srv)
 {
-	/* TimeSync requires Hyper-V clocksource. */
-	if (!hv_read_reference_counter)
-		return -ENODEV;
-
 	spin_lock_init(&host_ts.lock);
 
 	INIT_WORK(&adj_time_work, hv_set_host_time);
@@ -750,8 +745,8 @@ static int hv_timesync_init(struct hv_util_service *srv)
 	 */
 	hv_ptp_clock = ptp_clock_register(&ptp_hyperv_info, NULL);
 	if (IS_ERR_OR_NULL(hv_ptp_clock)) {
-		pr_err("cannot register PTP clock: %ld\n",
-		       PTR_ERR(hv_ptp_clock));
+		pr_err("cannot register PTP clock: %d\n",
+		       PTR_ERR_OR_ZERO(hv_ptp_clock));
 		hv_ptp_clock = NULL;
 	}
 

@@ -394,26 +394,6 @@ int sh_pfc_config_mux(struct sh_pfc *pfc, unsigned mark, int pinmux_type)
 	return 0;
 }
 
-const struct pinmux_bias_reg *
-sh_pfc_pin_to_bias_reg(const struct sh_pfc *pfc, unsigned int pin,
-		       unsigned int *bit)
-{
-	unsigned int i, j;
-
-	for (i = 0; pfc->info->bias_regs[i].puen; i++) {
-		for (j = 0; j < ARRAY_SIZE(pfc->info->bias_regs[i].pins); j++) {
-			if (pfc->info->bias_regs[i].pins[j] == pin) {
-				*bit = j;
-				return &pfc->info->bias_regs[i];
-			}
-		}
-	}
-
-	WARN_ONCE(1, "Pin %u is not in bias info list\n", pin);
-
-	return NULL;
-}
-
 static int sh_pfc_init_ranges(struct sh_pfc *pfc)
 {
 	struct sh_pfc_pin_range *range;
@@ -591,17 +571,21 @@ static const struct of_device_id sh_pfc_of_table[] = {
 		.data = &r8a7794_pinmux_info,
 	},
 #endif
-/* Both r8a7795 entries must be present to make sanity checks work */
-#ifdef CONFIG_PINCTRL_PFC_R8A77950
-	{
-		.compatible = "renesas,pfc-r8a7795",
-		.data = &r8a77950_pinmux_info,
-	},
-#endif
+/*
+ * Both r8a7795 entries must be present to make sanity checks work, but only
+ * the first entry is actually used.
+ * R-Car H3 ES1.x is matched using soc_device_match() instead.
+ */
 #ifdef CONFIG_PINCTRL_PFC_R8A77951
 	{
 		.compatible = "renesas,pfc-r8a7795",
 		.data = &r8a77951_pinmux_info,
+	},
+#endif
+#ifdef CONFIG_PINCTRL_PFC_R8A77950
+	{
+		.compatible = "renesas,pfc-r8a7795",
+		.data = &r8a77950_pinmux_info,
 	},
 #endif
 #ifdef CONFIG_PINCTRL_PFC_R8A77960
@@ -1105,26 +1089,20 @@ static inline void sh_pfc_check_driver(struct platform_driver *pdrv) {}
 #ifdef CONFIG_OF
 static const void *sh_pfc_quirk_match(void)
 {
-#if defined(CONFIG_PINCTRL_PFC_R8A77950) || \
-    defined(CONFIG_PINCTRL_PFC_R8A77951)
+#ifdef CONFIG_PINCTRL_PFC_R8A77950
 	const struct soc_device_attribute *match;
 	static const struct soc_device_attribute quirks[] = {
 		{
 			.soc_id = "r8a7795", .revision = "ES1.*",
 			.data = &r8a77950_pinmux_info,
 		},
-		{
-			.soc_id = "r8a7795",
-			.data = &r8a77951_pinmux_info,
-		},
-
 		{ /* sentinel */ }
 	};
 
 	match = soc_device_match(quirks);
 	if (match)
-		return match->data ?: ERR_PTR(-ENODEV);
-#endif /* CONFIG_PINCTRL_PFC_R8A77950 || CONFIG_PINCTRL_PFC_R8A77951 */
+		return match->data;
+#endif /* CONFIG_PINCTRL_PFC_R8A77950 */
 
 	return NULL;
 }
@@ -1139,9 +1117,6 @@ static int sh_pfc_probe(struct platform_device *pdev)
 #ifdef CONFIG_OF
 	if (pdev->dev.of_node) {
 		info = sh_pfc_quirk_match();
-		if (IS_ERR(info))
-			return PTR_ERR(info);
-
 		if (!info)
 			info = of_device_get_match_data(&pdev->dev);
 	} else

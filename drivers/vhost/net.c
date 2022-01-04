@@ -643,8 +643,6 @@ static bool tx_can_batch(struct vhost_virtqueue *vq, size_t total_len)
 	       !vhost_vq_avail_empty(vq->dev, vq);
 }
 
-#define SKB_FRAG_PAGE_ORDER     get_order(32768)
-
 static bool vhost_net_page_frag_refill(struct vhost_net *net, unsigned int sz,
 				       struct page_frag *pfrag, gfp_t gfp)
 {
@@ -744,11 +742,9 @@ static int vhost_net_build_xdp(struct vhost_net_virtqueue *nvq,
 	if (copied != len)
 		return -EFAULT;
 
-	xdp->data_hard_start = buf;
-	xdp->data = buf + pad;
-	xdp->data_end = xdp->data + len;
+	xdp_init_buff(xdp, buflen, NULL);
+	xdp_prepare_buff(xdp, buf, pad, len, true);
 	hdr->buflen = buflen;
-	xdp->frame_sz = buflen;
 
 	--net->refcnt_bias;
 	alloc_frag->offset += buflen;

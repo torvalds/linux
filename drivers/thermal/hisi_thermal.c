@@ -1,7 +1,7 @@
 /*
- * Hisilicon thermal sensor driver
+ * HiSilicon thermal sensor driver
  *
- * Copyright (c) 2014-2015 Hisilicon Limited.
+ * Copyright (c) 2014-2015 HiSilicon Limited.
  * Copyright (c) 2014-2015 Linaro Limited.
  *
  * Xinwei Kong <kong.kongxinwei@hisilicon.com>
@@ -572,10 +572,8 @@ static int hisi_thermal_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	data->regs = devm_ioremap_resource(dev, res);
-	if (IS_ERR(data->regs)) {
-		dev_err(dev, "failed to get io address\n");
+	if (IS_ERR(data->regs))
 		return PTR_ERR(data->regs);
-	}
 
 	ret = data->ops->probe(data);
 	if (ret)
@@ -672,5 +670,5 @@ module_platform_driver(hisi_thermal_driver);
 
 MODULE_AUTHOR("Xinwei Kong <kong.kongxinwei@hisilicon.com>");
 MODULE_AUTHOR("Leo Yan <leo.yan@linaro.org>");
-MODULE_DESCRIPTION("Hisilicon thermal driver");
+MODULE_DESCRIPTION("HiSilicon thermal driver");
 MODULE_LICENSE("GPL v2");

@@ -349,12 +349,14 @@ static int __mt9v032_set_power(struct mt9v032 *mt9v032, bool on)
  */
 
 static struct v4l2_mbus_framefmt *
-__mt9v032_get_pad_format(struct mt9v032 *mt9v032, struct v4l2_subdev_pad_config *cfg,
+__mt9v032_get_pad_format(struct mt9v032 *mt9v032,
+			 struct v4l2_subdev_state *sd_state,
 			 unsigned int pad, enum v4l2_subdev_format_whence which)
 {
 	switch (which) {
 	case V4L2_SUBDEV_FORMAT_TRY:
-		return v4l2_subdev_get_try_format(&mt9v032->subdev, cfg, pad);
+		return v4l2_subdev_get_try_format(&mt9v032->subdev, sd_state,
+						  pad);
 	case V4L2_SUBDEV_FORMAT_ACTIVE:
 		return &mt9v032->format;
 	default:
@@ -363,12 +365,14 @@ __mt9v032_get_pad_format(struct mt9v032 *mt9v032, struct v4l2_subdev_pad_config 
 }
 
 static struct v4l2_rect *
-__mt9v032_get_pad_crop(struct mt9v032 *mt9v032, struct v4l2_subdev_pad_config *cfg,
+__mt9v032_get_pad_crop(struct mt9v032 *mt9v032,
+		       struct v4l2_subdev_state *sd_state,
 		       unsigned int pad, enum v4l2_subdev_format_whence which)
 {
 	switch (which) {
 	case V4L2_SUBDEV_FORMAT_TRY:
-		return v4l2_subdev_get_try_crop(&mt9v032->subdev, cfg, pad);
+		return v4l2_subdev_get_try_crop(&mt9v032->subdev, sd_state,
+						pad);
 	case V4L2_SUBDEV_FORMAT_ACTIVE:
 		return &mt9v032->crop;
 	default:
@@ -425,7 +429,7 @@ static int mt9v032_s_stream(struct v4l2_subdev *subdev, int enable)
 }
 
 static int mt9v032_enum_mbus_code(struct v4l2_subdev *subdev,
-				  struct v4l2_subdev_pad_config *cfg,
+				  struct v4l2_subdev_state *sd_state,
 				  struct v4l2_subdev_mbus_code_enum *code)
 {
 	struct mt9v032 *mt9v032 = to_mt9v032(subdev);
@@ -438,7 +442,7 @@ static int mt9v032_enum_mbus_code(struct v4l2_subdev *subdev,
 }
 
 static int mt9v032_enum_frame_size(struct v4l2_subdev *subdev,
-				   struct v4l2_subdev_pad_config *cfg,
+				   struct v4l2_subdev_state *sd_state,
 				   struct v4l2_subdev_frame_size_enum *fse)
 {
 	struct mt9v032 *mt9v032 = to_mt9v032(subdev);
@@ -457,12 +461,13 @@ static int mt9v032_enum_frame_size(struct v4l2_subdev *subdev,
 }
 
 static int mt9v032_get_format(struct v4l2_subdev *subdev,
-			      struct v4l2_subdev_pad_config *cfg,
+			      struct v4l2_subdev_state *sd_state,
 			      struct v4l2_subdev_format *format)
 {
 	struct mt9v032 *mt9v032 = to_mt9v032(subdev);
 
-	format->format = *__mt9v032_get_pad_format(mt9v032, cfg, format->pad,
+	format->format = *__mt9v032_get_pad_format(mt9v032, sd_state,
+						   format->pad,
 						   format->which);
 	return 0;
 }
@@ -492,7 +497,7 @@ static unsigned int mt9v032_calc_ratio(unsigned int input, unsigned int output)
 }
 
 static int mt9v032_set_format(struct v4l2_subdev *subdev,
-			      struct v4l2_subdev_pad_config *cfg,
+			      struct v4l2_subdev_state *sd_state,
 			      struct v4l2_subdev_format *format)
 {
 	struct mt9v032 *mt9v032 = to_mt9v032(subdev);
@@ -503,7 +508,7 @@ static int mt9v032_set_format(struct v4l2_subdev *subdev,
 	unsigned int hratio;
 	unsigned int vratio;
 
-	__crop = __mt9v032_get_pad_crop(mt9v032, cfg, format->pad,
+	__crop = __mt9v032_get_pad_crop(mt9v032, sd_state, format->pad,
 					format->which);
 
 	/* Clamp the width and height to avoid dividing by zero. */
@@ -519,7 +524,7 @@ static int mt9v032_set_format(struct v4l2_subdev *subdev,
 	hratio = mt9v032_calc_ratio(__crop->width, width);
 	vratio = mt9v032_calc_ratio(__crop->height, height);
 
-	__format = __mt9v032_get_pad_format(mt9v032, cfg, format->pad,
+	__format = __mt9v032_get_pad_format(mt9v032, sd_state, format->pad,
 					    format->which);
 	__format->width = __crop->width / hratio;
 	__format->height = __crop->height / vratio;
@@ -536,7 +541,7 @@ static int mt9v032_set_format(struct v4l2_subdev *subdev,
 }
 
 static int mt9v032_get_selection(struct v4l2_subdev *subdev,
-				 struct v4l2_subdev_pad_config *cfg,
+				 struct v4l2_subdev_state *sd_state,
 				 struct v4l2_subdev_selection *sel)
 {
 	struct mt9v032 *mt9v032 = to_mt9v032(subdev);
@@ -544,12 +549,13 @@ static int mt9v032_get_selection(struct v4l2_subdev *subdev,
 	if (sel->target != V4L2_SEL_TGT_CROP)
 		return -EINVAL;
 
-	sel->r = *__mt9v032_get_pad_crop(mt9v032, cfg, sel->pad, sel->which);
+	sel->r = *__mt9v032_get_pad_crop(mt9v032, sd_state, sel->pad,
+					 sel->which);
 	return 0;
 }
 
 static int mt9v032_set_selection(struct v4l2_subdev *subdev,
-				 struct v4l2_subdev_pad_config *cfg,
+				 struct v4l2_subdev_state *sd_state,
 				 struct v4l2_subdev_selection *sel)
 {
 	struct mt9v032 *mt9v032 = to_mt9v032(subdev);
@@ -581,13 +587,15 @@ static int mt9v032_set_selection(struct v4l2_subdev *subdev,
 	rect.height = min_t(unsigned int,
 			    rect.height, MT9V032_PIXEL_ARRAY_HEIGHT - rect.top);
 
-	__crop = __mt9v032_get_pad_crop(mt9v032, cfg, sel->pad, sel->which);
+	__crop = __mt9v032_get_pad_crop(mt9v032, sd_state, sel->pad,
+					sel->which);
 
 	if (rect.width != __crop->width || rect.height != __crop->height) {
 		/* Reset the output image size if the crop rectangle size has
 		 * been modified.
 		 */
-		__format = __mt9v032_get_pad_format(mt9v032, cfg, sel->pad,
+		__format = __mt9v032_get_pad_format(mt9v032, sd_state,
+						    sel->pad,
 						    sel->which);
 		__format->width = rect.width;
 		__format->height = rect.height;
@@ -922,13 +930,13 @@ static int mt9v032_open(struct v4l2_subdev *subdev, struct v4l2_subdev_fh *fh)
 	struct v4l2_mbus_framefmt *format;
 	struct v4l2_rect *crop;
 
-	crop = v4l2_subdev_get_try_crop(subdev, fh->pad, 0);
+	crop = v4l2_subdev_get_try_crop(subdev, fh->state, 0);
 	crop->left = MT9V032_COLUMN_START_DEF;
 	crop->top = MT9V032_ROW_START_DEF;
 	crop->width = MT9V032_WINDOW_WIDTH_DEF;
 	crop->height = MT9V032_WINDOW_HEIGHT_DEF;
 
-	format = v4l2_subdev_get_try_format(subdev, fh->pad, 0);
+	format = v4l2_subdev_get_try_format(subdev, fh->state, 0);
 
 	if (mt9v032->model->color)
 		format->code = MEDIA_BUS_FMT_SGRBG10_1X10;

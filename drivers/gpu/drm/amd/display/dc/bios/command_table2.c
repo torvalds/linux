@@ -218,6 +218,10 @@ static enum bp_result transmitter_control_v1_6(
 	struct bios_parser *bp,
 	struct bp_transmitter_control *cntl);
 
+static enum bp_result transmitter_control_v1_7(
+	struct bios_parser *bp,
+	struct bp_transmitter_control *cntl);
+
 static enum bp_result transmitter_control_fallback(
 	struct bios_parser *bp,
 	struct bp_transmitter_control *cntl);
@@ -232,6 +236,9 @@ static void init_transmitter_control(struct bios_parser *bp)
 	switch (crev) {
 	case 6:
 		bp->cmd_tbl.transmitter_control = transmitter_control_v1_6;
+		break;
+	case 7:
+		bp->cmd_tbl.transmitter_control = transmitter_control_v1_7;
 		break;
 	default:
 		dm_output_to_console("Don't have transmitter_control for v%d\n", crev);
@@ -304,13 +311,76 @@ static enum bp_result transmitter_control_v1_6(
 	return result;
 }
 
+static void transmitter_control_dmcub_v1_7(
+		struct dc_dmub_srv *dmcub,
+		struct dmub_dig_transmitter_control_data_v1_7 *dig)
+{
+	union dmub_rb_cmd cmd;
+
+	memset(&cmd, 0, sizeof(cmd));
+
+	cmd.dig1_transmitter_control.header.type = DMUB_CMD__VBIOS;
+	cmd.dig1_transmitter_control.header.sub_type =
+		DMUB_CMD__VBIOS_DIG1_TRANSMITTER_CONTROL;
+	cmd.dig1_transmitter_control.header.payload_bytes =
+		sizeof(cmd.dig1_transmitter_control) -
+		sizeof(cmd.dig1_transmitter_control.header);
+	cmd.dig1_transmitter_control.transmitter_control.dig_v1_7 = *dig;
+
+	dc_dmub_srv_cmd_queue(dmcub, &cmd);
+	dc_dmub_srv_cmd_execute(dmcub);
+	dc_dmub_srv_wait_idle(dmcub);
+}
+
+static enum bp_result transmitter_control_v1_7(
+	struct bios_parser *bp,
+	struct bp_transmitter_control *cntl)
+{
+	enum bp_result result = BP_RESULT_FAILURE;
+	const struct command_table_helper *cmd = bp->cmd_helper;
+	struct dmub_dig_transmitter_control_data_v1_7 dig_v1_7 = {0};
+
+	dig_v1_7.phyid = cmd->phy_id_to_atom(cntl->transmitter);
+	dig_v1_7.action = (uint8_t)cntl->action;
+
+	if (cntl->action == TRANSMITTER_CONTROL_SET_VOLTAGE_AND_PREEMPASIS)
+		dig_v1_7.mode_laneset.dplaneset = (uint8_t)cntl->lane_settings;
+	else
+		dig_v1_7.mode_laneset.digmode =
+				cmd->signal_type_to_atom_dig_mode(cntl->signal);
+
+	dig_v1_7.lanenum = (uint8_t)cntl->lanes_number;
+	dig_v1_7.hpdsel = cmd->hpd_sel_to_atom(cntl->hpd_sel);
+	dig_v1_7.digfe_sel = cmd->dig_encoder_sel_to_atom(cntl->engine_id);
+	dig_v1_7.connobj_id = (uint8_t)cntl->connector_obj_id.id;
+	dig_v1_7.symclk_units.symclk_10khz = cntl->pixel_clock/10;
+
+	if (cntl->action == TRANSMITTER_CONTROL_ENABLE ||
+		cntl->action == TRANSMITTER_CONTROL_ACTIAVATE ||
+		cntl->action == TRANSMITTER_CONTROL_DEACTIVATE) {
+			DC_LOG_BIOS("%s:dig_v1_7.symclk_units.symclk_10khz = %d\n",
+			__func__, dig_v1_7.symclk_units.symclk_10khz);
+	}
+
+	if (bp->base.ctx->dc->ctx->dmub_srv &&
+		bp->base.ctx->dc->debug.dmub_command_table) {
+		transmitter_control_dmcub_v1_7(bp->base.ctx->dmub_srv, &dig_v1_7);
+		return BP_RESULT_OK;
+	}
+
+/*color_depth not used any more, driver has deep color factor in the Phyclk*/
+	if (EXEC_BIOS_CMD_TABLE(dig1transmittercontrol, dig_v1_7))
+		result = BP_RESULT_OK;
+	return result;
+}
+
 static enum bp_result transmitter_control_fallback(
 	struct bios_parser *bp,
 	struct bp_transmitter_control *cntl)
 {
 	if (bp->base.ctx->dc->ctx->dmub_srv &&
 	    bp->base.ctx->dc->debug.dmub_command_table) {
-		return transmitter_control_v1_6(bp, cntl);
+		return transmitter_control_v1_7(bp, cntl);
 	}
 
 	return BP_RESULT_FAILURE;
@@ -911,7 +981,8 @@ static unsigned int get_smu_clock_info_v3_1(struct bios_parser *bp, uint8_t id)
 
 static enum bp_result enable_lvtma_control(
 	struct bios_parser *bp,
-	uint8_t uc_pwr_on);
+	uint8_t uc_pwr_on,
+	uint8_t panel_instance);
 
 static void init_enable_lvtma_control(struct bios_parser *bp)
 {
@@ -922,19 +993,21 @@ static void init_enable_lvtma_control(struct bios_parser *bp)
 
 static void enable_lvtma_control_dmcub(
 	struct dc_dmub_srv *dmcub,
-	uint8_t uc_pwr_on)
+	uint8_t uc_pwr_on,
+	uint8_t panel_instance)
 {
 
 	union dmub_rb_cmd cmd;
 
 	memset(&cmd, 0, sizeof(cmd));
 
-	cmd.cmd_common.header.type = DMUB_CMD__VBIOS;
-	cmd.cmd_common.header.sub_type =
+	cmd.lvtma_control.header.type = DMUB_CMD__VBIOS;
+	cmd.lvtma_control.header.sub_type =
 			DMUB_CMD__VBIOS_LVTMA_CONTROL;
-	cmd.cmd_common.cmd_buffer[0] =
+	cmd.lvtma_control.data.uc_pwr_action =
 			uc_pwr_on;
-
+	cmd.lvtma_control.data.panel_inst =
+			panel_instance;
 	dc_dmub_srv_cmd_queue(dmcub, &cmd);
 	dc_dmub_srv_cmd_execute(dmcub);
 	dc_dmub_srv_wait_idle(dmcub);
@@ -943,14 +1016,16 @@ static void enable_lvtma_control_dmcub(
 
 static enum bp_result enable_lvtma_control(
 	struct bios_parser *bp,
-	uint8_t uc_pwr_on)
+	uint8_t uc_pwr_on,
+	uint8_t panel_instance)
 {
 	enum bp_result result = BP_RESULT_FAILURE;
 
 	if (bp->base.ctx->dc->ctx->dmub_srv &&
 	    bp->base.ctx->dc->debug.dmub_command_table) {
 		enable_lvtma_control_dmcub(bp->base.ctx->dmub_srv,
-				uc_pwr_on);
+				uc_pwr_on,
+				panel_instance);
 		return BP_RESULT_OK;
 	}
 	return result;

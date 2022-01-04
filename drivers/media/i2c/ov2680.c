@@ -645,7 +645,7 @@ unlock:
 }
 
 static int ov2680_enum_mbus_code(struct v4l2_subdev *sd,
-				 struct v4l2_subdev_pad_config *cfg,
+				 struct v4l2_subdev_state *sd_state,
 				 struct v4l2_subdev_mbus_code_enum *code)
 {
 	struct ov2680_dev *sensor = to_ov2680_dev(sd);
@@ -659,7 +659,7 @@ static int ov2680_enum_mbus_code(struct v4l2_subdev *sd,
 }
 
 static int ov2680_get_fmt(struct v4l2_subdev *sd,
-			  struct v4l2_subdev_pad_config *cfg,
+			  struct v4l2_subdev_state *sd_state,
 			  struct v4l2_subdev_format *format)
 {
 	struct ov2680_dev *sensor = to_ov2680_dev(sd);
@@ -673,7 +673,8 @@ static int ov2680_get_fmt(struct v4l2_subdev *sd,
 
 	if (format->which == V4L2_SUBDEV_FORMAT_TRY) {
 #ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
-		fmt = v4l2_subdev_get_try_format(&sensor->sd, cfg, format->pad);
+		fmt = v4l2_subdev_get_try_format(&sensor->sd, sd_state,
+						 format->pad);
 #else
 		ret = -EINVAL;
 #endif
@@ -690,7 +691,7 @@ static int ov2680_get_fmt(struct v4l2_subdev *sd,
 }
 
 static int ov2680_set_fmt(struct v4l2_subdev *sd,
-			  struct v4l2_subdev_pad_config *cfg,
+			  struct v4l2_subdev_state *sd_state,
 			  struct v4l2_subdev_format *format)
 {
 	struct ov2680_dev *sensor = to_ov2680_dev(sd);
@@ -721,7 +722,7 @@ static int ov2680_set_fmt(struct v4l2_subdev *sd,
 
 	if (format->which == V4L2_SUBDEV_FORMAT_TRY) {
 #ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
-		try_fmt = v4l2_subdev_get_try_format(sd, cfg, 0);
+		try_fmt = v4l2_subdev_get_try_format(sd, sd_state, 0);
 		format->format = *try_fmt;
 #endif
 		goto unlock;
@@ -743,22 +744,22 @@ unlock:
 }
 
 static int ov2680_init_cfg(struct v4l2_subdev *sd,
-			   struct v4l2_subdev_pad_config *cfg)
+			   struct v4l2_subdev_state *sd_state)
 {
 	struct v4l2_subdev_format fmt = {
-		.which = cfg ? V4L2_SUBDEV_FORMAT_TRY
-				: V4L2_SUBDEV_FORMAT_ACTIVE,
+		.which = sd_state ? V4L2_SUBDEV_FORMAT_TRY
+		: V4L2_SUBDEV_FORMAT_ACTIVE,
 		.format = {
 			.width = 800,
 			.height = 600,
 		}
 	};
 
-	return ov2680_set_fmt(sd, cfg, &fmt);
+	return ov2680_set_fmt(sd, sd_state, &fmt);
 }
 
 static int ov2680_enum_frame_size(struct v4l2_subdev *sd,
-				  struct v4l2_subdev_pad_config *cfg,
+				  struct v4l2_subdev_state *sd_state,
 				  struct v4l2_subdev_frame_size_enum *fse)
 {
 	int index = fse->index;
@@ -775,7 +776,7 @@ static int ov2680_enum_frame_size(struct v4l2_subdev *sd,
 }
 
 static int ov2680_enum_frame_interval(struct v4l2_subdev *sd,
-			      struct v4l2_subdev_pad_config *cfg,
+			      struct v4l2_subdev_state *sd_state,
 			      struct v4l2_subdev_frame_interval_enum *fie)
 {
 	struct v4l2_fract tpf;

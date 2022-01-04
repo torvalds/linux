@@ -155,9 +155,6 @@ extern unsigned long _dflt_cache_att;
 
 extern pgd_t swapper_pg_dir[PTRS_PER_PGD];  /* located in head.S */
 
-/* Seems to be zero even in architectures where the zero page is firewalled? */
-#define FIRST_USER_ADDRESS 0UL
-
 /*  HUGETLB not working currently  */
 #ifdef CONFIG_HUGETLB_PAGE
 #define pte_mkhuge(pte) __pte((pte_val(pte) & ~0x3) | HVM_HUGEPAGE_SIZE)
@@ -242,7 +239,6 @@ static inline int pmd_bad(pmd_t pmd)
  * pmd_page - converts a PMD entry to a page pointer
  */
 #define pmd_page(pmd)  (pfn_to_page(pmd_val(pmd) >> PAGE_SHIFT))
-#define pmd_pgtable(pmd) pmd_page(pmd)
 
 /**
  * pte_none - check if pte is mapped

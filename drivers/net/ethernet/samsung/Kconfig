@@ -20,9 +20,9 @@ if NET_VENDOR_SAMSUNG
 config SXGBE_ETH
 	tristate "Samsung 10G/2.5G/1G SXGBE Ethernet driver"
 	depends on HAS_IOMEM && HAS_DMA
+	depends on PTP_1588_CLOCK_OPTIONAL
 	select PHYLIB
 	select CRC32
-	imply PTP_1588_CLOCK
 	help
 	  This is the driver for the SXGBE 10G Ethernet IP block found on
 	  Samsung platforms.

@@ -174,7 +174,7 @@ static int armadaxp_wdt_clock_init(struct platform_device *pdev,
 		return ret;
 	}
 
-	/* Fix the wdt and timer1 clock freqency to 25MHz */
+	/* Fix the wdt and timer1 clock frequency to 25MHz */
 	val = WDT_AXP_FIXED_ENABLE_BIT | TIMER1_FIXED_ENABLE_BIT;
 	atomic_io_modify(dev->reg + TIMER_CTRL, val, val);
 

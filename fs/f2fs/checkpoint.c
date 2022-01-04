@@ -444,7 +444,7 @@ static int f2fs_set_meta_page_dirty(struct page *page)
 	if (!PageDirty(page)) {
 		__set_page_dirty_nobuffers(page);
 		inc_page_count(F2FS_P_SB(page), F2FS_DIRTY_META);
-		f2fs_set_page_private(page, 0);
+		set_page_private_reference(page);
 		return 1;
 	}
 	return 0;
@@ -719,6 +719,7 @@ int f2fs_recover_orphan_inodes(struct f2fs_sb_info *sbi)
 		orphan_blk = (struct f2fs_orphan_block *)page_address(page);
 		for (j = 0; j < le32_to_cpu(orphan_blk->entry_count); j++) {
 			nid_t ino = le32_to_cpu(orphan_blk->ino[j]);
+
 			err = recover_orphan_inode(sbi, ino);
 			if (err) {
 				f2fs_put_page(page, 1);
@@ -1017,7 +1018,7 @@ void f2fs_update_dirty_page(struct inode *inode, struct page *page)
 	inode_inc_dirty_pages(inode);
 	spin_unlock(&sbi->inode_lock[type]);
 
-	f2fs_set_page_private(page, 0);
+	set_page_private_reference(page);
 }
 
 void f2fs_remove_dirty_inode(struct inode *inode)
@@ -1456,7 +1457,7 @@ static int do_checkpoint(struct f2fs_sb_info *sbi, struct cp_control *cpc)
 			orphan_blocks);
 
 	if (__remain_node_summaries(cpc->reason))
-		ckpt->cp_pack_total_block_count = cpu_to_le32(F2FS_CP_PACKS+
+		ckpt->cp_pack_total_block_count = cpu_to_le32(F2FS_CP_PACKS +
 				cp_payload_blks + data_sum_blocks +
 				orphan_blocks + NR_CURSEG_NODE_TYPE);
 	else
@@ -1818,7 +1819,11 @@ int f2fs_issue_checkpoint(struct f2fs_sb_info *sbi)
 	llist_add(&req.llnode, &cprc->issue_list);
 	atomic_inc(&cprc->queued_ckpt);
 
-	/* update issue_list before we wake up issue_checkpoint thread */
+	/*
+	 * update issue_list before we wake up issue_checkpoint thread,
+	 * this smp_mb() pairs with another barrier in ___wait_event(),
+	 * see more details in comments of waitqueue_active().
+	 */
 	smp_mb();
 
 	if (waitqueue_active(&cprc->ckpt_wait_queue))

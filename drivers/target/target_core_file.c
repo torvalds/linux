@@ -498,6 +498,7 @@ fd_do_prot_fill(struct se_device *se_dev, sector_t lba, sector_t nolb,
 
 	prot_length = nolb * se_dev->prot_length;
 
+	memset(buf, 0xff, bufsize);
 	for (prot = 0; prot < prot_length;) {
 		sector_t len = min_t(sector_t, bufsize, prot_length - prot);
 		ssize_t ret = kernel_write(prot_fd, buf, len, &pos);
@@ -523,7 +524,6 @@ fd_do_prot_unmap(struct se_cmd *cmd, sector_t lba, sector_t nolb)
 		pr_err("Unable to allocate FILEIO prot buf\n");
 		return -ENOMEM;
 	}
-	memset(buf, 0xff, PAGE_SIZE);
 
 	rc = fd_do_prot_fill(cmd->se_dev, lba, nolb, buf, PAGE_SIZE);
 
@@ -882,7 +882,6 @@ static int fd_format_prot(struct se_device *dev)
 		 (unsigned long long)(dev->transport->get_blocks(dev) + 1) *
 					dev->prot_length);
 
-	memset(buf, 0xff, unit_size);
 	ret = fd_do_prot_fill(dev, 0, dev->transport->get_blocks(dev) + 1,
 			      buf, unit_size);
 	vfree(buf);

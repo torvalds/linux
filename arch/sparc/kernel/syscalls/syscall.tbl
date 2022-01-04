@@ -270,7 +270,7 @@
 222	common	delete_module		sys_delete_module
 223	common	get_kernel_syms		sys_ni_syscall
 224	common	getpgid			sys_getpgid
-225	common	bdflush			sys_bdflush
+225	common	bdflush			sys_ni_syscall
 226	common	sysfs			sys_sysfs
 227	common	afs_syscall		sys_nis_syscall
 228	common	setfsuid		sys_setfsuid16
@@ -488,3 +488,9 @@
 440	common	process_madvise			sys_process_madvise
 441	common	epoll_pwait2			sys_epoll_pwait2		compat_sys_epoll_pwait2
 442	common	mount_setattr			sys_mount_setattr
+443	common	quotactl_fd			sys_quotactl_fd
+444	common	landlock_create_ruleset		sys_landlock_create_ruleset
+445	common	landlock_add_rule		sys_landlock_add_rule
+446	common	landlock_restrict_self		sys_landlock_restrict_self
+# 447 reserved for memfd_secret
+448	common	process_mrelease		sys_process_mrelease

@@ -22,7 +22,6 @@
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_gem_cma_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
-#include <drm/drm_irq.h>
 #include <drm/drm_probe_helper.h>
 #include <drm/drm_vblank.h>
 
@@ -557,103 +556,55 @@ static irqreturn_t atmel_hlcdc_dc_irq_handler(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-struct atmel_hlcdc_dc_commit {
-	struct work_struct work;
-	struct drm_device *dev;
-	struct drm_atomic_state *state;
-};
-
-static void
-atmel_hlcdc_dc_atomic_complete(struct atmel_hlcdc_dc_commit *commit)
-{
-	struct drm_device *dev = commit->dev;
-	struct atmel_hlcdc_dc *dc = dev->dev_private;
-	struct drm_atomic_state *old_state = commit->state;
-
-	/* Apply the atomic update. */
-	drm_atomic_helper_commit_modeset_disables(dev, old_state);
-	drm_atomic_helper_commit_planes(dev, old_state, 0);
-	drm_atomic_helper_commit_modeset_enables(dev, old_state);
-
-	drm_atomic_helper_wait_for_vblanks(dev, old_state);
-
-	drm_atomic_helper_cleanup_planes(dev, old_state);
-
-	drm_atomic_state_put(old_state);
-
-	/* Complete the commit, wake up any waiter. */
-	spin_lock(&dc->commit.wait.lock);
-	dc->commit.pending = false;
-	wake_up_all_locked(&dc->commit.wait);
-	spin_unlock(&dc->commit.wait.lock);
-
-	kfree(commit);
-}
-
-static void atmel_hlcdc_dc_atomic_work(struct work_struct *work)
-{
-	struct atmel_hlcdc_dc_commit *commit =
-		container_of(work, struct atmel_hlcdc_dc_commit, work);
-
-	atmel_hlcdc_dc_atomic_complete(commit);
-}
-
-static int atmel_hlcdc_dc_atomic_commit(struct drm_device *dev,
-					struct drm_atomic_state *state,
-					bool async)
+static void atmel_hlcdc_dc_irq_postinstall(struct drm_device *dev)
 {
 	struct atmel_hlcdc_dc *dc = dev->dev_private;
-	struct atmel_hlcdc_dc_commit *commit;
+	unsigned int cfg = 0;
+	int i;
+
+	/* Enable interrupts on activated layers */
+	for (i = 0; i < ATMEL_HLCDC_MAX_LAYERS; i++) {
+		if (dc->layers[i])
+			cfg |= ATMEL_HLCDC_LAYER_STATUS(i);
+	}
+
+	regmap_write(dc->hlcdc->regmap, ATMEL_HLCDC_IER, cfg);
+}
+
+static void atmel_hlcdc_dc_irq_disable(struct drm_device *dev)
+{
+	struct atmel_hlcdc_dc *dc = dev->dev_private;
+	unsigned int isr;
+
+	regmap_write(dc->hlcdc->regmap, ATMEL_HLCDC_IDR, 0xffffffff);
+	regmap_read(dc->hlcdc->regmap, ATMEL_HLCDC_ISR, &isr);
+}
+
+static int atmel_hlcdc_dc_irq_install(struct drm_device *dev, unsigned int irq)
+{
 	int ret;
 
-	ret = drm_atomic_helper_prepare_planes(dev, state);
+	atmel_hlcdc_dc_irq_disable(dev);
+
+	ret = devm_request_irq(dev->dev, irq, atmel_hlcdc_dc_irq_handler, 0,
+			       dev->driver->name, dev);
 	if (ret)
 		return ret;
 
-	/* Allocate the commit object. */
-	commit = kzalloc(sizeof(*commit), GFP_KERNEL);
-	if (!commit) {
-		ret = -ENOMEM;
-		goto error;
-	}
-
-	INIT_WORK(&commit->work, atmel_hlcdc_dc_atomic_work);
-	commit->dev = dev;
-	commit->state = state;
-
-	spin_lock(&dc->commit.wait.lock);
-	ret = wait_event_interruptible_locked(dc->commit.wait,
-					      !dc->commit.pending);
-	if (ret == 0)
-		dc->commit.pending = true;
-	spin_unlock(&dc->commit.wait.lock);
-
-	if (ret)
-		goto err_free;
-
-	/* We have our own synchronization through the commit lock. */
-	BUG_ON(drm_atomic_helper_swap_state(state, false) < 0);
-
-	/* Swap state succeeded, this is the point of no return. */
-	drm_atomic_state_get(state);
-	if (async)
-		queue_work(dc->wq, &commit->work);
-	else
-		atmel_hlcdc_dc_atomic_complete(commit);
+	atmel_hlcdc_dc_irq_postinstall(dev);
 
 	return 0;
+}
 
-err_free:
-	kfree(commit);
-error:
-	drm_atomic_helper_cleanup_planes(dev, state);
-	return ret;
+static void atmel_hlcdc_dc_irq_uninstall(struct drm_device *dev)
+{
+	atmel_hlcdc_dc_irq_disable(dev);
 }
 
 static const struct drm_mode_config_funcs mode_config_funcs = {
 	.fb_create = drm_gem_fb_create,
 	.atomic_check = drm_atomic_helper_check,
-	.atomic_commit = atmel_hlcdc_dc_atomic_commit,
+	.atomic_commit = drm_atomic_helper_commit,
 };
 
 static int atmel_hlcdc_dc_modeset_init(struct drm_device *dev)
@@ -686,6 +637,7 @@ static int atmel_hlcdc_dc_modeset_init(struct drm_device *dev)
 	dev->mode_config.max_width = dc->desc->max_width;
 	dev->mode_config.max_height = dc->desc->max_height;
 	dev->mode_config.funcs = &mode_config_funcs;
+	dev->mode_config.async_page_flip = true;
 
 	return 0;
 }
@@ -712,11 +664,6 @@ static int atmel_hlcdc_dc_load(struct drm_device *dev)
 	if (!dc)
 		return -ENOMEM;
 
-	dc->wq = alloc_ordered_workqueue("atmel-hlcdc-dc", 0);
-	if (!dc->wq)
-		return -ENOMEM;
-
-	init_waitqueue_head(&dc->commit.wait);
 	dc->desc = match->data;
 	dc->hlcdc = dev_get_drvdata(dev->dev->parent);
 	dev->dev_private = dc;
@@ -724,7 +671,7 @@ static int atmel_hlcdc_dc_load(struct drm_device *dev)
 	ret = clk_prepare_enable(dc->hlcdc->periph_clk);
 	if (ret) {
 		dev_err(dev->dev, "failed to enable periph_clk\n");
-		goto err_destroy_wq;
+		return ret;
 	}
 
 	pm_runtime_enable(dev->dev);
@@ -744,7 +691,7 @@ static int atmel_hlcdc_dc_load(struct drm_device *dev)
 	drm_mode_config_reset(dev);
 
 	pm_runtime_get_sync(dev->dev);
-	ret = drm_irq_install(dev, dc->hlcdc->irq);
+	ret = atmel_hlcdc_dc_irq_install(dev, dc->hlcdc->irq);
 	pm_runtime_put_sync(dev->dev);
 	if (ret < 0) {
 		dev_err(dev->dev, "failed to install IRQ handler\n");
@@ -761,9 +708,6 @@ err_periph_clk_disable:
 	pm_runtime_disable(dev->dev);
 	clk_disable_unprepare(dc->hlcdc->periph_clk);
 
-err_destroy_wq:
-	destroy_workqueue(dc->wq);
-
 	return ret;
 }
 
@@ -771,56 +715,24 @@ static void atmel_hlcdc_dc_unload(struct drm_device *dev)
 {
 	struct atmel_hlcdc_dc *dc = dev->dev_private;
 
-	flush_workqueue(dc->wq);
 	drm_kms_helper_poll_fini(dev);
 	drm_atomic_helper_shutdown(dev);
 	drm_mode_config_cleanup(dev);
 
 	pm_runtime_get_sync(dev->dev);
-	drm_irq_uninstall(dev);
+	atmel_hlcdc_dc_irq_uninstall(dev);
 	pm_runtime_put_sync(dev->dev);
 
 	dev->dev_private = NULL;
 
 	pm_runtime_disable(dev->dev);
 	clk_disable_unprepare(dc->hlcdc->periph_clk);
-	destroy_workqueue(dc->wq);
-}
-
-static int atmel_hlcdc_dc_irq_postinstall(struct drm_device *dev)
-{
-	struct atmel_hlcdc_dc *dc = dev->dev_private;
-	unsigned int cfg = 0;
-	int i;
-
-	/* Enable interrupts on activated layers */
-	for (i = 0; i < ATMEL_HLCDC_MAX_LAYERS; i++) {
-		if (dc->layers[i])
-			cfg |= ATMEL_HLCDC_LAYER_STATUS(i);
-	}
-
-	regmap_write(dc->hlcdc->regmap, ATMEL_HLCDC_IER, cfg);
-
-	return 0;
-}
-
-static void atmel_hlcdc_dc_irq_uninstall(struct drm_device *dev)
-{
-	struct atmel_hlcdc_dc *dc = dev->dev_private;
-	unsigned int isr;
-
-	regmap_write(dc->hlcdc->regmap, ATMEL_HLCDC_IDR, 0xffffffff);
-	regmap_read(dc->hlcdc->regmap, ATMEL_HLCDC_ISR, &isr);
 }
 
 DEFINE_DRM_GEM_CMA_FOPS(fops);
 
 static const struct drm_driver atmel_hlcdc_dc_driver = {
 	.driver_features = DRIVER_GEM | DRIVER_MODESET | DRIVER_ATOMIC,
-	.irq_handler = atmel_hlcdc_dc_irq_handler,
-	.irq_preinstall = atmel_hlcdc_dc_irq_uninstall,
-	.irq_postinstall = atmel_hlcdc_dc_irq_postinstall,
-	.irq_uninstall = atmel_hlcdc_dc_irq_uninstall,
 	DRM_GEM_CMA_DRIVER_OPS,
 	.fops = &fops,
 	.name = "atmel-hlcdc",

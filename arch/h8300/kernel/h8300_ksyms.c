@@ -19,7 +19,6 @@ asmlinkage long __mulsi3(long, long);
 asmlinkage long __udivsi3(long, long);
 asmlinkage void *memcpy(void *, const void *, size_t);
 asmlinkage void *memset(void *, int, size_t);
-asmlinkage long strncpy_from_user(void *to, void *from, size_t n);
 
 	/* gcc lib functions */
 EXPORT_SYMBOL(__ucmpdi2);
@@ -34,4 +33,3 @@ EXPORT_SYMBOL(__mulsi3);
 EXPORT_SYMBOL(__udivsi3);
 EXPORT_SYMBOL(memcpy);
 EXPORT_SYMBOL(memset);
-EXPORT_SYMBOL(strncpy_from_user);

@@ -40,7 +40,7 @@
 #include "intel_global_state.h"
 #include "intel_hdcp.h"
 #include "intel_psr.h"
-#include "intel_sprite.h"
+#include "skl_universal_plane.h"
 
 /**
  * intel_digital_connector_atomic_get_property - hook for connector->atomic_get_property.
@@ -109,16 +109,6 @@ int intel_digital_connector_atomic_set_property(struct drm_connector *connector,
 	return -EINVAL;
 }
 
-static bool blob_equal(const struct drm_property_blob *a,
-		       const struct drm_property_blob *b)
-{
-	if (a && b)
-		return a->length == b->length &&
-			!memcmp(a->data, b->data, a->length);
-
-	return !a == !b;
-}
-
 int intel_digital_connector_atomic_check(struct drm_connector *conn,
 					 struct drm_atomic_state *state)
 {
@@ -149,8 +139,7 @@ int intel_digital_connector_atomic_check(struct drm_connector *conn,
 	    new_conn_state->base.picture_aspect_ratio != old_conn_state->base.picture_aspect_ratio ||
 	    new_conn_state->base.content_type != old_conn_state->base.content_type ||
 	    new_conn_state->base.scaling_mode != old_conn_state->base.scaling_mode ||
-	    !blob_equal(new_conn_state->base.hdr_output_metadata,
-			old_conn_state->base.hdr_output_metadata))
+	    !drm_connector_atomic_hdr_metadata_equal(old_state, new_state))
 		crtc_state->mode_changed = true;
 
 	return 0;
@@ -196,6 +185,26 @@ intel_connector_needs_modeset(struct intel_atomic_state *state,
 	       (new_conn_state->crtc &&
 		drm_atomic_crtc_needs_modeset(drm_atomic_get_new_crtc_state(&state->base,
 									    new_conn_state->crtc)));
+}
+
+/**
+ * intel_any_crtc_needs_modeset - check if any CRTC needs a modeset
+ * @state: the atomic state corresponding to this modeset
+ *
+ * Returns true if any CRTC in @state needs a modeset.
+ */
+bool intel_any_crtc_needs_modeset(struct intel_atomic_state *state)
+{
+	struct intel_crtc *crtc;
+	struct intel_crtc_state *crtc_state;
+	int i;
+
+	for_each_new_intel_crtc_in_state(state, crtc, crtc_state, i) {
+		if (intel_crtc_needs_modeset(crtc_state))
+			return true;
+	}
+
+	return false;
 }
 
 struct intel_digital_connector_state *
@@ -332,8 +341,7 @@ static void intel_atomic_setup_scaler(struct intel_crtc_scaler_state *scaler_sta
 	    plane_state->hw.fb->format->is_yuv &&
 	    plane_state->hw.fb->format->num_planes > 1) {
 		struct intel_plane *plane = to_intel_plane(plane_state->uapi.plane);
-		if (IS_GEN(dev_priv, 9) &&
-		    !IS_GEMINILAKE(dev_priv)) {
+		if (DISPLAY_VER(dev_priv) == 9) {
 			mode = SKL_PS_SCALER_MODE_NV12;
 		} else if (icl_is_hdr_plane(dev_priv, plane->id)) {
 			/*
@@ -351,7 +359,7 @@ static void intel_atomic_setup_scaler(struct intel_crtc_scaler_state *scaler_sta
 			if (linked)
 				mode |= PS_PLANE_Y_SEL(linked->id);
 		}
-	} else if (INTEL_GEN(dev_priv) > 9 || IS_GEMINILAKE(dev_priv)) {
+	} else if (DISPLAY_VER(dev_priv) >= 10) {
 		mode = PS_SCALER_MODE_NORMAL;
 	} else if (num_scalers_need == 1 && intel_crtc->num_scalers > 1) {
 		/*
@@ -460,7 +468,7 @@ int intel_atomic_setup_scalers(struct drm_i915_private *dev_priv,
 				 * isn't necessary to change between HQ and dyn mode
 				 * on those platforms.
 				 */
-				if (INTEL_GEN(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv))
+				if (DISPLAY_VER(dev_priv) >= 10)
 					continue;
 
 				plane = drm_plane_from_index(&dev_priv->drm, i);

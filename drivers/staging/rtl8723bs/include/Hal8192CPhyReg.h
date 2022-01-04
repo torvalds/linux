@@ -109,7 +109,6 @@
 #define		rTxAGC_B_Mcs03_Mcs00			0x83c
 
 #define		rTxAGC_B_Mcs07_Mcs04			0x848
-#define		rTxAGC_B_Mcs11_Mcs08			0x84c
 
 #define		rFPGA0_XA_LSSIParameter		0x840
 #define		rFPGA0_XB_LSSIParameter		0x844
@@ -123,7 +122,6 @@
 #define		rFPGA0_XA_RFInterfaceOE		0x860	/*  RF Channel switch */
 #define		rFPGA0_XB_RFInterfaceOE		0x864
 
-#define		rTxAGC_B_Mcs15_Mcs12			0x868
 #define		rTxAGC_B_CCK11_A_CCK2_11		0x86c
 
 #define		rFPGA0_XAB_RFInterfaceSW		0x870	/*  RF Interface Software Control */
@@ -303,8 +301,6 @@
 #define		rTxAGC_A_CCK1_Mcs32			0xe08
 #define		rTxAGC_A_Mcs03_Mcs00			0xe10
 #define		rTxAGC_A_Mcs07_Mcs04			0xe14
-#define		rTxAGC_A_Mcs11_Mcs08			0xe18
-#define		rTxAGC_A_Mcs15_Mcs12			0xe1c
 
 #define		rFPGA0_IQK					0xe28
 #define		rTx_IQK_Tone_A				0xe30
@@ -558,7 +554,6 @@
 
 #define		b3WireRFPowerDown			0x1	/*  Useless now */
 /* define bHWSISelect				0x8 */
-#define		b5GPAPEPolarity				0x40000000
 #define		b2GPAPEPolarity				0x80000000
 #define		bRFSW_TxDefaultAnt			0x3
 #define		bRFSW_TxOptionAnt			0x30
@@ -577,7 +572,6 @@
 #define		bRFSI_ANTSW				0x100
 #define		bRFSI_ANTSWB				0x200
 #define		bRFSI_PAPE					0x400
-#define		bRFSI_PAPE5G				0x800
 #define		bBandSelect					0x1
 #define		bHTSIG2_GI					0x80
 #define		bHTSIG2_Smoothing			0x01

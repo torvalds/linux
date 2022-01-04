@@ -21,7 +21,7 @@
 #define ADV7343_SVIDEO_ID	(2)
 
 /**
- * adv7343_power_mode - power mode configuration.
+ * struct adv7343_power_mode - power mode configuration.
  * @sleep_mode: on enable the current consumption is reduced to micro ampere
  *		level. All DACs and the internal PLL circuit are disabled.
  *		Registers can be read from and written in sleep mode.

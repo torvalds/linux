@@ -1577,7 +1577,6 @@ static int pdc_probe(struct platform_device *pdev)
 	pdcs->pdc_reg_vbase = devm_ioremap_resource(&pdev->dev, pdc_regs);
 	if (IS_ERR(pdcs->pdc_reg_vbase)) {
 		err = PTR_ERR(pdcs->pdc_reg_vbase);
-		dev_err(&pdev->dev, "Failed to map registers: %d\n", err);
 		goto cleanup_ring_pool;
 	}
 

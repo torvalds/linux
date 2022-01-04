@@ -558,7 +558,7 @@ static int sdhci_am654_cqe_add_host(struct sdhci_host *host)
 	struct cqhci_host *cq_host;
 	int ret;
 
-	cq_host = devm_kzalloc(host->mmc->parent, sizeof(struct cqhci_host),
+	cq_host = devm_kzalloc(mmc_dev(host->mmc), sizeof(struct cqhci_host),
 			       GFP_KERNEL);
 	if (!cq_host)
 		return -ENOMEM;
@@ -809,11 +809,9 @@ static int sdhci_am654_probe(struct platform_device *pdev)
 
 	/* Clocks are enabled using pm_runtime */
 	pm_runtime_enable(dev);
-	ret = pm_runtime_get_sync(dev);
-	if (ret < 0) {
-		pm_runtime_put_noidle(dev);
+	ret = pm_runtime_resume_and_get(dev);
+	if (ret)
 		goto pm_runtime_disable;
-	}
 
 	base = devm_platform_ioremap_resource(pdev, 1);
 	if (IS_ERR(base)) {

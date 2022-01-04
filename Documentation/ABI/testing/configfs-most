@@ -20,7 +20,7 @@ Description:
 
 		subbuffer_size
 				configure the sub-buffer size for this channel
-				(needed for synchronous and isochrnous data)
+				(needed for synchronous and isochronous data)
 
 
 		num_buffers
@@ -75,7 +75,7 @@ Description:
 
 		subbuffer_size
 				configure the sub-buffer size for this channel
-				(needed for synchronous and isochrnous data)
+				(needed for synchronous and isochronous data)
 
 
 		num_buffers
@@ -130,7 +130,7 @@ Description:
 
 		subbuffer_size
 				configure the sub-buffer size for this channel
-				(needed for synchronous and isochrnous data)
+				(needed for synchronous and isochronous data)
 
 
 		num_buffers
@@ -196,7 +196,7 @@ Description:
 
 		subbuffer_size
 				configure the sub-buffer size for this channel
-				(needed for synchronous and isochrnous data)
+				(needed for synchronous and isochronous data)
 
 
 		num_buffers

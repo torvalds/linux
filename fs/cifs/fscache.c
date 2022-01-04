@@ -1,22 +1,10 @@
+// SPDX-License-Identifier: LGPL-2.1
 /*
  *   fs/cifs/fscache.c - CIFS filesystem cache interface
  *
  *   Copyright (c) 2010 Novell, Inc.
  *   Author(s): Suresh Jayaraman <sjayaraman@suse.de>
  *
- *   This library is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU Lesser General Public License as published
- *   by the Free Software Foundation; either version 2.1 of the License, or
- *   (at your option) any later version.
- *
- *   This library is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See
- *   the GNU Lesser General Public License for more details.
- *
- *   You should have received a copy of the GNU Lesser General Public License
- *   along with this library; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 #include "fscache.h"
 #include "cifsglob.h"
@@ -188,29 +176,34 @@ void cifs_fscache_release_inode_cookie(struct inode *inode)
 		auxdata.last_change_time_nsec = cifsi->vfs_inode.i_ctime.tv_nsec;
 
 		cifs_dbg(FYI, "%s: (0x%p)\n", __func__, cifsi->fscache);
+		/* fscache_relinquish_cookie does not seem to update auxdata */
+		fscache_update_cookie(cifsi->fscache, &auxdata);
 		fscache_relinquish_cookie(cifsi->fscache, &auxdata, false);
 		cifsi->fscache = NULL;
 	}
 }
 
-static void cifs_fscache_disable_inode_cookie(struct inode *inode)
+void cifs_fscache_update_inode_cookie(struct inode *inode)
 {
+	struct cifs_fscache_inode_auxdata auxdata;
 	struct cifsInodeInfo *cifsi = CIFS_I(inode);
 
 	if (cifsi->fscache) {
+		memset(&auxdata, 0, sizeof(auxdata));
+		auxdata.eof = cifsi->server_eof;
+		auxdata.last_write_time_sec = cifsi->vfs_inode.i_mtime.tv_sec;
+		auxdata.last_change_time_sec = cifsi->vfs_inode.i_ctime.tv_sec;
+		auxdata.last_write_time_nsec = cifsi->vfs_inode.i_mtime.tv_nsec;
+		auxdata.last_change_time_nsec = cifsi->vfs_inode.i_ctime.tv_nsec;
+
 		cifs_dbg(FYI, "%s: (0x%p)\n", __func__, cifsi->fscache);
-		fscache_uncache_all_inode_pages(cifsi->fscache, inode);
-		fscache_relinquish_cookie(cifsi->fscache, NULL, true);
-		cifsi->fscache = NULL;
+		fscache_update_cookie(cifsi->fscache, &auxdata);
 	}
 }
 
 void cifs_fscache_set_inode_cookie(struct inode *inode, struct file *filp)
 {
-	if ((filp->f_flags & O_ACCMODE) != O_RDONLY)
-		cifs_fscache_disable_inode_cookie(inode);
-	else
-		cifs_fscache_enable_inode_cookie(inode);
+	cifs_fscache_enable_inode_cookie(inode);
 }
 
 void cifs_fscache_reset_inode_cookie(struct inode *inode)
@@ -322,6 +315,8 @@ void __cifs_readpage_to_fscache(struct inode *inode, struct page *page)
 	struct cifsInodeInfo *cifsi = CIFS_I(inode);
 	int ret;
 
+	WARN_ON(!cifsi->fscache);
+
 	cifs_dbg(FYI, "%s: (fsc: %p, p: %p, i: %p)\n",
 		 __func__, cifsi->fscache, page, inode);
 	ret = fscache_write_page(cifsi->fscache, page,
@@ -344,5 +339,23 @@ void __cifs_fscache_invalidate_page(struct page *page, struct inode *inode)
 
 	cifs_dbg(FYI, "%s: (0x%p/0x%p)\n", __func__, page, cookie);
 	fscache_wait_on_page_write(cookie, page);
+	fscache_uncache_page(cookie, page);
+}
+
+void __cifs_fscache_wait_on_page_write(struct inode *inode, struct page *page)
+{
+	struct cifsInodeInfo *cifsi = CIFS_I(inode);
+	struct fscache_cookie *cookie = cifsi->fscache;
+
+	cifs_dbg(FYI, "%s: (0x%p/0x%p)\n", __func__, page, cookie);
+	fscache_wait_on_page_write(cookie, page);
+}
+
+void __cifs_fscache_uncache_page(struct inode *inode, struct page *page)
+{
+	struct cifsInodeInfo *cifsi = CIFS_I(inode);
+	struct fscache_cookie *cookie = cifsi->fscache;
+
+	cifs_dbg(FYI, "%s: (0x%p/0x%p)\n", __func__, page, cookie);
 	fscache_uncache_page(cookie, page);
 }

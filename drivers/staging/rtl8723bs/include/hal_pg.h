@@ -14,13 +14,9 @@
  */
 #define MAX_TX_COUNT				4
 
-/*  For VHT series TX power by rate table. */
-/*  VHT TX power by rate off setArray = */
-/*  Band:-2G&5G = 0 / 1 */
-/*  RF: at most 4*4 = ABCD = 0/1/2/3 */
-/*  CCK = 0 OFDM = 1/2 HT-MCS 0-15 =3/4/56 VHT =7/8/9/10/11 */
-#define TX_PWR_BY_RATE_NUM_BAND			2
-#define TX_PWR_BY_RATE_NUM_RF			4
+/*  TX power by rate table. */
+/*  RF: = AB = 0/1 */
+/*  CCK = 0 OFDM = 1 HT-MCS 0-7 = 2 */
 #define TX_PWR_BY_RATE_NUM_RATE			84
 #define MAX_RF_PATH_NUM				2
 #define	MAX_CHNL_GROUP_24G			6

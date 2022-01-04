@@ -33,7 +33,7 @@
 /*
  * If the arch's mcount caller does not support all of ftrace's
  * features, then it must call an indirect function that
- * does. Or at least does enough to prevent any unwelcomed side effects.
+ * does. Or at least does enough to prevent any unwelcome side effects.
  */
 #if !ARCH_SUPPORTS_FTRACE_OPS
 # define FTRACE_FORCE_LIST_FUNC 1
@@ -389,7 +389,7 @@ DECLARE_PER_CPU(int, disable_stack_tracer);
  */
 static inline void stack_tracer_disable(void)
 {
-	/* Preemption or interupts must be disabled */
+	/* Preemption or interrupts must be disabled */
 	if (IS_ENABLED(CONFIG_DEBUG_PREEMPT))
 		WARN_ON_ONCE(!preempt_count() || !irqs_disabled());
 	this_cpu_inc(disable_stack_tracer);
@@ -643,6 +643,22 @@ static inline int ftrace_disable_ftrace_graph_caller(void) { return 0; }
 extern int ftrace_make_nop(struct module *mod,
 			   struct dyn_ftrace *rec, unsigned long addr);
 
+/**
+ * ftrace_need_init_nop - return whether nop call sites should be initialized
+ *
+ * Normally the compiler's -mnop-mcount generates suitable nops, so we don't
+ * need to call ftrace_init_nop() if the code is built with that flag.
+ * Architectures where this is not always the case may define their own
+ * condition.
+ *
+ * Return must be:
+ *  0	    if ftrace_init_nop() should be called
+ *  Nonzero if ftrace_init_nop() should not be called
+ */
+
+#ifndef ftrace_need_init_nop
+#define ftrace_need_init_nop() (!__is_defined(CC_USING_NOP_MCOUNT))
+#endif
 
 /**
  * ftrace_init_nop - initialize a nop call site

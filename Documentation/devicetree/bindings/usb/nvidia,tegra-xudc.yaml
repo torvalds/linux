@@ -25,7 +25,6 @@ properties:
 
   reg:
     minItems: 2
-    maxItems: 3
     items:
       - description: XUSB device controller registers
       - description: XUSB device PCI Config registers
@@ -33,7 +32,6 @@ properties:
 
   reg-names:
     minItems: 2
-    maxItems: 3
     items:
       - const: base
       - const: fpci
@@ -45,7 +43,6 @@ properties:
 
   clocks:
     minItems: 4
-    maxItems: 5
     items:
       - description: Clock to enable core XUSB dev clock.
       - description: Clock to enable XUSB super speed clock.
@@ -55,7 +52,6 @@ properties:
 
   clock-names:
     minItems: 4
-    maxItems: 5
     items:
       - const: dev
       - const: ss

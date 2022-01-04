@@ -768,7 +768,7 @@ static inline int enic_queue_wq_skb_encap(struct enic *enic, struct vnic_wq *wq,
 	return err;
 }
 
-static inline void enic_queue_wq_skb(struct enic *enic,
+static inline int enic_queue_wq_skb(struct enic *enic,
 	struct vnic_wq *wq, struct sk_buff *skb)
 {
 	unsigned int mss = skb_shinfo(skb)->gso_size;
@@ -814,6 +814,7 @@ static inline void enic_queue_wq_skb(struct enic *enic,
 		wq->to_use = buf->next;
 		dev_kfree_skb(skb);
 	}
+	return err;
 }
 
 /* netif_tx_lock held, process context with BHs disabled, or BH */
@@ -857,7 +858,8 @@ static netdev_tx_t enic_hard_start_xmit(struct sk_buff *skb,
 		return NETDEV_TX_BUSY;
 	}
 
-	enic_queue_wq_skb(enic, wq, skb);
+	if (enic_queue_wq_skb(enic, wq, skb))
+		goto error;
 
 	if (vnic_wq_desc_avail(wq) < MAX_SKB_FRAGS + ENIC_DESC_MAX_SPLITS)
 		netif_tx_stop_queue(txq);
@@ -865,6 +867,7 @@ static netdev_tx_t enic_hard_start_xmit(struct sk_buff *skb,
 	if (!netdev_xmit_more() || netif_xmit_stopped(txq))
 		vnic_wq_doorbell(wq);
 
+error:
 	spin_unlock(&enic->wq_lock[txq_map]);
 
 	return NETDEV_TX_OK;
@@ -3040,15 +3043,4 @@ static struct pci_driver enic_driver = {
 	.remove = enic_remove,
 };
 
-static int __init enic_init_module(void)
-{
-	return pci_register_driver(&enic_driver);
-}
-
-static void __exit enic_cleanup_module(void)
-{
-	pci_unregister_driver(&enic_driver);
-}
-
-module_init(enic_init_module);
-module_exit(enic_cleanup_module);
+module_pci_driver(enic_driver);

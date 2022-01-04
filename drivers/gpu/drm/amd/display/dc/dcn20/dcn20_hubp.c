@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-17 Advanced Micro Devices, Inc.
+ * Copyright 2012-2021 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -181,11 +181,14 @@ void hubp2_vready_at_or_After_vsync(struct hubp *hubp,
 	else
 		Set HUBP_VREADY_AT_OR_AFTER_VSYNC = 0
 	*/
-	if ((pipe_dest->vstartup_start - (pipe_dest->vready_offset+pipe_dest->vupdate_width
-		+ pipe_dest->vupdate_offset) / pipe_dest->htotal) <= pipe_dest->vblank_end) {
-		value = 1;
-	} else
-		value = 0;
+	if (pipe_dest->htotal != 0) {
+		if ((pipe_dest->vstartup_start - (pipe_dest->vready_offset+pipe_dest->vupdate_width
+			+ pipe_dest->vupdate_offset) / pipe_dest->htotal) <= pipe_dest->vblank_end) {
+			value = 1;
+		} else
+			value = 0;
+	}
+
 	REG_UPDATE(DCHUBP_CNTL, HUBP_VREADY_AT_OR_AFTER_VSYNC, value);
 }
 
@@ -428,6 +431,7 @@ void hubp2_program_pixel_format(
 	if (format == SURFACE_PIXEL_FORMAT_GRPH_ABGR8888
 			|| format == SURFACE_PIXEL_FORMAT_GRPH_ABGR2101010
 			|| format == SURFACE_PIXEL_FORMAT_GRPH_ABGR2101010_XR_BIAS
+			|| format == SURFACE_PIXEL_FORMAT_GRPH_ABGR16161616
 			|| format == SURFACE_PIXEL_FORMAT_GRPH_ABGR16161616F) {
 		red_bar = 2;
 		blue_bar = 3;
@@ -460,8 +464,9 @@ void hubp2_program_pixel_format(
 				SURFACE_PIXEL_FORMAT, 10);
 		break;
 	case SURFACE_PIXEL_FORMAT_GRPH_ARGB16161616:
+	case SURFACE_PIXEL_FORMAT_GRPH_ABGR16161616: /*we use crossbar already*/
 		REG_UPDATE(DCSURF_SURFACE_CONFIG,
-				SURFACE_PIXEL_FORMAT, 22);
+				SURFACE_PIXEL_FORMAT, 26); /* ARGB16161616_UNORM */
 		break;
 	case SURFACE_PIXEL_FORMAT_GRPH_ARGB16161616F:
 	case SURFACE_PIXEL_FORMAT_GRPH_ABGR16161616F:/*we use crossbar already*/
@@ -1075,6 +1080,12 @@ void hubp2_read_state_common(struct hubp *hubp)
 			MRQ_EXPANSION_MODE, &rq_regs->mrq_expansion_mode,
 			CRQ_EXPANSION_MODE, &rq_regs->crq_expansion_mode);
 
+	REG_GET(DCN_VM_SYSTEM_APERTURE_HIGH_ADDR,
+			MC_VM_SYSTEM_APERTURE_HIGH_ADDR, &rq_regs->aperture_high_addr);
+
+	REG_GET(DCN_VM_SYSTEM_APERTURE_LOW_ADDR,
+			MC_VM_SYSTEM_APERTURE_LOW_ADDR, &rq_regs->aperture_low_addr);
+
 	/* DLG - Per hubp */
 	REG_GET_2(BLANK_OFFSET_0,
 		REFCYC_H_BLANK_END, &dlg_attr->refcyc_h_blank_end,
@@ -1231,6 +1242,17 @@ void hubp2_read_state_common(struct hubp *hubp)
 			QoS_LEVEL_LOW_WM, &s->qos_level_low_wm,
 			QoS_LEVEL_HIGH_WM, &s->qos_level_high_wm);
 
+	REG_GET(DCSURF_PRIMARY_SURFACE_ADDRESS,
+			PRIMARY_SURFACE_ADDRESS, &s->primary_surface_addr_lo);
+
+	REG_GET(DCSURF_PRIMARY_SURFACE_ADDRESS_HIGH,
+			PRIMARY_SURFACE_ADDRESS, &s->primary_surface_addr_hi);
+
+	REG_GET(DCSURF_PRIMARY_META_SURFACE_ADDRESS,
+			PRIMARY_META_SURFACE_ADDRESS, &s->primary_meta_addr_lo);
+
+	REG_GET(DCSURF_PRIMARY_META_SURFACE_ADDRESS_HIGH,
+			PRIMARY_META_SURFACE_ADDRESS, &s->primary_meta_addr_hi);
 }
 
 void hubp2_read_state(struct hubp *hubp)

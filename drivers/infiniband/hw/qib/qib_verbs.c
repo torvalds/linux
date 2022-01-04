@@ -1188,7 +1188,7 @@ full:
 	}
 }
 
-static int qib_query_port(struct rvt_dev_info *rdi, u8 port_num,
+static int qib_query_port(struct rvt_dev_info *rdi, u32 port_num,
 			  struct ib_port_attr *props)
 {
 	struct qib_ibdev *ibdev = container_of(rdi, struct qib_ibdev, rdi);
@@ -1273,7 +1273,7 @@ bail:
 	return ret;
 }
 
-static int qib_shut_down_port(struct rvt_dev_info *rdi, u8 port_num)
+static int qib_shut_down_port(struct rvt_dev_info *rdi, u32 port_num)
 {
 	struct qib_ibdev *ibdev = container_of(rdi, struct qib_ibdev, rdi);
 	struct qib_devdata *dd = dd_from_dev(ibdev);
@@ -1342,7 +1342,7 @@ struct ib_ah *qib_create_qp0_ah(struct qib_ibport *ibp, u16 dlid)
 	struct rvt_qp *qp0;
 	struct qib_pportdata *ppd = ppd_from_ibp(ibp);
 	struct qib_devdata *dd = dd_from_ppd(ppd);
-	u8 port_num = ppd->port;
+	u32 port_num = ppd->port;
 
 	memset(&attr, 0, sizeof(attr));
 	attr.type = rdma_ah_find_type(&dd->verbs_dev.rdi.ibdev, port_num);
@@ -1483,7 +1483,8 @@ static const struct ib_device_ops qib_dev_ops = {
 	.owner = THIS_MODULE,
 	.driver_id = RDMA_DRIVER_QIB,
 
-	.init_port = qib_create_port_files,
+	.port_groups = qib_attr_port_groups,
+	.device_group = &qib_attr_group,
 	.modify_device = qib_modify_device,
 	.process_mad = qib_process_mad,
 };
@@ -1612,7 +1613,6 @@ int qib_register_ib_device(struct qib_devdata *dd)
 			      i,
 			      dd->rcd[ctxt]->pkeys);
 	}
-	rdma_set_device_sysfs_group(&dd->verbs_dev.rdi.ibdev, &qib_attr_group);
 
 	ib_set_device_ops(ibdev, &qib_dev_ops);
 	ret = rvt_register_device(&dd->verbs_dev.rdi);
@@ -1643,8 +1643,6 @@ err_hdrs:
 void qib_unregister_ib_device(struct qib_devdata *dd)
 {
 	struct qib_ibdev *dev = &dd->verbs_dev;
-
-	qib_verbs_unregister_sysfs(dd);
 
 	rvt_unregister_device(&dd->verbs_dev.rdi);
 

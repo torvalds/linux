@@ -42,8 +42,6 @@ struct rtrs_srv_stats {
 
 struct rtrs_srv_con {
 	struct rtrs_con		c;
-	atomic_t		wr_cnt;
-	atomic_t		sq_wr_avail;
 	struct list_head	rsp_wr_wait_list;
 	spinlock_t		rsp_wr_wait_lock;
 };
@@ -81,8 +79,8 @@ struct rtrs_srv_sess {
 	spinlock_t		state_lock;
 	int			cur_cq_vector;
 	struct rtrs_srv_op	**ops_ids;
-	atomic_t		ids_inflight;
-	wait_queue_head_t	ids_waitq;
+	struct percpu_ref       ids_inflight_ref;
+	struct completion       complete_done;
 	struct rtrs_srv_mr	*mrs;
 	unsigned int		mrs_num;
 	dma_addr_t		*dma_addr;
@@ -140,10 +138,6 @@ static inline void rtrs_srv_update_rdma_stats(struct rtrs_srv_stats *s,
 int rtrs_srv_reset_rdma_stats(struct rtrs_srv_stats *stats, bool enable);
 ssize_t rtrs_srv_stats_rdma_to_str(struct rtrs_srv_stats *stats,
 				    char *page, size_t len);
-int rtrs_srv_reset_wc_completion_stats(struct rtrs_srv_stats *stats,
-					bool enable);
-int rtrs_srv_stats_wc_completion_to_str(struct rtrs_srv_stats *stats, char *buf,
-					 size_t len);
 int rtrs_srv_reset_all_stats(struct rtrs_srv_stats *stats, bool enable);
 ssize_t rtrs_srv_reset_all_help(struct rtrs_srv_stats *stats,
 				 char *page, size_t len);

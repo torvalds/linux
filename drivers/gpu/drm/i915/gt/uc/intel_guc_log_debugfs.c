@@ -121,4 +121,3 @@ void intel_guc_log_debugfs_register(struct intel_guc_log *log,
 
 	intel_gt_debugfs_register_files(root, files, ARRAY_SIZE(files), log);
 }
-

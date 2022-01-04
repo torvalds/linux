@@ -235,6 +235,7 @@ struct dma_xfer_hbm {
 #define SYSTEM_STATE_QUERY_SUBSCRIBERS		0x3
 #define SYSTEM_STATE_STATE_CHANGE_REQ		0x4
 /*indicates suspend and resume states*/
+#define CONNECTED_STANDBY_STATE_BIT		(1<<0)
 #define SUSPEND_STATE_BIT			(1<<1)
 
 struct ish_system_states_header {

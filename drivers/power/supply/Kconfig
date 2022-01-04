@@ -358,7 +358,7 @@ config AXP288_CHARGER
 
 config AXP288_FUEL_GAUGE
 	tristate "X-Powers AXP288 Fuel Gauge"
-	depends on MFD_AXP20X && IIO
+	depends on MFD_AXP20X && IIO && IOSF_MBI
 	help
 	  Say yes here to have support for X-Power power management IC (PMIC)
 	  Fuel Gauge. The device provides battery statistics and status
@@ -577,6 +577,17 @@ config CHARGER_MP2629
 	  Battery charger. This driver provides Battery charger power management
 	  functions on the systems.
 
+config CHARGER_MT6360
+	tristate "Mediatek MT6360 Charger Driver"
+	depends on MFD_MT6360
+	depends on REGULATOR
+	select LINEAR_RANGES
+	help
+	  Say Y here to enable MT6360 Charger Part.
+	  The device supports High-Accuracy Voltage/Current Regulation,
+	  Average Input Current Regulation, Battery Temperature Sensing,
+	  Over-Temperature Protection, DPDM Detection for BC1.2.
+
 config CHARGER_QCOM_SMBB
 	tristate "Qualcomm Switch-Mode Battery Charger and Boost"
 	depends on MFD_SPMI_PMIC || COMPILE_TEST
@@ -669,6 +680,7 @@ config CHARGER_BQ256XX
 config CHARGER_SMB347
 	tristate "Summit Microelectronics SMB3XX Battery Charger"
 	depends on I2C
+	depends on REGULATOR
 	select REGMAP_I2C
 	help
 	  Say Y to include support for Summit Microelectronics SMB345,
@@ -698,21 +710,22 @@ config BATTERY_GAUGE_LTC2941
 
 config AB8500_BM
 	bool "AB8500 Battery Management Driver"
-	depends on AB8500_CORE && AB8500_GPADC && (IIO = y)
+	depends on AB8500_CORE && AB8500_GPADC && (IIO = y) && OF
 	help
 	  Say Y to include support for AB8500 battery management.
 
 config BATTERY_GOLDFISH
 	tristate "Goldfish battery driver"
-	depends on GOLDFISH || COMPILE_TEST
 	depends on HAS_IOMEM
 	help
-	  Say Y to enable support for the battery and AC power in the
-	  Goldfish emulator.
+	  Say Y to enable support for the Goldfish battery and AC power
+	  driver. Originated in the Android Studio Emulator (goldfish) it is
+	  going to be used in other emulators.
 
 config BATTERY_RT5033
 	tristate "RT5033 fuel gauge support"
-	depends on MFD_RT5033
+	depends on I2C
+	select REGMAP_I2C
 	help
 	  This adds support for battery fuel gauge in Richtek RT5033 PMIC.
 	  The fuelgauge calculates and determines the battery state of charge
@@ -734,6 +747,16 @@ config CHARGER_CROS_USBPD
 	  driver. This driver gets various bits of information about
 	  what is connected to USB PD ports from the EC and converts
 	  that into power_supply properties.
+
+config CHARGER_CROS_PCHG
+	tristate "ChromeOS EC based peripheral charger"
+	depends on MFD_CROS_EC_DEV
+	default MFD_CROS_EC_DEV
+	help
+	  Say Y here to enable ChromeOS EC based peripheral charge driver.
+	  This driver gets various information about the devices connected to
+	  the peripheral charge ports from the EC and converts that into
+	  power_supply properties.
 
 config CHARGER_SC2731
 	tristate "Spreadtrum SC2731 charger driver"
@@ -760,15 +783,6 @@ config CHARGER_UCS1002
 	  Say Y to enable support for Microchip UCS1002 Programmable
 	  USB Port Power Controller with Charger Emulation.
 
-config CHARGER_BD70528
-	tristate "ROHM bd70528 charger driver"
-	depends on MFD_ROHM_BD70528
-	select LINEAR_RANGES
-	help
-	  Say Y here to enable support for getting battery status
-	  information and altering charger configurations from charger
-	  block of the ROHM BD70528 Power Management IC.
-
 config CHARGER_BD99954
 	tristate "ROHM bd99954 charger driver"
 	depends on I2C
@@ -790,6 +804,8 @@ config CHARGER_WILCO
 config RN5T618_POWER
 	tristate "RN5T618 charger/fuel gauge support"
 	depends on MFD_RN5T618
+	depends on RN5T618_ADC
+	depends on IIO
 	help
 	  Say Y here to have support for RN5T618 PMIC family fuel gauge and charger.
 	  This driver can also be built as a module. If so, the module will be
@@ -800,5 +816,37 @@ config BATTERY_ACER_A500
 	depends on MFD_ACER_A500_EC
 	help
 	  Say Y to include support for Acer Iconia Tab A500 battery fuel gauge.
+
+config BATTERY_SURFACE
+	tristate "Battery driver for 7th-generation Microsoft Surface devices"
+	depends on SURFACE_AGGREGATOR_REGISTRY
+	help
+	  Driver for battery devices connected via/managed by the Surface System
+	  Aggregator Module (SSAM).
+
+	  This driver provides battery-information and -status support for
+	  Surface devices where said data is not exposed via the standard ACPI
+	  devices. On those models (7th-generation), battery-information is
+	  instead handled directly via SSAM client devices and this driver.
+
+	  Say M or Y here to include battery status support for 7th-generation
+	  Microsoft Surface devices, i.e. Surface Pro 7, Surface Laptop 3,
+	  Surface Book 3, and Surface Laptop Go.
+
+config CHARGER_SURFACE
+	tristate "AC driver for 7th-generation Microsoft Surface devices"
+	depends on SURFACE_AGGREGATOR_REGISTRY
+	help
+	  Driver for AC devices connected via/managed by the Surface System
+	  Aggregator Module (SSAM).
+
+	  This driver provides AC-information and -status support for Surface
+	  devices where said data is not exposed via the standard ACPI devices.
+	  On those models (7th-generation), AC-information is instead handled
+	  directly via a SSAM client device and this driver.
+
+	  Say M or Y here to include AC status support for 7th-generation
+	  Microsoft Surface devices, i.e. Surface Pro 7, Surface Laptop 3,
+	  Surface Book 3, and Surface Laptop Go.
 
 endif # POWER_SUPPLY

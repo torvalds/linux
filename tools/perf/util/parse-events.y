@@ -316,7 +316,7 @@ event_pmu_name opt_pmu_config
 			if (!strncmp(name, "uncore_", 7) &&
 			    strncmp($1, "uncore_", 7))
 				name += 7;
-			if (!fnmatch(pattern, name, 0)) {
+			if (!perf_pmu__match(pattern, name, $1)) {
 				if (parse_events_copy_term_list(orig_terms, &terms))
 					CLEANUP_YYABORT;
 				if (!parse_events_add_pmu(_parse_state, list, pmu->name, terms, true, false))
@@ -454,7 +454,8 @@ PE_NAME_CACHE_TYPE '-' PE_NAME_CACHE_OP_RESULT '-' PE_NAME_CACHE_OP_RESULT opt_e
 
 	list = alloc_list();
 	ABORT_ON(!list);
-	err = parse_events_add_cache(list, &parse_state->idx, $1, $3, $5, error, $6);
+	err = parse_events_add_cache(list, &parse_state->idx, $1, $3, $5, error, $6,
+				     parse_state);
 	parse_events_terms__delete($6);
 	free($1);
 	free($3);
@@ -475,7 +476,8 @@ PE_NAME_CACHE_TYPE '-' PE_NAME_CACHE_OP_RESULT opt_event_config
 
 	list = alloc_list();
 	ABORT_ON(!list);
-	err = parse_events_add_cache(list, &parse_state->idx, $1, $3, NULL, error, $4);
+	err = parse_events_add_cache(list, &parse_state->idx, $1, $3, NULL, error, $4,
+				     parse_state);
 	parse_events_terms__delete($4);
 	free($1);
 	free($3);
@@ -495,7 +497,8 @@ PE_NAME_CACHE_TYPE opt_event_config
 
 	list = alloc_list();
 	ABORT_ON(!list);
-	err = parse_events_add_cache(list, &parse_state->idx, $1, NULL, NULL, error, $2);
+	err = parse_events_add_cache(list, &parse_state->idx, $1, NULL, NULL, error, $2,
+				     parse_state);
 	parse_events_terms__delete($2);
 	free($1);
 	if (err) {

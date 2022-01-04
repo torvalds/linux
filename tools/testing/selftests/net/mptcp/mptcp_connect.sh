@@ -3,7 +3,7 @@
 
 time_start=$(date +%s)
 
-optstring="S:R:d:e:l:r:h4cm:f:t"
+optstring="S:R:d:e:l:r:h4cm:f:tC"
 ret=0
 sin=""
 sout=""
@@ -11,7 +11,8 @@ cin=""
 cout=""
 ksft_skip=4
 capture=false
-timeout=30
+timeout_poll=30
+timeout_test=$((timeout_poll * 2 + 1))
 ipv6=true
 ethtool_random_on=true
 tc_delay="$((RANDOM%50))"
@@ -21,6 +22,7 @@ sndbuf=0
 rcvbuf=0
 options_log=true
 do_tcp=0
+checksum=false
 filesize=0
 
 if [ $tc_loss -eq 100 ];then
@@ -46,6 +48,7 @@ usage() {
 	echo -e "\t-R: set rcvbuf value (default: use kernel default)"
 	echo -e "\t-m: test mode (poll, sendfile; default: poll)"
 	echo -e "\t-t: also run tests with TCP (use twice to non-fallback tcp)"
+	echo -e "\t-C: enable the MPTCP data checksum"
 }
 
 while getopts "$optstring" option;do
@@ -102,6 +105,9 @@ while getopts "$optstring" option;do
 		;;
 	"t")
 		do_tcp=$((do_tcp+1))
+		;;
+	"C")
+		checksum=true
 		;;
 	"?")
 		usage $0
@@ -196,8 +202,11 @@ ip -net "$ns4" link set ns4eth3 up
 ip -net "$ns4" route add default via 10.0.3.2
 ip -net "$ns4" route add default via dead:beef:3::2
 
-# use TCP syn cookies, even if no flooding was detected.
-ip netns exec "$ns2" sysctl -q net.ipv4.tcp_syncookies=2
+if $checksum; then
+	for i in "$ns1" "$ns2" "$ns3" "$ns4";do
+		ip netns exec $i sysctl -q net.mptcp.checksum_enabled=1
+	done
+fi
 
 set_ethtool_flags() {
 	local ns="$1"
@@ -273,7 +282,7 @@ check_mptcp_disabled()
 	ip netns exec ${disabled_ns} sysctl -q net.mptcp.enabled=0
 
 	local err=0
-	LANG=C ip netns exec ${disabled_ns} ./mptcp_connect -t $timeout -p 10000 -s MPTCP 127.0.0.1 < "$cin" 2>&1 | \
+	LC_ALL=C ip netns exec ${disabled_ns} ./mptcp_connect -p 10000 -s MPTCP 127.0.0.1 < "$cin" 2>&1 | \
 		grep -q "^socket: Protocol not available$" && err=1
 	ip netns delete ${disabled_ns}
 
@@ -374,7 +383,7 @@ do_transfer()
 	local srv_proto="$4"
 	local connect_addr="$5"
 	local local_addr="$6"
-	local extra_args=""
+	local extra_args="$7"
 
 	local port
 	port=$((10000+$TEST_COUNT))
@@ -393,9 +402,9 @@ do_transfer()
 	fi
 
 	if [ -n "$extra_args" ] && $options_log; then
-		options_log=false
 		echo "INFO: extra options: $extra_args"
 	fi
+	options_log=false
 
 	:> "$cout"
 	:> "$sout"
@@ -425,19 +434,32 @@ do_transfer()
 		sleep 1
 	fi
 
+	NSTAT_HISTORY=/tmp/${listener_ns}.nstat ip netns exec ${listener_ns} \
+		nstat -n
+	if [ ${listener_ns} != ${connector_ns} ]; then
+		NSTAT_HISTORY=/tmp/${connector_ns}.nstat ip netns exec ${connector_ns} \
+			nstat -n
+	fi
+
 	local stat_synrx_last_l=$(get_mib_counter "${listener_ns}" "MPTcpExtMPCapableSYNRX")
 	local stat_ackrx_last_l=$(get_mib_counter "${listener_ns}" "MPTcpExtMPCapableACKRX")
 	local stat_cookietx_last=$(get_mib_counter "${listener_ns}" "TcpExtSyncookiesSent")
 	local stat_cookierx_last=$(get_mib_counter "${listener_ns}" "TcpExtSyncookiesRecv")
 
-	ip netns exec ${listener_ns} ./mptcp_connect -t $timeout -l -p $port -s ${srv_proto} $extra_args $local_addr < "$sin" > "$sout" &
+	timeout ${timeout_test} \
+		ip netns exec ${listener_ns} \
+			./mptcp_connect -t ${timeout_poll} -l -p $port -s ${srv_proto} \
+				$extra_args $local_addr < "$sin" > "$sout" &
 	local spid=$!
 
 	wait_local_port_listen "${listener_ns}" "${port}"
 
 	local start
 	start=$(date +%s%3N)
-	ip netns exec ${connector_ns} ./mptcp_connect -t $timeout -p $port -s ${cl_proto} $extra_args $connect_addr < "$cin" > "$cout" &
+	timeout ${timeout_test} \
+		ip netns exec ${connector_ns} \
+			./mptcp_connect -t ${timeout_poll} -p $port -s ${cl_proto} \
+				$extra_args $connect_addr < "$cin" > "$cout" &
 	local cpid=$!
 
 	wait $cpid
@@ -487,6 +509,7 @@ do_transfer()
 	local stat_ackrx_now_l=$(get_mib_counter "${listener_ns}" "MPTcpExtMPCapableACKRX")
 	local stat_cookietx_now=$(get_mib_counter "${listener_ns}" "TcpExtSyncookiesSent")
 	local stat_cookierx_now=$(get_mib_counter "${listener_ns}" "TcpExtSyncookiesRecv")
+	local stat_ooo_now=$(get_mib_counter "${listener_ns}" "TcpExtTCPOFOQueue")
 
 	expect_synrx=$((stat_synrx_last_l))
 	expect_ackrx=$((stat_ackrx_last_l))
@@ -504,10 +527,14 @@ do_transfer()
 			"${stat_synrx_now_l}" "${expect_synrx}" 1>&2
 		retc=1
 	fi
-	if [ ${stat_ackrx_now_l} -lt ${expect_ackrx} ]; then
-		printf "[ FAIL ] lower MPC ACK rx (%d) than expected (%d)\n" \
-			"${stat_ackrx_now_l}" "${expect_ackrx}" 1>&2
-		rets=1
+	if [ ${stat_ackrx_now_l} -lt ${expect_ackrx} -a ${stat_ooo_now} -eq 0 ]; then
+		if [ ${stat_ooo_now} -eq 0 ]; then
+			printf "[ FAIL ] lower MPC ACK rx (%d) than expected (%d)\n" \
+				"${stat_ackrx_now_l}" "${expect_ackrx}" 1>&2
+			rets=1
+		else
+			printf "[ Note ] fallback due to TCP OoO"
+		fi
 	fi
 
 	if [ $retc -eq 0 ] && [ $rets -eq 0 ]; then
@@ -575,6 +602,7 @@ run_tests_lo()
 	local connector_ns="$2"
 	local connect_addr="$3"
 	local loopback="$4"
+	local extra_args="$5"
 	local lret=0
 
 	# skip if test programs are running inside same netns for subsequent runs.
@@ -594,7 +622,8 @@ run_tests_lo()
 		local_addr="0.0.0.0"
 	fi
 
-	do_transfer ${listener_ns} ${connector_ns} MPTCP MPTCP ${connect_addr} ${local_addr}
+	do_transfer ${listener_ns} ${connector_ns} MPTCP MPTCP \
+		    ${connect_addr} ${local_addr} "${extra_args}"
 	lret=$?
 	if [ $lret -ne 0 ]; then
 		ret=$lret
@@ -608,14 +637,16 @@ run_tests_lo()
 		fi
 	fi
 
-	do_transfer ${listener_ns} ${connector_ns} MPTCP TCP ${connect_addr} ${local_addr}
+	do_transfer ${listener_ns} ${connector_ns} MPTCP TCP \
+		    ${connect_addr} ${local_addr} "${extra_args}"
 	lret=$?
 	if [ $lret -ne 0 ]; then
 		ret=$lret
 		return 1
 	fi
 
-	do_transfer ${listener_ns} ${connector_ns} TCP MPTCP ${connect_addr} ${local_addr}
+	do_transfer ${listener_ns} ${connector_ns} TCP MPTCP \
+		    ${connect_addr} ${local_addr} "${extra_args}"
 	lret=$?
 	if [ $lret -ne 0 ]; then
 		ret=$lret
@@ -623,7 +654,8 @@ run_tests_lo()
 	fi
 
 	if [ $do_tcp -gt 1 ] ;then
-		do_transfer ${listener_ns} ${connector_ns} TCP TCP ${connect_addr} ${local_addr}
+		do_transfer ${listener_ns} ${connector_ns} TCP TCP \
+			    ${connect_addr} ${local_addr} "${extra_args}"
 		lret=$?
 		if [ $lret -ne 0 ]; then
 			ret=$lret
@@ -639,12 +671,42 @@ run_tests()
 	run_tests_lo $1 $2 $3 0
 }
 
+run_tests_peekmode()
+{
+	local peekmode="$1"
+
+	echo "INFO: with peek mode: ${peekmode}"
+	run_tests_lo "$ns1" "$ns1" 10.0.1.1 1 "-P ${peekmode}"
+	run_tests_lo "$ns1" "$ns1" dead:beef:1::1 1 "-P ${peekmode}"
+}
+
+display_time()
+{
+	time_end=$(date +%s)
+	time_run=$((time_end-time_start))
+
+	echo "Time: ${time_run} seconds"
+}
+
+stop_if_error()
+{
+	local msg="$1"
+
+	if [ ${ret} -ne 0 ]; then
+		echo "FAIL: ${msg}" 1>&2
+		display_time
+		exit ${ret}
+	fi
+}
+
 make_file "$cin" "client"
 make_file "$sin" "server"
 
 check_mptcp_disabled
 
 check_mptcp_ulp_setsockopt
+
+stop_if_error "The kernel configuration is not valid for MPTCP"
 
 echo "INFO: validating network environment with pings"
 for sender in "$ns1" "$ns2" "$ns3" "$ns4";do
@@ -664,6 +726,8 @@ for sender in "$ns1" "$ns2" "$ns3" "$ns4";do
 	do_ping "$ns4" $sender 10.0.3.1
 	do_ping "$ns4" $sender dead:beef:3::1
 done
+
+stop_if_error "Could not even run ping tests"
 
 [ -n "$tc_loss" ] && tc -net "$ns2" qdisc add dev ns2eth3 root netem loss random $tc_loss delay ${tc_delay}ms
 echo -n "INFO: Using loss of $tc_loss "
@@ -692,17 +756,23 @@ echo "on ns3eth4"
 
 tc -net "$ns3" qdisc add dev ns3eth4 root netem delay ${reorder_delay}ms $tc_reorder
 
+run_tests_lo "$ns1" "$ns1" 10.0.1.1 1
+stop_if_error "Could not even run loopback test"
+
+run_tests_lo "$ns1" "$ns1" dead:beef:1::1 1
+stop_if_error "Could not even run loopback v6 test"
+
 for sender in $ns1 $ns2 $ns3 $ns4;do
-	run_tests_lo "$ns1" "$sender" 10.0.1.1 1
-	if [ $ret -ne 0 ] ;then
-		echo "FAIL: Could not even run loopback test" 1>&2
-		exit $ret
+	# ns1<->ns2 is not subject to reordering/tc delays. Use it to test
+	# mptcp syncookie support.
+	if [ $sender = $ns1 ]; then
+		ip netns exec "$ns2" sysctl -q net.ipv4.tcp_syncookies=2
+	else
+		ip netns exec "$ns2" sysctl -q net.ipv4.tcp_syncookies=1
 	fi
-	run_tests_lo "$ns1" $sender dead:beef:1::1 1
-	if [ $ret -ne 0 ] ;then
-		echo "FAIL: Could not even run loopback v6 test" 2>&1
-		exit $ret
-	fi
+
+	run_tests "$ns1" $sender 10.0.1.1
+	run_tests "$ns1" $sender dead:beef:1::1
 
 	run_tests "$ns2" $sender 10.0.1.2
 	run_tests "$ns2" $sender dead:beef:1::2
@@ -716,11 +786,13 @@ for sender in $ns1 $ns2 $ns3 $ns4;do
 
 	run_tests "$ns4" $sender 10.0.3.1
 	run_tests "$ns4" $sender dead:beef:3::1
+
+	stop_if_error "Tests with $sender as a sender have failed"
 done
 
-time_end=$(date +%s)
-time_run=$((time_end-time_start))
+run_tests_peekmode "saveWithPeek"
+run_tests_peekmode "saveAfterPeek"
+stop_if_error "Tests with peek mode have failed"
 
-echo "Time: ${time_run} seconds"
-
+display_time
 exit $ret

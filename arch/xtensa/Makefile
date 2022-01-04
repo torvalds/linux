@@ -17,14 +17,9 @@
 variant-y := $(patsubst "%",%,$(CONFIG_XTENSA_VARIANT_NAME))
 
 VARIANT = $(variant-y)
-export VARIANT
-
-# Test for cross compiling
 
 ifneq ($(VARIANT),)
-  COMPILE_ARCH = $(shell uname -m)
-
-  ifneq ($(COMPILE_ARCH), xtensa)
+  ifdef cross_compiling
     ifndef CROSS_COMPILE
       CROSS_COMPILE = xtensa_$(VARIANT)-
     endif
@@ -36,9 +31,6 @@ endif
 platform-$(CONFIG_XTENSA_PLATFORM_XT2000)	:= xt2000
 platform-$(CONFIG_XTENSA_PLATFORM_ISS)		:= iss
 platform-$(CONFIG_XTENSA_PLATFORM_XTFPGA)	:= xtfpga
-
-PLATFORM = $(platform-y)
-export PLATFORM
 
 # temporarily until string.h is fixed
 KBUILD_CFLAGS += -ffreestanding -D__linux__
@@ -52,14 +44,7 @@ ifneq ($(CONFIG_LD_NO_RELAX),)
 KBUILD_LDFLAGS := --no-relax
 endif
 
-ifeq ($(shell echo __XTENSA_EB__ | $(CC) -E - | grep -v "\#"),1)
-CHECKFLAGS += -D__XTENSA_EB__
-KBUILD_CPPFLAGS += -DCONFIG_CPU_BIG_ENDIAN
-endif
-ifeq ($(shell echo __XTENSA_EL__ | $(CC) -E - | grep -v "\#"),1)
-CHECKFLAGS += -D__XTENSA_EL__
-KBUILD_CPPFLAGS += -DCONFIG_CPU_LITTLE_ENDIAN
-endif
+CHECKFLAGS += -D$(if $(CONFIG_CPU_BIG_ENDIAN),__XTENSA_EB__,__XTENSA_EL__)
 
 vardirs := $(patsubst %,arch/xtensa/variants/%/,$(variant-y))
 plfdirs := $(patsubst %,arch/xtensa/platforms/%/,$(platform-y))
@@ -68,19 +53,11 @@ KBUILD_CPPFLAGS += $(patsubst %,-I$(srctree)/%include,$(vardirs) $(plfdirs))
 
 KBUILD_DEFCONFIG := iss_defconfig
 
-# Only build variant and/or platform if it includes a Makefile
-
-buildvar := $(shell test -e $(srctree)/arch/xtensa/variants/$(VARIANT)/Makefile && echo arch/xtensa/variants/$(VARIANT)/)
-buildplf := $(shell test -e $(srctree)/arch/xtensa/platforms/$(PLATFORM)/Makefile && echo arch/xtensa/platforms/$(PLATFORM)/)
-
 # Find libgcc.a
 
 LIBGCC := $(shell $(CC) $(KBUILD_CFLAGS) -print-libgcc-file-name)
 
 head-y		:= arch/xtensa/kernel/head.o
-core-y		+= arch/xtensa/kernel/ arch/xtensa/mm/
-core-y		+= $(buildvar) $(buildplf)
-core-y 		+= arch/xtensa/boot/dts/
 
 libs-y		+= arch/xtensa/lib/ $(LIBGCC)
 

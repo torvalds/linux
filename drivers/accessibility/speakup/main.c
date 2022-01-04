@@ -389,10 +389,6 @@ static void say_attributes(struct vc_data *vc)
 	int fg = spk_attr & 0x0f;
 	int bg = spk_attr >> 4;
 
-	if (fg > 8) {
-		synth_printf("%s ", spk_msg_get(MSG_BRIGHT));
-		fg -= 8;
-	}
 	synth_printf("%s", spk_msg_get(MSG_COLORS_START + fg));
 	if (bg > 7) {
 		synth_printf(" %s ", spk_msg_get(MSG_ON_BLINKING));

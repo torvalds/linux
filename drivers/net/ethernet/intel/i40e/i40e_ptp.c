@@ -3,6 +3,7 @@
 
 #include "i40e.h"
 #include <linux/ptp_classify.h>
+#include <linux/posix-clock.h>
 
 /* The XL710 timesync is very much like Intel's 82599 design when it comes to
  * the fundamental clock design. However, the clock operations are much simpler
@@ -11,18 +12,261 @@
  * operate with the nanosecond field directly without fear of overflow.
  *
  * Much like the 82599, the update period is dependent upon the link speed:
- * At 40Gb link or no link, the period is 1.6ns.
- * At 10Gb link, the period is multiplied by 2. (3.2ns)
+ * At 40Gb, 25Gb, or no link, the period is 1.6ns.
+ * At 10Gb or 5Gb link, the period is multiplied by 2. (3.2ns)
  * At 1Gb link, the period is multiplied by 20. (32ns)
  * 1588 functionality is not supported at 100Mbps.
  */
 #define I40E_PTP_40GB_INCVAL		0x0199999999ULL
 #define I40E_PTP_10GB_INCVAL_MULT	2
+#define I40E_PTP_5GB_INCVAL_MULT	2
 #define I40E_PTP_1GB_INCVAL_MULT	20
+#define I40E_ISGN			0x80000000
 
 #define I40E_PRTTSYN_CTL1_TSYNTYPE_V1  BIT(I40E_PRTTSYN_CTL1_TSYNTYPE_SHIFT)
 #define I40E_PRTTSYN_CTL1_TSYNTYPE_V2  (2 << \
 					I40E_PRTTSYN_CTL1_TSYNTYPE_SHIFT)
+#define I40E_SUBDEV_ID_25G_PTP_PIN	0xB
+#define to_dev(obj) container_of(obj, struct device, kobj)
+
+enum i40e_ptp_pin {
+	SDP3_2 = 0,
+	SDP3_3,
+	GPIO_4
+};
+
+enum i40e_can_set_pins_t {
+	CANT_DO_PINS = -1,
+	CAN_SET_PINS,
+	CAN_DO_PINS
+};
+
+static struct ptp_pin_desc sdp_desc[] = {
+	/* name     idx      func      chan */
+	{"SDP3_2", SDP3_2, PTP_PF_NONE, 0},
+	{"SDP3_3", SDP3_3, PTP_PF_NONE, 1},
+	{"GPIO_4", GPIO_4, PTP_PF_NONE, 1},
+};
+
+enum i40e_ptp_gpio_pin_state {
+	end = -2,
+	invalid,
+	off,
+	in_A,
+	in_B,
+	out_A,
+	out_B,
+};
+
+static const char * const i40e_ptp_gpio_pin_state2str[] = {
+	"off", "in_A", "in_B", "out_A", "out_B"
+};
+
+enum i40e_ptp_led_pin_state {
+	led_end = -2,
+	low = 0,
+	high,
+};
+
+struct i40e_ptp_pins_settings {
+	enum i40e_ptp_gpio_pin_state sdp3_2;
+	enum i40e_ptp_gpio_pin_state sdp3_3;
+	enum i40e_ptp_gpio_pin_state gpio_4;
+	enum i40e_ptp_led_pin_state led2_0;
+	enum i40e_ptp_led_pin_state led2_1;
+	enum i40e_ptp_led_pin_state led3_0;
+	enum i40e_ptp_led_pin_state led3_1;
+};
+
+static const struct i40e_ptp_pins_settings
+	i40e_ptp_pin_led_allowed_states[] = {
+	{off,	off,	off,		high,	high,	high,	high},
+	{off,	in_A,	off,		high,	high,	high,	low},
+	{off,	out_A,	off,		high,	low,	high,	high},
+	{off,	in_B,	off,		high,	high,	high,	low},
+	{off,	out_B,	off,		high,	low,	high,	high},
+	{in_A,	off,	off,		high,	high,	high,	low},
+	{in_A,	in_B,	off,		high,	high,	high,	low},
+	{in_A,	out_B,	off,		high,	low,	high,	high},
+	{out_A,	off,	off,		high,	low,	high,	high},
+	{out_A,	in_B,	off,		high,	low,	high,	high},
+	{in_B,	off,	off,		high,	high,	high,	low},
+	{in_B,	in_A,	off,		high,	high,	high,	low},
+	{in_B,	out_A,	off,		high,	low,	high,	high},
+	{out_B,	off,	off,		high,	low,	high,	high},
+	{out_B,	in_A,	off,		high,	low,	high,	high},
+	{off,	off,	in_A,		high,	high,	low,	high},
+	{off,	out_A,	in_A,		high,	low,	low,	high},
+	{off,	in_B,	in_A,		high,	high,	low,	low},
+	{off,	out_B,	in_A,		high,	low,	low,	high},
+	{out_A,	off,	in_A,		high,	low,	low,	high},
+	{out_A,	in_B,	in_A,		high,	low,	low,	high},
+	{in_B,	off,	in_A,		high,	high,	low,	low},
+	{in_B,	out_A,	in_A,		high,	low,	low,	high},
+	{out_B,	off,	in_A,		high,	low,	low,	high},
+	{off,	off,	out_A,		low,	high,	high,	high},
+	{off,	in_A,	out_A,		low,	high,	high,	low},
+	{off,	in_B,	out_A,		low,	high,	high,	low},
+	{off,	out_B,	out_A,		low,	low,	high,	high},
+	{in_A,	off,	out_A,		low,	high,	high,	low},
+	{in_A,	in_B,	out_A,		low,	high,	high,	low},
+	{in_A,	out_B,	out_A,		low,	low,	high,	high},
+	{in_B,	off,	out_A,		low,	high,	high,	low},
+	{in_B,	in_A,	out_A,		low,	high,	high,	low},
+	{out_B,	off,	out_A,		low,	low,	high,	high},
+	{out_B,	in_A,	out_A,		low,	low,	high,	high},
+	{off,	off,	in_B,		high,	high,	low,	high},
+	{off,	in_A,	in_B,		high,	high,	low,	low},
+	{off,	out_A,	in_B,		high,	low,	low,	high},
+	{off,	out_B,	in_B,		high,	low,	low,	high},
+	{in_A,	off,	in_B,		high,	high,	low,	low},
+	{in_A,	out_B,	in_B,		high,	low,	low,	high},
+	{out_A,	off,	in_B,		high,	low,	low,	high},
+	{out_B,	off,	in_B,		high,	low,	low,	high},
+	{out_B,	in_A,	in_B,		high,	low,	low,	high},
+	{off,	off,	out_B,		low,	high,	high,	high},
+	{off,	in_A,	out_B,		low,	high,	high,	low},
+	{off,	out_A,	out_B,		low,	low,	high,	high},
+	{off,	in_B,	out_B,		low,	high,	high,	low},
+	{in_A,	off,	out_B,		low,	high,	high,	low},
+	{in_A,	in_B,	out_B,		low,	high,	high,	low},
+	{out_A,	off,	out_B,		low,	low,	high,	high},
+	{out_A,	in_B,	out_B,		low,	low,	high,	high},
+	{in_B,	off,	out_B,		low,	high,	high,	low},
+	{in_B,	in_A,	out_B,		low,	high,	high,	low},
+	{in_B,	out_A,	out_B,		low,	low,	high,	high},
+	{end,	end,	end,	led_end, led_end, led_end, led_end}
+};
+
+static int i40e_ptp_set_pins(struct i40e_pf *pf,
+			     struct i40e_ptp_pins_settings *pins);
+
+/**
+ * i40e_ptp_extts0_work - workqueue task function
+ * @work: workqueue task structure
+ *
+ * Service for PTP external clock event
+ **/
+static void i40e_ptp_extts0_work(struct work_struct *work)
+{
+	struct i40e_pf *pf = container_of(work, struct i40e_pf,
+					  ptp_extts0_work);
+	struct i40e_hw *hw = &pf->hw;
+	struct ptp_clock_event event;
+	u32 hi, lo;
+
+	/* Event time is captured by one of the two matched registers
+	 *      PRTTSYN_EVNT_L: 32 LSB of sampled time event
+	 *      PRTTSYN_EVNT_H: 32 MSB of sampled time event
+	 * Event is defined in PRTTSYN_EVNT_0 register
+	 */
+	lo = rd32(hw, I40E_PRTTSYN_EVNT_L(0));
+	hi = rd32(hw, I40E_PRTTSYN_EVNT_H(0));
+
+	event.timestamp = (((u64)hi) << 32) | lo;
+
+	event.type = PTP_CLOCK_EXTTS;
+	event.index = hw->pf_id;
+
+	/* fire event */
+	ptp_clock_event(pf->ptp_clock, &event);
+}
+
+/**
+ * i40e_is_ptp_pin_dev - check if device supports PTP pins
+ * @hw: pointer to the hardware structure
+ *
+ * Return true if device supports PTP pins, false otherwise.
+ **/
+static bool i40e_is_ptp_pin_dev(struct i40e_hw *hw)
+{
+	return hw->device_id == I40E_DEV_ID_25G_SFP28 &&
+	       hw->subsystem_device_id == I40E_SUBDEV_ID_25G_PTP_PIN;
+}
+
+/**
+ * i40e_can_set_pins - check possibility of manipulating the pins
+ * @pf: board private structure
+ *
+ * Check if all conditions are satisfied to manipulate PTP pins.
+ * Return CAN_SET_PINS if pins can be set on a specific PF or
+ * return CAN_DO_PINS if pins can be manipulated within a NIC or
+ * return CANT_DO_PINS otherwise.
+ **/
+static enum i40e_can_set_pins_t i40e_can_set_pins(struct i40e_pf *pf)
+{
+	if (!i40e_is_ptp_pin_dev(&pf->hw)) {
+		dev_warn(&pf->pdev->dev,
+			 "PTP external clock not supported.\n");
+		return CANT_DO_PINS;
+	}
+
+	if (!pf->ptp_pins) {
+		dev_warn(&pf->pdev->dev,
+			 "PTP PIN manipulation not allowed.\n");
+		return CANT_DO_PINS;
+	}
+
+	if (pf->hw.pf_id) {
+		dev_warn(&pf->pdev->dev,
+			 "PTP PINs should be accessed via PF0.\n");
+		return CAN_DO_PINS;
+	}
+
+	return CAN_SET_PINS;
+}
+
+/**
+ * i40_ptp_reset_timing_events - Reset PTP timing events
+ * @pf: Board private structure
+ *
+ * This function resets timing events for pf.
+ **/
+static void i40_ptp_reset_timing_events(struct i40e_pf *pf)
+{
+	u32 i;
+
+	spin_lock_bh(&pf->ptp_rx_lock);
+	for (i = 0; i <= I40E_PRTTSYN_RXTIME_L_MAX_INDEX; i++) {
+		/* reading and automatically clearing timing events registers */
+		rd32(&pf->hw, I40E_PRTTSYN_RXTIME_L(i));
+		rd32(&pf->hw, I40E_PRTTSYN_RXTIME_H(i));
+		pf->latch_events[i] = 0;
+	}
+	/* reading and automatically clearing timing events registers */
+	rd32(&pf->hw, I40E_PRTTSYN_TXTIME_L);
+	rd32(&pf->hw, I40E_PRTTSYN_TXTIME_H);
+
+	pf->tx_hwtstamp_timeouts = 0;
+	pf->tx_hwtstamp_skipped = 0;
+	pf->rx_hwtstamp_cleared = 0;
+	pf->latch_event_flags = 0;
+	spin_unlock_bh(&pf->ptp_rx_lock);
+}
+
+/**
+ * i40e_ptp_verify - check pins
+ * @ptp: ptp clock
+ * @pin: pin index
+ * @func: assigned function
+ * @chan: channel
+ *
+ * Check pins consistency.
+ * Return 0 on success or error on failure.
+ **/
+static int i40e_ptp_verify(struct ptp_clock_info *ptp, unsigned int pin,
+			   enum ptp_pin_function func, unsigned int chan)
+{
+	switch (func) {
+	case PTP_PF_NONE:
+	case PTP_PF_EXTTS:
+	case PTP_PF_PEROUT:
+		break;
+	case PTP_PF_PHYSYNC:
+		return -EOPNOTSUPP;
+	}
+	return 0;
+}
 
 /**
  * i40e_ptp_read - Read the PHC time from the device
@@ -136,6 +380,37 @@ static int i40e_ptp_adjfreq(struct ptp_clock_info *ptp, s32 ppb)
 }
 
 /**
+ * i40e_ptp_set_1pps_signal_hw - configure 1PPS PTP signal for pins
+ * @pf: the PF private data structure
+ *
+ * Configure 1PPS signal used for PTP pins
+ **/
+static void i40e_ptp_set_1pps_signal_hw(struct i40e_pf *pf)
+{
+	struct i40e_hw *hw = &pf->hw;
+	struct timespec64 now;
+	u64 ns;
+
+	wr32(hw, I40E_PRTTSYN_AUX_0(1), 0);
+	wr32(hw, I40E_PRTTSYN_AUX_1(1), I40E_PRTTSYN_AUX_1_INSTNT);
+	wr32(hw, I40E_PRTTSYN_AUX_0(1), I40E_PRTTSYN_AUX_0_OUT_ENABLE);
+
+	i40e_ptp_read(pf, &now, NULL);
+	now.tv_sec += I40E_PTP_2_SEC_DELAY;
+	now.tv_nsec = 0;
+	ns = timespec64_to_ns(&now);
+
+	/* I40E_PRTTSYN_TGT_L(1) */
+	wr32(hw, I40E_PRTTSYN_TGT_L(1), ns & 0xFFFFFFFF);
+	/* I40E_PRTTSYN_TGT_H(1) */
+	wr32(hw, I40E_PRTTSYN_TGT_H(1), ns >> 32);
+	wr32(hw, I40E_PRTTSYN_CLKO(1), I40E_PTP_HALF_SECOND);
+	wr32(hw, I40E_PRTTSYN_AUX_1(1), I40E_PRTTSYN_AUX_1_INSTNT);
+	wr32(hw, I40E_PRTTSYN_AUX_0(1),
+	     I40E_PRTTSYN_AUX_0_OUT_ENABLE_CLK_MOD);
+}
+
+/**
  * i40e_ptp_adjtime - Adjust the PHC time
  * @ptp: The PTP clock structure
  * @delta: Offset in nanoseconds to adjust the PHC time by
@@ -145,14 +420,35 @@ static int i40e_ptp_adjfreq(struct ptp_clock_info *ptp, s32 ppb)
 static int i40e_ptp_adjtime(struct ptp_clock_info *ptp, s64 delta)
 {
 	struct i40e_pf *pf = container_of(ptp, struct i40e_pf, ptp_caps);
-	struct timespec64 now, then;
+	struct i40e_hw *hw = &pf->hw;
 
-	then = ns_to_timespec64(delta);
 	mutex_lock(&pf->tmreg_lock);
 
-	i40e_ptp_read(pf, &now, NULL);
-	now = timespec64_add(now, then);
-	i40e_ptp_write(pf, (const struct timespec64 *)&now);
+	if (delta > -999999900LL && delta < 999999900LL) {
+		int neg_adj = 0;
+		u32 timadj;
+		u64 tohw;
+
+		if (delta < 0) {
+			neg_adj = 1;
+			tohw = -delta;
+		} else {
+			tohw = delta;
+		}
+
+		timadj = tohw & 0x3FFFFFFF;
+		if (neg_adj)
+			timadj |= I40E_ISGN;
+		wr32(hw, I40E_PRTTSYN_ADJ, timadj);
+	} else {
+		struct timespec64 then, now;
+
+		then = ns_to_timespec64(delta);
+		i40e_ptp_read(pf, &now, NULL);
+		now = timespec64_add(now, then);
+		i40e_ptp_write(pf, (const struct timespec64 *)&now);
+		i40e_ptp_set_1pps_signal_hw(pf);
+	}
 
 	mutex_unlock(&pf->tmreg_lock);
 
@@ -183,7 +479,7 @@ static int i40e_ptp_gettimex(struct ptp_clock_info *ptp, struct timespec64 *ts,
 /**
  * i40e_ptp_settime - Set the time of the PHC
  * @ptp: The PTP clock structure
- * @ts: timespec structure that holds the new time value
+ * @ts: timespec64 structure that holds the new time value
  *
  * Set the device clock to the user input value. The conversion from timespec
  * to ns happens in the write function.
@@ -201,22 +497,149 @@ static int i40e_ptp_settime(struct ptp_clock_info *ptp,
 }
 
 /**
- * i40e_ptp_feature_enable - Enable/disable ancillary features of the PHC subsystem
- * @ptp: The PTP clock structure
- * @rq: The requested feature to change
- * @on: Enable/disable flag
+ * i40e_pps_configure - configure PPS events
+ * @ptp: ptp clock
+ * @rq: clock request
+ * @on: status
  *
- * The XL710 does not support any of the ancillary features of the PHC
- * subsystem, so this function may just return.
+ * Configure PPS events for external clock source.
+ * Return 0 on success or error on failure.
  **/
-static int i40e_ptp_feature_enable(struct ptp_clock_info *ptp,
-				   struct ptp_clock_request *rq, int on)
+static int i40e_pps_configure(struct ptp_clock_info *ptp,
+			      struct ptp_clock_request *rq,
+			      int on)
 {
-	return -EOPNOTSUPP;
+	struct i40e_pf *pf = container_of(ptp, struct i40e_pf, ptp_caps);
+
+	if (!!on)
+		i40e_ptp_set_1pps_signal_hw(pf);
+
+	return 0;
 }
 
 /**
- * i40e_ptp_update_latch_events - Read I40E_PRTTSYN_STAT_1 and latch events
+ * i40e_pin_state - determine PIN state
+ * @index: PIN index
+ * @func: function assigned to PIN
+ *
+ * Determine PIN state based on PIN index and function assigned.
+ * Return PIN state.
+ **/
+static enum i40e_ptp_gpio_pin_state i40e_pin_state(int index, int func)
+{
+	enum i40e_ptp_gpio_pin_state state = off;
+
+	if (index == 0 && func == PTP_PF_EXTTS)
+		state = in_A;
+	if (index == 1 && func == PTP_PF_EXTTS)
+		state = in_B;
+	if (index == 0 && func == PTP_PF_PEROUT)
+		state = out_A;
+	if (index == 1 && func == PTP_PF_PEROUT)
+		state = out_B;
+
+	return state;
+}
+
+/**
+ * i40e_ptp_enable_pin - enable PINs.
+ * @pf: private board structure
+ * @chan: channel
+ * @func: PIN function
+ * @on: state
+ *
+ * Enable PTP pins for external clock source.
+ * Return 0 on success or error code on failure.
+ **/
+static int i40e_ptp_enable_pin(struct i40e_pf *pf, unsigned int chan,
+			       enum ptp_pin_function func, int on)
+{
+	enum i40e_ptp_gpio_pin_state *pin = NULL;
+	struct i40e_ptp_pins_settings pins;
+	int pin_index;
+
+	/* Use PF0 to set pins. Return success for user space tools */
+	if (pf->hw.pf_id)
+		return 0;
+
+	/* Preserve previous state of pins that we don't touch */
+	pins.sdp3_2 = pf->ptp_pins->sdp3_2;
+	pins.sdp3_3 = pf->ptp_pins->sdp3_3;
+	pins.gpio_4 = pf->ptp_pins->gpio_4;
+
+	/* To turn on the pin - find the corresponding one based on
+	 * the given index. To to turn the function off - find
+	 * which pin had it assigned. Don't use ptp_find_pin here
+	 * because it tries to lock the pincfg_mux which is locked by
+	 * ptp_pin_store() that calls here.
+	 */
+	if (on) {
+		pin_index = ptp_find_pin(pf->ptp_clock, func, chan);
+		if (pin_index < 0)
+			return -EBUSY;
+
+		switch (pin_index) {
+		case SDP3_2:
+			pin = &pins.sdp3_2;
+			break;
+		case SDP3_3:
+			pin = &pins.sdp3_3;
+			break;
+		case GPIO_4:
+			pin = &pins.gpio_4;
+			break;
+		default:
+			return -EINVAL;
+		}
+
+		*pin = i40e_pin_state(chan, func);
+	} else {
+		pins.sdp3_2 = off;
+		pins.sdp3_3 = off;
+		pins.gpio_4 = off;
+	}
+
+	return i40e_ptp_set_pins(pf, &pins) ? -EINVAL : 0;
+}
+
+/**
+ * i40e_ptp_feature_enable - Enable external clock pins
+ * @ptp: The PTP clock structure
+ * @rq: The PTP clock request structure
+ * @on: To turn feature on/off
+ *
+ * Setting on/off PTP PPS feature for pin.
+ **/
+static int i40e_ptp_feature_enable(struct ptp_clock_info *ptp,
+				   struct ptp_clock_request *rq,
+				   int on)
+{
+	struct i40e_pf *pf = container_of(ptp, struct i40e_pf, ptp_caps);
+
+	enum ptp_pin_function func;
+	unsigned int chan;
+
+	/* TODO: Implement flags handling for EXTTS and PEROUT */
+	switch (rq->type) {
+	case PTP_CLK_REQ_EXTTS:
+		func = PTP_PF_EXTTS;
+		chan = rq->extts.index;
+		break;
+	case PTP_CLK_REQ_PEROUT:
+		func = PTP_PF_PEROUT;
+		chan = rq->perout.index;
+		break;
+	case PTP_CLK_REQ_PPS:
+		return i40e_pps_configure(ptp, rq, on);
+	default:
+		return -EOPNOTSUPP;
+	}
+
+	return i40e_ptp_enable_pin(pf, chan, func, on);
+}
+
+/**
+ * i40e_ptp_get_rx_events - Read I40E_PRTTSYN_STAT_1 and latch events
  * @pf: the PF data structure
  *
  * This function reads I40E_PRTTSYN_STAT_1 and updates the corresponding timers
@@ -465,6 +888,9 @@ void i40e_ptp_set_increment(struct i40e_pf *pf)
 	case I40E_LINK_SPEED_10GB:
 		mult = I40E_PTP_10GB_INCVAL_MULT;
 		break;
+	case I40E_LINK_SPEED_5GB:
+		mult = I40E_PTP_5GB_INCVAL_MULT;
+		break;
 	case I40E_LINK_SPEED_1GB:
 		mult = I40E_PTP_1GB_INCVAL_MULT;
 		break;
@@ -524,6 +950,229 @@ int i40e_ptp_get_ts_config(struct i40e_pf *pf, struct ifreq *ifr)
 }
 
 /**
+ * i40e_ptp_free_pins - free memory used by PTP pins
+ * @pf: Board private structure
+ *
+ * Release memory allocated for PTP pins.
+ **/
+static void i40e_ptp_free_pins(struct i40e_pf *pf)
+{
+	if (i40e_is_ptp_pin_dev(&pf->hw)) {
+		kfree(pf->ptp_pins);
+		kfree(pf->ptp_caps.pin_config);
+		pf->ptp_pins = NULL;
+	}
+}
+
+/**
+ * i40e_ptp_set_pin_hw - Set HW GPIO pin
+ * @hw: pointer to the hardware structure
+ * @pin: pin index
+ * @state: pin state
+ *
+ * Set status of GPIO pin for external clock handling.
+ **/
+static void i40e_ptp_set_pin_hw(struct i40e_hw *hw,
+				unsigned int pin,
+				enum i40e_ptp_gpio_pin_state state)
+{
+	switch (state) {
+	case off:
+		wr32(hw, I40E_GLGEN_GPIO_CTL(pin), 0);
+		break;
+	case in_A:
+		wr32(hw, I40E_GLGEN_GPIO_CTL(pin),
+		     I40E_GLGEN_GPIO_CTL_PORT_0_IN_TIMESYNC_0);
+		break;
+	case in_B:
+		wr32(hw, I40E_GLGEN_GPIO_CTL(pin),
+		     I40E_GLGEN_GPIO_CTL_PORT_1_IN_TIMESYNC_0);
+		break;
+	case out_A:
+		wr32(hw, I40E_GLGEN_GPIO_CTL(pin),
+		     I40E_GLGEN_GPIO_CTL_PORT_0_OUT_TIMESYNC_1);
+		break;
+	case out_B:
+		wr32(hw, I40E_GLGEN_GPIO_CTL(pin),
+		     I40E_GLGEN_GPIO_CTL_PORT_1_OUT_TIMESYNC_1);
+		break;
+	default:
+		break;
+	}
+}
+
+/**
+ * i40e_ptp_set_led_hw - Set HW GPIO led
+ * @hw: pointer to the hardware structure
+ * @led: led index
+ * @state: led state
+ *
+ * Set status of GPIO led for external clock handling.
+ **/
+static void i40e_ptp_set_led_hw(struct i40e_hw *hw,
+				unsigned int led,
+				enum i40e_ptp_led_pin_state state)
+{
+	switch (state) {
+	case low:
+		wr32(hw, I40E_GLGEN_GPIO_SET,
+		     I40E_GLGEN_GPIO_SET_DRV_SDP_DATA | led);
+		break;
+	case high:
+		wr32(hw, I40E_GLGEN_GPIO_SET,
+		     I40E_GLGEN_GPIO_SET_DRV_SDP_DATA |
+		     I40E_GLGEN_GPIO_SET_SDP_DATA_HI | led);
+		break;
+	default:
+		break;
+	}
+}
+
+/**
+ * i40e_ptp_init_leds_hw - init LEDs
+ * @hw: pointer to a hardware structure
+ *
+ * Set initial state of LEDs
+ **/
+static void i40e_ptp_init_leds_hw(struct i40e_hw *hw)
+{
+	wr32(hw, I40E_GLGEN_GPIO_CTL(I40E_LED2_0),
+	     I40E_GLGEN_GPIO_CTL_LED_INIT);
+	wr32(hw, I40E_GLGEN_GPIO_CTL(I40E_LED2_1),
+	     I40E_GLGEN_GPIO_CTL_LED_INIT);
+	wr32(hw, I40E_GLGEN_GPIO_CTL(I40E_LED3_0),
+	     I40E_GLGEN_GPIO_CTL_LED_INIT);
+	wr32(hw, I40E_GLGEN_GPIO_CTL(I40E_LED3_1),
+	     I40E_GLGEN_GPIO_CTL_LED_INIT);
+}
+
+/**
+ * i40e_ptp_set_pins_hw - Set HW GPIO pins
+ * @pf: Board private structure
+ *
+ * This function sets GPIO pins for PTP
+ **/
+static void i40e_ptp_set_pins_hw(struct i40e_pf *pf)
+{
+	const struct i40e_ptp_pins_settings *pins = pf->ptp_pins;
+	struct i40e_hw *hw = &pf->hw;
+
+	/* pin must be disabled before it may be used */
+	i40e_ptp_set_pin_hw(hw, I40E_SDP3_2, off);
+	i40e_ptp_set_pin_hw(hw, I40E_SDP3_3, off);
+	i40e_ptp_set_pin_hw(hw, I40E_GPIO_4, off);
+
+	i40e_ptp_set_pin_hw(hw, I40E_SDP3_2, pins->sdp3_2);
+	i40e_ptp_set_pin_hw(hw, I40E_SDP3_3, pins->sdp3_3);
+	i40e_ptp_set_pin_hw(hw, I40E_GPIO_4, pins->gpio_4);
+
+	i40e_ptp_set_led_hw(hw, I40E_LED2_0, pins->led2_0);
+	i40e_ptp_set_led_hw(hw, I40E_LED2_1, pins->led2_1);
+	i40e_ptp_set_led_hw(hw, I40E_LED3_0, pins->led3_0);
+	i40e_ptp_set_led_hw(hw, I40E_LED3_1, pins->led3_1);
+
+	dev_info(&pf->pdev->dev,
+		 "PTP configuration set to: SDP3_2: %s,  SDP3_3: %s,  GPIO_4: %s.\n",
+		 i40e_ptp_gpio_pin_state2str[pins->sdp3_2],
+		 i40e_ptp_gpio_pin_state2str[pins->sdp3_3],
+		 i40e_ptp_gpio_pin_state2str[pins->gpio_4]);
+}
+
+/**
+ * i40e_ptp_set_pins - set PTP pins in HW
+ * @pf: Board private structure
+ * @pins: PTP pins to be applied
+ *
+ * Validate and set PTP pins in HW for specific PF.
+ * Return 0 on success or negative value on error.
+ **/
+static int i40e_ptp_set_pins(struct i40e_pf *pf,
+			     struct i40e_ptp_pins_settings *pins)
+{
+	enum i40e_can_set_pins_t pin_caps = i40e_can_set_pins(pf);
+	int i = 0;
+
+	if (pin_caps == CANT_DO_PINS)
+		return -EOPNOTSUPP;
+	else if (pin_caps == CAN_DO_PINS)
+		return 0;
+
+	if (pins->sdp3_2 == invalid)
+		pins->sdp3_2 = pf->ptp_pins->sdp3_2;
+	if (pins->sdp3_3 == invalid)
+		pins->sdp3_3 = pf->ptp_pins->sdp3_3;
+	if (pins->gpio_4 == invalid)
+		pins->gpio_4 = pf->ptp_pins->gpio_4;
+	while (i40e_ptp_pin_led_allowed_states[i].sdp3_2 != end) {
+		if (pins->sdp3_2 == i40e_ptp_pin_led_allowed_states[i].sdp3_2 &&
+		    pins->sdp3_3 == i40e_ptp_pin_led_allowed_states[i].sdp3_3 &&
+		    pins->gpio_4 == i40e_ptp_pin_led_allowed_states[i].gpio_4) {
+			pins->led2_0 =
+				i40e_ptp_pin_led_allowed_states[i].led2_0;
+			pins->led2_1 =
+				i40e_ptp_pin_led_allowed_states[i].led2_1;
+			pins->led3_0 =
+				i40e_ptp_pin_led_allowed_states[i].led3_0;
+			pins->led3_1 =
+				i40e_ptp_pin_led_allowed_states[i].led3_1;
+			break;
+		}
+		i++;
+	}
+	if (i40e_ptp_pin_led_allowed_states[i].sdp3_2 == end) {
+		dev_warn(&pf->pdev->dev,
+			 "Unsupported PTP pin configuration: SDP3_2: %s,  SDP3_3: %s,  GPIO_4: %s.\n",
+			 i40e_ptp_gpio_pin_state2str[pins->sdp3_2],
+			 i40e_ptp_gpio_pin_state2str[pins->sdp3_3],
+			 i40e_ptp_gpio_pin_state2str[pins->gpio_4]);
+
+		return -EPERM;
+	}
+	memcpy(pf->ptp_pins, pins, sizeof(*pins));
+	i40e_ptp_set_pins_hw(pf);
+	i40_ptp_reset_timing_events(pf);
+
+	return 0;
+}
+
+/**
+ * i40e_ptp_alloc_pins - allocate PTP pins structure
+ * @pf: Board private structure
+ *
+ * allocate PTP pins structure
+ **/
+int i40e_ptp_alloc_pins(struct i40e_pf *pf)
+{
+	if (!i40e_is_ptp_pin_dev(&pf->hw))
+		return 0;
+
+	pf->ptp_pins =
+		kzalloc(sizeof(struct i40e_ptp_pins_settings), GFP_KERNEL);
+
+	if (!pf->ptp_pins) {
+		dev_warn(&pf->pdev->dev, "Cannot allocate memory for PTP pins structure.\n");
+		return -I40E_ERR_NO_MEMORY;
+	}
+
+	pf->ptp_pins->sdp3_2 = off;
+	pf->ptp_pins->sdp3_3 = off;
+	pf->ptp_pins->gpio_4 = off;
+	pf->ptp_pins->led2_0 = high;
+	pf->ptp_pins->led2_1 = high;
+	pf->ptp_pins->led3_0 = high;
+	pf->ptp_pins->led3_1 = high;
+
+	/* Use PF0 to set pins in HW. Return success for user space tools */
+	if (pf->hw.pf_id)
+		return 0;
+
+	i40e_ptp_init_leds_hw(&pf->hw);
+	i40e_ptp_set_pins_hw(pf);
+
+	return 0;
+}
+
+/**
  * i40e_ptp_set_timestamp_mode - setup hardware for requested timestamp mode
  * @pf: Board private structure
  * @config: hwtstamp settings requested or saved
@@ -540,6 +1189,21 @@ static int i40e_ptp_set_timestamp_mode(struct i40e_pf *pf,
 {
 	struct i40e_hw *hw = &pf->hw;
 	u32 tsyntype, regval;
+
+	/* Selects external trigger to cause event */
+	regval = rd32(hw, I40E_PRTTSYN_AUX_0(0));
+	/* Bit 17:16 is EVNTLVL, 01B rising edge */
+	regval &= 0;
+	regval |= (1 << I40E_PRTTSYN_AUX_0_EVNTLVL_SHIFT);
+	/* regval: 0001 0000 0000 0000 0000 */
+	wr32(hw, I40E_PRTTSYN_AUX_0(0), regval);
+
+	/* Enabel interrupts */
+	regval = rd32(hw, I40E_PRTTSYN_CTL0);
+	regval |= 1 << I40E_PRTTSYN_CTL0_EVENT_INT_ENA_SHIFT;
+	wr32(hw, I40E_PRTTSYN_CTL0, regval);
+
+	INIT_WORK(&pf->ptp_extts0_work, i40e_ptp_extts0_work);
 
 	/* Reserved for future extensions. */
 	if (config->flags)
@@ -684,6 +1348,45 @@ int i40e_ptp_set_ts_config(struct i40e_pf *pf, struct ifreq *ifr)
 }
 
 /**
+ * i40e_init_pin_config - initialize pins.
+ * @pf: private board structure
+ *
+ * Initialize pins for external clock source.
+ * Return 0 on success or error code on failure.
+ **/
+static int i40e_init_pin_config(struct i40e_pf *pf)
+{
+	int i;
+
+	pf->ptp_caps.n_pins = 3;
+	pf->ptp_caps.n_ext_ts = 2;
+	pf->ptp_caps.pps = 1;
+	pf->ptp_caps.n_per_out = 2;
+
+	pf->ptp_caps.pin_config = kcalloc(pf->ptp_caps.n_pins,
+					  sizeof(*pf->ptp_caps.pin_config),
+					  GFP_KERNEL);
+	if (!pf->ptp_caps.pin_config)
+		return -ENOMEM;
+
+	for (i = 0; i < pf->ptp_caps.n_pins; i++) {
+		snprintf(pf->ptp_caps.pin_config[i].name,
+			 sizeof(pf->ptp_caps.pin_config[i].name),
+			 "%s", sdp_desc[i].name);
+		pf->ptp_caps.pin_config[i].index = sdp_desc[i].index;
+		pf->ptp_caps.pin_config[i].func = PTP_PF_NONE;
+		pf->ptp_caps.pin_config[i].chan = sdp_desc[i].chan;
+	}
+
+	pf->ptp_caps.verify = i40e_ptp_verify;
+	pf->ptp_caps.enable = i40e_ptp_feature_enable;
+
+	pf->ptp_caps.pps = 1;
+
+	return 0;
+}
+
+/**
  * i40e_ptp_create_clock - Create PTP clock device for userspace
  * @pf: Board private structure
  *
@@ -703,13 +1406,16 @@ static long i40e_ptp_create_clock(struct i40e_pf *pf)
 		sizeof(pf->ptp_caps.name) - 1);
 	pf->ptp_caps.owner = THIS_MODULE;
 	pf->ptp_caps.max_adj = 999999999;
-	pf->ptp_caps.n_ext_ts = 0;
-	pf->ptp_caps.pps = 0;
 	pf->ptp_caps.adjfreq = i40e_ptp_adjfreq;
 	pf->ptp_caps.adjtime = i40e_ptp_adjtime;
 	pf->ptp_caps.gettimex64 = i40e_ptp_gettimex;
 	pf->ptp_caps.settime64 = i40e_ptp_settime;
-	pf->ptp_caps.enable = i40e_ptp_feature_enable;
+	if (i40e_is_ptp_pin_dev(&pf->hw)) {
+		int err = i40e_init_pin_config(pf);
+
+		if (err)
+			return err;
+	}
 
 	/* Attempt to register the clock before enabling the hardware. */
 	pf->ptp_clock = ptp_clock_register(&pf->ptp_caps, &pf->pdev->dev);
@@ -839,6 +1545,8 @@ void i40e_ptp_init(struct i40e_pf *pf)
 		/* Restore the clock time based on last known value */
 		i40e_ptp_restore_hw_time(pf);
 	}
+
+	i40e_ptp_set_1pps_signal_hw(pf);
 }
 
 /**
@@ -850,6 +1558,9 @@ void i40e_ptp_init(struct i40e_pf *pf)
  **/
 void i40e_ptp_stop(struct i40e_pf *pf)
 {
+	struct i40e_hw *hw = &pf->hw;
+	u32 regval;
+
 	pf->flags &= ~I40E_FLAG_PTP;
 	pf->ptp_tx = false;
 	pf->ptp_rx = false;
@@ -868,4 +1579,21 @@ void i40e_ptp_stop(struct i40e_pf *pf)
 		dev_info(&pf->pdev->dev, "%s: removed PHC on %s\n", __func__,
 			 pf->vsi[pf->lan_vsi]->netdev->name);
 	}
+
+	if (i40e_is_ptp_pin_dev(&pf->hw)) {
+		i40e_ptp_set_pin_hw(hw, I40E_SDP3_2, off);
+		i40e_ptp_set_pin_hw(hw, I40E_SDP3_3, off);
+		i40e_ptp_set_pin_hw(hw, I40E_GPIO_4, off);
+	}
+
+	regval = rd32(hw, I40E_PRTTSYN_AUX_0(0));
+	regval &= ~I40E_PRTTSYN_AUX_0_PTPFLAG_MASK;
+	wr32(hw, I40E_PRTTSYN_AUX_0(0), regval);
+
+	/* Disable interrupts */
+	regval = rd32(hw, I40E_PRTTSYN_CTL0);
+	regval &= ~I40E_PRTTSYN_CTL0_EVENT_INT_ENA_MASK;
+	wr32(hw, I40E_PRTTSYN_CTL0, regval);
+
+	i40e_ptp_free_pins(pf);
 }

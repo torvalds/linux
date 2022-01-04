@@ -1,5 +1,5 @@
 /*
-* Copyright 2016 Advanced Micro Devices, Inc.
+* Copyright 2016-2020 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -80,11 +80,6 @@ void dcn10_lock_all_pipes(
 		struct dc *dc,
 		struct dc_state *context,
 		bool lock);
-void dcn10_apply_ctx_for_surface(
-		struct dc *dc,
-		const struct dc_stream_state *stream,
-		int num_planes,
-		struct dc_state *context);
 void dcn10_post_unlock_program_front_end(
 		struct dc *dc,
 		struct dc_state *context);
@@ -123,6 +118,11 @@ void dcn10_enable_timing_synchronization(
 		int group_index,
 		int group_size,
 		struct pipe_ctx *grouped_pipes[]);
+void dcn10_enable_vblanks_synchronization(
+		struct dc *dc,
+		int group_index,
+		int group_size,
+		struct pipe_ctx *grouped_pipes[]);
 void dcn10_enable_per_frame_crtc_position_reset(
 		struct dc *dc,
 		int group_size,
@@ -140,8 +140,7 @@ bool dcn10_dummy_display_power_gating(
 		struct dc_bios *dcb,
 		enum pipe_gating_control power_gating);
 void dcn10_set_drr(struct pipe_ctx **pipe_ctx,
-		int num_pipes, unsigned int vmin, unsigned int vmax,
-		unsigned int vmid, unsigned int vmid_frame_number);
+		int num_pipes, struct dc_crtc_timing_adjust adjust);
 void dcn10_get_position(struct pipe_ctx **pipe_ctx,
 		int num_pipes,
 		struct crtc_position *position);
@@ -190,12 +189,6 @@ void dcn10_bios_golden_init(struct dc *dc);
 void dcn10_plane_atomic_power_down(struct dc *dc,
 		struct dpp *dpp,
 		struct hubp *hubp);
-void dcn10_get_surface_visual_confirm_color(
-		const struct pipe_ctx *pipe_ctx,
-		struct tg_color *color);
-void dcn10_get_hdr_visual_confirm_color(
-		struct pipe_ctx *pipe_ctx,
-		struct tg_color *color);
 bool dcn10_disconnect_pipes(
 		struct dc *dc,
 		struct dc_state *context);
@@ -204,8 +197,13 @@ void dcn10_wait_for_pending_cleared(struct dc *dc,
 		struct dc_state *context);
 void dcn10_set_hdr_multiplier(struct pipe_ctx *pipe_ctx);
 void dcn10_verify_allow_pstate_change_high(struct dc *dc);
-void dcn10_set_hubp_blank(const struct dc *dc,
-				struct pipe_ctx *pipe_ctx,
-				bool blank_enable);
+
+void dcn10_get_dcc_en_bits(struct dc *dc, int *dcc_en_bits);
+
+void dcn10_update_visual_confirm_color(
+		struct dc *dc,
+		struct pipe_ctx *pipe_ctx,
+		struct tg_color *color,
+		int mpcc_id);
 
 #endif /* __DC_HWSS_DCN10_H__ */

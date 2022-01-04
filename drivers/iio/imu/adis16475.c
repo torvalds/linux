@@ -14,7 +14,6 @@
 #include <linux/iio/buffer.h>
 #include <linux/iio/iio.h>
 #include <linux/iio/imu/adis.h>
-#include <linux/iio/sysfs.h>
 #include <linux/iio/trigger_consumer.h>
 #include <linux/irq.h>
 #include <linux/lcm.h>
@@ -645,7 +644,8 @@ static int adis16475_enable_irq(struct adis *adis, bool enable)
 	.timeouts = (_timeouts),					\
 	.burst_reg_cmd = ADIS16475_REG_GLOB_CMD,			\
 	.burst_len = ADIS16475_BURST_MAX_DATA,				\
-	.burst_max_len = ADIS16475_BURST32_MAX_DATA			\
+	.burst_max_len = ADIS16475_BURST32_MAX_DATA,			\
+	.burst_max_speed_hz = ADIS16475_BURST_MAX_SPEED			\
 }
 
 static const struct adis16475_sync adis16475_sync_mode[] = {
@@ -1062,15 +1062,11 @@ static irqreturn_t adis16475_trigger_handler(int irq, void *p)
 	bool valid;
 	/* offset until the first element after gyro and accel */
 	const u8 offset = st->burst32 ? 13 : 7;
-	const u32 cached_spi_speed_hz = adis->spi->max_speed_hz;
-
-	adis->spi->max_speed_hz = ADIS16475_BURST_MAX_SPEED;
 
 	ret = spi_sync(adis->spi, &adis->msg);
 	if (ret)
-		return ret;
+		goto check_burst32;
 
-	adis->spi->max_speed_hz = cached_spi_speed_hz;
 	buffer = adis->buffer;
 
 	crc = be16_to_cpu(buffer[offset + 2]);
@@ -1332,7 +1328,6 @@ static int adis16475_probe(struct spi_device *spi)
 		return -ENOMEM;
 
 	st = iio_priv(indio_dev);
-	spi_set_drvdata(spi, indio_dev);
 
 	st->info = device_get_match_data(&spi->dev);
 	if (!st->info)

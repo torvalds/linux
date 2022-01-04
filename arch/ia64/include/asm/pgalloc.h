@@ -52,7 +52,6 @@ pmd_populate(struct mm_struct *mm, pmd_t * pmd_entry, pgtable_t pte)
 {
 	pmd_val(*pmd_entry) = page_to_phys(pte);
 }
-#define pmd_pgtable(pmd) pmd_page(pmd)
 
 static inline void
 pmd_populate_kernel(struct mm_struct *mm, pmd_t * pmd_entry, pte_t * pte)

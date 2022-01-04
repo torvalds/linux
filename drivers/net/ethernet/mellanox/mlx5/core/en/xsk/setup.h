@@ -17,9 +17,5 @@ int mlx5e_open_xsk(struct mlx5e_priv *priv, struct mlx5e_params *params,
 void mlx5e_close_xsk(struct mlx5e_channel *c);
 void mlx5e_activate_xsk(struct mlx5e_channel *c);
 void mlx5e_deactivate_xsk(struct mlx5e_channel *c);
-int mlx5e_xsk_redirect_rqt_to_channel(struct mlx5e_priv *priv, struct mlx5e_channel *c);
-int mlx5e_xsk_redirect_rqt_to_drop(struct mlx5e_priv *priv, u16 ix);
-int mlx5e_xsk_redirect_rqts_to_channels(struct mlx5e_priv *priv, struct mlx5e_channels *chs);
-void mlx5e_xsk_redirect_rqts_to_drop(struct mlx5e_priv *priv, struct mlx5e_channels *chs);
 
 #endif /* __MLX5_EN_XSK_SETUP_H__ */

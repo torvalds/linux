@@ -108,6 +108,18 @@ static struct instruction *prev_insn_same_sym(struct objtool_file *file,
 	for (insn = next_insn_same_sec(file, insn); insn;		\
 	     insn = next_insn_same_sec(file, insn))
 
+static bool is_jump_table_jump(struct instruction *insn)
+{
+	struct alt_group *alt_group = insn->alt_group;
+
+	if (insn->jump_table)
+		return true;
+
+	/* Retpoline alternative for a jump table? */
+	return alt_group && alt_group->orig_group &&
+	       alt_group->orig_group->first_insn->jump_table;
+}
+
 static bool is_sibling_call(struct instruction *insn)
 {
 	/*
@@ -120,7 +132,7 @@ static bool is_sibling_call(struct instruction *insn)
 
 	/* An indirect jump is either a sibling call or a jump to a table. */
 	if (insn->type == INSN_JUMP_DYNAMIC)
-		return list_empty(&insn->alts);
+		return !is_jump_table_jump(insn);
 
 	/* add_jump_destinations() sets insn->call_dest for sibling calls. */
 	return (is_static_jump(insn) && insn->call_dest);
@@ -1213,14 +1225,40 @@ static int handle_jump_alt(struct objtool_file *file,
 			   struct instruction *orig_insn,
 			   struct instruction **new_insn)
 {
-	if (orig_insn->type == INSN_NOP)
-		return 0;
+	if (orig_insn->type != INSN_JUMP_UNCONDITIONAL &&
+	    orig_insn->type != INSN_NOP) {
 
-	if (orig_insn->type != INSN_JUMP_UNCONDITIONAL) {
 		WARN_FUNC("unsupported instruction at jump label",
 			  orig_insn->sec, orig_insn->offset);
 		return -1;
 	}
+
+	if (special_alt->key_addend & 2) {
+		struct reloc *reloc = insn_reloc(file, orig_insn);
+
+		if (reloc) {
+			reloc->type = R_NONE;
+			elf_write_reloc(file->elf, reloc);
+		}
+		elf_write_insn(file->elf, orig_insn->sec,
+			       orig_insn->offset, orig_insn->len,
+			       arch_nop_insn(orig_insn->len));
+		orig_insn->type = INSN_NOP;
+	}
+
+	if (orig_insn->type == INSN_NOP) {
+		if (orig_insn->len == 2)
+			file->jl_nop_short++;
+		else
+			file->jl_nop_long++;
+
+		return 0;
+	}
+
+	if (orig_insn->len == 2)
+		file->jl_short++;
+	else
+		file->jl_long++;
 
 	*new_insn = list_next_entry(orig_insn, list);
 	return 0;
@@ -1300,6 +1338,12 @@ static int add_special_section_alts(struct objtool_file *file)
 
 		list_del(&special_alt->list);
 		free(special_alt);
+	}
+
+	if (stats) {
+		printf("jl\\\tNOP\tJMP\n");
+		printf("short:\t%ld\t%ld\n", file->jl_nop_short, file->jl_short);
+		printf("long:\t%ld\t%ld\n", file->jl_nop_long, file->jl_long);
 	}
 
 out:
@@ -1969,8 +2013,9 @@ static void restore_reg(struct cfi_state *cfi, unsigned char reg)
  *   41 5d			pop    %r13
  *   c3				retq
  */
-static int update_cfi_state(struct instruction *insn, struct cfi_state *cfi,
-			     struct stack_op *op)
+static int update_cfi_state(struct instruction *insn,
+			    struct instruction *next_insn,
+			    struct cfi_state *cfi, struct stack_op *op)
 {
 	struct cfi_reg *cfa = &cfi->cfa;
 	struct cfi_reg *regs = cfi->regs;
@@ -2029,7 +2074,7 @@ static int update_cfi_state(struct instruction *insn, struct cfi_state *cfi,
 			}
 
 			else if (op->src.reg == CFI_BP && op->dest.reg == CFI_SP &&
-				 cfa->base == CFI_BP) {
+				 (cfa->base == CFI_BP || cfa->base == cfi->drap_reg)) {
 
 				/*
 				 * mov %rbp, %rsp
@@ -2171,7 +2216,7 @@ static int update_cfi_state(struct instruction *insn, struct cfi_state *cfi,
 				break;
 			}
 
-			if (op->dest.reg == cfi->cfa.base) {
+			if (op->dest.reg == cfi->cfa.base && !(next_insn && next_insn->hint)) {
 				WARN_FUNC("unsupported stack register modification",
 					  insn->sec, insn->offset);
 				return -1;
@@ -2226,7 +2271,7 @@ static int update_cfi_state(struct instruction *insn, struct cfi_state *cfi,
 				cfa->offset = 0;
 				cfi->drap_offset = -1;
 
-			} else if (regs[op->dest.reg].offset == -cfi->stack_size) {
+			} else if (cfi->stack_size == -regs[op->dest.reg].offset) {
 
 				/* pop %reg */
 				restore_reg(cfi, op->dest.reg);
@@ -2367,26 +2412,6 @@ static int update_cfi_state(struct instruction *insn, struct cfi_state *cfi,
 
 		break;
 
-	case OP_DEST_LEAVE:
-		if ((!cfi->drap && cfa->base != CFI_BP) ||
-		    (cfi->drap && cfa->base != cfi->drap_reg)) {
-			WARN_FUNC("leave instruction with modified stack frame",
-				  insn->sec, insn->offset);
-			return -1;
-		}
-
-		/* leave (mov %rbp, %rsp; pop %rbp) */
-
-		cfi->stack_size = -cfi->regs[CFI_BP].offset - 8;
-		restore_reg(cfi, CFI_BP);
-
-		if (!cfi->drap) {
-			cfa->base = CFI_SP;
-			cfa->offset -= 8;
-		}
-
-		break;
-
 	case OP_DEST_MEM:
 		if (op->src.type != OP_SRC_POP && op->src.type != OP_SRC_POPF) {
 			WARN_FUNC("unknown stack-related memory operation",
@@ -2443,13 +2468,15 @@ static int propagate_alt_cfi(struct objtool_file *file, struct instruction *insn
 	return 0;
 }
 
-static int handle_insn_ops(struct instruction *insn, struct insn_state *state)
+static int handle_insn_ops(struct instruction *insn,
+			   struct instruction *next_insn,
+			   struct insn_state *state)
 {
 	struct stack_op *op;
 
 	list_for_each_entry(op, &insn->stack_ops, list) {
 
-		if (update_cfi_state(insn, &state->cfi, op))
+		if (update_cfi_state(insn, next_insn, &state->cfi, op))
 			return 1;
 
 		if (!insn->alt_group)
@@ -2732,7 +2759,7 @@ static int validate_branch(struct objtool_file *file, struct symbol *func,
 				return 0;
 		}
 
-		if (handle_insn_ops(insn, &state))
+		if (handle_insn_ops(insn, next_insn, &state))
 			return 1;
 
 		switch (insn->type) {

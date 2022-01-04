@@ -327,7 +327,7 @@ MODULE_PARM_DESC(dma, "LANCE/PCnet ISA DMA channel (ignored for some devices)");
 MODULE_PARM_DESC(irq, "LANCE/PCnet IRQ number (ignored for some devices)");
 MODULE_PARM_DESC(lance_debug, "LANCE/PCnet debug level (0-7)");
 
-int __init init_module(void)
+static int __init lance_init_module(void)
 {
 	struct net_device *dev;
 	int this_dev, found = 0;
@@ -356,6 +356,7 @@ int __init init_module(void)
 		return 0;
 	return -ENXIO;
 }
+module_init(lance_init_module);
 
 static void cleanup_card(struct net_device *dev)
 {
@@ -368,7 +369,7 @@ static void cleanup_card(struct net_device *dev)
 	kfree(lp);
 }
 
-void __exit cleanup_module(void)
+static void __exit lance_cleanup_module(void)
 {
 	int this_dev;
 
@@ -381,6 +382,7 @@ void __exit cleanup_module(void)
 		}
 	}
 }
+module_exit(lance_cleanup_module);
 #endif /* MODULE */
 MODULE_LICENSE("GPL");
 
@@ -780,7 +782,7 @@ lance_open(struct net_device *dev)
 		outw(0x0002, ioaddr+LANCE_ADDR);
 		/* Only touch autoselect bit. */
 		outw(inw(ioaddr+LANCE_BUS_IF) | 0x0002, ioaddr+LANCE_BUS_IF);
- 	}
+	}
 
 	if (lance_debug > 1)
 		printk("%s: lance_open() irq %d dma %d tx/rx rings %#x/%#x init %#x.\n",
@@ -812,7 +814,7 @@ lance_open(struct net_device *dev)
 	 * We used to clear the InitDone bit, 0x0100, here but Mark Stockton
 	 * reports that doing so triggers a bug in the '974.
 	 */
- 	outw(0x0042, ioaddr+LANCE_DATA);
+	outw(0x0042, ioaddr+LANCE_DATA);
 
 	if (lance_debug > 2)
 		printk("%s: LANCE open after %d ticks, init block %#x csr0 %4.4x.\n",

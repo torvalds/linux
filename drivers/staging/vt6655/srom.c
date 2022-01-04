@@ -3,8 +3,6 @@
  * Copyright (c) 1996, 2003 VIA Networking Technologies, Inc.
  * All rights reserved.
  *
- * File: srom.c
- *
  * Purpose:Implement functions to access eeprom
  *
  * Author: Jerry Chen

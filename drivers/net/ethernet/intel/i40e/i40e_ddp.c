@@ -77,7 +77,7 @@ static bool i40e_ddp_profiles_overlap(struct i40e_profile_info *new,
 }
 
 /**
- * i40e_ddp_does_profiles_ - checks if DDP overlaps with existing one.
+ * i40e_ddp_does_profile_overlap - checks if DDP overlaps with existing one.
  * @hw: HW data structure
  * @pinfo: DDP profile information structure
  *

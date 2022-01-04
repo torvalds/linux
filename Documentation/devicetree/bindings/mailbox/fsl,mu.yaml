@@ -26,6 +26,7 @@ properties:
     oneOf:
       - const: fsl,imx6sx-mu
       - const: fsl,imx7ulp-mu
+      - const: fsl,imx8ulp-mu
       - const: fsl,imx8-mu-scu
       - items:
           - enum:

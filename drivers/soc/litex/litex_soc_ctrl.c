@@ -62,8 +62,7 @@ static int litex_check_csr_access(void __iomem *reg_addr)
 	/* restore original value of the SCRATCH register */
 	litex_write32(reg_addr + SCRATCH_REG_OFF, SCRATCH_REG_VALUE);
 
-	pr_info("LiteX SoC Controller driver initialized: subreg:%d, align:%d",
-		LITEX_SUBREG_SIZE, LITEX_SUBREG_ALIGN);
+	pr_info("LiteX SoC Controller driver initialized");
 
 	return 0;
 }

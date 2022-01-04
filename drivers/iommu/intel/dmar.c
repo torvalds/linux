@@ -34,6 +34,7 @@
 #include <trace/events/intel_iommu.h>
 
 #include "../irq_remapping.h"
+#include "perf.h"
 
 typedef int (*dmar_res_handler_t)(struct acpi_dmar_header *, void *);
 struct dmar_res_callback {
@@ -148,8 +149,6 @@ dmar_alloc_pci_notify_info(struct pci_dev *dev, unsigned long event)
 	} else {
 		info = kzalloc(size, GFP_KERNEL);
 		if (!info) {
-			pr_warn("Out of memory when allocating notify_info "
-				"for %s.\n", pci_name(dev));
 			if (dmar_dev_scope_status == 0)
 				dmar_dev_scope_status = -ENOMEM;
 			return NULL;
@@ -1140,11 +1139,9 @@ static int alloc_iommu(struct dmar_drhd_unit *drhd)
 		if (err)
 			goto err_unmap;
 
-		iommu_device_set_ops(&iommu->iommu, &intel_iommu_ops);
-
-		err = iommu_device_register(&iommu->iommu);
+		err = iommu_device_register(&iommu->iommu, &intel_iommu_ops, NULL);
 		if (err)
-			goto err_unmap;
+			goto err_sysfs;
 	}
 
 	drhd->iommu = iommu;
@@ -1152,6 +1149,8 @@ static int alloc_iommu(struct dmar_drhd_unit *drhd)
 
 	return 0;
 
+err_sysfs:
+	iommu_device_sysfs_remove(&iommu->iommu);
 err_unmap:
 	unmap_iommu(iommu);
 error_free_seq_id:
@@ -1205,6 +1204,63 @@ static inline void reclaim_free_desc(struct q_inval *qi)
 	}
 }
 
+static const char *qi_type_string(u8 type)
+{
+	switch (type) {
+	case QI_CC_TYPE:
+		return "Context-cache Invalidation";
+	case QI_IOTLB_TYPE:
+		return "IOTLB Invalidation";
+	case QI_DIOTLB_TYPE:
+		return "Device-TLB Invalidation";
+	case QI_IEC_TYPE:
+		return "Interrupt Entry Cache Invalidation";
+	case QI_IWD_TYPE:
+		return "Invalidation Wait";
+	case QI_EIOTLB_TYPE:
+		return "PASID-based IOTLB Invalidation";
+	case QI_PC_TYPE:
+		return "PASID-cache Invalidation";
+	case QI_DEIOTLB_TYPE:
+		return "PASID-based Device-TLB Invalidation";
+	case QI_PGRP_RESP_TYPE:
+		return "Page Group Response";
+	default:
+		return "UNKNOWN";
+	}
+}
+
+static void qi_dump_fault(struct intel_iommu *iommu, u32 fault)
+{
+	unsigned int head = dmar_readl(iommu->reg + DMAR_IQH_REG);
+	u64 iqe_err = dmar_readq(iommu->reg + DMAR_IQER_REG);
+	struct qi_desc *desc = iommu->qi->desc + head;
+
+	if (fault & DMA_FSTS_IQE)
+		pr_err("VT-d detected Invalidation Queue Error: Reason %llx",
+		       DMAR_IQER_REG_IQEI(iqe_err));
+	if (fault & DMA_FSTS_ITE)
+		pr_err("VT-d detected Invalidation Time-out Error: SID %llx",
+		       DMAR_IQER_REG_ITESID(iqe_err));
+	if (fault & DMA_FSTS_ICE)
+		pr_err("VT-d detected Invalidation Completion Error: SID %llx",
+		       DMAR_IQER_REG_ICESID(iqe_err));
+
+	pr_err("QI HEAD: %s qw0 = 0x%llx, qw1 = 0x%llx\n",
+	       qi_type_string(desc->qw0 & 0xf),
+	       (unsigned long long)desc->qw0,
+	       (unsigned long long)desc->qw1);
+
+	head = ((head >> qi_shift(iommu)) + QI_LENGTH - 1) % QI_LENGTH;
+	head <<= qi_shift(iommu);
+	desc = iommu->qi->desc + head;
+
+	pr_err("QI PRIOR: %s qw0 = 0x%llx, qw1 = 0x%llx\n",
+	       qi_type_string(desc->qw0 & 0xf),
+	       (unsigned long long)desc->qw0,
+	       (unsigned long long)desc->qw1);
+}
+
 static int qi_check_fault(struct intel_iommu *iommu, int index, int wait_index)
 {
 	u32 fault;
@@ -1216,6 +1272,8 @@ static int qi_check_fault(struct intel_iommu *iommu, int index, int wait_index)
 		return -EAGAIN;
 
 	fault = readl(iommu->reg + DMAR_FSTS_REG);
+	if (fault & (DMA_FSTS_IQE | DMA_FSTS_ITE | DMA_FSTS_ICE))
+		qi_dump_fault(iommu, fault);
 
 	/*
 	 * If IQE happens, the head points to the descriptor associated
@@ -1232,12 +1290,10 @@ static int qi_check_fault(struct intel_iommu *iommu, int index, int wait_index)
 			 * used by software as private data. We won't print
 			 * out these two qw's for security consideration.
 			 */
-			pr_err("VT-d detected invalid descriptor: qw0 = %llx, qw1 = %llx\n",
-			       (unsigned long long)desc->qw0,
-			       (unsigned long long)desc->qw1);
 			memcpy(desc, qi->desc + (wait_index << shift),
 			       1 << shift);
 			writel(DMA_FSTS_IQE, iommu->reg + DMAR_FSTS_REG);
+			pr_info("Invalidation Queue Error (IQE) cleared\n");
 			return -EINVAL;
 		}
 	}
@@ -1254,6 +1310,7 @@ static int qi_check_fault(struct intel_iommu *iommu, int index, int wait_index)
 		tail = ((tail >> shift) - 1 + QI_LENGTH) % QI_LENGTH;
 
 		writel(DMA_FSTS_ITE, iommu->reg + DMAR_FSTS_REG);
+		pr_info("Invalidation Time-out Error (ITE) cleared\n");
 
 		do {
 			if (qi->desc_status[head] == QI_IN_USE)
@@ -1265,8 +1322,10 @@ static int qi_check_fault(struct intel_iommu *iommu, int index, int wait_index)
 			return -EAGAIN;
 	}
 
-	if (fault & DMA_FSTS_ICE)
+	if (fault & DMA_FSTS_ICE) {
 		writel(DMA_FSTS_ICE, iommu->reg + DMAR_FSTS_REG);
+		pr_info("Invalidation Completion Error (ICE) cleared\n");
+	}
 
 	return 0;
 }
@@ -1282,14 +1341,32 @@ int qi_submit_sync(struct intel_iommu *iommu, struct qi_desc *desc,
 		   unsigned int count, unsigned long options)
 {
 	struct q_inval *qi = iommu->qi;
+	s64 devtlb_start_ktime = 0;
+	s64 iotlb_start_ktime = 0;
+	s64 iec_start_ktime = 0;
 	struct qi_desc wait_desc;
 	int wait_index, index;
 	unsigned long flags;
 	int offset, shift;
 	int rc, i;
+	u64 type;
 
 	if (!qi)
 		return 0;
+
+	type = desc->qw0 & GENMASK_ULL(3, 0);
+
+	if ((type == QI_IOTLB_TYPE || type == QI_EIOTLB_TYPE) &&
+	    dmar_latency_enabled(iommu, DMAR_LATENCY_INV_IOTLB))
+		iotlb_start_ktime = ktime_to_ns(ktime_get());
+
+	if ((type == QI_DIOTLB_TYPE || type == QI_DEIOTLB_TYPE) &&
+	    dmar_latency_enabled(iommu, DMAR_LATENCY_INV_DEVTLB))
+		devtlb_start_ktime = ktime_to_ns(ktime_get());
+
+	if (type == QI_IEC_TYPE &&
+	    dmar_latency_enabled(iommu, DMAR_LATENCY_INV_IEC))
+		iec_start_ktime = ktime_to_ns(ktime_get());
 
 restart:
 	rc = 0;
@@ -1364,6 +1441,18 @@ restart:
 
 	if (rc == -EAGAIN)
 		goto restart;
+
+	if (iotlb_start_ktime)
+		dmar_latency_update(iommu, DMAR_LATENCY_INV_IOTLB,
+				ktime_to_ns(ktime_get()) - iotlb_start_ktime);
+
+	if (devtlb_start_ktime)
+		dmar_latency_update(iommu, DMAR_LATENCY_INV_DEVTLB,
+				ktime_to_ns(ktime_get()) - devtlb_start_ktime);
+
+	if (iec_start_ktime)
+		dmar_latency_update(iommu, DMAR_LATENCY_INV_IEC,
+				ktime_to_ns(ktime_get()) - iec_start_ktime);
 
 	return rc;
 }
@@ -1853,16 +1942,23 @@ static int dmar_fault_do_one(struct intel_iommu *iommu, int type,
 	reason = dmar_get_fault_reason(fault_reason, &fault_type);
 
 	if (fault_type == INTR_REMAP)
-		pr_err("[INTR-REMAP] Request device [%02x:%02x.%d] fault index %llx [fault reason %02d] %s\n",
-			source_id >> 8, PCI_SLOT(source_id & 0xFF),
-			PCI_FUNC(source_id & 0xFF), addr >> 48,
-			fault_reason, reason);
-	else
-		pr_err("[%s] Request device [%02x:%02x.%d] PASID %x fault addr %llx [fault reason %02d] %s\n",
+		pr_err("[INTR-REMAP] Request device [0x%02x:0x%02x.%d] fault index 0x%llx [fault reason 0x%02x] %s\n",
+		       source_id >> 8, PCI_SLOT(source_id & 0xFF),
+		       PCI_FUNC(source_id & 0xFF), addr >> 48,
+		       fault_reason, reason);
+	else if (pasid == INVALID_IOASID)
+		pr_err("[%s NO_PASID] Request device [0x%02x:0x%02x.%d] fault addr 0x%llx [fault reason 0x%02x] %s\n",
 		       type ? "DMA Read" : "DMA Write",
 		       source_id >> 8, PCI_SLOT(source_id & 0xFF),
-		       PCI_FUNC(source_id & 0xFF), pasid, addr,
+		       PCI_FUNC(source_id & 0xFF), addr,
 		       fault_reason, reason);
+	else
+		pr_err("[%s PASID 0x%x] Request device [0x%02x:0x%02x.%d] fault addr 0x%llx [fault reason 0x%02x] %s\n",
+		       type ? "DMA Read" : "DMA Write", pasid,
+		       source_id >> 8, PCI_SLOT(source_id & 0xFF),
+		       PCI_FUNC(source_id & 0xFF), addr,
+		       fault_reason, reason);
+
 	return 0;
 }
 
@@ -1929,7 +2025,7 @@ irqreturn_t dmar_fault(int irq, void *dev_id)
 		if (!ratelimited)
 			/* Using pasid -1 if pasid is not present */
 			dmar_fault_do_one(iommu, type, fault_reason,
-					  pasid_present ? pasid : -1,
+					  pasid_present ? pasid : INVALID_IOASID,
 					  source_id, guest_addr);
 
 		fault_index++;

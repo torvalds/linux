@@ -2406,7 +2406,6 @@ static int ms_build_l2p_tbl(struct rtsx_chip *chip, int seg_no)
 
 		(void)ms_arbitrate_l2p(chip, phy_blk,
 				log_blk - ms_start_idx[seg_no], us1, us2);
-		continue;
 	}
 
 	segment->build_flag = 1;

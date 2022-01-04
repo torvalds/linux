@@ -56,6 +56,7 @@ v1 is available under :ref:`Documentation/admin-guide/cgroup-v1/index.rst <cgrou
        5-3-3. IO Latency
          5-3-3-1. How IO Latency Throttling Works
          5-3-3-2. IO Latency Interface Files
+       5-3-4. IO Priority
      5-4. PID
        5-4-1. PID Interface Files
      5-5. Cpuset
@@ -65,8 +66,11 @@ v1 is available under :ref:`Documentation/admin-guide/cgroup-v1/index.rst <cgrou
        5-7-1. RDMA Interface Files
      5-8. HugeTLB
        5.8-1. HugeTLB Interface Files
-     5-8. Misc
-       5-8-1. perf_event
+     5-9. Misc
+       5.9-1 Miscellaneous cgroup Interface Files
+       5.9-2 Migration and Ownership
+     5-10. Others
+       5-10-1. perf_event
      5-N. Non-normative information
        5-N-1. CPU controller root cgroup process behaviour
        5-N-2. IO controller root cgroup process behaviour
@@ -948,6 +952,21 @@ All cgroup core files are prefixed with "cgroup."
 	Frozen status of a cgroup doesn't affect any cgroup tree operations:
 	it's possible to delete a frozen (and empty) cgroup, as well as
 	create new sub-cgroups.
+
+  cgroup.kill
+	A write-only single value file which exists in non-root cgroups.
+	The only allowed value is "1".
+
+	Writing "1" to the file causes the cgroup and all descendant cgroups to
+	be killed. This means that all processes located in the affected cgroup
+	tree will be killed via SIGKILL.
+
+	Killing a cgroup tree will deal with concurrent forks appropriately and
+	is protected against migrations.
+
+	In a threaded cgroup, writing this file fails with EOPNOTSUPP as
+	killing cgroups is a process directed operation, i.e. it affects
+	the whole thread-group.
 
 Controllers
 ===========
@@ -1863,6 +1882,60 @@ IO Latency Interface Files
 		duration of time between evaluation events.  Windows only elapse
 		with IO activity.  Idle periods extend the most recent window.
 
+IO Priority
+~~~~~~~~~~~
+
+A single attribute controls the behavior of the I/O priority cgroup policy,
+namely the blkio.prio.class attribute. The following values are accepted for
+that attribute:
+
+  no-change
+	Do not modify the I/O priority class.
+
+  none-to-rt
+	For requests that do not have an I/O priority class (NONE),
+	change the I/O priority class into RT. Do not modify
+	the I/O priority class of other requests.
+
+  restrict-to-be
+	For requests that do not have an I/O priority class or that have I/O
+	priority class RT, change it into BE. Do not modify the I/O priority
+	class of requests that have priority class IDLE.
+
+  idle
+	Change the I/O priority class of all requests into IDLE, the lowest
+	I/O priority class.
+
+The following numerical values are associated with the I/O priority policies:
+
++-------------+---+
+| no-change   | 0 |
++-------------+---+
+| none-to-rt  | 1 |
++-------------+---+
+| rt-to-be    | 2 |
++-------------+---+
+| all-to-idle | 3 |
++-------------+---+
+
+The numerical value that corresponds to each I/O priority class is as follows:
+
++-------------------------------+---+
+| IOPRIO_CLASS_NONE             | 0 |
++-------------------------------+---+
+| IOPRIO_CLASS_RT (real-time)   | 1 |
++-------------------------------+---+
+| IOPRIO_CLASS_BE (best effort) | 2 |
++-------------------------------+---+
+| IOPRIO_CLASS_IDLE             | 3 |
++-------------------------------+---+
+
+The algorithm to set the I/O priority class for a request is as follows:
+
+- Translate the I/O priority class policy into a number.
+- Change the request I/O priority class into the maximum of the I/O priority
+  class policy number and the numerical I/O priority class.
+
 PID
 ---
 
@@ -1982,6 +2055,17 @@ Cpuset Interface Files
 
 	The value of "cpuset.mems" stays constant until the next update
 	and won't be affected by any memory nodes hotplug events.
+
+	Setting a non-empty value to "cpuset.mems" causes memory of
+	tasks within the cgroup to be migrated to the designated nodes if
+	they are currently using memory outside of the designated nodes.
+
+	There is a cost for this memory migration.  The migration
+	may not be complete and some memory pages may be left behind.
+	So it is recommended that "cpuset.mems" should be set properly
+	before spawning new tasks into the cpuset.  Even if there is
+	a need to change "cpuset.mems" with active tasks, it shouldn't
+	be done frequently.
 
   cpuset.mems.effective
 	A read-only multiple values file which exists on all
@@ -2170,6 +2254,72 @@ HugeTLB Interface Files
 
 Misc
 ----
+
+The Miscellaneous cgroup provides the resource limiting and tracking
+mechanism for the scalar resources which cannot be abstracted like the other
+cgroup resources. Controller is enabled by the CONFIG_CGROUP_MISC config
+option.
+
+A resource can be added to the controller via enum misc_res_type{} in the
+include/linux/misc_cgroup.h file and the corresponding name via misc_res_name[]
+in the kernel/cgroup/misc.c file. Provider of the resource must set its
+capacity prior to using the resource by calling misc_cg_set_capacity().
+
+Once a capacity is set then the resource usage can be updated using charge and
+uncharge APIs. All of the APIs to interact with misc controller are in
+include/linux/misc_cgroup.h.
+
+Misc Interface Files
+~~~~~~~~~~~~~~~~~~~~
+
+Miscellaneous controller provides 3 interface files. If two misc resources (res_a and res_b) are registered then:
+
+  misc.capacity
+        A read-only flat-keyed file shown only in the root cgroup.  It shows
+        miscellaneous scalar resources available on the platform along with
+        their quantities::
+
+	  $ cat misc.capacity
+	  res_a 50
+	  res_b 10
+
+  misc.current
+        A read-only flat-keyed file shown in the non-root cgroups.  It shows
+        the current usage of the resources in the cgroup and its children.::
+
+	  $ cat misc.current
+	  res_a 3
+	  res_b 0
+
+  misc.max
+        A read-write flat-keyed file shown in the non root cgroups. Allowed
+        maximum usage of the resources in the cgroup and its children.::
+
+	  $ cat misc.max
+	  res_a max
+	  res_b 4
+
+	Limit can be set by::
+
+	  # echo res_a 1 > misc.max
+
+	Limit can be set to max by::
+
+	  # echo res_a max > misc.max
+
+        Limits can be set higher than the capacity value in the misc.capacity
+        file.
+
+Migration and Ownership
+~~~~~~~~~~~~~~~~~~~~~~~
+
+A miscellaneous scalar resource is charged to the cgroup in which it is used
+first, and stays charged to that cgroup until that resource is freed. Migrating
+a process to a different cgroup does not move the charge to the destination
+cgroup where the process has moved.
+
+Others
+------
 
 perf_event
 ~~~~~~~~~~

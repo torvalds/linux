@@ -68,7 +68,7 @@ dpaa2_eth_dl_trap_item_lookup(struct dpaa2_eth_priv *priv, u16 trap_id)
 struct dpaa2_eth_trap_item *dpaa2_eth_dl_get_trap(struct dpaa2_eth_priv *priv,
 						  struct dpaa2_fapr *fapr)
 {
-	struct dpaa2_faf_error_bit {
+	static const struct dpaa2_faf_error_bit {
 		int position;
 		enum devlink_trap_generic_id trap_id;
 	} faf_bits[] = {
@@ -196,7 +196,8 @@ int dpaa2_eth_dl_register(struct dpaa2_eth_priv *priv)
 	struct dpaa2_eth_devlink_priv *dl_priv;
 	int err;
 
-	priv->devlink = devlink_alloc(&dpaa2_eth_devlink_ops, sizeof(*dl_priv));
+	priv->devlink =
+		devlink_alloc(&dpaa2_eth_devlink_ops, sizeof(*dl_priv), dev);
 	if (!priv->devlink) {
 		dev_err(dev, "devlink_alloc failed\n");
 		return -ENOMEM;
@@ -204,7 +205,7 @@ int dpaa2_eth_dl_register(struct dpaa2_eth_priv *priv)
 	dl_priv = devlink_priv(priv->devlink);
 	dl_priv->dpaa2_priv = priv;
 
-	err = devlink_register(priv->devlink, dev);
+	err = devlink_register(priv->devlink);
 	if (err) {
 		dev_err(dev, "devlink_register() = %d\n", err);
 		goto devlink_free;

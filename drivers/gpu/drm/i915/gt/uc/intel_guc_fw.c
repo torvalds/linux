@@ -30,7 +30,7 @@ static void guc_prepare_xfer(struct intel_uncore *uncore)
 	else
 		intel_uncore_write(uncore, GEN9_GT_PM_CONFIG, GT_DOORBELL_ENABLE);
 
-	if (IS_GEN(uncore->i915, 9)) {
+	if (GRAPHICS_VER(uncore->i915) == 9) {
 		/* DOP Clock Gating Enable for GuC clocks */
 		intel_uncore_rmw(uncore, GEN7_MISCCPCTL,
 				 0, GEN8_DOP_CLOCK_GATE_GUC_ENABLE);

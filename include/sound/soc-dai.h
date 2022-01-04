@@ -36,6 +36,22 @@ struct snd_compr_stream;
 #define SND_SOC_DAIFMT_MSB		SND_SOC_DAIFMT_LEFT_J
 #define SND_SOC_DAIFMT_LSB		SND_SOC_DAIFMT_RIGHT_J
 
+/* Describes the possible PCM format */
+/*
+ * use SND_SOC_DAI_FORMAT_xx as eash shift.
+ * see
+ *	snd_soc_runtime_get_dai_fmt()
+ */
+#define SND_SOC_POSSIBLE_DAIFMT_FORMAT_SHIFT	0
+#define SND_SOC_POSSIBLE_DAIFMT_FORMAT_MASK	(0xFFFF << SND_SOC_POSSIBLE_DAIFMT_FORMAT_SHIFT)
+#define SND_SOC_POSSIBLE_DAIFMT_I2S		(1 << SND_SOC_DAI_FORMAT_I2S)
+#define SND_SOC_POSSIBLE_DAIFMT_RIGHT_J		(1 << SND_SOC_DAI_FORMAT_RIGHT_J)
+#define SND_SOC_POSSIBLE_DAIFMT_LEFT_J		(1 << SND_SOC_DAI_FORMAT_LEFT_J)
+#define SND_SOC_POSSIBLE_DAIFMT_DSP_A		(1 << SND_SOC_DAI_FORMAT_DSP_A)
+#define SND_SOC_POSSIBLE_DAIFMT_DSP_B		(1 << SND_SOC_DAI_FORMAT_DSP_B)
+#define SND_SOC_POSSIBLE_DAIFMT_AC97		(1 << SND_SOC_DAI_FORMAT_AC97)
+#define SND_SOC_POSSIBLE_DAIFMT_PDM		(1 << SND_SOC_DAI_FORMAT_PDM)
+
 /*
  * DAI Clock gating.
  *
@@ -44,6 +60,17 @@ struct snd_compr_stream;
  */
 #define SND_SOC_DAIFMT_CONT		(1 << 4) /* continuous clock */
 #define SND_SOC_DAIFMT_GATED		(0 << 4) /* clock is gated */
+
+/* Describes the possible PCM format */
+/*
+ * define GATED -> CONT. GATED will be selected if both are selected.
+ * see
+ *	snd_soc_runtime_get_dai_fmt()
+ */
+#define SND_SOC_POSSIBLE_DAIFMT_CLOCK_SHIFT	16
+#define SND_SOC_POSSIBLE_DAIFMT_CLOCK_MASK	(0xFFFF	<< SND_SOC_POSSIBLE_DAIFMT_CLOCK_SHIFT)
+#define SND_SOC_POSSIBLE_DAIFMT_GATED		(0x1ULL	<< SND_SOC_POSSIBLE_DAIFMT_CLOCK_SHIFT)
+#define SND_SOC_POSSIBLE_DAIFMT_CONT		(0x2ULL	<< SND_SOC_POSSIBLE_DAIFMT_CLOCK_SHIFT)
 
 /*
  * DAI hardware signal polarity.
@@ -71,6 +98,14 @@ struct snd_compr_stream;
 #define SND_SOC_DAIFMT_IB_NF		(3 << 8) /* invert BCLK + nor FRM */
 #define SND_SOC_DAIFMT_IB_IF		(4 << 8) /* invert BCLK + FRM */
 
+/* Describes the possible PCM format */
+#define SND_SOC_POSSIBLE_DAIFMT_INV_SHIFT	32
+#define SND_SOC_POSSIBLE_DAIFMT_INV_MASK	(0xFFFFULL << SND_SOC_POSSIBLE_DAIFMT_INV_SHIFT)
+#define SND_SOC_POSSIBLE_DAIFMT_NB_NF		(0x1ULL    << SND_SOC_POSSIBLE_DAIFMT_INV_SHIFT)
+#define SND_SOC_POSSIBLE_DAIFMT_NB_IF		(0x2ULL    << SND_SOC_POSSIBLE_DAIFMT_INV_SHIFT)
+#define SND_SOC_POSSIBLE_DAIFMT_IB_NF		(0x4ULL    << SND_SOC_POSSIBLE_DAIFMT_INV_SHIFT)
+#define SND_SOC_POSSIBLE_DAIFMT_IB_IF		(0x8ULL    << SND_SOC_POSSIBLE_DAIFMT_INV_SHIFT)
+
 /*
  * DAI hardware clock providers/consumers
  *
@@ -81,13 +116,21 @@ struct snd_compr_stream;
 #define SND_SOC_DAIFMT_CBP_CFP		(1 << 12) /* codec clk provider & frame provider */
 #define SND_SOC_DAIFMT_CBC_CFP		(2 << 12) /* codec clk consumer & frame provider */
 #define SND_SOC_DAIFMT_CBP_CFC		(3 << 12) /* codec clk provider & frame consumer */
-#define SND_SOC_DAIFMT_CBC_CFC		(4 << 12) /* codec clk consumer & frame follower */
+#define SND_SOC_DAIFMT_CBC_CFC		(4 << 12) /* codec clk consumer & frame consumer */
 
 /* previous definitions kept for backwards-compatibility, do not use in new contributions */
 #define SND_SOC_DAIFMT_CBM_CFM		SND_SOC_DAIFMT_CBP_CFP
 #define SND_SOC_DAIFMT_CBS_CFM		SND_SOC_DAIFMT_CBC_CFP
 #define SND_SOC_DAIFMT_CBM_CFS		SND_SOC_DAIFMT_CBP_CFC
 #define SND_SOC_DAIFMT_CBS_CFS		SND_SOC_DAIFMT_CBC_CFC
+
+/* Describes the possible PCM format */
+#define SND_SOC_POSSIBLE_DAIFMT_CLOCK_PROVIDER_SHIFT	48
+#define SND_SOC_POSSIBLE_DAIFMT_CLOCK_PROVIDER_MASK	(0xFFFFULL << SND_SOC_POSSIBLE_DAIFMT_CLOCK_PROVIDER_SHIFT)
+#define SND_SOC_POSSIBLE_DAIFMT_CBP_CFP			(0x1ULL    << SND_SOC_POSSIBLE_DAIFMT_CLOCK_PROVIDER_SHIFT)
+#define SND_SOC_POSSIBLE_DAIFMT_CBC_CFP			(0x2ULL    << SND_SOC_POSSIBLE_DAIFMT_CLOCK_PROVIDER_SHIFT)
+#define SND_SOC_POSSIBLE_DAIFMT_CBP_CFC			(0x4ULL    << SND_SOC_POSSIBLE_DAIFMT_CLOCK_PROVIDER_SHIFT)
+#define SND_SOC_POSSIBLE_DAIFMT_CBC_CFC			(0x8ULL    << SND_SOC_POSSIBLE_DAIFMT_CLOCK_PROVIDER_SHIFT)
 
 #define SND_SOC_DAIFMT_FORMAT_MASK		0x000f
 #define SND_SOC_DAIFMT_CLOCK_MASK		0x00f0
@@ -131,6 +174,8 @@ int snd_soc_dai_set_pll(struct snd_soc_dai *dai,
 int snd_soc_dai_set_bclk_ratio(struct snd_soc_dai *dai, unsigned int ratio);
 
 /* Digital Audio interface formatting */
+int snd_soc_dai_get_fmt_max_priority(struct snd_soc_pcm_runtime *rtd);
+u64 snd_soc_dai_get_fmt(struct snd_soc_dai *dai, int priority);
 int snd_soc_dai_set_fmt(struct snd_soc_dai *dai, unsigned int fmt);
 
 int snd_soc_dai_set_tdm_slot(struct snd_soc_dai *dai,
@@ -291,6 +336,16 @@ struct snd_soc_dai_ops {
 	 */
 	snd_pcm_sframes_t (*delay)(struct snd_pcm_substream *,
 		struct snd_soc_dai *);
+
+	/*
+	 * Format list for auto selection.
+	 * Format will be increased if priority format was
+	 * not selected.
+	 * see
+	 *	snd_soc_dai_get_fmt()
+	 */
+	u64 *auto_selectable_formats;
+	int num_auto_selectable_formats;
 
 	/* bit field */
 	unsigned int no_capture_mute:1;

@@ -1031,12 +1031,12 @@ static int process_base_stream(struct data__file *data_base,
 			continue;
 
 		es_base = evsel_streams__entry(data_base->evlist_streams,
-					       evsel_base->idx);
+					       evsel_base->core.idx);
 		if (!es_base)
 			return -1;
 
 		es_pair = evsel_streams__entry(data_pair->evlist_streams,
-					       evsel_pair->idx);
+					       evsel_pair->core.idx);
 		if (!es_pair)
 			return -1;
 
@@ -1796,7 +1796,7 @@ static int ui_init(void)
 	data__for_each_file(i, d) {
 
 		/*
-		 * Baseline or compute realted columns:
+		 * Baseline or compute related columns:
 		 *
 		 *   PERF_HPP_DIFF__BASELINE
 		 *   PERF_HPP_DIFF__DELTA

@@ -210,11 +210,6 @@ static int duration = 0;
 	.bpf_obj_file = "test_core_reloc_existence.o",			\
 	.btf_src_file = "btf__core_reloc_" #name ".o"			\
 
-#define FIELD_EXISTS_ERR_CASE(name) {					\
-	FIELD_EXISTS_CASE_COMMON(name),					\
-	.fails = true,							\
-}
-
 #define BITFIELDS_CASE_COMMON(objfile, test_name_prefix,  name)		\
 	.case_name = test_name_prefix#name,				\
 	.bpf_obj_file = objfile,					\
@@ -222,7 +217,7 @@ static int duration = 0;
 
 #define BITFIELDS_CASE(name, ...) {					\
 	BITFIELDS_CASE_COMMON("test_core_reloc_bitfields_probed.o",	\
-			      "direct:", name),				\
+			      "probed:", name),				\
 	.input = STRUCT_TO_CHAR_PTR(core_reloc_##name) __VA_ARGS__,	\
 	.input_len = sizeof(struct core_reloc_##name),			\
 	.output = STRUCT_TO_CHAR_PTR(core_reloc_bitfields_output)	\
@@ -230,7 +225,7 @@ static int duration = 0;
 	.output_len = sizeof(struct core_reloc_bitfields_output),	\
 }, {									\
 	BITFIELDS_CASE_COMMON("test_core_reloc_bitfields_direct.o",	\
-			      "probed:", name),				\
+			      "direct:", name),				\
 	.input = STRUCT_TO_CHAR_PTR(core_reloc_##name) __VA_ARGS__,	\
 	.input_len = sizeof(struct core_reloc_##name),			\
 	.output = STRUCT_TO_CHAR_PTR(core_reloc_bitfields_output)	\
@@ -266,6 +261,7 @@ static int duration = 0;
 		.arr_elem_sz = sizeof(((type *)0)->arr_field[0]),	\
 		.ptr_sz = 8, /* always 8-byte pointer for BPF */	\
 		.enum_sz = sizeof(((type *)0)->enum_field),		\
+		.float_sz = sizeof(((type *)0)->float_field),		\
 	}
 
 #define SIZE_CASE(name) {						\
@@ -373,8 +369,7 @@ static int setup_type_id_case_local(struct core_reloc_test_case *test)
 	const char *name;
 	int i;
 
-	if (CHECK(IS_ERR(local_btf), "local_btf", "failed: %ld\n", PTR_ERR(local_btf)) ||
-	    CHECK(IS_ERR(targ_btf), "targ_btf", "failed: %ld\n", PTR_ERR(targ_btf))) {
+	if (!ASSERT_OK_PTR(local_btf, "local_btf") || !ASSERT_OK_PTR(targ_btf, "targ_btf")) {
 		btf__free(local_btf);
 		btf__free(targ_btf);
 		return -EINVAL;
@@ -550,8 +545,7 @@ static struct core_reloc_test_case test_cases[] = {
 	ARRAYS_ERR_CASE(arrays___err_too_small),
 	ARRAYS_ERR_CASE(arrays___err_too_shallow),
 	ARRAYS_ERR_CASE(arrays___err_non_array),
-	ARRAYS_ERR_CASE(arrays___err_wrong_val_type1),
-	ARRAYS_ERR_CASE(arrays___err_wrong_val_type2),
+	ARRAYS_ERR_CASE(arrays___err_wrong_val_type),
 	ARRAYS_ERR_CASE(arrays___err_bad_zero_sz_arr),
 
 	/* enum/ptr/int handling scenarios */
@@ -642,13 +636,25 @@ static struct core_reloc_test_case test_cases[] = {
 		},
 		.output_len = sizeof(struct core_reloc_existence_output),
 	},
-
-	FIELD_EXISTS_ERR_CASE(existence__err_int_sz),
-	FIELD_EXISTS_ERR_CASE(existence__err_int_type),
-	FIELD_EXISTS_ERR_CASE(existence__err_int_kind),
-	FIELD_EXISTS_ERR_CASE(existence__err_arr_kind),
-	FIELD_EXISTS_ERR_CASE(existence__err_arr_value_type),
-	FIELD_EXISTS_ERR_CASE(existence__err_struct_type),
+	{
+		FIELD_EXISTS_CASE_COMMON(existence___wrong_field_defs),
+		.input = STRUCT_TO_CHAR_PTR(core_reloc_existence___wrong_field_defs) {
+		},
+		.input_len = sizeof(struct core_reloc_existence___wrong_field_defs),
+		.output = STRUCT_TO_CHAR_PTR(core_reloc_existence_output) {
+			.a_exists = 0,
+			.b_exists = 0,
+			.c_exists = 0,
+			.arr_exists = 0,
+			.s_exists = 0,
+			.a_value = 0xff000001u,
+			.b_value = 0xff000002u,
+			.c_value = 0xff000003u,
+			.arr_value = 0xff000004u,
+			.s_value = 0xff000005u,
+		},
+		.output_len = sizeof(struct core_reloc_existence_output),
+	},
 
 	/* bitfield relocation checks */
 	BITFIELDS_CASE(bitfields, {
@@ -810,7 +816,7 @@ static size_t roundup_page(size_t sz)
 void test_core_reloc(void)
 {
 	const size_t mmap_sz = roundup_page(sizeof(struct data));
-	struct bpf_object_load_attr load_attr = {};
+	DECLARE_LIBBPF_OPTS(bpf_object_open_opts, open_opts);
 	struct core_reloc_test_case *test_case;
 	const char *tp_name, *probe_name;
 	int err, i, equal;
@@ -840,10 +846,16 @@ void test_core_reloc(void)
 				continue;
 		}
 
-		obj = bpf_object__open_file(test_case->bpf_obj_file, NULL);
-		if (CHECK(IS_ERR(obj), "obj_open", "failed to open '%s': %ld\n",
-			  test_case->bpf_obj_file, PTR_ERR(obj)))
-			continue;
+		if (test_case->btf_src_file) {
+			err = access(test_case->btf_src_file, R_OK);
+			if (!ASSERT_OK(err, "btf_src_file"))
+				goto cleanup;
+		}
+
+		open_opts.btf_custom_path = test_case->btf_src_file;
+		obj = bpf_object__open_file(test_case->bpf_obj_file, &open_opts);
+		if (!ASSERT_OK_PTR(obj, "obj_open"))
+			goto cleanup;
 
 		probe_name = "raw_tracepoint/sys_enter";
 		tp_name = "sys_enter";
@@ -857,13 +869,10 @@ void test_core_reloc(void)
 			  "prog '%s' not found\n", probe_name))
 			goto cleanup;
 
-		load_attr.obj = obj;
-		load_attr.log_level = 0;
-		load_attr.target_btf_path = test_case->btf_src_file;
-		err = bpf_object__load_xattr(&load_attr);
+		err = bpf_object__load(obj);
 		if (err) {
 			if (!test_case->fails)
-				CHECK(false, "obj_load", "failed to load prog '%s': %d\n", probe_name, err);
+				ASSERT_OK(err, "obj_load");
 			goto cleanup;
 		}
 
@@ -885,8 +894,7 @@ void test_core_reloc(void)
 		data->my_pid_tgid = my_pid_tgid;
 
 		link = bpf_program__attach_raw_tracepoint(prog, tp_name);
-		if (CHECK(IS_ERR(link), "attach_raw_tp", "err %ld\n",
-			  PTR_ERR(link)))
+		if (!ASSERT_OK_PTR(link, "attach_raw_tp"))
 			goto cleanup;
 
 		/* trigger test run */
@@ -902,10 +910,8 @@ void test_core_reloc(void)
 			goto cleanup;
 		}
 
-		if (test_case->fails) {
-			CHECK(false, "obj_load_fail", "should fail to load prog '%s'\n", probe_name);
+		if (!ASSERT_FALSE(test_case->fails, "obj_load_should_fail"))
 			goto cleanup;
-		}
 
 		equal = memcmp(data->out, test_case->output,
 			       test_case->output_len) == 0;
@@ -929,10 +935,8 @@ cleanup:
 			CHECK_FAIL(munmap(mmap_data, mmap_sz));
 			mmap_data = NULL;
 		}
-		if (!IS_ERR_OR_NULL(link)) {
-			bpf_link__destroy(link);
-			link = NULL;
-		}
+		bpf_link__destroy(link);
+		link = NULL;
 		bpf_object__close(obj);
 	}
 }

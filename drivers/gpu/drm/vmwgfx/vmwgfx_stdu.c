@@ -33,7 +33,7 @@
 #include <drm/drm_vblank.h>
 
 #include "vmwgfx_kms.h"
-#include "device_include/svga3d_surfacedefs.h"
+#include "vmw_surface_cache.h"
 
 #define vmw_crtc_to_stdu(x) \
 	container_of(x, struct vmw_screen_target_display_unit, base.crtc)
@@ -61,6 +61,7 @@ enum stdu_content_type {
  * @bottom: Bottom side of bounding box.
  * @fb_left: Left side of the framebuffer/content bounding box
  * @fb_top: Top of the framebuffer/content bounding box
+ * @pitch: framebuffer pitch (stride)
  * @buf: buffer object when DMA-ing between buffer and screen targets.
  * @sid: Surface ID when copying between surface and screen targets.
  */
@@ -109,8 +110,11 @@ struct vmw_stdu_update_gb_image {
  *               content_vfbs dimensions, then this is a pointer into the
  *               corresponding field in content_vfbs.  If not, then this
  *               is a separate buffer to which content_vfbs will blit to.
- * @content_type:  content_fb type
- * @defined:  true if the current display unit has been initialized
+ * @content_fb_type: content_fb type
+ * @display_width:  display width
+ * @display_height: display height
+ * @defined:     true if the current display unit has been initialized
+ * @cpp:         Bytes per pixel
  */
 struct vmw_screen_target_display_unit {
 	struct vmw_display_unit base;
@@ -652,6 +656,7 @@ out_cleanup:
  * @file_priv: Pointer to a struct drm-file identifying the caller. May be
  * set to NULL, but then @user_fence_rep must also be set to NULL.
  * @vfb: Pointer to the buffer-object backed framebuffer.
+ * @user_fence_rep: User-space provided structure for fence information.
  * @clips: Array of clip rects. Either @clips or @vclips must be NULL.
  * @vclips: Alternate array of clip rects. Either @clips or @vclips must
  * be NULL.
@@ -737,7 +742,7 @@ out_unref:
 }
 
 /**
- * vmw_stdu_surface_clip - Callback to encode a surface copy command cliprect
+ * vmw_kms_stdu_surface_clip - Callback to encode a surface copy command cliprect
  *
  * @dirty: The closure structure.
  *
@@ -775,7 +780,7 @@ static void vmw_kms_stdu_surface_clip(struct vmw_kms_dirty *dirty)
 }
 
 /**
- * vmw_stdu_surface_fifo_commit - Callback to fill in and submit a surface
+ * vmw_kms_stdu_surface_fifo_commit - Callback to fill in and submit a surface
  * copy command.
  *
  * @dirty: The closure structure.
@@ -1566,7 +1571,7 @@ static int vmw_stdu_plane_update_surface(struct vmw_private *dev_priv,
 /**
  * vmw_stdu_primary_plane_atomic_update - formally switches STDU to new plane
  * @plane: display plane
- * @old_state: Only used to get crtc info
+ * @state: Only used to get crtc info
  *
  * Formally update stdu->display_srf to the new plane, and bind the new
  * plane STDU.  This function is called during the commit phase when
@@ -1575,10 +1580,12 @@ static int vmw_stdu_plane_update_surface(struct vmw_private *dev_priv,
  */
 static void
 vmw_stdu_primary_plane_atomic_update(struct drm_plane *plane,
-				     struct drm_plane_state *old_state)
+				     struct drm_atomic_state *state)
 {
-	struct vmw_plane_state *vps = vmw_plane_state_to_vps(plane->state);
-	struct drm_crtc *crtc = plane->state->crtc;
+	struct drm_plane_state *old_state = drm_atomic_get_old_plane_state(state, plane);
+	struct drm_plane_state *new_state = drm_atomic_get_new_plane_state(state, plane);
+	struct vmw_plane_state *vps = vmw_plane_state_to_vps(new_state);
+	struct drm_crtc *crtc = new_state->crtc;
 	struct vmw_screen_target_display_unit *stdu;
 	struct drm_pending_vblank_event *event;
 	struct vmw_fence_obj *fence = NULL;
@@ -1586,9 +1593,9 @@ vmw_stdu_primary_plane_atomic_update(struct drm_plane *plane,
 	int ret;
 
 	/* If case of device error, maintain consistent atomic state */
-	if (crtc && plane->state->fb) {
+	if (crtc && new_state->fb) {
 		struct vmw_framebuffer *vfb =
-			vmw_framebuffer_to_vfb(plane->state->fb);
+			vmw_framebuffer_to_vfb(new_state->fb);
 		stdu = vmw_crtc_to_stdu(crtc);
 		dev_priv = vmw_priv(crtc->dev);
 
@@ -1882,14 +1889,13 @@ int vmw_kms_stdu_init_display(struct vmw_private *dev_priv)
 		ret = vmw_stdu_init(dev_priv, i);
 
 		if (unlikely(ret != 0)) {
-			DRM_ERROR("Failed to initialize STDU %d", i);
+			drm_err(&dev_priv->drm,
+				"Failed to initialize STDU %d", i);
 			return ret;
 		}
 	}
 
 	drm_mode_config_reset(dev);
-
-	DRM_INFO("Screen Target Display device initialized\n");
 
 	return 0;
 }

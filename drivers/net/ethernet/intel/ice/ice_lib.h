@@ -12,6 +12,10 @@ bool ice_pf_state_is_nominal(struct ice_pf *pf);
 
 void ice_update_eth_stats(struct ice_vsi *vsi);
 
+int ice_vsi_cfg_single_rxq(struct ice_vsi *vsi, u16 q_idx);
+
+int ice_vsi_cfg_single_txq(struct ice_vsi *vsi, struct ice_ring **tx_rings, u16 q_idx);
+
 int ice_vsi_cfg_rxqs(struct ice_vsi *vsi);
 
 int ice_vsi_cfg_lan_txqs(struct ice_vsi *vsi);
@@ -45,6 +49,8 @@ int ice_cfg_vlan_pruning(struct ice_vsi *vsi, bool ena, bool vlan_promisc);
 
 void ice_cfg_sw_lldp(struct ice_vsi *vsi, bool tx, bool create);
 
+int ice_set_link(struct ice_vsi *vsi, bool ena);
+
 #ifdef CONFIG_DCB
 int ice_vsi_cfg_tc(struct ice_vsi *vsi, u8 ena_tc);
 #endif /* CONFIG_DCB */
@@ -71,9 +77,11 @@ ice_get_res(struct ice_pf *pf, struct ice_res_tracker *res, u16 needed, u16 id);
 int ice_vsi_rebuild(struct ice_vsi *vsi, bool init_vsi);
 
 bool ice_is_reset_in_progress(unsigned long *state);
+int ice_wait_for_reset(struct ice_pf *pf, unsigned long timeout);
 
 void
-ice_write_qrxflxp_cntxt(struct ice_hw *hw, u16 pf_q, u32 rxdid, u32 prio);
+ice_write_qrxflxp_cntxt(struct ice_hw *hw, u16 pf_q, u32 rxdid, u32 prio,
+			bool ena_ts);
 
 void ice_vsi_dis_irq(struct ice_vsi *vsi);
 
@@ -83,7 +91,7 @@ void ice_vsi_free_rx_rings(struct ice_vsi *vsi);
 
 void ice_vsi_free_tx_rings(struct ice_vsi *vsi);
 
-int ice_vsi_manage_rss_lut(struct ice_vsi *vsi, bool ena);
+void ice_vsi_manage_rss_lut(struct ice_vsi *vsi, bool ena);
 
 void ice_update_tx_ring_stats(struct ice_ring *ring, u64 pkts, u64 bytes);
 
@@ -93,13 +101,14 @@ void ice_vsi_cfg_frame_size(struct ice_vsi *vsi);
 
 int ice_status_to_errno(enum ice_status err);
 
-u32 ice_intrl_usec_to_reg(u8 intrl, u8 gran);
+void ice_write_intrl(struct ice_q_vector *q_vector, u8 intrl);
+void ice_write_itr(struct ice_ring_container *rc, u16 itr);
 
 enum ice_status
 ice_vsi_cfg_mac_fltr(struct ice_vsi *vsi, const u8 *macaddr, bool set);
 
 bool ice_is_safe_mode(struct ice_pf *pf);
-
+bool ice_is_aux_ena(struct ice_pf *pf);
 bool ice_is_dflt_vsi_in_use(struct ice_sw *sw);
 
 bool ice_is_vsi_dflt_vsi(struct ice_sw *sw, struct ice_vsi *vsi);

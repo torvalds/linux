@@ -195,6 +195,12 @@ acpi_ex_read_serial_bus(union acpi_operand_object *obj_desc,
 		function = ACPI_READ | (accessor_type << 16);
 		break;
 
+	case ACPI_ADR_SPACE_PLATFORM_RT:
+
+		buffer_length = ACPI_PRM_INPUT_BUFFER_SIZE;
+		function = ACPI_READ;
+		break;
+
 	default:
 		return_ACPI_STATUS(AE_AML_INVALID_SPACE_ID);
 	}
@@ -309,6 +315,12 @@ acpi_ex_write_serial_bus(union acpi_operand_object *source_desc,
 
 		buffer_length += ACPI_SERIAL_HEADER_SIZE;
 		function = ACPI_WRITE | (accessor_type << 16);
+		break;
+
+	case ACPI_ADR_SPACE_PLATFORM_RT:
+
+		buffer_length = ACPI_PRM_INPUT_BUFFER_SIZE;
+		function = ACPI_WRITE;
 		break;
 
 	default:

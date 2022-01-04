@@ -160,7 +160,6 @@ Code  Seq#    Include File                                           Comments
 'K'   all    linux/kd.h
 'L'   00-1F  linux/loop.h                                            conflict!
 'L'   10-1F  drivers/scsi/mpt3sas/mpt3sas_ctl.h                      conflict!
-'L'   20-2F  linux/lightnvm.h
 'L'   E0-FF  linux/ppdd.h                                            encrypted disk device driver
                                                                      <http://linux01.gwdg.de/~alatham/ppdd.html>
 'M'   all    linux/soundcard.h                                       conflict!
@@ -325,7 +324,7 @@ Code  Seq#    Include File                                           Comments
 0xA3  90-9F  linux/dtlk.h
 0xA4  00-1F  uapi/linux/tee.h                                        Generic TEE subsystem
 0xA4  00-1F  uapi/asm/sgx.h                                          <mailto:linux-sgx@vger.kernel.org>
-0xA5  01     linux/surface_aggregator/cdev.h                         Microsoft Surface Platform System Aggregator
+0xA5  01-05  linux/surface_aggregator/cdev.h                         Microsoft Surface Platform System Aggregator
                                                                      <mailto:luzmaximilian@gmail.com>
 0xA5  20-2F  linux/surface_aggregator/dtx.h                          Microsoft Surface DTX driver
                                                                      <mailto:luzmaximilian@gmail.com>

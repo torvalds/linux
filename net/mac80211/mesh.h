@@ -134,7 +134,7 @@ struct mesh_path {
  * gate's mpath may or may not be resolved and active.
  * @gates_lock: protects updates to known_gates
  * @rhead: the rhashtable containing struct mesh_paths, keyed by dest addr
- * @walk_head: linked list containging all mesh_path objects
+ * @walk_head: linked list containing all mesh_path objects
  * @walk_lock: lock protecting walk_head
  * @entries: number of entries in the table
  */

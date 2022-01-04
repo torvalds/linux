@@ -13,11 +13,12 @@
 /** Key Generator properties */
 
 /**
- * Number of masks per key extraction
+ * DPKG_NUM_OF_MASKS - Number of masks per key extraction
  */
 #define DPKG_NUM_OF_MASKS		4
+
 /**
- * Number of extractions per key profile
+ * DPKG_MAX_NUM_OF_EXTRACTS - Number of extractions per key profile
  */
 #define DPKG_MAX_NUM_OF_EXTRACTS	10
 

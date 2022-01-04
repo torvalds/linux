@@ -41,7 +41,7 @@ static void marshal_virt_to_resize(struct dk_cxlflash_uvirtual *virt,
 /**
  * marshal_clone_to_rele() - translate clone to release structure
  * @clone:	Source structure from which to translate/copy.
- * @rele:	Destination structure for the translate/copy.
+ * @release:	Destination structure for the translate/copy.
  */
 static void marshal_clone_to_rele(struct dk_cxlflash_clone *clone,
 				  struct dk_cxlflash_release *release)
@@ -229,7 +229,7 @@ static u64 ba_alloc(struct ba_lun *ba_lun)
 
 /**
  * validate_alloc() - validates the specified block has been allocated
- * @ba_lun_info:	LUN info owning the block allocator.
+ * @bali:		LUN info owning the block allocator.
  * @aun:		Block to validate.
  *
  * Return: 0 on success, -1 on failure
@@ -300,7 +300,7 @@ static int ba_free(struct ba_lun *ba_lun, u64 to_free)
 /**
  * ba_clone() - Clone a chunk of the block allocation table
  * @ba_lun:	Block allocator from which to allocate a block.
- * @to_free:	Block to free.
+ * @to_clone:	Block to clone.
  *
  * Return: 0 on success, -1 on failure
  */
@@ -361,7 +361,7 @@ void cxlflash_ba_terminate(struct ba_lun *ba_lun)
 
 /**
  * init_vlun() - initializes a LUN for virtual use
- * @lun_info:	LUN information structure that owns the block allocator.
+ * @lli:	LUN information structure that owns the block allocator.
  *
  * Return: 0 on success, -errno on failure
  */

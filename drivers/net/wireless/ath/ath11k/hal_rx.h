@@ -254,10 +254,18 @@ struct hal_rx_phyrx_rssi_legacy_info {
 } __packed;
 
 #define HAL_RX_MPDU_INFO_INFO0_PEERID	GENMASK(31, 16)
+#define HAL_RX_MPDU_INFO_INFO0_PEERID_WCN6855	GENMASK(15, 0)
+
 struct hal_rx_mpdu_info {
 	__le32 rsvd0;
 	__le32 info0;
 	__le32 rsvd1[21];
+} __packed;
+
+struct hal_rx_mpdu_info_wcn6855 {
+	__le32 rsvd0[8];
+	__le32 info0;
+	__le32 rsvd1[14];
 } __packed;
 
 #define HAL_RX_PPDU_END_DURATION	GENMASK(23, 0)

@@ -948,11 +948,6 @@ static int cmd_reg_handler(struct parser_exec_state *s,
 
 	/* below are all lri handlers */
 	vreg = &vgpu_vreg(s->vgpu, offset);
-	if (!intel_gvt_mmio_is_cmd_accessible(gvt, offset)) {
-		gvt_vgpu_err("%s access to non-render register (%x)\n",
-				cmd, offset);
-		return -EBADRQC;
-	}
 
 	if (is_cmd_update_pdps(offset, s) &&
 	    cmd_pdp_mmio_update_handler(s, offset, index))
@@ -1011,7 +1006,7 @@ static int cmd_reg_handler(struct parser_exec_state *s,
 	 * update reg values in it into vregs, so LRIs in workload with
 	 * inhibit context will restore with correct values
 	 */
-	if (IS_GEN(s->engine->i915, 9) &&
+	if (GRAPHICS_VER(s->engine->i915) == 9 &&
 	    intel_gvt_mmio_is_sr_in_ctx(gvt, offset) &&
 	    !strncmp(cmd, "lri", 3)) {
 		intel_gvt_hypervisor_read_gpa(s->vgpu,
@@ -1395,7 +1390,7 @@ static int gen8_check_mi_display_flip(struct parser_exec_state *s,
 	if (!info->async_flip)
 		return 0;
 
-	if (INTEL_GEN(s->engine->i915) >= 9) {
+	if (GRAPHICS_VER(s->engine->i915) >= 9) {
 		stride = vgpu_vreg_t(s->vgpu, info->stride_reg) & GENMASK(9, 0);
 		tile = (vgpu_vreg_t(s->vgpu, info->ctrl_reg) &
 				GENMASK(12, 10)) >> 10;
@@ -1423,7 +1418,7 @@ static int gen8_update_plane_mmio_from_mi_display_flip(
 
 	set_mask_bits(&vgpu_vreg_t(vgpu, info->surf_reg), GENMASK(31, 12),
 		      info->surf_val << 12);
-	if (INTEL_GEN(dev_priv) >= 9) {
+	if (GRAPHICS_VER(dev_priv) >= 9) {
 		set_mask_bits(&vgpu_vreg_t(vgpu, info->stride_reg), GENMASK(9, 0),
 			      info->stride_val);
 		set_mask_bits(&vgpu_vreg_t(vgpu, info->ctrl_reg), GENMASK(12, 10),
@@ -1451,7 +1446,7 @@ static int decode_mi_display_flip(struct parser_exec_state *s,
 {
 	if (IS_BROADWELL(s->engine->i915))
 		return gen8_decode_mi_display_flip(s, info);
-	if (INTEL_GEN(s->engine->i915) >= 9)
+	if (GRAPHICS_VER(s->engine->i915) >= 9)
 		return skl_decode_mi_display_flip(s, info);
 
 	return -ENODEV;

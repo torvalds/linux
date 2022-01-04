@@ -116,7 +116,6 @@ examples:
         snps,mtl-rx-config = <&mtl_rx_setup>;
         snps,mtl-tx-config = <&mtl_tx_setup>;
         snps,tso;
-        status = "okay";
 
         mdio0 {
             #address-cells = <1>;

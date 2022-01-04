@@ -28,6 +28,7 @@
 #include <linux/uaccess.h>
 #include <asm/lowcore.h>
 #include <asm/switch_to.h>
+#include <asm/vdso.h>
 #include "compat_linux.h"
 #include "compat_ptrace.h"
 #include "entry.h"
@@ -118,7 +119,6 @@ static int restore_sigregs32(struct pt_regs *regs,_sigregs32 __user *sregs)
 	fpregs_load((_s390_fp_regs *) &user_sregs.fpregs, &current->thread.fpu);
 
 	clear_pt_regs_flag(regs, PIF_SYSCALL); /* No longer in a system call */
-	clear_pt_regs_flag(regs, PIF_SYSCALL_RESTART);
 	return 0;
 }
 
@@ -304,11 +304,7 @@ static int setup_frame32(struct ksignal *ksig, sigset_t *set,
 		restorer = (unsigned long __force)
 			ksig->ka.sa.sa_restorer | PSW32_ADDR_AMODE;
 	} else {
-		/* Signal frames without vectors registers are short ! */
-		__u16 __user *svc = (void __user *) frame + frame_size - 2;
-		if (__put_user(S390_SYSCALL_OPCODE | __NR_sigreturn, svc))
-			return -EFAULT;
-		restorer = (unsigned long __force) svc | PSW32_ADDR_AMODE;
+		restorer = VDSO32_SYMBOL(current, sigreturn);
         }
 
 	/* Set up registers for signal handler */
@@ -371,10 +367,7 @@ static int setup_rt_frame32(struct ksignal *ksig, sigset_t *set,
 		restorer = (unsigned long __force)
 			ksig->ka.sa.sa_restorer | PSW32_ADDR_AMODE;
 	} else {
-		__u16 __user *svc = &frame->svc_insn;
-		if (__put_user(S390_SYSCALL_OPCODE | __NR_rt_sigreturn, svc))
-			return -EFAULT;
-		restorer = (unsigned long __force) svc | PSW32_ADDR_AMODE;
+		restorer = VDSO32_SYMBOL(current, rt_sigreturn);
 	}
 
 	/* Create siginfo on the signal stack */

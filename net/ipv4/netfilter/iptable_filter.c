@@ -19,7 +19,6 @@ MODULE_DESCRIPTION("iptables filter table");
 #define FILTER_VALID_HOOKS ((1 << NF_INET_LOCAL_IN) | \
 			    (1 << NF_INET_FORWARD) | \
 			    (1 << NF_INET_LOCAL_OUT))
-static int __net_init iptable_filter_table_init(struct net *net);
 
 static const struct xt_table packet_filter = {
 	.name		= "filter",
@@ -27,14 +26,13 @@ static const struct xt_table packet_filter = {
 	.me		= THIS_MODULE,
 	.af		= NFPROTO_IPV4,
 	.priority	= NF_IP_PRI_FILTER,
-	.table_init	= iptable_filter_table_init,
 };
 
 static unsigned int
 iptable_filter_hook(void *priv, struct sk_buff *skb,
 		    const struct nf_hook_state *state)
 {
-	return ipt_do_table(skb, state, state->net->ipv4.iptable_filter);
+	return ipt_do_table(skb, state, priv);
 }
 
 static struct nf_hook_ops *filter_ops __read_mostly;
@@ -43,13 +41,10 @@ static struct nf_hook_ops *filter_ops __read_mostly;
 static bool forward __read_mostly = true;
 module_param(forward, bool, 0000);
 
-static int __net_init iptable_filter_table_init(struct net *net)
+static int iptable_filter_table_init(struct net *net)
 {
 	struct ipt_replace *repl;
 	int err;
-
-	if (net->ipv4.iptable_filter)
-		return 0;
 
 	repl = ipt_alloc_initial_table(&packet_filter);
 	if (repl == NULL)
@@ -58,15 +53,14 @@ static int __net_init iptable_filter_table_init(struct net *net)
 	((struct ipt_standard *)repl->entries)[1].target.verdict =
 		forward ? -NF_ACCEPT - 1 : -NF_DROP - 1;
 
-	err = ipt_register_table(net, &packet_filter, repl, filter_ops,
-				 &net->ipv4.iptable_filter);
+	err = ipt_register_table(net, &packet_filter, repl, filter_ops);
 	kfree(repl);
 	return err;
 }
 
 static int __net_init iptable_filter_net_init(struct net *net)
 {
-	if (net == &init_net || !forward)
+	if (!forward)
 		return iptable_filter_table_init(net);
 
 	return 0;
@@ -74,17 +68,12 @@ static int __net_init iptable_filter_net_init(struct net *net)
 
 static void __net_exit iptable_filter_net_pre_exit(struct net *net)
 {
-	if (net->ipv4.iptable_filter)
-		ipt_unregister_table_pre_exit(net, net->ipv4.iptable_filter,
-					      filter_ops);
+	ipt_unregister_table_pre_exit(net, "filter");
 }
 
 static void __net_exit iptable_filter_net_exit(struct net *net)
 {
-	if (!net->ipv4.iptable_filter)
-		return;
-	ipt_unregister_table_exit(net, net->ipv4.iptable_filter);
-	net->ipv4.iptable_filter = NULL;
+	ipt_unregister_table_exit(net, "filter");
 }
 
 static struct pernet_operations iptable_filter_net_ops = {
@@ -95,22 +84,32 @@ static struct pernet_operations iptable_filter_net_ops = {
 
 static int __init iptable_filter_init(void)
 {
-	int ret;
+	int ret = xt_register_template(&packet_filter,
+				       iptable_filter_table_init);
+
+	if (ret < 0)
+		return ret;
 
 	filter_ops = xt_hook_ops_alloc(&packet_filter, iptable_filter_hook);
-	if (IS_ERR(filter_ops))
+	if (IS_ERR(filter_ops)) {
+		xt_unregister_template(&packet_filter);
 		return PTR_ERR(filter_ops);
+	}
 
 	ret = register_pernet_subsys(&iptable_filter_net_ops);
-	if (ret < 0)
+	if (ret < 0) {
+		xt_unregister_template(&packet_filter);
 		kfree(filter_ops);
+		return ret;
+	}
 
-	return ret;
+	return 0;
 }
 
 static void __exit iptable_filter_fini(void)
 {
 	unregister_pernet_subsys(&iptable_filter_net_ops);
+	xt_unregister_template(&packet_filter);
 	kfree(filter_ops);
 }
 

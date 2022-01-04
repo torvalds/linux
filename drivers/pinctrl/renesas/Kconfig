@@ -37,6 +37,7 @@ config PINCTRL_RENESAS
 	select PINCTRL_PFC_R8A77990 if ARCH_R8A77990
 	select PINCTRL_PFC_R8A77995 if ARCH_R8A77995
 	select PINCTRL_PFC_R8A779A0 if ARCH_R8A779A0
+	select PINCTRL_RZG2L if ARCH_R9A07G044
 	select PINCTRL_PFC_SH7203 if CPU_SUBTYPE_SH7203
 	select PINCTRL_PFC_SH7264 if CPU_SUBTYPE_SH7264
 	select PINCTRL_PFC_SH7269 if CPU_SUBTYPE_SH7269
@@ -175,6 +176,16 @@ config PINCTRL_RZA2
 	select GPIOLIB
 	help
 	  This selects GPIO and pinctrl driver for Renesas RZ/A2 platforms.
+
+config PINCTRL_RZG2L
+	bool "pin control support for RZ/G2L" if COMPILE_TEST
+	depends on OF
+	select GPIOLIB
+	select GENERIC_PINCTRL_GROUPS
+	select GENERIC_PINMUX_FUNCTIONS
+	select GENERIC_PINCONF
+	help
+	  This selects GPIO and pinctrl driver for Renesas RZ/G2L platforms.
 
 config PINCTRL_PFC_R8A77470
 	bool "pin control support for RZ/G1C" if COMPILE_TEST

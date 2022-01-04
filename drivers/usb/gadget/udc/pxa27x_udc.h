@@ -440,7 +440,6 @@ struct udc_stats {
  * @last_interface: UDC interface of the last SET_INTERFACE host request
  * @last_alternate: UDC altsetting of the last SET_INTERFACE host request
  * @udccsr0: save of udccsr0 in case of suspend
- * @debugfs_root: root entry of debug filesystem
  * @debugfs_state: debugfs entry for "udcstate"
  * @debugfs_queues: debugfs entry for "queues"
  * @debugfs_eps: debugfs entry for "epstate"
@@ -473,9 +472,6 @@ struct pxa_udc {
 
 #ifdef CONFIG_PM
 	unsigned				udccsr0;
-#endif
-#ifdef CONFIG_USB_GADGET_DEBUG_FS
-	struct dentry				*debugfs_root;
 #endif
 };
 #define to_pxa(g)	(container_of((g), struct pxa_udc, gadget))

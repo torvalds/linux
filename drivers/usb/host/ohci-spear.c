@@ -84,7 +84,7 @@ static int spear_ohci_hcd_drv_probe(struct platform_device *pdev)
 
 	clk_prepare_enable(sohci_p->clk);
 
-	retval = usb_add_hcd(hcd, platform_get_irq(pdev, 0), 0);
+	retval = usb_add_hcd(hcd, irq, 0);
 	if (retval == 0) {
 		device_wakeup_enable(hcd->self.controller);
 		return retval;

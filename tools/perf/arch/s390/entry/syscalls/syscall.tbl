@@ -122,7 +122,7 @@
 131  common	quotactl		sys_quotactl			sys_quotactl
 132  common	getpgid			sys_getpgid			sys_getpgid
 133  common	fchdir			sys_fchdir			sys_fchdir
-134  common	bdflush			sys_bdflush			sys_bdflush
+134  common	bdflush			-				-
 135  common	sysfs			sys_sysfs			sys_sysfs
 136  common	personality		sys_s390_personality		sys_s390_personality
 137  common	afs_syscall		-				-
@@ -445,3 +445,7 @@
 440  common	process_madvise		sys_process_madvise		sys_process_madvise
 441  common	epoll_pwait2		sys_epoll_pwait2		compat_sys_epoll_pwait2
 442  common	mount_setattr		sys_mount_setattr		sys_mount_setattr
+443  common	quotactl_fd		sys_quotactl_fd			sys_quotactl_fd
+444  common	landlock_create_ruleset	sys_landlock_create_ruleset	sys_landlock_create_ruleset
+445  common	landlock_add_rule	sys_landlock_add_rule		sys_landlock_add_rule
+446  common	landlock_restrict_self	sys_landlock_restrict_self	sys_landlock_restrict_self

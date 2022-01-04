@@ -172,9 +172,6 @@ static void dr_ste_replace(struct mlx5dr_ste *dst, struct mlx5dr_ste *src)
 		dst->next_htbl->pointing_ste = dst;
 
 	dst->refcount = src->refcount;
-
-	INIT_LIST_HEAD(&dst->rule_list);
-	list_splice_tail_init(&src->rule_list, &dst->rule_list);
 }
 
 /* Free ste which is the head and the only one in miss_list */
@@ -233,11 +230,11 @@ dr_ste_replace_head_ste(struct mlx5dr_matcher_rx_tx *nic_matcher,
 	/* Remove from the miss_list the next_ste before copy */
 	list_del_init(&next_ste->miss_list_node);
 
-	/* All rule-members that use next_ste should know about that */
-	mlx5dr_rule_update_rule_member(next_ste, ste);
-
 	/* Move data from next into ste */
 	dr_ste_replace(ste, next_ste);
+
+	/* Update the rule on STE change */
+	mlx5dr_rule_set_last_member(next_ste->rule_rx_tx, ste, false);
 
 	/* Copy all 64 hw_ste bytes */
 	memcpy(hw_ste, ste->hw_ste, DR_STE_SIZE_REDUCED);
@@ -382,14 +379,15 @@ void mlx5dr_ste_prepare_for_postsend(struct mlx5dr_ste_ctx *ste_ctx,
 /* Init one ste as a pattern for ste data array */
 void mlx5dr_ste_set_formatted_ste(struct mlx5dr_ste_ctx *ste_ctx,
 				  u16 gvmi,
-				  struct mlx5dr_domain_rx_tx *nic_dmn,
+				  enum mlx5dr_domain_nic_type nic_type,
 				  struct mlx5dr_ste_htbl *htbl,
 				  u8 *formatted_ste,
 				  struct mlx5dr_htbl_connect_info *connect_info)
 {
+	bool is_rx = nic_type == DR_DOMAIN_NIC_TYPE_RX;
 	struct mlx5dr_ste ste = {};
 
-	ste_ctx->ste_init(formatted_ste, htbl->lu_type, nic_dmn->ste_type, gvmi);
+	ste_ctx->ste_init(formatted_ste, htbl->lu_type, is_rx, gvmi);
 	ste.hw_ste = formatted_ste;
 
 	if (connect_info->type == CONNECT_HIT)
@@ -408,7 +406,7 @@ int mlx5dr_ste_htbl_init_and_postsend(struct mlx5dr_domain *dmn,
 
 	mlx5dr_ste_set_formatted_ste(dmn->ste_ctx,
 				     dmn->info.caps.gvmi,
-				     nic_dmn,
+				     nic_dmn->type,
 				     htbl,
 				     formatted_ste,
 				     connect_info);
@@ -466,21 +464,6 @@ free_table:
 	return -ENOENT;
 }
 
-static void dr_ste_set_ctrl(struct mlx5dr_ste_htbl *htbl)
-{
-	struct mlx5dr_ste_htbl_ctrl *ctrl = &htbl->ctrl;
-	int num_of_entries;
-
-	htbl->ctrl.may_grow = true;
-
-	if (htbl->chunk_size == DR_CHUNK_SIZE_MAX - 1 || !htbl->byte_mask)
-		htbl->ctrl.may_grow = false;
-
-	/* Threshold is 50%, one is added to table of size 1 */
-	num_of_entries = mlx5dr_icm_pool_chunk_size_to_entries(htbl->chunk_size);
-	ctrl->increase_threshold = (num_of_entries + 1) / 2;
-}
-
 struct mlx5dr_ste_htbl *mlx5dr_ste_htbl_alloc(struct mlx5dr_icm_pool *pool,
 					      enum mlx5dr_icm_chunk_size chunk_size,
 					      u16 lu_type, u16 byte_mask)
@@ -513,11 +496,9 @@ struct mlx5dr_ste_htbl *mlx5dr_ste_htbl_alloc(struct mlx5dr_icm_pool *pool,
 		ste->refcount = 0;
 		INIT_LIST_HEAD(&ste->miss_list_node);
 		INIT_LIST_HEAD(&htbl->miss_list[i]);
-		INIT_LIST_HEAD(&ste->rule_list);
 	}
 
 	htbl->chunk_size = chunk_size;
-	dr_ste_set_ctrl(htbl);
 	return htbl;
 
 out_free_htbl:
@@ -649,6 +630,7 @@ int mlx5dr_ste_build_ste_arr(struct mlx5dr_matcher *matcher,
 			     u8 *ste_arr)
 {
 	struct mlx5dr_domain_rx_tx *nic_dmn = nic_matcher->nic_tbl->nic_dmn;
+	bool is_rx = nic_dmn->type == DR_DOMAIN_NIC_TYPE_RX;
 	struct mlx5dr_domain *dmn = matcher->tbl->dmn;
 	struct mlx5dr_ste_ctx *ste_ctx = dmn->ste_ctx;
 	struct mlx5dr_ste_build *sb;
@@ -663,7 +645,7 @@ int mlx5dr_ste_build_ste_arr(struct mlx5dr_matcher *matcher,
 	for (i = 0; i < nic_matcher->num_of_builders; i++) {
 		ste_ctx->ste_init(ste_arr,
 				  sb->lu_type,
-				  nic_dmn->ste_type,
+				  is_rx,
 				  dmn->info.caps.gvmi);
 
 		mlx5dr_ste_set_bit_mask(ste_arr, sb->bit_mask);
@@ -852,6 +834,35 @@ static void dr_ste_copy_mask_misc3(char *mask, struct mlx5dr_match_misc3 *spec)
 	spec->icmpv4_code = MLX5_GET(fte_match_set_misc3, mask, icmp_code);
 	spec->icmpv6_type = MLX5_GET(fte_match_set_misc3, mask, icmpv6_type);
 	spec->icmpv6_code = MLX5_GET(fte_match_set_misc3, mask, icmpv6_code);
+	spec->geneve_tlv_option_0_data =
+		MLX5_GET(fte_match_set_misc3, mask, geneve_tlv_option_0_data);
+	spec->gtpu_msg_flags = MLX5_GET(fte_match_set_misc3, mask, gtpu_msg_flags);
+	spec->gtpu_msg_type = MLX5_GET(fte_match_set_misc3, mask, gtpu_msg_type);
+	spec->gtpu_teid = MLX5_GET(fte_match_set_misc3, mask, gtpu_teid);
+	spec->gtpu_dw_0 = MLX5_GET(fte_match_set_misc3, mask, gtpu_dw_0);
+	spec->gtpu_dw_2 = MLX5_GET(fte_match_set_misc3, mask, gtpu_dw_2);
+	spec->gtpu_first_ext_dw_0 =
+		MLX5_GET(fte_match_set_misc3, mask, gtpu_first_ext_dw_0);
+}
+
+static void dr_ste_copy_mask_misc4(char *mask, struct mlx5dr_match_misc4 *spec)
+{
+	spec->prog_sample_field_id_0 =
+		MLX5_GET(fte_match_set_misc4, mask, prog_sample_field_id_0);
+	spec->prog_sample_field_value_0 =
+		MLX5_GET(fte_match_set_misc4, mask, prog_sample_field_value_0);
+	spec->prog_sample_field_id_1 =
+		MLX5_GET(fte_match_set_misc4, mask, prog_sample_field_id_1);
+	spec->prog_sample_field_value_1 =
+		MLX5_GET(fte_match_set_misc4, mask, prog_sample_field_value_1);
+	spec->prog_sample_field_id_2 =
+		MLX5_GET(fte_match_set_misc4, mask, prog_sample_field_id_2);
+	spec->prog_sample_field_value_2 =
+		MLX5_GET(fte_match_set_misc4, mask, prog_sample_field_value_2);
+	spec->prog_sample_field_id_3 =
+		MLX5_GET(fte_match_set_misc4, mask, prog_sample_field_id_3);
+	spec->prog_sample_field_value_3 =
+		MLX5_GET(fte_match_set_misc4, mask, prog_sample_field_value_3);
 }
 
 void mlx5dr_ste_copy_param(u8 match_criteria,
@@ -924,6 +935,20 @@ void mlx5dr_ste_copy_param(u8 match_criteria,
 			buff = data + param_location;
 		}
 		dr_ste_copy_mask_misc3(buff, &set_param->misc3);
+	}
+
+	param_location += sizeof(struct mlx5dr_match_misc3);
+
+	if (match_criteria & DR_MATCHER_CRITERIA_MISC4) {
+		if (mask->match_sz < param_location +
+		    sizeof(struct mlx5dr_match_misc4)) {
+			memcpy(tail_param, data + param_location,
+			       mask->match_sz - param_location);
+			buff = tail_param;
+		} else {
+			buff = data + param_location;
+		}
+		dr_ste_copy_mask_misc4(buff, &set_param->misc4);
 	}
 }
 
@@ -1051,26 +1076,40 @@ void mlx5dr_ste_build_tnl_gre(struct mlx5dr_ste_ctx *ste_ctx,
 	ste_ctx->build_tnl_gre_init(sb, mask);
 }
 
-void mlx5dr_ste_build_tnl_mpls(struct mlx5dr_ste_ctx *ste_ctx,
-			       struct mlx5dr_ste_build *sb,
-			       struct mlx5dr_match_param *mask,
-			       bool inner, bool rx)
-{
-	sb->rx = rx;
-	sb->inner = inner;
-	ste_ctx->build_tnl_mpls_init(sb, mask);
-}
-
-int mlx5dr_ste_build_icmp(struct mlx5dr_ste_ctx *ste_ctx,
-			  struct mlx5dr_ste_build *sb,
-			  struct mlx5dr_match_param *mask,
-			  struct mlx5dr_cmd_caps *caps,
-			  bool inner, bool rx)
+void mlx5dr_ste_build_tnl_mpls_over_gre(struct mlx5dr_ste_ctx *ste_ctx,
+					struct mlx5dr_ste_build *sb,
+					struct mlx5dr_match_param *mask,
+					struct mlx5dr_cmd_caps *caps,
+					bool inner, bool rx)
 {
 	sb->rx = rx;
 	sb->inner = inner;
 	sb->caps = caps;
-	return ste_ctx->build_icmp_init(sb, mask);
+	return ste_ctx->build_tnl_mpls_over_gre_init(sb, mask);
+}
+
+void mlx5dr_ste_build_tnl_mpls_over_udp(struct mlx5dr_ste_ctx *ste_ctx,
+					struct mlx5dr_ste_build *sb,
+					struct mlx5dr_match_param *mask,
+					struct mlx5dr_cmd_caps *caps,
+					bool inner, bool rx)
+{
+	sb->rx = rx;
+	sb->inner = inner;
+	sb->caps = caps;
+	return ste_ctx->build_tnl_mpls_over_udp_init(sb, mask);
+}
+
+void mlx5dr_ste_build_icmp(struct mlx5dr_ste_ctx *ste_ctx,
+			   struct mlx5dr_ste_build *sb,
+			   struct mlx5dr_match_param *mask,
+			   struct mlx5dr_cmd_caps *caps,
+			   bool inner, bool rx)
+{
+	sb->rx = rx;
+	sb->inner = inner;
+	sb->caps = caps;
+	ste_ctx->build_icmp_init(sb, mask);
 }
 
 void mlx5dr_ste_build_general_purpose(struct mlx5dr_ste_ctx *ste_ctx,
@@ -1113,6 +1152,52 @@ void mlx5dr_ste_build_tnl_geneve(struct mlx5dr_ste_ctx *ste_ctx,
 	ste_ctx->build_tnl_geneve_init(sb, mask);
 }
 
+void mlx5dr_ste_build_tnl_geneve_tlv_opt(struct mlx5dr_ste_ctx *ste_ctx,
+					 struct mlx5dr_ste_build *sb,
+					 struct mlx5dr_match_param *mask,
+					 struct mlx5dr_cmd_caps *caps,
+					 bool inner, bool rx)
+{
+	sb->rx = rx;
+	sb->caps = caps;
+	sb->inner = inner;
+	ste_ctx->build_tnl_geneve_tlv_opt_init(sb, mask);
+}
+
+void mlx5dr_ste_build_tnl_gtpu(struct mlx5dr_ste_ctx *ste_ctx,
+			       struct mlx5dr_ste_build *sb,
+			       struct mlx5dr_match_param *mask,
+			       bool inner, bool rx)
+{
+	sb->rx = rx;
+	sb->inner = inner;
+	ste_ctx->build_tnl_gtpu_init(sb, mask);
+}
+
+void mlx5dr_ste_build_tnl_gtpu_flex_parser_0(struct mlx5dr_ste_ctx *ste_ctx,
+					     struct mlx5dr_ste_build *sb,
+					     struct mlx5dr_match_param *mask,
+					     struct mlx5dr_cmd_caps *caps,
+					     bool inner, bool rx)
+{
+	sb->rx = rx;
+	sb->caps = caps;
+	sb->inner = inner;
+	ste_ctx->build_tnl_gtpu_flex_parser_0_init(sb, mask);
+}
+
+void mlx5dr_ste_build_tnl_gtpu_flex_parser_1(struct mlx5dr_ste_ctx *ste_ctx,
+					     struct mlx5dr_ste_build *sb,
+					     struct mlx5dr_match_param *mask,
+					     struct mlx5dr_cmd_caps *caps,
+					     bool inner, bool rx)
+{
+	sb->rx = rx;
+	sb->caps = caps;
+	sb->inner = inner;
+	ste_ctx->build_tnl_gtpu_flex_parser_1_init(sb, mask);
+}
+
 void mlx5dr_ste_build_register_0(struct mlx5dr_ste_ctx *ste_ctx,
 				 struct mlx5dr_ste_build *sb,
 				 struct mlx5dr_match_param *mask,
@@ -1146,6 +1231,26 @@ void mlx5dr_ste_build_src_gvmi_qpn(struct mlx5dr_ste_ctx *ste_ctx,
 	sb->dmn = dmn;
 	sb->inner = inner;
 	ste_ctx->build_src_gvmi_qpn_init(sb, mask);
+}
+
+void mlx5dr_ste_build_flex_parser_0(struct mlx5dr_ste_ctx *ste_ctx,
+				    struct mlx5dr_ste_build *sb,
+				    struct mlx5dr_match_param *mask,
+				    bool inner, bool rx)
+{
+	sb->rx = rx;
+	sb->inner = inner;
+	ste_ctx->build_flex_parser_0_init(sb, mask);
+}
+
+void mlx5dr_ste_build_flex_parser_1(struct mlx5dr_ste_ctx *ste_ctx,
+				    struct mlx5dr_ste_build *sb,
+				    struct mlx5dr_match_param *mask,
+				    bool inner, bool rx)
+{
+	sb->rx = rx;
+	sb->inner = inner;
+	ste_ctx->build_flex_parser_1_init(sb, mask);
 }
 
 static struct mlx5dr_ste_ctx *mlx5dr_ste_ctx_arr[] = {

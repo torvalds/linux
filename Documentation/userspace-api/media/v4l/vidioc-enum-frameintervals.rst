@@ -99,8 +99,6 @@ application should zero out all members except for the *IN* fields.
 
 .. c:type:: v4l2_frmival_stepwise
 
-.. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
-
 .. flat-table:: struct v4l2_frmival_stepwise
     :header-rows:  0
     :stub-columns: 0
@@ -119,7 +117,7 @@ application should zero out all members except for the *IN* fields.
 
 .. c:type:: v4l2_frmivalenum
 
-.. tabularcolumns:: |p{1.8cm}|p{4.4cm}|p{2.4cm}|p{8.9cm}|
+.. tabularcolumns:: |p{4.9cm}|p{3.3cm}|p{9.1cm}|
 
 .. flat-table:: struct v4l2_frmivalenum
     :header-rows:  0
@@ -154,7 +152,6 @@ application should zero out all members except for the *IN* fields.
       -
     * - __u32
       - ``reserved[2]``
-      -
       - Reserved space for future use. Must be zeroed by drivers and
 	applications.
 
@@ -164,7 +161,7 @@ Enums
 
 .. c:type:: v4l2_frmivaltypes
 
-.. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
+.. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.5cm}|
 
 .. flat-table:: enum v4l2_frmivaltypes
     :header-rows:  0

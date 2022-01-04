@@ -14,6 +14,7 @@
 #include "ice_lan_tx_rx.h"
 #include "ice_flex_type.h"
 #include "ice_protocol_type.h"
+#include "ice_sbq_cmd.h"
 
 static inline bool ice_is_tc_ena(unsigned long bitmap, u8 tc)
 {
@@ -45,8 +46,10 @@ static inline u32 ice_round_to_num(u32 N, u32 R)
 #define ICE_DBG_FLOW		BIT_ULL(9)
 #define ICE_DBG_SW		BIT_ULL(13)
 #define ICE_DBG_SCHED		BIT_ULL(14)
+#define ICE_DBG_RDMA		BIT_ULL(15)
 #define ICE_DBG_PKG		BIT_ULL(16)
 #define ICE_DBG_RES		BIT_ULL(17)
+#define ICE_DBG_PTP		BIT_ULL(19)
 #define ICE_DBG_AQ_MSG		BIT_ULL(24)
 #define ICE_DBG_AQ_DESC		BIT_ULL(25)
 #define ICE_DBG_AQ_DESC_BUF	BIT_ULL(26)
@@ -63,7 +66,7 @@ enum ice_aq_res_ids {
 /* FW update timeout definitions are in milliseconds */
 #define ICE_NVM_TIMEOUT			180000
 #define ICE_CHANGE_LOCK_TIMEOUT		1000
-#define ICE_GLOBAL_CFG_LOCK_TIMEOUT	3000
+#define ICE_GLOBAL_CFG_LOCK_TIMEOUT	5000
 
 enum ice_aq_res_access_type {
 	ICE_RES_READ = 1,
@@ -146,6 +149,7 @@ struct ice_link_status {
 	u16 max_frame_size;
 	u16 link_speed;
 	u16 req_speeds;
+	u8 link_cfg_err;
 	u8 lse_ena;	/* Link Status Event notification */
 	u8 link_info;
 	u8 an_info;
@@ -192,6 +196,24 @@ enum ice_fltr_ptype {
 	ICE_FLTR_PTYPE_NONF_IPV4_TCP,
 	ICE_FLTR_PTYPE_NONF_IPV4_SCTP,
 	ICE_FLTR_PTYPE_NONF_IPV4_OTHER,
+	ICE_FLTR_PTYPE_NONF_IPV4_GTPU_IPV4_UDP,
+	ICE_FLTR_PTYPE_NONF_IPV4_GTPU_IPV4_TCP,
+	ICE_FLTR_PTYPE_NONF_IPV4_GTPU_IPV4_ICMP,
+	ICE_FLTR_PTYPE_NONF_IPV4_GTPU_IPV4_OTHER,
+	ICE_FLTR_PTYPE_NONF_IPV6_GTPU_IPV6_OTHER,
+	ICE_FLTR_PTYPE_NONF_IPV4_L2TPV3,
+	ICE_FLTR_PTYPE_NONF_IPV6_L2TPV3,
+	ICE_FLTR_PTYPE_NONF_IPV4_ESP,
+	ICE_FLTR_PTYPE_NONF_IPV6_ESP,
+	ICE_FLTR_PTYPE_NONF_IPV4_AH,
+	ICE_FLTR_PTYPE_NONF_IPV6_AH,
+	ICE_FLTR_PTYPE_NONF_IPV4_NAT_T_ESP,
+	ICE_FLTR_PTYPE_NONF_IPV6_NAT_T_ESP,
+	ICE_FLTR_PTYPE_NONF_IPV4_PFCP_NODE,
+	ICE_FLTR_PTYPE_NONF_IPV4_PFCP_SESSION,
+	ICE_FLTR_PTYPE_NONF_IPV6_PFCP_NODE,
+	ICE_FLTR_PTYPE_NONF_IPV6_PFCP_SESSION,
+	ICE_FLTR_PTYPE_NON_IP_L2,
 	ICE_FLTR_PTYPE_FRAG_IPV4,
 	ICE_FLTR_PTYPE_NONF_IPV6_UDP,
 	ICE_FLTR_PTYPE_NONF_IPV6_TCP,
@@ -244,6 +266,8 @@ struct ice_hw_common_caps {
 	u8 rss_table_entry_width;	/* RSS Entry width in bits */
 
 	u8 dcb;
+	u8 ieee_1588;
+	u8 rdma;
 
 	bool nvm_update_pending_nvm;
 	bool nvm_update_pending_orom;
@@ -255,6 +279,54 @@ struct ice_hw_common_caps {
 #define ICE_NVM_MGMT_UNIFIED_UPD_SUPPORT	BIT(3)
 };
 
+/* IEEE 1588 TIME_SYNC specific info */
+/* Function specific definitions */
+#define ICE_TS_FUNC_ENA_M		BIT(0)
+#define ICE_TS_SRC_TMR_OWND_M		BIT(1)
+#define ICE_TS_TMR_ENA_M		BIT(2)
+#define ICE_TS_TMR_IDX_OWND_S		4
+#define ICE_TS_TMR_IDX_OWND_M		BIT(4)
+#define ICE_TS_CLK_FREQ_S		16
+#define ICE_TS_CLK_FREQ_M		ICE_M(0x7, ICE_TS_CLK_FREQ_S)
+#define ICE_TS_CLK_SRC_S		20
+#define ICE_TS_CLK_SRC_M		BIT(20)
+#define ICE_TS_TMR_IDX_ASSOC_S		24
+#define ICE_TS_TMR_IDX_ASSOC_M		BIT(24)
+
+struct ice_ts_func_info {
+	/* Function specific info */
+	u32 clk_freq;
+	u8 clk_src;
+	u8 tmr_index_assoc;
+	u8 ena;
+	u8 tmr_index_owned;
+	u8 src_tmr_owned;
+	u8 tmr_ena;
+};
+
+/* Device specific definitions */
+#define ICE_TS_TMR0_OWNR_M		0x7
+#define ICE_TS_TMR0_OWND_M		BIT(3)
+#define ICE_TS_TMR1_OWNR_S		4
+#define ICE_TS_TMR1_OWNR_M		ICE_M(0x7, ICE_TS_TMR1_OWNR_S)
+#define ICE_TS_TMR1_OWND_M		BIT(7)
+#define ICE_TS_DEV_ENA_M		BIT(24)
+#define ICE_TS_TMR0_ENA_M		BIT(25)
+#define ICE_TS_TMR1_ENA_M		BIT(26)
+
+struct ice_ts_dev_info {
+	/* Device specific info */
+	u32 ena_ports;
+	u32 tmr_own_map;
+	u32 tmr0_owner;
+	u32 tmr1_owner;
+	u8 tmr0_owned;
+	u8 tmr1_owned;
+	u8 ena;
+	u8 tmr0_ena;
+	u8 tmr1_ena;
+};
+
 /* Function specific capabilities */
 struct ice_hw_func_caps {
 	struct ice_hw_common_caps common_cap;
@@ -263,6 +335,7 @@ struct ice_hw_func_caps {
 	u32 guar_num_vsi;
 	u32 fd_fltr_guar;		/* Number of filters guaranteed */
 	u32 fd_fltr_best_effort;	/* Number of best effort filters */
+	struct ice_ts_func_info ts_func_info;
 };
 
 /* Device wide capabilities */
@@ -271,6 +344,7 @@ struct ice_hw_dev_caps {
 	u32 num_vfs_exposed;		/* Total number of VFs exposed */
 	u32 num_vsi_allocd_to_host;	/* Excluding EMP VSI */
 	u32 num_flow_director_fltr;	/* Number of FD filters available */
+	struct ice_ts_dev_info ts_dev_info;
 	u32 num_funcs;
 };
 
@@ -422,6 +496,7 @@ struct ice_sched_node {
 	u8 tc_num;
 	u8 owner;
 #define ICE_SCHED_NODE_OWNER_LAN	0
+#define ICE_SCHED_NODE_OWNER_RDMA	2
 };
 
 /* Access Macros for Tx Sched Elements data */
@@ -493,6 +568,7 @@ struct ice_sched_vsi_info {
 	struct ice_sched_node *ag_node[ICE_MAX_TRAFFIC_CLASS];
 	struct list_head list_entry;
 	u16 max_lanq[ICE_MAX_TRAFFIC_CLASS];
+	u16 max_rdmaq[ICE_MAX_TRAFFIC_CLASS];
 };
 
 /* driver defines the policy */
@@ -533,10 +609,7 @@ struct ice_dcb_app_priority_table {
 #define ICE_TLV_STATUS_OPER	0x1
 #define ICE_TLV_STATUS_SYNC	0x2
 #define ICE_TLV_STATUS_ERR	0x4
-#define ICE_APP_PROT_ID_FCOE	0x8906
-#define ICE_APP_PROT_ID_ISCSI	0x0cbc
 #define ICE_APP_PROT_ID_ISCSI_860 0x035c
-#define ICE_APP_PROT_ID_FIP	0x8914
 #define ICE_APP_SEL_ETHTYPE	0x1
 #define ICE_APP_SEL_TCPIP	0x2
 #define ICE_CEE_APP_SEL_ETHTYPE	0x0
@@ -615,6 +688,80 @@ struct ice_fw_log_cfg {
 	struct ice_fw_log_evnt evnts[ICE_AQC_FW_LOG_ID_MAX];
 };
 
+/* Enum defining the different states of the mailbox snapshot in the
+ * PF-VF mailbox overflow detection algorithm. The snapshot can be in
+ * states:
+ * 1. ICE_MAL_VF_DETECT_STATE_NEW_SNAPSHOT - generate a new static snapshot
+ * within the mailbox buffer.
+ * 2. ICE_MAL_VF_DETECT_STATE_TRAVERSE - iterate through the mailbox snaphot
+ * 3. ICE_MAL_VF_DETECT_STATE_DETECT - track the messages sent per VF via the
+ * mailbox and mark any VFs sending more messages than the threshold limit set.
+ * 4. ICE_MAL_VF_DETECT_STATE_INVALID - Invalid mailbox state set to 0xFFFFFFFF.
+ */
+enum ice_mbx_snapshot_state {
+	ICE_MAL_VF_DETECT_STATE_NEW_SNAPSHOT = 0,
+	ICE_MAL_VF_DETECT_STATE_TRAVERSE,
+	ICE_MAL_VF_DETECT_STATE_DETECT,
+	ICE_MAL_VF_DETECT_STATE_INVALID = 0xFFFFFFFF,
+};
+
+/* Structure to hold information of the static snapshot and the mailbox
+ * buffer data used to generate and track the snapshot.
+ * 1. state: the state of the mailbox snapshot in the malicious VF
+ * detection state handler ice_mbx_vf_state_handler()
+ * 2. head: head of the mailbox snapshot in a circular mailbox buffer
+ * 3. tail: tail of the mailbox snapshot in a circular mailbox buffer
+ * 4. num_iterations: number of messages traversed in circular mailbox buffer
+ * 5. num_msg_proc: number of messages processed in mailbox
+ * 6. num_pending_arq: number of pending asynchronous messages
+ * 7. max_num_msgs_mbx: maximum messages in mailbox for currently
+ * serviced work item or interrupt.
+ */
+struct ice_mbx_snap_buffer_data {
+	enum ice_mbx_snapshot_state state;
+	u32 head;
+	u32 tail;
+	u32 num_iterations;
+	u16 num_msg_proc;
+	u16 num_pending_arq;
+	u16 max_num_msgs_mbx;
+};
+
+/* Structure to track messages sent by VFs on mailbox:
+ * 1. vf_cntr: a counter array of VFs to track the number of
+ * asynchronous messages sent by each VF
+ * 2. vfcntr_len: number of entries in VF counter array
+ */
+struct ice_mbx_vf_counter {
+	u32 *vf_cntr;
+	u32 vfcntr_len;
+};
+
+/* Structure to hold data relevant to the captured static snapshot
+ * of the PF-VF mailbox.
+ */
+struct ice_mbx_snapshot {
+	struct ice_mbx_snap_buffer_data mbx_buf;
+	struct ice_mbx_vf_counter mbx_vf;
+};
+
+/* Structure to hold data to be used for capturing or updating a
+ * static snapshot.
+ * 1. num_msg_proc: number of messages processed in mailbox
+ * 2. num_pending_arq: number of pending asynchronous messages
+ * 3. max_num_msgs_mbx: maximum messages in mailbox for currently
+ * serviced work item or interrupt.
+ * 4. async_watermark_val: An upper threshold set by caller to determine
+ * if the pending arq count is large enough to assume that there is
+ * the possibility of a mailicious VF.
+ */
+struct ice_mbx_data {
+	u16 num_msg_proc;
+	u16 num_pending_arq;
+	u16 max_num_msgs_mbx;
+	u16 async_watermark_val;
+};
+
 /* Port hardware description */
 struct ice_hw {
 	u8 __iomem *hw_addr;
@@ -660,6 +807,7 @@ struct ice_hw {
 
 	/* Control Queue info */
 	struct ice_ctl_q_info adminq;
+	struct ice_ctl_q_info sbq;
 	struct ice_ctl_q_info mailboxq;
 
 	u8 api_branch;		/* API branch version */
@@ -695,6 +843,14 @@ struct ice_hw {
 
 	u8 ucast_shared;	/* true if VSIs can share unicast addr */
 
+#define ICE_PHY_PER_NAC		1
+#define ICE_MAX_QUAD		2
+#define ICE_NUM_QUAD_TYPE	2
+#define ICE_PORTS_PER_QUAD	4
+#define ICE_PHY_0_LAST_QUAD	1
+#define ICE_PORTS_PER_PHY	8
+#define ICE_NUM_EXTERNAL_PORTS		ICE_PORTS_PER_PHY
+
 	/* Active package version (currently active) */
 	struct ice_pkg_ver active_pkg_ver;
 	u32 active_track_id;
@@ -703,13 +859,13 @@ struct ice_hw {
 
 	enum ice_aq_err pkg_dwnld_status;
 
-	/* Driver's package ver - (from the Metadata seg) */
+	/* Driver's package ver - (from the Ice Metadata section) */
 	struct ice_pkg_ver pkg_ver;
 	u8 pkg_name[ICE_PKG_NAME_SIZE];
 
-	/* Driver's Ice package version (from the Ice seg) */
-	struct ice_pkg_ver ice_pkg_ver;
-	u8 ice_pkg_name[ICE_PKG_NAME_SIZE];
+	/* Driver's Ice segment format version and ID (from the Ice seg) */
+	struct ice_pkg_ver ice_seg_fmt_ver;
+	u8 ice_seg_id[ICE_SEG_ID_SIZE];
 
 	/* Pointer to the ice segment */
 	struct ice_seg *seg;
@@ -746,6 +902,7 @@ struct ice_hw {
 	DECLARE_BITMAP(fdir_perfect_fltr, ICE_FLTR_PTYPE_MAX);
 	struct mutex rss_locks;	/* protect RSS configuration */
 	struct list_head rss_list_head;
+	struct ice_mbx_snapshot mbx_snapshot;
 };
 
 /* Statistics collected by each port, VSI, VEB, and S-channel */
@@ -808,6 +965,14 @@ struct ice_hw_port_stats {
 	/* flow director stats */
 	u32 fd_sb_status;
 	u64 fd_sb_match;
+};
+
+struct ice_aq_get_set_rss_lut_params {
+	u16 vsi_handle;		/* software VSI handle */
+	u16 lut_size;		/* size of the LUT buffer */
+	u8 lut_type;		/* type of the LUT (i.e. VSI, PF, Global) */
+	u8 *lut;		/* input RSS LUT for set and output RSS LUT for get */
+	u8 global_lut_id;	/* only valid when lut_type is global */
 };
 
 /* Checksum and Shadow RAM pointers */
@@ -915,5 +1080,10 @@ struct ice_hw_port_stats {
 #define ICE_FW_API_LLDP_FLTR_MAJ	1
 #define ICE_FW_API_LLDP_FLTR_MIN	7
 #define ICE_FW_API_LLDP_FLTR_PATCH	1
+
+/* AQ API version for report default configuration */
+#define ICE_FW_API_REPORT_DFLT_CFG_MAJ		1
+#define ICE_FW_API_REPORT_DFLT_CFG_MIN		7
+#define ICE_FW_API_REPORT_DFLT_CFG_PATCH	3
 
 #endif /* _ICE_TYPE_H_ */

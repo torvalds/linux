@@ -741,7 +741,6 @@ static int
 qed_dcbx_read_local_lldp_mib(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 {
 	struct qed_dcbx_mib_meta_data data;
-	int rc = 0;
 
 	memset(&data, 0, sizeof(data));
 	data.addr = p_hwfn->mcp_info->port_addr + offsetof(struct public_port,
@@ -750,7 +749,7 @@ qed_dcbx_read_local_lldp_mib(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 	data.size = sizeof(struct lldp_config_params_s);
 	qed_memcpy_from(p_hwfn, p_ptt, data.lldp_local, data.addr, data.size);
 
-	return rc;
+	return 0;
 }
 
 static int
@@ -810,7 +809,6 @@ static int
 qed_dcbx_read_local_mib(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 {
 	struct qed_dcbx_mib_meta_data data;
-	int rc = 0;
 
 	memset(&data, 0, sizeof(data));
 	data.addr = p_hwfn->mcp_info->port_addr +
@@ -819,7 +817,7 @@ qed_dcbx_read_local_mib(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 	data.size = sizeof(struct dcbx_local_params);
 	qed_memcpy_from(p_hwfn, p_ptt, data.local_admin, data.addr, data.size);
 
-	return rc;
+	return 0;
 }
 
 static int qed_dcbx_read_mib(struct qed_hwfn *p_hwfn,
@@ -1266,9 +1264,11 @@ int qed_dcbx_get_config_params(struct qed_hwfn *p_hwfn,
 		p_hwfn->p_dcbx_info->set.ver_num |= DCBX_CONFIG_VERSION_STATIC;
 
 	p_hwfn->p_dcbx_info->set.enabled = dcbx_info->operational.enabled;
+	BUILD_BUG_ON(sizeof(dcbx_info->operational.params) !=
+		     sizeof(p_hwfn->p_dcbx_info->set.config.params));
 	memcpy(&p_hwfn->p_dcbx_info->set.config.params,
 	       &dcbx_info->operational.params,
-	       sizeof(struct qed_dcbx_admin_params));
+	       sizeof(p_hwfn->p_dcbx_info->set.config.params));
 	p_hwfn->p_dcbx_info->set.config.valid = true;
 
 	memcpy(params, &p_hwfn->p_dcbx_info->set, sizeof(struct qed_dcbx_set));

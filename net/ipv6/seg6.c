@@ -122,9 +122,6 @@ static int seg6_genl_sethmac(struct sk_buff *skb, struct genl_info *info)
 	hinfo = seg6_hmac_info_lookup(net, hmackeyid);
 
 	if (!slen) {
-		if (!hinfo)
-			err = -ENOENT;
-
 		err = seg6_hmac_info_del(net, hmackeyid);
 
 		goto out_unlock;

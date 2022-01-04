@@ -72,12 +72,12 @@ static void dpaa2_eth_get_drvinfo(struct net_device *net_dev,
 {
 	struct dpaa2_eth_priv *priv = netdev_priv(net_dev);
 
-	strlcpy(drvinfo->driver, KBUILD_MODNAME, sizeof(drvinfo->driver));
+	strscpy(drvinfo->driver, KBUILD_MODNAME, sizeof(drvinfo->driver));
 
 	snprintf(drvinfo->fw_version, sizeof(drvinfo->fw_version),
 		 "%u.%u", priv->dpni_ver_major, priv->dpni_ver_minor);
 
-	strlcpy(drvinfo->bus_info, dev_name(net_dev->dev.parent->parent),
+	strscpy(drvinfo->bus_info, dev_name(net_dev->dev.parent->parent),
 		sizeof(drvinfo->bus_info));
 }
 
@@ -191,11 +191,11 @@ static void dpaa2_eth_get_strings(struct net_device *netdev, u32 stringset,
 	switch (stringset) {
 	case ETH_SS_STATS:
 		for (i = 0; i < DPAA2_ETH_NUM_STATS; i++) {
-			strlcpy(p, dpaa2_ethtool_stats[i], ETH_GSTRING_LEN);
+			strscpy(p, dpaa2_ethtool_stats[i], ETH_GSTRING_LEN);
 			p += ETH_GSTRING_LEN;
 		}
 		for (i = 0; i < DPAA2_ETH_NUM_EXTRA_STATS; i++) {
-			strlcpy(p, dpaa2_ethtool_extras[i], ETH_GSTRING_LEN);
+			strscpy(p, dpaa2_ethtool_extras[i], ETH_GSTRING_LEN);
 			p += ETH_GSTRING_LEN;
 		}
 		if (dpaa2_eth_has_mac(priv))
@@ -782,6 +782,44 @@ static int dpaa2_eth_get_ts_info(struct net_device *dev,
 	return 0;
 }
 
+static int dpaa2_eth_get_tunable(struct net_device *net_dev,
+				 const struct ethtool_tunable *tuna,
+				 void *data)
+{
+	struct dpaa2_eth_priv *priv = netdev_priv(net_dev);
+	int err = 0;
+
+	switch (tuna->id) {
+	case ETHTOOL_RX_COPYBREAK:
+		*(u32 *)data = priv->rx_copybreak;
+		break;
+	default:
+		err = -EOPNOTSUPP;
+		break;
+	}
+
+	return err;
+}
+
+static int dpaa2_eth_set_tunable(struct net_device *net_dev,
+				 const struct ethtool_tunable *tuna,
+				 const void *data)
+{
+	struct dpaa2_eth_priv *priv = netdev_priv(net_dev);
+	int err = 0;
+
+	switch (tuna->id) {
+	case ETHTOOL_RX_COPYBREAK:
+		priv->rx_copybreak = *(u32 *)data;
+		break;
+	default:
+		err = -EOPNOTSUPP;
+		break;
+	}
+
+	return err;
+}
+
 const struct ethtool_ops dpaa2_ethtool_ops = {
 	.get_drvinfo = dpaa2_eth_get_drvinfo,
 	.nway_reset = dpaa2_eth_nway_reset,
@@ -796,4 +834,6 @@ const struct ethtool_ops dpaa2_ethtool_ops = {
 	.get_rxnfc = dpaa2_eth_get_rxnfc,
 	.set_rxnfc = dpaa2_eth_set_rxnfc,
 	.get_ts_info = dpaa2_eth_get_ts_info,
+	.get_tunable = dpaa2_eth_get_tunable,
+	.set_tunable = dpaa2_eth_set_tunable,
 };

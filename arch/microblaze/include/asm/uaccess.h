@@ -35,6 +35,7 @@
 
 # define get_fs()	(current_thread_info()->addr_limit)
 # define set_fs(val)	(current_thread_info()->addr_limit = (val))
+# define user_addr_max() get_fs().seg
 
 # define uaccess_kernel()	(get_fs().seg == KERNEL_DS.seg)
 
@@ -296,28 +297,14 @@ raw_copy_to_user(void __user *to, const void *from, unsigned long n)
 /*
  * Copy a null terminated string from userspace.
  */
-extern int __strncpy_user(char *to, const char __user *from, int len);
-
-static inline long
-strncpy_from_user(char *dst, const char __user *src, long count)
-{
-	if (!access_ok(src, 1))
-		return -EFAULT;
-	return __strncpy_user(dst, src, count);
-}
+__must_check long strncpy_from_user(char *dst, const char __user *src,
+				    long count);
 
 /*
  * Return the size of a string (including the ending 0)
  *
  * Return 0 on exception, a value greater than N if too long
  */
-extern int __strnlen_user(const char __user *sstr, int len);
-
-static inline long strnlen_user(const char __user *src, long n)
-{
-	if (!access_ok(src, 1))
-		return 0;
-	return __strnlen_user(src, n);
-}
+__must_check long strnlen_user(const char __user *sstr, long len);
 
 #endif /* _ASM_MICROBLAZE_UACCESS_H */

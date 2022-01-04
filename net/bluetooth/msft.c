@@ -34,12 +34,12 @@ struct msft_le_monitor_advertisement_pattern {
 	__u8 length;
 	__u8 data_type;
 	__u8 start_byte;
-	__u8 pattern[0];
+	__u8 pattern[];
 };
 
 struct msft_le_monitor_advertisement_pattern_data {
 	__u8 count;
-	__u8 data[0];
+	__u8 data[];
 };
 
 struct msft_cp_le_monitor_advertisement {
@@ -49,7 +49,7 @@ struct msft_cp_le_monitor_advertisement {
 	__u8 rssi_low_interval;
 	__u8 rssi_sampling_period;
 	__u8 cond_type;
-	__u8 data[0];
+	__u8 data[];
 } __packed;
 
 struct msft_rp_le_monitor_advertisement {
@@ -141,6 +141,9 @@ static bool read_supported_features(struct hci_dev *hdev,
 
 	msft->evt_prefix_len = rp->evt_prefix_len;
 	msft->features = __le64_to_cpu(rp->features);
+
+	if (msft->features & MSFT_FEATURE_MASK_CURVE_VALIDITY)
+		hdev->msft_curve_validity = true;
 
 	kfree_skb(skb);
 	return true;
@@ -308,7 +311,7 @@ static void msft_le_monitor_advertisement_cb(struct hci_dev *hdev,
 
 	monitor = idr_find(&hdev->adv_monitors_idr, msft->pending_add_handle);
 	if (!monitor) {
-		bt_dev_err(hdev, "msft add advmon: monitor %d is not found!",
+		bt_dev_err(hdev, "msft add advmon: monitor %u is not found!",
 			   msft->pending_add_handle);
 		status = HCI_ERROR_UNSPECIFIED;
 		goto unlock;
@@ -604,4 +607,9 @@ int msft_set_filter_enable(struct hci_dev *hdev, bool enable)
 	err = hci_req_run_skb(&req, msft_le_set_advertisement_filter_enable_cb);
 
 	return err;
+}
+
+bool msft_curve_validity(struct hci_dev *hdev)
+{
+	return hdev->msft_curve_validity;
 }

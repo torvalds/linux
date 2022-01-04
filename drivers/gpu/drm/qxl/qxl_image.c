@@ -186,7 +186,7 @@ qxl_image_init_helper(struct qxl_device *qdev,
 			}
 		}
 	}
-	qxl_bo_kunmap(chunk_bo);
+	qxl_bo_vunmap_locked(chunk_bo);
 
 	image_bo = dimage->bo;
 	ptr = qxl_bo_kmap_atomic_page(qdev, image_bo, 0);

@@ -110,7 +110,7 @@ static void brcmstb_l2_intc_irq_handle(struct irq_desc *desc)
 	do {
 		irq = ffs(status) - 1;
 		status &= ~(1 << irq);
-		generic_handle_irq(irq_linear_revmap(b->domain, irq));
+		generic_handle_domain_irq(b->domain, irq);
 	} while (status);
 out:
 	chained_irq_exit(chip, desc);

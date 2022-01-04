@@ -53,7 +53,7 @@ MODULE_LICENSE("Dual BSD/GPL");
 
 #define QEDR_WQ_MULTIPLIER_DFT	(3)
 
-static void qedr_ib_dispatch_event(struct qedr_dev *dev, u8 port_num,
+static void qedr_ib_dispatch_event(struct qedr_dev *dev, u32 port_num,
 				   enum ib_event_type type)
 {
 	struct ib_event ibev;
@@ -66,7 +66,7 @@ static void qedr_ib_dispatch_event(struct qedr_dev *dev, u8 port_num,
 }
 
 static enum rdma_link_layer qedr_link_layer(struct ib_device *device,
-					    u8 port_num)
+					    u32 port_num)
 {
 	return IB_LINK_LAYER_ETHERNET;
 }
@@ -81,7 +81,7 @@ static void qedr_get_dev_fw_str(struct ib_device *ibdev, char *str)
 		 (fw_ver >> 8) & 0xFF, fw_ver & 0xFF);
 }
 
-static int qedr_roce_port_immutable(struct ib_device *ibdev, u8 port_num,
+static int qedr_roce_port_immutable(struct ib_device *ibdev, u32 port_num,
 				    struct ib_port_immutable *immutable)
 {
 	struct ib_port_attr attr;
@@ -100,7 +100,7 @@ static int qedr_roce_port_immutable(struct ib_device *ibdev, u8 port_num,
 	return 0;
 }
 
-static int qedr_iw_port_immutable(struct ib_device *ibdev, u8 port_num,
+static int qedr_iw_port_immutable(struct ib_device *ibdev, u32 port_num,
 				  struct ib_port_immutable *immutable)
 {
 	struct ib_port_attr attr;
@@ -208,6 +208,7 @@ static const struct ib_device_ops qedr_dev_ops = {
 	.destroy_cq = qedr_destroy_cq,
 	.destroy_qp = qedr_destroy_qp,
 	.destroy_srq = qedr_destroy_srq,
+	.device_group = &qedr_attr_group,
 	.get_dev_fw_str = qedr_get_dev_fw_str,
 	.get_dma_mr = qedr_get_dma_mr,
 	.get_link_layer = qedr_link_layer,
@@ -232,6 +233,7 @@ static const struct ib_device_ops qedr_dev_ops = {
 	INIT_RDMA_OBJ_SIZE(ib_ah, qedr_ah, ibah),
 	INIT_RDMA_OBJ_SIZE(ib_cq, qedr_cq, ibcq),
 	INIT_RDMA_OBJ_SIZE(ib_pd, qedr_pd, ibpd),
+	INIT_RDMA_OBJ_SIZE(ib_qp, qedr_qp, ibqp),
 	INIT_RDMA_OBJ_SIZE(ib_srq, qedr_srq, ibsrq),
 	INIT_RDMA_OBJ_SIZE(ib_xrcd, qedr_xrcd, ibxrcd),
 	INIT_RDMA_OBJ_SIZE(ib_ucontext, qedr_ucontext, ibucontext),
@@ -256,7 +258,6 @@ static int qedr_register_device(struct qedr_dev *dev)
 	dev->ibdev.num_comp_vectors = dev->num_cnq;
 	dev->ibdev.dev.parent = &dev->pdev->dev;
 
-	rdma_set_device_sysfs_group(&dev->ibdev, &qedr_attr_group);
 	ib_set_device_ops(&dev->ibdev, &qedr_dev_ops);
 
 	rc = ib_device_set_netdev(&dev->ibdev, dev->ndev, 1);

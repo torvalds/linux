@@ -160,11 +160,11 @@ static const struct spi_device_id ks8995_id[] = {
 MODULE_DEVICE_TABLE(spi, ks8995_id);
 
 static const struct of_device_id ks8895_spi_of_match[] = {
-        { .compatible = "micrel,ks8995" },
-        { .compatible = "micrel,ksz8864" },
-        { .compatible = "micrel,ksz8795" },
-        { },
- };
+	{ .compatible = "micrel,ks8995" },
+	{ .compatible = "micrel,ksz8864" },
+	{ .compatible = "micrel,ksz8795" },
+	{ },
+};
 MODULE_DEVICE_TABLE(of, ks8895_spi_of_match);
 
 static inline u8 get_chip_id(u8 val)

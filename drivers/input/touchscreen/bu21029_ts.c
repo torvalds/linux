@@ -401,10 +401,10 @@ static int bu21029_probe(struct i2c_client *client,
 
 	input_set_drvdata(in_dev, bu21029);
 
-	irq_set_status_flags(client->irq, IRQ_NOAUTOEN);
 	error = devm_request_threaded_irq(&client->dev, client->irq,
 					  NULL, bu21029_touch_soft_irq,
-					  IRQF_ONESHOT, DRIVER_NAME, bu21029);
+					  IRQF_ONESHOT | IRQF_NO_AUTOEN,
+					  DRIVER_NAME, bu21029);
 	if (error) {
 		dev_err(&client->dev,
 			"unable to request touch irq: %d\n", error);

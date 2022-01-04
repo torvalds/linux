@@ -184,9 +184,6 @@ struct fotg210_hcd {			/* one per controller */
 
 	/* silicon clock */
 	struct clk		*pclk;
-
-	/* debug files */
-	struct dentry		*debug_dir;
 };
 
 /* convert between an HCD pointer and the corresponding FOTG210_HCD */
@@ -686,11 +683,6 @@ static inline unsigned fotg210_read_frame_index(struct fotg210_hcd *fotg210)
 	return fotg210_readl(fotg210, &fotg210->regs->frame_index);
 }
 
-#define fotg210_itdlen(urb, desc, t) ({			\
-	usb_pipein((urb)->pipe) ?				\
-	(desc)->length - FOTG210_ITD_LENGTH(t) :			\
-	FOTG210_ITD_LENGTH(t);					\
-})
 /*-------------------------------------------------------------------------*/
 
 #endif /* __LINUX_FOTG210_H */

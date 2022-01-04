@@ -87,10 +87,11 @@ native SSAM devices, i.e. devices that are not defined in ACPI and not
 implemented as platform devices, via |ssam_device| and |ssam_device_driver|
 simplify management of client devices and client drivers.
 
-Refer to :doc:`client` for documentation regarding the client device/driver
-API and interface options for other kernel drivers. It is recommended to
-familiarize oneself with that chapter and the :doc:`ssh` before continuing
-with the architectural overview below.
+Refer to Documentation/driver-api/surface_aggregator/client.rst for
+documentation regarding the client device/driver API and interface options
+for other kernel drivers. It is recommended to familiarize oneself with
+that chapter and the Documentation/driver-api/surface_aggregator/ssh.rst
+before continuing with the architectural overview below.
 
 
 Packet Transport Layer
@@ -190,9 +191,9 @@ with success on the transmitter thread.
 
 Transmission of sequenced packets is limited by the number of concurrently
 pending packets, i.e. a limit on how many packets may be waiting for an ACK
-from the EC in parallel. This limit is currently set to one (see :doc:`ssh`
-for the reasoning behind this). Control packets (i.e. ACK and NAK) can
-always be transmitted.
+from the EC in parallel. This limit is currently set to one (see
+Documentation/driver-api/surface_aggregator/ssh.rst for the reasoning behind
+this). Control packets (i.e. ACK and NAK) can always be transmitted.
 
 Receiver Thread
 ---------------

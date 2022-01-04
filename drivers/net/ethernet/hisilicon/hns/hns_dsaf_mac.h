@@ -364,12 +364,8 @@ struct mac_driver {
 	void (*config_max_frame_length)(void *mac_drv, u16 newval);
 	/*config PAD and CRC enable */
 	void (*config_pad_and_crc)(void *mac_drv, u8 newval);
-	/* config duplex mode*/
-	void (*config_half_duplex)(void *mac_drv, u8 newval);
 	/*config tx pause time,if pause_time is zero,disable tx pause enable*/
 	void (*set_tx_auto_pause_frames)(void *mac_drv, u16 pause_time);
-	/*config rx pause enable*/
-	void (*set_rx_ignore_pause_frames)(void *mac_drv, u32 enable);
 	/* config rx mode for promiscuous*/
 	void (*set_promiscuous)(void *mac_drv, u8 enable);
 	void (*mac_pausefrm_cfg)(void *mac_drv, u32 rx_en, u32 tx_en);

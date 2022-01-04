@@ -455,7 +455,7 @@ static void setup_pci_atmu(struct pci_controller *hose)
 	}
 }
 
-static void __init setup_pci_cmd(struct pci_controller *hose)
+static void setup_pci_cmd(struct pci_controller *hose)
 {
 	u16 cmd;
 	int cap_x;
@@ -1072,7 +1072,7 @@ int fsl_pci_mcheck_exception(struct pt_regs *regs)
 			ret = get_kernel_nofault(inst, (void *)regs->nip);
 
 		if (!ret && mcheck_handle_load(regs, inst)) {
-			regs->nip += 4;
+			regs_add_return_ip(regs, 4);
 			return 1;
 		}
 	}

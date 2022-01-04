@@ -41,19 +41,18 @@
 #include "name_table.h"
 #include "crypto.h"
 
+#define BUF_ALIGN(x) ALIGN(x, 4)
 #define MAX_FORWARD_SIZE 1024
 #ifdef CONFIG_TIPC_CRYPTO
 #define BUF_HEADROOM ALIGN(((LL_MAX_HEADER + 48) + EHDR_MAX_SIZE), 16)
-#define BUF_TAILROOM (TIPC_AES_GCM_TAG_SIZE)
+#define BUF_OVERHEAD (BUF_HEADROOM + TIPC_AES_GCM_TAG_SIZE)
 #else
 #define BUF_HEADROOM (LL_MAX_HEADER + 48)
-#define BUF_TAILROOM 16
+#define BUF_OVERHEAD BUF_HEADROOM
 #endif
 
-static unsigned int align(unsigned int i)
-{
-	return (i + 3) & ~3u;
-}
+const int one_page_mtu = PAGE_SIZE - SKB_DATA_ALIGN(BUF_OVERHEAD) -
+			 SKB_DATA_ALIGN(sizeof(struct skb_shared_info));
 
 /**
  * tipc_buf_acquire - creates a TIPC message buffer
@@ -69,13 +68,8 @@ static unsigned int align(unsigned int i)
 struct sk_buff *tipc_buf_acquire(u32 size, gfp_t gfp)
 {
 	struct sk_buff *skb;
-#ifdef CONFIG_TIPC_CRYPTO
-	unsigned int buf_size = (BUF_HEADROOM + size + BUF_TAILROOM + 3) & ~3u;
-#else
-	unsigned int buf_size = (BUF_HEADROOM + size + 3) & ~3u;
-#endif
 
-	skb = alloc_skb_fclone(buf_size, gfp);
+	skb = alloc_skb_fclone(BUF_OVERHEAD + size, gfp);
 	if (skb) {
 		skb_reserve(skb, BUF_HEADROOM);
 		skb_put(skb, size);
@@ -149,18 +143,13 @@ int tipc_buf_append(struct sk_buff **headbuf, struct sk_buff **buf)
 		if (unlikely(head))
 			goto err;
 		*buf = NULL;
+		if (skb_has_frag_list(frag) && __skb_linearize(frag))
+			goto err;
 		frag = skb_unshare(frag, GFP_ATOMIC);
 		if (unlikely(!frag))
 			goto err;
 		head = *headbuf = frag;
 		TIPC_SKB_CB(head)->tail = NULL;
-		if (skb_is_nonlinear(head)) {
-			skb_walk_frags(head, tail) {
-				TIPC_SKB_CB(head)->tail = tail;
-			}
-		} else {
-			skb_frag_list_init(head);
-		}
 		return 0;
 	}
 
@@ -400,7 +389,8 @@ int tipc_msg_build(struct tipc_msg *mhdr, struct msghdr *m, int offset,
 		if (unlikely(!skb)) {
 			if (pktmax != MAX_MSG_SIZE)
 				return -ENOMEM;
-			rc = tipc_msg_build(mhdr, m, offset, dsz, FB_MTU, list);
+			rc = tipc_msg_build(mhdr, m, offset, dsz,
+					    one_page_mtu, list);
 			if (rc != dsz)
 				return rc;
 			if (tipc_msg_assemble(list))
@@ -495,7 +485,7 @@ static bool tipc_msg_bundle(struct sk_buff *bskb, struct tipc_msg *msg,
 
 	msz = msg_size(msg);
 	bsz = msg_size(bmsg);
-	offset = align(bsz);
+	offset = BUF_ALIGN(bsz);
 	pad = offset - bsz;
 
 	if (unlikely(skb_tailroom(bskb) < (pad + msz)))
@@ -552,7 +542,7 @@ bool tipc_msg_try_bundle(struct sk_buff *tskb, struct sk_buff **skb, u32 mss,
 
 	/* Make a new bundle of the two messages if possible */
 	tsz = msg_size(buf_msg(tskb));
-	if (unlikely(mss < align(INT_H_SIZE + tsz) + msg_size(msg)))
+	if (unlikely(mss < BUF_ALIGN(INT_H_SIZE + tsz) + msg_size(msg)))
 		return true;
 	if (unlikely(pskb_expand_head(tskb, INT_H_SIZE, mss - tsz - INT_H_SIZE,
 				      GFP_ATOMIC)))
@@ -611,7 +601,7 @@ bool tipc_msg_extract(struct sk_buff *skb, struct sk_buff **iskb, int *pos)
 	if (unlikely(!tipc_msg_validate(iskb)))
 		goto none;
 
-	*pos += align(imsz);
+	*pos += BUF_ALIGN(imsz);
 	return true;
 none:
 	kfree_skb(skb);
@@ -707,8 +697,11 @@ bool tipc_msg_skb_clone(struct sk_buff_head *msg, struct sk_buff_head *cpy)
 bool tipc_msg_lookup_dest(struct net *net, struct sk_buff *skb, int *err)
 {
 	struct tipc_msg *msg = buf_msg(skb);
-	u32 dport, dnode;
-	u32 onode = tipc_own_addr(net);
+	u32 scope = msg_lookup_scope(msg);
+	u32 self = tipc_own_addr(net);
+	u32 inst = msg_nameinst(msg);
+	struct tipc_socket_addr sk;
+	struct tipc_uaddr ua;
 
 	if (!msg_isdata(msg))
 		return false;
@@ -722,16 +715,16 @@ bool tipc_msg_lookup_dest(struct net *net, struct sk_buff *skb, int *err)
 	msg = buf_msg(skb);
 	if (msg_reroute_cnt(msg))
 		return false;
-	dnode = tipc_scope2node(net, msg_lookup_scope(msg));
-	dport = tipc_nametbl_translate(net, msg_nametype(msg),
-				       msg_nameinst(msg), &dnode);
-	if (!dport)
+	tipc_uaddr(&ua, TIPC_SERVICE_RANGE, scope,
+		   msg_nametype(msg), inst, inst);
+	sk.node = tipc_scope2node(net, scope);
+	if (!tipc_nametbl_lookup_anycast(net, &ua, &sk))
 		return false;
 	msg_incr_reroute_cnt(msg);
-	if (dnode != onode)
-		msg_set_prevnode(msg, onode);
-	msg_set_destnode(msg, dnode);
-	msg_set_destport(msg, dport);
+	if (sk.node != self)
+		msg_set_prevnode(msg, self);
+	msg_set_destnode(msg, sk.node);
+	msg_set_destport(msg, sk.ref);
 	*err = TIPC_OK;
 
 	return true;

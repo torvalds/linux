@@ -164,8 +164,8 @@ struct _vcs_dpi_soc_bounding_box_st dcn3_02_soc = {
 
 		.min_dcfclk = 500.0, /* TODO: set this to actual min DCFCLK */
 		.num_states = 1,
-		.sr_exit_time_us = 12,
-		.sr_enter_plus_exit_time_us = 20,
+		.sr_exit_time_us = 26.5,
+		.sr_enter_plus_exit_time_us = 31,
 		.urgent_latency_us = 4.0,
 		.urgent_latency_pixel_data_only_us = 4.0,
 		.urgent_latency_pixel_mixed_with_vm_data_us = 4.0,
@@ -211,7 +211,7 @@ static const struct dc_debug_options debug_defaults_drv = {
 		.timing_trace = false,
 		.clock_trace = true,
 		.disable_pplib_clock_request = true,
-		.pipe_split_policy = MPC_SPLIT_DYNAMIC,
+		.pipe_split_policy = MPC_SPLIT_AVOID_MULT_DISP,
 		.force_single_disp_pipe_split = false,
 		.disable_dcc = DCC_ENABLE,
 		.vsr_support = true,
@@ -223,6 +223,7 @@ static const struct dc_debug_options debug_defaults_drv = {
 		.underflow_assert_delay_us = 0xFFFFFFFF,
 		.dwb_fi_phase = -1, // -1 = disable,
 		.dmub_command_table = true,
+		.use_max_lb = true
 };
 
 static const struct dc_debug_options debug_defaults_diags = {
@@ -241,6 +242,7 @@ static const struct dc_debug_options debug_defaults_diags = {
 		.dmub_command_table = true,
 		.enable_tri_buf = true,
 		.disable_psr = true,
+		.use_max_lb = true
 };
 
 enum dcn302_clk_src_array_id {
@@ -282,10 +284,11 @@ static const struct dc_plane_cap plane_cap = {
 				.nv12 = 16000,
 				.fp16 = 16000
 		},
+		/* 6:1 downscaling ratio: 1000/6 = 166.666 */
 		.max_downscale_factor = {
-				.argb8888 = 600,
-				.nv12 = 600,
-				.fp16 = 600
+				.argb8888 = 167,
+				.nv12 = 167,
+				.fp16 = 167
 		},
 		16,
 		16
@@ -1091,7 +1094,7 @@ static bool init_soc_bounding_box(struct dc *dc,  struct resource_pool *pool)
 	DC_LOGGER_INIT(dc->ctx->logger);
 
 	if (!is_soc_bounding_box_valid(dc)) {
-		DC_LOG_ERROR("%s: not valid soc bounding box/n", __func__);
+		DC_LOG_ERROR("%s: not valid soc bounding box\n", __func__);
 		return false;
 	}
 
@@ -1099,6 +1102,26 @@ static bool init_soc_bounding_box(struct dc *dc,  struct resource_pool *pool)
 	loaded_ip->max_num_dpp = pool->pipe_count;
 	loaded_ip->clamp_min_dcfclk = dc->config.clamp_min_dcfclk;
 	dcn20_patch_bounding_box(dc, loaded_bb);
+
+	if (dc->ctx->dc_bios->funcs->get_soc_bb_info) {
+		struct bp_soc_bb_info bb_info = { 0 };
+
+		if (dc->ctx->dc_bios->funcs->get_soc_bb_info(
+			    dc->ctx->dc_bios, &bb_info) == BP_RESULT_OK) {
+			if (bb_info.dram_clock_change_latency_100ns > 0)
+				dcn3_02_soc.dram_clock_change_latency_us =
+					bb_info.dram_clock_change_latency_100ns * 10;
+
+			if (bb_info.dram_sr_enter_exit_latency_100ns > 0)
+				dcn3_02_soc.sr_enter_plus_exit_time_us =
+					bb_info.dram_sr_enter_exit_latency_100ns * 10;
+
+			if (bb_info.dram_sr_exit_latency_100ns > 0)
+				dcn3_02_soc.sr_exit_time_us =
+					bb_info.dram_sr_exit_latency_100ns * 10;
+		}
+	}
+
 	return true;
 }
 
@@ -1375,11 +1398,18 @@ void dcn302_update_bw_bounding_box(struct dc *dc, struct clk_bw_params *bw_param
 			dcn3_02_soc.clock_limits[i].dispclk_mhz = max_dispclk_mhz;
 			dcn3_02_soc.clock_limits[i].dppclk_mhz  = max_dppclk_mhz;
 			dcn3_02_soc.clock_limits[i].phyclk_mhz  = max_phyclk_mhz;
-			dcn3_02_soc.clock_limits[i].dtbclk_mhz = dcn3_02_soc.clock_limits[0].dtbclk_mhz;
+			/* Populate from bw_params for DTBCLK, SOCCLK */
+			if (!bw_params->clk_table.entries[i].dtbclk_mhz && i > 0)
+				dcn3_02_soc.clock_limits[i].dtbclk_mhz  = dcn3_02_soc.clock_limits[i-1].dtbclk_mhz;
+			else
+				dcn3_02_soc.clock_limits[i].dtbclk_mhz  = bw_params->clk_table.entries[i].dtbclk_mhz;
+			if (!bw_params->clk_table.entries[i].socclk_mhz && i > 0)
+				dcn3_02_soc.clock_limits[i].socclk_mhz = dcn3_02_soc.clock_limits[i-1].socclk_mhz;
+			else
+				dcn3_02_soc.clock_limits[i].socclk_mhz = bw_params->clk_table.entries[i].socclk_mhz;
 			/* These clocks cannot come from bw_params, always fill from dcn3_02_soc[1] */
-			/* FCLK, PHYCLK_D18, SOCCLK, DSCCLK */
+			/* FCLK, PHYCLK_D18, DSCCLK */
 			dcn3_02_soc.clock_limits[i].phyclk_d18_mhz = dcn3_02_soc.clock_limits[0].phyclk_d18_mhz;
-			dcn3_02_soc.clock_limits[i].socclk_mhz = dcn3_02_soc.clock_limits[0].socclk_mhz;
 			dcn3_02_soc.clock_limits[i].dscclk_mhz = dcn3_02_soc.clock_limits[0].dscclk_mhz;
 		}
 		/* re-init DML with updated bb */
@@ -1395,6 +1425,7 @@ static struct resource_funcs dcn302_res_pool_funcs = {
 		.panel_cntl_create = dcn302_panel_cntl_create,
 		.validate_bandwidth = dcn30_validate_bandwidth,
 		.calculate_wm_and_dlg = dcn30_calculate_wm_and_dlg,
+		.update_soc_for_wm_a = dcn30_update_soc_for_wm_a,
 		.populate_dml_pipes = dcn30_populate_dml_pipes_from_context,
 		.acquire_idle_pipe_for_layer = dcn20_acquire_idle_pipe_for_layer,
 		.add_stream_to_ctx = dcn30_add_stream_to_ctx,
@@ -1481,6 +1512,8 @@ static bool dcn302_resource_construct(
 	dc->caps.mall_size_total = dc->caps.mall_size_per_mem_channel * dc->ctx->dc_bios->vram_info.num_chans * 1048576;
 	dc->caps.cursor_cache_size = dc->caps.max_cursor_size * dc->caps.max_cursor_size * 8;
 	dc->caps.max_slave_planes = 1;
+	dc->caps.max_slave_yuv_planes = 1;
+	dc->caps.max_slave_rgb_planes = 1;
 	dc->caps.post_blend_color_processing = true;
 	dc->caps.force_dp_tps4_for_cp2520 = true;
 	dc->caps.extended_aux_timeout_support = true;

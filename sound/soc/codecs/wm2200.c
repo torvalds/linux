@@ -30,7 +30,6 @@
 #include <sound/wm2200.h>
 
 #include "wm2200.h"
-#include "wmfw.h"
 #include "wm_adsp.h"
 
 #define WM2200_DSP_CONTROL_1                   0x00
@@ -70,13 +69,6 @@
 static const char *wm2200_core_supply_names[WM2200_NUM_CORE_SUPPLIES] = {
 	"DBVDD",
 	"LDOVDD",
-};
-
-struct wm2200_fll {
-	int fref;
-	int fout;
-	int src;
-	struct completion lock;
 };
 
 /* codec private data */

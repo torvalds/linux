@@ -1,6 +1,5 @@
+// SPDX-License-Identifier: MIT
 /*
- * SPDX-License-Identifier: MIT
- *
  * Copyright © 2019 Intel Corporation
  */
 
@@ -11,10 +10,12 @@
 #include "gem/selftests/mock_context.h"
 #include "selftests/igt_reset.h"
 #include "selftests/igt_spinner.h"
+#include "selftests/intel_scheduler_helpers.h"
 
 struct live_mocs {
-	struct drm_i915_mocs_table mocs;
-	struct drm_i915_mocs_table l3cc;
+	struct drm_i915_mocs_table table;
+	struct drm_i915_mocs_table *mocs;
+	struct drm_i915_mocs_table *l3cc;
 	struct i915_vma *scratch;
 	void *vaddr;
 };
@@ -28,7 +29,7 @@ static struct intel_context *mocs_context_create(struct intel_engine_cs *engine)
 		return ce;
 
 	/* We build large requests to read the registers from the ring */
-	ce->ring = __intel_context_ring_size(SZ_16K);
+	ce->ring_size = SZ_16K;
 
 	return ce;
 }
@@ -59,27 +60,27 @@ static int request_add_spin(struct i915_request *rq, struct igt_spinner *spin)
 
 static int live_mocs_init(struct live_mocs *arg, struct intel_gt *gt)
 {
-	struct drm_i915_mocs_table table;
 	unsigned int flags;
 	int err;
 
 	memset(arg, 0, sizeof(*arg));
 
-	flags = get_mocs_settings(gt->i915, &table);
+	flags = get_mocs_settings(gt->i915, &arg->table);
 	if (!flags)
 		return -EINVAL;
 
 	if (flags & HAS_RENDER_L3CC)
-		arg->l3cc = table;
+		arg->l3cc = &arg->table;
 
 	if (flags & (HAS_GLOBAL_MOCS | HAS_ENGINE_MOCS))
-		arg->mocs = table;
+		arg->mocs = &arg->table;
 
-	arg->scratch = __vm_create_scratch_for_read(&gt->ggtt->vm, PAGE_SIZE);
+	arg->scratch =
+		__vm_create_scratch_for_read_pinned(&gt->ggtt->vm, PAGE_SIZE);
 	if (IS_ERR(arg->scratch))
 		return PTR_ERR(arg->scratch);
 
-	arg->vaddr = i915_gem_object_pin_map(arg->scratch->obj, I915_MAP_WB);
+	arg->vaddr = i915_gem_object_pin_map_unlocked(arg->scratch->obj, I915_MAP_WB);
 	if (IS_ERR(arg->vaddr)) {
 		err = PTR_ERR(arg->vaddr);
 		goto err_scratch;
@@ -131,6 +132,9 @@ static int read_mocs_table(struct i915_request *rq,
 {
 	u32 addr;
 
+	if (!table)
+		return 0;
+
 	if (HAS_GLOBAL_MOCS_REGISTERS(rq->engine->i915))
 		addr = global_mocs_offset();
 	else
@@ -145,6 +149,9 @@ static int read_l3cc_table(struct i915_request *rq,
 {
 	u32 addr = i915_mmio_reg_offset(GEN9_LNCFCMOCS(0));
 
+	if (!table)
+		return 0;
+
 	return read_regs(rq, addr, (table->n_entries + 1) / 2, offset);
 }
 
@@ -154,6 +161,9 @@ static int check_mocs_table(struct intel_engine_cs *engine,
 {
 	unsigned int i;
 	u32 expect;
+
+	if (!table)
+		return 0;
 
 	for_each_mocs(expect, table, i) {
 		if (**vaddr != expect) {
@@ -174,7 +184,7 @@ static bool mcr_range(struct drm_i915_private *i915, u32 offset)
 	 * which only controls CPU initiated MMIO. Routing does not
 	 * work for CS access so we cannot verify them on this path.
 	 */
-	return INTEL_GEN(i915) >= 8 && offset >= 0xb000 && offset <= 0xb4ff;
+	return GRAPHICS_VER(i915) >= 8 && offset >= 0xb000 && offset <= 0xb4ff;
 }
 
 static int check_l3cc_table(struct intel_engine_cs *engine,
@@ -185,6 +195,9 @@ static int check_l3cc_table(struct intel_engine_cs *engine,
 	u32 reg = i915_mmio_reg_offset(GEN9_LNCFCMOCS(0));
 	unsigned int i;
 	u32 expect;
+
+	if (!table)
+		return 0;
 
 	for_each_l3cc(expect, table, i) {
 		if (!mcr_range(engine->i915, reg) && **vaddr != expect) {
@@ -223,9 +236,9 @@ static int check_mocs_engine(struct live_mocs *arg,
 	/* Read the mocs tables back using SRM */
 	offset = i915_ggtt_offset(vma);
 	if (!err)
-		err = read_mocs_table(rq, &arg->mocs, &offset);
+		err = read_mocs_table(rq, arg->mocs, &offset);
 	if (!err && ce->engine->class == RENDER_CLASS)
-		err = read_l3cc_table(rq, &arg->l3cc, &offset);
+		err = read_l3cc_table(rq, arg->l3cc, &offset);
 	offset -= i915_ggtt_offset(vma);
 	GEM_BUG_ON(offset > PAGE_SIZE);
 
@@ -236,9 +249,9 @@ static int check_mocs_engine(struct live_mocs *arg,
 	/* Compare the results against the expected tables */
 	vaddr = arg->vaddr;
 	if (!err)
-		err = check_mocs_table(ce->engine, &arg->mocs, &vaddr);
+		err = check_mocs_table(ce->engine, arg->mocs, &vaddr);
 	if (!err && ce->engine->class == RENDER_CLASS)
-		err = check_l3cc_table(ce->engine, &arg->l3cc, &vaddr);
+		err = check_l3cc_table(ce->engine, arg->l3cc, &vaddr);
 	if (err)
 		return err;
 
@@ -306,7 +319,8 @@ static int live_mocs_clean(void *arg)
 }
 
 static int active_engine_reset(struct intel_context *ce,
-			       const char *reason)
+			       const char *reason,
+			       bool using_guc)
 {
 	struct igt_spinner spin;
 	struct i915_request *rq;
@@ -323,8 +337,12 @@ static int active_engine_reset(struct intel_context *ce,
 	}
 
 	err = request_add_spin(rq, &spin);
-	if (err == 0)
+	if (err == 0 && !using_guc)
 		err = intel_engine_reset(ce->engine, reason);
+
+	/* Ensure the reset happens and kills the engine */
+	if (err == 0)
+		err = intel_selftest_wait_for_rq(rq);
 
 	igt_spinner_end(&spin);
 	igt_spinner_fini(&spin);
@@ -333,21 +351,23 @@ static int active_engine_reset(struct intel_context *ce,
 }
 
 static int __live_mocs_reset(struct live_mocs *mocs,
-			     struct intel_context *ce)
+			     struct intel_context *ce, bool using_guc)
 {
 	struct intel_gt *gt = ce->engine->gt;
 	int err;
 
 	if (intel_has_reset_engine(gt)) {
-		err = intel_engine_reset(ce->engine, "mocs");
-		if (err)
-			return err;
+		if (!using_guc) {
+			err = intel_engine_reset(ce->engine, "mocs");
+			if (err)
+				return err;
 
-		err = check_mocs_engine(mocs, ce);
-		if (err)
-			return err;
+			err = check_mocs_engine(mocs, ce);
+			if (err)
+				return err;
+		}
 
-		err = active_engine_reset(ce, "mocs");
+		err = active_engine_reset(ce, "mocs", using_guc);
 		if (err)
 			return err;
 
@@ -383,19 +403,33 @@ static int live_mocs_reset(void *arg)
 
 	igt_global_reset_lock(gt);
 	for_each_engine(engine, gt, id) {
+		bool using_guc = intel_engine_uses_guc(engine);
+		struct intel_selftest_saved_policy saved;
 		struct intel_context *ce;
+		int err2;
+
+		err = intel_selftest_modify_policy(engine, &saved,
+						   SELFTEST_SCHEDULER_MODIFY_FAST_RESET);
+		if (err)
+			break;
 
 		ce = mocs_context_create(engine);
 		if (IS_ERR(ce)) {
 			err = PTR_ERR(ce);
-			break;
+			goto restore;
 		}
 
 		intel_engine_pm_get(engine);
-		err = __live_mocs_reset(&mocs, ce);
-		intel_engine_pm_put(engine);
 
+		err = __live_mocs_reset(&mocs, ce, using_guc);
+
+		intel_engine_pm_put(engine);
 		intel_context_put(ce);
+
+restore:
+		err2 = intel_selftest_restore_policy(engine, &saved);
+		if (err == 0)
+			err = err2;
 		if (err)
 			break;
 	}

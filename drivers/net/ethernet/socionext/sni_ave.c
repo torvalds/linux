@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/**
+/*
  * sni_ave.c - Socionext UniPhier AVE ethernet driver
  * Copyright 2014 Panasonic Corporation
  * Copyright 2015-2017 Socionext Inc.
@@ -1543,7 +1543,7 @@ static const struct net_device_ops ave_netdev_ops = {
 	.ndo_open		= ave_open,
 	.ndo_stop		= ave_stop,
 	.ndo_start_xmit		= ave_start_xmit,
-	.ndo_do_ioctl		= ave_ioctl,
+	.ndo_eth_ioctl		= ave_ioctl,
 	.ndo_set_rx_mode	= ave_set_rx_mode,
 	.ndo_get_stats64	= ave_get_stats64,
 	.ndo_set_mac_address	= ave_set_mac_address,
@@ -1559,7 +1559,6 @@ static int ave_probe(struct platform_device *pdev)
 	struct ave_private *priv;
 	struct net_device *ndev;
 	struct device_node *np;
-	const void *mac_addr;
 	void __iomem *base;
 	const char *name;
 	int i, irq, ret;
@@ -1600,12 +1599,9 @@ static int ave_probe(struct platform_device *pdev)
 
 	ndev->max_mtu = AVE_MAX_ETHFRAME - (ETH_HLEN + ETH_FCS_LEN);
 
-	mac_addr = of_get_mac_address(np);
-	if (!IS_ERR(mac_addr))
-		ether_addr_copy(ndev->dev_addr, mac_addr);
-
-	/* if the mac address is invalid, use random mac address */
-	if (!is_valid_ether_addr(ndev->dev_addr)) {
+	ret = of_get_mac_address(np, ndev->dev_addr);
+	if (ret) {
+		/* if the mac address is invalid, use random mac address */
 		eth_hw_addr_random(ndev);
 		dev_warn(dev, "Using random MAC address: %pM\n",
 			 ndev->dev_addr);

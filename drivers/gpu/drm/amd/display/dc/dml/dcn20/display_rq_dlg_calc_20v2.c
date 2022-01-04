@@ -293,13 +293,31 @@ static void handle_det_buf_split(struct display_mode_lib *mode_lib,
 	if (surf_linear) {
 		log2_swath_height_l = 0;
 		log2_swath_height_c = 0;
-	} else if (!surf_vert) {
-		log2_swath_height_l = dml_log2(rq_param->misc.rq_l.blk256_height) - req128_l;
-		log2_swath_height_c = dml_log2(rq_param->misc.rq_c.blk256_height) - req128_c;
 	} else {
-		log2_swath_height_l = dml_log2(rq_param->misc.rq_l.blk256_width) - req128_l;
-		log2_swath_height_c = dml_log2(rq_param->misc.rq_c.blk256_width) - req128_c;
+		unsigned int swath_height_l;
+		unsigned int swath_height_c;
+
+		if (!surf_vert) {
+			swath_height_l = rq_param->misc.rq_l.blk256_height;
+			swath_height_c = rq_param->misc.rq_c.blk256_height;
+		} else {
+			swath_height_l = rq_param->misc.rq_l.blk256_width;
+			swath_height_c = rq_param->misc.rq_c.blk256_width;
+		}
+
+		if (swath_height_l > 0)
+			log2_swath_height_l = dml_log2(swath_height_l);
+
+		if (req128_l && log2_swath_height_l > 0)
+			log2_swath_height_l -= 1;
+
+		if (swath_height_c > 0)
+			log2_swath_height_c = dml_log2(swath_height_c);
+
+		if (req128_c && log2_swath_height_c > 0)
+			log2_swath_height_c -= 1;
 	}
+
 	rq_param->dlg.rq_l.swath_height = 1 << log2_swath_height_l;
 	rq_param->dlg.rq_c.swath_height = 1 << log2_swath_height_c;
 
@@ -470,7 +488,7 @@ static void get_meta_and_pte_attr(struct display_mode_lib *mode_lib,
 	log2_meta_req_bytes = 6; // meta request is 64b and is 8x8byte meta element
 
 	// each 64b meta request for dcn is 8x8 meta elements and
-	// a meta element covers one 256b block of the the data surface.
+	// a meta element covers one 256b block of the data surface.
 	log2_meta_req_height = log2_blk256_height + 3; // meta req is 8x8 byte, each byte represent 1 blk256
 	log2_meta_req_width = log2_meta_req_bytes + 8 - log2_bytes_per_element
 			- log2_meta_req_height;

@@ -36,6 +36,7 @@ enum {
 	NFS_DELEGATION_REVOKED,
 	NFS_DELEGATION_TEST_EXPIRED,
 	NFS_DELEGATION_INODE_FREEING,
+	NFS_DELEGATION_RETURN_DELAYED,
 };
 
 int nfs_inode_set_delegation(struct inode *inode, const struct cred *cred,
@@ -84,8 +85,7 @@ int nfs4_inode_make_writeable(struct inode *inode);
 
 static inline int nfs_have_delegated_attributes(struct inode *inode)
 {
-	return NFS_PROTO(inode)->have_delegation(inode, FMODE_READ) &&
-		!(NFS_I(inode)->cache_validity & NFS_INO_REVAL_FORCED);
+	return NFS_PROTO(inode)->have_delegation(inode, FMODE_READ);
 }
 
 #endif

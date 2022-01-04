@@ -230,6 +230,7 @@ struct vivid_dev {
 	struct v4l2_ctrl		*string;
 	struct v4l2_ctrl		*bitmask;
 	struct v4l2_ctrl		*int_menu;
+	struct v4l2_ctrl		*ro_int32;
 	struct v4l2_ctrl		*test_pattern;
 	struct v4l2_ctrl		*colorspace;
 	struct v4l2_ctrl		*rgb_range_cap;
@@ -428,7 +429,6 @@ struct vivid_dev {
 	u32				vbi_cap_seq_start;
 	u32				vbi_cap_seq_count;
 	bool				vbi_cap_streaming;
-	bool				stream_sliced_vbi_cap;
 	u32				meta_cap_seq_start;
 	u32				meta_cap_seq_count;
 	bool				meta_cap_streaming;

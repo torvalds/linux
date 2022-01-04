@@ -29,6 +29,9 @@
 #include "qxl_drv.h"
 #include "qxl_object.h"
 
+static int __qxl_bo_pin(struct qxl_bo *bo);
+static void __qxl_bo_unpin(struct qxl_bo *bo);
+
 static void qxl_ttm_bo_destroy(struct ttm_buffer_object *tbo)
 {
 	struct qxl_bo *bo;
@@ -103,8 +106,8 @@ static const struct drm_gem_object_funcs qxl_object_funcs = {
 	.print_info = drm_gem_ttm_print_info,
 };
 
-int qxl_bo_create(struct qxl_device *qdev,
-		  unsigned long size, bool kernel, bool pinned, u32 domain,
+int qxl_bo_create(struct qxl_device *qdev, unsigned long size,
+		  bool kernel, bool pinned, u32 domain, u32 priority,
 		  struct qxl_surface *surf,
 		  struct qxl_bo **bo_ptr)
 {
@@ -137,9 +140,10 @@ int qxl_bo_create(struct qxl_device *qdev,
 
 	qxl_ttm_placement_from_domain(bo, domain);
 
+	bo->tbo.priority = priority;
 	r = ttm_bo_init_reserved(&qdev->mman.bdev, &bo->tbo, size, type,
-				 &bo->placement, 0, &ctx, size,
-				 NULL, NULL, &qxl_ttm_bo_destroy);
+				 &bo->placement, 0, &ctx, NULL, NULL,
+				 &qxl_ttm_bo_destroy);
 	if (unlikely(r != 0)) {
 		if (r != -ERESTARTSYS)
 			dev_err(qdev->ddev.dev,
@@ -154,9 +158,11 @@ int qxl_bo_create(struct qxl_device *qdev,
 	return 0;
 }
 
-int qxl_bo_kmap(struct qxl_bo *bo, struct dma_buf_map *map)
+int qxl_bo_vmap_locked(struct qxl_bo *bo, struct dma_buf_map *map)
 {
 	int r;
+
+	dma_resv_assert_held(bo->tbo.base.resv);
 
 	if (bo->kptr) {
 		bo->map_count++;
@@ -178,6 +184,25 @@ out:
 	return 0;
 }
 
+int qxl_bo_vmap(struct qxl_bo *bo, struct dma_buf_map *map)
+{
+	int r;
+
+	r = qxl_bo_reserve(bo);
+	if (r)
+		return r;
+
+	r = __qxl_bo_pin(bo);
+	if (r) {
+		qxl_bo_unreserve(bo);
+		return r;
+	}
+
+	r = qxl_bo_vmap_locked(bo, map);
+	qxl_bo_unreserve(bo);
+	return r;
+}
+
 void *qxl_bo_kmap_atomic_page(struct qxl_device *qdev,
 			      struct qxl_bo *bo, int page_offset)
 {
@@ -187,14 +212,14 @@ void *qxl_bo_kmap_atomic_page(struct qxl_device *qdev,
 	struct io_mapping *map;
 	struct dma_buf_map bo_map;
 
-	if (bo->tbo.mem.mem_type == TTM_PL_VRAM)
+	if (bo->tbo.resource->mem_type == TTM_PL_VRAM)
 		map = qdev->vram_mapping;
-	else if (bo->tbo.mem.mem_type == TTM_PL_PRIV)
+	else if (bo->tbo.resource->mem_type == TTM_PL_PRIV)
 		map = qdev->surface_mapping;
 	else
 		goto fallback;
 
-	offset = bo->tbo.mem.start << PAGE_SHIFT;
+	offset = bo->tbo.resource->start << PAGE_SHIFT;
 	return io_mapping_map_atomic_wc(map, offset + page_offset);
 fallback:
 	if (bo->kptr) {
@@ -202,7 +227,7 @@ fallback:
 		return rptr;
 	}
 
-	ret = qxl_bo_kmap(bo, &bo_map);
+	ret = qxl_bo_vmap_locked(bo, &bo_map);
 	if (ret)
 		return NULL;
 	rptr = bo_map.vaddr; /* TODO: Use mapping abstraction properly */
@@ -211,8 +236,10 @@ fallback:
 	return rptr;
 }
 
-void qxl_bo_kunmap(struct qxl_bo *bo)
+void qxl_bo_vunmap_locked(struct qxl_bo *bo)
 {
+	dma_resv_assert_held(bo->tbo.base.resv);
+
 	if (bo->kptr == NULL)
 		return;
 	bo->map_count--;
@@ -222,17 +249,31 @@ void qxl_bo_kunmap(struct qxl_bo *bo)
 	ttm_bo_vunmap(&bo->tbo, &bo->map);
 }
 
+int qxl_bo_vunmap(struct qxl_bo *bo)
+{
+	int r;
+
+	r = qxl_bo_reserve(bo);
+	if (r)
+		return r;
+
+	qxl_bo_vunmap_locked(bo);
+	__qxl_bo_unpin(bo);
+	qxl_bo_unreserve(bo);
+	return 0;
+}
+
 void qxl_bo_kunmap_atomic_page(struct qxl_device *qdev,
 			       struct qxl_bo *bo, void *pmap)
 {
-	if ((bo->tbo.mem.mem_type != TTM_PL_VRAM) &&
-	    (bo->tbo.mem.mem_type != TTM_PL_PRIV))
+	if ((bo->tbo.resource->mem_type != TTM_PL_VRAM) &&
+	    (bo->tbo.resource->mem_type != TTM_PL_PRIV))
 		goto fallback;
 
 	io_mapping_unmap_atomic(pmap);
 	return;
  fallback:
-	qxl_bo_kunmap(bo);
+	qxl_bo_vunmap_locked(bo);
 }
 
 void qxl_bo_unref(struct qxl_bo **bo)

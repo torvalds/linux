@@ -19,7 +19,6 @@
 #include <linux/mfd/core.h>
 #include <linux/mfd/abx500.h>
 #include <linux/mfd/abx500/ab8500.h>
-#include <linux/mfd/abx500/ab8500-bm.h>
 #include <linux/mfd/dbx500-prcmu.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
@@ -121,12 +120,6 @@
 static DEFINE_SPINLOCK(on_stat_lock);
 static u8 turn_on_stat_mask = 0xFF;
 static u8 turn_on_stat_set;
-static bool no_bm; /* No battery management */
-/*
- * not really modular, but the easiest way to keep compat with existing
- * bootargs behaviour is to continue using module_param here.
- */
-module_param(no_bm, bool, S_IRUGO);
 
 #define AB9540_MODEM_CTRL2_REG			0x23
 #define AB9540_MODEM_CTRL2_SWDBBRSTN_BIT	BIT(2)
@@ -609,14 +602,14 @@ int ab8500_suspend(struct ab8500 *ab8500)
 }
 
 static const struct mfd_cell ab8500_bm_devs[] = {
-	MFD_CELL_OF("ab8500-charger", NULL, &ab8500_bm_data,
-		    sizeof(ab8500_bm_data), 0, "stericsson,ab8500-charger"),
-	MFD_CELL_OF("ab8500-btemp", NULL, &ab8500_bm_data,
-		    sizeof(ab8500_bm_data), 0, "stericsson,ab8500-btemp"),
-	MFD_CELL_OF("ab8500-fg", NULL, &ab8500_bm_data,
-		    sizeof(ab8500_bm_data), 0, "stericsson,ab8500-fg"),
-	MFD_CELL_OF("ab8500-chargalg", NULL, &ab8500_bm_data,
-		    sizeof(ab8500_bm_data), 0, "stericsson,ab8500-chargalg"),
+	MFD_CELL_OF("ab8500-charger", NULL, NULL, 0, 0,
+		    "stericsson,ab8500-charger"),
+	MFD_CELL_OF("ab8500-btemp", NULL, NULL, 0, 0,
+		    "stericsson,ab8500-btemp"),
+	MFD_CELL_OF("ab8500-fg", NULL, NULL, 0, 0,
+		    "stericsson,ab8500-fg"),
+	MFD_CELL_OF("ab8500-chargalg", NULL, NULL, 0, 0,
+		    "stericsson,ab8500-chargalg"),
 };
 
 static const struct mfd_cell ab8500_devs[] = {
@@ -834,8 +827,8 @@ static const struct mfd_cell ab8540_cut2_devs[] = {
 	},
 };
 
-static ssize_t show_chip_id(struct device *dev,
-				struct device_attribute *attr, char *buf)
+static ssize_t chip_id_show(struct device *dev,
+			    struct device_attribute *attr, char *buf)
 {
 	struct ab8500 *ab8500;
 
@@ -855,8 +848,8 @@ static ssize_t show_chip_id(struct device *dev,
  * 0x40 Power on key 1 pressed longer than 10 seconds
  * 0x80 DB8500 thermal shutdown
  */
-static ssize_t show_switch_off_status(struct device *dev,
-				struct device_attribute *attr, char *buf)
+static ssize_t switch_off_status_show(struct device *dev,
+				      struct device_attribute *attr, char *buf)
 {
 	int ret;
 	u8 value;
@@ -890,8 +883,8 @@ void ab8500_override_turn_on_stat(u8 mask, u8 set)
  * 0x40 UsbIDDetect
  * 0x80 Reserved
  */
-static ssize_t show_turn_on_status(struct device *dev,
-				struct device_attribute *attr, char *buf)
+static ssize_t turn_on_status_show(struct device *dev,
+				   struct device_attribute *attr, char *buf)
 {
 	int ret;
 	u8 value;
@@ -919,8 +912,8 @@ static ssize_t show_turn_on_status(struct device *dev,
 	return sprintf(buf, "%#x\n", value);
 }
 
-static ssize_t show_turn_on_status_2(struct device *dev,
-				struct device_attribute *attr, char *buf)
+static ssize_t turn_on_status_2_show(struct device *dev,
+				     struct device_attribute *attr, char *buf)
 {
 	int ret;
 	u8 value;
@@ -934,8 +927,8 @@ static ssize_t show_turn_on_status_2(struct device *dev,
 	return sprintf(buf, "%#x\n", (value & 0x1));
 }
 
-static ssize_t show_ab9540_dbbrstn(struct device *dev,
-				struct device_attribute *attr, char *buf)
+static ssize_t dbbrstn_show(struct device *dev,
+			    struct device_attribute *attr, char *buf)
 {
 	struct ab8500 *ab8500;
 	int ret;
@@ -952,7 +945,7 @@ static ssize_t show_ab9540_dbbrstn(struct device *dev,
 			(value & AB9540_MODEM_CTRL2_SWDBBRSTN_BIT) ? 1 : 0);
 }
 
-static ssize_t store_ab9540_dbbrstn(struct device *dev,
+static ssize_t dbbrstn_store(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct ab8500 *ab8500;
@@ -987,12 +980,11 @@ exit:
 	return ret;
 }
 
-static DEVICE_ATTR(chip_id, S_IRUGO, show_chip_id, NULL);
-static DEVICE_ATTR(switch_off_status, S_IRUGO, show_switch_off_status, NULL);
-static DEVICE_ATTR(turn_on_status, S_IRUGO, show_turn_on_status, NULL);
-static DEVICE_ATTR(turn_on_status_2, S_IRUGO, show_turn_on_status_2, NULL);
-static DEVICE_ATTR(dbbrstn, S_IRUGO | S_IWUSR,
-			show_ab9540_dbbrstn, store_ab9540_dbbrstn);
+static DEVICE_ATTR_RO(chip_id);
+static DEVICE_ATTR_RO(switch_off_status);
+static DEVICE_ATTR_RO(turn_on_status);
+static DEVICE_ATTR_RO(turn_on_status_2);
+static DEVICE_ATTR_RW(dbbrstn);
 
 static struct attribute *ab8500_sysfs_entries[] = {
 	&dev_attr_chip_id.attr,
@@ -1255,14 +1247,12 @@ static int ab8500_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	if (!no_bm) {
-		/* Add battery management devices */
-		ret = mfd_add_devices(ab8500->dev, 0, ab8500_bm_devs,
-				      ARRAY_SIZE(ab8500_bm_devs), NULL,
-				      0, ab8500->domain);
-		if (ret)
-			dev_err(ab8500->dev, "error adding bm devices\n");
-	}
+	/* Add battery management devices */
+	ret = mfd_add_devices(ab8500->dev, 0, ab8500_bm_devs,
+			      ARRAY_SIZE(ab8500_bm_devs), NULL,
+			      0, ab8500->domain);
+	if (ret)
+		dev_err(ab8500->dev, "error adding bm devices\n");
 
 	if (((is_ab8505(ab8500) || is_ab9540(ab8500)) &&
 			ab8500->chip_id >= AB8500_CUT2P0) || is_ab8540(ab8500))

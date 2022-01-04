@@ -132,6 +132,22 @@ void optc1_setup_vertical_interrupt2(
 }
 
 /**
+ * Vupdate keepout can be set to a window to block the update lock for that pipe from changing.
+ * Start offset begins with vstartup and goes for x number of clocks,
+ * end offset starts from end of vupdate to x number of clocks.
+ */
+void optc1_set_vupdate_keepout(struct timing_generator *optc,
+			       struct vupdate_keepout_params *params)
+{
+	struct optc *optc1 = DCN10TG_FROM_TG(optc);
+
+	REG_SET_3(OTG_VUPDATE_KEEPOUT, 0,
+		  MASTER_UPDATE_LOCK_VUPDATE_KEEPOUT_START_OFFSET, params->start_offset,
+		  MASTER_UPDATE_LOCK_VUPDATE_KEEPOUT_END_OFFSET, params->end_offset,
+		  OTG_MASTER_UPDATE_LOCK_VUPDATE_KEEPOUT_EN, params->enable);
+}
+
+/**
  * program_timing_generator   used by mode timing set
  * Program CRTC Timing Registers - OTG_H_*, OTG_V_*, Pixel repetition.
  * Including SYNC. Call BIOS command table to program Timings.
@@ -952,6 +968,17 @@ void optc1_set_drr(
 	}
 }
 
+void optc1_set_vtotal_min_max(struct timing_generator *optc, int vtotal_min, int vtotal_max)
+{
+	struct optc *optc1 = DCN10TG_FROM_TG(optc);
+
+	REG_SET(OTG_V_TOTAL_MAX, 0,
+		OTG_V_TOTAL_MAX, vtotal_max);
+
+	REG_SET(OTG_V_TOTAL_MIN, 0,
+		OTG_V_TOTAL_MIN, vtotal_min);
+}
+
 static void optc1_set_test_pattern(
 	struct timing_generator *optc,
 	/* TODO: replace 'controller_dp_test_pattern' by 'test_pattern_mode'
@@ -1361,6 +1388,12 @@ void optc1_read_otg_state(struct optc *optc1,
 
 	REG_GET(OPTC_INPUT_GLOBAL_CONTROL,
 			OPTC_UNDERFLOW_OCCURRED_STATUS, &s->underflow_occurred_status);
+
+	REG_GET(OTG_VERTICAL_INTERRUPT2_CONTROL,
+			OTG_VERTICAL_INTERRUPT2_INT_ENABLE, &s->vertical_interrupt2_en);
+
+	REG_GET(OTG_VERTICAL_INTERRUPT2_POSITION,
+			OTG_VERTICAL_INTERRUPT2_LINE_START, &s->vertical_interrupt2_line);
 }
 
 bool optc1_get_otg_active_size(struct timing_generator *optc,
@@ -1527,6 +1560,7 @@ static const struct timing_generator_funcs dcn10_tg_funcs = {
 		.unlock = optc1_unlock,
 		.enable_optc_clock = optc1_enable_optc_clock,
 		.set_drr = optc1_set_drr,
+		.get_last_used_drr_vtotal = NULL,
 		.set_static_screen_control = optc1_set_static_screen_control,
 		.set_test_pattern = optc1_set_test_pattern,
 		.program_stereo = optc1_program_stereo,

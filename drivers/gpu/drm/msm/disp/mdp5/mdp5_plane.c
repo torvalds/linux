@@ -5,6 +5,7 @@
  * Author: Rob Clark <robdclark@gmail.com>
  */
 
+#include <drm/drm_atomic.h>
 #include <drm/drm_damage_helper.h>
 #include <drm/drm_fourcc.h>
 #include <drm/drm_print.h>
@@ -43,8 +44,9 @@ static void mdp5_plane_destroy(struct drm_plane *plane)
 	kfree(mdp5_plane);
 }
 
-static void mdp5_plane_install_rotation_property(struct drm_device *dev,
-		struct drm_plane *plane)
+/* helper to install properties which are common to planes and crtcs */
+static void mdp5_plane_install_properties(struct drm_plane *plane,
+		struct drm_mode_object *obj)
 {
 	drm_plane_create_rotation_property(plane,
 					   DRM_MODE_ROTATE_0,
@@ -52,104 +54,12 @@ static void mdp5_plane_install_rotation_property(struct drm_device *dev,
 					   DRM_MODE_ROTATE_180 |
 					   DRM_MODE_REFLECT_X |
 					   DRM_MODE_REFLECT_Y);
-}
-
-/* helper to install properties which are common to planes and crtcs */
-static void mdp5_plane_install_properties(struct drm_plane *plane,
-		struct drm_mode_object *obj)
-{
-	struct drm_device *dev = plane->dev;
-	struct msm_drm_private *dev_priv = dev->dev_private;
-	struct drm_property *prop;
-
-#define INSTALL_PROPERTY(name, NAME, init_val, fnc, ...) do { \
-		prop = dev_priv->plane_property[PLANE_PROP_##NAME]; \
-		if (!prop) { \
-			prop = drm_property_##fnc(dev, 0, #name, \
-				##__VA_ARGS__); \
-			if (!prop) { \
-				dev_warn(dev->dev, \
-					"Create property %s failed\n", \
-					#name); \
-				return; \
-			} \
-			dev_priv->plane_property[PLANE_PROP_##NAME] = prop; \
-		} \
-		drm_object_attach_property(&plane->base, prop, init_val); \
-	} while (0)
-
-#define INSTALL_RANGE_PROPERTY(name, NAME, min, max, init_val) \
-		INSTALL_PROPERTY(name, NAME, init_val, \
-				create_range, min, max)
-
-#define INSTALL_ENUM_PROPERTY(name, NAME, init_val) \
-		INSTALL_PROPERTY(name, NAME, init_val, \
-				create_enum, name##_prop_enum_list, \
-				ARRAY_SIZE(name##_prop_enum_list))
-
-	INSTALL_RANGE_PROPERTY(zpos, ZPOS, 1, 255, 1);
-
-	mdp5_plane_install_rotation_property(dev, plane);
-
-#undef INSTALL_RANGE_PROPERTY
-#undef INSTALL_ENUM_PROPERTY
-#undef INSTALL_PROPERTY
-}
-
-static int mdp5_plane_atomic_set_property(struct drm_plane *plane,
-		struct drm_plane_state *state, struct drm_property *property,
-		uint64_t val)
-{
-	struct drm_device *dev = plane->dev;
-	struct mdp5_plane_state *pstate;
-	struct msm_drm_private *dev_priv = dev->dev_private;
-	int ret = 0;
-
-	pstate = to_mdp5_plane_state(state);
-
-#define SET_PROPERTY(name, NAME, type) do { \
-		if (dev_priv->plane_property[PLANE_PROP_##NAME] == property) { \
-			pstate->name = (type)val; \
-			DBG("Set property %s %d", #name, (type)val); \
-			goto done; \
-		} \
-	} while (0)
-
-	SET_PROPERTY(zpos, ZPOS, uint8_t);
-
-	DRM_DEV_ERROR(dev->dev, "Invalid property\n");
-	ret = -EINVAL;
-done:
-	return ret;
-#undef SET_PROPERTY
-}
-
-static int mdp5_plane_atomic_get_property(struct drm_plane *plane,
-		const struct drm_plane_state *state,
-		struct drm_property *property, uint64_t *val)
-{
-	struct drm_device *dev = plane->dev;
-	struct mdp5_plane_state *pstate;
-	struct msm_drm_private *dev_priv = dev->dev_private;
-	int ret = 0;
-
-	pstate = to_mdp5_plane_state(state);
-
-#define GET_PROPERTY(name, NAME, type) do { \
-		if (dev_priv->plane_property[PLANE_PROP_##NAME] == property) { \
-			*val = pstate->name; \
-			DBG("Get property %s %lld", #name, *val); \
-			goto done; \
-		} \
-	} while (0)
-
-	GET_PROPERTY(zpos, ZPOS, uint8_t);
-
-	DRM_DEV_ERROR(dev->dev, "Invalid property\n");
-	ret = -EINVAL;
-done:
-	return ret;
-#undef SET_PROPERTY
+	drm_plane_create_alpha_property(plane);
+	drm_plane_create_blend_mode_property(plane,
+			BIT(DRM_MODE_BLEND_PIXEL_NONE) |
+			BIT(DRM_MODE_BLEND_PREMULTI) |
+			BIT(DRM_MODE_BLEND_COVERAGE));
+	drm_plane_create_zpos_property(plane, 1, 1, 255);
 }
 
 static void
@@ -165,9 +75,10 @@ mdp5_plane_atomic_print_state(struct drm_printer *p,
 		drm_printf(p, "\tright-hwpipe=%s\n",
 			   pstate->r_hwpipe ? pstate->r_hwpipe->name :
 					      "(null)");
-	drm_printf(p, "\tpremultiplied=%u\n", pstate->premultiplied);
-	drm_printf(p, "\tzpos=%u\n", pstate->zpos);
-	drm_printf(p, "\talpha=%u\n", pstate->alpha);
+	drm_printf(p, "\tblend_mode=%u\n", pstate->base.pixel_blend_mode);
+	drm_printf(p, "\tzpos=%u\n", pstate->base.zpos);
+	drm_printf(p, "\tnormalized_zpos=%u\n", pstate->base.normalized_zpos);
+	drm_printf(p, "\talpha=%u\n", pstate->base.alpha);
 	drm_printf(p, "\tstage=%s\n", stage2name(pstate->stage));
 }
 
@@ -175,24 +86,19 @@ static void mdp5_plane_reset(struct drm_plane *plane)
 {
 	struct mdp5_plane_state *mdp5_state;
 
-	if (plane->state && plane->state->fb)
-		drm_framebuffer_put(plane->state->fb);
+	if (plane->state)
+		__drm_atomic_helper_plane_destroy_state(plane->state);
 
 	kfree(to_mdp5_plane_state(plane->state));
 	mdp5_state = kzalloc(sizeof(*mdp5_state), GFP_KERNEL);
 
-	/* assign default blend parameters */
-	mdp5_state->alpha = 255;
-	mdp5_state->premultiplied = 0;
-
 	if (plane->type == DRM_PLANE_TYPE_PRIMARY)
-		mdp5_state->zpos = STAGE_BASE;
+		mdp5_state->base.zpos = STAGE_BASE;
 	else
-		mdp5_state->zpos = STAGE0 + drm_plane_index(plane);
+		mdp5_state->base.zpos = STAGE0 + drm_plane_index(plane);
+	mdp5_state->base.normalized_zpos = mdp5_state->base.zpos;
 
-	mdp5_state->base.plane = plane;
-
-	plane->state = &mdp5_state->base;
+	__drm_atomic_helper_plane_reset(plane, &mdp5_state->base);
 }
 
 static struct drm_plane_state *
@@ -228,8 +134,6 @@ static const struct drm_plane_funcs mdp5_plane_funcs = {
 		.update_plane = drm_atomic_helper_update_plane,
 		.disable_plane = drm_atomic_helper_disable_plane,
 		.destroy = mdp5_plane_destroy,
-		.atomic_set_property = mdp5_plane_atomic_set_property,
-		.atomic_get_property = mdp5_plane_atomic_get_property,
 		.reset = mdp5_plane_reset,
 		.atomic_duplicate_state = mdp5_plane_duplicate_state,
 		.atomic_destroy_state = mdp5_plane_destroy_state,
@@ -403,76 +307,84 @@ static int mdp5_plane_atomic_check_with_state(struct drm_crtc_state *crtc_state,
 }
 
 static int mdp5_plane_atomic_check(struct drm_plane *plane,
-				   struct drm_plane_state *state)
+				   struct drm_atomic_state *state)
 {
+	struct drm_plane_state *old_plane_state = drm_atomic_get_old_plane_state(state,
+										 plane);
+	struct drm_plane_state *new_plane_state = drm_atomic_get_new_plane_state(state,
+										 plane);
 	struct drm_crtc *crtc;
 	struct drm_crtc_state *crtc_state;
 
-	crtc = state->crtc ? state->crtc : plane->state->crtc;
+	crtc = new_plane_state->crtc ? new_plane_state->crtc : old_plane_state->crtc;
 	if (!crtc)
 		return 0;
 
-	crtc_state = drm_atomic_get_existing_crtc_state(state->state, crtc);
+	crtc_state = drm_atomic_get_existing_crtc_state(state,
+							crtc);
 	if (WARN_ON(!crtc_state))
 		return -EINVAL;
 
-	return mdp5_plane_atomic_check_with_state(crtc_state, state);
+	return mdp5_plane_atomic_check_with_state(crtc_state, new_plane_state);
 }
 
 static void mdp5_plane_atomic_update(struct drm_plane *plane,
-				     struct drm_plane_state *old_state)
+				     struct drm_atomic_state *state)
 {
-	struct drm_plane_state *state = plane->state;
+	struct drm_plane_state *new_state = drm_atomic_get_new_plane_state(state,
+									   plane);
 
 	DBG("%s: update", plane->name);
 
-	if (plane_enabled(state)) {
+	if (plane_enabled(new_state)) {
 		int ret;
 
 		ret = mdp5_plane_mode_set(plane,
-				state->crtc, state->fb,
-				&state->src, &state->dst);
+				new_state->crtc, new_state->fb,
+				&new_state->src, &new_state->dst);
 		/* atomic_check should have ensured that this doesn't fail */
 		WARN_ON(ret < 0);
 	}
 }
 
 static int mdp5_plane_atomic_async_check(struct drm_plane *plane,
-					 struct drm_plane_state *state)
+					 struct drm_atomic_state *state)
 {
-	struct mdp5_plane_state *mdp5_state = to_mdp5_plane_state(state);
+	struct drm_plane_state *new_plane_state = drm_atomic_get_new_plane_state(state,
+										 plane);
+	struct mdp5_plane_state *mdp5_state = to_mdp5_plane_state(new_plane_state);
 	struct drm_crtc_state *crtc_state;
 	int min_scale, max_scale;
 	int ret;
 
-	crtc_state = drm_atomic_get_existing_crtc_state(state->state,
-							state->crtc);
+	crtc_state = drm_atomic_get_existing_crtc_state(state,
+							new_plane_state->crtc);
 	if (WARN_ON(!crtc_state))
 		return -EINVAL;
 
 	if (!crtc_state->active)
 		return -EINVAL;
 
-	mdp5_state = to_mdp5_plane_state(state);
+	mdp5_state = to_mdp5_plane_state(new_plane_state);
 
 	/* don't use fast path if we don't have a hwpipe allocated yet */
 	if (!mdp5_state->hwpipe)
 		return -EINVAL;
 
 	/* only allow changing of position(crtc x/y or src x/y) in fast path */
-	if (plane->state->crtc != state->crtc ||
-	    plane->state->src_w != state->src_w ||
-	    plane->state->src_h != state->src_h ||
-	    plane->state->crtc_w != state->crtc_w ||
-	    plane->state->crtc_h != state->crtc_h ||
+	if (plane->state->crtc != new_plane_state->crtc ||
+	    plane->state->src_w != new_plane_state->src_w ||
+	    plane->state->src_h != new_plane_state->src_h ||
+	    plane->state->crtc_w != new_plane_state->crtc_w ||
+	    plane->state->crtc_h != new_plane_state->crtc_h ||
 	    !plane->state->fb ||
-	    plane->state->fb != state->fb)
+	    plane->state->fb != new_plane_state->fb)
 		return -EINVAL;
 
 	min_scale = FRAC_16_16(1, 8);
 	max_scale = FRAC_16_16(8, 1);
 
-	ret = drm_atomic_helper_check_plane_state(state, crtc_state,
+	ret = drm_atomic_helper_check_plane_state(new_plane_state, crtc_state,
 						  min_scale, max_scale,
 						  true, true);
 	if (ret)
@@ -485,15 +397,17 @@ static int mdp5_plane_atomic_async_check(struct drm_plane *plane,
 	 * also assign/unassign the hwpipe(s) tied to the plane. We avoid
 	 * taking the fast path for both these reasons.
 	 */
-	if (state->visible != plane->state->visible)
+	if (new_plane_state->visible != plane->state->visible)
 		return -EINVAL;
 
 	return 0;
 }
 
 static void mdp5_plane_atomic_async_update(struct drm_plane *plane,
-					   struct drm_plane_state *new_state)
+					   struct drm_atomic_state *state)
 {
+	struct drm_plane_state *new_state = drm_atomic_get_new_plane_state(state,
+									   plane);
 	struct drm_framebuffer *old_fb = plane->state->fb;
 
 	plane->state->src_x = new_state->src_x;

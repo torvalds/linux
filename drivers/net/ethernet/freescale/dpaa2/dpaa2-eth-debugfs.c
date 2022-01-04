@@ -121,10 +121,14 @@ DEFINE_SHOW_ATTRIBUTE(dpaa2_dbg_ch);
 
 void dpaa2_dbg_add(struct dpaa2_eth_priv *priv)
 {
+	struct fsl_mc_device *dpni_dev;
 	struct dentry *dir;
+	char name[10];
 
 	/* Create a directory for the interface */
-	dir = debugfs_create_dir(priv->net_dev->name, dpaa2_dbg_root);
+	dpni_dev = to_fsl_mc_device(priv->net_dev->dev.parent);
+	snprintf(name, 10, "dpni.%d", dpni_dev->obj_desc.id);
+	dir = debugfs_create_dir(name, dpaa2_dbg_root);
 	priv->dbg.dir = dir;
 
 	/* per-cpu stats file */

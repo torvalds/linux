@@ -544,8 +544,10 @@ bool dm_helpers_dp_write_dsc_enable(
 		ret = drm_dp_dpcd_write(aconnector->dsc_aux, DP_DSC_ENABLE, &enable_dsc, 1);
 	}
 
-	if (stream->signal == SIGNAL_TYPE_DISPLAY_PORT)
-		return dm_helpers_dp_write_dpcd(ctx, stream->link, DP_DSC_ENABLE, &enable_dsc, 1);
+	if (stream->signal == SIGNAL_TYPE_DISPLAY_PORT) {
+		ret = dm_helpers_dp_write_dpcd(ctx, stream->link, DP_DSC_ENABLE, &enable_dsc, 1);
+		DC_LOG_DC("Send DSC %s to sst display\n", enable_dsc ? "enable" : "disable");
+	}
 
 	return (ret > 0);
 }
@@ -640,10 +642,23 @@ enum dc_edid_status dm_helpers_read_local_edid(
 
 	return edid_status;
 }
-
+int dm_helper_dmub_aux_transfer_sync(
+		struct dc_context *ctx,
+		const struct dc_link *link,
+		struct aux_payload *payload,
+		enum aux_return_code_type *operation_result)
+{
+	return amdgpu_dm_process_dmub_aux_transfer_sync(ctx, link->link_index, payload, operation_result);
+}
 void dm_set_dcn_clocks(struct dc_context *ctx, struct dc_clocks *clks)
 {
 	/* TODO: something */
+}
+
+void dm_helpers_smu_timeout(struct dc_context *ctx, unsigned int msg_id, unsigned int param, unsigned int timeout_us)
+{
+	// TODO:
+	//amdgpu_device_gpu_recover(dc_context->driver-context, NULL);
 }
 
 void *dm_helpers_allocate_gpu_mem(
@@ -652,8 +667,31 @@ void *dm_helpers_allocate_gpu_mem(
 		size_t size,
 		long long *addr)
 {
-	// TODO
-	return NULL;
+	struct amdgpu_device *adev = ctx->driver_context;
+	struct dal_allocation *da;
+	u32 domain = (type == DC_MEM_ALLOC_TYPE_GART) ?
+		AMDGPU_GEM_DOMAIN_GTT : AMDGPU_GEM_DOMAIN_VRAM;
+	int ret;
+
+	da = kzalloc(sizeof(struct dal_allocation), GFP_KERNEL);
+	if (!da)
+		return NULL;
+
+	ret = amdgpu_bo_create_kernel(adev, size, PAGE_SIZE,
+				      domain, &da->bo,
+				      &da->gpu_addr, &da->cpu_ptr);
+
+	*addr = da->gpu_addr;
+
+	if (ret) {
+		kfree(da);
+		return NULL;
+	}
+
+	/* add da to list in dm */
+	list_add(&da->list, &adev->dm.da_list);
+
+	return da->cpu_ptr;
 }
 
 void dm_helpers_free_gpu_mem(
@@ -661,5 +699,55 @@ void dm_helpers_free_gpu_mem(
 		enum dc_gpu_mem_alloc_type type,
 		void *pvMem)
 {
-	// TODO
+	struct amdgpu_device *adev = ctx->driver_context;
+	struct dal_allocation *da;
+
+	/* walk the da list in DM */
+	list_for_each_entry(da, &adev->dm.da_list, list) {
+		if (pvMem == da->cpu_ptr) {
+			amdgpu_bo_free_kernel(&da->bo, &da->gpu_addr, &da->cpu_ptr);
+			list_del(&da->list);
+			kfree(da);
+			break;
+		}
+	}
+}
+
+bool dm_helpers_dmub_outbox_interrupt_control(struct dc_context *ctx, bool enable)
+{
+	enum dc_irq_source irq_source;
+	bool ret;
+
+	irq_source = DC_IRQ_SOURCE_DMCUB_OUTBOX;
+
+	ret = dc_interrupt_set(ctx->dc, irq_source, enable);
+
+	DRM_DEBUG_DRIVER("Dmub trace irq %sabling: r=%d\n",
+			 enable ? "en" : "dis", ret);
+	return ret;
+}
+
+void dm_helpers_mst_enable_stream_features(const struct dc_stream_state *stream)
+{
+	/* TODO: virtual DPCD */
+	struct dc_link *link = stream->link;
+	union down_spread_ctrl old_downspread;
+	union down_spread_ctrl new_downspread;
+
+	if (link->aux_access_disabled)
+		return;
+
+	if (!dm_helpers_dp_read_dpcd(link->ctx, link, DP_DOWNSPREAD_CTRL,
+				     &old_downspread.raw,
+				     sizeof(old_downspread)))
+		return;
+
+	new_downspread.raw = old_downspread.raw;
+	new_downspread.bits.IGNORE_MSA_TIMING_PARAM =
+		(stream->ignore_msa_timing_param) ? 1 : 0;
+
+	if (new_downspread.raw != old_downspread.raw)
+		dm_helpers_dp_write_dpcd(link->ctx, link, DP_DOWNSPREAD_CTRL,
+					 &new_downspread.raw,
+					 sizeof(new_downspread));
 }

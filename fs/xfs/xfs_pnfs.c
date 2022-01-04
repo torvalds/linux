@@ -92,7 +92,7 @@ xfs_fs_map_blocks(
 	uint			lock_flags;
 	int			error = 0;
 
-	if (XFS_FORCED_SHUTDOWN(mp))
+	if (xfs_is_shutdown(mp))
 		return -EIO;
 
 	/*
@@ -286,7 +286,7 @@ xfs_fs_commit_blocks(
 	xfs_setattr_time(ip, iattr);
 	if (update_isize) {
 		i_size_write(inode, iattr->ia_size);
-		ip->i_d.di_size = iattr->ia_size;
+		ip->i_disk_size = iattr->ia_size;
 	}
 
 	xfs_trans_set_sync(tp);

@@ -1198,7 +1198,7 @@ static int cmd_run(char *num)
 		else
 			return CMD_OK;
 		bpf_reset();
-	} while (pcap_next_pkt() && (!has_limit || (has_limit && ++i < pkts)));
+	} while (pcap_next_pkt() && (!has_limit || (++i < pkts)));
 
 	rl_printf("bpf passes:%u fails:%u\n", pass, fail);
 

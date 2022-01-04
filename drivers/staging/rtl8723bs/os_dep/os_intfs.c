@@ -4,8 +4,6 @@
  * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
  *
  ******************************************************************************/
-#define _OS_INTFS_C_
-
 #include <drv_types.h>
 #include <rtw_debug.h>
 #include <hal_data.h>
@@ -24,7 +22,7 @@ static int rtw_lbkmode;/* RTL8712_AIR_TRX; */
 static int rtw_network_mode = Ndis802_11IBSS;/* Ndis802_11Infrastructure;infra, ad-hoc, auto */
 /* struct ndis_802_11_ssid	ssid; */
 static int rtw_channel = 1;/* ad-hoc support requirement */
-static int rtw_wireless_mode = WIRELESS_MODE_MAX;
+static int rtw_wireless_mode = WIRELESS_11BG_24N;
 static int rtw_vrtl_carrier_sense = AUTO_VCS;
 static int rtw_vcs_type = RTS_CTS;/*  */
 static int rtw_rts_thresh = 2347;/*  */
@@ -67,10 +65,12 @@ static int rtw_uapsd_acvi_en;
 static int rtw_uapsd_acvo_en;
 
 int rtw_ht_enable = 1;
-/*  0: 20 MHz, 1: 40 MHz, 2: 80 MHz, 3: 160MHz, 4: 80+80MHz */
-/*  2.4G use bit 0 ~ 3, 5G use bit 4 ~ 7 */
-/*  0x21 means enable 2.4G 40MHz & 5G 80MHz */
-static int rtw_bw_mode = 0x21;
+/*
+ * 0: 20 MHz, 1: 40 MHz
+ * 2.4G use bit 0 ~ 3
+ * 0x01 means enable 2.4G 40MHz
+ */
+static int rtw_bw_mode = 0x01;
 static int rtw_ampdu_enable = 1;/* for enable tx_ampdu ,0: disable, 0x1:enable (but wifi_spec should be 0), 0x2: force enable (don't care wifi_spec) */
 static int rtw_rx_stbc = 1;/*  0: disable, 1:enable 2.4g */
 static int rtw_ampdu_amsdu;/*  0: disabled, 1:enabled, 2:auto . There is an IOT issu with DLINK DIR-629 when the flag turn on */
@@ -89,18 +89,10 @@ static int rtw_beamform_cap = 0x2;
 
 static int rtw_lowrate_two_xmit = 1;/* Use 2 path Tx to transmit MCS0~7 and legacy mode */
 
-/* int rf_config = RF_1T2R;  1T2R */
-static int rtw_rf_config = RF_MAX_TYPE;  /* auto */
 static int rtw_low_power;
 static int rtw_wifi_spec;
 static int rtw_channel_plan = RT_CHANNEL_DOMAIN_MAX;
 
-static int rtw_btcoex_enable = 1;
-module_param(rtw_btcoex_enable, int, 0644);
-MODULE_PARM_DESC(rtw_btcoex_enable, "Enable BT co-existence mechanism");
-static int rtw_bt_iso = 2;/*  0:Low, 1:High, 2:From Efuse */
-static int rtw_bt_sco = 3;/*  0:Idle, 1:None-SCO, 2:SCO, 3:From Counter, 4.Busy, 5.OtherBusy */
-static int rtw_bt_ampdu = 1 ;/*  0:Disable BT control A-MPDU, 1:Enable BT control A-MPDU. */
 static int rtw_ant_num = -1; /*  <0: undefined, >0: Antenna number */
 module_param(rtw_ant_num, int, 0644);
 MODULE_PARM_DESC(rtw_ant_num, "Antenna number setting");
@@ -109,15 +101,10 @@ static int rtw_antdiv_cfg = 1; /*  0:OFF , 1:ON, 2:decide by Efuse config */
 static int rtw_antdiv_type; /* 0:decide by efuse  1: for 88EE, 1Tx and 1RxCG are diversity.(2 Ant with SPDT), 2:  for 88EE, 1Tx and 2Rx are diversity.(2 Ant, Tx and RxCG are both on aux port, RxCS is on main port), 3: for 88EE, 1Tx and 1RxCG are fixed.(1Ant, Tx and RxCG are both on aux port) */
 
 
-static int rtw_enusbss;/* 0:disable, 1:enable */
-
-static int rtw_hwpdn_mode = 2;/* 0:disable, 1:enable, 2: by EFUSE config */
-
-static int rtw_hwpwrp_detect; /* HW power  ping detect 0:disable , 1:enable */
 
 static int rtw_hw_wps_pbc;
 
-int rtw_mc2u_disable = 0;
+int rtw_mc2u_disable;
 
 static int rtw_80211d;
 
@@ -128,7 +115,7 @@ static char *ifname = "wlan%d";
 module_param(ifname, charp, 0644);
 MODULE_PARM_DESC(ifname, "The default name to allocate for first interface");
 
-char *rtw_initmac = NULL;  /*  temp mac address if users want to use instead of the mac address in Efuse */
+char *rtw_initmac;  /*  temp mac address if users want to use instead of the mac address in Efuse */
 
 module_param(rtw_initmac, charp, 0644);
 module_param(rtw_channel_plan, int, 0644);
@@ -150,7 +137,6 @@ module_param(rtw_ampdu_amsdu, int, 0644);
 
 module_param(rtw_lowrate_two_xmit, int, 0644);
 
-module_param(rtw_rf_config, int, 0644);
 module_param(rtw_power_mgnt, int, 0644);
 module_param(rtw_smart_ps, int, 0644);
 module_param(rtw_low_power, int, 0644);
@@ -159,9 +145,6 @@ module_param(rtw_wifi_spec, int, 0644);
 module_param(rtw_antdiv_cfg, int, 0644);
 module_param(rtw_antdiv_type, int, 0644);
 
-module_param(rtw_enusbss, int, 0644);
-module_param(rtw_hwpdn_mode, int, 0644);
-module_param(rtw_hwpwrp_detect, int, 0644);
 
 module_param(rtw_hw_wps_pbc, int, 0644);
 
@@ -205,8 +188,8 @@ static void loadparam(struct adapter *padapter, struct net_device *pnetdev)
 	/* registry_par->hci = (u8)hci; */
 	registry_par->network_mode  = (u8)rtw_network_mode;
 
-	memcpy(registry_par->ssid.Ssid, "ANY", 3);
-	registry_par->ssid.SsidLength = 3;
+	memcpy(registry_par->ssid.ssid, "ANY", 3);
+	registry_par->ssid.ssid_length = 3;
 
 	registry_par->channel = (u8)rtw_channel;
 	registry_par->wireless_mode = (u8)rtw_wireless_mode;
@@ -255,7 +238,6 @@ static void loadparam(struct adapter *padapter, struct net_device *pnetdev)
 	registry_par->beamform_cap = (u8)rtw_beamform_cap;
 
 	registry_par->lowrate_two_xmit = (u8)rtw_lowrate_two_xmit;
-	registry_par->rf_config = (u8)rtw_rf_config;
 	registry_par->low_power = (u8)rtw_low_power;
 
 
@@ -263,10 +245,6 @@ static void loadparam(struct adapter *padapter, struct net_device *pnetdev)
 
 	registry_par->channel_plan = (u8)rtw_channel_plan;
 
-	registry_par->btcoex = (u8)rtw_btcoex_enable;
-	registry_par->bt_iso = (u8)rtw_bt_iso;
-	registry_par->bt_sco = (u8)rtw_bt_sco;
-	registry_par->bt_ampdu = (u8)rtw_bt_ampdu;
 	registry_par->ant_num = (s8)rtw_ant_num;
 
 	registry_par->accept_addba_req = true;
@@ -289,7 +267,6 @@ static void loadparam(struct adapter *padapter, struct net_device *pnetdev)
 
 	registry_par->RegPowerBase = 14;
 	registry_par->TxBBSwing_2G = 0xFF;
-	registry_par->TxBBSwing_5G = 0xFF;
 	registry_par->bEn_RFE = 1;
 	registry_par->RFE_Type = 64;
 
@@ -497,7 +474,6 @@ struct net_device *rtw_init_netdev(struct adapter *old_padapter)
 
 	/* pnetdev->tx_timeout = NULL; */
 	pnetdev->watchdog_timeo = HZ * 3; /* 3 second timeout */
-	pnetdev->wireless_handlers = (struct iw_handler_def *)&rtw_handlers_def;
 
 	/* step 2. */
 	loadparam(padapter, pnetdev);
@@ -1152,14 +1128,13 @@ static void rtw_suspend_normal(struct adapter *padapter)
 		padapter->intf_deinit(adapter_to_dvobj(padapter));
 }
 
-int rtw_suspend_common(struct adapter *padapter)
+void rtw_suspend_common(struct adapter *padapter)
 {
 	struct dvobj_priv *psdpriv = padapter->dvobj;
 	struct debug_priv *pdbgpriv = &psdpriv->drv_dbg;
 	struct pwrctrl_priv *pwrpriv = dvobj_to_pwrctl(psdpriv);
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 
-	int ret = 0;
 	unsigned long start_time = jiffies;
 
 	netdev_dbg(padapter->pnetdev, " suspend start\n");
@@ -1190,19 +1165,14 @@ int rtw_suspend_common(struct adapter *padapter)
 
 	rtw_ps_deny_cancel(padapter, PS_DENY_SUSPEND);
 
-	if (check_fwstate(pmlmepriv, WIFI_STATION_STATE))
-		rtw_suspend_normal(padapter);
-	else if (check_fwstate(pmlmepriv, WIFI_AP_STATE))
-		rtw_suspend_normal(padapter);
-	else
-		rtw_suspend_normal(padapter);
+	rtw_suspend_normal(padapter);
 
 	netdev_dbg(padapter->pnetdev, "rtw suspend success in %d ms\n",
 		   jiffies_to_msecs(jiffies - start_time));
 
 exit:
 
-	return ret;
+	return;
 }
 
 static int rtw_resume_process_normal(struct adapter *padapter)
@@ -1269,17 +1239,10 @@ int rtw_resume_common(struct adapter *padapter)
 	int ret = 0;
 	unsigned long start_time = jiffies;
 	struct pwrctrl_priv *pwrpriv = adapter_to_pwrctl(padapter);
-	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 
 	netdev_dbg(padapter->pnetdev, "resume start\n");
 
-	if (check_fwstate(pmlmepriv, WIFI_STATION_STATE)) {
-		rtw_resume_process_normal(padapter);
-	} else if (check_fwstate(pmlmepriv, WIFI_AP_STATE)) {
-		rtw_resume_process_normal(padapter);
-	} else {
-		rtw_resume_process_normal(padapter);
-	}
+	rtw_resume_process_normal(padapter);
 
 	hal_btcoex_SuspendNotify(padapter, 0);
 

@@ -12,3 +12,4 @@
 EXPORT_TRACEPOINT_SYMBOL_GPL(nfs_fsync_enter);
 EXPORT_TRACEPOINT_SYMBOL_GPL(nfs_fsync_exit);
 EXPORT_TRACEPOINT_SYMBOL_GPL(nfs_xdr_status);
+EXPORT_TRACEPOINT_SYMBOL_GPL(nfs_xdr_bad_filehandle);

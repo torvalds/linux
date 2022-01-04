@@ -1397,103 +1397,6 @@ static int posix_lock_inode_wait(struct inode *inode, struct file_lock *fl)
 	return error;
 }
 
-#ifdef CONFIG_MANDATORY_FILE_LOCKING
-/**
- * locks_mandatory_locked - Check for an active lock
- * @file: the file to check
- *
- * Searches the inode's list of locks to find any POSIX locks which conflict.
- * This function is called from locks_verify_locked() only.
- */
-int locks_mandatory_locked(struct file *file)
-{
-	int ret;
-	struct inode *inode = locks_inode(file);
-	struct file_lock_context *ctx;
-	struct file_lock *fl;
-
-	ctx = smp_load_acquire(&inode->i_flctx);
-	if (!ctx || list_empty_careful(&ctx->flc_posix))
-		return 0;
-
-	/*
-	 * Search the lock list for this inode for any POSIX locks.
-	 */
-	spin_lock(&ctx->flc_lock);
-	ret = 0;
-	list_for_each_entry(fl, &ctx->flc_posix, fl_list) {
-		if (fl->fl_owner != current->files &&
-		    fl->fl_owner != file) {
-			ret = -EAGAIN;
-			break;
-		}
-	}
-	spin_unlock(&ctx->flc_lock);
-	return ret;
-}
-
-/**
- * locks_mandatory_area - Check for a conflicting lock
- * @inode:	the file to check
- * @filp:       how the file was opened (if it was)
- * @start:	first byte in the file to check
- * @end:	lastbyte in the file to check
- * @type:	%F_WRLCK for a write lock, else %F_RDLCK
- *
- * Searches the inode's list of locks to find any POSIX locks which conflict.
- */
-int locks_mandatory_area(struct inode *inode, struct file *filp, loff_t start,
-			 loff_t end, unsigned char type)
-{
-	struct file_lock fl;
-	int error;
-	bool sleep = false;
-
-	locks_init_lock(&fl);
-	fl.fl_pid = current->tgid;
-	fl.fl_file = filp;
-	fl.fl_flags = FL_POSIX | FL_ACCESS;
-	if (filp && !(filp->f_flags & O_NONBLOCK))
-		sleep = true;
-	fl.fl_type = type;
-	fl.fl_start = start;
-	fl.fl_end = end;
-
-	for (;;) {
-		if (filp) {
-			fl.fl_owner = filp;
-			fl.fl_flags &= ~FL_SLEEP;
-			error = posix_lock_inode(inode, &fl, NULL);
-			if (!error)
-				break;
-		}
-
-		if (sleep)
-			fl.fl_flags |= FL_SLEEP;
-		fl.fl_owner = current->files;
-		error = posix_lock_inode(inode, &fl, NULL);
-		if (error != FILE_LOCK_DEFERRED)
-			break;
-		error = wait_event_interruptible(fl.fl_wait,
-					list_empty(&fl.fl_blocked_member));
-		if (!error) {
-			/*
-			 * If we've been sleeping someone might have
-			 * changed the permissions behind our back.
-			 */
-			if (__mandatory_lock(inode))
-				continue;
-		}
-
-		break;
-	}
-	locks_delete_block(&fl);
-
-	return error;
-}
-EXPORT_SYMBOL(locks_mandatory_area);
-#endif /* CONFIG_MANDATORY_FILE_LOCKING */
-
 static void lease_clear_pending(struct file_lock *fl, int arg)
 {
 	switch (arg) {
@@ -1807,6 +1710,9 @@ check_conflicting_open(struct file *filp, const long arg, int flags)
 	int self_wcount = 0, self_rcount = 0;
 
 	if (flags & FL_LAYOUT)
+		return 0;
+	if (flags & FL_DELEG)
+		/* We leave these checks to the caller */
 		return 0;
 
 	if (arg == F_RDLCK)
@@ -2483,14 +2389,6 @@ int fcntl_setlk(unsigned int fd, struct file *filp, unsigned int cmd,
 	if (file_lock == NULL)
 		return -ENOLCK;
 
-	/* Don't allow mandatory locks on files that may be memory mapped
-	 * and shared.
-	 */
-	if (mandatory_lock(inode) && mapping_writably_mapped(filp->f_mapping)) {
-		error = -EAGAIN;
-		goto out;
-	}
-
 	error = flock_to_posix_lock(filp, file_lock, flock);
 	if (error)
 		goto out;
@@ -2608,20 +2506,11 @@ int fcntl_setlk64(unsigned int fd, struct file *filp, unsigned int cmd,
 		struct flock64 *flock)
 {
 	struct file_lock *file_lock = locks_alloc_lock();
-	struct inode *inode = locks_inode(filp);
 	struct file *f;
 	int error;
 
 	if (file_lock == NULL)
 		return -ENOLCK;
-
-	/* Don't allow mandatory locks on files that may be memory mapped
-	 * and shared.
-	 */
-	if (mandatory_lock(inode) && mapping_writably_mapped(filp->f_mapping)) {
-		error = -EAGAIN;
-		goto out;
-	}
 
 	error = flock64_to_posix_lock(filp, file_lock, flock);
 	if (error)
@@ -2854,8 +2743,7 @@ static void lock_get_status(struct seq_file *f, struct file_lock *fl,
 			seq_puts(f, "POSIX ");
 
 		seq_printf(f, " %s ",
-			     (inode == NULL) ? "*NOINODE*" :
-			     mandatory_lock(inode) ? "MANDATORY" : "ADVISORY ");
+			     (inode == NULL) ? "*NOINODE*" : "ADVISORY ");
 	} else if (IS_FLOCK(fl)) {
 		if (fl->fl_type & LOCK_MAND) {
 			seq_puts(f, "FLOCK  MSNFS     ");
@@ -3053,10 +2941,12 @@ static int __init filelock_init(void)
 	int i;
 
 	flctx_cache = kmem_cache_create("file_lock_ctx",
-			sizeof(struct file_lock_context), 0, SLAB_PANIC, NULL);
+			sizeof(struct file_lock_context), 0,
+			SLAB_PANIC | SLAB_ACCOUNT, NULL);
 
 	filelock_cache = kmem_cache_create("file_lock_cache",
-			sizeof(struct file_lock), 0, SLAB_PANIC, NULL);
+			sizeof(struct file_lock), 0,
+			SLAB_PANIC | SLAB_ACCOUNT, NULL);
 
 	for_each_possible_cpu(i) {
 		struct file_lock_list_struct *fll = per_cpu_ptr(&file_lock_list, i);

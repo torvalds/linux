@@ -82,7 +82,7 @@
 
 
 	/* Global Mixed-Mode Technology G751 mounted on GPIO I2C */
-	gpio-i2c {
+	i2c {
 		compatible = "i2c-gpio";
 		sda-gpios = <&gpio0 15 (GPIO_ACTIVE_HIGH|GPIO_OPEN_DRAIN)>;
 		scl-gpios = <&gpio0 16 (GPIO_ACTIVE_HIGH|GPIO_OPEN_DRAIN)>;
@@ -140,7 +140,7 @@
 		};
 	};
 
-	mdio0: ethernet-phy {
+	mdio0: mdio {
 		compatible = "virtual,mdio-gpio";
 		/* Uses MDC and MDIO */
 		gpios = <&gpio0 22 GPIO_ACTIVE_HIGH>, /* MDC */

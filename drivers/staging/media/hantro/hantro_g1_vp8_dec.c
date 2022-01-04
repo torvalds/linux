@@ -10,7 +10,6 @@
  */
 
 #include <media/v4l2-mem2mem.h>
-#include <media/vp8-ctrls.h>
 
 #include "hantro_hw.h"
 #include "hantro.h"
@@ -133,17 +132,17 @@ static const struct hantro_reg vp8_dec_pred_bc_tap[8][4] = {
  * Set loop filters
  */
 static void cfg_lf(struct hantro_ctx *ctx,
-		   const struct v4l2_ctrl_vp8_frame_header *hdr)
+		   const struct v4l2_ctrl_vp8_frame *hdr)
 {
-	const struct v4l2_vp8_segment_header *seg = &hdr->segment_header;
-	const struct v4l2_vp8_loopfilter_header *lf = &hdr->lf_header;
+	const struct v4l2_vp8_segment *seg = &hdr->segment;
+	const struct v4l2_vp8_loop_filter *lf = &hdr->lf;
 	struct hantro_dev *vpu = ctx->dev;
 	unsigned int i;
 	u32 reg;
 
-	if (!(seg->flags & V4L2_VP8_SEGMENT_HEADER_FLAG_ENABLED)) {
+	if (!(seg->flags & V4L2_VP8_SEGMENT_FLAG_ENABLED)) {
 		hantro_reg_write(vpu, &vp8_dec_lf_level[0], lf->level);
-	} else if (seg->flags & V4L2_VP8_SEGMENT_HEADER_FLAG_DELTA_VALUE_MODE) {
+	} else if (seg->flags & V4L2_VP8_SEGMENT_FLAG_DELTA_VALUE_MODE) {
 		for (i = 0; i < 4; i++) {
 			u32 lf_level = clamp(lf->level + seg->lf_update[i],
 					     0, 63);
@@ -161,7 +160,7 @@ static void cfg_lf(struct hantro_ctx *ctx,
 		reg |= G1_REG_REF_PIC_FILT_TYPE_E;
 	vdpu_write_relaxed(vpu, reg, G1_REG_REF_PIC(0));
 
-	if (lf->flags & V4L2_VP8_LF_HEADER_ADJ_ENABLE) {
+	if (lf->flags & V4L2_VP8_LF_ADJ_ENABLE) {
 		for (i = 0; i < 4; i++) {
 			hantro_reg_write(vpu, &vp8_dec_mb_adj[i],
 					 lf->mb_mode_delta[i]);
@@ -175,16 +174,16 @@ static void cfg_lf(struct hantro_ctx *ctx,
  * Set quantization parameters
  */
 static void cfg_qp(struct hantro_ctx *ctx,
-		   const struct v4l2_ctrl_vp8_frame_header *hdr)
+		   const struct v4l2_ctrl_vp8_frame *hdr)
 {
-	const struct v4l2_vp8_quantization_header *q = &hdr->quant_header;
-	const struct v4l2_vp8_segment_header *seg = &hdr->segment_header;
+	const struct v4l2_vp8_quantization *q = &hdr->quant;
+	const struct v4l2_vp8_segment *seg = &hdr->segment;
 	struct hantro_dev *vpu = ctx->dev;
 	unsigned int i;
 
-	if (!(seg->flags & V4L2_VP8_SEGMENT_HEADER_FLAG_ENABLED)) {
+	if (!(seg->flags & V4L2_VP8_SEGMENT_FLAG_ENABLED)) {
 		hantro_reg_write(vpu, &vp8_dec_quant[0], q->y_ac_qi);
-	} else if (seg->flags & V4L2_VP8_SEGMENT_HEADER_FLAG_DELTA_VALUE_MODE) {
+	} else if (seg->flags & V4L2_VP8_SEGMENT_FLAG_DELTA_VALUE_MODE) {
 		for (i = 0; i < 4; i++) {
 			u32 quant = clamp(q->y_ac_qi + seg->quant_update[i],
 					  0, 127);
@@ -230,11 +229,11 @@ static void cfg_qp(struct hantro_ctx *ctx,
  *   4. the addresses set to the VPU must be 64-bits aligned
  */
 static void cfg_parts(struct hantro_ctx *ctx,
-		      const struct v4l2_ctrl_vp8_frame_header *hdr)
+		      const struct v4l2_ctrl_vp8_frame *hdr)
 {
 	struct hantro_dev *vpu = ctx->dev;
 	struct vb2_v4l2_buffer *vb2_src;
-	u32 first_part_offset = VP8_FRAME_IS_KEY_FRAME(hdr) ? 10 : 3;
+	u32 first_part_offset = V4L2_VP8_FRAME_IS_KEY_FRAME(hdr) ? 10 : 3;
 	u32 mb_size, mb_offset_bytes, mb_offset_bits, mb_start_bits;
 	u32 dct_size_part_size, dct_part_offset;
 	struct hantro_reg reg;
@@ -328,7 +327,7 @@ static void cfg_parts(struct hantro_ctx *ctx,
  * normal 6-tap filters
  */
 static void cfg_tap(struct hantro_ctx *ctx,
-		    const struct v4l2_ctrl_vp8_frame_header *hdr)
+		    const struct v4l2_ctrl_vp8_frame *hdr)
 {
 	struct hantro_dev *vpu = ctx->dev;
 	struct hantro_reg reg;
@@ -368,46 +367,50 @@ static void cfg_tap(struct hantro_ctx *ctx,
 }
 
 static void cfg_ref(struct hantro_ctx *ctx,
-		    const struct v4l2_ctrl_vp8_frame_header *hdr)
+		    const struct v4l2_ctrl_vp8_frame *hdr,
+		    struct vb2_v4l2_buffer *vb2_dst)
 {
 	struct hantro_dev *vpu = ctx->dev;
-	struct vb2_v4l2_buffer *vb2_dst;
 	dma_addr_t ref;
 
-	vb2_dst = hantro_get_dst_buf(ctx);
 
 	ref = hantro_get_ref(ctx, hdr->last_frame_ts);
-	if (!ref)
+	if (!ref) {
+		vpu_debug(0, "failed to find last frame ts=%llu\n",
+			  hdr->last_frame_ts);
 		ref = vb2_dma_contig_plane_dma_addr(&vb2_dst->vb2_buf, 0);
+	}
 	vdpu_write_relaxed(vpu, ref, G1_REG_ADDR_REF(0));
 
 	ref = hantro_get_ref(ctx, hdr->golden_frame_ts);
-	WARN_ON(!ref && hdr->golden_frame_ts);
+	if (!ref && hdr->golden_frame_ts)
+		vpu_debug(0, "failed to find golden frame ts=%llu\n",
+			  hdr->golden_frame_ts);
 	if (!ref)
 		ref = vb2_dma_contig_plane_dma_addr(&vb2_dst->vb2_buf, 0);
-	if (hdr->flags & V4L2_VP8_FRAME_HEADER_FLAG_SIGN_BIAS_GOLDEN)
+	if (hdr->flags & V4L2_VP8_FRAME_FLAG_SIGN_BIAS_GOLDEN)
 		ref |= G1_REG_ADDR_REF_TOPC_E;
 	vdpu_write_relaxed(vpu, ref, G1_REG_ADDR_REF(4));
 
 	ref = hantro_get_ref(ctx, hdr->alt_frame_ts);
-	WARN_ON(!ref && hdr->alt_frame_ts);
+	if (!ref && hdr->alt_frame_ts)
+		vpu_debug(0, "failed to find alt frame ts=%llu\n",
+			  hdr->alt_frame_ts);
 	if (!ref)
 		ref = vb2_dma_contig_plane_dma_addr(&vb2_dst->vb2_buf, 0);
-	if (hdr->flags & V4L2_VP8_FRAME_HEADER_FLAG_SIGN_BIAS_ALT)
+	if (hdr->flags & V4L2_VP8_FRAME_FLAG_SIGN_BIAS_ALT)
 		ref |= G1_REG_ADDR_REF_TOPC_E;
 	vdpu_write_relaxed(vpu, ref, G1_REG_ADDR_REF(5));
 }
 
 static void cfg_buffers(struct hantro_ctx *ctx,
-			const struct v4l2_ctrl_vp8_frame_header *hdr)
+			const struct v4l2_ctrl_vp8_frame *hdr,
+			struct vb2_v4l2_buffer *vb2_dst)
 {
-	const struct v4l2_vp8_segment_header *seg = &hdr->segment_header;
+	const struct v4l2_vp8_segment *seg = &hdr->segment;
 	struct hantro_dev *vpu = ctx->dev;
-	struct vb2_v4l2_buffer *vb2_dst;
 	dma_addr_t dst_dma;
 	u32 reg;
-
-	vb2_dst = hantro_get_dst_buf(ctx);
 
 	/* Set probability table buffer address */
 	vdpu_write_relaxed(vpu, ctx->vp8_dec.prob_tbl.dma,
@@ -415,9 +418,9 @@ static void cfg_buffers(struct hantro_ctx *ctx,
 
 	/* Set segment map address */
 	reg = G1_REG_FWD_PIC1_SEGMENT_BASE(ctx->vp8_dec.segment_map.dma);
-	if (seg->flags & V4L2_VP8_SEGMENT_HEADER_FLAG_ENABLED) {
+	if (seg->flags & V4L2_VP8_SEGMENT_FLAG_ENABLED) {
 		reg |= G1_REG_FWD_PIC1_SEGMENT_E;
-		if (seg->flags & V4L2_VP8_SEGMENT_HEADER_FLAG_UPDATE_MAP)
+		if (seg->flags & V4L2_VP8_SEGMENT_FLAG_UPDATE_MAP)
 			reg |= G1_REG_FWD_PIC1_SEGMENT_UPD_E;
 	}
 	vdpu_write_relaxed(vpu, reg, G1_REG_FWD_PIC(0));
@@ -426,10 +429,11 @@ static void cfg_buffers(struct hantro_ctx *ctx,
 	vdpu_write_relaxed(vpu, dst_dma, G1_REG_ADDR_DST);
 }
 
-void hantro_g1_vp8_dec_run(struct hantro_ctx *ctx)
+int hantro_g1_vp8_dec_run(struct hantro_ctx *ctx)
 {
-	const struct v4l2_ctrl_vp8_frame_header *hdr;
+	const struct v4l2_ctrl_vp8_frame *hdr;
 	struct hantro_dev *vpu = ctx->dev;
+	struct vb2_v4l2_buffer *vb2_dst;
 	size_t height = ctx->dst_fmt.height;
 	size_t width = ctx->dst_fmt.width;
 	u32 mb_width, mb_height;
@@ -437,12 +441,12 @@ void hantro_g1_vp8_dec_run(struct hantro_ctx *ctx)
 
 	hantro_start_prepare_run(ctx);
 
-	hdr = hantro_get_ctrl(ctx, V4L2_CID_MPEG_VIDEO_VP8_FRAME_HEADER);
+	hdr = hantro_get_ctrl(ctx, V4L2_CID_STATELESS_VP8_FRAME);
 	if (WARN_ON(!hdr))
-		return;
+		return -EINVAL;
 
 	/* Reset segment_map buffer in keyframe */
-	if (VP8_FRAME_IS_KEY_FRAME(hdr) && ctx->vp8_dec.segment_map.cpu)
+	if (V4L2_VP8_FRAME_IS_KEY_FRAME(hdr) && ctx->vp8_dec.segment_map.cpu)
 		memset(ctx->vp8_dec.segment_map.cpu, 0,
 		       ctx->vp8_dec.segment_map.size);
 
@@ -460,11 +464,11 @@ void hantro_g1_vp8_dec_run(struct hantro_ctx *ctx)
 	vdpu_write_relaxed(vpu, reg, G1_REG_CONFIG);
 
 	reg = G1_REG_DEC_CTRL0_DEC_MODE(10);
-	if (!VP8_FRAME_IS_KEY_FRAME(hdr))
+	if (!V4L2_VP8_FRAME_IS_KEY_FRAME(hdr))
 		reg |= G1_REG_DEC_CTRL0_PIC_INTER_E;
-	if (!(hdr->flags & V4L2_VP8_FRAME_HEADER_FLAG_MB_NO_SKIP_COEFF))
+	if (!(hdr->flags & V4L2_VP8_FRAME_FLAG_MB_NO_SKIP_COEFF))
 		reg |= G1_REG_DEC_CTRL0_SKIP_MODE;
-	if (hdr->lf_header.level == 0)
+	if (hdr->lf.level == 0)
 		reg |= G1_REG_DEC_CTRL0_FILTERING_DIS;
 	vdpu_write_relaxed(vpu, reg, G1_REG_DEC_CTRL0);
 
@@ -493,10 +497,14 @@ void hantro_g1_vp8_dec_run(struct hantro_ctx *ctx)
 	cfg_qp(ctx, hdr);
 	cfg_parts(ctx, hdr);
 	cfg_tap(ctx, hdr);
-	cfg_ref(ctx, hdr);
-	cfg_buffers(ctx, hdr);
+
+	vb2_dst = hantro_get_dst_buf(ctx);
+	cfg_ref(ctx, hdr, vb2_dst);
+	cfg_buffers(ctx, hdr, vb2_dst);
 
 	hantro_end_prepare_run(ctx);
 
 	vdpu_write(vpu, G1_REG_INTERRUPT_DEC_E, G1_REG_INTERRUPT);
+
+	return 0;
 }

@@ -591,8 +591,10 @@ void rtw_coex_info_response(struct rtw_dev *rtwdev, struct sk_buff *skb)
 	struct rtw_coex *coex = &rtwdev->coex;
 	u8 *payload = get_payload_from_coex_resp(skb);
 
-	if (payload[0] != COEX_RESP_ACK_BY_WL_FW)
+	if (payload[0] != COEX_RESP_ACK_BY_WL_FW) {
+		dev_kfree_skb_any(skb);
 		return;
+	}
 
 	skb_queue_tail(&coex->queue, skb);
 	wake_up(&coex->wait);
@@ -630,20 +632,16 @@ static bool rtw_coex_get_bt_scan_type(struct rtw_dev *rtwdev, u8 *scan_type)
 	struct rtw_coex_info_req req = {0};
 	struct sk_buff *skb;
 	u8 *payload;
-	bool ret = false;
 
 	req.op_code = BT_MP_INFO_OP_SCAN_TYPE;
 	skb = rtw_coex_info_request(rtwdev, &req);
 	if (!skb)
-		goto out;
+		return false;
 
 	payload = get_payload_from_coex_resp(skb);
 	*scan_type = GET_COEX_RESP_BT_SCAN_TYPE(payload);
 	dev_kfree_skb_any(skb);
-	ret = true;
-
-out:
-	return ret;
+	return true;
 }
 
 static bool rtw_coex_set_lna_constrain_level(struct rtw_dev *rtwdev,
@@ -651,19 +649,15 @@ static bool rtw_coex_set_lna_constrain_level(struct rtw_dev *rtwdev,
 {
 	struct rtw_coex_info_req req = {0};
 	struct sk_buff *skb;
-	bool ret = false;
 
 	req.op_code = BT_MP_INFO_OP_LNA_CONSTRAINT;
 	req.para1 = lna_constrain_level;
 	skb = rtw_coex_info_request(rtwdev, &req);
 	if (!skb)
-		goto out;
+		return false;
 
 	dev_kfree_skb_any(skb);
-	ret = true;
-
-out:
-	return ret;
+	return true;
 }
 
 #define case_BTSTATUS(src) \
@@ -787,7 +781,6 @@ static void rtw_coex_update_wl_ch_info(struct rtw_dev *rtwdev, u8 type)
 {
 	struct rtw_chip_info *chip = rtwdev->chip;
 	struct rtw_coex_dm *coex_dm = &rtwdev->coex.dm;
-	struct rtw_efuse *efuse = &rtwdev->efuse;
 	u8 link = 0;
 	u8 center_chan = 0;
 	u8 bw;
@@ -798,7 +791,7 @@ static void rtw_coex_update_wl_ch_info(struct rtw_dev *rtwdev, u8 type)
 	if (type != COEX_MEDIA_DISCONNECT)
 		center_chan = rtwdev->hal.current_channel;
 
-	if (center_chan == 0 || (efuse->share_ant && center_chan <= 14)) {
+	if (center_chan == 0) {
 		link = 0;
 		center_chan = 0;
 		bw = 0;
@@ -2325,8 +2318,11 @@ static void rtw_coex_action_wl_linkscan(struct rtw_dev *rtwdev)
 	if (efuse->share_ant) { /* Shared-Ant */
 		if (coex_stat->bt_a2dp_exist) {
 			slot_type = TDMA_4SLOT;
-			table_case = 9;
 			tdma_case = 11;
+			if (coex_stat->wl_gl_busy)
+				table_case = 26;
+			else
+				table_case = 9;
 		} else {
 			table_case = 9;
 			tdma_case = 7;
@@ -2644,6 +2640,11 @@ void rtw_coex_power_on_setting(struct rtw_dev *rtwdev)
 	/* red x issue */
 	rtw_write8(rtwdev, 0xff1a, 0x0);
 	rtw_coex_set_gnt_debug(rtwdev);
+}
+
+void rtw_coex_power_off_setting(struct rtw_dev *rtwdev)
+{
+	rtw_write16(rtwdev, REG_WIFI_BT_INFO, BIT_BT_INT_EN);
 }
 
 void rtw_coex_init_hw_config(struct rtw_dev *rtwdev, bool wifi_only)
@@ -3516,6 +3517,7 @@ static bool rtw_coex_get_bt_reg(struct rtw_dev *rtwdev,
 
 	payload = get_payload_from_coex_resp(skb);
 	*val = GET_COEX_RESP_BT_REG_VAL(payload);
+	dev_kfree_skb_any(skb);
 
 	return true;
 }
@@ -3526,19 +3528,17 @@ static bool rtw_coex_get_bt_patch_version(struct rtw_dev *rtwdev,
 	struct rtw_coex_info_req req = {0};
 	struct sk_buff *skb;
 	u8 *payload;
-	bool ret = false;
 
 	req.op_code = BT_MP_INFO_OP_PATCH_VER;
 	skb = rtw_coex_info_request(rtwdev, &req);
 	if (!skb)
-		goto out;
+		return false;
 
 	payload = get_payload_from_coex_resp(skb);
 	*patch_version = GET_COEX_RESP_BT_PATCH_VER(payload);
-	ret = true;
+	dev_kfree_skb_any(skb);
 
-out:
-	return ret;
+	return true;
 }
 
 static bool rtw_coex_get_bt_supported_version(struct rtw_dev *rtwdev,
@@ -3547,19 +3547,17 @@ static bool rtw_coex_get_bt_supported_version(struct rtw_dev *rtwdev,
 	struct rtw_coex_info_req req = {0};
 	struct sk_buff *skb;
 	u8 *payload;
-	bool ret = false;
 
 	req.op_code = BT_MP_INFO_OP_SUPP_VER;
 	skb = rtw_coex_info_request(rtwdev, &req);
 	if (!skb)
-		goto out;
+		return false;
 
 	payload = get_payload_from_coex_resp(skb);
 	*supported_version = GET_COEX_RESP_BT_SUPP_VER(payload);
-	ret = true;
+	dev_kfree_skb_any(skb);
 
-out:
-	return ret;
+	return true;
 }
 
 static bool rtw_coex_get_bt_supported_feature(struct rtw_dev *rtwdev,
@@ -3568,19 +3566,17 @@ static bool rtw_coex_get_bt_supported_feature(struct rtw_dev *rtwdev,
 	struct rtw_coex_info_req req = {0};
 	struct sk_buff *skb;
 	u8 *payload;
-	bool ret = false;
 
 	req.op_code = BT_MP_INFO_OP_SUPP_FEAT;
 	skb = rtw_coex_info_request(rtwdev, &req);
 	if (!skb)
-		goto out;
+		return false;
 
 	payload = get_payload_from_coex_resp(skb);
 	*supported_feature = GET_COEX_RESP_BT_SUPP_FEAT(payload);
-	ret = true;
+	dev_kfree_skb_any(skb);
 
-out:
-	return ret;
+	return true;
 }
 
 struct rtw_coex_sta_stat_iter_data {

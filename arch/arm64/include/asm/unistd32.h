@@ -279,7 +279,7 @@ __SYSCALL(__NR_getpgid, sys_getpgid)
 #define __NR_fchdir 133
 __SYSCALL(__NR_fchdir, sys_fchdir)
 #define __NR_bdflush 134
-__SYSCALL(__NR_bdflush, sys_bdflush)
+__SYSCALL(__NR_bdflush, sys_ni_syscall)
 #define __NR_sysfs 135
 __SYSCALL(__NR_sysfs, sys_sysfs)
 #define __NR_personality 136
@@ -893,6 +893,16 @@ __SYSCALL(__NR_process_madvise, sys_process_madvise)
 __SYSCALL(__NR_epoll_pwait2, compat_sys_epoll_pwait2)
 #define __NR_mount_setattr 442
 __SYSCALL(__NR_mount_setattr, sys_mount_setattr)
+#define __NR_quotactl_fd 443
+__SYSCALL(__NR_quotactl_fd, sys_quotactl_fd)
+#define __NR_landlock_create_ruleset 444
+__SYSCALL(__NR_landlock_create_ruleset, sys_landlock_create_ruleset)
+#define __NR_landlock_add_rule 445
+__SYSCALL(__NR_landlock_add_rule, sys_landlock_add_rule)
+#define __NR_landlock_restrict_self 446
+__SYSCALL(__NR_landlock_restrict_self, sys_landlock_restrict_self)
+#define __NR_process_mrelease 448
+__SYSCALL(__NR_process_mrelease, sys_process_mrelease)
 
 /*
  * Please add new compat syscalls above this comment and update

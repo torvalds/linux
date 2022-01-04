@@ -51,6 +51,9 @@ properties:
   vcc-supply:
     description: Our power supply.
 
+  power-domains:
+    maxItems: 1
+
   # Needed if any child nodes are present.
   "#address-cells":
     const: 1

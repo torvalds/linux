@@ -128,12 +128,7 @@ void __qdisc_run(struct Qdisc *q);
 static inline void qdisc_run(struct Qdisc *q)
 {
 	if (qdisc_run_begin(q)) {
-		/* NOLOCK qdisc must check 'state' under the qdisc seqlock
-		 * to avoid racing with dev_qdisc_reset()
-		 */
-		if (!(q->flags & TCQ_F_NOLOCK) ||
-		    likely(!test_bit(__QDISC_STATE_DEACTIVATED, &q->state)))
-			__qdisc_run(q);
+		__qdisc_run(q);
 		qdisc_run_end(q);
 	}
 }
@@ -187,5 +182,14 @@ struct tc_taprio_qopt_offload {
 struct tc_taprio_qopt_offload *taprio_offload_get(struct tc_taprio_qopt_offload
 						  *offload);
 void taprio_offload_free(struct tc_taprio_qopt_offload *offload);
+
+/* Ensure skb_mstamp_ns, which might have been populated with the txtime, is
+ * not mistaken for a software timestamp, because this will otherwise prevent
+ * the dispatch of hardware timestamps to the socket.
+ */
+static inline void skb_txtime_consumed(struct sk_buff *skb)
+{
+	skb->tstamp = ktime_set(0, 0);
+}
 
 #endif

@@ -9,6 +9,7 @@
 #include <linux/sysfs.h>
 #include "coresight-etm4x.h"
 #include "coresight-priv.h"
+#include "coresight-syscfg.h"
 
 static int etm4_set_mode_exclude(struct etmv4_drvdata *drvdata, bool exclude)
 {
@@ -268,6 +269,8 @@ static ssize_t reset_store(struct device *dev,
 	drvdata->trcid = drvdata->cpu + 1;
 
 	spin_unlock(&drvdata->spinlock);
+
+	cscfg_csdev_reset_feats(to_coresight_device(dev));
 
 	return size;
 }
@@ -2374,12 +2377,20 @@ static inline bool
 etm4x_register_implemented(struct etmv4_drvdata *drvdata, u32 offset)
 {
 	switch (offset) {
-	ETM4x_SYSREG_LIST_CASES
+	ETM_COMMON_SYSREG_LIST_CASES
 		/*
-		 * Registers accessible via system instructions are always
-		 * implemented.
+		 * Common registers to ETE & ETM4x accessible via system
+		 * instructions are always implemented.
 		 */
 		return true;
+
+	ETM4x_ONLY_SYSREG_LIST_CASES
+		/*
+		 * We only support etm4x and ete. So if the device is not
+		 * ETE, it must be ETMv4x.
+		 */
+		return !etm4x_is_ete(drvdata);
+
 	ETM4x_MMAP_LIST_CASES
 		/*
 		 * Registers accessible only via memory-mapped registers
@@ -2389,8 +2400,13 @@ etm4x_register_implemented(struct etmv4_drvdata *drvdata, u32 offset)
 		 * coresight_register() and the csdev is not initialized
 		 * until that is done. So rely on the drvdata->base to
 		 * detect if we have a memory mapped access.
+		 * Also ETE doesn't implement memory mapped access, thus
+		 * it is sufficient to check that we are using mmio.
 		 */
 		return !!drvdata->base;
+
+	ETE_ONLY_SYSREG_LIST_CASES
+		return etm4x_is_ete(drvdata);
 	}
 
 	return false;

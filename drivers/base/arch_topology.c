@@ -18,10 +18,11 @@
 #include <linux/cpumask.h>
 #include <linux/init.h>
 #include <linux/percpu.h>
+#include <linux/rcupdate.h>
 #include <linux/sched.h>
 #include <linux/smp.h>
 
-static DEFINE_PER_CPU(struct scale_freq_data *, sft_data);
+static DEFINE_PER_CPU(struct scale_freq_data __rcu *, sft_data);
 static struct cpumask scale_freq_counters_mask;
 static bool scale_freq_invariant;
 
@@ -66,15 +67,19 @@ void topology_set_scale_freq_source(struct scale_freq_data *data,
 	if (cpumask_empty(&scale_freq_counters_mask))
 		scale_freq_invariant = topology_scale_freq_invariant();
 
+	rcu_read_lock();
+
 	for_each_cpu(cpu, cpus) {
-		sfd = per_cpu(sft_data, cpu);
+		sfd = rcu_dereference(*per_cpu_ptr(&sft_data, cpu));
 
 		/* Use ARCH provided counters whenever possible */
 		if (!sfd || sfd->source != SCALE_FREQ_SOURCE_ARCH) {
-			per_cpu(sft_data, cpu) = data;
+			rcu_assign_pointer(per_cpu(sft_data, cpu), data);
 			cpumask_set_cpu(cpu, &scale_freq_counters_mask);
 		}
 	}
+
+	rcu_read_unlock();
 
 	update_scale_freq_invariant(true);
 }
@@ -86,14 +91,24 @@ void topology_clear_scale_freq_source(enum scale_freq_source source,
 	struct scale_freq_data *sfd;
 	int cpu;
 
+	rcu_read_lock();
+
 	for_each_cpu(cpu, cpus) {
-		sfd = per_cpu(sft_data, cpu);
+		sfd = rcu_dereference(*per_cpu_ptr(&sft_data, cpu));
 
 		if (sfd && sfd->source == source) {
-			per_cpu(sft_data, cpu) = NULL;
+			rcu_assign_pointer(per_cpu(sft_data, cpu), NULL);
 			cpumask_clear_cpu(cpu, &scale_freq_counters_mask);
 		}
 	}
+
+	rcu_read_unlock();
+
+	/*
+	 * Make sure all references to previous sft_data are dropped to avoid
+	 * use-after-free races.
+	 */
+	synchronize_rcu();
 
 	update_scale_freq_invariant(false);
 }
@@ -101,7 +116,7 @@ EXPORT_SYMBOL_GPL(topology_clear_scale_freq_source);
 
 void topology_scale_freq_tick(void)
 {
-	struct scale_freq_data *sfd = *this_cpu_ptr(&sft_data);
+	struct scale_freq_data *sfd = rcu_dereference_sched(*this_cpu_ptr(&sft_data));
 
 	if (sfd)
 		sfd->set_freq_scale();

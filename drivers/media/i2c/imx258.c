@@ -23,7 +23,7 @@
 #define IMX258_CHIP_ID			0x0258
 
 /* V_TIMING internal */
-#define IMX258_VTS_30FPS		0x0c98
+#define IMX258_VTS_30FPS		0x0c50
 #define IMX258_VTS_30FPS_2K		0x0638
 #define IMX258_VTS_30FPS_VGA		0x034c
 #define IMX258_VTS_MAX			0xffff
@@ -47,7 +47,7 @@
 /* Analog gain control */
 #define IMX258_REG_ANALOG_GAIN		0x0204
 #define IMX258_ANA_GAIN_MIN		0
-#define IMX258_ANA_GAIN_MAX		0x1fff
+#define IMX258_ANA_GAIN_MAX		480
 #define IMX258_ANA_GAIN_STEP		1
 #define IMX258_ANA_GAIN_DEFAULT		0x0
 
@@ -60,6 +60,15 @@
 #define IMX258_DGTL_GAIN_MAX		4096	/* Max = 0xFFF */
 #define IMX258_DGTL_GAIN_DEFAULT	1024
 #define IMX258_DGTL_GAIN_STEP		1
+
+/* HDR control */
+#define IMX258_REG_HDR			0x0220
+#define IMX258_HDR_ON			BIT(0)
+#define IMX258_REG_HDR_RATIO		0x0222
+#define IMX258_HDR_RATIO_MIN		0
+#define IMX258_HDR_RATIO_MAX		5
+#define IMX258_HDR_RATIO_STEP		1
+#define IMX258_HDR_RATIO_DEFAULT	0x0
 
 /* Test Pattern Control */
 #define IMX258_REG_TEST_PATTERN		0x0600
@@ -701,7 +710,7 @@ static int imx258_write_regs(struct imx258 *imx258,
 static int imx258_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 {
 	struct v4l2_mbus_framefmt *try_fmt =
-		v4l2_subdev_get_try_format(sd, fh->pad, 0);
+		v4l2_subdev_get_try_format(sd, fh->state, 0);
 
 	/* Initialize try_fmt */
 	try_fmt->width = supported_modes[0].width;
@@ -777,6 +786,22 @@ static int imx258_set_ctrl(struct v4l2_ctrl *ctrl)
 				!ctrl->val ? REG_CONFIG_MIRROR_FLIP :
 				REG_CONFIG_FLIP_TEST_PATTERN);
 		break;
+	case V4L2_CID_WIDE_DYNAMIC_RANGE:
+		if (!ctrl->val) {
+			ret = imx258_write_reg(imx258, IMX258_REG_HDR,
+					       IMX258_REG_VALUE_08BIT,
+					       IMX258_HDR_RATIO_MIN);
+		} else {
+			ret = imx258_write_reg(imx258, IMX258_REG_HDR,
+					       IMX258_REG_VALUE_08BIT,
+					       IMX258_HDR_ON);
+			if (ret)
+				break;
+			ret = imx258_write_reg(imx258, IMX258_REG_HDR_RATIO,
+					       IMX258_REG_VALUE_08BIT,
+					       BIT(IMX258_HDR_RATIO_MAX));
+		}
+		break;
 	default:
 		dev_info(&client->dev,
 			 "ctrl(id:0x%x,val:0x%x) is not handled\n",
@@ -795,7 +820,7 @@ static const struct v4l2_ctrl_ops imx258_ctrl_ops = {
 };
 
 static int imx258_enum_mbus_code(struct v4l2_subdev *sd,
-				  struct v4l2_subdev_pad_config *cfg,
+				  struct v4l2_subdev_state *sd_state,
 				  struct v4l2_subdev_mbus_code_enum *code)
 {
 	/* Only one bayer order(GRBG) is supported */
@@ -808,7 +833,7 @@ static int imx258_enum_mbus_code(struct v4l2_subdev *sd,
 }
 
 static int imx258_enum_frame_size(struct v4l2_subdev *sd,
-				  struct v4l2_subdev_pad_config *cfg,
+				  struct v4l2_subdev_state *sd_state,
 				  struct v4l2_subdev_frame_size_enum *fse)
 {
 	if (fse->index >= ARRAY_SIZE(supported_modes))
@@ -835,11 +860,12 @@ static void imx258_update_pad_format(const struct imx258_mode *mode,
 }
 
 static int __imx258_get_pad_format(struct imx258 *imx258,
-				   struct v4l2_subdev_pad_config *cfg,
+				   struct v4l2_subdev_state *sd_state,
 				   struct v4l2_subdev_format *fmt)
 {
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY)
-		fmt->format = *v4l2_subdev_get_try_format(&imx258->sd, cfg,
+		fmt->format = *v4l2_subdev_get_try_format(&imx258->sd,
+							  sd_state,
 							  fmt->pad);
 	else
 		imx258_update_pad_format(imx258->cur_mode, fmt);
@@ -848,21 +874,21 @@ static int __imx258_get_pad_format(struct imx258 *imx258,
 }
 
 static int imx258_get_pad_format(struct v4l2_subdev *sd,
-				 struct v4l2_subdev_pad_config *cfg,
+				 struct v4l2_subdev_state *sd_state,
 				 struct v4l2_subdev_format *fmt)
 {
 	struct imx258 *imx258 = to_imx258(sd);
 	int ret;
 
 	mutex_lock(&imx258->mutex);
-	ret = __imx258_get_pad_format(imx258, cfg, fmt);
+	ret = __imx258_get_pad_format(imx258, sd_state, fmt);
 	mutex_unlock(&imx258->mutex);
 
 	return ret;
 }
 
 static int imx258_set_pad_format(struct v4l2_subdev *sd,
-				 struct v4l2_subdev_pad_config *cfg,
+				 struct v4l2_subdev_state *sd_state,
 				 struct v4l2_subdev_format *fmt)
 {
 	struct imx258 *imx258 = to_imx258(sd);
@@ -884,7 +910,7 @@ static int imx258_set_pad_format(struct v4l2_subdev *sd,
 		fmt->format.width, fmt->format.height);
 	imx258_update_pad_format(mode, fmt);
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
-		framefmt = v4l2_subdev_get_try_format(sd, cfg, fmt->pad);
+		framefmt = v4l2_subdev_get_try_format(sd, sd_state, fmt->pad);
 		*framefmt = fmt->format;
 	} else {
 		imx258->cur_mode = mode;
@@ -1014,11 +1040,9 @@ static int imx258_set_stream(struct v4l2_subdev *sd, int enable)
 	}
 
 	if (enable) {
-		ret = pm_runtime_get_sync(&client->dev);
-		if (ret < 0) {
-			pm_runtime_put_noidle(&client->dev);
+		ret = pm_runtime_resume_and_get(&client->dev);
+		if (ret < 0)
 			goto err_unlock;
-		}
 
 		/*
 		 * Apply default & customized values
@@ -1193,6 +1217,9 @@ static int imx258_init_controls(struct imx258 *imx258)
 				IMX258_DGTL_GAIN_STEP,
 				IMX258_DGTL_GAIN_DEFAULT);
 
+	v4l2_ctrl_new_std(ctrl_hdlr, &imx258_ctrl_ops, V4L2_CID_WIDE_DYNAMIC_RANGE,
+				0, 1, 1, IMX258_HDR_RATIO_DEFAULT);
+
 	v4l2_ctrl_new_std_menu_items(ctrl_hdlr, &imx258_ctrl_ops,
 				V4L2_CID_TEST_PATTERN,
 				ARRAY_SIZE(imx258_test_pattern_menu) - 1,
@@ -1289,7 +1316,7 @@ static int imx258_probe(struct i2c_client *client)
 	if (ret)
 		goto error_handler_free;
 
-	ret = v4l2_async_register_subdev_sensor_common(&imx258->sd);
+	ret = v4l2_async_register_subdev_sensor(&imx258->sd);
 	if (ret < 0)
 		goto error_media_entity;
 

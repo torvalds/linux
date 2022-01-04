@@ -149,13 +149,6 @@ struct fuse_inode {
 	/** Lock to protect write related fields */
 	spinlock_t lock;
 
-	/**
-	 * Can't take inode lock in fault path (leads to circular dependency).
-	 * Introduce another semaphore which can be taken in fault path and
-	 * then other filesystem paths can take this to block faults.
-	 */
-	struct rw_semaphore i_mmap_sem;
-
 #ifdef CONFIG_FUSE_DAX
 	/*
 	 * Dax specific inode data
@@ -552,8 +545,11 @@ struct fuse_conn {
 	/** Maximum write size */
 	unsigned max_write;
 
-	/** Maxmum number of pages that can be used in a single request */
+	/** Maximum number of pages that can be used in a single request */
 	unsigned int max_pages;
+
+	/** Constrain ->max_pages to this value during feature negotiation */
+	unsigned int max_pages_limit;
 
 	/** Input queue */
 	struct fuse_iqueue iq;
@@ -668,6 +664,9 @@ struct fuse_conn {
 	/** Is setxattr not implemented by fs? */
 	unsigned no_setxattr:1;
 
+	/** Does file server support extended setxattr */
+	unsigned setxattr_ext:1;
+
 	/** Is getxattr not implemented by fs? */
 	unsigned no_getxattr:1;
 
@@ -713,7 +712,7 @@ struct fuse_conn {
 	/** Use enhanced/automatic page cache invalidation. */
 	unsigned auto_inval_data:1;
 
-	/** Filesystem is fully reponsible for page cache invalidation. */
+	/** Filesystem is fully responsible for page cache invalidation. */
 	unsigned explicit_inval_data:1;
 
 	/** Does the filesystem support readdirplus? */
@@ -754,6 +753,9 @@ struct fuse_conn {
 
 	/* Auto-mount submounts announced by the server */
 	unsigned int auto_submounts:1;
+
+	/* Propagate syncfs() to server */
+	unsigned int sync_fs:1;
 
 	/** The number of requests waiting for completion */
 	atomic_t num_waiting;
@@ -861,6 +863,13 @@ static inline u64 fuse_get_attr_version(struct fuse_conn *fc)
 	return atomic64_read(&fc->attr_version);
 }
 
+static inline bool fuse_stale_inode(const struct inode *inode, int generation,
+				    struct fuse_attr *attr)
+{
+	return inode->i_generation != generation ||
+		inode_wrong_type(inode, attr->mode);
+}
+
 static inline void fuse_make_bad(struct inode *inode)
 {
 	remove_inode_hash(inode);
@@ -934,6 +943,7 @@ struct fuse_io_args {
 		struct {
 			struct fuse_write_in in;
 			struct fuse_write_out out;
+			bool page_locked;
 		} write;
 	};
 	struct fuse_args_pages ap;
@@ -1075,20 +1085,16 @@ void fuse_send_init(struct fuse_mount *fm);
 int fuse_fill_super_common(struct super_block *sb, struct fuse_fs_context *ctx);
 
 /*
- * Fill in superblock for submounts
- * @sb: partially-initialized superblock to fill in
- * @parent_fi: The fuse_inode of the parent filesystem where this submount is
- * 	       mounted
- */
-int fuse_fill_super_submount(struct super_block *sb,
-			     struct fuse_inode *parent_fi);
-
-/*
  * Remove the mount from the connection
  *
  * Returns whether this was the last mount
  */
 bool fuse_mount_remove(struct fuse_mount *fm);
+
+/*
+ * Setup context ops for submounts
+ */
+int fuse_init_fs_context_submount(struct fs_context *fsc);
 
 /*
  * Shut down the connection (possibly sending DESTROY request).
@@ -1193,7 +1199,7 @@ void fuse_unlock_inode(struct inode *inode, bool locked);
 bool fuse_lock_inode(struct inode *inode);
 
 int fuse_setxattr(struct inode *inode, const char *name, const void *value,
-		  size_t size, int flags);
+		  size_t size, int flags, unsigned int extra_flags);
 ssize_t fuse_getxattr(struct inode *inode, const char *name, void *value,
 		      size_t size);
 ssize_t fuse_listxattr(struct dentry *entry, char *list, size_t size);
@@ -1203,7 +1209,7 @@ extern const struct xattr_handler *fuse_acl_xattr_handlers[];
 extern const struct xattr_handler *fuse_no_acl_xattr_handlers[];
 
 struct posix_acl;
-struct posix_acl *fuse_get_acl(struct inode *inode, int type);
+struct posix_acl *fuse_get_acl(struct inode *inode, int type, bool rcu);
 int fuse_set_acl(struct user_namespace *mnt_userns, struct inode *inode,
 		 struct posix_acl *acl, int type);
 

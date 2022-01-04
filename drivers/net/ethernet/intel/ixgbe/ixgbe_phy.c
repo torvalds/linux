@@ -380,6 +380,9 @@ static enum ixgbe_phy_type ixgbe_get_phy_type_from_id(u32 phy_id)
 	case X557_PHY_ID2:
 		phy_type = ixgbe_phy_x550em_ext_t;
 		break;
+	case BCM54616S_E_PHY_ID:
+		phy_type = ixgbe_phy_ext_1g_t;
+		break;
 	default:
 		phy_type = ixgbe_phy_unknown;
 		break;
@@ -461,12 +464,13 @@ s32 ixgbe_reset_phy_generic(struct ixgbe_hw *hw)
 }
 
 /**
- *  ixgbe_read_phy_mdi - Reads a value from a specified PHY register without
- *  the SWFW lock
+ *  ixgbe_read_phy_reg_mdi - read PHY register
  *  @hw: pointer to hardware structure
  *  @reg_addr: 32 bit address of PHY register to read
  *  @device_type: 5 bit device type
  *  @phy_data: Pointer to read data from PHY register
+ *
+ *  Reads a value from a specified PHY register without the SWFW lock
  **/
 s32 ixgbe_read_phy_reg_mdi(struct ixgbe_hw *hw, u32 reg_addr, u32 device_type,
 		       u16 *phy_data)

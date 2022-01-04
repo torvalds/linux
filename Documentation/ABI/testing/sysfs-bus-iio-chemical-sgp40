@@ -1,0 +1,31 @@
+What:		/sys/bus/iio/devices/iio:deviceX/out_temp_raw
+Date:		August 2021
+KernelVersion:	5.15
+Contact:	Andreas Klinger <ak@it-klinger.de>
+Description:
+		Set the temperature. This value is sent to the sensor for
+		temperature compensation.
+		Default value: 25000 (25 °C)
+
+What:		/sys/bus/iio/devices/iio:deviceX/out_humidityrelative_raw
+Date:		August 2021
+KernelVersion:	5.15
+Contact:	Andreas Klinger <ak@it-klinger.de>
+Description:
+		Set the relative humidity. This value is sent to the sensor for
+		humidity compensation.
+		Default value: 50000 (50 % relative humidity)
+
+What:		/sys/bus/iio/devices/iio:deviceX/in_resistance_calibbias
+Date:		August 2021
+KernelVersion:	5.15
+Contact:	Andreas Klinger <ak@it-klinger.de>
+Description:
+		Set the bias value for the resistance which is used for
+		calculation of in_concentration_input as follows:
+
+		x = (in_resistance_raw - in_resistance_calibbias) * 0.65
+
+		in_concentration_input = 500 / (1 + e^x)
+
+		Default value: 30000

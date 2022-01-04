@@ -26,7 +26,7 @@ static const char * const rxe_counter_name[] = {
 
 int rxe_ib_get_hw_stats(struct ib_device *ibdev,
 			struct rdma_hw_stats *stats,
-			u8 port, int index)
+			u32 port, int index)
 {
 	struct rxe_dev *dev = to_rdev(ibdev);
 	unsigned int cnt;
@@ -40,13 +40,10 @@ int rxe_ib_get_hw_stats(struct ib_device *ibdev,
 	return ARRAY_SIZE(rxe_counter_name);
 }
 
-struct rdma_hw_stats *rxe_ib_alloc_hw_stats(struct ib_device *ibdev,
-					    u8 port_num)
+struct rdma_hw_stats *rxe_ib_alloc_hw_port_stats(struct ib_device *ibdev,
+						 u32 port_num)
 {
 	BUILD_BUG_ON(ARRAY_SIZE(rxe_counter_name) != RXE_NUM_OF_COUNTERS);
-	/* We support only per port stats */
-	if (!port_num)
-		return NULL;
 
 	return rdma_alloc_hw_stats_struct(rxe_counter_name,
 					  ARRAY_SIZE(rxe_counter_name),

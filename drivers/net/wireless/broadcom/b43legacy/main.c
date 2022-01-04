@@ -391,7 +391,7 @@ void b43legacy_tsf_read(struct b43legacy_wldev *dev, u64 *tsf)
 	 * registers, we should take care of register overflows.
 	 * In theory, the whole tsf read process should be atomic.
 	 * We try to be atomic here, by restaring the read process,
-	 * if any of the high registers changed (overflew).
+	 * if any of the high registers changed (overflowed).
 	 */
 	if (dev->dev->id.revision >= 3) {
 		u32 low;
@@ -2762,7 +2762,7 @@ static void b43legacy_update_basic_rates(struct b43legacy_wldev *dev, u32 brates
 {
 	struct ieee80211_supported_band *sband =
 		dev->wl->hw->wiphy->bands[NL80211_BAND_2GHZ];
-	struct ieee80211_rate *rate;
+	const struct ieee80211_rate *rate;
 	int i;
 	u16 basic, direct, offset, basic_offset, rateptr;
 

@@ -42,10 +42,10 @@ irq_domain usage
 ================
 
 An interrupt controller driver creates and registers an irq_domain by
-calling one of the irq_domain_add_*() functions (each mapping method
-has a different allocator function, more on that later).  The function
-will return a pointer to the irq_domain on success.  The caller must
-provide the allocator function with an irq_domain_ops structure.
+calling one of the irq_domain_add_*() or irq_domain_create_*() functions
+(each mapping method has a different allocator function, more on that later).
+The function will return a pointer to the irq_domain on success. The caller
+must provide the allocator function with an irq_domain_ops structure.
 
 In most cases, the irq_domain will begin empty without any mappings
 between hwirq and IRQ numbers.  Mappings are added to the irq_domain
@@ -55,8 +55,24 @@ exist then it will allocate a new Linux irq_desc, associate it with
 the hwirq, and call the .map() callback so the driver can perform any
 required hardware setup.
 
-When an interrupt is received, irq_find_mapping() function should
-be used to find the Linux IRQ number from the hwirq number.
+Once a mapping has been established, it can be retrieved or used via a
+variety of methods:
+
+- irq_resolve_mapping() returns a pointer to the irq_desc structure
+  for a given domain and hwirq number, and NULL if there was no
+  mapping.
+- irq_find_mapping() returns a Linux IRQ number for a given domain and
+  hwirq number, and 0 if there was no mapping
+- irq_linear_revmap() is now identical to irq_find_mapping(), and is
+  deprecated
+- generic_handle_domain_irq() handles an interrupt described by a
+  domain and a hwirq number
+- handle_domain_irq() does the same thing for root interrupt
+  controllers and deals with the set_irq_reg()/irq_enter() sequences
+  that most architecture requires
+
+Note that irq domain lookups must happen in contexts that are
+compatible with a RCU read-side critical section.
 
 The irq_create_mapping() function must be called *atleast once*
 before any call to irq_find_mapping(), lest the descriptor will not
@@ -137,7 +153,9 @@ required.  Calling irq_create_direct_mapping() will allocate a Linux
 IRQ number and call the .map() callback so that driver can program the
 Linux IRQ number into the hardware.
 
-Most drivers cannot use this mapping.
+Most drivers cannot use this mapping, and it is now gated on the
+CONFIG_IRQ_DOMAIN_NOMAP option. Please refrain from introducing new
+users of this API.
 
 Legacy
 ------
@@ -146,7 +164,7 @@ Legacy
 
 	irq_domain_add_simple()
 	irq_domain_add_legacy()
-	irq_domain_add_legacy_isa()
+	irq_domain_create_simple()
 	irq_domain_create_legacy()
 
 The Legacy mapping is a special case for drivers that already have a
@@ -156,6 +174,10 @@ example, many embedded system board support files use a set of #defines
 for IRQ numbers that are passed to struct device registrations.  In that
 case the Linux IRQ numbers cannot be dynamically assigned and the legacy
 mapping should be used.
+
+As the name implies, the *_legacy() functions are deprecated and only
+exist to ease the support of ancient platforms. No new users should be
+added.
 
 The legacy map assumes a contiguous range of IRQ numbers has already
 been allocated for the controller and that the IRQ number can be
@@ -169,13 +191,13 @@ supported.  For example, ISA controllers would use the legacy map for
 mapping Linux IRQs 0-15 so that existing ISA drivers get the correct IRQ
 numbers.
 
-Most users of legacy mappings should use irq_domain_add_simple() which
-will use a legacy domain only if an IRQ range is supplied by the
-system and will otherwise use a linear domain mapping. The semantics
-of this call are such that if an IRQ range is specified then
+Most users of legacy mappings should use irq_domain_add_simple() or
+irq_domain_create_simple() which will use a legacy domain only if an IRQ range
+is supplied by the system and will otherwise use a linear domain mapping.
+The semantics of this call are such that if an IRQ range is specified then
 descriptors will be allocated on-the-fly for it, and if no range is
-specified it will fall through to irq_domain_add_linear() which means
-*no* irq descriptors will be allocated.
+specified it will fall through to irq_domain_add_linear() or
+irq_domain_create_linear() which means *no* irq descriptors will be allocated.
 
 A typical use case for simple domains is where an irqchip provider
 is supporting both dynamic and static IRQ assignments.
@@ -186,6 +208,7 @@ that the driver using the simple domain call irq_create_mapping()
 before any irq_find_mapping() since the latter will actually work
 for the static IRQ assignment case.
 
+irq_domain_add_simple() and irq_domain_create_simple() as well as
 irq_domain_add_legacy() and irq_domain_create_legacy() are functionally
 equivalent, except for the first argument is different - the former
 accepts an Open Firmware specific 'struct device_node', while the latter

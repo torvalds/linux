@@ -67,10 +67,20 @@ if arg_contain -E "$@"; then
 	fi
 fi
 
+# To set CONFIG_AS_IS_GNU
+if arg_contain -Wa,--version "$@"; then
+	echo "GNU assembler (scripts/dummy-tools) 2.50"
+	exit 0
+fi
+
 if arg_contain -S "$@"; then
 	# For scripts/gcc-x86-*-has-stack-protector.sh
 	if arg_contain -fstack-protector "$@"; then
-		echo "%gs"
+		if arg_contain -mstack-protector-guard-reg=fs "$@"; then
+			echo "%fs"
+		else
+			echo "%gs"
+		fi
 		exit 0
 	fi
 

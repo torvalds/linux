@@ -11,13 +11,16 @@
 #include <linux/posix_acl.h>
 #include <linux/posix_acl_xattr.h>
 
-struct posix_acl *fuse_get_acl(struct inode *inode, int type)
+struct posix_acl *fuse_get_acl(struct inode *inode, int type, bool rcu)
 {
 	struct fuse_conn *fc = get_fuse_conn(inode);
 	int size;
 	const char *name;
 	void *value = NULL;
 	struct posix_acl *acl;
+
+	if (rcu)
+		return ERR_PTR(-ECHILD);
 
 	if (fuse_is_bad(inode))
 		return ERR_PTR(-EIO);
@@ -71,6 +74,7 @@ int fuse_set_acl(struct user_namespace *mnt_userns, struct inode *inode,
 		return -EINVAL;
 
 	if (acl) {
+		unsigned int extra_flags = 0;
 		/*
 		 * Fuse userspace is responsible for updating access
 		 * permissions in the inode, if needed. fuse_setxattr
@@ -94,7 +98,11 @@ int fuse_set_acl(struct user_namespace *mnt_userns, struct inode *inode,
 			return ret;
 		}
 
-		ret = fuse_setxattr(inode, name, value, size, 0);
+		if (!in_group_p(i_gid_into_mnt(&init_user_ns, inode)) &&
+		    !capable_wrt_inode_uidgid(&init_user_ns, inode, CAP_FSETID))
+			extra_flags |= FUSE_SETXATTR_ACL_KILL_SGID;
+
+		ret = fuse_setxattr(inode, name, value, size, 0, extra_flags);
 		kfree(value);
 	} else {
 		ret = fuse_removexattr(inode, name);

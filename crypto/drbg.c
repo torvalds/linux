@@ -178,16 +178,16 @@ static const struct drbg_core drbg_cores[] = {
 		.backend_cra_name = "hmac(sha384)",
 	}, {
 		.flags = DRBG_HMAC | DRBG_STRENGTH256,
-		.statelen = 64, /* block length of cipher */
-		.blocklen_bytes = 64,
-		.cra_name = "hmac_sha512",
-		.backend_cra_name = "hmac(sha512)",
-	}, {
-		.flags = DRBG_HMAC | DRBG_STRENGTH256,
 		.statelen = 32, /* block length of cipher */
 		.blocklen_bytes = 32,
 		.cra_name = "hmac_sha256",
 		.backend_cra_name = "hmac(sha256)",
+	}, {
+		.flags = DRBG_HMAC | DRBG_STRENGTH256,
+		.statelen = 64, /* block length of cipher */
+		.blocklen_bytes = 64,
+		.cra_name = "hmac_sha512",
+		.backend_cra_name = "hmac(sha512)",
 	},
 #endif /* CONFIG_CRYPTO_DRBG_HMAC */
 };

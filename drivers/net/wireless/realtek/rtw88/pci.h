@@ -37,6 +37,7 @@
 #define RTK_PCIE_LINK_CFG	0x0719
 #define BIT_CLKREQ_SW_EN	BIT(4)
 #define BIT_L1_SW_EN		BIT(3)
+#define BIT_CLKREQ_N_PAD	BIT(0)
 #define RTK_PCIE_CLKDLY_CTRL	0x0725
 
 #define BIT_PCI_BCNQ_FLAG	BIT(4)
@@ -211,6 +212,7 @@ struct rtw_pci {
 	spinlock_t irq_lock;
 	u32 irq_mask[4];
 	bool irq_enabled;
+	bool running;
 
 	/* napi structure */
 	struct net_device netdev;

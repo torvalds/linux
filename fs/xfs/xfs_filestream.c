@@ -9,13 +9,13 @@
 #include "xfs_format.h"
 #include "xfs_log_format.h"
 #include "xfs_trans_resv.h"
-#include "xfs_sb.h"
 #include "xfs_mount.h"
 #include "xfs_inode.h"
 #include "xfs_bmap.h"
 #include "xfs_alloc.h"
 #include "xfs_mru_cache.h"
 #include "xfs_trace.h"
+#include "xfs_ag.h"
 #include "xfs_ag_resv.h"
 #include "xfs_trans.h"
 #include "xfs_filestream.h"
@@ -295,7 +295,7 @@ xfs_filestream_lookup_ag(
 	 * Set the starting AG using the rotor for inode32, otherwise
 	 * use the directory inode's AG.
 	 */
-	if (mp->m_flags & XFS_MOUNT_32BITINODES) {
+	if (xfs_is_inode32(mp)) {
 		xfs_agnumber_t	 rotorstep = xfs_rotorstep;
 		startag = (mp->m_agfrotor / rotorstep) % mp->m_sb.sb_agcount;
 		mp->m_agfrotor = (mp->m_agfrotor + 1) %

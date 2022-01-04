@@ -23,6 +23,9 @@
 #include <net/ip6_fib.h>
 #include <net/rtnh.h>
 
+DEFINE_STATIC_KEY_FALSE(nf_hooks_lwtunnel_enabled);
+EXPORT_SYMBOL_GPL(nf_hooks_lwtunnel_enabled);
+
 #ifdef CONFIG_MODULES
 
 static const char *lwtunnel_encap_str(enum lwtunnel_encap_types encap_type)
@@ -43,6 +46,8 @@ static const char *lwtunnel_encap_str(enum lwtunnel_encap_types encap_type)
 		return "SEG6LOCAL";
 	case LWTUNNEL_ENCAP_RPL:
 		return "RPL";
+	case LWTUNNEL_ENCAP_IOAM6:
+		return "IOAM6";
 	case LWTUNNEL_ENCAP_IP6:
 	case LWTUNNEL_ENCAP_IP:
 	case LWTUNNEL_ENCAP_NONE:

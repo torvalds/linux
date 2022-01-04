@@ -120,8 +120,6 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			interrupts = <56>;
-			dmas = <&sdma 27 &sdma 28>;
-			dma-names = "tx", "rx";
 		};
 
 		i2c2: i2c@48072000 {
@@ -131,8 +129,6 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			interrupts = <57>;
-			dmas = <&sdma 29 &sdma 30>;
-			dma-names = "tx", "rx";
 		};
 
 		mcspi1: spi@48098000 {

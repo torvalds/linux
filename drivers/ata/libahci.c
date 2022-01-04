@@ -125,6 +125,7 @@ EXPORT_SYMBOL_GPL(ahci_shost_attrs);
 struct device_attribute *ahci_sdev_attrs[] = {
 	&dev_attr_sw_activity,
 	&dev_attr_unload_heads,
+	&dev_attr_ncq_prio_supported,
 	&dev_attr_ncq_prio_enable,
 	NULL
 };
@@ -491,6 +492,11 @@ void ahci_save_initial_config(struct device *dev, struct ahci_host_priv *hpriv)
 	if (!(cap & HOST_CAP_ALPM) && (hpriv->flags & AHCI_HFLAG_YES_ALPM)) {
 		dev_info(dev, "controller can do ALPM, turning on CAP_ALPM\n");
 		cap |= HOST_CAP_ALPM;
+	}
+
+	if ((cap & HOST_CAP_SXS) && (hpriv->flags & AHCI_HFLAG_NO_SXS)) {
+		dev_info(dev, "controller does not support SXS, disabling CAP_SXS\n");
+		cap &= ~HOST_CAP_SXS;
 	}
 
 	if (hpriv->force_port_map && port_map != hpriv->force_port_map) {

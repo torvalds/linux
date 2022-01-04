@@ -94,24 +94,6 @@ static int setup_btree_index(unsigned int l, struct dm_table *t)
 	return 0;
 }
 
-void *dm_vcalloc(unsigned long nmemb, unsigned long elem_size)
-{
-	unsigned long size;
-	void *addr;
-
-	/*
-	 * Check that we're not going to overflow.
-	 */
-	if (nmemb > (ULONG_MAX / elem_size))
-		return NULL;
-
-	size = nmemb * elem_size;
-	addr = vzalloc(size);
-
-	return addr;
-}
-EXPORT_SYMBOL(dm_vcalloc);
-
 /*
  * highs, and targets are managed as dynamic arrays during a
  * table load.
@@ -124,15 +106,15 @@ static int alloc_targets(struct dm_table *t, unsigned int num)
 	/*
 	 * Allocate both the target array and offset array at once.
 	 */
-	n_highs = (sector_t *) dm_vcalloc(num, sizeof(struct dm_target) +
-					  sizeof(sector_t));
+	n_highs = kvcalloc(num, sizeof(struct dm_target) + sizeof(sector_t),
+			   GFP_KERNEL);
 	if (!n_highs)
 		return -ENOMEM;
 
 	n_targets = (struct dm_target *) (n_highs + num);
 
 	memset(n_highs, -1, sizeof(*n_highs) * num);
-	vfree(t->highs);
+	kvfree(t->highs);
 
 	t->num_allocated = num;
 	t->highs = n_highs;
@@ -198,7 +180,7 @@ void dm_table_destroy(struct dm_table *t)
 
 	/* free the indexes */
 	if (t->depth >= 2)
-		vfree(t->index[t->depth - 2]);
+		kvfree(t->index[t->depth - 2]);
 
 	/* free the targets */
 	for (i = 0; i < t->num_targets; i++) {
@@ -210,7 +192,7 @@ void dm_table_destroy(struct dm_table *t)
 		dm_put_target_type(tgt->type);
 	}
 
-	vfree(t->highs);
+	kvfree(t->highs);
 
 	/* free the device list */
 	free_devices(&t->devices, t->md);
@@ -267,7 +249,7 @@ static int device_area_is_invalid(struct dm_target *ti, struct dm_dev *dev,
 	 * If the target is mapped to zoned block device(s), check
 	 * that the zones are not partially mapped.
 	 */
-	if (bdev_zoned_model(bdev) != BLK_ZONED_NONE) {
+	if (bdev_is_zoned(bdev)) {
 		unsigned int zone_sectors = bdev_zone_sectors(bdev);
 
 		if (start & (zone_sectors - 1)) {
@@ -1077,7 +1059,7 @@ static int setup_indexes(struct dm_table *t)
 		total += t->counts[i];
 	}
 
-	indexes = (sector_t *) dm_vcalloc(total, (unsigned long) NODE_SIZE);
+	indexes = kvcalloc(total, NODE_SIZE, GFP_KERNEL);
 	if (!indexes)
 		return -ENOMEM;
 
@@ -1262,7 +1244,7 @@ static int dm_keyslot_evict(struct blk_keyslot_manager *ksm,
 	return args.err;
 }
 
-static struct blk_ksm_ll_ops dm_ksm_ll_ops = {
+static const struct blk_ksm_ll_ops dm_ksm_ll_ops = {
 	.keyslot_evict = dm_keyslot_evict,
 };
 
@@ -1999,11 +1981,12 @@ static int device_requires_stable_pages(struct dm_target *ti,
 	return blk_queue_stable_writes(q);
 }
 
-void dm_table_set_restrictions(struct dm_table *t, struct request_queue *q,
-			       struct queue_limits *limits)
+int dm_table_set_restrictions(struct dm_table *t, struct request_queue *q,
+			      struct queue_limits *limits)
 {
 	bool wc = false, fua = false;
 	int page_size = PAGE_SIZE;
+	int r;
 
 	/*
 	 * Copy table's limits to the DM device's request_queue
@@ -2083,19 +2066,19 @@ void dm_table_set_restrictions(struct dm_table *t, struct request_queue *q,
 		blk_queue_flag_clear(QUEUE_FLAG_ADD_RANDOM, q);
 
 	/*
-	 * For a zoned target, the number of zones should be updated for the
-	 * correct value to be exposed in sysfs queue/nr_zones. For a BIO based
-	 * target, this is all that is needed.
+	 * For a zoned target, setup the zones related queue attributes
+	 * and resources necessary for zone append emulation if necessary.
 	 */
-#ifdef CONFIG_BLK_DEV_ZONED
 	if (blk_queue_is_zoned(q)) {
-		WARN_ON_ONCE(queue_is_mq(q));
-		q->nr_zones = blkdev_nr_zones(t->md->disk);
+		r = dm_set_zones_restrictions(t, q);
+		if (r)
+			return r;
 	}
-#endif
 
 	dm_update_keyslot_manager(q, t);
-	blk_queue_update_readahead(q);
+	disk_update_readahead(t->md->disk);
+
+	return 0;
 }
 
 unsigned int dm_table_get_num_targets(struct dm_table *t)

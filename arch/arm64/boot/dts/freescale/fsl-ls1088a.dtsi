@@ -189,6 +189,11 @@
 			     <1 10 IRQ_TYPE_LEVEL_LOW>;/* Hypervisor PPI */
 	};
 
+	pmu {
+		compatible = "arm,cortex-a53-pmu";
+		interrupts = <GIC_PPI 7 IRQ_TYPE_LEVEL_LOW>;
+	};
+
 	psci {
 		compatible = "arm,psci-0.2";
 		method = "smc";
@@ -536,8 +541,8 @@
 
 		pcie1: pcie@3400000 {
 			compatible = "fsl,ls1088a-pcie";
-			reg = <0x00 0x03400000 0x0 0x00100000   /* controller registers */
-			       0x20 0x00000000 0x0 0x00002000>; /* configuration space */
+			reg = <0x00 0x03400000 0x0 0x00100000>, /* controller registers */
+			      <0x20 0x00000000 0x0 0x00002000>; /* configuration space */
 			reg-names = "regs", "config";
 			interrupts = <0 108 IRQ_TYPE_LEVEL_HIGH>; /* aer interrupt */
 			interrupt-names = "aer";
@@ -562,8 +567,8 @@
 
 		pcie_ep1: pcie-ep@3400000 {
 			compatible = "fsl,ls1088a-pcie-ep", "fsl,ls-pcie-ep";
-			reg = <0x00 0x03400000 0x0 0x00100000
-			       0x20 0x00000000 0x8 0x00000000>;
+			reg = <0x00 0x03400000 0x0 0x00100000>,
+			      <0x20 0x00000000 0x8 0x00000000>;
 			reg-names = "regs", "addr_space";
 			num-ib-windows = <24>;
 			num-ob-windows = <256>;
@@ -573,8 +578,8 @@
 
 		pcie2: pcie@3500000 {
 			compatible = "fsl,ls1088a-pcie";
-			reg = <0x00 0x03500000 0x0 0x00100000   /* controller registers */
-			       0x28 0x00000000 0x0 0x00002000>; /* configuration space */
+			reg = <0x00 0x03500000 0x0 0x00100000>, /* controller registers */
+			      <0x28 0x00000000 0x0 0x00002000>; /* configuration space */
 			reg-names = "regs", "config";
 			interrupts = <0 113 IRQ_TYPE_LEVEL_HIGH>; /* aer interrupt */
 			interrupt-names = "aer";
@@ -599,8 +604,8 @@
 
 		pcie_ep2: pcie-ep@3500000 {
 			compatible = "fsl,ls1088a-pcie-ep", "fsl,ls-pcie-ep";
-			reg = <0x00 0x03500000 0x0 0x00100000
-			       0x28 0x00000000 0x8 0x00000000>;
+			reg = <0x00 0x03500000 0x0 0x00100000>,
+			      <0x28 0x00000000 0x8 0x00000000>;
 			reg-names = "regs", "addr_space";
 			num-ib-windows = <6>;
 			num-ob-windows = <6>;
@@ -609,8 +614,8 @@
 
 		pcie3: pcie@3600000 {
 			compatible = "fsl,ls1088a-pcie";
-			reg = <0x00 0x03600000 0x0 0x00100000   /* controller registers */
-			       0x30 0x00000000 0x0 0x00002000>; /* configuration space */
+			reg = <0x00 0x03600000 0x0 0x00100000>, /* controller registers */
+			      <0x30 0x00000000 0x0 0x00002000>; /* configuration space */
 			reg-names = "regs", "config";
 			interrupts = <0 118 IRQ_TYPE_LEVEL_HIGH>; /* aer interrupt */
 			interrupt-names = "aer";
@@ -635,8 +640,8 @@
 
 		pcie_ep3: pcie-ep@3600000 {
 			compatible = "fsl,ls1088a-pcie-ep", "fsl,ls-pcie-ep";
-			reg = <0x00 0x03600000 0x0 0x00100000
-			       0x30 0x00000000 0x8 0x00000000>;
+			reg = <0x00 0x03600000 0x0 0x00100000>,
+			      <0x30 0x00000000 0x8 0x00000000>;
 			reg-names = "regs", "addr_space";
 			num-ib-windows = <6>;
 			num-ob-windows = <6>;
@@ -763,6 +768,19 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			status = "disabled";
+		};
+
+		pcs_mdio1: mdio@8c07000 {
+			compatible = "fsl,fman-memac-mdio";
+			reg = <0x0 0x8c07000 0x0 0x1000>;
+			little-endian;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+
+			pcs1: ethernet-phy@0 {
+				reg = <0>;
+			};
 		};
 
 		pcs_mdio2: mdio@8c0b000 {

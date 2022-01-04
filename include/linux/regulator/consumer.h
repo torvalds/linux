@@ -119,6 +119,16 @@ struct regulator_dev;
 #define REGULATOR_EVENT_PRE_DISABLE		0x400
 #define REGULATOR_EVENT_ABORT_DISABLE		0x800
 #define REGULATOR_EVENT_ENABLE			0x1000
+/*
+ * Following notifications should be emitted only if detected condition
+ * is such that the HW is likely to still be working but consumers should
+ * take a recovery action to prevent problems esacalating into errors.
+ */
+#define REGULATOR_EVENT_UNDER_VOLTAGE_WARN	0x2000
+#define REGULATOR_EVENT_OVER_CURRENT_WARN	0x4000
+#define REGULATOR_EVENT_OVER_VOLTAGE_WARN	0x8000
+#define REGULATOR_EVENT_OVER_TEMP_WARN		0x10000
+#define REGULATOR_EVENT_WARN_MASK		0x1E000
 
 /*
  * Regulator errors that can be queried using regulator_get_error_flags
@@ -138,6 +148,10 @@ struct regulator_dev;
 #define REGULATOR_ERROR_FAIL			BIT(4)
 #define REGULATOR_ERROR_OVER_TEMP		BIT(5)
 
+#define REGULATOR_ERROR_UNDER_VOLTAGE_WARN	BIT(6)
+#define REGULATOR_ERROR_OVER_CURRENT_WARN	BIT(7)
+#define REGULATOR_ERROR_OVER_VOLTAGE_WARN	BIT(8)
+#define REGULATOR_ERROR_OVER_TEMP_WARN		BIT(9)
 
 /**
  * struct pre_voltage_change_data - Data sent with PRE_VOLTAGE_CHANGE event
@@ -208,17 +222,12 @@ void regulator_bulk_unregister_supply_alias(struct device *dev,
 int devm_regulator_register_supply_alias(struct device *dev, const char *id,
 					 struct device *alias_dev,
 					 const char *alias_id);
-void devm_regulator_unregister_supply_alias(struct device *dev,
-					    const char *id);
 
 int devm_regulator_bulk_register_supply_alias(struct device *dev,
 					      const char *const *id,
 					      struct device *alias_dev,
 					      const char *const *alias_id,
 					      int num_id);
-void devm_regulator_bulk_unregister_supply_alias(struct device *dev,
-						 const char *const *id,
-						 int num_id);
 
 /* regulator output control and status */
 int __must_check regulator_enable(struct regulator *regulator);
@@ -394,11 +403,6 @@ static inline int devm_regulator_register_supply_alias(struct device *dev,
 	return 0;
 }
 
-static inline void devm_regulator_unregister_supply_alias(struct device *dev,
-							  const char *id)
-{
-}
-
 static inline int devm_regulator_bulk_register_supply_alias(struct device *dev,
 						const char *const *id,
 						struct device *alias_dev,
@@ -406,11 +410,6 @@ static inline int devm_regulator_bulk_register_supply_alias(struct device *dev,
 						int num_id)
 {
 	return 0;
-}
-
-static inline void devm_regulator_bulk_unregister_supply_alias(
-	struct device *dev, const char *const *id, int num_id)
-{
 }
 
 static inline int regulator_enable(struct regulator *regulator)

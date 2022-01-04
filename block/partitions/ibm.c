@@ -290,8 +290,8 @@ static int find_cms1_partitions(struct parsed_partitions *state,
 int ibm_partition(struct parsed_partitions *state)
 {
 	int (*fn)(struct gendisk *disk, dasd_information2_t *info);
-	struct block_device *bdev = state->bdev;
-	struct gendisk *disk = bdev->bd_disk;
+	struct gendisk *disk = state->disk;
+	struct block_device *bdev = disk->part0;
 	int blocksize, res;
 	loff_t i_size, offset, size;
 	dasd_information2_t *info;

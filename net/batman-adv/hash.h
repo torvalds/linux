@@ -18,7 +18,7 @@
 #include <linux/stddef.h>
 #include <linux/types.h>
 
-/* callback to a compare function.  should compare 2 element datas for their
+/* callback to a compare function.  should compare 2 element data for their
  * keys
  *
  * Return: true if same and false if not same

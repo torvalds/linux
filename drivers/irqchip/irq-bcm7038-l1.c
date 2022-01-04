@@ -145,10 +145,8 @@ static void bcm7038_l1_irq_handle(struct irq_desc *desc)
 			  ~cpu->mask_cache[idx];
 		raw_spin_unlock_irqrestore(&intc->lock, flags);
 
-		for_each_set_bit(hwirq, &pending, IRQS_PER_WORD) {
-			generic_handle_irq(irq_find_mapping(intc->domain,
-							    base + hwirq));
-		}
+		for_each_set_bit(hwirq, &pending, IRQS_PER_WORD)
+			generic_handle_domain_irq(intc->domain, base + hwirq);
 	}
 
 	chained_irq_exit(chip, desc);

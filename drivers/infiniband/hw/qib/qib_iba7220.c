@@ -2236,7 +2236,7 @@ static void qib_7220_tidtemplate(struct qib_devdata *dd)
 }
 
 /**
- * qib_init_7220_get_base_info - set chip-specific flags for user code
+ * qib_7220_get_base_info - set chip-specific flags for user code
  * @rcd: the qlogic_ib ctxt
  * @kinfo: qib_base_info pointer
  *
@@ -4411,7 +4411,7 @@ static void writescratch(struct qib_devdata *dd, u32 val)
 
 #define VALID_TS_RD_REG_MASK 0xBF
 /**
- * qib_7220_tempsense_read - read register of temp sensor via TWSI
+ * qib_7220_tempsense_rd - read register of temp sensor via TWSI
  * @dd: the qlogic_ib device
  * @regnum: register to read from
  *

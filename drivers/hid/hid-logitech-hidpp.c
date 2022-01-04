@@ -56,6 +56,8 @@ MODULE_PARM_DESC(disable_tap_to_click,
 #define HIDPP_SUB_ID_CONSUMER_VENDOR_KEYS	0x03
 #define HIDPP_SUB_ID_ROLLER			0x05
 #define HIDPP_SUB_ID_MOUSE_EXTRA_BTNS		0x06
+#define HIDPP_SUB_ID_USER_IFACE_EVENT		0x08
+#define HIDPP_USER_IFACE_EVENT_ENCRYPTION_KEY_LOST	BIT(5)
 
 #define HIDPP_QUIRK_CLASS_WTP			BIT(0)
 #define HIDPP_QUIRK_CLASS_M560			BIT(1)
@@ -261,7 +263,7 @@ static int __hidpp_send_report(struct hid_device *hdev,
 	return ret == fields_count ? 0 : -1;
 }
 
-/**
+/*
  * hidpp_send_message_sync() returns 0 in case of success, and something else
  * in case of a failure.
  * - If ' something else' is positive, that means that an error has been raised
@@ -423,7 +425,7 @@ static inline bool hidpp_report_is_connect_event(struct hidpp_device *hidpp,
 		(report->rap.sub_id == 0x41));
 }
 
-/**
+/*
  * hidpp_prefix_name() prefixes the current given name with "Logitech ".
  */
 static void hidpp_prefix_name(char **name, int name_length)
@@ -454,6 +456,7 @@ static void hidpp_prefix_name(char **name, int name_length)
  * hidpp_scroll_counter_handle_scroll() - Send high- and low-resolution scroll
  *                                        events given a high-resolution wheel
  *                                        movement.
+ * @input_dev: Pointer to the input device
  * @counter: a hid_scroll_counter struct describing the wheel.
  * @hi_res_value: the movement of the wheel, in the mouse's high-resolution
  *                units.
@@ -1262,6 +1265,7 @@ static int hidpp20_battery_map_status_voltage(u8 data[3], int *voltage,
 	int status;
 
 	long flags = (long) data[2];
+	*level = POWER_SUPPLY_CAPACITY_LEVEL_UNKNOWN;
 
 	if (flags & 0x80)
 		switch (flags & 0x07) {
@@ -1327,6 +1331,43 @@ static int hidpp20_battery_get_battery_voltage(struct hidpp_device *hidpp,
 	return 0;
 }
 
+static int hidpp20_map_battery_capacity(struct hid_device *hid_dev, int voltage)
+{
+	/* NB: This voltage curve doesn't necessarily map perfectly to all
+	 * devices that implement the BATTERY_VOLTAGE feature. This is because
+	 * there are a few devices that use different battery technology.
+	 */
+
+	static const int voltages[] = {
+		4186, 4156, 4143, 4133, 4122, 4113, 4103, 4094, 4086, 4075,
+		4067, 4059, 4051, 4043, 4035, 4027, 4019, 4011, 4003, 3997,
+		3989, 3983, 3976, 3969, 3961, 3955, 3949, 3942, 3935, 3929,
+		3922, 3916, 3909, 3902, 3896, 3890, 3883, 3877, 3870, 3865,
+		3859, 3853, 3848, 3842, 3837, 3833, 3828, 3824, 3819, 3815,
+		3811, 3808, 3804, 3800, 3797, 3793, 3790, 3787, 3784, 3781,
+		3778, 3775, 3772, 3770, 3767, 3764, 3762, 3759, 3757, 3754,
+		3751, 3748, 3744, 3741, 3737, 3734, 3730, 3726, 3724, 3720,
+		3717, 3714, 3710, 3706, 3702, 3697, 3693, 3688, 3683, 3677,
+		3671, 3666, 3662, 3658, 3654, 3646, 3633, 3612, 3579, 3537
+	};
+
+	int i;
+
+	BUILD_BUG_ON(ARRAY_SIZE(voltages) != 100);
+
+	if (unlikely(voltage < 3500 || voltage >= 5000))
+		hid_warn_once(hid_dev,
+			      "%s: possibly using the wrong voltage curve\n",
+			      __func__);
+
+	for (i = 0; i < ARRAY_SIZE(voltages); i++) {
+		if (voltage >= voltages[i])
+			return ARRAY_SIZE(voltages) - i;
+	}
+
+	return 0;
+}
+
 static int hidpp20_query_battery_voltage_info(struct hidpp_device *hidpp)
 {
 	u8 feature_type;
@@ -1350,6 +1391,8 @@ static int hidpp20_query_battery_voltage_info(struct hidpp_device *hidpp)
 
 	hidpp->battery.status = status;
 	hidpp->battery.voltage = voltage;
+	hidpp->battery.capacity = hidpp20_map_battery_capacity(hidpp->hid_dev,
+							       voltage);
 	hidpp->battery.level = level;
 	hidpp->battery.charge_type = charge_type;
 	hidpp->battery.online = status != POWER_SUPPLY_STATUS_NOT_CHARGING;
@@ -1374,6 +1417,8 @@ static int hidpp20_battery_voltage_event(struct hidpp_device *hidpp,
 
 	if (voltage != hidpp->battery.voltage || status != hidpp->battery.status) {
 		hidpp->battery.voltage = voltage;
+		hidpp->battery.capacity = hidpp20_map_battery_capacity(hidpp->hid_dev,
+								       voltage);
 		hidpp->battery.status = status;
 		hidpp->battery.level = level;
 		hidpp->battery.charge_type = charge_type;
@@ -1884,7 +1929,7 @@ struct hidpp_touchpad_fw_items {
 	uint8_t persistent;
 };
 
-/**
+/*
  * send a set state command to the device by reading the current items->state
  * field. items is then filled with the current state.
  */
@@ -2236,11 +2281,10 @@ static int hidpp_ff_queue_work(struct hidpp_ff_private_data *data, int effect_id
 	wd->size = size;
 	memcpy(wd->params, params, size);
 
-	atomic_inc(&data->workqueue_size);
+	s = atomic_inc_return(&data->workqueue_size);
 	queue_work(data->wq, &wd->work);
 
 	/* warn about excessive queue size */
-	s = atomic_read(&data->workqueue_size);
 	if (s >= 20 && s % 20 == 0)
 		hid_warn(data->hidpp->hid_dev, "Force feedback command queue contains %d commands, causing substantial delays!", s);
 
@@ -3527,6 +3571,16 @@ static int hidpp_raw_hidpp_event(struct hidpp_device *hidpp, u8 *data,
 		return 1;
 	}
 
+	if (hidpp->hid_dev->group == HID_GROUP_LOGITECH_27MHZ_DEVICE &&
+	    data[0] == REPORT_ID_HIDPP_SHORT &&
+	    data[2] == HIDPP_SUB_ID_USER_IFACE_EVENT &&
+	    (data[3] & HIDPP_USER_IFACE_EVENT_ENCRYPTION_KEY_LOST)) {
+		dev_err_ratelimited(&hidpp->hid_dev->dev,
+			"Error the keyboard's wireless encryption key has been lost, your keyboard will not work unless you re-configure encryption.\n");
+		dev_err_ratelimited(&hidpp->hid_dev->dev,
+			"See: https://gitlab.freedesktop.org/jwrdegoede/logitech-27mhz-keyboard-encryption-setup/\n");
+	}
+
 	if (hidpp->capabilities & HIDPP_CAPABILITY_HIDPP20_BATTERY) {
 		ret = hidpp20_battery_event_1000(hidpp, data, size);
 		if (ret != 0)
@@ -3703,7 +3757,8 @@ static int hidpp_initialize_battery(struct hidpp_device *hidpp)
 	num_battery_props = ARRAY_SIZE(hidpp_battery_props) - 3;
 
 	if (hidpp->capabilities & HIDPP_CAPABILITY_BATTERY_MILEAGE ||
-	    hidpp->capabilities & HIDPP_CAPABILITY_BATTERY_PERCENTAGE)
+	    hidpp->capabilities & HIDPP_CAPABILITY_BATTERY_PERCENTAGE ||
+	    hidpp->capabilities & HIDPP_CAPABILITY_BATTERY_VOLTAGE)
 		battery_props[num_battery_props++] =
 				POWER_SUPPLY_PROP_CAPACITY;
 

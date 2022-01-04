@@ -17,9 +17,8 @@ int mt76x02_mcu_parse_response(struct mt76_dev *mdev, int cmd,
 	u32 *rxfce;
 
 	if (!skb) {
-		dev_err(mdev->dev,
-			"MCU message %d (seq %d) timed out\n", cmd,
-			seq);
+		dev_err(mdev->dev, "MCU message %02x (seq %d) timed out\n",
+			abs(cmd), seq);
 		dev->mcu_timeout = 1;
 		return -ETIMEDOUT;
 	}

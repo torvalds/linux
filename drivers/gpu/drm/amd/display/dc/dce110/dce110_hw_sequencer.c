@@ -32,7 +32,6 @@
 #include "core_status.h"
 #include "resource.h"
 #include "dm_helpers.h"
-#include "dce110_hw_sequencer.h"
 #include "dce110_timing_generator.h"
 #include "dce/dce_hwseq.h"
 #include "gpio_service_interface.h"
@@ -48,6 +47,10 @@
 #include "stream_encoder.h"
 #include "link_encoder.h"
 #include "link_hwss.h"
+#include "dc_link_dp.h"
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+#include "dccg.h"
+#endif
 #include "clock_source.h"
 #include "clk_mgr.h"
 #include "abm.h"
@@ -61,6 +64,8 @@
 #include "custom_float.h"
 
 #include "atomfirmware.h"
+
+#include "dcn10/dcn10_hw_sequencer.h"
 
 #define GAMMA_HW_POINTS_NUM 256
 
@@ -263,6 +268,7 @@ static void build_prescale_params(struct ipp_prescale_params *prescale_params,
 		prescale_params->scale = 0x2008;
 		break;
 	case SURFACE_PIXEL_FORMAT_GRPH_ARGB16161616:
+	case SURFACE_PIXEL_FORMAT_GRPH_ABGR16161616:
 	case SURFACE_PIXEL_FORMAT_GRPH_ABGR16161616F:
 		prescale_params->scale = 0x2000;
 		break;
@@ -797,6 +803,7 @@ void dce110_edp_power_control(
 	struct dc_context *ctx = link->ctx;
 	struct bp_transmitter_control cntl = { 0 };
 	enum bp_result bp_result;
+	uint8_t panel_instance;
 
 
 	if (dal_graphics_object_id_get_connector_id(link->link_enc->connector)
@@ -807,7 +814,6 @@ void dce110_edp_power_control(
 
 	if (!link->panel_cntl)
 		return;
-
 	if (power_up !=
 		link->panel_cntl->funcs->is_panel_powered_on(link->panel_cntl)) {
 
@@ -880,15 +886,18 @@ void dce110_edp_power_control(
 		cntl.coherent = false;
 		cntl.lanes_number = LANE_COUNT_FOUR;
 		cntl.hpd_sel = link->link_enc->hpd_source;
+		panel_instance = link->panel_cntl->inst;
 
 		if (ctx->dc->ctx->dmub_srv &&
 				ctx->dc->debug.dmub_command_table) {
 			if (cntl.action == TRANSMITTER_CONTROL_POWER_ON)
 				bp_result = ctx->dc_bios->funcs->enable_lvtma_control(ctx->dc_bios,
-						LVTMA_CONTROL_POWER_ON);
+						LVTMA_CONTROL_POWER_ON,
+						panel_instance);
 			else
 				bp_result = ctx->dc_bios->funcs->enable_lvtma_control(ctx->dc_bios,
-						LVTMA_CONTROL_POWER_OFF);
+						LVTMA_CONTROL_POWER_OFF,
+						panel_instance);
 		}
 
 		bp_result = link_transmitter_control(ctx->dc_bios, &cntl);
@@ -963,6 +972,7 @@ void dce110_edp_backlight_control(
 {
 	struct dc_context *ctx = link->ctx;
 	struct bp_transmitter_control cntl = { 0 };
+	uint8_t panel_instance;
 
 	if (dal_graphics_object_id_get_connector_id(link->link_enc->connector)
 		!= CONNECTOR_ID_EDP) {
@@ -1011,17 +1021,32 @@ void dce110_edp_backlight_control(
 	 */
 	/* dc_service_sleep_in_milliseconds(50); */
 		/*edp 1.2*/
-	if (cntl.action == TRANSMITTER_CONTROL_BACKLIGHT_ON)
-		edp_receiver_ready_T7(link);
+	panel_instance = link->panel_cntl->inst;
+
+	if (cntl.action == TRANSMITTER_CONTROL_BACKLIGHT_ON) {
+		if (!link->dc->config.edp_no_power_sequencing)
+		/*
+		 * Sometimes, DP receiver chip power-controlled externally by an
+		 * Embedded Controller could be treated and used as eDP,
+		 * if it drives mobile display. In this case,
+		 * we shouldn't be doing power-sequencing, hence we can skip
+		 * waiting for T7-ready.
+		 */
+			edp_receiver_ready_T7(link);
+		else
+			DC_LOG_DC("edp_receiver_ready_T7 skipped\n");
+	}
 
 	if (ctx->dc->ctx->dmub_srv &&
 			ctx->dc->debug.dmub_command_table) {
 		if (cntl.action == TRANSMITTER_CONTROL_BACKLIGHT_ON)
 			ctx->dc_bios->funcs->enable_lvtma_control(ctx->dc_bios,
-					LVTMA_CONTROL_LCD_BLON);
+					LVTMA_CONTROL_LCD_BLON,
+					panel_instance);
 		else
 			ctx->dc_bios->funcs->enable_lvtma_control(ctx->dc_bios,
-					LVTMA_CONTROL_LCD_BLOFF);
+					LVTMA_CONTROL_LCD_BLOFF,
+					panel_instance);
 	}
 
 	link_transmitter_control(ctx->dc_bios, &cntl);
@@ -1035,8 +1060,19 @@ void dce110_edp_backlight_control(
 		dc_link_backlight_enable_aux(link, enable);
 
 	/*edp 1.2*/
-	if (cntl.action == TRANSMITTER_CONTROL_BACKLIGHT_OFF)
-		edp_add_delay_for_T9(link);
+	if (cntl.action == TRANSMITTER_CONTROL_BACKLIGHT_OFF) {
+		if (!link->dc->config.edp_no_power_sequencing)
+		/*
+		 * Sometimes, DP receiver chip power-controlled externally by an
+		 * Embedded Controller could be treated and used as eDP,
+		 * if it drives mobile display. In this case,
+		 * we shouldn't be doing power-sequencing, hence we can skip
+		 * waiting for T9-ready.
+		 */
+			edp_add_delay_for_T9(link);
+		else
+			DC_LOG_DC("edp_receiver_ready_T9 skipped\n");
+	}
 
 	if (!enable && link->dpcd_sink_ext_caps.bits.oled)
 		msleep(OLED_PRE_T11_DELAY);
@@ -1296,41 +1332,6 @@ static void build_audio_output(
 
 	audio_output->pll_info.ss_percentage =
 			pipe_ctx->pll_settings.ss_percentage;
-}
-
-static void get_surface_visual_confirm_color(const struct pipe_ctx *pipe_ctx,
-		struct tg_color *color)
-{
-	uint32_t color_value = MAX_TG_COLOR_VALUE * (4 - pipe_ctx->stream_res.tg->inst) / 4;
-
-	switch (pipe_ctx->plane_res.scl_data.format) {
-	case PIXEL_FORMAT_ARGB8888:
-		/* set boarder color to red */
-		color->color_r_cr = color_value;
-		break;
-
-	case PIXEL_FORMAT_ARGB2101010:
-		/* set boarder color to blue */
-		color->color_b_cb = color_value;
-		break;
-	case PIXEL_FORMAT_420BPP8:
-		/* set boarder color to green */
-		color->color_g_y = color_value;
-		break;
-	case PIXEL_FORMAT_420BPP10:
-		/* set boarder color to yellow */
-		color->color_g_y = color_value;
-		color->color_r_cr = color_value;
-		break;
-	case PIXEL_FORMAT_FP16:
-		/* set boarder color to white */
-		color->color_r_cr = color_value;
-		color->color_b_cb = color_value;
-		color->color_g_y = color_value;
-		break;
-	default:
-		break;
-	}
 }
 
 static void program_scaler(const struct dc *dc,
@@ -1629,34 +1630,39 @@ static void disable_vga_and_power_gate_all_controllers(
 }
 
 
-static struct dc_stream_state *get_edp_stream(struct dc_state *context)
+static void get_edp_streams(struct dc_state *context,
+		struct dc_stream_state **edp_streams,
+		int *edp_stream_num)
 {
 	int i;
 
+	*edp_stream_num = 0;
 	for (i = 0; i < context->stream_count; i++) {
-		if (context->streams[i]->signal == SIGNAL_TYPE_EDP)
-			return context->streams[i];
+		if (context->streams[i]->signal == SIGNAL_TYPE_EDP) {
+			edp_streams[*edp_stream_num] = context->streams[i];
+			if (++(*edp_stream_num) == MAX_NUM_EDP)
+				return;
+		}
 	}
-	return NULL;
 }
 
-static struct dc_link *get_edp_link_with_sink(
+static void get_edp_links_with_sink(
 		struct dc *dc,
-		struct dc_state *context)
+		struct dc_link **edp_links_with_sink,
+		int *edp_with_sink_num)
 {
 	int i;
-	struct dc_link *link = NULL;
 
 	/* check if there is an eDP panel not in use */
+	*edp_with_sink_num = 0;
 	for (i = 0; i < dc->link_count; i++) {
 		if (dc->links[i]->local_sink &&
 			dc->links[i]->local_sink->sink_signal == SIGNAL_TYPE_EDP) {
-			link = dc->links[i];
-			break;
+			edp_links_with_sink[*edp_with_sink_num] = dc->links[i];
+			if (++(*edp_with_sink_num) == MAX_NUM_EDP)
+				return;
 		}
 	}
-
-	return link;
 }
 
 /*
@@ -1668,36 +1674,53 @@ static struct dc_link *get_edp_link_with_sink(
  */
 void dce110_enable_accelerated_mode(struct dc *dc, struct dc_state *context)
 {
-	int i;
-	struct dc_link *edp_link_with_sink = get_edp_link_with_sink(dc, context);
-	struct dc_link *edp_link = get_edp_link(dc);
+	struct dc_link *edp_links_with_sink[MAX_NUM_EDP];
+	struct dc_link *edp_links[MAX_NUM_EDP];
+	struct dc_stream_state *edp_streams[MAX_NUM_EDP];
+	struct dc_link *edp_link_with_sink = NULL;
+	struct dc_link *edp_link = NULL;
 	struct dc_stream_state *edp_stream = NULL;
+	struct dce_hwseq *hws = dc->hwseq;
+	int edp_with_sink_num;
+	int edp_num;
+	int edp_stream_num;
+	int i;
 	bool can_apply_edp_fast_boot = false;
 	bool can_apply_seamless_boot = false;
 	bool keep_edp_vdd_on = false;
-	struct dce_hwseq *hws = dc->hwseq;
+	DC_LOGGER_INIT();
+
+
+	get_edp_links_with_sink(dc, edp_links_with_sink, &edp_with_sink_num);
+	get_edp_links(dc, edp_links, &edp_num);
 
 	if (hws->funcs.init_pipes)
 		hws->funcs.init_pipes(dc, context);
 
-	edp_stream = get_edp_stream(context);
+	get_edp_streams(context, edp_streams, &edp_stream_num);
 
 	// Check fastboot support, disable on DCE8 because of blank screens
-	if (edp_link && dc->ctx->dce_version != DCE_VERSION_8_0 &&
+	if (edp_num && dc->ctx->dce_version != DCE_VERSION_8_0 &&
 		    dc->ctx->dce_version != DCE_VERSION_8_1 &&
 		    dc->ctx->dce_version != DCE_VERSION_8_3) {
+		for (i = 0; i < edp_num; i++) {
+			edp_link = edp_links[i];
+			// enable fastboot if backend is enabled on eDP
+			if (edp_link->link_enc->funcs->is_dig_enabled(edp_link->link_enc)) {
+				/* Set optimization flag on eDP stream*/
+				if (edp_stream_num && edp_link->link_status.link_active) {
+					edp_stream = edp_streams[0];
+					can_apply_edp_fast_boot = !is_edp_ilr_optimization_required(edp_stream->link, &edp_stream->timing);
+					edp_stream->apply_edp_fast_boot_optimization = can_apply_edp_fast_boot;
+					if (can_apply_edp_fast_boot)
+						DC_LOG_EVENT_LINK_TRAINING("eDP fast boot disabled to optimize link rate\n");
 
-		// enable fastboot if backend is enabled on eDP
-		if (edp_link->link_enc->funcs->is_dig_enabled(edp_link->link_enc)) {
-			/* Set optimization flag on eDP stream*/
-			if (edp_stream && edp_link->link_status.link_active) {
-				edp_stream->apply_edp_fast_boot_optimization = true;
-				can_apply_edp_fast_boot = true;
+					break;
+				}
 			}
 		}
-
 		// We are trying to enable eDP, don't power down VDD
-		if (edp_stream)
+		if (edp_stream_num)
 			keep_edp_vdd_on = true;
 	}
 
@@ -1712,6 +1735,9 @@ void dce110_enable_accelerated_mode(struct dc *dc, struct dc_state *context)
 	/* eDP should not have stream in resume from S4 and so even with VBios post
 	 * it should get turned off
 	 */
+	if (edp_with_sink_num)
+		edp_link_with_sink = edp_links_with_sink[0];
+
 	if (!can_apply_edp_fast_boot && !can_apply_seamless_boot) {
 		if (edp_link_with_sink && !keep_edp_vdd_on) {
 			/*turn off backlight before DP_blank and encoder powered down*/
@@ -1723,7 +1749,7 @@ void dce110_enable_accelerated_mode(struct dc *dc, struct dc_state *context)
 		if (edp_link_with_sink && !keep_edp_vdd_on)
 			dc->hwss.edp_power_control(edp_link_with_sink, false);
 	}
-	bios_set_scratch_acc_mode_change(dc->ctx->dc_bios);
+	bios_set_scratch_acc_mode_change(dc->ctx->dc_bios, 1);
 }
 
 static uint32_t compute_pstate_blackout_duration(
@@ -1819,8 +1845,7 @@ void dce110_set_safe_displaymarks(
  ******************************************************************************/
 
 static void set_drr(struct pipe_ctx **pipe_ctx,
-		int num_pipes, unsigned int vmin, unsigned int vmax,
-		unsigned int vmid, unsigned int vmid_frame_number)
+		int num_pipes, struct dc_crtc_timing_adjust adjust)
 {
 	int i = 0;
 	struct drr_params params = {0};
@@ -1829,8 +1854,8 @@ static void set_drr(struct pipe_ctx **pipe_ctx,
 	// Note DRR trigger events are generated regardless of whether num frames met.
 	unsigned int num_frames = 2;
 
-	params.vertical_total_max = vmax;
-	params.vertical_total_min = vmin;
+	params.vertical_total_max = adjust.v_total_max;
+	params.vertical_total_min = adjust.v_total_min;
 
 	/* TODO: If multiple pipes are to be supported, you need
 	 * some GSL stuff. Static screen triggers may be programmed differently
@@ -1840,7 +1865,7 @@ static void set_drr(struct pipe_ctx **pipe_ctx,
 		pipe_ctx[i]->stream_res.tg->funcs->set_drr(
 			pipe_ctx[i]->stream_res.tg, &params);
 
-		if (vmax != 0 && vmin != 0)
+		if (adjust.v_total_max != 0 && adjust.v_total_min != 0)
 			pipe_ctx[i]->stream_res.tg->funcs->set_static_screen_control(
 					pipe_ctx[i]->stream_res.tg,
 					event_triggers, num_frames);
@@ -2088,11 +2113,31 @@ static void dce110_setup_audio_dto(
 
 			build_audio_output(context, pipe_ctx, &audio_output);
 
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+			/* For DCN3.1, audio to HPO FRL encoder is using audio DTBCLK DTO */
+			if (dc->res_pool->dccg && dc->res_pool->dccg->funcs->set_audio_dtbclk_dto) {
+				/* disable audio DTBCLK DTO */
+				dc->res_pool->dccg->funcs->set_audio_dtbclk_dto(
+					dc->res_pool->dccg, 0);
+
+				pipe_ctx->stream_res.audio->funcs->wall_dto_setup(
+						pipe_ctx->stream_res.audio,
+						pipe_ctx->stream->signal,
+						&audio_output.crtc_info,
+						&audio_output.pll_info);
+			} else
+				pipe_ctx->stream_res.audio->funcs->wall_dto_setup(
+					pipe_ctx->stream_res.audio,
+					pipe_ctx->stream->signal,
+					&audio_output.crtc_info,
+					&audio_output.pll_info);
+#else
 			pipe_ctx->stream_res.audio->funcs->wall_dto_setup(
 				pipe_ctx->stream_res.audio,
 				pipe_ctx->stream->signal,
 				&audio_output.crtc_info,
 				&audio_output.pll_info);
+#endif
 			break;
 		}
 	}

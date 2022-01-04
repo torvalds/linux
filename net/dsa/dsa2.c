@@ -21,6 +21,9 @@
 static DEFINE_MUTEX(dsa2_mutex);
 LIST_HEAD(dsa_tree_list);
 
+/* Track the bridges with forwarding offload enabled */
+static unsigned long dsa_fwd_offloading_bridges;
+
 /**
  * dsa_tree_notify - Execute code for all switches in a DSA switch tree.
  * @dst: collection of struct dsa_switch devices to notify.
@@ -49,6 +52,9 @@ int dsa_tree_notify(struct dsa_switch_tree *dst, unsigned long e, void *v)
  * Can be used to notify the switching fabric of events such as cross-chip
  * bridging between disjoint trees (such as islands of tagger-compatible
  * switches bridged by an incompatible middle switch).
+ *
+ * WARNING: this function is not reliable during probe time, because probing
+ * between trees is asynchronous and not all DSA trees might have probed.
  */
 int dsa_broadcast(unsigned long e, void *v)
 {
@@ -121,6 +127,51 @@ void dsa_lag_unmap(struct dsa_switch_tree *dst, struct net_device *lag)
 			break;
 		}
 	}
+}
+
+static int dsa_bridge_num_find(const struct net_device *bridge_dev)
+{
+	struct dsa_switch_tree *dst;
+	struct dsa_port *dp;
+
+	/* When preparing the offload for a port, it will have a valid
+	 * dp->bridge_dev pointer but a not yet valid dp->bridge_num.
+	 * However there might be other ports having the same dp->bridge_dev
+	 * and a valid dp->bridge_num, so just ignore this port.
+	 */
+	list_for_each_entry(dst, &dsa_tree_list, list)
+		list_for_each_entry(dp, &dst->ports, list)
+			if (dp->bridge_dev == bridge_dev &&
+			    dp->bridge_num != -1)
+				return dp->bridge_num;
+
+	return -1;
+}
+
+int dsa_bridge_num_get(const struct net_device *bridge_dev, int max)
+{
+	int bridge_num = dsa_bridge_num_find(bridge_dev);
+
+	if (bridge_num < 0) {
+		/* First port that offloads TX forwarding for this bridge */
+		bridge_num = find_first_zero_bit(&dsa_fwd_offloading_bridges,
+						 DSA_MAX_NUM_OFFLOADING_BRIDGES);
+		if (bridge_num >= max)
+			return -1;
+
+		set_bit(bridge_num, &dsa_fwd_offloading_bridges);
+	}
+
+	return bridge_num;
+}
+
+void dsa_bridge_num_put(const struct net_device *bridge_dev, int bridge_num)
+{
+	/* Check if the bridge is still in use, otherwise it is time
+	 * to clean it up so we can reuse this bridge_num later.
+	 */
+	if (!dsa_bridge_num_find(bridge_dev))
+		clear_bit(bridge_num, &dsa_fwd_offloading_bridges);
 }
 
 struct dsa_switch *dsa_switch_find(int tree_index, int sw_index)
@@ -219,21 +270,6 @@ static void dsa_tree_put(struct dsa_switch_tree *dst)
 		kref_put(&dst->refcount, dsa_tree_release);
 }
 
-static bool dsa_port_is_dsa(struct dsa_port *port)
-{
-	return port->type == DSA_PORT_TYPE_DSA;
-}
-
-static bool dsa_port_is_cpu(struct dsa_port *port)
-{
-	return port->type == DSA_PORT_TYPE_CPU;
-}
-
-static bool dsa_port_is_user(struct dsa_port *dp)
-{
-	return dp->type == DSA_PORT_TYPE_USER;
-}
-
 static struct dsa_port *dsa_tree_find_port_by_node(struct dsa_switch_tree *dst,
 						   struct device_node *dn)
 {
@@ -326,6 +362,9 @@ static struct dsa_port *dsa_tree_find_first_cpu(struct dsa_switch_tree *dst)
 	return NULL;
 }
 
+/* Assign the default CPU port (the first one in the tree) to all ports of the
+ * fabric which don't already have one as part of their own switch.
+ */
 static int dsa_tree_setup_default_cpu(struct dsa_switch_tree *dst)
 {
 	struct dsa_port *cpu_dp, *dp;
@@ -336,15 +375,48 @@ static int dsa_tree_setup_default_cpu(struct dsa_switch_tree *dst)
 		return -EINVAL;
 	}
 
-	/* Assign the default CPU port to all ports of the fabric */
-	list_for_each_entry(dp, &dst->ports, list)
+	list_for_each_entry(dp, &dst->ports, list) {
+		if (dp->cpu_dp)
+			continue;
+
 		if (dsa_port_is_user(dp) || dsa_port_is_dsa(dp))
 			dp->cpu_dp = cpu_dp;
+	}
 
 	return 0;
 }
 
-static void dsa_tree_teardown_default_cpu(struct dsa_switch_tree *dst)
+/* Perform initial assignment of CPU ports to user ports and DSA links in the
+ * fabric, giving preference to CPU ports local to each switch. Default to
+ * using the first CPU port in the switch tree if the port does not have a CPU
+ * port local to this switch.
+ */
+static int dsa_tree_setup_cpu_ports(struct dsa_switch_tree *dst)
+{
+	struct dsa_port *cpu_dp, *dp;
+
+	list_for_each_entry(cpu_dp, &dst->ports, list) {
+		if (!dsa_port_is_cpu(cpu_dp))
+			continue;
+
+		list_for_each_entry(dp, &dst->ports, list) {
+			/* Prefer a local CPU port */
+			if (dp->ds != cpu_dp->ds)
+				continue;
+
+			/* Prefer the first local CPU port found */
+			if (dp->cpu_dp)
+				continue;
+
+			if (dsa_port_is_user(dp) || dsa_port_is_dsa(dp))
+				dp->cpu_dp = cpu_dp;
+		}
+	}
+
+	return dsa_tree_setup_default_cpu(dst);
+}
+
+static void dsa_tree_teardown_cpu_ports(struct dsa_switch_tree *dst)
 {
 	struct dsa_port *dp;
 
@@ -362,6 +434,9 @@ static int dsa_port_setup(struct dsa_port *dp)
 
 	if (dp->setup)
 		return 0;
+
+	INIT_LIST_HEAD(&dp->fdbs);
+	INIT_LIST_HEAD(&dp->mdbs);
 
 	switch (dp->type) {
 	case DSA_PORT_TYPE_UNUSED:
@@ -392,7 +467,7 @@ static int dsa_port_setup(struct dsa_port *dp)
 
 		break;
 	case DSA_PORT_TYPE_USER:
-		dp->mac = of_get_mac_address(dp->dn);
+		of_get_mac_address(dp->dn, dp->mac);
 		err = dsa_slave_create(dp);
 		if (err)
 			break;
@@ -458,6 +533,7 @@ static int dsa_port_devlink_setup(struct dsa_port *dp)
 static void dsa_port_teardown(struct dsa_port *dp)
 {
 	struct devlink_port *dlp = &dp->devlink_port;
+	struct dsa_mac_addr *a, *tmp;
 
 	if (!dp->setup)
 		return;
@@ -481,6 +557,16 @@ static void dsa_port_teardown(struct dsa_port *dp)
 			dp->slave = NULL;
 		}
 		break;
+	}
+
+	list_for_each_entry_safe(a, tmp, &dp->fdbs, list) {
+		list_del(&a->list);
+		kfree(a);
+	}
+
+	list_for_each_entry_safe(a, tmp, &dp->mdbs, list) {
+		list_del(&a->list);
+		kfree(a);
 	}
 
 	dp->setup = false;
@@ -668,6 +754,30 @@ static const struct devlink_ops dsa_devlink_ops = {
 	.sb_occ_tc_port_bind_get	= dsa_devlink_sb_occ_tc_port_bind_get,
 };
 
+static int dsa_switch_setup_tag_protocol(struct dsa_switch *ds)
+{
+	const struct dsa_device_ops *tag_ops = ds->dst->tag_ops;
+	struct dsa_switch_tree *dst = ds->dst;
+	int port, err;
+
+	if (tag_ops->proto == dst->default_proto)
+		return 0;
+
+	for (port = 0; port < ds->num_ports; port++) {
+		if (!dsa_is_cpu_port(ds, port))
+			continue;
+
+		err = ds->ops->change_tag_protocol(ds, port, tag_ops->proto);
+		if (err) {
+			dev_err(ds->dev, "Unable to use tag protocol \"%s\": %pe\n",
+				tag_ops->name, ERR_PTR(err));
+			return err;
+		}
+	}
+
+	return 0;
+}
+
 static int dsa_switch_setup(struct dsa_switch *ds)
 {
 	struct dsa_devlink_priv *dl_priv;
@@ -687,13 +797,14 @@ static int dsa_switch_setup(struct dsa_switch *ds)
 	/* Add the switch to devlink before calling setup, so that setup can
 	 * add dpipe tables
 	 */
-	ds->devlink = devlink_alloc(&dsa_devlink_ops, sizeof(*dl_priv));
+	ds->devlink =
+		devlink_alloc(&dsa_devlink_ops, sizeof(*dl_priv), ds->dev);
 	if (!ds->devlink)
 		return -ENOMEM;
 	dl_priv = devlink_priv(ds->devlink);
 	dl_priv->ds = ds;
 
-	err = devlink_register(ds->devlink, ds->dev);
+	err = devlink_register(ds->devlink);
 	if (err)
 		goto free_devlink;
 
@@ -717,6 +828,10 @@ static int dsa_switch_setup(struct dsa_switch *ds)
 	err = ds->ops->setup(ds);
 	if (err < 0)
 		goto unregister_notifier;
+
+	err = dsa_switch_setup_tag_protocol(ds);
+	if (err)
+		goto teardown;
 
 	devlink_params_publish(ds->devlink);
 
@@ -894,13 +1009,13 @@ static int dsa_tree_setup(struct dsa_switch_tree *dst)
 	if (!complete)
 		return 0;
 
-	err = dsa_tree_setup_default_cpu(dst);
+	err = dsa_tree_setup_cpu_ports(dst);
 	if (err)
 		return err;
 
 	err = dsa_tree_setup_switches(dst);
 	if (err)
-		goto teardown_default_cpu;
+		goto teardown_cpu_ports;
 
 	err = dsa_tree_setup_master(dst);
 	if (err)
@@ -920,8 +1035,8 @@ teardown_master:
 	dsa_tree_teardown_master(dst);
 teardown_switches:
 	dsa_tree_teardown_switches(dst);
-teardown_default_cpu:
-	dsa_tree_teardown_default_cpu(dst);
+teardown_cpu_ports:
+	dsa_tree_teardown_cpu_ports(dst);
 
 	return err;
 }
@@ -939,7 +1054,7 @@ static void dsa_tree_teardown(struct dsa_switch_tree *dst)
 
 	dsa_tree_teardown_switches(dst);
 
-	dsa_tree_teardown_default_cpu(dst);
+	dsa_tree_teardown_cpu_ports(dst);
 
 	list_for_each_entry_safe(dl, next, &dst->rtable, list) {
 		list_del(&dl->list);
@@ -1017,6 +1132,7 @@ static struct dsa_port *dsa_port_touch(struct dsa_switch *ds, int index)
 
 	dp->ds = ds;
 	dp->index = index;
+	dp->bridge_num = -1;
 
 	INIT_LIST_HEAD(&dp->list);
 	list_add_tail(&dp->list, &dst->ports);
@@ -1068,34 +1184,60 @@ static enum dsa_tag_protocol dsa_get_tag_protocol(struct dsa_port *dp,
 	return ds->ops->get_tag_protocol(ds, dp->index, tag_protocol);
 }
 
-static int dsa_port_parse_cpu(struct dsa_port *dp, struct net_device *master)
+static int dsa_port_parse_cpu(struct dsa_port *dp, struct net_device *master,
+			      const char *user_protocol)
 {
 	struct dsa_switch *ds = dp->ds;
 	struct dsa_switch_tree *dst = ds->dst;
 	const struct dsa_device_ops *tag_ops;
-	enum dsa_tag_protocol tag_protocol;
+	enum dsa_tag_protocol default_proto;
 
-	tag_protocol = dsa_get_tag_protocol(dp, master);
-	if (dst->tag_ops) {
-		if (dst->tag_ops->proto != tag_protocol) {
+	/* Find out which protocol the switch would prefer. */
+	default_proto = dsa_get_tag_protocol(dp, master);
+	if (dst->default_proto) {
+		if (dst->default_proto != default_proto) {
 			dev_err(ds->dev,
 				"A DSA switch tree can have only one tagging protocol\n");
 			return -EINVAL;
 		}
-		/* In the case of multiple CPU ports per switch, the tagging
-		 * protocol is still reference-counted only per switch tree, so
-		 * nothing to do here.
-		 */
 	} else {
-		tag_ops = dsa_tag_driver_get(tag_protocol);
-		if (IS_ERR(tag_ops)) {
-			if (PTR_ERR(tag_ops) == -ENOPROTOOPT)
-				return -EPROBE_DEFER;
-			dev_warn(ds->dev, "No tagger for this switch\n");
-			dp->master = NULL;
-			return PTR_ERR(tag_ops);
+		dst->default_proto = default_proto;
+	}
+
+	/* See if the user wants to override that preference. */
+	if (user_protocol) {
+		if (!ds->ops->change_tag_protocol) {
+			dev_err(ds->dev, "Tag protocol cannot be modified\n");
+			return -EINVAL;
 		}
 
+		tag_ops = dsa_find_tagger_by_name(user_protocol);
+	} else {
+		tag_ops = dsa_tag_driver_get(default_proto);
+	}
+
+	if (IS_ERR(tag_ops)) {
+		if (PTR_ERR(tag_ops) == -ENOPROTOOPT)
+			return -EPROBE_DEFER;
+
+		dev_warn(ds->dev, "No tagger for this switch\n");
+		return PTR_ERR(tag_ops);
+	}
+
+	if (dst->tag_ops) {
+		if (dst->tag_ops != tag_ops) {
+			dev_err(ds->dev,
+				"A DSA switch tree can have only one tagging protocol\n");
+
+			dsa_tag_driver_put(tag_ops);
+			return -EINVAL;
+		}
+
+		/* In the case of multiple CPU ports per switch, the tagging
+		 * protocol is still reference-counted only per switch tree.
+		 */
+		dsa_tag_driver_put(tag_ops);
+	} else {
 		dst->tag_ops = tag_ops;
 	}
 
@@ -1104,6 +1246,19 @@ static int dsa_port_parse_cpu(struct dsa_port *dp, struct net_device *master)
 	dsa_port_set_tag_protocol(dp, dst->tag_ops);
 	dp->dst = dst;
 
+	/* At this point, the tree may be configured to use a different
+	 * tagger than the one chosen by the switch driver during
+	 * .setup, in the case when a user selects a custom protocol
+	 * through the DT.
+	 *
+	 * This is resolved by syncing the driver with the tree in
+	 * dsa_switch_setup_tag_protocol once .setup has run and the
+	 * driver is ready to accept calls to .change_tag_protocol. If
+	 * the driver does not support the custom protocol at that
+	 * point, the tree is wholly rejected, thereby ensuring that the
+	 * tree and driver are always in agreement on the protocol to
+	 * use.
+	 */
 	return 0;
 }
 
@@ -1117,12 +1272,14 @@ static int dsa_port_parse_of(struct dsa_port *dp, struct device_node *dn)
 
 	if (ethernet) {
 		struct net_device *master;
+		const char *user_protocol;
 
 		master = of_find_net_device_by_node(ethernet);
 		if (!master)
 			return -EPROBE_DEFER;
 
-		return dsa_port_parse_cpu(dp, master);
+		user_protocol = of_get_property(dn, "dsa-tag-protocol", NULL);
+		return dsa_port_parse_cpu(dp, master, user_protocol);
 	}
 
 	if (link)
@@ -1190,6 +1347,16 @@ static int dsa_switch_parse_member_of(struct dsa_switch *ds,
 	if (!ds->dst)
 		return -ENOMEM;
 
+	if (dsa_switch_find(ds->dst->index, ds->index)) {
+		dev_err(ds->dev,
+			"A DSA switch with index %d already exists in tree %d\n",
+			ds->index, ds->dst->index);
+		return -EEXIST;
+	}
+
+	if (ds->dst->last_switch < ds->index)
+		ds->dst->last_switch = ds->index;
+
 	return 0;
 }
 
@@ -1234,7 +1401,7 @@ static int dsa_port_parse(struct dsa_port *dp, const char *name,
 
 		dev_put(master);
 
-		return dsa_port_parse_cpu(dp, master);
+		return dsa_port_parse_cpu(dp, master, NULL);
 	}
 
 	if (!strcmp(name, "dsa"))

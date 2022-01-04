@@ -9,7 +9,7 @@
  * Copyright (c) 2006, Michael Wu <flamingice@sourmilk.net>
  * Copyright (c) 2013 - 2014 Intel Mobile Communications GmbH
  * Copyright (c) 2016 - 2017 Intel Deutschland GmbH
- * Copyright (c) 2018 - 2020 Intel Corporation
+ * Copyright (c) 2018 - 2021 Intel Corporation
  */
 
 #ifndef LINUX_IEEE80211_H
@@ -1088,6 +1088,48 @@ struct ieee80211_ext {
 	} u;
 } __packed __aligned(2);
 
+#define IEEE80211_TWT_CONTROL_NDP			BIT(0)
+#define IEEE80211_TWT_CONTROL_RESP_MODE			BIT(1)
+#define IEEE80211_TWT_CONTROL_NEG_TYPE_BROADCAST	BIT(3)
+#define IEEE80211_TWT_CONTROL_RX_DISABLED		BIT(4)
+#define IEEE80211_TWT_CONTROL_WAKE_DUR_UNIT		BIT(5)
+
+#define IEEE80211_TWT_REQTYPE_REQUEST			BIT(0)
+#define IEEE80211_TWT_REQTYPE_SETUP_CMD			GENMASK(3, 1)
+#define IEEE80211_TWT_REQTYPE_TRIGGER			BIT(4)
+#define IEEE80211_TWT_REQTYPE_IMPLICIT			BIT(5)
+#define IEEE80211_TWT_REQTYPE_FLOWTYPE			BIT(6)
+#define IEEE80211_TWT_REQTYPE_FLOWID			GENMASK(9, 7)
+#define IEEE80211_TWT_REQTYPE_WAKE_INT_EXP		GENMASK(14, 10)
+#define IEEE80211_TWT_REQTYPE_PROTECTION		BIT(15)
+
+enum ieee80211_twt_setup_cmd {
+	TWT_SETUP_CMD_REQUEST,
+	TWT_SETUP_CMD_SUGGEST,
+	TWT_SETUP_CMD_DEMAND,
+	TWT_SETUP_CMD_GROUPING,
+	TWT_SETUP_CMD_ACCEPT,
+	TWT_SETUP_CMD_ALTERNATE,
+	TWT_SETUP_CMD_DICTATE,
+	TWT_SETUP_CMD_REJECT,
+};
+
+struct ieee80211_twt_params {
+	__le16 req_type;
+	__le64 twt;
+	u8 min_twt_dur;
+	__le16 mantissa;
+	u8 channel;
+} __packed;
+
+struct ieee80211_twt_setup {
+	u8 dialog_token;
+	u8 element_id;
+	u8 length;
+	u8 control;
+	u8 params[];
+} __packed;
+
 struct ieee80211_mgmt {
 	__le16 frame_control;
 	__le16 duration;
@@ -1252,6 +1294,10 @@ struct ieee80211_mgmt {
 					__le16 toa_error;
 					u8 variable[0];
 				} __packed ftm;
+				struct {
+					u8 action_code;
+					u8 variable[];
+				} __packed s1g;
 			} u;
 		} __packed action;
 	} u;
@@ -2006,24 +2052,22 @@ int ieee80211_get_vht_max_nss(struct ieee80211_vht_cap *cap,
  * A-MDPU Length Exponent field in the HT capabilities, VHT capabilities and the
  * same field in the HE capabilities.
  */
-#define IEEE80211_HE_MAC_CAP3_MAX_AMPDU_LEN_EXP_USE_VHT	0x00
-#define IEEE80211_HE_MAC_CAP3_MAX_AMPDU_LEN_EXP_VHT_1		0x08
-#define IEEE80211_HE_MAC_CAP3_MAX_AMPDU_LEN_EXP_VHT_2		0x10
-#define IEEE80211_HE_MAC_CAP3_MAX_AMPDU_LEN_EXP_RESERVED	0x18
+#define IEEE80211_HE_MAC_CAP3_MAX_AMPDU_LEN_EXP_EXT_0		0x00
+#define IEEE80211_HE_MAC_CAP3_MAX_AMPDU_LEN_EXP_EXT_1		0x08
+#define IEEE80211_HE_MAC_CAP3_MAX_AMPDU_LEN_EXP_EXT_2		0x10
+#define IEEE80211_HE_MAC_CAP3_MAX_AMPDU_LEN_EXP_EXT_3		0x18
 #define IEEE80211_HE_MAC_CAP3_MAX_AMPDU_LEN_EXP_MASK		0x18
 #define IEEE80211_HE_MAC_CAP3_AMSDU_FRAG			0x20
 #define IEEE80211_HE_MAC_CAP3_FLEX_TWT_SCHED			0x40
 #define IEEE80211_HE_MAC_CAP3_RX_CTRL_FRAME_TO_MULTIBSS		0x80
 
-#define IEEE80211_HE_MAC_CAP3_MAX_AMPDU_LEN_EXP_SHIFT		3
-
 #define IEEE80211_HE_MAC_CAP4_BSRP_BQRP_A_MPDU_AGG		0x01
 #define IEEE80211_HE_MAC_CAP4_QTP				0x02
 #define IEEE80211_HE_MAC_CAP4_BQR				0x04
-#define IEEE80211_HE_MAC_CAP4_SRP_RESP				0x08
+#define IEEE80211_HE_MAC_CAP4_PSR_RESP				0x08
 #define IEEE80211_HE_MAC_CAP4_NDP_FB_REP			0x10
 #define IEEE80211_HE_MAC_CAP4_OPS				0x20
-#define IEEE80211_HE_MAC_CAP4_AMDSU_IN_AMPDU			0x40
+#define IEEE80211_HE_MAC_CAP4_AMSDU_IN_AMPDU			0x40
 /* Multi TID agg TX is split between byte #4 and #5
  * The value is a combination of B39,B40,B41
  */
@@ -2031,7 +2075,7 @@ int ieee80211_get_vht_max_nss(struct ieee80211_vht_cap *cap,
 
 #define IEEE80211_HE_MAC_CAP5_MULTI_TID_AGG_TX_QOS_B40		0x01
 #define IEEE80211_HE_MAC_CAP5_MULTI_TID_AGG_TX_QOS_B41		0x02
-#define IEEE80211_HE_MAC_CAP5_SUBCHAN_SELECVITE_TRANSMISSION	0x04
+#define IEEE80211_HE_MAC_CAP5_SUBCHAN_SELECTIVE_TRANSMISSION	0x04
 #define IEEE80211_HE_MAC_CAP5_UL_2x996_TONE_RU			0x08
 #define IEEE80211_HE_MAC_CAP5_OM_CTRL_UL_MU_DATA_DIS_RX		0x10
 #define IEEE80211_HE_MAC_CAP5_HE_DYNAMIC_SM_PS			0x20
@@ -2089,7 +2133,7 @@ int ieee80211_get_vht_max_nss(struct ieee80211_vht_cap *cap,
 #define IEEE80211_HE_PHY_CAP3_DCM_MAX_CONST_RX_MASK			0x18
 #define IEEE80211_HE_PHY_CAP3_DCM_MAX_RX_NSS_1				0x00
 #define IEEE80211_HE_PHY_CAP3_DCM_MAX_RX_NSS_2				0x20
-#define IEEE80211_HE_PHY_CAP3_RX_HE_MU_PPDU_FROM_NON_AP_STA		0x40
+#define IEEE80211_HE_PHY_CAP3_RX_PARTIAL_BW_SU_IN_20MHZ_MU		0x40
 #define IEEE80211_HE_PHY_CAP3_SU_BEAMFORMER				0x80
 
 #define IEEE80211_HE_PHY_CAP4_SU_BEAMFORMEE				0x01
@@ -2136,15 +2180,15 @@ int ieee80211_get_vht_max_nss(struct ieee80211_vht_cap *cap,
 
 #define IEEE80211_HE_PHY_CAP6_CODEBOOK_SIZE_42_SU			0x01
 #define IEEE80211_HE_PHY_CAP6_CODEBOOK_SIZE_75_MU			0x02
-#define IEEE80211_HE_PHY_CAP6_TRIG_SU_BEAMFORMER_FB			0x04
-#define IEEE80211_HE_PHY_CAP6_TRIG_MU_BEAMFORMER_FB			0x08
+#define IEEE80211_HE_PHY_CAP6_TRIG_SU_BEAMFORMING_FB			0x04
+#define IEEE80211_HE_PHY_CAP6_TRIG_MU_BEAMFORMING_PARTIAL_BW_FB		0x08
 #define IEEE80211_HE_PHY_CAP6_TRIG_CQI_FB				0x10
 #define IEEE80211_HE_PHY_CAP6_PARTIAL_BW_EXT_RANGE			0x20
 #define IEEE80211_HE_PHY_CAP6_PARTIAL_BANDWIDTH_DL_MUMIMO		0x40
 #define IEEE80211_HE_PHY_CAP6_PPE_THRESHOLD_PRESENT			0x80
 
-#define IEEE80211_HE_PHY_CAP7_SRP_BASED_SR				0x01
-#define IEEE80211_HE_PHY_CAP7_POWER_BOOST_FACTOR_AR			0x02
+#define IEEE80211_HE_PHY_CAP7_PSR_BASED_SR				0x01
+#define IEEE80211_HE_PHY_CAP7_POWER_BOOST_FACTOR_SUPP			0x02
 #define IEEE80211_HE_PHY_CAP7_HE_SU_MU_PPDU_4XLTF_AND_08_US_GI		0x04
 #define IEEE80211_HE_PHY_CAP7_MAX_NC_1					0x08
 #define IEEE80211_HE_PHY_CAP7_MAX_NC_2					0x10
@@ -2180,6 +2224,8 @@ int ieee80211_get_vht_max_nss(struct ieee80211_vht_cap *cap,
 #define IEEE80211_HE_PHY_CAP9_NOMIMAL_PKT_PADDING_16US			0x80
 #define IEEE80211_HE_PHY_CAP9_NOMIMAL_PKT_PADDING_RESERVED		0xc0
 #define IEEE80211_HE_PHY_CAP9_NOMIMAL_PKT_PADDING_MASK			0xc0
+
+#define IEEE80211_HE_PHY_CAP10_HE_MU_M1RU_MAX_LTF			0x01
 
 /* 802.11ax HE TX/RX MCS NSS Support  */
 #define IEEE80211_TX_RX_MCS_NSS_SUPP_HIGHEST_MCS_POS			(3)
@@ -2266,6 +2312,9 @@ ieee80211_he_ppe_size(u8 ppe_thres_hdr, const u8 *phy_cap_info)
 #define IEEE80211_HE_OPERATION_PARTIAL_BSS_COLOR		0x40000000
 #define IEEE80211_HE_OPERATION_BSS_COLOR_DISABLED		0x80000000
 
+#define IEEE80211_6GHZ_CTRL_REG_LPI_AP	0
+#define IEEE80211_6GHZ_CTRL_REG_SP_AP	1
+
 /**
  * ieee80211_he_6ghz_oper - HE 6 GHz operation Information field
  * @primary: primary channel
@@ -2282,11 +2331,50 @@ struct ieee80211_he_6ghz_oper {
 #define		IEEE80211_HE_6GHZ_OPER_CTRL_CHANWIDTH_80MHZ	2
 #define		IEEE80211_HE_6GHZ_OPER_CTRL_CHANWIDTH_160MHZ	3
 #define IEEE80211_HE_6GHZ_OPER_CTRL_DUP_BEACON	0x4
+#define IEEE80211_HE_6GHZ_OPER_CTRL_REG_INFO	0x38
 	u8 control;
 	u8 ccfs0;
 	u8 ccfs1;
 	u8 minrate;
 } __packed;
+
+/*
+ * In "9.4.2.161 Transmit Power Envelope element" of "IEEE Std 802.11ax-2021",
+ * it show four types in "Table 9-275a-Maximum Transmit Power Interpretation
+ * subfield encoding", and two category for each type in "Table E-12-Regulatory
+ * Info subfield encoding in the United States".
+ * So it it totally max 8 Transmit Power Envelope element.
+ */
+#define IEEE80211_TPE_MAX_IE_COUNT	8
+/*
+ * In "Table 9-277—Meaning of Maximum Transmit Power Count subfield"
+ * of "IEEE Std 802.11ax™‐2021", the max power level is 8.
+ */
+#define IEEE80211_MAX_NUM_PWR_LEVEL	8
+
+#define IEEE80211_TPE_MAX_POWER_COUNT	8
+
+/* transmit power interpretation type of transmit power envelope element */
+enum ieee80211_tx_power_intrpt_type {
+	IEEE80211_TPE_LOCAL_EIRP,
+	IEEE80211_TPE_LOCAL_EIRP_PSD,
+	IEEE80211_TPE_REG_CLIENT_EIRP,
+	IEEE80211_TPE_REG_CLIENT_EIRP_PSD,
+};
+
+/**
+ * struct ieee80211_tx_pwr_env
+ *
+ * This structure represents the "Transmit Power Envelope element"
+ */
+struct ieee80211_tx_pwr_env {
+	u8 tx_power_info;
+	s8 tx_power[IEEE80211_TPE_MAX_POWER_COUNT];
+} __packed;
+
+#define IEEE80211_TX_PWR_ENV_INFO_COUNT 0x7
+#define IEEE80211_TX_PWR_ENV_INFO_INTERPRET 0x38
+#define IEEE80211_TX_PWR_ENV_INFO_CATEGORY 0xC0
 
 /*
  * ieee80211_he_oper_size - calculate 802.11ax HE Operations IE size
@@ -2869,7 +2957,7 @@ enum ieee80211_eid {
 	WLAN_EID_VHT_OPERATION = 192,
 	WLAN_EID_EXTENDED_BSS_LOAD = 193,
 	WLAN_EID_WIDE_BW_CHANNEL_SWITCH = 194,
-	WLAN_EID_VHT_TX_POWER_ENVELOPE = 195,
+	WLAN_EID_TX_POWER_ENVELOPE = 195,
 	WLAN_EID_CHANNEL_SWITCH_WRAPPER = 196,
 	WLAN_EID_AID = 197,
 	WLAN_EID_QUIET_CHANNEL = 198,
@@ -2881,6 +2969,7 @@ enum ieee80211_eid {
 	WLAN_EID_AID_RESPONSE = 211,
 	WLAN_EID_S1G_BCN_COMPAT = 213,
 	WLAN_EID_S1G_SHORT_BCN_INTERVAL = 214,
+	WLAN_EID_S1G_TWT = 216,
 	WLAN_EID_S1G_CAPABILITIES = 217,
 	WLAN_EID_VENDOR_SPECIFIC = 221,
 	WLAN_EID_QOS_PARAMETER = 222,
@@ -2935,6 +3024,7 @@ enum ieee80211_category {
 	WLAN_CATEGORY_BACK = 3,
 	WLAN_CATEGORY_PUBLIC = 4,
 	WLAN_CATEGORY_RADIO_MEASUREMENT = 5,
+	WLAN_CATEGORY_FAST_BBS_TRANSITION = 6,
 	WLAN_CATEGORY_HT = 7,
 	WLAN_CATEGORY_SA_QUERY = 8,
 	WLAN_CATEGORY_PROTECTED_DUAL_OF_ACTION = 9,
@@ -2949,6 +3039,7 @@ enum ieee80211_category {
 	WLAN_CATEGORY_FST = 18,
 	WLAN_CATEGORY_UNPROT_DMG = 20,
 	WLAN_CATEGORY_VHT = 21,
+	WLAN_CATEGORY_S1G = 22,
 	WLAN_CATEGORY_VENDOR_SPECIFIC_PROTECTED = 126,
 	WLAN_CATEGORY_VENDOR_SPECIFIC = 127,
 };
@@ -3020,6 +3111,20 @@ enum ieee80211_key_len {
 	WLAN_KEY_LEN_BIP_CMAC_256 = 32,
 	WLAN_KEY_LEN_BIP_GMAC_128 = 16,
 	WLAN_KEY_LEN_BIP_GMAC_256 = 32,
+};
+
+enum ieee80211_s1g_actioncode {
+	WLAN_S1G_AID_SWITCH_REQUEST,
+	WLAN_S1G_AID_SWITCH_RESPONSE,
+	WLAN_S1G_SYNC_CONTROL,
+	WLAN_S1G_STA_INFO_ANNOUNCE,
+	WLAN_S1G_EDCA_PARAM_SET,
+	WLAN_S1G_EL_OPERATION,
+	WLAN_S1G_TWT_SETUP,
+	WLAN_S1G_TWT_TEARDOWN,
+	WLAN_S1G_SECT_GROUP_ID_LIST,
+	WLAN_S1G_SECT_ID_FEEDBACK,
+	WLAN_S1G_TWT_INFORMATION = 11,
 };
 
 #define IEEE80211_WEP_IV_LEN		4
@@ -3111,6 +3216,11 @@ enum ieee80211_tdls_actioncode {
  * @WLAN_EID_EXT_CAPABILITY information element
  */
 #define WLAN_EXT_CAPA3_MULTI_BSSID_SUPPORT	BIT(6)
+
+/* Timing Measurement protocol for time sync is set in the 7th bit of 3rd byte
+ * of the @WLAN_EID_EXT_CAPABILITY information element
+ */
+#define WLAN_EXT_CAPA3_TIMING_MEASUREMENT_SUPPORT	BIT(7)
 
 /* TDLS capabilities in the 4th byte of @WLAN_EID_EXT_CAPABILITY */
 #define WLAN_EXT_CAPA4_TDLS_BUFFER_STA		BIT(4)
@@ -3860,5 +3970,12 @@ struct ieee80211_neighbor_ap_info {
        u8 op_class;
        u8 channel;
 } __packed;
+
+enum ieee80211_range_params_max_total_ltf {
+	IEEE80211_RANGE_PARAMS_MAX_TOTAL_LTF_4 = 0,
+	IEEE80211_RANGE_PARAMS_MAX_TOTAL_LTF_8,
+	IEEE80211_RANGE_PARAMS_MAX_TOTAL_LTF_16,
+	IEEE80211_RANGE_PARAMS_MAX_TOTAL_LTF_UNSPECIFIED,
+};
 
 #endif /* LINUX_IEEE80211_H */

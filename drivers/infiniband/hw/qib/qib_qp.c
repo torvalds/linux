@@ -125,7 +125,7 @@ static void get_map_page(struct rvt_qpn_table *qpt, struct rvt_qpn_map *map)
  * zero/one for QP type IB_QPT_SMI/IB_QPT_GSI.
  */
 int qib_alloc_qpn(struct rvt_dev_info *rdi, struct rvt_qpn_table *qpt,
-		  enum ib_qp_type type, u8 port)
+		  enum ib_qp_type type, u32 port)
 {
 	u32 i, offset, max_scan, qpn;
 	struct rvt_qpn_map *map;
@@ -136,7 +136,7 @@ int qib_alloc_qpn(struct rvt_dev_info *rdi, struct rvt_qpn_table *qpt,
 	u16 qpt_mask = dd->qpn_mask;
 
 	if (type == IB_QPT_SMI || type == IB_QPT_GSI) {
-		unsigned n;
+		u32 n;
 
 		ret = type == IB_QPT_GSI;
 		n = 1 << (ret + 2 * (port - 1));

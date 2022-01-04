@@ -198,7 +198,7 @@ static inline void s3c2410_udc_set_ep0_de(void __iomem *base)
 	udc_writeb(base, S3C2410_UDC_EP0_CSR_DE, S3C2410_UDC_EP0_CSR_REG);
 }
 
-inline void s3c2410_udc_set_ep0_ss(void __iomem *b)
+static inline void s3c2410_udc_set_ep0_ss(void __iomem *b)
 {
 	udc_writeb(b, S3C2410_UDC_INDEX_EP0, S3C2410_UDC_INDEX_REG);
 	udc_writeb(b, S3C2410_UDC_EP0_CSR_SENDSTL, S3C2410_UDC_EP0_CSR_REG);
@@ -1784,6 +1784,10 @@ static int s3c2410_udc_probe(struct platform_device *pdev)
 	s3c2410_udc_reinit(udc);
 
 	irq_usbd = platform_get_irq(pdev, 0);
+	if (irq_usbd < 0) {
+		retval = irq_usbd;
+		goto err_udc_clk;
+	}
 
 	/* irq setup after old hardware state is cleaned up */
 	retval = request_irq(irq_usbd, s3c2410_udc_irq,
@@ -1843,9 +1847,8 @@ static int s3c2410_udc_probe(struct platform_device *pdev)
 	if (retval)
 		goto err_add_udc;
 
-	udc->regs_info = debugfs_create_file("registers", S_IRUGO,
-					     s3c2410_udc_debugfs_root, udc,
-					     &s3c2410_udc_debugfs_fops);
+	debugfs_create_file("registers", S_IRUGO, s3c2410_udc_debugfs_root, udc,
+			    &s3c2410_udc_debugfs_fops);
 
 	dev_dbg(dev, "probe ok\n");
 
@@ -1889,7 +1892,7 @@ static int s3c2410_udc_remove(struct platform_device *pdev)
 		return -EBUSY;
 
 	usb_del_gadget_udc(&udc->gadget);
-	debugfs_remove(udc->regs_info);
+	debugfs_remove(debugfs_lookup("registers", s3c2410_udc_debugfs_root));
 
 	if (udc_info && !udc_info->udc_command &&
 		gpio_is_valid(udc_info->pullup_pin))

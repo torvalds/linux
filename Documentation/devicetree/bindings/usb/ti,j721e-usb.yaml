@@ -27,7 +27,7 @@ properties:
     description:
       PM domain provider node and an args specifier containing
       the USB device id value. See,
-      Documentation/devicetree/bindings/soc/ti/sci-pm-domain.txt
+      Documentation/devicetree/bindings/soc/ti/sci-pm-domain.yaml
     maxItems: 1
 
   clocks:

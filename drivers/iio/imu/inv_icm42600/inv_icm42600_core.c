@@ -592,7 +592,7 @@ int inv_icm42600_core_probe(struct regmap *regmap, int chip, int irq,
 	st->chip = chip;
 	st->map = regmap;
 
-	ret = iio_read_mount_matrix(dev, "mount-matrix", &st->orientation);
+	ret = iio_read_mount_matrix(dev, &st->orientation);
 	if (ret) {
 		dev_err(dev, "failed to retrieve mounting matrix %d\n", ret);
 		return ret;

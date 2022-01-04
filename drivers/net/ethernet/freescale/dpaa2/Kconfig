@@ -29,3 +29,11 @@ config FSL_DPAA2_PTP_CLOCK
 	help
 	  This driver adds support for using the DPAA2 1588 timer module
 	  as a PTP clock.
+
+config FSL_DPAA2_SWITCH
+	tristate "Freescale DPAA2 Ethernet Switch"
+	depends on BRIDGE || BRIDGE=n
+	depends on NET_SWITCHDEV
+	help
+	  Driver for Freescale DPAA2 Ethernet Switch. This driver manages
+	  switch objects discovered on the Freeescale MC bus.

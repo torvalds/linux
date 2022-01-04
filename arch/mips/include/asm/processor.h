@@ -32,16 +32,11 @@ extern unsigned int vced_count, vcei_count;
 extern int arch_dup_task_struct(struct task_struct *dst, struct task_struct *src);
 
 #ifdef CONFIG_32BIT
-#ifdef CONFIG_KVM_GUEST
-/* User space process size is limited to 1GB in KVM Guest Mode */
-#define TASK_SIZE	0x3fff8000UL
-#else
 /*
  * User space process size: 2GB. This is hardcoded into a few places,
  * so don't change it unless you know what you are doing.
  */
 #define TASK_SIZE	0x80000000UL
-#endif
 
 #define STACK_TOP_MAX	TASK_SIZE
 
@@ -225,10 +220,6 @@ struct nlm_cop2_state {
 #else
 #define COP2_INIT
 #endif
-
-typedef struct {
-	unsigned long seg;
-} mm_segment_t;
 
 #ifdef CONFIG_CPU_HAS_MSA
 # define ARCH_MIN_TASKALIGN	16

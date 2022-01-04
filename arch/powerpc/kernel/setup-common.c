@@ -9,6 +9,7 @@
 #undef DEBUG
 
 #include <linux/export.h>
+#include <linux/panic_notifier.h>
 #include <linux/string.h>
 #include <linux/sched.h>
 #include <linux/init.h>
@@ -69,7 +70,6 @@
 #include "setup.h"
 
 #ifdef DEBUG
-#include <asm/udbg.h>
 #define DBG(fmt...) udbg_printf(fmt)
 #else
 #define DBG(fmt...)
@@ -91,8 +91,6 @@ EXPORT_SYMBOL_GPL(boot_cpuid);
  */
 int dcache_bsize;
 int icache_bsize;
-
-unsigned long klimit = (unsigned long) _end;
 
 /*
  * This still seems to be needed... -- paulus
@@ -829,7 +827,7 @@ static __init void print_system_info(void)
 }
 
 #ifdef CONFIG_SMP
-static void smp_setup_pacas(void)
+static void __init smp_setup_pacas(void)
 {
 	int cpu;
 
@@ -928,10 +926,7 @@ void __init setup_arch(char **cmdline_p)
 
 	klp_init_thread_info(&init_task);
 
-	init_mm.start_code = (unsigned long)_stext;
-	init_mm.end_code = (unsigned long) _etext;
-	init_mm.end_data = (unsigned long) _edata;
-	init_mm.brk = klimit;
+	setup_initial_init_mm(_stext, _etext, _edata, _end);
 
 	mm_iommu_init(&init_mm);
 	irqstack_early_init();

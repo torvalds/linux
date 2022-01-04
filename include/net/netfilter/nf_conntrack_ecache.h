@@ -72,14 +72,20 @@ struct nf_ct_event {
 	int report;
 };
 
-struct nf_ct_event_notifier {
-	int (*fcn)(unsigned int events, struct nf_ct_event *item);
+struct nf_exp_event {
+	struct nf_conntrack_expect *exp;
+	u32 portid;
+	int report;
 };
 
-int nf_conntrack_register_notifier(struct net *net,
-				   struct nf_ct_event_notifier *nb);
-void nf_conntrack_unregister_notifier(struct net *net,
-				      struct nf_ct_event_notifier *nb);
+struct nf_ct_event_notifier {
+	int (*ct_event)(unsigned int events, const struct nf_ct_event *item);
+	int (*exp_event)(unsigned int events, const struct nf_exp_event *item);
+};
+
+void nf_conntrack_register_notifier(struct net *net,
+				   const struct nf_ct_event_notifier *nb);
+void nf_conntrack_unregister_notifier(struct net *net);
 
 void nf_ct_deliver_cached_events(struct nf_conn *ct);
 int nf_conntrack_eventmask_report(unsigned int eventmask, struct nf_conn *ct,
@@ -151,25 +157,11 @@ nf_conntrack_event(enum ip_conntrack_events event, struct nf_conn *ct)
 }
 
 #ifdef CONFIG_NF_CONNTRACK_EVENTS
-
-struct nf_exp_event {
-	struct nf_conntrack_expect *exp;
-	u32 portid;
-	int report;
-};
-
-struct nf_exp_event_notifier {
-	int (*fcn)(unsigned int events, struct nf_exp_event *item);
-};
-
-int nf_ct_expect_register_notifier(struct net *net,
-				   struct nf_exp_event_notifier *nb);
-void nf_ct_expect_unregister_notifier(struct net *net,
-				      struct nf_exp_event_notifier *nb);
-
 void nf_ct_expect_event_report(enum ip_conntrack_expect_events event,
 			       struct nf_conntrack_expect *exp,
 			       u32 portid, int report);
+
+void nf_conntrack_ecache_work(struct net *net, enum nf_ct_ecache_state state);
 
 void nf_conntrack_ecache_pernet_init(struct net *net);
 void nf_conntrack_ecache_pernet_fini(struct net *net);
@@ -177,12 +169,21 @@ void nf_conntrack_ecache_pernet_fini(struct net *net);
 int nf_conntrack_ecache_init(void);
 void nf_conntrack_ecache_fini(void);
 
+static inline bool nf_conntrack_ecache_dwork_pending(const struct net *net)
+{
+	return net->ct.ecache_dwork_pending;
+}
 #else /* CONFIG_NF_CONNTRACK_EVENTS */
 
 static inline void nf_ct_expect_event_report(enum ip_conntrack_expect_events e,
 					     struct nf_conntrack_expect *exp,
 					     u32 portid,
 					     int report)
+{
+}
+
+static inline void nf_conntrack_ecache_work(struct net *net,
+					    enum nf_ct_ecache_state s)
 {
 }
 
@@ -203,26 +204,6 @@ static inline void nf_conntrack_ecache_fini(void)
 {
 }
 
+static inline bool nf_conntrack_ecache_dwork_pending(const struct net *net) { return false; }
 #endif /* CONFIG_NF_CONNTRACK_EVENTS */
-
-static inline void nf_conntrack_ecache_delayed_work(struct net *net)
-{
-#ifdef CONFIG_NF_CONNTRACK_EVENTS
-	if (!delayed_work_pending(&net->ct.ecache_dwork)) {
-		schedule_delayed_work(&net->ct.ecache_dwork, HZ);
-		net->ct.ecache_dwork_pending = true;
-	}
-#endif
-}
-
-static inline void nf_conntrack_ecache_work(struct net *net)
-{
-#ifdef CONFIG_NF_CONNTRACK_EVENTS
-	if (net->ct.ecache_dwork_pending) {
-		net->ct.ecache_dwork_pending = false;
-		mod_delayed_work(system_wq, &net->ct.ecache_dwork, 0);
-	}
-#endif
-}
-
 #endif /*_NF_CONNTRACK_ECACHE_H*/

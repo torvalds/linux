@@ -7,7 +7,8 @@
 #include <linux/init.h>
 #include <linux/bio.h>
 #include <linux/blkdev.h>
-#include <linux/memblock.h>	/* for max_pfn/max_low_pfn */
+#include <linux/pagemap.h>
+#include <linux/backing-dev-defs.h>
 #include <linux/gcd.h>
 #include <linux/lcm.h>
 #include <linux/jiffies.h>
@@ -16,11 +17,6 @@
 
 #include "blk.h"
 #include "blk-wbt.h"
-
-unsigned long blk_max_low_pfn;
-EXPORT_SYMBOL(blk_max_low_pfn);
-
-unsigned long blk_max_pfn;
 
 void blk_queue_rq_timeout(struct request_queue *q, unsigned int timeout)
 {
@@ -55,7 +51,7 @@ void blk_set_default_limits(struct queue_limits *lim)
 	lim->discard_alignment = 0;
 	lim->discard_misaligned = 0;
 	lim->logical_block_size = lim->physical_block_size = lim->io_min = 512;
-	lim->bounce_pfn = (unsigned long)(BLK_BOUNCE_ANY >> PAGE_SHIFT);
+	lim->bounce = BLK_BOUNCE_NONE;
 	lim->alignment_offset = 0;
 	lim->io_opt = 0;
 	lim->misaligned = 0;
@@ -92,39 +88,16 @@ EXPORT_SYMBOL(blk_set_stacking_limits);
 /**
  * blk_queue_bounce_limit - set bounce buffer limit for queue
  * @q: the request queue for the device
- * @max_addr: the maximum address the device can handle
+ * @bounce: bounce limit to enforce
  *
  * Description:
- *    Different hardware can have different requirements as to what pages
- *    it can do I/O directly to. A low level driver can call
- *    blk_queue_bounce_limit to have lower memory pages allocated as bounce
- *    buffers for doing I/O to pages residing above @max_addr.
+ *    Force bouncing for ISA DMA ranges or highmem.
+ *
+ *    DEPRECATED, don't use in new code.
  **/
-void blk_queue_bounce_limit(struct request_queue *q, u64 max_addr)
+void blk_queue_bounce_limit(struct request_queue *q, enum blk_bounce bounce)
 {
-	unsigned long b_pfn = max_addr >> PAGE_SHIFT;
-	int dma = 0;
-
-	q->bounce_gfp = GFP_NOIO;
-#if BITS_PER_LONG == 64
-	/*
-	 * Assume anything <= 4GB can be handled by IOMMU.  Actually
-	 * some IOMMUs can handle everything, but I don't know of a
-	 * way to test this here.
-	 */
-	if (b_pfn < (min_t(u64, 0xffffffffUL, BLK_BOUNCE_HIGH) >> PAGE_SHIFT))
-		dma = 1;
-	q->limits.bounce_pfn = max(max_low_pfn, b_pfn);
-#else
-	if (b_pfn < blk_max_low_pfn)
-		dma = 1;
-	q->limits.bounce_pfn = b_pfn;
-#endif
-	if (dma) {
-		init_emergency_isa_pool();
-		q->bounce_gfp = GFP_NOIO | GFP_DMA;
-		q->limits.bounce_pfn = b_pfn;
-	}
+	q->limits.bounce = bounce;
 }
 EXPORT_SYMBOL(blk_queue_bounce_limit);
 
@@ -168,7 +141,9 @@ void blk_queue_max_hw_sectors(struct request_queue *q, unsigned int max_hw_secto
 				 limits->logical_block_size >> SECTOR_SHIFT);
 	limits->max_sectors = max_sectors;
 
-	q->backing_dev_info->io_pages = max_sectors >> (PAGE_SHIFT - 9);
+	if (!q->disk)
+		return;
+	q->disk->bdi->io_pages = max_sectors >> (PAGE_SHIFT - 9);
 }
 EXPORT_SYMBOL(blk_queue_max_hw_sectors);
 
@@ -408,18 +383,19 @@ void blk_queue_alignment_offset(struct request_queue *q, unsigned int offset)
 }
 EXPORT_SYMBOL(blk_queue_alignment_offset);
 
-void blk_queue_update_readahead(struct request_queue *q)
+void disk_update_readahead(struct gendisk *disk)
 {
+	struct request_queue *q = disk->queue;
+
 	/*
 	 * For read-ahead of large files to be effective, we need to read ahead
 	 * at least twice the optimal I/O size.
 	 */
-	q->backing_dev_info->ra_pages =
+	disk->bdi->ra_pages =
 		max(queue_io_opt(q) * 2 / PAGE_SIZE, VM_READAHEAD_PAGES);
-	q->backing_dev_info->io_pages =
-		queue_max_sectors(q) >> (PAGE_SHIFT - 9);
+	disk->bdi->io_pages = queue_max_sectors(q) >> (PAGE_SHIFT - 9);
 }
-EXPORT_SYMBOL_GPL(blk_queue_update_readahead);
+EXPORT_SYMBOL_GPL(disk_update_readahead);
 
 /**
  * blk_limits_io_min - set minimum request size for a device
@@ -499,7 +475,9 @@ EXPORT_SYMBOL(blk_limits_io_opt);
 void blk_queue_io_opt(struct request_queue *q, unsigned int opt)
 {
 	blk_limits_io_opt(&q->limits, opt);
-	q->backing_dev_info->ra_pages =
+	if (!q->disk)
+		return;
+	q->disk->bdi->ra_pages =
 		max(queue_io_opt(q) * 2 / PAGE_SIZE, VM_READAHEAD_PAGES);
 }
 EXPORT_SYMBOL(blk_queue_io_opt);
@@ -547,7 +525,7 @@ int blk_stack_limits(struct queue_limits *t, struct queue_limits *b,
 					b->max_write_zeroes_sectors);
 	t->max_zone_append_sectors = min(t->max_zone_append_sectors,
 					b->max_zone_append_sectors);
-	t->bounce_pfn = min_not_zero(t->bounce_pfn, b->bounce_pfn);
+	t->bounce = max(t->bounce, b->bounce);
 
 	t->seg_boundary_mask = min_not_zero(t->seg_boundary_mask,
 					    b->seg_boundary_mask);
@@ -689,17 +667,11 @@ void disk_stack_limits(struct gendisk *disk, struct block_device *bdev,
 	struct request_queue *t = disk->queue;
 
 	if (blk_stack_limits(&t->limits, &bdev_get_queue(bdev)->limits,
-			get_start_sect(bdev) + (offset >> 9)) < 0) {
-		char top[BDEVNAME_SIZE], bottom[BDEVNAME_SIZE];
+			get_start_sect(bdev) + (offset >> 9)) < 0)
+		pr_notice("%s: Warning: Device %pg is misaligned\n",
+			disk->disk_name, bdev);
 
-		disk_name(disk, 0, top);
-		bdevname(bdev, bottom);
-
-		printk(KERN_NOTICE "%s: Warning: Device %s is misaligned\n",
-		       top, bottom);
-	}
-
-	blk_queue_update_readahead(disk->queue);
+	disk_update_readahead(disk);
 }
 EXPORT_SYMBOL(disk_stack_limits);
 
@@ -927,11 +899,3 @@ void blk_queue_set_zoned(struct gendisk *disk, enum blk_zoned_model model)
 	}
 }
 EXPORT_SYMBOL_GPL(blk_queue_set_zoned);
-
-static int __init blk_settings_init(void)
-{
-	blk_max_low_pfn = max_low_pfn - 1;
-	blk_max_pfn = max_pfn - 1;
-	return 0;
-}
-subsys_initcall(blk_settings_init);

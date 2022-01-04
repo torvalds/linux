@@ -57,6 +57,10 @@ int main(int argc, char **argv)
 	__u32 key = 0, pid;
 	int exit_code = 1;
 	char buf[256];
+	const struct timespec req = {
+		.tv_sec = 1,
+		.tv_nsec = 0,
+	};
 
 	cgroup_fd = cgroup_setup_and_join(TEST_CGROUP);
 	if (CHECK(cgroup_fd < 0, "cgroup_setup_and_join", "err %d errno %d\n", cgroup_fd, errno))
@@ -115,7 +119,7 @@ int main(int argc, char **argv)
 		goto close_pmu;
 
 	/* trigger some syscalls */
-	sleep(1);
+	syscall(__NR_nanosleep, &req, NULL);
 
 	err = bpf_map_lookup_elem(cgidmap_fd, &key, &kcgid);
 	if (CHECK(err, "bpf_map_lookup_elem", "err %d errno %d\n", err, errno))

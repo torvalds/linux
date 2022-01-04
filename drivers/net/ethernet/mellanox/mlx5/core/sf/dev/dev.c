@@ -39,7 +39,7 @@ static ssize_t sfnum_show(struct device *dev, struct device_attribute *attr, cha
 	struct auxiliary_device *adev = container_of(dev, struct auxiliary_device, dev);
 	struct mlx5_sf_dev *sf_dev = container_of(adev, struct mlx5_sf_dev, adev);
 
-	return scnprintf(buf, PAGE_SIZE, "%u\n", sf_dev->sfnum);
+	return sysfs_emit(buf, "%u\n", sf_dev->sfnum);
 }
 static DEVICE_ATTR_RO(sfnum);
 
@@ -148,11 +148,22 @@ mlx5_sf_dev_state_change_handler(struct notifier_block *nb, unsigned long event_
 	struct mlx5_sf_dev_table *table = container_of(nb, struct mlx5_sf_dev_table, nb);
 	const struct mlx5_vhca_state_event *event = data;
 	struct mlx5_sf_dev *sf_dev;
+	u16 max_functions;
 	u16 sf_index;
+	u16 base_id;
 
-	sf_index = event->function_id - MLX5_CAP_GEN(table->dev, sf_base_id);
+	max_functions = mlx5_sf_max_functions(table->dev);
+	if (!max_functions)
+		return 0;
+
+	base_id = MLX5_CAP_GEN(table->dev, sf_base_id);
+	if (event->function_id < base_id || event->function_id >= (base_id + max_functions))
+		return 0;
+
+	sf_index = event->function_id - base_id;
 	sf_dev = xa_load(&table->devices, sf_index);
 	switch (event->new_vhca_state) {
+	case MLX5_VHCA_STATE_INVALID:
 	case MLX5_VHCA_STATE_ALLOCATED:
 		if (sf_dev)
 			mlx5_sf_dev_del(table->dev, sf_dev, sf_index);

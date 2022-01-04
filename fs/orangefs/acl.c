@@ -10,11 +10,14 @@
 #include "orangefs-bufmap.h"
 #include <linux/posix_acl_xattr.h>
 
-struct posix_acl *orangefs_get_acl(struct inode *inode, int type)
+struct posix_acl *orangefs_get_acl(struct inode *inode, int type, bool rcu)
 {
 	struct posix_acl *acl;
 	int ret;
 	char *key = NULL, *value = NULL;
+
+	if (rcu)
+		return ERR_PTR(-ECHILD);
 
 	switch (type) {
 	case ACL_TYPE_ACCESS:

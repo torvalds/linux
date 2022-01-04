@@ -180,7 +180,7 @@ static int mmc_spi_skip(struct mmc_spi_host *host, unsigned long timeout,
 	u8 *cp = host->data->status;
 	unsigned long start = jiffies;
 
-	while (1) {
+	do {
 		int		status;
 		unsigned	i;
 
@@ -193,16 +193,9 @@ static int mmc_spi_skip(struct mmc_spi_host *host, unsigned long timeout,
 				return cp[i];
 		}
 
-		if (time_is_before_jiffies(start + timeout))
-			break;
-
-		/* If we need long timeouts, we may release the CPU.
-		 * We use jiffies here because we want to have a relation
-		 * between elapsed time and the blocking of the scheduler.
-		 */
-		if (time_is_before_jiffies(start + 1))
-			schedule();
-	}
+		/* If we need long timeouts, we may release the CPU */
+		cond_resched();
+	} while (time_is_after_jiffies(start + timeout));
 	return -ETIMEDOUT;
 }
 
@@ -504,7 +497,7 @@ mmc_spi_command_send(struct mmc_spi_host *host,
 		/* else:  R1 (most commands) */
 	}
 
-	dev_dbg(&host->spi->dev, "  mmc_spi: CMD%d, resp %s\n",
+	dev_dbg(&host->spi->dev, "  CMD%d, resp %s\n",
 		cmd->opcode, maptype(cmd));
 
 	/* send command, leaving chipselect active */
@@ -928,8 +921,7 @@ mmc_spi_data_do(struct mmc_spi_host *host, struct mmc_command *cmd,
 		while (length) {
 			t->len = min(length, blk_size);
 
-			dev_dbg(&host->spi->dev,
-				"    mmc_spi: %s block, %d bytes\n",
+			dev_dbg(&host->spi->dev, "    %s block, %d bytes\n",
 				(direction == DMA_TO_DEVICE) ? "write" : "read",
 				t->len);
 
@@ -949,7 +941,7 @@ mmc_spi_data_do(struct mmc_spi_host *host, struct mmc_command *cmd,
 
 		/* discard mappings */
 		if (direction == DMA_FROM_DEVICE)
-			flush_kernel_dcache_page(sg_page(sg));
+			flush_dcache_page(sg_page(sg));
 		kunmap(sg_page(sg));
 		if (dma_dev)
 			dma_unmap_page(dma_dev, dma_addr, PAGE_SIZE, dir);
@@ -974,7 +966,7 @@ mmc_spi_data_do(struct mmc_spi_host *host, struct mmc_command *cmd,
 		int		tmp;
 		const unsigned	statlen = sizeof(scratch->status);
 
-		dev_dbg(&spi->dev, "    mmc_spi: STOP_TRAN\n");
+		dev_dbg(&spi->dev, "    STOP_TRAN\n");
 
 		/* Tweak the per-block message we set up earlier by morphing
 		 * it to hold single buffer with the token followed by some
@@ -1175,7 +1167,7 @@ static void mmc_spi_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 
 		canpower = host->pdata && host->pdata->setpower;
 
-		dev_dbg(&host->spi->dev, "mmc_spi: power %s (%d)%s\n",
+		dev_dbg(&host->spi->dev, "power %s (%d)%s\n",
 				mmc_powerstring(ios->power_mode),
 				ios->vdd,
 				canpower ? ", can switch" : "");
@@ -1248,8 +1240,7 @@ static void mmc_spi_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 
 		host->spi->max_speed_hz = ios->clock;
 		status = spi_setup(host->spi);
-		dev_dbg(&host->spi->dev,
-			"mmc_spi:  clock to %d Hz, %d\n",
+		dev_dbg(&host->spi->dev, "  clock to %d Hz, %d\n",
 			host->spi->max_speed_hz, status);
 	}
 }
@@ -1397,6 +1388,8 @@ static int mmc_spi_probe(struct spi_device *spi)
 
 	host->ones = ones;
 
+	dev_set_drvdata(&spi->dev, mmc);
+
 	/* Platform data is used to hook up things like card sensing
 	 * and power switching gpios.
 	 */
@@ -1412,8 +1405,6 @@ static int mmc_spi_probe(struct spi_device *spi)
 		if (!host->powerup_msecs || host->powerup_msecs > 250)
 			host->powerup_msecs = 250;
 	}
-
-	dev_set_drvdata(&spi->dev, mmc);
 
 	/* preallocate dma buffers */
 	host->data = kmalloc(sizeof(*host->data), GFP_KERNEL);
@@ -1494,8 +1485,8 @@ fail_glue_init:
 fail_dma:
 	kfree(host->data);
 fail_nobuf1:
-	mmc_free_host(mmc);
 	mmc_spi_put_pdata(spi);
+	mmc_free_host(mmc);
 nomem:
 	kfree(ones);
 	return status;
@@ -1518,8 +1509,8 @@ static int mmc_spi_remove(struct spi_device *spi)
 	kfree(host->ones);
 
 	spi->max_speed_hz = mmc->f_max;
-	mmc_free_host(mmc);
 	mmc_spi_put_pdata(spi);
+	mmc_free_host(mmc);
 	return 0;
 }
 

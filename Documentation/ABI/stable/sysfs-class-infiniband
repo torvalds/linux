@@ -731,26 +731,6 @@ Description:
 		is the irq number of "sdma3", and M is irq number of "sdma4" in
 		the /proc/interrupts file.
 
-
-sysfs interface for Intel(R) X722 iWARP i40iw driver
-----------------------------------------------------
-
-What:		/sys/class/infiniband/i40iwX/hw_rev
-What:		/sys/class/infiniband/i40iwX/hca_type
-What:		/sys/class/infiniband/i40iwX/board_id
-Date:		Jan, 2016
-KernelVersion:	v4.10
-Contact:	linux-rdma@vger.kernel.org
-Description:
-		=============== ==== ========================
-		hw_rev:		(RO) Hardware revision number
-
-		hca_type:	(RO) Show HCA type (I40IW)
-
-		board_id:	(RO) I40IW board ID
-		=============== ==== ========================
-
-
 sysfs interface for QLogic qedr NIC Driver
 ------------------------------------------
 

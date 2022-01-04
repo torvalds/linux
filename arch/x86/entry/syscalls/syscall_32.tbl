@@ -145,7 +145,7 @@
 131	i386	quotactl		sys_quotactl
 132	i386	getpgid			sys_getpgid
 133	i386	fchdir			sys_fchdir
-134	i386	bdflush			sys_bdflush
+134	i386	bdflush			sys_ni_syscall
 135	i386	sysfs			sys_sysfs
 136	i386	personality		sys_personality
 137	i386	afs_syscall
@@ -447,3 +447,9 @@
 440	i386	process_madvise		sys_process_madvise
 441	i386	epoll_pwait2		sys_epoll_pwait2		compat_sys_epoll_pwait2
 442	i386	mount_setattr		sys_mount_setattr
+443	i386	quotactl_fd		sys_quotactl_fd
+444	i386	landlock_create_ruleset	sys_landlock_create_ruleset
+445	i386	landlock_add_rule	sys_landlock_add_rule
+446	i386	landlock_restrict_self	sys_landlock_restrict_self
+447	i386	memfd_secret		sys_memfd_secret
+448	i386	process_mrelease	sys_process_mrelease

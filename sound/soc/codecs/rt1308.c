@@ -673,10 +673,10 @@ static int rt1308_set_component_pll(struct snd_soc_component *component,
 		pll_code.n_code, pll_code.k_code);
 
 	snd_soc_component_write(component, RT1308_PLL_1,
-		pll_code.k_code << RT1308_PLL1_K_SFT |
-		pll_code.m_bp << RT1308_PLL1_M_BYPASS_SFT |
-		(pll_code.m_bp ? 0 : pll_code.m_code) << RT1308_PLL1_M_SFT |
-		pll_code.n_code << RT1308_PLL1_N_SFT);
+		(pll_code.k_code << RT1308_PLL1_K_SFT) |
+		(pll_code.m_bp << RT1308_PLL1_M_BYPASS_SFT) |
+		((pll_code.m_bp ? 0 : pll_code.m_code) << RT1308_PLL1_M_SFT) |
+		(pll_code.n_code << RT1308_PLL1_N_SFT));
 
 	rt1308->pll_in = freq_in;
 	rt1308->pll_out = freq_out;
@@ -790,7 +790,7 @@ MODULE_DEVICE_TABLE(of, rt1308_of_match);
 #endif
 
 #ifdef CONFIG_ACPI
-static struct acpi_device_id rt1308_acpi_match[] = {
+static const struct acpi_device_id rt1308_acpi_match[] = {
 	{ "10EC1308", 0, },
 	{ },
 };

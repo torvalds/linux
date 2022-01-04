@@ -46,18 +46,20 @@ enum cpuhp_state {
 	CPUHP_ARM_OMAP_WAKE_DEAD,
 	CPUHP_IRQ_POLL_DEAD,
 	CPUHP_BLOCK_SOFTIRQ_DEAD,
+	CPUHP_BIO_DEAD,
 	CPUHP_ACPI_CPUDRV_DEAD,
 	CPUHP_S390_PFAULT_DEAD,
 	CPUHP_BLK_MQ_DEAD,
 	CPUHP_FS_BUFF_DEAD,
 	CPUHP_PRINTK_DEAD,
 	CPUHP_MM_MEMCQ_DEAD,
+	CPUHP_XFS_DEAD,
 	CPUHP_PERCPU_CNT_DEAD,
 	CPUHP_RADIX_DEAD,
-	CPUHP_PAGE_ALLOC_DEAD,
+	CPUHP_PAGE_ALLOC,
 	CPUHP_NET_DEV_DEAD,
 	CPUHP_PCI_XGENE_DEAD,
-	CPUHP_IOMMU_INTEL_DEAD,
+	CPUHP_IOMMU_IOVA_DEAD,
 	CPUHP_LUSTRE_CFS_DEAD,
 	CPUHP_AP_ARM_CACHE_B15_RAC_DEAD,
 	CPUHP_PADATA_DEAD,
@@ -169,8 +171,8 @@ enum cpuhp_state {
 	CPUHP_AP_PERF_X86_RAPL_ONLINE,
 	CPUHP_AP_PERF_X86_CQM_ONLINE,
 	CPUHP_AP_PERF_X86_CSTATE_ONLINE,
+	CPUHP_AP_PERF_X86_IDXD_ONLINE,
 	CPUHP_AP_PERF_S390_CF_ONLINE,
-	CPUHP_AP_PERF_S390_CFD_ONLINE,
 	CPUHP_AP_PERF_S390_SF_ONLINE,
 	CPUHP_AP_PERF_ARM_CCI_ONLINE,
 	CPUHP_AP_PERF_ARM_CCN_ONLINE,
@@ -399,7 +401,7 @@ static inline int cpuhp_state_remove_instance(enum cpuhp_state state,
 
 /**
  * cpuhp_state_remove_instance_nocalls - Remove hotplug instance from state
- *					 without invoking the reatdown callback
+ *					 without invoking the teardown callback
  * @state:	The state from which the instance is removed
  * @node:	The node for this individual state.
  *

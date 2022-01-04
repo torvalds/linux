@@ -729,8 +729,12 @@ static int do_format(int drive, int type, struct atari_format_descr *desc)
 	unsigned long	flags;
 	int ret;
 
-	if (type)
+	if (type) {
 		type--;
+		if (type >= NUM_DISK_MINORS ||
+		    minor2disktype[type].drive_types > DriveType)
+			return -EINVAL;
+	}
 
 	q = unit[drive].disk[type]->queue;
 	blk_mq_freeze_queue(q);
@@ -742,11 +746,6 @@ static int do_format(int drive, int type, struct atari_format_descr *desc)
 	local_irq_restore(flags);
 
 	if (type) {
-		if (type >= NUM_DISK_MINORS ||
-		    minor2disktype[type].drive_types > DriveType) {
-			ret = -EINVAL;
-			goto out;
-		}
 		type = minor2disktype[type].index;
 		UDT = &atari_disk_type[type];
 	}
@@ -1969,22 +1968,14 @@ static const struct blk_mq_ops ataflop_mq_ops = {
 static int ataflop_alloc_disk(unsigned int drive, unsigned int type)
 {
 	struct gendisk *disk;
-	int ret;
 
-	disk = alloc_disk(1);
-	if (!disk)
-		return -ENOMEM;
-
-	disk->queue = blk_mq_init_queue(&unit[drive].tag_set);
-	if (IS_ERR(disk->queue)) {
-		ret = PTR_ERR(disk->queue);
-		disk->queue = NULL;
-		put_disk(disk);
-		return ret;
-	}
+	disk = blk_mq_alloc_disk(&unit[drive].tag_set, NULL);
+	if (IS_ERR(disk))
+		return PTR_ERR(disk);
 
 	disk->major = FLOPPY_MAJOR;
 	disk->first_minor = drive + (type << 2);
+	disk->minors = 1;
 	sprintf(disk->disk_name, "fd%d", drive);
 	disk->fops = &floppy_fops;
 	disk->events = DISK_EVENT_MEDIA_CHANGE;
@@ -2002,7 +1993,10 @@ static void ataflop_probe(dev_t dev)
 	int drive = MINOR(dev) & 3;
 	int type  = MINOR(dev) >> 2;
 
-	if (drive >= FD_MAX_UNITS || type > NUM_DISK_MINORS)
+	if (type)
+		type--;
+
+	if (drive >= FD_MAX_UNITS || type >= NUM_DISK_MINORS)
 		return;
 	mutex_lock(&ataflop_probe_lock);
 	if (!unit[drive].disk[type]) {

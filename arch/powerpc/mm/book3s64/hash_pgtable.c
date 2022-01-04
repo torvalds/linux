@@ -8,6 +8,7 @@
 #include <linux/sched.h>
 #include <linux/mm_types.h>
 #include <linux/mm.h>
+#include <linux/stop_machine.h>
 
 #include <asm/sections.h>
 #include <asm/mmu.h>
@@ -400,10 +401,103 @@ EXPORT_SYMBOL_GPL(hash__has_transparent_hugepage);
 #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
 
 #ifdef CONFIG_STRICT_KERNEL_RWX
+
+struct change_memory_parms {
+	unsigned long start, end, newpp;
+	unsigned int step, nr_cpus, master_cpu;
+	atomic_t cpu_counter;
+};
+
+// We'd rather this was on the stack but it has to be in the RMO
+static struct change_memory_parms chmem_parms;
+
+// And therefore we need a lock to protect it from concurrent use
+static DEFINE_MUTEX(chmem_lock);
+
+static void change_memory_range(unsigned long start, unsigned long end,
+				unsigned int step, unsigned long newpp)
+{
+	unsigned long idx;
+
+	pr_debug("Changing page protection on range 0x%lx-0x%lx, to 0x%lx, step 0x%x\n",
+		 start, end, newpp, step);
+
+	for (idx = start; idx < end; idx += step)
+		/* Not sure if we can do much with the return value */
+		mmu_hash_ops.hpte_updateboltedpp(newpp, idx, mmu_linear_psize,
+							mmu_kernel_ssize);
+}
+
+static int notrace chmem_secondary_loop(struct change_memory_parms *parms)
+{
+	unsigned long msr, tmp, flags;
+	int *p;
+
+	p = &parms->cpu_counter.counter;
+
+	local_irq_save(flags);
+	hard_irq_disable();
+
+	asm volatile (
+	// Switch to real mode and leave interrupts off
+	"mfmsr	%[msr]			;"
+	"li	%[tmp], %[MSR_IR_DR]	;"
+	"andc	%[tmp], %[msr], %[tmp]	;"
+	"mtmsrd %[tmp]			;"
+
+	// Tell the master we are in real mode
+	"1:				"
+	"lwarx	%[tmp], 0, %[p]		;"
+	"addic	%[tmp], %[tmp], -1	;"
+	"stwcx.	%[tmp], 0, %[p]		;"
+	"bne-	1b			;"
+
+	// Spin until the counter goes to zero
+	"2:				;"
+	"lwz	%[tmp], 0(%[p])		;"
+	"cmpwi	%[tmp], 0		;"
+	"bne-	2b			;"
+
+	// Switch back to virtual mode
+	"mtmsrd %[msr]			;"
+
+	: // outputs
+	  [msr] "=&r" (msr), [tmp] "=&b" (tmp), "+m" (*p)
+	: // inputs
+	  [p] "b" (p), [MSR_IR_DR] "i" (MSR_IR | MSR_DR)
+	: // clobbers
+	  "cc", "xer"
+	);
+
+	local_irq_restore(flags);
+
+	return 0;
+}
+
+static int change_memory_range_fn(void *data)
+{
+	struct change_memory_parms *parms = data;
+
+	if (parms->master_cpu != smp_processor_id())
+		return chmem_secondary_loop(parms);
+
+	// Wait for all but one CPU (this one) to call-in
+	while (atomic_read(&parms->cpu_counter) > 1)
+		barrier();
+
+	change_memory_range(parms->start, parms->end, parms->step, parms->newpp);
+
+	mb();
+
+	// Signal the other CPUs that we're done
+	atomic_dec(&parms->cpu_counter);
+
+	return 0;
+}
+
 static bool hash__change_memory_range(unsigned long start, unsigned long end,
 				      unsigned long newpp)
 {
-	unsigned long idx;
 	unsigned int step, shift;
 
 	shift = mmu_psize_defs[mmu_linear_psize].shift;
@@ -415,25 +509,43 @@ static bool hash__change_memory_range(unsigned long start, unsigned long end,
 	if (start >= end)
 		return false;
 
-	pr_debug("Changing page protection on range 0x%lx-0x%lx, to 0x%lx, step 0x%x\n",
-		 start, end, newpp, step);
+	if (firmware_has_feature(FW_FEATURE_LPAR)) {
+		mutex_lock(&chmem_lock);
 
-	for (idx = start; idx < end; idx += step)
-		/* Not sure if we can do much with the return value */
-		mmu_hash_ops.hpte_updateboltedpp(newpp, idx, mmu_linear_psize,
-							mmu_kernel_ssize);
+		chmem_parms.start = start;
+		chmem_parms.end = end;
+		chmem_parms.step = step;
+		chmem_parms.newpp = newpp;
+		chmem_parms.master_cpu = smp_processor_id();
+
+		cpus_read_lock();
+
+		atomic_set(&chmem_parms.cpu_counter, num_online_cpus());
+
+		// Ensure state is consistent before we call the other CPUs
+		mb();
+
+		stop_machine_cpuslocked(change_memory_range_fn, &chmem_parms,
+					cpu_online_mask);
+
+		cpus_read_unlock();
+		mutex_unlock(&chmem_lock);
+	} else
+		change_memory_range(start, end, step, newpp);
 
 	return true;
 }
 
 void hash__mark_rodata_ro(void)
 {
-	unsigned long start, end;
+	unsigned long start, end, pp;
 
 	start = (unsigned long)_stext;
 	end = (unsigned long)__init_begin;
 
-	WARN_ON(!hash__change_memory_range(start, end, PP_RXXX));
+	pp = htab_convert_pte_flags(pgprot_val(PAGE_KERNEL_ROX), HPTE_USE_KERNEL_KEY);
+
+	WARN_ON(!hash__change_memory_range(start, end, pp));
 }
 
 void hash__mark_initmem_nx(void)

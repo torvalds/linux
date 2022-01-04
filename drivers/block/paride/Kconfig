@@ -27,7 +27,6 @@ config PARIDE_PCD
 	tristate "Parallel port ATAPI CD-ROMs"
 	depends on PARIDE
 	select CDROM
-	select BLK_SCSI_REQUEST # only for the generic cdrom code
 	help
 	  This option enables the high-level driver for ATAPI CD-ROM devices
 	  connected through a parallel port. If you chose to build PARIDE

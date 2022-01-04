@@ -9,6 +9,9 @@ title: SPI NOR flash ST M25Pxx (and similar) serial flash chips
 maintainers:
   - Rob Herring <robh@kernel.org>
 
+allOf:
+  - $ref: "mtd.yaml#"
+
 properties:
   compatible:
     oneOf:
@@ -80,6 +83,9 @@ properties:
 patternProperties:
   # Note: use 'partitions' node for new users
   '^partition@':
+    type: object
+
+  "^otp(-[0-9]+)?$":
     type: object
 
 additionalProperties: false

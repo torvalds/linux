@@ -42,6 +42,11 @@ struct renesas_sdhi_quirks {
 	const u8 (*hs400_calib_table)[SDHI_CALIB_TABLE_MAX];
 };
 
+struct renesas_sdhi_of_data_with_quirks {
+	const struct renesas_sdhi_of_data *of_data;
+	const struct renesas_sdhi_quirks *quirks;
+};
+
 struct tmio_mmc_dma {
 	enum dma_slave_buswidth dma_buswidth;
 	bool (*filter)(struct dma_chan *chan, void *arg);
@@ -70,12 +75,16 @@ struct renesas_sdhi {
 	DECLARE_BITMAP(smpcmp, BITS_PER_LONG);
 	unsigned int tap_num;
 	unsigned int tap_set;
+
+	struct reset_control *rstc;
 };
 
 #define host_to_priv(host) \
 	container_of((host)->pdata, struct renesas_sdhi, mmc_data)
 
 int renesas_sdhi_probe(struct platform_device *pdev,
-		       const struct tmio_mmc_dma_ops *dma_ops);
+		       const struct tmio_mmc_dma_ops *dma_ops,
+		       const struct renesas_sdhi_of_data *of_data,
+		       const struct renesas_sdhi_quirks *quirks);
 int renesas_sdhi_remove(struct platform_device *pdev);
 #endif

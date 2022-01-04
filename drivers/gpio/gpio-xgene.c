@@ -159,7 +159,6 @@ static SIMPLE_DEV_PM_OPS(xgene_gpio_pm, xgene_gpio_suspend, xgene_gpio_resume);
 static int xgene_gpio_probe(struct platform_device *pdev)
 {
 	struct xgene_gpio *gpio;
-	int err = 0;
 
 	gpio = devm_kzalloc(&pdev->dev, sizeof(*gpio), GFP_KERNEL);
 	if (!gpio)
@@ -183,15 +182,7 @@ static int xgene_gpio_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, gpio);
 
-	err = devm_gpiochip_add_data(&pdev->dev, &gpio->chip, gpio);
-	if (err) {
-		dev_err(&pdev->dev,
-			"failed to register gpiochip.\n");
-		return err;
-	}
-
-	dev_info(&pdev->dev, "X-Gene GPIO driver registered.\n");
-	return 0;
+	return devm_gpiochip_add_data(&pdev->dev, &gpio->chip, gpio);
 }
 
 static const struct of_device_id xgene_gpio_of_match[] = {

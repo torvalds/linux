@@ -67,7 +67,7 @@ static u64 arg_to_enxx_mask(unsigned long arg)
 int ptrauth_set_enabled_keys(struct task_struct *tsk, unsigned long keys,
 			     unsigned long enabled)
 {
-	u64 sctlr = tsk->thread.sctlr_user;
+	u64 sctlr;
 
 	if (!system_supports_address_auth())
 		return -EINVAL;
@@ -78,12 +78,14 @@ int ptrauth_set_enabled_keys(struct task_struct *tsk, unsigned long keys,
 	if ((keys & ~PR_PAC_ENABLED_KEYS_MASK) || (enabled & ~keys))
 		return -EINVAL;
 
+	preempt_disable();
+	sctlr = tsk->thread.sctlr_user;
 	sctlr &= ~arg_to_enxx_mask(keys);
 	sctlr |= arg_to_enxx_mask(enabled);
+	tsk->thread.sctlr_user = sctlr;
 	if (tsk == current)
-		set_task_sctlr_el1(sctlr);
-	else
-		tsk->thread.sctlr_user = sctlr;
+		update_sctlr_el1(sctlr);
+	preempt_enable();
 
 	return 0;
 }

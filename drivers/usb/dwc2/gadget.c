@@ -422,7 +422,7 @@ static void dwc2_hsotg_unmap_dma(struct dwc2_hsotg *hsotg,
 {
 	struct usb_request *req = &hs_req->req;
 
-	usb_gadget_unmap_request(&hsotg->gadget, req, hs_ep->dir_in);
+	usb_gadget_unmap_request(&hsotg->gadget, req, hs_ep->map_dir);
 }
 
 /*
@@ -1242,6 +1242,7 @@ static int dwc2_hsotg_map_dma(struct dwc2_hsotg *hsotg,
 {
 	int ret;
 
+	hs_ep->map_dir = hs_ep->dir_in;
 	ret = usb_gadget_map_request(&hsotg->gadget, req, hs_ep->dir_in);
 	if (ret)
 		goto dma_error;
@@ -1495,8 +1496,8 @@ static int dwc2_hsotg_ep_queue_lock(struct usb_ep *ep, struct usb_request *req,
 {
 	struct dwc2_hsotg_ep *hs_ep = our_ep(ep);
 	struct dwc2_hsotg *hs = hs_ep->parent;
-	unsigned long flags = 0;
-	int ret = 0;
+	unsigned long flags;
+	int ret;
 
 	spin_lock_irqsave(&hs->lock, flags);
 	ret = dwc2_hsotg_ep_queue(ep, req, gfp_flags);
@@ -1805,7 +1806,8 @@ static int dwc2_hsotg_process_req_feature(struct dwc2_hsotg *hsotg,
 		case USB_ENDPOINT_HALT:
 			halted = ep->halted;
 
-			dwc2_hsotg_ep_sethalt(&ep->ep, set, true);
+			if (!ep->wedged)
+				dwc2_hsotg_ep_sethalt(&ep->ep, set, true);
 
 			ret = dwc2_hsotg_send_reply(hsotg, ep0, NULL, 0);
 			if (ret) {
@@ -2748,12 +2750,14 @@ static void dwc2_hsotg_complete_in(struct dwc2_hsotg *hsotg,
 		return;
 	}
 
-	/* Zlp for all endpoints, for ep0 only in DATA IN stage */
+	/* Zlp for all endpoints in non DDMA, for ep0 only in DATA IN stage */
 	if (hs_ep->send_zlp) {
-		dwc2_hsotg_program_zlp(hsotg, hs_ep);
 		hs_ep->send_zlp = 0;
-		/* transfer will be completed on next complete interrupt */
-		return;
+		if (!using_desc_dma(hsotg)) {
+			dwc2_hsotg_program_zlp(hsotg, hs_ep);
+			/* transfer will be completed on next complete interrupt */
+			return;
+		}
 	}
 
 	if (hs_ep->index == 0 && hsotg->ep0_state == DWC2_EP0_DATA_IN) {
@@ -3337,7 +3341,7 @@ static void dwc2_hsotg_irq_fifoempty(struct dwc2_hsotg *hsotg, bool periodic)
 
 static int dwc2_hsotg_ep_disable(struct usb_ep *ep);
 /**
- * dwc2_hsotg_core_init - issue softreset to the core
+ * dwc2_hsotg_core_init_disconnected - issue softreset to the core
  * @hsotg: The device state
  * @is_usb_reset: Usb resetting flag
  *
@@ -3899,8 +3903,26 @@ static void dwc2_hsotg_ep_stop_xfr(struct dwc2_hsotg *hsotg,
 					 __func__);
 		}
 	} else {
+		/* Mask GINTSTS_GOUTNAKEFF interrupt */
+		dwc2_hsotg_disable_gsint(hsotg, GINTSTS_GOUTNAKEFF);
+
 		if (!(dwc2_readl(hsotg, GINTSTS) & GINTSTS_GOUTNAKEFF))
 			dwc2_set_bit(hsotg, DCTL, DCTL_SGOUTNAK);
+
+		if (!using_dma(hsotg)) {
+			/* Wait for GINTSTS_RXFLVL interrupt */
+			if (dwc2_hsotg_wait_bit_set(hsotg, GINTSTS,
+						    GINTSTS_RXFLVL, 100)) {
+				dev_warn(hsotg->dev, "%s: timeout GINTSTS.RXFLVL\n",
+					 __func__);
+			} else {
+				/*
+				 * Pop GLOBAL OUT NAK status packet from RxFIFO
+				 * to assert GOUTNAKEFF interrupt
+				 */
+				dwc2_readl(hsotg, GRXSTSP);
+			}
+		}
 
 		/* Wait for global nak to take effect */
 		if (dwc2_hsotg_wait_bit_set(hsotg, GINTSTS,
@@ -4045,6 +4067,7 @@ static int dwc2_hsotg_ep_enable(struct usb_ep *ep,
 	hs_ep->isochronous = 0;
 	hs_ep->periodic = 0;
 	hs_ep->halted = 0;
+	hs_ep->wedged = 0;
 	hs_ep->interval = desc->bInterval;
 
 	switch (ep_type) {
@@ -4286,6 +4309,27 @@ static int dwc2_hsotg_ep_dequeue(struct usb_ep *ep, struct usb_request *req)
 }
 
 /**
+ * dwc2_gadget_ep_set_wedge - set wedge on a given endpoint
+ * @ep: The endpoint to be wedged.
+ *
+ */
+static int dwc2_gadget_ep_set_wedge(struct usb_ep *ep)
+{
+	struct dwc2_hsotg_ep *hs_ep = our_ep(ep);
+	struct dwc2_hsotg *hs = hs_ep->parent;
+
+	unsigned long	flags;
+	int		ret;
+
+	spin_lock_irqsave(&hs->lock, flags);
+	hs_ep->wedged = 1;
+	ret = dwc2_hsotg_ep_sethalt(ep, 1, false);
+	spin_unlock_irqrestore(&hs->lock, flags);
+
+	return ret;
+}
+
+/**
  * dwc2_hsotg_ep_sethalt - set halt on a given endpoint
  * @ep: The endpoint to set halt.
  * @value: Set or unset the halt.
@@ -4336,6 +4380,7 @@ static int dwc2_hsotg_ep_sethalt(struct usb_ep *ep, int value, bool now)
 				epctl |= DXEPCTL_EPDIS;
 		} else {
 			epctl &= ~DXEPCTL_STALL;
+			hs_ep->wedged = 0;
 			xfertype = epctl & DXEPCTL_EPTYPE_MASK;
 			if (xfertype == DXEPCTL_EPTYPE_BULK ||
 			    xfertype == DXEPCTL_EPTYPE_INTERRUPT)
@@ -4347,11 +4392,15 @@ static int dwc2_hsotg_ep_sethalt(struct usb_ep *ep, int value, bool now)
 		epctl = dwc2_readl(hs, epreg);
 
 		if (value) {
+			/* Unmask GOUTNAKEFF interrupt */
+			dwc2_hsotg_en_gsint(hs, GINTSTS_GOUTNAKEFF);
+
 			if (!(dwc2_readl(hs, GINTSTS) & GINTSTS_GOUTNAKEFF))
 				dwc2_set_bit(hs, DCTL, DCTL_SGOUTNAK);
 			// STALL bit will be set in GOUTNAKEFF interrupt handler
 		} else {
 			epctl &= ~DXEPCTL_STALL;
+			hs_ep->wedged = 0;
 			xfertype = epctl & DXEPCTL_EPTYPE_MASK;
 			if (xfertype == DXEPCTL_EPTYPE_BULK ||
 			    xfertype == DXEPCTL_EPTYPE_INTERRUPT)
@@ -4373,8 +4422,8 @@ static int dwc2_hsotg_ep_sethalt_lock(struct usb_ep *ep, int value)
 {
 	struct dwc2_hsotg_ep *hs_ep = our_ep(ep);
 	struct dwc2_hsotg *hs = hs_ep->parent;
-	unsigned long flags = 0;
-	int ret = 0;
+	unsigned long flags;
+	int ret;
 
 	spin_lock_irqsave(&hs->lock, flags);
 	ret = dwc2_hsotg_ep_sethalt(ep, value, false);
@@ -4391,6 +4440,7 @@ static const struct usb_ep_ops dwc2_hsotg_ep_ops = {
 	.queue		= dwc2_hsotg_ep_queue_lock,
 	.dequeue	= dwc2_hsotg_ep_dequeue,
 	.set_halt	= dwc2_hsotg_ep_sethalt_lock,
+	.set_wedge	= dwc2_gadget_ep_set_wedge,
 	/* note, don't believe we have any call for the fifo routines */
 };
 
@@ -4504,7 +4554,7 @@ err:
 static int dwc2_hsotg_udc_stop(struct usb_gadget *gadget)
 {
 	struct dwc2_hsotg *hsotg = to_hsotg(gadget);
-	unsigned long flags = 0;
+	unsigned long flags;
 	int ep;
 
 	if (!hsotg)
@@ -4576,7 +4626,7 @@ static int dwc2_hsotg_set_selfpowered(struct usb_gadget *gadget,
 static int dwc2_hsotg_pullup(struct usb_gadget *gadget, int is_on)
 {
 	struct dwc2_hsotg *hsotg = to_hsotg(gadget);
-	unsigned long flags = 0;
+	unsigned long flags;
 
 	dev_dbg(hsotg->dev, "%s: is_on: %d op_state: %d\n", __func__, is_on,
 		hsotg->op_state);
@@ -4659,12 +4709,35 @@ static int dwc2_hsotg_vbus_draw(struct usb_gadget *gadget, unsigned int mA)
 	return usb_phy_set_power(hsotg->uphy, mA);
 }
 
+static void dwc2_gadget_set_speed(struct usb_gadget *g, enum usb_device_speed speed)
+{
+	struct dwc2_hsotg *hsotg = to_hsotg(g);
+	unsigned long		flags;
+
+	spin_lock_irqsave(&hsotg->lock, flags);
+	switch (speed) {
+	case USB_SPEED_HIGH:
+		hsotg->params.speed = DWC2_SPEED_PARAM_HIGH;
+		break;
+	case USB_SPEED_FULL:
+		hsotg->params.speed = DWC2_SPEED_PARAM_FULL;
+		break;
+	case USB_SPEED_LOW:
+		hsotg->params.speed = DWC2_SPEED_PARAM_LOW;
+		break;
+	default:
+		dev_err(hsotg->dev, "invalid speed (%d)\n", speed);
+	}
+	spin_unlock_irqrestore(&hsotg->lock, flags);
+}
+
 static const struct usb_gadget_ops dwc2_hsotg_gadget_ops = {
 	.get_frame	= dwc2_hsotg_gadget_getframe,
 	.set_selfpowered	= dwc2_hsotg_set_selfpowered,
 	.udc_start		= dwc2_hsotg_udc_start,
 	.udc_stop		= dwc2_hsotg_udc_stop,
 	.pullup                 = dwc2_hsotg_pullup,
+	.udc_set_speed		= dwc2_gadget_set_speed,
 	.vbus_session		= dwc2_hsotg_vbus_session,
 	.vbus_draw		= dwc2_hsotg_vbus_draw,
 };

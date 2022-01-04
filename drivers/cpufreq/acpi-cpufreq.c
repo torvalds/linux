@@ -163,9 +163,9 @@ static ssize_t store_cpb(struct cpufreq_policy *policy, const char *buf,
 	if (ret || val > 1)
 		return -EINVAL;
 
-	get_online_cpus();
+	cpus_read_lock();
 	set_boost(policy, val);
-	put_online_cpus();
+	cpus_read_unlock();
 
 	return count;
 }
@@ -646,7 +646,11 @@ static u64 get_max_boost_ratio(unsigned int cpu)
 		return 0;
 	}
 
-	highest_perf = perf_caps.highest_perf;
+	if (boot_cpu_data.x86_vendor == X86_VENDOR_AMD)
+		highest_perf = amd_get_highest_perf();
+	else
+		highest_perf = perf_caps.highest_perf;
+
 	nominal_perf = perf_caps.nominal_perf;
 
 	if (!highest_perf || !nominal_perf) {

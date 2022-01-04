@@ -277,7 +277,7 @@ int cec_pin_error_inj_show(struct cec_adapter *adap, struct seq_file *sf)
 	seq_puts(sf, "#   <op>[,<mode>] rx-low-drive <bit>   force a low-drive condition at this bit position\n");
 	seq_puts(sf, "#   <op>[,<mode>] rx-add-byte          add a spurious byte to the received CEC message\n");
 	seq_puts(sf, "#   <op>[,<mode>] rx-remove-byte       remove the last byte from the received CEC message\n");
-	seq_puts(sf, "#   <op>[,<mode>] rx-arb-lost <poll>   generate a POLL message to trigger an arbitration lost\n");
+	seq_puts(sf, "#    any[,<mode>] rx-arb-lost [<poll>] generate a POLL message to trigger an arbitration lost\n");
 	seq_puts(sf, "#\n");
 	seq_puts(sf, "# TX error injection settings:\n");
 	seq_puts(sf, "#   tx-ignore-nack-until-eom           ignore early NACKs until EOM\n");

@@ -452,8 +452,8 @@ static const struct ethtool_ops mcs7830_ethtool_ops = {
 	.get_msglevel		= usbnet_get_msglevel,
 	.set_msglevel		= usbnet_set_msglevel,
 	.nway_reset		= usbnet_nway_reset,
-	.get_link_ksettings	= usbnet_get_link_ksettings,
-	.set_link_ksettings	= usbnet_set_link_ksettings,
+	.get_link_ksettings	= usbnet_get_link_ksettings_mii,
+	.set_link_ksettings	= usbnet_set_link_ksettings_mii,
 };
 
 static const struct net_device_ops mcs7830_netdev_ops = {
@@ -464,7 +464,7 @@ static const struct net_device_ops mcs7830_netdev_ops = {
 	.ndo_change_mtu		= usbnet_change_mtu,
 	.ndo_get_stats64	= dev_get_tstats64,
 	.ndo_validate_addr	= eth_validate_addr,
-	.ndo_do_ioctl 		= mcs7830_ioctl,
+	.ndo_eth_ioctl		= mcs7830_ioctl,
 	.ndo_set_rx_mode	= mcs7830_set_multicast,
 	.ndo_set_mac_address	= mcs7830_set_mac_address,
 };
@@ -601,7 +601,7 @@ MODULE_DEVICE_TABLE(usb, products);
 
 static int mcs7830_reset_resume (struct usb_interface *intf)
 {
- 	/* YES, this function is successful enough that ethtool -d
+	/* YES, this function is successful enough that ethtool -d
            does show same output pre-/post-suspend */
 
 	struct usbnet		*dev = usb_get_intfdata(intf);

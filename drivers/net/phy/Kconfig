@@ -201,6 +201,23 @@ config MARVELL_10G_PHY
 	help
 	  Support for the Marvell Alaska MV88X3310 and compatible PHYs.
 
+config MARVELL_88X2222_PHY
+	tristate "Marvell 88X2222 PHY"
+	help
+	  Support for the Marvell 88X2222 Dual-port Multi-speed Ethernet
+	  Transceiver.
+
+config MAXLINEAR_GPHY
+	tristate "Maxlinear Ethernet PHYs"
+	help
+	  Support for the Maxlinear GPY115, GPY211, GPY212, GPY215,
+	  GPY241, GPY245 PHYs.
+
+config MEDIATEK_GE_PHY
+	tristate "MediaTek Gigabit Ethernet PHYs"
+	help
+	  Supports the MediaTek Gigabit Ethernet PHYs.
+
 config MICREL_PHY
 	tristate "Micrel PHYs"
 	help
@@ -219,14 +236,28 @@ config MICROCHIP_T1_PHY
 config MICROSEMI_PHY
 	tristate "Microsemi PHYs"
 	depends on MACSEC || MACSEC=n
+	depends on PTP_1588_CLOCK_OPTIONAL || !NETWORK_PHY_TIMESTAMPING
 	select CRYPTO_LIB_AES if MACSEC
 	help
 	  Currently supports VSC8514, VSC8530, VSC8531, VSC8540 and VSC8541 PHYs
+
+config MOTORCOMM_PHY
+	tristate "Motorcomm PHYs"
+	help
+	  Enables support for Motorcomm network PHYs.
+	  Currently supports the YT8511 gigabit PHY.
 
 config NATIONAL_PHY
 	tristate "National Semiconductor PHYs"
 	help
 	  Currently supports the DP83865 PHY.
+
+config NXP_C45_TJA11XX_PHY
+	tristate "NXP C45 TJA11XX PHYs"
+	depends on PTP_1588_CLOCK_OPTIONAL
+	help
+	  Enable support for NXP C45 TJA11XX PHYs.
+	  Currently supports only the TJA1103 PHY.
 
 config NXP_TJA11XX_PHY
 	tristate "NXP TJA11xx PHYs support"
@@ -235,10 +266,11 @@ config NXP_TJA11XX_PHY
 	  Currently supports the NXP TJA1100 and TJA1101 PHY.
 
 config AT803X_PHY
-	tristate "Qualcomm Atheros AR803X PHYs"
+	tristate "Qualcomm Atheros AR803X PHYs and QCA833x PHYs"
 	depends on REGULATOR
 	help
-	  Currently supports the AR8030, AR8031, AR8033 and AR8035 model
+	  Currently supports the AR8030, AR8031, AR8033, AR8035 and internal
+	  QCA8337(Internal qca8k PHY) model
 
 config QSEMI_PHY
 	tristate "Quality Semiconductor PHYs"

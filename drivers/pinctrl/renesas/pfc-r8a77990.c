@@ -14,7 +14,6 @@
 #include <linux/errno.h>
 #include <linux/kernel.h>
 
-#include "core.h"
 #include "sh_pfc.h"
 
 #define CFG_FLAGS (SH_PFC_PIN_CFG_PULL_UP_DOWN)
@@ -54,10 +53,10 @@
 	PIN_NOGP_CFG(FSCLKST_N, "FSCLKST_N", fn, CFG_FLAGS),		\
 	PIN_NOGP_CFG(MLB_REF, "MLB_REF", fn, CFG_FLAGS),		\
 	PIN_NOGP_CFG(PRESETOUT_N, "PRESETOUT_N", fn, CFG_FLAGS),	\
-	PIN_NOGP_CFG(TCK, "TCK", fn, CFG_FLAGS),			\
-	PIN_NOGP_CFG(TDI, "TDI", fn, CFG_FLAGS),			\
-	PIN_NOGP_CFG(TMS, "TMS", fn, CFG_FLAGS),			\
-	PIN_NOGP_CFG(TRST_N, "TRST_N", fn, CFG_FLAGS)
+	PIN_NOGP_CFG(TCK, "TCK", fn, SH_PFC_PIN_CFG_PULL_UP),		\
+	PIN_NOGP_CFG(TDI, "TDI", fn, SH_PFC_PIN_CFG_PULL_UP),		\
+	PIN_NOGP_CFG(TMS, "TMS", fn, SH_PFC_PIN_CFG_PULL_UP),		\
+	PIN_NOGP_CFG(TRST_N, "TRST_N", fn, SH_PFC_PIN_CFG_PULL_UP)
 
 /*
  * F_() : just information
@@ -3697,6 +3696,20 @@ static const union vin_data vin4_data_b_mux = {
 	},
 };
 
+static const unsigned int vin4_g8_pins[] = {
+	RCAR_GP_PIN(1, 4),  RCAR_GP_PIN(1, 5),
+	RCAR_GP_PIN(1, 6),  RCAR_GP_PIN(1, 7),
+	RCAR_GP_PIN(1, 3),  RCAR_GP_PIN(1, 10),
+	RCAR_GP_PIN(1, 13), RCAR_GP_PIN(1, 14),
+};
+
+static const unsigned int vin4_g8_mux[] = {
+	VI4_DATA8_MARK,  VI4_DATA9_MARK,
+	VI4_DATA10_MARK, VI4_DATA11_MARK,
+	VI4_DATA12_MARK, VI4_DATA13_MARK,
+	VI4_DATA14_MARK, VI4_DATA15_MARK,
+};
+
 static const unsigned int vin4_sync_pins[] = {
 	/* HSYNC, VSYNC */
 	RCAR_GP_PIN(2, 25), RCAR_GP_PIN(2, 24),
@@ -3771,6 +3784,20 @@ static const unsigned int vin5_data8_b_mux[] = {
 	VI5_DATA6_B_MARK,  VI5_DATA7_B_MARK,
 };
 
+static const unsigned int vin5_high8_pins[] = {
+	RCAR_GP_PIN(0, 12), RCAR_GP_PIN(0, 13),
+	RCAR_GP_PIN(0, 9),  RCAR_GP_PIN(0, 11),
+	RCAR_GP_PIN(0, 8),  RCAR_GP_PIN(0, 10),
+	RCAR_GP_PIN(0, 2),  RCAR_GP_PIN(0, 3),
+};
+
+static const unsigned int vin5_high8_mux[] = {
+	VI5_DATA8_A_MARK,  VI5_DATA9_A_MARK,
+	VI5_DATA10_A_MARK, VI5_DATA11_A_MARK,
+	VI5_DATA12_A_MARK, VI5_DATA13_A_MARK,
+	VI5_DATA14_A_MARK, VI5_DATA15_A_MARK,
+};
+
 static const unsigned int vin5_sync_a_pins[] = {
 	/* HSYNC_N, VSYNC_N */
 	RCAR_GP_PIN(1, 8), RCAR_GP_PIN(1, 9),
@@ -3813,7 +3840,7 @@ static const unsigned int vin5_clk_b_mux[] = {
 };
 
 static const struct {
-	struct sh_pfc_pin_group common[253];
+	struct sh_pfc_pin_group common[255];
 #ifdef CONFIG_PINCTRL_PFC_R8A77990
 	struct sh_pfc_pin_group automotive[21];
 #endif
@@ -4058,6 +4085,7 @@ static const struct {
 		SH_PFC_PIN_GROUP(vin4_data18_b),
 		VIN_DATA_PIN_GROUP(vin4_data, 20, _b),
 		VIN_DATA_PIN_GROUP(vin4_data, 24, _b),
+		SH_PFC_PIN_GROUP(vin4_g8),
 		SH_PFC_PIN_GROUP(vin4_sync),
 		SH_PFC_PIN_GROUP(vin4_field),
 		SH_PFC_PIN_GROUP(vin4_clkenb),
@@ -4067,6 +4095,7 @@ static const struct {
 		VIN_DATA_PIN_GROUP(vin5_data, 12, _a),
 		VIN_DATA_PIN_GROUP(vin5_data, 16, _a),
 		SH_PFC_PIN_GROUP(vin5_data8_b),
+		SH_PFC_PIN_GROUP(vin5_high8),
 		SH_PFC_PIN_GROUP(vin5_sync_a),
 		SH_PFC_PIN_GROUP(vin5_field_a),
 		SH_PFC_PIN_GROUP(vin5_clkenb_a),
@@ -4516,6 +4545,7 @@ static const char * const vin4_groups[] = {
 	"vin4_data18_b",
 	"vin4_data20_b",
 	"vin4_data24_b",
+	"vin4_g8",
 	"vin4_sync",
 	"vin4_field",
 	"vin4_clkenb",
@@ -4528,6 +4558,7 @@ static const char * const vin5_groups[] = {
 	"vin5_data12_a",
 	"vin5_data16_a",
 	"vin5_data8_b",
+	"vin5_high8",
 	"vin5_sync_a",
 	"vin5_field_a",
 	"vin5_clkenb_a",
@@ -5166,8 +5197,8 @@ static const struct pinmux_bias_reg pinmux_bias_regs[] = {
 		[27] = RCAR_GP_PIN(1,  0),	/* A0 */
 		[28] = SH_PFC_PIN_NONE,
 		[29] = SH_PFC_PIN_NONE,
-		[30] = RCAR_GP_PIN(2, 25),	/* PUEN_EX_WAIT0 */
-		[31] = RCAR_GP_PIN(2, 24),	/* PUEN_RD/WR# */
+		[30] = RCAR_GP_PIN(2, 25),	/* EX_WAIT0 */
+		[31] = RCAR_GP_PIN(2, 24),	/* RD/WR# */
 	} },
 	{ PINMUX_BIAS_REG("PUEN2", 0xe6060408, "PUD2", 0xe6060448) {
 		 [0] = RCAR_GP_PIN(3,  1),	/* SD0_CMD */
@@ -5302,8 +5333,8 @@ static const struct pinmux_bias_reg pinmux_bias_regs[] = {
 		[27] = SH_PFC_PIN_NONE,
 		[28] = SH_PFC_PIN_NONE,
 		[29] = SH_PFC_PIN_NONE,
-		[30] = RCAR_GP_PIN(6,  9),	/* PUEN_USB30_OVC */
-		[31] = RCAR_GP_PIN(6, 17),	/* PUEN_USB30_PWEN */
+		[30] = RCAR_GP_PIN(6,  9),	/* USB30_OVC */
+		[31] = RCAR_GP_PIN(6, 17),	/* USB30_PWEN */
 	} },
 	{ /* sentinel */ },
 };

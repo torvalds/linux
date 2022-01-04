@@ -410,19 +410,20 @@ static void hw_queue_schedule_job(struct hl_cs_job *job)
 	ext_and_hw_queue_submit_bd(hdev, q, ctl, len, ptr);
 }
 
-static void init_signal_cs(struct hl_device *hdev,
+static int init_signal_cs(struct hl_device *hdev,
 		struct hl_cs_job *job, struct hl_cs_compl *cs_cmpl)
 {
 	struct hl_sync_stream_properties *prop;
 	struct hl_hw_sob *hw_sob;
 	u32 q_idx;
+	int rc = 0;
 
 	q_idx = job->hw_queue_id;
 	prop = &hdev->kernel_queues[q_idx].sync_stream_prop;
 	hw_sob = &prop->hw_sob[prop->curr_sob_offset];
 
 	cs_cmpl->hw_sob = hw_sob;
-	cs_cmpl->sob_val = prop->next_sob_val++;
+	cs_cmpl->sob_val = prop->next_sob_val;
 
 	dev_dbg(hdev->dev,
 		"generate signal CB, sob_id: %d, sob val: 0x%x, q_idx: %d\n",
@@ -434,24 +435,9 @@ static void init_signal_cs(struct hl_device *hdev,
 	hdev->asic_funcs->gen_signal_cb(hdev, job->patched_cb,
 				cs_cmpl->hw_sob->sob_id, 0, true);
 
-	kref_get(&hw_sob->kref);
+	rc = hl_cs_signal_sob_wraparound_handler(hdev, q_idx, &hw_sob, 1);
 
-	/* check for wraparound */
-	if (prop->next_sob_val == HL_MAX_SOB_VAL) {
-		/*
-		 * Decrement as we reached the max value.
-		 * The release function won't be called here as we've
-		 * just incremented the refcount.
-		 */
-		kref_put(&hw_sob->kref, hl_sob_reset_error);
-		prop->next_sob_val = 1;
-		/* only two SOBs are currently in use */
-		prop->curr_sob_offset =
-			(prop->curr_sob_offset + 1) % HL_RSVD_SOBS;
-
-		dev_dbg(hdev->dev, "switched to SOB %d, q_idx: %d\n",
-				prop->curr_sob_offset, q_idx);
-	}
+	return rc;
 }
 
 static void init_wait_cs(struct hl_device *hdev, struct hl_cs *cs,
@@ -504,22 +490,25 @@ static void init_wait_cs(struct hl_device *hdev, struct hl_cs *cs,
  *
  * H/W queues spinlock should be taken before calling this function
  */
-static void init_signal_wait_cs(struct hl_cs *cs)
+static int init_signal_wait_cs(struct hl_cs *cs)
 {
 	struct hl_ctx *ctx = cs->ctx;
 	struct hl_device *hdev = ctx->hdev;
 	struct hl_cs_job *job;
 	struct hl_cs_compl *cs_cmpl =
 			container_of(cs->fence, struct hl_cs_compl, base_fence);
+	int rc = 0;
 
 	/* There is only one job in a signal/wait CS */
 	job = list_first_entry(&cs->job_list, struct hl_cs_job,
 				cs_node);
 
 	if (cs->type & CS_TYPE_SIGNAL)
-		init_signal_cs(hdev, job, cs_cmpl);
+		rc = init_signal_cs(hdev, job, cs_cmpl);
 	else if (cs->type & CS_TYPE_WAIT)
 		init_wait_cs(hdev, cs, job, cs_cmpl);
+
+	return rc;
 }
 
 /*
@@ -590,10 +579,15 @@ int hl_hw_queue_schedule_cs(struct hl_cs *cs)
 		}
 	}
 
-	if ((cs->type == CS_TYPE_SIGNAL) || (cs->type == CS_TYPE_WAIT))
-		init_signal_wait_cs(cs);
-	else if (cs->type == CS_TYPE_COLLECTIVE_WAIT)
+	if ((cs->type == CS_TYPE_SIGNAL) || (cs->type == CS_TYPE_WAIT)) {
+		rc = init_signal_wait_cs(cs);
+		if (rc) {
+			dev_err(hdev->dev, "Failed to submit signal cs\n");
+			goto unroll_cq_resv;
+		}
+	} else if (cs->type == CS_TYPE_COLLECTIVE_WAIT)
 		hdev->asic_funcs->collective_wait_init_cs(cs);
+
 
 	spin_lock(&hdev->cs_mirror_lock);
 

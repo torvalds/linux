@@ -594,7 +594,7 @@ typedef struct fcc_enet {
 	uint	fen_p256c;	/* Total packets 256 < bytes <= 511 */
 	uint	fen_p512c;	/* Total packets 512 < bytes <= 1023 */
 	uint	fen_p1024c;	/* Total packets 1024 < bytes <= 1518 */
-	uint	fen_cambuf;	/* Internal CAM buffer poiner */
+	uint	fen_cambuf;	/* Internal CAM buffer pointer */
 	ushort	fen_rfthr;	/* Received frames threshold */
 	ushort	fen_rfcnt;	/* Received frames count */
 } fcc_enet_t;

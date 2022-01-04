@@ -41,7 +41,7 @@ __do_compat_cache_op(unsigned long start, unsigned long end)
 			dsb(ish);
 		}
 
-		ret = __flush_cache_user_range(start, start + chunk);
+		ret = caches_clean_inval_user_pou(start, start + chunk);
 		if (ret)
 			return ret;
 

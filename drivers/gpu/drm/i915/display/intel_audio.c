@@ -31,6 +31,7 @@
 #include "intel_atomic.h"
 #include "intel_audio.h"
 #include "intel_cdclk.h"
+#include "intel_de.h"
 #include "intel_display_types.h"
 #include "intel_lpe_audio.h"
 
@@ -248,7 +249,7 @@ static u32 audio_config_hdmi_pixel_clock(const struct intel_crtc_state *crtc_sta
 			break;
 	}
 
-	if (INTEL_GEN(dev_priv) < 12 && adjusted_mode->crtc_clock > 148500)
+	if (DISPLAY_VER(dev_priv) < 12 && adjusted_mode->crtc_clock > 148500)
 		i = ARRAY_SIZE(hdmi_audio_clock);
 
 	if (i == ARRAY_SIZE(hdmi_audio_clock)) {
@@ -586,45 +587,38 @@ static void enable_audio_dsc_wa(struct intel_encoder *encoder,
 	unsigned int hblank_early_prog, samples_room;
 	unsigned int val;
 
-	if (INTEL_GEN(i915) < 11)
+	if (DISPLAY_VER(i915) < 11)
 		return;
 
 	val = intel_de_read(i915, AUD_CONFIG_BE);
 
-	if (INTEL_GEN(i915) == 11)
+	if (DISPLAY_VER(i915) == 11)
 		val |= HBLANK_EARLY_ENABLE_ICL(pipe);
-	else if (INTEL_GEN(i915) >= 12)
+	else if (DISPLAY_VER(i915) >= 12)
 		val |= HBLANK_EARLY_ENABLE_TGL(pipe);
 
 	if (crtc_state->dsc.compression_enable &&
-	    (crtc_state->hw.adjusted_mode.hdisplay >= 3840 &&
-	    crtc_state->hw.adjusted_mode.vdisplay >= 2160)) {
+	    crtc_state->hw.adjusted_mode.hdisplay >= 3840 &&
+	    crtc_state->hw.adjusted_mode.vdisplay >= 2160) {
 		/* Get hblank early enable value required */
+		val &= ~HBLANK_START_COUNT_MASK(pipe);
 		hblank_early_prog = calc_hblank_early_prog(encoder, crtc_state);
-		if (hblank_early_prog < 32) {
-			val &= ~HBLANK_START_COUNT_MASK(pipe);
+		if (hblank_early_prog < 32)
 			val |= HBLANK_START_COUNT(pipe, HBLANK_START_COUNT_32);
-		} else if (hblank_early_prog < 64) {
-			val &= ~HBLANK_START_COUNT_MASK(pipe);
+		else if (hblank_early_prog < 64)
 			val |= HBLANK_START_COUNT(pipe, HBLANK_START_COUNT_64);
-		} else if (hblank_early_prog < 96) {
-			val &= ~HBLANK_START_COUNT_MASK(pipe);
+		else if (hblank_early_prog < 96)
 			val |= HBLANK_START_COUNT(pipe, HBLANK_START_COUNT_96);
-		} else {
-			val &= ~HBLANK_START_COUNT_MASK(pipe);
+		else
 			val |= HBLANK_START_COUNT(pipe, HBLANK_START_COUNT_128);
-		}
 
 		/* Get samples room value required */
+		val &= ~NUMBER_SAMPLES_PER_LINE_MASK(pipe);
 		samples_room = calc_samples_room(crtc_state);
-		if (samples_room < 3) {
-			val &= ~NUMBER_SAMPLES_PER_LINE_MASK(pipe);
+		if (samples_room < 3)
 			val |= NUMBER_SAMPLES_PER_LINE(pipe, samples_room);
-		} else {
-			/* Program 0 i.e "All Samples available in buffer" */
-			val &= ~NUMBER_SAMPLES_PER_LINE_MASK(pipe);
+		else /* Program 0 i.e "All Samples available in buffer" */
 			val |= NUMBER_SAMPLES_PER_LINE(pipe, 0x0);
-		}
 	}
 
 	intel_de_write(i915, AUD_CONFIG_BE, val);
@@ -933,7 +927,7 @@ void intel_init_audio_hooks(struct drm_i915_private *dev_priv)
 	} else if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
 		dev_priv->display.audio_codec_enable = ilk_audio_codec_enable;
 		dev_priv->display.audio_codec_disable = ilk_audio_codec_disable;
-	} else if (IS_HASWELL(dev_priv) || INTEL_GEN(dev_priv) >= 8) {
+	} else if (IS_HASWELL(dev_priv) || DISPLAY_VER(dev_priv) >= 8) {
 		dev_priv->display.audio_codec_enable = hsw_audio_codec_enable;
 		dev_priv->display.audio_codec_disable = hsw_audio_codec_disable;
 	} else if (HAS_PCH_SPLIT(dev_priv)) {
@@ -1007,10 +1001,10 @@ static unsigned long i915_audio_component_get_power(struct device *kdev)
 	/* Catch potential impedance mismatches before they occur! */
 	BUILD_BUG_ON(sizeof(intel_wakeref_t) > sizeof(unsigned long));
 
-	ret = intel_display_power_get(dev_priv, POWER_DOMAIN_AUDIO);
+	ret = intel_display_power_get(dev_priv, POWER_DOMAIN_AUDIO_PLAYBACK);
 
 	if (dev_priv->audio_power_refcount++ == 0) {
-		if (INTEL_GEN(dev_priv) >= 9) {
+		if (DISPLAY_VER(dev_priv) >= 9) {
 			intel_de_write(dev_priv, AUD_FREQ_CNTRL,
 				       dev_priv->audio_freq_cntrl);
 			drm_dbg_kms(&dev_priv->drm,
@@ -1022,7 +1016,7 @@ static unsigned long i915_audio_component_get_power(struct device *kdev)
 		if (IS_GEMINILAKE(dev_priv))
 			glk_force_audio_cdclk(dev_priv, true);
 
-		if (INTEL_GEN(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv))
+		if (DISPLAY_VER(dev_priv) >= 10)
 			intel_de_write(dev_priv, AUD_PIN_BUF_CTL,
 				       (intel_de_read(dev_priv, AUD_PIN_BUF_CTL) | AUD_PIN_BUF_ENABLE));
 	}
@@ -1040,7 +1034,7 @@ static void i915_audio_component_put_power(struct device *kdev,
 		if (IS_GEMINILAKE(dev_priv))
 			glk_force_audio_cdclk(dev_priv, false);
 
-	intel_display_power_put(dev_priv, POWER_DOMAIN_AUDIO, cookie);
+	intel_display_power_put(dev_priv, POWER_DOMAIN_AUDIO_PLAYBACK, cookie);
 }
 
 static void i915_audio_component_codec_wake_override(struct device *kdev,
@@ -1050,7 +1044,7 @@ static void i915_audio_component_codec_wake_override(struct device *kdev,
 	unsigned long cookie;
 	u32 tmp;
 
-	if (INTEL_GEN(dev_priv) < 9)
+	if (DISPLAY_VER(dev_priv) < 9)
 		return;
 
 	cookie = i915_audio_component_get_power(kdev);
@@ -1266,6 +1260,15 @@ static const struct component_ops i915_audio_component_bind_ops = {
 	.unbind	= i915_audio_component_unbind,
 };
 
+#define AUD_FREQ_TMODE_SHIFT	14
+#define AUD_FREQ_4T		0
+#define AUD_FREQ_8T		(2 << AUD_FREQ_TMODE_SHIFT)
+#define AUD_FREQ_PULLCLKS(x)	(((x) & 0x3) << 11)
+#define AUD_FREQ_BCLK_96M	BIT(4)
+
+#define AUD_FREQ_GEN12          (AUD_FREQ_8T | AUD_FREQ_PULLCLKS(0) | AUD_FREQ_BCLK_96M)
+#define AUD_FREQ_TGL_BROKEN     (AUD_FREQ_8T | AUD_FREQ_PULLCLKS(2) | AUD_FREQ_BCLK_96M)
+
 /**
  * i915_audio_component_init - initialize and register the audio component
  * @dev_priv: i915 device instance
@@ -1284,6 +1287,7 @@ static const struct component_ops i915_audio_component_bind_ops = {
  */
 static void i915_audio_component_init(struct drm_i915_private *dev_priv)
 {
+	u32 aud_freq, aud_freq_init;
 	int ret;
 
 	ret = component_add_typed(dev_priv->drm.dev,
@@ -1296,12 +1300,22 @@ static void i915_audio_component_init(struct drm_i915_private *dev_priv)
 		return;
 	}
 
-	if (INTEL_GEN(dev_priv) >= 9) {
-		dev_priv->audio_freq_cntrl = intel_de_read(dev_priv,
-							   AUD_FREQ_CNTRL);
-		drm_dbg_kms(&dev_priv->drm,
-			    "init value of AUD_FREQ_CNTRL of 0x%x\n",
-			    dev_priv->audio_freq_cntrl);
+	if (DISPLAY_VER(dev_priv) >= 9) {
+		aud_freq_init = intel_de_read(dev_priv, AUD_FREQ_CNTRL);
+
+		if (DISPLAY_VER(dev_priv) >= 12)
+			aud_freq = AUD_FREQ_GEN12;
+		else
+			aud_freq = aud_freq_init;
+
+		/* use BIOS provided value for TGL unless it is a known bad value */
+		if (IS_TIGERLAKE(dev_priv) && aud_freq_init != AUD_FREQ_TGL_BROKEN)
+			aud_freq = aud_freq_init;
+
+		drm_dbg_kms(&dev_priv->drm, "use AUD_FREQ_CNTRL of 0x%x (init value 0x%x)\n",
+			    aud_freq, aud_freq_init);
+
+		dev_priv->audio_freq_cntrl = aud_freq;
 	}
 
 	dev_priv->audio_component_registered = true;

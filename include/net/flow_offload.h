@@ -147,6 +147,7 @@ enum flow_action_id {
 	FLOW_ACTION_MPLS_POP,
 	FLOW_ACTION_MPLS_MANGLE,
 	FLOW_ACTION_GATE,
+	FLOW_ACTION_PPPOE_PUSH,
 	NUM_FLOW_ACTIONS,
 };
 
@@ -234,6 +235,8 @@ struct flow_action_entry {
 			u32			index;
 			u32			burst;
 			u64			rate_bytes_ps;
+			u64			burst_pkt;
+			u64			rate_pkt_ps;
 			u32			mtu;
 		} police;
 		struct {				/* FLOW_ACTION_CT */
@@ -272,6 +275,9 @@ struct flow_action_entry {
 			u32		num_entries;
 			struct action_gate_entry *entries;
 		} gate;
+		struct {				/* FLOW_ACTION_PPPOE_PUSH */
+			u16		sid;
+		} pppoe;
 	};
 	struct flow_action_cookie *cookie; /* user defined action cookie */
 };
@@ -287,7 +293,7 @@ static inline bool flow_action_has_entries(const struct flow_action *action)
 }
 
 /**
- * flow_action_has_one_action() - check if exactly one action is present
+ * flow_offload_has_one_action() - check if exactly one action is present
  * @action: tc filter flow offload action
  *
  * Returns true if exactly one action is present.
@@ -445,6 +451,7 @@ struct flow_block_offload {
 	struct list_head *driver_block_list;
 	struct netlink_ext_ack *extack;
 	struct Qdisc *sch;
+	struct list_head *cb_list_head;
 };
 
 enum tc_setup_type;

@@ -129,7 +129,7 @@ xfs_da3_node_hdr_from_disk(
 	struct xfs_da3_icnode_hdr	*to,
 	struct xfs_da_intnode		*from)
 {
-	if (xfs_sb_version_hascrc(&mp->m_sb)) {
+	if (xfs_has_crc(mp)) {
 		struct xfs_da3_intnode	*from3 = (struct xfs_da3_intnode *)from;
 
 		to->forw = be32_to_cpu(from3->hdr.info.hdr.forw);
@@ -156,7 +156,7 @@ xfs_da3_node_hdr_to_disk(
 	struct xfs_da_intnode		*to,
 	struct xfs_da3_icnode_hdr	*from)
 {
-	if (xfs_sb_version_hascrc(&mp->m_sb)) {
+	if (xfs_has_crc(mp)) {
 		struct xfs_da3_intnode	*to3 = (struct xfs_da3_intnode *)to;
 
 		ASSERT(from->magic == XFS_DA3_NODE_MAGIC);
@@ -191,10 +191,10 @@ xfs_da3_blkinfo_verify(
 	if (!xfs_verify_magic16(bp, hdr->magic))
 		return __this_address;
 
-	if (xfs_sb_version_hascrc(&mp->m_sb)) {
+	if (xfs_has_crc(mp)) {
 		if (!uuid_equal(&hdr3->uuid, &mp->m_sb.sb_meta_uuid))
 			return __this_address;
-		if (be64_to_cpu(hdr3->blkno) != bp->b_bn)
+		if (be64_to_cpu(hdr3->blkno) != xfs_buf_daddr(bp))
 			return __this_address;
 		if (!xfs_log_check_lsn(mp, be64_to_cpu(hdr3->lsn)))
 			return __this_address;
@@ -253,7 +253,7 @@ xfs_da3_node_write_verify(
 		return;
 	}
 
-	if (!xfs_sb_version_hascrc(&mp->m_sb))
+	if (!xfs_has_crc(mp))
 		return;
 
 	if (bip)
@@ -282,7 +282,7 @@ xfs_da3_node_read_verify(
 						__this_address);
 				break;
 			}
-			/* fall through */
+			fallthrough;
 		case XFS_DA_NODE_MAGIC:
 			fa = xfs_da3_node_verify(bp);
 			if (fa)
@@ -442,12 +442,12 @@ xfs_da3_node_create(
 	xfs_trans_buf_set_type(tp, bp, XFS_BLFT_DA_NODE_BUF);
 	node = bp->b_addr;
 
-	if (xfs_sb_version_hascrc(&mp->m_sb)) {
+	if (xfs_has_crc(mp)) {
 		struct xfs_da3_node_hdr *hdr3 = bp->b_addr;
 
 		memset(hdr3, 0, sizeof(struct xfs_da3_node_hdr));
 		ichdr.magic = XFS_DA3_NODE_MAGIC;
-		hdr3->info.blkno = cpu_to_be64(bp->b_bn);
+		hdr3->info.blkno = cpu_to_be64(xfs_buf_daddr(bp));
 		hdr3->info.owner = cpu_to_be64(args->dp->i_ino);
 		uuid_copy(&hdr3->info.uuid, &mp->m_sb.sb_meta_uuid);
 	} else {
@@ -711,7 +711,7 @@ xfs_da3_root_split(
 	    oldroot->hdr.info.magic == cpu_to_be16(XFS_DIR3_LEAFN_MAGIC)) {
 		struct xfs_da3_intnode *node3 = (struct xfs_da3_intnode *)node;
 
-		node3->hdr.info.blkno = cpu_to_be64(bp->b_bn);
+		node3->hdr.info.blkno = cpu_to_be64(xfs_buf_daddr(bp));
 	}
 	xfs_trans_log_buf(tp, bp, 0, size - 1);
 
@@ -1219,7 +1219,7 @@ xfs_da3_root_join(
 	xfs_trans_buf_copy_type(root_blk->bp, bp);
 	if (oldroothdr.magic == XFS_DA3_NODE_MAGIC) {
 		struct xfs_da3_blkinfo *da3 = root_blk->bp->b_addr;
-		da3->blkno = cpu_to_be64(root_blk->bp->b_bn);
+		da3->blkno = cpu_to_be64(xfs_buf_daddr(root_blk->bp));
 	}
 	xfs_trans_log_buf(args->trans, root_blk->bp, 0,
 			  args->geo->blksize - 1);
@@ -2145,7 +2145,7 @@ xfs_da_grow_inode_int(
 	struct xfs_trans	*tp = args->trans;
 	struct xfs_inode	*dp = args->dp;
 	int			w = args->whichfork;
-	xfs_rfsblock_t		nblks = dp->i_d.di_nblocks;
+	xfs_rfsblock_t		nblks = dp->i_nblocks;
 	struct xfs_bmbt_irec	map, *mapp;
 	int			nmap, error, got, i, mapi;
 
@@ -2211,7 +2211,7 @@ xfs_da_grow_inode_int(
 	}
 
 	/* account for newly allocated blocks in reserved blocks total */
-	args->total -= dp->i_d.di_nblocks - nblks;
+	args->total -= dp->i_nblocks - nblks;
 
 out_free_map:
 	if (mapp != &map)

@@ -52,7 +52,7 @@ int BPF_PROG(fentry_XXX)
 static inline void
 fexit_update_maps(struct bpf_perf_event_value *after)
 {
-	struct bpf_perf_event_value *before, diff, *accum;
+	struct bpf_perf_event_value *before, diff;
 	__u32 zero = 0;
 
 	before = bpf_map_lookup_elem(&fentry_readings, &zero);
@@ -78,7 +78,6 @@ int BPF_PROG(fexit_XXX)
 {
 	struct bpf_perf_event_value reading;
 	__u32 cpu = bpf_get_smp_processor_id();
-	__u32 one = 1, zero = 0;
 	int err;
 
 	/* read all events before updating the maps, to reduce error */

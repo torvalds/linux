@@ -375,7 +375,6 @@ raw_copy_to_user(void __user *to, const void *from, unsigned long n)
 
 extern long strncpy_from_user(char *dest, const char __user *src, long count);
 
-extern long __must_check strlen_user(const char __user *str);
 extern long __must_check strnlen_user(const char __user *str, long n);
 
 extern

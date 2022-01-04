@@ -103,8 +103,9 @@ void sctp_packet_config(struct sctp_packet *packet, __u32 vtag,
 		sctp_transport_route(tp, NULL, sp);
 		if (asoc->param_flags & SPP_PMTUD_ENABLE)
 			sctp_assoc_sync_pmtu(asoc);
-	} else if (!sctp_transport_pmtu_check(tp)) {
-		if (asoc->param_flags & SPP_PMTUD_ENABLE)
+	} else if (!sctp_transport_pl_enabled(tp) &&
+		   asoc->param_flags & SPP_PMTUD_ENABLE) {
+		if (!sctp_transport_pmtu_check(tp))
 			sctp_assoc_sync_pmtu(asoc);
 	}
 
@@ -209,6 +210,30 @@ enum sctp_xmit sctp_packet_transmit_chunk(struct sctp_packet *packet,
 	}
 
 	return retval;
+}
+
+/* Try to bundle a pad chunk into a packet with a heartbeat chunk for PLPMTUTD probe */
+static enum sctp_xmit sctp_packet_bundle_pad(struct sctp_packet *pkt, struct sctp_chunk *chunk)
+{
+	struct sctp_transport *t = pkt->transport;
+	struct sctp_chunk *pad;
+	int overhead = 0;
+
+	if (!chunk->pmtu_probe)
+		return SCTP_XMIT_OK;
+
+	/* calculate the Padding Data size for the pad chunk */
+	overhead += sizeof(struct sctphdr) + sizeof(struct sctp_chunkhdr);
+	overhead += sizeof(struct sctp_sender_hb_info) + sizeof(struct sctp_pad_chunk);
+	pad = sctp_make_pad(t->asoc, t->pl.probe_size - overhead);
+	if (!pad)
+		return SCTP_XMIT_DELAY;
+
+	list_add_tail(&pad->list, &pkt->chunk_list);
+	pkt->size += SCTP_PAD4(ntohs(pad->chunk_hdr->length));
+	chunk->transport = t;
+
+	return SCTP_XMIT_OK;
 }
 
 /* Try to bundle an auth chunk into the packet. */
@@ -382,6 +407,10 @@ enum sctp_xmit sctp_packet_append_chunk(struct sctp_packet *packet,
 		goto finish;
 
 	retval = __sctp_packet_append_chunk(packet, chunk);
+	if (retval != SCTP_XMIT_OK)
+		goto finish;
+
+	retval = sctp_packet_bundle_pad(packet, chunk);
 
 finish:
 	return retval;
@@ -553,7 +582,7 @@ int sctp_packet_transmit(struct sctp_packet *packet, gfp_t gfp)
 	sk = chunk->skb->sk;
 
 	/* check gso */
-	if (packet->size > tp->pathmtu && !packet->ipfragok) {
+	if (packet->size > tp->pathmtu && !packet->ipfragok && !chunk->pmtu_probe) {
 		if (!sk_can_gso(sk)) {
 			pr_err_once("Trying to GSO but underlying device doesn't support it.");
 			goto out;

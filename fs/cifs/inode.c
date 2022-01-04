@@ -1,22 +1,10 @@
+// SPDX-License-Identifier: LGPL-2.1
 /*
  *   fs/cifs/inode.c
  *
  *   Copyright (C) International Business Machines  Corp., 2002,2010
  *   Author(s): Steve French (sfrench@us.ibm.com)
  *
- *   This library is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU Lesser General Public License as published
- *   by the Free Software Foundation; either version 2.1 of the License, or
- *   (at your option) any later version.
- *
- *   This library is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See
- *   the GNU Lesser General Public License for more details.
- *
- *   You should have received a copy of the GNU Lesser General Public License
- *   along with this library; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 #include <linux/fs.h>
 #include <linux/stat.h>
@@ -26,7 +14,6 @@
 #include <linux/sched/signal.h>
 #include <linux/wait_bit.h>
 #include <linux/fiemap.h>
-
 #include <asm/div64.h>
 #include "cifsfs.h"
 #include "cifspdu.h"
@@ -38,7 +25,7 @@
 #include "cifs_unicode.h"
 #include "fscache.h"
 #include "fs_context.h"
-
+#include "cifs_ioctl.h"
 
 static void cifs_set_ops(struct inode *inode)
 {
@@ -368,9 +355,12 @@ cifs_get_file_info_unix(struct file *filp)
 	} else if (rc == -EREMOTE) {
 		cifs_create_dfs_fattr(&fattr, inode->i_sb);
 		rc = 0;
-	}
+	} else
+		goto cifs_gfiunix_out;
 
 	rc = cifs_fattr_to_inode(inode, &fattr);
+
+cifs_gfiunix_out:
 	free_xid(xid);
 	return rc;
 }
@@ -1610,6 +1600,9 @@ int cifs_unlink(struct inode *dir, struct dentry *dentry)
 
 	cifs_dbg(FYI, "cifs_unlink, dir=0x%p, dentry=0x%p\n", dir, dentry);
 
+	if (unlikely(cifs_forced_shutdown(cifs_sb)))
+		return -EIO;
+
 	tlink = cifs_sb_tlink(cifs_sb);
 	if (IS_ERR(tlink))
 		return PTR_ERR(tlink);
@@ -1632,6 +1625,7 @@ int cifs_unlink(struct inode *dir, struct dentry *dentry)
 		goto unlink_out;
 	}
 
+	cifs_close_deferred_file(CIFS_I(inode));
 	if (cap_unix(tcon->ses) && (CIFS_UNIX_POSIX_PATH_OPS_CAP &
 				le64_to_cpu(tcon->fsUnixInfo.Capability))) {
 		rc = CIFSPOSIXDelFile(xid, tcon, full_path,
@@ -1872,6 +1866,8 @@ int cifs_mkdir(struct user_namespace *mnt_userns, struct inode *inode,
 		 mode, inode);
 
 	cifs_sb = CIFS_SB(inode->i_sb);
+	if (unlikely(cifs_forced_shutdown(cifs_sb)))
+		return -EIO;
 	tlink = cifs_sb_tlink(cifs_sb);
 	if (IS_ERR(tlink))
 		return PTR_ERR(tlink);
@@ -1954,6 +1950,11 @@ int cifs_rmdir(struct inode *inode, struct dentry *direntry)
 	}
 
 	cifs_sb = CIFS_SB(inode->i_sb);
+	if (unlikely(cifs_forced_shutdown(cifs_sb))) {
+		rc = -EIO;
+		goto rmdir_exit;
+	}
+
 	tlink = cifs_sb_tlink(cifs_sb);
 	if (IS_ERR(tlink)) {
 		rc = PTR_ERR(tlink);
@@ -2083,11 +2084,15 @@ cifs_rename2(struct user_namespace *mnt_userns, struct inode *source_dir,
 	FILE_UNIX_BASIC_INFO *info_buf_target;
 	unsigned int xid;
 	int rc, tmprc;
+	int retry_count = 0;
 
 	if (flags & ~RENAME_NOREPLACE)
 		return -EINVAL;
 
 	cifs_sb = CIFS_SB(source_dir->i_sb);
+	if (unlikely(cifs_forced_shutdown(cifs_sb)))
+		return -EIO;
+
 	tlink = cifs_sb_tlink(cifs_sb);
 	if (IS_ERR(tlink))
 		return PTR_ERR(tlink);
@@ -2109,8 +2114,23 @@ cifs_rename2(struct user_namespace *mnt_userns, struct inode *source_dir,
 		goto cifs_rename_exit;
 	}
 
+	cifs_close_deferred_file(CIFS_I(d_inode(source_dentry)));
+	if (d_inode(target_dentry) != NULL)
+		cifs_close_deferred_file(CIFS_I(d_inode(target_dentry)));
+
 	rc = cifs_do_rename(xid, source_dentry, from_name, target_dentry,
 			    to_name);
+
+	if (rc == -EACCES) {
+		while (retry_count < 3) {
+			cifs_close_all_deferred_files(tcon);
+			rc = cifs_do_rename(xid, source_dentry, from_name, target_dentry,
+					    to_name);
+			if (rc != -EACCES)
+				break;
+			retry_count++;
+		}
+	}
 
 	/*
 	 * No-replace is the natural behavior for CIFS, so skip unlink hacks.
@@ -2277,6 +2297,7 @@ cifs_revalidate_mapping(struct inode *inode)
 {
 	int rc;
 	unsigned long *flags = &CIFS_I(inode)->flags;
+	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
 
 	/* swapfiles are not supposed to be shared */
 	if (IS_SWAPFILE(inode))
@@ -2288,11 +2309,16 @@ cifs_revalidate_mapping(struct inode *inode)
 		return rc;
 
 	if (test_and_clear_bit(CIFS_INO_INVALID_MAPPING, flags)) {
+		/* for cache=singleclient, do not invalidate */
+		if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_RW_CACHE)
+			goto skip_invalidate;
+
 		rc = cifs_invalidate_mapping(inode);
 		if (rc)
 			set_bit(CIFS_INO_INVALID_MAPPING, flags);
 	}
 
+skip_invalidate:
 	clear_bit_unlock(CIFS_INO_LOCK, flags);
 	smp_mb__after_atomic();
 	wake_up_bit(flags, CIFS_INO_LOCK);
@@ -2404,6 +2430,9 @@ int cifs_getattr(struct user_namespace *mnt_userns, const struct path *path,
 	struct inode *inode = d_inode(dentry);
 	int rc;
 
+	if (unlikely(cifs_forced_shutdown(CIFS_SB(inode->i_sb))))
+		return -EIO;
+
 	/*
 	 * We need to be sure that all dirty pages are written and the server
 	 * has actual ctime, mtime and file length.
@@ -2475,6 +2504,9 @@ int cifs_fiemap(struct inode *inode, struct fiemap_extent_info *fei, u64 start,
 	struct TCP_Server_Info *server = tcon->ses->server;
 	struct cifsFileInfo *cfile;
 	int rc;
+
+	if (unlikely(cifs_forced_shutdown(cifs_sb)))
+		return -EIO;
 
 	/*
 	 * We need to be sure that all dirty pages are written as they
@@ -2961,6 +2993,9 @@ cifs_setattr(struct user_namespace *mnt_userns, struct dentry *direntry,
 	struct cifs_sb_info *cifs_sb = CIFS_SB(direntry->d_sb);
 	struct cifs_tcon *pTcon = cifs_sb_master_tcon(cifs_sb);
 	int rc, retries = 0;
+
+	if (unlikely(cifs_forced_shutdown(cifs_sb)))
+		return -EIO;
 
 	do {
 		if (pTcon->unix_ext)

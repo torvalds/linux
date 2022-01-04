@@ -8,6 +8,7 @@
 #include <drm/drm_device.h>
 #include <drm/drm_mode.h>
 #include <drm/drm_fourcc.h>
+#include <drm/drm_print.h>
 
 #include "../drm_crtc_internal.h"
 

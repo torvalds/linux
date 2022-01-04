@@ -510,7 +510,7 @@ err_out_put_mdesc:
 	return err;
 }
 
-static int vnet_port_remove(struct vio_dev *vdev)
+static void vnet_port_remove(struct vio_dev *vdev)
 {
 	struct vnet_port *port = dev_get_drvdata(&vdev->dev);
 
@@ -533,7 +533,6 @@ static int vnet_port_remove(struct vio_dev *vdev)
 
 		kfree(port);
 	}
-	return 0;
 }
 
 static const struct vio_device_id vnet_port_match[] = {

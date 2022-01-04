@@ -81,6 +81,13 @@ Optional properties:
   < x1 x2 x3 x4 >
   Default = < 15 8 4 1>
 
+  - cirrus,hs-bias-sense-disable: This is boolean property. If present the
+  HSBIAS sense is disabled. Configures HSBIAS output current sense through
+  the external 2.21-k resistor. HSBIAS_SENSE is hardware feature to reduce
+  the potential pop noise during the headset plug out slowly. But on some
+  platforms ESD voltage will affect it causing test to fail, especially
+  with CTIA headset type. For different hardware setups, a designer might
+  want to tweak default behavior.
 
 Example:
 

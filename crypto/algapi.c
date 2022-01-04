@@ -868,24 +868,6 @@ const char *crypto_attr_alg_name(struct rtattr *rta)
 }
 EXPORT_SYMBOL_GPL(crypto_attr_alg_name);
 
-int crypto_attr_u32(struct rtattr *rta, u32 *num)
-{
-	struct crypto_attr_u32 *nu32;
-
-	if (!rta)
-		return -ENOENT;
-	if (RTA_PAYLOAD(rta) < sizeof(*nu32))
-		return -EINVAL;
-	if (rta->rta_type != CRYPTOA_U32)
-		return -EINVAL;
-
-	nu32 = RTA_DATA(rta);
-	*num = nu32->num;
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(crypto_attr_u32);
-
 int crypto_inst_setname(struct crypto_instance *inst, const char *name,
 			struct crypto_alg *alg)
 {

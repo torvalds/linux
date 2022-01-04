@@ -497,14 +497,17 @@ void ovs_vport_send(struct vport *vport, struct sk_buff *skb, u8 mac_proto)
 
 	if (unlikely(packet_length(skb, vport->dev) > mtu &&
 		     !skb_is_gso(skb))) {
-		net_warn_ratelimited("%s: dropped over-mtu packet: %d > %d\n",
-				     vport->dev->name,
-				     packet_length(skb, vport->dev), mtu);
 		vport->dev->stats.tx_errors++;
+		if (vport->dev->flags & IFF_UP)
+			net_warn_ratelimited("%s: dropped over-mtu packet: "
+					     "%d > %d\n", vport->dev->name,
+					     packet_length(skb, vport->dev),
+					     mtu);
 		goto drop;
 	}
 
 	skb->dev = vport->dev;
+	skb->tstamp = 0;
 	vport->ops->send(skb);
 	return;
 

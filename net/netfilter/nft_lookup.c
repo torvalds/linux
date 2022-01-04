@@ -23,6 +23,37 @@ struct nft_lookup {
 	struct nft_set_binding		binding;
 };
 
+#ifdef CONFIG_RETPOLINE
+bool nft_set_do_lookup(const struct net *net, const struct nft_set *set,
+		       const u32 *key, const struct nft_set_ext **ext)
+{
+	if (set->ops == &nft_set_hash_fast_type.ops)
+		return nft_hash_lookup_fast(net, set, key, ext);
+	if (set->ops == &nft_set_hash_type.ops)
+		return nft_hash_lookup(net, set, key, ext);
+
+	if (set->ops == &nft_set_rhash_type.ops)
+		return nft_rhash_lookup(net, set, key, ext);
+
+	if (set->ops == &nft_set_bitmap_type.ops)
+		return nft_bitmap_lookup(net, set, key, ext);
+
+	if (set->ops == &nft_set_pipapo_type.ops)
+		return nft_pipapo_lookup(net, set, key, ext);
+#if defined(CONFIG_X86_64) && !defined(CONFIG_UML)
+	if (set->ops == &nft_set_pipapo_avx2_type.ops)
+		return nft_pipapo_avx2_lookup(net, set, key, ext);
+#endif
+
+	if (set->ops == &nft_set_rbtree_type.ops)
+		return nft_rbtree_lookup(net, set, key, ext);
+
+	WARN_ON_ONCE(1);
+	return set->ops->lookup(net, set, key, ext);
+}
+EXPORT_SYMBOL_GPL(nft_set_do_lookup);
+#endif
+
 void nft_lookup_eval(const struct nft_expr *expr,
 		     struct nft_regs *regs,
 		     const struct nft_pktinfo *pkt)
@@ -30,13 +61,17 @@ void nft_lookup_eval(const struct nft_expr *expr,
 	const struct nft_lookup *priv = nft_expr_priv(expr);
 	const struct nft_set *set = priv->set;
 	const struct nft_set_ext *ext = NULL;
+	const struct net *net = nft_net(pkt);
 	bool found;
 
-	found = set->ops->lookup(nft_net(pkt), set, &regs->data[priv->sreg],
-				 &ext) ^ priv->invert;
+	found =	nft_set_do_lookup(net, set, &regs->data[priv->sreg], &ext) ^
+				  priv->invert;
 	if (!found) {
-		regs->verdict.code = NFT_BREAK;
-		return;
+		ext = nft_set_catchall_lookup(net, set);
+		if (!ext) {
+			regs->verdict.code = NFT_BREAK;
+			return;
+		}
 	}
 
 	if (ext) {

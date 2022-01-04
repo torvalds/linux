@@ -550,38 +550,6 @@
 #define HISTOGRAM_INT_CTRL_CLEAR		(1UL << 30)
 #define DPST_YUV_LUMA_MODE			0
 
-struct dpst_ie_histogram_control {
-	union {
-		uint32_t data;
-		struct {
-			uint32_t bin_reg_index:7;
-			uint32_t reserved:4;
-			uint32_t bin_reg_func_select:1;
-			uint32_t sync_to_phase_in:1;
-			uint32_t alt_enhancement_mode:2;
-			uint32_t reserved1:1;
-			uint32_t sync_to_phase_in_count:8;
-			uint32_t histogram_mode_select:1;
-			uint32_t reserved2:4;
-			uint32_t ie_pipe_assignment:1;
-			uint32_t ie_mode_table_enabled:1;
-			uint32_t ie_histogram_enable:1;
-		};
-	};
-};
-
-struct dpst_guardband {
-	union {
-		uint32_t data;
-		struct {
-			uint32_t guardband:22;
-			uint32_t guardband_interrupt_delay:8;
-			uint32_t interrupt_status:1;
-			uint32_t interrupt_enable:1;
-		};
-	};
-};
-
 #define PIPEAFRAMEHIGH		0x70040
 #define PIPEAFRAMEPIXEL		0x70044
 #define PIPEBFRAMEHIGH		0x71040

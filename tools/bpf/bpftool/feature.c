@@ -336,6 +336,10 @@ static void probe_kernel_image_config(const char *define_prefix)
 		{ "CONFIG_BPF_JIT", },
 		/* Avoid compiling eBPF interpreter (use JIT only) */
 		{ "CONFIG_BPF_JIT_ALWAYS_ON", },
+		/* Kernel BTF debug information available */
+		{ "CONFIG_DEBUG_INFO_BTF", },
+		/* Kernel module BTF debug information available */
+		{ "CONFIG_DEBUG_INFO_BTF_MODULES", },
 
 		/* cgroups */
 		{ "CONFIG_CGROUPS", },
@@ -1001,6 +1005,7 @@ static int do_help(int argc, char **argv)
 		"       %1$s %2$s help\n"
 		"\n"
 		"       COMPONENT := { kernel | dev NAME }\n"
+		"       " HELP_SPEC_OPTIONS " }\n"
 		"",
 		bin_name, argv[-2]);
 

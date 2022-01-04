@@ -60,6 +60,24 @@ void generic_fillattr(struct user_namespace *mnt_userns, struct inode *inode,
 EXPORT_SYMBOL(generic_fillattr);
 
 /**
+ * generic_fill_statx_attr - Fill in the statx attributes from the inode flags
+ * @inode:	Inode to use as the source
+ * @stat:	Where to fill in the attribute flags
+ *
+ * Fill in the STATX_ATTR_* flags in the kstat structure for properties of the
+ * inode that are published on i_flags and enforced by the VFS.
+ */
+void generic_fill_statx_attr(struct inode *inode, struct kstat *stat)
+{
+	if (inode->i_flags & S_IMMUTABLE)
+		stat->attributes |= STATX_ATTR_IMMUTABLE;
+	if (inode->i_flags & S_APPEND)
+		stat->attributes |= STATX_ATTR_APPEND;
+	stat->attributes_mask |= KSTAT_ATTR_VFS_FLAGS;
+}
+EXPORT_SYMBOL(generic_fill_statx_attr);
+
+/**
  * vfs_getattr_nosec - getattr without security checks
  * @path: file to get attributes from
  * @stat: structure to return attributes in
@@ -86,11 +104,19 @@ int vfs_getattr_nosec(const struct path *path, struct kstat *stat,
 	/* SB_NOATIME means filesystem supplies dummy atime value */
 	if (inode->i_sb->s_flags & SB_NOATIME)
 		stat->result_mask &= ~STATX_ATIME;
+
+	/*
+	 * Note: If you add another clause to set an attribute flag, please
+	 * update attributes_mask below.
+	 */
 	if (IS_AUTOMOUNT(inode))
 		stat->attributes |= STATX_ATTR_AUTOMOUNT;
 
 	if (IS_DAX(inode))
 		stat->attributes |= STATX_ATTR_DAX;
+
+	stat->attributes_mask |= (STATX_ATTR_AUTOMOUNT |
+				  STATX_ATTR_DAX);
 
 	mnt_userns = mnt_user_ns(path->mnt);
 	if (inode->i_op->getattr)

@@ -786,8 +786,7 @@ static int omap_rtc_probe(struct platform_device *pdev)
 	/* enable RTC functional clock */
 	if (rtc->type->has_32kclk_en) {
 		reg = rtc_read(rtc, OMAP_RTC_OSC_REG);
-		rtc_writel(rtc, OMAP_RTC_OSC_REG,
-				reg | OMAP_RTC_OSC_32KCLK_EN);
+		rtc_write(rtc, OMAP_RTC_OSC_REG, reg | OMAP_RTC_OSC_32KCLK_EN);
 	}
 
 	/* clear old status */
@@ -845,7 +844,7 @@ static int omap_rtc_probe(struct platform_device *pdev)
 		reg = rtc_read(rtc, OMAP_RTC_OSC_REG);
 		reg &= ~OMAP_RTC_OSC_OSC32K_GZ_DISABLE;
 		reg |= OMAP_RTC_OSC_32KCLK_EN | OMAP_RTC_OSC_SEL_32KCLK_SRC;
-		rtc_writel(rtc, OMAP_RTC_OSC_REG, reg);
+		rtc_write(rtc, OMAP_RTC_OSC_REG, reg);
 	}
 
 	rtc->type->lock(rtc);

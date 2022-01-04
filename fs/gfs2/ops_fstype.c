@@ -150,7 +150,6 @@ fail:
 /**
  * gfs2_check_sb - Check superblock
  * @sdp: the filesystem
- * @sb: The superblock
  * @silent: Don't print a message if the check fails
  *
  * Checks the version code of the FS is one that we understand how to
@@ -204,7 +203,6 @@ static void gfs2_sb_in(struct gfs2_sbd *sdp, const void *buf)
 
 	sb->sb_magic = be32_to_cpu(str->sb_header.mh_magic);
 	sb->sb_type = be32_to_cpu(str->sb_header.mh_type);
-	sb->sb_format = be32_to_cpu(str->sb_header.mh_format);
 	sb->sb_fs_format = be32_to_cpu(str->sb_fs_format);
 	sb->sb_multihost_format = be32_to_cpu(str->sb_multihost_format);
 	sb->sb_bsize = be32_to_cpu(str->sb_bsize);
@@ -223,7 +221,7 @@ static void gfs2_sb_in(struct gfs2_sbd *sdp, const void *buf)
  * gfs2_read_super - Read the gfs2 super block from disk
  * @sdp: The GFS2 super block
  * @sector: The location of the super block
- * @error: The error code to return
+ * @silent: Don't print a message if the check fails
  *
  * This uses the bio functions to read the super block from disk
  * because we want to be 100% sure that we never read cached data.
@@ -616,6 +614,7 @@ static int gfs2_jindex_hold(struct gfs2_sbd *sdp, struct gfs2_holder *ji_gh)
 			break;
 		}
 
+		d_mark_dontcache(jd->jd_inode);
 		spin_lock(&sdp->sd_jindex_spin);
 		jd->jd_jid = sdp->sd_journals++;
 		jip = GFS2_I(jd->jd_inode);
@@ -679,6 +678,7 @@ static int init_statfs(struct gfs2_sbd *sdp)
 			error = PTR_ERR(lsi->si_sc_inode);
 			fs_err(sdp, "can't find local \"sc\" file#%u: %d\n",
 			       jd->jd_jid, error);
+			kfree(lsi);
 			goto free_local;
 		}
 		lsi->si_jid = jd->jd_jid;
@@ -689,6 +689,7 @@ static int init_statfs(struct gfs2_sbd *sdp)
 	}
 
 	iput(pn);
+	pn = NULL;
 	ip = GFS2_I(sdp->sd_sc_inode);
 	error = gfs2_glock_nq_init(ip->i_gl, LM_ST_EXCLUSIVE, 0,
 				   &sdp->sd_sc_gh);
@@ -696,8 +697,16 @@ static int init_statfs(struct gfs2_sbd *sdp)
 		fs_err(sdp, "can't lock local \"sc\" file: %d\n", error);
 		goto free_local;
 	}
+	/* read in the local statfs buffer - other nodes don't change it. */
+	error = gfs2_meta_inode_buffer(ip, &sdp->sd_sc_bh);
+	if (error) {
+		fs_err(sdp, "Cannot read in local statfs: %d\n", error);
+		goto unlock_sd_gh;
+	}
 	return 0;
 
+unlock_sd_gh:
+	gfs2_glock_dq_uninit(&sdp->sd_sc_gh);
 free_local:
 	free_local_statfs_inodes(sdp);
 	iput(pn);
@@ -711,6 +720,7 @@ out:
 static void uninit_statfs(struct gfs2_sbd *sdp)
 {
 	if (!sdp->sd_args.ar_spectator) {
+		brelse(sdp->sd_sc_bh);
 		gfs2_glock_dq_uninit(&sdp->sd_sc_gh);
 		free_local_statfs_inodes(sdp);
 	}
@@ -983,7 +993,6 @@ static const struct lm_lockops nolock_ops = {
 /**
  * gfs2_lm_mount - mount a locking protocol
  * @sdp: the filesystem
- * @args: mount arguments
  * @silent: if 1, don't complain if the FS isn't a GFS2 fs
  *
  * Returns: errno
@@ -1090,11 +1099,38 @@ void gfs2_online_uevent(struct gfs2_sbd *sdp)
 	kobject_uevent_env(&sdp->sd_kobj, KOBJ_ONLINE, envp);
 }
 
+static int init_threads(struct gfs2_sbd *sdp)
+{
+	struct task_struct *p;
+	int error = 0;
+
+	p = kthread_run(gfs2_logd, sdp, "gfs2_logd");
+	if (IS_ERR(p)) {
+		error = PTR_ERR(p);
+		fs_err(sdp, "can't start logd thread: %d\n", error);
+		return error;
+	}
+	sdp->sd_logd_process = p;
+
+	p = kthread_run(gfs2_quotad, sdp, "gfs2_quotad");
+	if (IS_ERR(p)) {
+		error = PTR_ERR(p);
+		fs_err(sdp, "can't start quotad thread: %d\n", error);
+		goto fail;
+	}
+	sdp->sd_quotad_process = p;
+	return 0;
+
+fail:
+	kthread_stop(sdp->sd_logd_process);
+	sdp->sd_logd_process = NULL;
+	return error;
+}
+
 /**
  * gfs2_fill_super - Read in superblock
  * @sb: The VFS superblock
- * @args: Mount options
- * @silent: Don't complain if it's not a GFS2 filesystem
+ * @fc: Mount options and flags
  *
  * Returns: -errno
  */
@@ -1219,6 +1255,14 @@ static int gfs2_fill_super(struct super_block *sb, struct fs_context *fc)
 		goto fail_per_node;
 	}
 
+	if (!sb_rdonly(sb)) {
+		error = init_threads(sdp);
+		if (error) {
+			gfs2_withdraw_delayed(sdp);
+			goto fail_per_node;
+		}
+	}
+
 	error = gfs2_freeze_lock(sdp, &freeze_gh, 0);
 	if (error)
 		goto fail_per_node;
@@ -1228,6 +1272,12 @@ static int gfs2_fill_super(struct super_block *sb, struct fs_context *fc)
 
 	gfs2_freeze_unlock(&freeze_gh);
 	if (error) {
+		if (sdp->sd_quotad_process)
+			kthread_stop(sdp->sd_quotad_process);
+		sdp->sd_quotad_process = NULL;
+		if (sdp->sd_logd_process)
+			kthread_stop(sdp->sd_logd_process);
+		sdp->sd_logd_process = NULL;
 		fs_err(sdp, "can't make FS RW: %d\n", error);
 		goto fail_per_node;
 	}

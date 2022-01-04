@@ -34,6 +34,7 @@ properties:
               - allwinner,sun6i-a31-ehci
               - allwinner,sun7i-a20-ehci
               - allwinner,sun8i-a23-ehci
+              - allwinner,sun8i-a83t-ehci
               - allwinner,sun8i-h3-ehci
               - allwinner,sun8i-r40-ehci
               - allwinner,sun9i-a80-ehci
@@ -141,6 +142,11 @@ properties:
 
   iommus:
     maxItems: 1
+
+  dr_mode:
+    enum:
+      - host
+      - otg
 
 required:
   - compatible

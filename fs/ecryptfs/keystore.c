@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-/**
+/*
  * eCryptfs: Linux filesystem encryption layer
  * In-kernel key management code.  Includes functions to parse and
  * write authentication token-related packets with the underlying
@@ -21,7 +21,7 @@
 #include <linux/slab.h>
 #include "ecryptfs_kernel.h"
 
-/**
+/*
  * request_key returned an error instead of a valid key address;
  * determine the type of error, make appropriate log entries, and
  * return an error code.
@@ -536,8 +536,9 @@ out:
 
 /**
  * ecryptfs_find_auth_tok_for_sig
+ * @auth_tok_key: key containing the authentication token
  * @auth_tok: Set to the matching auth_tok; NULL if not found
- * @crypt_stat: inode crypt_stat crypto context
+ * @mount_crypt_stat: inode crypt_stat crypto context
  * @sig: Sig of auth_tok to find
  *
  * For now, this function simply looks at the registered auth_tok's
@@ -576,7 +577,7 @@ ecryptfs_find_auth_tok_for_sig(
 	return rc;
 }
 
-/**
+/*
  * write_tag_70_packet can gobble a lot of stack space. We stuff most
  * of the function's parameters in a kmalloc'd struct to help reduce
  * eCryptfs' overall stack usage.
@@ -604,7 +605,7 @@ struct ecryptfs_write_tag_70_packet_silly_stack {
 	struct shash_desc *hash_desc;
 };
 
-/**
+/*
  * write_tag_70_packet - Write encrypted filename (EFN) packet against FNEK
  * @filename: NULL-terminated filename string
  *
@@ -873,7 +874,7 @@ struct ecryptfs_parse_tag_70_packet_silly_stack {
 };
 
 /**
- * parse_tag_70_packet - Parse and process FNEK-encrypted passphrase packet
+ * ecryptfs_parse_tag_70_packet - Parse and process FNEK-encrypted passphrase packet
  * @filename: This function kmalloc's the memory for the filename
  * @filename_size: This function sets this to the amount of memory
  *                 kmalloc'd for the filename
@@ -1172,7 +1173,7 @@ decrypt_pki_encrypted_session_key(struct ecryptfs_auth_tok *auth_tok,
 	rc = ecryptfs_cipher_code_to_string(crypt_stat->cipher, cipher_code);
 	if (rc) {
 		ecryptfs_printk(KERN_ERR, "Cipher code [%d] is invalid\n",
-				cipher_code)
+				cipher_code);
 		goto out;
 	}
 	crypt_stat->flags |= ECRYPTFS_KEY_VALID;

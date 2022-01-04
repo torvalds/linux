@@ -3,8 +3,6 @@
  * Copyright (c) 1996, 2003 VIA Networking Technologies, Inc.
  * All rights reserved.
  *
- * File: device.h
- *
  * Purpose: MAC Data structure
  *
  * Author: Tevin Chen
@@ -76,8 +74,6 @@
 #define FIRMWARE_VERSION		0x133		/* version 1.51 */
 #define FIRMWARE_NAME			"vntwusb.fw"
 #define FIRMWARE_CHUNK_SIZE		0x400
-
-#define CONFIG_PATH			"/etc/vntconfiguration.dat"
 
 #define MAX_UINTS			8
 #define OPTION_DEFAULT			{ [0 ... MAX_UINTS - 1] = -1}

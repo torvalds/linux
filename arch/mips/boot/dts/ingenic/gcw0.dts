@@ -74,7 +74,6 @@
 		simple-audio-card,widgets =
 			"Speaker", "Speaker",
 			"Headphone", "Headphones",
-			"Line", "FM Radio",
 			"Microphone", "Built-in Mic";
 		simple-audio-card,routing =
 			"Headphones Amp INL", "LHPOUT",
@@ -85,8 +84,8 @@
 			"Speaker Amp INR", "ROUT",
 			"Speaker", "Speaker Amp OUTL",
 			"Speaker", "Speaker Amp OUTR",
-			"LLINEIN", "FM Radio",
-			"RLINEIN", "FM Radio",
+			"LLINEIN", "Cap-less",
+			"RLINEIN", "Cap-less",
 			"Built-in Mic", "MICBIAS",
 			"MIC1P", "Built-in Mic",
 			"MIC1N", "Built-in Mic";
@@ -345,7 +344,6 @@
 
 			spi-max-frequency = <3125000>;
 			spi-3wire;
-			spi-cs-high;
 
 			reset-gpios = <&gpe 2 GPIO_ACTIVE_LOW>;
 

@@ -224,7 +224,7 @@ struct fib *aac_fib_alloc_tag(struct aac_dev *dev, struct scsi_cmnd *scmd)
 {
 	struct fib *fibptr;
 
-	fibptr = &dev->fibs[scmd->request->tag];
+	fibptr = &dev->fibs[scsi_cmd_to_rq(scmd)->tag];
 	/*
 	 *	Null out fields that depend on being zero at the start of
 	 *	each I/O
@@ -323,7 +323,7 @@ void aac_fib_init(struct fib *fibptr)
 }
 
 /**
- *	fib_deallocate		-	deallocate a fib
+ *	fib_dealloc		-	deallocate a fib
  *	@fibptr: fib to deallocate
  *
  *	Will deallocate and return to the free pool the FIB pointed to by the
@@ -1950,7 +1950,7 @@ void aac_src_reinit_aif_worker(struct work_struct *work)
 }
 
 /**
- *	aac_handle_sa_aif	Handle a message from the firmware
+ *	aac_handle_sa_aif -	Handle a message from the firmware
  *	@dev: Which adapter this fib is from
  *	@fibptr: Pointer to fibptr from adapter
  *

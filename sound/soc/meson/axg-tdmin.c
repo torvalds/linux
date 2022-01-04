@@ -57,7 +57,7 @@ static const struct snd_kcontrol_new axg_tdmin_in_mux =
 static struct snd_soc_dai *
 axg_tdmin_get_be(struct snd_soc_dapm_widget *w)
 {
-	struct snd_soc_dapm_path *p = NULL;
+	struct snd_soc_dapm_path *p;
 	struct snd_soc_dai *be;
 
 	snd_soc_dapm_widget_for_each_source_path(w, p) {

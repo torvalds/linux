@@ -17,8 +17,14 @@ static bool ceph_mdsc_send_metrics(struct ceph_mds_client *mdsc,
 	struct ceph_metric_write_latency *write;
 	struct ceph_metric_metadata_latency *meta;
 	struct ceph_metric_dlease *dlease;
+	struct ceph_opened_files *files;
+	struct ceph_pinned_icaps *icaps;
+	struct ceph_opened_inodes *inodes;
+	struct ceph_read_io_size *rsize;
+	struct ceph_write_io_size *wsize;
 	struct ceph_client_metric *m = &mdsc->metric;
 	u64 nr_caps = atomic64_read(&m->total_caps);
+	u32 header_len = sizeof(struct ceph_metric_header);
 	struct ceph_msg *msg;
 	struct timespec64 ts;
 	s64 sum;
@@ -26,7 +32,9 @@ static bool ceph_mdsc_send_metrics(struct ceph_mds_client *mdsc,
 	s32 len;
 
 	len = sizeof(*head) + sizeof(*cap) + sizeof(*read) + sizeof(*write)
-	      + sizeof(*meta) + sizeof(*dlease);
+	      + sizeof(*meta) + sizeof(*dlease) + sizeof(*files)
+	      + sizeof(*icaps) + sizeof(*inodes) + sizeof(*rsize)
+	      + sizeof(*wsize);
 
 	msg = ceph_msg_new(CEPH_MSG_CLIENT_METRICS, len, GFP_NOFS, true);
 	if (!msg) {
@@ -39,10 +47,10 @@ static bool ceph_mdsc_send_metrics(struct ceph_mds_client *mdsc,
 
 	/* encode the cap metric */
 	cap = (struct ceph_metric_cap *)(head + 1);
-	cap->type = cpu_to_le32(CLIENT_METRIC_TYPE_CAP_INFO);
-	cap->ver = 1;
-	cap->compat = 1;
-	cap->data_len = cpu_to_le32(sizeof(*cap) - 10);
+	cap->header.type = cpu_to_le32(CLIENT_METRIC_TYPE_CAP_INFO);
+	cap->header.ver = 1;
+	cap->header.compat = 1;
+	cap->header.data_len = cpu_to_le32(sizeof(*cap) - header_len);
 	cap->hit = cpu_to_le64(percpu_counter_sum(&m->i_caps_hit));
 	cap->mis = cpu_to_le64(percpu_counter_sum(&m->i_caps_mis));
 	cap->total = cpu_to_le64(nr_caps);
@@ -50,10 +58,10 @@ static bool ceph_mdsc_send_metrics(struct ceph_mds_client *mdsc,
 
 	/* encode the read latency metric */
 	read = (struct ceph_metric_read_latency *)(cap + 1);
-	read->type = cpu_to_le32(CLIENT_METRIC_TYPE_READ_LATENCY);
-	read->ver = 1;
-	read->compat = 1;
-	read->data_len = cpu_to_le32(sizeof(*read) - 10);
+	read->header.type = cpu_to_le32(CLIENT_METRIC_TYPE_READ_LATENCY);
+	read->header.ver = 1;
+	read->header.compat = 1;
+	read->header.data_len = cpu_to_le32(sizeof(*read) - header_len);
 	sum = m->read_latency_sum;
 	jiffies_to_timespec64(sum, &ts);
 	read->sec = cpu_to_le32(ts.tv_sec);
@@ -62,10 +70,10 @@ static bool ceph_mdsc_send_metrics(struct ceph_mds_client *mdsc,
 
 	/* encode the write latency metric */
 	write = (struct ceph_metric_write_latency *)(read + 1);
-	write->type = cpu_to_le32(CLIENT_METRIC_TYPE_WRITE_LATENCY);
-	write->ver = 1;
-	write->compat = 1;
-	write->data_len = cpu_to_le32(sizeof(*write) - 10);
+	write->header.type = cpu_to_le32(CLIENT_METRIC_TYPE_WRITE_LATENCY);
+	write->header.ver = 1;
+	write->header.compat = 1;
+	write->header.data_len = cpu_to_le32(sizeof(*write) - header_len);
 	sum = m->write_latency_sum;
 	jiffies_to_timespec64(sum, &ts);
 	write->sec = cpu_to_le32(ts.tv_sec);
@@ -74,10 +82,10 @@ static bool ceph_mdsc_send_metrics(struct ceph_mds_client *mdsc,
 
 	/* encode the metadata latency metric */
 	meta = (struct ceph_metric_metadata_latency *)(write + 1);
-	meta->type = cpu_to_le32(CLIENT_METRIC_TYPE_METADATA_LATENCY);
-	meta->ver = 1;
-	meta->compat = 1;
-	meta->data_len = cpu_to_le32(sizeof(*meta) - 10);
+	meta->header.type = cpu_to_le32(CLIENT_METRIC_TYPE_METADATA_LATENCY);
+	meta->header.ver = 1;
+	meta->header.compat = 1;
+	meta->header.data_len = cpu_to_le32(sizeof(*meta) - header_len);
 	sum = m->metadata_latency_sum;
 	jiffies_to_timespec64(sum, &ts);
 	meta->sec = cpu_to_le32(ts.tv_sec);
@@ -86,13 +94,65 @@ static bool ceph_mdsc_send_metrics(struct ceph_mds_client *mdsc,
 
 	/* encode the dentry lease metric */
 	dlease = (struct ceph_metric_dlease *)(meta + 1);
-	dlease->type = cpu_to_le32(CLIENT_METRIC_TYPE_DENTRY_LEASE);
-	dlease->ver = 1;
-	dlease->compat = 1;
-	dlease->data_len = cpu_to_le32(sizeof(*dlease) - 10);
+	dlease->header.type = cpu_to_le32(CLIENT_METRIC_TYPE_DENTRY_LEASE);
+	dlease->header.ver = 1;
+	dlease->header.compat = 1;
+	dlease->header.data_len = cpu_to_le32(sizeof(*dlease) - header_len);
 	dlease->hit = cpu_to_le64(percpu_counter_sum(&m->d_lease_hit));
 	dlease->mis = cpu_to_le64(percpu_counter_sum(&m->d_lease_mis));
 	dlease->total = cpu_to_le64(atomic64_read(&m->total_dentries));
+	items++;
+
+	sum = percpu_counter_sum(&m->total_inodes);
+
+	/* encode the opened files metric */
+	files = (struct ceph_opened_files *)(dlease + 1);
+	files->header.type = cpu_to_le32(CLIENT_METRIC_TYPE_OPENED_FILES);
+	files->header.ver = 1;
+	files->header.compat = 1;
+	files->header.data_len = cpu_to_le32(sizeof(*files) - header_len);
+	files->opened_files = cpu_to_le64(atomic64_read(&m->opened_files));
+	files->total = cpu_to_le64(sum);
+	items++;
+
+	/* encode the pinned icaps metric */
+	icaps = (struct ceph_pinned_icaps *)(files + 1);
+	icaps->header.type = cpu_to_le32(CLIENT_METRIC_TYPE_PINNED_ICAPS);
+	icaps->header.ver = 1;
+	icaps->header.compat = 1;
+	icaps->header.data_len = cpu_to_le32(sizeof(*icaps) - header_len);
+	icaps->pinned_icaps = cpu_to_le64(nr_caps);
+	icaps->total = cpu_to_le64(sum);
+	items++;
+
+	/* encode the opened inodes metric */
+	inodes = (struct ceph_opened_inodes *)(icaps + 1);
+	inodes->header.type = cpu_to_le32(CLIENT_METRIC_TYPE_OPENED_INODES);
+	inodes->header.ver = 1;
+	inodes->header.compat = 1;
+	inodes->header.data_len = cpu_to_le32(sizeof(*inodes) - header_len);
+	inodes->opened_inodes = cpu_to_le64(percpu_counter_sum(&m->opened_inodes));
+	inodes->total = cpu_to_le64(sum);
+	items++;
+
+	/* encode the read io size metric */
+	rsize = (struct ceph_read_io_size *)(inodes + 1);
+	rsize->header.type = cpu_to_le32(CLIENT_METRIC_TYPE_READ_IO_SIZES);
+	rsize->header.ver = 1;
+	rsize->header.compat = 1;
+	rsize->header.data_len = cpu_to_le32(sizeof(*rsize) - header_len);
+	rsize->total_ops = cpu_to_le64(m->total_reads);
+	rsize->total_size = cpu_to_le64(m->read_size_sum);
+	items++;
+
+	/* encode the write io size metric */
+	wsize = (struct ceph_write_io_size *)(rsize + 1);
+	wsize->header.type = cpu_to_le32(CLIENT_METRIC_TYPE_WRITE_IO_SIZES);
+	wsize->header.ver = 1;
+	wsize->header.compat = 1;
+	wsize->header.data_len = cpu_to_le32(sizeof(*wsize) - header_len);
+	wsize->total_ops = cpu_to_le64(m->total_writes);
+	wsize->total_size = cpu_to_le64(m->write_size_sum);
 	items++;
 
 	put_unaligned_le32(items, &head->num);
@@ -183,21 +243,27 @@ int ceph_metric_init(struct ceph_client_metric *m)
 	if (ret)
 		goto err_i_caps_mis;
 
-	spin_lock_init(&m->read_latency_lock);
+	spin_lock_init(&m->read_metric_lock);
 	m->read_latency_sq_sum = 0;
 	m->read_latency_min = KTIME_MAX;
 	m->read_latency_max = 0;
 	m->total_reads = 0;
 	m->read_latency_sum = 0;
+	m->read_size_min = U64_MAX;
+	m->read_size_max = 0;
+	m->read_size_sum = 0;
 
-	spin_lock_init(&m->write_latency_lock);
+	spin_lock_init(&m->write_metric_lock);
 	m->write_latency_sq_sum = 0;
 	m->write_latency_min = KTIME_MAX;
 	m->write_latency_max = 0;
 	m->total_writes = 0;
 	m->write_latency_sum = 0;
+	m->write_size_min = U64_MAX;
+	m->write_size_max = 0;
+	m->write_size_sum = 0;
 
-	spin_lock_init(&m->metadata_latency_lock);
+	spin_lock_init(&m->metadata_metric_lock);
 	m->metadata_latency_sq_sum = 0;
 	m->metadata_latency_min = KTIME_MAX;
 	m->metadata_latency_max = 0;
@@ -245,23 +311,21 @@ void ceph_metric_destroy(struct ceph_client_metric *m)
 
 	cancel_delayed_work_sync(&m->delayed_work);
 
-	if (m->session)
-		ceph_put_mds_session(m->session);
+	ceph_put_mds_session(m->session);
 }
 
-static inline void __update_latency(ktime_t *totalp, ktime_t *lsump,
-				    ktime_t *min, ktime_t *max,
-				    ktime_t *sq_sump, ktime_t lat)
+#define METRIC_UPDATE_MIN_MAX(min, max, new)	\
+{						\
+	if (unlikely(new < min))		\
+		min = new;			\
+	if (unlikely(new > max))		\
+		max = new;			\
+}
+
+static inline void __update_stdev(ktime_t total, ktime_t lsum,
+				  ktime_t *sq_sump, ktime_t lat)
 {
-	ktime_t total, avg, sq, lsum;
-
-	total = ++(*totalp);
-	lsum = (*lsump += lat);
-
-	if (unlikely(lat < *min))
-		*min = lat;
-	if (unlikely(lat > *max))
-		*max = lat;
+	ktime_t avg, sq;
 
 	if (unlikely(total == 1))
 		return;
@@ -274,50 +338,73 @@ static inline void __update_latency(ktime_t *totalp, ktime_t *lsump,
 	*sq_sump += sq;
 }
 
-void ceph_update_read_latency(struct ceph_client_metric *m,
+void ceph_update_read_metrics(struct ceph_client_metric *m,
 			      ktime_t r_start, ktime_t r_end,
-			      int rc)
+			      unsigned int size, int rc)
 {
 	ktime_t lat = ktime_sub(r_end, r_start);
+	ktime_t total;
 
 	if (unlikely(rc < 0 && rc != -ENOENT && rc != -ETIMEDOUT))
 		return;
 
-	spin_lock(&m->read_latency_lock);
-	__update_latency(&m->total_reads, &m->read_latency_sum,
-			 &m->read_latency_min, &m->read_latency_max,
-			 &m->read_latency_sq_sum, lat);
-	spin_unlock(&m->read_latency_lock);
+	spin_lock(&m->read_metric_lock);
+	total = ++m->total_reads;
+	m->read_size_sum += size;
+	m->read_latency_sum += lat;
+	METRIC_UPDATE_MIN_MAX(m->read_size_min,
+			      m->read_size_max,
+			      size);
+	METRIC_UPDATE_MIN_MAX(m->read_latency_min,
+			      m->read_latency_max,
+			      lat);
+	__update_stdev(total, m->read_latency_sum,
+		       &m->read_latency_sq_sum, lat);
+	spin_unlock(&m->read_metric_lock);
 }
 
-void ceph_update_write_latency(struct ceph_client_metric *m,
+void ceph_update_write_metrics(struct ceph_client_metric *m,
 			       ktime_t r_start, ktime_t r_end,
-			       int rc)
+			       unsigned int size, int rc)
 {
 	ktime_t lat = ktime_sub(r_end, r_start);
+	ktime_t total;
 
 	if (unlikely(rc && rc != -ETIMEDOUT))
 		return;
 
-	spin_lock(&m->write_latency_lock);
-	__update_latency(&m->total_writes, &m->write_latency_sum,
-			 &m->write_latency_min, &m->write_latency_max,
-			 &m->write_latency_sq_sum, lat);
-	spin_unlock(&m->write_latency_lock);
+	spin_lock(&m->write_metric_lock);
+	total = ++m->total_writes;
+	m->write_size_sum += size;
+	m->write_latency_sum += lat;
+	METRIC_UPDATE_MIN_MAX(m->write_size_min,
+			      m->write_size_max,
+			      size);
+	METRIC_UPDATE_MIN_MAX(m->write_latency_min,
+			      m->write_latency_max,
+			      lat);
+	__update_stdev(total, m->write_latency_sum,
+		       &m->write_latency_sq_sum, lat);
+	spin_unlock(&m->write_metric_lock);
 }
 
-void ceph_update_metadata_latency(struct ceph_client_metric *m,
+void ceph_update_metadata_metrics(struct ceph_client_metric *m,
 				  ktime_t r_start, ktime_t r_end,
 				  int rc)
 {
 	ktime_t lat = ktime_sub(r_end, r_start);
+	ktime_t total;
 
 	if (unlikely(rc && rc != -ENOENT))
 		return;
 
-	spin_lock(&m->metadata_latency_lock);
-	__update_latency(&m->total_metadatas, &m->metadata_latency_sum,
-			 &m->metadata_latency_min, &m->metadata_latency_max,
-			 &m->metadata_latency_sq_sum, lat);
-	spin_unlock(&m->metadata_latency_lock);
+	spin_lock(&m->metadata_metric_lock);
+	total = ++m->total_metadatas;
+	m->metadata_latency_sum += lat;
+	METRIC_UPDATE_MIN_MAX(m->metadata_latency_min,
+			      m->metadata_latency_max,
+			      lat);
+	__update_stdev(total, m->metadata_latency_sum,
+		       &m->metadata_latency_sq_sum, lat);
+	spin_unlock(&m->metadata_metric_lock);
 }

@@ -202,7 +202,6 @@ static int mtk_disp_pwm_probe(struct platform_device *pdev)
 
 	mdp->chip.dev = &pdev->dev;
 	mdp->chip.ops = &mtk_disp_pwm_ops;
-	mdp->chip.base = -1;
 	mdp->chip.npwm = 1;
 
 	ret = pwmchip_add(&mdp->chip);

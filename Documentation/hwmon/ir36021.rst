@@ -19,7 +19,7 @@ Authors:
 Description
 -----------
 
-The IR36021 is a dual‐loop digital multi‐phase buck controller designed for
+The IR36021 is a dual-loop digital multi-phase buck controller designed for
 point of load applications.
 
 Usage Notes

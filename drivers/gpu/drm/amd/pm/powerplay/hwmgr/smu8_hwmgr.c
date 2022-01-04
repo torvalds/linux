@@ -1547,7 +1547,8 @@ static int smu8_print_clock_levels(struct pp_hwmgr *hwmgr,
 	struct smu8_hwmgr *data = hwmgr->backend;
 	struct phm_clock_voltage_dependency_table *sclk_table =
 			hwmgr->dyn_state.vddc_dependency_on_sclk;
-	int i, now, size = 0;
+	uint32_t i, now;
+	int size = 0;
 
 	switch (type) {
 	case PP_SCLK:
@@ -1558,7 +1559,7 @@ static int smu8_print_clock_levels(struct pp_hwmgr *hwmgr,
 				CURR_SCLK_INDEX);
 
 		for (i = 0; i < sclk_table->count; i++)
-			size += sprintf(buf + size, "%d: %uMhz %s\n",
+			size += sysfs_emit_at(buf, size, "%d: %uMhz %s\n",
 					i, sclk_table->entries[i].clk / 100,
 					(i == now) ? "*" : "");
 		break;
@@ -1570,7 +1571,7 @@ static int smu8_print_clock_levels(struct pp_hwmgr *hwmgr,
 				CURR_MCLK_INDEX);
 
 		for (i = SMU8_NUM_NBPMEMORYCLOCK; i > 0; i--)
-			size += sprintf(buf + size, "%d: %uMhz %s\n",
+			size += sysfs_emit_at(buf, size, "%d: %uMhz %s\n",
 					SMU8_NUM_NBPMEMORYCLOCK-i, data->sys_info.nbp_memory_clock[i-1] / 100,
 					(SMU8_NUM_NBPMEMORYCLOCK-i == now) ? "*" : "");
 		break;
@@ -1788,11 +1789,10 @@ static int smu8_read_sensor(struct pp_hwmgr *hwmgr, int idx,
 		result = smum_send_msg_to_smc(hwmgr,
 				PPSMC_MSG_GetAverageGraphicsActivity,
 				&activity_percent);
-		if (0 == result) {
+		if (0 == result)
 			activity_percent = activity_percent > 100 ? 100 : activity_percent;
-		} else {
-			activity_percent = 50;
-		}
+		else
+			return -EIO;
 		*((uint32_t *)value) = activity_percent;
 		return 0;
 	case AMDGPU_PP_SENSOR_UVD_POWER:
@@ -1805,7 +1805,7 @@ static int smu8_read_sensor(struct pp_hwmgr *hwmgr, int idx,
 		*((uint32_t *)value) = smu8_thermal_get_temperature(hwmgr);
 		return 0;
 	default:
-		return -EINVAL;
+		return -EOPNOTSUPP;
 	}
 }
 

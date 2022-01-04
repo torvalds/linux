@@ -161,6 +161,9 @@ void lkdtm_UNALIGNED_LOAD_STORE_WRITE(void)
 	if (*p == 0)
 		val = 0x87654321;
 	*p = val;
+
+	if (IS_ENABLED(CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS))
+		pr_err("XFAIL: arch has CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS\n");
 }
 
 void lkdtm_SOFTLOCKUP(void)
@@ -264,6 +267,7 @@ void lkdtm_ARRAY_BOUNDS(void)
 	kfree(not_checked);
 	kfree(checked);
 	pr_err("FAIL: survived array bounds overflow!\n");
+	pr_expected_config(CONFIG_UBSAN_BOUNDS);
 }
 
 void lkdtm_CORRUPT_LIST_ADD(void)
@@ -300,8 +304,10 @@ void lkdtm_CORRUPT_LIST_ADD(void)
 
 	if (target[0] == NULL && target[1] == NULL)
 		pr_err("Overwrite did not happen, but no BUG?!\n");
-	else
+	else {
 		pr_err("list_add() corruption not detected!\n");
+		pr_expected_config(CONFIG_DEBUG_LIST);
+	}
 }
 
 void lkdtm_CORRUPT_LIST_DEL(void)
@@ -325,8 +331,10 @@ void lkdtm_CORRUPT_LIST_DEL(void)
 
 	if (target[0] == NULL && target[1] == NULL)
 		pr_err("Overwrite did not happen, but no BUG?!\n");
-	else
+	else {
 		pr_err("list_del() corruption not detected!\n");
+		pr_expected_config(CONFIG_DEBUG_LIST);
+	}
 }
 
 /* Test that VMAP_STACK is actually allocating with a leading guard page */
@@ -463,7 +471,7 @@ void lkdtm_DOUBLE_FAULT(void)
 #ifdef CONFIG_ARM64
 static noinline void change_pac_parameters(void)
 {
-	if (IS_ENABLED(CONFIG_ARM64_PTR_AUTH)) {
+	if (IS_ENABLED(CONFIG_ARM64_PTR_AUTH_KERNEL)) {
 		/* Reset the keys of current task */
 		ptrauth_thread_init_kernel(current);
 		ptrauth_thread_switch_kernel(current);
@@ -477,8 +485,8 @@ noinline void lkdtm_CORRUPT_PAC(void)
 #define CORRUPT_PAC_ITERATE	10
 	int i;
 
-	if (!IS_ENABLED(CONFIG_ARM64_PTR_AUTH))
-		pr_err("FAIL: kernel not built with CONFIG_ARM64_PTR_AUTH\n");
+	if (!IS_ENABLED(CONFIG_ARM64_PTR_AUTH_KERNEL))
+		pr_err("FAIL: kernel not built with CONFIG_ARM64_PTR_AUTH_KERNEL\n");
 
 	if (!system_supports_address_auth()) {
 		pr_err("FAIL: CPU lacks pointer authentication feature\n");
@@ -498,54 +506,4 @@ noinline void lkdtm_CORRUPT_PAC(void)
 #else
 	pr_err("XFAIL: this test is arm64-only\n");
 #endif
-}
-
-void lkdtm_FORTIFY_OBJECT(void)
-{
-	struct target {
-		char a[10];
-	} target[2] = {};
-	int result;
-
-	/*
-	 * Using volatile prevents the compiler from determining the value of
-	 * 'size' at compile time. Without that, we would get a compile error
-	 * rather than a runtime error.
-	 */
-	volatile int size = 11;
-
-	pr_info("trying to read past the end of a struct\n");
-
-	result = memcmp(&target[0], &target[1], size);
-
-	/* Print result to prevent the code from being eliminated */
-	pr_err("FAIL: fortify did not catch an object overread!\n"
-	       "\"%d\" was the memcmp result.\n", result);
-}
-
-void lkdtm_FORTIFY_SUBOBJECT(void)
-{
-	struct target {
-		char a[10];
-		char b[10];
-	} target;
-	char *src;
-
-	src = kmalloc(20, GFP_KERNEL);
-	strscpy(src, "over ten bytes", 20);
-
-	pr_info("trying to strcpy past the end of a member of a struct\n");
-
-	/*
-	 * strncpy(target.a, src, 20); will hit a compile error because the
-	 * compiler knows at build time that target.a < 20 bytes. Use strcpy()
-	 * to force a runtime error.
-	 */
-	strcpy(target.a, src);
-
-	/* Use target.a to prevent the code from being eliminated */
-	pr_err("FAIL: fortify did not catch an sub-object overrun!\n"
-	       "\"%s\" was copied.\n", target.a);
-
-	kfree(src);
 }

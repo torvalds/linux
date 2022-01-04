@@ -464,8 +464,18 @@ static inline int rdev_assoc(struct cfg80211_registered_device *rdev,
 			     struct net_device *dev,
 			     struct cfg80211_assoc_request *req)
 {
+	const struct cfg80211_bss_ies *bss_ies;
 	int ret;
-	trace_rdev_assoc(&rdev->wiphy, dev, req);
+
+	/*
+	 * Note: we might trace not exactly the data that's processed,
+	 * due to races and the driver/mac80211 getting a newer copy.
+	 */
+	rcu_read_lock();
+	bss_ies = rcu_dereference(req->bss->ies);
+	trace_rdev_assoc(&rdev->wiphy, dev, req, bss_ies);
+	rcu_read_unlock();
+
 	ret = rdev->ops->assoc(&rdev->wiphy, dev, req);
 	trace_rdev_return_int(&rdev->wiphy, ret);
 	return ret;
@@ -1353,6 +1363,19 @@ static inline int rdev_set_sar_specs(struct cfg80211_registered_device *rdev,
 
 	trace_rdev_set_sar_specs(&rdev->wiphy, sar);
 	ret = rdev->ops->set_sar_specs(&rdev->wiphy, sar);
+	trace_rdev_return_int(&rdev->wiphy, ret);
+
+	return ret;
+}
+
+static inline int rdev_color_change(struct cfg80211_registered_device *rdev,
+				    struct net_device *dev,
+				    struct cfg80211_color_change_settings *params)
+{
+	int ret;
+
+	trace_rdev_color_change(&rdev->wiphy, dev, params);
+	ret = rdev->ops->color_change(&rdev->wiphy, dev, params);
 	trace_rdev_return_int(&rdev->wiphy, ret);
 
 	return ret;

@@ -47,12 +47,16 @@ enum {
 	MAX_PATHS_NUM = 128,
 
 	/*
-	 * With the size of struct rtrs_permit allocated on the client, 4K
-	 * is the maximum number of rtrs_permits we can allocate. This number is
-	 * also used on the client to allocate the IU for the user connection
-	 * to receive the RDMA addresses from the server.
+	 * Max IB immediate data size is 2^28 (MAX_IMM_PAYL_BITS)
+	 * and the minimum chunk size is 4096 (2^12).
+	 * So the maximum sess_queue_depth is 65536 (2^16) in theory.
+	 * But mempool_create, create_qp and ib_post_send fail with
+	 * "cannot allocate memory" error if sess_queue_depth is too big.
+	 * Therefore the pratical max value of sess_queue_depth is
+	 * somewhere between 1 and 65534 and it depends on the system.
 	 */
-	MAX_SESS_QUEUE_DEPTH = 4096,
+	MAX_SESS_QUEUE_DEPTH = 65535,
+	MIN_CHUNK_SIZE = 8192,
 
 	RTRS_HB_INTERVAL_MS = 5000,
 	RTRS_HB_MISSED_MAX = 5,
@@ -91,6 +95,9 @@ struct rtrs_con {
 	struct ib_cq		*cq;
 	struct rdma_cm_id	*cm_id;
 	unsigned int		cid;
+	int                     nr_cqe;
+	atomic_t		wr_cnt;
+	atomic_t		sq_wr_avail;
 };
 
 struct rtrs_sess {
@@ -101,7 +108,9 @@ struct rtrs_sess {
 	uuid_t			uuid;
 	struct rtrs_con	**con;
 	unsigned int		con_num;
+	unsigned int		irq_con_num;
 	unsigned int		recon_cnt;
+	unsigned int		signal_interval;
 	struct rtrs_ib_dev	*dev;
 	int			dev_ref;
 	struct ib_cqe		*hb_cqe;
@@ -111,6 +120,8 @@ struct rtrs_sess {
 	unsigned int		hb_interval_ms;
 	unsigned int		hb_missed_cnt;
 	unsigned int		hb_missed_max;
+	ktime_t			hb_last_sent;
+	ktime_t			hb_cur_latency;
 };
 
 /* rtrs information unit */
@@ -286,10 +297,10 @@ struct rtrs_msg_rdma_hdr {
 
 /* rtrs.c */
 
-struct rtrs_iu *rtrs_iu_alloc(u32 queue_size, size_t size, gfp_t t,
+struct rtrs_iu *rtrs_iu_alloc(u32 queue_num, size_t size, gfp_t t,
 			      struct ib_device *dev, enum dma_data_direction,
 			      void (*done)(struct ib_cq *cq, struct ib_wc *wc));
-void rtrs_iu_free(struct rtrs_iu *iu, struct ib_device *dev, u32 queue_size);
+void rtrs_iu_free(struct rtrs_iu *iu, struct ib_device *dev, u32 queue_num);
 int rtrs_iu_post_recv(struct rtrs_con *con, struct rtrs_iu *iu);
 int rtrs_iu_post_send(struct rtrs_con *con, struct rtrs_iu *iu, size_t size,
 		      struct ib_send_wr *head);
@@ -297,15 +308,13 @@ int rtrs_iu_post_rdma_write_imm(struct rtrs_con *con, struct rtrs_iu *iu,
 				struct ib_sge *sge, unsigned int num_sge,
 				u32 rkey, u64 rdma_addr, u32 imm_data,
 				enum ib_send_flags flags,
-				struct ib_send_wr *head);
+				struct ib_send_wr *head,
+				struct ib_send_wr *tail);
 
 int rtrs_post_recv_empty(struct rtrs_con *con, struct ib_cqe *cqe);
-int rtrs_post_rdma_write_imm_empty(struct rtrs_con *con, struct ib_cqe *cqe,
-				   u32 imm_data, enum ib_send_flags flags,
-				   struct ib_send_wr *head);
 
-int rtrs_cq_qp_create(struct rtrs_sess *rtrs_sess, struct rtrs_con *con,
-		      u32 max_send_sge, int cq_vector, int cq_size,
+int rtrs_cq_qp_create(struct rtrs_sess *sess, struct rtrs_con *con,
+		      u32 max_send_sge, int cq_vector, int nr_cqe,
 		      u32 max_send_wr, u32 max_recv_wr,
 		      enum ib_poll_context poll_ctx);
 void rtrs_cq_qp_destroy(struct rtrs_con *con);

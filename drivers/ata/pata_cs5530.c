@@ -147,8 +147,9 @@ static unsigned int cs5530_qc_issue(struct ata_queued_cmd *qc)
 }
 
 static struct scsi_host_template cs5530_sht = {
-	ATA_BMDMA_SHT(DRV_NAME),
+	ATA_BASE_SHT(DRV_NAME),
 	.sg_tablesize	= LIBATA_DUMB_MAX_PRD,
+	.dma_boundary	= ATA_DMA_BOUNDARY,
 };
 
 static struct ata_port_operations cs5530_port_ops = {
@@ -271,7 +272,7 @@ fail_put:
 
 /**
  *	cs5530_init_one		-	Initialise a CS5530
- *	@dev: PCI device
+ *	@pdev: PCI device
  *	@id: Entry in match table
  *
  *	Install a driver for the newly found CS5530 companion chip. Most of

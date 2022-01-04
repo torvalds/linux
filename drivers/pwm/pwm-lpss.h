@@ -35,6 +35,5 @@ struct pwm_lpss_boardinfo {
 
 struct pwm_lpss_chip *pwm_lpss_probe(struct device *dev, struct resource *r,
 				     const struct pwm_lpss_boardinfo *info);
-int pwm_lpss_remove(struct pwm_lpss_chip *lpwm);
 
 #endif	/* __PWM_LPSS_H */

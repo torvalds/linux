@@ -407,7 +407,6 @@ static int mpls_forward(struct sk_buff *skb, struct net_device *dev,
 	/* Verify ttl is valid */
 	if (dec.ttl <= 1)
 		goto err;
-	dec.ttl -= 1;
 
 	/* Find the output device */
 	out_dev = rcu_dereference(nh->nh_dev);
@@ -431,6 +430,7 @@ static int mpls_forward(struct sk_buff *skb, struct net_device *dev,
 	skb->dev = out_dev;
 	skb->protocol = htons(ETH_P_MPLS_UC);
 
+	dec.ttl -= 1;
 	if (unlikely(!new_header_size && dec.bos)) {
 		/* Penultimate hop popping */
 		if (!mpls_egress(dev_net(out_dev), rt, skb, dec))
@@ -1019,7 +1019,6 @@ static int mpls_route_add(struct mpls_route_config *cfg,
 		goto errout;
 	}
 
-	err = -ENOMEM;
 	rt = mpls_rt_alloc(nhs, max_via_alen, max_labels);
 	if (IS_ERR(rt)) {
 		err = PTR_ERR(rt);

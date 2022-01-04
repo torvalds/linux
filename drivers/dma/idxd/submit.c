@@ -15,18 +15,29 @@ static struct idxd_desc *__get_desc(struct idxd_wq *wq, int idx, int cpu)
 
 	desc = wq->descs[idx];
 	memset(desc->hw, 0, sizeof(struct dsa_hw_desc));
-	memset(desc->completion, 0, idxd->compl_size);
+	memset(desc->completion, 0, idxd->data->compl_size);
 	desc->cpu = cpu;
 
 	if (device_pasid_enabled(idxd))
 		desc->hw->pasid = idxd->pasid;
 
 	/*
-	 * Descriptor completion vectors are 1-8 for MSIX. We will round
-	 * robin through the 8 vectors.
+	 * Descriptor completion vectors are 1...N for MSIX. We will round
+	 * robin through the N vectors.
 	 */
-	wq->vec_ptr = (wq->vec_ptr % idxd->num_wq_irqs) + 1;
-	desc->hw->int_handle = wq->vec_ptr;
+	wq->vec_ptr = desc->vector = (wq->vec_ptr % idxd->num_wq_irqs) + 1;
+	if (!idxd->int_handles) {
+		desc->hw->int_handle = wq->vec_ptr;
+	} else {
+		/*
+		 * int_handles are only for descriptor completion. However for device
+		 * MSIX enumeration, vec 0 is used for misc interrupts. Therefore even
+		 * though we are rotating through 1...N for descriptor interrupts, we
+		 * need to acqurie the int_handles from 0..N-1.
+		 */
+		desc->hw->int_handle = idxd->int_handles[desc->vector - 1];
+	}
+
 	return desc;
 }
 
@@ -76,15 +87,72 @@ void idxd_free_desc(struct idxd_wq *wq, struct idxd_desc *desc)
 	sbitmap_queue_clear(&wq->sbq, desc->id, cpu);
 }
 
+static struct idxd_desc *list_abort_desc(struct idxd_wq *wq, struct idxd_irq_entry *ie,
+					 struct idxd_desc *desc)
+{
+	struct idxd_desc *d, *n;
+
+	lockdep_assert_held(&ie->list_lock);
+	list_for_each_entry_safe(d, n, &ie->work_list, list) {
+		if (d == desc) {
+			list_del(&d->list);
+			return d;
+		}
+	}
+
+	/*
+	 * At this point, the desc needs to be aborted is held by the completion
+	 * handler where it has taken it off the pending list but has not added to the
+	 * work list. It will be cleaned up by the interrupt handler when it sees the
+	 * IDXD_COMP_DESC_ABORT for completion status.
+	 */
+	return NULL;
+}
+
+static void llist_abort_desc(struct idxd_wq *wq, struct idxd_irq_entry *ie,
+			     struct idxd_desc *desc)
+{
+	struct idxd_desc *d, *t, *found = NULL;
+	struct llist_node *head;
+	unsigned long flags;
+
+	desc->completion->status = IDXD_COMP_DESC_ABORT;
+	/*
+	 * Grab the list lock so it will block the irq thread handler. This allows the
+	 * abort code to locate the descriptor need to be aborted.
+	 */
+	spin_lock_irqsave(&ie->list_lock, flags);
+	head = llist_del_all(&ie->pending_llist);
+	if (head) {
+		llist_for_each_entry_safe(d, t, head, llnode) {
+			if (d == desc) {
+				found = desc;
+				continue;
+			}
+			list_add_tail(&desc->list, &ie->work_list);
+		}
+	}
+
+	if (!found)
+		found = list_abort_desc(wq, ie, desc);
+	spin_unlock_irqrestore(&ie->list_lock, flags);
+
+	if (found)
+		complete_desc(found, IDXD_COMPLETE_ABORT);
+}
+
 int idxd_submit_desc(struct idxd_wq *wq, struct idxd_desc *desc)
 {
 	struct idxd_device *idxd = wq->idxd;
-	int vec = desc->hw->int_handle;
+	struct idxd_irq_entry *ie = NULL;
 	void __iomem *portal;
 	int rc;
 
 	if (idxd->state != IDXD_DEV_ENABLED)
 		return -EIO;
+
+	if (!percpu_ref_tryget_live(&wq->wq_active))
+		return -ENXIO;
 
 	portal = wq->portal;
 
@@ -94,6 +162,16 @@ int idxd_submit_desc(struct idxd_wq *wq, struct idxd_desc *desc)
 	 * even on UP because the recipient is a device.
 	 */
 	wmb();
+
+	/*
+	 * Pending the descriptor to the lockless list for the irq_entry
+	 * that we designated the descriptor to.
+	 */
+	if (desc->hw->flags & IDXD_OP_FLAG_RCI) {
+		ie = &idxd->irq_entries[desc->vector];
+		llist_add(&desc->llnode, &ie->pending_llist);
+	}
+
 	if (wq_dedicated(wq)) {
 		iosubmit_cmds512(portal, desc->hw, 1);
 	} else {
@@ -104,17 +182,13 @@ int idxd_submit_desc(struct idxd_wq *wq, struct idxd_desc *desc)
 		 * device is not accepting descriptor at all.
 		 */
 		rc = enqcmds(portal, desc->hw);
-		if (rc < 0)
+		if (rc < 0) {
+			if (ie)
+				llist_abort_desc(wq, ie, desc);
 			return rc;
+		}
 	}
 
-	/*
-	 * Pending the descriptor to the lockless list for the irq_entry
-	 * that we designated the descriptor to.
-	 */
-	if (desc->hw->flags & IDXD_OP_FLAG_RCI)
-		llist_add(&desc->llnode,
-			  &idxd->irq_entries[vec].pending_llist);
-
+	percpu_ref_put(&wq->wq_active);
 	return 0;
 }

@@ -164,7 +164,7 @@ EXPORT_SYMBOL(refcount_dec_and_lock);
  * @flags: saved IRQ-flags if the is acquired
  *
  * Same as refcount_dec_and_lock() above except that the spinlock is acquired
- * with disabled interupts.
+ * with disabled interrupts.
  *
  * Return: true and hold spinlock if able to decrement refcount to 0, false
  *         otherwise

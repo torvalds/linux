@@ -166,10 +166,8 @@ static int igt_check_blocks(struct i915_buddy_mm *mm,
 		igt_dump_block(mm, prev);
 	}
 
-	if (block) {
-		pr_err("bad block, dump:\n");
-		igt_dump_block(mm, block);
-	}
+	pr_err("bad block, dump:\n");
+	igt_dump_block(mm, block);
 
 	return err;
 }
@@ -727,6 +725,53 @@ err_fini:
 	return err;
 }
 
+static int igt_buddy_alloc_limit(void *arg)
+{
+	struct i915_buddy_block *block;
+	struct i915_buddy_mm mm;
+	const u64 size = U64_MAX;
+	int err;
+
+	err = i915_buddy_init(&mm, size, PAGE_SIZE);
+	if (err)
+		return err;
+
+	if (mm.max_order != I915_BUDDY_MAX_ORDER) {
+		pr_err("mm.max_order(%d) != %d\n",
+		       mm.max_order, I915_BUDDY_MAX_ORDER);
+		err = -EINVAL;
+		goto out_fini;
+	}
+
+	block = i915_buddy_alloc(&mm, mm.max_order);
+	if (IS_ERR(block)) {
+		err = PTR_ERR(block);
+		goto out_fini;
+	}
+
+	if (i915_buddy_block_order(block) != mm.max_order) {
+		pr_err("block order(%d) != %d\n",
+		       i915_buddy_block_order(block), mm.max_order);
+		err = -EINVAL;
+		goto out_free;
+	}
+
+	if (i915_buddy_block_size(&mm, block) !=
+	    BIT_ULL(mm.max_order) * PAGE_SIZE) {
+		pr_err("block size(%llu) != %llu\n",
+		       i915_buddy_block_size(&mm, block),
+		       BIT_ULL(mm.max_order) * PAGE_SIZE);
+		err = -EINVAL;
+		goto out_free;
+	}
+
+out_free:
+	i915_buddy_free(&mm, block);
+out_fini:
+	i915_buddy_fini(&mm);
+	return err;
+}
+
 int i915_buddy_mock_selftests(void)
 {
 	static const struct i915_subtest tests[] = {
@@ -735,6 +780,7 @@ int i915_buddy_mock_selftests(void)
 		SUBTEST(igt_buddy_alloc_pathological),
 		SUBTEST(igt_buddy_alloc_smoke),
 		SUBTEST(igt_buddy_alloc_range),
+		SUBTEST(igt_buddy_alloc_limit),
 	};
 
 	return i915_subtests(tests, NULL);

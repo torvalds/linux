@@ -844,7 +844,7 @@ static const struct net_device_ops arc_emac_netdev_ops = {
 	.ndo_set_mac_address	= arc_emac_set_address,
 	.ndo_get_stats		= arc_emac_stats,
 	.ndo_set_rx_mode	= arc_emac_set_rx_mode,
-	.ndo_do_ioctl		= phy_do_ioctl_running,
+	.ndo_eth_ioctl		= phy_do_ioctl_running,
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller	= arc_emac_poll_controller,
 #endif
@@ -857,7 +857,6 @@ int arc_emac_probe(struct net_device *ndev, int interface)
 	struct device_node *phy_node;
 	struct phy_device *phydev = NULL;
 	struct arc_emac_priv *priv;
-	const char *mac_addr;
 	unsigned int id, clock_frequency, irq;
 	int err;
 
@@ -942,11 +941,8 @@ int arc_emac_probe(struct net_device *ndev, int interface)
 	}
 
 	/* Get MAC address from device tree */
-	mac_addr = of_get_mac_address(dev->of_node);
-
-	if (!IS_ERR(mac_addr))
-		ether_addr_copy(ndev->dev_addr, mac_addr);
-	else
+	err = of_get_mac_address(dev->of_node, ndev->dev_addr);
+	if (err)
 		eth_hw_addr_random(ndev);
 
 	arc_emac_set_address_internal(ndev);

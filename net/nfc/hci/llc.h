@@ -26,20 +26,20 @@ struct nfc_llc_ops {
 
 struct nfc_llc_engine {
 	const char *name;
-	struct nfc_llc_ops *ops;
+	const struct nfc_llc_ops *ops;
 	struct list_head entry;
 };
 
 struct nfc_llc {
 	void *data;
-	struct nfc_llc_ops *ops;
+	const struct nfc_llc_ops *ops;
 	int rx_headroom;
 	int rx_tailroom;
 };
 
 void *nfc_llc_get_data(struct nfc_llc *llc);
 
-int nfc_llc_register(const char *name, struct nfc_llc_ops *ops);
+int nfc_llc_register(const char *name, const struct nfc_llc_ops *ops);
 void nfc_llc_unregister(const char *name);
 
 int nfc_llc_nop_register(void);

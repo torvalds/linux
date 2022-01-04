@@ -52,6 +52,7 @@
 #include "en/health.h"
 #include "en/params.h"
 #include "devlink.h"
+#include "en/devlink.h"
 
 static struct sk_buff *
 mlx5e_skb_from_cqe_mpwrq_linear(struct mlx5e_rq *rq, struct mlx5e_mpw_info *wi,
@@ -578,6 +579,9 @@ INDIRECT_CALLABLE_SCOPE bool mlx5e_post_rx_wqes(struct mlx5e_rq *rq)
 	if (mlx5_wq_cyc_missing(wq) < wqe_bulk)
 		return false;
 
+	if (rq->page_pool)
+		page_pool_nid_changed(rq->page_pool, numa_mem_id());
+
 	do {
 		u16 head = mlx5_wq_cyc_get_head(wq);
 
@@ -669,6 +673,7 @@ int mlx5e_poll_ico_cq(struct mlx5e_cq *cq)
 						 get_cqe_opcode(cqe));
 				mlx5e_dump_error_cqe(&sq->cq, sq->sqn,
 						     (struct mlx5_err_cqe *)cqe);
+				mlx5_wq_cyc_wqe_dump(&sq->wq, ci, wi->num_wqebbs);
 				if (!test_and_set_bit(MLX5E_SQ_STATE_RECOVERING, &sq->state))
 					queue_work(cq->priv->wq, &sq->recover_work);
 				break;
@@ -731,6 +736,9 @@ INDIRECT_CALLABLE_SCOPE bool mlx5e_post_rx_mpwqes(struct mlx5e_rq *rq)
 #define UMR_WQE_BULK (2)
 	if (likely(missing < UMR_WQE_BULK))
 		return false;
+
+	if (rq->page_pool)
+		page_pool_nid_changed(rq->page_pool, numa_mem_id());
 
 	head = rq->mpwqe.actual_wq_head;
 	i = missing;
@@ -1308,7 +1316,8 @@ static void mlx5e_handle_rx_cqe_rep(struct mlx5e_rq *rq, struct mlx5_cqe64 *cqe)
 	if (rep->vlan && skb_vlan_tag_present(skb))
 		skb_vlan_pop(skb);
 
-	if (!mlx5e_rep_tc_update_skb(cqe, skb, &tc_priv)) {
+	if (unlikely(!mlx5_ipsec_is_rx_flow(cqe) &&
+		     !mlx5e_rep_tc_update_skb(cqe, skb, &tc_priv))) {
 		dev_kfree_skb_any(skb);
 		goto free_wqe;
 	}
@@ -1365,7 +1374,8 @@ static void mlx5e_handle_rx_cqe_mpwrq_rep(struct mlx5e_rq *rq, struct mlx5_cqe64
 
 	mlx5e_complete_rx_cqe(rq, cqe, cqe_bcnt, skb);
 
-	if (!mlx5e_rep_tc_update_skb(cqe, skb, &tc_priv)) {
+	if (unlikely(!mlx5_ipsec_is_rx_flow(cqe) &&
+		     !mlx5e_rep_tc_update_skb(cqe, skb, &tc_priv))) {
 		dev_kfree_skb_any(skb);
 		goto mpwrq_cqe_out;
 	}
@@ -1551,12 +1561,9 @@ int mlx5e_poll_rx_cq(struct mlx5e_cq *cq, int budget)
 	if (unlikely(!test_bit(MLX5E_RQ_STATE_ENABLED, &rq->state)))
 		return 0;
 
-	if (rq->page_pool)
-		page_pool_nid_changed(rq->page_pool, numa_mem_id());
-
 	if (rq->cqd.left) {
 		work_done += mlx5e_decompress_cqes_cont(rq, cqwq, 0, budget);
-		if (rq->cqd.left || work_done >= budget)
+		if (work_done >= budget)
 			goto out;
 	}
 
@@ -1822,6 +1829,7 @@ static void mlx5e_trap_handle_rx_cqe(struct mlx5e_rq *rq, struct mlx5_cqe64 *cqe
 	struct mlx5e_priv *priv = netdev_priv(rq->netdev);
 	struct mlx5_wq_cyc *wq = &rq->wqe.wq;
 	struct mlx5e_wqe_frag_info *wi;
+	struct devlink_port *dl_port;
 	struct sk_buff *skb;
 	u32 cqe_bcnt;
 	u16 trap_id;
@@ -1844,7 +1852,8 @@ static void mlx5e_trap_handle_rx_cqe(struct mlx5e_rq *rq, struct mlx5_cqe64 *cqe
 	mlx5e_complete_rx_cqe(rq, cqe, cqe_bcnt, skb);
 	skb_push(skb, ETH_HLEN);
 
-	mlx5_devlink_trap_report(rq->mdev, trap_id, skb, &priv->dl_port);
+	dl_port = mlx5e_devlink_get_dl_port(priv);
+	mlx5_devlink_trap_report(rq->mdev, trap_id, skb, dl_port);
 	dev_kfree_skb_any(skb);
 
 free_wqe:

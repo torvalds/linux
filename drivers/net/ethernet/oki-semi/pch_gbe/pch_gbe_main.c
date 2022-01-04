@@ -8,13 +8,15 @@
 
 #include "pch_gbe.h"
 #include "pch_gbe_phy.h"
+
+#include <linux/gpio/consumer.h>
+#include <linux/gpio/machine.h>
+#include <linux/iopoll.h>
 #include <linux/module.h>
 #include <linux/net_tstamp.h>
 #include <linux/ptp_classify.h>
+#include <linux/ptp_pch.h>
 #include <linux/gpio.h>
-
-#define DRV_VERSION     "1.01"
-const char pch_driver_version[] = DRV_VERSION;
 
 #define PCH_GBE_MAR_ENTRIES		16
 #define PCH_GBE_SHORT_PKT		64
@@ -96,8 +98,6 @@ const char pch_driver_version[] = DRV_VERSION;
 #define PTP_L4_MULTICAST_SA "01:00:5e:00:01:81"
 #define PTP_L2_MULTICAST_SA "01:1b:19:00:00:00"
 
-#define MINNOW_PHY_RESET_GPIO		13
-
 static int pch_gbe_mdio_read(struct net_device *netdev, int addr, int reg);
 static void pch_gbe_mdio_write(struct net_device *netdev, int addr, int reg,
 			       int data);
@@ -107,7 +107,7 @@ static int pch_ptp_match(struct sk_buff *skb, u16 uid_hi, u32 uid_lo, u16 seqid)
 {
 	u8 *data = skb->data;
 	unsigned int offset;
-	u16 *hi, *id;
+	u16 hi, id;
 	u32 lo;
 
 	if (ptp_classify_raw(skb) == PTP_CLASS_NONE)
@@ -118,14 +118,11 @@ static int pch_ptp_match(struct sk_buff *skb, u16 uid_hi, u32 uid_lo, u16 seqid)
 	if (skb->len < offset + OFF_PTP_SEQUENCE_ID + sizeof(seqid))
 		return 0;
 
-	hi = (u16 *)(data + offset + OFF_PTP_SOURCE_UUID);
-	id = (u16 *)(data + offset + OFF_PTP_SEQUENCE_ID);
+	hi = get_unaligned_be16(data + offset + OFF_PTP_SOURCE_UUID + 0);
+	lo = get_unaligned_be32(data + offset + OFF_PTP_SOURCE_UUID + 2);
+	id = get_unaligned_be16(data + offset + OFF_PTP_SEQUENCE_ID);
 
-	memcpy(&lo, &hi[1], sizeof(lo));
-
-	return (uid_hi == *hi &&
-		uid_lo == lo &&
-		seqid  == *id);
+	return (uid_hi == hi && uid_lo == lo && seqid == id);
 }
 
 static void
@@ -135,7 +132,6 @@ pch_rx_timestamp(struct pch_gbe_adapter *adapter, struct sk_buff *skb)
 	struct pci_dev *pdev;
 	u64 ns;
 	u32 hi, lo, val;
-	u16 uid, seq;
 
 	if (!adapter->hwts_rx_en)
 		return;
@@ -151,10 +147,7 @@ pch_rx_timestamp(struct pch_gbe_adapter *adapter, struct sk_buff *skb)
 	lo = pch_src_uuid_lo_read(pdev);
 	hi = pch_src_uuid_hi_read(pdev);
 
-	uid = hi & 0xffff;
-	seq = (hi >> 16) & 0xffff;
-
-	if (!pch_ptp_match(skb, htons(uid), htonl(lo), htons(seq)))
+	if (!pch_ptp_match(skb, hi, lo, hi >> 16))
 		goto out;
 
 	ns = pch_rx_snap_read(pdev);
@@ -297,15 +290,12 @@ static s32 pch_gbe_mac_read_mac_addr(struct pch_gbe_hw *hw)
  * @reg:	Pointer of register
  * @bit:	Busy bit
  */
-static void pch_gbe_wait_clr_bit(void *reg, u32 bit)
+static void pch_gbe_wait_clr_bit(void __iomem *reg, u32 bit)
 {
 	u32 tmp;
 
 	/* wait busy */
-	tmp = 1000;
-	while ((ioread32(reg) & bit) && --tmp)
-		cpu_relax();
-	if (!tmp)
+	if (readx_poll_timeout_atomic(ioread32, reg, tmp, !(tmp & bit), 0, 10))
 		pr_err("Error: busy bit is not cleared\n");
 }
 
@@ -489,18 +479,13 @@ u16 pch_gbe_mac_ctrl_miim(struct pch_gbe_hw *hw, u32 addr, u32 dir, u32 reg,
 			u16 data)
 {
 	struct pch_gbe_adapter *adapter = pch_gbe_hw_to_adapter(hw);
-	u32 data_out = 0;
-	unsigned int i;
 	unsigned long flags;
+	u32 data_out;
 
 	spin_lock_irqsave(&hw->miim_lock, flags);
 
-	for (i = 100; i; --i) {
-		if ((ioread32(&hw->reg->MIIM) & PCH_GBE_MIIM_OPER_READY))
-			break;
-		udelay(20);
-	}
-	if (i == 0) {
+	if (readx_poll_timeout_atomic(ioread32, &hw->reg->MIIM, data_out,
+				      data_out & PCH_GBE_MIIM_OPER_READY, 20, 2000)) {
 		netdev_err(adapter->netdev, "pch-gbe.miim won't go Ready\n");
 		spin_unlock_irqrestore(&hw->miim_lock, flags);
 		return 0;	/* No way to indicate timeout error */
@@ -508,12 +493,8 @@ u16 pch_gbe_mac_ctrl_miim(struct pch_gbe_hw *hw, u32 addr, u32 dir, u32 reg,
 	iowrite32(((reg << PCH_GBE_MIIM_REG_ADDR_SHIFT) |
 		  (addr << PCH_GBE_MIIM_PHY_ADDR_SHIFT) |
 		  dir | data), &hw->reg->MIIM);
-	for (i = 0; i < 100; i++) {
-		udelay(20);
-		data_out = ioread32(&hw->reg->MIIM);
-		if ((data_out & PCH_GBE_MIIM_OPER_READY))
-			break;
-	}
+	readx_poll_timeout_atomic(ioread32, &hw->reg->MIIM, data_out,
+				  data_out & PCH_GBE_MIIM_OPER_READY, 20, 2000);
 	spin_unlock_irqrestore(&hw->miim_lock, flags);
 
 	netdev_dbg(adapter->netdev, "PHY %s: reg=%d, data=0x%04X\n",
@@ -1050,13 +1031,7 @@ static void pch_gbe_watchdog(struct timer_list *t)
 		struct ethtool_cmd cmd = { .cmd = ETHTOOL_GSET };
 		netdev->tx_queue_len = adapter->tx_queue_len;
 		/* mii library handles link maintenance tasks */
-		if (mii_ethtool_gset(&adapter->mii, &cmd)) {
-			netdev_err(netdev, "ethtool get setting Error\n");
-			mod_timer(&adapter->watchdog_timer,
-				  round_jiffies(jiffies +
-						PCH_GBE_WATCHDOG_PERIOD));
-			return;
-		}
+		mii_ethtool_gset(&adapter->mii, &cmd);
 		hw->mac.link_speed = ethtool_cmd_speed(&cmd);
 		hw->mac.link_duplex = cmd.duplex;
 		/* Set the RGMII control. */
@@ -2352,7 +2327,7 @@ static const struct net_device_ops pch_gbe_netdev_ops = {
 	.ndo_tx_timeout = pch_gbe_tx_timeout,
 	.ndo_change_mtu = pch_gbe_change_mtu,
 	.ndo_set_features = pch_gbe_set_features,
-	.ndo_do_ioctl = pch_gbe_ioctl,
+	.ndo_eth_ioctl = pch_gbe_ioctl,
 	.ndo_set_rx_mode = pch_gbe_set_multi,
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller = pch_gbe_netpoll,
@@ -2531,9 +2506,13 @@ static int pch_gbe_probe(struct pci_dev *pdev,
 	adapter->pdev = pdev;
 	adapter->hw.back = adapter;
 	adapter->hw.reg = pcim_iomap_table(pdev)[PCH_GBE_PCI_BAR];
+
 	adapter->pdata = (struct pch_gbe_privdata *)pci_id->driver_data;
-	if (adapter->pdata && adapter->pdata->platform_init)
-		adapter->pdata->platform_init(pdev);
+	if (adapter->pdata && adapter->pdata->platform_init) {
+		ret = adapter->pdata->platform_init(pdev);
+		if (ret)
+			goto err_free_netdev;
+	}
 
 	adapter->ptp_pdev =
 		pci_get_domain_bus_and_slot(pci_domain_nr(adapter->pdev->bus),
@@ -2623,26 +2602,45 @@ err_free_netdev:
 	return ret;
 }
 
+static void pch_gbe_gpio_remove_table(void *table)
+{
+	gpiod_remove_lookup_table(table);
+}
+
+static int pch_gbe_gpio_add_table(struct device *dev, void *table)
+{
+	gpiod_add_lookup_table(table);
+	return devm_add_action_or_reset(dev, pch_gbe_gpio_remove_table, table);
+}
+
+static struct gpiod_lookup_table pch_gbe_minnow_gpio_table = {
+	.dev_id		= "0000:02:00.1",
+	.table		= {
+		GPIO_LOOKUP("sch_gpio.33158", 13, NULL, GPIO_ACTIVE_LOW),
+		{}
+	},
+};
+
 /* The AR803X PHY on the MinnowBoard requires a physical pin to be toggled to
  * ensure it is awake for probe and init. Request the line and reset the PHY.
  */
 static int pch_gbe_minnow_platform_init(struct pci_dev *pdev)
 {
-	unsigned long flags = GPIOF_DIR_OUT | GPIOF_INIT_HIGH | GPIOF_EXPORT;
-	unsigned gpio = MINNOW_PHY_RESET_GPIO;
+	struct gpio_desc *gpiod;
 	int ret;
 
-	ret = devm_gpio_request_one(&pdev->dev, gpio, flags,
-				    "minnow_phy_reset");
-	if (ret) {
-		dev_err(&pdev->dev,
-			"ERR: Can't request PHY reset GPIO line '%d'\n", gpio);
+	ret = pch_gbe_gpio_add_table(&pdev->dev, &pch_gbe_minnow_gpio_table);
+	if (ret)
 		return ret;
-	}
 
-	gpio_set_value(gpio, 0);
+	gpiod = devm_gpiod_get(&pdev->dev, NULL, GPIOD_OUT_HIGH);
+	if (IS_ERR(gpiod))
+		return dev_err_probe(&pdev->dev, PTR_ERR(gpiod),
+				     "Can't request PHY reset GPIO line\n");
+
+	gpiod_set_value(gpiod, 1);
 	usleep_range(1250, 1500);
-	gpio_set_value(gpio, 1);
+	gpiod_set_value(gpiod, 0);
 	usleep_range(1250, 1500);
 
 	return ret;
@@ -2721,7 +2719,6 @@ module_pci_driver(pch_gbe_driver);
 MODULE_DESCRIPTION("EG20T PCH Gigabit ethernet Driver");
 MODULE_AUTHOR("LAPIS SEMICONDUCTOR, <tshimizu818@gmail.com>");
 MODULE_LICENSE("GPL");
-MODULE_VERSION(DRV_VERSION);
 MODULE_DEVICE_TABLE(pci, pch_gbe_pcidev_id);
 
 /* pch_gbe_main.c */

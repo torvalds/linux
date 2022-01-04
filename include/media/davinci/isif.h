@@ -177,7 +177,7 @@ struct isif_black_clamp {
 	 * 1 - clamp value calculated separately for all colors
 	 */
 	__u8 bc_mode_color;
-	/* Vrtical start position for bc subtraction */
+	/* Vertical start position for bc subtraction */
 	__u16 vert_start_sub;
 	/* Black clamp for horizontal direction */
 	struct isif_horz_bclamp horz;
@@ -193,7 +193,7 @@ struct isif_color_space_conv {
 	/* Enable color space conversion */
 	__u8 en;
 	/*
-	 * csc coeffient table. S8Q5, M00 at index 0, M01 at index 1, and
+	 * csc coefficient table. S8Q5, M00 at index 0, M01 at index 1, and
 	 * so forth
 	 */
 	struct isif_float_8 coeff[ISIF_CSC_NUM_COEFF];
@@ -340,7 +340,7 @@ struct isif_data_formatter {
 };
 
 struct isif_df_csc {
-	/* Color Space Conversion confguration, 0 - csc, 1 - df */
+	/* Color Space Conversion configuration, 0 - csc, 1 - df */
 	__u8 df_or_csc;
 	/* csc configuration valid if df_or_csc is 0 */
 	struct isif_color_space_conv csc;
@@ -406,7 +406,7 @@ struct isif_config_params_raw {
 	struct isif_linearize linearize;
 	/* Data formatter or CSC */
 	struct isif_df_csc df_csc;
-	/* Defect Pixel Correction (DFC) confguration */
+	/* Defect Pixel Correction (DFC) configuration */
 	struct isif_dfc dfc;
 	/* Black/Digital Clamp configuration */
 	struct isif_black_clamp bclamp;

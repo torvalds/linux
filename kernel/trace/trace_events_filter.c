@@ -256,7 +256,7 @@ enum {
  * is "&&" we don't call update_preds(). Instead continue to "c". As the
  * next token after "c" is not "&&" but the end of input, we first process the
  * "&&" by calling update_preds() for the "&&" then we process the "||" by
- * callin updates_preds() with the values for processing "||".
+ * calling updates_preds() with the values for processing "||".
  *
  * What does that mean? What update_preds() does is to first save the "target"
  * of the program entry indexed by the current program entry's "target"
@@ -296,7 +296,7 @@ enum {
  * and "FALSE" the program entry after that, we are now done with the first
  * pass.
  *
- * Making the above "a || b && c" have a progam of:
+ * Making the above "a || b && c" have a program of:
  *  prog[0] = { "a", 1, 2 }
  *  prog[1] = { "b", 0, 2 }
  *  prog[2] = { "c", 0, 3 }
@@ -390,7 +390,7 @@ enum {
  * F: return FALSE
  *
  * As "r = a; if (!r) goto n5;" is obviously the same as
- * "if (!a) goto n5;" without doing anything we can interperate the
+ * "if (!a) goto n5;" without doing anything we can interpret the
  * program as:
  * n1: if (!a) goto n5;
  * n2: if (!b) goto n5;
@@ -1693,6 +1693,7 @@ static void create_filter_finish(struct filter_parse_error *pe)
 
 /**
  * create_filter - create a filter for a trace_event_call
+ * @tr: the trace array associated with these events
  * @call: trace_event_call to create a filter for
  * @filter_str: filter string
  * @set_str: remember @filter_str and enable detailed error in filter
@@ -1741,8 +1742,8 @@ int create_event_filter(struct trace_array *tr,
 }
 
 /**
- * create_system_filter - create a filter for an event_subsystem
- * @system: event_subsystem to create a filter for
+ * create_system_filter - create a filter for an event subsystem
+ * @dir: the descriptor for the subsystem directory
  * @filter_str: filter string
  * @filterp: out param for created filter (always updated on return)
  *
@@ -1750,7 +1751,6 @@ int create_event_filter(struct trace_array *tr,
  * and always remembers @filter_str.
  */
 static int create_system_filter(struct trace_subsystem_dir *dir,
-				struct trace_array *tr,
 				char *filter_str, struct event_filter **filterp)
 {
 	struct filter_parse_error *pe = NULL;
@@ -1758,13 +1758,13 @@ static int create_system_filter(struct trace_subsystem_dir *dir,
 
 	err = create_filter_start(filter_str, true, &pe, filterp);
 	if (!err) {
-		err = process_system_preds(dir, tr, pe, filter_str);
+		err = process_system_preds(dir, dir->tr, pe, filter_str);
 		if (!err) {
 			/* System filters just show a default message */
 			kfree((*filterp)->filter_string);
 			(*filterp)->filter_string = NULL;
 		} else {
-			append_filter_err(tr, pe, *filterp);
+			append_filter_err(dir->tr, pe, *filterp);
 		}
 	}
 	create_filter_finish(pe);
@@ -1852,7 +1852,7 @@ int apply_subsystem_event_filter(struct trace_subsystem_dir *dir,
 		goto out_unlock;
 	}
 
-	err = create_system_filter(dir, tr, filter_string, &filter);
+	err = create_system_filter(dir, filter_string, &filter);
 	if (filter) {
 		/*
 		 * No event actually uses the system filter

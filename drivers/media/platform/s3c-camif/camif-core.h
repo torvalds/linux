@@ -144,8 +144,10 @@ struct camif_pix_limits {
 /**
  * struct s3c_camif_variant - CAMIF variant structure
  * @vp_pix_limits:    pixel limits for the codec and preview paths
- * @camif_pix_limits: pixel limits for the camera input interface
+ * @pix_limits:       pixel limits for the camera input interface
  * @ip_revision:      the CAMIF IP revision: 0x20 for s3c244x, 0x32 for s3c6410
+ * @has_img_effect:   supports image effects
+ * @vp_offset:        register offset
  */
 struct s3c_camif_variant {
 	struct vp_pix_limits vp_pix_limits[2];
@@ -183,9 +185,10 @@ struct camif_dev;
  * @irq:	    interrupt number for this data path
  * @camif:	    pointer to the camif structure
  * @pad:	    media pad for the video node
- * @vdev            video device
+ * @vdev:           video device
  * @ctrl_handler:   video node controls handler
  * @owner:	    file handle that own the streaming
+ * @vb_queue:       vb2 buffer queue
  * @pending_buf_q:  pending (empty) buffers queue head
  * @active_buf_q:   active (being written) buffers queue head
  * @active_buffers: counter of buffer set up at the DMA engine
@@ -202,6 +205,7 @@ struct camif_dev;
  * @rotation:	    current image rotation value
  * @hflip:	    apply horizontal flip if set
  * @vflip:	    apply vertical flip if set
+ * @offset:	    register offset
  */
 struct camif_vp {
 	wait_queue_head_t	irq_queue;
@@ -248,7 +252,13 @@ struct camif_vp {
  * @sensor:       image sensor data structure
  * @m_pipeline:	  video entity pipeline description
  * @ctrl_handler: v4l2 control handler (owned by @subdev)
- * @test_pattern: test pattern controls
+ * @ctrl_test_pattern: V4L2_CID_TEST_PATTERN control
+ * @ctrl_colorfx: V4L2_CID_COLORFX control
+ * @ctrl_colorfx_cbcr:  V4L2_CID_COLORFX_CBCR control
+ * @test_pattern: test pattern
+ * @colorfx:	  color effect
+ * @colorfx_cb:   Cb value for V4L2_COLORFX_SET_CBCR
+ * @colorfx_cr:   Cr value for V4L2_COLORFX_SET_CBCR
  * @vp:           video path (DMA) description (codec/preview)
  * @variant:      variant information for this device
  * @dev:	  pointer to the CAMIF device struct

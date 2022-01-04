@@ -454,7 +454,7 @@ struct ipoib_neigh {
 	struct list_head    list;
 	struct ipoib_neigh __rcu *hnext;
 	struct rcu_head     rcu;
-	atomic_t	    refcnt;
+	refcount_t	    refcnt;
 	unsigned long       alive;
 };
 
@@ -464,7 +464,7 @@ struct ipoib_neigh {
 void ipoib_neigh_dtor(struct ipoib_neigh *neigh);
 static inline void ipoib_neigh_put(struct ipoib_neigh *neigh)
 {
-	if (atomic_dec_and_test(&neigh->refcnt))
+	if (refcount_dec_and_test(&neigh->refcnt))
 		ipoib_neigh_dtor(neigh);
 }
 struct ipoib_neigh *ipoib_neigh_get(struct net_device *dev, u8 *daddr);
@@ -501,9 +501,9 @@ void ipoib_reap_ah(struct work_struct *work);
 struct ipoib_path *__path_find(struct net_device *dev, void *gid);
 void ipoib_mark_paths_invalid(struct net_device *dev);
 void ipoib_flush_paths(struct net_device *dev);
-struct net_device *ipoib_intf_alloc(struct ib_device *hca, u8 port,
+struct net_device *ipoib_intf_alloc(struct ib_device *hca, u32 port,
 				    const char *format);
-int ipoib_intf_init(struct ib_device *hca, u8 port, const char *format,
+int ipoib_intf_init(struct ib_device *hca, u32 port, const char *format,
 		    struct net_device *dev);
 void ipoib_ib_tx_timer_func(struct timer_list *t);
 void ipoib_ib_dev_flush_light(struct work_struct *work);
@@ -676,8 +676,6 @@ void ipoib_cm_skb_too_long(struct net_device *dev, struct sk_buff *skb,
 void ipoib_cm_handle_rx_wc(struct net_device *dev, struct ib_wc *wc);
 void ipoib_cm_handle_tx_wc(struct net_device *dev, struct ib_wc *wc);
 #else
-
-struct ipoib_cm_tx;
 
 #define ipoib_max_conn_qp 0
 

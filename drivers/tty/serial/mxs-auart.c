@@ -87,7 +87,7 @@
 #define AUART_LINECTRL_BAUD_DIVFRAC(v)		(((v) & 0x3f) << 8)
 #define AUART_LINECTRL_SPS			(1 << 7)
 #define AUART_LINECTRL_WLEN_MASK		0x00000060
-#define AUART_LINECTRL_WLEN(v)			(((v) & 0x3) << 5)
+#define AUART_LINECTRL_WLEN(v)			((((v) - 5) & 0x3) << 5)
 #define AUART_LINECTRL_FEN			(1 << 4)
 #define AUART_LINECTRL_STP2			(1 << 3)
 #define AUART_LINECTRL_EPS			(1 << 2)
@@ -962,7 +962,7 @@ static void mxs_auart_settermios(struct uart_port *u,
 				 struct ktermios *old)
 {
 	struct mxs_auart_port *s = to_auart_port(u);
-	u32 bm, ctrl, ctrl2, div;
+	u32 ctrl, ctrl2, div;
 	unsigned int cflag, baud, baud_min, baud_max;
 
 	cflag = termios->c_cflag;
@@ -970,25 +970,7 @@ static void mxs_auart_settermios(struct uart_port *u,
 	ctrl = AUART_LINECTRL_FEN;
 	ctrl2 = mxs_read(s, REG_CTRL2);
 
-	/* byte size */
-	switch (cflag & CSIZE) {
-	case CS5:
-		bm = 0;
-		break;
-	case CS6:
-		bm = 1;
-		break;
-	case CS7:
-		bm = 2;
-		break;
-	case CS8:
-		bm = 3;
-		break;
-	default:
-		return;
-	}
-
-	ctrl |= AUART_LINECTRL_WLEN(bm);
+	ctrl |= AUART_LINECTRL_WLEN(tty_get_char_size(cflag));
 
 	/* parity */
 	if (cflag & PARENB) {
@@ -1403,7 +1385,7 @@ auart_console_get_options(struct mxs_auart_port *s, int *baud,
 			*parity = 'o';
 	}
 
-	if ((lcr_h & AUART_LINECTRL_WLEN_MASK) == AUART_LINECTRL_WLEN(2))
+	if ((lcr_h & AUART_LINECTRL_WLEN_MASK) == AUART_LINECTRL_WLEN(7))
 		*bits = 7;
 	else
 		*bits = 8;

@@ -319,18 +319,6 @@ static inline int ovl_dir_read(struct path *realpath,
 	return err;
 }
 
-/*
- * Can we iterate real dir directly?
- *
- * Non-merge dir may contain whiteouts from a time it was a merge upper, before
- * lower dir was removed under it and possibly before it was rotated from upper
- * to lower layer.
- */
-static bool ovl_dir_is_real(struct dentry *dir)
-{
-	return !ovl_test_flag(OVL_WHITEOUTS, d_inode(dir));
-}
-
 static void ovl_dir_reset(struct file *file)
 {
 	struct ovl_dir_file *od = file->private_data;
@@ -493,6 +481,8 @@ static int ovl_cache_update_ino(struct path *path, struct ovl_cache_entry *p)
 	}
 	this = lookup_one_len(p->name, dir, p->len);
 	if (IS_ERR_OR_NULL(this) || !this->d_inode) {
+		/* Mark a stale entry */
+		p->is_whiteout = true;
 		if (IS_ERR(this)) {
 			err = PTR_ERR(this);
 			this = NULL;
@@ -788,6 +778,9 @@ static int ovl_iterate(struct file *file, struct dir_context *ctx)
 				if (err)
 					goto out;
 			}
+		}
+		/* ovl_cache_update_ino() sets is_whiteout on stale entry */
+		if (!p->is_whiteout) {
 			if (!dir_emit(ctx, p->name, p->len, p->ino, p->type))
 				break;
 		}

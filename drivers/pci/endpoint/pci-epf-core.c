@@ -113,7 +113,7 @@ EXPORT_SYMBOL_GPL(pci_epf_bind);
 void pci_epf_free_space(struct pci_epf *epf, void *addr, enum pci_barno bar,
 			enum pci_epc_interface_type type)
 {
-	struct device *dev = epf->epc->dev.parent;
+	struct device *dev;
 	struct pci_epf_bar *epf_bar;
 	struct pci_epc *epc;
 
@@ -387,17 +387,14 @@ static int pci_epf_device_probe(struct device *dev)
 	return driver->probe(epf);
 }
 
-static int pci_epf_device_remove(struct device *dev)
+static void pci_epf_device_remove(struct device *dev)
 {
-	int ret = 0;
 	struct pci_epf *epf = to_pci_epf(dev);
 	struct pci_epf_driver *driver = to_pci_epf_driver(dev->driver);
 
 	if (driver->remove)
-		ret = driver->remove(epf);
+		driver->remove(epf);
 	epf->driver = NULL;
-
-	return ret;
 }
 
 static struct bus_type pci_epf_bus_type = {

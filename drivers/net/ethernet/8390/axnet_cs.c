@@ -128,7 +128,7 @@ static inline struct axnet_dev *PRIV(struct net_device *dev)
 static const struct net_device_ops axnet_netdev_ops = {
 	.ndo_open 		= axnet_open,
 	.ndo_stop		= axnet_close,
-	.ndo_do_ioctl		= axnet_ioctl,
+	.ndo_eth_ioctl		= axnet_ioctl,
 	.ndo_start_xmit		= axnet_start_xmit,
 	.ndo_tx_timeout		= axnet_tx_timeout,
 	.ndo_get_stats		= get_stats,
@@ -767,7 +767,7 @@ module_pcmcia_driver(axnet_cs_driver);
   Paul Gortmaker	: tweak ANK's above multicast changes a bit.
   Paul Gortmaker	: update packet statistics for v2.1.x
   Alan Cox		: support arbitrary stupid port mappings on the
-  			  68K Macintosh. Support >16bit I/O spaces
+			  68K Macintosh. Support >16bit I/O spaces
   Paul Gortmaker	: add kmod support for auto-loading of the 8390
 			  module by all drivers that require it.
   Alan Cox		: Spinlocking work, added 'BUG_83C690'
@@ -1091,7 +1091,7 @@ static irqreturn_t ax_interrupt(int irq, void *dev_id)
 	long e8390_base;
 	int interrupts, nr_serviced = 0, i;
 	struct ei_device *ei_local;
-    	int handled = 0;
+	int handled = 0;
 	unsigned long flags;
 
 	e8390_base = dev->base_addr;
@@ -1587,12 +1587,12 @@ static void do_set_multicast_list(struct net_device *dev)
 	}
 	outb_p(E8390_NODMA + E8390_PAGE0, e8390_base + E8390_CMD);
 
-  	if(dev->flags&IFF_PROMISC)
-  		outb_p(E8390_RXCONFIG | 0x58, e8390_base + EN0_RXCR);
+	if(dev->flags&IFF_PROMISC)
+		outb_p(E8390_RXCONFIG | 0x58, e8390_base + EN0_RXCR);
 	else if (dev->flags & IFF_ALLMULTI || !netdev_mc_empty(dev))
-  		outb_p(E8390_RXCONFIG | 0x48, e8390_base + EN0_RXCR);
-  	else
-  		outb_p(E8390_RXCONFIG | 0x40, e8390_base + EN0_RXCR);
+		outb_p(E8390_RXCONFIG | 0x48, e8390_base + EN0_RXCR);
+	else
+		outb_p(E8390_RXCONFIG | 0x40, e8390_base + EN0_RXCR);
 
 	outb_p(E8390_NODMA+E8390_PAGE0+E8390_START, e8390_base+E8390_CMD);
 }

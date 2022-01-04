@@ -4,6 +4,7 @@ Required properties:
 - compatible : "mediatek,mt8183_mt6358_ts3a227_max98357" for MAX98357A codec
                "mediatek,mt8183_mt6358_ts3a227_max98357b" for MAX98357B codec
                "mediatek,mt8183_mt6358_ts3a227_rt1015" for RT1015 codec
+               "mediatek,mt8183_mt6358_ts3a227_rt1015p" for RT1015P codec
 - mediatek,platform: the phandle of MT8183 ASoC platform
 
 Optional properties:

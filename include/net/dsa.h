@@ -49,10 +49,13 @@ struct phylink_link_state;
 #define DSA_TAG_PROTO_XRS700X_VALUE		19
 #define DSA_TAG_PROTO_OCELOT_8021Q_VALUE	20
 #define DSA_TAG_PROTO_SEVILLE_VALUE		21
+#define DSA_TAG_PROTO_BRCM_LEGACY_VALUE		22
+#define DSA_TAG_PROTO_SJA1110_VALUE		23
 
 enum dsa_tag_protocol {
 	DSA_TAG_PROTO_NONE		= DSA_TAG_PROTO_NONE_VALUE,
 	DSA_TAG_PROTO_BRCM		= DSA_TAG_PROTO_BRCM_VALUE,
+	DSA_TAG_PROTO_BRCM_LEGACY	= DSA_TAG_PROTO_BRCM_LEGACY_VALUE,
 	DSA_TAG_PROTO_BRCM_PREPEND	= DSA_TAG_PROTO_BRCM_PREPEND_VALUE,
 	DSA_TAG_PROTO_DSA		= DSA_TAG_PROTO_DSA_VALUE,
 	DSA_TAG_PROTO_EDSA		= DSA_TAG_PROTO_EDSA_VALUE,
@@ -73,23 +76,18 @@ enum dsa_tag_protocol {
 	DSA_TAG_PROTO_XRS700X		= DSA_TAG_PROTO_XRS700X_VALUE,
 	DSA_TAG_PROTO_OCELOT_8021Q	= DSA_TAG_PROTO_OCELOT_8021Q_VALUE,
 	DSA_TAG_PROTO_SEVILLE		= DSA_TAG_PROTO_SEVILLE_VALUE,
+	DSA_TAG_PROTO_SJA1110		= DSA_TAG_PROTO_SJA1110_VALUE,
 };
 
-struct packet_type;
 struct dsa_switch;
 
 struct dsa_device_ops {
 	struct sk_buff *(*xmit)(struct sk_buff *skb, struct net_device *dev);
-	struct sk_buff *(*rcv)(struct sk_buff *skb, struct net_device *dev,
-			       struct packet_type *pt);
+	struct sk_buff *(*rcv)(struct sk_buff *skb, struct net_device *dev);
 	void (*flow_dissect)(const struct sk_buff *skb, __be16 *proto,
 			     int *offset);
-	/* Used to determine which traffic should match the DSA filter in
-	 * eth_type_trans, and which, if any, should bypass it and be processed
-	 * as regular on the master net device.
-	 */
-	bool (*filter)(const struct sk_buff *skb, struct net_device *dev);
-	unsigned int overhead;
+	unsigned int needed_headroom;
+	unsigned int needed_tailroom;
 	const char *name;
 	enum dsa_tag_protocol proto;
 	/* Some tagging protocols either mangle or shift the destination MAC
@@ -98,7 +96,6 @@ struct dsa_device_ops {
 	 * its RX filter.
 	 */
 	bool promisc_on_master;
-	bool tail_tag;
 };
 
 /* This structure defines the control interfaces that are overlayed by the
@@ -107,27 +104,13 @@ struct dsa_device_ops {
  * function pointers.
  */
 struct dsa_netdevice_ops {
-	int (*ndo_do_ioctl)(struct net_device *dev, struct ifreq *ifr,
-			    int cmd);
+	int (*ndo_eth_ioctl)(struct net_device *dev, struct ifreq *ifr,
+			     int cmd);
 };
 
 #define DSA_TAG_DRIVER_ALIAS "dsa_tag-"
 #define MODULE_ALIAS_DSA_TAG_DRIVER(__proto)				\
 	MODULE_ALIAS(DSA_TAG_DRIVER_ALIAS __stringify(__proto##_VALUE))
-
-struct dsa_skb_cb {
-	struct sk_buff *clone;
-};
-
-struct __dsa_skb_cb {
-	struct dsa_skb_cb cb;
-	u8 priv[48 - sizeof(struct dsa_skb_cb)];
-};
-
-#define DSA_SKB_CB(skb) ((struct dsa_skb_cb *)((skb)->cb))
-
-#define DSA_SKB_CB_PRIV(skb)			\
-	((void *)(skb)->cb + offsetof(struct __dsa_skb_cb, priv))
 
 struct dsa_switch_tree {
 	struct list_head	list;
@@ -147,6 +130,11 @@ struct dsa_switch_tree {
 	/* Tagging protocol operations */
 	const struct dsa_device_ops *tag_ops;
 
+	/* Default tagging protocol preferred by the switches in this
+	 * tree.
+	 */
+	enum dsa_tag_protocol default_proto;
+
 	/*
 	 * Configuration data for the platform device that owns
 	 * this dsa switch tree instance.
@@ -164,6 +152,9 @@ struct dsa_switch_tree {
 	 */
 	struct net_device **lags;
 	unsigned int lags_len;
+
+	/* Track the largest switch index within a tree */
+	unsigned int last_switch;
 };
 
 #define dsa_lags_foreach_id(_id, _dst)				\
@@ -243,9 +234,7 @@ struct dsa_port {
 
 	/* Copies for faster access in master receive hot path */
 	struct dsa_switch_tree *dst;
-	struct sk_buff *(*rcv)(struct sk_buff *skb, struct net_device *dev,
-			       struct packet_type *pt);
-	bool (*filter)(const struct sk_buff *skb, struct net_device *dev);
+	struct sk_buff *(*rcv)(struct sk_buff *skb, struct net_device *dev);
 
 	enum {
 		DSA_PORT_TYPE_UNUSED = 0,
@@ -258,12 +247,15 @@ struct dsa_port {
 	unsigned int		index;
 	const char		*name;
 	struct dsa_port		*cpu_dp;
-	const char		*mac;
+	u8			mac[ETH_ALEN];
 	struct device_node	*dn;
 	unsigned int		ageing_time;
 	bool			vlan_filtering;
+	/* Managed by DSA on user ports and by drivers on CPU and DSA ports */
+	bool			learning;
 	u8			stp_state;
 	struct net_device	*bridge_dev;
+	int			bridge_num;
 	struct devlink_port	devlink_port;
 	bool			devlink_port_setup;
 	struct phylink		*pl;
@@ -290,6 +282,12 @@ struct dsa_port {
 	 */
 	const struct dsa_netdevice_ops *netdev_ops;
 
+	/* List of MAC addresses that must be forwarded on this port.
+	 * These are only valid on CPU ports and DSA links.
+	 */
+	struct list_head	fdbs;
+	struct list_head	mdbs;
+
 	bool setup;
 };
 
@@ -301,6 +299,13 @@ struct dsa_port {
 struct dsa_link {
 	struct dsa_port *dp;
 	struct dsa_port *link_dp;
+	struct list_head list;
+};
+
+struct dsa_mac_addr {
+	unsigned char addr[ETH_ALEN];
+	u16 vid;
+	refcount_t refcount;
 	struct list_head list;
 };
 
@@ -344,6 +349,9 @@ struct dsa_switch {
 	unsigned int ageing_time_min;
 	unsigned int ageing_time_max;
 
+	/* Storage for drivers using tag_8021q */
+	struct dsa_8021q_context *tag_8021q_ctx;
+
 	/* devlink used to represent this switch device */
 	struct devlink		*devlink;
 
@@ -354,6 +362,9 @@ struct dsa_switch {
 	 * settings on ports if not hardware-supported
 	 */
 	bool			vlan_filtering_is_global;
+
+	/* Keep VLAN filtering enabled on ports not offloading any upper. */
+	bool			needs_standalone_vlan_filtering;
 
 	/* Pass .port_vlan_add and .port_vlan_del to drivers even for bridges
 	 * that have vlan_filtering=0. All drivers should ideally set this (and
@@ -399,6 +410,13 @@ struct dsa_switch {
 	 */
 	unsigned int		num_lag_ids;
 
+	/* Drivers that support bridge forwarding offload should set this to
+	 * the maximum number of bridges spanning the same switch tree (or all
+	 * trees, in the case of cross-tree bridging support) that can be
+	 * offloaded.
+	 */
+	unsigned int		num_fwd_offloading_bridges;
+
 	size_t num_ports;
 };
 
@@ -412,6 +430,21 @@ static inline struct dsa_port *dsa_to_port(struct dsa_switch *ds, int p)
 			return dp;
 
 	return NULL;
+}
+
+static inline bool dsa_port_is_dsa(struct dsa_port *port)
+{
+	return port->type == DSA_PORT_TYPE_DSA;
+}
+
+static inline bool dsa_port_is_cpu(struct dsa_port *port)
+{
+	return port->type == DSA_PORT_TYPE_CPU;
+}
+
+static inline bool dsa_port_is_user(struct dsa_port *dp)
+{
+	return dp->type == DSA_PORT_TYPE_USER;
 }
 
 static inline bool dsa_is_unused_port(struct dsa_switch *ds, int p)
@@ -481,6 +514,32 @@ static inline unsigned int dsa_upstream_port(struct dsa_switch *ds, int port)
 	return dsa_towards_port(ds, cpu_dp->ds->index, cpu_dp->index);
 }
 
+/* Return true if this is the local port used to reach the CPU port */
+static inline bool dsa_is_upstream_port(struct dsa_switch *ds, int port)
+{
+	if (dsa_is_unused_port(ds, port))
+		return false;
+
+	return port == dsa_upstream_port(ds, port);
+}
+
+/* Return true if @upstream_ds is an upstream switch of @downstream_ds, meaning
+ * that the routing port from @downstream_ds to @upstream_ds is also the port
+ * which @downstream_ds uses to reach its dedicated CPU.
+ */
+static inline bool dsa_switch_is_upstream_of(struct dsa_switch *upstream_ds,
+					     struct dsa_switch *downstream_ds)
+{
+	int routing_port;
+
+	if (upstream_ds == downstream_ds)
+		return true;
+
+	routing_port = dsa_routing_port(downstream_ds, upstream_ds->index);
+
+	return dsa_is_upstream_port(downstream_ds, routing_port);
+}
+
 static inline bool dsa_port_is_vlan_filtering(const struct dsa_port *dp)
 {
 	const struct dsa_switch *ds = dp->ds;
@@ -489,6 +548,20 @@ static inline bool dsa_port_is_vlan_filtering(const struct dsa_port *dp)
 		return ds->vlan_filtering;
 	else
 		return dp->vlan_filtering;
+}
+
+static inline
+struct net_device *dsa_port_to_bridge_port(const struct dsa_port *dp)
+{
+	if (!dp->bridge_dev)
+		return NULL;
+
+	if (dp->lag_dev)
+		return dp->lag_dev;
+	else if (dp->hsr_dev)
+		return dp->hsr_dev;
+
+	return dp->slave;
 }
 
 typedef int dsa_fdb_dump_cb_t(const unsigned char *addr, u16 vid,
@@ -561,6 +634,8 @@ struct dsa_switch_ops {
 					 int port, uint64_t *data);
 	void	(*get_stats64)(struct dsa_switch *ds, int port,
 				   struct rtnl_link_stats64 *s);
+	void	(*self_test)(struct dsa_switch *ds, int port,
+			     struct ethtool_test *etest, u64 *data);
 
 	/*
 	 * ethtool Wake-on-LAN
@@ -625,6 +700,14 @@ struct dsa_switch_ops {
 				    struct net_device *bridge);
 	void	(*port_bridge_leave)(struct dsa_switch *ds, int port,
 				     struct net_device *bridge);
+	/* Called right after .port_bridge_join() */
+	int	(*port_bridge_tx_fwd_offload)(struct dsa_switch *ds, int port,
+					      struct net_device *bridge,
+					      int bridge_num);
+	/* Called right before .port_bridge_leave() */
+	void	(*port_bridge_tx_fwd_unoffload)(struct dsa_switch *ds, int port,
+						struct net_device *bridge,
+						int bridge_num);
 	void	(*port_stp_state_set)(struct dsa_switch *ds, int port,
 				      u8 state);
 	void	(*port_fast_age)(struct dsa_switch *ds, int port);
@@ -634,8 +717,6 @@ struct dsa_switch_ops {
 	int	(*port_bridge_flags)(struct dsa_switch *ds, int port,
 				     struct switchdev_brport_flags flags,
 				     struct netlink_ext_ack *extack);
-	int	(*port_set_mrouter)(struct dsa_switch *ds, int port, bool mrouter,
-				    struct netlink_ext_ack *extack);
 
 	/*
 	 * VLAN support
@@ -717,8 +798,8 @@ struct dsa_switch_ops {
 				     struct ifreq *ifr);
 	int	(*port_hwtstamp_set)(struct dsa_switch *ds, int port,
 				     struct ifreq *ifr);
-	bool	(*port_txtstamp)(struct dsa_switch *ds, int port,
-				 struct sk_buff *clone, unsigned int type);
+	void	(*port_txtstamp)(struct dsa_switch *ds, int port,
+				 struct sk_buff *skb);
 	bool	(*port_rxtstamp)(struct dsa_switch *ds, int port,
 				 struct sk_buff *skb, unsigned int type);
 
@@ -804,6 +885,13 @@ struct dsa_switch_ops {
 					  const struct switchdev_obj_ring_role_mrp *mrp);
 	int	(*port_mrp_del_ring_role)(struct dsa_switch *ds, int port,
 					  const struct switchdev_obj_ring_role_mrp *mrp);
+
+	/*
+	 * tag_8021q operations
+	 */
+	int	(*tag_8021q_vlan_add)(struct dsa_switch *ds, int port, u16 vid,
+				      u16 flags);
+	int	(*tag_8021q_vlan_del)(struct dsa_switch *ds, int port, u16 vid);
 };
 
 #define DSA_DEVLINK_PARAM_DRIVER(_id, _name, _type, _cmodes)		\
@@ -889,15 +977,6 @@ static inline bool netdev_uses_dsa(const struct net_device *dev)
 	return false;
 }
 
-static inline bool dsa_can_decode(const struct sk_buff *skb,
-				  struct net_device *dev)
-{
-#if IS_ENABLED(CONFIG_NET_DSA)
-	return !dev->dsa_ptr->filter || dev->dsa_ptr->filter(skb, dev);
-#endif
-	return false;
-}
-
 /* All DSA tags that push the EtherType to the right (basically all except tail
  * tags, which don't break dissection) can be treated the same from the
  * perspective of the flow dissector.
@@ -917,7 +996,7 @@ static inline void dsa_tag_generic_flow_dissect(const struct sk_buff *skb,
 {
 #if IS_ENABLED(CONFIG_NET_DSA)
 	const struct dsa_device_ops *ops = skb->dev->dsa_ptr->tag_ops;
-	int tag_len = ops->overhead;
+	int tag_len = ops->needed_headroom;
 
 	*offset = tag_len;
 	*proto = ((__be16 *)skb->data)[(tag_len / 2) - 1];
@@ -938,8 +1017,8 @@ static inline int __dsa_netdevice_ops_check(struct net_device *dev)
 	return 0;
 }
 
-static inline int dsa_ndo_do_ioctl(struct net_device *dev, struct ifreq *ifr,
-				   int cmd)
+static inline int dsa_ndo_eth_ioctl(struct net_device *dev, struct ifreq *ifr,
+				    int cmd)
 {
 	const struct dsa_netdevice_ops *ops;
 	int err;
@@ -950,11 +1029,11 @@ static inline int dsa_ndo_do_ioctl(struct net_device *dev, struct ifreq *ifr,
 
 	ops = dev->dsa_ptr->netdev_ops;
 
-	return ops->ndo_do_ioctl(dev, ifr, cmd);
+	return ops->ndo_eth_ioctl(dev, ifr, cmd);
 }
 #else
-static inline int dsa_ndo_do_ioctl(struct net_device *dev, struct ifreq *ifr,
-				   int cmd)
+static inline int dsa_ndo_eth_ioctl(struct net_device *dev, struct ifreq *ifr,
+				    int cmd)
 {
 	return -EOPNOTSUPP;
 }

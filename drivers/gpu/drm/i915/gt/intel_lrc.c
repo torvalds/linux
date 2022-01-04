@@ -3,6 +3,8 @@
  * Copyright © 2014 Intel Corporation
  */
 
+#include "gem/i915_gem_lmem.h"
+
 #include "gen8_engine_cs.h"
 #include "i915_drv.h"
 #include "i915_perf.h"
@@ -45,7 +47,7 @@ static void set_offsets(u32 *regs,
 		*regs = MI_LOAD_REGISTER_IMM(count);
 		if (flags & POSTED)
 			*regs |= MI_LRI_FORCE_POSTED;
-		if (INTEL_GEN(engine->i915) >= 11)
+		if (GRAPHICS_VER(engine->i915) >= 11)
 			*regs |= MI_LRI_LRM_CS_MMIO;
 		regs++;
 
@@ -68,7 +70,7 @@ static void set_offsets(u32 *regs,
 	if (close) {
 		/* Close the batch; used mainly by live_lrc_layout() */
 		*regs = MI_BATCH_BUFFER_END;
-		if (INTEL_GEN(engine->i915) >= 10)
+		if (GRAPHICS_VER(engine->i915) >= 11)
 			*regs |= BIT(0);
 	}
 }
@@ -482,6 +484,47 @@ static const u8 gen12_rcs_offsets[] = {
 	END
 };
 
+static const u8 xehp_rcs_offsets[] = {
+	NOP(1),
+	LRI(13, POSTED),
+	REG16(0x244),
+	REG(0x034),
+	REG(0x030),
+	REG(0x038),
+	REG(0x03c),
+	REG(0x168),
+	REG(0x140),
+	REG(0x110),
+	REG(0x1c0),
+	REG(0x1c4),
+	REG(0x1c8),
+	REG(0x180),
+	REG16(0x2b4),
+
+	NOP(5),
+	LRI(9, POSTED),
+	REG16(0x3a8),
+	REG16(0x28c),
+	REG16(0x288),
+	REG16(0x284),
+	REG16(0x280),
+	REG16(0x27c),
+	REG16(0x278),
+	REG16(0x274),
+	REG16(0x270),
+
+	LRI(3, POSTED),
+	REG(0x1b0),
+	REG16(0x5a8),
+	REG16(0x5ac),
+
+	NOP(6),
+	LRI(1, 0),
+	REG(0x0c8),
+
+	END
+};
+
 #undef END
 #undef REG16
 #undef REG
@@ -496,22 +539,24 @@ static const u8 *reg_offsets(const struct intel_engine_cs *engine)
 	 * addressing to automatic fixup the register state between the
 	 * physical engines for virtual engine.
 	 */
-	GEM_BUG_ON(INTEL_GEN(engine->i915) >= 12 &&
+	GEM_BUG_ON(GRAPHICS_VER(engine->i915) >= 12 &&
 		   !intel_engine_has_relative_mmio(engine));
 
 	if (engine->class == RENDER_CLASS) {
-		if (INTEL_GEN(engine->i915) >= 12)
+		if (GRAPHICS_VER_FULL(engine->i915) >= IP_VER(12, 50))
+			return xehp_rcs_offsets;
+		else if (GRAPHICS_VER(engine->i915) >= 12)
 			return gen12_rcs_offsets;
-		else if (INTEL_GEN(engine->i915) >= 11)
+		else if (GRAPHICS_VER(engine->i915) >= 11)
 			return gen11_rcs_offsets;
-		else if (INTEL_GEN(engine->i915) >= 9)
+		else if (GRAPHICS_VER(engine->i915) >= 9)
 			return gen9_rcs_offsets;
 		else
 			return gen8_rcs_offsets;
 	} else {
-		if (INTEL_GEN(engine->i915) >= 12)
+		if (GRAPHICS_VER(engine->i915) >= 12)
 			return gen12_xcs_offsets;
-		else if (INTEL_GEN(engine->i915) >= 9)
+		else if (GRAPHICS_VER(engine->i915) >= 9)
 			return gen9_xcs_offsets;
 		else
 			return gen8_xcs_offsets;
@@ -520,9 +565,11 @@ static const u8 *reg_offsets(const struct intel_engine_cs *engine)
 
 static int lrc_ring_mi_mode(const struct intel_engine_cs *engine)
 {
-	if (INTEL_GEN(engine->i915) >= 12)
+	if (GRAPHICS_VER_FULL(engine->i915) >= IP_VER(12, 50))
+		return 0x70;
+	else if (GRAPHICS_VER(engine->i915) >= 12)
 		return 0x60;
-	else if (INTEL_GEN(engine->i915) >= 9)
+	else if (GRAPHICS_VER(engine->i915) >= 9)
 		return 0x54;
 	else if (engine->class == RENDER_CLASS)
 		return 0x58;
@@ -532,9 +579,11 @@ static int lrc_ring_mi_mode(const struct intel_engine_cs *engine)
 
 static int lrc_ring_gpr0(const struct intel_engine_cs *engine)
 {
-	if (INTEL_GEN(engine->i915) >= 12)
+	if (GRAPHICS_VER_FULL(engine->i915) >= IP_VER(12, 50))
+		return 0x84;
+	else if (GRAPHICS_VER(engine->i915) >= 12)
 		return 0x74;
-	else if (INTEL_GEN(engine->i915) >= 9)
+	else if (GRAPHICS_VER(engine->i915) >= 9)
 		return 0x68;
 	else if (engine->class == RENDER_CLASS)
 		return 0xd8;
@@ -544,9 +593,9 @@ static int lrc_ring_gpr0(const struct intel_engine_cs *engine)
 
 static int lrc_ring_wa_bb_per_ctx(const struct intel_engine_cs *engine)
 {
-	if (INTEL_GEN(engine->i915) >= 12)
+	if (GRAPHICS_VER(engine->i915) >= 12)
 		return 0x12;
-	else if (INTEL_GEN(engine->i915) >= 9 || engine->class == RENDER_CLASS)
+	else if (GRAPHICS_VER(engine->i915) >= 9 || engine->class == RENDER_CLASS)
 		return 0x18;
 	else
 		return -1;
@@ -576,12 +625,18 @@ static int lrc_ring_indirect_offset(const struct intel_engine_cs *engine)
 
 static int lrc_ring_cmd_buf_cctl(const struct intel_engine_cs *engine)
 {
-	if (engine->class != RENDER_CLASS)
-		return -1;
 
-	if (INTEL_GEN(engine->i915) >= 12)
+	if (GRAPHICS_VER_FULL(engine->i915) >= IP_VER(12, 50))
+		/*
+		 * Note that the CSFE context has a dummy slot for CMD_BUF_CCTL
+		 * simply to match the RCS context image layout.
+		 */
+		return 0xc6;
+	else if (engine->class != RENDER_CLASS)
+		return -1;
+	else if (GRAPHICS_VER(engine->i915) >= 12)
 		return 0xb6;
-	else if (INTEL_GEN(engine->i915) >= 11)
+	else if (GRAPHICS_VER(engine->i915) >= 11)
 		return 0xaa;
 	else
 		return -1;
@@ -590,16 +645,14 @@ static int lrc_ring_cmd_buf_cctl(const struct intel_engine_cs *engine)
 static u32
 lrc_ring_indirect_offset_default(const struct intel_engine_cs *engine)
 {
-	switch (INTEL_GEN(engine->i915)) {
+	switch (GRAPHICS_VER(engine->i915)) {
 	default:
-		MISSING_CASE(INTEL_GEN(engine->i915));
+		MISSING_CASE(GRAPHICS_VER(engine->i915));
 		fallthrough;
 	case 12:
 		return GEN12_CTX_RCS_INDIRECT_CTX_OFFSET_DEFAULT;
 	case 11:
 		return GEN11_CTX_RCS_INDIRECT_CTX_OFFSET_DEFAULT;
-	case 10:
-		return GEN10_CTX_RCS_INDIRECT_CTX_OFFSET_DEFAULT;
 	case 9:
 		return GEN9_CTX_RCS_INDIRECT_CTX_OFFSET_DEFAULT;
 	case 8:
@@ -635,7 +688,7 @@ static void init_common_regs(u32 * const regs,
 	ctl |= _MASKED_BIT_DISABLE(CTX_CTRL_ENGINE_CTX_RESTORE_INHIBIT);
 	if (inhibit)
 		ctl |= CTX_CTRL_ENGINE_CTX_RESTORE_INHIBIT;
-	if (INTEL_GEN(engine->i915) < 11)
+	if (GRAPHICS_VER(engine->i915) < 11)
 		ctl |= _MASKED_BIT_DISABLE(CTX_CTRL_ENGINE_CTX_SAVE_INHIBIT |
 					   CTX_CTRL_RS_CTX_ENABLE);
 	regs[CTX_CONTEXT_CONTROL] = ctl;
@@ -803,12 +856,14 @@ __lrc_alloc_state(struct intel_context *ce, struct intel_engine_cs *engine)
 	if (IS_ENABLED(CONFIG_DRM_I915_DEBUG_GEM))
 		context_size += I915_GTT_PAGE_SIZE; /* for redzone */
 
-	if (INTEL_GEN(engine->i915) == 12) {
+	if (GRAPHICS_VER(engine->i915) == 12) {
 		ce->wa_bb_page = context_size / PAGE_SIZE;
 		context_size += PAGE_SIZE;
 	}
 
-	obj = i915_gem_object_create_shmem(engine->i915, context_size);
+	obj = i915_gem_object_create_lmem(engine->i915, context_size, 0);
+	if (IS_ERR(obj))
+		obj = i915_gem_object_create_shmem(engine->i915, context_size);
 	if (IS_ERR(obj))
 		return ERR_CAST(obj);
 
@@ -841,7 +896,7 @@ int lrc_alloc(struct intel_context *ce, struct intel_engine_cs *engine)
 	if (IS_ERR(vma))
 		return PTR_ERR(vma);
 
-	ring = intel_engine_create_ring(engine, (unsigned long)ce->ring);
+	ring = intel_engine_create_ring(engine, ce->ring_size);
 	if (IS_ERR(ring)) {
 		err = PTR_ERR(ring);
 		goto err_vma;
@@ -899,7 +954,9 @@ lrc_pre_pin(struct intel_context *ce,
 	GEM_BUG_ON(!i915_vma_is_pinned(ce->state));
 
 	*vaddr = i915_gem_object_pin_map(ce->state->obj,
-					 i915_coherent_map_type(ce->engine->i915) |
+					 i915_coherent_map_type(ce->engine->i915,
+								ce->state->obj,
+								false) |
 					 I915_MAP_OVERRIDE);
 
 	return PTR_ERR_OR_ZERO(*vaddr);
@@ -1095,6 +1152,14 @@ setup_indirect_ctx_bb(const struct intel_context *ce,
  *      bits 55-60:    SW counter
  *      bits 61-63:    engine class
  *
+ * On Xe_HP, the upper dword of the descriptor has a new format:
+ *
+ *      bits 32-37:    virtual function number
+ *      bit 38:        mbz, reserved for use by hardware
+ *      bits 39-54:    SW context ID
+ *      bits 55-57:    reserved
+ *      bits 58-63:    SW counter
+ *
  * engine info, SW context ID and SW counter need to form a unique number
  * (Context ID) per lrc.
  */
@@ -1108,7 +1173,7 @@ static u32 lrc_descriptor(const struct intel_context *ce)
 	desc <<= GEN8_CTX_ADDRESSING_MODE_SHIFT;
 
 	desc |= GEN8_CTX_VALID | GEN8_CTX_PRIVILEGE;
-	if (IS_GEN(ce->vm->i915, 8))
+	if (GRAPHICS_VER(ce->vm->i915) == 8)
 		desc |= GEN8_CTX_L3LLC_COHERENT;
 
 	return i915_ggtt_offset(ce->state) | desc;
@@ -1381,43 +1446,9 @@ static u32 *gen9_init_indirectctx_bb(struct intel_engine_cs *engine, u32 *batch)
 	return batch;
 }
 
-static u32 *
-gen10_init_indirectctx_bb(struct intel_engine_cs *engine, u32 *batch)
-{
-	int i;
-
-	/*
-	 * WaPipeControlBefore3DStateSamplePattern: cnl
-	 *
-	 * Ensure the engine is idle prior to programming a
-	 * 3DSTATE_SAMPLE_PATTERN during a context restore.
-	 */
-	batch = gen8_emit_pipe_control(batch,
-				       PIPE_CONTROL_CS_STALL,
-				       0);
-	/*
-	 * WaPipeControlBefore3DStateSamplePattern says we need 4 dwords for
-	 * the PIPE_CONTROL followed by 12 dwords of 0x0, so 16 dwords in
-	 * total. However, a PIPE_CONTROL is 6 dwords long, not 4, which is
-	 * confusing. Since gen8_emit_pipe_control() already advances the
-	 * batch by 6 dwords, we advance the other 10 here, completing a
-	 * cacheline. It's not clear if the workaround requires this padding
-	 * before other commands, or if it's just the regular padding we would
-	 * already have for the workaround bb, so leave it here for now.
-	 */
-	for (i = 0; i < 10; i++)
-		*batch++ = MI_NOOP;
-
-	/* Pad to end of cacheline */
-	while ((unsigned long)batch % CACHELINE_BYTES)
-		*batch++ = MI_NOOP;
-
-	return batch;
-}
-
 #define CTX_WA_BB_SIZE (PAGE_SIZE)
 
-static int lrc_setup_wa_ctx(struct intel_engine_cs *engine)
+static int lrc_create_wa_ctx(struct intel_engine_cs *engine)
 {
 	struct drm_i915_gem_object *obj;
 	struct i915_vma *vma;
@@ -1433,10 +1464,6 @@ static int lrc_setup_wa_ctx(struct intel_engine_cs *engine)
 		goto err;
 	}
 
-	err = i915_ggtt_pin(vma, NULL, 0, PIN_HIGH);
-	if (err)
-		goto err;
-
 	engine->wa_ctx.vma = vma;
 	return 0;
 
@@ -1448,9 +1475,6 @@ err:
 void lrc_fini_wa_ctx(struct intel_engine_cs *engine)
 {
 	i915_vma_unpin_and_release(&engine->wa_ctx.vma, 0);
-
-	/* Called on error unwind, clear all flags to prevent further use */
-	memset(&engine->wa_ctx, 0, sizeof(engine->wa_ctx));
 }
 
 typedef u32 *(*wa_bb_func_t)(struct intel_engine_cs *engine, u32 *batch);
@@ -1462,6 +1486,7 @@ void lrc_init_wa_ctx(struct intel_engine_cs *engine)
 		&wa_ctx->indirect_ctx, &wa_ctx->per_ctx
 	};
 	wa_bb_func_t wa_bb_fn[ARRAY_SIZE(wa_bb)];
+	struct i915_gem_ww_ctx ww;
 	void *batch, *batch_ptr;
 	unsigned int i;
 	int err;
@@ -1469,14 +1494,10 @@ void lrc_init_wa_ctx(struct intel_engine_cs *engine)
 	if (engine->class != RENDER_CLASS)
 		return;
 
-	switch (INTEL_GEN(engine->i915)) {
+	switch (GRAPHICS_VER(engine->i915)) {
 	case 12:
 	case 11:
 		return;
-	case 10:
-		wa_bb_fn[0] = gen10_init_indirectctx_bb;
-		wa_bb_fn[1] = NULL;
-		break;
 	case 9:
 		wa_bb_fn[0] = gen9_init_indirectctx_bb;
 		wa_bb_fn[1] = NULL;
@@ -1486,11 +1507,11 @@ void lrc_init_wa_ctx(struct intel_engine_cs *engine)
 		wa_bb_fn[1] = NULL;
 		break;
 	default:
-		MISSING_CASE(INTEL_GEN(engine->i915));
+		MISSING_CASE(GRAPHICS_VER(engine->i915));
 		return;
 	}
 
-	err = lrc_setup_wa_ctx(engine);
+	err = lrc_create_wa_ctx(engine);
 	if (err) {
 		/*
 		 * We continue even if we fail to initialize WA batch
@@ -1503,7 +1524,22 @@ void lrc_init_wa_ctx(struct intel_engine_cs *engine)
 		return;
 	}
 
+	if (!engine->wa_ctx.vma)
+		return;
+
+	i915_gem_ww_ctx_init(&ww, true);
+retry:
+	err = i915_gem_object_lock(wa_ctx->vma->obj, &ww);
+	if (!err)
+		err = i915_ggtt_pin(wa_ctx->vma, &ww, 0, PIN_HIGH);
+	if (err)
+		goto err;
+
 	batch = i915_gem_object_pin_map(wa_ctx->vma->obj, I915_MAP_WB);
+	if (IS_ERR(batch)) {
+		err = PTR_ERR(batch);
+		goto err_unpin;
+	}
 
 	/*
 	 * Emit the two workaround batch buffers, recording the offset from the
@@ -1528,8 +1564,26 @@ void lrc_init_wa_ctx(struct intel_engine_cs *engine)
 	__i915_gem_object_release_map(wa_ctx->vma->obj);
 
 	/* Verify that we can handle failure to setup the wa_ctx */
-	if (err || i915_inject_probe_error(engine->i915, -ENODEV))
-		lrc_fini_wa_ctx(engine);
+	if (!err)
+		err = i915_inject_probe_error(engine->i915, -ENODEV);
+
+err_unpin:
+	if (err)
+		i915_vma_unpin(wa_ctx->vma);
+err:
+	if (err == -EDEADLK) {
+		err = i915_gem_ww_ctx_backoff(&ww);
+		if (!err)
+			goto retry;
+	}
+	i915_gem_ww_ctx_fini(&ww);
+
+	if (err) {
+		i915_vma_put(engine->wa_ctx.vma);
+
+		/* Clear all flags to prevent further use */
+		memset(wa_ctx, 0, sizeof(*wa_ctx));
+	}
 }
 
 static void st_update_runtime_underflow(struct intel_context *ce, s32 dt)

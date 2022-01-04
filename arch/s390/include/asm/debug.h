@@ -13,6 +13,7 @@
 #include <linux/time.h>
 #include <linux/refcount.h>
 #include <linux/fs.h>
+#include <linux/init.h>
 
 #define DEBUG_MAX_LEVEL		   6  /* debug levels range from 0 to 6 */
 #define DEBUG_OFF_LEVEL		   -1 /* level where debug is switched off */
@@ -391,38 +392,99 @@ int debug_register_view(debug_info_t *id, struct debug_view *view);
 
 int debug_unregister_view(debug_info_t *id, struct debug_view *view);
 
+#ifndef MODULE
+
 /*
-   define the debug levels:
-   - 0 No debugging output to console or syslog
-   - 1 Log internal errors to syslog, ignore check conditions
-   - 2 Log internal errors and check conditions to syslog
-   - 3 Log internal errors to console, log check conditions to syslog
-   - 4 Log internal errors and check conditions to console
-   - 5 panic on internal errors, log check conditions to console
-   - 6 panic on both, internal errors and check conditions
+ * Note: Initial page and area numbers must be fixed to allow static
+ * initialization. This enables very early tracing. Changes to these values
+ * must be reflected in __DEFINE_STATIC_AREA.
  */
+#define EARLY_PAGES		8
+#define EARLY_AREAS		1
 
-#ifndef DEBUG_LEVEL
-#define DEBUG_LEVEL 4
-#endif
+#define VNAME(var, suffix)	__##var##_##suffix
 
-#define INTERNAL_ERRMSG(x,y...) "E" __FILE__ "%d: " x, __LINE__, y
-#define INTERNAL_WRNMSG(x,y...) "W" __FILE__ "%d: " x, __LINE__, y
-#define INTERNAL_INFMSG(x,y...) "I" __FILE__ "%d: " x, __LINE__, y
-#define INTERNAL_DEBMSG(x,y...) "D" __FILE__ "%d: " x, __LINE__, y
+/*
+ * Define static areas for early trace data. During boot debug_register_static()
+ * will replace these with dynamically allocated areas to allow custom page and
+ * area sizes, and dynamic resizing.
+ */
+#define __DEFINE_STATIC_AREA(var)					\
+static char VNAME(var, data)[EARLY_PAGES][PAGE_SIZE] __initdata;	\
+static debug_entry_t *VNAME(var, pages)[EARLY_PAGES] __initdata = {	\
+	(debug_entry_t *)VNAME(var, data)[0],				\
+	(debug_entry_t *)VNAME(var, data)[1],				\
+	(debug_entry_t *)VNAME(var, data)[2],				\
+	(debug_entry_t *)VNAME(var, data)[3],				\
+	(debug_entry_t *)VNAME(var, data)[4],				\
+	(debug_entry_t *)VNAME(var, data)[5],				\
+	(debug_entry_t *)VNAME(var, data)[6],				\
+	(debug_entry_t *)VNAME(var, data)[7],				\
+};									\
+static debug_entry_t **VNAME(var, areas)[EARLY_AREAS] __initdata = {	\
+	(debug_entry_t **)VNAME(var, pages),				\
+};									\
+static int VNAME(var, active_pages)[EARLY_AREAS] __initdata;		\
+static int VNAME(var, active_entries)[EARLY_AREAS] __initdata
 
-#if DEBUG_LEVEL > 0
-#define PRINT_DEBUG(x...)	printk(KERN_DEBUG PRINTK_HEADER x)
-#define PRINT_INFO(x...)	printk(KERN_INFO PRINTK_HEADER x)
-#define PRINT_WARN(x...)	printk(KERN_WARNING PRINTK_HEADER x)
-#define PRINT_ERR(x...)		printk(KERN_ERR PRINTK_HEADER x)
-#define PRINT_FATAL(x...)	panic(PRINTK_HEADER x)
-#else
-#define PRINT_DEBUG(x...)	printk(KERN_DEBUG PRINTK_HEADER x)
-#define PRINT_INFO(x...)	printk(KERN_DEBUG PRINTK_HEADER x)
-#define PRINT_WARN(x...)	printk(KERN_DEBUG PRINTK_HEADER x)
-#define PRINT_ERR(x...)		printk(KERN_DEBUG PRINTK_HEADER x)
-#define PRINT_FATAL(x...)	printk(KERN_DEBUG PRINTK_HEADER x)
-#endif /* DASD_DEBUG */
+#define __DEBUG_INFO_INIT(var, _name, _buf_size) {			\
+	.next = NULL,							\
+	.prev = NULL,							\
+	.ref_count = REFCOUNT_INIT(1),					\
+	.lock = __SPIN_LOCK_UNLOCKED(var.lock),				\
+	.level = DEBUG_DEFAULT_LEVEL,					\
+	.nr_areas = EARLY_AREAS,					\
+	.pages_per_area = EARLY_PAGES,					\
+	.buf_size = (_buf_size),					\
+	.entry_size = sizeof(debug_entry_t) + (_buf_size),		\
+	.areas = VNAME(var, areas),					\
+	.active_area = 0,						\
+	.active_pages = VNAME(var, active_pages),			\
+	.active_entries = VNAME(var, active_entries),			\
+	.debugfs_root_entry = NULL,					\
+	.debugfs_entries = { NULL },					\
+	.views = { NULL },						\
+	.name = (_name),						\
+	.mode = 0600,							\
+}
+
+#define __REGISTER_STATIC_DEBUG_INFO(var, name, pages, areas, view)	\
+static int __init VNAME(var, reg)(void)					\
+{									\
+	debug_register_static(&var, (pages), (areas));			\
+	debug_register_view(&var, (view));				\
+	return 0;							\
+}									\
+arch_initcall(VNAME(var, reg))
+
+/**
+ * DEFINE_STATIC_DEBUG_INFO - Define static debug_info_t
+ *
+ * @var: Name of debug_info_t variable
+ * @name: Name of debug log (e.g. used for debugfs entry)
+ * @pages_per_area: Number of pages per area
+ * @nr_areas: Number of debug areas
+ * @buf_size: Size of data area in each debug entry
+ * @view: Pointer to debug view struct
+ *
+ * Define a static debug_info_t for early tracing. The associated debugfs log
+ * is automatically registered with the specified debug view.
+ *
+ * Important: Users of this macro must not call any of the
+ * debug_register/_unregister() functions for this debug_info_t!
+ *
+ * Note: Tracing will start with a fixed number of initial pages and areas.
+ * The debug area will be changed to use the specified numbers during
+ * arch_initcall.
+ */
+#define DEFINE_STATIC_DEBUG_INFO(var, name, pages, nr_areas, buf_size, view) \
+__DEFINE_STATIC_AREA(var);						\
+static debug_info_t __refdata var =					\
+	__DEBUG_INFO_INIT(var, (name), (buf_size));			\
+__REGISTER_STATIC_DEBUG_INFO(var, name, pages, nr_areas, view)
+
+void debug_register_static(debug_info_t *id, int pages_per_area, int nr_areas);
+
+#endif /* MODULE */
 
 #endif /* DEBUG_H */

@@ -12,6 +12,12 @@
 #define TMOUTEN				BIT(0)
 
 #define MAC_FPE_CTRL_STS		0x00000234
+#define TRSP				BIT(19)
+#define TVER				BIT(18)
+#define RRSP				BIT(17)
+#define RVER				BIT(16)
+#define SRSP				BIT(2)
+#define SVER				BIT(1)
 #define EFPE				BIT(0)
 
 #define MAC_PPS_CONTROL			0x00000b70
@@ -38,6 +44,36 @@
 #define PTOV_SHIFT			24
 #define SSWL				BIT(1)
 #define EEST				BIT(0)
+
+#define MTL_EST_STATUS			0x00000c58
+#define BTRL				GENMASK(11, 8)
+#define BTRL_SHIFT			8
+#define BTRL_MAX			(0xF << BTRL_SHIFT)
+#define SWOL				BIT(7)
+#define SWOL_SHIFT			7
+#define CGCE				BIT(4)
+#define HLBS				BIT(3)
+#define HLBF				BIT(2)
+#define BTRE				BIT(1)
+#define SWLC				BIT(0)
+
+#define MTL_EST_SCH_ERR			0x00000c60
+#define MTL_EST_FRM_SZ_ERR		0x00000c64
+#define MTL_EST_FRM_SZ_CAP		0x00000c68
+#define SZ_CAP_HBFS_MASK		GENMASK(14, 0)
+#define SZ_CAP_HBFQ_SHIFT		16
+#define SZ_CAP_HBFQ_MASK(_val)		({ typeof(_val) (val) = (_val);	\
+					((val) > 4 ? GENMASK(18, 16) :	\
+					 (val) > 2 ? GENMASK(17, 16) :	\
+					 BIT(16)); })
+
+#define MTL_EST_INT_EN			0x00000c70
+#define IECGCE				CGCE
+#define IEHS				HLBS
+#define IEHF				HLBF
+#define IEBE				BTRE
+#define IECC				SWLC
+
 #define MTL_EST_GCL_CONTROL		0x00000c80
 #define BTR_LOW				0x0
 #define BTR_HIGH			0x1
@@ -62,6 +98,7 @@
 #define ADDR				GENMASK(15, 0)
 #define MTL_RXP_IACC_DATA		0x00000cb4
 #define MTL_ECC_CONTROL			0x00000cc0
+#define MEEAO				BIT(8)
 #define TSOEE				BIT(4)
 #define MRXPEE				BIT(3)
 #define MESTEE				BIT(2)
@@ -98,7 +135,10 @@
 #define GMAC_RXQCTRL_VFFQ_SHIFT		17
 #define GMAC_RXQCTRL_VFFQE		BIT(16)
 
-int dwmac5_safety_feat_config(void __iomem *ioaddr, unsigned int asp);
+#define GMAC_INT_FPE_EN			BIT(17)
+
+int dwmac5_safety_feat_config(void __iomem *ioaddr, unsigned int asp,
+			      struct stmmac_safety_feature_cfg *safety_cfg);
 int dwmac5_safety_feat_irq_status(struct net_device *ndev,
 		void __iomem *ioaddr, unsigned int asp,
 		struct stmmac_safety_stats *stats);
@@ -111,7 +151,12 @@ int dwmac5_flex_pps_config(void __iomem *ioaddr, int index,
 			   u32 sub_second_inc, u32 systime_flags);
 int dwmac5_est_configure(void __iomem *ioaddr, struct stmmac_est *cfg,
 			 unsigned int ptp_rate);
+void dwmac5_est_irq_status(void __iomem *ioaddr, struct net_device *dev,
+			   struct stmmac_extra_stats *x, u32 txqcnt);
 void dwmac5_fpe_configure(void __iomem *ioaddr, u32 num_txq, u32 num_rxq,
 			  bool enable);
+void dwmac5_fpe_send_mpacket(void __iomem *ioaddr,
+			     enum stmmac_mpacket_type type);
+int dwmac5_fpe_irq_status(void __iomem *ioaddr, struct net_device *dev);
 
 #endif /* __DWMAC5_H__ */

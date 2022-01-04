@@ -246,6 +246,26 @@ DEFINE_EVENT(ufshcd_template, ufshcd_init,
 		      int dev_state, int link_state),
 	     TP_ARGS(dev_name, err, usecs, dev_state, link_state));
 
+DEFINE_EVENT(ufshcd_template, ufshcd_wl_suspend,
+	     TP_PROTO(const char *dev_name, int err, s64 usecs,
+		      int dev_state, int link_state),
+	     TP_ARGS(dev_name, err, usecs, dev_state, link_state));
+
+DEFINE_EVENT(ufshcd_template, ufshcd_wl_resume,
+	     TP_PROTO(const char *dev_name, int err, s64 usecs,
+		      int dev_state, int link_state),
+	     TP_ARGS(dev_name, err, usecs, dev_state, link_state));
+
+DEFINE_EVENT(ufshcd_template, ufshcd_wl_runtime_suspend,
+	     TP_PROTO(const char *dev_name, int err, s64 usecs,
+		      int dev_state, int link_state),
+	     TP_ARGS(dev_name, err, usecs, dev_state, link_state));
+
+DEFINE_EVENT(ufshcd_template, ufshcd_wl_runtime_resume,
+	     TP_PROTO(const char *dev_name, int err, s64 usecs,
+		      int dev_state, int link_state),
+	     TP_ARGS(dev_name, err, usecs, dev_state, link_state));
+
 TRACE_EVENT(ufshcd_command,
 	TP_PROTO(const char *dev_name, enum ufs_trace_str_t str_t,
 		 unsigned int tag, u32 doorbell, int transfer_len, u32 intr,
@@ -346,6 +366,27 @@ TRACE_EVENT(ufshcd_upiu,
 		__print_hex(__entry->hdr, sizeof(__entry->hdr)),
 		show_ufs_cmd_trace_tsf(__entry->tsf_t),
 		__print_hex(__entry->tsf, sizeof(__entry->tsf))
+	)
+);
+
+TRACE_EVENT(ufshcd_exception_event,
+
+	TP_PROTO(const char *dev_name, u16 status),
+
+	TP_ARGS(dev_name, status),
+
+	TP_STRUCT__entry(
+		__string(dev_name, dev_name)
+		__field(u16, status)
+	),
+
+	TP_fast_assign(
+		__assign_str(dev_name, dev_name);
+		__entry->status = status;
+	),
+
+	TP_printk("%s: status 0x%x",
+		__get_str(dev_name), __entry->status
 	)
 );
 

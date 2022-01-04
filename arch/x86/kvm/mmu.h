@@ -44,6 +44,12 @@
 #define PT32_ROOT_LEVEL 2
 #define PT32E_ROOT_LEVEL 3
 
+#define KVM_MMU_CR4_ROLE_BITS (X86_CR4_PGE | X86_CR4_PSE | X86_CR4_PAE | \
+			       X86_CR4_SMEP | X86_CR4_SMAP | X86_CR4_PKE | \
+			       X86_CR4_LA57)
+
+#define KVM_MMU_CR0_ROLE_BITS (X86_CR0_PG | X86_CR0_WP)
+
 static __always_inline u64 rsvd_bits(int s, int e)
 {
 	BUILD_BUG_ON(__builtin_constant_p(e) && __builtin_constant_p(s) && e < s);
@@ -59,19 +65,21 @@ static __always_inline u64 rsvd_bits(int s, int e)
 	return ((2ULL << (e - s)) - 1) << s;
 }
 
-void kvm_mmu_set_mmio_spte_mask(u64 mmio_value, u64 access_mask);
+void kvm_mmu_set_mmio_spte_mask(u64 mmio_value, u64 mmio_mask, u64 access_mask);
+void kvm_mmu_set_ept_masks(bool has_ad_bits, bool has_exec_only);
 
-void
-reset_shadow_zero_bits_mask(struct kvm_vcpu *vcpu, struct kvm_mmu *context);
-
-void kvm_init_mmu(struct kvm_vcpu *vcpu, bool reset_roots);
-void kvm_init_shadow_npt_mmu(struct kvm_vcpu *vcpu, u32 cr0, u32 cr4, u32 efer,
-			     gpa_t nested_cr3);
+void kvm_init_mmu(struct kvm_vcpu *vcpu);
+void kvm_init_shadow_npt_mmu(struct kvm_vcpu *vcpu, unsigned long cr0,
+			     unsigned long cr4, u64 efer, gpa_t nested_cr3);
 void kvm_init_shadow_ept_mmu(struct kvm_vcpu *vcpu, bool execonly,
 			     bool accessed_dirty, gpa_t new_eptp);
 bool kvm_can_do_async_pf(struct kvm_vcpu *vcpu);
 int kvm_handle_page_fault(struct kvm_vcpu *vcpu, u64 error_code,
 				u64 fault_address, char *insn, int insn_len);
+
+int kvm_mmu_load(struct kvm_vcpu *vcpu);
+void kvm_mmu_unload(struct kvm_vcpu *vcpu);
+void kvm_mmu_sync_roots(struct kvm_vcpu *vcpu);
 
 static inline int kvm_mmu_reload(struct kvm_vcpu *vcpu)
 {
@@ -102,8 +110,8 @@ static inline void kvm_mmu_load_pgd(struct kvm_vcpu *vcpu)
 	if (!VALID_PAGE(root_hpa))
 		return;
 
-	static_call(kvm_x86_load_mmu_pgd)(vcpu, root_hpa | kvm_get_active_pcid(vcpu),
-				 vcpu->arch.mmu->shadow_root_level);
+	static_call(kvm_x86_load_mmu_pgd)(vcpu, root_hpa,
+					  vcpu->arch.mmu->shadow_root_level);
 }
 
 int kvm_tdp_page_fault(struct kvm_vcpu *vcpu, gpa_t gpa, u32 error_code,
@@ -124,7 +132,7 @@ static inline int kvm_mmu_do_page_fault(struct kvm_vcpu *vcpu, gpa_t cr2_or_gpa,
  * write-protects guest page to sync the guest modification, b) another one is
  * used to sync dirty bitmap when we do KVM_GET_DIRTY_LOG. The differences
  * between these two sorts are:
- * 1) the first case clears SPTE_MMU_WRITEABLE bit.
+ * 1) the first case clears MMU-writable bit.
  * 2) the first case requires flushing tlb immediately avoiding corrupting
  *    shadow page table between all vcpus so it should be in the protection of
  *    mmu-lock. And the another case does not need to flush tlb until returning
@@ -135,17 +143,17 @@ static inline int kvm_mmu_do_page_fault(struct kvm_vcpu *vcpu, gpa_t cr2_or_gpa,
  * So, there is the problem: the first case can meet the corrupted tlb caused
  * by another case which write-protects pages but without flush tlb
  * immediately. In order to making the first case be aware this problem we let
- * it flush tlb if we try to write-protect a spte whose SPTE_MMU_WRITEABLE bit
- * is set, it works since another case never touches SPTE_MMU_WRITEABLE bit.
+ * it flush tlb if we try to write-protect a spte whose MMU-writable bit
+ * is set, it works since another case never touches MMU-writable bit.
  *
  * Anyway, whenever a spte is updated (only permission and status bits are
- * changed) we need to check whether the spte with SPTE_MMU_WRITEABLE becomes
+ * changed) we need to check whether the spte with MMU-writable becomes
  * readonly, if that happens, we need to flush tlb. Fortunately,
  * mmu_spte_update() has already handled it perfectly.
  *
- * The rules to use SPTE_MMU_WRITEABLE and PT_WRITABLE_MASK:
+ * The rules to use MMU-writable and PT_WRITABLE_MASK:
  * - if we want to see if it has writable tlb entry or if the spte can be
- *   writable on the mmu mapping, check SPTE_MMU_WRITEABLE, this is the most
+ *   writable on the mmu mapping, check MMU-writable, this is the most
  *   case, otherwise
  * - if we fix page fault on the spte or do write-protection by dirty logging,
  *   check PT_WRITABLE_MASK.
@@ -155,11 +163,6 @@ static inline int kvm_mmu_do_page_fault(struct kvm_vcpu *vcpu, gpa_t cr2_or_gpa,
 static inline bool is_writable_pte(unsigned long pte)
 {
 	return pte & PT_WRITABLE_MASK;
-}
-
-static inline bool is_write_protection(struct kvm_vcpu *vcpu)
-{
-	return kvm_read_cr0_bits(vcpu, X86_CR0_WP);
 }
 
 /*
@@ -226,5 +229,15 @@ int kvm_arch_write_log_dirty(struct kvm_vcpu *vcpu);
 
 int kvm_mmu_post_init_vm(struct kvm *kvm);
 void kvm_mmu_pre_destroy_vm(struct kvm *kvm);
+
+static inline bool kvm_memslots_have_rmaps(struct kvm *kvm)
+{
+	/*
+	 * Read memslot_have_rmaps before rmap pointers.  Hence, threads reading
+	 * memslots_have_rmaps in any lock context are guaranteed to see the
+	 * pointers.  Pairs with smp_store_release in alloc_all_memslots_rmaps.
+	 */
+	return smp_load_acquire(&kvm->arch.memslots_have_rmaps);
+}
 
 #endif

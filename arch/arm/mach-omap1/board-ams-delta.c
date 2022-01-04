@@ -458,20 +458,6 @@ static struct gpiod_lookup_table leds_gpio_table = {
 
 #ifdef CONFIG_LEDS_TRIGGERS
 DEFINE_LED_TRIGGER(ams_delta_camera_led_trigger);
-
-static int ams_delta_camera_power(struct device *dev, int power)
-{
-	/*
-	 * turn on camera LED
-	 */
-	if (power)
-		led_trigger_event(ams_delta_camera_led_trigger, LED_FULL);
-	else
-		led_trigger_event(ams_delta_camera_led_trigger, LED_OFF);
-	return 0;
-}
-#else
-#define ams_delta_camera_power	NULL
 #endif
 
 static struct platform_device ams_delta_audio_device = {

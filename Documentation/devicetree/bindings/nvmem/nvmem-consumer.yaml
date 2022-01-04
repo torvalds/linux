@@ -2,7 +2,7 @@
 %YAML 1.2
 ---
 $id: http://devicetree.org/schemas/nvmem/nvmem-consumer.yaml#
-$schema: http://devicetree.org/meta-schemas/core.yaml#
+$schema: http://devicetree.org/meta-schemas/base.yaml#
 
 title: NVMEM (Non Volatile Memory) Consumer Device Tree Bindings
 
@@ -23,12 +23,10 @@ properties:
       List of phandle to the nvmem data cells.
 
   nvmem-names:
-    $ref: /schemas/types.yaml#/definitions/string-array
     description:
       Names for the each nvmem provider.
 
   nvmem-cell-names:
-    $ref: /schemas/types.yaml#/definitions/string-array
     description:
       Names for each nvmem-cells specified.
 

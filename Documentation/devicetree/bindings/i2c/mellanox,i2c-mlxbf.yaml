@@ -20,7 +20,6 @@ properties:
 
   reg:
     minItems: 3
-    maxItems: 4
     items:
       - description: Smbus block registers
       - description: Cause master registers

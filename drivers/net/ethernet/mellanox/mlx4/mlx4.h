@@ -603,6 +603,7 @@ struct mlx4_mfunc_master_ctx {
 	struct mlx4_slave_event_eq slave_eq;
 	struct mutex		gen_eqe_mutex[MLX4_MFUNC_MAX];
 	struct mlx4_qos_manager qos_ctl[MLX4_MAX_PORTS + 1];
+	u32			next_slave; /* mlx4_master_comm_channel */
 };
 
 struct mlx4_mfunc {

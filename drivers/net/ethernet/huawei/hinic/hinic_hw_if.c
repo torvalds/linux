@@ -334,7 +334,7 @@ static void set_dma_attr(struct hinic_hwif *hwif, u32 entry_idx,
 }
 
 /**
- * dma_attr_table_init - initialize the the default dma attributes
+ * dma_attr_init - initialize the default dma attributes
  * @hwif: the HW interface of a pci function device
  **/
 static void dma_attr_init(struct hinic_hwif *hwif)
@@ -395,7 +395,7 @@ static void __print_selftest_reg(struct hinic_hwif *hwif)
 /**
  * hinic_init_hwif - initialize the hw interface
  * @hwif: the HW interface of a pci function device
- * @pdev: the pci device for acessing PCI resources
+ * @pdev: the pci device for accessing PCI resources
  *
  * Return 0 - Success, negative - Failure
  **/

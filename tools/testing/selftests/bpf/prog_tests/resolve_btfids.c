@@ -76,7 +76,7 @@ __resolve_symbol(struct btf *btf, int type_id)
 	}
 
 	for (i = 0; i < ARRAY_SIZE(test_symbols); i++) {
-		if (test_symbols[i].id != -1)
+		if (test_symbols[i].id >= 0)
 			continue;
 
 		if (BTF_INFO_KIND(type->info) != test_symbols[i].type)
@@ -160,11 +160,8 @@ int test_resolve_btfids(void)
 			break;
 
 		if (i > 0) {
-			ret = CHECK(test_set.ids[i - 1] > test_set.ids[i],
-				    "sort_check",
-				    "test_set is not sorted\n");
-			if (ret)
-				break;
+			if (!ASSERT_LE(test_set.ids[i - 1], test_set.ids[i], "sort_check"))
+				return -1;
 		}
 	}
 

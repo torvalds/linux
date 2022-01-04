@@ -146,7 +146,7 @@ static int squashfs_xz_uncompress(struct squashfs_sb_info *msblk, void *strm,
 			}
 
 			avail = min(length, ((int)bvec->bv_len) - offset);
-			data = page_address(bvec->bv_page) + bvec->bv_offset;
+			data = bvec_virt(bvec);
 			length -= avail;
 			stream->buf.in = data + offset;
 			stream->buf.in_size = avail;

@@ -34,7 +34,7 @@
 #include "hinic_rx.h"
 #include "hinic_dev.h"
 
-#define SET_LINK_STR_MAX_LEN	128
+#define SET_LINK_STR_MAX_LEN	16
 
 #define GET_SUPPORTED_MODE	0
 #define GET_ADVERTISED_MODE	1
@@ -462,24 +462,19 @@ static int hinic_set_settings_to_hw(struct hinic_dev *nic_dev,
 {
 	struct hinic_link_ksettings_info settings = {0};
 	char set_link_str[SET_LINK_STR_MAX_LEN] = {0};
+	const char *autoneg_str;
 	struct net_device *netdev = nic_dev->netdev;
 	enum nic_speed_level speed_level = 0;
 	int err;
 
-	err = snprintf(set_link_str, SET_LINK_STR_MAX_LEN, "%s",
-		       (set_settings & HILINK_LINK_SET_AUTONEG) ?
-		       (autoneg ? "autong enable " : "autong disable ") : "");
-	if (err < 0 || err >= SET_LINK_STR_MAX_LEN) {
-		netif_err(nic_dev, drv, netdev, "Failed to snprintf link state, function return(%d) and dest_len(%d)\n",
-			  err, SET_LINK_STR_MAX_LEN);
-		return -EFAULT;
-	}
+	autoneg_str = (set_settings & HILINK_LINK_SET_AUTONEG) ?
+		      (autoneg ? "autong enable " : "autong disable ") : "";
 
 	if (set_settings & HILINK_LINK_SET_SPEED) {
 		speed_level = hinic_ethtool_to_hw_speed_level(speed);
 		err = snprintf(set_link_str, SET_LINK_STR_MAX_LEN,
-			       "%sspeed %d ", set_link_str, speed);
-		if (err <= 0 || err >= SET_LINK_STR_MAX_LEN) {
+			       "speed %d ", speed);
+		if (err >= SET_LINK_STR_MAX_LEN) {
 			netif_err(nic_dev, drv, netdev, "Failed to snprintf link speed, function return(%d) and dest_len(%d)\n",
 				  err, SET_LINK_STR_MAX_LEN);
 			return -EFAULT;
@@ -494,11 +489,11 @@ static int hinic_set_settings_to_hw(struct hinic_dev *nic_dev,
 	err = hinic_set_link_settings(nic_dev->hwdev, &settings);
 	if (err != HINIC_MGMT_CMD_UNSUPPORTED) {
 		if (err)
-			netif_err(nic_dev, drv, netdev, "Set %s failed\n",
-				  set_link_str);
+			netif_err(nic_dev, drv, netdev, "Set %s%sfailed\n",
+				  autoneg_str, set_link_str);
 		else
-			netif_info(nic_dev, drv, netdev, "Set %s successfully\n",
-				   set_link_str);
+			netif_info(nic_dev, drv, netdev, "Set %s%ssuccessfully\n",
+				   autoneg_str, set_link_str);
 
 		return err;
 	}
@@ -543,8 +538,8 @@ static void hinic_get_drvinfo(struct net_device *netdev,
 	struct hinic_hwif *hwif = hwdev->hwif;
 	int err;
 
-	strlcpy(info->driver, HINIC_DRV_NAME, sizeof(info->driver));
-	strlcpy(info->bus_info, pci_name(hwif->pdev), sizeof(info->bus_info));
+	strscpy(info->driver, HINIC_DRV_NAME, sizeof(info->driver));
+	strscpy(info->bus_info, pci_name(hwif->pdev), sizeof(info->bus_info));
 
 	err = hinic_get_mgmt_version(nic_dev, mgmt_ver);
 	if (err)
@@ -800,13 +795,17 @@ static int __hinic_set_coalesce(struct net_device *netdev,
 }
 
 static int hinic_get_coalesce(struct net_device *netdev,
-			      struct ethtool_coalesce *coal)
+			      struct ethtool_coalesce *coal,
+			      struct kernel_ethtool_coalesce *kernel_coal,
+			      struct netlink_ext_ack *extack)
 {
 	return __hinic_get_coalesce(netdev, coal, COALESCE_ALL_QUEUE);
 }
 
 static int hinic_set_coalesce(struct net_device *netdev,
-			      struct ethtool_coalesce *coal)
+			      struct ethtool_coalesce *coal,
+			      struct kernel_ethtool_coalesce *kernel_coal,
+			      struct netlink_ext_ack *extack)
 {
 	return __hinic_set_coalesce(netdev, coal, COALESCE_ALL_QUEUE);
 }
@@ -1668,7 +1667,6 @@ static void hinic_diag_test(struct net_device *netdev,
 	err = hinic_port_link_state(nic_dev, &link_state);
 	if (!err && link_state == HINIC_LINK_STATE_UP)
 		netif_carrier_on(netdev);
-
 }
 
 static int hinic_set_phys_id(struct net_device *netdev,

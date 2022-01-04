@@ -447,7 +447,6 @@ void sci_phy_get_attached_sas_address(
 	struct isci_phy *iphy,
 	struct sci_sas_address *sas_address);
 
-struct sci_phy_proto;
 void sci_phy_get_protocols(
 	struct isci_phy *iphy,
 	struct sci_phy_proto *protocols);

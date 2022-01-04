@@ -45,6 +45,7 @@ static const struct of_device_id of_restart_poweroff_match[] = {
 	{ .compatible = "restart-poweroff", },
 	{},
 };
+MODULE_DEVICE_TABLE(of, of_restart_poweroff_match);
 
 static struct platform_driver restart_poweroff_driver = {
 	.probe = restart_poweroff_probe,

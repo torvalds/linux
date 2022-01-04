@@ -1792,6 +1792,9 @@ static int pxac_vidioc_try_fmt_vid_cap(struct file *filp, void *priv,
 	const struct pxa_camera_format_xlate *xlate;
 	struct v4l2_pix_format *pix = &f->fmt.pix;
 	struct v4l2_subdev_pad_config pad_cfg;
+	struct v4l2_subdev_state pad_state = {
+		.pads = &pad_cfg
+		};
 	struct v4l2_subdev_format format = {
 		.which = V4L2_SUBDEV_FORMAT_TRY,
 	};
@@ -1816,7 +1819,7 @@ static int pxac_vidioc_try_fmt_vid_cap(struct file *filp, void *priv,
 			      pixfmt == V4L2_PIX_FMT_YUV422P ? 4 : 0);
 
 	v4l2_fill_mbus_format(mf, pix, xlate->code);
-	ret = sensor_call(pcdev, pad, set_fmt, &pad_cfg, &format);
+	ret = sensor_call(pcdev, pad, set_fmt, &pad_state, &format);
 	if (ret < 0)
 		return ret;
 
@@ -2389,7 +2392,7 @@ static int pxa_camera_probe(struct platform_device *pdev)
 
 	pxa_camera_activate(pcdev);
 
-	dev_set_drvdata(&pdev->dev, pcdev);
+	platform_set_drvdata(pdev, pcdev);
 	err = v4l2_device_register(&pdev->dev, &pcdev->v4l2_dev);
 	if (err)
 		goto exit_deactivate;
@@ -2421,7 +2424,7 @@ exit_free_dma_y:
 
 static int pxa_camera_remove(struct platform_device *pdev)
 {
-	struct pxa_camera_dev *pcdev = dev_get_drvdata(&pdev->dev);
+	struct pxa_camera_dev *pcdev = platform_get_drvdata(pdev);
 
 	pxa_camera_deactivate(pcdev);
 	tasklet_kill(&pcdev->task_eof);

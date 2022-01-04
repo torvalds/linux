@@ -761,10 +761,8 @@ static int hisi_nfc_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
 	host->mmio = devm_ioremap_resource(dev, res);
-	if (IS_ERR(host->mmio)) {
-		dev_err(dev, "devm_ioremap_resource[1] fail\n");
+	if (IS_ERR(host->mmio))
 		return PTR_ERR(host->mmio);
-	}
 
 	mtd->name		= "hisi_nand";
 	mtd->dev.parent         = &pdev->dev;

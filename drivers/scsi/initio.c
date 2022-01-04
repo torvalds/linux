@@ -546,7 +546,6 @@ static int initio_reset_scsi(struct initio_host * host, int seconds)
 /**
  *	initio_init		-	set up an InitIO host adapter
  *	@host: InitIO host adapter
- *	@num_scbs: Number of SCBS
  *	@bios_addr: BIOS address
  *
  *	Set up the host adapter and devices according to the configuration
@@ -866,17 +865,16 @@ static void initio_unlink_busy_scb(struct initio_host * host, struct scsi_ctrl_b
 
 struct scsi_ctrl_blk *initio_find_busy_scb(struct initio_host * host, u16 tarlun)
 {
-	struct scsi_ctrl_blk *tmp, *prev;
+	struct scsi_ctrl_blk *tmp;
 	u16 scbp_tarlun;
 
 
-	prev = tmp = host->first_busy;
+	tmp = host->first_busy;
 	while (tmp != NULL) {
 		scbp_tarlun = (tmp->lun << 8) | (tmp->target);
 		if (scbp_tarlun == tarlun) {	/* Unlink this SCB              */
 			break;
 		}
-		prev = tmp;
 		tmp = tmp->next;
 	}
 #if DEBUG_QUEUE
@@ -1888,7 +1886,7 @@ static int int_initio_scsi_rst(struct initio_host * host)
 }
 
 /**
- *	int_initio_scsi_resel	-	Reselection occurred
+ *	int_initio_resel	-	Reselection occurred
  *	@host: InitIO host adapter
  *
  *	A SCSI reselection event has been signalled and the interrupt
@@ -2602,7 +2600,7 @@ static void initio_build_scb(struct initio_host * host, struct scsi_ctrl_blk * c
 }
 
 /**
- *	i91u_queuecommand	-	Queue a new command if possible
+ *	i91u_queuecommand_lck	-	Queue a new command if possible
  *	@cmd: SCSI command block from the mid layer
  *	@done: Completion handler
  *
@@ -2651,9 +2649,9 @@ static int i91u_bus_reset(struct scsi_cmnd * cmnd)
 }
 
 /**
- *	i91u_biospararm			-	return the "logical geometry
+ *	i91u_biosparam			-	return the "logical geometry
  *	@sdev: SCSI device
- *	@dev; Matching block device
+ *	@dev: Matching block device
  *	@capacity: Sector size of drive
  *	@info_array: Return space for BIOS geometry
  *
@@ -2728,10 +2726,8 @@ static void i91u_unmap_scb(struct pci_dev *pci_dev, struct scsi_cmnd *cmnd)
 	}
 }
 
-/**
+/*
  *	i91uSCBPost		-	SCSI callback
- *	@host: Pointer to host adapter control block.
- *	@cmnd: Pointer to SCSI control block.
  *
  *	This is callback routine be called when tulip finish one
  *	SCSI command.

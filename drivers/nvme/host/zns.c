@@ -96,7 +96,7 @@ int nvme_update_zone_info(struct nvme_ns *ns, unsigned lbaf)
 		dev_warn(ns->ctrl->device,
 			"zone operations:%x not supported for namespace:%u\n",
 			le16_to_cpu(id->zoc), ns->head->ns_id);
-		status = -EINVAL;
+		status = -ENODEV;
 		goto free_data;
 	}
 
@@ -105,7 +105,7 @@ int nvme_update_zone_info(struct nvme_ns *ns, unsigned lbaf)
 		dev_warn(ns->ctrl->device,
 			"invalid zone size:%llu for namespace:%u\n",
 			ns->zsze, ns->head->ns_id);
-		status = -EINVAL;
+		status = -ENODEV;
 		goto free_data;
 	}
 
@@ -171,14 +171,17 @@ static int nvme_zone_parse_entry(struct nvme_ns *ns,
 	return cb(&zone, idx, data);
 }
 
-static int nvme_ns_report_zones(struct nvme_ns *ns, sector_t sector,
-			unsigned int nr_zones, report_zones_cb cb, void *data)
+int nvme_ns_report_zones(struct nvme_ns *ns, sector_t sector,
+		unsigned int nr_zones, report_zones_cb cb, void *data)
 {
 	struct nvme_zone_report *report;
 	struct nvme_command c = { };
 	int ret, zone_idx = 0;
 	unsigned int nz, i;
 	size_t buflen;
+
+	if (ns->head->ids.csi != NVME_CSI_ZNS)
+		return -EINVAL;
 
 	report = nvme_zns_alloc_report_buffer(ns, nr_zones, &buflen);
 	if (!report)
@@ -224,26 +227,6 @@ static int nvme_ns_report_zones(struct nvme_ns *ns, sector_t sector,
 		ret = -EINVAL;
 out_free:
 	kvfree(report);
-	return ret;
-}
-
-int nvme_report_zones(struct gendisk *disk, sector_t sector,
-		      unsigned int nr_zones, report_zones_cb cb, void *data)
-{
-	struct nvme_ns_head *head = NULL;
-	struct nvme_ns *ns;
-	int srcu_idx, ret;
-
-	ns = nvme_get_ns_from_disk(disk, &head, &srcu_idx);
-	if (unlikely(!ns))
-		return -EWOULDBLOCK;
-
-	if (ns->head->ids.csi == NVME_CSI_ZNS)
-		ret = nvme_ns_report_zones(ns, sector, nr_zones, cb, data);
-	else
-		ret = -EINVAL;
-	nvme_put_ns_from_disk(head, srcu_idx);
-
 	return ret;
 }
 

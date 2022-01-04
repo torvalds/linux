@@ -7,17 +7,10 @@
  *		 Heiko Carstens <heiko.carstens@de.ibm.com>,
  */
 
-#include <linux/sched.h>
+#include <linux/processor.h>
 #include <linux/delay.h>
-#include <linux/timex.h>
-#include <linux/export.h>
-#include <linux/irqflags.h>
-#include <linux/interrupt.h>
-#include <linux/jump_label.h>
-#include <linux/irq.h>
-#include <asm/vtimer.h>
 #include <asm/div64.h>
-#include <asm/idle.h>
+#include <asm/timex.h>
 
 void __delay(unsigned long loops)
 {

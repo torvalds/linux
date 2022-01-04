@@ -248,11 +248,15 @@ int virtio_gpu_object_create(struct virtio_gpu_device *vgdev,
 
 	ret = virtio_gpu_object_shmem_init(vgdev, bo, &ents, &nents);
 	if (ret != 0) {
+		virtio_gpu_array_put_free(objs);
 		virtio_gpu_free_object(&shmem_obj->base);
 		return ret;
 	}
 
 	if (params->blob) {
+		if (params->blob_mem == VIRTGPU_BLOB_MEM_GUEST)
+			bo->guest_blob = true;
+
 		virtio_gpu_cmd_resource_create_blob(vgdev, bo, params,
 						    ents, nents);
 	} else if (params->virgl) {

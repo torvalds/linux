@@ -26,6 +26,9 @@
 /* Long jump; (unconditional 'branch') */
 #define PPC_JMP(dest)		EMIT(PPC_INST_BRANCH |			      \
 				     (((dest) - (ctx->idx * 4)) & 0x03fffffc))
+/* blr; (unconditional 'branch' with link) to absolute address */
+#define PPC_BL_ABS(dest)	EMIT(PPC_INST_BL |			      \
+				     (((dest) - (unsigned long)(image + ctx->idx)) & 0x03fffffc))
 /* "cond" here covers BO:BI fields. */
 #define PPC_BCC_SHORT(cond, dest)	EMIT(PPC_INST_BRANCH_COND |	      \
 					     (((cond) & 0x3ff) << 16) |	      \
@@ -41,6 +44,10 @@
 			if (IMM_L(i))					      \
 				EMIT(PPC_RAW_ORI(d, d, IMM_L(i)));	      \
 		} } while(0)
+
+#ifdef CONFIG_PPC32
+#define PPC_EX32(r, i)		EMIT(PPC_RAW_LI((r), (i) < 0 ? -1 : 0))
+#endif
 
 #define PPC_LI64(d, i)		do {					      \
 		if ((long)(i) >= -2147483648 &&				      \
@@ -107,6 +114,63 @@ static inline bool is_nearbranch(int offset)
 #define COND_NE		(CR0_EQ | COND_CMP_FALSE)
 #define COND_LT		(CR0_LT | COND_CMP_TRUE)
 #define COND_LE		(CR0_GT | COND_CMP_FALSE)
+
+#define SEEN_FUNC	0x20000000 /* might call external helpers */
+#define SEEN_STACK	0x40000000 /* uses BPF stack */
+#define SEEN_TAILCALL	0x80000000 /* uses tail calls */
+
+#define SEEN_VREG_MASK	0x1ff80000 /* Volatile registers r3-r12 */
+#define SEEN_NVREG_MASK	0x0003ffff /* Non volatile registers r14-r31 */
+
+#ifdef CONFIG_PPC64
+extern const int b2p[MAX_BPF_JIT_REG + 2];
+#else
+extern const int b2p[MAX_BPF_JIT_REG + 1];
+#endif
+
+struct codegen_context {
+	/*
+	 * This is used to track register usage as well
+	 * as calls to external helpers.
+	 * - register usage is tracked with corresponding
+	 *   bits (r3-r31)
+	 * - rest of the bits can be used to track other
+	 *   things -- for now, we use bits 0 to 2
+	 *   encoded in SEEN_* macros above
+	 */
+	unsigned int seen;
+	unsigned int idx;
+	unsigned int stack_size;
+	int b2p[ARRAY_SIZE(b2p)];
+};
+
+static inline void bpf_flush_icache(void *start, void *end)
+{
+	smp_wmb();	/* smp write barrier */
+	flush_icache_range((unsigned long)start, (unsigned long)end);
+}
+
+static inline bool bpf_is_seen_register(struct codegen_context *ctx, int i)
+{
+	return ctx->seen & (1 << (31 - i));
+}
+
+static inline void bpf_set_seen_register(struct codegen_context *ctx, int i)
+{
+	ctx->seen |= 1 << (31 - i);
+}
+
+static inline void bpf_clear_seen_register(struct codegen_context *ctx, int i)
+{
+	ctx->seen &= ~(1 << (31 - i));
+}
+
+void bpf_jit_emit_func_call_rel(u32 *image, struct codegen_context *ctx, u64 func);
+int bpf_jit_build_body(struct bpf_prog *fp, u32 *image, struct codegen_context *ctx,
+		       u32 *addrs, bool extra_pass);
+void bpf_jit_build_prologue(u32 *image, struct codegen_context *ctx);
+void bpf_jit_build_epilogue(u32 *image, struct codegen_context *ctx);
+void bpf_jit_realloc_regs(struct codegen_context *ctx);
 
 #endif
 

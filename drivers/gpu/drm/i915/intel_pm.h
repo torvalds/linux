@@ -52,6 +52,11 @@ bool intel_can_enable_sagv(struct drm_i915_private *dev_priv,
 			   const struct intel_bw_state *bw_state);
 void intel_sagv_pre_plane_update(struct intel_atomic_state *state);
 void intel_sagv_post_plane_update(struct intel_atomic_state *state);
+const struct skl_wm_level *skl_plane_wm_level(const struct skl_pipe_wm *pipe_wm,
+					      enum plane_id plane_id,
+					      int level);
+const struct skl_wm_level *skl_plane_trans_wm(const struct skl_pipe_wm *pipe_wm,
+					      enum plane_id plane_id);
 bool skl_wm_level_equals(const struct skl_wm_level *l1,
 			 const struct skl_wm_level *l2);
 bool skl_ddb_allocation_overlaps(const struct skl_ddb_entry *ddb,
@@ -73,12 +78,10 @@ struct intel_dbuf_state {
 	struct skl_ddb_entry ddb[I915_MAX_PIPES];
 	unsigned int weight[I915_MAX_PIPES];
 	u8 slices[I915_MAX_PIPES];
-
 	u8 enabled_slices;
 	u8 active_pipes;
+	bool joined_mbus;
 };
-
-int intel_dbuf_init(struct drm_i915_private *dev_priv);
 
 struct intel_dbuf_state *
 intel_atomic_get_dbuf_state(struct intel_atomic_state *state);

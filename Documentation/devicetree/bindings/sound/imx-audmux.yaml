@@ -1,0 +1,119 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/sound/imx-audmux.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Freescale Digital Audio Mux device
+
+maintainers:
+  - Oleksij Rempel <o.rempel@pengutronix.de>
+
+properties:
+  compatible:
+    oneOf:
+      - items:
+          - enum:
+              - fsl,imx27-audmux
+          - const: fsl,imx21-audmux
+      - items:
+          - enum:
+              - fsl,imx25-audmux
+              - fsl,imx35-audmux
+              - fsl,imx50-audmux
+              - fsl,imx51-audmux
+              - fsl,imx53-audmux
+              - fsl,imx6q-audmux
+              - fsl,imx6sl-audmux
+              - fsl,imx6sll-audmux
+              - fsl,imx6sx-audmux
+          - const: fsl,imx31-audmux
+
+  reg:
+    maxItems: 1
+
+  clocks:
+    maxItems: 1
+
+  clock-names:
+    items:
+      - const: audmux
+
+patternProperties:
+  "^mux-[0-9a-z]*$":
+    type: object
+    properties:
+      fsl,audmux-port:
+        $ref: /schemas/types.yaml#/definitions/uint32
+        description: |
+          Integer of the audmux port that is configured by this child node
+
+      fsl,port-config:
+        $ref: /schemas/types.yaml#/definitions/uint32-array
+        description: |
+          List of configuration options for the specific port.
+          For imx31-audmux and above, it is a list of tuples ptcr pdcr.
+          For imx21-audmux it is a list of pcr values.
+
+    required:
+      - fsl,audmux-port
+      - fsl,port-config
+
+    additionalProperties: false
+
+required:
+  - compatible
+  - reg
+
+additionalProperties: false
+
+examples:
+  - |
+    audmux@21d8000 {
+        compatible = "fsl,imx6q-audmux", "fsl,imx31-audmux";
+        reg = <0x021d8000 0x4000>;
+    };
+  - |
+    audmux@10016000 {
+        compatible = "fsl,imx27-audmux", "fsl,imx21-audmux";
+        reg = <0x10016000 0x1000>;
+        clocks = <&clks 1>;
+        clock-names = "audmux";
+
+        mux-ssi0 {
+            fsl,audmux-port = <0>;
+            fsl,port-config = <0xcb205000>;
+        };
+
+        mux-pins4 {
+            fsl,audmux-port = <2>;
+            fsl,port-config = <0x00001000>;
+        };
+    };
+  - |
+    #include <dt-bindings/sound/fsl-imx-audmux.h>
+    audmux@21d8000 {
+        compatible = "fsl,imx6q-audmux", "fsl,imx31-audmux";
+        reg = <0x021d8000 0x4000>;
+        pinctrl-names = "default";
+        pinctrl-0 = <&pinctrl_audmux>;
+
+        mux-ssi1 {
+            fsl,audmux-port = <0>;
+            fsl,port-config = <
+                IMX_AUDMUX_V2_PTCR_SYN		0
+                IMX_AUDMUX_V2_PTCR_TFSEL(2)	0
+                IMX_AUDMUX_V2_PTCR_TCSEL(2)	0
+                IMX_AUDMUX_V2_PTCR_TFSDIR	0
+                IMX_AUDMUX_V2_PTCR_TCLKDIR      IMX_AUDMUX_V2_PDCR_RXDSEL(2)
+              >;
+        };
+
+        mux-pins3 {
+            fsl,audmux-port = <2>;
+            fsl,port-config = <
+                IMX_AUDMUX_V2_PTCR_SYN          IMX_AUDMUX_V2_PDCR_RXDSEL(0)
+                0                               IMX_AUDMUX_V2_PDCR_TXRXEN
+              >;
+        };
+    };

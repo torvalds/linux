@@ -139,7 +139,7 @@ int dlpar_hp_pmem(struct pseries_hp_errorlog *hp_elog)
 	return rc;
 }
 
-const struct of_device_id drc_pmem_match[] = {
+static const struct of_device_id drc_pmem_match[] = {
 	{ .type = "ibm,persistent-memory", },
 	{}
 };

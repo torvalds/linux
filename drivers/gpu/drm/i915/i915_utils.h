@@ -201,6 +201,11 @@ __check_struct_size(size_t base, size_t arr, size_t count, size_t *size)
 	__T;								\
 })
 
+static __always_inline ptrdiff_t ptrdiff(const void *a, const void *b)
+{
+	return a - b;
+}
+
 /*
  * container_of_user: Extract the superclass from a pointer to a member.
  *
@@ -416,6 +421,11 @@ static inline const char *yesno(bool v)
 static inline const char *onoff(bool v)
 {
 	return v ? "on" : "off";
+}
+
+static inline const char *enabledisable(bool v)
+{
+	return v ? "enable" : "disable";
 }
 
 static inline const char *enableddisabled(bool v)

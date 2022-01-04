@@ -23,6 +23,8 @@ properties:
   $nodename:
     pattern: "^serial(@.*)?$"
 
+  label: true
+
   cts-gpios:
     maxItems: 1
     description:
@@ -144,7 +146,7 @@ examples:
             interrupts = <1>;
 
             bluetooth {
-                    compatible = "brcm,bcm43341-bt";
+                    compatible = "brcm,bcm4330-bt";
                     interrupt-parent = <&gpio>;
                     interrupts = <10>;
             };

@@ -8,6 +8,8 @@
 #include "pch_gbe.h"
 #include "pch_gbe_phy.h"
 
+static const char pch_driver_version[] = "1.01";
+
 /*
  * pch_gbe_stats - Stats item information
  */

@@ -584,7 +584,7 @@ static int find_affine4_roots(struct bch_control *bch, unsigned int a,
 	k = a_log(bch, a);
 	rows[0] = c;
 
-	/* buid linear system to solve X^4+aX^2+bX+c = 0 */
+	/* build linear system to solve X^4+aX^2+bX+c = 0 */
 	for (i = 0; i < m; i++) {
 		rows[i+1] = bch->a_pow_tab[4*i]^
 			(a ? bch->a_pow_tab[mod_s(bch, k)] : 0)^

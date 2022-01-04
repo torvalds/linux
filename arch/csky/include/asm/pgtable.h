@@ -14,7 +14,6 @@
 #define PGDIR_MASK		(~(PGDIR_SIZE-1))
 
 #define USER_PTRS_PER_PGD	(PAGE_OFFSET/PGDIR_SIZE)
-#define FIRST_USER_ADDRESS	0UL
 
 /*
  * C-SKY is two-level paging structure:

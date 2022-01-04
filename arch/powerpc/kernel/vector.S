@@ -67,14 +67,16 @@ _GLOBAL(load_up_altivec)
 #ifdef CONFIG_PPC32
 	mfspr	r5,SPRN_SPRG_THREAD		/* current task's THREAD (phys) */
 	oris	r9,r9,MSR_VEC@h
-#ifdef CONFIG_VMAP_STACK
 	tovirt(r5, r5)
-#endif
 #else
 	ld	r4,PACACURRENT(r13)
 	addi	r5,r4,THREAD		/* Get THREAD */
 	oris	r12,r12,MSR_VEC@h
 	std	r12,_MSR(r1)
+#ifdef CONFIG_PPC_BOOK3S_64
+	li	r4,0
+	stb	r4,PACASRR_VALID(r13)
+#endif
 #endif
 	li	r4,1
 	stb	r4,THREAD_LOAD_VEC(r5)
@@ -133,7 +135,9 @@ _GLOBAL(load_up_vsx)
 	/* enable use of VSX after return */
 	oris	r12,r12,MSR_VSX@h
 	std	r12,_MSR(r1)
-	b	fast_interrupt_return
+	li	r4,0
+	stb	r4,PACASRR_VALID(r13)
+	b	fast_interrupt_return_srr
 
 #endif /* CONFIG_VSX */
 

@@ -770,8 +770,7 @@ long drm_gem_dma_resv_wait(struct drm_file *filep, u32 handle,
 		return -EINVAL;
 	}
 
-	ret = dma_resv_wait_timeout_rcu(obj->resv, wait_all,
-						  true, timeout);
+	ret = dma_resv_wait_timeout(obj->resv, wait_all, true, timeout);
 	if (ret == 0)
 		ret = -ETIME;
 	else if (ret > 0)
@@ -902,7 +901,7 @@ err:
 }
 
 /**
- * drm_gem_open - initalizes GEM file-private structures at devnode open time
+ * drm_gem_open - initializes GEM file-private structures at devnode open time
  * @dev: drm_device which is being opened by userspace
  * @file_private: drm file-private structure to set up
  *
@@ -937,7 +936,7 @@ drm_gem_release(struct drm_device *dev, struct drm_file *file_private)
  * drm_gem_object_release - release GEM buffer object resources
  * @obj: GEM buffer object
  *
- * This releases any structures and resources used by @obj and is the invers of
+ * This releases any structures and resources used by @obj and is the inverse of
  * drm_gem_object_init().
  */
 void
@@ -973,28 +972,6 @@ drm_gem_object_free(struct kref *kref)
 	obj->funcs->free(obj);
 }
 EXPORT_SYMBOL(drm_gem_object_free);
-
-/**
- * drm_gem_object_put_locked - release a GEM buffer object reference
- * @obj: GEM buffer object
- *
- * This releases a reference to @obj. Callers must hold the
- * &drm_device.struct_mutex lock when calling this function, even when the
- * driver doesn't use &drm_device.struct_mutex for anything.
- *
- * For drivers not encumbered with legacy locking use
- * drm_gem_object_put() instead.
- */
-void
-drm_gem_object_put_locked(struct drm_gem_object *obj)
-{
-	if (obj) {
-		WARN_ON(!mutex_is_locked(&obj->dev->struct_mutex));
-
-		kref_put(&obj->refcount, drm_gem_object_free);
-	}
-}
-EXPORT_SYMBOL(drm_gem_object_put_locked);
 
 /**
  * drm_gem_vm_open - vma->ops->open implementation for GEM
@@ -1149,15 +1126,6 @@ int drm_gem_mmap(struct file *filp, struct vm_area_struct *vma)
 		return -EACCES;
 	}
 
-	if (node->readonly) {
-		if (vma->vm_flags & VM_WRITE) {
-			drm_gem_object_put(obj);
-			return -EINVAL;
-		}
-
-		vma->vm_flags &= ~VM_MAYWRITE;
-	}
-
 	ret = drm_gem_mmap_obj(obj, drm_vma_node_size(node) << PAGE_SHIFT,
 			       vma);
 
@@ -1212,6 +1180,7 @@ int drm_gem_vmap(struct drm_gem_object *obj, struct dma_buf_map *map)
 
 	return 0;
 }
+EXPORT_SYMBOL(drm_gem_vmap);
 
 void drm_gem_vunmap(struct drm_gem_object *obj, struct dma_buf_map *map)
 {
@@ -1224,6 +1193,7 @@ void drm_gem_vunmap(struct drm_gem_object *obj, struct dma_buf_map *map)
 	/* Always set the mapping to NULL. Callers may rely on this. */
 	dma_buf_map_clear(map);
 }
+EXPORT_SYMBOL(drm_gem_vunmap);
 
 /**
  * drm_gem_lock_reservations - Sets up the ww context and acquires
@@ -1310,6 +1280,9 @@ EXPORT_SYMBOL(drm_gem_unlock_reservations);
  * @fence_array: array of dma_fence * for the job to block on.
  * @fence: the dma_fence to add to the list of dependencies.
  *
+ * This functions consumes the reference for @fence both on success and error
+ * cases.
+ *
  * Returns:
  * 0 on success, or an error on failing to expand the array.
  */
@@ -1373,12 +1346,12 @@ int drm_gem_fence_array_add_implicit(struct xarray *fence_array,
 
 	if (!write) {
 		struct dma_fence *fence =
-			dma_resv_get_excl_rcu(obj->resv);
+			dma_resv_get_excl_unlocked(obj->resv);
 
 		return drm_gem_fence_array_add(fence_array, fence);
 	}
 
-	ret = dma_resv_get_fences_rcu(obj->resv, NULL,
+	ret = dma_resv_get_fences(obj->resv, NULL,
 						&fence_count, &fences);
 	if (ret || !fence_count)
 		return ret;

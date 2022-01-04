@@ -673,7 +673,7 @@ static void sgpio_irq_handler(struct irq_desc *desc)
 
 		for_each_set_bit(port, &val, SGPIO_BITS_PER_WORD) {
 			gpio = sgpio_addr_to_pin(priv, port, bit);
-			generic_handle_irq(irq_linear_revmap(chip->irq.domain, gpio));
+			generic_handle_domain_irq(chip->irq.domain, gpio);
 		}
 
 		chained_irq_exit(parent_chip, desc);
@@ -845,8 +845,10 @@ static int microchip_sgpio_probe(struct platform_device *pdev)
 	i = 0;
 	device_for_each_child_node(dev, fwnode) {
 		ret = microchip_sgpio_register_bank(dev, priv, fwnode, i++);
-		if (ret)
+		if (ret) {
+			fwnode_handle_put(fwnode);
 			return ret;
+		}
 	}
 
 	if (priv->in.gpio.ngpio != priv->out.gpio.ngpio) {

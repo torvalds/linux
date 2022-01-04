@@ -51,21 +51,21 @@ struct dm_btree_value_type {
 	 */
 
 	/*
-	 * The btree is making a duplicate of the value, for instance
+	 * The btree is making a duplicate of a run of values, for instance
 	 * because previously-shared btree nodes have now diverged.
 	 * @value argument is the new copy that the copy function may modify.
 	 * (Probably it just wants to increment a reference count
 	 * somewhere.) This method is _not_ called for insertion of a new
 	 * value: It is assumed the ref count is already 1.
 	 */
-	void (*inc)(void *context, const void *value);
+	void (*inc)(void *context, const void *value, unsigned count);
 
 	/*
-	 * This value is being deleted.  The btree takes care of freeing
+	 * These values are being deleted.  The btree takes care of freeing
 	 * the memory pointed to by @value.  Often the del function just
-	 * needs to decrement a reference count somewhere.
+	 * needs to decrement a reference counts somewhere.
 	 */
-	void (*dec)(void *context, const void *value);
+	void (*dec)(void *context, const void *value, unsigned count);
 
 	/*
 	 * A test for equality between two values.  When a value is

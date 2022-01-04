@@ -56,6 +56,8 @@
 
 #define AMD_SRIOV_MSG_RESERVE_UCODE		24
 
+#define AMD_SRIOV_MSG_RESERVE_VCN_INST 4
+
 enum amd_sriov_ucode_engine_id {
 	AMD_SRIOV_UCODE_ID_VCE = 0,
 	AMD_SRIOV_UCODE_ID_UVD,
@@ -90,9 +92,20 @@ union amd_sriov_msg_feature_flags {
 		uint32_t  host_flr_vramlost  : 1;
 		uint32_t  mm_bw_management   : 1;
 		uint32_t  pp_one_vf_mode     : 1;
-		uint32_t  reserved           : 27;
+		uint32_t  reg_indirect_acc   : 1;
+		uint32_t  reserved           : 26;
 	} flags;
 	uint32_t      all;
+};
+
+union amd_sriov_reg_access_flags {
+	struct {
+		uint32_t vf_reg_access_ih 	 : 1;
+		uint32_t vf_reg_access_mmhub : 1;
+		uint32_t vf_reg_access_gc 	 : 1;
+		uint32_t reserved	         : 29;
+	} flags;
+	uint32_t all;
 };
 
 union amd_sriov_msg_os_info {
@@ -101,6 +114,37 @@ union amd_sriov_msg_os_info {
 		uint32_t  reserved           : 31;
 	} info;
 	uint32_t      all;
+};
+
+struct amd_sriov_msg_uuid_info {
+	union {
+		struct {
+			uint32_t did	: 16;
+			uint32_t fcn	: 8;
+			uint32_t asic_7 : 8;
+		};
+		uint32_t time_low;
+	};
+
+	struct {
+		uint32_t time_mid  : 16;
+		uint32_t time_high : 12;
+		uint32_t version   : 4;
+	};
+
+	struct {
+		struct {
+			uint8_t clk_seq_hi : 6;
+			uint8_t variant    : 2;
+		};
+		union {
+			uint8_t clk_seq_low;
+			uint8_t asic_6;
+		};
+		uint16_t asic_4;
+	};
+
+	uint32_t asic_0;
 };
 
 struct amd_sriov_msg_pf2vf_info_header {
@@ -149,8 +193,19 @@ struct amd_sriov_msg_pf2vf_info {
 	/* identification in ROCm SMI */
 	uint64_t uuid;
 	uint32_t fcn_idx;
+	/* flags to indicate which register access method VF should use */
+	union amd_sriov_reg_access_flags reg_access_flags;
+	/* MM BW management */
+	struct {
+		uint32_t decode_max_dimension_pixels;
+		uint32_t decode_max_frame_pixels;
+		uint32_t encode_max_dimension_pixels;
+		uint32_t encode_max_frame_pixels;
+	} mm_bw_management[AMD_SRIOV_MSG_RESERVE_VCN_INST];
+	/* UUID info */
+	struct amd_sriov_msg_uuid_info uuid_info;
 	/* reserved */
-	uint32_t reserved[256-26];
+	uint32_t reserved[256 - 47];
 };
 
 struct amd_sriov_msg_vf2pf_info_header {

@@ -1,8 +1,9 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-
 /*
  * The Kernel Concurrency Sanitizer (KCSAN) infrastructure. For more info please
  * see Documentation/dev-tools/kcsan.rst.
+ *
+ * Copyright (C) 2019, Google LLC.
  */
 
 #ifndef _KERNEL_KCSAN_KCSAN_H
@@ -29,11 +30,6 @@ extern bool kcsan_enabled;
  */
 void kcsan_save_irqtrace(struct task_struct *task);
 void kcsan_restore_irqtrace(struct task_struct *task);
-
-/*
- * Initialize debugfs file.
- */
-void kcsan_debugfs_init(void);
 
 /*
  * Statistics counters displayed via debugfs; should only be modified in
@@ -120,30 +116,27 @@ enum kcsan_value_change {
 	KCSAN_VALUE_CHANGE_TRUE,
 };
 
-enum kcsan_report_type {
-	/*
-	 * The thread that set up the watchpoint and briefly stalled was
-	 * signalled that another thread triggered the watchpoint.
-	 */
-	KCSAN_REPORT_RACE_SIGNAL,
-
-	/*
-	 * A thread found and consumed a matching watchpoint.
-	 */
-	KCSAN_REPORT_CONSUMED_WATCHPOINT,
-
-	/*
-	 * No other thread was observed to race with the access, but the data
-	 * value before and after the stall differs.
-	 */
-	KCSAN_REPORT_RACE_UNKNOWN_ORIGIN,
-};
+/*
+ * The calling thread hit and consumed a watchpoint: set the access information
+ * to be consumed by the reporting thread. No report is printed yet.
+ */
+void kcsan_report_set_info(const volatile void *ptr, size_t size, int access_type,
+			   int watchpoint_idx);
 
 /*
- * Print a race report from thread that encountered the race.
+ * The calling thread observed that the watchpoint it set up was hit and
+ * consumed: print the full report based on information set by the racing
+ * thread.
  */
-extern void kcsan_report(const volatile void *ptr, size_t size, int access_type,
-			 enum kcsan_value_change value_change,
-			 enum kcsan_report_type type, int watchpoint_idx);
+void kcsan_report_known_origin(const volatile void *ptr, size_t size, int access_type,
+			       enum kcsan_value_change value_change, int watchpoint_idx,
+			       u64 old, u64 new, u64 mask);
+
+/*
+ * No other thread was observed to race with the access, but the data value
+ * before and after the stall differs. Reports a race of "unknown origin".
+ */
+void kcsan_report_unknown_origin(const volatile void *ptr, size_t size, int access_type,
+				 u64 old, u64 new, u64 mask);
 
 #endif /* _KERNEL_KCSAN_KCSAN_H */

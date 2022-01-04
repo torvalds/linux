@@ -240,11 +240,11 @@ static void dbc_tty_flush_chars(struct tty_struct *tty)
 	spin_unlock_irqrestore(&port->port_lock, flags);
 }
 
-static int dbc_tty_write_room(struct tty_struct *tty)
+static unsigned int dbc_tty_write_room(struct tty_struct *tty)
 {
 	struct dbc_port		*port = tty->driver_data;
 	unsigned long		flags;
-	int			room = 0;
+	unsigned int		room;
 
 	spin_lock_irqsave(&port->port_lock, flags);
 	room = kfifo_avail(&port->write_fifo);
@@ -253,11 +253,11 @@ static int dbc_tty_write_room(struct tty_struct *tty)
 	return room;
 }
 
-static int dbc_tty_chars_in_buffer(struct tty_struct *tty)
+static unsigned int dbc_tty_chars_in_buffer(struct tty_struct *tty)
 {
 	struct dbc_port		*port = tty->driver_data;
 	unsigned long		flags;
-	int			chars = 0;
+	unsigned int		chars;
 
 	spin_lock_irqsave(&port->port_lock, flags);
 	chars = kfifo_len(&port->write_fifo);
@@ -541,7 +541,7 @@ static int dbc_tty_init(void)
 	ret = tty_register_driver(dbc_tty_driver);
 	if (ret) {
 		pr_err("Can't register dbc tty driver\n");
-		put_tty_driver(dbc_tty_driver);
+		tty_driver_kref_put(dbc_tty_driver);
 	}
 	return ret;
 }
@@ -550,7 +550,7 @@ static void dbc_tty_exit(void)
 {
 	if (dbc_tty_driver) {
 		tty_unregister_driver(dbc_tty_driver);
-		put_tty_driver(dbc_tty_driver);
+		tty_driver_kref_put(dbc_tty_driver);
 		dbc_tty_driver = NULL;
 	}
 }

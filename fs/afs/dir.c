@@ -656,7 +656,6 @@ static int afs_do_lookup_one(struct inode *dir, struct dentry *dentry,
 		return ret;
 	}
 
-	ret = -ENOENT;
 	if (!cookie.found) {
 		_leave(" = -ENOENT [not found]");
 		return -ENOENT;
@@ -1419,6 +1418,7 @@ static int afs_mkdir(struct user_namespace *mnt_userns, struct inode *dir,
 
 	afs_op_set_vnode(op, 0, dvnode);
 	op->file[0].dv_delta = 1;
+	op->file[0].modification = true;
 	op->file[0].update_ctime = true;
 	op->dentry	= dentry;
 	op->create.mode	= S_IFDIR | mode;
@@ -1500,6 +1500,7 @@ static int afs_rmdir(struct inode *dir, struct dentry *dentry)
 
 	afs_op_set_vnode(op, 0, dvnode);
 	op->file[0].dv_delta = 1;
+	op->file[0].modification = true;
 	op->file[0].update_ctime = true;
 
 	op->dentry	= dentry;
@@ -1636,6 +1637,7 @@ static int afs_unlink(struct inode *dir, struct dentry *dentry)
 
 	afs_op_set_vnode(op, 0, dvnode);
 	op->file[0].dv_delta = 1;
+	op->file[0].modification = true;
 	op->file[0].update_ctime = true;
 
 	/* Try to make sure we have a callback promise on the victim. */
@@ -1718,6 +1720,7 @@ static int afs_create(struct user_namespace *mnt_userns, struct inode *dir,
 
 	afs_op_set_vnode(op, 0, dvnode);
 	op->file[0].dv_delta = 1;
+	op->file[0].modification = true;
 	op->file[0].update_ctime = true;
 
 	op->dentry	= dentry;
@@ -1792,6 +1795,7 @@ static int afs_link(struct dentry *from, struct inode *dir,
 	afs_op_set_vnode(op, 0, dvnode);
 	afs_op_set_vnode(op, 1, vnode);
 	op->file[0].dv_delta = 1;
+	op->file[0].modification = true;
 	op->file[0].update_ctime = true;
 	op->file[1].update_ctime = true;
 
@@ -1914,7 +1918,9 @@ static void afs_rename_edit_dir(struct afs_operation *op)
 	new_inode = d_inode(new_dentry);
 	if (new_inode) {
 		spin_lock(&new_inode->i_lock);
-		if (new_inode->i_nlink > 0)
+		if (S_ISDIR(new_inode->i_mode))
+			clear_nlink(new_inode);
+		else if (new_inode->i_nlink > 0)
 			drop_nlink(new_inode);
 		spin_unlock(&new_inode->i_lock);
 	}
@@ -1987,6 +1993,8 @@ static int afs_rename(struct user_namespace *mnt_userns, struct inode *old_dir,
 	afs_op_set_vnode(op, 1, new_dvnode); /* May be same as orig_dvnode */
 	op->file[0].dv_delta = 1;
 	op->file[1].dv_delta = 1;
+	op->file[0].modification = true;
+	op->file[1].modification = true;
 	op->file[0].update_ctime = true;
 	op->file[1].update_ctime = true;
 
@@ -2011,17 +2019,20 @@ static int afs_rename(struct user_namespace *mnt_userns, struct inode *old_dir,
 
 		if (d_count(new_dentry) > 2) {
 			/* copy the target dentry's name */
-			ret = -ENOMEM;
 			op->rename.tmp = d_alloc(new_dentry->d_parent,
 						 &new_dentry->d_name);
-			if (!op->rename.tmp)
+			if (!op->rename.tmp) {
+				op->error = -ENOMEM;
 				goto error;
+			}
 
 			ret = afs_sillyrename(new_dvnode,
 					      AFS_FS_I(d_inode(new_dentry)),
 					      new_dentry, op->key);
-			if (ret)
+			if (ret) {
+				op->error = ret;
 				goto error;
+			}
 
 			op->dentry_2 = op->rename.tmp;
 			op->rename.rehash = NULL;

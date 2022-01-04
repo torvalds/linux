@@ -95,7 +95,7 @@ static int g12a_ephy_pll_enable(struct clk_hw *hw)
 
 	/* Poll on the digital lock instead of the usual analog lock
 	 * This is done because bit 31 is unreliable on some SoC. Bit
-	 * 31 may indicate that the PLL is not lock eventhough the clock
+	 * 31 may indicate that the PLL is not lock even though the clock
 	 * is actually running
 	 */
 	return readl_poll_timeout(pll->base + ETH_PLL_CTL0, val,

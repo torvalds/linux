@@ -121,11 +121,6 @@ struct device_queue_manager_ops {
 					   void __user *alternate_aperture_base,
 					   uint64_t alternate_aperture_size);
 
-	int	(*set_trap_handler)(struct device_queue_manager *dqm,
-				    struct qcm_process_device *qpd,
-				    uint64_t tba_addr,
-				    uint64_t tma_addr);
-
 	int (*process_termination)(struct device_queue_manager *dqm,
 			struct qcm_process_device *qpd);
 
@@ -174,7 +169,7 @@ struct device_queue_manager {
 	struct device_queue_manager_asic_ops asic_ops;
 
 	struct mqd_manager	*mqd_mgrs[KFD_MQD_TYPE_MAX];
-	struct packet_manager	packets;
+	struct packet_manager	packet_mgr;
 	struct kfd_dev		*dev;
 	struct mutex		lock_hidden; /* use dqm_lock/unlock(dqm) */
 	struct list_head	queues;

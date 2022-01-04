@@ -19,6 +19,7 @@
 #define PRESTERA_DSA_W1_EXT_BIT		BIT(31)
 #define PRESTERA_DSA_W1_CFI_BIT		BIT(30)
 #define PRESTERA_DSA_W1_PORT_NUM	GENMASK(11, 10)
+#define PRESTERA_DSA_W1_MASK_CPU_CODE	GENMASK(7, 0)
 
 #define PRESTERA_DSA_W2_EXT_BIT		BIT(31)
 #define PRESTERA_DSA_W2_PORT_NUM	BIT(20)
@@ -73,6 +74,8 @@ int prestera_dsa_parse(struct prestera_dsa *dsa, const u8 *dsa_buf)
 	dsa->port_num = (FIELD_GET(PRESTERA_DSA_W0_PORT_NUM, words[0]) << 0) |
 			(FIELD_GET(PRESTERA_DSA_W1_PORT_NUM, words[1]) << 5) |
 			(FIELD_GET(PRESTERA_DSA_W2_PORT_NUM, words[2]) << 7);
+
+	dsa->cpu_code = FIELD_GET(PRESTERA_DSA_W1_MASK_CPU_CODE, words[1]);
 
 	return 0;
 }

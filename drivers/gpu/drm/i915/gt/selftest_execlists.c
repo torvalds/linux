@@ -1,6 +1,5 @@
+// SPDX-License-Identifier: MIT
 /*
- * SPDX-License-Identifier: MIT
- *
  * Copyright © 2018 Intel Corporation
  */
 
@@ -44,7 +43,7 @@ static int wait_for_submit(struct intel_engine_cs *engine,
 			   unsigned long timeout)
 {
 	/* Ignore our own attempts to suppress excess tasklets */
-	tasklet_hi_schedule(&engine->execlists.tasklet);
+	tasklet_hi_schedule(&engine->sched_engine->tasklet);
 
 	timeout += jiffies;
 	do {
@@ -274,7 +273,7 @@ static int live_unlite_restore(struct intel_gt *gt, int prio)
 			};
 
 			/* Alternatively preempt the spinner with ce[1] */
-			engine->schedule(rq[1], &attr);
+			engine->sched_engine->schedule(rq[1], &attr);
 		}
 
 		/* And switch back to ce[0] for good measure */
@@ -321,7 +320,7 @@ static int live_unlite_switch(void *arg)
 
 static int live_unlite_preempt(void *arg)
 {
-	return live_unlite_restore(arg, I915_USER_PRIORITY(I915_PRIORITY_MAX));
+	return live_unlite_restore(arg, I915_PRIORITY_MAX);
 }
 
 static int live_unlite_ring(void *arg)
@@ -552,6 +551,32 @@ static int live_pin_rewind(void *arg)
 	return err;
 }
 
+static int engine_lock_reset_tasklet(struct intel_engine_cs *engine)
+{
+	tasklet_disable(&engine->sched_engine->tasklet);
+	local_bh_disable();
+
+	if (test_and_set_bit(I915_RESET_ENGINE + engine->id,
+			     &engine->gt->reset.flags)) {
+		local_bh_enable();
+		tasklet_enable(&engine->sched_engine->tasklet);
+
+		intel_gt_set_wedged(engine->gt);
+		return -EBUSY;
+	}
+
+	return 0;
+}
+
+static void engine_unlock_reset_tasklet(struct intel_engine_cs *engine)
+{
+	clear_and_wake_up_bit(I915_RESET_ENGINE + engine->id,
+			      &engine->gt->reset.flags);
+
+	local_bh_enable();
+	tasklet_enable(&engine->sched_engine->tasklet);
+}
+
 static int live_hold_reset(void *arg)
 {
 	struct intel_gt *gt = arg;
@@ -599,17 +624,11 @@ static int live_hold_reset(void *arg)
 
 		/* We have our request executing, now remove it and reset */
 
-		local_bh_disable();
-		if (test_and_set_bit(I915_RESET_ENGINE + id,
-				     &gt->reset.flags)) {
-			local_bh_enable();
-			intel_gt_set_wedged(gt);
-			err = -EBUSY;
+		err = engine_lock_reset_tasklet(engine);
+		if (err)
 			goto out;
-		}
-		tasklet_disable(&engine->execlists.tasklet);
 
-		engine->execlists.tasklet.func(engine->execlists.tasklet.data);
+		engine->sched_engine->tasklet.callback(&engine->sched_engine->tasklet);
 		GEM_BUG_ON(execlists_active(&engine->execlists) != rq);
 
 		i915_request_get(rq);
@@ -619,10 +638,7 @@ static int live_hold_reset(void *arg)
 		__intel_engine_reset_bh(engine, NULL);
 		GEM_BUG_ON(rq->fence.error != -EIO);
 
-		tasklet_enable(&engine->execlists.tasklet);
-		clear_and_wake_up_bit(I915_RESET_ENGINE + id,
-				      &gt->reset.flags);
-		local_bh_enable();
+		engine_unlock_reset_tasklet(engine);
 
 		/* Check that we do not resubmit the held request */
 		if (!i915_request_wait(rq, 0, HZ / 5)) {
@@ -901,7 +917,7 @@ release_queue(struct intel_engine_cs *engine,
 	i915_request_add(rq);
 
 	local_bh_disable();
-	engine->schedule(rq, &attr);
+	engine->sched_engine->schedule(rq, &attr);
 	local_bh_enable(); /* kick tasklet */
 
 	i915_request_put(rq);
@@ -989,7 +1005,7 @@ static int live_timeslice_preempt(void *arg)
 		goto err_obj;
 	}
 
-	vaddr = i915_gem_object_pin_map(obj, I915_MAP_WC);
+	vaddr = i915_gem_object_pin_map_unlocked(obj, I915_MAP_WC);
 	if (IS_ERR(vaddr)) {
 		err = PTR_ERR(vaddr);
 		goto err_obj;
@@ -1081,7 +1097,6 @@ create_rewinder(struct intel_context *ce,
 
 	intel_ring_advance(rq, cs);
 
-	rq->sched.attr.priority = I915_PRIORITY_MASK;
 	err = 0;
 err:
 	i915_request_get(rq);
@@ -1185,7 +1200,7 @@ static int live_timeslice_rewind(void *arg)
 		while (i915_request_is_active(rq[A2])) { /* semaphore yield! */
 			/* Wait for the timeslice to kick in */
 			del_timer(&engine->execlists.timer);
-			tasklet_hi_schedule(&engine->execlists.tasklet);
+			tasklet_hi_schedule(&engine->sched_engine->tasklet);
 			intel_engine_flush_submission(engine);
 		}
 		/* -> ELSP[] = { { A:rq1 }, { B:rq1 } } */
@@ -1297,7 +1312,7 @@ static int live_timeslice_queue(void *arg)
 		goto err_obj;
 	}
 
-	vaddr = i915_gem_object_pin_map(obj, I915_MAP_WC);
+	vaddr = i915_gem_object_pin_map_unlocked(obj, I915_MAP_WC);
 	if (IS_ERR(vaddr)) {
 		err = PTR_ERR(vaddr);
 		goto err_obj;
@@ -1312,9 +1327,7 @@ static int live_timeslice_queue(void *arg)
 		goto err_pin;
 
 	for_each_engine(engine, gt, id) {
-		struct i915_sched_attr attr = {
-			.priority = I915_USER_PRIORITY(I915_PRIORITY_MAX),
-		};
+		struct i915_sched_attr attr = { .priority = I915_PRIORITY_MAX };
 		struct i915_request *rq, *nop;
 
 		if (!intel_engine_has_preemption(engine))
@@ -1329,7 +1342,7 @@ static int live_timeslice_queue(void *arg)
 			err = PTR_ERR(rq);
 			goto err_heartbeat;
 		}
-		engine->schedule(rq, &attr);
+		engine->sched_engine->schedule(rq, &attr);
 		err = wait_for_submit(engine, rq, HZ / 2);
 		if (err) {
 			pr_err("%s: Timed out trying to submit semaphores\n",
@@ -1526,17 +1539,15 @@ static int live_busywait_preempt(void *arg)
 	 * preempt the busywaits used to synchronise between rings.
 	 */
 
-	ctx_hi = kernel_context(gt->i915);
+	ctx_hi = kernel_context(gt->i915, NULL);
 	if (!ctx_hi)
 		return -ENOMEM;
-	ctx_hi->sched.priority =
-		I915_USER_PRIORITY(I915_CONTEXT_MAX_USER_PRIORITY);
+	ctx_hi->sched.priority = I915_CONTEXT_MAX_USER_PRIORITY;
 
-	ctx_lo = kernel_context(gt->i915);
+	ctx_lo = kernel_context(gt->i915, NULL);
 	if (!ctx_lo)
 		goto err_ctx_hi;
-	ctx_lo->sched.priority =
-		I915_USER_PRIORITY(I915_CONTEXT_MIN_USER_PRIORITY);
+	ctx_lo->sched.priority = I915_CONTEXT_MIN_USER_PRIORITY;
 
 	obj = i915_gem_object_create_internal(gt->i915, PAGE_SIZE);
 	if (IS_ERR(obj)) {
@@ -1544,7 +1555,7 @@ static int live_busywait_preempt(void *arg)
 		goto err_ctx_lo;
 	}
 
-	map = i915_gem_object_pin_map(obj, I915_MAP_WC);
+	map = i915_gem_object_pin_map_unlocked(obj, I915_MAP_WC);
 	if (IS_ERR(map)) {
 		err = PTR_ERR(map);
 		goto err_obj;
@@ -1730,17 +1741,15 @@ static int live_preempt(void *arg)
 	if (igt_spinner_init(&spin_lo, gt))
 		goto err_spin_hi;
 
-	ctx_hi = kernel_context(gt->i915);
+	ctx_hi = kernel_context(gt->i915, NULL);
 	if (!ctx_hi)
 		goto err_spin_lo;
-	ctx_hi->sched.priority =
-		I915_USER_PRIORITY(I915_CONTEXT_MAX_USER_PRIORITY);
+	ctx_hi->sched.priority = I915_CONTEXT_MAX_USER_PRIORITY;
 
-	ctx_lo = kernel_context(gt->i915);
+	ctx_lo = kernel_context(gt->i915, NULL);
 	if (!ctx_lo)
 		goto err_ctx_hi;
-	ctx_lo->sched.priority =
-		I915_USER_PRIORITY(I915_CONTEXT_MIN_USER_PRIORITY);
+	ctx_lo->sched.priority = I915_CONTEXT_MIN_USER_PRIORITY;
 
 	for_each_engine(engine, gt, id) {
 		struct igt_live_test t;
@@ -1824,16 +1833,16 @@ static int live_late_preempt(void *arg)
 	if (igt_spinner_init(&spin_lo, gt))
 		goto err_spin_hi;
 
-	ctx_hi = kernel_context(gt->i915);
+	ctx_hi = kernel_context(gt->i915, NULL);
 	if (!ctx_hi)
 		goto err_spin_lo;
 
-	ctx_lo = kernel_context(gt->i915);
+	ctx_lo = kernel_context(gt->i915, NULL);
 	if (!ctx_lo)
 		goto err_ctx_hi;
 
 	/* Make sure ctx_lo stays before ctx_hi until we trigger preemption. */
-	ctx_lo->sched.priority = I915_USER_PRIORITY(1);
+	ctx_lo->sched.priority = 1;
 
 	for_each_engine(engine, gt, id) {
 		struct igt_live_test t;
@@ -1874,8 +1883,8 @@ static int live_late_preempt(void *arg)
 			goto err_wedged;
 		}
 
-		attr.priority = I915_USER_PRIORITY(I915_PRIORITY_MAX);
-		engine->schedule(rq, &attr);
+		attr.priority = I915_PRIORITY_MAX;
+		engine->sched_engine->schedule(rq, &attr);
 
 		if (!igt_wait_for_spinner(&spin_hi, rq)) {
 			pr_err("High priority context failed to preempt the low priority context\n");
@@ -1918,7 +1927,7 @@ struct preempt_client {
 
 static int preempt_client_init(struct intel_gt *gt, struct preempt_client *c)
 {
-	c->ctx = kernel_context(gt->i915);
+	c->ctx = kernel_context(gt->i915, NULL);
 	if (!c->ctx)
 		return -ENOMEM;
 
@@ -1955,7 +1964,7 @@ static int live_nopreempt(void *arg)
 		return -ENOMEM;
 	if (preempt_client_init(gt, &b))
 		goto err_client_a;
-	b.ctx->sched.priority = I915_USER_PRIORITY(I915_PRIORITY_MAX);
+	b.ctx->sched.priority = I915_PRIORITY_MAX;
 
 	for_each_engine(engine, gt, id) {
 		struct i915_request *rq_a, *rq_b;
@@ -2420,11 +2429,9 @@ err_wedged:
 
 static int live_suppress_self_preempt(void *arg)
 {
+	struct i915_sched_attr attr = { .priority = I915_PRIORITY_MAX };
 	struct intel_gt *gt = arg;
 	struct intel_engine_cs *engine;
-	struct i915_sched_attr attr = {
-		.priority = I915_USER_PRIORITY(I915_PRIORITY_MAX)
-	};
 	struct preempt_client a, b;
 	enum intel_engine_id id;
 	int err = -ENOMEM;
@@ -2490,7 +2497,7 @@ static int live_suppress_self_preempt(void *arg)
 			i915_request_add(rq_b);
 
 			GEM_BUG_ON(i915_request_completed(rq_a));
-			engine->schedule(rq_a, &attr);
+			engine->sched_engine->schedule(rq_a, &attr);
 			igt_spinner_end(&a.spin);
 
 			if (!igt_wait_for_spinner(&b.spin, rq_b)) {
@@ -2555,9 +2562,7 @@ static int live_chain_preempt(void *arg)
 		goto err_client_hi;
 
 	for_each_engine(engine, gt, id) {
-		struct i915_sched_attr attr = {
-			.priority = I915_USER_PRIORITY(I915_PRIORITY_MAX),
-		};
+		struct i915_sched_attr attr = { .priority = I915_PRIORITY_MAX };
 		struct igt_live_test t;
 		struct i915_request *rq;
 		int ring_size, count, i;
@@ -2624,7 +2629,7 @@ static int live_chain_preempt(void *arg)
 
 			i915_request_get(rq);
 			i915_request_add(rq);
-			engine->schedule(rq, &attr);
+			engine->sched_engine->schedule(rq, &attr);
 
 			igt_spinner_end(&hi.spin);
 			if (i915_request_wait(rq, 0, HZ / 5) < 0) {
@@ -2714,7 +2719,7 @@ static int create_gang(struct intel_engine_cs *engine,
 	if (err)
 		goto err_obj;
 
-	cs = i915_gem_object_pin_map(obj, I915_MAP_WC);
+	cs = i915_gem_object_pin_map_unlocked(obj, I915_MAP_WC);
 	if (IS_ERR(cs)) {
 		err = PTR_ERR(cs);
 		goto err_obj;
@@ -2805,7 +2810,7 @@ static int __live_preempt_ring(struct intel_engine_cs *engine,
 			goto err_ce;
 		}
 
-		tmp->ring = __intel_context_ring_size(ring_sz);
+		tmp->ring_size = ring_sz;
 
 		err = intel_context_pin(tmp);
 		if (err) {
@@ -2876,7 +2881,7 @@ static int __live_preempt_ring(struct intel_engine_cs *engine,
 	err = wait_for_submit(engine, rq, HZ / 2);
 	i915_request_put(rq);
 	if (err) {
-		pr_err("%s: preemption request was not submited\n",
+		pr_err("%s: preemption request was not submitted\n",
 		       engine->name);
 		err = -ETIME;
 	}
@@ -2976,16 +2981,14 @@ static int live_preempt_gang(void *arg)
 			return -EIO;
 
 		do {
-			struct i915_sched_attr attr = {
-				.priority = I915_USER_PRIORITY(prio++),
-			};
+			struct i915_sched_attr attr = { .priority = prio++ };
 
 			err = create_gang(engine, &rq);
 			if (err)
 				break;
 
 			/* Submit each spinner at increasing priority */
-			engine->schedule(rq, &attr);
+			engine->sched_engine->schedule(rq, &attr);
 		} while (prio <= I915_PRIORITY_MAX &&
 			 !__igt_timeout(end_time, NULL));
 		pr_debug("%s: Preempt chain of %d requests\n",
@@ -2997,7 +3000,7 @@ static int live_preempt_gang(void *arg)
 		 * it will terminate the next lowest spinner until there
 		 * are no more spinners and the gang is complete.
 		 */
-		cs = i915_gem_object_pin_map(rq->batch->obj, I915_MAP_WC);
+		cs = i915_gem_object_pin_map_unlocked(rq->batch->obj, I915_MAP_WC);
 		if (!IS_ERR(cs)) {
 			*cs = 0;
 			i915_gem_object_unpin_map(rq->batch->obj);
@@ -3014,7 +3017,7 @@ static int live_preempt_gang(void *arg)
 					drm_info_printer(engine->i915->drm.dev);
 
 				pr_err("Failed to flush chain of %d requests, at %d\n",
-				       prio, rq_prio(rq) >> I915_USER_PRIORITY_SHIFT);
+				       prio, rq_prio(rq));
 				intel_engine_dump(engine, &p,
 						  "%s\n", engine->name);
 
@@ -3062,7 +3065,7 @@ create_gpr_user(struct intel_engine_cs *engine,
 		return ERR_PTR(err);
 	}
 
-	cs = i915_gem_object_pin_map(obj, I915_MAP_WC);
+	cs = i915_gem_object_pin_map_unlocked(obj, I915_MAP_WC);
 	if (IS_ERR(cs)) {
 		i915_vma_put(vma);
 		return ERR_CAST(cs);
@@ -3233,7 +3236,7 @@ static int preempt_user(struct intel_engine_cs *engine,
 	i915_request_get(rq);
 	i915_request_add(rq);
 
-	engine->schedule(rq, &attr);
+	engine->sched_engine->schedule(rq, &attr);
 
 	if (i915_request_wait(rq, 0, HZ / 2) < 0)
 		err = -ETIME;
@@ -3269,7 +3272,7 @@ static int live_preempt_user(void *arg)
 	if (IS_ERR(global))
 		return PTR_ERR(global);
 
-	result = i915_gem_object_pin_map(global->obj, I915_MAP_WC);
+	result = i915_gem_object_pin_map_unlocked(global->obj, I915_MAP_WC);
 	if (IS_ERR(result)) {
 		i915_vma_unpin_and_release(&global, 0);
 		return PTR_ERR(result);
@@ -3283,7 +3286,7 @@ static int live_preempt_user(void *arg)
 		if (!intel_engine_has_preemption(engine))
 			continue;
 
-		if (IS_GEN(gt->i915, 8) && engine->class != RENDER_CLASS)
+		if (GRAPHICS_VER(gt->i915) == 8 && engine->class != RENDER_CLASS)
 			continue; /* we need per-context GPR */
 
 		if (igt_live_test_begin(&t, gt->i915, __func__, engine->name)) {
@@ -3381,17 +3384,15 @@ static int live_preempt_timeout(void *arg)
 	if (igt_spinner_init(&spin_lo, gt))
 		return -ENOMEM;
 
-	ctx_hi = kernel_context(gt->i915);
+	ctx_hi = kernel_context(gt->i915, NULL);
 	if (!ctx_hi)
 		goto err_spin_lo;
-	ctx_hi->sched.priority =
-		I915_USER_PRIORITY(I915_CONTEXT_MAX_USER_PRIORITY);
+	ctx_hi->sched.priority = I915_CONTEXT_MAX_USER_PRIORITY;
 
-	ctx_lo = kernel_context(gt->i915);
+	ctx_lo = kernel_context(gt->i915, NULL);
 	if (!ctx_lo)
 		goto err_ctx_hi;
-	ctx_lo->sched.priority =
-		I915_USER_PRIORITY(I915_CONTEXT_MIN_USER_PRIORITY);
+	ctx_lo->sched.priority = I915_CONTEXT_MIN_USER_PRIORITY;
 
 	for_each_engine(engine, gt, id) {
 		unsigned long saved_timeout;
@@ -3560,11 +3561,15 @@ static int smoke_crescendo(struct preempt_smoke *smoke, unsigned int flags)
 #define BATCH BIT(0)
 {
 	struct task_struct *tsk[I915_NUM_ENGINES] = {};
-	struct preempt_smoke arg[I915_NUM_ENGINES];
+	struct preempt_smoke *arg;
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
 	unsigned long count;
 	int err = 0;
+
+	arg = kmalloc_array(I915_NUM_ENGINES, sizeof(*arg), GFP_KERNEL);
+	if (!arg)
+		return -ENOMEM;
 
 	for_each_engine(engine, smoke->gt, id) {
 		arg[id] = *smoke;
@@ -3573,7 +3578,7 @@ static int smoke_crescendo(struct preempt_smoke *smoke, unsigned int flags)
 			arg[id].batch = NULL;
 		arg[id].count = 0;
 
-		tsk[id] = kthread_run(smoke_crescendo_thread, &arg,
+		tsk[id] = kthread_run(smoke_crescendo_thread, arg,
 				      "igt/smoke:%d", id);
 		if (IS_ERR(tsk[id])) {
 			err = PTR_ERR(tsk[id]);
@@ -3602,6 +3607,8 @@ static int smoke_crescendo(struct preempt_smoke *smoke, unsigned int flags)
 
 	pr_info("Submitted %lu crescendo:%x requests across %d engines and %d contexts\n",
 		count, flags, smoke->gt->info.num_engines, smoke->ncontext);
+
+	kfree(arg);
 	return 0;
 }
 
@@ -3658,7 +3665,7 @@ static int live_preempt_smoke(void *arg)
 		goto err_free;
 	}
 
-	cs = i915_gem_object_pin_map(smoke.batch, I915_MAP_WB);
+	cs = i915_gem_object_pin_map_unlocked(smoke.batch, I915_MAP_WB);
 	if (IS_ERR(cs)) {
 		err = PTR_ERR(cs);
 		goto err_batch;
@@ -3675,7 +3682,7 @@ static int live_preempt_smoke(void *arg)
 	}
 
 	for (n = 0; n < smoke.ncontext; n++) {
-		smoke.contexts[n] = kernel_context(smoke.gt->i915);
+		smoke.contexts[n] = kernel_context(smoke.gt->i915, NULL);
 		if (!smoke.contexts[n])
 			goto err_ctx;
 	}
@@ -3726,7 +3733,7 @@ static int nop_virtual_engine(struct intel_gt *gt,
 	GEM_BUG_ON(!nctx || nctx > ARRAY_SIZE(ve));
 
 	for (n = 0; n < nctx; n++) {
-		ve[n] = intel_execlists_create_virtual(siblings, nsibling);
+		ve[n] = intel_engine_create_virtual(siblings, nsibling);
 		if (IS_ERR(ve[n])) {
 			err = PTR_ERR(ve[n]);
 			nctx = n;
@@ -3922,7 +3929,7 @@ static int mask_virtual_engine(struct intel_gt *gt,
 	 * restrict it to our desired engine within the virtual engine.
 	 */
 
-	ve = intel_execlists_create_virtual(siblings, nsibling);
+	ve = intel_engine_create_virtual(siblings, nsibling);
 	if (IS_ERR(ve)) {
 		err = PTR_ERR(ve);
 		goto out_close;
@@ -4053,7 +4060,7 @@ static int slicein_virtual_engine(struct intel_gt *gt,
 		i915_request_add(rq);
 	}
 
-	ce = intel_execlists_create_virtual(siblings, nsibling);
+	ce = intel_engine_create_virtual(siblings, nsibling);
 	if (IS_ERR(ce)) {
 		err = PTR_ERR(ce);
 		goto out;
@@ -4105,7 +4112,7 @@ static int sliceout_virtual_engine(struct intel_gt *gt,
 
 	/* XXX We do not handle oversubscription and fairness with normal rq */
 	for (n = 0; n < nsibling; n++) {
-		ce = intel_execlists_create_virtual(siblings, nsibling);
+		ce = intel_engine_create_virtual(siblings, nsibling);
 		if (IS_ERR(ce)) {
 			err = PTR_ERR(ce);
 			goto out;
@@ -4197,8 +4204,9 @@ static int preserved_virtual_engine(struct intel_gt *gt,
 	int err = 0;
 	u32 *cs;
 
-	scratch = __vm_create_scratch_for_read(&siblings[0]->gt->ggtt->vm,
-					       PAGE_SIZE);
+	scratch =
+		__vm_create_scratch_for_read_pinned(&siblings[0]->gt->ggtt->vm,
+						    PAGE_SIZE);
 	if (IS_ERR(scratch))
 		return PTR_ERR(scratch);
 
@@ -4206,7 +4214,7 @@ static int preserved_virtual_engine(struct intel_gt *gt,
 	if (err)
 		goto out_scratch;
 
-	ve = intel_execlists_create_virtual(siblings, nsibling);
+	ve = intel_engine_create_virtual(siblings, nsibling);
 	if (IS_ERR(ve)) {
 		err = PTR_ERR(ve);
 		goto out_scratch;
@@ -4262,7 +4270,7 @@ static int preserved_virtual_engine(struct intel_gt *gt,
 		goto out_end;
 	}
 
-	cs = i915_gem_object_pin_map(scratch->obj, I915_MAP_WB);
+	cs = i915_gem_object_pin_map_unlocked(scratch->obj, I915_MAP_WB);
 	if (IS_ERR(cs)) {
 		err = PTR_ERR(cs);
 		goto out_end;
@@ -4308,7 +4316,7 @@ static int live_virtual_preserved(void *arg)
 		return 0;
 
 	/* As we use CS_GPR we cannot run before they existed on all engines. */
-	if (INTEL_GEN(gt->i915) < 9)
+	if (GRAPHICS_VER(gt->i915) < 9)
 		return 0;
 
 	for (class = 0; class <= MAX_ENGINE_CLASS; class++) {
@@ -4321,234 +4329,6 @@ static int live_virtual_preserved(void *arg)
 		err = preserved_virtual_engine(gt, siblings, nsibling);
 		if (err)
 			return err;
-	}
-
-	return 0;
-}
-
-static int bond_virtual_engine(struct intel_gt *gt,
-			       unsigned int class,
-			       struct intel_engine_cs **siblings,
-			       unsigned int nsibling,
-			       unsigned int flags)
-#define BOND_SCHEDULE BIT(0)
-{
-	struct intel_engine_cs *master;
-	struct i915_request *rq[16];
-	enum intel_engine_id id;
-	struct igt_spinner spin;
-	unsigned long n;
-	int err;
-
-	/*
-	 * A set of bonded requests is intended to be run concurrently
-	 * across a number of engines. We use one request per-engine
-	 * and a magic fence to schedule each of the bonded requests
-	 * at the same time. A consequence of our current scheduler is that
-	 * we only move requests to the HW ready queue when the request
-	 * becomes ready, that is when all of its prerequisite fences have
-	 * been signaled. As one of those fences is the master submit fence,
-	 * there is a delay on all secondary fences as the HW may be
-	 * currently busy. Equally, as all the requests are independent,
-	 * they may have other fences that delay individual request
-	 * submission to HW. Ergo, we do not guarantee that all requests are
-	 * immediately submitted to HW at the same time, just that if the
-	 * rules are abided by, they are ready at the same time as the
-	 * first is submitted. Userspace can embed semaphores in its batch
-	 * to ensure parallel execution of its phases as it requires.
-	 * Though naturally it gets requested that perhaps the scheduler should
-	 * take care of parallel execution, even across preemption events on
-	 * different HW. (The proper answer is of course "lalalala".)
-	 *
-	 * With the submit-fence, we have identified three possible phases
-	 * of synchronisation depending on the master fence: queued (not
-	 * ready), executing, and signaled. The first two are quite simple
-	 * and checked below. However, the signaled master fence handling is
-	 * contentious. Currently we do not distinguish between a signaled
-	 * fence and an expired fence, as once signaled it does not convey
-	 * any information about the previous execution. It may even be freed
-	 * and hence checking later it may not exist at all. Ergo we currently
-	 * do not apply the bonding constraint for an already signaled fence,
-	 * as our expectation is that it should not constrain the secondaries
-	 * and is outside of the scope of the bonded request API (i.e. all
-	 * userspace requests are meant to be running in parallel). As
-	 * it imposes no constraint, and is effectively a no-op, we do not
-	 * check below as normal execution flows are checked extensively above.
-	 *
-	 * XXX Is the degenerate handling of signaled submit fences the
-	 * expected behaviour for userpace?
-	 */
-
-	GEM_BUG_ON(nsibling >= ARRAY_SIZE(rq) - 1);
-
-	if (igt_spinner_init(&spin, gt))
-		return -ENOMEM;
-
-	err = 0;
-	rq[0] = ERR_PTR(-ENOMEM);
-	for_each_engine(master, gt, id) {
-		struct i915_sw_fence fence = {};
-		struct intel_context *ce;
-
-		if (master->class == class)
-			continue;
-
-		ce = intel_context_create(master);
-		if (IS_ERR(ce)) {
-			err = PTR_ERR(ce);
-			goto out;
-		}
-
-		memset_p((void *)rq, ERR_PTR(-EINVAL), ARRAY_SIZE(rq));
-
-		rq[0] = igt_spinner_create_request(&spin, ce, MI_NOOP);
-		intel_context_put(ce);
-		if (IS_ERR(rq[0])) {
-			err = PTR_ERR(rq[0]);
-			goto out;
-		}
-		i915_request_get(rq[0]);
-
-		if (flags & BOND_SCHEDULE) {
-			onstack_fence_init(&fence);
-			err = i915_sw_fence_await_sw_fence_gfp(&rq[0]->submit,
-							       &fence,
-							       GFP_KERNEL);
-		}
-
-		i915_request_add(rq[0]);
-		if (err < 0)
-			goto out;
-
-		if (!(flags & BOND_SCHEDULE) &&
-		    !igt_wait_for_spinner(&spin, rq[0])) {
-			err = -EIO;
-			goto out;
-		}
-
-		for (n = 0; n < nsibling; n++) {
-			struct intel_context *ve;
-
-			ve = intel_execlists_create_virtual(siblings, nsibling);
-			if (IS_ERR(ve)) {
-				err = PTR_ERR(ve);
-				onstack_fence_fini(&fence);
-				goto out;
-			}
-
-			err = intel_virtual_engine_attach_bond(ve->engine,
-							       master,
-							       siblings[n]);
-			if (err) {
-				intel_context_put(ve);
-				onstack_fence_fini(&fence);
-				goto out;
-			}
-
-			err = intel_context_pin(ve);
-			intel_context_put(ve);
-			if (err) {
-				onstack_fence_fini(&fence);
-				goto out;
-			}
-
-			rq[n + 1] = i915_request_create(ve);
-			intel_context_unpin(ve);
-			if (IS_ERR(rq[n + 1])) {
-				err = PTR_ERR(rq[n + 1]);
-				onstack_fence_fini(&fence);
-				goto out;
-			}
-			i915_request_get(rq[n + 1]);
-
-			err = i915_request_await_execution(rq[n + 1],
-							   &rq[0]->fence,
-							   ve->engine->bond_execute);
-			i915_request_add(rq[n + 1]);
-			if (err < 0) {
-				onstack_fence_fini(&fence);
-				goto out;
-			}
-		}
-		onstack_fence_fini(&fence);
-		intel_engine_flush_submission(master);
-		igt_spinner_end(&spin);
-
-		if (i915_request_wait(rq[0], 0, HZ / 10) < 0) {
-			pr_err("Master request did not execute (on %s)!\n",
-			       rq[0]->engine->name);
-			err = -EIO;
-			goto out;
-		}
-
-		for (n = 0; n < nsibling; n++) {
-			if (i915_request_wait(rq[n + 1], 0,
-					      MAX_SCHEDULE_TIMEOUT) < 0) {
-				err = -EIO;
-				goto out;
-			}
-
-			if (rq[n + 1]->engine != siblings[n]) {
-				pr_err("Bonded request did not execute on target engine: expected %s, used %s; master was %s\n",
-				       siblings[n]->name,
-				       rq[n + 1]->engine->name,
-				       rq[0]->engine->name);
-				err = -EINVAL;
-				goto out;
-			}
-		}
-
-		for (n = 0; !IS_ERR(rq[n]); n++)
-			i915_request_put(rq[n]);
-		rq[0] = ERR_PTR(-ENOMEM);
-	}
-
-out:
-	for (n = 0; !IS_ERR(rq[n]); n++)
-		i915_request_put(rq[n]);
-	if (igt_flush_test(gt->i915))
-		err = -EIO;
-
-	igt_spinner_fini(&spin);
-	return err;
-}
-
-static int live_virtual_bond(void *arg)
-{
-	static const struct phase {
-		const char *name;
-		unsigned int flags;
-	} phases[] = {
-		{ "", 0 },
-		{ "schedule", BOND_SCHEDULE },
-		{ },
-	};
-	struct intel_gt *gt = arg;
-	struct intel_engine_cs *siblings[MAX_ENGINE_INSTANCE + 1];
-	unsigned int class;
-	int err;
-
-	if (intel_uc_uses_guc_submission(&gt->uc))
-		return 0;
-
-	for (class = 0; class <= MAX_ENGINE_CLASS; class++) {
-		const struct phase *p;
-		int nsibling;
-
-		nsibling = select_siblings(gt, class, siblings);
-		if (nsibling < 2)
-			continue;
-
-		for (p = phases; p->name; p++) {
-			err = bond_virtual_engine(gt,
-						  class, siblings, nsibling,
-						  p->flags);
-			if (err) {
-				pr_err("%s(%s): failed class=%d, nsibling=%d, err=%d\n",
-				       __func__, p->name, class, nsibling, err);
-				return err;
-			}
-		}
 	}
 
 	return 0;
@@ -4574,7 +4354,7 @@ static int reset_virtual_engine(struct intel_gt *gt,
 	if (igt_spinner_init(&spin, gt))
 		return -ENOMEM;
 
-	ve = intel_execlists_create_virtual(siblings, nsibling);
+	ve = intel_engine_create_virtual(siblings, nsibling);
 	if (IS_ERR(ve)) {
 		err = PTR_ERR(ve);
 		goto out_spin;
@@ -4600,23 +4380,17 @@ static int reset_virtual_engine(struct intel_gt *gt,
 	GEM_BUG_ON(engine == ve->engine);
 
 	/* Take ownership of the reset and tasklet */
-	local_bh_disable();
-	if (test_and_set_bit(I915_RESET_ENGINE + engine->id,
-			     &gt->reset.flags)) {
-		local_bh_enable();
-		intel_gt_set_wedged(gt);
-		err = -EBUSY;
+	err = engine_lock_reset_tasklet(engine);
+	if (err)
 		goto out_heartbeat;
-	}
-	tasklet_disable(&engine->execlists.tasklet);
 
-	engine->execlists.tasklet.func(engine->execlists.tasklet.data);
+	engine->sched_engine->tasklet.callback(&engine->sched_engine->tasklet);
 	GEM_BUG_ON(execlists_active(&engine->execlists) != rq);
 
 	/* Fake a preemption event; failed of course */
-	spin_lock_irq(&engine->active.lock);
+	spin_lock_irq(&engine->sched_engine->lock);
 	__unwind_incomplete_requests(engine);
-	spin_unlock_irq(&engine->active.lock);
+	spin_unlock_irq(&engine->sched_engine->lock);
 	GEM_BUG_ON(rq->engine != engine);
 
 	/* Reset the engine while keeping our active request on hold */
@@ -4627,9 +4401,7 @@ static int reset_virtual_engine(struct intel_gt *gt,
 	GEM_BUG_ON(rq->fence.error != -EIO);
 
 	/* Release our grasp on the engine, letting CS flow again */
-	tasklet_enable(&engine->execlists.tasklet);
-	clear_and_wake_up_bit(I915_RESET_ENGINE + engine->id, &gt->reset.flags);
-	local_bh_enable();
+	engine_unlock_reset_tasklet(engine);
 
 	/* Check that we do not resubmit the held request */
 	i915_request_get(rq);
@@ -4727,11 +4499,10 @@ int intel_execlists_live_selftests(struct drm_i915_private *i915)
 		SUBTEST(live_virtual_mask),
 		SUBTEST(live_virtual_preserved),
 		SUBTEST(live_virtual_slice),
-		SUBTEST(live_virtual_bond),
 		SUBTEST(live_virtual_reset),
 	};
 
-	if (!HAS_EXECLISTS(i915))
+	if (i915->gt.submission_method != INTEL_SUBMISSION_ELSP)
 		return 0;
 
 	if (intel_gt_is_wedged(&i915->gt))

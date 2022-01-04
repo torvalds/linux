@@ -153,7 +153,7 @@ As capture, each frame contains two parts::
     struct ifreq s_ifr;
     ...
 
-    strncpy (s_ifr.ifr_name, "eth0", sizeof(s_ifr.ifr_name));
+    strscpy_pad (s_ifr.ifr_name, "eth0", sizeof(s_ifr.ifr_name));
 
     /* get interface index of eth0 */
     ioctl(this->socket, SIOCGIFINDEX, &s_ifr);

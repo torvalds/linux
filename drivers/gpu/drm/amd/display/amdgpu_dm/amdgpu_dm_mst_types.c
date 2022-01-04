@@ -38,6 +38,7 @@
 #include "dc_link_ddc.h"
 
 #include "i2caux_interface.h"
+#include "dmub_cmd.h"
 #if defined(CONFIG_DEBUG_FS)
 #include "amdgpu_dm_debugfs.h"
 #endif
@@ -51,7 +52,7 @@ static ssize_t dm_dp_aux_transfer(struct drm_dp_aux *aux,
 {
 	ssize_t result = 0;
 	struct aux_payload payload;
-	enum aux_channel_operation_result operation_result;
+	enum aux_return_code_type operation_result;
 
 	if (WARN_ON(msg->size > 16))
 		return -E2BIG;
@@ -73,17 +74,19 @@ static ssize_t dm_dp_aux_transfer(struct drm_dp_aux *aux,
 
 	if (result < 0)
 		switch (operation_result) {
-		case AUX_CHANNEL_OPERATION_SUCCEEDED:
+		case AUX_RET_SUCCESS:
 			break;
-		case AUX_CHANNEL_OPERATION_FAILED_HPD_DISCON:
-		case AUX_CHANNEL_OPERATION_FAILED_REASON_UNKNOWN:
+		case AUX_RET_ERROR_HPD_DISCON:
+		case AUX_RET_ERROR_UNKNOWN:
+		case AUX_RET_ERROR_INVALID_OPERATION:
+		case AUX_RET_ERROR_PROTOCOL_ERROR:
 			result = -EIO;
 			break;
-		case AUX_CHANNEL_OPERATION_FAILED_INVALID_REPLY:
-		case AUX_CHANNEL_OPERATION_FAILED_ENGINE_ACQUIRE:
+		case AUX_RET_ERROR_INVALID_REPLY:
+		case AUX_RET_ERROR_ENGINE_ACQUIRE:
 			result = -EBUSY;
 			break;
-		case AUX_CHANNEL_OPERATION_FAILED_TIMEOUT:
+		case AUX_RET_ERROR_TIMEOUT:
 			result = -ETIMEDOUT;
 			break;
 		}
@@ -157,6 +160,8 @@ static bool validate_dsc_caps_on_connector(struct amdgpu_dm_connector *aconnecto
 	struct dc_sink *dc_sink = aconnector->dc_sink;
 	struct drm_dp_mst_port *port = aconnector->port;
 	u8 dsc_caps[16] = { 0 };
+	u8 dsc_branch_dec_caps_raw[3] = { 0 };	// DSC branch decoder caps 0xA0 ~ 0xA2
+	u8 *dsc_branch_dec_caps = NULL;
 
 	aconnector->dsc_aux = drm_dp_mst_dsc_aux_for_port(port);
 #if defined(CONFIG_HP_HOOK_WORKAROUND)
@@ -179,9 +184,13 @@ static bool validate_dsc_caps_on_connector(struct amdgpu_dm_connector *aconnecto
 	if (drm_dp_dpcd_read(aconnector->dsc_aux, DP_DSC_SUPPORT, dsc_caps, 16) < 0)
 		return false;
 
+	if (drm_dp_dpcd_read(aconnector->dsc_aux,
+			DP_DSC_BRANCH_OVERALL_THROUGHPUT_0, dsc_branch_dec_caps_raw, 3) == 3)
+		dsc_branch_dec_caps = dsc_branch_dec_caps_raw;
+
 	if (!dc_dsc_parse_dsc_dpcd(aconnector->dc_link->ctx->dc,
-				   dsc_caps, NULL,
-				   &dc_sink->dsc_caps.dsc_dec_caps))
+				  dsc_caps, dsc_branch_dec_caps,
+				  &dc_sink->dsc_caps.dsc_dec_caps))
 		return false;
 
 	return true;
@@ -204,6 +213,29 @@ static int dm_dp_mst_get_modes(struct drm_connector *connector)
 			drm_connector_update_edid_property(
 				&aconnector->base,
 				NULL);
+
+			DRM_DEBUG_KMS("Can't get EDID of %s. Add default remote sink.", connector->name);
+			if (!aconnector->dc_sink) {
+				struct dc_sink *dc_sink;
+				struct dc_sink_init_data init_params = {
+					.link = aconnector->dc_link,
+					.sink_signal = SIGNAL_TYPE_DISPLAY_PORT_MST };
+
+				dc_sink = dc_link_add_remote_sink(
+					aconnector->dc_link,
+					NULL,
+					0,
+					&init_params);
+
+				if (!dc_sink) {
+					DRM_ERROR("Unable to add a remote sink\n");
+					return 0;
+				}
+
+				dc_sink->priv = aconnector;
+				aconnector->dc_sink = dc_sink;
+			}
+
 			return ret;
 		}
 
@@ -225,6 +257,11 @@ static int dm_dp_mst_get_modes(struct drm_connector *connector)
 			(uint8_t *)aconnector->edid,
 			(aconnector->edid->extensions + 1) * EDID_LENGTH,
 			&init_params);
+
+		if (!dc_sink) {
+			DRM_ERROR("Unable to add a remote sink\n");
+			return 0;
+		}
 
 		dc_sink->priv = aconnector;
 		/* dc_link_add_remote_sink returns a new reference */
@@ -269,6 +306,9 @@ dm_dp_mst_detect(struct drm_connector *connector,
 {
 	struct amdgpu_dm_connector *aconnector = to_amdgpu_dm_connector(connector);
 	struct amdgpu_dm_connector *master = aconnector->mst_port;
+
+	if (drm_connector_is_unregistered(connector))
+		return connector_status_disconnected;
 
 	return drm_dp_mst_detect_port(connector, ctx, &master->mst_mgr,
 				      aconnector->port);
@@ -426,10 +466,13 @@ void amdgpu_dm_initialize_dp_connector(struct amdgpu_display_manager *dm,
 				       struct amdgpu_dm_connector *aconnector,
 				       int link_index)
 {
+	struct dc_link_settings max_link_enc_cap = {0};
+
 	aconnector->dm_dp_aux.aux.name =
 		kasprintf(GFP_KERNEL, "AMDGPU DM aux hw bus %d",
 			  link_index);
 	aconnector->dm_dp_aux.aux.transfer = dm_dp_aux_transfer;
+	aconnector->dm_dp_aux.aux.drm_dev = dm->ddev;
 	aconnector->dm_dp_aux.ddc_service = aconnector->dc_link->ddc;
 
 	drm_dp_aux_init(&aconnector->dm_dp_aux.aux);
@@ -439,6 +482,7 @@ void amdgpu_dm_initialize_dp_connector(struct amdgpu_display_manager *dm,
 	if (aconnector->base.connector_type == DRM_MODE_CONNECTOR_eDP)
 		return;
 
+	dc_link_dp_get_max_link_enc_cap(aconnector->dc_link, &max_link_enc_cap);
 	aconnector->mst_mgr.cbs = &dm_mst_cbs;
 	drm_dp_mst_topology_mgr_init(
 		&aconnector->mst_mgr,
@@ -446,6 +490,8 @@ void amdgpu_dm_initialize_dp_connector(struct amdgpu_display_manager *dm,
 		&aconnector->dm_dp_aux.aux,
 		16,
 		4,
+		max_link_enc_cap.lane_count,
+		drm_dp_bw_code_to_link_rate(max_link_enc_cap.link_rate),
 		aconnector->connector_id);
 
 	drm_connector_attach_dp_subconnector_property(&aconnector->base);
@@ -742,8 +788,8 @@ static bool compute_mst_dsc_configs_for_link(struct drm_atomic_state *state,
 		if (!dc_dsc_compute_bandwidth_range(
 				stream->sink->ctx->dc->res_pool->dscs[0],
 				stream->sink->ctx->dc->debug.dsc_min_slice_height_override,
-				dsc_policy.min_target_bpp,
-				dsc_policy.max_target_bpp,
+				dsc_policy.min_target_bpp * 16,
+				dsc_policy.max_target_bpp * 16,
 				&stream->sink->dsc_caps.dsc_dec_caps,
 				&stream->timing, &params[count].bw_range))
 			params[count].bw_range.stream_kbps = dc_bandwidth_in_kbps_from_timing(&stream->timing);

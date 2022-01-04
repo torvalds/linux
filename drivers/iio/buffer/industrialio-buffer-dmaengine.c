@@ -228,9 +228,9 @@ static void iio_dmaengine_buffer_free(struct iio_buffer *buffer)
 	iio_buffer_put(buffer);
 }
 
-static void __devm_iio_dmaengine_buffer_free(struct device *dev, void *res)
+static void __devm_iio_dmaengine_buffer_free(void *buffer)
 {
-	iio_dmaengine_buffer_free(*(struct iio_buffer **)res);
+	iio_dmaengine_buffer_free(buffer);
 }
 
 /**
@@ -247,21 +247,17 @@ static void __devm_iio_dmaengine_buffer_free(struct device *dev, void *res)
 static struct iio_buffer *devm_iio_dmaengine_buffer_alloc(struct device *dev,
 	const char *channel)
 {
-	struct iio_buffer **bufferp, *buffer;
-
-	bufferp = devres_alloc(__devm_iio_dmaengine_buffer_free,
-			       sizeof(*bufferp), GFP_KERNEL);
-	if (!bufferp)
-		return ERR_PTR(-ENOMEM);
+	struct iio_buffer *buffer;
+	int ret;
 
 	buffer = iio_dmaengine_buffer_alloc(dev, channel);
-	if (IS_ERR(buffer)) {
-		devres_free(bufferp);
+	if (IS_ERR(buffer))
 		return buffer;
-	}
 
-	*bufferp = buffer;
-	devres_add(dev, bufferp);
+	ret = devm_add_action_or_reset(dev, __devm_iio_dmaengine_buffer_free,
+				       buffer);
+	if (ret)
+		return ERR_PTR(ret);
 
 	return buffer;
 }

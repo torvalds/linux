@@ -1,0 +1,75 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/input/touchscreen/azoteq,iqs5xx.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Azoteq IQS550/572/525 Trackpad/Touchscreen Controller
+
+maintainers:
+  - Jeff LaBundy <jeff@labundy.com>
+
+description: |
+  The Azoteq IQS550, IQS572 and IQS525 trackpad and touchscreen controllers
+  employ projected-capacitance sensing and can track up to five independent
+  contacts.
+
+  Link to datasheet: https://www.azoteq.com/
+
+allOf:
+  - $ref: touchscreen.yaml#
+
+properties:
+  compatible:
+    enum:
+      - azoteq,iqs550
+      - azoteq,iqs572
+      - azoteq,iqs525
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  reset-gpios:
+    maxItems: 1
+
+  wakeup-source: true
+
+  touchscreen-size-x: true
+  touchscreen-size-y: true
+  touchscreen-inverted-x: true
+  touchscreen-inverted-y: true
+  touchscreen-swapped-x-y: true
+
+required:
+  - compatible
+  - reg
+  - interrupts
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+    #include <dt-bindings/interrupt-controller/irq.h>
+
+    i2c {
+            #address-cells = <1>;
+            #size-cells = <0>;
+
+            touchscreen@74 {
+                    compatible = "azoteq,iqs550";
+                    reg = <0x74>;
+                    interrupt-parent = <&gpio>;
+                    interrupts = <27 IRQ_TYPE_LEVEL_HIGH>;
+                    reset-gpios = <&gpio 22 (GPIO_ACTIVE_LOW |
+                                             GPIO_PUSH_PULL)>;
+
+                    touchscreen-size-x = <800>;
+                    touchscreen-size-y = <480>;
+            };
+    };
+
+...

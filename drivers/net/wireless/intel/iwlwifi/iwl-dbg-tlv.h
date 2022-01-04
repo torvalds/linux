@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2018-2020 Intel Corporation
+ * Copyright (C) 2018-2021 Intel Corporation
  */
 #ifndef __iwl_dbg_tlv_h__
 #define __iwl_dbg_tlv_h__
@@ -48,9 +48,25 @@ void iwl_dbg_tlv_free(struct iwl_trans *trans);
 void iwl_dbg_tlv_alloc(struct iwl_trans *trans, const struct iwl_ucode_tlv *tlv,
 		       bool ext);
 void iwl_dbg_tlv_init(struct iwl_trans *trans);
-void iwl_dbg_tlv_time_point(struct iwl_fw_runtime *fwrt,
-			    enum iwl_fw_ini_time_point tp_id,
-			    union iwl_dbg_tlv_tp_data *tp_data);
+void _iwl_dbg_tlv_time_point(struct iwl_fw_runtime *fwrt,
+			     enum iwl_fw_ini_time_point tp_id,
+			     union iwl_dbg_tlv_tp_data *tp_data,
+			     bool sync);
+
+static inline void iwl_dbg_tlv_time_point(struct iwl_fw_runtime *fwrt,
+					  enum iwl_fw_ini_time_point tp_id,
+					  union iwl_dbg_tlv_tp_data *tp_data)
+{
+	_iwl_dbg_tlv_time_point(fwrt, tp_id, tp_data, false);
+}
+
+static inline void iwl_dbg_tlv_time_point_sync(struct iwl_fw_runtime *fwrt,
+					       enum iwl_fw_ini_time_point tp_id,
+					       union iwl_dbg_tlv_tp_data *tp_data)
+{
+	_iwl_dbg_tlv_time_point(fwrt, tp_id, tp_data, true);
+}
+
 void iwl_dbg_tlv_del_timers(struct iwl_trans *trans);
 
 #endif /* __iwl_dbg_tlv_h__*/

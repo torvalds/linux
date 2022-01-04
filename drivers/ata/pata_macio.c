@@ -914,7 +914,7 @@ static int pata_macio_do_resume(struct pata_macio_priv *priv)
 #endif /* CONFIG_PM_SLEEP */
 
 static struct scsi_host_template pata_macio_sht = {
-	ATA_BASE_SHT(DRV_NAME),
+	__ATA_BASE_SHT(DRV_NAME),
 	.sg_tablesize		= MAX_DCMDS,
 	/* We may not need that strict one */
 	.dma_boundary		= ATA_DMA_BOUNDARY,
@@ -923,6 +923,9 @@ static struct scsi_host_template pata_macio_sht = {
 	 */
 	.max_segment_size	= MAX_DBDMA_SEG,
 	.slave_configure	= pata_macio_slave_config,
+	.sdev_attrs		= ata_common_sdev_attrs,
+	.can_queue		= ATA_DEF_QUEUE,
+	.tag_alloc_policy	= BLK_TAG_ALLOC_RR,
 };
 
 static struct ata_port_operations pata_macio_ops = {

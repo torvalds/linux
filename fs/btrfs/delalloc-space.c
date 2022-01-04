@@ -89,7 +89,7 @@
  *    ->outstanding_extents += 1 (current value is 1)
  *
  *  -> set_delalloc
- *    ->outstanding_extents += 1 (currrent value is 2)
+ *    ->outstanding_extents += 1 (current value is 2)
  *
  *  -> btrfs_delalloc_release_extents()
  *    ->outstanding_extents -= 1 (current value is 1)

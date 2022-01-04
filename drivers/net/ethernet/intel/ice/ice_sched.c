@@ -596,6 +596,50 @@ ice_alloc_lan_q_ctx(struct ice_hw *hw, u16 vsi_handle, u8 tc, u16 new_numqs)
 }
 
 /**
+ * ice_alloc_rdma_q_ctx - allocate RDMA queue contexts for the given VSI and TC
+ * @hw: pointer to the HW struct
+ * @vsi_handle: VSI handle
+ * @tc: TC number
+ * @new_numqs: number of queues
+ */
+static enum ice_status
+ice_alloc_rdma_q_ctx(struct ice_hw *hw, u16 vsi_handle, u8 tc, u16 new_numqs)
+{
+	struct ice_vsi_ctx *vsi_ctx;
+	struct ice_q_ctx *q_ctx;
+
+	vsi_ctx = ice_get_vsi_ctx(hw, vsi_handle);
+	if (!vsi_ctx)
+		return ICE_ERR_PARAM;
+	/* allocate RDMA queue contexts */
+	if (!vsi_ctx->rdma_q_ctx[tc]) {
+		vsi_ctx->rdma_q_ctx[tc] = devm_kcalloc(ice_hw_to_dev(hw),
+						       new_numqs,
+						       sizeof(*q_ctx),
+						       GFP_KERNEL);
+		if (!vsi_ctx->rdma_q_ctx[tc])
+			return ICE_ERR_NO_MEMORY;
+		vsi_ctx->num_rdma_q_entries[tc] = new_numqs;
+		return 0;
+	}
+	/* num queues are increased, update the queue contexts */
+	if (new_numqs > vsi_ctx->num_rdma_q_entries[tc]) {
+		u16 prev_num = vsi_ctx->num_rdma_q_entries[tc];
+
+		q_ctx = devm_kcalloc(ice_hw_to_dev(hw), new_numqs,
+				     sizeof(*q_ctx), GFP_KERNEL);
+		if (!q_ctx)
+			return ICE_ERR_NO_MEMORY;
+		memcpy(q_ctx, vsi_ctx->rdma_q_ctx[tc],
+		       prev_num * sizeof(*q_ctx));
+		devm_kfree(ice_hw_to_dev(hw), vsi_ctx->rdma_q_ctx[tc]);
+		vsi_ctx->rdma_q_ctx[tc] = q_ctx;
+		vsi_ctx->num_rdma_q_entries[tc] = new_numqs;
+	}
+	return 0;
+}
+
+/**
  * ice_aq_rl_profile - performs a rate limiting task
  * @hw: pointer to the HW struct
  * @opcode: opcode for add, query, or remove profile(s)
@@ -919,6 +963,50 @@ ice_sched_add_elems(struct ice_port_info *pi, struct ice_sched_node *tc_node,
 }
 
 /**
+ * ice_sched_add_nodes_to_hw_layer - Add nodes to HW layer
+ * @pi: port information structure
+ * @tc_node: pointer to TC node
+ * @parent: pointer to parent node
+ * @layer: layer number to add nodes
+ * @num_nodes: number of nodes to be added
+ * @first_node_teid: pointer to the first node TEID
+ * @num_nodes_added: pointer to number of nodes added
+ *
+ * Add nodes into specific HW layer.
+ */
+static enum ice_status
+ice_sched_add_nodes_to_hw_layer(struct ice_port_info *pi,
+				struct ice_sched_node *tc_node,
+				struct ice_sched_node *parent, u8 layer,
+				u16 num_nodes, u32 *first_node_teid,
+				u16 *num_nodes_added)
+{
+	u16 max_child_nodes;
+
+	*num_nodes_added = 0;
+
+	if (!num_nodes)
+		return 0;
+
+	if (!parent || layer < pi->hw->sw_entry_point_layer)
+		return ICE_ERR_PARAM;
+
+	/* max children per node per layer */
+	max_child_nodes = pi->hw->max_children[parent->tx_sched_layer];
+
+	/* current number of children + required nodes exceed max children */
+	if ((parent->num_children + num_nodes) > max_child_nodes) {
+		/* Fail if the parent is a TC node */
+		if (parent == tc_node)
+			return ICE_ERR_CFG;
+		return ICE_ERR_MAX_LIMIT;
+	}
+
+	return ice_sched_add_elems(pi, tc_node, parent, layer, num_nodes,
+				   num_nodes_added, first_node_teid);
+}
+
+/**
  * ice_sched_add_nodes_to_layer - Add nodes to a given layer
  * @pi: port information structure
  * @tc_node: pointer to TC node
@@ -938,72 +1026,53 @@ ice_sched_add_nodes_to_layer(struct ice_port_info *pi,
 			     u16 *num_nodes_added)
 {
 	u32 *first_teid_ptr = first_node_teid;
-	u16 new_num_nodes, max_child_nodes;
+	u16 new_num_nodes = num_nodes;
 	enum ice_status status = 0;
-	struct ice_hw *hw = pi->hw;
-	u16 num_added = 0;
-	u32 temp;
 
 	*num_nodes_added = 0;
+	while (*num_nodes_added < num_nodes) {
+		u16 max_child_nodes, num_added = 0;
+		/* cppcheck-suppress unusedVariable */
+		u32 temp;
 
-	if (!num_nodes)
-		return status;
-
-	if (!parent || layer < hw->sw_entry_point_layer)
-		return ICE_ERR_PARAM;
-
-	/* max children per node per layer */
-	max_child_nodes = hw->max_children[parent->tx_sched_layer];
-
-	/* current number of children + required nodes exceed max children ? */
-	if ((parent->num_children + num_nodes) > max_child_nodes) {
-		/* Fail if the parent is a TC node */
-		if (parent == tc_node)
-			return ICE_ERR_CFG;
-
+		status = ice_sched_add_nodes_to_hw_layer(pi, tc_node, parent,
+							 layer,	new_num_nodes,
+							 first_teid_ptr,
+							 &num_added);
+		if (!status)
+			*num_nodes_added += num_added;
+		/* added more nodes than requested ? */
+		if (*num_nodes_added > num_nodes) {
+			ice_debug(pi->hw, ICE_DBG_SCHED, "added extra nodes %d %d\n", num_nodes,
+				  *num_nodes_added);
+			status = ICE_ERR_CFG;
+			break;
+		}
+		/* break if all the nodes are added successfully */
+		if (!status && (*num_nodes_added == num_nodes))
+			break;
+		/* break if the error is not max limit */
+		if (status && status != ICE_ERR_MAX_LIMIT)
+			break;
+		/* Exceeded the max children */
+		max_child_nodes = pi->hw->max_children[parent->tx_sched_layer];
 		/* utilize all the spaces if the parent is not full */
 		if (parent->num_children < max_child_nodes) {
 			new_num_nodes = max_child_nodes - parent->num_children;
-			/* this recursion is intentional, and wouldn't
-			 * go more than 2 calls
+		} else {
+			/* This parent is full, try the next sibling */
+			parent = parent->sibling;
+			/* Don't modify the first node TEID memory if the
+			 * first node was added already in the above call.
+			 * Instead send some temp memory for all other
+			 * recursive calls.
 			 */
-			status = ice_sched_add_nodes_to_layer(pi, tc_node,
-							      parent, layer,
-							      new_num_nodes,
-							      first_node_teid,
-							      &num_added);
-			if (status)
-				return status;
+			if (num_added)
+				first_teid_ptr = &temp;
 
-			*num_nodes_added += num_added;
+			new_num_nodes = num_nodes - *num_nodes_added;
 		}
-		/* Don't modify the first node TEID memory if the first node was
-		 * added already in the above call. Instead send some temp
-		 * memory for all other recursive calls.
-		 */
-		if (num_added)
-			first_teid_ptr = &temp;
-
-		new_num_nodes = num_nodes - num_added;
-
-		/* This parent is full, try the next sibling */
-		parent = parent->sibling;
-
-		/* this recursion is intentional, for 1024 queues
-		 * per VSI, it goes max of 16 iterations.
-		 * 1024 / 8 = 128 layer 8 nodes
-		 * 128 /8 = 16 (add 8 nodes per iteration)
-		 */
-		status = ice_sched_add_nodes_to_layer(pi, tc_node, parent,
-						      layer, new_num_nodes,
-						      first_teid_ptr,
-						      &num_added);
-		*num_nodes_added += num_added;
-		return status;
 	}
-
-	status = ice_sched_add_elems(pi, tc_node, parent, layer, num_nodes,
-				     num_nodes_added, first_node_teid);
 	return status;
 }
 
@@ -1749,13 +1818,22 @@ ice_sched_update_vsi_child_nodes(struct ice_port_info *pi, u16 vsi_handle,
 	if (!vsi_ctx)
 		return ICE_ERR_PARAM;
 
-	prev_numqs = vsi_ctx->sched.max_lanq[tc];
+	if (owner == ICE_SCHED_NODE_OWNER_LAN)
+		prev_numqs = vsi_ctx->sched.max_lanq[tc];
+	else
+		prev_numqs = vsi_ctx->sched.max_rdmaq[tc];
 	/* num queues are not changed or less than the previous number */
 	if (new_numqs <= prev_numqs)
 		return status;
-	status = ice_alloc_lan_q_ctx(hw, vsi_handle, tc, new_numqs);
-	if (status)
-		return status;
+	if (owner == ICE_SCHED_NODE_OWNER_LAN) {
+		status = ice_alloc_lan_q_ctx(hw, vsi_handle, tc, new_numqs);
+		if (status)
+			return status;
+	} else {
+		status = ice_alloc_rdma_q_ctx(hw, vsi_handle, tc, new_numqs);
+		if (status)
+			return status;
+	}
 
 	if (new_numqs)
 		ice_sched_calc_vsi_child_nodes(hw, new_numqs, new_num_nodes);
@@ -1770,7 +1848,10 @@ ice_sched_update_vsi_child_nodes(struct ice_port_info *pi, u16 vsi_handle,
 					       new_num_nodes, owner);
 	if (status)
 		return status;
-	vsi_ctx->sched.max_lanq[tc] = new_numqs;
+	if (owner == ICE_SCHED_NODE_OWNER_LAN)
+		vsi_ctx->sched.max_lanq[tc] = new_numqs;
+	else
+		vsi_ctx->sched.max_rdmaq[tc] = new_numqs;
 
 	return 0;
 }
@@ -1836,6 +1917,7 @@ ice_sched_cfg_vsi(struct ice_port_info *pi, u16 vsi_handle, u8 tc, u16 maxqs,
 		 * recreate the child nodes all the time in these cases.
 		 */
 		vsi_ctx->sched.max_lanq[tc] = 0;
+		vsi_ctx->sched.max_rdmaq[tc] = 0;
 	}
 
 	/* update the VSI child nodes */
@@ -1857,7 +1939,7 @@ ice_sched_cfg_vsi(struct ice_port_info *pi, u16 vsi_handle, u8 tc, u16 maxqs,
 }
 
 /**
- * ice_sched_rm_agg_vsi_entry - remove aggregator related VSI info entry
+ * ice_sched_rm_agg_vsi_info - remove aggregator related VSI info entry
  * @pi: port information structure
  * @vsi_handle: software VSI handle
  *
@@ -1965,6 +2047,8 @@ ice_sched_rm_vsi_cfg(struct ice_port_info *pi, u16 vsi_handle, u8 owner)
 		}
 		if (owner == ICE_SCHED_NODE_OWNER_LAN)
 			vsi_ctx->sched.max_lanq[i] = 0;
+		else
+			vsi_ctx->sched.max_rdmaq[i] = 0;
 	}
 	status = 0;
 
@@ -2661,8 +2745,8 @@ static enum ice_status
 ice_sched_assoc_vsi_to_agg(struct ice_port_info *pi, u32 agg_id,
 			   u16 vsi_handle, unsigned long *tc_bitmap)
 {
-	struct ice_sched_agg_vsi_info *agg_vsi_info;
-	struct ice_sched_agg_info *agg_info;
+	struct ice_sched_agg_vsi_info *agg_vsi_info, *old_agg_vsi_info = NULL;
+	struct ice_sched_agg_info *agg_info, *old_agg_info;
 	enum ice_status status = 0;
 	struct ice_hw *hw = pi->hw;
 	u8 tc;
@@ -2672,6 +2756,20 @@ ice_sched_assoc_vsi_to_agg(struct ice_port_info *pi, u32 agg_id,
 	agg_info = ice_get_agg_info(hw, agg_id);
 	if (!agg_info)
 		return ICE_ERR_PARAM;
+	/* If the VSI is already part of another aggregator then update
+	 * its VSI info list
+	 */
+	old_agg_info = ice_get_vsi_agg_info(hw, vsi_handle);
+	if (old_agg_info && old_agg_info != agg_info) {
+		struct ice_sched_agg_vsi_info *vtmp;
+
+		list_for_each_entry_safe(old_agg_vsi_info, vtmp,
+					 &old_agg_info->agg_vsi_list,
+					 list_entry)
+			if (old_agg_vsi_info->vsi_handle == vsi_handle)
+				break;
+	}
+
 	/* check if entry already exist */
 	agg_vsi_info = ice_get_agg_vsi_info(agg_info, vsi_handle);
 	if (!agg_vsi_info) {
@@ -2696,6 +2794,12 @@ ice_sched_assoc_vsi_to_agg(struct ice_port_info *pi, u32 agg_id,
 			break;
 
 		set_bit(tc, agg_vsi_info->tc_bitmap);
+		if (old_agg_vsi_info)
+			clear_bit(tc, old_agg_vsi_info->tc_bitmap);
+	}
+	if (old_agg_vsi_info && !old_agg_vsi_info->tc_bitmap[0]) {
+		list_del(&old_agg_vsi_info->list_entry);
+		devm_kfree(ice_hw_to_dev(pi->hw), old_agg_vsi_info);
 	}
 	return status;
 }

@@ -93,9 +93,9 @@ Supported chips:
 
 	       https://www.st.com/resource/en/datasheet/stlm75.pdf
 
-  * Texas Instruments TMP100, TMP101, TMP105, TMP112, TMP75, TMP75B, TMP75C, TMP175, TMP275
+  * Texas Instruments TMP100, TMP101, TMP105, TMP112, TMP75, TMP75B, TMP75C, TMP175, TMP275, TMP1075
 
-    Prefixes: 'tmp100', 'tmp101', 'tmp105', 'tmp112', 'tmp175', 'tmp75', 'tmp75b', 'tmp75c', 'tmp275'
+    Prefixes: 'tmp100', 'tmp101', 'tmp105', 'tmp112', 'tmp175', 'tmp75', 'tmp75b', 'tmp75c', 'tmp275', 'tmp1075'
 
     Addresses scanned: none
 
@@ -118,6 +118,8 @@ Supported chips:
 	       https://www.ti.com/product/tmp175
 
 	       https://www.ti.com/product/tmp275
+
+         https://www.ti.com/product/TMP1075
 
   * NXP LM75B, PCT2075
 

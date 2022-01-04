@@ -27,7 +27,7 @@
 #include "xfs_quota.h"
 #include "xfs_reflink.h"
 #include "xfs_iomap.h"
-#include "xfs_sb.h"
+#include "xfs_ag.h"
 #include "xfs_ag_resv.h"
 
 /*
@@ -144,7 +144,7 @@ xfs_reflink_find_shared(
 	if (error)
 		return error;
 
-	cur = xfs_refcountbt_init_cursor(mp, tp, agbp, agno);
+	cur = xfs_refcountbt_init_cursor(mp, tp, agbp, agbp->b_pag);
 
 	error = xfs_refcount_find_shared(cur, agbno, aglen, fbno, flen,
 			find_end_of_shared);
@@ -755,16 +755,19 @@ int
 xfs_reflink_recover_cow(
 	struct xfs_mount	*mp)
 {
+	struct xfs_perag	*pag;
 	xfs_agnumber_t		agno;
 	int			error = 0;
 
-	if (!xfs_sb_version_hasreflink(&mp->m_sb))
+	if (!xfs_has_reflink(mp))
 		return 0;
 
-	for (agno = 0; agno < mp->m_sb.sb_agcount; agno++) {
-		error = xfs_refcount_recover_cow_leftovers(mp, agno);
-		if (error)
+	for_each_perag(mp, agno, pag) {
+		error = xfs_refcount_recover_cow_leftovers(mp, pag);
+		if (error) {
+			xfs_perag_put(pag);
 			break;
+		}
 	}
 
 	return error;
@@ -874,7 +877,7 @@ xfs_reflink_set_inode_flag(
 	if (!xfs_is_reflink_inode(src)) {
 		trace_xfs_reflink_set_inode_flag(src);
 		xfs_trans_ijoin(tp, src, XFS_ILOCK_EXCL);
-		src->i_d.di_flags2 |= XFS_DIFLAG2_REFLINK;
+		src->i_diflags2 |= XFS_DIFLAG2_REFLINK;
 		xfs_trans_log_inode(tp, src, XFS_ILOG_CORE);
 		xfs_ifork_init_cow(src);
 	} else
@@ -886,7 +889,7 @@ xfs_reflink_set_inode_flag(
 	if (!xfs_is_reflink_inode(dest)) {
 		trace_xfs_reflink_set_inode_flag(dest);
 		xfs_trans_ijoin(tp, dest, XFS_ILOCK_EXCL);
-		dest->i_d.di_flags2 |= XFS_DIFLAG2_REFLINK;
+		dest->i_diflags2 |= XFS_DIFLAG2_REFLINK;
 		xfs_trans_log_inode(tp, dest, XFS_ILOG_CORE);
 		xfs_ifork_init_cow(dest);
 	} else
@@ -930,12 +933,12 @@ xfs_reflink_update_dest(
 	if (newlen > i_size_read(VFS_I(dest))) {
 		trace_xfs_reflink_update_inode_size(dest, newlen);
 		i_size_write(VFS_I(dest), newlen);
-		dest->i_d.di_size = newlen;
+		dest->i_disk_size = newlen;
 	}
 
 	if (cowextsize) {
-		dest->i_d.di_cowextsize = cowextsize;
-		dest->i_d.di_flags2 |= XFS_DIFLAG2_COWEXTSIZE;
+		dest->i_cowextsize = cowextsize;
+		dest->i_diflags2 |= XFS_DIFLAG2_COWEXTSIZE;
 	}
 
 	xfs_trans_log_inode(tp, dest, XFS_ILOG_CORE);
@@ -964,7 +967,7 @@ xfs_reflink_ag_has_free_space(
 	struct xfs_perag	*pag;
 	int			error = 0;
 
-	if (!xfs_sb_version_hasrmapbt(&mp->m_sb))
+	if (!xfs_has_rmapbt(mp))
 		return 0;
 
 	pag = xfs_perag_get(mp, agno);
@@ -1156,7 +1159,7 @@ xfs_reflink_remap_extent(
 	if (newlen > i_size_read(VFS_I(ip))) {
 		trace_xfs_reflink_update_inode_size(ip, newlen);
 		i_size_write(VFS_I(ip), newlen);
-		ip->i_d.di_size = newlen;
+		ip->i_disk_size = newlen;
 		xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
 	}
 
@@ -1392,11 +1395,9 @@ xfs_reflink_inode_has_shared_extents(
 	int				error;
 
 	ifp = XFS_IFORK_PTR(ip, XFS_DATA_FORK);
-	if (!(ifp->if_flags & XFS_IFEXTENTS)) {
-		error = xfs_iread_extents(tp, ip, XFS_DATA_FORK);
-		if (error)
-			return error;
-	}
+	error = xfs_iread_extents(tp, ip, XFS_DATA_FORK);
+	if (error)
+		return error;
 
 	*has_shared = false;
 	found = xfs_iext_lookup_extent(ip, ifp, 0, &icur, &got);
@@ -1455,7 +1456,7 @@ xfs_reflink_clear_inode_flag(
 
 	/* Clear the inode flag. */
 	trace_xfs_reflink_unset_inode_flag(ip);
-	ip->i_d.di_flags2 &= ~XFS_DIFLAG2_REFLINK;
+	ip->i_diflags2 &= ~XFS_DIFLAG2_REFLINK;
 	xfs_inode_clear_cowblocks_tag(ip);
 	xfs_trans_log_inode(*tpp, ip, XFS_ILOG_CORE);
 
@@ -1524,7 +1525,8 @@ xfs_reflink_unshare(
 	if (error)
 		goto out;
 
-	error = filemap_write_and_wait_range(inode->i_mapping, offset, len);
+	error = filemap_write_and_wait_range(inode->i_mapping, offset,
+			offset + len - 1);
 	if (error)
 		goto out;
 

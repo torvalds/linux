@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: LGPL-2.1
 /*
  *   fs/cifs/dir.c
  *
@@ -6,19 +7,6 @@
  *   Copyright (C) International Business Machines  Corp., 2002,2009
  *   Author(s): Steve French (sfrench@us.ibm.com)
  *
- *   This library is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU Lesser General Public License as published
- *   by the Free Software Foundation; either version 2.1 of the License, or
- *   (at your option) any later version.
- *
- *   This library is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See
- *   the GNU Lesser General Public License for more details.
- *
- *   You should have received a copy of the GNU Lesser General Public License
- *   along with this library; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 #include <linux/fs.h>
 #include <linux/stat.h>
@@ -34,6 +22,7 @@
 #include "cifs_fs_sb.h"
 #include "cifs_unicode.h"
 #include "fs_context.h"
+#include "cifs_ioctl.h"
 
 static void
 renew_parental_timestamps(struct dentry *direntry)
@@ -111,7 +100,7 @@ build_path_from_dentry_optional_prefix(struct dentry *direntry, void *page,
 	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_USE_PREFIX_PATH)
 		pplen = cifs_sb->prepath ? strlen(cifs_sb->prepath) + 1 : 0;
 
-	s = dentry_path_raw(direntry, page, PAGE_SIZE);
+	s = dentry_path_raw(direntry, page, PATH_MAX);
 	if (IS_ERR(s))
 		return s;
 	if (!s[1])	// for root we want "", not "/"
@@ -395,10 +384,11 @@ cifs_create_set_dentry:
 		goto out_err;
 	}
 
-	if (S_ISDIR(newinode->i_mode)) {
-		rc = -EISDIR;
-		goto out_err;
-	}
+	if (newinode)
+		if (S_ISDIR(newinode->i_mode)) {
+			rc = -EISDIR;
+			goto out_err;
+		}
 
 	d_drop(direntry);
 	d_add(direntry, newinode);
@@ -429,6 +419,9 @@ cifs_atomic_open(struct inode *inode, struct dentry *direntry,
 	struct cifs_pending_open open;
 	__u32 oplock;
 	struct cifsFileInfo *file_info;
+
+	if (unlikely(cifs_forced_shutdown(CIFS_SB(inode->i_sb))))
+		return -EIO;
 
 	/*
 	 * Posix open is only called (at lookup time) for file create now. For
@@ -546,6 +539,9 @@ int cifs_create(struct user_namespace *mnt_userns, struct inode *inode,
 	cifs_dbg(FYI, "cifs_create parent inode = 0x%p name is: %pd and dentry = 0x%p\n",
 		 inode, direntry, direntry);
 
+	if (unlikely(cifs_forced_shutdown(CIFS_SB(inode->i_sb))))
+		return -EIO;
+
 	tlink = cifs_sb_tlink(CIFS_SB(inode->i_sb));
 	rc = PTR_ERR(tlink);
 	if (IS_ERR(tlink))
@@ -583,6 +579,9 @@ int cifs_mknod(struct user_namespace *mnt_userns, struct inode *inode,
 		return -EINVAL;
 
 	cifs_sb = CIFS_SB(inode->i_sb);
+	if (unlikely(cifs_forced_shutdown(cifs_sb)))
+		return -EIO;
+
 	tlink = cifs_sb_tlink(cifs_sb);
 	if (IS_ERR(tlink))
 		return PTR_ERR(tlink);
@@ -620,6 +619,7 @@ cifs_lookup(struct inode *parent_dir_inode, struct dentry *direntry,
 	struct inode *newInode = NULL;
 	const char *full_path;
 	void *page;
+	int retry_count = 0;
 
 	xid = get_xid();
 
@@ -663,6 +663,7 @@ cifs_lookup(struct inode *parent_dir_inode, struct dentry *direntry,
 	cifs_dbg(FYI, "Full path: %s inode = 0x%p\n",
 		 full_path, d_inode(direntry));
 
+again:
 	if (pTcon->posix_extensions)
 		rc = smb311_posix_get_inode_info(&newInode, full_path, parent_dir_inode->i_sb, xid);
 	else if (pTcon->unix_ext) {
@@ -677,6 +678,8 @@ cifs_lookup(struct inode *parent_dir_inode, struct dentry *direntry,
 		/* since paths are not looked up by component - the parent
 		   directories are presumed to be good here */
 		renew_parental_timestamps(direntry);
+	} else if (rc == -EAGAIN && retry_count++ < 10) {
+		goto again;
 	} else if (rc == -ENOENT) {
 		cifs_set_time(direntry, jiffies);
 		newInode = NULL;

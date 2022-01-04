@@ -133,17 +133,17 @@ static void cdc_ncm_get_strings(struct net_device __always_unused *netdev, u32 s
 static void cdc_ncm_update_rxtx_max(struct usbnet *dev, u32 new_rx, u32 new_tx);
 
 static const struct ethtool_ops cdc_ncm_ethtool_ops = {
-	.get_link          = usbnet_get_link,
-	.nway_reset        = usbnet_nway_reset,
-	.get_drvinfo       = usbnet_get_drvinfo,
-	.get_msglevel      = usbnet_get_msglevel,
-	.set_msglevel      = usbnet_set_msglevel,
-	.get_ts_info       = ethtool_op_get_ts_info,
-	.get_sset_count    = cdc_ncm_get_sset_count,
-	.get_strings       = cdc_ncm_get_strings,
-	.get_ethtool_stats = cdc_ncm_get_ethtool_stats,
-	.get_link_ksettings      = usbnet_get_link_ksettings,
-	.set_link_ksettings      = usbnet_set_link_ksettings,
+	.get_link		= usbnet_get_link,
+	.nway_reset		= usbnet_nway_reset,
+	.get_drvinfo		= usbnet_get_drvinfo,
+	.get_msglevel		= usbnet_get_msglevel,
+	.set_msglevel		= usbnet_set_msglevel,
+	.get_ts_info		= ethtool_op_get_ts_info,
+	.get_sset_count		= cdc_ncm_get_sset_count,
+	.get_strings		= cdc_ncm_get_strings,
+	.get_ethtool_stats	= cdc_ncm_get_ethtool_stats,
+	.get_link_ksettings	= usbnet_get_link_ksettings_internal,
+	.set_link_ksettings	= NULL,
 };
 
 static u32 cdc_ncm_check_rx_max(struct usbnet *dev, u32 new_rx)
@@ -192,7 +192,8 @@ static u32 cdc_ncm_check_tx_max(struct usbnet *dev, u32 new_tx)
 	return val;
 }
 
-static ssize_t cdc_ncm_show_min_tx_pkt(struct device *d, struct device_attribute *attr, char *buf)
+static ssize_t min_tx_pkt_show(struct device *d,
+			       struct device_attribute *attr, char *buf)
 {
 	struct usbnet *dev = netdev_priv(to_net_dev(d));
 	struct cdc_ncm_ctx *ctx = (struct cdc_ncm_ctx *)dev->data[0];
@@ -200,7 +201,8 @@ static ssize_t cdc_ncm_show_min_tx_pkt(struct device *d, struct device_attribute
 	return sprintf(buf, "%u\n", ctx->min_tx_pkt);
 }
 
-static ssize_t cdc_ncm_show_rx_max(struct device *d, struct device_attribute *attr, char *buf)
+static ssize_t rx_max_show(struct device *d,
+			   struct device_attribute *attr, char *buf)
 {
 	struct usbnet *dev = netdev_priv(to_net_dev(d));
 	struct cdc_ncm_ctx *ctx = (struct cdc_ncm_ctx *)dev->data[0];
@@ -208,7 +210,8 @@ static ssize_t cdc_ncm_show_rx_max(struct device *d, struct device_attribute *at
 	return sprintf(buf, "%u\n", ctx->rx_max);
 }
 
-static ssize_t cdc_ncm_show_tx_max(struct device *d, struct device_attribute *attr, char *buf)
+static ssize_t tx_max_show(struct device *d,
+			   struct device_attribute *attr, char *buf)
 {
 	struct usbnet *dev = netdev_priv(to_net_dev(d));
 	struct cdc_ncm_ctx *ctx = (struct cdc_ncm_ctx *)dev->data[0];
@@ -216,7 +219,8 @@ static ssize_t cdc_ncm_show_tx_max(struct device *d, struct device_attribute *at
 	return sprintf(buf, "%u\n", ctx->tx_max);
 }
 
-static ssize_t cdc_ncm_show_tx_timer_usecs(struct device *d, struct device_attribute *attr, char *buf)
+static ssize_t tx_timer_usecs_show(struct device *d,
+				   struct device_attribute *attr, char *buf)
 {
 	struct usbnet *dev = netdev_priv(to_net_dev(d));
 	struct cdc_ncm_ctx *ctx = (struct cdc_ncm_ctx *)dev->data[0];
@@ -224,7 +228,9 @@ static ssize_t cdc_ncm_show_tx_timer_usecs(struct device *d, struct device_attri
 	return sprintf(buf, "%u\n", ctx->timer_interval / (u32)NSEC_PER_USEC);
 }
 
-static ssize_t cdc_ncm_store_min_tx_pkt(struct device *d,  struct device_attribute *attr, const char *buf, size_t len)
+static ssize_t min_tx_pkt_store(struct device *d,
+				struct device_attribute *attr,
+				const char *buf, size_t len)
 {
 	struct usbnet *dev = netdev_priv(to_net_dev(d));
 	struct cdc_ncm_ctx *ctx = (struct cdc_ncm_ctx *)dev->data[0];
@@ -238,7 +244,9 @@ static ssize_t cdc_ncm_store_min_tx_pkt(struct device *d,  struct device_attribu
 	return len;
 }
 
-static ssize_t cdc_ncm_store_rx_max(struct device *d,  struct device_attribute *attr, const char *buf, size_t len)
+static ssize_t rx_max_store(struct device *d,
+			    struct device_attribute *attr,
+			    const char *buf, size_t len)
 {
 	struct usbnet *dev = netdev_priv(to_net_dev(d));
 	struct cdc_ncm_ctx *ctx = (struct cdc_ncm_ctx *)dev->data[0];
@@ -251,7 +259,9 @@ static ssize_t cdc_ncm_store_rx_max(struct device *d,  struct device_attribute *
 	return len;
 }
 
-static ssize_t cdc_ncm_store_tx_max(struct device *d,  struct device_attribute *attr, const char *buf, size_t len)
+static ssize_t tx_max_store(struct device *d,
+			    struct device_attribute *attr,
+			    const char *buf, size_t len)
 {
 	struct usbnet *dev = netdev_priv(to_net_dev(d));
 	struct cdc_ncm_ctx *ctx = (struct cdc_ncm_ctx *)dev->data[0];
@@ -264,7 +274,9 @@ static ssize_t cdc_ncm_store_tx_max(struct device *d,  struct device_attribute *
 	return len;
 }
 
-static ssize_t cdc_ncm_store_tx_timer_usecs(struct device *d,  struct device_attribute *attr, const char *buf, size_t len)
+static ssize_t tx_timer_usecs_store(struct device *d,
+				    struct device_attribute *attr,
+				    const char *buf, size_t len)
 {
 	struct usbnet *dev = netdev_priv(to_net_dev(d));
 	struct cdc_ncm_ctx *ctx = (struct cdc_ncm_ctx *)dev->data[0];
@@ -285,10 +297,10 @@ static ssize_t cdc_ncm_store_tx_timer_usecs(struct device *d,  struct device_att
 	return len;
 }
 
-static DEVICE_ATTR(min_tx_pkt, 0644, cdc_ncm_show_min_tx_pkt, cdc_ncm_store_min_tx_pkt);
-static DEVICE_ATTR(rx_max, 0644, cdc_ncm_show_rx_max, cdc_ncm_store_rx_max);
-static DEVICE_ATTR(tx_max, 0644, cdc_ncm_show_tx_max, cdc_ncm_store_tx_max);
-static DEVICE_ATTR(tx_timer_usecs, 0644, cdc_ncm_show_tx_timer_usecs, cdc_ncm_store_tx_timer_usecs);
+static DEVICE_ATTR_RW(min_tx_pkt);
+static DEVICE_ATTR_RW(rx_max);
+static DEVICE_ATTR_RW(tx_max);
+static DEVICE_ATTR_RW(tx_timer_usecs);
 
 static ssize_t ndp_to_end_show(struct device *d, struct device_attribute *attr, char *buf)
 {
@@ -628,7 +640,7 @@ out:
 	/* set MTU to max supported by the device if necessary */
 	dev->net->mtu = min_t(int, dev->net->mtu, ctx->max_datagram_size - cdc_ncm_eth_hlen(dev));
 
-	/* do not exceed operater preferred MTU */
+	/* do not exceed operator preferred MTU */
 	if (ctx->mbim_extended_desc) {
 		mbim_mtu = le16_to_cpu(ctx->mbim_extended_desc->wMTU);
 		if (mbim_mtu != 0 && mbim_mtu < dev->net->mtu)
@@ -685,7 +697,7 @@ static int cdc_ncm_setup(struct usbnet *dev)
 	struct cdc_ncm_ctx *ctx = (struct cdc_ncm_ctx *)dev->data[0];
 	u32 def_rx, def_tx;
 
-	/* be conservative when selecting intial buffer size to
+	/* be conservative when selecting initial buffer size to
 	 * increase the number of hosts this will work for
 	 */
 	def_rx = min_t(u32, CDC_NCM_NTB_DEF_SIZE_RX,
@@ -920,7 +932,6 @@ int cdc_ncm_bind_common(struct usbnet *dev, struct usb_interface *intf, u8 data_
 		goto error2;
 	}
 
-	usb_set_intfdata(ctx->data, dev);
 	usb_set_intfdata(ctx->control, dev);
 
 	if (ctx->ether_desc) {
@@ -1826,33 +1837,9 @@ static void
 cdc_ncm_speed_change(struct usbnet *dev,
 		     struct usb_cdc_speed_change *data)
 {
-	uint32_t rx_speed = le32_to_cpu(data->DLBitRRate);
-	uint32_t tx_speed = le32_to_cpu(data->ULBitRate);
-
-	/* if the speed hasn't changed, don't report it.
-	 * RTL8156 shipped before 2021 sends notification about every 32ms.
-	 */
-	if (dev->rx_speed == rx_speed && dev->tx_speed == tx_speed)
-		return;
-
-	dev->rx_speed = rx_speed;
-	dev->tx_speed = tx_speed;
-
-	/*
-	 * Currently the USB-NET API does not support reporting the actual
-	 * device speed. Do print it instead.
-	 */
-	if ((tx_speed > 1000000) && (rx_speed > 1000000)) {
-		netif_info(dev, link, dev->net,
-			   "%u mbit/s downlink %u mbit/s uplink\n",
-			   (unsigned int)(rx_speed / 1000000U),
-			   (unsigned int)(tx_speed / 1000000U));
-	} else {
-		netif_info(dev, link, dev->net,
-			   "%u kbit/s downlink %u kbit/s uplink\n",
-			   (unsigned int)(rx_speed / 1000U),
-			   (unsigned int)(tx_speed / 1000U));
-	}
+	/* RTL8156 shipped before 2021 sends notification about every 32ms. */
+	dev->rx_speed = le32_to_cpu(data->DLBitRRate);
+	dev->tx_speed = le32_to_cpu(data->ULBitRate);
 }
 
 static void cdc_ncm_status(struct usbnet *dev, struct urb *urb)
@@ -1878,6 +1865,9 @@ static void cdc_ncm_status(struct usbnet *dev, struct urb *urb)
 		 * USB_CDC_NOTIFY_NETWORK_CONNECTION notification shall be
 		 * sent by device after USB_CDC_NOTIFY_SPEED_CHANGE.
 		 */
+		/* RTL8156 shipped before 2021 sends notification about
+		 * every 32ms. Don't forward notification if state is same.
+		 */
 		if (netif_carrier_ok(dev->net) != !!event->wValue)
 			usbnet_link_change(dev, !!event->wValue, 0);
 		break;
@@ -1902,7 +1892,7 @@ static void cdc_ncm_status(struct usbnet *dev, struct urb *urb)
 static const struct driver_info cdc_ncm_info = {
 	.description = "CDC NCM",
 	.flags = FLAG_POINTTOPOINT | FLAG_NO_SETINT | FLAG_MULTI_PACKET
-			| FLAG_LINK_INTR,
+			| FLAG_LINK_INTR | FLAG_ETHER,
 	.bind = cdc_ncm_bind,
 	.unbind = cdc_ncm_unbind,
 	.manage_power = usbnet_manage_power,

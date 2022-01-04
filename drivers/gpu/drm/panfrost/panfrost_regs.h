@@ -82,6 +82,7 @@
 
 #define GPU_TEXTURE_FEATURES(n)		(0x0B0 + ((n) * 4))
 #define GPU_JS_FEATURES(n)		(0x0C0 + ((n) * 4))
+#define GPU_AFBC_FEATURES		(0x4C)	/* (RO) AFBC support on Bifrost */
 
 #define GPU_SHADER_PRESENT_LO		0x100	/* (RO) Shader core present bitmap, low word */
 #define GPU_SHADER_PRESENT_HI		0x104	/* (RO) Shader core present bitmap, high word */
@@ -260,9 +261,6 @@
 #define JS_COMMAND_HARD_STOP_0		0x05	/* Execute HARD_STOP if JOB_CHAIN_FLAG is 0 */
 #define JS_COMMAND_SOFT_STOP_1		0x06	/* Execute SOFT_STOP if JOB_CHAIN_FLAG is 1 */
 #define JS_COMMAND_HARD_STOP_1		0x07	/* Execute HARD_STOP if JOB_CHAIN_FLAG is 1 */
-
-#define JS_STATUS_EVENT_ACTIVE		0x08
-
 
 /* MMU regs */
 #define MMU_INT_RAWSTAT			0x2000

@@ -1,0 +1,50 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/iio/dac/adi,ad5504.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Analog Devices AD5501 and AD5504 DACs
+
+maintainers:
+  - Lars-Peter Clausen <lars@metafoo.de>
+  - Jonathan Cameron <jic23@kernel.org>
+
+description:
+  High voltage (up to 60V) DACs with temperature sensor alarm function
+
+properties:
+  compatible:
+    enum:
+      - adi,ad5501
+      - adi,ad5504
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    description: Used for temperature alarm.
+    maxItems: 1
+
+  vcc-supply: true
+
+additionalProperties: false
+
+required:
+  - compatible
+  - reg
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/irq.h>
+    spi {
+        #address-cells = <1>;
+        #size-cells = <0>;
+        dac@0 {
+            reg = <0>;
+            compatible = "adi,ad5504";
+            vcc-supply = <&dac_vcc>;
+            interrupts = <55 IRQ_TYPE_EDGE_FALLING>;
+        };
+    };
+...

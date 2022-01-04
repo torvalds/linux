@@ -21,10 +21,10 @@
 /*
  * Information for this driver was pulled from the following datasheets.
  *
- *  https://www.nxp.com/documents/data_sheet/PCF85063A.pdf
- *  https://www.nxp.com/documents/data_sheet/PCF85063TP.pdf
+ *  https://www.nxp.com/docs/en/data-sheet/PCF85063A.pdf
+ *  https://www.nxp.com/docs/en/data-sheet/PCF85063TP.pdf
  *
- *  PCF85063A -- Rev. 6 — 18 November 2015
+ *  PCF85063A -- Rev. 7 — 30 March 2018
  *  PCF85063TP -- Rev. 4 — 6 May 2015
  *
  *  https://www.microcrystal.com/fileadmin/Media/Products/RTC/App.Manual/RV-8263-C7_App-Manual.pdf
@@ -478,6 +478,7 @@ static struct clk *pcf85063_clkout_register_clk(struct pcf85063 *pcf85063)
 {
 	struct clk *clk;
 	struct clk_init_data init;
+	struct device_node *node = pcf85063->rtc->dev.parent->of_node;
 
 	init.name = "pcf85063-clkout";
 	init.ops = &pcf85063_clkout_ops;
@@ -487,15 +488,13 @@ static struct clk *pcf85063_clkout_register_clk(struct pcf85063 *pcf85063)
 	pcf85063->clkout_hw.init = &init;
 
 	/* optional override of the clockname */
-	of_property_read_string(pcf85063->rtc->dev.of_node,
-				"clock-output-names", &init.name);
+	of_property_read_string(node, "clock-output-names", &init.name);
 
 	/* register the clock */
 	clk = devm_clk_register(&pcf85063->rtc->dev, &pcf85063->clkout_hw);
 
 	if (!IS_ERR(clk))
-		of_clk_add_provider(pcf85063->rtc->dev.of_node,
-				    of_clk_src_simple_get, clk);
+		of_clk_add_provider(node, of_clk_src_simple_get, clk);
 
 	return clk;
 }

@@ -25,26 +25,35 @@
 	#define bpf_target_sparc
 	#define bpf_target_defined
 #else
-	#undef bpf_target_defined
-#endif
 
 /* Fall back to what the compiler says */
-#ifndef bpf_target_defined
 #if defined(__x86_64__)
 	#define bpf_target_x86
+	#define bpf_target_defined
 #elif defined(__s390__)
 	#define bpf_target_s390
+	#define bpf_target_defined
 #elif defined(__arm__)
 	#define bpf_target_arm
+	#define bpf_target_defined
 #elif defined(__aarch64__)
 	#define bpf_target_arm64
+	#define bpf_target_defined
 #elif defined(__mips__)
 	#define bpf_target_mips
+	#define bpf_target_defined
 #elif defined(__powerpc__)
 	#define bpf_target_powerpc
+	#define bpf_target_defined
 #elif defined(__sparc__)
 	#define bpf_target_sparc
+	#define bpf_target_defined
+#endif /* no compiler target */
+
 #endif
+
+#ifndef __BPF_TARGET_MISSING
+#define __BPF_TARGET_MISSING "GCC error \"Must specify a BPF target arch via __TARGET_ARCH_xxx\""
 #endif
 
 #if defined(bpf_target_x86)
@@ -287,7 +296,7 @@ struct pt_regs;
 #elif defined(bpf_target_sparc)
 #define BPF_KPROBE_READ_RET_IP(ip, ctx)		({ (ip) = PT_REGS_RET(ctx); })
 #define BPF_KRETPROBE_READ_RET_IP		BPF_KPROBE_READ_RET_IP
-#else
+#elif defined(bpf_target_defined)
 #define BPF_KPROBE_READ_RET_IP(ip, ctx)					    \
 	({ bpf_probe_read_kernel(&(ip), sizeof(ip), (void *)PT_REGS_RET(ctx)); })
 #define BPF_KRETPROBE_READ_RET_IP(ip, ctx)				    \
@@ -295,13 +304,48 @@ struct pt_regs;
 			  (void *)(PT_REGS_FP(ctx) + sizeof(ip))); })
 #endif
 
+#if !defined(bpf_target_defined)
+
+#define PT_REGS_PARM1(x) ({ _Pragma(__BPF_TARGET_MISSING); 0l; })
+#define PT_REGS_PARM2(x) ({ _Pragma(__BPF_TARGET_MISSING); 0l; })
+#define PT_REGS_PARM3(x) ({ _Pragma(__BPF_TARGET_MISSING); 0l; })
+#define PT_REGS_PARM4(x) ({ _Pragma(__BPF_TARGET_MISSING); 0l; })
+#define PT_REGS_PARM5(x) ({ _Pragma(__BPF_TARGET_MISSING); 0l; })
+#define PT_REGS_RET(x) ({ _Pragma(__BPF_TARGET_MISSING); 0l; })
+#define PT_REGS_FP(x) ({ _Pragma(__BPF_TARGET_MISSING); 0l; })
+#define PT_REGS_RC(x) ({ _Pragma(__BPF_TARGET_MISSING); 0l; })
+#define PT_REGS_SP(x) ({ _Pragma(__BPF_TARGET_MISSING); 0l; })
+#define PT_REGS_IP(x) ({ _Pragma(__BPF_TARGET_MISSING); 0l; })
+
+#define PT_REGS_PARM1_CORE(x) ({ _Pragma(__BPF_TARGET_MISSING); 0l; })
+#define PT_REGS_PARM2_CORE(x) ({ _Pragma(__BPF_TARGET_MISSING); 0l; })
+#define PT_REGS_PARM3_CORE(x) ({ _Pragma(__BPF_TARGET_MISSING); 0l; })
+#define PT_REGS_PARM4_CORE(x) ({ _Pragma(__BPF_TARGET_MISSING); 0l; })
+#define PT_REGS_PARM5_CORE(x) ({ _Pragma(__BPF_TARGET_MISSING); 0l; })
+#define PT_REGS_RET_CORE(x) ({ _Pragma(__BPF_TARGET_MISSING); 0l; })
+#define PT_REGS_FP_CORE(x) ({ _Pragma(__BPF_TARGET_MISSING); 0l; })
+#define PT_REGS_RC_CORE(x) ({ _Pragma(__BPF_TARGET_MISSING); 0l; })
+#define PT_REGS_SP_CORE(x) ({ _Pragma(__BPF_TARGET_MISSING); 0l; })
+#define PT_REGS_IP_CORE(x) ({ _Pragma(__BPF_TARGET_MISSING); 0l; })
+
+#define BPF_KPROBE_READ_RET_IP(ip, ctx) ({ _Pragma(__BPF_TARGET_MISSING); 0l; })
+#define BPF_KRETPROBE_READ_RET_IP(ip, ctx) ({ _Pragma(__BPF_TARGET_MISSING); 0l; })
+
+#endif /* !defined(bpf_target_defined) */
+
+#ifndef ___bpf_concat
 #define ___bpf_concat(a, b) a ## b
+#endif
+#ifndef ___bpf_apply
 #define ___bpf_apply(fn, n) ___bpf_concat(fn, n)
+#endif
+#ifndef ___bpf_nth
 #define ___bpf_nth(_, _1, _2, _3, _4, _5, _6, _7, _8, _9, _a, _b, _c, N, ...) N
+#endif
+#ifndef ___bpf_narg
 #define ___bpf_narg(...) \
 	___bpf_nth(_, ##__VA_ARGS__, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0)
-#define ___bpf_empty(...) \
-	___bpf_nth(_, ##__VA_ARGS__, N, N, N, N, N, N, N, N, N, N, 0)
+#endif
 
 #define ___bpf_ctx_cast0() ctx
 #define ___bpf_ctx_cast1(x) ___bpf_ctx_cast0(), (void *)ctx[0]
@@ -412,21 +456,5 @@ typeof(name(0)) name(struct pt_regs *ctx)				    \
 	_Pragma("GCC diagnostic pop")					    \
 }									    \
 static __always_inline typeof(name(0)) ____##name(struct pt_regs *ctx, ##args)
-
-/*
- * BPF_SEQ_PRINTF to wrap bpf_seq_printf to-be-printed values
- * in a structure.
- */
-#define BPF_SEQ_PRINTF(seq, fmt, args...)				    \
-	({								    \
-		_Pragma("GCC diagnostic push")				    \
-		_Pragma("GCC diagnostic ignored \"-Wint-conversion\"")	    \
-		static const char ___fmt[] = fmt;			    \
-		unsigned long long ___param[] = { args };		    \
-		_Pragma("GCC diagnostic pop")				    \
-		int ___ret = bpf_seq_printf(seq, ___fmt, sizeof(___fmt),    \
-					    ___param, sizeof(___param));    \
-		___ret;							    \
-	})
 
 #endif

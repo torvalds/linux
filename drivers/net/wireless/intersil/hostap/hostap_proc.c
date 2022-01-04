@@ -227,6 +227,7 @@ static ssize_t prism2_aux_dump_proc_no_read(struct file *file, char __user *buf,
 
 static const struct proc_ops prism2_aux_dump_proc_ops = {
 	.proc_read	= prism2_aux_dump_proc_no_read,
+	.proc_lseek	= default_llseek,
 };
 
 

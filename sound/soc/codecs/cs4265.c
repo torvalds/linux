@@ -573,7 +573,7 @@ static int cs4265_i2c_probe(struct i2c_client *i2c_client,
 			     const struct i2c_device_id *id)
 {
 	struct cs4265_private *cs4265;
-	int ret = 0;
+	int ret;
 	unsigned int devid = 0;
 	unsigned int reg;
 
@@ -602,6 +602,11 @@ static int cs4265_i2c_probe(struct i2c_client *i2c_client,
 	i2c_set_clientdata(i2c_client, cs4265);
 
 	ret = regmap_read(cs4265->regmap, CS4265_CHIP_ID, &reg);
+	if (ret) {
+		dev_err(&i2c_client->dev, "Failed to read chip ID: %d\n", ret);
+		return ret;
+	}
+
 	devid = reg & CS4265_CHIP_ID_MASK;
 	if (devid != CS4265_CHIP_ID_VAL) {
 		ret = -ENODEV;
@@ -616,10 +621,9 @@ static int cs4265_i2c_probe(struct i2c_client *i2c_client,
 
 	regmap_write(cs4265->regmap, CS4265_PWRCTL, 0x0F);
 
-	ret = devm_snd_soc_register_component(&i2c_client->dev,
+	return devm_snd_soc_register_component(&i2c_client->dev,
 			&soc_component_cs4265, cs4265_dai,
 			ARRAY_SIZE(cs4265_dai));
-	return ret;
 }
 
 static const struct of_device_id cs4265_of_match[] = {

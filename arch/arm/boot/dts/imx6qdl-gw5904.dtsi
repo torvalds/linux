@@ -467,6 +467,11 @@
 		};
 	};
 
+	crypto@60 {
+		compatible = "atmel,atecc508a";
+		reg = <0x60>;
+	};
+
 	imu@6a {
 		compatible = "st,lsm9ds1-imu";
 		reg = <0x6a>;

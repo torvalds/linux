@@ -17,17 +17,18 @@ module.
     gpio_mockup_ranges
 
         This parameter takes an argument in the form of an array of integer
-        pairs. Each pair defines the base GPIO number (if any) and the number
-        of lines exposed by the chip. If the base GPIO is -1, the gpiolib
-        will assign it automatically.
+        pairs. Each pair defines the base GPIO number (non-negative integer)
+        and the first number after the last of this chip. If the base GPIO
+        is -1, the gpiolib will assign it automatically. while the following
+        parameter is the number of lines exposed by the chip.
 
-        Example: gpio_mockup_ranges=-1,8,-1,16,405,4
+        Example: gpio_mockup_ranges=-1,8,-1,16,405,409
 
         The line above creates three chips. The first one will expose 8 lines,
         the second 16 and the third 4. The base GPIO for the third chip is set
         to 405 while for two first chips it will be assigned automatically.
 
-    gpio_named_lines
+    gpio_mockup_named_lines
 
         This parameter doesn't take any arguments. It lets the driver know that
         GPIO lines exposed by it should be named.

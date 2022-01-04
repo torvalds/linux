@@ -22,7 +22,6 @@
 #include <linux/mfd/syscon.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/platform_data/i2c-designware.h>
 #include <linux/platform_device.h>
 #include <linux/pm.h>
 #include <linux/pm_runtime.h>
@@ -32,12 +31,13 @@
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/suspend.h>
+#include <linux/units.h>
 
 #include "i2c-designware-core.h"
 
 static u32 i2c_dw_get_clk_rate_khz(struct dw_i2c_dev *dev)
 {
-	return clk_get_rate(dev->clk)/1000;
+	return clk_get_rate(dev->clk) / KILO;
 }
 
 #ifdef CONFIG_ACPI
@@ -206,7 +206,6 @@ static const struct dmi_system_id dw_i2c_hwmon_class_dmi[] = {
 
 static int dw_i2c_plat_probe(struct platform_device *pdev)
 {
-	struct dw_i2c_platform_data *pdata = dev_get_platdata(&pdev->dev);
 	struct i2c_adapter *adap;
 	struct dw_i2c_dev *dev;
 	struct i2c_timings *t;
@@ -236,10 +235,7 @@ static int dw_i2c_plat_probe(struct platform_device *pdev)
 	reset_control_deassert(dev->rst);
 
 	t = &dev->timings;
-	if (pdata)
-		t->bus_freq_hz = pdata->i2c_scl_freq;
-	else
-		i2c_parse_fw_timings(&pdev->dev, t, false);
+	i2c_parse_fw_timings(&pdev->dev, t, false);
 
 	i2c_dw_adjust_bus_speed(dev);
 
@@ -275,7 +271,7 @@ static int dw_i2c_plat_probe(struct platform_device *pdev)
 
 		if (!dev->sda_hold_time && t->sda_hold_ns)
 			dev->sda_hold_time =
-				div_u64(clk_khz * t->sda_hold_ns + 500000, 1000000);
+				DIV_S64_ROUND_CLOSEST(clk_khz * t->sda_hold_ns, MICRO);
 	}
 
 	adap = &dev->adapter;

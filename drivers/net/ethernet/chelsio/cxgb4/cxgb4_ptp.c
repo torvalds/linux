@@ -446,7 +446,7 @@ void cxgb4_ptp_init(struct adapter *adapter)
 }
 
 /**
- * cxgb4_ptp_remove - disable PTP device and stop the overflow check
+ * cxgb4_ptp_stop - disable PTP device and stop the overflow check
  * @adapter: board private structure
  *
  * Stop the PTP support.

@@ -38,7 +38,7 @@
 /**
  * DOC: overview
  *
- * A plane represents an image source that can be blended with or overlayed on
+ * A plane represents an image source that can be blended with or overlaid on
  * top of a CRTC during the scanout process. Planes take their input data from a
  * &drm_framebuffer object. The plane itself specifies the cropping and scaling
  * of that image, and where it is placed on the visible area of a display
@@ -50,10 +50,8 @@
  * &struct drm_plane (possibly as part of a larger structure) and registers it
  * with a call to drm_universal_plane_init().
  *
- * The type of a plane is exposed in the immutable "type" enumeration property,
- * which has one of the following values: "Overlay", "Primary", "Cursor" (see
- * enum drm_plane_type). A plane can be compatible with multiple CRTCs, see
- * &drm_plane.possible_crtcs.
+ * Each plane has a type, see enum drm_plane_type. A plane can be compatible
+ * with multiple CRTCs, see &drm_plane.possible_crtcs.
  *
  * Each CRTC must have a unique primary plane userspace can attach to enable
  * the CRTC. In other words, userspace must be able to attach a different
@@ -73,11 +71,70 @@
  *
  * DRM planes have a few standardized properties:
  *
+ * type:
+ *     Immutable property describing the type of the plane.
+ *
+ *     For user-space which has enabled the &DRM_CLIENT_CAP_ATOMIC capability,
+ *     the plane type is just a hint and is mostly superseded by atomic
+ *     test-only commits. The type hint can still be used to come up more
+ *     easily with a plane configuration accepted by the driver.
+ *
+ *     The value of this property can be one of the following:
+ *
+ *     "Primary":
+ *         To light up a CRTC, attaching a primary plane is the most likely to
+ *         work if it covers the whole CRTC and doesn't have scaling or
+ *         cropping set up.
+ *
+ *         Drivers may support more features for the primary plane, user-space
+ *         can find out with test-only atomic commits.
+ *
+ *         Some primary planes are implicitly used by the kernel in the legacy
+ *         IOCTLs &DRM_IOCTL_MODE_SETCRTC and &DRM_IOCTL_MODE_PAGE_FLIP.
+ *         Therefore user-space must not mix explicit usage of any primary
+ *         plane (e.g. through an atomic commit) with these legacy IOCTLs.
+ *
+ *     "Cursor":
+ *         To enable this plane, using a framebuffer configured without scaling
+ *         or cropping and with the following properties is the most likely to
+ *         work:
+ *
+ *         - If the driver provides the capabilities &DRM_CAP_CURSOR_WIDTH and
+ *           &DRM_CAP_CURSOR_HEIGHT, create the framebuffer with this size.
+ *           Otherwise, create a framebuffer with the size 64x64.
+ *         - If the driver doesn't support modifiers, create a framebuffer with
+ *           a linear layout. Otherwise, use the IN_FORMATS plane property.
+ *
+ *         Drivers may support more features for the cursor plane, user-space
+ *         can find out with test-only atomic commits.
+ *
+ *         Some cursor planes are implicitly used by the kernel in the legacy
+ *         IOCTLs &DRM_IOCTL_MODE_CURSOR and &DRM_IOCTL_MODE_CURSOR2.
+ *         Therefore user-space must not mix explicit usage of any cursor
+ *         plane (e.g. through an atomic commit) with these legacy IOCTLs.
+ *
+ *         Some drivers may support cursors even if no cursor plane is exposed.
+ *         In this case, the legacy cursor IOCTLs can be used to configure the
+ *         cursor.
+ *
+ *     "Overlay":
+ *         Neither primary nor cursor.
+ *
+ *         Overlay planes are the only planes exposed when the
+ *         &DRM_CLIENT_CAP_UNIVERSAL_PLANES capability is disabled.
+ *
  * IN_FORMATS:
  *     Blob property which contains the set of buffer format and modifier
  *     pairs supported by this plane. The blob is a struct
  *     drm_format_modifier_blob. Without this property the plane doesn't
  *     support buffers with modifiers. Userspace cannot change this property.
+ *
+ *     Note that userspace can check the &DRM_CAP_ADDFB2_MODIFIERS driver
+ *     capability for general modifier support. If this flag is set then every
+ *     plane will have the IN_FORMATS property, even when it only supports
+ *     DRM_FORMAT_MOD_LINEAR. Before linux kernel release v5.1 there have been
+ *     various bugs in this area with inconsistencies between the capability
+ *     flag and per-plane properties.
  */
 
 static unsigned int drm_num_planes(struct drm_device *dev)
@@ -227,8 +284,14 @@ static int __drm_universal_plane_init(struct drm_device *dev,
 			format_modifier_count++;
 	}
 
-	if (format_modifier_count)
+	/* autoset the cap and check for consistency across all planes */
+	if (format_modifier_count) {
+		drm_WARN_ON(dev, !config->allow_fb_modifiers &&
+			    !list_empty(&config->plane_list));
 		config->allow_fb_modifiers = true;
+	} else {
+		drm_WARN_ON(dev, config->allow_fb_modifiers);
+	}
 
 	plane->modifier_count = format_modifier_count;
 	plane->modifiers = kmalloc_array(format_modifier_count,
@@ -309,6 +372,9 @@ static int __drm_universal_plane_init(struct drm_device *dev,
  * Note: consider using drmm_universal_plane_alloc() instead of
  * drm_universal_plane_init() to let the DRM managed resource infrastructure
  * take care of cleanup and deallocation.
+ *
+ * Drivers supporting modifiers must set @format_modifiers on all their planes,
+ * even those that only support DRM_FORMAT_MOD_LINEAR.
  *
  * Returns:
  * Zero on success, error code on failure.
@@ -719,12 +785,8 @@ static int __setplane_check(struct drm_plane *plane,
 	ret = drm_plane_check_pixel_format(plane, fb->format->format,
 					   fb->modifier);
 	if (ret) {
-		struct drm_format_name_buf format_name;
-
-		DRM_DEBUG_KMS("Invalid pixel format %s, modifier 0x%llx\n",
-			      drm_get_format_name(fb->format->format,
-						  &format_name),
-			      fb->modifier);
+		DRM_DEBUG_KMS("Invalid pixel format %p4cc, modifier 0x%llx\n",
+			      &fb->format->format, fb->modifier);
 		return ret;
 	}
 
@@ -1334,6 +1396,110 @@ out:
 
 	return ret;
 }
+
+/**
+ * DOC: damage tracking
+ *
+ * FB_DAMAGE_CLIPS is an optional plane property which provides a means to
+ * specify a list of damage rectangles on a plane in framebuffer coordinates of
+ * the framebuffer attached to the plane. In current context damage is the area
+ * of plane framebuffer that has changed since last plane update (also called
+ * page-flip), irrespective of whether currently attached framebuffer is same as
+ * framebuffer attached during last plane update or not.
+ *
+ * FB_DAMAGE_CLIPS is a hint to kernel which could be helpful for some drivers
+ * to optimize internally especially for virtual devices where each framebuffer
+ * change needs to be transmitted over network, usb, etc.
+ *
+ * Since FB_DAMAGE_CLIPS is a hint so it is an optional property. User-space can
+ * ignore damage clips property and in that case driver will do a full plane
+ * update. In case damage clips are provided then it is guaranteed that the area
+ * inside damage clips will be updated to plane. For efficiency driver can do
+ * full update or can update more than specified in damage clips. Since driver
+ * is free to read more, user-space must always render the entire visible
+ * framebuffer. Otherwise there can be corruptions. Also, if a user-space
+ * provides damage clips which doesn't encompass the actual damage to
+ * framebuffer (since last plane update) can result in incorrect rendering.
+ *
+ * FB_DAMAGE_CLIPS is a blob property with the layout of blob data is simply an
+ * array of &drm_mode_rect. Unlike plane &drm_plane_state.src coordinates,
+ * damage clips are not in 16.16 fixed point. Similar to plane src in
+ * framebuffer, damage clips cannot be negative. In damage clip, x1/y1 are
+ * inclusive and x2/y2 are exclusive. While kernel does not error for overlapped
+ * damage clips, it is strongly discouraged.
+ *
+ * Drivers that are interested in damage interface for plane should enable
+ * FB_DAMAGE_CLIPS property by calling drm_plane_enable_fb_damage_clips().
+ * Drivers implementing damage can use drm_atomic_helper_damage_iter_init() and
+ * drm_atomic_helper_damage_iter_next() helper iterator function to get damage
+ * rectangles clipped to &drm_plane_state.src.
+ */
+
+/**
+ * drm_plane_enable_fb_damage_clips - Enables plane fb damage clips property.
+ * @plane: Plane on which to enable damage clips property.
+ *
+ * This function lets driver to enable the damage clips property on a plane.
+ */
+void drm_plane_enable_fb_damage_clips(struct drm_plane *plane)
+{
+	struct drm_device *dev = plane->dev;
+	struct drm_mode_config *config = &dev->mode_config;
+
+	drm_object_attach_property(&plane->base, config->prop_fb_damage_clips,
+				   0);
+}
+EXPORT_SYMBOL(drm_plane_enable_fb_damage_clips);
+
+/**
+ * drm_plane_get_damage_clips_count - Returns damage clips count.
+ * @state: Plane state.
+ *
+ * Simple helper to get the number of &drm_mode_rect clips set by user-space
+ * during plane update.
+ *
+ * Return: Number of clips in plane fb_damage_clips blob property.
+ */
+unsigned int
+drm_plane_get_damage_clips_count(const struct drm_plane_state *state)
+{
+	return (state && state->fb_damage_clips) ?
+		state->fb_damage_clips->length/sizeof(struct drm_mode_rect) : 0;
+}
+EXPORT_SYMBOL(drm_plane_get_damage_clips_count);
+
+struct drm_mode_rect *
+__drm_plane_get_damage_clips(const struct drm_plane_state *state)
+{
+	return (struct drm_mode_rect *)((state && state->fb_damage_clips) ?
+					state->fb_damage_clips->data : NULL);
+}
+
+/**
+ * drm_plane_get_damage_clips - Returns damage clips.
+ * @state: Plane state.
+ *
+ * Note that this function returns uapi type &drm_mode_rect. Drivers might want
+ * to use the helper functions drm_atomic_helper_damage_iter_init() and
+ * drm_atomic_helper_damage_iter_next() or drm_atomic_helper_damage_merged() if
+ * the driver can only handle a single damage region at most.
+ *
+ * Return: Damage clips in plane fb_damage_clips blob property.
+ */
+struct drm_mode_rect *
+drm_plane_get_damage_clips(const struct drm_plane_state *state)
+{
+	struct drm_device *dev = state->plane->dev;
+	struct drm_mode_config *config = &dev->mode_config;
+
+	/* check that drm_plane_enable_fb_damage_clips() was called */
+	if (!drm_mode_obj_find_prop_id(&state->plane->base,
+				       config->prop_fb_damage_clips->base.id))
+		drm_warn_once(dev, "drm_plane_enable_fb_damage_clips() not called\n");
+
+	return __drm_plane_get_damage_clips(state);
+}
+EXPORT_SYMBOL(drm_plane_get_damage_clips);
 
 struct drm_property *
 drm_create_scaling_filter_prop(struct drm_device *dev,

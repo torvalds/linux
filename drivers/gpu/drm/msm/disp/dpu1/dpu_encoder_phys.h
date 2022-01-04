@@ -143,6 +143,7 @@ struct dpu_encoder_phys_ops {
 	void (*prepare_idle_pc)(struct dpu_encoder_phys *phys_enc);
 	void (*restore)(struct dpu_encoder_phys *phys);
 	int (*get_line_count)(struct dpu_encoder_phys *phys);
+	int (*get_frame_count)(struct dpu_encoder_phys *phys);
 };
 
 /**
@@ -164,18 +165,14 @@ enum dpu_intr_idx {
 /**
  * dpu_encoder_irq - tracking structure for interrupts
  * @name:		string name of interrupt
- * @intr_type:		Encoder interrupt type
  * @intr_idx:		Encoder interrupt enumeration
- * @hw_idx:		HW Block ID
  * @irq_idx:		IRQ interface lookup index from DPU IRQ framework
  *			will be -EINVAL if IRQ is not registered
  * @irq_cb:		interrupt callback
  */
 struct dpu_encoder_irq {
 	const char *name;
-	enum dpu_intr_type intr_type;
 	enum dpu_intr_idx intr_idx;
-	int hw_idx;
 	int irq_idx;
 	struct dpu_irq_callback cb;
 };

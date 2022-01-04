@@ -356,6 +356,7 @@ struct ubifs_gced_idx_leb {
  * @ui_mutex: serializes inode write-back with the rest of VFS operations,
  *            serializes "clean <-> dirty" state changes, serializes bulk-read,
  *            protects @dirty, @bulk_read, @ui_size, and @xattr_size
+ * @xattr_sem: serilizes write operations (remove|set|create) on xattr
  * @ui_lock: protects @synced_i_size
  * @synced_i_size: synchronized size of inode, i.e. the value of inode size
  *                 currently stored on the flash; used only for regular file
@@ -409,6 +410,7 @@ struct ubifs_inode {
 	unsigned int bulk_read:1;
 	unsigned int compr_type:2;
 	struct mutex ui_mutex;
+	struct rw_semaphore xattr_sem;
 	spinlock_t ui_lock;
 	loff_t synced_i_size;
 	loff_t ui_size;
@@ -912,7 +914,7 @@ struct ubifs_budget_req {
  * @rb: rb-tree node of rb-tree of orphans sorted by inode number
  * @list: list head of list of orphans in order added
  * @new_list: list head of list of orphans added since the last commit
- * @child_list: list of xattr childs if this orphan hosts xattrs, list head
+ * @child_list: list of xattr children if this orphan hosts xattrs, list head
  * if this orphan is a xattr, not used otherwise.
  * @cnext: next orphan to commit
  * @dnext: next orphan to delete

@@ -74,12 +74,11 @@ int udf_write_fi(struct inode *inode, struct fileIdentDesc *cfi,
 
 	if (fileident) {
 		if (adinicb || (offset + lfi < 0)) {
-			memcpy((uint8_t *)sfi->fileIdent + liu, fileident, lfi);
+			memcpy(udf_get_fi_ident(sfi), fileident, lfi);
 		} else if (offset >= 0) {
 			memcpy(fibh->ebh->b_data + offset, fileident, lfi);
 		} else {
-			memcpy((uint8_t *)sfi->fileIdent + liu, fileident,
-				-offset);
+			memcpy(udf_get_fi_ident(sfi), fileident, -offset);
 			memcpy(fibh->ebh->b_data, fileident - offset,
 				lfi + offset);
 		}
@@ -88,11 +87,11 @@ int udf_write_fi(struct inode *inode, struct fileIdentDesc *cfi,
 	offset += lfi;
 
 	if (adinicb || (offset + padlen < 0)) {
-		memset((uint8_t *)sfi->padding + liu + lfi, 0x00, padlen);
+		memset(udf_get_fi_ident(sfi) + lfi, 0x00, padlen);
 	} else if (offset >= 0) {
 		memset(fibh->ebh->b_data + offset, 0x00, padlen);
 	} else {
-		memset((uint8_t *)sfi->padding + liu + lfi, 0x00, -offset);
+		memset(udf_get_fi_ident(sfi) + lfi, 0x00, -offset);
 		memset(fibh->ebh->b_data, 0x00, padlen + offset);
 	}
 
@@ -226,7 +225,7 @@ static struct fileIdentDesc *udf_find_entry(struct inode *dir,
 		lfi = cfi->lengthFileIdent;
 
 		if (fibh->sbh == fibh->ebh) {
-			nameptr = fi->fileIdent + liu;
+			nameptr = udf_get_fi_ident(fi);
 		} else {
 			int poffset;	/* Unpaded ending offset */
 
@@ -246,7 +245,7 @@ static struct fileIdentDesc *udf_find_entry(struct inode *dir,
 					}
 				}
 				nameptr = copy_name;
-				memcpy(nameptr, fi->fileIdent + liu,
+				memcpy(nameptr, udf_get_fi_ident(fi),
 					lfi - poffset);
 				memcpy(nameptr + lfi - poffset,
 					fibh->ebh->b_data, poffset);
@@ -934,6 +933,10 @@ static int udf_symlink(struct user_namespace *mnt_userns, struct inode *dir,
 				iinfo->i_location.partitionReferenceNum,
 				0);
 		epos.bh = udf_tgetblk(sb, block);
+		if (unlikely(!epos.bh)) {
+			err = -ENOMEM;
+			goto out_no_entry;
+		}
 		lock_buffer(epos.bh);
 		memset(epos.bh->b_data, 0x00, bsize);
 		set_buffer_uptodate(epos.bh);
@@ -1215,11 +1218,10 @@ static struct dentry *udf_get_parent(struct dentry *child)
 {
 	struct kernel_lb_addr tloc;
 	struct inode *inode = NULL;
-	struct qstr dotdot = QSTR_INIT("..", 2);
 	struct fileIdentDesc cfi;
 	struct udf_fileident_bh fibh;
 
-	if (!udf_find_entry(d_inode(child), &dotdot, &fibh, &cfi))
+	if (!udf_find_entry(d_inode(child), &dotdot_name, &fibh, &cfi))
 		return ERR_PTR(-EACCES);
 
 	if (fibh.sbh != fibh.ebh)

@@ -50,6 +50,7 @@
 #ifndef __LINUX_V4L2_CONTROLS_H
 #define __LINUX_V4L2_CONTROLS_H
 
+#include <linux/const.h>
 #include <linux/types.h>
 
 /* Control classes */
@@ -66,6 +67,7 @@
 #define V4L2_CTRL_CLASS_RF_TUNER	0x00a20000	/* RF tuner controls */
 #define V4L2_CTRL_CLASS_DETECT		0x00a30000	/* Detection controls */
 #define V4L2_CTRL_CLASS_CODEC_STATELESS 0x00a40000	/* Stateless codecs controls */
+#define V4L2_CTRL_CLASS_COLORIMETRY	0x00a50000	/* Colorimetry controls */
 
 /* User-class control IDs */
 
@@ -428,6 +430,12 @@ enum v4l2_mpeg_video_multi_slice_mode {
 #define V4L2_CID_MPEG_VIDEO_MV_V_SEARCH_RANGE		(V4L2_CID_CODEC_BASE+228)
 #define V4L2_CID_MPEG_VIDEO_FORCE_KEY_FRAME		(V4L2_CID_CODEC_BASE+229)
 #define V4L2_CID_MPEG_VIDEO_BASELAYER_PRIORITY_ID	(V4L2_CID_CODEC_BASE+230)
+#define V4L2_CID_MPEG_VIDEO_AU_DELIMITER		(V4L2_CID_CODEC_BASE+231)
+#define V4L2_CID_MPEG_VIDEO_LTR_COUNT			(V4L2_CID_CODEC_BASE+232)
+#define V4L2_CID_MPEG_VIDEO_FRAME_LTR_INDEX		(V4L2_CID_CODEC_BASE+233)
+#define V4L2_CID_MPEG_VIDEO_USE_LTR_FRAMES		(V4L2_CID_CODEC_BASE+234)
+#define V4L2_CID_MPEG_VIDEO_DEC_CONCEAL_COLOR		(V4L2_CID_CODEC_BASE+235)
+#define V4L2_CID_MPEG_VIDEO_INTRA_REFRESH_PERIOD	(V4L2_CID_CODEC_BASE+236)
 
 /* CIDs for the MPEG-2 Part 2 (H.262) codec */
 #define V4L2_CID_MPEG_VIDEO_MPEG2_LEVEL			(V4L2_CID_CODEC_BASE+270)
@@ -796,6 +804,9 @@ enum v4l2_mpeg_video_frame_skip_mode {
 #define V4L2_CID_MPEG_VIDEO_HEVC_P_FRAME_MAX_QP        (V4L2_CID_CODEC_BASE + 650)
 #define V4L2_CID_MPEG_VIDEO_HEVC_B_FRAME_MIN_QP        (V4L2_CID_CODEC_BASE + 651)
 #define V4L2_CID_MPEG_VIDEO_HEVC_B_FRAME_MAX_QP        (V4L2_CID_CODEC_BASE + 652)
+
+#define V4L2_CID_MPEG_VIDEO_DEC_DISPLAY_DELAY		(V4L2_CID_CODEC_BASE + 653)
+#define V4L2_CID_MPEG_VIDEO_DEC_DISPLAY_DELAY_ENABLE	(V4L2_CID_CODEC_BASE + 654)
 
 /*  MPEG-class control IDs specific to the CX2341x driver as defined by V4L2 */
 #define V4L2_CID_CODEC_CX2341X_BASE				(V4L2_CTRL_CLASS_CODEC | 0x1000)
@@ -1329,7 +1340,7 @@ struct v4l2_ctrl_h264_sps {
  * struct v4l2_ctrl_h264_pps - H264 picture parameter set
  *
  * Except where noted, all the members on this picture parameter set
- * structure match the sequence parameter set syntax as specified
+ * structure match the picture parameter set syntax as specified
  * by the H264 specification.
  *
  * In particular, V4L2_H264_PPS_FLAG_SCALING_MATRIX_PRESENT flag
@@ -1593,30 +1604,30 @@ struct v4l2_ctrl_h264_decode_params {
 #define V4L2_FWHT_VERSION			3
 
 /* Set if this is an interlaced format */
-#define V4L2_FWHT_FL_IS_INTERLACED		BIT(0)
+#define V4L2_FWHT_FL_IS_INTERLACED		_BITUL(0)
 /* Set if this is a bottom-first (NTSC) interlaced format */
-#define V4L2_FWHT_FL_IS_BOTTOM_FIRST		BIT(1)
+#define V4L2_FWHT_FL_IS_BOTTOM_FIRST		_BITUL(1)
 /* Set if each 'frame' contains just one field */
-#define V4L2_FWHT_FL_IS_ALTERNATE		BIT(2)
+#define V4L2_FWHT_FL_IS_ALTERNATE		_BITUL(2)
 /*
  * If V4L2_FWHT_FL_IS_ALTERNATE was set, then this is set if this
  * 'frame' is the bottom field, else it is the top field.
  */
-#define V4L2_FWHT_FL_IS_BOTTOM_FIELD		BIT(3)
+#define V4L2_FWHT_FL_IS_BOTTOM_FIELD		_BITUL(3)
 /* Set if the Y' plane is uncompressed */
-#define V4L2_FWHT_FL_LUMA_IS_UNCOMPRESSED	BIT(4)
+#define V4L2_FWHT_FL_LUMA_IS_UNCOMPRESSED	_BITUL(4)
 /* Set if the Cb plane is uncompressed */
-#define V4L2_FWHT_FL_CB_IS_UNCOMPRESSED		BIT(5)
+#define V4L2_FWHT_FL_CB_IS_UNCOMPRESSED		_BITUL(5)
 /* Set if the Cr plane is uncompressed */
-#define V4L2_FWHT_FL_CR_IS_UNCOMPRESSED		BIT(6)
+#define V4L2_FWHT_FL_CR_IS_UNCOMPRESSED		_BITUL(6)
 /* Set if the chroma plane is full height, if cleared it is half height */
-#define V4L2_FWHT_FL_CHROMA_FULL_HEIGHT		BIT(7)
+#define V4L2_FWHT_FL_CHROMA_FULL_HEIGHT		_BITUL(7)
 /* Set if the chroma plane is full width, if cleared it is half width */
-#define V4L2_FWHT_FL_CHROMA_FULL_WIDTH		BIT(8)
+#define V4L2_FWHT_FL_CHROMA_FULL_WIDTH		_BITUL(8)
 /* Set if the alpha plane is uncompressed */
-#define V4L2_FWHT_FL_ALPHA_IS_UNCOMPRESSED	BIT(9)
+#define V4L2_FWHT_FL_ALPHA_IS_UNCOMPRESSED	_BITUL(9)
 /* Set if this is an I Frame */
-#define V4L2_FWHT_FL_I_FRAME			BIT(10)
+#define V4L2_FWHT_FL_I_FRAME			_BITUL(10)
 
 /* A 4-values flag - the number of components - 1 */
 #define V4L2_FWHT_FL_COMPONENTS_NUM_MSK		GENMASK(18, 16)
@@ -1655,6 +1666,348 @@ struct v4l2_ctrl_fwht_params {
 	__u32 xfer_func;
 	__u32 ycbcr_enc;
 	__u32 quantization;
+};
+
+/* Stateless VP8 control */
+
+#define V4L2_VP8_SEGMENT_FLAG_ENABLED              0x01
+#define V4L2_VP8_SEGMENT_FLAG_UPDATE_MAP           0x02
+#define V4L2_VP8_SEGMENT_FLAG_UPDATE_FEATURE_DATA  0x04
+#define V4L2_VP8_SEGMENT_FLAG_DELTA_VALUE_MODE     0x08
+
+/**
+ * struct v4l2_vp8_segment - VP8 segment-based adjustments parameters
+ *
+ * @quant_update: update values for the segment quantizer.
+ * @lf_update: update values for the loop filter level.
+ * @segment_probs: branch probabilities of the segment_id decoding tree.
+ * @padding: padding field. Should be zeroed by applications.
+ * @flags: see V4L2_VP8_SEGMENT_FLAG_{}.
+ *
+ * This structure contains segment-based adjustments related parameters.
+ * See the 'update_segmentation()' part of the frame header syntax,
+ * and section '9.3. Segment-Based Adjustments' of the VP8 specification
+ * for more details.
+ */
+struct v4l2_vp8_segment {
+	__s8 quant_update[4];
+	__s8 lf_update[4];
+	__u8 segment_probs[3];
+	__u8 padding;
+	__u32 flags;
+};
+
+#define V4L2_VP8_LF_ADJ_ENABLE	0x01
+#define V4L2_VP8_LF_DELTA_UPDATE	0x02
+#define V4L2_VP8_LF_FILTER_TYPE_SIMPLE	0x04
+
+/**
+ * struct v4l2_vp8_loop_filter - VP8 loop filter parameters
+ *
+ * @ref_frm_delta: Reference frame signed delta values.
+ * @mb_mode_delta: MB prediction mode signed delta values.
+ * @sharpness_level: matches sharpness_level syntax element.
+ * @level: matches loop_filter_level syntax element.
+ * @padding: padding field. Should be zeroed by applications.
+ * @flags: see V4L2_VP8_LF_FLAG_{}.
+ *
+ * This structure contains loop filter related parameters.
+ * See the 'mb_lf_adjustments()' part of the frame header syntax,
+ * and section '9.4. Loop Filter Type and Levels' of the VP8 specification
+ * for more details.
+ */
+struct v4l2_vp8_loop_filter {
+	__s8 ref_frm_delta[4];
+	__s8 mb_mode_delta[4];
+	__u8 sharpness_level;
+	__u8 level;
+	__u16 padding;
+	__u32 flags;
+};
+
+/**
+ * struct v4l2_vp8_quantization - VP8 quantizattion indices
+ *
+ * @y_ac_qi: luma AC coefficient table index.
+ * @y_dc_delta: luma DC delta vaue.
+ * @y2_dc_delta: y2 block DC delta value.
+ * @y2_ac_delta: y2 block AC delta value.
+ * @uv_dc_delta: chroma DC delta value.
+ * @uv_ac_delta: chroma AC delta value.
+ * @padding: padding field. Should be zeroed by applications.
+ *
+ * This structure contains the quantization indices present
+ * in 'quant_indices()' part of the frame header syntax.
+ * See section '9.6. Dequantization Indices' of the VP8 specification
+ * for more details.
+ */
+struct v4l2_vp8_quantization {
+	__u8 y_ac_qi;
+	__s8 y_dc_delta;
+	__s8 y2_dc_delta;
+	__s8 y2_ac_delta;
+	__s8 uv_dc_delta;
+	__s8 uv_ac_delta;
+	__u16 padding;
+};
+
+#define V4L2_VP8_COEFF_PROB_CNT 11
+#define V4L2_VP8_MV_PROB_CNT 19
+
+/**
+ * struct v4l2_vp8_entropy - VP8 update probabilities
+ *
+ * @coeff_probs: coefficient probability update values.
+ * @y_mode_probs: luma intra-prediction probabilities.
+ * @uv_mode_probs: chroma intra-prediction probabilities.
+ * @mv_probs: mv decoding probability.
+ * @padding: padding field. Should be zeroed by applications.
+ *
+ * This structure contains the update probabilities present in
+ * 'token_prob_update()' and 'mv_prob_update()' part of the frame header.
+ * See section '17.2. Probability Updates' of the VP8 specification
+ * for more details.
+ */
+struct v4l2_vp8_entropy {
+	__u8 coeff_probs[4][8][3][V4L2_VP8_COEFF_PROB_CNT];
+	__u8 y_mode_probs[4];
+	__u8 uv_mode_probs[3];
+	__u8 mv_probs[2][V4L2_VP8_MV_PROB_CNT];
+	__u8 padding[3];
+};
+
+/**
+ * struct v4l2_vp8_entropy_coder_state - VP8 boolean coder state
+ *
+ * @range: coder state value for "Range"
+ * @value: coder state value for "Value"
+ * @bit_count: number of bits left in range "Value".
+ * @padding: padding field. Should be zeroed by applications.
+ *
+ * This structure contains the state for the boolean coder, as
+ * explained in section '7. Boolean Entropy Decoder' of the VP8 specification.
+ */
+struct v4l2_vp8_entropy_coder_state {
+	__u8 range;
+	__u8 value;
+	__u8 bit_count;
+	__u8 padding;
+};
+
+#define V4L2_VP8_FRAME_FLAG_KEY_FRAME		0x01
+#define V4L2_VP8_FRAME_FLAG_EXPERIMENTAL		0x02
+#define V4L2_VP8_FRAME_FLAG_SHOW_FRAME		0x04
+#define V4L2_VP8_FRAME_FLAG_MB_NO_SKIP_COEFF	0x08
+#define V4L2_VP8_FRAME_FLAG_SIGN_BIAS_GOLDEN	0x10
+#define V4L2_VP8_FRAME_FLAG_SIGN_BIAS_ALT	0x20
+
+#define V4L2_VP8_FRAME_IS_KEY_FRAME(hdr) \
+	(!!((hdr)->flags & V4L2_VP8_FRAME_FLAG_KEY_FRAME))
+
+#define V4L2_CID_STATELESS_VP8_FRAME (V4L2_CID_CODEC_STATELESS_BASE + 200)
+/**
+ * struct v4l2_ctrl_vp8_frame - VP8 frame parameters
+ *
+ * @segment: segmentation parameters. See &v4l2_vp8_segment for more details
+ * @lf: loop filter parameters. See &v4l2_vp8_loop_filter for more details
+ * @quant: quantization parameters. See &v4l2_vp8_quantization for more details
+ * @entropy: update probabilities. See &v4l2_vp8_entropy for more details
+ * @coder_state: boolean coder state. See &v4l2_vp8_entropy_coder_state for more details
+ * @width: frame width.
+ * @height: frame height.
+ * @horizontal_scale: horizontal scaling factor.
+ * @vertical_scale: vertical scaling factor.
+ * @version: bitstream version.
+ * @prob_skip_false: frame header syntax element.
+ * @prob_intra: frame header syntax element.
+ * @prob_last: frame header syntax element.
+ * @prob_gf: frame header syntax element.
+ * @num_dct_parts: number of DCT coefficients partitions.
+ * @first_part_size: size of the first partition, i.e. the control partition.
+ * @first_part_header_bits: size in bits of the first partition header portion.
+ * @dct_part_sizes: DCT coefficients sizes.
+ * @last_frame_ts: "last" reference buffer timestamp.
+ * The timestamp refers to the timestamp field in struct v4l2_buffer.
+ * Use v4l2_timeval_to_ns() to convert the struct timeval to a __u64.
+ * @golden_frame_ts: "golden" reference buffer timestamp.
+ * @alt_frame_ts: "alt" reference buffer timestamp.
+ * @flags: see V4L2_VP8_FRAME_FLAG_{}.
+ */
+struct v4l2_ctrl_vp8_frame {
+	struct v4l2_vp8_segment segment;
+	struct v4l2_vp8_loop_filter lf;
+	struct v4l2_vp8_quantization quant;
+	struct v4l2_vp8_entropy entropy;
+	struct v4l2_vp8_entropy_coder_state coder_state;
+
+	__u16 width;
+	__u16 height;
+
+	__u8 horizontal_scale;
+	__u8 vertical_scale;
+
+	__u8 version;
+	__u8 prob_skip_false;
+	__u8 prob_intra;
+	__u8 prob_last;
+	__u8 prob_gf;
+	__u8 num_dct_parts;
+
+	__u32 first_part_size;
+	__u32 first_part_header_bits;
+	__u32 dct_part_sizes[8];
+
+	__u64 last_frame_ts;
+	__u64 golden_frame_ts;
+	__u64 alt_frame_ts;
+
+	__u64 flags;
+};
+
+/* Stateless MPEG-2 controls */
+
+#define V4L2_MPEG2_SEQ_FLAG_PROGRESSIVE	0x01
+
+#define V4L2_CID_STATELESS_MPEG2_SEQUENCE (V4L2_CID_CODEC_STATELESS_BASE+220)
+/**
+ * struct v4l2_ctrl_mpeg2_sequence - MPEG-2 sequence header
+ *
+ * All the members on this structure match the sequence header and sequence
+ * extension syntaxes as specified by the MPEG-2 specification.
+ *
+ * Fields horizontal_size, vertical_size and vbv_buffer_size are a
+ * combination of respective _value and extension syntax elements,
+ * as described in section 6.3.3 "Sequence header".
+ *
+ * @horizontal_size: combination of elements horizontal_size_value and
+ * horizontal_size_extension.
+ * @vertical_size: combination of elements vertical_size_value and
+ * vertical_size_extension.
+ * @vbv_buffer_size: combination of elements vbv_buffer_size_value and
+ * vbv_buffer_size_extension.
+ * @profile_and_level_indication: see MPEG-2 specification.
+ * @chroma_format: see MPEG-2 specification.
+ * @flags: see V4L2_MPEG2_SEQ_FLAG_{}.
+ */
+struct v4l2_ctrl_mpeg2_sequence {
+	__u16	horizontal_size;
+	__u16	vertical_size;
+	__u32	vbv_buffer_size;
+	__u16	profile_and_level_indication;
+	__u8	chroma_format;
+	__u8	flags;
+};
+
+#define V4L2_MPEG2_PIC_CODING_TYPE_I			1
+#define V4L2_MPEG2_PIC_CODING_TYPE_P			2
+#define V4L2_MPEG2_PIC_CODING_TYPE_B			3
+#define V4L2_MPEG2_PIC_CODING_TYPE_D			4
+
+#define V4L2_MPEG2_PIC_TOP_FIELD			0x1
+#define V4L2_MPEG2_PIC_BOTTOM_FIELD			0x2
+#define V4L2_MPEG2_PIC_FRAME				0x3
+
+#define V4L2_MPEG2_PIC_FLAG_TOP_FIELD_FIRST		0x0001
+#define V4L2_MPEG2_PIC_FLAG_FRAME_PRED_DCT		0x0002
+#define V4L2_MPEG2_PIC_FLAG_CONCEALMENT_MV		0x0004
+#define V4L2_MPEG2_PIC_FLAG_Q_SCALE_TYPE		0x0008
+#define V4L2_MPEG2_PIC_FLAG_INTRA_VLC			0x0010
+#define V4L2_MPEG2_PIC_FLAG_ALT_SCAN			0x0020
+#define V4L2_MPEG2_PIC_FLAG_REPEAT_FIRST		0x0040
+#define V4L2_MPEG2_PIC_FLAG_PROGRESSIVE			0x0080
+
+#define V4L2_CID_STATELESS_MPEG2_PICTURE (V4L2_CID_CODEC_STATELESS_BASE+221)
+/**
+ * struct v4l2_ctrl_mpeg2_picture - MPEG-2 picture header
+ *
+ * All the members on this structure match the picture header and picture
+ * coding extension syntaxes as specified by the MPEG-2 specification.
+ *
+ * @backward_ref_ts: timestamp of the V4L2 capture buffer to use as
+ * reference for backward prediction.
+ * @forward_ref_ts: timestamp of the V4L2 capture buffer to use as
+ * reference for forward prediction. These timestamp refers to the
+ * timestamp field in struct v4l2_buffer. Use v4l2_timeval_to_ns()
+ * to convert the struct timeval to a __u64.
+ * @flags: see V4L2_MPEG2_PIC_FLAG_{}.
+ * @f_code: see MPEG-2 specification.
+ * @picture_coding_type: see MPEG-2 specification.
+ * @picture_structure: see V4L2_MPEG2_PIC_{}_FIELD.
+ * @intra_dc_precision: see MPEG-2 specification.
+ * @reserved: padding field. Should be zeroed by applications.
+ */
+struct v4l2_ctrl_mpeg2_picture {
+	__u64	backward_ref_ts;
+	__u64	forward_ref_ts;
+	__u32	flags;
+	__u8	f_code[2][2];
+	__u8	picture_coding_type;
+	__u8	picture_structure;
+	__u8	intra_dc_precision;
+	__u8	reserved[5];
+};
+
+#define V4L2_CID_STATELESS_MPEG2_QUANTISATION (V4L2_CID_CODEC_STATELESS_BASE+222)
+/**
+ * struct v4l2_ctrl_mpeg2_quantisation - MPEG-2 quantisation
+ *
+ * Quantisation matrices as specified by section 6.3.7
+ * "Quant matrix extension".
+ *
+ * @intra_quantiser_matrix: The quantisation matrix coefficients
+ * for intra-coded frames, in zigzag scanning order. It is relevant
+ * for both luma and chroma components, although it can be superseded
+ * by the chroma-specific matrix for non-4:2:0 YUV formats.
+ * @non_intra_quantiser_matrix: The quantisation matrix coefficients
+ * for non-intra-coded frames, in zigzag scanning order. It is relevant
+ * for both luma and chroma components, although it can be superseded
+ * by the chroma-specific matrix for non-4:2:0 YUV formats.
+ * @chroma_intra_quantiser_matrix: The quantisation matrix coefficients
+ * for the chominance component of intra-coded frames, in zigzag scanning
+ * order. Only relevant for 4:2:2 and 4:4:4 YUV formats.
+ * @chroma_non_intra_quantiser_matrix: The quantisation matrix coefficients
+ * for the chrominance component of non-intra-coded frames, in zigzag scanning
+ * order. Only relevant for 4:2:2 and 4:4:4 YUV formats.
+ */
+struct v4l2_ctrl_mpeg2_quantisation {
+	__u8	intra_quantiser_matrix[64];
+	__u8	non_intra_quantiser_matrix[64];
+	__u8	chroma_intra_quantiser_matrix[64];
+	__u8	chroma_non_intra_quantiser_matrix[64];
+};
+
+#define V4L2_CID_COLORIMETRY_CLASS_BASE	(V4L2_CTRL_CLASS_COLORIMETRY | 0x900)
+#define V4L2_CID_COLORIMETRY_CLASS	(V4L2_CTRL_CLASS_COLORIMETRY | 1)
+
+#define V4L2_CID_COLORIMETRY_HDR10_CLL_INFO	(V4L2_CID_COLORIMETRY_CLASS_BASE + 0)
+
+struct v4l2_ctrl_hdr10_cll_info {
+	__u16 max_content_light_level;
+	__u16 max_pic_average_light_level;
+};
+
+#define V4L2_CID_COLORIMETRY_HDR10_MASTERING_DISPLAY	(V4L2_CID_COLORIMETRY_CLASS_BASE + 1)
+
+#define V4L2_HDR10_MASTERING_PRIMARIES_X_LOW	5
+#define V4L2_HDR10_MASTERING_PRIMARIES_X_HIGH	37000
+#define V4L2_HDR10_MASTERING_PRIMARIES_Y_LOW	5
+#define V4L2_HDR10_MASTERING_PRIMARIES_Y_HIGH	42000
+#define V4L2_HDR10_MASTERING_WHITE_POINT_X_LOW	5
+#define V4L2_HDR10_MASTERING_WHITE_POINT_X_HIGH	37000
+#define V4L2_HDR10_MASTERING_WHITE_POINT_Y_LOW	5
+#define V4L2_HDR10_MASTERING_WHITE_POINT_Y_HIGH	42000
+#define V4L2_HDR10_MASTERING_MAX_LUMA_LOW	50000
+#define V4L2_HDR10_MASTERING_MAX_LUMA_HIGH	100000000
+#define V4L2_HDR10_MASTERING_MIN_LUMA_LOW	1
+#define V4L2_HDR10_MASTERING_MIN_LUMA_HIGH	50000
+
+struct v4l2_ctrl_hdr10_mastering_display {
+	__u16 display_primaries_x[3];
+	__u16 display_primaries_y[3];
+	__u16 white_point_x;
+	__u16 white_point_y;
+	__u32 max_display_mastering_luminance;
+	__u32 min_display_mastering_luminance;
 };
 
 /* MPEG-compression definitions kept for backwards compatibility */

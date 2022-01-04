@@ -19,16 +19,11 @@
 #include <linux/mmc/core.h>
 #include <linux/mmc/host.h>
 
-/* For archs that don't support NO_IRQ (such as mips), provide a dummy value */
-#ifndef NO_IRQ
-#define NO_IRQ 0
-#endif
-
 MODULE_LICENSE("GPL");
 
 struct of_mmc_spi {
-	int detect_irq;
 	struct mmc_spi_platform_data pdata;
+	int detect_irq;
 };
 
 static struct of_mmc_spi *to_of_mmc_spi(struct device *dev)
@@ -54,22 +49,22 @@ static void of_mmc_spi_exit(struct device *dev, void *mmc)
 
 struct mmc_spi_platform_data *mmc_spi_get_pdata(struct spi_device *spi)
 {
+	struct mmc_host *mmc = dev_get_drvdata(&spi->dev);
 	struct device *dev = &spi->dev;
-	struct device_node *np = dev->of_node;
 	struct of_mmc_spi *oms;
 
-	if (dev->platform_data || !np)
+	if (dev->platform_data || !dev_fwnode(dev))
 		return dev->platform_data;
 
 	oms = kzalloc(sizeof(*oms), GFP_KERNEL);
 	if (!oms)
 		return NULL;
 
-	if (mmc_of_parse_voltage(np, &oms->pdata.ocr_mask) <= 0)
+	if (mmc_of_parse_voltage(mmc, &oms->pdata.ocr_mask) < 0)
 		goto err_ocr;
 
-	oms->detect_irq = irq_of_parse_and_map(np, 0);
-	if (oms->detect_irq != 0) {
+	oms->detect_irq = spi->irq;
+	if (oms->detect_irq > 0) {
 		oms->pdata.init = of_mmc_spi_init;
 		oms->pdata.exit = of_mmc_spi_exit;
 	} else {
@@ -87,10 +82,9 @@ EXPORT_SYMBOL(mmc_spi_get_pdata);
 void mmc_spi_put_pdata(struct spi_device *spi)
 {
 	struct device *dev = &spi->dev;
-	struct device_node *np = dev->of_node;
 	struct of_mmc_spi *oms = to_of_mmc_spi(dev);
 
-	if (!dev->platform_data || !np)
+	if (!dev->platform_data || !dev_fwnode(dev))
 		return;
 
 	kfree(oms);

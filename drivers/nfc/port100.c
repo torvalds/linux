@@ -94,7 +94,7 @@ struct port100;
 typedef void (*port100_send_async_complete_t)(struct port100 *dev, void *arg,
 					      struct sk_buff *resp);
 
-/**
+/*
  * Setting sets structure for in_set_rf command
  *
  * @in_*_set_number: Represent the entry indexes in the port-100 RF Base Table.
@@ -145,7 +145,7 @@ static const struct port100_in_rf_setting in_rf_settings[] = {
 };
 
 /**
- * Setting sets structure for tg_set_rf command
+ * struct port100_tg_rf_setting - Setting sets structure for tg_set_rf command
  *
  * @tg_set_number: Represents the entry index in the port-100 RF Base Table.
  *                 This table contains multiple RF setting sets required for RF
@@ -217,7 +217,7 @@ struct port100_protocol {
 	u8 value;
 } __packed;
 
-static struct port100_protocol
+static const struct port100_protocol
 in_protocols[][PORT100_IN_MAX_NUM_PROTOCOLS + 1] = {
 	[NFC_DIGITAL_FRAMING_NFCA_SHORT] = {
 		{ PORT100_IN_PROT_INITIAL_GUARD_TIME,      6 },
@@ -391,7 +391,7 @@ in_protocols[][PORT100_IN_MAX_NUM_PROTOCOLS + 1] = {
 	},
 };
 
-static struct port100_protocol
+static const struct port100_protocol
 tg_protocols[][PORT100_TG_MAX_NUM_PROTOCOLS + 1] = {
 	[NFC_DIGITAL_FRAMING_NFCA_SHORT] = {
 		{ PORT100_TG_PROT_END, 0 },
@@ -526,7 +526,7 @@ static inline u8 port100_checksum(u16 value)
 }
 
 /* The rule: sum(data elements) + checksum = 0 */
-static u8 port100_data_checksum(u8 *data, int datalen)
+static u8 port100_data_checksum(const u8 *data, int datalen)
 {
 	u8 sum = 0;
 	int i;
@@ -568,10 +568,10 @@ static void port100_tx_update_payload_len(void *_frame, int len)
 	le16_add_cpu(&frame->datalen, len);
 }
 
-static bool port100_rx_frame_is_valid(void *_frame)
+static bool port100_rx_frame_is_valid(const void *_frame)
 {
 	u8 checksum;
-	struct port100_frame *frame = _frame;
+	const struct port100_frame *frame = _frame;
 
 	if (frame->start_frame != cpu_to_be16(PORT100_FRAME_SOF) ||
 	    frame->extended_frame != cpu_to_be16(PORT100_FRAME_EXT))
@@ -589,23 +589,24 @@ static bool port100_rx_frame_is_valid(void *_frame)
 	return true;
 }
 
-static bool port100_rx_frame_is_ack(struct port100_ack_frame *frame)
+static bool port100_rx_frame_is_ack(const struct port100_ack_frame *frame)
 {
 	return (frame->start_frame == cpu_to_be16(PORT100_FRAME_SOF) &&
 		frame->ack_frame == cpu_to_be16(PORT100_FRAME_ACK));
 }
 
-static inline int port100_rx_frame_size(void *frame)
+static inline int port100_rx_frame_size(const void *frame)
 {
-	struct port100_frame *f = frame;
+	const struct port100_frame *f = frame;
 
 	return sizeof(struct port100_frame) + le16_to_cpu(f->datalen) +
 	       PORT100_FRAME_TAIL_LEN;
 }
 
-static bool port100_rx_frame_is_cmd_response(struct port100 *dev, void *frame)
+static bool port100_rx_frame_is_cmd_response(const struct port100 *dev,
+					     const void *frame)
 {
-	struct port100_frame *f = frame;
+	const struct port100_frame *f = frame;
 
 	return (PORT100_FRAME_CMD(f) == PORT100_CMD_RESPONSE(dev->cmd->code));
 }
@@ -655,7 +656,8 @@ sched_wq:
 	schedule_work(&dev->cmd_complete_work);
 }
 
-static int port100_submit_urb_for_response(struct port100 *dev, gfp_t flags)
+static int port100_submit_urb_for_response(const struct port100 *dev,
+					   gfp_t flags)
 {
 	dev->in_urb->complete = port100_recv_response;
 
@@ -666,7 +668,7 @@ static void port100_recv_ack(struct urb *urb)
 {
 	struct port100 *dev = urb->context;
 	struct port100_cmd *cmd = dev->cmd;
-	struct port100_ack_frame *in_frame;
+	const struct port100_ack_frame *in_frame;
 	int rc;
 
 	cmd->status = urb->status;
@@ -708,7 +710,7 @@ sched_wq:
 	schedule_work(&dev->cmd_complete_work);
 }
 
-static int port100_submit_urb_for_ack(struct port100 *dev, gfp_t flags)
+static int port100_submit_urb_for_ack(const struct port100 *dev, gfp_t flags)
 {
 	dev->in_urb->complete = port100_recv_ack;
 
@@ -753,8 +755,9 @@ static int port100_send_ack(struct port100 *dev)
 	return rc;
 }
 
-static int port100_send_frame_async(struct port100 *dev, struct sk_buff *out,
-				    struct sk_buff *in, int in_len)
+static int port100_send_frame_async(struct port100 *dev,
+				    const struct sk_buff *out,
+				    const struct sk_buff *in, int in_len)
 {
 	int rc;
 
@@ -960,7 +963,7 @@ static void port100_abort_cmd(struct nfc_digital_dev *ddev)
 	usb_kill_urb(dev->in_urb);
 }
 
-static struct sk_buff *port100_alloc_skb(struct port100 *dev, unsigned int size)
+static struct sk_buff *port100_alloc_skb(const struct port100 *dev, unsigned int size)
 {
 	struct sk_buff *skb;
 
@@ -1098,7 +1101,7 @@ static int port100_in_set_rf(struct nfc_digital_dev *ddev, u8 rf)
 static int port100_in_set_framing(struct nfc_digital_dev *ddev, int param)
 {
 	struct port100 *dev = nfc_digital_get_drvdata(ddev);
-	struct port100_protocol *protocols;
+	const struct port100_protocol *protocols;
 	struct sk_buff *skb;
 	struct sk_buff *resp;
 	int num_protocols;
@@ -1152,7 +1155,7 @@ static int port100_in_configure_hw(struct nfc_digital_dev *ddev, int type,
 static void port100_in_comm_rf_complete(struct port100 *dev, void *arg,
 				       struct sk_buff *resp)
 {
-	struct port100_cb_arg *cb_arg = arg;
+	const struct port100_cb_arg *cb_arg = arg;
 	nfc_digital_cmd_complete_t cb = cb_arg->complete_cb;
 	u32 status;
 	int rc;
@@ -1255,7 +1258,7 @@ static int port100_tg_set_rf(struct nfc_digital_dev *ddev, u8 rf)
 static int port100_tg_set_framing(struct nfc_digital_dev *ddev, int param)
 {
 	struct port100 *dev = nfc_digital_get_drvdata(ddev);
-	struct port100_protocol *protocols;
+	const struct port100_protocol *protocols;
 	struct sk_buff *skb;
 	struct sk_buff *resp;
 	int rc;
@@ -1330,7 +1333,7 @@ static void port100_tg_comm_rf_complete(struct port100 *dev, void *arg,
 					struct sk_buff *resp)
 {
 	u32 status;
-	struct port100_cb_arg *cb_arg = arg;
+	const struct port100_cb_arg *cb_arg = arg;
 	nfc_digital_cmd_complete_t cb = cb_arg->complete_cb;
 	struct port100_tg_comm_rf_res *hdr;
 
@@ -1453,7 +1456,7 @@ static int port100_listen_mdaa(struct nfc_digital_dev *ddev,
 static int port100_listen(struct nfc_digital_dev *ddev, u16 timeout,
 			  nfc_digital_cmd_complete_t cb, void *arg)
 {
-	struct port100 *dev = nfc_digital_get_drvdata(ddev);
+	const struct port100 *dev = nfc_digital_get_drvdata(ddev);
 	struct sk_buff *skb;
 
 	skb = port100_alloc_skb(dev, 0);
@@ -1463,7 +1466,7 @@ static int port100_listen(struct nfc_digital_dev *ddev, u16 timeout,
 	return port100_tg_send_cmd(ddev, skb, timeout, cb, arg);
 }
 
-static struct nfc_digital_ops port100_digital_ops = {
+static const struct nfc_digital_ops port100_digital_ops = {
 	.in_configure_hw = port100_in_configure_hw,
 	.in_send_cmd = port100_in_send_cmd,
 

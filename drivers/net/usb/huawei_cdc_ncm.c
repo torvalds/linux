@@ -96,6 +96,7 @@ static int huawei_cdc_ncm_bind(struct usbnet *usbnet_dev,
 		subdriver = usb_cdc_wdm_register(ctx->control,
 						 &usbnet_dev->status->desc,
 						 1024, /* wMaxCommand */
+						 WWAN_PORT_AT,
 						 huawei_cdc_ncm_wdm_manage_power);
 	if (IS_ERR(subdriver)) {
 		ret = PTR_ERR(subdriver);

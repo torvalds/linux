@@ -6,13 +6,10 @@
 #include <linux/device.h>
 #include <linux/platform_device.h>
 #include <linux/module.h>
-#include <linux/interrupt.h>
-#include <linux/irq.h>
+#include <linux/mod_devicetable.h>
 #include <linux/slab.h>
-#include <linux/delay.h>
 #include <linux/hid-sensor-hub.h>
 #include <linux/iio/iio.h>
-#include <linux/iio/sysfs.h>
 #include <linux/iio/buffer.h>
 #include "../common/hid-sensors/hid-sensor-trigger.h"
 
@@ -297,8 +294,8 @@ static int hid_als_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	indio_dev->channels = kmemdup(als_channels,
-				      sizeof(als_channels), GFP_KERNEL);
+	indio_dev->channels = devm_kmemdup(&pdev->dev, als_channels,
+					   sizeof(als_channels), GFP_KERNEL);
 	if (!indio_dev->channels) {
 		dev_err(&pdev->dev, "failed to duplicate channels\n");
 		return -ENOMEM;
@@ -309,7 +306,7 @@ static int hid_als_probe(struct platform_device *pdev)
 			       HID_USAGE_SENSOR_ALS, als_state);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to setup attributes\n");
-		goto error_free_dev_mem;
+		return ret;
 	}
 
 	indio_dev->num_channels =
@@ -324,7 +321,7 @@ static int hid_als_probe(struct platform_device *pdev)
 				&als_state->common_attributes);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "trigger setup failed\n");
-		goto error_free_dev_mem;
+		return ret;
 	}
 
 	ret = iio_device_register(indio_dev);
@@ -349,8 +346,6 @@ error_iio_unreg:
 	iio_device_unregister(indio_dev);
 error_remove_trigger:
 	hid_sensor_remove_trigger(indio_dev, &als_state->common_attributes);
-error_free_dev_mem:
-	kfree(indio_dev->channels);
 	return ret;
 }
 
@@ -364,7 +359,6 @@ static int hid_als_remove(struct platform_device *pdev)
 	sensor_hub_remove_callback(hsdev, HID_USAGE_SENSOR_ALS);
 	iio_device_unregister(indio_dev);
 	hid_sensor_remove_trigger(indio_dev, &als_state->common_attributes);
-	kfree(indio_dev->channels);
 
 	return 0;
 }
@@ -392,3 +386,4 @@ module_platform_driver(hid_als_platform_driver);
 MODULE_DESCRIPTION("HID Sensor ALS");
 MODULE_AUTHOR("Srinivas Pandruvada <srinivas.pandruvada@intel.com>");
 MODULE_LICENSE("GPL");
+MODULE_IMPORT_NS(IIO_HID);

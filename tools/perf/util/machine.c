@@ -776,10 +776,10 @@ static int machine__process_ksymbol_register(struct machine *machine,
 		if (dso) {
 			dso->kernel = DSO_SPACE__KERNEL;
 			map = map__new2(0, dso);
+			dso__put(dso);
 		}
 
 		if (!dso || !map) {
-			dso__put(dso);
 			return -ENOMEM;
 		}
 
@@ -792,6 +792,7 @@ static int machine__process_ksymbol_register(struct machine *machine,
 		map->start = event->ksymbol.addr;
 		map->end = map->start + event->ksymbol.len;
 		maps__insert(&machine->kmaps, map);
+		map__put(map);
 		dso__set_loaded(dso);
 
 		if (is_bpf_image(event->ksymbol.name)) {
@@ -905,7 +906,7 @@ static struct map *machine__addnew_module_map(struct machine *machine, u64 start
 
 	maps__insert(&machine->kmaps, map);
 
-	/* Put the map here because maps__insert alread got it */
+	/* Put the map here because maps__insert already got it */
 	map__put(map);
 out:
 	/* put the dso here, corresponding to  machine__findnew_module_dso */
@@ -1952,7 +1953,7 @@ int machine__process_fork_event(struct machine *machine, union perf_event *event
 	 * maps because that is what the kernel just did.
 	 *
 	 * But when synthesizing, this should not be done.  If we do, we end up
-	 * with overlapping maps as we process the sythesized MMAP2 events that
+	 * with overlapping maps as we process the synthesized MMAP2 events that
 	 * get delivered shortly thereafter.
 	 *
 	 * Use the FORK event misc flags in an internal way to signal this
@@ -2038,8 +2039,8 @@ int machine__process_event(struct machine *machine, union perf_event *event,
 static bool symbol__match_regex(struct symbol *sym, regex_t *regex)
 {
 	if (!regexec(regex, sym->name, 0, NULL, 0))
-		return 1;
-	return 0;
+		return true;
+	return false;
 }
 
 static void ip__resolve_ams(struct thread *thread,
@@ -2518,7 +2519,7 @@ static bool has_stitched_lbr(struct thread *thread,
 
 	/*
 	 * Check if there are identical LBRs between two samples.
-	 * Identicall LBRs must have same from, to and flags values. Also,
+	 * Identical LBRs must have same from, to and flags values. Also,
 	 * they have to be saved in the same LBR registers (same physical
 	 * index).
 	 *
@@ -2588,7 +2589,7 @@ err:
 }
 
 /*
- * Recolve LBR callstack chain sample
+ * Resolve LBR callstack chain sample
  * Return:
  * 1 on success get LBR callchain information
  * 0 no available LBR callchain information, should try fp

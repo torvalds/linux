@@ -283,9 +283,11 @@ EXPORT_SYMBOL_GPL(imx_media_find_mbus_format);
  * @index: The requested match index.
  * @fmt_sel: Include in the enumeration entries with the given selection
  *           criteria.
+ * @code: If non-zero, only include in the enumeration entries matching this
+ *	media bus code.
  */
 int imx_media_enum_pixel_formats(u32 *fourcc, u32 index,
-				 enum imx_pixfmt_sel fmt_sel)
+				 enum imx_pixfmt_sel fmt_sel, u32 code)
 {
 	bool sel_ipu = fmt_sel & PIXFMT_SEL_IPU;
 	unsigned int i;
@@ -305,6 +307,25 @@ int imx_media_enum_pixel_formats(u32 *fourcc, u32 index,
 
 		if (!(fmt_sel & sel))
 			continue;
+
+		/*
+		 * If a media bus code is specified, only consider formats that
+		 * match it.
+		 */
+		if (code) {
+			unsigned int j;
+
+			if (!fmt->codes)
+				continue;
+
+			for (j = 0; fmt->codes[j]; j++) {
+				if (code == fmt->codes[j])
+					break;
+			}
+
+			if (!fmt->codes[j])
+				continue;
+		}
 
 		if (index == 0) {
 			*fourcc = fmt->fourcc;
@@ -408,7 +429,7 @@ EXPORT_SYMBOL_GPL(imx_media_init_mbus_fmt);
  * of a subdev. Can be used as the .init_cfg pad operation.
  */
 int imx_media_init_cfg(struct v4l2_subdev *sd,
-		       struct v4l2_subdev_pad_config *cfg)
+		       struct v4l2_subdev_state *sd_state)
 {
 	struct v4l2_mbus_framefmt *mf_try;
 	struct v4l2_subdev_format format;
@@ -424,7 +445,7 @@ int imx_media_init_cfg(struct v4l2_subdev *sd,
 		if (ret)
 			continue;
 
-		mf_try = v4l2_subdev_get_try_format(sd, cfg, pad);
+		mf_try = v4l2_subdev_get_try_format(sd, sd_state, pad);
 		*mf_try = format.format;
 	}
 

@@ -52,7 +52,7 @@ static void __init highmem_init(void)
 	pkmap_page_table = virt_to_kpte(PKMAP_BASE);
 }
 
-static void highmem_setup(void)
+static void __meminit highmem_setup(void)
 {
 	unsigned long pfn;
 
@@ -131,7 +131,6 @@ void __init mem_init(void)
 	highmem_setup();
 #endif
 
-	mem_init_print_info(NULL);
 	mem_init_done = 1;
 }
 
@@ -264,18 +263,6 @@ asmlinkage void __init mmu_init(void)
 
 	/* CMA initialization */
 	dma_contiguous_reserve(memory_start + lowmem_size - 1);
-}
-
-/* This is only called until mem_init is done. */
-void __init *early_get_page(void)
-{
-	/*
-	 * Mem start + kernel_tlb -> here is limit
-	 * because of mem mapping from head.S
-	 */
-	return memblock_alloc_try_nid_raw(PAGE_SIZE, PAGE_SIZE,
-				MEMBLOCK_LOW_LIMIT, memory_start + kernel_tlb,
-				NUMA_NO_NODE);
 }
 
 void * __ref zalloc_maybe_bootmem(size_t size, gfp_t mask)

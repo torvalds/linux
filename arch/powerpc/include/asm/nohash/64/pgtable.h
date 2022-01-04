@@ -6,11 +6,11 @@
  * the ppc64 non-hashed page table.
  */
 
+#include <linux/sizes.h>
+
 #include <asm/nohash/64/pgtable-4k.h>
 #include <asm/barrier.h>
 #include <asm/asm-const.h>
-
-#define FIRST_USER_ADDRESS	0UL
 
 /*
  * Size of EA range mapped by our pagetables.
@@ -54,7 +54,8 @@
 #define  PHB_IO_END	(KERN_IO_START + FULL_IO_SIZE)
 #define IOREMAP_BASE	(PHB_IO_END)
 #define IOREMAP_START	(ioremap_bot)
-#define IOREMAP_END	(KERN_VIRT_START + KERN_VIRT_SIZE)
+#define IOREMAP_END	(KERN_VIRT_START + KERN_VIRT_SIZE - FIXADDR_SIZE)
+#define FIXADDR_SIZE	SZ_32M
 
 
 /*
@@ -161,7 +162,11 @@ static inline void pud_clear(pud_t *pudp)
 #define	pud_bad(pud)		(!is_kernel_addr(pud_val(pud)) \
 				 || (pud_val(pud) & PUD_BAD_BITS))
 #define pud_present(pud)	(pud_val(pud) != 0)
-#define pud_page_vaddr(pud)	(pud_val(pud) & ~PUD_MASKED_BITS)
+
+static inline pmd_t *pud_pgtable(pud_t pud)
+{
+	return (pmd_t *)(pud_val(pud) & ~PUD_MASKED_BITS);
+}
 
 extern struct page *pud_page(pud_t pud);
 

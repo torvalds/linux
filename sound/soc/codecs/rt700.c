@@ -1002,7 +1002,7 @@ static int rt700_pcm_hw_free(struct snd_pcm_substream *substream,
 #define RT700_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE | \
 			SNDRV_PCM_FMTBIT_S24_LE | SNDRV_PCM_FMTBIT_S8)
 
-static struct snd_soc_dai_ops rt700_ops = {
+static const struct snd_soc_dai_ops rt700_ops = {
 	.hw_params	= rt700_pcm_hw_params,
 	.hw_free	= rt700_pcm_hw_free,
 	.set_sdw_stream	= rt700_set_sdw_stream,
@@ -1112,6 +1112,8 @@ int rt700_init(struct device *dev, struct regmap *sdw_regmap,
 	rt700->sdw_regmap = sdw_regmap;
 	rt700->regmap = regmap;
 
+	mutex_init(&rt700->disable_irq_lock);
+
 	/*
 	 * Mark hw_init to false
 	 * HW init will be performed when device reports present
@@ -1132,6 +1134,8 @@ int rt700_init(struct device *dev, struct regmap *sdw_regmap,
 int rt700_io_init(struct device *dev, struct sdw_slave *slave)
 {
 	struct rt700_priv *rt700 = dev_get_drvdata(dev);
+
+	rt700->disable_irq = false;
 
 	if (rt700->hw_init)
 		return 0;

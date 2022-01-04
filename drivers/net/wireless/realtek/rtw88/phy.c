@@ -119,6 +119,25 @@ static void rtw_phy_cck_pd_init(struct rtw_dev *rtwdev)
 	dm_info->cck_fa_avg = CCK_FA_AVG_RESET;
 }
 
+static void rtw_phy_cfo_init(struct rtw_dev *rtwdev)
+{
+	struct rtw_chip_info *chip = rtwdev->chip;
+
+	if (chip->ops->cfo_init)
+		chip->ops->cfo_init(rtwdev);
+}
+
+static void rtw_phy_tx_path_div_init(struct rtw_dev *rtwdev)
+{
+	struct rtw_path_div *path_div = &rtwdev->dm_path_div;
+
+	path_div->current_tx_path = rtwdev->chip->default_1ss_tx_path;
+	path_div->path_a_cnt = 0;
+	path_div->path_a_sum = 0;
+	path_div->path_b_cnt = 0;
+	path_div->path_b_sum = 0;
+}
+
 void rtw_phy_init(struct rtw_dev *rtwdev)
 {
 	struct rtw_chip_info *chip = rtwdev->chip;
@@ -140,6 +159,8 @@ void rtw_phy_init(struct rtw_dev *rtwdev)
 	rtw_phy_cck_pd_init(rtwdev);
 
 	dm_info->iqk.done = false;
+	rtw_phy_cfo_init(rtwdev);
+	rtw_phy_tx_path_div_init(rtwdev);
 }
 EXPORT_SYMBOL(rtw_phy_init);
 
@@ -316,7 +337,8 @@ rtw_phy_dig_check_damping(struct rtw_dm_info *dm_info)
 	return damping;
 }
 
-static void rtw_phy_dig_get_boundary(struct rtw_dm_info *dm_info,
+static void rtw_phy_dig_get_boundary(struct rtw_dev *rtwdev,
+				     struct rtw_dm_info *dm_info,
 				     u8 *upper, u8 *lower, bool linked)
 {
 	u8 dig_max, dig_min, dig_mid;
@@ -325,8 +347,7 @@ static void rtw_phy_dig_get_boundary(struct rtw_dm_info *dm_info,
 	if (linked) {
 		dig_max = DIG_PERF_MAX;
 		dig_mid = DIG_PERF_MID;
-		/* 22B=0x1c, 22C=0x20 */
-		dig_min = 0x1c;
+		dig_min = rtwdev->chip->dig_min;
 		min_rssi = max_t(u8, dm_info->min_rssi, dig_min);
 	} else {
 		dig_max = DIG_CVRG_MAX;
@@ -437,7 +458,8 @@ static void rtw_phy_dig(struct rtw_dev *rtwdev)
 	 * the peers connected with us, meanwhile make sure the igi value does
 	 * not beyond the hardware limitation
 	 */
-	rtw_phy_dig_get_boundary(dm_info, &upper_bound, &lower_bound, linked);
+	rtw_phy_dig_get_boundary(rtwdev, dm_info, &upper_bound, &lower_bound,
+				 linked);
 	cur_igi = clamp_t(u8, cur_igi, lower_bound, upper_bound);
 
 	/* record current igi value and false alarm statistics for further
@@ -525,6 +547,62 @@ static void rtw_phy_dpk_track(struct rtw_dev *rtwdev)
 
 	if (chip->ops->dpk_track)
 		chip->ops->dpk_track(rtwdev);
+}
+
+struct rtw_rx_addr_match_data {
+	struct rtw_dev *rtwdev;
+	struct ieee80211_hdr *hdr;
+	struct rtw_rx_pkt_stat *pkt_stat;
+	u8 *bssid;
+};
+
+static void rtw_phy_parsing_cfo_iter(void *data, u8 *mac,
+				     struct ieee80211_vif *vif)
+{
+	struct rtw_rx_addr_match_data *iter_data = data;
+	struct rtw_dev *rtwdev = iter_data->rtwdev;
+	struct rtw_rx_pkt_stat *pkt_stat = iter_data->pkt_stat;
+	struct rtw_dm_info *dm_info = &rtwdev->dm_info;
+	struct rtw_cfo_track *cfo = &dm_info->cfo_track;
+	u8 *bssid = iter_data->bssid;
+	u8 i;
+
+	if (!ether_addr_equal(vif->bss_conf.bssid, bssid))
+		return;
+
+	for (i = 0; i < rtwdev->hal.rf_path_num; i++) {
+		cfo->cfo_tail[i] += pkt_stat->cfo_tail[i];
+		cfo->cfo_cnt[i]++;
+	}
+
+	cfo->packet_count++;
+}
+
+void rtw_phy_parsing_cfo(struct rtw_dev *rtwdev,
+			 struct rtw_rx_pkt_stat *pkt_stat)
+{
+	struct ieee80211_hdr *hdr = pkt_stat->hdr;
+	struct rtw_rx_addr_match_data data = {};
+
+	if (pkt_stat->crc_err || pkt_stat->icv_err || !pkt_stat->phy_status ||
+	    ieee80211_is_ctl(hdr->frame_control))
+		return;
+
+	data.rtwdev = rtwdev;
+	data.hdr = hdr;
+	data.pkt_stat = pkt_stat;
+	data.bssid = get_hdr_bssid(hdr);
+
+	rtw_iterate_vifs_atomic(rtwdev, rtw_phy_parsing_cfo_iter, &data);
+}
+EXPORT_SYMBOL(rtw_phy_parsing_cfo);
+
+static void rtw_phy_cfo_track(struct rtw_dev *rtwdev)
+{
+	struct rtw_chip_info *chip = rtwdev->chip;
+
+	if (chip->ops->cfo_track)
+		chip->ops->cfo_track(rtwdev);
 }
 
 #define CCK_PD_FA_LV1_MIN	1000
@@ -617,6 +695,7 @@ static void rtw_phy_pwr_track(struct rtw_dev *rtwdev)
 
 static void rtw_phy_ra_track(struct rtw_dev *rtwdev)
 {
+	rtw_fw_update_wl_phy_info(rtwdev);
 	rtw_phy_ra_info_update(rtwdev);
 	rtw_phy_rrsr_update(rtwdev);
 }
@@ -628,6 +707,8 @@ void rtw_phy_dynamic_mechanism(struct rtw_dev *rtwdev)
 	rtw_phy_dig(rtwdev);
 	rtw_phy_cck_pd(rtwdev);
 	rtw_phy_ra_track(rtwdev);
+	rtw_phy_tx_path_diversity(rtwdev);
+	rtw_phy_cfo_track(rtwdev);
 	rtw_phy_dpk_track(rtwdev);
 	rtw_phy_pwr_track(rtwdev);
 }
@@ -1584,7 +1665,7 @@ void rtw_phy_load_tables(struct rtw_dev *rtwdev)
 }
 EXPORT_SYMBOL(rtw_phy_load_tables);
 
-static u8 rtw_get_channel_group(u8 channel)
+static u8 rtw_get_channel_group(u8 channel, u8 rate)
 {
 	switch (channel) {
 	default:
@@ -1628,6 +1709,7 @@ static u8 rtw_get_channel_group(u8 channel)
 	case 106:
 		return 4;
 	case 14:
+		return rate <= DESC_RATE11M ? 5 : 4;
 	case 108:
 	case 110:
 	case 112:
@@ -1879,7 +1961,7 @@ void rtw_get_tx_power_params(struct rtw_dev *rtwdev, u8 path, u8 rate, u8 bw,
 	s8 *remnant = &pwr_param->pwr_remnant;
 
 	pwr_idx = &rtwdev->efuse.txpwr_idx_table[path];
-	group = rtw_get_channel_group(ch);
+	group = rtw_get_channel_group(ch, rate);
 
 	/* base power index for 2.4G/5G */
 	if (IS_CH_2G_BAND(ch)) {
@@ -2219,6 +2301,20 @@ s8 rtw_phy_pwrtrack_get_pwridx(struct rtw_dev *rtwdev,
 }
 EXPORT_SYMBOL(rtw_phy_pwrtrack_get_pwridx);
 
+bool rtw_phy_pwrtrack_need_lck(struct rtw_dev *rtwdev)
+{
+	struct rtw_dm_info *dm_info = &rtwdev->dm_info;
+	u8 delta_lck;
+
+	delta_lck = abs(dm_info->thermal_avg[0] - dm_info->thermal_meter_lck);
+	if (delta_lck >= rtwdev->chip->lck_threshold) {
+		dm_info->thermal_meter_lck = dm_info->thermal_avg[0];
+		return true;
+	}
+	return false;
+}
+EXPORT_SYMBOL(rtw_phy_pwrtrack_need_lck);
+
 bool rtw_phy_pwrtrack_need_iqk(struct rtw_dev *rtwdev)
 {
 	struct rtw_dm_info *dm_info = &rtwdev->dm_info;
@@ -2232,3 +2328,71 @@ bool rtw_phy_pwrtrack_need_iqk(struct rtw_dev *rtwdev)
 	return false;
 }
 EXPORT_SYMBOL(rtw_phy_pwrtrack_need_iqk);
+
+static void rtw_phy_set_tx_path_by_reg(struct rtw_dev *rtwdev,
+				       enum rtw_bb_path tx_path_sel_1ss)
+{
+	struct rtw_path_div *path_div = &rtwdev->dm_path_div;
+	enum rtw_bb_path tx_path_sel_cck = tx_path_sel_1ss;
+	struct rtw_chip_info *chip = rtwdev->chip;
+
+	if (tx_path_sel_1ss == path_div->current_tx_path)
+		return;
+
+	path_div->current_tx_path = tx_path_sel_1ss;
+	rtw_dbg(rtwdev, RTW_DBG_PATH_DIV, "Switch TX path=%s\n",
+		tx_path_sel_1ss == BB_PATH_A ? "A" : "B");
+	chip->ops->config_tx_path(rtwdev, rtwdev->hal.antenna_tx,
+				  tx_path_sel_1ss, tx_path_sel_cck, false);
+}
+
+static void rtw_phy_tx_path_div_select(struct rtw_dev *rtwdev)
+{
+	struct rtw_path_div *path_div = &rtwdev->dm_path_div;
+	enum rtw_bb_path path = path_div->current_tx_path;
+	s32 rssi_a = 0, rssi_b = 0;
+
+	if (path_div->path_a_cnt)
+		rssi_a = path_div->path_a_sum / path_div->path_a_cnt;
+	else
+		rssi_a = 0;
+	if (path_div->path_b_cnt)
+		rssi_b = path_div->path_b_sum / path_div->path_b_cnt;
+	else
+		rssi_b = 0;
+
+	if (rssi_a != rssi_b)
+		path = (rssi_a > rssi_b) ? BB_PATH_A : BB_PATH_B;
+
+	path_div->path_a_cnt = 0;
+	path_div->path_a_sum = 0;
+	path_div->path_b_cnt = 0;
+	path_div->path_b_sum = 0;
+	rtw_phy_set_tx_path_by_reg(rtwdev, path);
+}
+
+static void rtw_phy_tx_path_diversity_2ss(struct rtw_dev *rtwdev)
+{
+	if (rtwdev->hal.antenna_rx != BB_PATH_AB) {
+		rtw_dbg(rtwdev, RTW_DBG_PATH_DIV,
+			"[Return] tx_Path_en=%d, rx_Path_en=%d\n",
+			rtwdev->hal.antenna_tx, rtwdev->hal.antenna_rx);
+		return;
+	}
+	if (rtwdev->sta_cnt == 0) {
+		rtw_dbg(rtwdev, RTW_DBG_PATH_DIV, "No Link\n");
+		return;
+	}
+
+	rtw_phy_tx_path_div_select(rtwdev);
+}
+
+void rtw_phy_tx_path_diversity(struct rtw_dev *rtwdev)
+{
+	struct rtw_chip_info *chip = rtwdev->chip;
+
+	if (!chip->path_div_supported)
+		return;
+
+	rtw_phy_tx_path_diversity_2ss(rtwdev);
+}

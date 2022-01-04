@@ -463,7 +463,7 @@ static struct pcie_port_service_driver pcie_pme_driver = {
 };
 
 /**
- * pcie_pme_service_init - Register the PCIe PME service driver.
+ * pcie_pme_init - Register the PCIe PME service driver.
  */
 int __init pcie_pme_init(void)
 {

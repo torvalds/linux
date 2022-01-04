@@ -38,11 +38,11 @@ int gen8_emit_flush_rcs(struct i915_request *rq, u32 mode)
 		 * On GEN9: before VF_CACHE_INVALIDATE we need to emit a NULL
 		 * pipe control.
 		 */
-		if (IS_GEN(rq->engine->i915, 9))
+		if (GRAPHICS_VER(rq->engine->i915) == 9)
 			vf_flush_wa = true;
 
 		/* WaForGAMHang:kbl */
-		if (IS_KBL_GT_REVID(rq->engine->i915, 0, KBL_REVID_B0))
+		if (IS_KBL_GT_STEP(rq->engine->i915, 0, STEP_C0))
 			dc_flush_wa = true;
 	}
 
@@ -208,7 +208,7 @@ int gen12_emit_flush_rcs(struct i915_request *rq, u32 mode)
 		flags |= PIPE_CONTROL_FLUSH_L3;
 		flags |= PIPE_CONTROL_RENDER_TARGET_CACHE_FLUSH;
 		flags |= PIPE_CONTROL_DEPTH_CACHE_FLUSH;
-		/* Wa_1409600907:tgl */
+		/* Wa_1409600907:tgl,adl-p */
 		flags |= PIPE_CONTROL_DEPTH_STALL;
 		flags |= PIPE_CONTROL_DC_FLUSH_ENABLE;
 		flags |= PIPE_CONTROL_FLUSH_ENABLE;
@@ -279,7 +279,7 @@ int gen12_emit_flush_xcs(struct i915_request *rq, u32 mode)
 	if (mode & EMIT_INVALIDATE)
 		aux_inv = rq->engine->mask & ~BIT(BCS0);
 	if (aux_inv)
-		cmd += 2 * hweight8(aux_inv) + 2;
+		cmd += 2 * hweight32(aux_inv) + 2;
 
 	cs = intel_ring_begin(rq, cmd);
 	if (IS_ERR(cs))
@@ -313,9 +313,8 @@ int gen12_emit_flush_xcs(struct i915_request *rq, u32 mode)
 		struct intel_engine_cs *engine;
 		unsigned int tmp;
 
-		*cs++ = MI_LOAD_REGISTER_IMM(hweight8(aux_inv));
-		for_each_engine_masked(engine, rq->engine->gt,
-				       aux_inv, tmp) {
+		*cs++ = MI_LOAD_REGISTER_IMM(hweight32(aux_inv));
+		for_each_engine_masked(engine, rq->engine->gt, aux_inv, tmp) {
 			*cs++ = i915_mmio_reg_offset(aux_inv_reg(engine));
 			*cs++ = AUX_INV;
 		}
@@ -338,15 +337,14 @@ static u32 preempt_address(struct intel_engine_cs *engine)
 
 static u32 hwsp_offset(const struct i915_request *rq)
 {
-	const struct intel_timeline_cacheline *cl;
+	const struct intel_timeline *tl;
 
-	/* Before the request is executed, the timeline/cachline is fixed */
+	/* Before the request is executed, the timeline is fixed */
+	tl = rcu_dereference_protected(rq->timeline,
+				       !i915_request_signaled(rq));
 
-	cl = rcu_dereference_protected(rq->hwsp_cacheline, 1);
-	if (cl)
-		return cl->ggtt_offset;
-
-	return rcu_dereference_protected(rq->timeline, 1)->hwsp_offset;
+	/* See the comment in i915_request_active_seqno(). */
+	return page_mask_bits(tl->hwsp_offset) + offset_in_page(rq->hwsp_seqno);
 }
 
 int gen8_emit_init_breadcrumb(struct i915_request *rq)
@@ -507,7 +505,8 @@ gen8_emit_fini_breadcrumb_tail(struct i915_request *rq, u32 *cs)
 	*cs++ = MI_USER_INTERRUPT;
 
 	*cs++ = MI_ARB_ON_OFF | MI_ARB_ENABLE;
-	if (intel_engine_has_semaphores(rq->engine))
+	if (intel_engine_has_semaphores(rq->engine) &&
+	    !intel_uc_uses_guc_submission(&rq->engine->gt->uc))
 		cs = emit_preempt_busywait(rq, cs);
 
 	rq->tail = intel_ring_offset(rq, cs);
@@ -599,7 +598,8 @@ gen12_emit_fini_breadcrumb_tail(struct i915_request *rq, u32 *cs)
 	*cs++ = MI_USER_INTERRUPT;
 
 	*cs++ = MI_ARB_ON_OFF | MI_ARB_ENABLE;
-	if (intel_engine_has_semaphores(rq->engine))
+	if (intel_engine_has_semaphores(rq->engine) &&
+	    !intel_uc_uses_guc_submission(&rq->engine->gt->uc))
 		cs = gen12_emit_preempt_busywait(rq, cs);
 
 	rq->tail = intel_ring_offset(rq, cs);

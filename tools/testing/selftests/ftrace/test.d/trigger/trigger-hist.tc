@@ -39,6 +39,24 @@ grep "parent_comm: $COMM" events/sched/sched_process_fork/hist > /dev/null || \
 
 reset_trigger
 
+echo "Test histogram with sym modifier"
+
+echo 'hist:keys=call_site.sym' > events/kmem/kmalloc/trigger
+for i in `seq 1 10` ; do ( echo "forked" > /dev/null); done
+grep '{ call_site: \[[0-9a-f][0-9a-f]*\] [_a-zA-Z][_a-zA-Z]* *}' events/kmem/kmalloc/hist > /dev/null || \
+    fail "sym modifier on kmalloc call_site did not work"
+
+reset_trigger
+
+echo "Test histogram with sym-offset modifier"
+
+echo 'hist:keys=call_site.sym-offset' > events/kmem/kmalloc/trigger
+for i in `seq 1 10` ; do ( echo "forked" > /dev/null); done
+grep '{ call_site: \[[0-9a-f][0-9a-f]*\] [_a-zA-Z][_a-zA-Z]*+0x[0-9a-f][0-9a-f]*' events/kmem/kmalloc/hist > /dev/null || \
+    fail "sym-offset modifier on kmalloc call_site did not work"
+
+reset_trigger
+
 echo "Test histogram with sort key"
 
 echo 'hist:keys=parent_pid,child_pid:sort=child_pid.ascending' > events/sched/sched_process_fork/trigger

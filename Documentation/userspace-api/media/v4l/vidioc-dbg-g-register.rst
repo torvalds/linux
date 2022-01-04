@@ -85,7 +85,7 @@ It is available from the LinuxTV v4l-dvb repository; see
 `https://linuxtv.org/repo/ <https://linuxtv.org/repo/>`__ for access
 instructions.
 
-.. tabularcolumns:: |p{3.5cm}|p{3.5cm}|p{3.5cm}|p{7.0cm}|
+.. tabularcolumns:: |p{3.5cm}|p{3.5cm}|p{3.5cm}|p{6.6cm}|
 
 .. c:type:: v4l2_dbg_match
 
@@ -131,7 +131,7 @@ instructions.
       - The value read from, or to be written into the register.
 
 
-.. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
+.. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.5cm}|
 
 .. _chip-match-types:
 

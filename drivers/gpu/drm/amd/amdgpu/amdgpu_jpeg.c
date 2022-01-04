@@ -47,8 +47,6 @@ int amdgpu_jpeg_sw_fini(struct amdgpu_device *adev)
 {
 	int i;
 
-	cancel_delayed_work_sync(&adev->jpeg.idle_work);
-
 	for (i = 0; i < adev->jpeg.num_jpeg_inst; ++i) {
 		if (adev->jpeg.harvest_config & (1 << i))
 			continue;

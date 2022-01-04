@@ -180,3 +180,209 @@ bool tb_acpi_is_xdomain_allowed(void)
 		return osc_sb_native_usb4_control & OSC_USB_XDOMAIN;
 	return true;
 }
+
+/* UUID for retimer _DSM: e0053122-795b-4122-8a5e-57be1d26acb3 */
+static const guid_t retimer_dsm_guid =
+	GUID_INIT(0xe0053122, 0x795b, 0x4122,
+		  0x8a, 0x5e, 0x57, 0xbe, 0x1d, 0x26, 0xac, 0xb3);
+
+#define RETIMER_DSM_QUERY_ONLINE_STATE	1
+#define RETIMER_DSM_SET_ONLINE_STATE	2
+
+static int tb_acpi_retimer_set_power(struct tb_port *port, bool power)
+{
+	struct usb4_port *usb4 = port->usb4;
+	union acpi_object argv4[2];
+	struct acpi_device *adev;
+	union acpi_object *obj;
+	int ret;
+
+	if (!usb4->can_offline)
+		return 0;
+
+	adev = ACPI_COMPANION(&usb4->dev);
+	if (WARN_ON(!adev))
+		return 0;
+
+	/* Check if we are already powered on (and in correct mode) */
+	obj = acpi_evaluate_dsm_typed(adev->handle, &retimer_dsm_guid, 1,
+				      RETIMER_DSM_QUERY_ONLINE_STATE, NULL,
+				      ACPI_TYPE_INTEGER);
+	if (!obj) {
+		tb_port_warn(port, "ACPI: query online _DSM failed\n");
+		return -EIO;
+	}
+
+	ret = obj->integer.value;
+	ACPI_FREE(obj);
+
+	if (power == ret)
+		return 0;
+
+	tb_port_dbg(port, "ACPI: calling _DSM to power %s retimers\n",
+		    power ? "on" : "off");
+
+	argv4[0].type = ACPI_TYPE_PACKAGE;
+	argv4[0].package.count = 1;
+	argv4[0].package.elements = &argv4[1];
+	argv4[1].integer.type = ACPI_TYPE_INTEGER;
+	argv4[1].integer.value = power;
+
+	obj = acpi_evaluate_dsm_typed(adev->handle, &retimer_dsm_guid, 1,
+				      RETIMER_DSM_SET_ONLINE_STATE, argv4,
+				      ACPI_TYPE_INTEGER);
+	if (!obj) {
+		tb_port_warn(port,
+			     "ACPI: set online state _DSM evaluation failed\n");
+		return -EIO;
+	}
+
+	ret = obj->integer.value;
+	ACPI_FREE(obj);
+
+	if (ret >= 0) {
+		if (power)
+			return ret == 1 ? 0 : -EBUSY;
+		return 0;
+	}
+
+	tb_port_warn(port, "ACPI: set online state _DSM failed with error %d\n", ret);
+	return -EIO;
+}
+
+/**
+ * tb_acpi_power_on_retimers() - Call platform to power on retimers
+ * @port: USB4 port
+ *
+ * Calls platform to turn on power to all retimers behind this USB4
+ * port. After this function returns successfully the caller can
+ * continue with the normal retimer flows (as specified in the USB4
+ * spec). Note if this returns %-EBUSY it means the type-C port is in
+ * non-USB4/TBT mode (there is non-USB4/TBT device connected).
+ *
+ * This should only be called if the USB4/TBT link is not up.
+ *
+ * Returns %0 on success.
+ */
+int tb_acpi_power_on_retimers(struct tb_port *port)
+{
+	return tb_acpi_retimer_set_power(port, true);
+}
+
+/**
+ * tb_acpi_power_off_retimers() - Call platform to power off retimers
+ * @port: USB4 port
+ *
+ * This is the opposite of tb_acpi_power_on_retimers(). After returning
+ * successfully the normal operations with the @port can continue.
+ *
+ * Returns %0 on success.
+ */
+int tb_acpi_power_off_retimers(struct tb_port *port)
+{
+	return tb_acpi_retimer_set_power(port, false);
+}
+
+static bool tb_acpi_bus_match(struct device *dev)
+{
+	return tb_is_switch(dev) || tb_is_usb4_port_device(dev);
+}
+
+static struct acpi_device *tb_acpi_find_port(struct acpi_device *adev,
+					     const struct tb_port *port)
+{
+	struct acpi_device *port_adev;
+
+	if (!adev)
+		return NULL;
+
+	/*
+	 * Device routers exists under the downstream facing USB4 port
+	 * of the parent router. Their _ADR is always 0.
+	 */
+	list_for_each_entry(port_adev, &adev->children, node) {
+		if (acpi_device_adr(port_adev) == port->port)
+			return port_adev;
+	}
+
+	return NULL;
+}
+
+static struct acpi_device *tb_acpi_switch_find_companion(struct tb_switch *sw)
+{
+	struct acpi_device *adev = NULL;
+	struct tb_switch *parent_sw;
+
+	parent_sw = tb_switch_parent(sw);
+	if (parent_sw) {
+		struct tb_port *port = tb_port_at(tb_route(sw), parent_sw);
+		struct acpi_device *port_adev;
+
+		port_adev = tb_acpi_find_port(ACPI_COMPANION(&parent_sw->dev), port);
+		if (port_adev)
+			adev = acpi_find_child_device(port_adev, 0, false);
+	} else {
+		struct tb_nhi *nhi = sw->tb->nhi;
+		struct acpi_device *parent_adev;
+
+		parent_adev = ACPI_COMPANION(&nhi->pdev->dev);
+		if (parent_adev)
+			adev = acpi_find_child_device(parent_adev, 0, false);
+	}
+
+	return adev;
+}
+
+static struct acpi_device *tb_acpi_find_companion(struct device *dev)
+{
+	/*
+	 * The Thunderbolt/USB4 hierarchy looks like following:
+	 *
+	 * Device (NHI)
+	 *   Device (HR)		// Host router _ADR == 0
+	 *      Device (DFP0)		// Downstream port _ADR == lane 0 adapter
+	 *        Device (DR)		// Device router _ADR == 0
+	 *          Device (UFP)	// Upstream port _ADR == lane 0 adapter
+	 *      Device (DFP1)		// Downstream port _ADR == lane 0 adapter number
+	 *
+	 * At the moment we bind the host router to the corresponding
+	 * Linux device.
+	 */
+	if (tb_is_switch(dev))
+		return tb_acpi_switch_find_companion(tb_to_switch(dev));
+	else if (tb_is_usb4_port_device(dev))
+		return tb_acpi_find_port(ACPI_COMPANION(dev->parent),
+					 tb_to_usb4_port_device(dev)->port);
+	return NULL;
+}
+
+static void tb_acpi_setup(struct device *dev)
+{
+	struct acpi_device *adev = ACPI_COMPANION(dev);
+	struct usb4_port *usb4 = tb_to_usb4_port_device(dev);
+
+	if (!adev || !usb4)
+		return;
+
+	if (acpi_check_dsm(adev->handle, &retimer_dsm_guid, 1,
+			   BIT(RETIMER_DSM_QUERY_ONLINE_STATE) |
+			   BIT(RETIMER_DSM_SET_ONLINE_STATE)))
+		usb4->can_offline = true;
+}
+
+static struct acpi_bus_type tb_acpi_bus = {
+	.name = "thunderbolt",
+	.match = tb_acpi_bus_match,
+	.find_companion = tb_acpi_find_companion,
+	.setup = tb_acpi_setup,
+};
+
+int tb_acpi_init(void)
+{
+	return register_acpi_bus_type(&tb_acpi_bus);
+}
+
+void tb_acpi_exit(void)
+{
+	unregister_acpi_bus_type(&tb_acpi_bus);
+}

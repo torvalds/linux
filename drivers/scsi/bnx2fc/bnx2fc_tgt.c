@@ -819,7 +819,7 @@ mem_alloc_failure:
 }
 
 /**
- * bnx2i_free_session_resc - free qp resources for the session
+ * bnx2fc_free_session_resc - free qp resources for the session
  *
  * @hba:	adapter structure pointer
  * @tgt:	bnx2fc_rport structure pointer

@@ -207,6 +207,8 @@ static int rsnd_ctu_pcm_new(struct rsnd_mod *mod,
 			       NULL,
 			       &ctu->pass, RSND_MAX_CHANNELS,
 			       0xC);
+	if (ret < 0)
+		return ret;
 
 	/* ROW0 */
 	ret = rsnd_kctrl_new_m(mod, io, rtd, "CTU SV0",
@@ -273,6 +275,19 @@ static int rsnd_ctu_id_sub(struct rsnd_mod *mod)
 	return mod->id % 4;
 }
 
+#ifdef CONFIG_DEBUG_FS
+static void rsnd_ctu_debug_info(struct seq_file *m,
+				struct rsnd_dai_stream *io,
+				struct rsnd_mod *mod)
+{
+	rsnd_debugfs_mod_reg_show(m, mod, RSND_GEN2_SCU,
+				  0x500 + rsnd_mod_id_raw(mod) * 0x100, 0x100);
+}
+#define DEBUG_INFO .debug_info = rsnd_ctu_debug_info
+#else
+#define DEBUG_INFO
+#endif
+
 static struct rsnd_mod_ops rsnd_ctu_ops = {
 	.name		= CTU_NAME,
 	.probe		= rsnd_ctu_probe_,
@@ -283,6 +298,7 @@ static struct rsnd_mod_ops rsnd_ctu_ops = {
 	.id		= rsnd_ctu_id,
 	.id_sub		= rsnd_ctu_id_sub,
 	.id_cmd		= rsnd_mod_id_raw,
+	DEBUG_INFO
 };
 
 struct rsnd_mod *rsnd_ctu_mod_get(struct rsnd_priv *priv, int id)

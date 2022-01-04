@@ -1085,8 +1085,14 @@ static int fimc_commit(struct exynos_drm_ipp *ipp,
 {
 	struct fimc_context *ctx =
 			container_of(ipp, struct fimc_context, ipp);
+	int ret;
 
-	pm_runtime_get_sync(ctx->dev);
+	ret = pm_runtime_resume_and_get(ctx->dev);
+	if (ret < 0) {
+		dev_err(ctx->dev, "failed to enable FIMC device.\n");
+		return ret;
+	}
+
 	ctx->task = task;
 
 	fimc_src_set_fmt(ctx, task->src.buf.fourcc, task->src.buf.modifier);

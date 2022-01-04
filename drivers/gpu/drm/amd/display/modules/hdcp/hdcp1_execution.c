@@ -29,8 +29,10 @@ static inline enum mod_hdcp_status validate_bksv(struct mod_hdcp *hdcp)
 {
 	uint64_t n = 0;
 	uint8_t count = 0;
+	u8 bksv[sizeof(n)] = { };
 
-	memcpy(&n, hdcp->auth.msg.hdcp1.bksv, sizeof(uint64_t));
+	memcpy(bksv, hdcp->auth.msg.hdcp1.bksv, sizeof(hdcp->auth.msg.hdcp1.bksv));
+	n = *(uint64_t *)bksv;
 
 	while (n) {
 		count++;
@@ -128,6 +130,11 @@ static inline uint8_t get_device_count(struct mod_hdcp *hdcp)
 
 static inline enum mod_hdcp_status check_device_count(struct mod_hdcp *hdcp)
 {
+	/* Avoid device count == 0 to do authentication */
+	if (0 == get_device_count(hdcp)) {
+		return MOD_HDCP_STATUS_HDCP1_DEVICE_COUNT_MISMATCH_FAILURE;
+	}
+
 	/* Some MST display may choose to report the internal panel as an HDCP RX.
 	 * To update this condition with 1(because the immediate repeater's internal
 	 * panel is possibly not included in DEVICE_COUNT) + get_device_count(hdcp).
@@ -256,10 +263,9 @@ static enum mod_hdcp_status authenticated(struct mod_hdcp *hdcp,
 		goto out;
 	}
 
-	if (!mod_hdcp_execute_and_set(mod_hdcp_hdcp1_link_maintenance,
+	mod_hdcp_execute_and_set(mod_hdcp_hdcp1_link_maintenance,
 			&input->link_maintenance, &status,
-			hdcp, "link_maintenance"))
-		goto out;
+			hdcp, "link_maintenance");
 out:
 	return status;
 }
@@ -426,18 +432,18 @@ static enum mod_hdcp_status authenticated_dp(struct mod_hdcp *hdcp,
 		goto out;
 	}
 
-	if (!mod_hdcp_execute_and_set(mod_hdcp_read_bstatus,
-			&input->bstatus_read, &status,
-			hdcp, "bstatus_read"))
-		goto out;
-	if (!mod_hdcp_execute_and_set(check_link_integrity_dp,
-			&input->link_integrity_check, &status,
-			hdcp, "link_integrity_check"))
-		goto out;
-	if (!mod_hdcp_execute_and_set(check_no_reauthentication_request_dp,
-			&input->reauth_request_check, &status,
-			hdcp, "reauth_request_check"))
-		goto out;
+	if (status == MOD_HDCP_STATUS_SUCCESS)
+		mod_hdcp_execute_and_set(mod_hdcp_read_bstatus,
+				&input->bstatus_read, &status,
+				hdcp, "bstatus_read");
+	if (status == MOD_HDCP_STATUS_SUCCESS)
+		mod_hdcp_execute_and_set(check_link_integrity_dp,
+				&input->link_integrity_check, &status,
+				hdcp, "link_integrity_check");
+	if (status == MOD_HDCP_STATUS_SUCCESS)
+		mod_hdcp_execute_and_set(check_no_reauthentication_request_dp,
+				&input->reauth_request_check, &status,
+				hdcp, "reauth_request_check");
 out:
 	return status;
 }

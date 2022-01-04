@@ -1449,10 +1449,10 @@ static int greth_of_probe(struct platform_device *ofdev)
 			break;
 	}
 	if (i == 6) {
-		const u8 *addr;
+		u8 addr[ETH_ALEN];
 
-		addr = of_get_mac_address(ofdev->dev.of_node);
-		if (!IS_ERR(addr)) {
+		err = of_get_mac_address(ofdev->dev.of_node, addr);
+		if (!err) {
 			for (i = 0; i < 6; i++)
 				macaddr[i] = (unsigned int) addr[i];
 		} else {
@@ -1539,9 +1539,10 @@ static int greth_of_remove(struct platform_device *of_dev)
 	mdiobus_unregister(greth->mdio);
 
 	unregister_netdev(ndev);
-	free_netdev(ndev);
 
 	of_iounmap(&of_dev->resource[0], greth->regs, resource_size(&of_dev->resource[0]));
+
+	free_netdev(ndev);
 
 	return 0;
 }

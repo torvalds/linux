@@ -37,9 +37,7 @@ static void test_get_msr_index(void)
 	int old_res, res, kvm_fd, r;
 	struct kvm_msr_list *list;
 
-	kvm_fd = open(KVM_DEV_PATH, O_RDONLY);
-	if (kvm_fd < 0)
-		exit(KSFT_SKIP);
+	kvm_fd = open_kvm_dev_path_or_exit();
 
 	old_res = kvm_num_index_msrs(kvm_fd, 0);
 	TEST_ASSERT(old_res != 0, "Expecting nmsrs to be > 0");
@@ -101,9 +99,7 @@ static void test_get_msr_feature(void)
 	int res, old_res, i, kvm_fd;
 	struct kvm_msr_list *feature_list;
 
-	kvm_fd = open(KVM_DEV_PATH, O_RDONLY);
-	if (kvm_fd < 0)
-		exit(KSFT_SKIP);
+	kvm_fd = open_kvm_dev_path_or_exit();
 
 	old_res = kvm_num_feature_msrs(kvm_fd, 0);
 	TEST_ASSERT(old_res != 0, "Expecting nmsrs to be > 0");

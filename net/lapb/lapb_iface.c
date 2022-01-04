@@ -80,11 +80,9 @@ static void __lapb_insert_cb(struct lapb_cb *lapb)
 
 static struct lapb_cb *__lapb_devtostruct(struct net_device *dev)
 {
-	struct list_head *entry;
 	struct lapb_cb *lapb, *use = NULL;
 
-	list_for_each(entry, &lapb_list) {
-		lapb = list_entry(entry, struct lapb_cb, node);
+	list_for_each_entry(lapb, &lapb_list, node) {
 		if (lapb->dev == dev) {
 			use = lapb;
 			break;
@@ -122,8 +120,8 @@ static struct lapb_cb *lapb_create_cb(void)
 
 	timer_setup(&lapb->t1timer, NULL, 0);
 	timer_setup(&lapb->t2timer, NULL, 0);
-	lapb->t1timer_stop = true;
-	lapb->t2timer_stop = true;
+	lapb->t1timer_running = false;
+	lapb->t2timer_running = false;
 
 	lapb->t1      = LAPB_DEFAULT_T1;
 	lapb->t2      = LAPB_DEFAULT_T2;

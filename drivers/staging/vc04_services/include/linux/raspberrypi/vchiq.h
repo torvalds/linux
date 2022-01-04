@@ -104,7 +104,7 @@ extern enum vchiq_status vchiq_bulk_receive(unsigned int service,
 	enum vchiq_bulk_mode mode);
 extern void *vchiq_get_service_userdata(unsigned int service);
 extern enum vchiq_status vchiq_get_peer_version(unsigned int handle,
-      short *peer_version);
+	short *peer_version);
 extern struct vchiq_header *vchiq_msg_hold(unsigned int handle);
 
 #endif /* VCHIQ_H */

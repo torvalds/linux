@@ -27,6 +27,7 @@ SMU11_MGR = arcturus_ppt.o \
 	    navi10_ppt.o \
 	    sienna_cichlid_ppt.o \
 	    vangogh_ppt.o \
+	    cyan_skillfish_ppt.o \
 	    smu_v11_0.o
 
 AMD_SWSMU_SMU11MGR = $(addprefix $(AMD_SWSMU_PATH)/smu11/,$(SMU11_MGR))

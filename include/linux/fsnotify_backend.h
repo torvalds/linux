@@ -167,7 +167,6 @@ struct fsnotify_ops {
  */
 struct fsnotify_event {
 	struct list_head list;
-	unsigned long objectid;	/* identifier for queue merges */
 };
 
 /*
@@ -207,9 +206,6 @@ struct fsnotify_group {
 
 	/* stores all fastpath marks assoc with this group so they can be cleaned on unregister */
 	struct mutex mark_mutex;	/* protect marks_list */
-	atomic_t num_marks;		/* 1 for each mark and 1 for not being
-					 * past the point of no return when freeing
-					 * a group */
 	atomic_t user_waits;		/* Number of tasks waiting for user
 					 * response */
 	struct list_head marks_list;	/* all inode marks for this group */
@@ -234,13 +230,14 @@ struct fsnotify_group {
 #endif
 #ifdef CONFIG_FANOTIFY
 		struct fanotify_group_private_data {
+			/* Hash table of events for merge */
+			struct hlist_head *merge_hash;
 			/* allows a group to block waiting for a userspace response */
 			struct list_head access_list;
 			wait_queue_head_t access_waitq;
 			int flags;           /* flags from fanotify_init() */
 			int f_flags; /* event_f_flags from fanotify_init() */
-			unsigned int max_marks;
-			struct user_struct *user;
+			struct ucounts *ucounts;
 		} fanotify_data;
 #endif /* CONFIG_FANOTIFY */
 	};
@@ -487,15 +484,23 @@ extern void fsnotify_destroy_event(struct fsnotify_group *group,
 /* attach the event to the group notification queue */
 extern int fsnotify_add_event(struct fsnotify_group *group,
 			      struct fsnotify_event *event,
-			      int (*merge)(struct list_head *,
-					   struct fsnotify_event *));
+			      int (*merge)(struct fsnotify_group *,
+					   struct fsnotify_event *),
+			      void (*insert)(struct fsnotify_group *,
+					     struct fsnotify_event *));
 /* Queue overflow event to a notification group */
 static inline void fsnotify_queue_overflow(struct fsnotify_group *group)
 {
-	fsnotify_add_event(group, group->overflow_event, NULL);
+	fsnotify_add_event(group, group->overflow_event, NULL, NULL);
 }
 
-/* true if the group notification queue is empty */
+static inline bool fsnotify_notify_queue_is_empty(struct fsnotify_group *group)
+{
+	assert_spin_locked(&group->notification_lock);
+
+	return list_empty(&group->notification_list);
+}
+
 extern bool fsnotify_notify_queue_is_empty(struct fsnotify_group *group);
 /* return, but do not dequeue the first event on the notification queue */
 extern struct fsnotify_event *fsnotify_peek_first_event(struct fsnotify_group *group);
@@ -576,11 +581,9 @@ extern void fsnotify_put_mark(struct fsnotify_mark *mark);
 extern void fsnotify_finish_user_wait(struct fsnotify_iter_info *iter_info);
 extern bool fsnotify_prepare_user_wait(struct fsnotify_iter_info *iter_info);
 
-static inline void fsnotify_init_event(struct fsnotify_event *event,
-				       unsigned long objectid)
+static inline void fsnotify_init_event(struct fsnotify_event *event)
 {
 	INIT_LIST_HEAD(&event->list);
-	event->objectid = objectid;
 }
 
 #else

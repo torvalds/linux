@@ -52,11 +52,11 @@ enum smi_forward_action {
 };
 
 enum smi_action smi_handle_dr_smp_recv(struct ib_smp *smp, bool is_switch,
-				       int port_num, int phys_port_cnt);
+				       u32 port_num, int phys_port_cnt);
 int smi_get_fwd_port(struct ib_smp *smp);
 extern enum smi_forward_action smi_check_forward_dr_smp(struct ib_smp *smp);
 extern enum smi_action smi_handle_dr_smp_send(struct ib_smp *smp,
-					      bool is_switch, int port_num);
+					      bool is_switch, u32 port_num);
 
 /*
  * Return IB_SMI_HANDLE if the SMP should be handled by the local SMA/SM

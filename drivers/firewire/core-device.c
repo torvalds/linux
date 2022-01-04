@@ -187,14 +187,12 @@ static int fw_unit_probe(struct device *dev)
 	return driver->probe(fw_unit(dev), unit_match(dev, dev->driver));
 }
 
-static int fw_unit_remove(struct device *dev)
+static void fw_unit_remove(struct device *dev)
 {
 	struct fw_driver *driver =
 			container_of(dev->driver, struct fw_driver, driver);
 
 	driver->remove(fw_unit(dev));
-
-	return 0;
 }
 
 static int get_modalias(struct fw_unit *unit, char *buffer, size_t buffer_size)

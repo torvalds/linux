@@ -34,6 +34,7 @@ enum {
 	RNBD_OPT_DEV_PATH	= 1 << 2,
 	RNBD_OPT_ACCESS_MODE	= 1 << 3,
 	RNBD_OPT_SESSNAME	= 1 << 6,
+	RNBD_OPT_NR_POLL_QUEUES	= 1 << 7,
 };
 
 static const unsigned int rnbd_opt_mandatory[] = {
@@ -42,12 +43,13 @@ static const unsigned int rnbd_opt_mandatory[] = {
 };
 
 static const match_table_t rnbd_opt_tokens = {
-	{RNBD_OPT_PATH,		"path=%s"	},
-	{RNBD_OPT_DEV_PATH,	"device_path=%s"},
-	{RNBD_OPT_DEST_PORT,	"dest_port=%d"  },
-	{RNBD_OPT_ACCESS_MODE,	"access_mode=%s"},
-	{RNBD_OPT_SESSNAME,	"sessname=%s"	},
-	{RNBD_OPT_ERR,		NULL		},
+	{RNBD_OPT_PATH,			"path=%s"		},
+	{RNBD_OPT_DEV_PATH,		"device_path=%s"	},
+	{RNBD_OPT_DEST_PORT,		"dest_port=%d"		},
+	{RNBD_OPT_ACCESS_MODE,		"access_mode=%s"	},
+	{RNBD_OPT_SESSNAME,		"sessname=%s"		},
+	{RNBD_OPT_NR_POLL_QUEUES,	"nr_poll_queues=%d"	},
+	{RNBD_OPT_ERR,			NULL			},
 };
 
 struct rnbd_map_options {
@@ -57,6 +59,7 @@ struct rnbd_map_options {
 	char *pathname;
 	u16 *dest_port;
 	enum rnbd_access_mode *access_mode;
+	u32 *nr_poll_queues;
 };
 
 static int rnbd_clt_parse_map_options(const char *buf, size_t max_path_cnt,
@@ -68,7 +71,7 @@ static int rnbd_clt_parse_map_options(const char *buf, size_t max_path_cnt,
 	int opt_mask = 0;
 	int token;
 	int ret = -EINVAL;
-	int i, dest_port;
+	int i, dest_port, nr_poll_queues;
 	int p_cnt = 0;
 
 	options = kstrdup(buf, GFP_KERNEL);
@@ -96,7 +99,7 @@ static int rnbd_clt_parse_map_options(const char *buf, size_t max_path_cnt,
 				kfree(p);
 				goto out;
 			}
-			strlcpy(opt->sessname, p, NAME_MAX);
+			strscpy(opt->sessname, p, NAME_MAX);
 			kfree(p);
 			break;
 
@@ -139,7 +142,7 @@ static int rnbd_clt_parse_map_options(const char *buf, size_t max_path_cnt,
 				kfree(p);
 				goto out;
 			}
-			strlcpy(opt->pathname, p, NAME_MAX);
+			strscpy(opt->pathname, p, NAME_MAX);
 			kfree(p);
 			break;
 
@@ -178,6 +181,19 @@ static int rnbd_clt_parse_map_options(const char *buf, size_t max_path_cnt,
 			kfree(p);
 			break;
 
+		case RNBD_OPT_NR_POLL_QUEUES:
+			if (match_int(args, &nr_poll_queues) || nr_poll_queues < -1 ||
+			    nr_poll_queues > (int)nr_cpu_ids) {
+				pr_err("bad nr_poll_queues parameter '%d'\n",
+				       nr_poll_queues);
+				ret = -EINVAL;
+				goto out;
+			}
+			if (nr_poll_queues == -1)
+				nr_poll_queues = nr_cpu_ids;
+			*opt->nr_poll_queues = nr_poll_queues;
+			break;
+
 		default:
 			pr_err("map_device: Unknown parameter or missing value '%s'\n",
 			       p);
@@ -211,21 +227,34 @@ static ssize_t state_show(struct kobject *kobj,
 
 	switch (dev->dev_state) {
 	case DEV_STATE_INIT:
-		return snprintf(page, PAGE_SIZE, "init\n");
+		return sysfs_emit(page, "init\n");
 	case DEV_STATE_MAPPED:
 		/* TODO fix cli tool before changing to proper state */
-		return snprintf(page, PAGE_SIZE, "open\n");
+		return sysfs_emit(page, "open\n");
 	case DEV_STATE_MAPPED_DISCONNECTED:
 		/* TODO fix cli tool before changing to proper state */
-		return snprintf(page, PAGE_SIZE, "closed\n");
+		return sysfs_emit(page, "closed\n");
 	case DEV_STATE_UNMAPPED:
-		return snprintf(page, PAGE_SIZE, "unmapped\n");
+		return sysfs_emit(page, "unmapped\n");
 	default:
-		return snprintf(page, PAGE_SIZE, "unknown\n");
+		return sysfs_emit(page, "unknown\n");
 	}
 }
 
 static struct kobj_attribute rnbd_clt_state_attr = __ATTR_RO(state);
+
+static ssize_t nr_poll_queues_show(struct kobject *kobj,
+				   struct kobj_attribute *attr, char *page)
+{
+	struct rnbd_clt_dev *dev;
+
+	dev = container_of(kobj, struct rnbd_clt_dev, kobj);
+
+	return sysfs_emit(page, "%d\n", dev->nr_poll_queues);
+}
+
+static struct kobj_attribute rnbd_clt_nr_poll_queues =
+	__ATTR_RO(nr_poll_queues);
 
 static ssize_t mapping_path_show(struct kobject *kobj,
 				 struct kobj_attribute *attr, char *page)
@@ -234,7 +263,7 @@ static ssize_t mapping_path_show(struct kobject *kobj,
 
 	dev = container_of(kobj, struct rnbd_clt_dev, kobj);
 
-	return scnprintf(page, PAGE_SIZE, "%s\n", dev->pathname);
+	return sysfs_emit(page, "%s\n", dev->pathname);
 }
 
 static struct kobj_attribute rnbd_clt_mapping_path_attr =
@@ -247,8 +276,7 @@ static ssize_t access_mode_show(struct kobject *kobj,
 
 	dev = container_of(kobj, struct rnbd_clt_dev, kobj);
 
-	return snprintf(page, PAGE_SIZE, "%s\n",
-			rnbd_access_mode_str(dev->access_mode));
+	return sysfs_emit(page, "%s\n", rnbd_access_mode_str(dev->access_mode));
 }
 
 static struct kobj_attribute rnbd_clt_access_mode =
@@ -257,8 +285,8 @@ static struct kobj_attribute rnbd_clt_access_mode =
 static ssize_t rnbd_clt_unmap_dev_show(struct kobject *kobj,
 					struct kobj_attribute *attr, char *page)
 {
-	return scnprintf(page, PAGE_SIZE, "Usage: echo <normal|force> > %s\n",
-			 attr->attr.name);
+	return sysfs_emit(page, "Usage: echo <normal|force> > %s\n",
+			  attr->attr.name);
 }
 
 static ssize_t rnbd_clt_unmap_dev_store(struct kobject *kobj,
@@ -328,9 +356,8 @@ static ssize_t rnbd_clt_resize_dev_show(struct kobject *kobj,
 					 struct kobj_attribute *attr,
 					 char *page)
 {
-	return scnprintf(page, PAGE_SIZE,
-			 "Usage: echo <new size in sectors> > %s\n",
-			 attr->attr.name);
+	return sysfs_emit(page, "Usage: echo <new size in sectors> > %s\n",
+			  attr->attr.name);
 }
 
 static ssize_t rnbd_clt_resize_dev_store(struct kobject *kobj,
@@ -361,8 +388,7 @@ static struct kobj_attribute rnbd_clt_resize_dev_attr =
 static ssize_t rnbd_clt_remap_dev_show(struct kobject *kobj,
 					struct kobj_attribute *attr, char *page)
 {
-	return scnprintf(page, PAGE_SIZE, "Usage: echo <1> > %s\n",
-			 attr->attr.name);
+	return sysfs_emit(page, "Usage: echo <1> > %s\n", attr->attr.name);
 }
 
 static ssize_t rnbd_clt_remap_dev_store(struct kobject *kobj,
@@ -407,7 +433,7 @@ static ssize_t session_show(struct kobject *kobj, struct kobj_attribute *attr,
 
 	dev = container_of(kobj, struct rnbd_clt_dev, kobj);
 
-	return scnprintf(page, PAGE_SIZE, "%s\n", dev->sess->sessname);
+	return sysfs_emit(page, "%s\n", dev->sess->sessname);
 }
 
 static struct kobj_attribute rnbd_clt_session_attr =
@@ -421,6 +447,7 @@ static struct attribute *rnbd_dev_attrs[] = {
 	&rnbd_clt_state_attr.attr,
 	&rnbd_clt_session_attr.attr,
 	&rnbd_clt_access_mode.attr,
+	&rnbd_clt_nr_poll_queues.attr,
 	NULL,
 };
 
@@ -432,10 +459,14 @@ void rnbd_clt_remove_dev_symlink(struct rnbd_clt_dev *dev)
 	 * i.e. rnbd_clt_unmap_dev_store() leading to a sysfs warning because
 	 * of sysfs link already was removed already.
 	 */
-	if (dev->blk_symlink_name && try_module_get(THIS_MODULE)) {
-		sysfs_remove_link(rnbd_devs_kobj, dev->blk_symlink_name);
+	if (dev->blk_symlink_name) {
+		if (try_module_get(THIS_MODULE)) {
+			sysfs_remove_link(rnbd_devs_kobj, dev->blk_symlink_name);
+			module_put(THIS_MODULE);
+		}
+		/* It should be freed always. */
 		kfree(dev->blk_symlink_name);
-		module_put(THIS_MODULE);
+		dev->blk_symlink_name = NULL;
 	}
 }
 
@@ -456,6 +487,7 @@ static int rnbd_clt_add_dev_kobj(struct rnbd_clt_dev *dev)
 			      ret);
 		kobject_put(&dev->kobj);
 	}
+	kobject_uevent(gd_kobj, KOBJ_ONLINE);
 
 	return ret;
 }
@@ -464,8 +496,8 @@ static ssize_t rnbd_clt_map_device_show(struct kobject *kobj,
 					 struct kobj_attribute *attr,
 					 char *page)
 {
-	return scnprintf(page, PAGE_SIZE,
-			 "Usage: echo \"[dest_port=server port number] sessname=<name of the rtrs session> path=<[srcaddr@]dstaddr> [path=<[srcaddr@]dstaddr>] device_path=<full path on remote side> [access_mode=<ro|rw|migration>]\" > %s\n\naddr ::= [ ip:<ipv4> | ip:<ipv6> | gid:<gid> ]\n",
+	return sysfs_emit(page,
+			  "Usage: echo \"[dest_port=server port number] sessname=<name of the rtrs session> path=<[srcaddr@]dstaddr> [path=<[srcaddr@]dstaddr>] device_path=<full path on remote side> [access_mode=<ro|rw|migration>] [nr_poll_queues=<number of queues>]\" > %s\n\naddr ::= [ ip:<ipv4> | ip:<ipv6> | gid:<gid> ]\n",
 			 attr->attr.name);
 }
 
@@ -475,15 +507,11 @@ static int rnbd_clt_get_path_name(struct rnbd_clt_dev *dev, char *buf,
 	int ret;
 	char pathname[NAME_MAX], *s;
 
-	strlcpy(pathname, dev->pathname, sizeof(pathname));
+	strscpy(pathname, dev->pathname, sizeof(pathname));
 	while ((s = strchr(pathname, '/')))
 		s[0] = '!';
 
-	ret = snprintf(buf, len, "%s", pathname);
-	if (ret >= len)
-		return -ENAMETOOLONG;
-
-	ret = snprintf(buf, len, "%s@%s", buf, dev->sess->sessname);
+	ret = snprintf(buf, len, "%s@%s", pathname, dev->sess->sessname);
 	if (ret >= len)
 		return -ENAMETOOLONG;
 
@@ -537,6 +565,7 @@ static ssize_t rnbd_clt_map_device_store(struct kobject *kobj,
 	char sessname[NAME_MAX];
 	enum rnbd_access_mode access_mode = RNBD_ACCESS_RW;
 	u16 port_nr = RTRS_PORT;
+	u32 nr_poll_queues = 0;
 
 	struct sockaddr_storage *addrs;
 	struct rtrs_addr paths[6];
@@ -548,6 +577,7 @@ static ssize_t rnbd_clt_map_device_store(struct kobject *kobj,
 	opt.pathname = pathname;
 	opt.dest_port = &port_nr;
 	opt.access_mode = &access_mode;
+	opt.nr_poll_queues = &nr_poll_queues;
 	addrs = kcalloc(ARRAY_SIZE(paths) * 2, sizeof(*addrs), GFP_KERNEL);
 	if (!addrs)
 		return -ENOMEM;
@@ -561,12 +591,13 @@ static ssize_t rnbd_clt_map_device_store(struct kobject *kobj,
 	if (ret)
 		goto out;
 
-	pr_info("Mapping device %s on session %s, (access_mode: %s)\n",
+	pr_info("Mapping device %s on session %s, (access_mode: %s, nr_poll_queues: %d)\n",
 		pathname, sessname,
-		rnbd_access_mode_str(access_mode));
+		rnbd_access_mode_str(access_mode),
+		nr_poll_queues);
 
 	dev = rnbd_clt_map_device(sessname, paths, path_cnt, port_nr, pathname,
-				  access_mode);
+				  access_mode, nr_poll_queues);
 	if (IS_ERR(dev)) {
 		ret = PTR_ERR(dev);
 		goto out;
@@ -639,13 +670,9 @@ cls_destroy:
 	return err;
 }
 
-void rnbd_clt_destroy_default_group(void)
-{
-	sysfs_remove_group(&rnbd_dev->kobj, &default_attr_group);
-}
-
 void rnbd_clt_destroy_sysfs_files(void)
 {
+	sysfs_remove_group(&rnbd_dev->kobj, &default_attr_group);
 	kobject_del(rnbd_devs_kobj);
 	kobject_put(rnbd_devs_kobj);
 	device_destroy(rnbd_dev_class, MKDEV(0, 0));

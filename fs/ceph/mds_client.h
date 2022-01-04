@@ -88,6 +88,7 @@ struct ceph_mds_reply_info_in {
 	s32 dir_pin;
 	struct ceph_timespec btime;
 	struct ceph_timespec snap_btime;
+	u64 rsnaps;
 	u64 change_attr;
 };
 
@@ -185,10 +186,8 @@ struct ceph_mds_session {
 
 	struct ceph_auth_handshake s_auth;
 
-	/* protected by s_gen_ttl_lock */
-	spinlock_t        s_gen_ttl_lock;
-	u32               s_cap_gen;  /* inc each time we get mds stale msg */
-	unsigned long     s_cap_ttl;  /* when session caps expire */
+	atomic_t          s_cap_gen;  /* inc each time we get mds stale msg */
+	unsigned long     s_cap_ttl;  /* when session caps expire. protected by s_mutex */
 
 	/* protected by s_cap_lock */
 	spinlock_t        s_cap_lock;

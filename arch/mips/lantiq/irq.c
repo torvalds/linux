@@ -300,7 +300,7 @@ static void ltq_hw_irq_handler(struct irq_desc *desc)
 	 */
 	irq = __fls(irq);
 	hwirq = irq + MIPS_CPU_IRQ_CASCADE + (INT_NUM_IM_OFFSET * module);
-	generic_handle_irq(irq_linear_revmap(ltq_domain, hwirq));
+	generic_handle_domain_irq(ltq_domain, hwirq);
 
 	/* if this is a EBU irq, we need to ack it or get a deadlock */
 	if (irq == LTQ_ICU_EBU_IRQ && !module && LTQ_EBU_PCC_ISTAT != 0)

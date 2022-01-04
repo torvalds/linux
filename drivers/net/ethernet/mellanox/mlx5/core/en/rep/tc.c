@@ -17,6 +17,7 @@
 #include "en/mapping.h"
 #include "en/tc_tun.h"
 #include "lib/port_tun.h"
+#include "en/tc/sample.h"
 
 struct mlx5e_rep_indr_block_priv {
 	struct net_device *netdev;
@@ -93,13 +94,9 @@ void mlx5e_rep_update_flows(struct mlx5e_priv *priv,
 
 	ASSERT_RTNL();
 
-	/* wait for encap to be fully initialized */
-	wait_for_completion(&e->res_ready);
-
 	mutex_lock(&esw->offloads.encap_tbl_lock);
 	encap_connected = !!(e->flags & MLX5_ENCAP_ENTRY_VALID);
-	if (e->compl_result < 0 || (encap_connected == neigh_connected &&
-				    ether_addr_equal(e->h_dest, ha)))
+	if (encap_connected == neigh_connected && ether_addr_equal(e->h_dest, ha))
 		goto unlock;
 
 	mlx5e_take_all_encap_flows(e, &flow_list);
@@ -168,6 +165,9 @@ static int mlx5e_rep_setup_tc_cb(enum tc_setup_type type, void *type_data,
 {
 	unsigned long flags = MLX5_TC_FLAG(INGRESS) | MLX5_TC_FLAG(ESW_OFFLOAD);
 	struct mlx5e_priv *priv = cb_priv;
+
+	if (!priv->netdev || !netif_device_present(priv->netdev))
+		return -EOPNOTSUPP;
 
 	switch (type) {
 	case TC_SETUP_CLSFLOWER:
@@ -320,6 +320,9 @@ mlx5e_rep_indr_offload(struct net_device *netdev,
 {
 	struct mlx5e_priv *priv = netdev_priv(indr_priv->rpriv->netdev);
 	int err = 0;
+
+	if (!netif_device_present(indr_priv->rpriv->netdev))
+		return -EOPNOTSUPP;
 
 	switch (flower->command) {
 	case FLOW_CLS_REPLACE:
@@ -513,7 +516,6 @@ void mlx5e_rep_tc_netdevice_event_unregister(struct mlx5e_rep_priv *rpriv)
 				 mlx5e_rep_indr_block_unbind);
 }
 
-#if IS_ENABLED(CONFIG_NET_TC_SKB_EXT)
 static bool mlx5e_restore_tunnel(struct mlx5e_priv *priv, struct sk_buff *skb,
 				 struct mlx5e_tc_update_priv *tc_priv,
 				 u32 tunnel_id)
@@ -605,27 +607,67 @@ static bool mlx5e_restore_tunnel(struct mlx5e_priv *priv, struct sk_buff *skb,
 
 	return true;
 }
+
+static bool mlx5e_restore_skb_chain(struct sk_buff *skb, u32 chain, u32 reg_c1,
+				    struct mlx5e_tc_update_priv *tc_priv)
+{
+	struct mlx5e_priv *priv = netdev_priv(skb->dev);
+	u32 tunnel_id = (reg_c1 >> ESW_TUN_OFFSET) & TUNNEL_ID_MASK;
+
+#if IS_ENABLED(CONFIG_NET_TC_SKB_EXT)
+	if (chain) {
+		struct mlx5_rep_uplink_priv *uplink_priv;
+		struct mlx5e_rep_priv *uplink_rpriv;
+		struct tc_skb_ext *tc_skb_ext;
+		struct mlx5_eswitch *esw;
+		u32 zone_restore_id;
+
+		tc_skb_ext = tc_skb_ext_alloc(skb);
+		if (!tc_skb_ext) {
+			WARN_ON(1);
+			return false;
+		}
+		tc_skb_ext->chain = chain;
+		zone_restore_id = reg_c1 & ESW_ZONE_ID_MASK;
+		esw = priv->mdev->priv.eswitch;
+		uplink_rpriv = mlx5_eswitch_get_uplink_priv(esw, REP_ETH);
+		uplink_priv = &uplink_rpriv->uplink_priv;
+		if (!mlx5e_tc_ct_restore_flow(uplink_priv->ct_priv, skb,
+					      zone_restore_id))
+			return false;
+	}
 #endif /* CONFIG_NET_TC_SKB_EXT */
+
+	return mlx5e_restore_tunnel(priv, skb, tc_priv, tunnel_id);
+}
+
+static void mlx5e_restore_skb_sample(struct mlx5e_priv *priv, struct sk_buff *skb,
+				     struct mlx5_mapped_obj *mapped_obj,
+				     struct mlx5e_tc_update_priv *tc_priv)
+{
+	if (!mlx5e_restore_tunnel(priv, skb, tc_priv, mapped_obj->sample.tunnel_id)) {
+		netdev_dbg(priv->netdev,
+			   "Failed to restore tunnel info for sampled packet\n");
+		return;
+	}
+#if IS_ENABLED(CONFIG_MLX5_TC_SAMPLE)
+	mlx5e_tc_sample_skb(skb, mapped_obj);
+#endif /* CONFIG_MLX5_TC_SAMPLE */
+	mlx5_rep_tc_post_napi_receive(tc_priv);
+}
 
 bool mlx5e_rep_tc_update_skb(struct mlx5_cqe64 *cqe,
 			     struct sk_buff *skb,
 			     struct mlx5e_tc_update_priv *tc_priv)
 {
-#if IS_ENABLED(CONFIG_NET_TC_SKB_EXT)
-	u32 chain = 0, reg_c0, reg_c1, tunnel_id, zone_restore_id;
-	struct mlx5_rep_uplink_priv *uplink_priv;
-	struct mlx5e_rep_priv *uplink_rpriv;
-	struct tc_skb_ext *tc_skb_ext;
+	struct mlx5_mapped_obj mapped_obj;
 	struct mlx5_eswitch *esw;
 	struct mlx5e_priv *priv;
+	u32 reg_c0;
 	int err;
 
 	reg_c0 = (be32_to_cpu(cqe->sop_drop_qpn) & MLX5E_TC_FLOW_ID_MASK);
-	if (reg_c0 == MLX5_FS_DEFAULT_FLOW_TAG)
-		reg_c0 = 0;
-	reg_c1 = be32_to_cpu(cqe->ft_metadata);
-
-	if (!reg_c0)
+	if (!reg_c0 || reg_c0 == MLX5_FS_DEFAULT_FLOW_TAG)
 		return true;
 
 	/* If reg_c0 is not equal to the default flow tag then skb->mark
@@ -635,36 +677,25 @@ bool mlx5e_rep_tc_update_skb(struct mlx5_cqe64 *cqe,
 
 	priv = netdev_priv(skb->dev);
 	esw = priv->mdev->priv.eswitch;
-
-	err = mlx5_get_chain_for_tag(esw_chains(esw), reg_c0, &chain);
+	err = mapping_find(esw->offloads.reg_c0_obj_pool, reg_c0, &mapped_obj);
 	if (err) {
 		netdev_dbg(priv->netdev,
-			   "Couldn't find chain for chain tag: %d, err: %d\n",
+			   "Couldn't find mapped object for reg_c0: %d, err: %d\n",
 			   reg_c0, err);
 		return false;
 	}
 
-	if (chain) {
-		tc_skb_ext = skb_ext_add(skb, TC_SKB_EXT);
-		if (!tc_skb_ext) {
-			WARN_ON(1);
-			return false;
-		}
+	if (mapped_obj.type == MLX5_MAPPED_OBJ_CHAIN) {
+		u32 reg_c1 = be32_to_cpu(cqe->ft_metadata);
 
-		tc_skb_ext->chain = chain;
-
-		zone_restore_id = reg_c1 & ESW_ZONE_ID_MASK;
-
-		uplink_rpriv = mlx5_eswitch_get_uplink_priv(esw, REP_ETH);
-		uplink_priv = &uplink_rpriv->uplink_priv;
-		if (!mlx5e_tc_ct_restore_flow(uplink_priv->ct_priv, skb,
-					      zone_restore_id))
-			return false;
+		return mlx5e_restore_skb_chain(skb, mapped_obj.chain, reg_c1, tc_priv);
+	} else if (mapped_obj.type == MLX5_MAPPED_OBJ_SAMPLE) {
+		mlx5e_restore_skb_sample(priv, skb, &mapped_obj, tc_priv);
+		return false;
+	} else {
+		netdev_dbg(priv->netdev, "Invalid mapped object type: %d\n", mapped_obj.type);
+		return false;
 	}
-
-	tunnel_id = reg_c1 >> ESW_TUN_OFFSET;
-	return mlx5e_restore_tunnel(priv, skb, tc_priv, tunnel_id);
-#endif /* CONFIG_NET_TC_SKB_EXT */
 
 	return true;
 }

@@ -625,6 +625,7 @@ struct rtw_rx_pkt_stat {
 
 	struct rtw_sta_info *si;
 	struct ieee80211_vif *vif;
+	struct ieee80211_hdr *hdr;
 };
 
 DECLARE_EWMA(tp, 10, 2);
@@ -805,6 +806,7 @@ struct rtw_regulatory {
 
 struct rtw_chip_ops {
 	int (*mac_init)(struct rtw_dev *rtwdev);
+	int (*dump_fw_crash)(struct rtw_dev *rtwdev);
 	void (*shutdown)(struct rtw_dev *rtwdev);
 	int (*read_efuse)(struct rtw_dev *rtwdev, u8 *map);
 	void (*phy_set_param)(struct rtw_dev *rtwdev);
@@ -837,6 +839,12 @@ struct rtw_chip_ops {
 			      struct ieee80211_bss_conf *conf);
 	void (*cfg_csi_rate)(struct rtw_dev *rtwdev, u8 rssi, u8 cur_rate,
 			     u8 fixrate_en, u8 *new_rate);
+	void (*cfo_init)(struct rtw_dev *rtwdev);
+	void (*cfo_track)(struct rtw_dev *rtwdev);
+	void (*config_tx_path)(struct rtw_dev *rtwdev, u8 tx_path,
+			       enum rtw_bb_path tx_path_1ss,
+			       enum rtw_bb_path tx_path_cck,
+			       bool is_tx2_path);
 
 	/* for coex */
 	void (*coex_set_init)(struct rtw_dev *rtwdev);
@@ -1104,6 +1112,15 @@ enum rtw_fw_fifo_sel {
 	RTW_FW_FIFO_MAX,
 };
 
+enum rtw_fwcd_item {
+	RTW_FWCD_TLV,
+	RTW_FWCD_REG,
+	RTW_FWCD_ROM,
+	RTW_FWCD_IMEM,
+	RTW_FWCD_DMEM,
+	RTW_FWCD_EMEM,
+};
+
 /* hardware configuration for each IC */
 struct rtw_chip_info {
 	struct rtw_chip_ops *ops;
@@ -1129,10 +1146,15 @@ struct rtw_chip_info {
 	u8 txgi_factor;
 	bool is_pwr_by_rate_dec;
 	bool rx_ldpc;
+	bool tx_stbc;
 	u8 max_power_index;
 
 	u16 fw_fifo_addr[RTW_FW_FIFO_MAX];
+	const struct rtw_fwcd_segs *fwcd_segs;
 
+	u8 default_1ss_tx_path;
+
+	bool path_div_supported;
 	bool ht_supported;
 	bool vht_supported;
 	u8 lps_deep_mode_supported;
@@ -1166,6 +1188,7 @@ struct rtw_chip_info {
 	bool en_dis_dpd;
 	u16 dpd_ratemask;
 	u8 iqk_threshold;
+	u8 lck_threshold;
 	const struct rtw_pwr_track_tbl *pwr_track_tbl;
 
 	u8 bfer_su_max_num;
@@ -1497,8 +1520,45 @@ struct rtw_iqk_info {
 	} result;
 };
 
+enum rtw_rf_band {
+	RF_BAND_2G_CCK,
+	RF_BAND_2G_OFDM,
+	RF_BAND_5G_L,
+	RF_BAND_5G_M,
+	RF_BAND_5G_H,
+	RF_BAND_MAX
+};
+
+#define RF_GAIN_NUM 11
+#define RF_HW_OFFSET_NUM 10
+
+struct rtw_gapk_info {
+	u32 rf3f_bp[RF_BAND_MAX][RF_GAIN_NUM][RTW_RF_PATH_MAX];
+	u32 rf3f_fs[RTW_RF_PATH_MAX][RF_GAIN_NUM];
+	bool txgapk_bp_done;
+	s8 offset[RF_GAIN_NUM][RTW_RF_PATH_MAX];
+	s8 fianl_offset[RF_GAIN_NUM][RTW_RF_PATH_MAX];
+	u8 read_txgain;
+	u8 channel;
+};
+
+struct rtw_cfo_track {
+	bool is_adjust;
+	u8 crystal_cap;
+	s32 cfo_tail[RTW_RF_PATH_MAX];
+	s32 cfo_cnt[RTW_RF_PATH_MAX];
+	u32 packet_count;
+	u32 packet_count_pre;
+};
+
 #define RRSR_INIT_2G 0x15f
 #define RRSR_INIT_5G 0x150
+
+enum rtw_dm_cap {
+	RTW_DM_CAP_NA,
+	RTW_DM_CAP_TXGAPK,
+	RTW_DM_CAP_NUM
+};
 
 struct rtw_dm_info {
 	u32 cck_fa_cnt;
@@ -1534,6 +1594,7 @@ struct rtw_dm_info {
 	u32 rrsr_mask_min;
 	u8 thermal_avg[RTW_RF_PATH_MAX];
 	u8 thermal_meter_k;
+	u8 thermal_meter_lck;
 	s8 delta_power_index[RTW_RF_PATH_MAX];
 	s8 delta_power_index_last[RTW_RF_PATH_MAX];
 	u8 default_ofdm_index;
@@ -1549,6 +1610,7 @@ struct rtw_dm_info {
 	u8 dack_dck[RTW_RF_PATH_MAX][2][DACK_DCK_BACKUP_NUM];
 
 	struct rtw_dpk_info dpk_info;
+	struct rtw_cfo_track cfo_track;
 
 	/* [bandwidth 0:20M/1:40M][number of path] */
 	u8 cck_pd_lv[2][RTW_RF_PATH_MAX];
@@ -1566,7 +1628,12 @@ struct rtw_dm_info {
 	struct ewma_evm ewma_evm[RTW_EVM_NUM];
 	struct ewma_snr ewma_snr[RTW_SNR_NUM];
 
+	u32 dm_flags; /* enum rtw_dm_cap */
 	struct rtw_iqk_info iqk;
+	struct rtw_gapk_info gapk;
+	bool is_bt_iqk_timeout;
+
+	u8 scan_density;
 };
 
 struct rtw_efuse {
@@ -1670,6 +1737,17 @@ struct rtw_fifo_conf {
 	const struct rtw_rqpn *rqpn;
 };
 
+struct rtw_fwcd_desc {
+	u32 size;
+	u8 *next;
+	u8 *data;
+};
+
+struct rtw_fwcd_segs {
+	const u32 *segs;
+	u8 num;
+};
+
 #define FW_CD_TYPE 0xffff
 #define FW_CD_LEN 4
 #define FW_CD_VAL 0xaabbccdd
@@ -1677,11 +1755,11 @@ struct rtw_fw_state {
 	const struct firmware *firmware;
 	struct rtw_dev *rtwdev;
 	struct completion completion;
+	struct rtw_fwcd_desc fwcd_desc;
 	u16 version;
 	u8 sub_version;
 	u8 sub_index;
 	u16 h2c_version;
-	u8 prev_dump_seq;
 	u32 feature;
 };
 
@@ -1732,6 +1810,14 @@ struct rtw_hal {
 			  [RTW_MAX_CHANNEL_NUM_5G];
 	s8 tx_pwr_tbl[RTW_RF_PATH_MAX]
 		     [DESC_RATE_MAX];
+};
+
+struct rtw_path_div {
+	enum rtw_bb_path current_tx_path;
+	u32 path_a_sum;
+	u32 path_b_sum;
+	u16 path_a_cnt;
+	u16 path_b_cnt;
 };
 
 struct rtw_dev {
@@ -1790,6 +1876,7 @@ struct rtw_dev {
 	/* lps power state & handler work */
 	struct rtw_lps_conf lps_conf;
 	bool ps_enabled;
+	bool beacon_loss;
 	struct completion lps_leave_check;
 
 	struct dentry *debugfs;
@@ -1801,11 +1888,13 @@ struct rtw_dev {
 	DECLARE_BITMAP(flags, NUM_OF_RTW_FLAGS);
 
 	u8 mp_mode;
+	struct rtw_path_div dm_path_div;
 
 	struct rtw_fw_state wow_fw;
 	struct rtw_wow_param wow;
 
 	bool need_rfk;
+	struct completion fw_scan_density;
 
 	/* hci related data, must be last */
 	u8 priv[] __aligned(sizeof(void *));
@@ -1871,9 +1960,22 @@ static inline bool rtw_chip_has_rx_ldpc(struct rtw_dev *rtwdev)
 	return rtwdev->chip->rx_ldpc;
 }
 
+static inline bool rtw_chip_has_tx_stbc(struct rtw_dev *rtwdev)
+{
+	return rtwdev->chip->tx_stbc;
+}
+
 static inline void rtw_release_macid(struct rtw_dev *rtwdev, u8 mac_id)
 {
 	clear_bit(mac_id, rtwdev->mac_id_map);
+}
+
+static inline int rtw_chip_dump_fw_crash(struct rtw_dev *rtwdev)
+{
+	if (rtwdev->chip->ops->dump_fw_crash)
+		return rtwdev->chip->ops->dump_fw_crash(rtwdev);
+
+	return 0;
 }
 
 void rtw_get_channel_params(struct cfg80211_chan_def *chandef,
@@ -1905,5 +2007,9 @@ int rtw_sta_add(struct rtw_dev *rtwdev, struct ieee80211_sta *sta,
 void rtw_sta_remove(struct rtw_dev *rtwdev, struct ieee80211_sta *sta,
 		    bool fw_exist);
 void rtw_fw_recovery(struct rtw_dev *rtwdev);
+void rtw_core_fw_scan_notify(struct rtw_dev *rtwdev, bool start);
+int rtw_dump_fw(struct rtw_dev *rtwdev, const u32 ocp_src, u32 size,
+		u32 fwcd_item);
+int rtw_dump_reg(struct rtw_dev *rtwdev, const u32 addr, const u32 size);
 
 #endif

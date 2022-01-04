@@ -39,13 +39,21 @@ struct ath11k_base;
 #define HAL_SHADOW_REG(x) (HAL_SHADOW_BASE_ADDR + (4 * (x)))
 
 /* WCSS Relative address */
+#define HAL_SEQ_WCSS_UMAC_OFFSET		0x00a00000
 #define HAL_SEQ_WCSS_UMAC_REO_REG		0x00a38000
 #define HAL_SEQ_WCSS_UMAC_TCL_REG		0x00a44000
-#define HAL_SEQ_WCSS_UMAC_CE0_SRC_REG		0x00a00000
-#define HAL_SEQ_WCSS_UMAC_CE0_DST_REG		0x00a01000
-#define HAL_SEQ_WCSS_UMAC_CE1_SRC_REG		0x00a02000
-#define HAL_SEQ_WCSS_UMAC_CE1_DST_REG		0x00a03000
+#define HAL_SEQ_WCSS_UMAC_CE0_SRC_REG(x) \
+		(ab->hw_params.regs->hal_seq_wcss_umac_ce0_src_reg)
+#define HAL_SEQ_WCSS_UMAC_CE0_DST_REG(x) \
+		(ab->hw_params.regs->hal_seq_wcss_umac_ce0_dst_reg)
+#define HAL_SEQ_WCSS_UMAC_CE1_SRC_REG(x) \
+		(ab->hw_params.regs->hal_seq_wcss_umac_ce1_src_reg)
+#define HAL_SEQ_WCSS_UMAC_CE1_DST_REG(x) \
+		(ab->hw_params.regs->hal_seq_wcss_umac_ce1_dst_reg)
 #define HAL_SEQ_WCSS_UMAC_WBM_REG		0x00a34000
+
+#define HAL_CE_WFSS_CE_REG_BASE			0x01b80000
+#define HAL_WLAON_REG_BASE			0x01f80000
 
 /* SW2TCL(x) R0 ring configuration address */
 #define HAL_TCL1_RING_CMN_CTRL_REG		0x00000014
@@ -112,6 +120,7 @@ struct ath11k_base;
 #define HAL_REO1_DEST_RING_CTRL_IX_1		0x00000008
 #define HAL_REO1_DEST_RING_CTRL_IX_2		0x0000000c
 #define HAL_REO1_DEST_RING_CTRL_IX_3		0x00000010
+#define HAL_REO1_MISC_CTL			0x00000630
 #define HAL_REO1_RING_BASE_LSB(ab)		ab->hw_params.regs->hal_reo1_ring_base_lsb
 #define HAL_REO1_RING_BASE_MSB(ab)		ab->hw_params.regs->hal_reo1_ring_base_msb
 #define HAL_REO1_RING_ID(ab)			ab->hw_params.regs->hal_reo1_ring_id
@@ -197,8 +206,10 @@ struct ath11k_base;
 #define HAL_REO_STATUS_HP(ab)			ab->hw_params.regs->hal_reo_status_hp
 
 /* WBM Idle R0 address */
-#define HAL_WBM_IDLE_LINK_RING_BASE_LSB		0x00000860
-#define HAL_WBM_IDLE_LINK_RING_MISC_ADDR	0x00000870
+#define HAL_WBM_IDLE_LINK_RING_BASE_LSB(x) \
+		(ab->hw_params.regs->hal_wbm_idle_link_ring_base_lsb)
+#define HAL_WBM_IDLE_LINK_RING_MISC_ADDR(x) \
+		(ab->hw_params.regs->hal_wbm_idle_link_ring_misc)
 #define HAL_WBM_R0_IDLE_LIST_CONTROL_ADDR	0x00000048
 #define HAL_WBM_R0_IDLE_LIST_SIZE_ADDR		0x0000004c
 #define HAL_WBM_SCATTERED_RING_BASE_LSB		0x00000058
@@ -213,14 +224,17 @@ struct ath11k_base;
 #define HAL_WBM_IDLE_LINK_RING_HP		0x000030b0
 
 /* SW2WBM R0 release address */
-#define HAL_WBM_RELEASE_RING_BASE_LSB		0x000001d8
+#define HAL_WBM_RELEASE_RING_BASE_LSB(x) \
+		(ab->hw_params.regs->hal_wbm_release_ring_base_lsb)
 
 /* SW2WBM R2 release address */
 #define HAL_WBM_RELEASE_RING_HP			0x00003018
 
 /* WBM2SW R0 release address */
-#define HAL_WBM0_RELEASE_RING_BASE_LSB		0x00000910
-#define HAL_WBM1_RELEASE_RING_BASE_LSB		0x00000968
+#define HAL_WBM0_RELEASE_RING_BASE_LSB(x) \
+		(ab->hw_params.regs->hal_wbm0_release_ring_base_lsb)
+#define HAL_WBM1_RELEASE_RING_BASE_LSB(x) \
+		(ab->hw_params.regs->hal_wbm1_release_ring_base_lsb)
 
 /* WBM2SW R2 release address */
 #define HAL_WBM0_RELEASE_RING_HP		0x000030c0
@@ -267,6 +281,7 @@ struct ath11k_base;
 #define HAL_REO1_GEN_ENABLE_FRAG_DST_RING		GENMASK(25, 23)
 #define HAL_REO1_GEN_ENABLE_AGING_LIST_ENABLE		BIT(2)
 #define HAL_REO1_GEN_ENABLE_AGING_FLUSH_ENABLE		BIT(3)
+#define HAL_REO1_MISC_CTL_FRAGMENT_DST_RING		GENMASK(20, 17)
 
 /* CE ring bit field mask and shift */
 #define HAL_CE_DST_R0_DEST_CTRL_MAX_LEN			GENMASK(15, 0)
@@ -302,8 +317,6 @@ struct ath11k_base;
 #define HAL_SW2WBM_RELEASE_RING_BASE_MSB_RING_SIZE	0x0000ffff
 #define HAL_WBM2SW_RELEASE_RING_BASE_MSB_RING_SIZE	0x000fffff
 #define HAL_RXDMA_RING_MAX_SIZE				0x0000ffff
-
-#define HAL_RX_DESC_SIZE (sizeof(struct hal_rx_desc))
 
 /* Add any other errors here and return them in
  * ath11k_hal_rx_desc_get_err().
@@ -895,7 +908,6 @@ void ath11k_hal_reo_qdesc_setup(void *vaddr, int tid, u32 ba_window_size,
 				u32 start_seq, enum hal_pn_type type);
 void ath11k_hal_reo_init_cmd_ring(struct ath11k_base *ab,
 				  struct hal_srng *srng);
-void ath11k_hal_reo_hw_setup(struct ath11k_base *ab, u32 ring_hash_map);
 void ath11k_hal_setup_link_idle_list(struct ath11k_base *ab,
 				     struct hal_wbm_idle_scatter_list *sbuf,
 				     u32 nsbufs, u32 tot_link_desc,

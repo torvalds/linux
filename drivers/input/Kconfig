@@ -4,7 +4,6 @@
 #
 
 menu "Input device support"
-	depends on !UML
 
 config INPUT
 	tristate "Generic input layer (needed for keyboard, mouse, ...)" if EXPERT

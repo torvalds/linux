@@ -137,7 +137,7 @@ static int write_sq_ctxts(struct hinic_func_to_io *func_to_io, u16 base_qpn,
 	err = hinic_cmdq_direct_resp(&func_to_io->cmdqs, HINIC_MOD_L2NIC,
 				     IO_CMD_MODIFY_QUEUE_CTXT, &cmdq_buf,
 				     &out_param);
-	if ((err) || (out_param != 0)) {
+	if (err || out_param != 0) {
 		dev_err(&pdev->dev, "Failed to set SQ ctxts\n");
 		err = -EFAULT;
 	}
@@ -181,7 +181,7 @@ static int write_rq_ctxts(struct hinic_func_to_io *func_to_io, u16 base_qpn,
 	err = hinic_cmdq_direct_resp(&func_to_io->cmdqs, HINIC_MOD_L2NIC,
 				     IO_CMD_MODIFY_QUEUE_CTXT, &cmdq_buf,
 				     &out_param);
-	if ((err) || (out_param != 0)) {
+	if (err || out_param != 0) {
 		dev_err(&pdev->dev, "Failed to set RQ ctxts\n");
 		err = -EFAULT;
 	}

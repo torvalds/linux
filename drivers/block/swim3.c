@@ -234,7 +234,6 @@ static unsigned short write_postamble[] = {
 };
 
 static void seek_track(struct floppy_state *fs, int n);
-static void init_dma(struct dbdma_cmd *cp, int cmd, void *buf, int count);
 static void act(struct floppy_state *fs);
 static void scan_timeout(struct timer_list *t);
 static void seek_timeout(struct timer_list *t);
@@ -404,12 +403,28 @@ static inline void seek_track(struct floppy_state *fs, int n)
 	fs->settle_time = 0;
 }
 
+/*
+ * XXX: this is a horrible hack, but at least allows ppc32 to get
+ * out of defining virt_to_bus, and this driver out of using the
+ * deprecated block layer bounce buffering for highmem addresses
+ * for no good reason.
+ */
+static unsigned long swim3_phys_to_bus(phys_addr_t paddr)
+{
+	return paddr + PCI_DRAM_OFFSET;
+}
+
+static phys_addr_t swim3_bio_phys(struct bio *bio)
+{
+	return page_to_phys(bio_page(bio)) + bio_offset(bio);
+}
+
 static inline void init_dma(struct dbdma_cmd *cp, int cmd,
-			    void *buf, int count)
+			    phys_addr_t paddr, int count)
 {
 	cp->req_count = cpu_to_le16(count);
 	cp->command = cpu_to_le16(cmd);
-	cp->phy_addr = cpu_to_le32(virt_to_bus(buf));
+	cp->phy_addr = cpu_to_le32(swim3_phys_to_bus(paddr));
 	cp->xfer_status = 0;
 }
 
@@ -441,16 +456,18 @@ static inline void setup_transfer(struct floppy_state *fs)
 	out_8(&sw->sector, fs->req_sector);
 	out_8(&sw->nsect, n);
 	out_8(&sw->gap3, 0);
-	out_le32(&dr->cmdptr, virt_to_bus(cp));
+	out_le32(&dr->cmdptr, swim3_phys_to_bus(virt_to_phys(cp)));
 	if (rq_data_dir(req) == WRITE) {
 		/* Set up 3 dma commands: write preamble, data, postamble */
-		init_dma(cp, OUTPUT_MORE, write_preamble, sizeof(write_preamble));
+		init_dma(cp, OUTPUT_MORE, virt_to_phys(write_preamble),
+			 sizeof(write_preamble));
 		++cp;
-		init_dma(cp, OUTPUT_MORE, bio_data(req->bio), 512);
+		init_dma(cp, OUTPUT_MORE, swim3_bio_phys(req->bio), 512);
 		++cp;
-		init_dma(cp, OUTPUT_LAST, write_postamble, sizeof(write_postamble));
+		init_dma(cp, OUTPUT_LAST, virt_to_phys(write_postamble),
+			sizeof(write_postamble));
 	} else {
-		init_dma(cp, INPUT_LAST, bio_data(req->bio), n * 512);
+		init_dma(cp, INPUT_LAST, swim3_bio_phys(req->bio), n * 512);
 	}
 	++cp;
 	out_le16(&cp->command, DBDMA_STOP);
@@ -1185,31 +1202,27 @@ static int swim3_attach(struct macio_dev *mdev,
 			return rc;
 	}
 
-	disk = alloc_disk(1);
-	if (disk == NULL) {
-		rc = -ENOMEM;
-		goto out_unregister;
-	}
-
 	fs = &floppy_states[floppy_count];
 	memset(fs, 0, sizeof(*fs));
 
-	disk->queue = blk_mq_init_sq_queue(&fs->tag_set, &swim3_mq_ops, 2,
-						BLK_MQ_F_SHOULD_MERGE);
-	if (IS_ERR(disk->queue)) {
-		rc = PTR_ERR(disk->queue);
-		disk->queue = NULL;
-		goto out_put_disk;
+	rc = blk_mq_alloc_sq_tag_set(&fs->tag_set, &swim3_mq_ops, 2,
+			BLK_MQ_F_SHOULD_MERGE);
+	if (rc)
+		goto out_unregister;
+
+	disk = blk_mq_alloc_disk(&fs->tag_set, fs);
+	if (IS_ERR(disk)) {
+		rc = PTR_ERR(disk);
+		goto out_free_tag_set;
 	}
-	blk_queue_bounce_limit(disk->queue, BLK_BOUNCE_HIGH);
-	disk->queue->queuedata = fs;
 
 	rc = swim3_add_device(mdev, floppy_count);
 	if (rc)
-		goto out_cleanup_queue;
+		goto out_cleanup_disk;
 
 	disk->major = FLOPPY_MAJOR;
 	disk->first_minor = floppy_count;
+	disk->minors = 1;
 	disk->fops = &floppy_fops;
 	disk->private_data = fs;
 	disk->events = DISK_EVENT_MEDIA_CHANGE;
@@ -1221,12 +1234,10 @@ static int swim3_attach(struct macio_dev *mdev,
 	disks[floppy_count++] = disk;
 	return 0;
 
-out_cleanup_queue:
-	blk_cleanup_queue(disk->queue);
-	disk->queue = NULL;
+out_cleanup_disk:
+	blk_cleanup_disk(disk);
+out_free_tag_set:
 	blk_mq_free_tag_set(&fs->tag_set);
-out_put_disk:
-	put_disk(disk);
 out_unregister:
 	if (floppy_count == 0)
 		unregister_blkdev(FLOPPY_MAJOR, "fd");

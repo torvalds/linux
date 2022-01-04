@@ -1409,11 +1409,10 @@ static void chv_gpio_irq_handler(struct irq_desc *desc)
 	raw_spin_unlock_irqrestore(&chv_lock, flags);
 
 	for_each_set_bit(intr_line, &pending, community->nirqs) {
-		unsigned int irq, offset;
+		unsigned int offset;
 
 		offset = cctx->intr_lines[intr_line];
-		irq = irq_find_mapping(gc->irq.domain, offset);
-		generic_handle_irq(irq);
+		generic_handle_domain_irq(gc->irq.domain, offset);
 	}
 
 	chained_irq_exit(chip, desc);

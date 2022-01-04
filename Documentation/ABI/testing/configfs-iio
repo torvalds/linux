@@ -31,4 +31,4 @@ Date:		April 2016
 KernelVersion:	4.7
 Description:
 		Dummy IIO devices directory. Creating a directory here will result
-		in creating a dummy IIO device in the IIO subystem.
+		in creating a dummy IIO device in the IIO subsystem.

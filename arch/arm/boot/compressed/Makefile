@@ -96,18 +96,11 @@ endif
 $(foreach o, $(libfdt_objs) atags_to_fdt.o fdt_check_mem_start.o, \
 	$(eval CFLAGS_$(o) := -I $(srctree)/scripts/dtc/libfdt -fno-stack-protector))
 
-# These were previously generated C files. When you are building the kernel
-# with O=, make sure to remove the stale files in the output tree. Otherwise,
-# the build system wrongly compiles the stale ones.
-ifdef building_out_of_srctree
-$(shell rm -f $(addprefix $(obj)/, fdt_rw.c fdt_ro.c fdt_wip.c fdt.c))
-endif
-
 targets       := vmlinux vmlinux.lds piggy_data piggy.o \
 		 lib1funcs.o ashldi3.o bswapsdi2.o \
 		 head.o $(OBJS)
 
-clean-files += piggy_data lib1funcs.S ashldi3.S bswapsdi2.S hyp-stub.S
+clean-files += lib1funcs.S ashldi3.S bswapsdi2.S hyp-stub.S
 
 KBUILD_CFLAGS += -DDISABLE_BRANCH_PROFILING
 
@@ -118,8 +111,8 @@ asflags-y := -DZIMAGE
 
 # Supply kernel BSS size to the decompressor via a linker symbol.
 KBSS_SZ = $(shell echo $$(($$($(NM) $(obj)/../../../../vmlinux | \
-		sed -n -e 's/^\([^ ]*\) [AB] __bss_start$$/-0x\1/p' \
-		       -e 's/^\([^ ]*\) [AB] __bss_stop$$/+0x\1/p') )) )
+		sed -n -e 's/^\([^ ]*\) [ABD] __bss_start$$/-0x\1/p' \
+		       -e 's/^\([^ ]*\) [ABD] __bss_stop$$/+0x\1/p') )) )
 LDFLAGS_vmlinux = --defsym _kernel_bss_size=$(KBSS_SZ)
 # Supply ZRELADDR to the decompressor via a linker symbol.
 ifneq ($(CONFIG_AUTO_ZRELADDR),y)

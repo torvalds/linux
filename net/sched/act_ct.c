@@ -322,11 +322,22 @@ err_alloc:
 
 static void tcf_ct_flow_table_cleanup_work(struct work_struct *work)
 {
+	struct flow_block_cb *block_cb, *tmp_cb;
 	struct tcf_ct_flow_table *ct_ft;
+	struct flow_block *block;
 
 	ct_ft = container_of(to_rcu_work(work), struct tcf_ct_flow_table,
 			     rwork);
 	nf_flow_table_free(&ct_ft->nf_ft);
+
+	/* Remove any remaining callbacks before cleanup */
+	block = &ct_ft->nf_ft.flow_block;
+	down_write(&ct_ft->nf_ft.flow_block_lock);
+	list_for_each_entry_safe(block_cb, tmp_cb, &block->cb_list, list) {
+		list_del(&block_cb->list);
+		flow_block_cb_free(block_cb);
+	}
+	up_write(&ct_ft->nf_ft.flow_block_lock);
 	kfree(ct_ft);
 
 	module_put(THIS_MODULE);
@@ -732,7 +743,8 @@ static int tcf_ct_handle_fragments(struct net *net, struct sk_buff *skb,
 #endif
 	}
 
-	*qdisc_skb_cb(skb) = cb;
+	if (err != -EINPROGRESS)
+		*qdisc_skb_cb(skb) = cb;
 	skb_clear_hash(skb);
 	skb->ignore_df = 1;
 	return err;
@@ -903,14 +915,19 @@ static int tcf_ct_act_nat(struct sk_buff *skb,
 	}
 
 	err = ct_nat_execute(skb, ct, ctinfo, range, maniptype);
-	if (err == NF_ACCEPT &&
-	    ct->status & IPS_SRC_NAT && ct->status & IPS_DST_NAT) {
-		if (maniptype == NF_NAT_MANIP_SRC)
-			maniptype = NF_NAT_MANIP_DST;
-		else
-			maniptype = NF_NAT_MANIP_SRC;
+	if (err == NF_ACCEPT && ct->status & IPS_DST_NAT) {
+		if (ct->status & IPS_SRC_NAT) {
+			if (maniptype == NF_NAT_MANIP_SRC)
+				maniptype = NF_NAT_MANIP_DST;
+			else
+				maniptype = NF_NAT_MANIP_SRC;
 
-		err = ct_nat_execute(skb, ct, ctinfo, range, maniptype);
+			err = ct_nat_execute(skb, ct, ctinfo, range,
+					     maniptype);
+		} else if (CTINFO2DIR(ctinfo) == IP_CT_DIR_ORIGINAL) {
+			err = ct_nat_execute(skb, ct, ctinfo, NULL,
+					     NF_NAT_MANIP_SRC);
+		}
 	}
 	return err;
 #else
@@ -967,7 +984,7 @@ static int tcf_ct_act(struct sk_buff *skb, const struct tc_action *a,
 	err = tcf_ct_handle_fragments(net, skb, family, p->zone, &defrag);
 	if (err == -EINPROGRESS) {
 		retval = TC_ACT_STOLEN;
-		goto out;
+		goto out_clear;
 	}
 	if (err)
 		goto drop;
@@ -983,16 +1000,14 @@ static int tcf_ct_act(struct sk_buff *skb, const struct tc_action *a,
 	 */
 	cached = tcf_ct_skb_nfct_cached(net, skb, p->zone, force);
 	if (!cached) {
-		if (!commit && tcf_ct_flow_table_lookup(p, skb, family)) {
+		if (tcf_ct_flow_table_lookup(p, skb, family)) {
 			skip_add = true;
 			goto do_nat;
 		}
 
 		/* Associate skb with specified zone. */
 		if (tmpl) {
-			ct = nf_ct_get(skb, &ctinfo);
-			if (skb_nfct(skb))
-				nf_conntrack_put(skb_nfct(skb));
+			nf_conntrack_put(skb_nfct(skb));
 			nf_conntrack_get(&tmpl->ct_general);
 			nf_ct_set(skb, tmpl, IP_CT_NEW);
 		}
@@ -1022,15 +1037,16 @@ do_nat:
 		/* This will take care of sending queued events
 		 * even if the connection is already confirmed.
 		 */
-		nf_conntrack_confirm(skb);
-	} else if (!skip_add) {
-		tcf_ct_flow_table_process_conn(p->ct_ft, ct, ctinfo);
+		if (nf_conntrack_confirm(skb) != NF_ACCEPT)
+			goto drop;
 	}
+
+	if (!skip_add)
+		tcf_ct_flow_table_process_conn(p->ct_ft, ct, ctinfo);
 
 out_push:
 	skb_push_rcsum(skb, nh_ofs);
 
-out:
 	qdisc_skb_cb(skb)->post_ct = true;
 out_clear:
 	tcf_action_update_bstats(&c->common, skb);
@@ -1204,9 +1220,6 @@ static int tcf_ct_fill_params(struct net *net,
 				   sizeof(p->zone));
 	}
 
-	if (p->zone == NF_CT_DEFAULT_ZONE_ID)
-		return 0;
-
 	nf_ct_zone_init(&zone, p->zone, NF_CT_DEFAULT_ZONE_DIR, 0);
 	tmpl = nf_ct_tmpl_alloc(net, &zone, GFP_KERNEL);
 	if (!tmpl) {
@@ -1222,11 +1235,11 @@ static int tcf_ct_fill_params(struct net *net,
 
 static int tcf_ct_init(struct net *net, struct nlattr *nla,
 		       struct nlattr *est, struct tc_action **a,
-		       int replace, int bind, bool rtnl_held,
 		       struct tcf_proto *tp, u32 flags,
 		       struct netlink_ext_ack *extack)
 {
 	struct tc_action_net *tn = net_generic(net, ct_net_id);
+	bool bind = flags & TCA_ACT_FLAGS_BIND;
 	struct tcf_ct_params *params = NULL;
 	struct nlattr *tb[TCA_CT_MAX + 1];
 	struct tcf_chain *goto_ch = NULL;
@@ -1266,7 +1279,7 @@ static int tcf_ct_init(struct net *net, struct nlattr *nla,
 		if (bind)
 			return 0;
 
-		if (!replace) {
+		if (!(flags & TCA_ACT_FLAGS_REPLACE)) {
 			tcf_idr_release(*a, bind);
 			return -EEXIST;
 		}

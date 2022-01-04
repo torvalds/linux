@@ -401,10 +401,8 @@ static int __init mtdoops_init(void)
 		cxt->mtd_index = mtd_index;
 
 	cxt->oops_buf = vmalloc(record_size);
-	if (!cxt->oops_buf) {
-		printk(KERN_ERR "mtdoops: failed to allocate buffer workspace\n");
+	if (!cxt->oops_buf)
 		return -ENOMEM;
-	}
 	memset(cxt->oops_buf, 0xff, record_size);
 	cxt->oops_buf_busy = 0;
 

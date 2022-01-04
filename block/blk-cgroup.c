@@ -31,6 +31,7 @@
 #include <linux/tracehook.h>
 #include <linux/psi.h>
 #include "blk.h"
+#include "blk-ioprio.h"
 
 /*
  * blkcg_pol_mutex protects blkcg_policy[] and policy [de]activation.
@@ -54,6 +55,8 @@ static LIST_HEAD(all_blkcgs);		/* protected by blkcg_pol_mutex */
 
 bool blkcg_debug_stats = false;
 static struct workqueue_struct *blkcg_punt_bio_wq;
+
+#define BLKG_DESTROY_BATCH_SIZE  64
 
 static bool blkcg_policy_enabled(struct request_queue *q,
 				 const struct blkcg_policy *pol)
@@ -421,7 +424,9 @@ static void blkg_destroy(struct blkcg_gq *blkg)
 static void blkg_destroy_all(struct request_queue *q)
 {
 	struct blkcg_gq *blkg, *n;
+	int count = BLKG_DESTROY_BATCH_SIZE;
 
+restart:
 	spin_lock_irq(&q->queue_lock);
 	list_for_each_entry_safe(blkg, n, &q->blkg_list, q_node) {
 		struct blkcg *blkcg = blkg->blkcg;
@@ -429,6 +434,17 @@ static void blkg_destroy_all(struct request_queue *q)
 		spin_lock(&blkcg->lock);
 		blkg_destroy(blkg);
 		spin_unlock(&blkcg->lock);
+
+		/*
+		 * in order to avoid holding the spin lock for too long, release
+		 * it when a batch of blkgs are destroyed.
+		 */
+		if (!(--count)) {
+			count = BLKG_DESTROY_BATCH_SIZE;
+			spin_unlock_irq(&q->queue_lock);
+			cond_resched();
+			goto restart;
+		}
 	}
 
 	q->root_blkg = NULL;
@@ -473,10 +489,9 @@ static int blkcg_reset_stats(struct cgroup_subsys_state *css,
 
 const char *blkg_dev_name(struct blkcg_gq *blkg)
 {
-	/* some drivers (floppy) instantiate a queue w/o disk registered */
-	if (blkg->q->backing_dev_info->dev)
-		return bdi_dev_name(blkg->q->backing_dev_info);
-	return NULL;
+	if (!blkg->q->disk || !blkg->q->disk->bdi->dev)
+		return NULL;
+	return bdi_dev_name(blkg->q->disk->bdi);
 }
 
 /**
@@ -764,12 +779,17 @@ static void blkcg_rstat_flush(struct cgroup_subsys_state *css, int cpu)
 	struct blkcg *blkcg = css_to_blkcg(css);
 	struct blkcg_gq *blkg;
 
+	/* Root-level stats are sourced from system-wide IO stats */
+	if (!cgroup_parent(css->cgroup))
+		return;
+
 	rcu_read_lock();
 
 	hlist_for_each_entry_rcu(blkg, &blkcg->blkg_list, blkcg_node) {
 		struct blkcg_gq *parent = blkg->parent;
 		struct blkg_iostat_set *bisc = per_cpu_ptr(blkg->iostat_cpu, cpu);
 		struct blkg_iostat cur, delta;
+		unsigned long flags;
 		unsigned int seq;
 
 		/* fetch the current per-cpu values */
@@ -779,21 +799,21 @@ static void blkcg_rstat_flush(struct cgroup_subsys_state *css, int cpu)
 		} while (u64_stats_fetch_retry(&bisc->sync, seq));
 
 		/* propagate percpu delta to global */
-		u64_stats_update_begin(&blkg->iostat.sync);
+		flags = u64_stats_update_begin_irqsave(&blkg->iostat.sync);
 		blkg_iostat_set(&delta, &cur);
 		blkg_iostat_sub(&delta, &bisc->last);
 		blkg_iostat_add(&blkg->iostat.cur, &delta);
 		blkg_iostat_add(&bisc->last, &delta);
-		u64_stats_update_end(&blkg->iostat.sync);
+		u64_stats_update_end_irqrestore(&blkg->iostat.sync, flags);
 
-		/* propagate global delta to parent */
-		if (parent) {
-			u64_stats_update_begin(&parent->iostat.sync);
+		/* propagate global delta to parent (unless that's root) */
+		if (parent && parent->parent) {
+			flags = u64_stats_update_begin_irqsave(&parent->iostat.sync);
 			blkg_iostat_set(&delta, &blkg->iostat.cur);
 			blkg_iostat_sub(&delta, &blkg->iostat.last);
 			blkg_iostat_add(&parent->iostat.cur, &delta);
 			blkg_iostat_add(&blkg->iostat.last, &delta);
-			u64_stats_update_end(&parent->iostat.sync);
+			u64_stats_update_end_irqrestore(&parent->iostat.sync, flags);
 		}
 	}
 
@@ -801,10 +821,11 @@ static void blkcg_rstat_flush(struct cgroup_subsys_state *css, int cpu)
 }
 
 /*
- * The rstat algorithms intentionally don't handle the root cgroup to avoid
- * incurring overhead when no cgroups are defined. For that reason,
- * cgroup_rstat_flush in blkcg_print_stat does not actually fill out the
- * iostat in the root cgroup's blkcg_gq.
+ * We source root cgroup stats from the system-wide stats to avoid
+ * tracking the same information twice and incurring overhead when no
+ * cgroups are defined. For that reason, cgroup_rstat_flush in
+ * blkcg_print_stat does not actually fill out the iostat in the root
+ * cgroup's blkcg_gq.
  *
  * However, we would like to re-use the printing code between the root and
  * non-root cgroups to the extent possible. For that reason, we simulate
@@ -827,6 +848,7 @@ static void blkcg_fill_root_iostats(void)
 		memset(&tmp, 0, sizeof(tmp));
 		for_each_possible_cpu(cpu) {
 			struct disk_stats *cpu_dkstats;
+			unsigned long flags;
 
 			cpu_dkstats = per_cpu_ptr(bdev->bd_stats, cpu);
 			tmp.ios[BLKG_IOSTAT_READ] +=
@@ -843,11 +865,68 @@ static void blkcg_fill_root_iostats(void)
 			tmp.bytes[BLKG_IOSTAT_DISCARD] +=
 				cpu_dkstats->sectors[STAT_DISCARD] << 9;
 
-			u64_stats_update_begin(&blkg->iostat.sync);
+			flags = u64_stats_update_begin_irqsave(&blkg->iostat.sync);
 			blkg_iostat_set(&blkg->iostat.cur, &tmp);
-			u64_stats_update_end(&blkg->iostat.sync);
+			u64_stats_update_end_irqrestore(&blkg->iostat.sync, flags);
 		}
 	}
+}
+
+static void blkcg_print_one_stat(struct blkcg_gq *blkg, struct seq_file *s)
+{
+	struct blkg_iostat_set *bis = &blkg->iostat;
+	u64 rbytes, wbytes, rios, wios, dbytes, dios;
+	bool has_stats = false;
+	const char *dname;
+	unsigned seq;
+	int i;
+
+	if (!blkg->online)
+		return;
+
+	dname = blkg_dev_name(blkg);
+	if (!dname)
+		return;
+
+	seq_printf(s, "%s ", dname);
+
+	do {
+		seq = u64_stats_fetch_begin(&bis->sync);
+
+		rbytes = bis->cur.bytes[BLKG_IOSTAT_READ];
+		wbytes = bis->cur.bytes[BLKG_IOSTAT_WRITE];
+		dbytes = bis->cur.bytes[BLKG_IOSTAT_DISCARD];
+		rios = bis->cur.ios[BLKG_IOSTAT_READ];
+		wios = bis->cur.ios[BLKG_IOSTAT_WRITE];
+		dios = bis->cur.ios[BLKG_IOSTAT_DISCARD];
+	} while (u64_stats_fetch_retry(&bis->sync, seq));
+
+	if (rbytes || wbytes || rios || wios) {
+		has_stats = true;
+		seq_printf(s, "rbytes=%llu wbytes=%llu rios=%llu wios=%llu dbytes=%llu dios=%llu",
+			rbytes, wbytes, rios, wios,
+			dbytes, dios);
+	}
+
+	if (blkcg_debug_stats && atomic_read(&blkg->use_delay)) {
+		has_stats = true;
+		seq_printf(s, " use_delay=%d delay_nsec=%llu",
+			atomic_read(&blkg->use_delay),
+			atomic64_read(&blkg->delay_nsec));
+	}
+
+	for (i = 0; i < BLKCG_MAX_POLS; i++) {
+		struct blkcg_policy *pol = blkcg_policy[i];
+
+		if (!blkg->pd[i] || !pol->pd_stat_fn)
+			continue;
+
+		if (pol->pd_stat_fn(blkg->pd[i], s))
+			has_stats = true;
+	}
+
+	if (has_stats)
+		seq_printf(s, "\n");
 }
 
 static int blkcg_print_stat(struct seq_file *sf, void *v)
@@ -861,86 +940,11 @@ static int blkcg_print_stat(struct seq_file *sf, void *v)
 		cgroup_rstat_flush(blkcg->css.cgroup);
 
 	rcu_read_lock();
-
 	hlist_for_each_entry_rcu(blkg, &blkcg->blkg_list, blkcg_node) {
-		struct blkg_iostat_set *bis = &blkg->iostat;
-		const char *dname;
-		char *buf;
-		u64 rbytes, wbytes, rios, wios, dbytes, dios;
-		size_t size = seq_get_buf(sf, &buf), off = 0;
-		int i;
-		bool has_stats = false;
-		unsigned seq;
-
 		spin_lock_irq(&blkg->q->queue_lock);
-
-		if (!blkg->online)
-			goto skip;
-
-		dname = blkg_dev_name(blkg);
-		if (!dname)
-			goto skip;
-
-		/*
-		 * Hooray string manipulation, count is the size written NOT
-		 * INCLUDING THE \0, so size is now count+1 less than what we
-		 * had before, but we want to start writing the next bit from
-		 * the \0 so we only add count to buf.
-		 */
-		off += scnprintf(buf+off, size-off, "%s ", dname);
-
-		do {
-			seq = u64_stats_fetch_begin(&bis->sync);
-
-			rbytes = bis->cur.bytes[BLKG_IOSTAT_READ];
-			wbytes = bis->cur.bytes[BLKG_IOSTAT_WRITE];
-			dbytes = bis->cur.bytes[BLKG_IOSTAT_DISCARD];
-			rios = bis->cur.ios[BLKG_IOSTAT_READ];
-			wios = bis->cur.ios[BLKG_IOSTAT_WRITE];
-			dios = bis->cur.ios[BLKG_IOSTAT_DISCARD];
-		} while (u64_stats_fetch_retry(&bis->sync, seq));
-
-		if (rbytes || wbytes || rios || wios) {
-			has_stats = true;
-			off += scnprintf(buf+off, size-off,
-					 "rbytes=%llu wbytes=%llu rios=%llu wios=%llu dbytes=%llu dios=%llu",
-					 rbytes, wbytes, rios, wios,
-					 dbytes, dios);
-		}
-
-		if (blkcg_debug_stats && atomic_read(&blkg->use_delay)) {
-			has_stats = true;
-			off += scnprintf(buf+off, size-off,
-					 " use_delay=%d delay_nsec=%llu",
-					 atomic_read(&blkg->use_delay),
-					(unsigned long long)atomic64_read(&blkg->delay_nsec));
-		}
-
-		for (i = 0; i < BLKCG_MAX_POLS; i++) {
-			struct blkcg_policy *pol = blkcg_policy[i];
-			size_t written;
-
-			if (!blkg->pd[i] || !pol->pd_stat_fn)
-				continue;
-
-			written = pol->pd_stat_fn(blkg->pd[i], buf+off, size-off);
-			if (written)
-				has_stats = true;
-			off += written;
-		}
-
-		if (has_stats) {
-			if (off < size - 1) {
-				off += scnprintf(buf+off, size-off, "\n");
-				seq_commit(sf, off);
-			} else {
-				seq_commit(sf, -1);
-			}
-		}
-	skip:
+		blkcg_print_one_stat(blkg, sf);
 		spin_unlock_irq(&blkg->q->queue_lock);
 	}
-
 	rcu_read_unlock();
 	return 0;
 }
@@ -1178,15 +1182,18 @@ int blkcg_init_queue(struct request_queue *q)
 	if (preloaded)
 		radix_tree_preload_end();
 
+	ret = blk_iolatency_init(q);
+	if (ret)
+		goto err_destroy_all;
+
+	ret = blk_ioprio_init(q);
+	if (ret)
+		goto err_destroy_all;
+
 	ret = blk_throtl_init(q);
 	if (ret)
 		goto err_destroy_all;
 
-	ret = blk_iolatency_init(q);
-	if (ret) {
-		blk_throtl_exit(q);
-		goto err_destroy_all;
-	}
 	return 0;
 
 err_destroy_all:
@@ -1210,32 +1217,6 @@ void blkcg_exit_queue(struct request_queue *q)
 {
 	blkg_destroy_all(q);
 	blk_throtl_exit(q);
-}
-
-/*
- * We cannot support shared io contexts, as we have no mean to support
- * two tasks with the same ioc in two different groups without major rework
- * of the main cic data structures.  For now we allow a task to change
- * its cgroup only if it's the only owner of its ioc.
- */
-static int blkcg_can_attach(struct cgroup_taskset *tset)
-{
-	struct task_struct *task;
-	struct cgroup_subsys_state *dst_css;
-	struct io_context *ioc;
-	int ret = 0;
-
-	/* task_lock() is needed to avoid races with exit_io_context() */
-	cgroup_taskset_for_each(task, dst_css, tset) {
-		task_lock(task);
-		ioc = task->io_context;
-		if (ioc && atomic_read(&ioc->nr_tasks) > 1)
-			ret = -EINVAL;
-		task_unlock(task);
-		if (ret)
-			break;
-	}
-	return ret;
 }
 
 static void blkcg_bind(struct cgroup_subsys_state *root_css)
@@ -1270,7 +1251,6 @@ struct cgroup_subsys io_cgrp_subsys = {
 	.css_online = blkcg_css_online,
 	.css_offline = blkcg_css_offline,
 	.css_free = blkcg_css_free,
-	.can_attach = blkcg_can_attach,
 	.css_rstat_flush = blkcg_rstat_flush,
 	.bind = blkcg_bind,
 	.dfl_cftypes = blkcg_files,

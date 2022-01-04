@@ -51,8 +51,8 @@ static void pending_rx_work(struct work_struct *);
 
 /**
  * configure_channel - called from MOST core to configure a channel
- * @iface: interface the channel belongs to
- * @channel: channel to be configured
+ * @most_iface: interface the channel belongs to
+ * @ch_idx: channel to be configured
  * @channel_config: structure that holds the configuration information
  *
  * Return 0 on success, negative on failure.
@@ -107,8 +107,8 @@ static int configure_channel(struct most_interface *most_iface,
 
 /**
  * enqueue - called from MOST core to enqueue a buffer for data transfer
- * @iface: intended interface
- * @channel: ID of the channel the buffer is intended for
+ * @most_iface: intended interface
+ * @ch_idx: ID of the channel the buffer is intended for
  * @mbo: pointer to the buffer object
  *
  * Return 0 on success, negative on failure.
@@ -153,8 +153,8 @@ static int enqueue(struct most_interface *most_iface,
 
 /**
  * poison_channel - called from MOST core to poison buffers of a channel
- * @iface: pointer to the interface the channel to be poisoned belongs to
- * @channel_id: corresponding channel ID
+ * @most_iface: pointer to the interface the channel to be poisoned belongs to
+ * @ch_idx: corresponding channel ID
  *
  * Return 0 on success, negative on failure.
  *

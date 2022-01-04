@@ -221,7 +221,7 @@ static int nsp_queuecommand_lck(struct scsi_cmnd *SCpnt,
 
 	data->CurrentSC		= SCpnt;
 
-	SCpnt->SCp.Status	= CHECK_CONDITION;
+	SCpnt->SCp.Status	= SAM_STAT_CHECK_CONDITION;
 	SCpnt->SCp.Message	= 0;
 	SCpnt->SCp.have_data_in = IO_UNKNOWN;
 	SCpnt->SCp.sent_command = 0;

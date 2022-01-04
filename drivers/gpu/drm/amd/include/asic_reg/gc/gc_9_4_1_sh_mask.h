@@ -617,6 +617,22 @@
 #define GCEA_EDC_CNT3__MAM_A3MEM_SEC_COUNT_MASK                                                               0x30000000L
 #define GCEA_EDC_CNT3__MAM_A3MEM_DED_COUNT_MASK                                                               0xC0000000L
 
+//GCEA_ERR_STATUS
+#define GCEA_ERR_STATUS__SDP_RDRSP_STATUS__SHIFT                                                              0x0
+#define GCEA_ERR_STATUS__SDP_WRRSP_STATUS__SHIFT                                                              0x4
+#define GCEA_ERR_STATUS__SDP_RDRSP_DATASTATUS__SHIFT                                                          0x8
+#define GCEA_ERR_STATUS__SDP_RDRSP_DATAPARITY_ERROR__SHIFT                                                    0xa
+#define GCEA_ERR_STATUS__CLEAR_ERROR_STATUS__SHIFT                                                            0xb
+#define GCEA_ERR_STATUS__BUSY_ON_ERROR__SHIFT                                                                 0xc
+#define GCEA_ERR_STATUS__FUE_FLAG__SHIFT                                                                      0xd
+#define GCEA_ERR_STATUS__SDP_RDRSP_STATUS_MASK                                                                0x0000000FL
+#define GCEA_ERR_STATUS__SDP_WRRSP_STATUS_MASK                                                                0x000000F0L
+#define GCEA_ERR_STATUS__SDP_RDRSP_DATASTATUS_MASK                                                            0x00000300L
+#define GCEA_ERR_STATUS__SDP_RDRSP_DATAPARITY_ERROR_MASK                                                      0x00000400L
+#define GCEA_ERR_STATUS__CLEAR_ERROR_STATUS_MASK                                                              0x00000800L
+#define GCEA_ERR_STATUS__BUSY_ON_ERROR_MASK                                                                   0x00001000L
+#define GCEA_ERR_STATUS__FUE_FLAG_MASK                                                                        0x00002000L
+
 // addressBlock: gc_gfxudec
 //GRBM_GFX_INDEX
 #define GRBM_GFX_INDEX__INSTANCE_INDEX__SHIFT                                                                 0x0

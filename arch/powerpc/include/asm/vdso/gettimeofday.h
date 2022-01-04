@@ -2,6 +2,8 @@
 #ifndef _ASM_POWERPC_VDSO_GETTIMEOFDAY_H
 #define _ASM_POWERPC_VDSO_GETTIMEOFDAY_H
 
+#include <asm/page.h>
+
 #ifdef __ASSEMBLY__
 
 #include <asm/ppc_asm.h>
@@ -153,6 +155,14 @@ static __always_inline u64 __arch_get_hw_counter(s32 clock_mode,
 }
 
 const struct vdso_data *__arch_get_vdso_data(void);
+
+#ifdef CONFIG_TIME_NS
+static __always_inline
+const struct vdso_data *__arch_get_timens_vdso_data(const struct vdso_data *vd)
+{
+	return (void *)vd + PAGE_SIZE;
+}
+#endif
 
 static inline bool vdso_clocksource_ok(const struct vdso_data *vd)
 {

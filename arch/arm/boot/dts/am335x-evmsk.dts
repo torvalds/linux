@@ -510,7 +510,7 @@
 &epwmss2 {
 	status = "okay";
 
-	ecap2: ecap@100 {
+	ecap2: pwm@100 {
 		status = "okay";
 		pinctrl-names = "default";
 		pinctrl-0 = <&ecap2_pins>;
@@ -646,7 +646,7 @@
 	status = "okay";
 };
 
-&gpio0 {
+&gpio0_target {
 	ti,no-reset-on-init;
 };
 
@@ -714,4 +714,8 @@
 &rtc {
 	clocks = <&clk_32768_ck>, <&clk_24mhz_clkctrl AM3_CLK_24MHZ_CLKDIV32K_CLKCTRL 0>;
 	clock-names = "ext-clk", "int-clk";
+};
+
+&pruss_tm {
+	status = "okay";
 };

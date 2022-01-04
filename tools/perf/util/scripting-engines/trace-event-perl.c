@@ -371,9 +371,6 @@ static void perl_process_tracepoint(struct perf_sample *sample,
 	s = nsecs / NSEC_PER_SEC;
 	ns = nsecs - s * NSEC_PER_SEC;
 
-	scripting_context->event_data = data;
-	scripting_context->pevent = evsel->tp_format->tep;
-
 	ENTER;
 	SAVETMPS;
 	PUSHMARK(SP);
@@ -456,8 +453,10 @@ static void perl_process_event_generic(union perf_event *event,
 static void perl_process_event(union perf_event *event,
 			       struct perf_sample *sample,
 			       struct evsel *evsel,
-			       struct addr_location *al)
+			       struct addr_location *al,
+			       struct addr_location *addr_al)
 {
+	scripting_context__update(scripting_context, event, sample, evsel, al, addr_al);
 	perl_process_tracepoint(sample, evsel, al);
 	perl_process_event_generic(event, sample, evsel);
 }
@@ -474,10 +473,13 @@ static void run_start_sub(void)
 /*
  * Start trace script
  */
-static int perl_start_script(const char *script, int argc, const char **argv)
+static int perl_start_script(const char *script, int argc, const char **argv,
+			     struct perf_session *session)
 {
 	const char **command_line;
 	int i, err = 0;
+
+	scripting_context->session = session;
 
 	command_line = malloc((argc + 2) * sizeof(const char *));
 	command_line[0] = "";
@@ -750,6 +752,7 @@ sub print_backtrace\n\
 
 struct scripting_ops perl_scripting_ops = {
 	.name = "Perl",
+	.dirname = "perl",
 	.start_script = perl_start_script,
 	.flush_script = perl_flush_script,
 	.stop_script = perl_stop_script,

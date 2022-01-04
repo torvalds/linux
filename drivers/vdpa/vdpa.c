@@ -34,15 +34,13 @@ static int vdpa_dev_probe(struct device *d)
 	return ret;
 }
 
-static int vdpa_dev_remove(struct device *d)
+static void vdpa_dev_remove(struct device *d)
 {
 	struct vdpa_device *vdev = dev_to_vdpa(d);
 	struct vdpa_driver *drv = drv_to_vdpa(vdev->dev.driver);
 
 	if (drv && drv->remove)
 		drv->remove(vdev);
-
-	return 0;
 }
 
 static struct bus_type vdpa_bus = {
@@ -75,8 +73,8 @@ static void vdpa_release_dev(struct device *d)
  * Driver should use vdpa_alloc_device() wrapper macro instead of
  * using this directly.
  *
- * Returns an error when parent/config/dma_dev is not set or fail to get
- * ida.
+ * Return: Returns an error when parent/config/dma_dev is not set or fail to get
+ *	   ida.
  */
 struct vdpa_device *__vdpa_alloc_device(struct device *parent,
 					const struct vdpa_config_ops *config,
@@ -157,7 +155,7 @@ static int __vdpa_register_device(struct vdpa_device *vdev, int nvqs)
  * @vdev: the vdpa device to be registered to vDPA bus
  * @nvqs: number of virtqueues supported by this device
  *
- * Returns an error when fail to add device to vDPA bus
+ * Return: Returns an error when fail to add device to vDPA bus
  */
 int _vdpa_register_device(struct vdpa_device *vdev, int nvqs)
 {
@@ -174,7 +172,7 @@ EXPORT_SYMBOL_GPL(_vdpa_register_device);
  * @vdev: the vdpa device to be registered to vDPA bus
  * @nvqs: number of virtqueues supported by this device
  *
- * Returns an error when fail to add to vDPA bus
+ * Return: Returns an error when fail to add to vDPA bus
  */
 int vdpa_register_device(struct vdpa_device *vdev, int nvqs)
 {
@@ -218,7 +216,7 @@ EXPORT_SYMBOL_GPL(vdpa_unregister_device);
  * @drv: the vdpa device driver to be registered
  * @owner: module owner of the driver
  *
- * Returns an err when fail to do the registration
+ * Return: Returns an err when fail to do the registration
  */
 int __vdpa_register_driver(struct vdpa_driver *drv, struct module *owner)
 {
@@ -245,6 +243,8 @@ EXPORT_SYMBOL_GPL(vdpa_unregister_driver);
  * @mdev: Pointer to vdpa management device
  * vdpa_mgmtdev_register() register a vdpa management device which supports
  * vdpa device management.
+ * Return: Returns 0 on success or failure when required callback ops are not
+ *         initialized.
  */
 int vdpa_mgmtdev_register(struct vdpa_mgmt_dev *mdev)
 {

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-/**
+/*
  * emac-rockchip.c - Rockchip EMAC specific glue layer
  *
  * Copyright (C) 2014 Romain Perier <romain.perier@gmail.com>

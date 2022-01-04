@@ -24,26 +24,18 @@ static void __do_clflush(struct drm_i915_gem_object *obj)
 	i915_gem_object_flush_frontbuffer(obj, ORIGIN_CPU);
 }
 
-static int clflush_work(struct dma_fence_work *base)
+static void clflush_work(struct dma_fence_work *base)
 {
 	struct clflush *clflush = container_of(base, typeof(*clflush), base);
-	struct drm_i915_gem_object *obj = clflush->obj;
-	int err;
 
-	err = i915_gem_object_pin_pages(obj);
-	if (err)
-		return err;
-
-	__do_clflush(obj);
-	i915_gem_object_unpin_pages(obj);
-
-	return 0;
+	__do_clflush(clflush->obj);
 }
 
 static void clflush_release(struct dma_fence_work *base)
 {
 	struct clflush *clflush = container_of(base, typeof(*clflush), base);
 
+	i915_gem_object_unpin_pages(clflush->obj);
 	i915_gem_object_put(clflush->obj);
 }
 
@@ -62,6 +54,11 @@ static struct clflush *clflush_work_create(struct drm_i915_gem_object *obj)
 	clflush = kmalloc(sizeof(*clflush), GFP_KERNEL);
 	if (!clflush)
 		return NULL;
+
+	if (__i915_gem_object_get_pages(obj) < 0) {
+		kfree(clflush);
+		return NULL;
+	}
 
 	dma_fence_work_init(&clflush->base, &clflush_ops);
 	clflush->obj = i915_gem_object_get(obj); /* obj <-> clflush cycle */

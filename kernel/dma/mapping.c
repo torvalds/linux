@@ -177,12 +177,8 @@ void dma_unmap_page_attrs(struct device *dev, dma_addr_t addr, size_t size,
 }
 EXPORT_SYMBOL(dma_unmap_page_attrs);
 
-/*
- * dma_maps_sg_attrs returns 0 on error and > 0 on success.
- * It should never return a value < 0.
- */
-int dma_map_sg_attrs(struct device *dev, struct scatterlist *sg, int nents,
-		enum dma_data_direction dir, unsigned long attrs)
+static int __dma_map_sg_attrs(struct device *dev, struct scatterlist *sg,
+	 int nents, enum dma_data_direction dir, unsigned long attrs)
 {
 	const struct dma_map_ops *ops = get_dma_ops(dev);
 	int ents;
@@ -197,12 +193,80 @@ int dma_map_sg_attrs(struct device *dev, struct scatterlist *sg, int nents,
 		ents = dma_direct_map_sg(dev, sg, nents, dir, attrs);
 	else
 		ents = ops->map_sg(dev, sg, nents, dir, attrs);
-	BUG_ON(ents < 0);
-	debug_dma_map_sg(dev, sg, nents, ents, dir);
+
+	if (ents > 0)
+		debug_dma_map_sg(dev, sg, nents, ents, dir);
+	else if (WARN_ON_ONCE(ents != -EINVAL && ents != -ENOMEM &&
+			      ents != -EIO))
+		return -EIO;
 
 	return ents;
 }
+
+/**
+ * dma_map_sg_attrs - Map the given buffer for DMA
+ * @dev:	The device for which to perform the DMA operation
+ * @sg:	The sg_table object describing the buffer
+ * @dir:	DMA direction
+ * @attrs:	Optional DMA attributes for the map operation
+ *
+ * Maps a buffer described by a scatterlist passed in the sg argument with
+ * nents segments for the @dir DMA operation by the @dev device.
+ *
+ * Returns the number of mapped entries (which can be less than nents)
+ * on success. Zero is returned for any error.
+ *
+ * dma_unmap_sg_attrs() should be used to unmap the buffer with the
+ * original sg and original nents (not the value returned by this funciton).
+ */
+unsigned int dma_map_sg_attrs(struct device *dev, struct scatterlist *sg,
+		    int nents, enum dma_data_direction dir, unsigned long attrs)
+{
+	int ret;
+
+	ret = __dma_map_sg_attrs(dev, sg, nents, dir, attrs);
+	if (ret < 0)
+		return 0;
+	return ret;
+}
 EXPORT_SYMBOL(dma_map_sg_attrs);
+
+/**
+ * dma_map_sgtable - Map the given buffer for DMA
+ * @dev:	The device for which to perform the DMA operation
+ * @sgt:	The sg_table object describing the buffer
+ * @dir:	DMA direction
+ * @attrs:	Optional DMA attributes for the map operation
+ *
+ * Maps a buffer described by a scatterlist stored in the given sg_table
+ * object for the @dir DMA operation by the @dev device. After success, the
+ * ownership for the buffer is transferred to the DMA domain.  One has to
+ * call dma_sync_sgtable_for_cpu() or dma_unmap_sgtable() to move the
+ * ownership of the buffer back to the CPU domain before touching the
+ * buffer by the CPU.
+ *
+ * Returns 0 on success or a negative error code on error. The following
+ * error codes are supported with the given meaning:
+ *
+ *   -EINVAL - An invalid argument, unaligned access or other error
+ *	       in usage. Will not succeed if retried.
+ *   -ENOMEM - Insufficient resources (like memory or IOVA space) to
+ *	       complete the mapping. Should succeed if retried later.
+ *   -EIO    - Legacy error code with an unknown meaning. eg. this is
+ *	       returned if a lower level call returned DMA_MAPPING_ERROR.
+ */
+int dma_map_sgtable(struct device *dev, struct sg_table *sgt,
+		    enum dma_data_direction dir, unsigned long attrs)
+{
+	int nents;
+
+	nents = __dma_map_sg_attrs(dev, sgt->sgl, sgt->orig_nents, dir, attrs);
+	if (nents < 0)
+		return nents;
+	sgt->nents = nents;
+	return 0;
+}
+EXPORT_SYMBOL_GPL(dma_map_sgtable);
 
 void dma_unmap_sg_attrs(struct device *dev, struct scatterlist *sg,
 				      int nents, enum dma_data_direction dir,
@@ -477,11 +541,10 @@ void dma_free_attrs(struct device *dev, size_t size, void *cpu_addr,
 }
 EXPORT_SYMBOL(dma_free_attrs);
 
-struct page *dma_alloc_pages(struct device *dev, size_t size,
+static struct page *__dma_alloc_pages(struct device *dev, size_t size,
 		dma_addr_t *dma_handle, enum dma_data_direction dir, gfp_t gfp)
 {
 	const struct dma_map_ops *ops = get_dma_ops(dev);
-	struct page *page;
 
 	if (WARN_ON_ONCE(!dev->coherent_dma_mask))
 		return NULL;
@@ -490,32 +553,161 @@ struct page *dma_alloc_pages(struct device *dev, size_t size,
 
 	size = PAGE_ALIGN(size);
 	if (dma_alloc_direct(dev, ops))
-		page = dma_direct_alloc_pages(dev, size, dma_handle, dir, gfp);
-	else if (ops->alloc_pages)
-		page = ops->alloc_pages(dev, size, dma_handle, dir, gfp);
-	else
+		return dma_direct_alloc_pages(dev, size, dma_handle, dir, gfp);
+	if (!ops->alloc_pages)
 		return NULL;
+	return ops->alloc_pages(dev, size, dma_handle, dir, gfp);
+}
 
-	debug_dma_map_page(dev, page, 0, size, dir, *dma_handle);
+struct page *dma_alloc_pages(struct device *dev, size_t size,
+		dma_addr_t *dma_handle, enum dma_data_direction dir, gfp_t gfp)
+{
+	struct page *page = __dma_alloc_pages(dev, size, dma_handle, dir, gfp);
 
+	if (page)
+		debug_dma_map_page(dev, page, 0, size, dir, *dma_handle);
 	return page;
 }
 EXPORT_SYMBOL_GPL(dma_alloc_pages);
 
-void dma_free_pages(struct device *dev, size_t size, struct page *page,
+static void __dma_free_pages(struct device *dev, size_t size, struct page *page,
 		dma_addr_t dma_handle, enum dma_data_direction dir)
 {
 	const struct dma_map_ops *ops = get_dma_ops(dev);
 
 	size = PAGE_ALIGN(size);
-	debug_dma_unmap_page(dev, dma_handle, size, dir);
-
 	if (dma_alloc_direct(dev, ops))
 		dma_direct_free_pages(dev, size, page, dma_handle, dir);
 	else if (ops->free_pages)
 		ops->free_pages(dev, size, page, dma_handle, dir);
 }
+
+void dma_free_pages(struct device *dev, size_t size, struct page *page,
+		dma_addr_t dma_handle, enum dma_data_direction dir)
+{
+	debug_dma_unmap_page(dev, dma_handle, size, dir);
+	__dma_free_pages(dev, size, page, dma_handle, dir);
+}
 EXPORT_SYMBOL_GPL(dma_free_pages);
+
+int dma_mmap_pages(struct device *dev, struct vm_area_struct *vma,
+		size_t size, struct page *page)
+{
+	unsigned long count = PAGE_ALIGN(size) >> PAGE_SHIFT;
+
+	if (vma->vm_pgoff >= count || vma_pages(vma) > count - vma->vm_pgoff)
+		return -ENXIO;
+	return remap_pfn_range(vma, vma->vm_start,
+			       page_to_pfn(page) + vma->vm_pgoff,
+			       vma_pages(vma) << PAGE_SHIFT, vma->vm_page_prot);
+}
+EXPORT_SYMBOL_GPL(dma_mmap_pages);
+
+static struct sg_table *alloc_single_sgt(struct device *dev, size_t size,
+		enum dma_data_direction dir, gfp_t gfp)
+{
+	struct sg_table *sgt;
+	struct page *page;
+
+	sgt = kmalloc(sizeof(*sgt), gfp);
+	if (!sgt)
+		return NULL;
+	if (sg_alloc_table(sgt, 1, gfp))
+		goto out_free_sgt;
+	page = __dma_alloc_pages(dev, size, &sgt->sgl->dma_address, dir, gfp);
+	if (!page)
+		goto out_free_table;
+	sg_set_page(sgt->sgl, page, PAGE_ALIGN(size), 0);
+	sg_dma_len(sgt->sgl) = sgt->sgl->length;
+	return sgt;
+out_free_table:
+	sg_free_table(sgt);
+out_free_sgt:
+	kfree(sgt);
+	return NULL;
+}
+
+struct sg_table *dma_alloc_noncontiguous(struct device *dev, size_t size,
+		enum dma_data_direction dir, gfp_t gfp, unsigned long attrs)
+{
+	const struct dma_map_ops *ops = get_dma_ops(dev);
+	struct sg_table *sgt;
+
+	if (WARN_ON_ONCE(attrs & ~DMA_ATTR_ALLOC_SINGLE_PAGES))
+		return NULL;
+
+	if (ops && ops->alloc_noncontiguous)
+		sgt = ops->alloc_noncontiguous(dev, size, dir, gfp, attrs);
+	else
+		sgt = alloc_single_sgt(dev, size, dir, gfp);
+
+	if (sgt) {
+		sgt->nents = 1;
+		debug_dma_map_sg(dev, sgt->sgl, sgt->orig_nents, 1, dir);
+	}
+	return sgt;
+}
+EXPORT_SYMBOL_GPL(dma_alloc_noncontiguous);
+
+static void free_single_sgt(struct device *dev, size_t size,
+		struct sg_table *sgt, enum dma_data_direction dir)
+{
+	__dma_free_pages(dev, size, sg_page(sgt->sgl), sgt->sgl->dma_address,
+			 dir);
+	sg_free_table(sgt);
+	kfree(sgt);
+}
+
+void dma_free_noncontiguous(struct device *dev, size_t size,
+		struct sg_table *sgt, enum dma_data_direction dir)
+{
+	const struct dma_map_ops *ops = get_dma_ops(dev);
+
+	debug_dma_unmap_sg(dev, sgt->sgl, sgt->orig_nents, dir);
+	if (ops && ops->free_noncontiguous)
+		ops->free_noncontiguous(dev, size, sgt, dir);
+	else
+		free_single_sgt(dev, size, sgt, dir);
+}
+EXPORT_SYMBOL_GPL(dma_free_noncontiguous);
+
+void *dma_vmap_noncontiguous(struct device *dev, size_t size,
+		struct sg_table *sgt)
+{
+	const struct dma_map_ops *ops = get_dma_ops(dev);
+	unsigned long count = PAGE_ALIGN(size) >> PAGE_SHIFT;
+
+	if (ops && ops->alloc_noncontiguous)
+		return vmap(sgt_handle(sgt)->pages, count, VM_MAP, PAGE_KERNEL);
+	return page_address(sg_page(sgt->sgl));
+}
+EXPORT_SYMBOL_GPL(dma_vmap_noncontiguous);
+
+void dma_vunmap_noncontiguous(struct device *dev, void *vaddr)
+{
+	const struct dma_map_ops *ops = get_dma_ops(dev);
+
+	if (ops && ops->alloc_noncontiguous)
+		vunmap(vaddr);
+}
+EXPORT_SYMBOL_GPL(dma_vunmap_noncontiguous);
+
+int dma_mmap_noncontiguous(struct device *dev, struct vm_area_struct *vma,
+		size_t size, struct sg_table *sgt)
+{
+	const struct dma_map_ops *ops = get_dma_ops(dev);
+
+	if (ops && ops->alloc_noncontiguous) {
+		unsigned long count = PAGE_ALIGN(size) >> PAGE_SHIFT;
+
+		if (vma->vm_pgoff >= count ||
+		    vma_pages(vma) > count - vma->vm_pgoff)
+			return -ENXIO;
+		return vm_map_pages(vma, sgt_handle(sgt)->pages, count);
+	}
+	return dma_mmap_pages(dev, vma, size, sg_page(sgt->sgl));
+}
+EXPORT_SYMBOL_GPL(dma_mmap_noncontiguous);
 
 int dma_supported(struct device *dev, u64 mask)
 {

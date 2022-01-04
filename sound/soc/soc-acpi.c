@@ -34,7 +34,7 @@ static acpi_status snd_soc_acpi_find_package(acpi_handle handle, u32 level,
 					     void *context, void **ret)
 {
 	struct acpi_device *adev;
-	acpi_status status = AE_OK;
+	acpi_status status;
 	struct snd_soc_acpi_package_context *pkg_ctx = context;
 
 	pkg_ctx->data_valid = false;

@@ -28,7 +28,7 @@ static void idt_irq_dispatch(struct irq_desc *desc)
 {
 	struct idt_pic_data *idtpic = irq_desc_get_handler_data(desc);
 	struct irq_chip *host_chip = irq_desc_get_chip(desc);
-	u32 pending, hwirq, virq;
+	u32 pending, hwirq;
 
 	chained_irq_enter(host_chip, desc);
 
@@ -36,9 +36,7 @@ static void idt_irq_dispatch(struct irq_desc *desc)
 	pending &= ~idtpic->gc->mask_cache;
 	while (pending) {
 		hwirq = __fls(pending);
-		virq = irq_linear_revmap(idtpic->irq_domain, hwirq);
-		if (virq)
-			generic_handle_irq(virq);
+		generic_handle_domain_irq(idtpic->irq_domain, hwirq);
 		pending &= ~(1 << hwirq);
 	}
 

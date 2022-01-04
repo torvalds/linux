@@ -141,8 +141,6 @@ static int pwm_imx1_probe(struct platform_device *pdev)
 	if (!imx)
 		return -ENOMEM;
 
-	platform_set_drvdata(pdev, imx);
-
 	imx->clk_ipg = devm_clk_get(&pdev->dev, "ipg");
 	if (IS_ERR(imx->clk_ipg))
 		return dev_err_probe(&pdev->dev, PTR_ERR(imx->clk_ipg),
@@ -155,23 +153,13 @@ static int pwm_imx1_probe(struct platform_device *pdev)
 
 	imx->chip.ops = &pwm_imx1_ops;
 	imx->chip.dev = &pdev->dev;
-	imx->chip.base = -1;
 	imx->chip.npwm = 1;
 
 	imx->mmio_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(imx->mmio_base))
 		return PTR_ERR(imx->mmio_base);
 
-	return pwmchip_add(&imx->chip);
-}
-
-static int pwm_imx1_remove(struct platform_device *pdev)
-{
-	struct pwm_imx1_chip *imx = platform_get_drvdata(pdev);
-
-	pwm_imx1_clk_disable_unprepare(&imx->chip);
-
-	return pwmchip_remove(&imx->chip);
+	return devm_pwmchip_add(&pdev->dev, &imx->chip);
 }
 
 static struct platform_driver pwm_imx1_driver = {
@@ -180,7 +168,6 @@ static struct platform_driver pwm_imx1_driver = {
 		.of_match_table = pwm_imx1_dt_ids,
 	},
 	.probe = pwm_imx1_probe,
-	.remove = pwm_imx1_remove,
 };
 module_platform_driver(pwm_imx1_driver);
 

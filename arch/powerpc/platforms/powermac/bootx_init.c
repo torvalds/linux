@@ -433,7 +433,7 @@ static void __init btext_welcome(boot_infos_t *bi)
 	bootx_printf("\nframe buffer at  : 0x%x", bi->dispDeviceBase);
 	bootx_printf(" (phys), 0x%x", bi->logicalDisplayBase);
 	bootx_printf(" (log)");
-	bootx_printf("\nklimit           : 0x%x",(unsigned long)klimit);
+	bootx_printf("\nklimit           : 0x%x",(unsigned long)_end);
 	bootx_printf("\nboot_info at     : 0x%x", bi);
 	__asm__ __volatile__ ("mfmsr %0" : "=r" (flags));
 	bootx_printf("\nMSR              : 0x%x", flags);

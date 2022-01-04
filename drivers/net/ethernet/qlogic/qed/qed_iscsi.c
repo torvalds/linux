@@ -158,7 +158,7 @@ qed_sp_iscsi_func_start(struct qed_hwfn *p_hwfn,
 
 	rc = qed_sp_init_request(p_hwfn, &p_ent,
 				 ISCSI_RAMROD_CMD_ID_INIT_FUNC,
-				 PROTOCOLID_ISCSI, &init_data);
+				 PROTOCOLID_TCP_ULP, &init_data);
 	if (rc)
 		return rc;
 
@@ -250,7 +250,7 @@ qed_sp_iscsi_func_start(struct qed_hwfn *p_hwfn,
 	p_hwfn->p_iscsi_info->event_context = event_context;
 	p_hwfn->p_iscsi_info->event_cb = async_event_cb;
 
-	qed_spq_register_async_cb(p_hwfn, PROTOCOLID_ISCSI,
+	qed_spq_register_async_cb(p_hwfn, PROTOCOLID_TCP_ULP,
 				  qed_iscsi_async_event);
 
 	return qed_spq_post(p_hwfn, p_ent, NULL);
@@ -286,7 +286,7 @@ static int qed_sp_iscsi_conn_offload(struct qed_hwfn *p_hwfn,
 
 	rc = qed_sp_init_request(p_hwfn, &p_ent,
 				 ISCSI_RAMROD_CMD_ID_OFFLOAD_CONN,
-				 PROTOCOLID_ISCSI, &init_data);
+				 PROTOCOLID_TCP_ULP, &init_data);
 	if (rc)
 		return rc;
 
@@ -453,7 +453,7 @@ static int qed_sp_iscsi_conn_update(struct qed_hwfn *p_hwfn,
 	struct iscsi_conn_update_ramrod_params *p_ramrod = NULL;
 	struct qed_spq_entry *p_ent = NULL;
 	struct qed_sp_init_data init_data;
-	int rc = -EINVAL;
+	int rc;
 	u32 dval;
 
 	/* Get SPQ entry */
@@ -465,7 +465,7 @@ static int qed_sp_iscsi_conn_update(struct qed_hwfn *p_hwfn,
 
 	rc = qed_sp_init_request(p_hwfn, &p_ent,
 				 ISCSI_RAMROD_CMD_ID_UPDATE_CONN,
-				 PROTOCOLID_ISCSI, &init_data);
+				 PROTOCOLID_TCP_ULP, &init_data);
 	if (rc)
 		return rc;
 
@@ -506,7 +506,7 @@ qed_sp_iscsi_mac_update(struct qed_hwfn *p_hwfn,
 
 	rc = qed_sp_init_request(p_hwfn, &p_ent,
 				 ISCSI_RAMROD_CMD_ID_MAC_UPDATE,
-				 PROTOCOLID_ISCSI, &init_data);
+				 PROTOCOLID_TCP_ULP, &init_data);
 	if (rc)
 		return rc;
 
@@ -548,7 +548,7 @@ static int qed_sp_iscsi_conn_terminate(struct qed_hwfn *p_hwfn,
 
 	rc = qed_sp_init_request(p_hwfn, &p_ent,
 				 ISCSI_RAMROD_CMD_ID_TERMINATION_CONN,
-				 PROTOCOLID_ISCSI, &init_data);
+				 PROTOCOLID_TCP_ULP, &init_data);
 	if (rc)
 		return rc;
 
@@ -582,7 +582,7 @@ static int qed_sp_iscsi_conn_clear_sq(struct qed_hwfn *p_hwfn,
 
 	rc = qed_sp_init_request(p_hwfn, &p_ent,
 				 ISCSI_RAMROD_CMD_ID_CLEAR_SQ,
-				 PROTOCOLID_ISCSI, &init_data);
+				 PROTOCOLID_TCP_ULP, &init_data);
 	if (rc)
 		return rc;
 
@@ -606,13 +606,13 @@ static int qed_sp_iscsi_func_stop(struct qed_hwfn *p_hwfn,
 
 	rc = qed_sp_init_request(p_hwfn, &p_ent,
 				 ISCSI_RAMROD_CMD_ID_DESTROY_FUNC,
-				 PROTOCOLID_ISCSI, &init_data);
+				 PROTOCOLID_TCP_ULP, &init_data);
 	if (rc)
 		return rc;
 
 	rc = qed_spq_post(p_hwfn, p_ent, NULL);
 
-	qed_spq_unregister_async_cb(p_hwfn, PROTOCOLID_ISCSI);
+	qed_spq_unregister_async_cb(p_hwfn, PROTOCOLID_TCP_ULP);
 	return rc;
 }
 
@@ -786,7 +786,7 @@ static int qed_iscsi_acquire_connection(struct qed_hwfn *p_hwfn,
 	u32 icid;
 
 	spin_lock_bh(&p_hwfn->p_iscsi_info->lock);
-	rc = qed_cxt_acquire_cid(p_hwfn, PROTOCOLID_ISCSI, &icid);
+	rc = qed_cxt_acquire_cid(p_hwfn, PROTOCOLID_TCP_ULP, &icid);
 	spin_unlock_bh(&p_hwfn->p_iscsi_info->lock);
 	if (rc)
 		return rc;

@@ -104,6 +104,17 @@ enum AMDGIM_FEATURE_FLAG {
 	AMDGIM_FEATURE_GIM_MM_BW_MGR = 0x8,
 	/* PP ONE VF MODE in GIM */
 	AMDGIM_FEATURE_PP_ONE_VF = (1 << 4),
+	/* Indirect Reg Access enabled */
+	AMDGIM_FEATURE_INDIRECT_REG_ACCESS = (1 << 5),
+};
+
+enum AMDGIM_REG_ACCESS_FLAG {
+	/* Use PSP to program IH_RB_CNTL */
+	AMDGIM_FEATURE_IH_REG_PSP_EN     = (1 << 0),
+	/* Use RLC to program MMHUB regs */
+	AMDGIM_FEATURE_MMHUB_REG_RLC_EN  = (1 << 1),
+	/* Use RLC to program GC regs */
+	AMDGIM_FEATURE_GC_REG_RLC_EN     = (1 << 2),
 };
 
 struct amdgim_pf2vf_info_v1 {
@@ -217,11 +228,21 @@ struct amdgpu_virt {
 	bool tdr_debug;
 	struct amdgpu_virt_ras_err_handler_data *virt_eh_data;
 	bool ras_init_done;
+	uint32_t reg_access;
 
 	/* vf2pf message */
 	struct delayed_work vf2pf_work;
 	uint32_t vf2pf_update_interval_ms;
+
+	/* multimedia bandwidth config */
+	bool     is_mm_bw_enabled;
+	uint32_t decode_max_dimension_pixels;
+	uint32_t decode_max_frame_pixels;
+	uint32_t encode_max_dimension_pixels;
+	uint32_t encode_max_frame_pixels;
 };
+
+struct amdgpu_video_codec_info;
 
 #define amdgpu_sriov_enabled(adev) \
 ((adev)->virt.caps & AMDGPU_SRIOV_CAPS_ENABLE_IOV)
@@ -237,6 +258,22 @@ struct amdgpu_virt {
 
 #define amdgpu_sriov_fullaccess(adev) \
 (amdgpu_sriov_vf((adev)) && !amdgpu_sriov_runtime((adev)))
+
+#define amdgpu_sriov_reg_indirect_en(adev) \
+(amdgpu_sriov_vf((adev)) && \
+	((adev)->virt.gim_feature & (AMDGIM_FEATURE_INDIRECT_REG_ACCESS)))
+
+#define amdgpu_sriov_reg_indirect_ih(adev) \
+(amdgpu_sriov_vf((adev)) && \
+	((adev)->virt.reg_access & (AMDGIM_FEATURE_IH_REG_PSP_EN)))
+
+#define amdgpu_sriov_reg_indirect_mmhub(adev) \
+(amdgpu_sriov_vf((adev)) && \
+	((adev)->virt.reg_access & (AMDGIM_FEATURE_MMHUB_REG_RLC_EN)))
+
+#define amdgpu_sriov_reg_indirect_gc(adev) \
+(amdgpu_sriov_vf((adev)) && \
+	((adev)->virt.reg_access & (AMDGIM_FEATURE_GC_REG_RLC_EN)))
 
 #define amdgpu_passthrough(adev) \
 ((adev)->virt.caps & AMDGPU_PASSTHROUGH_MODE)
@@ -279,4 +316,8 @@ int amdgpu_virt_enable_access_debugfs(struct amdgpu_device *adev);
 void amdgpu_virt_disable_access_debugfs(struct amdgpu_device *adev);
 
 enum amdgpu_sriov_vf_mode amdgpu_virt_get_sriov_vf_mode(struct amdgpu_device *adev);
+
+void amdgpu_virt_update_sriov_video_codec(struct amdgpu_device *adev,
+			struct amdgpu_video_codec_info *encode, uint32_t encode_array_size,
+			struct amdgpu_video_codec_info *decode, uint32_t decode_array_size);
 #endif

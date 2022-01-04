@@ -454,7 +454,7 @@ out:
 }
 
 /**
- * mpt3sas_ctl_reset_handler - reset callback handler (for ctl)
+ * mpt3sas_ctl_pre_reset_handler - reset callback handler (for ctl)
  * @ioc: per adapter object
  *
  * The handler for doing any required cleanup or initialization.
@@ -486,7 +486,7 @@ void mpt3sas_ctl_pre_reset_handler(struct MPT3SAS_ADAPTER *ioc)
 }
 
 /**
- * mpt3sas_ctl_reset_handler - clears outstanding ioctl cmd.
+ * mpt3sas_ctl_clear_outstanding_ioctls - clears outstanding ioctl cmd.
  * @ioc: per adapter object
  *
  * The handler for doing any required cleanup or initialization.
@@ -503,7 +503,7 @@ void mpt3sas_ctl_clear_outstanding_ioctls(struct MPT3SAS_ADAPTER *ioc)
 }
 
 /**
- * mpt3sas_ctl_reset_handler - reset callback handler (for ctl)
+ * mpt3sas_ctl_reset_done_handler - reset callback handler (for ctl)
  * @ioc: per adapter object
  *
  * The handler for doing any required cleanup or initialization.
@@ -2507,7 +2507,7 @@ _ctl_addnl_diag_query(struct MPT3SAS_ADAPTER *ioc, void __user *arg)
 		    __func__, karg.unique_id);
 		return -EPERM;
 	}
-	memset(&karg.buffer_rel_condition, 0, sizeof(struct htb_rel_query));
+	memset(&karg.rel_query, 0, sizeof(karg.rel_query));
 	if ((ioc->diag_buffer_status[buffer_type] &
 	    MPT3_DIAG_BUFFER_IS_REGISTERED) == 0) {
 		ioc_info(ioc, "%s: buffer_type(0x%02x) is not registered\n",
@@ -2520,8 +2520,7 @@ _ctl_addnl_diag_query(struct MPT3SAS_ADAPTER *ioc, void __user *arg)
 		    __func__, buffer_type);
 		return -EPERM;
 	}
-	memcpy(&karg.buffer_rel_condition, &ioc->htb_rel,
-	    sizeof(struct  htb_rel_query));
+	memcpy(&karg.rel_query, &ioc->htb_rel, sizeof(karg.rel_query));
 out:
 	if (copy_to_user(arg, &karg, sizeof(struct mpt3_addnl_diag_query))) {
 		ioc_err(ioc, "%s: unable to write mpt3_addnl_diag_query data @ %p\n",
@@ -2759,7 +2758,7 @@ _ctl_mpt2_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 }
 #ifdef CONFIG_COMPAT
 /**
- *_ ctl_ioctl_compat - main ioctl entry point (compat)
+ * _ctl_ioctl_compat - main ioctl entry point (compat)
  * @file: ?
  * @cmd: ?
  * @arg: ?
@@ -2777,7 +2776,7 @@ _ctl_ioctl_compat(struct file *file, unsigned cmd, unsigned long arg)
 }
 
 /**
- *_ ctl_mpt2_ioctl_compat - main ioctl entry point (compat)
+ * _ctl_mpt2_ioctl_compat - main ioctl entry point (compat)
  * @file: ?
  * @cmd: ?
  * @arg: ?
@@ -3045,7 +3044,7 @@ fw_queue_depth_show(struct device *cdev, struct device_attribute *attr,
 static DEVICE_ATTR_RO(fw_queue_depth);
 
 /**
- * sas_address_show - sas address
+ * host_sas_address_show - sas address
  * @cdev: pointer to embedded class device
  * @attr: ?
  * @buf: the buffer returned
@@ -3203,7 +3202,7 @@ BRM_status_show(struct device *cdev, struct device_attribute *attr,
 {
 	struct Scsi_Host *shost = class_to_shost(cdev);
 	struct MPT3SAS_ADAPTER *ioc = shost_priv(shost);
-	Mpi2IOUnitPage3_t *io_unit_pg3 = NULL;
+	Mpi2IOUnitPage3_t io_unit_pg3;
 	Mpi2ConfigReply_t mpi_reply;
 	u16 backup_rail_monitor_status = 0;
 	u16 ioc_status;
@@ -3220,17 +3219,10 @@ BRM_status_show(struct device *cdev, struct device_attribute *attr,
 	if (ioc->pci_error_recovery || ioc->remove_host)
 		goto out;
 
-	/* allocate upto GPIOVal 36 entries */
-	sz = offsetof(Mpi2IOUnitPage3_t, GPIOVal) + (sizeof(u16) * 36);
-	io_unit_pg3 = kzalloc(sz, GFP_KERNEL);
-	if (!io_unit_pg3) {
-		rc = -ENOMEM;
-		ioc_err(ioc, "%s: failed allocating memory for iounit_pg3: (%d) bytes\n",
-			__func__, sz);
-		goto out;
-	}
+	sz = sizeof(io_unit_pg3);
+	memset(&io_unit_pg3, 0, sz);
 
-	if (mpt3sas_config_get_iounit_pg3(ioc, &mpi_reply, io_unit_pg3, sz) !=
+	if (mpt3sas_config_get_iounit_pg3(ioc, &mpi_reply, &io_unit_pg3, sz) !=
 	    0) {
 		ioc_err(ioc, "%s: failed reading iounit_pg3\n",
 			__func__);
@@ -3246,19 +3238,18 @@ BRM_status_show(struct device *cdev, struct device_attribute *attr,
 		goto out;
 	}
 
-	if (io_unit_pg3->GPIOCount < 25) {
-		ioc_err(ioc, "%s: iounit_pg3->GPIOCount less than 25 entries, detected (%d) entries\n",
-			__func__, io_unit_pg3->GPIOCount);
+	if (io_unit_pg3.GPIOCount < 25) {
+		ioc_err(ioc, "%s: iounit_pg3.GPIOCount less than 25 entries, detected (%d) entries\n",
+			__func__, io_unit_pg3.GPIOCount);
 		rc = -EINVAL;
 		goto out;
 	}
 
 	/* BRM status is in bit zero of GPIOVal[24] */
-	backup_rail_monitor_status = le16_to_cpu(io_unit_pg3->GPIOVal[24]);
+	backup_rail_monitor_status = le16_to_cpu(io_unit_pg3.GPIOVal[24]);
 	rc = snprintf(buf, PAGE_SIZE, "%d\n", (backup_rail_monitor_status & 1));
 
  out:
-	kfree(io_unit_pg3);
 	mutex_unlock(&ioc->pci_access_mutex);
 	return rc;
 }
@@ -3669,7 +3660,7 @@ static DEVICE_ATTR_RW(diag_trigger_scsi);
 
 
 /**
- * diag_trigger_scsi_show - show the diag_trigger_mpi attribute
+ * diag_trigger_mpi_show - show the diag_trigger_mpi attribute
  * @cdev: pointer to embedded class device
  * @attr: ?
  * @buf: the buffer returned
@@ -3829,9 +3820,10 @@ enable_sdev_max_qd_store(struct device *cdev,
 				}
 			} else if (sas_target_priv_data->flags &
 			    MPT_TARGET_FLAGS_PCIE_DEVICE)
-				qdepth = MPT3SAS_NVME_QUEUE_DEPTH;
+				qdepth = ioc->max_nvme_qd;
 			else
-				qdepth = MPT3SAS_SAS_QUEUE_DEPTH;
+				qdepth = (sas_target_priv_data->sas_dev->port_type > 1) ?
+				    ioc->max_wideport_qd : ioc->max_narrowport_qd;
 
 			mpt3sas_scsih_change_queue_depth(sdev, qdepth);
 		}
@@ -3928,7 +3920,25 @@ sas_device_handle_show(struct device *dev, struct device_attribute *attr,
 static DEVICE_ATTR_RO(sas_device_handle);
 
 /**
- * sas_ncq_io_prio_show - send prioritized io commands to device
+ * sas_ncq_prio_supported_show - Indicate if device supports NCQ priority
+ * @dev: pointer to embedded device
+ * @attr: sas_ncq_prio_supported attribute descriptor
+ * @buf: the buffer returned
+ *
+ * A sysfs 'read-only' sdev attribute, only works with SATA
+ */
+static ssize_t
+sas_ncq_prio_supported_show(struct device *dev,
+			    struct device_attribute *attr, char *buf)
+{
+	struct scsi_device *sdev = to_scsi_device(dev);
+
+	return sysfs_emit(buf, "%d\n", scsih_ncq_prio_supp(sdev));
+}
+static DEVICE_ATTR_RO(sas_ncq_prio_supported);
+
+/**
+ * sas_ncq_prio_enable_show - send prioritized io commands to device
  * @dev: pointer to embedded device
  * @attr: ?
  * @buf: the buffer returned
@@ -3969,6 +3979,7 @@ static DEVICE_ATTR_RW(sas_ncq_prio_enable);
 struct device_attribute *mpt3sas_dev_attrs[] = {
 	&dev_attr_sas_address,
 	&dev_attr_sas_device_handle,
+	&dev_attr_sas_ncq_prio_supported,
 	&dev_attr_sas_ncq_prio_enable,
 	NULL,
 };

@@ -370,9 +370,9 @@ static int efx_ef10_get_mac_address_vf(struct efx_nic *efx, u8 *mac_address)
 	return 0;
 }
 
-static ssize_t efx_ef10_show_link_control_flag(struct device *dev,
-					       struct device_attribute *attr,
-					       char *buf)
+static ssize_t link_control_flag_show(struct device *dev,
+				      struct device_attribute *attr,
+				      char *buf)
 {
 	struct efx_nic *efx = dev_get_drvdata(dev);
 
@@ -382,9 +382,9 @@ static ssize_t efx_ef10_show_link_control_flag(struct device *dev,
 		       ? 1 : 0);
 }
 
-static ssize_t efx_ef10_show_primary_flag(struct device *dev,
-					  struct device_attribute *attr,
-					  char *buf)
+static ssize_t primary_flag_show(struct device *dev,
+				 struct device_attribute *attr,
+				 char *buf)
 {
 	struct efx_nic *efx = dev_get_drvdata(dev);
 
@@ -519,9 +519,8 @@ static void efx_ef10_cleanup_vlans(struct efx_nic *efx)
 	mutex_unlock(&nic_data->vlan_lock);
 }
 
-static DEVICE_ATTR(link_control_flag, 0444, efx_ef10_show_link_control_flag,
-		   NULL);
-static DEVICE_ATTR(primary_flag, 0444, efx_ef10_show_primary_flag, NULL);
+static DEVICE_ATTR_RO(link_control_flag);
+static DEVICE_ATTR_RO(primary_flag);
 
 static int efx_ef10_probe(struct efx_nic *efx)
 {
@@ -1070,7 +1069,8 @@ static int efx_ef10_probe_vf(struct efx_nic *efx)
 
 	/* If the parent PF has no VF data structure, it doesn't know about this
 	 * VF so fail probe.  The VF needs to be re-created.  This can happen
-	 * if the PF driver is unloaded while the VF is assigned to a guest.
+	 * if the PF driver was unloaded while any VF was assigned to a guest
+	 * (using Xen, only).
 	 */
 	pci_dev_pf = efx->pci_dev->physfn;
 	if (pci_dev_pf) {
@@ -1745,6 +1745,22 @@ static size_t efx_ef10_describe_stats(struct efx_nic *efx, u8 *names)
 	efx_ef10_get_stat_mask(efx, mask);
 	return efx_nic_describe_stats(efx_ef10_stat_desc, EF10_STAT_COUNT,
 				      mask, names);
+}
+
+static void efx_ef10_get_fec_stats(struct efx_nic *efx,
+				   struct ethtool_fec_stats *fec_stats)
+{
+	DECLARE_BITMAP(mask, EF10_STAT_COUNT);
+	struct efx_ef10_nic_data *nic_data = efx->nic_data;
+	u64 *stats = nic_data->stats;
+
+	efx_ef10_get_stat_mask(efx, mask);
+	if (test_bit(EF10_STAT_fec_corrected_errors, mask))
+		fec_stats->corrected_blocks.total =
+			stats[EF10_STAT_fec_corrected_errors];
+	if (test_bit(EF10_STAT_fec_uncorrected_errors, mask))
+		fec_stats->uncorrectable_blocks.total =
+			stats[EF10_STAT_fec_uncorrected_errors];
 }
 
 static size_t efx_ef10_update_stats_common(struct efx_nic *efx, u64 *full_stats,
@@ -2928,8 +2944,7 @@ efx_ef10_handle_tx_event(struct efx_channel *channel, efx_qword_t *event)
 
 	/* Get the transmit queue */
 	tx_ev_q_label = EFX_QWORD_FIELD(*event, ESF_DZ_TX_QLABEL);
-	tx_queue = efx_channel_get_tx_queue(channel,
-					    tx_ev_q_label % EFX_MAX_TXQ_PER_CHANNEL);
+	tx_queue = channel->tx_queue + (tx_ev_q_label % EFX_MAX_TXQ_PER_CHANNEL);
 
 	if (!tx_queue->timestamping) {
 		/* Transmit completion */
@@ -4122,6 +4137,7 @@ const struct efx_nic_type efx_hunt_a0_nic_type = {
 	.get_wol = efx_ef10_get_wol,
 	.set_wol = efx_ef10_set_wol,
 	.resume_wol = efx_port_dummy_op_void,
+	.get_fec_stats = efx_ef10_get_fec_stats,
 	.test_chip = efx_ef10_test_chip,
 	.test_nvram = efx_mcdi_nvram_test_all,
 	.mcdi_request = efx_ef10_mcdi_request,

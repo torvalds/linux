@@ -81,6 +81,7 @@
 struct stmmac_mdio_bus_data {
 	unsigned int phy_mask;
 	unsigned int has_xpcs;
+	unsigned int xpcs_an_inband;
 	int *irqs;
 	int probed_phy_irq;
 	bool needs_reset;
@@ -95,6 +96,8 @@ struct stmmac_dma_cfg {
 	int mixed_burst;
 	bool aal;
 	bool eame;
+	bool multi_msi_en;
+	bool dche;
 };
 
 #define AXI_BLEN	7
@@ -112,7 +115,9 @@ struct stmmac_axi {
 
 #define EST_GCL		1024
 struct stmmac_est {
+	struct mutex lock;
 	int enable;
+	u32 btr_reserve[2];
 	u32 btr_offset[2];
 	u32 btr[2];
 	u32 ctr[2];
@@ -143,6 +148,44 @@ struct stmmac_txq_cfg {
 	int tbs_en;
 };
 
+/* FPE link state */
+enum stmmac_fpe_state {
+	FPE_STATE_OFF = 0,
+	FPE_STATE_CAPABLE = 1,
+	FPE_STATE_ENTERING_ON = 2,
+	FPE_STATE_ON = 3,
+};
+
+/* FPE link-partner hand-shaking mPacket type */
+enum stmmac_mpacket_type {
+	MPACKET_VERIFY = 0,
+	MPACKET_RESPONSE = 1,
+};
+
+enum stmmac_fpe_task_state_t {
+	__FPE_REMOVING,
+	__FPE_TASK_SCHED,
+};
+
+struct stmmac_fpe_cfg {
+	bool enable;				/* FPE enable */
+	bool hs_enable;				/* FPE handshake enable */
+	enum stmmac_fpe_state lp_fpe_state;	/* Link Partner FPE state */
+	enum stmmac_fpe_state lo_fpe_state;	/* Local station FPE state */
+};
+
+struct stmmac_safety_feature_cfg {
+	u32 tsoee;
+	u32 mrxpee;
+	u32 mestee;
+	u32 mrxee;
+	u32 mtxee;
+	u32 epsi;
+	u32 edpp;
+	u32 prtyen;
+	u32 tmouten;
+};
+
 struct plat_stmmacenet_data {
 	int bus_id;
 	int phy_addr;
@@ -154,6 +197,8 @@ struct plat_stmmacenet_data {
 	struct device_node *mdio_node;
 	struct stmmac_dma_cfg *dma_cfg;
 	struct stmmac_est *est;
+	struct stmmac_fpe_cfg *fpe_cfg;
+	struct stmmac_safety_feature_cfg *safety_feat_cfg;
 	int clk_csr;
 	int has_gmac;
 	int enh_desc;
@@ -180,17 +225,24 @@ struct plat_stmmacenet_data {
 	void (*fix_mac_speed)(void *priv, unsigned int speed);
 	int (*serdes_powerup)(struct net_device *ndev, void *priv);
 	void (*serdes_powerdown)(struct net_device *ndev, void *priv);
+	void (*speed_mode_2500)(struct net_device *ndev, void *priv);
+	void (*ptp_clk_freq_config)(void *priv);
 	int (*init)(struct platform_device *pdev, void *priv);
 	void (*exit)(struct platform_device *pdev, void *priv);
 	struct mac_device_info *(*setup)(void *priv);
+	int (*clks_config)(void *priv, bool enabled);
+	int (*crosststamp)(ktime_t *device, struct system_counterval_t *system,
+			   void *ctx);
 	void *bsp_priv;
 	struct clk *stmmac_clk;
 	struct clk *pclk;
 	struct clk *clk_ptp_ref;
 	unsigned int clk_ptp_rate;
 	unsigned int clk_ref_rate;
+	unsigned int mult_fact_100ns;
 	s32 ptp_max_adj;
 	struct reset_control *stmmac_rst;
+	struct reset_control *stmmac_ahb_rst;
 	struct stmmac_axi *axi;
 	int has_gmac4;
 	bool has_sun8i;
@@ -203,5 +255,18 @@ struct plat_stmmacenet_data {
 	u8 vlan_fail_q;
 	unsigned int eee_usecs_rate;
 	struct pci_dev *pdev;
+	bool has_crossts;
+	int int_snapshot_num;
+	int ext_snapshot_num;
+	bool ext_snapshot_en;
+	bool multi_msi_en;
+	int msi_mac_vec;
+	int msi_wol_vec;
+	int msi_lpi_vec;
+	int msi_sfty_ce_vec;
+	int msi_sfty_ue_vec;
+	int msi_rx_base_vec;
+	int msi_tx_base_vec;
+	bool use_phy_wol;
 };
 #endif

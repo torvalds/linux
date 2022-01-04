@@ -104,6 +104,9 @@
 				 * <&gpio1 0 IRQ_TYPE_EDGE_FALLING>,
 				 * <&gpio2 19 IRQ_TYPE_EDGE_FALLING>;
 				 */
+				mount-matrix = "0", "1", "0",
+					       "1", "0", "0",
+					       "0", "0", "-1";
 			};
 			magnetometer@1e {
 				/* Magnetometer */
@@ -136,6 +139,9 @@
 				/* INT2 would need to be open drain */
 				interrupts = <18 IRQ_TYPE_EDGE_RISING>,
 					     <19 IRQ_TYPE_EDGE_RISING>;
+				mount-matrix = "0", "-1", "0",
+					       "-1", "0", "0",
+					       "0", "0", "-1";
 			};
 			magnetometer@f {
 				/* Magnetometer */

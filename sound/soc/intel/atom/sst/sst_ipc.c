@@ -128,7 +128,7 @@ int sst_post_message_mrfld(struct intel_sst_drv *sst_drv_ctx,
 		while (header.p.header_high.part.busy) {
 			if (loop_count > 25) {
 				dev_err(sst_drv_ctx->dev,
-					"sst: Busy wait failed, cant send this msg\n");
+					"sst: Busy wait failed, can't send this msg\n");
 				retval = -EBUSY;
 				goto out;
 			}

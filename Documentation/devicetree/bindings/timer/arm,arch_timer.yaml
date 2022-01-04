@@ -35,7 +35,6 @@ properties:
 
   interrupts:
     minItems: 1
-    maxItems: 5
     items:
       - description: secure timer irq
       - description: non-secure timer irq

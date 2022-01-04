@@ -17,10 +17,6 @@
 
 #include <linux/string.h>
 EXPORT_SYMBOL(memset);
-EXPORT_SYMBOL(strlen);
-EXPORT_SYMBOL(strcpy);
-EXPORT_SYMBOL(strncpy);
-EXPORT_SYMBOL(strcat);
 
 #include <linux/atomic.h>
 EXPORT_SYMBOL(__xchg8);

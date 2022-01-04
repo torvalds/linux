@@ -929,7 +929,7 @@ struct netlbl_dommap_def *netlbl_domhsh_getentry_af6(const char *domain,
  * @cb_arg: argument for the callback function
  *
  * Description:
- * Interate over the domain mapping hash table, skipping the first @skip_bkt
+ * Iterate over the domain mapping hash table, skipping the first @skip_bkt
  * buckets and @skip_chain entries.  For each entry in the table call
  * @callback, if @callback returns a negative value stop 'walking' through the
  * table and return.  Updates the values in @skip_bkt and @skip_chain on

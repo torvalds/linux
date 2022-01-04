@@ -72,6 +72,4 @@ do {					\
 	tlb_remove_page((tlb), (pte));	\
 } while (0)
 
-#define pmd_pgtable(pmd) pmd_page(pmd)
-
 #endif

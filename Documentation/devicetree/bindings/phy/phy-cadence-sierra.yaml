@@ -31,14 +31,12 @@ properties:
 
   resets:
     minItems: 1
-    maxItems: 2
     items:
       - description: Sierra PHY reset.
       - description: Sierra APB reset. This is optional.
 
   reset-names:
     minItems: 1
-    maxItems: 2
     items:
       - const: sierra_reset
       - const: sierra_apb

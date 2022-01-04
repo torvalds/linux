@@ -123,14 +123,14 @@ static int lp87565_gpio_set_config(struct gpio_chip *gc, unsigned int offset,
 		return regmap_update_bits(gpio->map,
 					  LP87565_REG_GPIO_CONFIG,
 					  BIT(offset +
-					      __ffs(LP87565_GOIO1_OD)),
+					      __ffs(LP87565_GPIO1_OD)),
 					  BIT(offset +
-					      __ffs(LP87565_GOIO1_OD)));
+					      __ffs(LP87565_GPIO1_OD)));
 	case PIN_CONFIG_DRIVE_PUSH_PULL:
 		return regmap_update_bits(gpio->map,
 					  LP87565_REG_GPIO_CONFIG,
 					  BIT(offset +
-					      __ffs(LP87565_GOIO1_OD)), 0);
+					      __ffs(LP87565_GPIO1_OD)), 0);
 	default:
 		return -ENOTSUPP;
 	}

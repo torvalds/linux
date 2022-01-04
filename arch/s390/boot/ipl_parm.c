@@ -12,39 +12,44 @@
 #include "boot.h"
 
 char __bootdata(early_command_line)[COMMAND_LINE_SIZE];
-struct ipl_parameter_block __bootdata_preserved(ipl_block);
-int __bootdata_preserved(ipl_block_valid);
-unsigned int __bootdata_preserved(zlib_dfltcc_support) = ZLIB_DFLTCC_FULL;
-
-unsigned long __bootdata(vmalloc_size) = VMALLOC_DEFAULT_SIZE;
 int __bootdata(noexec_disabled);
 
+unsigned int __bootdata_preserved(zlib_dfltcc_support) = ZLIB_DFLTCC_FULL;
+struct ipl_parameter_block __bootdata_preserved(ipl_block);
+int __bootdata_preserved(ipl_block_valid);
+
+unsigned long vmalloc_size = VMALLOC_DEFAULT_SIZE;
 unsigned long memory_limit;
 int vmalloc_size_set;
 int kaslr_enabled;
 
 static inline int __diag308(unsigned long subcode, void *addr)
 {
-	register unsigned long _addr asm("0") = (unsigned long)addr;
-	register unsigned long _rc asm("1") = 0;
 	unsigned long reg1, reg2;
-	psw_t old = S390_lowcore.program_new_psw;
+	union register_pair r1;
+	psw_t old;
 
+	r1.even = (unsigned long) addr;
+	r1.odd	= 0;
 	asm volatile(
-		"	epsw	%0,%1\n"
-		"	st	%0,%[psw_pgm]\n"
-		"	st	%1,%[psw_pgm]+4\n"
-		"	larl	%0,1f\n"
-		"	stg	%0,%[psw_pgm]+8\n"
-		"	diag	%[addr],%[subcode],0x308\n"
-		"1:	nopr	%%r7\n"
-		: "=&d" (reg1), "=&a" (reg2),
-		  [psw_pgm] "=Q" (S390_lowcore.program_new_psw),
-		  [addr] "+d" (_addr), "+d" (_rc)
-		: [subcode] "d" (subcode)
+		"	mvc	0(16,%[psw_old]),0(%[psw_pgm])\n"
+		"	epsw	%[reg1],%[reg2]\n"
+		"	st	%[reg1],0(%[psw_pgm])\n"
+		"	st	%[reg2],4(%[psw_pgm])\n"
+		"	larl	%[reg1],1f\n"
+		"	stg	%[reg1],8(%[psw_pgm])\n"
+		"	diag	%[r1],%[subcode],0x308\n"
+		"1:	mvc	0(16,%[psw_pgm]),0(%[psw_old])\n"
+		: [r1] "+&d" (r1.pair),
+		  [reg1] "=&d" (reg1),
+		  [reg2] "=&a" (reg2),
+		  "+Q" (S390_lowcore.program_new_psw),
+		  "=Q" (old)
+		: [subcode] "d" (subcode),
+		  [psw_old] "a" (&old),
+		  [psw_pgm] "a" (&S390_lowcore.program_new_psw)
 		: "cc", "memory");
-	S390_lowcore.program_new_psw = old;
-	return _rc;
+	return r1.odd;
 }
 
 void store_ipl_parmblock(void)
@@ -165,12 +170,12 @@ static inline int has_ebcdic_char(const char *str)
 
 void setup_boot_command_line(void)
 {
-	COMMAND_LINE[ARCH_COMMAND_LINE_SIZE - 1] = 0;
+	parmarea.command_line[ARCH_COMMAND_LINE_SIZE - 1] = 0;
 	/* convert arch command line to ascii if necessary */
-	if (has_ebcdic_char(COMMAND_LINE))
-		EBCASC(COMMAND_LINE, ARCH_COMMAND_LINE_SIZE);
+	if (has_ebcdic_char(parmarea.command_line))
+		EBCASC(parmarea.command_line, ARCH_COMMAND_LINE_SIZE);
 	/* copy arch command line */
-	strcpy(early_command_line, strim(COMMAND_LINE));
+	strcpy(early_command_line, strim(parmarea.command_line));
 
 	/* append IPL PARM data to the boot command line */
 	if (!is_prot_virt_guest() && ipl_block_valid)
@@ -180,9 +185,9 @@ void setup_boot_command_line(void)
 static void modify_facility(unsigned long nr, bool clear)
 {
 	if (clear)
-		__clear_facility(nr, S390_lowcore.stfle_fac_list);
+		__clear_facility(nr, stfle_fac_list);
 	else
-		__set_facility(nr, S390_lowcore.stfle_fac_list);
+		__set_facility(nr, stfle_fac_list);
 }
 
 static void check_cleared_facilities(void)
@@ -191,7 +196,7 @@ static void check_cleared_facilities(void)
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(als); i++) {
-		if ((S390_lowcore.stfle_fac_list[i] & als[i]) != als[i]) {
+		if ((stfle_fac_list[i] & als[i]) != als[i]) {
 			sclp_early_printk("Warning: The Linux kernel requires facilities cleared via command line option\n");
 			print_missing_facilities();
 			break;

@@ -2,43 +2,47 @@
 PXA2xx SPI on SSP driver HOWTO
 ==============================
 
-This a mini howto on the pxa2xx_spi driver.  The driver turns a PXA2xx
-synchronous serial port into a SPI master controller
+This a mini HOWTO on the pxa2xx_spi driver. The driver turns a PXA2xx
+synchronous serial port into an SPI master controller
 (see Documentation/spi/spi-summary.rst). The driver has the following features
 
-- Support for any PXA2xx SSP
+- Support for any PXA2xx and compatible SSP.
 - SSP PIO and SSP DMA data transfers.
 - External and Internal (SSPFRM) chip selects.
 - Per slave device (chip) configuration.
 - Full suspend, freeze, resume support.
 
-The driver is built around a "spi_message" fifo serviced by workqueue and a
-tasklet. The workqueue, "pump_messages", drives message fifo and the tasklet
-(pump_transfer) is responsible for queuing SPI transactions and setting up and
-launching the dma/interrupt driven transfers.
+The driver is built around a &struct spi_message FIFO serviced by kernel
+thread. The kernel thread, spi_pump_messages(), drives message FIFO and
+is responsible for queuing SPI transactions and setting up and launching
+the DMA or interrupt driven transfers.
 
 Declaring PXA2xx Master Controllers
 -----------------------------------
-Typically a SPI master is defined in the arch/.../mach-*/board-*.c as a
-"platform device".  The master configuration is passed to the driver via a table
-found in include/linux/spi/pxa2xx_spi.h::
+Typically, for a legacy platform, an SPI master is defined in the
+arch/.../mach-*/board-*.c as a "platform device". The master configuration
+is passed to the driver via a table found in include/linux/spi/pxa2xx_spi.h::
 
   struct pxa2xx_spi_controller {
 	u16 num_chipselect;
 	u8 enable_dma;
+	...
   };
 
 The "pxa2xx_spi_controller.num_chipselect" field is used to determine the number of
 slave device (chips) attached to this SPI master.
 
 The "pxa2xx_spi_controller.enable_dma" field informs the driver that SSP DMA should
-be used.  This caused the driver to acquire two DMA channels: rx_channel and
-tx_channel.  The rx_channel has a higher DMA service priority the tx_channel.
+be used. This caused the driver to acquire two DMA channels: Rx channel and
+Tx channel. The Rx channel has a higher DMA service priority than the Tx channel.
 See the "PXA2xx Developer Manual" section "DMA Controller".
+
+For the new platforms the description of the controller and peripheral devices
+comes from Device Tree or ACPI.
 
 NSSP MASTER SAMPLE
 ------------------
-Below is a sample configuration using the PXA255 NSSP::
+Below is a sample configuration using the PXA255 NSSP for a legacy platform::
 
   static struct resource pxa_spi_nssp_resources[] = {
 	[0] = {
@@ -79,9 +83,10 @@ Below is a sample configuration using the PXA255 NSSP::
 
 Declaring Slave Devices
 -----------------------
-Typically each SPI slave (chip) is defined in the arch/.../mach-*/board-*.c
-using the "spi_board_info" structure found in "linux/spi/spi.h". See
-"Documentation/spi/spi-summary.rst" for additional information.
+Typically, for a legacy platform, each SPI slave (chip) is defined in the
+arch/.../mach-*/board-*.c using the "spi_board_info" structure found in
+"linux/spi/spi.h". See "Documentation/spi/spi-summary.rst" for additional
+information.
 
 Each slave device attached to the PXA must provide slave specific configuration
 information via the structure "pxa2xx_spi_chip" found in
@@ -101,9 +106,9 @@ device. All fields are optional.
   };
 
 The "pxa2xx_spi_chip.tx_threshold" and "pxa2xx_spi_chip.rx_threshold" fields are
-used to configure the SSP hardware fifo.  These fields are critical to the
+used to configure the SSP hardware FIFO. These fields are critical to the
 performance of pxa2xx_spi driver and misconfiguration will result in rx
-fifo overruns (especially in PIO mode transfers). Good default values are::
+FIFO overruns (especially in PIO mode transfers). Good default values are::
 
 	.tx_threshold = 8,
 	.rx_threshold = 8,
@@ -118,7 +123,7 @@ use a value of 8. The driver will determine a reasonable default if
 dma_burst_size == 0.
 
 The "pxa2xx_spi_chip.timeout" fields is used to efficiently handle
-trailing bytes in the SSP receiver fifo.  The correct value for this field is
+trailing bytes in the SSP receiver FIFO. The correct value for this field is
 dependent on the SPI bus speed ("spi_board_info.max_speed_hz") and the specific
 slave device.  Please note that the PXA2xx SSP 1 does not support trailing byte
 timeouts and must busy-wait any trailing bytes.
@@ -131,19 +136,19 @@ testing.
 The "pxa2xx_spi_chip.cs_control" field is used to point to a board specific
 function for asserting/deasserting a slave device chip select.  If the field is
 NULL, the pxa2xx_spi master controller driver assumes that the SSP port is
-configured to use SSPFRM instead.
+configured to use GPIO or SSPFRM instead.
 
 NOTE: the SPI driver cannot control the chip select if SSPFRM is used, so the
 chipselect is dropped after each spi_transfer.  Most devices need chip select
-asserted around the complete message.  Use SSPFRM as a GPIO (through cs_control)
+asserted around the complete message. Use SSPFRM as a GPIO (through a descriptor)
 to accommodate these chips.
 
 
 NSSP SLAVE SAMPLE
 -----------------
-The pxa2xx_spi_chip structure is passed to the pxa2xx_spi driver in the
-"spi_board_info.controller_data" field. Below is a sample configuration using
-the PXA255 NSSP.
+For a legacy platform or in some other cases, the pxa2xx_spi_chip structure
+is passed to the pxa2xx_spi driver in the "spi_board_info.controller_data"
+field. Below is a sample configuration using the PXA255 NSSP.
 
 ::
 
@@ -212,7 +217,9 @@ DMA and PIO I/O Support
 -----------------------
 The pxa2xx_spi driver supports both DMA and interrupt driven PIO message
 transfers.  The driver defaults to PIO mode and DMA transfers must be enabled
-by setting the "enable_dma" flag in the "pxa2xx_spi_controller" structure.  The DMA
+by setting the "enable_dma" flag in the "pxa2xx_spi_controller" structure.
+For the newer platforms, that are known to support DMA, the driver will enable
+it automatically and try it first with a possible fallback to PIO. The DMA
 mode supports both coherent and stream based DMA mappings.
 
 The following logic is used to determine the type of I/O to be used on
@@ -236,5 +243,4 @@ a per "spi_transfer" basis::
 
 THANKS TO
 ---------
-
 David Brownell and others for mentoring the development of this driver.

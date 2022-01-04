@@ -9,6 +9,7 @@
 #include "xfs_format.h"
 #include "xfs_trans_resv.h"
 #include "xfs_mount.h"
+#include "xfs_inode.h"
 #include "xfs_btree.h"
 #include "scrub/scrub.h"
 #include "scrub/common.h"
@@ -43,7 +44,7 @@ __xchk_btree_process_error(
 		/* Note the badness but don't abort. */
 		sc->sm->sm_flags |= errflag;
 		*error = 0;
-		/* fall through */
+		fallthrough;
 	default:
 		if (cur->bc_flags & XFS_BTREE_ROOT_IN_INODE)
 			trace_xchk_ifork_btree_op_error(sc, cur, level,
@@ -373,10 +374,10 @@ xchk_btree_check_block_owner(
 
 	init_sa = bs->cur->bc_flags & XFS_BTREE_LONG_PTRS;
 	if (init_sa) {
-		error = xchk_ag_init(bs->sc, agno, &bs->sc->sa);
+		error = xchk_ag_init_existing(bs->sc, agno, &bs->sc->sa);
 		if (!xchk_btree_xref_process_error(bs->sc, bs->cur,
 				level, &error))
-			return error;
+			goto out_free;
 	}
 
 	xchk_xref_is_used_space(bs->sc, agbno, 1);
@@ -392,6 +393,7 @@ xchk_btree_check_block_owner(
 	if (!bs->sc->sa.rmap_cur && btnum == XFS_BTNUM_RMAP)
 		bs->cur = NULL;
 
+out_free:
 	if (init_sa)
 		xchk_ag_free(bs->sc, &bs->sc->sa);
 
@@ -434,12 +436,36 @@ xchk_btree_check_owner(
 		if (!co)
 			return -ENOMEM;
 		co->level = level;
-		co->daddr = XFS_BUF_ADDR(bp);
+		co->daddr = xfs_buf_daddr(bp);
 		list_add_tail(&co->list, &bs->to_check);
 		return 0;
 	}
 
-	return xchk_btree_check_block_owner(bs, level, XFS_BUF_ADDR(bp));
+	return xchk_btree_check_block_owner(bs, level, xfs_buf_daddr(bp));
+}
+
+/* Decide if we want to check minrecs of a btree block in the inode root. */
+static inline bool
+xchk_btree_check_iroot_minrecs(
+	struct xchk_btree	*bs)
+{
+	/*
+	 * xfs_bmap_add_attrfork_btree had an implementation bug wherein it
+	 * would miscalculate the space required for the data fork bmbt root
+	 * when adding an attr fork, and promote the iroot contents to an
+	 * external block unnecessarily.  This went unnoticed for many years
+	 * until scrub found filesystems in this state.  Inode rooted btrees are
+	 * not supposed to have immediate child blocks that are small enough
+	 * that the contents could fit in the inode root, but we can't fail
+	 * existing filesystems, so instead we disable the check for data fork
+	 * bmap btrees when there's an attr fork.
+	 */
+	if (bs->cur->bc_btnum == XFS_BTNUM_BMAP &&
+	    bs->cur->bc_ino.whichfork == XFS_DATA_FORK &&
+	    XFS_IFORK_Q(bs->sc->ip))
+		return false;
+
+	return true;
 }
 
 /*
@@ -475,8 +501,9 @@ xchk_btree_check_minrecs(
 
 		root_block = xfs_btree_get_block(cur, root_level, &root_bp);
 		root_maxrecs = cur->bc_ops->get_dmaxrecs(cur, root_level);
-		if (be16_to_cpu(root_block->bb_numrecs) != 1 ||
-		    numrecs <= root_maxrecs)
+		if (xchk_btree_check_iroot_minrecs(bs) &&
+		    (be16_to_cpu(root_block->bb_numrecs) != 1 ||
+		     numrecs <= root_maxrecs))
 			xchk_btree_set_corrupt(bs->sc, cur, level);
 		return;
 	}

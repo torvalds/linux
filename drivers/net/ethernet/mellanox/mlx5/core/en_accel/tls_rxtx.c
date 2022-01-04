@@ -263,9 +263,6 @@ bool mlx5e_tls_handle_tx_skb(struct net_device *netdev, struct mlx5e_txqsq *sq,
 	int datalen;
 	u32 skb_seq;
 
-	if (!skb->sk || !tls_is_sk_tx_device_offloaded(skb->sk))
-		return true;
-
 	datalen = skb->len - (skb_transport_offset(skb) + tcp_hdrlen(skb));
 	if (!datalen)
 		return true;
@@ -276,7 +273,7 @@ bool mlx5e_tls_handle_tx_skb(struct net_device *netdev, struct mlx5e_txqsq *sq,
 	if (WARN_ON_ONCE(tls_ctx->netdev != netdev))
 		goto err_out;
 
-	if (mlx5_accel_is_ktls_tx(sq->mdev))
+	if (mlx5e_accel_is_ktls_tx(sq->mdev))
 		return mlx5e_ktls_handle_tx_skb(tls_ctx, sq, skb, datalen, state);
 
 	/* FPGA */
@@ -299,12 +296,6 @@ bool mlx5e_tls_handle_tx_skb(struct net_device *netdev, struct mlx5e_txqsq *sq,
 err_out:
 	dev_kfree_skb_any(skb);
 	return false;
-}
-
-void mlx5e_tls_handle_tx_wqe(struct mlx5e_txqsq *sq, struct mlx5_wqe_ctrl_seg *cseg,
-			     struct mlx5e_accel_tx_tls_state *state)
-{
-	cseg->tis_tir_num = cpu_to_be32(state->tls_tisn << 8);
 }
 
 static int tls_update_resync_sn(struct net_device *netdev,
@@ -387,11 +378,11 @@ void mlx5e_tls_handle_rx_skb_metadata(struct mlx5e_rq *rq, struct sk_buff *skb,
 
 u16 mlx5e_tls_get_stop_room(struct mlx5_core_dev *mdev, struct mlx5e_params *params)
 {
-	if (!mlx5_accel_is_tls_device(mdev))
+	if (!mlx5e_accel_is_tls_device(mdev))
 		return 0;
 
-	if (mlx5_accel_is_ktls_device(mdev))
-		return mlx5e_ktls_get_stop_room(params);
+	if (mlx5e_accel_is_ktls_device(mdev))
+		return mlx5e_ktls_get_stop_room(mdev, params);
 
 	/* FPGA */
 	/* Resync SKB. */

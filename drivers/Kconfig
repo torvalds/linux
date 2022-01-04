@@ -33,8 +33,6 @@ source "drivers/nvme/Kconfig"
 
 source "drivers/misc/Kconfig"
 
-source "drivers/ide/Kconfig"
-
 source "drivers/scsi/Kconfig"
 
 source "drivers/ata/Kconfig"
@@ -52,8 +50,6 @@ source "drivers/macintosh/Kconfig"
 source "drivers/net/Kconfig"
 
 source "drivers/isdn/Kconfig"
-
-source "drivers/lightnvm/Kconfig"
 
 # input before char - char/joystick depends on it. As does USB.
 

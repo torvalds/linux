@@ -9,14 +9,6 @@
 #include "dp_catalog.h"
 #include <drm/drm_dp_helper.h>
 
-#define DP_AUX_ERR_NONE		0
-#define DP_AUX_ERR_ADDR		-1
-#define DP_AUX_ERR_TOUT		-2
-#define DP_AUX_ERR_NACK		-3
-#define DP_AUX_ERR_DEFER	-4
-#define DP_AUX_ERR_NACK_DEFER	-5
-#define DP_AUX_ERR_PHY		-6
-
 int dp_aux_register(struct drm_dp_aux *dp_aux);
 void dp_aux_unregister(struct drm_dp_aux *dp_aux);
 void dp_aux_isr(struct drm_dp_aux *dp_aux);

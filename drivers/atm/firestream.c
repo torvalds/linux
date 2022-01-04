@@ -795,6 +795,7 @@ static void process_incoming (struct fs_dev *dev, struct queue *q)
 		switch (STATUS_CODE (qe)) {
 		case 0x1:
 			/* Fall through for streaming mode */
+			fallthrough;
 		case 0x2:/* Packet received OK.... */
 			if (atm_vcc) {
 				skb = pe->skb;

@@ -7,10 +7,11 @@
  * Copyright 2006-2010	Johannes Berg <johannes@sipsolutions.net>
  * Copyright 2013-2014 Intel Mobile Communications GmbH
  * Copyright 2015-2017	Intel Deutschland GmbH
- * Copyright (C) 2018-2020 Intel Corporation
+ * Copyright (C) 2018-2021 Intel Corporation
  */
 
 #include <linux/ethtool.h>
+#include <uapi/linux/rfkill.h>
 #include <linux/netdevice.h>
 #include <linux/debugfs.h>
 #include <linux/list.h>
@@ -21,6 +22,7 @@
 #include <linux/if_ether.h>
 #include <linux/ieee80211.h>
 #include <linux/net.h>
+#include <linux/rfkill.h>
 #include <net/regulatory.h>
 
 /**
@@ -359,7 +361,7 @@ struct ieee80211_sta_he_cap {
 };
 
 /**
- * struct ieee80211_sband_iftype_data
+ * struct ieee80211_sband_iftype_data - sband data per interface type
  *
  * This structure encapsulates sband data that is relevant for the
  * interface types defined in @types_mask.  Each type in the
@@ -369,11 +371,18 @@ struct ieee80211_sta_he_cap {
  * @he_cap: holds the HE capabilities
  * @he_6ghz_capa: HE 6 GHz capabilities, must be filled in for a
  *	6 GHz band channel (and 0 may be valid value).
+ * @vendor_elems: vendor element(s) to advertise
+ * @vendor_elems.data: vendor element(s) data
+ * @vendor_elems.len: vendor element(s) length
  */
 struct ieee80211_sband_iftype_data {
 	u16 types_mask;
 	struct ieee80211_sta_he_cap he_cap;
 	struct ieee80211_he_6ghz_capa he_6ghz_capa;
+	struct {
+		const u8 *data;
+		unsigned int len;
+	} vendor_elems;
 };
 
 /**
@@ -530,18 +539,6 @@ ieee80211_get_he_iftype_cap(const struct ieee80211_supported_band *sband,
 		return &data->he_cap;
 
 	return NULL;
-}
-
-/**
- * ieee80211_get_he_sta_cap - return HE capabilities for an sband's STA
- * @sband: the sband to search for the STA on
- *
- * Return: pointer to the struct ieee80211_sta_he_cap, or NULL is none found
- */
-static inline const struct ieee80211_sta_he_cap *
-ieee80211_get_he_sta_cap(const struct ieee80211_supported_band *sband)
-{
-	return ieee80211_get_he_iftype_cap(sband, NL80211_IFTYPE_STATION);
 }
 
 /**
@@ -905,6 +902,17 @@ ieee80211_chandef_max_power(struct cfg80211_chan_def *chandef)
 }
 
 /**
+ * cfg80211_any_usable_channels - check for usable channels
+ * @wiphy: the wiphy to check for
+ * @band_mask: which bands to check on
+ * @prohibited_flags: which channels to not consider usable,
+ *	%IEEE80211_CHAN_DISABLED is always taken into account
+ */
+bool cfg80211_any_usable_channels(struct wiphy *wiphy,
+				  unsigned long band_mask,
+				  u32 prohibited_flags);
+
+/**
  * enum survey_info_flags - survey information flags
  *
  * @SURVEY_INFO_NOISE_DBM: noise (in dBm) was filled in
@@ -1244,7 +1252,26 @@ struct cfg80211_csa_settings {
 	u8 count;
 };
 
-#define CFG80211_MAX_NUM_DIFFERENT_CHANNELS 10
+/**
+ * struct cfg80211_color_change_settings - color change settings
+ *
+ * Used for bss color change
+ *
+ * @beacon_color_change: beacon data while performing the color countdown
+ * @counter_offsets_beacon: offsets of the counters within the beacon (tail)
+ * @counter_offsets_presp: offsets of the counters within the probe response
+ * @beacon_next: beacon data to be used after the color change
+ * @count: number of beacons until the color change
+ * @color: the color used after the change
+ */
+struct cfg80211_color_change_settings {
+	struct cfg80211_beacon_data beacon_color_change;
+	u16 counter_offset_beacon;
+	u16 counter_offset_presp;
+	struct cfg80211_beacon_data beacon_next;
+	u8 count;
+	u8 color;
+};
 
 /**
  * struct iface_combination_params - input parameters for interface combinations
@@ -3520,6 +3547,11 @@ struct cfg80211_pmsr_result {
  * @non_trigger_based: use non trigger based ranging for the measurement
  *		 If neither @trigger_based nor @non_trigger_based is set,
  *		 EDCA based ranging will be used.
+ * @lmr_feedback: negotiate for I2R LMR feedback. Only valid if either
+ *		 @trigger_based or @non_trigger_based is set.
+ * @bss_color: the bss color of the responder. Optional. Set to zero to
+ *	indicate the driver should set the BSS color. Only valid if
+ *	@non_trigger_based or @trigger_based is set.
  *
  * See also nl80211 for the respective attribute documentation.
  */
@@ -3531,11 +3563,13 @@ struct cfg80211_pmsr_ftm_request_peer {
 	   request_lci:1,
 	   request_civicloc:1,
 	   trigger_based:1,
-	   non_trigger_based:1;
+	   non_trigger_based:1,
+	   lmr_feedback:1;
 	u8 num_bursts_exp;
 	u8 burst_duration;
 	u8 ftms_per_burst;
 	u8 ftmr_retries;
+	u8 bss_color;
 };
 
 /**
@@ -3982,6 +4016,8 @@ struct mgmt_frame_regs {
  *	given TIDs. This callback may sleep.
  *
  * @set_sar_specs: Update the SAR (TX power) settings.
+ *
+ * @color_change: Initiate a color change.
  */
 struct cfg80211_ops {
 	int	(*suspend)(struct wiphy *wiphy, struct cfg80211_wowlan *wow);
@@ -4309,6 +4345,9 @@ struct cfg80211_ops {
 				    const u8 *peer, u8 tids);
 	int	(*set_sar_specs)(struct wiphy *wiphy,
 				 struct cfg80211_sar_specs *sar);
+	int	(*color_change)(struct wiphy *wiphy,
+				struct net_device *dev,
+				struct cfg80211_color_change_settings *params);
 };
 
 /*
@@ -4941,6 +4980,7 @@ struct wiphy_iftype_akm_suites {
  *	configuration through the %NL80211_TID_CONFIG_ATTR_RETRY_SHORT and
  *	%NL80211_TID_CONFIG_ATTR_RETRY_LONG attributes
  * @sar_capa: SAR control capabilities
+ * @rfkill: a pointer to the rfkill structure
  */
 struct wiphy {
 	struct mutex mtx;
@@ -5082,6 +5122,8 @@ struct wiphy {
 	u8 max_data_retry_count;
 
 	const struct cfg80211_sar_capa *sar_capa;
+
+	struct rfkill *rfkill;
 
 	char priv[] __aligned(NETDEV_ALIGN);
 };
@@ -5606,7 +5648,7 @@ static inline bool cfg80211_channel_is_psc(struct ieee80211_channel *chan)
  * which is, for this function, given as a bitmap of indices of
  * rates in the band's bitrate table.
  */
-struct ieee80211_rate *
+const struct ieee80211_rate *
 ieee80211_get_response_rate(struct ieee80211_supported_band *sband,
 			    u32 basic_rates, int bitrate);
 
@@ -5756,7 +5798,7 @@ unsigned int ieee80211_get_mesh_hdrlen(struct ieee80211s_hdr *meshhdr);
  */
 int ieee80211_data_to_8023_exthdr(struct sk_buff *skb, struct ethhdr *ehdr,
 				  const u8 *addr, enum nl80211_iftype iftype,
-				  u8 data_offset);
+				  u8 data_offset, bool is_amsdu);
 
 /**
  * ieee80211_data_to_8023 - convert an 802.11 data frame to 802.3
@@ -5768,7 +5810,7 @@ int ieee80211_data_to_8023_exthdr(struct sk_buff *skb, struct ethhdr *ehdr,
 static inline int ieee80211_data_to_8023(struct sk_buff *skb, const u8 *addr,
 					 enum nl80211_iftype iftype)
 {
-	return ieee80211_data_to_8023_exthdr(skb, NULL, addr, iftype, 0);
+	return ieee80211_data_to_8023_exthdr(skb, NULL, addr, iftype, 0, false);
 }
 
 /**
@@ -6633,11 +6675,19 @@ void cfg80211_notify_new_peer_candidate(struct net_device *dev,
  */
 
 /**
- * wiphy_rfkill_set_hw_state - notify cfg80211 about hw block state
+ * wiphy_rfkill_set_hw_state_reason - notify cfg80211 about hw block state
  * @wiphy: the wiphy
  * @blocked: block status
+ * @reason: one of reasons in &enum rfkill_hard_block_reasons
  */
-void wiphy_rfkill_set_hw_state(struct wiphy *wiphy, bool blocked);
+void wiphy_rfkill_set_hw_state_reason(struct wiphy *wiphy, bool blocked,
+				      enum rfkill_hard_block_reasons reason);
+
+static inline void wiphy_rfkill_set_hw_state(struct wiphy *wiphy, bool blocked)
+{
+	wiphy_rfkill_set_hw_state_reason(wiphy, blocked,
+					 RFKILL_HARD_BLOCK_SIGNAL);
+}
 
 /**
  * wiphy_rfkill_start_polling - start polling rfkill
@@ -6649,7 +6699,10 @@ void wiphy_rfkill_start_polling(struct wiphy *wiphy);
  * wiphy_rfkill_stop_polling - stop polling rfkill
  * @wiphy: the wiphy
  */
-void wiphy_rfkill_stop_polling(struct wiphy *wiphy);
+static inline void wiphy_rfkill_stop_polling(struct wiphy *wiphy)
+{
+	rfkill_pause_polling(wiphy->rfkill);
+}
 
 /**
  * DOC: Vendor commands
@@ -6731,7 +6784,7 @@ cfg80211_vendor_cmd_alloc_reply_skb(struct wiphy *wiphy, int approxlen)
 int cfg80211_vendor_cmd_reply(struct sk_buff *skb);
 
 /**
- * cfg80211_vendor_cmd_get_sender
+ * cfg80211_vendor_cmd_get_sender - get the current sender netlink ID
  * @wiphy: the wiphy
  *
  * Return the current netlink port ID in a vendor command handler.
@@ -8142,6 +8195,8 @@ bool cfg80211_iftype_allowed(struct wiphy *wiphy, enum nl80211_iftype iftype,
 	dev_notice(&(wiphy)->dev, format, ##args)
 #define wiphy_info(wiphy, format, args...)			\
 	dev_info(&(wiphy)->dev, format, ##args)
+#define wiphy_info_once(wiphy, format, args...)			\
+	dev_info_once(&(wiphy)->dev, format, ##args)
 
 #define wiphy_err_ratelimited(wiphy, format, args...)		\
 	dev_err_ratelimited(&(wiphy)->dev, format, ##args)
@@ -8188,5 +8243,71 @@ void cfg80211_update_owe_info_event(struct net_device *netdev,
  * @wiphy: the wiphy
  */
 void cfg80211_bss_flush(struct wiphy *wiphy);
+
+/**
+ * cfg80211_bss_color_notify - notify about bss color event
+ * @dev: network device
+ * @gfp: allocation flags
+ * @cmd: the actual event we want to notify
+ * @count: the number of TBTTs until the color change happens
+ * @color_bitmap: representations of the colors that the local BSS is aware of
+ */
+int cfg80211_bss_color_notify(struct net_device *dev, gfp_t gfp,
+			      enum nl80211_commands cmd, u8 count,
+			      u64 color_bitmap);
+
+/**
+ * cfg80211_obss_color_collision_notify - notify about bss color collision
+ * @dev: network device
+ * @color_bitmap: representations of the colors that the local BSS is aware of
+ */
+static inline int cfg80211_obss_color_collision_notify(struct net_device *dev,
+						       u64 color_bitmap)
+{
+	return cfg80211_bss_color_notify(dev, GFP_KERNEL,
+					 NL80211_CMD_OBSS_COLOR_COLLISION,
+					 0, color_bitmap);
+}
+
+/**
+ * cfg80211_color_change_started_notify - notify color change start
+ * @dev: the device on which the color is switched
+ * @count: the number of TBTTs until the color change happens
+ *
+ * Inform the userspace about the color change that has started.
+ */
+static inline int cfg80211_color_change_started_notify(struct net_device *dev,
+						       u8 count)
+{
+	return cfg80211_bss_color_notify(dev, GFP_KERNEL,
+					 NL80211_CMD_COLOR_CHANGE_STARTED,
+					 count, 0);
+}
+
+/**
+ * cfg80211_color_change_aborted_notify - notify color change abort
+ * @dev: the device on which the color is switched
+ *
+ * Inform the userspace about the color change that has aborted.
+ */
+static inline int cfg80211_color_change_aborted_notify(struct net_device *dev)
+{
+	return cfg80211_bss_color_notify(dev, GFP_KERNEL,
+					 NL80211_CMD_COLOR_CHANGE_ABORTED,
+					 0, 0);
+}
+
+/**
+ * cfg80211_color_change_notify - notify color change completion
+ * @dev: the device on which the color was switched
+ *
+ * Inform the userspace about the color change that has completed.
+ */
+static inline int cfg80211_color_change_notify(struct net_device *dev)
+{
+	return cfg80211_bss_color_notify(dev, GFP_KERNEL,
+					 NL80211_CMD_COLOR_CHANGE_COMPLETED,
+					 0, 0);
+}
 
 #endif /* __NET_CFG80211_H */

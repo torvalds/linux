@@ -83,7 +83,6 @@ raw_copy_to_user(void __user *to, const void *from, unsigned long n);
 
 extern long strncpy_from_user(char *__to, const char __user *__from,
 			      long __len);
-extern __must_check long strlen_user(const char __user *str);
 extern __must_check long strnlen_user(const char __user *s, long n);
 
 /* Optimized macros */

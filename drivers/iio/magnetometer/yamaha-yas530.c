@@ -831,7 +831,7 @@ static int yas5xx_probe(struct i2c_client *i2c,
 	yas5xx->dev = dev;
 	mutex_init(&yas5xx->lock);
 
-	ret = iio_read_mount_matrix(dev, "mount-matrix", &yas5xx->orientation);
+	ret = iio_read_mount_matrix(dev, &yas5xx->orientation);
 	if (ret)
 		return ret;
 

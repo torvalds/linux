@@ -43,6 +43,7 @@ struct mcp23s08 {
 
 	struct pinctrl_dev	*pctldev;
 	struct pinctrl_desc	pinctrl_desc;
+	struct gpio_desc        *reset_gpio;
 };
 
 extern const struct regmap_config mcp23x08_regmap;

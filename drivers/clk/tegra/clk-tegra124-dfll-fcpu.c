@@ -537,7 +537,7 @@ static void get_alignment_from_dt(struct device *dev,
 static int get_alignment_from_regulator(struct device *dev,
 					 struct rail_alignment *align)
 {
-	struct regulator *reg = devm_regulator_get(dev, "vdd-cpu");
+	struct regulator *reg = regulator_get(dev, "vdd-cpu");
 
 	if (IS_ERR(reg))
 		return PTR_ERR(reg);
@@ -545,7 +545,7 @@ static int get_alignment_from_regulator(struct device *dev,
 	align->offset_uv = regulator_list_voltage(reg, 0);
 	align->step_uv = regulator_get_linear_step(reg);
 
-	devm_regulator_put(reg);
+	regulator_put(reg);
 
 	return 0;
 }

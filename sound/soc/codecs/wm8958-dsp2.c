@@ -912,18 +912,18 @@ void wm8958_dsp2_init(struct snd_soc_component *component)
 
 
 	/* We don't *require* firmware and don't want to delay boot */
-	request_firmware_nowait(THIS_MODULE, FW_ACTION_HOTPLUG,
+	request_firmware_nowait(THIS_MODULE, FW_ACTION_UEVENT,
 				"wm8958_mbc.wfw", component->dev, GFP_KERNEL,
 				component, wm8958_mbc_loaded);
-	request_firmware_nowait(THIS_MODULE, FW_ACTION_HOTPLUG,
+	request_firmware_nowait(THIS_MODULE, FW_ACTION_UEVENT,
 				"wm8958_mbc_vss.wfw", component->dev, GFP_KERNEL,
 				component, wm8958_mbc_vss_loaded);
-	request_firmware_nowait(THIS_MODULE, FW_ACTION_HOTPLUG,
+	request_firmware_nowait(THIS_MODULE, FW_ACTION_UEVENT,
 				"wm8958_enh_eq.wfw", component->dev, GFP_KERNEL,
 				component, wm8958_enh_eq_loaded);
 
 	if (pdata->num_mbc_cfgs) {
-		struct snd_kcontrol_new control[] = {
+		struct snd_kcontrol_new mbc_control[] = {
 			SOC_ENUM_EXT("MBC Mode", wm8994->mbc_enum,
 				     wm8958_get_mbc_enum, wm8958_put_mbc_enum),
 		};
@@ -942,14 +942,14 @@ void wm8958_dsp2_init(struct snd_soc_component *component)
 		wm8994->mbc_enum.texts = wm8994->mbc_texts;
 
 		ret = snd_soc_add_component_controls(wm8994->hubs.component,
-						 control, 1);
+						 mbc_control, 1);
 		if (ret != 0)
 			dev_err(wm8994->hubs.component->dev,
 				"Failed to add MBC mode controls: %d\n", ret);
 	}
 
 	if (pdata->num_vss_cfgs) {
-		struct snd_kcontrol_new control[] = {
+		struct snd_kcontrol_new vss_control[] = {
 			SOC_ENUM_EXT("VSS Mode", wm8994->vss_enum,
 				     wm8958_get_vss_enum, wm8958_put_vss_enum),
 		};
@@ -968,14 +968,14 @@ void wm8958_dsp2_init(struct snd_soc_component *component)
 		wm8994->vss_enum.texts = wm8994->vss_texts;
 
 		ret = snd_soc_add_component_controls(wm8994->hubs.component,
-						 control, 1);
+						 vss_control, 1);
 		if (ret != 0)
 			dev_err(wm8994->hubs.component->dev,
 				"Failed to add VSS mode controls: %d\n", ret);
 	}
 
 	if (pdata->num_vss_hpf_cfgs) {
-		struct snd_kcontrol_new control[] = {
+		struct snd_kcontrol_new hpf_control[] = {
 			SOC_ENUM_EXT("VSS HPF Mode", wm8994->vss_hpf_enum,
 				     wm8958_get_vss_hpf_enum,
 				     wm8958_put_vss_hpf_enum),
@@ -995,7 +995,7 @@ void wm8958_dsp2_init(struct snd_soc_component *component)
 		wm8994->vss_hpf_enum.texts = wm8994->vss_hpf_texts;
 
 		ret = snd_soc_add_component_controls(wm8994->hubs.component,
-						 control, 1);
+						 hpf_control, 1);
 		if (ret != 0)
 			dev_err(wm8994->hubs.component->dev,
 				"Failed to add VSS HPFmode controls: %d\n",
@@ -1003,7 +1003,7 @@ void wm8958_dsp2_init(struct snd_soc_component *component)
 	}
 
 	if (pdata->num_enh_eq_cfgs) {
-		struct snd_kcontrol_new control[] = {
+		struct snd_kcontrol_new eq_control[] = {
 			SOC_ENUM_EXT("Enhanced EQ Mode", wm8994->enh_eq_enum,
 				     wm8958_get_enh_eq_enum,
 				     wm8958_put_enh_eq_enum),
@@ -1023,7 +1023,7 @@ void wm8958_dsp2_init(struct snd_soc_component *component)
 		wm8994->enh_eq_enum.texts = wm8994->enh_eq_texts;
 
 		ret = snd_soc_add_component_controls(wm8994->hubs.component,
-						 control, 1);
+						 eq_control, 1);
 		if (ret != 0)
 			dev_err(wm8994->hubs.component->dev,
 				"Failed to add enhanced EQ controls: %d\n",

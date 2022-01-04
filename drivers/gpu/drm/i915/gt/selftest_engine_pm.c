@@ -1,6 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
- * SPDX-License-Identifier: GPL-2.0
- *
  * Copyright © 2018 Intel Corporation
  */
 
@@ -111,13 +110,15 @@ static int __measure_timestamps(struct intel_context *ce,
 		cpu_relax();
 
 	/* Run the request for a 100us, sampling timestamps before/after */
-	preempt_disable();
-	*dt = local_clock();
+	local_irq_disable();
 	write_semaphore(&sema[2], 0);
+	while (READ_ONCE(sema[1]) == 0) /* wait for the gpu to catch up */
+		cpu_relax();
+	*dt = local_clock();
 	udelay(100);
 	*dt = local_clock() - *dt;
 	write_semaphore(&sema[2], 1);
-	preempt_enable();
+	local_irq_enable();
 
 	if (i915_request_wait(rq, 0, HZ / 2) < 0) {
 		i915_request_put(rq);
@@ -172,8 +173,8 @@ static int __live_engine_timestamps(struct intel_engine_cs *engine)
 	d_ctx = trifilter(s_ctx);
 
 	d_ctx *= engine->gt->clock_frequency;
-	if (IS_ICELAKE(engine->i915))
-		d_ring *= 12500000; /* Fixed 80ns for icl ctx timestamp? */
+	if (GRAPHICS_VER(engine->i915) == 11)
+		d_ring *= 12500000; /* Fixed 80ns for GEN11 ctx timestamp? */
 	else
 		d_ring *= engine->gt->clock_frequency;
 
@@ -197,7 +198,7 @@ static int live_engine_timestamps(void *arg)
 	 * the same CS clock.
 	 */
 
-	if (INTEL_GEN(gt->i915) < 8)
+	if (GRAPHICS_VER(gt->i915) < 8)
 		return 0;
 
 	for_each_engine(engine, gt, id) {

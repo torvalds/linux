@@ -267,6 +267,7 @@
 #include <linux/slab.h>
 #include <linux/errqueue.h>
 #include <linux/static_key.h>
+#include <linux/btf.h>
 
 #include <net/icmp.h>
 #include <net/inet_common.h>
@@ -1374,6 +1375,9 @@ new_segment:
 			}
 			pfrag->offset += copy;
 		} else {
+			if (!sk_wmem_schedule(sk, copy))
+				goto wait_for_space;
+
 			err = skb_zerocopy_iter_stream(sk, skb, msg, copy, uarg);
 			if (err == -EMSGSIZE || err == -EEXIST) {
 				tcp_mark_push(tp, skb);
@@ -1737,8 +1741,8 @@ int tcp_set_rcvlowat(struct sock *sk, int val)
 }
 EXPORT_SYMBOL(tcp_set_rcvlowat);
 
-static void tcp_update_recv_tstamps(struct sk_buff *skb,
-				    struct scm_timestamping_internal *tss)
+void tcp_update_recv_tstamps(struct sk_buff *skb,
+			     struct scm_timestamping_internal *tss)
 {
 	if (skb->tstamp)
 		tss->ts[0] = ktime_to_timespec64(skb->tstamp);
@@ -2023,8 +2027,6 @@ static int tcp_zerocopy_vm_insert_batch(struct vm_area_struct *vma,
 }
 
 #define TCP_VALID_ZC_MSG_FLAGS   (TCP_CMSG_TS)
-static void tcp_recv_timestamp(struct msghdr *msg, const struct sock *sk,
-			       struct scm_timestamping_internal *tss);
 static void tcp_zc_finalize_rx_tstamp(struct sock *sk,
 				      struct tcp_zerocopy_receive *zc,
 				      struct scm_timestamping_internal *tss)
@@ -2038,6 +2040,7 @@ static void tcp_zc_finalize_rx_tstamp(struct sock *sk,
 		(__kernel_size_t)zc->msg_controllen;
 	cmsg_dummy.msg_flags = in_compat_syscall()
 		? MSG_CMSG_COMPAT : 0;
+	cmsg_dummy.msg_control_is_user = true;
 	zc->msg_flags = 0;
 	if (zc->msg_control == msg_control_addr &&
 	    zc->msg_controllen == cmsg_dummy.msg_controllen) {
@@ -2093,8 +2096,8 @@ static int tcp_zerocopy_receive(struct sock *sk,
 
 	mmap_read_lock(current->mm);
 
-	vma = find_vma(current->mm, address);
-	if (!vma || vma->vm_start > address || vma->vm_ops != &tcp_vm_ops) {
+	vma = vma_lookup(current->mm, address);
+	if (!vma || vma->vm_ops != &tcp_vm_ops) {
 		mmap_read_unlock(current->mm);
 		return -EINVAL;
 	}
@@ -2195,8 +2198,8 @@ out:
 #endif
 
 /* Similar to __sock_recv_timestamp, but does not require an skb */
-static void tcp_recv_timestamp(struct msghdr *msg, const struct sock *sk,
-			       struct scm_timestamping_internal *tss)
+void tcp_recv_timestamp(struct msghdr *msg, const struct sock *sk,
+			struct scm_timestamping_internal *tss)
 {
 	int new_tstamp = sock_flag(sk, SOCK_TSTAMP_NEW);
 	bool has_timestamping = false;
@@ -2586,6 +2589,17 @@ void tcp_set_state(struct sock *sk, int state)
 	BUILD_BUG_ON((int)BPF_TCP_CLOSING != (int)TCP_CLOSING);
 	BUILD_BUG_ON((int)BPF_TCP_NEW_SYN_RECV != (int)TCP_NEW_SYN_RECV);
 	BUILD_BUG_ON((int)BPF_TCP_MAX_STATES != (int)TCP_MAX_STATES);
+
+	/* bpf uapi header bpf.h defines an anonymous enum with values
+	 * BPF_TCP_* used by bpf programs. Currently gcc built vmlinux
+	 * is able to emit this enum in DWARF due to the above BUILD_BUG_ON.
+	 * But clang built vmlinux does not have this enum in DWARF
+	 * since clang removes the above code before generating IR/debuginfo.
+	 * Let us explicitly emit the type debuginfo to ensure the
+	 * above-mentioned anonymous enum in the vmlinux DWARF and hence BTF
+	 * regardless of which compiler is used.
+	 */
+	BTF_TYPE_EMIT_ENUM(BPF_TCP_ESTABLISHED);
 
 	if (BPF_SOCK_OPS_TEST_FLAG(tcp_sk(sk), BPF_SOCK_OPS_STATE_CB_FLAG))
 		tcp_call_bpf_2arg(sk, BPF_SOCK_OPS_STATE_CB, oldstate, state);
@@ -3048,7 +3062,7 @@ int tcp_disconnect(struct sock *sk, int flags)
 		sk->sk_frag.offset = 0;
 	}
 
-	sk->sk_error_report(sk);
+	sk_error_report(sk);
 	return 0;
 }
 EXPORT_SYMBOL(tcp_disconnect);
@@ -3324,6 +3338,7 @@ int tcp_set_window_clamp(struct sock *sk, int val)
 	} else {
 		tp->window_clamp = val < SOCK_MIN_RCVBUF / 2 ?
 			SOCK_MIN_RCVBUF / 2 : val;
+		tp->rcv_ssthresh = min(tp->rcv_wnd, tp->window_clamp);
 	}
 	return 0;
 }
@@ -4437,7 +4452,7 @@ int tcp_abort(struct sock *sk, int err)
 		sk->sk_err = err;
 		/* This barrier is coupled with smp_rmb() in tcp_poll() */
 		smp_wmb();
-		sk->sk_error_report(sk);
+		sk_error_report(sk);
 		if (tcp_need_reset(sk->sk_state))
 			tcp_send_active_reset(sk, GFP_ATOMIC);
 		tcp_done(sk);
@@ -4498,7 +4513,9 @@ void __init tcp_init(void)
 	tcp_hashinfo.bind_bucket_cachep =
 		kmem_cache_create("tcp_bind_bucket",
 				  sizeof(struct inet_bind_bucket), 0,
-				  SLAB_HWCACHE_ALIGN|SLAB_PANIC, NULL);
+				  SLAB_HWCACHE_ALIGN | SLAB_PANIC |
+				  SLAB_ACCOUNT,
+				  NULL);
 
 	/* Size and allocate the main established and bind bucket
 	 * hash tables.

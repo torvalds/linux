@@ -567,6 +567,7 @@ struct nfsd4_copy {
 	struct vfsmount		*ss_mnt;
 	struct nfs_fh		c_fh;
 	nfs4_stateid		stateid;
+	bool			committed;
 };
 
 struct nfsd4_seek {
@@ -866,9 +867,3 @@ struct nfsd4_operation {
 
 
 #endif
-
-/*
- * Local variables:
- *  c-basic-offset: 8
- * End:
- */

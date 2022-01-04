@@ -58,7 +58,7 @@ struct bpf_local_storage_data {
 	 * from the object's bpf_local_storage.
 	 *
 	 * Put it in the same cacheline as the data to minimize
-	 * the number of cachelines access during the cache hit case.
+	 * the number of cachelines accessed during the cache hit case.
 	 */
 	struct bpf_local_storage_map __rcu *smap;
 	u8 data[] __aligned(8);
@@ -71,7 +71,7 @@ struct bpf_local_storage_elem {
 	struct bpf_local_storage __rcu *local_storage;
 	struct rcu_head rcu;
 	/* 8 bytes hole */
-	/* The data is stored in aother cacheline to minimize
+	/* The data is stored in another cacheline to minimize
 	 * the number of cachelines access during a cache hit.
 	 */
 	struct bpf_local_storage_data sdata ____cacheline_aligned;
@@ -126,7 +126,8 @@ bpf_local_storage_lookup(struct bpf_local_storage *local_storage,
 			 struct bpf_local_storage_map *smap,
 			 bool cacheit_lockit);
 
-void bpf_local_storage_map_free(struct bpf_local_storage_map *smap);
+void bpf_local_storage_map_free(struct bpf_local_storage_map *smap,
+				int __percpu *busy_counter);
 
 int bpf_local_storage_map_check_btf(const struct bpf_map *map,
 				    const struct btf *btf,

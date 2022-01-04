@@ -585,7 +585,7 @@ static void gen8_init_irq(
 
 		SET_BIT_INFO(irq, 4, PRIMARY_C_FLIP_DONE, INTEL_GVT_IRQ_INFO_DE_PIPE_C);
 		SET_BIT_INFO(irq, 5, SPRITE_C_FLIP_DONE, INTEL_GVT_IRQ_INFO_DE_PIPE_C);
-	} else if (INTEL_GEN(gvt->gt->i915) >= 9) {
+	} else if (GRAPHICS_VER(gvt->gt->i915) >= 9) {
 		SET_BIT_INFO(irq, 25, AUX_CHANNEL_B, INTEL_GVT_IRQ_INFO_DE_PORT);
 		SET_BIT_INFO(irq, 26, AUX_CHANNEL_C, INTEL_GVT_IRQ_INFO_DE_PORT);
 		SET_BIT_INFO(irq, 27, AUX_CHANNEL_D, INTEL_GVT_IRQ_INFO_DE_PORT);
@@ -647,38 +647,6 @@ static void init_events(
 	}
 }
 
-static enum hrtimer_restart vblank_timer_fn(struct hrtimer *data)
-{
-	struct intel_gvt_vblank_timer *vblank_timer;
-	struct intel_gvt_irq *irq;
-	struct intel_gvt *gvt;
-
-	vblank_timer = container_of(data, struct intel_gvt_vblank_timer, timer);
-	irq = container_of(vblank_timer, struct intel_gvt_irq, vblank_timer);
-	gvt = container_of(irq, struct intel_gvt, irq);
-
-	intel_gvt_request_service(gvt, INTEL_GVT_REQUEST_EMULATE_VBLANK);
-	hrtimer_add_expires_ns(&vblank_timer->timer, vblank_timer->period);
-	return HRTIMER_RESTART;
-}
-
-/**
- * intel_gvt_clean_irq - clean up GVT-g IRQ emulation subsystem
- * @gvt: a GVT device
- *
- * This function is called at driver unloading stage, to clean up GVT-g IRQ
- * emulation subsystem.
- *
- */
-void intel_gvt_clean_irq(struct intel_gvt *gvt)
-{
-	struct intel_gvt_irq *irq = &gvt->irq;
-
-	hrtimer_cancel(&irq->vblank_timer.timer);
-}
-
-#define VBLANK_TIMER_PERIOD 16000000
-
 /**
  * intel_gvt_init_irq - initialize GVT-g IRQ emulation subsystem
  * @gvt: a GVT device
@@ -692,7 +660,6 @@ void intel_gvt_clean_irq(struct intel_gvt *gvt)
 int intel_gvt_init_irq(struct intel_gvt *gvt)
 {
 	struct intel_gvt_irq *irq = &gvt->irq;
-	struct intel_gvt_vblank_timer *vblank_timer = &irq->vblank_timer;
 
 	gvt_dbg_core("init irq framework\n");
 
@@ -706,10 +673,6 @@ int intel_gvt_init_irq(struct intel_gvt *gvt)
 	irq->ops->init_irq(irq);
 
 	init_irq_map(irq);
-
-	hrtimer_init(&vblank_timer->timer, CLOCK_MONOTONIC, HRTIMER_MODE_ABS);
-	vblank_timer->timer.function = vblank_timer_fn;
-	vblank_timer->period = VBLANK_TIMER_PERIOD;
 
 	return 0;
 }

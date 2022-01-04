@@ -94,9 +94,9 @@ static void rcu_sync_func(struct rcu_head *rhp)
 		rcu_sync_call(rsp);
 	} else {
 		/*
-		 * We're at least a GP after the last rcu_sync_exit(); eveybody
+		 * We're at least a GP after the last rcu_sync_exit(); everybody
 		 * will now have observed the write side critical section.
-		 * Let 'em rip!.
+		 * Let 'em rip!
 		 */
 		WRITE_ONCE(rsp->gp_state, GP_IDLE);
 	}

@@ -392,7 +392,7 @@ When mounting an ext4 filesystem, the following option are accepted:
 
   dax
         Use direct access (no page cache).  See
-        Documentation/filesystems/dax.txt.  Note that this option is
+        Documentation/filesystems/dax.rst.  Note that this option is
         incompatible with data=journal.
 
   inlinecrypt

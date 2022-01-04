@@ -28,6 +28,10 @@ static void tlb_flush(struct mmu_gather *tlb);
  */
 static inline int tlb_get_level(struct mmu_gather *tlb)
 {
+	/* The TTL field is only valid for the leaf entry. */
+	if (tlb->freed_tables)
+		return 0;
+
 	if (tlb->cleared_ptes && !(tlb->cleared_pmds ||
 				   tlb->cleared_puds ||
 				   tlb->cleared_p4ds))

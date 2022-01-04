@@ -155,7 +155,8 @@ static void snd_ad1816a_close(struct snd_ad1816a *chip, unsigned int mode)
 		snd_ad1816a_write_mask(chip, AD1816A_INTERRUPT_ENABLE,
 			AD1816A_TIMER_IRQ_ENABLE, 0x0000);
 	}
-	if (!((chip->mode &= ~mode) & AD1816A_MODE_OPEN))
+	chip->mode &= ~mode;
+	if (!(chip->mode & AD1816A_MODE_OPEN))
 		chip->mode = 0;
 
 	spin_unlock_irqrestore(&chip->lock, flags);
@@ -426,7 +427,8 @@ static int snd_ad1816a_playback_open(struct snd_pcm_substream *substream)
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	int error;
 
-	if ((error = snd_ad1816a_open(chip, AD1816A_MODE_PLAYBACK)) < 0)
+	error = snd_ad1816a_open(chip, AD1816A_MODE_PLAYBACK);
+	if (error < 0)
 		return error;
 	runtime->hw = snd_ad1816a_playback;
 	snd_pcm_limit_isa_dma_size(chip->dma1, &runtime->hw.buffer_bytes_max);
@@ -441,7 +443,8 @@ static int snd_ad1816a_capture_open(struct snd_pcm_substream *substream)
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	int error;
 
-	if ((error = snd_ad1816a_open(chip, AD1816A_MODE_CAPTURE)) < 0)
+	error = snd_ad1816a_open(chip, AD1816A_MODE_CAPTURE);
+	if (error < 0)
 		return error;
 	runtime->hw = snd_ad1816a_capture;
 	snd_pcm_limit_isa_dma_size(chip->dma2, &runtime->hw.buffer_bytes_max);
@@ -538,28 +541,6 @@ static int snd_ad1816a_probe(struct snd_ad1816a *chip)
 	return 0;
 }
 
-static int snd_ad1816a_free(struct snd_ad1816a *chip)
-{
-	release_and_free_resource(chip->res_port);
-	if (chip->irq >= 0)
-		free_irq(chip->irq, (void *) chip);
-	if (chip->dma1 >= 0) {
-		snd_dma_disable(chip->dma1);
-		free_dma(chip->dma1);
-	}
-	if (chip->dma2 >= 0) {
-		snd_dma_disable(chip->dma2);
-		free_dma(chip->dma2);
-	}
-	return 0;
-}
-
-static int snd_ad1816a_dev_free(struct snd_device *device)
-{
-	struct snd_ad1816a *chip = device->device_data;
-	return snd_ad1816a_free(chip);
-}
-
 static const char *snd_ad1816a_chip_id(struct snd_ad1816a *chip)
 {
 	switch (chip->hardware) {
@@ -577,36 +558,31 @@ int snd_ad1816a_create(struct snd_card *card,
 		       unsigned long port, int irq, int dma1, int dma2,
 		       struct snd_ad1816a *chip)
 {
-	static const struct snd_device_ops ops = {
-		.dev_free =	snd_ad1816a_dev_free,
-	};
 	int error;
 
 	chip->irq = -1;
 	chip->dma1 = -1;
 	chip->dma2 = -1;
 
-	if ((chip->res_port = request_region(port, 16, "AD1816A")) == NULL) {
+	chip->res_port = devm_request_region(card->dev, port, 16, "AD1816A");
+	if (!chip->res_port) {
 		snd_printk(KERN_ERR "ad1816a: can't grab port 0x%lx\n", port);
-		snd_ad1816a_free(chip);
 		return -EBUSY;
 	}
-	if (request_irq(irq, snd_ad1816a_interrupt, 0, "AD1816A", (void *) chip)) {
+	if (devm_request_irq(card->dev, irq, snd_ad1816a_interrupt, 0,
+			     "AD1816A", (void *) chip)) {
 		snd_printk(KERN_ERR "ad1816a: can't grab IRQ %d\n", irq);
-		snd_ad1816a_free(chip);
 		return -EBUSY;
 	}
 	chip->irq = irq;
 	card->sync_irq = chip->irq;
-	if (request_dma(dma1, "AD1816A - 1")) {
+	if (snd_devm_request_dma(card->dev, dma1, "AD1816A - 1")) {
 		snd_printk(KERN_ERR "ad1816a: can't grab DMA1 %d\n", dma1);
-		snd_ad1816a_free(chip);
 		return -EBUSY;
 	}
 	chip->dma1 = dma1;
-	if (request_dma(dma2, "AD1816A - 2")) {
+	if (snd_devm_request_dma(card->dev, dma2, "AD1816A - 2")) {
 		snd_printk(KERN_ERR "ad1816a: can't grab DMA2 %d\n", dma2);
-		snd_ad1816a_free(chip);
 		return -EBUSY;
 	}
 	chip->dma2 = dma2;
@@ -615,18 +591,11 @@ int snd_ad1816a_create(struct snd_card *card,
 	chip->port = port;
 	spin_lock_init(&chip->lock);
 
-	if ((error = snd_ad1816a_probe(chip))) {
-		snd_ad1816a_free(chip);
+	error = snd_ad1816a_probe(chip);
+	if (error)
 		return error;
-	}
 
 	snd_ad1816a_init(chip);
-
-	/* Register device */
-	if ((error = snd_device_new(card, SNDRV_DEV_LOWLEVEL, chip, &ops)) < 0) {
-		snd_ad1816a_free(chip);
-		return error;
-	}
 
 	return 0;
 }
@@ -652,7 +621,8 @@ int snd_ad1816a_pcm(struct snd_ad1816a *chip, int device)
 	int error;
 	struct snd_pcm *pcm;
 
-	if ((error = snd_pcm_new(chip->card, "AD1816A", device, 1, 1, &pcm)))
+	error = snd_pcm_new(chip->card, "AD1816A", device, 1, 1, &pcm);
+	if (error)
 		return error;
 
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK, &snd_ad1816a_playback_ops);
@@ -682,7 +652,8 @@ int snd_ad1816a_timer(struct snd_ad1816a *chip, int device)
 	tid.card = chip->card->number;
 	tid.device = device;
 	tid.subdevice = 0;
-	if ((error = snd_timer_new(chip->card, "AD1816A", &tid, &timer)) < 0)
+	error = snd_timer_new(chip->card, "AD1816A", &tid, &timer);
+	if (error < 0)
 		return error;
 	strcpy(timer->name, snd_ad1816a_chip_id(chip));
 	timer->private_data = chip;
@@ -944,7 +915,8 @@ int snd_ad1816a_mixer(struct snd_ad1816a *chip)
 	strcpy(card->mixername, snd_ad1816a_chip_id(chip));
 
 	for (idx = 0; idx < ARRAY_SIZE(snd_ad1816a_controls); idx++) {
-		if ((err = snd_ctl_add(card, snd_ctl_new1(&snd_ad1816a_controls[idx], chip))) < 0)
+		err = snd_ctl_add(card, snd_ctl_new1(&snd_ad1816a_controls[idx], chip));
+		if (err < 0)
 			return err;
 	}
 	return 0;

@@ -83,8 +83,6 @@ enum {
 /*
  * Input Output Manager (IOM) PORT STATUS
  */
-#define IOM_PORT_STATUS_OFFSET				0x560
-
 #define IOM_PORT_STATUS_ACTIVITY_TYPE_MASK		GENMASK(9, 6)
 #define IOM_PORT_STATUS_ACTIVITY_TYPE_SHIFT		6
 #define IOM_PORT_STATUS_ACTIVITY_TYPE_USB		0x03
@@ -144,6 +142,7 @@ struct pmc_usb {
 	struct pmc_usb_port *port;
 	struct acpi_device *iom_adev;
 	void __iomem *iom_base;
+	u32 iom_port_status_offset;
 };
 
 static void update_port_status(struct pmc_usb_port *port)
@@ -153,7 +152,8 @@ static void update_port_status(struct pmc_usb_port *port)
 	/* SoC expects the USB Type-C port numbers to start with 0 */
 	port_num = port->usb3_port - 1;
 
-	port->iom_status = readl(port->pmc->iom_base + IOM_PORT_STATUS_OFFSET +
+	port->iom_status = readl(port->pmc->iom_base +
+				 port->pmc->iom_port_status_offset +
 				 port_num * sizeof(u32));
 }
 
@@ -559,14 +559,32 @@ static int is_memory(struct acpi_resource *res, void *data)
 	return !acpi_dev_resource_memory(res, &r);
 }
 
+/* IOM ACPI IDs and IOM_PORT_STATUS_OFFSET */
+static const struct acpi_device_id iom_acpi_ids[] = {
+	/* TigerLake */
+	{ "INTC1072", 0x560, },
+
+	/* AlderLake */
+	{ "INTC1079", 0x160, },
+	{}
+};
+
 static int pmc_usb_probe_iom(struct pmc_usb *pmc)
 {
 	struct list_head resource_list;
 	struct resource_entry *rentry;
-	struct acpi_device *adev;
+	static const struct acpi_device_id *dev_id;
+	struct acpi_device *adev = NULL;
 	int ret;
 
-	adev = acpi_dev_get_first_match_dev("INTC1072", NULL, -1);
+	for (dev_id = &iom_acpi_ids[0]; dev_id->id[0]; dev_id++) {
+		if (acpi_dev_present(dev_id->id, NULL, -1)) {
+			pmc->iom_port_status_offset = (u32)dev_id->driver_data;
+			adev = acpi_dev_get_first_match_dev(dev_id->id, NULL, -1);
+			break;
+		}
+	}
+
 	if (!adev)
 		return -ENODEV;
 
@@ -582,8 +600,13 @@ static int pmc_usb_probe_iom(struct pmc_usb *pmc)
 	acpi_dev_free_resource_list(&resource_list);
 
 	if (!pmc->iom_base) {
-		put_device(&adev->dev);
+		acpi_dev_put(adev);
 		return -ENOMEM;
+	}
+
+	if (IS_ERR(pmc->iom_base)) {
+		acpi_dev_put(adev);
+		return PTR_ERR(pmc->iom_base);
 	}
 
 	pmc->iom_adev = adev;
@@ -636,8 +659,10 @@ static int pmc_usb_probe(struct platform_device *pdev)
 			break;
 
 		ret = pmc_usb_register_port(pmc, i, fwnode);
-		if (ret)
+		if (ret) {
+			fwnode_handle_put(fwnode);
 			goto err_remove_ports;
+		}
 	}
 
 	platform_set_drvdata(pdev, pmc);
@@ -651,7 +676,7 @@ err_remove_ports:
 		usb_role_switch_unregister(pmc->port[i].usb_sw);
 	}
 
-	put_device(&pmc->iom_adev->dev);
+	acpi_dev_put(pmc->iom_adev);
 
 	return ret;
 }
@@ -667,7 +692,7 @@ static int pmc_usb_remove(struct platform_device *pdev)
 		usb_role_switch_unregister(pmc->port[i].usb_sw);
 	}
 
-	put_device(&pmc->iom_adev->dev);
+	acpi_dev_put(pmc->iom_adev);
 
 	return 0;
 }

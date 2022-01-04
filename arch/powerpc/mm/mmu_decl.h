@@ -185,3 +185,8 @@ void ptdump_check_wx(void);
 #else
 static inline void ptdump_check_wx(void) { }
 #endif
+
+static inline bool debug_pagealloc_enabled_or_kfence(void)
+{
+	return IS_ENABLED(CONFIG_KFENCE) || debug_pagealloc_enabled();
+}

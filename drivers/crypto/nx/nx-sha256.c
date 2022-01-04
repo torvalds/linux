@@ -16,6 +16,11 @@
 #include "nx_csbcpb.h"
 #include "nx.h"
 
+struct sha256_state_be {
+	__be32 state[SHA256_DIGEST_SIZE / 4];
+	u64 count;
+	u8 buf[SHA256_BLOCK_SIZE];
+};
 
 static int nx_crypto_ctx_sha256_init(struct crypto_tfm *tfm)
 {
@@ -36,7 +41,7 @@ static int nx_crypto_ctx_sha256_init(struct crypto_tfm *tfm)
 }
 
 static int nx_sha256_init(struct shash_desc *desc) {
-	struct sha256_state *sctx = shash_desc_ctx(desc);
+	struct sha256_state_be *sctx = shash_desc_ctx(desc);
 
 	memset(sctx, 0, sizeof *sctx);
 
@@ -56,7 +61,7 @@ static int nx_sha256_init(struct shash_desc *desc) {
 static int nx_sha256_update(struct shash_desc *desc, const u8 *data,
 			    unsigned int len)
 {
-	struct sha256_state *sctx = shash_desc_ctx(desc);
+	struct sha256_state_be *sctx = shash_desc_ctx(desc);
 	struct nx_crypto_ctx *nx_ctx = crypto_tfm_ctx(&desc->tfm->base);
 	struct nx_csbcpb *csbcpb = (struct nx_csbcpb *)nx_ctx->csbcpb;
 	struct nx_sg *out_sg;
@@ -175,7 +180,7 @@ out:
 
 static int nx_sha256_final(struct shash_desc *desc, u8 *out)
 {
-	struct sha256_state *sctx = shash_desc_ctx(desc);
+	struct sha256_state_be *sctx = shash_desc_ctx(desc);
 	struct nx_crypto_ctx *nx_ctx = crypto_tfm_ctx(&desc->tfm->base);
 	struct nx_csbcpb *csbcpb = (struct nx_csbcpb *)nx_ctx->csbcpb;
 	struct nx_sg *in_sg, *out_sg;
@@ -245,7 +250,7 @@ out:
 
 static int nx_sha256_export(struct shash_desc *desc, void *out)
 {
-	struct sha256_state *sctx = shash_desc_ctx(desc);
+	struct sha256_state_be *sctx = shash_desc_ctx(desc);
 
 	memcpy(out, sctx, sizeof(*sctx));
 
@@ -254,7 +259,7 @@ static int nx_sha256_export(struct shash_desc *desc, void *out)
 
 static int nx_sha256_import(struct shash_desc *desc, const void *in)
 {
-	struct sha256_state *sctx = shash_desc_ctx(desc);
+	struct sha256_state_be *sctx = shash_desc_ctx(desc);
 
 	memcpy(sctx, in, sizeof(*sctx));
 
@@ -268,8 +273,8 @@ struct shash_alg nx_shash_sha256_alg = {
 	.final      = nx_sha256_final,
 	.export     = nx_sha256_export,
 	.import     = nx_sha256_import,
-	.descsize   = sizeof(struct sha256_state),
-	.statesize  = sizeof(struct sha256_state),
+	.descsize   = sizeof(struct sha256_state_be),
+	.statesize  = sizeof(struct sha256_state_be),
 	.base       = {
 		.cra_name        = "sha256",
 		.cra_driver_name = "sha256-nx",

@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright (c) 2014 Redpine Signals Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -151,7 +151,6 @@ enum edca_queue {
 };
 
 struct security_info {
-	bool security_enable;
 	u32 ptk_cipher;
 	u32 gtk_cipher;
 };

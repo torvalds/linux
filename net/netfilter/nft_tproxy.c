@@ -30,6 +30,12 @@ static void nft_tproxy_eval_v4(const struct nft_expr *expr,
 	__be16 tport = 0;
 	struct sock *sk;
 
+	if (pkt->tprot != IPPROTO_TCP &&
+	    pkt->tprot != IPPROTO_UDP) {
+		regs->verdict.code = NFT_BREAK;
+		return;
+	}
+
 	hp = skb_header_pointer(skb, ip_hdrlen(skb), sizeof(_hdr), &_hdr);
 	if (!hp) {
 		regs->verdict.code = NFT_BREAK;
@@ -82,16 +88,17 @@ static void nft_tproxy_eval_v6(const struct nft_expr *expr,
 	const struct nft_tproxy *priv = nft_expr_priv(expr);
 	struct sk_buff *skb = pkt->skb;
 	const struct ipv6hdr *iph = ipv6_hdr(skb);
-	struct in6_addr taddr;
-	int thoff = pkt->xt.thoff;
+	int thoff = nft_thoff(pkt);
 	struct udphdr _hdr, *hp;
+	struct in6_addr taddr;
 	__be16 tport = 0;
 	struct sock *sk;
 	int l4proto;
 
 	memset(&taddr, 0, sizeof(taddr));
 
-	if (!pkt->tprot_set) {
+	if (pkt->tprot != IPPROTO_TCP &&
+	    pkt->tprot != IPPROTO_UDP) {
 		regs->verdict.code = NFT_BREAK;
 		return;
 	}
@@ -263,6 +270,29 @@ static int nft_tproxy_init(const struct nft_ctx *ctx,
 	return 0;
 }
 
+static void nft_tproxy_destroy(const struct nft_ctx *ctx,
+			       const struct nft_expr *expr)
+{
+	const struct nft_tproxy *priv = nft_expr_priv(expr);
+
+	switch (priv->family) {
+	case NFPROTO_IPV4:
+		nf_defrag_ipv4_disable(ctx->net);
+		break;
+#if IS_ENABLED(CONFIG_NF_TABLES_IPV6)
+	case NFPROTO_IPV6:
+		nf_defrag_ipv6_disable(ctx->net);
+		break;
+#endif
+	case NFPROTO_UNSPEC:
+		nf_defrag_ipv4_disable(ctx->net);
+#if IS_ENABLED(CONFIG_NF_TABLES_IPV6)
+		nf_defrag_ipv6_disable(ctx->net);
+#endif
+		break;
+	}
+}
+
 static int nft_tproxy_dump(struct sk_buff *skb,
 			   const struct nft_expr *expr)
 {
@@ -288,6 +318,7 @@ static const struct nft_expr_ops nft_tproxy_ops = {
 	.size		= NFT_EXPR_SIZE(sizeof(struct nft_tproxy)),
 	.eval		= nft_tproxy_eval,
 	.init		= nft_tproxy_init,
+	.destroy	= nft_tproxy_destroy,
 	.dump		= nft_tproxy_dump,
 };
 

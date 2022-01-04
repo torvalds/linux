@@ -48,7 +48,7 @@ static int if_usb_submit_rx_urb(struct if_usb_card *cardp);
 static int if_usb_reset_device(struct lbtf_private *priv);
 
 /**
- *  if_usb_wrike_bulk_callback -  call back to handle URB status
+ *  if_usb_write_bulk_callback -  call back to handle URB status
  *
  *  @urb:		pointer to urb structure
  */

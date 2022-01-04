@@ -7,33 +7,30 @@
 #include "rxe.h"
 #include "rxe_loc.h"
 
-/*
- * lfsr (linear feedback shift register) with period 255
+/* Return a random 8 bit key value that is
+ * different than the last_key. Set last_key to -1
+ * if this is the first key for an MR or MW
  */
-static u8 rxe_get_key(void)
+u8 rxe_get_next_key(u32 last_key)
 {
-	static u32 key = 1;
+	u8 key;
 
-	key = key << 1;
-
-	key |= (0 != (key & 0x100)) ^ (0 != (key & 0x10))
-		^ (0 != (key & 0x80)) ^ (0 != (key & 0x40));
-
-	key &= 0xff;
+	do {
+		get_random_bytes(&key, 1);
+	} while (key == last_key);
 
 	return key;
 }
 
-int mem_check_range(struct rxe_mem *mem, u64 iova, size_t length)
+int mr_check_range(struct rxe_mr *mr, u64 iova, size_t length)
 {
-	switch (mem->type) {
-	case RXE_MEM_TYPE_DMA:
+	switch (mr->type) {
+	case RXE_MR_TYPE_DMA:
 		return 0;
 
-	case RXE_MEM_TYPE_MR:
-		if (iova < mem->iova ||
-		    length > mem->length ||
-		    iova > mem->iova + mem->length - length)
+	case RXE_MR_TYPE_MR:
+		if (iova < mr->iova || length > mr->length ||
+		    iova > mr->iova + mr->length - length)
 			return -EFAULT;
 		return 0;
 
@@ -46,85 +43,68 @@ int mem_check_range(struct rxe_mem *mem, u64 iova, size_t length)
 				| IB_ACCESS_REMOTE_WRITE	\
 				| IB_ACCESS_REMOTE_ATOMIC)
 
-static void rxe_mem_init(int access, struct rxe_mem *mem)
+static void rxe_mr_init(int access, struct rxe_mr *mr)
 {
-	u32 lkey = mem->pelem.index << 8 | rxe_get_key();
+	u32 lkey = mr->pelem.index << 8 | rxe_get_next_key(-1);
 	u32 rkey = (access & IB_ACCESS_REMOTE) ? lkey : 0;
 
-	mem->ibmr.lkey		= lkey;
-	mem->ibmr.rkey		= rkey;
-	mem->state		= RXE_MEM_STATE_INVALID;
-	mem->type		= RXE_MEM_TYPE_NONE;
-	mem->map_shift		= ilog2(RXE_BUF_PER_MAP);
+	mr->ibmr.lkey = lkey;
+	mr->ibmr.rkey = rkey;
+	mr->state = RXE_MR_STATE_INVALID;
+	mr->type = RXE_MR_TYPE_NONE;
+	mr->map_shift = ilog2(RXE_BUF_PER_MAP);
 }
 
-void rxe_mem_cleanup(struct rxe_pool_entry *arg)
-{
-	struct rxe_mem *mem = container_of(arg, typeof(*mem), pelem);
-	int i;
-
-	ib_umem_release(mem->umem);
-
-	if (mem->map) {
-		for (i = 0; i < mem->num_map; i++)
-			kfree(mem->map[i]);
-
-		kfree(mem->map);
-	}
-}
-
-static int rxe_mem_alloc(struct rxe_mem *mem, int num_buf)
+static int rxe_mr_alloc(struct rxe_mr *mr, int num_buf)
 {
 	int i;
 	int num_map;
-	struct rxe_map **map = mem->map;
+	struct rxe_map **map = mr->map;
 
 	num_map = (num_buf + RXE_BUF_PER_MAP - 1) / RXE_BUF_PER_MAP;
 
-	mem->map = kmalloc_array(num_map, sizeof(*map), GFP_KERNEL);
-	if (!mem->map)
+	mr->map = kmalloc_array(num_map, sizeof(*map), GFP_KERNEL);
+	if (!mr->map)
 		goto err1;
 
 	for (i = 0; i < num_map; i++) {
-		mem->map[i] = kmalloc(sizeof(**map), GFP_KERNEL);
-		if (!mem->map[i])
+		mr->map[i] = kmalloc(sizeof(**map), GFP_KERNEL);
+		if (!mr->map[i])
 			goto err2;
 	}
 
 	BUILD_BUG_ON(!is_power_of_2(RXE_BUF_PER_MAP));
 
-	mem->map_shift	= ilog2(RXE_BUF_PER_MAP);
-	mem->map_mask	= RXE_BUF_PER_MAP - 1;
+	mr->map_shift = ilog2(RXE_BUF_PER_MAP);
+	mr->map_mask = RXE_BUF_PER_MAP - 1;
 
-	mem->num_buf = num_buf;
-	mem->num_map = num_map;
-	mem->max_buf = num_map * RXE_BUF_PER_MAP;
+	mr->num_buf = num_buf;
+	mr->num_map = num_map;
+	mr->max_buf = num_map * RXE_BUF_PER_MAP;
 
 	return 0;
 
 err2:
 	for (i--; i >= 0; i--)
-		kfree(mem->map[i]);
+		kfree(mr->map[i]);
 
-	kfree(mem->map);
+	kfree(mr->map);
 err1:
 	return -ENOMEM;
 }
 
-void rxe_mem_init_dma(struct rxe_pd *pd,
-		      int access, struct rxe_mem *mem)
+void rxe_mr_init_dma(struct rxe_pd *pd, int access, struct rxe_mr *mr)
 {
-	rxe_mem_init(access, mem);
+	rxe_mr_init(access, mr);
 
-	mem->ibmr.pd		= &pd->ibpd;
-	mem->access		= access;
-	mem->state		= RXE_MEM_STATE_VALID;
-	mem->type		= RXE_MEM_TYPE_DMA;
+	mr->ibmr.pd = &pd->ibpd;
+	mr->access = access;
+	mr->state = RXE_MR_STATE_VALID;
+	mr->type = RXE_MR_TYPE_DMA;
 }
 
-int rxe_mem_init_user(struct rxe_pd *pd, u64 start,
-		      u64 length, u64 iova, int access, struct ib_udata *udata,
-		      struct rxe_mem *mem)
+int rxe_mr_init_user(struct rxe_pd *pd, u64 start, u64 length, u64 iova,
+		     int access, struct rxe_mr *mr)
 {
 	struct rxe_map		**map;
 	struct rxe_phys_buf	*buf = NULL;
@@ -133,36 +113,36 @@ int rxe_mem_init_user(struct rxe_pd *pd, u64 start,
 	int			num_buf;
 	void			*vaddr;
 	int err;
+	int i;
 
 	umem = ib_umem_get(pd->ibpd.device, start, length, access);
 	if (IS_ERR(umem)) {
-		pr_warn("err %d from rxe_umem_get\n",
-			(int)PTR_ERR(umem));
-		err = -EINVAL;
-		goto err1;
+		pr_warn("%s: Unable to pin memory region err = %d\n",
+			__func__, (int)PTR_ERR(umem));
+		err = PTR_ERR(umem);
+		goto err_out;
 	}
 
-	mem->umem = umem;
 	num_buf = ib_umem_num_pages(umem);
 
-	rxe_mem_init(access, mem);
+	rxe_mr_init(access, mr);
 
-	err = rxe_mem_alloc(mem, num_buf);
+	err = rxe_mr_alloc(mr, num_buf);
 	if (err) {
-		pr_warn("err %d from rxe_mem_alloc\n", err);
-		ib_umem_release(umem);
-		goto err1;
+		pr_warn("%s: Unable to allocate memory for map\n",
+				__func__);
+		goto err_release_umem;
 	}
 
-	mem->page_shift		= PAGE_SHIFT;
-	mem->page_mask = PAGE_SIZE - 1;
+	mr->page_shift = PAGE_SHIFT;
+	mr->page_mask = PAGE_SIZE - 1;
 
 	num_buf			= 0;
-	map			= mem->map;
+	map = mr->map;
 	if (length > 0) {
 		buf = map[0]->buf;
 
-		for_each_sg_page(umem->sg_head.sgl, &sg_iter, umem->nmap, 0) {
+		for_each_sgtable_page (&umem->sgt_append.sgt, &sg_iter, 0) {
 			if (num_buf >= RXE_BUF_PER_MAP) {
 				map++;
 				buf = map[0]->buf;
@@ -171,10 +151,10 @@ int rxe_mem_init_user(struct rxe_pd *pd, u64 start,
 
 			vaddr = page_address(sg_page_iter_page(&sg_iter));
 			if (!vaddr) {
-				pr_warn("null vaddr\n");
-				ib_umem_release(umem);
+				pr_warn("%s: Unable to get virtual address\n",
+						__func__);
 				err = -ENOMEM;
-				goto err1;
+				goto err_cleanup_map;
 			}
 
 			buf->addr = (uintptr_t)vaddr;
@@ -185,40 +165,45 @@ int rxe_mem_init_user(struct rxe_pd *pd, u64 start,
 		}
 	}
 
-	mem->ibmr.pd		= &pd->ibpd;
-	mem->umem		= umem;
-	mem->access		= access;
-	mem->length		= length;
-	mem->iova		= iova;
-	mem->va			= start;
-	mem->offset		= ib_umem_offset(umem);
-	mem->state		= RXE_MEM_STATE_VALID;
-	mem->type		= RXE_MEM_TYPE_MR;
+	mr->ibmr.pd = &pd->ibpd;
+	mr->umem = umem;
+	mr->access = access;
+	mr->length = length;
+	mr->iova = iova;
+	mr->va = start;
+	mr->offset = ib_umem_offset(umem);
+	mr->state = RXE_MR_STATE_VALID;
+	mr->type = RXE_MR_TYPE_MR;
 
 	return 0;
 
-err1:
+err_cleanup_map:
+	for (i = 0; i < mr->num_map; i++)
+		kfree(mr->map[i]);
+	kfree(mr->map);
+err_release_umem:
+	ib_umem_release(umem);
+err_out:
 	return err;
 }
 
-int rxe_mem_init_fast(struct rxe_pd *pd,
-		      int max_pages, struct rxe_mem *mem)
+int rxe_mr_init_fast(struct rxe_pd *pd, int max_pages, struct rxe_mr *mr)
 {
 	int err;
 
-	rxe_mem_init(0, mem);
+	rxe_mr_init(0, mr);
 
 	/* In fastreg, we also set the rkey */
-	mem->ibmr.rkey = mem->ibmr.lkey;
+	mr->ibmr.rkey = mr->ibmr.lkey;
 
-	err = rxe_mem_alloc(mem, max_pages);
+	err = rxe_mr_alloc(mr, max_pages);
 	if (err)
 		goto err1;
 
-	mem->ibmr.pd		= &pd->ibpd;
-	mem->max_buf		= max_pages;
-	mem->state		= RXE_MEM_STATE_FREE;
-	mem->type		= RXE_MEM_TYPE_MR;
+	mr->ibmr.pd = &pd->ibpd;
+	mr->max_buf = max_pages;
+	mr->state = RXE_MR_STATE_FREE;
+	mr->type = RXE_MR_TYPE_MR;
 
 	return 0;
 
@@ -226,28 +211,24 @@ err1:
 	return err;
 }
 
-static void lookup_iova(
-	struct rxe_mem	*mem,
-	u64			iova,
-	int			*m_out,
-	int			*n_out,
-	size_t			*offset_out)
+static void lookup_iova(struct rxe_mr *mr, u64 iova, int *m_out, int *n_out,
+			size_t *offset_out)
 {
-	size_t			offset = iova - mem->iova + mem->offset;
+	size_t offset = iova - mr->iova + mr->offset;
 	int			map_index;
 	int			buf_index;
 	u64			length;
 
-	if (likely(mem->page_shift)) {
-		*offset_out = offset & mem->page_mask;
-		offset >>= mem->page_shift;
-		*n_out = offset & mem->map_mask;
-		*m_out = offset >> mem->map_shift;
+	if (likely(mr->page_shift)) {
+		*offset_out = offset & mr->page_mask;
+		offset >>= mr->page_shift;
+		*n_out = offset & mr->map_mask;
+		*m_out = offset >> mr->map_shift;
 	} else {
 		map_index = 0;
 		buf_index = 0;
 
-		length = mem->map[map_index]->buf[buf_index].size;
+		length = mr->map[map_index]->buf[buf_index].size;
 
 		while (offset >= length) {
 			offset -= length;
@@ -257,7 +238,7 @@ static void lookup_iova(
 				map_index++;
 				buf_index = 0;
 			}
-			length = mem->map[map_index]->buf[buf_index].size;
+			length = mr->map[map_index]->buf[buf_index].size;
 		}
 
 		*m_out = map_index;
@@ -266,49 +247,48 @@ static void lookup_iova(
 	}
 }
 
-void *iova_to_vaddr(struct rxe_mem *mem, u64 iova, int length)
+void *iova_to_vaddr(struct rxe_mr *mr, u64 iova, int length)
 {
 	size_t offset;
 	int m, n;
 	void *addr;
 
-	if (mem->state != RXE_MEM_STATE_VALID) {
-		pr_warn("mem not in valid state\n");
+	if (mr->state != RXE_MR_STATE_VALID) {
+		pr_warn("mr not in valid state\n");
 		addr = NULL;
 		goto out;
 	}
 
-	if (!mem->map) {
+	if (!mr->map) {
 		addr = (void *)(uintptr_t)iova;
 		goto out;
 	}
 
-	if (mem_check_range(mem, iova, length)) {
+	if (mr_check_range(mr, iova, length)) {
 		pr_warn("range violation\n");
 		addr = NULL;
 		goto out;
 	}
 
-	lookup_iova(mem, iova, &m, &n, &offset);
+	lookup_iova(mr, iova, &m, &n, &offset);
 
-	if (offset + length > mem->map[m]->buf[n].size) {
+	if (offset + length > mr->map[m]->buf[n].size) {
 		pr_warn("crosses page boundary\n");
 		addr = NULL;
 		goto out;
 	}
 
-	addr = (void *)(uintptr_t)mem->map[m]->buf[n].addr + offset;
+	addr = (void *)(uintptr_t)mr->map[m]->buf[n].addr + offset;
 
 out:
 	return addr;
 }
 
 /* copy data from a range (vaddr, vaddr+length-1) to or from
- * a mem object starting at iova. Compute incremental value of
- * crc32 if crcp is not zero. caller must hold a reference to mem
+ * a mr object starting at iova.
  */
-int rxe_mem_copy(struct rxe_mem *mem, u64 iova, void *addr, int length,
-		 enum copy_direction dir, u32 *crcp)
+int rxe_mr_copy(struct rxe_mr *mr, u64 iova, void *addr, int length,
+		enum rxe_mr_copy_dir dir)
 {
 	int			err;
 	int			bytes;
@@ -318,48 +298,41 @@ int rxe_mem_copy(struct rxe_mem *mem, u64 iova, void *addr, int length,
 	int			m;
 	int			i;
 	size_t			offset;
-	u32			crc = crcp ? (*crcp) : 0;
 
 	if (length == 0)
 		return 0;
 
-	if (mem->type == RXE_MEM_TYPE_DMA) {
+	if (mr->type == RXE_MR_TYPE_DMA) {
 		u8 *src, *dest;
 
-		src  = (dir == to_mem_obj) ?
-			addr : ((void *)(uintptr_t)iova);
+		src = (dir == RXE_TO_MR_OBJ) ? addr : ((void *)(uintptr_t)iova);
 
-		dest = (dir == to_mem_obj) ?
-			((void *)(uintptr_t)iova) : addr;
+		dest = (dir == RXE_TO_MR_OBJ) ? ((void *)(uintptr_t)iova) : addr;
 
 		memcpy(dest, src, length);
-
-		if (crcp)
-			*crcp = rxe_crc32(to_rdev(mem->ibmr.device),
-					*crcp, dest, length);
 
 		return 0;
 	}
 
-	WARN_ON_ONCE(!mem->map);
+	WARN_ON_ONCE(!mr->map);
 
-	err = mem_check_range(mem, iova, length);
+	err = mr_check_range(mr, iova, length);
 	if (err) {
 		err = -EFAULT;
 		goto err1;
 	}
 
-	lookup_iova(mem, iova, &m, &i, &offset);
+	lookup_iova(mr, iova, &m, &i, &offset);
 
-	map	= mem->map + m;
+	map = mr->map + m;
 	buf	= map[0]->buf + i;
 
 	while (length > 0) {
 		u8 *src, *dest;
 
 		va	= (u8 *)(uintptr_t)buf->addr + offset;
-		src  = (dir == to_mem_obj) ? addr : va;
-		dest = (dir == to_mem_obj) ? va : addr;
+		src = (dir == RXE_TO_MR_OBJ) ? addr : va;
+		dest = (dir == RXE_TO_MR_OBJ) ? va : addr;
 
 		bytes	= buf->size - offset;
 
@@ -367,10 +340,6 @@ int rxe_mem_copy(struct rxe_mem *mem, u64 iova, void *addr, int length,
 			bytes = length;
 
 		memcpy(dest, src, bytes);
-
-		if (crcp)
-			crc = rxe_crc32(to_rdev(mem->ibmr.device),
-					crc, dest, bytes);
 
 		length	-= bytes;
 		addr	+= bytes;
@@ -385,9 +354,6 @@ int rxe_mem_copy(struct rxe_mem *mem, u64 iova, void *addr, int length,
 			buf = map[0]->buf;
 		}
 	}
-
-	if (crcp)
-		*crcp = crc;
 
 	return 0;
 
@@ -404,14 +370,13 @@ int copy_data(
 	struct rxe_dma_info	*dma,
 	void			*addr,
 	int			length,
-	enum copy_direction	dir,
-	u32			*crcp)
+	enum rxe_mr_copy_dir	dir)
 {
 	int			bytes;
 	struct rxe_sge		*sge	= &dma->sge[dma->cur_sge];
 	int			offset	= dma->sge_offset;
 	int			resid	= dma->resid;
-	struct rxe_mem		*mem	= NULL;
+	struct rxe_mr		*mr	= NULL;
 	u64			iova;
 	int			err;
 
@@ -424,8 +389,8 @@ int copy_data(
 	}
 
 	if (sge->length && (offset < sge->length)) {
-		mem = lookup_mem(pd, access, sge->lkey, lookup_local);
-		if (!mem) {
+		mr = lookup_mr(pd, access, sge->lkey, RXE_LOOKUP_LOCAL);
+		if (!mr) {
 			err = -EINVAL;
 			goto err1;
 		}
@@ -435,9 +400,9 @@ int copy_data(
 		bytes = length;
 
 		if (offset >= sge->length) {
-			if (mem) {
-				rxe_drop_ref(mem);
-				mem = NULL;
+			if (mr) {
+				rxe_drop_ref(mr);
+				mr = NULL;
 			}
 			sge++;
 			dma->cur_sge++;
@@ -449,9 +414,9 @@ int copy_data(
 			}
 
 			if (sge->length) {
-				mem = lookup_mem(pd, access, sge->lkey,
-						 lookup_local);
-				if (!mem) {
+				mr = lookup_mr(pd, access, sge->lkey,
+					       RXE_LOOKUP_LOCAL);
+				if (!mr) {
 					err = -EINVAL;
 					goto err1;
 				}
@@ -466,7 +431,7 @@ int copy_data(
 		if (bytes > 0) {
 			iova = sge->addr + offset;
 
-			err = rxe_mem_copy(mem, iova, addr, bytes, dir, crcp);
+			err = rxe_mr_copy(mr, iova, addr, bytes, dir);
 			if (err)
 				goto err2;
 
@@ -480,14 +445,14 @@ int copy_data(
 	dma->sge_offset = offset;
 	dma->resid	= resid;
 
-	if (mem)
-		rxe_drop_ref(mem);
+	if (mr)
+		rxe_drop_ref(mr);
 
 	return 0;
 
 err2:
-	if (mem)
-		rxe_drop_ref(mem);
+	if (mr)
+		rxe_drop_ref(mr);
 err1:
 	return err;
 }
@@ -525,31 +490,99 @@ int advance_dma_data(struct rxe_dma_info *dma, unsigned int length)
 	return 0;
 }
 
-/* (1) find the mem (mr or mw) corresponding to lkey/rkey
+/* (1) find the mr corresponding to lkey/rkey
  *     depending on lookup_type
- * (2) verify that the (qp) pd matches the mem pd
- * (3) verify that the mem can support the requested access
- * (4) verify that mem state is valid
+ * (2) verify that the (qp) pd matches the mr pd
+ * (3) verify that the mr can support the requested access
+ * (4) verify that mr state is valid
  */
-struct rxe_mem *lookup_mem(struct rxe_pd *pd, int access, u32 key,
-			   enum lookup_type type)
+struct rxe_mr *lookup_mr(struct rxe_pd *pd, int access, u32 key,
+			 enum rxe_mr_lookup_type type)
 {
-	struct rxe_mem *mem;
+	struct rxe_mr *mr;
 	struct rxe_dev *rxe = to_rdev(pd->ibpd.device);
 	int index = key >> 8;
 
-	mem = rxe_pool_get_index(&rxe->mr_pool, index);
-	if (!mem)
+	mr = rxe_pool_get_index(&rxe->mr_pool, index);
+	if (!mr)
 		return NULL;
 
-	if (unlikely((type == lookup_local && mr_lkey(mem) != key) ||
-		     (type == lookup_remote && mr_rkey(mem) != key) ||
-		     mr_pd(mem) != pd ||
-		     (access && !(access & mem->access)) ||
-		     mem->state != RXE_MEM_STATE_VALID)) {
-		rxe_drop_ref(mem);
-		mem = NULL;
+	if (unlikely((type == RXE_LOOKUP_LOCAL && mr_lkey(mr) != key) ||
+		     (type == RXE_LOOKUP_REMOTE && mr_rkey(mr) != key) ||
+		     mr_pd(mr) != pd || (access && !(access & mr->access)) ||
+		     mr->state != RXE_MR_STATE_VALID)) {
+		rxe_drop_ref(mr);
+		mr = NULL;
 	}
 
-	return mem;
+	return mr;
+}
+
+int rxe_invalidate_mr(struct rxe_qp *qp, u32 rkey)
+{
+	struct rxe_dev *rxe = to_rdev(qp->ibqp.device);
+	struct rxe_mr *mr;
+	int ret;
+
+	mr = rxe_pool_get_index(&rxe->mr_pool, rkey >> 8);
+	if (!mr) {
+		pr_err("%s: No MR for rkey %#x\n", __func__, rkey);
+		ret = -EINVAL;
+		goto err;
+	}
+
+	if (rkey != mr->ibmr.rkey) {
+		pr_err("%s: rkey (%#x) doesn't match mr->ibmr.rkey (%#x)\n",
+			__func__, rkey, mr->ibmr.rkey);
+		ret = -EINVAL;
+		goto err_drop_ref;
+	}
+
+	if (atomic_read(&mr->num_mw) > 0) {
+		pr_warn("%s: Attempt to invalidate an MR while bound to MWs\n",
+			__func__);
+		ret = -EINVAL;
+		goto err_drop_ref;
+	}
+
+	mr->state = RXE_MR_STATE_FREE;
+	ret = 0;
+
+err_drop_ref:
+	rxe_drop_ref(mr);
+err:
+	return ret;
+}
+
+int rxe_dereg_mr(struct ib_mr *ibmr, struct ib_udata *udata)
+{
+	struct rxe_mr *mr = to_rmr(ibmr);
+
+	if (atomic_read(&mr->num_mw) > 0) {
+		pr_warn("%s: Attempt to deregister an MR while bound to MWs\n",
+			__func__);
+		return -EINVAL;
+	}
+
+	mr->state = RXE_MR_STATE_ZOMBIE;
+	rxe_drop_ref(mr_pd(mr));
+	rxe_drop_index(mr);
+	rxe_drop_ref(mr);
+
+	return 0;
+}
+
+void rxe_mr_cleanup(struct rxe_pool_entry *arg)
+{
+	struct rxe_mr *mr = container_of(arg, typeof(*mr), pelem);
+	int i;
+
+	ib_umem_release(mr->umem);
+
+	if (mr->map) {
+		for (i = 0; i < mr->num_map; i++)
+			kfree(mr->map[i]);
+
+		kfree(mr->map);
+	}
 }

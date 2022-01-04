@@ -51,11 +51,11 @@ static uint32_t core0_c0count[NR_CPUS];
 		__wbflush();			\
 	} while (0)
 
-u32 (*ipi_read_clear)(int cpu);
-void (*ipi_write_action)(int cpu, u32 action);
-void (*ipi_write_enable)(int cpu);
-void (*ipi_clear_buf)(int cpu);
-void (*ipi_write_buf)(int cpu, struct task_struct *idle);
+static u32 (*ipi_read_clear)(int cpu);
+static void (*ipi_write_action)(int cpu, u32 action);
+static void (*ipi_write_enable)(int cpu);
+static void (*ipi_clear_buf)(int cpu);
+static void (*ipi_write_buf)(int cpu, struct task_struct *idle);
 
 /* send mail via Mail_Send register for 3A4000+ CPU */
 static void csr_mail_send(uint64_t data, int cpu, int mailbox)

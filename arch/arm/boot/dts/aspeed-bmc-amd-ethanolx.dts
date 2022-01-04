@@ -34,7 +34,7 @@
 	};
 	chosen {
 		stdout-path = &uart5;
-		bootargs = "console=ttyS4,115200 earlyprintk";
+		bootargs = "console=ttyS4,115200 earlycon";
 	};
 	leds {
 		compatible = "gpio-leds";

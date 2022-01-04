@@ -69,7 +69,8 @@ int snd_seq_dump_var_event(const struct snd_seq_event *event,
 	int len, err;
 	struct snd_seq_event_cell *cell;
 
-	if ((len = get_var_len(event)) <= 0)
+	len = get_var_len(event);
+	if (len <= 0)
 		return len;
 
 	if (event->data.ext.len & SNDRV_SEQ_EXT_USRPTR) {
@@ -133,7 +134,8 @@ int snd_seq_expand_var_event(const struct snd_seq_event *event, int count, char 
 	int len, newlen;
 	int err;
 
-	if ((len = get_var_len(event)) < 0)
+	len = get_var_len(event);
+	if (len < 0)
 		return len;
 	newlen = len;
 	if (size_aligned > 0)

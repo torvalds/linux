@@ -450,6 +450,18 @@ void __init efi_free_boot_services(void)
 			size -= rm_size;
 		}
 
+		/*
+		 * Don't free memory under 1M for two reasons:
+		 * - BIOS might clobber it
+		 * - Crash kernel needs it to be reserved
+		 */
+		if (start + size < SZ_1M)
+			continue;
+		if (start < SZ_1M) {
+			size -= (SZ_1M - start);
+			start = SZ_1M;
+		}
+
 		memblock_free_late(start, size);
 	}
 

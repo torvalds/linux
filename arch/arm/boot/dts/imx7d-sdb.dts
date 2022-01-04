@@ -164,6 +164,13 @@
 			"LINPUT1", "AMIC",
 			"AMIC", "MICB";
 	};
+
+	sound-hdmi {
+		compatible = "fsl,imx-audio-sii902x";
+		model = "sii902x-audio";
+		audio-cpu = <&sai3>;
+		hdmi-out;
+	};
 };
 
 &adc1 {

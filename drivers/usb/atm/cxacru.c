@@ -180,7 +180,7 @@ struct cxacru_data {
 	struct mutex poll_state_serialize;
 	enum cxacru_poll_state poll_state;
 
-	/* contol handles */
+	/* control handles */
 	struct mutex cm_serialize;
 	u8 *rcv_buf;
 	u8 *snd_buf;

@@ -320,7 +320,7 @@ static int tps_setup(struct i2c_client *client, void *context)
 {
 	if (!IS_BUILTIN(CONFIG_TPS65010))
 		return -ENOSYS;
-	
+
 	tps65010_config_vregs1(TPS_LDO2_ENABLE | TPS_VLDO2_3_0V |
 				TPS_LDO1_ENABLE | TPS_VLDO1_3_0V);
 
@@ -393,6 +393,8 @@ static void __init h2_init(void)
 	h2_nand_resource.end += SZ_4K - 1;
 	BUG_ON(gpio_request(H2_NAND_RB_GPIO_PIN, "NAND ready") < 0);
 	gpio_direction_input(H2_NAND_RB_GPIO_PIN);
+
+	gpiod_add_lookup_table(&isp1301_gpiod_table);
 
 	omap_cfg_reg(L3_1610_FLASH_CS2B_OE);
 	omap_cfg_reg(M8_1610_FLASH_CS2B_WE);

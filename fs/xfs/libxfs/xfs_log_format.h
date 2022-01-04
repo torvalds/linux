@@ -34,9 +34,6 @@ typedef uint32_t xlog_tid_t;
 #define XLOG_MIN_RECORD_BSHIFT	14		/* 16384 == 1 << 14 */
 #define XLOG_BIG_RECORD_BSHIFT	15		/* 32k == 1 << 15 */
 #define XLOG_MAX_RECORD_BSHIFT	18		/* 256k == 1 << 18 */
-#define XLOG_BTOLSUNIT(log, b)  (((b)+(log)->l_mp->m_sb.sb_logsunit-1) / \
-                                 (log)->l_mp->m_sb.sb_logsunit)
-#define XLOG_LSUNITTOB(log, su) ((su) * (log)->l_mp->m_sb.sb_logsunit)
 
 #define XLOG_HEADER_SIZE	512
 
@@ -44,10 +41,10 @@ typedef uint32_t xlog_tid_t;
 #define XFS_MIN_LOG_FACTOR	3
 
 #define XLOG_REC_SHIFT(log) \
-	BTOBB(1 << (xfs_sb_version_haslogv2(&log->l_mp->m_sb) ? \
+	BTOBB(1 << (xfs_has_logv2(log->l_mp) ? \
 	 XLOG_MAX_RECORD_BSHIFT : XLOG_BIG_RECORD_BSHIFT))
 #define XLOG_TOTAL_REC_SHIFT(log) \
-	BTOBB(XLOG_MAX_ICLOGS << (xfs_sb_version_haslogv2(&log->l_mp->m_sb) ? \
+	BTOBB(XLOG_MAX_ICLOGS << (xfs_has_logv2(log->l_mp) ? \
 	 XLOG_MAX_RECORD_BSHIFT : XLOG_BIG_RECORD_BSHIFT))
 
 /* get lsn fields */
@@ -368,10 +365,10 @@ static inline int xfs_ilog_fdata(int w)
  * directly mirrors the xfs_dinode structure as it must contain all the same
  * information.
  */
-typedef uint64_t xfs_ictimestamp_t;
+typedef uint64_t xfs_log_timestamp_t;
 
 /* Legacy timestamp encoding format. */
-struct xfs_legacy_ictimestamp {
+struct xfs_log_legacy_timestamp {
 	int32_t		t_sec;		/* timestamp seconds */
 	int32_t		t_nsec;		/* timestamp nanoseconds */
 };
@@ -393,9 +390,9 @@ struct xfs_log_dinode {
 	uint16_t	di_projid_hi;	/* higher part of owner's project id */
 	uint8_t		di_pad[6];	/* unused, zeroed space */
 	uint16_t	di_flushiter;	/* incremented on flush */
-	xfs_ictimestamp_t di_atime;	/* time last accessed */
-	xfs_ictimestamp_t di_mtime;	/* time last modified */
-	xfs_ictimestamp_t di_ctime;	/* time created/inode modified */
+	xfs_log_timestamp_t di_atime;	/* time last accessed */
+	xfs_log_timestamp_t di_mtime;	/* time last modified */
+	xfs_log_timestamp_t di_ctime;	/* time created/inode modified */
 	xfs_fsize_t	di_size;	/* number of bytes in file */
 	xfs_rfsblock_t	di_nblocks;	/* # of direct & btree blocks used */
 	xfs_extlen_t	di_extsize;	/* basic/minimum extent size for file */
@@ -414,13 +411,22 @@ struct xfs_log_dinode {
 	/* start of the extended dinode, writable fields */
 	uint32_t	di_crc;		/* CRC of the inode */
 	uint64_t	di_changecount;	/* number of attribute changes */
-	xfs_lsn_t	di_lsn;		/* flush sequence */
+
+	/*
+	 * The LSN we write to this field during formatting is not a reflection
+	 * of the current on-disk LSN. It should never be used for recovery
+	 * sequencing, nor should it be recovered into the on-disk inode at all.
+	 * See xlog_recover_inode_commit_pass2() and xfs_log_dinode_to_disk()
+	 * for details.
+	 */
+	xfs_lsn_t	di_lsn;
+
 	uint64_t	di_flags2;	/* more random flags */
 	uint32_t	di_cowextsize;	/* basic cow extent size for file */
 	uint8_t		di_pad2[12];	/* more padding for future expansion */
 
 	/* fields only written to during inode creation */
-	xfs_ictimestamp_t di_crtime;	/* time created */
+	xfs_log_timestamp_t di_crtime;	/* time created */
 	xfs_ino_t	di_ino;		/* inode number */
 	uuid_t		di_uuid;	/* UUID of the filesystem */
 
@@ -428,7 +434,7 @@ struct xfs_log_dinode {
 };
 
 #define xfs_log_dinode_size(mp)						\
-	(xfs_sb_version_has_v3inode(&(mp)->m_sb) ?			\
+	(xfs_has_v3inodes((mp)) ?					\
 		sizeof(struct xfs_log_dinode) :				\
 		offsetof(struct xfs_log_dinode, di_next_unlinked))
 

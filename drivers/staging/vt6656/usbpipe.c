@@ -3,8 +3,6 @@
  * Copyright (c) 1996, 2003 VIA Networking Technologies, Inc.
  * All rights reserved.
  *
- * File: usbpipe.c
- *
  * Purpose: Handle USB control endpoint
  *
  * Author: Warren Hsu

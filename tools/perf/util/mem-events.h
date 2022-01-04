@@ -38,13 +38,14 @@ extern unsigned int perf_mem_events__loads_ldlat;
 int perf_mem_events__parse(const char *str);
 int perf_mem_events__init(void);
 
-char *perf_mem_events__name(int i);
+char *perf_mem_events__name(int i, char *pmu_name);
 struct perf_mem_event *perf_mem_events__ptr(int i);
 bool is_mem_loads_aux_event(struct evsel *leader);
 
 void perf_mem_events__list(void);
+int perf_mem_events__record_args(const char **rec_argv, int *argv_nr,
+				 char **rec_tmp, int *tmp_nr);
 
-struct mem_info;
 int perf_mem__tlb_scnprintf(char *out, size_t sz, struct mem_info *mem_info);
 int perf_mem__lvl_scnprintf(char *out, size_t sz, struct mem_info *mem_info);
 int perf_mem__snp_scnprintf(char *out, size_t sz, struct mem_info *mem_info);
@@ -81,7 +82,7 @@ struct c2c_stats {
 	u32	rmt_dram;            /* count of loads miss to remote DRAM */
 	u32	blk_data;            /* count of loads blocked by data */
 	u32	blk_addr;            /* count of loads blocked by address conflict */
-	u32	nomap;               /* count of load/stores with no phys adrs */
+	u32	nomap;               /* count of load/stores with no phys addrs */
 	u32	noparse;             /* count of unparsable data sources */
 };
 

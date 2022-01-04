@@ -543,7 +543,7 @@ int bpf_obj_get_user(const char __user *pathname, int flags)
 		return PTR_ERR(raw);
 
 	if (type == BPF_TYPE_PROG)
-		ret = (f_flags != O_RDWR) ? -EINVAL : bpf_prog_new_fd(raw);
+		ret = bpf_prog_new_fd(raw);
 	else if (type == BPF_TYPE_MAP)
 		ret = bpf_map_new_fd(raw, f_flags);
 	else if (type == BPF_TYPE_LINK)
@@ -815,8 +815,6 @@ static struct file_system_type bpf_fs_type = {
 static int __init bpf_init(void)
 {
 	int ret;
-
-	mutex_init(&bpf_preload_lock);
 
 	ret = sysfs_create_mount_point(fs_kobj, "bpf");
 	if (ret)

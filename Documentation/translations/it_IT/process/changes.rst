@@ -51,7 +51,6 @@ quota-tools            3.09               quota -V
 PPP                    2.4.0              pppd --version
 nfs-utils              1.0.5              showmount --version
 procps                 3.2.0              ps --version
-oprofile               0.9                oprofiled --version
 udev                   081                udevd --version
 grub                   0.93               grub --version || grub-install --version
 mcelog                 0.6                mcelog --version

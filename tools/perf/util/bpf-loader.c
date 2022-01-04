@@ -671,7 +671,7 @@ int bpf__probe(struct bpf_object *obj)
 		 * After probing, let's consider prologue, which
 		 * adds program fetcher to BPF programs.
 		 *
-		 * hook_load_preprocessorr() hooks pre-processor
+		 * hook_load_preprocessor() hooks pre-processor
 		 * to bpf_program, let it generate prologue
 		 * dynamically during loading.
 		 */

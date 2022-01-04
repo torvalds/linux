@@ -82,44 +82,23 @@ do {						\
 } while (0)
 
 
-#define __alloc_zeroed_user_highpage(movableflags, vma, vaddr)		\
+#define alloc_zeroed_user_highpage_movable(vma, vaddr)			\
 ({									\
 	struct page *page = alloc_page_vma(				\
-		GFP_HIGHUSER | __GFP_ZERO | movableflags, vma, vaddr);	\
+		GFP_HIGHUSER_MOVABLE | __GFP_ZERO, vma, vaddr);		\
 	if (page)							\
  		flush_dcache_page(page);				\
 	page;								\
 })
 
-#define __HAVE_ARCH_ALLOC_ZEROED_USER_HIGHPAGE
+#define __HAVE_ARCH_ALLOC_ZEROED_USER_HIGHPAGE_MOVABLE
 
 #define virt_addr_valid(kaddr)	pfn_valid(__pa(kaddr) >> PAGE_SHIFT)
 
-#ifdef CONFIG_VIRTUAL_MEM_MAP
-extern int ia64_pfn_valid (unsigned long pfn);
-#else
-# define ia64_pfn_valid(pfn) 1
-#endif
-
-#ifdef CONFIG_VIRTUAL_MEM_MAP
-extern struct page *vmem_map;
-#ifdef CONFIG_DISCONTIGMEM
-# define page_to_pfn(page)	((unsigned long) (page - vmem_map))
-# define pfn_to_page(pfn)	(vmem_map + (pfn))
-# define __pfn_to_phys(pfn)	PFN_PHYS(pfn)
-#else
-# include <asm-generic/memory_model.h>
-#endif
-#else
-# include <asm-generic/memory_model.h>
-#endif
+#include <asm-generic/memory_model.h>
 
 #ifdef CONFIG_FLATMEM
-# define pfn_valid(pfn)		(((pfn) < max_mapnr) && ia64_pfn_valid(pfn))
-#elif defined(CONFIG_DISCONTIGMEM)
-extern unsigned long min_low_pfn;
-extern unsigned long max_low_pfn;
-# define pfn_valid(pfn)		(((pfn) >= min_low_pfn) && ((pfn) < max_low_pfn) && ia64_pfn_valid(pfn))
+# define pfn_valid(pfn)		((pfn) < max_mapnr)
 #endif
 
 #define page_to_phys(page)	(page_to_pfn(page) << PAGE_SHIFT)

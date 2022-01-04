@@ -93,7 +93,7 @@ static int vio_device_probe(struct device *dev)
 	return drv->probe(vdev, id);
 }
 
-static int vio_device_remove(struct device *dev)
+static void vio_device_remove(struct device *dev)
 {
 	struct vio_dev *vdev = to_vio_dev(dev);
 	struct vio_driver *drv = to_vio_driver(dev->driver);
@@ -105,10 +105,8 @@ static int vio_device_remove(struct device *dev)
 		 * routines to do so at the moment. TBD
 		 */
 
-		return drv->remove(vdev);
+		drv->remove(vdev);
 	}
-
-	return 1;
 }
 
 static ssize_t devspec_show(struct device *dev,

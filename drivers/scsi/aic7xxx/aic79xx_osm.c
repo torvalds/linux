@@ -1928,7 +1928,7 @@ ahd_linux_handle_scsi_status(struct ahd_softc *ahd,
 			memcpy(cmd->sense_buffer,
 			       ahd_get_sense_buf(ahd, scb)
 			       + sense_offset, sense_size);
-			cmd->result |= (DRIVER_SENSE << 24);
+			set_status_byte(cmd, SAM_STAT_CHECK_CONDITION);
 
 #ifdef AHD_DEBUG
 			if (ahd_debug & AHD_SHOW_SENSE) {
@@ -2018,6 +2018,7 @@ ahd_linux_queue_cmd_complete(struct ahd_softc *ahd, struct scsi_cmnd *cmd)
 	int new_status = DID_OK;
 	int do_fallback = 0;
 	int scsi_status;
+	struct scsi_sense_data *sense;
 
 	/*
 	 * Map CAM error codes into Linux Error codes.  We
@@ -2041,18 +2042,12 @@ ahd_linux_queue_cmd_complete(struct ahd_softc *ahd, struct scsi_cmnd *cmd)
 		switch(scsi_status) {
 		case SAM_STAT_COMMAND_TERMINATED:
 		case SAM_STAT_CHECK_CONDITION:
-			if ((cmd->result >> 24) != DRIVER_SENSE) {
+			sense = (struct scsi_sense_data *)
+				cmd->sense_buffer;
+			if (sense->extra_len >= 5 &&
+			    (sense->add_sense_code == 0x47
+			     || sense->add_sense_code == 0x48))
 				do_fallback = 1;
-			} else {
-				struct scsi_sense_data *sense;
-				
-				sense = (struct scsi_sense_data *)
-					cmd->sense_buffer;
-				if (sense->extra_len >= 5 &&
-				    (sense->add_sense_code == 0x47
-				     || sense->add_sense_code == 0x48))
-					do_fallback = 1;
-			}
 			break;
 		default:
 			break;

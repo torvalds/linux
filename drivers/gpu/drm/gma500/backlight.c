@@ -42,7 +42,7 @@ void gma_backlight_disable(struct drm_device *dev)
 		dev_priv->backlight_device->props.brightness = 0;
 		do_gma_backlight_set(dev);
 	}
-#endif	
+#endif
 }
 
 void gma_backlight_set(struct drm_device *dev, int v)
@@ -54,7 +54,7 @@ void gma_backlight_set(struct drm_device *dev, int v)
 		dev_priv->backlight_device->props.brightness = v;
 		do_gma_backlight_set(dev);
 	}
-#endif	
+#endif
 }
 
 int gma_backlight_init(struct drm_device *dev)

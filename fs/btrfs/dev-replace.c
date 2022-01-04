@@ -37,7 +37,7 @@
  * - Write duplication
  *
  *   All new writes will be written to both target and source devices, so even
- *   if replace gets canceled, sources device still contans up-to-date data.
+ *   if replace gets canceled, sources device still contains up-to-date data.
  *
  *   Location:		handle_ops_on_dev_replace() from __btrfs_map_block()
  *   Start:		btrfs_dev_replace_start()

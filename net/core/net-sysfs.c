@@ -1361,14 +1361,61 @@ static const struct attribute_group dql_group = {
 #endif /* CONFIG_BQL */
 
 #ifdef CONFIG_XPS
-static ssize_t xps_cpus_show(struct netdev_queue *queue,
-			     char *buf)
+static ssize_t xps_queue_show(struct net_device *dev, unsigned int index,
+			      int tc, char *buf, enum xps_map_type type)
 {
-	int cpu, len, ret, num_tc = 1, tc = 0;
-	struct net_device *dev = queue->dev;
 	struct xps_dev_maps *dev_maps;
-	cpumask_var_t mask;
-	unsigned long index;
+	unsigned long *mask;
+	unsigned int nr_ids;
+	int j, len;
+
+	rcu_read_lock();
+	dev_maps = rcu_dereference(dev->xps_maps[type]);
+
+	/* Default to nr_cpu_ids/dev->num_rx_queues and do not just return 0
+	 * when dev_maps hasn't been allocated yet, to be backward compatible.
+	 */
+	nr_ids = dev_maps ? dev_maps->nr_ids :
+		 (type == XPS_CPUS ? nr_cpu_ids : dev->num_rx_queues);
+
+	mask = bitmap_zalloc(nr_ids, GFP_NOWAIT);
+	if (!mask) {
+		rcu_read_unlock();
+		return -ENOMEM;
+	}
+
+	if (!dev_maps || tc >= dev_maps->num_tc)
+		goto out_no_maps;
+
+	for (j = 0; j < nr_ids; j++) {
+		int i, tci = j * dev_maps->num_tc + tc;
+		struct xps_map *map;
+
+		map = rcu_dereference(dev_maps->attr_map[tci]);
+		if (!map)
+			continue;
+
+		for (i = map->len; i--;) {
+			if (map->queues[i] == index) {
+				set_bit(j, mask);
+				break;
+			}
+		}
+	}
+out_no_maps:
+	rcu_read_unlock();
+
+	len = bitmap_print_to_pagebuf(false, buf, mask, nr_ids);
+	bitmap_free(mask);
+
+	return len < PAGE_SIZE ? len : -EINVAL;
+}
+
+static ssize_t xps_cpus_show(struct netdev_queue *queue, char *buf)
+{
+	struct net_device *dev = queue->dev;
+	unsigned int index;
+	int len, tc;
 
 	if (!netif_is_multiqueue(dev))
 		return -ENOENT;
@@ -1378,66 +1425,30 @@ static ssize_t xps_cpus_show(struct netdev_queue *queue,
 	if (!rtnl_trylock())
 		return restart_syscall();
 
-	if (dev->num_tc) {
-		/* Do not allow XPS on subordinate device directly */
-		num_tc = dev->num_tc;
-		if (num_tc < 0) {
-			ret = -EINVAL;
-			goto err_rtnl_unlock;
-		}
+	/* If queue belongs to subordinate dev use its map */
+	dev = netdev_get_tx_queue(dev, index)->sb_dev ? : dev;
 
-		/* If queue belongs to subordinate dev use its map */
-		dev = netdev_get_tx_queue(dev, index)->sb_dev ? : dev;
-
-		tc = netdev_txq_to_tc(dev, index);
-		if (tc < 0) {
-			ret = -EINVAL;
-			goto err_rtnl_unlock;
-		}
+	tc = netdev_txq_to_tc(dev, index);
+	if (tc < 0) {
+		rtnl_unlock();
+		return -EINVAL;
 	}
 
-	if (!zalloc_cpumask_var(&mask, GFP_KERNEL)) {
-		ret = -ENOMEM;
-		goto err_rtnl_unlock;
-	}
-
-	rcu_read_lock();
-	dev_maps = rcu_dereference(dev->xps_cpus_map);
-	if (dev_maps) {
-		for_each_possible_cpu(cpu) {
-			int i, tci = cpu * num_tc + tc;
-			struct xps_map *map;
-
-			map = rcu_dereference(dev_maps->attr_map[tci]);
-			if (!map)
-				continue;
-
-			for (i = map->len; i--;) {
-				if (map->queues[i] == index) {
-					cpumask_set_cpu(cpu, mask);
-					break;
-				}
-			}
-		}
-	}
-	rcu_read_unlock();
-
+	/* Make sure the subordinate device can't be freed */
+	get_device(&dev->dev);
 	rtnl_unlock();
 
-	len = snprintf(buf, PAGE_SIZE, "%*pb\n", cpumask_pr_args(mask));
-	free_cpumask_var(mask);
-	return len < PAGE_SIZE ? len : -EINVAL;
+	len = xps_queue_show(dev, index, tc, buf, XPS_CPUS);
 
-err_rtnl_unlock:
-	rtnl_unlock();
-	return ret;
+	put_device(&dev->dev);
+	return len;
 }
 
 static ssize_t xps_cpus_store(struct netdev_queue *queue,
 			      const char *buf, size_t len)
 {
 	struct net_device *dev = queue->dev;
-	unsigned long index;
+	unsigned int index;
 	cpumask_var_t mask;
 	int err;
 
@@ -1476,64 +1487,21 @@ static struct netdev_queue_attribute xps_cpus_attribute __ro_after_init
 
 static ssize_t xps_rxqs_show(struct netdev_queue *queue, char *buf)
 {
-	int j, len, ret, num_tc = 1, tc = 0;
 	struct net_device *dev = queue->dev;
-	struct xps_dev_maps *dev_maps;
-	unsigned long *mask, index;
+	unsigned int index;
+	int tc;
 
 	index = get_netdev_queue_index(queue);
 
 	if (!rtnl_trylock())
 		return restart_syscall();
 
-	if (dev->num_tc) {
-		num_tc = dev->num_tc;
-		tc = netdev_txq_to_tc(dev, index);
-		if (tc < 0) {
-			ret = -EINVAL;
-			goto err_rtnl_unlock;
-		}
-	}
-	mask = bitmap_zalloc(dev->num_rx_queues, GFP_KERNEL);
-	if (!mask) {
-		ret = -ENOMEM;
-		goto err_rtnl_unlock;
-	}
-
-	rcu_read_lock();
-	dev_maps = rcu_dereference(dev->xps_rxqs_map);
-	if (!dev_maps)
-		goto out_no_maps;
-
-	for (j = -1; j = netif_attrmask_next(j, NULL, dev->num_rx_queues),
-	     j < dev->num_rx_queues;) {
-		int i, tci = j * num_tc + tc;
-		struct xps_map *map;
-
-		map = rcu_dereference(dev_maps->attr_map[tci]);
-		if (!map)
-			continue;
-
-		for (i = map->len; i--;) {
-			if (map->queues[i] == index) {
-				set_bit(j, mask);
-				break;
-			}
-		}
-	}
-out_no_maps:
-	rcu_read_unlock();
-
+	tc = netdev_txq_to_tc(dev, index);
 	rtnl_unlock();
+	if (tc < 0)
+		return -EINVAL;
 
-	len = bitmap_print_to_pagebuf(false, buf, mask, dev->num_rx_queues);
-	bitmap_free(mask);
-
-	return len < PAGE_SIZE ? len : -EINVAL;
-
-err_rtnl_unlock:
-	rtnl_unlock();
-	return ret;
+	return xps_queue_show(dev, index, tc, buf, XPS_RXQS);
 }
 
 static ssize_t xps_rxqs_store(struct netdev_queue *queue, const char *buf,
@@ -1541,7 +1509,8 @@ static ssize_t xps_rxqs_store(struct netdev_queue *queue, const char *buf,
 {
 	struct net_device *dev = queue->dev;
 	struct net *net = dev_net(dev);
-	unsigned long *mask, index;
+	unsigned long *mask;
+	unsigned int index;
 	int err;
 
 	if (!ns_capable(net->user_ns, CAP_NET_ADMIN))
@@ -1565,7 +1534,7 @@ static ssize_t xps_rxqs_store(struct netdev_queue *queue, const char *buf,
 	}
 
 	cpus_read_lock();
-	err = __netif_set_xps_queue(dev, mask, index, true);
+	err = __netif_set_xps_queue(dev, mask, index, XPS_RXQS);
 	cpus_read_unlock();
 
 	rtnl_unlock();

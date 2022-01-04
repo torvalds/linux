@@ -21,7 +21,6 @@
 #include <linux/module.h>
 #include <linux/atmdev.h>
 #include <linux/sonet.h>
-#include <linux/atm_suni.h>
 #include <linux/dma-mapping.h>
 #include <linux/delay.h>
 #include <linux/firmware.h>
@@ -421,6 +420,7 @@ fore200e_shutdown(struct fore200e* fore200e)
 	/* XXX shouldn't we *start* by deregistering the device? */
 	atm_dev_deregister(fore200e->atm_dev);
 
+	fallthrough;
     case FORE200E_STATE_BLANK:
 	/* nothing to do for that state */
 	break;

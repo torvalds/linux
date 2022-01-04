@@ -594,7 +594,7 @@ static int rt1308_sdw_pcm_hw_free(struct snd_pcm_substream *substream,
  * slave_ops: callbacks for get_clock_stop_mode, clock_stop and
  * port_prep are not defined for now
  */
-static struct sdw_slave_ops rt1308_slave_ops = {
+static const struct sdw_slave_ops rt1308_slave_ops = {
 	.read_prop = rt1308_read_prop,
 	.interrupt_callback = rt1308_interrupt_callback,
 	.update_status = rt1308_update_status,
@@ -709,7 +709,7 @@ static int __maybe_unused rt1308_dev_resume(struct device *dev)
 	struct rt1308_sdw_priv *rt1308 = dev_get_drvdata(dev);
 	unsigned long time;
 
-	if (!rt1308->hw_init)
+	if (!rt1308->first_hw_init)
 		return 0;
 
 	if (!slave->unattach_request)

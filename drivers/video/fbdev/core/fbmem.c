@@ -67,7 +67,7 @@ static struct fb_info *get_fb_info(unsigned int idx)
 	mutex_lock(&registration_lock);
 	fb_info = registered_fb[idx];
 	if (fb_info)
-		atomic_inc(&fb_info->count);
+		refcount_inc(&fb_info->count);
 	mutex_unlock(&registration_lock);
 
 	return fb_info;
@@ -75,7 +75,7 @@ static struct fb_info *get_fb_info(unsigned int idx)
 
 static void put_fb_info(struct fb_info *fb_info)
 {
-	if (!atomic_dec_and_test(&fb_info->count))
+	if (!refcount_dec_and_test(&fb_info->count))
 		return;
 	if (fb_info->fbops->fb_destroy)
 		fb_info->fbops->fb_destroy(fb_info);
@@ -733,7 +733,7 @@ static int fb_seq_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static const struct seq_operations proc_fb_seq_ops = {
+static const struct seq_operations __maybe_unused proc_fb_seq_ops = {
 	.start	= fb_seq_start,
 	.next	= fb_seq_next,
 	.stop	= fb_seq_stop,
@@ -970,13 +970,11 @@ fb_set_var(struct fb_info *info, struct fb_var_screeninfo *var)
 		fb_var_to_videomode(&mode2, &info->var);
 		/* make sure we don't delete the videomode of current var */
 		ret = fb_mode_is_equal(&mode1, &mode2);
-
-		if (!ret)
-			fbcon_mode_deleted(info, &mode1);
-
-		if (!ret)
-			fb_delete_videomode(&mode1, &info->modelist);
-
+		if (!ret) {
+			ret = fbcon_mode_deleted(info, &mode1);
+			if (!ret)
+				fb_delete_videomode(&mode1, &info->modelist);
+		}
 
 		return ret ? -EINVAL : 0;
 	}
@@ -1594,7 +1592,7 @@ static int do_register_framebuffer(struct fb_info *fb_info)
 		if (!registered_fb[i])
 			break;
 	fb_info->node = i;
-	atomic_set(&fb_info->count, 1);
+	refcount_set(&fb_info->count, 1);
 	mutex_init(&fb_info->lock);
 	mutex_init(&fb_info->mm_lock);
 

@@ -568,8 +568,7 @@ vmci_transport_queue_pair_alloc(struct vmci_qp **qpair,
 			       peer, flags, VMCI_NO_PRIVILEGE_FLAGS);
 out:
 	if (err < 0) {
-		pr_err("Could not attach to queue pair with %d\n",
-		       err);
+		pr_err_once("Could not attach to queue pair with %d\n", err);
 		err = vmci_transport_error_to_vsock_error(err);
 	}
 
@@ -832,7 +831,7 @@ static void vmci_transport_handle_detach(struct sock *sk)
 
 				sk->sk_state = TCP_CLOSE;
 				sk->sk_err = ECONNRESET;
-				sk->sk_error_report(sk);
+				sk_error_report(sk);
 				return;
 			}
 			sk->sk_state = TCP_CLOSE;
@@ -944,8 +943,6 @@ static int vmci_transport_recv_listen(struct sock *sk,
 	u64 qp_size;
 	bool old_request = false;
 	bool old_pkt_proto = false;
-
-	err = 0;
 
 	/* Because we are in the listen state, we could be receiving a packet
 	 * for ourself or any previous connection requests that we received.
@@ -1251,7 +1248,7 @@ vmci_transport_recv_connecting_server(struct sock *listener,
 	vsock_remove_pending(listener, pending);
 	vsock_enqueue_accept(listener, pending);
 
-	/* Callers of accept() will be be waiting on the listening socket, not
+	/* Callers of accept() will be waiting on the listening socket, not
 	 * the pending socket.
 	 */
 	listener->sk_data_ready(listener);
@@ -1368,7 +1365,7 @@ destroy:
 
 	sk->sk_state = TCP_CLOSE;
 	sk->sk_err = skerr;
-	sk->sk_error_report(sk);
+	sk_error_report(sk);
 	return err;
 }
 

@@ -11,11 +11,13 @@ its supported drivers.
 
 Please see:
 
-- :doc:`/admin-guide/media/index`
-    for usage information about media subsystem and supported drivers;
+Documentation/admin-guide/media/index.rst
 
-- :doc:`/userspace-api/media/index`
-     for the userspace APIs used on media devices.
+  - for usage information about media subsystem and supported drivers;
+
+Documentation/userspace-api/media/index.rst
+
+  - for the userspace APIs used on media devices.
 
 
 .. only:: html
@@ -28,12 +30,14 @@ Please see:
     :maxdepth: 5
     :numbered:
 
+    maintainer-entry-profile
+
     v4l2-core
     dtv-core
     rc-core
     mc-core
     cec-core
-    csi2
+    tx-rx
     camera-sensor
 
     drivers/index

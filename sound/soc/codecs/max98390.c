@@ -765,17 +765,26 @@ static int max98390_dsm_init(struct snd_soc_component *component)
 	vendor = dmi_get_system_info(DMI_SYS_VENDOR);
 	product = dmi_get_system_info(DMI_PRODUCT_NAME);
 
-	if (vendor && product) {
-		snprintf(filename, sizeof(filename), "dsm_param_%s_%s.bin",
-			vendor, product);
+	if (!strcmp(max98390->dsm_param_name, "default")) {
+		if (vendor && product) {
+			snprintf(filename, sizeof(filename),
+				"dsm_param_%s_%s.bin", vendor, product);
+		} else {
+			sprintf(filename, "dsm_param.bin");
+		}
 	} else {
-		sprintf(filename, "dsm_param.bin");
+		snprintf(filename, sizeof(filename), "%s",
+			max98390->dsm_param_name);
 	}
 	ret = request_firmware(&fw, filename, component->dev);
 	if (ret) {
 		ret = request_firmware(&fw, "dsm_param.bin", component->dev);
-		if (ret)
-			goto err;
+		if (ret) {
+			ret = request_firmware(&fw, "dsmparam.bin",
+				component->dev);
+			if (ret)
+				goto err;
+		}
 	}
 
 	dev_dbg(component->dev,
@@ -856,6 +865,48 @@ static void max98390_init_regs(struct snd_soc_component *component)
 	regmap_write(max98390->regmap, MAX98390_ENV_TRACK_VOUT_HEADROOM, 0x0e);
 	regmap_write(max98390->regmap, MAX98390_BOOST_BYPASS1, 0x46);
 	regmap_write(max98390->regmap, MAX98390_FET_SCALING3, 0x03);
+
+	/* voltage, current slot configuration */
+	regmap_write(max98390->regmap,
+		MAX98390_PCM_CH_SRC_2,
+		(max98390->i_l_slot << 4 |
+		max98390->v_l_slot)&0xFF);
+
+	if (max98390->v_l_slot < 8) {
+		regmap_update_bits(max98390->regmap,
+			MAX98390_PCM_TX_HIZ_CTRL_A,
+			1 << max98390->v_l_slot, 0);
+		regmap_update_bits(max98390->regmap,
+			MAX98390_PCM_TX_EN_A,
+			1 << max98390->v_l_slot,
+			1 << max98390->v_l_slot);
+	} else {
+		regmap_update_bits(max98390->regmap,
+			MAX98390_PCM_TX_HIZ_CTRL_B,
+			1 << (max98390->v_l_slot - 8), 0);
+		regmap_update_bits(max98390->regmap,
+			MAX98390_PCM_TX_EN_B,
+			1 << (max98390->v_l_slot - 8),
+			1 << (max98390->v_l_slot - 8));
+	}
+
+	if (max98390->i_l_slot < 8) {
+		regmap_update_bits(max98390->regmap,
+			MAX98390_PCM_TX_HIZ_CTRL_A,
+			1 << max98390->i_l_slot, 0);
+		regmap_update_bits(max98390->regmap,
+			MAX98390_PCM_TX_EN_A,
+			1 << max98390->i_l_slot,
+			1 << max98390->i_l_slot);
+	} else {
+		regmap_update_bits(max98390->regmap,
+			MAX98390_PCM_TX_HIZ_CTRL_B,
+			1 << (max98390->i_l_slot - 8), 0);
+		regmap_update_bits(max98390->regmap,
+			MAX98390_PCM_TX_EN_B,
+			1 << (max98390->i_l_slot - 8),
+			1 << (max98390->i_l_slot - 8));
+	}
 }
 
 static int max98390_probe(struct snd_soc_component *component)
@@ -946,6 +997,23 @@ static const struct regmap_config max98390_regmap = {
 	.cache_type       = REGCACHE_RBTREE,
 };
 
+static void max98390_slot_config(struct i2c_client *i2c,
+	struct max98390_priv *max98390)
+{
+	int value;
+	struct device *dev = &i2c->dev;
+
+	if (!device_property_read_u32(dev, "maxim,vmon-slot-no", &value))
+		max98390->v_l_slot = value & 0xF;
+	else
+		max98390->v_l_slot = 0;
+
+	if (!device_property_read_u32(dev, "maxim,imon-slot-no", &value))
+		max98390->i_l_slot = value & 0xF;
+	else
+		max98390->i_l_slot = 1;
+}
+
 static int max98390_i2c_probe(struct i2c_client *i2c,
 		const struct i2c_device_id *id)
 {
@@ -987,6 +1055,14 @@ static int max98390_i2c_probe(struct i2c_client *i2c,
 		"%s: r0_calib: 0x%x,temperature_calib: 0x%x",
 		__func__, max98390->ref_rdc_value,
 		max98390->ambient_temp_value);
+
+	ret = device_property_read_string(&i2c->dev, "maxim,dsm_param_name",
+				       &max98390->dsm_param_name);
+	if (ret)
+		max98390->dsm_param_name = "default";
+
+	/* voltage/current slot configuration */
+	max98390_slot_config(i2c, max98390);
 
 	/* regmap initialization */
 	max98390->regmap = devm_regmap_init_i2c(i2c, &max98390_regmap);

@@ -50,7 +50,7 @@ static bool __ptr_invalid(struct cache_set *c, const struct bkey *k)
 
 	for (i = 0; i < KEY_PTRS(k); i++)
 		if (ptr_available(c, k, i)) {
-			struct cache *ca = PTR_CACHE(c, k, i);
+			struct cache *ca = c->cache;
 			size_t bucket = PTR_BUCKET_NR(c, k, i);
 			size_t r = bucket_remainder(c, PTR_OFFSET(k, i));
 
@@ -71,7 +71,7 @@ static const char *bch_ptr_status(struct cache_set *c, const struct bkey *k)
 
 	for (i = 0; i < KEY_PTRS(k); i++)
 		if (ptr_available(c, k, i)) {
-			struct cache *ca = PTR_CACHE(c, k, i);
+			struct cache *ca = c->cache;
 			size_t bucket = PTR_BUCKET_NR(c, k, i);
 			size_t r = bucket_remainder(c, PTR_OFFSET(k, i));
 

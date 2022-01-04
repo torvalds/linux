@@ -63,6 +63,7 @@ struct vmw_cotable {
  * @min_initial_entries: Min number of initial intries at cotable allocation
  * for this cotable type.
  * @size: Size of each entry.
+ * @unbind_func: Unbind call-back function.
  */
 struct vmw_cotable_info {
 	u32 min_initial_entries;
@@ -172,7 +173,7 @@ static int vmw_cotable_unscrub(struct vmw_resource *res)
 		SVGA3dCmdDXSetCOTable body;
 	} *cmd;
 
-	WARN_ON_ONCE(bo->mem.mem_type != VMW_PL_MOB);
+	WARN_ON_ONCE(bo->resource->mem_type != VMW_PL_MOB);
 	dma_resv_assert_held(bo->base.resv);
 
 	cmd = VMW_CMD_RESERVE(dev_priv, sizeof(*cmd));
@@ -180,12 +181,12 @@ static int vmw_cotable_unscrub(struct vmw_resource *res)
 		return -ENOMEM;
 
 	WARN_ON(vcotbl->ctx->id == SVGA3D_INVALID_ID);
-	WARN_ON(bo->mem.mem_type != VMW_PL_MOB);
+	WARN_ON(bo->resource->mem_type != VMW_PL_MOB);
 	cmd->header.id = SVGA_3D_CMD_DX_SET_COTABLE;
 	cmd->header.size = sizeof(cmd->body);
 	cmd->body.cid = vcotbl->ctx->id;
 	cmd->body.type = vcotbl->type;
-	cmd->body.mobid = bo->mem.start;
+	cmd->body.mobid = bo->resource->start;
 	cmd->body.validSizeInBytes = vcotbl->size_read_back;
 
 	vmw_cmd_commit_flush(dev_priv, sizeof(*cmd));
@@ -297,7 +298,7 @@ int vmw_cotable_scrub(struct vmw_resource *res, bool readback)
  *
  * @res: Pointer to the cotable resource.
  * @readback: Whether to read back cotable data to the backup buffer.
- * val_buf: Pointer to a struct ttm_validate_buffer prepared by the caller
+ * @val_buf: Pointer to a struct ttm_validate_buffer prepared by the caller
  * for convenience / fencing.
  *
  * Unbinds the cotable from the device and fences the backup buffer.
@@ -314,7 +315,7 @@ static int vmw_cotable_unbind(struct vmw_resource *res,
 	if (!vmw_resource_mob_attached(res))
 		return 0;
 
-	WARN_ON_ONCE(bo->mem.mem_type != VMW_PL_MOB);
+	WARN_ON_ONCE(bo->resource->mem_type != VMW_PL_MOB);
 	dma_resv_assert_held(bo->base.resv);
 
 	mutex_lock(&dev_priv->binding_mutex);
@@ -430,7 +431,7 @@ static int vmw_cotable_resize(struct vmw_resource *res, size_t new_size)
 	 * Do a page by page copy of COTables. This eliminates slow vmap()s.
 	 * This should really be a TTM utility.
 	 */
-	for (i = 0; i < old_bo->mem.num_pages; ++i) {
+	for (i = 0; i < old_bo->resource->num_pages; ++i) {
 		bool dummy;
 
 		ret = ttm_bo_kmap(old_bo, i, 1, &old_map);
@@ -606,8 +607,7 @@ struct vmw_resource *vmw_cotable_alloc(struct vmw_private *dev_priv,
 	if (num_entries < co_info[type].min_initial_entries) {
 		vcotbl->res.backup_size = co_info[type].min_initial_entries *
 			co_info[type].size;
-		vcotbl->res.backup_size =
-			(vcotbl->res.backup_size + PAGE_SIZE - 1) & PAGE_MASK;
+		vcotbl->res.backup_size = PFN_ALIGN(vcotbl->res.backup_size);
 	}
 
 	vcotbl->scrubbed = true;
@@ -652,7 +652,7 @@ int vmw_cotable_notify(struct vmw_resource *res, int id)
 }
 
 /**
- * vmw_cotable_add_view - add a view to the cotable's list of active views.
+ * vmw_cotable_add_resource - add a view to the cotable's list of active views.
  *
  * @res: pointer struct vmw_resource representing the cotable.
  * @head: pointer to the struct list_head member of the resource, dedicated

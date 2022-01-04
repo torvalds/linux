@@ -66,9 +66,9 @@ static void tag_release_one(struct mvumi_hba *mhba, struct mvumi_tag *st,
 static bool tag_is_empty(struct mvumi_tag *st)
 {
 	if (st->top == 0)
-		return 1;
+		return true;
 	else
-		return 0;
+		return false;
 }
 
 static void mvumi_unmap_pci_addr(struct pci_dev *dev, void **addr_array)
@@ -182,7 +182,7 @@ static void mvumi_release_mem_resource(struct mvumi_hba *mhba)
  * @mhba:		Adapter soft state
  * @scmd:		SCSI command from the mid-layer
  * @sgl_p:		SGL to be filled in
- * @sg_count		return the number of SG elements
+ * @sg_count:		return the number of SG elements
  *
  * If successful, this function returns 0. otherwise, it returns -1.
  */
@@ -702,7 +702,7 @@ static int mvumi_host_reset(struct scsi_cmnd *scmd)
 	mhba = (struct mvumi_hba *) scmd->device->host->hostdata;
 
 	scmd_printk(KERN_NOTICE, scmd, "RESET -%u cmd=%x retries=%x\n",
-			scmd->request->tag, scmd->cmnd[0], scmd->retries);
+			scsi_cmd_to_rq(scmd)->tag, scmd->cmnd[0], scmd->retries);
 
 	return mhba->instancet->reset_host(mhba);
 }
@@ -1295,6 +1295,7 @@ static unsigned char mvumi_start(struct mvumi_hba *mhba)
  * mvumi_complete_cmd -	Completes a command
  * @mhba:			Adapter soft state
  * @cmd:			Command to be completed
+ * @ob_frame:			Command response
  */
 static void mvumi_complete_cmd(struct mvumi_hba *mhba, struct mvumi_cmd *cmd,
 					struct mvumi_rsp_frame *ob_frame)
@@ -1316,11 +1317,10 @@ static void mvumi_complete_cmd(struct mvumi_hba *mhba, struct mvumi_cmd *cmd,
 		if (ob_frame->rsp_flag & CL_RSP_FLAG_SENSEDATA) {
 			memcpy(cmd->scmd->sense_buffer, ob_frame->payload,
 				sizeof(struct mvumi_sense_data));
-			scmd->result |=  (DRIVER_SENSE << 24);
 		}
 		break;
 	default:
-		scmd->result |= (DRIVER_INVALID << 24) | (DID_ABORT << 16);
+		scmd->result |= (DID_ABORT << 16);
 		break;
 	}
 
@@ -2067,17 +2067,14 @@ static unsigned char mvumi_build_frame(struct mvumi_hba *mhba,
 	return 0;
 
 error:
-	scmd->result = (DID_OK << 16) | (DRIVER_SENSE << 24) |
-		SAM_STAT_CHECK_CONDITION;
-	scsi_build_sense_buffer(0, scmd->sense_buffer, ILLEGAL_REQUEST, 0x24,
-									0);
+	scsi_build_sense(scmd, 0, ILLEGAL_REQUEST, 0x24, 0);
 	return -1;
 }
 
 /**
  * mvumi_queue_command -	Queue entry point
+ * @shost:			Scsi host to queue command on
  * @scmd:			SCSI command to be queued
- * @done:			Callback entry point
  */
 static int mvumi_queue_command(struct Scsi_Host *shost,
 					struct scsi_cmnd *scmd)
@@ -2130,7 +2127,7 @@ static enum blk_eh_timer_return mvumi_timed_out(struct scsi_cmnd *scmd)
 	else
 		atomic_dec(&mhba->fw_outstanding);
 
-	scmd->result = (DRIVER_INVALID << 24) | (DID_ABORT << 16);
+	scmd->result = (DID_ABORT << 16);
 	scmd->SCp.ptr = NULL;
 	if (scsi_bufflen(scmd)) {
 		dma_unmap_sg(&mhba->pdev->dev, scsi_sglist(scmd),

@@ -95,7 +95,10 @@ static int help(struct sk_buff *skb,
 
 	spin_lock_bh(&nf_sane_lock);
 	sb_ptr = skb_header_pointer(skb, dataoff, datalen, sane_buffer);
-	BUG_ON(sb_ptr == NULL);
+	if (!sb_ptr) {
+		spin_unlock_bh(&nf_sane_lock);
+		return NF_ACCEPT;
+	}
 
 	if (dir == IP_CT_DIR_ORIGINAL) {
 		if (datalen != sizeof(struct sane_request))

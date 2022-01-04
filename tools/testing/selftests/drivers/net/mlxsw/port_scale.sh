@@ -7,6 +7,8 @@
 
 PORT_NUM_NETIFS=0
 
+declare -a unsplit
+
 port_setup_prepare()
 {
 	:
@@ -20,12 +22,12 @@ port_cleanup()
 		devlink port unsplit $port
 		check_err $? "Did not unsplit $netdev"
 	done
+	unsplit=()
 }
 
 split_all_ports()
 {
 	local should_fail=$1; shift
-	local -a unsplit
 
 	# Loop over the splittable netdevs and create tuples of netdev along
 	# with its width. For example:
@@ -55,10 +57,6 @@ port_test()
 	      | jq '.[][][] | select(.name=="physical_ports") |.["occ"]')
 
 	[[ $occ -eq $max_ports ]]
-	if [[ $should_fail -eq 0 ]]; then
-		check_err $? "Mismatch ports number: Expected $max_ports, got $occ."
-	else
-		check_err_fail $should_fail $? "Reached more ports than expected"
-	fi
+	check_err_fail $should_fail $? "Attempt to create $max_ports ports (actual result $occ)"
 
 }

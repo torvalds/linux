@@ -62,6 +62,7 @@
 #include <net/rpl.h>
 #include <net/compat.h>
 #include <net/xfrm.h>
+#include <net/ioam6.h>
 
 #include <linux/uaccess.h>
 #include <linux/mroute6.h>
@@ -222,7 +223,7 @@ lookup_protocol:
 	inet->mc_loop	= 1;
 	inet->mc_ttl	= 1;
 	inet->mc_index	= 0;
-	inet->mc_list	= NULL;
+	RCU_INIT_POINTER(inet->mc_list, NULL);
 	inet->rcv_tos	= 0;
 
 	if (net->ipv4.sysctl_ip_no_pmtu_disc)
@@ -454,7 +455,7 @@ int inet6_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 	 * changes context in a wrong way it will be caught.
 	 */
 	err = BPF_CGROUP_RUN_PROG_INET_BIND_LOCK(sk, uaddr,
-						 BPF_CGROUP_INET6_BIND, &flags);
+						 CGROUP_INET6_BIND, &flags);
 	if (err)
 		return err;
 
@@ -531,7 +532,7 @@ int inet6_getname(struct socket *sock, struct sockaddr *uaddr,
 		if (np->sndflow)
 			sin->sin6_flowinfo = np->flow_label;
 		BPF_CGROUP_RUN_SA_PROG_LOCK(sk, (struct sockaddr *)sin,
-					    BPF_CGROUP_INET6_GETPEERNAME,
+					    CGROUP_INET6_GETPEERNAME,
 					    NULL);
 	} else {
 		if (ipv6_addr_any(&sk->sk_v6_rcv_saddr))
@@ -540,7 +541,7 @@ int inet6_getname(struct socket *sock, struct sockaddr *uaddr,
 			sin->sin6_addr = sk->sk_v6_rcv_saddr;
 		sin->sin6_port = inet->inet_sport;
 		BPF_CGROUP_RUN_SA_PROG_LOCK(sk, (struct sockaddr *)sin,
-					    BPF_CGROUP_INET6_GETSOCKNAME,
+					    CGROUP_INET6_GETSOCKNAME,
 					    NULL);
 	}
 	sin->sin6_scope_id = ipv6_iface_scope_id(&sin->sin6_addr,
@@ -714,6 +715,7 @@ const struct proto_ops inet6_dgram_ops = {
 	.getsockopt	   = sock_common_getsockopt,	/* ok		*/
 	.sendmsg	   = inet6_sendmsg,		/* retpoline's sake */
 	.recvmsg	   = inet6_recvmsg,		/* retpoline's sake */
+	.read_sock	   = udp_read_sock,
 	.mmap		   = sock_no_mmap,
 	.sendpage	   = sock_no_sendpage,
 	.set_peek_off	   = sk_set_peek_off,
@@ -960,6 +962,9 @@ static int __net_init inet6_net_init(struct net *net)
 	net->ipv6.sysctl.fib_notify_on_flag_change = 0;
 	atomic_set(&net->ipv6.fib6_sernum, 1);
 
+	net->ipv6.sysctl.ioam6_id = IOAM6_DEFAULT_ID;
+	net->ipv6.sysctl.ioam6_id_wide = IOAM6_DEFAULT_ID_WIDE;
+
 	err = ipv6_init_mibs(net);
 	if (err)
 		return err;
@@ -1032,6 +1037,7 @@ static const struct ipv6_stub ipv6_stub_impl = {
 #endif
 	.nd_tbl	= &nd_tbl,
 	.ipv6_fragment = ip6_fragment,
+	.ipv6_dev_find = ipv6_dev_find,
 };
 
 static const struct ipv6_bpf_stub ipv6_bpf_stub_impl = {
@@ -1189,6 +1195,10 @@ static int __init inet6_init(void)
 	if (err)
 		goto rpl_fail;
 
+	err = ioam6_init();
+	if (err)
+		goto ioam6_fail;
+
 	err = igmp6_late_init();
 	if (err)
 		goto igmp6_late_err;
@@ -1211,6 +1221,8 @@ sysctl_fail:
 	igmp6_late_cleanup();
 #endif
 igmp6_late_err:
+	ioam6_exit();
+ioam6_fail:
 	rpl_exit();
 rpl_fail:
 	seg6_exit();

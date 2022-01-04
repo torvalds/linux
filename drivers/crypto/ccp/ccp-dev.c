@@ -470,7 +470,7 @@ int ccp_cmd_queue_thread(void *data)
 /**
  * ccp_alloc_struct - allocate and initialize the ccp_device struct
  *
- * @dev: device struct of the CCP
+ * @sp: sp_device struct of the CCP
  */
 struct ccp_device *ccp_alloc_struct(struct sp_device *sp)
 {

@@ -480,6 +480,8 @@ static int ne_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		goto free_ne_pci_dev;
 	}
 
+	pci_set_master(pdev);
+
 	rc = pci_request_regions_exclusive(pdev, "nitro_enclaves");
 	if (rc < 0) {
 		dev_err(&pdev->dev, "Error in pci request regions [rc=%d]\n", rc);

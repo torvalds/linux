@@ -22,7 +22,7 @@ KDIR_ROOT_DIR=$(realpath $PWD/$SCRIPT_REL_DIR/../../../../)
 cd $KDIR_ROOT_DIR
 if [ ! -e tools/bpf/bpftool/Makefile ]; then
 	echo -e "skip:    bpftool files not found!\n"
-	exit 0
+	exit 4 # KSFT_SKIP=4
 fi
 
 ERROR=0
@@ -82,23 +82,6 @@ make_with_tmpdir() {
 	fi
 	check $TMPDIR
 	rm -rf -- $TMPDIR
-	echo
-}
-
-make_doc_and_clean() {
-	echo -e "\$PWD:    $PWD"
-	echo -e "command: make -s $* doc >/dev/null"
-	RST2MAN_OPTS="--exit-status=1" make $J -s $* doc
-	if [ $? -ne 0 ] ; then
-		ERROR=1
-		printf "FAILURE: Errors or warnings when building documentation\n"
-	fi
-	(
-		if [ $# -ge 1 ] ; then
-			cd ${@: -1}
-		fi
-		make -s doc-clean
-	)
 	echo
 }
 
@@ -162,7 +145,3 @@ make_and_clean
 make_with_tmpdir OUTPUT
 
 make_with_tmpdir O
-
-echo -e "Checking documentation build\n"
-# From tools/bpf/bpftool
-make_doc_and_clean

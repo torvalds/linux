@@ -46,17 +46,17 @@ properties:
 
   clocks:
     minItems: 3
-    maxItems: 5
     items:
       - description: GMAC main clock
       - description: MAC TX clock
       - description: MAC RX clock
       - description: For MPU family, used for power mode
       - description: For MPU family, used for PHY without quartz
+      - description: PTP clock
 
   clock-names:
     minItems: 3
-    maxItems: 5
+    maxItems: 6
     contains:
       enum:
         - stmmaceth
@@ -64,6 +64,7 @@ properties:
         - mac-clk-rx
         - ethstp
         - eth-ck
+        - ptp_ref
 
   st,syscon:
     $ref: "/schemas/types.yaml#/definitions/phandle-array"

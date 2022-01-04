@@ -235,8 +235,6 @@ callback_init(void * kernel_end)
 	return kernel_end;
 }
 
-
-#ifndef CONFIG_DISCONTIGMEM
 /*
  * paging_init() sets up the memory map.
  */
@@ -257,7 +255,6 @@ void __init paging_init(void)
 	/* Initialize the kernel's ZERO_PGE. */
 	memset((void *)ZERO_PGE, 0, PAGE_SIZE);
 }
-#endif /* CONFIG_DISCONTIGMEM */
 
 #if defined(CONFIG_ALPHA_GENERIC) || defined(CONFIG_ALPHA_SRM)
 void
@@ -282,5 +279,4 @@ mem_init(void)
 	set_max_mapnr(max_low_pfn);
 	high_memory = (void *) __va(max_low_pfn * PAGE_SIZE);
 	memblock_free_all();
-	mem_init_print_info(NULL);
 }

@@ -67,7 +67,6 @@ properties:
 
   clock-names:
     minItems: 4
-    maxItems: 5
     items:
       - const: dos_parser
       - const: dos

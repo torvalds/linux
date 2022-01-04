@@ -97,6 +97,7 @@ struct nullb_device {
 	bool memory_backed; /* if data is stored in memory */
 	bool discard; /* if support discard */
 	bool zoned; /* if device is zoned */
+	bool virt_boundary; /* virtual boundary on/off for the device */
 };
 
 struct nullb {

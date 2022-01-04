@@ -101,6 +101,7 @@ struct vc_data {
 	unsigned int	vc_rows;
 	unsigned int	vc_size_row;		/* Bytes per row */
 	unsigned int	vc_scan_lines;		/* # of scan lines */
+	unsigned int	vc_cell_height;		/* CRTC character cell height */
 	unsigned long	vc_origin;		/* [!] Start of real screen */
 	unsigned long	vc_scr_end;		/* [!] End of real screen */
 	unsigned long	vc_visible_origin;	/* [!] Top of visible window */

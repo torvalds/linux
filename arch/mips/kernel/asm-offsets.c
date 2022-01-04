@@ -78,7 +78,6 @@ void output_ptreg_defines(void)
 void output_task_defines(void)
 {
 	COMMENT("MIPS task_struct offsets.");
-	OFFSET(TASK_STATE, task_struct, state);
 	OFFSET(TASK_THREAD_INFO, task_struct, stack);
 	OFFSET(TASK_FLAGS, task_struct, flags);
 	OFFSET(TASK_MM, task_struct, mm);
@@ -98,7 +97,6 @@ void output_thread_info_defines(void)
 	OFFSET(TI_TP_VALUE, thread_info, tp_value);
 	OFFSET(TI_CPU, thread_info, cpu);
 	OFFSET(TI_PRE_COUNT, thread_info, preempt_count);
-	OFFSET(TI_ADDR_LIMIT, thread_info, addr_limit);
 	OFFSET(TI_REGS, thread_info, regs);
 	DEFINE(_THREAD_SIZE, THREAD_SIZE);
 	DEFINE(_THREAD_MASK, THREAD_MASK);

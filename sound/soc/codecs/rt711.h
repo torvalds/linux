@@ -25,6 +25,8 @@ struct  rt711_priv {
 	struct work_struct calibration_work;
 	struct mutex calibrate_mutex; /* for headset calibration */
 	int jack_type, jd_src;
+	struct mutex disable_irq_lock; /* imp-def irq lock protection */
+	bool disable_irq;
 };
 
 struct sdw_stream_data {
@@ -52,7 +54,9 @@ struct sdw_stream_data {
 
 /* Index (NID:20h) */
 #define RT711_DAC_DC_CALI_CTL1				0x00
+#define RT711_JD_CTL1				0x08
 #define RT711_JD_CTL2				0x09
+#define RT711_JD_CTL4				0x0b
 #define RT711_CC_DET1				0x11
 #define RT711_PARA_VERB_CTL				0x1a
 #define RT711_COMBO_JACK_AUTO_CTL1				0x45
@@ -171,10 +175,33 @@ struct sdw_stream_data {
 /* DAC DC offset calibration control-1 (0x00)(NID:20h) */
 #define RT711_DAC_DC_CALI_TRIGGER (0x1 << 15)
 
+/* jack detect control 1 (0x08)(NID:20h) */
+#define RT711_JD2_DIGITAL_JD_MODE_SEL (0x1 << 1)
+#define RT711_JD2_1_JD_MODE (0x0 << 1)
+#define RT711_JD2_2_JD_MODE (0x1 << 1)
+
 /* jack detect control 2 (0x09)(NID:20h) */
 #define RT711_JD2_2PORT_200K_DECODE_HP (0x1 << 13)
+#define RT711_JD2_2PORT_100K_DECODE (0x1 << 12)
+#define RT711_JD2_2PORT_100K_DECODE_HP (0x0 << 12)
 #define RT711_HP_JD_SEL_JD1 (0x0 << 1)
 #define RT711_HP_JD_SEL_JD2 (0x1 << 1)
+#define RT711_JD2_1PORT_TYPE_DECODE (0x3 << 10)
+#define RT711_JD2_1PORT_JD_LINE2 (0x0 << 10)
+#define RT711_JD2_1PORT_JD_HP (0x1 << 10)
+#define RT711_JD2_1PORT_JD_LINE1 (0x2 << 10)
+#define RT711_JD1_2PORT_TYPE_100K_DECODE (0x1 << 0)
+#define RT711_JD1_2PORT_JD_RESERVED (0x0 << 0)
+#define RT711_JD1_2PORT_JD_LINE1 (0x1 << 0)
+
+/* jack detect control 4 (0x0b)(NID:20h) */
+#define RT711_JD2_PAD_PULL_UP_MASK (0x1 << 3)
+#define RT711_JD2_PAD_NOT_PULL_UP (0x0 << 3)
+#define RT711_JD2_PAD_PULL_UP (0x1 << 3)
+#define RT711_JD2_MODE_SEL_MASK (0x3 << 0)
+#define RT711_JD2_MODE0_2PORT (0x0 << 0)
+#define RT711_JD2_MODE1_3P3V_1PORT (0x1 << 0)
+#define RT711_JD2_MODE2_1P8V_1PORT (0x2 << 0)
 
 /* CC DET1 (0x11)(NID:20h) */
 #define RT711_HP_JD_FINAL_RESULT_CTL_JD12 (0x1 << 10)
@@ -215,7 +242,9 @@ enum {
 enum rt711_jd_src {
 	RT711_JD_NULL,
 	RT711_JD1,
-	RT711_JD2
+	RT711_JD2,
+	RT711_JD2_100K,
+	RT711_JD2_1P8V_1PORT
 };
 
 int rt711_io_init(struct device *dev, struct sdw_slave *slave);

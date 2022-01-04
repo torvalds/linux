@@ -125,16 +125,13 @@ static int ar1021_i2c_probe(struct i2c_client *client,
 
 	error = devm_request_threaded_irq(&client->dev, client->irq,
 					  NULL, ar1021_i2c_irq,
-					  IRQF_ONESHOT,
+					  IRQF_ONESHOT | IRQF_NO_AUTOEN,
 					  "ar1021_i2c", ar1021);
 	if (error) {
 		dev_err(&client->dev,
 			"Failed to enable IRQ, error: %d\n", error);
 		return error;
 	}
-
-	/* Disable the IRQ, we'll enable it in ar1021_i2c_open() */
-	disable_irq(client->irq);
 
 	error = input_register_device(ar1021->input);
 	if (error) {

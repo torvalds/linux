@@ -71,13 +71,12 @@ struct ipa_cmd_hw_hdr_init_local {
 
 /* IPA_CMD_REGISTER_WRITE */
 
-/* For IPA v4.0+, this opcode gets modified with pipeline clear options */
-
+/* For IPA v4.0+, the pipeline clear options are encoded in the opcode */
 #define REGISTER_WRITE_OPCODE_SKIP_CLEAR_FMASK		GENMASK(8, 8)
 #define REGISTER_WRITE_OPCODE_CLEAR_OPTION_FMASK	GENMASK(10, 9)
 
 struct ipa_cmd_register_write {
-	__le16 flags;		/* Unused/reserved for IPA v3.5.1 */
+	__le16 flags;		/* Unused/reserved prior to IPA v4.0 */
 	__le16 offset;
 	__le32 value;
 	__le32 value_mask;
@@ -85,12 +84,12 @@ struct ipa_cmd_register_write {
 };
 
 /* Field masks for ipa_cmd_register_write structure fields */
-/* The next field is present for IPA v4.0 and above */
+/* The next field is present for IPA v4.0+ */
 #define REGISTER_WRITE_FLAGS_OFFSET_HIGH_FMASK		GENMASK(14, 11)
-/* The next field is present for IPA v3.5.1 only */
+/* The next field is not present for IPA v4.0+ */
 #define REGISTER_WRITE_FLAGS_SKIP_CLEAR_FMASK		GENMASK(15, 15)
 
-/* The next field and its values are present for IPA v3.5.1 only */
+/* The next field and its values are not present for IPA v4.0+ */
 #define REGISTER_WRITE_CLEAR_OPTIONS_FMASK		GENMASK(1, 0)
 
 /* IPA_CMD_IP_PACKET_INIT */
@@ -123,7 +122,7 @@ struct ipa_cmd_hw_dma_mem_mem {
 
 /* Field masks for ipa_cmd_hw_dma_mem_mem structure fields */
 #define DMA_SHARED_MEM_FLAGS_DIRECTION_FMASK		GENMASK(0, 0)
-/* The next two fields are present for IPA v3.5.1 only. */
+/* The next two fields are not present for IPA v4.0+ */
 #define DMA_SHARED_MEM_FLAGS_SKIP_CLEAR_FMASK		GENMASK(1, 1)
 #define DMA_SHARED_MEM_FLAGS_CLEAR_OPTIONS_FMASK	GENMASK(3, 2)
 
@@ -154,41 +153,55 @@ static void ipa_cmd_validate_build(void)
 	 * of entries, as and IPv4 and IPv6 route tables have the same number
 	 * of entries.
 	 */
-#define TABLE_SIZE	(TABLE_COUNT_MAX * IPA_TABLE_ENTRY_SIZE)
+#define TABLE_SIZE	(TABLE_COUNT_MAX * sizeof(__le64))
 #define TABLE_COUNT_MAX	max_t(u32, IPA_ROUTE_COUNT_MAX, IPA_FILTER_COUNT_MAX)
 	BUILD_BUG_ON(TABLE_SIZE > field_max(IP_FLTRT_FLAGS_HASH_SIZE_FMASK));
 	BUILD_BUG_ON(TABLE_SIZE > field_max(IP_FLTRT_FLAGS_NHASH_SIZE_FMASK));
 #undef TABLE_COUNT_MAX
 #undef TABLE_SIZE
+
+	/* Hashed and non-hashed fields are assumed to be the same size */
+	BUILD_BUG_ON(field_max(IP_FLTRT_FLAGS_HASH_SIZE_FMASK) !=
+		     field_max(IP_FLTRT_FLAGS_NHASH_SIZE_FMASK));
+	BUILD_BUG_ON(field_max(IP_FLTRT_FLAGS_HASH_ADDR_FMASK) !=
+		     field_max(IP_FLTRT_FLAGS_NHASH_ADDR_FMASK));
+
+	/* Valid endpoint numbers must fit in the IP packet init command */
+	BUILD_BUG_ON(field_max(IPA_PACKET_INIT_DEST_ENDPOINT_FMASK) <
+		     IPA_ENDPOINT_MAX - 1);
 }
 
-#ifdef IPA_VALIDATE
-
 /* Validate a memory region holding a table */
-bool ipa_cmd_table_valid(struct ipa *ipa, const struct ipa_mem *mem,
-			 bool route, bool ipv6, bool hashed)
+bool ipa_cmd_table_valid(struct ipa *ipa, const struct ipa_mem *mem, bool route)
 {
+	u32 offset_max = field_max(IP_FLTRT_FLAGS_NHASH_ADDR_FMASK);
+	u32 size_max = field_max(IP_FLTRT_FLAGS_NHASH_SIZE_FMASK);
+	const char *table = route ? "route" : "filter";
 	struct device *dev = &ipa->pdev->dev;
-	u32 offset_max;
 
-	offset_max = hashed ? field_max(IP_FLTRT_FLAGS_HASH_ADDR_FMASK)
-			    : field_max(IP_FLTRT_FLAGS_NHASH_ADDR_FMASK);
+	/* Size must fit in the immediate command field that holds it */
+	if (mem->size > size_max) {
+		dev_err(dev, "%s table region size too large\n", table);
+		dev_err(dev, "    (0x%04x > 0x%04x)\n",
+			mem->size, size_max);
+
+		return false;
+	}
+
+	/* Offset must fit in the immediate command field that holds it */
 	if (mem->offset > offset_max ||
 	    ipa->mem_offset > offset_max - mem->offset) {
-		dev_err(dev, "IPv%c %s%s table region offset too large\n",
-			ipv6 ? '6' : '4', hashed ? "hashed " : "",
-			route ? "route" : "filter");
+		dev_err(dev, "%s table region offset too large\n", table);
 		dev_err(dev, "    (0x%04x + 0x%04x > 0x%04x)\n",
 			ipa->mem_offset, mem->offset, offset_max);
 
 		return false;
 	}
 
+	/* Entire memory range must fit within IPA-local memory */
 	if (mem->offset > ipa->mem_size ||
 	    mem->size > ipa->mem_size - mem->offset) {
-		dev_err(dev, "IPv%c %s%s table region out of range\n",
-			ipv6 ? '6' : '4', hashed ? "hashed " : "",
-			route ? "route" : "filter");
+		dev_err(dev, "%s table region out of range\n", table);
 		dev_err(dev, "    (0x%04x + 0x%04x > 0x%04x)\n",
 			mem->offset, mem->size, ipa->mem_size);
 
@@ -201,41 +214,55 @@ bool ipa_cmd_table_valid(struct ipa *ipa, const struct ipa_mem *mem,
 /* Validate the memory region that holds headers */
 static bool ipa_cmd_header_valid(struct ipa *ipa)
 {
-	const struct ipa_mem *mem = &ipa->mem[IPA_MEM_MODEM_HEADER];
 	struct device *dev = &ipa->pdev->dev;
+	const struct ipa_mem *mem;
 	u32 offset_max;
 	u32 size_max;
+	u32 offset;
 	u32 size;
 
-	/* In ipa_cmd_hdr_init_local_add() we record the offset and size
-	 * of the header table memory area.  Make sure the offset and size
-	 * fit in the fields that need to hold them, and that the entire
-	 * range is within the overall IPA memory range.
+	/* In ipa_cmd_hdr_init_local_add() we record the offset and size of
+	 * the header table memory area in an immediate command.  Make sure
+	 * the offset and size fit in the fields that need to hold them, and
+	 * that the entire range is within the overall IPA memory range.
 	 */
 	offset_max = field_max(HDR_INIT_LOCAL_FLAGS_HDR_ADDR_FMASK);
-	if (mem->offset > offset_max ||
-	    ipa->mem_offset > offset_max - mem->offset) {
+	size_max = field_max(HDR_INIT_LOCAL_FLAGS_TABLE_SIZE_FMASK);
+
+	/* The header memory area contains both the modem and AP header
+	 * regions.  The modem portion defines the address of the region.
+	 */
+	mem = ipa_mem_find(ipa, IPA_MEM_MODEM_HEADER);
+	offset = mem->offset;
+	size = mem->size;
+
+	/* Make sure the offset fits in the IPA command */
+	if (offset > offset_max || ipa->mem_offset > offset_max - offset) {
 		dev_err(dev, "header table region offset too large\n");
 		dev_err(dev, "    (0x%04x + 0x%04x > 0x%04x)\n",
-			ipa->mem_offset, mem->offset, offset_max);
+			ipa->mem_offset, offset, offset_max);
 
 		return false;
 	}
 
-	size_max = field_max(HDR_INIT_LOCAL_FLAGS_TABLE_SIZE_FMASK);
-	size = ipa->mem[IPA_MEM_MODEM_HEADER].size;
-	size += ipa->mem[IPA_MEM_AP_HEADER].size;
+	/* Add the size of the AP portion (if defined) to the combined size */
+	mem = ipa_mem_find(ipa, IPA_MEM_AP_HEADER);
+	if (mem)
+		size += mem->size;
 
+	/* Make sure the combined size fits in the IPA command */
 	if (size > size_max) {
 		dev_err(dev, "header table region size too large\n");
 		dev_err(dev, "    (0x%04x > 0x%08x)\n", size, size_max);
 
 		return false;
 	}
-	if (size > ipa->mem_size || mem->offset > ipa->mem_size - size) {
+
+	/* Make sure the entire combined area fits in IPA memory */
+	if (size > ipa->mem_size || offset > ipa->mem_size - size) {
 		dev_err(dev, "header table region out of range\n");
 		dev_err(dev, "    (0x%04x + 0x%04x > 0x%04x)\n",
-			mem->offset, size, ipa->mem_size);
+			offset, size, ipa->mem_size);
 
 		return false;
 	}
@@ -253,11 +280,12 @@ static bool ipa_cmd_register_write_offset_valid(struct ipa *ipa,
 	u32 bit_count;
 
 	/* The maximum offset in a register_write immediate command depends
-	 * on the version of IPA.  IPA v3.5.1 supports a 16 bit offset, but
-	 * newer versions allow some additional high-order bits.
+	 * on the version of IPA.  A 16 bit offset is always supported,
+	 * but starting with IPA v4.0 some additional high-order bits are
+	 * allowed.
 	 */
 	bit_count = BITS_PER_BYTE * sizeof(payload->offset);
-	if (ipa->version != IPA_VERSION_3_5_1)
+	if (ipa->version >= IPA_VERSION_4_0)
 		bit_count += hweight32(REGISTER_WRITE_FLAGS_OFFSET_HIGH_FMASK);
 	BUILD_BUG_ON(bit_count > 32);
 	offset_max = ~0U >> (32 - bit_count);
@@ -317,7 +345,6 @@ bool ipa_cmd_data_valid(struct ipa *ipa)
 	return true;
 }
 
-#endif /* IPA_VALIDATE */
 
 int ipa_cmd_pool_init(struct gsi_channel *channel, u32 tre_max)
 {
@@ -456,7 +483,11 @@ void ipa_cmd_register_write_add(struct gsi_trans *trans, u32 offset, u32 value,
 	/* pipeline_clear_src_grp is not used */
 	clear_option = clear_full ? pipeline_clear_full : pipeline_clear_hps;
 
-	if (ipa->version != IPA_VERSION_3_5_1) {
+	/* IPA v4.0+ represents the pipeline clear options in the opcode.  It
+	 * also supports a larger offset by encoding additional high-order
+	 * bits in the payload flags field.
+	 */
+	if (ipa->version >= IPA_VERSION_4_0) {
 		u16 offset_high;
 		u32 val;
 
@@ -504,9 +535,6 @@ static void ipa_cmd_ip_packet_init_add(struct gsi_trans *trans, u8 endpoint_id)
 	union ipa_cmd_payload *cmd_payload;
 	dma_addr_t payload_addr;
 
-	/* assert(endpoint_id <
-		  field_max(IPA_PACKET_INIT_DEST_ENDPOINT_FMASK)); */
-
 	cmd_payload = ipa_cmd_payload_alloc(ipa, &payload_addr);
 	payload = &cmd_payload->ip_packet_init;
 
@@ -530,8 +558,9 @@ void ipa_cmd_dma_shared_mem_add(struct gsi_trans *trans, u32 offset, u16 size,
 	u16 flags;
 
 	/* size and offset must fit in 16 bit fields */
-	/* assert(size > 0 && size <= U16_MAX); */
-	/* assert(offset <= U16_MAX && ipa->mem_offset <= U16_MAX - offset); */
+	WARN_ON(!size);
+	WARN_ON(size > U16_MAX);
+	WARN_ON(offset > U16_MAX || ipa->mem_offset > U16_MAX - offset);
 
 	offset += ipa->mem_offset;
 
@@ -569,8 +598,6 @@ static void ipa_cmd_ip_tag_status_add(struct gsi_trans *trans)
 	struct ipa_cmd_ip_packet_tag_status *payload;
 	union ipa_cmd_payload *cmd_payload;
 	dma_addr_t payload_addr;
-
-	/* assert(tag <= field_max(IP_PACKET_TAG_STATUS_TAG_FMASK)); */
 
 	cmd_payload = ipa_cmd_payload_alloc(ipa, &payload_addr);
 	payload = &cmd_payload->ip_packet_tag_status;

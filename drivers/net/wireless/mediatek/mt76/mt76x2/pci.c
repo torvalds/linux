@@ -10,9 +10,9 @@
 #include "mt76x2.h"
 
 static const struct pci_device_id mt76x2e_device_table[] = {
-	{ PCI_DEVICE(0x14c3, 0x7662) },
-	{ PCI_DEVICE(0x14c3, 0x7612) },
-	{ PCI_DEVICE(0x14c3, 0x7602) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_MEDIATEK, 0x7662) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_MEDIATEK, 0x7612) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_MEDIATEK, 0x7602) },
 	{ },
 };
 

@@ -65,7 +65,7 @@ static const struct v4l2_ctrl_ops brx_ctrl_ops = {
  */
 
 static int brx_enum_mbus_code(struct v4l2_subdev *subdev,
-			      struct v4l2_subdev_pad_config *cfg,
+			      struct v4l2_subdev_state *sd_state,
 			      struct v4l2_subdev_mbus_code_enum *code)
 {
 	static const unsigned int codes[] = {
@@ -73,12 +73,12 @@ static int brx_enum_mbus_code(struct v4l2_subdev *subdev,
 		MEDIA_BUS_FMT_AYUV8_1X32,
 	};
 
-	return vsp1_subdev_enum_mbus_code(subdev, cfg, code, codes,
+	return vsp1_subdev_enum_mbus_code(subdev, sd_state, code, codes,
 					  ARRAY_SIZE(codes));
 }
 
 static int brx_enum_frame_size(struct v4l2_subdev *subdev,
-			       struct v4l2_subdev_pad_config *cfg,
+			       struct v4l2_subdev_state *sd_state,
 			       struct v4l2_subdev_frame_size_enum *fse)
 {
 	if (fse->index)
@@ -97,14 +97,14 @@ static int brx_enum_frame_size(struct v4l2_subdev *subdev,
 }
 
 static struct v4l2_rect *brx_get_compose(struct vsp1_brx *brx,
-					 struct v4l2_subdev_pad_config *cfg,
+					 struct v4l2_subdev_state *sd_state,
 					 unsigned int pad)
 {
-	return v4l2_subdev_get_try_compose(&brx->entity.subdev, cfg, pad);
+	return v4l2_subdev_get_try_compose(&brx->entity.subdev, sd_state, pad);
 }
 
 static void brx_try_format(struct vsp1_brx *brx,
-			   struct v4l2_subdev_pad_config *config,
+			   struct v4l2_subdev_state *sd_state,
 			   unsigned int pad, struct v4l2_mbus_framefmt *fmt)
 {
 	struct v4l2_mbus_framefmt *format;
@@ -119,7 +119,7 @@ static void brx_try_format(struct vsp1_brx *brx,
 
 	default:
 		/* The BRx can't perform format conversion. */
-		format = vsp1_entity_get_pad_format(&brx->entity, config,
+		format = vsp1_entity_get_pad_format(&brx->entity, sd_state,
 						    BRX_PAD_SINK(0));
 		fmt->code = format->code;
 		break;
@@ -132,17 +132,18 @@ static void brx_try_format(struct vsp1_brx *brx,
 }
 
 static int brx_set_format(struct v4l2_subdev *subdev,
-			  struct v4l2_subdev_pad_config *cfg,
+			  struct v4l2_subdev_state *sd_state,
 			  struct v4l2_subdev_format *fmt)
 {
 	struct vsp1_brx *brx = to_brx(subdev);
-	struct v4l2_subdev_pad_config *config;
+	struct v4l2_subdev_state *config;
 	struct v4l2_mbus_framefmt *format;
 	int ret = 0;
 
 	mutex_lock(&brx->entity.lock);
 
-	config = vsp1_entity_get_pad_config(&brx->entity, cfg, fmt->which);
+	config = vsp1_entity_get_pad_config(&brx->entity, sd_state,
+					    fmt->which);
 	if (!config) {
 		ret = -EINVAL;
 		goto done;
@@ -181,11 +182,11 @@ done:
 }
 
 static int brx_get_selection(struct v4l2_subdev *subdev,
-			     struct v4l2_subdev_pad_config *cfg,
+			     struct v4l2_subdev_state *sd_state,
 			     struct v4l2_subdev_selection *sel)
 {
 	struct vsp1_brx *brx = to_brx(subdev);
-	struct v4l2_subdev_pad_config *config;
+	struct v4l2_subdev_state *config;
 
 	if (sel->pad == brx->entity.source_pad)
 		return -EINVAL;
@@ -199,7 +200,7 @@ static int brx_get_selection(struct v4l2_subdev *subdev,
 		return 0;
 
 	case V4L2_SEL_TGT_COMPOSE:
-		config = vsp1_entity_get_pad_config(&brx->entity, cfg,
+		config = vsp1_entity_get_pad_config(&brx->entity, sd_state,
 						    sel->which);
 		if (!config)
 			return -EINVAL;
@@ -215,11 +216,11 @@ static int brx_get_selection(struct v4l2_subdev *subdev,
 }
 
 static int brx_set_selection(struct v4l2_subdev *subdev,
-			     struct v4l2_subdev_pad_config *cfg,
+			     struct v4l2_subdev_state *sd_state,
 			     struct v4l2_subdev_selection *sel)
 {
 	struct vsp1_brx *brx = to_brx(subdev);
-	struct v4l2_subdev_pad_config *config;
+	struct v4l2_subdev_state *config;
 	struct v4l2_mbus_framefmt *format;
 	struct v4l2_rect *compose;
 	int ret = 0;
@@ -232,7 +233,8 @@ static int brx_set_selection(struct v4l2_subdev *subdev,
 
 	mutex_lock(&brx->entity.lock);
 
-	config = vsp1_entity_get_pad_config(&brx->entity, cfg, sel->which);
+	config = vsp1_entity_get_pad_config(&brx->entity, sd_state,
+					    sel->which);
 	if (!config) {
 		ret = -EINVAL;
 		goto done;

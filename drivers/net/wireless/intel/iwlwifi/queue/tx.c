@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2020 Intel Corporation
+ * Copyright (C) 2020-2021 Intel Corporation
  */
 #include <net/tso.h>
 #include <linux/tcp.h>
@@ -12,30 +12,6 @@
 #include "iwl-fh.h"
 #include "iwl-scd.h"
 #include <linux/dmapool.h>
-
-/*
- * iwl_txq_gen2_tx_stop - Stop all Tx DMA channels
- */
-void iwl_txq_gen2_tx_stop(struct iwl_trans *trans)
-{
-	int txq_id;
-
-	/*
-	 * This function can be called before the op_mode disabled the
-	 * queues. This happens when we have an rfkill interrupt.
-	 * Since we stop Tx altogether - mark the queues as stopped.
-	 */
-	memset(trans->txqs.queue_stopped, 0,
-	       sizeof(trans->txqs.queue_stopped));
-	memset(trans->txqs.queue_used, 0, sizeof(trans->txqs.queue_used));
-
-	/* Unmap DMA from host system and free skb's */
-	for (txq_id = 0; txq_id < ARRAY_SIZE(trans->txqs.txq); txq_id++) {
-		if (!trans->txqs.txq[txq_id])
-			continue;
-		iwl_txq_gen2_unmap(trans, txq_id);
-	}
-}
 
 /*
  * iwl_txq_update_byte_tbl - Set up entry in Tx byte-count array
@@ -399,7 +375,6 @@ static int iwl_txq_gen2_build_amsdu(struct iwl_trans *trans,
 	while (total_len) {
 		/* this is the data left for this subframe */
 		unsigned int data_left = min_t(unsigned int, mss, total_len);
-		struct sk_buff *csum_skb = NULL;
 		unsigned int tb_len;
 		dma_addr_t tb_phys;
 		u8 *subf_hdrs_start = hdr_page->pos;
@@ -430,10 +405,8 @@ static int iwl_txq_gen2_build_amsdu(struct iwl_trans *trans,
 		tb_len = hdr_page->pos - start_hdr;
 		tb_phys = dma_map_single(trans->dev, start_hdr,
 					 tb_len, DMA_TO_DEVICE);
-		if (unlikely(dma_mapping_error(trans->dev, tb_phys))) {
-			dev_kfree_skb(csum_skb);
+		if (unlikely(dma_mapping_error(trans->dev, tb_phys)))
 			goto out_err;
-		}
 		/*
 		 * No need for _with_wa, this is from the TSO page and
 		 * we leave some space at the end of it so can't hit
@@ -458,10 +431,8 @@ static int iwl_txq_gen2_build_amsdu(struct iwl_trans *trans,
 			ret = iwl_txq_gen2_set_tb_with_wa(trans, skb, tfd,
 							  tb_phys, tso.data,
 							  tb_len, NULL);
-			if (ret) {
-				dev_kfree_skb(csum_skb);
+			if (ret)
 				goto out_err;
-			}
 
 			data_left -= tb_len;
 			tso_build_data(skb, &tso, tb_len);
@@ -1185,6 +1156,12 @@ static int iwl_txq_alloc_response(struct iwl_trans *trans, struct iwl_txq *txq,
 
 	if (test_and_set_bit(qid, trans->txqs.queue_used)) {
 		WARN_ONCE(1, "queue %d already used", qid);
+		ret = -EIO;
+		goto error_free_resp;
+	}
+
+	if (WARN_ONCE(trans->txqs.txq[qid],
+		      "queue %d already allocated\n", qid)) {
 		ret = -EIO;
 		goto error_free_resp;
 	}

@@ -145,15 +145,16 @@ static void wacom_i2c_close(struct input_dev *dev)
 }
 
 static int wacom_i2c_probe(struct i2c_client *client,
-				     const struct i2c_device_id *id)
+			   const struct i2c_device_id *id)
 {
+	struct device *dev = &client->dev;
 	struct wacom_i2c *wac_i2c;
 	struct input_dev *input;
 	struct wacom_features features = { 0 };
 	int error;
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
-		dev_err(&client->dev, "i2c_check_functionality error\n");
+		dev_err(dev, "i2c_check_functionality error\n");
 		return -EIO;
 	}
 
@@ -161,21 +162,22 @@ static int wacom_i2c_probe(struct i2c_client *client,
 	if (error)
 		return error;
 
-	wac_i2c = kzalloc(sizeof(*wac_i2c), GFP_KERNEL);
-	input = input_allocate_device();
-	if (!wac_i2c || !input) {
-		error = -ENOMEM;
-		goto err_free_mem;
-	}
+	wac_i2c = devm_kzalloc(dev, sizeof(*wac_i2c), GFP_KERNEL);
+	if (!wac_i2c)
+		return -ENOMEM;
 
 	wac_i2c->client = client;
+
+	input = devm_input_allocate_device(dev);
+	if (!input)
+		return -ENOMEM;
+
 	wac_i2c->input = input;
 
 	input->name = "Wacom I2C Digitizer";
 	input->id.bustype = BUS_I2C;
 	input->id.vendor = 0x56a;
 	input->id.version = features.fw_version;
-	input->dev.parent = &client->dev;
 	input->open = wacom_i2c_open;
 	input->close = wacom_i2c_close;
 
@@ -194,13 +196,11 @@ static int wacom_i2c_probe(struct i2c_client *client,
 
 	input_set_drvdata(input, wac_i2c);
 
-	error = request_threaded_irq(client->irq, NULL, wacom_i2c_irq,
-				     IRQF_TRIGGER_LOW | IRQF_ONESHOT,
-				     "wacom_i2c", wac_i2c);
+	error = devm_request_threaded_irq(dev, client->irq, NULL, wacom_i2c_irq,
+					  IRQF_ONESHOT, "wacom_i2c", wac_i2c);
 	if (error) {
-		dev_err(&client->dev,
-			"Failed to enable IRQ, error: %d\n", error);
-		goto err_free_mem;
+		dev_err(dev, "Failed to request IRQ: %d\n", error);
+		return error;
 	}
 
 	/* Disable the IRQ, we'll enable it in wac_i2c_open() */
@@ -208,30 +208,9 @@ static int wacom_i2c_probe(struct i2c_client *client,
 
 	error = input_register_device(wac_i2c->input);
 	if (error) {
-		dev_err(&client->dev,
-			"Failed to register input device, error: %d\n", error);
-		goto err_free_irq;
+		dev_err(dev, "Failed to register input device: %d\n", error);
+		return error;
 	}
-
-	i2c_set_clientdata(client, wac_i2c);
-	return 0;
-
-err_free_irq:
-	free_irq(client->irq, wac_i2c);
-err_free_mem:
-	input_free_device(input);
-	kfree(wac_i2c);
-
-	return error;
-}
-
-static int wacom_i2c_remove(struct i2c_client *client)
-{
-	struct wacom_i2c *wac_i2c = i2c_get_clientdata(client);
-
-	free_irq(client->irq, wac_i2c);
-	input_unregister_device(wac_i2c->input);
-	kfree(wac_i2c);
 
 	return 0;
 }
@@ -269,7 +248,6 @@ static struct i2c_driver wacom_i2c_driver = {
 	},
 
 	.probe		= wacom_i2c_probe,
-	.remove		= wacom_i2c_remove,
 	.id_table	= wacom_i2c_id,
 };
 module_i2c_driver(wacom_i2c_driver);

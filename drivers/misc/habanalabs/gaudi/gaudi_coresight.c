@@ -424,7 +424,7 @@ static int gaudi_config_stm(struct hl_device *hdev,
 		if (frequency == 0)
 			frequency = input->frequency;
 		WREG32(base_reg + 0xE8C, frequency);
-		WREG32(base_reg + 0xE90, 0x7FF);
+		WREG32(base_reg + 0xE90, 0x1F00);
 
 		/* SW-2176 - SW WA for HW bug */
 		if ((CFG_BASE + base_reg) >= mmDMA_CH_0_CS_STM_BASE &&
@@ -434,7 +434,7 @@ static int gaudi_config_stm(struct hl_device *hdev,
 			WREG32(base_reg + 0xE6C, 0x0);
 		}
 
-		WREG32(base_reg + 0xE80, 0x27 | (input->id << 16));
+		WREG32(base_reg + 0xE80, 0x23 | (input->id << 16));
 	} else {
 		WREG32(base_reg + 0xE80, 4);
 		WREG32(base_reg + 0xD64, 0);
@@ -634,7 +634,7 @@ static int gaudi_config_etr(struct hl_device *hdev,
 		WREG32(mmPSOC_ETR_BUFWM, 0x3FFC);
 		WREG32(mmPSOC_ETR_RSZ, input->buffer_size);
 		WREG32(mmPSOC_ETR_MODE, input->sink_mode);
-		if (hdev->asic_prop.fw_security_disabled) {
+		if (!hdev->asic_prop.fw_security_enabled) {
 			/* make ETR not privileged */
 			val = FIELD_PREP(
 					PSOC_ETR_AXICTL_PROTCTRLBIT0_MASK, 0);

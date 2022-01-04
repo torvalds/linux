@@ -123,7 +123,7 @@ static const char * const arc_pmu_ev_hw_map[] = {
 #define C(_x)			PERF_COUNT_HW_CACHE_##_x
 #define CACHE_OP_UNSUPPORTED	0xffff
 
-static const unsigned arc_pmu_cache_map[C(MAX)][C(OP_MAX)][C(RESULT_MAX)] = {
+static const unsigned int arc_pmu_cache_map[C(MAX)][C(OP_MAX)][C(RESULT_MAX)] = {
 	[C(L1D)] = {
 		[C(OP_READ)] = {
 			[C(RESULT_ACCESS)]	= PERF_COUNT_ARC_LDC,

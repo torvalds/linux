@@ -55,38 +55,86 @@ xfs_buf_log_format_size(
 			(blfp->blf_map_size * sizeof(blfp->blf_data_map[0]));
 }
 
+static inline bool
+xfs_buf_item_straddle(
+	struct xfs_buf		*bp,
+	uint			offset,
+	int			first_bit,
+	int			nbits)
+{
+	void			*first, *last;
+
+	first = xfs_buf_offset(bp, offset + (first_bit << XFS_BLF_SHIFT));
+	last = xfs_buf_offset(bp,
+			offset + ((first_bit + nbits) << XFS_BLF_SHIFT));
+
+	if (last - first != nbits * XFS_BLF_CHUNK)
+		return true;
+	return false;
+}
+
 /*
- * This returns the number of log iovecs needed to log the
- * given buf log item.
+ * Return the number of log iovecs and space needed to log the given buf log
+ * item segment.
  *
- * It calculates this as 1 iovec for the buf log format structure
- * and 1 for each stretch of non-contiguous chunks to be logged.
- * Contiguous chunks are logged in a single iovec.
- *
- * If the XFS_BLI_STALE flag has been set, then log nothing.
+ * It calculates this as 1 iovec for the buf log format structure and 1 for each
+ * stretch of non-contiguous chunks to be logged.  Contiguous chunks are logged
+ * in a single iovec.
  */
 STATIC void
 xfs_buf_item_size_segment(
 	struct xfs_buf_log_item		*bip,
 	struct xfs_buf_log_format	*blfp,
+	uint				offset,
 	int				*nvecs,
 	int				*nbytes)
 {
 	struct xfs_buf			*bp = bip->bli_buf;
+	int				first_bit;
+	int				nbits;
 	int				next_bit;
 	int				last_bit;
 
-	last_bit = xfs_next_bit(blfp->blf_data_map, blfp->blf_map_size, 0);
-	if (last_bit == -1)
+	first_bit = xfs_next_bit(blfp->blf_data_map, blfp->blf_map_size, 0);
+	if (first_bit == -1)
 		return;
 
-	/*
-	 * initial count for a dirty buffer is 2 vectors - the format structure
-	 * and the first dirty region.
-	 */
-	*nvecs += 2;
-	*nbytes += xfs_buf_log_format_size(blfp) + XFS_BLF_CHUNK;
+	(*nvecs)++;
+	*nbytes += xfs_buf_log_format_size(blfp);
 
+	do {
+		nbits = xfs_contig_bits(blfp->blf_data_map,
+					blfp->blf_map_size, first_bit);
+		ASSERT(nbits > 0);
+
+		/*
+		 * Straddling a page is rare because we don't log contiguous
+		 * chunks of unmapped buffers anywhere.
+		 */
+		if (nbits > 1 &&
+		    xfs_buf_item_straddle(bp, offset, first_bit, nbits))
+			goto slow_scan;
+
+		(*nvecs)++;
+		*nbytes += nbits * XFS_BLF_CHUNK;
+
+		/*
+		 * This takes the bit number to start looking from and
+		 * returns the next set bit from there.  It returns -1
+		 * if there are no more bits set or the start bit is
+		 * beyond the end of the bitmap.
+		 */
+		first_bit = xfs_next_bit(blfp->blf_data_map, blfp->blf_map_size,
+					(uint)first_bit + nbits + 1);
+	} while (first_bit != -1);
+
+	return;
+
+slow_scan:
+	/* Count the first bit we jumped out of the above loop from */
+	(*nvecs)++;
+	*nbytes += XFS_BLF_CHUNK;
+	last_bit = first_bit;
 	while (last_bit != -1) {
 		/*
 		 * This takes the bit number to start looking from and
@@ -103,27 +151,23 @@ xfs_buf_item_size_segment(
 		 */
 		if (next_bit == -1) {
 			break;
-		} else if (next_bit != last_bit + 1) {
+		} else if (next_bit != last_bit + 1 ||
+		           xfs_buf_item_straddle(bp, offset, first_bit, nbits)) {
 			last_bit = next_bit;
+			first_bit = next_bit;
 			(*nvecs)++;
-		} else if (xfs_buf_offset(bp, next_bit * XFS_BLF_CHUNK) !=
-			   (xfs_buf_offset(bp, last_bit * XFS_BLF_CHUNK) +
-			    XFS_BLF_CHUNK)) {
-			last_bit = next_bit;
-			(*nvecs)++;
+			nbits = 1;
 		} else {
 			last_bit++;
+			nbits++;
 		}
 		*nbytes += XFS_BLF_CHUNK;
 	}
 }
 
 /*
- * This returns the number of log iovecs needed to log the given buf log item.
- *
- * It calculates this as 1 iovec for the buf log format structure and 1 for each
- * stretch of non-contiguous chunks to be logged.  Contiguous chunks are logged
- * in a single iovec.
+ * Return the number of log iovecs and space needed to log the given buf log
+ * item.
  *
  * Discontiguous buffers need a format structure per region that is being
  * logged. This makes the changes in the buffer appear to log recovery as though
@@ -133,7 +177,11 @@ xfs_buf_item_size_segment(
  * what ends up on disk.
  *
  * If the XFS_BLI_STALE flag has been set, then log nothing but the buf log
- * format structures.
+ * format structures. If the item has previously been logged and has dirty
+ * regions, we do not relog them in stale buffers. This has the effect of
+ * reducing the size of the relogged item by the amount of dirty data tracked
+ * by the log item. This can result in the committing transaction reducing the
+ * amount of space being consumed by the CIL.
  */
 STATIC void
 xfs_buf_item_size(
@@ -142,14 +190,17 @@ xfs_buf_item_size(
 	int			*nbytes)
 {
 	struct xfs_buf_log_item	*bip = BUF_ITEM(lip);
+	struct xfs_buf		*bp = bip->bli_buf;
 	int			i;
+	int			bytes;
+	uint			offset = 0;
 
 	ASSERT(atomic_read(&bip->bli_refcount) > 0);
 	if (bip->bli_flags & XFS_BLI_STALE) {
 		/*
-		 * The buffer is stale, so all we need to log
-		 * is the buf log format structure with the
-		 * cancel flag in it.
+		 * The buffer is stale, so all we need to log is the buf log
+		 * format structure with the cancel flag in it as we are never
+		 * going to replay the changes tracked in the log item.
 		 */
 		trace_xfs_buf_item_size_stale(bip);
 		ASSERT(bip->__bli_format.blf_flags & XFS_BLF_CANCEL);
@@ -164,9 +215,9 @@ xfs_buf_item_size(
 
 	if (bip->bli_flags & XFS_BLI_ORDERED) {
 		/*
-		 * The buffer has been logged just to order it.
-		 * It is not being included in the transaction
-		 * commit, so no vectors are used at all.
+		 * The buffer has been logged just to order it. It is not being
+		 * included in the transaction commit, so no vectors are used at
+		 * all.
 		 */
 		trace_xfs_buf_item_size_ordered(bip);
 		*nvecs = XFS_LOG_VEC_ORDERED;
@@ -174,7 +225,7 @@ xfs_buf_item_size(
 	}
 
 	/*
-	 * the vector count is based on the number of buffer vectors we have
+	 * The vector count is based on the number of buffer vectors we have
 	 * dirty bits in. This will only be greater than one when we have a
 	 * compound buffer with more than one segment dirty. Hence for compound
 	 * buffers we need to track which segment the dirty bits correspond to,
@@ -182,10 +233,19 @@ xfs_buf_item_size(
 	 * count for the extra buf log format structure that will need to be
 	 * written.
 	 */
+	bytes = 0;
 	for (i = 0; i < bip->bli_format_count; i++) {
-		xfs_buf_item_size_segment(bip, &bip->bli_formats[i],
-					  nvecs, nbytes);
+		xfs_buf_item_size_segment(bip, &bip->bli_formats[i], offset,
+					  nvecs, &bytes);
+		offset += BBTOB(bp->b_maps[i].bm_len);
 	}
+
+	/*
+	 * Round up the buffer size required to minimise the number of memory
+	 * allocations that need to be done as this item grows when relogged by
+	 * repeated modifications.
+	 */
+	*nbytes = round_up(bytes, 512);
 	trace_xfs_buf_item_size(bip);
 }
 
@@ -202,18 +262,6 @@ xfs_buf_item_copy_iovec(
 	xlog_copy_iovec(lv, vecp, XLOG_REG_TYPE_BCHUNK,
 			xfs_buf_offset(bp, offset),
 			nbits * XFS_BLF_CHUNK);
-}
-
-static inline bool
-xfs_buf_item_straddle(
-	struct xfs_buf		*bp,
-	uint			offset,
-	int			next_bit,
-	int			last_bit)
-{
-	return xfs_buf_offset(bp, offset + (next_bit << XFS_BLF_SHIFT)) !=
-		(xfs_buf_offset(bp, offset + (last_bit << XFS_BLF_SHIFT)) +
-		 XFS_BLF_CHUNK);
 }
 
 static void
@@ -268,6 +316,38 @@ xfs_buf_item_format_segment(
 	/*
 	 * Fill in an iovec for each set of contiguous chunks.
 	 */
+	do {
+		ASSERT(first_bit >= 0);
+		nbits = xfs_contig_bits(blfp->blf_data_map,
+					blfp->blf_map_size, first_bit);
+		ASSERT(nbits > 0);
+
+		/*
+		 * Straddling a page is rare because we don't log contiguous
+		 * chunks of unmapped buffers anywhere.
+		 */
+		if (nbits > 1 &&
+		    xfs_buf_item_straddle(bp, offset, first_bit, nbits))
+			goto slow_scan;
+
+		xfs_buf_item_copy_iovec(lv, vecp, bp, offset,
+					first_bit, nbits);
+		blfp->blf_size++;
+
+		/*
+		 * This takes the bit number to start looking from and
+		 * returns the next set bit from there.  It returns -1
+		 * if there are no more bits set or the start bit is
+		 * beyond the end of the bitmap.
+		 */
+		first_bit = xfs_next_bit(blfp->blf_data_map, blfp->blf_map_size,
+					(uint)first_bit + nbits + 1);
+	} while (first_bit != -1);
+
+	return;
+
+slow_scan:
+	ASSERT(bp->b_addr == NULL);
 	last_bit = first_bit;
 	nbits = 1;
 	for (;;) {
@@ -292,7 +372,7 @@ xfs_buf_item_format_segment(
 			blfp->blf_size++;
 			break;
 		} else if (next_bit != last_bit + 1 ||
-		           xfs_buf_item_straddle(bp, offset, next_bit, last_bit)) {
+		           xfs_buf_item_straddle(bp, offset, first_bit, nbits)) {
 			xfs_buf_item_copy_iovec(lv, vecp, bp, offset,
 						first_bit, nbits);
 			blfp->blf_size++;
@@ -348,7 +428,7 @@ xfs_buf_item_format(
 	 * occurs during recovery.
 	 */
 	if (bip->bli_flags & XFS_BLI_INODE_BUF) {
-		if (xfs_sb_version_has_v3inode(&lip->li_mountp->m_sb) ||
+		if (xfs_has_v3inodes(lip->li_mountp) ||
 		    !((bip->bli_flags & XFS_BLI_INODE_ALLOC_BUF) &&
 		      xfs_log_item_in_current_chkpt(lip)))
 			bip->__bli_format.blf_flags |= XFS_BLF_INODE_BUF;
@@ -394,17 +474,8 @@ xfs_buf_item_pin(
 }
 
 /*
- * This is called to unpin the buffer associated with the buf log
- * item which was previously pinned with a call to xfs_buf_item_pin().
- *
- * Also drop the reference to the buf item for the current transaction.
- * If the XFS_BLI_STALE flag is set and we are the last reference,
- * then free up the buf log item and unlock the buffer.
- *
- * If the remove flag is set we are called from uncommit in the
- * forced-shutdown path.  If that is true and the reference count on
- * the log item is going to drop to zero we need to free the item's
- * descriptor in the transaction.
+ * This is called to unpin the buffer associated with the buf log item which
+ * was previously pinned with a call to xfs_buf_item_pin().
  */
 STATIC void
 xfs_buf_item_unpin(
@@ -421,37 +492,34 @@ xfs_buf_item_unpin(
 
 	trace_xfs_buf_item_unpin(bip);
 
+	/*
+	 * Drop the bli ref associated with the pin and grab the hold required
+	 * for the I/O simulation failure in the abort case. We have to do this
+	 * before the pin count drops because the AIL doesn't acquire a bli
+	 * reference. Therefore if the refcount drops to zero, the bli could
+	 * still be AIL resident and the buffer submitted for I/O (and freed on
+	 * completion) at any point before we return. This can be removed once
+	 * the AIL properly holds a reference on the bli.
+	 */
 	freed = atomic_dec_and_test(&bip->bli_refcount);
-
+	if (freed && !stale && remove)
+		xfs_buf_hold(bp);
 	if (atomic_dec_and_test(&bp->b_pin_count))
 		wake_up_all(&bp->b_waiters);
 
-	if (freed && stale) {
+	 /* nothing to do but drop the pin count if the bli is active */
+	if (!freed)
+		return;
+
+	if (stale) {
 		ASSERT(bip->bli_flags & XFS_BLI_STALE);
 		ASSERT(xfs_buf_islocked(bp));
 		ASSERT(bp->b_flags & XBF_STALE);
 		ASSERT(bip->__bli_format.blf_flags & XFS_BLF_CANCEL);
+		ASSERT(list_empty(&lip->li_trans));
+		ASSERT(!bp->b_transp);
 
 		trace_xfs_buf_item_unpin_stale(bip);
-
-		if (remove) {
-			/*
-			 * If we are in a transaction context, we have to
-			 * remove the log item from the transaction as we are
-			 * about to release our reference to the buffer.  If we
-			 * don't, the unlock that occurs later in
-			 * xfs_trans_uncommit() will try to reference the
-			 * buffer which we no longer have a hold on.
-			 */
-			if (!list_empty(&lip->li_trans))
-				xfs_trans_del_item(lip);
-
-			/*
-			 * Since the transaction no longer refers to the buffer,
-			 * the buffer should no longer refer to the transaction.
-			 */
-			bp->b_transp = NULL;
-		}
 
 		/*
 		 * If we get called here because of an IO error, we may or may
@@ -469,13 +537,13 @@ xfs_buf_item_unpin(
 			ASSERT(bp->b_log_item == NULL);
 		}
 		xfs_buf_relse(bp);
-	} else if (freed && remove) {
+	} else if (remove) {
 		/*
 		 * The buffer must be locked and held by the caller to simulate
-		 * an async I/O failure.
+		 * an async I/O failure. We acquired the hold for this case
+		 * before the buffer was unpinned.
 		 */
 		xfs_buf_lock(bp);
-		xfs_buf_hold(bp);
 		bp->b_flags |= XBF_ASYNC;
 		xfs_buf_ioend_fail(bp);
 	}
@@ -513,7 +581,7 @@ xfs_buf_item_push(
 	if (bp->b_flags & XBF_WRITE_FAIL) {
 		xfs_buf_alert_ratelimited(bp, "XFS: Failing async write",
 	    "Failing async write on buffer block 0x%llx. Retrying async write.",
-					  (long long)bp->b_bn);
+					  (long long)xfs_buf_daddr(bp));
 	}
 
 	if (!xfs_buf_delwri_queue(bp, buffer_list))
@@ -548,7 +616,7 @@ xfs_buf_item_put(
 	 * that case, the bli is freed on buffer writeback completion.
 	 */
 	aborted = test_bit(XFS_LI_ABORTED, &lip->li_flags) ||
-		  XFS_FORCED_SHUTDOWN(lip->li_mountp);
+		  xfs_is_shutdown(lip->li_mountp);
 	dirty = bip->bli_flags & XFS_BLI_DIRTY;
 	if (dirty && !aborted)
 		return false;
@@ -633,7 +701,7 @@ xfs_buf_item_release(
 STATIC void
 xfs_buf_item_committing(
 	struct xfs_log_item	*lip,
-	xfs_lsn_t		commit_lsn)
+	xfs_csn_t		seq)
 {
 	return xfs_buf_item_release(lip);
 }

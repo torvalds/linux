@@ -2584,9 +2584,7 @@ static int reiserfs_write_full_page(struct page *page,
 			clear_buffer_dirty(bh);
 			set_buffer_uptodate(bh);
 		} else if ((checked || buffer_dirty(bh)) &&
-		           (!buffer_mapped(bh) || (buffer_mapped(bh)
-						       && bh->b_blocknr ==
-						       0))) {
+			   (!buffer_mapped(bh) || bh->b_blocknr == 0)) {
 			/*
 			 * not mapped yet, or it points to a direct item, search
 			 * the btree for the mapping info, and log any direct

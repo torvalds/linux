@@ -80,4 +80,7 @@ void wg_peer_put(struct wg_peer *peer);
 void wg_peer_remove(struct wg_peer *peer);
 void wg_peer_remove_all(struct wg_device *wg);
 
+int wg_peer_init(void);
+void wg_peer_uninit(void);
+
 #endif /* _WG_PEER_H */

@@ -233,7 +233,6 @@ static int dwc_pwm_probe(struct pci_dev *pci, const struct pci_device_id *id)
 	dwc->chip.dev = dev;
 	dwc->chip.ops = &dwc_pwm_ops;
 	dwc->chip.npwm = DWC_TIMERS_TOTAL;
-	dwc->chip.base = -1;
 
 	ret = pwmchip_add(&dwc->chip);
 	if (ret)

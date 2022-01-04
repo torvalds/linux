@@ -24,3 +24,106 @@ Description:
 		(RO) "Persistent Only Capacity" as bytes. Represents the
 		identically named field in the Identify Memory Device Output
 		Payload in the CXL-2.0 specification.
+
+What:		/sys/bus/cxl/devices/*/devtype
+Date:		June, 2021
+KernelVersion:	v5.14
+Contact:	linux-cxl@vger.kernel.org
+Description:
+		CXL device objects export the devtype attribute which mirrors
+		the same value communicated in the DEVTYPE environment variable
+		for uevents for devices on the "cxl" bus.
+
+What:		/sys/bus/cxl/devices/portX/uport
+Date:		June, 2021
+KernelVersion:	v5.14
+Contact:	linux-cxl@vger.kernel.org
+Description:
+		CXL port objects are enumerated from either a platform firmware
+		device (ACPI0017 and ACPI0016) or PCIe switch upstream port with
+		CXL component registers. The 'uport' symlink connects the CXL
+		portX object to the device that published the CXL port
+		capability.
+
+What:		/sys/bus/cxl/devices/portX/dportY
+Date:		June, 2021
+KernelVersion:	v5.14
+Contact:	linux-cxl@vger.kernel.org
+Description:
+		CXL port objects are enumerated from either a platform firmware
+		device (ACPI0017 and ACPI0016) or PCIe switch upstream port with
+		CXL component registers. The 'dportY' symlink identifies one or
+		more downstream ports that the upstream port may target in its
+		decode of CXL memory resources.  The 'Y' integer reflects the
+		hardware port unique-id used in the hardware decoder target
+		list.
+
+What:		/sys/bus/cxl/devices/decoderX.Y
+Date:		June, 2021
+KernelVersion:	v5.14
+Contact:	linux-cxl@vger.kernel.org
+Description:
+		CXL decoder objects are enumerated from either a platform
+		firmware description, or a CXL HDM decoder register set in a
+		PCIe device (see CXL 2.0 section 8.2.5.12 CXL HDM Decoder
+		Capability Structure). The 'X' in decoderX.Y represents the
+		cxl_port container of this decoder, and 'Y' represents the
+		instance id of a given decoder resource.
+
+What:		/sys/bus/cxl/devices/decoderX.Y/{start,size}
+Date:		June, 2021
+KernelVersion:	v5.14
+Contact:	linux-cxl@vger.kernel.org
+Description:
+		The 'start' and 'size' attributes together convey the physical
+		address base and number of bytes mapped in the decoder's decode
+		window. For decoders of devtype "cxl_decoder_root" the address
+		range is fixed. For decoders of devtype "cxl_decoder_switch" the
+		address is bounded by the decode range of the cxl_port ancestor
+		of the decoder's cxl_port, and dynamically updates based on the
+		active memory regions in that address space.
+
+What:		/sys/bus/cxl/devices/decoderX.Y/locked
+Date:		June, 2021
+KernelVersion:	v5.14
+Contact:	linux-cxl@vger.kernel.org
+Description:
+		CXL HDM decoders have the capability to lock the configuration
+		until the next device reset. For decoders of devtype
+		"cxl_decoder_root" there is no standard facility to unlock them.
+		For decoders of devtype "cxl_decoder_switch" a secondary bus
+		reset, of the PCIe bridge that provides the bus for this
+		decoders uport, unlocks / resets the decoder.
+
+What:		/sys/bus/cxl/devices/decoderX.Y/target_list
+Date:		June, 2021
+KernelVersion:	v5.14
+Contact:	linux-cxl@vger.kernel.org
+Description:
+		Display a comma separated list of the current decoder target
+		configuration. The list is ordered by the current configured
+		interleave order of the decoder's dport instances. Each entry in
+		the list is a dport id.
+
+What:		/sys/bus/cxl/devices/decoderX.Y/cap_{pmem,ram,type2,type3}
+Date:		June, 2021
+KernelVersion:	v5.14
+Contact:	linux-cxl@vger.kernel.org
+Description:
+		When a CXL decoder is of devtype "cxl_decoder_root", it
+		represents a fixed memory window identified by platform
+		firmware. A fixed window may only support a subset of memory
+		types. The 'cap_*' attributes indicate whether persistent
+		memory, volatile memory, accelerator memory, and / or expander
+		memory may be mapped behind this decoder's memory window.
+
+What:		/sys/bus/cxl/devices/decoderX.Y/target_type
+Date:		June, 2021
+KernelVersion:	v5.14
+Contact:	linux-cxl@vger.kernel.org
+Description:
+		When a CXL decoder is of devtype "cxl_decoder_switch", it can
+		optionally decode either accelerator memory (type-2) or expander
+		memory (type-3). The 'target_type' attribute indicates the
+		current setting which may dynamically change based on what
+		memory regions are activated in this decode hierarchy.

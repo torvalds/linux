@@ -1,0 +1,51 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/spi/spi-zynqmp-qspi.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Xilinx Zynq UltraScale+ MPSoC GQSPI controller Device Tree Bindings
+
+maintainers:
+  - Michal Simek <michal.simek@xilinx.com>
+
+allOf:
+  - $ref: "spi-controller.yaml#"
+
+properties:
+  compatible:
+    const: xlnx,zynqmp-qspi-1.0
+
+  reg:
+    maxItems: 2
+
+  interrupts:
+    maxItems: 1
+
+  clock-names:
+    items:
+      - const: ref_clk
+      - const: pclk
+
+  clocks:
+    maxItems: 2
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/xlnx-zynqmp-clk.h>
+    soc {
+      #address-cells = <2>;
+      #size-cells = <2>;
+
+      qspi: spi@ff0f0000 {
+        compatible = "xlnx,zynqmp-qspi-1.0";
+        clocks = <&zynqmp_clk QSPI_REF>, <&zynqmp_clk LPD_LSBUS>;
+        clock-names = "ref_clk", "pclk";
+        interrupts = <0 15 4>;
+        interrupt-parent = <&gic>;
+        reg = <0x0 0xff0f0000 0x0 0x1000>,
+              <0x0 0xc0000000 0x0 0x8000000>;
+      };
+    };

@@ -456,7 +456,7 @@ static void dce_v6_0_program_fmt(struct drm_encoder *encoder)
 }
 
 /**
- * cik_get_number_of_dram_channels - get the number of dram channels
+ * si_get_number_of_dram_channels - get the number of dram channels
  *
  * @adev: amdgpu_device pointer
  *
@@ -1820,7 +1820,6 @@ static int dce_v6_0_crtc_do_set_base(struct drm_crtc *crtc,
 	u32 viewport_w, viewport_h;
 	int r;
 	bool bypass_lut = false;
-	struct drm_format_name_buf format_name;
 
 	/* no fb bound */
 	if (!atomic && !crtc->primary->fb) {
@@ -1929,8 +1928,8 @@ static int dce_v6_0_crtc_do_set_base(struct drm_crtc *crtc,
 #endif
 		break;
 	default:
-		DRM_ERROR("Unsupported screen format %s\n",
-		          drm_get_format_name(target_fb->format->format, &format_name));
+		DRM_ERROR("Unsupported screen format %p4cc\n",
+			  &target_fb->format->format);
 		return -EINVAL;
 	}
 

@@ -19,7 +19,7 @@ enum rpcif_data_dir {
 	RPCIF_DATA_OUT,
 };
 
-struct	rpcif_op {
+struct rpcif_op {
 	struct {
 		u8 buswidth;
 		u8 opcode;
@@ -57,7 +57,7 @@ struct	rpcif_op {
 	} data;
 };
 
-struct	rpcif {
+struct rpcif {
 	struct device *dev;
 	void __iomem *dirmap;
 	struct regmap *regmap;
@@ -76,7 +76,7 @@ struct	rpcif {
 	u32 ddr;		/* DRDRENR or SMDRENR */
 };
 
-int  rpcif_sw_init(struct rpcif *rpc, struct device *dev);
+int rpcif_sw_init(struct rpcif *rpc, struct device *dev);
 void rpcif_hw_init(struct rpcif *rpc, bool hyperflash);
 void rpcif_prepare(struct rpcif *rpc, const struct rpcif_op *op, u64 *offs,
 		   size_t *len);

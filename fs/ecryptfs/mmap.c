@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-/**
+/*
  * eCryptfs: Linux filesystem encryption layer
  * This is where eCryptfs coordinates the symmetric encryption and
  * decryption of the file data as it passes between the lower
@@ -22,7 +22,7 @@
 #include <asm/unaligned.h>
 #include "ecryptfs_kernel.h"
 
-/**
+/*
  * ecryptfs_get_locked_page
  *
  * Get one page from cache or lower f/s, return error otherwise.
@@ -41,6 +41,7 @@ struct page *ecryptfs_get_locked_page(struct inode *inode, loff_t index)
 /**
  * ecryptfs_writepage
  * @page: Page that is locked before this call is made
+ * @wbc: Write-back control structure
  *
  * Returns zero on success; non-zero otherwise
  *
@@ -78,7 +79,7 @@ static void strip_xattr_flag(char *page_virt,
 	}
 }
 
-/**
+/*
  *   Header Extent:
  *     Octets 0-7:        Unencrypted file size (big-endian)
  *     Octets 8-15:       eCryptfs special marker
@@ -229,7 +230,7 @@ out:
 	return rc;
 }
 
-/**
+/*
  * Called with lower inode mutex held.
  */
 static int fill_zeros_to_end_of_page(struct page *page, unsigned int to)
@@ -368,7 +369,7 @@ out:
 	return rc;
 }
 
-/**
+/*
  * ecryptfs_write_inode_size_to_header
  *
  * Writes the lower file size to the first 8 bytes of the header.
@@ -532,7 +533,20 @@ static sector_t ecryptfs_bmap(struct address_space *mapping, sector_t block)
 	return block;
 }
 
+#include <linux/buffer_head.h>
+
 const struct address_space_operations ecryptfs_aops = {
+	/*
+	 * XXX: This is pretty broken for multiple reasons: ecryptfs does not
+	 * actually use buffer_heads, and ecryptfs will crash without
+	 * CONFIG_BLOCK.  But it matches the behavior before the default for
+	 * address_space_operations without the ->set_page_dirty method was
+	 * cleaned up, so this is the best we can do without maintainer
+	 * feedback.
+	 */
+#ifdef CONFIG_BLOCK
+	.set_page_dirty = __set_page_dirty_buffers,
+#endif
 	.writepage = ecryptfs_writepage,
 	.readpage = ecryptfs_readpage,
 	.write_begin = ecryptfs_write_begin,

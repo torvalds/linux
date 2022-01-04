@@ -344,7 +344,7 @@ struct amdgpu_mode_info {
 	/* pointer to fbdev info structure */
 	struct amdgpu_fbdev *rfbdev;
 	/* firmware flags */
-	u16 firmware_flags;
+	u32 firmware_flags;
 	/* pointer to backlight encoder */
 	struct amdgpu_encoder *bl_encoder;
 	u8 bl_level; /* saved backlight level */
@@ -602,6 +602,14 @@ int amdgpu_display_get_crtc_scanoutpos(struct drm_device *dev,
 			int *hpos, ktime_t *stime, ktime_t *etime,
 			const struct drm_display_mode *mode);
 
+int amdgpu_display_gem_fb_init(struct drm_device *dev,
+			       struct amdgpu_framebuffer *rfb,
+			       const struct drm_mode_fb_cmd2 *mode_cmd,
+			       struct drm_gem_object *obj);
+int amdgpu_display_gem_fb_verify_and_init(
+	struct drm_device *dev, struct amdgpu_framebuffer *rfb,
+	struct drm_file *file_priv, const struct drm_mode_fb_cmd2 *mode_cmd,
+	struct drm_gem_object *obj);
 int amdgpu_display_framebuffer_init(struct drm_device *dev,
 				    struct amdgpu_framebuffer *rfb,
 				    const struct drm_mode_fb_cmd2 *mode_cmd,

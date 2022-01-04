@@ -12,9 +12,9 @@
 #include "debug.h"
 #include "sysfs.h"
 
-static ssize_t wl1271_sysfs_show_bt_coex_state(struct device *dev,
-					       struct device_attribute *attr,
-					       char *buf)
+static ssize_t bt_coex_state_show(struct device *dev,
+				  struct device_attribute *attr,
+				  char *buf)
 {
 	struct wl1271 *wl = dev_get_drvdata(dev);
 	ssize_t len;
@@ -30,9 +30,9 @@ static ssize_t wl1271_sysfs_show_bt_coex_state(struct device *dev,
 
 }
 
-static ssize_t wl1271_sysfs_store_bt_coex_state(struct device *dev,
-						struct device_attribute *attr,
-						const char *buf, size_t count)
+static ssize_t bt_coex_state_store(struct device *dev,
+				   struct device_attribute *attr,
+				   const char *buf, size_t count)
 {
 	struct wl1271 *wl = dev_get_drvdata(dev);
 	unsigned long res;
@@ -71,13 +71,11 @@ static ssize_t wl1271_sysfs_store_bt_coex_state(struct device *dev,
 	return count;
 }
 
-static DEVICE_ATTR(bt_coex_state, 0644,
-		   wl1271_sysfs_show_bt_coex_state,
-		   wl1271_sysfs_store_bt_coex_state);
+static DEVICE_ATTR_RW(bt_coex_state);
 
-static ssize_t wl1271_sysfs_show_hw_pg_ver(struct device *dev,
-					   struct device_attribute *attr,
-					   char *buf)
+static ssize_t hw_pg_ver_show(struct device *dev,
+			      struct device_attribute *attr,
+			      char *buf)
 {
 	struct wl1271 *wl = dev_get_drvdata(dev);
 	ssize_t len;
@@ -94,7 +92,7 @@ static ssize_t wl1271_sysfs_show_hw_pg_ver(struct device *dev,
 	return len;
 }
 
-static DEVICE_ATTR(hw_pg_ver, 0444, wl1271_sysfs_show_hw_pg_ver, NULL);
+static DEVICE_ATTR_RO(hw_pg_ver);
 
 static ssize_t wl1271_sysfs_read_fwlog(struct file *filp, struct kobject *kobj,
 				       struct bin_attribute *bin_attr,

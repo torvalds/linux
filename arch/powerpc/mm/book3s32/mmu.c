@@ -162,7 +162,7 @@ unsigned long __init mmu_mapin_ram(unsigned long base, unsigned long top)
 	unsigned long border = (unsigned long)__init_begin - PAGE_OFFSET;
 
 
-	if (debug_pagealloc_enabled() || __map_without_bats) {
+	if (debug_pagealloc_enabled_or_kfence() || __map_without_bats) {
 		pr_debug_once("Read-Write memory mapped without BATs\n");
 		if (base >= border)
 			return base;
@@ -184,17 +184,10 @@ static bool is_module_segment(unsigned long addr)
 {
 	if (!IS_ENABLED(CONFIG_MODULES))
 		return false;
-#ifdef MODULES_VADDR
 	if (addr < ALIGN_DOWN(MODULES_VADDR, SZ_256M))
 		return false;
 	if (addr > ALIGN(MODULES_END, SZ_256M) - 1)
 		return false;
-#else
-	if (addr < ALIGN_DOWN(VMALLOC_START, SZ_256M))
-		return false;
-	if (addr > ALIGN(VMALLOC_END, SZ_256M) - 1)
-		return false;
-#endif
 	return true;
 }
 
@@ -451,26 +444,6 @@ void __init print_system_hash_info(void)
 	if (Hash_mask)
 		pr_info("Hash_mask         = 0x%lx\n", Hash_mask);
 }
-
-#ifdef CONFIG_PPC_KUEP
-void __init setup_kuep(bool disabled)
-{
-	pr_info("Activating Kernel Userspace Execution Prevention\n");
-
-	if (disabled)
-		pr_warn("KUEP cannot be disabled yet on 6xx when compiled in\n");
-}
-#endif
-
-#ifdef CONFIG_PPC_KUAP
-void __init setup_kuap(bool disabled)
-{
-	pr_info("Activating Kernel Userspace Access Protection\n");
-
-	if (disabled)
-		pr_warn("KUAP cannot be disabled yet on 6xx when compiled in\n");
-}
-#endif
 
 void __init early_init_mmu(void)
 {

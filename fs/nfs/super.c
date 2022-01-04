@@ -116,16 +116,12 @@ static void unregister_nfs4_fs(void)
 #ifdef CONFIG_NFS_V4_2
 static void nfs_ssc_register_ops(void)
 {
-#ifdef CONFIG_NFSD_V4
 	nfs_ssc_register(&nfs_ssc_clnt_ops_tbl);
-#endif
 }
 
 static void nfs_ssc_unregister_ops(void)
 {
-#ifdef CONFIG_NFSD_V4
 	nfs_ssc_unregister(&nfs_ssc_clnt_ops_tbl);
-#endif
 }
 #endif /* CONFIG_NFS_V4_2 */
 
@@ -867,7 +863,7 @@ static int nfs_request_mount(struct fs_context *fc,
 	 * Now ask the mount server to map our export path
 	 * to a file handle.
 	 */
-	status = nfs_mount(&request);
+	status = nfs_mount(&request, ctx->timeo, ctx->retrans);
 	if (status != 0) {
 		dfprintk(MOUNT, "NFS: unable to mount server %s, error %d\n",
 				request.hostname, status);
@@ -1383,7 +1379,7 @@ static const struct kernel_param_ops param_ops_portnr = {
 	.set = param_set_portnr,
 	.get = param_get_uint,
 };
-#define param_check_portnr(name, p) __param_check(name, p, unsigned int);
+#define param_check_portnr(name, p) __param_check(name, p, unsigned int)
 
 module_param_named(callback_tcpport, nfs_callback_set_tcpport, portnr, 0644);
 module_param_named(callback_nr_threads, nfs_callback_nr_threads, ushort, 0644);

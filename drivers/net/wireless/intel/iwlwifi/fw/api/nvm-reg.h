@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2012-2014, 2018-2020 Intel Corporation
+ * Copyright (C) 2012-2014, 2018-2021 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2016-2017 Intel Deutschland GmbH
  */
@@ -414,6 +414,9 @@ enum iwl_lari_config_masks {
 	LARI_CONFIG_ENABLE_5G2_IN_INDONESIA_MSK		= BIT(3),
 };
 
+#define IWL_11AX_UKRAINE_MASK 3
+#define IWL_11AX_UKRAINE_SHIFT 8
+
 /**
  * struct iwl_lari_config_change_cmd_v1 - change LARI configuration
  * @config_bitmap: bit map of the config commands. each bit will trigger a
@@ -433,6 +436,40 @@ struct iwl_lari_config_change_cmd_v2 {
 	__le32 config_bitmap;
 	__le32 oem_uhb_allow_bitmap;
 } __packed; /* LARI_CHANGE_CONF_CMD_S_VER_2 */
+
+/**
+ * struct iwl_lari_config_change_cmd_v3 - change LARI configuration
+ * @config_bitmap: bit map of the config commands. each bit will trigger a
+ * different predefined FW config operation
+ * @oem_uhb_allow_bitmap: bitmap of UHB enabled MCC sets
+ * @oem_11ax_allow_bitmap: bitmap of 11ax allowed MCCs.
+ * For each supported country, a pair of regulatory override bit and 11ax mode exist
+ * in the bit field.
+ */
+struct iwl_lari_config_change_cmd_v3 {
+	__le32 config_bitmap;
+	__le32 oem_uhb_allow_bitmap;
+	__le32 oem_11ax_allow_bitmap;
+} __packed; /* LARI_CHANGE_CONF_CMD_S_VER_3 */
+
+/**
+ * struct iwl_lari_config_change_cmd_v4 - change LARI configuration
+ * @config_bitmap: Bitmap of the config commands. Each bit will trigger a
+ *     different predefined FW config operation.
+ * @oem_uhb_allow_bitmap: Bitmap of UHB enabled MCC sets.
+ * @oem_11ax_allow_bitmap: Bitmap of 11ax allowed MCCs. There are two bits
+ *     per country, one to indicate whether to override and the other to
+ *     indicate the value to use.
+ * @oem_unii4_allow_bitmap: Bitmap of unii4 allowed MCCs.There are two bits
+ *     per country, one to indicate whether to override and the other to
+ *     indicate allow/disallow unii4 channels.
+ */
+struct iwl_lari_config_change_cmd_v4 {
+	__le32 config_bitmap;
+	__le32 oem_uhb_allow_bitmap;
+	__le32 oem_11ax_allow_bitmap;
+	__le32 oem_unii4_allow_bitmap;
+} __packed; /* LARI_CHANGE_CONF_CMD_S_VER_4 */
 
 /**
  * struct iwl_pnvm_init_complete_ntfy - PNVM initialization complete

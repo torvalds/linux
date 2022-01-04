@@ -89,7 +89,7 @@ static void bpf_sk_storage_map_free(struct bpf_map *map)
 
 	smap = (struct bpf_local_storage_map *)map;
 	bpf_local_storage_cache_idx_free(&sk_cache, smap->cache_idx);
-	bpf_local_storage_map_free(smap);
+	bpf_local_storage_map_free(smap, NULL);
 }
 
 static struct bpf_map *bpf_sk_storage_map_alloc(union bpf_attr *attr)
@@ -416,7 +416,7 @@ static bool bpf_sk_storage_tracing_allowed(const struct bpf_prog *prog)
 BPF_CALL_4(bpf_sk_storage_get_tracing, struct bpf_map *, map, struct sock *, sk,
 	   void *, value, u64, flags)
 {
-	if (in_irq() || in_nmi())
+	if (in_hardirq() || in_nmi())
 		return (unsigned long)NULL;
 
 	return (unsigned long)____bpf_sk_storage_get(map, sk, value, flags);
@@ -425,7 +425,7 @@ BPF_CALL_4(bpf_sk_storage_get_tracing, struct bpf_map *, map, struct sock *, sk,
 BPF_CALL_2(bpf_sk_storage_delete_tracing, struct bpf_map *, map,
 	   struct sock *, sk)
 {
-	if (in_irq() || in_nmi())
+	if (in_hardirq() || in_nmi())
 		return -EPERM;
 
 	return ____bpf_sk_storage_delete(map, sk);
@@ -524,8 +524,7 @@ bpf_sk_storage_diag_alloc(const struct nlattr *nla_stgs)
 			nr_maps++;
 	}
 
-	diag = kzalloc(sizeof(*diag) + sizeof(diag->maps[0]) * nr_maps,
-		       GFP_KERNEL);
+	diag = kzalloc(struct_size(diag, maps, nr_maps), GFP_KERNEL);
 	if (!diag)
 		return ERR_PTR(-ENOMEM);
 

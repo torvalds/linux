@@ -1,7 +1,6 @@
+/* SPDX-License-Identifier: MIT*/
 /*
- * SPDX-License-Identifier: MIT
- *
- * Copyright � 2003-2018 Intel Corporation
+ * Copyright © 2003-2018 Intel Corporation
  */
 
 #ifndef _INTEL_GPU_COMMANDS_H_
@@ -124,8 +123,10 @@
 #define   MI_SEMAPHORE_SAD_NEQ_SDD	(5 << 12)
 #define   MI_SEMAPHORE_TOKEN_MASK	REG_GENMASK(9, 5)
 #define   MI_SEMAPHORE_TOKEN_SHIFT	5
+#define MI_STORE_DATA_IMM	MI_INSTR(0x20, 0)
 #define MI_STORE_DWORD_IMM	MI_INSTR(0x20, 1)
 #define MI_STORE_DWORD_IMM_GEN4	MI_INSTR(0x20, 2)
+#define MI_STORE_QWORD_IMM_GEN8 (MI_INSTR(0x20, 3) | REG_BIT(21))
 #define   MI_MEM_VIRTUAL	(1 << 22) /* 945,g33,965 */
 #define   MI_USE_GGTT		(1 << 22) /* g4x+ */
 #define MI_STORE_DWORD_INDEX	MI_INSTR(0x21, 1)

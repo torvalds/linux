@@ -57,6 +57,7 @@ Contents:
    gen_stats
    gtp
    ila
+   ioam6-sysctl
    ipddp
    ip_dynaddr
    ipsec
@@ -68,6 +69,7 @@ Contents:
    l2tp
    lapb-module
    mac80211-injection
+   mctp
    mpls-sysctl
    mptcp-sysctl
    multiqueue
@@ -76,6 +78,7 @@ Contents:
    netdevices
    netfilter-sysctl
    netif-msg
+   nexthop-group-resilient
    nf_conntrack-sysctl
    nf_flowtable
    openvswitch

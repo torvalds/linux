@@ -154,9 +154,11 @@ struct vb2_mem_ops {
  * @dbuf:	dma_buf - shared buffer object.
  * @dbuf_mapped:	flag to show whether dbuf is mapped or not
  * @bytesused:	number of bytes occupied by data in the plane (payload).
- * @length:	size of this plane (NOT the payload) in bytes.
+ * @length:	size of this plane (NOT the payload) in bytes. The maximum
+ *		valid size is MAX_UINT - PAGE_SIZE.
  * @min_length:	minimum required size of this plane (NOT the payload) in bytes.
- *		@length is always greater or equal to @min_length.
+ *		@length is always greater or equal to @min_length, and like
+ *		@length, it is limited to MAX_UINT - PAGE_SIZE.
  * @m:		Union with memtype-specific data.
  * @m.offset:	when memory in the associated struct vb2_buffer is
  *		%VB2_MEMORY_MMAP, equals the offset from the start of

@@ -319,6 +319,9 @@ bool nested_enlightened_vmentry(struct kvm_vcpu *vcpu, u64 *evmcs_gpa)
 	if (unlikely(!assist_page.enlighten_vmentry))
 		return false;
 
+	if (unlikely(!evmptr_is_valid(assist_page.current_nested_vmcs)))
+		return false;
+
 	*evmcs_gpa = assist_page.current_nested_vmcs;
 
 	return true;

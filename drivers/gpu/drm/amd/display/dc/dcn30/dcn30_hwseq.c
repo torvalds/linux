@@ -48,6 +48,8 @@
 #include "dc_dmub_srv.h"
 #include "link_hwss.h"
 #include "dpcd_defs.h"
+#include "inc/dc_link_dp.h"
+#include "inc/link_dpcd.h"
 
 
 
@@ -396,12 +398,22 @@ void dcn30_program_all_writeback_pipes_in_tree(
 			for (i_pipe = 0; i_pipe < dc->res_pool->pipe_count; i_pipe++) {
 				struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i_pipe];
 
+				if (!pipe_ctx->plane_state)
+					continue;
+
 				if (pipe_ctx->plane_state == wb_info.writeback_source_plane) {
 					wb_info.mpcc_inst = pipe_ctx->plane_res.mpcc_inst;
 					break;
 				}
 			}
-			ASSERT(wb_info.mpcc_inst != -1);
+
+			if (wb_info.mpcc_inst == -1) {
+				/* Disable writeback pipe and disconnect from MPCC
+				 * if source plane has been removed
+				 */
+				dc->hwss.disable_writeback(dc, wb_info.dwb_pipe_inst);
+				continue;
+			}
 
 			ASSERT(wb_info.dwb_pipe_inst < dc->res_pool->res_cap->num_dwb);
 			dwb = dc->res_pool->dwbc[wb_info.dwb_pipe_inst];
@@ -421,11 +433,12 @@ void dcn30_program_all_writeback_pipes_in_tree(
 
 void dcn30_init_hw(struct dc *dc)
 {
-	int i, j;
 	struct abm **abms = dc->res_pool->multiple_abms;
 	struct dce_hwseq *hws = dc->hwseq;
 	struct dc_bios *dcb = dc->ctx->dc_bios;
 	struct resource_pool *res_pool = dc->res_pool;
+	int i, j;
+	int edp_num;
 	uint32_t backlight = MAX_BACKLIGHT_LEVEL;
 
 	if (dc->clk_mgr && dc->clk_mgr->funcs->init_clocks)
@@ -528,6 +541,8 @@ void dcn30_init_hw(struct dc *dc)
 		for (i = 0; i < dc->link_count; i++) {
 			if (dc->links[i]->connector_signal != SIGNAL_TYPE_DISPLAY_PORT)
 				continue;
+			/* DP 2.0 states that LTTPR regs must be read first */
+			dp_retrieve_lttpr_cap(dc->links[i]);
 
 			/* if any of the displays are lit up turn them off */
 			status = core_link_read_dpcd(dc->links[i], DP_SET_POWER,
@@ -574,10 +589,13 @@ void dcn30_init_hw(struct dc *dc)
 	 * if DIG is turned on and seamless boot not enabled
 	 */
 	if (dc->config.power_down_display_on_boot) {
-		struct dc_link *edp_link = get_edp_link(dc);
+		struct dc_link *edp_links[MAX_NUM_EDP];
+		struct dc_link *edp_link = NULL;
 
-		if (edp_link &&
-				edp_link->link_enc->funcs->is_dig_enabled &&
+		get_edp_links(dc, edp_links, &edp_num);
+		if (edp_num)
+			edp_link = edp_links[0];
+		if (edp_link && edp_link->link_enc->funcs->is_dig_enabled &&
 				edp_link->link_enc->funcs->is_dig_enabled(edp_link->link_enc) &&
 				dc->hwss.edp_backlight_control &&
 				dc->hwss.power_down &&
@@ -644,6 +662,9 @@ void dcn30_init_hw(struct dc *dc)
 	if (dc->res_pool->hubbub->funcs->force_pstate_change_control)
 		dc->res_pool->hubbub->funcs->force_pstate_change_control(
 				dc->res_pool->hubbub, false, false);
+	if (dc->res_pool->hubbub->funcs->init_crb)
+		dc->res_pool->hubbub->funcs->init_crb(dc->res_pool->hubbub);
+
 }
 
 void dcn30_set_avmute(struct pipe_ctx *pipe_ctx, bool enable)
@@ -651,7 +672,7 @@ void dcn30_set_avmute(struct pipe_ctx *pipe_ctx, bool enable)
 	if (pipe_ctx == NULL)
 		return;
 
-	if (dc_is_hdmi_tmds_signal(pipe_ctx->stream->signal) && pipe_ctx->stream_res.stream_enc != NULL)
+	if (dc_is_hdmi_signal(pipe_ctx->stream->signal) && pipe_ctx->stream_res.stream_enc != NULL)
 		pipe_ctx->stream_res.stream_enc->funcs->set_avmute(
 				pipe_ctx->stream_res.stream_enc,
 				enable);
@@ -806,6 +827,15 @@ bool dcn30_apply_idle_power_optimizations(struct dc *dc, bool enable)
 						(100LL + dc->debug.mall_additional_timer_percent) + denom - 1),
 						denom) - 64LL;
 
+				/* In some cases the stutter period is really big (tiny modes) in these
+				 * cases MALL cant be enabled, So skip these cases to avoid a ASSERT()
+				 *
+				 * We can check if stutter_period is more than 1/10th the frame time to
+				 * consider if we can actually meet the range of hysteresis timer
+				 */
+				if (stutter_period > 100000/refresh_hz)
+					return false;
+
 				/* scale should be increased until it fits into 6 bits */
 				while (tmr_delay & ~0x3F) {
 					tmr_scale++;
@@ -848,7 +878,7 @@ bool dcn30_apply_idle_power_optimizations(struct dc *dc, bool enable)
 
 					cmd.mall.cursor_copy_src.quad_part = cursor_attr.address.quad_part;
 					cmd.mall.cursor_copy_dst.quad_part =
-							plane->address.grph.cursor_cache_addr.quad_part;
+							(plane->address.grph.cursor_cache_addr.quad_part + 2047) & ~2047;
 					cmd.mall.cursor_width = cursor_attr.width;
 					cmd.mall.cursor_height = cursor_attr.height;
 					cmd.mall.cursor_pitch = cursor_attr.pitch;
@@ -858,8 +888,7 @@ bool dcn30_apply_idle_power_optimizations(struct dc *dc, bool enable)
 					dc_dmub_srv_wait_idle(dc->ctx->dmub_srv);
 
 					/* Use copied cursor, and it's okay to not switch back */
-					cursor_attr.address.quad_part =
-							plane->address.grph.cursor_cache_addr.quad_part;
+					cursor_attr.address.quad_part = cmd.mall.cursor_copy_dst.quad_part;
 					dc_stream_set_cursor_attributes(stream, &cursor_attr);
 				}
 
@@ -940,53 +969,6 @@ void dcn30_hardware_release(struct dc *dc)
 				dc->res_pool->hubbub, true, true);
 }
 
-void dcn30_set_hubp_blank(const struct dc *dc,
-		struct pipe_ctx *pipe_ctx,
-		bool blank_enable)
-{
-	struct pipe_ctx *mpcc_pipe;
-	struct pipe_ctx *odm_pipe;
-
-	if (blank_enable) {
-		struct plane_resource *plane_res = &pipe_ctx->plane_res;
-		struct stream_resource *stream_res = &pipe_ctx->stream_res;
-
-		/* Wait for enter vblank */
-		stream_res->tg->funcs->wait_for_state(stream_res->tg, CRTC_STATE_VBLANK);
-
-		/* Blank HUBP to allow p-state during blank on all timings */
-		pipe_ctx->plane_res.hubp->funcs->set_blank(pipe_ctx->plane_res.hubp, true);
-		/* Confirm hubp in blank */
-		ASSERT(plane_res->hubp->funcs->hubp_in_blank(plane_res->hubp));
-		/* Toggle HUBP_DISABLE */
-		plane_res->hubp->funcs->hubp_soft_reset(plane_res->hubp, true);
-		plane_res->hubp->funcs->hubp_soft_reset(plane_res->hubp, false);
-		for (mpcc_pipe = pipe_ctx->bottom_pipe; mpcc_pipe; mpcc_pipe = mpcc_pipe->bottom_pipe) {
-			mpcc_pipe->plane_res.hubp->funcs->set_blank(mpcc_pipe->plane_res.hubp, true);
-			/* Confirm hubp in blank */
-			ASSERT(mpcc_pipe->plane_res.hubp->funcs->hubp_in_blank(mpcc_pipe->plane_res.hubp));
-			/* Toggle HUBP_DISABLE */
-			mpcc_pipe->plane_res.hubp->funcs->hubp_soft_reset(mpcc_pipe->plane_res.hubp, true);
-			mpcc_pipe->plane_res.hubp->funcs->hubp_soft_reset(mpcc_pipe->plane_res.hubp, false);
-
-		}
-		for (odm_pipe = pipe_ctx->next_odm_pipe; odm_pipe; odm_pipe = odm_pipe->next_odm_pipe) {
-			odm_pipe->plane_res.hubp->funcs->set_blank(odm_pipe->plane_res.hubp, true);
-			/* Confirm hubp in blank */
-			ASSERT(odm_pipe->plane_res.hubp->funcs->hubp_in_blank(odm_pipe->plane_res.hubp));
-			/* Toggle HUBP_DISABLE */
-			odm_pipe->plane_res.hubp->funcs->hubp_soft_reset(odm_pipe->plane_res.hubp, true);
-			odm_pipe->plane_res.hubp->funcs->hubp_soft_reset(odm_pipe->plane_res.hubp, false);
-		}
-	} else {
-		pipe_ctx->plane_res.hubp->funcs->set_blank(pipe_ctx->plane_res.hubp, false);
-		for (mpcc_pipe = pipe_ctx->bottom_pipe; mpcc_pipe; mpcc_pipe = mpcc_pipe->bottom_pipe)
-			mpcc_pipe->plane_res.hubp->funcs->set_blank(mpcc_pipe->plane_res.hubp, false);
-		for (odm_pipe = pipe_ctx->next_odm_pipe; odm_pipe; odm_pipe = odm_pipe->next_odm_pipe)
-			odm_pipe->plane_res.hubp->funcs->set_blank(odm_pipe->plane_res.hubp, false);
-	}
-}
-
 void dcn30_set_disp_pattern_generator(const struct dc *dc,
 		struct pipe_ctx *pipe_ctx,
 		enum controller_dp_test_pattern test_pattern,
@@ -996,6 +978,7 @@ void dcn30_set_disp_pattern_generator(const struct dc *dc,
 		int width, int height, int offset)
 {
 	struct stream_resource *stream_res = &pipe_ctx->stream_res;
+	struct pipe_ctx *mpcc_pipe;
 
 	if (test_pattern != CONTROLLER_DP_TEST_PATTERN_VIDEOMODE) {
 		pipe_ctx->vtp_locked = false;
@@ -1007,12 +990,20 @@ void dcn30_set_disp_pattern_generator(const struct dc *dc,
 		if (stream_res->tg->funcs->is_tg_enabled(stream_res->tg)) {
 			if (stream_res->tg->funcs->is_locked(stream_res->tg))
 				pipe_ctx->vtp_locked = true;
-			else
-				dc->hwss.set_hubp_blank(dc, pipe_ctx, true);
+			else {
+				/* Blank HUBP to allow p-state during blank on all timings */
+				pipe_ctx->plane_res.hubp->funcs->set_blank(pipe_ctx->plane_res.hubp, true);
+
+				for (mpcc_pipe = pipe_ctx->bottom_pipe; mpcc_pipe; mpcc_pipe = mpcc_pipe->bottom_pipe)
+					mpcc_pipe->plane_res.hubp->funcs->set_blank(mpcc_pipe->plane_res.hubp, true);
+			}
 		}
 	} else {
-		dc->hwss.set_hubp_blank(dc, pipe_ctx, false);
 		/* turning off DPG */
+		pipe_ctx->plane_res.hubp->funcs->set_blank(pipe_ctx->plane_res.hubp, false);
+		for (mpcc_pipe = pipe_ctx->bottom_pipe; mpcc_pipe; mpcc_pipe = mpcc_pipe->bottom_pipe)
+			mpcc_pipe->plane_res.hubp->funcs->set_blank(mpcc_pipe->plane_res.hubp, false);
+
 		stream_res->opp->funcs->opp_set_disp_pattern_generator(stream_res->opp, test_pattern, color_space,
 				color_depth, solid_color, width, height, offset);
 	}

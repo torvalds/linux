@@ -81,6 +81,7 @@ static struct workqueue_struct *bnxt_re_wq;
 static void bnxt_re_remove_device(struct bnxt_re_dev *rdev);
 static void bnxt_re_dealloc_driver(struct ib_device *ib_dev);
 static void bnxt_re_stop_irq(void *handle);
+static void bnxt_re_dev_stop(struct bnxt_re_dev *rdev);
 
 static void bnxt_re_set_drv_mode(struct bnxt_re_dev *rdev, u8 mode)
 {
@@ -119,6 +120,7 @@ static int bnxt_re_setup_chip_ctx(struct bnxt_re_dev *rdev, u8 wqe_mode)
 	if (!chip_ctx)
 		return -ENOMEM;
 	chip_ctx->chip_num = bp->chip_num;
+	chip_ctx->hw_stats_size = bp->hw_ring_stats_size;
 
 	rdev->chip_ctx = chip_ctx;
 	/* rest members to follow eventually */
@@ -127,6 +129,9 @@ static int bnxt_re_setup_chip_ctx(struct bnxt_re_dev *rdev, u8 wqe_mode)
 	rdev->rcfw.res = &rdev->qplib_res;
 
 	bnxt_re_set_drv_mode(rdev, wqe_mode);
+	if (bnxt_qplib_determine_atomics(en_dev->pdev))
+		ibdev_info(&rdev->ibdev,
+			   "platform doesn't support global atomics.");
 	return 0;
 }
 
@@ -221,6 +226,37 @@ static void bnxt_re_set_resource_limits(struct bnxt_re_dev *rdev)
 /* for handling bnxt_en callbacks later */
 static void bnxt_re_stop(void *p)
 {
+	struct bnxt_re_dev *rdev = p;
+	struct bnxt *bp;
+
+	if (!rdev)
+		return;
+	ASSERT_RTNL();
+
+	/* L2 driver invokes this callback during device error/crash or device
+	 * reset. Current RoCE driver doesn't recover the device in case of
+	 * error. Handle the error by dispatching fatal events to all qps
+	 * ie. by calling bnxt_re_dev_stop and release the MSIx vectors as
+	 * L2 driver want to modify the MSIx table.
+	 */
+	bp = netdev_priv(rdev->netdev);
+
+	ibdev_info(&rdev->ibdev, "Handle device stop call from L2 driver");
+	/* Check the current device state from L2 structure and move the
+	 * device to detached state if FW_FATAL_COND is set.
+	 * This prevents more commands to HW during clean-up,
+	 * in case the device is already in error.
+	 */
+	if (test_bit(BNXT_STATE_FW_FATAL_COND, &bp->state))
+		set_bit(ERR_DEVICE_DETACHED, &rdev->rcfw.cmdq.flags);
+
+	bnxt_re_dev_stop(rdev);
+	bnxt_re_stop_irq(rdev);
+	/* Move the device states to detached and  avoid sending any more
+	 * commands to HW
+	 */
+	set_bit(BNXT_RE_FLAG_ERR_DEVICE_DETACHED, &rdev->flags);
+	set_bit(ERR_DEVICE_DETACHED, &rdev->rcfw.cmdq.flags);
 }
 
 static void bnxt_re_start(void *p)
@@ -234,6 +270,8 @@ static void bnxt_re_sriov_config(void *p, int num_vfs)
 	if (!rdev)
 		return;
 
+	if (test_bit(BNXT_RE_FLAG_ERR_DEVICE_DETACHED, &rdev->flags))
+		return;
 	rdev->num_vfs = num_vfs;
 	if (!bnxt_qplib_is_chip_gen_p5(rdev->chip_ctx)) {
 		bnxt_re_set_resource_limits(rdev);
@@ -427,6 +465,9 @@ static int bnxt_re_net_ring_free(struct bnxt_re_dev *rdev,
 	if (!en_dev)
 		return rc;
 
+	if (test_bit(BNXT_RE_FLAG_ERR_DEVICE_DETACHED, &rdev->flags))
+		return 0;
+
 	memset(&fw_msg, 0, sizeof(fw_msg));
 
 	bnxt_re_init_hwrm_hdr(rdev, (void *)&req, HWRM_RING_FREE, -1, -1);
@@ -489,6 +530,9 @@ static int bnxt_re_net_stats_ctx_free(struct bnxt_re_dev *rdev,
 	if (!en_dev)
 		return rc;
 
+	if (test_bit(BNXT_RE_FLAG_ERR_DEVICE_DETACHED, &rdev->flags))
+		return 0;
+
 	memset(&fw_msg, 0, sizeof(fw_msg));
 
 	bnxt_re_init_hwrm_hdr(rdev, (void *)&req, HWRM_STAT_CTX_FREE, -1, -1);
@@ -507,6 +551,7 @@ static int bnxt_re_net_stats_ctx_alloc(struct bnxt_re_dev *rdev,
 				       dma_addr_t dma_map,
 				       u32 *fw_stats_ctx_id)
 {
+	struct bnxt_qplib_chip_ctx *chip_ctx = rdev->chip_ctx;
 	struct hwrm_stat_ctx_alloc_output resp = {0};
 	struct hwrm_stat_ctx_alloc_input req = {0};
 	struct bnxt_en_dev *en_dev = rdev->en_dev;
@@ -523,7 +568,7 @@ static int bnxt_re_net_stats_ctx_alloc(struct bnxt_re_dev *rdev,
 	bnxt_re_init_hwrm_hdr(rdev, (void *)&req, HWRM_STAT_CTX_ALLOC, -1, -1);
 	req.update_period_ms = cpu_to_le32(1000);
 	req.stats_dma_addr = cpu_to_le64(dma_map);
-	req.stats_dma_length = cpu_to_le16(sizeof(struct ctx_hw_stats_ext));
+	req.stats_dma_length = cpu_to_le16(chip_ctx->hw_stats_size);
 	req.stat_ctx_flags = STAT_CTX_ALLOC_REQ_STAT_CTX_FLAGS_ROCE;
 	bnxt_re_fill_fw_msg(&fw_msg, (void *)&req, sizeof(req), (void *)&resp,
 			    sizeof(resp), DFLT_HWRM_CMD_TIMEOUT);
@@ -561,24 +606,12 @@ static struct bnxt_re_dev *bnxt_re_from_netdev(struct net_device *netdev)
 	return container_of(ibdev, struct bnxt_re_dev, ibdev);
 }
 
-static void bnxt_re_dev_unprobe(struct net_device *netdev,
-				struct bnxt_en_dev *en_dev)
-{
-	dev_put(netdev);
-	module_put(en_dev->pdev->driver->driver.owner);
-}
-
 static struct bnxt_en_dev *bnxt_re_dev_probe(struct net_device *netdev)
 {
-	struct bnxt *bp = netdev_priv(netdev);
 	struct bnxt_en_dev *en_dev;
 	struct pci_dev *pdev;
 
-	/* Call bnxt_en's RoCE probe via indirect API */
-	if (!bp->ulp_probe)
-		return ERR_PTR(-EINVAL);
-
-	en_dev = bp->ulp_probe(netdev);
+	en_dev = bnxt_ulp_probe(netdev);
 	if (IS_ERR(en_dev))
 		return en_dev;
 
@@ -592,10 +625,6 @@ static struct bnxt_en_dev *bnxt_re_dev_probe(struct net_device *netdev)
 			ROCE_DRV_MODULE_NAME);
 		return ERR_PTR(-ENODEV);
 	}
-
-	/* Bump net device reference count */
-	if (!try_module_get(pdev->driver->driver.owner))
-		return ERR_PTR(-ENODEV);
 
 	dev_hold(netdev);
 
@@ -638,7 +667,7 @@ static const struct ib_device_ops bnxt_re_dev_ops = {
 	.uverbs_abi_ver = BNXT_RE_ABI_VERSION,
 
 	.add_gid = bnxt_re_add_gid,
-	.alloc_hw_stats = bnxt_re_ib_alloc_hw_stats,
+	.alloc_hw_port_stats = bnxt_re_ib_alloc_hw_port_stats,
 	.alloc_mr = bnxt_re_alloc_mr,
 	.alloc_pd = bnxt_re_alloc_pd,
 	.alloc_ucontext = bnxt_re_alloc_ucontext,
@@ -656,6 +685,7 @@ static const struct ib_device_ops bnxt_re_dev_ops = {
 	.destroy_cq = bnxt_re_destroy_cq,
 	.destroy_qp = bnxt_re_destroy_qp,
 	.destroy_srq = bnxt_re_destroy_srq,
+	.device_group = &bnxt_re_dev_attr_group,
 	.get_dev_fw_str = bnxt_re_query_fw_str,
 	.get_dma_mr = bnxt_re_get_dma_mr,
 	.get_hw_stats = bnxt_re_ib_get_hw_stats,
@@ -681,6 +711,7 @@ static const struct ib_device_ops bnxt_re_dev_ops = {
 	INIT_RDMA_OBJ_SIZE(ib_ah, bnxt_re_ah, ib_ah),
 	INIT_RDMA_OBJ_SIZE(ib_cq, bnxt_re_cq, ib_cq),
 	INIT_RDMA_OBJ_SIZE(ib_pd, bnxt_re_pd, ib_pd),
+	INIT_RDMA_OBJ_SIZE(ib_qp, bnxt_re_qp, ib_qp),
 	INIT_RDMA_OBJ_SIZE(ib_srq, bnxt_re_srq, ib_srq),
 	INIT_RDMA_OBJ_SIZE(ib_ucontext, bnxt_re_ucontext, ib_uctx),
 };
@@ -702,7 +733,6 @@ static int bnxt_re_register_ib(struct bnxt_re_dev *rdev)
 	ibdev->dev.parent = &rdev->en_dev->pdev->dev;
 	ibdev->local_dma_lkey = BNXT_QPLIB_RSVD_LKEY;
 
-	rdma_set_device_sysfs_group(ibdev, &bnxt_re_dev_attr_group);
 	ib_set_device_ops(ibdev, &bnxt_re_dev_ops);
 	ret = ib_device_set_netdev(&rdev->ibdev, rdev->netdev, 1);
 	if (ret)
@@ -861,12 +891,6 @@ static int bnxt_re_srqn_handler(struct bnxt_qplib_nq *nq,
 	struct ib_event ib_event;
 	int rc = 0;
 
-	if (!srq) {
-		ibdev_err(NULL, "%s: SRQ is NULL, SRQN not handled",
-			  ROCE_DRV_MODULE_NAME);
-		rc = -EINVAL;
-		goto done;
-	}
 	ib_event.device = &srq->rdev->ibdev;
 	ib_event.element.srq = &srq->ib_srq;
 	if (event == NQ_SRQ_EVENT_EVENT_SRQ_THRESHOLD_EVENT)
@@ -879,7 +903,6 @@ static int bnxt_re_srqn_handler(struct bnxt_qplib_nq *nq,
 		(*srq->ib_srq.event_handler)(&ib_event,
 					     srq->ib_srq.srq_context);
 	}
-done:
 	return rc;
 }
 
@@ -889,11 +912,6 @@ static int bnxt_re_cqn_handler(struct bnxt_qplib_nq *nq,
 	struct bnxt_re_cq *cq = container_of(handle, struct bnxt_re_cq,
 					     qplib_cq);
 
-	if (!cq) {
-		ibdev_err(NULL, "%s: CQ is NULL, CQN not handled",
-			  ROCE_DRV_MODULE_NAME);
-		return -EINVAL;
-	}
 	if (cq->ib_cq.comp_handler) {
 		/* Lock comp_handler? */
 		(*cq->ib_cq.comp_handler)(&cq->ib_cq, cq->ib_cq.cq_context);
@@ -1380,7 +1398,6 @@ static int bnxt_re_dev_init(struct bnxt_re_dev *rdev, u8 wqe_mode)
 	memset(&rattr, 0, sizeof(rattr));
 	rc = bnxt_re_register_netdev(rdev);
 	if (rc) {
-		rtnl_unlock();
 		ibdev_err(&rdev->ibdev,
 			  "Failed to register with netedev: %#x\n", rc);
 		return -EINVAL;
@@ -1523,13 +1540,12 @@ fail:
 
 static void bnxt_re_dev_unreg(struct bnxt_re_dev *rdev)
 {
-	struct bnxt_en_dev *en_dev = rdev->en_dev;
 	struct net_device *netdev = rdev->netdev;
 
 	bnxt_re_dev_remove(rdev);
 
 	if (netdev)
-		bnxt_re_dev_unprobe(netdev, en_dev);
+		dev_put(netdev);
 }
 
 static int bnxt_re_dev_reg(struct bnxt_re_dev **rdev, struct net_device *netdev)
@@ -1551,7 +1567,7 @@ static int bnxt_re_dev_reg(struct bnxt_re_dev **rdev, struct net_device *netdev)
 	*rdev = bnxt_re_dev_add(netdev, en_dev);
 	if (!*rdev) {
 		rc = -ENOMEM;
-		bnxt_re_dev_unprobe(netdev, en_dev);
+		dev_put(netdev);
 		goto exit;
 	}
 exit:

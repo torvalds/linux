@@ -861,7 +861,6 @@ static int usb_pwc_probe(struct usb_interface *intf, const struct usb_device_id 
 			break;
 		default:
 			return -ENODEV;
-			break;
 		}
 	}
 	else if (vendor_id == 0x069A) {
@@ -873,7 +872,6 @@ static int usb_pwc_probe(struct usb_interface *intf, const struct usb_device_id 
 			break;
 		default:
 			return -ENODEV;
-			break;
 		}
 	}
 	else if (vendor_id == 0x046d) {
@@ -932,7 +930,6 @@ static int usb_pwc_probe(struct usb_interface *intf, const struct usb_device_id 
 			break;
 		default:
 			return -ENODEV;
-			break;
 		}
 	}
 	else if (vendor_id == 0x055d) {
@@ -958,7 +955,6 @@ static int usb_pwc_probe(struct usb_interface *intf, const struct usb_device_id 
 			break;
 		default:
 			return -ENODEV;
-			break;
 		}
 	}
 	else if (vendor_id == 0x041e) {
@@ -977,7 +973,6 @@ static int usb_pwc_probe(struct usb_interface *intf, const struct usb_device_id 
 			break;
 		default:
 			return -ENODEV;
-			break;
 		}
 	}
 	else if (vendor_id == 0x04cc) {
@@ -989,7 +984,6 @@ static int usb_pwc_probe(struct usb_interface *intf, const struct usb_device_id 
 			break;
 		default:
 			return -ENODEV;
-			break;
 		}
 	}
 	else if (vendor_id == 0x06be) {
@@ -1002,7 +996,6 @@ static int usb_pwc_probe(struct usb_interface *intf, const struct usb_device_id 
 			break;
 		default:
 			return -ENODEV;
-			break;
 		}
 
 	}
@@ -1020,7 +1013,6 @@ static int usb_pwc_probe(struct usb_interface *intf, const struct usb_device_id 
 			break;
 		default:
 			return -ENODEV;
-			break;
 		}
 	}
 	else

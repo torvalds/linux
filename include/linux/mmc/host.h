@@ -153,7 +153,7 @@ struct mmc_host_ops {
 
 	int	(*start_signal_voltage_switch)(struct mmc_host *host, struct mmc_ios *ios);
 
-	/* Check if the card is pulling dat[0:3] low */
+	/* Check if the card is pulling dat[0] low */
 	int	(*card_busy)(struct mmc_host *host);
 
 	/* The tuning command opcode value is different for SD and eMMC cards */
@@ -302,9 +302,6 @@ struct mmc_host {
 	u32			ocr_avail_sdio;	/* SDIO-specific OCR */
 	u32			ocr_avail_sd;	/* SD-specific OCR */
 	u32			ocr_avail_mmc;	/* MMC-specific OCR */
-#ifdef CONFIG_PM_SLEEP
-	struct notifier_block	pm_notify;
-#endif
 	struct wakeup_source	*ws;		/* Enable consume of uevents */
 	u32			max_current_330;
 	u32			max_current_300;
@@ -401,6 +398,7 @@ struct mmc_host {
 #else
 #define MMC_CAP2_CRYPTO		0
 #endif
+#define MMC_CAP2_ALT_GPT_TEGRA	(1 << 28)	/* Host with eMMC that has GPT entry at a non-standard location */
 
 	int			fixed_drv_type;	/* fixed driver type for non-removable media */
 
@@ -423,7 +421,6 @@ struct mmc_host {
 	/* group bitfields together to minimize padding */
 	unsigned int		use_spi_crc:1;
 	unsigned int		claimed:1;	/* host exclusively claimed */
-	unsigned int		bus_dead:1;	/* bus has been released */
 	unsigned int		doing_init_tune:1; /* initial tuning in progress */
 	unsigned int		can_retune:1;	/* re-tuning can be used */
 	unsigned int		doing_retune:1;	/* re-tuning in progress */
@@ -454,7 +451,6 @@ struct mmc_host {
 	struct mmc_slot		slot;
 
 	const struct mmc_bus_ops *bus_ops;	/* current bus driver */
-	unsigned int		bus_refs;	/* reference counter */
 
 	unsigned int		sdio_irqs;
 	struct task_struct	*sdio_irq_thread;
@@ -514,7 +510,7 @@ void mmc_free_host(struct mmc_host *);
 void mmc_of_parse_clk_phase(struct mmc_host *host,
 			    struct mmc_clk_phase_map *map);
 int mmc_of_parse(struct mmc_host *host);
-int mmc_of_parse_voltage(struct device_node *np, u32 *mask);
+int mmc_of_parse_voltage(struct mmc_host *host, u32 *mask);
 
 static inline void *mmc_priv(struct mmc_host *host)
 {
@@ -637,6 +633,6 @@ static inline enum dma_data_direction mmc_get_dma_dir(struct mmc_data *data)
 }
 
 int mmc_send_tuning(struct mmc_host *host, u32 opcode, int *cmd_error);
-int mmc_abort_tuning(struct mmc_host *host, u32 opcode);
+int mmc_send_abort_tuning(struct mmc_host *host, u32 opcode);
 
 #endif /* LINUX_MMC_HOST_H */

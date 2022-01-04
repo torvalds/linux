@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-2-Clause */
 /*
- * Copyright 2018-2020 Amazon.com, Inc. or its affiliates. All rights reserved.
+ * Copyright 2018-2021 Amazon.com, Inc. or its affiliates. All rights reserved.
  */
 
 #ifndef _EFA_H_
@@ -27,8 +27,7 @@
 struct efa_irq {
 	irq_handler_t handler;
 	void *data;
-	int cpu;
-	u32 vector;
+	u32 irqn;
 	cpumask_t affinity_hint_mask;
 	char name[EFA_IRQNAME_SIZE];
 };
@@ -120,21 +119,20 @@ struct efa_ah {
 int efa_query_device(struct ib_device *ibdev,
 		     struct ib_device_attr *props,
 		     struct ib_udata *udata);
-int efa_query_port(struct ib_device *ibdev, u8 port,
+int efa_query_port(struct ib_device *ibdev, u32 port,
 		   struct ib_port_attr *props);
 int efa_query_qp(struct ib_qp *ibqp, struct ib_qp_attr *qp_attr,
 		 int qp_attr_mask,
 		 struct ib_qp_init_attr *qp_init_attr);
-int efa_query_gid(struct ib_device *ibdev, u8 port, int index,
+int efa_query_gid(struct ib_device *ibdev, u32 port, int index,
 		  union ib_gid *gid);
-int efa_query_pkey(struct ib_device *ibdev, u8 port, u16 index,
+int efa_query_pkey(struct ib_device *ibdev, u32 port, u16 index,
 		   u16 *pkey);
 int efa_alloc_pd(struct ib_pd *ibpd, struct ib_udata *udata);
 int efa_dealloc_pd(struct ib_pd *ibpd, struct ib_udata *udata);
 int efa_destroy_qp(struct ib_qp *ibqp, struct ib_udata *udata);
-struct ib_qp *efa_create_qp(struct ib_pd *ibpd,
-			    struct ib_qp_init_attr *init_attr,
-			    struct ib_udata *udata);
+int efa_create_qp(struct ib_qp *ibqp, struct ib_qp_init_attr *init_attr,
+		  struct ib_udata *udata);
 int efa_destroy_cq(struct ib_cq *ibcq, struct ib_udata *udata);
 int efa_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 		  struct ib_udata *udata);
@@ -142,7 +140,7 @@ struct ib_mr *efa_reg_mr(struct ib_pd *ibpd, u64 start, u64 length,
 			 u64 virt_addr, int access_flags,
 			 struct ib_udata *udata);
 int efa_dereg_mr(struct ib_mr *ibmr, struct ib_udata *udata);
-int efa_get_port_immutable(struct ib_device *ibdev, u8 port_num,
+int efa_get_port_immutable(struct ib_device *ibdev, u32 port_num,
 			   struct ib_port_immutable *immutable);
 int efa_alloc_ucontext(struct ib_ucontext *ibucontext, struct ib_udata *udata);
 void efa_dealloc_ucontext(struct ib_ucontext *ibucontext);
@@ -156,9 +154,10 @@ int efa_destroy_ah(struct ib_ah *ibah, u32 flags);
 int efa_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *qp_attr,
 		  int qp_attr_mask, struct ib_udata *udata);
 enum rdma_link_layer efa_port_link_layer(struct ib_device *ibdev,
-					 u8 port_num);
-struct rdma_hw_stats *efa_alloc_hw_stats(struct ib_device *ibdev, u8 port_num);
+					 u32 port_num);
+struct rdma_hw_stats *efa_alloc_hw_port_stats(struct ib_device *ibdev, u32 port_num);
+struct rdma_hw_stats *efa_alloc_hw_device_stats(struct ib_device *ibdev);
 int efa_get_hw_stats(struct ib_device *ibdev, struct rdma_hw_stats *stats,
-		     u8 port_num, int index);
+		     u32 port_num, int index);
 
 #endif /* _EFA_H_ */

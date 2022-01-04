@@ -12,12 +12,10 @@
 #include <linux/phy/phy.h>
 #include <linux/phy/phy-mipi-dphy.h>
 
-#define PSEC_PER_SEC	1000000000000LL
-
 /*
  * Minimum D-PHY timings based on MIPI D-PHY specification. Derived
  * from the valid ranges specified in Section 6.9, Table 14, Page 41
- * of the D-PHY specification (v2.1).
+ * of the D-PHY specification (v1.2).
  */
 int phy_mipi_dphy_get_default_config(unsigned long pixel_clock,
 				     unsigned int bpp,

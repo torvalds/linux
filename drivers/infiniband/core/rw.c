@@ -25,7 +25,7 @@ MODULE_PARM_DESC(force_mr, "Force usage of MRs for RDMA READ/WRITE operations");
  * registration is also enabled if registering memory might yield better
  * performance than using multiple SGE entries, see rdma_rw_io_needs_mr()
  */
-static inline bool rdma_rw_can_use_mr(struct ib_device *dev, u8 port_num)
+static inline bool rdma_rw_can_use_mr(struct ib_device *dev, u32 port_num)
 {
 	if (rdma_protocol_iwarp(dev, port_num))
 		return true;
@@ -42,7 +42,7 @@ static inline bool rdma_rw_can_use_mr(struct ib_device *dev, u8 port_num)
  * optimization otherwise.  Additionally we have a debug option to force usage
  * of MRs to help testing this code path.
  */
-static inline bool rdma_rw_io_needs_mr(struct ib_device *dev, u8 port_num,
+static inline bool rdma_rw_io_needs_mr(struct ib_device *dev, u32 port_num,
 		enum dma_data_direction dir, int dma_nents)
 {
 	if (dir == DMA_FROM_DEVICE) {
@@ -87,7 +87,7 @@ static inline int rdma_rw_inv_key(struct rdma_rw_reg_ctx *reg)
 }
 
 /* Caller must have zero-initialized *reg. */
-static int rdma_rw_init_one_mr(struct ib_qp *qp, u8 port_num,
+static int rdma_rw_init_one_mr(struct ib_qp *qp, u32 port_num,
 		struct rdma_rw_reg_ctx *reg, struct scatterlist *sg,
 		u32 sg_cnt, u32 offset)
 {
@@ -121,7 +121,7 @@ static int rdma_rw_init_one_mr(struct ib_qp *qp, u8 port_num,
 }
 
 static int rdma_rw_init_mr_wrs(struct rdma_rw_ctx *ctx, struct ib_qp *qp,
-		u8 port_num, struct scatterlist *sg, u32 sg_cnt, u32 offset,
+		u32 port_num, struct scatterlist *sg, u32 sg_cnt, u32 offset,
 		u64 remote_addr, u32 rkey, enum dma_data_direction dir)
 {
 	struct rdma_rw_reg_ctx *prev = NULL;
@@ -308,7 +308,7 @@ static int rdma_rw_map_sg(struct ib_device *dev, struct scatterlist *sg,
  * Returns the number of WQEs that will be needed on the workqueue if
  * successful, or a negative error code.
  */
-int rdma_rw_ctx_init(struct rdma_rw_ctx *ctx, struct ib_qp *qp, u8 port_num,
+int rdma_rw_ctx_init(struct rdma_rw_ctx *ctx, struct ib_qp *qp, u32 port_num,
 		struct scatterlist *sg, u32 sg_cnt, u32 sg_offset,
 		u64 remote_addr, u32 rkey, enum dma_data_direction dir)
 {
@@ -377,7 +377,7 @@ EXPORT_SYMBOL(rdma_rw_ctx_init);
  * successful, or a negative error code.
  */
 int rdma_rw_ctx_signature_init(struct rdma_rw_ctx *ctx, struct ib_qp *qp,
-		u8 port_num, struct scatterlist *sg, u32 sg_cnt,
+		u32 port_num, struct scatterlist *sg, u32 sg_cnt,
 		struct scatterlist *prot_sg, u32 prot_sg_cnt,
 		struct ib_sig_attrs *sig_attrs,
 		u64 remote_addr, u32 rkey, enum dma_data_direction dir)
@@ -389,7 +389,7 @@ int rdma_rw_ctx_signature_init(struct rdma_rw_ctx *ctx, struct ib_qp *qp,
 	int count = 0, ret;
 
 	if (sg_cnt > pages_per_mr || prot_sg_cnt > pages_per_mr) {
-		pr_err("SG count too large: sg_cnt=%d, prot_sg_cnt=%d, pages_per_mr=%d\n",
+		pr_err("SG count too large: sg_cnt=%u, prot_sg_cnt=%u, pages_per_mr=%u\n",
 		       sg_cnt, prot_sg_cnt, pages_per_mr);
 		return -EINVAL;
 	}
@@ -429,7 +429,7 @@ int rdma_rw_ctx_signature_init(struct rdma_rw_ctx *ctx, struct ib_qp *qp,
 	ret = ib_map_mr_sg_pi(ctx->reg->mr, sg, sg_cnt, NULL, prot_sg,
 			      prot_sg_cnt, NULL, SZ_4K);
 	if (unlikely(ret)) {
-		pr_err("failed to map PI sg (%d)\n", sg_cnt + prot_sg_cnt);
+		pr_err("failed to map PI sg (%u)\n", sg_cnt + prot_sg_cnt);
 		goto out_destroy_sig_mr;
 	}
 
@@ -505,7 +505,7 @@ static void rdma_rw_update_lkey(struct rdma_rw_reg_ctx *reg, bool need_inval)
  * completion notification.
  */
 struct ib_send_wr *rdma_rw_ctx_wrs(struct rdma_rw_ctx *ctx, struct ib_qp *qp,
-		u8 port_num, struct ib_cqe *cqe, struct ib_send_wr *chain_wr)
+		u32 port_num, struct ib_cqe *cqe, struct ib_send_wr *chain_wr)
 {
 	struct ib_send_wr *first_wr, *last_wr;
 	int i;
@@ -562,7 +562,7 @@ EXPORT_SYMBOL(rdma_rw_ctx_wrs);
  * is not set @cqe must be set so that the caller gets a completion
  * notification.
  */
-int rdma_rw_ctx_post(struct rdma_rw_ctx *ctx, struct ib_qp *qp, u8 port_num,
+int rdma_rw_ctx_post(struct rdma_rw_ctx *ctx, struct ib_qp *qp, u32 port_num,
 		struct ib_cqe *cqe, struct ib_send_wr *chain_wr)
 {
 	struct ib_send_wr *first_wr;
@@ -581,8 +581,9 @@ EXPORT_SYMBOL(rdma_rw_ctx_post);
  * @sg_cnt:	number of entries in @sg
  * @dir:	%DMA_TO_DEVICE for RDMA WRITE, %DMA_FROM_DEVICE for RDMA READ
  */
-void rdma_rw_ctx_destroy(struct rdma_rw_ctx *ctx, struct ib_qp *qp, u8 port_num,
-		struct scatterlist *sg, u32 sg_cnt, enum dma_data_direction dir)
+void rdma_rw_ctx_destroy(struct rdma_rw_ctx *ctx, struct ib_qp *qp,
+			 u32 port_num, struct scatterlist *sg, u32 sg_cnt,
+			 enum dma_data_direction dir)
 {
 	int i;
 
@@ -620,7 +621,7 @@ EXPORT_SYMBOL(rdma_rw_ctx_destroy);
  * @dir:	%DMA_TO_DEVICE for RDMA WRITE, %DMA_FROM_DEVICE for RDMA READ
  */
 void rdma_rw_ctx_destroy_signature(struct rdma_rw_ctx *ctx, struct ib_qp *qp,
-		u8 port_num, struct scatterlist *sg, u32 sg_cnt,
+		u32 port_num, struct scatterlist *sg, u32 sg_cnt,
 		struct scatterlist *prot_sg, u32 prot_sg_cnt,
 		enum dma_data_direction dir)
 {
@@ -647,7 +648,7 @@ EXPORT_SYMBOL(rdma_rw_ctx_destroy_signature);
  * compute max_rdma_ctxts and the size of the transport's Send and
  * Send Completion Queues.
  */
-unsigned int rdma_rw_mr_factor(struct ib_device *device, u8 port_num,
+unsigned int rdma_rw_mr_factor(struct ib_device *device, u32 port_num,
 			       unsigned int maxpages)
 {
 	unsigned int mr_pages;
@@ -713,7 +714,7 @@ int rdma_rw_init_mrs(struct ib_qp *qp, struct ib_qp_init_attr *attr)
 				IB_MR_TYPE_MEM_REG,
 				max_num_sg, 0);
 		if (ret) {
-			pr_err("%s: failed to allocated %d MRs\n",
+			pr_err("%s: failed to allocated %u MRs\n",
 				__func__, nr_mrs);
 			return ret;
 		}
@@ -723,7 +724,7 @@ int rdma_rw_init_mrs(struct ib_qp *qp, struct ib_qp_init_attr *attr)
 		ret = ib_mr_pool_init(qp, &qp->sig_mrs, nr_sig_mrs,
 				IB_MR_TYPE_INTEGRITY, max_num_sg, max_num_sg);
 		if (ret) {
-			pr_err("%s: failed to allocated %d SIG MRs\n",
+			pr_err("%s: failed to allocated %u SIG MRs\n",
 				__func__, nr_sig_mrs);
 			goto out_free_rdma_mrs;
 		}

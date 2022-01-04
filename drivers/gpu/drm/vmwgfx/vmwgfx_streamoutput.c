@@ -106,7 +106,7 @@ static int vmw_dx_streamoutput_unscrub(struct vmw_resource *res)
 	cmd->header.id = SVGA_3D_CMD_DX_BIND_STREAMOUTPUT;
 	cmd->header.size = sizeof(cmd->body);
 	cmd->body.soid = so->id;
-	cmd->body.mobid = res->backup->base.mem.start;
+	cmd->body.mobid = res->backup->base.resource->start;
 	cmd->body.offsetInBytes = res->backup_offset;
 	cmd->body.sizeInBytes = so->size;
 	vmw_cmd_commit(dev_priv, sizeof(*cmd));
@@ -142,7 +142,7 @@ static int vmw_dx_streamoutput_bind(struct vmw_resource *res,
 	struct ttm_buffer_object *bo = val_buf->bo;
 	int ret;
 
-	if (WARN_ON(bo->mem.mem_type != VMW_PL_MOB))
+	if (WARN_ON(bo->resource->mem_type != VMW_PL_MOB))
 		return -EINVAL;
 
 	mutex_lock(&dev_priv->binding_mutex);
@@ -197,7 +197,7 @@ static int vmw_dx_streamoutput_unbind(struct vmw_resource *res, bool readback,
 	struct vmw_fence_obj *fence;
 	int ret;
 
-	if (WARN_ON(res->backup->base.mem.mem_type != VMW_PL_MOB))
+	if (WARN_ON(res->backup->base.resource->mem_type != VMW_PL_MOB))
 		return -EINVAL;
 
 	mutex_lock(&dev_priv->binding_mutex);

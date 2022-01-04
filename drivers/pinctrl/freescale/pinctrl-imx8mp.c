@@ -335,7 +335,8 @@ static int imx8mp_pinctrl_probe(struct platform_device *pdev)
 static struct platform_driver imx8mp_pinctrl_driver = {
 	.driver = {
 		.name = "imx8mp-pinctrl",
-		.of_match_table = of_match_ptr(imx8mp_pinctrl_of_match),
+		.of_match_table = imx8mp_pinctrl_of_match,
+		.suppress_bind_attrs = true,
 	},
 	.probe = imx8mp_pinctrl_probe,
 };

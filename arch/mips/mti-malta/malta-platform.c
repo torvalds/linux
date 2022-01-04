@@ -33,7 +33,8 @@
 	.irq		= int,						\
 	.uartclk	= 1843200,					\
 	.iotype		= UPIO_PORT,					\
-	.flags		= UPF_BOOT_AUTOCONF | UPF_SKIP_TEST,		\
+	.flags		= UPF_BOOT_AUTOCONF | UPF_SKIP_TEST |		\
+			  UPF_MAGIC_MULTIPLIER,				\
 	.regshift	= 0,						\
 }
 
@@ -47,7 +48,8 @@ static struct plat_serial8250_port uart8250_data[] = {
 		.mapbase	= 0x1f000900,	/* The CBUS UART */
 		.irq		= MIPS_CPU_IRQ_BASE + MIPSCPU_INT_MB2,
 		.uartclk	= 3686400,	/* Twice the usual clk! */
-		.iotype		= UPIO_MEM32,
+		.iotype		= IS_ENABLED(CONFIG_CPU_BIG_ENDIAN) ?
+				  UPIO_MEM32BE : UPIO_MEM32,
 		.flags		= CBUS_UART_FLAGS,
 		.regshift	= 3,
 	},

@@ -74,13 +74,17 @@ enum {
 #define MINOR_VERSION_NUM_MASK		UFS_MASK(0xFFFF, 0)
 #define MAJOR_VERSION_NUM_MASK		UFS_MASK(0xFFFF, 16)
 
-/* Controller UFSHCI version */
-enum {
-	UFSHCI_VERSION_10 = 0x00010000, /* 1.0 */
-	UFSHCI_VERSION_11 = 0x00010100, /* 1.1 */
-	UFSHCI_VERSION_20 = 0x00000200, /* 2.0 */
-	UFSHCI_VERSION_21 = 0x00000210, /* 2.1 */
-};
+/*
+ * Controller UFSHCI version
+ * - 2.x and newer use the following scheme:
+ *   major << 8 + minor << 4
+ * - 1.x has been converted to match this in
+ *   ufshcd_get_ufs_version()
+ */
+static inline u32 ufshci_version(u32 major, u32 minor)
+{
+	return (major << 8) + (minor << 4);
+}
 
 /*
  * HCDDID - Host Controller Identification Descriptor
@@ -482,17 +486,21 @@ struct utp_task_req_desc {
 	struct request_desc_header header;
 
 	/* DW 4-11 - Task request UPIU structure */
-	struct utp_upiu_header	req_header;
-	__be32			input_param1;
-	__be32			input_param2;
-	__be32			input_param3;
-	__be32			__reserved1[2];
+	struct {
+		struct utp_upiu_header	req_header;
+		__be32			input_param1;
+		__be32			input_param2;
+		__be32			input_param3;
+		__be32			__reserved1[2];
+	} upiu_req;
 
 	/* DW 12-19 - Task Management Response UPIU structure */
-	struct utp_upiu_header	rsp_header;
-	__be32			output_param1;
-	__be32			output_param2;
-	__be32			__reserved2[3];
+	struct {
+		struct utp_upiu_header	rsp_header;
+		__be32			output_param1;
+		__be32			output_param2;
+		__be32			__reserved2[3];
+	} upiu_rsp;
 };
 
 #endif /* End of Header */

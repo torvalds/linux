@@ -20,7 +20,6 @@ struct netns_sysctl_ipv6 {
 	struct ctl_table_header *frags_hdr;
 	struct ctl_table_header *xfrm6_hdr;
 #endif
-	int bindv6only;
 	int flush_delay;
 	int ip6_rt_max_size;
 	int ip6_rt_gc_min_interval;
@@ -29,46 +28,44 @@ struct netns_sysctl_ipv6 {
 	int ip6_rt_gc_elasticity;
 	int ip6_rt_mtu_expires;
 	int ip6_rt_min_advmss;
-	int multipath_hash_policy;
-	int flowlabel_consistency;
-	int auto_flowlabels;
+	u32 multipath_hash_fields;
+	u8 multipath_hash_policy;
+	u8 bindv6only;
+	u8 flowlabel_consistency;
+	u8 auto_flowlabels;
 	int icmpv6_time;
-	int icmpv6_echo_ignore_all;
-	int icmpv6_echo_ignore_multicast;
-	int icmpv6_echo_ignore_anycast;
+	u8 icmpv6_echo_ignore_all;
+	u8 icmpv6_echo_ignore_multicast;
+	u8 icmpv6_echo_ignore_anycast;
 	DECLARE_BITMAP(icmpv6_ratemask, ICMPV6_MSG_MAX + 1);
 	unsigned long *icmpv6_ratemask_ptr;
-	int anycast_src_echo_reply;
-	int ip_nonlocal_bind;
-	int fwmark_reflect;
+	u8 anycast_src_echo_reply;
+	u8 ip_nonlocal_bind;
+	u8 fwmark_reflect;
+	u8 flowlabel_state_ranges;
 	int idgen_retries;
 	int idgen_delay;
-	int flowlabel_state_ranges;
 	int flowlabel_reflect;
 	int max_dst_opts_cnt;
 	int max_hbh_opts_cnt;
 	int max_dst_opts_len;
 	int max_hbh_opts_len;
 	int seg6_flowlabel;
+	u32 ioam6_id;
+	u64 ioam6_id_wide;
 	bool skip_notify_on_dev_down;
-	int fib_notify_on_flag_change;
+	u8 fib_notify_on_flag_change;
 };
 
 struct netns_ipv6 {
+	/* Keep ip6_dst_ops at the beginning of netns_sysctl_ipv6 */
+	struct dst_ops		ip6_dst_ops;
+
 	struct netns_sysctl_ipv6 sysctl;
 	struct ipv6_devconf	*devconf_all;
 	struct ipv6_devconf	*devconf_dflt;
 	struct inet_peer_base	*peers;
 	struct fqdir		*fqdir;
-#ifdef CONFIG_NETFILTER
-	struct xt_table		*ip6table_filter;
-	struct xt_table		*ip6table_mangle;
-	struct xt_table		*ip6table_raw;
-#ifdef CONFIG_SECURITY
-	struct xt_table		*ip6table_security;
-#endif
-	struct xt_table		*ip6table_nat;
-#endif
 	struct fib6_info	*fib6_null_entry;
 	struct rt6_info		*ip6_null_entry;
 	struct rt6_statistics   *rt6_stats;
@@ -76,7 +73,6 @@ struct netns_ipv6 {
 	struct hlist_head       *fib_table_hash;
 	struct fib6_table       *fib6_main_tbl;
 	struct list_head	fib6_walkers;
-	struct dst_ops		ip6_dst_ops;
 	rwlock_t		fib6_walker_lock;
 	spinlock_t		fib6_gc_lock;
 	unsigned int		 ip6_rt_gc_expire;
@@ -116,6 +112,7 @@ struct netns_ipv6 {
 		spinlock_t	lock;
 		u32		seq;
 	} ip6addrlbl_table;
+	struct ioam6_pernet_data *ioam6_data;
 };
 
 #if IS_ENABLED(CONFIG_NF_DEFRAG_IPV6)

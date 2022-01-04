@@ -2024,4 +2024,6 @@ void rt5670_jack_suspend(struct snd_soc_component *component);
 void rt5670_jack_resume(struct snd_soc_component *component);
 int rt5670_set_jack_detect(struct snd_soc_component *component,
 	struct snd_soc_jack *jack);
+const char *rt5670_components(void);
+
 #endif /* __RT5670_H__ */

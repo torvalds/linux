@@ -7,19 +7,22 @@ config DRM_MSM
 	depends on IOMMU_SUPPORT
 	depends on OF && COMMON_CLK
 	depends on QCOM_OCMEM || QCOM_OCMEM=n
+	depends on QCOM_LLCC || QCOM_LLCC=n
+	depends on QCOM_COMMAND_DB || QCOM_COMMAND_DB=n
 	select IOMMU_IO_PGTABLE
 	select QCOM_MDT_LOADER if ARCH_QCOM
 	select REGULATOR
 	select DRM_KMS_HELPER
 	select DRM_PANEL
+	select DRM_SCHED
 	select SHMEM
 	select TMPFS
 	select QCOM_SCM if ARCH_QCOM
-	select QCOM_COMMAND_DB if ARCH_QCOM
 	select WANT_DEV_COREDUMP
 	select SND_SOC_HDMI_CODEC if SND_SOC
 	select SYNC_FILE
 	select PM_OPP
+	select NVMEM
 	help
 	  DRM/KMS driver for MSM/snapdragon.
 
@@ -76,14 +79,6 @@ config DRM_MSM_DSI
 	  Choose this option if you have a need for MIPI DSI connector
 	  support.
 
-config DRM_MSM_DSI_PLL
-	bool "Enable DSI PLL driver in MSM DRM"
-	depends on DRM_MSM_DSI && COMMON_CLK
-	default y
-	help
-	  Choose this option to enable DSI PLL driver which provides DSI
-	  source clocks under common clock framework.
-
 config DRM_MSM_DSI_28NM_PHY
 	bool "Enable DSI 28nm PHY driver in MSM DRM"
 	depends on DRM_MSM_DSI
@@ -121,9 +116,9 @@ config DRM_MSM_DSI_10NM_PHY
 	  Choose this option if DSI PHY on SDM845 is used on the platform.
 
 config DRM_MSM_DSI_7NM_PHY
-	bool "Enable DSI 7nm PHY driver in MSM DRM (used by SM8150/SM8250)"
+	bool "Enable DSI 7nm PHY driver in MSM DRM"
 	depends on DRM_MSM_DSI
 	default y
 	help
-	  Choose this option if DSI PHY on SM8150/SM8250 is used on the
-	  platform.
+	  Choose this option if DSI PHY on SM8150/SM8250/SC7280 is used on
+	  the platform.

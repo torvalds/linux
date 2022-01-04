@@ -262,17 +262,17 @@ config GENEVE
 	  will be called geneve.
 
 config BAREUDP
-       tristate "Bare UDP Encapsulation"
-       depends on INET
-       depends on IPV6 || !IPV6
-       select NET_UDP_TUNNEL
-       select GRO_CELLS
-       help
-          This adds a bare UDP tunnel module for tunnelling different
-          kinds of traffic like MPLS, IP, etc. inside a UDP tunnel.
+	tristate "Bare UDP Encapsulation"
+	depends on INET
+	depends on IPV6 || !IPV6
+	select NET_UDP_TUNNEL
+	select GRO_CELLS
+	help
+	  This adds a bare UDP tunnel module for tunnelling different
+	  kinds of traffic like MPLS, IP, etc. inside a UDP tunnel.
 
-          To compile this driver as a module, choose M here: the module
-          will be called bareudp.
+	  To compile this driver as a module, choose M here: the module
+	  will be called bareudp.
 
 config GTP
 	tristate "GPRS Tunneling Protocol datapath (GTP-U)"
@@ -433,7 +433,8 @@ config MHI_NET
 	depends on MHI_BUS
 	help
 	  This is the network driver for MHI bus.  It can be used with
-	  QCOM based WWAN modems (like SDX55).  Say Y or M.
+	  QCOM based WWAN modems for IP or QMAP/rmnet protocol (like SDX55).
+	  Say Y or M.
 
 endif # NET_CORE
 
@@ -482,6 +483,8 @@ config NET_SB1000
 
 source "drivers/net/phy/Kconfig"
 
+source "drivers/net/mctp/Kconfig"
+
 source "drivers/net/mdio/Kconfig"
 
 source "drivers/net/pcs/Kconfig"
@@ -501,6 +504,8 @@ source "drivers/net/wireless/Kconfig"
 source "drivers/net/wan/Kconfig"
 
 source "drivers/net/ieee802154/Kconfig"
+
+source "drivers/net/wwan/Kconfig"
 
 config XEN_NETDEV_FRONTEND
 	tristate "Xen network device frontend driver"
@@ -546,8 +551,8 @@ config VMXNET3
 	tristate "VMware VMXNET3 ethernet driver"
 	depends on PCI && INET
 	depends on !(PAGE_SIZE_64KB || ARM64_64K_PAGES || \
-		     IA64_PAGE_SIZE_64KB || MICROBLAZE_64K_PAGES || \
-		     PARISC_PAGE_SIZE_64KB || PPC_64K_PAGES)
+		     IA64_PAGE_SIZE_64KB || PARISC_PAGE_SIZE_64KB || \
+		     PPC_64K_PAGES)
 	help
 	  This driver supports VMware's vmxnet3 virtual ethernet NIC.
 	  To compile this driver as a module, choose M here: the
@@ -579,6 +584,7 @@ config NETDEVSIM
 	depends on DEBUG_FS
 	depends on INET
 	depends on IPV6 || IPV6=n
+	depends on PSAMPLE || PSAMPLE=n
 	select NET_DEVLINK
 	help
 	  This driver is a developer testing tool and software model that can
@@ -599,5 +605,12 @@ config NET_FAILOVER
 	  an alternate low latency datapath. It also enables live migration of
 	  a VM with direct attached VF by failing over to the paravirtual
 	  datapath when the VF is unplugged.
+
+config NETDEV_LEGACY_INIT
+	bool
+	depends on ISA
+	help
+	  Drivers that call netdev_boot_setup_check() should select this
+	  symbol, everything else no longer needs it.
 
 endif # NETDEVICES

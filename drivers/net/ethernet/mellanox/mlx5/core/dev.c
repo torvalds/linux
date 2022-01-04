@@ -53,12 +53,9 @@ static bool is_eth_rep_supported(struct mlx5_core_dev *dev)
 	return true;
 }
 
-static bool is_eth_supported(struct mlx5_core_dev *dev)
+bool mlx5_eth_supported(struct mlx5_core_dev *dev)
 {
 	if (!IS_ENABLED(CONFIG_MLX5_CORE_EN))
-		return false;
-
-	if (is_eth_rep_supported(dev))
 		return false;
 
 	if (MLX5_CAP_GEN(dev, port_type) != MLX5_CAP_PORT_TYPE_ETH)
@@ -108,7 +105,18 @@ static bool is_eth_supported(struct mlx5_core_dev *dev)
 	return true;
 }
 
-static bool is_vnet_supported(struct mlx5_core_dev *dev)
+static bool is_eth_enabled(struct mlx5_core_dev *dev)
+{
+	union devlink_param_value val;
+	int err;
+
+	err = devlink_param_driverinit_value_get(priv_to_devlink(dev),
+						 DEVLINK_PARAM_GENERIC_ID_ENABLE_ETH,
+						 &val);
+	return err ? false : val.vbool;
+}
+
+bool mlx5_vnet_supported(struct mlx5_core_dev *dev)
 {
 	if (!IS_ENABLED(CONFIG_MLX5_VDPA_NET))
 		return false;
@@ -128,6 +136,17 @@ static bool is_vnet_supported(struct mlx5_core_dev *dev)
 		return false;
 
 	return true;
+}
+
+static bool is_vnet_enabled(struct mlx5_core_dev *dev)
+{
+	union devlink_param_value val;
+	int err;
+
+	err = devlink_param_driverinit_value_get(priv_to_devlink(dev),
+						 DEVLINK_PARAM_GENERIC_ID_ENABLE_VNET,
+						 &val);
+	return err ? false : val.vbool;
 }
 
 static bool is_ib_rep_supported(struct mlx5_core_dev *dev)
@@ -173,7 +192,7 @@ static bool is_mp_supported(struct mlx5_core_dev *dev)
 	return true;
 }
 
-static bool is_ib_supported(struct mlx5_core_dev *dev)
+bool mlx5_rdma_supported(struct mlx5_core_dev *dev)
 {
 	if (!IS_ENABLED(CONFIG_MLX5_INFINIBAND))
 		return false;
@@ -190,6 +209,17 @@ static bool is_ib_supported(struct mlx5_core_dev *dev)
 	return true;
 }
 
+static bool is_ib_enabled(struct mlx5_core_dev *dev)
+{
+	union devlink_param_value val;
+	int err;
+
+	err = devlink_param_driverinit_value_get(priv_to_devlink(dev),
+						 DEVLINK_PARAM_GENERIC_ID_ENABLE_RDMA,
+						 &val);
+	return err ? false : val.vbool;
+}
+
 enum {
 	MLX5_INTERFACE_PROTOCOL_ETH,
 	MLX5_INTERFACE_PROTOCOL_ETH_REP,
@@ -204,13 +234,17 @@ enum {
 static const struct mlx5_adev_device {
 	const char *suffix;
 	bool (*is_supported)(struct mlx5_core_dev *dev);
+	bool (*is_enabled)(struct mlx5_core_dev *dev);
 } mlx5_adev_devices[] = {
 	[MLX5_INTERFACE_PROTOCOL_VNET] = { .suffix = "vnet",
-					   .is_supported = &is_vnet_supported },
+					   .is_supported = &mlx5_vnet_supported,
+					   .is_enabled = &is_vnet_enabled },
 	[MLX5_INTERFACE_PROTOCOL_IB] = { .suffix = "rdma",
-					 .is_supported = &is_ib_supported },
+					 .is_supported = &mlx5_rdma_supported,
+					 .is_enabled = &is_ib_enabled },
 	[MLX5_INTERFACE_PROTOCOL_ETH] = { .suffix = "eth",
-					  .is_supported = &is_eth_supported },
+					  .is_supported = &mlx5_eth_supported,
+					  .is_enabled = &is_eth_enabled },
 	[MLX5_INTERFACE_PROTOCOL_ETH_REP] = { .suffix = "eth-rep",
 					   .is_supported = &is_eth_rep_supported },
 	[MLX5_INTERFACE_PROTOCOL_IB_REP] = { .suffix = "rdma-rep",
@@ -306,9 +340,18 @@ int mlx5_attach_device(struct mlx5_core_dev *dev)
 	int ret = 0, i;
 
 	mutex_lock(&mlx5_intf_mutex);
+	priv->flags &= ~MLX5_PRIV_FLAGS_DETACH;
 	for (i = 0; i < ARRAY_SIZE(mlx5_adev_devices); i++) {
 		if (!priv->adev[i]) {
 			bool is_supported = false;
+
+			if (mlx5_adev_devices[i].is_enabled) {
+				bool enabled;
+
+				enabled = mlx5_adev_devices[i].is_enabled(dev);
+				if (!enabled)
+					continue;
+			}
 
 			if (mlx5_adev_devices[i].is_supported)
 				is_supported = mlx5_adev_devices[i].is_supported(dev);
@@ -323,6 +366,16 @@ int mlx5_attach_device(struct mlx5_core_dev *dev)
 			}
 		} else {
 			adev = &priv->adev[i]->adev;
+
+			/* Pay attention that this is not PCI driver that
+			 * mlx5_core_dev is connected, but auxiliary driver.
+			 *
+			 * Here we can race of module unload with devlink
+			 * reload, but we don't need to take extra lock because
+			 * we are holding global mlx5_intf_mutex.
+			 */
+			if (!adev->dev.driver)
+				continue;
 			adrv = to_auxiliary_drv(adev->dev.driver);
 
 			if (adrv->resume)
@@ -352,7 +405,19 @@ void mlx5_detach_device(struct mlx5_core_dev *dev)
 		if (!priv->adev[i])
 			continue;
 
+		if (mlx5_adev_devices[i].is_enabled) {
+			bool enabled;
+
+			enabled = mlx5_adev_devices[i].is_enabled(dev);
+			if (!enabled)
+				goto skip_suspend;
+		}
+
 		adev = &priv->adev[i]->adev;
+		/* Auxiliary driver was unbind manually through sysfs */
+		if (!adev->dev.driver)
+			goto skip_suspend;
+
 		adrv = to_auxiliary_drv(adev->dev.driver);
 
 		if (adrv->suspend) {
@@ -360,9 +425,11 @@ void mlx5_detach_device(struct mlx5_core_dev *dev)
 			continue;
 		}
 
+skip_suspend:
 		del_adev(&priv->adev[i]->adev);
 		priv->adev[i] = NULL;
 	}
+	priv->flags |= MLX5_PRIV_FLAGS_DETACH;
 	mutex_unlock(&mlx5_intf_mutex);
 }
 
@@ -383,7 +450,7 @@ int mlx5_register_device(struct mlx5_core_dev *dev)
 void mlx5_unregister_device(struct mlx5_core_dev *dev)
 {
 	mutex_lock(&mlx5_intf_mutex);
-	dev->priv.flags |= MLX5_PRIV_FLAGS_DISABLE_ALL_ADEV;
+	dev->priv.flags = MLX5_PRIV_FLAGS_DISABLE_ALL_ADEV;
 	mlx5_rescan_drivers_locked(dev);
 	mutex_unlock(&mlx5_intf_mutex);
 }
@@ -433,12 +500,21 @@ static void delete_drivers(struct mlx5_core_dev *dev)
 		if (!priv->adev[i])
 			continue;
 
+		if (mlx5_adev_devices[i].is_enabled) {
+			bool enabled;
+
+			enabled = mlx5_adev_devices[i].is_enabled(dev);
+			if (!enabled)
+				goto del_adev;
+		}
+
 		if (mlx5_adev_devices[i].is_supported && !delete_all)
 			is_supported = mlx5_adev_devices[i].is_supported(dev);
 
 		if (is_supported)
 			continue;
 
+del_adev:
 		del_adev(&priv->adev[i]->adev);
 		priv->adev[i] = NULL;
 	}
@@ -451,6 +527,8 @@ int mlx5_rescan_drivers_locked(struct mlx5_core_dev *dev)
 	struct mlx5_priv *priv = &dev->priv;
 
 	lockdep_assert_held(&mlx5_intf_mutex);
+	if (priv->flags & MLX5_PRIV_FLAGS_DETACH)
+		return 0;
 
 	delete_drivers(dev);
 	if (priv->flags & MLX5_PRIV_FLAGS_DISABLE_ALL_ADEV)
@@ -484,10 +562,7 @@ static int next_phys_dev(struct device *dev, const void *data)
 	return 1;
 }
 
-/* This function is called with two flows:
- * 1. During initialization of mlx5_core_dev and we don't need to lock it.
- * 2. During LAG configure stage and caller holds &mlx5_intf_mutex.
- */
+/* Must be called with intf_mutex held */
 struct mlx5_core_dev *mlx5_get_next_phys_dev(struct mlx5_core_dev *dev)
 {
 	struct auxiliary_device *adev;

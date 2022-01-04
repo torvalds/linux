@@ -224,7 +224,9 @@ static int mxl692_validate_fw_header(struct mxl692_dev *dev,
 	u32 ix, temp;
 	__be32 *local_buf = NULL;
 	u8 temp_cksum = 0;
-	const u8 fw_hdr[] = { 0x4D, 0x31, 0x10, 0x02, 0x40, 0x00, 0x00, 0x80 };
+	static const u8 fw_hdr[] = {
+		0x4D, 0x31, 0x10, 0x02, 0x40, 0x00, 0x00, 0x80
+	};
 
 	if (memcmp(buffer, fw_hdr, 8) != 0) {
 		status = -EINVAL;
@@ -377,7 +379,7 @@ static int mxl692_memread(struct mxl692_dev *dev, u32 addr,
 
 static const char *mxl692_opcode_string(u8 opcode)
 {
-	if (opcode >= 0 && opcode <= MXL_EAGLE_OPCODE_INTERNAL)
+	if (opcode <= MXL_EAGLE_OPCODE_INTERNAL)
 		return MXL_EAGLE_OPCODE_STRING[opcode];
 
 	return "invalid opcode";

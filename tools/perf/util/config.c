@@ -18,6 +18,7 @@
 #include "util/hist.h"  /* perf_hist_config */
 #include "util/llvm-utils.h"   /* perf_llvm_config */
 #include "util/stat.h"  /* perf_stat__set_big_num */
+#include "util/evsel.h"  /* evsel__hw_names, evsel__use_bpf_counters */
 #include "build-id.h"
 #include "debug.h"
 #include "config.h"
@@ -457,6 +458,12 @@ static int perf_stat_config(const char *var, const char *value)
 	if (!strcmp(var, "stat.big-num"))
 		perf_stat__set_big_num(perf_config_bool(var, value));
 
+	if (!strcmp(var, "stat.no-csv-summary"))
+		perf_stat__set_no_csv_summary(perf_config_bool(var, value));
+
+	if (!strcmp(var, "stat.bpf-counter-events"))
+		evsel__bpf_counter_events = strdup(value);
+
 	/* Add other config variables here. */
 	return 0;
 }
@@ -699,7 +706,7 @@ static int collect_config(const char *var, const char *value,
 	/* perf_config_set can contain both user and system config items.
 	 * So we should know where each value is from.
 	 * The classification would be needed when a particular config file
-	 * is overwrited by setting feature i.e. set_config().
+	 * is overwritten by setting feature i.e. set_config().
 	 */
 	if (strcmp(config_file_name, perf_etc_perfconfig()) == 0) {
 		section->from_system_config = true;

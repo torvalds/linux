@@ -1266,8 +1266,6 @@ static enum dc_status dcn10_validate_global(struct dc *dc, struct dc_state *cont
 
 static enum dc_status dcn10_patch_unknown_plane_state(struct dc_plane_state *plane_state)
 {
-	enum dc_status result = DC_OK;
-
 	enum surface_pixel_format surf_pix_format = plane_state->format;
 	unsigned int bpp = resource_pixel_format_to_bpp(surf_pix_format);
 
@@ -1279,7 +1277,7 @@ static enum dc_status dcn10_patch_unknown_plane_state(struct dc_plane_state *pla
 		swizzle = DC_SW_64KB_S;
 
 	plane_state->tiling_info.gfx9.swizzle = swizzle;
-	return result;
+	return DC_OK;
 }
 
 struct stream_encoder *dcn10_find_first_free_match_stream_enc_for_link(
@@ -1420,6 +1418,8 @@ static bool dcn10_resource_construct(
 	dc->caps.max_cursor_size = 256;
 	dc->caps.min_horizontal_blanking_period = 80;
 	dc->caps.max_slave_planes = 1;
+	dc->caps.max_slave_yuv_planes = 1;
+	dc->caps.max_slave_rgb_planes = 0;
 	dc->caps.is_apu = true;
 	dc->caps.post_blend_color_processing = false;
 	dc->caps.extended_aux_timeout_support = false;

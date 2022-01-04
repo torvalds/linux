@@ -111,12 +111,14 @@ struct hw_sequencer_funcs {
 	void (*enable_timing_synchronization)(struct dc *dc,
 			int group_index, int group_size,
 			struct pipe_ctx *grouped_pipes[]);
+	void (*enable_vblanks_synchronization)(struct dc *dc,
+			int group_index, int group_size,
+			struct pipe_ctx *grouped_pipes[]);
 	void (*setup_periodic_interrupt)(struct dc *dc,
 			struct pipe_ctx *pipe_ctx,
 			enum vline_select vline);
 	void (*set_drr)(struct pipe_ctx **pipe_ctx, int num_pipes,
-			unsigned int vmin, unsigned int vmax,
-			unsigned int vmid, unsigned int vmid_frame_number);
+			struct dc_crtc_timing_adjust adjust);
 	void (*set_static_screen_control)(struct pipe_ctx **pipe_ctx,
 			int num_pipes,
 			const struct dc_static_screen_params *events);
@@ -215,6 +217,8 @@ struct hw_sequencer_funcs {
 
 	void (*set_pipe)(struct pipe_ctx *pipe_ctx);
 
+	void (*get_dcc_en_bits)(struct dc *dc, int *dcc_en_bits);
+
 	/* Idle Optimization Related */
 	bool (*apply_idle_power_optimizations)(struct dc *dc, bool enable);
 
@@ -232,9 +236,13 @@ struct hw_sequencer_funcs {
 			const struct tg_color *solid_color,
 			int width, int height, int offset);
 
-	void (*set_hubp_blank)(const struct dc *dc,
+	void (*z10_restore)(struct dc *dc);
+	void (*z10_save_init)(struct dc *dc);
+
+	void (*update_visual_confirm_color)(struct dc *dc,
 			struct pipe_ctx *pipe_ctx,
-			bool blank_enable);
+			struct tg_color *color,
+			int mpcc_id);
 };
 
 void color_space_to_black_color(
@@ -249,4 +257,17 @@ const uint16_t *find_color_matrix(
 		enum dc_color_space color_space,
 		uint32_t *array_size);
 
+void get_surface_visual_confirm_color(
+		const struct pipe_ctx *pipe_ctx,
+		struct tg_color *color);
+
+void get_hdr_visual_confirm_color(
+		struct pipe_ctx *pipe_ctx,
+		struct tg_color *color);
+void get_mpctree_visual_confirm_color(
+		struct pipe_ctx *pipe_ctx,
+		struct tg_color *color);
+void get_surface_tile_visual_confirm_color(
+		struct pipe_ctx *pipe_ctx,
+		struct tg_color *color);
 #endif /* __DC_HW_SEQUENCER_H__ */

@@ -499,11 +499,11 @@ static int px30_lvds_probe(struct platform_device *pdev,
 	if (IS_ERR(lvds->dphy))
 		return PTR_ERR(lvds->dphy);
 
-	phy_init(lvds->dphy);
+	ret = phy_init(lvds->dphy);
 	if (ret)
 		return ret;
 
-	phy_set_mode(lvds->dphy, PHY_MODE_LVDS);
+	ret = phy_set_mode(lvds->dphy, PHY_MODE_LVDS);
 	if (ret)
 		return ret;
 
@@ -636,11 +636,8 @@ static int rockchip_lvds_bind(struct device *dev, struct device *master,
 		}
 	} else {
 		ret = drm_bridge_attach(encoder, lvds->bridge, NULL, 0);
-		if (ret) {
-			DRM_DEV_ERROR(drm_dev->dev,
-				      "failed to attach bridge: %d\n", ret);
+		if (ret)
 			goto err_free_encoder;
-		}
 	}
 
 	pm_runtime_enable(dev);
@@ -725,7 +722,7 @@ static int rockchip_lvds_probe(struct platform_device *pdev)
 
 static int rockchip_lvds_remove(struct platform_device *pdev)
 {
-	struct rockchip_lvds *lvds = dev_get_drvdata(&pdev->dev);
+	struct rockchip_lvds *lvds = platform_get_drvdata(pdev);
 
 	component_del(&pdev->dev, &rockchip_lvds_component_ops);
 	clk_unprepare(lvds->pclk);

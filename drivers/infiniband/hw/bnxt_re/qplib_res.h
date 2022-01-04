@@ -45,12 +45,6 @@ extern const struct bnxt_qplib_gid bnxt_qplib_gid_zero;
 #define CHIP_NUM_57504		0x1751
 #define CHIP_NUM_57502		0x1752
 
-enum bnxt_qplib_wqe_mode {
-	BNXT_QPLIB_WQE_MODE_STATIC	= 0x00,
-	BNXT_QPLIB_WQE_MODE_VARIABLE	= 0x01,
-	BNXT_QPLIB_WQE_MODE_INVALID	= 0x02
-};
-
 struct bnxt_qplib_drv_modes {
 	u8	wqe_mode;
 	/* Other modes to follow here */
@@ -60,6 +54,7 @@ struct bnxt_qplib_chip_ctx {
 	u16	chip_num;
 	u8	chip_rev;
 	u8	chip_metal;
+	u16	hw_stats_size;
 	struct bnxt_qplib_drv_modes modes;
 };
 
@@ -373,6 +368,7 @@ void bnxt_qplib_free_ctx(struct bnxt_qplib_res *res,
 int bnxt_qplib_alloc_ctx(struct bnxt_qplib_res *res,
 			 struct bnxt_qplib_ctx *ctx,
 			 bool virt_fn, bool is_p5);
+int bnxt_qplib_determine_atomics(struct pci_dev *dev);
 
 static inline void bnxt_qplib_hwq_incr_prod(struct bnxt_qplib_hwq *hwq, u32 cnt)
 {

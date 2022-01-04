@@ -13,8 +13,10 @@
 #include "intel_atomic.h"
 #include "intel_atomic_plane.h"
 #include "intel_cursor.h"
+#include "intel_de.h"
 #include "intel_display_types.h"
 #include "intel_display.h"
+#include "intel_fb.h"
 
 #include "intel_frontbuffer.h"
 #include "intel_pm.h"
@@ -44,7 +46,7 @@ static u32 intel_cursor_base(const struct intel_plane_state *plane_state)
 	else
 		base = intel_plane_ggtt_offset(plane_state);
 
-	return base + plane_state->color_plane[0].offset;
+	return base + plane_state->view.color_plane[0].offset;
 }
 
 static u32 intel_cursor_position(const struct intel_plane_state *plane_state)
@@ -124,9 +126,9 @@ static int intel_cursor_check_surface(struct intel_plane_state *plane_state)
 		offset += (src_h * src_w - 1) * fb->format->cpp[0];
 	}
 
-	plane_state->color_plane[0].offset = offset;
-	plane_state->color_plane[0].x = src_x;
-	plane_state->color_plane[0].y = src_y;
+	plane_state->view.color_plane[0].offset = offset;
+	plane_state->view.color_plane[0].x = src_x;
+	plane_state->view.color_plane[0].y = src_y;
 
 	return 0;
 }
@@ -193,7 +195,7 @@ static u32 i845_cursor_ctl(const struct intel_crtc_state *crtc_state,
 {
 	return CURSOR_ENABLE |
 		CURSOR_FORMAT_ARGB |
-		CURSOR_STRIDE(plane_state->color_plane[0].stride);
+		CURSOR_STRIDE(plane_state->view.color_plane[0].stride);
 }
 
 static bool i845_cursor_size_ok(const struct intel_plane_state *plane_state)
@@ -232,7 +234,7 @@ static int i845_check_cursor(struct intel_crtc_state *crtc_state,
 	}
 
 	drm_WARN_ON(&i915->drm, plane_state->uapi.visible &&
-		    plane_state->color_plane[0].stride != fb->pitches[0]);
+		    plane_state->view.color_plane[0].stride != fb->pitches[0]);
 
 	switch (fb->pitches[0]) {
 	case 256:
@@ -338,7 +340,7 @@ static u32 i9xx_cursor_ctl_crtc(const struct intel_crtc_state *crtc_state)
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	u32 cntl = 0;
 
-	if (INTEL_GEN(dev_priv) >= 11)
+	if (DISPLAY_VER(dev_priv) >= 11)
 		return cntl;
 
 	if (crtc_state->gamma_enable)
@@ -347,7 +349,7 @@ static u32 i9xx_cursor_ctl_crtc(const struct intel_crtc_state *crtc_state)
 	if (crtc_state->csc_enable)
 		cntl |= MCURSOR_PIPE_CSC_ENABLE;
 
-	if (INTEL_GEN(dev_priv) < 5 && !IS_G4X(dev_priv))
+	if (DISPLAY_VER(dev_priv) < 5 && !IS_G4X(dev_priv))
 		cntl |= MCURSOR_PIPE_SELECT(crtc->pipe);
 
 	return cntl;
@@ -360,7 +362,7 @@ static u32 i9xx_cursor_ctl(const struct intel_crtc_state *crtc_state,
 		to_i915(plane_state->uapi.plane->dev);
 	u32 cntl = 0;
 
-	if (IS_GEN(dev_priv, 6) || IS_IVYBRIDGE(dev_priv))
+	if (IS_SANDYBRIDGE(dev_priv) || IS_IVYBRIDGE(dev_priv))
 		cntl |= MCURSOR_TRICKLE_FEED_DISABLE;
 
 	switch (drm_rect_width(&plane_state->uapi.dst)) {
@@ -380,6 +382,10 @@ static u32 i9xx_cursor_ctl(const struct intel_crtc_state *crtc_state,
 
 	if (plane_state->hw.rotation & DRM_MODE_ROTATE_180)
 		cntl |= MCURSOR_ROTATE_180;
+
+	/* Wa_22012358565:adl-p */
+	if (DISPLAY_VER(dev_priv) == 13)
+		cntl |= MCURSOR_ARB_SLOTS(1);
 
 	return cntl;
 }
@@ -449,7 +455,7 @@ static int i9xx_check_cursor(struct intel_crtc_state *crtc_state,
 	}
 
 	drm_WARN_ON(&dev_priv->drm, plane_state->uapi.visible &&
-		    plane_state->color_plane[0].stride != fb->pitches[0]);
+		    plane_state->view.color_plane[0].stride != fb->pitches[0]);
 
 	if (fb->pitches[0] !=
 	    drm_rect_width(&plane_state->uapi.dst) * fb->format->cpp[0]) {
@@ -527,7 +533,7 @@ static void i9xx_update_cursor(struct intel_plane *plane,
 	 * the CURCNTR write arms the update.
 	 */
 
-	if (INTEL_GEN(dev_priv) >= 9)
+	if (DISPLAY_VER(dev_priv) >= 9)
 		skl_write_cursor_wm(plane, crtc_state);
 
 	if (!intel_crtc_needs_modeset(crtc_state))
@@ -583,7 +589,7 @@ static bool i9xx_cursor_get_hw_state(struct intel_plane *plane,
 
 	ret = val & MCURSOR_MODE;
 
-	if (INTEL_GEN(dev_priv) >= 5 || IS_G4X(dev_priv))
+	if (DISPLAY_VER(dev_priv) >= 5 || IS_G4X(dev_priv))
 		*pipe = plane->pipe;
 	else
 		*pipe = (val & MCURSOR_PIPE_SELECT_MASK) >>
@@ -623,12 +629,16 @@ intel_legacy_cursor_update(struct drm_plane *_plane,
 
 	/*
 	 * When crtc is inactive or there is a modeset pending,
-	 * wait for it to complete in the slowpath
+	 * wait for it to complete in the slowpath.
+	 * PSR2 selective fetch also requires the slow path as
+	 * PSR2 plane and transcoder registers can only be updated during
+	 * vblank.
 	 *
 	 * FIXME bigjoiner fastpath would be good
 	 */
 	if (!crtc_state->hw.active || intel_crtc_needs_modeset(crtc_state) ||
-	    crtc_state->update_pipe || crtc_state->bigjoiner)
+	    crtc_state->update_pipe || crtc_state->bigjoiner ||
+	    crtc_state->enable_psr2_sel_fetch)
 		goto slow;
 
 	/*
@@ -783,7 +793,7 @@ intel_cursor_plane_create(struct drm_i915_private *dev_priv,
 	if (ret)
 		goto fail;
 
-	if (INTEL_GEN(dev_priv) >= 4)
+	if (DISPLAY_VER(dev_priv) >= 4)
 		drm_plane_create_rotation_property(&cursor->base,
 						   DRM_MODE_ROTATE_0,
 						   DRM_MODE_ROTATE_0 |
@@ -792,10 +802,10 @@ intel_cursor_plane_create(struct drm_i915_private *dev_priv,
 	zpos = RUNTIME_INFO(dev_priv)->num_sprites[pipe] + 1;
 	drm_plane_create_zpos_immutable_property(&cursor->base, zpos);
 
-	if (INTEL_GEN(dev_priv) >= 12)
+	if (DISPLAY_VER(dev_priv) >= 12)
 		drm_plane_enable_fb_damage_clips(&cursor->base);
 
-	drm_plane_helper_add(&cursor->base, &intel_plane_helper_funcs);
+	intel_plane_helper_add(cursor);
 
 	return cursor;
 

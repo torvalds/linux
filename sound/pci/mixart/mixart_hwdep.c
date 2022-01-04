@@ -22,7 +22,8 @@
 
 
 /**
- * wait for a value on a peudo register, exit with a timeout
+ * mixart_wait_nice_for_register_value - wait for a value on a peudo register,
+ * exit with a timeout
  *
  * @mgr: pointer to miXart manager structure
  * @offset: unsigned pseudo_register base + offset of value
@@ -305,9 +306,13 @@ static int mixart_first_init(struct mixart_mgr *mgr)
 	int err;
 	struct mixart_msg request;
 
-	if((err = mixart_enum_connectors(mgr)) < 0) return err;
+	err = mixart_enum_connectors(mgr);
+	if (err < 0)
+		return err;
 
-	if((err = mixart_enum_physio(mgr)) < 0) return err;
+	err = mixart_enum_physio(mgr);
+	if (err < 0)
+		return err;
 
 	/* send a synchro command to card (necessary to do this before first MSG_STREAM_START_STREAM_GRP_PACKET) */
 	/* though why not here */
@@ -527,15 +532,18 @@ static int mixart_dsp_load(struct mixart_mgr* mgr, int index, const struct firmw
         for (card_index = 0; card_index < mgr->num_cards; card_index++) {
 		struct snd_mixart *chip = mgr->chip[card_index];
 
-		if ((err = snd_mixart_create_pcm(chip)) < 0)
+		err = snd_mixart_create_pcm(chip);
+		if (err < 0)
 			return err;
 
 		if (card_index == 0) {
-			if ((err = snd_mixart_create_mixer(chip->mgr)) < 0)
+			err = snd_mixart_create_mixer(chip->mgr);
+			if (err < 0)
 	        		return err;
 		}
 
-		if ((err = snd_card_register(chip->card)) < 0)
+		err = snd_card_register(chip->card);
+		if (err < 0)
 			return err;
 	}
 

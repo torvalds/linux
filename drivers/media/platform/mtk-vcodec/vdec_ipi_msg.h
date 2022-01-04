@@ -7,7 +7,7 @@
 #ifndef _VDEC_IPI_MSG_H_
 #define _VDEC_IPI_MSG_H_
 
-/**
+/*
  * enum vdec_ipi_msgid - message id between AP and VPU
  * @AP_IPIMSG_XXX	: AP to VPU cmd message id
  * @VPU_IPIMSG_XXX_ACK	: VPU ack AP cmd message id

@@ -90,7 +90,7 @@ static bool bpf_mt(const struct sk_buff *skb, struct xt_action_param *par)
 {
 	const struct xt_bpf_info *info = par->matchinfo;
 
-	return BPF_PROG_RUN(info->filter, skb);
+	return bpf_prog_run(info->filter, skb);
 }
 
 static bool bpf_mt_v1(const struct sk_buff *skb, struct xt_action_param *par)

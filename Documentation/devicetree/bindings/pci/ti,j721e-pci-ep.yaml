@@ -16,12 +16,14 @@ allOf:
 properties:
   compatible:
     oneOf:
+      - const: ti,j721e-pcie-ep
+      - description: PCIe EP controller in AM64
+        items:
+          - const: ti,am64-pcie-ep
+          - const: ti,j721e-pcie-ep
       - description: PCIe EP controller in J7200
         items:
           - const: ti,j7200-pcie-ep
-          - const: ti,j721e-pcie-ep
-      - description: PCIe EP controller in J721E
-        items:
           - const: ti,j721e-pcie-ep
 
   reg:
@@ -66,7 +68,6 @@ required:
   - power-domains
   - clocks
   - clock-names
-  - dma-coherent
   - max-functions
   - phys
   - phy-names

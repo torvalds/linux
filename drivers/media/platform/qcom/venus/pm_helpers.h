@@ -4,14 +4,15 @@
 #define __VENUS_PM_HELPERS_H__
 
 struct device;
+struct venus_core;
 
 #define POWER_ON	1
 #define POWER_OFF	0
 
 struct venus_pm_ops {
-	int (*core_get)(struct device *dev);
-	void (*core_put)(struct device *dev);
-	int (*core_power)(struct device *dev, int on);
+	int (*core_get)(struct venus_core *core);
+	void (*core_put)(struct venus_core *core);
+	int (*core_power)(struct venus_core *core, int on);
 
 	int (*vdec_get)(struct device *dev);
 	void (*vdec_put)(struct device *dev);

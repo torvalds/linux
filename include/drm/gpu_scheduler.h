@@ -206,6 +206,12 @@ static inline bool drm_sched_invalidate_job(struct drm_sched_job *s_job,
 	return s_job && atomic_inc_return(&s_job->karma) > threshold;
 }
 
+enum drm_gpu_sched_stat {
+	DRM_GPU_SCHED_STAT_NONE, /* Reserve 0 */
+	DRM_GPU_SCHED_STAT_NOMINAL,
+	DRM_GPU_SCHED_STAT_ENODEV,
+};
+
 /**
  * struct drm_sched_backend_ops
  *
@@ -230,10 +236,48 @@ struct drm_sched_backend_ops {
 	struct dma_fence *(*run_job)(struct drm_sched_job *sched_job);
 
 	/**
-         * @timedout_job: Called when a job has taken too long to execute,
-         * to trigger GPU recovery.
+	 * @timedout_job: Called when a job has taken too long to execute,
+	 * to trigger GPU recovery.
+	 *
+	 * This method is called in a workqueue context.
+	 *
+	 * Drivers typically issue a reset to recover from GPU hangs, and this
+	 * procedure usually follows the following workflow:
+	 *
+	 * 1. Stop the scheduler using drm_sched_stop(). This will park the
+	 *    scheduler thread and cancel the timeout work, guaranteeing that
+	 *    nothing is queued while we reset the hardware queue
+	 * 2. Try to gracefully stop non-faulty jobs (optional)
+	 * 3. Issue a GPU reset (driver-specific)
+	 * 4. Re-submit jobs using drm_sched_resubmit_jobs()
+	 * 5. Restart the scheduler using drm_sched_start(). At that point, new
+	 *    jobs can be queued, and the scheduler thread is unblocked
+	 *
+	 * Note that some GPUs have distinct hardware queues but need to reset
+	 * the GPU globally, which requires extra synchronization between the
+	 * timeout handler of the different &drm_gpu_scheduler. One way to
+	 * achieve this synchronization is to create an ordered workqueue
+	 * (using alloc_ordered_workqueue()) at the driver level, and pass this
+	 * queue to drm_sched_init(), to guarantee that timeout handlers are
+	 * executed sequentially. The above workflow needs to be slightly
+	 * adjusted in that case:
+	 *
+	 * 1. Stop all schedulers impacted by the reset using drm_sched_stop()
+	 * 2. Try to gracefully stop non-faulty jobs on all queues impacted by
+	 *    the reset (optional)
+	 * 3. Issue a GPU reset on all faulty queues (driver-specific)
+	 * 4. Re-submit jobs on all schedulers impacted by the reset using
+	 *    drm_sched_resubmit_jobs()
+	 * 5. Restart all schedulers that were stopped in step #1 using
+	 *    drm_sched_start()
+	 *
+	 * Return DRM_GPU_SCHED_STAT_NOMINAL, when all is normal,
+	 * and the underlying driver has started or completed recovery.
+	 *
+	 * Return DRM_GPU_SCHED_STAT_ENODEV, if the device is no longer
+	 * available, i.e. has been unplugged.
 	 */
-	void (*timedout_job)(struct drm_sched_job *sched_job);
+	enum drm_gpu_sched_stat (*timedout_job)(struct drm_sched_job *sched_job);
 
 	/**
          * @free_job: Called once the job's finished fence has been signaled
@@ -257,14 +301,16 @@ struct drm_sched_backend_ops {
  *                 finished.
  * @hw_rq_count: the number of jobs currently in the hardware queue.
  * @job_id_count: used to assign unique id to the each job.
+ * @timeout_wq: workqueue used to queue @work_tdr
  * @work_tdr: schedules a delayed call to @drm_sched_job_timedout after the
  *            timeout interval is over.
  * @thread: the kthread on which the scheduler which run.
  * @pending_list: the list of jobs which are currently in the job queue.
  * @job_list_lock: lock to protect the pending_list.
  * @hang_limit: once the hangs by a job crosses this limit then it is marked
- *              guilty and it will be considered for scheduling further.
+ *              guilty and it will no longer be considered for scheduling.
  * @score: score to help loadbalancer pick a idle sched
+ * @_score: score used when the driver doesn't provide one
  * @ready: marks if the underlying HW is ready to work
  * @free_guilty: A hit to time out handler to free the guilty job.
  *
@@ -280,20 +326,23 @@ struct drm_gpu_scheduler {
 	wait_queue_head_t		job_scheduled;
 	atomic_t			hw_rq_count;
 	atomic64_t			job_id_count;
+	struct workqueue_struct		*timeout_wq;
 	struct delayed_work		work_tdr;
 	struct task_struct		*thread;
 	struct list_head		pending_list;
 	spinlock_t			job_list_lock;
 	int				hang_limit;
-	atomic_t                        score;
+	atomic_t                        *score;
+	atomic_t                        _score;
 	bool				ready;
 	bool				free_guilty;
 };
 
 int drm_sched_init(struct drm_gpu_scheduler *sched,
 		   const struct drm_sched_backend_ops *ops,
-		   uint32_t hw_submission, unsigned hang_limit, long timeout,
-		   const char *name);
+		   uint32_t hw_submission, unsigned hang_limit,
+		   long timeout, struct workqueue_struct *timeout_wq,
+		   atomic_t *score, const char *name);
 
 void drm_sched_fini(struct drm_gpu_scheduler *sched);
 int drm_sched_job_init(struct drm_sched_job *job,
@@ -308,7 +357,10 @@ void drm_sched_wakeup(struct drm_gpu_scheduler *sched);
 void drm_sched_stop(struct drm_gpu_scheduler *sched, struct drm_sched_job *bad);
 void drm_sched_start(struct drm_gpu_scheduler *sched, bool full_recovery);
 void drm_sched_resubmit_jobs(struct drm_gpu_scheduler *sched);
+void drm_sched_resubmit_jobs_ext(struct drm_gpu_scheduler *sched, int max);
 void drm_sched_increase_karma(struct drm_sched_job *bad);
+void drm_sched_reset_karma(struct drm_sched_job *bad);
+void drm_sched_increase_karma_ext(struct drm_sched_job *bad, int type);
 bool drm_sched_dependency_optimized(struct dma_fence* fence,
 				    struct drm_sched_entity *entity);
 void drm_sched_fault(struct drm_gpu_scheduler *sched);

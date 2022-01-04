@@ -69,9 +69,12 @@ void *memcpy(void *dest, const void *src, size_t len)
 	return __memcpy(dest, src, len);
 }
 
-void kasan_poison(const void *addr, size_t size, u8 value)
+void kasan_poison(const void *addr, size_t size, u8 value, bool init)
 {
 	void *shadow_start, *shadow_end;
+
+	if (!kasan_arch_is_ready())
+		return;
 
 	/*
 	 * Perform shadow offset calculation based on untagged address, as
@@ -99,6 +102,9 @@ EXPORT_SYMBOL(kasan_poison);
 #ifdef CONFIG_KASAN_GENERIC
 void kasan_poison_last_granule(const void *addr, size_t size)
 {
+	if (!kasan_arch_is_ready())
+		return;
+
 	if (size & KASAN_GRANULE_MASK) {
 		u8 *shadow = (u8 *)kasan_mem_to_shadow(addr + size);
 		*shadow = size & KASAN_GRANULE_MASK;
@@ -106,7 +112,7 @@ void kasan_poison_last_granule(const void *addr, size_t size)
 }
 #endif
 
-void kasan_unpoison(const void *addr, size_t size)
+void kasan_unpoison(const void *addr, size_t size, bool init)
 {
 	u8 tag = get_tag(addr);
 
@@ -129,7 +135,7 @@ void kasan_unpoison(const void *addr, size_t size)
 		return;
 
 	/* Unpoison all granules that cover the object. */
-	kasan_poison(addr, round_up(size, KASAN_GRANULE_SIZE), tag);
+	kasan_poison(addr, round_up(size, KASAN_GRANULE_SIZE), tag, false);
 
 	/* Partially poison the last granule for the generic mode. */
 	if (IS_ENABLED(CONFIG_KASAN_GENERIC))
@@ -316,7 +322,7 @@ int kasan_populate_vmalloc(unsigned long addr, unsigned long size)
 	 * // rest of vmalloc process		<data dependency>
 	 * STORE p, a				LOAD shadow(x+99)
 	 *
-	 * If there is no barrier between the end of unpoisioning the shadow
+	 * If there is no barrier between the end of unpoisoning the shadow
 	 * and the store of the result to p, the stores could be committed
 	 * in a different order by CPU#0, and CPU#1 could erroneously observe
 	 * poison in the shadow.
@@ -344,7 +350,7 @@ void kasan_poison_vmalloc(const void *start, unsigned long size)
 		return;
 
 	size = round_up(size, KASAN_GRANULE_SIZE);
-	kasan_poison(start, size, KASAN_VMALLOC_INVALID);
+	kasan_poison(start, size, KASAN_VMALLOC_INVALID, false);
 }
 
 void kasan_unpoison_vmalloc(const void *start, unsigned long size)
@@ -352,7 +358,7 @@ void kasan_unpoison_vmalloc(const void *start, unsigned long size)
 	if (!is_vmalloc_or_module_addr(start))
 		return;
 
-	kasan_unpoison(start, size);
+	kasan_unpoison(start, size, false);
 }
 
 static int kasan_depopulate_vmalloc_pte(pte_t *ptep, unsigned long addr,
@@ -384,7 +390,7 @@ static int kasan_depopulate_vmalloc_pte(pte_t *ptep, unsigned long addr,
  * How does this work?
  * -------------------
  *
- * We have a region that is page aligned, labelled as A.
+ * We have a region that is page aligned, labeled as A.
  * That might not map onto the shadow in a way that is page-aligned:
  *
  *                    start                     end

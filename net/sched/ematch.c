@@ -141,7 +141,7 @@ errout:
 EXPORT_SYMBOL(tcf_em_register);
 
 /**
- * tcf_em_unregister - unregster and extended match
+ * tcf_em_unregister - unregister and extended match
  *
  * @ops: ematch operations lookup table
  *

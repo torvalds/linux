@@ -400,6 +400,7 @@ static int cs4270_hw_params(struct snd_pcm_substream *substream,
  * cs4270_dai_mute - enable/disable the CS4270 external mute
  * @dai: the SOC DAI
  * @mute: 0 = disable mute, 1 = enable mute
+ * @direction: (ignored)
  *
  * This function toggles the mute bits in the MUTE register.  The CS4270's
  * mute capability is intended for external muting circuitry, so if the

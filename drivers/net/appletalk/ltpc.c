@@ -584,11 +584,13 @@ loop:
 						printk("%02x ",ltdmacbuf[i]);
 					printk("\n");
 				}
+
 				handlecommand(dev);
-					if(0xfa==inb_p(base+6)) {
-						/* we timed out, so return */
-						goto done;
-					} 
+
+				if (0xfa == inb_p(base + 6)) {
+					/* we timed out, so return */
+					goto done;
+				}
 			} else {
 				/* we don't seem to have a command */
 				if (!mboxinuse[0]) {
@@ -935,10 +937,10 @@ static netdev_tx_t ltpc_xmit(struct sk_buff *skb, struct net_device *dev)
 static int __init ltpc_probe_dma(int base, int dma)
 {
 	int want = (dma == 3) ? 2 : (dma == 1) ? 1 : 3;
-  	unsigned long timeout;
-  	unsigned long f;
+	unsigned long timeout;
+	unsigned long f;
   
-  	if (want & 1) {
+	if (want & 1) {
 		if (request_dma(1,"ltpc")) {
 			want &= ~1;
 		} else {
@@ -1013,7 +1015,7 @@ static const struct net_device_ops ltpc_netdev = {
 	.ndo_set_rx_mode	= set_multicast_list,
 };
 
-struct net_device * __init ltpc_probe(void)
+static struct net_device * __init ltpc_probe(void)
 {
 	struct net_device *dev;
 	int err = -ENOMEM;
@@ -1219,11 +1221,9 @@ static int __init ltpc_setup(char *str)
 }
 
 __setup("ltpc=", ltpc_setup);
-#endif /* MODULE */
+#endif
 
 static struct net_device *dev_ltpc;
-
-#ifdef MODULE
 
 MODULE_LICENSE("GPL");
 module_param(debug, int, 0);
@@ -1242,7 +1242,6 @@ static int __init ltpc_module_init(void)
 	return PTR_ERR_OR_ZERO(dev_ltpc);
 }
 module_init(ltpc_module_init);
-#endif
 
 static void __exit ltpc_cleanup(void)
 {

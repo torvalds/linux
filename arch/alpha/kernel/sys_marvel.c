@@ -461,10 +461,5 @@ struct alpha_machine_vector marvel_ev7_mv __initmv = {
 	.kill_arch		= marvel_kill_arch,
 	.pci_map_irq		= marvel_map_irq,
 	.pci_swizzle		= common_swizzle,
-
-	.pa_to_nid		= marvel_pa_to_nid,
-	.cpuid_to_nid		= marvel_cpuid_to_nid,
-	.node_mem_start		= marvel_node_mem_start,
-	.node_mem_size		= marvel_node_mem_size,
 };
 ALIAS_MV(marvel_ev7)

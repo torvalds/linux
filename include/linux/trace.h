@@ -41,6 +41,13 @@ int trace_array_init_printk(struct trace_array *tr);
 void trace_array_put(struct trace_array *tr);
 struct trace_array *trace_array_get_by_name(const char *name);
 int trace_array_destroy(struct trace_array *tr);
+
+/* For osnoise tracer */
+int osnoise_arch_register(void);
+void osnoise_arch_unregister(void);
+void osnoise_trace_irq_entry(int id);
+void osnoise_trace_irq_exit(int id, const char *desc);
+
 #endif	/* CONFIG_TRACING */
 
 #endif	/* _LINUX_TRACE_H */

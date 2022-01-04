@@ -2952,8 +2952,8 @@ static int rt5663_set_dai_pll(struct snd_soc_dai *dai, int pll_id, int source,
 	snd_soc_component_write(component, RT5663_PLL_1,
 		pll_code.n_code << RT5663_PLL_N_SHIFT | pll_code.k_code);
 	snd_soc_component_write(component, RT5663_PLL_2,
-		(pll_code.m_bp ? 0 : pll_code.m_code) << RT5663_PLL_M_SHIFT |
-		pll_code.m_bp << RT5663_PLL_M_BP_SHIFT);
+		((pll_code.m_bp ? 0 : pll_code.m_code) << RT5663_PLL_M_SHIFT) |
+		(pll_code.m_bp << RT5663_PLL_M_BP_SHIFT));
 
 	rt5663->pll_in = freq_in;
 	rt5663->pll_out = freq_out;

@@ -277,6 +277,18 @@ Default is to monitor all CPUS.
 	Record events of type PERF_RECORD_NAMESPACES and display it with the
 	'cgroup_id' sort key.
 
+-G name::
+--cgroup name::
+monitor only in the container (cgroup) called "name". This option is available only
+in per-cpu mode. The cgroup filesystem must be mounted. All threads belonging to
+container "name" are monitored when they run on the monitored CPUs. Multiple cgroups
+can be provided. Each cgroup is applied to the corresponding event, i.e., first cgroup
+to first event, second cgroup to second event and so on. It is possible to provide
+an empty cgroup (monitor all the time) using, e.g., -G foo,,bar. Cgroups must have
+corresponding events, i.e., they always refer to events defined earlier on the command
+line. If the user wants to track multiple events for a specific cgroup, the user can
+use '-e e1 -e e2 -G foo,foo' or just use '-e e1 -e e2 -G foo'.
+
 --all-cgroups::
 	Record events of type PERF_RECORD_CGROUP and display it with the
 	'cgroup' sort key.
@@ -317,7 +329,7 @@ Default is to monitor all CPUS.
 	but probably we'll make the default not to show the switch-on/off events
         on the --group mode and if there is only one event besides the off/on ones,
 	go straight to the histogram browser, just like 'perf top' with no events
-	explicitely specified does.
+	explicitly specified does.
 
 --stitch-lbr::
 	Show callgraph with stitched LBRs, which may have more complete

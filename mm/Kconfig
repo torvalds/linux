@@ -9,7 +9,6 @@ config SELECT_MEMORY_MODEL
 choice
 	prompt "Memory model"
 	depends on SELECT_MEMORY_MODEL
-	default DISCONTIGMEM_MANUAL if ARCH_DISCONTIGMEM_DEFAULT
 	default SPARSEMEM_MANUAL if ARCH_SPARSEMEM_DEFAULT
 	default FLATMEM_MANUAL
 	help
@@ -20,7 +19,7 @@ choice
 
 config FLATMEM_MANUAL
 	bool "Flat Memory"
-	depends on !(ARCH_DISCONTIGMEM_ENABLE || ARCH_SPARSEMEM_ENABLE) || ARCH_FLATMEM_ENABLE
+	depends on !ARCH_SPARSEMEM_ENABLE || ARCH_FLATMEM_ENABLE
 	help
 	  This option is best suited for non-NUMA systems with
 	  flat address space. The FLATMEM is the most efficient
@@ -32,21 +31,6 @@ config FLATMEM_MANUAL
 	  choose "Sparse Memory".
 
 	  If unsure, choose this option (Flat Memory) over any other.
-
-config DISCONTIGMEM_MANUAL
-	bool "Discontiguous Memory"
-	depends on ARCH_DISCONTIGMEM_ENABLE
-	help
-	  This option provides enhanced support for discontiguous
-	  memory systems, over FLATMEM.  These systems have holes
-	  in their physical address spaces, and this option provides
-	  more efficient handling of these holes.
-
-	  Although "Discontiguous Memory" is still used by several
-	  architectures, it is considered deprecated in favor of
-	  "Sparse Memory".
-
-	  If unsure, choose "Sparse Memory" over this option.
 
 config SPARSEMEM_MANUAL
 	bool "Sparse Memory"
@@ -63,30 +47,13 @@ config SPARSEMEM_MANUAL
 
 endchoice
 
-config DISCONTIGMEM
-	def_bool y
-	depends on (!SELECT_MEMORY_MODEL && ARCH_DISCONTIGMEM_ENABLE) || DISCONTIGMEM_MANUAL
-
 config SPARSEMEM
 	def_bool y
 	depends on (!SELECT_MEMORY_MODEL && ARCH_SPARSEMEM_ENABLE) || SPARSEMEM_MANUAL
 
 config FLATMEM
 	def_bool y
-	depends on (!DISCONTIGMEM && !SPARSEMEM) || FLATMEM_MANUAL
-
-config FLAT_NODE_MEM_MAP
-	def_bool y
-	depends on !SPARSEMEM
-
-#
-# Both the NUMA code and DISCONTIGMEM use arrays of pg_data_t's
-# to represent different areas of memory.  This variable allows
-# those dependencies to exist individually.
-#
-config NEED_MULTIPLE_NODES
-	def_bool y
-	depends on DISCONTIGMEM || NUMA
+	depends on !SPARSEMEM || FLATMEM_MANUAL
 
 #
 # SPARSEMEM_EXTREME (which is the default) does some bootmem
@@ -129,6 +96,9 @@ config HAVE_FAST_GUP
 	depends on MMU
 	bool
 
+config HOLES_IN_ZONE
+	bool
+
 # Don't discard allocated memory used to track "memory" and "reserved" memblocks
 # after early boot, so it can still be used to test for validity of memory.
 # Also, memblocks are updated with memory hot(un)plug.
@@ -148,6 +118,9 @@ config MEMORY_ISOLATION
 #
 config HAVE_BOOTMEM_INFO_NODE
 	def_bool n
+
+config ARCH_ENABLE_MEMORY_HOTPLUG
+	bool
 
 # eventually, we can have this option just 'select SPARSEMEM'
 config MEMORY_HOTPLUG
@@ -177,11 +150,19 @@ config MEMORY_HOTPLUG_DEFAULT_ONLINE
 	  Say N here if you want the default policy to keep all hot-plugged
 	  memory blocks in 'offline' state.
 
+config ARCH_ENABLE_MEMORY_HOTREMOVE
+	bool
+
 config MEMORY_HOTREMOVE
 	bool "Allow for memory hot remove"
 	select HAVE_BOOTMEM_INFO_NODE if (X86_64 || PPC64)
 	depends on MEMORY_HOTPLUG && ARCH_ENABLE_MEMORY_HOTREMOVE
 	depends on MIGRATION
+
+config MHP_MEMMAP_ON_MEMORY
+	def_bool y
+	depends on MEMORY_HOTPLUG && SPARSEMEM_VMEMMAP
+	depends on ARCH_MHP_MEMMAP_ON_MEMORY_ENABLE
 
 # Heavily threaded applications may benefit from splitting the mm-wide
 # page_table_lock, so that faults on different parts of the user address
@@ -274,6 +255,13 @@ config ARCH_ENABLE_HUGEPAGE_MIGRATION
 config ARCH_ENABLE_THP_MIGRATION
 	bool
 
+config HUGETLB_PAGE_SIZE_VARIABLE
+	def_bool n
+	help
+	  Allows the pageblock_order value to be dynamic instead of just standard
+	  HUGETLB_PAGE_ORDER when there are multiple HugeTLB page sizes available
+	  on a platform.
+
 config CONTIG_ALLOC
 	def_bool (MEMORY_ISOLATION && COMPACTION) || CMA
 
@@ -283,12 +271,11 @@ config PHYS_ADDR_T_64BIT
 config BOUNCE
 	bool "Enable bounce buffers"
 	default y
-	depends on BLOCK && MMU && (ZONE_DMA || HIGHMEM)
+	depends on BLOCK && MMU && HIGHMEM
 	help
-	  Enable bounce buffers for devices that cannot access
-	  the full range of memory available to the CPU. Enabled
-	  by default when ZONE_DMA or HIGHMEM is selected, but you
-	  may say n to override this.
+	  Enable bounce buffers for devices that cannot access the full range of
+	  memory available to the CPU. Enabled by default when HIGHMEM is
+	  selected, but you may say n to override this.
 
 config VIRT_TO_BUS
 	bool
@@ -513,6 +500,13 @@ config CMA_DEBUGFS
 	help
 	  Turns on the DebugFS interface for CMA.
 
+config CMA_SYSFS
+	bool "CMA information through sysfs interface"
+	depends on CMA && SYSFS
+	help
+	  This option exposes some sysfs attributes to get information
+	  from CMA.
+
 config CMA_AREAS
 	int "Maximum count of the CMA areas"
 	depends on CMA
@@ -680,6 +674,7 @@ config ZPOOL
 
 config ZBUD
 	tristate "Low (Up to 2x) density storage for compressed pages"
+	depends on ZPOOL
 	help
 	  A special purpose allocator for storing compressed pages.
 	  It is designed to store up to two compressed pages per physical
@@ -760,8 +755,23 @@ config IDLE_PAGE_TRACKING
 	  See Documentation/admin-guide/mm/idle_page_tracking.rst for
 	  more details.
 
+config ARCH_HAS_CACHE_LINE_SIZE
+	bool
+
 config ARCH_HAS_PTE_DEVMAP
 	bool
+
+config ARCH_HAS_ZONE_DMA_SET
+	bool
+
+config ZONE_DMA
+	bool "Support DMA zone" if ARCH_HAS_ZONE_DMA_SET
+	default y if ARM64 || X86
+
+config ZONE_DMA32
+	bool "Support DMA32 zone" if ARCH_HAS_ZONE_DMA_SET
+	depends on !X86_32
+	default y if ARM64
 
 config ZONE_DEVICE
 	bool "Device memory (pmem, HMM, etc...) hotplug support"
@@ -871,5 +881,12 @@ config MAPPING_DIRTY_HELPERS
 
 config KMAP_LOCAL
 	bool
+
+# struct io_mapping based helper.  Selected by drivers that need them
+config IO_MAPPING
+	bool
+
+config SECRETMEM
+	def_bool ARCH_HAS_SET_DIRECT_MAP && !EMBEDDED
 
 endmenu

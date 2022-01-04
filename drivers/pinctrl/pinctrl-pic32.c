@@ -2101,7 +2101,7 @@ static void pic32_gpio_irq_handler(struct irq_desc *desc)
 	pending = pic32_gpio_get_pending(gc, stat);
 
 	for_each_set_bit(pin, &pending, BITS_PER_LONG)
-		generic_handle_irq(irq_linear_revmap(gc->irq.domain, pin));
+		generic_handle_domain_irq(gc->irq.domain, pin);
 
 	chained_irq_exit(chip, desc);
 }

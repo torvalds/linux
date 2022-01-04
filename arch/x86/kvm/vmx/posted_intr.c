@@ -238,6 +238,20 @@ bool pi_has_pending_interrupt(struct kvm_vcpu *vcpu)
 
 
 /*
+ * Bail out of the block loop if the VM has an assigned
+ * device, but the blocking vCPU didn't reconfigure the
+ * PI.NV to the wakeup vector, i.e. the assigned device
+ * came along after the initial check in pi_pre_block().
+ */
+void vmx_pi_start_assignment(struct kvm *kvm)
+{
+	if (!irq_remapping_cap(IRQ_POSTING_CAP))
+		return;
+
+	kvm_make_all_cpus_request(kvm, KVM_REQ_UNBLOCK);
+}
+
+/*
  * pi_update_irte - set IRTE for Posted-Interrupts
  *
  * @kvm: kvm

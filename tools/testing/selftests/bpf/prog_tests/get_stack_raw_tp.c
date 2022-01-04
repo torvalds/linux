@@ -121,12 +121,12 @@ void test_get_stack_raw_tp(void)
 		goto close_prog;
 
 	link = bpf_program__attach_raw_tracepoint(prog, "sys_enter");
-	if (CHECK(IS_ERR(link), "attach_raw_tp", "err %ld\n", PTR_ERR(link)))
+	if (!ASSERT_OK_PTR(link, "attach_raw_tp"))
 		goto close_prog;
 
 	pb_opts.sample_cb = get_stack_print_output;
 	pb = perf_buffer__new(bpf_map__fd(map), 8, &pb_opts);
-	if (CHECK(IS_ERR(pb), "perf_buf__new", "err %ld\n", PTR_ERR(pb)))
+	if (!ASSERT_OK_PTR(pb, "perf_buf__new"))
 		goto close_prog;
 
 	/* trigger some syscall action */
@@ -141,9 +141,7 @@ void test_get_stack_raw_tp(void)
 	}
 
 close_prog:
-	if (!IS_ERR_OR_NULL(link))
-		bpf_link__destroy(link);
-	if (!IS_ERR_OR_NULL(pb))
-		perf_buffer__free(pb);
+	bpf_link__destroy(link);
+	perf_buffer__free(pb);
 	bpf_object__close(obj);
 }

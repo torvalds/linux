@@ -31,6 +31,7 @@
 #include <asm/kvm_book3s_asm.h>
 #include <asm/export.h>
 #include <asm/feature-fixups.h>
+#include <asm/interrupt.h>
 
 #include "head_32.h"
 
@@ -239,7 +240,7 @@ __secondary_hold_acknowledge:
 /* System reset */
 /* core99 pmac starts the seconary here by changing the vector, and
    putting it back to what it was (unknown_async_exception) when done.  */
-	EXCEPTION(0x100, Reset, unknown_async_exception, EXC_XFER_STD)
+	EXCEPTION(INTERRUPT_SYSTEM_RESET, Reset, unknown_async_exception)
 
 /* Machine check */
 /*
@@ -255,40 +256,28 @@ __secondary_hold_acknowledge:
  * pointer when we take an exception from supervisor mode.)
  *	-- paulus.
  */
-	. = 0x200
-	DO_KVM  0x200
-MachineCheck:
+	START_EXCEPTION(INTERRUPT_MACHINE_CHECK, MachineCheck)
 	EXCEPTION_PROLOG_0
 #ifdef CONFIG_PPC_CHRP
-#ifdef CONFIG_VMAP_STACK
 	mtspr	SPRN_SPRG_SCRATCH2,r1
 	mfspr	r1, SPRN_SPRG_THREAD
 	lwz	r1, RTAS_SP(r1)
 	cmpwi	cr1, r1, 0
 	bne	cr1, 7f
 	mfspr	r1, SPRN_SPRG_SCRATCH2
-#else
-	mfspr	r11, SPRN_SPRG_THREAD
-	lwz	r11, RTAS_SP(r11)
-	cmpwi	cr1, r11, 0
-	bne	cr1, 7f
-#endif
 #endif /* CONFIG_PPC_CHRP */
-	EXCEPTION_PROLOG_1 for_rtas=1
-7:	EXCEPTION_PROLOG_2
-	addi	r3,r1,STACK_FRAME_OVERHEAD
+	EXCEPTION_PROLOG_1
+7:	EXCEPTION_PROLOG_2 0x200 MachineCheck
 #ifdef CONFIG_PPC_CHRP
-	beq	cr1, machine_check_tramp
+	beq	cr1, 1f
 	twi	31, 0, 0
-#else
-	b	machine_check_tramp
 #endif
+1:	prepare_transfer_to_handler
+	bl	machine_check_exception
+	b	interrupt_return
 
 /* Data access exception. */
-	. = 0x300
-	DO_KVM  0x300
-DataAccess:
-#ifdef CONFIG_VMAP_STACK
+	START_EXCEPTION(INTERRUPT_DATA_STORAGE, DataAccess)
 #ifdef CONFIG_PPC_BOOK3S_604
 BEGIN_MMU_FTR_SECTION
 	mtspr	SPRN_SPRG_SCRATCH2,r10
@@ -309,30 +298,20 @@ ALT_MMU_FTR_SECTION_END_IFSET(MMU_FTR_HPTE_TABLE)
 #endif
 1:	EXCEPTION_PROLOG_0 handle_dar_dsisr=1
 	EXCEPTION_PROLOG_1
-	b	handle_page_fault_tramp_1
-#else	/* CONFIG_VMAP_STACK */
-	EXCEPTION_PROLOG handle_dar_dsisr=1
-	get_and_save_dar_dsisr_on_stack	r4, r5, r11
-#ifdef CONFIG_PPC_BOOK3S_604
-BEGIN_MMU_FTR_SECTION
-	andis.	r0, r5, (DSISR_BAD_FAULT_32S | DSISR_DABRMATCH)@h
-	bne	handle_page_fault_tramp_2	/* if not, try to put a PTE */
-	rlwinm	r3, r5, 32 - 15, 21, 21		/* DSISR_STORE -> _PAGE_RW */
-	bl	hash_page
-	b	handle_page_fault_tramp_1
-MMU_FTR_SECTION_ELSE
-#endif
-	b	handle_page_fault_tramp_2
-#ifdef CONFIG_PPC_BOOK3S_604
-ALT_MMU_FTR_SECTION_END_IFSET(MMU_FTR_HPTE_TABLE)
-#endif
-#endif	/* CONFIG_VMAP_STACK */
+	EXCEPTION_PROLOG_2 INTERRUPT_DATA_STORAGE DataAccess handle_dar_dsisr=1
+	prepare_transfer_to_handler
+	lwz	r5, _DSISR(r1)
+	andis.	r0, r5, DSISR_DABRMATCH@h
+	bne-	1f
+	bl	do_page_fault
+	b	interrupt_return
+1:	bl	do_break
+	REST_NVGPRS(r1)
+	b	interrupt_return
+
 
 /* Instruction access exception. */
-	. = 0x400
-	DO_KVM  0x400
-InstructionAccess:
-#ifdef CONFIG_VMAP_STACK
+	START_EXCEPTION(INTERRUPT_INST_STORAGE, InstructionAccess)
 	mtspr	SPRN_SPRG_SCRATCH0,r10
 	mtspr	SPRN_SPRG_SCRATCH1,r11
 	mfspr	r10, SPRN_SPRG_THREAD
@@ -352,43 +331,35 @@ END_MMU_FTR_SECTION_IFSET(MMU_FTR_HPTE_TABLE)
 	andi.	r11, r11, MSR_PR
 
 	EXCEPTION_PROLOG_1
-	EXCEPTION_PROLOG_2
-#else	/* CONFIG_VMAP_STACK */
-	EXCEPTION_PROLOG
-	andis.	r0,r9,SRR1_ISI_NOPT@h	/* no pte found? */
-	beq	1f			/* if so, try to put a PTE */
-	li	r3,0			/* into the hash table */
-	mr	r4,r12			/* SRR0 is fault address */
-#ifdef CONFIG_PPC_BOOK3S_604
-BEGIN_MMU_FTR_SECTION
-	bl	hash_page
-END_MMU_FTR_SECTION_IFSET(MMU_FTR_HPTE_TABLE)
-#endif
-#endif	/* CONFIG_VMAP_STACK */
+	EXCEPTION_PROLOG_2 INTERRUPT_INST_STORAGE InstructionAccess
 	andis.	r5,r9,DSISR_SRR1_MATCH_32S@h /* Filter relevant SRR1 bits */
 	stw	r5, _DSISR(r11)
 	stw	r12, _DAR(r11)
-	EXC_XFER_LITE(0x400, handle_page_fault)
+	prepare_transfer_to_handler
+	bl	do_page_fault
+	b	interrupt_return
 
 /* External interrupt */
-	EXCEPTION(0x500, HardwareInterrupt, do_IRQ, EXC_XFER_LITE)
+	EXCEPTION(INTERRUPT_EXTERNAL, HardwareInterrupt, do_IRQ)
 
 /* Alignment exception */
-	. = 0x600
-	DO_KVM  0x600
-Alignment:
-	EXCEPTION_PROLOG handle_dar_dsisr=1
-	save_dar_dsisr_on_stack r4, r5, r11
-	addi	r3,r1,STACK_FRAME_OVERHEAD
-	b	alignment_exception_tramp
+	START_EXCEPTION(INTERRUPT_ALIGNMENT, Alignment)
+	EXCEPTION_PROLOG INTERRUPT_ALIGNMENT Alignment handle_dar_dsisr=1
+	prepare_transfer_to_handler
+	bl	alignment_exception
+	REST_NVGPRS(r1)
+	b	interrupt_return
 
 /* Program check exception */
-	EXCEPTION(0x700, ProgramCheck, program_check_exception, EXC_XFER_STD)
+	START_EXCEPTION(INTERRUPT_PROGRAM, ProgramCheck)
+	EXCEPTION_PROLOG INTERRUPT_PROGRAM ProgramCheck
+	prepare_transfer_to_handler
+	bl	program_check_exception
+	REST_NVGPRS(r1)
+	b	interrupt_return
 
 /* Floating-point unavailable */
-	. = 0x800
-	DO_KVM  0x800
-FPUnavailable:
+	START_EXCEPTION(0x800, FPUnavailable)
 #ifdef CONFIG_PPC_FPU
 BEGIN_FTR_SECTION
 /*
@@ -397,30 +368,29 @@ BEGIN_FTR_SECTION
  */
 	b 	ProgramCheck
 END_FTR_SECTION_IFSET(CPU_FTR_FPU_UNAVAILABLE)
-	EXCEPTION_PROLOG
+	EXCEPTION_PROLOG INTERRUPT_FP_UNAVAIL FPUnavailable
 	beq	1f
 	bl	load_up_fpu		/* if from user, just load it up */
 	b	fast_exception_return
-1:	addi	r3,r1,STACK_FRAME_OVERHEAD
-	EXC_XFER_LITE(0x800, kernel_fp_unavailable_exception)
+1:	prepare_transfer_to_handler
+	bl	kernel_fp_unavailable_exception
+	b	interrupt_return
 #else
 	b 	ProgramCheck
 #endif
 
 /* Decrementer */
-	EXCEPTION(0x900, Decrementer, timer_interrupt, EXC_XFER_LITE)
+	EXCEPTION(INTERRUPT_DECREMENTER, Decrementer, timer_interrupt)
 
-	EXCEPTION(0xa00, Trap_0a, unknown_exception, EXC_XFER_STD)
-	EXCEPTION(0xb00, Trap_0b, unknown_exception, EXC_XFER_STD)
+	EXCEPTION(0xa00, Trap_0a, unknown_exception)
+	EXCEPTION(0xb00, Trap_0b, unknown_exception)
 
 /* System call */
-	. = 0xc00
-	DO_KVM  0xc00
-SystemCall:
-	SYSCALL_ENTRY	0xc00
+	START_EXCEPTION(INTERRUPT_SYSCALL, SystemCall)
+	SYSCALL_ENTRY	INTERRUPT_SYSCALL
 
-	EXCEPTION(0xd00, SingleStep, single_step_exception, EXC_XFER_STD)
-	EXCEPTION(0xe00, Trap_0e, unknown_exception, EXC_XFER_STD)
+	EXCEPTION(INTERRUPT_TRACE, SingleStep, single_step_exception)
+	EXCEPTION(0xe00, Trap_0e, unknown_exception)
 
 /*
  * The Altivec unavailable trap is at 0x0f20.  Foo.
@@ -430,19 +400,18 @@ SystemCall:
  * non-altivec kernel running on a machine with altivec just
  * by executing an altivec instruction.
  */
-	. = 0xf00
-	DO_KVM  0xf00
+	START_EXCEPTION(INTERRUPT_PERFMON, PerformanceMonitorTrap)
 	b	PerformanceMonitor
 
-	. = 0xf20
-	DO_KVM  0xf20
+	START_EXCEPTION(INTERRUPT_ALTIVEC_UNAVAIL, AltiVecUnavailableTrap)
 	b	AltiVecUnavailable
 
+	__HEAD
 /*
  * Handle TLB miss for instruction on 603/603e.
  * Note: we get an alternate set of r0 - r3 to use automatically.
  */
-	. = 0x1000
+	. = INTERRUPT_INST_TLB_MISS_603
 InstructionTLBMiss:
 /*
  * r0:	scratch
@@ -508,7 +477,7 @@ InstructionAddressInvalid:
 /*
  * Handle TLB miss for DATA Load operation on 603/603e
  */
-	. = 0x1100
+	. = INTERRUPT_DATA_LOAD_TLB_MISS_603
 DataLoadTLBMiss:
 /*
  * r0:	scratch
@@ -549,8 +518,6 @@ BEGIN_FTR_SECTION
 	rlwinm	r1,r1,0,~_PAGE_COHERENT	/* clear M (coherence not required) */
 END_FTR_SECTION_IFCLR(CPU_FTR_NEED_COHERENT)
 	mtspr	SPRN_RPA,r1
-	mfspr	r2,SPRN_SRR1		/* Need to restore CR0 */
-	mtcrf	0x80,r2
 BEGIN_MMU_FTR_SECTION
 	li	r0,1
 	mfspr	r1,SPRN_SPRG_603_LRU
@@ -562,9 +529,15 @@ BEGIN_MMU_FTR_SECTION
 	mfspr	r2,SPRN_SRR1
 	rlwimi	r2,r0,31-14,14,14
 	mtspr   SPRN_SRR1,r2
-END_MMU_FTR_SECTION_IFSET(MMU_FTR_NEED_DTLB_SW_LRU)
+	mtcrf	0x80,r2
 	tlbld	r3
 	rfi
+MMU_FTR_SECTION_ELSE
+	mfspr	r2,SPRN_SRR1		/* Need to restore CR0 */
+	mtcrf	0x80,r2
+	tlbld	r3
+	rfi
+ALT_MMU_FTR_SECTION_END_IFSET(MMU_FTR_NEED_DTLB_SW_LRU)
 DataAddressInvalid:
 	mfspr	r3,SPRN_SRR1
 	rlwinm	r1,r3,9,6,6	/* Get load/store bit */
@@ -586,7 +559,7 @@ DataAddressInvalid:
 /*
  * Handle TLB miss for DATA Store on 603/603e
  */
-	. = 0x1200
+	. = INTERRUPT_DATA_STORE_TLB_MISS_603
 DataStoreTLBMiss:
 /*
  * r0:	scratch
@@ -638,9 +611,15 @@ BEGIN_MMU_FTR_SECTION
 	mfspr	r2,SPRN_SRR1
 	rlwimi	r2,r0,31-14,14,14
 	mtspr   SPRN_SRR1,r2
-END_MMU_FTR_SECTION_IFSET(MMU_FTR_NEED_DTLB_SW_LRU)
+	mtcrf	0x80,r2
 	tlbld	r3
 	rfi
+MMU_FTR_SECTION_ELSE
+	mfspr	r2,SPRN_SRR1		/* Need to restore CR0 */
+	mtcrf	0x80,r2
+	tlbld	r3
+	rfi
+ALT_MMU_FTR_SECTION_END_IFSET(MMU_FTR_NEED_DTLB_SW_LRU)
 
 #ifndef CONFIG_ALTIVEC
 #define altivec_assist_exception	unknown_exception
@@ -650,57 +629,39 @@ END_MMU_FTR_SECTION_IFSET(MMU_FTR_NEED_DTLB_SW_LRU)
 #define TAUException	unknown_async_exception
 #endif
 
-	EXCEPTION(0x1300, Trap_13, instruction_breakpoint_exception, EXC_XFER_STD)
-	EXCEPTION(0x1400, SMI, SMIException, EXC_XFER_STD)
-	EXCEPTION(0x1500, Trap_15, unknown_exception, EXC_XFER_STD)
-	EXCEPTION(0x1600, Trap_16, altivec_assist_exception, EXC_XFER_STD)
-	EXCEPTION(0x1700, Trap_17, TAUException, EXC_XFER_STD)
-	EXCEPTION(0x1800, Trap_18, unknown_exception, EXC_XFER_STD)
-	EXCEPTION(0x1900, Trap_19, unknown_exception, EXC_XFER_STD)
-	EXCEPTION(0x1a00, Trap_1a, unknown_exception, EXC_XFER_STD)
-	EXCEPTION(0x1b00, Trap_1b, unknown_exception, EXC_XFER_STD)
-	EXCEPTION(0x1c00, Trap_1c, unknown_exception, EXC_XFER_STD)
-	EXCEPTION(0x1d00, Trap_1d, unknown_exception, EXC_XFER_STD)
-	EXCEPTION(0x1e00, Trap_1e, unknown_exception, EXC_XFER_STD)
-	EXCEPTION(0x1f00, Trap_1f, unknown_exception, EXC_XFER_STD)
-	EXCEPTION(0x2000, RunMode, RunModeException, EXC_XFER_STD)
-	EXCEPTION(0x2100, Trap_21, unknown_exception, EXC_XFER_STD)
-	EXCEPTION(0x2200, Trap_22, unknown_exception, EXC_XFER_STD)
-	EXCEPTION(0x2300, Trap_23, unknown_exception, EXC_XFER_STD)
-	EXCEPTION(0x2400, Trap_24, unknown_exception, EXC_XFER_STD)
-	EXCEPTION(0x2500, Trap_25, unknown_exception, EXC_XFER_STD)
-	EXCEPTION(0x2600, Trap_26, unknown_exception, EXC_XFER_STD)
-	EXCEPTION(0x2700, Trap_27, unknown_exception, EXC_XFER_STD)
-	EXCEPTION(0x2800, Trap_28, unknown_exception, EXC_XFER_STD)
-	EXCEPTION(0x2900, Trap_29, unknown_exception, EXC_XFER_STD)
-	EXCEPTION(0x2a00, Trap_2a, unknown_exception, EXC_XFER_STD)
-	EXCEPTION(0x2b00, Trap_2b, unknown_exception, EXC_XFER_STD)
-	EXCEPTION(0x2c00, Trap_2c, unknown_exception, EXC_XFER_STD)
-	EXCEPTION(0x2d00, Trap_2d, unknown_exception, EXC_XFER_STD)
-	EXCEPTION(0x2e00, Trap_2e, unknown_exception, EXC_XFER_STD)
-	EXCEPTION(0x2f00, Trap_2f, unknown_exception, EXC_XFER_STD)
+	EXCEPTION(0x1300, Trap_13, instruction_breakpoint_exception)
+	EXCEPTION(0x1400, SMI, SMIException)
+	EXCEPTION(0x1500, Trap_15, unknown_exception)
+	EXCEPTION(0x1600, Trap_16, altivec_assist_exception)
+	EXCEPTION(0x1700, Trap_17, TAUException)
+	EXCEPTION(0x1800, Trap_18, unknown_exception)
+	EXCEPTION(0x1900, Trap_19, unknown_exception)
+	EXCEPTION(0x1a00, Trap_1a, unknown_exception)
+	EXCEPTION(0x1b00, Trap_1b, unknown_exception)
+	EXCEPTION(0x1c00, Trap_1c, unknown_exception)
+	EXCEPTION(0x1d00, Trap_1d, unknown_exception)
+	EXCEPTION(0x1e00, Trap_1e, unknown_exception)
+	EXCEPTION(0x1f00, Trap_1f, unknown_exception)
+	EXCEPTION(0x2000, RunMode, RunModeException)
+	EXCEPTION(0x2100, Trap_21, unknown_exception)
+	EXCEPTION(0x2200, Trap_22, unknown_exception)
+	EXCEPTION(0x2300, Trap_23, unknown_exception)
+	EXCEPTION(0x2400, Trap_24, unknown_exception)
+	EXCEPTION(0x2500, Trap_25, unknown_exception)
+	EXCEPTION(0x2600, Trap_26, unknown_exception)
+	EXCEPTION(0x2700, Trap_27, unknown_exception)
+	EXCEPTION(0x2800, Trap_28, unknown_exception)
+	EXCEPTION(0x2900, Trap_29, unknown_exception)
+	EXCEPTION(0x2a00, Trap_2a, unknown_exception)
+	EXCEPTION(0x2b00, Trap_2b, unknown_exception)
+	EXCEPTION(0x2c00, Trap_2c, unknown_exception)
+	EXCEPTION(0x2d00, Trap_2d, unknown_exception)
+	EXCEPTION(0x2e00, Trap_2e, unknown_exception)
+	EXCEPTION(0x2f00, Trap_2f, unknown_exception)
 
+	__HEAD
 	. = 0x3000
 
-machine_check_tramp:
-	EXC_XFER_STD(0x200, machine_check_exception)
-
-alignment_exception_tramp:
-	EXC_XFER_STD(0x600, alignment_exception)
-
-handle_page_fault_tramp_1:
-#ifdef CONFIG_VMAP_STACK
-	EXCEPTION_PROLOG_2 handle_dar_dsisr=1
-#endif
-	lwz	r5, _DSISR(r11)
-	/* fall through */
-handle_page_fault_tramp_2:
-	andis.	r0, r5, DSISR_DABRMATCH@h
-	bne-	1f
-	EXC_XFER_LITE(0x300, handle_page_fault)
-1:	EXC_XFER_STD(0x300, do_break)
-
-#ifdef CONFIG_VMAP_STACK
 #ifdef CONFIG_PPC_BOOK3S_604
 .macro save_regs_thread		thread
 	stw	r0, THR0(\thread)
@@ -775,34 +736,36 @@ fast_hash_page_return:
 	rfi
 #endif /* CONFIG_PPC_BOOK3S_604 */
 
-stack_overflow:
+#ifdef CONFIG_VMAP_STACK
 	vmap_stack_overflow_exception
 #endif
 
+	__HEAD
 AltiVecUnavailable:
-	EXCEPTION_PROLOG
+	EXCEPTION_PROLOG 0xf20 AltiVecUnavailable
 #ifdef CONFIG_ALTIVEC
 	beq	1f
 	bl	load_up_altivec		/* if from user, just load it up */
 	b	fast_exception_return
 #endif /* CONFIG_ALTIVEC */
-1:	addi	r3,r1,STACK_FRAME_OVERHEAD
-	EXC_XFER_LITE(0xf20, altivec_unavailable_exception)
+1:	prepare_transfer_to_handler
+	bl	altivec_unavailable_exception
+	b	interrupt_return
 
+	__HEAD
 PerformanceMonitor:
-	EXCEPTION_PROLOG
-	addi	r3,r1,STACK_FRAME_OVERHEAD
-	EXC_XFER_STD(0xf00, performance_monitor_exception)
+	EXCEPTION_PROLOG 0xf00 PerformanceMonitor
+	prepare_transfer_to_handler
+	bl	performance_monitor_exception
+	b	interrupt_return
 
 
+	__HEAD
 /*
  * This code is jumped to from the startup code to copy
  * the kernel image to physical address PHYSICAL_START.
  */
 relocate_kernel:
-	addis	r9,r26,klimit@ha	/* fetch klimit */
-	lwz	r25,klimit@l(r9)
-	addis	r25,r25,-KERNELBASE@h
 	lis	r3,PHYSICAL_START@h	/* Destination base address */
 	li	r6,0			/* Destination offset */
 	li	r5,0x4000		/* # bytes of memory to copy */
@@ -810,7 +773,8 @@ relocate_kernel:
 	addi	r0,r3,4f@l		/* jump to the address of 4f */
 	mtctr	r0			/* in copy and do the rest. */
 	bctr				/* jump to the copy */
-4:	mr	r5,r25
+4:	lis	r5,_end-KERNELBASE@h
+	ori	r5,r5,_end-KERNELBASE@l
 	bl	copy_and_flush		/* copy the rest */
 	b	turn_on_mmu
 
@@ -968,12 +932,6 @@ _GLOBAL(load_segment_registers)
 	li	r0, NUM_USER_SEGMENTS /* load up user segment register values */
 	mtctr	r0		/* for context 0 */
 	li	r3, 0		/* Kp = 0, Ks = 0, VSID = 0 */
-#ifdef CONFIG_PPC_KUEP
-	oris	r3, r3, SR_NX@h	/* Set Nx */
-#endif
-#ifdef CONFIG_PPC_KUAP
-	oris	r3, r3, SR_KS@h	/* Set Ks */
-#endif
 	li	r4, 0
 3:	mtsrin	r3, r4
 	addi	r3, r3, 0x111	/* increment VSID */
@@ -1066,58 +1024,6 @@ END_MMU_FTR_SECTION_IFCLR(MMU_FTR_HPTE_TABLE)
 	mtspr	SPRN_SRR0,r3
 	mtspr	SPRN_SRR1,r4
 	rfi
-
-/*
- * void switch_mmu_context(struct mm_struct *prev, struct mm_struct *next);
- *
- * Set up the segment registers for a new context.
- */
-_ENTRY(switch_mmu_context)
-	lwz	r3,MMCONTEXTID(r4)
-	cmpwi	cr0,r3,0
-	blt-	4f
-	mulli	r3,r3,897	/* multiply context by skew factor */
-	rlwinm	r3,r3,4,8,27	/* VSID = (context & 0xfffff) << 4 */
-#ifdef CONFIG_PPC_KUEP
-	oris	r3, r3, SR_NX@h	/* Set Nx */
-#endif
-#ifdef CONFIG_PPC_KUAP
-	oris	r3, r3, SR_KS@h	/* Set Ks */
-#endif
-	li	r0,NUM_USER_SEGMENTS
-	mtctr	r0
-
-#ifdef CONFIG_BDI_SWITCH
-	/* Context switch the PTE pointer for the Abatron BDI2000.
-	 * The PGDIR is passed as second argument.
-	 */
-	lwz	r4, MM_PGD(r4)
-	lis	r5, abatron_pteptrs@ha
-	stw	r4, abatron_pteptrs@l + 0x4(r5)
-#endif
-BEGIN_MMU_FTR_SECTION
-#ifndef CONFIG_BDI_SWITCH
-	lwz	r4, MM_PGD(r4)
-#endif
-	tophys(r4, r4)
-	rlwinm	r4, r4, 4, 0xffff01ff
-	mtspr	SPRN_SDR1, r4
-END_MMU_FTR_SECTION_IFCLR(MMU_FTR_HPTE_TABLE)
-	li	r4,0
-	isync
-3:
-	mtsrin	r3,r4
-	addi	r3,r3,0x111	/* next VSID */
-	rlwinm	r3,r3,0,8,3	/* clear out any overflow from VSID field */
-	addis	r4,r4,0x1000	/* address of next segment */
-	bdnz	3b
-	sync
-	isync
-	blr
-4:	trap
-	EMIT_BUG_ENTRY 4b,__FILE__,__LINE__,0
-	blr
-EXPORT_SYMBOL(switch_mmu_context)
 
 /*
  * An undocumented "feature" of 604e requires that the v bit
@@ -1300,61 +1206,4 @@ setup_usbgecko_bat:
 	blr
 #endif
 
-#ifdef CONFIG_8260
-/* Jump into the system reset for the rom.
- * We first disable the MMU, and then jump to the ROM reset address.
- *
- * r3 is the board info structure, r4 is the location for starting.
- * I use this for building a small kernel that can load other kernels,
- * rather than trying to write or rely on a rom monitor that can tftp load.
- */
-       .globl  m8260_gorom
-m8260_gorom:
-	mfmsr	r0
-	rlwinm	r0,r0,0,17,15	/* clear MSR_EE in r0 */
-	sync
-	mtmsr	r0
-	sync
-	mfspr	r11, SPRN_HID0
-	lis	r10, 0
-	ori	r10,r10,HID0_ICE|HID0_DCE
-	andc	r11, r11, r10
-	mtspr	SPRN_HID0, r11
-	isync
-	li	r5, MSR_ME|MSR_RI
-	lis	r6,2f@h
-	addis	r6,r6,-KERNELBASE@h
-	ori	r6,r6,2f@l
-	mtspr	SPRN_SRR0,r6
-	mtspr	SPRN_SRR1,r5
-	isync
-	sync
-	rfi
-2:
-	mtlr	r4
-	blr
-#endif
-
-
-/*
- * We put a few things here that have to be page-aligned.
- * This stuff goes at the beginning of the data segment,
- * which is page-aligned.
- */
 	.data
-	.globl	sdata
-sdata:
-	.globl	empty_zero_page
-empty_zero_page:
-	.space	4096
-EXPORT_SYMBOL(empty_zero_page)
-
-	.globl	swapper_pg_dir
-swapper_pg_dir:
-	.space	PGD_TABLE_SIZE
-
-/* Room for two PTE pointers, usually the kernel and current user pointers
- * to their respective root page table.
- */
-abatron_pteptrs:
-	.space	8

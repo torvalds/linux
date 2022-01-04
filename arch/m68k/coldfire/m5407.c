@@ -10,6 +10,7 @@
 
 /***************************************************************************/
 
+#include <linux/clkdev.h>
 #include <linux/kernel.h>
 #include <linux/param.h>
 #include <linux/init.h>
@@ -23,21 +24,15 @@
 
 DEFINE_CLK(pll, "pll.0", MCF_CLK);
 DEFINE_CLK(sys, "sys.0", MCF_BUSCLK);
-DEFINE_CLK(mcftmr0, "mcftmr.0", MCF_BUSCLK);
-DEFINE_CLK(mcftmr1, "mcftmr.1", MCF_BUSCLK);
-DEFINE_CLK(mcfuart0, "mcfuart.0", MCF_BUSCLK);
-DEFINE_CLK(mcfuart1, "mcfuart.1", MCF_BUSCLK);
-DEFINE_CLK(mcfi2c0, "imx1-i2c.0", MCF_BUSCLK);
 
-struct clk *mcf_clks[] = {
-	&clk_pll,
-	&clk_sys,
-	&clk_mcftmr0,
-	&clk_mcftmr1,
-	&clk_mcfuart0,
-	&clk_mcfuart1,
-	&clk_mcfi2c0,
-	NULL
+static struct clk_lookup m5407_clk_lookup[] = {
+	CLKDEV_INIT(NULL, "pll.0", &clk_pll),
+	CLKDEV_INIT(NULL, "sys.0", &clk_sys),
+	CLKDEV_INIT("mcftmr.0", NULL, &clk_sys),
+	CLKDEV_INIT("mcftmr.1", NULL, &clk_sys),
+	CLKDEV_INIT("mcfuart.0", NULL, &clk_sys),
+	CLKDEV_INIT("mcfuart.1", NULL, &clk_sys),
+	CLKDEV_INIT("imx1-i2c.0", NULL, &clk_sys),
 };
 
 /***************************************************************************/
@@ -63,6 +58,8 @@ void __init config_BSP(char *commandp, int size)
 	mcf_mapirq2imr(29, MCFINTC_EINT5);
 	mcf_mapirq2imr(31, MCFINTC_EINT7);
 	m5407_i2c_init();
+
+	clkdev_add_table(m5407_clk_lookup, ARRAY_SIZE(m5407_clk_lookup));
 }
 
 /***************************************************************************/

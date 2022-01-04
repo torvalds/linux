@@ -685,7 +685,7 @@ static const struct net_device_ops hisi_femac_netdev_ops = {
 	.ndo_open		= hisi_femac_net_open,
 	.ndo_stop		= hisi_femac_net_close,
 	.ndo_start_xmit		= hisi_femac_net_xmit,
-	.ndo_do_ioctl		= phy_do_ioctl_running,
+	.ndo_eth_ioctl		= phy_do_ioctl_running,
 	.ndo_set_mac_address	= hisi_femac_set_mac_address,
 	.ndo_set_rx_mode	= hisi_femac_net_set_rx_mode,
 };
@@ -772,7 +772,6 @@ static int hisi_femac_drv_probe(struct platform_device *pdev)
 	struct net_device *ndev;
 	struct hisi_femac_priv *priv;
 	struct phy_device *phy;
-	const char *mac_addr;
 	int ret;
 
 	ndev = alloc_etherdev(sizeof(*priv));
@@ -842,10 +841,8 @@ static int hisi_femac_drv_probe(struct platform_device *pdev)
 			   (unsigned long)phy->phy_id,
 			   phy_modes(phy->interface));
 
-	mac_addr = of_get_mac_address(node);
-	if (!IS_ERR(mac_addr))
-		ether_addr_copy(ndev->dev_addr, mac_addr);
-	if (!is_valid_ether_addr(ndev->dev_addr)) {
+	ret = of_get_mac_address(node, ndev->dev_addr);
+	if (ret) {
 		eth_hw_addr_random(ndev);
 		dev_warn(dev, "using random MAC address %pM\n",
 			 ndev->dev_addr);

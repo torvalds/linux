@@ -1093,7 +1093,7 @@ static void pxa25x_ep_fifo_flush(struct usb_ep *_ep)
 }
 
 
-static struct usb_ep_ops pxa25x_ep_ops = {
+static const struct usb_ep_ops pxa25x_ep_ops = {
 	.enable		= pxa25x_ep_enable,
 	.disable	= pxa25x_ep_disable,
 
@@ -1338,10 +1338,10 @@ DEFINE_SHOW_ATTRIBUTE(udc_debug);
 
 #define create_debug_files(dev) \
 	do { \
-		dev->debugfs_udc = debugfs_create_file(dev->gadget.name, \
+		debugfs_create_file(dev->gadget.name, \
 			S_IRUGO, NULL, dev, &udc_debug_fops); \
 	} while (0)
-#define remove_debug_files(dev) debugfs_remove(dev->debugfs_udc)
+#define remove_debug_files(dev) debugfs_remove(debugfs_lookup(dev->gadget.name, NULL))
 
 #else	/* !CONFIG_USB_GADGET_DEBUG_FILES */
 

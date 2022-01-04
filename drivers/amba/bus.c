@@ -219,7 +219,7 @@ static int amba_probe(struct device *dev)
 	return ret;
 }
 
-static int amba_remove(struct device *dev)
+static void amba_remove(struct device *dev)
 {
 	struct amba_device *pcdev = to_amba_device(dev);
 	struct amba_driver *drv = to_amba_driver(dev->driver);
@@ -236,8 +236,6 @@ static int amba_remove(struct device *dev)
 
 	amba_put_disable_pclk(pcdev);
 	dev_pm_domain_detach(dev, true);
-
-	return 0;
 }
 
 static void amba_shutdown(struct device *dev)

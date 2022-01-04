@@ -18,7 +18,7 @@
 static const char *act8945a_charger_model = "ACT8945A";
 static const char *act8945a_charger_manufacturer = "Active-semi";
 
-/**
+/*
  * ACT8945A Charger Register Map
  */
 

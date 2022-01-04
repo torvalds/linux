@@ -48,6 +48,7 @@
 #include "util/pmu.h"
 #include "util/event.h"
 #include "util/evlist.h"
+#include "util/evlist-hybrid.h"
 #include "util/evsel.h"
 #include "util/debug.h"
 #include "util/color.h"
@@ -68,6 +69,8 @@
 #include "util/affinity.h"
 #include "util/pfm.h"
 #include "util/bpf_counter.h"
+#include "util/iostat.h"
+#include "util/pmu-hybrid.h"
 #include "asm/bug.h"
 
 #include <linux/time64.h>
@@ -151,6 +154,8 @@ static const char *topdown_metric_L2_attrs[] = {
 	NULL,
 };
 
+#define TOPDOWN_MAX_LEVEL			2
+
 static const char *smi_cost_attrs = {
 	"{"
 	"msr/aperf/,"
@@ -160,6 +165,7 @@ static const char *smi_cost_attrs = {
 };
 
 static struct evlist	*evsel_list;
+static bool all_counters_use_bpf = true;
 
 static struct target target = {
 	.uid	= UINT_MAX,
@@ -212,7 +218,8 @@ static struct perf_stat_config stat_config = {
 	.walltime_nsecs_stats	= &walltime_nsecs_stats,
 	.big_num		= true,
 	.ctl_fd			= -1,
-	.ctl_fd_ack		= -1
+	.ctl_fd_ack		= -1,
+	.iostat_run		= false,
 };
 
 static bool cpus_map_matched(struct evsel *a, struct evsel *b)
@@ -239,8 +246,11 @@ static void evlist__check_cpu_maps(struct evlist *evlist)
 	struct evsel *evsel, *pos, *leader;
 	char buf[1024];
 
+	if (evlist__has_hybrid(evlist))
+		evlist__warn_hybrid_group(evlist);
+
 	evlist__for_each_entry(evlist, evsel) {
-		leader = evsel->leader;
+		leader = evsel__leader(evsel);
 
 		/* Check that leader matches cpus with each member. */
 		if (leader == evsel)
@@ -261,10 +271,10 @@ static void evlist__check_cpu_maps(struct evlist *evlist)
 		}
 
 		for_each_group_evsel(pos, leader) {
-			pos->leader = pos;
+			evsel__set_leader(pos, pos);
 			pos->core.nr_members = 0;
 		}
-		evsel->leader->core.nr_members = 0;
+		evsel->core.leader->nr_members = 0;
 	}
 }
 
@@ -399,6 +409,9 @@ static int read_affinity_counters(struct timespec *rs)
 	struct affinity affinity;
 	int i, ncpus, cpu;
 
+	if (all_counters_use_bpf)
+		return 0;
+
 	if (affinity__setup(&affinity) < 0)
 		return -1;
 
@@ -412,6 +425,8 @@ static int read_affinity_counters(struct timespec *rs)
 
 		evlist__for_each_entry(evsel_list, counter) {
 			if (evsel__cpu_iter_skip(counter, cpu))
+				continue;
+			if (evsel__is_bpf(counter))
 				continue;
 			if (!counter->err) {
 				counter->err = read_counter_cpu(counter, rs,
@@ -429,6 +444,9 @@ static int read_bpf_map_counters(void)
 	int err;
 
 	evlist__for_each_entry(evsel_list, counter) {
+		if (!evsel__is_bpf(counter))
+			continue;
+
 		err = bpf_counter__read(counter);
 		if (err)
 			return err;
@@ -439,14 +457,10 @@ static int read_bpf_map_counters(void)
 static void read_counters(struct timespec *rs)
 {
 	struct evsel *counter;
-	int err;
 
 	if (!stat_config.stop_read_counter) {
-		if (target__has_bpf(&target))
-			err = read_bpf_map_counters();
-		else
-			err = read_affinity_counters(rs);
-		if (err < 0)
+		if (read_bpf_map_counters() ||
+		    read_affinity_counters(rs))
 			return;
 	}
 
@@ -535,12 +549,13 @@ static int enable_counters(void)
 	struct evsel *evsel;
 	int err;
 
-	if (target__has_bpf(&target)) {
-		evlist__for_each_entry(evsel_list, evsel) {
-			err = bpf_counter__enable(evsel);
-			if (err)
-				return err;
-		}
+	evlist__for_each_entry(evsel_list, evsel) {
+		if (!evsel__is_bpf(evsel))
+			continue;
+
+		err = bpf_counter__enable(evsel);
+		if (err)
+			return err;
 	}
 
 	if (stat_config.initial_delay < 0) {
@@ -559,7 +574,8 @@ static int enable_counters(void)
 	 * - we have initial delay configured
 	 */
 	if (!target__none(&target) || stat_config.initial_delay) {
-		evlist__enable(evsel_list);
+		if (!all_counters_use_bpf)
+			evlist__enable(evsel_list);
 		if (stat_config.initial_delay > 0)
 			pr_info(EVLIST_ENABLED_MSG);
 	}
@@ -568,13 +584,19 @@ static int enable_counters(void)
 
 static void disable_counters(void)
 {
+	struct evsel *counter;
+
 	/*
 	 * If we don't have tracee (attaching to task or cpu), counters may
 	 * still be running. To get accurate group ratios, we must stop groups
 	 * from counting before reading their constituent counters.
 	 */
-	if (!target__none(&target))
-		evlist__disable(evsel_list);
+	if (!target__none(&target)) {
+		evlist__for_each_entry(evsel_list, counter)
+			bpf_counter__disable(counter);
+		if (!all_counters_use_bpf)
+			evlist__disable(evsel_list);
+	}
 }
 
 static volatile int workload_exec_errno;
@@ -725,8 +747,8 @@ static enum counter_recovery stat_handle_error(struct evsel *counter)
 		 */
 		counter->errored = true;
 
-		if ((counter->leader != counter) ||
-		    !(counter->leader->core.nr_members > 1))
+		if ((evsel__leader(counter) != counter) ||
+		    !(counter->core.leader->nr_members > 1))
 			return COUNTER_SKIP;
 	} else if (evsel__fallback(counter, errno, msg, sizeof(msg))) {
 		if (verbose > 0)
@@ -784,20 +806,28 @@ static int __run_perf_stat(int argc, const char **argv, int run_idx)
 	if (affinity__setup(&affinity) < 0)
 		return -1;
 
-	if (target__has_bpf(&target)) {
-		evlist__for_each_entry(evsel_list, counter) {
-			if (bpf_counter__load(counter, &target))
-				return -1;
-		}
+	evlist__for_each_entry(evsel_list, counter) {
+		if (bpf_counter__load(counter, &target))
+			return -1;
+		if (!evsel__is_bpf(counter))
+			all_counters_use_bpf = false;
 	}
 
 	evlist__for_each_cpu (evsel_list, i, cpu) {
+		/*
+		 * bperf calls evsel__open_per_cpu() in bperf__load(), so
+		 * no need to call it again here.
+		 */
+		if (target.use_bpf)
+			break;
 		affinity__set(&affinity, cpu);
 
 		evlist__for_each_entry(evsel_list, counter) {
 			if (evsel__cpu_iter_skip(counter, cpu))
 				continue;
 			if (counter->reset_group || counter->errored)
+				continue;
+			if (evsel__is_bpf(counter))
 				continue;
 try_again:
 			if (create_perf_stat_counter(counter, &stat_config, &target,
@@ -811,7 +841,7 @@ try_again:
 				 * Don't close here because we're in the wrong affinity.
 				 */
 				if ((errno == EINVAL || errno == EBADF) &&
-				    counter->leader != counter &&
+				    evsel__leader(counter) != counter &&
 				    counter->weak_group) {
 					evlist__reset_weak_group(evsel_list, counter, false);
 					assert(counter->reset_group);
@@ -925,14 +955,14 @@ try_again_reset:
 	/*
 	 * Enable counters and exec the command:
 	 */
-	t0 = rdclock();
-	clock_gettime(CLOCK_MONOTONIC, &ref_time);
-
 	if (forks) {
 		evlist__start_workload(evsel_list);
 		err = enable_counters();
 		if (err)
 			return -1;
+
+		t0 = rdclock();
+		clock_gettime(CLOCK_MONOTONIC, &ref_time);
 
 		if (interval || timeout || evlist__ctlfd_initialized(evsel_list))
 			status = dispatch_events(forks, timeout, interval, &times);
@@ -954,6 +984,10 @@ try_again_reset:
 		err = enable_counters();
 		if (err)
 			return -1;
+
+		t0 = rdclock();
+		clock_gettime(CLOCK_MONOTONIC, &ref_time);
+
 		status = dispatch_events(forks, timeout, interval, &times);
 	}
 
@@ -1083,6 +1117,11 @@ void perf_stat__set_big_num(int set)
 	stat_config.big_num = (set != 0);
 }
 
+void perf_stat__set_no_csv_summary(int set)
+{
+	stat_config.no_csv_summary = (set != 0);
+}
+
 static int stat__set_big_num(const struct option *opt __maybe_unused,
 			     const char *s __maybe_unused, int unset)
 {
@@ -1146,6 +1185,10 @@ static struct option stat_options[] = {
 #ifdef HAVE_BPF_SKEL
 	OPT_STRING('b', "bpf-prog", &target.bpf_str, "bpf-prog-id",
 		   "stat events on existing bpf program id"),
+	OPT_BOOLEAN(0, "bpf-counters", &target.use_bpf,
+		    "use bpf program to count events"),
+	OPT_STRING(0, "bpf-attr-map", &target.attr_map, "attr-map-path",
+		   "path to perf_event_attr map"),
 #endif
 	OPT_BOOLEAN('a', "all-cpus", &target.system_wide,
 		    "system-wide collection from all CPUs"),
@@ -1235,6 +1278,8 @@ static struct option stat_options[] = {
 		    "threads of same physical core"),
 	OPT_BOOLEAN(0, "summary", &stat_config.summary,
 		       "print summary for interval mode"),
+	OPT_BOOLEAN(0, "no-csv-summary", &stat_config.no_csv_summary,
+		       "don't print 'summary' for CSV summary output"),
 	OPT_BOOLEAN(0, "quiet", &stat_config.quiet,
 			"don't print output (useful with record)"),
 #ifdef HAVE_LIBPFM
@@ -1247,6 +1292,9 @@ static struct option stat_options[] = {
 		     "\t\t\t  Optionally send control command completion ('ack\\n') to ack-fd descriptor.\n"
 		     "\t\t\t  Alternatively, ctl-fifo / ack-fifo will be opened and used as ctl-fd / ack-fd.",
 		      parse_control_option),
+	OPT_CALLBACK_OPTARG(0, "iostat", &evsel_list, &stat_config, "default",
+			    "measure I/O performance metrics provided by arch/platform",
+			    iostat_parse),
 	OPT_END()
 };
 
@@ -1605,6 +1653,12 @@ static int add_default_attributes(void)
   { .type = PERF_TYPE_HARDWARE, .config = PERF_COUNT_HW_BRANCH_MISSES		},
 
 };
+	struct perf_event_attr default_sw_attrs[] = {
+  { .type = PERF_TYPE_SOFTWARE, .config = PERF_COUNT_SW_TASK_CLOCK		},
+  { .type = PERF_TYPE_SOFTWARE, .config = PERF_COUNT_SW_CONTEXT_SWITCHES	},
+  { .type = PERF_TYPE_SOFTWARE, .config = PERF_COUNT_SW_CPU_MIGRATIONS		},
+  { .type = PERF_TYPE_SOFTWARE, .config = PERF_COUNT_SW_PAGE_FAULTS		},
+};
 
 /*
  * Detailed stats (-d), covering the L1 and last level data caches:
@@ -1705,7 +1759,7 @@ static int add_default_attributes(void)
 	bzero(&errinfo, sizeof(errinfo));
 	if (transaction_run) {
 		/* Handle -T as -M transaction. Once platform specific metrics
-		 * support has been added to the json files, all archictures
+		 * support has been added to the json files, all architectures
 		 * will use this approach. To determine transaction support
 		 * on an architecture test for such a metric name.
 		 */
@@ -1841,6 +1895,28 @@ setup_metrics:
 	}
 
 	if (!evsel_list->core.nr_entries) {
+		if (perf_pmu__has_hybrid()) {
+			const char *hybrid_str = "cycles,instructions,branches,branch-misses";
+
+			if (target__has_cpu(&target))
+				default_sw_attrs[0].config = PERF_COUNT_SW_CPU_CLOCK;
+
+			if (evlist__add_default_attrs(evsel_list,
+						      default_sw_attrs) < 0) {
+				return -1;
+			}
+
+			err = parse_events(evsel_list, hybrid_str, &errinfo);
+			if (err) {
+				fprintf(stderr,
+					"Cannot set up hybrid events %s: %d\n",
+					hybrid_str, err);
+				parse_events_print_error(&errinfo, hybrid_str);
+				return -1;
+			}
+			return err;
+		}
+
 		if (target__has_cpu(&target))
 			default_attrs0[0].config = PERF_COUNT_SW_CPU_CLOCK;
 
@@ -1857,6 +1933,7 @@ setup_metrics:
 		if (evlist__add_default_attrs(evsel_list, default_attrs1) < 0)
 			return -1;
 
+		stat_config.topdown_level = TOPDOWN_MAX_LEVEL;
 		if (arch_evlist__add_default_attrs(evsel_list) < 0)
 			return -1;
 	}
@@ -2320,6 +2397,17 @@ int cmd_stat(int argc, const char **argv)
 		goto out;
 	}
 
+	if (stat_config.iostat_run) {
+		status = iostat_prepare(evsel_list, &stat_config);
+		if (status)
+			goto out;
+		if (iostat_mode == IOSTAT_LIST) {
+			iostat_list(evsel_list, &stat_config);
+			goto out;
+		} else if (verbose)
+			iostat_list(evsel_list, &stat_config);
+	}
+
 	if (add_default_attributes())
 		goto out;
 
@@ -2459,7 +2547,7 @@ int cmd_stat(int argc, const char **argv)
 		/*
 		 * We synthesize the kernel mmap record just so that older tools
 		 * don't emit warnings about not being able to resolve symbols
-		 * due to /proc/sys/kernel/kptr_restrict settings and instear provide
+		 * due to /proc/sys/kernel/kptr_restrict settings and instead provide
 		 * a saner message about no samples being in the perf.data file.
 		 *
 		 * This also serves to suppress a warning about f_header.data.size == 0
@@ -2495,6 +2583,9 @@ int cmd_stat(int argc, const char **argv)
 	perf_stat__exit_aggr_mode();
 	evlist__free_stats(evsel_list);
 out:
+	if (stat_config.iostat_run)
+		iostat_release(evsel_list);
+
 	zfree(&stat_config.walltime_run);
 
 	if (smi_cost && smi_reset)

@@ -437,19 +437,20 @@ uint16_t atomisp_subdev_source_pad(struct video_device *vdev);
 /* Get pointer to appropriate format */
 struct v4l2_mbus_framefmt
 *atomisp_subdev_get_ffmt(struct v4l2_subdev *sd,
-			 struct v4l2_subdev_pad_config *cfg, uint32_t which,
+			 struct v4l2_subdev_state *sd_state, uint32_t which,
 			 uint32_t pad);
 struct v4l2_rect *atomisp_subdev_get_rect(struct v4l2_subdev *sd,
-	struct v4l2_subdev_pad_config *cfg,
+	struct v4l2_subdev_state *sd_state,
 	u32 which, uint32_t pad,
 	uint32_t target);
 int atomisp_subdev_set_selection(struct v4l2_subdev *sd,
-				 struct v4l2_subdev_pad_config *cfg,
+				 struct v4l2_subdev_state *sd_state,
 				 u32 which, uint32_t pad, uint32_t target,
 				 u32 flags, struct v4l2_rect *r);
 /* Actually set the format */
 void atomisp_subdev_set_ffmt(struct v4l2_subdev *sd,
-			     struct v4l2_subdev_pad_config *cfg, uint32_t which,
+			     struct v4l2_subdev_state *sd_state,
+			     uint32_t which,
 			     u32 pad, struct v4l2_mbus_framefmt *ffmt);
 
 int atomisp_update_run_mode(struct atomisp_sub_device *asd);

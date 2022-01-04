@@ -2148,7 +2148,7 @@ static const struct net_device_ops smsc911x_netdev_ops = {
 	.ndo_start_xmit		= smsc911x_hard_start_xmit,
 	.ndo_get_stats		= smsc911x_get_stats,
 	.ndo_set_rx_mode	= smsc911x_set_multicast_list,
-	.ndo_do_ioctl		= phy_do_ioctl_running,
+	.ndo_eth_ioctl		= phy_do_ioctl_running,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_mac_address 	= smsc911x_set_mac_address,
 #ifdef CONFIG_NET_POLL_CONTROLLER
@@ -2649,11 +2649,13 @@ static const struct of_device_id smsc911x_dt_ids[] = {
 MODULE_DEVICE_TABLE(of, smsc911x_dt_ids);
 #endif
 
+#ifdef CONFIG_ACPI
 static const struct acpi_device_id smsc911x_acpi_match[] = {
 	{ "ARMH9118", 0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(acpi, smsc911x_acpi_match);
+#endif
 
 static struct platform_driver smsc911x_driver = {
 	.probe = smsc911x_drv_probe,

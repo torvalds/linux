@@ -181,7 +181,7 @@ xmit_from_hci():
 The llc must be registered with nfc before it can be used. Do that by
 calling::
 
-	nfc_llc_register(const char *name, struct nfc_llc_ops *ops);
+	nfc_llc_register(const char *name, const struct nfc_llc_ops *ops);
 
 Again, note that the llc does not handle the physical link. It is thus very
 easy to mix any physical link with any llc for a given chip driver.

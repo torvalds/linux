@@ -282,7 +282,7 @@ static int nci_uart_default_recv_buf(struct nci_uart *nu, const u8 *data,
 		data += chunk_len;
 		count -= chunk_len;
 
-		/* Chcek if packet is fully received */
+		/* Check if packet is fully received */
 		if (nu->rx_packet_len == nu->rx_skb->len) {
 			/* Pass RX packet to driver */
 			if (nu->ops.recv(nu, nu->rx_skb) != 0)
@@ -300,7 +300,7 @@ static int nci_uart_default_recv_buf(struct nci_uart *nu, const u8 *data,
  *     Called by tty low level driver when receive data is
  *     available.
  *
- * Arguments:  tty          pointer to tty isntance data
+ * Arguments:  tty          pointer to tty instance data
  *             data         pointer to received data
  *             flags        pointer to flags for data
  *             count        count of received data in bytes
@@ -308,7 +308,7 @@ static int nci_uart_default_recv_buf(struct nci_uart *nu, const u8 *data,
  * Return Value:    None
  */
 static void nci_uart_tty_receive(struct tty_struct *tty, const u8 *data,
-				 char *flags, int count)
+				 const char *flags, int count)
 {
 	struct nci_uart *nu = (void *)tty->disc_data;
 
@@ -442,6 +442,7 @@ EXPORT_SYMBOL_GPL(nci_uart_set_config);
 
 static struct tty_ldisc_ops nci_uart_ldisc = {
 	.owner		= THIS_MODULE,
+	.num		= N_NCI,
 	.name		= "n_nci",
 	.open		= nci_uart_tty_open,
 	.close		= nci_uart_tty_close,
@@ -456,12 +457,12 @@ static struct tty_ldisc_ops nci_uart_ldisc = {
 
 static int __init nci_uart_init(void)
 {
-	return tty_register_ldisc(N_NCI, &nci_uart_ldisc);
+	return tty_register_ldisc(&nci_uart_ldisc);
 }
 
 static void __exit nci_uart_exit(void)
 {
-	tty_unregister_ldisc(N_NCI);
+	tty_unregister_ldisc(&nci_uart_ldisc);
 }
 
 module_init(nci_uart_init);

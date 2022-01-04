@@ -42,14 +42,14 @@ static const struct v4l2_mbus_framefmt fmt_default = {
 };
 
 static int vimc_sen_init_cfg(struct v4l2_subdev *sd,
-			     struct v4l2_subdev_pad_config *cfg)
+			     struct v4l2_subdev_state *sd_state)
 {
 	unsigned int i;
 
 	for (i = 0; i < sd->entity.num_pads; i++) {
 		struct v4l2_mbus_framefmt *mf;
 
-		mf = v4l2_subdev_get_try_format(sd, cfg, i);
+		mf = v4l2_subdev_get_try_format(sd, sd_state, i);
 		*mf = fmt_default;
 	}
 
@@ -57,7 +57,7 @@ static int vimc_sen_init_cfg(struct v4l2_subdev *sd,
 }
 
 static int vimc_sen_enum_mbus_code(struct v4l2_subdev *sd,
-				   struct v4l2_subdev_pad_config *cfg,
+				   struct v4l2_subdev_state *sd_state,
 				   struct v4l2_subdev_mbus_code_enum *code)
 {
 	u32 mbus_code = vimc_mbus_code_by_index(code->index);
@@ -71,7 +71,7 @@ static int vimc_sen_enum_mbus_code(struct v4l2_subdev *sd,
 }
 
 static int vimc_sen_enum_frame_size(struct v4l2_subdev *sd,
-				    struct v4l2_subdev_pad_config *cfg,
+				    struct v4l2_subdev_state *sd_state,
 				    struct v4l2_subdev_frame_size_enum *fse)
 {
 	const struct vimc_pix_map *vpix;
@@ -93,14 +93,14 @@ static int vimc_sen_enum_frame_size(struct v4l2_subdev *sd,
 }
 
 static int vimc_sen_get_fmt(struct v4l2_subdev *sd,
-			    struct v4l2_subdev_pad_config *cfg,
+			    struct v4l2_subdev_state *sd_state,
 			    struct v4l2_subdev_format *fmt)
 {
 	struct vimc_sen_device *vsen =
 				container_of(sd, struct vimc_sen_device, sd);
 
 	fmt->format = fmt->which == V4L2_SUBDEV_FORMAT_TRY ?
-		      *v4l2_subdev_get_try_format(sd, cfg, fmt->pad) :
+		      *v4l2_subdev_get_try_format(sd, sd_state, fmt->pad) :
 		      vsen->mbus_format;
 
 	return 0;
@@ -146,7 +146,7 @@ static void vimc_sen_adjust_fmt(struct v4l2_mbus_framefmt *fmt)
 }
 
 static int vimc_sen_set_fmt(struct v4l2_subdev *sd,
-			    struct v4l2_subdev_pad_config *cfg,
+			    struct v4l2_subdev_state *sd_state,
 			    struct v4l2_subdev_format *fmt)
 {
 	struct vimc_sen_device *vsen = v4l2_get_subdevdata(sd);
@@ -159,7 +159,7 @@ static int vimc_sen_set_fmt(struct v4l2_subdev *sd,
 
 		mf = &vsen->mbus_format;
 	} else {
-		mf = v4l2_subdev_get_try_format(sd, cfg, fmt->pad);
+		mf = v4l2_subdev_get_try_format(sd, sd_state, fmt->pad);
 	}
 
 	/* Set the new format */

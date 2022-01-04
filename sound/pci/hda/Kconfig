@@ -157,6 +157,16 @@ config SND_HDA_CODEC_CIRRUS
 comment "Set to Y if you want auto-loading the codec driver"
 	depends on SND_HDA=y && SND_HDA_CODEC_CIRRUS=m
 
+config SND_HDA_CODEC_CS8409
+	tristate "Build Cirrus Logic HDA bridge support"
+	select SND_HDA_GENERIC
+	help
+	  Say Y or M here to include Cirrus Logic HDA bridge support in
+	  snd-hda-intel driver, such as CS8409.
+
+comment "Set to Y if you want auto-loading the codec driver"
+	depends on SND_HDA=y && SND_HDA_CODEC_CS8409=m
+
 config SND_HDA_CODEC_CONEXANT
 	tristate "Build Conexant HD-audio codec support"
 	select SND_HDA_GENERIC
@@ -221,10 +231,8 @@ comment "Set to Y if you want auto-loading the codec driver"
 
 config SND_HDA_GENERIC
 	tristate "Enable generic HD-audio codec parser"
-	select NEW_LEDS if SND_HDA_GENERIC_LEDS
+	select SND_CTL_LED if SND_HDA_GENERIC_LEDS
 	select LEDS_CLASS if SND_HDA_GENERIC_LEDS
-	select LEDS_TRIGGERS if SND_HDA_GENERIC_LEDS
-	select LEDS_TRIGGER_AUDIO if SND_HDA_GENERIC_LEDS
 	help
 	  Say Y or M here to enable the generic HD-audio codec parser
 	  in snd-hda-intel driver.

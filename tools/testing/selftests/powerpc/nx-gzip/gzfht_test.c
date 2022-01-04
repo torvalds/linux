@@ -60,6 +60,7 @@
 #include <assert.h>
 #include <errno.h>
 #include <signal.h>
+#include "utils.h"
 #include "nxu.h"
 #include "nx.h"
 
@@ -69,6 +70,8 @@ FILE *nx_gzip_log;
 #define NX_MIN(X, Y) (((X) < (Y)) ? (X) : (Y))
 #define FNAME_MAX 1024
 #define FEXT ".nx.gz"
+
+#define SYSFS_MAX_REQ_BUF_PATH "devices/vio/ibm,compression-v1/nx_gzip_caps/req_max_processed_len"
 
 /*
  * LZ counts returned in the user supplied nx_gzip_crb_cpb_t structure.
@@ -244,6 +247,7 @@ int compress_file(int argc, char **argv, void *handle)
 	struct nx_gzip_crb_cpb_t *cmdp;
 	uint32_t pagelen = 65536;
 	int fault_tries = NX_MAX_FAULTS;
+	char buf[32];
 
 	cmdp = (void *)(uintptr_t)
 		aligned_alloc(sizeof(struct nx_gzip_crb_cpb_t),
@@ -263,8 +267,17 @@ int compress_file(int argc, char **argv, void *handle)
 	assert(NULL != (outbuf = (char *)malloc(outlen)));
 	nxu_touch_pages(outbuf, outlen, pagelen, 1);
 
-	/* Compress piecemeal in smallish chunks */
-	chunk = 1<<22;
+	/*
+	 * On PowerVM, the hypervisor defines the maximum request buffer
+	 * size is defined and this value is available via sysfs.
+	 */
+	if (!read_sysfs_file(SYSFS_MAX_REQ_BUF_PATH, buf, sizeof(buf))) {
+		chunk = atoi(buf);
+	} else {
+		/* sysfs entry is not available on PowerNV */
+		/* Compress piecemeal in smallish chunks */
+		chunk = 1<<22;
+	}
 
 	/* Write the gzip header to the stream */
 	num_hdr_bytes = gzip_header_blank(outbuf);
@@ -324,7 +337,7 @@ int compress_file(int argc, char **argv, void *handle)
 				fprintf(stderr, "error: cannot progress; ");
 				fprintf(stderr, "too many faults\n");
 				exit(-1);
-			};
+			}
 		}
 
 		fault_tries = NX_MAX_FAULTS; /* Reset for the next chunk */

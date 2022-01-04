@@ -335,13 +335,14 @@ static void kvm_vgic_dist_destroy(struct kvm *kvm)
 	kfree(dist->spis);
 	dist->spis = NULL;
 	dist->nr_spis = 0;
+	dist->vgic_dist_base = VGIC_ADDR_UNDEF;
 
-	if (kvm->arch.vgic.vgic_model == KVM_DEV_TYPE_ARM_VGIC_V3) {
-		list_for_each_entry_safe(rdreg, next, &dist->rd_regions, list) {
-			list_del(&rdreg->list);
-			kfree(rdreg);
-		}
+	if (dist->vgic_model == KVM_DEV_TYPE_ARM_VGIC_V3) {
+		list_for_each_entry_safe(rdreg, next, &dist->rd_regions, list)
+			vgic_v3_free_redist_region(rdreg);
 		INIT_LIST_HEAD(&dist->rd_regions);
+	} else {
+		dist->vgic_cpu_base = VGIC_ADDR_UNDEF;
 	}
 
 	if (vgic_has_its(kvm))
@@ -362,6 +363,7 @@ void kvm_vgic_vcpu_destroy(struct kvm_vcpu *vcpu)
 	vgic_flush_pending_lpis(vcpu);
 
 	INIT_LIST_HEAD(&vgic_cpu->ap_list_head);
+	vgic_cpu->rd_iodev.base_addr = VGIC_ADDR_UNDEF;
 }
 
 /* To be called with kvm->lock held */
@@ -480,6 +482,16 @@ static irqreturn_t vgic_maintenance_handler(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
+static struct gic_kvm_info *gic_kvm_info;
+
+void __init vgic_set_kvm_info(const struct gic_kvm_info *info)
+{
+	BUG_ON(gic_kvm_info != NULL);
+	gic_kvm_info = kmalloc(sizeof(*info), GFP_KERNEL);
+	if (gic_kvm_info)
+		*gic_kvm_info = *info;
+}
+
 /**
  * kvm_vgic_init_cpu_hardware - initialize the GIC VE hardware
  *
@@ -507,16 +519,27 @@ void kvm_vgic_init_cpu_hardware(void)
  */
 int kvm_vgic_hyp_init(void)
 {
-	const struct gic_kvm_info *gic_kvm_info;
+	bool has_mask;
 	int ret;
 
-	gic_kvm_info = gic_get_kvm_info();
 	if (!gic_kvm_info)
 		return -ENODEV;
 
-	if (!gic_kvm_info->maint_irq) {
+	has_mask = !gic_kvm_info->no_maint_irq_mask;
+
+	if (has_mask && !gic_kvm_info->maint_irq) {
 		kvm_err("No vgic maintenance irq\n");
 		return -ENXIO;
+	}
+
+	/*
+	 * If we get one of these oddball non-GICs, taint the kernel,
+	 * as we have no idea of how they *really* behave.
+	 */
+	if (gic_kvm_info->no_hw_deactivation) {
+		kvm_info("Non-architectural vgic, tainting kernel\n");
+		add_taint(TAINT_CPU_OUT_OF_SPEC, LOCKDEP_STILL_OK);
+		kvm_vgic_global_state.no_hw_deactivation = true;
 	}
 
 	switch (gic_kvm_info->type) {
@@ -534,10 +557,17 @@ int kvm_vgic_hyp_init(void)
 		ret = -ENODEV;
 	}
 
+	kvm_vgic_global_state.maint_irq = gic_kvm_info->maint_irq;
+
+	kfree(gic_kvm_info);
+	gic_kvm_info = NULL;
+
 	if (ret)
 		return ret;
 
-	kvm_vgic_global_state.maint_irq = gic_kvm_info->maint_irq;
+	if (!has_mask)
+		return 0;
+
 	ret = request_percpu_irq(kvm_vgic_global_state.maint_irq,
 				 vgic_maintenance_handler,
 				 "vgic", kvm_get_running_vcpus());

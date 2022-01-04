@@ -508,17 +508,17 @@ out:
 }
 
 static struct v4l2_mbus_framefmt *
-__csi2_get_fmt(struct csi2_dev *csi2, struct v4l2_subdev_pad_config *cfg,
+__csi2_get_fmt(struct csi2_dev *csi2, struct v4l2_subdev_state *sd_state,
 	       unsigned int pad, enum v4l2_subdev_format_whence which)
 {
 	if (which == V4L2_SUBDEV_FORMAT_TRY)
-		return v4l2_subdev_get_try_format(&csi2->sd, cfg, pad);
+		return v4l2_subdev_get_try_format(&csi2->sd, sd_state, pad);
 	else
 		return &csi2->format_mbus;
 }
 
 static int csi2_get_fmt(struct v4l2_subdev *sd,
-			struct v4l2_subdev_pad_config *cfg,
+			struct v4l2_subdev_state *sd_state,
 			struct v4l2_subdev_format *sdformat)
 {
 	struct csi2_dev *csi2 = sd_to_dev(sd);
@@ -526,7 +526,7 @@ static int csi2_get_fmt(struct v4l2_subdev *sd,
 
 	mutex_lock(&csi2->lock);
 
-	fmt = __csi2_get_fmt(csi2, cfg, sdformat->pad, sdformat->which);
+	fmt = __csi2_get_fmt(csi2, sd_state, sdformat->pad, sdformat->which);
 
 	sdformat->format = *fmt;
 
@@ -536,7 +536,7 @@ static int csi2_get_fmt(struct v4l2_subdev *sd,
 }
 
 static int csi2_set_fmt(struct v4l2_subdev *sd,
-			struct v4l2_subdev_pad_config *cfg,
+			struct v4l2_subdev_state *sd_state,
 			struct v4l2_subdev_format *sdformat)
 {
 	struct csi2_dev *csi2 = sd_to_dev(sd);
@@ -557,7 +557,7 @@ static int csi2_set_fmt(struct v4l2_subdev *sd,
 	if (sdformat->pad != CSI2_SINK_PAD)
 		sdformat->format = csi2->format_mbus;
 
-	fmt = __csi2_get_fmt(csi2, cfg, sdformat->pad, sdformat->which);
+	fmt = __csi2_get_fmt(csi2, sd_state, sdformat->pad, sdformat->which);
 
 	*fmt = sdformat->format;
 out:
@@ -571,7 +571,9 @@ static int csi2_registered(struct v4l2_subdev *sd)
 
 	/* set a default mbus format  */
 	return imx_media_init_mbus_fmt(&csi2->format_mbus,
-				      640, 480, 0, V4L2_FIELD_NONE, NULL);
+				      IMX_MEDIA_DEF_PIX_WIDTH,
+				      IMX_MEDIA_DEF_PIX_HEIGHT, 0,
+				      V4L2_FIELD_NONE, NULL);
 }
 
 static const struct media_entity_operations csi2_entity_ops = {
@@ -619,7 +621,7 @@ static int csi2_notify_bound(struct v4l2_async_notifier *notifier,
 
 	dev_dbg(csi2->dev, "Bound %s pad: %d\n", sd->name, pad);
 
-	return v4l2_create_fwnode_links_to_pad(sd, sink);
+	return v4l2_create_fwnode_links_to_pad(sd, sink, 0);
 }
 
 static void csi2_notify_unbind(struct v4l2_async_notifier *notifier,

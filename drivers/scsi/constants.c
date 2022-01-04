@@ -406,31 +406,16 @@ static const char * const hostbyte_table[]={
 "DID_TRANSPORT_DISRUPTED", "DID_TRANSPORT_FAILFAST", "DID_TARGET_FAILURE",
 "DID_NEXUS_FAILURE", "DID_ALLOC_FAILURE", "DID_MEDIUM_ERROR" };
 
-static const char * const driverbyte_table[]={
-"DRIVER_OK", "DRIVER_BUSY", "DRIVER_SOFT",  "DRIVER_MEDIA", "DRIVER_ERROR",
-"DRIVER_INVALID", "DRIVER_TIMEOUT", "DRIVER_HARD", "DRIVER_SENSE"};
-
 const char *scsi_hostbyte_string(int result)
 {
+	enum scsi_host_status hb = host_byte(result);
 	const char *hb_string = NULL;
-	int hb = host_byte(result);
 
 	if (hb < ARRAY_SIZE(hostbyte_table))
 		hb_string = hostbyte_table[hb];
 	return hb_string;
 }
 EXPORT_SYMBOL(scsi_hostbyte_string);
-
-const char *scsi_driverbyte_string(int result)
-{
-	const char *db_string = NULL;
-	int db = driver_byte(result);
-
-	if (db < ARRAY_SIZE(driverbyte_table))
-		db_string = driverbyte_table[db];
-	return db_string;
-}
-EXPORT_SYMBOL(scsi_driverbyte_string);
 
 #define scsi_mlreturn_name(result)	{ result, #result }
 static const struct value_name_pair scsi_mlreturn_arr[] = {

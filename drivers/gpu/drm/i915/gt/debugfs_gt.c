@@ -1,5 +1,4 @@
 // SPDX-License-Identifier: MIT
-
 /*
  * Copyright © 2019 Intel Corporation
  */
@@ -37,6 +36,7 @@ void intel_gt_debugfs_register_files(struct dentry *root,
 {
 	while (count--) {
 		umode_t mode = files->fops->write ? 0644 : 0444;
+
 		if (!files->eval || files->eval(data))
 			debugfs_create_file(files->name,
 					    mode, root, data,

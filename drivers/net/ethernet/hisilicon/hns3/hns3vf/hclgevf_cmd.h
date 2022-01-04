@@ -8,6 +8,7 @@
 #include "hnae3.h"
 
 #define HCLGEVF_CMDQ_TX_TIMEOUT		30000
+#define HCLGEVF_CMDQ_CLEAR_WAIT_TIME	200
 #define HCLGEVF_CMDQ_RX_INVLD_B		0
 #define HCLGEVF_CMDQ_RX_OUTVLD_B	1
 
@@ -159,6 +160,7 @@ enum HCLGEVF_CAP_BITS {
 	HCLGEVF_CAP_HW_PAD_B,
 	HCLGEVF_CAP_STASH_B,
 	HCLGEVF_CAP_UDP_TUNNEL_CSUM_B,
+	HCLGEVF_CAP_RXD_ADV_LAYOUT_B = 15,
 };
 
 enum HCLGEVF_API_CAP_BITS {
@@ -223,11 +225,14 @@ struct hclgevf_rss_indirection_table_cmd {
 };
 
 #define HCLGEVF_RSS_TC_OFFSET_S		0
-#define HCLGEVF_RSS_TC_OFFSET_M		(0x3ff << HCLGEVF_RSS_TC_OFFSET_S)
+#define HCLGEVF_RSS_TC_OFFSET_M		GENMASK(10, 0)
+#define HCLGEVF_RSS_TC_SIZE_MSB_B	11
 #define HCLGEVF_RSS_TC_SIZE_S		12
-#define HCLGEVF_RSS_TC_SIZE_M		(0x7 << HCLGEVF_RSS_TC_SIZE_S)
+#define HCLGEVF_RSS_TC_SIZE_M		GENMASK(14, 12)
 #define HCLGEVF_RSS_TC_VALID_B		15
 #define HCLGEVF_MAX_TC_NUM		8
+#define HCLGEVF_RSS_TC_SIZE_MSB_OFFSET	3
+
 struct hclgevf_rss_tc_mode_cmd {
 	__le16 rss_tc_mode[HCLGEVF_MAX_TC_NUM];
 	u8 rsv[8];
@@ -261,16 +266,6 @@ struct hclgevf_cfg_tx_queue_pointer_cmd {
 
 #define HCLGEVF_TYPE_CRQ		0
 #define HCLGEVF_TYPE_CSQ		1
-#define HCLGEVF_NIC_CSQ_BASEADDR_L_REG	0x27000
-#define HCLGEVF_NIC_CSQ_BASEADDR_H_REG	0x27004
-#define HCLGEVF_NIC_CSQ_DEPTH_REG	0x27008
-#define HCLGEVF_NIC_CSQ_TAIL_REG	0x27010
-#define HCLGEVF_NIC_CSQ_HEAD_REG	0x27014
-#define HCLGEVF_NIC_CRQ_BASEADDR_L_REG	0x27018
-#define HCLGEVF_NIC_CRQ_BASEADDR_H_REG	0x2701c
-#define HCLGEVF_NIC_CRQ_DEPTH_REG	0x27020
-#define HCLGEVF_NIC_CRQ_TAIL_REG	0x27024
-#define HCLGEVF_NIC_CRQ_HEAD_REG	0x27028
 
 /* this bit indicates that the driver is ready for hardware reset */
 #define HCLGEVF_NIC_SW_RST_RDY_B	16
@@ -299,6 +294,12 @@ struct hclgevf_dev_specs_1_cmd {
 	__le16 rsv0;
 	__le16 max_int_gl;
 	u8 rsv1[18];
+};
+
+/* capabilities bits map between imp firmware and local driver */
+struct hclgevf_caps_bit_map {
+	u16 imp_bit;
+	u16 local_bit;
 };
 
 static inline void hclgevf_write_reg(void __iomem *base, u32 reg, u32 value)

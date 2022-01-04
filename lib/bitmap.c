@@ -3,17 +3,19 @@
  * lib/bitmap.c
  * Helper functions for bitmap.h.
  */
-#include <linux/export.h>
-#include <linux/thread_info.h>
-#include <linux/ctype.h>
-#include <linux/errno.h>
+
 #include <linux/bitmap.h>
 #include <linux/bitops.h>
 #include <linux/bug.h>
+#include <linux/ctype.h>
+#include <linux/device.h>
+#include <linux/errno.h>
+#include <linux/export.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/slab.h>
 #include <linux/string.h>
+#include <linux/thread_info.h>
 #include <linux/uaccess.h>
 
 #include <asm/page.h>
@@ -485,32 +487,148 @@ int bitmap_print_to_pagebuf(bool list, char *buf, const unsigned long *maskp,
 }
 EXPORT_SYMBOL(bitmap_print_to_pagebuf);
 
+/**
+ * bitmap_print_to_buf  - convert bitmap to list or hex format ASCII string
+ * @list: indicates whether the bitmap must be list
+ *      true:  print in decimal list format
+ *      false: print in hexadecimal bitmask format
+ */
+static int bitmap_print_to_buf(bool list, char *buf, const unsigned long *maskp,
+		int nmaskbits, loff_t off, size_t count)
+{
+	const char *fmt = list ? "%*pbl\n" : "%*pb\n";
+	ssize_t size;
+	void *data;
+
+	data = kasprintf(GFP_KERNEL, fmt, nmaskbits, maskp);
+	if (!data)
+		return -ENOMEM;
+
+	size = memory_read_from_buffer(buf, count, &off, data, strlen(data) + 1);
+	kfree(data);
+
+	return size;
+}
+
+/**
+ * bitmap_print_bitmask_to_buf  - convert bitmap to hex bitmask format ASCII string
+ *
+ * The bitmap_print_to_pagebuf() is used indirectly via its cpumap wrapper
+ * cpumap_print_to_pagebuf() or directly by drivers to export hexadecimal
+ * bitmask and decimal list to userspace by sysfs ABI.
+ * Drivers might be using a normal attribute for this kind of ABIs. A
+ * normal attribute typically has show entry as below:
+ * static ssize_t example_attribute_show(struct device *dev,
+ * 		struct device_attribute *attr, char *buf)
+ * {
+ * 	...
+ * 	return bitmap_print_to_pagebuf(true, buf, &mask, nr_trig_max);
+ * }
+ * show entry of attribute has no offset and count parameters and this
+ * means the file is limited to one page only.
+ * bitmap_print_to_pagebuf() API works terribly well for this kind of
+ * normal attribute with buf parameter and without offset, count:
+ * bitmap_print_to_pagebuf(bool list, char *buf, const unsigned long *maskp,
+ * 			   int nmaskbits)
+ * {
+ * }
+ * The problem is once we have a large bitmap, we have a chance to get a
+ * bitmask or list more than one page. Especially for list, it could be
+ * as complex as 0,3,5,7,9,... We have no simple way to know it exact size.
+ * It turns out bin_attribute is a way to break this limit. bin_attribute
+ * has show entry as below:
+ * static ssize_t
+ * example_bin_attribute_show(struct file *filp, struct kobject *kobj,
+ * 		struct bin_attribute *attr, char *buf,
+ * 		loff_t offset, size_t count)
+ * {
+ * 	...
+ * }
+ * With the new offset and count parameters, this makes sysfs ABI be able
+ * to support file size more than one page. For example, offset could be
+ * >= 4096.
+ * bitmap_print_bitmask_to_buf(), bitmap_print_list_to_buf() wit their
+ * cpumap wrapper cpumap_print_bitmask_to_buf(), cpumap_print_list_to_buf()
+ * make those drivers be able to support large bitmask and list after they
+ * move to use bin_attribute. In result, we have to pass the corresponding
+ * parameters such as off, count from bin_attribute show entry to this API.
+ *
+ * @buf: buffer into which string is placed
+ * @maskp: pointer to bitmap to convert
+ * @nmaskbits: size of bitmap, in bits
+ * @off: in the string from which we are copying, We copy to @buf
+ * @count: the maximum number of bytes to print
+ *
+ * The role of cpumap_print_bitmask_to_buf() and cpumap_print_list_to_buf()
+ * is similar with cpumap_print_to_pagebuf(),  the difference is that
+ * bitmap_print_to_pagebuf() mainly serves sysfs attribute with the assumption
+ * the destination buffer is exactly one page and won't be more than one page.
+ * cpumap_print_bitmask_to_buf() and cpumap_print_list_to_buf(), on the other
+ * hand, mainly serves bin_attribute which doesn't work with exact one page,
+ * and it can break the size limit of converted decimal list and hexadecimal
+ * bitmask.
+ *
+ * WARNING!
+ *
+ * This function is not a replacement for sprintf() or bitmap_print_to_pagebuf().
+ * It is intended to workaround sysfs limitations discussed above and should be
+ * used carefully in general case for the following reasons:
+ *  - Time complexity is O(nbits^2/count), comparing to O(nbits) for snprintf().
+ *  - Memory complexity is O(nbits), comparing to O(1) for snprintf().
+ *  - @off and @count are NOT offset and number of bits to print.
+ *  - If printing part of bitmap as list, the resulting string is not a correct
+ *    list representation of bitmap. Particularly, some bits within or out of
+ *    related interval may be erroneously set or unset. The format of the string
+ *    may be broken, so bitmap_parselist-like parser may fail parsing it.
+ *  - If printing the whole bitmap as list by parts, user must ensure the order
+ *    of calls of the function such that the offset is incremented linearly.
+ *  - If printing the whole bitmap as list by parts, user must keep bitmap
+ *    unchanged between the very first and very last call. Otherwise concatenated
+ *    result may be incorrect, and format may be broken.
+ *
+ * Returns the number of characters actually printed to @buf
+ */
+int bitmap_print_bitmask_to_buf(char *buf, const unsigned long *maskp,
+				int nmaskbits, loff_t off, size_t count)
+{
+	return bitmap_print_to_buf(false, buf, maskp, nmaskbits, off, count);
+}
+EXPORT_SYMBOL(bitmap_print_bitmask_to_buf);
+
+/**
+ * bitmap_print_list_to_buf  - convert bitmap to decimal list format ASCII string
+ *
+ * Everything is same with the above bitmap_print_bitmask_to_buf() except
+ * the print format.
+ */
+int bitmap_print_list_to_buf(char *buf, const unsigned long *maskp,
+			     int nmaskbits, loff_t off, size_t count)
+{
+	return bitmap_print_to_buf(true, buf, maskp, nmaskbits, off, count);
+}
+EXPORT_SYMBOL(bitmap_print_list_to_buf);
+
 /*
  * Region 9-38:4/10 describes the following bitmap structure:
- * 0	   9  12    18			38
- * .........****......****......****......
- *	    ^  ^     ^			 ^
- *      start  off   group_len	       end
+ * 0	   9  12    18			38	     N
+ * .........****......****......****..................
+ *	    ^  ^     ^			 ^	     ^
+ *      start  off   group_len	       end	 nbits
  */
 struct region {
 	unsigned int start;
 	unsigned int off;
 	unsigned int group_len;
 	unsigned int end;
+	unsigned int nbits;
 };
 
-static int bitmap_set_region(const struct region *r,
-				unsigned long *bitmap, int nbits)
+static void bitmap_set_region(const struct region *r, unsigned long *bitmap)
 {
 	unsigned int start;
 
-	if (r->end >= nbits)
-		return -ERANGE;
-
 	for (start = r->start; start <= r->end; start += r->group_len)
 		bitmap_set(bitmap, start, min(r->end - start + 1, r->off));
-
-	return 0;
 }
 
 static int bitmap_check_region(const struct region *r)
@@ -518,13 +636,22 @@ static int bitmap_check_region(const struct region *r)
 	if (r->start > r->end || r->group_len == 0 || r->off > r->group_len)
 		return -EINVAL;
 
+	if (r->end >= r->nbits)
+		return -ERANGE;
+
 	return 0;
 }
 
-static const char *bitmap_getnum(const char *str, unsigned int *num)
+static const char *bitmap_getnum(const char *str, unsigned int *num,
+				 unsigned int lastbit)
 {
 	unsigned long long n;
 	unsigned int len;
+
+	if (str[0] == 'N') {
+		*num = lastbit;
+		return str + 1;
+	}
 
 	len = _parse_integer(str, 10, &n);
 	if (!len)
@@ -573,7 +700,17 @@ static const char *bitmap_find_region_reverse(const char *start, const char *end
 
 static const char *bitmap_parse_region(const char *str, struct region *r)
 {
-	str = bitmap_getnum(str, &r->start);
+	unsigned int lastbit = r->nbits - 1;
+
+	if (!strncasecmp(str, "all", 3)) {
+		r->start = 0;
+		r->end = lastbit;
+		str += 3;
+
+		goto check_pattern;
+	}
+
+	str = bitmap_getnum(str, &r->start, lastbit);
 	if (IS_ERR(str))
 		return str;
 
@@ -583,24 +720,25 @@ static const char *bitmap_parse_region(const char *str, struct region *r)
 	if (*str != '-')
 		return ERR_PTR(-EINVAL);
 
-	str = bitmap_getnum(str + 1, &r->end);
+	str = bitmap_getnum(str + 1, &r->end, lastbit);
 	if (IS_ERR(str))
 		return str;
 
+check_pattern:
 	if (end_of_region(*str))
 		goto no_pattern;
 
 	if (*str != ':')
 		return ERR_PTR(-EINVAL);
 
-	str = bitmap_getnum(str + 1, &r->off);
+	str = bitmap_getnum(str + 1, &r->off, lastbit);
 	if (IS_ERR(str))
 		return str;
 
 	if (*str != '/')
 		return ERR_PTR(-EINVAL);
 
-	return bitmap_getnum(str + 1, &r->group_len);
+	return bitmap_getnum(str + 1, &r->group_len, lastbit);
 
 no_end:
 	r->end = r->start;
@@ -627,6 +765,10 @@ no_pattern:
  * From each group will be used only defined amount of bits.
  * Syntax: range:used_size/group_size
  * Example: 0-1023:2/256 ==> 0,1,256,257,512,513,768,769
+ * The value 'N' can be used as a dynamically substituted token for the
+ * maximum allowed value; i.e (nmaskbits - 1).  Keep in mind that it is
+ * dynamic, so if system changes cause the bitmap width to change, such
+ * as more cores in a CPU list, then any ranges using N will also change.
  *
  * Returns: 0 on success, -errno on invalid input strings. Error values:
  *
@@ -640,7 +782,8 @@ int bitmap_parselist(const char *buf, unsigned long *maskp, int nmaskbits)
 	struct region r;
 	long ret;
 
-	bitmap_zero(maskp, nmaskbits);
+	r.nbits = nmaskbits;
+	bitmap_zero(maskp, r.nbits);
 
 	while (buf) {
 		buf = bitmap_find_region(buf);
@@ -655,9 +798,7 @@ int bitmap_parselist(const char *buf, unsigned long *maskp, int nmaskbits)
 		if (ret)
 			return ret;
 
-		ret = bitmap_set_region(&r, maskp, nmaskbits);
-		if (ret)
-			return ret;
+		bitmap_set_region(&r, maskp);
 	}
 
 	return 0;
@@ -773,8 +914,6 @@ int bitmap_parse(const char *start, unsigned int buflen,
 }
 EXPORT_SYMBOL(bitmap_parse);
 
-
-#ifdef CONFIG_NUMA
 /**
  * bitmap_pos_to_ord - find ordinal of set bit at given position in bitmap
  *	@buf: pointer to a bitmap
@@ -883,6 +1022,7 @@ void bitmap_remap(unsigned long *dst, const unsigned long *src,
 			set_bit(bitmap_ord_to_pos(new, n % w, nbits), dst);
 	}
 }
+EXPORT_SYMBOL(bitmap_remap);
 
 /**
  * bitmap_bitremap - Apply map defined by a pair of bitmaps to a single bit
@@ -920,7 +1060,9 @@ int bitmap_bitremap(int oldbit, const unsigned long *old,
 	else
 		return bitmap_ord_to_pos(new, n % w, bits);
 }
+EXPORT_SYMBOL(bitmap_bitremap);
 
+#ifdef CONFIG_NUMA
 /**
  * bitmap_onto - translate one bitmap relative to another
  *	@dst: resulting translated bitmap
@@ -1261,6 +1403,38 @@ void bitmap_free(const unsigned long *bitmap)
 	kfree(bitmap);
 }
 EXPORT_SYMBOL(bitmap_free);
+
+static void devm_bitmap_free(void *data)
+{
+	unsigned long *bitmap = data;
+
+	bitmap_free(bitmap);
+}
+
+unsigned long *devm_bitmap_alloc(struct device *dev,
+				 unsigned int nbits, gfp_t flags)
+{
+	unsigned long *bitmap;
+	int ret;
+
+	bitmap = bitmap_alloc(nbits, flags);
+	if (!bitmap)
+		return NULL;
+
+	ret = devm_add_action_or_reset(dev, devm_bitmap_free, bitmap);
+	if (ret)
+		return NULL;
+
+	return bitmap;
+}
+EXPORT_SYMBOL_GPL(devm_bitmap_alloc);
+
+unsigned long *devm_bitmap_zalloc(struct device *dev,
+				  unsigned int nbits, gfp_t flags)
+{
+	return devm_bitmap_alloc(dev, nbits, flags | __GFP_ZERO);
+}
+EXPORT_SYMBOL_GPL(devm_bitmap_zalloc);
 
 #if BITS_PER_LONG == 64
 /**

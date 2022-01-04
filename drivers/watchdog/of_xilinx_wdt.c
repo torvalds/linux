@@ -6,6 +6,7 @@
  * (C) Copyright 2011 (Alejandro Cabrera <aldaya@gmail.com>)
  */
 
+#include <linux/bits.h>
 #include <linux/clk.h>
 #include <linux/err.h>
 #include <linux/module.h>
@@ -24,12 +25,12 @@
 #define XWT_TBR_OFFSET      0x8 /* Timebase Register Offset */
 
 /* Control/Status Register Masks  */
-#define XWT_CSR0_WRS_MASK   0x00000008 /* Reset status */
-#define XWT_CSR0_WDS_MASK   0x00000004 /* Timer state  */
-#define XWT_CSR0_EWDT1_MASK 0x00000002 /* Enable bit 1 */
+#define XWT_CSR0_WRS_MASK	BIT(3) /* Reset status */
+#define XWT_CSR0_WDS_MASK	BIT(2) /* Timer state  */
+#define XWT_CSR0_EWDT1_MASK	BIT(1) /* Enable bit 1 */
 
 /* Control/Status Register 0/1 bits  */
-#define XWT_CSRX_EWDT2_MASK 0x00000001 /* Enable bit 2 */
+#define XWT_CSRX_EWDT2_MASK	BIT(0) /* Enable bit 2 */
 
 /* SelfTest constants */
 #define XWT_MAX_SELFTEST_LOOP_COUNT 0x00010000
@@ -40,7 +41,7 @@
 struct xwdt_device {
 	void __iomem *base;
 	u32 wdt_interval;
-	spinlock_t spinlock;
+	spinlock_t spinlock; /* spinlock for register handling */
 	struct watchdog_device xilinx_wdt_wdd;
 	struct clk		*clk;
 };
@@ -70,6 +71,8 @@ static int xilinx_wdt_start(struct watchdog_device *wdd)
 
 	spin_unlock(&xdev->spinlock);
 
+	dev_dbg(wdd->parent, "Watchdog Started!\n");
+
 	return 0;
 }
 
@@ -91,7 +94,7 @@ static int xilinx_wdt_stop(struct watchdog_device *wdd)
 
 	clk_disable(xdev->clk);
 
-	pr_info("Stopped!\n");
+	dev_dbg(wdd->parent, "Watchdog Stopped!\n");
 
 	return 0;
 }
@@ -208,6 +211,15 @@ static int xwdt_probe(struct platform_device *pdev)
 				 "The watchdog clock freq cannot be obtained\n");
 	} else {
 		pfreq = clk_get_rate(xdev->clk);
+		rc = clk_prepare_enable(xdev->clk);
+		if (rc) {
+			dev_err(dev, "unable to enable clock\n");
+			return rc;
+		}
+		rc = devm_add_action_or_reset(dev, xwdt_clk_disable_unprepare,
+					      xdev->clk);
+		if (rc)
+			return rc;
 	}
 
 	/*
@@ -221,16 +233,6 @@ static int xwdt_probe(struct platform_device *pdev)
 	spin_lock_init(&xdev->spinlock);
 	watchdog_set_drvdata(xilinx_wdt_wdd, xdev);
 
-	rc = clk_prepare_enable(xdev->clk);
-	if (rc) {
-		dev_err(dev, "unable to enable clock\n");
-		return rc;
-	}
-	rc = devm_add_action_or_reset(dev, xwdt_clk_disable_unprepare,
-				      xdev->clk);
-	if (rc)
-		return rc;
-
 	rc = xwdt_selftest(xdev);
 	if (rc == XWT_TIMER_FAILED) {
 		dev_err(dev, "SelfTest routine error\n");
@@ -243,8 +245,8 @@ static int xwdt_probe(struct platform_device *pdev)
 
 	clk_disable(xdev->clk);
 
-	dev_info(dev, "Xilinx Watchdog Timer at %p with timeout %ds\n",
-		 xdev->base, xilinx_wdt_wdd->timeout);
+	dev_info(dev, "Xilinx Watchdog Timer with timeout %ds\n",
+		 xilinx_wdt_wdd->timeout);
 
 	platform_set_drvdata(pdev, xdev);
 

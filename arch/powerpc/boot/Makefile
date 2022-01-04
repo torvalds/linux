@@ -163,6 +163,8 @@ src-plat-$(CONFIG_PPC_POWERNV) += pseries-head.S
 src-plat-$(CONFIG_PPC_IBM_CELL_BLADE) += pseries-head.S
 src-plat-$(CONFIG_MVME7100) += motload-head.S mvme7100.c
 
+src-plat-$(CONFIG_PPC_MICROWATT) += fixed-head.S microwatt.c
+
 src-wlib := $(sort $(src-wlib-y))
 src-plat := $(sort $(src-plat-y))
 src-boot := $(src-wlib) $(src-plat) empty.c
@@ -227,7 +229,7 @@ $(obj)/wrapper.a: $(obj-wlib) FORCE
 
 hostprogs	:= addnote hack-coff mktree
 
-targets		+= $(patsubst $(obj)/%,%,$(obj-boot) wrapper.a)
+targets		+= $(patsubst $(obj)/%,%,$(obj-boot) wrapper.a) zImage.lds
 extra-y		:= $(obj)/wrapper.a $(obj-plat) $(obj)/empty.o \
 		   $(obj)/zImage.lds $(obj)/zImage.coff.lds $(obj)/zImage.ps3.lds
 
@@ -354,6 +356,8 @@ image-$(CONFIG_MVME5100)		+= dtbImage.mvme5100
 
 # Board port in arch/powerpc/platform/amigaone/Kconfig
 image-$(CONFIG_AMIGAONE)		+= cuImage.amigaone
+
+image-$(CONFIG_PPC_MICROWATT)		+= dtbImage.microwatt
 
 # For 32-bit powermacs, build the COFF and miboot images
 # as well as the ELF images.

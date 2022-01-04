@@ -84,7 +84,7 @@ struct bpf_lpm_trie_key {
 
 struct bpf_cgroup_storage_key {
 	__u64	cgroup_inode_id;	/* cgroup inode id */
-	__u32	attach_type;		/* program attach type */
+	__u32	attach_type;		/* program attach type (enum bpf_attach_type) */
 };
 
 union bpf_iter_link_info {
@@ -93,7 +93,748 @@ union bpf_iter_link_info {
 	} map;
 };
 
-/* BPF syscall commands, see bpf(2) man-page for details. */
+/* BPF syscall commands, see bpf(2) man-page for more details. */
+/**
+ * DOC: eBPF Syscall Preamble
+ *
+ * The operation to be performed by the **bpf**\ () system call is determined
+ * by the *cmd* argument. Each operation takes an accompanying argument,
+ * provided via *attr*, which is a pointer to a union of type *bpf_attr* (see
+ * below). The size argument is the size of the union pointed to by *attr*.
+ */
+/**
+ * DOC: eBPF Syscall Commands
+ *
+ * BPF_MAP_CREATE
+ *	Description
+ *		Create a map and return a file descriptor that refers to the
+ *		map. The close-on-exec file descriptor flag (see **fcntl**\ (2))
+ *		is automatically enabled for the new file descriptor.
+ *
+ *		Applying **close**\ (2) to the file descriptor returned by
+ *		**BPF_MAP_CREATE** will delete the map (but see NOTES).
+ *
+ *	Return
+ *		A new file descriptor (a nonnegative integer), or -1 if an
+ *		error occurred (in which case, *errno* is set appropriately).
+ *
+ * BPF_MAP_LOOKUP_ELEM
+ *	Description
+ *		Look up an element with a given *key* in the map referred to
+ *		by the file descriptor *map_fd*.
+ *
+ *		The *flags* argument may be specified as one of the
+ *		following:
+ *
+ *		**BPF_F_LOCK**
+ *			Look up the value of a spin-locked map without
+ *			returning the lock. This must be specified if the
+ *			elements contain a spinlock.
+ *
+ *	Return
+ *		Returns zero on success. On error, -1 is returned and *errno*
+ *		is set appropriately.
+ *
+ * BPF_MAP_UPDATE_ELEM
+ *	Description
+ *		Create or update an element (key/value pair) in a specified map.
+ *
+ *		The *flags* argument should be specified as one of the
+ *		following:
+ *
+ *		**BPF_ANY**
+ *			Create a new element or update an existing element.
+ *		**BPF_NOEXIST**
+ *			Create a new element only if it did not exist.
+ *		**BPF_EXIST**
+ *			Update an existing element.
+ *		**BPF_F_LOCK**
+ *			Update a spin_lock-ed map element.
+ *
+ *	Return
+ *		Returns zero on success. On error, -1 is returned and *errno*
+ *		is set appropriately.
+ *
+ *		May set *errno* to **EINVAL**, **EPERM**, **ENOMEM**,
+ *		**E2BIG**, **EEXIST**, or **ENOENT**.
+ *
+ *		**E2BIG**
+ *			The number of elements in the map reached the
+ *			*max_entries* limit specified at map creation time.
+ *		**EEXIST**
+ *			If *flags* specifies **BPF_NOEXIST** and the element
+ *			with *key* already exists in the map.
+ *		**ENOENT**
+ *			If *flags* specifies **BPF_EXIST** and the element with
+ *			*key* does not exist in the map.
+ *
+ * BPF_MAP_DELETE_ELEM
+ *	Description
+ *		Look up and delete an element by key in a specified map.
+ *
+ *	Return
+ *		Returns zero on success. On error, -1 is returned and *errno*
+ *		is set appropriately.
+ *
+ * BPF_MAP_GET_NEXT_KEY
+ *	Description
+ *		Look up an element by key in a specified map and return the key
+ *		of the next element. Can be used to iterate over all elements
+ *		in the map.
+ *
+ *	Return
+ *		Returns zero on success. On error, -1 is returned and *errno*
+ *		is set appropriately.
+ *
+ *		The following cases can be used to iterate over all elements of
+ *		the map:
+ *
+ *		* If *key* is not found, the operation returns zero and sets
+ *		  the *next_key* pointer to the key of the first element.
+ *		* If *key* is found, the operation returns zero and sets the
+ *		  *next_key* pointer to the key of the next element.
+ *		* If *key* is the last element, returns -1 and *errno* is set
+ *		  to **ENOENT**.
+ *
+ *		May set *errno* to **ENOMEM**, **EFAULT**, **EPERM**, or
+ *		**EINVAL** on error.
+ *
+ * BPF_PROG_LOAD
+ *	Description
+ *		Verify and load an eBPF program, returning a new file
+ *		descriptor associated with the program.
+ *
+ *		Applying **close**\ (2) to the file descriptor returned by
+ *		**BPF_PROG_LOAD** will unload the eBPF program (but see NOTES).
+ *
+ *		The close-on-exec file descriptor flag (see **fcntl**\ (2)) is
+ *		automatically enabled for the new file descriptor.
+ *
+ *	Return
+ *		A new file descriptor (a nonnegative integer), or -1 if an
+ *		error occurred (in which case, *errno* is set appropriately).
+ *
+ * BPF_OBJ_PIN
+ *	Description
+ *		Pin an eBPF program or map referred by the specified *bpf_fd*
+ *		to the provided *pathname* on the filesystem.
+ *
+ *		The *pathname* argument must not contain a dot (".").
+ *
+ *		On success, *pathname* retains a reference to the eBPF object,
+ *		preventing deallocation of the object when the original
+ *		*bpf_fd* is closed. This allow the eBPF object to live beyond
+ *		**close**\ (\ *bpf_fd*\ ), and hence the lifetime of the parent
+ *		process.
+ *
+ *		Applying **unlink**\ (2) or similar calls to the *pathname*
+ *		unpins the object from the filesystem, removing the reference.
+ *		If no other file descriptors or filesystem nodes refer to the
+ *		same object, it will be deallocated (see NOTES).
+ *
+ *		The filesystem type for the parent directory of *pathname* must
+ *		be **BPF_FS_MAGIC**.
+ *
+ *	Return
+ *		Returns zero on success. On error, -1 is returned and *errno*
+ *		is set appropriately.
+ *
+ * BPF_OBJ_GET
+ *	Description
+ *		Open a file descriptor for the eBPF object pinned to the
+ *		specified *pathname*.
+ *
+ *	Return
+ *		A new file descriptor (a nonnegative integer), or -1 if an
+ *		error occurred (in which case, *errno* is set appropriately).
+ *
+ * BPF_PROG_ATTACH
+ *	Description
+ *		Attach an eBPF program to a *target_fd* at the specified
+ *		*attach_type* hook.
+ *
+ *		The *attach_type* specifies the eBPF attachment point to
+ *		attach the program to, and must be one of *bpf_attach_type*
+ *		(see below).
+ *
+ *		The *attach_bpf_fd* must be a valid file descriptor for a
+ *		loaded eBPF program of a cgroup, flow dissector, LIRC, sockmap
+ *		or sock_ops type corresponding to the specified *attach_type*.
+ *
+ *		The *target_fd* must be a valid file descriptor for a kernel
+ *		object which depends on the attach type of *attach_bpf_fd*:
+ *
+ *		**BPF_PROG_TYPE_CGROUP_DEVICE**,
+ *		**BPF_PROG_TYPE_CGROUP_SKB**,
+ *		**BPF_PROG_TYPE_CGROUP_SOCK**,
+ *		**BPF_PROG_TYPE_CGROUP_SOCK_ADDR**,
+ *		**BPF_PROG_TYPE_CGROUP_SOCKOPT**,
+ *		**BPF_PROG_TYPE_CGROUP_SYSCTL**,
+ *		**BPF_PROG_TYPE_SOCK_OPS**
+ *
+ *			Control Group v2 hierarchy with the eBPF controller
+ *			enabled. Requires the kernel to be compiled with
+ *			**CONFIG_CGROUP_BPF**.
+ *
+ *		**BPF_PROG_TYPE_FLOW_DISSECTOR**
+ *
+ *			Network namespace (eg /proc/self/ns/net).
+ *
+ *		**BPF_PROG_TYPE_LIRC_MODE2**
+ *
+ *			LIRC device path (eg /dev/lircN). Requires the kernel
+ *			to be compiled with **CONFIG_BPF_LIRC_MODE2**.
+ *
+ *		**BPF_PROG_TYPE_SK_SKB**,
+ *		**BPF_PROG_TYPE_SK_MSG**
+ *
+ *			eBPF map of socket type (eg **BPF_MAP_TYPE_SOCKHASH**).
+ *
+ *	Return
+ *		Returns zero on success. On error, -1 is returned and *errno*
+ *		is set appropriately.
+ *
+ * BPF_PROG_DETACH
+ *	Description
+ *		Detach the eBPF program associated with the *target_fd* at the
+ *		hook specified by *attach_type*. The program must have been
+ *		previously attached using **BPF_PROG_ATTACH**.
+ *
+ *	Return
+ *		Returns zero on success. On error, -1 is returned and *errno*
+ *		is set appropriately.
+ *
+ * BPF_PROG_TEST_RUN
+ *	Description
+ *		Run the eBPF program associated with the *prog_fd* a *repeat*
+ *		number of times against a provided program context *ctx_in* and
+ *		data *data_in*, and return the modified program context
+ *		*ctx_out*, *data_out* (for example, packet data), result of the
+ *		execution *retval*, and *duration* of the test run.
+ *
+ *		The sizes of the buffers provided as input and output
+ *		parameters *ctx_in*, *ctx_out*, *data_in*, and *data_out* must
+ *		be provided in the corresponding variables *ctx_size_in*,
+ *		*ctx_size_out*, *data_size_in*, and/or *data_size_out*. If any
+ *		of these parameters are not provided (ie set to NULL), the
+ *		corresponding size field must be zero.
+ *
+ *		Some program types have particular requirements:
+ *
+ *		**BPF_PROG_TYPE_SK_LOOKUP**
+ *			*data_in* and *data_out* must be NULL.
+ *
+ *		**BPF_PROG_TYPE_RAW_TRACEPOINT**,
+ *		**BPF_PROG_TYPE_RAW_TRACEPOINT_WRITABLE**
+ *
+ *			*ctx_out*, *data_in* and *data_out* must be NULL.
+ *			*repeat* must be zero.
+ *
+ *	Return
+ *		Returns zero on success. On error, -1 is returned and *errno*
+ *		is set appropriately.
+ *
+ *		**ENOSPC**
+ *			Either *data_size_out* or *ctx_size_out* is too small.
+ *		**ENOTSUPP**
+ *			This command is not supported by the program type of
+ *			the program referred to by *prog_fd*.
+ *
+ * BPF_PROG_GET_NEXT_ID
+ *	Description
+ *		Fetch the next eBPF program currently loaded into the kernel.
+ *
+ *		Looks for the eBPF program with an id greater than *start_id*
+ *		and updates *next_id* on success. If no other eBPF programs
+ *		remain with ids higher than *start_id*, returns -1 and sets
+ *		*errno* to **ENOENT**.
+ *
+ *	Return
+ *		Returns zero on success. On error, or when no id remains, -1
+ *		is returned and *errno* is set appropriately.
+ *
+ * BPF_MAP_GET_NEXT_ID
+ *	Description
+ *		Fetch the next eBPF map currently loaded into the kernel.
+ *
+ *		Looks for the eBPF map with an id greater than *start_id*
+ *		and updates *next_id* on success. If no other eBPF maps
+ *		remain with ids higher than *start_id*, returns -1 and sets
+ *		*errno* to **ENOENT**.
+ *
+ *	Return
+ *		Returns zero on success. On error, or when no id remains, -1
+ *		is returned and *errno* is set appropriately.
+ *
+ * BPF_PROG_GET_FD_BY_ID
+ *	Description
+ *		Open a file descriptor for the eBPF program corresponding to
+ *		*prog_id*.
+ *
+ *	Return
+ *		A new file descriptor (a nonnegative integer), or -1 if an
+ *		error occurred (in which case, *errno* is set appropriately).
+ *
+ * BPF_MAP_GET_FD_BY_ID
+ *	Description
+ *		Open a file descriptor for the eBPF map corresponding to
+ *		*map_id*.
+ *
+ *	Return
+ *		A new file descriptor (a nonnegative integer), or -1 if an
+ *		error occurred (in which case, *errno* is set appropriately).
+ *
+ * BPF_OBJ_GET_INFO_BY_FD
+ *	Description
+ *		Obtain information about the eBPF object corresponding to
+ *		*bpf_fd*.
+ *
+ *		Populates up to *info_len* bytes of *info*, which will be in
+ *		one of the following formats depending on the eBPF object type
+ *		of *bpf_fd*:
+ *
+ *		* **struct bpf_prog_info**
+ *		* **struct bpf_map_info**
+ *		* **struct bpf_btf_info**
+ *		* **struct bpf_link_info**
+ *
+ *	Return
+ *		Returns zero on success. On error, -1 is returned and *errno*
+ *		is set appropriately.
+ *
+ * BPF_PROG_QUERY
+ *	Description
+ *		Obtain information about eBPF programs associated with the
+ *		specified *attach_type* hook.
+ *
+ *		The *target_fd* must be a valid file descriptor for a kernel
+ *		object which depends on the attach type of *attach_bpf_fd*:
+ *
+ *		**BPF_PROG_TYPE_CGROUP_DEVICE**,
+ *		**BPF_PROG_TYPE_CGROUP_SKB**,
+ *		**BPF_PROG_TYPE_CGROUP_SOCK**,
+ *		**BPF_PROG_TYPE_CGROUP_SOCK_ADDR**,
+ *		**BPF_PROG_TYPE_CGROUP_SOCKOPT**,
+ *		**BPF_PROG_TYPE_CGROUP_SYSCTL**,
+ *		**BPF_PROG_TYPE_SOCK_OPS**
+ *
+ *			Control Group v2 hierarchy with the eBPF controller
+ *			enabled. Requires the kernel to be compiled with
+ *			**CONFIG_CGROUP_BPF**.
+ *
+ *		**BPF_PROG_TYPE_FLOW_DISSECTOR**
+ *
+ *			Network namespace (eg /proc/self/ns/net).
+ *
+ *		**BPF_PROG_TYPE_LIRC_MODE2**
+ *
+ *			LIRC device path (eg /dev/lircN). Requires the kernel
+ *			to be compiled with **CONFIG_BPF_LIRC_MODE2**.
+ *
+ *		**BPF_PROG_QUERY** always fetches the number of programs
+ *		attached and the *attach_flags* which were used to attach those
+ *		programs. Additionally, if *prog_ids* is nonzero and the number
+ *		of attached programs is less than *prog_cnt*, populates
+ *		*prog_ids* with the eBPF program ids of the programs attached
+ *		at *target_fd*.
+ *
+ *		The following flags may alter the result:
+ *
+ *		**BPF_F_QUERY_EFFECTIVE**
+ *			Only return information regarding programs which are
+ *			currently effective at the specified *target_fd*.
+ *
+ *	Return
+ *		Returns zero on success. On error, -1 is returned and *errno*
+ *		is set appropriately.
+ *
+ * BPF_RAW_TRACEPOINT_OPEN
+ *	Description
+ *		Attach an eBPF program to a tracepoint *name* to access kernel
+ *		internal arguments of the tracepoint in their raw form.
+ *
+ *		The *prog_fd* must be a valid file descriptor associated with
+ *		a loaded eBPF program of type **BPF_PROG_TYPE_RAW_TRACEPOINT**.
+ *
+ *		No ABI guarantees are made about the content of tracepoint
+ *		arguments exposed to the corresponding eBPF program.
+ *
+ *		Applying **close**\ (2) to the file descriptor returned by
+ *		**BPF_RAW_TRACEPOINT_OPEN** will delete the map (but see NOTES).
+ *
+ *	Return
+ *		A new file descriptor (a nonnegative integer), or -1 if an
+ *		error occurred (in which case, *errno* is set appropriately).
+ *
+ * BPF_BTF_LOAD
+ *	Description
+ *		Verify and load BPF Type Format (BTF) metadata into the kernel,
+ *		returning a new file descriptor associated with the metadata.
+ *		BTF is described in more detail at
+ *		https://www.kernel.org/doc/html/latest/bpf/btf.html.
+ *
+ *		The *btf* parameter must point to valid memory providing
+ *		*btf_size* bytes of BTF binary metadata.
+ *
+ *		The returned file descriptor can be passed to other **bpf**\ ()
+ *		subcommands such as **BPF_PROG_LOAD** or **BPF_MAP_CREATE** to
+ *		associate the BTF with those objects.
+ *
+ *		Similar to **BPF_PROG_LOAD**, **BPF_BTF_LOAD** has optional
+ *		parameters to specify a *btf_log_buf*, *btf_log_size* and
+ *		*btf_log_level* which allow the kernel to return freeform log
+ *		output regarding the BTF verification process.
+ *
+ *	Return
+ *		A new file descriptor (a nonnegative integer), or -1 if an
+ *		error occurred (in which case, *errno* is set appropriately).
+ *
+ * BPF_BTF_GET_FD_BY_ID
+ *	Description
+ *		Open a file descriptor for the BPF Type Format (BTF)
+ *		corresponding to *btf_id*.
+ *
+ *	Return
+ *		A new file descriptor (a nonnegative integer), or -1 if an
+ *		error occurred (in which case, *errno* is set appropriately).
+ *
+ * BPF_TASK_FD_QUERY
+ *	Description
+ *		Obtain information about eBPF programs associated with the
+ *		target process identified by *pid* and *fd*.
+ *
+ *		If the *pid* and *fd* are associated with a tracepoint, kprobe
+ *		or uprobe perf event, then the *prog_id* and *fd_type* will
+ *		be populated with the eBPF program id and file descriptor type
+ *		of type **bpf_task_fd_type**. If associated with a kprobe or
+ *		uprobe, the  *probe_offset* and *probe_addr* will also be
+ *		populated. Optionally, if *buf* is provided, then up to
+ *		*buf_len* bytes of *buf* will be populated with the name of
+ *		the tracepoint, kprobe or uprobe.
+ *
+ *		The resulting *prog_id* may be introspected in deeper detail
+ *		using **BPF_PROG_GET_FD_BY_ID** and **BPF_OBJ_GET_INFO_BY_FD**.
+ *
+ *	Return
+ *		Returns zero on success. On error, -1 is returned and *errno*
+ *		is set appropriately.
+ *
+ * BPF_MAP_LOOKUP_AND_DELETE_ELEM
+ *	Description
+ *		Look up an element with the given *key* in the map referred to
+ *		by the file descriptor *fd*, and if found, delete the element.
+ *
+ *		For **BPF_MAP_TYPE_QUEUE** and **BPF_MAP_TYPE_STACK** map
+ *		types, the *flags* argument needs to be set to 0, but for other
+ *		map types, it may be specified as:
+ *
+ *		**BPF_F_LOCK**
+ *			Look up and delete the value of a spin-locked map
+ *			without returning the lock. This must be specified if
+ *			the elements contain a spinlock.
+ *
+ *		The **BPF_MAP_TYPE_QUEUE** and **BPF_MAP_TYPE_STACK** map types
+ *		implement this command as a "pop" operation, deleting the top
+ *		element rather than one corresponding to *key*.
+ *		The *key* and *key_len* parameters should be zeroed when
+ *		issuing this operation for these map types.
+ *
+ *		This command is only valid for the following map types:
+ *		* **BPF_MAP_TYPE_QUEUE**
+ *		* **BPF_MAP_TYPE_STACK**
+ *		* **BPF_MAP_TYPE_HASH**
+ *		* **BPF_MAP_TYPE_PERCPU_HASH**
+ *		* **BPF_MAP_TYPE_LRU_HASH**
+ *		* **BPF_MAP_TYPE_LRU_PERCPU_HASH**
+ *
+ *	Return
+ *		Returns zero on success. On error, -1 is returned and *errno*
+ *		is set appropriately.
+ *
+ * BPF_MAP_FREEZE
+ *	Description
+ *		Freeze the permissions of the specified map.
+ *
+ *		Write permissions may be frozen by passing zero *flags*.
+ *		Upon success, no future syscall invocations may alter the
+ *		map state of *map_fd*. Write operations from eBPF programs
+ *		are still possible for a frozen map.
+ *
+ *		Not supported for maps of type **BPF_MAP_TYPE_STRUCT_OPS**.
+ *
+ *	Return
+ *		Returns zero on success. On error, -1 is returned and *errno*
+ *		is set appropriately.
+ *
+ * BPF_BTF_GET_NEXT_ID
+ *	Description
+ *		Fetch the next BPF Type Format (BTF) object currently loaded
+ *		into the kernel.
+ *
+ *		Looks for the BTF object with an id greater than *start_id*
+ *		and updates *next_id* on success. If no other BTF objects
+ *		remain with ids higher than *start_id*, returns -1 and sets
+ *		*errno* to **ENOENT**.
+ *
+ *	Return
+ *		Returns zero on success. On error, or when no id remains, -1
+ *		is returned and *errno* is set appropriately.
+ *
+ * BPF_MAP_LOOKUP_BATCH
+ *	Description
+ *		Iterate and fetch multiple elements in a map.
+ *
+ *		Two opaque values are used to manage batch operations,
+ *		*in_batch* and *out_batch*. Initially, *in_batch* must be set
+ *		to NULL to begin the batched operation. After each subsequent
+ *		**BPF_MAP_LOOKUP_BATCH**, the caller should pass the resultant
+ *		*out_batch* as the *in_batch* for the next operation to
+ *		continue iteration from the current point.
+ *
+ *		The *keys* and *values* are output parameters which must point
+ *		to memory large enough to hold *count* items based on the key
+ *		and value size of the map *map_fd*. The *keys* buffer must be
+ *		of *key_size* * *count*. The *values* buffer must be of
+ *		*value_size* * *count*.
+ *
+ *		The *elem_flags* argument may be specified as one of the
+ *		following:
+ *
+ *		**BPF_F_LOCK**
+ *			Look up the value of a spin-locked map without
+ *			returning the lock. This must be specified if the
+ *			elements contain a spinlock.
+ *
+ *		On success, *count* elements from the map are copied into the
+ *		user buffer, with the keys copied into *keys* and the values
+ *		copied into the corresponding indices in *values*.
+ *
+ *		If an error is returned and *errno* is not **EFAULT**, *count*
+ *		is set to the number of successfully processed elements.
+ *
+ *	Return
+ *		Returns zero on success. On error, -1 is returned and *errno*
+ *		is set appropriately.
+ *
+ *		May set *errno* to **ENOSPC** to indicate that *keys* or
+ *		*values* is too small to dump an entire bucket during
+ *		iteration of a hash-based map type.
+ *
+ * BPF_MAP_LOOKUP_AND_DELETE_BATCH
+ *	Description
+ *		Iterate and delete all elements in a map.
+ *
+ *		This operation has the same behavior as
+ *		**BPF_MAP_LOOKUP_BATCH** with two exceptions:
+ *
+ *		* Every element that is successfully returned is also deleted
+ *		  from the map. This is at least *count* elements. Note that
+ *		  *count* is both an input and an output parameter.
+ *		* Upon returning with *errno* set to **EFAULT**, up to
+ *		  *count* elements may be deleted without returning the keys
+ *		  and values of the deleted elements.
+ *
+ *	Return
+ *		Returns zero on success. On error, -1 is returned and *errno*
+ *		is set appropriately.
+ *
+ * BPF_MAP_UPDATE_BATCH
+ *	Description
+ *		Update multiple elements in a map by *key*.
+ *
+ *		The *keys* and *values* are input parameters which must point
+ *		to memory large enough to hold *count* items based on the key
+ *		and value size of the map *map_fd*. The *keys* buffer must be
+ *		of *key_size* * *count*. The *values* buffer must be of
+ *		*value_size* * *count*.
+ *
+ *		Each element specified in *keys* is sequentially updated to the
+ *		value in the corresponding index in *values*. The *in_batch*
+ *		and *out_batch* parameters are ignored and should be zeroed.
+ *
+ *		The *elem_flags* argument should be specified as one of the
+ *		following:
+ *
+ *		**BPF_ANY**
+ *			Create new elements or update a existing elements.
+ *		**BPF_NOEXIST**
+ *			Create new elements only if they do not exist.
+ *		**BPF_EXIST**
+ *			Update existing elements.
+ *		**BPF_F_LOCK**
+ *			Update spin_lock-ed map elements. This must be
+ *			specified if the map value contains a spinlock.
+ *
+ *		On success, *count* elements from the map are updated.
+ *
+ *		If an error is returned and *errno* is not **EFAULT**, *count*
+ *		is set to the number of successfully processed elements.
+ *
+ *	Return
+ *		Returns zero on success. On error, -1 is returned and *errno*
+ *		is set appropriately.
+ *
+ *		May set *errno* to **EINVAL**, **EPERM**, **ENOMEM**, or
+ *		**E2BIG**. **E2BIG** indicates that the number of elements in
+ *		the map reached the *max_entries* limit specified at map
+ *		creation time.
+ *
+ *		May set *errno* to one of the following error codes under
+ *		specific circumstances:
+ *
+ *		**EEXIST**
+ *			If *flags* specifies **BPF_NOEXIST** and the element
+ *			with *key* already exists in the map.
+ *		**ENOENT**
+ *			If *flags* specifies **BPF_EXIST** and the element with
+ *			*key* does not exist in the map.
+ *
+ * BPF_MAP_DELETE_BATCH
+ *	Description
+ *		Delete multiple elements in a map by *key*.
+ *
+ *		The *keys* parameter is an input parameter which must point
+ *		to memory large enough to hold *count* items based on the key
+ *		size of the map *map_fd*, that is, *key_size* * *count*.
+ *
+ *		Each element specified in *keys* is sequentially deleted. The
+ *		*in_batch*, *out_batch*, and *values* parameters are ignored
+ *		and should be zeroed.
+ *
+ *		The *elem_flags* argument may be specified as one of the
+ *		following:
+ *
+ *		**BPF_F_LOCK**
+ *			Look up the value of a spin-locked map without
+ *			returning the lock. This must be specified if the
+ *			elements contain a spinlock.
+ *
+ *		On success, *count* elements from the map are updated.
+ *
+ *		If an error is returned and *errno* is not **EFAULT**, *count*
+ *		is set to the number of successfully processed elements. If
+ *		*errno* is **EFAULT**, up to *count* elements may be been
+ *		deleted.
+ *
+ *	Return
+ *		Returns zero on success. On error, -1 is returned and *errno*
+ *		is set appropriately.
+ *
+ * BPF_LINK_CREATE
+ *	Description
+ *		Attach an eBPF program to a *target_fd* at the specified
+ *		*attach_type* hook and return a file descriptor handle for
+ *		managing the link.
+ *
+ *	Return
+ *		A new file descriptor (a nonnegative integer), or -1 if an
+ *		error occurred (in which case, *errno* is set appropriately).
+ *
+ * BPF_LINK_UPDATE
+ *	Description
+ *		Update the eBPF program in the specified *link_fd* to
+ *		*new_prog_fd*.
+ *
+ *	Return
+ *		Returns zero on success. On error, -1 is returned and *errno*
+ *		is set appropriately.
+ *
+ * BPF_LINK_GET_FD_BY_ID
+ *	Description
+ *		Open a file descriptor for the eBPF Link corresponding to
+ *		*link_id*.
+ *
+ *	Return
+ *		A new file descriptor (a nonnegative integer), or -1 if an
+ *		error occurred (in which case, *errno* is set appropriately).
+ *
+ * BPF_LINK_GET_NEXT_ID
+ *	Description
+ *		Fetch the next eBPF link currently loaded into the kernel.
+ *
+ *		Looks for the eBPF link with an id greater than *start_id*
+ *		and updates *next_id* on success. If no other eBPF links
+ *		remain with ids higher than *start_id*, returns -1 and sets
+ *		*errno* to **ENOENT**.
+ *
+ *	Return
+ *		Returns zero on success. On error, or when no id remains, -1
+ *		is returned and *errno* is set appropriately.
+ *
+ * BPF_ENABLE_STATS
+ *	Description
+ *		Enable eBPF runtime statistics gathering.
+ *
+ *		Runtime statistics gathering for the eBPF runtime is disabled
+ *		by default to minimize the corresponding performance overhead.
+ *		This command enables statistics globally.
+ *
+ *		Multiple programs may independently enable statistics.
+ *		After gathering the desired statistics, eBPF runtime statistics
+ *		may be disabled again by calling **close**\ (2) for the file
+ *		descriptor returned by this function. Statistics will only be
+ *		disabled system-wide when all outstanding file descriptors
+ *		returned by prior calls for this subcommand are closed.
+ *
+ *	Return
+ *		A new file descriptor (a nonnegative integer), or -1 if an
+ *		error occurred (in which case, *errno* is set appropriately).
+ *
+ * BPF_ITER_CREATE
+ *	Description
+ *		Create an iterator on top of the specified *link_fd* (as
+ *		previously created using **BPF_LINK_CREATE**) and return a
+ *		file descriptor that can be used to trigger the iteration.
+ *
+ *		If the resulting file descriptor is pinned to the filesystem
+ *		using  **BPF_OBJ_PIN**, then subsequent **read**\ (2) syscalls
+ *		for that path will trigger the iterator to read kernel state
+ *		using the eBPF program attached to *link_fd*.
+ *
+ *	Return
+ *		A new file descriptor (a nonnegative integer), or -1 if an
+ *		error occurred (in which case, *errno* is set appropriately).
+ *
+ * BPF_LINK_DETACH
+ *	Description
+ *		Forcefully detach the specified *link_fd* from its
+ *		corresponding attachment point.
+ *
+ *	Return
+ *		Returns zero on success. On error, -1 is returned and *errno*
+ *		is set appropriately.
+ *
+ * BPF_PROG_BIND_MAP
+ *	Description
+ *		Bind a map to the lifetime of an eBPF program.
+ *
+ *		The map identified by *map_fd* is bound to the program
+ *		identified by *prog_fd* and only released when *prog_fd* is
+ *		released. This may be used in cases where metadata should be
+ *		associated with a program which otherwise does not contain any
+ *		references to the map (for example, embedded in the eBPF
+ *		program instructions).
+ *
+ *	Return
+ *		Returns zero on success. On error, -1 is returned and *errno*
+ *		is set appropriately.
+ *
+ * NOTES
+ *	eBPF objects (maps and programs) can be shared between processes.
+ *
+ *	* After **fork**\ (2), the child inherits file descriptors
+ *	  referring to the same eBPF objects.
+ *	* File descriptors referring to eBPF objects can be transferred over
+ *	  **unix**\ (7) domain sockets.
+ *	* File descriptors referring to eBPF objects can be duplicated in the
+ *	  usual way, using **dup**\ (2) and similar calls.
+ *	* File descriptors referring to eBPF objects can be pinned to the
+ *	  filesystem using the **BPF_OBJ_PIN** command of **bpf**\ (2).
+ *
+ *	An eBPF object is deallocated only after all file descriptors referring
+ *	to the object have been closed and no references remain pinned to the
+ *	filesystem or attached (for example, bound to a program or device).
+ */
 enum bpf_cmd {
 	BPF_MAP_CREATE,
 	BPF_MAP_LOOKUP_ELEM,
@@ -106,6 +847,7 @@ enum bpf_cmd {
 	BPF_PROG_ATTACH,
 	BPF_PROG_DETACH,
 	BPF_PROG_TEST_RUN,
+	BPF_PROG_RUN = BPF_PROG_TEST_RUN,
 	BPF_PROG_GET_NEXT_ID,
 	BPF_MAP_GET_NEXT_ID,
 	BPF_PROG_GET_FD_BY_ID,
@@ -206,6 +948,7 @@ enum bpf_prog_type {
 	BPF_PROG_TYPE_EXT,
 	BPF_PROG_TYPE_LSM,
 	BPF_PROG_TYPE_SK_LOOKUP,
+	BPF_PROG_TYPE_SYSCALL, /* a program that can execute syscalls */
 };
 
 enum bpf_attach_type {
@@ -247,6 +990,10 @@ enum bpf_attach_type {
 	BPF_XDP_CPUMAP,
 	BPF_SK_LOOKUP,
 	BPF_XDP,
+	BPF_SK_SKB_VERDICT,
+	BPF_SK_REUSEPORT_SELECT,
+	BPF_SK_REUSEPORT_SELECT_OR_MIGRATE,
+	BPF_PERF_EVENT,
 	__MAX_BPF_ATTACH_TYPE
 };
 
@@ -260,6 +1007,7 @@ enum bpf_link_type {
 	BPF_LINK_TYPE_ITER = 4,
 	BPF_LINK_TYPE_NETNS = 5,
 	BPF_LINK_TYPE_XDP = 6,
+	BPF_LINK_TYPE_PERF_EVENT = 7,
 
 	MAX_BPF_LINK_TYPE,
 };
@@ -365,8 +1113,8 @@ enum bpf_link_type {
 /* When BPF ldimm64's insn[0].src_reg != 0 then this can have
  * the following extensions:
  *
- * insn[0].src_reg:  BPF_PSEUDO_MAP_FD
- * insn[0].imm:      map fd
+ * insn[0].src_reg:  BPF_PSEUDO_MAP_[FD|IDX]
+ * insn[0].imm:      map fd or fd_idx
  * insn[1].imm:      0
  * insn[0].off:      0
  * insn[1].off:      0
@@ -374,15 +1122,19 @@ enum bpf_link_type {
  * verifier type:    CONST_PTR_TO_MAP
  */
 #define BPF_PSEUDO_MAP_FD	1
-/* insn[0].src_reg:  BPF_PSEUDO_MAP_VALUE
- * insn[0].imm:      map fd
+#define BPF_PSEUDO_MAP_IDX	5
+
+/* insn[0].src_reg:  BPF_PSEUDO_MAP_[IDX_]VALUE
+ * insn[0].imm:      map fd or fd_idx
  * insn[1].imm:      offset into value
  * insn[0].off:      0
  * insn[1].off:      0
  * ldimm64 rewrite:  address of map[0]+offset
  * verifier type:    PTR_TO_MAP_VALUE
  */
-#define BPF_PSEUDO_MAP_VALUE	2
+#define BPF_PSEUDO_MAP_VALUE		2
+#define BPF_PSEUDO_MAP_IDX_VALUE	6
+
 /* insn[0].src_reg:  BPF_PSEUDO_BTF_ID
  * insn[0].imm:      kernel btd id of VAR
  * insn[1].imm:      0
@@ -393,11 +1145,24 @@ enum bpf_link_type {
  *                   is struct/union.
  */
 #define BPF_PSEUDO_BTF_ID	3
+/* insn[0].src_reg:  BPF_PSEUDO_FUNC
+ * insn[0].imm:      insn offset to the func
+ * insn[1].imm:      0
+ * insn[0].off:      0
+ * insn[1].off:      0
+ * ldimm64 rewrite:  address of the function
+ * verifier type:    PTR_TO_FUNC.
+ */
+#define BPF_PSEUDO_FUNC		4
 
 /* when bpf_call->src_reg == BPF_PSEUDO_CALL, bpf_call->imm == pc-relative
  * offset to another bpf function
  */
 #define BPF_PSEUDO_CALL		1
+/* when bpf_call->src_reg == BPF_PSEUDO_KFUNC_CALL,
+ * bpf_call->imm == btf_id of a BTF_KIND_FUNC in the running kernel
+ */
+#define BPF_PSEUDO_KFUNC_CALL	2
 
 /* flags for BPF_MAP_UPDATE_ELEM command */
 enum {
@@ -569,6 +1334,8 @@ union bpf_attr {
 			/* or valid module BTF object fd or 0 to attach to vmlinux */
 			__u32		attach_btf_obj_fd;
 		};
+		__u32		:32;		/* pad */
+		__aligned_u64	fd_array;	/* array of FDs */
 	};
 
 	struct { /* anonymous struct used by BPF_OBJ_* commands */
@@ -681,6 +1448,13 @@ union bpf_attr {
 				__aligned_u64	iter_info;	/* extra bpf_iter_link_info */
 				__u32		iter_info_len;	/* iter_info length */
 			};
+			struct {
+				/* black box user-provided value passed through
+				 * to BPF program at the execution time and
+				 * accessible through bpf_get_attach_cookie() BPF helper
+				 */
+				__u64		bpf_cookie;
+			} perf_event;
 		};
 	} link_create;
 
@@ -720,7 +1494,7 @@ union bpf_attr {
  * parsed and used to produce a manual page. The workflow is the following,
  * and requires the rst2man utility:
  *
- *     $ ./scripts/bpf_helpers_doc.py \
+ *     $ ./scripts/bpf_doc.py \
  *             --filename include/uapi/linux/bpf.h > /tmp/bpf-helpers.rst
  *     $ rst2man /tmp/bpf-helpers.rst > /tmp/bpf-helpers.7
  *     $ man /tmp/bpf-helpers.7
@@ -1765,6 +2539,10 @@ union bpf_attr {
  *		  Use with ENCAP_L3/L4 flags to further specify the tunnel
  *		  type; *len* is the length of the inner MAC header.
  *
+ *		* **BPF_F_ADJ_ROOM_ENCAP_L2_ETH**:
+ *		  Use with BPF_F_ADJ_ROOM_ENCAP_L2 flag to further specify the
+ *		  L2 type as Ethernet.
+ *
  * 		A call to this helper is susceptible to change the underlying
  * 		packet buffer. Therefore, at load time, all checks on pointers
  * 		previously done by the verifier are invalidated and must be
@@ -1785,8 +2563,12 @@ union bpf_attr {
  * 		The lower two bits of *flags* are used as the return code if
  * 		the map lookup fails. This is so that the return value can be
  * 		one of the XDP program return codes up to **XDP_TX**, as chosen
- * 		by the caller. Any higher bits in the *flags* argument must be
- * 		unset.
+ * 		by the caller. The higher bits of *flags* can be set to
+ * 		BPF_F_BROADCAST or BPF_F_EXCLUDE_INGRESS as defined below.
+ *
+ * 		With BPF_F_BROADCAST the packet will be broadcasted to all the
+ * 		interfaces in the map, with BPF_F_EXCLUDE_INGRESS the ingress
+ * 		interface will be excluded when do broadcasting.
  *
  * 		See also **bpf_redirect**\ (), which only supports redirecting
  * 		to an ifindex, but doesn't require a map to do so.
@@ -2473,7 +3255,7 @@ union bpf_attr {
  * long bpf_sk_select_reuseport(struct sk_reuseport_md *reuse, struct bpf_map *map, void *key, u64 flags)
  *	Description
  *		Select a **SO_REUSEPORT** socket from a
- *		**BPF_MAP_TYPE_REUSEPORT_ARRAY** *map*.
+ *		**BPF_MAP_TYPE_REUSEPORT_SOCKARRAY** *map*.
  *		It checks the selected socket is matching the incoming
  *		request in the socket buffer.
  *	Return
@@ -3333,12 +4115,20 @@ union bpf_attr {
  * 		of new data availability is sent.
  * 		If **BPF_RB_FORCE_WAKEUP** is specified in *flags*, notification
  * 		of new data availability is sent unconditionally.
+ * 		If **0** is specified in *flags*, an adaptive notification
+ * 		of new data availability is sent.
+ *
+ * 		An adaptive notification is a notification sent whenever the user-space
+ * 		process has caught up and consumed all available payloads. In case the user-space
+ * 		process is still processing a previous payload, then no notification is needed
+ * 		as it will process the newly added payload automatically.
  * 	Return
  * 		0 on success, or a negative error in case of failure.
  *
  * void *bpf_ringbuf_reserve(void *ringbuf, u64 size, u64 flags)
  * 	Description
  * 		Reserve *size* bytes of payload in a ring buffer *ringbuf*.
+ * 		*flags* must be 0.
  * 	Return
  * 		Valid pointer with *size* bytes of memory available; NULL,
  * 		otherwise.
@@ -3350,6 +4140,10 @@ union bpf_attr {
  * 		of new data availability is sent.
  * 		If **BPF_RB_FORCE_WAKEUP** is specified in *flags*, notification
  * 		of new data availability is sent unconditionally.
+ * 		If **0** is specified in *flags*, an adaptive notification
+ * 		of new data availability is sent.
+ *
+ * 		See 'bpf_ringbuf_output()' for the definition of adaptive notification.
  * 	Return
  * 		Nothing. Always succeeds.
  *
@@ -3360,6 +4154,10 @@ union bpf_attr {
  * 		of new data availability is sent.
  * 		If **BPF_RB_FORCE_WAKEUP** is specified in *flags*, notification
  * 		of new data availability is sent unconditionally.
+ * 		If **0** is specified in *flags*, an adaptive notification
+ * 		of new data availability is sent.
+ *
+ * 		See 'bpf_ringbuf_output()' for the definition of adaptive notification.
  * 	Return
  * 		Nothing. Always succeeds.
  *
@@ -3915,6 +4713,170 @@ union bpf_attr {
  *		* **BPF_MTU_CHK_RET_FRAG_NEEDED**
  *		* **BPF_MTU_CHK_RET_SEGS_TOOBIG**
  *
+ * long bpf_for_each_map_elem(struct bpf_map *map, void *callback_fn, void *callback_ctx, u64 flags)
+ *	Description
+ *		For each element in **map**, call **callback_fn** function with
+ *		**map**, **callback_ctx** and other map-specific parameters.
+ *		The **callback_fn** should be a static function and
+ *		the **callback_ctx** should be a pointer to the stack.
+ *		The **flags** is used to control certain aspects of the helper.
+ *		Currently, the **flags** must be 0.
+ *
+ *		The following are a list of supported map types and their
+ *		respective expected callback signatures:
+ *
+ *		BPF_MAP_TYPE_HASH, BPF_MAP_TYPE_PERCPU_HASH,
+ *		BPF_MAP_TYPE_LRU_HASH, BPF_MAP_TYPE_LRU_PERCPU_HASH,
+ *		BPF_MAP_TYPE_ARRAY, BPF_MAP_TYPE_PERCPU_ARRAY
+ *
+ *		long (\*callback_fn)(struct bpf_map \*map, const void \*key, void \*value, void \*ctx);
+ *
+ *		For per_cpu maps, the map_value is the value on the cpu where the
+ *		bpf_prog is running.
+ *
+ *		If **callback_fn** return 0, the helper will continue to the next
+ *		element. If return value is 1, the helper will skip the rest of
+ *		elements and return. Other return values are not used now.
+ *
+ *	Return
+ *		The number of traversed map elements for success, **-EINVAL** for
+ *		invalid **flags**.
+ *
+ * long bpf_snprintf(char *str, u32 str_size, const char *fmt, u64 *data, u32 data_len)
+ *	Description
+ *		Outputs a string into the **str** buffer of size **str_size**
+ *		based on a format string stored in a read-only map pointed by
+ *		**fmt**.
+ *
+ *		Each format specifier in **fmt** corresponds to one u64 element
+ *		in the **data** array. For strings and pointers where pointees
+ *		are accessed, only the pointer values are stored in the *data*
+ *		array. The *data_len* is the size of *data* in bytes.
+ *
+ *		Formats **%s** and **%p{i,I}{4,6}** require to read kernel
+ *		memory. Reading kernel memory may fail due to either invalid
+ *		address or valid address but requiring a major memory fault. If
+ *		reading kernel memory fails, the string for **%s** will be an
+ *		empty string, and the ip address for **%p{i,I}{4,6}** will be 0.
+ *		Not returning error to bpf program is consistent with what
+ *		**bpf_trace_printk**\ () does for now.
+ *
+ *	Return
+ *		The strictly positive length of the formatted string, including
+ *		the trailing zero character. If the return value is greater than
+ *		**str_size**, **str** contains a truncated string, guaranteed to
+ *		be zero-terminated except when **str_size** is 0.
+ *
+ *		Or **-EBUSY** if the per-CPU memory copy buffer is busy.
+ *
+ * long bpf_sys_bpf(u32 cmd, void *attr, u32 attr_size)
+ * 	Description
+ * 		Execute bpf syscall with given arguments.
+ * 	Return
+ * 		A syscall result.
+ *
+ * long bpf_btf_find_by_name_kind(char *name, int name_sz, u32 kind, int flags)
+ * 	Description
+ * 		Find BTF type with given name and kind in vmlinux BTF or in module's BTFs.
+ * 	Return
+ * 		Returns btf_id and btf_obj_fd in lower and upper 32 bits.
+ *
+ * long bpf_sys_close(u32 fd)
+ * 	Description
+ * 		Execute close syscall for given FD.
+ * 	Return
+ * 		A syscall result.
+ *
+ * long bpf_timer_init(struct bpf_timer *timer, struct bpf_map *map, u64 flags)
+ *	Description
+ *		Initialize the timer.
+ *		First 4 bits of *flags* specify clockid.
+ *		Only CLOCK_MONOTONIC, CLOCK_REALTIME, CLOCK_BOOTTIME are allowed.
+ *		All other bits of *flags* are reserved.
+ *		The verifier will reject the program if *timer* is not from
+ *		the same *map*.
+ *	Return
+ *		0 on success.
+ *		**-EBUSY** if *timer* is already initialized.
+ *		**-EINVAL** if invalid *flags* are passed.
+ *		**-EPERM** if *timer* is in a map that doesn't have any user references.
+ *		The user space should either hold a file descriptor to a map with timers
+ *		or pin such map in bpffs. When map is unpinned or file descriptor is
+ *		closed all timers in the map will be cancelled and freed.
+ *
+ * long bpf_timer_set_callback(struct bpf_timer *timer, void *callback_fn)
+ *	Description
+ *		Configure the timer to call *callback_fn* static function.
+ *	Return
+ *		0 on success.
+ *		**-EINVAL** if *timer* was not initialized with bpf_timer_init() earlier.
+ *		**-EPERM** if *timer* is in a map that doesn't have any user references.
+ *		The user space should either hold a file descriptor to a map with timers
+ *		or pin such map in bpffs. When map is unpinned or file descriptor is
+ *		closed all timers in the map will be cancelled and freed.
+ *
+ * long bpf_timer_start(struct bpf_timer *timer, u64 nsecs, u64 flags)
+ *	Description
+ *		Set timer expiration N nanoseconds from the current time. The
+ *		configured callback will be invoked in soft irq context on some cpu
+ *		and will not repeat unless another bpf_timer_start() is made.
+ *		In such case the next invocation can migrate to a different cpu.
+ *		Since struct bpf_timer is a field inside map element the map
+ *		owns the timer. The bpf_timer_set_callback() will increment refcnt
+ *		of BPF program to make sure that callback_fn code stays valid.
+ *		When user space reference to a map reaches zero all timers
+ *		in a map are cancelled and corresponding program's refcnts are
+ *		decremented. This is done to make sure that Ctrl-C of a user
+ *		process doesn't leave any timers running. If map is pinned in
+ *		bpffs the callback_fn can re-arm itself indefinitely.
+ *		bpf_map_update/delete_elem() helpers and user space sys_bpf commands
+ *		cancel and free the timer in the given map element.
+ *		The map can contain timers that invoke callback_fn-s from different
+ *		programs. The same callback_fn can serve different timers from
+ *		different maps if key/value layout matches across maps.
+ *		Every bpf_timer_set_callback() can have different callback_fn.
+ *
+ *	Return
+ *		0 on success.
+ *		**-EINVAL** if *timer* was not initialized with bpf_timer_init() earlier
+ *		or invalid *flags* are passed.
+ *
+ * long bpf_timer_cancel(struct bpf_timer *timer)
+ *	Description
+ *		Cancel the timer and wait for callback_fn to finish if it was running.
+ *	Return
+ *		0 if the timer was not active.
+ *		1 if the timer was active.
+ *		**-EINVAL** if *timer* was not initialized with bpf_timer_init() earlier.
+ *		**-EDEADLK** if callback_fn tried to call bpf_timer_cancel() on its
+ *		own timer which would have led to a deadlock otherwise.
+ *
+ * u64 bpf_get_func_ip(void *ctx)
+ * 	Description
+ * 		Get address of the traced function (for tracing and kprobe programs).
+ * 	Return
+ * 		Address of the traced function.
+ *
+ * u64 bpf_get_attach_cookie(void *ctx)
+ * 	Description
+ * 		Get bpf_cookie value provided (optionally) during the program
+ * 		attachment. It might be different for each individual
+ * 		attachment, even if BPF program itself is the same.
+ * 		Expects BPF program context *ctx* as a first argument.
+ *
+ * 		Supported for the following program types:
+ *			- kprobe/uprobe;
+ *			- tracepoint;
+ *			- perf_event.
+ * 	Return
+ *		Value specified by user at BPF link creation/attachment time
+ *		or 0, if it was not specified.
+ *
+ * long bpf_task_pt_regs(struct task_struct *task)
+ *	Description
+ *		Get the struct pt_regs associated with **task**.
+ *	Return
+ *		A pointer to struct pt_regs.
  */
 #define __BPF_FUNC_MAPPER(FN)		\
 	FN(unspec),			\
@@ -4081,6 +5043,18 @@ union bpf_attr {
 	FN(ima_inode_hash),		\
 	FN(sock_from_file),		\
 	FN(check_mtu),			\
+	FN(for_each_map_elem),		\
+	FN(snprintf),			\
+	FN(sys_bpf),			\
+	FN(btf_find_by_name_kind),	\
+	FN(sys_close),			\
+	FN(timer_init),			\
+	FN(timer_set_callback),		\
+	FN(timer_start),		\
+	FN(timer_cancel),		\
+	FN(get_func_ip),		\
+	FN(get_attach_cookie),		\
+	FN(task_pt_regs),		\
 	/* */
 
 /* integer value in 'imm' field of BPF_CALL instruction selects which helper
@@ -4174,6 +5148,7 @@ enum {
 	BPF_F_ADJ_ROOM_ENCAP_L4_GRE	= (1ULL << 3),
 	BPF_F_ADJ_ROOM_ENCAP_L4_UDP	= (1ULL << 4),
 	BPF_F_ADJ_ROOM_NO_CSUM_RESET	= (1ULL << 5),
+	BPF_F_ADJ_ROOM_ENCAP_L2_ETH	= (1ULL << 6),
 };
 
 enum {
@@ -4255,6 +5230,12 @@ enum bpf_lwt_encap_mode {
 /* Flags for bpf_bprm_opts_set helper */
 enum {
 	BPF_F_BPRM_SECUREEXEC	= (1ULL << 0),
+};
+
+/* Flags for bpf_redirect_map helper */
+enum {
+	BPF_F_BROADCAST		= (1ULL << 3),
+	BPF_F_EXCLUDE_INGRESS	= (1ULL << 4),
 };
 
 #define __bpf_md_ptr(type, name)	\
@@ -4541,6 +5522,20 @@ struct sk_reuseport_md {
 	__u32 ip_protocol;	/* IP protocol. e.g. IPPROTO_TCP, IPPROTO_UDP */
 	__u32 bind_inany;	/* Is sock bound to an INANY address? */
 	__u32 hash;		/* A hash of the packet 4 tuples */
+	/* When reuse->migrating_sk is NULL, it is selecting a sk for the
+	 * new incoming connection request (e.g. selecting a listen sk for
+	 * the received SYN in the TCP case).  reuse->sk is one of the sk
+	 * in the reuseport group. The bpf prog can use reuse->sk to learn
+	 * the local listening ip/port without looking into the skb.
+	 *
+	 * When reuse->migrating_sk is not NULL, reuse->sk is closed and
+	 * reuse->migrating_sk is the socket that needs to be migrated
+	 * to another listening socket.  migrating_sk could be a fullsock
+	 * sk that is fully established or a reqsk that is in-the-middle
+	 * of 3-way handshake.
+	 */
+	__bpf_md_ptr(struct bpf_sock *, sk);
+	__bpf_md_ptr(struct bpf_sock *, migrating_sk);
 };
 
 #define BPF_TAG_SIZE	8
@@ -4621,6 +5616,8 @@ struct bpf_link_info {
 		} raw_tracepoint;
 		struct {
 			__u32 attach_type;
+			__u32 target_obj_id; /* prog_id for PROG_EXT, otherwise btf object id */
+			__u32 target_btf_id; /* BTF type id inside the object */
 		} tracing;
 		struct {
 			__u64 cgroup_id;
@@ -5184,6 +6181,11 @@ struct bpf_spin_lock {
 	__u32	val;
 };
 
+struct bpf_timer {
+	__u64 :64;
+	__u64 :64;
+} __attribute__((aligned(8)));
+
 struct bpf_sysctl {
 	__u32	write;		/* Sysctl is being read (= 0) or written (= 1).
 				 * Allows 1,2,4-byte read, but no write.
@@ -5211,7 +6213,10 @@ struct bpf_pidns_info {
 
 /* User accessible data for SK_LOOKUP programs. Add new fields at the end. */
 struct bpf_sk_lookup {
-	__bpf_md_ptr(struct bpf_sock *, sk); /* Selected socket */
+	union {
+		__bpf_md_ptr(struct bpf_sock *, sk); /* Selected socket */
+		__u64 cookie; /* Non-zero if socket was selected in PROG_TEST_RUN */
+	};
 
 	__u32 family;		/* Protocol family (AF_INET, AF_INET6) */
 	__u32 protocol;		/* IP protocol (IPPROTO_TCP, IPPROTO_UDP) */

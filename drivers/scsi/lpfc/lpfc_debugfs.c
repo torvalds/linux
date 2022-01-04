@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2017-2020 Broadcom. All Rights Reserved. The term *
+ * Copyright (C) 2017-2021 Broadcom. All Rights Reserved. The term *
  * “Broadcom” refers to Broadcom Inc. and/or its subsidiaries.  *
  * Copyright (C) 2007-2015 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
@@ -381,7 +381,7 @@ skipit:
 static int lpfc_debugfs_last_xripool;
 
 /**
- * lpfc_debugfs_common_xri_data - Dump Hardware Queue info to a buffer
+ * lpfc_debugfs_commonxripools_data - Dump Hardware Queue info to a buffer
  * @phba: The HBA to gather host buffer info from.
  * @buf: The buffer to dump log into.
  * @size: The maximum amount of data to process.
@@ -863,16 +863,13 @@ lpfc_debugfs_nodelist_data(struct lpfc_vport *vport, char *buf, int size)
 		len += scnprintf(buf+len, size-len, "%s DID:x%06x ",
 				statep, ndlp->nlp_DID);
 		len += scnprintf(buf+len, size-len,
-				"WWPN x%llx ",
+				"WWPN x%016llx ",
 				wwn_to_u64(ndlp->nlp_portname.u.wwn));
 		len += scnprintf(buf+len, size-len,
-				"WWNN x%llx ",
+				"WWNN x%016llx ",
 				wwn_to_u64(ndlp->nlp_nodename.u.wwn));
-		if (ndlp->nlp_flag & NLP_RPI_REGISTERED)
-			len += scnprintf(buf+len, size-len, "RPI:%03d ",
-					ndlp->nlp_rpi);
-		else
-			len += scnprintf(buf+len, size-len, "RPI:none ");
+		len += scnprintf(buf+len, size-len, "RPI:x%04x ",
+				 ndlp->nlp_rpi);
 		len +=  scnprintf(buf+len, size-len, "flag:x%08x ",
 			ndlp->nlp_flag);
 		if (!ndlp->nlp_type)
@@ -895,7 +892,7 @@ lpfc_debugfs_nodelist_data(struct lpfc_vport *vport, char *buf, int size)
 		if (ndlp->nlp_type & NLP_NVME_INITIATOR)
 			len += scnprintf(buf + len,
 					size - len, "NVME_INITIATOR ");
-		len += scnprintf(buf+len, size-len, "refcnt:%x",
+		len += scnprintf(buf+len, size-len, "refcnt:%d",
 			kref_read(&ndlp->kref));
 		if (iocnt) {
 			i = atomic_read(&ndlp->cmd_pending);
@@ -904,8 +901,11 @@ lpfc_debugfs_nodelist_data(struct lpfc_vport *vport, char *buf, int size)
 					i, ndlp->cmd_qdepth);
 			outio += i;
 		}
-		len += scnprintf(buf + len, size - len, "defer:%x ",
-			ndlp->nlp_defer_did);
+		len += scnprintf(buf+len, size-len, " xpt:x%x",
+				 ndlp->fc4_xpt_flags);
+		if (ndlp->nlp_defer_did != NLP_EVT_NOTHING_PENDING)
+			len += scnprintf(buf+len, size-len, " defer:%x",
+					 ndlp->nlp_defer_did);
 		len +=  scnprintf(buf+len, size-len, "\n");
 	}
 	spin_unlock_irq(shost->host_lock);
@@ -5151,7 +5151,7 @@ error_out:
  * This routine is to get the available extent information.
  *
  * Returns:
- * overall lenth of the data read into the internal buffer.
+ * overall length of the data read into the internal buffer.
  **/
 static int
 lpfc_idiag_extacc_avail_get(struct lpfc_hba *phba, char *pbuffer, int len)
@@ -5202,7 +5202,7 @@ lpfc_idiag_extacc_avail_get(struct lpfc_hba *phba, char *pbuffer, int len)
  * This routine is to get the allocated extent information.
  *
  * Returns:
- * overall lenth of the data read into the internal buffer.
+ * overall length of the data read into the internal buffer.
  **/
 static int
 lpfc_idiag_extacc_alloc_get(struct lpfc_hba *phba, char *pbuffer, int len)
@@ -5274,7 +5274,7 @@ lpfc_idiag_extacc_alloc_get(struct lpfc_hba *phba, char *pbuffer, int len)
  * This routine is to get the driver extent information.
  *
  * Returns:
- * overall lenth of the data read into the internal buffer.
+ * overall length of the data read into the internal buffer.
  **/
 static int
 lpfc_idiag_extacc_drivr_get(struct lpfc_hba *phba, char *pbuffer, int len)
@@ -5427,6 +5427,180 @@ lpfc_idiag_extacc_read(struct file *file, char __user *buf, size_t nbytes,
 		len = lpfc_idiag_extacc_drivr_get(phba, pbuffer, len);
 
 	return simple_read_from_buffer(buf, nbytes, ppos, pbuffer, len);
+}
+
+static int
+lpfc_cgn_buffer_open(struct inode *inode, struct file *file)
+{
+	struct lpfc_debug *debug;
+	int rc = -ENOMEM;
+
+	debug = kmalloc(sizeof(*debug), GFP_KERNEL);
+	if (!debug)
+		goto out;
+
+	debug->buffer = vmalloc(LPFC_CGN_BUF_SIZE);
+	if (!debug->buffer) {
+		kfree(debug);
+		goto out;
+	}
+
+	debug->i_private = inode->i_private;
+	file->private_data = debug;
+
+	rc = 0;
+out:
+	return rc;
+}
+
+static ssize_t
+lpfc_cgn_buffer_read(struct file *file, char __user *buf, size_t nbytes,
+		     loff_t *ppos)
+{
+	struct lpfc_debug *debug = file->private_data;
+	struct lpfc_hba *phba = (struct lpfc_hba *)debug->i_private;
+	char *buffer = debug->buffer;
+	uint32_t *ptr;
+	int cnt, len = 0;
+
+	if (!phba->sli4_hba.pc_sli4_params.mi_ver || !phba->cgn_i) {
+		len += scnprintf(buffer + len, LPFC_CGN_BUF_SIZE - len,
+				 "Congestion Mgmt is not supported\n");
+		goto out;
+	}
+	ptr = (uint32_t *)phba->cgn_i->virt;
+	len += scnprintf(buffer + len, LPFC_CGN_BUF_SIZE - len,
+			 "Congestion Buffer Header\n");
+	/* Dump the first 32 bytes */
+	cnt = 32;
+	len += scnprintf(buffer + len, LPFC_CGN_BUF_SIZE - len,
+			 "000: %08x %08x %08x %08x %08x %08x %08x %08x\n",
+			 *ptr, *(ptr + 1), *(ptr + 2), *(ptr + 3),
+			 *(ptr + 4), *(ptr + 5), *(ptr + 6), *(ptr + 7));
+	ptr += 8;
+	len += scnprintf(buffer + len, LPFC_CGN_BUF_SIZE - len,
+			 "Congestion Buffer Data\n");
+	while (cnt < sizeof(struct lpfc_cgn_info)) {
+		if (len > (LPFC_CGN_BUF_SIZE - LPFC_DEBUG_OUT_LINE_SZ)) {
+			len += scnprintf(buffer + len, LPFC_CGN_BUF_SIZE - len,
+					 "Truncated . . .\n");
+			break;
+		}
+		len += scnprintf(buffer + len, LPFC_CGN_BUF_SIZE - len,
+				 "%03x: %08x %08x %08x %08x "
+				 "%08x %08x %08x %08x\n",
+				 cnt, *ptr, *(ptr + 1), *(ptr + 2),
+				 *(ptr + 3), *(ptr + 4), *(ptr + 5),
+				 *(ptr + 6), *(ptr + 7));
+		cnt += 32;
+		ptr += 8;
+	}
+out:
+	return simple_read_from_buffer(buf, nbytes, ppos, buffer, len);
+}
+
+static int
+lpfc_cgn_buffer_release(struct inode *inode, struct file *file)
+{
+	struct lpfc_debug *debug = file->private_data;
+
+	vfree(debug->buffer);
+	kfree(debug);
+
+	return 0;
+}
+
+static int
+lpfc_rx_monitor_open(struct inode *inode, struct file *file)
+{
+	struct lpfc_rx_monitor_debug *debug;
+	int rc = -ENOMEM;
+
+	debug = kmalloc(sizeof(*debug), GFP_KERNEL);
+	if (!debug)
+		goto out;
+
+	debug->buffer = vmalloc(MAX_DEBUGFS_RX_TABLE_SIZE);
+	if (!debug->buffer) {
+		kfree(debug);
+		goto out;
+	}
+
+	debug->i_private = inode->i_private;
+	file->private_data = debug;
+
+	rc = 0;
+out:
+	return rc;
+}
+
+static ssize_t
+lpfc_rx_monitor_read(struct file *file, char __user *buf, size_t nbytes,
+		     loff_t *ppos)
+{
+	struct lpfc_rx_monitor_debug *debug = file->private_data;
+	struct lpfc_hba *phba = (struct lpfc_hba *)debug->i_private;
+	char *buffer = debug->buffer;
+	struct rxtable_entry *entry;
+	int i, len = 0, head, tail, last, start;
+
+	head = atomic_read(&phba->rxtable_idx_head);
+	while (head == LPFC_RXMONITOR_TABLE_IN_USE) {
+		/* Table is getting updated */
+		msleep(20);
+		head = atomic_read(&phba->rxtable_idx_head);
+	}
+
+	tail = atomic_xchg(&phba->rxtable_idx_tail, head);
+	if (!phba->rxtable || head == tail) {
+		len += scnprintf(buffer + len, MAX_DEBUGFS_RX_TABLE_SIZE - len,
+				"Rxtable is empty\n");
+		goto out;
+	}
+	last = (head > tail) ?  head : LPFC_MAX_RXMONITOR_ENTRY;
+	start = tail;
+
+	len += scnprintf(buffer + len, MAX_DEBUGFS_RX_TABLE_SIZE - len,
+			"        MaxBPI\t Total Data Cmd  Total Data Cmpl "
+			"  Latency(us)    Avg IO Size\tMax IO Size   IO cnt "
+			"Info BWutil(ms)\n");
+get_table:
+	for (i = start; i < last; i++) {
+		entry = &phba->rxtable[i];
+		len += scnprintf(buffer + len, MAX_DEBUGFS_RX_TABLE_SIZE - len,
+				"%3d:%12lld  %12lld\t%12lld\t"
+				"%8lldus\t%8lld\t%10lld "
+				"%8d   %2d %2d(%2d)\n",
+				i, entry->max_bytes_per_interval,
+				entry->total_bytes,
+				entry->rcv_bytes,
+				entry->avg_io_latency,
+				entry->avg_io_size,
+				entry->max_read_cnt,
+				entry->io_cnt,
+				entry->cmf_info,
+				entry->timer_utilization,
+				entry->timer_interval);
+	}
+
+	if (head != last) {
+		start = 0;
+		last = head;
+		goto get_table;
+	}
+out:
+	return simple_read_from_buffer(buf, nbytes, ppos, buffer, len);
+}
+
+static int
+lpfc_rx_monitor_release(struct inode *inode, struct file *file)
+{
+	struct lpfc_rx_monitor_debug *debug = file->private_data;
+
+	vfree(debug->buffer);
+	kfree(debug);
+
+	return 0;
 }
 
 #undef lpfc_debugfs_op_disc_trc
@@ -5656,6 +5830,23 @@ static const struct file_operations lpfc_idiag_op_extAcc = {
 	.read =         lpfc_idiag_extacc_read,
 	.write =        lpfc_idiag_extacc_write,
 	.release =      lpfc_idiag_cmd_release,
+};
+#undef lpfc_cgn_buffer_op
+static const struct file_operations lpfc_cgn_buffer_op = {
+	.owner =        THIS_MODULE,
+	.open =         lpfc_cgn_buffer_open,
+	.llseek =       lpfc_debugfs_lseek,
+	.read =         lpfc_cgn_buffer_read,
+	.release =      lpfc_cgn_buffer_release,
+};
+
+#undef lpfc_rx_monitor_op
+static const struct file_operations lpfc_rx_monitor_op = {
+	.owner =        THIS_MODULE,
+	.open =         lpfc_rx_monitor_open,
+	.llseek =       lpfc_debugfs_lseek,
+	.read =         lpfc_rx_monitor_read,
+	.release =      lpfc_rx_monitor_release,
 };
 #endif
 
@@ -5904,6 +6095,32 @@ lpfc_debugfs_initialize(struct lpfc_vport *vport)
 		if (!phba->debug_multixri_pools) {
 			lpfc_printf_vlog(vport, KERN_ERR, LOG_INIT,
 					 "0527 Cannot create debugfs multixripools\n");
+			goto debug_failed;
+		}
+
+		/* Congestion Info Buffer */
+		scnprintf(name, sizeof(name), "cgn_buffer");
+		phba->debug_cgn_buffer =
+			debugfs_create_file(name, S_IFREG | 0644,
+					    phba->hba_debugfs_root,
+					    phba, &lpfc_cgn_buffer_op);
+		if (!phba->debug_cgn_buffer) {
+			lpfc_printf_vlog(vport, KERN_ERR, LOG_INIT,
+					 "6527 Cannot create debugfs "
+					 "cgn_buffer\n");
+			goto debug_failed;
+		}
+
+		/* RX Monitor */
+		scnprintf(name, sizeof(name), "rx_monitor");
+		phba->debug_rx_monitor =
+			debugfs_create_file(name, S_IFREG | 0644,
+					    phba->hba_debugfs_root,
+					    phba, &lpfc_rx_monitor_op);
+		if (!phba->debug_rx_monitor) {
+			lpfc_printf_vlog(vport, KERN_ERR, LOG_INIT,
+					 "6528 Cannot create debugfs "
+					 "rx_monitor\n");
 			goto debug_failed;
 		}
 
@@ -6334,6 +6551,12 @@ lpfc_debugfs_terminate(struct lpfc_vport *vport)
 
 		debugfs_remove(phba->debug_hbqinfo); /* hbqinfo */
 		phba->debug_hbqinfo = NULL;
+
+		debugfs_remove(phba->debug_cgn_buffer);
+		phba->debug_cgn_buffer = NULL;
+
+		debugfs_remove(phba->debug_rx_monitor);
+		phba->debug_rx_monitor = NULL;
 
 		debugfs_remove(phba->debug_ras_log);
 		phba->debug_ras_log = NULL;

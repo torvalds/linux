@@ -73,6 +73,30 @@ static const struct csiphy_format csiphy_formats_8x96[] = {
 	{ MEDIA_BUS_FMT_Y10_1X10, 10 },
 };
 
+static const struct csiphy_format csiphy_formats_sdm845[] = {
+	{ MEDIA_BUS_FMT_UYVY8_2X8, 8 },
+	{ MEDIA_BUS_FMT_VYUY8_2X8, 8 },
+	{ MEDIA_BUS_FMT_YUYV8_2X8, 8 },
+	{ MEDIA_BUS_FMT_YVYU8_2X8, 8 },
+	{ MEDIA_BUS_FMT_SBGGR8_1X8, 8 },
+	{ MEDIA_BUS_FMT_SGBRG8_1X8, 8 },
+	{ MEDIA_BUS_FMT_SGRBG8_1X8, 8 },
+	{ MEDIA_BUS_FMT_SRGGB8_1X8, 8 },
+	{ MEDIA_BUS_FMT_SBGGR10_1X10, 10 },
+	{ MEDIA_BUS_FMT_SGBRG10_1X10, 10 },
+	{ MEDIA_BUS_FMT_SGRBG10_1X10, 10 },
+	{ MEDIA_BUS_FMT_SRGGB10_1X10, 10 },
+	{ MEDIA_BUS_FMT_SBGGR12_1X12, 12 },
+	{ MEDIA_BUS_FMT_SGBRG12_1X12, 12 },
+	{ MEDIA_BUS_FMT_SGRBG12_1X12, 12 },
+	{ MEDIA_BUS_FMT_SRGGB12_1X12, 12 },
+	{ MEDIA_BUS_FMT_SBGGR14_1X14, 14 },
+	{ MEDIA_BUS_FMT_SGBRG14_1X14, 14 },
+	{ MEDIA_BUS_FMT_SGRBG14_1X14, 14 },
+	{ MEDIA_BUS_FMT_SRGGB14_1X14, 14 },
+	{ MEDIA_BUS_FMT_Y10_1X10, 10 },
+};
+
 /*
  * csiphy_get_bpp - map media bus format to bits per pixel
  * @formats: supported media bus formats array
@@ -102,23 +126,23 @@ static u8 csiphy_get_bpp(const struct csiphy_format *formats,
 static int csiphy_set_clock_rates(struct csiphy_device *csiphy)
 {
 	struct device *dev = csiphy->camss->dev;
-	u32 pixel_clock;
+	s64 link_freq;
 	int i, j;
 	int ret;
 
-	ret = camss_get_pixel_clock(&csiphy->subdev.entity, &pixel_clock);
-	if (ret)
-		pixel_clock = 0;
+	u8 bpp = csiphy_get_bpp(csiphy->formats, csiphy->nformats,
+				csiphy->fmt[MSM_CSIPHY_PAD_SINK].code);
+	u8 num_lanes = csiphy->cfg.csi2->lane_cfg.num_data;
+
+	link_freq = camss_get_link_freq(&csiphy->subdev.entity, bpp, num_lanes);
+	if (link_freq < 0)
+		link_freq  = 0;
 
 	for (i = 0; i < csiphy->nclocks; i++) {
 		struct camss_clock *clock = &csiphy->clock[i];
 
 		if (csiphy->rate_set[i]) {
-			u8 bpp = csiphy_get_bpp(csiphy->formats,
-					csiphy->nformats,
-					csiphy->fmt[MSM_CSIPHY_PAD_SINK].code);
-			u8 num_lanes = csiphy->cfg.csi2->lane_cfg.num_data;
-			u64 min_rate = pixel_clock * bpp / (2 * num_lanes * 4);
+			u64 min_rate = link_freq / 4;
 			long round_rate;
 
 			camss_add_clock_margin(&min_rate);
@@ -173,11 +197,9 @@ static int csiphy_set_power(struct v4l2_subdev *sd, int on)
 	if (on) {
 		int ret;
 
-		ret = pm_runtime_get_sync(dev);
-		if (ret < 0) {
-			pm_runtime_put_sync(dev);
+		ret = pm_runtime_resume_and_get(dev);
+		if (ret < 0)
 			return ret;
-		}
 
 		ret = csiphy_set_clock_rates(csiphy);
 		if (ret < 0) {
@@ -238,37 +260,37 @@ static u8 csiphy_get_lane_mask(struct csiphy_lanes_cfg *lane_cfg)
 static int csiphy_stream_on(struct csiphy_device *csiphy)
 {
 	struct csiphy_config *cfg = &csiphy->cfg;
-	u32 pixel_clock;
+	s64 link_freq;
 	u8 lane_mask = csiphy_get_lane_mask(&cfg->csi2->lane_cfg);
 	u8 bpp = csiphy_get_bpp(csiphy->formats, csiphy->nformats,
 				csiphy->fmt[MSM_CSIPHY_PAD_SINK].code);
+	u8 num_lanes = csiphy->cfg.csi2->lane_cfg.num_data;
 	u8 val;
-	int ret;
 
-	ret = camss_get_pixel_clock(&csiphy->subdev.entity, &pixel_clock);
-	if (ret) {
+	link_freq = camss_get_link_freq(&csiphy->subdev.entity, bpp, num_lanes);
+
+	if (link_freq < 0) {
 		dev_err(csiphy->camss->dev,
-			"Cannot get CSI2 transmitter's pixel clock\n");
-		return -EINVAL;
-	}
-	if (!pixel_clock) {
-		dev_err(csiphy->camss->dev,
-			"Got pixel clock == 0, cannot continue\n");
+			"Cannot get CSI2 transmitter's link frequency\n");
 		return -EINVAL;
 	}
 
-	val = readl_relaxed(csiphy->base_clk_mux);
-	if (cfg->combo_mode && (lane_mask & 0x18) == 0x18) {
-		val &= ~0xf0;
-		val |= cfg->csid_id << 4;
-	} else {
-		val &= ~0xf;
-		val |= cfg->csid_id;
-	}
-	writel_relaxed(val, csiphy->base_clk_mux);
-	wmb();
+	if (csiphy->base_clk_mux) {
+		val = readl_relaxed(csiphy->base_clk_mux);
+		if (cfg->combo_mode && (lane_mask & 0x18) == 0x18) {
+			val &= ~0xf0;
+			val |= cfg->csid_id << 4;
+		} else {
+			val &= ~0xf;
+			val |= cfg->csid_id;
+		}
+		writel_relaxed(val, csiphy->base_clk_mux);
 
-	csiphy->ops->lanes_enable(csiphy, cfg, pixel_clock, bpp, lane_mask);
+		/* Enforce reg write ordering between clk mux & lane enabling */
+		wmb();
+	}
+
+	csiphy->ops->lanes_enable(csiphy, cfg, link_freq, lane_mask);
 
 	return 0;
 }
@@ -316,12 +338,13 @@ static int csiphy_set_stream(struct v4l2_subdev *sd, int enable)
  */
 static struct v4l2_mbus_framefmt *
 __csiphy_get_format(struct csiphy_device *csiphy,
-		    struct v4l2_subdev_pad_config *cfg,
+		    struct v4l2_subdev_state *sd_state,
 		    unsigned int pad,
 		    enum v4l2_subdev_format_whence which)
 {
 	if (which == V4L2_SUBDEV_FORMAT_TRY)
-		return v4l2_subdev_get_try_format(&csiphy->subdev, cfg, pad);
+		return v4l2_subdev_get_try_format(&csiphy->subdev, sd_state,
+						  pad);
 
 	return &csiphy->fmt[pad];
 }
@@ -335,7 +358,7 @@ __csiphy_get_format(struct csiphy_device *csiphy,
  * @which: wanted subdev format
  */
 static void csiphy_try_format(struct csiphy_device *csiphy,
-			      struct v4l2_subdev_pad_config *cfg,
+			      struct v4l2_subdev_state *sd_state,
 			      unsigned int pad,
 			      struct v4l2_mbus_framefmt *fmt,
 			      enum v4l2_subdev_format_whence which)
@@ -365,7 +388,8 @@ static void csiphy_try_format(struct csiphy_device *csiphy,
 	case MSM_CSIPHY_PAD_SRC:
 		/* Set and return a format same as sink pad */
 
-		*fmt = *__csiphy_get_format(csiphy, cfg, MSM_CSID_PAD_SINK,
+		*fmt = *__csiphy_get_format(csiphy, sd_state,
+					    MSM_CSID_PAD_SINK,
 					    which);
 
 		break;
@@ -380,7 +404,7 @@ static void csiphy_try_format(struct csiphy_device *csiphy,
  * return -EINVAL or zero on success
  */
 static int csiphy_enum_mbus_code(struct v4l2_subdev *sd,
-				 struct v4l2_subdev_pad_config *cfg,
+				 struct v4l2_subdev_state *sd_state,
 				 struct v4l2_subdev_mbus_code_enum *code)
 {
 	struct csiphy_device *csiphy = v4l2_get_subdevdata(sd);
@@ -395,7 +419,8 @@ static int csiphy_enum_mbus_code(struct v4l2_subdev *sd,
 		if (code->index > 0)
 			return -EINVAL;
 
-		format = __csiphy_get_format(csiphy, cfg, MSM_CSIPHY_PAD_SINK,
+		format = __csiphy_get_format(csiphy, sd_state,
+					     MSM_CSIPHY_PAD_SINK,
 					     code->which);
 
 		code->code = format->code;
@@ -412,7 +437,7 @@ static int csiphy_enum_mbus_code(struct v4l2_subdev *sd,
  * return -EINVAL or zero on success
  */
 static int csiphy_enum_frame_size(struct v4l2_subdev *sd,
-				  struct v4l2_subdev_pad_config *cfg,
+				  struct v4l2_subdev_state *sd_state,
 				  struct v4l2_subdev_frame_size_enum *fse)
 {
 	struct csiphy_device *csiphy = v4l2_get_subdevdata(sd);
@@ -424,7 +449,7 @@ static int csiphy_enum_frame_size(struct v4l2_subdev *sd,
 	format.code = fse->code;
 	format.width = 1;
 	format.height = 1;
-	csiphy_try_format(csiphy, cfg, fse->pad, &format, fse->which);
+	csiphy_try_format(csiphy, sd_state, fse->pad, &format, fse->which);
 	fse->min_width = format.width;
 	fse->min_height = format.height;
 
@@ -434,7 +459,7 @@ static int csiphy_enum_frame_size(struct v4l2_subdev *sd,
 	format.code = fse->code;
 	format.width = -1;
 	format.height = -1;
-	csiphy_try_format(csiphy, cfg, fse->pad, &format, fse->which);
+	csiphy_try_format(csiphy, sd_state, fse->pad, &format, fse->which);
 	fse->max_width = format.width;
 	fse->max_height = format.height;
 
@@ -450,13 +475,13 @@ static int csiphy_enum_frame_size(struct v4l2_subdev *sd,
  * Return -EINVAL or zero on success
  */
 static int csiphy_get_format(struct v4l2_subdev *sd,
-			     struct v4l2_subdev_pad_config *cfg,
+			     struct v4l2_subdev_state *sd_state,
 			     struct v4l2_subdev_format *fmt)
 {
 	struct csiphy_device *csiphy = v4l2_get_subdevdata(sd);
 	struct v4l2_mbus_framefmt *format;
 
-	format = __csiphy_get_format(csiphy, cfg, fmt->pad, fmt->which);
+	format = __csiphy_get_format(csiphy, sd_state, fmt->pad, fmt->which);
 	if (format == NULL)
 		return -EINVAL;
 
@@ -474,26 +499,29 @@ static int csiphy_get_format(struct v4l2_subdev *sd,
  * Return -EINVAL or zero on success
  */
 static int csiphy_set_format(struct v4l2_subdev *sd,
-			     struct v4l2_subdev_pad_config *cfg,
+			     struct v4l2_subdev_state *sd_state,
 			     struct v4l2_subdev_format *fmt)
 {
 	struct csiphy_device *csiphy = v4l2_get_subdevdata(sd);
 	struct v4l2_mbus_framefmt *format;
 
-	format = __csiphy_get_format(csiphy, cfg, fmt->pad, fmt->which);
+	format = __csiphy_get_format(csiphy, sd_state, fmt->pad, fmt->which);
 	if (format == NULL)
 		return -EINVAL;
 
-	csiphy_try_format(csiphy, cfg, fmt->pad, &fmt->format, fmt->which);
+	csiphy_try_format(csiphy, sd_state, fmt->pad, &fmt->format,
+			  fmt->which);
 	*format = fmt->format;
 
 	/* Propagate the format from sink to source */
 	if (fmt->pad == MSM_CSIPHY_PAD_SINK) {
-		format = __csiphy_get_format(csiphy, cfg, MSM_CSIPHY_PAD_SRC,
+		format = __csiphy_get_format(csiphy, sd_state,
+					     MSM_CSIPHY_PAD_SRC,
 					     fmt->which);
 
 		*format = fmt->format;
-		csiphy_try_format(csiphy, cfg, MSM_CSIPHY_PAD_SRC, format,
+		csiphy_try_format(csiphy, sd_state, MSM_CSIPHY_PAD_SRC,
+				  format,
 				  fmt->which);
 	}
 
@@ -523,7 +551,7 @@ static int csiphy_init_formats(struct v4l2_subdev *sd,
 		}
 	};
 
-	return csiphy_set_format(sd, fh ? fh->pad : NULL, &format);
+	return csiphy_set_format(sd, fh ? fh->state : NULL, &format);
 }
 
 /*
@@ -557,24 +585,28 @@ int msm_csiphy_subdev_init(struct camss *camss,
 		csiphy->ops = &csiphy_ops_3ph_1_0;
 		csiphy->formats = csiphy_formats_8x96;
 		csiphy->nformats = ARRAY_SIZE(csiphy_formats_8x96);
+	} else if (camss->version == CAMSS_845) {
+		csiphy->ops = &csiphy_ops_3ph_1_0;
+		csiphy->formats = csiphy_formats_sdm845;
+		csiphy->nformats = ARRAY_SIZE(csiphy_formats_sdm845);
 	} else {
 		return -EINVAL;
 	}
 
 	/* Memory */
 
-	r = platform_get_resource_byname(pdev, IORESOURCE_MEM, res->reg[0]);
-	csiphy->base = devm_ioremap_resource(dev, r);
-	if (IS_ERR(csiphy->base)) {
-		dev_err(dev, "could not map memory\n");
+	csiphy->base = devm_platform_ioremap_resource_byname(pdev, res->reg[0]);
+	if (IS_ERR(csiphy->base))
 		return PTR_ERR(csiphy->base);
-	}
 
-	r = platform_get_resource_byname(pdev, IORESOURCE_MEM, res->reg[1]);
-	csiphy->base_clk_mux = devm_ioremap_resource(dev, r);
-	if (IS_ERR(csiphy->base_clk_mux)) {
-		dev_err(dev, "could not map memory\n");
-		return PTR_ERR(csiphy->base_clk_mux);
+	if (camss->version == CAMSS_8x16 ||
+	    camss->version == CAMSS_8x96) {
+		csiphy->base_clk_mux =
+			devm_platform_ioremap_resource_byname(pdev, res->reg[1]);
+		if (IS_ERR(csiphy->base_clk_mux))
+			return PTR_ERR(csiphy->base_clk_mux);
+	} else {
+		csiphy->base_clk_mux = NULL;
 	}
 
 	/* Interrupt */
@@ -591,13 +623,12 @@ int msm_csiphy_subdev_init(struct camss *camss,
 		 dev_name(dev), MSM_CSIPHY_NAME, csiphy->id);
 
 	ret = devm_request_irq(dev, csiphy->irq, csiphy->ops->isr,
-			       IRQF_TRIGGER_RISING, csiphy->irq_name, csiphy);
+			       IRQF_TRIGGER_RISING | IRQF_NO_AUTOEN,
+			       csiphy->irq_name, csiphy);
 	if (ret < 0) {
 		dev_err(dev, "request_irq failed: %d\n", ret);
 		return ret;
 	}
-
-	disable_irq(csiphy->irq);
 
 	/* Clocks */
 

@@ -380,8 +380,7 @@ int phy_mii_ioctl(struct phy_device *phydev, struct ifreq *ifr, int cmd)
 					else if (val & BMCR_SPEED100)
 						phydev->speed = SPEED_100;
 					else phydev->speed = SPEED_10;
-				}
-				else {
+				} else {
 					if (phydev->autoneg == AUTONEG_DISABLE)
 						change_autoneg = true;
 					phydev->autoneg = AUTONEG_ENABLE;
@@ -427,7 +426,7 @@ int phy_mii_ioctl(struct phy_device *phydev, struct ifreq *ifr, int cmd)
 EXPORT_SYMBOL(phy_mii_ioctl);
 
 /**
- * phy_do_ioctl - generic ndo_do_ioctl implementation
+ * phy_do_ioctl - generic ndo_eth_ioctl implementation
  * @dev: the net_device struct
  * @ifr: &struct ifreq for socket ioctl's
  * @cmd: ioctl cmd to execute
@@ -442,7 +441,7 @@ int phy_do_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 EXPORT_SYMBOL(phy_do_ioctl);
 
 /**
- * phy_do_ioctl_running - generic ndo_do_ioctl implementation but test first
+ * phy_do_ioctl_running - generic ndo_eth_ioctl implementation but test first
  *
  * @dev: the net_device struct
  * @ifr: &struct ifreq for socket ioctl's
@@ -701,7 +700,7 @@ out:
 }
 EXPORT_SYMBOL(phy_start_cable_test_tdr);
 
-static int phy_config_aneg(struct phy_device *phydev)
+int phy_config_aneg(struct phy_device *phydev)
 {
 	if (phydev->drv->config_aneg)
 		return phydev->drv->config_aneg(phydev);
@@ -714,6 +713,7 @@ static int phy_config_aneg(struct phy_device *phydev)
 
 	return genphy_config_aneg(phydev);
 }
+EXPORT_SYMBOL(phy_config_aneg);
 
 /**
  * phy_check_link_status - check link status and set state accordingly
@@ -1134,6 +1134,9 @@ void phy_state_machine(struct work_struct *work)
 		err = phy_start_aneg(phydev);
 	else if (do_suspend)
 		phy_suspend(phydev);
+
+	if (err == -ENODEV)
+		return;
 
 	if (err < 0)
 		phy_error(phydev);

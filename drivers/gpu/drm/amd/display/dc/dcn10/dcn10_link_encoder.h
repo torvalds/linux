@@ -160,6 +160,12 @@ struct dcn10_link_enc_registers {
 	uint32_t PHYA_LINK_CNTL2;
 	uint32_t PHYB_LINK_CNTL2;
 	uint32_t PHYC_LINK_CNTL2;
+	uint32_t DIO_LINKA_CNTL;
+	uint32_t DIO_LINKB_CNTL;
+	uint32_t DIO_LINKC_CNTL;
+	uint32_t DIO_LINKD_CNTL;
+	uint32_t DIO_LINKE_CNTL;
+	uint32_t DIO_LINKF_CNTL;
 };
 
 #define LE_SF(reg_name, field_name, post_fix)\
@@ -460,16 +466,23 @@ struct dcn10_link_enc_registers {
 	type DPCS_TX_DATA_ORDER_INVERT_18_BIT;\
 	type RDPCS_TX_CLK_EN
 
+#define DCN31_LINK_ENCODER_REG_FIELD_LIST(type) \
+	type ENC_TYPE_SEL;\
+	type HPO_DP_ENC_SEL;\
+	type HPO_HDMI_ENC_SEL
+
 struct dcn10_link_enc_shift {
 	DCN_LINK_ENCODER_REG_FIELD_LIST(uint8_t);
 	DCN20_LINK_ENCODER_REG_FIELD_LIST(uint8_t);
 	DCN30_LINK_ENCODER_REG_FIELD_LIST(uint8_t);
+	DCN31_LINK_ENCODER_REG_FIELD_LIST(uint8_t);
 };
 
 struct dcn10_link_enc_mask {
 	DCN_LINK_ENCODER_REG_FIELD_LIST(uint32_t);
 	DCN20_LINK_ENCODER_REG_FIELD_LIST(uint32_t);
 	DCN30_LINK_ENCODER_REG_FIELD_LIST(uint32_t);
+	DCN31_LINK_ENCODER_REG_FIELD_LIST(uint32_t);
 };
 
 struct dcn10_link_encoder {

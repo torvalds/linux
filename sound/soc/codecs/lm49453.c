@@ -1206,8 +1206,6 @@ static int lm49453_set_dai_sysclk(struct snd_soc_dai *dai, int clk_id,
 		break;
 	case 48000:
 	case 32576:
-		/* fll clk slection */
-		pll_clk = BIT(4);
 		return 0;
 	default:
 		return -EINVAL;

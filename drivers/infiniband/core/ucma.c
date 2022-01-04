@@ -231,7 +231,7 @@ static void ucma_copy_conn_event(struct rdma_ucm_conn_param *dst,
 		memcpy(dst->private_data, src->private_data,
 		       src->private_data_len);
 	dst->private_data_len = src->private_data_len;
-	dst->responder_resources =src->responder_resources;
+	dst->responder_resources = src->responder_resources;
 	dst->initiator_depth = src->initiator_depth;
 	dst->flow_control = src->flow_control;
 	dst->retry_count = src->retry_count;
@@ -468,8 +468,8 @@ static ssize_t ucma_create_id(struct ucma_file *file, const char __user *inbuf,
 	resp.id = ctx->id;
 	if (copy_to_user(u64_to_user_ptr(cmd.response),
 			 &resp, sizeof(resp))) {
-		ucma_destroy_private_ctx(ctx);
-		return -EFAULT;
+		ret = -EFAULT;
+		goto err1;
 	}
 
 	mutex_lock(&file->mut);
@@ -1034,7 +1034,7 @@ static void ucma_copy_conn_param(struct rdma_cm_id *id,
 {
 	dst->private_data = src->private_data;
 	dst->private_data_len = src->private_data_len;
-	dst->responder_resources =src->responder_resources;
+	dst->responder_resources = src->responder_resources;
 	dst->initiator_depth = src->initiator_depth;
 	dst->flow_control = src->flow_control;
 	dst->retry_count = src->retry_count;
@@ -1708,8 +1708,8 @@ static ssize_t ucma_write(struct file *filp, const char __user *buf,
 	ssize_t ret;
 
 	if (!ib_safe_file_access(filp)) {
-		pr_err_once("ucma_write: process %d (%s) changed security contexts after opening file descriptor, this is not allowed.\n",
-			    task_tgid_vnr(current), current->comm);
+		pr_err_once("%s: process %d (%s) changed security contexts after opening file descriptor, this is not allowed.\n",
+			    __func__, task_tgid_vnr(current), current->comm);
 		return -EACCES;
 	}
 
@@ -1830,13 +1830,12 @@ static struct ib_client rdma_cma_client = {
 };
 MODULE_ALIAS_RDMA_CLIENT("rdma_cm");
 
-static ssize_t show_abi_version(struct device *dev,
-				struct device_attribute *attr,
-				char *buf)
+static ssize_t abi_version_show(struct device *dev,
+				struct device_attribute *attr, char *buf)
 {
 	return sysfs_emit(buf, "%d\n", RDMA_USER_CM_ABI_VERSION);
 }
-static DEVICE_ATTR(abi_version, S_IRUGO, show_abi_version, NULL);
+static DEVICE_ATTR_RO(abi_version);
 
 static int __init ucma_init(void)
 {

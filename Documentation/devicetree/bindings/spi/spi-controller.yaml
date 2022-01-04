@@ -79,22 +79,7 @@ properties:
     description:
       The SPI controller acts as a slave, instead of a master.
 
-allOf:
-  - if:
-      not:
-        required:
-          - spi-slave
-    then:
-      properties:
-        "#address-cells":
-          const: 1
-    else:
-      properties:
-        "#address-cells":
-          const: 0
-
-patternProperties:
-  "^slave$":
+  slave:
     type: object
 
     properties:
@@ -105,6 +90,7 @@ patternProperties:
     required:
       - compatible
 
+patternProperties:
   "^.*@[0-9a-f]+$":
     type: object
 
@@ -114,8 +100,11 @@ patternProperties:
           Compatible of the SPI device.
 
       reg:
-        minimum: 0
-        maximum: 256
+        minItems: 1
+        maxItems: 256
+        items:
+          minimum: 0
+          maximum: 256
         description:
           Chip select used by the device.
 
@@ -177,26 +166,41 @@ patternProperties:
       - compatible
       - reg
 
+allOf:
+  - if:
+      not:
+        required:
+          - spi-slave
+    then:
+      properties:
+        "#address-cells":
+          const: 1
+    else:
+      properties:
+        "#address-cells":
+          const: 0
+
 additionalProperties: true
 
 examples:
   - |
-    spi@f00 {
+    spi@80010000 {
         #address-cells = <1>;
         #size-cells = <0>;
-        compatible = "fsl,mpc5200b-spi","fsl,mpc5200-spi";
-        reg = <0xf00 0x20>;
-        interrupts = <2 13 0 2 14 0>;
-        interrupt-parent = <&mpc5200_pic>;
+        compatible = "fsl,imx28-spi";
+        reg = <0x80010000 0x2000>;
+        interrupts = <96>;
+        dmas = <&dma_apbh 0>;
+        dma-names = "rx-tx";
 
-        ethernet-switch@0 {
-            compatible = "micrel,ks8995m";
+        display@0 {
+            compatible = "lg,lg4573";
             spi-max-frequency = <1000000>;
             reg = <0>;
         };
 
-        codec@1 {
-            compatible = "ti,tlv320aic26";
+        sensor@1 {
+            compatible = "bosch,bme680";
             spi-max-frequency = <100000>;
             reg = <1>;
         };

@@ -195,7 +195,7 @@ struct svc_i3c_master {
 };
 
 /**
- * struct svc_i3c_i3c_dev_data - Device specific data
+ * struct svc_i3c_i2c_dev_data - Device specific data
  * @index: Index in the master tables corresponding to this device
  * @ibi: IBI slot index in the master structure
  * @ibi_pool: IBI pool associated to this device
@@ -1124,7 +1124,6 @@ static int svc_i3c_master_send_direct_ccc_cmd(struct svc_i3c_master *master,
 	cmd->in = NULL;
 	cmd->out = &ccc->id;
 	cmd->len = 1;
-	cmd->read_len = xfer_len;
 	cmd->read_len = 0;
 	cmd->continued = true;
 
@@ -1449,7 +1448,6 @@ static int svc_i3c_master_remove(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	free_irq(master->irq, master);
 	clk_disable_unprepare(master->pclk);
 	clk_disable_unprepare(master->fclk);
 	clk_disable_unprepare(master->sclk);

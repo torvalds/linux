@@ -36,7 +36,7 @@ source "drivers/staging/rtl8723bs/Kconfig"
 
 source "drivers/staging/rtl8712/Kconfig"
 
-source "drivers/staging/rtl8188eu/Kconfig"
+source "drivers/staging/r8188eu/Kconfig"
 
 source "drivers/staging/rts5208/Kconfig"
 
@@ -76,8 +76,6 @@ source "drivers/staging/clocking-wizard/Kconfig"
 
 source "drivers/staging/fbtft/Kconfig"
 
-source "drivers/staging/fsl-dpaa2/Kconfig"
-
 source "drivers/staging/most/Kconfig"
 
 source "drivers/staging/ks7010/Kconfig"
@@ -100,12 +98,8 @@ source "drivers/staging/axis-fifo/Kconfig"
 
 source "drivers/staging/fieldbus/Kconfig"
 
-source "drivers/staging/kpc2000/Kconfig"
-
 source "drivers/staging/qlge/Kconfig"
 
 source "drivers/staging/wfx/Kconfig"
-
-source "drivers/staging/hikey9xx/Kconfig"
 
 endif # STAGING

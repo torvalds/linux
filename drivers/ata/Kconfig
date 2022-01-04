@@ -1015,11 +1015,11 @@ config PATA_CMD640_PCI
 	  If unsure, say N.
 
 config PATA_FALCON
-	tristate "Atari Falcon PATA support"
-	depends on M68K && ATARI
+	tristate "Atari Falcon and Q40/Q60 PATA support"
+	depends on M68K && (ATARI || Q40)
 	help
 	  This option enables support for the on-board IDE
-	  interface on the Atari Falcon.
+	  interface on the Atari Falcon and Q40/Q60.
 
 	  If unsure, say N.
 
@@ -1058,7 +1058,7 @@ config PATA_ISAPNP
 
 config PATA_IXP4XX_CF
 	tristate "IXP4XX Compact Flash support"
-	depends on ARCH_IXP4XX
+	depends on ARCH_IXP4XX || COMPILE_TEST
 	help
 	  This option enables support for a Compact Flash connected on
 	  the ixp4xx expansion bus. This driver had been written for

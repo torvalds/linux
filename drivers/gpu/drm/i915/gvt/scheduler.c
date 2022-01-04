@@ -364,7 +364,7 @@ static int copy_workload_to_ring_buffer(struct intel_vgpu_workload *workload)
 	u32 *cs;
 	int err;
 
-	if (IS_GEN(req->engine->i915, 9) && is_inhibit_context(req->context))
+	if (GRAPHICS_VER(req->engine->i915) == 9 && is_inhibit_context(req->context))
 		intel_vgpu_restore_inhibit_context(vgpu, req);
 
 	/*
@@ -1148,7 +1148,7 @@ static void complete_current_workload(struct intel_gvt *gvt, int ring_id)
 static int workload_thread(void *arg)
 {
 	struct intel_engine_cs *engine = arg;
-	const bool need_force_wake = INTEL_GEN(engine->i915) >= 9;
+	const bool need_force_wake = GRAPHICS_VER(engine->i915) >= 9;
 	struct intel_gvt *gvt = engine->i915->gvt;
 	struct intel_gvt_workload_scheduler *scheduler = &gvt->scheduler;
 	struct intel_vgpu_workload *workload = NULL;
@@ -1409,11 +1409,8 @@ int intel_vgpu_setup_submission(struct intel_vgpu *vgpu)
 		intel_context_set_single_submission(ce);
 
 		/* Max ring buffer size */
-		if (!intel_uc_wants_guc_submission(&engine->gt->uc)) {
-			const unsigned int ring_size = 512 * SZ_4K;
-
-			ce->ring = __intel_context_ring_size(ring_size);
-		}
+		if (!intel_uc_wants_guc_submission(&engine->gt->uc))
+			ce->ring_size = SZ_2M;
 
 		s->shadow[i] = ce;
 	}

@@ -26,7 +26,7 @@
 #define XGMAC_DMA_CONTROL       0x00000f18      /* Ctrl (Operational Mode) */
 #define XGMAC_DMA_INTR_ENA      0x00000f1c      /* Interrupt Enable */
 
-/* DMA Control registe defines */
+/* DMA Control register defines */
 #define DMA_CONTROL_ST          0x00002000      /* Start/Stop Transmission */
 #define DMA_CONTROL_SR          0x00000002      /* Start/Stop Receive */
 

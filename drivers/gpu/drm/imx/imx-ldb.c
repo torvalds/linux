@@ -274,6 +274,11 @@ imx_ldb_encoder_atomic_mode_set(struct drm_encoder *encoder,
 			 "%s: mode exceeds 85 MHz pixel clock\n", __func__);
 	}
 
+	if (!IS_ALIGNED(mode->hdisplay, 8)) {
+		dev_warn(ldb->dev,
+			 "%s: hdisplay does not align to 8 byte\n", __func__);
+	}
+
 	if (dual) {
 		serial_clk = 3500UL * mode->clock;
 		imx_ldb_set_clock(ldb, mux, 0, serial_clk, di_clk);
@@ -460,10 +465,8 @@ static int imx_ldb_register(struct drm_device *drm,
 
 	if (imx_ldb_ch->bridge) {
 		ret = drm_bridge_attach(encoder, imx_ldb_ch->bridge, NULL, 0);
-		if (ret) {
-			DRM_ERROR("Failed to initialize bridge with drm\n");
+		if (ret)
 			return ret;
-		}
 	} else {
 		/*
 		 * We want to add the connector whenever there is no bridge

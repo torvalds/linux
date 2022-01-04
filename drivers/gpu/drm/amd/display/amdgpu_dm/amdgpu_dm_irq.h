@@ -82,6 +82,7 @@ void amdgpu_dm_irq_unregister_interrupt(struct amdgpu_device *adev,
 
 void amdgpu_dm_set_irq_funcs(struct amdgpu_device *adev);
 
+void amdgpu_dm_outbox_init(struct amdgpu_device *adev);
 void amdgpu_dm_hpd_init(struct amdgpu_device *adev);
 void amdgpu_dm_hpd_fini(struct amdgpu_device *adev);
 

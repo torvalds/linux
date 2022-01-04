@@ -6,6 +6,8 @@
  * Author: Mathieu Poirier <mathieu.poirier@linaro.org>
  */
 
+#include <asm/bug.h>
+#include <linux/coresight-pmu.h>
 #include <linux/err.h>
 #include <linux/list.h>
 #include <linux/zalloc.h>
@@ -16,6 +18,7 @@
 
 #include "cs-etm.h"
 #include "cs-etm-decoder.h"
+#include "debug.h"
 #include "intlist.h"
 
 /* use raw logging */
@@ -275,13 +278,13 @@ cs_etm_decoder__do_soft_timestamp(struct cs_etm_queue *etmq,
 				  const uint8_t trace_chan_id)
 {
 	/* No timestamp packet has been received, nothing to do */
-	if (!packet_queue->timestamp)
+	if (!packet_queue->cs_timestamp)
 		return OCSD_RESP_CONT;
 
-	packet_queue->timestamp = packet_queue->next_timestamp;
+	packet_queue->cs_timestamp = packet_queue->next_cs_timestamp;
 
 	/* Estimate the timestamp for the next range packet */
-	packet_queue->next_timestamp += packet_queue->instr_count;
+	packet_queue->next_cs_timestamp += packet_queue->instr_count;
 	packet_queue->instr_count = 0;
 
 	/* Tell the front end which traceid_queue needs attention */
@@ -293,7 +296,8 @@ cs_etm_decoder__do_soft_timestamp(struct cs_etm_queue *etmq,
 static ocsd_datapath_resp_t
 cs_etm_decoder__do_hard_timestamp(struct cs_etm_queue *etmq,
 				  const ocsd_generic_trace_elem *elem,
-				  const uint8_t trace_chan_id)
+				  const uint8_t trace_chan_id,
+				  const ocsd_trc_index_t indx)
 {
 	struct cs_etm_packet_queue *packet_queue;
 
@@ -307,20 +311,39 @@ cs_etm_decoder__do_hard_timestamp(struct cs_etm_queue *etmq,
 	 * Function do_soft_timestamp() will report the value to the front end,
 	 * hence asking the decoder to keep decoding rather than stopping.
 	 */
-	if (packet_queue->timestamp) {
-		packet_queue->next_timestamp = elem->timestamp;
+	if (packet_queue->cs_timestamp) {
+		packet_queue->next_cs_timestamp = elem->timestamp;
 		return OCSD_RESP_CONT;
 	}
 
-	/*
-	 * This is the first timestamp we've seen since the beginning of traces
-	 * or a discontinuity.  Since timestamps packets are generated *after*
-	 * range packets have been generated, we need to estimate the time at
-	 * which instructions started by substracting the number of instructions
-	 * executed to the timestamp.
-	 */
-	packet_queue->timestamp = elem->timestamp - packet_queue->instr_count;
-	packet_queue->next_timestamp = elem->timestamp;
+
+	if (!elem->timestamp) {
+		/*
+		 * Zero timestamps can be seen due to misconfiguration or hardware bugs.
+		 * Warn once, and don't try to subtract instr_count as it would result in an
+		 * underflow.
+		 */
+		packet_queue->cs_timestamp = 0;
+		WARN_ONCE(true, "Zero Coresight timestamp found at Idx:%" OCSD_TRC_IDX_STR
+				". Decoding may be improved with --itrace=Z...\n", indx);
+	} else if (packet_queue->instr_count > elem->timestamp) {
+		/*
+		 * Sanity check that the elem->timestamp - packet_queue->instr_count would not
+		 * result in an underflow. Warn and clamp at 0 if it would.
+		 */
+		packet_queue->cs_timestamp = 0;
+		pr_err("Timestamp calculation underflow at Idx:%" OCSD_TRC_IDX_STR "\n", indx);
+	} else {
+		/*
+		 * This is the first timestamp we've seen since the beginning of traces
+		 * or a discontinuity.  Since timestamps packets are generated *after*
+		 * range packets have been generated, we need to estimate the time at
+		 * which instructions started by subtracting the number of instructions
+		 * executed to the timestamp.
+		 */
+		packet_queue->cs_timestamp = elem->timestamp - packet_queue->instr_count;
+	}
+	packet_queue->next_cs_timestamp = elem->timestamp;
 	packet_queue->instr_count = 0;
 
 	/* Tell the front end which traceid_queue needs attention */
@@ -333,8 +356,8 @@ cs_etm_decoder__do_hard_timestamp(struct cs_etm_queue *etmq,
 static void
 cs_etm_decoder__reset_timestamp(struct cs_etm_packet_queue *packet_queue)
 {
-	packet_queue->timestamp = 0;
-	packet_queue->next_timestamp = 0;
+	packet_queue->cs_timestamp = 0;
+	packet_queue->next_cs_timestamp = 0;
 	packet_queue->instr_count = 0;
 }
 
@@ -491,13 +514,42 @@ cs_etm_decoder__set_tid(struct cs_etm_queue *etmq,
 			const ocsd_generic_trace_elem *elem,
 			const uint8_t trace_chan_id)
 {
-	pid_t tid;
+	pid_t tid = -1;
+	static u64 pid_fmt;
+	int ret;
 
-	/* Ignore PE_CONTEXT packets that don't have a valid contextID */
-	if (!elem->context.ctxt_id_valid)
+	/*
+	 * As all the ETMs run at the same exception level, the system should
+	 * have the same PID format crossing CPUs.  So cache the PID format
+	 * and reuse it for sequential decoding.
+	 */
+	if (!pid_fmt) {
+		ret = cs_etm__get_pid_fmt(trace_chan_id, &pid_fmt);
+		if (ret)
+			return OCSD_RESP_FATAL_SYS_ERR;
+	}
+
+	/*
+	 * Process the PE_CONTEXT packets if we have a valid contextID or VMID.
+	 * If the kernel is running at EL2, the PID is traced in CONTEXTIDR_EL2
+	 * as VMID, Bit ETM_OPT_CTXTID2 is set in this case.
+	 */
+	switch (pid_fmt) {
+	case BIT(ETM_OPT_CTXTID):
+		if (elem->context.ctxt_id_valid)
+			tid = elem->context.context_id;
+		break;
+	case BIT(ETM_OPT_CTXTID2):
+		if (elem->context.vmid_valid)
+			tid = elem->context.vmid;
+		break;
+	default:
+		break;
+	}
+
+	if (tid == -1)
 		return OCSD_RESP_CONT;
 
-	tid =  elem->context.context_id;
 	if (cs_etm__etmq_set_tid(etmq, tid, trace_chan_id))
 		return OCSD_RESP_FATAL_SYS_ERR;
 
@@ -512,7 +564,7 @@ cs_etm_decoder__set_tid(struct cs_etm_queue *etmq,
 
 static ocsd_datapath_resp_t cs_etm_decoder__gen_trace_elem_printer(
 				const void *context,
-				const ocsd_trc_index_t indx __maybe_unused,
+				const ocsd_trc_index_t indx,
 				const u8 trace_chan_id __maybe_unused,
 				const ocsd_generic_trace_elem *elem)
 {
@@ -549,7 +601,8 @@ static ocsd_datapath_resp_t cs_etm_decoder__gen_trace_elem_printer(
 		break;
 	case OCSD_GEN_TRC_ELEM_TIMESTAMP:
 		resp = cs_etm_decoder__do_hard_timestamp(etmq, elem,
-							 trace_chan_id);
+							 trace_chan_id,
+							 indx);
 		break;
 	case OCSD_GEN_TRC_ELEM_PE_CONTEXT:
 		resp = cs_etm_decoder__set_tid(etmq, packet_queue,

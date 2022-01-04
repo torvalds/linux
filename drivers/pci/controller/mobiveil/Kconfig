@@ -24,8 +24,7 @@ config PCIE_MOBIVEIL_PLAT
 
 config PCIE_LAYERSCAPE_GEN4
 	bool "Freescale Layerscape PCIe Gen4 controller"
-	depends on PCI
-	depends on OF && (ARM64 || ARCH_LAYERSCAPE)
+	depends on ARCH_LAYERSCAPE || COMPILE_TEST
 	depends on PCI_MSI_IRQ_DOMAIN
 	select PCIE_MOBIVEIL_HOST
 	help

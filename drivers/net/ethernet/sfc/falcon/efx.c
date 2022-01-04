@@ -2219,7 +2219,7 @@ static const struct net_device_ops ef4_netdev_ops = {
 	.ndo_tx_timeout		= ef4_watchdog,
 	.ndo_start_xmit		= ef4_hard_start_xmit,
 	.ndo_validate_addr	= eth_validate_addr,
-	.ndo_do_ioctl		= ef4_ioctl,
+	.ndo_eth_ioctl		= ef4_ioctl,
 	.ndo_change_mtu		= ef4_change_mtu,
 	.ndo_set_mac_address	= ef4_set_mac_address,
 	.ndo_set_rx_mode	= ef4_set_rx_mode,
@@ -2254,12 +2254,12 @@ static struct notifier_block ef4_netdev_notifier = {
 };
 
 static ssize_t
-show_phy_type(struct device *dev, struct device_attribute *attr, char *buf)
+phy_type_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct ef4_nic *efx = dev_get_drvdata(dev);
 	return sprintf(buf, "%d\n", efx->phy_type);
 }
-static DEVICE_ATTR(phy_type, 0444, show_phy_type, NULL);
+static DEVICE_ATTR_RO(phy_type);
 
 static int ef4_register_netdev(struct ef4_nic *efx)
 {
@@ -2800,7 +2800,7 @@ static void ef4_probe_vpd_strings(struct ef4_nic *efx)
 	}
 
 	/* Get the Read only section */
-	ro_start = pci_vpd_find_tag(vpd_data, 0, vpd_size, PCI_VPD_LRDT_RO_DATA);
+	ro_start = pci_vpd_find_tag(vpd_data, vpd_size, PCI_VPD_LRDT_RO_DATA);
 	if (ro_start < 0) {
 		netif_err(efx, drv, efx->net_dev, "VPD Read-only not found\n");
 		return;

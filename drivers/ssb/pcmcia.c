@@ -723,9 +723,9 @@ int ssb_pcmcia_get_invariants(struct ssb_bus *bus,
 	return -ENODEV;
 }
 
-static ssize_t ssb_pcmcia_attr_sprom_show(struct device *pcmciadev,
-					  struct device_attribute *attr,
-					  char *buf)
+static ssize_t ssb_sprom_show(struct device *pcmciadev,
+			      struct device_attribute *attr,
+			      char *buf)
 {
 	struct pcmcia_device *pdev =
 		container_of(pcmciadev, struct pcmcia_device, dev);
@@ -739,9 +739,9 @@ static ssize_t ssb_pcmcia_attr_sprom_show(struct device *pcmciadev,
 				   ssb_pcmcia_sprom_read_all);
 }
 
-static ssize_t ssb_pcmcia_attr_sprom_store(struct device *pcmciadev,
-					   struct device_attribute *attr,
-					   const char *buf, size_t count)
+static ssize_t ssb_sprom_store(struct device *pcmciadev,
+			       struct device_attribute *attr,
+			       const char *buf, size_t count)
 {
 	struct pcmcia_device *pdev =
 		container_of(pcmciadev, struct pcmcia_device, dev);
@@ -756,9 +756,7 @@ static ssize_t ssb_pcmcia_attr_sprom_store(struct device *pcmciadev,
 				    ssb_pcmcia_sprom_write_all);
 }
 
-static DEVICE_ATTR(ssb_sprom, 0600,
-		   ssb_pcmcia_attr_sprom_show,
-		   ssb_pcmcia_attr_sprom_store);
+static DEVICE_ATTR_ADMIN_RW(ssb_sprom);
 
 static int ssb_pcmcia_cor_setup(struct ssb_bus *bus, u8 cor)
 {

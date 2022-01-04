@@ -5,7 +5,6 @@
 #include <linux/hdlc.h>
 
 void lmc_proto_attach(lmc_softc_t *sc);
-int lmc_proto_ioctl(lmc_softc_t *sc, struct ifreq *ifr, int cmd);
 int lmc_proto_open(lmc_softc_t *sc);
 void lmc_proto_close(lmc_softc_t *sc);
 __be16 lmc_proto_type(lmc_softc_t *sc, struct sk_buff *skb);

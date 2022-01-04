@@ -17,6 +17,7 @@
 #include "evsel.h"
 #include "debug.h"
 #include "units.h"
+#include "bpf_counter.h"
 #include <internal/lib.h> // page_size
 #include "affinity.h"
 #include "../perf.h"
@@ -25,6 +26,7 @@
 #include "util/string2.h"
 #include "util/perf_api_probe.h"
 #include "util/evsel_fprintf.h"
+#include "util/evlist-hybrid.h"
 #include <signal.h>
 #include <unistd.h>
 #include <sched.h>
@@ -36,6 +38,7 @@
 #include <fcntl.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
+#include <sys/prctl.h>
 
 #include <linux/bitops.h>
 #include <linux/hash.h>
@@ -162,11 +165,9 @@ void evlist__delete(struct evlist *evlist)
 
 void evlist__add(struct evlist *evlist, struct evsel *entry)
 {
-	entry->evlist = evlist;
-	entry->idx = evlist->core.nr_entries;
-	entry->tracking = !entry->idx;
-
 	perf_evlist__add(&evlist->core, &entry->core);
+	entry->evlist = evlist;
+	entry->tracking = !entry->core.idx;
 
 	if (evlist->core.nr_entries == 1)
 		evlist__set_id_pos(evlist);
@@ -191,7 +192,7 @@ void evlist__splice_list_tail(struct evlist *evlist, struct list_head *list)
 		}
 
 		__evlist__for_each_entry_safe(list, temp, evsel) {
-			if (evsel->leader == leader) {
+			if (evsel__has_leader(evsel, leader)) {
 				list_del_init(&evsel->core.node);
 				evlist__add(evlist, evsel);
 			}
@@ -222,32 +223,17 @@ out:
 	return err;
 }
 
-void __evlist__set_leader(struct list_head *list)
-{
-	struct evsel *evsel, *leader;
-
-	leader = list_entry(list->next, struct evsel, core.node);
-	evsel = list_entry(list->prev, struct evsel, core.node);
-
-	leader->core.nr_members = evsel->idx - leader->idx + 1;
-
-	__evlist__for_each_entry(list, evsel) {
-		evsel->leader = leader;
-	}
-}
-
 void evlist__set_leader(struct evlist *evlist)
 {
-	if (evlist->core.nr_entries) {
-		evlist->nr_groups = evlist->core.nr_entries > 1 ? 1 : 0;
-		__evlist__set_leader(&evlist->core.entries);
-	}
+	perf_evlist__set_leader(&evlist->core);
 }
 
 int __evlist__add_default(struct evlist *evlist, bool precise)
 {
-	struct evsel *evsel = evsel__new_cycles(precise);
+	struct evsel *evsel;
 
+	evsel = evsel__new_cycles(precise, PERF_TYPE_HARDWARE,
+				  PERF_COUNT_HW_CPU_CYCLES);
 	if (evsel == NULL)
 		return -ENOMEM;
 
@@ -1209,7 +1195,7 @@ bool evlist__valid_read_format(struct evlist *evlist)
 		}
 	}
 
-	/* PERF_SAMPLE_READ imples PERF_FORMAT_ID. */
+	/* PERF_SAMPLE_READ implies PERF_FORMAT_ID. */
 	if ((sample_type & PERF_SAMPLE_READ) &&
 	    !(read_format & PERF_FORMAT_ID)) {
 		return false;
@@ -1404,6 +1390,13 @@ int evlist__prepare_workload(struct evlist *evlist, struct target *target, const
 		close(child_ready_pipe[0]);
 		close(go_pipe[1]);
 		fcntl(go_pipe[0], F_SETFD, FD_CLOEXEC);
+
+		/*
+		 * Change the name of this process not to confuse --exclude-perf users
+		 * that sees 'perf' in the window up to the execvp() and thinks that
+		 * perf samples are not being excluded.
+		 */
+		prctl(PR_SET_NAME, "perf-exec");
 
 		/*
 		 * Tell the parent we're ready to go
@@ -1614,7 +1607,7 @@ void evlist__to_front(struct evlist *evlist, struct evsel *move_evsel)
 		return;
 
 	evlist__for_each_entry_safe(evlist, n, evsel) {
-		if (evsel->leader == move_evsel->leader)
+		if (evsel__leader(evsel) == evsel__leader(move_evsel))
 			list_move_tail(&evsel->core.node, &move);
 	}
 
@@ -1738,7 +1731,7 @@ bool evlist__exclude_kernel(struct evlist *evlist)
  */
 void evlist__force_leader(struct evlist *evlist)
 {
-	if (!evlist->nr_groups) {
+	if (!evlist->core.nr_groups) {
 		struct evsel *leader = evlist__first(evlist);
 
 		evlist__set_leader(evlist);
@@ -1751,7 +1744,8 @@ struct evsel *evlist__reset_weak_group(struct evlist *evsel_list, struct evsel *
 	struct evsel *c2, *leader;
 	bool is_open = true;
 
-	leader = evsel->leader;
+	leader = evsel__leader(evsel);
+
 	pr_debug("Weak group for %s/%d failed\n",
 			leader->name, leader->core.nr_members);
 
@@ -1762,10 +1756,10 @@ struct evsel *evlist__reset_weak_group(struct evlist *evsel_list, struct evsel *
 	evlist__for_each_entry(evsel_list, c2) {
 		if (c2 == evsel)
 			is_open = false;
-		if (c2->leader == leader) {
+		if (evsel__has_leader(c2, leader)) {
 			if (is_open && close)
 				perf_evsel__close(&c2->core);
-			c2->leader = c2;
+			evsel__set_leader(c2, c2);
 			c2->core.nr_members = 0;
 			/*
 			 * Set this for all former members of the group
@@ -2125,8 +2119,52 @@ struct evsel *evlist__find_evsel(struct evlist *evlist, int idx)
 	struct evsel *evsel;
 
 	evlist__for_each_entry(evlist, evsel) {
-		if (evsel->idx == idx)
+		if (evsel->core.idx == idx)
 			return evsel;
 	}
 	return NULL;
+}
+
+int evlist__scnprintf_evsels(struct evlist *evlist, size_t size, char *bf)
+{
+	struct evsel *evsel;
+	int printed = 0;
+
+	evlist__for_each_entry(evlist, evsel) {
+		if (evsel__is_dummy_event(evsel))
+			continue;
+		if (size > (strlen(evsel__name(evsel)) + (printed ? 2 : 1))) {
+			printed += scnprintf(bf + printed, size - printed, "%s%s", printed ? "," : "", evsel__name(evsel));
+		} else {
+			printed += scnprintf(bf + printed, size - printed, "%s...", printed ? "," : "");
+			break;
+		}
+	}
+
+	return printed;
+}
+
+void evlist__check_mem_load_aux(struct evlist *evlist)
+{
+	struct evsel *leader, *evsel, *pos;
+
+	/*
+	 * For some platforms, the 'mem-loads' event is required to use
+	 * together with 'mem-loads-aux' within a group and 'mem-loads-aux'
+	 * must be the group leader. Now we disable this group before reporting
+	 * because 'mem-loads-aux' is just an auxiliary event. It doesn't carry
+	 * any valid memory load information.
+	 */
+	evlist__for_each_entry(evlist, evsel) {
+		leader = evsel__leader(evsel);
+		if (leader == evsel)
+			continue;
+
+		if (leader->name && strstr(leader->name, "mem-loads-aux")) {
+			for_each_group_evsel(pos, leader) {
+				evsel__set_leader(pos, pos);
+				pos->core.nr_members = 0;
+			}
+		}
+	}
 }

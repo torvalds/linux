@@ -71,6 +71,18 @@ properties:
       received, and that the peripheral should invert its input using the
       INVR registers.
 
+  fsl,dma-info:
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+    minItems: 2
+    maxItems: 2
+    description: |
+      First cell contains the size of DMA buffer chunks, second cell contains
+      the amount of chunks used for the device. Multiplying both numbers is
+      the total size of memory used for receiving data.
+      When not being configured the system will use default settings, which
+      are sensible for most use cases. If you need low latency processing on
+      slow connections this needs to be configured appropriately.
+
   uart-has-rtscts: true
 
   rs485-rts-delay: true

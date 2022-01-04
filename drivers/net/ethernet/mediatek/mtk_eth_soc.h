@@ -15,12 +15,15 @@
 #include <linux/u64_stats_sync.h>
 #include <linux/refcount.h>
 #include <linux/phylink.h>
+#include <linux/rhashtable.h>
+#include <linux/dim.h>
+#include "mtk_ppe.h"
 
 #define MTK_QDMA_PAGE_SIZE	2048
 #define MTK_MAX_RX_LENGTH	1536
 #define MTK_MAX_RX_LENGTH_2K	2048
 #define MTK_TX_DMA_BUF_LEN	0x3fff
-#define MTK_DMA_SIZE		256
+#define MTK_DMA_SIZE		512
 #define MTK_NAPI_WEIGHT		64
 #define MTK_MAC_COUNT		2
 #define MTK_RX_ETH_HLEN		(ETH_HLEN + ETH_FCS_LEN)
@@ -40,7 +43,8 @@
 				 NETIF_F_HW_VLAN_CTAG_RX | \
 				 NETIF_F_SG | NETIF_F_TSO | \
 				 NETIF_F_TSO6 | \
-				 NETIF_F_IPV6_CSUM)
+				 NETIF_F_IPV6_CSUM |\
+				 NETIF_F_HW_TC)
 #define MTK_HW_FEATURES_MT7628	(NETIF_F_SG | NETIF_F_RXCSUM)
 #define NEXT_DESP_IDX(X, Y)	(((X) + 1) & ((Y) - 1))
 
@@ -82,10 +86,12 @@
 
 /* GDM Exgress Control Register */
 #define MTK_GDMA_FWD_CFG(x)	(0x500 + (x * 0x1000))
+#define MTK_GDMA_SPECIAL_TAG	BIT(24)
 #define MTK_GDMA_ICS_EN		BIT(22)
 #define MTK_GDMA_TCS_EN		BIT(21)
 #define MTK_GDMA_UCS_EN		BIT(20)
 #define MTK_GDMA_TO_PDMA	0x0
+#define MTK_GDMA_TO_PPE		0x4444
 #define MTK_GDMA_DROP_ALL       0x7777
 
 /* Unicast Filter MAC Address Register - Low */
@@ -132,13 +138,18 @@
 
 /* PDMA Delay Interrupt Register */
 #define MTK_PDMA_DELAY_INT		0xa0c
+#define MTK_PDMA_DELAY_RX_MASK		GENMASK(15, 0)
 #define MTK_PDMA_DELAY_RX_EN		BIT(15)
-#define MTK_PDMA_DELAY_RX_PINT		4
 #define MTK_PDMA_DELAY_RX_PINT_SHIFT	8
-#define MTK_PDMA_DELAY_RX_PTIME		4
-#define MTK_PDMA_DELAY_RX_DELAY		\
-	(MTK_PDMA_DELAY_RX_EN | MTK_PDMA_DELAY_RX_PTIME | \
-	(MTK_PDMA_DELAY_RX_PINT << MTK_PDMA_DELAY_RX_PINT_SHIFT))
+#define MTK_PDMA_DELAY_RX_PTIME_SHIFT	0
+
+#define MTK_PDMA_DELAY_TX_MASK		GENMASK(31, 16)
+#define MTK_PDMA_DELAY_TX_EN		BIT(31)
+#define MTK_PDMA_DELAY_TX_PINT_SHIFT	24
+#define MTK_PDMA_DELAY_TX_PTIME_SHIFT	16
+
+#define MTK_PDMA_DELAY_PINT_MASK	0x7f
+#define MTK_PDMA_DELAY_PTIME_MASK	0xff
 
 /* PDMA Interrupt Status Register */
 #define MTK_PDMA_INT_STATUS	0xa20
@@ -198,12 +209,12 @@
 #define MTK_RX_BT_32DWORDS	(3 << 11)
 #define MTK_NDP_CO_PRO		BIT(10)
 #define MTK_TX_WB_DDONE		BIT(6)
-#define MTK_DMA_SIZE_16DWORDS	(2 << 4)
+#define MTK_TX_BT_32DWORDS	(3 << 4)
 #define MTK_RX_DMA_BUSY		BIT(3)
 #define MTK_TX_DMA_BUSY		BIT(1)
 #define MTK_RX_DMA_EN		BIT(2)
 #define MTK_TX_DMA_EN		BIT(0)
-#define MTK_DMA_BUSY_TIMEOUT	HZ
+#define MTK_DMA_BUSY_TIMEOUT_US	1000000
 
 /* QDMA Reset Index Register */
 #define MTK_QDMA_RST_IDX	0x1A08
@@ -220,6 +231,7 @@
 /* QDMA Interrupt Status Register */
 #define MTK_QDMA_INT_STATUS	0x1A18
 #define MTK_RX_DONE_DLY		BIT(30)
+#define MTK_TX_DONE_DLY		BIT(28)
 #define MTK_RX_DONE_INT3	BIT(19)
 #define MTK_RX_DONE_INT2	BIT(18)
 #define MTK_RX_DONE_INT1	BIT(17)
@@ -229,8 +241,7 @@
 #define MTK_TX_DONE_INT1	BIT(1)
 #define MTK_TX_DONE_INT0	BIT(0)
 #define MTK_RX_DONE_INT		MTK_RX_DONE_DLY
-#define MTK_TX_DONE_INT		(MTK_TX_DONE_INT0 | MTK_TX_DONE_INT1 | \
-				 MTK_TX_DONE_INT2 | MTK_TX_DONE_INT3)
+#define MTK_TX_DONE_INT		MTK_TX_DONE_DLY
 
 /* QDMA Interrupt grouping registers */
 #define MTK_QDMA_INT_GRP1	0x1a20
@@ -267,8 +278,21 @@
 /* QDMA FQ Free Page Buffer Length Register */
 #define MTK_QDMA_FQ_BLEN	0x1B2C
 
-/* GMA1 Received Good Byte Count Register */
-#define MTK_GDM1_TX_GBCNT	0x2400
+/* GMA1 counter / statics register */
+#define MTK_GDM1_RX_GBCNT_L	0x2400
+#define MTK_GDM1_RX_GBCNT_H	0x2404
+#define MTK_GDM1_RX_GPCNT	0x2408
+#define MTK_GDM1_RX_OERCNT	0x2410
+#define MTK_GDM1_RX_FERCNT	0x2414
+#define MTK_GDM1_RX_SERCNT	0x2418
+#define MTK_GDM1_RX_LENCNT	0x241c
+#define MTK_GDM1_RX_CERCNT	0x2420
+#define MTK_GDM1_RX_FCCNT	0x2424
+#define MTK_GDM1_TX_SKIPCNT	0x2428
+#define MTK_GDM1_TX_COLCNT	0x242c
+#define MTK_GDM1_TX_GBCNT_L	0x2430
+#define MTK_GDM1_TX_GBCNT_H	0x2434
+#define MTK_GDM1_TX_GPCNT	0x2438
 #define MTK_STAT_OFFSET		0x40
 
 /* QDMA descriptor txd4 */
@@ -296,15 +320,23 @@
 #define RX_DMA_LSO		BIT(30)
 #define RX_DMA_PLEN0(_x)	(((_x) & 0x3fff) << 16)
 #define RX_DMA_GET_PLEN0(_x)	(((_x) >> 16) & 0x3fff)
+#define RX_DMA_VTAG		BIT(15)
 
 /* QDMA descriptor rxd3 */
 #define RX_DMA_VID(_x)		((_x) & 0xfff)
+
+/* QDMA descriptor rxd4 */
+#define MTK_RXD4_FOE_ENTRY	GENMASK(13, 0)
+#define MTK_RXD4_PPE_CPU_REASON	GENMASK(18, 14)
+#define MTK_RXD4_SRC_PORT	GENMASK(21, 19)
+#define MTK_RXD4_ALG		GENMASK(31, 22)
 
 /* QDMA descriptor rxd4 */
 #define RX_DMA_L4_VALID		BIT(24)
 #define RX_DMA_L4_VALID_PDMA	BIT(30)		/* when PDMA is used */
 #define RX_DMA_FPORT_SHIFT	19
 #define RX_DMA_FPORT_MASK	0x7
+#define RX_DMA_SPECIAL_TAG	BIT(22)
 
 /* PHY Indirect Access Control registers */
 #define MTK_PHY_IAC		0x10004
@@ -483,6 +515,13 @@
 #define MT7628_SDM_MAC_ADRL	(MT7628_SDM_OFFSET + 0x0c)
 #define MT7628_SDM_MAC_ADRH	(MT7628_SDM_OFFSET + 0x10)
 
+/* Counter / stat register */
+#define MT7628_SDM_TPCNT	(MT7628_SDM_OFFSET + 0x100)
+#define MT7628_SDM_TBCNT	(MT7628_SDM_OFFSET + 0x104)
+#define MT7628_SDM_RPCNT	(MT7628_SDM_OFFSET + 0x108)
+#define MT7628_SDM_RBCNT	(MT7628_SDM_OFFSET + 0x10c)
+#define MT7628_SDM_CS_ERR	(MT7628_SDM_OFFSET + 0x110)
+
 struct mtk_rx_dma {
 	unsigned int rxd1;
 	unsigned int rxd2;
@@ -623,6 +662,7 @@ struct mtk_tx_buf {
  * @phys:		The physical addr of tx_buf
  * @next_free:		Pointer to the next free descriptor
  * @last_free:		Pointer to the last free descriptor
+ * @last_free_ptr:	Hardware pointer value of the last free descriptor
  * @thresh:		The threshold of minimum amount of free descriptors
  * @free_count:		QDMA uses a linked list. Track how many free descriptors
  *			are present
@@ -633,6 +673,7 @@ struct mtk_tx_ring {
 	dma_addr_t phys;
 	struct mtk_tx_dma *next_free;
 	struct mtk_tx_dma *last_free;
+	u32 last_free_ptr;
 	u16 thresh;
 	atomic_t free_count;
 	int dma_size;
@@ -802,6 +843,7 @@ struct mtk_soc_data {
 	u32		caps;
 	u32		required_clks;
 	bool		required_pctl;
+	u8		offload_version;
 	netdev_features_t hw_features;
 };
 
@@ -835,6 +877,7 @@ struct mtk_sgmii {
  * @page_lock:		Make sure that register operations are atomic
  * @tx_irq__lock:	Make sure that IRQ register operations are atomic
  * @rx_irq__lock:	Make sure that IRQ register operations are atomic
+ * @dim_lock:		Make sure that Net DIM operations are atomic
  * @dummy_dev:		we run 2 netdevs on 1 physical DMA ring and need a
  *			dummy for NAPI to work
  * @netdev:		The netdev instances
@@ -853,6 +896,14 @@ struct mtk_sgmii {
  * @rx_ring_qdma:	Pointer to the memory holding info about the QDMA RX ring
  * @tx_napi:		The TX NAPI struct
  * @rx_napi:		The RX NAPI struct
+ * @rx_events:		Net DIM RX event counter
+ * @rx_packets:		Net DIM RX packet counter
+ * @rx_bytes:		Net DIM RX byte counter
+ * @rx_dim:		Net DIM RX context
+ * @tx_events:		Net DIM TX event counter
+ * @tx_packets:		Net DIM TX packet counter
+ * @tx_bytes:		Net DIM TX byte counter
+ * @tx_dim:		Net DIM TX context
  * @scratch_ring:	Newer SoCs need memory for a second HW managed TX ring
  * @phy_scratch_ring:	physical address of scratch_ring
  * @scratch_head:	The scratch memory that scratch_ring points to.
@@ -897,10 +948,25 @@ struct mtk_eth {
 
 	const struct mtk_soc_data	*soc;
 
+	spinlock_t			dim_lock;
+
+	u32				rx_events;
+	u32				rx_packets;
+	u32				rx_bytes;
+	struct dim			rx_dim;
+
+	u32				tx_events;
+	u32				tx_packets;
+	u32				tx_bytes;
+	struct dim			tx_dim;
+
 	u32				tx_int_mask_reg;
 	u32				tx_int_status_reg;
 	u32				rx_dma_l4_valid;
 	int				ip_align;
+
+	struct mtk_ppe			ppe;
+	struct rhashtable		flow_table;
 };
 
 /* struct mtk_mac -	the structure that holds the info about the MACs of the
@@ -944,5 +1010,10 @@ void mtk_sgmii_restart_an(struct mtk_eth *eth, int mac_id);
 int mtk_gmac_sgmii_path_setup(struct mtk_eth *eth, int mac_id);
 int mtk_gmac_gephy_path_setup(struct mtk_eth *eth, int mac_id);
 int mtk_gmac_rgmii_path_setup(struct mtk_eth *eth, int mac_id);
+
+int mtk_eth_offload_init(struct mtk_eth *eth);
+int mtk_eth_setup_tc(struct net_device *dev, enum tc_setup_type type,
+		     void *type_data);
+
 
 #endif /* MTK_ETH_H */

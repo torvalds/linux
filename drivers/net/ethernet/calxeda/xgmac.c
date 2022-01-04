@@ -711,7 +711,7 @@ static void xgmac_rx_refill(struct xgmac_priv *priv)
 }
 
 /**
- * init_xgmac_dma_desc_rings - init the RX/TX descriptor rings
+ * xgmac_dma_desc_rings_init - init the RX/TX descriptor rings
  * @dev: net device structure
  * Description:  this function initializes the DMA RX/TX descriptors
  * and allocates the socket buffers.
@@ -859,7 +859,7 @@ static void xgmac_free_dma_desc_rings(struct xgmac_priv *priv)
 }
 
 /**
- * xgmac_tx:
+ * xgmac_tx_complete:
  * @priv: private driver structure
  * Description: it reclaims resources after transmission completes.
  */
@@ -1040,7 +1040,7 @@ static int xgmac_open(struct net_device *dev)
 }
 
 /**
- *  xgmac_release - close entry point of the driver
+ *  xgmac_stop - close entry point of the driver
  *  @dev : device pointer.
  *  Description:
  *  This is the stop entry point of the driver.
@@ -1812,7 +1812,7 @@ err_alloc:
 }
 
 /**
- * xgmac_dvr_remove
+ * xgmac_remove
  * @pdev: platform device pointer
  * Description: this function resets the TX/RX processes, disables the MAC RX/TX
  * changes the link status, releases the DMA descriptor rings,

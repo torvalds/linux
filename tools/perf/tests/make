@@ -84,9 +84,11 @@ make_no_libaudit    := NO_LIBAUDIT=1
 make_no_libbionic   := NO_LIBBIONIC=1
 make_no_auxtrace    := NO_AUXTRACE=1
 make_no_libbpf	    := NO_LIBBPF=1
+make_libbpf_dynamic := LIBBPF_DYNAMIC=1
 make_no_libbpf_DEBUG := NO_LIBBPF=1 DEBUG=1
 make_no_libcrypto   := NO_LIBCRYPTO=1
 make_with_babeltrace:= LIBBABELTRACE=1
+make_with_coresight := CORESIGHT=1
 make_no_sdt	    := NO_SDT=1
 make_no_syscall_tbl := NO_SYSCALL_TABLE=1
 make_with_clangllvm := LIBCLANGLLVM=1
@@ -148,14 +150,15 @@ run += make_no_libaudit
 run += make_no_libbionic
 run += make_no_auxtrace
 run += make_no_libbpf
+run += make_libbpf_dynamic
 run += make_no_libbpf_DEBUG
 run += make_no_libcrypto
 run += make_no_sdt
 run += make_no_syscall_tbl
 run += make_with_babeltrace
+run += make_with_coresight
 run += make_with_clangllvm
 run += make_with_libpfm4
-run += make_with_gtk2
 run += make_help
 run += make_doc
 run += make_perf_o
@@ -172,7 +175,6 @@ run += make_install_prefix_slash
 # run += make_install_info
 # run += make_install_pdf
 run += make_minimal
-run += make_static
 
 ifneq ($(call has,ctags),)
 run += make_tags
@@ -268,6 +270,9 @@ test_make_install_info_O := $(test_ok)
 test_make_install_pdf    := $(test_ok)
 test_make_install_pdf_O  := $(test_ok)
 
+test_make_libbpf_dynamic :=   ldd $(PERF_O)/perf | grep -q libbpf
+test_make_libbpf_dynamic_O := ldd $$TMP_O/perf | grep -q libbpf
+
 test_make_python_perf_so_O    := test -f $$TMP_O/python/perf.so
 test_make_perf_o_O            := test -f $$TMP_O/perf.o
 test_make_util_map_o_O        := test -f $$TMP_O/util/map.o
@@ -298,6 +303,26 @@ MAKEFLAGS := --no-print-directory
 clean := @(cd $(PERF); $(MAKE_F) -s $(O_OPT) clean >/dev/null && $(MAKE) -s $(O_OPT) -C ../build clean >/dev/null)
 
 $(run):
+	$(call clean)
+	@TMP_DEST=$$(mktemp -d); \
+	cmd="cd $(PERF) && $(MAKE_F) $($@) $(PARALLEL_OPT) $(O_OPT) DESTDIR=$$TMP_DEST"; \
+	printf "%*.*s: %s\n" $(max_width) $(max_width) "$@" "$$cmd" && echo $$cmd > $@ && \
+	( eval $$cmd ) >> $@ 2>&1; \
+	echo "  test: $(call test,$@)" >> $@ 2>&1; \
+	$(call test,$@) && \
+	rm -rf $@ $$TMP_DEST || (cat $@ ; false)
+
+make_with_gtk2:
+	$(call clean)
+	@TMP_DEST=$$(mktemp -d); \
+	cmd="cd $(PERF) && $(MAKE_F) $($@) $(PARALLEL_OPT) $(O_OPT) DESTDIR=$$TMP_DEST"; \
+	printf "%*.*s: %s\n" $(max_width) $(max_width) "$@" "$$cmd" && echo $$cmd > $@ && \
+	( eval $$cmd ) >> $@ 2>&1; \
+	echo "  test: $(call test,$@)" >> $@ 2>&1; \
+	$(call test,$@) && \
+	rm -rf $@ $$TMP_DEST || (cat $@ ; false)
+
+make_static:
 	$(call clean)
 	@TMP_DEST=$$(mktemp -d); \
 	cmd="cd $(PERF) && $(MAKE_F) $($@) $(PARALLEL_OPT) $(O_OPT) DESTDIR=$$TMP_DEST"; \

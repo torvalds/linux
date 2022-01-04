@@ -1021,7 +1021,7 @@ clear_diag_irq:
 
 static void qlcnic_create_loopback_buff(unsigned char *data, u8 mac[])
 {
-	unsigned char random_data[] = {0xa8, 0x06, 0x45, 0x00};
+	static const unsigned char random_data[] = {0xa8, 0x06, 0x45, 0x00};
 
 	memset(data, 0x4e, QLCNIC_ILB_PKT_SIZE);
 
@@ -1048,7 +1048,7 @@ int qlcnic_do_lb_test(struct qlcnic_adapter *adapter, u8 mode)
 	for (i = 0; i < QLCNIC_NUM_ILB_PKT; i++) {
 		skb = netdev_alloc_skb(adapter->netdev, QLCNIC_ILB_PKT_SIZE);
 		if (!skb)
-			break;
+			goto error;
 		qlcnic_create_loopback_buff(skb->data, adapter->mac_addr);
 		skb_put(skb, QLCNIC_ILB_PKT_SIZE);
 		adapter->ahw->diag_cnt = 0;
@@ -1072,6 +1072,7 @@ int qlcnic_do_lb_test(struct qlcnic_adapter *adapter, u8 mode)
 			cnt++;
 	}
 	if (cnt != i) {
+error:
 		dev_err(&adapter->pdev->dev,
 			"LB Test: failed, TX[%d], RX[%d]\n", i, cnt);
 		if (mode != QLCNIC_ILB_MODE)
@@ -1526,7 +1527,9 @@ qlcnic_set_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
  * firmware coalescing to default.
  */
 static int qlcnic_set_intr_coalesce(struct net_device *netdev,
-			struct ethtool_coalesce *ethcoal)
+				    struct ethtool_coalesce *ethcoal,
+				    struct kernel_ethtool_coalesce *kernel_coal,
+				    struct netlink_ext_ack *extack)
 {
 	struct qlcnic_adapter *adapter = netdev_priv(netdev);
 	int err;
@@ -1550,7 +1553,9 @@ static int qlcnic_set_intr_coalesce(struct net_device *netdev,
 }
 
 static int qlcnic_get_intr_coalesce(struct net_device *netdev,
-			struct ethtool_coalesce *ethcoal)
+				    struct ethtool_coalesce *ethcoal,
+				    struct kernel_ethtool_coalesce *kernel_coal,
+				    struct netlink_ext_ack *extack)
 {
 	struct qlcnic_adapter *adapter = netdev_priv(netdev);
 

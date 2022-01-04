@@ -94,7 +94,7 @@ u16 nvmet_parse_fabrics_cmd(struct nvmet_req *req)
 		req->execute = nvmet_execute_prop_get;
 		break;
 	default:
-		pr_err("received unknown capsule type 0x%x\n",
+		pr_debug("received unknown capsule type 0x%x\n",
 			cmd->fabrics.fctype);
 		req->error_loc = offsetof(struct nvmf_common_command, fctype);
 		return NVME_SC_INVALID_OPCODE | NVME_SC_DNR;
@@ -109,19 +109,36 @@ static u16 nvmet_install_queue(struct nvmet_ctrl *ctrl, struct nvmet_req *req)
 	u16 qid = le16_to_cpu(c->qid);
 	u16 sqsize = le16_to_cpu(c->sqsize);
 	struct nvmet_ctrl *old;
+	u16 mqes = NVME_CAP_MQES(ctrl->cap);
 	u16 ret;
+
+	if (!sqsize) {
+		pr_warn("queue size zero!\n");
+		req->error_loc = offsetof(struct nvmf_connect_command, sqsize);
+		req->cqe->result.u32 = IPO_IATTR_CONNECT_SQE(sqsize);
+		ret = NVME_SC_CONNECT_INVALID_PARAM | NVME_SC_DNR;
+		goto err;
+	}
+
+	if (ctrl->sqs[qid] != NULL) {
+		pr_warn("qid %u has already been created\n", qid);
+		req->error_loc = offsetof(struct nvmf_connect_command, qid);
+		return NVME_SC_CMD_SEQ_ERROR | NVME_SC_DNR;
+	}
+
+	if (sqsize > mqes) {
+		pr_warn("sqsize %u is larger than MQES supported %u cntlid %d\n",
+				sqsize, mqes, ctrl->cntlid);
+		req->error_loc = offsetof(struct nvmf_connect_command, sqsize);
+		req->cqe->result.u32 = IPO_IATTR_CONNECT_SQE(sqsize);
+		return NVME_SC_CONNECT_INVALID_PARAM | NVME_SC_DNR;
+	}
 
 	old = cmpxchg(&req->sq->ctrl, NULL, ctrl);
 	if (old) {
 		pr_warn("queue already connected!\n");
 		req->error_loc = offsetof(struct nvmf_connect_command, opcode);
 		return NVME_SC_CONNECT_CTRL_BUSY | NVME_SC_DNR;
-	}
-	if (!sqsize) {
-		pr_warn("queue size zero!\n");
-		req->error_loc = offsetof(struct nvmf_connect_command, sqsize);
-		ret = NVME_SC_CONNECT_INVALID_PARAM | NVME_SC_DNR;
-		goto err;
 	}
 
 	/* note: convert queue size from 0's-based value to 1's-based value */
@@ -138,6 +155,7 @@ static u16 nvmet_install_queue(struct nvmet_ctrl *ctrl, struct nvmet_req *req)
 		if (ret) {
 			pr_err("failed to install queue %d cntlid %d ret %x\n",
 				qid, ctrl->cntlid, ret);
+			ctrl->sqs[qid] = NULL;
 			goto err;
 		}
 	}
@@ -190,12 +208,8 @@ static void nvmet_execute_admin_connect(struct nvmet_req *req)
 
 	status = nvmet_alloc_ctrl(d->subsysnqn, d->hostnqn, req,
 				  le32_to_cpu(c->kato), &ctrl);
-	if (status) {
-		if (status == (NVME_SC_INVALID_FIELD | NVME_SC_DNR))
-			req->error_loc =
-				offsetof(struct nvme_common_command, opcode);
+	if (status)
 		goto out;
-	}
 
 	ctrl->pi_support = ctrl->port->pi_enable && ctrl->subsys->pi_support;
 
@@ -222,7 +236,7 @@ static void nvmet_execute_io_connect(struct nvmet_req *req)
 {
 	struct nvmf_connect_command *c = &req->cmd->connect;
 	struct nvmf_connect_data *d;
-	struct nvmet_ctrl *ctrl = NULL;
+	struct nvmet_ctrl *ctrl;
 	u16 qid = le16_to_cpu(c->qid);
 	u16 status = 0;
 
@@ -249,11 +263,12 @@ static void nvmet_execute_io_connect(struct nvmet_req *req)
 		goto out;
 	}
 
-	status = nvmet_ctrl_find_get(d->subsysnqn, d->hostnqn,
-				     le16_to_cpu(d->cntlid),
-				     req, &ctrl);
-	if (status)
+	ctrl = nvmet_ctrl_find_get(d->subsysnqn, d->hostnqn,
+				   le16_to_cpu(d->cntlid), req);
+	if (!ctrl) {
+		status = NVME_SC_CONNECT_INVALID_PARAM | NVME_SC_DNR;
 		goto out;
+	}
 
 	if (unlikely(qid > ctrl->subsys->max_qid)) {
 		pr_warn("invalid queue id (%d)\n", qid);
@@ -263,11 +278,11 @@ static void nvmet_execute_io_connect(struct nvmet_req *req)
 	}
 
 	status = nvmet_install_queue(ctrl, req);
-	if (status) {
-		/* pass back cntlid that had the issue of installing queue */
-		req->cqe->result.u16 = cpu_to_le16(ctrl->cntlid);
+	if (status)
 		goto out_ctrl_put;
-	}
+
+	/* pass back cntlid for successful completion */
+	req->cqe->result.u16 = cpu_to_le16(ctrl->cntlid);
 
 	pr_debug("adding queue %d to ctrl %d.\n", qid, ctrl->cntlid);
 
@@ -287,13 +302,13 @@ u16 nvmet_parse_connect_cmd(struct nvmet_req *req)
 	struct nvme_command *cmd = req->cmd;
 
 	if (!nvme_is_fabrics(cmd)) {
-		pr_err("invalid command 0x%x on unconnected queue.\n",
+		pr_debug("invalid command 0x%x on unconnected queue.\n",
 			cmd->fabrics.opcode);
 		req->error_loc = offsetof(struct nvme_common_command, opcode);
 		return NVME_SC_INVALID_OPCODE | NVME_SC_DNR;
 	}
 	if (cmd->fabrics.fctype != nvme_fabrics_type_connect) {
-		pr_err("invalid capsule type 0x%x on unconnected queue.\n",
+		pr_debug("invalid capsule type 0x%x on unconnected queue.\n",
 			cmd->fabrics.fctype);
 		req->error_loc = offsetof(struct nvmf_common_command, fctype);
 		return NVME_SC_INVALID_OPCODE | NVME_SC_DNR;

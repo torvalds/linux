@@ -5,6 +5,7 @@
  */
 
 #include "i915_drv.h"
+#include "intel_de.h"
 #include "intel_display_types.h"
 
 #define DSB_BUF_SIZE    (2 * PAGE_SIZE)
@@ -293,7 +294,7 @@ void intel_dsb_prepare(struct intel_crtc_state *crtc_state)
 		goto out;
 	}
 
-	buf = i915_gem_object_pin_map(vma->obj, I915_MAP_WC);
+	buf = i915_gem_object_pin_map_unlocked(vma->obj, I915_MAP_WC);
 	if (IS_ERR(buf)) {
 		drm_err(&i915->drm, "Command buffer creation failed\n");
 		i915_vma_unpin_and_release(&vma, I915_VMA_RELEASE_MAP);

@@ -1293,7 +1293,7 @@ static const struct net_device_ops atl2_netdev_ops = {
 	.ndo_change_mtu		= atl2_change_mtu,
 	.ndo_fix_features	= atl2_fix_features,
 	.ndo_set_features	= atl2_set_features,
-	.ndo_do_ioctl		= atl2_ioctl,
+	.ndo_eth_ioctl		= atl2_ioctl,
 	.ndo_tx_timeout		= atl2_tx_timeout,
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller	= atl2_poll_controller,
@@ -1675,29 +1675,7 @@ static struct pci_driver atl2_driver = {
 	.shutdown = atl2_shutdown,
 };
 
-/**
- * atl2_init_module - Driver Registration Routine
- *
- * atl2_init_module is the first routine called when the driver is
- * loaded. All it does is register with the PCI subsystem.
- */
-static int __init atl2_init_module(void)
-{
-	return pci_register_driver(&atl2_driver);
-}
-module_init(atl2_init_module);
-
-/**
- * atl2_exit_module - Driver Exit Cleanup Routine
- *
- * atl2_exit_module is called just before the driver is removed
- * from memory.
- */
-static void __exit atl2_exit_module(void)
-{
-	pci_unregister_driver(&atl2_driver);
-}
-module_exit(atl2_exit_module);
+module_pci_driver(atl2_driver);
 
 static void atl2_read_pci_cfg(struct atl2_hw *hw, u32 reg, u16 *value)
 {

@@ -110,7 +110,7 @@ void nft_payload_eval(const struct nft_expr *expr,
 	case NFT_PAYLOAD_TRANSPORT_HEADER:
 		if (!pkt->tprot_set)
 			goto err;
-		offset = pkt->xt.thoff;
+		offset = nft_thoff(pkt);
 		break;
 	default:
 		BUG();
@@ -226,8 +226,9 @@ static int nft_payload_offload_ll(struct nft_offload_ctx *ctx,
 		if (!nft_payload_offload_mask(reg, priv->len, sizeof(__be16)))
 			return -EOPNOTSUPP;
 
-		NFT_OFFLOAD_MATCH(FLOW_DISSECTOR_KEY_VLAN, vlan,
-				  vlan_tci, sizeof(__be16), reg);
+		NFT_OFFLOAD_MATCH_FLAGS(FLOW_DISSECTOR_KEY_VLAN, vlan,
+					vlan_tci, sizeof(__be16), reg,
+					NFT_OFFLOAD_F_NETWORK2HOST);
 		break;
 	case offsetof(struct vlan_ethhdr, h_vlan_encapsulated_proto):
 		if (!nft_payload_offload_mask(reg, priv->len, sizeof(__be16)))
@@ -241,16 +242,18 @@ static int nft_payload_offload_ll(struct nft_offload_ctx *ctx,
 		if (!nft_payload_offload_mask(reg, priv->len, sizeof(__be16)))
 			return -EOPNOTSUPP;
 
-		NFT_OFFLOAD_MATCH(FLOW_DISSECTOR_KEY_CVLAN, vlan,
-				  vlan_tci, sizeof(__be16), reg);
+		NFT_OFFLOAD_MATCH_FLAGS(FLOW_DISSECTOR_KEY_CVLAN, cvlan,
+					vlan_tci, sizeof(__be16), reg,
+					NFT_OFFLOAD_F_NETWORK2HOST);
 		break;
 	case offsetof(struct vlan_ethhdr, h_vlan_encapsulated_proto) +
 							sizeof(struct vlan_hdr):
 		if (!nft_payload_offload_mask(reg, priv->len, sizeof(__be16)))
 			return -EOPNOTSUPP;
 
-		NFT_OFFLOAD_MATCH(FLOW_DISSECTOR_KEY_CVLAN, vlan,
+		NFT_OFFLOAD_MATCH(FLOW_DISSECTOR_KEY_CVLAN, cvlan,
 				  vlan_tpid, sizeof(__be16), reg);
+		nft_offload_set_dependency(ctx, NFT_OFFLOAD_DEP_NETWORK);
 		break;
 	default:
 		return -EOPNOTSUPP;
@@ -504,7 +507,7 @@ static int nft_payload_l4csum_offset(const struct nft_pktinfo *pkt,
 		*l4csum_offset = offsetof(struct tcphdr, check);
 		break;
 	case IPPROTO_UDP:
-		if (!nft_payload_udp_checksum(skb, pkt->xt.thoff))
+		if (!nft_payload_udp_checksum(skb, nft_thoff(pkt)))
 			return -1;
 		fallthrough;
 	case IPPROTO_UDPLITE:
@@ -517,7 +520,7 @@ static int nft_payload_l4csum_offset(const struct nft_pktinfo *pkt,
 		return -1;
 	}
 
-	*l4csum_offset += pkt->xt.thoff;
+	*l4csum_offset += nft_thoff(pkt);
 	return 0;
 }
 
@@ -609,7 +612,7 @@ static void nft_payload_set_eval(const struct nft_expr *expr,
 	case NFT_PAYLOAD_TRANSPORT_HEADER:
 		if (!pkt->tprot_set)
 			goto err;
-		offset = pkt->xt.thoff;
+		offset = nft_thoff(pkt);
 		break;
 	default:
 		BUG();
@@ -640,7 +643,7 @@ static void nft_payload_set_eval(const struct nft_expr *expr,
 	if (priv->csum_type == NFT_PAYLOAD_CSUM_SCTP &&
 	    pkt->tprot == IPPROTO_SCTP &&
 	    skb->ip_summed != CHECKSUM_PARTIAL) {
-		if (nft_payload_csum_sctp(skb, pkt->xt.thoff))
+		if (nft_payload_csum_sctp(skb, nft_thoff(pkt)))
 			goto err;
 	}
 

@@ -120,7 +120,7 @@ struct mt7603_dev {
 	unsigned long last_cca_adj;
 
 	u32 ampdu_ref;
-	__le32 rx_ampdu_ts;
+	u32 rx_ampdu_ts;
 	u8 rssi_offset[3];
 
 	u8 slottime;
@@ -256,7 +256,7 @@ void mt7603_sta_remove(struct mt76_dev *mdev, struct ieee80211_vif *vif,
 
 void mt7603_pre_tbtt_tasklet(struct tasklet_struct *t);
 
-void mt7603_update_channel(struct mt76_dev *mdev);
+void mt7603_update_channel(struct mt76_phy *mphy);
 
 void mt7603_edcca_set_strict(struct mt7603_dev *dev, bool val);
 void mt7603_cca_stats_reset(struct mt7603_dev *dev);

@@ -33,7 +33,8 @@ enum hmc5843_ids {
  * @lock:		update and read regmap data
  * @regmap:		hardware access register maps
  * @variant:		describe chip variants
- * @buffer:		3x 16-bit channels + padding + 64-bit timestamp
+ * @scan:		buffer to pack data for passing to
+ *			iio_push_to_buffers_with_timestamp()
  */
 struct hmc5843_data {
 	struct device *dev;
@@ -41,7 +42,10 @@ struct hmc5843_data {
 	struct regmap *regmap;
 	const struct hmc5843_chip_info *variant;
 	struct iio_mount_matrix orientation;
-	__be16 buffer[8];
+	struct {
+		__be16 chans[3];
+		s64 timestamp __aligned(8);
+	} scan;
 };
 
 int hmc5843_common_probe(struct device *dev, struct regmap *regmap,

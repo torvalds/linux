@@ -17,6 +17,11 @@
 
 char _license[] SEC("license") = "GPL";
 
+volatile const char fallback[TCP_CA_NAME_MAX];
+const char bpf_dctcp[] = "bpf_dctcp";
+const char tcp_cdg[] = "cdg";
+char cc_res[TCP_CA_NAME_MAX];
+int tcp_cdg_res = 0;
 int stg_result = 0;
 
 struct {
@@ -56,6 +61,26 @@ void BPF_PROG(dctcp_init, struct sock *sk)
 	const struct tcp_sock *tp = tcp_sk(sk);
 	struct dctcp *ca = inet_csk_ca(sk);
 	int *stg;
+
+	if (!(tp->ecn_flags & TCP_ECN_OK) && fallback[0]) {
+		/* Switch to fallback */
+		bpf_setsockopt(sk, SOL_TCP, TCP_CONGESTION,
+			       (void *)fallback, sizeof(fallback));
+		/* Switch back to myself which the bpf trampoline
+		 * stopped calling dctcp_init recursively.
+		 */
+		bpf_setsockopt(sk, SOL_TCP, TCP_CONGESTION,
+			       (void *)bpf_dctcp, sizeof(bpf_dctcp));
+		/* Switch back to fallback */
+		bpf_setsockopt(sk, SOL_TCP, TCP_CONGESTION,
+			       (void *)fallback, sizeof(fallback));
+		/* Expecting -ENOTSUPP for tcp_cdg_res */
+		tcp_cdg_res = bpf_setsockopt(sk, SOL_TCP, TCP_CONGESTION,
+					     (void *)tcp_cdg, sizeof(tcp_cdg));
+		bpf_getsockopt(sk, SOL_TCP, TCP_CONGESTION,
+			       (void *)cc_res, sizeof(cc_res));
+		return;
+	}
 
 	ca->prior_rcv_nxt = tp->rcv_nxt;
 	ca->dctcp_alpha = min(dctcp_alpha_on_init, DCTCP_MAX_ALPHA);
@@ -194,22 +219,12 @@ __u32 BPF_PROG(dctcp_cwnd_undo, struct sock *sk)
 	return max(tcp_sk(sk)->snd_cwnd, ca->loss_cwnd);
 }
 
-SEC("struct_ops/tcp_reno_cong_avoid")
-void BPF_PROG(tcp_reno_cong_avoid, struct sock *sk, __u32 ack, __u32 acked)
+extern void tcp_reno_cong_avoid(struct sock *sk, __u32 ack, __u32 acked) __ksym;
+
+SEC("struct_ops/dctcp_reno_cong_avoid")
+void BPF_PROG(dctcp_cong_avoid, struct sock *sk, __u32 ack, __u32 acked)
 {
-	struct tcp_sock *tp = tcp_sk(sk);
-
-	if (!tcp_is_cwnd_limited(sk))
-		return;
-
-	/* In "safe" area, increase. */
-	if (tcp_in_slow_start(tp)) {
-		acked = tcp_slow_start(tp, acked);
-		if (!acked)
-			return;
-	}
-	/* In dangerous area, increase slowly. */
-	tcp_cong_avoid_ai(tp, tp->snd_cwnd, acked);
+	tcp_reno_cong_avoid(sk, ack, acked);
 }
 
 SEC(".struct_ops")
@@ -226,7 +241,7 @@ struct tcp_congestion_ops dctcp = {
 	.in_ack_event   = (void *)dctcp_update_alpha,
 	.cwnd_event	= (void *)dctcp_cwnd_event,
 	.ssthresh	= (void *)dctcp_ssthresh,
-	.cong_avoid	= (void *)tcp_reno_cong_avoid,
+	.cong_avoid	= (void *)dctcp_cong_avoid,
 	.undo_cwnd	= (void *)dctcp_cwnd_undo,
 	.set_state	= (void *)dctcp_state,
 	.flags		= TCP_CONG_NEEDS_ECN,

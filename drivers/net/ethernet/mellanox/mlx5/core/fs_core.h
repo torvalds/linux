@@ -129,6 +129,8 @@ struct mlx5_flow_steering {
 	struct mlx5_flow_root_namespace	*rdma_rx_root_ns;
 	struct mlx5_flow_root_namespace	*rdma_tx_root_ns;
 	struct mlx5_flow_root_namespace	*egress_root_ns;
+	int esw_egress_acl_vports;
+	int esw_ingress_acl_vports;
 };
 
 struct fs_node {
@@ -287,6 +289,13 @@ int mlx5_flow_namespace_set_mode(struct mlx5_flow_namespace *ns,
 int mlx5_init_fs(struct mlx5_core_dev *dev);
 void mlx5_cleanup_fs(struct mlx5_core_dev *dev);
 
+int mlx5_fs_egress_acls_init(struct mlx5_core_dev *dev, int total_vports);
+void mlx5_fs_egress_acls_cleanup(struct mlx5_core_dev *dev);
+int mlx5_fs_ingress_acls_init(struct mlx5_core_dev *dev, int total_vports);
+void mlx5_fs_ingress_acls_cleanup(struct mlx5_core_dev *dev);
+
+struct mlx5_flow_root_namespace *find_root(struct fs_node *node);
+
 #define fs_get_obj(v, _node)  {v = container_of((_node), typeof(*v), node); }
 
 #define fs_list_for_each_entry(pos, root)		\
@@ -324,6 +333,7 @@ void mlx5_cleanup_fs(struct mlx5_core_dev *dev);
 
 #define MLX5_CAP_FLOWTABLE_TYPE(mdev, cap, type) (		\
 	(type == FS_FT_NIC_RX) ? MLX5_CAP_FLOWTABLE_NIC_RX(mdev, cap) :		\
+	(type == FS_FT_NIC_TX) ? MLX5_CAP_FLOWTABLE_NIC_TX(mdev, cap) :		\
 	(type == FS_FT_ESW_EGRESS_ACL) ? MLX5_CAP_ESW_EGRESS_ACL(mdev, cap) :		\
 	(type == FS_FT_ESW_INGRESS_ACL) ? MLX5_CAP_ESW_INGRESS_ACL(mdev, cap) :		\
 	(type == FS_FT_FDB) ? MLX5_CAP_ESW_FLOWTABLE_FDB(mdev, cap) :		\

@@ -58,13 +58,11 @@ struct vmw_user_fence {
 /**
  * struct vmw_event_fence_action - fence action that delivers a drm event.
  *
- * @e: A struct drm_pending_event that controls the event delivery.
  * @action: A struct vmw_fence_action to hook up to a fence.
+ * @event: A pointer to the pending event.
  * @fence: A referenced pointer to the fence to keep it alive while @action
  * hangs on it.
  * @dev: Pointer to a struct drm_device so we can access the event stuff.
- * @kref: Both @e and @action has destructors, so we need to refcount.
- * @size: Size accounted for this object.
  * @tv_sec: If non-null, the variable pointed to will be assigned
  * current time tv_sec val when the fence signals.
  * @tv_usec: Must be set if @tv_sec is set, and the variable pointed to will
@@ -87,7 +85,7 @@ fman_from_fence(struct vmw_fence_obj *fence)
 	return container_of(fence->base.lock, struct vmw_fence_manager, lock);
 }
 
-/**
+/*
  * Note on fencing subsystem usage of irqs:
  * Typically the vmw_fences_update function is called
  *
@@ -141,11 +139,9 @@ static bool vmw_fence_enable_signaling(struct dma_fence *f)
 	struct vmw_fence_manager *fman = fman_from_fence(fence);
 	struct vmw_private *dev_priv = fman->dev_priv;
 
-	u32 seqno = vmw_fifo_mem_read(dev_priv, SVGA_FIFO_FENCE);
+	u32 seqno = vmw_fence_read(dev_priv);
 	if (seqno - fence->base.seqno < VMW_FENCE_WRAP)
 		return false;
-
-	vmw_fifo_ping_host(dev_priv, SVGA_SYNC_GENERIC);
 
 	return true;
 }
@@ -179,7 +175,6 @@ static long vmw_fence_wait(struct dma_fence *f, bool intr, signed long timeout)
 	if (likely(vmw_fence_obj_signaled(fence)))
 		return timeout;
 
-	vmw_fifo_ping_host(dev_priv, SVGA_SYNC_GENERIC);
 	vmw_seqno_waiter_add(dev_priv);
 
 	spin_lock(f->lock);
@@ -250,7 +245,7 @@ static const struct dma_fence_ops vmw_fence_ops = {
 };
 
 
-/**
+/*
  * Execute signal actions on fences recently signaled.
  * This is done from a workqueue so we don't have to execute
  * signal actions from atomic context.
@@ -466,7 +461,7 @@ static void __vmw_fences_update(struct vmw_fence_manager *fman)
 	bool needs_rerun;
 	uint32_t seqno, new_seqno;
 
-	seqno = vmw_fifo_mem_read(fman->dev_priv, SVGA_FIFO_FENCE);
+	seqno = vmw_fence_read(fman->dev_priv);
 rerun:
 	list_for_each_entry_safe(fence, next_fence, &fman->fence_list, head) {
 		if (seqno - fence->base.seqno < VMW_FENCE_WRAP) {
@@ -488,7 +483,7 @@ rerun:
 
 	needs_rerun = vmw_fence_goal_new_locked(fman, seqno);
 	if (unlikely(needs_rerun)) {
-		new_seqno = vmw_fifo_mem_read(fman->dev_priv, SVGA_FIFO_FENCE);
+		new_seqno = vmw_fence_read(fman->dev_priv);
 		if (new_seqno != seqno) {
 			seqno = new_seqno;
 			goto rerun;
@@ -529,13 +524,6 @@ int vmw_fence_obj_wait(struct vmw_fence_obj *fence, bool lazy,
 		return -EBUSY;
 	else
 		return ret;
-}
-
-void vmw_fence_obj_flush(struct vmw_fence_obj *fence)
-{
-	struct vmw_private *dev_priv = fman_from_fence(fence)->dev_priv;
-
-	vmw_fifo_ping_host(dev_priv, SVGA_SYNC_GENERIC);
 }
 
 static void vmw_fence_destroy(struct vmw_fence_obj *fence)
@@ -708,7 +696,7 @@ int vmw_wait_dma_fence(struct vmw_fence_manager *fman,
 }
 
 
-/**
+/*
  * vmw_fence_fifo_down - signal all unsignaled fence objects.
  */
 
@@ -948,8 +936,8 @@ static void vmw_event_fence_action_cleanup(struct vmw_fence_action *action)
 /**
  * vmw_fence_obj_add_action - Add an action to a fence object.
  *
- * @fence - The fence object.
- * @action - The action to add.
+ * @fence: The fence object.
+ * @action: The action to add.
  *
  * Note that the action callbacks may be executed before this function
  * returns.
@@ -994,13 +982,17 @@ static void vmw_fence_obj_add_action(struct vmw_fence_obj *fence,
 }
 
 /**
- * vmw_event_fence_action_create - Post an event for sending when a fence
+ * vmw_event_fence_action_queue - Post an event for sending when a fence
  * object seqno has passed.
  *
  * @file_priv: The file connection on which the event should be posted.
  * @fence: The fence object on which to post the event.
  * @event: Event to be posted. This event should've been alloced
  * using k[mz]alloc, and should've been completely initialized.
+ * @tv_sec: If non-null, the variable pointed to will be assigned
+ * current time tv_sec val when the fence signals.
+ * @tv_usec: Must be set if @tv_sec is set, and the variable pointed to will
+ * be assigned the current time tv_usec val when the fence signals.
  * @interruptible: Interruptible waits if possible.
  *
  * As a side effect, the object pointed to by @event may have been

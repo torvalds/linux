@@ -52,6 +52,19 @@ static void ice_mailbox_init_regs(struct ice_hw *hw)
 }
 
 /**
+ * ice_sb_init_regs - Initialize Sideband registers
+ * @hw: pointer to the hardware structure
+ *
+ * This assumes the alloc_sq and alloc_rq functions have already been called
+ */
+static void ice_sb_init_regs(struct ice_hw *hw)
+{
+	struct ice_ctl_q_info *cq = &hw->sbq;
+
+	ICE_CQ_INIT_REGS(cq, PF_SB);
+}
+
+/**
  * ice_check_sq_alive
  * @hw: pointer to the HW struct
  * @cq: pointer to the specific Control queue
@@ -609,6 +622,10 @@ static enum ice_status ice_init_ctrlq(struct ice_hw *hw, enum ice_ctl_q q_type)
 		ice_adminq_init_regs(hw);
 		cq = &hw->adminq;
 		break;
+	case ICE_CTL_Q_SB:
+		ice_sb_init_regs(hw);
+		cq = &hw->sbq;
+		break;
 	case ICE_CTL_Q_MAILBOX:
 		ice_mailbox_init_regs(hw);
 		cq = &hw->mailboxq;
@@ -646,6 +663,32 @@ init_ctrlq_free_sq:
 }
 
 /**
+ * ice_is_sbq_supported - is the sideband queue supported
+ * @hw: pointer to the hardware structure
+ *
+ * Returns true if the sideband control queue interface is
+ * supported for the device, false otherwise
+ */
+bool ice_is_sbq_supported(struct ice_hw *hw)
+{
+	/* The device sideband queue is only supported on devices with the
+	 * generic MAC type.
+	 */
+	return hw->mac_type == ICE_MAC_GENERIC;
+}
+
+/**
+ * ice_get_sbq - returns the right control queue to use for sideband
+ * @hw: pointer to the hardware structure
+ */
+struct ice_ctl_q_info *ice_get_sbq(struct ice_hw *hw)
+{
+	if (ice_is_sbq_supported(hw))
+		return &hw->sbq;
+	return &hw->adminq;
+}
+
+/**
  * ice_shutdown_ctrlq - shutdown routine for any control queue
  * @hw: pointer to the hardware structure
  * @q_type: specific Control queue type
@@ -661,6 +704,9 @@ static void ice_shutdown_ctrlq(struct ice_hw *hw, enum ice_ctl_q q_type)
 		cq = &hw->adminq;
 		if (ice_check_sq_alive(hw, cq))
 			ice_aq_q_shutdown(hw, true);
+		break;
+	case ICE_CTL_Q_SB:
+		cq = &hw->sbq;
 		break;
 	case ICE_CTL_Q_MAILBOX:
 		cq = &hw->mailboxq;
@@ -685,6 +731,9 @@ void ice_shutdown_all_ctrlq(struct ice_hw *hw)
 {
 	/* Shutdown FW admin queue */
 	ice_shutdown_ctrlq(hw, ICE_CTL_Q_ADMIN);
+	/* Shutdown PHY Sideband */
+	if (ice_is_sbq_supported(hw))
+		ice_shutdown_ctrlq(hw, ICE_CTL_Q_SB);
 	/* Shutdown PF-VF Mailbox */
 	ice_shutdown_ctrlq(hw, ICE_CTL_Q_MAILBOX);
 }
@@ -724,6 +773,15 @@ enum ice_status ice_init_all_ctrlq(struct ice_hw *hw)
 
 	if (status)
 		return status;
+	/* sideband control queue (SBQ) interface is not supported on some
+	 * devices. Initialize if supported, else fallback to the admin queue
+	 * interface
+	 */
+	if (ice_is_sbq_supported(hw)) {
+		status = ice_init_ctrlq(hw, ICE_CTL_Q_SB);
+		if (status)
+			return status;
+	}
 	/* Init Mailbox queue */
 	return ice_init_ctrlq(hw, ICE_CTL_Q_MAILBOX);
 }
@@ -759,6 +817,8 @@ static void ice_init_ctrlq_locks(struct ice_ctl_q_info *cq)
 enum ice_status ice_create_all_ctrlq(struct ice_hw *hw)
 {
 	ice_init_ctrlq_locks(&hw->adminq);
+	if (ice_is_sbq_supported(hw))
+		ice_init_ctrlq_locks(&hw->sbq);
 	ice_init_ctrlq_locks(&hw->mailboxq);
 
 	return ice_init_all_ctrlq(hw);
@@ -791,6 +851,8 @@ void ice_destroy_all_ctrlq(struct ice_hw *hw)
 	ice_shutdown_all_ctrlq(hw);
 
 	ice_destroy_ctrlq_locks(&hw->adminq);
+	if (ice_is_sbq_supported(hw))
+		ice_destroy_ctrlq_locks(&hw->sbq);
 	ice_destroy_ctrlq_locks(&hw->mailboxq);
 }
 
@@ -892,7 +954,7 @@ static bool ice_sq_done(struct ice_hw *hw, struct ice_ctl_q_info *cq)
  * ice_sq_send_cmd - send command to Control Queue (ATQ)
  * @hw: pointer to the HW struct
  * @cq: pointer to the specific Control queue
- * @desc: prefilled descriptor describing the command (non DMA mem)
+ * @desc: prefilled descriptor describing the command
  * @buf: buffer to use for indirect commands (or NULL for direct commands)
  * @buf_size: size of buffer for indirect commands (or 0 for direct commands)
  * @cd: pointer to command details structure
@@ -1097,6 +1159,7 @@ ice_clean_rq_elem(struct ice_hw *hw, struct ice_ctl_q_info *cq,
 		  struct ice_rq_event_info *e, u16 *pending)
 {
 	u16 ntc = cq->rq.next_to_clean;
+	enum ice_aq_err rq_last_status;
 	enum ice_status ret_code = 0;
 	struct ice_aq_desc *desc;
 	struct ice_dma_mem *bi;
@@ -1130,13 +1193,12 @@ ice_clean_rq_elem(struct ice_hw *hw, struct ice_ctl_q_info *cq,
 	desc = ICE_CTL_Q_DESC(cq->rq, ntc);
 	desc_idx = ntc;
 
-	cq->rq_last_status = (enum ice_aq_err)le16_to_cpu(desc->retval);
+	rq_last_status = (enum ice_aq_err)le16_to_cpu(desc->retval);
 	flags = le16_to_cpu(desc->flags);
 	if (flags & ICE_AQ_FLAG_ERR) {
 		ret_code = ICE_ERR_AQ_ERROR;
 		ice_debug(hw, ICE_DBG_AQ_MSG, "Control Receive Queue Event 0x%04X received with error 0x%X\n",
-			  le16_to_cpu(desc->opcode),
-			  cq->rq_last_status);
+			  le16_to_cpu(desc->opcode), rq_last_status);
 	}
 	memcpy(&e->desc, desc, sizeof(e->desc));
 	datalen = le16_to_cpu(desc->datalen);

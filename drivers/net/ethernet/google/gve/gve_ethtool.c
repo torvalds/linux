@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: (GPL-2.0 OR MIT)
 /* Google virtual Ethernet (gve) driver
  *
- * Copyright (C) 2015-2019 Google, Inc.
+ * Copyright (C) 2015-2021 Google, Inc.
  */
 
 #include <linux/ethtool.h>
@@ -14,9 +14,9 @@ static void gve_get_drvinfo(struct net_device *netdev,
 {
 	struct gve_priv *priv = netdev_priv(netdev);
 
-	strlcpy(info->driver, "gve", sizeof(info->driver));
-	strlcpy(info->version, gve_version_str, sizeof(info->version));
-	strlcpy(info->bus_info, pci_name(priv->pdev), sizeof(info->bus_info));
+	strscpy(info->driver, "gve", sizeof(info->driver));
+	strscpy(info->version, gve_version_str, sizeof(info->version));
+	strscpy(info->bus_info, pci_name(priv->pdev), sizeof(info->bus_info));
 }
 
 static void gve_set_msglevel(struct net_device *netdev, u32 value)
@@ -311,8 +311,16 @@ gve_get_ethtool_stats(struct net_device *netdev,
 		for (ring = 0; ring < priv->tx_cfg.num_queues; ring++) {
 			struct gve_tx_ring *tx = &priv->tx[ring];
 
-			data[i++] = tx->req;
-			data[i++] = tx->done;
+			if (gve_is_gqi(priv)) {
+				data[i++] = tx->req;
+				data[i++] = tx->done;
+			} else {
+				/* DQO doesn't currently support
+				 * posted/completed descriptor counts;
+				 */
+				data[i++] = 0;
+				data[i++] = 0;
+			}
 			do {
 				start =
 				  u64_stats_fetch_begin(&priv->tx[ring].statss);
@@ -388,7 +396,7 @@ static int gve_set_channels(struct net_device *netdev,
 
 	gve_get_channels(netdev, &old_settings);
 
-	/* Changing combined is not allowed allowed */
+	/* Changing combined is not allowed */
 	if (cmd->combined_count != old_settings.combined_count)
 		return -EINVAL;
 
@@ -453,11 +461,16 @@ static int gve_set_tunable(struct net_device *netdev,
 
 	switch (etuna->id) {
 	case ETHTOOL_RX_COPYBREAK:
+	{
+		u32 max_copybreak = gve_is_gqi(priv) ?
+			(PAGE_SIZE / 2) : priv->data_buffer_size_dqo;
+
 		len = *(u32 *)value;
-		if (len > PAGE_SIZE / 2)
+		if (len > max_copybreak)
 			return -EINVAL;
 		priv->rx_copybreak = len;
 		return 0;
+	}
 	default:
 		return -EOPNOTSUPP;
 	}

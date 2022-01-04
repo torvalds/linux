@@ -177,7 +177,7 @@ static const char * const s5k6aa_supply_names[] = {
 
 enum s5k6aa_gpio_id {
 	STBY,
-	RST,
+	RSET,
 	GPIO_NUM,
 };
 
@@ -416,7 +416,7 @@ static int s5k6aa_set_ahb_address(struct i2c_client *client)
 }
 
 /**
- * s5k6aa_configure_pixel_clock - apply ISP main clock/PLL configuration
+ * s5k6aa_configure_pixel_clocks - apply ISP main clock/PLL configuration
  * @s5k6aa: pointer to &struct s5k6aa describing the device
  *
  * Configure the internal ISP PLL for the required output frequency.
@@ -841,7 +841,7 @@ static int __s5k6aa_power_on(struct s5k6aa *s5k6aa)
 		ret = s5k6aa->s_power(1);
 	usleep_range(4000, 5000);
 
-	if (s5k6aa_gpio_deassert(s5k6aa, RST))
+	if (s5k6aa_gpio_deassert(s5k6aa, RSET))
 		msleep(20);
 
 	return ret;
@@ -851,7 +851,7 @@ static int __s5k6aa_power_off(struct s5k6aa *s5k6aa)
 {
 	int ret;
 
-	if (s5k6aa_gpio_assert(s5k6aa, RST))
+	if (s5k6aa_gpio_assert(s5k6aa, RSET))
 		usleep_range(100, 150);
 
 	if (s5k6aa->s_power) {
@@ -997,7 +997,7 @@ static int s5k6aa_s_frame_interval(struct v4l2_subdev *sd,
  * V4L2 subdev pad level and video operations
  */
 static int s5k6aa_enum_frame_interval(struct v4l2_subdev *sd,
-			      struct v4l2_subdev_pad_config *cfg,
+			      struct v4l2_subdev_state *sd_state,
 			      struct v4l2_subdev_frame_interval_enum *fie)
 {
 	struct s5k6aa *s5k6aa = to_s5k6aa(sd);
@@ -1024,7 +1024,7 @@ static int s5k6aa_enum_frame_interval(struct v4l2_subdev *sd,
 }
 
 static int s5k6aa_enum_mbus_code(struct v4l2_subdev *sd,
-				 struct v4l2_subdev_pad_config *cfg,
+				 struct v4l2_subdev_state *sd_state,
 				 struct v4l2_subdev_mbus_code_enum *code)
 {
 	if (code->index >= ARRAY_SIZE(s5k6aa_formats))
@@ -1035,7 +1035,7 @@ static int s5k6aa_enum_mbus_code(struct v4l2_subdev *sd,
 }
 
 static int s5k6aa_enum_frame_size(struct v4l2_subdev *sd,
-				  struct v4l2_subdev_pad_config *cfg,
+				  struct v4l2_subdev_state *sd_state,
 				  struct v4l2_subdev_frame_size_enum *fse)
 {
 	int i = ARRAY_SIZE(s5k6aa_formats);
@@ -1057,14 +1057,15 @@ static int s5k6aa_enum_frame_size(struct v4l2_subdev *sd,
 }
 
 static struct v4l2_rect *
-__s5k6aa_get_crop_rect(struct s5k6aa *s5k6aa, struct v4l2_subdev_pad_config *cfg,
+__s5k6aa_get_crop_rect(struct s5k6aa *s5k6aa,
+		       struct v4l2_subdev_state *sd_state,
 		       enum v4l2_subdev_format_whence which)
 {
 	if (which == V4L2_SUBDEV_FORMAT_ACTIVE)
 		return &s5k6aa->ccd_rect;
 
 	WARN_ON(which != V4L2_SUBDEV_FORMAT_TRY);
-	return v4l2_subdev_get_try_crop(&s5k6aa->sd, cfg, 0);
+	return v4l2_subdev_get_try_crop(&s5k6aa->sd, sd_state, 0);
 }
 
 static void s5k6aa_try_format(struct s5k6aa *s5k6aa,
@@ -1088,7 +1089,8 @@ static void s5k6aa_try_format(struct s5k6aa *s5k6aa,
 	mf->field	= V4L2_FIELD_NONE;
 }
 
-static int s5k6aa_get_fmt(struct v4l2_subdev *sd, struct v4l2_subdev_pad_config *cfg,
+static int s5k6aa_get_fmt(struct v4l2_subdev *sd,
+			  struct v4l2_subdev_state *sd_state,
 			  struct v4l2_subdev_format *fmt)
 {
 	struct s5k6aa *s5k6aa = to_s5k6aa(sd);
@@ -1097,7 +1099,7 @@ static int s5k6aa_get_fmt(struct v4l2_subdev *sd, struct v4l2_subdev_pad_config 
 	memset(fmt->reserved, 0, sizeof(fmt->reserved));
 
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
-		mf = v4l2_subdev_get_try_format(sd, cfg, 0);
+		mf = v4l2_subdev_get_try_format(sd, sd_state, 0);
 		fmt->format = *mf;
 		return 0;
 	}
@@ -1109,7 +1111,8 @@ static int s5k6aa_get_fmt(struct v4l2_subdev *sd, struct v4l2_subdev_pad_config 
 	return 0;
 }
 
-static int s5k6aa_set_fmt(struct v4l2_subdev *sd, struct v4l2_subdev_pad_config *cfg,
+static int s5k6aa_set_fmt(struct v4l2_subdev *sd,
+			  struct v4l2_subdev_state *sd_state,
 			  struct v4l2_subdev_format *fmt)
 {
 	struct s5k6aa *s5k6aa = to_s5k6aa(sd);
@@ -1122,8 +1125,8 @@ static int s5k6aa_set_fmt(struct v4l2_subdev *sd, struct v4l2_subdev_pad_config 
 	s5k6aa_try_format(s5k6aa, &fmt->format);
 
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
-		mf = v4l2_subdev_get_try_format(sd, cfg, fmt->pad);
-		crop = v4l2_subdev_get_try_crop(sd, cfg, 0);
+		mf = v4l2_subdev_get_try_format(sd, sd_state, fmt->pad);
+		crop = v4l2_subdev_get_try_crop(sd, sd_state, 0);
 	} else {
 		if (s5k6aa->streaming) {
 			ret = -EBUSY;
@@ -1163,7 +1166,7 @@ static int s5k6aa_set_fmt(struct v4l2_subdev *sd, struct v4l2_subdev_pad_config 
 }
 
 static int s5k6aa_get_selection(struct v4l2_subdev *sd,
-				struct v4l2_subdev_pad_config *cfg,
+				struct v4l2_subdev_state *sd_state,
 				struct v4l2_subdev_selection *sel)
 {
 	struct s5k6aa *s5k6aa = to_s5k6aa(sd);
@@ -1175,7 +1178,7 @@ static int s5k6aa_get_selection(struct v4l2_subdev *sd,
 	memset(sel->reserved, 0, sizeof(sel->reserved));
 
 	mutex_lock(&s5k6aa->lock);
-	rect = __s5k6aa_get_crop_rect(s5k6aa, cfg, sel->which);
+	rect = __s5k6aa_get_crop_rect(s5k6aa, sd_state, sel->which);
 	sel->r = *rect;
 	mutex_unlock(&s5k6aa->lock);
 
@@ -1186,7 +1189,7 @@ static int s5k6aa_get_selection(struct v4l2_subdev *sd,
 }
 
 static int s5k6aa_set_selection(struct v4l2_subdev *sd,
-				struct v4l2_subdev_pad_config *cfg,
+				struct v4l2_subdev_state *sd_state,
 				struct v4l2_subdev_selection *sel)
 {
 	struct s5k6aa *s5k6aa = to_s5k6aa(sd);
@@ -1198,13 +1201,13 @@ static int s5k6aa_set_selection(struct v4l2_subdev *sd,
 		return -EINVAL;
 
 	mutex_lock(&s5k6aa->lock);
-	crop_r = __s5k6aa_get_crop_rect(s5k6aa, cfg, sel->which);
+	crop_r = __s5k6aa_get_crop_rect(s5k6aa, sd_state, sel->which);
 
 	if (sel->which == V4L2_SUBDEV_FORMAT_ACTIVE) {
 		mf = &s5k6aa->preset->mbus_fmt;
 		s5k6aa->apply_crop = 1;
 	} else {
-		mf = v4l2_subdev_get_try_format(sd, cfg, 0);
+		mf = v4l2_subdev_get_try_format(sd, sd_state, 0);
 	}
 	v4l_bound_align_image(&sel->r.width, mf->width,
 			      S5K6AA_WIN_WIDTH_MAX, 1,
@@ -1425,8 +1428,10 @@ static int s5k6aa_initialize_ctrls(struct s5k6aa *s5k6aa)
  */
 static int s5k6aa_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 {
-	struct v4l2_mbus_framefmt *format = v4l2_subdev_get_try_format(sd, fh->pad, 0);
-	struct v4l2_rect *crop = v4l2_subdev_get_try_crop(sd, fh->pad, 0);
+	struct v4l2_mbus_framefmt *format = v4l2_subdev_get_try_format(sd,
+								       fh->state,
+								       0);
+	struct v4l2_rect *crop = v4l2_subdev_get_try_crop(sd, fh->state, 0);
 
 	format->colorspace = s5k6aa_formats[0].colorspace;
 	format->code = s5k6aa_formats[0].code;
@@ -1510,7 +1515,7 @@ static int s5k6aa_configure_gpios(struct s5k6aa *s5k6aa,
 	int ret;
 
 	s5k6aa->gpio[STBY].gpio = -EINVAL;
-	s5k6aa->gpio[RST].gpio  = -EINVAL;
+	s5k6aa->gpio[RSET].gpio  = -EINVAL;
 
 	gpio = &pdata->gpio_stby;
 	if (gpio_is_valid(gpio->gpio)) {
@@ -1533,7 +1538,7 @@ static int s5k6aa_configure_gpios(struct s5k6aa *s5k6aa,
 		if (ret < 0)
 			return ret;
 
-		s5k6aa->gpio[RST] = *gpio;
+		s5k6aa->gpio[RSET] = *gpio;
 	}
 
 	return 0;

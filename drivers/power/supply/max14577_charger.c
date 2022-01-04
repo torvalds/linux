@@ -261,7 +261,7 @@ static int max14577_init_constant_voltage(struct max14577_charger *chg,
 static int max14577_init_eoc(struct max14577_charger *chg,
 		unsigned int uamp)
 {
-	unsigned int current_bits = 0xf;
+	unsigned int current_bits;
 	u8 reg_data;
 
 	switch (chg->max14577->dev_type) {

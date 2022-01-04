@@ -11,6 +11,8 @@
 #include <asm/stackframe.h>
 #include <asm/addrspace.h>
 
+#include <kernel-entry-init.h>
+
 LEAF(relocate_new_kernel)
 	PTR_L a0,	arg0
 	PTR_L a1,	arg1
@@ -125,11 +127,8 @@ LEAF(kexec_smp_wait)
 1:	LONG_L		s0, (t0)
 	bne		s0, zero,1b
 
-#ifdef CONFIG_CPU_CAVIUM_OCTEON
-	.set push
-	.set noreorder
-	synci		0($0)
-	.set pop
+#ifdef USE_KEXEC_SMP_WAIT_FINAL
+	kexec_smp_wait_final
 #else
 	sync
 #endif

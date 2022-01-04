@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-// Copyright (c) 2017-2018 Hisilicon Limited.
+// Copyright (c) 2017-2018 HiSilicon Limited.
 // Copyright (c) 2017-2018 Linaro Limited.
 
 #include <linux/bitops.h>

@@ -33,6 +33,7 @@
 #include <linux/types.h>
 
 struct drm_i915_private;
+struct intel_bios_encoder_data;
 struct intel_crtc_state;
 struct intel_encoder;
 enum port;
@@ -241,20 +242,28 @@ bool intel_bios_is_port_hpd_inverted(const struct drm_i915_private *i915,
 				     enum port port);
 bool intel_bios_is_lspcon_present(const struct drm_i915_private *i915,
 				  enum port port);
+bool intel_bios_is_lane_reversal_needed(const struct drm_i915_private *i915,
+					enum port port);
 enum aux_ch intel_bios_port_aux_ch(struct drm_i915_private *dev_priv, enum port port);
 bool intel_bios_get_dsc_params(struct intel_encoder *encoder,
 			       struct intel_crtc_state *crtc_state,
 			       int dsc_max_bpc);
 int intel_bios_max_tmds_clock(struct intel_encoder *encoder);
 int intel_bios_hdmi_level_shift(struct intel_encoder *encoder);
-int intel_bios_dp_boost_level(struct intel_encoder *encoder);
-int intel_bios_hdmi_boost_level(struct intel_encoder *encoder);
 int intel_bios_dp_max_link_rate(struct intel_encoder *encoder);
 int intel_bios_alternate_ddc_pin(struct intel_encoder *encoder);
-bool intel_bios_port_supports_dvi(struct drm_i915_private *i915, enum port port);
-bool intel_bios_port_supports_hdmi(struct drm_i915_private *i915, enum port port);
-bool intel_bios_port_supports_dp(struct drm_i915_private *i915, enum port port);
 bool intel_bios_port_supports_typec_usb(struct drm_i915_private *i915, enum port port);
 bool intel_bios_port_supports_tbt(struct drm_i915_private *i915, enum port port);
+
+const struct intel_bios_encoder_data *
+intel_bios_encoder_data_lookup(struct drm_i915_private *i915, enum port port);
+
+bool intel_bios_encoder_supports_dvi(const struct intel_bios_encoder_data *devdata);
+bool intel_bios_encoder_supports_hdmi(const struct intel_bios_encoder_data *devdata);
+bool intel_bios_encoder_supports_dp(const struct intel_bios_encoder_data *devdata);
+bool intel_bios_encoder_supports_typec_usb(const struct intel_bios_encoder_data *devdata);
+bool intel_bios_encoder_supports_tbt(const struct intel_bios_encoder_data *devdata);
+int intel_bios_encoder_dp_boost_level(const struct intel_bios_encoder_data *devdata);
+int intel_bios_encoder_hdmi_boost_level(const struct intel_bios_encoder_data *devdata);
 
 #endif /* _INTEL_BIOS_H_ */

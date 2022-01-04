@@ -11,7 +11,7 @@
  * Copyright 2008 Jouni Malinen <jouni.malinen@atheros.com>
  * Copyright 2008 Colin McCabe <colin@cozybit.com>
  * Copyright 2015-2017	Intel Deutschland GmbH
- * Copyright (C) 2018-2020 Intel Corporation
+ * Copyright (C) 2018-2021 Intel Corporation
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -655,6 +655,9 @@
  *	When a security association was established on an 802.1X network using
  *	fast transition, this event should be followed by an
  *	%NL80211_CMD_PORT_AUTHORIZED event.
+ *	Following a %NL80211_CMD_ROAM event userspace can issue
+ *	%NL80211_CMD_GET_SCAN in order to obtain the scan information for the
+ *	new BSS the card/driver roamed to.
  * @NL80211_CMD_DISCONNECT: drop a given connection; also used to notify
  *	userspace that a connection was dropped by the AP or due to other
  *	reasons, for this the %NL80211_ATTR_DISCONNECTED_BY_AP and
@@ -1182,6 +1185,21 @@
  *	passed using %NL80211_ATTR_SAR_SPEC. %NL80211_ATTR_WIPHY is used to
  *	specify the wiphy index to be applied to.
  *
+ * @NL80211_CMD_OBSS_COLOR_COLLISION: This notification is sent out whenever
+ *	mac80211/drv detects a bss color collision.
+ *
+ * @NL80211_CMD_COLOR_CHANGE_REQUEST: This command is used to indicate that
+ *	userspace wants to change the BSS color.
+ *
+ * @NL80211_CMD_COLOR_CHANGE_STARTED: Notify userland, that a color change has
+ *	started
+ *
+ * @NL80211_CMD_COLOR_CHANGE_ABORTED: Notify userland, that the color change has
+ *	been aborted
+ *
+ * @NL80211_CMD_COLOR_CHANGE_COMPLETED: Notify userland that the color change
+ *	has completed
+ *
  * @NL80211_CMD_MAX: highest used command number
  * @__NL80211_CMD_AFTER_LAST: internal use
  */
@@ -1413,6 +1431,14 @@ enum nl80211_commands {
 	NL80211_CMD_CONTROL_PORT_FRAME_TX_STATUS,
 
 	NL80211_CMD_SET_SAR_SPECS,
+
+	NL80211_CMD_OBSS_COLOR_COLLISION,
+
+	NL80211_CMD_COLOR_CHANGE_REQUEST,
+
+	NL80211_CMD_COLOR_CHANGE_STARTED,
+	NL80211_CMD_COLOR_CHANGE_ABORTED,
+	NL80211_CMD_COLOR_CHANGE_COMPLETED,
 
 	/* add new commands above here */
 
@@ -2557,6 +2583,16 @@ enum nl80211_commands {
  *	disassoc events to indicate that an immediate reconnect to the AP
  *	is desired.
  *
+ * @NL80211_ATTR_OBSS_COLOR_BITMAP: bitmap of the u64 BSS colors for the
+ *	%NL80211_CMD_OBSS_COLOR_COLLISION event.
+ *
+ * @NL80211_ATTR_COLOR_CHANGE_COUNT: u8 attribute specifying the number of TBTT's
+ *	until the color switch event.
+ * @NL80211_ATTR_COLOR_CHANGE_COLOR: u8 attribute specifying the color that we are
+ *	switching to
+ * @NL80211_ATTR_COLOR_CHANGE_ELEMS: Nested set of attributes containing the IE
+ *	information for the time while performing a color switch.
+ *
  * @NUM_NL80211_ATTR: total number of nl80211_attrs available
  * @NL80211_ATTR_MAX: highest attribute number currently defined
  * @__NL80211_ATTR_AFTER_LAST: internal use
@@ -3053,6 +3089,12 @@ enum nl80211_attrs {
 	NL80211_ATTR_SAR_SPEC,
 
 	NL80211_ATTR_DISABLE_HE,
+
+	NL80211_ATTR_OBSS_COLOR_BITMAP,
+
+	NL80211_ATTR_COLOR_CHANGE_COUNT,
+	NL80211_ATTR_COLOR_CHANGE_COLOR,
+	NL80211_ATTR_COLOR_CHANGE_ELEMS,
 
 	/* add attributes here, update the policy in nl80211.c */
 
@@ -3651,6 +3693,8 @@ enum nl80211_mpath_info {
  *     defined
  * @NL80211_BAND_IFTYPE_ATTR_HE_6GHZ_CAPA: HE 6GHz band capabilities (__le16),
  *	given for all 6 GHz band channels
+ * @NL80211_BAND_IFTYPE_ATTR_VENDOR_ELEMS: vendor element capabilities that are
+ *	advertised on this band/for this iftype (binary)
  * @__NL80211_BAND_IFTYPE_ATTR_AFTER_LAST: internal use
  */
 enum nl80211_band_iftype_attr {
@@ -3662,6 +3706,7 @@ enum nl80211_band_iftype_attr {
 	NL80211_BAND_IFTYPE_ATTR_HE_CAP_MCS_SET,
 	NL80211_BAND_IFTYPE_ATTR_HE_CAP_PPE,
 	NL80211_BAND_IFTYPE_ATTR_HE_6GHZ_CAPA,
+	NL80211_BAND_IFTYPE_ATTR_VENDOR_ELEMS,
 
 	/* keep last */
 	__NL80211_BAND_IFTYPE_ATTR_AFTER_LAST,
@@ -5937,6 +5982,19 @@ enum nl80211_feature_flags {
  * @NL80211_EXT_FEATURE_BEACON_RATE_HE: Driver supports beacon rate
  *	configuration (AP/mesh) with HE rates.
  *
+ * @NL80211_EXT_FEATURE_SECURE_LTF: Device supports secure LTF measurement
+ *      exchange protocol.
+ *
+ * @NL80211_EXT_FEATURE_SECURE_RTT: Device supports secure RTT measurement
+ *      exchange protocol.
+ *
+ * @NL80211_EXT_FEATURE_PROT_RANGE_NEGO_AND_MEASURE: Device supports management
+ *      frame protection for all management frames exchanged during the
+ *      negotiation and range measurement procedure.
+ *
+ * @NL80211_EXT_FEATURE_BSS_COLOR: The driver supports BSS color collision
+ *	detection and change announcemnts.
+ *
  * @NUM_NL80211_EXT_FEATURES: number of extended features.
  * @MAX_NL80211_EXT_FEATURES: highest extended feature index.
  */
@@ -5998,6 +6056,10 @@ enum nl80211_ext_feature_index {
 	NL80211_EXT_FEATURE_FILS_DISCOVERY,
 	NL80211_EXT_FEATURE_UNSOL_BCAST_PROBE_RESP,
 	NL80211_EXT_FEATURE_BEACON_RATE_HE,
+	NL80211_EXT_FEATURE_SECURE_LTF,
+	NL80211_EXT_FEATURE_SECURE_RTT,
+	NL80211_EXT_FEATURE_PROT_RANGE_NEGO_AND_MEASURE,
+	NL80211_EXT_FEATURE_BSS_COLOR,
 
 	/* add new features before the definition below */
 	NUM_NL80211_EXT_FEATURES,
@@ -6295,11 +6357,13 @@ struct nl80211_vendor_cmd_info {
  * @NL80211_TDLS_PEER_HT: TDLS peer is HT capable.
  * @NL80211_TDLS_PEER_VHT: TDLS peer is VHT capable.
  * @NL80211_TDLS_PEER_WMM: TDLS peer is WMM capable.
+ * @NL80211_TDLS_PEER_HE: TDLS peer is HE capable.
  */
 enum nl80211_tdls_peer_capability {
 	NL80211_TDLS_PEER_HT = 1<<0,
 	NL80211_TDLS_PEER_VHT = 1<<1,
 	NL80211_TDLS_PEER_WMM = 1<<2,
+	NL80211_TDLS_PEER_HE = 1<<3,
 };
 
 /**
@@ -6891,6 +6955,12 @@ enum nl80211_peer_measurement_ftm_capa {
  *      if neither %NL80211_PMSR_FTM_REQ_ATTR_TRIGGER_BASED nor
  *	%NL80211_PMSR_FTM_REQ_ATTR_NON_TRIGGER_BASED is set, EDCA based
  *	ranging will be used.
+ * @NL80211_PMSR_FTM_REQ_ATTR_LMR_FEEDBACK: negotiate for LMR feedback. Only
+ *	valid if either %NL80211_PMSR_FTM_REQ_ATTR_TRIGGER_BASED or
+ *	%NL80211_PMSR_FTM_REQ_ATTR_NON_TRIGGER_BASED is set.
+ * @NL80211_PMSR_FTM_REQ_ATTR_BSS_COLOR: optional. The BSS color of the
+ *	responder. Only valid if %NL80211_PMSR_FTM_REQ_ATTR_NON_TRIGGER_BASED
+ *	or %NL80211_PMSR_FTM_REQ_ATTR_TRIGGER_BASED is set.
  *
  * @NUM_NL80211_PMSR_FTM_REQ_ATTR: internal
  * @NL80211_PMSR_FTM_REQ_ATTR_MAX: highest attribute number
@@ -6909,6 +6979,8 @@ enum nl80211_peer_measurement_ftm_req {
 	NL80211_PMSR_FTM_REQ_ATTR_REQUEST_CIVICLOC,
 	NL80211_PMSR_FTM_REQ_ATTR_TRIGGER_BASED,
 	NL80211_PMSR_FTM_REQ_ATTR_NON_TRIGGER_BASED,
+	NL80211_PMSR_FTM_REQ_ATTR_LMR_FEEDBACK,
+	NL80211_PMSR_FTM_REQ_ATTR_BSS_COLOR,
 
 	/* keep last */
 	NUM_NL80211_PMSR_FTM_REQ_ATTR,

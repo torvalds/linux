@@ -1057,10 +1057,8 @@ static int vsc9959_mdio_bus_alloc(struct ocelot *ocelot)
 	res.end += felix->imdio_base;
 
 	imdio_regs = devm_ioremap_resource(dev, &res);
-	if (IS_ERR(imdio_regs)) {
-		dev_err(dev, "failed to map internal MDIO registers\n");
+	if (IS_ERR(imdio_regs))
 		return PTR_ERR(imdio_regs);
-	}
 
 	hw = enetc_hw_alloc(dev, imdio_regs);
 	if (IS_ERR(hw)) {
@@ -1229,6 +1227,15 @@ static int vsc9959_qos_port_tas_set(struct ocelot *ocelot, int port,
 	if (taprio->num_entries > VSC9959_TAS_GCL_ENTRY_MAX)
 		return -ERANGE;
 
+	/* Enable guard band. The switch will schedule frames without taking
+	 * their length into account. Thus we'll always need to enable the
+	 * guard band which reserves the time of a maximum sized frame at the
+	 * end of the time window.
+	 *
+	 * Although the ALWAYS_GUARD_BAND_SCH_Q bit is global for all ports, we
+	 * need to set PORT_NUM, because subsequent writes to PARAM_CFG_REG_n
+	 * operate on the port number.
+	 */
 	ocelot_rmw(ocelot, QSYS_TAS_PARAM_CFG_CTRL_PORT_NUM(port) |
 		   QSYS_TAS_PARAM_CFG_CTRL_ALWAYS_GUARD_BAND_SCH_Q,
 		   QSYS_TAS_PARAM_CFG_CTRL_PORT_NUM_M |

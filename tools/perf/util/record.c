@@ -25,12 +25,12 @@
  */
 static struct evsel *evsel__read_sampler(struct evsel *evsel, struct evlist *evlist)
 {
-	struct evsel *leader = evsel->leader;
+	struct evsel *leader = evsel__leader(evsel);
 
 	if (evsel__is_aux_event(leader) || arch_topdown_sample_read(leader) ||
 	    is_mem_loads_aux_event(leader)) {
 		evlist__for_each_entry(evlist, evsel) {
-			if (evsel->leader == leader && evsel != evsel->leader)
+			if (evsel__leader(evsel) == leader && evsel != evsel__leader(evsel))
 				return evsel;
 		}
 	}
@@ -53,7 +53,7 @@ static u64 evsel__config_term_mask(struct evsel *evsel)
 static void evsel__config_leader_sampling(struct evsel *evsel, struct evlist *evlist)
 {
 	struct perf_event_attr *attr = &evsel->core.attr;
-	struct evsel *leader = evsel->leader;
+	struct evsel *leader = evsel__leader(evsel);
 	struct evsel *read_sampler;
 	u64 term_types, freq_mask;
 
@@ -157,9 +157,15 @@ static int get_max_rate(unsigned int *rate)
 static int record_opts__config_freq(struct record_opts *opts)
 {
 	bool user_freq = opts->user_freq != UINT_MAX;
+	bool user_interval = opts->user_interval != ULLONG_MAX;
 	unsigned int max_rate;
 
-	if (opts->user_interval != ULLONG_MAX)
+	if (user_interval && user_freq) {
+		pr_err("cannot set frequency and period at the same time\n");
+		return -1;
+	}
+
+	if (user_interval)
 		opts->default_interval = opts->user_interval;
 	if (user_freq)
 		opts->freq = opts->user_freq;

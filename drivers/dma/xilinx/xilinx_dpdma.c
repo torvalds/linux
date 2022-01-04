@@ -113,6 +113,7 @@
 #define XILINX_DPDMA_CH_VDO				0x020
 #define XILINX_DPDMA_CH_PYLD_SZ				0x024
 #define XILINX_DPDMA_CH_DESC_ID				0x028
+#define XILINX_DPDMA_CH_DESC_ID_MASK			GENMASK(15, 0)
 
 /* DPDMA descriptor fields */
 #define XILINX_DPDMA_DESC_CONTROL_PREEMBLE		0xa5
@@ -530,7 +531,7 @@ static void xilinx_dpdma_sw_desc_set_dma_addrs(struct xilinx_dpdma_device *xdev,
 	for (i = 1; i < num_src_addr; i++) {
 		u32 *addr = &hw_desc->src_addr2;
 
-		addr[i-1] = lower_32_bits(dma_addr[i]);
+		addr[i - 1] = lower_32_bits(dma_addr[i]);
 
 		if (xdev->ext_addr) {
 			u32 *addr_ext = &hw_desc->addr_ext_23;
@@ -702,8 +703,9 @@ xilinx_dpdma_chan_prep_interleaved_dma(struct xilinx_dpdma_chan *chan,
 	size_t stride = hsize + xt->sgl[0].icg;
 
 	if (!IS_ALIGNED(xt->src_start, XILINX_DPDMA_ALIGN_BYTES)) {
-		dev_err(chan->xdev->dev, "buffer should be aligned at %d B\n",
-			XILINX_DPDMA_ALIGN_BYTES);
+		dev_err(chan->xdev->dev,
+			"chan%u: buffer should be aligned at %d B\n",
+			chan->id, XILINX_DPDMA_ALIGN_BYTES);
 		return NULL;
 	}
 
@@ -866,7 +868,8 @@ static void xilinx_dpdma_chan_queue_transfer(struct xilinx_dpdma_chan *chan)
 	 * will be used, but it should be enough.
 	 */
 	list_for_each_entry(sw_desc, &desc->descriptors, node)
-		sw_desc->hw.desc_id = desc->vdesc.tx.cookie;
+		sw_desc->hw.desc_id = desc->vdesc.tx.cookie
+				    & XILINX_DPDMA_CH_DESC_ID_MASK;
 
 	sw_desc = list_first_entry(&desc->descriptors,
 				   struct xilinx_dpdma_sw_desc, node);
@@ -915,7 +918,7 @@ static u32 xilinx_dpdma_chan_ostand(struct xilinx_dpdma_chan *chan)
 }
 
 /**
- * xilinx_dpdma_chan_no_ostand - Notify no outstanding transaction event
+ * xilinx_dpdma_chan_notify_no_ostand - Notify no outstanding transaction event
  * @chan: DPDMA channel
  *
  * Notify waiters for no outstanding event, so waiters can stop the channel
@@ -934,7 +937,9 @@ static int xilinx_dpdma_chan_notify_no_ostand(struct xilinx_dpdma_chan *chan)
 
 	cnt = xilinx_dpdma_chan_ostand(chan);
 	if (cnt) {
-		dev_dbg(chan->xdev->dev, "%d outstanding transactions\n", cnt);
+		dev_dbg(chan->xdev->dev,
+			"chan%u: %d outstanding transactions\n",
+			chan->id, cnt);
 		return -EWOULDBLOCK;
 	}
 
@@ -970,8 +975,8 @@ static int xilinx_dpdma_chan_wait_no_ostand(struct xilinx_dpdma_chan *chan)
 		return 0;
 	}
 
-	dev_err(chan->xdev->dev, "not ready to stop: %d trans\n",
-		xilinx_dpdma_chan_ostand(chan));
+	dev_err(chan->xdev->dev, "chan%u: not ready to stop: %d trans\n",
+		chan->id, xilinx_dpdma_chan_ostand(chan));
 
 	if (ret == 0)
 		return -ETIMEDOUT;
@@ -1005,8 +1010,8 @@ static int xilinx_dpdma_chan_poll_no_ostand(struct xilinx_dpdma_chan *chan)
 		return 0;
 	}
 
-	dev_err(chan->xdev->dev, "not ready to stop: %d trans\n",
-		xilinx_dpdma_chan_ostand(chan));
+	dev_err(chan->xdev->dev, "chan%u: not ready to stop: %d trans\n",
+		chan->id, xilinx_dpdma_chan_ostand(chan));
 
 	return -ETIMEDOUT;
 }
@@ -1060,7 +1065,8 @@ static void xilinx_dpdma_chan_done_irq(struct xilinx_dpdma_chan *chan)
 		vchan_cyclic_callback(&active->vdesc);
 	else
 		dev_warn(chan->xdev->dev,
-			 "DONE IRQ with no active descriptor!\n");
+			 "chan%u: DONE IRQ with no active descriptor!\n",
+			 chan->id);
 
 	spin_unlock_irqrestore(&chan->lock, flags);
 }
@@ -1086,13 +1092,18 @@ static void xilinx_dpdma_chan_vsync_irq(struct  xilinx_dpdma_chan *chan)
 	if (!chan->running || !pending)
 		goto out;
 
-	desc_id = dpdma_read(chan->reg, XILINX_DPDMA_CH_DESC_ID);
+	desc_id = dpdma_read(chan->reg, XILINX_DPDMA_CH_DESC_ID)
+		& XILINX_DPDMA_CH_DESC_ID_MASK;
 
 	/* If the retrigger raced with vsync, retry at the next frame. */
 	sw_desc = list_first_entry(&pending->descriptors,
 				   struct xilinx_dpdma_sw_desc, node);
-	if (sw_desc->hw.desc_id != desc_id)
+	if (sw_desc->hw.desc_id != desc_id) {
+		dev_dbg(chan->xdev->dev,
+			"chan%u: vsync race lost (%u != %u), retrying\n",
+			chan->id, sw_desc->hw.desc_id, desc_id);
 		goto out;
+	}
 
 	/*
 	 * Complete the active descriptor, if any, promote the pending
@@ -1148,10 +1159,12 @@ static void xilinx_dpdma_chan_handle_err(struct xilinx_dpdma_chan *chan)
 
 	spin_lock_irqsave(&chan->lock, flags);
 
-	dev_dbg(xdev->dev, "cur desc addr = 0x%04x%08x\n",
+	dev_dbg(xdev->dev, "chan%u: cur desc addr = 0x%04x%08x\n",
+		chan->id,
 		dpdma_read(chan->reg, XILINX_DPDMA_CH_DESC_START_ADDRE),
 		dpdma_read(chan->reg, XILINX_DPDMA_CH_DESC_START_ADDR));
-	dev_dbg(xdev->dev, "cur payload addr = 0x%04x%08x\n",
+	dev_dbg(xdev->dev, "chan%u: cur payload addr = 0x%04x%08x\n",
+		chan->id,
 		dpdma_read(chan->reg, XILINX_DPDMA_CH_PYLD_CUR_ADDRE),
 		dpdma_read(chan->reg, XILINX_DPDMA_CH_PYLD_CUR_ADDR));
 
@@ -1167,7 +1180,8 @@ static void xilinx_dpdma_chan_handle_err(struct xilinx_dpdma_chan *chan)
 	xilinx_dpdma_chan_dump_tx_desc(chan, active);
 
 	if (active->error)
-		dev_dbg(xdev->dev, "repeated error on desc\n");
+		dev_dbg(xdev->dev, "chan%u: repeated error on desc\n",
+			chan->id);
 
 	/* Reschedule if there's no new descriptor */
 	if (!chan->desc.pending &&
@@ -1232,7 +1246,8 @@ static int xilinx_dpdma_alloc_chan_resources(struct dma_chan *dchan)
 					  align, 0);
 	if (!chan->desc_pool) {
 		dev_err(chan->xdev->dev,
-			"failed to allocate a descriptor pool\n");
+			"chan%u: failed to allocate a descriptor pool\n",
+			chan->id);
 		return -ENOMEM;
 	}
 
@@ -1459,7 +1474,7 @@ static void xilinx_dpdma_enable_irq(struct xilinx_dpdma_device *xdev)
  */
 static void xilinx_dpdma_disable_irq(struct xilinx_dpdma_device *xdev)
 {
-	dpdma_write(xdev->reg, XILINX_DPDMA_IDS, XILINX_DPDMA_INTR_ERR_ALL);
+	dpdma_write(xdev->reg, XILINX_DPDMA_IDS, XILINX_DPDMA_INTR_ALL);
 	dpdma_write(xdev->reg, XILINX_DPDMA_EIDS, XILINX_DPDMA_EINTR_ALL);
 }
 
@@ -1585,7 +1600,7 @@ static struct dma_chan *of_dma_xilinx_xlate(struct of_phandle_args *dma_spec,
 					    struct of_dma *ofdma)
 {
 	struct xilinx_dpdma_device *xdev = ofdma->of_dma_data;
-	uint32_t chan_id = dma_spec->args[0];
+	u32 chan_id = dma_spec->args[0];
 
 	if (chan_id >= ARRAY_SIZE(xdev->chan))
 		return NULL;
@@ -1594,6 +1609,26 @@ static struct dma_chan *of_dma_xilinx_xlate(struct of_phandle_args *dma_spec,
 		return NULL;
 
 	return dma_get_slave_channel(&xdev->chan[chan_id]->vchan.chan);
+}
+
+static void dpdma_hw_init(struct xilinx_dpdma_device *xdev)
+{
+	unsigned int i;
+	void __iomem *reg;
+
+	/* Disable all interrupts */
+	xilinx_dpdma_disable_irq(xdev);
+
+	/* Stop all channels */
+	for (i = 0; i < ARRAY_SIZE(xdev->chan); i++) {
+		reg = xdev->reg + XILINX_DPDMA_CH_BASE
+				+ XILINX_DPDMA_CH_OFFSET * i;
+		dpdma_clr(reg, XILINX_DPDMA_CH_CNTL, XILINX_DPDMA_CH_CNTL_ENABLE);
+	}
+
+	/* Clear the interrupt status registers */
+	dpdma_write(xdev->reg, XILINX_DPDMA_ISR, XILINX_DPDMA_INTR_ALL);
+	dpdma_write(xdev->reg, XILINX_DPDMA_EISR, XILINX_DPDMA_EINTR_ALL);
 }
 
 static int xilinx_dpdma_probe(struct platform_device *pdev)
@@ -1621,6 +1656,8 @@ static int xilinx_dpdma_probe(struct platform_device *pdev)
 	xdev->reg = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(xdev->reg))
 		return PTR_ERR(xdev->reg);
+
+	dpdma_hw_init(xdev);
 
 	xdev->irq = platform_get_irq(pdev, 0);
 	if (xdev->irq < 0) {

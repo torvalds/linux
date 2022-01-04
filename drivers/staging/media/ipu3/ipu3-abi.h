@@ -4,7 +4,7 @@
 #ifndef __IPU3_ABI_H
 #define __IPU3_ABI_H
 
-#include "include/intel-ipu3.h"
+#include "include/uapi/intel-ipu3.h"
 
 /******************* IMGU Hardware information *******************/
 

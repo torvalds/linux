@@ -479,8 +479,9 @@ static int set_user(struct cred *new)
 	 * for programs doing set*uid()+execve() by harmlessly deferring the
 	 * failure to the execve() stage.
 	 */
-	if (atomic_read(&new_user->processes) >= rlimit(RLIMIT_NPROC) &&
-			new_user != INIT_USER)
+	if (is_ucounts_overlimit(new->ucounts, UCOUNT_RLIMIT_NPROC, rlimit(RLIMIT_NPROC)) &&
+			new_user != INIT_USER &&
+			!capable(CAP_SYS_RESOURCE) && !capable(CAP_SYS_ADMIN))
 		current->flags |= PF_NPROC_EXCEEDED;
 	else
 		current->flags &= ~PF_NPROC_EXCEEDED;
@@ -558,6 +559,10 @@ long __sys_setreuid(uid_t ruid, uid_t euid)
 	if (retval < 0)
 		goto error;
 
+	retval = set_cred_ucounts(new);
+	if (retval < 0)
+		goto error;
+
 	return commit_creds(new);
 
 error:
@@ -613,6 +618,10 @@ long __sys_setuid(uid_t uid)
 	new->fsuid = new->euid = kuid;
 
 	retval = security_task_fix_setuid(new, old, LSM_SETID_ID);
+	if (retval < 0)
+		goto error;
+
+	retval = set_cred_ucounts(new);
 	if (retval < 0)
 		goto error;
 
@@ -688,6 +697,10 @@ long __sys_setresuid(uid_t ruid, uid_t euid, uid_t suid)
 	new->fsuid = new->euid;
 
 	retval = security_task_fix_setuid(new, old, LSM_SETID_RES);
+	if (retval < 0)
+		goto error;
+
+	retval = set_cred_ucounts(new);
 	if (retval < 0)
 		goto error;
 
@@ -1590,7 +1603,7 @@ int do_prlimit(struct task_struct *tsk, unsigned int resource,
 
 	/*
 	 * RLIMIT_CPU handling. Arm the posix CPU timer if the limit is not
-	 * infite. In case of RLIM_INFINITY the posix CPU timer code
+	 * infinite. In case of RLIM_INFINITY the posix CPU timer code
 	 * ignores the rlimit.
 	 */
 	 if (!retval && new_rlim && resource == RLIMIT_CPU &&
@@ -2029,7 +2042,7 @@ static int prctl_set_mm_map(int opt, const void __user *addr, unsigned long data
 	}
 
 	/*
-	 * arg_lock protects concurent updates but we still need mmap_lock for
+	 * arg_lock protects concurrent updates but we still need mmap_lock for
 	 * read to exclude races with sys_brk.
 	 */
 	mmap_read_lock(mm);
@@ -2041,7 +2054,7 @@ static int prctl_set_mm_map(int opt, const void __user *addr, unsigned long data
 	 * output in procfs mostly, except
 	 *
 	 *  - @start_brk/@brk which are used in do_brk_flags but kernel lookups
-	 *    for VMAs when updating these memvers so anything wrong written
+	 *    for VMAs when updating these members so anything wrong written
 	 *    here cause kernel to swear at userspace program but won't lead
 	 *    to any problem in kernel itself
 	 */
@@ -2143,7 +2156,7 @@ static int prctl_set_mm(int opt, unsigned long addr,
 	error = -EINVAL;
 
 	/*
-	 * arg_lock protects concurent updates of arg boundaries, we need
+	 * arg_lock protects concurrent updates of arg boundaries, we need
 	 * mmap_lock for a) concurrent sys_brk, b) finding VMA for addr
 	 * validation.
 	 */
@@ -2210,7 +2223,7 @@ static int prctl_set_mm(int opt, unsigned long addr,
 	 * If command line arguments and environment
 	 * are placed somewhere else on stack, we can
 	 * set them up here, ARG_START/END to setup
-	 * command line argumets and ENV_START/END
+	 * command line arguments and ENV_START/END
 	 * for environment.
 	 */
 	case PR_SET_MM_START_STACK:
@@ -2258,8 +2271,8 @@ static int prctl_get_tid_address(struct task_struct *me, int __user * __user *ti
 static int propagate_has_child_subreaper(struct task_struct *p, void *data)
 {
 	/*
-	 * If task has has_child_subreaper - all its decendants
-	 * already have these flag too and new decendants will
+	 * If task has has_child_subreaper - all its descendants
+	 * already have these flag too and new descendants will
 	 * inherit it on fork, skip them.
 	 *
 	 * If we've found child_reaper - skip descendants in
@@ -2550,6 +2563,11 @@ SYSCALL_DEFINE5(prctl, int, option, unsigned long, arg2, unsigned long, arg3,
 		error = set_syscall_user_dispatch(arg2, arg3, arg4,
 						  (char __user *) arg5);
 		break;
+#ifdef CONFIG_SCHED_CORE
+	case PR_SCHED_CORE:
+		error = sched_core_share_pid(arg2, arg3, arg4, arg5);
+		break;
+#endif
 	default:
 		error = -EINVAL;
 		break;

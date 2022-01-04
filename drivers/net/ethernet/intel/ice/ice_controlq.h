@@ -9,13 +9,14 @@
 /* Maximum buffer lengths for all control queue types */
 #define ICE_AQ_MAX_BUF_LEN 4096
 #define ICE_MBXQ_MAX_BUF_LEN 4096
+#define ICE_SBQ_MAX_BUF_LEN 512
 
 #define ICE_CTL_Q_DESC(R, i) \
 	(&(((struct ice_aq_desc *)((R).desc_buf.va))[i]))
 
 #define ICE_CTL_Q_DESC_UNUSED(R) \
-	(u16)((((R)->next_to_clean > (R)->next_to_use) ? 0 : (R)->count) + \
-	      (R)->next_to_clean - (R)->next_to_use - 1)
+	((u16)((((R)->next_to_clean > (R)->next_to_use) ? 0 : (R)->count) + \
+	       (R)->next_to_clean - (R)->next_to_use - 1))
 
 /* Defines that help manage the driver vs FW API checks.
  * Take a look at ice_aq_ver_check in ice_controlq.c for actual usage.
@@ -29,6 +30,7 @@ enum ice_ctl_q {
 	ICE_CTL_Q_UNKNOWN = 0,
 	ICE_CTL_Q_ADMIN,
 	ICE_CTL_Q_MAILBOX,
+	ICE_CTL_Q_SB,
 };
 
 /* Control Queue timeout settings - max delay 1s */
@@ -83,7 +85,6 @@ struct ice_rq_event_info {
 /* Control Queue information */
 struct ice_ctl_q_info {
 	enum ice_ctl_q qtype;
-	enum ice_aq_err rq_last_status;	/* last status on receive queue */
 	struct ice_ctl_q_ring rq;	/* receive queue */
 	struct ice_ctl_q_ring sq;	/* send queue */
 	u32 sq_cmd_timeout;		/* send queue cmd write back timeout */

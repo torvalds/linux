@@ -155,6 +155,7 @@
 		}										\
 	} while (0)
 
+#define AMDGPU_VCN_FW_SHARED_FLAG_0_RB	(1 << 6)
 #define AMDGPU_VCN_MULTI_QUEUE_FLAG	(1 << 8)
 #define AMDGPU_VCN_SW_RING_FLAG		(1 << 9)
 
@@ -211,6 +212,7 @@ struct amdgpu_vcn_inst {
 	void			*saved_bo;
 	struct amdgpu_ring	ring_dec;
 	struct amdgpu_ring	ring_enc[AMDGPU_VCN_MAX_ENC_RINGS];
+	atomic_t		sched_score;
 	struct amdgpu_irq_src	irq;
 	struct amdgpu_vcn_reg	external;
 	struct amdgpu_bo	*dpg_sram_bo;
@@ -243,6 +245,12 @@ struct amdgpu_vcn {
 		int inst_idx, struct dpg_pause_state *new_state);
 };
 
+struct amdgpu_fw_shared_rb_ptrs_struct {
+	/* to WA DPG R/W ptr issues.*/
+	uint32_t  rptr;
+	uint32_t  wptr;
+};
+
 struct amdgpu_fw_shared_multi_queue {
 	uint8_t decode_queue_mode;
 	uint8_t encode_generalpurpose_queue_mode;
@@ -258,10 +266,12 @@ struct amdgpu_fw_shared_sw_ring {
 
 struct amdgpu_fw_shared {
 	uint32_t present_flag_0;
-	uint8_t pad[53];
+	uint8_t pad[44];
+	struct amdgpu_fw_shared_rb_ptrs_struct rb;
+	uint8_t pad1[1];
 	struct amdgpu_fw_shared_multi_queue multi_queue;
 	struct amdgpu_fw_shared_sw_ring sw_ring;
-} __attribute__((__packed__));
+};
 
 struct amdgpu_vcn_decode_buffer {
 	uint32_t valid_buf_flag;
@@ -270,12 +280,25 @@ struct amdgpu_vcn_decode_buffer {
 	uint32_t pad[30];
 };
 
+#define VCN_BLOCK_ENCODE_DISABLE_MASK 0x80
+#define VCN_BLOCK_DECODE_DISABLE_MASK 0x40
+#define VCN_BLOCK_QUEUE_DISABLE_MASK 0xC0
+
+enum vcn_ring_type {
+	VCN_ENCODE_RING,
+	VCN_DECODE_RING,
+	VCN_UNIFIED_RING,
+};
+
 int amdgpu_vcn_sw_init(struct amdgpu_device *adev);
 int amdgpu_vcn_sw_fini(struct amdgpu_device *adev);
 int amdgpu_vcn_suspend(struct amdgpu_device *adev);
 int amdgpu_vcn_resume(struct amdgpu_device *adev);
 void amdgpu_vcn_ring_begin_use(struct amdgpu_ring *ring);
 void amdgpu_vcn_ring_end_use(struct amdgpu_ring *ring);
+
+bool amdgpu_vcn_is_disabled_vcn(struct amdgpu_device *adev,
+				enum vcn_ring_type type, uint32_t vcn_instance);
 
 int amdgpu_vcn_dec_ring_test_ring(struct amdgpu_ring *ring);
 int amdgpu_vcn_dec_ring_test_ib(struct amdgpu_ring *ring, long timeout);

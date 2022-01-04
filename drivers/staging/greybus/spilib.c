@@ -246,6 +246,7 @@ static struct gb_operation *gb_spi_operation_create(struct gb_spilib *spi,
 	xfer = spi->first_xfer;
 	while (msg->state != GB_SPI_STATE_OP_DONE) {
 		int xfer_delay;
+
 		if (xfer == spi->last_xfer)
 			xfer_len = spi->last_xfer_size;
 		else

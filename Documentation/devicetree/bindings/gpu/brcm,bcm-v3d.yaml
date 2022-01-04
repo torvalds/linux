@@ -34,7 +34,6 @@ properties:
       - enum: [ bridge, gca ]
       - enum: [ bridge, gca ]
     minItems: 2
-    maxItems: 4
 
   interrupts:
     items:

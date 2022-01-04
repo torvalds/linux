@@ -700,7 +700,7 @@ static void do_balance_runtime(struct rt_rq *rt_rq)
 		/*
 		 * Either all rqs have inf runtime and there's nothing to steal
 		 * or __disable_runtime() below sets a specific rq to inf to
-		 * indicate its been disabled and disalow stealing.
+		 * indicate its been disabled and disallow stealing.
 		 */
 		if (iter->rt_runtime == RUNTIME_INF)
 			goto next;
@@ -888,7 +888,7 @@ static int do_sched_rt_period_timer(struct rt_bandwidth *rt_b, int overrun)
 		if (skip)
 			continue;
 
-		raw_spin_lock(&rq->lock);
+		raw_spin_rq_lock(rq);
 		update_rq_clock(rq);
 
 		if (rt_rq->rt_time) {
@@ -926,7 +926,7 @@ static int do_sched_rt_period_timer(struct rt_bandwidth *rt_b, int overrun)
 
 		if (enqueue)
 			sched_rt_rq_enqueue(rt_rq);
-		raw_spin_unlock(&rq->lock);
+		raw_spin_rq_unlock(rq);
 	}
 
 	if (!throttled && (!rt_bandwidth_enabled() || rt_b->rt_runtime == RUNTIME_INF))
@@ -1626,7 +1626,7 @@ static struct task_struct *_pick_next_task_rt(struct rq *rq)
 	return rt_task_of(rt_se);
 }
 
-static struct task_struct *pick_next_task_rt(struct rq *rq)
+static struct task_struct *pick_task_rt(struct rq *rq)
 {
 	struct task_struct *p;
 
@@ -1634,7 +1634,17 @@ static struct task_struct *pick_next_task_rt(struct rq *rq)
 		return NULL;
 
 	p = _pick_next_task_rt(rq);
-	set_next_task_rt(rq, p, true);
+
+	return p;
+}
+
+static struct task_struct *pick_next_task_rt(struct rq *rq)
+{
+	struct task_struct *p = pick_task_rt(rq);
+
+	if (p)
+		set_next_task_rt(rq, p, true);
+
 	return p;
 }
 
@@ -1894,10 +1904,10 @@ retry:
 		 */
 		push_task = get_push_task(rq);
 		if (push_task) {
-			raw_spin_unlock(&rq->lock);
+			raw_spin_rq_unlock(rq);
 			stop_one_cpu_nowait(rq->cpu, push_cpu_stop,
 					    push_task, &rq->push_work);
-			raw_spin_lock(&rq->lock);
+			raw_spin_rq_lock(rq);
 		}
 
 		return 0;
@@ -1998,7 +2008,7 @@ static void push_rt_tasks(struct rq *rq)
  *
  * Each root domain has its own irq work function that can iterate over
  * all CPUs with RT overloaded tasks. Since all CPUs with overloaded RT
- * tassk must be checked if there's one or many CPUs that are lowering
+ * task must be checked if there's one or many CPUs that are lowering
  * their priority, there's a single irq work iterator that will try to
  * push off RT tasks that are waiting to run.
  *
@@ -2122,10 +2132,10 @@ void rto_push_irq_work_func(struct irq_work *work)
 	 * When it gets updated, a check is made if a push is possible.
 	 */
 	if (has_pushable_tasks(rq)) {
-		raw_spin_lock(&rq->lock);
+		raw_spin_rq_lock(rq);
 		while (push_rt_task(rq, true))
 			;
-		raw_spin_unlock(&rq->lock);
+		raw_spin_rq_unlock(rq);
 	}
 
 	raw_spin_lock(&rd->rto_lock);
@@ -2216,7 +2226,7 @@ static void pull_rt_task(struct rq *this_rq)
 			/*
 			 * There's a chance that p is higher in priority
 			 * than what's currently running on its CPU.
-			 * This is just that p is wakeing up and hasn't
+			 * This is just that p is waking up and hasn't
 			 * had a chance to schedule. We only pull
 			 * p if it is lower in priority than the
 			 * current task on the run queue
@@ -2243,10 +2253,10 @@ skip:
 		double_unlock_balance(this_rq, src_rq);
 
 		if (push_task) {
-			raw_spin_unlock(&this_rq->lock);
+			raw_spin_rq_unlock(this_rq);
 			stop_one_cpu_nowait(src_rq->cpu, push_cpu_stop,
 					    push_task, &src_rq->push_work);
-			raw_spin_lock(&this_rq->lock);
+			raw_spin_rq_lock(this_rq);
 		}
 	}
 
@@ -2331,13 +2341,20 @@ void __init init_sched_rt_class(void)
 static void switched_to_rt(struct rq *rq, struct task_struct *p)
 {
 	/*
-	 * If we are already running, then there's nothing
-	 * that needs to be done. But if we are not running
-	 * we may need to preempt the current running task.
-	 * If that current running task is also an RT task
+	 * If we are running, update the avg_rt tracking, as the running time
+	 * will now on be accounted into the latter.
+	 */
+	if (task_current(rq, p)) {
+		update_rt_rq_load_avg(rq_clock_pelt(rq), rq, 0);
+		return;
+	}
+
+	/*
+	 * If we are not running we may need to preempt the current
+	 * running task. If that current running task is also an RT task
 	 * then see if we can move to another run queue.
 	 */
-	if (task_on_rq_queued(p) && rq->curr != p) {
+	if (task_on_rq_queued(p)) {
 #ifdef CONFIG_SMP
 		if (p->nr_cpus_allowed > 1 && rq->rt.overloaded)
 			rt_queue_push_tasks(rq);
@@ -2483,6 +2500,7 @@ DEFINE_SCHED_CLASS(rt) = {
 
 #ifdef CONFIG_SMP
 	.balance		= balance_rt,
+	.pick_task		= pick_task_rt,
 	.select_task_rq		= select_task_rq_rt,
 	.set_cpus_allowed       = set_cpus_allowed_common,
 	.rq_online              = rq_online_rt,

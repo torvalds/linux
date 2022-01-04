@@ -114,7 +114,8 @@ static void serport_ldisc_close(struct tty_struct *tty)
  * 'interrupt' routine.
  */
 
-static void serport_ldisc_receive(struct tty_struct *tty, const unsigned char *cp, char *fp, int count)
+static void serport_ldisc_receive(struct tty_struct *tty,
+		const unsigned char *cp, const char *fp, int count)
 {
 	struct serport *serport = (struct serport*) tty->disc_data;
 	unsigned long flags;
@@ -273,6 +274,7 @@ static void serport_ldisc_write_wakeup(struct tty_struct * tty)
 
 static struct tty_ldisc_ops serport_ldisc = {
 	.owner =	THIS_MODULE,
+	.num =		N_MOUSE,
 	.name =		"input",
 	.open =		serport_ldisc_open,
 	.close =	serport_ldisc_close,
@@ -293,7 +295,7 @@ static struct tty_ldisc_ops serport_ldisc = {
 static int __init serport_init(void)
 {
 	int retval;
-	retval = tty_register_ldisc(N_MOUSE, &serport_ldisc);
+	retval = tty_register_ldisc(&serport_ldisc);
 	if (retval)
 		printk(KERN_ERR "serport.c: Error registering line discipline.\n");
 
@@ -302,7 +304,7 @@ static int __init serport_init(void)
 
 static void __exit serport_exit(void)
 {
-	tty_unregister_ldisc(N_MOUSE);
+	tty_unregister_ldisc(&serport_ldisc);
 }
 
 module_init(serport_init);

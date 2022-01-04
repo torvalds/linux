@@ -14,8 +14,12 @@ description: |
   processor subsystems/clusters (R5FSS). The dual core cluster can be used
   either in a LockStep mode providing safety/fault tolerance features or in a
   Split mode providing two individual compute cores for doubling the compute
-  capacity. These are used together with other processors present on the SoC
-  to achieve various system level goals.
+  capacity on most SoCs. These are used together with other processors present
+  on the SoC to achieve various system level goals.
+
+  AM64x SoCs do not support LockStep mode, but rather a new non-safety mode
+  called "Single-CPU" mode, where only Core0 is used, but with ability to use
+  Core1's TCMs as well.
 
   Each Dual-Core R5F sub-system is represented as a single DTS node
   representing the cluster, with a pair of child DT nodes representing
@@ -33,6 +37,7 @@ properties:
       - ti,am654-r5fss
       - ti,j721e-r5fss
       - ti,j7200-r5fss
+      - ti,am64-r5fss
 
   power-domains:
     description: |
@@ -56,11 +61,12 @@ properties:
 
   ti,cluster-mode:
     $ref: /schemas/types.yaml#/definitions/uint32
-    enum: [0, 1]
     description: |
       Configuration Mode for the Dual R5F cores within the R5F cluster.
-      Should be either a value of 1 (LockStep mode) or 0 (Split mode),
-      default is LockStep mode if omitted.
+      Should be either a value of 1 (LockStep mode) or 0 (Split mode) on
+      most SoCs (AM65x, J721E, J7200), default is LockStep mode if omitted;
+      and should be either a value of 0 (Split mode) or 2 (Single-CPU mode)
+      on AM64x SoCs, default is Split mode if omitted.
 
 # R5F Processor Child Nodes:
 # ==========================
@@ -97,6 +103,7 @@ patternProperties:
           - ti,am654-r5f
           - ti,j721e-r5f
           - ti,j7200-r5f
+          - ti,am64-r5f
 
       reg:
         items:
@@ -197,6 +204,20 @@ patternProperties:
       - firmware-name
 
     unevaluatedProperties: false
+
+if:
+  properties:
+    compatible:
+      enum:
+        - ti,am64-r5fss
+then:
+  properties:
+    ti,cluster-mode:
+      enum: [0, 2]
+else:
+  properties:
+    ti,cluster-mode:
+      enum: [0, 1]
 
 required:
   - compatible

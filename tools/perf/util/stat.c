@@ -76,8 +76,7 @@ double rel_stddev_stats(double stddev, double avg)
 	return pct;
 }
 
-bool __perf_evsel_stat__is(struct evsel *evsel,
-			   enum perf_stat_evsel_id id)
+bool __perf_stat_evsel__is(struct evsel *evsel, enum perf_stat_evsel_id id)
 {
 	struct perf_stat_evsel *ps = evsel->stats;
 
@@ -438,18 +437,6 @@ int perf_stat_process_counter(struct perf_stat_config *config,
 
 	aggr->val = aggr->ena = aggr->run = 0;
 
-	/*
-	 * We calculate counter's data every interval,
-	 * and the display code shows ps->res_stats
-	 * avg value. We need to zero the stats for
-	 * interval mode, otherwise overall avg running
-	 * averages will be shown for each interval.
-	 */
-	if (config->interval || config->summary) {
-		for (i = 0; i < 3; i++)
-			init_stats(&ps->res_stats[i]);
-	}
-
 	if (counter->per_pkg)
 		evsel__zero_per_pkg(counter);
 
@@ -547,7 +534,7 @@ int create_perf_stat_counter(struct evsel *evsel,
 			     int cpu)
 {
 	struct perf_event_attr *attr = &evsel->core.attr;
-	struct evsel *leader = evsel->leader;
+	struct evsel *leader = evsel__leader(evsel);
 
 	attr->read_format = PERF_FORMAT_TOTAL_TIME_ENABLED |
 			    PERF_FORMAT_TOTAL_TIME_RUNNING;

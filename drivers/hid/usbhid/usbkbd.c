@@ -63,7 +63,7 @@ static const unsigned char usb_kbd_keycode[256] = {
  *		new key is pressed or a key that was pressed is released.
  * @led:	URB for sending LEDs (e.g. numlock, ...)
  * @newleds:	data that will be sent with the @led URB representing which LEDs
- 		should be on
+ *		should be on
  * @name:	Name of the keyboard. @dev's name field points to this buffer
  * @phys:	Physical path of the keyboard. @dev's phys field points to this
  *		buffer
@@ -91,7 +91,7 @@ struct usb_kbd {
 	unsigned char *leds;
 	dma_addr_t new_dma;
 	dma_addr_t leds_dma;
-	
+
 	spinlock_t leds_lock;
 	bool led_urb_submitted;
 
@@ -175,15 +175,15 @@ static int usb_kbd_event(struct input_dev *dev, unsigned int type,
 	}
 
 	*(kbd->leds) = kbd->newleds;
-	
+
 	kbd->led->dev = kbd->usbdev;
 	if (usb_submit_urb(kbd->led, GFP_ATOMIC))
 		pr_err("usb_submit_urb(leds) failed\n");
 	else
 		kbd->led_urb_submitted = true;
-	
+
 	spin_unlock_irqrestore(&kbd->leds_lock, flags);
-	
+
 	return 0;
 }
 
@@ -205,14 +205,14 @@ static void usb_kbd_led(struct urb *urb)
 	}
 
 	*(kbd->leds) = kbd->newleds;
-	
+
 	kbd->led->dev = kbd->usbdev;
 	if (usb_submit_urb(kbd->led, GFP_ATOMIC)){
 		hid_err(urb->dev, "usb_submit_urb(leds) failed\n");
 		kbd->led_urb_submitted = false;
 	}
 	spin_unlock_irqrestore(&kbd->leds_lock, flags);
-	
+
 }
 
 static int usb_kbd_open(struct input_dev *dev)
@@ -239,11 +239,11 @@ static int usb_kbd_alloc_mem(struct usb_device *dev, struct usb_kbd *kbd)
 		return -1;
 	if (!(kbd->led = usb_alloc_urb(0, GFP_KERNEL)))
 		return -1;
-	if (!(kbd->new = usb_alloc_coherent(dev, 8, GFP_ATOMIC, &kbd->new_dma)))
+	if (!(kbd->new = usb_alloc_coherent(dev, 8, GFP_KERNEL, &kbd->new_dma)))
 		return -1;
 	if (!(kbd->cr = kmalloc(sizeof(struct usb_ctrlrequest), GFP_KERNEL)))
 		return -1;
-	if (!(kbd->leds = usb_alloc_coherent(dev, 1, GFP_ATOMIC, &kbd->leds_dma)))
+	if (!(kbd->leds = usb_alloc_coherent(dev, 1, GFP_KERNEL, &kbd->leds_dma)))
 		return -1;
 
 	return 0;
@@ -358,9 +358,9 @@ static int usb_kbd_probe(struct usb_interface *iface,
 	device_set_wakeup_enable(&dev->dev, 1);
 	return 0;
 
-fail2:	
+fail2:
 	usb_kbd_free_mem(dev, kbd);
-fail1:	
+fail1:
 	input_free_device(input_dev);
 	kfree(kbd);
 	return error;

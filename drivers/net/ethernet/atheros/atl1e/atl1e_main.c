@@ -357,7 +357,7 @@ static void atl1e_restore_vlan(struct atl1e_adapter *adapter)
 }
 
 /**
- * atl1e_set_mac - Change the Ethernet Address of the NIC
+ * atl1e_set_mac_addr - Change the Ethernet Address of the NIC
  * @netdev: network interface device structure
  * @p: pointer to an address structure
  *
@@ -787,7 +787,7 @@ static void atl1e_free_ring_resources(struct atl1e_adapter *adapter)
 }
 
 /**
- * atl1e_setup_mem_resources - allocate Tx / RX descriptor resources
+ * atl1e_setup_ring_resources - allocate Tx / RX descriptor resources
  * @adapter: board private structure
  *
  * Return 0 on success, negative on failure
@@ -2247,7 +2247,7 @@ static const struct net_device_ops atl1e_netdev_ops = {
 	.ndo_fix_features	= atl1e_fix_features,
 	.ndo_set_features	= atl1e_set_features,
 	.ndo_change_mtu		= atl1e_change_mtu,
-	.ndo_do_ioctl		= atl1e_ioctl,
+	.ndo_eth_ioctl		= atl1e_ioctl,
 	.ndo_tx_timeout		= atl1e_tx_timeout,
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller	= atl1e_netpoll,

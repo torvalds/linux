@@ -632,7 +632,7 @@ static int qla_async_rftid(scsi_qla_host_t *vha, port_id_t *d_id)
 	ct_req->req.rft_id.port_id = port_id_to_be_id(vha->d_id);
 	ct_req->req.rft_id.fc4_types[2] = 0x01;		/* FCP-3 */
 
-	if (vha->flags.nvme_enabled)
+	if (vha->flags.nvme_enabled && qla_ini_mode_enabled(vha))
 		ct_req->req.rft_id.fc4_types[6] = 1;    /* NVMe type 28h */
 
 	sp->u.iocb_cmd.u.ctarg.req_size = RFT_ID_REQ_SIZE;
@@ -1247,7 +1247,7 @@ qla2x00_sns_gnn_id(scsi_qla_host_t *vha, sw_info_t *list)
 }
 
 /**
- * qla2x00_snd_rft_id() - SNS Register FC-4 TYPEs (RFT_ID) supported by the HBA.
+ * qla2x00_sns_rft_id() - SNS Register FC-4 TYPEs (RFT_ID) supported by the HBA.
  * @vha: HA context
  *
  * This command uses the old Exectute SNS Command mailbox routine.
@@ -1479,7 +1479,7 @@ qla2x00_update_ms_fdmi_iocb(scsi_qla_host_t *vha, uint32_t req_size)
 }
 
 /**
- * qla2x00_prep_ct_req() - Prepare common CT request fields for SNS query.
+ * qla2x00_prep_ct_fdmi_req() - Prepare common CT request fields for SNS query.
  * @p: CT request buffer
  * @cmd: GS command
  * @rsp_size: response size in bytes
@@ -1582,7 +1582,7 @@ qla25xx_fdmi_port_speed_currently(struct qla_hw_data *ha)
 }
 
 /**
- * qla2x00_hba_attributes() perform HBA attributes registration
+ * qla2x00_hba_attributes() - perform HBA attributes registration
  * @vha: HA context
  * @entries: number of entries to use
  * @callopt: Option to issue extended or standard FDMI
@@ -1730,8 +1730,6 @@ qla2x00_hba_attributes(scsi_qla_host_t *vha, void *entries,
 	size += alen;
 	ql_dbg(ql_dbg_disc, vha, 0x20a8,
 	    "FIRMWARE VERSION = %s.\n", eiter->a.fw_version);
-	if (callopt == CALLOPT_FDMI1)
-		goto done;
 	/* OS Name and Version */
 	eiter = entries + size;
 	eiter->type = cpu_to_be16(FDMI_HBA_OS_NAME_AND_VERSION);
@@ -1754,6 +1752,8 @@ qla2x00_hba_attributes(scsi_qla_host_t *vha, void *entries,
 	size += alen;
 	ql_dbg(ql_dbg_disc, vha, 0x20a9,
 	    "OS VERSION = %s.\n", eiter->a.os_version);
+	if (callopt == CALLOPT_FDMI1)
+		goto done;
 	/* MAX CT Payload Length */
 	eiter = entries + size;
 	eiter->type = cpu_to_be16(FDMI_HBA_MAXIMUM_CT_PAYLOAD_LENGTH);
@@ -1837,7 +1837,7 @@ done:
 }
 
 /**
- * qla2x00_port_attributes() perform Port attributes registration
+ * qla2x00_port_attributes() - perform Port attributes registration
  * @vha: HA context
  * @entries: number of entries to use
  * @callopt: Option to issue extended or standard FDMI
@@ -2272,7 +2272,7 @@ qla2x00_fdmi_dhba(scsi_qla_host_t *vha)
 }
 
 /**
- * qla2x00_fdmi_rprt() perform RPRT registration
+ * qla2x00_fdmi_rprt() - perform RPRT registration
  * @vha: HA context
  * @callopt: Option to issue extended or standard FDMI
  *           command parameter
@@ -2824,6 +2824,10 @@ void qla24xx_handle_gpsc_event(scsi_qla_host_t *vha, struct event_arg *ea)
 	    ea->sp->gen2, fcport->rscn_gen|ea->sp->gen1, fcport->loop_id);
 
 	if (fcport->disc_state == DSC_DELETE_PEND)
+		return;
+
+	/* We will figure-out what happen after AUTH completes */
+	if (fcport->disc_state == DSC_LOGIN_AUTH_PEND)
 		return;
 
 	if (ea->sp->gen2 != fcport->login_gen) {
@@ -3443,6 +3447,10 @@ void qla24xx_async_gnnft_done(scsi_qla_host_t *vha, srb_t *sp)
 			list_for_each_entry(fcport, &vha->vp_fcports, list) {
 				if ((fcport->flags & FCF_FABRIC_DEVICE) != 0) {
 					fcport->scan_state = QLA_FCPORT_SCAN;
+					if (fcport->loop_id == FC_NO_LOOP_ID)
+						fcport->logout_on_delete = 0;
+					else
+						fcport->logout_on_delete = 1;
 				}
 			}
 			goto login_logout;
@@ -3494,7 +3502,16 @@ void qla24xx_async_gnnft_done(scsi_qla_host_t *vha, srb_t *sp)
 				continue;
 			fcport->scan_state = QLA_FCPORT_FOUND;
 			fcport->last_rscn_gen = fcport->rscn_gen;
+			fcport->fc4_type = rp->fc4type;
 			found = true;
+
+			if (fcport->scan_needed) {
+				if (NVME_PRIORITY(vha->hw, fcport))
+					fcport->do_prli_nvme = 1;
+				else
+					fcport->do_prli_nvme = 0;
+			}
+
 			/*
 			 * If device was not a fabric device before.
 			 */

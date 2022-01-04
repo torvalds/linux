@@ -86,12 +86,12 @@ sclp_tty_close(struct tty_struct *tty, struct file *filp)
  * a string of newlines. Every newline creates a new message which
  * needs 82 bytes.
  */
-static int
+static unsigned int
 sclp_tty_write_room (struct tty_struct *tty)
 {
 	unsigned long flags;
 	struct list_head *l;
-	int count;
+	unsigned int count;
 
 	spin_lock_irqsave(&sclp_tty_lock, flags);
 	count = 0;
@@ -280,20 +280,17 @@ sclp_tty_flush_chars(struct tty_struct *tty)
  * characters in the write buffer (will not be written as long as there is a
  * final line feed missing).
  */
-static int
+static unsigned int
 sclp_tty_chars_in_buffer(struct tty_struct *tty)
 {
 	unsigned long flags;
-	struct list_head *l;
 	struct sclp_buffer *t;
-	int count;
+	unsigned int count = 0;
 
 	spin_lock_irqsave(&sclp_tty_lock, flags);
-	count = 0;
 	if (sclp_ttybuf != NULL)
 		count = sclp_chars_in_buffer(sclp_ttybuf);
-	list_for_each(l, &sclp_tty_outqueue) {
-		t = list_entry(l, struct sclp_buffer, list);
+	list_for_each_entry(t, &sclp_tty_outqueue, list) {
 		count += sclp_chars_in_buffer(t);
 	}
 	spin_unlock_irqrestore(&sclp_tty_lock, flags);
@@ -506,20 +503,20 @@ sclp_tty_init(void)
 		return 0;
 	if (!sclp.has_linemode)
 		return 0;
-	driver = alloc_tty_driver(1);
-	if (!driver)
-		return -ENOMEM;
+	driver = tty_alloc_driver(1, TTY_DRIVER_REAL_RAW);
+	if (IS_ERR(driver))
+		return PTR_ERR(driver);
 
 	rc = sclp_rw_init();
 	if (rc) {
-		put_tty_driver(driver);
+		tty_driver_kref_put(driver);
 		return rc;
 	}
 	/* Allocate pages for output buffering */
 	for (i = 0; i < MAX_KMEM_PAGES; i++) {
 		page = (void *) get_zeroed_page(GFP_KERNEL | GFP_DMA);
 		if (page == NULL) {
-			put_tty_driver(driver);
+			tty_driver_kref_put(driver);
 			return -ENOMEM;
 		}
 		list_add_tail((struct list_head *) page, &sclp_tty_pages);
@@ -535,7 +532,7 @@ sclp_tty_init(void)
 
 	rc = sclp_register(&sclp_input_event);
 	if (rc) {
-		put_tty_driver(driver);
+		tty_driver_kref_put(driver);
 		return rc;
 	}
 
@@ -551,12 +548,11 @@ sclp_tty_init(void)
 	driver->init_termios.c_iflag = IGNBRK | IGNPAR;
 	driver->init_termios.c_oflag = ONLCR;
 	driver->init_termios.c_lflag = ISIG | ECHO;
-	driver->flags = TTY_DRIVER_REAL_RAW;
 	tty_set_operations(driver, &sclp_ops);
 	tty_port_link_device(&sclp_port, driver, 0);
 	rc = tty_register_driver(driver);
 	if (rc) {
-		put_tty_driver(driver);
+		tty_driver_kref_put(driver);
 		tty_port_destroy(&sclp_port);
 		return rc;
 	}

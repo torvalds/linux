@@ -27,6 +27,7 @@ struct special_alt {
 	unsigned long new_off;
 
 	unsigned int orig_len, new_len; /* group only */
+	u8 key_addend;
 };
 
 int special_get_alts(struct elf *elf, struct list_head *alts);

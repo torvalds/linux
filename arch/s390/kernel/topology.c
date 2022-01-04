@@ -66,7 +66,10 @@ static void cpu_group_map(cpumask_t *dst, struct mask_info *info, unsigned int c
 {
 	static cpumask_t mask;
 
-	cpumask_copy(&mask, cpumask_of(cpu));
+	cpumask_clear(&mask);
+	if (!cpu_online(cpu))
+		goto out;
+	cpumask_set_cpu(cpu, &mask);
 	switch (topology_mode) {
 	case TOPOLOGY_MODE_HW:
 		while (info) {
@@ -83,10 +86,10 @@ static void cpu_group_map(cpumask_t *dst, struct mask_info *info, unsigned int c
 	default:
 		fallthrough;
 	case TOPOLOGY_MODE_SINGLE:
-		cpumask_copy(&mask, cpumask_of(cpu));
 		break;
 	}
 	cpumask_and(&mask, &mask, cpu_online_mask);
+out:
 	cpumask_copy(dst, &mask);
 }
 
@@ -95,7 +98,10 @@ static void cpu_thread_map(cpumask_t *dst, unsigned int cpu)
 	static cpumask_t mask;
 	int i;
 
-	cpumask_copy(&mask, cpumask_of(cpu));
+	cpumask_clear(&mask);
+	if (!cpu_online(cpu))
+		goto out;
+	cpumask_set_cpu(cpu, &mask);
 	if (topology_mode != TOPOLOGY_MODE_HW)
 		goto out;
 	cpu -= cpu % (smp_cpu_mtid + 1);
@@ -400,7 +406,7 @@ static ssize_t dispatching_store(struct device *dev,
 	if (val != 0 && val != 1)
 		return -EINVAL;
 	rc = 0;
-	get_online_cpus();
+	cpus_read_lock();
 	mutex_lock(&smp_cpu_state_mutex);
 	if (cpu_management == val)
 		goto out;
@@ -411,7 +417,7 @@ static ssize_t dispatching_store(struct device *dev,
 	topology_expect_change();
 out:
 	mutex_unlock(&smp_cpu_state_mutex);
-	put_online_cpus();
+	cpus_read_unlock();
 	return rc ? rc : count;
 }
 static DEVICE_ATTR_RW(dispatching);

@@ -106,8 +106,7 @@ int cxgb4_clip_get(const struct net_device *dev, const u32 *lip, u8 v6)
 	if (!list_empty(&ctbl->ce_free_head)) {
 		ce = list_first_entry(&ctbl->ce_free_head,
 				      struct clip_entry, list);
-		list_del(&ce->list);
-		INIT_LIST_HEAD(&ce->list);
+		list_del_init(&ce->list);
 		spin_lock_init(&ce->lock);
 		refcount_set(&ce->refcnt, 0);
 		atomic_dec(&ctbl->nfree);
@@ -179,8 +178,7 @@ found:
 	write_lock_bh(&ctbl->lock);
 	spin_lock_bh(&ce->lock);
 	if (refcount_dec_and_test(&ce->refcnt)) {
-		list_del(&ce->list);
-		INIT_LIST_HEAD(&ce->list);
+		list_del_init(&ce->list);
 		list_add_tail(&ce->list, &ctbl->ce_free_head);
 		atomic_inc(&ctbl->nfree);
 		if (v6)
@@ -323,8 +321,7 @@ void t4_cleanup_clip_tbl(struct adapter *adap)
 	struct clip_tbl *ctbl = adap->clipt;
 
 	if (ctbl) {
-		if (ctbl->cl_list)
-			kvfree(ctbl->cl_list);
+		kvfree(ctbl->cl_list);
 		kvfree(ctbl);
 	}
 }

@@ -12,6 +12,7 @@
 #include <linux/notifier.h>
 #include <linux/pm_runtime.h>
 #include <linux/spinlock.h>
+#include <linux/delay.h>
 
 #include <asm/set_memory.h>
 
@@ -22,7 +23,6 @@
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_file.h>
 #include <drm/drm_ioctl.h>
-#include <drm/drm_irq.h>
 #include <drm/drm_pciids.h>
 #include <drm/drm_vblank.h>
 
@@ -32,6 +32,7 @@
 #include "power.h"
 #include "psb_drv.h"
 #include "psb_intel_reg.h"
+#include "psb_irq.h"
 #include "psb_reg.h"
 
 static const struct drm_driver driver;
@@ -54,7 +55,7 @@ static const struct pci_device_id pciidlist[] = {
 	/* Poulsbo */
 	{ 0x8086, 0x8108, PCI_ANY_ID, PCI_ANY_ID, 0, 0, (long) &psb_chip_ops },
 	{ 0x8086, 0x8109, PCI_ANY_ID, PCI_ANY_ID, 0, 0, (long) &psb_chip_ops },
-#if defined(CONFIG_DRM_GMA600)
+	/* Oak Trail */
 	{ 0x8086, 0x4100, PCI_ANY_ID, PCI_ANY_ID, 0, 0, (long) &oaktrail_chip_ops },
 	{ 0x8086, 0x4101, PCI_ANY_ID, PCI_ANY_ID, 0, 0, (long) &oaktrail_chip_ops },
 	{ 0x8086, 0x4102, PCI_ANY_ID, PCI_ANY_ID, 0, 0, (long) &oaktrail_chip_ops },
@@ -64,8 +65,7 @@ static const struct pci_device_id pciidlist[] = {
 	{ 0x8086, 0x4106, PCI_ANY_ID, PCI_ANY_ID, 0, 0, (long) &oaktrail_chip_ops },
 	{ 0x8086, 0x4107, PCI_ANY_ID, PCI_ANY_ID, 0, 0, (long) &oaktrail_chip_ops },
 	{ 0x8086, 0x4108, PCI_ANY_ID, PCI_ANY_ID, 0, 0, (long) &oaktrail_chip_ops },
-#endif
-	/* Cedartrail */
+	/* Cedar Trail */
 	{ 0x8086, 0x0be0, PCI_ANY_ID, PCI_ANY_ID, 0, 0, (long) &cdv_chip_ops },
 	{ 0x8086, 0x0be1, PCI_ANY_ID, PCI_ANY_ID, 0, 0, (long) &cdv_chip_ops },
 	{ 0x8086, 0x0be2, PCI_ANY_ID, PCI_ANY_ID, 0, 0, (long) &cdv_chip_ops },
@@ -91,6 +91,36 @@ MODULE_DEVICE_TABLE(pci, pciidlist);
  */
 static const struct drm_ioctl_desc psb_ioctls[] = {
 };
+
+/**
+ *	psb_spank		-	reset the 2D engine
+ *	@dev_priv: our PSB DRM device
+ *
+ *	Soft reset the graphics engine and then reload the necessary registers.
+ */
+void psb_spank(struct drm_psb_private *dev_priv)
+{
+	PSB_WSGX32(_PSB_CS_RESET_BIF_RESET | _PSB_CS_RESET_DPM_RESET |
+		_PSB_CS_RESET_TA_RESET | _PSB_CS_RESET_USE_RESET |
+		_PSB_CS_RESET_ISP_RESET | _PSB_CS_RESET_TSP_RESET |
+		_PSB_CS_RESET_TWOD_RESET, PSB_CR_SOFT_RESET);
+	PSB_RSGX32(PSB_CR_SOFT_RESET);
+
+	msleep(1);
+
+	PSB_WSGX32(0, PSB_CR_SOFT_RESET);
+	wmb();
+	PSB_WSGX32(PSB_RSGX32(PSB_CR_BIF_CTRL) | _PSB_CB_CTRL_CLEAR_FAULT,
+		   PSB_CR_BIF_CTRL);
+	wmb();
+	(void) PSB_RSGX32(PSB_CR_BIF_CTRL);
+
+	msleep(1);
+	PSB_WSGX32(PSB_RSGX32(PSB_CR_BIF_CTRL) & ~_PSB_CB_CTRL_CLEAR_FAULT,
+		   PSB_CR_BIF_CTRL);
+	(void) PSB_RSGX32(PSB_CR_BIF_CTRL);
+	PSB_WSGX32(dev_priv->gtt.gatt_start, PSB_CR_BIF_TWOD_REQ_BASE);
+}
 
 static int psb_do_init(struct drm_device *dev)
 {
@@ -303,7 +333,7 @@ static int psb_driver_load(struct drm_device *dev, unsigned long flags)
 
 	ret = -ENOMEM;
 
-	dev_priv->mmu = psb_mmu_driver_init(dev, 1, 0, 0);
+	dev_priv->mmu = psb_mmu_driver_init(dev, 1, 0, NULL);
 	if (!dev_priv->mmu)
 		goto out_err;
 
@@ -350,7 +380,7 @@ static int psb_driver_load(struct drm_device *dev, unsigned long flags)
 	PSB_WVDC32(0xFFFFFFFF, PSB_INT_MASK_R);
 	spin_unlock_irqrestore(&dev_priv->irqmask_lock, irqflags);
 
-	drm_irq_install(dev, pdev->irq);
+	psb_irq_install(dev, pdev->irq);
 
 	dev->max_vblank_count = 0xffffff; /* only 24 bits of frame count */
 
@@ -485,10 +515,6 @@ static const struct drm_driver driver = {
 	.lastclose = drm_fb_helper_lastclose,
 
 	.num_ioctls = ARRAY_SIZE(psb_ioctls),
-	.irq_preinstall = psb_irq_preinstall,
-	.irq_postinstall = psb_irq_postinstall,
-	.irq_uninstall = psb_irq_uninstall,
-	.irq_handler = psb_irq_handler,
 
 	.dumb_create = psb_gem_dumb_create,
 	.ioctls = psb_ioctls,

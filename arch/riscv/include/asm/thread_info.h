@@ -19,6 +19,21 @@
 #endif
 #define THREAD_SIZE		(PAGE_SIZE << THREAD_SIZE_ORDER)
 
+/*
+ * By aligning VMAP'd stacks to 2 * THREAD_SIZE, we can detect overflow by
+ * checking sp & (1 << THREAD_SHIFT), which we can do cheaply in the entry
+ * assembly.
+ */
+#ifdef CONFIG_VMAP_STACK
+#define THREAD_ALIGN            (2 * THREAD_SIZE)
+#else
+#define THREAD_ALIGN            THREAD_SIZE
+#endif
+
+#define THREAD_SHIFT            (PAGE_SHIFT + THREAD_SIZE_ORDER)
+#define OVERFLOW_STACK_SIZE     SZ_4K
+#define SHADOW_OVERFLOW_STACK_SIZE (1024)
+
 #ifndef __ASSEMBLY__
 
 #include <asm/processor.h>

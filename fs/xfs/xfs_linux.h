@@ -196,6 +196,8 @@ static inline uint64_t howmany_64(uint64_t x, uint32_t y)
 
 int xfs_rw_bdev(struct block_device *bdev, sector_t sector, unsigned int count,
 		char *data, unsigned int op);
+void xfs_flush_bdev_async(struct bio *bio, struct block_device *bdev,
+		struct completion *done);
 
 #define ASSERT_ALWAYS(expr)	\
 	(likely(expr) ? (void)0 : assfail(NULL, #expr, __FILE__, __LINE__))
@@ -233,7 +235,7 @@ int xfs_rw_bdev(struct block_device *bdev, sector_t sector, unsigned int count,
  * configured realtime device.
  */
 #define XFS_IS_REALTIME_INODE(ip)			\
-	(((ip)->i_d.di_flags & XFS_DIFLAG_REALTIME) &&	\
+	(((ip)->i_diflags & XFS_DIFLAG_REALTIME) &&	\
 	 (ip)->i_mount->m_rtdev_targp)
 #define XFS_IS_REALTIME_MOUNT(mp) ((mp)->m_rtdev_targp ? 1 : 0)
 #else

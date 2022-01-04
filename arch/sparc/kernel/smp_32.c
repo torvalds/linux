@@ -348,7 +348,6 @@ static void sparc_start_secondary(void *arg)
 	 */
 	arch_cpu_pre_starting(arg);
 
-	preempt_disable();
 	cpu = smp_processor_id();
 
 	notify_cpu_starting(cpu);

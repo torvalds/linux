@@ -23,7 +23,14 @@
 #include <linux/tracepoint.h>
 #include <trace/events/printk.h>
 
+#include <asm/kfence.h>
+
 #include "kfence.h"
+
+/* May be overridden by <asm/kfence.h>. */
+#ifndef arch_kfence_test_address
+#define arch_kfence_test_address(addr) (addr)
+#endif
 
 /* Report as observed from console. */
 static struct {
@@ -82,6 +89,7 @@ static const char *get_access_type(const struct expect_report *r)
 /* Check observed report matches information in @r. */
 static bool report_matches(const struct expect_report *r)
 {
+	unsigned long addr = (unsigned long)r->addr;
 	bool ret = false;
 	unsigned long flags;
 	typeof(observed.lines) expect;
@@ -131,22 +139,25 @@ static bool report_matches(const struct expect_report *r)
 	switch (r->type) {
 	case KFENCE_ERROR_OOB:
 		cur += scnprintf(cur, end - cur, "Out-of-bounds %s at", get_access_type(r));
+		addr = arch_kfence_test_address(addr);
 		break;
 	case KFENCE_ERROR_UAF:
 		cur += scnprintf(cur, end - cur, "Use-after-free %s at", get_access_type(r));
+		addr = arch_kfence_test_address(addr);
 		break;
 	case KFENCE_ERROR_CORRUPTION:
 		cur += scnprintf(cur, end - cur, "Corrupted memory at");
 		break;
 	case KFENCE_ERROR_INVALID:
 		cur += scnprintf(cur, end - cur, "Invalid %s at", get_access_type(r));
+		addr = arch_kfence_test_address(addr);
 		break;
 	case KFENCE_ERROR_INVALID_FREE:
 		cur += scnprintf(cur, end - cur, "Invalid free of");
 		break;
 	}
 
-	cur += scnprintf(cur, end - cur, " 0x%p", (void *)r->addr);
+	cur += scnprintf(cur, end - cur, " 0x%p", (void *)addr);
 
 	spin_lock_irqsave(&observed.lock, flags);
 	if (!report_available())
@@ -197,7 +208,7 @@ static void test_cache_destroy(void)
 
 static inline size_t kmalloc_cache_alignment(size_t size)
 {
-	return kmalloc_caches[kmalloc_type(GFP_KERNEL)][kmalloc_index(size)]->align;
+	return kmalloc_caches[kmalloc_type(GFP_KERNEL)][__kmalloc_index(size, false)]->align;
 }
 
 /* Must always inline to match stack trace against caller. */
@@ -267,7 +278,8 @@ static void *test_alloc(struct kunit *test, size_t size, gfp_t gfp, enum allocat
 
 		if (is_kfence_address(alloc)) {
 			struct page *page = virt_to_head_page(alloc);
-			struct kmem_cache *s = test_cache ?: kmalloc_caches[kmalloc_type(GFP_KERNEL)][kmalloc_index(size)];
+			struct kmem_cache *s = test_cache ?:
+					kmalloc_caches[kmalloc_type(GFP_KERNEL)][__kmalloc_index(size, false)];
 
 			/*
 			 * Verify that various helpers return the right values
@@ -851,7 +863,7 @@ static void kfence_test_exit(void)
 	tracepoint_synchronize_unregister();
 }
 
-late_initcall(kfence_test_init);
+late_initcall_sync(kfence_test_init);
 module_exit(kfence_test_exit);
 
 MODULE_LICENSE("GPL v2");

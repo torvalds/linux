@@ -2649,59 +2649,21 @@ static const struct pinmux_irq pinmux_irqs[] = {
 	PINMUX_IRQ(329),	/* IRQ57 */
 };
 
-#define PORTCR_PULMD_OFF (0 << 6)
-#define PORTCR_PULMD_DOWN (2 << 6)
-#define PORTCR_PULMD_UP (3 << 6)
-#define PORTCR_PULMD_MASK (3 << 6)
-
 static const unsigned int r8a73a4_portcr_offsets[] = {
 	0x00000000, 0x00001000, 0x00000000, 0x00001000,
 	0x00001000, 0x00002000, 0x00002000, 0x00002000,
 	0x00002000, 0x00003000, 0x00003000,
 };
 
-static unsigned int r8a73a4_pinmux_get_bias(struct sh_pfc *pfc,
-					    unsigned int pin)
+static void __iomem *r8a73a4_pin_to_portcr(struct sh_pfc *pfc, unsigned int pin)
 {
-	void __iomem *addr;
-
-	addr = pfc->windows->virt + r8a73a4_portcr_offsets[pin >> 5] + pin;
-
-	switch (ioread8(addr) & PORTCR_PULMD_MASK) {
-	case PORTCR_PULMD_UP:
-		return PIN_CONFIG_BIAS_PULL_UP;
-	case PORTCR_PULMD_DOWN:
-		return PIN_CONFIG_BIAS_PULL_DOWN;
-	case PORTCR_PULMD_OFF:
-	default:
-		return PIN_CONFIG_BIAS_DISABLE;
-	}
-}
-
-static void r8a73a4_pinmux_set_bias(struct sh_pfc *pfc, unsigned int pin,
-				   unsigned int bias)
-{
-	void __iomem *addr;
-	u32 value;
-
-	addr = pfc->windows->virt + r8a73a4_portcr_offsets[pin >> 5] + pin;
-	value = ioread8(addr) & ~PORTCR_PULMD_MASK;
-
-	switch (bias) {
-	case PIN_CONFIG_BIAS_PULL_UP:
-		value |= PORTCR_PULMD_UP;
-		break;
-	case PIN_CONFIG_BIAS_PULL_DOWN:
-		value |= PORTCR_PULMD_DOWN;
-		break;
-	}
-
-	iowrite8(value, addr);
+	return pfc->windows->virt + r8a73a4_portcr_offsets[pin >> 5] + pin;
 }
 
 static const struct sh_pfc_soc_operations r8a73a4_pfc_ops = {
-	.get_bias = r8a73a4_pinmux_get_bias,
-	.set_bias = r8a73a4_pinmux_set_bias,
+	.get_bias = rmobile_pinmux_get_bias,
+	.set_bias = rmobile_pinmux_set_bias,
+	.pin_to_portcr = r8a73a4_pin_to_portcr,
 };
 
 const struct sh_pfc_soc_info r8a73a4_pinmux_info = {

@@ -842,6 +842,14 @@ MLXSW_ITEM32(reg, spvid, local_port, 0x00, 16, 8);
  */
 MLXSW_ITEM32(reg, spvid, sub_port, 0x00, 8, 8);
 
+/* reg_spvid_egr_et_set
+ * When VLAN is pushed at ingress (for untagged packets or for
+ * QinQ push mode) then the EtherType is decided at the egress port.
+ * Reserved when Spectrum-1.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, spvid, egr_et_set, 0x04, 24, 1);
+
 /* reg_spvid_et_vlan
  * EtherType used for when VLAN is pushed at ingress (for untagged
  * packets or for QinQ push mode).
@@ -849,6 +857,7 @@ MLXSW_ITEM32(reg, spvid, sub_port, 0x00, 8, 8);
  * 1: ether_type1
  * 2: ether_type2 - Reserved when Spectrum-1, supported by Spectrum-2
  * Ethertype IDs are configured by SVER.
+ * Reserved when egr_et_set = 1.
  * Access: RW
  */
 MLXSW_ITEM32(reg, spvid, et_vlan, 0x04, 16, 2);
@@ -2077,6 +2086,41 @@ static inline void mlxsw_reg_spvc_pack(char *payload, u8 local_port, bool et1,
 	mlxsw_reg_spvc_inner_et0_set(payload, 1);
 	mlxsw_reg_spvc_et1_set(payload, et1);
 	mlxsw_reg_spvc_et0_set(payload, et0);
+}
+
+/* SPEVET - Switch Port Egress VLAN EtherType
+ * ------------------------------------------
+ * The switch port egress VLAN EtherType configures which EtherType to push at
+ * egress for packets incoming through a local port for which 'SPVID.egr_et_set'
+ * is set.
+ */
+#define MLXSW_REG_SPEVET_ID 0x202A
+#define MLXSW_REG_SPEVET_LEN 0x08
+
+MLXSW_REG_DEFINE(spevet, MLXSW_REG_SPEVET_ID, MLXSW_REG_SPEVET_LEN);
+
+/* reg_spevet_local_port
+ * Egress Local port number.
+ * Not supported to CPU port.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, spevet, local_port, 0x00, 16, 8);
+
+/* reg_spevet_et_vlan
+ * Egress EtherType VLAN to push when SPVID.egr_et_set field set for the packet:
+ * 0: ether_type0 - (default)
+ * 1: ether_type1
+ * 2: ether_type2
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, spevet, et_vlan, 0x04, 16, 2);
+
+static inline void mlxsw_reg_spevet_pack(char *payload, u8 local_port,
+					 u8 et_vlan)
+{
+	MLXSW_REG_ZERO(spevet, payload);
+	mlxsw_reg_spevet_local_port_set(payload, local_port);
+	mlxsw_reg_spevet_et_vlan_set(payload, et_vlan);
 }
 
 /* CWTP - Congetion WRED ECN TClass Profile
@@ -3863,7 +3907,7 @@ MLXSW_ITEM32(reg, qeec, max_shaper_bs, 0x1C, 0, 6);
 #define MLXSW_REG_QEEC_HIGHEST_SHAPER_BS	25
 #define MLXSW_REG_QEEC_LOWEST_SHAPER_BS_SP1	5
 #define MLXSW_REG_QEEC_LOWEST_SHAPER_BS_SP2	11
-#define MLXSW_REG_QEEC_LOWEST_SHAPER_BS_SP3	5
+#define MLXSW_REG_QEEC_LOWEST_SHAPER_BS_SP3	11
 
 static inline void mlxsw_reg_qeec_pack(char *payload, u8 local_port,
 				       enum mlxsw_reg_qeec_hr hr, u8 index,
@@ -5637,7 +5681,7 @@ static inline void mlxsw_reg_pspa_pack(char *payload, u8 swid, u8 local_port)
 
 MLXSW_REG_DEFINE(pmaos, MLXSW_REG_PMAOS_ID, MLXSW_REG_PMAOS_LEN);
 
-/* reg_slot_index
+/* reg_pmaos_slot_index
  * Slot index.
  * Access: Index
  */
@@ -8086,6 +8130,60 @@ mlxsw_reg_rtdp_ipip4_pack(char *payload, u16 irif,
 	mlxsw_reg_rtdp_ipip_expected_gre_key_set(payload, expected_gre_key);
 }
 
+/* RATRAD - Router Adjacency Table Activity Dump Register
+ * ------------------------------------------------------
+ * The RATRAD register is used to dump and optionally clear activity bits of
+ * router adjacency table entries.
+ */
+#define MLXSW_REG_RATRAD_ID 0x8022
+#define MLXSW_REG_RATRAD_LEN 0x210
+
+MLXSW_REG_DEFINE(ratrad, MLXSW_REG_RATRAD_ID, MLXSW_REG_RATRAD_LEN);
+
+enum {
+	/* Read activity */
+	MLXSW_REG_RATRAD_OP_READ_ACTIVITY,
+	/* Read and clear activity */
+	MLXSW_REG_RATRAD_OP_READ_CLEAR_ACTIVITY,
+};
+
+/* reg_ratrad_op
+ * Access: Operation
+ */
+MLXSW_ITEM32(reg, ratrad, op, 0x00, 30, 2);
+
+/* reg_ratrad_ecmp_size
+ * ecmp_size is the amount of sequential entries from adjacency_index. Valid
+ * ranges:
+ * Spectrum-1: 32-64, 512, 1024, 2048, 4096
+ * Spectrum-2/3: 32-128, 256, 512, 1024, 2048, 4096
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, ratrad, ecmp_size, 0x00, 0, 13);
+
+/* reg_ratrad_adjacency_index
+ * Index into the adjacency table.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, ratrad, adjacency_index, 0x04, 0, 24);
+
+/* reg_ratrad_activity_vector
+ * Activity bit per adjacency index.
+ * Bits higher than ecmp_size are reserved.
+ * Access: RO
+ */
+MLXSW_ITEM_BIT_ARRAY(reg, ratrad, activity_vector, 0x10, 0x200, 1);
+
+static inline void mlxsw_reg_ratrad_pack(char *payload, u32 adjacency_index,
+					 u16 ecmp_size)
+{
+	MLXSW_REG_ZERO(ratrad, payload);
+	mlxsw_reg_ratrad_op_set(payload,
+				MLXSW_REG_RATRAD_OP_READ_CLEAR_ACTIVITY);
+	mlxsw_reg_ratrad_ecmp_size_set(payload, ecmp_size);
+	mlxsw_reg_ratrad_adjacency_index_set(payload, adjacency_index);
+}
+
 /* RIGR-V2 - Router Interface Group Register Version 2
  * ---------------------------------------------------
  * The RIGR_V2 register is used to add, remove and query egress interface list
@@ -8207,6 +8305,8 @@ enum {
 	MLXSW_REG_RECR2_TCP_UDP_EN_IPV4		= 7,
 	/* Enable TCP/UDP header fields if packet is IPv6 */
 	MLXSW_REG_RECR2_TCP_UDP_EN_IPV6		= 8,
+
+	__MLXSW_REG_RECR2_HEADER_CNT,
 };
 
 /* reg_recr2_outer_header_enables
@@ -8241,6 +8341,8 @@ enum {
 	MLXSW_REG_RECR2_TCP_UDP_SPORT			= 74,
 	/* TCP/UDP Destination Port */
 	MLXSW_REG_RECR2_TCP_UDP_DPORT			= 75,
+
+	__MLXSW_REG_RECR2_FIELD_CNT,
 };
 
 /* reg_recr2_outer_header_fields_enable
@@ -8249,47 +8351,47 @@ enum {
  */
 MLXSW_ITEM_BIT_ARRAY(reg, recr2, outer_header_fields_enable, 0x14, 0x14, 1);
 
-static inline void mlxsw_reg_recr2_ipv4_sip_enable(char *payload)
-{
-	int i;
+/* reg_recr2_inner_header_enables
+ * Bit mask where each bit enables a specific inner layer to be included in the
+ * hash calculation. Same values as reg_recr2_outer_header_enables.
+ * Access: RW
+ */
+MLXSW_ITEM_BIT_ARRAY(reg, recr2, inner_header_enables, 0x2C, 0x04, 1);
 
-	for (i = MLXSW_REG_RECR2_IPV4_SIP0; i <= MLXSW_REG_RECR2_IPV4_SIP3; i++)
-		mlxsw_reg_recr2_outer_header_fields_enable_set(payload, i,
-							       true);
-}
+enum {
+	/* Inner IPv4 Source IP */
+	MLXSW_REG_RECR2_INNER_IPV4_SIP0			= 3,
+	MLXSW_REG_RECR2_INNER_IPV4_SIP3			= 6,
+	/* Inner IPv4 Destination IP */
+	MLXSW_REG_RECR2_INNER_IPV4_DIP0			= 7,
+	MLXSW_REG_RECR2_INNER_IPV4_DIP3			= 10,
+	/* Inner IP Protocol */
+	MLXSW_REG_RECR2_INNER_IPV4_PROTOCOL		= 11,
+	/* Inner IPv6 Source IP */
+	MLXSW_REG_RECR2_INNER_IPV6_SIP0_7		= 12,
+	MLXSW_REG_RECR2_INNER_IPV6_SIP8			= 20,
+	MLXSW_REG_RECR2_INNER_IPV6_SIP15		= 27,
+	/* Inner IPv6 Destination IP */
+	MLXSW_REG_RECR2_INNER_IPV6_DIP0_7		= 28,
+	MLXSW_REG_RECR2_INNER_IPV6_DIP8			= 36,
+	MLXSW_REG_RECR2_INNER_IPV6_DIP15		= 43,
+	/* Inner IPv6 Next Header */
+	MLXSW_REG_RECR2_INNER_IPV6_NEXT_HEADER		= 44,
+	/* Inner IPv6 Flow Label */
+	MLXSW_REG_RECR2_INNER_IPV6_FLOW_LABEL		= 45,
+	/* Inner TCP/UDP Source Port */
+	MLXSW_REG_RECR2_INNER_TCP_UDP_SPORT		= 46,
+	/* Inner TCP/UDP Destination Port */
+	MLXSW_REG_RECR2_INNER_TCP_UDP_DPORT		= 47,
 
-static inline void mlxsw_reg_recr2_ipv4_dip_enable(char *payload)
-{
-	int i;
+	__MLXSW_REG_RECR2_INNER_FIELD_CNT,
+};
 
-	for (i = MLXSW_REG_RECR2_IPV4_DIP0; i <= MLXSW_REG_RECR2_IPV4_DIP3; i++)
-		mlxsw_reg_recr2_outer_header_fields_enable_set(payload, i,
-							       true);
-}
-
-static inline void mlxsw_reg_recr2_ipv6_sip_enable(char *payload)
-{
-	int i = MLXSW_REG_RECR2_IPV6_SIP0_7;
-
-	mlxsw_reg_recr2_outer_header_fields_enable_set(payload, i, true);
-
-	i = MLXSW_REG_RECR2_IPV6_SIP8;
-	for (; i <= MLXSW_REG_RECR2_IPV6_SIP15; i++)
-		mlxsw_reg_recr2_outer_header_fields_enable_set(payload, i,
-							       true);
-}
-
-static inline void mlxsw_reg_recr2_ipv6_dip_enable(char *payload)
-{
-	int i = MLXSW_REG_RECR2_IPV6_DIP0_7;
-
-	mlxsw_reg_recr2_outer_header_fields_enable_set(payload, i, true);
-
-	i = MLXSW_REG_RECR2_IPV6_DIP8;
-	for (; i <= MLXSW_REG_RECR2_IPV6_DIP15; i++)
-		mlxsw_reg_recr2_outer_header_fields_enable_set(payload, i,
-							       true);
-}
+/* reg_recr2_inner_header_fields_enable
+ * Inner packet fields to enable for ECMP hash subject to inner_header_enables.
+ * Access: RW
+ */
+MLXSW_ITEM_BIT_ARRAY(reg, recr2, inner_header_fields_enable, 0x30, 0x08, 1);
 
 static inline void mlxsw_reg_recr2_pack(char *payload, u32 seed)
 {
@@ -9361,6 +9463,14 @@ MLXSW_ITEM32(reg, mtmp, sensor_index, 0x00, 0, 12);
 					  ((s16)((GENMASK(15, 0) + (v_) + 1) \
 					   * 125)); })
 
+/* reg_mtmp_max_operational_temperature
+ * The highest temperature in the nominal operational range. Reading is in
+ * 0.125 Celsius degrees units.
+ * In case of module this is SFF critical temperature threshold.
+ * Access: RO
+ */
+MLXSW_ITEM32(reg, mtmp, max_operational_temperature, 0x04, 16, 16);
+
 /* reg_mtmp_temperature
  * Temperature reading from the sensor. Reading is in 0.125 Celsius
  * degrees units.
@@ -9439,7 +9549,9 @@ static inline void mlxsw_reg_mtmp_pack(char *payload, u16 sensor_index,
 }
 
 static inline void mlxsw_reg_mtmp_unpack(char *payload, int *p_temp,
-					 int *p_max_temp, char *sensor_name)
+					 int *p_max_temp, int *p_temp_hi,
+					 int *p_max_oper_temp,
+					 char *sensor_name)
 {
 	s16 temp;
 
@@ -9450,6 +9562,14 @@ static inline void mlxsw_reg_mtmp_unpack(char *payload, int *p_temp,
 	if (p_max_temp) {
 		temp = mlxsw_reg_mtmp_max_temperature_get(payload);
 		*p_max_temp = MLXSW_REG_MTMP_TEMP_TO_MC(temp);
+	}
+	if (p_temp_hi) {
+		temp = mlxsw_reg_mtmp_temperature_threshold_hi_get(payload);
+		*p_temp_hi = MLXSW_REG_MTMP_TEMP_TO_MC(temp);
+	}
+	if (p_max_oper_temp) {
+		temp = mlxsw_reg_mtmp_max_operational_temperature_get(payload);
+		*p_max_oper_temp = MLXSW_REG_MTMP_TEMP_TO_MC(temp);
 	}
 	if (sensor_name)
 		mlxsw_reg_mtmp_sensor_name_memcpy_from(payload, sensor_name);
@@ -9570,6 +9690,20 @@ MLXSW_ITEM32(reg, mcia, l, 0x00, 31, 1);
  */
 MLXSW_ITEM32(reg, mcia, module, 0x00, 16, 8);
 
+enum {
+	MLXSW_REG_MCIA_STATUS_GOOD = 0,
+	/* No response from module's EEPROM. */
+	MLXSW_REG_MCIA_STATUS_NO_EEPROM_MODULE = 1,
+	/* Module type not supported by the device. */
+	MLXSW_REG_MCIA_STATUS_MODULE_NOT_SUPPORTED = 2,
+	/* No module present indication. */
+	MLXSW_REG_MCIA_STATUS_MODULE_NOT_CONNECTED = 3,
+	/* Error occurred while trying to access module's EEPROM using I2C. */
+	MLXSW_REG_MCIA_STATUS_I2C_ERROR = 9,
+	/* Module is disabled. */
+	MLXSW_REG_MCIA_STATUS_MODULE_DISABLED = 16,
+};
+
 /* reg_mcia_status
  * Module status.
  * Access: RO
@@ -9593,6 +9727,12 @@ MLXSW_ITEM32(reg, mcia, page_number, 0x04, 16, 8);
  * Access: RW
  */
 MLXSW_ITEM32(reg, mcia, device_address, 0x04, 0, 16);
+
+/* reg_mcia_bank_number
+ * Bank number.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, mcia, bank_number, 0x08, 16, 8);
 
 /* reg_mcia_size
  * Number of bytes to read/write (up to 48 bytes).
@@ -9925,15 +10065,28 @@ MLXSW_ITEM32(reg, mpar, enable, 0x04, 31, 1);
  */
 MLXSW_ITEM32(reg, mpar, pa_id, 0x04, 0, 4);
 
+#define MLXSW_REG_MPAR_RATE_MAX 3500000000UL
+
+/* reg_mpar_probability_rate
+ * Sampling rate.
+ * Valid values are: 1 to 3.5*10^9
+ * Value of 1 means "sample all". Default is 1.
+ * Reserved when Spectrum-1.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, mpar, probability_rate, 0x08, 0, 32);
+
 static inline void mlxsw_reg_mpar_pack(char *payload, u8 local_port,
 				       enum mlxsw_reg_mpar_i_e i_e,
-				       bool enable, u8 pa_id)
+				       bool enable, u8 pa_id,
+				       u32 probability_rate)
 {
 	MLXSW_REG_ZERO(mpar, payload);
 	mlxsw_reg_mpar_local_port_set(payload, local_port);
 	mlxsw_reg_mpar_enable_set(payload, enable);
 	mlxsw_reg_mpar_i_e_set(payload, i_e);
 	mlxsw_reg_mpar_pa_id_set(payload, pa_id);
+	mlxsw_reg_mpar_probability_rate_set(payload, probability_rate);
 }
 
 /* MGIR - Management General Information Register
@@ -10577,6 +10730,8 @@ MLXSW_ITEM32(reg, mpagr, trigger, 0x00, 0, 4);
  */
 MLXSW_ITEM32(reg, mpagr, pa_id, 0x04, 0, 4);
 
+#define MLXSW_REG_MPAGR_RATE_MAX 3500000000UL
+
 /* reg_mpagr_probability_rate
  * Sampling rate.
  * Valid values are: 1 to 3.5*10^9
@@ -10919,7 +11074,7 @@ MLXSW_REG_DEFINE(mfde, MLXSW_REG_MFDE_ID, MLXSW_REG_MFDE_LEN);
  * Which irisc triggered the event
  * Access: RO
  */
-MLXSW_ITEM32(reg, mfde, irisc_id, 0x00, 8, 4);
+MLXSW_ITEM32(reg, mfde, irisc_id, 0x00, 24, 8);
 
 enum mlxsw_reg_mfde_event_id {
 	MLXSW_REG_MFDE_EVENT_ID_CRSPACE_TO = 1,
@@ -10930,7 +11085,7 @@ enum mlxsw_reg_mfde_event_id {
 /* reg_mfde_event_id
  * Access: RO
  */
-MLXSW_ITEM32(reg, mfde, event_id, 0x00, 0, 8);
+MLXSW_ITEM32(reg, mfde, event_id, 0x00, 0, 16);
 
 enum mlxsw_reg_mfde_method {
 	MLXSW_REG_MFDE_METHOD_QUERY,
@@ -10978,6 +11133,13 @@ MLXSW_ITEM32(reg, mfde, log_address, 0x10, 0, 32);
  * Access: RO
  */
 MLXSW_ITEM32(reg, mfde, log_id, 0x14, 0, 4);
+
+/* reg_mfde_log_ip
+ * IP (instruction pointer) that triggered the timeout.
+ * Valid in case event_id == MLXSW_REG_MFDE_EVENT_ID_CRSPACE_TO
+ * Access: RO
+ */
+MLXSW_ITEM64(reg, mfde, log_ip, 0x18, 0, 64);
 
 /* reg_mfde_pipes_mask
  * Bit per kvh pipe.
@@ -11995,6 +12157,7 @@ static const struct mlxsw_reg_info *mlxsw_reg_infos[] = {
 	MLXSW_REG(sfmr),
 	MLXSW_REG(spvmlr),
 	MLXSW_REG(spvc),
+	MLXSW_REG(spevet),
 	MLXSW_REG(cwtp),
 	MLXSW_REG(cwtpm),
 	MLXSW_REG(pgcr),
@@ -12047,6 +12210,7 @@ static const struct mlxsw_reg_info *mlxsw_reg_infos[] = {
 	MLXSW_REG(rtar),
 	MLXSW_REG(ratr),
 	MLXSW_REG(rtdp),
+	MLXSW_REG(ratrad),
 	MLXSW_REG(rdpm),
 	MLXSW_REG(ricnt),
 	MLXSW_REG(rrcr),

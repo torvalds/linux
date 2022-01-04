@@ -514,7 +514,7 @@ xfs_attr_list_ilocked(
 		return 0;
 	if (dp->i_afp->if_format == XFS_DINODE_FMT_LOCAL)
 		return xfs_attr_shortform_list(context);
-	if (xfs_bmap_one_block(dp, XFS_ATTR_FORK))
+	if (xfs_attr_is_leaf(dp))
 		return xfs_attr_leaf_list(context);
 	return xfs_attr_node_list(context);
 }
@@ -529,7 +529,7 @@ xfs_attr_list(
 
 	XFS_STATS_INC(dp->i_mount, xs_attr_list);
 
-	if (XFS_FORCED_SHUTDOWN(dp->i_mount))
+	if (xfs_is_shutdown(dp->i_mount))
 		return -EIO;
 
 	lock_mode = xfs_ilock_attr_map_shared(dp);

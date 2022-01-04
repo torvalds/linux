@@ -8,7 +8,9 @@
 #include <linux/blkdev.h>
 #include <scsi/scsi.h>
 #include <linux/atomic.h>
+#include <linux/sbitmap.h>
 
+struct bsg_device;
 struct device;
 struct request_queue;
 struct scsi_cmnd;
@@ -106,7 +108,7 @@ struct scsi_device {
 	struct list_head    siblings;   /* list of all devices on this host */
 	struct list_head    same_target_siblings; /* just the devices sharing same target id */
 
-	atomic_t device_busy;		/* commands actually active on LLDD */
+	struct sbitmap budget_map;
 	atomic_t device_blocked;	/* Device returned QUEUE_FULL. */
 
 	atomic_t restarts;
@@ -145,7 +147,7 @@ struct scsi_device {
 	struct scsi_vpd __rcu *vpd_pg80;
 	struct scsi_vpd __rcu *vpd_pg89;
 	unsigned char current_tag;	/* current tag */
-	struct scsi_target      *sdev_target;   /* used only for single_lun */
+	struct scsi_target      *sdev_target;
 
 	blist_flags_t		sdev_bflags; /* black/white flags as also found in
 				 * scsi_devinfo.[hc]. For now used only to
@@ -204,6 +206,7 @@ struct scsi_device {
 	unsigned unmap_limit_for_ws:1;	/* Use the UNMAP limit for WRITE SAME */
 	unsigned rpm_autosuspend:1;	/* Enable runtime autosuspend at device
 					 * creation time */
+	unsigned ignore_media_change:1; /* Ignore MEDIA CHANGE on resume */
 
 	bool offline_already;		/* Device offline message logged */
 
@@ -233,6 +236,10 @@ struct scsi_device {
 	size_t			dma_drain_len;
 	void			*dma_drain_buf;
 
+	unsigned int		sg_timeout;
+	unsigned int		sg_reserved_size;
+
+	struct bsg_device	*bsg_dev;
 	unsigned char		access_state;
 	struct mutex		state_mutex;
 	enum scsi_device_state sdev_state;
@@ -264,13 +271,15 @@ sdev_prefix_printk(const char *, const struct scsi_device *, const char *,
 __printf(3, 4) void
 scmd_printk(const char *, const struct scsi_cmnd *, const char *, ...);
 
-#define scmd_dbg(scmd, fmt, a...)					   \
-	do {								   \
-		if ((scmd)->request->rq_disk)				   \
-			sdev_dbg((scmd)->device, "[%s] " fmt,		   \
-				 (scmd)->request->rq_disk->disk_name, ##a);\
-		else							   \
-			sdev_dbg((scmd)->device, fmt, ##a);		   \
+#define scmd_dbg(scmd, fmt, a...)					\
+	do {								\
+		struct request *__rq = scsi_cmd_to_rq((scmd));		\
+									\
+		if (__rq->rq_disk)					\
+			sdev_dbg((scmd)->device, "[%s] " fmt,		\
+				 __rq->rq_disk->disk_name, ##a);	\
+		else							\
+			sdev_dbg((scmd)->device, fmt, ##a);		\
 	} while (0)
 
 enum scsi_target_state {
@@ -588,6 +597,11 @@ static inline int scsi_device_supports_vpd(struct scsi_device *sdev)
 	if (sdev->scsi_level >= SCSI_SPC_2 && !sdev->skip_vpd_pages)
 		return 1;
 	return 0;
+}
+
+static inline int scsi_device_busy(struct scsi_device *sdev)
+{
+	return sbitmap_weight(&sdev->budget_map);
 }
 
 #define MODULE_ALIAS_SCSI_DEVICE(type) \

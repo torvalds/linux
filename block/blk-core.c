@@ -14,7 +14,6 @@
  */
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/backing-dev.h>
 #include <linux/bio.h>
 #include <linux/blkdev.h>
 #include <linux/blk-mq.h>
@@ -122,7 +121,6 @@ void blk_rq_init(struct request_queue *q, struct request *rq)
 	rq->internal_tag = BLK_MQ_NO_TAG;
 	rq->start_time_ns = ktime_get_ns();
 	rq->part = NULL;
-	refcount_set(&rq->ref, 1);
 	blk_crypto_rq_set_defaults(rq);
 }
 EXPORT_SYMBOL(blk_rq_init);
@@ -142,8 +140,6 @@ static const char *const blk_op_name[] = {
 	REQ_OP_NAME(ZONE_APPEND),
 	REQ_OP_NAME(WRITE_SAME),
 	REQ_OP_NAME(WRITE_ZEROES),
-	REQ_OP_NAME(SCSI_IN),
-	REQ_OP_NAME(SCSI_OUT),
 	REQ_OP_NAME(DRV_IN),
 	REQ_OP_NAME(DRV_OUT),
 };
@@ -396,10 +392,7 @@ void blk_cleanup_queue(struct request_queue *q)
 	/* for synchronous bio-based driver finish in-flight integrity i/o */
 	blk_flush_integrity();
 
-	/* @q won't process any more request, flush async actions */
-	del_timer_sync(&q->backing_dev_info->laptop_mode_wb_timer);
 	blk_sync_queue(q);
-
 	if (queue_is_mq(q))
 		blk_mq_exit_queue(q);
 
@@ -536,20 +529,14 @@ struct request_queue *blk_alloc_queue(int node_id)
 	if (ret)
 		goto fail_id;
 
-	q->backing_dev_info = bdi_alloc(node_id);
-	if (!q->backing_dev_info)
-		goto fail_split;
-
 	q->stats = blk_alloc_queue_stats();
 	if (!q->stats)
-		goto fail_stats;
+		goto fail_split;
 
 	q->node = node_id;
 
 	atomic_set(&q->nr_active_requests_shared_sbitmap, 0);
 
-	timer_setup(&q->backing_dev_info->laptop_mode_wb_timer,
-		    laptop_mode_timer_fn, 0);
 	timer_setup(&q->timeout, blk_rq_timed_out_timer, 0);
 	INIT_WORK(&q->timeout_work, blk_timeout_work);
 	INIT_LIST_HEAD(&q->icq_list);
@@ -574,7 +561,7 @@ struct request_queue *blk_alloc_queue(int node_id)
 	if (percpu_ref_init(&q->q_usage_counter,
 				blk_queue_usage_counter_release,
 				PERCPU_REF_INIT_ATOMIC, GFP_KERNEL))
-		goto fail_bdi;
+		goto fail_stats;
 
 	if (blkcg_init_queue(q))
 		goto fail_ref;
@@ -587,10 +574,8 @@ struct request_queue *blk_alloc_queue(int node_id)
 
 fail_ref:
 	percpu_ref_exit(&q->q_usage_counter);
-fail_bdi:
-	blk_free_queue_stats(q->stats);
 fail_stats:
-	bdi_put(q->backing_dev_info);
+	blk_free_queue_stats(q->stats);
 fail_split:
 	bioset_exit(&q->bio_split);
 fail_id:
@@ -599,7 +584,6 @@ fail_q:
 	kmem_cache_free(blk_requestq_cachep, q);
 	return NULL;
 }
-EXPORT_SYMBOL(blk_alloc_queue);
 
 /**
  * blk_get_queue - increment the request_queue refcount
@@ -837,7 +821,7 @@ static noinline_for_stack bool submit_bio_checks(struct bio *bio)
 	}
 
 	if (!test_bit(QUEUE_FLAG_POLL, &q->queue_flags))
-		bio->bi_opf &= ~REQ_HIPRI;
+		bio_clear_hipri(bio);
 
 	switch (bio_op(bio)) {
 	case REQ_OP_DISCARD:
@@ -1086,15 +1070,6 @@ blk_qc_t submit_bio(struct bio *bio)
 			task_io_account_read(bio->bi_iter.bi_size);
 			count_vm_events(PGPGIN, count);
 		}
-
-		if (unlikely(block_dump)) {
-			char b[BDEVNAME_SIZE];
-			printk(KERN_DEBUG "%s(%d): %s block %Lu on %s (%u sectors)\n",
-			current->comm, task_pid_nr(current),
-				op_is_write(bio_op(bio)) ? "WRITE" : "READ",
-				(unsigned long long)bio->bi_iter.bi_sector,
-				bio_devname(bio, b), count);
-		}
 	}
 
 	/*
@@ -1161,10 +1136,8 @@ static blk_status_t blk_cloned_rq_check_limits(struct request_queue *q,
 	}
 
 	/*
-	 * queue's settings related to segment counting like q->bounce_pfn
-	 * may differ from that of other stacking queues.
-	 * Recalculate it to check the request correctly on this queue's
-	 * limitation.
+	 * The queue settings related to segment counting may differ from the
+	 * original queue.
 	 */
 	rq->nr_phys_segments = blk_recalc_rq_segments(rq);
 	if (rq->nr_phys_segments > queue_max_segments(q)) {
@@ -1255,7 +1228,7 @@ static void update_io_ticks(struct block_device *part, unsigned long now,
 	unsigned long stamp;
 again:
 	stamp = READ_ONCE(part->bd_stamp);
-	if (unlikely(stamp != now)) {
+	if (unlikely(time_after(now, stamp))) {
 		if (likely(cmpxchg(&part->bd_stamp, stamp, now) == stamp))
 			__part_stat_add(part, io_ticks, end ? now - stamp : 1);
 	}
@@ -1396,26 +1369,22 @@ void blk_steal_bios(struct bio_list *list, struct request *rq)
 EXPORT_SYMBOL_GPL(blk_steal_bios);
 
 /**
- * blk_update_request - Special helper function for request stacking drivers
+ * blk_update_request - Complete multiple bytes without completing the request
  * @req:      the request being processed
  * @error:    block status code
- * @nr_bytes: number of bytes to complete @req
+ * @nr_bytes: number of bytes to complete for @req
  *
  * Description:
  *     Ends I/O on a number of bytes attached to @req, but doesn't complete
  *     the request structure even if @req doesn't have leftover.
  *     If @req has leftover, sets it up for the next range of segments.
  *
- *     This special helper function is only for request stacking drivers
- *     (e.g. request-based dm) so that they can handle partial completion.
- *     Actual device drivers should use blk_mq_end_request instead.
- *
  *     Passing the result of blk_rq_bytes() as @nr_bytes guarantees
  *     %false return from this function.
  *
  * Note:
- *	The RQF_SPECIAL_PAYLOAD flag is ignored on purpose in both
- *	blk_rq_bytes() and in blk_update_request().
+ *	The RQF_SPECIAL_PAYLOAD flag is ignored on purpose in this function
+ *      except in the consistency check at the end of this function.
  *
  * Return:
  *     %false - this request doesn't have any more data

@@ -432,7 +432,7 @@ As of kernel 2.6.22, the following members are defined:
 		const char *(*get_link) (struct dentry *, struct inode *,
 					 struct delayed_call *);
 		int (*permission) (struct user_namespace *, struct inode *, int);
-		int (*get_acl)(struct inode *, int);
+		struct posix_acl * (*get_acl)(struct inode *, int, bool);
 		int (*setattr) (struct user_namespace *, struct dentry *, struct iattr *);
 		int (*getattr) (struct user_namespace *, const struct path *, struct kstat *, u32, unsigned int);
 		ssize_t (*listxattr) (struct dentry *, char *, size_t);

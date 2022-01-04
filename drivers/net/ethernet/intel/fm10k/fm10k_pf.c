@@ -1417,7 +1417,7 @@ s32 fm10k_iov_msg_lport_state_pf(struct fm10k_hw *hw, u32 **results,
 }
 
 /**
- *  fm10k_update_stats_hw_pf - Updates hardware related statistics of PF
+ *  fm10k_update_hw_stats_pf - Updates hardware related statistics of PF
  *  @hw: pointer to hardware structure
  *  @stats: pointer to the stats structure to update
  *

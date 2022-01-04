@@ -16,6 +16,12 @@
  */
 #define NET_IP_ALIGN	0
 
+#define MTE_CTRL_GCR_USER_EXCL_SHIFT	0
+#define MTE_CTRL_GCR_USER_EXCL_MASK	0xffff
+
+#define MTE_CTRL_TCF_SYNC		(1UL << 16)
+#define MTE_CTRL_TCF_ASYNC		(1UL << 17)
+
 #ifndef __ASSEMBLY__
 
 #include <linux/build_bug.h>
@@ -148,10 +154,12 @@ struct thread_struct {
 	struct debug_info	debug;		/* debugging */
 #ifdef CONFIG_ARM64_PTR_AUTH
 	struct ptrauth_keys_user	keys_user;
+#ifdef CONFIG_ARM64_PTR_AUTH_KERNEL
 	struct ptrauth_keys_kernel	keys_kernel;
 #endif
+#endif
 #ifdef CONFIG_ARM64_MTE
-	u64			gcr_user_excl;
+	u64			mte_ctrl;
 #endif
 	u64			sctlr_user;
 };
@@ -251,13 +259,11 @@ extern void release_thread(struct task_struct *);
 
 unsigned long get_wchan(struct task_struct *p);
 
-void set_task_sctlr_el1(u64 sctlr);
+void update_sctlr_el1(u64 sctlr);
 
 /* Thread switching */
 extern struct task_struct *cpu_switch_to(struct task_struct *prev,
 					 struct task_struct *next);
-
-asmlinkage void arm64_preempt_schedule_irq(void);
 
 #define task_pt_regs(p) \
 	((struct pt_regs *)(THREAD_SIZE + task_stack_page(p)) - 1)
@@ -329,13 +335,13 @@ long get_tagged_addr_ctrl(struct task_struct *task);
  * of header definitions for the use of task_stack_page.
  */
 
-#define current_top_of_stack()							\
-({										\
-	struct stack_info _info;						\
-	BUG_ON(!on_accessible_stack(current, current_stack_pointer, &_info));	\
-	_info.high;								\
+#define current_top_of_stack()								\
+({											\
+	struct stack_info _info;							\
+	BUG_ON(!on_accessible_stack(current, current_stack_pointer, 1, &_info));	\
+	_info.high;									\
 })
-#define on_thread_stack()	(on_task_stack(current, current_stack_pointer, NULL))
+#define on_thread_stack()	(on_task_stack(current, current_stack_pointer, 1, NULL))
 
 #endif /* __ASSEMBLY__ */
 #endif /* __ASM_PROCESSOR_H */

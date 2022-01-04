@@ -8,7 +8,6 @@
 #include <linux/module.h>
 #include <linux/nfc.h>
 #include <net/nfc/hci.h>
-#include <net/nfc/llc.h>
 
 #include "st21nfca.h"
 
@@ -72,7 +71,7 @@
 
 static DECLARE_BITMAP(dev_mask, ST21NFCA_NUM_DEVICES);
 
-static struct nfc_hci_gate st21nfca_gates[] = {
+static const struct nfc_hci_gate st21nfca_gates[] = {
 	{NFC_HCI_ADMIN_GATE, NFC_HCI_ADMIN_PIPE},
 	{NFC_HCI_LINK_MGMT_GATE, NFC_HCI_LINK_MGMT_PIPE},
 	{ST21NFCA_DEVICE_MGNT_GATE, ST21NFCA_DEVICE_MGNT_PIPE},
@@ -912,7 +911,7 @@ static int st21nfca_hci_event_received(struct nfc_hci_dev *hdev, u8 pipe,
 	}
 }
 
-static struct nfc_hci_ops st21nfca_hci_ops = {
+static const struct nfc_hci_ops st21nfca_hci_ops = {
 	.open = st21nfca_hci_open,
 	.close = st21nfca_hci_close,
 	.load_session = st21nfca_hci_load_session,
@@ -935,7 +934,7 @@ static struct nfc_hci_ops st21nfca_hci_ops = {
 	.se_io = st21nfca_hci_se_io,
 };
 
-int st21nfca_hci_probe(void *phy_id, struct nfc_phy_ops *phy_ops,
+int st21nfca_hci_probe(void *phy_id, const struct nfc_phy_ops *phy_ops,
 		       char *llc_name, int phy_headroom, int phy_tailroom,
 		       int phy_payload, struct nfc_hci_dev **hdev,
 			   struct st21nfca_se_status *se_status)

@@ -38,6 +38,7 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/notifier.h>
+#include <linux/panic_notifier.h>
 #include <linux/reboot.h>
 #include <linux/sched/signal.h>
 #include <linux/kthread.h>

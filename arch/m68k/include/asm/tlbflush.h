@@ -263,7 +263,7 @@ static inline void flush_tlb_page(struct vm_area_struct *vma, unsigned long addr
 	BUG();
 }
 
-static inline void flush_tlb_range(struct mm_struct *mm,
+static inline void flush_tlb_range(struct vm_area_struct *vma,
 				   unsigned long start, unsigned long end)
 {
 	BUG();

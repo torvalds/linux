@@ -108,6 +108,7 @@ static const struct regulator_desc rt4831_regulator_descs[] = {
 		.bypass_reg = RT4831_REG_DSVEN,
 		.bypass_val_on = DSV_MODE_BYPASS,
 		.bypass_val_off = DSV_MODE_NORMAL,
+		.owner = THIS_MODULE,
 	},
 	{
 		.name = "DSVP",
@@ -125,6 +126,7 @@ static const struct regulator_desc rt4831_regulator_descs[] = {
 		.enable_mask = RT4831_POSEN_MASK,
 		.active_discharge_reg = RT4831_REG_DSVEN,
 		.active_discharge_mask = RT4831_POSADEN_MASK,
+		.owner = THIS_MODULE,
 	},
 	{
 		.name = "DSVN",
@@ -142,6 +144,7 @@ static const struct regulator_desc rt4831_regulator_descs[] = {
 		.enable_mask = RT4831_NEGEN_MASK,
 		.active_discharge_reg = RT4831_REG_DSVEN,
 		.active_discharge_mask = RT4831_NEGADEN_MASK,
+		.owner = THIS_MODULE,
 	}
 };
 

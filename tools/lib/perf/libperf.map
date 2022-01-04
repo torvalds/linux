@@ -23,6 +23,9 @@ LIBPERF_0.0.1 {
 		perf_evsel__disable;
 		perf_evsel__open;
 		perf_evsel__close;
+		perf_evsel__mmap;
+		perf_evsel__munmap;
+		perf_evsel__mmap_base;
 		perf_evsel__read;
 		perf_evsel__cpus;
 		perf_evsel__threads;
@@ -42,6 +45,7 @@ LIBPERF_0.0.1 {
 		perf_evlist__munmap;
 		perf_evlist__filter_pollfd;
 		perf_evlist__next_mmap;
+		perf_evlist__set_leader;
 		perf_mmap__consume;
 		perf_mmap__read_init;
 		perf_mmap__read_done;

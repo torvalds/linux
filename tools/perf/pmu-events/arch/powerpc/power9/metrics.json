@@ -1210,112 +1210,10 @@
         "MetricName": "inst_from_rmem_percent"
     },
     {
-        "BriefDescription": "%L2 Modified CO Cache read Utilization (4 pclks per disp attempt)",
-        "MetricExpr": "((PM_L2_CASTOUT_MOD/2)*4)/ PM_RUN_CYC * 100",
-        "MetricGroup": "l2_stats",
-        "MetricName": "l2_co_m_rd_util"
-    },
-    {
-        "BriefDescription": "L2 dcache invalidates per run inst (per core)",
-        "MetricExpr": "(PM_L2_DC_INV / 2) / PM_RUN_INST_CMPL * 100",
-        "MetricGroup": "l2_stats",
-        "MetricName": "l2_dc_inv_rate_percent"
-    },
-    {
         "BriefDescription": "Demand load misses as a % of L2 LD dispatches (per thread)",
         "MetricExpr": "PM_L1_DCACHE_RELOAD_VALID / (PM_L2_LD / 2) * 100",
         "MetricGroup": "l2_stats",
         "MetricName": "l2_dem_ld_disp_percent"
-    },
-    {
-        "BriefDescription": "L2 Icache invalidates per run inst (per core)",
-        "MetricExpr": "(PM_L2_IC_INV / 2) / PM_RUN_INST_CMPL * 100",
-        "MetricGroup": "l2_stats",
-        "MetricName": "l2_ic_inv_rate_percent"
-    },
-    {
-        "BriefDescription": "L2 Inst misses as a % of total L2 Inst dispatches (per thread)",
-        "MetricExpr": "PM_L2_INST_MISS / PM_L2_INST * 100",
-        "MetricGroup": "l2_stats",
-        "MetricName": "l2_inst_miss_ratio_percent"
-    },
-    {
-        "BriefDescription": "Average number of cycles between L2 Load hits",
-        "MetricExpr": "(PM_L2_LD_HIT / PM_RUN_CYC) / 2",
-        "MetricGroup": "l2_stats",
-        "MetricName": "l2_ld_hit_frequency"
-    },
-    {
-        "BriefDescription": "Average number of cycles between L2 Load misses",
-        "MetricExpr": "(PM_L2_LD_MISS / PM_RUN_CYC) / 2",
-        "MetricGroup": "l2_stats",
-        "MetricName": "l2_ld_miss_frequency"
-    },
-    {
-        "BriefDescription": "L2 Load misses as a % of total L2 Load dispatches (per thread)",
-        "MetricExpr": "PM_L2_LD_MISS / PM_L2_LD * 100",
-        "MetricGroup": "l2_stats",
-        "MetricName": "l2_ld_miss_ratio_percent"
-    },
-    {
-        "BriefDescription": "% L2 load disp attempts Cache read Utilization (4 pclks per disp attempt)",
-        "MetricExpr": "((PM_L2_RCLD_DISP/2)*4)/ PM_RUN_CYC * 100",
-        "MetricGroup": "l2_stats",
-        "MetricName": "l2_ld_rd_util"
-    },
-    {
-        "BriefDescription": "L2 load misses that require a cache write (4 pclks per disp attempt) % of pclks",
-        "MetricExpr": "((( PM_L2_LD_DISP - PM_L2_LD_HIT)/2)*4)/ PM_RUN_CYC * 100",
-        "MetricGroup": "l2_stats",
-        "MetricName": "l2_ldmiss_wr_util"
-    },
-    {
-        "BriefDescription": "L2 local pump prediction success",
-        "MetricExpr": "PM_L2_LOC_GUESS_CORRECT / (PM_L2_LOC_GUESS_CORRECT + PM_L2_LOC_GUESS_WRONG) * 100",
-        "MetricGroup": "l2_stats",
-        "MetricName": "l2_local_pred_correct_percent"
-    },
-    {
-        "BriefDescription": "L2 COs that were in M,Me,Mu state as a % of all L2 COs",
-        "MetricExpr": "PM_L2_CASTOUT_MOD / (PM_L2_CASTOUT_MOD + PM_L2_CASTOUT_SHR) * 100",
-        "MetricGroup": "l2_stats",
-        "MetricName": "l2_mod_co_percent"
-    },
-    {
-        "BriefDescription": "% of L2 Load RC dispatch atampts that failed because of address collisions and cclass conflicts",
-        "MetricExpr": "(PM_L2_RCLD_DISP_FAIL_ADDR )/ PM_L2_RCLD_DISP * 100",
-        "MetricGroup": "l2_stats",
-        "MetricName": "l2_rc_ld_disp_addr_fail_percent"
-    },
-    {
-        "BriefDescription": "% of L2 Load RC dispatch attempts that failed",
-        "MetricExpr": "(PM_L2_RCLD_DISP_FAIL_ADDR + PM_L2_RCLD_DISP_FAIL_OTHER)/ PM_L2_RCLD_DISP * 100",
-        "MetricGroup": "l2_stats",
-        "MetricName": "l2_rc_ld_disp_fail_percent"
-    },
-    {
-        "BriefDescription": "% of L2 Store RC dispatch atampts that failed because of address collisions and cclass conflicts",
-        "MetricExpr": "PM_L2_RCST_DISP_FAIL_ADDR / PM_L2_RCST_DISP * 100",
-        "MetricGroup": "l2_stats",
-        "MetricName": "l2_rc_st_disp_addr_fail_percent"
-    },
-    {
-        "BriefDescription": "% of L2 Store RC dispatch attempts that failed",
-        "MetricExpr": "(PM_L2_RCST_DISP_FAIL_ADDR + PM_L2_RCST_DISP_FAIL_OTHER)/ PM_L2_RCST_DISP * 100",
-        "MetricGroup": "l2_stats",
-        "MetricName": "l2_rc_st_disp_fail_percent"
-    },
-    {
-        "BriefDescription": "L2 Cache Read Utilization (per core)",
-        "MetricExpr": "(((PM_L2_RCLD_DISP/2)*4)/ PM_RUN_CYC * 100) + (((PM_L2_RCST_DISP/2)*4)/PM_RUN_CYC * 100) + (((PM_L2_CASTOUT_MOD/2)*4)/PM_RUN_CYC * 100)",
-        "MetricGroup": "l2_stats",
-        "MetricName": "l2_rd_util_percent"
-    },
-    {
-        "BriefDescription": "L2 COs that were in T,Te,Si,S state as a % of all L2 COs",
-        "MetricExpr": "PM_L2_CASTOUT_SHR / (PM_L2_CASTOUT_MOD + PM_L2_CASTOUT_SHR) * 100",
-        "MetricGroup": "l2_stats",
-        "MetricName": "l2_shr_co_percent"
     },
     {
         "BriefDescription": "L2 Store misses as a % of total L2 Store dispatches (per thread)",
@@ -1324,40 +1222,10 @@
         "MetricName": "l2_st_miss_ratio_percent"
     },
     {
-        "BriefDescription": "% L2 store disp attempts Cache read Utilization (4 pclks per disp attempt)",
-        "MetricExpr": "((PM_L2_RCST_DISP/2)*4) / PM_RUN_CYC * 100",
-        "MetricGroup": "l2_stats",
-        "MetricName": "l2_st_rd_util"
-    },
-    {
         "BriefDescription": "L2 stores that require a cache write (4 pclks per disp attempt) % of pclks",
         "MetricExpr": "((PM_L2_ST_DISP/2)*4) / PM_RUN_CYC * 100",
         "MetricGroup": "l2_stats",
         "MetricName": "l2_st_wr_util"
-    },
-    {
-        "BriefDescription": "L2 Cache Write Utilization (per core)",
-        "MetricExpr": "((((PM_L2_LD_DISP - PM_L2_LD_HIT)/2)*4) / PM_RUN_CYC * 100) + (((PM_L2_ST_DISP/2)*4) / PM_RUN_CYC * 100)",
-        "MetricGroup": "l2_stats",
-        "MetricName": "l2_wr_util_percent"
-    },
-    {
-        "BriefDescription": "Average number of cycles between L3 Load hits",
-        "MetricExpr": "(PM_L3_LD_HIT / PM_RUN_CYC) / 2",
-        "MetricGroup": "l3_stats",
-        "MetricName": "l3_ld_hit_frequency"
-    },
-    {
-        "BriefDescription": "Average number of cycles between L3 Load misses",
-        "MetricExpr": "(PM_L3_LD_MISS / PM_RUN_CYC) / 2",
-        "MetricGroup": "l3_stats",
-        "MetricName": "l3_ld_miss_frequency"
-    },
-    {
-        "BriefDescription": "Average number of Write-in machines used. 1 of 8 WI machines is sampled every L3 cycle",
-        "MetricExpr": "(PM_L3_WI_USAGE / PM_RUN_CYC) * 8",
-        "MetricGroup": "l3_stats",
-        "MetricName": "l3_wi_usage"
     },
     {
         "BriefDescription": "Average icache miss latency",
@@ -1823,7 +1691,7 @@
         "MetricName": "custom_secs"
     },
     {
-        "BriefDescription": "Percentage Cycles atleast one instruction dispatched",
+        "BriefDescription": "Percentage Cycles at least one instruction dispatched",
         "MetricExpr": "PM_1PLUS_PPC_DISP / PM_CYC * 100",
         "MetricName": "cycles_atleast_one_inst_dispatched_percent"
     },

@@ -218,68 +218,52 @@ static int vfio_platform_call_reset(struct vfio_platform_device *vdev,
 	return -EINVAL;
 }
 
-static void vfio_platform_release(void *device_data)
+static void vfio_platform_close_device(struct vfio_device *core_vdev)
 {
-	struct vfio_platform_device *vdev = device_data;
-
-	mutex_lock(&driver_lock);
-
-	if (!(--vdev->refcnt)) {
-		const char *extra_dbg = NULL;
-		int ret;
-
-		ret = vfio_platform_call_reset(vdev, &extra_dbg);
-		if (ret && vdev->reset_required) {
-			dev_warn(vdev->device, "reset driver is required and reset call failed in release (%d) %s\n",
-				 ret, extra_dbg ? extra_dbg : "");
-			WARN_ON(1);
-		}
-		pm_runtime_put(vdev->device);
-		vfio_platform_regions_cleanup(vdev);
-		vfio_platform_irq_cleanup(vdev);
-	}
-
-	mutex_unlock(&driver_lock);
-
-	module_put(vdev->parent_module);
-}
-
-static int vfio_platform_open(void *device_data)
-{
-	struct vfio_platform_device *vdev = device_data;
+	struct vfio_platform_device *vdev =
+		container_of(core_vdev, struct vfio_platform_device, vdev);
+	const char *extra_dbg = NULL;
 	int ret;
 
-	if (!try_module_get(vdev->parent_module))
-		return -ENODEV;
-
-	mutex_lock(&driver_lock);
-
-	if (!vdev->refcnt) {
-		const char *extra_dbg = NULL;
-
-		ret = vfio_platform_regions_init(vdev);
-		if (ret)
-			goto err_reg;
-
-		ret = vfio_platform_irq_init(vdev);
-		if (ret)
-			goto err_irq;
-
-		ret = pm_runtime_get_sync(vdev->device);
-		if (ret < 0)
-			goto err_rst;
-
-		ret = vfio_platform_call_reset(vdev, &extra_dbg);
-		if (ret && vdev->reset_required) {
-			dev_warn(vdev->device, "reset driver is required and reset call failed in open (%d) %s\n",
-				 ret, extra_dbg ? extra_dbg : "");
-			goto err_rst;
-		}
+	ret = vfio_platform_call_reset(vdev, &extra_dbg);
+	if (WARN_ON(ret && vdev->reset_required)) {
+		dev_warn(
+			vdev->device,
+			"reset driver is required and reset call failed in release (%d) %s\n",
+			ret, extra_dbg ? extra_dbg : "");
 	}
+	pm_runtime_put(vdev->device);
+	vfio_platform_regions_cleanup(vdev);
+	vfio_platform_irq_cleanup(vdev);
+}
 
-	vdev->refcnt++;
+static int vfio_platform_open_device(struct vfio_device *core_vdev)
+{
+	struct vfio_platform_device *vdev =
+		container_of(core_vdev, struct vfio_platform_device, vdev);
+	const char *extra_dbg = NULL;
+	int ret;
 
-	mutex_unlock(&driver_lock);
+	ret = vfio_platform_regions_init(vdev);
+	if (ret)
+		return ret;
+
+	ret = vfio_platform_irq_init(vdev);
+	if (ret)
+		goto err_irq;
+
+	ret = pm_runtime_get_sync(vdev->device);
+	if (ret < 0)
+		goto err_rst;
+
+	ret = vfio_platform_call_reset(vdev, &extra_dbg);
+	if (ret && vdev->reset_required) {
+		dev_warn(
+			vdev->device,
+			"reset driver is required and reset call failed in open (%d) %s\n",
+			ret, extra_dbg ? extra_dbg : "");
+		goto err_rst;
+	}
 	return 0;
 
 err_rst:
@@ -287,16 +271,15 @@ err_rst:
 	vfio_platform_irq_cleanup(vdev);
 err_irq:
 	vfio_platform_regions_cleanup(vdev);
-err_reg:
-	mutex_unlock(&driver_lock);
-	module_put(THIS_MODULE);
 	return ret;
 }
 
-static long vfio_platform_ioctl(void *device_data,
+static long vfio_platform_ioctl(struct vfio_device *core_vdev,
 				unsigned int cmd, unsigned long arg)
 {
-	struct vfio_platform_device *vdev = device_data;
+	struct vfio_platform_device *vdev =
+		container_of(core_vdev, struct vfio_platform_device, vdev);
+
 	unsigned long minsz;
 
 	if (cmd == VFIO_DEVICE_GET_INFO) {
@@ -455,10 +438,11 @@ err:
 	return -EFAULT;
 }
 
-static ssize_t vfio_platform_read(void *device_data, char __user *buf,
-				  size_t count, loff_t *ppos)
+static ssize_t vfio_platform_read(struct vfio_device *core_vdev,
+				  char __user *buf, size_t count, loff_t *ppos)
 {
-	struct vfio_platform_device *vdev = device_data;
+	struct vfio_platform_device *vdev =
+		container_of(core_vdev, struct vfio_platform_device, vdev);
 	unsigned int index = VFIO_PLATFORM_OFFSET_TO_INDEX(*ppos);
 	loff_t off = *ppos & VFIO_PLATFORM_OFFSET_MASK;
 
@@ -531,10 +515,11 @@ err:
 	return -EFAULT;
 }
 
-static ssize_t vfio_platform_write(void *device_data, const char __user *buf,
+static ssize_t vfio_platform_write(struct vfio_device *core_vdev, const char __user *buf,
 				   size_t count, loff_t *ppos)
 {
-	struct vfio_platform_device *vdev = device_data;
+	struct vfio_platform_device *vdev =
+		container_of(core_vdev, struct vfio_platform_device, vdev);
 	unsigned int index = VFIO_PLATFORM_OFFSET_TO_INDEX(*ppos);
 	loff_t off = *ppos & VFIO_PLATFORM_OFFSET_MASK;
 
@@ -573,9 +558,10 @@ static int vfio_platform_mmap_mmio(struct vfio_platform_region region,
 			       req_len, vma->vm_page_prot);
 }
 
-static int vfio_platform_mmap(void *device_data, struct vm_area_struct *vma)
+static int vfio_platform_mmap(struct vfio_device *core_vdev, struct vm_area_struct *vma)
 {
-	struct vfio_platform_device *vdev = device_data;
+	struct vfio_platform_device *vdev =
+		container_of(core_vdev, struct vfio_platform_device, vdev);
 	unsigned int index;
 
 	index = vma->vm_pgoff >> (VFIO_PLATFORM_OFFSET_SHIFT - PAGE_SHIFT);
@@ -615,8 +601,8 @@ static int vfio_platform_mmap(void *device_data, struct vm_area_struct *vma)
 
 static const struct vfio_device_ops vfio_platform_ops = {
 	.name		= "vfio-platform",
-	.open		= vfio_platform_open,
-	.release	= vfio_platform_release,
+	.open_device	= vfio_platform_open_device,
+	.close_device	= vfio_platform_close_device,
 	.ioctl		= vfio_platform_ioctl,
 	.read		= vfio_platform_read,
 	.write		= vfio_platform_write,
@@ -659,15 +645,14 @@ int vfio_platform_probe_common(struct vfio_platform_device *vdev,
 	struct iommu_group *group;
 	int ret;
 
-	if (!vdev)
-		return -EINVAL;
+	vfio_init_group_dev(&vdev->vdev, dev, &vfio_platform_ops);
 
 	ret = vfio_platform_acpi_probe(vdev, dev);
 	if (ret)
 		ret = vfio_platform_of_probe(vdev, dev);
 
 	if (ret)
-		return ret;
+		goto out_uninit;
 
 	vdev->device = dev;
 
@@ -675,7 +660,7 @@ int vfio_platform_probe_common(struct vfio_platform_device *vdev,
 	if (ret && vdev->reset_required) {
 		dev_err(dev, "No reset function found for device %s\n",
 			vdev->name);
-		return ret;
+		goto out_uninit;
 	}
 
 	group = vfio_iommu_group_get(dev);
@@ -685,36 +670,33 @@ int vfio_platform_probe_common(struct vfio_platform_device *vdev,
 		goto put_reset;
 	}
 
-	ret = vfio_add_group_dev(dev, &vfio_platform_ops, vdev);
+	ret = vfio_register_group_dev(&vdev->vdev);
 	if (ret)
 		goto put_iommu;
 
 	mutex_init(&vdev->igate);
 
-	pm_runtime_enable(vdev->device);
+	pm_runtime_enable(dev);
 	return 0;
 
 put_iommu:
 	vfio_iommu_group_put(group, dev);
 put_reset:
 	vfio_platform_put_reset(vdev);
+out_uninit:
+	vfio_uninit_group_dev(&vdev->vdev);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(vfio_platform_probe_common);
 
-struct vfio_platform_device *vfio_platform_remove_common(struct device *dev)
+void vfio_platform_remove_common(struct vfio_platform_device *vdev)
 {
-	struct vfio_platform_device *vdev;
+	vfio_unregister_group_dev(&vdev->vdev);
 
-	vdev = vfio_del_group_dev(dev);
-
-	if (vdev) {
-		pm_runtime_disable(vdev->device);
-		vfio_platform_put_reset(vdev);
-		vfio_iommu_group_put(dev->iommu_group, dev);
-	}
-
-	return vdev;
+	pm_runtime_disable(vdev->device);
+	vfio_platform_put_reset(vdev);
+	vfio_uninit_group_dev(&vdev->vdev);
+	vfio_iommu_group_put(vdev->vdev.dev->iommu_group, vdev->vdev.dev);
 }
 EXPORT_SYMBOL_GPL(vfio_platform_remove_common);
 

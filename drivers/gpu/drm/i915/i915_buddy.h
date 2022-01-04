@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: MIT */
 /*
- * Copyright © 2019 Intel Corporation
+ * Copyright © 2021 Intel Corporation
  */
 
 #ifndef __I915_BUDDY_H__
@@ -8,6 +8,7 @@
 
 #include <linux/bitops.h>
 #include <linux/list.h>
+#include <linux/slab.h>
 
 struct i915_buddy_block {
 #define I915_BUDDY_HEADER_OFFSET GENMASK_ULL(63, 12)
@@ -15,7 +16,9 @@ struct i915_buddy_block {
 #define   I915_BUDDY_ALLOCATED	   (1 << 10)
 #define   I915_BUDDY_FREE	   (2 << 10)
 #define   I915_BUDDY_SPLIT	   (3 << 10)
-#define I915_BUDDY_HEADER_ORDER  GENMASK_ULL(9, 0)
+/* Free to be used, if needed in the future */
+#define I915_BUDDY_HEADER_UNUSED GENMASK_ULL(9, 6)
+#define I915_BUDDY_HEADER_ORDER  GENMASK_ULL(5, 0)
 	u64 header;
 
 	struct i915_buddy_block *left;
@@ -34,7 +37,8 @@ struct i915_buddy_block {
 	struct list_head tmp_link;
 };
 
-#define I915_BUDDY_MAX_ORDER  I915_BUDDY_HEADER_ORDER
+/* Order-zero must be at least PAGE_SIZE */
+#define I915_BUDDY_MAX_ORDER (63 - PAGE_SHIFT)
 
 /*
  * Binary Buddy System.
@@ -124,5 +128,8 @@ int i915_buddy_alloc_range(struct i915_buddy_mm *mm,
 void i915_buddy_free(struct i915_buddy_mm *mm, struct i915_buddy_block *block);
 
 void i915_buddy_free_list(struct i915_buddy_mm *mm, struct list_head *objects);
+
+void i915_buddy_module_exit(void);
+int i915_buddy_module_init(void);
 
 #endif

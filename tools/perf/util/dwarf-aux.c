@@ -91,7 +91,7 @@ static Dwarf_Line *cu_getsrc_die(Dwarf_Die *cu_die, Dwarf_Addr addr)
 			return NULL;
 	} while (laddr == addr);
 	l++;
-	/* Going foward to find the statement line */
+	/* Going forward to find the statement line */
 	do {
 		line = dwarf_onesrcline(lines, l++);
 		if (!line || dwarf_lineaddr(line, &laddr) != 0 ||
@@ -113,14 +113,14 @@ static Dwarf_Line *cu_getsrc_die(Dwarf_Die *cu_die, Dwarf_Addr addr)
  *
  * Find a line number and file name for @addr in @cu_die.
  */
-int cu_find_lineinfo(Dwarf_Die *cu_die, unsigned long addr,
-		    const char **fname, int *lineno)
+int cu_find_lineinfo(Dwarf_Die *cu_die, Dwarf_Addr addr,
+		     const char **fname, int *lineno)
 {
 	Dwarf_Line *line;
 	Dwarf_Die die_mem;
 	Dwarf_Addr faddr;
 
-	if (die_find_realfunc(cu_die, (Dwarf_Addr)addr, &die_mem)
+	if (die_find_realfunc(cu_die, addr, &die_mem)
 	    && die_entrypc(&die_mem, &faddr) == 0 &&
 	    faddr == addr) {
 		*fname = dwarf_decl_file(&die_mem);
@@ -128,7 +128,7 @@ int cu_find_lineinfo(Dwarf_Die *cu_die, unsigned long addr,
 		goto out;
 	}
 
-	line = cu_getsrc_die(cu_die, (Dwarf_Addr)addr);
+	line = cu_getsrc_die(cu_die, addr);
 	if (line && dwarf_lineno(line, lineno) == 0) {
 		*fname = dwarf_linesrc(line, NULL, NULL);
 		if (!*fname)
@@ -177,7 +177,7 @@ int cu_walk_functions_at(Dwarf_Die *cu_die, Dwarf_Addr addr,
  * die_get_linkage_name - Get the linkage name of the object
  * @dw_die: A DIE of the object
  *
- * Get the linkage name attiribute of given @dw_die.
+ * Get the linkage name attribute of given @dw_die.
  * For C++ binary, the linkage name will be the mangled symbol.
  */
 const char *die_get_linkage_name(Dwarf_Die *dw_die)
@@ -739,7 +739,7 @@ static int __die_walk_instances_cb(Dwarf_Die *inst, void *data)
  * @data: user data
  *
  * Walk on the instances of give @in_die. @in_die must be an inlined function
- * declartion. This returns the return value of @callback if it returns
+ * declaration. This returns the return value of @callback if it returns
  * non-zero value, or -ENOENT if there is no instance.
  */
 int die_walk_instances(Dwarf_Die *or_die, int (*callback)(Dwarf_Die *, void *),
@@ -975,9 +975,13 @@ static int __die_find_variable_cb(Dwarf_Die *die_mem, void *data)
 	if ((tag == DW_TAG_formal_parameter ||
 	     tag == DW_TAG_variable) &&
 	    die_compare_name(die_mem, fvp->name) &&
-	/* Does the DIE have location information or external instance? */
+	/*
+	 * Does the DIE have location information or const value
+	 * or external instance?
+	 */
 	    (dwarf_attr(die_mem, DW_AT_external, &attr) ||
-	     dwarf_attr(die_mem, DW_AT_location, &attr)))
+	     dwarf_attr(die_mem, DW_AT_location, &attr) ||
+	     dwarf_attr(die_mem, DW_AT_const_value, &attr)))
 		return DIE_FIND_CB_END;
 	if (dwarf_haspc(die_mem, fvp->addr))
 		return DIE_FIND_CB_CONTINUE;

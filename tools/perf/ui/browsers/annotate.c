@@ -343,6 +343,29 @@ static void annotate_browser__calc_percent(struct annotate_browser *browser,
 	browser->curr_hot = rb_last(&browser->entries);
 }
 
+static struct annotation_line *annotate_browser__find_next_asm_line(
+					struct annotate_browser *browser,
+					struct annotation_line *al)
+{
+	struct annotation_line *it = al;
+
+	/* find next asm line */
+	list_for_each_entry_continue(it, browser->b.entries, node) {
+		if (it->idx_asm >= 0)
+			return it;
+	}
+
+	/* no asm line found forwards, try backwards */
+	it = al;
+	list_for_each_entry_continue_reverse(it, browser->b.entries, node) {
+		if (it->idx_asm >= 0)
+			return it;
+	}
+
+	/* There are no asm lines */
+	return NULL;
+}
+
 static bool annotate_browser__toggle_source(struct annotate_browser *browser)
 {
 	struct annotation *notes = browser__annotation(&browser->b);
@@ -363,9 +386,12 @@ static bool annotate_browser__toggle_source(struct annotate_browser *browser)
 		browser->b.index = al->idx;
 	} else {
 		if (al->idx_asm < 0) {
-			ui_helpline__puts("Only available for assembly lines.");
-			browser->b.seek(&browser->b, -offset, SEEK_CUR);
-			return false;
+			/* move cursor to next asm line */
+			al = annotate_browser__find_next_asm_line(browser, al);
+			if (!al) {
+				browser->b.seek(&browser->b, -offset, SEEK_CUR);
+				return false;
+			}
 		}
 
 		if (al->idx_asm < offset)
@@ -381,14 +407,31 @@ static bool annotate_browser__toggle_source(struct annotate_browser *browser)
 	return true;
 }
 
+#define SYM_TITLE_MAX_SIZE (PATH_MAX + 64)
+
+static void annotate_browser__show_full_location(struct ui_browser *browser)
+{
+	struct annotate_browser *ab = container_of(browser, struct annotate_browser, b);
+	struct disasm_line *cursor = disasm_line(ab->selection);
+	struct annotation_line *al = &cursor->al;
+
+	if (al->offset != -1)
+		ui_helpline__puts("Only available for source code lines.");
+	else if (al->fileloc == NULL)
+		ui_helpline__puts("No source file location.");
+	else {
+		char help_line[SYM_TITLE_MAX_SIZE];
+		sprintf (help_line, "Source file location: %s", al->fileloc);
+		ui_helpline__puts(help_line);
+	}
+}
+
 static void ui_browser__init_asm_mode(struct ui_browser *browser)
 {
 	struct annotation *notes = browser__annotation(browser);
 	ui_browser__reset_index(browser);
 	browser->nr_entries = notes->nr_asm_entries;
 }
-
-#define SYM_TITLE_MAX_SIZE (PATH_MAX + 64)
 
 static int sym_title(struct symbol *sym, struct map *map, char *title,
 		     size_t sz, int percent_type)
@@ -398,7 +441,7 @@ static int sym_title(struct symbol *sym, struct map *map, char *title,
 }
 
 /*
- * This can be called from external jumps, i.e. jumps from one functon
+ * This can be called from external jumps, i.e. jumps from one function
  * to another, like from the kernel's entry_SYSCALL_64 function to the
  * swapgs_restore_regs_and_return_to_usermode() function.
  *
@@ -706,7 +749,7 @@ static int annotate_browser__run(struct annotate_browser *browser,
 				hbt->timer(hbt->arg);
 
 			if (delay_secs != 0) {
-				symbol__annotate_decay_histogram(sym, evsel->idx);
+				symbol__annotate_decay_histogram(sym, evsel->core.idx);
 				hists__scnprintf_title(hists, title, sizeof(title));
 				annotate_browser__show(&browser->b, title, help);
 			}
@@ -747,6 +790,7 @@ static int annotate_browser__run(struct annotate_browser *browser,
 		"c             Show min/max cycle\n"
 		"/             Search string\n"
 		"k             Toggle line numbers\n"
+		"l             Show full source file location\n"
 		"P             Print to [symbol_name].annotation file.\n"
 		"r             Run available scripts\n"
 		"p             Toggle percent type [local/global]\n"
@@ -759,6 +803,9 @@ static int annotate_browser__run(struct annotate_browser *browser,
 			continue;
 		case 'k':
 			notes->options->show_linenr = !notes->options->show_linenr;
+			continue;
+		case 'l':
+			annotate_browser__show_full_location (&browser->b);
 			continue;
 		case 'H':
 			nd = browser->curr_hot;

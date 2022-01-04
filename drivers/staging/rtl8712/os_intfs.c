@@ -203,7 +203,7 @@ struct net_device *r8712_init_netdev(void)
 	if (!pnetdev)
 		return NULL;
 	if (dev_alloc_name(pnetdev, ifname) < 0) {
-		strcpy(ifname, "wlan%d");
+		strscpy(ifname, "wlan%d", sizeof(ifname));
 		dev_alloc_name(pnetdev, ifname);
 	}
 	padapter = netdev_priv(pnetdev);
@@ -328,8 +328,6 @@ int r8712_init_drv_sw(struct _adapter *padapter)
 
 void r8712_free_drv_sw(struct _adapter *padapter)
 {
-	struct net_device *pnetdev = padapter->pnetdev;
-
 	r8712_free_cmd_priv(&padapter->cmdpriv);
 	r8712_free_evt_priv(&padapter->evtpriv);
 	r8712_DeInitSwLeds(padapter);
@@ -339,8 +337,6 @@ void r8712_free_drv_sw(struct _adapter *padapter)
 	_r8712_free_sta_priv(&padapter->stapriv);
 	_r8712_free_recv_priv(&padapter->recvpriv);
 	mp871xdeinit(padapter);
-	if (pnetdev)
-		free_netdev(pnetdev);
 }
 
 static void enable_video_mode(struct _adapter *padapter, int cbw40_value)

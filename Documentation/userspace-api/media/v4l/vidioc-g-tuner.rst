@@ -59,7 +59,7 @@ to zero. The term 'tuner' means SDR receiver in this context.
 To change the radio frequency the
 :ref:`VIDIOC_S_FREQUENCY <VIDIOC_G_FREQUENCY>` ioctl is available.
 
- .. tabularcolumns:: |p{1.3cm}|p{3.0cm}|p{6.6cm}|p{6.6cm}|
+ .. tabularcolumns:: |p{1.3cm}|p{3.0cm}|p{7.0cm}|p{5.8cm}|
 
 .. c:type:: v4l2_tuner
 
@@ -182,7 +182,7 @@ To change the radio frequency the
 	Drivers and applications must set the array to zero.
 
 
-.. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
+.. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.5cm}|
 
 .. c:type:: v4l2_tuner_type
 
@@ -205,7 +205,7 @@ To change the radio frequency the
       - 5
       - Tuner controls the RF part of a Software Digital Radio (SDR)
 
-.. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
+.. tabularcolumns:: |p{7.0cm}|p{2.2cm}|p{8.1cm}|
 
 .. _tuner-capability:
 
@@ -296,7 +296,7 @@ To change the radio frequency the
 	instead of 62.5 kHz.
 
 
-.. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
+.. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.5cm}|
 
 .. _tuner-rxsubchans:
 
@@ -334,7 +334,7 @@ To change the radio frequency the
       - The tuner receives an RDS channel.
 
 
-.. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
+.. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.5cm}|
 
 .. _tuner-audmode:
 

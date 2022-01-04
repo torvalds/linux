@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Device Tree Source for the Condor board
+ * Device Tree Source for the Condor board with R-Car V3H
  *
  * Copyright (C) 2018 Renesas Electronics Corp.
  * Copyright (C) 2018 Cogent Embedded, Inc.
@@ -210,7 +210,7 @@
 
 &mmc0 {
 	pinctrl-0 = <&mmc_pins>;
-	pinctrl-1 = <&mmc_pins_uhs>;
+	pinctrl-1 = <&mmc_pins>;
 	pinctrl-names = "default", "state_uhs";
 
 	vmmc-supply = <&d3_3v>;
@@ -253,12 +253,6 @@
 	};
 
 	mmc_pins: mmc {
-		groups = "mmc_data8", "mmc_ctrl", "mmc_ds";
-		function = "mmc";
-		power-source = <3300>;
-	};
-
-	mmc_pins_uhs: mmc_uhs {
 		groups = "mmc_data8", "mmc_ctrl", "mmc_ds";
 		function = "mmc";
 		power-source = <1800>;

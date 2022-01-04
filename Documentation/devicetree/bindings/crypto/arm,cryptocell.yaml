@@ -1,0 +1,53 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/crypto/arm,cryptocell.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Arm TrustZone CryptoCell cryptographic engine
+
+maintainers:
+  - Gilad Ben-Yossef <gilad@benyossef.com>
+
+properties:
+  compatible:
+    enum:
+      - arm,cryptocell-713-ree
+      - arm,cryptocell-703-ree
+      - arm,cryptocell-712-ree
+      - arm,cryptocell-710-ree
+      - arm,cryptocell-630p-ree
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  clocks:
+    maxItems: 1
+
+  power-domains:
+    maxItems: 1
+
+  resets:
+    maxItems: 1
+
+  dma-coherent: true
+
+required:
+  - compatible
+  - reg
+  - interrupts
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+
+    arm_cc712: crypto@80000000 {
+            compatible = "arm,cryptocell-712-ree";
+            reg = <0x80000000 0x10000>;
+            interrupts = <GIC_SPI 30 IRQ_TYPE_LEVEL_HIGH>;
+    };

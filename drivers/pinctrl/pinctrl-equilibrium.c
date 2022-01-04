@@ -155,7 +155,7 @@ static void eqbr_irq_handler(struct irq_desc *desc)
 	pins = readl(gctrl->membase + GPIO_IRNCR);
 
 	for_each_set_bit(offset, &pins, gc->ngpio)
-		generic_handle_irq(irq_find_mapping(gc->irq.domain, offset));
+		generic_handle_domain_irq(gc->irq.domain, offset);
 
 	chained_irq_exit(ic, desc);
 }
@@ -628,7 +628,8 @@ static int funcs_utils(struct device *dev, struct eqbr_pmx_func *funcs,
 			break;
 
 		default:
-				return -EINVAL;
+			of_node_put(np);
+			return -EINVAL;
 		}
 		i++;
 	}
@@ -707,34 +708,42 @@ static int eqbr_build_groups(struct eqbr_pinctrl_drv_data *drvdata)
 		group.num_pins = of_property_count_u32_elems(np, "pins");
 		if (group.num_pins < 0) {
 			dev_err(dev, "No pins in the group: %s\n", prop->name);
+			of_node_put(np);
 			return -EINVAL;
 		}
 		group.name = prop->value;
 		group.pins = devm_kcalloc(dev, group.num_pins,
 					  sizeof(*(group.pins)), GFP_KERNEL);
-		if (!group.pins)
+		if (!group.pins) {
+			of_node_put(np);
 			return -ENOMEM;
+		}
 
 		pinmux = devm_kcalloc(dev, group.num_pins, sizeof(*pinmux),
 				      GFP_KERNEL);
-		if (!pinmux)
+		if (!pinmux) {
+			of_node_put(np);
 			return -ENOMEM;
+		}
 
 		for (j = 0; j < group.num_pins; j++) {
 			if (of_property_read_u32_index(np, "pins", j, &pin_id)) {
 				dev_err(dev, "Group %s: Read intel pins id failed\n",
 					group.name);
+				of_node_put(np);
 				return -EINVAL;
 			}
 			if (pin_id >= drvdata->pctl_desc.npins) {
 				dev_err(dev, "Group %s: Invalid pin ID, idx: %d, pin %u\n",
 					group.name, j, pin_id);
+				of_node_put(np);
 				return -EINVAL;
 			}
 			group.pins[j] = pin_id;
 			if (of_property_read_u32_index(np, "pinmux", j, &pinmux_id)) {
 				dev_err(dev, "Group %s: Read intel pinmux id failed\n",
 					group.name);
+				of_node_put(np);
 				return -EINVAL;
 			}
 			pinmux[j] = pinmux_id;
@@ -745,6 +754,7 @@ static int eqbr_build_groups(struct eqbr_pinctrl_drv_data *drvdata)
 						pinmux);
 		if (err < 0) {
 			dev_err(dev, "Failed to register group %s\n", group.name);
+			of_node_put(np);
 			return err;
 		}
 		memset(&group, 0, sizeof(group));
@@ -929,6 +939,7 @@ static const struct of_device_id eqbr_pinctrl_dt_match[] = {
 	{ .compatible = "intel,lgm-io" },
 	{}
 };
+MODULE_DEVICE_TABLE(of, eqbr_pinctrl_dt_match);
 
 static struct platform_driver eqbr_pinctrl_driver = {
 	.probe	= eqbr_pinctrl_probe,

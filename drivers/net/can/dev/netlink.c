@@ -8,20 +8,17 @@
 #include <net/rtnetlink.h>
 
 static const struct nla_policy can_policy[IFLA_CAN_MAX + 1] = {
-	[IFLA_CAN_STATE]	= { .type = NLA_U32 },
-	[IFLA_CAN_CTRLMODE]	= { .len = sizeof(struct can_ctrlmode) },
-	[IFLA_CAN_RESTART_MS]	= { .type = NLA_U32 },
-	[IFLA_CAN_RESTART]	= { .type = NLA_U32 },
-	[IFLA_CAN_BITTIMING]	= { .len = sizeof(struct can_bittiming) },
-	[IFLA_CAN_BITTIMING_CONST]
-				= { .len = sizeof(struct can_bittiming_const) },
-	[IFLA_CAN_CLOCK]	= { .len = sizeof(struct can_clock) },
-	[IFLA_CAN_BERR_COUNTER]	= { .len = sizeof(struct can_berr_counter) },
-	[IFLA_CAN_DATA_BITTIMING]
-				= { .len = sizeof(struct can_bittiming) },
-	[IFLA_CAN_DATA_BITTIMING_CONST]
-				= { .len = sizeof(struct can_bittiming_const) },
-	[IFLA_CAN_TERMINATION]	= { .type = NLA_U16 },
+	[IFLA_CAN_STATE] = { .type = NLA_U32 },
+	[IFLA_CAN_CTRLMODE] = { .len = sizeof(struct can_ctrlmode) },
+	[IFLA_CAN_RESTART_MS] = { .type = NLA_U32 },
+	[IFLA_CAN_RESTART] = { .type = NLA_U32 },
+	[IFLA_CAN_BITTIMING] = { .len = sizeof(struct can_bittiming) },
+	[IFLA_CAN_BITTIMING_CONST] = { .len = sizeof(struct can_bittiming_const) },
+	[IFLA_CAN_CLOCK] = { .len = sizeof(struct can_clock) },
+	[IFLA_CAN_BERR_COUNTER] = { .len = sizeof(struct can_berr_counter) },
+	[IFLA_CAN_DATA_BITTIMING] = { .len = sizeof(struct can_bittiming) },
+	[IFLA_CAN_DATA_BITTIMING_CONST]	= { .len = sizeof(struct can_bittiming_const) },
+	[IFLA_CAN_TERMINATION] = { .type = NLA_U16 },
 };
 
 static int can_validate(struct nlattr *tb[], struct nlattr *data[],
@@ -50,7 +47,7 @@ static int can_validate(struct nlattr *tb[], struct nlattr *data[],
 	}
 
 	if (data[IFLA_CAN_DATA_BITTIMING]) {
-		if (!is_can_fd || !data[IFLA_CAN_BITTIMING])
+		if (!is_can_fd)
 			return -EOPNOTSUPP;
 	}
 
@@ -119,7 +116,7 @@ static int can_changelink(struct net_device *dev, struct nlattr *tb[],
 		maskedflags = cm->flags & cm->mask;
 
 		/* check whether provided bits are allowed to be passed */
-		if (cm->mask & ~(priv->ctrlmode_supported | ctrlstatic))
+		if (maskedflags & ~(priv->ctrlmode_supported | ctrlstatic))
 			return -EOPNOTSUPP;
 
 		/* do not check for static fd-non-iso if 'fd' is disabled */
@@ -135,10 +132,13 @@ static int can_changelink(struct net_device *dev, struct nlattr *tb[],
 		priv->ctrlmode |= maskedflags;
 
 		/* CAN_CTRLMODE_FD can only be set when driver supports FD */
-		if (priv->ctrlmode & CAN_CTRLMODE_FD)
+		if (priv->ctrlmode & CAN_CTRLMODE_FD) {
 			dev->mtu = CANFD_MTU;
-		else
+		} else {
 			dev->mtu = CAN_MTU;
+			memset(&priv->data_bittiming, 0,
+			       sizeof(priv->data_bittiming));
+		}
 	}
 
 	if (data[IFLA_CAN_RESTART_MS]) {
@@ -188,6 +188,8 @@ static int can_changelink(struct net_device *dev, struct nlattr *tb[],
 		}
 
 		memcpy(&priv->data_bittiming, &dbt, sizeof(dbt));
+
+		can_calc_tdco(dev);
 
 		if (priv->do_set_data_bittiming) {
 			/* Finally, set the bit-timing registers */

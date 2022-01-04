@@ -32,12 +32,14 @@ properties:
       - items:
           - const: mediatek,mt8192-mmc
           - const: mediatek,mt8183-mmc
+      - items:
+          - const: mediatek,mt8195-mmc
+          - const: mediatek,mt8183-mmc
 
   clocks:
     description:
       Should contain phandle for the clock feeding the MMC controller.
     minItems: 2
-    maxItems: 8
     items:
       - description: source clock (required).
       - description: HCLK which used for host (required).
@@ -50,7 +52,6 @@ properties:
 
   clock-names:
     minItems: 2
-    maxItems: 8
     items:
       - const: source
       - const: hclk

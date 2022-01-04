@@ -1019,12 +1019,19 @@ int mlx5_fw_tracer_init(struct mlx5_fw_tracer *tracer)
 	MLX5_NB_INIT(&tracer->nb, fw_tracer_event, DEVICE_TRACER);
 	mlx5_eq_notifier_register(dev, &tracer->nb);
 
-	mlx5_fw_tracer_start(tracer);
-
+	err = mlx5_fw_tracer_start(tracer);
+	if (err) {
+		mlx5_core_warn(dev, "FWTracer: Failed to start tracer %d\n", err);
+		goto err_notifier_unregister;
+	}
 	return 0;
 
+err_notifier_unregister:
+	mlx5_eq_notifier_unregister(dev, &tracer->nb);
+	mlx5_core_destroy_mkey(dev, &tracer->buff.mkey);
 err_dealloc_pd:
 	mlx5_core_dealloc_pd(dev, tracer->buff.pdn);
+	cancel_work_sync(&tracer->read_fw_strings_work);
 	return err;
 }
 
@@ -1100,7 +1107,7 @@ int mlx5_fw_tracer_reload(struct mlx5_fw_tracer *tracer)
 	int err;
 
 	if (IS_ERR_OR_NULL(tracer))
-		return -EINVAL;
+		return 0;
 
 	dev = tracer->dev;
 	mlx5_fw_tracer_cleanup(tracer);
@@ -1126,8 +1133,7 @@ static int fw_tracer_event(struct notifier_block *nb, unsigned long action, void
 
 	switch (eqe->sub_type) {
 	case MLX5_TRACER_SUBTYPE_OWNERSHIP_CHANGE:
-		if (test_bit(MLX5_INTERFACE_STATE_UP, &dev->intf_state))
-			queue_work(tracer->work_queue, &tracer->ownership_change_work);
+		queue_work(tracer->work_queue, &tracer->ownership_change_work);
 		break;
 	case MLX5_TRACER_SUBTYPE_TRACES_AVAILABLE:
 		if (likely(tracer->str_db.loaded))

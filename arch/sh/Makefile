@@ -9,7 +9,7 @@
 # License.  See the file "COPYING" in the main directory of this archive
 # for more details.
 #
-ifneq ($(SUBARCH),$(ARCH))
+ifdef cross_compiling
   ifeq ($(CROSS_COMPILE),)
     CROSS_COMPILE := $(call cc-cross-prefix, sh-linux- sh-linux-gnu- sh-unknown-linux-gnu-)
   endif
@@ -115,11 +115,6 @@ endif
 export ld-bfd
 
 head-y	:= arch/sh/kernel/head_32.o
-
-core-y				+= arch/sh/kernel/ arch/sh/mm/ arch/sh/boards/
-core-$(CONFIG_SH_FPU_EMU)	+= arch/sh/math-emu/
-
-core-$(CONFIG_USE_BUILTIN_DTB)	+= arch/sh/boot/dts/
 
 # Mach groups
 machdir-$(CONFIG_SOLUTION_ENGINE)		+= mach-se

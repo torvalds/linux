@@ -12,14 +12,13 @@
 #include <linux/netdevice.h>
 #include <linux/pci.h>
 #include <linux/skbuff.h>
-#include <linux/version.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/qed/qed_if.h>
 
 enum qed_ll2_conn_type {
 	QED_LL2_TYPE_FCOE,
-	QED_LL2_TYPE_ISCSI,
+	QED_LL2_TYPE_TCP_ULP,
 	QED_LL2_TYPE_TEST,
 	QED_LL2_TYPE_OOO,
 	QED_LL2_TYPE_RESERVED2,

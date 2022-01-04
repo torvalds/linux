@@ -28,6 +28,9 @@
 
 #include "vkms_drv.h"
 
+#include <drm/drm_print.h>
+#include <drm/drm_debugfs.h>
+
 #define DRIVER_NAME	"vkms"
 #define DRIVER_DESC	"Virtual Kernel Mode Setting"
 #define DRIVER_DATE	"20180514"
@@ -44,11 +47,15 @@ static bool enable_writeback = true;
 module_param_named(enable_writeback, enable_writeback, bool, 0444);
 MODULE_PARM_DESC(enable_writeback, "Enable/Disable writeback connector support");
 
+static bool enable_overlay;
+module_param_named(enable_overlay, enable_overlay, bool, 0444);
+MODULE_PARM_DESC(enable_overlay, "Enable/Disable overlay support");
+
 DEFINE_DRM_GEM_FOPS(vkms_driver_fops);
 
 static void vkms_release(struct drm_device *dev)
 {
-	struct vkms_device *vkms = container_of(dev, struct vkms_device, drm);
+	struct vkms_device *vkms = drm_device_to_vkms_device(dev);
 
 	destroy_workqueue(vkms->output.composer_workq);
 }
@@ -82,11 +89,36 @@ static void vkms_atomic_commit_tail(struct drm_atomic_state *old_state)
 	drm_atomic_helper_cleanup_planes(dev, old_state);
 }
 
+static int vkms_config_show(struct seq_file *m, void *data)
+{
+	struct drm_info_node *node = (struct drm_info_node *)m->private;
+	struct drm_device *dev = node->minor->dev;
+	struct vkms_device *vkmsdev = drm_device_to_vkms_device(dev);
+
+	seq_printf(m, "writeback=%d\n", vkmsdev->config->writeback);
+	seq_printf(m, "cursor=%d\n", vkmsdev->config->cursor);
+	seq_printf(m, "overlay=%d\n", vkmsdev->config->overlay);
+
+	return 0;
+}
+
+static const struct drm_info_list vkms_config_debugfs_list[] = {
+	{ "vkms_config", vkms_config_show, 0 },
+};
+
+static void vkms_config_debugfs_init(struct drm_minor *minor)
+{
+	drm_debugfs_create_files(vkms_config_debugfs_list, ARRAY_SIZE(vkms_config_debugfs_list),
+				 minor->debugfs_root, minor);
+}
+
 static const struct drm_driver vkms_driver = {
 	.driver_features	= DRIVER_MODESET | DRIVER_ATOMIC | DRIVER_GEM,
 	.release		= vkms_release,
 	.fops			= &vkms_driver_fops,
 	DRM_GEM_SHMEM_DRIVER_OPS,
+
+	.debugfs_init           = vkms_config_debugfs_init,
 
 	.name			= DRIVER_NAME,
 	.desc			= DRIVER_DESC,
@@ -159,8 +191,6 @@ static int vkms_create(struct vkms_config *config)
 		goto out_devres;
 	}
 
-	vkms_device->drm.irq_enabled = true;
-
 	ret = drm_vblank_init(&vkms_device->drm, 1);
 	if (ret) {
 		DRM_ERROR("Failed to vblank\n");
@@ -198,6 +228,7 @@ static int __init vkms_init(void)
 
 	config->cursor = enable_cursor;
 	config->writeback = enable_writeback;
+	config->overlay = enable_overlay;
 
 	return vkms_create(config);
 }

@@ -239,6 +239,18 @@ done:
 	}
 }
 
+static pgprot_t __acpi_get_writethrough_mem_attribute(void)
+{
+	/*
+	 * Although UEFI specifies the use of Normal Write-through for
+	 * EFI_MEMORY_WT, it is seldom used in practice and not implemented
+	 * by most (all?) CPUs. Rather than allocate a MAIR just for this
+	 * purpose, emit a warning and use Normal Non-cacheable instead.
+	 */
+	pr_warn_once("No MAIR allocation for EFI_MEMORY_WT; treating as Normal Non-cacheable\n");
+	return __pgprot(PROT_NORMAL_NC);
+}
+
 pgprot_t __acpi_get_mem_attribute(phys_addr_t addr)
 {
 	/*
@@ -246,7 +258,7 @@ pgprot_t __acpi_get_mem_attribute(phys_addr_t addr)
 	 * types" of UEFI 2.5 section 2.3.6.1, each EFI memory type is
 	 * mapped to a corresponding MAIR attribute encoding.
 	 * The EFI memory attribute advises all possible capabilities
-	 * of a memory region. We use the most efficient capability.
+	 * of a memory region.
 	 */
 
 	u64 attr;
@@ -254,14 +266,15 @@ pgprot_t __acpi_get_mem_attribute(phys_addr_t addr)
 	attr = efi_mem_attributes(addr);
 	if (attr & EFI_MEMORY_WB)
 		return PAGE_KERNEL;
-	if (attr & EFI_MEMORY_WT)
-		return __pgprot(PROT_NORMAL_WT);
 	if (attr & EFI_MEMORY_WC)
 		return __pgprot(PROT_NORMAL_NC);
+	if (attr & EFI_MEMORY_WT)
+		return __acpi_get_writethrough_mem_attribute();
 	return __pgprot(PROT_DEVICE_nGnRnE);
 }
 
-void __iomem *acpi_os_ioremap(acpi_physical_address phys, acpi_size size)
+static void __iomem *__acpi_os_ioremap(acpi_physical_address phys,
+				       acpi_size size, bool memory)
 {
 	efi_memory_desc_t *md, *region = NULL;
 	pgprot_t prot;
@@ -287,9 +300,11 @@ void __iomem *acpi_os_ioremap(acpi_physical_address phys, acpi_size size)
 	 * It is fine for AML to remap regions that are not represented in the
 	 * EFI memory map at all, as it only describes normal memory, and MMIO
 	 * regions that require a virtual mapping to make them accessible to
-	 * the EFI runtime services.
+	 * the EFI runtime services. Determine the region default
+	 * attributes by checking the requested memory semantics.
 	 */
-	prot = __pgprot(PROT_DEVICE_nGnRnE);
+	prot = memory ? __pgprot(PROT_NORMAL_NC) :
+			__pgprot(PROT_DEVICE_nGnRnE);
 	if (region) {
 		switch (region->type) {
 		case EFI_LOADER_CODE:
@@ -340,13 +355,23 @@ void __iomem *acpi_os_ioremap(acpi_physical_address phys, acpi_size size)
 		default:
 			if (region->attribute & EFI_MEMORY_WB)
 				prot = PAGE_KERNEL;
-			else if (region->attribute & EFI_MEMORY_WT)
-				prot = __pgprot(PROT_NORMAL_WT);
 			else if (region->attribute & EFI_MEMORY_WC)
 				prot = __pgprot(PROT_NORMAL_NC);
+			else if (region->attribute & EFI_MEMORY_WT)
+				prot = __acpi_get_writethrough_mem_attribute();
 		}
 	}
 	return __ioremap(phys, size, prot);
+}
+
+void __iomem *acpi_os_ioremap(acpi_physical_address phys, acpi_size size)
+{
+	return __acpi_os_ioremap(phys, size, false);
+}
+
+void __iomem *acpi_os_memmap(acpi_physical_address phys, acpi_size size)
+{
+	return __acpi_os_ioremap(phys, size, true);
 }
 
 /*

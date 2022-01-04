@@ -27,12 +27,6 @@
 #include "irq.h"
 #include "svm.h"
 
-/* enable / disable AVIC */
-int avic;
-#ifdef CONFIG_X86_LOCAL_APIC
-module_param(avic, int, S_IRUGO);
-#endif
-
 #define SVM_AVIC_DOORBELL	0xc001011b
 
 #define AVIC_HPA_MASK	~((0xFFFULL << 52) | 0xFFF)
@@ -126,7 +120,7 @@ void avic_vm_destroy(struct kvm *kvm)
 	unsigned long flags;
 	struct kvm_svm *kvm_svm = to_kvm_svm(kvm);
 
-	if (!avic)
+	if (!enable_apicv)
 		return;
 
 	if (kvm_svm->avic_logical_id_table_page)
@@ -149,7 +143,7 @@ int avic_vm_init(struct kvm *kvm)
 	struct page *l_page;
 	u32 vm_id;
 
-	if (!avic)
+	if (!enable_apicv)
 		return 0;
 
 	/* Allocating physical APIC ID table (4KB) */
@@ -223,7 +217,7 @@ static u64 *avic_get_physical_id_entry(struct kvm_vcpu *vcpu,
 	return &avic_physical_id_table[index];
 }
 
-/**
+/*
  * Note:
  * AVIC hardware walks the nested page table to check permissions,
  * but does not use the SPA address specified in the leaf page
@@ -242,7 +236,7 @@ static int avic_update_access_page(struct kvm *kvm, bool activate)
 	 * APICv mode change, which update APIC_ACCESS_PAGE_PRIVATE_MEMSLOT
 	 * memory region. So, we need to ensure that kvm->mm == current->mm.
 	 */
-	if ((kvm->arch.apic_access_page_done == activate) ||
+	if ((kvm->arch.apic_access_memslot_enabled == activate) ||
 	    (kvm->mm != current->mm))
 		goto out;
 
@@ -255,7 +249,7 @@ static int avic_update_access_page(struct kvm *kvm, bool activate)
 		goto out;
 	}
 
-	kvm->arch.apic_access_page_done = activate;
+	kvm->arch.apic_access_memslot_enabled = activate;
 out:
 	mutex_unlock(&kvm->slots_lock);
 	return r;
@@ -270,7 +264,7 @@ static int avic_init_backing_page(struct kvm_vcpu *vcpu)
 	if (id >= AVIC_MAX_PHYSICAL_ID_COUNT)
 		return -EINVAL;
 
-	if (!svm->vcpu.arch.apic->regs)
+	if (!vcpu->arch.apic->regs)
 		return -EINVAL;
 
 	if (kvm_apicv_activated(vcpu->kvm)) {
@@ -281,7 +275,7 @@ static int avic_init_backing_page(struct kvm_vcpu *vcpu)
 			return ret;
 	}
 
-	svm->avic_backing_page = virt_to_page(svm->vcpu.arch.apic->regs);
+	svm->avic_backing_page = virt_to_page(vcpu->arch.apic->regs);
 
 	/* Setting AVIC backing page address in the phy APIC ID table */
 	entry = avic_get_physical_id_entry(vcpu, id);
@@ -315,15 +309,16 @@ static void avic_kick_target_vcpus(struct kvm *kvm, struct kvm_lapic *source,
 	}
 }
 
-int avic_incomplete_ipi_interception(struct vcpu_svm *svm)
+int avic_incomplete_ipi_interception(struct kvm_vcpu *vcpu)
 {
+	struct vcpu_svm *svm = to_svm(vcpu);
 	u32 icrh = svm->vmcb->control.exit_info_1 >> 32;
 	u32 icrl = svm->vmcb->control.exit_info_1;
 	u32 id = svm->vmcb->control.exit_info_2 >> 32;
 	u32 index = svm->vmcb->control.exit_info_2 & 0xFF;
-	struct kvm_lapic *apic = svm->vcpu.arch.apic;
+	struct kvm_lapic *apic = vcpu->arch.apic;
 
-	trace_kvm_avic_incomplete_ipi(svm->vcpu.vcpu_id, icrh, icrl, id, index);
+	trace_kvm_avic_incomplete_ipi(vcpu->vcpu_id, icrh, icrl, id, index);
 
 	switch (id) {
 	case AVIC_IPI_FAILURE_INVALID_INT_TYPE:
@@ -347,11 +342,11 @@ int avic_incomplete_ipi_interception(struct vcpu_svm *svm)
 		 * set the appropriate IRR bits on the valid target
 		 * vcpus. So, we just need to kick the appropriate vcpu.
 		 */
-		avic_kick_target_vcpus(svm->vcpu.kvm, apic, icrl, icrh);
+		avic_kick_target_vcpus(vcpu->kvm, apic, icrl, icrh);
 		break;
 	case AVIC_IPI_FAILURE_INVALID_TARGET:
 		WARN_ONCE(1, "Invalid IPI target: index=%u, vcpu=%d, icr=%#0x:%#0x\n",
-			  index, svm->vcpu.vcpu_id, icrh, icrl);
+			  index, vcpu->vcpu_id, icrh, icrl);
 		break;
 	case AVIC_IPI_FAILURE_INVALID_BACKING_PAGE:
 		WARN_ONCE(1, "Invalid backing page\n");
@@ -539,8 +534,9 @@ static bool is_avic_unaccelerated_access_trap(u32 offset)
 	return ret;
 }
 
-int avic_unaccelerated_access_interception(struct vcpu_svm *svm)
+int avic_unaccelerated_access_interception(struct kvm_vcpu *vcpu)
 {
+	struct vcpu_svm *svm = to_svm(vcpu);
 	int ret = 0;
 	u32 offset = svm->vmcb->control.exit_info_1 &
 		     AVIC_UNACCEL_ACCESS_OFFSET_MASK;
@@ -550,7 +546,7 @@ int avic_unaccelerated_access_interception(struct vcpu_svm *svm)
 		     AVIC_UNACCEL_ACCESS_WRITE_MASK;
 	bool trap = is_avic_unaccelerated_access_trap(offset);
 
-	trace_kvm_avic_unaccelerated_access(svm->vcpu.vcpu_id, offset,
+	trace_kvm_avic_unaccelerated_access(vcpu->vcpu_id, offset,
 					    trap, write, vector);
 	if (trap) {
 		/* Handling Trap */
@@ -558,7 +554,7 @@ int avic_unaccelerated_access_interception(struct vcpu_svm *svm)
 		ret = avic_unaccel_trap_write(svm);
 	} else {
 		/* Handling Fault */
-		ret = kvm_emulate_instruction(&svm->vcpu, 0);
+		ret = kvm_emulate_instruction(vcpu, 0);
 	}
 
 	return ret;
@@ -569,10 +565,10 @@ int avic_init_vcpu(struct vcpu_svm *svm)
 	int ret;
 	struct kvm_vcpu *vcpu = &svm->vcpu;
 
-	if (!avic || !irqchip_in_kernel(vcpu->kvm))
+	if (!enable_apicv || !irqchip_in_kernel(vcpu->kvm))
 		return 0;
 
-	ret = avic_init_backing_page(&svm->vcpu);
+	ret = avic_init_backing_page(vcpu);
 	if (ret)
 		return ret;
 
@@ -593,7 +589,7 @@ void avic_post_state_restore(struct kvm_vcpu *vcpu)
 
 void svm_toggle_avic_for_irq_window(struct kvm_vcpu *vcpu, bool activate)
 {
-	if (!avic || !lapic_in_kernel(vcpu))
+	if (!enable_apicv || !lapic_in_kernel(vcpu))
 		return;
 
 	srcu_read_unlock(&vcpu->kvm->srcu, vcpu->srcu_idx);
@@ -650,10 +646,10 @@ out:
 void svm_refresh_apicv_exec_ctrl(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
-	struct vmcb *vmcb = svm->vmcb;
+	struct vmcb *vmcb = svm->vmcb01.ptr;
 	bool activated = kvm_vcpu_apicv_active(vcpu);
 
-	if (!avic)
+	if (!enable_apicv)
 		return;
 
 	if (activated) {
@@ -764,7 +760,7 @@ out:
 	return ret;
 }
 
-/**
+/*
  * Note:
  * The HW cannot support posting multicast/broadcast
  * interrupts to a vCPU. So, we still use legacy interrupt
@@ -1005,7 +1001,7 @@ void avic_vcpu_put(struct kvm_vcpu *vcpu)
 	WRITE_ONCE(*(svm->avic_physical_id_cache), entry);
 }
 
-/**
+/*
  * This function is called during VCPU halt/unhalt.
  */
 static void avic_set_running(struct kvm_vcpu *vcpu, bool is_run)

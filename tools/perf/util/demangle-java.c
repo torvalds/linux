@@ -147,7 +147,7 @@ error:
  * Demangle Java function signature (openJDK, not GCJ)
  * input:
  * 	str: string to parse. String is not modified
- *    flags: comobination of JAVA_DEMANGLE_* flags to modify demangling
+ *    flags: combination of JAVA_DEMANGLE_* flags to modify demangling
  * return:
  *	if input can be demangled, then a newly allocated string is returned.
  *	if input cannot be demangled, then NULL is returned
@@ -164,7 +164,7 @@ java_demangle_sym(const char *str, int flags)
 	if (!str)
 		return NULL;
 
-	/* find start of retunr type */
+	/* find start of return type */
 	p = strrchr(str, ')');
 	if (!p)
 		return NULL;

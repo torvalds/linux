@@ -9,7 +9,7 @@
 
 #include <linux/pci.h>
 
-long hl_get_frequency(struct hl_device *hdev, enum pll_index pll_index,
+long hl_get_frequency(struct hl_device *hdev, u32 pll_index,
 								bool curr)
 {
 	struct cpucp_packet pkt;
@@ -44,7 +44,7 @@ long hl_get_frequency(struct hl_device *hdev, enum pll_index pll_index,
 	return (long) result;
 }
 
-void hl_set_frequency(struct hl_device *hdev, enum pll_index pll_index,
+void hl_set_frequency(struct hl_device *hdev, u32 pll_index,
 								u64 freq)
 {
 	struct cpucp_packet pkt;
@@ -208,7 +208,7 @@ static ssize_t soft_reset_store(struct device *dev,
 		goto out;
 	}
 
-	if (!hdev->supports_soft_reset) {
+	if (!hdev->allow_external_soft_reset) {
 		dev_err(hdev->dev, "Device does not support soft-reset\n");
 		goto out;
 	}

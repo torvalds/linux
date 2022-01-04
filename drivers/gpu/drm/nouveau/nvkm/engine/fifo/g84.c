@@ -119,7 +119,6 @@ g84_fifo = {
 	.uevent_init = g84_fifo_uevent_init,
 	.uevent_fini = g84_fifo_uevent_fini,
 	.chan = {
-		&g84_fifo_dma_oclass,
 		&g84_fifo_gpfifo_oclass,
 		NULL
 	},

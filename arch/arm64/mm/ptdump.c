@@ -51,10 +51,8 @@ static struct addr_marker address_markers[] = {
 	{ FIXADDR_TOP,			"Fixmap end" },
 	{ PCI_IO_START,			"PCI I/O start" },
 	{ PCI_IO_END,			"PCI I/O end" },
-#ifdef CONFIG_SPARSEMEM_VMEMMAP
 	{ VMEMMAP_START,		"vmemmap start" },
 	{ VMEMMAP_START + VMEMMAP_SIZE,	"vmemmap end" },
-#endif
 	{ -1,				NULL },
 };
 
@@ -159,10 +157,6 @@ static const struct prot_bits pte_bits[] = {
 		.mask	= PTE_ATTRINDX_MASK,
 		.val	= PTE_ATTRINDX(MT_DEVICE_nGnRE),
 		.set	= "DEVICE/nGnRE",
-	}, {
-		.mask	= PTE_ATTRINDX_MASK,
-		.val	= PTE_ATTRINDX(MT_DEVICE_GRE),
-		.set	= "DEVICE/GRE",
 	}, {
 		.mask	= PTE_ATTRINDX_MASK,
 		.val	= PTE_ATTRINDX(MT_NORMAL_NC),

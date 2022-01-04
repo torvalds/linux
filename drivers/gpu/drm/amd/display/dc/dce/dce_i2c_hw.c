@@ -264,18 +264,25 @@ static void set_speed(
 	struct dce_i2c_hw *dce_i2c_hw,
 	uint32_t speed)
 {
-	uint32_t xtal_ref_div = 0;
+	uint32_t xtal_ref_div = 0, ref_base_div = 0;
 	uint32_t prescale = 0;
+	uint32_t i2c_ref_clock = 0;
 
 	if (speed == 0)
 		return;
 
-	REG_GET(MICROSECOND_TIME_BASE_DIV, XTAL_REF_DIV, &xtal_ref_div);
+	REG_GET_2(MICROSECOND_TIME_BASE_DIV, MICROSECOND_TIME_BASE_DIV, &ref_base_div,
+		XTAL_REF_DIV, &xtal_ref_div);
 
 	if (xtal_ref_div == 0)
 		xtal_ref_div = 2;
 
-	prescale = ((dce_i2c_hw->reference_frequency * 2) / xtal_ref_div) / speed;
+	if (ref_base_div == 0)
+		i2c_ref_clock = (dce_i2c_hw->reference_frequency * 2);
+	else
+		i2c_ref_clock = ref_base_div * 1000;
+
+	prescale = (i2c_ref_clock / xtal_ref_div) / speed;
 
 	if (dce_i2c_hw->masks->DC_I2C_DDC1_START_STOP_TIMING_CNTL)
 		REG_UPDATE_N(SPEED, 3,

@@ -226,7 +226,7 @@ struct clk * __init cpg_sd_clk_register(const char *name,
 	void __iomem *base, unsigned int offset, const char *parent_name,
 	struct raw_notifier_head *notifiers, bool skip_first)
 {
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 	struct sd_clock *clock;
 	struct clk *clk;
 	u32 val;

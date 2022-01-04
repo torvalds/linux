@@ -109,9 +109,9 @@
 #include "irq.h"
 
 #if defined(IA64_MCA_DEBUG_INFO)
-# define IA64_MCA_DEBUG(fmt...)	printk(fmt)
+# define IA64_MCA_DEBUG(fmt...) printk(fmt)
 #else
-# define IA64_MCA_DEBUG(fmt...)
+# define IA64_MCA_DEBUG(fmt...) do {} while (0)
 #endif
 
 #define NOTIFY_INIT(event, regs, arg, spin)				\
@@ -1788,7 +1788,7 @@ format_mca_init_stack(void *mca_data, unsigned long offset,
 	ti->task = p;
 	ti->cpu = cpu;
 	p->stack = ti;
-	p->state = TASK_UNINTERRUPTIBLE;
+	p->__state = TASK_UNINTERRUPTIBLE;
 	cpumask_set_cpu(cpu, &p->cpus_mask);
 	INIT_LIST_HEAD(&p->tasks);
 	p->parent = p->real_parent = p->group_leader = p;

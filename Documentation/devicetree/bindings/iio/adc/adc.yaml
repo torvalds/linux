@@ -39,4 +39,16 @@ properties:
       The first value specifies the positive input pin, the second
       specifies the negative input pin.
 
+  settling-time-us:
+    description:
+      Time between enabling the channel and first stable readings.
+
+  oversampling-ratio:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description:
+      Oversampling is used as replacement of or addition to the low-pass filter.
+      In some cases, the desired filtering characteristics are a function the
+      device design and can interact with other characteristics such as
+      settling time.
+
 additionalProperties: true

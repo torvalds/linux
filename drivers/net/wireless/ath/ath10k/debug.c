@@ -1105,7 +1105,7 @@ static const char ath10k_gstrings_stats[][ETH_GSTRING_LEN] = {
 	"d_tx_ppdu_reaped",
 	"d_tx_fifo_underrun",
 	"d_tx_ppdu_abort",
-	"d_tx_mpdu_requed",
+	"d_tx_mpdu_requeued",
 	"d_tx_excessive_retries",
 	"d_tx_hw_rate",
 	"d_tx_dropped_sw_retries",
@@ -1205,7 +1205,7 @@ void ath10k_debug_get_et_stats(struct ieee80211_hw *hw,
 	data[i++] = pdev_stats->hw_reaped;
 	data[i++] = pdev_stats->underrun;
 	data[i++] = pdev_stats->tx_abort;
-	data[i++] = pdev_stats->mpdus_requed;
+	data[i++] = pdev_stats->mpdus_requeued;
 	data[i++] = pdev_stats->tx_ko;
 	data[i++] = pdev_stats->data_rc;
 	data[i++] = pdev_stats->sw_retry_failure;

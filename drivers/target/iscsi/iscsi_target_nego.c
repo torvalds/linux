@@ -28,7 +28,6 @@
 #include "iscsi_target_auth.h"
 
 #define MAX_LOGIN_PDUS  7
-#define TEXT_LEN	4096
 
 void convert_null_to_semi(char *buf, int len)
 {
@@ -116,13 +115,6 @@ static u32 iscsi_handle_authentication(
 		se_nacl = conn->sess->se_sess->se_node_acl;
 		if (!se_nacl) {
 			pr_err("Unable to locate struct se_node_acl for"
-					" CHAP auth\n");
-			return -1;
-		}
-		iscsi_nacl = container_of(se_nacl, struct iscsi_node_acl,
-				se_node_acl);
-		if (!iscsi_nacl) {
-			pr_err("Unable to locate struct iscsi_node_acl for"
 					" CHAP auth\n");
 			return -1;
 		}
@@ -1083,14 +1075,12 @@ int iscsi_target_locate_portal(
 	login_req = (struct iscsi_login_req *) login->req;
 	payload_length = ntoh24(login_req->dlength);
 
-	tmpbuf = kzalloc(payload_length + 1, GFP_KERNEL);
+	tmpbuf = kmemdup_nul(login->req_buf, payload_length, GFP_KERNEL);
 	if (!tmpbuf) {
 		pr_err("Unable to allocate memory for tmpbuf.\n");
 		return -1;
 	}
 
-	memcpy(tmpbuf, login->req_buf, payload_length);
-	tmpbuf[payload_length] = '\0';
 	start = tmpbuf;
 	end = (start + payload_length);
 

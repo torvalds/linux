@@ -176,9 +176,9 @@ MODULE_LICENSE("GPL");
 
 /*int spinnest = 0;*/
 
-spinlock_t dsp_lock; /* global dsp lock */
-struct list_head dsp_ilist;
-struct list_head conf_ilist;
+DEFINE_SPINLOCK(dsp_lock); /* global dsp lock */
+LIST_HEAD(dsp_ilist);
+LIST_HEAD(conf_ilist);
 int dsp_debug;
 int dsp_options;
 int dsp_poll, dsp_tics;
@@ -953,7 +953,6 @@ dsp_ctrl(struct mISDNchannel *ch, u_int cmd, void *arg)
 {
 	struct dsp		*dsp = container_of(ch, struct dsp, ch);
 	u_long		flags;
-	int		err = 0;
 
 	if (debug & DEBUG_DSP_CTRL)
 		printk(KERN_DEBUG "%s:(%x)\n", __func__, cmd);
@@ -998,7 +997,7 @@ dsp_ctrl(struct mISDNchannel *ch, u_int cmd, void *arg)
 		module_put(THIS_MODULE);
 		break;
 	}
-	return err;
+	return 0;
 }
 
 static void
@@ -1169,10 +1168,6 @@ static int __init dsp_init(void)
 	}
 	printk(KERN_INFO "mISDN_dsp: DSP clocks every %d samples. This equals "
 	       "%d jiffies.\n", dsp_poll, dsp_tics);
-
-	spin_lock_init(&dsp_lock);
-	INIT_LIST_HEAD(&dsp_ilist);
-	INIT_LIST_HEAD(&conf_ilist);
 
 	/* init conversion tables */
 	dsp_audio_generate_law_tables();

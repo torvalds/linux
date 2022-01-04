@@ -1784,12 +1784,6 @@ set_tct(struct idt77252_dev *card, struct vc_map *vc)
 /*****************************************************************************/
 
 static __inline__ int
-idt77252_fbq_level(struct idt77252_dev *card, int queue)
-{
-	return (readl(SAR_REG_STAT) >> (16 + (queue << 2))) & 0x0f;
-}
-
-static __inline__ int
 idt77252_fbq_full(struct idt77252_dev *card, int queue)
 {
 	return (readl(SAR_REG_STAT) >> (16 + (queue << 2))) == 0x0f;
@@ -3542,7 +3536,7 @@ static int idt77252_preset(struct idt77252_dev *card)
 		return -1;
 	}
 	if (!(pci_command & PCI_COMMAND_IO)) {
-		printk("%s: PCI_COMMAND: %04x (???)\n",
+		printk("%s: PCI_COMMAND: %04x (?)\n",
 		       card->name, pci_command);
 		deinit_card(card);
 		return (-1);

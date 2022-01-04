@@ -7,24 +7,18 @@
 #include <linux/module.h>
 #include "mt76x02.h"
 
-#define CCK_RATE(_idx, _rate) {					\
+#define MT76x02_CCK_RATE(_idx, _rate) {					\
 	.bitrate = _rate,					\
 	.flags = IEEE80211_RATE_SHORT_PREAMBLE,			\
 	.hw_value = (MT_PHY_TYPE_CCK << 8) | (_idx),		\
 	.hw_value_short = (MT_PHY_TYPE_CCK << 8) | (8 + (_idx)),	\
 }
 
-#define OFDM_RATE(_idx, _rate) {				\
-	.bitrate = _rate,					\
-	.hw_value = (MT_PHY_TYPE_OFDM << 8) | (_idx),		\
-	.hw_value_short = (MT_PHY_TYPE_OFDM << 8) | (_idx),	\
-}
-
 struct ieee80211_rate mt76x02_rates[] = {
-	CCK_RATE(0, 10),
-	CCK_RATE(1, 20),
-	CCK_RATE(2, 55),
-	CCK_RATE(3, 110),
+	MT76x02_CCK_RATE(0, 10),
+	MT76x02_CCK_RATE(1, 20),
+	MT76x02_CCK_RATE(2, 55),
+	MT76x02_CCK_RATE(3, 110),
 	OFDM_RATE(0, 60),
 	OFDM_RATE(1, 90),
 	OFDM_RATE(2, 120),
@@ -445,6 +439,10 @@ int mt76x02_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	if (mt76_is_usb(&dev->mt76) &&
 	    vif->type == NL80211_IFTYPE_AP &&
 	    !(key->flags & IEEE80211_KEY_FLAG_PAIRWISE))
+		return -EOPNOTSUPP;
+
+	/* MT76x0 GTK offloading does not work with more than one VIF */
+	if (is_mt76x0(dev) && !(key->flags & IEEE80211_KEY_FLAG_PAIRWISE))
 		return -EOPNOTSUPP;
 
 	msta = sta ? (struct mt76x02_sta *)sta->drv_priv : NULL;

@@ -162,10 +162,10 @@ static bool contains_event(struct evsel **metric_events, int num_events,
 	return false;
 }
 
-static bool evsel_same_pmu(struct evsel *ev1, struct evsel *ev2)
+static bool evsel_same_pmu_or_none(struct evsel *ev1, struct evsel *ev2)
 {
 	if (!ev1->pmu_name || !ev2->pmu_name)
-		return false;
+		return true;
 
 	return !strcmp(ev1->pmu_name, ev2->pmu_name);
 }
@@ -181,7 +181,7 @@ static bool evsel_same_pmu(struct evsel *ev1, struct evsel *ev2)
  * @pctx: the parse context for the metric expression.
  * @metric_no_merge: don't attempt to share events for the metric with other
  * metrics.
- * @has_constraint: is there a contraint on the group of events? In which case
+ * @has_constraint: is there a constraint on the group of events? In which case
  * the events won't be grouped.
  * @metric_events: out argument, null terminated array of evsel's associated
  * with the metric.
@@ -219,9 +219,9 @@ static struct evsel *find_evsel_group(struct evlist *perf_evlist,
 		if (has_constraint && ev->weak_group)
 			continue;
 		/* Ignore event if already used and merging is disabled. */
-		if (metric_no_merge && test_bit(ev->idx, evlist_used))
+		if (metric_no_merge && test_bit(ev->core.idx, evlist_used))
 			continue;
-		if (!has_constraint && ev->leader != current_leader) {
+		if (!has_constraint && !evsel__has_leader(ev, current_leader)) {
 			/*
 			 * Start of a new group, discard the whole match and
 			 * start again.
@@ -229,7 +229,7 @@ static struct evsel *find_evsel_group(struct evlist *perf_evlist,
 			matched_events = 0;
 			memset(metric_events, 0,
 				sizeof(struct evsel *) * idnum);
-			current_leader = ev->leader;
+			current_leader = evsel__leader(ev);
 		}
 		/*
 		 * Check for duplicate events with the same name. For example,
@@ -269,7 +269,7 @@ static struct evsel *find_evsel_group(struct evlist *perf_evlist,
 	for (i = 0; i < idnum; i++) {
 		ev = metric_events[i];
 		/* Don't free the used events. */
-		set_bit(ev->idx, evlist_used);
+		set_bit(ev->core.idx, evlist_used);
 		/*
 		 * The metric leader points to the identically named event in
 		 * metric_events.
@@ -287,11 +287,11 @@ static struct evsel *find_evsel_group(struct evlist *perf_evlist,
 			 * when then group is left.
 			 */
 			if (!has_constraint &&
-			    ev->leader != metric_events[i]->leader &&
-			    evsel_same_pmu(ev->leader, metric_events[i]->leader))
+			    ev->core.leader != metric_events[i]->core.leader &&
+			    evsel_same_pmu_or_none(evsel__leader(ev), evsel__leader(metric_events[i])))
 				break;
 			if (!strcmp(metric_events[i]->name, ev->name)) {
-				set_bit(ev->idx, evlist_used);
+				set_bit(ev->core.idx, evlist_used);
 				ev->metric_leader = metric_events[i];
 			}
 		}
@@ -391,7 +391,7 @@ static int metricgroup__setup_events(struct list_head *groups,
 	}
 
 	evlist__for_each_entry_safe(perf_evlist, tmp, evsel) {
-		if (!test_bit(evsel->idx, evlist_used)) {
+		if (!test_bit(evsel->core.idx, evlist_used)) {
 			evlist__remove(perf_evlist, evsel);
 			evsel__delete(evsel);
 		}
@@ -618,7 +618,7 @@ static int metricgroup__print_sys_event_iter(struct pmu_event *pe, void *data)
 void metricgroup__print(bool metrics, bool metricgroups, char *filter,
 			bool raw, bool details)
 {
-	struct pmu_events_map *map = perf_pmu__find_map(NULL);
+	struct pmu_events_map *map = pmu_events_map__find();
 	struct pmu_event *pe;
 	int i;
 	struct rblist groups;
@@ -900,7 +900,8 @@ static int __add_metric(struct list_head *metric_list,
 		    (match_metric(__pe->metric_group, __metric) ||	\
 		     match_metric(__pe->metric_name, __metric)))
 
-static struct pmu_event *find_metric(const char *metric, struct pmu_events_map *map)
+struct pmu_event *metricgroup__find_metric(const char *metric,
+					   struct pmu_events_map *map)
 {
 	struct pmu_event *pe;
 	int i;
@@ -985,7 +986,7 @@ static int __resolve_metric(struct metric *m,
 			struct expr_id *parent;
 			struct pmu_event *pe;
 
-			pe = find_metric(cur->key, map);
+			pe = metricgroup__find_metric(cur->key, map);
 			if (!pe)
 				continue;
 
@@ -1072,16 +1073,18 @@ static int metricgroup__add_metric_sys_event_iter(struct pmu_event *pe,
 
 	ret = add_metric(d->metric_list, pe, d->metric_no_group, &m, NULL, d->ids);
 	if (ret)
-		return ret;
+		goto out;
 
 	ret = resolve_metric(d->metric_no_group,
 				     d->metric_list, NULL, d->ids);
 	if (ret)
-		return ret;
+		goto out;
 
 	*(d->has_match) = true;
 
-	return *d->ret;
+out:
+	*(d->ret) = ret;
+	return ret;
 }
 
 static int metricgroup__add_metric(const char *metric, bool metric_no_group,
@@ -1253,8 +1256,7 @@ int metricgroup__parse_groups(const struct option *opt,
 			      struct rblist *metric_events)
 {
 	struct evlist *perf_evlist = *(struct evlist **)opt->value;
-	struct pmu_events_map *map = perf_pmu__find_map(NULL);
-
+	struct pmu_events_map *map = pmu_events_map__find();
 
 	return parse_groups(perf_evlist, str, metric_no_group,
 			    metric_no_merge, NULL, metric_events, map);
@@ -1273,7 +1275,7 @@ int metricgroup__parse_groups_test(struct evlist *evlist,
 
 bool metricgroup__has_metric(const char *metric)
 {
-	struct pmu_events_map *map = perf_pmu__find_map(NULL);
+	struct pmu_events_map *map = pmu_events_map__find();
 	struct pmu_event *pe;
 	int i;
 
@@ -1310,7 +1312,7 @@ int metricgroup__copy_metric_events(struct evlist *evlist, struct cgroup *cgrp,
 		nd = rblist__entry(old_metric_events, i);
 		old_me = container_of(nd, struct metric_event, nd);
 
-		evsel = evlist__find_evsel(evlist, old_me->evsel->idx);
+		evsel = evlist__find_evsel(evlist, old_me->evsel->core.idx);
 		if (!evsel)
 			return -EINVAL;
 		new_me = metricgroup__lookup(new_metric_events, evsel, true);
@@ -1318,7 +1320,7 @@ int metricgroup__copy_metric_events(struct evlist *evlist, struct cgroup *cgrp,
 			return -ENOMEM;
 
 		pr_debug("copying metric event for cgroup '%s': %s (idx=%d)\n",
-			 cgrp ? cgrp->name : "root", evsel->name, evsel->idx);
+			 cgrp ? cgrp->name : "root", evsel->name, evsel->core.idx);
 
 		list_for_each_entry(old_expr, &old_me->head, nd) {
 			new_expr = malloc(sizeof(*new_expr));
@@ -1361,7 +1363,7 @@ int metricgroup__copy_metric_events(struct evlist *evlist, struct cgroup *cgrp,
 			/* copy evsel in the same position */
 			for (idx = 0; idx < nr; idx++) {
 				evsel = old_expr->metric_events[idx];
-				evsel = evlist__find_evsel(evlist, evsel->idx);
+				evsel = evlist__find_evsel(evlist, evsel->core.idx);
 				if (evsel == NULL) {
 					free(new_expr->metric_events);
 					free(new_expr->metric_refs);

@@ -34,7 +34,7 @@ static int nfc_hci_execute_cmd_async(struct nfc_hci_dev *hdev, u8 pipe, u8 cmd,
  * HCI command execution completion callback.
  * err will be a standard linux error (may be converted from HCI response)
  * skb contains the response data and must be disposed, or may be NULL if
- * an error occured
+ * an error occurred
  */
 static void nfc_hci_execute_cb(void *context, struct sk_buff *skb, int err)
 {

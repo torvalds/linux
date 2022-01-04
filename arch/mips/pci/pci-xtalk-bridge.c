@@ -13,6 +13,7 @@
 #include <linux/platform_data/xtalk-bridge.h>
 #include <linux/nvmem-consumer.h>
 #include <linux/crc16.h>
+#include <linux/irqdomain.h>
 
 #include <asm/pci/bridge.h>
 #include <asm/paccess.h>
@@ -385,7 +386,7 @@ static int bridge_domain_activate(struct irq_domain *domain,
 	bridge_set(bc, b_int_enable, 0x7ffffe00); /* more stuff in int_enable */
 
 	/*
-	 * Enable sending of an interrupt clear packt to the hub on a high to
+	 * Enable sending of an interrupt clear packet to the hub on a high to
 	 * low transition of the interrupt pin.
 	 *
 	 * IRIX sets additional bits in the address which are documented as

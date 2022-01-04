@@ -69,6 +69,9 @@ void psp_securedisplay_parse_resp_status(struct psp_context *psp,
 	case TA_SECUREDISPLAY_STATUS__READ_CRC_ERROR:
 		dev_err(psp->adev->dev, "Secure display: Failed to Read CRC");
 		break;
+	case TA_SECUREDISPLAY_STATUS__I2C_INIT_ERROR:
+		dev_err(psp->adev->dev, "Secure display: Failed to initialize I2C.");
+		break;
 	default:
 		dev_err(psp->adev->dev, "Secure display: Failed to parse status: %d\n", status);
 	}
@@ -77,11 +80,13 @@ void psp_securedisplay_parse_resp_status(struct psp_context *psp,
 void psp_prep_securedisplay_cmd_buf(struct psp_context *psp, struct securedisplay_cmd **cmd,
 	enum ta_securedisplay_command command_id)
 {
-	*cmd = (struct securedisplay_cmd *)psp->securedisplay_context.securedisplay_shared_buf;
+	*cmd = (struct securedisplay_cmd *)psp->securedisplay_context.context.mem_context.shared_buf;
 	memset(*cmd, 0, sizeof(struct securedisplay_cmd));
 	(*cmd)->status = TA_SECUREDISPLAY_STATUS__GENERIC_FAILURE;
 	(*cmd)->cmd_id = command_id;
 }
+
+#if defined(CONFIG_DEBUG_FS)
 
 static ssize_t amdgpu_securedisplay_debugfs_write(struct file *f, const char __user *buf,
 		size_t size, loff_t *pos)
@@ -92,9 +97,7 @@ static ssize_t amdgpu_securedisplay_debugfs_write(struct file *f, const char __u
 	struct drm_device *dev = adev_to_drm(adev);
 	uint32_t phy_id;
 	uint32_t op;
-	int i;
 	char str[64];
-	char i2c_output[256];
 	int ret;
 
 	if (*pos || size > sizeof(str) - 1)
@@ -136,11 +139,9 @@ static ssize_t amdgpu_securedisplay_debugfs_write(struct file *f, const char __u
 		ret = psp_securedisplay_invoke(psp, TA_SECUREDISPLAY_COMMAND__SEND_ROI_CRC);
 		if (!ret) {
 			if (securedisplay_cmd->status == TA_SECUREDISPLAY_STATUS__SUCCESS) {
-				memset(i2c_output,  0, sizeof(i2c_output));
-				for (i = 0; i < TA_SECUREDISPLAY_I2C_BUFFER_SIZE; i++)
-					sprintf(i2c_output, "%s 0x%X", i2c_output,
-						securedisplay_cmd->securedisplay_out_message.send_roi_crc.i2c_buf[i]);
-				dev_info(adev->dev, "SECUREDISPLAY: I2C buffer out put is :%s\n", i2c_output);
+				dev_info(adev->dev, "SECUREDISPLAY: I2C buffer out put is: %*ph\n",
+					 TA_SECUREDISPLAY_I2C_BUFFER_SIZE,
+					 securedisplay_cmd->securedisplay_out_message.send_roi_crc.i2c_buf);
 			} else {
 				psp_securedisplay_parse_resp_status(psp, securedisplay_cmd->status);
 			}
@@ -163,11 +164,13 @@ static const struct file_operations amdgpu_securedisplay_debugfs_ops = {
 	.llseek = default_llseek
 };
 
+#endif
+
 void amdgpu_securedisplay_debugfs_init(struct amdgpu_device *adev)
 {
 #if defined(CONFIG_DEBUG_FS)
 
-	if (!adev->psp.securedisplay_context.securedisplay_initialized)
+	if (!adev->psp.securedisplay_context.context.initialized)
 		return;
 
 	debugfs_create_file("securedisplay_test", S_IWUSR, adev_to_drm(adev)->primary->debugfs_root,

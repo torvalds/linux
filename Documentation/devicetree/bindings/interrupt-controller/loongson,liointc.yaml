@@ -10,21 +10,29 @@ maintainers:
   - Jiaxun Yang <jiaxun.yang@flygoat.com>
 
 description: |
-  This interrupt controller is found in the Loongson-3 family of chips as the primary
-  package interrupt controller which can route local I/O interrupt to interrupt lines
-  of cores.
+  This interrupt controller is found in the Loongson-3 family of chips and
+  Loongson-2K1000 chip, as the primary package interrupt controller which
+  can route local I/O interrupt to interrupt lines of cores.
 
 allOf:
   - $ref: /schemas/interrupt-controller.yaml#
 
 properties:
   compatible:
-    oneOf:
-      - const: loongson,liointc-1.0
-      - const: loongson,liointc-1.0a
+    enum:
+      - loongson,liointc-1.0
+      - loongson,liointc-1.0a
+      - loongson,liointc-2.0
 
   reg:
-    maxItems: 1
+    minItems: 1
+    maxItems: 3
+
+  reg-names:
+    items:
+      - const: main
+      - const: isr0
+      - const: isr1
 
   interrupt-controller: true
 
@@ -42,7 +50,6 @@ properties:
       - const: int2
       - const: int3
     minItems: 1
-    maxItems: 4
 
   '#interrupt-cells':
     const: 2
@@ -68,6 +75,26 @@ required:
 
 
 unevaluatedProperties: false
+
+if:
+  properties:
+    compatible:
+      contains:
+        enum:
+          - loongson,liointc-2.0
+
+then:
+  properties:
+    reg:
+      minItems: 3
+
+  required:
+    - reg-names
+
+else:
+  properties:
+    reg:
+      maxItems: 1
 
 examples:
   - |

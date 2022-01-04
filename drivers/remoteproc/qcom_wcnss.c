@@ -320,7 +320,7 @@ static int wcnss_stop(struct rproc *rproc)
 	return ret;
 }
 
-static void *wcnss_da_to_va(struct rproc *rproc, u64 da, size_t len)
+static void *wcnss_da_to_va(struct rproc *rproc, u64 da, size_t len, bool *is_iomem)
 {
 	struct qcom_wcnss *wcnss = (struct qcom_wcnss *)rproc->priv;
 	int offset;
@@ -530,6 +530,7 @@ static int wcnss_alloc_memory_region(struct qcom_wcnss *wcnss)
 
 static int wcnss_probe(struct platform_device *pdev)
 {
+	const char *fw_name = WCNSS_FIRMWARE_NAME;
 	const struct wcnss_data *data;
 	struct qcom_wcnss *wcnss;
 	struct resource *res;
@@ -547,8 +548,13 @@ static int wcnss_probe(struct platform_device *pdev)
 		return -ENXIO;
 	}
 
+	ret = of_property_read_string(pdev->dev.of_node, "firmware-name",
+				      &fw_name);
+	if (ret < 0 && ret != -EINVAL)
+		return ret;
+
 	rproc = rproc_alloc(&pdev->dev, pdev->name, &wcnss_ops,
-			    WCNSS_FIRMWARE_NAME, sizeof(*wcnss));
+			    fw_name, sizeof(*wcnss));
 	if (!rproc) {
 		dev_err(&pdev->dev, "unable to allocate remoteproc\n");
 		return -ENOMEM;
@@ -618,8 +624,8 @@ static int wcnss_probe(struct platform_device *pdev)
 	wcnss->stop_ack_irq = ret;
 
 	if (wcnss->stop_ack_irq) {
-		wcnss->state = qcom_smem_state_get(&pdev->dev, "stop",
-						   &wcnss->stop_bit);
+		wcnss->state = devm_qcom_smem_state_get(&pdev->dev, "stop",
+							&wcnss->stop_bit);
 		if (IS_ERR(wcnss->state)) {
 			ret = PTR_ERR(wcnss->state);
 			goto detach_pds;
@@ -653,7 +659,6 @@ static int wcnss_remove(struct platform_device *pdev)
 
 	of_platform_depopulate(&pdev->dev);
 
-	qcom_smem_state_put(wcnss->state);
 	rproc_del(wcnss->rproc);
 
 	qcom_remove_sysmon_subdev(wcnss->sysmon);

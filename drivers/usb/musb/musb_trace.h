@@ -37,6 +37,23 @@ TRACE_EVENT(musb_log,
 	TP_printk("%s: %s", __get_str(name), __get_str(msg))
 );
 
+TRACE_EVENT(musb_state,
+	TP_PROTO(struct musb *musb, u8 devctl, const char *desc),
+	TP_ARGS(musb, devctl, desc),
+	TP_STRUCT__entry(
+		__string(name, dev_name(musb->controller))
+		__field(u8, devctl)
+		__string(desc, desc)
+	),
+	TP_fast_assign(
+		__assign_str(name, dev_name(musb->controller));
+		__entry->devctl = devctl;
+		__assign_str(desc, desc);
+	),
+	TP_printk("%s: devctl: %02x %s", __get_str(name), __entry->devctl,
+		  __get_str(desc))
+);
+
 DECLARE_EVENT_CLASS(musb_regb,
 	TP_PROTO(void *caller, const void  __iomem *addr,
 		 unsigned int offset, u8 data),

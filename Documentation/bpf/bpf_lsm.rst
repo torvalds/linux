@@ -20,10 +20,10 @@ LSM hook:
 Other LSM hooks which can be instrumented can be found in
 ``include/linux/lsm_hooks.h``.
 
-eBPF programs that use :doc:`/bpf/btf` do not need to include kernel headers
-for accessing information from the attached eBPF program's context. They can
-simply declare the structures in the eBPF program and only specify the fields
-that need to be accessed.
+eBPF programs that use Documentation/bpf/btf.rst do not need to include kernel
+headers for accessing information from the attached eBPF program's context.
+They can simply declare the structures in the eBPF program and only specify
+the fields that need to be accessed.
 
 .. code-block:: c
 
@@ -88,8 +88,9 @@ example:
 
 The ``__attribute__((preserve_access_index))`` is a clang feature that allows
 the BPF verifier to update the offsets for the access at runtime using the
-:doc:`/bpf/btf` information. Since the BPF verifier is aware of the types, it
-also validates all the accesses made to the various types in the eBPF program.
+Documentation/bpf/btf.rst information. Since the BPF verifier is aware of the
+types, it also validates all the accesses made to the various types in the
+eBPF program.
 
 Loading
 -------

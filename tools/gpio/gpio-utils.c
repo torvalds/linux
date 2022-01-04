@@ -20,7 +20,7 @@
 #define CONSUMER "gpio-utils"
 
 /**
- * doc: Operation of gpio
+ * DOC: Operation of gpio
  *
  * Provide the api of gpiochip for chardev interface. There are two
  * types of api.  The first one provide as same function as each
@@ -100,7 +100,7 @@ exit_free_name:
 }
 
 /**
- * gpiotools_set_values(): Set the value of gpio(s)
+ * gpiotools_set_values() - Set the value of gpio(s)
  * @fd:			The fd returned by
  *			gpiotools_request_line().
  * @values:		The array of values want to set.
@@ -124,7 +124,7 @@ int gpiotools_set_values(const int fd, struct gpio_v2_line_values *values)
 }
 
 /**
- * gpiotools_get_values(): Get the value of gpio(s)
+ * gpiotools_get_values() - Get the value of gpio(s)
  * @fd:			The fd returned by
  *			gpiotools_request_line().
  * @values:		The array of values get from hardware.
@@ -148,7 +148,7 @@ int gpiotools_get_values(const int fd, struct gpio_v2_line_values *values)
 }
 
 /**
- * gpiotools_release_line(): Release the line(s) of gpiochip
+ * gpiotools_release_line() - Release the line(s) of gpiochip
  * @fd:			The fd returned by
  *			gpiotools_request_line().
  *
@@ -169,7 +169,7 @@ int gpiotools_release_line(const int fd)
 }
 
 /**
- * gpiotools_get(): Get value from specific line
+ * gpiotools_get() - Get value from specific line
  * @device_name:	The name of gpiochip without prefix "/dev/",
  *			such as "gpiochip0"
  * @line:		number of line, such as 2.
@@ -191,7 +191,7 @@ int gpiotools_get(const char *device_name, unsigned int line)
 
 
 /**
- * gpiotools_gets(): Get values from specific lines.
+ * gpiotools_gets() - Get values from specific lines.
  * @device_name:	The name of gpiochip without prefix "/dev/",
  *			such as "gpiochip0".
  * @lines:		An array desired lines, specified by offset
@@ -230,7 +230,7 @@ int gpiotools_gets(const char *device_name, unsigned int *lines,
 }
 
 /**
- * gpiotools_set(): Set value to specific line
+ * gpiotools_set() - Set value to specific line
  * @device_name:	The name of gpiochip without prefix "/dev/",
  *			such as "gpiochip0"
  * @line:		number of line, such as 2.
@@ -248,13 +248,13 @@ int gpiotools_set(const char *device_name, unsigned int line,
 }
 
 /**
- * gpiotools_sets(): Set values to specific lines.
+ * gpiotools_sets() - Set values to specific lines.
  * @device_name:	The name of gpiochip without prefix "/dev/",
  *			such as "gpiochip0".
  * @lines:		An array desired lines, specified by offset
  *			index for the associated GPIO device.
  * @num_lines:		The number of lines to request.
- * @value:		The array of values set to gpiochip, must be
+ * @values:		The array of values set to gpiochip, must be
  *			0(low) or 1(high).
  *
  * Return:		On success return 0;

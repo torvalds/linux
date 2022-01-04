@@ -58,42 +58,73 @@ static void test_fexit_bpf2bpf_common(const char *obj_file,
 				      test_cb cb)
 {
 	struct bpf_object *obj = NULL, *tgt_obj;
+	__u32 retval, tgt_prog_id, info_len;
+	struct bpf_prog_info prog_info = {};
 	struct bpf_program **prog = NULL;
 	struct bpf_link **link = NULL;
-	__u32 duration = 0, retval;
 	int err, tgt_fd, i;
+	struct btf *btf;
 
 	err = bpf_prog_load(target_obj_file, BPF_PROG_TYPE_UNSPEC,
 			    &tgt_obj, &tgt_fd);
-	if (CHECK(err, "tgt_prog_load", "file %s err %d errno %d\n",
-		  target_obj_file, err, errno))
+	if (!ASSERT_OK(err, "tgt_prog_load"))
 		return;
 	DECLARE_LIBBPF_OPTS(bpf_object_open_opts, opts,
 			    .attach_prog_fd = tgt_fd,
 			   );
 
+	info_len = sizeof(prog_info);
+	err = bpf_obj_get_info_by_fd(tgt_fd, &prog_info, &info_len);
+	if (!ASSERT_OK(err, "tgt_fd_get_info"))
+		goto close_prog;
+
+	tgt_prog_id = prog_info.id;
+	btf = bpf_object__btf(tgt_obj);
+
 	link = calloc(sizeof(struct bpf_link *), prog_cnt);
+	if (!ASSERT_OK_PTR(link, "link_ptr"))
+		goto close_prog;
+
 	prog = calloc(sizeof(struct bpf_program *), prog_cnt);
-	if (CHECK(!link || !prog, "alloc_memory", "failed to alloc memory"))
+	if (!ASSERT_OK_PTR(prog, "prog_ptr"))
 		goto close_prog;
 
 	obj = bpf_object__open_file(obj_file, &opts);
-	if (CHECK(IS_ERR_OR_NULL(obj), "obj_open",
-		  "failed to open %s: %ld\n", obj_file,
-		  PTR_ERR(obj)))
+	if (!ASSERT_OK_PTR(obj, "obj_open"))
 		goto close_prog;
 
 	err = bpf_object__load(obj);
-	if (CHECK(err, "obj_load", "err %d\n", err))
+	if (!ASSERT_OK(err, "obj_load"))
 		goto close_prog;
 
 	for (i = 0; i < prog_cnt; i++) {
+		struct bpf_link_info link_info;
+		char *tgt_name;
+		__s32 btf_id;
+
+		tgt_name = strstr(prog_name[i], "/");
+		if (!ASSERT_OK_PTR(tgt_name, "tgt_name"))
+			goto close_prog;
+		btf_id = btf__find_by_name_kind(btf, tgt_name + 1, BTF_KIND_FUNC);
+
 		prog[i] = bpf_object__find_program_by_title(obj, prog_name[i]);
-		if (CHECK(!prog[i], "find_prog", "prog %s not found\n", prog_name[i]))
+		if (!ASSERT_OK_PTR(prog[i], prog_name[i]))
 			goto close_prog;
+
 		link[i] = bpf_program__attach_trace(prog[i]);
-		if (CHECK(IS_ERR(link[i]), "attach_trace", "failed to link\n"))
+		if (!ASSERT_OK_PTR(link[i], "attach_trace"))
 			goto close_prog;
+
+		info_len = sizeof(link_info);
+		memset(&link_info, 0, sizeof(link_info));
+		err = bpf_obj_get_info_by_fd(bpf_link__fd(link[i]),
+					     &link_info, &info_len);
+		ASSERT_OK(err, "link_fd_get_info");
+		ASSERT_EQ(link_info.tracing.attach_type,
+			  bpf_program__get_expected_attach_type(prog[i]),
+			  "link_attach_type");
+		ASSERT_EQ(link_info.tracing.target_obj_id, tgt_prog_id, "link_tgt_obj_id");
+		ASSERT_EQ(link_info.tracing.target_btf_id, btf_id, "link_tgt_btf_id");
 	}
 
 	if (cb) {
@@ -106,20 +137,17 @@ static void test_fexit_bpf2bpf_common(const char *obj_file,
 		goto close_prog;
 
 	err = bpf_prog_test_run(tgt_fd, 1, &pkt_v6, sizeof(pkt_v6),
-				NULL, NULL, &retval, &duration);
-	CHECK(err || retval, "ipv6",
-	      "err %d errno %d retval %d duration %d\n",
-	      err, errno, retval, duration);
+				NULL, NULL, &retval, NULL);
+	ASSERT_OK(err, "prog_run");
+	ASSERT_EQ(retval, 0, "prog_run_ret");
 
 	if (check_data_map(obj, prog_cnt, false))
 		goto close_prog;
 
 close_prog:
 	for (i = 0; i < prog_cnt; i++)
-		if (!IS_ERR_OR_NULL(link[i]))
-			bpf_link__destroy(link[i]);
-	if (!IS_ERR_OR_NULL(obj))
-		bpf_object__close(obj);
+		bpf_link__destroy(link[i]);
+	bpf_object__close(obj);
 	bpf_object__close(tgt_obj);
 	free(link);
 	free(prog);
@@ -201,7 +229,7 @@ static int test_second_attach(struct bpf_object *obj)
 		return err;
 
 	link = bpf_program__attach_freplace(prog, tgt_fd, tgt_name);
-	if (CHECK(IS_ERR(link), "second_link", "failed to attach second link prog_fd %d tgt_fd %d\n", bpf_program__fd(prog), tgt_fd))
+	if (!ASSERT_OK_PTR(link, "second_link"))
 		goto out;
 
 	err = bpf_prog_test_run(tgt_fd, 1, &pkt_v6, sizeof(pkt_v6),
@@ -253,9 +281,7 @@ static void test_fmod_ret_freplace(void)
 	opts.attach_prog_fd = pkt_fd;
 
 	freplace_obj = bpf_object__open_file(freplace_name, &opts);
-	if (CHECK(IS_ERR_OR_NULL(freplace_obj), "freplace_obj_open",
-		  "failed to open %s: %ld\n", freplace_name,
-		  PTR_ERR(freplace_obj)))
+	if (!ASSERT_OK_PTR(freplace_obj, "freplace_obj_open"))
 		goto out;
 
 	err = bpf_object__load(freplace_obj);
@@ -264,14 +290,12 @@ static void test_fmod_ret_freplace(void)
 
 	prog = bpf_program__next(NULL, freplace_obj);
 	freplace_link = bpf_program__attach_trace(prog);
-	if (CHECK(IS_ERR(freplace_link), "freplace_attach_trace", "failed to link\n"))
+	if (!ASSERT_OK_PTR(freplace_link, "freplace_attach_trace"))
 		goto out;
 
 	opts.attach_prog_fd = bpf_program__fd(prog);
 	fmod_obj = bpf_object__open_file(fmod_ret_name, &opts);
-	if (CHECK(IS_ERR_OR_NULL(fmod_obj), "fmod_obj_open",
-		  "failed to open %s: %ld\n", fmod_ret_name,
-		  PTR_ERR(fmod_obj)))
+	if (!ASSERT_OK_PTR(fmod_obj, "fmod_obj_open"))
 		goto out;
 
 	err = bpf_object__load(fmod_obj);
@@ -320,9 +344,7 @@ static void test_obj_load_failure_common(const char *obj_file,
 			   );
 
 	obj = bpf_object__open_file(obj_file, &opts);
-	if (CHECK(IS_ERR_OR_NULL(obj), "obj_open",
-		  "failed to open %s: %ld\n", obj_file,
-		  PTR_ERR(obj)))
+	if (!ASSERT_OK_PTR(obj, "obj_open"))
 		goto close_prog;
 
 	/* It should fail to load the program */
@@ -331,8 +353,7 @@ static void test_obj_load_failure_common(const char *obj_file,
 		goto close_prog;
 
 close_prog:
-	if (!IS_ERR_OR_NULL(obj))
-		bpf_object__close(obj);
+	bpf_object__close(obj);
 	bpf_object__close(pkt_obj);
 }
 

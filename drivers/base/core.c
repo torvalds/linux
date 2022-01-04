@@ -27,6 +27,7 @@
 #include <linux/netdevice.h>
 #include <linux/sched/signal.h>
 #include <linux/sched/mm.h>
+#include <linux/swiotlb.h>
 #include <linux/sysfs.h>
 #include <linux/dma-map-ops.h> /* for dma_default_coherent */
 
@@ -150,7 +151,7 @@ void fwnode_links_purge(struct fwnode_handle *fwnode)
 	fwnode_links_purge_consumers(fwnode);
 }
 
-static void fw_devlink_purge_absent_suppliers(struct fwnode_handle *fwnode)
+void fw_devlink_purge_absent_suppliers(struct fwnode_handle *fwnode)
 {
 	struct fwnode_handle *child;
 
@@ -164,6 +165,7 @@ static void fw_devlink_purge_absent_suppliers(struct fwnode_handle *fwnode)
 	fwnode_for_each_available_child_node(fwnode, child)
 		fw_devlink_purge_absent_suppliers(child);
 }
+EXPORT_SYMBOL_GPL(fw_devlink_purge_absent_suppliers);
 
 #ifdef CONFIG_SRCU
 static DEFINE_MUTEX(device_links_lock);
@@ -192,6 +194,17 @@ void device_links_read_unlock(int idx) __releases(&device_links_srcu)
 int device_links_read_lock_held(void)
 {
 	return srcu_read_lock_held(&device_links_srcu);
+}
+
+static void device_link_synchronize_removal(void)
+{
+	synchronize_srcu(&device_links_srcu);
+}
+
+static void device_link_remove_from_lists(struct device_link *link)
+{
+	list_del_rcu(&link->s_node);
+	list_del_rcu(&link->c_node);
 }
 #else /* !CONFIG_SRCU */
 static DECLARE_RWSEM(device_links_lock);
@@ -223,6 +236,16 @@ int device_links_read_lock_held(void)
 	return lockdep_is_held(&device_links_lock);
 }
 #endif
+
+static inline void device_link_synchronize_removal(void)
+{
+}
+
+static void device_link_remove_from_lists(struct device_link *link)
+{
+	list_del(&link->s_node);
+	list_del(&link->c_node);
+}
 #endif /* !CONFIG_SRCU */
 
 static bool device_is_ancestor(struct device *dev, struct device *target)
@@ -444,8 +467,13 @@ static struct attribute *devlink_attrs[] = {
 };
 ATTRIBUTE_GROUPS(devlink);
 
-static void device_link_free(struct device_link *link)
+static void device_link_release_fn(struct work_struct *work)
 {
+	struct device_link *link = container_of(work, struct device_link, rm_work);
+
+	/* Ensure that all references to the link object have been dropped. */
+	device_link_synchronize_removal();
+
 	while (refcount_dec_not_one(&link->rpm_active))
 		pm_runtime_put(link->supplier);
 
@@ -454,24 +482,19 @@ static void device_link_free(struct device_link *link)
 	kfree(link);
 }
 
-#ifdef CONFIG_SRCU
-static void __device_link_free_srcu(struct rcu_head *rhead)
-{
-	device_link_free(container_of(rhead, struct device_link, rcu_head));
-}
-
 static void devlink_dev_release(struct device *dev)
 {
 	struct device_link *link = to_devlink(dev);
 
-	call_srcu(&device_links_srcu, &link->rcu_head, __device_link_free_srcu);
+	INIT_WORK(&link->rm_work, device_link_release_fn);
+	/*
+	 * It may take a while to complete this work because of the SRCU
+	 * synchronization in device_link_release_fn() and if the consumer or
+	 * supplier devices get deleted when it runs, so put it into the "long"
+	 * workqueue.
+	 */
+	queue_work(system_long_wq, &link->rm_work);
 }
-#else
-static void devlink_dev_release(struct device *dev)
-{
-	device_link_free(to_devlink(dev));
-}
-#endif
 
 static struct class devlink_class = {
 	.name = "devlink",
@@ -552,8 +575,10 @@ static void devlink_remove_symlinks(struct device *dev,
 		return;
 	}
 
-	snprintf(buf, len, "supplier:%s:%s", dev_bus_name(sup), dev_name(sup));
-	sysfs_remove_link(&con->kobj, buf);
+	if (device_is_registered(con)) {
+		snprintf(buf, len, "supplier:%s:%s", dev_bus_name(sup), dev_name(sup));
+		sysfs_remove_link(&con->kobj, buf);
+	}
 	snprintf(buf, len, "consumer:%s:%s", dev_bus_name(con), dev_name(con));
 	sysfs_remove_link(&sup->kobj, buf);
 	kfree(buf);
@@ -845,7 +870,6 @@ out:
 }
 EXPORT_SYMBOL_GPL(device_link_add);
 
-#ifdef CONFIG_SRCU
 static void __device_link_del(struct kref *kref)
 {
 	struct device_link *link = container_of(kref, struct device_link, kref);
@@ -855,30 +879,16 @@ static void __device_link_del(struct kref *kref)
 
 	pm_runtime_drop_link(link);
 
-	list_del_rcu(&link->s_node);
-	list_del_rcu(&link->c_node);
+	device_link_remove_from_lists(link);
 	device_unregister(&link->link_dev);
 }
-#else /* !CONFIG_SRCU */
-static void __device_link_del(struct kref *kref)
-{
-	struct device_link *link = container_of(kref, struct device_link, kref);
-
-	dev_info(link->consumer, "Dropping the link to %s\n",
-		 dev_name(link->supplier));
-
-	pm_runtime_drop_link(link);
-
-	list_del(&link->s_node);
-	list_del(&link->c_node);
-	device_unregister(&link->link_dev);
-}
-#endif /* !CONFIG_SRCU */
 
 static void device_link_put_kref(struct device_link *link)
 {
 	if (link->flags & DL_FLAG_STATELESS)
 		kref_put(&link->kref, __device_link_del);
+	else if (!device_is_registered(link->consumer))
+		__device_link_del(&link->kref);
 	else
 		WARN(1, "Unable to drop a managed device link reference\n");
 }
@@ -1995,24 +2005,24 @@ static inline int device_is_not_partition(struct device *dev)
 }
 #endif
 
-static int
-device_platform_notify(struct device *dev, enum kobject_action action)
+static void device_platform_notify(struct device *dev)
 {
-	int ret;
+	acpi_device_notify(dev);
 
-	ret = acpi_platform_notify(dev, action);
-	if (ret)
-		return ret;
+	software_node_notify(dev);
 
-	ret = software_node_notify(dev, action);
-	if (ret)
-		return ret;
-
-	if (platform_notify && action == KOBJ_ADD)
+	if (platform_notify)
 		platform_notify(dev);
-	else if (platform_notify_remove && action == KOBJ_REMOVE)
+}
+
+static void device_platform_notify_remove(struct device *dev)
+{
+	acpi_device_notify_remove(dev);
+
+	software_node_notify_remove(dev);
+
+	if (platform_notify_remove)
 		platform_notify_remove(dev);
-	return 0;
 }
 
 /**
@@ -2404,6 +2414,25 @@ static ssize_t online_store(struct device *dev, struct device_attribute *attr,
 }
 static DEVICE_ATTR_RW(online);
 
+static ssize_t removable_show(struct device *dev, struct device_attribute *attr,
+			      char *buf)
+{
+	const char *loc;
+
+	switch (dev->removable) {
+	case DEVICE_REMOVABLE:
+		loc = "removable";
+		break;
+	case DEVICE_FIXED:
+		loc = "fixed";
+		break;
+	default:
+		loc = "unknown";
+	}
+	return sysfs_emit(buf, "%s\n", loc);
+}
+static DEVICE_ATTR_RO(removable);
+
 int device_add_groups(struct device *dev, const struct attribute_group **groups)
 {
 	return sysfs_create_groups(&dev->kobj, groups);
@@ -2581,8 +2610,16 @@ static int device_add_attrs(struct device *dev)
 			goto err_remove_dev_online;
 	}
 
+	if (dev_removable_is_valid(dev)) {
+		error = device_create_file(dev, &dev_attr_removable);
+		if (error)
+			goto err_remove_dev_waiting_for_supplier;
+	}
+
 	return 0;
 
+ err_remove_dev_waiting_for_supplier:
+	device_remove_file(dev, &dev_attr_waiting_for_supplier);
  err_remove_dev_online:
 	device_remove_file(dev, &dev_attr_online);
  err_remove_dev_groups:
@@ -2602,6 +2639,7 @@ static void device_remove_attrs(struct device *dev)
 	struct class *class = dev->class;
 	const struct device_type *type = dev->type;
 
+	device_remove_file(dev, &dev_attr_removable);
 	device_remove_file(dev, &dev_attr_waiting_for_supplier);
 	device_remove_file(dev, &dev_attr_online);
 	device_remove_groups(dev, dev->groups);
@@ -2802,6 +2840,7 @@ void device_initialize(struct device *dev)
 	device_pm_init(dev);
 	set_dev_node(dev, -1);
 #ifdef CONFIG_GENERIC_MSI_IRQ
+	raw_spin_lock_init(&dev->msi_lock);
 	INIT_LIST_HEAD(&dev->msi_list);
 #endif
 	INIT_LIST_HEAD(&dev->links.consumers);
@@ -2812,6 +2851,9 @@ void device_initialize(struct device *dev)
     defined(CONFIG_ARCH_HAS_SYNC_DMA_FOR_CPU) || \
     defined(CONFIG_ARCH_HAS_SYNC_DMA_FOR_CPU_ALL)
 	dev->dma_coherent = dma_default_coherent;
+#endif
+#ifdef CONFIG_SWIOTLB
+	dev->dma_io_tlb_mem = &io_tlb_default_mem;
 #endif
 }
 EXPORT_SYMBOL_GPL(device_initialize);
@@ -3256,9 +3298,7 @@ int device_add(struct device *dev)
 	}
 
 	/* notify platform of device entry */
-	error = device_platform_notify(dev, KOBJ_ADD);
-	if (error)
-		goto platform_error;
+	device_platform_notify(dev);
 
 	error = device_create_file(dev, &dev_attr_uevent);
 	if (error)
@@ -3361,8 +3401,7 @@ done:
  SymlinkError:
 	device_remove_file(dev, &dev_attr_uevent);
  attrError:
-	device_platform_notify(dev, KOBJ_REMOVE);
-platform_error:
+	device_platform_notify_remove(dev);
 	kobject_uevent(&dev->kobj, KOBJ_REMOVE);
 	glue_dir = get_glue_dir(dev);
 	kobject_del(&dev->kobj);
@@ -3437,7 +3476,7 @@ bool kill_device(struct device *dev)
 	 * to run while we are tearing out the bus/class/sysfs from
 	 * underneath the device.
 	 */
-	lockdep_assert_held(&dev->mutex);
+	device_lock_assert(dev);
 
 	if (dev->p->dead)
 		return false;
@@ -3507,7 +3546,7 @@ void device_del(struct device *dev)
 	bus_remove_device(dev);
 	device_pm_remove(dev);
 	driver_deferred_probe_del(dev);
-	device_platform_notify(dev, KOBJ_REMOVE);
+	device_platform_notify_remove(dev);
 	device_remove_properties(dev);
 	device_links_purge(dev);
 
@@ -4546,8 +4585,8 @@ static void __dev_printk(const char *level, const struct device *dev,
 		printk("%s(NULL device *): %pV", level, vaf);
 }
 
-void dev_printk(const char *level, const struct device *dev,
-		const char *fmt, ...)
+void _dev_printk(const char *level, const struct device *dev,
+		 const char *fmt, ...)
 {
 	struct va_format vaf;
 	va_list args;
@@ -4561,7 +4600,7 @@ void dev_printk(const char *level, const struct device *dev,
 
 	va_end(args);
 }
-EXPORT_SYMBOL(dev_printk);
+EXPORT_SYMBOL(_dev_printk);
 
 #define define_dev_printk_level(func, kern_level)		\
 void func(const struct device *dev, const char *fmt, ...)	\
@@ -4721,6 +4760,13 @@ void device_set_of_node_from_dev(struct device *dev, const struct device *dev2)
 	dev->of_node_reused = true;
 }
 EXPORT_SYMBOL_GPL(device_set_of_node_from_dev);
+
+void device_set_node(struct device *dev, struct fwnode_handle *fwnode)
+{
+	dev->fwnode = fwnode;
+	dev->of_node = to_of_node(fwnode);
+}
+EXPORT_SYMBOL_GPL(device_set_node);
 
 int device_match_name(struct device *dev, const void *name)
 {

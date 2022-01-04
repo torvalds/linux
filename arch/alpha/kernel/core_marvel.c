@@ -287,8 +287,7 @@ io7_init_hose(struct io7 *io7, int port)
 	/*
 	 * Set up window 0 for scatter-gather 8MB at 8MB.
 	 */
-	hose->sg_isa = iommu_arena_new_node(marvel_cpuid_to_nid(io7->pe),
-					    hose, 0x00800000, 0x00800000, 0);
+	hose->sg_isa = iommu_arena_new_node(0, hose, 0x00800000, 0x00800000, 0);
 	hose->sg_isa->align_entry = 8;	/* cache line boundary */
 	csrs->POx_WBASE[0].csr = 
 		hose->sg_isa->dma_base | wbase_m_ena | wbase_m_sg;
@@ -305,8 +304,7 @@ io7_init_hose(struct io7 *io7, int port)
 	/*
 	 * Set up window 2 for scatter-gather (up-to) 1GB at 3GB.
 	 */
-	hose->sg_pci = iommu_arena_new_node(marvel_cpuid_to_nid(io7->pe),
-					    hose, 0xc0000000, 0x40000000, 0);
+	hose->sg_pci = iommu_arena_new_node(0, hose, 0xc0000000, 0x40000000, 0);
 	hose->sg_pci->align_entry = 8;	/* cache line boundary */
 	csrs->POx_WBASE[2].csr = 
 		hose->sg_pci->dma_base | wbase_m_ena | wbase_m_sg;
@@ -843,53 +841,8 @@ EXPORT_SYMBOL(marvel_ioportmap);
 EXPORT_SYMBOL(marvel_ioread8);
 EXPORT_SYMBOL(marvel_iowrite8);
 #endif
-
+
 /*
- * NUMA Support
- */
-/**********
- * FIXME - for now each cpu is a node by itself 
- *              -- no real support for striped mode 
- **********
- */
-int
-marvel_pa_to_nid(unsigned long pa)
-{
-	int cpuid;
-
-	if ((pa >> 43) & 1) 	/* I/O */ 
-		cpuid = (~(pa >> 35) & 0xff);
-	else			/* mem */
-		cpuid = ((pa >> 34) & 0x3) | ((pa >> (37 - 2)) & (0x1f << 2));
-
-	return marvel_cpuid_to_nid(cpuid);
-}
-
-int
-marvel_cpuid_to_nid(int cpuid)
-{
-	return cpuid;
-}
-
-unsigned long
-marvel_node_mem_start(int nid)
-{
-	unsigned long pa;
-
-	pa = (nid & 0x3) | ((nid & (0x1f << 2)) << 1);
-	pa <<= 34;
-
-	return pa;
-}
-
-unsigned long
-marvel_node_mem_size(int nid)
-{
-	return 16UL * 1024 * 1024 * 1024; /* 16GB */
-}
-
-
-/* 
  * AGP GART Support.
  */
 #include <linux/agp_backend.h>

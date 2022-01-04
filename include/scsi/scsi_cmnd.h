@@ -10,6 +10,7 @@
 #include <linux/timer.h>
 #include <linux/scatterlist.h>
 #include <scsi/scsi_device.h>
+#include <scsi/scsi_host.h>
 #include <scsi/scsi_request.h>
 
 struct Scsi_Host;
@@ -55,11 +56,10 @@ struct scsi_pointer {
 
 /* for scmd->flags */
 #define SCMD_TAGGED		(1 << 0)
-#define SCMD_UNCHECKED_ISA_DMA	(1 << 1)
-#define SCMD_INITIALIZED	(1 << 2)
-#define SCMD_LAST		(1 << 3)
+#define SCMD_INITIALIZED	(1 << 1)
+#define SCMD_LAST		(1 << 2)
 /* flags preserved across unprep / reprep */
-#define SCMD_PRESERVED_FLAGS	(SCMD_UNCHECKED_ISA_DMA | SCMD_INITIALIZED)
+#define SCMD_PRESERVED_FLAGS	(SCMD_INITIALIZED)
 
 /* for scmd->state */
 #define SCMD_STATE_COMPLETE	0
@@ -74,6 +74,8 @@ struct scsi_cmnd {
 	struct rcu_head rcu;
 
 	int eh_eflags;		/* Used by error handlr */
+
+	int budget_token;
 
 	/*
 	 * This is set to jiffies as it was when the command was first
@@ -109,9 +111,6 @@ struct scsi_cmnd {
 				   reconnects.   Probably == sector
 				   size */
 
-	struct request *request;	/* The command we are
-				   	   working on */
-
 	unsigned char *sense_buffer;
 				/* obtained by REQUEST SENSE when
 				 * CHECK CONDITION is received on original
@@ -140,9 +139,14 @@ struct scsi_cmnd {
 	int flags;		/* Command flags */
 	unsigned long state;	/* Command completion state */
 
-	unsigned char tag;	/* SCSI-II queued command tag */
 	unsigned int extra_len;	/* length of alignment and padding */
 };
+
+/* Variant of blk_mq_rq_from_pdu() that verifies the type of its argument. */
+static inline struct request *scsi_cmd_to_rq(struct scsi_cmnd *scmd)
+{
+	return blk_mq_rq_from_pdu(scmd);
+}
 
 /*
  * Return the driver private allocation behind the command.
@@ -156,7 +160,9 @@ static inline void *scsi_cmd_priv(struct scsi_cmnd *cmd)
 /* make sure not to use it with passthrough commands */
 static inline struct scsi_driver *scsi_cmd_to_driver(struct scsi_cmnd *cmd)
 {
-	return *(struct scsi_driver **)cmd->request->rq_disk->private_data;
+	struct request *rq = scsi_cmd_to_rq(cmd);
+
+	return *(struct scsi_driver **)rq->rq_disk->private_data;
 }
 
 extern void scsi_finish_command(struct scsi_cmnd *cmd);
@@ -216,6 +222,25 @@ static inline int scsi_sg_copy_to_buffer(struct scsi_cmnd *cmd,
 {
 	return sg_copy_to_buffer(scsi_sglist(cmd), scsi_sg_count(cmd),
 				 buf, buflen);
+}
+
+static inline sector_t scsi_get_sector(struct scsi_cmnd *scmd)
+{
+	return blk_rq_pos(scsi_cmd_to_rq(scmd));
+}
+
+static inline sector_t scsi_get_lba(struct scsi_cmnd *scmd)
+{
+	unsigned int shift = ilog2(scmd->device->sector_size) - SECTOR_SHIFT;
+
+	return blk_rq_pos(scsi_cmd_to_rq(scmd)) >> shift;
+}
+
+static inline unsigned int scsi_logical_block_count(struct scsi_cmnd *scmd)
+{
+	unsigned int shift = ilog2(scmd->device->sector_size) - SECTOR_SHIFT;
+
+	return blk_rq_bytes(scsi_cmd_to_rq(scmd)) >> shift;
 }
 
 /*
@@ -280,9 +305,11 @@ static inline unsigned char scsi_get_prot_type(struct scsi_cmnd *scmd)
 	return scmd->prot_type;
 }
 
-static inline sector_t scsi_get_lba(struct scsi_cmnd *scmd)
+static inline u32 scsi_prot_ref_tag(struct scsi_cmnd *scmd)
 {
-	return blk_rq_pos(scmd->request);
+	struct request *rq = blk_mq_rq_from_pdu(scmd);
+
+	return t10_pi_ref_tag(rq);
 }
 
 static inline unsigned int scsi_prot_interval(struct scsi_cmnd *scmd)
@@ -313,9 +340,9 @@ static inline void set_status_byte(struct scsi_cmnd *cmd, char status)
 	cmd->result = (cmd->result & 0xffffff00) | status;
 }
 
-static inline void set_msg_byte(struct scsi_cmnd *cmd, char status)
+static inline u8 get_status_byte(struct scsi_cmnd *cmd)
 {
-	cmd->result = (cmd->result & 0xffff00ff) | (status << 8);
+	return cmd->result & 0xff;
 }
 
 static inline void set_host_byte(struct scsi_cmnd *cmd, char status)
@@ -323,9 +350,36 @@ static inline void set_host_byte(struct scsi_cmnd *cmd, char status)
 	cmd->result = (cmd->result & 0xff00ffff) | (status << 16);
 }
 
-static inline void set_driver_byte(struct scsi_cmnd *cmd, char status)
+static inline u8 get_host_byte(struct scsi_cmnd *cmd)
 {
-	cmd->result = (cmd->result & 0x00ffffff) | (status << 24);
+	return (cmd->result >> 16) & 0xff;
+}
+
+/**
+ * scsi_msg_to_host_byte() - translate message byte
+ *
+ * Translate the SCSI parallel message byte to a matching
+ * host byte setting. A message of COMMAND_COMPLETE indicates
+ * a successful command execution, any other message indicate
+ * an error. As the messages themselves only have a meaning
+ * for the SCSI parallel protocol this function translates
+ * them into a matching host byte value for SCSI EH.
+ */
+static inline void scsi_msg_to_host_byte(struct scsi_cmnd *cmd, u8 msg)
+{
+	switch (msg) {
+	case COMMAND_COMPLETE:
+		break;
+	case ABORT_TASK_SET:
+		set_host_byte(cmd, DID_ABORT);
+		break;
+	case TARGET_RESET:
+		set_host_byte(cmd, DID_RESET);
+		break;
+	default:
+		set_host_byte(cmd, DID_ERROR);
+		break;
+	}
 }
 
 static inline unsigned scsi_transfer_length(struct scsi_cmnd *scmd)
@@ -338,5 +392,8 @@ static inline unsigned scsi_transfer_length(struct scsi_cmnd *scmd)
 
 	return xfer_len;
 }
+
+extern void scsi_build_sense(struct scsi_cmnd *scmd, int desc,
+			     u8 key, u8 asc, u8 ascq);
 
 #endif /* _SCSI_SCSI_CMND_H */

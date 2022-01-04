@@ -33,6 +33,8 @@
 #include "dcn21/display_rq_dlg_calc_21.h"
 #include "dcn30/display_mode_vba_30.h"
 #include "dcn30/display_rq_dlg_calc_30.h"
+#include "dcn31/display_mode_vba_31.h"
+#include "dcn31/display_rq_dlg_calc_31.h"
 #include "dml_logger.h"
 
 const struct dml_funcs dml20_funcs = {
@@ -63,6 +65,13 @@ const struct dml_funcs dml30_funcs = {
 	.rq_dlg_get_rq_reg = dml30_rq_dlg_get_rq_reg
 };
 
+const struct dml_funcs dml31_funcs = {
+	.validate = dml31_ModeSupportAndSystemConfigurationFull,
+	.recalculate = dml31_recalculate,
+	.rq_dlg_get_dlg_reg = dml31_rq_dlg_get_dlg_reg,
+	.rq_dlg_get_rq_reg = dml31_rq_dlg_get_rq_reg
+};
+
 void dml_init_instance(struct display_mode_lib *lib,
 		const struct _vcs_dpi_soc_bounding_box_st *soc_bb,
 		const struct _vcs_dpi_ip_params_st *ip_params,
@@ -83,6 +92,10 @@ void dml_init_instance(struct display_mode_lib *lib,
                 break;
 	case DML_PROJECT_DCN30:
 		lib->funcs = dml30_funcs;
+		break;
+	case DML_PROJECT_DCN31:
+	case DML_PROJECT_DCN31_FPGA:
+		lib->funcs = dml31_funcs;
 		break;
 
 	default:
@@ -226,7 +239,7 @@ void dml_log_pipe_params(
 		dml_print("DML PARAMS: PIPE [%d] DISPLAY OUTPUT PARAMS:\n", i);
 		dml_print("DML PARAMS:     output_type                = %d\n", dout->output_type);
 		dml_print("DML PARAMS:     output_format              = %d\n", dout->output_format);
-		dml_print("DML PARAMS:     output_bpc                 = %d\n", dout->output_bpc);
+		dml_print("DML PARAMS:     dsc_input_bpc              = %d\n", dout->dsc_input_bpc);
 		dml_print("DML PARAMS:     output_bpp                 = %3.4f\n", dout->output_bpp);
 		dml_print("DML PARAMS:     dp_lanes                   = %d\n", dout->dp_lanes);
 		dml_print("DML PARAMS:     dsc_enable                 = %d\n", dout->dsc_enable);

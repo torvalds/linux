@@ -638,7 +638,8 @@ static void pci_dma_bus_setup_pSeries(struct pci_bus *bus)
 
 	iommu_table_setparms(pci->phb, dn, tbl);
 	tbl->it_ops = &iommu_table_pseries_ops;
-	iommu_init_table(tbl, pci->phb->node, 0, 0);
+	if (!iommu_init_table(tbl, pci->phb->node, 0, 0))
+		panic("Failed to initialize iommu table");
 
 	/* Divide the rest (1.75GB) among the children */
 	pci->phb->dma_window_size = 0x80000000ul;
@@ -720,7 +721,8 @@ static void pci_dma_bus_setup_pSeriesLP(struct pci_bus *bus)
 		iommu_table_setparms_lpar(ppci->phb, pdn, tbl,
 				ppci->table_group, dma_window);
 		tbl->it_ops = &iommu_table_lpar_multi_ops;
-		iommu_init_table(tbl, ppci->phb->node, 0, 0);
+		if (!iommu_init_table(tbl, ppci->phb->node, 0, 0))
+			panic("Failed to initialize iommu table");
 		iommu_register_group(ppci->table_group,
 				pci_domain_nr(bus), 0);
 		pr_debug("  created table: %p\n", ppci->table_group);
@@ -749,7 +751,9 @@ static void pci_dma_dev_setup_pSeries(struct pci_dev *dev)
 		tbl = PCI_DN(dn)->table_group->tables[0];
 		iommu_table_setparms(phb, dn, tbl);
 		tbl->it_ops = &iommu_table_pseries_ops;
-		iommu_init_table(tbl, phb->node, 0, 0);
+		if (!iommu_init_table(tbl, phb->node, 0, 0))
+			panic("Failed to initialize iommu table");
+
 		set_iommu_table_base(&dev->dev, tbl);
 		return;
 	}
@@ -1099,6 +1103,33 @@ static void reset_dma_window(struct pci_dev *dev, struct device_node *par_dn)
 			 ret);
 }
 
+/* Return largest page shift based on "IO Page Sizes" output of ibm,query-pe-dma-window. */
+static int iommu_get_page_shift(u32 query_page_size)
+{
+	/* Supported IO page-sizes according to LoPAR */
+	const int shift[] = {
+		__builtin_ctzll(SZ_4K),   __builtin_ctzll(SZ_64K), __builtin_ctzll(SZ_16M),
+		__builtin_ctzll(SZ_32M),  __builtin_ctzll(SZ_64M), __builtin_ctzll(SZ_128M),
+		__builtin_ctzll(SZ_256M), __builtin_ctzll(SZ_16G)
+	};
+
+	int i = ARRAY_SIZE(shift) - 1;
+
+	/*
+	 * On LoPAR, ibm,query-pe-dma-window outputs "IO Page Sizes" using a bit field:
+	 * - bit 31 means 4k pages are supported,
+	 * - bit 30 means 64k pages are supported, and so on.
+	 * Larger pagesizes map more memory with the same amount of TCEs, so start probing them.
+	 */
+	for (; i >= 0 ; i--) {
+		if (query_page_size & (1 << i))
+			return shift[i];
+	}
+
+	/* No valid page size found. */
+	return 0;
+}
+
 /*
  * If the PE supports dynamic dma windows, and there is space for a table
  * that can map all pages in a linear offset, then setup such a table,
@@ -1206,13 +1237,9 @@ static u64 enable_ddw(struct pci_dev *dev, struct device_node *pdn)
 			goto out_failed;
 		}
 	}
-	if (query.page_size & 4) {
-		page_shift = 24; /* 16MB */
-	} else if (query.page_size & 2) {
-		page_shift = 16; /* 64kB */
-	} else if (query.page_size & 1) {
-		page_shift = 12; /* 4kB */
-	} else {
+
+	page_shift = iommu_get_page_shift(query.page_size);
+	if (!page_shift) {
 		dev_dbg(&dev->dev, "no supported direct page size in mask %x",
 			  query.page_size);
 		goto out_failed;
@@ -1229,7 +1256,7 @@ static u64 enable_ddw(struct pci_dev *dev, struct device_node *pdn)
 	if (pmem_present) {
 		if (query.largest_available_block >=
 		    (1ULL << (MAX_PHYSMEM_BITS - page_shift)))
-			len = MAX_PHYSMEM_BITS - page_shift;
+			len = MAX_PHYSMEM_BITS;
 		else
 			dev_info(&dev->dev, "Skipping ibm,pmemory");
 	}

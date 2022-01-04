@@ -10,7 +10,7 @@ maintainers:
   - Paul Cercueil <paul@crapouillou.net>
 
 allOf:
-  - $ref: /schemas/serial.yaml#
+  - $ref: serial.yaml#
 
 properties:
   $nodename:
@@ -91,7 +91,7 @@ examples:
       bluetooth {
         compatible = "brcm,bcm4330-bt";
         reset-gpios = <&gpf 8 GPIO_ACTIVE_HIGH>;
-        vcc-supply = <&wlan0_power>;
+        vbat-supply = <&wlan0_power>;
         device-wakeup-gpios = <&gpf 5 GPIO_ACTIVE_HIGH>;
         host-wakeup-gpios = <&gpf 6 GPIO_ACTIVE_HIGH>;
         shutdown-gpios = <&gpf 4 GPIO_ACTIVE_LOW>;

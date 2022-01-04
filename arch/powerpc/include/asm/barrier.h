@@ -46,6 +46,8 @@
 #    define SMPWMB      eieio
 #endif
 
+/* clang defines this macro for a builtin, which will not work with runtime patching */
+#undef __lwsync
 #define __lwsync()	__asm__ __volatile__ (stringify_in_c(LWSYNC) : : :"memory")
 #define dma_rmb()	__lwsync()
 #define dma_wmb()	__asm__ __volatile__ (stringify_in_c(SMPWMB) : : :"memory")
@@ -79,22 +81,6 @@ do {									\
 	__smp_lwsync();							\
 	___p1;								\
 })
-
-#ifdef CONFIG_PPC64
-#define smp_cond_load_relaxed(ptr, cond_expr) ({		\
-	typeof(ptr) __PTR = (ptr);				\
-	__unqual_scalar_typeof(*ptr) VAL;			\
-	VAL = READ_ONCE(*__PTR);				\
-	if (unlikely(!(cond_expr))) {				\
-		spin_begin();					\
-		do {						\
-			VAL = READ_ONCE(*__PTR);		\
-		} while (!(cond_expr));				\
-		spin_end();					\
-	}							\
-	(typeof(*ptr))VAL;					\
-})
-#endif
 
 #ifdef CONFIG_PPC_BOOK3S_64
 #define NOSPEC_BARRIER_SLOT   nop

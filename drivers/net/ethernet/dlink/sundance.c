@@ -479,7 +479,7 @@ static const struct net_device_ops netdev_ops = {
 	.ndo_start_xmit		= start_tx,
 	.ndo_get_stats 		= get_stats,
 	.ndo_set_rx_mode	= set_rx_mode,
-	.ndo_do_ioctl 		= netdev_ioctl,
+	.ndo_eth_ioctl		= netdev_ioctl,
 	.ndo_tx_timeout		= tx_timeout,
 	.ndo_change_mtu		= change_mtu,
 	.ndo_set_mac_address 	= sundance_set_mac_addr,
@@ -1847,20 +1847,20 @@ static int netdev_close(struct net_device *dev)
 	/* Stop the chip's Tx and Rx processes. */
 	iowrite16(TxDisable | RxDisable | StatsDisable, ioaddr + MACCtrl1);
 
-    	for (i = 2000; i > 0; i--) {
- 		if ((ioread32(ioaddr + DMACtrl) & 0xc000) == 0)
+	for (i = 2000; i > 0; i--) {
+		if ((ioread32(ioaddr + DMACtrl) & 0xc000) == 0)
 			break;
 		mdelay(1);
-    	}
+	}
 
-    	iowrite16(GlobalReset | DMAReset | FIFOReset | NetworkReset,
+	iowrite16(GlobalReset | DMAReset | FIFOReset | NetworkReset,
 			ioaddr + ASIC_HI_WORD(ASICCtrl));
 
-    	for (i = 2000; i > 0; i--) {
+	for (i = 2000; i > 0; i--) {
 		if ((ioread16(ioaddr + ASIC_HI_WORD(ASICCtrl)) & ResetBusy) == 0)
 			break;
 		mdelay(1);
-    	}
+	}
 
 #ifdef __i386__
 	if (netif_msg_hw(np)) {
@@ -1982,17 +1982,4 @@ static struct pci_driver sundance_driver = {
 	.driver.pm	= &sundance_pm_ops,
 };
 
-static int __init sundance_init(void)
-{
-	return pci_register_driver(&sundance_driver);
-}
-
-static void __exit sundance_exit(void)
-{
-	pci_unregister_driver(&sundance_driver);
-}
-
-module_init(sundance_init);
-module_exit(sundance_exit);
-
-
+module_pci_driver(sundance_driver);

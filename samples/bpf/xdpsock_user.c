@@ -1,12 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Copyright(c) 2017 - 2018 Intel Corporation. */
 
-#include <asm/barrier.h>
 #include <errno.h>
 #include <getopt.h>
 #include <libgen.h>
 #include <linux/bpf.h>
-#include <linux/compiler.h>
 #include <linux/if_link.h>
 #include <linux/if_xdp.h>
 #include <linux/if_ether.h>
@@ -465,25 +463,18 @@ static void *poller(void *arg)
 static void remove_xdp_program(void)
 {
 	u32 curr_prog_id = 0;
-	int cmd = CLOSE_CONN;
 
 	if (bpf_get_link_xdp_id(opt_ifindex, &curr_prog_id, opt_xdp_flags)) {
 		printf("bpf_get_link_xdp_id failed\n");
 		exit(EXIT_FAILURE);
 	}
+
 	if (prog_id == curr_prog_id)
 		bpf_set_link_xdp_fd(opt_ifindex, -1, opt_xdp_flags);
 	else if (!curr_prog_id)
 		printf("couldn't find a prog id on a given interface\n");
 	else
 		printf("program on interface changed, not removing\n");
-
-	if (opt_reduced_cap) {
-		if (write(sock, &cmd, sizeof(int)) < 0) {
-			fprintf(stderr, "Error writing into stream socket: %s", strerror(errno));
-			exit(EXIT_FAILURE);
-		}
-	}
 }
 
 static void int_exit(int sig)
@@ -491,30 +482,38 @@ static void int_exit(int sig)
 	benchmark_done = true;
 }
 
-static void xdpsock_cleanup(void)
-{
-	struct xsk_umem *umem = xsks[0]->umem->umem;
-	int i;
-
-	dump_stats();
-	for (i = 0; i < num_socks; i++)
-		xsk_socket__delete(xsks[i]->xsk);
-	(void)xsk_umem__delete(umem);
-	remove_xdp_program();
-}
-
 static void __exit_with_error(int error, const char *file, const char *func,
 			      int line)
 {
 	fprintf(stderr, "%s:%s:%i: errno: %d/\"%s\"\n", file, func,
 		line, error, strerror(error));
-	dump_stats();
-	remove_xdp_program();
+
+	if (opt_num_xsks > 1)
+		remove_xdp_program();
 	exit(EXIT_FAILURE);
 }
 
-#define exit_with_error(error) __exit_with_error(error, __FILE__, __func__, \
-						 __LINE__)
+#define exit_with_error(error) __exit_with_error(error, __FILE__, __func__, __LINE__)
+
+static void xdpsock_cleanup(void)
+{
+	struct xsk_umem *umem = xsks[0]->umem->umem;
+	int i, cmd = CLOSE_CONN;
+
+	dump_stats();
+	for (i = 0; i < num_socks; i++)
+		xsk_socket__delete(xsks[i]->xsk);
+	(void)xsk_umem__delete(umem);
+
+	if (opt_reduced_cap) {
+		if (write(sock, &cmd, sizeof(int)) < 0)
+			exit_with_error(errno);
+	}
+
+	if (opt_num_xsks > 1)
+		remove_xdp_program();
+}
+
 static void swap_mac_addresses(void *data)
 {
 	struct ether_header *eth = (struct ether_header *)data;
@@ -652,17 +651,15 @@ out:
 	return result;
 }
 
-__sum16 ip_fast_csum(const void *iph, unsigned int ihl);
-
 /*
  *	This is a version of ip_compute_csum() optimized for IP headers,
  *	which always checksum on 4 octet boundaries.
  *	This function code has been taken from
  *	Linux kernel lib/checksum.c
  */
-__sum16 ip_fast_csum(const void *iph, unsigned int ihl)
+static inline __sum16 ip_fast_csum(const void *iph, unsigned int ihl)
 {
-	return (__force __sum16)~do_csum(iph, ihl * 4);
+	return (__sum16)~do_csum(iph, ihl * 4);
 }
 
 /*
@@ -672,11 +669,11 @@ __sum16 ip_fast_csum(const void *iph, unsigned int ihl)
  */
 static inline __sum16 csum_fold(__wsum csum)
 {
-	u32 sum = (__force u32)csum;
+	u32 sum = (u32)csum;
 
 	sum = (sum & 0xffff) + (sum >> 16);
 	sum = (sum & 0xffff) + (sum >> 16);
-	return (__force __sum16)~sum;
+	return (__sum16)~sum;
 }
 
 /*
@@ -702,16 +699,16 @@ __wsum csum_tcpudp_nofold(__be32 saddr, __be32 daddr,
 __wsum csum_tcpudp_nofold(__be32 saddr, __be32 daddr,
 			  __u32 len, __u8 proto, __wsum sum)
 {
-	unsigned long long s = (__force u32)sum;
+	unsigned long long s = (u32)sum;
 
-	s += (__force u32)saddr;
-	s += (__force u32)daddr;
+	s += (u32)saddr;
+	s += (u32)daddr;
 #ifdef __BIG_ENDIAN__
 	s += proto + len;
 #else
 	s += (proto + len) << 8;
 #endif
-	return (__force __wsum)from64to32(s);
+	return (__wsum)from64to32(s);
 }
 
 /*
@@ -1282,7 +1279,7 @@ static void tx_only(struct xsk_socket_info *xsk, u32 *frame_nb, int batch_size)
 	for (i = 0; i < batch_size; i++) {
 		struct xdp_desc *tx_desc = xsk_ring_prod__tx_desc(&xsk->tx,
 								  idx + i);
-		tx_desc->addr = (*frame_nb + i) << XSK_UMEM__DEFAULT_FRAME_SHIFT;
+		tx_desc->addr = (*frame_nb + i) * opt_xsk_frame_size;
 		tx_desc->len = PKT_SIZE;
 	}
 

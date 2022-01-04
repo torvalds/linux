@@ -1,0 +1,82 @@
+# SPDX-License-Identifier: GPL-2.0
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/net/mdio-mux-multiplexer.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Properties for an MDIO bus multiplexer consumer device
+
+maintainers:
+  - Andrew Lunn <andrew@lunn.ch>
+
+description: |+
+  This is a special case of MDIO mux when MDIO mux is defined as a consumer
+  of a mux producer device. The mux producer can be of any type like mmio mux
+  producer, gpio mux producer or generic register based mux producer.
+
+
+allOf:
+  - $ref: /schemas/net/mdio-mux.yaml#
+
+properties:
+  compatible:
+    const: mdio-mux-multiplexer
+
+  mux-controls:
+    maxItems: 1
+
+required:
+  - compatible
+  - mux-controls
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    mux: mux-controller { // Mux Producer
+        compatible = "reg-mux";
+        #mux-control-cells = <1>;
+        mux-reg-masks = <0x54 0xf8>, /* 0: reg 0x54, bits 7:3 */
+                        <0x54 0x07>; /* 1: reg 0x54, bits 2:0 */
+    };
+
+    mdio-mux-1 { // Mux consumer
+        compatible = "mdio-mux-multiplexer";
+        mux-controls = <&mux 0>;
+        mdio-parent-bus = <&emdio1>;
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        mdio@0 {
+            reg = <0x0>;
+            #address-cells = <1>;
+            #size-cells = <0>;
+        };
+
+        mdio@8 {
+            reg = <0x8>;
+            #address-cells = <1>;
+            #size-cells = <0>;
+        };
+    };
+
+    mdio-mux-2 { // Mux consumer
+        compatible = "mdio-mux-multiplexer";
+        mux-controls = <&mux 1>;
+        mdio-parent-bus = <&emdio2>;
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        mdio@0 {
+            reg = <0x0>;
+            #address-cells = <1>;
+            #size-cells = <0>;
+        };
+
+        mdio@1 {
+            reg = <0x1>;
+            #address-cells = <1>;
+            #size-cells = <0>;
+        };
+    };
+...

@@ -1279,6 +1279,7 @@ static const struct of_device_id charger_manager_match[] = {
 	},
 	{},
 };
+MODULE_DEVICE_TABLE(of, charger_manager_match);
 
 static struct charger_desc *of_cm_parse_desc(struct device *dev)
 {
@@ -1604,7 +1605,7 @@ static int charger_manager_probe(struct platform_device *pdev)
 	mutex_unlock(&cm_list_mtx);
 
 	/*
-	 * Charger-manager is capable of waking up the systme from sleep
+	 * Charger-manager is capable of waking up the system from sleep
 	 * when event is happened through cm_notify_event()
 	 */
 	device_init_wakeup(&pdev->dev, true);

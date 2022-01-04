@@ -17,6 +17,7 @@
 #include <linux/bitmap.h>
 #include <linux/fb.h>
 #include <linux/of.h>
+#include <drm/drm_color_mgmt.h>
 #include <media/v4l2-mediabus.h>
 #include <video/videomode.h>
 
@@ -330,6 +331,7 @@ int ipu_dp_enable_channel(struct ipu_dp *dp);
 void ipu_dp_disable_channel(struct ipu_dp *dp, bool sync);
 void ipu_dp_disable(struct ipu_soc *ipu);
 int ipu_dp_setup_channel(struct ipu_dp *dp,
+		enum drm_color_encoding ycbcr_enc, enum drm_color_range range,
 		enum ipu_color_space in, enum ipu_color_space out);
 int ipu_dp_set_window_pos(struct ipu_dp *, u16 x_pos, u16 y_pos);
 int ipu_dp_set_global_alpha(struct ipu_dp *dp, bool enable, u8 alpha,

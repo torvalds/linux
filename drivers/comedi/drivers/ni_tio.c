@@ -1501,7 +1501,7 @@ int ni_tio_insn_config(struct comedi_device *dev,
 }
 EXPORT_SYMBOL_GPL(ni_tio_insn_config);
 
-/**
+/*
  * Retrieves the register value of the current source of the output selector for
  * the given destination.
  *
@@ -1541,10 +1541,10 @@ int ni_tio_get_routing(struct ni_gpct_device *counter_dev, unsigned int dest)
 EXPORT_SYMBOL_GPL(ni_tio_get_routing);
 
 /**
- * Sets the register value of the selector MUX for the given destination.
- * @counter_dev:Pointer to general counter device.
- * @destination:Device-global identifier of route destination.
- * @register_value:
+ * ni_tio_set_routing() - Sets the register value of the selector MUX for the given destination.
+ * @counter_dev: Pointer to general counter device.
+ * @dest:        Device-global identifier of route destination.
+ * @reg:
  *		The first several bits of this value should store the desired
  *		value to write to the register.  All other bits are for
  *		transmitting information that modify the mode of the particular
@@ -1580,7 +1580,7 @@ int ni_tio_set_routing(struct ni_gpct_device *counter_dev, unsigned int dest,
 }
 EXPORT_SYMBOL_GPL(ni_tio_set_routing);
 
-/**
+/*
  * Sets the given destination MUX to its default value or disable it.
  *
  * Return: 0 if successful; -EINVAL if terminal is unknown.

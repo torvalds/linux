@@ -1209,11 +1209,7 @@ static void __init of_unittest_match_node(void)
 	}
 }
 
-static struct resource test_bus_res = {
-	.start = 0xfffffff8,
-	.end = 0xfffffff9,
-	.flags = IORESOURCE_MEM,
-};
+static struct resource test_bus_res = DEFINE_RES_MEM(0xfffffff8, 2);
 static const struct platform_device_info test_bus_info = {
 	.name = "unittest-bus",
 };

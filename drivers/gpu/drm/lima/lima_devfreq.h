@@ -4,6 +4,7 @@
 #ifndef __LIMA_DEVFREQ_H__
 #define __LIMA_DEVFREQ_H__
 
+#include <linux/devfreq.h>
 #include <linux/spinlock.h>
 #include <linux/ktime.h>
 
@@ -15,6 +16,7 @@ struct lima_device;
 struct lima_devfreq {
 	struct devfreq *devfreq;
 	struct thermal_cooling_device *cooling;
+	struct devfreq_simple_ondemand_data gov_data;
 
 	ktime_t busy_time;
 	ktime_t idle_time;

@@ -10,6 +10,7 @@
 #define _RT5640_H
 
 #include <linux/clk.h>
+#include <linux/gpio/consumer.h>
 #include <linux/workqueue.h>
 #include <dt-bindings/sound/rt5640.h>
 
@@ -2156,5 +2157,10 @@ int rt5640_dmic_enable(struct snd_soc_component *component,
 		       bool dmic1_data_pin, bool dmic2_data_pin);
 int rt5640_sel_asrc_clk_src(struct snd_soc_component *component,
 		unsigned int filter_mask, unsigned int clk_src);
+
+void rt5640_set_ovcd_params(struct snd_soc_component *component);
+void rt5640_enable_micbias1_for_ovcd(struct snd_soc_component *component);
+void rt5640_disable_micbias1_for_ovcd(struct snd_soc_component *component);
+int rt5640_detect_headset(struct snd_soc_component *component, struct gpio_desc *hp_det_gpio);
 
 #endif

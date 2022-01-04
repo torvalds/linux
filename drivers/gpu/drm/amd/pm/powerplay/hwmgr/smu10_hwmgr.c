@@ -377,6 +377,27 @@ static int smu10_enable_gfx_off(struct pp_hwmgr *hwmgr)
 
 static int smu10_enable_dpm_tasks(struct pp_hwmgr *hwmgr)
 {
+	struct amdgpu_device *adev = hwmgr->adev;
+	struct smu10_hwmgr *smu10_data = (struct smu10_hwmgr *)(hwmgr->backend);
+	int ret = -EINVAL;
+
+	if (adev->in_suspend) {
+		pr_info("restore the fine grain parameters\n");
+
+		ret = smum_send_msg_to_smc_with_parameter(hwmgr,
+					PPSMC_MSG_SetHardMinGfxClk,
+					smu10_data->gfx_actual_soft_min_freq,
+					NULL);
+		if (ret)
+			return ret;
+		ret = smum_send_msg_to_smc_with_parameter(hwmgr,
+					PPSMC_MSG_SetSoftMaxGfxClk,
+					smu10_data->gfx_actual_soft_max_freq,
+					NULL);
+		if (ret)
+			return ret;
+	}
+
 	return 0;
 }
 
@@ -810,6 +831,7 @@ static int smu10_dpm_force_dpm_level(struct pp_hwmgr *hwmgr,
 		break;
 	case AMD_DPM_FORCED_LEVEL_MANUAL:
 		data->fine_grain_enabled = 1;
+		break;
 	case AMD_DPM_FORCED_LEVEL_PROFILE_EXIT:
 	default:
 		break;
@@ -1014,13 +1036,13 @@ static int smu10_print_clock_levels(struct pp_hwmgr *hwmgr,
 		else
 			i = 1;
 
-		size += sprintf(buf + size, "0: %uMhz %s\n",
+		size += sysfs_emit_at(buf, size, "0: %uMhz %s\n",
 					data->gfx_min_freq_limit/100,
 					i == 0 ? "*" : "");
-		size += sprintf(buf + size, "1: %uMhz %s\n",
+		size += sysfs_emit_at(buf, size, "1: %uMhz %s\n",
 					i == 1 ? now : SMU10_UMD_PSTATE_GFXCLK,
 					i == 1 ? "*" : "");
-		size += sprintf(buf + size, "2: %uMhz %s\n",
+		size += sysfs_emit_at(buf, size, "2: %uMhz %s\n",
 					data->gfx_max_freq_limit/100,
 					i == 2 ? "*" : "");
 		break;
@@ -1028,7 +1050,7 @@ static int smu10_print_clock_levels(struct pp_hwmgr *hwmgr,
 		smum_send_msg_to_smc(hwmgr, PPSMC_MSG_GetFclkFrequency, &now);
 
 		for (i = 0; i < mclk_table->count; i++)
-			size += sprintf(buf + size, "%d: %uMhz %s\n",
+			size += sysfs_emit_at(buf, size, "%d: %uMhz %s\n",
 					i,
 					mclk_table->entries[i].clk / 100,
 					((mclk_table->entries[i].clk / 100)
@@ -1043,10 +1065,10 @@ static int smu10_print_clock_levels(struct pp_hwmgr *hwmgr,
 			if (ret)
 				return ret;
 
-			size = sprintf(buf, "%s:\n", "OD_SCLK");
-			size += sprintf(buf + size, "0: %10uMhz\n",
+			size = sysfs_emit(buf, "%s:\n", "OD_SCLK");
+			size += sysfs_emit_at(buf, size, "0: %10uMhz\n",
 			(data->gfx_actual_soft_min_freq > 0) ? data->gfx_actual_soft_min_freq : min_freq);
-			size += sprintf(buf + size, "1: %10uMhz\n",
+			size += sysfs_emit_at(buf, size, "1: %10uMhz\n",
 			(data->gfx_actual_soft_max_freq > 0) ? data->gfx_actual_soft_max_freq : max_freq);
 		}
 		break;
@@ -1059,8 +1081,8 @@ static int smu10_print_clock_levels(struct pp_hwmgr *hwmgr,
 			if (ret)
 				return ret;
 
-			size = sprintf(buf, "%s:\n", "OD_RANGE");
-			size += sprintf(buf + size, "SCLK: %7uMHz %10uMHz\n",
+			size = sysfs_emit(buf, "%s:\n", "OD_RANGE");
+			size += sysfs_emit_at(buf, size, "SCLK: %7uMHz %10uMHz\n",
 				min_freq, max_freq);
 		}
 		break;
@@ -1261,8 +1283,20 @@ static int smu10_read_sensor(struct pp_hwmgr *hwmgr, int idx,
 			  void *value, int *size)
 {
 	struct smu10_hwmgr *smu10_data = (struct smu10_hwmgr *)(hwmgr->backend);
-	uint32_t sclk, mclk;
+	struct amdgpu_device *adev = hwmgr->adev;
+	uint32_t sclk, mclk, activity_percent;
+	bool has_gfx_busy;
 	int ret = 0;
+
+	/* GetGfxBusy support was added on RV SMU FW 30.85.00 and PCO 4.30.59 */
+	if ((adev->apu_flags & AMD_APU_IS_PICASSO) &&
+	    (hwmgr->smu_version >= 0x41e3b))
+		has_gfx_busy = true;
+	else if ((adev->apu_flags & AMD_APU_IS_RAVEN) &&
+		 (hwmgr->smu_version >= 0x1e5500))
+		has_gfx_busy = true;
+	else
+		has_gfx_busy = false;
 
 	switch (idx) {
 	case AMDGPU_PP_SENSOR_GFX_SCLK:
@@ -1284,8 +1318,21 @@ static int smu10_read_sensor(struct pp_hwmgr *hwmgr, int idx,
 		*(uint32_t *)value =  smu10_data->vcn_power_gated ? 0 : 1;
 		*size = 4;
 		break;
+	case AMDGPU_PP_SENSOR_GPU_LOAD:
+		if (!has_gfx_busy)
+			ret = -EOPNOTSUPP;
+		else {
+			ret = smum_send_msg_to_smc(hwmgr,
+						   PPSMC_MSG_GetGfxBusy,
+						   &activity_percent);
+			if (!ret)
+				*((uint32_t *)value) = min(activity_percent, (u32)100);
+			else
+				ret = -EIO;
+		}
+		break;
 	default:
-		ret = -EINVAL;
+		ret = -EOPNOTSUPP;
 		break;
 	}
 
@@ -1409,11 +1456,11 @@ static int smu10_get_power_profile_mode(struct pp_hwmgr *hwmgr, char *buf)
 	if (!buf)
 		return -EINVAL;
 
-	size += sprintf(buf + size, "%s %16s %s %s %s %s\n",title[0],
+	size += sysfs_emit_at(buf, size, "%s %16s %s %s %s %s\n",title[0],
 			title[1], title[2], title[3], title[4], title[5]);
 
 	for (i = 0; i <= PP_SMC_POWER_PROFILE_COMPUTE; i++)
-		size += sprintf(buf + size, "%3d %14s%s: %14d %3d %10d %14d\n",
+		size += sysfs_emit_at(buf, size, "%3d %14s%s: %14d %3d %10d %14d\n",
 			i, profile_name[i], (i == hwmgr->power_profile_mode) ? "*" : " ",
 			profile_mode_setting[i][0], profile_mode_setting[i][1],
 			profile_mode_setting[i][2], profile_mode_setting[i][3]);
@@ -1487,7 +1534,7 @@ static int smu10_set_fine_grain_clk_vol(struct pp_hwmgr *hwmgr,
 	}
 
 	if (!smu10_data->fine_grain_enabled) {
-		pr_err("pp_od_clk_voltage is not accessible if power_dpm_force_perfomance_level is not in manual mode!\n");
+		pr_err("pp_od_clk_voltage is not accessible if power_dpm_force_performance_level is not in manual mode!\n");
 		return -EINVAL;
 	}
 
@@ -1526,20 +1573,6 @@ static int smu10_set_fine_grain_clk_vol(struct pp_hwmgr *hwmgr,
 
 		smu10_data->gfx_actual_soft_min_freq = min_freq;
 		smu10_data->gfx_actual_soft_max_freq = max_freq;
-
-		ret = smum_send_msg_to_smc_with_parameter(hwmgr,
-					PPSMC_MSG_SetHardMinGfxClk,
-					min_freq,
-					NULL);
-		if (ret)
-			return ret;
-
-		ret = smum_send_msg_to_smc_with_parameter(hwmgr,
-					PPSMC_MSG_SetSoftMaxGfxClk,
-					max_freq,
-					NULL);
-		if (ret)
-			return ret;
 	} else if (type == PP_OD_COMMIT_DPM_TABLE) {
 		if (size != 0) {
 			pr_err("Input parameter number not correct\n");
@@ -1547,7 +1580,7 @@ static int smu10_set_fine_grain_clk_vol(struct pp_hwmgr *hwmgr,
 		}
 
 		if (smu10_data->gfx_actual_soft_min_freq > smu10_data->gfx_actual_soft_max_freq) {
-			pr_err("The setting minimun sclk (%d) MHz is greater than the setting maximum sclk (%d) MHz\n",
+			pr_err("The setting minimum sclk (%d) MHz is greater than the setting maximum sclk (%d) MHz\n",
 					smu10_data->gfx_actual_soft_min_freq, smu10_data->gfx_actual_soft_max_freq);
 			return -EINVAL;
 		}

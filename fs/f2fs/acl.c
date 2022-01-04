@@ -29,6 +29,7 @@ static inline size_t f2fs_acl_size(int count)
 static inline int f2fs_acl_count(size_t size)
 {
 	ssize_t s;
+
 	size -= sizeof(struct f2fs_acl_header);
 	s = size - 4 * sizeof(struct f2fs_acl_entry_short);
 	if (s < 0) {
@@ -195,8 +196,11 @@ static struct posix_acl *__f2fs_get_acl(struct inode *inode, int type,
 	return acl;
 }
 
-struct posix_acl *f2fs_get_acl(struct inode *inode, int type)
+struct posix_acl *f2fs_get_acl(struct inode *inode, int type, bool rcu)
 {
+	if (rcu)
+		return ERR_PTR(-ECHILD);
+
 	return __f2fs_get_acl(inode, type, NULL);
 }
 

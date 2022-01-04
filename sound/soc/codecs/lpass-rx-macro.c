@@ -1620,8 +1620,6 @@ static int rx_macro_set_interpolator_rate(struct snd_soc_dai *dai,
 		return ret;
 
 	ret = rx_macro_set_mix_interpolator_rate(dai, rate_val, sample_rate);
-	if (ret)
-		return ret;
 
 	return ret;
 }
@@ -1724,42 +1722,43 @@ static int rx_macro_digital_mute(struct snd_soc_dai *dai, int mute, int stream)
 	case RX_MACRO_AIF2_PB:
 	case RX_MACRO_AIF3_PB:
 	case RX_MACRO_AIF4_PB:
-	for (j = 0; j < INTERP_MAX; j++) {
-		reg = CDC_RX_RXn_RX_PATH_CTL(j);
-		mix_reg = CDC_RX_RXn_RX_PATH_MIX_CTL(j);
-		dsm_reg = CDC_RX_RXn_RX_PATH_DSM_CTL(j);
+		for (j = 0; j < INTERP_MAX; j++) {
+			reg = CDC_RX_RXn_RX_PATH_CTL(j);
+			mix_reg = CDC_RX_RXn_RX_PATH_MIX_CTL(j);
+			dsm_reg = CDC_RX_RXn_RX_PATH_DSM_CTL(j);
 
-		if (mute) {
-			snd_soc_component_update_bits(component, reg,
-						      CDC_RX_PATH_PGA_MUTE_MASK,
-						      CDC_RX_PATH_PGA_MUTE_ENABLE);
-			snd_soc_component_update_bits(component, mix_reg,
-						      CDC_RX_PATH_PGA_MUTE_MASK,
-						      CDC_RX_PATH_PGA_MUTE_ENABLE);
-		} else {
-			snd_soc_component_update_bits(component, reg,
-						      CDC_RX_PATH_PGA_MUTE_MASK, 0x0);
-			snd_soc_component_update_bits(component, mix_reg,
-						      CDC_RX_PATH_PGA_MUTE_MASK, 0x0);
-		}
+			if (mute) {
+				snd_soc_component_update_bits(component, reg,
+							      CDC_RX_PATH_PGA_MUTE_MASK,
+							      CDC_RX_PATH_PGA_MUTE_ENABLE);
+				snd_soc_component_update_bits(component, mix_reg,
+							      CDC_RX_PATH_PGA_MUTE_MASK,
+							      CDC_RX_PATH_PGA_MUTE_ENABLE);
+			} else {
+				snd_soc_component_update_bits(component, reg,
+							      CDC_RX_PATH_PGA_MUTE_MASK, 0x0);
+				snd_soc_component_update_bits(component, mix_reg,
+							      CDC_RX_PATH_PGA_MUTE_MASK, 0x0);
+			}
 
-		if (j == INTERP_AUX)
-			dsm_reg = CDC_RX_RX2_RX_PATH_DSM_CTL;
+			if (j == INTERP_AUX)
+				dsm_reg = CDC_RX_RX2_RX_PATH_DSM_CTL;
 
-		int_mux_cfg0 = CDC_RX_INP_MUX_RX_INT0_CFG0 + j * 8;
-		int_mux_cfg1 = int_mux_cfg0 + 4;
-		int_mux_cfg0_val = snd_soc_component_read(component, int_mux_cfg0);
-		int_mux_cfg1_val = snd_soc_component_read(component, int_mux_cfg1);
+			int_mux_cfg0 = CDC_RX_INP_MUX_RX_INT0_CFG0 + j * 8;
+			int_mux_cfg1 = int_mux_cfg0 + 4;
+			int_mux_cfg0_val = snd_soc_component_read(component, int_mux_cfg0);
+			int_mux_cfg1_val = snd_soc_component_read(component, int_mux_cfg1);
 
-		if (snd_soc_component_read(component, dsm_reg) & 0x01) {
-			if (int_mux_cfg0_val || (int_mux_cfg1_val & 0xF0))
-				snd_soc_component_update_bits(component, reg, 0x20, 0x20);
-			if (int_mux_cfg1_val & 0x0F) {
-				snd_soc_component_update_bits(component, reg, 0x20, 0x20);
-				snd_soc_component_update_bits(component, mix_reg, 0x20, 0x20);
+			if (snd_soc_component_read(component, dsm_reg) & 0x01) {
+				if (int_mux_cfg0_val || (int_mux_cfg1_val & 0xF0))
+					snd_soc_component_update_bits(component, reg, 0x20, 0x20);
+				if (int_mux_cfg1_val & 0x0F) {
+					snd_soc_component_update_bits(component, reg, 0x20, 0x20);
+					snd_soc_component_update_bits(component, mix_reg, 0x20,
+								      0x20);
+				}
 			}
 		}
-	}
 		break;
 	default:
 		break;
@@ -1767,7 +1766,7 @@ static int rx_macro_digital_mute(struct snd_soc_dai *dai, int mute, int stream)
 	return 0;
 }
 
-static struct snd_soc_dai_ops rx_macro_dai_ops = {
+static const struct snd_soc_dai_ops rx_macro_dai_ops = {
 	.hw_params = rx_macro_hw_params,
 	.get_channel_map = rx_macro_get_channel_map,
 	.mute_stream = rx_macro_digital_mute,
@@ -2038,7 +2037,7 @@ static int rx_macro_load_compander_coeff(struct snd_soc_component *component,
 {
 	u16 comp_coeff_lsb_reg, comp_coeff_msb_reg;
 	int i;
-	int hph_pwr_mode = HPH_LOHIFI;
+	int hph_pwr_mode;
 
 	if (!rx->comp_enabled[comp])
 		return 0;
@@ -2630,7 +2629,7 @@ static int rx_macro_enable_rx_path_clk(struct snd_soc_dapm_widget *w,
 		break;
 	default:
 		break;
-	};
+	}
 	return 0;
 }
 
@@ -3581,11 +3580,11 @@ static const struct of_device_id rx_macro_dt_match[] = {
 	{ .compatible = "qcom,sm8250-lpass-rx-macro" },
 	{ }
 };
+MODULE_DEVICE_TABLE(of, rx_macro_dt_match);
 
 static struct platform_driver rx_macro_driver = {
 	.driver = {
 		.name = "rx_macro",
-		.owner = THIS_MODULE,
 		.of_match_table = rx_macro_dt_match,
 		.suppress_bind_attrs = true,
 	},

@@ -142,6 +142,7 @@ static int sunxi_sid_probe(struct platform_device *pdev)
 
 	nvmem_cfg->dev = dev;
 	nvmem_cfg->name = "sunxi-sid";
+	nvmem_cfg->type = NVMEM_TYPE_OTP;
 	nvmem_cfg->read_only = true;
 	nvmem_cfg->size = cfg->size;
 	nvmem_cfg->word_size = 1;

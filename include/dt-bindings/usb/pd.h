@@ -106,6 +106,10 @@
  * <20:16>  :: Reserved, Shall be set to zero
  * <15:0>   :: USB-IF assigned VID for this cable vendor
  */
+
+/* PD Rev2.0 definition */
+#define IDH_PTYPE_UNDEF		0
+
 /* SOP Product Type (UFP) */
 #define IDH_PTYPE_NOT_UFP       0
 #define IDH_PTYPE_HUB           1
@@ -163,10 +167,10 @@
 #define UFP_VDO_VER1_2		2
 
 /* Device Capability */
-#define DEV_USB2_CAPABLE	BIT(0)
-#define DEV_USB2_BILLBOARD	BIT(1)
-#define DEV_USB3_CAPABLE	BIT(2)
-#define DEV_USB4_CAPABLE	BIT(3)
+#define DEV_USB2_CAPABLE	(1 << 0)
+#define DEV_USB2_BILLBOARD	(1 << 1)
+#define DEV_USB3_CAPABLE	(1 << 2)
+#define DEV_USB4_CAPABLE	(1 << 3)
 
 /* Connector Type */
 #define UFP_RECEPTACLE		2
@@ -191,9 +195,9 @@
 
 /* Alternate Modes */
 #define UFP_ALTMODE_NOT_SUPP	0
-#define UFP_ALTMODE_TBT3	BIT(0)
-#define UFP_ALTMODE_RECFG	BIT(1)
-#define UFP_ALTMODE_NO_RECFG	BIT(2)
+#define UFP_ALTMODE_TBT3	(1 << 0)
+#define UFP_ALTMODE_RECFG	(1 << 1)
+#define UFP_ALTMODE_NO_RECFG	(1 << 2)
 
 /* USB Highest Speed */
 #define UFP_USB2_ONLY		0
@@ -217,9 +221,9 @@
  * <4:0>   :: Port number
  */
 #define DFP_VDO_VER1_1		1
-#define HOST_USB2_CAPABLE	BIT(0)
-#define HOST_USB3_CAPABLE	BIT(1)
-#define HOST_USB4_CAPABLE	BIT(2)
+#define HOST_USB2_CAPABLE	(1 << 0)
+#define HOST_USB3_CAPABLE	(1 << 1)
+#define HOST_USB4_CAPABLE	(1 << 2)
 #define DFP_RECEPTACLE		2
 #define DFP_CAPTIVE		3
 
@@ -228,7 +232,25 @@
 	 | ((pnum) & 0x1f))
 
 /*
- * Passive Cable VDO
+ * Cable VDO (for both Passive and Active Cable VDO in PD Rev2.0)
+ * ---------
+ * <31:28> :: Cable HW version
+ * <27:24> :: Cable FW version
+ * <23:20> :: Reserved, Shall be set to zero
+ * <19:18> :: type-C to Type-A/B/C/Captive (00b == A, 01 == B, 10 == C, 11 == Captive)
+ * <17>    :: Reserved, Shall be set to zero
+ * <16:13> :: cable latency (0001 == <10ns(~1m length))
+ * <12:11> :: cable termination type (11b == both ends active VCONN req)
+ * <10>    :: SSTX1 Directionality support (0b == fixed, 1b == cfgable)
+ * <9>     :: SSTX2 Directionality support
+ * <8>     :: SSRX1 Directionality support
+ * <7>     :: SSRX2 Directionality support
+ * <6:5>   :: Vbus current handling capability (01b == 3A, 10b == 5A)
+ * <4>     :: Vbus through cable (0b == no, 1b == yes)
+ * <3>     :: SOP" controller present? (0b == no, 1b == yes)
+ * <2:0>   :: USB SS Signaling support
+ *
+ * Passive Cable VDO (PD Rev3.0+)
  * ---------
  * <31:28> :: Cable HW version
  * <27:24> :: Cable FW version
@@ -244,7 +266,7 @@
  * <4:3>   :: Reserved, Shall be set to zero
  * <2:0>   :: USB highest speed
  *
- * Active Cable VDO 1
+ * Active Cable VDO 1 (PD Rev3.0+)
  * ---------
  * <31:28> :: Cable HW version
  * <27:24> :: Cable FW version
@@ -266,7 +288,9 @@
 #define CABLE_VDO_VER1_0	0
 #define CABLE_VDO_VER1_3	3
 
-/* Connector Type */
+/* Connector Type (_ATYPE and _BTYPE are for PD Rev2.0 only) */
+#define CABLE_ATYPE		0
+#define CABLE_BTYPE		1
 #define CABLE_CTYPE		2
 #define CABLE_CAPTIVE		3
 
@@ -303,12 +327,22 @@
 #define CABLE_CURR_3A		1
 #define CABLE_CURR_5A		2
 
+/* USB SuperSpeed Signaling Support (PD Rev2.0) */
+#define CABLE_USBSS_U2_ONLY	0
+#define CABLE_USBSS_U31_GEN1	1
+#define CABLE_USBSS_U31_GEN2	2
+
 /* USB Highest Speed */
 #define CABLE_USB2_ONLY		0
 #define CABLE_USB32_GEN1	1
 #define CABLE_USB32_4_GEN2	2
 #define CABLE_USB4_GEN3		3
 
+#define VDO_CABLE(hw, fw, cbl, lat, term, tx1d, tx2d, rx1d, rx2d, cur, vps, sopp, usbss) \
+	(((hw) & 0x7) << 28 | ((fw) & 0x7) << 24 | ((cbl) & 0x3) << 18		\
+	 | ((lat) & 0x7) << 13 | ((term) & 0x3) << 11 | (tx1d) << 10		\
+	 | (tx2d) << 9 | (rx1d) << 8 | (rx2d) << 7 | ((cur) & 0x3) << 5		\
+	 | (vps) << 4 | (sopp) << 3 | ((usbss) & 0x7))
 #define VDO_PCABLE(hw, fw, ver, conn, lat, term, vbm, cur, spd)			\
 	(((hw) & 0xf) << 28 | ((fw) & 0xf) << 24 | ((ver) & 0x7) << 21		\
 	 | ((conn) & 0x3) << 18 | ((lat) & 0xf) << 13 | ((term) & 0x3) << 11	\
@@ -372,6 +406,35 @@
 	 | (trans) << 11 | (phy) << 10 | (ele) << 9 | (u4) << 8			\
 	 | ((hops) & 0x3) << 6 | (u2) << 5 | (u32) << 4 | (lane) << 3		\
 	 | (iso) << 2 | (gen))
+
+/*
+ * AMA VDO (PD Rev2.0)
+ * ---------
+ * <31:28> :: Cable HW version
+ * <27:24> :: Cable FW version
+ * <23:12> :: Reserved, Shall be set to zero
+ * <11>    :: SSTX1 Directionality support (0b == fixed, 1b == cfgable)
+ * <10>    :: SSTX2 Directionality support
+ * <9>     :: SSRX1 Directionality support
+ * <8>     :: SSRX2 Directionality support
+ * <7:5>   :: Vconn power
+ * <4>     :: Vconn power required
+ * <3>     :: Vbus power required
+ * <2:0>   :: USB SS Signaling support
+ */
+#define VDO_AMA(hw, fw, tx1d, tx2d, rx1d, rx2d, vcpwr, vcr, vbr, usbss) \
+	(((hw) & 0x7) << 28 | ((fw) & 0x7) << 24			\
+	 | (tx1d) << 11 | (tx2d) << 10 | (rx1d) << 9 | (rx2d) << 8	\
+	 | ((vcpwr) & 0x7) << 5 | (vcr) << 4 | (vbr) << 3		\
+	 | ((usbss) & 0x7))
+
+#define PD_VDO_AMA_VCONN_REQ(vdo)	(((vdo) >> 4) & 1)
+#define PD_VDO_AMA_VBUS_REQ(vdo)	(((vdo) >> 3) & 1)
+
+#define AMA_USBSS_U2_ONLY	0
+#define AMA_USBSS_U31_GEN1	1
+#define AMA_USBSS_U31_GEN2	2
+#define AMA_USBSS_BBONLY	3
 
 /*
  * VPD VDO

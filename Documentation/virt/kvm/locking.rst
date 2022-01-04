@@ -16,14 +16,19 @@ The acquisition orders for mutexes are as follows:
 - kvm->slots_lock is taken outside kvm->irq_lock, though acquiring
   them together is quite rare.
 
+- Unlike kvm->slots_lock, kvm->slots_arch_lock is released before
+  synchronize_srcu(&kvm->srcu).  Therefore kvm->slots_arch_lock
+  can be taken inside a kvm->srcu read-side critical section,
+  while kvm->slots_lock cannot.
+
 On x86:
 
 - vcpu->mutex is taken outside kvm->arch.hyperv.hv_lock
 
-- kvm->arch.mmu_lock is an rwlock.  kvm->arch.tdp_mmu_pages_lock is
-  taken inside kvm->arch.mmu_lock, and cannot be taken without already
-  holding kvm->arch.mmu_lock (typically with ``read_lock``, otherwise
-  there's no need to take kvm->arch.tdp_mmu_pages_lock at all).
+- kvm->arch.mmu_lock is an rwlock.  kvm->arch.tdp_mmu_pages_lock and
+  kvm->arch.mmu_unsync_pages_lock are taken inside kvm->arch.mmu_lock, and
+  cannot be taken without already holding kvm->arch.mmu_lock (typically with
+  ``read_lock`` for the TDP MMU, thus the need for additional spinlocks).
 
 Everything else is a leaf: no other lock is taken inside the critical
 sections.
@@ -38,25 +43,24 @@ the mmu-lock on x86. Currently, the page fault can be fast in one of the
 following two cases:
 
 1. Access Tracking: The SPTE is not present, but it is marked for access
-   tracking i.e. the SPTE_SPECIAL_MASK is set. That means we need to
-   restore the saved R/X bits. This is described in more detail later below.
+   tracking. That means we need to restore the saved R/X bits. This is
+   described in more detail later below.
 
-2. Write-Protection: The SPTE is present and the fault is
-   caused by write-protect. That means we just need to change the W bit of
-   the spte.
+2. Write-Protection: The SPTE is present and the fault is caused by
+   write-protect. That means we just need to change the W bit of the spte.
 
-What we use to avoid all the race is the SPTE_HOST_WRITEABLE bit and
-SPTE_MMU_WRITEABLE bit on the spte:
+What we use to avoid all the race is the Host-writable bit and MMU-writable bit
+on the spte:
 
-- SPTE_HOST_WRITEABLE means the gfn is writable on host.
-- SPTE_MMU_WRITEABLE means the gfn is writable on mmu. The bit is set when
-  the gfn is writable on guest mmu and it is not write-protected by shadow
-  page write-protection.
+- Host-writable means the gfn is writable in the host kernel page tables and in
+  its KVM memslot.
+- MMU-writable means the gfn is writable in the guest's mmu and it is not
+  write-protected by shadow page write-protection.
 
 On fast page fault path, we will use cmpxchg to atomically set the spte W
-bit if spte.SPTE_HOST_WRITEABLE = 1 and spte.SPTE_WRITE_PROTECT = 1, or
-restore the saved R/X bits if VMX_EPT_TRACK_ACCESS mask is set, or both. This
-is safe because whenever changing these bits can be detected by cmpxchg.
+bit if spte.HOST_WRITEABLE = 1 and spte.WRITE_PROTECT = 1, to restore the saved
+R/X bits if for an access-traced spte, or both. This is safe because whenever
+changing these bits can be detected by cmpxchg.
 
 But we need carefully check these cases:
 
@@ -185,17 +189,17 @@ See the comments in spte_has_volatile_bits() and mmu_spte_update().
 Lockless Access Tracking:
 
 This is used for Intel CPUs that are using EPT but do not support the EPT A/D
-bits. In this case, when the KVM MMU notifier is called to track accesses to a
-page (via kvm_mmu_notifier_clear_flush_young), it marks the PTE as not-present
-by clearing the RWX bits in the PTE and storing the original R & X bits in
-some unused/ignored bits. In addition, the SPTE_SPECIAL_MASK is also set on the
-PTE (using the ignored bit 62). When the VM tries to access the page later on,
-a fault is generated and the fast page fault mechanism described above is used
-to atomically restore the PTE to a Present state. The W bit is not saved when
-the PTE is marked for access tracking and during restoration to the Present
-state, the W bit is set depending on whether or not it was a write access. If
-it wasn't, then the W bit will remain clear until a write access happens, at
-which time it will be set using the Dirty tracking mechanism described above.
+bits. In this case, PTEs are tagged as A/D disabled (using ignored bits), and
+when the KVM MMU notifier is called to track accesses to a page (via
+kvm_mmu_notifier_clear_flush_young), it marks the PTE not-present in hardware
+by clearing the RWX bits in the PTE and storing the original R & X bits in more
+unused/ignored bits. When the VM tries to access the page later on, a fault is
+generated and the fast page fault mechanism described above is used to
+atomically restore the PTE to a Present state. The W bit is not saved when the
+PTE is marked for access tracking and during restoration to the Present state,
+the W bit is set depending on whether or not it was a write access. If it
+wasn't, then the W bit will remain clear until a write access happens, at which
+time it will be set using the Dirty tracking mechanism described above.
 
 3. Reference
 ------------

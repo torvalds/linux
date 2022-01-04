@@ -147,8 +147,6 @@ static int max1241_probe(struct spi_device *spi)
 	adc->spi = spi;
 	mutex_init(&adc->lock);
 
-	spi_set_drvdata(spi, indio_dev);
-
 	adc->vdd = devm_regulator_get(dev, "vdd");
 	if (IS_ERR(adc->vdd)) {
 		dev_err(dev, "failed to get vdd regulator\n");

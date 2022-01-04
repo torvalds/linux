@@ -9,6 +9,7 @@
 #include <uapi/linux/bpf.h>
 
 #define BTF_TYPE_EMIT(type) ((void)(type *)0)
+#define BTF_TYPE_EMIT_ENUM(enum_val) ((void)enum_val)
 
 struct btf;
 struct btf_member;
@@ -20,7 +21,7 @@ extern const struct file_operations btf_fops;
 
 void btf_get(struct btf *btf);
 void btf_put(struct btf *btf);
-int btf_new_fd(const union bpf_attr *attr);
+int btf_new_fd(const union bpf_attr *attr, bpfptr_t uattr);
 struct btf *btf_get_by_fd(int fd);
 int btf_get_info_by_fd(const struct btf *btf,
 		       const union bpf_attr *attr,
@@ -98,6 +99,7 @@ bool btf_member_is_reg_int(const struct btf *btf, const struct btf_type *s,
 			   const struct btf_member *m,
 			   u32 expected_offset, u32 expected_size);
 int btf_find_spin_lock(const struct btf *btf, const struct btf_type *t);
+int btf_find_timer(const struct btf *btf, const struct btf_type *t);
 bool btf_type_is_void(const struct btf_type *t);
 s32 btf_find_by_name_kind(const struct btf *btf, const char *name, u8 kind);
 const struct btf_type *btf_type_skip_modifiers(const struct btf *btf,
@@ -109,6 +111,7 @@ const struct btf_type *btf_type_resolve_func_ptr(const struct btf *btf,
 const struct btf_type *
 btf_resolve_size(const struct btf *btf, const struct btf_type *type,
 		 u32 *type_size);
+const char *btf_type_str(const struct btf_type *t);
 
 #define for_each_member(i, struct_type, member)			\
 	for (i = 0, member = btf_type_member(struct_type);	\
@@ -138,6 +141,11 @@ static inline bool btf_type_is_small_int(const struct btf_type *t)
 static inline bool btf_type_is_enum(const struct btf_type *t)
 {
 	return BTF_INFO_KIND(t->info) == BTF_KIND_ENUM;
+}
+
+static inline bool btf_type_is_scalar(const struct btf_type *t)
+{
+	return btf_type_is_int(t) || btf_type_is_enum(t);
 }
 
 static inline bool btf_type_is_typedef(const struct btf_type *t)

@@ -225,6 +225,8 @@ struct imx_port {
 	struct scatterlist	rx_sgl, tx_sgl[2];
 	void			*rx_buf;
 	struct circ_buf		rx_ring;
+	unsigned int		rx_buf_size;
+	unsigned int		rx_period_length;
 	unsigned int		rx_periods;
 	dma_cookie_t		rx_cookie;
 	unsigned int		tx_bytes;
@@ -1183,10 +1185,6 @@ static void imx_uart_dma_rx_callback(void *data)
 	}
 }
 
-/* RX DMA buffer periods */
-#define RX_DMA_PERIODS	16
-#define RX_BUF_SIZE	(RX_DMA_PERIODS * PAGE_SIZE / 4)
-
 static int imx_uart_start_rx_dma(struct imx_port *sport)
 {
 	struct scatterlist *sgl = &sport->rx_sgl;
@@ -1197,9 +1195,8 @@ static int imx_uart_start_rx_dma(struct imx_port *sport)
 
 	sport->rx_ring.head = 0;
 	sport->rx_ring.tail = 0;
-	sport->rx_periods = RX_DMA_PERIODS;
 
-	sg_init_one(sgl, sport->rx_buf, RX_BUF_SIZE);
+	sg_init_one(sgl, sport->rx_buf, sport->rx_buf_size);
 	ret = dma_map_sg(dev, sgl, 1, DMA_FROM_DEVICE);
 	if (ret == 0) {
 		dev_err(dev, "DMA mapping error for RX.\n");
@@ -1316,7 +1313,8 @@ static int imx_uart_dma_init(struct imx_port *sport)
 		goto err;
 	}
 
-	sport->rx_buf = kzalloc(RX_BUF_SIZE, GFP_KERNEL);
+	sport->rx_buf_size = sport->rx_period_length * sport->rx_periods;
+	sport->rx_buf = kzalloc(sport->rx_buf_size, GFP_KERNEL);
 	if (!sport->rx_buf) {
 		ret = -ENOMEM;
 		goto err;
@@ -1975,8 +1973,8 @@ imx_uart_console_write(struct console *co, const char *s, unsigned int count)
 {
 	struct imx_port *sport = imx_uart_ports[co->index];
 	struct imx_port_ucrs old_ucr;
+	unsigned long flags;
 	unsigned int ucr1;
-	unsigned long flags = 0;
 	int locked = 1;
 
 	if (sport->port.sysrq)
@@ -2179,11 +2177,16 @@ static enum hrtimer_restart imx_trigger_stop_tx(struct hrtimer *t)
 	return HRTIMER_NORESTART;
 }
 
+/* Default RX DMA buffer configuration */
+#define RX_DMA_PERIODS		16
+#define RX_DMA_PERIOD_LEN	(PAGE_SIZE / 4)
+
 static int imx_uart_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
 	struct imx_port *sport;
 	void __iomem *base;
+	u32 dma_buf_conf[2];
 	int ret = 0;
 	u32 ucr1;
 	struct resource *res;
@@ -2217,6 +2220,14 @@ static int imx_uart_probe(struct platform_device *pdev)
 
 	if (of_get_property(np, "fsl,inverted-rx", NULL))
 		sport->inverted_rx = 1;
+
+	if (!of_property_read_u32_array(np, "fsl,dma-info", dma_buf_conf, 2)) {
+		sport->rx_period_length = dma_buf_conf[0];
+		sport->rx_periods = dma_buf_conf[1];
+	} else {
+		sport->rx_period_length = RX_DMA_PERIOD_LEN;
+		sport->rx_periods = RX_DMA_PERIODS;
+	}
 
 	if (sport->port.line >= ARRAY_SIZE(imx_uart_ports)) {
 		dev_err(&pdev->dev, "serial%d out of range\n",

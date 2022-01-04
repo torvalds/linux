@@ -1,0 +1,12 @@
+// SPDX-License-Identifier: (GPL-2.0 or MIT)
+/*
+ * Device Tree Source for the R-Car M3e-2G (R8A779M3) SoC
+ *
+ * Copyright (C) 2021 Glider bv
+ */
+
+#include "r8a77961.dtsi"
+
+/ {
+	compatible = "renesas,r8a779m3", "renesas,r8a77961";
+};

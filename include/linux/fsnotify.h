@@ -30,6 +30,9 @@ static inline void fsnotify_name(struct inode *dir, __u32 mask,
 				 struct inode *child,
 				 const struct qstr *name, u32 cookie)
 {
+	if (atomic_long_read(&dir->i_sb->s_fsnotify_connectors) == 0)
+		return;
+
 	fsnotify(mask, child, FSNOTIFY_EVENT_INODE, dir, name, NULL, cookie);
 }
 
@@ -41,6 +44,9 @@ static inline void fsnotify_dirent(struct inode *dir, struct dentry *dentry,
 
 static inline void fsnotify_inode(struct inode *inode, __u32 mask)
 {
+	if (atomic_long_read(&inode->i_sb->s_fsnotify_connectors) == 0)
+		return;
+
 	if (S_ISDIR(inode->i_mode))
 		mask |= FS_ISDIR;
 
@@ -52,6 +58,9 @@ static inline int fsnotify_parent(struct dentry *dentry, __u32 mask,
 				  const void *data, int data_type)
 {
 	struct inode *inode = d_inode(dentry);
+
+	if (atomic_long_read(&inode->i_sb->s_fsnotify_connectors) == 0)
+		return 0;
 
 	if (S_ISDIR(inode->i_mode)) {
 		mask |= FS_ISDIR;

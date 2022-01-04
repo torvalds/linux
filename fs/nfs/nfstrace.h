@@ -45,6 +45,11 @@ TRACE_DEFINE_ENUM(NFS_INO_INVALID_CTIME);
 TRACE_DEFINE_ENUM(NFS_INO_INVALID_MTIME);
 TRACE_DEFINE_ENUM(NFS_INO_INVALID_SIZE);
 TRACE_DEFINE_ENUM(NFS_INO_INVALID_OTHER);
+TRACE_DEFINE_ENUM(NFS_INO_DATA_INVAL_DEFER);
+TRACE_DEFINE_ENUM(NFS_INO_INVALID_BLOCKS);
+TRACE_DEFINE_ENUM(NFS_INO_INVALID_XATTR);
+TRACE_DEFINE_ENUM(NFS_INO_INVALID_NLINK);
+TRACE_DEFINE_ENUM(NFS_INO_INVALID_MODE);
 
 #define nfs_show_cache_validity(v) \
 	__print_flags(v, "|", \
@@ -60,7 +65,11 @@ TRACE_DEFINE_ENUM(NFS_INO_INVALID_OTHER);
 			{ NFS_INO_INVALID_MTIME, "INVALID_MTIME" }, \
 			{ NFS_INO_INVALID_SIZE, "INVALID_SIZE" }, \
 			{ NFS_INO_INVALID_OTHER, "INVALID_OTHER" }, \
-			{ NFS_INO_INVALID_XATTR, "INVALID_XATTR" })
+			{ NFS_INO_DATA_INVAL_DEFER, "DATA_INVAL_DEFER" }, \
+			{ NFS_INO_INVALID_BLOCKS, "INVALID_BLOCKS" }, \
+			{ NFS_INO_INVALID_XATTR, "INVALID_XATTR" }, \
+			{ NFS_INO_INVALID_NLINK, "INVALID_NLINK" }, \
+			{ NFS_INO_INVALID_MODE, "INVALID_MODE" })
 
 TRACE_DEFINE_ENUM(NFS_INO_ADVISE_RDPLUS);
 TRACE_DEFINE_ENUM(NFS_INO_STALE);
@@ -271,8 +280,6 @@ TRACE_DEFINE_ENUM(LOOKUP_OPEN);
 TRACE_DEFINE_ENUM(LOOKUP_CREATE);
 TRACE_DEFINE_ENUM(LOOKUP_EXCL);
 TRACE_DEFINE_ENUM(LOOKUP_RENAME_TARGET);
-TRACE_DEFINE_ENUM(LOOKUP_JUMPED);
-TRACE_DEFINE_ENUM(LOOKUP_ROOT);
 TRACE_DEFINE_ENUM(LOOKUP_EMPTY);
 TRACE_DEFINE_ENUM(LOOKUP_DOWN);
 
@@ -288,8 +295,6 @@ TRACE_DEFINE_ENUM(LOOKUP_DOWN);
 			{ LOOKUP_CREATE, "CREATE" }, \
 			{ LOOKUP_EXCL, "EXCL" }, \
 			{ LOOKUP_RENAME_TARGET, "RENAME_TARGET" }, \
-			{ LOOKUP_JUMPED, "JUMPED" }, \
-			{ LOOKUP_ROOT, "ROOT" }, \
 			{ LOOKUP_EMPTY, "EMPTY" }, \
 			{ LOOKUP_DOWN, "DOWN" })
 
@@ -420,10 +425,6 @@ TRACE_DEFINE_ENUM(O_CLOEXEC);
 		{ O_NOFOLLOW, "O_NOFOLLOW" }, \
 		{ O_NOATIME, "O_NOATIME" }, \
 		{ O_CLOEXEC, "O_CLOEXEC" })
-
-TRACE_DEFINE_ENUM(FMODE_READ);
-TRACE_DEFINE_ENUM(FMODE_WRITE);
-TRACE_DEFINE_ENUM(FMODE_EXEC);
 
 #define show_fmode_flags(mode) \
 	__print_flags(mode, "|", \
@@ -1392,7 +1393,7 @@ TRACE_DEFINE_ENUM(NFSERR_JUKEBOX);
 			{ NFSERR_BADTYPE, "BADTYPE" }, \
 			{ NFSERR_JUKEBOX, "JUKEBOX" })
 
-TRACE_EVENT(nfs_xdr_status,
+DECLARE_EVENT_CLASS(nfs_xdr_event,
 		TP_PROTO(
 			const struct xdr_stream *xdr,
 			int error
@@ -1422,8 +1423,8 @@ TRACE_EVENT(nfs_xdr_status,
 			__entry->version = task->tk_client->cl_vers;
 			__entry->error = error;
 			__assign_str(program,
-				     task->tk_client->cl_program->name)
-			__assign_str(procedure, task->tk_msg.rpc_proc->p_name)
+				     task->tk_client->cl_program->name);
+			__assign_str(procedure, task->tk_msg.rpc_proc->p_name);
 		),
 
 		TP_printk(
@@ -1434,6 +1435,15 @@ TRACE_EVENT(nfs_xdr_status,
 			nfs_show_status(__entry->error)
 		)
 );
+#define DEFINE_NFS_XDR_EVENT(name) \
+	DEFINE_EVENT(nfs_xdr_event, name, \
+			TP_PROTO( \
+				const struct xdr_stream *xdr, \
+				int error \
+			), \
+			TP_ARGS(xdr, error))
+DEFINE_NFS_XDR_EVENT(nfs_xdr_status);
+DEFINE_NFS_XDR_EVENT(nfs_xdr_bad_filehandle);
 
 #endif /* _TRACE_NFS_H */
 

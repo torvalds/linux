@@ -41,6 +41,7 @@
 #include "dcn21/rn_clk_mgr.h"
 #include "dcn30/dcn30_clk_mgr.h"
 #include "dcn301/vg_clk_mgr.h"
+#include "dcn31/dcn31_clk_mgr.h"
 
 
 int clk_mgr_helper_get_active_display_cnt(
@@ -87,25 +88,44 @@ int clk_mgr_helper_get_active_plane_cnt(
 
 void clk_mgr_exit_optimized_pwr_state(const struct dc *dc, struct clk_mgr *clk_mgr)
 {
-	struct dc_link *edp_link = get_edp_link(dc);
+	struct dc_link *edp_links[MAX_NUM_EDP];
+	struct dc_link *edp_link = NULL;
+	int edp_num;
+	unsigned int panel_inst;
 
+	get_edp_links(dc, edp_links, &edp_num);
 	if (dc->hwss.exit_optimized_pwr_state)
 		dc->hwss.exit_optimized_pwr_state(dc, dc->current_state);
 
-	if (edp_link) {
-		clk_mgr->psr_allow_active_cache = edp_link->psr_settings.psr_allow_active;
-		dc_link_set_psr_allow_active(edp_link, false, false, false);
+	if (edp_num) {
+		for (panel_inst = 0; panel_inst < edp_num; panel_inst++) {
+			edp_link = edp_links[panel_inst];
+			if (!edp_link->psr_settings.psr_feature_enabled)
+				continue;
+			clk_mgr->psr_allow_active_cache = edp_link->psr_settings.psr_allow_active;
+			dc_link_set_psr_allow_active(edp_link, false, false, false);
+		}
 	}
 
 }
 
 void clk_mgr_optimize_pwr_state(const struct dc *dc, struct clk_mgr *clk_mgr)
 {
-	struct dc_link *edp_link = get_edp_link(dc);
+	struct dc_link *edp_links[MAX_NUM_EDP];
+	struct dc_link *edp_link = NULL;
+	int edp_num;
+	unsigned int panel_inst;
 
-	if (edp_link)
-		dc_link_set_psr_allow_active(edp_link,
-				clk_mgr->psr_allow_active_cache, false, false);
+	get_edp_links(dc, edp_links, &edp_num);
+	if (edp_num) {
+		for (panel_inst = 0; panel_inst < edp_num; panel_inst++) {
+			edp_link = edp_links[panel_inst];
+			if (!edp_link->psr_settings.psr_feature_enabled)
+				continue;
+			dc_link_set_psr_allow_active(edp_link,
+					clk_mgr->psr_allow_active_cache, false, false);
+		}
+	}
 
 	if (dc->hwss.optimize_pwr_state)
 		dc->hwss.optimize_pwr_state(dc, dc->current_state);
@@ -116,95 +136,165 @@ struct clk_mgr *dc_clk_mgr_create(struct dc_context *ctx, struct pp_smu_funcs *p
 {
 	struct hw_asic_id asic_id = ctx->asic_id;
 
-	struct clk_mgr_internal *clk_mgr = kzalloc(sizeof(*clk_mgr), GFP_KERNEL);
-
-	if (clk_mgr == NULL) {
-		BREAK_TO_DEBUGGER();
-		return NULL;
-	}
-
 	switch (asic_id.chip_family) {
 #if defined(CONFIG_DRM_AMD_DC_SI)
-	case FAMILY_SI:
+	case FAMILY_SI: {
+		struct clk_mgr_internal *clk_mgr = kzalloc(sizeof(*clk_mgr), GFP_KERNEL);
+
+		if (clk_mgr == NULL) {
+			BREAK_TO_DEBUGGER();
+			return NULL;
+		}
 		dce60_clk_mgr_construct(ctx, clk_mgr);
-		break;
+		dce_clk_mgr_construct(ctx, clk_mgr);
+		return &clk_mgr->base;
+	}
 #endif
 	case FAMILY_CI:
-	case FAMILY_KV:
+	case FAMILY_KV: {
+		struct clk_mgr_internal *clk_mgr = kzalloc(sizeof(*clk_mgr), GFP_KERNEL);
+
+		if (clk_mgr == NULL) {
+			BREAK_TO_DEBUGGER();
+			return NULL;
+		}
 		dce_clk_mgr_construct(ctx, clk_mgr);
-		break;
-	case FAMILY_CZ:
+		return &clk_mgr->base;
+	}
+	case FAMILY_CZ: {
+		struct clk_mgr_internal *clk_mgr = kzalloc(sizeof(*clk_mgr), GFP_KERNEL);
+
+		if (clk_mgr == NULL) {
+			BREAK_TO_DEBUGGER();
+			return NULL;
+		}
 		dce110_clk_mgr_construct(ctx, clk_mgr);
-		break;
-	case FAMILY_VI:
+		return &clk_mgr->base;
+	}
+	case FAMILY_VI: {
+		struct clk_mgr_internal *clk_mgr = kzalloc(sizeof(*clk_mgr), GFP_KERNEL);
+
+		if (clk_mgr == NULL) {
+			BREAK_TO_DEBUGGER();
+			return NULL;
+		}
 		if (ASIC_REV_IS_TONGA_P(asic_id.hw_internal_rev) ||
 				ASIC_REV_IS_FIJI_P(asic_id.hw_internal_rev)) {
 			dce_clk_mgr_construct(ctx, clk_mgr);
-			break;
+			return &clk_mgr->base;
 		}
 		if (ASIC_REV_IS_POLARIS10_P(asic_id.hw_internal_rev) ||
 				ASIC_REV_IS_POLARIS11_M(asic_id.hw_internal_rev) ||
 				ASIC_REV_IS_POLARIS12_V(asic_id.hw_internal_rev)) {
 			dce112_clk_mgr_construct(ctx, clk_mgr);
-			break;
+			return &clk_mgr->base;
 		}
 		if (ASIC_REV_IS_VEGAM(asic_id.hw_internal_rev)) {
 			dce112_clk_mgr_construct(ctx, clk_mgr);
-			break;
+			return &clk_mgr->base;
 		}
-		break;
-	case FAMILY_AI:
+		return &clk_mgr->base;
+	}
+	case FAMILY_AI: {
+		struct clk_mgr_internal *clk_mgr = kzalloc(sizeof(*clk_mgr), GFP_KERNEL);
+
+		if (clk_mgr == NULL) {
+			BREAK_TO_DEBUGGER();
+			return NULL;
+		}
 		if (ASICREV_IS_VEGA20_P(asic_id.hw_internal_rev))
 			dce121_clk_mgr_construct(ctx, clk_mgr);
 		else
 			dce120_clk_mgr_construct(ctx, clk_mgr);
-		break;
-
+		return &clk_mgr->base;
+	}
 #if defined(CONFIG_DRM_AMD_DC_DCN)
-	case FAMILY_RV:
+	case FAMILY_RV: {
+		struct clk_mgr_internal *clk_mgr = kzalloc(sizeof(*clk_mgr), GFP_KERNEL);
+
+		if (clk_mgr == NULL) {
+			BREAK_TO_DEBUGGER();
+			return NULL;
+		}
+
 		if (ASICREV_IS_RENOIR(asic_id.hw_internal_rev)) {
 			rn_clk_mgr_construct(ctx, clk_mgr, pp_smu, dccg);
-			break;
+			return &clk_mgr->base;
 		}
 
 		if (ASICREV_IS_GREEN_SARDINE(asic_id.hw_internal_rev)) {
 			rn_clk_mgr_construct(ctx, clk_mgr, pp_smu, dccg);
-			break;
+			return &clk_mgr->base;
 		}
 		if (ASICREV_IS_RAVEN2(asic_id.hw_internal_rev)) {
 			rv2_clk_mgr_construct(ctx, clk_mgr, pp_smu);
-			break;
+			return &clk_mgr->base;
 		}
 		if (ASICREV_IS_RAVEN(asic_id.hw_internal_rev) ||
 				ASICREV_IS_PICASSO(asic_id.hw_internal_rev)) {
 			rv1_clk_mgr_construct(ctx, clk_mgr, pp_smu);
-			break;
+			return &clk_mgr->base;
 		}
-		break;
+		return &clk_mgr->base;
+	}
+	case FAMILY_NV: {
+		struct clk_mgr_internal *clk_mgr = kzalloc(sizeof(*clk_mgr), GFP_KERNEL);
 
-	case FAMILY_NV:
+		if (clk_mgr == NULL) {
+			BREAK_TO_DEBUGGER();
+			return NULL;
+		}
 		if (ASICREV_IS_SIENNA_CICHLID_P(asic_id.hw_internal_rev)) {
 			dcn3_clk_mgr_construct(ctx, clk_mgr, pp_smu, dccg);
-			break;
+			return &clk_mgr->base;
 		}
 		if (ASICREV_IS_DIMGREY_CAVEFISH_P(asic_id.hw_internal_rev)) {
 			dcn3_clk_mgr_construct(ctx, clk_mgr, pp_smu, dccg);
-			break;
+			return &clk_mgr->base;
+		}
+		if (ASICREV_IS_BEIGE_GOBY_P(asic_id.hw_internal_rev)) {
+			dcn3_clk_mgr_construct(ctx, clk_mgr, pp_smu, dccg);
+			return &clk_mgr->base;
 		}
 		dcn20_clk_mgr_construct(ctx, clk_mgr, pp_smu, dccg);
-		break;
-
+		return &clk_mgr->base;
+	}
 	case FAMILY_VGH:
-		if (ASICREV_IS_VANGOGH(asic_id.hw_internal_rev))
+		if (ASICREV_IS_VANGOGH(asic_id.hw_internal_rev)) {
+			struct clk_mgr_vgh *clk_mgr = kzalloc(sizeof(*clk_mgr), GFP_KERNEL);
+
+			if (clk_mgr == NULL) {
+				BREAK_TO_DEBUGGER();
+				return NULL;
+			}
 			vg_clk_mgr_construct(ctx, clk_mgr, pp_smu, dccg);
+			return &clk_mgr->base.base;
+		}
 		break;
+	case FAMILY_YELLOW_CARP: {
+		struct clk_mgr_dcn31 *clk_mgr = kzalloc(sizeof(*clk_mgr), GFP_KERNEL);
+
+		if (clk_mgr == NULL) {
+			BREAK_TO_DEBUGGER();
+			return NULL;
+		}
+		if (ASICREV_IS_YELLOW_CARP(asic_id.hw_internal_rev)) {
+			/* TODO: to add DCN31 clk_mgr support, once CLK IP header files are available,
+			 * for now use DCN3.0 clk mgr.
+			 */
+			dcn31_clk_mgr_construct(ctx, clk_mgr, pp_smu, dccg);
+			return &clk_mgr->base.base;
+		}
+		return &clk_mgr->base.base;
+	}
 #endif
+
 	default:
 		ASSERT(0); /* Unknown Asic */
 		break;
 	}
 
-	return &clk_mgr->base;
+	return NULL;
 }
 
 void dc_destroy_clk_mgr(struct clk_mgr *clk_mgr_base)
@@ -217,11 +307,22 @@ void dc_destroy_clk_mgr(struct clk_mgr *clk_mgr_base)
 		if (ASICREV_IS_SIENNA_CICHLID_P(clk_mgr_base->ctx->asic_id.hw_internal_rev)) {
 			dcn3_clk_mgr_destroy(clk_mgr);
 		}
+		if (ASICREV_IS_DIMGREY_CAVEFISH_P(clk_mgr_base->ctx->asic_id.hw_internal_rev)) {
+			dcn3_clk_mgr_destroy(clk_mgr);
+		}
+		if (ASICREV_IS_BEIGE_GOBY_P(clk_mgr_base->ctx->asic_id.hw_internal_rev)) {
+			dcn3_clk_mgr_destroy(clk_mgr);
+		}
 		break;
 
 	case FAMILY_VGH:
 		if (ASICREV_IS_VANGOGH(clk_mgr_base->ctx->asic_id.hw_internal_rev))
 			vg_clk_mgr_destroy(clk_mgr);
+		break;
+
+	case FAMILY_YELLOW_CARP:
+		if (ASICREV_IS_YELLOW_CARP(clk_mgr_base->ctx->asic_id.hw_internal_rev))
+			dcn31_clk_mgr_destroy(clk_mgr);
 		break;
 
 	default:

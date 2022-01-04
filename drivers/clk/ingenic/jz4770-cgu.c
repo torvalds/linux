@@ -139,8 +139,7 @@ static const struct ingenic_cgu_clk_info jz4770_cgu_clocks[] = {
 			.od_bits = 2,
 			.od_max = 8,
 			.od_encoding = pll_od_encoding,
-			.bypass_reg = CGU_REG_CPPCR1,
-			.no_bypass_bit = true,
+			.bypass_bit = -1,
 			.enable_bit = 7,
 			.stable_bit = 6,
 		},
@@ -152,7 +151,7 @@ static const struct ingenic_cgu_clk_info jz4770_cgu_clocks[] = {
 		"cclk", CGU_CLK_DIV,
 		.parents = { JZ4770_CLK_PLL0, },
 		.div = {
-			CGU_REG_CPCCR, 0, 1, 4, 22, -1, -1,
+			CGU_REG_CPCCR, 0, 1, 4, 22, -1, -1, 0,
 			jz4770_cgu_cpccr_div_table,
 		},
 	},
@@ -160,7 +159,7 @@ static const struct ingenic_cgu_clk_info jz4770_cgu_clocks[] = {
 		"h0clk", CGU_CLK_DIV,
 		.parents = { JZ4770_CLK_PLL0, },
 		.div = {
-			CGU_REG_CPCCR, 4, 1, 4, 22, -1, -1,
+			CGU_REG_CPCCR, 4, 1, 4, 22, -1, -1, 0,
 			jz4770_cgu_cpccr_div_table,
 		},
 	},
@@ -168,7 +167,7 @@ static const struct ingenic_cgu_clk_info jz4770_cgu_clocks[] = {
 		"h1clk", CGU_CLK_DIV | CGU_CLK_GATE,
 		.parents = { JZ4770_CLK_PLL0, },
 		.div = {
-			CGU_REG_CPCCR, 24, 1, 4, 22, -1, -1,
+			CGU_REG_CPCCR, 24, 1, 4, 22, -1, -1, 0,
 			jz4770_cgu_cpccr_div_table,
 		},
 		.gate = { CGU_REG_CLKGR1, 7 },
@@ -177,7 +176,7 @@ static const struct ingenic_cgu_clk_info jz4770_cgu_clocks[] = {
 		"h2clk", CGU_CLK_DIV,
 		.parents = { JZ4770_CLK_PLL0, },
 		.div = {
-			CGU_REG_CPCCR, 16, 1, 4, 22, -1, -1,
+			CGU_REG_CPCCR, 16, 1, 4, 22, -1, -1, 0,
 			jz4770_cgu_cpccr_div_table,
 		},
 	},
@@ -185,7 +184,7 @@ static const struct ingenic_cgu_clk_info jz4770_cgu_clocks[] = {
 		"c1clk", CGU_CLK_DIV | CGU_CLK_GATE,
 		.parents = { JZ4770_CLK_PLL0, },
 		.div = {
-			CGU_REG_CPCCR, 12, 1, 4, 22, -1, -1,
+			CGU_REG_CPCCR, 12, 1, 4, 22, -1, -1, 0,
 			jz4770_cgu_cpccr_div_table,
 		},
 		.gate = { CGU_REG_OPCR, 31, true }, // disable CCLK stop on idle
@@ -194,7 +193,7 @@ static const struct ingenic_cgu_clk_info jz4770_cgu_clocks[] = {
 		"pclk", CGU_CLK_DIV,
 		.parents = { JZ4770_CLK_PLL0, },
 		.div = {
-			CGU_REG_CPCCR, 8, 1, 4, 22, -1, -1,
+			CGU_REG_CPCCR, 8, 1, 4, 22, -1, -1, 0,
 			jz4770_cgu_cpccr_div_table,
 		},
 	},

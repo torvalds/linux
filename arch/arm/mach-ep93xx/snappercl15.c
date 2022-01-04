@@ -157,6 +157,5 @@ MACHINE_START(SNAPPER_CL15, "Bluewater Systems Snapper CL15")
 	.init_irq	= ep93xx_init_irq,
 	.init_time	= ep93xx_timer_init,
 	.init_machine	= snappercl15_init_machine,
-	.init_late	= ep93xx_init_late,
 	.restart	= ep93xx_restart,
 MACHINE_END

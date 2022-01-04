@@ -17,10 +17,10 @@ description:
 
 properties:
   compatible:
-    oneOf:
-      - const: "realtek,rtl8723bs-bt"
-      - const: "realtek,rtl8723cs-bt"
-      - const: "realtek,rtl8822cs-bt"
+    enum:
+      - realtek,rtl8723bs-bt
+      - realtek,rtl8723cs-bt
+      - realtek,rtl8822cs-bt
 
   device-wake-gpios:
     maxItems: 1

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Device Tree Source for the M3ULCB Kingfisher board
+ * Device Tree Source for the M3ULCB Kingfisher board with R-Car M3-W+
  *
  * Copyright (C) 2020 Eugeniu Rosca <rosca.eugeniu@gmail.com>
  */

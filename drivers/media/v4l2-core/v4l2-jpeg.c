@@ -45,6 +45,7 @@ MODULE_LICENSE("GPL");
 #define DHP	0xffde	/* hierarchical progression */
 #define EXP	0xffdf	/* expand reference */
 #define APP0	0xffe0	/* application data */
+#define APP14	0xffee	/* application data for colour encoding */
 #define APP15	0xffef
 #define JPG0	0xfff0	/* extensions */
 #define JPG13	0xfffd
@@ -444,8 +445,41 @@ static int jpeg_skip_segment(struct jpeg_stream *stream)
 	return jpeg_skip(stream, len - 2);
 }
 
+/* Rec. ITU-T T.872 (06/2012) 6.5.3 */
+static int jpeg_parse_app14_data(struct jpeg_stream *stream,
+				 enum v4l2_jpeg_app14_tf *tf)
+{
+	int ret;
+	int lp;
+	int skip;
+
+	lp = jpeg_get_word_be(stream);
+	if (lp < 0)
+		return lp;
+
+	/* Check for "Adobe\0" in Ap1..6 */
+	if (stream->curr + 6 > stream->end ||
+	    strncmp(stream->curr, "Adobe\0", 6))
+		return -EINVAL;
+
+	/* get to Ap12 */
+	ret = jpeg_skip(stream, 11);
+	if (ret < 0)
+		return ret;
+
+	ret = jpeg_get_byte(stream);
+	if (ret < 0)
+		return ret;
+
+	*tf = ret;
+
+	/* skip the rest of the segment, this ensures at least it is complete */
+	skip = lp - 2 - 11;
+	return jpeg_skip(stream, skip);
+}
+
 /**
- * jpeg_parse_header - locate marker segments and optionally parse headers
+ * v4l2_jpeg_parse_header - locate marker segments and optionally parse headers
  * @buf: address of the JPEG buffer, should start with a SOI marker
  * @len: length of the JPEG buffer
  * @out: returns marker segment positions and optionally parsed headers
@@ -469,12 +503,12 @@ int v4l2_jpeg_parse_header(void *buf, size_t len, struct v4l2_jpeg_header *out)
 	out->num_dht = 0;
 	out->num_dqt = 0;
 
-	/* the first marker must be SOI */
-	marker = jpeg_next_marker(&stream);
-	if (marker < 0)
-		return marker;
-	if (marker != SOI)
+	/* the first bytes must be SOI, B.2.1 High-level syntax */
+	if (jpeg_get_word_be(&stream) != SOI)
 		return -EINVAL;
+
+	/* init value to signal if this marker is not present */
+	out->app14_tf = V4L2_JPEG_APP14_TF_UNKNOWN;
 
 	/* loop through marker segments */
 	while ((marker = jpeg_next_marker(&stream)) >= 0) {
@@ -503,6 +537,10 @@ int v4l2_jpeg_parse_header(void *buf, size_t len, struct v4l2_jpeg_header *out)
 					&out->dht[out->num_dht++ % 4]);
 			if (ret < 0)
 				return ret;
+			if (!out->huffman_tables) {
+				ret = jpeg_skip_segment(&stream);
+				break;
+			}
 			ret = jpeg_parse_huffman_tables(&stream,
 							out->huffman_tables);
 			break;
@@ -511,6 +549,10 @@ int v4l2_jpeg_parse_header(void *buf, size_t len, struct v4l2_jpeg_header *out)
 					&out->dqt[out->num_dqt++ % 4]);
 			if (ret < 0)
 				return ret;
+			if (!out->quantization_tables) {
+				ret = jpeg_skip_segment(&stream);
+				break;
+			}
 			ret = jpeg_parse_quantization_tables(&stream,
 					out->frame.precision,
 					out->quantization_tables);
@@ -519,7 +561,10 @@ int v4l2_jpeg_parse_header(void *buf, size_t len, struct v4l2_jpeg_header *out)
 			ret = jpeg_parse_restart_interval(&stream,
 							&out->restart_interval);
 			break;
-
+		case APP14:
+			ret = jpeg_parse_app14_data(&stream,
+						    &out->app14_tf);
+			break;
 		case SOS:
 			ret = jpeg_reference_segment(&stream, &out->sos);
 			if (ret < 0)

@@ -19,8 +19,8 @@
 #include <asm/cmpxchg.h>
 #include <asm/barrier.h>
 
-#define atomic_read(v)		READ_ONCE((v)->counter)
-#define atomic_set(v,i)		WRITE_ONCE((v)->counter, (i))
+#define arch_atomic_read(v)		READ_ONCE((v)->counter)
+#define arch_atomic_set(v,i)		WRITE_ONCE((v)->counter, (i))
 
 #if defined(CONFIG_GUSA_RB)
 #include <asm/atomic-grb.h>
@@ -30,8 +30,8 @@
 #include <asm/atomic-irq.h>
 #endif
 
-#define atomic_xchg(v, new)		(xchg(&((v)->counter), new))
-#define atomic_cmpxchg(v, o, n)		(cmpxchg(&((v)->counter), (o), (n)))
+#define arch_atomic_xchg(v, new)	(arch_xchg(&((v)->counter), new))
+#define arch_atomic_cmpxchg(v, o, n)	(arch_cmpxchg(&((v)->counter), (o), (n)))
 
 #endif /* CONFIG_CPU_J2 */
 

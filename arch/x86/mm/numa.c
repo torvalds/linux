@@ -254,7 +254,13 @@ int __init numa_cleanup_meminfo(struct numa_meminfo *mi)
 
 		/* make sure all non-reserved blocks are inside the limits */
 		bi->start = max(bi->start, low);
-		bi->end = min(bi->end, high);
+
+		/* preserve info for non-RAM areas above 'max_pfn': */
+		if (bi->end > high) {
+			numa_add_memblk_to(bi->nid, high, bi->end,
+					   &numa_reserved_meminfo);
+			bi->end = high;
+		}
 
 		/* and there's no empty block */
 		if (bi->start >= bi->end)
@@ -370,15 +376,14 @@ static int __init numa_alloc_distance(void)
 	cnt++;
 	size = cnt * cnt * sizeof(numa_distance[0]);
 
-	phys = memblock_find_in_range(0, PFN_PHYS(max_pfn_mapped),
-				      size, PAGE_SIZE);
+	phys = memblock_phys_alloc_range(size, PAGE_SIZE, 0,
+					 PFN_PHYS(max_pfn_mapped));
 	if (!phys) {
 		pr_warn("Warning: can't allocate distance table!\n");
 		/* don't retry until explicitly reset */
 		numa_distance = (void *)1LU;
 		return -ENOMEM;
 	}
-	memblock_reserve(phys, size);
 
 	numa_distance = __va(phys);
 	numa_distance_cnt = cnt;

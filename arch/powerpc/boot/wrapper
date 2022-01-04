@@ -191,7 +191,7 @@ if [ -z "$kernel" ]; then
     kernel=vmlinux
 fi
 
-LANG=C elfformat="`${CROSS}objdump -p "$kernel" | grep 'file format' | awk '{print $4}'`"
+LC_ALL=C elfformat="`${CROSS}objdump -p "$kernel" | grep 'file format' | awk '{print $4}'`"
 case "$elfformat" in
     elf64-powerpcle)	format=elf64lppc	;;
     elf64-powerpc)	format=elf32ppc	;;
@@ -341,6 +341,11 @@ xpedite52*)
 gamecube|wii)
     link_address='0x600000'
     platformo="$object/$platform-head.o $object/$platform.o"
+    ;;
+microwatt)
+    link_address='0x500000'
+    platformo="$object/fixed-head.o $object/$platform.o"
+    binary=y
     ;;
 treeboot-currituck)
     link_address='0x1000000'

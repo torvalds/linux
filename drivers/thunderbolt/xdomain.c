@@ -1527,6 +1527,13 @@ int tb_xdomain_lane_bonding_enable(struct tb_xdomain *xd)
 		return ret;
 	}
 
+	ret = tb_port_wait_for_link_width(port, 2, 100);
+	if (ret) {
+		tb_port_warn(port, "timeout enabling lane bonding\n");
+		return ret;
+	}
+
+	tb_port_update_credits(port);
 	tb_xdomain_update_link_attributes(xd);
 
 	dev_dbg(&xd->dev, "lane bonding enabled\n");
@@ -1548,7 +1555,10 @@ void tb_xdomain_lane_bonding_disable(struct tb_xdomain *xd)
 	port = tb_port_at(xd->route, tb_xdomain_parent(xd));
 	if (port->dual_link_port) {
 		tb_port_lane_bonding_disable(port);
+		if (tb_port_wait_for_link_width(port, 1, 100) == -ETIMEDOUT)
+			tb_port_warn(port, "timeout disabling lane bonding\n");
 		tb_port_disable(port->dual_link_port);
+		tb_port_update_credits(port);
 		tb_xdomain_update_link_attributes(xd);
 
 		dev_dbg(&xd->dev, "lane bonding disabled\n");

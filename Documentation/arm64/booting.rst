@@ -207,10 +207,17 @@ Before jumping into the kernel, the following conditions must be met:
   software at a higher exception level to prevent execution in an UNKNOWN
   state.
 
-  - SCR_EL3.FIQ must have the same value across all CPUs the kernel is
-    executing on.
-  - The value of SCR_EL3.FIQ must be the same as the one present at boot
-    time whenever the kernel is executing.
+  For all systems:
+  - If EL3 is present:
+
+    - SCR_EL3.FIQ must have the same value across all CPUs the kernel is
+      executing on.
+    - The value of SCR_EL3.FIQ must be the same as the one present at boot
+      time whenever the kernel is executing.
+
+  - If EL3 is present and the kernel is entered at EL2:
+
+    - SCR_EL3.HCE (bit 8) must be initialised to 0b1.
 
   For systems with a GICv3 interrupt controller to be used in v3 mode:
   - If EL3 is present:
@@ -277,9 +284,68 @@ Before jumping into the kernel, the following conditions must be met:
 
     - SCR_EL3.FGTEn (bit 27) must be initialised to 0b1.
 
+  For CPUs with support for HCRX_EL2 (FEAT_HCX) present:
+
+  - If EL3 is present and the kernel is entered at EL2:
+
+    - SCR_EL3.HXEn (bit 38) must be initialised to 0b1.
+
+  For CPUs with Advanced SIMD and floating point support:
+
+  - If EL3 is present:
+
+    - CPTR_EL3.TFP (bit 10) must be initialised to 0b0.
+
+  - If EL2 is present and the kernel is entered at EL1:
+
+    - CPTR_EL2.TFP (bit 10) must be initialised to 0b0.
+
+  For CPUs with the Scalable Vector Extension (FEAT_SVE) present:
+
+  - if EL3 is present:
+
+    - CPTR_EL3.EZ (bit 8) must be initialised to 0b1.
+
+    - ZCR_EL3.LEN must be initialised to the same value for all CPUs the
+      kernel is executed on.
+
+  - If the kernel is entered at EL1 and EL2 is present:
+
+    - CPTR_EL2.TZ (bit 8) must be initialised to 0b0.
+
+    - CPTR_EL2.ZEN (bits 17:16) must be initialised to 0b11.
+
+    - ZCR_EL2.LEN must be initialised to the same value for all CPUs the
+      kernel will execute on.
+
+  For CPUs with the Scalable Matrix Extension (FEAT_SME):
+
+  - If EL3 is present:
+
+    - CPTR_EL3.ESM (bit 12) must be initialised to 0b1.
+
+    - SCR_EL3.EnTP2 (bit 41) must be initialised to 0b1.
+
+    - SMCR_EL3.LEN must be initialised to the same value for all CPUs the
+      kernel will execute on.
+
+ - If the kernel is entered at EL1 and EL2 is present:
+
+    - CPTR_EL2.TSM (bit 12) must be initialised to 0b0.
+
+    - CPTR_EL2.SMEN (bits 25:24) must be initialised to 0b11.
+
+    - SCTLR_EL2.EnTP2 (bit 60) must be initialised to 0b1.
+
+    - SMCR_EL2.LEN must be initialised to the same value for all CPUs the
+      kernel will execute on.
+
 The requirements described above for CPU mode, caches, MMUs, architected
 timers, coherency and system registers apply to all CPUs.  All CPUs must
-enter the kernel in the same exception level.
+enter the kernel in the same exception level.  Where the values documented
+disable traps it is permissible for these traps to be enabled so long as
+those traps are handled transparently by higher exception levels as though
+the values documented were set.
 
 The boot loader is expected to enter the kernel on each CPU in the
 following manner:

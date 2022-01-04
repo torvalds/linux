@@ -4,6 +4,7 @@
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/fs.h>
+#include <linux/pagemap.h>
 #include <linux/syscalls.h>
 #include <linux/spinlock.h>
 #include <asm/page.h>
@@ -54,17 +55,6 @@ void update_mmu_cache(struct vm_area_struct *vma, unsigned long addr,
 			icache_inv_all();
 	}
 }
-
-void flush_kernel_dcache_page(struct page *page)
-{
-	struct address_space *mapping;
-
-	mapping = page_mapping_file(page);
-
-	if (!mapping || mapping_mapped(mapping))
-		dcache_wbinv_all();
-}
-EXPORT_SYMBOL(flush_kernel_dcache_page);
 
 void flush_cache_range(struct vm_area_struct *vma, unsigned long start,
 	unsigned long end)

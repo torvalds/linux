@@ -16,6 +16,7 @@
 
 #include <asm/asm-offsets.h>
 #include <asm/alternative.h>
+#include <asm/asm-bug.h>
 #include <asm/cpufeature.h>
 #include <asm/cputype.h>
 #include <asm/debug-monitors.h>
@@ -129,14 +130,26 @@ alternative_endif
 	.endm
 
 /*
- * Emit an entry into the exception table
+ * Create an exception table entry for `insn`, which will branch to `fixup`
+ * when an unhandled fault is taken.
  */
-	.macro		_asm_extable, from, to
+	.macro		_asm_extable, insn, fixup
 	.pushsection	__ex_table, "a"
 	.align		3
-	.long		(\from - .), (\to - .)
+	.long		(\insn - .), (\fixup - .)
 	.popsection
 	.endm
+
+/*
+ * Create an exception table entry for `insn` if `fixup` is provided. Otherwise
+ * do nothing.
+ */
+	.macro		_cond_extable, insn, fixup
+	.ifnc		\fixup,
+	_asm_extable	\insn, \fixup
+	.endif
+	.endm
+
 
 #define USER(l, x...)				\
 9999:	x;					\
@@ -231,15 +244,23 @@ lr	.req	x30		// link register
 	 * @dst: destination register
 	 */
 #if defined(__KVM_NVHE_HYPERVISOR__) || defined(__KVM_VHE_HYPERVISOR__)
-	.macro	this_cpu_offset, dst
+	.macro	get_this_cpu_offset, dst
 	mrs	\dst, tpidr_el2
 	.endm
 #else
-	.macro	this_cpu_offset, dst
+	.macro	get_this_cpu_offset, dst
 alternative_if_not ARM64_HAS_VIRT_HOST_EXTN
 	mrs	\dst, tpidr_el1
 alternative_else
 	mrs	\dst, tpidr_el2
+alternative_endif
+	.endm
+
+	.macro	set_this_cpu_offset, src
+alternative_if_not ARM64_HAS_VIRT_HOST_EXTN
+	msr	tpidr_el1, \src
+alternative_else
+	msr	tpidr_el2, \src
 alternative_endif
 	.endm
 #endif
@@ -252,7 +273,7 @@ alternative_endif
 	.macro adr_this_cpu, dst, sym, tmp
 	adrp	\tmp, \sym
 	add	\dst, \tmp, #:lo12:\sym
-	this_cpu_offset \tmp
+	get_this_cpu_offset \tmp
 	add	\dst, \dst, \tmp
 	.endm
 
@@ -263,7 +284,7 @@ alternative_endif
 	 */
 	.macro ldr_this_cpu dst, sym, tmp
 	adr_l	\dst, \sym
-	this_cpu_offset \tmp
+	get_this_cpu_offset \tmp
 	ldr	\dst, [\dst, \tmp]
 	.endm
 
@@ -279,12 +300,24 @@ alternative_endif
  * provide the system wide safe value from arm64_ftr_reg_ctrel0.sys_val
  */
 	.macro	read_ctr, reg
+#ifndef __KVM_NVHE_HYPERVISOR__
 alternative_if_not ARM64_MISMATCHED_CACHE_TYPE
 	mrs	\reg, ctr_el0			// read CTR
 	nop
 alternative_else
 	ldr_l	\reg, arm64_ftr_reg_ctrel0 + ARM64_FTR_SYSVAL
 alternative_endif
+#else
+alternative_if_not ARM64_KVM_PROTECTED_MODE
+	ASM_BUG()
+alternative_else_nop_endif
+alternative_cb kvm_compute_final_ctr_el0
+	movz	\reg, #0
+	movk	\reg, #0, lsl #16
+	movk	\reg, #0, lsl #32
+	movk	\reg, #0, lsl #48
+alternative_cb_end
+#endif
 	.endm
 
 
@@ -362,51 +395,53 @@ alternative_endif
 	bfi	\tcr, \tmp0, \pos, #3
 	.endm
 
-/*
- * Macro to perform a data cache maintenance for the interval
- * [kaddr, kaddr + size)
- *
- * 	op:		operation passed to dc instruction
- * 	domain:		domain used in dsb instruciton
- * 	kaddr:		starting virtual address of the region
- * 	size:		size of the region
- * 	Corrupts:	kaddr, size, tmp1, tmp2
- */
-	.macro __dcache_op_workaround_clean_cache, op, kaddr
+	.macro __dcache_op_workaround_clean_cache, op, addr
 alternative_if_not ARM64_WORKAROUND_CLEAN_CACHE
-	dc	\op, \kaddr
+	dc	\op, \addr
 alternative_else
-	dc	civac, \kaddr
+	dc	civac, \addr
 alternative_endif
 	.endm
 
-	.macro dcache_by_line_op op, domain, kaddr, size, tmp1, tmp2
+/*
+ * Macro to perform a data cache maintenance for the interval
+ * [start, end)
+ *
+ * 	op:		operation passed to dc instruction
+ * 	domain:		domain used in dsb instruciton
+ * 	start:          starting virtual address of the region
+ * 	end:            end virtual address of the region
+ * 	fixup:		optional label to branch to on user fault
+ * 	Corrupts:       start, end, tmp1, tmp2
+ */
+	.macro dcache_by_line_op op, domain, start, end, tmp1, tmp2, fixup
 	dcache_line_size \tmp1, \tmp2
-	add	\size, \kaddr, \size
 	sub	\tmp2, \tmp1, #1
-	bic	\kaddr, \kaddr, \tmp2
-9998:
+	bic	\start, \start, \tmp2
+.Ldcache_op\@:
 	.ifc	\op, cvau
-	__dcache_op_workaround_clean_cache \op, \kaddr
+	__dcache_op_workaround_clean_cache \op, \start
 	.else
 	.ifc	\op, cvac
-	__dcache_op_workaround_clean_cache \op, \kaddr
+	__dcache_op_workaround_clean_cache \op, \start
 	.else
 	.ifc	\op, cvap
-	sys	3, c7, c12, 1, \kaddr	// dc cvap
+	sys	3, c7, c12, 1, \start	// dc cvap
 	.else
 	.ifc	\op, cvadp
-	sys	3, c7, c13, 1, \kaddr	// dc cvadp
+	sys	3, c7, c13, 1, \start	// dc cvadp
 	.else
-	dc	\op, \kaddr
+	dc	\op, \start
 	.endif
 	.endif
 	.endif
 	.endif
-	add	\kaddr, \kaddr, \tmp1
-	cmp	\kaddr, \size
-	b.lo	9998b
+	add	\start, \start, \tmp1
+	cmp	\start, \end
+	b.lo	.Ldcache_op\@
 	dsb	\domain
+
+	_cond_extable .Ldcache_op\@, \fixup
 	.endm
 
 /*
@@ -414,20 +449,22 @@ alternative_endif
  * [start, end)
  *
  * 	start, end:	virtual addresses describing the region
- *	label:		A label to branch to on user fault.
+ *	fixup:		optional label to branch to on user fault
  * 	Corrupts:	tmp1, tmp2
  */
-	.macro invalidate_icache_by_line start, end, tmp1, tmp2, label
+	.macro invalidate_icache_by_line start, end, tmp1, tmp2, fixup
 	icache_line_size \tmp1, \tmp2
 	sub	\tmp2, \tmp1, #1
 	bic	\tmp2, \start, \tmp2
-9997:
-USER(\label, ic	ivau, \tmp2)			// invalidate I line PoU
+.Licache_op\@:
+	ic	ivau, \tmp2			// invalidate I line PoU
 	add	\tmp2, \tmp2, \tmp1
 	cmp	\tmp2, \end
-	b.lo	9997b
+	b.lo	.Licache_op\@
 	dsb	ish
 	isb
+
+	_cond_extable .Licache_op\@, \fixup
 	.endm
 
 /*
@@ -685,11 +722,11 @@ USER(\label, ic	ivau, \tmp2)			// invalidate I line PoU
 	.endm
 
 /*
- * Set SCTLR_EL1 to the passed value, and invalidate the local icache
+ * Set SCTLR_ELx to the @reg value, and invalidate the local icache
  * in the process. This is called when setting the MMU on.
  */
-.macro set_sctlr_el1, reg
-	msr	sctlr_el1, \reg
+.macro set_sctlr, sreg, reg
+	msr	\sreg, \reg
 	isb
 	/*
 	 * Invalidate the local I-cache so that any instructions fetched
@@ -699,6 +736,14 @@ USER(\label, ic	ivau, \tmp2)			// invalidate I line PoU
 	ic	iallu
 	dsb	nsh
 	isb
+.endm
+
+.macro set_sctlr_el1, reg
+	set_sctlr sctlr_el1, \reg
+.endm
+
+.macro set_sctlr_el2, reg
+	set_sctlr sctlr_el2, \reg
 .endm
 
 	/*
@@ -724,7 +769,7 @@ USER(\label, ic	ivau, \tmp2)			// invalidate I line PoU
 	cbz		\tmp, \lbl
 #endif
 	adr_l		\tmp, irq_stat + IRQ_CPUSTAT_SOFTIRQ_PENDING
-	this_cpu_offset	\tmp2
+	get_this_cpu_offset	\tmp2
 	ldr		w\tmp, [\tmp, \tmp2]
 	cbnz		w\tmp, \lbl	// yield on pending softirq in task context
 .Lnoyield_\@:

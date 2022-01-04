@@ -101,16 +101,6 @@ config FILE_LOCKING
           for filesystems like NFS and for the flock() system
           call. Disabling this option saves about 11k.
 
-config MANDATORY_FILE_LOCKING
-	bool "Enable Mandatory file locking"
-	depends on FILE_LOCKING
-	default y
-	help
-	  This option enables files appropriately marked files on appropriely
-	  mounted filesystems to support mandatory locking.
-
-	  To the best of my knowledge this is dead code that no one cares about.
-
 source "fs/crypto/Kconfig"
 
 source "fs/verity/Kconfig"
@@ -223,10 +213,13 @@ config TMPFS_INODE64
 
 	  If unsure, say N.
 
+config ARCH_SUPPORTS_HUGETLBFS
+	def_bool n
+
 config HUGETLBFS
 	bool "HugeTLB file system support"
 	depends on X86 || IA64 || SPARC64 || (S390 && 64BIT) || \
-		   SYS_SUPPORTS_HUGETLBFS || BROKEN
+		   ARCH_SUPPORTS_HUGETLBFS || BROKEN
 	help
 	  hugetlbfs is a filesystem backing for HugeTLB pages, based on
 	  ramfs. For architectures that support it, say Y here and read
@@ -236,6 +229,21 @@ config HUGETLBFS
 
 config HUGETLB_PAGE
 	def_bool HUGETLBFS
+
+config HUGETLB_PAGE_FREE_VMEMMAP
+	def_bool HUGETLB_PAGE
+	depends on X86_64
+	depends on SPARSEMEM_VMEMMAP
+
+config HUGETLB_PAGE_FREE_VMEMMAP_DEFAULT_ON
+	bool "Default freeing vmemmap pages of HugeTLB to on"
+	default n
+	depends on HUGETLB_PAGE_FREE_VMEMMAP
+	help
+	  When using HUGETLB_PAGE_FREE_VMEMMAP, the freeing unused vmemmap
+	  pages associated with each HugeTLB page is default off. Say Y here
+	  to enable freeing vmemmap pages of HugeTLB by default. It can then
+	  be disabled on the command line via hugetlb_free_vmemmap=off.
 
 config MEMFD_CREATE
 	def_bool TMPFS || HUGETLBFS
@@ -335,12 +343,20 @@ config NFS_COMMON
 	default y
 
 config NFS_V4_2_SSC_HELPER
-	tristate
-	default y if NFS_V4=y || NFS_FS=y
+	bool
+	default y if NFS_V4_2
 
 source "net/sunrpc/Kconfig"
 source "fs/ceph/Kconfig"
+
 source "fs/cifs/Kconfig"
+source "fs/ksmbd/Kconfig"
+
+config CIFS_COMMON
+	tristate
+	default y if CIFS=y
+	default m if CIFS=m
+
 source "fs/coda/Kconfig"
 source "fs/afs/Kconfig"
 source "fs/9p/Kconfig"

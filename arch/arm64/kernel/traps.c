@@ -38,6 +38,7 @@
 #include <asm/extable.h>
 #include <asm/insn.h>
 #include <asm/kprobes.h>
+#include <asm/patching.h>
 #include <asm/traps.h>
 #include <asm/smp.h>
 #include <asm/stack_pointer.h>
@@ -45,11 +46,102 @@
 #include <asm/system_misc.h>
 #include <asm/sysreg.h>
 
-static const char *handler[] = {
-	"Synchronous Abort",
-	"IRQ",
-	"FIQ",
-	"Error"
+static bool __kprobes __check_eq(unsigned long pstate)
+{
+	return (pstate & PSR_Z_BIT) != 0;
+}
+
+static bool __kprobes __check_ne(unsigned long pstate)
+{
+	return (pstate & PSR_Z_BIT) == 0;
+}
+
+static bool __kprobes __check_cs(unsigned long pstate)
+{
+	return (pstate & PSR_C_BIT) != 0;
+}
+
+static bool __kprobes __check_cc(unsigned long pstate)
+{
+	return (pstate & PSR_C_BIT) == 0;
+}
+
+static bool __kprobes __check_mi(unsigned long pstate)
+{
+	return (pstate & PSR_N_BIT) != 0;
+}
+
+static bool __kprobes __check_pl(unsigned long pstate)
+{
+	return (pstate & PSR_N_BIT) == 0;
+}
+
+static bool __kprobes __check_vs(unsigned long pstate)
+{
+	return (pstate & PSR_V_BIT) != 0;
+}
+
+static bool __kprobes __check_vc(unsigned long pstate)
+{
+	return (pstate & PSR_V_BIT) == 0;
+}
+
+static bool __kprobes __check_hi(unsigned long pstate)
+{
+	pstate &= ~(pstate >> 1);	/* PSR_C_BIT &= ~PSR_Z_BIT */
+	return (pstate & PSR_C_BIT) != 0;
+}
+
+static bool __kprobes __check_ls(unsigned long pstate)
+{
+	pstate &= ~(pstate >> 1);	/* PSR_C_BIT &= ~PSR_Z_BIT */
+	return (pstate & PSR_C_BIT) == 0;
+}
+
+static bool __kprobes __check_ge(unsigned long pstate)
+{
+	pstate ^= (pstate << 3);	/* PSR_N_BIT ^= PSR_V_BIT */
+	return (pstate & PSR_N_BIT) == 0;
+}
+
+static bool __kprobes __check_lt(unsigned long pstate)
+{
+	pstate ^= (pstate << 3);	/* PSR_N_BIT ^= PSR_V_BIT */
+	return (pstate & PSR_N_BIT) != 0;
+}
+
+static bool __kprobes __check_gt(unsigned long pstate)
+{
+	/*PSR_N_BIT ^= PSR_V_BIT */
+	unsigned long temp = pstate ^ (pstate << 3);
+
+	temp |= (pstate << 1);	/*PSR_N_BIT |= PSR_Z_BIT */
+	return (temp & PSR_N_BIT) == 0;
+}
+
+static bool __kprobes __check_le(unsigned long pstate)
+{
+	/*PSR_N_BIT ^= PSR_V_BIT */
+	unsigned long temp = pstate ^ (pstate << 3);
+
+	temp |= (pstate << 1);	/*PSR_N_BIT |= PSR_Z_BIT */
+	return (temp & PSR_N_BIT) != 0;
+}
+
+static bool __kprobes __check_al(unsigned long pstate)
+{
+	return true;
+}
+
+/*
+ * Note that the ARMv8 ARM calls condition code 0b1111 "nv", but states that
+ * it behaves identically to 0b1110 ("al").
+ */
+pstate_check_t * const aarch32_opcode_cond_checks[16] = {
+	__check_eq, __check_ne, __check_cs, __check_cc,
+	__check_mi, __check_pl, __check_vs, __check_vc,
+	__check_hi, __check_ls, __check_ge, __check_lt,
+	__check_gt, __check_le, __check_al, __check_al
 };
 
 int show_unhandled_signals = 0;
@@ -751,27 +843,8 @@ const char *esr_get_class_string(u32 esr)
 }
 
 /*
- * bad_mode handles the impossible case in the exception vector. This is always
- * fatal.
- */
-asmlinkage void notrace bad_mode(struct pt_regs *regs, int reason, unsigned int esr)
-{
-	arm64_enter_nmi(regs);
-
-	console_verbose();
-
-	pr_crit("Bad mode in %s handler detected on CPU%d, code 0x%08x -- %s\n",
-		handler[reason], smp_processor_id(), esr,
-		esr_get_class_string(esr));
-
-	__show_regs(regs);
-	local_daif_mask();
-	panic("bad mode");
-}
-
-/*
  * bad_el0_sync handles unexpected, but potentially recoverable synchronous
- * exceptions taken from EL0. Unlike bad_mode, this returns.
+ * exceptions taken from EL0.
  */
 void bad_el0_sync(struct pt_regs *regs, int reason, unsigned int esr)
 {
@@ -789,15 +862,11 @@ void bad_el0_sync(struct pt_regs *regs, int reason, unsigned int esr)
 DEFINE_PER_CPU(unsigned long [OVERFLOW_STACK_SIZE/sizeof(long)], overflow_stack)
 	__aligned(16);
 
-asmlinkage void noinstr handle_bad_stack(struct pt_regs *regs)
+void panic_bad_stack(struct pt_regs *regs, unsigned int esr, unsigned long far)
 {
 	unsigned long tsk_stk = (unsigned long)current->stack;
 	unsigned long irq_stk = (unsigned long)this_cpu_read(irq_stack_ptr);
 	unsigned long ovf_stk = (unsigned long)this_cpu_ptr(overflow_stack);
-	unsigned int esr = read_sysreg(esr_el1);
-	unsigned long far = read_sysreg(far_el1);
-
-	arm64_enter_nmi(regs);
 
 	console_verbose();
 	pr_emerg("Insufficient stack space to handle exception!");
@@ -870,15 +939,11 @@ bool arm64_is_fatal_ras_serror(struct pt_regs *regs, unsigned int esr)
 	}
 }
 
-asmlinkage void noinstr do_serror(struct pt_regs *regs, unsigned int esr)
+void do_serror(struct pt_regs *regs, unsigned int esr)
 {
-	arm64_enter_nmi(regs);
-
 	/* non-RAS errors are not containable */
 	if (!arm64_is_ras_serror(esr) || arm64_is_fatal_ras_serror(regs, esr))
 		arm64_serror_panic(regs, esr);
-
-	arm64_exit_nmi(regs);
 }
 
 /* GENERIC_BUG traps */

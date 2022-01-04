@@ -4,6 +4,7 @@
 #include <linux/net_tstamp.h>
 #include <linux/phy.h>
 #include <linux/rtnetlink.h>
+#include <linux/ptp_clock_kernel.h>
 
 #include "common.h"
 
@@ -397,6 +398,7 @@ const char sof_timestamping_names[][ETH_GSTRING_LEN] = {
 	[const_ilog2(SOF_TIMESTAMPING_OPT_STATS)]    = "option-stats",
 	[const_ilog2(SOF_TIMESTAMPING_OPT_PKTINFO)]  = "option-pktinfo",
 	[const_ilog2(SOF_TIMESTAMPING_OPT_TX_SWHW)]  = "option-tx-swhw",
+	[const_ilog2(SOF_TIMESTAMPING_BIND_PHC)]     = "bind-phc",
 };
 static_assert(ARRAY_SIZE(sof_timestamping_names) == __SOF_TIMESTAMPING_CNT);
 
@@ -553,6 +555,18 @@ int __ethtool_get_ts_info(struct net_device *dev, struct ethtool_ts_info *info)
 
 	return 0;
 }
+
+int ethtool_get_phc_vclocks(struct net_device *dev, int **vclock_index)
+{
+	struct ethtool_ts_info info = { };
+	int num = 0;
+
+	if (!__ethtool_get_ts_info(dev, &info))
+		num = ptp_get_vclocks_index(info.phc_index, vclock_index);
+
+	return num;
+}
+EXPORT_SYMBOL(ethtool_get_phc_vclocks);
 
 const struct ethtool_phy_ops *ethtool_phy_ops;
 

@@ -1722,6 +1722,8 @@ void md_bitmap_flush(struct mddev *mddev)
 	md_bitmap_daemon_work(mddev);
 	bitmap->daemon_lastrun -= sleep;
 	md_bitmap_daemon_work(mddev);
+	if (mddev->bitmap_info.external)
+		md_super_wait(mddev);
 	md_bitmap_update_sb(bitmap);
 }
 
@@ -2614,7 +2616,7 @@ static struct attribute *md_bitmap_attrs[] = {
 	&max_backlog_used.attr,
 	NULL
 };
-struct attribute_group md_bitmap_group = {
+const struct attribute_group md_bitmap_group = {
 	.name = "bitmap",
 	.attrs = md_bitmap_attrs,
 };

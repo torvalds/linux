@@ -2231,6 +2231,7 @@ static const struct timing_generator_funcs dce110_tg_funcs = {
 				dce110_timing_generator_enable_advanced_request,
 		.set_drr =
 				dce110_timing_generator_set_drr,
+		.get_last_used_drr_vtotal = NULL,
 		.set_static_screen_control =
 			dce110_timing_generator_set_static_screen_control,
 		.set_test_pattern = dce110_timing_generator_set_test_pattern,

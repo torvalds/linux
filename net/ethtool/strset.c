@@ -80,6 +80,31 @@ static const struct strset_info info_template[] = {
 		.count		= __ETHTOOL_UDP_TUNNEL_TYPE_CNT,
 		.strings	= udp_tunnel_type_names,
 	},
+	[ETH_SS_STATS_STD] = {
+		.per_dev	= false,
+		.count		= __ETHTOOL_STATS_CNT,
+		.strings	= stats_std_names,
+	},
+	[ETH_SS_STATS_ETH_PHY] = {
+		.per_dev	= false,
+		.count		= __ETHTOOL_A_STATS_ETH_PHY_CNT,
+		.strings	= stats_eth_phy_names,
+	},
+	[ETH_SS_STATS_ETH_MAC] = {
+		.per_dev	= false,
+		.count		= __ETHTOOL_A_STATS_ETH_MAC_CNT,
+		.strings	= stats_eth_mac_names,
+	},
+	[ETH_SS_STATS_ETH_CTRL] = {
+		.per_dev	= false,
+		.count		= __ETHTOOL_A_STATS_ETH_CTRL_CNT,
+		.strings	= stats_eth_ctrl_names,
+	},
+	[ETH_SS_STATS_RMON] = {
+		.per_dev	= false,
+		.count		= __ETHTOOL_A_STATS_RMON_CNT,
+		.strings	= stats_rmon_names,
+	},
 };
 
 struct strset_req_info {
@@ -327,6 +352,8 @@ static int strset_reply_size(const struct ethnl_req_info *req_base,
 	unsigned int i;
 	int len = 0;
 	int ret;
+
+	len += nla_total_size(0); /* ETHTOOL_A_STRSET_STRINGSETS */
 
 	for (i = 0; i < ETH_SS_COUNT; i++) {
 		const struct strset_info *set_info = &data->sets[i];

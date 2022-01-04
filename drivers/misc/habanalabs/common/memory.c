@@ -570,8 +570,10 @@ static u64 get_va_block(struct hl_device *hdev,
 	if ((is_align_pow_2 && (hint_addr & (va_block_align - 1))) ||
 			(!is_align_pow_2 &&
 				do_div(tmp_hint_addr, va_range->page_size))) {
-		dev_info(hdev->dev, "Hint address 0x%llx will be ignored\n",
-					hint_addr);
+
+		dev_dbg(hdev->dev,
+			"Hint address 0x%llx will be ignored because it is not aligned\n",
+			hint_addr);
 		hint_addr = 0;
 	}
 
@@ -1117,7 +1119,8 @@ static int map_device_va(struct hl_ctx *ctx, struct hl_mem_in *args,
 		goto map_err;
 	}
 
-	rc = hdev->asic_funcs->mmu_invalidate_cache(hdev, false, *vm_type);
+	rc = hdev->asic_funcs->mmu_invalidate_cache_range(hdev, false,
+		*vm_type, ctx->asid, ret_vaddr, phys_pg_pack->total_size);
 
 	mutex_unlock(&ctx->mmu_lock);
 
@@ -1261,8 +1264,9 @@ static int unmap_device_va(struct hl_ctx *ctx, struct hl_mem_in *args,
 	 * at the loop end rather than for each iteration
 	 */
 	if (!ctx_free)
-		rc = hdev->asic_funcs->mmu_invalidate_cache(hdev, true,
-								*vm_type);
+		rc = hdev->asic_funcs->mmu_invalidate_cache_range(hdev, true,
+				*vm_type, ctx->asid, vaddr,
+				phys_pg_pack->total_size);
 
 	mutex_unlock(&ctx->mmu_lock);
 
@@ -1369,12 +1373,7 @@ int hl_hw_block_mmap(struct hl_fpriv *hpriv, struct vm_area_struct *vma)
 	/* Driver only allows mapping of a complete HW block */
 	block_size = vma->vm_end - vma->vm_start;
 
-#ifdef _HAS_TYPE_ARG_IN_ACCESS_OK
-	if (!access_ok(VERIFY_WRITE,
-		(void __user *) (uintptr_t) vma->vm_start, block_size)) {
-#else
 	if (!access_ok((void __user *) (uintptr_t) vma->vm_start, block_size)) {
-#endif
 		dev_err(hdev->dev,
 			"user pointer is invalid - 0x%lx\n",
 			vma->vm_start);
@@ -1608,7 +1607,8 @@ static int get_user_memory(struct hl_device *hdev, u64 addr, u64 size,
 
 	if (rc != npages) {
 		dev_err(hdev->dev,
-			"Failed to map host memory, user ptr probably wrong\n");
+			"Failed (%d) to pin host memory with user ptr 0x%llx, size 0x%llx, npages %d\n",
+			rc, addr, size, npages);
 		if (rc < 0)
 			goto destroy_pages;
 		npages = rc;

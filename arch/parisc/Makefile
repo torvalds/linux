@@ -25,23 +25,23 @@ CHECKFLAGS	+= -D__hppa__=1
 ifdef CONFIG_64BIT
 UTS_MACHINE	:= parisc64
 CHECKFLAGS	+= -D__LP64__=1
-CC_ARCHES	= hppa64
 LD_BFD		:= elf64-hppa-linux
 else # 32-bit
-CC_ARCHES	= hppa hppa2.0 hppa1.1
 LD_BFD		:= elf32-hppa-linux
 endif
 
 # select defconfig based on actual architecture
-ifeq ($(shell uname -m),parisc64)
+ifeq ($(ARCH),parisc64)
 	KBUILD_DEFCONFIG := generic-64bit_defconfig
+	CC_ARCHES := hppa64
 else
 	KBUILD_DEFCONFIG := generic-32bit_defconfig
+	CC_ARCHES := hppa hppa2.0 hppa1.1
 endif
 
 export LD_BFD
 
-ifneq ($(SUBARCH),$(UTS_MACHINE))
+ifdef cross_compiling
 	ifeq ($(CROSS_COMPILE),)
 		CC_SUFFIXES = linux linux-gnu unknown-linux-gnu
 		CROSS_COMPILE := $(call cc-cross-prefix, \
@@ -111,9 +111,6 @@ KBUILD_CFLAGS	+= $(cflags-y)
 LIBGCC		:= $(shell $(CC) -print-libgcc-file-name)
 export LIBGCC
 
-kernel-y			:= mm/ kernel/ math-emu/
-
-core-y	+= $(addprefix arch/parisc/, $(kernel-y))
 libs-y	+= arch/parisc/lib/ $(LIBGCC)
 
 boot	:= arch/parisc/boot

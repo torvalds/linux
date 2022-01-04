@@ -233,9 +233,10 @@ struct dentry *ovl_create_temp(struct dentry *workdir, struct ovl_cattr *attr)
 static int ovl_set_opaque_xerr(struct dentry *dentry, struct dentry *upper,
 			       int xerr)
 {
+	struct ovl_fs *ofs = OVL_FS(dentry->d_sb);
 	int err;
 
-	err = ovl_check_setxattr(dentry, upper, OVL_XATTR_OPAQUE, "y", 1, xerr);
+	err = ovl_check_setxattr(ofs, upper, OVL_XATTR_OPAQUE, "y", 1, xerr);
 	if (!err)
 		ovl_dentry_set_opaque(dentry);
 
@@ -320,6 +321,7 @@ static bool ovl_type_origin(struct dentry *dentry)
 static int ovl_create_upper(struct dentry *dentry, struct inode *inode,
 			    struct ovl_cattr *attr)
 {
+	struct ovl_fs *ofs = OVL_FS(dentry->d_sb);
 	struct dentry *upperdir = ovl_dentry_upper(dentry->d_parent);
 	struct inode *udir = upperdir->d_inode;
 	struct dentry *newdentry;
@@ -338,7 +340,8 @@ static int ovl_create_upper(struct dentry *dentry, struct inode *inode,
 	if (IS_ERR(newdentry))
 		goto out_unlock;
 
-	if (ovl_type_merge(dentry->d_parent) && d_is_dir(newdentry)) {
+	if (ovl_type_merge(dentry->d_parent) && d_is_dir(newdentry) &&
+	    !ovl_allow_offline_changes(ofs)) {
 		/* Setting opaque here is just an optimization, allow to fail */
 		ovl_set_opaque(dentry, newdentry);
 	}
@@ -542,8 +545,10 @@ static int ovl_create_over_whiteout(struct dentry *dentry, struct inode *inode,
 			goto out_cleanup;
 	}
 	err = ovl_instantiate(dentry, inode, newdentry, hardlink);
-	if (err)
-		goto out_cleanup;
+	if (err) {
+		ovl_cleanup(udir, newdentry);
+		dput(newdentry);
+	}
 out_dput:
 	dput(upper);
 out_unlock:
@@ -1043,6 +1048,7 @@ static bool ovl_need_absolute_redirect(struct dentry *dentry, bool samedir)
 static int ovl_set_redirect(struct dentry *dentry, bool samedir)
 {
 	int err;
+	struct ovl_fs *ofs = OVL_FS(dentry->d_sb);
 	const char *redirect = ovl_dentry_get_redirect(dentry);
 	bool absolute_redirect = ovl_need_absolute_redirect(dentry, samedir);
 
@@ -1053,7 +1059,7 @@ static int ovl_set_redirect(struct dentry *dentry, bool samedir)
 	if (IS_ERR(redirect))
 		return PTR_ERR(redirect);
 
-	err = ovl_check_setxattr(dentry, ovl_dentry_upper(dentry),
+	err = ovl_check_setxattr(ofs, ovl_dentry_upper(dentry),
 				 OVL_XATTR_REDIRECT,
 				 redirect, strlen(redirect), -EXDEV);
 	if (!err) {

@@ -427,6 +427,7 @@ static int surface_dtx_open(struct inode *inode, struct file *file)
 	 */
 	if (test_bit(SDTX_DEVICE_SHUTDOWN_BIT, &ddev->flags)) {
 		up_write(&ddev->client_lock);
+		mutex_destroy(&client->read_lock);
 		sdtx_device_put(client->ddev);
 		kfree(client);
 		return -ENODEV;
@@ -527,20 +528,14 @@ static __poll_t surface_dtx_poll(struct file *file, struct poll_table_struct *pt
 	struct sdtx_client *client = file->private_data;
 	__poll_t events = 0;
 
-	if (down_read_killable(&client->ddev->lock))
-		return -ERESTARTSYS;
-
-	if (test_bit(SDTX_DEVICE_SHUTDOWN_BIT, &client->ddev->flags)) {
-		up_read(&client->ddev->lock);
+	if (test_bit(SDTX_DEVICE_SHUTDOWN_BIT, &client->ddev->flags))
 		return EPOLLHUP | EPOLLERR;
-	}
 
 	poll_wait(file, &client->ddev->waitq, pt);
 
 	if (!kfifo_is_empty(&client->buffer))
 		events |= EPOLLIN | EPOLLRDNORM;
 
-	up_read(&client->ddev->lock);
 	return events;
 }
 

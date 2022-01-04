@@ -17,7 +17,7 @@
  * While the second model, enabled via --multiq option, uses multiple
  * queueing (which refers to one epoll instance per worker). For example,
  * short lived tcp connections in a high throughput httpd server will
- * ditribute the accept()'ing  connections across CPUs. In this case each
+ * distribute the accept()'ing  connections across CPUs. In this case each
  * worker does a limited  amount of processing.
  *
  *             [queue A]  ---> [worker]
@@ -198,7 +198,7 @@ static void *workerfn(void *arg)
 
 	do {
 		/*
-		 * Block undefinitely waiting for the IN event.
+		 * Block indefinitely waiting for the IN event.
 		 * In order to stress the epoll_wait(2) syscall,
 		 * call it event per event, instead of a larger
 		 * batch (max)limit.

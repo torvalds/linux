@@ -332,6 +332,7 @@ static int __cold dpaa2_qdma_setup(struct fsl_mc_device *ls_dev)
 	}
 
 	if (priv->dpdmai_attr.version.major > DPDMAI_VER_MAJOR) {
+		err = -EINVAL;
 		dev_err(dev, "DPDMAI major version mismatch\n"
 			     "Found %u.%u, supported version is %u.%u\n",
 				priv->dpdmai_attr.version.major,
@@ -341,6 +342,7 @@ static int __cold dpaa2_qdma_setup(struct fsl_mc_device *ls_dev)
 	}
 
 	if (priv->dpdmai_attr.version.minor > DPDMAI_VER_MINOR) {
+		err = -EINVAL;
 		dev_err(dev, "DPDMAI minor version mismatch\n"
 			     "Found %u.%u, supported version is %u.%u\n",
 				priv->dpdmai_attr.version.major,
@@ -475,6 +477,7 @@ static int __cold dpaa2_qdma_dpio_setup(struct dpaa2_qdma_priv *priv)
 		ppriv->store =
 			dpaa2_io_store_create(DPAA2_QDMA_STORE_SIZE, dev);
 		if (!ppriv->store) {
+			err = -ENOMEM;
 			dev_err(dev, "dpaa2_io_store_create() failed\n");
 			goto err_store;
 		}

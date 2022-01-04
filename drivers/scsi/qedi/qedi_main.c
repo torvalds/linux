@@ -276,10 +276,8 @@ static int qedi_alloc_uio_rings(struct qedi_ctx *qedi)
 	}
 
 	udev = kzalloc(sizeof(*udev), GFP_KERNEL);
-	if (!udev) {
-		rc = -ENOMEM;
+	if (!udev)
 		goto err_udev;
-	}
 
 	udev->uio_dev = -1;
 
@@ -642,7 +640,7 @@ static struct qedi_ctx *qedi_host_alloc(struct pci_dev *pdev)
 		goto exit_setup_shost;
 	}
 
-	shost->max_id = QEDI_MAX_ISCSI_CONNS_PER_HBA;
+	shost->max_id = QEDI_MAX_ISCSI_CONNS_PER_HBA - 1;
 	shost->max_channel = 0;
 	shost->max_lun = ~0;
 	shost->max_cmd_len = 16;
@@ -1623,7 +1621,7 @@ static int qedi_alloc_global_queues(struct qedi_ctx *qedi)
 {
 	u32 *list;
 	int i;
-	int status = 0, rc;
+	int status;
 	u32 *pbl;
 	dma_addr_t page;
 	int num_pages;
@@ -1634,14 +1632,14 @@ static int qedi_alloc_global_queues(struct qedi_ctx *qedi)
 	 */
 	if (!qedi->num_queues) {
 		QEDI_ERR(&qedi->dbg_ctx, "No MSI-X vectors available!\n");
-		return 1;
+		return -ENOMEM;
 	}
 
 	/* Make sure we allocated the PBL that will contain the physical
 	 * addresses of our queues
 	 */
 	if (!qedi->p_cpuq) {
-		status = 1;
+		status = -EINVAL;
 		goto mem_alloc_failure;
 	}
 
@@ -1656,13 +1654,13 @@ static int qedi_alloc_global_queues(struct qedi_ctx *qedi)
 		  "qedi->global_queues=%p.\n", qedi->global_queues);
 
 	/* Allocate DMA coherent buffers for BDQ */
-	rc = qedi_alloc_bdq(qedi);
-	if (rc)
+	status = qedi_alloc_bdq(qedi);
+	if (status)
 		goto mem_alloc_failure;
 
 	/* Allocate DMA coherent buffers for NVM_ISCSI_CFG */
-	rc = qedi_alloc_nvm_iscsi_cfg(qedi);
-	if (rc)
+	status = qedi_alloc_nvm_iscsi_cfg(qedi);
+	if (status)
 		goto mem_alloc_failure;
 
 	/* Allocate a CQ and an associated PBL for each MSI-X
@@ -2419,11 +2417,9 @@ static void __qedi_remove(struct pci_dev *pdev, int mode)
 	int rval;
 	u16 retry = 10;
 
-	if (mode == QEDI_MODE_SHUTDOWN)
-		iscsi_host_for_each_session(qedi->shost,
-					    qedi_clear_session_ctx);
-
 	if (mode == QEDI_MODE_NORMAL || mode == QEDI_MODE_SHUTDOWN) {
+		iscsi_host_remove(qedi->shost);
+
 		if (qedi->tmf_thread) {
 			flush_workqueue(qedi->tmf_thread);
 			destroy_workqueue(qedi->tmf_thread);
@@ -2484,7 +2480,6 @@ static void __qedi_remove(struct pci_dev *pdev, int mode)
 		if (qedi->boot_kset)
 			iscsi_boot_destroy_kset(qedi->boot_kset);
 
-		iscsi_host_remove(qedi->shost);
 		iscsi_host_free(qedi->shost);
 	}
 }

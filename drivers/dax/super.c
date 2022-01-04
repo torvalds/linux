@@ -313,7 +313,7 @@ long dax_direct_access(struct dax_device *dax_dev, pgoff_t pgoff, long nr_pages,
 		return -ENXIO;
 
 	if (nr_pages < 0)
-		return nr_pages;
+		return -EINVAL;
 
 	avail = dax_dev->ops->direct_access(dax_dev, pgoff, nr_pages,
 			kaddr, pfn);

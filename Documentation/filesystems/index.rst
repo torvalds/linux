@@ -34,6 +34,7 @@ algorithms work.
    quota
    seq_file
    sharedsubtree
+   idmappings
 
    automount-support
 
@@ -72,11 +73,12 @@ Documentation for filesystem implementations.
    befs
    bfs
    btrfs
-   cifs/cifsroot
+   cifs/index
    ceph
    coda
    configfs
    cramfs
+   dax
    debugfs
    dlmfs
    ecryptfs

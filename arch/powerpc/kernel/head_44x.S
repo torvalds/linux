@@ -263,8 +263,7 @@ interrupt_base:
 	INSTRUCTION_STORAGE_EXCEPTION
 
 	/* External Input Interrupt */
-	EXCEPTION(0x0500, BOOKE_INTERRUPT_EXTERNAL, ExternalInput, \
-		  do_IRQ, EXC_XFER_LITE)
+	EXCEPTION(0x0500, BOOKE_INTERRUPT_EXTERNAL, ExternalInput, do_IRQ)
 
 	/* Alignment Interrupt */
 	ALIGNMENT_EXCEPTION
@@ -277,7 +276,7 @@ interrupt_base:
 	FP_UNAVAILABLE_EXCEPTION
 #else
 	EXCEPTION(0x2010, BOOKE_INTERRUPT_FP_UNAVAIL, \
-		  FloatingPointUnavailable, unknown_exception, EXC_XFER_STD)
+		  FloatingPointUnavailable, unknown_exception)
 #endif
 	/* System Call Interrupt */
 	START_EXCEPTION(SystemCall)
@@ -285,15 +284,14 @@ interrupt_base:
 
 	/* Auxiliary Processor Unavailable Interrupt */
 	EXCEPTION(0x2020, BOOKE_INTERRUPT_AP_UNAVAIL, \
-		  AuxillaryProcessorUnavailable, unknown_exception, EXC_XFER_STD)
+		  AuxillaryProcessorUnavailable, unknown_exception)
 
 	/* Decrementer Interrupt */
 	DECREMENTER_EXCEPTION
 
 	/* Fixed Internal Timer Interrupt */
 	/* TODO: Add FIT support */
-	EXCEPTION(0x1010, BOOKE_INTERRUPT_FIT, FixedIntervalTimer, \
-		  unknown_exception, EXC_XFER_STD)
+	EXCEPTION(0x1010, BOOKE_INTERRUPT_FIT, FixedIntervalTimer, unknown_exception)
 
 	/* Watchdog Timer Interrupt */
 	/* TODO: Add watchdog support */
@@ -534,6 +532,10 @@ finish_tlb_load_44x:
 	andi.	r10,r12,_PAGE_USER		/* User page ? */
 	beq	1f				/* nope, leave U bits empty */
 	rlwimi	r11,r11,3,26,28			/* yes, copy S bits to U */
+#ifdef CONFIG_PPC_KUEP
+0:	rlwinm	r11,r11,0,~PPC44x_TLB_SX	/* Clear SX if User page */
+	patch_site 0b, patch__tlb_44x_kuep
+#endif
 1:	tlbwe	r11,r13,PPC44x_TLB_ATTRIB	/* Write ATTRIB */
 
 	/* Done...restore registers and get out of here.
@@ -745,6 +747,10 @@ finish_tlb_load_47x:
 	andi.	r10,r12,_PAGE_USER		/* User page ? */
 	beq	1f				/* nope, leave U bits empty */
 	rlwimi	r11,r11,3,26,28			/* yes, copy S bits to U */
+#ifdef CONFIG_PPC_KUEP
+0:	rlwinm	r11,r11,0,~PPC47x_TLB2_SX	/* Clear SX if User page */
+	patch_site 0b, patch__tlb_47x_kuep
+#endif
 1:	tlbwe	r11,r13,2
 
 	/* Done...restore registers and get out of here.
@@ -780,20 +786,6 @@ _GLOBAL(__fixup_440A_mcheck)
 	li	r3,MachineCheckA@l
 	mtspr	SPRN_IVOR1,r3
 	sync
-	blr
-
-_GLOBAL(set_context)
-
-#ifdef CONFIG_BDI_SWITCH
-	/* Context switch the PTE pointer for the Abatron BDI2000.
-	 * The PGDIR is the second parameter.
-	 */
-	lis	r5, abatron_pteptrs@h
-	ori	r5, r5, abatron_pteptrs@l
-	stw	r4, 0x4(r5)
-#endif
-	mtspr	SPRN_PID,r3
-	isync			/* Force context change */
 	blr
 
 /*
@@ -1241,34 +1233,8 @@ head_start_common:
 	isync
 	blr
 
-/*
- * We put a few things here that have to be page-aligned. This stuff
- * goes at the beginning of the data segment, which is page-aligned.
- */
-	.data
-	.align	PAGE_SHIFT
-	.globl	sdata
-sdata:
-	.globl	empty_zero_page
-empty_zero_page:
-	.space	PAGE_SIZE
-EXPORT_SYMBOL(empty_zero_page)
-
-/*
- * To support >32-bit physical addresses, we use an 8KB pgdir.
- */
-	.globl	swapper_pg_dir
-swapper_pg_dir:
-	.space	PGD_TABLE_SIZE
-
-/*
- * Room for two PTE pointers, usually the kernel and current user pointers
- * to their respective root page table.
- */
-abatron_pteptrs:
-	.space	8
-
 #ifdef CONFIG_SMP
+	.data
 	.align	12
 temp_boot_stack:
 	.space	1024

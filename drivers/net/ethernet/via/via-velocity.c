@@ -1897,7 +1897,7 @@ static void velocity_error(struct velocity_info *vptr, int status)
 }
 
 /**
- *	tx_srv		-	transmit interrupt service
+ *	velocity_tx_srv		-	transmit interrupt service
  *	@vptr: Velocity
  *
  *	Scan the queues looking for transmitted packets that
@@ -2453,7 +2453,7 @@ static int velocity_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 }
 
 /**
- *	velocity_get_status	-	statistics callback
+ *	velocity_get_stats	-	statistics callback
  *	@dev: network device
  *
  *	Callback from the network layer to allow driver statistics
@@ -2525,7 +2525,7 @@ static int velocity_close(struct net_device *dev)
  *	@skb: buffer to transmit
  *	@dev: network device
  *
- *	Called by the networ layer to request a packet is queued to
+ *	Called by the network layer to request a packet is queued to
  *	the velocity. Returns zero on success.
  */
 static netdev_tx_t velocity_xmit(struct sk_buff *skb,
@@ -2637,7 +2637,7 @@ static const struct net_device_ops velocity_netdev_ops = {
 	.ndo_set_mac_address	= eth_mac_addr,
 	.ndo_set_rx_mode	= velocity_set_multi,
 	.ndo_change_mtu		= velocity_change_mtu,
-	.ndo_do_ioctl		= velocity_ioctl,
+	.ndo_eth_ioctl		= velocity_ioctl,
 	.ndo_vlan_rx_add_vid	= velocity_vlan_rx_add_vid,
 	.ndo_vlan_rx_kill_vid	= velocity_vlan_rx_kill_vid,
 #ifdef CONFIG_NET_POLL_CONTROLLER
@@ -2943,14 +2943,12 @@ static void velocity_pci_remove(struct pci_dev *pdev)
 
 static int velocity_platform_probe(struct platform_device *pdev)
 {
-	const struct of_device_id *of_id;
 	const struct velocity_info_tbl *info;
 	int irq;
 
-	of_id = of_match_device(velocity_of_ids, &pdev->dev);
-	if (!of_id)
+	info = of_device_get_match_data(&pdev->dev);
+	if (!info)
 		return -EINVAL;
-	info = of_id->data;
 
 	irq = irq_of_parse_and_map(pdev->dev.of_node, 0);
 	if (!irq)
@@ -3520,7 +3518,9 @@ static void set_pending_timer_val(int *val, u32 us)
 
 
 static int velocity_get_coalesce(struct net_device *dev,
-		struct ethtool_coalesce *ecmd)
+				 struct ethtool_coalesce *ecmd,
+				 struct kernel_ethtool_coalesce *kernel_coal,
+				 struct netlink_ext_ack *extack)
 {
 	struct velocity_info *vptr = netdev_priv(dev);
 
@@ -3534,7 +3534,9 @@ static int velocity_get_coalesce(struct net_device *dev,
 }
 
 static int velocity_set_coalesce(struct net_device *dev,
-		struct ethtool_coalesce *ecmd)
+				 struct ethtool_coalesce *ecmd,
+				 struct kernel_ethtool_coalesce *kernel_coal,
+				 struct netlink_ext_ack *extack)
 {
 	struct velocity_info *vptr = netdev_priv(dev);
 	int max_us = 0x3f * 64;
@@ -3723,7 +3725,7 @@ static int __init velocity_init_module(void)
 }
 
 /**
- *	velocity_cleanup	-	module unload
+ *	velocity_cleanup_module		-	module unload
  *
  *	When the velocity hardware is unloaded this function is called.
  *	It will clean up the notifiers and the unregister the PCI

@@ -128,7 +128,7 @@ int mlx5e_health_eq_diag_fmsg(struct mlx5_eq_comp *eq, struct devlink_fmsg *fmsg
 	if (err)
 		return err;
 
-	err = devlink_fmsg_u32_pair_put(fmsg, "size", eq->core.nent);
+	err = devlink_fmsg_u32_pair_put(fmsg, "size", eq_get_size(&eq->core));
 	if (err)
 		return err;
 

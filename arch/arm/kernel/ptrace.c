@@ -318,32 +318,6 @@ static int ptrace_setwmmxregs(struct task_struct *tsk, void __user *ufp)
 
 #endif
 
-#ifdef CONFIG_CRUNCH
-/*
- * Get the child Crunch state.
- */
-static int ptrace_getcrunchregs(struct task_struct *tsk, void __user *ufp)
-{
-	struct thread_info *thread = task_thread_info(tsk);
-
-	crunch_task_disable(thread);  /* force it to ram */
-	return copy_to_user(ufp, &thread->crunchstate, CRUNCH_SIZE)
-		? -EFAULT : 0;
-}
-
-/*
- * Set the child Crunch state.
- */
-static int ptrace_setcrunchregs(struct task_struct *tsk, void __user *ufp)
-{
-	struct thread_info *thread = task_thread_info(tsk);
-
-	crunch_task_release(thread);  /* force a reload */
-	return copy_from_user(&thread->crunchstate, ufp, CRUNCH_SIZE)
-		? -EFAULT : 0;
-}
-#endif
-
 #ifdef CONFIG_HAVE_HW_BREAKPOINT
 /*
  * Convert a virtual register number into an index for a thread_info
@@ -814,16 +788,6 @@ long arch_ptrace(struct task_struct *child, long request,
 			task_thread_info(child)->syscall = data;
 			ret = 0;
 			break;
-
-#ifdef CONFIG_CRUNCH
-		case PTRACE_GETCRUNCHREGS:
-			ret = ptrace_getcrunchregs(child, datap);
-			break;
-
-		case PTRACE_SETCRUNCHREGS:
-			ret = ptrace_setcrunchregs(child, datap);
-			break;
-#endif
 
 #ifdef CONFIG_VFP
 		case PTRACE_GETVFPREGS:

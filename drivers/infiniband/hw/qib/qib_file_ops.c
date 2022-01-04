@@ -429,8 +429,8 @@ cleanup:
 				dd->f_put_tid(dd, &tidbase[tid],
 					      RCVHQ_RCV_TYPE_EXPECTED,
 					      dd->tidinvalid);
-				pci_unmap_page(dd->pcidev, phys, PAGE_SIZE,
-					       PCI_DMA_FROMDEVICE);
+				dma_unmap_page(&dd->pcidev->dev, phys,
+					       PAGE_SIZE, DMA_FROM_DEVICE);
 				dd->pageshadow[ctxttid + tid] = NULL;
 			}
 		}
@@ -544,8 +544,8 @@ static int qib_tid_free(struct qib_ctxtdata *rcd, unsigned subctxt,
 			 */
 			dd->f_put_tid(dd, &tidbase[tid],
 				      RCVHQ_RCV_TYPE_EXPECTED, dd->tidinvalid);
-			pci_unmap_page(dd->pcidev, phys, PAGE_SIZE,
-				       PCI_DMA_FROMDEVICE);
+			dma_unmap_page(&dd->pcidev->dev, phys, PAGE_SIZE,
+				       DMA_FROM_DEVICE);
 			qib_release_user_pages(&p, 1);
 		}
 	}
@@ -1758,7 +1758,8 @@ bail:
 }
 
 /**
- * unlock_exptid - unlock any expected TID entries context still had in use
+ * unlock_expected_tids - unlock any expected TID entries context still had
+ * in use
  * @rcd: ctxt
  *
  * We don't actually update the chip here, because we do a bulk update
@@ -1780,8 +1781,8 @@ static void unlock_expected_tids(struct qib_ctxtdata *rcd)
 		phys = dd->physshadow[i];
 		dd->physshadow[i] = dd->tidinvalid;
 		dd->pageshadow[i] = NULL;
-		pci_unmap_page(dd->pcidev, phys, PAGE_SIZE,
-			       PCI_DMA_FROMDEVICE);
+		dma_unmap_page(&dd->pcidev->dev, phys, PAGE_SIZE,
+			       DMA_FROM_DEVICE);
 		qib_release_user_pages(&p, 1);
 		cnt++;
 	}
@@ -2247,7 +2248,7 @@ static ssize_t qib_write_iter(struct kiocb *iocb, struct iov_iter *from)
 
 	if (!iter_is_iovec(from) || !from->nr_segs || !pq)
 		return -EINVAL;
-			 
+
 	return qib_user_sdma_writev(rcd, pq, from->iov, from->nr_segs);
 }
 

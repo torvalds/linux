@@ -324,6 +324,7 @@ enum mod_hdcp_status mod_hdcp_hdcp2_dp_transition(struct mod_hdcp *hdcp,
 /* log functions */
 void mod_hdcp_dump_binary_message(uint8_t *msg, uint32_t msg_size,
 		uint8_t *buf, uint32_t buf_size);
+void mod_hdcp_log_ddc_trace(struct mod_hdcp *hdcp);
 /* TODO: add adjustment log */
 
 /* psp functions */
@@ -339,8 +340,6 @@ enum mod_hdcp_status mod_hdcp_hdcp1_validate_ksvlist_vp(struct mod_hdcp *hdcp);
 enum mod_hdcp_status mod_hdcp_hdcp1_enable_dp_stream_encryption(
 	struct mod_hdcp *hdcp);
 enum mod_hdcp_status mod_hdcp_hdcp1_link_maintenance(struct mod_hdcp *hdcp);
-enum mod_hdcp_status mod_hdcp_hdcp1_get_link_encryption_status(struct mod_hdcp *hdcp,
-							       enum mod_hdcp_encryption_status *encryption_status);
 enum mod_hdcp_status mod_hdcp_hdcp2_create_session(struct mod_hdcp *hdcp);
 enum mod_hdcp_status mod_hdcp_hdcp2_destroy_session(struct mod_hdcp *hdcp);
 enum mod_hdcp_status mod_hdcp_hdcp2_prepare_ake_init(struct mod_hdcp *hdcp);
@@ -494,6 +493,13 @@ static inline void set_watchdog_in_ms(struct mod_hdcp *hdcp, uint16_t time,
 {
 	output->watchdog_timer_needed = 1;
 	output->watchdog_timer_delay = time;
+}
+
+static inline void set_auth_complete(struct mod_hdcp *hdcp,
+		struct mod_hdcp_output *output)
+{
+	output->auth_complete = 1;
+	mod_hdcp_log_ddc_trace(hdcp);
 }
 
 /* connection topology helpers */

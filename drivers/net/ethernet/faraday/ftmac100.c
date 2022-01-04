@@ -1043,7 +1043,7 @@ static const struct net_device_ops ftmac100_netdev_ops = {
 	.ndo_start_xmit		= ftmac100_hard_start_xmit,
 	.ndo_set_mac_address	= eth_mac_addr,
 	.ndo_validate_addr	= eth_validate_addr,
-	.ndo_do_ioctl		= ftmac100_do_ioctl,
+	.ndo_eth_ioctl		= ftmac100_do_ioctl,
 };
 
 /******************************************************************************
@@ -1177,18 +1177,7 @@ static struct platform_driver ftmac100_driver = {
 /******************************************************************************
  * initialization / finalization
  *****************************************************************************/
-static int __init ftmac100_init(void)
-{
-	return platform_driver_register(&ftmac100_driver);
-}
-
-static void __exit ftmac100_exit(void)
-{
-	platform_driver_unregister(&ftmac100_driver);
-}
-
-module_init(ftmac100_init);
-module_exit(ftmac100_exit);
+module_platform_driver(ftmac100_driver);
 
 MODULE_AUTHOR("Po-Yu Chuang <ratbert@faraday-tech.com>");
 MODULE_DESCRIPTION("FTMAC100 driver");

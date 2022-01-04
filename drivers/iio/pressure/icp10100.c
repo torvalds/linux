@@ -250,7 +250,9 @@ static int icp10100_get_measures(struct icp10100_state *st,
 	__be16 measures[3];
 	int ret;
 
-	pm_runtime_get_sync(&st->client->dev);
+	ret = pm_runtime_resume_and_get(&st->client->dev);
+	if (ret < 0)
+		return ret;
 
 	mutex_lock(&st->lock);
 	cmd = &icp10100_cmd_measure[st->mode];
@@ -525,7 +527,6 @@ static void icp10100_pm_disable(void *data)
 {
 	struct device *dev = data;
 
-	pm_runtime_put_sync_suspend(dev);
 	pm_runtime_disable(dev);
 }
 

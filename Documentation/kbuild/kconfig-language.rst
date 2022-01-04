@@ -223,25 +223,10 @@ applicable everywhere (see syntax).
   the indentation level, this means it ends at the first line which has
   a smaller indentation than the first line of the help text.
 
-- misc options: "option" <symbol>[=<value>]
-
-  Various less common options can be defined via this option syntax,
-  which can modify the behaviour of the menu entry and its config
-  symbol. These options are currently possible:
-
-  - "defconfig_list"
-    This declares a list of default entries which can be used when
-    looking for the default configuration (which is used when the main
-    .config doesn't exists yet.)
-
-  - "modules"
-    This declares the symbol to be used as the MODULES symbol, which
-    enables the third modular state for all config symbols.
-    At most one symbol may have the "modules" option set.
-
-  - "allnoconfig_y"
-    This declares the symbol as one that should have the value y when
-    using "allnoconfig". Used for symbols that hide other symbols.
+- module attribute: "modules"
+  This declares the symbol to be used as the MODULES symbol, which
+  enables the third modular state for all config symbols.
+  At most one symbol may have the "modules" option set.
 
 Menu dependencies
 -----------------

@@ -675,7 +675,7 @@ static int dwc2_hs_pmap_schedule(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh,
 }
 
 /**
- * dwc2_ls_pmap_unschedule() - Undo work done by dwc2_hs_pmap_schedule()
+ * dwc2_hs_pmap_unschedule() - Undo work done by dwc2_hs_pmap_schedule()
  *
  * @hsotg:       The HCD state structure for the DWC OTG controller.
  * @qh:          QH for the periodic transfer.

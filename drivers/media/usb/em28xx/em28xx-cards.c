@@ -2778,7 +2778,11 @@ struct usb_device_id em28xx_id_table[] = {
 			.driver_info = EM2765_BOARD_SPEEDLINK_VAD_LAPLACE },
 	{ USB_DEVICE(0x2013, 0x0258),
 			.driver_info = EM28178_BOARD_PCTV_461E },
+	{ USB_DEVICE(0x2013, 0x8258), /* Bulk transport 461e */
+			.driver_info = EM28178_BOARD_PCTV_461E },
 	{ USB_DEVICE(0x2013, 0x0461),
+			.driver_info = EM28178_BOARD_PCTV_461E_V2 },
+	{ USB_DEVICE(0x2013, 0x8461), /* Bulk transport 461e v2 */
 			.driver_info = EM28178_BOARD_PCTV_461E_V2 },
 	{ USB_DEVICE(0x2013, 0x0259),
 			.driver_info = EM28178_BOARD_PCTV_461E_V2 },
@@ -4061,15 +4065,15 @@ static int em28xx_usb_probe(struct usb_interface *intf,
 		dev->dev_next->dvb_max_pkt_size_isoc = dev->dvb_max_pkt_size_isoc_ts2;
 		dev->dev_next->dvb_alt_isoc = dev->dvb_alt_isoc;
 
-		/* Configuare hardware to support TS2*/
+		/* Configure hardware to support TS2*/
 		if (dev->dvb_xfer_bulk) {
-			/* The ep4 and ep5 are configuared for BULK */
+			/* The ep4 and ep5 are configured for BULK */
 			em28xx_write_reg(dev, 0x0b, 0x96);
 			mdelay(100);
 			em28xx_write_reg(dev, 0x0b, 0x80);
 			mdelay(100);
 		} else {
-			/* The ep4 and ep5 are configuared for ISO */
+			/* The ep4 and ep5 are configured for ISO */
 			em28xx_write_reg(dev, 0x0b, 0x96);
 			mdelay(100);
 			em28xx_write_reg(dev, 0x0b, 0x82);

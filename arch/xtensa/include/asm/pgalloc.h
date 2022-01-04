@@ -25,7 +25,6 @@
 	(pmd_val(*(pmdp)) = ((unsigned long)ptep))
 #define pmd_populate(mm, pmdp, page)					     \
 	(pmd_val(*(pmdp)) = ((unsigned long)page_to_virt(page)))
-#define pmd_pgtable(pmd) pmd_page(pmd)
 
 static inline pgd_t*
 pgd_alloc(struct mm_struct *mm)
@@ -63,7 +62,6 @@ static inline pgtable_t pte_alloc_one(struct mm_struct *mm)
 	return page;
 }
 
-#define pmd_pgtable(pmd) pmd_page(pmd)
 #endif /* CONFIG_MMU */
 
 #endif /* _XTENSA_PGALLOC_H */

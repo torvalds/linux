@@ -91,7 +91,7 @@ static int ak881x_s_register(struct v4l2_subdev *sd,
 #endif
 
 static int ak881x_fill_fmt(struct v4l2_subdev *sd,
-		struct v4l2_subdev_pad_config *cfg,
+		struct v4l2_subdev_state *sd_state,
 		struct v4l2_subdev_format *format)
 {
 	struct v4l2_mbus_framefmt *mf = &format->format;
@@ -111,7 +111,7 @@ static int ak881x_fill_fmt(struct v4l2_subdev *sd,
 }
 
 static int ak881x_enum_mbus_code(struct v4l2_subdev *sd,
-		struct v4l2_subdev_pad_config *cfg,
+		struct v4l2_subdev_state *sd_state,
 		struct v4l2_subdev_mbus_code_enum *code)
 {
 	if (code->pad || code->index)
@@ -122,7 +122,7 @@ static int ak881x_enum_mbus_code(struct v4l2_subdev *sd,
 }
 
 static int ak881x_get_selection(struct v4l2_subdev *sd,
-				struct v4l2_subdev_pad_config *cfg,
+				struct v4l2_subdev_state *sd_state,
 				struct v4l2_subdev_selection *sel)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);

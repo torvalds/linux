@@ -403,7 +403,7 @@ static const struct platform_suspend_ops tegra_suspend_ops = {
 	.enter		= tegra_suspend_enter,
 };
 
-void __init tegra_init_suspend(void)
+void tegra_pm_init_suspend(void)
 {
 	enum tegra_suspend_mode mode = tegra_pmc_get_suspend_mode();
 

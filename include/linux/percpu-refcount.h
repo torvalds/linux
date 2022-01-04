@@ -213,7 +213,7 @@ static inline void percpu_ref_get_many(struct percpu_ref *ref, unsigned long nr)
  * percpu_ref_get - increment a percpu refcount
  * @ref: percpu_ref to get
  *
- * Analagous to atomic_long_inc().
+ * Analogous to atomic_long_inc().
  *
  * This function is safe to call as long as @ref is between init and exit.
  */

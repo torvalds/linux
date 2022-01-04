@@ -46,13 +46,17 @@ static inline void gfs2_write_calc_reserv(const struct gfs2_inode *ip,
 extern const struct iomap_ops gfs2_iomap_ops;
 extern const struct iomap_writeback_ops gfs2_writeback_ops;
 
-extern int gfs2_unstuff_dinode(struct gfs2_inode *ip, struct page *page);
+extern int gfs2_unstuff_dinode(struct gfs2_inode *ip);
 extern int gfs2_block_map(struct inode *inode, sector_t lblock,
 			  struct buffer_head *bh, int create);
-extern int gfs2_iomap_get_alloc(struct inode *inode, loff_t pos, loff_t length,
-				struct iomap *iomap);
-extern int gfs2_extent_map(struct inode *inode, u64 lblock, int *new,
-			   u64 *dblock, unsigned *extlen);
+extern int gfs2_iomap_get(struct inode *inode, loff_t pos, loff_t length,
+			  struct iomap *iomap);
+extern int gfs2_iomap_alloc(struct inode *inode, loff_t pos, loff_t length,
+			    struct iomap *iomap);
+extern int gfs2_get_extent(struct inode *inode, u64 lblock, u64 *dblock,
+			   unsigned int *extlen);
+extern int gfs2_alloc_extent(struct inode *inode, u64 lblock, u64 *dblock,
+			     unsigned *extlen, bool *new);
 extern int gfs2_setattr_size(struct inode *inode, u64 size);
 extern void gfs2_trim_blocks(struct inode *inode);
 extern int gfs2_truncatei_resume(struct gfs2_inode *ip);
@@ -62,6 +66,5 @@ extern int gfs2_write_alloc_required(struct gfs2_inode *ip, u64 offset,
 extern int gfs2_map_journal_extents(struct gfs2_sbd *sdp, struct gfs2_jdesc *jd);
 extern void gfs2_free_journal_extents(struct gfs2_jdesc *jd);
 extern int __gfs2_punch_hole(struct file *file, loff_t offset, loff_t length);
-extern int gfs2_lblk_to_dblk(struct inode *inode, u32 lblock, u64 *dblock);
 
 #endif /* __BMAP_DOT_H__ */

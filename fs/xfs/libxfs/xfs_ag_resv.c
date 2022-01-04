@@ -19,7 +19,7 @@
 #include "xfs_btree.h"
 #include "xfs_refcount_btree.h"
 #include "xfs_ialloc_btree.h"
-#include "xfs_sb.h"
+#include "xfs_ag.h"
 #include "xfs_ag_resv.h"
 
 /*
@@ -211,7 +211,11 @@ __xfs_ag_resv_init(
 		ASSERT(0);
 		return -EINVAL;
 	}
-	error = xfs_mod_fdblocks(mp, -(int64_t)hidden_space, true);
+
+	if (XFS_TEST_ERROR(false, mp, XFS_ERRTAG_AG_RESV_FAIL))
+		error = -ENOSPC;
+	else
+		error = xfs_mod_fdblocks(mp, -(int64_t)hidden_space, true);
 	if (error) {
 		trace_xfs_ag_resv_init_error(pag->pag_mount, pag->pag_agno,
 				error, _RET_IP_);
@@ -246,20 +250,20 @@ xfs_ag_resv_init(
 	struct xfs_trans		*tp)
 {
 	struct xfs_mount		*mp = pag->pag_mount;
-	xfs_agnumber_t			agno = pag->pag_agno;
 	xfs_extlen_t			ask;
 	xfs_extlen_t			used;
-	int				error = 0;
+	int				error = 0, error2;
+	bool				has_resv = false;
 
 	/* Create the metadata reservation. */
 	if (pag->pag_meta_resv.ar_asked == 0) {
 		ask = used = 0;
 
-		error = xfs_refcountbt_calc_reserves(mp, tp, agno, &ask, &used);
+		error = xfs_refcountbt_calc_reserves(mp, tp, pag, &ask, &used);
 		if (error)
 			goto out;
 
-		error = xfs_finobt_calc_reserves(mp, tp, agno, &ask, &used);
+		error = xfs_finobt_calc_reserves(mp, tp, pag, &ask, &used);
 		if (error)
 			goto out;
 
@@ -277,7 +281,7 @@ xfs_ag_resv_init(
 
 			mp->m_finobt_nores = true;
 
-			error = xfs_refcountbt_calc_reserves(mp, tp, agno, &ask,
+			error = xfs_refcountbt_calc_reserves(mp, tp, pag, &ask,
 					&used);
 			if (error)
 				goto out;
@@ -287,32 +291,55 @@ xfs_ag_resv_init(
 			if (error)
 				goto out;
 		}
+		if (ask)
+			has_resv = true;
 	}
 
 	/* Create the RMAPBT metadata reservation */
 	if (pag->pag_rmapbt_resv.ar_asked == 0) {
 		ask = used = 0;
 
-		error = xfs_rmapbt_calc_reserves(mp, tp, agno, &ask, &used);
+		error = xfs_rmapbt_calc_reserves(mp, tp, pag, &ask, &used);
 		if (error)
 			goto out;
 
 		error = __xfs_ag_resv_init(pag, XFS_AG_RESV_RMAPBT, ask, used);
 		if (error)
 			goto out;
+		if (ask)
+			has_resv = true;
 	}
 
-#ifdef DEBUG
-	/* need to read in the AGF for the ASSERT below to work */
-	error = xfs_alloc_pagf_init(pag->pag_mount, tp, pag->pag_agno, 0);
-	if (error)
-		return error;
-
-	ASSERT(xfs_perag_resv(pag, XFS_AG_RESV_METADATA)->ar_reserved +
-	       xfs_perag_resv(pag, XFS_AG_RESV_RMAPBT)->ar_reserved <=
-	       pag->pagf_freeblks + pag->pagf_flcount);
-#endif
 out:
+	/*
+	 * Initialize the pagf if we have at least one active reservation on the
+	 * AG. This may have occurred already via reservation calculation, but
+	 * fall back to an explicit init to ensure the in-core allocbt usage
+	 * counters are initialized as soon as possible. This is important
+	 * because filesystems with large perag reservations are susceptible to
+	 * free space reservation problems that the allocbt counter is used to
+	 * address.
+	 */
+	if (has_resv) {
+		error2 = xfs_alloc_pagf_init(mp, tp, pag->pag_agno, 0);
+		if (error2)
+			return error2;
+
+		/*
+		 * If there isn't enough space in the AG to satisfy the
+		 * reservation, let the caller know that there wasn't enough
+		 * space.  Callers are responsible for deciding what to do
+		 * next, since (in theory) we can stumble along with
+		 * insufficient reservation if data blocks are being freed to
+		 * replenish the AG's free space.
+		 */
+		if (!error &&
+		    xfs_perag_resv(pag, XFS_AG_RESV_METADATA)->ar_reserved +
+		    xfs_perag_resv(pag, XFS_AG_RESV_RMAPBT)->ar_reserved >
+		    pag->pagf_freeblks + pag->pagf_flcount)
+			error = -ENOSPC;
+	}
+
 	return error;
 }
 
@@ -338,7 +365,7 @@ xfs_ag_resv_alloc_extent(
 		break;
 	default:
 		ASSERT(0);
-		/* fall through */
+		fallthrough;
 	case XFS_AG_RESV_NONE:
 		field = args->wasdel ? XFS_TRANS_SB_RES_FDBLOCKS :
 				       XFS_TRANS_SB_FDBLOCKS;
@@ -380,7 +407,7 @@ xfs_ag_resv_free_extent(
 		break;
 	default:
 		ASSERT(0);
-		/* fall through */
+		fallthrough;
 	case XFS_AG_RESV_NONE:
 		xfs_trans_mod_sb(tp, XFS_TRANS_SB_FDBLOCKS, (int64_t)len);
 		return;

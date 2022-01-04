@@ -710,7 +710,7 @@ enum {
  *  Raw MIDI section - /dev/snd/midi??
  */
 
-#define SNDRV_RAWMIDI_VERSION		SNDRV_PROTOCOL_VERSION(2, 0, 1)
+#define SNDRV_RAWMIDI_VERSION		SNDRV_PROTOCOL_VERSION(2, 0, 2)
 
 enum {
 	SNDRV_RAWMIDI_STREAM_OUTPUT = 0,
@@ -736,12 +736,38 @@ struct snd_rawmidi_info {
 	unsigned char reserved[64];	/* reserved for future use */
 };
 
+#define SNDRV_RAWMIDI_MODE_FRAMING_MASK		(7<<0)
+#define SNDRV_RAWMIDI_MODE_FRAMING_SHIFT	0
+#define SNDRV_RAWMIDI_MODE_FRAMING_NONE		(0<<0)
+#define SNDRV_RAWMIDI_MODE_FRAMING_TSTAMP	(1<<0)
+#define SNDRV_RAWMIDI_MODE_CLOCK_MASK		(7<<3)
+#define SNDRV_RAWMIDI_MODE_CLOCK_SHIFT		3
+#define SNDRV_RAWMIDI_MODE_CLOCK_NONE		(0<<3)
+#define SNDRV_RAWMIDI_MODE_CLOCK_REALTIME	(1<<3)
+#define SNDRV_RAWMIDI_MODE_CLOCK_MONOTONIC	(2<<3)
+#define SNDRV_RAWMIDI_MODE_CLOCK_MONOTONIC_RAW	(3<<3)
+
+#define SNDRV_RAWMIDI_FRAMING_DATA_LENGTH 16
+
+struct snd_rawmidi_framing_tstamp {
+	/* For now, frame_type is always 0. Midi 2.0 is expected to add new
+	 * types here. Applications are expected to skip unknown frame types.
+	 */
+	__u8 frame_type;
+	__u8 length; /* number of valid bytes in data field */
+	__u8 reserved[2];
+	__u32 tv_nsec;		/* nanoseconds */
+	__u64 tv_sec;		/* seconds */
+	__u8 data[SNDRV_RAWMIDI_FRAMING_DATA_LENGTH];
+} __packed;
+
 struct snd_rawmidi_params {
 	int stream;
 	size_t buffer_size;		/* queue size in bytes */
 	size_t avail_min;		/* minimum avail bytes for wakeup */
 	unsigned int no_active_sensing: 1; /* do not send active sensing byte in close() */
-	unsigned char reserved[16];	/* reserved for future use */
+	unsigned int mode;		/* For input data only, frame incoming data */
+	unsigned char reserved[12];	/* reserved for future use */
 };
 
 #ifndef __KERNEL__

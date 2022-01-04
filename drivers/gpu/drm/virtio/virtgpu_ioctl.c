@@ -174,7 +174,7 @@ static int virtio_gpu_execbuffer_ioctl(struct drm_device *dev, void *data,
 		if (!sync_file) {
 			dma_fence_put(&out_fence->f);
 			ret = -ENOMEM;
-			goto out_memdup;
+			goto out_unresv;
 		}
 
 		exbuf->fence_fd = out_fence_fd;
@@ -451,10 +451,9 @@ static int virtio_gpu_wait_ioctl(struct drm_device *dev, void *data,
 		return -ENOENT;
 
 	if (args->flags & VIRTGPU_WAIT_NOWAIT) {
-		ret = dma_resv_test_signaled_rcu(obj->resv, true);
+		ret = dma_resv_test_signaled(obj->resv, true);
 	} else {
-		ret = dma_resv_wait_timeout_rcu(obj->resv, true, true,
-						timeout);
+		ret = dma_resv_wait_timeout(obj->resv, true, true, timeout);
 	}
 	if (ret == 0)
 		ret = -EBUSY;

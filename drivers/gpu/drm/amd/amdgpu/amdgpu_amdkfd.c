@@ -21,6 +21,7 @@
  */
 
 #include "amdgpu_amdkfd.h"
+#include "amd_pcie.h"
 #include "amd_shared.h"
 
 #include "amdgpu.h"
@@ -44,7 +45,7 @@ int amdgpu_amdkfd_init(void)
 	int ret;
 
 	si_meminfo(&si);
-	amdgpu_amdkfd_total_mem_size = si.totalram - si.totalhigh;
+	amdgpu_amdkfd_total_mem_size = si.freeram - si.freehigh;
 	amdgpu_amdkfd_total_mem_size *= si.mem_unit;
 
 	ret = kgd2kfd_init();
@@ -165,11 +166,12 @@ void amdgpu_amdkfd_device_init(struct amdgpu_device *adev)
 					adev->doorbell_index.last_non_cp;
 		}
 
-		kgd2kfd_device_init(adev->kfd.dev, adev_to_drm(adev), &gpu_resources);
+		adev->kfd.init_complete = kgd2kfd_device_init(adev->kfd.dev,
+						adev_to_drm(adev), &gpu_resources);
 	}
 }
 
-void amdgpu_amdkfd_device_fini(struct amdgpu_device *adev)
+void amdgpu_amdkfd_device_fini_sw(struct amdgpu_device *adev)
 {
 	if (adev->kfd.dev) {
 		kgd2kfd_device_exit(adev->kfd.dev);
@@ -245,6 +247,7 @@ int amdgpu_amdkfd_alloc_gtt_mem(struct kgd_dev *kgd, size_t size,
 	bp.flags = AMDGPU_GEM_CREATE_CPU_GTT_USWC;
 	bp.type = ttm_bo_type_kernel;
 	bp.resv = NULL;
+	bp.bo_ptr_size = sizeof(struct amdgpu_bo);
 
 	if (cp_mqd_gfx9)
 		bp.flags |= AMDGPU_GEM_CREATE_CP_MQD_GFX9;
@@ -316,6 +319,7 @@ int amdgpu_amdkfd_alloc_gws(struct kgd_dev *kgd, size_t size,
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)kgd;
 	struct amdgpu_bo *bo = NULL;
+	struct amdgpu_bo_user *ubo;
 	struct amdgpu_bo_param bp;
 	int r;
 
@@ -326,14 +330,16 @@ int amdgpu_amdkfd_alloc_gws(struct kgd_dev *kgd, size_t size,
 	bp.flags = AMDGPU_GEM_CREATE_NO_CPU_ACCESS;
 	bp.type = ttm_bo_type_device;
 	bp.resv = NULL;
+	bp.bo_ptr_size = sizeof(struct amdgpu_bo);
 
-	r = amdgpu_bo_create(adev, &bp, &bo);
+	r = amdgpu_bo_create_user(adev, &bp, &ubo);
 	if (r) {
 		dev_err(adev->dev,
 			"failed to allocate gws BO for amdkfd (%d)\n", r);
 		return r;
 	}
 
+	bo = &ubo->bo;
 	*mem_obj = bo;
 	return 0;
 }
@@ -494,8 +500,6 @@ int amdgpu_amdkfd_get_dmabuf_info(struct kgd_dev *kgd, int dma_buf_fd,
 		*dma_buf_kgd = (struct kgd_dev *)adev;
 	if (bo_size)
 		*bo_size = amdgpu_bo_size(bo);
-	if (metadata_size)
-		*metadata_size = bo->metadata_size;
 	if (metadata_buffer)
 		r = amdgpu_bo_get_metadata(bo, metadata_buffer, buffer_size,
 					   metadata_size, &metadata_flags);
@@ -548,6 +552,88 @@ uint8_t amdgpu_amdkfd_get_xgmi_hops_count(struct kgd_dev *dst, struct kgd_dev *s
 		ret = 0;
 	}
 	return  (uint8_t)ret;
+}
+
+int amdgpu_amdkfd_get_xgmi_bandwidth_mbytes(struct kgd_dev *dst, struct kgd_dev *src, bool is_min)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)dst, *peer_adev;
+	int num_links;
+
+	if (adev->asic_type != CHIP_ALDEBARAN)
+		return 0;
+
+	if (src)
+		peer_adev = (struct amdgpu_device *)src;
+
+	/* num links returns 0 for indirect peers since indirect route is unknown. */
+	num_links = is_min ? 1 : amdgpu_xgmi_get_num_links(adev, peer_adev);
+	if (num_links < 0) {
+		DRM_ERROR("amdgpu: failed to get xgmi num links between node %d and %d. ret = %d\n",
+			adev->gmc.xgmi.physical_node_id,
+			peer_adev->gmc.xgmi.physical_node_id, num_links);
+		num_links = 0;
+	}
+
+	/* Aldebaran xGMI DPM is defeatured so assume x16 x 25Gbps for bandwidth. */
+	return (num_links * 16 * 25000)/BITS_PER_BYTE;
+}
+
+int amdgpu_amdkfd_get_pcie_bandwidth_mbytes(struct kgd_dev *dev, bool is_min)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)dev;
+	int num_lanes_shift = (is_min ? ffs(adev->pm.pcie_mlw_mask) :
+							fls(adev->pm.pcie_mlw_mask)) - 1;
+	int gen_speed_shift = (is_min ? ffs(adev->pm.pcie_gen_mask &
+						CAIL_PCIE_LINK_SPEED_SUPPORT_MASK) :
+					fls(adev->pm.pcie_gen_mask &
+						CAIL_PCIE_LINK_SPEED_SUPPORT_MASK)) - 1;
+	uint32_t num_lanes_mask = 1 << num_lanes_shift;
+	uint32_t gen_speed_mask = 1 << gen_speed_shift;
+	int num_lanes_factor = 0, gen_speed_mbits_factor = 0;
+
+	switch (num_lanes_mask) {
+	case CAIL_PCIE_LINK_WIDTH_SUPPORT_X1:
+		num_lanes_factor = 1;
+		break;
+	case CAIL_PCIE_LINK_WIDTH_SUPPORT_X2:
+		num_lanes_factor = 2;
+		break;
+	case CAIL_PCIE_LINK_WIDTH_SUPPORT_X4:
+		num_lanes_factor = 4;
+		break;
+	case CAIL_PCIE_LINK_WIDTH_SUPPORT_X8:
+		num_lanes_factor = 8;
+		break;
+	case CAIL_PCIE_LINK_WIDTH_SUPPORT_X12:
+		num_lanes_factor = 12;
+		break;
+	case CAIL_PCIE_LINK_WIDTH_SUPPORT_X16:
+		num_lanes_factor = 16;
+		break;
+	case CAIL_PCIE_LINK_WIDTH_SUPPORT_X32:
+		num_lanes_factor = 32;
+		break;
+	}
+
+	switch (gen_speed_mask) {
+	case CAIL_PCIE_LINK_SPEED_SUPPORT_GEN1:
+		gen_speed_mbits_factor = 2500;
+		break;
+	case CAIL_PCIE_LINK_SPEED_SUPPORT_GEN2:
+		gen_speed_mbits_factor = 5000;
+		break;
+	case CAIL_PCIE_LINK_SPEED_SUPPORT_GEN3:
+		gen_speed_mbits_factor = 8000;
+		break;
+	case CAIL_PCIE_LINK_SPEED_SUPPORT_GEN4:
+		gen_speed_mbits_factor = 16000;
+		break;
+	case CAIL_PCIE_LINK_SPEED_SUPPORT_GEN5:
+		gen_speed_mbits_factor = 32000;
+		break;
+	}
+
+	return (num_lanes_factor * gen_speed_mbits_factor)/BITS_PER_BYTE;
 }
 
 uint64_t amdgpu_amdkfd_get_mmio_remap_phys_addr(struct kgd_dev *kgd)
@@ -628,7 +714,6 @@ int amdgpu_amdkfd_submit_ib(struct kgd_dev *kgd, enum kgd_engine_type engine,
 	ret = dma_fence_wait(f, false);
 
 err_ib_sched:
-	dma_fence_put(f);
 	amdgpu_job_free(job);
 err:
 	return ret;
@@ -638,13 +723,6 @@ void amdgpu_amdkfd_set_compute_idle(struct kgd_dev *kgd, bool idle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)kgd;
 
-	/* Temp workaround to fix the soft hang observed in certain compute
-	 * applications if GFXOFF is enabled.
-	 */
-	if (adev->asic_type == CHIP_SIENNA_CICHLID) {
-		pr_debug("GFXOFF is %s\n", idle ? "enabled" : "disabled");
-		amdgpu_gfx_off_ctrl(adev, idle);
-	}
 	amdgpu_dpm_switch_power_profile(adev,
 					PP_SMC_POWER_PROFILE_COMPUTE,
 					!idle);
@@ -674,10 +752,10 @@ int amdgpu_amdkfd_flush_gpu_tlb_vmid(struct kgd_dev *kgd, uint16_t vmid)
 	return 0;
 }
 
-int amdgpu_amdkfd_flush_gpu_tlb_pasid(struct kgd_dev *kgd, uint16_t pasid)
+int amdgpu_amdkfd_flush_gpu_tlb_pasid(struct kgd_dev *kgd, uint16_t pasid,
+				      enum TLB_FLUSH_TYPE flush_type)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)kgd;
-	const uint32_t flush_type = 0;
 	bool all_hub = false;
 
 	if (adev->family == AMDGPU_FAMILY_AI)

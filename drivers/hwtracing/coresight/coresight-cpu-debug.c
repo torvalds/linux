@@ -17,6 +17,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
+#include <linux/panic_notifier.h>
 #include <linux/pm_qos.h>
 #include <linux/slab.h>
 #include <linux/smp.h>
@@ -587,11 +588,11 @@ static int debug_probe(struct amba_device *adev, const struct amba_id *id)
 
 	drvdata->base = base;
 
-	get_online_cpus();
+	cpus_read_lock();
 	per_cpu(debug_drvdata, drvdata->cpu) = drvdata;
 	ret = smp_call_function_single(drvdata->cpu, debug_init_arch_data,
 				       drvdata, 1);
-	put_online_cpus();
+	cpus_read_unlock();
 
 	if (ret) {
 		dev_err(dev, "CPU%d debug arch init failed\n", drvdata->cpu);

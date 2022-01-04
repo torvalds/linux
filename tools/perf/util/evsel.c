@@ -47,6 +47,7 @@
 #include "memswap.h"
 #include "util.h"
 #include "hashmap.h"
+#include "pmu-hybrid.h"
 #include "../perf-sys.h"
 #include "util/parse-branch-options.h"
 #include <internal/xyarray.h>
@@ -238,10 +239,8 @@ bool evsel__is_function_event(struct evsel *evsel)
 void evsel__init(struct evsel *evsel,
 		 struct perf_event_attr *attr, int idx)
 {
-	perf_evsel__init(&evsel->core, attr);
-	evsel->idx	   = idx;
+	perf_evsel__init(&evsel->core, attr, idx);
 	evsel->tracking	   = !idx;
-	evsel->leader	   = evsel;
 	evsel->unit	   = "";
 	evsel->scale	   = 1.0;
 	evsel->max_events  = ULONG_MAX;
@@ -295,11 +294,11 @@ static bool perf_event_can_profile_kernel(void)
 	return perf_event_paranoid_check(1);
 }
 
-struct evsel *evsel__new_cycles(bool precise)
+struct evsel *evsel__new_cycles(bool precise, __u32 type, __u64 config)
 {
 	struct perf_event_attr attr = {
-		.type	= PERF_TYPE_HARDWARE,
-		.config	= PERF_COUNT_HW_CPU_CYCLES,
+		.type	= type,
+		.config	= config,
 		.exclude_kernel	= !perf_event_can_profile_kernel(),
 	};
 	struct evsel *evsel;
@@ -409,7 +408,7 @@ struct evsel *evsel__clone(struct evsel *orig)
 	evsel->cgrp = cgroup__get(orig->cgrp);
 	evsel->tp_format = orig->tp_format;
 	evsel->handler = orig->handler;
-	evsel->leader = orig->leader;
+	evsel->core.leader = orig->core.leader;
 
 	evsel->max_events = orig->max_events;
 	evsel->tool_event = orig->tool_event;
@@ -427,6 +426,7 @@ struct evsel *evsel__clone(struct evsel *orig)
 	evsel->auto_merge_stats = orig->auto_merge_stats;
 	evsel->collect_stat = orig->collect_stat;
 	evsel->weak_group = orig->weak_group;
+	evsel->use_config_name = orig->use_config_name;
 
 	if (evsel__copy_config_terms(evsel, orig) < 0)
 		goto out_err;
@@ -491,6 +491,28 @@ const char *evsel__hw_names[PERF_COUNT_HW_MAX] = {
 	"stalled-cycles-backend",
 	"ref-cycles",
 };
+
+char *evsel__bpf_counter_events;
+
+bool evsel__match_bpf_counter_events(const char *name)
+{
+	int name_len;
+	bool match;
+	char *ptr;
+
+	if (!evsel__bpf_counter_events)
+		return false;
+
+	ptr = strstr(evsel__bpf_counter_events, name);
+	name_len = strlen(name);
+
+	/* check name matches a full token in evsel__bpf_counter_events */
+	match = (ptr != NULL) &&
+		((ptr == evsel__bpf_counter_events) || (*(ptr - 1) == ',')) &&
+		((*(ptr + name_len) == ',') || (*(ptr + name_len) == '\0'));
+
+	return match;
+}
 
 static const char *__evsel__hw_name(u64 config)
 {
@@ -621,7 +643,7 @@ const char *evsel__hw_cache_result[PERF_COUNT_HW_CACHE_RESULT_MAX][EVSEL__MAX_AL
 #define COP(x)		(1 << x)
 
 /*
- * cache operartion stat
+ * cache operation stat
  * L1I : Read and prefetch only
  * ITLB and BPU : Read-only
  */
@@ -1051,7 +1073,7 @@ void __weak arch_evsel__set_sample_weight(struct evsel *evsel)
 void evsel__config(struct evsel *evsel, struct record_opts *opts,
 		   struct callchain_param *callchain)
 {
-	struct evsel *leader = evsel->leader;
+	struct evsel *leader = evsel__leader(evsel);
 	struct perf_event_attr *attr = &evsel->core.attr;
 	int track = evsel->tracking;
 	bool per_cpu = opts->target.default_per_cpu && !opts->target.per_thread;
@@ -1558,9 +1580,30 @@ int __evsel__read_on_cpu(struct evsel *evsel, int cpu, int thread, bool scale)
 	return 0;
 }
 
+static int evsel__match_other_cpu(struct evsel *evsel, struct evsel *other,
+				  int cpu)
+{
+	int cpuid;
+
+	cpuid = perf_cpu_map__cpu(evsel->core.cpus, cpu);
+	return perf_cpu_map__idx(other->core.cpus, cpuid);
+}
+
+static int evsel__hybrid_group_cpu(struct evsel *evsel, int cpu)
+{
+	struct evsel *leader = evsel__leader(evsel);
+
+	if ((evsel__is_hybrid(evsel) && !evsel__is_hybrid(leader)) ||
+	    (!evsel__is_hybrid(evsel) && evsel__is_hybrid(leader))) {
+		return evsel__match_other_cpu(evsel, leader, cpu);
+	}
+
+	return cpu;
+}
+
 static int get_group_fd(struct evsel *evsel, int cpu, int thread)
 {
-	struct evsel *leader = evsel->leader;
+	struct evsel *leader = evsel__leader(evsel);
 	int fd;
 
 	if (evsel__is_group_leader(evsel))
@@ -1571,6 +1614,10 @@ static int get_group_fd(struct evsel *evsel, int cpu, int thread)
 	 * if not it's a bug.
 	 */
 	BUG_ON(!leader->core.fd);
+
+	cpu = evsel__hybrid_group_cpu(evsel, cpu);
+	if (cpu == -1)
+		return -1;
 
 	fd = FD(leader, cpu, thread);
 	BUG_ON(fd == -1);
@@ -2275,7 +2322,7 @@ int evsel__parse_sample(struct evsel *evsel, union perf_event *event,
 		/*
 		 * Undo swap of u64, then swap on individual u32s,
 		 * get the size of the raw area and undo all of the
-		 * swap. The pevent interface handles endianity by
+		 * swap. The pevent interface handles endianness by
 		 * itself.
 		 */
 		if (swapped) {
@@ -2796,4 +2843,29 @@ void evsel__zero_per_pkg(struct evsel *evsel)
 
 		hashmap__clear(evsel->per_pkg_mask);
 	}
+}
+
+bool evsel__is_hybrid(struct evsel *evsel)
+{
+	return evsel->pmu_name && perf_pmu__is_hybrid(evsel->pmu_name);
+}
+
+struct evsel *evsel__leader(struct evsel *evsel)
+{
+	return container_of(evsel->core.leader, struct evsel, core);
+}
+
+bool evsel__has_leader(struct evsel *evsel, struct evsel *leader)
+{
+	return evsel->core.leader == &leader->core;
+}
+
+bool evsel__is_leader(struct evsel *evsel)
+{
+	return evsel__has_leader(evsel, evsel);
+}
+
+void evsel__set_leader(struct evsel *evsel, struct evsel *leader)
+{
+	evsel->core.leader = &leader->core;
 }

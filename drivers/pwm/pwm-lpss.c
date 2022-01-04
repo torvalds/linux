@@ -234,10 +234,9 @@ struct pwm_lpss_chip *pwm_lpss_probe(struct device *dev, struct resource *r,
 
 	lpwm->chip.dev = dev;
 	lpwm->chip.ops = &pwm_lpss_ops;
-	lpwm->chip.base = -1;
 	lpwm->chip.npwm = info->npwm;
 
-	ret = pwmchip_add(&lpwm->chip);
+	ret = devm_pwmchip_add(dev, &lpwm->chip);
 	if (ret) {
 		dev_err(dev, "failed to add PWM chip: %d\n", ret);
 		return ERR_PTR(ret);
@@ -252,18 +251,6 @@ struct pwm_lpss_chip *pwm_lpss_probe(struct device *dev, struct resource *r,
 	return lpwm;
 }
 EXPORT_SYMBOL_GPL(pwm_lpss_probe);
-
-int pwm_lpss_remove(struct pwm_lpss_chip *lpwm)
-{
-	int i;
-
-	for (i = 0; i < lpwm->info->npwm; i++) {
-		if (pwm_is_enabled(&lpwm->chip.pwms[i]))
-			pm_runtime_put(lpwm->chip.dev);
-	}
-	return pwmchip_remove(&lpwm->chip);
-}
-EXPORT_SYMBOL_GPL(pwm_lpss_remove);
 
 MODULE_DESCRIPTION("PWM driver for Intel LPSS");
 MODULE_AUTHOR("Mika Westerberg <mika.westerberg@linux.intel.com>");

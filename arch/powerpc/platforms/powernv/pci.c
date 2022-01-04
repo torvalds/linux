@@ -711,7 +711,7 @@ int pnv_pci_cfg_write(struct pci_dn *pdn,
 	return PCIBIOS_SUCCESSFUL;
 }
 
-#if CONFIG_EEH
+#ifdef CONFIG_EEH
 static bool pnv_pci_cfg_check(struct pci_dn *pdn)
 {
 	struct eeh_dev *edev = NULL;
@@ -925,17 +925,6 @@ void __init pnv_pci_init(void)
 	/* Look for ioda3 built-in PHB4's, we treat them as IODA2 */
 	for_each_compatible_node(np, NULL, "ibm,ioda3-phb")
 		pnv_pci_init_ioda2_phb(np);
-
-	/* Look for NPU PHBs */
-	for_each_compatible_node(np, NULL, "ibm,ioda2-npu-phb")
-		pnv_pci_init_npu_phb(np);
-
-	/*
-	 * Look for NPU2 PHBs which we treat mostly as NPU PHBs with
-	 * the exception of TCE kill which requires an OPAL call.
-	 */
-	for_each_compatible_node(np, NULL, "ibm,ioda2-npu2-phb")
-		pnv_pci_init_npu_phb(np);
 
 	/* Look for NPU2 OpenCAPI PHBs */
 	for_each_compatible_node(np, NULL, "ibm,ioda2-npu2-opencapi-phb")

@@ -663,7 +663,8 @@ static int dm_exception_table_init(struct dm_exception_table *et,
 
 	et->hash_shift = hash_shift;
 	et->hash_mask = size - 1;
-	et->table = dm_vcalloc(size, sizeof(struct hlist_bl_head));
+	et->table = kvmalloc_array(size, sizeof(struct hlist_bl_head),
+				   GFP_KERNEL);
 	if (!et->table)
 		return -ENOMEM;
 
@@ -689,7 +690,7 @@ static void dm_exception_table_exit(struct dm_exception_table *et,
 			kmem_cache_free(mem, ex);
 	}
 
-	vfree(et->table);
+	kvfree(et->table);
 }
 
 static uint32_t exception_hash(struct dm_exception_table *et, chunk_t chunk)
@@ -854,7 +855,7 @@ static int dm_add_exception(void *context, chunk_t old, chunk_t new)
 static uint32_t __minimum_chunk_size(struct origin *o)
 {
 	struct dm_snapshot *snap;
-	unsigned chunk_size = 0;
+	unsigned chunk_size = rounddown_pow_of_two(UINT_MAX);
 
 	if (o)
 		list_for_each_entry(snap, &o->snapshots, list)
@@ -1408,6 +1409,7 @@ static int snapshot_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 
 	if (!s->store->chunk_size) {
 		ti->error = "Chunk size not set";
+		r = -EINVAL;
 		goto bad_read_metadata;
 	}
 
@@ -2388,6 +2390,16 @@ static void snapshot_status(struct dm_target *ti, status_type_t type,
 				DMEMIT(" discard_passdown_origin");
 		}
 		break;
+
+	case STATUSTYPE_IMA:
+		DMEMIT_TARGET_NAME_VERSION(ti->type);
+		DMEMIT(",snap_origin_name=%s", snap->origin->name);
+		DMEMIT(",snap_cow_name=%s", snap->cow->name);
+		DMEMIT(",snap_valid=%c", snap->valid ? 'y' : 'n');
+		DMEMIT(",snap_merge_failed=%c", snap->merge_failed ? 'y' : 'n');
+		DMEMIT(",snapshot_overflowed=%c", snap->snapshot_overflowed ? 'y' : 'n');
+		DMEMIT(";");
+		break;
 	}
 }
 
@@ -2731,6 +2743,9 @@ static void origin_status(struct dm_target *ti, status_type_t type,
 
 	case STATUSTYPE_TABLE:
 		snprintf(result, maxlen, "%s", o->dev->name);
+		break;
+	case STATUSTYPE_IMA:
+		result[0] = '\0';
 		break;
 	}
 }

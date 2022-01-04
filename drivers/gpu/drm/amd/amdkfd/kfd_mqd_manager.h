@@ -27,6 +27,7 @@
 #include "kfd_priv.h"
 
 #define KFD_MAX_NUM_SE 8
+#define KFD_MAX_NUM_SH_PER_SE 2
 
 /**
  * struct mqd_manager
@@ -101,6 +102,7 @@ struct mqd_manager {
 #if defined(CONFIG_DEBUG_FS)
 	int	(*debugfs_show_mqd)(struct seq_file *m, void *data);
 #endif
+	uint32_t (*read_doorbell_id)(void *mqd);
 
 	struct mutex	mqd_mutex;
 	struct kfd_dev	*dev;

@@ -9,6 +9,7 @@
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <sound/core.h>
+#include <linux/pci.h>
 #include <sound/tlv.h>
 #include <sound/hda_codec.h>
 #include "hda_local.h"
@@ -110,7 +111,7 @@ enum {
  * 1 DAC => HP(sense) / Speakers,
  * 1 ADC <= LineIn(sense) / MicIn / DMicIn,
  * 1 SPDIF OUT => SPDIF Trasmitter(sense)
-*/
+ */
 #define CS4210_DAC_NID		0x02
 #define CS4210_ADC_NID		0x03
 #define CS4210_VENDOR_NID	0x0B
@@ -129,6 +130,7 @@ enum {
 static inline int cs_vendor_coef_get(struct hda_codec *codec, unsigned int idx)
 {
 	struct cs_spec *spec = codec->spec;
+
 	snd_hda_codec_write(codec, spec->vendor_nid, 0,
 			    AC_VERB_SET_COEF_INDEX, idx);
 	return snd_hda_codec_read(codec, spec->vendor_nid, 0,
@@ -139,6 +141,7 @@ static inline void cs_vendor_coef_set(struct hda_codec *codec, unsigned int idx,
 				      unsigned int coef)
 {
 	struct cs_spec *spec = codec->spec;
+
 	snd_hda_codec_write(codec, spec->vendor_nid, 0,
 			    AC_VERB_SET_COEF_INDEX, idx);
 	snd_hda_codec_write(codec, spec->vendor_nid, 0,
@@ -175,6 +178,7 @@ static void cs_automute(struct hda_codec *codec)
 static bool is_active_pin(struct hda_codec *codec, hda_nid_t nid)
 {
 	unsigned int val;
+
 	val = snd_hda_codec_get_pincfg(codec, nid);
 	return (get_defcfg_connect(val) != AC_JACK_PORT_NONE);
 }
@@ -193,7 +197,7 @@ static void init_input_coef(struct hda_codec *codec)
 			coef |= 1 << 3; /* DMIC1 2 chan on, GPIO0 off
 					 * No effect if SPDIF_OUT2 is
 					 * selected in IDX_SPDIF_CTL.
-					*/
+					 */
 
 		cs_vendor_coef_set(codec, IDX_BEEP_CFG, coef);
 	}
@@ -267,13 +271,6 @@ static const struct hda_verb cs_errata_init_verbs[] = {
 	{0x11, AC_VERB_SET_COEF_INDEX, 0x0001},
 	{0x11, AC_VERB_SET_PROC_COEF, 0x0008},
 	{0x11, AC_VERB_SET_PROC_STATE, 0x00},
-
-#if 0 /* Don't to set to D3 as we are in power-up sequence */
-	{0x07, AC_VERB_SET_POWER_STATE, 0x03}, /* S/PDIF Rx: D3 */
-	{0x08, AC_VERB_SET_POWER_STATE, 0x03}, /* S/PDIF Tx: D3 */
-	/*{0x01, AC_VERB_SET_POWER_STATE, 0x03},*/ /* AFG: D3 This is already handled */
-#endif
-
 	{} /* terminator */
 };
 
@@ -361,8 +358,10 @@ static int cs_parse_auto_config(struct hda_codec *codec)
 	/* keep the ADCs powered up when it's dynamically switchable */
 	if (spec->gen.dyn_adc_switch) {
 		unsigned int done = 0;
+
 		for (i = 0; i < spec->gen.input_mux.num_items; i++) {
 			int idx = spec->gen.dyn_adc_idx[i];
+
 			if (done & (1 << idx))
 				continue;
 			snd_hda_gen_fix_pin_power(codec,
@@ -496,6 +495,7 @@ static void cs420x_fixup_gpio_13(struct hda_codec *codec,
 {
 	if (action == HDA_FIXUP_ACT_PRE_PROBE) {
 		struct cs_spec *spec = codec->spec;
+
 		spec->gpio_eapd_hp = 2; /* GPIO1 = headphones */
 		spec->gpio_eapd_speaker = 8; /* GPIO3 = speakers */
 		spec->gpio_mask = spec->gpio_dir =
@@ -508,6 +508,7 @@ static void cs420x_fixup_gpio_23(struct hda_codec *codec,
 {
 	if (action == HDA_FIXUP_ACT_PRE_PROBE) {
 		struct cs_spec *spec = codec->spec;
+
 		spec->gpio_eapd_hp = 4; /* GPIO2 = headphones */
 		spec->gpio_eapd_speaker = 8; /* GPIO3 = speakers */
 		spec->gpio_mask = spec->gpio_dir =
@@ -652,6 +653,7 @@ static void cs4208_fixup_gpio0(struct hda_codec *codec,
 {
 	if (action == HDA_FIXUP_ACT_PRE_PROBE) {
 		struct cs_spec *spec = codec->spec;
+
 		spec->gpio_eapd_hp = 0;
 		spec->gpio_eapd_speaker = 1;
 		spec->gpio_mask = spec->gpio_dir =
@@ -806,7 +808,7 @@ static int patch_cs4208(struct hda_codec *codec)
  * 1 DAC => HP(sense) / Speakers,
  * 1 ADC <= LineIn(sense) / MicIn / DMicIn,
  * 1 SPDIF OUT => SPDIF Trasmitter(sense)
-*/
+ */
 
 /* CS4210 board names */
 static const struct hda_model_fixup cs421x_models[] = {
@@ -849,6 +851,7 @@ static void cs421x_fixup_sense_b(struct hda_codec *codec,
 				 const struct hda_fixup *fix, int action)
 {
 	struct cs_spec *spec = codec->spec;
+
 	if (action == HDA_FIXUP_ACT_PRE_PROBE)
 		spec->sense_b = 1;
 }
@@ -874,9 +877,9 @@ static const struct hda_verb cs421x_coef_init_verbs[] = {
 	{0x0B, AC_VERB_SET_PROC_STATE, 1},
 	{0x0B, AC_VERB_SET_COEF_INDEX, CS421X_IDX_DEV_CFG},
 	/*
-	    Disable Coefficient Index Auto-Increment(DAI)=1,
-	    PDREF=0
-	*/
+	 *  Disable Coefficient Index Auto-Increment(DAI)=1,
+	 *  PDREF=0
+	 */
 	{0x0B, AC_VERB_SET_PROC_COEF, 0x0001 },
 
 	{0x0B, AC_VERB_SET_COEF_INDEX, CS421X_IDX_ADC_CFG},
@@ -963,12 +966,12 @@ static int cs421x_boost_vol_put(struct snd_kcontrol *kcontrol,
 
 	coef &= ~0x0003;
 	coef |= (vol & 0x0003);
-	if (original_coef == coef)
-		return 0;
-	else {
+	if (original_coef != coef) {
 		cs_vendor_coef_set(codec, CS421X_IDX_SPK_CTL, coef);
 		return 1;
 	}
+
+	return 0;
 }
 
 static const struct snd_kcontrol_new cs421x_speaker_boost_ctl = {
@@ -1007,8 +1010,8 @@ static void cs4210_pinmux_init(struct hda_codec *codec)
 	    is_active_pin(codec, CS421X_DMIC_PIN_NID)) {
 
 		/*
-		    GPIO or SENSE_B forced - disconnect the DMIC pin.
-		*/
+		 *  GPIO or SENSE_B forced - disconnect the DMIC pin.
+		 */
 		def_conf = snd_hda_codec_get_pincfg(codec, CS421X_DMIC_PIN_NID);
 		def_conf &= ~AC_DEFCFG_PORT_CONN;
 		def_conf |= (AC_JACK_PORT_NONE << AC_DEFCFG_PORT_CONN_SHIFT);
@@ -1047,6 +1050,7 @@ static void parse_cs421x_digital(struct hda_codec *codec)
 
 	for (i = 0; i < cfg->dig_outs; i++) {
 		hda_nid_t nid = cfg->dig_out_pins[i];
+
 		if (get_wcaps(codec, nid) & AC_WCAP_UNSOL_CAP) {
 			spec->spdif_detect = 1;
 			snd_hda_jack_detect_enable_callback(codec, nid,
@@ -1125,9 +1129,9 @@ static int cs421x_parse_auto_config(struct hda_codec *codec)
 
 #ifdef CONFIG_PM
 /*
-	Manage PDREF, when transitioning to D3hot
-	(DAC,ADC) -> D3, PDREF=1, AFG->D3
-*/
+ *	Manage PDREF, when transitioning to D3hot
+ *	(DAC,ADC) -> D3, PDREF=1, AFG->D3
+ */
 static int cs421x_suspend(struct hda_codec *codec)
 {
 	struct cs_spec *spec = codec->spec;
@@ -1178,10 +1182,10 @@ static int patch_cs4210(struct hda_codec *codec)
 	snd_hda_apply_fixup(codec, HDA_FIXUP_ACT_PRE_PROBE);
 
 	/*
-	    Update the GPIO/DMIC/SENSE_B pinmux before the configuration
-	    is auto-parsed. If GPIO or SENSE_B is forced, DMIC input
-	    is disabled.
-	*/
+	 *  Update the GPIO/DMIC/SENSE_B pinmux before the configuration
+	 *   is auto-parsed. If GPIO or SENSE_B is forced, DMIC input
+	 *   is disabled.
+	 */
 	cs4210_pinmux_init(codec);
 
 	err = cs421x_parse_auto_config(codec);
@@ -1218,7 +1222,6 @@ static int patch_cs4213(struct hda_codec *codec)
 	cs_free(codec);
 	return err;
 }
-
 
 /*
  * patch entries

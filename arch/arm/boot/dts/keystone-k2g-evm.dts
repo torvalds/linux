@@ -544,20 +544,15 @@
 	};
 };
 
-&k2g_clks {
-	/* on the board 22.5792MHz is connected to AUDOSC_IN */
-	assigned-clocks = <&k2g_clks 0x4c 2>;
-	assigned-clock-rates = <22579200>;
-};
-
 &mcasp2 {
 	#sound-dai-cells = <0>;
 
 	pinctrl-names = "default";
 	pinctrl-0 = <&mcasp2_pins>;
 
-	assigned-clocks = <&k2g_clks 0x6 1>;
-	assigned-clock-parents = <&k2g_clks 0x6 2>;
+	assigned-clocks = <&k2g_clks 0x4c 2>, <&k2g_clks 0x6 1>;
+	assigned-clock-parents = <0>, <&k2g_clks 0x6 2>;
+	assigned-clock-rates = <22579200>, <0>;
 
 	status = "okay";
 

@@ -27,12 +27,28 @@ struct gmii2rgmii {
 	struct mdio_device *mdio;
 };
 
+static void xgmiitorgmii_configure(struct gmii2rgmii *priv, int speed)
+{
+	struct mii_bus *bus = priv->mdio->bus;
+	int addr = priv->mdio->addr;
+	u16 val;
+
+	val = mdiobus_read(bus, addr, XILINX_GMII2RGMII_REG);
+	val &= ~XILINX_GMII2RGMII_SPEED_MASK;
+
+	if (speed == SPEED_1000)
+		val |= BMCR_SPEED1000;
+	else if (speed == SPEED_100)
+		val |= BMCR_SPEED100;
+	else
+		val |= BMCR_SPEED10;
+
+	mdiobus_write(bus, addr, XILINX_GMII2RGMII_REG, val);
+}
+
 static int xgmiitorgmii_read_status(struct phy_device *phydev)
 {
 	struct gmii2rgmii *priv = mdiodev_get_drvdata(&phydev->mdio);
-	struct mii_bus *bus = priv->mdio->bus;
-	int addr = priv->mdio->addr;
-	u16 val = 0;
 	int err;
 
 	if (priv->phy_drv->read_status)
@@ -42,17 +58,24 @@ static int xgmiitorgmii_read_status(struct phy_device *phydev)
 	if (err < 0)
 		return err;
 
-	val = mdiobus_read(bus, addr, XILINX_GMII2RGMII_REG);
-	val &= ~XILINX_GMII2RGMII_SPEED_MASK;
+	xgmiitorgmii_configure(priv, phydev->speed);
 
-	if (phydev->speed == SPEED_1000)
-		val |= BMCR_SPEED1000;
-	else if (phydev->speed == SPEED_100)
-		val |= BMCR_SPEED100;
+	return 0;
+}
+
+static int xgmiitorgmii_set_loopback(struct phy_device *phydev, bool enable)
+{
+	struct gmii2rgmii *priv = mdiodev_get_drvdata(&phydev->mdio);
+	int err;
+
+	if (priv->phy_drv->set_loopback)
+		err = priv->phy_drv->set_loopback(phydev, enable);
 	else
-		val |= BMCR_SPEED10;
+		err = genphy_loopback(phydev, enable);
+	if (err < 0)
+		return err;
 
-	mdiobus_write(bus, addr, XILINX_GMII2RGMII_REG, val);
+	xgmiitorgmii_configure(priv, phydev->speed);
 
 	return 0;
 }
@@ -90,6 +113,7 @@ static int xgmiitorgmii_probe(struct mdio_device *mdiodev)
 	memcpy(&priv->conv_phy_drv, priv->phy_dev->drv,
 	       sizeof(struct phy_driver));
 	priv->conv_phy_drv.read_status = xgmiitorgmii_read_status;
+	priv->conv_phy_drv.set_loopback = xgmiitorgmii_set_loopback;
 	mdiodev_set_drvdata(&priv->phy_dev->mdio, priv);
 	priv->phy_dev->drv = &priv->conv_phy_drv;
 

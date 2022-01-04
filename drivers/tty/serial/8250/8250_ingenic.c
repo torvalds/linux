@@ -209,16 +209,14 @@ static int ingenic_uart_probe(struct platform_device *pdev)
 	struct uart_8250_port uart = {};
 	struct ingenic_uart_data *data;
 	const struct ingenic_uart_config *cdata;
-	const struct of_device_id *match;
 	struct resource *regs;
 	int irq, err, line;
 
-	match = of_match_device(of_match, &pdev->dev);
-	if (!match) {
+	cdata = of_device_get_match_data(&pdev->dev);
+	if (!cdata) {
 		dev_err(&pdev->dev, "Error: No device match found\n");
 		return -ENODEV;
 	}
-	cdata = match->data;
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)

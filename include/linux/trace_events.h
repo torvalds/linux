@@ -206,7 +206,7 @@ static inline unsigned int tracing_gen_ctx_dec(void)
 
 	trace_ctx = tracing_gen_ctx();
 	/*
-	 * Subtract one from the preeption counter if preemption is enabled,
+	 * Subtract one from the preemption counter if preemption is enabled,
 	 * see trace_event_buffer_reserve()for details.
 	 */
 	if (IS_ENABLED(CONFIG_PREEMPTION))
@@ -404,7 +404,6 @@ trace_get_fields(struct trace_event_call *event_call)
 	return event_call->class->get_fields(event_call);
 }
 
-struct trace_array;
 struct trace_subsystem_dir;
 
 enum {
@@ -640,7 +639,8 @@ enum event_trigger_type {
 extern int filter_match_preds(struct event_filter *filter, void *rec);
 
 extern enum event_trigger_type
-event_triggers_call(struct trace_event_file *file, void *rec,
+event_triggers_call(struct trace_event_file *file,
+		    struct trace_buffer *buffer, void *rec,
 		    struct ring_buffer_event *event);
 extern void
 event_triggers_post_call(struct trace_event_file *file,
@@ -664,7 +664,7 @@ trace_trigger_soft_disabled(struct trace_event_file *file)
 
 	if (!(eflags & EVENT_FILE_FL_TRIGGER_COND)) {
 		if (eflags & EVENT_FILE_FL_TRIGGER_MODE)
-			event_triggers_call(file, NULL, NULL);
+			event_triggers_call(file, NULL, NULL, NULL);
 		if (eflags & EVENT_FILE_FL_SOFT_DISABLED)
 			return true;
 		if (eflags & EVENT_FILE_FL_PID_FILTER)
@@ -675,7 +675,7 @@ trace_trigger_soft_disabled(struct trace_event_file *file)
 
 #ifdef CONFIG_BPF_EVENTS
 unsigned int trace_call_bpf(struct trace_event_call *call, void *ctx);
-int perf_event_attach_bpf_prog(struct perf_event *event, struct bpf_prog *prog);
+int perf_event_attach_bpf_prog(struct perf_event *event, struct bpf_prog *prog, u64 bpf_cookie);
 void perf_event_detach_bpf_prog(struct perf_event *event);
 int perf_event_query_prog_array(struct perf_event *event, void __user *info);
 int bpf_probe_register(struct bpf_raw_event_map *btp, struct bpf_prog *prog);
@@ -692,7 +692,7 @@ static inline unsigned int trace_call_bpf(struct trace_event_call *call, void *c
 }
 
 static inline int
-perf_event_attach_bpf_prog(struct perf_event *event, struct bpf_prog *prog)
+perf_event_attach_bpf_prog(struct perf_event *event, struct bpf_prog *prog, u64 bpf_cookie)
 {
 	return -EOPNOTSUPP;
 }
@@ -802,6 +802,9 @@ extern int  ftrace_profile_set_filter(struct perf_event *event, int event_id,
 extern void ftrace_profile_free_filter(struct perf_event *event);
 void perf_trace_buf_update(void *record, u16 type);
 void *perf_trace_buf_alloc(int size, struct pt_regs **regs, int *rctxp);
+
+int perf_event_set_bpf_prog(struct perf_event *event, struct bpf_prog *prog, u64 bpf_cookie);
+void perf_event_free_bpf_prog(struct perf_event *event);
 
 void bpf_trace_run1(struct bpf_prog *prog, u64 arg1);
 void bpf_trace_run2(struct bpf_prog *prog, u64 arg1, u64 arg2);

@@ -122,7 +122,7 @@
 #define WACOM_HID_WD_TOUCHONOFF         (WACOM_HID_UP_WACOMDIGITIZER | 0x0454)
 #define WACOM_HID_WD_BATTERY_LEVEL      (WACOM_HID_UP_WACOMDIGITIZER | 0x043b)
 #define WACOM_HID_WD_EXPRESSKEY00       (WACOM_HID_UP_WACOMDIGITIZER | 0x0910)
-#define WACOM_HID_WD_EXPRESSKEYCAP00    (WACOM_HID_UP_WACOMDIGITIZER | 0x0950)
+#define WACOM_HID_WD_EXPRESSKEYCAP00    (WACOM_HID_UP_WACOMDIGITIZER | 0x0940)
 #define WACOM_HID_WD_MODE_CHANGE        (WACOM_HID_UP_WACOMDIGITIZER | 0x0980)
 #define WACOM_HID_WD_MUTE_DEVICE        (WACOM_HID_UP_WACOMDIGITIZER | 0x0981)
 #define WACOM_HID_WD_CONTROLPANEL       (WACOM_HID_UP_WACOMDIGITIZER | 0x0982)
@@ -300,6 +300,7 @@ struct hid_data {
 	bool tipswitch;
 	bool barrelswitch;
 	bool barrelswitch2;
+	bool serialhi;
 	int x;
 	int y;
 	int pressure;
@@ -336,6 +337,7 @@ struct wacom_wac {
 	int tool[2];
 	int id[2];
 	__u64 serial[2];
+	bool probe_complete;
 	bool reporting_data;
 	struct wacom_features features;
 	struct wacom_shared *shared;
@@ -351,6 +353,7 @@ struct wacom_wac {
 	int mode_value;
 	struct hid_data hid_data;
 	bool has_mute_touch_switch;
+	bool is_soft_touch_switch;
 	bool has_mode_change;
 	bool is_direct_mode;
 	bool is_invalid_bt_frame;

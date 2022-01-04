@@ -1,6 +1,5 @@
+// SPDX-License-Identifier: MIT
 /*
- * SPDX-License-Identifier: MIT
- *
  * Copyright © 2018 Intel Corporation
  */
 
@@ -11,6 +10,12 @@
 #include "intel_gt_requests.h"
 #include "i915_selftest.h"
 #include "selftest_engine_heartbeat.h"
+
+static void reset_heartbeat(struct intel_engine_cs *engine)
+{
+	intel_engine_set_heartbeat(engine,
+				   engine->defaults.heartbeat_interval_ms);
+}
 
 static int timeline_sync(struct intel_timeline *tl)
 {
@@ -72,7 +77,7 @@ static struct pulse *pulse_create(void)
 		return p;
 
 	kref_init(&p->kref);
-	i915_active_init(&p->active, pulse_active, pulse_retire);
+	i915_active_init(&p->active, pulse_active, pulse_retire, 0);
 
 	return p;
 }
@@ -270,7 +275,7 @@ static int __live_heartbeat_fast(struct intel_engine_cs *engine)
 		err = -EINVAL;
 	}
 
-	intel_engine_set_heartbeat(engine, CONFIG_DRM_I915_HEARTBEAT_INTERVAL);
+	reset_heartbeat(engine);
 err_pm:
 	intel_engine_pm_put(engine);
 	intel_context_put(ce);
@@ -285,7 +290,7 @@ static int live_heartbeat_fast(void *arg)
 	int err = 0;
 
 	/* Check that the heartbeat ticks at the desired rate. */
-	if (!CONFIG_DRM_I915_HEARTBEAT_INTERVAL)
+	if (!IS_ACTIVE(CONFIG_DRM_I915_HEARTBEAT_INTERVAL))
 		return 0;
 
 	for_each_engine(engine, gt, id) {
@@ -333,7 +338,7 @@ static int __live_heartbeat_off(struct intel_engine_cs *engine)
 	}
 
 err_beat:
-	intel_engine_set_heartbeat(engine, CONFIG_DRM_I915_HEARTBEAT_INTERVAL);
+	reset_heartbeat(engine);
 err_pm:
 	intel_engine_pm_put(engine);
 	return err;
@@ -347,7 +352,7 @@ static int live_heartbeat_off(void *arg)
 	int err = 0;
 
 	/* Check that we can turn off heartbeat and not interrupt VIP */
-	if (!CONFIG_DRM_I915_HEARTBEAT_INTERVAL)
+	if (!IS_ACTIVE(CONFIG_DRM_I915_HEARTBEAT_INTERVAL))
 		return 0;
 
 	for_each_engine(engine, gt, id) {
@@ -397,6 +402,28 @@ void st_engine_heartbeat_enable(struct intel_engine_cs *engine)
 {
 	intel_engine_pm_put(engine);
 
+	engine->props.heartbeat_interval_ms =
+		engine->defaults.heartbeat_interval_ms;
+}
+
+void st_engine_heartbeat_disable_no_pm(struct intel_engine_cs *engine)
+{
+	engine->props.heartbeat_interval_ms = 0;
+
+	/*
+	 * Park the heartbeat but without holding the PM lock as that
+	 * makes the engines appear not-idle. Note that if/when unpark
+	 * is called due to the PM lock being acquired later the
+	 * heartbeat still won't be enabled because of the above = 0.
+	 */
+	if (intel_engine_pm_get_if_awake(engine)) {
+		intel_engine_park_heartbeat(engine);
+		intel_engine_pm_put(engine);
+	}
+}
+
+void st_engine_heartbeat_enable_no_pm(struct intel_engine_cs *engine)
+{
 	engine->props.heartbeat_interval_ms =
 		engine->defaults.heartbeat_interval_ms;
 }

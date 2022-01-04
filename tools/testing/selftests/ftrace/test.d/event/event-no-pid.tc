@@ -57,6 +57,10 @@ enable_events() {
     echo 1 > tracing_on
 }
 
+other_task() {
+    sleep .001 || usleep 1 || sleep 1
+}
+
 echo 0 > options/event-fork
 
 do_reset
@@ -93,6 +97,9 @@ yield &
 child=$!
 echo "child = $child"
 wait $child
+
+# Be sure some other events will happen for small systems (e.g. 1 core)
+other_task
 
 echo 0 > tracing_on
 

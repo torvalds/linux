@@ -149,7 +149,7 @@ static const struct net_device_ops mlx5i_pkey_netdev_ops = {
 	.ndo_get_stats64         = mlx5i_get_stats,
 	.ndo_uninit              = mlx5i_pkey_dev_cleanup,
 	.ndo_change_mtu          = mlx5i_pkey_change_mtu,
-	.ndo_do_ioctl            = mlx5i_pkey_ioctl,
+	.ndo_eth_ioctl            = mlx5i_pkey_ioctl,
 };
 
 /* Child NDOs */
@@ -350,6 +350,7 @@ static const struct mlx5e_profile mlx5i_pkey_nic_profile = {
 	.rx_handlers       = &mlx5i_rx_handlers,
 	.max_tc		   = MLX5I_MAX_NUM_TC,
 	.rq_groups	   = MLX5E_NUM_RQ_GROUPS(REGULAR),
+	.rx_ptp_support	   = false,
 };
 
 const struct mlx5e_profile *mlx5i_pkey_get_profile(void)

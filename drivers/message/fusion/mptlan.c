@@ -72,9 +72,6 @@ MODULE_VERSION(my_VERSION);
 #define MPT_LAN_RECEIVE_POST_REQUEST_SIZE \
 	(sizeof(LANReceivePostRequest_t) - sizeof(SGE_MPI_UNION))
 
-#define MPT_LAN_TRANSACTION32_SIZE \
-	(sizeof(SGETransaction32_t) - sizeof(u32))
-
 /*
  *  Fusion MPT LAN private structures
  */
@@ -745,7 +742,7 @@ mpt_lan_sdu_send (struct sk_buff *skb, struct net_device *dev)
 	pTrans->ContextSize   = sizeof(u32);
 	pTrans->DetailsLength = 2 * sizeof(u32);
 	pTrans->Flags         = 0;
-	pTrans->TransactionContext[0] = cpu_to_le32(ctx);
+	pTrans->TransactionContext = cpu_to_le32(ctx);
 
 //	dioprintk((KERN_INFO MYNAM ": %s/%s: BC = %08x, skb = %p, buff = %p\n",
 //			IOC_AND_NETDEV_NAMES_s_s(dev),
@@ -1159,7 +1156,7 @@ mpt_lan_post_receive_buckets(struct mpt_lan_priv *priv)
 			__func__, buckets, curr));
 
 	max = (mpt_dev->req_sz - MPT_LAN_RECEIVE_POST_REQUEST_SIZE) /
-			(MPT_LAN_TRANSACTION32_SIZE + sizeof(SGESimple64_t));
+			(sizeof(SGETransaction32_t) + sizeof(SGESimple64_t));
 
 	while (buckets) {
 		mf = mpt_get_msg_frame(LanCtx, mpt_dev);
@@ -1234,7 +1231,7 @@ mpt_lan_post_receive_buckets(struct mpt_lan_priv *priv)
 			pTrans->ContextSize   = sizeof(u32);
 			pTrans->DetailsLength = 0;
 			pTrans->Flags         = 0;
-			pTrans->TransactionContext[0] = cpu_to_le32(ctx);
+			pTrans->TransactionContext = cpu_to_le32(ctx);
 
 			pSimple = (SGESimple64_t *) pTrans->TransactionDetails;
 

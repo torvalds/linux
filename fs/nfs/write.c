@@ -764,9 +764,6 @@ static void nfs_inode_add_request(struct inode *inode, struct nfs_page *req)
 	 * with invalidate/truncate.
 	 */
 	spin_lock(&mapping->private_lock);
-	if (!nfs_have_writebacks(inode) &&
-	    NFS_PROTO(inode)->have_delegation(inode, FMODE_WRITE))
-		inode_inc_iversion_raw(inode);
 	if (likely(!PageSwapCache(req->wb_page))) {
 		set_bit(PG_MAPPED, &req->wb_flags);
 		SetPagePrivate(req->wb_page);
@@ -1293,7 +1290,7 @@ static bool nfs_write_pageuptodate(struct page *page, struct inode *inode,
 	if (nfs_have_delegated_attributes(inode))
 		goto out;
 	if (nfsi->cache_validity &
-	    (NFS_INO_REVAL_PAGECACHE | NFS_INO_INVALID_SIZE))
+	    (NFS_INO_INVALID_CHANGE | NFS_INO_INVALID_SIZE))
 		return false;
 	smp_rmb();
 	if (test_bit(NFS_INO_INVALIDATING, &nfsi->flags) && pagelen != 0)
@@ -1604,7 +1601,7 @@ static int nfs_writeback_done(struct rpc_task *task,
 	/* Deal with the suid/sgid bit corner case */
 	if (nfs_should_remove_suid(inode)) {
 		spin_lock(&inode->i_lock);
-		nfs_set_cache_invalid(inode, NFS_INO_INVALID_OTHER);
+		nfs_set_cache_invalid(inode, NFS_INO_INVALID_MODE);
 		spin_unlock(&inode->i_lock);
 	}
 	return 0;
@@ -1813,6 +1810,7 @@ nfs_commit_list(struct inode *inode, struct list_head *head, int how,
 		struct nfs_commit_info *cinfo)
 {
 	struct nfs_commit_data	*data;
+	unsigned short task_flags = 0;
 
 	/* another commit raced with us */
 	if (list_empty(head))
@@ -1823,8 +1821,11 @@ nfs_commit_list(struct inode *inode, struct list_head *head, int how,
 	/* Set up the argument struct */
 	nfs_init_commit(data, head, NULL, cinfo);
 	atomic_inc(&cinfo->mds->rpcs_out);
+	if (NFS_SERVER(inode)->nfs_client->cl_minorversion)
+		task_flags = RPC_TASK_MOVEABLE;
 	return nfs_initiate_commit(NFS_CLIENT(inode), data, NFS_PROTO(inode),
-				   data->mds_ops, how, RPC_TASK_CRED_NOREF);
+				   data->mds_ops, how,
+				   RPC_TASK_CRED_NOREF | task_flags);
 }
 
 /*

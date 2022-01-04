@@ -254,7 +254,7 @@ EXPORT_SYMBOL_GPL(fsl_mc_resource_free);
  * @mc_dev: fsl-mc device which is used in conjunction with the
  * allocated object
  * @pool_type: pool type
- * @new_mc_dev: pointer to area where the pointer to the allocated device
+ * @new_mc_adev: pointer to area where the pointer to the allocated device
  * is to be returned
  *
  * Allocatable objects are always used in conjunction with some functional
@@ -409,7 +409,7 @@ cleanup_msi_irqs:
 }
 EXPORT_SYMBOL_GPL(fsl_mc_populate_irq_pool);
 
-/**
+/*
  * Teardown the interrupt pool associated with an fsl-mc bus.
  * It frees the IRQs that were allocated to the pool, back to the GIC-ITS.
  */
@@ -436,7 +436,7 @@ void fsl_mc_cleanup_irq_pool(struct fsl_mc_device *mc_bus_dev)
 }
 EXPORT_SYMBOL_GPL(fsl_mc_cleanup_irq_pool);
 
-/**
+/*
  * Allocate the IRQs required by a given fsl-mc device.
  */
 int __must_check fsl_mc_allocate_irqs(struct fsl_mc_device *mc_dev)
@@ -578,7 +578,7 @@ void fsl_mc_cleanup_all_resource_pools(struct fsl_mc_device *mc_bus_dev)
 		fsl_mc_cleanup_resource_pool(mc_bus_dev, pool_type);
 }
 
-/**
+/*
  * fsl_mc_allocator_probe - callback invoked when an allocatable device is
  * being added to the system
  */
@@ -610,7 +610,7 @@ static int fsl_mc_allocator_probe(struct fsl_mc_device *mc_dev)
 	return 0;
 }
 
-/**
+/*
  * fsl_mc_allocator_remove - callback invoked when an allocatable device is
  * being removed from the system
  */

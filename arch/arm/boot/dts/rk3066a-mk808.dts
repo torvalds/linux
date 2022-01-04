@@ -10,6 +10,11 @@
 	model = "Rikomagic MK808";
 	compatible = "rikomagic,mk808", "rockchip,rk3066a";
 
+	aliases {
+		mmc0 = &mmc0;
+		mmc1 = &mmc1;
+	};
+
 	chosen {
 		stdout-path = "serial2:115200n8";
 	};

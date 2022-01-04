@@ -832,8 +832,8 @@ static struct net_device_stats *de_get_stats(struct net_device *dev)
 
 	/* The chip only need report frame silently dropped. */
 	spin_lock_irq(&de->lock);
- 	if (netif_running(dev) && netif_device_present(dev))
- 		__de_get_stats(de);
+	if (netif_running(dev) && netif_device_present(dev))
+		__de_get_stats(de);
 	spin_unlock_irq(&de->lock);
 
 	return &dev->stats;
@@ -2193,15 +2193,4 @@ static struct pci_driver de_driver = {
 	.driver.pm	= &de_pm_ops,
 };
 
-static int __init de_init (void)
-{
-	return pci_register_driver(&de_driver);
-}
-
-static void __exit de_exit (void)
-{
-	pci_unregister_driver (&de_driver);
-}
-
-module_init(de_init);
-module_exit(de_exit);
+module_pci_driver(de_driver);

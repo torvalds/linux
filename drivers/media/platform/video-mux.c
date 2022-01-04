@@ -140,14 +140,14 @@ static const struct v4l2_subdev_video_ops video_mux_subdev_video_ops = {
 
 static struct v4l2_mbus_framefmt *
 __video_mux_get_pad_format(struct v4l2_subdev *sd,
-			   struct v4l2_subdev_pad_config *cfg,
+			   struct v4l2_subdev_state *sd_state,
 			   unsigned int pad, u32 which)
 {
 	struct video_mux *vmux = v4l2_subdev_to_video_mux(sd);
 
 	switch (which) {
 	case V4L2_SUBDEV_FORMAT_TRY:
-		return v4l2_subdev_get_try_format(sd, cfg, pad);
+		return v4l2_subdev_get_try_format(sd, sd_state, pad);
 	case V4L2_SUBDEV_FORMAT_ACTIVE:
 		return &vmux->format_mbus[pad];
 	default:
@@ -156,14 +156,15 @@ __video_mux_get_pad_format(struct v4l2_subdev *sd,
 }
 
 static int video_mux_get_format(struct v4l2_subdev *sd,
-			    struct v4l2_subdev_pad_config *cfg,
+			    struct v4l2_subdev_state *sd_state,
 			    struct v4l2_subdev_format *sdformat)
 {
 	struct video_mux *vmux = v4l2_subdev_to_video_mux(sd);
 
 	mutex_lock(&vmux->lock);
 
-	sdformat->format = *__video_mux_get_pad_format(sd, cfg, sdformat->pad,
+	sdformat->format = *__video_mux_get_pad_format(sd, sd_state,
+						       sdformat->pad,
 						       sdformat->which);
 
 	mutex_unlock(&vmux->lock);
@@ -172,7 +173,7 @@ static int video_mux_get_format(struct v4l2_subdev *sd,
 }
 
 static int video_mux_set_format(struct v4l2_subdev *sd,
-			    struct v4l2_subdev_pad_config *cfg,
+			    struct v4l2_subdev_state *sd_state,
 			    struct v4l2_subdev_format *sdformat)
 {
 	struct video_mux *vmux = v4l2_subdev_to_video_mux(sd);
@@ -180,12 +181,13 @@ static int video_mux_set_format(struct v4l2_subdev *sd,
 	struct media_pad *pad = &vmux->pads[sdformat->pad];
 	u16 source_pad = sd->entity.num_pads - 1;
 
-	mbusformat = __video_mux_get_pad_format(sd, cfg, sdformat->pad,
-					    sdformat->which);
+	mbusformat = __video_mux_get_pad_format(sd, sd_state, sdformat->pad,
+						sdformat->which);
 	if (!mbusformat)
 		return -EINVAL;
 
-	source_mbusformat = __video_mux_get_pad_format(sd, cfg, source_pad,
+	source_mbusformat = __video_mux_get_pad_format(sd, sd_state,
+						       source_pad,
 						       sdformat->which);
 	if (!source_mbusformat)
 		return -EINVAL;
@@ -310,7 +312,7 @@ static int video_mux_set_format(struct v4l2_subdev *sd,
 }
 
 static int video_mux_init_cfg(struct v4l2_subdev *sd,
-			      struct v4l2_subdev_pad_config *cfg)
+			      struct v4l2_subdev_state *sd_state)
 {
 	struct video_mux *vmux = v4l2_subdev_to_video_mux(sd);
 	struct v4l2_mbus_framefmt *mbusformat;
@@ -319,7 +321,7 @@ static int video_mux_init_cfg(struct v4l2_subdev *sd,
 	mutex_lock(&vmux->lock);
 
 	for (i = 0; i < sd->entity.num_pads; i++) {
-		mbusformat = v4l2_subdev_get_try_format(sd, cfg, i);
+		mbusformat = v4l2_subdev_get_try_format(sd, sd_state, i);
 		*mbusformat = video_mux_format_mbus_default;
 	}
 
@@ -362,13 +364,21 @@ static int video_mux_async_register(struct video_mux *vmux,
 
 	for (i = 0; i < num_input_pads; i++) {
 		struct v4l2_async_subdev *asd;
-		struct fwnode_handle *ep;
+		struct fwnode_handle *ep, *remote_ep;
 
 		ep = fwnode_graph_get_endpoint_by_id(
 			dev_fwnode(vmux->subdev.dev), i, 0,
 			FWNODE_GRAPH_ENDPOINT_NEXT);
 		if (!ep)
 			continue;
+
+		/* Skip dangling endpoints for backwards compatibility */
+		remote_ep = fwnode_graph_get_remote_endpoint(ep);
+		if (!remote_ep) {
+			fwnode_handle_put(ep);
+			continue;
+		}
+		fwnode_handle_put(remote_ep);
 
 		asd = v4l2_async_notifier_add_fwnode_remote_subdev(
 			&vmux->notifier, ep, struct v4l2_async_subdev);

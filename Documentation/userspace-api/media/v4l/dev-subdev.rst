@@ -209,9 +209,11 @@ list entity names and pad numbers).
 
 .. raw:: latex
 
+    \begingroup
     \scriptsize
+    \setlength{\tabcolsep}{2pt}
 
-.. tabularcolumns:: |p{2.0cm}|p{2.3cm}|p{2.3cm}|p{2.3cm}|p{2.3cm}|p{2.3cm}|p{2.3cm}|
+.. tabularcolumns:: |p{2.0cm}|p{2.1cm}|p{2.1cm}|p{2.1cm}|p{2.1cm}|p{2.1cm}|p{2.1cm}|
 
 .. _sample-pipeline-config:
 
@@ -298,7 +300,7 @@ list entity names and pad numbers).
 
 .. raw:: latex
 
-    \normalsize
+    \endgroup
 
 1. Initial state. The sensor source pad format is set to its native 3MP
    size and V4L2_MBUS_FMT_SGRBG8_1X8 media bus code. Formats on the

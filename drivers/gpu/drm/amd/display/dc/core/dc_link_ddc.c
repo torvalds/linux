@@ -36,6 +36,7 @@
 #include "core_types.h"
 #include "dc_link_ddc.h"
 #include "dce/dce_aux.h"
+#include "dmub/inc/dmub_cmd.h"
 
 #define DC_LOGGER_INIT(logger)
 
@@ -558,7 +559,7 @@ bool dal_ddc_service_query_ddc_data(
 			/* should not set mot (middle of transaction) to 0
 			 * if there are pending read payloads
 			 */
-			payload.mot = read_size == 0 ? false : true;
+			payload.mot = !(read_size == 0);
 			payload.length = write_size;
 			payload.data = write_buf;
 
@@ -655,9 +656,12 @@ bool dal_ddc_submit_aux_command(struct ddc_service *ddc,
  */
 int dc_link_aux_transfer_raw(struct ddc_service *ddc,
 		struct aux_payload *payload,
-		enum aux_channel_operation_result *operation_result)
+		enum aux_return_code_type *operation_result)
 {
-	return dce_aux_transfer_raw(ddc, payload, operation_result);
+	if (dc_enable_dmub_notifications(ddc->ctx->dc))
+		return dce_aux_transfer_dmub_raw(ddc, payload, operation_result);
+	else
+		return dce_aux_transfer_raw(ddc, payload, operation_result);
 }
 
 /* dc_link_aux_transfer_with_retries() - Attempt to submit an
@@ -680,6 +684,10 @@ bool dc_link_aux_try_to_configure_timeout(struct ddc_service *ddc,
 {
 	bool result = false;
 	struct ddc *ddc_pin = ddc->ddc_pin;
+
+	/* Do not try to access nonexistent DDC pin. */
+	if (ddc->link->ep_type != DISPLAY_ENDPOINT_PHY)
+		return true;
 
 	if (ddc->ctx->dc->res_pool->engines[ddc_pin->pin_data->en]->funcs->configure_timeout) {
 		ddc->ctx->dc->res_pool->engines[ddc_pin->pin_data->en]->funcs->configure_timeout(ddc, timeout);

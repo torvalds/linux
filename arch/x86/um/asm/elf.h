@@ -212,6 +212,6 @@ extern int elf_core_copy_fpregs(struct task_struct *t, elf_fpregset_t *fpu);
 extern long elf_aux_hwcap;
 #define ELF_HWCAP (elf_aux_hwcap)
 
-#define SET_PERSONALITY(ex) do ; while(0)
+#define SET_PERSONALITY(ex) do {} while(0)
 
 #endif

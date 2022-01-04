@@ -293,7 +293,7 @@ static int r592_transfer_fifo_dma(struct r592_device *dev)
 
 	/* TODO: hidden assumption about nenth beeing always 1 */
 	sg_count = dma_map_sg(&dev->pci_dev->dev, &dev->req->sg, 1, is_write ?
-		PCI_DMA_TODEVICE : PCI_DMA_FROMDEVICE);
+			      DMA_TO_DEVICE : DMA_FROM_DEVICE);
 
 	if (sg_count != 1 || sg_dma_len(&dev->req->sg) < R592_LFIFO_SIZE) {
 		message("problem in dma_map_sg");
@@ -310,8 +310,7 @@ static int r592_transfer_fifo_dma(struct r592_device *dev)
 	}
 
 	dma_unmap_sg(&dev->pci_dev->dev, &dev->req->sg, 1, is_write ?
-		PCI_DMA_TODEVICE : PCI_DMA_FROMDEVICE);
-
+		     DMA_TO_DEVICE : DMA_FROM_DEVICE);
 
 	return dev->dma_error;
 }
@@ -359,13 +358,15 @@ static void r592_write_fifo_pio(struct r592_device *dev,
 /* Flushes the temporary FIFO used to make aligned DWORD writes */
 static void r592_flush_fifo_write(struct r592_device *dev)
 {
+	int ret;
 	u8 buffer[4] = { 0 };
-	int len;
 
 	if (kfifo_is_empty(&dev->pio_fifo))
 		return;
 
-	len = kfifo_out(&dev->pio_fifo, buffer, 4);
+	ret = kfifo_out(&dev->pio_fifo, buffer, 4);
+	/* intentionally ignore __must_check return code */
+	(void)ret;
 	r592_write_reg_raw_be(dev, R592_FIFO_PIO, *(u32 *)buffer);
 }
 
@@ -875,7 +876,7 @@ static SIMPLE_DEV_PM_OPS(r592_pm_ops, r592_suspend, r592_resume);
 
 MODULE_DEVICE_TABLE(pci, r592_pci_id_tbl);
 
-static struct pci_driver r852_pci_driver = {
+static struct pci_driver r592_pci_driver = {
 	.name		= DRV_NAME,
 	.id_table	= r592_pci_id_tbl,
 	.probe		= r592_probe,
@@ -883,7 +884,7 @@ static struct pci_driver r852_pci_driver = {
 	.driver.pm	= &r592_pm_ops,
 };
 
-module_pci_driver(r852_pci_driver);
+module_pci_driver(r592_pci_driver);
 
 module_param_named(enable_dma, r592_enable_dma, bool, S_IRUGO);
 MODULE_PARM_DESC(enable_dma, "Enable usage of the DMA (default)");

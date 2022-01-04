@@ -93,6 +93,19 @@ report::
 
         1.102235068 seconds time elapsed
 
+--bpf-counters::
+	Use BPF programs to aggregate readings from perf_events.  This
+	allows multiple perf-stat sessions that are counting the same metric (cycles,
+	instructions, etc.) to share hardware counters.
+	To use BPF programs on common events by default, use
+	"perf config stat.bpf-counter-events=<list_of_events>".
+
+--bpf-attr-map::
+	With option "--bpf-counters", different perf-stat sessions share
+	information about shared BPF programs and maps via a pinned hashmap.
+	Use "--bpf-attr-map" to specify the path of this pinned hashmap.
+	The default path is /sys/fs/bpf/perf_attr_map.
+
 ifdef::HAVE_LIBPFM[]
 --pfm-events events::
 Select a PMU event using libpfm4 syntax (see http://perfmon2.sf.net)
@@ -142,7 +155,10 @@ Do not aggregate counts across all monitored CPUs.
 
 -n::
 --null::
-        null run - don't start any counters
+null run - Don't start any counters.
+
+This can be useful to measure just elapsed wall-clock time - or to assess the
+raw overhead of perf stat itself, without running any counters.
 
 -v::
 --verbose::
@@ -468,6 +484,15 @@ convenient for post processing.
 --summary::
 Print summary for interval mode (-I).
 
+--no-csv-summary::
+Don't print 'summary' at the first column for CVS summary output.
+This option must be used with -x and --summary.
+
+This option can be enabled in perf config by setting the variable
+'stat.no-csv-summary'.
+
+$ perf config stat.no-csv-summary=true
+
 EXAMPLES
 --------
 
@@ -526,6 +551,8 @@ The fields are in this order:
 	- optional unit of metric
 
 Additional metrics may be printed with all earlier fields being empty.
+
+include::intel-hybrid.txt[]
 
 SEE ALSO
 --------

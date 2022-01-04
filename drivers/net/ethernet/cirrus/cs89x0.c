@@ -104,7 +104,7 @@ static char version[] __initdata =
  * them to system IRQ numbers. This mapping is card specific and is set to
  * the configuration of the Cirrus Eval board for this chip.
  */
-#ifndef CONFIG_CS89x0_PLATFORM
+#if IS_ENABLED(CONFIG_CS89x0_ISA)
 static unsigned int netcard_portlist[] __used __initdata = {
 	0x300, 0x320, 0x340, 0x360, 0x200, 0x220, 0x240,
 	0x260, 0x280, 0x2a0, 0x2c0, 0x2e0, 0
@@ -292,7 +292,7 @@ write_irq(struct net_device *dev, int chip_type, int irq)
 	int i;
 
 	if (chip_type == CS8900) {
-#ifndef CONFIG_CS89x0_PLATFORM
+#if IS_ENABLED(CONFIG_CS89x0_ISA)
 		/* Search the mapping table for the corresponding IRQ pin. */
 		for (i = 0; i != ARRAY_SIZE(cs8900_irq_map); i++)
 			if (cs8900_irq_map[i] == irq)
@@ -859,7 +859,7 @@ net_open(struct net_device *dev)
 			goto bad_out;
 		}
 	} else {
-#if !defined(CONFIG_CS89x0_PLATFORM)
+#if IS_ENABLED(CONFIG_CS89x0_ISA)
 		if (((1 << dev->irq) & lp->irq_map) == 0) {
 			pr_err("%s: IRQ %d is not in our map of allowable IRQs, which is %x\n",
 			       dev->name, dev->irq, lp->irq_map);
@@ -1523,7 +1523,7 @@ cs89x0_probe1(struct net_device *dev, void __iomem *ioaddr, int modular)
 			dev->irq = i;
 	} else {
 		i = lp->isa_config & INT_NO_MASK;
-#ifndef CONFIG_CS89x0_PLATFORM
+#if IS_ENABLED(CONFIG_CS89x0_ISA)
 		if (lp->chip_type == CS8900) {
 			/* Translate the IRQ using the IRQ mapping table. */
 			if (i >= ARRAY_SIZE(cs8900_irq_map))
@@ -1576,7 +1576,7 @@ out1:
 	return retval;
 }
 
-#ifndef CONFIG_CS89x0_PLATFORM
+#if IS_ENABLED(CONFIG_CS89x0_ISA)
 /*
  * This function converts the I/O port address used by the cs89x0_probe() and
  * init_module() functions to the I/O memory address used by the
@@ -1682,11 +1682,7 @@ out:
 	pr_warn("no cs8900 or cs8920 detected.  Be sure to disable PnP with SETUP\n");
 	return ERR_PTR(err);
 }
-#endif
-#endif
-
-#if defined(MODULE) && !defined(CONFIG_CS89x0_PLATFORM)
-
+#else
 static struct net_device *dev_cs89x0;
 
 /* Support the 'debug' module parm even if we're compiled for non-debug to
@@ -1757,9 +1753,9 @@ MODULE_LICENSE("GPL");
  * (hw or software util)
  */
 
-int __init init_module(void)
+static int __init cs89x0_isa_init_module(void)
 {
-	struct net_device *dev = alloc_etherdev(sizeof(struct net_local));
+	struct net_device *dev;
 	struct net_local *lp;
 	int ret = 0;
 
@@ -1768,6 +1764,7 @@ int __init init_module(void)
 #else
 	debug = 0;
 #endif
+	dev = alloc_etherdev(sizeof(struct net_local));
 	if (!dev)
 		return -ENOMEM;
 
@@ -1826,9 +1823,9 @@ out:
 	free_netdev(dev);
 	return ret;
 }
+module_init(cs89x0_isa_init_module);
 
-void __exit
-cleanup_module(void)
+static void __exit cs89x0_isa_cleanup_module(void)
 {
 	struct net_local *lp = netdev_priv(dev_cs89x0);
 
@@ -1838,9 +1835,11 @@ cleanup_module(void)
 	release_region(dev_cs89x0->base_addr, NETCARD_IO_EXTENT);
 	free_netdev(dev_cs89x0);
 }
-#endif /* MODULE && !CONFIG_CS89x0_PLATFORM */
+module_exit(cs89x0_isa_cleanup_module);
+#endif /* MODULE */
+#endif /* CONFIG_CS89x0_ISA */
 
-#ifdef CONFIG_CS89x0_PLATFORM
+#if IS_ENABLED(CONFIG_CS89x0_PLATFORM)
 static int __init cs89x0_platform_probe(struct platform_device *pdev)
 {
 	struct net_device *dev = alloc_etherdev(sizeof(struct net_local));

@@ -619,8 +619,10 @@ static int axp20x_usb_power_probe(struct platform_device *pdev)
 
 	if (power->axp20x_id == AXP813_ID) {
 		/* Enable USB Battery Charging specification detection */
-		regmap_update_bits(axp20x->regmap, AXP288_BC_GLOBAL,
+		ret = regmap_update_bits(axp20x->regmap, AXP288_BC_GLOBAL,
 				   AXP813_BC_EN, AXP813_BC_EN);
+		if (ret)
+			return ret;
 	}
 
 	psy_cfg.of_node = pdev->dev.of_node;

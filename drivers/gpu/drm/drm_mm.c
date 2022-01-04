@@ -700,7 +700,7 @@ EXPORT_SYMBOL(drm_mm_replace_node);
  * interfaces. First a scan operation needs to be initialized with
  * drm_mm_scan_init() or drm_mm_scan_init_with_range(). The driver adds
  * objects to the roster, probably by walking an LRU list, but this can be
- * freely implemented. Eviction candiates are added using
+ * freely implemented. Eviction candidates are added using
  * drm_mm_scan_add_block() until a suitable hole is found or there are no
  * further evictable objects. Eviction roster metadata is tracked in &struct
  * drm_mm_scan.

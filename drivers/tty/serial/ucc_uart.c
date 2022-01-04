@@ -1227,7 +1227,7 @@ static int soft_uart_init(struct platform_device *ofdev)
 		 * kernel, then we use it.
 		 */
 		ret = request_firmware_nowait(THIS_MODULE,
-					      FW_ACTION_HOTPLUG, filename, &ofdev->dev,
+					      FW_ACTION_UEVENT, filename, &ofdev->dev,
 					      GFP_KERNEL, &ofdev->dev, uart_firmware_cont);
 		if (ret) {
 			dev_err(&ofdev->dev,

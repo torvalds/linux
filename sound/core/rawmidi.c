@@ -680,8 +680,11 @@ static int resize_runtime_buffer(struct snd_rawmidi_runtime *runtime,
 				 bool is_input)
 {
 	char *newbuf, *oldbuf;
+	unsigned int framing = params->mode & SNDRV_RAWMIDI_MODE_FRAMING_MASK;
 
 	if (params->buffer_size < 32 || params->buffer_size > 1024L * 1024L)
+		return -EINVAL;
+	if (framing == SNDRV_RAWMIDI_MODE_FRAMING_TSTAMP && (params->buffer_size & 0x1f) != 0)
 		return -EINVAL;
 	if (params->avail_min < 1 || params->avail_min > params->buffer_size)
 		return -EINVAL;
@@ -720,8 +723,24 @@ EXPORT_SYMBOL(snd_rawmidi_output_params);
 int snd_rawmidi_input_params(struct snd_rawmidi_substream *substream,
 			     struct snd_rawmidi_params *params)
 {
+	unsigned int framing = params->mode & SNDRV_RAWMIDI_MODE_FRAMING_MASK;
+	unsigned int clock_type = params->mode & SNDRV_RAWMIDI_MODE_CLOCK_MASK;
+	int err;
+
+	if (framing == SNDRV_RAWMIDI_MODE_FRAMING_NONE && clock_type != SNDRV_RAWMIDI_MODE_CLOCK_NONE)
+		return -EINVAL;
+	else if (clock_type > SNDRV_RAWMIDI_MODE_CLOCK_MONOTONIC_RAW)
+		return -EINVAL;
+	if (framing > SNDRV_RAWMIDI_MODE_FRAMING_TSTAMP)
+		return -EINVAL;
 	snd_rawmidi_drain_input(substream);
-	return resize_runtime_buffer(substream->runtime, params, true);
+	err = resize_runtime_buffer(substream->runtime, params, true);
+	if (err < 0)
+		return err;
+
+	substream->framing = framing;
+	substream->clock_type = clock_type;
+	return 0;
 }
 EXPORT_SYMBOL(snd_rawmidi_input_params);
 
@@ -963,6 +982,62 @@ static int snd_rawmidi_control_ioctl(struct snd_card *card,
 	return -ENOIOCTLCMD;
 }
 
+static int receive_with_tstamp_framing(struct snd_rawmidi_substream *substream,
+			const unsigned char *buffer, int src_count, const struct timespec64 *tstamp)
+{
+	struct snd_rawmidi_runtime *runtime = substream->runtime;
+	struct snd_rawmidi_framing_tstamp *dest_ptr;
+	struct snd_rawmidi_framing_tstamp frame = { .tv_sec = tstamp->tv_sec, .tv_nsec = tstamp->tv_nsec };
+	int dest_frames = 0;
+	int orig_count = src_count;
+	int frame_size = sizeof(struct snd_rawmidi_framing_tstamp);
+
+	BUILD_BUG_ON(frame_size != 0x20);
+	if (snd_BUG_ON((runtime->hw_ptr & 0x1f) != 0))
+		return -EINVAL;
+
+	while (src_count > 0) {
+		if ((int)(runtime->buffer_size - runtime->avail) < frame_size) {
+			runtime->xruns += src_count;
+			break;
+		}
+		if (src_count >= SNDRV_RAWMIDI_FRAMING_DATA_LENGTH)
+			frame.length = SNDRV_RAWMIDI_FRAMING_DATA_LENGTH;
+		else {
+			frame.length = src_count;
+			memset(frame.data, 0, SNDRV_RAWMIDI_FRAMING_DATA_LENGTH);
+		}
+		memcpy(frame.data, buffer, frame.length);
+		buffer += frame.length;
+		src_count -= frame.length;
+		dest_ptr = (struct snd_rawmidi_framing_tstamp *) (runtime->buffer + runtime->hw_ptr);
+		*dest_ptr = frame;
+		runtime->avail += frame_size;
+		runtime->hw_ptr += frame_size;
+		runtime->hw_ptr %= runtime->buffer_size;
+		dest_frames++;
+	}
+	return orig_count - src_count;
+}
+
+static struct timespec64 get_framing_tstamp(struct snd_rawmidi_substream *substream)
+{
+	struct timespec64 ts64 = {0, 0};
+
+	switch (substream->clock_type) {
+	case SNDRV_RAWMIDI_MODE_CLOCK_MONOTONIC_RAW:
+		ktime_get_raw_ts64(&ts64);
+		break;
+	case SNDRV_RAWMIDI_MODE_CLOCK_MONOTONIC:
+		ktime_get_ts64(&ts64);
+		break;
+	case SNDRV_RAWMIDI_MODE_CLOCK_REALTIME:
+		ktime_get_real_ts64(&ts64);
+		break;
+	}
+	return ts64;
+}
+
 /**
  * snd_rawmidi_receive - receive the input data from the device
  * @substream: the rawmidi substream
@@ -977,6 +1052,7 @@ int snd_rawmidi_receive(struct snd_rawmidi_substream *substream,
 			const unsigned char *buffer, int count)
 {
 	unsigned long flags;
+	struct timespec64 ts64 = get_framing_tstamp(substream);
 	int result = 0, count1;
 	struct snd_rawmidi_runtime *runtime = substream->runtime;
 
@@ -987,8 +1063,11 @@ int snd_rawmidi_receive(struct snd_rawmidi_substream *substream,
 			  "snd_rawmidi_receive: input is not active!!!\n");
 		return -EINVAL;
 	}
+
 	spin_lock_irqsave(&runtime->lock, flags);
-	if (count == 1) {	/* special case, faster code */
+	if (substream->framing == SNDRV_RAWMIDI_MODE_FRAMING_TSTAMP) {
+		result = receive_with_tstamp_framing(substream, buffer, count, &ts64);
+	} else if (count == 1) {	/* special case, faster code */
 		substream->bytes++;
 		if (runtime->avail < runtime->buffer_size) {
 			runtime->buffer[runtime->hw_ptr++] = buffer[0];
@@ -1541,6 +1620,8 @@ static void snd_rawmidi_proc_info_read(struct snd_info_entry *entry,
 	struct snd_rawmidi_substream *substream;
 	struct snd_rawmidi_runtime *runtime;
 	unsigned long buffer_size, avail, xruns;
+	unsigned int clock_type;
+	static const char *clock_names[4] = { "none", "realtime", "monotonic", "monotonic raw" };
 
 	rmidi = entry->private_data;
 	snd_iprintf(buffer, "%s\n\n", rmidi->name);
@@ -1596,6 +1677,14 @@ static void snd_rawmidi_proc_info_read(struct snd_info_entry *entry,
 					    "  Avail        : %lu\n"
 					    "  Overruns     : %lu\n",
 					    buffer_size, avail, xruns);
+				if (substream->framing == SNDRV_RAWMIDI_MODE_FRAMING_TSTAMP) {
+					clock_type = substream->clock_type >> SNDRV_RAWMIDI_MODE_CLOCK_SHIFT;
+					if (!snd_BUG_ON(clock_type >= ARRAY_SIZE(clock_names)))
+						snd_iprintf(buffer,
+							    "  Framing      : tstamp\n"
+							    "  Clock type   : %s\n",
+							    clock_names[clock_type]);
+				}
 			}
 		}
 	}

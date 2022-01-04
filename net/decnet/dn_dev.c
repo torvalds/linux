@@ -521,8 +521,7 @@ int dn_dev_set_default(struct net_device *dev, int force)
 	}
 	spin_unlock(&dndev_lock);
 
-	if (old)
-		dev_put(old);
+	dev_put(old);
 	return rv;
 }
 
@@ -536,8 +535,7 @@ static void dn_dev_check_default(struct net_device *dev)
 	}
 	spin_unlock(&dndev_lock);
 
-	if (dev)
-		dev_put(dev);
+	dev_put(dev);
 }
 
 /*

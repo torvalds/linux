@@ -54,11 +54,8 @@ static inline unsigned long array_index_mask_nospec(unsigned long index,
 #define dma_rmb()	barrier()
 #define dma_wmb()	barrier()
 
-#ifdef CONFIG_X86_32
-#define __smp_mb()	asm volatile("lock; addl $0,-4(%%esp)" ::: "memory", "cc")
-#else
-#define __smp_mb()	asm volatile("lock; addl $0,-4(%%rsp)" ::: "memory", "cc")
-#endif
+#define __smp_mb()	asm volatile("lock; addl $0,-4(%%" _ASM_SP ")" ::: "memory", "cc")
+
 #define __smp_rmb()	dma_rmb()
 #define __smp_wmb()	barrier()
 #define __smp_store_mb(var, value) do { (void)xchg(&var, value); } while (0)

@@ -7,6 +7,7 @@
 #include "test_skmsg_load_helpers.skel.h"
 #include "test_sockmap_update.skel.h"
 #include "test_sockmap_invalid_update.skel.h"
+#include "test_sockmap_skb_verdict_attach.skel.h"
 #include "bpf_iter_sockmap.skel.h"
 
 #define TCP_REPAIR		19	/* TCP sock is under repair right now */
@@ -87,11 +88,11 @@ static void test_sockmap_create_update_free(enum bpf_map_type map_type)
 	int s, map, err;
 
 	s = connected_socket_v4();
-	if (CHECK_FAIL(s == -1))
+	if (CHECK_FAIL(s < 0))
 		return;
 
 	map = bpf_create_map(map_type, sizeof(int), sizeof(int), 1, 0);
-	if (CHECK_FAIL(map == -1)) {
+	if (CHECK_FAIL(map < 0)) {
 		perror("bpf_create_map");
 		goto out;
 	}
@@ -244,7 +245,7 @@ static void test_sockmap_copy(enum bpf_map_type map_type)
 	opts.link_info = &linfo;
 	opts.link_info_len = sizeof(linfo);
 	link = bpf_program__attach_iter(skel->progs.copy, &opts);
-	if (CHECK(IS_ERR(link), "attach_iter", "attach_iter failed\n"))
+	if (!ASSERT_OK_PTR(link, "attach_iter"))
 		goto out;
 
 	iter_fd = bpf_iter_create(bpf_link__fd(link));
@@ -281,6 +282,39 @@ out:
 	bpf_iter_sockmap__destroy(skel);
 }
 
+static void test_sockmap_skb_verdict_attach(enum bpf_attach_type first,
+					    enum bpf_attach_type second)
+{
+	struct test_sockmap_skb_verdict_attach *skel;
+	int err, map, verdict;
+
+	skel = test_sockmap_skb_verdict_attach__open_and_load();
+	if (CHECK_FAIL(!skel)) {
+		perror("test_sockmap_skb_verdict_attach__open_and_load");
+		return;
+	}
+
+	verdict = bpf_program__fd(skel->progs.prog_skb_verdict);
+	map = bpf_map__fd(skel->maps.sock_map);
+
+	err = bpf_prog_attach(verdict, map, first, 0);
+	if (CHECK_FAIL(err)) {
+		perror("bpf_prog_attach");
+		goto out;
+	}
+
+	err = bpf_prog_attach(verdict, map, second, 0);
+	ASSERT_EQ(err, -EBUSY, "prog_attach_fail");
+
+	err = bpf_prog_detach2(verdict, map, first);
+	if (CHECK_FAIL(err)) {
+		perror("bpf_prog_detach2");
+		goto out;
+	}
+out:
+	test_sockmap_skb_verdict_attach__destroy(skel);
+}
+
 void test_sockmap_basic(void)
 {
 	if (test__start_subtest("sockmap create_update_free"))
@@ -301,4 +335,10 @@ void test_sockmap_basic(void)
 		test_sockmap_copy(BPF_MAP_TYPE_SOCKMAP);
 	if (test__start_subtest("sockhash copy"))
 		test_sockmap_copy(BPF_MAP_TYPE_SOCKHASH);
+	if (test__start_subtest("sockmap skb_verdict attach")) {
+		test_sockmap_skb_verdict_attach(BPF_SK_SKB_VERDICT,
+						BPF_SK_SKB_STREAM_VERDICT);
+		test_sockmap_skb_verdict_attach(BPF_SK_SKB_STREAM_VERDICT,
+						BPF_SK_SKB_VERDICT);
+	}
 }

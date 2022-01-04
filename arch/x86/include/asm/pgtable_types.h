@@ -7,8 +7,6 @@
 
 #include <asm/page_types.h>
 
-#define FIRST_USER_ADDRESS	0UL
-
 #define _PAGE_BIT_PRESENT	0	/* is present */
 #define _PAGE_BIT_RW		1	/* writeable */
 #define _PAGE_BIT_USER		2	/* userspace addressable */

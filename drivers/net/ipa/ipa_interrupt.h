@@ -24,6 +24,7 @@ typedef void (*ipa_irq_handler_t)(struct ipa *ipa, enum ipa_irq_id irq_id);
 
 /**
  * ipa_interrupt_add() - Register a handler for an IPA interrupt type
+ * @interrupt:	IPA interrupt structure
  * @irq_id:	IPA interrupt type
  * @handler:	Handler function for the interrupt
  *
@@ -85,17 +86,17 @@ void ipa_interrupt_suspend_clear_all(struct ipa_interrupt *interrupt);
 void ipa_interrupt_simulate_suspend(struct ipa_interrupt *interrupt);
 
 /**
- * ipa_interrupt_setup() - Set up the IPA interrupt framework
+ * ipa_interrupt_config() - Configure the IPA interrupt framework
  * @ipa:	IPA pointer
  *
  * Return:	Pointer to IPA SMP2P info, or a pointer-coded error
  */
-struct ipa_interrupt *ipa_interrupt_setup(struct ipa *ipa);
+struct ipa_interrupt *ipa_interrupt_config(struct ipa *ipa);
 
 /**
- * ipa_interrupt_teardown() - Tear down the IPA interrupt framework
+ * ipa_interrupt_deconfig() - Inverse of ipa_interrupt_config()
  * @interrupt:	IPA interrupt structure
  */
-void ipa_interrupt_teardown(struct ipa_interrupt *interrupt);
+void ipa_interrupt_deconfig(struct ipa_interrupt *interrupt);
 
 #endif /* _IPA_INTERRUPT_H_ */

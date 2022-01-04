@@ -34,7 +34,7 @@ struct elevator_mq_ops {
 	void (*depth_updated)(struct blk_mq_hw_ctx *);
 
 	bool (*allow_merge)(struct request_queue *, struct request *, struct bio *);
-	bool (*bio_merge)(struct blk_mq_hw_ctx *, struct bio *, unsigned int);
+	bool (*bio_merge)(struct request_queue *, struct bio *, unsigned int);
 	int (*request_merge)(struct request_queue *q, struct request **, struct bio *);
 	void (*request_merged)(struct request_queue *, struct request *, enum elv_merge);
 	void (*requests_merged)(struct request_queue *, struct request *, struct request *);
@@ -117,9 +117,11 @@ extern void elv_merge_requests(struct request_queue *, struct request *,
 			       struct request *);
 extern void elv_merged_request(struct request_queue *, struct request *,
 		enum elv_merge);
-extern bool elv_attempt_insert_merge(struct request_queue *, struct request *);
+extern bool elv_attempt_insert_merge(struct request_queue *, struct request *,
+				     struct list_head *);
 extern struct request *elv_former_request(struct request_queue *, struct request *);
 extern struct request *elv_latter_request(struct request_queue *, struct request *);
+void elevator_init_mq(struct request_queue *q);
 
 /*
  * io scheduler registration

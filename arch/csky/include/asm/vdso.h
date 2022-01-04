@@ -16,7 +16,7 @@ struct vdso_data {
  * offset of 0, but since the linker must support setting weak undefined
  * symbols to the absolute address 0 it also happens to support other low
  * addresses even when the code model suggests those low addresses would not
- * otherwise be availiable.
+ * otherwise be available.
  */
 #define VDSO_SYMBOL(base, name)							\
 ({										\

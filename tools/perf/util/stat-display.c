@@ -17,6 +17,9 @@
 #include "cgroup.h"
 #include <api/fs/fs.h>
 #include "util.h"
+#include "iostat.h"
+#include "pmu-hybrid.h"
+#include "evlist-hybrid.h"
 
 #define CNTR_NOT_SUPPORTED	"<not supported>"
 #define CNTR_NOT_COUNTED	"<not counted>"
@@ -310,6 +313,11 @@ static void print_metric_header(struct perf_stat_config *config,
 	struct outstate *os = ctx;
 	char tbuf[1024];
 
+	/* In case of iostat, print metric header for first root port only */
+	if (config->iostat_run &&
+	    os->evsel->priv != os->evsel->evlist->selected->priv)
+		return;
+
 	if (!valid_only_metric(unit))
 		return;
 	unit = fixunit(tbuf, os->evsel, unit);
@@ -439,6 +447,12 @@ static void printout(struct perf_stat_config *config, struct aggr_cpu_id id, int
 		if (counter->cgrp)
 			os.nfields++;
 	}
+
+	if (!config->no_csv_summary && config->csv_output &&
+	    config->summary && !config->interval) {
+		fprintf(config->output, "%16s%s", "summary", config->csv_sep);
+	}
+
 	if (run == 0 || ena == 0 || counter->counts->scaled == -1) {
 		if (config->metric_only) {
 			pm(config, &os, NULL, "", "", 0);
@@ -452,9 +466,11 @@ static void printout(struct perf_stat_config *config, struct aggr_cpu_id id, int
 			config->csv_sep);
 
 		if (counter->supported) {
-			config->print_free_counters_hint = 1;
-			if (is_mixed_hw_group(counter))
-				config->print_mixed_hw_group_error = 1;
+			if (!evlist__has_hybrid(counter->evlist)) {
+				config->print_free_counters_hint = 1;
+				if (is_mixed_hw_group(counter))
+					config->print_mixed_hw_group_error = 1;
+			}
 		}
 
 		fprintf(config->output, "%-*s%s",
@@ -526,8 +542,9 @@ static void uniquify_event_name(struct evsel *counter)
 {
 	char *new_name;
 	char *config;
+	int ret = 0;
 
-	if (counter->uniquified_name ||
+	if (counter->uniquified_name || counter->use_config_name ||
 	    !counter->pmu_name || !strncmp(counter->name, counter->pmu_name,
 					   strlen(counter->pmu_name)))
 		return;
@@ -540,8 +557,15 @@ static void uniquify_event_name(struct evsel *counter)
 			counter->name = new_name;
 		}
 	} else {
-		if (asprintf(&new_name,
-			     "%s [%s]", counter->name, counter->pmu_name) > 0) {
+		if (perf_pmu__has_hybrid()) {
+			ret = asprintf(&new_name, "%s/%s/",
+				       counter->pmu_name, counter->name);
+		} else {
+			ret = asprintf(&new_name, "%s [%s]",
+				       counter->name, counter->pmu_name);
+		}
+
+		if (ret) {
 			free(counter->name);
 			counter->name = new_name;
 		}
@@ -572,6 +596,18 @@ static void collect_all_aliases(struct perf_stat_config *config, struct evsel *c
 	}
 }
 
+static bool is_uncore(struct evsel *evsel)
+{
+	struct perf_pmu *pmu = evsel__find_pmu(evsel);
+
+	return pmu && pmu->is_uncore;
+}
+
+static bool hybrid_uniquify(struct evsel *evsel)
+{
+	return perf_pmu__has_hybrid() && !is_uncore(evsel);
+}
+
 static bool collect_data(struct perf_stat_config *config, struct evsel *counter,
 			    void (*cb)(struct perf_stat_config *config, struct evsel *counter, void *data,
 				       bool first),
@@ -580,7 +616,7 @@ static bool collect_data(struct perf_stat_config *config, struct evsel *counter,
 	if (counter->merged_stat)
 		return false;
 	cb(config, counter, data, true);
-	if (config->no_merge)
+	if (config->no_merge || hybrid_uniquify(counter))
 		uniquify_event_name(counter);
 	else if (counter->auto_merge_stats)
 		collect_all_aliases(config, counter, cb, data);
@@ -642,6 +678,9 @@ static void print_counter_aggrdata(struct perf_stat_config *config,
 	ad.val = ad.ena = ad.run = 0;
 	ad.nr = 0;
 	if (!collect_data(config, counter, aggr_cb, &ad))
+		return;
+
+	if (perf_pmu__has_hybrid() && ad.ena == 0)
 		return;
 
 	nr = ad.nr;
@@ -801,11 +840,11 @@ static void counter_aggr_cb(struct perf_stat_config *config __maybe_unused,
 			    bool first __maybe_unused)
 {
 	struct caggr_data *cd = data;
-	struct perf_stat_evsel *ps = counter->stats;
+	struct perf_counts_values *aggr = &counter->counts->aggr;
 
-	cd->avg += avg_stats(&ps->res_stats[0]);
-	cd->avg_enabled += avg_stats(&ps->res_stats[1]);
-	cd->avg_running += avg_stats(&ps->res_stats[2]);
+	cd->avg += aggr->val;
+	cd->avg_enabled += aggr->ena;
+	cd->avg_running += aggr->run;
 }
 
 /*
@@ -952,8 +991,11 @@ static void print_metric_headers(struct perf_stat_config *config,
 	if (config->csv_output) {
 		if (config->interval)
 			fputs("time,", config->output);
-		fputs(aggr_header_csv[config->aggr_mode], config->output);
+		if (!config->iostat_run)
+			fputs(aggr_header_csv[config->aggr_mode], config->output);
 	}
+	if (config->iostat_run)
+		iostat_print_header_prefix(config);
 
 	/* Print metrics headers only */
 	evlist__for_each_entry(evlist, counter) {
@@ -983,7 +1025,8 @@ static void print_interval(struct perf_stat_config *config,
 	if (config->interval_clear)
 		puts(CONSOLE_CLEAR);
 
-	sprintf(prefix, "%6lu.%09lu%s", (unsigned long) ts->tv_sec, ts->tv_nsec, config->csv_sep);
+	if (!config->iostat_run)
+		sprintf(prefix, "%6lu.%09lu%s", (unsigned long) ts->tv_sec, ts->tv_nsec, config->csv_sep);
 
 	if ((num_print_interval == 0 && !config->csv_output) || config->interval_clear) {
 		switch (config->aggr_mode) {
@@ -1019,9 +1062,11 @@ static void print_interval(struct perf_stat_config *config,
 			break;
 		case AGGR_GLOBAL:
 		default:
-			fprintf(output, "#           time");
-			if (!metric_only)
-				fprintf(output, "             counts %*s events\n", unit_width, "unit");
+			if (!config->iostat_run) {
+				fprintf(output, "#           time");
+				if (!metric_only)
+					fprintf(output, "             counts %*s events\n", unit_width, "unit");
+			}
 		case AGGR_UNSET:
 			break;
 		}
@@ -1214,6 +1259,9 @@ void evlist__print_counters(struct evlist *evlist, struct perf_stat_config *conf
 	struct evsel *counter;
 	char buf[64], *prefix = NULL;
 
+	if (config->iostat_run)
+		evlist->selected = evlist__first(evlist);
+
 	if (interval)
 		print_interval(config, evlist, prefix = buf, ts);
 	else
@@ -1226,7 +1274,7 @@ void evlist__print_counters(struct evlist *evlist, struct perf_stat_config *conf
 			print_metric_headers(config, evlist, prefix, false);
 		if (num_print_iv++ == 25)
 			num_print_iv = 0;
-		if (config->aggr_mode == AGGR_GLOBAL && prefix)
+		if (config->aggr_mode == AGGR_GLOBAL && prefix && !config->iostat_run)
 			fprintf(config->output, "%s", prefix);
 	}
 
@@ -1243,11 +1291,16 @@ void evlist__print_counters(struct evlist *evlist, struct perf_stat_config *conf
 		}
 		break;
 	case AGGR_GLOBAL:
-		evlist__for_each_entry(evlist, counter) {
-			print_counter_aggr(config, counter, prefix);
+		if (config->iostat_run)
+			iostat_print_counters(evlist, config, ts, prefix = buf,
+					      print_counter_aggr);
+		else {
+			evlist__for_each_entry(evlist, counter) {
+				print_counter_aggr(config, counter, prefix);
+			}
+			if (metric_only)
+				fputc('\n', config->output);
 		}
-		if (metric_only)
-			fputc('\n', config->output);
 		break;
 	case AGGR_NONE:
 		if (metric_only)

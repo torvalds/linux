@@ -15,40 +15,19 @@
 static void *bgrt_image;
 static struct kobject *bgrt_kobj;
 
-static ssize_t version_show(struct device *dev,
-			    struct device_attribute *attr, char *buf)
-{
-	return snprintf(buf, PAGE_SIZE, "%d\n", bgrt_tab.version);
-}
-static DEVICE_ATTR_RO(version);
+#define BGRT_SHOW(_name, _member) \
+	static ssize_t _name##_show(struct kobject *kobj,			\
+				    struct kobj_attribute *attr, char *buf)	\
+	{									\
+		return sysfs_emit(buf, "%d\n", bgrt_tab._member);		\
+	}									\
+	struct kobj_attribute bgrt_attr_##_name = __ATTR_RO(_name)
 
-static ssize_t status_show(struct device *dev,
-			   struct device_attribute *attr, char *buf)
-{
-	return snprintf(buf, PAGE_SIZE, "%d\n", bgrt_tab.status);
-}
-static DEVICE_ATTR_RO(status);
-
-static ssize_t type_show(struct device *dev,
-			 struct device_attribute *attr, char *buf)
-{
-	return snprintf(buf, PAGE_SIZE, "%d\n", bgrt_tab.image_type);
-}
-static DEVICE_ATTR_RO(type);
-
-static ssize_t xoffset_show(struct device *dev,
-			    struct device_attribute *attr, char *buf)
-{
-	return snprintf(buf, PAGE_SIZE, "%d\n", bgrt_tab.image_offset_x);
-}
-static DEVICE_ATTR_RO(xoffset);
-
-static ssize_t yoffset_show(struct device *dev,
-			    struct device_attribute *attr, char *buf)
-{
-	return snprintf(buf, PAGE_SIZE, "%d\n", bgrt_tab.image_offset_y);
-}
-static DEVICE_ATTR_RO(yoffset);
+BGRT_SHOW(version, version);
+BGRT_SHOW(status, status);
+BGRT_SHOW(type, image_type);
+BGRT_SHOW(xoffset, image_offset_x);
+BGRT_SHOW(yoffset, image_offset_y);
 
 static ssize_t image_read(struct file *file, struct kobject *kobj,
 	       struct bin_attribute *attr, char *buf, loff_t off, size_t count)
@@ -60,11 +39,11 @@ static ssize_t image_read(struct file *file, struct kobject *kobj,
 static BIN_ATTR_RO(image, 0);	/* size gets filled in later */
 
 static struct attribute *bgrt_attributes[] = {
-	&dev_attr_version.attr,
-	&dev_attr_status.attr,
-	&dev_attr_type.attr,
-	&dev_attr_xoffset.attr,
-	&dev_attr_yoffset.attr,
+	&bgrt_attr_version.attr,
+	&bgrt_attr_status.attr,
+	&bgrt_attr_type.attr,
+	&bgrt_attr_xoffset.attr,
+	&bgrt_attr_yoffset.attr,
 	NULL,
 };
 

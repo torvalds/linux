@@ -133,14 +133,8 @@ static dev_t devt_from_partuuid(const char *uuid_str)
 		 * Attempt to find the requested partition by adding an offset
 		 * to the partition number found by UUID.
 		 */
-		struct block_device *part;
-
-		part = bdget_disk(dev_to_disk(dev),
-				  dev_to_bdev(dev)->bd_partno + offset);
-		if (part) {
-			devt = part->bd_dev;
-			bdput(part);
-		}
+		devt = part_devt(dev_to_disk(dev),
+				 dev_to_bdev(dev)->bd_partno + offset);
 	} else {
 		devt = dev->devt;
 	}
@@ -438,10 +432,6 @@ retry:
 		printk("Please append a correct \"root=\" boot option; here are the available partitions:\n");
 
 		printk_all_partitions();
-#ifdef CONFIG_DEBUG_BLOCK_EXT_DEVT
-		printk("DEBUG_BLOCK_EXT_DEVT is enabled, you need to specify "
-		       "explicit textual name for \"root=\" boot option.\n");
-#endif
 		panic("VFS: Unable to mount root fs on %s", b);
 	}
 	if (!(flags & SB_RDONLY)) {

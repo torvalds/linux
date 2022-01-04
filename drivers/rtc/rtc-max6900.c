@@ -1,14 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * rtc class driver for the Maxim MAX6900 chip
+ *
+ * Copyright (c) 2007 MontaVista, Software, Inc.
  *
  * Author: Dale Farnsworth <dale@farnsworth.org>
  *
  * based on previously existing rtc class drivers
- *
- * 2007 (c) MontaVista, Software, Inc.  This file is licensed under
- * the terms of the GNU General Public License version 2.  This program
- * is licensed "as is" without any warranty of any kind, whether express
- * or implied.
  */
 
 #include <linux/module.h>

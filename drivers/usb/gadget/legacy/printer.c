@@ -50,6 +50,7 @@ MODULE_PARM_DESC(iPNPstring, "MFG:linux;MDL:g_printer;CLS:PRINTER;SN:1;");
 /* Number of requests to allocate per endpoint, not used for ep0. */
 static unsigned qlen = 10;
 module_param(qlen, uint, S_IRUGO|S_IWUSR);
+MODULE_PARM_DESC(qlen, "The number of 8k buffers to use per endpoint");
 
 #define QLEN	qlen
 

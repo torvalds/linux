@@ -52,6 +52,14 @@ void dmub_hw_lock_mgr_cmd(struct dc_dmub_srv *dmub_srv,
 	dc_dmub_srv_wait_idle(dmub_srv);
 }
 
+void dmub_hw_lock_mgr_inbox0_cmd(struct dc_dmub_srv *dmub_srv,
+		union dmub_inbox0_cmd_lock_hw hw_lock_cmd)
+{
+	union dmub_inbox0_data_register data = { 0 };
+	data.inbox0_cmd_lock_hw = hw_lock_cmd;
+	dc_dmub_srv_send_inbox0_cmd(dmub_srv, data);
+}
+
 bool should_use_dmub_lock(struct dc_link *link)
 {
 	return false;

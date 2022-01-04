@@ -8,7 +8,7 @@
 
 /* General acl helper functions */
 struct mlx5_flow_table *
-esw_acl_table_create(struct mlx5_eswitch *esw, u16 vport_num, int ns, int size);
+esw_acl_table_create(struct mlx5_eswitch *esw, struct mlx5_vport *vport, int ns, int size);
 
 /* Egress acl helper functions */
 void esw_acl_egress_table_destroy(struct mlx5_vport *vport);

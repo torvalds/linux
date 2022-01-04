@@ -23,6 +23,8 @@
 #include "dc.h"
 #include "plane.h"
 
+#define NFB 24
+
 static const u32 tegra_shared_plane_formats[] = {
 	DRM_FORMAT_ARGB1555,
 	DRM_FORMAT_RGB565,
@@ -55,6 +57,18 @@ static const u64 tegra_shared_plane_modifiers[] = {
 	DRM_FORMAT_MOD_NVIDIA_16BX2_BLOCK(3),
 	DRM_FORMAT_MOD_NVIDIA_16BX2_BLOCK(4),
 	DRM_FORMAT_MOD_NVIDIA_16BX2_BLOCK(5),
+	/*
+	 * The GPU sector layout is only supported on Tegra194, but these will
+	 * be filtered out later on by ->format_mod_supported() on SoCs where
+	 * it isn't supported.
+	 */
+	DRM_FORMAT_MOD_NVIDIA_16BX2_BLOCK(0) | DRM_FORMAT_MOD_NVIDIA_SECTOR_LAYOUT,
+	DRM_FORMAT_MOD_NVIDIA_16BX2_BLOCK(1) | DRM_FORMAT_MOD_NVIDIA_SECTOR_LAYOUT,
+	DRM_FORMAT_MOD_NVIDIA_16BX2_BLOCK(2) | DRM_FORMAT_MOD_NVIDIA_SECTOR_LAYOUT,
+	DRM_FORMAT_MOD_NVIDIA_16BX2_BLOCK(3) | DRM_FORMAT_MOD_NVIDIA_SECTOR_LAYOUT,
+	DRM_FORMAT_MOD_NVIDIA_16BX2_BLOCK(4) | DRM_FORMAT_MOD_NVIDIA_SECTOR_LAYOUT,
+	DRM_FORMAT_MOD_NVIDIA_16BX2_BLOCK(5) | DRM_FORMAT_MOD_NVIDIA_SECTOR_LAYOUT,
+	/* sentinel */
 	DRM_FORMAT_MOD_INVALID
 };
 
@@ -280,6 +294,74 @@ static int tegra_shared_plane_set_owner(struct tegra_plane *plane,
 	return 0;
 }
 
+static void tegra_shared_plane_setup_scaler(struct tegra_plane *plane)
+{
+	static const unsigned int coeffs[192] = {
+		0x00000000, 0x3c70e400, 0x3bb037e4, 0x0c51cc9c,
+		0x00100001, 0x3bf0dbfa, 0x3d00f406, 0x3fe003ff,
+		0x00300002, 0x3b80cbf5, 0x3da1040d, 0x3fb003fe,
+		0x00400002, 0x3b20bff1, 0x3e511015, 0x3f9003fc,
+		0x00500002, 0x3ad0b3ed, 0x3f21201d, 0x3f5003fb,
+		0x00500003, 0x3aa0a3e9, 0x3ff13026, 0x3f2007f9,
+		0x00500403, 0x3a7097e6, 0x00e1402f, 0x3ee007f7,
+		0x00500403, 0x3a608be4, 0x01d14c38, 0x3ea00bf6,
+		0x00500403, 0x3a507fe2, 0x02e15c42, 0x3e500ff4,
+		0x00500402, 0x3a6073e1, 0x03f16c4d, 0x3e000ff2,
+		0x00400402, 0x3a706be0, 0x05117858, 0x3db013f0,
+		0x00300402, 0x3a905fe0, 0x06318863, 0x3d6017ee,
+		0x00300402, 0x3ab057e0, 0x0771986e, 0x3d001beb,
+		0x00200001, 0x3af04fe1, 0x08a1a47a, 0x3cb023e9,
+		0x00100001, 0x3b2047e2, 0x09e1b485, 0x3c6027e7,
+		0x00100000, 0x3b703fe2, 0x0b11c091, 0x3c002fe6,
+		0x3f203800, 0x0391103f, 0x3ff0a014, 0x0811606c,
+		0x3f2037ff, 0x0351083c, 0x03e11842, 0x3f203c00,
+		0x3f302fff, 0x03010439, 0x04311c45, 0x3f104401,
+		0x3f302fff, 0x02c0fc35, 0x04812448, 0x3f104802,
+		0x3f4027ff, 0x0270f832, 0x04c1284b, 0x3f205003,
+		0x3f4023ff, 0x0230f030, 0x0511304e, 0x3f205403,
+		0x3f601fff, 0x01f0e82d, 0x05613451, 0x3f205c04,
+		0x3f701bfe, 0x01b0e02a, 0x05a13c54, 0x3f306006,
+		0x3f7017fe, 0x0170d827, 0x05f14057, 0x3f406807,
+		0x3f8017ff, 0x0140d424, 0x0641445a, 0x3f406c08,
+		0x3fa013ff, 0x0100cc22, 0x0681485d, 0x3f507409,
+		0x3fa00fff, 0x00d0c41f, 0x06d14c60, 0x3f607c0b,
+		0x3fc00fff, 0x0090bc1c, 0x07115063, 0x3f80840c,
+		0x3fd00bff, 0x0070b41a, 0x07515465, 0x3f908c0e,
+		0x3fe007ff, 0x0040b018, 0x07915868, 0x3fb0900f,
+		0x3ff00400, 0x0010a816, 0x07d15c6a, 0x3fd09811,
+		0x00a04c0e, 0x0460f442, 0x0240a827, 0x05c15859,
+		0x0090440d, 0x0440f040, 0x0480fc43, 0x00b05010,
+		0x0080400c, 0x0410ec3e, 0x04910044, 0x00d05411,
+		0x0070380b, 0x03f0e83d, 0x04b10846, 0x00e05812,
+		0x0060340a, 0x03d0e43b, 0x04d10c48, 0x00f06013,
+		0x00503009, 0x03b0e039, 0x04e11449, 0x01106415,
+		0x00402c08, 0x0390d838, 0x05011c4b, 0x01206c16,
+		0x00302807, 0x0370d436, 0x0511204c, 0x01407018,
+		0x00302406, 0x0340d034, 0x0531244e, 0x01507419,
+		0x00202005, 0x0320cc32, 0x05412c50, 0x01707c1b,
+		0x00101c04, 0x0300c431, 0x05613451, 0x0180801d,
+		0x00101803, 0x02e0c02f, 0x05713853, 0x01a0881e,
+		0x00101002, 0x02b0bc2d, 0x05814054, 0x01c08c20,
+		0x00000c02, 0x02a0b82c, 0x05914455, 0x01e09421,
+		0x00000801, 0x0280b02a, 0x05a14c57, 0x02009c23,
+		0x00000400, 0x0260ac28, 0x05b15458, 0x0220a025,
+	};
+	unsigned int ratio, row, column;
+
+	for (ratio = 0; ratio <= 2; ratio++) {
+		for (row = 0; row <= 15; row++) {
+			for (column = 0; column <= 3; column++) {
+				unsigned int index = (ratio << 6) + (row << 2) + column;
+				u32 value;
+
+				value = COEFF_INDEX(index) | COEFF_DATA(coeffs[index]);
+				tegra_plane_writel(plane, value,
+						   DC_WIN_WINDOWGROUP_SET_INPUT_SCALER_COEFF);
+			}
+		}
+	}
+}
+
 static void tegra_dc_assign_shared_plane(struct tegra_dc *dc,
 					 struct tegra_plane *plane)
 {
@@ -325,6 +407,8 @@ static void tegra_dc_assign_shared_plane(struct tegra_dc *dc,
 	value |= THREAD_GROUP_ENABLE;
 	tegra_plane_writel(plane, value, DC_WIN_CORE_IHUB_THREAD_GROUP);
 
+	tegra_shared_plane_setup_scaler(plane);
+
 	tegra_shared_plane_update(plane);
 	tegra_shared_plane_activate(plane);
 }
@@ -336,25 +420,27 @@ static void tegra_dc_remove_shared_plane(struct tegra_dc *dc,
 }
 
 static int tegra_shared_plane_atomic_check(struct drm_plane *plane,
-					   struct drm_plane_state *state)
+					   struct drm_atomic_state *state)
 {
-	struct tegra_plane_state *plane_state = to_tegra_plane_state(state);
+	struct drm_plane_state *new_plane_state = drm_atomic_get_new_plane_state(state,
+										 plane);
+	struct tegra_plane_state *plane_state = to_tegra_plane_state(new_plane_state);
 	struct tegra_shared_plane *tegra = to_tegra_shared_plane(plane);
 	struct tegra_bo_tiling *tiling = &plane_state->tiling;
-	struct tegra_dc *dc = to_tegra_dc(state->crtc);
+	struct tegra_dc *dc = to_tegra_dc(new_plane_state->crtc);
 	int err;
 
 	/* no need for further checks if the plane is being disabled */
-	if (!state->crtc || !state->fb)
+	if (!new_plane_state->crtc || !new_plane_state->fb)
 		return 0;
 
-	err = tegra_plane_format(state->fb->format->format,
+	err = tegra_plane_format(new_plane_state->fb->format->format,
 				 &plane_state->format,
 				 &plane_state->swap);
 	if (err < 0)
 		return err;
 
-	err = tegra_fb_get_tiling(state->fb, tiling);
+	err = tegra_fb_get_tiling(new_plane_state->fb, tiling);
 	if (err < 0)
 		return err;
 
@@ -364,13 +450,19 @@ static int tegra_shared_plane_atomic_check(struct drm_plane *plane,
 		return -EINVAL;
 	}
 
+	if (tiling->sector_layout == TEGRA_BO_SECTOR_LAYOUT_GPU &&
+	    !dc->soc->supports_sector_layout) {
+		DRM_ERROR("hardware doesn't support GPU sector layout\n");
+		return -EINVAL;
+	}
+
 	/*
 	 * Tegra doesn't support different strides for U and V planes so we
 	 * error out if the user tries to display a framebuffer with such a
 	 * configuration.
 	 */
-	if (state->fb->format->num_planes > 2) {
-		if (state->fb->pitches[2] != state->fb->pitches[1]) {
+	if (new_plane_state->fb->format->num_planes > 2) {
+		if (new_plane_state->fb->pitches[2] != new_plane_state->fb->pitches[1]) {
 			DRM_ERROR("unsupported UV-plane configuration\n");
 			return -EINVAL;
 		}
@@ -378,7 +470,7 @@ static int tegra_shared_plane_atomic_check(struct drm_plane *plane,
 
 	/* XXX scaling is not yet supported, add a check here */
 
-	err = tegra_plane_state_add(&tegra->base, state);
+	err = tegra_plane_state_add(&tegra->base, new_plane_state);
 	if (err < 0)
 		return err;
 
@@ -386,8 +478,10 @@ static int tegra_shared_plane_atomic_check(struct drm_plane *plane,
 }
 
 static void tegra_shared_plane_atomic_disable(struct drm_plane *plane,
-					      struct drm_plane_state *old_state)
+					      struct drm_atomic_state *state)
 {
+	struct drm_plane_state *old_state = drm_atomic_get_old_plane_state(state,
+									   plane);
 	struct tegra_plane *p = to_tegra_plane(plane);
 	struct tegra_dc *dc;
 	u32 value;
@@ -422,24 +516,40 @@ static void tegra_shared_plane_atomic_disable(struct drm_plane *plane,
 	host1x_client_suspend(&dc->client);
 }
 
-static void tegra_shared_plane_atomic_update(struct drm_plane *plane,
-					     struct drm_plane_state *old_state)
+static inline u32 compute_phase_incr(fixed20_12 in, unsigned int out)
 {
-	struct tegra_plane_state *state = to_tegra_plane_state(plane->state);
-	struct tegra_dc *dc = to_tegra_dc(plane->state->crtc);
-	unsigned int zpos = plane->state->normalized_zpos;
-	struct drm_framebuffer *fb = plane->state->fb;
+	u64 tmp, tmp1, tmp2;
+
+	tmp = (u64)dfixed_trunc(in);
+	tmp2 = (u64)out;
+	tmp1 = (tmp << NFB) + (tmp2 >> 1);
+	do_div(tmp1, tmp2);
+
+	return lower_32_bits(tmp1);
+}
+
+static void tegra_shared_plane_atomic_update(struct drm_plane *plane,
+					     struct drm_atomic_state *state)
+{
+	struct drm_plane_state *new_state = drm_atomic_get_new_plane_state(state,
+									   plane);
+	struct tegra_plane_state *tegra_plane_state = to_tegra_plane_state(new_state);
+	struct tegra_dc *dc = to_tegra_dc(new_state->crtc);
+	unsigned int zpos = new_state->normalized_zpos;
+	struct drm_framebuffer *fb = new_state->fb;
 	struct tegra_plane *p = to_tegra_plane(plane);
-	dma_addr_t base;
-	u32 value;
+	u32 value, min_width, bypass = 0;
+	dma_addr_t base, addr_flag = 0;
+	unsigned int bpc;
+	bool yuv, planar;
 	int err;
 
 	/* rien ne va plus */
-	if (!plane->state->crtc || !plane->state->fb)
+	if (!new_state->crtc || !new_state->fb)
 		return;
 
-	if (!plane->state->visible) {
-		tegra_shared_plane_atomic_disable(plane, old_state);
+	if (!new_state->visible) {
+		tegra_shared_plane_atomic_disable(plane, state);
 		return;
 	}
 
@@ -448,6 +558,8 @@ static void tegra_shared_plane_atomic_update(struct drm_plane *plane,
 		dev_err(dc->dev, "failed to resume: %d\n", err);
 		return;
 	}
+
+	yuv = tegra_plane_format_is_yuv(tegra_plane_state->format, &planar, &bpc);
 
 	tegra_dc_assign_shared_plane(dc, p);
 
@@ -467,32 +579,79 @@ static void tegra_shared_plane_atomic_update(struct drm_plane *plane,
 	value = K2(255) | K1(255) | WINDOW_LAYER_DEPTH(255 - zpos);
 	tegra_plane_writel(p, value, DC_WIN_BLEND_LAYER_CONTROL);
 
-	/* bypass scaling */
+	/* scaling */
+	min_width = min(new_state->src_w >> 16, new_state->crtc_w);
+
+	value = tegra_plane_readl(p, DC_WINC_PRECOMP_WGRP_PIPE_CAPC);
+
+	if (min_width < MAX_PIXELS_5TAP444(value)) {
+		value = HORIZONTAL_TAPS_5 | VERTICAL_TAPS_5;
+	} else {
+		value = tegra_plane_readl(p, DC_WINC_PRECOMP_WGRP_PIPE_CAPE);
+
+		if (min_width < MAX_PIXELS_2TAP444(value))
+			value = HORIZONTAL_TAPS_2 | VERTICAL_TAPS_2;
+		else
+			dev_err(dc->dev, "invalid minimum width: %u\n", min_width);
+	}
+
 	value = HORIZONTAL_TAPS_5 | VERTICAL_TAPS_5;
 	tegra_plane_writel(p, value, DC_WIN_WINDOWGROUP_SET_CONTROL_INPUT_SCALER);
 
-	value = INPUT_SCALER_VBYPASS | INPUT_SCALER_HBYPASS;
-	tegra_plane_writel(p, value, DC_WIN_WINDOWGROUP_SET_INPUT_SCALER_USAGE);
+	if (new_state->src_w != new_state->crtc_w << 16) {
+		fixed20_12 width = dfixed_init(new_state->src_w >> 16);
+		u32 incr = compute_phase_incr(width, new_state->crtc_w) & ~0x1;
+		u32 init = (1 << (NFB - 1)) + (incr >> 1);
+
+		tegra_plane_writel(p, incr, DC_WIN_SET_INPUT_SCALER_HPHASE_INCR);
+		tegra_plane_writel(p, init, DC_WIN_SET_INPUT_SCALER_H_START_PHASE);
+	} else {
+		bypass |= INPUT_SCALER_HBYPASS;
+	}
+
+	if (new_state->src_h != new_state->crtc_h << 16) {
+		fixed20_12 height = dfixed_init(new_state->src_h >> 16);
+		u32 incr = compute_phase_incr(height, new_state->crtc_h) & ~0x1;
+		u32 init = (1 << (NFB - 1)) + (incr >> 1);
+
+		tegra_plane_writel(p, incr, DC_WIN_SET_INPUT_SCALER_VPHASE_INCR);
+		tegra_plane_writel(p, init, DC_WIN_SET_INPUT_SCALER_V_START_PHASE);
+	} else {
+		bypass |= INPUT_SCALER_VBYPASS;
+	}
+
+	tegra_plane_writel(p, bypass, DC_WIN_WINDOWGROUP_SET_INPUT_SCALER_USAGE);
 
 	/* disable compression */
 	tegra_plane_writel(p, 0, DC_WINBUF_CDE_CONTROL);
 
-	base = state->iova[0] + fb->offsets[0];
+#ifdef CONFIG_ARCH_DMA_ADDR_T_64BIT
+	/*
+	 * Physical address bit 39 in Tegra194 is used as a switch for special
+	 * logic that swizzles the memory using either the legacy Tegra or the
+	 * dGPU sector layout.
+	 */
+	if (tegra_plane_state->tiling.sector_layout == TEGRA_BO_SECTOR_LAYOUT_GPU)
+		addr_flag = BIT_ULL(39);
+#endif
 
-	tegra_plane_writel(p, state->format, DC_WIN_COLOR_DEPTH);
+	base = tegra_plane_state->iova[0] + fb->offsets[0];
+	base |= addr_flag;
+
+	tegra_plane_writel(p, tegra_plane_state->format, DC_WIN_COLOR_DEPTH);
 	tegra_plane_writel(p, 0, DC_WIN_PRECOMP_WGRP_PARAMS);
 
-	value = V_POSITION(plane->state->crtc_y) |
-		H_POSITION(plane->state->crtc_x);
+	value = V_POSITION(new_state->crtc_y) |
+		H_POSITION(new_state->crtc_x);
 	tegra_plane_writel(p, value, DC_WIN_POSITION);
 
-	value = V_SIZE(plane->state->crtc_h) | H_SIZE(plane->state->crtc_w);
+	value = V_SIZE(new_state->crtc_h) | H_SIZE(new_state->crtc_w);
 	tegra_plane_writel(p, value, DC_WIN_SIZE);
 
 	value = WIN_ENABLE | COLOR_EXPAND;
 	tegra_plane_writel(p, value, DC_WIN_WIN_OPTIONS);
 
-	value = V_SIZE(plane->state->crtc_h) | H_SIZE(plane->state->crtc_w);
+	value = V_SIZE(new_state->src_h >> 16) | H_SIZE(new_state->src_w >> 16);
 	tegra_plane_writel(p, value, DC_WIN_CROPPED_SIZE);
 
 	tegra_plane_writel(p, upper_32_bits(base), DC_WINBUF_START_ADDR_HI);
@@ -501,18 +660,55 @@ static void tegra_shared_plane_atomic_update(struct drm_plane *plane,
 	value = PITCH(fb->pitches[0]);
 	tegra_plane_writel(p, value, DC_WIN_PLANAR_STORAGE);
 
-	value = CLAMP_BEFORE_BLEND | DEGAMMA_SRGB | INPUT_RANGE_FULL;
+	if (yuv && planar) {
+		base = tegra_plane_state->iova[1] + fb->offsets[1];
+		base |= addr_flag;
+
+		tegra_plane_writel(p, upper_32_bits(base), DC_WINBUF_START_ADDR_HI_U);
+		tegra_plane_writel(p, lower_32_bits(base), DC_WINBUF_START_ADDR_U);
+
+		base = tegra_plane_state->iova[2] + fb->offsets[2];
+		base |= addr_flag;
+
+		tegra_plane_writel(p, upper_32_bits(base), DC_WINBUF_START_ADDR_HI_V);
+		tegra_plane_writel(p, lower_32_bits(base), DC_WINBUF_START_ADDR_V);
+
+		value = PITCH_U(fb->pitches[2]) | PITCH_V(fb->pitches[2]);
+		tegra_plane_writel(p, value, DC_WIN_PLANAR_STORAGE_UV);
+	} else {
+		tegra_plane_writel(p, 0, DC_WINBUF_START_ADDR_U);
+		tegra_plane_writel(p, 0, DC_WINBUF_START_ADDR_HI_U);
+		tegra_plane_writel(p, 0, DC_WINBUF_START_ADDR_V);
+		tegra_plane_writel(p, 0, DC_WINBUF_START_ADDR_HI_V);
+		tegra_plane_writel(p, 0, DC_WIN_PLANAR_STORAGE_UV);
+	}
+
+	value = CLAMP_BEFORE_BLEND | INPUT_RANGE_FULL;
+
+	if (yuv) {
+		if (bpc < 12)
+			value |= DEGAMMA_YUV8_10;
+		else
+			value |= DEGAMMA_YUV12;
+
+		/* XXX parameterize */
+		value |= COLOR_SPACE_YUV_2020;
+	} else {
+		if (!tegra_plane_format_is_indexed(tegra_plane_state->format))
+			value |= DEGAMMA_SRGB;
+	}
+
 	tegra_plane_writel(p, value, DC_WIN_SET_PARAMS);
 
-	value = OFFSET_X(plane->state->src_y >> 16) |
-		OFFSET_Y(plane->state->src_x >> 16);
+	value = OFFSET_X(new_state->src_y >> 16) |
+		OFFSET_Y(new_state->src_x >> 16);
 	tegra_plane_writel(p, value, DC_WINBUF_CROPPED_POINT);
 
 	if (dc->soc->supports_block_linear) {
-		unsigned long height = state->tiling.value;
+		unsigned long height = tegra_plane_state->tiling.value;
 
 		/* XXX */
-		switch (state->tiling.mode) {
+		switch (tegra_plane_state->tiling.mode) {
 		case TEGRA_BO_TILING_MODE_PITCH:
 			value = DC_WINBUF_SURFACE_KIND_BLOCK_HEIGHT(0) |
 				DC_WINBUF_SURFACE_KIND_PITCH;
@@ -556,9 +752,8 @@ struct drm_plane *tegra_shared_plane_create(struct drm_device *drm,
 	enum drm_plane_type type = DRM_PLANE_TYPE_OVERLAY;
 	struct tegra_drm *tegra = drm->dev_private;
 	struct tegra_display_hub *hub = tegra->hub;
-	/* planes can be assigned to arbitrary CRTCs */
-	unsigned int possible_crtcs = 0x7;
 	struct tegra_shared_plane *plane;
+	unsigned int possible_crtcs;
 	unsigned int num_formats;
 	const u64 *modifiers;
 	struct drm_plane *p;
@@ -576,6 +771,9 @@ struct drm_plane *tegra_shared_plane_create(struct drm_device *drm,
 	plane->wgrp->parent = &dc->client;
 
 	p = &plane->base.base;
+
+	/* planes can be assigned to arbitrary CRTCs */
+	possible_crtcs = BIT(tegra->num_crtcs) - 1;
 
 	num_formats = ARRAY_SIZE(tegra_shared_plane_formats);
 	formats = tegra_shared_plane_formats;
@@ -842,11 +1040,18 @@ static const struct host1x_client_ops tegra_display_hub_ops = {
 
 static int tegra_display_hub_probe(struct platform_device *pdev)
 {
+	u64 dma_mask = dma_get_mask(pdev->dev.parent);
 	struct device_node *child = NULL;
 	struct tegra_display_hub *hub;
 	struct clk *clk;
 	unsigned int i;
 	int err;
+
+	err = dma_coerce_mask_and_coherent(&pdev->dev, dma_mask);
+	if (err < 0) {
+		dev_err(&pdev->dev, "failed to set DMA mask: %d\n", err);
+		return err;
+	}
 
 	hub = devm_kzalloc(&pdev->dev, sizeof(*hub), GFP_KERNEL);
 	if (!hub)

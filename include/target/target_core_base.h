@@ -127,25 +127,25 @@ enum transport_state_table {
 
 /* Used for struct se_cmd->se_cmd_flags */
 enum se_cmd_flags_table {
-	SCF_SUPPORTED_SAM_OPCODE	= 0x00000001,
-	SCF_TRANSPORT_TASK_SENSE	= 0x00000002,
-	SCF_EMULATED_TASK_SENSE		= 0x00000004,
-	SCF_SCSI_DATA_CDB		= 0x00000008,
-	SCF_SCSI_TMR_CDB		= 0x00000010,
-	SCF_FUA				= 0x00000080,
-	SCF_SE_LUN_CMD			= 0x00000100,
-	SCF_BIDI			= 0x00000400,
-	SCF_SENT_CHECK_CONDITION	= 0x00000800,
-	SCF_OVERFLOW_BIT		= 0x00001000,
-	SCF_UNDERFLOW_BIT		= 0x00002000,
-	SCF_ALUA_NON_OPTIMIZED		= 0x00008000,
-	SCF_PASSTHROUGH_SG_TO_MEM_NOALLOC = 0x00020000,
-	SCF_COMPARE_AND_WRITE		= 0x00080000,
-	SCF_PASSTHROUGH_PROT_SG_TO_MEM_NOALLOC = 0x00200000,
-	SCF_ACK_KREF			= 0x00400000,
-	SCF_USE_CPUID			= 0x00800000,
-	SCF_TASK_ATTR_SET		= 0x01000000,
-	SCF_TREAT_READ_AS_NORMAL	= 0x02000000,
+	SCF_SUPPORTED_SAM_OPCODE		= (1 << 0),
+	SCF_TRANSPORT_TASK_SENSE		= (1 << 1),
+	SCF_EMULATED_TASK_SENSE			= (1 << 2),
+	SCF_SCSI_DATA_CDB			= (1 << 3),
+	SCF_SCSI_TMR_CDB			= (1 << 4),
+	SCF_FUA					= (1 << 5),
+	SCF_SE_LUN_CMD				= (1 << 6),
+	SCF_BIDI				= (1 << 7),
+	SCF_SENT_CHECK_CONDITION		= (1 << 8),
+	SCF_OVERFLOW_BIT			= (1 << 9),
+	SCF_UNDERFLOW_BIT			= (1 << 10),
+	SCF_ALUA_NON_OPTIMIZED			= (1 << 11),
+	SCF_PASSTHROUGH_SG_TO_MEM_NOALLOC	= (1 << 12),
+	SCF_COMPARE_AND_WRITE			= (1 << 13),
+	SCF_PASSTHROUGH_PROT_SG_TO_MEM_NOALLOC	= (1 << 14),
+	SCF_ACK_KREF				= (1 << 15),
+	SCF_USE_CPUID				= (1 << 16),
+	SCF_TASK_ATTR_SET			= (1 << 17),
+	SCF_TREAT_READ_AS_NORMAL		= (1 << 18),
 };
 
 /*
@@ -171,7 +171,7 @@ enum tcm_sense_reason_table {
 	TCM_WRITE_PROTECTED			= R(0x0c),
 	TCM_CHECK_CONDITION_ABORT_CMD		= R(0x0d),
 	TCM_CHECK_CONDITION_UNIT_ATTENTION	= R(0x0e),
-	TCM_CHECK_CONDITION_NOT_READY		= R(0x0f),
+
 	TCM_RESERVATION_CONFLICT		= R(0x10),
 	TCM_ADDRESS_OUT_OF_RANGE		= R(0x11),
 	TCM_OUT_OF_RESOURCES			= R(0x12),
@@ -188,6 +188,10 @@ enum tcm_sense_reason_table {
 	TCM_INSUFFICIENT_REGISTRATION_RESOURCES	= R(0x1d),
 	TCM_LUN_BUSY				= R(0x1e),
 	TCM_INVALID_FIELD_IN_COMMAND_IU         = R(0x1f),
+	TCM_ALUA_TG_PT_STANDBY			= R(0x20),
+	TCM_ALUA_TG_PT_UNAVAILABLE		= R(0x21),
+	TCM_ALUA_STATE_TRANSITION		= R(0x22),
+	TCM_ALUA_OFFLINE			= R(0x23),
 #undef R
 };
 
@@ -326,6 +330,7 @@ struct t10_wwn {
 	char model[INQUIRY_MODEL_LEN + 1];
 	char revision[INQUIRY_REVISION_LEN + 1];
 	char unit_serial[INQUIRY_VPD_SERIAL_LEN];
+	u32 company_id;
 	spinlock_t t10_vpd_lock;
 	struct se_device *t10_dev;
 	struct config_group t10_wwn_group;
@@ -452,10 +457,10 @@ enum target_core_dif_check {
 #define TCM_ACA_TAG	0x24
 
 struct se_cmd {
+	/* Used for fail with specific sense codes */
+	sense_reason_t		sense_reason;
 	/* SAM response code being sent to initiator */
 	u8			scsi_status;
-	u8			scsi_asc;
-	u8			scsi_ascq;
 	u16			scsi_sense_length;
 	unsigned		unknown_data_length:1;
 	bool			state_active:1;
@@ -488,7 +493,7 @@ struct se_cmd {
 	/* Only used for internal passthrough and legacy TCM fabric modules */
 	struct se_session	*se_sess;
 	struct se_tmr_req	*se_tmr_req;
-	struct list_head	se_cmd_list;
+	struct llist_node	se_cmd_list;
 	struct completion	*free_compl;
 	struct completion	*abrt_compl;
 	const struct target_core_fabric_ops *se_tfo;
@@ -765,9 +770,19 @@ struct se_dev_stat_grps {
 	struct config_group scsi_lu_group;
 };
 
+struct se_cmd_queue {
+	struct llist_head	cmd_list;
+	struct work_struct	work;
+};
+
+struct se_dev_plug {
+	struct se_device	*se_dev;
+};
+
 struct se_device_queue {
 	struct list_head	state_list;
 	spinlock_t		lock;
+	struct se_cmd_queue	sq;
 };
 
 struct se_device {
@@ -934,11 +949,20 @@ static inline struct se_portal_group *param_to_tpg(struct config_item *item)
 			tpg_param_group);
 }
 
+enum {
+	/* Use se_cmd's cpuid for completion */
+	SE_COMPL_AFFINITY_CPUID		= -1,
+	/* Complete on current CPU */
+	SE_COMPL_AFFINITY_CURR_CPU	= -2,
+};
+
 struct se_wwn {
 	struct target_fabric_configfs *wwn_tf;
 	void			*priv;
 	struct config_group	wwn_group;
 	struct config_group	fabric_stat_group;
+	struct config_group	param_group;
+	int			cmd_compl_affinity;
 };
 
 static inline void atomic_inc_mb(atomic_t *v)

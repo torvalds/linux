@@ -87,9 +87,9 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 		/* Check pin collisions */
-		gpio-sck = <&gpio1 28 GPIO_ACTIVE_HIGH>;
-		gpio-miso = <&gpio1 30 GPIO_ACTIVE_HIGH>;
-		gpio-mosi = <&gpio1 29 GPIO_ACTIVE_HIGH>;
+		sck-gpios = <&gpio1 28 GPIO_ACTIVE_HIGH>;
+		miso-gpios = <&gpio1 30 GPIO_ACTIVE_HIGH>;
+		mosi-gpios = <&gpio1 29 GPIO_ACTIVE_HIGH>;
 		cs-gpios = <&gpio1 31 GPIO_ACTIVE_HIGH>;
 		num-chipselects = <1>;
 

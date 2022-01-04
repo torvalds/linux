@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2012-2014, 2018-2020 Intel Corporation
+ * Copyright (C) 2012-2014, 2018-2021 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2016-2017 Intel Deutschland GmbH
  */
@@ -305,7 +305,6 @@ static ssize_t iwl_dbgfs_sar_geo_profile_read(struct file *file,
 	int pos = 0;
 	int bufsz = sizeof(buf);
 	int tbl_idx;
-	u8 *value;
 
 	if (!iwl_mvm_firmware_running(mvm))
 		return -EIO;
@@ -321,16 +320,18 @@ static ssize_t iwl_dbgfs_sar_geo_profile_read(struct file *file,
 		pos = scnprintf(buf, bufsz,
 				"SAR geographic profile disabled\n");
 	} else {
-		value = &mvm->fwrt.geo_profiles[tbl_idx - 1].values[0];
-
 		pos += scnprintf(buf + pos, bufsz - pos,
 				 "Use geographic profile %d\n", tbl_idx);
 		pos += scnprintf(buf + pos, bufsz - pos,
 				 "2.4GHz:\n\tChain A offset: %hhu dBm\n\tChain B offset: %hhu dBm\n\tmax tx power: %hhu dBm\n",
-				 value[1], value[2], value[0]);
+				 mvm->fwrt.geo_profiles[tbl_idx - 1].bands[0].chains[0],
+				 mvm->fwrt.geo_profiles[tbl_idx - 1].bands[0].chains[1],
+				 mvm->fwrt.geo_profiles[tbl_idx - 1].bands[0].max);
 		pos += scnprintf(buf + pos, bufsz - pos,
 				 "5.2GHz:\n\tChain A offset: %hhu dBm\n\tChain B offset: %hhu dBm\n\tmax tx power: %hhu dBm\n",
-				 value[4], value[5], value[3]);
+				 mvm->fwrt.geo_profiles[tbl_idx - 1].bands[1].chains[0],
+				 mvm->fwrt.geo_profiles[tbl_idx - 1].bands[1].chains[1],
+				 mvm->fwrt.geo_profiles[tbl_idx - 1].bands[1].max);
 	}
 	mutex_unlock(&mvm->mutex);
 
@@ -1023,7 +1024,9 @@ static ssize_t iwl_dbgfs_fw_restart_write(struct iwl_mvm *mvm, char *buf,
 		mvm->fw_restart++;
 
 	/* take the return value to make compiler happy - it will fail anyway */
-	ret = iwl_mvm_send_cmd_pdu(mvm, REPLY_ERROR, 0, 0, NULL);
+	ret = iwl_mvm_send_cmd_pdu(mvm,
+				   WIDE_ID(LONG_GROUP, REPLY_ERROR),
+				   0, 0, NULL);
 
 	mutex_unlock(&mvm->mutex);
 
@@ -1210,10 +1213,10 @@ static int _iwl_dbgfs_inject_beacon_ie(struct iwl_mvm *mvm, char *bin, int len)
 			IWL_UCODE_TLV_API_NEW_BEACON_TEMPLATE))
 		return -EINVAL;
 
-	rcu_read_lock();
+	mutex_lock(&mvm->mutex);
 
 	for (i = 0; i < NUM_MAC_INDEX_DRIVER; i++) {
-		vif = iwl_mvm_rcu_dereference_vif_id(mvm, i, true);
+		vif = iwl_mvm_rcu_dereference_vif_id(mvm, i, false);
 		if (!vif)
 			continue;
 
@@ -1253,18 +1256,16 @@ static int _iwl_dbgfs_inject_beacon_ie(struct iwl_mvm *mvm, char *bin, int len)
 				 &beacon_cmd.tim_size,
 				 beacon->data, beacon->len);
 
-	mutex_lock(&mvm->mutex);
 	iwl_mvm_mac_ctxt_send_beacon_cmd(mvm, beacon, &beacon_cmd,
 					 sizeof(beacon_cmd));
 	mutex_unlock(&mvm->mutex);
 
 	dev_kfree_skb(beacon);
 
-	rcu_read_unlock();
 	return 0;
 
 out_err:
-	rcu_read_unlock();
+	mutex_unlock(&mvm->mutex);
 	return -EINVAL;
 }
 

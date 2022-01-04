@@ -74,7 +74,7 @@ static struct ata_port_operations tosh_port_ops = {
 };
 
 /**
- *	ata_tosh_init		-	attach generic IDE
+ *	ata_tosh_init_one		-	attach generic IDE
  *	@dev: PCI device found
  *	@id: match entry
  *

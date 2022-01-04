@@ -25,7 +25,7 @@
 #define MTK_V4L2_BENCHMARK	0
 #define WAIT_INTR_TIMEOUT_MS	1000
 
-/**
+/*
  * enum mtk_hw_reg_idx - MTK hw register base index
  */
 enum mtk_hw_reg_idx {
@@ -49,7 +49,7 @@ enum mtk_hw_reg_idx {
 	NUM_MAX_VCODEC_REG_BASE
 };
 
-/**
+/*
  * enum mtk_instance_type - The type of an MTK Vcodec instance.
  */
 enum mtk_instance_type {
@@ -59,12 +59,12 @@ enum mtk_instance_type {
 
 /**
  * enum mtk_instance_state - The state of an MTK Vcodec instance.
- * @MTK_STATE_FREE - default state when instance is created
- * @MTK_STATE_INIT - vcodec instance is initialized
- * @MTK_STATE_HEADER - vdec had sps/pps header parsed or venc
+ * @MTK_STATE_FREE: default state when instance is created
+ * @MTK_STATE_INIT: vcodec instance is initialized
+ * @MTK_STATE_HEADER: vdec had sps/pps header parsed or venc
  *			had sps/pps header encoded
- * @MTK_STATE_FLUSH - vdec is flushing. Only used by decoder
- * @MTK_STATE_ABORT - vcodec should be aborted
+ * @MTK_STATE_FLUSH: vdec is flushing. Only used by decoder
+ * @MTK_STATE_ABORT: vcodec should be aborted
  */
 enum mtk_instance_state {
 	MTK_STATE_FREE = 0,
@@ -74,8 +74,8 @@ enum mtk_instance_state {
 	MTK_STATE_ABORT = 4,
 };
 
-/**
- * struct mtk_encode_param - General encoding parameters type
+/*
+ * enum mtk_encode_param - General encoding parameters type
  */
 enum mtk_encode_param {
 	MTK_ENCODE_PARAM_NONE = 0,
@@ -92,7 +92,7 @@ enum mtk_fmt_type {
 	MTK_FMT_FRAME = 2,
 };
 
-/**
+/*
  * struct mtk_video_fmt - Structure used to store information about pixelformats
  */
 struct mtk_video_fmt {
@@ -102,7 +102,7 @@ struct mtk_video_fmt {
 	u32	flags;
 };
 
-/**
+/*
  * struct mtk_codec_framesizes - Structure used to store information about
  *							framesizes
  */
@@ -111,15 +111,15 @@ struct mtk_codec_framesizes {
 	struct	v4l2_frmsize_stepwise	stepwise;
 };
 
-/**
- * struct mtk_q_type - Type of queue
+/*
+ * enum mtk_q_type - Type of queue
  */
 enum mtk_q_type {
 	MTK_Q_DATA_SRC = 0,
 	MTK_Q_DATA_DST = 1,
 };
 
-/**
+/*
  * struct mtk_q_data - Structure used to store information about queue
  */
 struct mtk_q_data {
@@ -168,7 +168,7 @@ struct mtk_enc_params {
 	unsigned int	force_intra;
 };
 
-/**
+/*
  * struct mtk_vcodec_clk_info - Structure used to store clock name
  */
 struct mtk_vcodec_clk_info {
@@ -176,7 +176,7 @@ struct mtk_vcodec_clk_info {
 	struct clk	*vcodec_clk;
 };
 
-/**
+/*
  * struct mtk_vcodec_clk - Structure used to store vcodec clock information
  */
 struct mtk_vcodec_clk {
@@ -184,7 +184,7 @@ struct mtk_vcodec_clk {
 	int	clk_num;
 };
 
-/**
+/*
  * struct mtk_vcodec_pm - Power management data structure
  */
 struct mtk_vcodec_pm {
@@ -193,7 +193,6 @@ struct mtk_vcodec_pm {
 
 	struct mtk_vcodec_clk	venc_clk;
 	struct device	*larbvenc;
-	struct device	*larbvenclt;
 	struct device	*dev;
 	struct mtk_vcodec_dev	*mtkdev;
 };
@@ -256,6 +255,7 @@ struct vdec_pic_info {
  * @ycbcr_enc: enum v4l2_ycbcr_encoding, Y'CbCr encoding
  * @quantization: enum v4l2_quantization, colorspace quantization
  * @xfer_func: enum v4l2_xfer_func, colorspace transfer function
+ * @decoded_frame_cnt: number of decoded frames
  * @lock: protect variables accessed by V4L2 threads and worker thread such as
  *	  mtk_video_dec_buf.
  */
@@ -303,6 +303,7 @@ struct mtk_vcodec_ctx {
 enum mtk_chip {
 	MTK_MT8173,
 	MTK_MT8183,
+	MTK_MT8192,
 };
 
 /**
@@ -311,25 +312,25 @@ enum mtk_chip {
  * @chip: chip this encoder is compatible with
  *
  * @uses_ext: whether the encoder uses the extended firmware messaging format
- * @has_lt_irq: whether the encoder uses the LT irq
- * @min_birate: minimum supported encoding bitrate
+ * @min_bitrate: minimum supported encoding bitrate
  * @max_bitrate: maximum supported encoding bitrate
  * @capture_formats: array of supported capture formats
  * @num_capture_formats: number of entries in capture_formats
  * @output_formats: array of supported output formats
  * @num_output_formats: number of entries in output_formats
+ * @core_id: stand for h264 or vp8 encode index
  */
 struct mtk_vcodec_enc_pdata {
 	enum mtk_chip chip;
 
 	bool uses_ext;
-	bool has_lt_irq;
 	unsigned long min_bitrate;
 	unsigned long max_bitrate;
 	const struct mtk_video_fmt *capture_formats;
 	size_t num_capture_formats;
 	const struct mtk_video_fmt *output_formats;
 	size_t num_output_formats;
+	int core_id;
 };
 
 #define MTK_ENC_CTX_IS_EXT(ctx) ((ctx)->dev->venc_pdata->uses_ext)
@@ -348,10 +349,12 @@ struct mtk_vcodec_enc_pdata {
  * @curr_ctx: The context that is waiting for codec hardware
  *
  * @reg_base: Mapped address of MTK Vcodec registers.
+ * @venc_pdata: encoder IC-specific data
  *
  * @fw_handler: used to communicate with the firmware.
  * @id_counter: used to identify current opened instance
  *
+ * @decode_workqueue: decode work queue
  * @encode_workqueue: encode work queue
  *
  * @int_cond: used to identify interrupt condition happen
@@ -361,7 +364,6 @@ struct mtk_vcodec_enc_pdata {
  *
  * @dec_irq: decoder irq resource
  * @enc_irq: h264 encoder irq resource
- * @enc_lt_irq: vp8 encoder irq resource
  *
  * @dec_mutex: decoder hardware lock
  * @enc_mutex: encoder hardware lock.
@@ -397,7 +399,6 @@ struct mtk_vcodec_dev {
 
 	int dec_irq;
 	int enc_irq;
-	int enc_lt_irq;
 
 	struct mutex dec_mutex;
 	struct mutex enc_mutex;

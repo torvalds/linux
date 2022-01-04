@@ -2376,8 +2376,6 @@ static int dsi_sync_vc(struct platform_device *dsidev, int channel)
 
 	WARN_ON(!dsi_bus_is_locked(dsidev));
 
-	WARN_ON(in_interrupt());
-
 	if (!dsi_vc_is_enabled(dsidev, channel))
 		return 0;
 

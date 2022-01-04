@@ -22,6 +22,7 @@ enum {
 	__TCA_ACT_MAX
 };
 
+/* See other TCA_ACT_FLAGS_ * flags in include/net/act_api.h. */
 #define TCA_ACT_FLAGS_NO_PERCPU_STATS 1 /* Don't use percpu allocator for
 					 * actions stats.
 					 */
@@ -190,6 +191,8 @@ enum {
 	TCA_POLICE_PAD,
 	TCA_POLICE_RATE64,
 	TCA_POLICE_PEAKRATE64,
+	TCA_POLICE_PKTRATE64,
+	TCA_POLICE_PKTBURST64,
 	__TCA_POLICE_MAX
 #define TCA_POLICE_RESULT TCA_POLICE_RESULT
 };

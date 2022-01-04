@@ -517,10 +517,11 @@ enum fc_host_event_code  {
  * managed by the transport w/o driver interaction.
  */
 
+#define FC_VENDOR_IDENTIFIER		8
 #define FC_FC4_LIST_SIZE		32
 #define FC_SYMBOLIC_NAME_SIZE		256
 #define FC_VERSION_STRING_SIZE		64
-#define FC_SERIAL_NUMBER_SIZE		80
+#define FC_SERIAL_NUMBER_SIZE		64
 
 struct fc_host_attrs {
 	/* Fixed Attributes */
@@ -532,6 +533,10 @@ struct fc_host_attrs {
 	u32 supported_speeds;
 	u32 maxframe_size;
 	u16 max_npiv_vports;
+	u32 max_ct_payload;
+	u32 num_ports;
+	u32 num_discovered_ports;
+	u32 bootbios_state;
 	char serial_number[FC_SERIAL_NUMBER_SIZE];
 	char manufacturer[FC_SERIAL_NUMBER_SIZE];
 	char model[FC_SYMBOLIC_NAME_SIZE];
@@ -540,6 +545,9 @@ struct fc_host_attrs {
 	char driver_version[FC_VERSION_STRING_SIZE];
 	char firmware_version[FC_VERSION_STRING_SIZE];
 	char optionrom_version[FC_VERSION_STRING_SIZE];
+	char vendor_identifier[FC_VENDOR_IDENTIFIER];
+	char bootbios_version[FC_SYMBOLIC_NAME_SIZE];
+
 
 	/* Dynamic Attributes */
 	u32 port_id;
@@ -573,6 +581,9 @@ struct fc_host_attrs {
 
 	/* bsg support */
 	struct request_queue *rqst_q;
+
+	/* FDMI support version*/
+	u8 fdmi_version;
 };
 
 #define shost_to_fc_host(x) \
@@ -652,6 +663,18 @@ struct fc_host_attrs {
 	(((struct fc_host_attrs *)(x)->shost_data)->devloss_work_q)
 #define fc_host_dev_loss_tmo(x) \
 	(((struct fc_host_attrs *)(x)->shost_data)->dev_loss_tmo)
+#define fc_host_max_ct_payload(x)  \
+	(((struct fc_host_attrs *)(x)->shost_data)->max_ct_payload)
+#define fc_host_vendor_identifier(x)  \
+	(((struct fc_host_attrs *)(x)->shost_data)->vendor_identifier)
+#define fc_host_num_discovered_ports(x)  \
+	(((struct fc_host_attrs *)(x)->shost_data)->num_discovered_ports)
+#define fc_host_num_ports(x)  \
+	(((struct fc_host_attrs *)(x)->shost_data)->num_ports)
+#define fc_host_bootbios_version(x)  \
+	(((struct fc_host_attrs *)(x)->shost_data)->bootbios_version)
+#define fc_host_bootbios_state(x)  \
+	(((struct fc_host_attrs *)(x)->shost_data)->bootbios_state)
 
 /* The functions by which the transport class and the driver communicate */
 struct fc_function_template {

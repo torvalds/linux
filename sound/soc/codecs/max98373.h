@@ -195,6 +195,9 @@
 #define MAX98373_LIMITER_EN_SHIFT (0)
 
 /* MAX98373_R20FE_DEVICE_AUTO_RESTART_CFG */
+#define MAX98373_OVC_AUTORESTART_SHIFT (3)
+#define MAX98373_THERM_AUTORESTART_SHIFT (2)
+#define MAX98373_CMON_AUTORESTART_SHIFT (1)
 #define MAX98373_CLOCK_MON_SHIFT (0)
 
 /* MAX98373_R20FF_GLOBAL_SHDN */
@@ -223,7 +226,7 @@ struct max98373_priv {
 	/* variables to support soundwire */
 	struct sdw_slave *slave;
 	bool hw_init;
-	bool pm_init_once;
+	bool first_hw_init;
 	int slot;
 	unsigned int rx_mask;
 };

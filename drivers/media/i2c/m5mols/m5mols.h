@@ -50,6 +50,7 @@ struct m5mols_resolution {
  * @exposure_time: exposure time register value
  * @shutter_speed: speed of the shutter register value
  * @aperture: aperture register value
+ * @brightness: brightness register value
  * @exposure_bias: it calls also EV bias
  * @iso_speed: ISO register value
  * @flash: status register value of the flash
@@ -126,6 +127,8 @@ struct m5mols_scenemode {
 	u8 wdr;
 };
 
+#define VERSION_STRING_SIZE	22
+
 /**
  * struct m5mols_version - firmware version information
  * @customer:	customer information
@@ -144,7 +147,6 @@ struct m5mols_scenemode {
  * about manufacturer and the vendor of the sensor's packaging. The least
  * significant 2 bytes of the string indicate packaging manufacturer.
  */
-#define VERSION_STRING_SIZE	22
 struct m5mols_version {
 	u8	customer;
 	u8	project;

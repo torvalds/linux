@@ -113,13 +113,6 @@
 
 static void svc_rdma_wc_send(struct ib_cq *cq, struct ib_wc *wc);
 
-static inline struct svc_rdma_send_ctxt *
-svc_rdma_next_send_ctxt(struct list_head *list)
-{
-	return list_first_entry_or_null(list, struct svc_rdma_send_ctxt,
-					sc_list);
-}
-
 static void svc_rdma_send_cid_init(struct svcxprt_rdma *rdma,
 				   struct rpc_rdma_cid *cid)
 {
@@ -182,9 +175,10 @@ fail0:
 void svc_rdma_send_ctxts_destroy(struct svcxprt_rdma *rdma)
 {
 	struct svc_rdma_send_ctxt *ctxt;
+	struct llist_node *node;
 
-	while ((ctxt = svc_rdma_next_send_ctxt(&rdma->sc_send_ctxts))) {
-		list_del(&ctxt->sc_list);
+	while ((node = llist_del_first(&rdma->sc_send_ctxts)) != NULL) {
+		ctxt = llist_entry(node, struct svc_rdma_send_ctxt, sc_node);
 		ib_dma_unmap_single(rdma->sc_pd->device,
 				    ctxt->sc_sges[0].addr,
 				    rdma->sc_max_req_size,
@@ -204,12 +198,13 @@ void svc_rdma_send_ctxts_destroy(struct svcxprt_rdma *rdma)
 struct svc_rdma_send_ctxt *svc_rdma_send_ctxt_get(struct svcxprt_rdma *rdma)
 {
 	struct svc_rdma_send_ctxt *ctxt;
+	struct llist_node *node;
 
 	spin_lock(&rdma->sc_send_lock);
-	ctxt = svc_rdma_next_send_ctxt(&rdma->sc_send_ctxts);
-	if (!ctxt)
+	node = llist_del_first(&rdma->sc_send_ctxts);
+	if (!node)
 		goto out_empty;
-	list_del(&ctxt->sc_list);
+	ctxt = llist_entry(node, struct svc_rdma_send_ctxt, sc_node);
 	spin_unlock(&rdma->sc_send_lock);
 
 out:
@@ -253,9 +248,21 @@ void svc_rdma_send_ctxt_put(struct svcxprt_rdma *rdma,
 					     ctxt->sc_sges[i].length);
 	}
 
-	spin_lock(&rdma->sc_send_lock);
-	list_add(&ctxt->sc_list, &rdma->sc_send_ctxts);
-	spin_unlock(&rdma->sc_send_lock);
+	llist_add(&ctxt->sc_node, &rdma->sc_send_ctxts);
+}
+
+/**
+ * svc_rdma_wake_send_waiters - manage Send Queue accounting
+ * @rdma: controlling transport
+ * @avail: Number of additional SQEs that are now available
+ *
+ */
+void svc_rdma_wake_send_waiters(struct svcxprt_rdma *rdma, int avail)
+{
+	atomic_add(avail, &rdma->sc_sq_avail);
+	smp_mb__after_atomic();
+	if (unlikely(waitqueue_active(&rdma->sc_send_wait)))
+		wake_up(&rdma->sc_send_wait);
 }
 
 /**
@@ -275,10 +282,8 @@ static void svc_rdma_wc_send(struct ib_cq *cq, struct ib_wc *wc)
 
 	trace_svcrdma_wc_send(wc, &ctxt->sc_cid);
 
+	svc_rdma_wake_send_waiters(rdma, 1);
 	complete(&ctxt->sc_done);
-
-	atomic_inc(&rdma->sc_sq_avail);
-	wake_up(&rdma->sc_send_wait);
 
 	if (unlikely(wc->status != IB_WC_SUCCESS))
 		svc_xprt_deferred_close(&rdma->sc_xprt);
@@ -921,42 +926,48 @@ int svc_rdma_sendto(struct svc_rqst *rqstp)
 	struct svc_rdma_recv_ctxt *rctxt = rqstp->rq_xprt_ctxt;
 	__be32 *rdma_argp = rctxt->rc_recv_buf;
 	struct svc_rdma_send_ctxt *sctxt;
+	unsigned int rc_size;
 	__be32 *p;
 	int ret;
 
 	ret = -ENOTCONN;
 	if (svc_xprt_is_dead(xprt))
-		goto err0;
+		goto drop_connection;
 
 	ret = -ENOMEM;
 	sctxt = svc_rdma_send_ctxt_get(rdma);
 	if (!sctxt)
-		goto err0;
+		goto drop_connection;
 
+	ret = -EMSGSIZE;
 	p = xdr_reserve_space(&sctxt->sc_stream,
 			      rpcrdma_fixed_maxsz * sizeof(*p));
 	if (!p)
-		goto err0;
+		goto put_ctxt;
 
 	ret = svc_rdma_send_reply_chunk(rdma, rctxt, &rqstp->rq_res);
 	if (ret < 0)
-		goto err2;
+		goto reply_chunk;
+	rc_size = ret;
 
 	*p++ = *rdma_argp;
 	*p++ = *(rdma_argp + 1);
 	*p++ = rdma->sc_fc_credits;
 	*p = pcl_is_empty(&rctxt->rc_reply_pcl) ? rdma_msg : rdma_nomsg;
 
-	if (svc_rdma_encode_read_list(sctxt) < 0)
-		goto err0;
-	if (svc_rdma_encode_write_list(rctxt, sctxt) < 0)
-		goto err0;
-	if (svc_rdma_encode_reply_chunk(rctxt, sctxt, ret) < 0)
-		goto err0;
+	ret = svc_rdma_encode_read_list(sctxt);
+	if (ret < 0)
+		goto put_ctxt;
+	ret = svc_rdma_encode_write_list(rctxt, sctxt);
+	if (ret < 0)
+		goto put_ctxt;
+	ret = svc_rdma_encode_reply_chunk(rctxt, sctxt, rc_size);
+	if (ret < 0)
+		goto put_ctxt;
 
 	ret = svc_rdma_send_reply_msg(rdma, sctxt, rctxt, rqstp);
 	if (ret < 0)
-		goto err1;
+		goto put_ctxt;
 
 	/* Prevent svc_xprt_release() from releasing the page backing
 	 * rq_res.head[0].iov_base. It's no longer being accessed by
@@ -964,16 +975,16 @@ int svc_rdma_sendto(struct svc_rqst *rqstp)
 	rqstp->rq_respages++;
 	return 0;
 
- err2:
+reply_chunk:
 	if (ret != -E2BIG && ret != -EINVAL)
-		goto err1;
+		goto put_ctxt;
 
 	svc_rdma_send_error_msg(rdma, sctxt, rctxt, ret);
 	return 0;
 
- err1:
+put_ctxt:
 	svc_rdma_send_ctxt_put(rdma, sctxt);
- err0:
+drop_connection:
 	trace_svcrdma_send_err(rqstp, ret);
 	svc_xprt_deferred_close(&rdma->sc_xprt);
 	return -ENOTCONN;

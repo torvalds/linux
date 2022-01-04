@@ -48,6 +48,7 @@
  * @hw_submitted: List of command buffers submitted to hardware.
  * @preempted: List of preempted command buffers.
  * @num_hw_submitted: Number of buffers currently being processed by hardware
+ * @block_submission: Identifies a block command submission.
  */
 struct vmw_cmdbuf_context {
 	struct list_head submitted;
@@ -58,7 +59,7 @@ struct vmw_cmdbuf_context {
 };
 
 /**
- * struct vmw_cmdbuf_man: - Command buffer manager
+ * struct vmw_cmdbuf_man - Command buffer manager
  *
  * @cur_mutex: Mutex protecting the command buffer used for incremental small
  * kernel command submissions, @cur.
@@ -88,7 +89,7 @@ struct vmw_cmdbuf_context {
  * @max_hw_submitted: Max number of in-flight command buffers the device can
  * handle. Immutable.
  * @lock: Spinlock protecting command submission queues.
- * @header: Pool of DMA memory for device command buffer headers.
+ * @headers: Pool of DMA memory for device command buffer headers.
  * Internal protection.
  * @dheaders: Pool of DMA memory for device command buffer headers with trailing
  * space for inline data. Internal protection.
@@ -143,7 +144,7 @@ struct vmw_cmdbuf_man {
  * @cb_context: The device command buffer context.
  * @list: List head for attaching to the manager lists.
  * @node: The range manager node.
- * @handle. The DMA address of @cb_header. Handed to the device on command
+ * @handle: The DMA address of @cb_header. Handed to the device on command
  * buffer submission.
  * @cmd: Pointer to the command buffer space of this buffer.
  * @size: Size of the command buffer space of this buffer.
@@ -249,7 +250,7 @@ static void vmw_cmdbuf_header_inline_free(struct vmw_cmdbuf_header *header)
  * __vmw_cmdbuf_header_free - Free a struct vmw_cmdbuf_header  and its
  * associated structures.
  *
- * header: Pointer to the header to free.
+ * @header: Pointer to the header to free.
  *
  * For internal use. Must be called with man::lock held.
  */
@@ -294,7 +295,7 @@ void vmw_cmdbuf_header_free(struct vmw_cmdbuf_header *header)
 
 
 /**
- * vmw_cmbuf_header_submit: Submit a command buffer to hardware.
+ * vmw_cmdbuf_header_submit: Submit a command buffer to hardware.
  *
  * @header: The header of the buffer to submit.
  */
@@ -357,18 +358,18 @@ static void vmw_cmdbuf_ctx_submit(struct vmw_cmdbuf_man *man,
 			break;
 		}
 
-		list_del(&entry->list);
-		list_add_tail(&entry->list, &ctx->hw_submitted);
+		list_move_tail(&entry->list, &ctx->hw_submitted);
 		ctx->num_hw_submitted++;
 	}
 
 }
 
 /**
- * vmw_cmdbuf_ctx_submit: Process a command buffer context.
+ * vmw_cmdbuf_ctx_process - Process a command buffer context.
  *
  * @man: The command buffer manager.
  * @ctx: The command buffer context.
+ * @notempty: Pass back count of non-empty command submitted lists.
  *
  * Submit command buffers to hardware if possible, and process finished
  * buffers. Typically freeing them, but on preemption or error take
@@ -514,7 +515,7 @@ static void vmw_cmdbuf_work_func(struct work_struct *work)
 	struct vmw_cmdbuf_man *man =
 		container_of(work, struct vmw_cmdbuf_man, work);
 	struct vmw_cmdbuf_header *entry, *next;
-	uint32_t dummy;
+	uint32_t dummy = 0;
 	bool send_fence = false;
 	struct list_head restart_head[SVGA_CB_CONTEXT_MAX];
 	int i;
@@ -618,7 +619,7 @@ static void vmw_cmdbuf_work_func(struct work_struct *work)
 }
 
 /**
- * vmw_cmdbuf_man idle - Check whether the command buffer manager is idle.
+ * vmw_cmdbuf_man_idle - Check whether the command buffer manager is idle.
  *
  * @man: The command buffer manager.
  * @check_preempted: Check also the preempted queue for pending command buffers.
@@ -800,7 +801,7 @@ static int vmw_cmdbuf_alloc_space(struct vmw_cmdbuf_man *man,
 {
 	struct vmw_cmdbuf_alloc_info info;
 
-	info.page_size = PAGE_ALIGN(size) >> PAGE_SHIFT;
+	info.page_size = PFN_UP(size);
 	info.node = node;
 	info.done = false;
 
@@ -887,7 +888,7 @@ static int vmw_cmdbuf_space_pool(struct vmw_cmdbuf_man *man,
 	header->cmd = man->map + offset;
 	if (man->using_mob) {
 		cb_hdr->flags = SVGA_CB_FLAG_MOB;
-		cb_hdr->ptr.mob.mobid = man->cmd_space->mem.start;
+		cb_hdr->ptr.mob.mobid = man->cmd_space->resource->start;
 		cb_hdr->ptr.mob.mobOffset = offset;
 	} else {
 		cb_hdr->ptr.pa = (u64)man->handle + (u64)offset;
@@ -1161,6 +1162,7 @@ static int vmw_cmdbuf_send_device_command(struct vmw_cmdbuf_man *man,
  * context.
  *
  * @man: The command buffer manager.
+ * @context: Device context to pass command through.
  *
  * Synchronously sends a preempt command.
  */
@@ -1184,6 +1186,7 @@ static int vmw_cmdbuf_preempt(struct vmw_cmdbuf_man *man, u32 context)
  * context.
  *
  * @man: The command buffer manager.
+ * @context: Device context to start/stop.
  * @enable: Whether to enable or disable the context.
  *
  * Synchronously sends a device start / stop context command.
@@ -1268,7 +1271,8 @@ int vmw_cmdbuf_set_pool_size(struct vmw_cmdbuf_man *man, size_t size)
 	 * submissions to be able to free up space.
 	 */
 	man->default_size = VMW_CMDBUF_INLINE_SIZE;
-	DRM_INFO("Using command buffers with %s pool.\n",
+	drm_info(&dev_priv->drm,
+		 "Using command buffers with %s pool.\n",
 		 (man->using_mob) ? "MOB" : "DMA");
 
 	return 0;

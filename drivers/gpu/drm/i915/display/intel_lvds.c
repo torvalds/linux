@@ -41,6 +41,7 @@
 #include "i915_drv.h"
 #include "intel_atomic.h"
 #include "intel_connector.h"
+#include "intel_de.h"
 #include "intel_display_types.h"
 #include "intel_gmbus.h"
 #include "intel_lvds.h"
@@ -136,12 +137,12 @@ static void intel_lvds_get_config(struct intel_encoder *encoder,
 
 	pipe_config->hw.adjusted_mode.flags |= flags;
 
-	if (INTEL_GEN(dev_priv) < 5)
+	if (DISPLAY_VER(dev_priv) < 5)
 		pipe_config->gmch_pfit.lvds_border_bits =
 			tmp & LVDS_BORDER_ENABLE;
 
 	/* gen2/3 store dither state in pfit control, needs to match */
-	if (INTEL_GEN(dev_priv) < 4) {
+	if (DISPLAY_VER(dev_priv) < 4) {
 		tmp = intel_de_read(dev_priv, PFIT_CONTROL);
 
 		pipe_config->gmch_pfit.control |= tmp & PANEL_8TO6_DITHER_ENABLE;
@@ -179,7 +180,7 @@ static void intel_lvds_pps_get_hw_state(struct drm_i915_private *dev_priv,
 	/* Convert from 100ms to 100us units */
 	pps->t4 = val * 1000;
 
-	if (INTEL_GEN(dev_priv) <= 4 &&
+	if (DISPLAY_VER(dev_priv) <= 4 &&
 	    pps->t1_t2 == 0 && pps->t5 == 0 && pps->t3 == 0 && pps->tx == 0) {
 		drm_dbg_kms(&dev_priv->drm,
 			    "Panel power timings uninitialized, "
@@ -280,7 +281,7 @@ static void intel_pre_enable_lvds(struct intel_atomic_state *state,
 	 * special lvds dither control bit on pch-split platforms, dithering is
 	 * only controlled through the PIPECONF reg.
 	 */
-	if (IS_GEN(dev_priv, 4)) {
+	if (DISPLAY_VER(dev_priv) == 4) {
 		/*
 		 * Bspec wording suggests that LVDS port dithering only exists
 		 * for 18bpp panels.
@@ -410,12 +411,12 @@ static int intel_lvds_compute_config(struct intel_encoder *intel_encoder,
 	struct intel_connector *intel_connector =
 		lvds_encoder->attached_connector;
 	struct drm_display_mode *adjusted_mode = &pipe_config->hw.adjusted_mode;
-	struct intel_crtc *intel_crtc = to_intel_crtc(pipe_config->uapi.crtc);
+	struct intel_crtc *crtc = to_intel_crtc(pipe_config->uapi.crtc);
 	unsigned int lvds_bpp;
 	int ret;
 
 	/* Should never happen!! */
-	if (INTEL_GEN(dev_priv) < 4 && intel_crtc->pipe == 0) {
+	if (DISPLAY_VER(dev_priv) < 4 && crtc->pipe == 0) {
 		drm_err(&dev_priv->drm, "Can't support LVDS on pipe A\n");
 		return -EINVAL;
 	}
@@ -915,7 +916,7 @@ void intel_lvds_init(struct drm_i915_private *dev_priv)
 	intel_encoder->power_domain = POWER_DOMAIN_PORT_OTHER;
 	intel_encoder->port = PORT_NONE;
 	intel_encoder->cloneable = 0;
-	if (INTEL_GEN(dev_priv) < 4)
+	if (DISPLAY_VER(dev_priv) < 4)
 		intel_encoder->pipe_mask = BIT(PIPE_B);
 	else
 		intel_encoder->pipe_mask = ~0;

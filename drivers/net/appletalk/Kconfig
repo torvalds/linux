@@ -52,7 +52,9 @@ config LTPC
 
 config COPS
 	tristate "COPS LocalTalk PC support"
-	depends on DEV_APPLETALK && (ISA || EISA)
+	depends on DEV_APPLETALK && ISA
+	depends on NETDEVICES
+	select NETDEV_LEGACY_INIT
 	help
 	  This allows you to use COPS AppleTalk cards to connect to LocalTalk
 	  networks. You also need version 1.3.3 or later of the netatalk

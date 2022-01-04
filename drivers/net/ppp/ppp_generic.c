@@ -284,7 +284,7 @@ static struct channel *ppp_find_channel(struct ppp_net *pn, int unit);
 static int ppp_connect_channel(struct channel *pch, int unit);
 static int ppp_disconnect_channel(struct channel *pch);
 static void ppp_destroy_channel(struct channel *pch);
-static int unit_get(struct idr *p, void *ptr);
+static int unit_get(struct idr *p, void *ptr, int min);
 static int unit_set(struct idr *p, void *ptr, int n);
 static void unit_put(struct idr *p, int n);
 static void *unit_find(struct idr *p, int n);
@@ -1155,9 +1155,20 @@ static int ppp_unit_register(struct ppp *ppp, int unit, bool ifname_is_set)
 	mutex_lock(&pn->all_ppp_mutex);
 
 	if (unit < 0) {
-		ret = unit_get(&pn->units_idr, ppp);
+		ret = unit_get(&pn->units_idr, ppp, 0);
 		if (ret < 0)
 			goto err;
+		if (!ifname_is_set) {
+			while (1) {
+				snprintf(ppp->dev->name, IFNAMSIZ, "ppp%i", ret);
+				if (!__dev_get_by_name(ppp->ppp_net, ppp->dev->name))
+					break;
+				unit_put(&pn->units_idr, ret);
+				ret = unit_get(&pn->units_idr, ppp, ret + 1);
+				if (ret < 0)
+					goto err;
+			}
+		}
 	} else {
 		/* Caller asked for a specific unit number. Fail with -EEXIST
 		 * if unavailable. For backward compatibility, return -EEXIST
@@ -1306,7 +1317,7 @@ static int ppp_nl_newlink(struct net *src_net, struct net_device *dev,
 	 * the PPP unit identifer as suffix (i.e. ppp<unit_id>). This allows
 	 * userspace to infer the device name using to the PPPIOCGUNIT ioctl.
 	 */
-	if (!tb[IFLA_IFNAME])
+	if (!tb[IFLA_IFNAME] || !nla_len(tb[IFLA_IFNAME]) || !*(char *)nla_data(tb[IFLA_IFNAME]))
 		conf.ifname_is_set = false;
 
 	err = ppp_dev_configure(src_net, dev, &conf);
@@ -1452,11 +1463,11 @@ ppp_start_xmit(struct sk_buff *skb, struct net_device *dev)
 }
 
 static int
-ppp_net_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
+ppp_net_siocdevprivate(struct net_device *dev, struct ifreq *ifr,
+		       void __user *addr, int cmd)
 {
 	struct ppp *ppp = netdev_priv(dev);
 	int err = -EFAULT;
-	void __user *addr = (void __user *) ifr->ifr_ifru.ifru_data;
 	struct ppp_stats stats;
 	struct ppp_comp_stats cstats;
 	char *vers;
@@ -1560,12 +1571,34 @@ static void ppp_dev_priv_destructor(struct net_device *dev)
 		ppp_destroy_interface(ppp);
 }
 
+static int ppp_fill_forward_path(struct net_device_path_ctx *ctx,
+				 struct net_device_path *path)
+{
+	struct ppp *ppp = netdev_priv(ctx->dev);
+	struct ppp_channel *chan;
+	struct channel *pch;
+
+	if (ppp->flags & SC_MULTILINK)
+		return -EOPNOTSUPP;
+
+	if (list_empty(&ppp->channels))
+		return -ENODEV;
+
+	pch = list_first_entry(&ppp->channels, struct channel, clist);
+	chan = pch->chan;
+	if (!chan->ops->fill_forward_path)
+		return -EOPNOTSUPP;
+
+	return chan->ops->fill_forward_path(ctx, path, chan);
+}
+
 static const struct net_device_ops ppp_netdev_ops = {
 	.ndo_init	 = ppp_dev_init,
 	.ndo_uninit      = ppp_dev_uninit,
 	.ndo_start_xmit  = ppp_start_xmit,
-	.ndo_do_ioctl    = ppp_net_ioctl,
+	.ndo_siocdevprivate = ppp_net_siocdevprivate,
 	.ndo_get_stats64 = ppp_get_stats64,
+	.ndo_fill_forward_path = ppp_fill_forward_path,
 };
 
 static struct device_type ppp_type = {
@@ -1711,7 +1744,7 @@ ppp_send_frame(struct ppp *ppp, struct sk_buff *skb)
 		   a four-byte PPP header on each packet */
 		*(u8 *)skb_push(skb, 2) = 1;
 		if (ppp->pass_filter &&
-		    BPF_PROG_RUN(ppp->pass_filter, skb) == 0) {
+		    bpf_prog_run(ppp->pass_filter, skb) == 0) {
 			if (ppp->debug & 1)
 				netdev_printk(KERN_DEBUG, ppp->dev,
 					      "PPP: outbound frame "
@@ -1721,7 +1754,7 @@ ppp_send_frame(struct ppp *ppp, struct sk_buff *skb)
 		}
 		/* if this packet passes the active filter, record the time */
 		if (!(ppp->active_filter &&
-		      BPF_PROG_RUN(ppp->active_filter, skb) == 0))
+		      bpf_prog_run(ppp->active_filter, skb) == 0))
 			ppp->last_xmit = jiffies;
 		skb_pull(skb, 2);
 #else
@@ -2435,7 +2468,7 @@ ppp_receive_nonmp_frame(struct ppp *ppp, struct sk_buff *skb)
 
 			*(u8 *)skb_push(skb, 2) = 0;
 			if (ppp->pass_filter &&
-			    BPF_PROG_RUN(ppp->pass_filter, skb) == 0) {
+			    bpf_prog_run(ppp->pass_filter, skb) == 0) {
 				if (ppp->debug & 1)
 					netdev_printk(KERN_DEBUG, ppp->dev,
 						      "PPP: inbound frame "
@@ -2444,7 +2477,7 @@ ppp_receive_nonmp_frame(struct ppp *ppp, struct sk_buff *skb)
 				return;
 			}
 			if (!(ppp->active_filter &&
-			      BPF_PROG_RUN(ppp->active_filter, skb) == 0))
+			      bpf_prog_run(ppp->active_filter, skb) == 0))
 				ppp->last_recv = jiffies;
 			__skb_pull(skb, 2);
 		} else
@@ -3530,9 +3563,9 @@ static int unit_set(struct idr *p, void *ptr, int n)
 }
 
 /* get new free unit number and associate pointer with it */
-static int unit_get(struct idr *p, void *ptr)
+static int unit_get(struct idr *p, void *ptr, int min)
 {
-	return idr_alloc(p, ptr, 0, 0, GFP_KERNEL);
+	return idr_alloc(p, ptr, min, 0, GFP_KERNEL);
 }
 
 /* put unit number back to a pool */

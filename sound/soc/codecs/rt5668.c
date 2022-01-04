@@ -1171,7 +1171,7 @@ static int set_dmic_clk(struct snd_soc_dapm_widget *w,
 	struct snd_soc_component *component =
 		snd_soc_dapm_to_component(w->dapm);
 	struct rt5668_priv *rt5668 = snd_soc_component_get_drvdata(component);
-	int idx = -EINVAL;
+	int idx;
 	static const int div[] = {2, 4, 6, 8, 12, 16, 24, 32, 48, 64, 96, 128};
 
 	idx = rt5668_div_sel(rt5668, 1500000, div, ARRAY_SIZE(div));
@@ -1188,7 +1188,7 @@ static int set_filter_clk(struct snd_soc_dapm_widget *w,
 	struct snd_soc_component *component =
 		snd_soc_dapm_to_component(w->dapm);
 	struct rt5668_priv *rt5668 = snd_soc_component_get_drvdata(component);
-	int ref, val, reg, idx = -EINVAL;
+	int ref, val, reg, idx;
 	static const int div[] = {1, 2, 3, 4, 6, 8, 12, 16, 24, 32, 48};
 
 	val = snd_soc_component_read(component, RT5668_GPIO_CTRL_1) &
@@ -2182,8 +2182,8 @@ static int rt5668_set_component_pll(struct snd_soc_component *component,
 	snd_soc_component_write(component, RT5668_PLL_CTRL_1,
 		pll_code.n_code << RT5668_PLL_N_SFT | pll_code.k_code);
 	snd_soc_component_write(component, RT5668_PLL_CTRL_2,
-		(pll_code.m_bp ? 0 : pll_code.m_code) << RT5668_PLL_M_SFT |
-		pll_code.m_bp << RT5668_PLL_M_BP_SFT);
+		((pll_code.m_bp ? 0 : pll_code.m_code) << RT5668_PLL_M_SFT) |
+		(pll_code.m_bp << RT5668_PLL_M_BP_SFT));
 
 	rt5668->pll_in = freq_in;
 	rt5668->pll_out = freq_out;

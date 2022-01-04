@@ -488,8 +488,10 @@ static int fimc_md_parse_port_node(struct fimc_md *fmd,
 
 	for_each_child_of_node(port, ep) {
 		ret = fimc_md_parse_one_endpoint(fmd, ep);
-		if (ret < 0)
+		if (ret < 0) {
+			of_node_put(ep);
 			return ret;
+		}
 	}
 
 	return 0;
@@ -510,11 +512,9 @@ static int fimc_md_register_sensor_entities(struct fimc_md *fmd)
 	if (!fmd->pmf)
 		return -ENXIO;
 
-	ret = pm_runtime_get_sync(fmd->pmf);
-	if (ret < 0) {
-		pm_runtime_put(fmd->pmf);
+	ret = pm_runtime_resume_and_get(fmd->pmf);
+	if (ret < 0)
 		return ret;
-	}
 
 	fmd->num_sensors = 0;
 
@@ -806,7 +806,7 @@ static void fimc_md_unregister_entities(struct fimc_md *fmd)
 }
 
 /**
- * __fimc_md_create_fimc_links - create links to all FIMC entities
+ * __fimc_md_create_fimc_sink_links - create links to all FIMC entities
  * @fmd: fimc media device
  * @source: the source entity to create links to all fimc entities from
  * @sensor: sensor subdev linked to FIMC[fimc_id] entity, may be null
@@ -1238,8 +1238,8 @@ static const struct media_device_ops fimc_md_ops = {
 	.link_notify = fimc_md_link_notify,
 };
 
-static ssize_t fimc_md_sysfs_show(struct device *dev,
-				  struct device_attribute *attr, char *buf)
+static ssize_t subdev_conf_mode_show(struct device *dev,
+				     struct device_attribute *attr, char *buf)
 {
 	struct fimc_md *fmd = dev_get_drvdata(dev);
 
@@ -1249,9 +1249,9 @@ static ssize_t fimc_md_sysfs_show(struct device *dev,
 	return strscpy(buf, "V4L2 video node only API (vid-dev)\n", PAGE_SIZE);
 }
 
-static ssize_t fimc_md_sysfs_store(struct device *dev,
-				   struct device_attribute *attr,
-				   const char *buf, size_t count)
+static ssize_t subdev_conf_mode_store(struct device *dev,
+				      struct device_attribute *attr,
+				      const char *buf, size_t count)
 {
 	struct fimc_md *fmd = dev_get_drvdata(dev);
 	bool subdev_api;
@@ -1278,19 +1278,16 @@ static ssize_t fimc_md_sysfs_store(struct device *dev,
  *  sub-dev - for media controller API, subdevs must be configured in user
  *  space before starting streaming.
  */
-static DEVICE_ATTR(subdev_conf_mode, S_IWUSR | S_IRUGO,
-		   fimc_md_sysfs_show, fimc_md_sysfs_store);
+static DEVICE_ATTR_RW(subdev_conf_mode);
 
 static int cam_clk_prepare(struct clk_hw *hw)
 {
 	struct cam_clk *camclk = to_cam_clk(hw);
-	int ret;
 
 	if (camclk->fmd->pmf == NULL)
 		return -ENODEV;
 
-	ret = pm_runtime_get_sync(camclk->fmd->pmf);
-	return ret < 0 ? ret : 0;
+	return pm_runtime_resume_and_get(camclk->fmd->pmf);
 }
 
 static void cam_clk_unprepare(struct clk_hw *hw)

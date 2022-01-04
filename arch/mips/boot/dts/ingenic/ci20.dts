@@ -118,6 +118,20 @@
 	assigned-clock-rates = <48000000>;
 };
 
+&tcu {
+	/*
+	 * 750 kHz for the system timers and clocksource,
+	 * use channel #0 and #1 for the per cpu system timers,
+	 * and use channel #2 for the clocksource.
+	 *
+	 * 3000 kHz for the OST timer to provide a higher
+	 * precision clocksource.
+	 */
+	assigned-clocks = <&tcu TCU_CLK_TIMER0>, <&tcu TCU_CLK_TIMER1>,
+					  <&tcu TCU_CLK_TIMER2>, <&tcu TCU_CLK_OST>;
+	assigned-clock-rates = <750000>, <750000>, <750000>, <3000000>;
+};
+
 &mmc0 {
 	status = "okay";
 
@@ -521,14 +535,4 @@
 		groups = "mmc1-1bit-d", "mmc1-4bit-d";
 		bias-disable;
 	};
-};
-
-&tcu {
-	/*
-	 * 750 kHz for the system timer and 3 MHz for the clocksource,
-	 * use channel #0 for the system timer, #1 for the clocksource.
-	 */
-	assigned-clocks = <&tcu TCU_CLK_TIMER0>, <&tcu TCU_CLK_TIMER1>,
-					  <&tcu TCU_CLK_OST>;
-	assigned-clock-rates = <750000>, <3000000>, <3000000>;
 };

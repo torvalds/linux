@@ -2558,13 +2558,9 @@ static u32 dpaa_run_xdp(struct dpaa_priv *priv, struct qm_fd *fd, void *vaddr,
 	u32 xdp_act;
 	int err;
 
-	rcu_read_lock();
-
 	xdp_prog = READ_ONCE(priv->xdp_prog);
-	if (!xdp_prog) {
-		rcu_read_unlock();
+	if (!xdp_prog)
 		return XDP_PASS;
-	}
 
 	xdp_init_buff(&xdp, DPAA_BP_RAW_SIZE - DPAA_TX_PRIV_DATA_SIZE,
 		      &dpaa_fq->xdp_rxq);
@@ -2637,8 +2633,6 @@ static u32 dpaa_run_xdp(struct dpaa_priv *priv, struct qm_fd *fd, void *vaddr,
 		free_pages((unsigned long)vaddr, 0);
 		break;
 	}
-
-	rcu_read_unlock();
 
 	return xdp_act;
 }
@@ -3081,7 +3075,7 @@ static int dpaa_xdp_xmit(struct net_device *net_dev, int n,
 			 struct xdp_frame **frames, u32 flags)
 {
 	struct xdp_frame *xdpf;
-	int i, err, drops = 0;
+	int i, nxmit = 0;
 
 	if (unlikely(flags & ~XDP_XMIT_FLAGS_MASK))
 		return -EINVAL;
@@ -3091,14 +3085,12 @@ static int dpaa_xdp_xmit(struct net_device *net_dev, int n,
 
 	for (i = 0; i < n; i++) {
 		xdpf = frames[i];
-		err = dpaa_xdp_xmit_frame(net_dev, xdpf);
-		if (err) {
-			xdp_return_frame_rx_napi(xdpf);
-			drops++;
-		}
+		if (dpaa_xdp_xmit_frame(net_dev, xdpf))
+			break;
+		nxmit++;
 	}
 
-	return n - drops;
+	return nxmit;
 }
 
 static int dpaa_ts_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
@@ -3165,7 +3157,7 @@ static const struct net_device_ops dpaa_ops = {
 	.ndo_set_mac_address = dpaa_set_mac_address,
 	.ndo_validate_addr = eth_validate_addr,
 	.ndo_set_rx_mode = dpaa_set_rx_mode,
-	.ndo_do_ioctl = dpaa_ioctl,
+	.ndo_eth_ioctl = dpaa_ioctl,
 	.ndo_setup_tc = dpaa_setup_tc,
 	.ndo_change_mtu = dpaa_change_mtu,
 	.ndo_bpf = dpaa_xdp,

@@ -521,7 +521,7 @@ static int afe4403_probe(struct spi_device *spi)
 		afe->trig = devm_iio_trigger_alloc(afe->dev,
 						   "%s-dev%d",
 						   indio_dev->name,
-						   indio_dev->id);
+						   iio_device_id(indio_dev));
 		if (!afe->trig) {
 			dev_err(afe->dev, "Unable to allocate IIO trigger\n");
 			ret = -ENOMEM;

@@ -1032,12 +1032,13 @@ dbg_notify_reboot(struct notifier_block *this, unsigned long code, void *x)
 	/*
 	 * Take the following action on reboot notify depending on value:
 	 *    1 == Enter debugger
-	 *    0 == [the default] detatch debug client
+	 *    0 == [the default] detach debug client
 	 *   -1 == Do nothing... and use this until the board resets
 	 */
 	switch (kgdbreboot) {
 	case 1:
 		kgdb_breakpoint();
+		goto done;
 	case -1:
 		goto done;
 	}

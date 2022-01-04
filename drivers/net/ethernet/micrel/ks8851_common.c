@@ -193,11 +193,10 @@ static void ks8851_read_mac_addr(struct net_device *dev)
 static void ks8851_init_mac(struct ks8851_net *ks, struct device_node *np)
 {
 	struct net_device *dev = ks->netdev;
-	const u8 *mac_addr;
+	int ret;
 
-	mac_addr = of_get_mac_address(np);
-	if (!IS_ERR(mac_addr)) {
-		ether_addr_copy(dev->dev_addr, mac_addr);
+	ret = of_get_mac_address(np, dev->dev_addr);
+	if (!ret) {
 		ks8851_write_mac_addr(dev);
 		return;
 	}
@@ -690,7 +689,7 @@ static int ks8851_net_ioctl(struct net_device *dev, struct ifreq *req, int cmd)
 static const struct net_device_ops ks8851_netdev_ops = {
 	.ndo_open		= ks8851_net_open,
 	.ndo_stop		= ks8851_net_stop,
-	.ndo_do_ioctl		= ks8851_net_ioctl,
+	.ndo_eth_ioctl		= ks8851_net_ioctl,
 	.ndo_start_xmit		= ks8851_start_xmit,
 	.ndo_set_mac_address	= ks8851_set_mac_address,
 	.ndo_set_rx_mode	= ks8851_set_rx_mode,
@@ -1023,30 +1022,23 @@ static int ks8851_mdio_write(struct mii_bus *bus, int phy_id, int reg, u16 val)
  *
  * Read and check the TX/RX memory selftest information.
  */
-static int ks8851_read_selftest(struct ks8851_net *ks)
+static void ks8851_read_selftest(struct ks8851_net *ks)
 {
 	unsigned both_done = MBIR_TXMBF | MBIR_RXMBF;
-	int ret = 0;
 	unsigned rd;
 
 	rd = ks8851_rdreg16(ks, KS_MBIR);
 
 	if ((rd & both_done) != both_done) {
 		netdev_warn(ks->netdev, "Memory selftest not finished\n");
-		return 0;
+		return;
 	}
 
-	if (rd & MBIR_TXMBFA) {
+	if (rd & MBIR_TXMBFA)
 		netdev_err(ks->netdev, "TX memory selftest fail\n");
-		ret |= 1;
-	}
 
-	if (rd & MBIR_RXMBFA) {
+	if (rd & MBIR_RXMBFA)
 		netdev_err(ks->netdev, "RX memory selftest fail\n");
-		ret |= 2;
-	}
-
-	return 0;
 }
 
 /* driver bus management functions */

@@ -893,15 +893,13 @@ static struct synth_event *alloc_synth_event(const char *name, int n_fields,
 	dyn_event_init(&event->devent, &synth_event_ops);
 
 	for (i = 0, j = 0; i < n_fields; i++) {
+		fields[i]->field_pos = i;
 		event->fields[i] = fields[i];
 
-		if (fields[i]->is_dynamic) {
-			event->dynamic_fields[j] = fields[i];
-			event->dynamic_fields[j]->field_pos = i;
+		if (fields[i]->is_dynamic)
 			event->dynamic_fields[j++] = fields[i];
-			event->n_dynamic_fields++;
-		}
 	}
+	event->n_dynamic_fields = j;
 	event->n_fields = n_fields;
  out:
 	return event;
@@ -1385,7 +1383,7 @@ static int destroy_synth_event(struct synth_event *se)
 
 /**
  * synth_event_delete - Delete a synthetic event
- * @event_name: The name of the new sythetic event
+ * @event_name: The name of the new synthetic event
  *
  * Delete a synthetic event that was created with synth_event_create().
  *

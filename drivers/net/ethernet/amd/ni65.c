@@ -193,7 +193,7 @@ static struct card {
 		.vendor_id   = ni_vendor,
 		.cardname    = "ni6510",
 		.config	     = 0x1,
-       	},
+	},
 	{
 		.id0	     = NI65_EB_ID0,
 		.id1	     = NI65_EB_ID1,
@@ -204,7 +204,7 @@ static struct card {
 		.vendor_id   = ni_vendor,
 		.cardname    = "ni6510 EtherBlaster",
 		.config	     = 0x2,
-       	},
+	},
 	{
 		.id0	     = NE2100_ID0,
 		.id1	     = NE2100_ID1,
@@ -1230,18 +1230,20 @@ MODULE_PARM_DESC(irq, "ni6510 IRQ number (ignored for some cards)");
 MODULE_PARM_DESC(io, "ni6510 I/O base address");
 MODULE_PARM_DESC(dma, "ni6510 ISA DMA channel (ignored for some cards)");
 
-int __init init_module(void)
+static int __init ni65_init_module(void)
 {
- 	dev_ni65 = ni65_probe(-1);
+	dev_ni65 = ni65_probe(-1);
 	return PTR_ERR_OR_ZERO(dev_ni65);
 }
+module_init(ni65_init_module);
 
-void __exit cleanup_module(void)
+static void __exit ni65_cleanup_module(void)
 {
- 	unregister_netdev(dev_ni65);
- 	cleanup_card(dev_ni65);
- 	free_netdev(dev_ni65);
+	unregister_netdev(dev_ni65);
+	cleanup_card(dev_ni65);
+	free_netdev(dev_ni65);
 }
+module_exit(ni65_cleanup_module);
 #endif /* MODULE */
 
 MODULE_LICENSE("GPL");

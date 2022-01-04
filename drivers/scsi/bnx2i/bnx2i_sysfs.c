@@ -104,7 +104,7 @@ static ssize_t bnx2i_show_ccell_info(struct device *dev,
 
 
 /**
- * bnx2i_get_link_state - set command cell (HQ) size
+ * bnx2i_set_ccell_info - set command cell (HQ) size
  * @dev:	device pointer
  * @attr:	device attribute (unused)
  * @buf:	buffer to return current SQ size parameter

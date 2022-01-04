@@ -124,7 +124,7 @@
 #ifdef CONFIG_PPC_TRANSACTIONAL_MEM
 #define MSR_TM_ACTIVE(x) (((x) & MSR_TS_MASK) != 0) /* Transaction active? */
 #else
-#define MSR_TM_ACTIVE(x) 0
+#define MSR_TM_ACTIVE(x) ((void)(x), 0)
 #endif
 
 #if defined(CONFIG_PPC_BOOK3S_64)
@@ -393,6 +393,7 @@
 #define SPRN_PMMAR	0x356	/* Power Management Memory Activity Register */
 #define SPRN_PSSCR	0x357	/* Processor Stop Status and Control Register (ISA 3.0) */
 #define SPRN_PSSCR_PR	0x337	/* PSSCR ISA 3.0, privileged mode access */
+#define SPRN_TRIG2	0x372
 #define SPRN_PMCR	0x374	/* Power Management Control Register */
 #define SPRN_RWMR	0x375	/* Region-Weighting Mode Register */
 
@@ -441,6 +442,7 @@
 #define   LPCR_VRMA_LP1		ASM_CONST(0x0000800000000000)
 #define   LPCR_RMLS		0x1C000000	/* Implementation dependent RMO limit sel */
 #define   LPCR_RMLS_SH		26
+#define   LPCR_HAIL		ASM_CONST(0x0000000004000000)   /* HV AIL (ISAv3.1) */
 #define   LPCR_ILE		ASM_CONST(0x0000000002000000)   /* !HV irqs set MSR:LE */
 #define   LPCR_AIL		ASM_CONST(0x0000000001800000)	/* Alternate interrupt location */
 #define   LPCR_AIL_0		ASM_CONST(0x0000000000000000)	/* MMU off exception offset 0x0 */
@@ -1393,8 +1395,7 @@ static inline void mtmsr_isync(unsigned long val)
 				     : "r" ((unsigned long)(v)) \
 				     : "memory")
 #endif
-#define wrtspr(rn)	asm volatile("mtspr " __stringify(rn) ",0" : \
-				     : : "memory")
+#define wrtspr(rn)	asm volatile("mtspr " __stringify(rn) ",2" : : : "memory")
 
 static inline void wrtee(unsigned long val)
 {
@@ -1435,8 +1436,6 @@ static inline void mtsr(u32 val, u32 idx)
 }
 #endif
 
-#define proc_trap()	asm volatile("trap")
-
 extern unsigned long current_stack_frame(void);
 
 register unsigned long current_stack_pointer asm("r1");
@@ -1447,16 +1446,6 @@ extern void scom970_write(unsigned int address, unsigned long value);
 struct pt_regs;
 
 extern void ppc_save_regs(struct pt_regs *regs);
-
-static inline void update_power8_hid0(unsigned long hid0)
-{
-	/*
-	 *  The HID0 update on Power8 should at the very least be
-	 *  preceded by a SYNC instruction followed by an ISYNC
-	 *  instruction
-	 */
-	asm volatile("sync; mtspr %0,%1; isync":: "i"(SPRN_HID0), "r"(hid0));
-}
 #endif /* __ASSEMBLY__ */
 #endif /* __KERNEL__ */
 #endif /* _ASM_POWERPC_REG_H */

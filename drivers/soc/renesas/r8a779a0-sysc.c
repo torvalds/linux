@@ -404,19 +404,21 @@ static int __init r8a779a0_sysc_pd_init(void)
 	for (i = 0; i < info->num_areas; i++) {
 		const struct r8a779a0_sysc_area *area = &info->areas[i];
 		struct r8a779a0_sysc_pd *pd;
+		size_t n;
 
 		if (!area->name) {
 			/* Skip NULLified area */
 			continue;
 		}
 
-		pd = kzalloc(sizeof(*pd) + strlen(area->name) + 1, GFP_KERNEL);
+		n = strlen(area->name) + 1;
+		pd = kzalloc(sizeof(*pd) + n, GFP_KERNEL);
 		if (!pd) {
 			error = -ENOMEM;
 			goto out_put;
 		}
 
-		strcpy(pd->name, area->name);
+		memcpy(pd->name, area->name, n);
 		pd->genpd.name = pd->name;
 		pd->pdr = area->pdr;
 		pd->flags = area->flags;

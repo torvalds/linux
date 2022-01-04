@@ -180,7 +180,8 @@ static void vpeirq(struct tasklet_struct *t)
 	u32 count;
 
 	/* Ensure streamed PCI data is synced to CPU */
-	pci_dma_sync_sg_for_cpu(budget->dev->pci, budget->pt.slist, budget->pt.nents, PCI_DMA_FROMDEVICE);
+	dma_sync_sg_for_cpu(&budget->dev->pci->dev, budget->pt.slist,
+			    budget->pt.nents, DMA_FROM_DEVICE);
 
 	/* nearest lower position divisible by 188 */
 	newdma -= newdma % 188;

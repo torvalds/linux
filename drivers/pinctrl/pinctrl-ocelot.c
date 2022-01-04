@@ -1290,8 +1290,7 @@ static void ocelot_irq_handler(struct irq_desc *desc)
 
 		for_each_set_bit(irq, &irqs,
 				 min(32U, info->desc->npins - 32 * i))
-			generic_handle_irq(irq_linear_revmap(chip->irq.domain,
-							     irq + 32 * i));
+			generic_handle_domain_irq(chip->irq.domain, irq + 32 * i);
 
 		chained_irq_exit(parent_chip, desc);
 	}
@@ -1362,10 +1361,8 @@ static int ocelot_pinctrl_probe(struct platform_device *pdev)
 
 	base = devm_ioremap_resource(dev,
 			platform_get_resource(pdev, IORESOURCE_MEM, 0));
-	if (IS_ERR(base)) {
-		dev_err(dev, "Failed to ioremap registers\n");
+	if (IS_ERR(base))
 		return PTR_ERR(base);
-	}
 
 	info->stride = 1 + (info->desc->npins - 1) / 32;
 

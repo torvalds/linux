@@ -292,9 +292,8 @@ static int kvm_vz_irq_clear_cb(struct kvm_vcpu *vcpu, unsigned int priority,
 	switch (priority) {
 	case MIPS_EXC_INT_TIMER:
 		/*
-		 * Call to kvm_write_c0_guest_compare() clears Cause.TI in
-		 * kvm_mips_emulate_CP0(). Explicitly clear irq associated with
-		 * Cause.IP[IPTI] if GuestCtl2 virtual interrupt register not
+		 * Explicitly clear irq associated with Cause.IP[IPTI]
+		 * if GuestCtl2 virtual interrupt register not
 		 * supported or if not using GuestCtl2 Hardware Clear.
 		 */
 		if (cpu_has_guestctl2) {
@@ -3211,30 +3210,20 @@ static int kvm_vz_vcpu_setup(struct kvm_vcpu *vcpu)
 	return 0;
 }
 
-static void kvm_vz_flush_shadow_all(struct kvm *kvm)
+static void kvm_vz_prepare_flush_shadow(struct kvm *kvm)
 {
-	if (cpu_has_guestid) {
-		/* Flush GuestID for each VCPU individually */
-		kvm_flush_remote_tlbs(kvm);
-	} else {
+	if (!cpu_has_guestid) {
 		/*
 		 * For each CPU there is a single GPA ASID used by all VCPUs in
 		 * the VM, so it doesn't make sense for the VCPUs to handle
 		 * invalidation of these ASIDs individually.
 		 *
 		 * Instead mark all CPUs as needing ASID invalidation in
-		 * asid_flush_mask, and just use kvm_flush_remote_tlbs(kvm) to
+		 * asid_flush_mask, and kvm_flush_remote_tlbs(kvm) will
 		 * kick any running VCPUs so they check asid_flush_mask.
 		 */
 		cpumask_setall(&kvm->arch.asid_flush_mask);
-		kvm_flush_remote_tlbs(kvm);
 	}
-}
-
-static void kvm_vz_flush_shadow_memslot(struct kvm *kvm,
-					const struct kvm_memory_slot *slot)
-{
-	kvm_vz_flush_shadow_all(kvm);
 }
 
 static void kvm_vz_vcpu_reenter(struct kvm_vcpu *vcpu)
@@ -3292,8 +3281,7 @@ static struct kvm_mips_callbacks kvm_vz_callbacks = {
 	.vcpu_init = kvm_vz_vcpu_init,
 	.vcpu_uninit = kvm_vz_vcpu_uninit,
 	.vcpu_setup = kvm_vz_vcpu_setup,
-	.flush_shadow_all = kvm_vz_flush_shadow_all,
-	.flush_shadow_memslot = kvm_vz_flush_shadow_memslot,
+	.prepare_flush_shadow = kvm_vz_prepare_flush_shadow,
 	.gva_to_gpa = kvm_vz_gva_to_gpa_cb,
 	.queue_timer_int = kvm_vz_queue_timer_int_cb,
 	.dequeue_timer_int = kvm_vz_dequeue_timer_int_cb,

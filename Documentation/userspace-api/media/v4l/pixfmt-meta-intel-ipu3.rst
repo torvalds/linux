@@ -78,4 +78,4 @@ hardware and algorithm details.
 Intel IPU3 ImgU uAPI data types
 ===============================
 
-.. kernel-doc:: drivers/staging/media/ipu3/include/intel-ipu3.h
+.. kernel-doc:: drivers/staging/media/ipu3/include/uapi/intel-ipu3.h

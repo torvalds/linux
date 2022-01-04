@@ -48,7 +48,7 @@ static void remap_isa_base(phys_addr_t pa, unsigned long size)
 	if (slab_is_available()) {
 		if (ioremap_page_range(ISA_IO_BASE, ISA_IO_BASE + size, pa,
 				pgprot_noncached(PAGE_KERNEL)))
-			unmap_kernel_range(ISA_IO_BASE, size);
+			vunmap_range(ISA_IO_BASE, ISA_IO_BASE + size);
 	} else {
 		early_ioremap_range(ISA_IO_BASE, pa, size,
 				pgprot_noncached(PAGE_KERNEL));
@@ -311,7 +311,7 @@ static void isa_bridge_remove(void)
 	isa_bridge_pcidev = NULL;
 
 	/* Unmap the ISA area */
-	unmap_kernel_range(ISA_IO_BASE, 0x10000);
+	vunmap_range(ISA_IO_BASE, ISA_IO_BASE + 0x10000);
 }
 
 /**

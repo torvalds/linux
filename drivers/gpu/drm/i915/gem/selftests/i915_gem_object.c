@@ -47,7 +47,7 @@ static int igt_gem_huge(void *arg)
 	if (IS_ERR(obj))
 		return PTR_ERR(obj);
 
-	err = i915_gem_object_pin_pages(obj);
+	err = i915_gem_object_pin_pages_unlocked(obj);
 	if (err) {
 		pr_err("Failed to allocate %u pages (%lu total), err=%d\n",
 		       nreal, obj->base.size / PAGE_SIZE, err);

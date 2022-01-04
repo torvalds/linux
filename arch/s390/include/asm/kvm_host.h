@@ -361,6 +361,7 @@ struct sie_page {
 };
 
 struct kvm_vcpu_stat {
+	struct kvm_vcpu_stat_generic generic;
 	u64 exit_userspace;
 	u64 exit_null;
 	u64 exit_external_request;
@@ -370,13 +371,7 @@ struct kvm_vcpu_stat {
 	u64 exit_validity;
 	u64 exit_instruction;
 	u64 exit_pei;
-	u64 halt_successful_poll;
-	u64 halt_attempted_poll;
-	u64 halt_poll_invalid;
 	u64 halt_no_poll_steal;
-	u64 halt_wakeup;
-	u64 halt_poll_success_ns;
-	u64 halt_poll_fail_ns;
 	u64 instruction_lctl;
 	u64 instruction_lctlg;
 	u64 instruction_stctl;
@@ -450,14 +445,15 @@ struct kvm_vcpu_stat {
 	u64 instruction_sigp_init_cpu_reset;
 	u64 instruction_sigp_cpu_reset;
 	u64 instruction_sigp_unknown;
-	u64 diagnose_10;
-	u64 diagnose_44;
-	u64 diagnose_9c;
-	u64 diagnose_9c_ignored;
-	u64 diagnose_258;
-	u64 diagnose_308;
-	u64 diagnose_500;
-	u64 diagnose_other;
+	u64 instruction_diagnose_10;
+	u64 instruction_diagnose_44;
+	u64 instruction_diagnose_9c;
+	u64 diag_9c_ignored;
+	u64 diag_9c_forward;
+	u64 instruction_diagnose_258;
+	u64 instruction_diagnose_308;
+	u64 instruction_diagnose_500;
+	u64 instruction_diagnose_other;
 	u64 pfault_sync;
 };
 
@@ -700,6 +696,10 @@ struct kvm_hw_bp_info_arch {
 #define guestdbg_exit_pending(vcpu) (guestdbg_enabled(vcpu) && \
 		(vcpu->guest_debug & KVM_GUESTDBG_EXIT_PENDING))
 
+#define KVM_GUESTDBG_VALID_MASK \
+		(KVM_GUESTDBG_ENABLE | KVM_GUESTDBG_SINGLESTEP |\
+		KVM_GUESTDBG_USE_HW_BP | KVM_GUESTDBG_EXIT_PENDING)
+
 struct kvm_guestdbg_info_arch {
 	unsigned long cr0;
 	unsigned long cr9;
@@ -750,12 +750,12 @@ struct kvm_vcpu_arch {
 };
 
 struct kvm_vm_stat {
+	struct kvm_vm_stat_generic generic;
 	u64 inject_io;
 	u64 inject_float_mchk;
 	u64 inject_pfault_done;
 	u64 inject_service_signal;
 	u64 inject_virtio;
-	u64 remote_tlb_flush;
 };
 
 struct kvm_arch_memory_slot {
@@ -798,14 +798,12 @@ struct kvm_s390_cpu_model {
 	unsigned short ibc;
 };
 
-struct kvm_s390_module_hook {
-	int (*hook)(struct kvm_vcpu *vcpu);
-	struct module *owner;
-};
+typedef int (*crypto_hook)(struct kvm_vcpu *vcpu);
 
 struct kvm_s390_crypto {
 	struct kvm_s390_crypto_cb *crycb;
-	struct kvm_s390_module_hook *pqap_hook;
+	struct rw_semaphore pqap_hook_rwsem;
+	crypto_hook *pqap_hook;
 	__u32 crycbd;
 	__u8 aes_kw;
 	__u8 dea_kw;

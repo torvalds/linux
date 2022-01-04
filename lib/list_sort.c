@@ -104,7 +104,7 @@ static void merge_final(void *priv, list_cmp_func_t cmp, struct list_head *head,
  * @head: the list to sort
  * @cmp: the elements comparison function
  *
- * The comparison funtion @cmp must return > 0 if @a should sort after
+ * The comparison function @cmp must return > 0 if @a should sort after
  * @b ("@a > @b" if you want an ascending sort), and <= 0 if @a should
  * sort before @b *or* their original order should be preserved.  It is
  * always called with the element that came first in the input in @a,
@@ -137,7 +137,7 @@ static void merge_final(void *priv, list_cmp_func_t cmp, struct list_head *head,
  *
  *
  * The merging is controlled by "count", the number of elements in the
- * pending lists.  This is beautiully simple code, but rather subtle.
+ * pending lists.  This is beautifully simple code, but rather subtle.
  *
  * Each time we increment "count", we set one bit (bit k) and clear
  * bits k-1 .. 0.  Each time this happens (except the very first time

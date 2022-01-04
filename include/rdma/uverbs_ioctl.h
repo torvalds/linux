@@ -875,9 +875,14 @@ static inline __malloc void *uverbs_kcalloc(struct uverbs_attr_bundle *bundle,
 		return ERR_PTR(-EOVERFLOW);
 	return uverbs_zalloc(bundle, bytes);
 }
-int _uverbs_get_const(s64 *to, const struct uverbs_attr_bundle *attrs_bundle,
-		      size_t idx, s64 lower_bound, u64 upper_bound,
-		      s64 *def_val);
+
+int _uverbs_get_const_signed(s64 *to,
+			     const struct uverbs_attr_bundle *attrs_bundle,
+			     size_t idx, s64 lower_bound, u64 upper_bound,
+			     s64 *def_val);
+int _uverbs_get_const_unsigned(u64 *to,
+			       const struct uverbs_attr_bundle *attrs_bundle,
+			       size_t idx, u64 upper_bound, u64 *def_val);
 int uverbs_copy_to_struct_or_zero(const struct uverbs_attr_bundle *bundle,
 				  size_t idx, const void *from, size_t size);
 #else
@@ -921,27 +926,77 @@ uverbs_copy_to_struct_or_zero(const struct uverbs_attr_bundle *bundle,
 {
 	return -EINVAL;
 }
+static inline int
+_uverbs_get_const_signed(s64 *to,
+			 const struct uverbs_attr_bundle *attrs_bundle,
+			 size_t idx, s64 lower_bound, u64 upper_bound,
+			 s64 *def_val)
+{
+	return -EINVAL;
+}
+static inline int
+_uverbs_get_const_unsigned(u64 *to,
+			   const struct uverbs_attr_bundle *attrs_bundle,
+			   size_t idx, u64 upper_bound, u64 *def_val)
+{
+	return -EINVAL;
+}
 #endif
 
-#define uverbs_get_const(_to, _attrs_bundle, _idx)                             \
+#define uverbs_get_const_signed(_to, _attrs_bundle, _idx)                      \
 	({                                                                     \
 		s64 _val;                                                      \
-		int _ret = _uverbs_get_const(&_val, _attrs_bundle, _idx,       \
-					     type_min(typeof(*_to)),           \
-					     type_max(typeof(*_to)), NULL);    \
-		(*_to) = _val;                                                 \
+		int _ret =                                                     \
+			_uverbs_get_const_signed(&_val, _attrs_bundle, _idx,   \
+					  type_min(typeof(*(_to))),            \
+					  type_max(typeof(*(_to))), NULL);     \
+		(*(_to)) = _val;                                               \
 		_ret;                                                          \
 	})
 
-#define uverbs_get_const_default(_to, _attrs_bundle, _idx, _default)           \
+#define uverbs_get_const_unsigned(_to, _attrs_bundle, _idx)                    \
+	({                                                                     \
+		u64 _val;                                                      \
+		int _ret =                                                     \
+			_uverbs_get_const_unsigned(&_val, _attrs_bundle, _idx, \
+					  type_max(typeof(*(_to))), NULL);     \
+		(*(_to)) = _val;                                               \
+		_ret;                                                          \
+	})
+
+#define uverbs_get_const_default_signed(_to, _attrs_bundle, _idx, _default)    \
 	({                                                                     \
 		s64 _val;                                                      \
 		s64 _def_val = _default;                                       \
 		int _ret =                                                     \
-			_uverbs_get_const(&_val, _attrs_bundle, _idx,          \
-					  type_min(typeof(*_to)),              \
-					  type_max(typeof(*_to)), &_def_val);  \
-		(*_to) = _val;                                                 \
+			_uverbs_get_const_signed(&_val, _attrs_bundle, _idx,   \
+				type_min(typeof(*(_to))),                      \
+				type_max(typeof(*(_to))), &_def_val);          \
+		(*(_to)) = _val;                                               \
 		_ret;                                                          \
 	})
+
+#define uverbs_get_const_default_unsigned(_to, _attrs_bundle, _idx, _default)  \
+	({                                                                     \
+		u64 _val;                                                      \
+		u64 _def_val = _default;                                       \
+		int _ret =                                                     \
+			_uverbs_get_const_unsigned(&_val, _attrs_bundle, _idx, \
+				type_max(typeof(*(_to))), &_def_val);          \
+		(*(_to)) = _val;                                               \
+		_ret;                                                          \
+	})
+
+#define uverbs_get_const(_to, _attrs_bundle, _idx)                             \
+	(is_signed_type(typeof(*(_to))) ?                                      \
+		 uverbs_get_const_signed(_to, _attrs_bundle, _idx) :           \
+		 uverbs_get_const_unsigned(_to, _attrs_bundle, _idx))          \
+
+#define uverbs_get_const_default(_to, _attrs_bundle, _idx, _default)           \
+	(is_signed_type(typeof(*(_to))) ?                                      \
+		 uverbs_get_const_default_signed(_to, _attrs_bundle, _idx,     \
+						  _default) :                  \
+		 uverbs_get_const_default_unsigned(_to, _attrs_bundle, _idx,   \
+						    _default))
+
 #endif

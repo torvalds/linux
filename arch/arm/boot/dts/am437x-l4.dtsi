@@ -194,7 +194,7 @@
 			ranges = <0x0 0x9000 0x1000>;
 
 			uart0: serial@0 {
-				compatible = "ti,am4372-uart","ti,omap2-uart";
+				compatible = "ti,am4372-uart";
 				reg = <0x0 0x2000>;
 				interrupts = <GIC_SPI 72 IRQ_TYPE_LEVEL_HIGH>;
 			};
@@ -712,7 +712,7 @@
 			ranges = <0x0 0x22000 0x1000>;
 
 			uart1: serial@0 {
-				compatible = "ti,am4372-uart","ti,omap2-uart";
+				compatible = "ti,am4372-uart";
 				reg = <0x0 0x2000>;
 				interrupts = <GIC_SPI 73 IRQ_TYPE_LEVEL_HIGH>;
 				status = "disabled";
@@ -740,7 +740,7 @@
 			ranges = <0x0 0x24000 0x1000>;
 
 			uart2: serial@0 {
-				compatible = "ti,am4372-uart","ti,omap2-uart";
+				compatible = "ti,am4372-uart";
 				reg = <0x0 0x2000>;
 				interrupts = <GIC_SPI 74 IRQ_TYPE_LEVEL_HIGH>;
 				status = "disabled";
@@ -1168,7 +1168,7 @@
 				#mbox-cells = <1>;
 				ti,mbox-num-users = <4>;
 				ti,mbox-num-fifos = <8>;
-				mbox_wkupm3: wkup_m3 {
+				mbox_wkupm3: mbox-wkup-m3 {
 					ti,mbox-send-noirq;
 					ti,mbox-tx = <0 0 0>;
 					ti,mbox-rx = <0 0 3>;
@@ -1399,7 +1399,7 @@
 			ranges = <0x0 0xa6000 0x1000>;
 
 			uart3: serial@0 {
-				compatible = "ti,am4372-uart","ti,omap2-uart";
+				compatible = "ti,am4372-uart";
 				reg = <0x0 0x2000>;
 				interrupts = <GIC_SPI 44 IRQ_TYPE_LEVEL_HIGH>;
 				status = "disabled";
@@ -1427,7 +1427,7 @@
 			ranges = <0x0 0xa8000 0x1000>;
 
 			uart4: serial@0 {
-				compatible = "ti,am4372-uart","ti,omap2-uart";
+				compatible = "ti,am4372-uart";
 				reg = <0x0 0x2000>;
 				interrupts = <GIC_SPI 45 IRQ_TYPE_LEVEL_HIGH>;
 				status = "disabled";
@@ -1455,7 +1455,7 @@
 			ranges = <0x0 0xaa000 0x1000>;
 
 			uart5: serial@0 {
-				compatible = "ti,am4372-uart","ti,omap2-uart";
+				compatible = "ti,am4372-uart";
 				reg = <0x0 0x2000>;
 				interrupts = <GIC_SPI 46 IRQ_TYPE_LEVEL_HIGH>;
 				status = "disabled";
@@ -1595,7 +1595,7 @@
 				compatible = "ti,am4372-d_can", "ti,am3352-d_can";
 				reg = <0x0 0x2000>;
 				clocks = <&dcan1_fck>;
-				clock-name = "fck";
+				clock-names = "fck";
 				syscon-raminit = <&scm_conf 0x644 1>;
 				interrupts = <GIC_SPI 49 IRQ_TYPE_LEVEL_HIGH>;
 				status = "disabled";
@@ -1747,10 +1747,9 @@
 				ranges = <0 0 0x1000>;
 				status = "disabled";
 
-				ecap0: ecap@100 {
+				ecap0: pwm@100 {
 					compatible = "ti,am4372-ecap",
-						     "ti,am3352-ecap",
-						     "ti,am33xx-ecap";
+						     "ti,am3352-ecap";
 					#pwm-cells = <3>;
 					reg = <0x100 0x80>;
 					clocks = <&l4ls_gclk>;
@@ -1760,8 +1759,7 @@
 
 				ehrpwm0: pwm@200 {
 					compatible = "ti,am4372-ehrpwm",
-						     "ti,am3352-ehrpwm",
-						     "ti,am33xx-ehrpwm";
+						     "ti,am3352-ehrpwm";
 					#pwm-cells = <3>;
 					reg = <0x200 0x80>;
 					clocks = <&ehrpwm0_tbclk>, <&l4ls_gclk>;
@@ -1799,10 +1797,9 @@
 				ranges = <0 0 0x1000>;
 				status = "disabled";
 
-				ecap1: ecap@100 {
+				ecap1: pwm@100 {
 					compatible = "ti,am4372-ecap",
-						     "ti,am3352-ecap",
-						     "ti,am33xx-ecap";
+						     "ti,am3352-ecap";
 					#pwm-cells = <3>;
 					reg = <0x100 0x80>;
 					clocks = <&l4ls_gclk>;
@@ -1812,8 +1809,7 @@
 
 				ehrpwm1: pwm@200 {
 					compatible = "ti,am4372-ehrpwm",
-						     "ti,am3352-ehrpwm",
-						     "ti,am33xx-ehrpwm";
+						     "ti,am3352-ehrpwm";
 					#pwm-cells = <3>;
 					reg = <0x200 0x80>;
 					clocks = <&ehrpwm1_tbclk>, <&l4ls_gclk>;
@@ -1851,10 +1847,9 @@
 				ranges = <0 0 0x1000>;
 				status = "disabled";
 
-				ecap2: ecap@100 {
+				ecap2: pwm@100 {
 					compatible = "ti,am4372-ecap",
-						     "ti,am3352-ecap",
-						     "ti,am33xx-ecap";
+						     "ti,am3352-ecap";
 					#pwm-cells = <3>;
 					reg = <0x100 0x80>;
 					clocks = <&l4ls_gclk>;
@@ -1864,8 +1859,7 @@
 
 				ehrpwm2: pwm@200 {
 					compatible = "ti,am4372-ehrpwm",
-						     "ti,am3352-ehrpwm",
-						     "ti,am33xx-ehrpwm";
+						     "ti,am3352-ehrpwm";
 					#pwm-cells = <3>;
 					reg = <0x200 0x80>;
 					clocks = <&ehrpwm2_tbclk>, <&l4ls_gclk>;
@@ -1905,8 +1899,7 @@
 
 				ehrpwm3: pwm@200 {
 					compatible = "ti,am4372-ehrpwm",
-						     "ti,am3352-ehrpwm",
-						     "ti,am33xx-ehrpwm";
+						     "ti,am3352-ehrpwm";
 					#pwm-cells = <3>;
 					reg = <0x200 0x80>;
 					clocks = <&ehrpwm3_tbclk>, <&l4ls_gclk>;
@@ -1946,8 +1939,7 @@
 
 				ehrpwm4: pwm@48308200 {
 					compatible = "ti,am4372-ehrpwm",
-						     "ti,am3352-ehrpwm",
-						     "ti,am33xx-ehrpwm";
+						     "ti,am3352-ehrpwm";
 					#pwm-cells = <3>;
 					reg = <0x200 0x80>;
 					clocks = <&ehrpwm4_tbclk>, <&l4ls_gclk>;
@@ -1987,8 +1979,7 @@
 
 				ehrpwm5: pwm@200 {
 					compatible = "ti,am4372-ehrpwm",
-						     "ti,am3352-ehrpwm",
-						     "ti,am33xx-ehrpwm";
+						     "ti,am3352-ehrpwm";
 					#pwm-cells = <3>;
 					reg = <0x200 0x80>;
 					clocks = <&ehrpwm5_tbclk>, <&l4ls_gclk>;
@@ -2070,7 +2061,7 @@
 			};
 		};
 
-		target-module@22000 {			/* 0x48322000, ap 116 64.0 */
+		gpio5_target: target-module@22000 {		/* 0x48322000, ap 116 64.0 */
 			compatible = "ti,sysc-omap2", "ti,sysc";
 			reg = <0x22000 0x4>,
 			      <0x22010 0x4>,

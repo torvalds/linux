@@ -20,11 +20,8 @@
 #include <linux/unistd.h>
 
 #include <asm/compat.h>
-
-#ifdef CONFIG_COMPAT
 #include <asm/siginfo.h>
 #include <asm/signal.h>
-#endif
 
 #ifdef CONFIG_ARCH_HAS_SYSCALL_WRAPPER
 /*
@@ -75,7 +72,6 @@
 	__diag_push();								\
 	__diag_ignore(GCC, 8, "-Wattribute-alias",				\
 		      "Type aliasing is used to sanitize syscall arguments");\
-	asmlinkage long compat_sys##name(__MAP(x,__SC_DECL,__VA_ARGS__));	\
 	asmlinkage long compat_sys##name(__MAP(x,__SC_DECL,__VA_ARGS__))	\
 		__attribute__((alias(__stringify(__se_compat_sys##name))));	\
 	ALLOW_ERROR_INJECTION(compat_sys##name, ERRNO);				\
@@ -95,8 +91,6 @@ struct compat_iovec {
 	compat_uptr_t	iov_base;
 	compat_size_t	iov_len;
 };
-
-#ifdef CONFIG_COMPAT
 
 #ifndef compat_user_stack_pointer
 #define compat_user_stack_pointer() current_user_stack_pointer()
@@ -132,9 +126,11 @@ struct compat_tms {
 
 #define _COMPAT_NSIG_WORDS	(_COMPAT_NSIG / _COMPAT_NSIG_BPW)
 
+#ifndef compat_sigset_t
 typedef struct {
 	compat_sigset_word	sig[_COMPAT_NSIG_WORDS];
 } compat_sigset_t;
+#endif
 
 int set_compat_user_sigmask(const compat_sigset_t __user *umask,
 			    size_t sigsetsize);
@@ -214,12 +210,11 @@ typedef struct compat_siginfo {
 		/* SIGILL, SIGFPE, SIGSEGV, SIGBUS, SIGTRAP, SIGEMT */
 		struct {
 			compat_uptr_t _addr;	/* faulting insn/memory ref. */
-#ifdef __ARCH_SI_TRAPNO
-			int _trapno;	/* TRAP # which caused the signal */
-#endif
 #define __COMPAT_ADDR_BND_PKEY_PAD  (__alignof__(compat_uptr_t) < sizeof(short) ? \
 				     sizeof(short) : __alignof__(compat_uptr_t))
 			union {
+				/* used on alpha and sparc */
+				int _trapno;	/* TRAP # which caused the signal */
 				/*
 				 * used when si_code=BUS_MCEERR_AR or
 				 * used when si_code=BUS_MCEERR_AO
@@ -236,6 +231,11 @@ typedef struct compat_siginfo {
 					char _dummy_pkey[__COMPAT_ADDR_BND_PKEY_PAD];
 					u32 _pkey;
 				} _addr_pkey;
+				/* used when si_code=TRAP_PERF */
+				struct {
+					compat_ulong_t _data;
+					u32 _type;
+				} _perf;
 			};
 		} _sigfault;
 
@@ -381,6 +381,7 @@ struct compat_keyctl_kdf_params {
 	__u32 __spare[8];
 };
 
+struct compat_stat;
 struct compat_statfs;
 struct compat_statfs64;
 struct compat_old_linux_dirent;
@@ -425,7 +426,7 @@ put_compat_sigset(compat_sigset_t __user *compat, const sigset_t *set,
 		  unsigned int size)
 {
 	/* size <= sizeof(compat_sigset_t) <= sizeof(sigset_t) */
-#ifdef __BIG_ENDIAN
+#if defined(__BIG_ENDIAN) && defined(CONFIG_64BIT)
 	compat_sigset_t v;
 	switch (_NSIG_WORDS) {
 	case 4: v.sig[7] = (set->sig[3] >> 32); v.sig[6] = set->sig[3];
@@ -465,12 +466,47 @@ put_compat_sigset(compat_sigset_t __user *compat, const sigset_t *set,
 		unsafe_put_user(__s->sig[0], &__c->sig[0], label);	\
 	}								\
 } while (0)
+
+#define unsafe_get_compat_sigset(set, compat, label) do {		\
+	const compat_sigset_t __user *__c = compat;			\
+	compat_sigset_word hi, lo;					\
+	sigset_t *__s = set;						\
+									\
+	switch (_NSIG_WORDS) {						\
+	case 4:								\
+		unsafe_get_user(lo, &__c->sig[7], label);		\
+		unsafe_get_user(hi, &__c->sig[6], label);		\
+		__s->sig[3] = hi | (((long)lo) << 32);			\
+		fallthrough;						\
+	case 3:								\
+		unsafe_get_user(lo, &__c->sig[5], label);		\
+		unsafe_get_user(hi, &__c->sig[4], label);		\
+		__s->sig[2] = hi | (((long)lo) << 32);			\
+		fallthrough;						\
+	case 2:								\
+		unsafe_get_user(lo, &__c->sig[3], label);		\
+		unsafe_get_user(hi, &__c->sig[2], label);		\
+		__s->sig[1] = hi | (((long)lo) << 32);			\
+		fallthrough;						\
+	case 1:								\
+		unsafe_get_user(lo, &__c->sig[1], label);		\
+		unsafe_get_user(hi, &__c->sig[0], label);		\
+		__s->sig[0] = hi | (((long)lo) << 32);			\
+	}								\
+} while (0)
 #else
 #define unsafe_put_compat_sigset(compat, set, label) do {		\
 	compat_sigset_t __user *__c = compat;				\
 	const sigset_t *__s = set;					\
 									\
 	unsafe_copy_to_user(__c, __s, sizeof(*__c), label);		\
+} while (0)
+
+#define unsafe_get_compat_sigset(set, compat, label) do {		\
+	const compat_sigset_t __user *__c = compat;			\
+	sigset_t *__s = set;						\
+									\
+	unsafe_copy_from_user(__s, __c, sizeof(*__c), label);		\
 } while (0)
 #endif
 
@@ -494,8 +530,6 @@ int __compat_save_altstack(compat_stack_t __user *, unsigned long);
 			&__uss->ss_sp, label); \
 	unsafe_put_user(t->sas_ss_flags, &__uss->ss_flags, label); \
 	unsafe_put_user(t->sas_ss_size, &__uss->ss_size, label); \
-	if (t->sas_ss_flags & SS_AUTODISARM) \
-		sas_ss_reset(t); \
 } while (0);
 
 /*
@@ -893,17 +927,6 @@ asmlinkage long compat_sys_socketcall(int call, u32 __user *args);
 
 #endif /* CONFIG_ARCH_HAS_SYSCALL_WRAPPER */
 
-
-/*
- * For most but not all architectures, "am I in a compat syscall?" and
- * "am I a compat task?" are the same question.  For architectures on which
- * they aren't the same question, arch code can override in_compat_syscall.
- */
-
-#ifndef in_compat_syscall
-static inline bool in_compat_syscall(void) { return is_compat_task(); }
-#endif
-
 /**
  * ns_to_old_timeval32 - Compat version of ns_to_timeval
  * @nsec:	the nanoseconds value to be converted
@@ -932,6 +955,17 @@ int kcompat_sys_statfs64(const char __user * pathname, compat_size_t sz,
 		     struct compat_statfs64 __user * buf);
 int kcompat_sys_fstatfs64(unsigned int fd, compat_size_t sz,
 			  struct compat_statfs64 __user * buf);
+
+#ifdef CONFIG_COMPAT
+
+/*
+ * For most but not all architectures, "am I in a compat syscall?" and
+ * "am I a compat task?" are the same question.  For architectures on which
+ * they aren't the same question, arch code can override in_compat_syscall.
+ */
+#ifndef in_compat_syscall
+static inline bool in_compat_syscall(void) { return is_compat_task(); }
+#endif
 
 #else /* !CONFIG_COMPAT */
 

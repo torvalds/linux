@@ -226,14 +226,14 @@ static struct attribute_group event_long_desc_group = {
 
 static struct kmem_cache *hv_page_cache;
 
-DEFINE_PER_CPU(int, hv_24x7_txn_flags);
-DEFINE_PER_CPU(int, hv_24x7_txn_err);
+static DEFINE_PER_CPU(int, hv_24x7_txn_flags);
+static DEFINE_PER_CPU(int, hv_24x7_txn_err);
 
 struct hv_24x7_hw {
 	struct perf_event *events[255];
 };
 
-DEFINE_PER_CPU(struct hv_24x7_hw, hv_24x7_hw);
+static DEFINE_PER_CPU(struct hv_24x7_hw, hv_24x7_hw);
 
 /*
  * request_buffer and result_buffer are not required to be 4k aligned,
@@ -241,8 +241,8 @@ DEFINE_PER_CPU(struct hv_24x7_hw, hv_24x7_hw);
  * the simplest way to ensure that.
  */
 #define H24x7_DATA_BUFFER_SIZE	4096
-DEFINE_PER_CPU(char, hv_24x7_reqb[H24x7_DATA_BUFFER_SIZE]) __aligned(4096);
-DEFINE_PER_CPU(char, hv_24x7_resb[H24x7_DATA_BUFFER_SIZE]) __aligned(4096);
+static DEFINE_PER_CPU(char, hv_24x7_reqb[H24x7_DATA_BUFFER_SIZE]) __aligned(4096);
+static DEFINE_PER_CPU(char, hv_24x7_resb[H24x7_DATA_BUFFER_SIZE]) __aligned(4096);
 
 static unsigned int max_num_requests(int interface_version)
 {

@@ -14,12 +14,15 @@
 #include "jfs_xattr.h"
 #include "jfs_acl.h"
 
-struct posix_acl *jfs_get_acl(struct inode *inode, int type)
+struct posix_acl *jfs_get_acl(struct inode *inode, int type, bool rcu)
 {
 	struct posix_acl *acl;
 	char *ea_name;
 	int size;
 	char *value = NULL;
+
+	if (rcu)
+		return ERR_PTR(-ECHILD);
 
 	switch(type) {
 		case ACL_TYPE_ACCESS:

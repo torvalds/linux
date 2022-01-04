@@ -34,6 +34,7 @@
 #define ATH11K_PRB_RSP_DROP_THRESHOLD ((ATH11K_TX_MGMT_TARGET_MAX_SUPPORT_WMI * 3) / 4)
 
 #define ATH11K_INVALID_HW_MAC_ID	0xFF
+#define ATH11K_CONNECTION_LOSS_HZ	(3 * HZ)
 
 extern unsigned int ath11k_frame_mode;
 
@@ -105,6 +106,8 @@ enum ath11k_hw_rev {
 	ATH11K_HW_IPQ8074,
 	ATH11K_HW_QCA6390_HW20,
 	ATH11K_HW_IPQ6018_HW10,
+	ATH11K_HW_QCN9074_HW10,
+	ATH11K_HW_WCN6855_HW20,
 };
 
 enum ath11k_firmware_mode {
@@ -234,6 +237,7 @@ struct ath11k_vif {
 	u32 aid;
 	u8 bssid[ETH_ALEN];
 	struct cfg80211_bitrate_mask bitrate_mask;
+	struct delayed_work connection_loss_work;
 	int num_legacy_stations;
 	int rtscts_prot_mode;
 	int txpower;
@@ -607,6 +611,7 @@ struct ath11k_bus_params {
 	bool m3_fw_support;
 	bool fixed_bdf_addr;
 	bool fixed_mem_region;
+	bool static_window_map;
 };
 
 /* IPQ8074 HW channel counters frequency value in hertz */
@@ -791,8 +796,8 @@ struct ath11k_fw_stats_pdev {
 	s32 underrun;
 	/* Num PPDUs cleaned up in TX abort */
 	s32 tx_abort;
-	/* Num MPDUs requed by SW */
-	s32 mpdus_requed;
+	/* Num MPDUs requeued by SW */
+	s32 mpdus_requeued;
 	/* excessive retries */
 	u32 tx_ko;
 	/* data hw rate code */
@@ -876,6 +881,8 @@ extern const struct service_to_pipe ath11k_target_service_to_ce_map_wlan_ipq6018
 extern const struct ce_pipe_config ath11k_target_ce_config_wlan_qca6390[];
 extern const struct service_to_pipe ath11k_target_service_to_ce_map_wlan_qca6390[];
 
+extern const struct ce_pipe_config ath11k_target_ce_config_wlan_qcn9074[];
+extern const struct service_to_pipe ath11k_target_service_to_ce_map_wlan_qcn9074[];
 int ath11k_core_qmi_firmware_ready(struct ath11k_base *ab);
 int ath11k_core_pre_init(struct ath11k_base *ab);
 int ath11k_core_init(struct ath11k_base *ath11k);

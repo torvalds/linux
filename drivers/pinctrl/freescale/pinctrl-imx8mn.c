@@ -317,7 +317,7 @@ static const struct pinctrl_pin_desc imx8mn_pinctrl_pads[] = {
 	IMX_PINCTRL_PIN(MX8MN_IOMUXC_UART4_TXD),
 };
 
-static struct imx_pinctrl_soc_info imx8mn_pinctrl_info = {
+static const struct imx_pinctrl_soc_info imx8mn_pinctrl_info = {
 	.pins = imx8mn_pinctrl_pads,
 	.npins = ARRAY_SIZE(imx8mn_pinctrl_pads),
 	.gpr_compatible = "fsl,imx8mn-iomuxc-gpr",
@@ -337,7 +337,7 @@ static int imx8mn_pinctrl_probe(struct platform_device *pdev)
 static struct platform_driver imx8mn_pinctrl_driver = {
 	.driver = {
 		.name = "imx8mn-pinctrl",
-		.of_match_table = of_match_ptr(imx8mn_pinctrl_of_match),
+		.of_match_table = imx8mn_pinctrl_of_match,
 		.suppress_bind_attrs = true,
 	},
 	.probe = imx8mn_pinctrl_probe,

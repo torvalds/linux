@@ -94,12 +94,11 @@ static struct sk_buff *efx_rx_mk_skb(struct efx_channel *channel,
 		rx_buf->len -= hdr_len;
 
 		for (;;) {
-			skb_fill_page_desc(skb, skb_shinfo(skb)->nr_frags,
-					   rx_buf->page, rx_buf->page_offset,
-					   rx_buf->len);
+			skb_add_rx_frag(skb, skb_shinfo(skb)->nr_frags,
+					rx_buf->page, rx_buf->page_offset,
+					rx_buf->len, efx->rx_buffer_truesize);
 			rx_buf->page = NULL;
-			skb->len += rx_buf->len;
-			skb->data_len += rx_buf->len;
+
 			if (skb_shinfo(skb)->nr_frags == n_frags)
 				break;
 
@@ -110,8 +109,6 @@ static struct sk_buff *efx_rx_mk_skb(struct efx_channel *channel,
 		rx_buf->page = NULL;
 		n_frags = 0;
 	}
-
-	skb->truesize += n_frags * efx->rx_buffer_truesize;
 
 	/* Move past the ethernet header */
 	skb->protocol = eth_type_trans(skb, efx->net_dev);
@@ -263,18 +260,14 @@ static bool efx_do_xdp(struct efx_nic *efx, struct efx_channel *channel,
 	s16 offset;
 	int err;
 
-	rcu_read_lock();
-	xdp_prog = rcu_dereference(efx->xdp_prog);
-	if (!xdp_prog) {
-		rcu_read_unlock();
+	xdp_prog = rcu_dereference_bh(efx->xdp_prog);
+	if (!xdp_prog)
 		return true;
-	}
 
 	rx_queue = efx_channel_get_rx_queue(channel);
 
 	if (unlikely(channel->rx_pkt_n_frags > 1)) {
 		/* We can't do XDP on fragmented packets - drop. */
-		rcu_read_unlock();
 		efx_free_rx_buffers(rx_queue, rx_buf,
 				    channel->rx_pkt_n_frags);
 		if (net_ratelimit())
@@ -299,7 +292,6 @@ static bool efx_do_xdp(struct efx_nic *efx, struct efx_channel *channel,
 			 rx_buf->len, false);
 
 	xdp_act = bpf_prog_run_xdp(xdp_prog, &xdp);
-	rcu_read_unlock();
 
 	offset = (u8 *)xdp.data - *ehp;
 

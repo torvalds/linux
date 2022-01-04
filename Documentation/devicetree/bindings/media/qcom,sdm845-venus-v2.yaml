@@ -30,7 +30,6 @@ properties:
 
   power-domain-names:
     minItems: 3
-    maxItems: 4
     items:
       - const: venus
       - const: vcodec0

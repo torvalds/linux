@@ -703,7 +703,7 @@ EXPORT_SYMBOL_GPL(rhashtable_walk_exit);
  *
  * Returns zero if successful.
  *
- * Returns -EAGAIN if resize event occured.  Note that the iterator
+ * Returns -EAGAIN if resize event occurred.  Note that the iterator
  * will rewind back to the beginning and you may use it immediately
  * by calling rhashtable_walk_next.
  *

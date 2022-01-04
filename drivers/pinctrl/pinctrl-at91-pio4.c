@@ -801,16 +801,16 @@ static int atmel_conf_pin_config_group_set(struct pinctrl_dev *pctldev,
 
 	conf = atmel_pin_config_read(pctldev, pin_id);
 
+	/* Keep slew rate enabled by default. */
+	if (atmel_pioctrl->slew_rate_support)
+		conf |= ATMEL_PIO_SR_MASK;
+
 	for (i = 0; i < num_configs; i++) {
 		unsigned int param = pinconf_to_config_param(configs[i]);
 		unsigned int arg = pinconf_to_config_argument(configs[i]);
 
 		dev_dbg(pctldev->dev, "%s: pin=%u, config=0x%lx\n",
 			__func__, pin_id, configs[i]);
-
-		/* Keep slew rate enabled by default. */
-		if (atmel_pioctrl->slew_rate_support)
-			conf |= ATMEL_PIO_SR_MASK;
 
 		switch (param) {
 		case PIN_CONFIG_BIAS_DISABLE:

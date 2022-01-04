@@ -871,7 +871,7 @@ void saa7134_enable_i2s(struct saa7134_dev *dev)
 	switch (dev->pci->device) {
 	case PCI_DEVICE_ID_PHILIPS_SAA7133:
 	case PCI_DEVICE_ID_PHILIPS_SAA7135:
-		/* Set I2S format (SONY)  */
+		/* Set I2S format (SONY) */
 		saa_writeb(SAA7133_I2S_AUDIO_CONTROL, 0x00);
 		/* Start I2S */
 		saa_writeb(SAA7134_I2S_AUDIO_OUTPUT, 0x11);

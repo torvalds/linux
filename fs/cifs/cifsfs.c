@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: LGPL-2.1
 /*
  *   fs/cifs/cifsfs.c
  *
@@ -6,19 +7,6 @@
  *
  *   Common Internet FileSystem (CIFS) client
  *
- *   This library is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU Lesser General Public License as published
- *   by the Free Software Foundation; either version 2.1 of the License, or
- *   (at your option) any later version.
- *
- *   This library is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See
- *   the GNU Lesser General Public License for more details.
- *
- *   You should have received a copy of the GNU Lesser General Public License
- *   along with this library; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
 /* Note that BB means BUGBUG (ie something to fix eventually) */
@@ -75,8 +63,9 @@ bool enable_oplocks = true;
 bool linuxExtEnabled = true;
 bool lookupCacheEnabled = true;
 bool disable_legacy_dialects; /* false by default */
-bool enable_gcm_256;  /* false by default, change when more servers support it */
+bool enable_gcm_256 = true;
 bool require_gcm_256; /* false by default */
+bool enable_negotiate_signing; /* false by default */
 unsigned int global_secflags = CIFSSEC_DEF;
 /* unsigned int ntlmv2_support = 0; */
 unsigned int sign_CIFS_PDUs = 1;
@@ -116,6 +105,9 @@ MODULE_PARM_DESC(enable_gcm_256, "Enable requesting strongest (256 bit) GCM encr
 module_param(require_gcm_256, bool, 0644);
 MODULE_PARM_DESC(require_gcm_256, "Require strongest (256 bit) GCM encryption. Default: n/N/0");
 
+module_param(enable_negotiate_signing, bool, 0644);
+MODULE_PARM_DESC(enable_negotiate_signing, "Enable negotiating packet signing algorithm with server. Default: n/N/0");
+
 module_param(disable_legacy_dialects, bool, 0644);
 MODULE_PARM_DESC(disable_legacy_dialects, "To improve security it may be "
 				  "helpful to restrict the ability to "
@@ -133,6 +125,7 @@ struct workqueue_struct	*cifsiod_wq;
 struct workqueue_struct	*decrypt_wq;
 struct workqueue_struct	*fileinfo_put_wq;
 struct workqueue_struct	*cifsoplockd_wq;
+struct workqueue_struct	*deferredclose_wq;
 __u32 cifs_lock_secret;
 
 /*
@@ -390,6 +383,8 @@ cifs_alloc_inode(struct super_block *sb)
 	/* cifs_inode->vfs_inode.i_flags = S_NOATIME | S_NOCMTIME; */
 	INIT_LIST_HEAD(&cifs_inode->openFileList);
 	INIT_LIST_HEAD(&cifs_inode->llist);
+	INIT_LIST_HEAD(&cifs_inode->deferred_closes);
+	spin_lock_init(&cifs_inode->deferred_lock);
 	return &cifs_inode->vfs_inode;
 }
 
@@ -404,7 +399,6 @@ cifs_evict_inode(struct inode *inode)
 {
 	truncate_inode_pages_final(&inode->i_data);
 	clear_inode(inode);
-	cifs_fscache_release_inode_cookie(inode);
 }
 
 static void
@@ -443,14 +437,8 @@ cifs_show_security(struct seq_file *s, struct cifs_ses *ses)
 	seq_puts(s, ",sec=");
 
 	switch (ses->sectype) {
-	case LANMAN:
-		seq_puts(s, "lanman");
-		break;
 	case NTLMv2:
 		seq_puts(s, "ntlmv2");
-		break;
-	case NTLM:
-		seq_puts(s, "ntlm");
 		break;
 	case Kerberos:
 		seq_puts(s, "krb5");
@@ -860,13 +848,7 @@ cifs_smb3_do_mount(struct file_system_type *fs_type,
 		goto out;
 	}
 
-	/* cifs_setup_volume_info->smb3_parse_devname() redups UNC & prepath */
-	kfree(cifs_sb->ctx->UNC);
-	cifs_sb->ctx->UNC = NULL;
-	kfree(cifs_sb->ctx->prepath);
-	cifs_sb->ctx->prepath = NULL;
-
-	rc = cifs_setup_volume_info(cifs_sb->ctx, NULL, old_ctx->UNC);
+	rc = cifs_setup_volume_info(cifs_sb->ctx, NULL, NULL);
 	if (rc) {
 		root = ERR_PTR(rc);
 		goto out;
@@ -1637,9 +1619,16 @@ init_cifs(void)
 		goto out_destroy_fileinfo_put_wq;
 	}
 
+	deferredclose_wq = alloc_workqueue("deferredclose",
+					   WQ_FREEZABLE|WQ_MEM_RECLAIM, 0);
+	if (!deferredclose_wq) {
+		rc = -ENOMEM;
+		goto out_destroy_cifsoplockd_wq;
+	}
+
 	rc = cifs_fscache_register();
 	if (rc)
-		goto out_destroy_cifsoplockd_wq;
+		goto out_destroy_deferredclose_wq;
 
 	rc = cifs_init_inodecache();
 	if (rc)
@@ -1707,6 +1696,8 @@ out_destroy_inodecache:
 	cifs_destroy_inodecache();
 out_unreg_fscache:
 	cifs_fscache_unregister();
+out_destroy_deferredclose_wq:
+	destroy_workqueue(deferredclose_wq);
 out_destroy_cifsoplockd_wq:
 	destroy_workqueue(cifsoplockd_wq);
 out_destroy_fileinfo_put_wq:
@@ -1741,6 +1732,7 @@ exit_cifs(void)
 	cifs_destroy_mids();
 	cifs_destroy_inodecache();
 	cifs_fscache_unregister();
+	destroy_workqueue(deferredclose_wq);
 	destroy_workqueue(cifsoplockd_wq);
 	destroy_workqueue(decrypt_wq);
 	destroy_workqueue(fileinfo_put_wq);
@@ -1756,7 +1748,6 @@ MODULE_DESCRIPTION
 MODULE_VERSION(CIFS_VERSION);
 MODULE_SOFTDEP("ecb");
 MODULE_SOFTDEP("hmac");
-MODULE_SOFTDEP("md4");
 MODULE_SOFTDEP("md5");
 MODULE_SOFTDEP("nls");
 MODULE_SOFTDEP("aes");

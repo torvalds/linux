@@ -23,6 +23,7 @@ struct mptcp_ext {
 	u64		data_seq;
 	u32		subflow_seq;
 	u16		data_len;
+	__sum16		csum;
 	u8		use_map:1,
 			dsn64:1,
 			data_fin:1,
@@ -30,32 +31,60 @@ struct mptcp_ext {
 			ack64:1,
 			mpc_map:1,
 			frozen:1,
-			__unused:1;
-	/* one byte hole */
+			reset_transient:1;
+	u8		reset_reason:4,
+			csum_reqd:1;
+};
+
+#define MPTCP_RM_IDS_MAX	8
+
+struct mptcp_rm_list {
+	u8 ids[MPTCP_RM_IDS_MAX];
+	u8 nr;
+};
+
+struct mptcp_addr_info {
+	u8			id;
+	sa_family_t		family;
+	__be16			port;
+	union {
+		struct in_addr	addr;
+#if IS_ENABLED(CONFIG_MPTCP_IPV6)
+		struct in6_addr	addr6;
+#endif
+	};
 };
 
 struct mptcp_out_options {
 #if IS_ENABLED(CONFIG_MPTCP)
 	u16 suboptions;
-	u64 sndr_key;
-	u64 rcvr_key;
-	union {
-		struct in_addr addr;
-#if IS_ENABLED(CONFIG_MPTCP_IPV6)
-		struct in6_addr addr6;
-#endif
-	};
-	u8 addr_id;
-	u16 port;
-	u64 ahmac;
-	u8 rm_id;
+	struct mptcp_rm_list rm_list;
 	u8 join_id;
 	u8 backup;
-	u32 nonce;
-	u64 thmac;
-	u32 token;
-	u8 hmac[20];
-	struct mptcp_ext ext_copy;
+	u8 reset_reason:4,
+	   reset_transient:1,
+	   csum_reqd:1,
+	   allow_join_id0:1;
+	union {
+		struct {
+			u64 sndr_key;
+			u64 rcvr_key;
+		};
+		struct {
+			struct mptcp_addr_info addr;
+			u64 ahmac;
+		};
+		struct {
+			struct mptcp_ext ext_copy;
+			u64 fail_seq;
+		};
+		struct {
+			u32 nonce;
+			u32 token;
+			u64 thmac;
+			u8 hmac[20];
+		};
+	};
 #endif
 };
 
@@ -87,7 +116,7 @@ bool mptcp_synack_options(const struct request_sock *req, unsigned int *size,
 bool mptcp_established_options(struct sock *sk, struct sk_buff *skb,
 			       unsigned int *size, unsigned int remaining,
 			       struct mptcp_out_options *opts);
-void mptcp_incoming_options(struct sock *sk, struct sk_buff *skb);
+bool mptcp_incoming_options(struct sock *sk, struct sk_buff *skb);
 
 void mptcp_write_options(__be32 *ptr, const struct tcp_sock *tp,
 			 struct mptcp_out_options *opts);
@@ -149,6 +178,16 @@ void mptcp_seq_show(struct seq_file *seq);
 int mptcp_subflow_init_cookie_req(struct request_sock *req,
 				  const struct sock *sk_listener,
 				  struct sk_buff *skb);
+
+__be32 mptcp_get_reset_option(const struct sk_buff *skb);
+
+static inline __be32 mptcp_reset_option(const struct sk_buff *skb)
+{
+	if (skb_ext_exist(skb, SKB_EXT_MPTCP))
+		return mptcp_get_reset_option(skb);
+
+	return htonl(0u);
+}
 #else
 
 static inline void mptcp_init(void)
@@ -199,9 +238,10 @@ static inline bool mptcp_established_options(struct sock *sk,
 	return false;
 }
 
-static inline void mptcp_incoming_options(struct sock *sk,
+static inline bool mptcp_incoming_options(struct sock *sk,
 					  struct sk_buff *skb)
 {
+	return true;
 }
 
 static inline void mptcp_skb_ext_move(struct sk_buff *to,
@@ -229,6 +269,8 @@ static inline int mptcp_subflow_init_cookie_req(struct request_sock *req,
 {
 	return 0; /* TCP fallback */
 }
+
+static inline __be32 mptcp_reset_option(const struct sk_buff *skb)  { return htonl(0u); }
 #endif /* CONFIG_MPTCP */
 
 #if IS_ENABLED(CONFIG_MPTCP_IPV6)

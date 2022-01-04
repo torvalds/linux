@@ -3,7 +3,9 @@
  * Copyright (c) 2015, The Linux Foundation. All rights reserved.
  */
 
+#include <linux/clk-provider.h>
 #include <linux/platform_device.h>
+#include <dt-bindings/phy/phy.h>
 
 #include "dsi_phy.h"
 
@@ -460,21 +462,49 @@ int msm_dsi_dphy_timing_calc_v4(struct msm_dsi_dphy_timing *timing,
 	return 0;
 }
 
-void msm_dsi_phy_set_src_pll(struct msm_dsi_phy *phy, int pll_id, u32 reg,
-				u32 bit_mask)
+int msm_dsi_cphy_timing_calc_v4(struct msm_dsi_dphy_timing *timing,
+	struct msm_dsi_phy_clk_request *clk_req)
 {
-	int phy_id = phy->id;
-	u32 val;
+	const unsigned long bit_rate = clk_req->bitclk_rate;
+	const unsigned long esc_rate = clk_req->escclk_rate;
+	s32 ui, ui_x7;
+	s32 tmax, tmin;
+	s32 coeff = 1000; /* Precision, should avoid overflow */
+	s32 temp;
 
-	if ((phy_id >= DSI_MAX) || (pll_id >= DSI_MAX))
-		return;
+	if (!bit_rate || !esc_rate)
+		return -EINVAL;
 
-	val = dsi_phy_read(phy->base + reg);
+	ui = mult_frac(NSEC_PER_MSEC, coeff, bit_rate / 1000);
+	ui_x7 = ui * 7;
 
-	if (phy->cfg->src_pll_truthtable[phy_id][pll_id])
-		dsi_phy_write(phy->base + reg, val | bit_mask);
-	else
-		dsi_phy_write(phy->base + reg, val & (~bit_mask));
+	temp = S_DIV_ROUND_UP(38 * coeff, ui_x7);
+	tmin = max_t(s32, temp, 0);
+	temp = (95 * coeff) / ui_x7;
+	tmax = max_t(s32, temp, 0);
+	timing->clk_prepare = linear_inter(tmax, tmin, 50, 0, false);
+
+	tmin = DIV_ROUND_UP(50 * coeff, ui_x7);
+	tmax = 255;
+	timing->hs_rqst = linear_inter(tmax, tmin, 1, 0, false);
+
+	tmin = DIV_ROUND_UP(100 * coeff, ui_x7) - 1;
+	tmax = 255;
+	timing->hs_exit = linear_inter(tmax, tmin, 10, 0, false);
+
+	tmin = 1;
+	tmax = 32;
+	timing->shared_timings.clk_post = linear_inter(tmax, tmin, 80, 0, false);
+
+	tmin = min_t(s32, 64, S_DIV_ROUND_UP(262 * coeff, ui_x7) - 1);
+	tmax = 64;
+	timing->shared_timings.clk_pre = linear_inter(tmax, tmin, 20, 0, false);
+
+	DBG("%d, %d, %d, %d, %d",
+		timing->shared_timings.clk_pre, timing->shared_timings.clk_post,
+		timing->clk_prepare, timing->hs_exit, timing->hs_rqst);
+
+	return 0;
 }
 
 static int dsi_phy_regulator_init(struct msm_dsi_phy *phy)
@@ -609,6 +639,8 @@ static const struct of_device_id dsi_phy_dt_match[] = {
 	  .data = &dsi_phy_7nm_cfgs },
 	{ .compatible = "qcom,dsi-phy-7nm-8150",
 	  .data = &dsi_phy_7nm_8150_cfgs },
+	{ .compatible = "qcom,sc7280-dsi-phy-7nm",
+	  .data = &dsi_phy_7nm_7280_cfgs },
 #endif
 	{}
 };
@@ -637,40 +669,29 @@ static int dsi_phy_get_id(struct msm_dsi_phy *phy)
 	return -EINVAL;
 }
 
-int msm_dsi_phy_init_common(struct msm_dsi_phy *phy)
-{
-	struct platform_device *pdev = phy->pdev;
-	int ret = 0;
-
-	phy->reg_base = msm_ioremap(pdev, "dsi_phy_regulator",
-				"DSI_PHY_REG");
-	if (IS_ERR(phy->reg_base)) {
-		DRM_DEV_ERROR(&pdev->dev, "%s: failed to map phy regulator base\n",
-			__func__);
-		ret = -ENOMEM;
-		goto fail;
-	}
-
-fail:
-	return ret;
-}
-
 static int dsi_phy_driver_probe(struct platform_device *pdev)
 {
 	struct msm_dsi_phy *phy;
 	struct device *dev = &pdev->dev;
-	const struct of_device_id *match;
+	u32 phy_type;
 	int ret;
 
 	phy = devm_kzalloc(dev, sizeof(*phy), GFP_KERNEL);
 	if (!phy)
 		return -ENOMEM;
 
-	match = of_match_node(dsi_phy_dt_match, dev->of_node);
-	if (!match)
+	phy->provided_clocks = devm_kzalloc(dev,
+			struct_size(phy->provided_clocks, hws, NUM_PROVIDED_CLKS),
+			GFP_KERNEL);
+	if (!phy->provided_clocks)
+		return -ENOMEM;
+
+	phy->provided_clocks->num = NUM_PROVIDED_CLKS;
+
+	phy->cfg = of_device_get_match_data(&pdev->dev);
+	if (!phy->cfg)
 		return -ENODEV;
 
-	phy->cfg = match->data;
 	phy->pdev = pdev;
 
 	phy->id = dsi_phy_get_id(phy);
@@ -683,12 +704,39 @@ static int dsi_phy_driver_probe(struct platform_device *pdev)
 
 	phy->regulator_ldo_mode = of_property_read_bool(dev->of_node,
 				"qcom,dsi-phy-regulator-ldo-mode");
+	if (!of_property_read_u32(dev->of_node, "phy-type", &phy_type))
+		phy->cphy_mode = (phy_type == PHY_TYPE_CPHY);
 
-	phy->base = msm_ioremap(pdev, "dsi_phy", "DSI_PHY");
+	phy->base = msm_ioremap_size(pdev, "dsi_phy", "DSI_PHY", &phy->base_size);
 	if (IS_ERR(phy->base)) {
 		DRM_DEV_ERROR(dev, "%s: failed to map phy base\n", __func__);
 		ret = -ENOMEM;
 		goto fail;
+	}
+
+	phy->pll_base = msm_ioremap_size(pdev, "dsi_pll", "DSI_PLL", &phy->pll_size);
+	if (IS_ERR(phy->pll_base)) {
+		DRM_DEV_ERROR(&pdev->dev, "%s: failed to map pll base\n", __func__);
+		ret = -ENOMEM;
+		goto fail;
+	}
+
+	if (phy->cfg->has_phy_lane) {
+		phy->lane_base = msm_ioremap_size(pdev, "dsi_phy_lane", "DSI_PHY_LANE", &phy->lane_size);
+		if (IS_ERR(phy->lane_base)) {
+			DRM_DEV_ERROR(&pdev->dev, "%s: failed to map phy lane base\n", __func__);
+			ret = -ENOMEM;
+			goto fail;
+		}
+	}
+
+	if (phy->cfg->has_phy_regulator) {
+		phy->reg_base = msm_ioremap_size(pdev, "dsi_phy_regulator", "DSI_PHY_REG", &phy->reg_size);
+		if (IS_ERR(phy->reg_base)) {
+			DRM_DEV_ERROR(&pdev->dev, "%s: failed to map phy regulator base\n", __func__);
+			ret = -ENOMEM;
+			goto fail;
+		}
 	}
 
 	ret = dsi_phy_regulator_init(phy);
@@ -702,12 +750,6 @@ static int dsi_phy_driver_probe(struct platform_device *pdev)
 		goto fail;
 	}
 
-	if (phy->cfg->ops.init) {
-		ret = phy->cfg->ops.init(phy);
-		if (ret)
-			goto fail;
-	}
-
 	/* PLL init will call into clk_register which requires
 	 * register access, so we need to enable power and ahb clock.
 	 */
@@ -715,12 +757,21 @@ static int dsi_phy_driver_probe(struct platform_device *pdev)
 	if (ret)
 		goto fail;
 
-	phy->pll = msm_dsi_pll_init(pdev, phy->cfg->type, phy->id);
-	if (IS_ERR_OR_NULL(phy->pll)) {
-		DRM_DEV_INFO(dev,
-			"%s: pll init failed: %ld, need separate pll clk driver\n",
-			__func__, PTR_ERR(phy->pll));
-		phy->pll = NULL;
+	if (phy->cfg->ops.pll_init) {
+		ret = phy->cfg->ops.pll_init(phy);
+		if (ret) {
+			DRM_DEV_INFO(dev,
+				"%s: pll init failed: %d, need separate pll clk driver\n",
+				__func__, ret);
+			goto fail;
+		}
+	}
+
+	ret = devm_of_clk_add_hw_provider(dev, of_clk_hw_onecell_get,
+				     phy->provided_clocks);
+	if (ret) {
+		DRM_DEV_ERROR(dev, "%s: failed to register clk provider: %d\n", __func__, ret);
+		goto fail;
 	}
 
 	dsi_phy_disable_resource(phy);
@@ -733,23 +784,8 @@ fail:
 	return ret;
 }
 
-static int dsi_phy_driver_remove(struct platform_device *pdev)
-{
-	struct msm_dsi_phy *phy = platform_get_drvdata(pdev);
-
-	if (phy && phy->pll) {
-		msm_dsi_pll_destroy(phy->pll);
-		phy->pll = NULL;
-	}
-
-	platform_set_drvdata(pdev, NULL);
-
-	return 0;
-}
-
 static struct platform_driver dsi_phy_platform_driver = {
 	.probe      = dsi_phy_driver_probe,
-	.remove     = dsi_phy_driver_remove,
 	.driver     = {
 		.name   = "msm_dsi_phy",
 		.of_match_table = dsi_phy_dt_match,
@@ -766,8 +802,9 @@ void __exit msm_dsi_phy_driver_unregister(void)
 	platform_driver_unregister(&dsi_phy_platform_driver);
 }
 
-int msm_dsi_phy_enable(struct msm_dsi_phy *phy, int src_pll_id,
-			struct msm_dsi_phy_clk_request *clk_req)
+int msm_dsi_phy_enable(struct msm_dsi_phy *phy,
+			struct msm_dsi_phy_clk_request *clk_req,
+			struct msm_dsi_phy_shared_timings *shared_timings)
 {
 	struct device *dev = &phy->pdev->dev;
 	int ret;
@@ -789,11 +826,14 @@ int msm_dsi_phy_enable(struct msm_dsi_phy *phy, int src_pll_id,
 		goto reg_en_fail;
 	}
 
-	ret = phy->cfg->ops.enable(phy, src_pll_id, clk_req);
+	ret = phy->cfg->ops.enable(phy, clk_req);
 	if (ret) {
 		DRM_DEV_ERROR(dev, "%s: phy enable failed, %d\n", __func__, ret);
 		goto phy_en_fail;
 	}
+
+	memcpy(shared_timings, &phy->timing.shared_timings,
+	       sizeof(*shared_timings));
 
 	/*
 	 * Resetting DSI PHY silently changes its PLL registers to reset status,
@@ -802,9 +842,9 @@ int msm_dsi_phy_enable(struct msm_dsi_phy *phy, int src_pll_id,
 	 * source.
 	 */
 	if (phy->usecase != MSM_DSI_PHY_SLAVE) {
-		ret = msm_dsi_pll_restore_state(phy->pll);
+		ret = msm_dsi_phy_pll_restore_state(phy);
 		if (ret) {
-			DRM_DEV_ERROR(dev, "%s: failed to restore pll state, %d\n",
+			DRM_DEV_ERROR(dev, "%s: failed to restore phy state, %d\n",
 				__func__, ret);
 			goto pll_restor_fail;
 		}
@@ -834,24 +874,75 @@ void msm_dsi_phy_disable(struct msm_dsi_phy *phy)
 	dsi_phy_disable_resource(phy);
 }
 
-void msm_dsi_phy_get_shared_timings(struct msm_dsi_phy *phy,
-			struct msm_dsi_phy_shared_timings *shared_timings)
-{
-	memcpy(shared_timings, &phy->timing.shared_timings,
-	       sizeof(*shared_timings));
-}
-
-struct msm_dsi_pll *msm_dsi_phy_get_pll(struct msm_dsi_phy *phy)
-{
-	if (!phy)
-		return NULL;
-
-	return phy->pll;
-}
-
 void msm_dsi_phy_set_usecase(struct msm_dsi_phy *phy,
 			     enum msm_dsi_phy_usecase uc)
 {
 	if (phy)
 		phy->usecase = uc;
+}
+
+/* Returns true if we have to clear DSI_LANE_CTRL.HS_REQ_SEL_PHY */
+bool msm_dsi_phy_set_continuous_clock(struct msm_dsi_phy *phy, bool enable)
+{
+	if (!phy || !phy->cfg->ops.set_continuous_clock)
+		return false;
+
+	return phy->cfg->ops.set_continuous_clock(phy, enable);
+}
+
+int msm_dsi_phy_get_clk_provider(struct msm_dsi_phy *phy,
+	struct clk **byte_clk_provider, struct clk **pixel_clk_provider)
+{
+	if (byte_clk_provider)
+		*byte_clk_provider = phy->provided_clocks->hws[DSI_BYTE_PLL_CLK]->clk;
+	if (pixel_clk_provider)
+		*pixel_clk_provider = phy->provided_clocks->hws[DSI_PIXEL_PLL_CLK]->clk;
+
+	return 0;
+}
+
+void msm_dsi_phy_pll_save_state(struct msm_dsi_phy *phy)
+{
+	if (phy->cfg->ops.save_pll_state) {
+		phy->cfg->ops.save_pll_state(phy);
+		phy->state_saved = true;
+	}
+}
+
+int msm_dsi_phy_pll_restore_state(struct msm_dsi_phy *phy)
+{
+	int ret;
+
+	if (phy->cfg->ops.restore_pll_state && phy->state_saved) {
+		ret = phy->cfg->ops.restore_pll_state(phy);
+		if (ret)
+			return ret;
+
+		phy->state_saved = false;
+	}
+
+	return 0;
+}
+
+void msm_dsi_phy_snapshot(struct msm_disp_state *disp_state, struct msm_dsi_phy *phy)
+{
+	msm_disp_snapshot_add_block(disp_state,
+			phy->base_size, phy->base,
+			"dsi%d_phy", phy->id);
+
+	/* Do not try accessing PLL registers if it is switched off */
+	if (phy->pll_on)
+		msm_disp_snapshot_add_block(disp_state,
+			phy->pll_size, phy->pll_base,
+			"dsi%d_pll", phy->id);
+
+	if (phy->lane_base)
+		msm_disp_snapshot_add_block(disp_state,
+			phy->lane_size, phy->lane_base,
+			"dsi%d_lane", phy->id);
+
+	if (phy->reg_base)
+		msm_disp_snapshot_add_block(disp_state,
+			phy->reg_size, phy->reg_base,
+			"dsi%d_reg", phy->id);
 }

@@ -34,14 +34,6 @@ struct snd_ac97_reset_cfg {
 	int gpio_reset;
 };
 
-struct snd_ac97_gpio_priv {
-#ifdef CONFIG_GPIOLIB
-	struct gpio_chip gpio_chip;
-#endif
-	unsigned int gpios_set;
-	struct snd_soc_component *component;
-};
-
 static struct snd_ac97_bus soc_ac97_bus = {
 	.ops = NULL, /* Gets initialized in snd_soc_set_ac97_ops() */
 };
@@ -52,6 +44,12 @@ static void soc_ac97_device_release(struct device *dev)
 }
 
 #ifdef CONFIG_GPIOLIB
+struct snd_ac97_gpio_priv {
+	struct gpio_chip gpio_chip;
+	unsigned int gpios_set;
+	struct snd_soc_component *component;
+};
+
 static inline struct snd_soc_component *gpio_to_component(struct gpio_chip *chip)
 {
 	struct snd_ac97_gpio_priv *gpio_priv = gpiochip_get_data(chip);

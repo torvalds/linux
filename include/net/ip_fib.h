@@ -133,7 +133,7 @@ struct fib_info {
 	struct hlist_node	fib_lhash;
 	struct list_head	nh_list;
 	struct net		*fib_net;
-	int			fib_treeref;
+	refcount_t		fib_treeref;
 	refcount_t		fib_clntref;
 	unsigned int		fib_flags;
 	unsigned char		fib_dead;
@@ -465,6 +465,49 @@ int fib_sync_down_addr(struct net_device *dev, __be32 local);
 int fib_sync_up(struct net_device *dev, unsigned char nh_flags);
 void fib_sync_mtu(struct net_device *dev, u32 orig_mtu);
 void fib_nhc_update_mtu(struct fib_nh_common *nhc, u32 new, u32 orig);
+
+/* Fields used for sysctl_fib_multipath_hash_fields.
+ * Common to IPv4 and IPv6.
+ *
+ * Add new fields at the end. This is user API.
+ */
+#define FIB_MULTIPATH_HASH_FIELD_SRC_IP			BIT(0)
+#define FIB_MULTIPATH_HASH_FIELD_DST_IP			BIT(1)
+#define FIB_MULTIPATH_HASH_FIELD_IP_PROTO		BIT(2)
+#define FIB_MULTIPATH_HASH_FIELD_FLOWLABEL		BIT(3)
+#define FIB_MULTIPATH_HASH_FIELD_SRC_PORT		BIT(4)
+#define FIB_MULTIPATH_HASH_FIELD_DST_PORT		BIT(5)
+#define FIB_MULTIPATH_HASH_FIELD_INNER_SRC_IP		BIT(6)
+#define FIB_MULTIPATH_HASH_FIELD_INNER_DST_IP		BIT(7)
+#define FIB_MULTIPATH_HASH_FIELD_INNER_IP_PROTO		BIT(8)
+#define FIB_MULTIPATH_HASH_FIELD_INNER_FLOWLABEL	BIT(9)
+#define FIB_MULTIPATH_HASH_FIELD_INNER_SRC_PORT		BIT(10)
+#define FIB_MULTIPATH_HASH_FIELD_INNER_DST_PORT		BIT(11)
+
+#define FIB_MULTIPATH_HASH_FIELD_OUTER_MASK		\
+	(FIB_MULTIPATH_HASH_FIELD_SRC_IP |		\
+	 FIB_MULTIPATH_HASH_FIELD_DST_IP |		\
+	 FIB_MULTIPATH_HASH_FIELD_IP_PROTO |		\
+	 FIB_MULTIPATH_HASH_FIELD_FLOWLABEL |		\
+	 FIB_MULTIPATH_HASH_FIELD_SRC_PORT |		\
+	 FIB_MULTIPATH_HASH_FIELD_DST_PORT)
+
+#define FIB_MULTIPATH_HASH_FIELD_INNER_MASK		\
+	(FIB_MULTIPATH_HASH_FIELD_INNER_SRC_IP |	\
+	 FIB_MULTIPATH_HASH_FIELD_INNER_DST_IP |	\
+	 FIB_MULTIPATH_HASH_FIELD_INNER_IP_PROTO |	\
+	 FIB_MULTIPATH_HASH_FIELD_INNER_FLOWLABEL |	\
+	 FIB_MULTIPATH_HASH_FIELD_INNER_SRC_PORT |	\
+	 FIB_MULTIPATH_HASH_FIELD_INNER_DST_PORT)
+
+#define FIB_MULTIPATH_HASH_FIELD_ALL_MASK		\
+	(FIB_MULTIPATH_HASH_FIELD_OUTER_MASK |		\
+	 FIB_MULTIPATH_HASH_FIELD_INNER_MASK)
+
+#define FIB_MULTIPATH_HASH_FIELD_DEFAULT_MASK		\
+	(FIB_MULTIPATH_HASH_FIELD_SRC_IP |		\
+	 FIB_MULTIPATH_HASH_FIELD_DST_IP |		\
+	 FIB_MULTIPATH_HASH_FIELD_IP_PROTO)
 
 #ifdef CONFIG_IP_ROUTE_MULTIPATH
 int fib_multipath_hash(const struct net *net, const struct flowi4 *fl4,

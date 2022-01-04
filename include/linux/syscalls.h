@@ -69,6 +69,8 @@ struct io_uring_params;
 struct clone_args;
 struct open_how;
 struct mount_attr;
+struct landlock_ruleset_attr;
+enum landlock_rule_type;
 
 #include <linux/types.h>
 #include <linux/aio_abi.h>
@@ -483,6 +485,8 @@ asmlinkage long sys_pipe2(int __user *fildes, int flags);
 /* fs/quota.c */
 asmlinkage long sys_quotactl(unsigned int cmd, const char __user *special,
 				qid_t id, void __user *addr);
+asmlinkage long sys_quotactl_fd(unsigned int fd, unsigned int cmd, qid_t id,
+				void __user *addr);
 
 /* fs/readdir.c */
 asmlinkage long sys_getdents64(unsigned int fd,
@@ -911,6 +915,7 @@ asmlinkage long sys_mincore(unsigned long start, size_t len,
 asmlinkage long sys_madvise(unsigned long start, size_t len, int behavior);
 asmlinkage long sys_process_madvise(int pidfd, const struct iovec __user *vec,
 			size_t vlen, int behavior, unsigned int flags);
+asmlinkage long sys_process_mrelease(int pidfd, unsigned int flags);
 asmlinkage long sys_remap_file_pages(unsigned long start, unsigned long size,
 			unsigned long prot, unsigned long pgoff,
 			unsigned long flags);
@@ -1041,6 +1046,12 @@ asmlinkage long sys_pidfd_send_signal(int pidfd, int sig,
 				       siginfo_t __user *info,
 				       unsigned int flags);
 asmlinkage long sys_pidfd_getfd(int pidfd, int fd, unsigned int flags);
+asmlinkage long sys_landlock_create_ruleset(const struct landlock_ruleset_attr __user *attr,
+		size_t size, __u32 flags);
+asmlinkage long sys_landlock_add_rule(int ruleset_fd, enum landlock_rule_type rule_type,
+		const void __user *rule_attr, __u32 flags);
+asmlinkage long sys_landlock_restrict_self(int ruleset_fd, __u32 flags);
+asmlinkage long sys_memfd_secret(unsigned int flags);
 
 /*
  * Architecture-specific system calls
@@ -1148,7 +1159,6 @@ asmlinkage long sys_ustat(unsigned dev, struct ustat __user *ubuf);
 asmlinkage long sys_vfork(void);
 asmlinkage long sys_recv(int, void __user *, size_t, unsigned);
 asmlinkage long sys_send(int, void __user *, size_t, unsigned);
-asmlinkage long sys_bdflush(int func, long data);
 asmlinkage long sys_oldumount(char __user *name);
 asmlinkage long sys_uselib(const char __user *library);
 asmlinkage long sys_sysfs(int option,

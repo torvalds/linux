@@ -1063,6 +1063,7 @@ static int sof_control_load_volume(struct snd_soc_component *scomp,
 	scontrol->min_volume_step = le32_to_cpu(mc->min);
 	scontrol->max_volume_step = le32_to_cpu(mc->max);
 	scontrol->num_channels = le32_to_cpu(mc->num_channels);
+	scontrol->control_data->index = kc->index;
 
 	/* set cmd for mixer control */
 	if (le32_to_cpu(mc->max) == 1) {
@@ -1140,7 +1141,7 @@ static int sof_control_load_enum(struct snd_soc_component *scomp,
 
 	scontrol->comp_id = sdev->next_comp_id;
 	scontrol->num_channels = le32_to_cpu(ec->num_channels);
-
+	scontrol->control_data->index = kc->index;
 	scontrol->cmd = SOF_CTRL_CMD_ENUM;
 
 	dev_dbg(scomp->dev, "tplg: load kcontrol index %d chans %d comp_id %d\n",
@@ -1188,6 +1189,7 @@ static int sof_control_load_bytes(struct snd_soc_component *scomp,
 
 	scontrol->comp_id = sdev->next_comp_id;
 	scontrol->cmd = SOF_CTRL_CMD_BINARY;
+	scontrol->control_data->index = kc->index;
 
 	dev_dbg(scomp->dev, "tplg: load kcontrol index %d chans %d\n",
 		scontrol->comp_id, scontrol->num_channels);
@@ -2133,7 +2135,7 @@ static int sof_get_control_data(struct snd_soc_component *scomp,
 	for (i = 0; i < widget->num_kcontrols; i++) {
 		kc = &widget->kcontrol_news[i];
 
-		switch (widget->dobj.widget.kcontrol_type) {
+		switch (widget->dobj.widget.kcontrol_type[i]) {
 		case SND_SOC_TPLG_TYPE_MIXER:
 			sm = (struct soc_mixer_control *)kc->private_value;
 			wdata[i].control = sm->dobj.private;
@@ -2147,8 +2149,8 @@ static int sof_get_control_data(struct snd_soc_component *scomp,
 			wdata[i].control = se->dobj.private;
 			break;
 		default:
-			dev_err(scomp->dev, "error: unknown kcontrol type %d in widget %s\n",
-				widget->dobj.widget.kcontrol_type,
+			dev_err(scomp->dev, "error: unknown kcontrol type %u in widget %s\n",
+				widget->dobj.widget.kcontrol_type[i],
 				widget->name);
 			return -EINVAL;
 		}
@@ -2164,7 +2166,8 @@ static int sof_get_control_data(struct snd_soc_component *scomp,
 			return -EINVAL;
 
 		/* make sure data is valid - data can be updated at runtime */
-		if (wdata[i].pdata->magic != SOF_ABI_MAGIC)
+		if (widget->dobj.widget.kcontrol_type[i] == SND_SOC_TPLG_TYPE_BYTES &&
+		    wdata[i].pdata->magic != SOF_ABI_MAGIC)
 			return -EINVAL;
 
 		*size += wdata[i].pdata->size;
@@ -2605,7 +2608,7 @@ static int sof_widget_unload(struct snd_soc_component *scomp,
 	}
 	for (i = 0; i < widget->num_kcontrols; i++) {
 		kc = &widget->kcontrol_news[i];
-		switch (dobj->widget.kcontrol_type) {
+		switch (widget->dobj.widget.kcontrol_type[i]) {
 		case SND_SOC_TPLG_TYPE_MIXER:
 			sm = (struct soc_mixer_control *)kc->private_value;
 			scontrol = sm->dobj.private;
@@ -2811,12 +2814,14 @@ static void sof_dai_set_format(struct snd_soc_tplg_hw_config *hw_config,
  * name. Note that the function can only be used for the case that all DAIs
  * have a common DAI config for now.
  */
-static int sof_set_dai_config(struct snd_sof_dev *sdev, u32 size,
-			      struct snd_soc_dai_link *link,
-			      struct sof_ipc_dai_config *config)
+static int sof_set_dai_config_multi(struct snd_sof_dev *sdev, u32 size,
+				    struct snd_soc_dai_link *link,
+				    struct sof_ipc_dai_config *config,
+				    int num_conf, int curr_conf)
 {
 	struct snd_sof_dai *dai;
 	int found = 0;
+	int i;
 
 	list_for_each_entry(dai, &sdev->dai_list, list) {
 		if (!dai->name)
@@ -2832,19 +2837,27 @@ static int sof_set_dai_config(struct snd_sof_dev *sdev, u32 size,
 			 * dai config's dai_index match to the component's
 			 * dai_index.
 			 */
-			config->dai_index = dai->comp_dai.dai_index;
+			for (i = 0; i < num_conf; i++)
+				config[i].dai_index = dai->comp_dai.dai_index;
 
+			dev_dbg(sdev->dev, "set DAI config for %s index %d\n",
+				dai->name, config[curr_conf].dai_index);
 			/* send message to DSP */
 			ret = sof_ipc_tx_message(sdev->ipc,
-						 config->hdr.cmd, config, size,
+						 config[curr_conf].hdr.cmd,
+						 &config[curr_conf], size,
 						 &reply, sizeof(reply));
 
 			if (ret < 0) {
-				dev_err(sdev->dev, "error: failed to set DAI config for %s index %d\n",
-					dai->name, config->dai_index);
+				dev_err(sdev->dev,
+					"error: failed to set DAI config for %s index %d\n",
+					dai->name, config[curr_conf].dai_index);
 				return ret;
 			}
-			dai->dai_config = kmemdup(config, size, GFP_KERNEL);
+
+			dai->number_configs = num_conf;
+			dai->current_config = curr_conf;
+			dai->dai_config = kmemdup(config, size * num_conf, GFP_KERNEL);
 			if (!dai->dai_config)
 				return -ENOMEM;
 
@@ -2868,64 +2881,81 @@ static int sof_set_dai_config(struct snd_sof_dev *sdev, u32 size,
 	return 0;
 }
 
+static int sof_set_dai_config(struct snd_sof_dev *sdev, u32 size,
+			      struct snd_soc_dai_link *link,
+			      struct sof_ipc_dai_config *config)
+{
+	return sof_set_dai_config_multi(sdev, size, link, config, 1, 0);
+}
+
 static int sof_link_ssp_load(struct snd_soc_component *scomp, int index,
 			     struct snd_soc_dai_link *link,
 			     struct snd_soc_tplg_link_config *cfg,
 			     struct snd_soc_tplg_hw_config *hw_config,
-			     struct sof_ipc_dai_config *config)
+			     struct sof_ipc_dai_config *config, int curr_conf)
 {
 	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
 	struct snd_soc_tplg_private *private = &cfg->priv;
+	int num_conf = le32_to_cpu(cfg->num_hw_configs);
 	u32 size = sizeof(*config);
 	int ret;
+	int i;
 
-	/* handle master/slave and inverted clocks */
-	sof_dai_set_format(hw_config, config);
+	/*
+	 * Parse common data, we should have 1 common data per hw_config.
+	 */
+	ret = sof_parse_token_sets(scomp, &config->ssp, ssp_tokens,
+				   ARRAY_SIZE(ssp_tokens), private->array,
+				   le32_to_cpu(private->size),
+				   num_conf, size);
 
-	/* init IPC */
-	memset(&config->ssp, 0, sizeof(struct sof_ipc_dai_ssp_params));
-	config->hdr.size = size;
-
-	ret = sof_parse_tokens(scomp, &config->ssp, ssp_tokens,
-			       ARRAY_SIZE(ssp_tokens), private->array,
-			       le32_to_cpu(private->size));
 	if (ret != 0) {
 		dev_err(scomp->dev, "error: parse ssp tokens failed %d\n",
 			le32_to_cpu(private->size));
 		return ret;
 	}
 
-	config->ssp.mclk_rate = le32_to_cpu(hw_config->mclk_rate);
-	config->ssp.bclk_rate = le32_to_cpu(hw_config->bclk_rate);
-	config->ssp.fsync_rate = le32_to_cpu(hw_config->fsync_rate);
-	config->ssp.tdm_slots = le32_to_cpu(hw_config->tdm_slots);
-	config->ssp.tdm_slot_width = le32_to_cpu(hw_config->tdm_slot_width);
-	config->ssp.mclk_direction = hw_config->mclk_direction;
-	config->ssp.rx_slots = le32_to_cpu(hw_config->rx_slots);
-	config->ssp.tx_slots = le32_to_cpu(hw_config->tx_slots);
+	/* process all possible hw configs */
+	for (i = 0; i < num_conf; i++) {
 
-	dev_dbg(scomp->dev, "tplg: config SSP%d fmt 0x%x mclk %d bclk %d fclk %d width (%d)%d slots %d mclk id %d quirks %d\n",
-		config->dai_index, config->format,
-		config->ssp.mclk_rate, config->ssp.bclk_rate,
-		config->ssp.fsync_rate, config->ssp.sample_valid_bits,
-		config->ssp.tdm_slot_width, config->ssp.tdm_slots,
-		config->ssp.mclk_id, config->ssp.quirks);
+		/* handle master/slave and inverted clocks */
+		sof_dai_set_format(&hw_config[i], &config[i]);
 
-	/* validate SSP fsync rate and channel count */
-	if (config->ssp.fsync_rate < 8000 || config->ssp.fsync_rate > 192000) {
-		dev_err(scomp->dev, "error: invalid fsync rate for SSP%d\n",
-			config->dai_index);
-		return -EINVAL;
-	}
+		config[i].hdr.size = size;
 
-	if (config->ssp.tdm_slots < 1 || config->ssp.tdm_slots > 8) {
-		dev_err(scomp->dev, "error: invalid channel count for SSP%d\n",
-			config->dai_index);
-		return -EINVAL;
+		/* copy differentiating hw configs to ipc structs */
+		config[i].ssp.mclk_rate = le32_to_cpu(hw_config[i].mclk_rate);
+		config[i].ssp.bclk_rate = le32_to_cpu(hw_config[i].bclk_rate);
+		config[i].ssp.fsync_rate = le32_to_cpu(hw_config[i].fsync_rate);
+		config[i].ssp.tdm_slots = le32_to_cpu(hw_config[i].tdm_slots);
+		config[i].ssp.tdm_slot_width = le32_to_cpu(hw_config[i].tdm_slot_width);
+		config[i].ssp.mclk_direction = hw_config[i].mclk_direction;
+		config[i].ssp.rx_slots = le32_to_cpu(hw_config[i].rx_slots);
+		config[i].ssp.tx_slots = le32_to_cpu(hw_config[i].tx_slots);
+
+		dev_dbg(scomp->dev, "tplg: config SSP%d fmt 0x%x mclk %d bclk %d fclk %d width (%d)%d slots %d mclk id %d quirks %d\n",
+			config[i].dai_index, config[i].format,
+			config[i].ssp.mclk_rate, config[i].ssp.bclk_rate,
+			config[i].ssp.fsync_rate, config[i].ssp.sample_valid_bits,
+			config[i].ssp.tdm_slot_width, config[i].ssp.tdm_slots,
+			config[i].ssp.mclk_id, config[i].ssp.quirks);
+
+		/* validate SSP fsync rate and channel count */
+		if (config[i].ssp.fsync_rate < 8000 || config[i].ssp.fsync_rate > 192000) {
+			dev_err(scomp->dev, "error: invalid fsync rate for SSP%d\n",
+				config[i].dai_index);
+			return -EINVAL;
+		}
+
+		if (config[i].ssp.tdm_slots < 1 || config[i].ssp.tdm_slots > 8) {
+			dev_err(scomp->dev, "error: invalid channel count for SSP%d\n",
+				config[i].dai_index);
+			return -EINVAL;
+		}
 	}
 
 	/* set config for all DAI's with name matching the link name */
-	ret = sof_set_dai_config(sdev, size, link, config);
+	ret = sof_set_dai_config_multi(sdev, size, link, config, num_conf, curr_conf);
 	if (ret < 0)
 		dev_err(scomp->dev, "error: failed to save DAI config for SSP%d\n",
 			config->dai_index);
@@ -3216,11 +3246,13 @@ static int sof_link_load(struct snd_soc_component *scomp, int index,
 			 struct snd_soc_tplg_link_config *cfg)
 {
 	struct snd_soc_tplg_private *private = &cfg->priv;
-	struct sof_ipc_dai_config config;
 	struct snd_soc_tplg_hw_config *hw_config;
-	int num_hw_configs;
+	struct sof_ipc_dai_config common_config;
+	struct sof_ipc_dai_config *config;
+	int curr_conf;
+	int num_conf;
 	int ret;
-	int i = 0;
+	int i;
 
 	if (!link->platforms) {
 		dev_err(scomp->dev, "error: no platforms\n");
@@ -3257,13 +3289,11 @@ static int sof_link_load(struct snd_soc_component *scomp, int index,
 		return -EINVAL;
 	}
 
-	/* Send BE DAI link configurations to DSP */
-	memset(&config, 0, sizeof(config));
+	memset(&common_config, 0, sizeof(common_config));
 
 	/* get any common DAI tokens */
-	ret = sof_parse_tokens(scomp, &config, dai_link_tokens,
-			       ARRAY_SIZE(dai_link_tokens), private->array,
-			       le32_to_cpu(private->size));
+	ret = sof_parse_tokens(scomp, &common_config, dai_link_tokens, ARRAY_SIZE(dai_link_tokens),
+			       private->array, le32_to_cpu(private->size));
 	if (ret != 0) {
 		dev_err(scomp->dev, "error: parse link tokens failed %d\n",
 			le32_to_cpu(private->size));
@@ -3274,132 +3304,72 @@ static int sof_link_load(struct snd_soc_component *scomp, int index,
 	 * DAI links are expected to have at least 1 hw_config.
 	 * But some older topologies might have no hw_config for HDA dai links.
 	 */
-	num_hw_configs = le32_to_cpu(cfg->num_hw_configs);
-	if (!num_hw_configs) {
-		if (config.type != SOF_DAI_INTEL_HDA) {
+	hw_config = cfg->hw_config;
+	num_conf = le32_to_cpu(cfg->num_hw_configs);
+	if (!num_conf) {
+		if (common_config.type != SOF_DAI_INTEL_HDA) {
 			dev_err(scomp->dev, "error: unexpected DAI config count %d!\n",
 				le32_to_cpu(cfg->num_hw_configs));
 			return -EINVAL;
 		}
+		num_conf = 1;
+		curr_conf = 0;
 	} else {
 		dev_dbg(scomp->dev, "tplg: %d hw_configs found, default id: %d!\n",
 			cfg->num_hw_configs, le32_to_cpu(cfg->default_hw_config_id));
 
-		for (i = 0; i < num_hw_configs; i++) {
-			if (cfg->hw_config[i].id == cfg->default_hw_config_id)
+		for (curr_conf = 0; curr_conf < num_conf; curr_conf++) {
+			if (hw_config[curr_conf].id == cfg->default_hw_config_id)
 				break;
 		}
 
-		if (i == num_hw_configs) {
+		if (curr_conf == num_conf) {
 			dev_err(scomp->dev, "error: default hw_config id: %d not found!\n",
 				le32_to_cpu(cfg->default_hw_config_id));
 			return -EINVAL;
 		}
 	}
 
-	/* configure dai IPC message */
-	hw_config = &cfg->hw_config[i];
+	/* Reserve memory for all hw configs, eventually freed by widget */
+	config = kcalloc(num_conf, sizeof(*config), GFP_KERNEL);
+	if (!config)
+		return -ENOMEM;
 
-	config.hdr.cmd = SOF_IPC_GLB_DAI_MSG | SOF_IPC_DAI_CONFIG;
-	config.format = le32_to_cpu(hw_config->fmt);
+	/* Copy common data to all config ipc structs */
+	for (i = 0; i < num_conf; i++) {
+		config[i].hdr.cmd = SOF_IPC_GLB_DAI_MSG | SOF_IPC_DAI_CONFIG;
+		config[i].format = le32_to_cpu(hw_config[i].fmt);
+		config[i].type = common_config.type;
+		config[i].dai_index = common_config.dai_index;
+	}
 
 	/* now load DAI specific data and send IPC - type comes from token */
-	switch (config.type) {
+	switch (common_config.type) {
 	case SOF_DAI_INTEL_SSP:
-		ret = sof_link_ssp_load(scomp, index, link, cfg, hw_config,
-					&config);
+		ret = sof_link_ssp_load(scomp, index, link, cfg, hw_config, config, curr_conf);
 		break;
 	case SOF_DAI_INTEL_DMIC:
-		ret = sof_link_dmic_load(scomp, index, link, cfg, hw_config,
-					 &config);
+		ret = sof_link_dmic_load(scomp, index, link, cfg, hw_config + curr_conf, config);
 		break;
 	case SOF_DAI_INTEL_HDA:
-		ret = sof_link_hda_load(scomp, index, link, cfg, hw_config,
-					&config);
+		ret = sof_link_hda_load(scomp, index, link, cfg, hw_config + curr_conf, config);
 		break;
 	case SOF_DAI_INTEL_ALH:
-		ret = sof_link_alh_load(scomp, index, link, cfg, hw_config,
-					&config);
+		ret = sof_link_alh_load(scomp, index, link, cfg, hw_config + curr_conf, config);
 		break;
 	case SOF_DAI_IMX_SAI:
-		ret = sof_link_sai_load(scomp, index, link, cfg, hw_config,
-					&config);
+		ret = sof_link_sai_load(scomp, index, link, cfg, hw_config + curr_conf, config);
 		break;
 	case SOF_DAI_IMX_ESAI:
-		ret = sof_link_esai_load(scomp, index, link, cfg, hw_config,
-					 &config);
+		ret = sof_link_esai_load(scomp, index, link, cfg, hw_config + curr_conf, config);
 		break;
 	default:
-		dev_err(scomp->dev, "error: invalid DAI type %d\n",
-			config.type);
+		dev_err(scomp->dev, "error: invalid DAI type %d\n", common_config.type);
 		ret = -EINVAL;
 		break;
 	}
-	if (ret < 0)
-		return ret;
 
-	return 0;
-}
-
-static int sof_link_hda_unload(struct snd_sof_dev *sdev,
-			       struct snd_soc_dai_link *link)
-{
-	struct snd_soc_dai *dai;
-
-	dai = snd_soc_find_dai(link->cpus);
-	if (!dai) {
-		dev_err(sdev->dev, "error: failed to find dai %s in %s",
-			link->cpus->dai_name, __func__);
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
-static int sof_link_unload(struct snd_soc_component *scomp,
-			   struct snd_soc_dobj *dobj)
-{
-	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
-	struct snd_soc_dai_link *link =
-		container_of(dobj, struct snd_soc_dai_link, dobj);
-
-	struct snd_sof_dai *sof_dai;
-	int ret = 0;
-
-	/* only BE link is loaded by sof */
-	if (!link->no_pcm)
-		return 0;
-
-	list_for_each_entry(sof_dai, &sdev->dai_list, list) {
-		if (!sof_dai->name)
-			continue;
-
-		if (strcmp(link->name, sof_dai->name) == 0)
-			goto found;
-	}
-
-	dev_err(scomp->dev, "error: failed to find dai %s in %s",
-		link->name, __func__);
-	return -EINVAL;
-found:
-
-	switch (sof_dai->dai_config->type) {
-	case SOF_DAI_INTEL_SSP:
-	case SOF_DAI_INTEL_DMIC:
-	case SOF_DAI_INTEL_ALH:
-	case SOF_DAI_IMX_SAI:
-	case SOF_DAI_IMX_ESAI:
-		/* no resource needs to be released for all cases above */
-		break;
-	case SOF_DAI_INTEL_HDA:
-		ret = sof_link_hda_unload(sdev, link);
-		break;
-	default:
-		dev_err(scomp->dev, "error: invalid DAI type %d\n",
-			sof_dai->dai_config->type);
-		ret = -EINVAL;
-		break;
-	}
+	kfree(config);
 
 	return ret;
 }
@@ -3704,7 +3674,6 @@ static struct snd_soc_tplg_ops sof_tplg_ops = {
 
 	/* DAI link - used for any driver specific init */
 	.link_load	= sof_link_load,
-	.link_unload	= sof_link_unload,
 
 	/* completion - called at completion of firmware loading */
 	.complete	= sof_complete,

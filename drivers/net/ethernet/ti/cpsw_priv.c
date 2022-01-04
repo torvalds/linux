@@ -1305,19 +1305,15 @@ int cpsw_xdp_tx_frame(struct cpsw_priv *priv, struct xdp_frame *xdpf,
 		ret = cpdma_chan_submit_mapped(txch, cpsw_xdpf_to_handle(xdpf),
 					       dma, xdpf->len, port);
 	} else {
-		if (sizeof(*xmeta) > xdpf->headroom) {
-			xdp_return_frame_rx_napi(xdpf);
+		if (sizeof(*xmeta) > xdpf->headroom)
 			return -EINVAL;
-		}
 
 		ret = cpdma_chan_submit(txch, cpsw_xdpf_to_handle(xdpf),
 					xdpf->data, xdpf->len, port);
 	}
 
-	if (ret) {
+	if (ret)
 		priv->ndev->stats.tx_dropped++;
-		xdp_return_frame_rx_napi(xdpf);
-	}
 
 	return ret;
 }
@@ -1332,13 +1328,9 @@ int cpsw_run_xdp(struct cpsw_priv *priv, int ch, struct xdp_buff *xdp,
 	struct bpf_prog *prog;
 	u32 act;
 
-	rcu_read_lock();
-
 	prog = READ_ONCE(priv->xdp_prog);
-	if (!prog) {
-		ret = CPSW_XDP_PASS;
-		goto out;
-	}
+	if (!prog)
+		return CPSW_XDP_PASS;
 
 	act = bpf_prog_run_xdp(prog, xdp);
 	/* XDP prog might have changed packet data and boundaries */
@@ -1353,7 +1345,8 @@ int cpsw_run_xdp(struct cpsw_priv *priv, int ch, struct xdp_buff *xdp,
 		if (unlikely(!xdpf))
 			goto drop;
 
-		cpsw_xdp_tx_frame(priv, xdpf, page, port);
+		if (cpsw_xdp_tx_frame(priv, xdpf, page, port))
+			xdp_return_frame_rx_napi(xdpf);
 		break;
 	case XDP_REDIRECT:
 		if (xdp_do_redirect(ndev, xdp, prog))
@@ -1381,10 +1374,8 @@ int cpsw_run_xdp(struct cpsw_priv *priv, int ch, struct xdp_buff *xdp,
 	ndev->stats.rx_bytes += *len;
 	ndev->stats.rx_packets++;
 out:
-	rcu_read_unlock();
 	return ret;
 drop:
-	rcu_read_unlock();
 	page_pool_recycle_direct(cpsw->page_pool[ch], page);
 	return ret;
 }

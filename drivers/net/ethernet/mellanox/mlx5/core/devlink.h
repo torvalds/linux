@@ -10,6 +10,7 @@ enum mlx5_devlink_param_id {
 	MLX5_DEVLINK_PARAM_ID_BASE = DEVLINK_PARAM_GENERIC_ID_MAX,
 	MLX5_DEVLINK_PARAM_ID_FLOW_STEERING_MODE,
 	MLX5_DEVLINK_PARAM_ID_ESW_LARGE_GROUP_NUM,
+	MLX5_DEVLINK_PARAM_ID_ESW_PORT_METADATA,
 };
 
 struct mlx5_trap_ctx {
@@ -30,9 +31,9 @@ int mlx5_devlink_trap_get_num_active(struct mlx5_core_dev *dev);
 int mlx5_devlink_traps_get_action(struct mlx5_core_dev *dev, int trap_id,
 				  enum devlink_trap_action *action);
 
-struct devlink *mlx5_devlink_alloc(void);
+struct devlink *mlx5_devlink_alloc(struct device *dev);
 void mlx5_devlink_free(struct devlink *devlink);
-int mlx5_devlink_register(struct devlink *devlink, struct device *dev);
+int mlx5_devlink_register(struct devlink *devlink);
 void mlx5_devlink_unregister(struct devlink *devlink);
 
 #endif /* __MLX5_DEVLINK_H__ */

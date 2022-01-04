@@ -17,9 +17,6 @@ maintainers:
   - Jon Hunter <jonathanh@nvidia.com>
   - Sameer Pujar <spujar@nvidia.com>
 
-allOf:
-  - $ref: audio-graph-port.yaml#
-
 properties:
   $nodename:
     pattern: "^admaif@[0-9a-f]*$"
@@ -41,12 +38,18 @@ properties:
   dma-names: true
 
   ports:
+    $ref: /schemas/graph.yaml#/properties/ports
     description: |
       Contains list of ACIF (Audio CIF) port nodes for ADMAIF channels.
       The number of port nodes depends on the number of ADMAIF channels
       that SoC may have. These are interfaced with respective ACIF ports
       in AHUB (Audio Hub). Each port is capable of data transfers in
       both directions.
+
+    patternProperties:
+      '^port@[0-9]':
+        $ref: audio-graph-port.yaml#
+        unevaluatedProperties: false
 
 if:
   properties:
@@ -92,7 +95,7 @@ required:
   - dmas
   - dma-names
 
-unevaluatedProperties: false
+additionalProperties: false
 
 examples:
   - |

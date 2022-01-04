@@ -178,9 +178,3 @@
 #define NFS4_MAX_BACK_CHANNEL_OPS 2
 
 #endif /* _UAPI_LINUX_NFS4_H */
-
-/*
- * Local variables:
- *  c-basic-offset: 8
- * End:
- */

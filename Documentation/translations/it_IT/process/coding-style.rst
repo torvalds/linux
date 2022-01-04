@@ -62,7 +62,7 @@ i ``case``.  Un esempio.:
 	case 'K':
 	case 'k':
 		mem <<= 10;
-		/* fall through */
+		fallthrough;
 	default:
 		break;
 	}

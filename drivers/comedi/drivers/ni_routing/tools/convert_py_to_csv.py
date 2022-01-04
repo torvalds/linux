@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: GPL-2.0+
-# vim: ts=2:sw=2:et:tw=80:nowrap
 
 from os import path
 import os, csv

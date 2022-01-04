@@ -563,14 +563,14 @@ static int armpmu_filter_match(struct perf_event *event)
 	return ret;
 }
 
-static ssize_t armpmu_cpumask_show(struct device *dev,
-				   struct device_attribute *attr, char *buf)
+static ssize_t cpus_show(struct device *dev,
+			 struct device_attribute *attr, char *buf)
 {
 	struct arm_pmu *armpmu = to_arm_pmu(dev_get_drvdata(dev));
 	return cpumap_print_to_pagebuf(true, buf, &armpmu->supported_cpus);
 }
 
-static DEVICE_ATTR(cpus, S_IRUGO, armpmu_cpumask_show, NULL);
+static DEVICE_ATTR_RO(cpus);
 
 static struct attribute *armpmu_common_attrs[] = {
 	&dev_attr_cpus.attr,
@@ -580,33 +580,6 @@ static struct attribute *armpmu_common_attrs[] = {
 static const struct attribute_group armpmu_common_attr_group = {
 	.attrs = armpmu_common_attrs,
 };
-
-/* Set at runtime when we know what CPU type we are. */
-static struct arm_pmu *__oprofile_cpu_pmu;
-
-/*
- * Despite the names, these two functions are CPU-specific and are used
- * by the OProfile/perf code.
- */
-const char *perf_pmu_name(void)
-{
-	if (!__oprofile_cpu_pmu)
-		return NULL;
-
-	return __oprofile_cpu_pmu->name;
-}
-EXPORT_SYMBOL_GPL(perf_pmu_name);
-
-int perf_num_counters(void)
-{
-	int max_events = 0;
-
-	if (__oprofile_cpu_pmu != NULL)
-		max_events = __oprofile_cpu_pmu->num_events;
-
-	return max_events;
-}
-EXPORT_SYMBOL_GPL(perf_num_counters);
 
 static int armpmu_count_irq_users(const int irq)
 {
@@ -671,10 +644,8 @@ int armpmu_request_irq(int irq, int cpu)
 		}
 
 		irq_flags = IRQF_PERCPU |
-			    IRQF_NOBALANCING |
+			    IRQF_NOBALANCING | IRQF_NO_AUTOEN |
 			    IRQF_NO_THREAD;
-
-		irq_set_status_flags(irq, IRQ_NOAUTOEN);
 
 		err = request_nmi(irq, handler, irq_flags, "arm-pmu",
 				  per_cpu_ptr(&cpu_armpmu, cpu));
@@ -697,7 +668,7 @@ int armpmu_request_irq(int irq, int cpu)
 						 &cpu_armpmu);
 			irq_ops = &percpu_pmuirq_ops;
 		} else {
-			has_nmi= true;
+			has_nmi = true;
 			irq_ops = &percpu_pmunmi_ops;
 		}
 	} else {
@@ -896,10 +867,8 @@ static struct arm_pmu *__armpmu_alloc(gfp_t flags)
 	int cpu;
 
 	pmu = kzalloc(sizeof(*pmu), flags);
-	if (!pmu) {
-		pr_info("failed to allocate PMU device!\n");
+	if (!pmu)
 		goto out;
-	}
 
 	pmu->hw_events = alloc_percpu_gfp(struct pmu_hw_events, flags);
 	if (!pmu->hw_events) {
@@ -978,9 +947,6 @@ int armpmu_register(struct arm_pmu *pmu)
 	ret = perf_pmu_register(&pmu->pmu, pmu->name, -1);
 	if (ret)
 		goto out_destroy;
-
-	if (!__oprofile_cpu_pmu)
-		__oprofile_cpu_pmu = pmu;
 
 	pr_info("enabled with %s PMU driver, %d counters available%s\n",
 		pmu->name, pmu->num_events,

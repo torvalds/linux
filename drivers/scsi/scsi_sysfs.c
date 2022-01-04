@@ -13,6 +13,7 @@
 #include <linux/blkdev.h>
 #include <linux/device.h>
 #include <linux/pm_runtime.h>
+#include <linux/bsg.h>
 
 #include <scsi/scsi.h>
 #include <scsi/scsi_device.h>
@@ -373,7 +374,6 @@ shost_rd_attr(cmd_per_lun, "%hd\n");
 shost_rd_attr(can_queue, "%d\n");
 shost_rd_attr(sg_tablesize, "%hu\n");
 shost_rd_attr(sg_prot_tablesize, "%hu\n");
-shost_rd_attr(unchecked_isa_dma, "%d\n");
 shost_rd_attr(prot_capabilities, "%u\n");
 shost_rd_attr(prot_guard_type, "%hd\n");
 shost_rd_attr2(proc_name, hostt->proc_name, "%s\n");
@@ -411,7 +411,6 @@ static struct attribute *scsi_sysfs_shost_attrs[] = {
 	&dev_attr_can_queue.attr,
 	&dev_attr_sg_tablesize.attr,
 	&dev_attr_sg_prot_tablesize.attr,
-	&dev_attr_unchecked_isa_dma.attr,
 	&dev_attr_proc_name.attr,
 	&dev_attr_scan.attr,
 	&dev_attr_hstate.attr,
@@ -476,6 +475,8 @@ static void scsi_device_dev_release_usercontext(struct work_struct *work)
 	blk_put_queue(sdev->request_queue);
 	/* NULL queue means the device can't be used */
 	sdev->request_queue = NULL;
+
+	sbitmap_free(&sdev->budget_map);
 
 	mutex_lock(&sdev->inquiry_mutex);
 	vpd_pg0 = rcu_replace_pointer(sdev->vpd_pg0, vpd_pg0,
@@ -670,7 +671,7 @@ sdev_show_device_busy(struct device *dev, struct device_attribute *attr,
 		char *buf)
 {
 	struct scsi_device *sdev = to_scsi_device(dev);
-	return snprintf(buf, 20, "%d\n", atomic_read(&sdev->device_busy));
+	return snprintf(buf, 20, "%d\n", scsi_device_busy(sdev));
 }
 static DEVICE_ATTR(device_busy, S_IRUGO, sdev_show_device_busy, NULL);
 
@@ -807,11 +808,17 @@ store_state_field(struct device *dev, struct device_attribute *attr,
 	mutex_lock(&sdev->state_mutex);
 	ret = scsi_device_set_state(sdev, state);
 	/*
-	 * If the device state changes to SDEV_RUNNING, we need to run
-	 * the queue to avoid I/O hang.
+	 * If the device state changes to SDEV_RUNNING, we need to
+	 * run the queue to avoid I/O hang, and rescan the device
+	 * to revalidate it. Running the queue first is necessary
+	 * because another thread may be waiting inside
+	 * blk_mq_freeze_queue_wait() and because that call may be
+	 * waiting for pending I/O to finish.
 	 */
-	if (ret == 0 && state == SDEV_RUNNING)
+	if (ret == 0 && state == SDEV_RUNNING) {
 		blk_mq_run_hw_queues(sdev->request_queue, true);
+		scsi_rescan_device(dev);
+	}
 	mutex_unlock(&sdev->state_mutex);
 
 	return ret == 0 ? count : -EINVAL;
@@ -1327,7 +1334,6 @@ static int scsi_target_add(struct scsi_target *starget)
 int scsi_sysfs_add_sdev(struct scsi_device *sdev)
 {
 	int error, i;
-	struct request_queue *rq = sdev->request_queue;
 	struct scsi_target *starget = sdev->sdev_target;
 
 	error = scsi_target_add(starget);
@@ -1366,12 +1372,19 @@ int scsi_sysfs_add_sdev(struct scsi_device *sdev)
 	transport_add_device(&sdev->sdev_gendev);
 	sdev->is_visible = 1;
 
-	error = bsg_scsi_register_queue(rq, &sdev->sdev_gendev);
-	if (error)
-		/* we're treating error on bsg register as non-fatal,
-		 * so pretend nothing went wrong */
-		sdev_printk(KERN_INFO, sdev,
-			    "Failed to register bsg queue, errno=%d\n", error);
+	if (IS_ENABLED(CONFIG_BLK_DEV_BSG)) {
+		sdev->bsg_dev = scsi_bsg_register_queue(sdev);
+		if (IS_ERR(sdev->bsg_dev)) {
+			/*
+			 * We're treating error on bsg register as non-fatal, so
+			 * pretend nothing went wrong.
+			 */
+			sdev_printk(KERN_INFO, sdev,
+				    "Failed to register bsg queue, errno=%d\n",
+				    error);
+			sdev->bsg_dev = NULL;
+		}
+	}
 
 	/* add additional host specific attributes */
 	if (sdev->host->hostt->sdev_attrs) {
@@ -1433,7 +1446,8 @@ void __scsi_remove_device(struct scsi_device *sdev)
 			sysfs_remove_groups(&sdev->sdev_gendev.kobj,
 					sdev->host->hostt->sdev_groups);
 
-		bsg_unregister_queue(sdev->request_queue);
+		if (IS_ENABLED(CONFIG_BLK_DEV_BSG) && sdev->bsg_dev)
+			bsg_unregister_queue(sdev->bsg_dev);
 		device_unregister(&sdev->sdev_dev);
 		transport_remove_device(dev);
 		device_del(dev);
@@ -1458,7 +1472,7 @@ void __scsi_remove_device(struct scsi_device *sdev)
 
 	/*
 	 * Paired with the kref_get() in scsi_sysfs_initialize().  We have
-	 * remoed sysfs visibility from the device, so make the target
+	 * removed sysfs visibility from the device, so make the target
 	 * invisible if this was the last device underneath it.
 	 */
 	scsi_target_reap(scsi_target(sdev));

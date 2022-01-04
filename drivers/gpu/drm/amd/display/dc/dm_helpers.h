@@ -34,6 +34,8 @@
 #include "dc.h"
 
 struct dp_mst_stream_allocation_table;
+struct aux_payload;
+enum aux_return_code_type;
 
 /*
  * Allocate memory accessible by the GPU
@@ -147,6 +149,8 @@ bool dm_helpers_dp_write_dsc_enable(
 bool dm_helpers_is_dp_sink_present(
 		struct dc_link *link);
 
+void dm_helpers_mst_enable_stream_features(const struct dc_stream_state *stream);
+
 enum dc_edid_status dm_helpers_read_local_edid(
 		struct dc_context *ctx,
 		struct dc_link *link,
@@ -156,4 +160,17 @@ void dm_set_dcn_clocks(
 		struct dc_context *ctx,
 		struct dc_clocks *clks);
 
+bool dm_helpers_dmub_outbox_interrupt_control(struct dc_context *ctx, bool enable);
+
+void dm_helpers_smu_timeout(struct dc_context *ctx, unsigned int msg_id, unsigned int param, unsigned int timeout_us);
+
+// 0x1 = Result_OK, 0xFE = Result_UnkmownCmd
+#define IS_SMU_TIMEOUT(result) \
+	(!(result == 0x1 || result == 0xFE))
+
+int dm_helper_dmub_aux_transfer_sync(
+		struct dc_context *ctx,
+		const struct dc_link *link,
+		struct aux_payload *payload,
+		enum aux_return_code_type *operation_result);
 #endif /* __DM_HELPERS__ */

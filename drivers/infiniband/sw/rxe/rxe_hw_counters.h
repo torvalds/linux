@@ -29,9 +29,9 @@ enum rxe_counters {
 	RXE_NUM_OF_COUNTERS
 };
 
-struct rdma_hw_stats *rxe_ib_alloc_hw_stats(struct ib_device *ibdev,
-					    u8 port_num);
+struct rdma_hw_stats *rxe_ib_alloc_hw_port_stats(struct ib_device *ibdev,
+						 u32 port_num);
 int rxe_ib_get_hw_stats(struct ib_device *ibdev,
 			struct rdma_hw_stats *stats,
-			u8 port, int index);
+			u32 port, int index);
 #endif /* RXE_HW_COUNTERS_H */

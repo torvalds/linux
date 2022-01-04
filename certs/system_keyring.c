@@ -28,6 +28,7 @@ static struct key *platform_trusted_keys;
 
 extern __initconst const u8 system_certificate_list[];
 extern __initconst const unsigned long system_certificate_list_size;
+extern __initconst const unsigned long module_cert_size;
 
 /**
  * restrict_link_to_builtin_trusted - Restrict keyring addition by built in CA
@@ -133,15 +134,35 @@ static __init int system_trusted_keyring_init(void)
  */
 device_initcall(system_trusted_keyring_init);
 
+__init int load_module_cert(struct key *keyring)
+{
+	if (!IS_ENABLED(CONFIG_IMA_APPRAISE_MODSIG))
+		return 0;
+
+	pr_notice("Loading compiled-in module X.509 certificates\n");
+
+	return load_certificate_list(system_certificate_list, module_cert_size, keyring);
+}
+
 /*
  * Load the compiled-in list of X.509 certificates.
  */
 static __init int load_system_certificate_list(void)
 {
+	const u8 *p;
+	unsigned long size;
+
 	pr_notice("Loading compiled-in X.509 certificates\n");
 
-	return load_certificate_list(system_certificate_list, system_certificate_list_size,
-				     builtin_trusted_keys);
+#ifdef CONFIG_MODULE_SIG
+	p = system_certificate_list;
+	size = system_certificate_list_size;
+#else
+	p = system_certificate_list + module_cert_size;
+	size = system_certificate_list_size - module_cert_size;
+#endif
+
+	return load_certificate_list(p, size, builtin_trusted_keys);
 }
 late_initcall(load_system_certificate_list);
 

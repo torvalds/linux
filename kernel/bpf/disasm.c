@@ -19,16 +19,23 @@ static const char *__func_get_name(const struct bpf_insn_cbs *cbs,
 {
 	BUILD_BUG_ON(ARRAY_SIZE(func_id_str) != __BPF_FUNC_MAX_ID);
 
-	if (insn->src_reg != BPF_PSEUDO_CALL &&
+	if (!insn->src_reg &&
 	    insn->imm >= 0 && insn->imm < __BPF_FUNC_MAX_ID &&
 	    func_id_str[insn->imm])
 		return func_id_str[insn->imm];
 
-	if (cbs && cbs->cb_call)
-		return cbs->cb_call(cbs->private_data, insn);
+	if (cbs && cbs->cb_call) {
+		const char *res;
+
+		res = cbs->cb_call(cbs->private_data, insn);
+		if (res)
+			return res;
+	}
 
 	if (insn->src_reg == BPF_PSEUDO_CALL)
 		snprintf(buff, len, "%+d", insn->imm);
+	else if (insn->src_reg == BPF_PSEUDO_KFUNC_CALL)
+		snprintf(buff, len, "kernel-function");
 
 	return buff;
 }
@@ -199,15 +206,17 @@ void print_bpf_insn(const struct bpf_insn_cbs *cbs,
 			verbose(cbs->private_data, "BUG_%02x\n", insn->code);
 		}
 	} else if (class == BPF_ST) {
-		if (BPF_MODE(insn->code) != BPF_MEM) {
+		if (BPF_MODE(insn->code) == BPF_MEM) {
+			verbose(cbs->private_data, "(%02x) *(%s *)(r%d %+d) = %d\n",
+				insn->code,
+				bpf_ldst_string[BPF_SIZE(insn->code) >> 3],
+				insn->dst_reg,
+				insn->off, insn->imm);
+		} else if (BPF_MODE(insn->code) == 0xc0 /* BPF_NOSPEC, no UAPI */) {
+			verbose(cbs->private_data, "(%02x) nospec\n", insn->code);
+		} else {
 			verbose(cbs->private_data, "BUG_st_%02x\n", insn->code);
-			return;
 		}
-		verbose(cbs->private_data, "(%02x) *(%s *)(r%d %+d) = %d\n",
-			insn->code,
-			bpf_ldst_string[BPF_SIZE(insn->code) >> 3],
-			insn->dst_reg,
-			insn->off, insn->imm);
 	} else if (class == BPF_LDX) {
 		if (BPF_MODE(insn->code) != BPF_MEM) {
 			verbose(cbs->private_data, "BUG_ldx_%02x\n", insn->code);

@@ -7,7 +7,6 @@
  * 7-bit I2C address: 0x5C.
  */
 
-#include <linux/acpi.h>
 #include <linux/delay.h>
 #include <linux/i2c.h>
 #include <linux/kernel.h>
@@ -33,7 +32,11 @@
 struct am2315_data {
 	struct i2c_client *client;
 	struct mutex lock;
-	s16 buffer[8]; /* 2x16-bit channels + 2x16 padding + 4x16 timestamp */
+	/* Ensure timestamp is naturally aligned */
+	struct {
+		s16 chans[2];
+		s64 timestamp __aligned(8);
+	} scan;
 };
 
 struct am2315_sensor_data {
@@ -167,20 +170,20 @@ static irqreturn_t am2315_trigger_handler(int irq, void *p)
 
 	mutex_lock(&data->lock);
 	if (*(indio_dev->active_scan_mask) == AM2315_ALL_CHANNEL_MASK) {
-		data->buffer[0] = sensor_data.hum_data;
-		data->buffer[1] = sensor_data.temp_data;
+		data->scan.chans[0] = sensor_data.hum_data;
+		data->scan.chans[1] = sensor_data.temp_data;
 	} else {
 		i = 0;
 		for_each_set_bit(bit, indio_dev->active_scan_mask,
 				 indio_dev->masklength) {
-			data->buffer[i] = (bit ? sensor_data.temp_data :
-						 sensor_data.hum_data);
+			data->scan.chans[i] = (bit ? sensor_data.temp_data :
+					       sensor_data.hum_data);
 			i++;
 		}
 	}
 	mutex_unlock(&data->lock);
 
-	iio_push_to_buffers_with_timestamp(indio_dev, data->buffer,
+	iio_push_to_buffers_with_timestamp(indio_dev, &data->scan,
 					   pf->timestamp);
 err:
 	iio_trigger_notify_done(indio_dev->trig);
@@ -256,17 +259,9 @@ static const struct i2c_device_id am2315_i2c_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, am2315_i2c_id);
 
-static const struct acpi_device_id am2315_acpi_id[] = {
-	{"AOS2315", 0},
-	{}
-};
-
-MODULE_DEVICE_TABLE(acpi, am2315_acpi_id);
-
 static struct i2c_driver am2315_driver = {
 	.driver = {
 		.name = "am2315",
-		.acpi_match_table = ACPI_PTR(am2315_acpi_id),
 	},
 	.probe =            am2315_probe,
 	.id_table =         am2315_i2c_id,

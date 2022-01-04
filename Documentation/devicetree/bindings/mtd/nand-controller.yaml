@@ -38,6 +38,17 @@ properties:
 
   ranges: true
 
+  cs-gpios:
+    minItems: 1
+    maxItems: 8
+    description:
+      Array of chip-select available to the controller. The first
+      entries are a 1:1 mapping of the available chip-select on the
+      NAND controller (even if they are not used). As many additional
+      chip-select as needed may follow and should be phandles of GPIO
+      lines. 'reg' entries of the NAND chip subnodes become indexes of
+      this array when this property is present.
+
 patternProperties:
   "^nand@[a-f0-9]$":
     type: object
@@ -164,14 +175,19 @@ examples:
     nand-controller {
       #address-cells = <1>;
       #size-cells = <0>;
+      cs-gpios = <0>, <&gpioA 1>; /* A single native CS is available */
 
       /* controller specific properties */
 
       nand@0 {
-        reg = <0>;
+        reg = <0>; /* Native CS */
         nand-use-soft-ecc-engine;
         nand-ecc-algo = "bch";
 
         /* controller specific properties */
+      };
+
+      nand@1 {
+        reg = <1>; /* GPIO CS */
       };
     };

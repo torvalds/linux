@@ -124,14 +124,14 @@ static int pm_create_runlist_ib(struct packet_manager *pm,
 {
 	unsigned int alloc_size_bytes;
 	unsigned int *rl_buffer, rl_wptr, i;
-	int retval, proccesses_mapped;
+	int retval, processes_mapped;
 	struct device_process_node *cur;
 	struct qcm_process_device *qpd;
 	struct queue *q;
 	struct kernel_queue *kq;
 	bool is_over_subscription;
 
-	rl_wptr = retval = proccesses_mapped = 0;
+	rl_wptr = retval = processes_mapped = 0;
 
 	retval = pm_allocate_runlist_ib(pm, &rl_buffer, rl_gpu_addr,
 				&alloc_size_bytes, &is_over_subscription);
@@ -148,7 +148,7 @@ static int pm_create_runlist_ib(struct packet_manager *pm,
 	list_for_each_entry(cur, queues, list) {
 		qpd = cur->qpd;
 		/* build map process packet */
-		if (proccesses_mapped >= pm->dqm->processes_count) {
+		if (processes_mapped >= pm->dqm->processes_count) {
 			pr_debug("Not enough space left in runlist IB\n");
 			pm_release_ib(pm);
 			return -ENOMEM;
@@ -158,7 +158,7 @@ static int pm_create_runlist_ib(struct packet_manager *pm,
 		if (retval)
 			return retval;
 
-		proccesses_mapped++;
+		processes_mapped++;
 		inc_wptr(&rl_wptr, pm->pmf->map_process_size,
 				alloc_size_bytes);
 
@@ -249,7 +249,13 @@ int pm_init(struct packet_manager *pm, struct device_queue_manager *dqm)
 	case CHIP_NAVY_FLOUNDER:
 	case CHIP_VANGOGH:
 	case CHIP_DIMGREY_CAVEFISH:
+	case CHIP_BEIGE_GOBY:
+	case CHIP_YELLOW_CARP:
+	case CHIP_CYAN_SKILLFISH:
 		pm->pmf = &kfd_v9_pm_funcs;
+		break;
+	case CHIP_ALDEBARAN:
+		pm->pmf = &kfd_aldebaran_pm_funcs;
 		break;
 	default:
 		WARN(1, "Unexpected ASIC family %u",
@@ -273,6 +279,7 @@ void pm_uninit(struct packet_manager *pm, bool hanging)
 {
 	mutex_destroy(&pm->lock);
 	kernel_queue_uninit(pm->priv_queue, hanging);
+	pm->priv_queue = NULL;
 }
 
 int pm_send_set_resources(struct packet_manager *pm,
@@ -441,6 +448,9 @@ int pm_debugfs_hang_hws(struct packet_manager *pm)
 {
 	uint32_t *buffer, size;
 	int r = 0;
+
+	if (!pm->priv_queue)
+		return -EAGAIN;
 
 	size = pm->pmf->query_status_size;
 	mutex_lock(&pm->lock);

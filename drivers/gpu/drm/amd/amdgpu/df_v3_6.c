@@ -205,7 +205,7 @@ static ssize_t df_v3_6_get_df_cntr_avail(struct device *dev,
 			count++;
 	}
 
-	return snprintf(buf, PAGE_SIZE,	"%i\n", count);
+	return sysfs_emit(buf, "%i\n", count);
 }
 
 /* device attr for available perfmon counters */
@@ -219,11 +219,11 @@ static void df_v3_6_query_hashes(struct amdgpu_device *adev)
 	adev->df.hash_status.hash_2m = false;
 	adev->df.hash_status.hash_1g = false;
 
-	if (adev->asic_type != CHIP_ARCTURUS)
-		return;
-
-	/* encoding for hash-enabled on Arcturus */
-	if (adev->df.funcs->get_fb_channel_number(adev) == 0xe) {
+	/* encoding for hash-enabled on Arcturus and Aldebaran */
+	if ((adev->asic_type == CHIP_ARCTURUS &&
+	     adev->df.funcs->get_fb_channel_number(adev) == 0xe) ||
+	     (adev->asic_type == CHIP_ALDEBARAN &&
+	      adev->df.funcs->get_fb_channel_number(adev) == 0x1e)) {
 		tmp = RREG32_SOC15(DF, 0, mmDF_CS_UMC_AON0_DfGlobalCtrl);
 		adev->df.hash_status.hash_64k = REG_GET_FIELD(tmp,
 						DF_CS_UMC_AON0_DfGlobalCtrl,
@@ -277,8 +277,14 @@ static u32 df_v3_6_get_fb_channel_number(struct amdgpu_device *adev)
 {
 	u32 tmp;
 
-	tmp = RREG32_SOC15(DF, 0, mmDF_CS_UMC_AON0_DramBaseAddress0);
-	tmp &= DF_CS_UMC_AON0_DramBaseAddress0__IntLvNumChan_MASK;
+	if (adev->asic_type == CHIP_ALDEBARAN) {
+		tmp = RREG32_SOC15(DF, 0, mmDF_GCM_AON0_DramMegaBaseAddress0);
+		tmp &=
+		ALDEBARAN_DF_CS_UMC_AON0_DramBaseAddress0__IntLvNumChan_MASK;
+	} else {
+		tmp = RREG32_SOC15(DF, 0, mmDF_CS_UMC_AON0_DramBaseAddress0);
+		tmp &= DF_CS_UMC_AON0_DramBaseAddress0__IntLvNumChan_MASK;
+	}
 	tmp >>= DF_CS_UMC_AON0_DramBaseAddress0__IntLvNumChan__SHIFT;
 
 	return tmp;
@@ -568,6 +574,8 @@ static int df_v3_6_pmc_stop(struct amdgpu_device *adev, uint64_t config,
 		if (ret)
 			return ret;
 
+		df_v3_6_perfmon_wreg(adev, lo_base_addr, lo_val,
+							hi_base_addr, hi_val);
 
 		if (is_remove) {
 			df_v3_6_reset_perfmon_cntr(adev, config, counter_idx);

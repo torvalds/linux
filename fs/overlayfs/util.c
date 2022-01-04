@@ -10,6 +10,7 @@
 #include <linux/cred.h>
 #include <linux/xattr.h>
 #include <linux/exportfs.h>
+#include <linux/fileattr.h>
 #include <linux/uuid.h>
 #include <linux/namei.h>
 #include <linux/ratelimit.h>
@@ -214,7 +215,7 @@ const struct ovl_layer *ovl_layer_lower(struct dentry *dentry)
 
 /*
  * ovl_dentry_lower() could return either a data dentry or metacopy dentry
- * dependig on what is stored in lowerstack[0]. At times we need to find
+ * depending on what is stored in lowerstack[0]. At times we need to find
  * lower dentry which has data (and not metacopy dentry). This helper
  * returns the lower data dentry.
  */
@@ -422,18 +423,20 @@ void ovl_inode_update(struct inode *inode, struct dentry *upperdentry)
 	}
 }
 
-static void ovl_dentry_version_inc(struct dentry *dentry, bool impurity)
+static void ovl_dir_version_inc(struct dentry *dentry, bool impurity)
 {
 	struct inode *inode = d_inode(dentry);
 
 	WARN_ON(!inode_is_locked(inode));
+	WARN_ON(!d_is_dir(dentry));
 	/*
-	 * Version is used by readdir code to keep cache consistent.  For merge
-	 * dirs all changes need to be noted.  For non-merge dirs, cache only
-	 * contains impure (ones which have been copied up and have origins)
-	 * entries, so only need to note changes to impure entries.
+	 * Version is used by readdir code to keep cache consistent.
+	 * For merge dirs (or dirs with origin) all changes need to be noted.
+	 * For non-merge dirs, cache contains only impure entries (i.e. ones
+	 * which have been copied up and have origins), so only need to note
+	 * changes to impure entries.
 	 */
-	if (OVL_TYPE_MERGE(ovl_path_type(dentry)) || impurity)
+	if (!ovl_dir_is_real(dentry) || impurity)
 		OVL_I(inode)->version++;
 }
 
@@ -442,7 +445,7 @@ void ovl_dir_modified(struct dentry *dentry, bool impurity)
 	/* Copy mtime/ctime */
 	ovl_copyattr(d_inode(ovl_dentry_upper(dentry)), d_inode(dentry));
 
-	ovl_dentry_version_inc(dentry, impurity);
+	ovl_dir_version_inc(dentry, impurity);
 }
 
 u64 ovl_dentry_version_get(struct dentry *dentry)
@@ -583,6 +586,7 @@ bool ovl_check_dir_xattr(struct super_block *sb, struct dentry *dentry,
 #define OVL_XATTR_NLINK_POSTFIX		"nlink"
 #define OVL_XATTR_UPPER_POSTFIX		"upper"
 #define OVL_XATTR_METACOPY_POSTFIX	"metacopy"
+#define OVL_XATTR_PROTATTR_POSTFIX	"protattr"
 
 #define OVL_XATTR_TAB_ENTRY(x) \
 	[x] = { [false] = OVL_XATTR_TRUSTED_PREFIX x ## _POSTFIX, \
@@ -596,14 +600,14 @@ const char *const ovl_xattr_table[][2] = {
 	OVL_XATTR_TAB_ENTRY(OVL_XATTR_NLINK),
 	OVL_XATTR_TAB_ENTRY(OVL_XATTR_UPPER),
 	OVL_XATTR_TAB_ENTRY(OVL_XATTR_METACOPY),
+	OVL_XATTR_TAB_ENTRY(OVL_XATTR_PROTATTR),
 };
 
-int ovl_check_setxattr(struct dentry *dentry, struct dentry *upperdentry,
+int ovl_check_setxattr(struct ovl_fs *ofs, struct dentry *upperdentry,
 		       enum ovl_xattr ox, const void *value, size_t size,
 		       int xerr)
 {
 	int err;
-	struct ovl_fs *ofs = dentry->d_sb->s_fs_info;
 
 	if (ofs->noxattr)
 		return xerr;
@@ -621,6 +625,7 @@ int ovl_check_setxattr(struct dentry *dentry, struct dentry *upperdentry,
 
 int ovl_set_impure(struct dentry *dentry, struct dentry *upperdentry)
 {
+	struct ovl_fs *ofs = OVL_FS(dentry->d_sb);
 	int err;
 
 	if (ovl_test_flag(OVL_IMPURE, d_inode(dentry)))
@@ -630,27 +635,93 @@ int ovl_set_impure(struct dentry *dentry, struct dentry *upperdentry)
 	 * Do not fail when upper doesn't support xattrs.
 	 * Upper inodes won't have origin nor redirect xattr anyway.
 	 */
-	err = ovl_check_setxattr(dentry, upperdentry, OVL_XATTR_IMPURE,
-				 "y", 1, 0);
+	err = ovl_check_setxattr(ofs, upperdentry, OVL_XATTR_IMPURE, "y", 1, 0);
 	if (!err)
 		ovl_set_flag(OVL_IMPURE, d_inode(dentry));
 
 	return err;
 }
 
-void ovl_set_flag(unsigned long flag, struct inode *inode)
+
+#define OVL_PROTATTR_MAX 32 /* Reserved for future flags */
+
+void ovl_check_protattr(struct inode *inode, struct dentry *upper)
 {
-	set_bit(flag, &OVL_I(inode)->flags);
+	struct ovl_fs *ofs = OVL_FS(inode->i_sb);
+	u32 iflags = inode->i_flags & OVL_PROT_I_FLAGS_MASK;
+	char buf[OVL_PROTATTR_MAX+1];
+	int res, n;
+
+	res = ovl_do_getxattr(ofs, upper, OVL_XATTR_PROTATTR, buf,
+			      OVL_PROTATTR_MAX);
+	if (res < 0)
+		return;
+
+	/*
+	 * Initialize inode flags from overlay.protattr xattr and upper inode
+	 * flags.  If upper inode has those fileattr flags set (i.e. from old
+	 * kernel), we do not clear them on ovl_get_inode(), but we will clear
+	 * them on next fileattr_set().
+	 */
+	for (n = 0; n < res; n++) {
+		if (buf[n] == 'a')
+			iflags |= S_APPEND;
+		else if (buf[n] == 'i')
+			iflags |= S_IMMUTABLE;
+		else
+			break;
+	}
+
+	if (!res || n < res) {
+		pr_warn_ratelimited("incompatible overlay.protattr format (%pd2, len=%d)\n",
+				    upper, res);
+	} else {
+		inode_set_flags(inode, iflags, OVL_PROT_I_FLAGS_MASK);
+	}
 }
 
-void ovl_clear_flag(unsigned long flag, struct inode *inode)
+int ovl_set_protattr(struct inode *inode, struct dentry *upper,
+		      struct fileattr *fa)
 {
-	clear_bit(flag, &OVL_I(inode)->flags);
-}
+	struct ovl_fs *ofs = OVL_FS(inode->i_sb);
+	char buf[OVL_PROTATTR_MAX];
+	int len = 0, err = 0;
+	u32 iflags = 0;
 
-bool ovl_test_flag(unsigned long flag, struct inode *inode)
-{
-	return test_bit(flag, &OVL_I(inode)->flags);
+	BUILD_BUG_ON(HWEIGHT32(OVL_PROT_FS_FLAGS_MASK) > OVL_PROTATTR_MAX);
+
+	if (fa->flags & FS_APPEND_FL) {
+		buf[len++] = 'a';
+		iflags |= S_APPEND;
+	}
+	if (fa->flags & FS_IMMUTABLE_FL) {
+		buf[len++] = 'i';
+		iflags |= S_IMMUTABLE;
+	}
+
+	/*
+	 * Do not allow to set protection flags when upper doesn't support
+	 * xattrs, because we do not set those fileattr flags on upper inode.
+	 * Remove xattr if it exist and all protection flags are cleared.
+	 */
+	if (len) {
+		err = ovl_check_setxattr(ofs, upper, OVL_XATTR_PROTATTR,
+					 buf, len, -EPERM);
+	} else if (inode->i_flags & OVL_PROT_I_FLAGS_MASK) {
+		err = ovl_do_removexattr(ofs, upper, OVL_XATTR_PROTATTR);
+		if (err == -EOPNOTSUPP || err == -ENODATA)
+			err = 0;
+	}
+	if (err)
+		return err;
+
+	inode_set_flags(inode, iflags, OVL_PROT_I_FLAGS_MASK);
+
+	/* Mask out the fileattr flags that should not be set in upper inode */
+	fa->flags &= ~OVL_PROT_FS_FLAGS_MASK;
+	fa->fsx_xflags &= ~OVL_PROT_FSX_FLAGS_MASK;
+
+	return 0;
 }
 
 /**

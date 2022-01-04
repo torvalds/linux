@@ -99,8 +99,6 @@ static void can_init_stats(struct net *net)
 static unsigned long calc_rate(unsigned long oldjif, unsigned long newjif,
 			       unsigned long count)
 {
-	unsigned long rate;
-
 	if (oldjif == newjif)
 		return 0;
 
@@ -111,9 +109,7 @@ static unsigned long calc_rate(unsigned long oldjif, unsigned long newjif,
 		return 99999999;
 	}
 
-	rate = (count * HZ) / (newjif - oldjif);
-
-	return rate;
+	return (count * HZ) / (newjif - oldjif);
 }
 
 void can_stat_update(struct timer_list *t)
@@ -205,8 +201,10 @@ static void can_print_recv_banner(struct seq_file *m)
 	 *                  can1.  00000000  00000000  00000000
 	 *                 .......          0  tp20
 	 */
-	seq_puts(m, "  device   can_id   can_mask  function"
-			"  userdata   matches  ident\n");
+	if (IS_ENABLED(CONFIG_64BIT))
+		seq_puts(m, "  device   can_id   can_mask      function          userdata       matches  ident\n");
+	else
+		seq_puts(m, "  device   can_id   can_mask  function  userdata   matches  ident\n");
 }
 
 static int can_stats_proc_show(struct seq_file *m, void *v)

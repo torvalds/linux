@@ -50,7 +50,7 @@ config MAC_FLOPPY
 
 config BLK_DEV_SWIM
 	tristate "Support for SWIM Macintosh floppy"
-	depends on M68K && MAC
+	depends on M68K && MAC && !HIGHMEM
 	help
 	  You should select this option if you want floppy support
 	  and you don't have a II, IIfx, Q900, Q950 or AV series.
@@ -74,7 +74,6 @@ config N64CART
 
 config CDROM
 	tristate
-	select BLK_SCSI_REQUEST
 
 config GDROM
 	tristate "SEGA Dreamcast GD-ROM drive"
@@ -120,23 +119,6 @@ source "drivers/block/paride/Kconfig"
 source "drivers/block/mtip32xx/Kconfig"
 
 source "drivers/block/zram/Kconfig"
-
-config BLK_DEV_UMEM
-	tristate "Micro Memory MM5415 Battery Backed RAM support"
-	depends on PCI
-	help
-	  Saying Y here will include support for the MM5415 family of
-	  battery backed (Non-volatile) RAM cards.
-	  <http://www.umem.com/>
-
-	  The cards appear as block devices that can be partitioned into
-	  as many as 15 partitions.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called umem.
-
-	  The umem driver has not yet been allocated a MAJOR number, so
-	  one is chosen dynamically.
 
 config BLK_DEV_UBD
 	bool "Virtual block device"
@@ -230,7 +212,7 @@ config BLK_DEV_LOOP_MIN_COUNT
 	  dynamically allocated with the /dev/loop-control interface.
 
 config BLK_DEV_CRYPTOLOOP
-	tristate "Cryptoloop Support"
+	tristate "Cryptoloop Support (DEPRECATED)"
 	select CRYPTO
 	select CRYPTO_CBC
 	depends on BLK_DEV_LOOP
@@ -242,7 +224,7 @@ config BLK_DEV_CRYPTOLOOP
 	  WARNING: This device is not safe for journaled file systems like
 	  ext3 or Reiserfs. Please use the Device Mapper crypto module
 	  instead, which can be configured to be on-disk compatible with the
-	  cryptoloop device.
+	  cryptoloop device.  cryptoloop support will be removed in Linux 5.16.
 
 source "drivers/block/drbd/Kconfig"
 
@@ -323,7 +305,7 @@ config CDROM_PKTCDVD
 	tristate "Packet writing on CD/DVD media (DEPRECATED)"
 	depends on !UML
 	select CDROM
-	select BLK_SCSI_REQUEST
+	select SCSI_COMMON
 	help
 	  Note: This driver is deprecated and will be removed from the
 	  kernel in the near future!
@@ -377,12 +359,6 @@ config SUNVDC
 	  Logical Domains.
 
 source "drivers/s390/block/Kconfig"
-
-config XILINX_SYSACE
-	tristate "Xilinx SystemACE support"
-	depends on 4xx || MICROBLAZE
-	help
-	  Include support for the Xilinx SystemACE CompactFlash interface
 
 config XEN_BLKDEV_FRONTEND
 	tristate "Xen virtual block device support"

@@ -1009,7 +1009,7 @@ static const struct ethtool_ops ethoc_ethtool_ops = {
 static const struct net_device_ops ethoc_netdev_ops = {
 	.ndo_open = ethoc_open,
 	.ndo_stop = ethoc_stop,
-	.ndo_do_ioctl = ethoc_ioctl,
+	.ndo_eth_ioctl = ethoc_ioctl,
 	.ndo_set_mac_address = ethoc_set_mac_address,
 	.ndo_set_rx_mode = ethoc_set_multicast_list,
 	.ndo_change_mtu = ethoc_change_mtu,
@@ -1151,11 +1151,7 @@ static int ethoc_probe(struct platform_device *pdev)
 		ether_addr_copy(netdev->dev_addr, pdata->hwaddr);
 		priv->phy_id = pdata->phy_id;
 	} else {
-		const void *mac;
-
-		mac = of_get_mac_address(pdev->dev.of_node);
-		if (!IS_ERR(mac))
-			ether_addr_copy(netdev->dev_addr, mac);
+		of_get_mac_address(pdev->dev.of_node, netdev->dev_addr);
 		priv->phy_id = -1;
 	}
 

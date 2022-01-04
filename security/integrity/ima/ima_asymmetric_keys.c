@@ -11,6 +11,7 @@
 
 #include <keys/asymmetric-type.h>
 #include <linux/user_namespace.h>
+#include <linux/ima.h>
 #include "ima.h"
 
 /**
@@ -61,5 +62,5 @@ void ima_post_key_create_or_update(struct key *keyring, struct key *key,
 	 */
 	process_buffer_measurement(&init_user_ns, NULL, payload, payload_len,
 				   keyring->description, KEY_CHECK, 0,
-				   keyring->description, false);
+				   keyring->description, false, NULL, 0);
 }

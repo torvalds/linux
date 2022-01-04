@@ -99,6 +99,12 @@ native::
       }
   }
 
+Note, that historically ACPI has no means of the GPIO polarity and thus
+the SPISerialBus() resource defines it on the per-chip basis. In order
+to avoid a chain of negations, the GPIO polarity is considered being
+Active High. Even for the cases when _DSD() is involved (see the example
+above) the GPIO CS polarity must be defined Active High to avoid ambiguity.
+
 Other supported properties
 ==========================
 

@@ -50,7 +50,7 @@ id's until they get an error.
 
 .. c:type:: media_entity_desc
 
-.. tabularcolumns:: |p{1.5cm}|p{1.7cm}|p{1.6cm}|p{1.5cm}|p{11.2cm}|
+.. tabularcolumns:: |p{1.5cm}|p{1.7cm}|p{1.6cm}|p{1.5cm}|p{10.6cm}|
 
 .. flat-table:: struct media_entity_desc
     :header-rows:  0

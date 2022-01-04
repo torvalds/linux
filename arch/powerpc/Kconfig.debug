@@ -84,6 +84,11 @@ config MSI_BITMAP_SELFTEST
 
 config PPC_IRQ_SOFT_MASK_DEBUG
 	bool "Include extra checks for powerpc irq soft masking"
+	depends on PPC64
+
+config PPC_RFI_SRR_DEBUG
+	bool "Include extra checks for RFI SRR register validity"
+	depends on PPC_BOOK3S_64
 
 config XMON
 	bool "Include xmon kernel debugger"
@@ -353,6 +358,7 @@ config PPC_EARLY_DEBUG_CPM_ADDR
 config FAIL_IOMMU
 	bool "Fault-injection capability for IOMMU"
 	depends on FAULT_INJECTION
+	depends on PCI || IBMVIO
 	help
 	  Provide fault-injection capability for IOMMU. Each device can
 	  be selectively enabled via the fail_iommu property.

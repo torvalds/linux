@@ -11,6 +11,7 @@
 #include <linux/pm_domain.h>
 #include <linux/pm_opp.h>
 #include <linux/pm_runtime.h>
+#include <linux/reset.h>
 #include <linux/types.h>
 #include <media/v4l2-mem2mem.h>
 
@@ -40,10 +41,24 @@ static int core_clks_get(struct venus_core *core)
 static int core_clks_enable(struct venus_core *core)
 {
 	const struct venus_resources *res = core->res;
+	const struct freq_tbl *freq_tbl = core->res->freq_tbl;
+	unsigned int freq_tbl_size = core->res->freq_tbl_size;
+	unsigned long freq;
 	unsigned int i;
 	int ret;
 
+	if (!freq_tbl)
+		return -EINVAL;
+
+	freq = freq_tbl[freq_tbl_size - 1].freq;
+
 	for (i = 0; i < res->clks_num; i++) {
+		if (IS_V6(core)) {
+			ret = clk_set_rate(core->clks[i], freq);
+			if (ret)
+				goto err;
+		}
+
 		ret = clk_prepare_enable(core->clks[i]);
 		if (ret)
 			goto err;
@@ -186,7 +201,7 @@ static void mbs_to_bw(struct venus_inst *inst, u32 mbs, u32 *avg, u32 *peak)
 		return;
 
 	for (i = 0; i < num_rows; i++) {
-		if (mbs > bw_tbl[i].mbs_per_sec)
+		if (i != 0 && mbs > bw_tbl[i].mbs_per_sec)
 			break;
 
 		if (inst->dpb_fmt & HFI_COLOR_FORMAT_10_BIT_BASE) {
@@ -277,16 +292,27 @@ set_freq:
 	return 0;
 }
 
-static int core_get_v1(struct device *dev)
+static int core_get_v1(struct venus_core *core)
 {
-	struct venus_core *core = dev_get_drvdata(dev);
+	int ret;
 
-	return core_clks_get(core);
+	ret = core_clks_get(core);
+	if (ret)
+		return ret;
+
+	ret = devm_pm_opp_set_clkname(core->dev, "core");
+	if (ret)
+		return ret;
+
+	return 0;
 }
 
-static int core_power_v1(struct device *dev, int on)
+static void core_put_v1(struct venus_core *core)
 {
-	struct venus_core *core = dev_get_drvdata(dev);
+}
+
+static int core_power_v1(struct venus_core *core, int on)
+{
 	int ret = 0;
 
 	if (on == POWER_ON)
@@ -299,6 +325,7 @@ static int core_power_v1(struct device *dev, int on)
 
 static const struct venus_pm_ops pm_ops_v1 = {
 	.core_get = core_get_v1,
+	.core_put = core_put_v1,
 	.core_power = core_power_v1,
 	.load_scale = load_scale_v1,
 };
@@ -309,9 +336,9 @@ vcodec_control_v3(struct venus_core *core, u32 session_type, bool enable)
 	void __iomem *ctrl;
 
 	if (session_type == VIDC_SESSION_TYPE_DEC)
-		ctrl = core->base + WRAPPER_VDEC_VCODEC_POWER_CONTROL;
+		ctrl = core->wrapper_base + WRAPPER_VDEC_VCODEC_POWER_CONTROL;
 	else
-		ctrl = core->base + WRAPPER_VENC_VCODEC_POWER_CONTROL;
+		ctrl = core->wrapper_base + WRAPPER_VENC_VCODEC_POWER_CONTROL;
 
 	if (enable)
 		writel(0, ctrl);
@@ -371,6 +398,7 @@ static int venc_power_v3(struct device *dev, int on)
 
 static const struct venus_pm_ops pm_ops_v3 = {
 	.core_get = core_get_v1,
+	.core_put = core_put_v1,
 	.core_power = core_power_v1,
 	.vdec_get = vdec_get_v3,
 	.vdec_power = vdec_power_v3,
@@ -385,12 +413,15 @@ static int vcodec_control_v4(struct venus_core *core, u32 coreid, bool enable)
 	u32 val;
 	int ret;
 
-	if (coreid == VIDC_CORE_ID_1) {
-		ctrl = core->base + WRAPPER_VCODEC0_MMCC_POWER_CONTROL;
-		stat = core->base + WRAPPER_VCODEC0_MMCC_POWER_STATUS;
+	if (IS_V6(core)) {
+		ctrl = core->wrapper_base + WRAPPER_CORE_POWER_CONTROL_V6;
+		stat = core->wrapper_base + WRAPPER_CORE_POWER_STATUS_V6;
+	} else if (coreid == VIDC_CORE_ID_1) {
+		ctrl = core->wrapper_base + WRAPPER_VCODEC0_MMCC_POWER_CONTROL;
+		stat = core->wrapper_base + WRAPPER_VCODEC0_MMCC_POWER_STATUS;
 	} else {
-		ctrl = core->base + WRAPPER_VCODEC1_MMCC_POWER_CONTROL;
-		stat = core->base + WRAPPER_VCODEC1_MMCC_POWER_STATUS;
+		ctrl = core->wrapper_base + WRAPPER_VCODEC1_MMCC_POWER_CONTROL;
+		stat = core->wrapper_base + WRAPPER_VCODEC1_MMCC_POWER_STATUS;
 	}
 
 	if (enable) {
@@ -492,8 +523,50 @@ static int poweron_coreid(struct venus_core *core, unsigned int coreid_mask)
 	return 0;
 }
 
+static inline int power_save_mode_enable(struct venus_inst *inst,
+					 bool enable)
+{
+	struct venc_controls *enc_ctr = &inst->controls.enc;
+	const u32 ptype = HFI_PROPERTY_CONFIG_VENC_PERF_MODE;
+	u32 venc_mode;
+	int ret = 0;
+
+	if (inst->session_type != VIDC_SESSION_TYPE_ENC)
+		return 0;
+
+	if (enc_ctr->bitrate_mode == V4L2_MPEG_VIDEO_BITRATE_MODE_CQ)
+		enable = false;
+
+	venc_mode = enable ? HFI_VENC_PERFMODE_POWER_SAVE :
+		HFI_VENC_PERFMODE_MAX_QUALITY;
+
+	ret = hfi_session_set_property(inst, ptype, &venc_mode);
+	if (ret)
+		return ret;
+
+	inst->flags = enable ? inst->flags | VENUS_LOW_POWER :
+		inst->flags & ~VENUS_LOW_POWER;
+
+	return ret;
+}
+
+static int move_core_to_power_save_mode(struct venus_core *core,
+					u32 core_id)
+{
+	struct venus_inst *inst = NULL;
+
+	mutex_lock(&core->lock);
+	list_for_each_entry(inst, &core->instances, list) {
+		if (inst->clk_data.core_id == core_id &&
+		    inst->session_type == VIDC_SESSION_TYPE_ENC)
+			power_save_mode_enable(inst, true);
+	}
+	mutex_unlock(&core->lock);
+	return 0;
+}
+
 static void
-min_loaded_core(struct venus_inst *inst, u32 *min_coreid, u32 *min_load)
+min_loaded_core(struct venus_inst *inst, u32 *min_coreid, u32 *min_load, bool low_power)
 {
 	u32 mbs_per_sec, load, core1_load = 0, core2_load = 0;
 	u32 cores_max = core_num_max(inst);
@@ -511,7 +584,14 @@ min_loaded_core(struct venus_inst *inst, u32 *min_coreid, u32 *min_load)
 		if (inst_pos->state != INST_START)
 			continue;
 
-		vpp_freq = inst_pos->clk_data.vpp_freq;
+		if (inst->session_type == VIDC_SESSION_TYPE_DEC)
+			vpp_freq = inst_pos->clk_data.vpp_freq;
+		else if (inst->session_type == VIDC_SESSION_TYPE_ENC)
+			vpp_freq = low_power ? inst_pos->clk_data.vpp_freq :
+				inst_pos->clk_data.low_power_freq;
+		else
+			continue;
+
 		coreid = inst_pos->clk_data.core_id;
 
 		mbs_per_sec = load_per_instance(inst_pos);
@@ -543,9 +623,11 @@ static int decide_core(struct venus_inst *inst)
 {
 	const u32 ptype = HFI_PROPERTY_CONFIG_VIDEOCORES_USAGE;
 	struct venus_core *core = inst->core;
-	u32 min_coreid, min_load, inst_load;
+	u32 min_coreid, min_load, cur_inst_load;
+	u32 min_lp_coreid, min_lp_load, cur_inst_lp_load;
 	struct hfi_videocores_usage_type cu;
 	unsigned long max_freq;
+	int ret = 0;
 
 	if (legacy_binding) {
 		if (inst->session_type == VIDC_SESSION_TYPE_DEC)
@@ -559,23 +641,43 @@ static int decide_core(struct venus_inst *inst)
 	if (inst->clk_data.core_id != VIDC_CORE_ID_DEFAULT)
 		return 0;
 
-	inst_load = load_per_instance(inst);
-	inst_load *= inst->clk_data.vpp_freq;
+	cur_inst_load = load_per_instance(inst);
+	cur_inst_load *= inst->clk_data.vpp_freq;
+	/*TODO : divide this inst->load by work_route */
+
+	cur_inst_lp_load = load_per_instance(inst);
+	cur_inst_lp_load *= inst->clk_data.low_power_freq;
+	/*TODO : divide this inst->load by work_route */
+
 	max_freq = core->res->freq_tbl[0].freq;
 
-	min_loaded_core(inst, &min_coreid, &min_load);
+	min_loaded_core(inst, &min_coreid, &min_load, false);
+	min_loaded_core(inst, &min_lp_coreid, &min_lp_load, true);
 
-	if ((inst_load + min_load) > max_freq) {
-		dev_warn(core->dev, "HW is overloaded, needed: %u max: %lu\n",
-			 inst_load, max_freq);
+	if (cur_inst_load + min_load <= max_freq) {
+		inst->clk_data.core_id = min_coreid;
+		cu.video_core_enable_mask = min_coreid;
+	} else if (cur_inst_lp_load + min_load <= max_freq) {
+		/* Move current instance to LP and return */
+		inst->clk_data.core_id = min_coreid;
+		cu.video_core_enable_mask = min_coreid;
+		power_save_mode_enable(inst, true);
+	} else if (cur_inst_lp_load + min_lp_load <= max_freq) {
+		/* Move all instances to LP mode and return */
+		inst->clk_data.core_id = min_lp_coreid;
+		cu.video_core_enable_mask = min_lp_coreid;
+		move_core_to_power_save_mode(core, min_lp_coreid);
+	} else {
+		dev_warn(core->dev, "HW can't support this load");
 		return -EINVAL;
 	}
 
-	inst->clk_data.core_id = min_coreid;
-	cu.video_core_enable_mask = min_coreid;
-
 done:
-	return hfi_session_set_property(inst, ptype, &cu);
+	ret = hfi_session_set_property(inst, ptype, &cu);
+	if (ret)
+		return ret;
+
+	return ret;
 }
 
 static int acquire_core(struct venus_inst *inst)
@@ -753,12 +855,11 @@ static int venc_power_v4(struct device *dev, int on)
 	return ret;
 }
 
-static int vcodec_domains_get(struct device *dev)
+static int vcodec_domains_get(struct venus_core *core)
 {
 	int ret;
-	struct opp_table *opp_table;
 	struct device **opp_virt_dev;
-	struct venus_core *core = dev_get_drvdata(dev);
+	struct device *dev = core->dev;
 	const struct venus_resources *res = core->res;
 	struct device *pd;
 	unsigned int i;
@@ -779,11 +880,9 @@ skip_pmdomains:
 		return 0;
 
 	/* Attach the power domain for setting performance state */
-	opp_table = dev_pm_opp_attach_genpd(dev, res->opp_pmdomain, &opp_virt_dev);
-	if (IS_ERR(opp_table)) {
-		ret = PTR_ERR(opp_table);
+	ret = devm_pm_opp_attach_genpd(dev, res->opp_pmdomain, &opp_virt_dev);
+	if (ret)
 		goto opp_attach_err;
-	}
 
 	core->opp_pmdomain = *opp_virt_dev;
 	core->opp_dl_venus = device_link_add(dev, core->opp_pmdomain,
@@ -792,13 +891,11 @@ skip_pmdomains:
 					     DL_FLAG_STATELESS);
 	if (!core->opp_dl_venus) {
 		ret = -ENODEV;
-		goto opp_dl_add_err;
+		goto opp_attach_err;
 	}
 
 	return 0;
 
-opp_dl_add_err:
-	dev_pm_opp_detach_genpd(core->opp_table);
 opp_attach_err:
 	for (i = 0; i < res->vcodec_pmdomains_num; i++) {
 		if (IS_ERR_OR_NULL(core->pmdomains[i]))
@@ -809,9 +906,8 @@ opp_attach_err:
 	return ret;
 }
 
-static void vcodec_domains_put(struct device *dev)
+static void vcodec_domains_put(struct venus_core *core)
 {
-	struct venus_core *core = dev_get_drvdata(dev);
 	const struct venus_resources *res = core->res;
 	unsigned int i;
 
@@ -830,13 +926,57 @@ skip_pmdomains:
 
 	if (core->opp_dl_venus)
 		device_link_del(core->opp_dl_venus);
-
-	dev_pm_opp_detach_genpd(core->opp_table);
 }
 
-static int core_get_v4(struct device *dev)
+static int core_resets_reset(struct venus_core *core)
 {
-	struct venus_core *core = dev_get_drvdata(dev);
+	const struct venus_resources *res = core->res;
+	unsigned int i;
+	int ret;
+
+	if (!res->resets_num)
+		return 0;
+
+	for (i = 0; i < res->resets_num; i++) {
+		ret = reset_control_assert(core->resets[i]);
+		if (ret)
+			goto err;
+
+		usleep_range(150, 250);
+		ret = reset_control_deassert(core->resets[i]);
+		if (ret)
+			goto err;
+	}
+
+err:
+	return ret;
+}
+
+static int core_resets_get(struct venus_core *core)
+{
+	struct device *dev = core->dev;
+	const struct venus_resources *res = core->res;
+	unsigned int i;
+	int ret;
+
+	if (!res->resets_num)
+		return 0;
+
+	for (i = 0; i < res->resets_num; i++) {
+		core->resets[i] =
+			devm_reset_control_get_exclusive(dev, res->resets[i]);
+		if (IS_ERR(core->resets[i])) {
+			ret = PTR_ERR(core->resets[i]);
+			return ret;
+		}
+	}
+
+	return 0;
+}
+
+static int core_get_v4(struct venus_core *core)
+{
+	struct device *dev = core->dev;
 	const struct venus_resources *res = core->res;
 	int ret;
 
@@ -857,63 +997,61 @@ static int core_get_v4(struct device *dev)
 	if (ret)
 		return ret;
 
+	ret = core_resets_get(core);
+	if (ret)
+		return ret;
+
 	if (legacy_binding)
 		return 0;
 
-	core->opp_table = dev_pm_opp_set_clkname(dev, "core");
-	if (IS_ERR(core->opp_table))
-		return PTR_ERR(core->opp_table);
+	ret = devm_pm_opp_set_clkname(dev, "core");
+	if (ret)
+		return ret;
 
 	if (core->res->opp_pmdomain) {
-		ret = dev_pm_opp_of_add_table(dev);
+		ret = devm_pm_opp_of_add_table(dev);
 		if (!ret) {
 			core->has_opp_table = true;
 		} else if (ret != -ENODEV) {
 			dev_err(dev, "invalid OPP table in device tree\n");
-			dev_pm_opp_put_clkname(core->opp_table);
 			return ret;
 		}
 	}
 
-	ret = vcodec_domains_get(dev);
-	if (ret) {
-		if (core->has_opp_table)
-			dev_pm_opp_of_remove_table(dev);
-		dev_pm_opp_put_clkname(core->opp_table);
+	ret = vcodec_domains_get(core);
+	if (ret)
 		return ret;
-	}
 
 	return 0;
 }
 
-static void core_put_v4(struct device *dev)
+static void core_put_v4(struct venus_core *core)
 {
-	struct venus_core *core = dev_get_drvdata(dev);
-
 	if (legacy_binding)
 		return;
 
-	vcodec_domains_put(dev);
-
-	if (core->has_opp_table)
-		dev_pm_opp_of_remove_table(dev);
-	dev_pm_opp_put_clkname(core->opp_table);
-
+	vcodec_domains_put(core);
 }
 
-static int core_power_v4(struct device *dev, int on)
+static int core_power_v4(struct venus_core *core, int on)
 {
-	struct venus_core *core = dev_get_drvdata(dev);
+	struct device *dev = core->dev;
 	struct device *pmctrl = core->pmdomains[0];
 	int ret = 0;
 
 	if (on == POWER_ON) {
 		if (pmctrl) {
-			ret = pm_runtime_get_sync(pmctrl);
+			ret = pm_runtime_resume_and_get(pmctrl);
 			if (ret < 0) {
-				pm_runtime_put_noidle(pmctrl);
 				return ret;
 			}
+		}
+
+		ret = core_resets_reset(core);
+		if (ret) {
+			if (pmctrl)
+				pm_runtime_put_sync(pmctrl);
+			return ret;
 		}
 
 		ret = core_clks_enable(core);
@@ -926,6 +1064,8 @@ static int core_power_v4(struct device *dev, int on)
 
 		core_clks_disable(core);
 
+		ret = core_resets_reset(core);
+
 		if (pmctrl)
 			pm_runtime_put_sync(pmctrl);
 	}
@@ -936,7 +1076,7 @@ static int core_power_v4(struct device *dev, int on)
 static unsigned long calculate_inst_freq(struct venus_inst *inst,
 					 unsigned long filled_len)
 {
-	unsigned long vpp_freq = 0, vsp_freq = 0;
+	unsigned long vpp_freq_per_mb = 0, vpp_freq = 0, vsp_freq = 0;
 	u32 fps = (u32)inst->fps;
 	u32 mbs_per_sec;
 
@@ -945,7 +1085,12 @@ static unsigned long calculate_inst_freq(struct venus_inst *inst,
 	if (inst->state != INST_START)
 		return 0;
 
-	vpp_freq = mbs_per_sec * inst->clk_data.vpp_freq;
+	if (inst->session_type == VIDC_SESSION_TYPE_ENC)
+		vpp_freq_per_mb = inst->flags & VENUS_LOW_POWER ?
+			inst->clk_data.low_power_freq :
+			inst->clk_data.vpp_freq;
+
+	vpp_freq = mbs_per_sec * vpp_freq_per_mb;
 	/* 21 / 20 is overhead factor */
 	vpp_freq += vpp_freq / 20;
 	vsp_freq = mbs_per_sec * inst->clk_data.vsp_freq;
@@ -993,7 +1138,7 @@ static int load_scale_v4(struct venus_inst *inst)
 
 	freq = max(freq_core1, freq_core2);
 
-	if (freq >= table[0].freq) {
+	if (freq > table[0].freq) {
 		freq = table[0].freq;
 		dev_warn(dev, "HW is overloaded, needed: %lu max: %lu\n",
 			 freq, table[0].freq);
@@ -1049,6 +1194,7 @@ const struct venus_pm_ops *venus_pm_get(enum hfi_version version)
 	case HFI_VERSION_3XX:
 		return &pm_ops_v3;
 	case HFI_VERSION_4XX:
+	case HFI_VERSION_6XX:
 		return &pm_ops_v4;
 	}
 

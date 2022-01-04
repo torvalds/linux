@@ -204,7 +204,7 @@ static void show_pstate_limits(struct intel_rps *rps)
 			i915_mmio_reg_offset(BXT_RP_STATE_CAP),
 			intel_uncore_read(rps_to_uncore(rps),
 					  BXT_RP_STATE_CAP));
-	} else if (IS_GEN(i915, 9)) {
+	} else if (GRAPHICS_VER(i915) == 9) {
 		pr_info("P_STATE_LIMITS[%x]: 0x%08x\n",
 			i915_mmio_reg_offset(GEN9_RP_STATE_LIMITS),
 			intel_uncore_read(rps_to_uncore(rps),
@@ -222,7 +222,7 @@ int live_rps_clock_interval(void *arg)
 	struct igt_spinner spin;
 	int err = 0;
 
-	if (!intel_rps_is_enabled(rps) || INTEL_GEN(gt->i915) < 6)
+	if (!intel_rps_is_enabled(rps) || GRAPHICS_VER(gt->i915) < 6)
 		return 0;
 
 	if (igt_spinner_init(&spin, gt))
@@ -506,7 +506,7 @@ static void show_pcu_config(struct intel_rps *rps)
 
 	min_gpu_freq = rps->min_freq;
 	max_gpu_freq = rps->max_freq;
-	if (INTEL_GEN(i915) >= 9) {
+	if (GRAPHICS_VER(i915) >= 9) {
 		/* Convert GT frequency to 50 HZ units */
 		min_gpu_freq /= GEN9_FREQ_SCALER;
 		max_gpu_freq /= GEN9_FREQ_SCALER;
@@ -606,7 +606,7 @@ int live_rps_frequency_cs(void *arg)
 	int err = 0;
 
 	/*
-	 * The premise is that the GPU does change freqency at our behest.
+	 * The premise is that the GPU does change frequency at our behest.
 	 * Let's check there is a correspondence between the requested
 	 * frequency, the actual frequency, and the observed clock rate.
 	 */
@@ -614,7 +614,7 @@ int live_rps_frequency_cs(void *arg)
 	if (!intel_rps_is_enabled(rps))
 		return 0;
 
-	if (INTEL_GEN(gt->i915) < 8) /* for CS simplicity */
+	if (GRAPHICS_VER(gt->i915) < 8) /* for CS simplicity */
 		return 0;
 
 	if (CPU_LATENCY >= 0)
@@ -747,7 +747,7 @@ int live_rps_frequency_srm(void *arg)
 	int err = 0;
 
 	/*
-	 * The premise is that the GPU does change freqency at our behest.
+	 * The premise is that the GPU does change frequency at our behest.
 	 * Let's check there is a correspondence between the requested
 	 * frequency, the actual frequency, and the observed clock rate.
 	 */
@@ -755,7 +755,7 @@ int live_rps_frequency_srm(void *arg)
 	if (!intel_rps_is_enabled(rps))
 		return 0;
 
-	if (INTEL_GEN(gt->i915) < 8) /* for CS simplicity */
+	if (GRAPHICS_VER(gt->i915) < 8) /* for CS simplicity */
 		return 0;
 
 	if (CPU_LATENCY >= 0)
@@ -1031,7 +1031,7 @@ int live_rps_interrupt(void *arg)
 	 * First, let's check whether or not we are receiving interrupts.
 	 */
 
-	if (!intel_rps_has_interrupts(rps) || INTEL_GEN(gt->i915) < 6)
+	if (!intel_rps_has_interrupts(rps) || GRAPHICS_VER(gt->i915) < 6)
 		return 0;
 
 	intel_gt_pm_get(gt);
@@ -1136,10 +1136,10 @@ int live_rps_power(void *arg)
 	 * that theory.
 	 */
 
-	if (!intel_rps_is_enabled(rps) || INTEL_GEN(gt->i915) < 6)
+	if (!intel_rps_is_enabled(rps) || GRAPHICS_VER(gt->i915) < 6)
 		return 0;
 
-	if (!librapl_energy_uJ())
+	if (!librapl_supported(gt->i915))
 		return 0;
 
 	if (igt_spinner_init(&spin, gt))
@@ -1240,7 +1240,7 @@ int live_rps_dynamic(void *arg)
 	 * moving parts into dynamic reclocking based on load.
 	 */
 
-	if (!intel_rps_is_enabled(rps) || INTEL_GEN(gt->i915) < 6)
+	if (!intel_rps_is_enabled(rps) || GRAPHICS_VER(gt->i915) < 6)
 		return 0;
 
 	if (igt_spinner_init(&spin, gt))

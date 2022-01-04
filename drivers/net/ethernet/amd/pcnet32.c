@@ -1572,7 +1572,7 @@ static const struct net_device_ops pcnet32_netdev_ops = {
 	.ndo_tx_timeout		= pcnet32_tx_timeout,
 	.ndo_get_stats		= pcnet32_get_stats,
 	.ndo_set_rx_mode	= pcnet32_set_multicast_list,
-	.ndo_do_ioctl		= pcnet32_ioctl,
+	.ndo_eth_ioctl		= pcnet32_ioctl,
 	.ndo_set_mac_address 	= eth_mac_addr,
 	.ndo_validate_addr	= eth_validate_addr,
 #ifdef CONFIG_NET_POLL_CONTROLLER
@@ -2853,8 +2853,7 @@ static void pcnet32_check_media(struct net_device *dev, int verbose)
 			netif_info(lp, link, dev, "link down\n");
 		}
 		if (lp->phycount > 1) {
-			curr_link = pcnet32_check_otherphy(dev);
-			prev_link = 0;
+			pcnet32_check_otherphy(dev);
 		}
 	} else if (verbose || !prev_link) {
 		netif_carrier_on(dev);
@@ -3030,10 +3029,3 @@ static void __exit pcnet32_cleanup_module(void)
 
 module_init(pcnet32_init_module);
 module_exit(pcnet32_cleanup_module);
-
-/*
- * Local variables:
- *  c-indent-level: 4
- *  tab-width: 8
- * End:
- */

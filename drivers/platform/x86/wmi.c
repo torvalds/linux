@@ -980,7 +980,7 @@ probe_failure:
 	return ret;
 }
 
-static int wmi_dev_remove(struct device *dev)
+static void wmi_dev_remove(struct device *dev)
 {
 	struct wmi_block *wblock = dev_to_wblock(dev);
 	struct wmi_driver *wdriver =
@@ -997,8 +997,6 @@ static int wmi_dev_remove(struct device *dev)
 
 	if (ACPI_FAILURE(wmi_method_enable(wblock, 0)))
 		dev_warn(dev, "failed to disable device\n");
-
-	return 0;
 }
 
 static struct class wmi_bus_class = {

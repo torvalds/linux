@@ -65,7 +65,8 @@
 	C(INVALID_SORT_MODIFIER,"Invalid sort modifier"),		\
 	C(EMPTY_SORT_FIELD,	"Empty sort field"),			\
 	C(TOO_MANY_SORT_FIELDS,	"Too many sort fields (Max = 2)"),	\
-	C(INVALID_SORT_FIELD,	"Sort field must be a key or a val"),
+	C(INVALID_SORT_FIELD,	"Sort field must be a key or a val"),	\
+	C(INVALID_STR_OPERAND,	"String type can not be an operand in expression"),
 
 #undef C
 #define C(a, b)		HIST_ERR_##a
@@ -81,6 +82,7 @@ struct hist_field;
 
 typedef u64 (*hist_field_fn_t) (struct hist_field *field,
 				struct tracing_map_elt *elt,
+				struct trace_buffer *buffer,
 				struct ring_buffer_event *rbe,
 				void *event);
 
@@ -153,6 +155,7 @@ struct hist_field {
 
 static u64 hist_field_none(struct hist_field *field,
 			   struct tracing_map_elt *elt,
+			   struct trace_buffer *buffer,
 			   struct ring_buffer_event *rbe,
 			   void *event)
 {
@@ -161,6 +164,7 @@ static u64 hist_field_none(struct hist_field *field,
 
 static u64 hist_field_counter(struct hist_field *field,
 			      struct tracing_map_elt *elt,
+			      struct trace_buffer *buffer,
 			      struct ring_buffer_event *rbe,
 			      void *event)
 {
@@ -169,6 +173,7 @@ static u64 hist_field_counter(struct hist_field *field,
 
 static u64 hist_field_string(struct hist_field *hist_field,
 			     struct tracing_map_elt *elt,
+			     struct trace_buffer *buffer,
 			     struct ring_buffer_event *rbe,
 			     void *event)
 {
@@ -179,6 +184,7 @@ static u64 hist_field_string(struct hist_field *hist_field,
 
 static u64 hist_field_dynstring(struct hist_field *hist_field,
 				struct tracing_map_elt *elt,
+				struct trace_buffer *buffer,
 				struct ring_buffer_event *rbe,
 				void *event)
 {
@@ -191,6 +197,7 @@ static u64 hist_field_dynstring(struct hist_field *hist_field,
 
 static u64 hist_field_pstring(struct hist_field *hist_field,
 			      struct tracing_map_elt *elt,
+			      struct trace_buffer *buffer,
 			      struct ring_buffer_event *rbe,
 			      void *event)
 {
@@ -201,52 +208,56 @@ static u64 hist_field_pstring(struct hist_field *hist_field,
 
 static u64 hist_field_log2(struct hist_field *hist_field,
 			   struct tracing_map_elt *elt,
+			   struct trace_buffer *buffer,
 			   struct ring_buffer_event *rbe,
 			   void *event)
 {
 	struct hist_field *operand = hist_field->operands[0];
 
-	u64 val = operand->fn(operand, elt, rbe, event);
+	u64 val = operand->fn(operand, elt, buffer, rbe, event);
 
 	return (u64) ilog2(roundup_pow_of_two(val));
 }
 
 static u64 hist_field_plus(struct hist_field *hist_field,
 			   struct tracing_map_elt *elt,
+			   struct trace_buffer *buffer,
 			   struct ring_buffer_event *rbe,
 			   void *event)
 {
 	struct hist_field *operand1 = hist_field->operands[0];
 	struct hist_field *operand2 = hist_field->operands[1];
 
-	u64 val1 = operand1->fn(operand1, elt, rbe, event);
-	u64 val2 = operand2->fn(operand2, elt, rbe, event);
+	u64 val1 = operand1->fn(operand1, elt, buffer, rbe, event);
+	u64 val2 = operand2->fn(operand2, elt, buffer, rbe, event);
 
 	return val1 + val2;
 }
 
 static u64 hist_field_minus(struct hist_field *hist_field,
 			    struct tracing_map_elt *elt,
+			    struct trace_buffer *buffer,
 			    struct ring_buffer_event *rbe,
 			    void *event)
 {
 	struct hist_field *operand1 = hist_field->operands[0];
 	struct hist_field *operand2 = hist_field->operands[1];
 
-	u64 val1 = operand1->fn(operand1, elt, rbe, event);
-	u64 val2 = operand2->fn(operand2, elt, rbe, event);
+	u64 val1 = operand1->fn(operand1, elt, buffer, rbe, event);
+	u64 val2 = operand2->fn(operand2, elt, buffer, rbe, event);
 
 	return val1 - val2;
 }
 
 static u64 hist_field_unary_minus(struct hist_field *hist_field,
 				  struct tracing_map_elt *elt,
+				  struct trace_buffer *buffer,
 				  struct ring_buffer_event *rbe,
 				  void *event)
 {
 	struct hist_field *operand = hist_field->operands[0];
 
-	s64 sval = (s64)operand->fn(operand, elt, rbe, event);
+	s64 sval = (s64)operand->fn(operand, elt, buffer, rbe, event);
 	u64 val = (u64)-sval;
 
 	return val;
@@ -255,6 +266,7 @@ static u64 hist_field_unary_minus(struct hist_field *hist_field,
 #define DEFINE_HIST_FIELD_FN(type)					\
 	static u64 hist_field_##type(struct hist_field *hist_field,	\
 				     struct tracing_map_elt *elt,	\
+				     struct trace_buffer *buffer,	\
 				     struct ring_buffer_event *rbe,	\
 				     void *event)			\
 {									\
@@ -380,7 +392,8 @@ struct hist_trigger_data {
 struct action_data;
 
 typedef void (*action_fn_t) (struct hist_trigger_data *hist_data,
-			     struct tracing_map_elt *elt, void *rec,
+			     struct tracing_map_elt *elt,
+			     struct trace_buffer *buffer, void *rec,
 			     struct ring_buffer_event *rbe, void *key,
 			     struct action_data *data, u64 *var_ref_vals);
 
@@ -608,7 +621,8 @@ static inline void trace_synth(struct synth_event *event, u64 *var_ref_vals,
 }
 
 static void action_trace(struct hist_trigger_data *hist_data,
-			 struct tracing_map_elt *elt, void *rec,
+			 struct tracing_map_elt *elt,
+			 struct trace_buffer *buffer, void *rec,
 			 struct ring_buffer_event *rbe, void *key,
 			 struct action_data *data, u64 *var_ref_vals)
 {
@@ -624,13 +638,14 @@ struct hist_var_data {
 
 static u64 hist_field_timestamp(struct hist_field *hist_field,
 				struct tracing_map_elt *elt,
+				struct trace_buffer *buffer,
 				struct ring_buffer_event *rbe,
 				void *event)
 {
 	struct hist_trigger_data *hist_data = hist_field->hist_data;
 	struct trace_array *tr = hist_data->event_file->tr;
 
-	u64 ts = ring_buffer_event_time_stamp(rbe);
+	u64 ts = ring_buffer_event_time_stamp(buffer, rbe);
 
 	if (hist_data->attrs->ts_in_usecs && trace_clock_in_ns(tr))
 		ts = ns2usecs(ts);
@@ -640,6 +655,7 @@ static u64 hist_field_timestamp(struct hist_field *hist_field,
 
 static u64 hist_field_cpu(struct hist_field *hist_field,
 			  struct tracing_map_elt *elt,
+			  struct trace_buffer *buffer,
 			  struct ring_buffer_event *rbe,
 			  void *event)
 {
@@ -1020,6 +1036,7 @@ static struct hist_field *find_event_var(struct hist_trigger_data *hist_data,
 
 static u64 hist_field_var_ref(struct hist_field *hist_field,
 			      struct tracing_map_elt *elt,
+			      struct trace_buffer *buffer,
 			      struct ring_buffer_event *rbe,
 			      void *event)
 {
@@ -1095,7 +1112,7 @@ static const char *hist_field_name(struct hist_field *field,
 		 field->flags & HIST_FIELD_FL_ALIAS)
 		field_name = hist_field_name(field->operands[0], ++level);
 	else if (field->flags & HIST_FIELD_FL_CPU)
-		field_name = "cpu";
+		field_name = "common_cpu";
 	else if (field->flags & HIST_FIELD_FL_EXPR ||
 		 field->flags & HIST_FIELD_FL_VAR_REF) {
 		if (field->system) {
@@ -1539,6 +1556,13 @@ static int contains_operator(char *str)
 
 	switch (*op) {
 	case '-':
+		/*
+		 * Unfortunately, the modifier ".sym-offset"
+		 * can confuse things.
+		 */
+		if (op - str >= 4 && !strncmp(op - 4, ".sym-offset", 11))
+			return FIELD_OP_NONE;
+
 		if (*str == '-')
 			field_op = FIELD_OP_UNARY_MINUS;
 		else
@@ -1666,7 +1690,9 @@ static struct hist_field *create_hist_field(struct hist_trigger_data *hist_data,
 	if (WARN_ON_ONCE(!field))
 		goto out;
 
-	if (is_string_field(field)) {
+	/* Pointers to strings are just pointers and dangerous to dereference */
+	if (is_string_field(field) &&
+	    (field->filter_type != FILTER_PTR_STRING)) {
 		flags |= HIST_FIELD_FL_STRING;
 
 		hist_field->size = MAX_FILTER_STR_VAL;
@@ -1966,14 +1992,24 @@ parse_field(struct hist_trigger_data *hist_data, struct trace_event_file *file,
 		hist_data->enable_timestamps = true;
 		if (*flags & HIST_FIELD_FL_TIMESTAMP_USECS)
 			hist_data->attrs->ts_in_usecs = true;
-	} else if (strcmp(field_name, "cpu") == 0)
+	} else if (strcmp(field_name, "common_cpu") == 0)
 		*flags |= HIST_FIELD_FL_CPU;
 	else {
 		field = trace_find_event_field(file->event_call, field_name);
 		if (!field || !field->size) {
-			hist_err(tr, HIST_ERR_FIELD_NOT_FOUND, errpos(field_name));
-			field = ERR_PTR(-EINVAL);
-			goto out;
+			/*
+			 * For backward compatibility, if field_name
+			 * was "cpu", then we treat this the same as
+			 * common_cpu.
+			 */
+			if (strcmp(field_name, "cpu") == 0) {
+				*flags |= HIST_FIELD_FL_CPU;
+			} else {
+				hist_err(tr, HIST_ERR_FIELD_NOT_FOUND,
+					 errpos(field_name));
+				field = ERR_PTR(-EINVAL);
+				goto out;
+			}
 		}
 	}
  out:
@@ -2121,6 +2157,13 @@ static struct hist_field *parse_unary(struct hist_trigger_data *hist_data,
 		ret = PTR_ERR(operand1);
 		goto free;
 	}
+	if (operand1->flags & HIST_FIELD_FL_STRING) {
+		/* String type can not be the operand of unary operator. */
+		hist_err(file->tr, HIST_ERR_INVALID_STR_OPERAND, errpos(str));
+		destroy_hist_field(operand1, 0);
+		ret = -EINVAL;
+		goto free;
+	}
 
 	expr->flags |= operand1->flags &
 		(HIST_FIELD_FL_TIMESTAMP | HIST_FIELD_FL_TIMESTAMP_USECS);
@@ -2222,6 +2265,11 @@ static struct hist_field *parse_expr(struct hist_trigger_data *hist_data,
 		operand1 = NULL;
 		goto free;
 	}
+	if (operand1->flags & HIST_FIELD_FL_STRING) {
+		hist_err(file->tr, HIST_ERR_INVALID_STR_OPERAND, errpos(operand1_str));
+		ret = -EINVAL;
+		goto free;
+	}
 
 	/* rest of string could be another expression e.g. b+c in a+b+c */
 	operand_flags = 0;
@@ -2229,6 +2277,11 @@ static struct hist_field *parse_expr(struct hist_trigger_data *hist_data,
 	if (IS_ERR(operand2)) {
 		ret = PTR_ERR(operand2);
 		operand2 = NULL;
+		goto free;
+	}
+	if (operand2->flags & HIST_FIELD_FL_STRING) {
+		hist_err(file->tr, HIST_ERR_INVALID_STR_OPERAND, errpos(str));
+		ret = -EINVAL;
 		goto free;
 	}
 
@@ -2252,6 +2305,10 @@ static struct hist_field *parse_expr(struct hist_trigger_data *hist_data,
 
 	expr->operands[0] = operand1;
 	expr->operands[1] = operand2;
+
+	/* The operand sizes should be the same, so just pick one */
+	expr->size = operand1->size;
+
 	expr->operator = field_op;
 	expr->name = expr_str(expr, 0);
 	expr->type = kstrdup(operand1->type, GFP_KERNEL);
@@ -2418,12 +2475,12 @@ create_field_var_hist(struct hist_trigger_data *target_hist_data,
 		      char *subsys_name, char *event_name, char *field_name)
 {
 	struct trace_array *tr = target_hist_data->event_file->tr;
-	struct hist_field *event_var = ERR_PTR(-EINVAL);
 	struct hist_trigger_data *hist_data;
 	unsigned int i, n, first = true;
 	struct field_var_hist *var_hist;
 	struct trace_event_file *file;
 	struct hist_field *key_field;
+	struct hist_field *event_var;
 	char *saved_filter;
 	char *cmd;
 	int ret;
@@ -2561,6 +2618,7 @@ find_target_event_var(struct hist_trigger_data *hist_data,
 }
 
 static inline void __update_field_vars(struct tracing_map_elt *elt,
+				       struct trace_buffer *buffer,
 				       struct ring_buffer_event *rbe,
 				       void *rec,
 				       struct field_var **field_vars,
@@ -2576,7 +2634,7 @@ static inline void __update_field_vars(struct tracing_map_elt *elt,
 		struct hist_field *var = field_var->var;
 		struct hist_field *val = field_var->val;
 
-		var_val = val->fn(val, elt, rbe, rec);
+		var_val = val->fn(val, elt, buffer, rbe, rec);
 		var_idx = var->var.idx;
 
 		if (val->flags & HIST_FIELD_FL_STRING) {
@@ -2592,19 +2650,21 @@ static inline void __update_field_vars(struct tracing_map_elt *elt,
 
 static void update_field_vars(struct hist_trigger_data *hist_data,
 			      struct tracing_map_elt *elt,
+			      struct trace_buffer *buffer,
 			      struct ring_buffer_event *rbe,
 			      void *rec)
 {
-	__update_field_vars(elt, rbe, rec, hist_data->field_vars,
+	__update_field_vars(elt, buffer, rbe, rec, hist_data->field_vars,
 			    hist_data->n_field_vars, 0);
 }
 
 static void save_track_data_vars(struct hist_trigger_data *hist_data,
-				 struct tracing_map_elt *elt, void *rec,
+				 struct tracing_map_elt *elt,
+				 struct trace_buffer *buffer,  void *rec,
 				 struct ring_buffer_event *rbe, void *key,
 				 struct action_data *data, u64 *var_ref_vals)
 {
-	__update_field_vars(elt, rbe, rec, hist_data->save_vars,
+	__update_field_vars(elt, buffer, rbe, rec, hist_data->save_vars,
 			    hist_data->n_save_vars, hist_data->n_field_var_str);
 }
 
@@ -2780,12 +2840,14 @@ static void save_track_val(struct hist_trigger_data *hist_data,
 }
 
 static void save_track_data(struct hist_trigger_data *hist_data,
-			    struct tracing_map_elt *elt, void *rec,
+			    struct tracing_map_elt *elt,
+			    struct trace_buffer *buffer, void *rec,
 			    struct ring_buffer_event *rbe, void *key,
 			    struct action_data *data, u64 *var_ref_vals)
 {
 	if (data->track_data.save_data)
-		data->track_data.save_data(hist_data, elt, rec, rbe, key, data, var_ref_vals);
+		data->track_data.save_data(hist_data, elt, buffer, rec, rbe,
+					   key, data, var_ref_vals);
 }
 
 static bool check_track_val(struct tracing_map_elt *elt,
@@ -2836,7 +2898,8 @@ static bool cond_snapshot_update(struct trace_array *tr, void *cond_data)
 }
 
 static void save_track_data_snapshot(struct hist_trigger_data *hist_data,
-				     struct tracing_map_elt *elt, void *rec,
+				     struct tracing_map_elt *elt,
+				     struct trace_buffer *buffer, void *rec,
 				     struct ring_buffer_event *rbe, void *key,
 				     struct action_data *data,
 				     u64 *var_ref_vals)
@@ -2905,7 +2968,8 @@ static bool cond_snapshot_update(struct trace_array *tr, void *cond_data)
 	return false;
 }
 static void save_track_data_snapshot(struct hist_trigger_data *hist_data,
-				     struct tracing_map_elt *elt, void *rec,
+				     struct tracing_map_elt *elt,
+				     struct trace_buffer *buffer, void *rec,
 				     struct ring_buffer_event *rbe, void *key,
 				     struct action_data *data,
 				     u64 *var_ref_vals) {}
@@ -2947,7 +3011,8 @@ static void track_data_print(struct seq_file *m,
 }
 
 static void ontrack_action(struct hist_trigger_data *hist_data,
-			   struct tracing_map_elt *elt, void *rec,
+			   struct tracing_map_elt *elt,
+			   struct trace_buffer *buffer, void *rec,
 			   struct ring_buffer_event *rbe, void *key,
 			   struct action_data *data, u64 *var_ref_vals)
 {
@@ -2955,7 +3020,8 @@ static void ontrack_action(struct hist_trigger_data *hist_data,
 
 	if (check_track_val(elt, data, var_val)) {
 		save_track_val(hist_data, elt, data, var_val);
-		save_track_data(hist_data, elt, rec, rbe, key, data, var_ref_vals);
+		save_track_data(hist_data, elt, buffer, rec, rbe,
+				key, data, var_ref_vals);
 	}
 }
 
@@ -3364,6 +3430,8 @@ trace_action_create_field_var(struct hist_trigger_data *hist_data,
 			event = data->match_data.event;
 		}
 
+		if (!event)
+			goto free;
 		/*
 		 * At this point, we're looking at a field on another
 		 * event.  Because we can't modify a hist trigger on
@@ -4400,7 +4468,8 @@ create_hist_data(unsigned int map_bits,
 }
 
 static void hist_trigger_elt_update(struct hist_trigger_data *hist_data,
-				    struct tracing_map_elt *elt, void *rec,
+				    struct tracing_map_elt *elt,
+				    struct trace_buffer *buffer, void *rec,
 				    struct ring_buffer_event *rbe,
 				    u64 *var_ref_vals)
 {
@@ -4414,7 +4483,7 @@ static void hist_trigger_elt_update(struct hist_trigger_data *hist_data,
 
 	for_each_hist_val_field(i, hist_data) {
 		hist_field = hist_data->fields[i];
-		hist_val = hist_field->fn(hist_field, elt, rbe, rec);
+		hist_val = hist_field->fn(hist_field, elt, buffer, rbe, rec);
 		if (hist_field->flags & HIST_FIELD_FL_VAR) {
 			var_idx = hist_field->var.idx;
 
@@ -4442,13 +4511,13 @@ static void hist_trigger_elt_update(struct hist_trigger_data *hist_data,
 	for_each_hist_key_field(i, hist_data) {
 		hist_field = hist_data->fields[i];
 		if (hist_field->flags & HIST_FIELD_FL_VAR) {
-			hist_val = hist_field->fn(hist_field, elt, rbe, rec);
+			hist_val = hist_field->fn(hist_field, elt, buffer, rbe, rec);
 			var_idx = hist_field->var.idx;
 			tracing_map_set_var(elt, var_idx, hist_val);
 		}
 	}
 
-	update_field_vars(hist_data, elt, rbe, rec);
+	update_field_vars(hist_data, elt, buffer, rbe, rec);
 }
 
 static inline void add_to_key(char *compound_key, void *key,
@@ -4462,8 +4531,6 @@ static inline void add_to_key(char *compound_key, void *key,
 		field = key_field->field;
 		if (field->filter_type == FILTER_DYN_STRING)
 			size = *(u32 *)(rec + field->offset) >> 16;
-		else if (field->filter_type == FILTER_PTR_STRING)
-			size = strlen(key);
 		else if (field->filter_type == FILTER_STATIC_STRING)
 			size = field->size;
 
@@ -4478,7 +4545,8 @@ static inline void add_to_key(char *compound_key, void *key,
 
 static void
 hist_trigger_actions(struct hist_trigger_data *hist_data,
-		     struct tracing_map_elt *elt, void *rec,
+		     struct tracing_map_elt *elt,
+		     struct trace_buffer *buffer, void *rec,
 		     struct ring_buffer_event *rbe, void *key,
 		     u64 *var_ref_vals)
 {
@@ -4487,11 +4555,12 @@ hist_trigger_actions(struct hist_trigger_data *hist_data,
 
 	for (i = 0; i < hist_data->n_actions; i++) {
 		data = hist_data->actions[i];
-		data->fn(hist_data, elt, rec, rbe, key, data, var_ref_vals);
+		data->fn(hist_data, elt, buffer, rec, rbe, key, data, var_ref_vals);
 	}
 }
 
-static void event_hist_trigger(struct event_trigger_data *data, void *rec,
+static void event_hist_trigger(struct event_trigger_data *data,
+			       struct trace_buffer *buffer, void *rec,
 			       struct ring_buffer_event *rbe)
 {
 	struct hist_trigger_data *hist_data = data->private_data;
@@ -4516,7 +4585,7 @@ static void event_hist_trigger(struct event_trigger_data *data, void *rec,
 					 HIST_STACKTRACE_SKIP);
 			key = entries;
 		} else {
-			field_contents = key_field->fn(key_field, elt, rbe, rec);
+			field_contents = key_field->fn(key_field, elt, buffer, rbe, rec);
 			if (key_field->flags & HIST_FIELD_FL_STRING) {
 				key = (void *)(unsigned long)field_contents;
 				use_compound_key = true;
@@ -4539,10 +4608,10 @@ static void event_hist_trigger(struct event_trigger_data *data, void *rec,
 	if (!elt)
 		return;
 
-	hist_trigger_elt_update(hist_data, elt, rec, rbe, var_ref_vals);
+	hist_trigger_elt_update(hist_data, elt, buffer, rec, rbe, var_ref_vals);
 
 	if (resolve_var_refs(hist_data, key, var_ref_vals, true))
-		hist_trigger_actions(hist_data, elt, rec, rbe, key, var_ref_vals);
+		hist_trigger_actions(hist_data, elt, buffer, rec, rbe, key, var_ref_vals);
 }
 
 static void hist_trigger_stacktrace_print(struct seq_file *m,
@@ -5050,7 +5119,7 @@ static void hist_field_print(struct seq_file *m, struct hist_field *hist_field)
 		seq_printf(m, "%s=", hist_field->var.name);
 
 	if (hist_field->flags & HIST_FIELD_FL_CPU)
-		seq_puts(m, "cpu");
+		seq_puts(m, "common_cpu");
 	else if (field_name) {
 		if (hist_field->flags & HIST_FIELD_FL_VAR_REF ||
 		    hist_field->flags & HIST_FIELD_FL_ALIAS)
@@ -5204,6 +5273,7 @@ static void unregister_field_var_hists(struct hist_trigger_data *hist_data)
 		cmd = hist_data->field_var_hists[i]->cmd;
 		ret = event_hist_trigger_func(&trigger_hist_cmd, file,
 					      "!hist", "hist", cmd);
+		WARN_ON_ONCE(ret < 0);
 	}
 }
 
@@ -5456,7 +5526,7 @@ static int hist_register_trigger(char *glob, struct event_trigger_ops *ops,
 			goto out;
 		}
 
-		tracing_set_time_stamp_abs(file->tr, true);
+		tracing_set_filter_buffering(file->tr, true);
 	}
 
 	if (named_data)
@@ -5564,7 +5634,7 @@ static void hist_unregister_trigger(char *glob, struct event_trigger_ops *ops,
 
 	if (hist_data->enable_timestamps) {
 		if (!hist_data->remove || unregistered)
-			tracing_set_time_stamp_abs(file->tr, false);
+			tracing_set_filter_buffering(file->tr, false);
 	}
 }
 
@@ -5611,7 +5681,7 @@ static void hist_unreg_all(struct trace_event_file *file)
 
 			update_cond_flag(file);
 			if (hist_data->enable_timestamps)
-				tracing_set_time_stamp_abs(file->tr, false);
+				tracing_set_filter_buffering(file->tr, false);
 			if (test->ops->free)
 				test->ops->free(test->ops, test);
 		}
@@ -5812,7 +5882,8 @@ __init int register_trigger_hist_cmd(void)
 }
 
 static void
-hist_enable_trigger(struct event_trigger_data *data, void *rec,
+hist_enable_trigger(struct event_trigger_data *data,
+		    struct trace_buffer *buffer,  void *rec,
 		    struct ring_buffer_event *event)
 {
 	struct enable_trigger_data *enable_data = data->private_data;
@@ -5830,7 +5901,8 @@ hist_enable_trigger(struct event_trigger_data *data, void *rec,
 }
 
 static void
-hist_enable_count_trigger(struct event_trigger_data *data, void *rec,
+hist_enable_count_trigger(struct event_trigger_data *data,
+			  struct trace_buffer *buffer,  void *rec,
 			  struct ring_buffer_event *event)
 {
 	if (!data->count)
@@ -5839,7 +5911,7 @@ hist_enable_count_trigger(struct event_trigger_data *data, void *rec,
 	if (data->count != -1)
 		(data->count)--;
 
-	hist_enable_trigger(data, rec, event);
+	hist_enable_trigger(data, buffer, rec, event);
 }
 
 static struct event_trigger_ops hist_enable_trigger_ops = {

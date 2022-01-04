@@ -21,7 +21,7 @@
 #include <linux/console.h>
 #include <linux/delay.h> /* for udelay */
 #include <linux/device.h>
-#include <asm/io.h>
+#include <linux/io.h>
 #include <asm/irq.h>
 #include <asm/parisc-device.h>
 
@@ -496,7 +496,7 @@ static int __init mux_probe(struct parisc_device *dev)
 	return 0;
 }
 
-static int __exit mux_remove(struct parisc_device *dev)
+static void __exit mux_remove(struct parisc_device *dev)
 {
 	int i, j;
 	int port_count = (long)dev_get_drvdata(&dev->dev);
@@ -518,7 +518,6 @@ static int __exit mux_remove(struct parisc_device *dev)
 	}
 
 	release_mem_region(dev->hpa.start + MUX_OFFSET, port_count * MUX_LINE_OFFSET);
-	return 0;
 }
 
 /* Hack.  This idea was taken from the 8250_gsc.c on how to properly order

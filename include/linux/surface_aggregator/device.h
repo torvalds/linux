@@ -7,7 +7,7 @@
  * Provides support for non-platform/non-ACPI SSAM clients via dedicated
  * subsystem.
  *
- * Copyright (C) 2019-2020 Maximilian Luz <luzmaximilian@gmail.com>
+ * Copyright (C) 2019-2021 Maximilian Luz <luzmaximilian@gmail.com>
  */
 
 #ifndef _LINUX_SURFACE_AGGREGATOR_DEVICE_H
@@ -98,9 +98,9 @@ struct ssam_device_uid {
 		     | (((fun) != SSAM_ANY_FUN) ? SSAM_MATCH_FUNCTION : 0),	\
 	.domain   = d,								\
 	.category = cat,							\
-	.target   = ((tid) != SSAM_ANY_TID) ? (tid) : 0,			\
-	.instance = ((iid) != SSAM_ANY_IID) ? (iid) : 0,			\
-	.function = ((fun) != SSAM_ANY_FUN) ? (fun) : 0				\
+	.target   = __builtin_choose_expr((tid) != SSAM_ANY_TID, (tid), 0),	\
+	.instance = __builtin_choose_expr((iid) != SSAM_ANY_IID, (iid), 0),	\
+	.function = __builtin_choose_expr((fun) != SSAM_ANY_FUN, (fun), 0)
 
 /**
  * SSAM_VDEV() - Initialize a &struct ssam_device_id as virtual device with

@@ -645,10 +645,12 @@ static struct sock *__udp4_lib_err_encap(struct net *net,
 					 const struct iphdr *iph,
 					 struct udphdr *uh,
 					 struct udp_table *udptable,
+					 struct sock *sk,
 					 struct sk_buff *skb, u32 info)
 {
+	int (*lookup)(struct sock *sk, struct sk_buff *skb);
 	int network_offset, transport_offset;
-	struct sock *sk;
+	struct udp_sock *up;
 
 	network_offset = skb_network_offset(skb);
 	transport_offset = skb_transport_offset(skb);
@@ -659,18 +661,28 @@ static struct sock *__udp4_lib_err_encap(struct net *net,
 	/* Transport header needs to point to the UDP header */
 	skb_set_transport_header(skb, iph->ihl << 2);
 
+	if (sk) {
+		up = udp_sk(sk);
+
+		lookup = READ_ONCE(up->encap_err_lookup);
+		if (lookup && lookup(sk, skb))
+			sk = NULL;
+
+		goto out;
+	}
+
 	sk = __udp4_lib_lookup(net, iph->daddr, uh->source,
 			       iph->saddr, uh->dest, skb->dev->ifindex, 0,
 			       udptable, NULL);
 	if (sk) {
-		int (*lookup)(struct sock *sk, struct sk_buff *skb);
-		struct udp_sock *up = udp_sk(sk);
+		up = udp_sk(sk);
 
 		lookup = READ_ONCE(up->encap_err_lookup);
 		if (!lookup || lookup(sk, skb))
 			sk = NULL;
 	}
 
+out:
 	if (!sk)
 		sk = ERR_PTR(__udp4_lib_err_encap_no_sk(skb, info));
 
@@ -707,15 +719,16 @@ int __udp4_lib_err(struct sk_buff *skb, u32 info, struct udp_table *udptable)
 	sk = __udp4_lib_lookup(net, iph->daddr, uh->dest,
 			       iph->saddr, uh->source, skb->dev->ifindex,
 			       inet_sdif(skb), udptable, NULL);
+
 	if (!sk || udp_sk(sk)->encap_type) {
 		/* No socket for error: try tunnels before discarding */
-		sk = ERR_PTR(-ENOENT);
 		if (static_branch_unlikely(&udp_encap_needed_key)) {
-			sk = __udp4_lib_err_encap(net, iph, uh, udptable, skb,
+			sk = __udp4_lib_err_encap(net, iph, uh, udptable, sk, skb,
 						  info);
 			if (!sk)
 				return 0;
-		}
+		} else
+			sk = ERR_PTR(-ENOENT);
 
 		if (IS_ERR(sk)) {
 			__ICMP_INC_STATS(net, ICMP_MIB_INERRORS);
@@ -776,7 +789,7 @@ int __udp4_lib_err(struct sk_buff *skb, u32 info, struct udp_table *udptable)
 		ip_icmp_error(sk, skb, err, uh->dest, info, (u8 *)(uh+1));
 
 	sk->sk_err = err;
-	sk->sk_error_report(sk);
+	sk_error_report(sk);
 out:
 	return 0;
 }
@@ -1102,7 +1115,7 @@ int udp_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 	}
 
 	ipcm_init_sk(&ipc, inet);
-	ipc.gso_size = up->gso_size;
+	ipc.gso_size = READ_ONCE(up->gso_size);
 
 	if (msg->msg_controllen) {
 		err = udp_cmsg_send(sk, msg, &ipc.gso_size);
@@ -1130,7 +1143,7 @@ int udp_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 		rcu_read_unlock();
 	}
 
-	if (cgroup_bpf_enabled(BPF_CGROUP_UDP4_SENDMSG) && !connected) {
+	if (cgroup_bpf_enabled(CGROUP_UDP4_SENDMSG) && !connected) {
 		err = BPF_CGROUP_RUN_PROG_UDP4_SENDMSG_LOCK(sk,
 					    (struct sockaddr *)usin, &ipc.addr);
 		if (err)
@@ -1782,6 +1795,37 @@ busy_check:
 }
 EXPORT_SYMBOL(__skb_recv_udp);
 
+int udp_read_sock(struct sock *sk, read_descriptor_t *desc,
+		  sk_read_actor_t recv_actor)
+{
+	int copied = 0;
+
+	while (1) {
+		struct sk_buff *skb;
+		int err, used;
+
+		skb = skb_recv_udp(sk, 0, 1, &err);
+		if (!skb)
+			return err;
+		used = recv_actor(desc, skb, 0, skb->len);
+		if (used <= 0) {
+			if (!copied)
+				copied = used;
+			kfree_skb(skb);
+			break;
+		} else if (used <= skb->len) {
+			copied += used;
+		}
+
+		kfree_skb(skb);
+		if (!desc->count)
+			break;
+	}
+
+	return copied;
+}
+EXPORT_SYMBOL(udp_read_sock);
+
 /*
  * 	This should be easy, if there is something there we
  * 	return it, otherwise we block.
@@ -2178,6 +2222,8 @@ static int udp_queue_rcv_skb(struct sock *sk, struct sk_buff *skb)
 	segs = udp_rcv_segment(sk, skb, true);
 	skb_list_walk_safe(segs, skb, next) {
 		__skb_pull(skb, skb_transport_offset(skb));
+
+		udp_post_segment_fix_csum(skb);
 		ret = udp_queue_rcv_one_skb(sk, skb);
 		if (ret > 0)
 			ip_protocol_deliver_rcu(dev_net(skb->dev), skb, ret);
@@ -2576,6 +2622,9 @@ void udp_destroy_sock(struct sock *sk)
 {
 	struct udp_sock *up = udp_sk(sk);
 	bool slow = lock_sock_fast(sk);
+
+	/* protects from races with udp_abort() */
+	sock_set_flag(sk, SOCK_DEAD);
 	udp_flush_pending_frames(sk);
 	unlock_sock_fast(sk, slow);
 	if (static_branch_unlikely(&udp_encap_needed_key)) {
@@ -2659,14 +2708,17 @@ int udp_lib_setsockopt(struct sock *sk, int level, int optname,
 	case UDP_SEGMENT:
 		if (val < 0 || val > USHRT_MAX)
 			return -EINVAL;
-		up->gso_size = val;
+		WRITE_ONCE(up->gso_size, val);
 		break;
 
 	case UDP_GRO:
 		lock_sock(sk);
+
+		/* when enabling GRO, accept the related GSO packet type */
 		if (valbool)
 			udp_tunnel_encap_enable(sk->sk_socket);
 		up->gro_enabled = valbool;
+		up->accept_udp_l4 = valbool;
 		release_sock(sk);
 		break;
 
@@ -2751,7 +2803,7 @@ int udp_lib_getsockopt(struct sock *sk, int level, int optname,
 		break;
 
 	case UDP_SEGMENT:
-		val = up->gso_size;
+		val = READ_ONCE(up->gso_size);
 		break;
 
 	case UDP_GRO:
@@ -2823,10 +2875,17 @@ int udp_abort(struct sock *sk, int err)
 {
 	lock_sock(sk);
 
+	/* udp{v6}_destroy_sock() sets it under the sk lock, avoid racing
+	 * with close()
+	 */
+	if (sock_flag(sk, SOCK_DEAD))
+		goto out;
+
 	sk->sk_err = err;
-	sk->sk_error_report(sk);
+	sk_error_report(sk);
 	__udp_disconnect(sk, 0);
 
+out:
 	release_sock(sk);
 
 	return 0;
@@ -2853,6 +2912,9 @@ struct proto udp_prot = {
 	.unhash			= udp_lib_unhash,
 	.rehash			= udp_v4_rehash,
 	.get_port		= udp_v4_get_port,
+#ifdef CONFIG_BPF_SYSCALL
+	.psock_update_sk_prot	= udp_bpf_update_proto,
+#endif
 	.memory_allocated	= &udp_memory_allocated,
 	.sysctl_mem		= sysctl_udp_mem,
 	.sysctl_wmem_offset	= offsetof(struct net, ipv4.sysctl_udp_wmem_min),

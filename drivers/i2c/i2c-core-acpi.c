@@ -69,6 +69,38 @@ bool i2c_acpi_get_i2c_resource(struct acpi_resource *ares,
 }
 EXPORT_SYMBOL_GPL(i2c_acpi_get_i2c_resource);
 
+static int i2c_acpi_resource_count(struct acpi_resource *ares, void *data)
+{
+	struct acpi_resource_i2c_serialbus *sb;
+	int *count = data;
+
+	if (i2c_acpi_get_i2c_resource(ares, &sb))
+		*count = *count + 1;
+
+	return 1;
+}
+
+/**
+ * i2c_acpi_client_count - Count the number of I2cSerialBus resources
+ * @adev:	ACPI device
+ *
+ * Returns the number of I2cSerialBus resources in the ACPI-device's
+ * resource-list; or a negative error code.
+ */
+int i2c_acpi_client_count(struct acpi_device *adev)
+{
+	int ret, count = 0;
+	LIST_HEAD(r);
+
+	ret = acpi_dev_get_resources(adev, &r, i2c_acpi_resource_count, &count);
+	if (ret < 0)
+		return ret;
+
+	acpi_dev_free_resource_list(&r);
+	return count;
+}
+EXPORT_SYMBOL_GPL(i2c_acpi_client_count);
+
 static int i2c_acpi_fill_info(struct acpi_resource *ares, void *data)
 {
 	struct i2c_acpi_lookup *lookup = data;
@@ -259,8 +291,8 @@ static acpi_status i2c_acpi_add_device(acpi_handle handle, u32 level,
  */
 void i2c_acpi_register_devices(struct i2c_adapter *adap)
 {
+	struct acpi_device *adev;
 	acpi_status status;
-	acpi_handle handle;
 
 	if (!has_acpi_companion(&adap->dev))
 		return;
@@ -275,11 +307,11 @@ void i2c_acpi_register_devices(struct i2c_adapter *adap)
 	if (!adap->dev.parent)
 		return;
 
-	handle = ACPI_HANDLE(adap->dev.parent);
-	if (!handle)
+	adev = ACPI_COMPANION(adap->dev.parent);
+	if (!adev)
 		return;
 
-	acpi_walk_dep_device_list(handle);
+	acpi_dev_clear_dependencies(adev);
 }
 
 static const struct acpi_device_id i2c_acpi_force_400khz_device_ids[] = {

@@ -346,6 +346,7 @@ static int gmc_v6_0_mc_init(struct amdgpu_device *adev)
 		adev->gmc.gart_size = (u64)amdgpu_gart_size << 20;
 	}
 
+	adev->gmc.gart_size += adev->pm.smu_prv_buffer_size;
 	gmc_v6_0_vram_gtt_location(adev, &adev->gmc);
 
 	return 0;
@@ -897,7 +898,6 @@ static int gmc_v6_0_sw_fini(void *handle)
 	amdgpu_vm_manager_fini(adev);
 	amdgpu_gart_table_vram_free(adev);
 	amdgpu_bo_fini(adev);
-	amdgpu_gart_fini(adev);
 	release_firmware(adev->gmc.fw);
 	adev->gmc.fw = NULL;
 

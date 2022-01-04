@@ -1759,10 +1759,6 @@ static void tegra210_emc_debugfs_init(struct tegra210_emc *emc)
 	}
 
 	emc->debugfs.root = debugfs_create_dir("emc", NULL);
-	if (!emc->debugfs.root) {
-		dev_err(dev, "failed to create debugfs directory\n");
-		return;
-	}
 
 	debugfs_create_file("available_rates", 0444, emc->debugfs.root, emc,
 			    &tegra210_emc_debug_available_rates_fops);

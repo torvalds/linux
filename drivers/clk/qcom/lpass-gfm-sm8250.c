@@ -251,15 +251,18 @@ static int lpass_gfm_clk_driver_probe(struct platform_device *pdev)
 	if (IS_ERR(cc->base))
 		return PTR_ERR(cc->base);
 
-	pm_runtime_enable(dev);
-	err = pm_clk_create(dev);
+	err = devm_pm_runtime_enable(dev);
 	if (err)
-		goto pm_clk_err;
+		return err;
+
+	err = devm_pm_clk_create(dev);
+	if (err)
+		return err;
 
 	err = of_pm_clk_add_clks(dev);
 	if (err < 0) {
 		dev_dbg(dev, "Failed to get lpass core voting clocks\n");
-		goto clk_reg_err;
+		return err;
 	}
 
 	for (i = 0; i < data->onecell_data->num; i++) {
@@ -273,22 +276,16 @@ static int lpass_gfm_clk_driver_probe(struct platform_device *pdev)
 
 		err = devm_clk_hw_register(dev, &data->gfm_clks[i]->hw);
 		if (err)
-			goto clk_reg_err;
+			return err;
 
 	}
 
 	err = devm_of_clk_add_hw_provider(dev, of_clk_hw_onecell_get,
 					  data->onecell_data);
 	if (err)
-		goto clk_reg_err;
+		return err;
 
 	return 0;
-
-clk_reg_err:
-	pm_clk_destroy(dev);
-pm_clk_err:
-	pm_runtime_disable(dev);
-	return err;
 }
 
 static const struct of_device_id lpass_gfm_clk_match_table[] = {

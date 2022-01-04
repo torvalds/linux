@@ -234,7 +234,7 @@ static int p2wi_probe(struct platform_device *pdev)
 	if (IS_ERR(p2wi->regs))
 		return PTR_ERR(p2wi->regs);
 
-	strlcpy(p2wi->adapter.name, pdev->name, sizeof(p2wi->adapter.name));
+	strscpy(p2wi->adapter.name, pdev->name, sizeof(p2wi->adapter.name));
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)
 		return irq;

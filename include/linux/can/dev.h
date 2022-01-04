@@ -32,6 +32,12 @@ enum can_mode {
 	CAN_MODE_SLEEP
 };
 
+enum can_termination_gpio {
+	CAN_TERMINATION_GPIO_DISABLED = 0,
+	CAN_TERMINATION_GPIO_ENABLED,
+	CAN_TERMINATION_GPIO_MAX,
+};
+
 /*
  * CAN common private data
  */
@@ -39,18 +45,24 @@ struct can_priv {
 	struct net_device *dev;
 	struct can_device_stats can_stats;
 
-	struct can_bittiming bittiming, data_bittiming;
 	const struct can_bittiming_const *bittiming_const,
 		*data_bittiming_const;
-	const u16 *termination_const;
-	unsigned int termination_const_cnt;
-	u16 termination;
-	const u32 *bitrate_const;
+	struct can_bittiming bittiming, data_bittiming;
+	const struct can_tdc_const *tdc_const;
+	struct can_tdc tdc;
+
 	unsigned int bitrate_const_cnt;
+	const u32 *bitrate_const;
 	const u32 *data_bitrate_const;
 	unsigned int data_bitrate_const_cnt;
 	u32 bitrate_max;
 	struct can_clock clock;
+
+	unsigned int termination_const_cnt;
+	const u16 *termination_const;
+	u16 termination;
+	struct gpio_desc *termination_gpio;
+	u16 termination_gpio_ohms[CAN_TERMINATION_GPIO_MAX];
 
 	enum can_state state;
 

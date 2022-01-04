@@ -23,6 +23,7 @@ obj-$(CONFIG_RC_MAP) += rc-adstech-dvb-t-pci.o \
 			rc-budget-ci-old.o \
 			rc-cinergy-1400.o \
 			rc-cinergy.o \
+			rc-ct-90405.o \
 			rc-d680-dmb.o \
 			rc-delock-61959.o \
 			rc-dib0700-nec.o \
@@ -66,9 +67,12 @@ obj-$(CONFIG_RC_MAP) += rc-adstech-dvb-t-pci.o \
 			rc-leadtek-y04g0051.o \
 			rc-lme2510.o \
 			rc-manli.o \
+			rc-mecool-kii-pro.o \
+			rc-mecool-kiii-pro.o \
 			rc-medion-x10.o \
 			rc-medion-x10-digitainer.o \
 			rc-medion-x10-or2x.o \
+			rc-minix-neo.o \
 			rc-msi-digivox-ii.o \
 			rc-msi-digivox-iii.o \
 			rc-msi-tvanywhere.o \
@@ -97,7 +101,6 @@ obj-$(CONFIG_RC_MAP) += rc-adstech-dvb-t-pci.o \
 			rc-reddo.o \
 			rc-snapstream-firefly.o \
 			rc-streamzap.o \
-			rc-tango.o \
 			rc-tanix-tx3mini.o \
 			rc-tanix-tx5max.o \
 			rc-tbs-nec.o \
@@ -126,6 +129,7 @@ obj-$(CONFIG_RC_MAP) += rc-adstech-dvb-t-pci.o \
 			rc-winfast.o \
 			rc-winfast-usbii-deluxe.o \
 			rc-su3000.o \
+			rc-xbox-360.o \
 			rc-xbox-dvd.o \
 			rc-x96max.o \
 			rc-zx-irdec.o

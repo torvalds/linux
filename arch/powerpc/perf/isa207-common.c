@@ -21,7 +21,7 @@ PMU_FORMAT_ATTR(thresh_stop,	"config:32-35");
 PMU_FORMAT_ATTR(thresh_start,	"config:36-39");
 PMU_FORMAT_ATTR(thresh_cmp,	"config:40-49");
 
-struct attribute *isa207_pmu_format_attr[] = {
+static struct attribute *isa207_pmu_format_attr[] = {
 	&format_attr_event.attr,
 	&format_attr_pmcxsel.attr,
 	&format_attr_mark.attr,
@@ -275,17 +275,47 @@ void isa207_get_mem_data_src(union perf_mem_data_src *dsrc, u32 flags,
 
 	sier = mfspr(SPRN_SIER);
 	val = (sier & ISA207_SIER_TYPE_MASK) >> ISA207_SIER_TYPE_SHIFT;
-	if (val == 1 || val == 2) {
-		idx = (sier & ISA207_SIER_LDST_MASK) >> ISA207_SIER_LDST_SHIFT;
-		sub_idx = (sier & ISA207_SIER_DATA_SRC_MASK) >> ISA207_SIER_DATA_SRC_SHIFT;
+	if (val != 1 && val != 2 && !(val == 7 && cpu_has_feature(CPU_FTR_ARCH_31)))
+		return;
 
-		dsrc->val = isa207_find_source(idx, sub_idx);
+	idx = (sier & ISA207_SIER_LDST_MASK) >> ISA207_SIER_LDST_SHIFT;
+	sub_idx = (sier & ISA207_SIER_DATA_SRC_MASK) >> ISA207_SIER_DATA_SRC_SHIFT;
+
+	dsrc->val = isa207_find_source(idx, sub_idx);
+	if (val == 7) {
+		u64 mmcra;
+		u32 op_type;
+
+		/*
+		 * Type 0b111 denotes either larx or stcx instruction. Use the
+		 * MMCRA sampling bits [57:59] along with the type value
+		 * to determine the exact instruction type. If the sampling
+		 * criteria is neither load or store, set the type as default
+		 * to NA.
+		 */
+		mmcra = mfspr(SPRN_MMCRA);
+
+		op_type = (mmcra >> MMCRA_SAMP_ELIG_SHIFT) & MMCRA_SAMP_ELIG_MASK;
+		switch (op_type) {
+		case 5:
+			dsrc->val |= P(OP, LOAD);
+			break;
+		case 7:
+			dsrc->val |= P(OP, STORE);
+			break;
+		default:
+			dsrc->val |= P(OP, NA);
+			break;
+		}
+	} else {
 		dsrc->val |= (val == 1) ? P(OP, LOAD) : P(OP, STORE);
 	}
 }
 
-void isa207_get_mem_weight(u64 *weight)
+void isa207_get_mem_weight(u64 *weight, u64 type)
 {
+	union perf_sample_weight *weight_fields;
+	u64 weight_lat;
 	u64 mmcra = mfspr(SPRN_MMCRA);
 	u64 exp = MMCRA_THR_CTR_EXP(mmcra);
 	u64 mantissa = MMCRA_THR_CTR_MANT(mmcra);
@@ -295,10 +325,31 @@ void isa207_get_mem_weight(u64 *weight)
 	if (cpu_has_feature(CPU_FTR_ARCH_31))
 		mantissa = P10_MMCRA_THR_CTR_MANT(mmcra);
 
-	if (val == 0 || val == 7)
-		*weight = 0;
+	if (val == 0 || (val == 7 && !cpu_has_feature(CPU_FTR_ARCH_31)))
+		weight_lat = 0;
 	else
-		*weight = mantissa << (2 * exp);
+		weight_lat = mantissa << (2 * exp);
+
+	/*
+	 * Use 64 bit weight field (full) if sample type is
+	 * WEIGHT.
+	 *
+	 * if sample type is WEIGHT_STRUCT:
+	 * - store memory latency in the lower 32 bits.
+	 * - For ISA v3.1, use remaining two 16 bit fields of
+	 *   perf_sample_weight to store cycle counter values
+	 *   from sier2.
+	 */
+	weight_fields = (union perf_sample_weight *)weight;
+	if (type & PERF_SAMPLE_WEIGHT)
+		weight_fields->full = weight_lat;
+	else {
+		weight_fields->var1_dw = (u32)weight_lat;
+		if (cpu_has_feature(CPU_FTR_ARCH_31)) {
+			weight_fields->var2_w = P10_SIER2_FINISH_CYC(mfspr(SPRN_SIER2));
+			weight_fields->var3_w = P10_SIER2_DISPATCH_CYC(mfspr(SPRN_SIER2));
+		}
+	}
 }
 
 int isa207_get_constraint(u64 event, unsigned long *maskp, unsigned long *valp, u64 event_config1)
@@ -447,8 +498,8 @@ ebb_bhrb:
 	 * EBB events are pinned & exclusive, so this should never actually
 	 * hit, but we leave it as a fallback in case.
 	 */
-	mask  |= CNST_EBB_VAL(ebb);
-	value |= CNST_EBB_MASK;
+	mask  |= CNST_EBB_MASK;
+	value |= CNST_EBB_VAL(ebb);
 
 	*maskp = mask;
 	*valp = value;
@@ -693,4 +744,46 @@ int isa207_get_alternatives(u64 event, u64 alt[], int size, unsigned int flags,
 	}
 
 	return num_alt;
+}
+
+int isa3XX_check_attr_config(struct perf_event *ev)
+{
+	u64 val, sample_mode;
+	u64 event = ev->attr.config;
+
+	val = (event >> EVENT_SAMPLE_SHIFT) & EVENT_SAMPLE_MASK;
+	sample_mode = val & 0x3;
+
+	/*
+	 * MMCRA[61:62] is Random Sampling Mode (SM).
+	 * value of 0b11 is reserved.
+	 */
+	if (sample_mode == 0x3)
+		return -EINVAL;
+
+	/*
+	 * Check for all reserved value
+	 * Source: Performance Monitoring Unit User Guide
+	 */
+	switch (val) {
+	case 0x5:
+	case 0x9:
+	case 0xD:
+	case 0x19:
+	case 0x1D:
+	case 0x1A:
+	case 0x1E:
+		return -EINVAL;
+	}
+
+	/*
+	 * MMCRA[48:51]/[52:55]) Threshold Start/Stop
+	 * Events Selection.
+	 * 0b11110000/0b00001111 is reserved.
+	 */
+	val = (event >> EVENT_THR_CTL_SHIFT) & EVENT_THR_CTL_MASK;
+	if (((val & 0xF0) == 0xF0) || ((val & 0xF) == 0xF))
+		return -EINVAL;
+
+	return 0;
 }

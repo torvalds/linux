@@ -116,7 +116,8 @@ static bool drm_sched_entity_is_idle(struct drm_sched_entity *entity)
 	rmb(); /* for list_empty to work without lock */
 
 	if (list_empty(&entity->list) ||
-	    spsc_queue_count(&entity->job_queue) == 0)
+	    spsc_queue_count(&entity->job_queue) == 0 ||
+	    entity->stopped)
 		return true;
 
 	return false;
@@ -192,7 +193,7 @@ long drm_sched_entity_flush(struct drm_sched_entity *entity, long timeout)
 EXPORT_SYMBOL(drm_sched_entity_flush);
 
 /**
- * drm_sched_entity_kill_jobs - helper for drm_sched_entity_kill_jobs
+ * drm_sched_entity_kill_jobs_cb - helper for drm_sched_entity_kill_jobs
  *
  * @f: signaled fence
  * @cb: our callback structure
@@ -221,10 +222,15 @@ static void drm_sched_entity_kill_jobs_cb(struct dma_fence *f,
 static void drm_sched_entity_kill_jobs(struct drm_sched_entity *entity)
 {
 	struct drm_sched_job *job;
+	struct dma_fence *f;
 	int r;
 
 	while ((job = to_drm_sched_job(spsc_queue_pop(&entity->job_queue)))) {
 		struct drm_sched_fence *s_fence = job->s_fence;
+
+		/* Wait for all dependencies to avoid data corruptions */
+		while ((f = job->sched->ops->dependency(job, entity)))
+			dma_fence_wait(f, false);
 
 		drm_sched_fence_scheduled(s_fence);
 		dma_fence_set_error(&s_fence->finished, -ESRCH);
@@ -250,7 +256,7 @@ static void drm_sched_entity_kill_jobs(struct drm_sched_entity *entity)
 }
 
 /**
- * drm_sched_entity_cleanup - Destroy a context entity
+ * drm_sched_entity_fini - Destroy a context entity
  *
  * @entity: scheduler entity
  *
@@ -295,7 +301,7 @@ void drm_sched_entity_fini(struct drm_sched_entity *entity)
 EXPORT_SYMBOL(drm_sched_entity_fini);
 
 /**
- * drm_sched_entity_fini - Destroy a context entity
+ * drm_sched_entity_destroy - Destroy a context entity
  *
  * @entity: scheduler entity
  *
@@ -453,7 +459,7 @@ void drm_sched_entity_select_rq(struct drm_sched_entity *entity)
 	struct drm_gpu_scheduler *sched;
 	struct drm_sched_rq *rq;
 
-	if (spsc_queue_count(&entity->job_queue) || entity->num_sched_list <= 1)
+	if (spsc_queue_count(&entity->job_queue) || !entity->sched_list)
 		return;
 
 	fence = READ_ONCE(entity->last_scheduled);
@@ -467,8 +473,10 @@ void drm_sched_entity_select_rq(struct drm_sched_entity *entity)
 		drm_sched_rq_remove_entity(entity->rq, entity);
 		entity->rq = rq;
 	}
-
 	spin_unlock(&entity->rq_lock);
+
+	if (entity->num_sched_list == 1)
+		entity->sched_list = NULL;
 }
 
 /**
@@ -489,7 +497,7 @@ void drm_sched_entity_push_job(struct drm_sched_job *sched_job,
 	bool first;
 
 	trace_drm_sched_job(sched_job, entity);
-	atomic_inc(&entity->rq->sched->score);
+	atomic_inc(entity->rq->sched->score);
 	WRITE_ONCE(entity->last_user, current->group_leader);
 	first = spsc_queue_push(&entity->job_queue, &sched_job->queue_node);
 

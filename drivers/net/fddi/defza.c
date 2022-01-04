@@ -60,7 +60,7 @@
 static const char version[] =
 	DRV_NAME ": " DRV_VERSION "  " DRV_RELDATE "  Maciej W. Rozycki\n";
 
-MODULE_AUTHOR("Maciej W. Rozycki <macro@linux-mips.org>");
+MODULE_AUTHOR("Maciej W. Rozycki <macro@orcam.me.uk>");
 MODULE_DESCRIPTION("DEC FDDIcontroller 700 (DEFZA-xx) driver");
 MODULE_LICENSE("GPL");
 
@@ -1504,9 +1504,8 @@ err_out_resource:
 	release_mem_region(start, len);
 
 err_out_kfree:
-	free_netdev(dev);
-
 	pr_err("%s: initialization failure, aborting!\n", fp->name);
+	free_netdev(dev);
 	return ret;
 }
 

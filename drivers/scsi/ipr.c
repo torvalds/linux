@@ -1300,7 +1300,7 @@ static char *__ipr_format_res_path(u8 *res_path, char *buffer, int len)
 
 	*p = '\0';
 	p += scnprintf(p, buffer + len - p, "%02X", res_path[0]);
-	for (i = 1; res_path[i] != 0xff && ((i * 3) < len); i++)
+	for (i = 1; res_path[i] != 0xff && i < IPR_RES_PATH_BYTES; i++)
 		p += scnprintf(p, buffer + len - p, "-%02X", res_path[i]);
 
 	return buffer;
@@ -1323,7 +1323,7 @@ static char *ipr_format_res_path(struct ipr_ioa_cfg *ioa_cfg,
 
 	*p = '\0';
 	p += scnprintf(p, buffer + len - p, "%d/", ioa_cfg->host->host_no);
-	__ipr_format_res_path(res_path, p, len - (buffer - p));
+	__ipr_format_res_path(res_path, p, len - (p - buffer));
 	return buffer;
 }
 
@@ -5321,7 +5321,7 @@ static int ipr_sata_reset(struct ata_link *link, unsigned int *classes,
 }
 
 /**
- * ipr_eh_dev_reset - Reset the device
+ * __ipr_eh_dev_reset - Reset the device
  * @scsi_cmd:	scsi command struct
  *
  * This function issues a device reset to the affected device.
@@ -5583,7 +5583,7 @@ static int ipr_cancel_op(struct scsi_cmnd *scsi_cmd)
 }
 
 /**
- * ipr_eh_abort - Abort a single op
+ * ipr_scan_finished - Report whether scan is done
  * @shost:           scsi host struct
  * @elapsed_time:    elapsed time
  *
@@ -5606,7 +5606,7 @@ static int ipr_scan_finished(struct Scsi_Host *shost, unsigned long elapsed_time
 }
 
 /**
- * ipr_eh_host_reset - Reset the host adapter
+ * ipr_eh_abort - Reset the host adapter
  * @scsi_cmd:	scsi command struct
  *
  * Return value:
@@ -6715,7 +6715,7 @@ static int ipr_ioctl(struct scsi_device *sdev, unsigned int cmd,
 }
 
 /**
- * ipr_info - Get information about the card/driver
+ * ipr_ioa_info - Get information about the card/driver
  * @host:	scsi host struct
  *
  * Return value:

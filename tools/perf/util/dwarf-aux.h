@@ -19,10 +19,10 @@ const char *cu_find_realpath(Dwarf_Die *cu_die, const char *fname);
 const char *cu_get_comp_dir(Dwarf_Die *cu_die);
 
 /* Get a line number and file name for given address */
-int cu_find_lineinfo(Dwarf_Die *cudie, unsigned long addr,
+int cu_find_lineinfo(Dwarf_Die *cudie, Dwarf_Addr addr,
 		     const char **fname, int *lineno);
 
-/* Walk on funcitons at given address */
+/* Walk on functions at given address */
 int cu_walk_functions_at(Dwarf_Die *cu_die, Dwarf_Addr addr,
 			 int (*callback)(Dwarf_Die *, void *), void *data);
 

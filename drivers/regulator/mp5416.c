@@ -67,6 +67,10 @@
 		.vsel_mask = MP5416_MASK_VSET,				\
 		.enable_reg = MP5416_REG_BUCK ## _id,			\
 		.enable_mask = MP5416_REGULATOR_EN,			\
+		.ramp_reg = MP5416_REG_CTL2,				\
+		.ramp_mask = MP5416_MASK_DVS_SLEWRATE,			\
+		.ramp_delay_table = mp5416_buck_ramp_table,		\
+		.n_ramp_values = ARRAY_SIZE(mp5416_buck_ramp_table),	\
 		.active_discharge_on	= _dval,			\
 		.active_discharge_reg	= _dreg,			\
 		.active_discharge_mask	= _dval,			\
@@ -123,7 +127,16 @@ static const unsigned int mp5416_I_limits2[] = {
 	2200000, 3200000, 4200000, 5200000
 };
 
-static int mp5416_set_ramp_delay(struct regulator_dev *rdev, int ramp_delay);
+/*
+ * DVS ramp rate BUCK1 to BUCK4
+ * 00: 32mV/us
+ * 01: 16mV/us
+ * 10: 8mV/us
+ * 11: 4mV/us
+ */
+static const unsigned int mp5416_buck_ramp_table[] = {
+	32000, 16000, 8000, 4000
+};
 
 static const struct regulator_ops mp5416_ldo_ops = {
 	.enable			= regulator_enable_regmap,
@@ -147,7 +160,7 @@ static const struct regulator_ops mp5416_buck_ops = {
 	.set_active_discharge	= regulator_set_active_discharge_regmap,
 	.get_current_limit	= regulator_get_current_limit_regmap,
 	.set_current_limit	= regulator_set_current_limit_regmap,
-	.set_ramp_delay		= mp5416_set_ramp_delay,
+	.set_ramp_delay		= regulator_set_ramp_delay_regmap,
 };
 
 static struct regulator_desc mp5416_regulators_desc[MP5416_MAX_REGULATORS] = {
@@ -160,33 +173,6 @@ static struct regulator_desc mp5416_regulators_desc[MP5416_MAX_REGULATORS] = {
 	MP5416LDO("ldo3", 3, BIT(2)),
 	MP5416LDO("ldo4", 4, BIT(1)),
 };
-
-/*
- * DVS ramp rate BUCK1 to BUCK4
- * 00: 32mV/us
- * 01: 16mV/us
- * 10: 8mV/us
- * 11: 4mV/us
- */
-static int mp5416_set_ramp_delay(struct regulator_dev *rdev, int ramp_delay)
-{
-	unsigned int ramp_val;
-
-	if (ramp_delay > 32000 || ramp_delay < 0)
-		return -EINVAL;
-
-	if (ramp_delay <= 4000)
-		ramp_val = 3;
-	else if (ramp_delay <= 8000)
-		ramp_val = 2;
-	else if (ramp_delay <= 16000)
-		ramp_val = 1;
-	else
-		ramp_val = 0;
-
-	return regmap_update_bits(rdev->regmap, MP5416_REG_CTL2,
-				  MP5416_MASK_DVS_SLEWRATE, ramp_val << 6);
-}
 
 static int mp5416_i2c_probe(struct i2c_client *client)
 {

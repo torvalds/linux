@@ -862,13 +862,10 @@ static void klp_init_object_early(struct klp_patch *patch,
 	list_add_tail(&obj->node, &patch->obj_list);
 }
 
-static int klp_init_patch_early(struct klp_patch *patch)
+static void klp_init_patch_early(struct klp_patch *patch)
 {
 	struct klp_object *obj;
 	struct klp_func *func;
-
-	if (!patch->objs)
-		return -EINVAL;
 
 	INIT_LIST_HEAD(&patch->list);
 	INIT_LIST_HEAD(&patch->obj_list);
@@ -879,20 +876,12 @@ static int klp_init_patch_early(struct klp_patch *patch)
 	init_completion(&patch->finish);
 
 	klp_for_each_object_static(patch, obj) {
-		if (!obj->funcs)
-			return -EINVAL;
-
 		klp_init_object_early(patch, obj);
 
 		klp_for_each_func_static(obj, func) {
 			klp_init_func_early(obj, func);
 		}
 	}
-
-	if (!try_module_get(patch->mod))
-		return -ENODEV;
-
-	return 0;
 }
 
 static int klp_init_patch(struct klp_patch *patch)
@@ -1024,9 +1013,16 @@ err:
 int klp_enable_patch(struct klp_patch *patch)
 {
 	int ret;
+	struct klp_object *obj;
 
-	if (!patch || !patch->mod)
+	if (!patch || !patch->mod || !patch->objs)
 		return -EINVAL;
+
+	klp_for_each_object_static(patch, obj) {
+		if (!obj->funcs)
+			return -EINVAL;
+	}
+
 
 	if (!is_livepatch_module(patch->mod)) {
 		pr_err("module %s is not marked as a livepatch module\n",
@@ -1051,11 +1047,12 @@ int klp_enable_patch(struct klp_patch *patch)
 		return -EINVAL;
 	}
 
-	ret = klp_init_patch_early(patch);
-	if (ret) {
+	if (!try_module_get(patch->mod)) {
 		mutex_unlock(&klp_mutex);
-		return ret;
+		return -ENODEV;
 	}
+
+	klp_init_patch_early(patch);
 
 	ret = klp_init_patch(patch);
 	if (ret)

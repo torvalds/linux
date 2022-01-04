@@ -56,8 +56,8 @@
 
 /* 24KB at the end of WOPCM is reserved for RC6 CTX on BXT. */
 #define BXT_WOPCM_RC6_CTX_RESERVED	(SZ_16K + SZ_8K)
-/* 36KB WOPCM reserved at the end of WOPCM on CNL. */
-#define CNL_WOPCM_HW_CTX_RESERVED	(SZ_32K + SZ_4K)
+/* 36KB WOPCM reserved at the end of WOPCM on ICL. */
+#define ICL_WOPCM_HW_CTX_RESERVED	(SZ_32K + SZ_4K)
 
 /* 128KB from GUC_WOPCM_RESERVED is reserved for FW on Gen9. */
 #define GEN9_GUC_FW_RESERVED	SZ_128K
@@ -81,7 +81,7 @@ void intel_wopcm_init_early(struct intel_wopcm *wopcm)
 	if (!HAS_GT_UC(i915))
 		return;
 
-	if (INTEL_GEN(i915) >= 11)
+	if (GRAPHICS_VER(i915) >= 11)
 		wopcm->size = GEN11_WOPCM_SIZE;
 	else
 		wopcm->size = GEN9_WOPCM_SIZE;
@@ -93,8 +93,8 @@ static u32 context_reserved_size(struct drm_i915_private *i915)
 {
 	if (IS_GEN9_LP(i915))
 		return BXT_WOPCM_RC6_CTX_RESERVED;
-	else if (INTEL_GEN(i915) >= 10)
-		return CNL_WOPCM_HW_CTX_RESERVED;
+	else if (GRAPHICS_VER(i915) >= 11)
+		return ICL_WOPCM_HW_CTX_RESERVED;
 	else
 		return 0;
 }
@@ -126,7 +126,7 @@ static bool gen9_check_huc_fw_fits(struct drm_i915_private *i915,
 				   u32 guc_wopcm_size, u32 huc_fw_size)
 {
 	/*
-	 * On Gen9 & CNL A0, hardware requires the total available GuC WOPCM
+	 * On Gen9, hardware requires the total available GuC WOPCM
 	 * size to be larger than or equal to HuC firmware size. Otherwise,
 	 * firmware uploading would fail.
 	 */
@@ -145,11 +145,11 @@ static bool check_hw_restrictions(struct drm_i915_private *i915,
 				  u32 guc_wopcm_base, u32 guc_wopcm_size,
 				  u32 huc_fw_size)
 {
-	if (IS_GEN(i915, 9) && !gen9_check_dword_gap(i915, guc_wopcm_base,
-						     guc_wopcm_size))
+	if (GRAPHICS_VER(i915) == 9 && !gen9_check_dword_gap(i915, guc_wopcm_base,
+							     guc_wopcm_size))
 		return false;
 
-	if (IS_GEN(i915, 9) &&
+	if (GRAPHICS_VER(i915) == 9 &&
 	    !gen9_check_huc_fw_fits(i915, guc_wopcm_size, huc_fw_size))
 		return false;
 

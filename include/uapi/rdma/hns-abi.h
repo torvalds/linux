@@ -86,6 +86,8 @@ struct hns_roce_ib_create_qp_resp {
 struct hns_roce_ib_alloc_ucontext_resp {
 	__u32	qp_tab_size;
 	__u32	cqe_size;
+	__u32	srq_tab_size;
+	__u32	reserved;
 };
 
 struct hns_roce_ib_alloc_pd_resp {

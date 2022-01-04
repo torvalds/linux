@@ -76,7 +76,7 @@ the same sub-device is not defined.
 
 .. c:type:: v4l2_subdev_frame_interval
 
-.. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
+.. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.5cm}|
 
 .. flat-table:: struct v4l2_subdev_frame_interval
     :header-rows:  0

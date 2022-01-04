@@ -211,13 +211,11 @@ static int update_lmb_associativity_index(struct drmem_lmb *lmb)
 static struct memory_block *lmb_to_memblock(struct drmem_lmb *lmb)
 {
 	unsigned long section_nr;
-	struct mem_section *mem_sect;
 	struct memory_block *mem_block;
 
 	section_nr = pfn_to_section_nr(PFN_DOWN(lmb->base_addr));
-	mem_sect = __nr_to_section(section_nr);
 
-	mem_block = find_memory_block(mem_sect);
+	mem_block = find_memory_block(section_nr);
 	return mem_block;
 }
 
@@ -348,7 +346,8 @@ static int pseries_remove_mem_node(struct device_node *np)
 
 static bool lmb_is_removable(struct drmem_lmb *lmb)
 {
-	if (!(lmb->flags & DRCONF_MEM_ASSIGNED))
+	if ((lmb->flags & DRCONF_MEM_RESERVED) ||
+		!(lmb->flags & DRCONF_MEM_ASSIGNED))
 		return false;
 
 #ifdef CONFIG_FA_DUMP
@@ -401,7 +400,7 @@ static int dlpar_remove_lmb(struct drmem_lmb *lmb)
 static int dlpar_memory_remove_by_count(u32 lmbs_to_remove)
 {
 	struct drmem_lmb *lmb;
-	int lmbs_removed = 0;
+	int lmbs_reserved = 0;
 	int lmbs_available = 0;
 	int rc;
 
@@ -435,12 +434,12 @@ static int dlpar_memory_remove_by_count(u32 lmbs_to_remove)
 		 */
 		drmem_mark_lmb_reserved(lmb);
 
-		lmbs_removed++;
-		if (lmbs_removed == lmbs_to_remove)
+		lmbs_reserved++;
+		if (lmbs_reserved == lmbs_to_remove)
 			break;
 	}
 
-	if (lmbs_removed != lmbs_to_remove) {
+	if (lmbs_reserved != lmbs_to_remove) {
 		pr_err("Memory hot-remove failed, adding LMB's back\n");
 
 		for_each_drmem_lmb(lmb) {
@@ -453,6 +452,10 @@ static int dlpar_memory_remove_by_count(u32 lmbs_to_remove)
 				       lmb->drc_index);
 
 			drmem_remove_lmb_reservation(lmb);
+
+			lmbs_reserved--;
+			if (lmbs_reserved == 0)
+				break;
 		}
 
 		rc = -EINVAL;
@@ -466,6 +469,10 @@ static int dlpar_memory_remove_by_count(u32 lmbs_to_remove)
 				lmb->base_addr);
 
 			drmem_remove_lmb_reservation(lmb);
+
+			lmbs_reserved--;
+			if (lmbs_reserved == 0)
+				break;
 		}
 		rc = 0;
 	}
@@ -508,7 +515,6 @@ static int dlpar_memory_remove_by_index(u32 drc_index)
 static int dlpar_memory_remove_by_ic(u32 lmbs_to_remove, u32 drc_index)
 {
 	struct drmem_lmb *lmb, *start_lmb, *end_lmb;
-	int lmbs_available = 0;
 	int rc;
 
 	pr_info("Attempting to hot-remove %u LMB(s) at %x\n",
@@ -521,18 +527,29 @@ static int dlpar_memory_remove_by_ic(u32 lmbs_to_remove, u32 drc_index)
 	if (rc)
 		return -EINVAL;
 
-	/* Validate that there are enough LMBs to satisfy the request */
+	/*
+	 * Validate that all LMBs in range are not reserved. Note that it
+	 * is ok if they are !ASSIGNED since our goal here is to remove the
+	 * LMB range, regardless of whether some LMBs were already removed
+	 * by any other reason.
+	 *
+	 * This is a contrast to what is done in remove_by_count() where we
+	 * check for both RESERVED and !ASSIGNED (via lmb_is_removable()),
+	 * because we want to remove a fixed amount of LMBs in that function.
+	 */
 	for_each_drmem_lmb_in_range(lmb, start_lmb, end_lmb) {
-		if (lmb->flags & DRCONF_MEM_RESERVED)
-			break;
-
-		lmbs_available++;
+		if (lmb->flags & DRCONF_MEM_RESERVED) {
+			pr_err("Memory at %llx (drc index %x) is reserved\n",
+				lmb->base_addr, lmb->drc_index);
+			return -EINVAL;
+		}
 	}
 
-	if (lmbs_available < lmbs_to_remove)
-		return -EINVAL;
-
 	for_each_drmem_lmb_in_range(lmb, start_lmb, end_lmb) {
+		/*
+		 * dlpar_remove_lmb() will error out if the LMB is already
+		 * !ASSIGNED, but this case is a no-op for us.
+		 */
 		if (!(lmb->flags & DRCONF_MEM_ASSIGNED))
 			continue;
 
@@ -550,6 +567,13 @@ static int dlpar_memory_remove_by_ic(u32 lmbs_to_remove, u32 drc_index)
 		for_each_drmem_lmb_in_range(lmb, start_lmb, end_lmb) {
 			if (!drmem_lmb_reserved(lmb))
 				continue;
+
+			/*
+			 * Setting the isolation state of an UNISOLATED/CONFIGURED
+			 * device to UNISOLATE is a no-op, but the hypervisor can
+			 * use it as a hint that the LMB removal failed.
+			 */
+			dlpar_unisolate_drc(lmb->drc_index);
 
 			rc = dlpar_add_lmb(lmb);
 			if (rc)
@@ -584,10 +608,6 @@ static inline int pseries_remove_memblock(unsigned long base,
 static inline int pseries_remove_mem_node(struct device_node *np)
 {
 	return 0;
-}
-static inline int dlpar_memory_remove(struct pseries_hp_errorlog *hp_elog)
-{
-	return -EOPNOTSUPP;
 }
 static int dlpar_remove_lmb(struct drmem_lmb *lmb)
 {
@@ -651,7 +671,7 @@ static int dlpar_memory_add_by_count(u32 lmbs_to_add)
 {
 	struct drmem_lmb *lmb;
 	int lmbs_available = 0;
-	int lmbs_added = 0;
+	int lmbs_reserved = 0;
 	int rc;
 
 	pr_info("Attempting to hot-add %d LMB(s)\n", lmbs_to_add);
@@ -661,6 +681,9 @@ static int dlpar_memory_add_by_count(u32 lmbs_to_add)
 
 	/* Validate that there are enough LMBs to satisfy the request */
 	for_each_drmem_lmb(lmb) {
+		if (lmb->flags & DRCONF_MEM_RESERVED)
+			continue;
+
 		if (!(lmb->flags & DRCONF_MEM_ASSIGNED))
 			lmbs_available++;
 
@@ -689,13 +712,12 @@ static int dlpar_memory_add_by_count(u32 lmbs_to_add)
 		 * requested LMBs cannot be added.
 		 */
 		drmem_mark_lmb_reserved(lmb);
-
-		lmbs_added++;
-		if (lmbs_added == lmbs_to_add)
+		lmbs_reserved++;
+		if (lmbs_reserved == lmbs_to_add)
 			break;
 	}
 
-	if (lmbs_added != lmbs_to_add) {
+	if (lmbs_reserved != lmbs_to_add) {
 		pr_err("Memory hot-add failed, removing any added LMBs\n");
 
 		for_each_drmem_lmb(lmb) {
@@ -710,6 +732,10 @@ static int dlpar_memory_add_by_count(u32 lmbs_to_add)
 				dlpar_release_drc(lmb->drc_index);
 
 			drmem_remove_lmb_reservation(lmb);
+			lmbs_reserved--;
+
+			if (lmbs_reserved == 0)
+				break;
 		}
 		rc = -EINVAL;
 	} else {
@@ -720,6 +746,10 @@ static int dlpar_memory_add_by_count(u32 lmbs_to_add)
 			pr_debug("Memory at %llx (drc index %x) was hot-added\n",
 				 lmb->base_addr, lmb->drc_index);
 			drmem_remove_lmb_reservation(lmb);
+			lmbs_reserved--;
+
+			if (lmbs_reserved == 0)
+				break;
 		}
 		rc = 0;
 	}
@@ -764,7 +794,6 @@ static int dlpar_memory_add_by_index(u32 drc_index)
 static int dlpar_memory_add_by_ic(u32 lmbs_to_add, u32 drc_index)
 {
 	struct drmem_lmb *lmb, *start_lmb, *end_lmb;
-	int lmbs_available = 0;
 	int rc;
 
 	pr_info("Attempting to hot-add %u LMB(s) at index %x\n",
@@ -779,14 +808,13 @@ static int dlpar_memory_add_by_ic(u32 lmbs_to_add, u32 drc_index)
 
 	/* Validate that the LMBs in this range are not reserved */
 	for_each_drmem_lmb_in_range(lmb, start_lmb, end_lmb) {
-		if (lmb->flags & DRCONF_MEM_RESERVED)
-			break;
-
-		lmbs_available++;
+		/* Fail immediately if the whole range can't be hot-added */
+		if (lmb->flags & DRCONF_MEM_RESERVED) {
+			pr_err("Memory at %llx (drc index %x) is reserved\n",
+					lmb->base_addr, lmb->drc_index);
+			return -EINVAL;
+		}
 	}
-
-	if (lmbs_available < lmbs_to_add)
-		return -EINVAL;
 
 	for_each_drmem_lmb_in_range(lmb, start_lmb, end_lmb) {
 		if (lmb->flags & DRCONF_MEM_ASSIGNED)

@@ -1,7 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/* -*- mode: c; c-basic-offset: 8; -*-
- * vim: noexpandtab sw=8 ts=8 sts=0:
- *
+/*
  * acl.c
  *
  * Copyright (C) 2004, 2008 Oracle.  All rights reserved.
@@ -291,13 +289,16 @@ unlock:
 	return status;
 }
 
-struct posix_acl *ocfs2_iop_get_acl(struct inode *inode, int type)
+struct posix_acl *ocfs2_iop_get_acl(struct inode *inode, int type, bool rcu)
 {
 	struct ocfs2_super *osb;
 	struct buffer_head *di_bh = NULL;
 	struct posix_acl *acl;
 	int had_lock;
 	struct ocfs2_lock_holder oh;
+
+	if (rcu)
+		return ERR_PTR(-ECHILD);
 
 	osb = OCFS2_SB(inode->i_sb);
 	if (!(osb->s_mount_opt & OCFS2_MOUNT_POSIX_ACL))
