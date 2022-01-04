@@ -2022,7 +2022,10 @@ static int spi_geni_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct geni_se *spi_rsc;
 
-	spi = spi_alloc_master(&pdev->dev, sizeof(struct spi_geni_master));
+	slave_en  = of_property_read_bool(pdev->dev.of_node,
+			 "qcom,slv-ctrl");
+
+	spi = __spi_alloc_controller(&pdev->dev, sizeof(struct spi_geni_master), slave_en);
 	if (!spi) {
 		ret = -ENOMEM;
 		dev_err(&pdev->dev, "Failed to alloc spi struct\n");
@@ -2223,8 +2226,6 @@ static int spi_geni_probe(struct platform_device *pdev)
 	geni_mas->disable_dma = of_property_read_bool(pdev->dev.of_node,
 		"qcom,disable-dma");
 
-	slave_en  = of_property_read_bool(pdev->dev.of_node,
-			 "qcom,slv-ctrl");
 	if (slave_en) {
 		spi->slave = true;
 		spi->slave_abort = spi_slv_abort;
