@@ -5,6 +5,7 @@
  */
 
 #include <dt-bindings/soc/rockchip-system-status.h>
+#include <linux/clk-provider.h>
 #include <linux/cpu.h>
 #include <linux/cpufreq.h>
 #include <linux/devfreq.h>
@@ -666,6 +667,25 @@ static int monitor_device_parse_early_min_volt(struct device_node *np,
 				    &info->early_min_volt);
 }
 
+static int monitor_device_parse_read_margin(struct device_node *np,
+					    struct monitor_dev_info *info)
+{
+	if (of_property_read_bool(np, "volt-mem-read-margin"))
+		return 0;
+	return -EINVAL;
+}
+
+static int monitor_device_parse_scmi_clk(struct device_node *np,
+					 struct monitor_dev_info *info)
+{
+	struct clk *clk;
+
+	clk = clk_get(info->dev, NULL);
+	if (strstr(__clk_get_name(clk), "scmi"))
+		return 0;
+	return -EINVAL;
+}
+
 static int monitor_device_parse_dt(struct device *dev,
 				   struct monitor_dev_info *info)
 {
@@ -681,6 +701,8 @@ static int monitor_device_parse_dt(struct device *dev,
 	ret = monitor_device_parse_wide_temp_config(np, info);
 	ret &= monitor_device_parse_status_config(np, info);
 	ret &= monitor_device_parse_early_min_volt(np, info);
+	ret &= monitor_device_parse_read_margin(np, info);
+	ret &= monitor_device_parse_scmi_clk(np, info);
 
 	of_node_put(np);
 
