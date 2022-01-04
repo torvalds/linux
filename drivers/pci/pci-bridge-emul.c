@@ -377,7 +377,7 @@ int pci_bridge_emul_init(struct pci_bridge_emul *bridge,
 			~(BIT(10) << 16);
 	}
 
-	if (flags & PCI_BRIDGE_EMUL_NO_PREFETCHABLE_BAR) {
+	if (flags & PCI_BRIDGE_EMUL_NO_PREFMEM_FORWARD) {
 		bridge->pci_regs_behavior[PCI_PREF_MEMORY_BASE / 4].ro = ~0;
 		bridge->pci_regs_behavior[PCI_PREF_MEMORY_BASE / 4].rw = 0;
 	}

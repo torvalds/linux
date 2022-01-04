@@ -120,7 +120,11 @@ struct pci_bridge_emul {
 };
 
 enum {
-	PCI_BRIDGE_EMUL_NO_PREFETCHABLE_BAR = BIT(0),
+	/*
+	 * PCI bridge does not support forwarding of prefetchable memory
+	 * requests between primary and secondary buses.
+	 */
+	PCI_BRIDGE_EMUL_NO_PREFMEM_FORWARD = BIT(0),
 };
 
 int pci_bridge_emul_init(struct pci_bridge_emul *bridge,
