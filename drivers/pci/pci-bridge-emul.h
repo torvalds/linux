@@ -112,7 +112,7 @@ struct pci_bridge_reg_behavior;
 struct pci_bridge_emul {
 	struct pci_bridge_emul_conf conf;
 	struct pci_bridge_emul_pcie_conf pcie_conf;
-	struct pci_bridge_emul_ops *ops;
+	const struct pci_bridge_emul_ops *ops;
 	struct pci_bridge_reg_behavior *pci_regs_behavior;
 	struct pci_bridge_reg_behavior *pcie_cap_regs_behavior;
 	void *data;
