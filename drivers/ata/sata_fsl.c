@@ -221,10 +221,10 @@ enum {
  * 4 Dwords per command slot, command header size ==  64 Dwords.
  */
 struct cmdhdr_tbl_entry {
-	u32 cda;
-	u32 prde_fis_len;
-	u32 ttl;
-	u32 desc_info;
+	__le32 cda;
+	__le32 prde_fis_len;
+	__le32 ttl;
+	__le32 desc_info;
 };
 
 /*
@@ -259,9 +259,9 @@ struct command_desc {
  */
 
 struct prde {
-	u32 dba;
+	__le32 dba;
 	u8 fill[2 * 4];
-	u32 ddc_and_ext;
+	__le32 ddc_and_ext;
 };
 
 /*
@@ -426,10 +426,10 @@ static void sata_fsl_setup_cmd_hdr_entry(struct ata_port *ap,
 	pp->cmdslot[tag].desc_info = cpu_to_le32(desc_info | (tag & 0x1F));
 
 	ata_port_dbg(ap, "cda=0x%x, prde_fis_len=0x%x, ttl=0x%x, di=0x%x\n",
-		pp->cmdslot[tag].cda,
-		pp->cmdslot[tag].prde_fis_len,
-		pp->cmdslot[tag].ttl, pp->cmdslot[tag].desc_info);
-
+		     le32_to_cpu(pp->cmdslot[tag].cda),
+		     le32_to_cpu(pp->cmdslot[tag].prde_fis_len),
+		     le32_to_cpu(pp->cmdslot[tag].ttl),
+		     le32_to_cpu(pp->cmdslot[tag].desc_info));
 }
 
 static unsigned int sata_fsl_fill_sg(struct ata_queued_cmd *qc, void *cmd_desc,
