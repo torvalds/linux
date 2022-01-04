@@ -73,16 +73,12 @@ MODULE_PARM_DESC(enable_dma,
  */
 static unsigned int ns_to_tim_reg(unsigned int tim_mult, unsigned int nsecs)
 {
-	unsigned int val;
-
 	/*
 	 * Compute # of eclock periods to get desired duration in
 	 * nanoseconds.
 	 */
-	val = DIV_ROUND_UP(nsecs * (octeon_get_io_clock_rate() / 1000000),
+	return DIV_ROUND_UP(nsecs * (octeon_get_io_clock_rate() / 1000000),
 			  1000 * tim_mult);
-
-	return val;
 }
 
 static void octeon_cf_set_boot_reg_cfg(int cs, unsigned int multiplier)
