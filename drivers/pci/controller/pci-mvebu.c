@@ -548,13 +548,18 @@ mvebu_pci_bridge_emul_pcie_conf_read(struct pci_bridge_emul *bridge,
 		/*
 		 * PCIe requires that the Clock Power Management capability bit
 		 * is hard-wired to zero for downstream ports but HW returns 1.
+		 * Additionally enable Data Link Layer Link Active Reporting
+		 * Capable bit as DL_Active indication is provided too.
 		 */
-		*value = mvebu_readl(port, PCIE_CAP_PCIEXP + PCI_EXP_LNKCAP) &
-			 ~PCI_EXP_LNKCAP_CLKPM;
+		*value = (mvebu_readl(port, PCIE_CAP_PCIEXP + PCI_EXP_LNKCAP) &
+			  ~PCI_EXP_LNKCAP_CLKPM) | PCI_EXP_LNKCAP_DLLLARC;
 		break;
 
 	case PCI_EXP_LNKCTL:
-		*value = mvebu_readl(port, PCIE_CAP_PCIEXP + PCI_EXP_LNKCTL);
+		/* DL_Active indication is provided via PCIE_STAT_OFF */
+		*value = mvebu_readl(port, PCIE_CAP_PCIEXP + PCI_EXP_LNKCTL) |
+			 (mvebu_pcie_link_up(port) ?
+			  (PCI_EXP_LNKSTA_DLLLA << 16) : 0);
 		break;
 
 	case PCI_EXP_SLTCTL:
