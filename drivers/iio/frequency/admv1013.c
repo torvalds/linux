@@ -348,7 +348,7 @@ static int admv1013_update_mixer_vgate(struct admv1013_state *st)
 
 	vcm = regulator_get_voltage(st->reg);
 
-	if (vcm >= 0 && vcm < 1800000)
+	if (vcm < 1800000)
 		mixer_vgate = (2389 * vcm / 1000000 + 8100) / 100;
 	else if (vcm > 1800000 && vcm < 2600000)
 		mixer_vgate = (2375 * vcm / 1000000 + 125) / 100;
