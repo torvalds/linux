@@ -1214,6 +1214,14 @@ static struct ctl_table armv8_pmu_sysctl_table[] = {
 	{ }
 };
 
+static void armv8_pmu_register_sysctl_table(void)
+{
+	static u32 tbl_registered = 0;
+
+	if (!cmpxchg_relaxed(&tbl_registered, 0, 1))
+		register_sysctl("kernel", armv8_pmu_sysctl_table);
+}
+
 static int armv8_pmu_init(struct arm_pmu *cpu_pmu, char *name,
 			  int (*map_event)(struct perf_event *event),
 			  const struct attribute_group *events,
@@ -1248,8 +1256,7 @@ static int armv8_pmu_init(struct arm_pmu *cpu_pmu, char *name,
 	cpu_pmu->attr_groups[ARMPMU_ATTR_GROUP_CAPS] = caps ?
 			caps : &armv8_pmuv3_caps_attr_group;
 
-	register_sysctl("kernel", armv8_pmu_sysctl_table);
-
+	armv8_pmu_register_sysctl_table();
 	return 0;
 }
 
