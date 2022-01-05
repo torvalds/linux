@@ -838,8 +838,7 @@ static int hclgevf_tqp_enable_cmd_send(struct hclgevf_dev *hdev, u16 tqp_id,
 
 	req = (struct hclgevf_cfg_com_tqp_queue_cmd *)desc.data;
 
-	hclgevf_cmd_setup_basic_desc(&desc, HCLGEVF_OPC_CFG_COM_TQP_QUEUE,
-				     false);
+	hclgevf_cmd_setup_basic_desc(&desc, HCLGE_OPC_CFG_COM_TQP_QUEUE, false);
 	req->tqp_id = cpu_to_le16(tqp_id & HCLGEVF_RING_ID_MASK);
 	req->stream_id = cpu_to_le16(stream_id);
 	if (enable)
@@ -2127,7 +2126,7 @@ static int hclgevf_config_gro(struct hclgevf_dev *hdev)
 	if (!hnae3_dev_gro_supported(hdev))
 		return 0;
 
-	hclgevf_cmd_setup_basic_desc(&desc, HCLGEVF_OPC_GRO_GENERIC_CONFIG,
+	hclgevf_cmd_setup_basic_desc(&desc, HCLGE_OPC_GRO_GENERIC_CONFIG,
 				     false);
 	req = (struct hclgevf_cfg_gro_status_cmd *)desc.data;
 
@@ -2638,7 +2637,7 @@ static int hclgevf_query_vf_resource(struct hclgevf_dev *hdev)
 	struct hclge_desc desc;
 	int ret;
 
-	hclgevf_cmd_setup_basic_desc(&desc, HCLGEVF_OPC_QUERY_VF_RSRC, true);
+	hclgevf_cmd_setup_basic_desc(&desc, HCLGE_OPC_QUERY_VF_RSRC, true);
 	ret = hclgevf_cmd_send(&hdev->hw, &desc, 1);
 	if (ret) {
 		dev_err(&hdev->pdev->dev,
@@ -2748,11 +2747,10 @@ static int hclgevf_query_dev_specs(struct hclgevf_dev *hdev)
 
 	for (i = 0; i < HCLGEVF_QUERY_DEV_SPECS_BD_NUM - 1; i++) {
 		hclgevf_cmd_setup_basic_desc(&desc[i],
-					     HCLGEVF_OPC_QUERY_DEV_SPECS, true);
+					     HCLGE_OPC_QUERY_DEV_SPECS, true);
 		desc[i].flag |= cpu_to_le16(HCLGE_COMM_CMD_FLAG_NEXT);
 	}
-	hclgevf_cmd_setup_basic_desc(&desc[i], HCLGEVF_OPC_QUERY_DEV_SPECS,
-				     true);
+	hclgevf_cmd_setup_basic_desc(&desc[i], HCLGE_OPC_QUERY_DEV_SPECS, true);
 
 	ret = hclgevf_cmd_send(&hdev->hw, desc, HCLGEVF_QUERY_DEV_SPECS_BD_NUM);
 	if (ret)

@@ -68,8 +68,7 @@ int hclge_comm_tqps_update_stats(struct hnae3_handle *handle,
 
 	for (i = 0; i < kinfo->num_tqps; i++) {
 		tqp = container_of(kinfo->tqp[i], struct hclge_comm_tqp, q);
-		hclge_comm_cmd_setup_basic_desc(&desc,
-						HCLGE_COMM_OPC_QUERY_RX_STATUS,
+		hclge_comm_cmd_setup_basic_desc(&desc, HCLGE_OPC_QUERY_RX_STATS,
 						true);
 
 		desc.data[0] = cpu_to_le32(tqp->index);
@@ -83,8 +82,7 @@ int hclge_comm_tqps_update_stats(struct hnae3_handle *handle,
 		tqp->tqp_stats.rcb_rx_ring_pktnum_rcd +=
 			le32_to_cpu(desc.data[1]);
 
-		hclge_comm_cmd_setup_basic_desc(&desc,
-						HCLGE_COMM_OPC_QUERY_TX_STATUS,
+		hclge_comm_cmd_setup_basic_desc(&desc, HCLGE_OPC_QUERY_TX_STATS,
 						true);
 
 		desc.data[0] = cpu_to_le32(tqp->index & 0x1ff);

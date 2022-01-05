@@ -61,7 +61,7 @@ static void hclge_comm_set_default_capability(struct hnae3_ae_dev *ae_dev,
 }
 
 void hclge_comm_cmd_setup_basic_desc(struct hclge_desc *desc,
-				     enum hclge_comm_opcode_type opcode,
+				     enum hclge_opcode_type opcode,
 				     bool is_read)
 {
 	memset((void *)desc, 0, sizeof(struct hclge_desc));
@@ -80,8 +80,7 @@ int hclge_comm_firmware_compat_config(struct hnae3_ae_dev *ae_dev,
 	struct hclge_desc desc;
 	u32 compat = 0;
 
-	hclge_comm_cmd_setup_basic_desc(&desc, HCLGE_COMM_OPC_IMP_COMPAT_CFG,
-					false);
+	hclge_comm_cmd_setup_basic_desc(&desc, HCLGE_OPC_IMP_COMPAT_CFG, false);
 
 	if (en) {
 		req = (struct hclge_comm_firmware_compat_cmd *)desc.data;
@@ -205,7 +204,7 @@ int hclge_comm_cmd_query_version_and_capability(struct hnae3_ae_dev *ae_dev,
 	struct hclge_desc desc;
 	int ret;
 
-	hclge_comm_cmd_setup_basic_desc(&desc, HCLGE_COMM_OPC_QUERY_FW_VER, 1);
+	hclge_comm_cmd_setup_basic_desc(&desc, HCLGE_OPC_QUERY_FW_VER, 1);
 	resp = (struct hclge_comm_query_version_cmd *)desc.data;
 	resp->api_caps = hclge_comm_build_api_caps();
 
@@ -227,17 +226,17 @@ int hclge_comm_cmd_query_version_and_capability(struct hnae3_ae_dev *ae_dev,
 	return ret;
 }
 
-static const u16 spec_opcode[] = { HCLGE_COMM_OPC_STATS_64_BIT,
-				   HCLGE_COMM_OPC_STATS_32_BIT,
-				   HCLGE_COMM_OPC_STATS_MAC,
-				   HCLGE_COMM_OPC_STATS_MAC_ALL,
-				   HCLGE_COMM_OPC_QUERY_32_BIT_REG,
-				   HCLGE_COMM_OPC_QUERY_64_BIT_REG,
-				   HCLGE_COMM_QUERY_CLEAR_MPF_RAS_INT,
-				   HCLGE_COMM_QUERY_CLEAR_PF_RAS_INT,
-				   HCLGE_COMM_QUERY_CLEAR_ALL_MPF_MSIX_INT,
-				   HCLGE_COMM_QUERY_CLEAR_ALL_PF_MSIX_INT,
-				   HCLGE_COMM_QUERY_ALL_ERR_INFO };
+static const u16 spec_opcode[] = { HCLGE_OPC_STATS_64_BIT,
+				   HCLGE_OPC_STATS_32_BIT,
+				   HCLGE_OPC_STATS_MAC,
+				   HCLGE_OPC_STATS_MAC_ALL,
+				   HCLGE_OPC_QUERY_32_BIT_REG,
+				   HCLGE_OPC_QUERY_64_BIT_REG,
+				   HCLGE_QUERY_CLEAR_MPF_RAS_INT,
+				   HCLGE_QUERY_CLEAR_PF_RAS_INT,
+				   HCLGE_QUERY_CLEAR_ALL_MPF_MSIX_INT,
+				   HCLGE_QUERY_CLEAR_ALL_PF_MSIX_INT,
+				   HCLGE_QUERY_ALL_ERR_INFO };
 
 static bool hclge_comm_is_special_opcode(u16 opcode)
 {

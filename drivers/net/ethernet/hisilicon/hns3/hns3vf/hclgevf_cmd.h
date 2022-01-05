@@ -16,30 +16,6 @@ struct hclgevf_dev;
 
 #define HCLGEVF_SYNC_RX_RING_HEAD_EN_B	4
 
-enum hclgevf_opcode_type {
-	/* Generic command */
-	HCLGEVF_OPC_QUERY_FW_VER	= 0x0001,
-	HCLGEVF_OPC_QUERY_VF_RSRC	= 0x0024,
-	HCLGEVF_OPC_QUERY_DEV_SPECS	= 0x0050,
-
-	/* TQP command */
-	HCLGEVF_OPC_QUERY_TX_STATUS	= 0x0B03,
-	HCLGEVF_OPC_QUERY_RX_STATUS	= 0x0B13,
-	HCLGEVF_OPC_CFG_COM_TQP_QUEUE	= 0x0B20,
-	/* GRO command */
-	HCLGEVF_OPC_GRO_GENERIC_CONFIG  = 0x0C10,
-	/* RSS cmd */
-	HCLGEVF_OPC_RSS_GENERIC_CONFIG	= 0x0D01,
-	HCLGEVF_OPC_RSS_INPUT_TUPLE     = 0x0D02,
-	HCLGEVF_OPC_RSS_INDIR_TABLE	= 0x0D07,
-	HCLGEVF_OPC_RSS_TC_MODE		= 0x0D08,
-	/* Mailbox cmd */
-	HCLGEVF_OPC_MBX_VF_TO_PF	= 0x2001,
-
-	/* IMP stats command */
-	HCLGEVF_OPC_IMP_COMPAT_CFG	= 0x701A,
-};
-
 #define HCLGEVF_TQP_REG_OFFSET		0x80000
 #define HCLGEVF_TQP_REG_SIZE		0x200
 
@@ -133,8 +109,7 @@ struct hclgevf_cfg_tx_queue_pointer_cmd {
 #define HCLGEVF_QUERY_DEV_SPECS_BD_NUM		4
 
 #define hclgevf_cmd_setup_basic_desc(desc, opcode, is_read) \
-	hclge_comm_cmd_setup_basic_desc(desc, (enum hclge_comm_opcode_type)opcode, \
-					is_read)
+	hclge_comm_cmd_setup_basic_desc(desc, opcode, is_read)
 
 struct hclgevf_dev_specs_0_cmd {
 	__le32 rsv0;

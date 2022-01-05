@@ -89,8 +89,7 @@ int hclge_comm_set_rss_tc_mode(struct hclge_comm_hw *hw, u16 *tc_offset,
 
 	req = (struct hclge_comm_rss_tc_mode_cmd *)desc.data;
 
-	hclge_comm_cmd_setup_basic_desc(&desc, HCLGE_COMM_OPC_RSS_TC_MODE,
-					false);
+	hclge_comm_cmd_setup_basic_desc(&desc, HCLGE_OPC_RSS_TC_MODE, false);
 	for (i = 0; i < HCLGE_COMM_MAX_TC_NUM; i++) {
 		u16 mode = 0;
 
@@ -159,7 +158,7 @@ int hclge_comm_set_rss_tuple(struct hnae3_ae_dev *ae_dev,
 		return -EINVAL;
 
 	req = (struct hclge_comm_rss_input_tuple_cmd *)desc.data;
-	hclge_comm_cmd_setup_basic_desc(&desc, HCLGE_COMM_OPC_RSS_INPUT_TUPLE,
+	hclge_comm_cmd_setup_basic_desc(&desc, HCLGE_OPC_RSS_INPUT_TUPLE,
 					false);
 
 	ret = hclge_comm_init_rss_tuple_cmd(rss_cfg, nfc, ae_dev, req);
@@ -300,7 +299,7 @@ int hclge_comm_set_rss_indir_table(struct hnae3_ae_dev *ae_dev,
 
 	for (i = 0; i < rss_cfg_tbl_num; i++) {
 		hclge_comm_cmd_setup_basic_desc(&desc,
-						HCLGE_COMM_OPC_RSS_INDIR_TABLE,
+						HCLGE_OPC_RSS_INDIR_TABLE,
 						false);
 
 		req->start_table_index =
@@ -331,7 +330,7 @@ int hclge_comm_set_rss_input_tuple(struct hnae3_handle *nic,
 	struct hclge_desc desc;
 	int ret;
 
-	hclge_comm_cmd_setup_basic_desc(&desc, HCLGE_COMM_OPC_RSS_INPUT_TUPLE,
+	hclge_comm_cmd_setup_basic_desc(&desc, HCLGE_OPC_RSS_INPUT_TUPLE,
 					false);
 
 	req = (struct hclge_comm_rss_input_tuple_cmd *)desc.data;
@@ -405,7 +404,7 @@ int hclge_comm_set_rss_algo_key(struct hclge_comm_hw *hw, const u8 hfunc,
 
 	while (key_counts) {
 		hclge_comm_cmd_setup_basic_desc(&desc,
-						HCLGE_COMM_OPC_RSS_GENERIC_CFG,
+						HCLGE_OPC_RSS_GENERIC_CONFIG,
 						false);
 
 		req->hash_config |= (hfunc & HCLGE_COMM_RSS_HASH_ALGO_MASK);
