@@ -181,6 +181,12 @@
 #define OVRD_SB_AUX_EN				BIT(1)
 #define SB_AUX_EN				BIT(0)
 
+/* sb_reg0105 */
+#define ANA_SB_TX_HLVL_PROG			GENMASK(2, 0)
+
+/* sb_reg0106 */
+#define ANA_SB_TX_LLVL_PROG			GENMASK(6, 4)
+
 /* sb_reg010D */
 #define ANA_SB_DMRX_LPBK_DATA			BIT(4)
 
@@ -267,6 +273,15 @@
 #define OVRD_LN_TX_DRV_PRE_LVL_CTRL		BIT(6)
 #define LN_TX_DRV_PRE_LVL_CTRL			GENMASK(5, 2)
 
+/* lane_reg0306 */
+#define LN_ANA_TX_DRV_IDRV_IDN_CTRL		GENMASK(7, 5)
+#define LN_ANA_TX_DRV_IDRV_IUP_CTRL		GENMASK(4, 2)
+#define LN_ANA_TX_DRV_ACCDRV_EN			BIT(0)
+
+/* lane_reg0307 */
+#define LN_ANA_TX_DRV_ACCDRV_POL_SEL		BIT(6)
+#define LN_ANA_TX_DRV_ACCDRV_CTRL		GENMASK(5, 3)
+
 /* lane_reg030A */
 #define LN_ANA_TX_JEQ_EN			BIT(4)
 #define LN_TX_JEQ_EVEN_CTRL_RBR			GENMASK(3, 0)
@@ -285,10 +300,6 @@
 
 /* lane_reg030E */
 #define LN_TX_JEQ_ODD_CTRL_HBR3			GENMASK(7, 4)
-
-/* lane_reg0307 */
-#define LN_ANA_TX_DRV_ACCDRV_POL_SEL		BIT(6)
-#define LN_ANA_TX_DRV_ACCDRV_CTRL		GENMASK(5, 3)
 
 /* lane_reg0310 */
 #define LN_ANA_TX_SYNC_LOSS_DET_MODE		GENMASK(1, 0)
@@ -330,35 +341,96 @@ enum {
 	DP_BW_HBR3,
 };
 
-static struct {
-	u8 tx_amp;
-	u8 tx_de_emp;
-	u8 tx_pre_emp;
-} training_table[4][4] = {
+struct tx_drv_ctrl {
+	u8 tx_drv_lvl_ctrl;
+	u8 tx_drv_post_lvl_ctrl;
+	u8 ana_tx_drv_idrv_idn_ctrl;
+	u8 ana_tx_drv_idrv_iup_ctrl;
+	u8 ana_tx_drv_accdrv_en;
+	u8 ana_tx_drv_accdrv_ctrl;
+};
+
+static const struct tx_drv_ctrl tx_drv_ctrl_rbr[4][4] = {
 	/* voltage swing 0, pre-emphasis 0->3 */
 	{
-		{ .tx_amp = 0x3, .tx_de_emp = 0x1, .tx_pre_emp = 0x1 },
-		{ .tx_amp = 0x9, .tx_de_emp = 0x7, .tx_pre_emp = 0x0 },
-		{ .tx_amp = 0xc, .tx_de_emp = 0xa, .tx_pre_emp = 0x0 },
-		{ .tx_amp = 0xd, .tx_de_emp = 0xc, .tx_pre_emp = 0x0 }
+		{ 0x1, 0x0, 0x4, 0x6, 0x0, 0x4 },
+		{ 0x4, 0x3, 0x4, 0x6, 0x0, 0x4 },
+		{ 0x7, 0x6, 0x4, 0x6, 0x0, 0x4 },
+		{ 0xd, 0xb, 0x7, 0x7, 0x1, 0x7 },
 	},
 
 	/* voltage swing 1, pre-emphasis 0->2 */
 	{
-		{ .tx_amp = 0x6, .tx_de_emp = 0x1, .tx_pre_emp = 0x1 },
-		{ .tx_amp = 0xc, .tx_de_emp = 0x7, .tx_pre_emp = 0x0 },
-		{ .tx_amp = 0xd, .tx_de_emp = 0x9, .tx_pre_emp = 0x0 },
+		{ 0x4, 0x0, 0x4, 0x6, 0x0, 0x4 },
+		{ 0xa, 0x5, 0x4, 0x6, 0x0, 0x4 },
+		{ 0xd, 0x8, 0x7, 0x7, 0x1, 0x7 },
 	},
 
 	/* voltage swing 2, pre-emphasis 0->1 */
 	{
-		{ .tx_amp = 0x9, .tx_de_emp = 0x1, .tx_pre_emp = 0x1 },
-		{ .tx_amp = 0xd, .tx_de_emp = 0x6, .tx_pre_emp = 0x0 },
+		{ 0x8, 0x0, 0x4, 0x6, 0x0, 0x4 },
+		{ 0xd, 0x5, 0x7, 0x7, 0x1, 0x7 },
 	},
 
 	/* voltage swing 3, pre-emphasis 0 */
 	{
-		{ .tx_amp = 0xd, .tx_de_emp = 0x1, .tx_pre_emp = 0x1 },
+		{ 0xd, 0x0, 0x7, 0x7, 0x1, 0x4 },
+	}
+};
+
+static const struct tx_drv_ctrl tx_drv_ctrl_hbr[4][4] = {
+	/* voltage swing 0, pre-emphasis 0->3 */
+	{
+		{ 0x2, 0x1, 0x4, 0x6, 0x0, 0x4 },
+		{ 0x5, 0x4, 0x4, 0x6, 0x0, 0x4 },
+		{ 0x9, 0x8, 0x4, 0x6, 0x0, 0x4 },
+		{ 0xd, 0xb, 0x7, 0x7, 0x1, 0x7 },
+	},
+
+	/* voltage swing 1, pre-emphasis 0->2 */
+	{
+		{ 0x6, 0x1, 0x4, 0x6, 0x0, 0x4 },
+		{ 0xb, 0x6, 0x4, 0x6, 0x0, 0x4 },
+		{ 0xd, 0x8, 0x7, 0x7, 0x1, 0x7 },
+	},
+
+	/* voltage swing 2, pre-emphasis 0->1 */
+	{
+		{ 0x9, 0x1, 0x4, 0x6, 0x0, 0x4 },
+		{ 0xd, 0x6, 0x7, 0x7, 0x1, 0x7 },
+	},
+
+	/* voltage swing 3, pre-emphasis 0 */
+	{
+		{ 0xd, 0x1, 0x7, 0x7, 0x1, 0x4 },
+	}
+};
+
+static const struct tx_drv_ctrl tx_drv_ctrl_hbr2[4][4] = {
+	/* voltage swing 0, pre-emphasis 0->3 */
+	{
+		{ 0x2, 0x1, 0x4, 0x6, 0x0, 0x4 },
+		{ 0x5, 0x4, 0x4, 0x6, 0x0, 0x4 },
+		{ 0x9, 0x8, 0x4, 0x6, 0x1, 0x4 },
+		{ 0xd, 0xb, 0x7, 0x7, 0x1, 0x7 },
+	},
+
+	/* voltage swing 1, pre-emphasis 0->2 */
+	{
+		{ 0x6, 0x1, 0x4, 0x6, 0x0, 0x4 },
+		{ 0xc, 0x7, 0x4, 0x6, 0x0, 0x4 },
+		{ 0xd, 0x8, 0x7, 0x7, 0x1, 0x7 },
+	},
+
+	/* voltage swing 2, pre-emphasis 0->1 */
+	{
+		{ 0x9, 0x1, 0x4, 0x6, 0x0, 0x4 },
+		{ 0xd, 0x6, 0x7, 0x7, 0x1, 0x7 },
+	},
+
+	/* voltage swing 3, pre-emphasis 0 */
+	{
+		{ 0xd, 0x0, 0x7, 0x7, 0x1, 0x4 },
 	}
 };
 
@@ -416,7 +488,7 @@ static void rockchip_hdptx_phy_set_voltage(struct rockchip_hdptx_phy *hdptx,
 					   struct phy_configure_opts_dp *dp,
 					   u8 lane)
 {
-	u32 val;
+	const struct tx_drv_ctrl *ctrl;
 
 	regmap_update_bits(hdptx->regmap, LANE_REG(lane, 0x0c28),
 			   LN_ANA_TX_JEQ_EN,
@@ -424,6 +496,7 @@ static void rockchip_hdptx_phy_set_voltage(struct rockchip_hdptx_phy *hdptx,
 
 	switch (dp->link_rate) {
 	case 1620:
+		ctrl = &tx_drv_ctrl_rbr[dp->voltage[lane]][dp->pre[lane]];
 		regmap_update_bits(hdptx->regmap, LANE_REG(lane, 0x0c28),
 				   LN_TX_JEQ_EVEN_CTRL_RBR,
 				   FIELD_PREP(LN_TX_JEQ_EVEN_CTRL_RBR, 0x7));
@@ -435,6 +508,7 @@ static void rockchip_hdptx_phy_set_voltage(struct rockchip_hdptx_phy *hdptx,
 				   FIELD_PREP(LN_TX_SER_40BIT_EN_RBR, 0x1));
 		break;
 	case 2700:
+		ctrl = &tx_drv_ctrl_hbr[dp->voltage[lane]][dp->pre[lane]];
 		regmap_update_bits(hdptx->regmap, LANE_REG(lane, 0x0c2c),
 				   LN_TX_JEQ_EVEN_CTRL_HBR,
 				   FIELD_PREP(LN_TX_JEQ_EVEN_CTRL_HBR, 0x7));
@@ -446,6 +520,8 @@ static void rockchip_hdptx_phy_set_voltage(struct rockchip_hdptx_phy *hdptx,
 				   FIELD_PREP(LN_TX_SER_40BIT_EN_HBR, 0x1));
 		break;
 	case 5400:
+	default:
+		ctrl = &tx_drv_ctrl_hbr2[dp->voltage[lane]][dp->pre[lane]];
 		regmap_update_bits(hdptx->regmap, LANE_REG(lane, 0x0c2c),
 				   LN_TX_JEQ_EVEN_CTRL_HBR2,
 				   FIELD_PREP(LN_TX_JEQ_EVEN_CTRL_HBR2, 0x7));
@@ -458,31 +534,36 @@ static void rockchip_hdptx_phy_set_voltage(struct rockchip_hdptx_phy *hdptx,
 		break;
 	}
 
-	val = training_table[dp->voltage[lane]][dp->pre[lane]].tx_amp;
 	regmap_update_bits(hdptx->regmap, LANE_REG(lane, 0x0c0c),
 			   OVRD_LN_TX_DRV_LVL_CTRL | LN_TX_DRV_LVL_CTRL,
 			   FIELD_PREP(OVRD_LN_TX_DRV_LVL_CTRL, 0x1) |
-			   FIELD_PREP(LN_TX_DRV_LVL_CTRL, val));
+			   FIELD_PREP(LN_TX_DRV_LVL_CTRL,
+				      ctrl->tx_drv_lvl_ctrl));
 
-	val = training_table[dp->voltage[lane]][dp->pre[lane]].tx_de_emp;
 	regmap_update_bits(hdptx->regmap, LANE_REG(lane, 0x0c10),
 			   OVRD_LN_TX_DRV_POST_LVL_CTRL |
 			   LN_TX_DRV_POST_LVL_CTRL,
 			   FIELD_PREP(OVRD_LN_TX_DRV_POST_LVL_CTRL, 0x1) |
-			   FIELD_PREP(LN_TX_DRV_POST_LVL_CTRL, val));
+			   FIELD_PREP(LN_TX_DRV_POST_LVL_CTRL,
+				      ctrl->tx_drv_post_lvl_ctrl));
 
-	val = training_table[dp->voltage[lane]][dp->pre[lane]].tx_pre_emp;
-	regmap_update_bits(hdptx->regmap, LANE_REG(lane, 0x0c14),
-			   OVRD_LN_TX_DRV_PRE_LVL_CTRL |
-			   LN_TX_DRV_PRE_LVL_CTRL,
-			   FIELD_PREP(OVRD_LN_TX_DRV_PRE_LVL_CTRL, 0x1) |
-			   FIELD_PREP(LN_TX_DRV_PRE_LVL_CTRL, val));
+	regmap_update_bits(hdptx->regmap, LANE_REG(lane, 0x0c18),
+			   LN_ANA_TX_DRV_IDRV_IDN_CTRL |
+			   LN_ANA_TX_DRV_IDRV_IUP_CTRL |
+			   LN_ANA_TX_DRV_ACCDRV_EN,
+			   FIELD_PREP(LN_ANA_TX_DRV_IDRV_IDN_CTRL,
+				      ctrl->ana_tx_drv_idrv_idn_ctrl) |
+			   FIELD_PREP(LN_ANA_TX_DRV_IDRV_IUP_CTRL,
+				      ctrl->ana_tx_drv_idrv_iup_ctrl) |
+			   FIELD_PREP(LN_ANA_TX_DRV_ACCDRV_EN,
+				      ctrl->ana_tx_drv_accdrv_en));
 
 	regmap_update_bits(hdptx->regmap, LANE_REG(lane, 0x0c1c),
 			   LN_ANA_TX_DRV_ACCDRV_POL_SEL |
 			   LN_ANA_TX_DRV_ACCDRV_CTRL,
 			   FIELD_PREP(LN_ANA_TX_DRV_ACCDRV_POL_SEL, 0x1) |
-			   FIELD_PREP(LN_ANA_TX_DRV_ACCDRV_CTRL, 0x4));
+			   FIELD_PREP(LN_ANA_TX_DRV_ACCDRV_CTRL,
+				      ctrl->ana_tx_drv_accdrv_ctrl));
 	regmap_update_bits(hdptx->regmap, LANE_REG(lane, 0x0c6c),
 			   LN_ANA_TX_RESERVED,
 			   FIELD_PREP(LN_ANA_TX_RESERVED, 0x1));
@@ -544,10 +625,10 @@ static int rockchip_hdptx_phy_set_rate(struct rockchip_hdptx_phy *hdptx,
 				   FIELD_PREP(OVRD_ROPLL_SSC_EN, 0x1) |
 				   FIELD_PREP(ROPLL_SSC_EN, 0x1));
 		regmap_write(hdptx->regmap, 0x01d4,
-			     FIELD_PREP(ANA_ROPLL_SSC_FM_DEVIATION, 0xe));
+			     FIELD_PREP(ANA_ROPLL_SSC_FM_DEVIATION, 0xc));
 		regmap_update_bits(hdptx->regmap, 0x01d8,
 				   ANA_ROPLL_SSC_FM_FREQ,
-				   FIELD_PREP(ANA_ROPLL_SSC_FM_FREQ, 0x1a));
+				   FIELD_PREP(ANA_ROPLL_SSC_FM_FREQ, 0x1f));
 		regmap_update_bits(hdptx->regmap, 0x0264, SSC_EN,
 				   FIELD_PREP(SSC_EN, 0x2));
 	} else {
@@ -773,6 +854,11 @@ static int rockchip_hdptx_phy_dp_aux_init(struct rockchip_hdptx_phy *hdptx)
 {
 	u32 status;
 	int ret;
+
+	regmap_update_bits(hdptx->regmap, 0x0414, ANA_SB_TX_HLVL_PROG,
+			   FIELD_PREP(ANA_SB_TX_HLVL_PROG, 0x7));
+	regmap_update_bits(hdptx->regmap, 0x0418, ANA_SB_TX_LLVL_PROG,
+			   FIELD_PREP(ANA_SB_TX_LLVL_PROG, 0x7));
 
 	regmap_update_bits(hdptx->regmap, 0x044c,
 			   SB_RX_RCAL_OPT_CODE | SB_RX_RTERM_CTRL,
