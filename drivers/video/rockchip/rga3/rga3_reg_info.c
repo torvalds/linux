@@ -2012,6 +2012,26 @@ int rga3_init_reg(struct rga_job *job)
 	return ret;
 }
 
+static void rga3_dump_read_back_reg(struct rga_scheduler_t *scheduler)
+{
+	int i;
+	unsigned long flags;
+	uint32_t cmd_reg[48] = {0};
+
+	spin_lock_irqsave(&scheduler->irq_lock, flags);
+
+	for (i = 0; i < 48; i++)
+		cmd_reg[i] = rga_read(0x100 + i * 4, scheduler);
+
+	spin_unlock_irqrestore(&scheduler->irq_lock, flags);
+
+	pr_info("CMD_READ_BACK_REG\n");
+	for (i = 0; i < 12; i++)
+		pr_info("i = %x : %.8x %.8x %.8x %.8x\n", i,
+			cmd_reg[0 + i * 4], cmd_reg[1 + i * 4],
+			cmd_reg[2 + i * 4], cmd_reg[3 + i * 4]);
+}
+
 int rga3_set_reg(struct rga_job *job, struct rga_scheduler_t *scheduler)
 {
 	ktime_t now = ktime_get();
@@ -2073,20 +2093,8 @@ int rga3_set_reg(struct rga_job *job, struct rga_scheduler_t *scheduler)
 	rga_write(1, RGA3_SYS_CTRL, scheduler);
 
 #if CONFIG_ROCKCHIP_RGA_DEBUGGER
-	if (RGA_DEBUG_REG) {
-		uint32_t i;
-
-		pr_info("CMD_READ_BACK_REG\n");
-		for (i = 0; i < 12; i++)
-			pr_info("i = %x : %.8x %.8x %.8x %.8x\n", i,
-				rga_read(0x100 + i * 16 + 0, scheduler),
-				rga_read(0x100 + i * 16 + 4, scheduler),
-				rga_read(0x100 + i * 16 + 8, scheduler),
-				rga_read(0x100 + i * 16 + 12, scheduler));
-
-		pr_err("mmu = %x, int_raw = %x", rga_read(0xf08, scheduler),
-			 rga_read(RGA3_INT_RAW, scheduler));
-	}
+	if (RGA_DEBUG_REG)
+		rga3_dump_read_back_reg(scheduler);
 #endif
 
 	return 0;

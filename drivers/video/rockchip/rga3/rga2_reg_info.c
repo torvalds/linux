@@ -2391,6 +2391,36 @@ static void rga_dma_flush_range(void *pstart, void *pend,
 				 pend - pstart, DMA_TO_DEVICE);
 }
 
+static void rga2_dump_read_back_reg(struct rga_scheduler_t *scheduler)
+{
+	int i;
+	unsigned long flags;
+	uint32_t cmd_reg[32] = {0};
+	uint32_t csc_reg[12] = {0};
+
+	spin_lock_irqsave(&scheduler->irq_lock, flags);
+
+	for (i = 0; i < 32; i++)
+		cmd_reg[i] = rga_read(0x100 + i * 4, scheduler);
+
+	for (i = 0; i < 12; i++)
+		csc_reg[i] = rga_read(RGA2_CSC_COE_BASE + i * 4, scheduler);
+
+	spin_unlock_irqrestore(&scheduler->irq_lock, flags);
+
+	pr_info("CMD_READ_BACK_REG\n");
+	for (i = 0; i < 8; i++)
+		pr_info("i = %x : %.8x %.8x %.8x %.8x\n", i,
+			cmd_reg[0 + i * 4], cmd_reg[1 + i * 4],
+			cmd_reg[2 + i * 4], cmd_reg[3 + i * 4]);
+
+	pr_info("CSC_READ_BACK_REG\n");
+	for (i = 0; i < 3; i++)
+		pr_info("%.8x %.8x %.8x %.8x\n",
+			csc_reg[0 + i * 4], csc_reg[1 + i * 4],
+			csc_reg[2 + i * 4], csc_reg[3 + i * 4]);
+}
+
 int rga2_set_reg(struct rga_job *job, struct rga_scheduler_t *scheduler)
 {
 	ktime_t now = ktime_get();
@@ -2467,27 +2497,8 @@ int rga2_set_reg(struct rga_job *job, struct rga_scheduler_t *scheduler)
 	rga_write(1, RGA2_CMD_CTRL, scheduler);
 
 #if CONFIG_ROCKCHIP_RGA_DEBUGGER
-	if (RGA_DEBUG_REG) {
-		pr_info("CMD_READ_BACK_REG\n");
-		for (i = 0; i < 8; i++)
-			pr_info("i = %x : %.8x %.8x %.8x %.8x\n", i,
-				rga_read(0x100 + i * 16 + 0, scheduler),
-				rga_read(0x100 + i * 16 + 4, scheduler),
-				rga_read(0x100 + i * 16 + 8, scheduler),
-				rga_read(0x100 + i * 16 + 12, scheduler));
-
-		pr_info("CSC_READ_BACK_REG\n");
-		for (i = 0; i < 3; i++)
-			pr_info("%.8x %.8x %.8x %.8x\n",
-				rga_read(RGA2_CSC_COE_BASE + i * 16 + 0,
-					 scheduler),
-				rga_read(RGA2_CSC_COE_BASE + i * 16 + 4,
-					 scheduler),
-				rga_read(RGA2_CSC_COE_BASE + i * 16 + 8,
-					 scheduler),
-				rga_read(RGA2_CSC_COE_BASE + i * 16 + 12,
-					 scheduler));
-	}
+	if (RGA_DEBUG_REG)
+		rga2_dump_read_back_reg(scheduler);
 #endif
 
 	return 0;
