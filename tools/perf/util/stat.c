@@ -531,7 +531,7 @@ size_t perf_event__fprintf_stat_config(union perf_event *event, FILE *fp)
 int create_perf_stat_counter(struct evsel *evsel,
 			     struct perf_stat_config *config,
 			     struct target *target,
-			     int cpu)
+			     int cpu_map_idx)
 {
 	struct perf_event_attr *attr = &evsel->core.attr;
 	struct evsel *leader = evsel__leader(evsel);
@@ -585,7 +585,7 @@ int create_perf_stat_counter(struct evsel *evsel,
 	}
 
 	if (target__has_cpu(target) && !target__has_per_thread(target))
-		return evsel__open_per_cpu(evsel, evsel__cpus(evsel), cpu);
+		return evsel__open_per_cpu(evsel, evsel__cpus(evsel), cpu_map_idx);
 
 	return evsel__open_per_thread(evsel, evsel->core.threads);
 }
