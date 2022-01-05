@@ -258,12 +258,14 @@ struct dsa_port {
 	const char		*name;
 	struct dsa_port		*cpu_dp;
 	u8			mac[ETH_ALEN];
+
+	u8			stp_state;
+
 	struct device_node	*dn;
 	unsigned int		ageing_time;
 	bool			vlan_filtering;
 	/* Managed by DSA on user ports and by drivers on CPU and DSA ports */
 	bool			learning;
-	u8			stp_state;
 	struct dsa_bridge	*bridge;
 	struct devlink_port	devlink_port;
 	bool			devlink_port_setup;
