@@ -150,10 +150,10 @@ static int __init tpm_clocksource_init(void)
 	tpm_delay_timer.read_current_timer = &tpm_read_current_timer;
 	tpm_delay_timer.freq = timer_of_rate(&to_tpm) >> 3;
 	register_current_timer_delay(&tpm_delay_timer);
-#endif
 
 	sched_clock_register(tpm_read_sched_clock, counter_width,
 			     timer_of_rate(&to_tpm) >> 3);
+#endif
 
 	return clocksource_mmio_init(timer_base + TPM_CNT,
 				     "imx-tpm",
