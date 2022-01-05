@@ -592,7 +592,7 @@ static void getTxPowerIndex88E(struct adapter *Adapter, u8 channel, u8 *cckPower
 	cckPowerLevel[RF_PATH_A] = pHalData->Index24G_CCK_Base[index];
 	/* 2. OFDM */
 	ofdmPowerLevel[RF_PATH_A] = pHalData->Index24G_BW40_Base[index] +
-		pHalData->OFDM_24G_Diff[RF_PATH_A][RF_PATH_A];
+		pHalData->OFDM_24G_Diff[RF_PATH_A];
 	/*  1. BW20 */
 	BW20PowerLevel[RF_PATH_A] = pHalData->Index24G_BW40_Base[index] +
 		pHalData->BW20_24G_Diff[RF_PATH_A][RF_PATH_A];
