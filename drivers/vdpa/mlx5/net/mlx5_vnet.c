@@ -1510,8 +1510,10 @@ static int change_num_qps(struct mlx5_vdpa_dev *mvdev, int newqps)
 	return 0;
 
 clean_added:
-	for (--i; i >= cur_qps; --i)
+	for (--i; i >= 2 * cur_qps; --i)
 		teardown_vq(ndev, &ndev->vqs[i]);
+
+	ndev->cur_num_vqs = 2 * cur_qps;
 
 	return err;
 }
