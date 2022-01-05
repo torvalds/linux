@@ -492,10 +492,6 @@ struct hclge_vf_num_cmd {
 #define HCLGE_RSS_TC_SIZE_M		GENMASK(14, 12)
 #define HCLGE_RSS_TC_SIZE_MSB_OFFSET	3
 #define HCLGE_RSS_TC_VALID_B		15
-struct hclge_rss_tc_mode_cmd {
-	__le16 rss_tc_mode[HCLGE_MAX_TC_NUM];
-	u8 rsv[8];
-};
 
 #define HCLGE_LINK_STATUS_UP_B	0
 #define HCLGE_LINK_STATUS_UP_M	BIT(HCLGE_LINK_STATUS_UP_B)
