@@ -1788,7 +1788,7 @@ static int samsung_mipi_dcphy_configure(struct phy *phy,
 
 	samsung->c_option = (mode == PHY_MODE_MIPI_DPHY) ? false : true;
 
-	samsung->lanes = opts->mipi_dphy.lanes;
+	samsung->lanes = opts->mipi_dphy.lanes > 4 ? 4 : opts->mipi_dphy.lanes;
 
 	samsung_mipi_dcphy_pll_calc_rate(samsung, target_rate);
 	opts->mipi_dphy.hs_clk_rate = samsung->pll.rate;
