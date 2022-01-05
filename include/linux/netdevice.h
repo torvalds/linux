@@ -1942,6 +1942,8 @@ enum netdev_ml_priv_type {
  *			dev->addr_list_lock.
  *	@unlink_list:	As netif_addr_lock() can be called recursively,
  *			keep a list of interfaces to be deleted.
+ *	@gro_max_size:	Maximum size of aggregated packet in generic
+ *			receive offload (GRO)
  *
  *	@dev_addr_shadow:	Copy of @dev_addr to catch direct writes.
  *	@linkwatch_dev_tracker:	refcount tracker used by linkwatch.
@@ -2131,6 +2133,8 @@ struct net_device {
 	struct bpf_prog __rcu	*xdp_prog;
 	unsigned long		gro_flush_timeout;
 	int			napi_defer_hard_irqs;
+#define GRO_MAX_SIZE		65536
+	unsigned int		gro_max_size;
 	rx_handler_func_t __rcu	*rx_handler;
 	void __rcu		*rx_handler_data;
 
@@ -4804,6 +4808,13 @@ static inline void netif_set_gso_max_segs(struct net_device *dev,
 {
 	/* dev->gso_max_segs is read locklessly from sk_setup_caps() */
 	WRITE_ONCE(dev->gso_max_segs, segs);
+}
+
+static inline void netif_set_gro_max_size(struct net_device *dev,
+					  unsigned int size)
+{
+	/* This pairs with the READ_ONCE() in skb_gro_receive() */
+	WRITE_ONCE(dev->gro_max_size, size);
 }
 
 static inline void skb_gso_error_unwind(struct sk_buff *skb, __be16 protocol,
