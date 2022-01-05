@@ -199,6 +199,20 @@ static const struct reset_control_ops jh7110_reset_ops = {
 	.status		= jh7110_reset_status,
 };
 
+static void __iomem *platform_ioremap_iomem_byname(struct platform_device *pdev,
+						const char *name)
+{
+	struct resource *res;
+
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, name);
+	if (!res) {
+		dev_err(&pdev->dev, "get %s io base fail.\n",name);
+		return NULL;
+	}
+
+	return  ioremap(res->start, resource_size(res));
+}
+
 int __init reset_starfive_jh7110_generic_probe(struct platform_device *pdev,
 					const u32 *asserted,
 					unsigned int nr_resets)
@@ -212,15 +226,15 @@ int __init reset_starfive_jh7110_generic_probe(struct platform_device *pdev,
 
 	dev->driver_data = data;
 
-	data->syscrg =  devm_platform_ioremap_resource_byname(pdev, "syscrg");
+	data->syscrg =  platform_ioremap_iomem_byname(pdev, "syscrg");
 	if (IS_ERR(data->syscrg))
 		return PTR_ERR(data->syscrg);
 
-	data->stgcrg =  devm_platform_ioremap_resource_byname(pdev, "stgcrg");
+	data->stgcrg =  platform_ioremap_iomem_byname(pdev, "stgcrg");
 	if (IS_ERR(data->stgcrg))
 		return PTR_ERR(data->stgcrg);
 
-	data->aoncrg =  devm_platform_ioremap_resource_byname(pdev, "aoncrg");
+	data->aoncrg =  platform_ioremap_iomem_byname(pdev, "aoncrg");
 	if (IS_ERR(data->aoncrg))
 		return PTR_ERR(data->aoncrg);
 
