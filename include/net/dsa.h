@@ -261,18 +261,23 @@ struct dsa_port {
 
 	u8			stp_state;
 
+	u8			vlan_filtering:1,
+				/* Managed by DSA on user ports and by
+				 * drivers on CPU and DSA ports
+				 */
+				learning:1,
+				lag_tx_enabled:1,
+				devlink_port_setup:1,
+				setup:1;
+
 	struct device_node	*dn;
 	unsigned int		ageing_time;
-	bool			vlan_filtering;
-	/* Managed by DSA on user ports and by drivers on CPU and DSA ports */
-	bool			learning;
+
 	struct dsa_bridge	*bridge;
 	struct devlink_port	devlink_port;
-	bool			devlink_port_setup;
 	struct phylink		*pl;
 	struct phylink_config	pl_config;
 	struct net_device	*lag_dev;
-	bool			lag_tx_enabled;
 	struct net_device	*hsr_dev;
 
 	struct list_head list;
@@ -293,8 +298,6 @@ struct dsa_port {
 	struct mutex		addr_lists_lock;
 	struct list_head	fdbs;
 	struct list_head	mdbs;
-
-	bool setup;
 };
 
 /* TODO: ideally DSA ports would have a single dp->link_dp member,
