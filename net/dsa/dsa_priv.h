@@ -40,10 +40,6 @@ enum {
 	DSA_NOTIFIER_TAG_PROTO,
 	DSA_NOTIFIER_TAG_PROTO_CONNECT,
 	DSA_NOTIFIER_TAG_PROTO_DISCONNECT,
-	DSA_NOTIFIER_MRP_ADD,
-	DSA_NOTIFIER_MRP_DEL,
-	DSA_NOTIFIER_MRP_ADD_RING_ROLE,
-	DSA_NOTIFIER_MRP_DEL_RING_ROLE,
 	DSA_NOTIFIER_TAG_8021Q_VLAN_ADD,
 	DSA_NOTIFIER_TAG_8021Q_VLAN_DEL,
 };
@@ -105,20 +101,6 @@ struct dsa_notifier_mtu_info {
 /* DSA_NOTIFIER_TAG_PROTO_* */
 struct dsa_notifier_tag_proto_info {
 	const struct dsa_device_ops *tag_ops;
-};
-
-/* DSA_NOTIFIER_MRP_* */
-struct dsa_notifier_mrp_info {
-	const struct switchdev_obj_mrp *mrp;
-	int sw_index;
-	int port;
-};
-
-/* DSA_NOTIFIER_MRP_* */
-struct dsa_notifier_mrp_ring_role_info {
-	const struct switchdev_obj_ring_role_mrp *mrp;
-	int sw_index;
-	int port;
 };
 
 /* DSA_NOTIFIER_TAG_8021Q_VLAN_* */

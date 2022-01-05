@@ -701,58 +701,6 @@ dsa_switch_disconnect_tag_proto(struct dsa_switch *ds,
 	return 0;
 }
 
-static int dsa_switch_mrp_add(struct dsa_switch *ds,
-			      struct dsa_notifier_mrp_info *info)
-{
-	if (!ds->ops->port_mrp_add)
-		return -EOPNOTSUPP;
-
-	if (ds->index == info->sw_index)
-		return ds->ops->port_mrp_add(ds, info->port, info->mrp);
-
-	return 0;
-}
-
-static int dsa_switch_mrp_del(struct dsa_switch *ds,
-			      struct dsa_notifier_mrp_info *info)
-{
-	if (!ds->ops->port_mrp_del)
-		return -EOPNOTSUPP;
-
-	if (ds->index == info->sw_index)
-		return ds->ops->port_mrp_del(ds, info->port, info->mrp);
-
-	return 0;
-}
-
-static int
-dsa_switch_mrp_add_ring_role(struct dsa_switch *ds,
-			     struct dsa_notifier_mrp_ring_role_info *info)
-{
-	if (!ds->ops->port_mrp_add_ring_role)
-		return -EOPNOTSUPP;
-
-	if (ds->index == info->sw_index)
-		return ds->ops->port_mrp_add_ring_role(ds, info->port,
-						       info->mrp);
-
-	return 0;
-}
-
-static int
-dsa_switch_mrp_del_ring_role(struct dsa_switch *ds,
-			     struct dsa_notifier_mrp_ring_role_info *info)
-{
-	if (!ds->ops->port_mrp_del_ring_role)
-		return -EOPNOTSUPP;
-
-	if (ds->index == info->sw_index)
-		return ds->ops->port_mrp_del_ring_role(ds, info->port,
-						       info->mrp);
-
-	return 0;
-}
-
 static int dsa_switch_event(struct notifier_block *nb,
 			    unsigned long event, void *info)
 {
@@ -825,18 +773,6 @@ static int dsa_switch_event(struct notifier_block *nb,
 		break;
 	case DSA_NOTIFIER_TAG_PROTO_DISCONNECT:
 		err = dsa_switch_disconnect_tag_proto(ds, info);
-		break;
-	case DSA_NOTIFIER_MRP_ADD:
-		err = dsa_switch_mrp_add(ds, info);
-		break;
-	case DSA_NOTIFIER_MRP_DEL:
-		err = dsa_switch_mrp_del(ds, info);
-		break;
-	case DSA_NOTIFIER_MRP_ADD_RING_ROLE:
-		err = dsa_switch_mrp_add_ring_role(ds, info);
-		break;
-	case DSA_NOTIFIER_MRP_DEL_RING_ROLE:
-		err = dsa_switch_mrp_del_ring_role(ds, info);
 		break;
 	case DSA_NOTIFIER_TAG_8021Q_VLAN_ADD:
 		err = dsa_switch_tag_8021q_vlan_add(ds, info);
