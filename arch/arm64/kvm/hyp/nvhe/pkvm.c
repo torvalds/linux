@@ -1268,6 +1268,35 @@ out_guest_err:
 	return true;
 }
 
+bool smccc_trng_available;
+
+static bool pkvm_forward_trng(struct kvm_vcpu *vcpu)
+{
+	u32 fn = smccc_get_function(vcpu);
+	struct arm_smccc_res res;
+	unsigned long arg1 = 0;
+
+	/*
+	 * Forward TRNG calls to EL3, as we can't trust the host to handle
+	 * these for us.
+	 */
+	switch (fn) {
+	case ARM_SMCCC_TRNG_FEATURES:
+	case ARM_SMCCC_TRNG_RND32:
+	case ARM_SMCCC_TRNG_RND64:
+		arg1 = smccc_get_arg1(vcpu);
+		fallthrough;
+	case ARM_SMCCC_TRNG_VERSION:
+	case ARM_SMCCC_TRNG_GET_UUID:
+		arm_smccc_1_1_smc(fn, arg1, &res);
+		smccc_set_retval(vcpu, res.a0, res.a1, res.a2, res.a3);
+		memzero_explicit(&res, sizeof(res));
+		break;
+	}
+
+	return true;
+}
+
 /*
  * Handler for protected VM HVC calls.
  *
@@ -1312,6 +1341,11 @@ bool kvm_handle_pvm_hvc64(struct kvm_vcpu *vcpu, u64 *exit_code)
 		return pkvm_memshare_call(hyp_vcpu, exit_code);
 	case ARM_SMCCC_VENDOR_HYP_KVM_MEM_UNSHARE_FUNC_ID:
 		return pkvm_memunshare_call(hyp_vcpu);
+	case ARM_SMCCC_TRNG_VERSION ... ARM_SMCCC_TRNG_RND32:
+	case ARM_SMCCC_TRNG_RND64:
+		if (smccc_trng_available)
+			return pkvm_forward_trng(vcpu);
+		break;
 	default:
 		return pkvm_handle_psci(hyp_vcpu);
 	}

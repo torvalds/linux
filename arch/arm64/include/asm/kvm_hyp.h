@@ -129,5 +129,6 @@ extern u64 kvm_nvhe_sym(id_aa64mmfr2_el1_sys_val);
 
 extern unsigned long kvm_nvhe_sym(__icache_flags);
 extern unsigned int kvm_nvhe_sym(kvm_arm_vmid_bits);
+extern bool kvm_nvhe_sym(smccc_trng_available);
 
 #endif /* __ARM64_KVM_HYP_H__ */
