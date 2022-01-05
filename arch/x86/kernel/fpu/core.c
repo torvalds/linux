@@ -261,6 +261,28 @@ void fpu_free_guest_fpstate(struct fpu_guest *gfpu)
 }
 EXPORT_SYMBOL_GPL(fpu_free_guest_fpstate);
 
+/*
+  * fpu_enable_guest_xfd_features - Check xfeatures against guest perm and enable
+  * @guest_fpu:         Pointer to the guest FPU container
+  * @xfeatures:         Features requested by guest CPUID
+  *
+  * Enable all dynamic xfeatures according to guest perm and requested CPUID.
+  *
+  * Return: 0 on success, error code otherwise
+  */
+int fpu_enable_guest_xfd_features(struct fpu_guest *guest_fpu, u64 xfeatures)
+{
+	lockdep_assert_preemption_enabled();
+
+	/* Nothing to do if all requested features are already enabled. */
+	xfeatures &= ~guest_fpu->xfeatures;
+	if (!xfeatures)
+		return 0;
+
+	return __xfd_enable_feature(xfeatures, guest_fpu);
+}
+EXPORT_SYMBOL_GPL(fpu_enable_guest_xfd_features);
+
 int fpu_swap_kvm_fpstate(struct fpu_guest *guest_fpu, bool enter_guest)
 {
 	struct fpstate *guest_fps = guest_fpu->fpstate;
