@@ -1339,33 +1339,4 @@ struct io_comp_batch {
 
 #define DEFINE_IO_COMP_BATCH(name)	struct io_comp_batch name = { }
 
-#define rq_list_add(listptr, rq)	do {		\
-	(rq)->rq_next = *(listptr);			\
-	*(listptr) = rq;				\
-} while (0)
-
-#define rq_list_pop(listptr)				\
-({							\
-	struct request *__req = NULL;			\
-	if ((listptr) && *(listptr))	{		\
-		__req = *(listptr);			\
-		*(listptr) = __req->rq_next;		\
-	}						\
-	__req;						\
-})
-
-#define rq_list_peek(listptr)				\
-({							\
-	struct request *__req = NULL;			\
-	if ((listptr) && *(listptr))			\
-		__req = *(listptr);			\
-	__req;						\
-})
-
-#define rq_list_for_each(listptr, pos)			\
-	for (pos = rq_list_peek((listptr)); pos; pos = rq_list_next(pos))
-
-#define rq_list_next(rq)	(rq)->rq_next
-#define rq_list_empty(list)	((list) == (struct request *) NULL)
-
 #endif /* _LINUX_BLKDEV_H */
