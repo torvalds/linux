@@ -3740,74 +3740,10 @@ static void gaudi_tpc_stall(struct hl_device *hdev)
 
 static void gaudi_set_clock_gating(struct hl_device *hdev)
 {
-	struct gaudi_device *gaudi = hdev->asic_specific;
-	u32 qman_offset;
-	bool enable;
-	int i;
-
-	/* In case we are during debug session, don't enable the clock gate
-	 * as it may interfere
-	 */
-	if (hdev->in_debug)
-		return;
-
-	if (hdev->asic_prop.fw_security_enabled)
-		return;
-
-	for (i = GAUDI_PCI_DMA_1, qman_offset = 0 ; i < GAUDI_HBM_DMA_1 ; i++) {
-		enable = !!(hdev->clock_gating_mask &
-				(BIT_ULL(gaudi_dma_assignment[i])));
-
-		qman_offset = gaudi_dma_assignment[i] * DMA_QMAN_OFFSET;
-		WREG32(mmDMA0_QM_CGM_CFG1 + qman_offset,
-				enable ? QMAN_CGM1_PWR_GATE_EN : 0);
-		WREG32(mmDMA0_QM_CGM_CFG + qman_offset,
-				enable ? QMAN_UPPER_CP_CGM_PWR_GATE_EN : 0);
-	}
-
-	for (i = GAUDI_HBM_DMA_1 ; i < GAUDI_DMA_MAX ; i++) {
-		enable = !!(hdev->clock_gating_mask &
-				(BIT_ULL(gaudi_dma_assignment[i])));
-
-		/* GC sends work to DMA engine through Upper CP in DMA5 so
-		 * we need to not enable clock gating in that DMA
-		 */
-		if (i == GAUDI_HBM_DMA_4)
-			enable = 0;
-
-		qman_offset = gaudi_dma_assignment[i] * DMA_QMAN_OFFSET;
-		WREG32(mmDMA0_QM_CGM_CFG1 + qman_offset,
-				enable ? QMAN_CGM1_PWR_GATE_EN : 0);
-		WREG32(mmDMA0_QM_CGM_CFG + qman_offset,
-				enable ? QMAN_COMMON_CP_CGM_PWR_GATE_EN : 0);
-	}
-
-	enable = !!(hdev->clock_gating_mask & (BIT_ULL(GAUDI_ENGINE_ID_MME_0)));
-	WREG32(mmMME0_QM_CGM_CFG1, enable ? QMAN_CGM1_PWR_GATE_EN : 0);
-	WREG32(mmMME0_QM_CGM_CFG, enable ? QMAN_COMMON_CP_CGM_PWR_GATE_EN : 0);
-
-	enable = !!(hdev->clock_gating_mask & (BIT_ULL(GAUDI_ENGINE_ID_MME_2)));
-	WREG32(mmMME2_QM_CGM_CFG1, enable ? QMAN_CGM1_PWR_GATE_EN : 0);
-	WREG32(mmMME2_QM_CGM_CFG, enable ? QMAN_COMMON_CP_CGM_PWR_GATE_EN : 0);
-
-	for (i = 0, qman_offset = 0 ; i < TPC_NUMBER_OF_ENGINES ; i++) {
-		enable = !!(hdev->clock_gating_mask &
-				(BIT_ULL(GAUDI_ENGINE_ID_TPC_0 + i)));
-
-		WREG32(mmTPC0_QM_CGM_CFG1 + qman_offset,
-				enable ? QMAN_CGM1_PWR_GATE_EN : 0);
-		WREG32(mmTPC0_QM_CGM_CFG + qman_offset,
-				enable ? QMAN_COMMON_CP_CGM_PWR_GATE_EN : 0);
-
-		qman_offset += TPC_QMAN_OFFSET;
-	}
-
-	gaudi->hw_cap_initialized |= HW_CAP_CLK_GATE;
 }
 
 static void gaudi_disable_clock_gating(struct hl_device *hdev)
 {
-	struct gaudi_device *gaudi = hdev->asic_specific;
 	u32 qman_offset;
 	int i;
 
@@ -3832,8 +3768,6 @@ static void gaudi_disable_clock_gating(struct hl_device *hdev)
 
 		qman_offset += (mmTPC1_QM_CGM_CFG - mmTPC0_QM_CGM_CFG);
 	}
-
-	gaudi->hw_cap_initialized &= ~(HW_CAP_CLK_GATE);
 }
 
 static void gaudi_enable_timestamp(struct hl_device *hdev)
@@ -4400,14 +4334,11 @@ skip_reset:
 			status);
 
 	if (gaudi) {
-		gaudi->hw_cap_initialized &= ~(HW_CAP_CPU | HW_CAP_CPU_Q |
-				HW_CAP_HBM | HW_CAP_PCI_DMA |
-				HW_CAP_MME | HW_CAP_TPC_MASK |
-				HW_CAP_HBM_DMA | HW_CAP_PLL |
-				HW_CAP_NIC_MASK | HW_CAP_MMU |
-				HW_CAP_SRAM_SCRAMBLER |
-				HW_CAP_HBM_SCRAMBLER |
-				HW_CAP_CLK_GATE);
+		gaudi->hw_cap_initialized &= ~(HW_CAP_CPU | HW_CAP_CPU_Q | HW_CAP_HBM |
+						HW_CAP_PCI_DMA | HW_CAP_MME | HW_CAP_TPC_MASK |
+						HW_CAP_HBM_DMA | HW_CAP_PLL | HW_CAP_NIC_MASK |
+						HW_CAP_MMU | HW_CAP_SRAM_SCRAMBLER |
+						HW_CAP_HBM_SCRAMBLER);
 
 		memset(gaudi->events_stat, 0, sizeof(gaudi->events_stat));
 
@@ -6188,7 +6119,6 @@ static int gaudi_debugfs_read32(struct hl_device *hdev, u64 addr,
 			bool user_address, u32 *val)
 {
 	struct asic_fixed_properties *prop = &hdev->asic_prop;
-	struct gaudi_device *gaudi = hdev->asic_specific;
 	u64 hbm_bar_addr, host_phys_end;
 	int rc = 0;
 
@@ -6196,38 +6126,31 @@ static int gaudi_debugfs_read32(struct hl_device *hdev, u64 addr,
 
 	if ((addr >= CFG_BASE) && (addr < CFG_BASE + CFG_SIZE)) {
 
-		if ((gaudi->hw_cap_initialized & HW_CAP_CLK_GATE) &&
-				(hdev->clock_gating_mask &
-						GAUDI_CLK_GATE_DEBUGFS_MASK)) {
+		*val = RREG32(addr - CFG_BASE);
 
-			dev_err_ratelimited(hdev->dev,
-				"Can't read register - clock gating is enabled!\n");
-			rc = -EFAULT;
-		} else {
-			*val = RREG32(addr - CFG_BASE);
-		}
+	} else if ((addr >= SRAM_BASE_ADDR) && (addr < SRAM_BASE_ADDR + SRAM_BAR_SIZE)) {
 
-	} else if ((addr >= SRAM_BASE_ADDR) &&
-			(addr < SRAM_BASE_ADDR + SRAM_BAR_SIZE)) {
-		*val = readl(hdev->pcie_bar[SRAM_BAR_ID] +
-				(addr - SRAM_BASE_ADDR));
+		*val = readl(hdev->pcie_bar[SRAM_BAR_ID] + (addr - SRAM_BASE_ADDR));
+
 	} else if (addr < DRAM_PHYS_BASE + hdev->asic_prop.dram_size) {
-		u64 bar_base_addr = DRAM_PHYS_BASE +
-				(addr & ~(prop->dram_pci_bar_size - 0x1ull));
+
+		u64 bar_base_addr = DRAM_PHYS_BASE + (addr & ~(prop->dram_pci_bar_size - 0x1ull));
 
 		hbm_bar_addr = gaudi_set_hbm_bar_base(hdev, bar_base_addr);
-		if (hbm_bar_addr != U64_MAX) {
-			*val = readl(hdev->pcie_bar[HBM_BAR_ID] +
-						(addr - bar_base_addr));
 
-			hbm_bar_addr = gaudi_set_hbm_bar_base(hdev,
-						hbm_bar_addr);
+		if (hbm_bar_addr != U64_MAX) {
+			*val = readl(hdev->pcie_bar[HBM_BAR_ID] + (addr - bar_base_addr));
+			hbm_bar_addr = gaudi_set_hbm_bar_base(hdev, hbm_bar_addr);
 		}
+
 		if (hbm_bar_addr == U64_MAX)
 			rc = -EIO;
+
 	} else if (addr >= HOST_PHYS_BASE && addr < host_phys_end &&
 			user_address && !iommu_present(&pci_bus_type)) {
+
 		*val = *(u32 *) phys_to_virt(addr - HOST_PHYS_BASE);
+
 	} else {
 		rc = -EFAULT;
 	}
@@ -6239,7 +6162,6 @@ static int gaudi_debugfs_write32(struct hl_device *hdev, u64 addr,
 			bool user_address, u32 val)
 {
 	struct asic_fixed_properties *prop = &hdev->asic_prop;
-	struct gaudi_device *gaudi = hdev->asic_specific;
 	u64 hbm_bar_addr, host_phys_end;
 	int rc = 0;
 
@@ -6247,38 +6169,31 @@ static int gaudi_debugfs_write32(struct hl_device *hdev, u64 addr,
 
 	if ((addr >= CFG_BASE) && (addr < CFG_BASE + CFG_SIZE)) {
 
-		if ((gaudi->hw_cap_initialized & HW_CAP_CLK_GATE) &&
-				(hdev->clock_gating_mask &
-						GAUDI_CLK_GATE_DEBUGFS_MASK)) {
+		WREG32(addr - CFG_BASE, val);
 
-			dev_err_ratelimited(hdev->dev,
-				"Can't write register - clock gating is enabled!\n");
-			rc = -EFAULT;
-		} else {
-			WREG32(addr - CFG_BASE, val);
-		}
+	} else if ((addr >= SRAM_BASE_ADDR) && (addr < SRAM_BASE_ADDR + SRAM_BAR_SIZE)) {
 
-	} else if ((addr >= SRAM_BASE_ADDR) &&
-			(addr < SRAM_BASE_ADDR + SRAM_BAR_SIZE)) {
-		writel(val, hdev->pcie_bar[SRAM_BAR_ID] +
-					(addr - SRAM_BASE_ADDR));
+		writel(val, hdev->pcie_bar[SRAM_BAR_ID] + (addr - SRAM_BASE_ADDR));
+
 	} else if (addr < DRAM_PHYS_BASE + hdev->asic_prop.dram_size) {
-		u64 bar_base_addr = DRAM_PHYS_BASE +
-				(addr & ~(prop->dram_pci_bar_size - 0x1ull));
+
+		u64 bar_base_addr = DRAM_PHYS_BASE + (addr & ~(prop->dram_pci_bar_size - 0x1ull));
 
 		hbm_bar_addr = gaudi_set_hbm_bar_base(hdev, bar_base_addr);
-		if (hbm_bar_addr != U64_MAX) {
-			writel(val, hdev->pcie_bar[HBM_BAR_ID] +
-						(addr - bar_base_addr));
 
-			hbm_bar_addr = gaudi_set_hbm_bar_base(hdev,
-						hbm_bar_addr);
+		if (hbm_bar_addr != U64_MAX) {
+			writel(val, hdev->pcie_bar[HBM_BAR_ID] + (addr - bar_base_addr));
+			hbm_bar_addr = gaudi_set_hbm_bar_base(hdev, hbm_bar_addr);
 		}
+
 		if (hbm_bar_addr == U64_MAX)
 			rc = -EIO;
+
 	} else if (addr >= HOST_PHYS_BASE && addr < host_phys_end &&
 			user_address && !iommu_present(&pci_bus_type)) {
+
 		*(u32 *) phys_to_virt(addr - HOST_PHYS_BASE) = val;
+
 	} else {
 		rc = -EFAULT;
 	}
@@ -6290,7 +6205,6 @@ static int gaudi_debugfs_read64(struct hl_device *hdev, u64 addr,
 				bool user_address, u64 *val)
 {
 	struct asic_fixed_properties *prop = &hdev->asic_prop;
-	struct gaudi_device *gaudi = hdev->asic_specific;
 	u64 hbm_bar_addr, host_phys_end;
 	int rc = 0;
 
@@ -6298,42 +6212,35 @@ static int gaudi_debugfs_read64(struct hl_device *hdev, u64 addr,
 
 	if ((addr >= CFG_BASE) && (addr <= CFG_BASE + CFG_SIZE - sizeof(u64))) {
 
-		if ((gaudi->hw_cap_initialized & HW_CAP_CLK_GATE) &&
-				(hdev->clock_gating_mask &
-						GAUDI_CLK_GATE_DEBUGFS_MASK)) {
+		u32 val_l = RREG32(addr - CFG_BASE);
+		u32 val_h = RREG32(addr + sizeof(u32) - CFG_BASE);
 
-			dev_err_ratelimited(hdev->dev,
-				"Can't read register - clock gating is enabled!\n");
-			rc = -EFAULT;
-		} else {
-			u32 val_l = RREG32(addr - CFG_BASE);
-			u32 val_h = RREG32(addr + sizeof(u32) - CFG_BASE);
-
-			*val = (((u64) val_h) << 32) | val_l;
-		}
+		*val = (((u64) val_h) << 32) | val_l;
 
 	} else if ((addr >= SRAM_BASE_ADDR) &&
-		   (addr <= SRAM_BASE_ADDR + SRAM_BAR_SIZE - sizeof(u64))) {
-		*val = readq(hdev->pcie_bar[SRAM_BAR_ID] +
-				(addr - SRAM_BASE_ADDR));
-	} else if (addr <=
-		    DRAM_PHYS_BASE + hdev->asic_prop.dram_size - sizeof(u64)) {
-		u64 bar_base_addr = DRAM_PHYS_BASE +
-				(addr & ~(prop->dram_pci_bar_size - 0x1ull));
+			(addr <= SRAM_BASE_ADDR + SRAM_BAR_SIZE - sizeof(u64))) {
+
+		*val = readq(hdev->pcie_bar[SRAM_BAR_ID] + (addr - SRAM_BASE_ADDR));
+
+	} else if (addr <= DRAM_PHYS_BASE + hdev->asic_prop.dram_size - sizeof(u64)) {
+
+		u64 bar_base_addr = DRAM_PHYS_BASE + (addr & ~(prop->dram_pci_bar_size - 0x1ull));
 
 		hbm_bar_addr = gaudi_set_hbm_bar_base(hdev, bar_base_addr);
-		if (hbm_bar_addr != U64_MAX) {
-			*val = readq(hdev->pcie_bar[HBM_BAR_ID] +
-						(addr - bar_base_addr));
 
-			hbm_bar_addr = gaudi_set_hbm_bar_base(hdev,
-						hbm_bar_addr);
+		if (hbm_bar_addr != U64_MAX) {
+			*val = readq(hdev->pcie_bar[HBM_BAR_ID] + (addr - bar_base_addr));
+			hbm_bar_addr = gaudi_set_hbm_bar_base(hdev, hbm_bar_addr);
 		}
+
 		if (hbm_bar_addr == U64_MAX)
 			rc = -EIO;
+
 	} else if (addr >= HOST_PHYS_BASE && addr < host_phys_end &&
 			user_address && !iommu_present(&pci_bus_type)) {
+
 		*val = *(u64 *) phys_to_virt(addr - HOST_PHYS_BASE);
+
 	} else {
 		rc = -EFAULT;
 	}
@@ -6345,7 +6252,6 @@ static int gaudi_debugfs_write64(struct hl_device *hdev, u64 addr,
 				bool user_address, u64 val)
 {
 	struct asic_fixed_properties *prop = &hdev->asic_prop;
-	struct gaudi_device *gaudi = hdev->asic_specific;
 	u64 hbm_bar_addr, host_phys_end;
 	int rc = 0;
 
@@ -6353,41 +6259,33 @@ static int gaudi_debugfs_write64(struct hl_device *hdev, u64 addr,
 
 	if ((addr >= CFG_BASE) && (addr <= CFG_BASE + CFG_SIZE - sizeof(u64))) {
 
-		if ((gaudi->hw_cap_initialized & HW_CAP_CLK_GATE) &&
-				(hdev->clock_gating_mask &
-						GAUDI_CLK_GATE_DEBUGFS_MASK)) {
-
-			dev_err_ratelimited(hdev->dev,
-				"Can't write register - clock gating is enabled!\n");
-			rc = -EFAULT;
-		} else {
-			WREG32(addr - CFG_BASE, lower_32_bits(val));
-			WREG32(addr + sizeof(u32) - CFG_BASE,
-				upper_32_bits(val));
-		}
+		WREG32(addr - CFG_BASE, lower_32_bits(val));
+		WREG32(addr + sizeof(u32) - CFG_BASE, upper_32_bits(val));
 
 	} else if ((addr >= SRAM_BASE_ADDR) &&
-		   (addr <= SRAM_BASE_ADDR + SRAM_BAR_SIZE - sizeof(u64))) {
-		writeq(val, hdev->pcie_bar[SRAM_BAR_ID] +
-					(addr - SRAM_BASE_ADDR));
-	} else if (addr <=
-		    DRAM_PHYS_BASE + hdev->asic_prop.dram_size - sizeof(u64)) {
-		u64 bar_base_addr = DRAM_PHYS_BASE +
-				(addr & ~(prop->dram_pci_bar_size - 0x1ull));
+			(addr <= SRAM_BASE_ADDR + SRAM_BAR_SIZE - sizeof(u64))) {
+
+		writeq(val, hdev->pcie_bar[SRAM_BAR_ID] + (addr - SRAM_BASE_ADDR));
+
+	} else if (addr <= DRAM_PHYS_BASE + hdev->asic_prop.dram_size - sizeof(u64)) {
+
+		u64 bar_base_addr = DRAM_PHYS_BASE + (addr & ~(prop->dram_pci_bar_size - 0x1ull));
 
 		hbm_bar_addr = gaudi_set_hbm_bar_base(hdev, bar_base_addr);
-		if (hbm_bar_addr != U64_MAX) {
-			writeq(val, hdev->pcie_bar[HBM_BAR_ID] +
-						(addr - bar_base_addr));
 
-			hbm_bar_addr = gaudi_set_hbm_bar_base(hdev,
-						hbm_bar_addr);
+		if (hbm_bar_addr != U64_MAX) {
+			writeq(val, hdev->pcie_bar[HBM_BAR_ID] + (addr - bar_base_addr));
+			hbm_bar_addr = gaudi_set_hbm_bar_base(hdev, hbm_bar_addr);
 		}
+
 		if (hbm_bar_addr == U64_MAX)
 			rc = -EIO;
+
 	} else if (addr >= HOST_PHYS_BASE && addr < host_phys_end &&
 			user_address && !iommu_present(&pci_bus_type)) {
+
 		*(u64 *) phys_to_virt(addr - HOST_PHYS_BASE) = val;
+
 	} else {
 		rc = -EFAULT;
 	}

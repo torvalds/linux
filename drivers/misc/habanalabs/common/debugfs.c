@@ -1054,42 +1054,12 @@ static ssize_t hl_device_write(struct file *f, const char __user *buf,
 static ssize_t hl_clk_gate_read(struct file *f, char __user *buf,
 					size_t count, loff_t *ppos)
 {
-	struct hl_dbg_device_entry *entry = file_inode(f)->i_private;
-	struct hl_device *hdev = entry->hdev;
-	char tmp_buf[200];
-	ssize_t rc;
-
-	if (*ppos)
-		return 0;
-
-	sprintf(tmp_buf, "0x%llx\n", hdev->clock_gating_mask);
-	rc = simple_read_from_buffer(buf, count, ppos, tmp_buf,
-			strlen(tmp_buf) + 1);
-
-	return rc;
+	return 0;
 }
 
 static ssize_t hl_clk_gate_write(struct file *f, const char __user *buf,
 				     size_t count, loff_t *ppos)
 {
-	struct hl_dbg_device_entry *entry = file_inode(f)->i_private;
-	struct hl_device *hdev = entry->hdev;
-	u64 value;
-	ssize_t rc;
-
-	if (hdev->reset_info.in_reset) {
-		dev_warn_ratelimited(hdev->dev,
-				"Can't change clock gating during reset\n");
-		return 0;
-	}
-
-	rc = kstrtoull_from_user(buf, count, 16, &value);
-	if (rc)
-		return rc;
-
-	hdev->clock_gating_mask = value;
-	hdev->asic_funcs->set_clock_gating(hdev);
-
 	return count;
 }
 

@@ -2569,9 +2569,6 @@ struct hl_reset_info {
  * @max_power: the max power of the device, as configured by the sysadmin. This
  *             value is saved so in case of hard-reset, the driver will restore
  *             this value and update the F/W after the re-initialization
- * @clock_gating_mask: is clock gating enabled. bitmask that represents the
- *                     different engines. See debugfs-driver-habanalabs for
- *                     details.
  * @boot_error_status_mask: contains a mask of the device boot error status.
  *                          Each bit represents a different error, according to
  *                          the defines in hl_boot_if.h. If the bit is cleared,
@@ -2710,7 +2707,6 @@ struct hl_device {
 	atomic64_t			dram_used_mem;
 	u64				timeout_jiffies;
 	u64				max_power;
-	u64				clock_gating_mask;
 	u64				boot_error_status_mask;
 	u64				dram_pci_bar_start;
 	u64				last_successful_open_jif;

@@ -177,7 +177,6 @@
 #define HW_CAP_MSI		BIT(6)
 #define HW_CAP_CPU_Q		BIT(7)
 #define HW_CAP_HBM_DMA		BIT(8)
-#define HW_CAP_CLK_GATE		BIT(9)
 #define HW_CAP_SRAM_SCRAMBLER	BIT(10)
 #define HW_CAP_HBM_SCRAMBLER	BIT(11)
 
