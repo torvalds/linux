@@ -590,6 +590,7 @@ config I2C_DESIGNWARE_PCI
 	tristate "Synopsys DesignWare PCI"
 	depends on PCI
 	select I2C_DESIGNWARE_CORE
+	select I2C_CCGX_UCSI
 	help
 	  If you say yes to this option, support will be included for the
 	  Synopsys DesignWare I2C adapter. Only master mode is supported.

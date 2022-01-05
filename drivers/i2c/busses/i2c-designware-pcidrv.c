@@ -24,6 +24,7 @@
 #include <linux/slab.h>
 
 #include "i2c-designware-core.h"
+#include "i2c-ccgx-ucsi.h"
 
 #define DRIVER_NAME "i2c-designware-pci"
 #define AMD_CLK_RATE_HZ	100000
@@ -123,26 +124,6 @@ static int mfld_setup(struct pci_dev *pdev, struct dw_pci_controller *c)
 		return 0;
 	}
 	return -ENODEV;
-}
-
- /*
-  * TODO find a better way how to deduplicate instantiation
-  * of USB PD slave device from nVidia GPU driver.
-  */
-static int navi_amd_register_client(struct dw_i2c_dev *dev)
-{
-	struct i2c_board_info	info;
-
-	memset(&info, 0, sizeof(struct i2c_board_info));
-	strscpy(info.type, "ccgx-ucsi", I2C_NAME_SIZE);
-	info.addr = 0x08;
-	info.irq = dev->irq;
-
-	dev->slave = i2c_new_client_device(&dev->adapter, &info);
-	if (IS_ERR(dev->slave))
-		return PTR_ERR(dev->slave);
-
-	return 0;
 }
 
 static int navi_amd_setup(struct pci_dev *pdev, struct dw_pci_controller *c)
@@ -325,11 +306,10 @@ static int i2c_dw_pci_probe(struct pci_dev *pdev,
 	}
 
 	if ((dev->flags & MODEL_MASK) == MODEL_AMD_NAVI_GPU) {
-		r = navi_amd_register_client(dev);
-		if (r) {
-			dev_err(dev->dev, "register client failed with %d\n", r);
-			return r;
-		}
+		dev->slave = i2c_new_ccgx_ucsi(&dev->adapter, dev->irq, NULL);
+		if (IS_ERR(dev->slave))
+			return dev_err_probe(dev->dev, PTR_ERR(dev->slave),
+					     "register UCSI failed\n");
 	}
 
 	pm_runtime_set_autosuspend_delay(&pdev->dev, 1000);
