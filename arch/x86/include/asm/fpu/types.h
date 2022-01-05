@@ -523,6 +523,11 @@ struct fpu_guest {
 	u64				xfd_err;
 
 	/*
+	 * @uabi_size:			Size required for save/restore
+	 */
+	unsigned int			uabi_size;
+
+	/*
 	 * @fpstate:			Pointer to the allocated guest fpstate
 	 */
 	struct fpstate			*fpstate;
