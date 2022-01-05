@@ -31,7 +31,7 @@ struct pcc_data {
 	struct acpi_pcc_info ctx;
 };
 
-struct acpi_pcc_info pcc_ctx;
+static struct acpi_pcc_info pcc_ctx;
 
 static void pcc_rx_callback(struct mbox_client *cl, void *m)
 {
