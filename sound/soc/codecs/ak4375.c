@@ -438,7 +438,6 @@ static int ak4375_power_on(struct ak4375_priv *ak4375)
 	return 0;
 }
 
-#ifdef CONFIG_PM
 static int __maybe_unused ak4375_runtime_suspend(struct device *dev)
 {
 	struct ak4375_priv *ak4375 = dev_get_drvdata(dev);
@@ -463,7 +462,6 @@ static int __maybe_unused ak4375_runtime_resume(struct device *dev)
 
 	return regcache_sync(ak4375->regmap);
 }
-#endif /* CONFIG_PM */
 
 static const struct snd_soc_component_driver soc_codec_dev_ak4375 = {
 	.controls		= ak4375_snd_controls,
