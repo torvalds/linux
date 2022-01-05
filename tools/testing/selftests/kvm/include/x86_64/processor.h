@@ -10,8 +10,10 @@
 
 #include <assert.h>
 #include <stdint.h>
+#include <syscall.h>
 
 #include <asm/msr-index.h>
+#include <asm/prctl.h>
 
 #include "../kvm_util.h"
 
@@ -352,6 +354,7 @@ struct kvm_x86_state;
 struct kvm_x86_state *vcpu_save_state(struct kvm_vm *vm, uint32_t vcpuid);
 void vcpu_load_state(struct kvm_vm *vm, uint32_t vcpuid,
 		     struct kvm_x86_state *state);
+void kvm_x86_state_cleanup(struct kvm_x86_state *state);
 
 struct kvm_msr_list *kvm_get_msr_index_list(void);
 uint64_t kvm_get_feature_msr(uint64_t msr_index);
@@ -443,4 +446,11 @@ void __virt_pg_map(struct kvm_vm *vm, uint64_t vaddr, uint64_t paddr,
 /* VMX_EPT_VPID_CAP bits */
 #define VMX_EPT_VPID_CAP_AD_BITS       (1ULL << 21)
 
+#define XSTATE_XTILE_CFG_BIT		17
+#define XSTATE_XTILE_DATA_BIT		18
+
+#define XSTATE_XTILE_CFG_MASK		(1ULL << XSTATE_XTILE_CFG_BIT)
+#define XSTATE_XTILE_DATA_MASK		(1ULL << XSTATE_XTILE_DATA_BIT)
+#define XFEATURE_XTILE_MASK		(XSTATE_XTILE_CFG_MASK | \
+					XSTATE_XTILE_DATA_MASK)
 #endif /* SELFTEST_KVM_PROCESSOR_H */
