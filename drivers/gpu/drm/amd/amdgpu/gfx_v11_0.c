@@ -4587,7 +4587,8 @@ static int gfx_v11_0_hw_init(void *handle)
 	if (adev->firmware.load_type != AMDGPU_FW_LOAD_PSP)
 		gfx_v11_0_select_cp_fw_arch(adev);
 
-	adev->nbio.funcs->gc_doorbell_init(adev);
+	if (adev->nbio.funcs->gc_doorbell_init)
+		adev->nbio.funcs->gc_doorbell_init(adev);
 
 	r = gfx_v11_0_rlc_resume(adev);
 	if (r)
