@@ -999,10 +999,6 @@ int amdgpu_ras_query_error_status(struct amdgpu_device *adev,
 			block_obj->hw_ops->query_ras_error_status(adev);
 		break;
 	case AMDGPU_RAS_BLOCK__PCIE_BIF:
-		if (adev->nbio.ras_funcs &&
-		    adev->nbio.ras_funcs->query_ras_error_count)
-			adev->nbio.ras_funcs->query_ras_error_count(adev, &err_data);
-		break;
 	case AMDGPU_RAS_BLOCK__XGMI_WAFL:
 	case AMDGPU_RAS_BLOCK__HDP:
 		if (!block_obj || !block_obj->hw_ops)	{
@@ -2385,24 +2381,26 @@ int amdgpu_ras_init(struct amdgpu_device *adev)
 	case CHIP_VEGA20:
 	case CHIP_ARCTURUS:
 	case CHIP_ALDEBARAN:
-		if (!adev->gmc.xgmi.connected_to_cpu)
-			adev->nbio.ras_funcs = &nbio_v7_4_ras_funcs;
+		if (!adev->gmc.xgmi.connected_to_cpu) {
+			adev->nbio.ras = &nbio_v7_4_ras;
+			amdgpu_ras_register_ras_block(adev, &adev->nbio.ras->ras_block);
+		}
 		break;
 	default:
 		/* nbio ras is not available */
 		break;
 	}
 
-	if (adev->nbio.ras_funcs &&
-	    adev->nbio.ras_funcs->init_ras_controller_interrupt) {
-		r = adev->nbio.ras_funcs->init_ras_controller_interrupt(adev);
+	if (adev->nbio.ras &&
+	    adev->nbio.ras->init_ras_controller_interrupt) {
+		r = adev->nbio.ras->init_ras_controller_interrupt(adev);
 		if (r)
 			goto release_con;
 	}
 
-	if (adev->nbio.ras_funcs &&
-	    adev->nbio.ras_funcs->init_ras_err_event_athub_interrupt) {
-		r = adev->nbio.ras_funcs->init_ras_err_event_athub_interrupt(adev);
+	if (adev->nbio.ras &&
+	    adev->nbio.ras->init_ras_err_event_athub_interrupt) {
+		r = adev->nbio.ras->init_ras_err_event_athub_interrupt(adev);
 		if (r)
 			goto release_con;
 	}
