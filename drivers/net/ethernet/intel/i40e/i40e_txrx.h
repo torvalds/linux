@@ -298,7 +298,6 @@ struct i40e_rx_queue_stats {
 	u64 alloc_page_failed;
 	u64 alloc_buff_failed;
 	u64 page_reuse_count;
-	u64 realloc_count;
 };
 
 enum i40e_ring_state_t {
