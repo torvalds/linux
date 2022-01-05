@@ -179,7 +179,7 @@ struct hal_data_8188e {
 	u8	EEPROMThermalMeter;
 
 	u8	Index24G_CCK_Base[CHANNEL_MAX_NUMBER];
-	u8	Index24G_BW40_Base[RF_PATH_MAX][CHANNEL_MAX_NUMBER];
+	u8	Index24G_BW40_Base[CHANNEL_MAX_NUMBER];
 	/* If only one tx, only BW20 and OFDM are used. */
 	s8	CCK_24G_Diff[RF_PATH_MAX][MAX_TX_COUNT];
 	s8	OFDM_24G_Diff[RF_PATH_MAX][MAX_TX_COUNT];
