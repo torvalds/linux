@@ -1375,6 +1375,12 @@ static inline void vop2_cfg_done(struct drm_crtc *crtc)
 		return rk3588_vop2_cfg_done(crtc);
 }
 
+/*
+ * Read VOP internal power domain on/off status.
+ * We should query BISR_STS register in PMU for
+ * power up/down status when memory repair is enabled.
+ * Return value: 1 for power on, 0 for power off;
+ */
 static uint32_t vop2_power_domain_status(struct vop2_power_domain *pd)
 {
 	struct vop2 *vop2 = pd->vop2;
@@ -1382,7 +1388,7 @@ static uint32_t vop2_power_domain_status(struct vop2_power_domain *pd)
 	if (vop2_read_grf_reg(vop2->sys_pmu, &pd->data->regs->bisr_en_status))
 		return vop2_read_grf_reg(vop2->sys_pmu, &pd->data->regs->pmu_status);
 	else
-		return vop2_read_reg(vop2, 0, &pd->data->regs->status);
+		return vop2_read_reg(vop2, 0, &pd->data->regs->status) ? 0 : 1;
 }
 
 static void vop2_wait_power_domain_off(struct vop2_power_domain *pd)
@@ -1391,7 +1397,7 @@ static void vop2_wait_power_domain_off(struct vop2_power_domain *pd)
 	int val;
 	int ret;
 
-	ret = readx_poll_timeout_atomic(vop2_power_domain_status, pd, val, val, 0, 50 * 1000);
+	ret = readx_poll_timeout_atomic(vop2_power_domain_status, pd, val, !val, 0, 50 * 1000);
 
 	if (ret)
 		DRM_DEV_ERROR(vop2->dev, "wait pd%d off timeout\n", ffs(pd->data->id) - 1);
@@ -1403,7 +1409,7 @@ static void vop2_wait_power_domain_on(struct vop2_power_domain *pd)
 	int val;
 	int ret;
 
-	ret = readx_poll_timeout_atomic(vop2_power_domain_status, pd, val, !val, 0, 50 * 1000);
+	ret = readx_poll_timeout_atomic(vop2_power_domain_status, pd, val, val, 0, 50 * 1000);
 	if (ret)
 		DRM_DEV_ERROR(vop2->dev, "wait pd%d on timeout\n", ffs(pd->data->id) - 1);
 }
