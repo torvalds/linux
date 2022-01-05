@@ -352,11 +352,12 @@ static struct attribute *def_attrs[] = {
 	&efivar_attr_raw_var.attr,
 	NULL,
 };
+ATTRIBUTE_GROUPS(def);
 
 static struct kobj_type efivar_ktype = {
 	.release = efivar_release,
 	.sysfs_ops = &efivar_attr_ops,
-	.default_attrs = def_attrs,
+	.default_groups = def_groups,
 };
 
 static ssize_t efivar_create(struct file *filp, struct kobject *kobj,
