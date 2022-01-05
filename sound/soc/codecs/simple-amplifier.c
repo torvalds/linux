@@ -69,7 +69,6 @@ static int simple_amp_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct simple_amp *priv;
-	int err;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (priv == NULL)
@@ -78,12 +77,9 @@ static int simple_amp_probe(struct platform_device *pdev)
 
 	priv->gpiod_enable = devm_gpiod_get_optional(dev, "enable",
 						     GPIOD_OUT_LOW);
-	if (IS_ERR(priv->gpiod_enable)) {
-		err = PTR_ERR(priv->gpiod_enable);
-		if (err != -EPROBE_DEFER)
-			dev_err(dev, "Failed to get 'enable' gpio: %d", err);
-		return err;
-	}
+	if (IS_ERR(priv->gpiod_enable))
+		return dev_err_probe(dev, PTR_ERR(priv->gpiod_enable),
+				     "Failed to get 'enable' gpio");
 
 	return devm_snd_soc_register_component(dev,
 					       &simple_amp_component_driver,

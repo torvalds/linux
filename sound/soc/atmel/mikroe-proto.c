@@ -144,9 +144,9 @@ static int snd_proto_probe(struct platform_device *pdev)
 	of_node_put(cpu_np);
 
 	ret = snd_soc_register_card(&snd_proto);
-	if (ret && ret != -EPROBE_DEFER)
-		dev_err(&pdev->dev,
-			"snd_soc_register_card() failed: %d\n", ret);
+	if (ret)
+		dev_err_probe(&pdev->dev, ret,
+			"snd_soc_register_card() failed\n");
 
 	return ret;
 }
