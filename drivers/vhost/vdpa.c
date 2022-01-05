@@ -142,10 +142,9 @@ static long vhost_vdpa_get_device_id(struct vhost_vdpa *v, u8 __user *argp)
 static long vhost_vdpa_get_status(struct vhost_vdpa *v, u8 __user *statusp)
 {
 	struct vdpa_device *vdpa = v->vdpa;
-	const struct vdpa_config_ops *ops = vdpa->config;
 	u8 status;
 
-	status = ops->get_status(vdpa);
+	status = vdpa_get_status(vdpa);
 
 	if (copy_to_user(statusp, &status, sizeof(status)))
 		return -EFAULT;
@@ -164,7 +163,7 @@ static long vhost_vdpa_set_status(struct vhost_vdpa *v, u8 __user *statusp)
 	if (copy_from_user(&status, statusp, sizeof(status)))
 		return -EFAULT;
 
-	status_old = ops->get_status(vdpa);
+	status_old = vdpa_get_status(vdpa);
 
 	/*
 	 * Userspace shouldn't remove status bits unless reset the
@@ -182,7 +181,7 @@ static long vhost_vdpa_set_status(struct vhost_vdpa *v, u8 __user *statusp)
 		if (ret)
 			return ret;
 	} else
-		ops->set_status(vdpa, status);
+		vdpa_set_status(vdpa, status);
 
 	if ((status & VIRTIO_CONFIG_S_DRIVER_OK) && !(status_old & VIRTIO_CONFIG_S_DRIVER_OK))
 		for (i = 0; i < nvqs; i++)
