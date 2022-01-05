@@ -1433,7 +1433,7 @@ ENTRY(fast_syscall_spill_registers)
 	rsync
 
 	movi	abi_arg0, SIGSEGV
-	abi_call	do_exit
+	abi_call	make_task_dead
 
 	/* shouldn't return, so panic */
 
