@@ -253,6 +253,7 @@ config I2C_NFORCE2_S4985
 config I2C_NVIDIA_GPU
 	tristate "NVIDIA GPU I2C controller"
 	depends on PCI
+	select I2C_CCGX_UCSI
 	help
 	  If you say yes to this option, support will be included for the
 	  NVIDIA GPU I2C controller which is used to communicate with the GPU's

@@ -17,6 +17,8 @@
 
 #include <asm/unaligned.h>
 
+#include "i2c-ccgx-ucsi.h"
+
 /* I2C definitions */
 #define I2C_MST_CNTL				0x00
 #define I2C_MST_CNTL_GEN_START			BIT(0)
@@ -266,23 +268,6 @@ static const struct software_node ccgx_node = {
 	.properties = ccgx_props,
 };
 
-static int gpu_populate_client(struct gpu_i2c_dev *i2cd, int irq)
-{
-	i2cd->gpu_ccgx_ucsi = devm_kzalloc(i2cd->dev,
-					   sizeof(*i2cd->gpu_ccgx_ucsi),
-					   GFP_KERNEL);
-	if (!i2cd->gpu_ccgx_ucsi)
-		return -ENOMEM;
-
-	strlcpy(i2cd->gpu_ccgx_ucsi->type, "ccgx-ucsi",
-		sizeof(i2cd->gpu_ccgx_ucsi->type));
-	i2cd->gpu_ccgx_ucsi->addr = 0x8;
-	i2cd->gpu_ccgx_ucsi->irq = irq;
-	i2cd->gpu_ccgx_ucsi->swnode = &ccgx_node;
-	i2cd->ccgx_client = i2c_new_client_device(&i2cd->adapter, i2cd->gpu_ccgx_ucsi);
-	return PTR_ERR_OR_ZERO(i2cd->ccgx_client);
-}
-
 static int gpu_i2c_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	struct gpu_i2c_dev *i2cd;
@@ -328,9 +313,10 @@ static int gpu_i2c_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (status < 0)
 		goto free_irq_vectors;
 
-	status = gpu_populate_client(i2cd, pdev->irq);
-	if (status < 0) {
-		dev_err(&pdev->dev, "gpu_populate_client failed %d\n", status);
+	i2cd->ccgx_client = i2c_new_ccgx_ucsi(&i2cd->adapter, pdev->irq, &ccgx_node);
+	if (IS_ERR(i2cd->ccgx_client)) {
+		status = dev_err_probe(&pdev->dev, PTR_ERR(i2cd->ccgx_client),
+				       "register UCSI failed\n");
 		goto del_adapter;
 	}
 
