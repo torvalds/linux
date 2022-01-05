@@ -218,7 +218,7 @@ struct cpu_topology *cpu_topology__new(void)
 	tp->core_cpus_list = addr;
 
 	for (i = 0; i < nr; i++) {
-		if (!cpu_map__has(map, i))
+		if (!perf_cpu_map__has(map, i))
 			continue;
 
 		ret = build_cpu_topology(tp, i);

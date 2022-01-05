@@ -268,7 +268,7 @@ bool perf_cpu_map__empty(const struct perf_cpu_map *map)
 	return map ? map->map[0] == -1 : true;
 }
 
-int perf_cpu_map__idx(struct perf_cpu_map *cpus, int cpu)
+int perf_cpu_map__idx(const struct perf_cpu_map *cpus, int cpu)
 {
 	int low = 0, high = cpus->nr;
 
@@ -286,6 +286,11 @@ int perf_cpu_map__idx(struct perf_cpu_map *cpus, int cpu)
 	}
 
 	return -1;
+}
+
+bool perf_cpu_map__has(const struct perf_cpu_map *cpus, int cpu)
+{
+	return perf_cpu_map__idx(cpus, cpu) != -1;
 }
 
 int perf_cpu_map__max(struct perf_cpu_map *map)

@@ -48,6 +48,7 @@ SYNOPSIS
   int perf_cpu_map__nr(const struct perf_cpu_map *cpus);
   bool perf_cpu_map__empty(const struct perf_cpu_map *map);
   int perf_cpu_map__max(struct perf_cpu_map *map);
+  bool perf_cpu_map__has(const struct perf_cpu_map *map, int cpu);
 
   #define perf_cpu_map__for_each_cpu(cpu, idx, cpus)
 --

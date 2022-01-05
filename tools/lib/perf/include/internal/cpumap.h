@@ -23,6 +23,6 @@ struct perf_cpu_map {
 #define MAX_NR_CPUS	2048
 #endif
 
-int perf_cpu_map__idx(struct perf_cpu_map *cpus, int cpu);
+int perf_cpu_map__idx(const struct perf_cpu_map *cpus, int cpu);
 
 #endif /* __LIBPERF_INTERNAL_CPUMAP_H */
