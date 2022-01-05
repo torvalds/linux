@@ -241,3 +241,81 @@ const struct bch_sb_field_ops bch_sb_field_ops_journal_seq_blacklist = {
 	.validate	= bch2_sb_journal_seq_blacklist_validate,
 	.to_text	= bch2_sb_journal_seq_blacklist_to_text
 };
+
+void bch2_blacklist_entries_gc(struct work_struct *work)
+{
+	struct bch_fs *c = container_of(work, struct bch_fs,
+					journal_seq_blacklist_gc_work);
+	struct journal_seq_blacklist_table *t;
+	struct bch_sb_field_journal_seq_blacklist *bl;
+	struct journal_seq_blacklist_entry *src, *dst;
+	struct btree_trans trans;
+	unsigned i, nr, new_nr;
+	int ret;
+
+	bch2_trans_init(&trans, c, 0, 0);
+
+	for (i = 0; i < BTREE_ID_NR; i++) {
+		struct btree_iter iter;
+		struct btree *b;
+
+		bch2_trans_node_iter_init(&trans, &iter, i, POS_MIN,
+					  0, 0, BTREE_ITER_PREFETCH);
+retry:
+		bch2_trans_begin(&trans);
+
+		b = bch2_btree_iter_peek_node(&iter);
+
+		while (!(ret = PTR_ERR_OR_ZERO(b)) &&
+		       b &&
+		       !test_bit(BCH_FS_STOPPING, &c->flags))
+			b = bch2_btree_iter_next_node(&iter);
+
+		if (ret == -EINTR)
+			goto retry;
+
+		bch2_trans_iter_exit(&trans, &iter);
+	}
+
+	bch2_trans_exit(&trans);
+	if (ret)
+		return;
+
+	mutex_lock(&c->sb_lock);
+	bl = bch2_sb_get_journal_seq_blacklist(c->disk_sb.sb);
+	if (!bl)
+		goto out;
+
+	nr = blacklist_nr_entries(bl);
+	dst = bl->start;
+
+	t = c->journal_seq_blacklist_table;
+	BUG_ON(nr != t->nr);
+
+	for (src = bl->start, i = eytzinger0_first(t->nr);
+	     src < bl->start + nr;
+	     src++, i = eytzinger0_next(i, nr)) {
+		BUG_ON(t->entries[i].start	!= le64_to_cpu(src->start));
+		BUG_ON(t->entries[i].end	!= le64_to_cpu(src->end));
+
+		if (t->entries[i].dirty)
+			*dst++ = *src;
+	}
+
+	new_nr = dst - bl->start;
+
+	bch_info(c, "nr blacklist entries was %u, now %u", nr, new_nr);
+
+	if (new_nr != nr) {
+		bl = bch2_sb_resize_journal_seq_blacklist(&c->disk_sb,
+				new_nr ? sb_blacklist_u64s(new_nr) : 0);
+		BUG_ON(new_nr && !bl);
+
+		if (!new_nr)
+			c->disk_sb.sb->features[0] &= cpu_to_le64(~(1ULL << BCH_FEATURE_journal_seq_blacklist_v3));
+
+		bch2_write_super(c);
+	}
+out:
+	mutex_unlock(&c->sb_lock);
+}
