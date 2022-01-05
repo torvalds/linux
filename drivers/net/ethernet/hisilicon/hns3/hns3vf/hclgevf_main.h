@@ -11,6 +11,7 @@
 #include "hclgevf_cmd.h"
 #include "hnae3.h"
 #include "hclge_comm_rss.h"
+#include "hclge_comm_tqp_stats.h"
 
 #define HCLGEVF_MOD_VERSION "1.0"
 #define HCLGEVF_DRIVER_NAME "hclgevf"
@@ -148,23 +149,6 @@ struct hclgevf_hw {
 	struct hclgevf_mac mac;
 };
 
-/* TQP stats */
-struct hlcgevf_tqp_stats {
-	/* query_tqp_tx_queue_statistics, opcode id: 0x0B03 */
-	u64 rcb_tx_ring_pktnum_rcd; /* 32bit */
-	/* query_tqp_rx_queue_statistics, opcode id: 0x0B13 */
-	u64 rcb_rx_ring_pktnum_rcd; /* 32bit */
-};
-
-struct hclgevf_tqp {
-	struct device *dev;	/* device for DMA mapping */
-	struct hnae3_queue q;
-	struct hlcgevf_tqp_stats tqp_stats;
-	u16 index;		/* global index in a NIC controller */
-
-	bool alloced;
-};
-
 struct hclgevf_cfg {
 	u8 tc_num;
 	u16 tqp_desc_num;
@@ -270,7 +254,7 @@ struct hclgevf_dev {
 
 	struct delayed_work service_task;
 
-	struct hclgevf_tqp *htqp;
+	struct hclge_comm_tqp *htqp;
 
 	struct hnae3_handle nic;
 	struct hnae3_handle roce;

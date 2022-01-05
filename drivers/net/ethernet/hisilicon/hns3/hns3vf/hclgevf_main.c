@@ -121,108 +121,13 @@ static struct hclgevf_dev *hclgevf_ae_get_hdev(struct hnae3_handle *handle)
 		return container_of(handle, struct hclgevf_dev, nic);
 }
 
-static int hclgevf_tqps_update_stats(struct hnae3_handle *handle)
-{
-	struct hnae3_knic_private_info *kinfo = &handle->kinfo;
-	struct hclgevf_dev *hdev = hclgevf_ae_get_hdev(handle);
-	struct hclge_desc desc;
-	struct hclgevf_tqp *tqp;
-	int status;
-	int i;
-
-	for (i = 0; i < kinfo->num_tqps; i++) {
-		tqp = container_of(kinfo->tqp[i], struct hclgevf_tqp, q);
-		hclgevf_cmd_setup_basic_desc(&desc,
-					     HCLGEVF_OPC_QUERY_RX_STATUS,
-					     true);
-
-		desc.data[0] = cpu_to_le32(tqp->index & 0x1ff);
-		status = hclgevf_cmd_send(&hdev->hw, &desc, 1);
-		if (status) {
-			dev_err(&hdev->pdev->dev,
-				"Query tqp stat fail, status = %d,queue = %d\n",
-				status,	i);
-			return status;
-		}
-		tqp->tqp_stats.rcb_rx_ring_pktnum_rcd +=
-			le32_to_cpu(desc.data[1]);
-
-		hclgevf_cmd_setup_basic_desc(&desc, HCLGEVF_OPC_QUERY_TX_STATUS,
-					     true);
-
-		desc.data[0] = cpu_to_le32(tqp->index & 0x1ff);
-		status = hclgevf_cmd_send(&hdev->hw, &desc, 1);
-		if (status) {
-			dev_err(&hdev->pdev->dev,
-				"Query tqp stat fail, status = %d,queue = %d\n",
-				status, i);
-			return status;
-		}
-		tqp->tqp_stats.rcb_tx_ring_pktnum_rcd +=
-			le32_to_cpu(desc.data[1]);
-	}
-
-	return 0;
-}
-
-static u64 *hclgevf_tqps_get_stats(struct hnae3_handle *handle, u64 *data)
-{
-	struct hnae3_knic_private_info *kinfo = &handle->kinfo;
-	struct hclgevf_tqp *tqp;
-	u64 *buff = data;
-	int i;
-
-	for (i = 0; i < kinfo->num_tqps; i++) {
-		tqp = container_of(kinfo->tqp[i], struct hclgevf_tqp, q);
-		*buff++ = tqp->tqp_stats.rcb_tx_ring_pktnum_rcd;
-	}
-	for (i = 0; i < kinfo->num_tqps; i++) {
-		tqp = container_of(kinfo->tqp[i], struct hclgevf_tqp, q);
-		*buff++ = tqp->tqp_stats.rcb_rx_ring_pktnum_rcd;
-	}
-
-	return buff;
-}
-
-static int hclgevf_tqps_get_sset_count(struct hnae3_handle *handle, int strset)
-{
-	struct hnae3_knic_private_info *kinfo = &handle->kinfo;
-
-	return kinfo->num_tqps * 2;
-}
-
-static u8 *hclgevf_tqps_get_strings(struct hnae3_handle *handle, u8 *data)
-{
-	struct hnae3_knic_private_info *kinfo = &handle->kinfo;
-	u8 *buff = data;
-	int i;
-
-	for (i = 0; i < kinfo->num_tqps; i++) {
-		struct hclgevf_tqp *tqp = container_of(kinfo->tqp[i],
-						       struct hclgevf_tqp, q);
-		snprintf(buff, ETH_GSTRING_LEN, "txq%u_pktnum_rcd",
-			 tqp->index);
-		buff += ETH_GSTRING_LEN;
-	}
-
-	for (i = 0; i < kinfo->num_tqps; i++) {
-		struct hclgevf_tqp *tqp = container_of(kinfo->tqp[i],
-						       struct hclgevf_tqp, q);
-		snprintf(buff, ETH_GSTRING_LEN, "rxq%u_pktnum_rcd",
-			 tqp->index);
-		buff += ETH_GSTRING_LEN;
-	}
-
-	return buff;
-}
-
 static void hclgevf_update_stats(struct hnae3_handle *handle,
 				 struct net_device_stats *net_stats)
 {
 	struct hclgevf_dev *hdev = hclgevf_ae_get_hdev(handle);
 	int status;
 
-	status = hclgevf_tqps_update_stats(handle);
+	status = hclge_comm_tqps_update_stats(handle, &hdev->hw.hw);
 	if (status)
 		dev_err(&hdev->pdev->dev,
 			"VF update of TQPS stats fail, status = %d.\n",
@@ -234,7 +139,7 @@ static int hclgevf_get_sset_count(struct hnae3_handle *handle, int strset)
 	if (strset == ETH_SS_TEST)
 		return -EOPNOTSUPP;
 	else if (strset == ETH_SS_STATS)
-		return hclgevf_tqps_get_sset_count(handle, strset);
+		return hclge_comm_tqps_get_sset_count(handle);
 
 	return 0;
 }
@@ -245,12 +150,12 @@ static void hclgevf_get_strings(struct hnae3_handle *handle, u32 strset,
 	u8 *p = (char *)data;
 
 	if (strset == ETH_SS_STATS)
-		p = hclgevf_tqps_get_strings(handle, p);
+		p = hclge_comm_tqps_get_strings(handle, p);
 }
 
 static void hclgevf_get_stats(struct hnae3_handle *handle, u64 *data)
 {
-	hclgevf_tqps_get_stats(handle, data);
+	hclge_comm_tqps_get_stats(handle, data);
 }
 
 static void hclgevf_build_send_msg(struct hclge_vf_to_pf_msg *msg, u8 code,
@@ -416,11 +321,11 @@ static int hclgevf_get_pf_media_type(struct hclgevf_dev *hdev)
 
 static int hclgevf_alloc_tqps(struct hclgevf_dev *hdev)
 {
-	struct hclgevf_tqp *tqp;
+	struct hclge_comm_tqp *tqp;
 	int i;
 
 	hdev->htqp = devm_kcalloc(&hdev->pdev->dev, hdev->num_tqps,
-				  sizeof(struct hclgevf_tqp), GFP_KERNEL);
+				  sizeof(struct hclge_comm_tqp), GFP_KERNEL);
 	if (!hdev->htqp)
 		return -ENOMEM;
 
@@ -956,18 +861,6 @@ static int hclgevf_tqp_enable(struct hnae3_handle *handle, bool enable)
 	}
 
 	return 0;
-}
-
-static void hclgevf_reset_tqp_stats(struct hnae3_handle *handle)
-{
-	struct hnae3_knic_private_info *kinfo = &handle->kinfo;
-	struct hclgevf_tqp *tqp;
-	int i;
-
-	for (i = 0; i < kinfo->num_tqps; i++) {
-		tqp = container_of(kinfo->tqp[i], struct hclgevf_tqp, q);
-		memset(&tqp->tqp_stats, 0, sizeof(tqp->tqp_stats));
-	}
 }
 
 static int hclgevf_get_host_mac_addr(struct hclgevf_dev *hdev, u8 *p)
@@ -2033,7 +1926,7 @@ static void hclgevf_periodic_service_task(struct hclgevf_dev *hdev)
 	}
 
 	if (!(hdev->serv_processed_cnt % HCLGEVF_STATS_TIMER_INTERVAL))
-		hclgevf_tqps_update_stats(handle);
+		hclge_comm_tqps_update_stats(handle, &hdev->hw.hw);
 
 	/* VF does not need to request link status when this bit is set, because
 	 * PF will push its link status to VFs when link status changed.
@@ -2332,7 +2225,7 @@ static int hclgevf_ae_start(struct hnae3_handle *handle)
 	clear_bit(HCLGEVF_STATE_DOWN, &hdev->state);
 	clear_bit(HCLGEVF_STATE_PF_PUSH_LINK_STATUS, &hdev->state);
 
-	hclgevf_reset_tqp_stats(handle);
+	hclge_comm_reset_tqp_stats(handle);
 
 	hclgevf_request_link_info(hdev);
 
@@ -2350,7 +2243,7 @@ static void hclgevf_ae_stop(struct hnae3_handle *handle)
 	if (hdev->reset_type != HNAE3_VF_RESET)
 		hclgevf_reset_tqp(handle);
 
-	hclgevf_reset_tqp_stats(handle);
+	hclge_comm_reset_tqp_stats(handle);
 	hclgevf_update_link_status(hdev, 0);
 }
 
