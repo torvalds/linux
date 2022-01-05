@@ -2022,13 +2022,11 @@ int dsa_slave_create(struct dsa_port *port)
 	}
 
 	rtnl_lock();
+
 	ret = dsa_slave_change_mtu(slave_dev, ETH_DATA_LEN);
-	rtnl_unlock();
 	if (ret && ret != -EOPNOTSUPP)
 		dev_warn(ds->dev, "nonfatal error %d setting MTU to %d on port %d\n",
 			 ret, ETH_DATA_LEN, port->index);
-
-	rtnl_lock();
 
 	ret = register_netdevice(slave_dev);
 	if (ret) {
