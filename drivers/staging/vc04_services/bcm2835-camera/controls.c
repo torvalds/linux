@@ -884,7 +884,7 @@ static int ctrl_set_scene_mode(struct bcm2835_mmal_dev *dev,
 	return 0;
 }
 
-static int bm2835_mmal_s_ctrl(struct v4l2_ctrl *ctrl)
+static int bcm2835_mmal_s_ctrl(struct v4l2_ctrl *ctrl)
 {
 	struct bcm2835_mmal_dev *dev = container_of(ctrl->handler, struct bcm2835_mmal_dev,
 						    ctrl_handler);
@@ -904,7 +904,7 @@ static int bm2835_mmal_s_ctrl(struct v4l2_ctrl *ctrl)
 }
 
 static const struct v4l2_ctrl_ops bm2835_mmal_ctrl_ops = {
-	.s_ctrl = bm2835_mmal_s_ctrl,
+	.s_ctrl = bcm2835_mmal_s_ctrl,
 };
 
 static const struct bcm2835_mmal_v4l2_ctrl v4l2_ctrls[V4L2_CTRL_COUNT] = {
@@ -1246,7 +1246,7 @@ static const struct bcm2835_mmal_v4l2_ctrl v4l2_ctrls[V4L2_CTRL_COUNT] = {
 	},
 };
 
-int bm2835_mmal_set_all_camera_controls(struct bcm2835_mmal_dev *dev)
+int bcm2835_mmal_set_all_camera_controls(struct bcm2835_mmal_dev *dev)
 {
 	int c;
 	int ret = 0;
@@ -1311,8 +1311,7 @@ int set_framerate_params(struct bcm2835_mmal_dev *dev)
 	return ret;
 }
 
-int bm2835_mmal_init_controls(struct bcm2835_mmal_dev *dev,
-			      struct v4l2_ctrl_handler *hdl)
+int bcm2835_mmal_init_controls(struct bcm2835_mmal_dev *dev, struct v4l2_ctrl_handler *hdl)
 {
 	int c;
 	const struct bcm2835_mmal_v4l2_ctrl *ctrl;

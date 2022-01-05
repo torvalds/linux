@@ -1735,7 +1735,7 @@ static int mmal_init(struct bcm2835_mmal_dev *dev)
 					      &enable,
 					      sizeof(enable));
 	}
-	ret = bm2835_mmal_set_all_camera_controls(dev);
+	ret = bcm2835_mmal_set_all_camera_controls(dev);
 	if (ret < 0) {
 		v4l2_err(&dev->v4l2_dev, "%s: failed to set all camera controls: %d\n",
 			 __func__, ret);
@@ -1769,8 +1769,7 @@ unreg_mmal:
 	return ret;
 }
 
-static int bm2835_mmal_init_device(struct bcm2835_mmal_dev *dev,
-				   struct video_device *vfd)
+static int bcm2835_mmal_init_device(struct bcm2835_mmal_dev *dev, struct video_device *vfd)
 {
 	int ret;
 
@@ -1908,7 +1907,7 @@ static int bcm2835_mmal_probe(struct platform_device *pdev)
 		}
 
 		/* setup v4l controls */
-		ret = bm2835_mmal_init_controls(dev, &dev->ctrl_handler);
+		ret = bcm2835_mmal_init_controls(dev, &dev->ctrl_handler);
 		if (ret < 0) {
 			v4l2_err(&dev->v4l2_dev, "%s: could not init controls: %d\n",
 				 __func__, ret);
@@ -1940,7 +1939,7 @@ static int bcm2835_mmal_probe(struct platform_device *pdev)
 			goto unreg_dev;
 
 		/* initialise video devices */
-		ret = bm2835_mmal_init_device(dev, &dev->vdev);
+		ret = bcm2835_mmal_init_device(dev, &dev->vdev);
 		if (ret < 0) {
 			v4l2_err(&dev->v4l2_dev, "%s: could not init device: %d\n",
 				 __func__, ret);
