@@ -847,6 +847,7 @@ smb2_handle_cancelled_mid(struct mid_q_entry *mid, struct TCP_Server_Info *serve
  * SMB2 header.
  *
  * @ses:	server session structure
+ * @server:	pointer to server info
  * @iov:	array containing the SMB request we will send to the server
  * @nvec:	number of array entries for the iov
  */
