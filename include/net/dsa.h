@@ -321,8 +321,6 @@ struct dsa_mac_addr {
 };
 
 struct dsa_switch {
-	bool setup;
-
 	struct device *dev;
 
 	/*
@@ -330,6 +328,57 @@ struct dsa_switch {
 	 */
 	struct dsa_switch_tree	*dst;
 	unsigned int		index;
+
+	u32			setup:1,
+				/* Disallow bridge core from requesting
+				 * different VLAN awareness settings on ports
+				 * if not hardware-supported
+				 */
+				vlan_filtering_is_global:1,
+				/* Keep VLAN filtering enabled on ports not
+				 * offloading any upper
+				 */
+				needs_standalone_vlan_filtering:1,
+				/* Pass .port_vlan_add and .port_vlan_del to
+				 * drivers even for bridges that have
+				 * vlan_filtering=0. All drivers should ideally
+				 * set this (and then the option would get
+				 * removed), but it is unknown whether this
+				 * would break things or not.
+				 */
+				configure_vlan_while_not_filtering:1,
+				/* If the switch driver always programs the CPU
+				 * port as egress tagged despite the VLAN
+				 * configuration indicating otherwise, then
+				 * setting @untag_bridge_pvid will force the
+				 * DSA receive path to pop the bridge's
+				 * default_pvid VLAN tagged frames to offer a
+				 * consistent behavior between a
+				 * vlan_filtering=0 and vlan_filtering=1 bridge
+				 * device.
+				 */
+				untag_bridge_pvid:1,
+				/* Let DSA manage the FDB entries towards the
+				 * CPU, based on the software bridge database.
+				 */
+				assisted_learning_on_cpu_port:1,
+				/* In case vlan_filtering_is_global is set, the
+				 * VLAN awareness state should be retrieved
+				 * from here and not from the per-port
+				 * settings.
+				 */
+				vlan_filtering:1,
+				/* MAC PCS does not provide link state change
+				 * interrupt, and requires polling. Flag passed
+				 * on to PHYLINK.
+				 */
+				pcs_poll:1,
+				/* For switches that only have the MRU
+				 * configurable. To ensure the configured MTU
+				 * is not exceeded, normalization of MRU on all
+				 * bridged interfaces is needed.
+				 */
+				mtu_enforcement_ingress:1;
 
 	/* Listener for switch fabric events */
 	struct notifier_block	nb;
@@ -370,50 +419,6 @@ struct dsa_switch {
 
 	/* Number of switch port queues */
 	unsigned int		num_tx_queues;
-
-	/* Disallow bridge core from requesting different VLAN awareness
-	 * settings on ports if not hardware-supported
-	 */
-	bool			vlan_filtering_is_global;
-
-	/* Keep VLAN filtering enabled on ports not offloading any upper. */
-	bool			needs_standalone_vlan_filtering;
-
-	/* Pass .port_vlan_add and .port_vlan_del to drivers even for bridges
-	 * that have vlan_filtering=0. All drivers should ideally set this (and
-	 * then the option would get removed), but it is unknown whether this
-	 * would break things or not.
-	 */
-	bool			configure_vlan_while_not_filtering;
-
-	/* If the switch driver always programs the CPU port as egress tagged
-	 * despite the VLAN configuration indicating otherwise, then setting
-	 * @untag_bridge_pvid will force the DSA receive path to pop the bridge's
-	 * default_pvid VLAN tagged frames to offer a consistent behavior
-	 * between a vlan_filtering=0 and vlan_filtering=1 bridge device.
-	 */
-	bool			untag_bridge_pvid;
-
-	/* Let DSA manage the FDB entries towards the CPU, based on the
-	 * software bridge database.
-	 */
-	bool			assisted_learning_on_cpu_port;
-
-	/* In case vlan_filtering_is_global is set, the VLAN awareness state
-	 * should be retrieved from here and not from the per-port settings.
-	 */
-	bool			vlan_filtering;
-
-	/* MAC PCS does not provide link state change interrupt, and requires
-	 * polling. Flag passed on to PHYLINK.
-	 */
-	bool			pcs_poll;
-
-	/* For switches that only have the MRU configurable. To ensure the
-	 * configured MTU is not exceeded, normalization of MRU on all bridged
-	 * interfaces is needed.
-	 */
-	bool			mtu_enforcement_ingress;
 
 	/* Drivers that benefit from having an ID associated with each
 	 * offloaded LAG should set this to the maximum number of
