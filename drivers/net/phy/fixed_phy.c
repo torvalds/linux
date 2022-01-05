@@ -239,8 +239,8 @@ static struct phy_device *__fixed_phy_register(unsigned int irq,
 	/* Check if we have a GPIO associated with this fixed phy */
 	if (!gpiod) {
 		gpiod = fixed_phy_get_gpiod(np);
-		if (!gpiod)
-			return ERR_PTR(-EINVAL);
+		if (IS_ERR(gpiod))
+			return ERR_CAST(gpiod);
 	}
 
 	/* Get the next available PHY address, up to PHY_MAX_ADDR */
