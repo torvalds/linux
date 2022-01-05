@@ -119,6 +119,9 @@ struct dsa_netdevice_ops {
 struct dsa_switch_tree {
 	struct list_head	list;
 
+	/* List of switch ports */
+	struct list_head ports;
+
 	/* Notifier chain for switch-wide events */
 	struct raw_notifier_head	nh;
 
@@ -128,8 +131,10 @@ struct dsa_switch_tree {
 	/* Number of switches attached to this tree */
 	struct kref refcount;
 
-	/* Has this tree been applied to the hardware? */
-	bool setup;
+	/* Maps offloaded LAG netdevs to a zero-based linear ID for
+	 * drivers that need it.
+	 */
+	struct net_device **lags;
 
 	/* Tagging protocol operations */
 	const struct dsa_device_ops *tag_ops;
@@ -139,22 +144,19 @@ struct dsa_switch_tree {
 	 */
 	enum dsa_tag_protocol default_proto;
 
+	/* Has this tree been applied to the hardware? */
+	bool setup;
+
 	/*
 	 * Configuration data for the platform device that owns
 	 * this dsa switch tree instance.
 	 */
 	struct dsa_platform_data	*pd;
 
-	/* List of switch ports */
-	struct list_head ports;
-
 	/* List of DSA links composing the routing table */
 	struct list_head rtable;
 
-	/* Maps offloaded LAG netdevs to a zero-based linear ID for
-	 * drivers that need it.
-	 */
-	struct net_device **lags;
+	/* Length of "lags" array */
 	unsigned int lags_len;
 
 	/* Track the largest switch index within a tree */
@@ -246,6 +248,10 @@ struct dsa_port {
 	struct dsa_switch_tree *dst;
 	struct sk_buff *(*rcv)(struct sk_buff *skb, struct net_device *dev);
 
+	struct dsa_switch	*ds;
+
+	unsigned int		index;
+
 	enum {
 		DSA_PORT_TYPE_UNUSED = 0,
 		DSA_PORT_TYPE_CPU,
@@ -253,24 +259,29 @@ struct dsa_port {
 		DSA_PORT_TYPE_USER,
 	} type;
 
-	struct dsa_switch	*ds;
-	unsigned int		index;
 	const char		*name;
 	struct dsa_port		*cpu_dp;
 	u8			mac[ETH_ALEN];
+
+	u8			stp_state;
+
+	u8			vlan_filtering:1,
+				/* Managed by DSA on user ports and by
+				 * drivers on CPU and DSA ports
+				 */
+				learning:1,
+				lag_tx_enabled:1,
+				devlink_port_setup:1,
+				setup:1;
+
 	struct device_node	*dn;
 	unsigned int		ageing_time;
-	bool			vlan_filtering;
-	/* Managed by DSA on user ports and by drivers on CPU and DSA ports */
-	bool			learning;
-	u8			stp_state;
+
 	struct dsa_bridge	*bridge;
 	struct devlink_port	devlink_port;
-	bool			devlink_port_setup;
 	struct phylink		*pl;
 	struct phylink_config	pl_config;
 	struct net_device	*lag_dev;
-	bool			lag_tx_enabled;
 	struct net_device	*hsr_dev;
 
 	struct list_head list;
@@ -291,8 +302,6 @@ struct dsa_port {
 	struct mutex		addr_lists_lock;
 	struct list_head	fdbs;
 	struct list_head	mdbs;
-
-	bool setup;
 };
 
 /* TODO: ideally DSA ports would have a single dp->link_dp member,
@@ -314,8 +323,6 @@ struct dsa_mac_addr {
 };
 
 struct dsa_switch {
-	bool setup;
-
 	struct device *dev;
 
 	/*
@@ -323,6 +330,57 @@ struct dsa_switch {
 	 */
 	struct dsa_switch_tree	*dst;
 	unsigned int		index;
+
+	u32			setup:1,
+				/* Disallow bridge core from requesting
+				 * different VLAN awareness settings on ports
+				 * if not hardware-supported
+				 */
+				vlan_filtering_is_global:1,
+				/* Keep VLAN filtering enabled on ports not
+				 * offloading any upper
+				 */
+				needs_standalone_vlan_filtering:1,
+				/* Pass .port_vlan_add and .port_vlan_del to
+				 * drivers even for bridges that have
+				 * vlan_filtering=0. All drivers should ideally
+				 * set this (and then the option would get
+				 * removed), but it is unknown whether this
+				 * would break things or not.
+				 */
+				configure_vlan_while_not_filtering:1,
+				/* If the switch driver always programs the CPU
+				 * port as egress tagged despite the VLAN
+				 * configuration indicating otherwise, then
+				 * setting @untag_bridge_pvid will force the
+				 * DSA receive path to pop the bridge's
+				 * default_pvid VLAN tagged frames to offer a
+				 * consistent behavior between a
+				 * vlan_filtering=0 and vlan_filtering=1 bridge
+				 * device.
+				 */
+				untag_bridge_pvid:1,
+				/* Let DSA manage the FDB entries towards the
+				 * CPU, based on the software bridge database.
+				 */
+				assisted_learning_on_cpu_port:1,
+				/* In case vlan_filtering_is_global is set, the
+				 * VLAN awareness state should be retrieved
+				 * from here and not from the per-port
+				 * settings.
+				 */
+				vlan_filtering:1,
+				/* MAC PCS does not provide link state change
+				 * interrupt, and requires polling. Flag passed
+				 * on to PHYLINK.
+				 */
+				pcs_poll:1,
+				/* For switches that only have the MRU
+				 * configurable. To ensure the configured MTU
+				 * is not exceeded, normalization of MRU on all
+				 * bridged interfaces is needed.
+				 */
+				mtu_enforcement_ingress:1;
 
 	/* Listener for switch fabric events */
 	struct notifier_block	nb;
@@ -364,50 +422,6 @@ struct dsa_switch {
 	/* Number of switch port queues */
 	unsigned int		num_tx_queues;
 
-	/* Disallow bridge core from requesting different VLAN awareness
-	 * settings on ports if not hardware-supported
-	 */
-	bool			vlan_filtering_is_global;
-
-	/* Keep VLAN filtering enabled on ports not offloading any upper. */
-	bool			needs_standalone_vlan_filtering;
-
-	/* Pass .port_vlan_add and .port_vlan_del to drivers even for bridges
-	 * that have vlan_filtering=0. All drivers should ideally set this (and
-	 * then the option would get removed), but it is unknown whether this
-	 * would break things or not.
-	 */
-	bool			configure_vlan_while_not_filtering;
-
-	/* If the switch driver always programs the CPU port as egress tagged
-	 * despite the VLAN configuration indicating otherwise, then setting
-	 * @untag_bridge_pvid will force the DSA receive path to pop the bridge's
-	 * default_pvid VLAN tagged frames to offer a consistent behavior
-	 * between a vlan_filtering=0 and vlan_filtering=1 bridge device.
-	 */
-	bool			untag_bridge_pvid;
-
-	/* Let DSA manage the FDB entries towards the CPU, based on the
-	 * software bridge database.
-	 */
-	bool			assisted_learning_on_cpu_port;
-
-	/* In case vlan_filtering_is_global is set, the VLAN awareness state
-	 * should be retrieved from here and not from the per-port settings.
-	 */
-	bool			vlan_filtering;
-
-	/* MAC PCS does not provide link state change interrupt, and requires
-	 * polling. Flag passed on to PHYLINK.
-	 */
-	bool			pcs_poll;
-
-	/* For switches that only have the MRU configurable. To ensure the
-	 * configured MTU is not exceeded, normalization of MRU on all bridged
-	 * interfaces is needed.
-	 */
-	bool			mtu_enforcement_ingress;
-
 	/* Drivers that benefit from having an ID associated with each
 	 * offloaded LAG should set this to the maximum number of
 	 * supported IDs. DSA will then maintain a mapping of _at
@@ -423,7 +437,7 @@ struct dsa_switch {
 	 */
 	unsigned int		max_num_bridges;
 
-	size_t num_ports;
+	unsigned int		num_ports;
 };
 
 static inline struct dsa_port *dsa_to_port(struct dsa_switch *ds, int p)
