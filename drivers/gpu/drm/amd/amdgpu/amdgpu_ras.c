@@ -946,40 +946,25 @@ int amdgpu_ras_query_error_status(struct amdgpu_device *adev,
 	if (!obj)
 		return -EINVAL;
 
-	block_obj = amdgpu_ras_get_ras_block(adev, info->head.block, 0);
-
-	switch (info->head.block) {
-	case AMDGPU_RAS_BLOCK__UMC:
+	if (info->head.block == AMDGPU_RAS_BLOCK__UMC) {
 		amdgpu_ras_get_ecc_info(adev, &err_data);
-		break;
-	case AMDGPU_RAS_BLOCK__SDMA:
-	case AMDGPU_RAS_BLOCK__GFX:
-	case AMDGPU_RAS_BLOCK__MMHUB:
+	} else {
+		block_obj = amdgpu_ras_get_ras_block(adev, info->head.block, 0);
 		if (!block_obj || !block_obj->hw_ops)   {
 			dev_info(adev->dev, "%s doesn't config ras function \n",
-						get_ras_block_str(&info->head));
+					get_ras_block_str(&info->head));
 			return -EINVAL;
 		}
+
 		if (block_obj->hw_ops->query_ras_error_count)
 			block_obj->hw_ops->query_ras_error_count(adev, &err_data);
 
-		if (block_obj->hw_ops->query_ras_error_status)
-			block_obj->hw_ops->query_ras_error_status(adev);
-		break;
-	case AMDGPU_RAS_BLOCK__PCIE_BIF:
-	case AMDGPU_RAS_BLOCK__XGMI_WAFL:
-	case AMDGPU_RAS_BLOCK__HDP:
-	case AMDGPU_RAS_BLOCK__MCA:
-		if (!block_obj || !block_obj->hw_ops)	{
-			dev_info(adev->dev, "%s doesn't config ras function \n",
-				get_ras_block_str(&info->head));
-			return -EINVAL;
-		}
-		if (block_obj->hw_ops->query_ras_error_count)
-			block_obj->hw_ops->query_ras_error_count(adev, &err_data);
-		break;
-	default:
-		break;
+		if ((info->head.block == AMDGPU_RAS_BLOCK__SDMA) ||
+		    (info->head.block == AMDGPU_RAS_BLOCK__GFX) ||
+		    (info->head.block == AMDGPU_RAS_BLOCK__MMHUB)) {
+				if (block_obj->hw_ops->query_ras_error_status)
+					block_obj->hw_ops->query_ras_error_status(adev);
+			}
 	}
 
 	obj->err_data.ue_count += err_data.ue_count;
@@ -1041,32 +1026,18 @@ int amdgpu_ras_reset_error_status(struct amdgpu_device *adev,
 	if (!amdgpu_ras_is_supported(adev, block))
 		return -EINVAL;
 
-	switch (block) {
-	case AMDGPU_RAS_BLOCK__GFX:
-	case AMDGPU_RAS_BLOCK__MMHUB:
-		if (!block_obj || !block_obj->hw_ops)   {
-			dev_info(adev->dev, "%s doesn't config ras function \n", ras_block_str(block));
-			return -EINVAL;
-		}
+	if (!block_obj || !block_obj->hw_ops)   {
+		dev_info(adev->dev, "%s doesn't config ras function \n", ras_block_str(block));
+		return -EINVAL;
+	}
 
-		if (block_obj->hw_ops->reset_ras_error_count)
-			block_obj->hw_ops->reset_ras_error_count(adev);
+	if (block_obj->hw_ops->reset_ras_error_count)
+		block_obj->hw_ops->reset_ras_error_count(adev);
 
+	if ((block == AMDGPU_RAS_BLOCK__GFX) ||
+	    (block == AMDGPU_RAS_BLOCK__MMHUB)) {
 		if (block_obj->hw_ops->reset_ras_error_status)
 			block_obj->hw_ops->reset_ras_error_status(adev);
-		break;
-	case AMDGPU_RAS_BLOCK__SDMA:
-	case AMDGPU_RAS_BLOCK__HDP:
-		if (!block_obj || !block_obj->hw_ops)	{
-			dev_info(adev->dev, "%s doesn't config ras function \n", ras_block_str(block));
-			return -EINVAL;
-		}
-
-		if (block_obj->hw_ops->reset_ras_error_count)
-			block_obj->hw_ops->reset_ras_error_count(adev);
-		break;
-	default:
-		break;
 	}
 
 	return 0;
