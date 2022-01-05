@@ -164,26 +164,6 @@ void __iomem *msm_ioremap_size(struct platform_device *pdev, const char *name,
 	return _msm_ioremap(pdev, name, false, psize);
 }
 
-void msm_writel(u32 data, void __iomem *addr)
-{
-	writel(data, addr);
-}
-
-u32 msm_readl(const void __iomem *addr)
-{
-	u32 val = readl(addr);
-
-	return val;
-}
-
-void msm_rmw(void __iomem *addr, u32 mask, u32 or)
-{
-	u32 val = msm_readl(addr);
-
-	val &= ~mask;
-	msm_writel(val | or, addr);
-}
-
 static enum hrtimer_restart msm_hrtimer_worktimer(struct hrtimer *t)
 {
 	struct msm_hrtimer_work *work = container_of(t,
