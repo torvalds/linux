@@ -1344,6 +1344,20 @@ void dcn303_update_bw_bounding_box(struct dc *dc, struct clk_bw_params *bw_param
 			dcn3_03_soc.clock_limits[i].phyclk_d18_mhz = dcn3_03_soc.clock_limits[0].phyclk_d18_mhz;
 			dcn3_03_soc.clock_limits[i].dscclk_mhz = dcn3_03_soc.clock_limits[0].dscclk_mhz;
 		}
+
+		// WA: patch strobe modes to compensate for DCN303 BW issue
+		if (dcn3_03_soc.num_chans <= 4) {
+			for (i = 0; i < dcn3_03_soc.num_states; i++) {
+				if (dcn3_03_soc.clock_limits[i].dram_speed_mts > 1700)
+					break;
+
+				if (dcn3_03_soc.clock_limits[i].dram_speed_mts >= 1500) {
+					dcn3_03_soc.clock_limits[i].dcfclk_mhz = 100;
+					dcn3_03_soc.clock_limits[i].fabricclk_mhz = 100;
+				}
+			}
+		}
+
 		/* re-init DML with updated bb */
 		dml_init_instance(&dc->dml, &dcn3_03_soc, &dcn3_03_ip, DML_PROJECT_DCN30);
 		if (dc->current_state)
@@ -1394,7 +1408,7 @@ static const struct dccg_mask dccg_mask = {
 };
 
 #define abm_regs(id)\
-		[id] = { ABM_DCN301_REG_LIST(id) }
+		[id] = { ABM_DCN302_REG_LIST(id) }
 
 static const struct dce_abm_registers abm_regs[] = {
 		abm_regs(0),

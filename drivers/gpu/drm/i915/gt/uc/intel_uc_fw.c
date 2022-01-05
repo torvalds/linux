@@ -7,6 +7,7 @@
 #include <linux/firmware.h>
 #include <drm/drm_print.h>
 
+#include "gem/i915_gem_lmem.h"
 #include "intel_uc_fw.h"
 #include "intel_uc_fw_abi.h"
 #include "i915_drv.h"
@@ -50,6 +51,7 @@ void intel_uc_fw_change_status(struct intel_uc_fw *uc_fw,
 #define INTEL_UC_FIRMWARE_DEFS(fw_def, guc_def, huc_def) \
 	fw_def(ALDERLAKE_P, 0, guc_def(adlp, 62, 0, 3), huc_def(tgl, 7, 9, 3)) \
 	fw_def(ALDERLAKE_S, 0, guc_def(tgl, 62, 0, 0), huc_def(tgl,  7, 9, 3)) \
+	fw_def(DG1,         0, guc_def(dg1, 62, 0, 0), huc_def(dg1,  7, 9, 3)) \
 	fw_def(ROCKETLAKE,  0, guc_def(tgl, 62, 0, 0), huc_def(tgl,  7, 9, 3)) \
 	fw_def(TIGERLAKE,   0, guc_def(tgl, 62, 0, 0), huc_def(tgl,  7, 9, 3)) \
 	fw_def(JASPERLAKE,  0, guc_def(ehl, 62, 0, 0), huc_def(ehl,  9, 0, 0)) \
@@ -370,7 +372,14 @@ int intel_uc_fw_fetch(struct intel_uc_fw *uc_fw)
 	if (uc_fw->type == INTEL_UC_FW_TYPE_GUC)
 		uc_fw->private_data_size = css->private_data_size;
 
-	obj = i915_gem_object_create_shmem_from_data(i915, fw->data, fw->size);
+	if (HAS_LMEM(i915)) {
+		obj = i915_gem_object_create_lmem_from_data(i915, fw->data, fw->size);
+		if (!IS_ERR(obj))
+			obj->flags |= I915_BO_ALLOC_PM_EARLY;
+	} else {
+		obj = i915_gem_object_create_shmem_from_data(i915, fw->data, fw->size);
+	}
+
 	if (IS_ERR(obj)) {
 		err = PTR_ERR(obj);
 		goto fail;
@@ -413,20 +422,25 @@ static void uc_fw_bind_ggtt(struct intel_uc_fw *uc_fw)
 {
 	struct drm_i915_gem_object *obj = uc_fw->obj;
 	struct i915_ggtt *ggtt = __uc_fw_to_gt(uc_fw)->ggtt;
-	struct i915_vma dummy = {
-		.node.start = uc_fw_ggtt_offset(uc_fw),
-		.node.size = obj->base.size,
-		.pages = obj->mm.pages,
-		.vm = &ggtt->vm,
-	};
+	struct i915_vma *dummy = &uc_fw->dummy;
+	u32 pte_flags = 0;
+
+	dummy->node.start = uc_fw_ggtt_offset(uc_fw);
+	dummy->node.size = obj->base.size;
+	dummy->pages = obj->mm.pages;
+	dummy->vm = &ggtt->vm;
 
 	GEM_BUG_ON(!i915_gem_object_has_pinned_pages(obj));
-	GEM_BUG_ON(dummy.node.size > ggtt->uc_fw.size);
+	GEM_BUG_ON(dummy->node.size > ggtt->uc_fw.size);
 
 	/* uc_fw->obj cache domains were not controlled across suspend */
-	drm_clflush_sg(dummy.pages);
+	if (i915_gem_object_has_struct_page(obj))
+		drm_clflush_sg(dummy->pages);
 
-	ggtt->vm.insert_entries(&ggtt->vm, &dummy, I915_CACHE_NONE, 0);
+	if (i915_gem_object_is_lmem(obj))
+		pte_flags |= PTE_LM;
+
+	ggtt->vm.insert_entries(&ggtt->vm, dummy, I915_CACHE_NONE, pte_flags);
 }
 
 static void uc_fw_unbind_ggtt(struct intel_uc_fw *uc_fw)
@@ -585,13 +599,68 @@ void intel_uc_fw_cleanup_fetch(struct intel_uc_fw *uc_fw)
  */
 size_t intel_uc_fw_copy_rsa(struct intel_uc_fw *uc_fw, void *dst, u32 max_len)
 {
-	struct sg_table *pages = uc_fw->obj->mm.pages;
+	struct intel_memory_region *mr = uc_fw->obj->mm.region;
 	u32 size = min_t(u32, uc_fw->rsa_size, max_len);
 	u32 offset = sizeof(struct uc_css_header) + uc_fw->ucode_size;
+	struct sgt_iter iter;
+	size_t count = 0;
+	int idx;
 
+	/* Called during reset handling, must be atomic [no fs_reclaim] */
 	GEM_BUG_ON(!intel_uc_fw_is_available(uc_fw));
 
-	return sg_pcopy_to_buffer(pages->sgl, pages->nents, dst, size, offset);
+	idx = offset >> PAGE_SHIFT;
+	offset = offset_in_page(offset);
+	if (i915_gem_object_has_struct_page(uc_fw->obj)) {
+		struct page *page;
+
+		for_each_sgt_page(page, iter, uc_fw->obj->mm.pages) {
+			u32 len = min_t(u32, size, PAGE_SIZE - offset);
+			void *vaddr;
+
+			if (idx > 0) {
+				idx--;
+				continue;
+			}
+
+			vaddr = kmap_atomic(page);
+			memcpy(dst, vaddr + offset, len);
+			kunmap_atomic(vaddr);
+
+			offset = 0;
+			dst += len;
+			size -= len;
+			count += len;
+			if (!size)
+				break;
+		}
+	} else {
+		dma_addr_t addr;
+
+		for_each_sgt_daddr(addr, iter, uc_fw->obj->mm.pages) {
+			u32 len = min_t(u32, size, PAGE_SIZE - offset);
+			void __iomem *vaddr;
+
+			if (idx > 0) {
+				idx--;
+				continue;
+			}
+
+			vaddr = io_mapping_map_atomic_wc(&mr->iomap,
+							 addr - mr->region.start);
+			memcpy_fromio(dst, vaddr + offset, len);
+			io_mapping_unmap_atomic(vaddr);
+
+			offset = 0;
+			dst += len;
+			size -= len;
+			count += len;
+			if (!size)
+				break;
+		}
+	}
+
+	return count;
 }
 
 /**

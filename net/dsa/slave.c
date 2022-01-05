@@ -174,7 +174,7 @@ static int dsa_slave_set_mac_address(struct net_device *dev, void *a)
 		dev_uc_del(master, dev->dev_addr);
 
 out:
-	ether_addr_copy(dev->dev_addr, addr->sa_data);
+	eth_hw_addr_set(dev, addr->sa_data);
 
 	return 0;
 }
@@ -787,6 +787,37 @@ static int dsa_slave_get_sset_count(struct net_device *dev, int sset)
 	}
 
 	return -EOPNOTSUPP;
+}
+
+static void dsa_slave_get_eth_phy_stats(struct net_device *dev,
+					struct ethtool_eth_phy_stats *phy_stats)
+{
+	struct dsa_port *dp = dsa_slave_to_port(dev);
+	struct dsa_switch *ds = dp->ds;
+
+	if (ds->ops->get_eth_phy_stats)
+		ds->ops->get_eth_phy_stats(ds, dp->index, phy_stats);
+}
+
+static void dsa_slave_get_eth_mac_stats(struct net_device *dev,
+					struct ethtool_eth_mac_stats *mac_stats)
+{
+	struct dsa_port *dp = dsa_slave_to_port(dev);
+	struct dsa_switch *ds = dp->ds;
+
+	if (ds->ops->get_eth_mac_stats)
+		ds->ops->get_eth_mac_stats(ds, dp->index, mac_stats);
+}
+
+static void
+dsa_slave_get_eth_ctrl_stats(struct net_device *dev,
+			     struct ethtool_eth_ctrl_stats *ctrl_stats)
+{
+	struct dsa_port *dp = dsa_slave_to_port(dev);
+	struct dsa_switch *ds = dp->ds;
+
+	if (ds->ops->get_eth_ctrl_stats)
+		ds->ops->get_eth_ctrl_stats(ds, dp->index, ctrl_stats);
 }
 
 static void dsa_slave_net_selftest(struct net_device *ndev,
@@ -1695,6 +1726,9 @@ static const struct ethtool_ops dsa_slave_ethtool_ops = {
 	.get_strings		= dsa_slave_get_strings,
 	.get_ethtool_stats	= dsa_slave_get_ethtool_stats,
 	.get_sset_count		= dsa_slave_get_sset_count,
+	.get_eth_phy_stats	= dsa_slave_get_eth_phy_stats,
+	.get_eth_mac_stats	= dsa_slave_get_eth_mac_stats,
+	.get_eth_ctrl_stats	= dsa_slave_get_eth_ctrl_stats,
 	.set_wol		= dsa_slave_set_wol,
 	.get_wol		= dsa_slave_get_wol,
 	.set_eee		= dsa_slave_set_eee,
@@ -1837,6 +1871,10 @@ static int dsa_slave_phy_setup(struct net_device *slave_dev)
 		dp->pl_config.poll_fixed_state = true;
 	}
 
+	if (ds->ops->phylink_get_interfaces)
+		ds->ops->phylink_get_interfaces(ds, dp->index,
+					dp->pl_config.supported_interfaces);
+
 	dp->pl = phylink_create(&dp->pl_config, of_fwnode_handle(port_dn), mode,
 				&dsa_port_phylink_mac_ops);
 	if (IS_ERR(dp->pl)) {
@@ -1954,7 +1992,7 @@ int dsa_slave_create(struct dsa_port *port)
 
 	slave_dev->ethtool_ops = &dsa_slave_ethtool_ops;
 	if (!is_zero_ether_addr(port->mac))
-		ether_addr_copy(slave_dev->dev_addr, port->mac);
+		eth_hw_addr_set(slave_dev, port->mac);
 	else
 		eth_hw_addr_inherit(slave_dev, master);
 	slave_dev->priv_flags |= IFF_NO_QUEUE;
@@ -2334,7 +2372,7 @@ static int dsa_slave_netdevice_event(struct notifier_block *nb,
 		dst = cpu_dp->ds->dst;
 
 		list_for_each_entry(dp, &dst->ports, list) {
-			if (!dsa_is_user_port(dp->ds, dp->index))
+			if (!dsa_port_is_user(dp))
 				continue;
 
 			list_add(&dp->slave->close_list, &close_list);
@@ -2379,7 +2417,6 @@ static void dsa_slave_switchdev_event_work(struct work_struct *work)
 
 	dp = dsa_to_port(ds, switchdev_work->port);
 
-	rtnl_lock();
 	switch (switchdev_work->event) {
 	case SWITCHDEV_FDB_ADD_TO_DEVICE:
 		if (switchdev_work->host_addr)
@@ -2414,9 +2451,7 @@ static void dsa_slave_switchdev_event_work(struct work_struct *work)
 
 		break;
 	}
-	rtnl_unlock();
 
-	dev_put(switchdev_work->dev);
 	kfree(switchdev_work);
 }
 
@@ -2437,10 +2472,9 @@ static bool dsa_foreign_dev_check(const struct net_device *dev,
 }
 
 static int dsa_slave_fdb_event(struct net_device *dev,
-			       const struct net_device *orig_dev,
-			       const void *ctx,
-			       const struct switchdev_notifier_fdb_info *fdb_info,
-			       unsigned long event)
+			       struct net_device *orig_dev,
+			       unsigned long event, const void *ctx,
+			       const struct switchdev_notifier_fdb_info *fdb_info)
 {
 	struct dsa_switchdev_event_work *switchdev_work;
 	struct dsa_port *dp = dsa_slave_to_port(dev);
@@ -2489,29 +2523,9 @@ static int dsa_slave_fdb_event(struct net_device *dev,
 	switchdev_work->vid = fdb_info->vid;
 	switchdev_work->host_addr = host_addr;
 
-	/* Hold a reference for dsa_fdb_offload_notify */
-	dev_hold(dev);
 	dsa_schedule_work(&switchdev_work->work);
 
 	return 0;
-}
-
-static int
-dsa_slave_fdb_add_to_device(struct net_device *dev,
-			    const struct net_device *orig_dev, const void *ctx,
-			    const struct switchdev_notifier_fdb_info *fdb_info)
-{
-	return dsa_slave_fdb_event(dev, orig_dev, ctx, fdb_info,
-				   SWITCHDEV_FDB_ADD_TO_DEVICE);
-}
-
-static int
-dsa_slave_fdb_del_to_device(struct net_device *dev,
-			    const struct net_device *orig_dev, const void *ctx,
-			    const struct switchdev_notifier_fdb_info *fdb_info)
-{
-	return dsa_slave_fdb_event(dev, orig_dev, ctx, fdb_info,
-				   SWITCHDEV_FDB_DEL_TO_DEVICE);
 }
 
 /* Called under rcu_read_lock() */
@@ -2528,18 +2542,12 @@ static int dsa_slave_switchdev_event(struct notifier_block *unused,
 						     dsa_slave_port_attr_set);
 		return notifier_from_errno(err);
 	case SWITCHDEV_FDB_ADD_TO_DEVICE:
-		err = switchdev_handle_fdb_add_to_device(dev, ptr,
-							 dsa_slave_dev_check,
-							 dsa_foreign_dev_check,
-							 dsa_slave_fdb_add_to_device,
-							 NULL);
-		return notifier_from_errno(err);
 	case SWITCHDEV_FDB_DEL_TO_DEVICE:
-		err = switchdev_handle_fdb_del_to_device(dev, ptr,
-							 dsa_slave_dev_check,
-							 dsa_foreign_dev_check,
-							 dsa_slave_fdb_del_to_device,
-							 NULL);
+		err = switchdev_handle_fdb_event_to_device(dev, event, ptr,
+							   dsa_slave_dev_check,
+							   dsa_foreign_dev_check,
+							   dsa_slave_fdb_event,
+							   NULL);
 		return notifier_from_errno(err);
 	default:
 		return NOTIFY_DONE;

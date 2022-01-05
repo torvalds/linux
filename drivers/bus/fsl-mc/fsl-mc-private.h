@@ -48,7 +48,6 @@ struct dpmng_rsp_get_version {
 
 /* DPMCP command IDs */
 #define DPMCP_CMDID_CLOSE		DPMCP_CMD(0x800)
-#define DPMCP_CMDID_OPEN		DPMCP_CMD(0x80b)
 #define DPMCP_CMDID_RESET		DPMCP_CMD(0x005)
 
 struct dpmcp_cmd_open {
@@ -91,7 +90,6 @@ int dpmcp_reset(struct fsl_mc_io *mc_io,
 
 /* DPRC command IDs */
 #define DPRC_CMDID_CLOSE                        DPRC_CMD(0x800)
-#define DPRC_CMDID_OPEN                         DPRC_CMD(0x805)
 #define DPRC_CMDID_GET_API_VERSION              DPRC_CMD(0xa05)
 
 #define DPRC_CMDID_GET_ATTR                     DPRC_CMD(0x004)
@@ -453,7 +451,6 @@ int dprc_get_connection(struct fsl_mc_io *mc_io,
 
 /* Command IDs */
 #define DPBP_CMDID_CLOSE		DPBP_CMD(0x800)
-#define DPBP_CMDID_OPEN			DPBP_CMD(0x804)
 
 #define DPBP_CMDID_ENABLE		DPBP_CMD(0x002)
 #define DPBP_CMDID_DISABLE		DPBP_CMD(0x003)
@@ -492,7 +489,6 @@ struct dpbp_rsp_get_attributes {
 
 /* Command IDs */
 #define DPCON_CMDID_CLOSE			DPCON_CMD(0x800)
-#define DPCON_CMDID_OPEN			DPCON_CMD(0x808)
 
 #define DPCON_CMDID_ENABLE			DPCON_CMD(0x002)
 #define DPCON_CMDID_DISABLE			DPCON_CMD(0x003)
@@ -524,6 +520,41 @@ struct dpcon_cmd_set_notification {
 	__le64 user_ctx;
 };
 
+/*
+ * Generic FSL MC API
+ */
+
+/* generic command versioning */
+#define OBJ_CMD_BASE_VERSION		1
+#define OBJ_CMD_ID_OFFSET		4
+
+#define OBJ_CMD(id)	(((id) << OBJ_CMD_ID_OFFSET) | OBJ_CMD_BASE_VERSION)
+
+/* open command codes */
+#define DPRTC_CMDID_OPEN		OBJ_CMD(0x810)
+#define DPNI_CMDID_OPEN		OBJ_CMD(0x801)
+#define DPSW_CMDID_OPEN		OBJ_CMD(0x802)
+#define DPIO_CMDID_OPEN		OBJ_CMD(0x803)
+#define DPBP_CMDID_OPEN		OBJ_CMD(0x804)
+#define DPRC_CMDID_OPEN		OBJ_CMD(0x805)
+#define DPDMUX_CMDID_OPEN		OBJ_CMD(0x806)
+#define DPCI_CMDID_OPEN		OBJ_CMD(0x807)
+#define DPCON_CMDID_OPEN		OBJ_CMD(0x808)
+#define DPSECI_CMDID_OPEN		OBJ_CMD(0x809)
+#define DPAIOP_CMDID_OPEN		OBJ_CMD(0x80a)
+#define DPMCP_CMDID_OPEN		OBJ_CMD(0x80b)
+#define DPMAC_CMDID_OPEN		OBJ_CMD(0x80c)
+#define DPDCEI_CMDID_OPEN		OBJ_CMD(0x80d)
+#define DPDMAI_CMDID_OPEN		OBJ_CMD(0x80e)
+#define DPDBG_CMDID_OPEN		OBJ_CMD(0x80f)
+
+/* Generic object command IDs */
+#define OBJ_CMDID_CLOSE		OBJ_CMD(0x800)
+#define OBJ_CMDID_RESET		OBJ_CMD(0x005)
+
+struct fsl_mc_obj_cmd_open {
+	__le32 obj_id;
+};
 
 /**
  * struct fsl_mc_resource_pool - Pool of MC resources of a given

@@ -15,6 +15,7 @@
 #include "qed_hsi.h"
 #include "qed_hw.h"
 #include "qed_init_ops.h"
+#include "qed_iro_hsi.h"
 #include "qed_reg_addr.h"
 #include "qed_sriov.h"
 
@@ -46,30 +47,32 @@ static u32 pxp_global_win[] = {
 /* IRO Array */
 static const u32 iro_arr[] = {
 	0x00000000, 0x00000000, 0x00080000,
+	0x00004478, 0x00000008, 0x00080000,
 	0x00003288, 0x00000088, 0x00880000,
-	0x000058e8, 0x00000020, 0x00200000,
+	0x000058a8, 0x00000020, 0x00200000,
+	0x00003188, 0x00000008, 0x00080000,
 	0x00000b00, 0x00000008, 0x00040000,
 	0x00000a80, 0x00000008, 0x00040000,
 	0x00000000, 0x00000008, 0x00020000,
 	0x00000080, 0x00000008, 0x00040000,
 	0x00000084, 0x00000008, 0x00020000,
-	0x00005718, 0x00000004, 0x00040000,
-	0x00004dd0, 0x00000000, 0x00780000,
+	0x00005798, 0x00000004, 0x00040000,
+	0x00004e50, 0x00000000, 0x00780000,
 	0x00003e40, 0x00000000, 0x00780000,
-	0x00004480, 0x00000000, 0x00780000,
+	0x00004500, 0x00000000, 0x00780000,
 	0x00003210, 0x00000000, 0x00780000,
 	0x00003b50, 0x00000000, 0x00780000,
 	0x00007f58, 0x00000000, 0x00780000,
-	0x00005f58, 0x00000000, 0x00080000,
+	0x00005fd8, 0x00000000, 0x00080000,
 	0x00007100, 0x00000000, 0x00080000,
-	0x0000aea0, 0x00000000, 0x00080000,
+	0x0000af20, 0x00000000, 0x00080000,
 	0x00004398, 0x00000000, 0x00080000,
 	0x0000a5a0, 0x00000000, 0x00080000,
 	0x0000bde8, 0x00000000, 0x00080000,
 	0x00000020, 0x00000004, 0x00040000,
-	0x000056c8, 0x00000010, 0x00100000,
+	0x00005688, 0x00000010, 0x00100000,
 	0x0000c210, 0x00000030, 0x00300000,
-	0x0000b088, 0x00000038, 0x00380000,
+	0x0000b108, 0x00000038, 0x00380000,
 	0x00003d20, 0x00000080, 0x00400000,
 	0x0000bf60, 0x00000000, 0x00040000,
 	0x00004560, 0x00040080, 0x00040000,
@@ -77,11 +80,11 @@ static const u32 iro_arr[] = {
 	0x00003d60, 0x00000080, 0x00200000,
 	0x00008960, 0x00000040, 0x00300000,
 	0x0000e840, 0x00000060, 0x00600000,
-	0x00004618, 0x00000080, 0x00380000,
-	0x00010738, 0x000000c0, 0x00c00000,
+	0x00004698, 0x00000080, 0x00380000,
+	0x000107b8, 0x000000c0, 0x00c00000,
 	0x000001f8, 0x00000002, 0x00020000,
-	0x0000a2a0, 0x00000000, 0x01080000,
-	0x0000a3a8, 0x00000008, 0x00080000,
+	0x0000a260, 0x00000000, 0x01080000,
+	0x0000a368, 0x00000008, 0x00080000,
 	0x000001c0, 0x00000008, 0x00080000,
 	0x000001f8, 0x00000008, 0x00080000,
 	0x00000ac0, 0x00000008, 0x00080000,
@@ -90,39 +93,46 @@ static const u32 iro_arr[] = {
 	0x00000280, 0x00000008, 0x00080000,
 	0x00000680, 0x00080018, 0x00080000,
 	0x00000b78, 0x00080018, 0x00020000,
-	0x0000c640, 0x00000050, 0x003c0000,
-	0x00012038, 0x00000018, 0x00100000,
-	0x00011b00, 0x00000040, 0x00180000,
-	0x000095d0, 0x00000050, 0x00200000,
+	0x0000c600, 0x00000058, 0x003c0000,
+	0x00012038, 0x00000020, 0x00100000,
+	0x00011b00, 0x00000048, 0x00180000,
+	0x00009650, 0x00000050, 0x00200000,
 	0x00008b10, 0x00000040, 0x00280000,
-	0x00011640, 0x00000018, 0x00100000,
-	0x0000c828, 0x00000048, 0x00380000,
-	0x00011710, 0x00000020, 0x00200000,
-	0x00004650, 0x00000080, 0x00100000,
+	0x000116c0, 0x00000018, 0x00100000,
+	0x0000c808, 0x00000048, 0x00380000,
+	0x00011790, 0x00000020, 0x00200000,
+	0x000046d0, 0x00000080, 0x00100000,
 	0x00003618, 0x00000010, 0x00100000,
-	0x0000a968, 0x00000008, 0x00010000,
+	0x0000a9e8, 0x00000008, 0x00010000,
 	0x000097a0, 0x00000008, 0x00010000,
-	0x00011990, 0x00000008, 0x00010000,
-	0x0000f018, 0x00000008, 0x00010000,
-	0x00012628, 0x00000008, 0x00010000,
-	0x00011da8, 0x00000008, 0x00010000,
-	0x0000aa78, 0x00000030, 0x00100000,
-	0x0000d768, 0x00000028, 0x00280000,
-	0x00009a58, 0x00000018, 0x00180000,
-	0x00009bd8, 0x00000008, 0x00080000,
-	0x00013a18, 0x00000008, 0x00080000,
-	0x000126e8, 0x00000018, 0x00180000,
-	0x0000e608, 0x00500288, 0x00100000,
-	0x00012970, 0x00000138, 0x00280000,
+	0x00011a10, 0x00000008, 0x00010000,
+	0x0000e9f8, 0x00000008, 0x00010000,
+	0x00012648, 0x00000008, 0x00010000,
+	0x000121c8, 0x00000008, 0x00010000,
+	0x0000af08, 0x00000030, 0x00100000,
+	0x0000d748, 0x00000028, 0x00280000,
+	0x00009e68, 0x00000018, 0x00180000,
+	0x00009fe8, 0x00000008, 0x00080000,
+	0x00013ea8, 0x00000008, 0x00080000,
+	0x00012f18, 0x00000018, 0x00180000,
+	0x0000dfe8, 0x00500288, 0x00100000,
+	0x000131a0, 0x00000138, 0x00280000,
 };
 
 void qed_init_iro_array(struct qed_dev *cdev)
 {
-	cdev->iro_arr = iro_arr;
+	cdev->iro_arr = iro_arr + E4_IRO_ARR_OFFSET;
 }
 
 void qed_init_store_rt_reg(struct qed_hwfn *p_hwfn, u32 rt_offset, u32 val)
 {
+	if (rt_offset >= RUNTIME_ARRAY_SIZE) {
+		DP_ERR(p_hwfn,
+		       "Avoid storing %u in rt_data at index %u!\n",
+		       val, rt_offset);
+		return;
+	}
+
 	p_hwfn->rt_data.init_val[rt_offset] = val;
 	p_hwfn->rt_data.b_valid[rt_offset] = true;
 }
@@ -131,6 +141,14 @@ void qed_init_store_rt_agg(struct qed_hwfn *p_hwfn,
 			   u32 rt_offset, u32 *p_val, size_t size)
 {
 	size_t i;
+
+	if ((rt_offset + size - 1) >= RUNTIME_ARRAY_SIZE) {
+		DP_ERR(p_hwfn,
+		       "Avoid storing values in rt_data at indices %u-%u!\n",
+		       rt_offset,
+		       (u32)(rt_offset + size - 1));
+		return;
+	}
 
 	for (i = 0; i < size / sizeof(u32); i++) {
 		p_hwfn->rt_data.init_val[rt_offset + i] = p_val[i];
@@ -175,7 +193,7 @@ static int qed_init_rt(struct qed_hwfn	*p_hwfn,
 			return rc;
 
 		/* invalidate after writing */
-		for (j = i; j < i + segment; j++)
+		for (j = i; j < (u32)(i + segment); j++)
 			p_valid[j] = false;
 
 		/* Jump over the entire segment, including invalid entry */
@@ -245,7 +263,7 @@ static int qed_init_array_dmae(struct qed_hwfn *p_hwfn,
 
 static int qed_init_fill_dmae(struct qed_hwfn *p_hwfn,
 			      struct qed_ptt *p_ptt,
-			      u32 addr, u32 fill, u32 fill_count)
+			      u32 addr, u32 fill_count)
 {
 	static u32 zero_buffer[DMAE_MAX_RW_SIZE];
 	struct qed_dmae_params params = {};
@@ -372,7 +390,7 @@ static int qed_init_cmd_wr(struct qed_hwfn *p_hwfn,
 	case INIT_SRC_ZEROS:
 		data = le32_to_cpu(p_cmd->args.zeros_count);
 		if (b_must_dmae || (b_can_dmae && (data >= 64)))
-			rc = qed_init_fill_dmae(p_hwfn, p_ptt, addr, 0, data);
+			rc = qed_init_fill_dmae(p_hwfn, p_ptt, addr, data);
 		else
 			qed_init_fill(p_hwfn, p_ptt, addr, 0, data);
 		break;
@@ -418,7 +436,6 @@ static void qed_init_cmd_rd(struct qed_hwfn *p_hwfn,
 	data = le32_to_cpu(cmd->op_data);
 	addr = GET_FIELD(data, INIT_READ_OP_ADDRESS) << 2;
 	poll = GET_FIELD(data, INIT_READ_OP_POLL_TYPE);
-
 
 	val = qed_rd(p_hwfn, p_ptt, addr);
 
@@ -515,8 +532,7 @@ static u32 qed_init_cmd_mode(struct qed_hwfn *p_hwfn,
 				 INIT_IF_MODE_OP_CMD_OFFSET);
 }
 
-static u32 qed_init_cmd_phase(struct qed_hwfn *p_hwfn,
-			      struct init_if_phase_op *p_cmd,
+static u32 qed_init_cmd_phase(struct init_if_phase_op *p_cmd,
 			      u32 phase, u32 phase_id)
 {
 	u32 data = le32_to_cpu(p_cmd->phase_data);
@@ -563,7 +579,7 @@ int qed_init_run(struct qed_hwfn *p_hwfn,
 						     modes);
 			break;
 		case INIT_OP_IF_PHASE:
-			cmd_num += qed_init_cmd_phase(p_hwfn, &cmd->if_phase,
+			cmd_num += qed_init_cmd_phase(&cmd->if_phase,
 						      phase, phase_id);
 			break;
 		case INIT_OP_DELAY:

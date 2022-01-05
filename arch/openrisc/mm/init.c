@@ -25,7 +25,6 @@
 #include <linux/memblock.h>
 #include <linux/init.h>
 #include <linux/delay.h>
-#include <linux/blkdev.h>	/* for initrd_* */
 #include <linux/pagemap.h>
 
 #include <asm/pgalloc.h>

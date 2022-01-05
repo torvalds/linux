@@ -57,9 +57,16 @@ static inline bool i915_vma_is_active(const struct i915_vma *vma)
 
 int __must_check __i915_vma_move_to_active(struct i915_vma *vma,
 					   struct i915_request *rq);
-int __must_check i915_vma_move_to_active(struct i915_vma *vma,
-					 struct i915_request *rq,
-					 unsigned int flags);
+int __must_check _i915_vma_move_to_active(struct i915_vma *vma,
+					  struct i915_request *rq,
+					  struct dma_fence *fence,
+					  unsigned int flags);
+static inline int __must_check
+i915_vma_move_to_active(struct i915_vma *vma, struct i915_request *rq,
+			unsigned int flags)
+{
+	return _i915_vma_move_to_active(vma, rq, &rq->fence, flags);
+}
 
 #define __i915_vma_flags(v) ((unsigned long *)&(v)->flags.counter)
 

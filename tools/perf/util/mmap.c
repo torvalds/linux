@@ -350,3 +350,14 @@ int perf_mmap__push(struct mmap *md, void *to,
 out:
 	return rc;
 }
+
+int mmap_cpu_mask__duplicate(struct mmap_cpu_mask *original, struct mmap_cpu_mask *clone)
+{
+	clone->nbits = original->nbits;
+	clone->bits  = bitmap_zalloc(original->nbits);
+	if (!clone->bits)
+		return -ENOMEM;
+
+	memcpy(clone->bits, original->bits, MMAP_CPU_MASK_BYTES(original));
+	return 0;
+}

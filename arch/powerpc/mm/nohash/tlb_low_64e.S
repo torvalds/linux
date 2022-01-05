@@ -222,7 +222,7 @@ tlb_miss_kernel_bolted:
 
 tlb_miss_fault_bolted:
 	/* We need to check if it was an instruction miss */
-	andi.	r10,r11,_PAGE_EXEC|_PAGE_BAP_SX
+	andi.	r10,r11,_PAGE_BAP_UX|_PAGE_BAP_SX
 	bne	itlb_miss_fault_bolted
 dtlb_miss_fault_bolted:
 	tlb_epilog_bolted
@@ -239,7 +239,7 @@ itlb_miss_fault_bolted:
 	srdi	r15,r16,60		/* get region */
 	bne-	itlb_miss_fault_bolted
 
-	li	r11,_PAGE_PRESENT|_PAGE_EXEC	/* Base perm */
+	li	r11,_PAGE_PRESENT|_PAGE_BAP_UX	/* Base perm */
 
 	/* We do the user/kernel test for the PID here along with the RW test
 	 */
@@ -614,7 +614,7 @@ itlb_miss_fault_e6500:
 
 	/* We do the user/kernel test for the PID here along with the RW test
 	 */
-	li	r11,_PAGE_PRESENT|_PAGE_EXEC	/* Base perm */
+	li	r11,_PAGE_PRESENT|_PAGE_BAP_UX	/* Base perm */
 	oris	r11,r11,_PAGE_ACCESSED@h
 
 	cmpldi	cr0,r15,0			/* Check for user region */
@@ -734,7 +734,7 @@ normal_tlb_miss_done:
 
 normal_tlb_miss_access_fault:
 	/* We need to check if it was an instruction miss */
-	andi.	r10,r11,_PAGE_EXEC
+	andi.	r10,r11,_PAGE_BAP_UX
 	bne	1f
 	ld	r14,EX_TLB_DEAR(r12)
 	ld	r15,EX_TLB_ESR(r12)

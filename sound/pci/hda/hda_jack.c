@@ -158,6 +158,17 @@ snd_hda_jack_tbl_new(struct hda_codec *codec, hda_nid_t nid, int dev_id)
 	return jack;
 }
 
+void snd_hda_jack_tbl_disconnect(struct hda_codec *codec)
+{
+	struct hda_jack_tbl *jack = codec->jacktbl.list;
+	int i;
+
+	for (i = 0; i < codec->jacktbl.used; i++, jack++) {
+		if (!codec->bus->shutdown && jack->jack)
+			snd_device_disconnect(codec->card, jack->jack);
+	}
+}
+
 void snd_hda_jack_tbl_clear(struct hda_codec *codec)
 {
 	struct hda_jack_tbl *jack = codec->jacktbl.list;

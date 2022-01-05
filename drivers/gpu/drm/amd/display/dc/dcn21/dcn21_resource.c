@@ -35,7 +35,7 @@
 #include "include/irq_service_interface.h"
 #include "dcn20/dcn20_resource.h"
 
-#include "dml/dcn2x/dcn2x.h"
+#include "dml/dcn20/dcn20_fpu.h"
 
 #include "clk_mgr.h"
 #include "dcn10/dcn10_hubp.h"

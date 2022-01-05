@@ -33,11 +33,18 @@ static void cxgbit_set_mdsl(struct cxgbit_device *cdev)
 	struct cxgb4_lld_info *lldi = &cdev->lldi;
 	u32 mdsl;
 
-#define ULP2_MAX_PKT_LEN 16224
-#define ISCSI_PDU_NONPAYLOAD_LEN 312
-	mdsl = min_t(u32, lldi->iscsi_iolen - ISCSI_PDU_NONPAYLOAD_LEN,
-		     ULP2_MAX_PKT_LEN - ISCSI_PDU_NONPAYLOAD_LEN);
-	mdsl = min_t(u32, mdsl, 8192);
+#define CXGBIT_T5_MAX_PDU_LEN 16224
+#define CXGBIT_PDU_NONPAYLOAD_LEN 312 /* 48(BHS) + 256(AHS) + 8(Digest) */
+	if (is_t5(lldi->adapter_type)) {
+		mdsl = min_t(u32, lldi->iscsi_iolen - CXGBIT_PDU_NONPAYLOAD_LEN,
+			     CXGBIT_T5_MAX_PDU_LEN - CXGBIT_PDU_NONPAYLOAD_LEN);
+	} else {
+		mdsl = lldi->iscsi_iolen - CXGBIT_PDU_NONPAYLOAD_LEN;
+		mdsl = min(mdsl, 16384U);
+	}
+
+	mdsl = round_down(mdsl, 4);
+	mdsl = min_t(u32, mdsl, 4 * PAGE_SIZE);
 	mdsl = min_t(u32, mdsl, (MAX_SKB_FRAGS - 1) * PAGE_SIZE);
 
 	cdev->mdsl = mdsl;

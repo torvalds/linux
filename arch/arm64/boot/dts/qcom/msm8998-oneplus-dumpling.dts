@@ -10,6 +10,7 @@
 / {
 	model = "OnePlus 5T";
 	compatible = "oneplus,dumpling", "qcom,msm8998";
+	chassis-type = "handset";
 	/* Required for bootloader to select correct board */
 	qcom,board-id = <8 0 17801 43>;
 };

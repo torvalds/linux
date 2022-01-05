@@ -1,0 +1,38 @@
+# SPDX-License-Identifier: GPL-2.0
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/arm/cci-control-port.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: CCI Interconnect Bus Masters binding
+
+maintainers:
+  - Lorenzo Pieralisi <lorenzo.pieralisi@arm.com>
+
+description: |
+  Masters in the device tree connected to a CCI port (inclusive of CPUs
+  and their cpu nodes).
+
+select: true
+
+properties:
+  cci-control-port:
+    $ref: /schemas/types.yaml#/definitions/phandle
+
+additionalProperties: true
+
+examples:
+  - |
+    cpus {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        cpu@0 {
+            compatible = "arm,cortex-a15";
+            device_type = "cpu";
+            cci-control-port = <&cci_control1>;
+            reg = <0>;
+        };
+    };
+
+...

@@ -436,6 +436,8 @@
 #define regPHYESYMCLK_CLOCK_CNTL_BASE_IDX                                                               2
 #define regDCCG_GATE_DISABLE_CNTL3                                                                      0x005a
 #define regDCCG_GATE_DISABLE_CNTL3_BASE_IDX                                                             2
+#define regHDMISTREAMCLK0_DTO_PARAM                                                                     0x005b
+#define regHDMISTREAMCLK0_DTO_PARAM_BASE_IDX                                                            2
 #define regDCCG_AUDIO_DTBCLK_DTO_PHASE                                                                  0x0061
 #define regDCCG_AUDIO_DTBCLK_DTO_PHASE_BASE_IDX                                                         2
 #define regDCCG_AUDIO_DTBCLK_DTO_MODULO                                                                 0x0062

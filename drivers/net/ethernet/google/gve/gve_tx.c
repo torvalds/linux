@@ -144,7 +144,7 @@ static void gve_tx_free_ring(struct gve_priv *priv, int idx)
 
 	gve_tx_remove_from_block(priv, idx);
 	slots = tx->mask + 1;
-	gve_clean_tx_done(priv, tx, tx->req, false);
+	gve_clean_tx_done(priv, tx, priv->tx_desc_cnt, false);
 	netdev_tx_reset_queue(tx->netdev_txq);
 
 	dma_free_coherent(hdev, sizeof(*tx->q_resources),
@@ -176,6 +176,7 @@ static int gve_tx_alloc_ring(struct gve_priv *priv, int idx)
 
 	/* Make sure everything is zeroed to start */
 	memset(tx, 0, sizeof(*tx));
+	spin_lock_init(&tx->clean_lock);
 	tx->q_num = idx;
 
 	tx->mask = slots - 1;
@@ -303,15 +304,15 @@ static inline int gve_skb_fifo_bytes_required(struct gve_tx_ring *tx,
 static void gve_tx_unmap_buf(struct device *dev, struct gve_tx_buffer_state *info)
 {
 	if (info->skb) {
-		dma_unmap_single(dev, dma_unmap_addr(&info->buf, dma),
-				 dma_unmap_len(&info->buf, len),
+		dma_unmap_single(dev, dma_unmap_addr(info, dma),
+				 dma_unmap_len(info, len),
 				 DMA_TO_DEVICE);
-		dma_unmap_len_set(&info->buf, len, 0);
+		dma_unmap_len_set(info, len, 0);
 	} else {
-		dma_unmap_page(dev, dma_unmap_addr(&info->buf, dma),
-			       dma_unmap_len(&info->buf, len),
+		dma_unmap_page(dev, dma_unmap_addr(info, dma),
+			       dma_unmap_len(info, len),
 			       DMA_TO_DEVICE);
-		dma_unmap_len_set(&info->buf, len, 0);
+		dma_unmap_len_set(info, len, 0);
 	}
 }
 
@@ -328,10 +329,16 @@ static inline bool gve_can_tx(struct gve_tx_ring *tx, int bytes_required)
 	return (gve_tx_avail(tx) >= MAX_TX_DESC_NEEDED && can_alloc);
 }
 
+static_assert(NAPI_POLL_WEIGHT >= MAX_TX_DESC_NEEDED);
+
 /* Stops the queue if the skb cannot be transmitted. */
-static int gve_maybe_stop_tx(struct gve_tx_ring *tx, struct sk_buff *skb)
+static int gve_maybe_stop_tx(struct gve_priv *priv, struct gve_tx_ring *tx,
+			     struct sk_buff *skb)
 {
 	int bytes_required = 0;
+	u32 nic_done;
+	u32 to_do;
+	int ret;
 
 	if (!tx->raw_addressing)
 		bytes_required = gve_skb_fifo_bytes_required(tx, skb);
@@ -339,29 +346,28 @@ static int gve_maybe_stop_tx(struct gve_tx_ring *tx, struct sk_buff *skb)
 	if (likely(gve_can_tx(tx, bytes_required)))
 		return 0;
 
-	/* No space, so stop the queue */
-	tx->stop_queue++;
-	netif_tx_stop_queue(tx->netdev_txq);
-	smp_mb();	/* sync with restarting queue in gve_clean_tx_done() */
+	ret = -EBUSY;
+	spin_lock(&tx->clean_lock);
+	nic_done = gve_tx_load_event_counter(priv, tx);
+	to_do = nic_done - tx->done;
 
-	/* Now check for resources again, in case gve_clean_tx_done() freed
-	 * resources after we checked and we stopped the queue after
-	 * gve_clean_tx_done() checked.
-	 *
-	 * gve_maybe_stop_tx()			gve_clean_tx_done()
-	 *   nsegs/can_alloc test failed
-	 *					  gve_tx_free_fifo()
-	 *					  if (tx queue stopped)
-	 *					    netif_tx_queue_wake()
-	 *   netif_tx_stop_queue()
-	 *   Need to check again for space here!
-	 */
-	if (likely(!gve_can_tx(tx, bytes_required)))
-		return -EBUSY;
+	/* Only try to clean if there is hope for TX */
+	if (to_do + gve_tx_avail(tx) >= MAX_TX_DESC_NEEDED) {
+		if (to_do > 0) {
+			to_do = min_t(u32, to_do, NAPI_POLL_WEIGHT);
+			gve_clean_tx_done(priv, tx, to_do, false);
+		}
+		if (likely(gve_can_tx(tx, bytes_required)))
+			ret = 0;
+	}
+	if (ret) {
+		/* No space, so stop the queue */
+		tx->stop_queue++;
+		netif_tx_stop_queue(tx->netdev_txq);
+	}
+	spin_unlock(&tx->clean_lock);
 
-	netif_tx_start_queue(tx->netdev_txq);
-	tx->wake_queue++;
-	return 0;
+	return ret;
 }
 
 static void gve_tx_fill_pkt_desc(union gve_tx_desc *pkt_desc,
@@ -491,7 +497,6 @@ static int gve_tx_add_skb_no_copy(struct gve_priv *priv, struct gve_tx_ring *tx,
 	struct gve_tx_buffer_state *info;
 	bool is_gso = skb_is_gso(skb);
 	u32 idx = tx->req & tx->mask;
-	struct gve_tx_dma_buf *buf;
 	u64 addr;
 	u32 len;
 	int i;
@@ -515,9 +520,8 @@ static int gve_tx_add_skb_no_copy(struct gve_priv *priv, struct gve_tx_ring *tx,
 		tx->dma_mapping_error++;
 		goto drop;
 	}
-	buf = &info->buf;
-	dma_unmap_len_set(buf, len, len);
-	dma_unmap_addr_set(buf, dma, addr);
+	dma_unmap_len_set(info, len, len);
+	dma_unmap_addr_set(info, dma, addr);
 
 	payload_nfrags = shinfo->nr_frags;
 	if (hlen < len) {
@@ -549,10 +553,9 @@ static int gve_tx_add_skb_no_copy(struct gve_priv *priv, struct gve_tx_ring *tx,
 			tx->dma_mapping_error++;
 			goto unmap_drop;
 		}
-		buf = &tx->info[idx].buf;
 		tx->info[idx].skb = NULL;
-		dma_unmap_len_set(buf, len, len);
-		dma_unmap_addr_set(buf, dma, addr);
+		dma_unmap_len_set(&tx->info[idx], len, len);
+		dma_unmap_addr_set(&tx->info[idx], dma, addr);
 
 		gve_tx_fill_seg_desc(seg_desc, skb, is_gso, len, addr);
 	}
@@ -579,7 +582,7 @@ netdev_tx_t gve_tx(struct sk_buff *skb, struct net_device *dev)
 	WARN(skb_get_queue_mapping(skb) >= priv->tx_cfg.num_queues,
 	     "skb queue index out of range");
 	tx = &priv->tx[skb_get_queue_mapping(skb)];
-	if (unlikely(gve_maybe_stop_tx(tx, skb))) {
+	if (unlikely(gve_maybe_stop_tx(priv, tx, skb))) {
 		/* We need to ring the txq doorbell -- we have stopped the Tx
 		 * queue for want of resources, but prior calls to gve_tx()
 		 * may have added descriptors without ringing the doorbell.
@@ -675,19 +678,19 @@ static int gve_clean_tx_done(struct gve_priv *priv, struct gve_tx_ring *tx,
 	return pkts;
 }
 
-__be32 gve_tx_load_event_counter(struct gve_priv *priv,
-				 struct gve_tx_ring *tx)
+u32 gve_tx_load_event_counter(struct gve_priv *priv,
+			      struct gve_tx_ring *tx)
 {
-	u32 counter_index = be32_to_cpu((tx->q_resources->counter_index));
+	u32 counter_index = be32_to_cpu(tx->q_resources->counter_index);
+	__be32 counter = READ_ONCE(priv->counter_array[counter_index]);
 
-	return READ_ONCE(priv->counter_array[counter_index]);
+	return be32_to_cpu(counter);
 }
 
 bool gve_tx_poll(struct gve_notify_block *block, int budget)
 {
 	struct gve_priv *priv = block->priv;
 	struct gve_tx_ring *tx = block->tx;
-	bool repoll = false;
 	u32 nic_done;
 	u32 to_do;
 
@@ -695,17 +698,23 @@ bool gve_tx_poll(struct gve_notify_block *block, int budget)
 	if (budget == 0)
 		budget = INT_MAX;
 
+	/* In TX path, it may try to clean completed pkts in order to xmit,
+	 * to avoid cleaning conflict, use spin_lock(), it yields better
+	 * concurrency between xmit/clean than netif's lock.
+	 */
+	spin_lock(&tx->clean_lock);
 	/* Find out how much work there is to be done */
-	tx->last_nic_done = gve_tx_load_event_counter(priv, tx);
-	nic_done = be32_to_cpu(tx->last_nic_done);
-	if (budget > 0) {
-		/* Do as much work as we have that the budget will
-		 * allow
-		 */
-		to_do = min_t(u32, (nic_done - tx->done), budget);
-		gve_clean_tx_done(priv, tx, to_do, true);
-	}
+	nic_done = gve_tx_load_event_counter(priv, tx);
+	to_do = min_t(u32, (nic_done - tx->done), budget);
+	gve_clean_tx_done(priv, tx, to_do, true);
+	spin_unlock(&tx->clean_lock);
 	/* If we still have work we want to repoll */
-	repoll |= (nic_done != tx->done);
-	return repoll;
+	return nic_done != tx->done;
+}
+
+bool gve_tx_clean_pending(struct gve_priv *priv, struct gve_tx_ring *tx)
+{
+	u32 nic_done = gve_tx_load_event_counter(priv, tx);
+
+	return nic_done != tx->done;
 }

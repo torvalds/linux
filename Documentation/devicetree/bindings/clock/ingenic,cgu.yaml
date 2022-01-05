@@ -104,7 +104,7 @@ additionalProperties: false
 
 examples:
   - |
-    #include <dt-bindings/clock/jz4770-cgu.h>
+    #include <dt-bindings/clock/ingenic,jz4770-cgu.h>
     cgu: clock-controller@10000000 {
       compatible = "ingenic,jz4770-cgu", "simple-mfd";
       reg = <0x10000000 0x100>;

@@ -23,7 +23,7 @@
 #include <net/p8022.h>
 
 static int p8022_request(struct datalink_proto *dl, struct sk_buff *skb,
-			 unsigned char *dest)
+			 const unsigned char *dest)
 {
 	llc_build_and_send_ui_pkt(dl->sap, skb, dest, dl->sap->laddr.lsap);
 	return 0;

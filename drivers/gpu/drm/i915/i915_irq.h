@@ -9,9 +9,9 @@
 #include <linux/ktime.h>
 #include <linux/types.h>
 
-#include "display/intel_display.h"
 #include "i915_reg.h"
 
+enum pipe;
 struct drm_crtc;
 struct drm_device;
 struct drm_display_mode;
@@ -40,46 +40,15 @@ void valleyview_disable_display_irqs(struct drm_i915_private *dev_priv);
 void i915_hotplug_interrupt_update(struct drm_i915_private *dev_priv,
 				   u32 mask,
 				   u32 bits);
-void ilk_update_display_irq(struct drm_i915_private *dev_priv,
-			    u32 interrupt_mask,
-			    u32 enabled_irq_mask);
-static inline void
-ilk_enable_display_irq(struct drm_i915_private *dev_priv, u32 bits)
-{
-	ilk_update_display_irq(dev_priv, bits, bits);
-}
-static inline void
-ilk_disable_display_irq(struct drm_i915_private *dev_priv, u32 bits)
-{
-	ilk_update_display_irq(dev_priv, bits, 0);
-}
-void bdw_update_pipe_irq(struct drm_i915_private *dev_priv,
-			 enum pipe pipe,
-			 u32 interrupt_mask,
-			 u32 enabled_irq_mask);
-static inline void bdw_enable_pipe_irq(struct drm_i915_private *dev_priv,
-				       enum pipe pipe, u32 bits)
-{
-	bdw_update_pipe_irq(dev_priv, pipe, bits, bits);
-}
-static inline void bdw_disable_pipe_irq(struct drm_i915_private *dev_priv,
-					enum pipe pipe, u32 bits)
-{
-	bdw_update_pipe_irq(dev_priv, pipe, bits, 0);
-}
-void ibx_display_interrupt_update(struct drm_i915_private *dev_priv,
-				  u32 interrupt_mask,
-				  u32 enabled_irq_mask);
-static inline void
-ibx_enable_display_interrupt(struct drm_i915_private *dev_priv, u32 bits)
-{
-	ibx_display_interrupt_update(dev_priv, bits, bits);
-}
-static inline void
-ibx_disable_display_interrupt(struct drm_i915_private *dev_priv, u32 bits)
-{
-	ibx_display_interrupt_update(dev_priv, bits, 0);
-}
+
+void ilk_enable_display_irq(struct drm_i915_private *i915, u32 bits);
+void ilk_disable_display_irq(struct drm_i915_private *i915, u32 bits);
+
+void bdw_enable_pipe_irq(struct drm_i915_private *i915, enum pipe pipe, u32 bits);
+void bdw_disable_pipe_irq(struct drm_i915_private *i915, enum pipe pipe, u32 bits);
+
+void ibx_enable_display_interrupt(struct drm_i915_private *i915, u32 bits);
+void ibx_disable_display_interrupt(struct drm_i915_private *i915, u32 bits);
 
 void gen5_enable_gt_irq(struct drm_i915_private *dev_priv, u32 mask);
 void gen5_disable_gt_irq(struct drm_i915_private *dev_priv, u32 mask);

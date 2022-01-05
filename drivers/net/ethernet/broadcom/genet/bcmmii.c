@@ -25,92 +25,80 @@
 
 #include "bcmgenet.h"
 
+static void bcmgenet_mac_config(struct net_device *dev)
+{
+	struct bcmgenet_priv *priv = netdev_priv(dev);
+	struct phy_device *phydev = dev->phydev;
+	u32 reg, cmd_bits = 0;
+
+	/* speed */
+	if (phydev->speed == SPEED_1000)
+		cmd_bits = CMD_SPEED_1000;
+	else if (phydev->speed == SPEED_100)
+		cmd_bits = CMD_SPEED_100;
+	else
+		cmd_bits = CMD_SPEED_10;
+	cmd_bits <<= CMD_SPEED_SHIFT;
+
+	/* duplex */
+	if (phydev->duplex != DUPLEX_FULL) {
+		cmd_bits |= CMD_HD_EN |
+			CMD_RX_PAUSE_IGNORE | CMD_TX_PAUSE_IGNORE;
+	} else {
+		/* pause capability defaults to Symmetric */
+		if (priv->autoneg_pause) {
+			bool tx_pause = 0, rx_pause = 0;
+
+			if (phydev->autoneg)
+				phy_get_pause(phydev, &tx_pause, &rx_pause);
+
+			if (!tx_pause)
+				cmd_bits |= CMD_TX_PAUSE_IGNORE;
+			if (!rx_pause)
+				cmd_bits |= CMD_RX_PAUSE_IGNORE;
+		}
+
+		/* Manual override */
+		if (!priv->rx_pause)
+			cmd_bits |= CMD_RX_PAUSE_IGNORE;
+		if (!priv->tx_pause)
+			cmd_bits |= CMD_TX_PAUSE_IGNORE;
+	}
+
+	/* Program UMAC and RGMII block based on established
+	 * link speed, duplex, and pause. The speed set in
+	 * umac->cmd tell RGMII block which clock to use for
+	 * transmit -- 25MHz(100Mbps) or 125MHz(1Gbps).
+	 * Receive clock is provided by the PHY.
+	 */
+	reg = bcmgenet_ext_readl(priv, EXT_RGMII_OOB_CTRL);
+	reg &= ~OOB_DISABLE;
+	reg |= RGMII_LINK;
+	bcmgenet_ext_writel(priv, reg, EXT_RGMII_OOB_CTRL);
+
+	reg = bcmgenet_umac_readl(priv, UMAC_CMD);
+	reg &= ~((CMD_SPEED_MASK << CMD_SPEED_SHIFT) |
+		       CMD_HD_EN |
+		       CMD_RX_PAUSE_IGNORE | CMD_TX_PAUSE_IGNORE);
+	reg |= cmd_bits;
+	if (reg & CMD_SW_RESET) {
+		reg &= ~CMD_SW_RESET;
+		bcmgenet_umac_writel(priv, reg, UMAC_CMD);
+		udelay(2);
+		reg |= CMD_TX_EN | CMD_RX_EN;
+	}
+	bcmgenet_umac_writel(priv, reg, UMAC_CMD);
+}
+
 /* setup netdev link state when PHY link status change and
  * update UMAC and RGMII block when link up
  */
 void bcmgenet_mii_setup(struct net_device *dev)
 {
-	struct bcmgenet_priv *priv = netdev_priv(dev);
 	struct phy_device *phydev = dev->phydev;
-	u32 reg, cmd_bits = 0;
-	bool status_changed = false;
 
-	if (priv->old_link != phydev->link) {
-		status_changed = true;
-		priv->old_link = phydev->link;
-	}
-
-	if (phydev->link) {
-		/* check speed/duplex/pause changes */
-		if (priv->old_speed != phydev->speed) {
-			status_changed = true;
-			priv->old_speed = phydev->speed;
-		}
-
-		if (priv->old_duplex != phydev->duplex) {
-			status_changed = true;
-			priv->old_duplex = phydev->duplex;
-		}
-
-		if (priv->old_pause != phydev->pause) {
-			status_changed = true;
-			priv->old_pause = phydev->pause;
-		}
-
-		/* done if nothing has changed */
-		if (!status_changed)
-			return;
-
-		/* speed */
-		if (phydev->speed == SPEED_1000)
-			cmd_bits = CMD_SPEED_1000;
-		else if (phydev->speed == SPEED_100)
-			cmd_bits = CMD_SPEED_100;
-		else
-			cmd_bits = CMD_SPEED_10;
-		cmd_bits <<= CMD_SPEED_SHIFT;
-
-		/* duplex */
-		if (phydev->duplex != DUPLEX_FULL)
-			cmd_bits |= CMD_HD_EN;
-
-		/* pause capability */
-		if (!phydev->pause)
-			cmd_bits |= CMD_RX_PAUSE_IGNORE | CMD_TX_PAUSE_IGNORE;
-
-		/*
-		 * Program UMAC and RGMII block based on established
-		 * link speed, duplex, and pause. The speed set in
-		 * umac->cmd tell RGMII block which clock to use for
-		 * transmit -- 25MHz(100Mbps) or 125MHz(1Gbps).
-		 * Receive clock is provided by the PHY.
-		 */
-		reg = bcmgenet_ext_readl(priv, EXT_RGMII_OOB_CTRL);
-		reg &= ~OOB_DISABLE;
-		reg |= RGMII_LINK;
-		bcmgenet_ext_writel(priv, reg, EXT_RGMII_OOB_CTRL);
-
-		reg = bcmgenet_umac_readl(priv, UMAC_CMD);
-		reg &= ~((CMD_SPEED_MASK << CMD_SPEED_SHIFT) |
-			       CMD_HD_EN |
-			       CMD_RX_PAUSE_IGNORE | CMD_TX_PAUSE_IGNORE);
-		reg |= cmd_bits;
-		if (reg & CMD_SW_RESET) {
-			reg &= ~CMD_SW_RESET;
-			bcmgenet_umac_writel(priv, reg, UMAC_CMD);
-			udelay(2);
-			reg |= CMD_TX_EN | CMD_RX_EN;
-		}
-		bcmgenet_umac_writel(priv, reg, UMAC_CMD);
-	} else {
-		/* done if nothing has changed */
-		if (!status_changed)
-			return;
-
-		/* needed for MoCA fixed PHY to reflect correct link status */
-		netif_carrier_off(dev);
-	}
-
+	if (phydev->link)
+		bcmgenet_mac_config(dev);
 	phy_print_status(phydev);
 }
 
@@ -130,20 +118,36 @@ static int bcmgenet_fixed_phy_link_update(struct net_device *dev,
 	return 0;
 }
 
+void bcmgenet_phy_pause_set(struct net_device *dev, bool rx, bool tx)
+{
+	struct phy_device *phydev = dev->phydev;
+
+	linkmode_mod_bit(ETHTOOL_LINK_MODE_Pause_BIT, phydev->advertising, rx);
+	linkmode_mod_bit(ETHTOOL_LINK_MODE_Asym_Pause_BIT, phydev->advertising,
+			 rx | tx);
+	phy_start_aneg(phydev);
+
+	mutex_lock(&phydev->lock);
+	if (phydev->link)
+		bcmgenet_mac_config(dev);
+	mutex_unlock(&phydev->lock);
+}
+
 void bcmgenet_phy_power_set(struct net_device *dev, bool enable)
 {
 	struct bcmgenet_priv *priv = netdev_priv(dev);
 	u32 reg = 0;
 
 	/* EXT_GPHY_CTRL is only valid for GENETv4 and onward */
-	if (GENET_IS_V4(priv)) {
+	if (GENET_IS_V4(priv) || priv->ephy_16nm) {
 		reg = bcmgenet_ext_readl(priv, EXT_GPHY_CTRL);
 		if (enable) {
 			reg &= ~EXT_CK25_DIS;
 			bcmgenet_ext_writel(priv, reg, EXT_GPHY_CTRL);
 			mdelay(1);
 
-			reg &= ~(EXT_CFG_IDDQ_BIAS | EXT_CFG_PWR_DOWN);
+			reg &= ~(EXT_CFG_IDDQ_BIAS | EXT_CFG_PWR_DOWN |
+				 EXT_CFG_IDDQ_GLOBAL_PWR);
 			reg |= EXT_GPHY_RESET;
 			bcmgenet_ext_writel(priv, reg, EXT_GPHY_CTRL);
 			mdelay(1);
@@ -151,7 +155,7 @@ void bcmgenet_phy_power_set(struct net_device *dev, bool enable)
 			reg &= ~EXT_GPHY_RESET;
 		} else {
 			reg |= EXT_CFG_IDDQ_BIAS | EXT_CFG_PWR_DOWN |
-			       EXT_GPHY_RESET;
+			       EXT_GPHY_RESET | EXT_CFG_IDDQ_GLOBAL_PWR;
 			bcmgenet_ext_writel(priv, reg, EXT_GPHY_CTRL);
 			mdelay(1);
 			reg |= EXT_CK25_DIS;
@@ -286,23 +290,53 @@ int bcmgenet_mii_probe(struct net_device *dev)
 	struct bcmgenet_priv *priv = netdev_priv(dev);
 	struct device *kdev = &priv->pdev->dev;
 	struct device_node *dn = kdev->of_node;
+	phy_interface_t phy_iface = priv->phy_interface;
 	struct phy_device *phydev;
-	u32 phy_flags = 0;
+	u32 phy_flags = PHY_BRCM_AUTO_PWRDWN_ENABLE |
+			PHY_BRCM_DIS_TXCRXC_NOENRGY |
+			PHY_BRCM_IDDQ_SUSPEND;
 	int ret;
 
 	/* Communicate the integrated PHY revision */
 	if (priv->internal_phy)
 		phy_flags = priv->gphy_rev;
 
-	/* Initialize link state variables that bcmgenet_mii_setup() uses */
-	priv->old_link = -1;
-	priv->old_speed = -1;
-	priv->old_duplex = -1;
-	priv->old_pause = -1;
+	/* This is an ugly quirk but we have not been correctly interpreting
+	 * the phy_interface values and we have done that across different
+	 * drivers, so at least we are consistent in our mistakes.
+	 *
+	 * When the Generic PHY driver is in use either the PHY has been
+	 * strapped or programmed correctly by the boot loader so we should
+	 * stick to our incorrect interpretation since we have validated it.
+	 *
+	 * Now when a dedicated PHY driver is in use, we need to reverse the
+	 * meaning of the phy_interface_mode values to something that the PHY
+	 * driver will interpret and act on such that we have two mistakes
+	 * canceling themselves so to speak. We only do this for the two
+	 * modes that GENET driver officially supports on Broadcom STB chips:
+	 * PHY_INTERFACE_MODE_RGMII and PHY_INTERFACE_MODE_RGMII_TXID. Other
+	 * modes are not *officially* supported with the boot loader and the
+	 * scripted environment generating Device Tree blobs for those
+	 * platforms.
+	 *
+	 * Note that internal PHY, MoCA and fixed-link configurations are not
+	 * affected because they use different phy_interface_t values or the
+	 * Generic PHY driver.
+	 */
+	switch (priv->phy_interface) {
+	case PHY_INTERFACE_MODE_RGMII:
+		phy_iface = PHY_INTERFACE_MODE_RGMII_ID;
+		break;
+	case PHY_INTERFACE_MODE_RGMII_TXID:
+		phy_iface = PHY_INTERFACE_MODE_RGMII_RXID;
+		break;
+	default:
+		break;
+	}
 
 	if (dn) {
 		phydev = of_phy_connect(dev, priv->phy_dn, bcmgenet_mii_setup,
-					phy_flags, priv->phy_interface);
+					phy_flags, phy_iface);
 		if (!phydev) {
 			pr_err("could not attach to PHY\n");
 			return -ENODEV;
@@ -332,7 +366,7 @@ int bcmgenet_mii_probe(struct net_device *dev)
 		phydev->dev_flags = phy_flags;
 
 		ret = phy_connect_direct(dev, phydev, bcmgenet_mii_setup,
-					 priv->phy_interface);
+					 phy_iface);
 		if (ret) {
 			pr_err("could not attach to PHY\n");
 			return -ENODEV;
@@ -349,8 +383,6 @@ int bcmgenet_mii_probe(struct net_device *dev)
 		phy_disconnect(dev->phydev);
 		return ret;
 	}
-
-	linkmode_copy(phydev->advertising, phydev->supported);
 
 	/* The internal PHY has its link interrupts routed to the
 	 * Ethernet MAC ISRs. On GENETv5 there is a hardware issue

@@ -58,11 +58,11 @@ struct hv_uio_private_data {
 	atomic_t refcnt;
 
 	void	*recv_buf;
-	u32	recv_gpadl;
+	struct vmbus_gpadl recv_gpadl;
 	char	recv_name[32];	/* "recv_4294967295" */
 
 	void	*send_buf;
-	u32	send_gpadl;
+	struct vmbus_gpadl send_gpadl;
 	char	send_name[32];
 };
 
@@ -179,15 +179,13 @@ hv_uio_new_channel(struct vmbus_channel *new_sc)
 static void
 hv_uio_cleanup(struct hv_device *dev, struct hv_uio_private_data *pdata)
 {
-	if (pdata->send_gpadl) {
-		vmbus_teardown_gpadl(dev->channel, pdata->send_gpadl);
-		pdata->send_gpadl = 0;
+	if (pdata->send_gpadl.gpadl_handle) {
+		vmbus_teardown_gpadl(dev->channel, &pdata->send_gpadl);
 		vfree(pdata->send_buf);
 	}
 
-	if (pdata->recv_gpadl) {
-		vmbus_teardown_gpadl(dev->channel, pdata->recv_gpadl);
-		pdata->recv_gpadl = 0;
+	if (pdata->recv_gpadl.gpadl_handle) {
+		vmbus_teardown_gpadl(dev->channel, &pdata->recv_gpadl);
 		vfree(pdata->recv_buf);
 	}
 }
@@ -303,7 +301,7 @@ hv_uio_probe(struct hv_device *dev,
 
 	/* put Global Physical Address Label in name */
 	snprintf(pdata->recv_name, sizeof(pdata->recv_name),
-		 "recv:%u", pdata->recv_gpadl);
+		 "recv:%u", pdata->recv_gpadl.gpadl_handle);
 	pdata->info.mem[RECV_BUF_MAP].name = pdata->recv_name;
 	pdata->info.mem[RECV_BUF_MAP].addr
 		= (uintptr_t)pdata->recv_buf;
@@ -324,7 +322,7 @@ hv_uio_probe(struct hv_device *dev,
 	}
 
 	snprintf(pdata->send_name, sizeof(pdata->send_name),
-		 "send:%u", pdata->send_gpadl);
+		 "send:%u", pdata->send_gpadl.gpadl_handle);
 	pdata->info.mem[SEND_BUF_MAP].name = pdata->send_name;
 	pdata->info.mem[SEND_BUF_MAP].addr
 		= (uintptr_t)pdata->send_buf;

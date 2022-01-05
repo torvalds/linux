@@ -59,13 +59,12 @@ void intel_ddi_set_vc_payload_alloc(const struct intel_crtc_state *crtc_state,
 				    bool state);
 void intel_ddi_compute_min_voltage_level(struct drm_i915_private *dev_priv,
 					 struct intel_crtc_state *crtc_state);
-u32 bxt_signal_levels(struct intel_dp *intel_dp,
-		      const struct intel_crtc_state *crtc_state);
-u32 ddi_signal_levels(struct intel_dp *intel_dp,
-		      const struct intel_crtc_state *crtc_state);
 int intel_ddi_toggle_hdcp_bits(struct intel_encoder *intel_encoder,
 			       enum transcoder cpu_transcoder,
 			       bool enable, u32 hdcp_mask);
 void intel_ddi_sanitize_encoder_pll_mapping(struct intel_encoder *encoder);
+int intel_ddi_level(struct intel_encoder *encoder,
+		    const struct intel_crtc_state *crtc_state,
+		    int lane);
 
 #endif /* __INTEL_DDI_H__ */

@@ -128,7 +128,7 @@ int main(int argc, char **argv)
 	if (bpf_prog_load_xattr(&prog_load_attr, &obj, &prog_fd))
 		return 1;
 
-	map = bpf_map__next(NULL, obj);
+	map = bpf_object__next_map(obj, NULL);
 	if (!map) {
 		printf("finding a map in obj file failed\n");
 		return 1;

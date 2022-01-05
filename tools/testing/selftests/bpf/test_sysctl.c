@@ -124,7 +124,7 @@ static struct sysctl_test tests[] = {
 		.descr = "ctx:write sysctl:write read ok narrow",
 		.insns = {
 			/* u64 w = (u16)write & 1; */
-#if __BYTE_ORDER == __LITTLE_ENDIAN
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
 			BPF_LDX_MEM(BPF_H, BPF_REG_7, BPF_REG_1,
 				    offsetof(struct bpf_sysctl, write)),
 #else
@@ -184,7 +184,7 @@ static struct sysctl_test tests[] = {
 		.descr = "ctx:file_pos sysctl:read read ok narrow",
 		.insns = {
 			/* If (file_pos == X) */
-#if __BYTE_ORDER == __LITTLE_ENDIAN
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
 			BPF_LDX_MEM(BPF_B, BPF_REG_7, BPF_REG_1,
 				    offsetof(struct bpf_sysctl, file_pos)),
 #else

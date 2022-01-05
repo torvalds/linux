@@ -15,9 +15,6 @@ skip_if_no_perf_probe || exit 2
 
 . $(dirname $0)/lib/probe_vfs_getname.sh
 
-perfdata=$(mktemp /tmp/__perf_test.perf.data.XXXXX)
-file=$(mktemp /tmp/temporary_file.XXXXX)
-
 record_open_file() {
 	echo "Recording open file:"
 	perf record -o ${perfdata} -e probe:vfs_getname\* touch $file
@@ -34,6 +31,9 @@ err=$?
 if [ $err -ne 0 ] ; then
 	exit $err
 fi
+
+perfdata=$(mktemp /tmp/__perf_test.perf.data.XXXXX)
+file=$(mktemp /tmp/temporary_file.XXXXX)
 
 record_open_file && perf_script_filenames
 err=$?

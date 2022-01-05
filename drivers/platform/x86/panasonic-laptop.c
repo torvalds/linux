@@ -470,7 +470,7 @@ static ssize_t numbatt_show(struct device *dev, struct device_attribute *attr,
 	if (!acpi_pcc_retrieve_biosdata(pcc))
 		return -EIO;
 
-	return snprintf(buf, PAGE_SIZE, "%u\n", pcc->sinf[SINF_NUM_BATTERIES]);
+	return sysfs_emit(buf, "%u\n", pcc->sinf[SINF_NUM_BATTERIES]);
 }
 
 static ssize_t lcdtype_show(struct device *dev, struct device_attribute *attr,
@@ -482,7 +482,7 @@ static ssize_t lcdtype_show(struct device *dev, struct device_attribute *attr,
 	if (!acpi_pcc_retrieve_biosdata(pcc))
 		return -EIO;
 
-	return snprintf(buf, PAGE_SIZE, "%u\n", pcc->sinf[SINF_LCD_TYPE]);
+	return sysfs_emit(buf, "%u\n", pcc->sinf[SINF_LCD_TYPE]);
 }
 
 static ssize_t mute_show(struct device *dev, struct device_attribute *attr,
@@ -494,7 +494,7 @@ static ssize_t mute_show(struct device *dev, struct device_attribute *attr,
 	if (!acpi_pcc_retrieve_biosdata(pcc))
 		return -EIO;
 
-	return snprintf(buf, PAGE_SIZE, "%u\n", pcc->sinf[SINF_MUTE]);
+	return sysfs_emit(buf, "%u\n", pcc->sinf[SINF_MUTE]);
 }
 
 static ssize_t mute_store(struct device *dev, struct device_attribute *attr,
@@ -524,7 +524,7 @@ static ssize_t sticky_key_show(struct device *dev, struct device_attribute *attr
 	if (!acpi_pcc_retrieve_biosdata(pcc))
 		return -EIO;
 
-	return snprintf(buf, PAGE_SIZE, "%u\n", pcc->sticky_key);
+	return sysfs_emit(buf, "%u\n", pcc->sticky_key);
 }
 
 static ssize_t sticky_key_store(struct device *dev, struct device_attribute *attr,
@@ -566,7 +566,7 @@ static ssize_t eco_mode_show(struct device *dev, struct device_attribute *attr,
 		result = -EIO;
 		break;
 	}
-	return snprintf(buf, PAGE_SIZE, "%u\n", result);
+	return sysfs_emit(buf, "%u\n", result);
 }
 
 static ssize_t eco_mode_store(struct device *dev, struct device_attribute *attr,
@@ -625,7 +625,7 @@ static ssize_t ac_brightness_show(struct device *dev, struct device_attribute *a
 	if (!acpi_pcc_retrieve_biosdata(pcc))
 		return -EIO;
 
-	return snprintf(buf, PAGE_SIZE, "%u\n", pcc->sinf[SINF_AC_CUR_BRIGHT]);
+	return sysfs_emit(buf, "%u\n", pcc->sinf[SINF_AC_CUR_BRIGHT]);
 }
 
 static ssize_t ac_brightness_store(struct device *dev, struct device_attribute *attr,
@@ -655,7 +655,7 @@ static ssize_t dc_brightness_show(struct device *dev, struct device_attribute *a
 	if (!acpi_pcc_retrieve_biosdata(pcc))
 		return -EIO;
 
-	return snprintf(buf, PAGE_SIZE, "%u\n", pcc->sinf[SINF_DC_CUR_BRIGHT]);
+	return sysfs_emit(buf, "%u\n", pcc->sinf[SINF_DC_CUR_BRIGHT]);
 }
 
 static ssize_t dc_brightness_store(struct device *dev, struct device_attribute *attr,
@@ -685,7 +685,7 @@ static ssize_t current_brightness_show(struct device *dev, struct device_attribu
 	if (!acpi_pcc_retrieve_biosdata(pcc))
 		return -EIO;
 
-	return snprintf(buf, PAGE_SIZE, "%u\n", pcc->sinf[SINF_CUR_BRIGHT]);
+	return sysfs_emit(buf, "%u\n", pcc->sinf[SINF_CUR_BRIGHT]);
 }
 
 static ssize_t current_brightness_store(struct device *dev, struct device_attribute *attr,
@@ -710,7 +710,7 @@ static ssize_t current_brightness_store(struct device *dev, struct device_attrib
 static ssize_t cdpower_show(struct device *dev, struct device_attribute *attr,
 			    char *buf)
 {
-	return snprintf(buf, PAGE_SIZE, "%d\n", get_optd_power_state());
+	return sysfs_emit(buf, "%d\n", get_optd_power_state());
 }
 
 static ssize_t cdpower_store(struct device *dev, struct device_attribute *attr,

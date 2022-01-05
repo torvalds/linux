@@ -2850,7 +2850,6 @@ static void *jpeg_get_drv_data(struct device *dev);
 static int s5p_jpeg_probe(struct platform_device *pdev)
 {
 	struct s5p_jpeg *jpeg;
-	struct resource *res;
 	int i, ret;
 
 	/* JPEG IP abstraction struct */
@@ -2867,9 +2866,7 @@ static int s5p_jpeg_probe(struct platform_device *pdev)
 	jpeg->dev = &pdev->dev;
 
 	/* memory-mapped registers */
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-
-	jpeg->regs = devm_ioremap_resource(&pdev->dev, res);
+	jpeg->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(jpeg->regs))
 		return PTR_ERR(jpeg->regs);
 

@@ -1015,7 +1015,7 @@ void inet_csk_destroy_sock(struct sock *sk)
 
 	sk_refcnt_debug_release(sk);
 
-	percpu_counter_dec(sk->sk_prot->orphan_count);
+	this_cpu_dec(*sk->sk_prot->orphan_count);
 
 	sock_put(sk);
 }
@@ -1074,7 +1074,7 @@ static void inet_child_forget(struct sock *sk, struct request_sock *req,
 
 	sock_orphan(child);
 
-	percpu_counter_inc(sk->sk_prot->orphan_count);
+	this_cpu_inc(*sk->sk_prot->orphan_count);
 
 	if (sk->sk_protocol == IPPROTO_TCP && tcp_rsk(req)->tfo_listener) {
 		BUG_ON(rcu_access_pointer(tcp_sk(child)->fastopen_rsk) != req);

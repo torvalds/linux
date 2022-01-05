@@ -199,7 +199,7 @@ static int ipw_queue_tx_reclaim(struct ipw_priv *priv,
 				struct clx2_tx_queue *txq, int qindex);
 static int ipw_queue_reset(struct ipw_priv *priv);
 
-static int ipw_queue_tx_hcmd(struct ipw_priv *priv, int hcmd, void *buf,
+static int ipw_queue_tx_hcmd(struct ipw_priv *priv, int hcmd, const void *buf,
 			     int len, int sync);
 
 static void ipw_tx_queue_free(struct ipw_priv *);
@@ -2264,7 +2264,7 @@ static int ipw_send_cmd_simple(struct ipw_priv *priv, u8 command)
 }
 
 static int ipw_send_cmd_pdu(struct ipw_priv *priv, u8 command, u8 len,
-			    void *data)
+			    const void *data)
 {
 	struct host_cmd cmd = {
 		.cmd = command,
@@ -3777,7 +3777,7 @@ static int ipw_queue_tx_init(struct ipw_priv *priv,
 	    dma_alloc_coherent(&dev->dev, sizeof(q->bd[0]) * count,
 			       &q->q.dma_addr, GFP_KERNEL);
 	if (!q->bd) {
-		IPW_ERROR("pci_alloc_consistent(%zd) failed\n",
+		IPW_ERROR("dma_alloc_coherent(%zd) failed\n",
 			  sizeof(q->bd[0]) * count);
 		kfree(q->txb);
 		q->txb = NULL;
@@ -5033,7 +5033,7 @@ static int ipw_queue_tx_reclaim(struct ipw_priv *priv,
 	return used;
 }
 
-static int ipw_queue_tx_hcmd(struct ipw_priv *priv, int hcmd, void *buf,
+static int ipw_queue_tx_hcmd(struct ipw_priv *priv, int hcmd, const void *buf,
 			     int len, int sync)
 {
 	struct clx2_tx_queue *txq = &priv->txq_cmd;
@@ -11185,7 +11185,7 @@ static int ipw_up(struct ipw_priv *priv)
 		ipw_init_ordinals(priv);
 		if (!(priv->config & CFG_CUSTOM_MAC))
 			eeprom_parse_mac(priv, priv->mac_addr);
-		memcpy(priv->net_dev->dev_addr, priv->mac_addr, ETH_ALEN);
+		eth_hw_addr_set(priv->net_dev, priv->mac_addr);
 
 		ipw_set_geo(priv);
 
@@ -11542,7 +11542,7 @@ static int ipw_prom_alloc(struct ipw_priv *priv)
 	priv->prom_priv->priv = priv;
 
 	strcpy(priv->prom_net_dev->name, "rtap%d");
-	memcpy(priv->prom_net_dev->dev_addr, priv->mac_addr, ETH_ALEN);
+	eth_hw_addr_set(priv->prom_net_dev, priv->mac_addr);
 
 	priv->prom_net_dev->type = ARPHRD_IEEE80211_RADIOTAP;
 	priv->prom_net_dev->netdev_ops = &ipw_prom_netdev_ops;

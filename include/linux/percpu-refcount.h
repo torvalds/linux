@@ -267,6 +267,28 @@ static inline bool percpu_ref_tryget(struct percpu_ref *ref)
 }
 
 /**
+ * percpu_ref_tryget_live_rcu - same as percpu_ref_tryget_live() but the
+ * caller is responsible for taking RCU.
+ *
+ * This function is safe to call as long as @ref is between init and exit.
+ */
+static inline bool percpu_ref_tryget_live_rcu(struct percpu_ref *ref)
+{
+	unsigned long __percpu *percpu_count;
+	bool ret = false;
+
+	WARN_ON_ONCE(!rcu_read_lock_held());
+
+	if (likely(__ref_is_percpu(ref, &percpu_count))) {
+		this_cpu_inc(*percpu_count);
+		ret = true;
+	} else if (!(ref->percpu_count_ptr & __PERCPU_REF_DEAD)) {
+		ret = atomic_long_inc_not_zero(&ref->data->count);
+	}
+	return ret;
+}
+
+/**
  * percpu_ref_tryget_live - try to increment a live percpu refcount
  * @ref: percpu_ref to try-get
  *
@@ -283,20 +305,11 @@ static inline bool percpu_ref_tryget(struct percpu_ref *ref)
  */
 static inline bool percpu_ref_tryget_live(struct percpu_ref *ref)
 {
-	unsigned long __percpu *percpu_count;
 	bool ret = false;
 
 	rcu_read_lock();
-
-	if (__ref_is_percpu(ref, &percpu_count)) {
-		this_cpu_inc(*percpu_count);
-		ret = true;
-	} else if (!(ref->percpu_count_ptr & __PERCPU_REF_DEAD)) {
-		ret = atomic_long_inc_not_zero(&ref->data->count);
-	}
-
+	ret = percpu_ref_tryget_live_rcu(ref);
 	rcu_read_unlock();
-
 	return ret;
 }
 

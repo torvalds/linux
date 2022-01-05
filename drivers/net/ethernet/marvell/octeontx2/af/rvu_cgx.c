@@ -324,7 +324,6 @@ static int cgx_lmac_event_handler_init(struct rvu *rvu)
 static void rvu_cgx_wq_destroy(struct rvu *rvu)
 {
 	if (rvu->cgx_evh_wq) {
-		flush_workqueue(rvu->cgx_evh_wq);
 		destroy_workqueue(rvu->cgx_evh_wq);
 		rvu->cgx_evh_wq = NULL;
 	}
@@ -411,7 +410,7 @@ int rvu_cgx_exit(struct rvu *rvu)
  * VF's of mapped PF and other PFs are not allowed. This fn() checks
  * whether a PFFUNC is permitted to do the config or not.
  */
-static bool is_cgx_config_permitted(struct rvu *rvu, u16 pcifunc)
+inline bool is_cgx_config_permitted(struct rvu *rvu, u16 pcifunc)
 {
 	if ((pcifunc & RVU_PFVF_FUNC_MASK) ||
 	    !is_pf_cgxmapped(rvu, rvu_get_pf(pcifunc)))
@@ -694,7 +693,9 @@ int rvu_mbox_handler_cgx_promisc_disable(struct rvu *rvu, struct msg_req *req,
 
 static int rvu_cgx_ptp_rx_cfg(struct rvu *rvu, u16 pcifunc, bool enable)
 {
+	struct rvu_pfvf *pfvf = rvu_get_pfvf(rvu, pcifunc);
 	int pf = rvu_get_pf(pcifunc);
+	struct mac_ops *mac_ops;
 	u8 cgx_id, lmac_id;
 	void *cgxd;
 
@@ -711,13 +712,16 @@ static int rvu_cgx_ptp_rx_cfg(struct rvu *rvu, u16 pcifunc, bool enable)
 	rvu_get_cgx_lmac_id(rvu->pf2cgxlmac_map[pf], &cgx_id, &lmac_id);
 	cgxd = rvu_cgx_pdata(cgx_id, rvu);
 
-	cgx_lmac_ptp_config(cgxd, lmac_id, enable);
+	mac_ops = get_mac_ops(cgxd);
+	mac_ops->mac_enadis_ptp_config(cgxd, lmac_id, true);
 	/* If PTP is enabled then inform NPC that packets to be
 	 * parsed by this PF will have their data shifted by 8 bytes
 	 * and if PTP is disabled then no shift is required
 	 */
 	if (npc_config_ts_kpuaction(rvu, pf, pcifunc, enable))
 		return -EINVAL;
+	/* This flag is required to clean up CGX conf if app gets killed */
+	pfvf->hw_rx_tstamp_en = enable;
 
 	return 0;
 }
@@ -725,6 +729,9 @@ static int rvu_cgx_ptp_rx_cfg(struct rvu *rvu, u16 pcifunc, bool enable)
 int rvu_mbox_handler_cgx_ptp_rx_enable(struct rvu *rvu, struct msg_req *req,
 				       struct msg_rsp *rsp)
 {
+	if (!is_pf_cgxmapped(rvu, rvu_get_pf(req->hdr.pcifunc)))
+		return -EPERM;
+
 	return rvu_cgx_ptp_rx_cfg(rvu, req->hdr.pcifunc, true);
 }
 

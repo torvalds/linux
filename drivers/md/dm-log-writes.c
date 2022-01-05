@@ -446,7 +446,7 @@ static int log_super(struct log_writes_c *lc)
 
 static inline sector_t logdev_last_sector(struct log_writes_c *lc)
 {
-	return i_size_read(lc->logdev->bdev->bd_inode) >> SECTOR_SHIFT;
+	return bdev_nr_sectors(lc->logdev->bdev);
 }
 
 static int log_writes_kthread(void *arg)
@@ -753,7 +753,7 @@ static int log_writes_map(struct dm_target *ti, struct bio *bio)
 	 */
 	bio_for_each_segment(bv, bio, iter) {
 		struct page *page;
-		void *src, *dst;
+		void *dst;
 
 		page = alloc_page(GFP_NOIO);
 		if (!page) {
@@ -765,11 +765,9 @@ static int log_writes_map(struct dm_target *ti, struct bio *bio)
 			return DM_MAPIO_KILL;
 		}
 
-		src = kmap_atomic(bv.bv_page);
 		dst = kmap_atomic(page);
-		memcpy(dst, src + bv.bv_offset, bv.bv_len);
+		memcpy_from_bvec(dst, &bv);
 		kunmap_atomic(dst);
-		kunmap_atomic(src);
 		block->vecs[i].bv_page = page;
 		block->vecs[i].bv_len = bv.bv_len;
 		block->vec_cnt++;
@@ -851,7 +849,7 @@ static int log_writes_prepare_ioctl(struct dm_target *ti,
 	/*
 	 * Only pass ioctls through if the device sizes match exactly.
 	 */
-	if (ti->len != i_size_read(dev->bdev->bd_inode) >> SECTOR_SHIFT)
+	if (ti->len != bdev_nr_sectors(dev->bdev))
 		return 1;
 	return 0;
 }

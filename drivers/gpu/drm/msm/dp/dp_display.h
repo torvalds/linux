@@ -15,9 +15,11 @@ struct msm_dp {
 	struct device *codec_dev;
 	struct drm_connector *connector;
 	struct drm_encoder *encoder;
+	struct drm_bridge *panel_bridge;
 	bool is_connected;
 	bool audio_enabled;
 	bool power_on;
+	unsigned int connector_type;
 
 	hdmi_codec_plugged_cb plugged_cb;
 

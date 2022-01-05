@@ -105,7 +105,7 @@ out:
 		close(listen_fd);
 }
 
-void test_sk_storage_tracing(void)
+void serial_test_sk_storage_tracing(void)
 {
 	struct test_sk_storage_trace_itself *skel_itself;
 	int err;

@@ -119,7 +119,7 @@ static int ixp4xx_wdt_probe(struct platform_device *pdev)
 	iwdt = devm_kzalloc(dev, sizeof(*iwdt), GFP_KERNEL);
 	if (!iwdt)
 		return -ENOMEM;
-	iwdt->base = dev->platform_data;
+	iwdt->base = (void __iomem *)dev->platform_data;
 
 	/*
 	 * Retrieve rate from a fixed clock from the device tree if

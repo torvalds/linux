@@ -894,6 +894,11 @@ int access_guest_real(struct kvm_vcpu *vcpu, unsigned long gra,
 
 /**
  * guest_translate_address - translate guest logical into guest absolute address
+ * @vcpu: virtual cpu
+ * @gva: Guest virtual address
+ * @ar: Access register
+ * @gpa: Guest physical address
+ * @mode: Translation access mode
  *
  * Parameter semantics are the same as the ones from guest_translate.
  * The memory contents at the guest address are not changed.
@@ -934,6 +939,11 @@ int guest_translate_address(struct kvm_vcpu *vcpu, unsigned long gva, u8 ar,
 
 /**
  * check_gva_range - test a range of guest virtual addresses for accessibility
+ * @vcpu: virtual cpu
+ * @gva: Guest virtual address
+ * @ar: Access register
+ * @length: Length of test range
+ * @mode: Translation access mode
  */
 int check_gva_range(struct kvm_vcpu *vcpu, unsigned long gva, u8 ar,
 		    unsigned long length, enum gacc_mode mode)
@@ -956,6 +966,7 @@ int check_gva_range(struct kvm_vcpu *vcpu, unsigned long gva, u8 ar,
 
 /**
  * kvm_s390_check_low_addr_prot_real - check for low-address protection
+ * @vcpu: virtual cpu
  * @gra: Guest real address
  *
  * Checks whether an address is subject to low-address protection and set
@@ -979,6 +990,7 @@ int kvm_s390_check_low_addr_prot_real(struct kvm_vcpu *vcpu, unsigned long gra)
  * @pgt: pointer to the beginning of the page table for the given address if
  *	 successful (return value 0), or to the first invalid DAT entry in
  *	 case of exceptions (return value > 0)
+ * @dat_protection: referenced memory is write protected
  * @fake: pgt references contiguous guest memory block, not a pgtable
  */
 static int kvm_s390_shadow_tables(struct gmap *sg, unsigned long saddr,

@@ -93,17 +93,6 @@ struct rcar_du_crtc_state {
 
 #define to_rcar_crtc_state(s) container_of(s, struct rcar_du_crtc_state, state)
 
-enum rcar_du_output {
-	RCAR_DU_OUTPUT_DPAD0,
-	RCAR_DU_OUTPUT_DPAD1,
-	RCAR_DU_OUTPUT_LVDS0,
-	RCAR_DU_OUTPUT_LVDS1,
-	RCAR_DU_OUTPUT_HDMI0,
-	RCAR_DU_OUTPUT_HDMI1,
-	RCAR_DU_OUTPUT_TCON,
-	RCAR_DU_OUTPUT_MAX,
-};
-
 int rcar_du_crtc_create(struct rcar_du_group *rgrp, unsigned int swindex,
 			unsigned int hwindex);
 

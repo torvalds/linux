@@ -695,40 +695,6 @@ int amdgpu_bo_create_vm(struct amdgpu_device *adev,
 }
 
 /**
- * amdgpu_bo_validate - validate an &amdgpu_bo buffer object
- * @bo: pointer to the buffer object
- *
- * Sets placement according to domain; and changes placement and caching
- * policy of the buffer object according to the placement.
- * This is used for validating shadow bos.  It calls ttm_bo_validate() to
- * make sure the buffer is resident where it needs to be.
- *
- * Returns:
- * 0 for success or a negative error code on failure.
- */
-int amdgpu_bo_validate(struct amdgpu_bo *bo)
-{
-	struct ttm_operation_ctx ctx = { false, false };
-	uint32_t domain;
-	int r;
-
-	if (bo->tbo.pin_count)
-		return 0;
-
-	domain = bo->preferred_domains;
-
-retry:
-	amdgpu_bo_placement_from_domain(bo, domain);
-	r = ttm_bo_validate(&bo->tbo, &bo->placement, &ctx);
-	if (unlikely(r == -ENOMEM) && domain != bo->allowed_domains) {
-		domain = bo->allowed_domains;
-		goto retry;
-	}
-
-	return r;
-}
-
-/**
  * amdgpu_bo_add_to_shadow_list - add a BO to the shadow list
  *
  * @vmbo: BO that will be inserted into the shadow list
@@ -1038,29 +1004,6 @@ void amdgpu_bo_unpin(struct amdgpu_bo *bo)
 	}
 }
 
-/**
- * amdgpu_bo_evict_vram - evict VRAM buffers
- * @adev: amdgpu device object
- *
- * Evicts all VRAM buffers on the lru list of the memory type.
- * Mainly used for evicting vram at suspend time.
- *
- * Returns:
- * 0 for success or a negative error code on failure.
- */
-int amdgpu_bo_evict_vram(struct amdgpu_device *adev)
-{
-	struct ttm_resource_manager *man;
-
-	if (adev->in_s3 && (adev->flags & AMD_IS_APU)) {
-		/* No need to evict vram on APUs for suspend to ram */
-		return 0;
-	}
-
-	man = ttm_manager_type(&adev->mman.bdev, TTM_PL_VRAM);
-	return ttm_resource_manager_evict_all(&adev->mman.bdev, man);
-}
-
 static const char *amdgpu_vram_names[] = {
 	"UNKNOWN",
 	"GDDR1",
@@ -1331,7 +1274,7 @@ void amdgpu_bo_release_notify(struct ttm_buffer_object *bo)
 	abo = ttm_to_amdgpu_bo(bo);
 
 	if (abo->kfd_bo)
-		amdgpu_amdkfd_unreserve_memory_limit(abo);
+		amdgpu_amdkfd_release_notify(abo);
 
 	/* We only remove the fence if the resv has individualized. */
 	WARN_ON_ONCE(bo->type == ttm_bo_type_kernel

@@ -77,4 +77,9 @@
 #define smnDF_CS_UMC_AON0_DramBaseAddress0 	0x1c110UL
 #define smnDF_CS_UMC_AON0_DramLimitAddress0 	0x1c114UL
 
+#define mmDF_CS_UMC_AON0_HardwareAssertMaskLow                                                         0x067e
+#define mmDF_CS_UMC_AON0_HardwareAssertMaskLow_BASE_IDX                                                0
+#define mmDF_NCS_PG0_HardwareAssertMaskHigh                                                            0x067f
+#define mmDF_NCS_PG0_HardwareAssertMaskHigh_BASE_IDX                                                   0
+
 #endif

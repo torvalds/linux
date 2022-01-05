@@ -113,7 +113,7 @@ static bool tegra_plane_format_mod_supported(struct drm_plane *plane,
 		return true;
 
 	/* check for the sector layout bit */
-	if ((modifier >> 56) == DRM_FORMAT_MOD_VENDOR_NVIDIA) {
+	if (fourcc_mod_is_vendor(modifier, NVIDIA)) {
 		if (modifier & DRM_FORMAT_MOD_NVIDIA_SECTOR_LAYOUT) {
 			if (!tegra_plane_supports_sector_layout(plane))
 				return false;

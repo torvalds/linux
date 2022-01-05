@@ -932,7 +932,7 @@ static int read_rindex_entry(struct gfs2_inode *ip)
 		goto fail;
 
 	rgd->rd_rgl = (struct gfs2_rgrp_lvb *)rgd->rd_gl->gl_lksb.sb_lvbptr;
-	rgd->rd_flags &= ~(GFS2_RDF_UPTODATE | GFS2_RDF_PREFERRED);
+	rgd->rd_flags &= ~GFS2_RDF_PREFERRED;
 	if (rgd->rd_data > sdp->sd_max_rg_data)
 		sdp->sd_max_rg_data = rgd->rd_data;
 	spin_lock(&sdp->sd_rindex_spin);
@@ -1185,8 +1185,8 @@ static void rgrp_set_bitmap_flags(struct gfs2_rgrpd *rgd)
 }
 
 /**
- * gfs2_rgrp_bh_get - Read in a RG's header and bitmaps
- * @rgd: the struct gfs2_rgrpd describing the RG to read in
+ * gfs2_rgrp_go_instantiate - Read in a RG's header and bitmaps
+ * @gh: the glock holder representing the rgrpd to read in
  *
  * Read in all of a Resource Group's header and bitmap blocks.
  * Caller must eventually call gfs2_rgrp_brelse() to free the bitmaps.
@@ -1194,10 +1194,11 @@ static void rgrp_set_bitmap_flags(struct gfs2_rgrpd *rgd)
  * Returns: errno
  */
 
-static int gfs2_rgrp_bh_get(struct gfs2_rgrpd *rgd)
+int gfs2_rgrp_go_instantiate(struct gfs2_holder *gh)
 {
+	struct gfs2_glock *gl = gh->gh_gl;
+	struct gfs2_rgrpd *rgd = gl->gl_object;
 	struct gfs2_sbd *sdp = rgd->rd_sbd;
-	struct gfs2_glock *gl = rgd->rd_gl;
 	unsigned int length = rgd->rd_length;
 	struct gfs2_bitmap *bi;
 	unsigned int x, y;
@@ -1225,21 +1226,18 @@ static int gfs2_rgrp_bh_get(struct gfs2_rgrpd *rgd)
 		}
 	}
 
-	if (!(rgd->rd_flags & GFS2_RDF_UPTODATE)) {
-		gfs2_rgrp_in(rgd, (rgd->rd_bits[0].bi_bh)->b_data);
-		rgrp_set_bitmap_flags(rgd);
-		rgd->rd_flags |= (GFS2_RDF_UPTODATE | GFS2_RDF_CHECK);
-		rgd->rd_free_clone = rgd->rd_free;
-		BUG_ON(rgd->rd_reserved);
-		/* max out the rgrp allocation failure point */
-		rgd->rd_extfail_pt = rgd->rd_free;
-	}
+	gfs2_rgrp_in(rgd, (rgd->rd_bits[0].bi_bh)->b_data);
+	rgrp_set_bitmap_flags(rgd);
+	rgd->rd_flags |= GFS2_RDF_CHECK;
+	rgd->rd_free_clone = rgd->rd_free;
+	GLOCK_BUG_ON(rgd->rd_gl, rgd->rd_reserved);
+	/* max out the rgrp allocation failure point */
+	rgd->rd_extfail_pt = rgd->rd_free;
 	if (cpu_to_be32(GFS2_MAGIC) != rgd->rd_rgl->rl_magic) {
 		rgd->rd_rgl->rl_unlinked = cpu_to_be32(count_unlinked(rgd));
 		gfs2_rgrp_ondisk2lvb(rgd->rd_rgl,
 				     rgd->rd_bits[0].bi_bh->b_data);
-	}
-	else if (sdp->sd_args.ar_rgrplvb) {
+	} else if (sdp->sd_args.ar_rgrplvb) {
 		if (!gfs2_rgrp_lvb_valid(rgd)){
 			gfs2_consist_rgrpd(rgd);
 			error = -EIO;
@@ -1257,19 +1255,18 @@ fail:
 		bi->bi_bh = NULL;
 		gfs2_assert_warn(sdp, !bi->bi_clone);
 	}
-
 	return error;
 }
 
-static int update_rgrp_lvb(struct gfs2_rgrpd *rgd)
+static int update_rgrp_lvb(struct gfs2_rgrpd *rgd, struct gfs2_holder *gh)
 {
 	u32 rl_flags;
 
-	if (rgd->rd_flags & GFS2_RDF_UPTODATE)
+	if (!test_bit(GLF_INSTANTIATE_NEEDED, &gh->gh_gl->gl_flags))
 		return 0;
 
 	if (cpu_to_be32(GFS2_MAGIC) != rgd->rd_rgl->rl_magic)
-		return gfs2_rgrp_bh_get(rgd);
+		return gfs2_instantiate(gh);
 
 	rl_flags = be32_to_cpu(rgd->rd_rgl->rl_flags);
 	rl_flags &= ~GFS2_RDF_MASK;
@@ -1280,22 +1277,12 @@ static int update_rgrp_lvb(struct gfs2_rgrpd *rgd)
 	rgd->rd_free = be32_to_cpu(rgd->rd_rgl->rl_free);
 	rgrp_set_bitmap_flags(rgd);
 	rgd->rd_free_clone = rgd->rd_free;
-	BUG_ON(rgd->rd_reserved);
+	GLOCK_BUG_ON(rgd->rd_gl, rgd->rd_reserved);
 	/* max out the rgrp allocation failure point */
 	rgd->rd_extfail_pt = rgd->rd_free;
 	rgd->rd_dinodes = be32_to_cpu(rgd->rd_rgl->rl_dinodes);
 	rgd->rd_igeneration = be64_to_cpu(rgd->rd_rgl->rl_igeneration);
 	return 0;
-}
-
-int gfs2_rgrp_go_lock(struct gfs2_holder *gh)
-{
-	struct gfs2_rgrpd *rgd = gh->gh_gl->gl_object;
-	struct gfs2_sbd *sdp = rgd->rd_sbd;
-
-	if (gh->gh_flags & GL_SKIP && sdp->sd_args.ar_rgrplvb)
-		return 0;
-	return gfs2_rgrp_bh_get(rgd);
 }
 
 /**
@@ -1315,6 +1302,7 @@ void gfs2_rgrp_brelse(struct gfs2_rgrpd *rgd)
 			bi->bi_bh = NULL;
 		}
 	}
+	set_bit(GLF_INSTANTIATE_NEEDED, &rgd->rd_gl->gl_flags);
 }
 
 int gfs2_rgrp_send_discards(struct gfs2_sbd *sdp, u64 offset,
@@ -2113,7 +2101,8 @@ int gfs2_inplace_reserve(struct gfs2_inode *ip, struct gfs2_alloc_parms *ap)
 			    gfs2_rgrp_congested(rs->rs_rgd, loops))
 				goto skip_rgrp;
 			if (sdp->sd_args.ar_rgrplvb) {
-				error = update_rgrp_lvb(rs->rs_rgd);
+				error = update_rgrp_lvb(rs->rs_rgd,
+							&ip->i_rgd_gh);
 				if (unlikely(error)) {
 					rgrp_unlock_local(rs->rs_rgd);
 					gfs2_glock_dq_uninit(&ip->i_rgd_gh);
@@ -2128,8 +2117,11 @@ int gfs2_inplace_reserve(struct gfs2_inode *ip, struct gfs2_alloc_parms *ap)
 		    (loops == 0 && target > rs->rs_rgd->rd_extfail_pt))
 			goto skip_rgrp;
 
-		if (sdp->sd_args.ar_rgrplvb)
-			gfs2_rgrp_bh_get(rs->rs_rgd);
+		if (sdp->sd_args.ar_rgrplvb) {
+			error = gfs2_instantiate(&ip->i_rgd_gh);
+			if (error)
+				goto skip_rgrp;
+		}
 
 		/* Get a reservation if we don't already have one */
 		if (!gfs2_rs_active(rs))
@@ -2215,7 +2207,7 @@ void gfs2_inplace_release(struct gfs2_inode *ip)
 		struct gfs2_rgrpd *rgd = rs->rs_rgd;
 
 		spin_lock(&rgd->rd_rsspin);
-		BUG_ON(rgd->rd_reserved < rs->rs_reserved);
+		GLOCK_BUG_ON(rgd->rd_gl, rgd->rd_reserved < rs->rs_reserved);
 		rgd->rd_reserved -= rs->rs_reserved;
 		spin_unlock(&rgd->rd_rsspin);
 		rs->rs_reserved = 0;
@@ -2476,9 +2468,9 @@ int gfs2_alloc_blocks(struct gfs2_inode *ip, u64 *bn, unsigned int *nblocks,
 		spin_unlock(&rbm.rgd->rd_rsspin);
 		goto rgrp_error;
 	}
-	BUG_ON(rbm.rgd->rd_reserved < *nblocks);
-	BUG_ON(rbm.rgd->rd_free_clone < *nblocks);
-	BUG_ON(rbm.rgd->rd_free < *nblocks);
+	GLOCK_BUG_ON(rbm.rgd->rd_gl, rbm.rgd->rd_reserved < *nblocks);
+	GLOCK_BUG_ON(rbm.rgd->rd_gl, rbm.rgd->rd_free_clone < *nblocks);
+	GLOCK_BUG_ON(rbm.rgd->rd_gl, rbm.rgd->rd_free < *nblocks);
 	rbm.rgd->rd_reserved -= *nblocks;
 	rbm.rgd->rd_free_clone -= *nblocks;
 	rbm.rgd->rd_free -= *nblocks;
@@ -2765,8 +2757,6 @@ void gfs2_rlist_free(struct gfs2_rgrp_list *rlist)
 
 void rgrp_lock_local(struct gfs2_rgrpd *rgd)
 {
-	BUG_ON(!gfs2_glock_is_held_excl(rgd->rd_gl) &&
-	       !test_bit(SDF_NORECOVERY, &rgd->rd_sbd->sd_flags));
 	mutex_lock(&rgd->rd_mutex);
 }
 

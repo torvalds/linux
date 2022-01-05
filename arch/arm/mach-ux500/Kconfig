@@ -29,6 +29,7 @@ menuconfig ARCH_U8500
 	select REGULATOR_DB8500_PRCMU
 	select REGULATOR_FIXED_VOLTAGE
 	select SOC_BUS
+	select RESET_CONTROLLER
 	help
 	  Support for ST-Ericsson's Ux500 architecture
 

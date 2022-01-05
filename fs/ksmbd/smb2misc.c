@@ -6,7 +6,6 @@
 
 #include "glob.h"
 #include "nterr.h"
-#include "smb2pdu.h"
 #include "smb_common.h"
 #include "smbstatus.h"
 #include "mgmt/user_session.h"
@@ -284,11 +283,13 @@ static inline int smb2_ioctl_resp_len(struct smb2_ioctl_req *h)
 		le32_to_cpu(h->MaxOutputResponse);
 }
 
-static int smb2_validate_credit_charge(struct smb2_hdr *hdr)
+static int smb2_validate_credit_charge(struct ksmbd_conn *conn,
+				       struct smb2_hdr *hdr)
 {
-	int req_len = 0, expect_resp_len = 0, calc_credit_num, max_len;
-	int credit_charge = le16_to_cpu(hdr->CreditCharge);
+	unsigned int req_len = 0, expect_resp_len = 0, calc_credit_num, max_len;
+	unsigned short credit_charge = le16_to_cpu(hdr->CreditCharge);
 	void *__hdr = hdr;
+	int ret;
 
 	switch (hdr->Command) {
 	case SMB2_QUERY_INFO:
@@ -310,42 +311,51 @@ static int smb2_validate_credit_charge(struct smb2_hdr *hdr)
 		req_len = smb2_ioctl_req_len(__hdr);
 		expect_resp_len = smb2_ioctl_resp_len(__hdr);
 		break;
-	default:
+	case SMB2_CANCEL:
 		return 0;
+	default:
+		req_len = 1;
+		break;
 	}
 
-	credit_charge = max(1, credit_charge);
-	max_len = max(req_len, expect_resp_len);
+	credit_charge = max_t(unsigned short, credit_charge, 1);
+	max_len = max_t(unsigned int, req_len, expect_resp_len);
 	calc_credit_num = DIV_ROUND_UP(max_len, SMB2_MAX_BUFFER_SIZE);
 
 	if (credit_charge < calc_credit_num) {
-		pr_err("Insufficient credit charge, given: %d, needed: %d\n",
-		       credit_charge, calc_credit_num);
+		ksmbd_debug(SMB, "Insufficient credit charge, given: %d, needed: %d\n",
+			    credit_charge, calc_credit_num);
+		return 1;
+	} else if (credit_charge > conn->max_credits) {
+		ksmbd_debug(SMB, "Too large credit charge: %d\n", credit_charge);
 		return 1;
 	}
 
-	return 0;
+	spin_lock(&conn->credits_lock);
+	if (credit_charge <= conn->total_credits) {
+		conn->total_credits -= credit_charge;
+		ret = 0;
+	} else {
+		ksmbd_debug(SMB, "Insufficient credits granted, given: %u, granted: %u\n",
+			    credit_charge, conn->total_credits);
+		ret = 1;
+	}
+	spin_unlock(&conn->credits_lock);
+	return ret;
 }
 
 int ksmbd_smb2_check_message(struct ksmbd_work *work)
 {
-	struct smb2_pdu *pdu = work->request_buf;
+	struct smb2_pdu *pdu = ksmbd_req_buf_next(work);
 	struct smb2_hdr *hdr = &pdu->hdr;
 	int command;
 	__u32 clc_len;  /* calculated length */
-	__u32 len = get_rfc1002_len(pdu);
+	__u32 len = get_rfc1002_len(work->request_buf);
 
-	if (work->next_smb2_rcv_hdr_off) {
-		pdu = ksmbd_req_buf_next(work);
-		hdr = &pdu->hdr;
-	}
-
-	if (le32_to_cpu(hdr->NextCommand) > 0) {
+	if (le32_to_cpu(hdr->NextCommand) > 0)
 		len = le32_to_cpu(hdr->NextCommand);
-	} else if (work->next_smb2_rcv_hdr_off) {
+	else if (work->next_smb2_rcv_hdr_off)
 		len -= work->next_smb2_rcv_hdr_off;
-		len = round_up(len, 8);
-	}
 
 	if (check_smb2_hdr(hdr))
 		return 1;
@@ -382,26 +392,20 @@ int ksmbd_smb2_check_message(struct ksmbd_work *work)
 		}
 	}
 
-	if ((work->conn->vals->capabilities & SMB2_GLOBAL_CAP_LARGE_MTU) &&
-	    smb2_validate_credit_charge(hdr)) {
-		work->conn->ops->set_rsp_status(work, STATUS_INVALID_PARAMETER);
-		return 1;
-	}
-
 	if (smb2_calc_size(hdr, &clc_len))
 		return 1;
 
 	if (len != clc_len) {
 		/* client can return one byte more due to implied bcc[0] */
 		if (clc_len == len + 1)
-			return 0;
+			goto validate_credit;
 
 		/*
 		 * Some windows servers (win2016) will pad also the final
 		 * PDU in a compound to 8 bytes.
 		 */
 		if (ALIGN(clc_len, 8) == len)
-			return 0;
+			goto validate_credit;
 
 		/*
 		 * windows client also pad up to 8 bytes when compounding.
@@ -414,7 +418,7 @@ int ksmbd_smb2_check_message(struct ksmbd_work *work)
 				    "cli req padded more than expected. Length %d not %d for cmd:%d mid:%llu\n",
 				    len, clc_len, command,
 				    le64_to_cpu(hdr->MessageId));
-			return 0;
+			goto validate_credit;
 		}
 
 		ksmbd_debug(SMB,
@@ -422,6 +426,13 @@ int ksmbd_smb2_check_message(struct ksmbd_work *work)
 			    len, clc_len, command,
 			    le64_to_cpu(hdr->MessageId));
 
+		return 1;
+	}
+
+validate_credit:
+	if ((work->conn->vals->capabilities & SMB2_GLOBAL_CAP_LARGE_MTU) &&
+	    smb2_validate_credit_charge(work->conn, hdr)) {
+		work->conn->ops->set_rsp_status(work, STATUS_INVALID_PARAMETER);
 		return 1;
 	}
 

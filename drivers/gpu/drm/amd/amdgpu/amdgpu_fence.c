@@ -266,7 +266,6 @@ bool amdgpu_fence_process(struct amdgpu_ring *ring)
 	struct amdgpu_fence_driver *drv = &ring->fence_drv;
 	struct amdgpu_device *adev = ring->adev;
 	uint32_t seq, last_seq;
-	int r;
 
 	do {
 		last_seq = atomic_read(&ring->fence_drv.last_seq);
@@ -298,12 +297,7 @@ bool amdgpu_fence_process(struct amdgpu_ring *ring)
 		if (!fence)
 			continue;
 
-		r = dma_fence_signal(fence);
-		if (!r)
-			DMA_FENCE_TRACE(fence, "signaled from irq context\n");
-		else
-			BUG();
-
+		dma_fence_signal(fence);
 		dma_fence_put(fence);
 		pm_runtime_mark_last_busy(adev_to_drm(adev)->dev);
 		pm_runtime_put_autosuspend(adev_to_drm(adev)->dev);
@@ -556,7 +550,7 @@ void amdgpu_fence_driver_hw_fini(struct amdgpu_device *adev)
 			drm_sched_stop(&ring->sched, NULL);
 
 		/* You can't wait for HW to signal if it's gone */
-		if (!drm_dev_is_unplugged(&adev->ddev))
+		if (!drm_dev_is_unplugged(adev_to_drm(adev)))
 			r = amdgpu_fence_wait_empty(ring);
 		else
 			r = -ENODEV;
@@ -683,8 +677,6 @@ static bool amdgpu_fence_enable_signaling(struct dma_fence *f)
 
 	if (!timer_pending(&ring->fence_drv.fallback_timer))
 		amdgpu_fence_schedule_fallback(ring);
-
-	DMA_FENCE_TRACE(f, "armed on ring %i!\n", ring->idx);
 
 	return true;
 }

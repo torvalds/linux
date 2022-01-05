@@ -236,7 +236,7 @@ struct hw_sequencer_funcs {
 			const struct tg_color *solid_color,
 			int width, int height, int offset);
 
-	void (*z10_restore)(struct dc *dc);
+	void (*z10_restore)(const struct dc *dc);
 	void (*z10_save_init)(struct dc *dc);
 
 	void (*update_visual_confirm_color)(struct dc *dc,

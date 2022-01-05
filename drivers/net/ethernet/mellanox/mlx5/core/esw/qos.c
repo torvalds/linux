@@ -473,10 +473,9 @@ esw_qos_create_rate_group(struct mlx5_eswitch *esw, struct netlink_ext_ack *exta
 
 err_min_rate:
 	list_del(&group->list);
-	err = mlx5_destroy_scheduling_element_cmd(esw->dev,
-						  SCHEDULING_HIERARCHY_E_SWITCH,
-						  group->tsar_ix);
-	if (err)
+	if (mlx5_destroy_scheduling_element_cmd(esw->dev,
+						SCHEDULING_HIERARCHY_E_SWITCH,
+						group->tsar_ix))
 		NL_SET_ERR_MSG_MOD(extack, "E-Switch destroy TSAR for group failed");
 err_sched_elem:
 	kfree(group);

@@ -87,15 +87,6 @@ static inline void syscall_get_arguments(struct task_struct *task,
 	memcpy(args, &regs->bx, 6 * sizeof(args[0]));
 }
 
-static inline void syscall_set_arguments(struct task_struct *task,
-					 struct pt_regs *regs,
-					 unsigned int i, unsigned int n,
-					 const unsigned long *args)
-{
-	BUG_ON(i + n > 6);
-	memcpy(&regs->bx + i, args, n * sizeof(args[0]));
-}
-
 static inline int syscall_get_arch(struct task_struct *task)
 {
 	return AUDIT_ARCH_I386;
@@ -124,30 +115,6 @@ static inline void syscall_get_arguments(struct task_struct *task,
 		*args++ = regs->r10;
 		*args++ = regs->r8;
 		*args   = regs->r9;
-	}
-}
-
-static inline void syscall_set_arguments(struct task_struct *task,
-					 struct pt_regs *regs,
-					 const unsigned long *args)
-{
-# ifdef CONFIG_IA32_EMULATION
-	if (task->thread_info.status & TS_COMPAT) {
-		regs->bx = *args++;
-		regs->cx = *args++;
-		regs->dx = *args++;
-		regs->si = *args++;
-		regs->di = *args++;
-		regs->bp = *args;
-	} else
-# endif
-	{
-		regs->di = *args++;
-		regs->si = *args++;
-		regs->dx = *args++;
-		regs->r10 = *args++;
-		regs->r8 = *args++;
-		regs->r9 = *args;
 	}
 }
 

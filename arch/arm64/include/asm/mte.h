@@ -88,11 +88,11 @@ static inline int mte_ptrace_copy_tags(struct task_struct *child,
 
 #ifdef CONFIG_KASAN_HW_TAGS
 /* Whether the MTE asynchronous mode is enabled. */
-DECLARE_STATIC_KEY_FALSE(mte_async_mode);
+DECLARE_STATIC_KEY_FALSE(mte_async_or_asymm_mode);
 
-static inline bool system_uses_mte_async_mode(void)
+static inline bool system_uses_mte_async_or_asymm_mode(void)
 {
-	return static_branch_unlikely(&mte_async_mode);
+	return static_branch_unlikely(&mte_async_or_asymm_mode);
 }
 
 void mte_check_tfsr_el1(void);
@@ -121,7 +121,7 @@ static inline void mte_check_tfsr_exit(void)
 	mte_check_tfsr_el1();
 }
 #else
-static inline bool system_uses_mte_async_mode(void)
+static inline bool system_uses_mte_async_or_asymm_mode(void)
 {
 	return false;
 }

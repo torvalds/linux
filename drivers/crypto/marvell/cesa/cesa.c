@@ -615,7 +615,6 @@ static struct platform_driver marvell_cesa = {
 };
 module_platform_driver(marvell_cesa);
 
-MODULE_ALIAS("platform:mv_crypto");
 MODULE_AUTHOR("Boris Brezillon <boris.brezillon@free-electrons.com>");
 MODULE_AUTHOR("Arnaud Ebalard <arno@natisbad.org>");
 MODULE_DESCRIPTION("Support for Marvell's cryptographic engine");

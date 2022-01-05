@@ -1217,7 +1217,7 @@ psb_intel_sdvo_get_edid(struct drm_connector *connector)
 static struct edid *
 psb_intel_sdvo_get_analog_edid(struct drm_connector *connector)
 {
-	struct drm_psb_private *dev_priv = connector->dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(connector->dev);
 
 	return drm_get_edid(connector,
 			    &dev_priv->gmbus[dev_priv->crt_ddc_pin].adapter);
@@ -1486,7 +1486,7 @@ static void psb_intel_sdvo_get_tv_modes(struct drm_connector *connector)
 static void psb_intel_sdvo_get_lvds_modes(struct drm_connector *connector)
 {
 	struct psb_intel_sdvo *psb_intel_sdvo = intel_attached_sdvo(connector);
-	struct drm_psb_private *dev_priv = connector->dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(connector->dev);
 	struct drm_display_mode *newmode;
 
 	/*
@@ -1570,7 +1570,7 @@ psb_intel_sdvo_set_property(struct drm_connector *connector,
 {
 	struct psb_intel_sdvo *psb_intel_sdvo = intel_attached_sdvo(connector);
 	struct psb_intel_sdvo_connector *psb_intel_sdvo_connector = to_psb_intel_sdvo_connector(connector);
-	struct drm_psb_private *dev_priv = connector->dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(connector->dev);
 	uint16_t temp_value;
 	uint8_t cmd;
 	int ret;
@@ -1878,7 +1878,7 @@ psb_intel_sdvo_is_hdmi_connector(struct psb_intel_sdvo *psb_intel_sdvo, int devi
 static u8
 psb_intel_sdvo_get_slave_addr(struct drm_device *dev, int sdvo_reg)
 {
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	struct sdvo_device_mapping *my_mapping, *other_mapping;
 
 	if (IS_SDVOB(sdvo_reg)) {
@@ -2415,7 +2415,7 @@ psb_intel_sdvo_init_ddc_proxy(struct psb_intel_sdvo *sdvo,
 
 bool psb_intel_sdvo_init(struct drm_device *dev, int sdvo_reg)
 {
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	struct gma_encoder *gma_encoder;
 	struct psb_intel_sdvo *psb_intel_sdvo;
 	int i;

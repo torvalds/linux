@@ -1870,7 +1870,7 @@ int fc_queuecommand(struct Scsi_Host *shost, struct scsi_cmnd *sc_cmd)
 	rval = fc_remote_port_chkready(rport);
 	if (rval) {
 		sc_cmd->result = rval;
-		sc_cmd->scsi_done(sc_cmd);
+		scsi_done(sc_cmd);
 		return 0;
 	}
 
@@ -1880,7 +1880,7 @@ int fc_queuecommand(struct Scsi_Host *shost, struct scsi_cmnd *sc_cmd)
 		 * online
 		 */
 		sc_cmd->result = DID_IMM_RETRY << 16;
-		sc_cmd->scsi_done(sc_cmd);
+		scsi_done(sc_cmd);
 		goto out;
 	}
 
@@ -2087,7 +2087,7 @@ static void fc_io_compl(struct fc_fcp_pkt *fsp)
 	list_del(&fsp->list);
 	sc_cmd->SCp.ptr = NULL;
 	spin_unlock_irqrestore(&si->scsi_queue_lock, flags);
-	sc_cmd->scsi_done(sc_cmd);
+	scsi_done(sc_cmd);
 
 	/* release ref from initial allocation in queue command */
 	fc_fcp_pkt_release(fsp);

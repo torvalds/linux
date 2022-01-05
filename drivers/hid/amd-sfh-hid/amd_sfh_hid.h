@@ -2,8 +2,10 @@
 /*
  * AMD MP2 Sensors transport driver
  *
+ * Copyright 2020-2021 Advanced Micro Devices, Inc.
  * Authors: Nehal Bakulchandra Shah <Nehal-bakulchandra.shah@amd.com>
  *	    Sandeep Singh <sandeep.singh@amd.com>
+ *	    Basavaraj Natikar <Basavaraj.Natikar@amd.com>
  */
 
 #ifndef AMDSFH_HID_H

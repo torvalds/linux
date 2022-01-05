@@ -38,7 +38,7 @@
 	model = "NorthStar SVK (BCM94709)";
 	compatible = "brcm,bcm94709", "brcm,bcm4709", "brcm,bcm4708";
 
-	memory {
+	memory@0 {
 		device_type = "memory";
 		reg = <0x00000000 0x08000000>;
 	};

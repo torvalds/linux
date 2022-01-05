@@ -22,6 +22,7 @@
  */
 
 #include <linux/firmware.h>
+#include <drm/drm_drv.h>
 
 #include "amdgpu.h"
 #include "amdgpu_vcn.h"
@@ -82,7 +83,7 @@ static int vcn_v2_5_early_init(void *handle)
 	} else {
 		u32 harvest;
 		int i;
-		adev->vcn.num_vcn_inst = VCN25_MAX_HW_INSTANCES_ARCTURUS;
+
 		for (i = 0; i < adev->vcn.num_vcn_inst; i++) {
 			harvest = RREG32_SOC15(VCN, i, mmCC_UVD_HARVESTING);
 			if (harvest & CC_UVD_HARVESTING__UVD_DISABLE_MASK)
@@ -138,22 +139,7 @@ static int vcn_v2_5_sw_init(void *handle)
 	if (r)
 		return r;
 
-	if (adev->firmware.load_type == AMDGPU_FW_LOAD_PSP) {
-		const struct common_firmware_header *hdr;
-		hdr = (const struct common_firmware_header *)adev->vcn.fw->data;
-		adev->firmware.ucode[AMDGPU_UCODE_ID_VCN].ucode_id = AMDGPU_UCODE_ID_VCN;
-		adev->firmware.ucode[AMDGPU_UCODE_ID_VCN].fw = adev->vcn.fw;
-		adev->firmware.fw_size +=
-			ALIGN(le32_to_cpu(hdr->ucode_size_bytes), PAGE_SIZE);
-
-		if (adev->vcn.num_vcn_inst == VCN25_MAX_HW_INSTANCES_ARCTURUS) {
-			adev->firmware.ucode[AMDGPU_UCODE_ID_VCN1].ucode_id = AMDGPU_UCODE_ID_VCN1;
-			adev->firmware.ucode[AMDGPU_UCODE_ID_VCN1].fw = adev->vcn.fw;
-			adev->firmware.fw_size +=
-				ALIGN(le32_to_cpu(hdr->ucode_size_bytes), PAGE_SIZE);
-		}
-		dev_info(adev->dev, "Will use PSP to load VCN firmware\n");
-	}
+	amdgpu_vcn_setup_ucode(adev);
 
 	r = amdgpu_vcn_resume(adev);
 	if (r)
@@ -194,6 +180,8 @@ static int vcn_v2_5_sw_init(void *handle)
 			return r;
 
 		for (i = 0; i < adev->vcn.num_enc_rings; ++i) {
+			enum amdgpu_ring_priority_level hw_prio = amdgpu_vcn_get_enc_ring_prio(i);
+
 			ring = &adev->vcn.inst[j].ring_enc[i];
 			ring->use_doorbell = true;
 
@@ -203,7 +191,7 @@ static int vcn_v2_5_sw_init(void *handle)
 			sprintf(ring->name, "vcn_enc_%d.%d", j, i);
 			r = amdgpu_ring_init(adev, ring, 512,
 					     &adev->vcn.inst[j].irq, 0,
-					     AMDGPU_RING_PRIO_DEFAULT, NULL);
+					     hw_prio, NULL);
 			if (r)
 				return r;
 		}
@@ -233,16 +221,20 @@ static int vcn_v2_5_sw_init(void *handle)
  */
 static int vcn_v2_5_sw_fini(void *handle)
 {
-	int i, r;
+	int i, r, idx;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	volatile struct amdgpu_fw_shared *fw_shared;
 
-	for (i = 0; i < adev->vcn.num_vcn_inst; i++) {
-		if (adev->vcn.harvest_config & (1 << i))
-			continue;
-		fw_shared = adev->vcn.inst[i].fw_shared_cpu_addr;
-		fw_shared->present_flag_0 = 0;
+	if (drm_dev_enter(adev_to_drm(adev), &idx)) {
+		for (i = 0; i < adev->vcn.num_vcn_inst; i++) {
+			if (adev->vcn.harvest_config & (1 << i))
+				continue;
+			fw_shared = adev->vcn.inst[i].fw_shared_cpu_addr;
+			fw_shared->present_flag_0 = 0;
+		}
+		drm_dev_exit(idx);
 	}
+
 
 	if (amdgpu_sriov_vf(adev))
 		amdgpu_virt_free_mm_table(adev);
@@ -1713,7 +1705,7 @@ static void vcn_v2_5_set_dec_ring_funcs(struct amdgpu_device *adev)
 	for (i = 0; i < adev->vcn.num_vcn_inst; ++i) {
 		if (adev->vcn.harvest_config & (1 << i))
 			continue;
-		if (adev->asic_type == CHIP_ARCTURUS)
+		if (adev->ip_versions[UVD_HWIP][0] == IP_VERSION(2, 5, 0))
 			adev->vcn.inst[i].ring_dec.funcs = &vcn_v2_5_dec_ring_vm_funcs;
 		else /* CHIP_ALDEBARAN */
 			adev->vcn.inst[i].ring_dec.funcs = &vcn_v2_6_dec_ring_vm_funcs;
@@ -1730,7 +1722,7 @@ static void vcn_v2_5_set_enc_ring_funcs(struct amdgpu_device *adev)
 		if (adev->vcn.harvest_config & (1 << j))
 			continue;
 		for (i = 0; i < adev->vcn.num_enc_rings; ++i) {
-			if (adev->asic_type == CHIP_ARCTURUS)
+			if (adev->ip_versions[UVD_HWIP][0] == IP_VERSION(2, 5, 0))
 				adev->vcn.inst[j].ring_enc[i].funcs = &vcn_v2_5_enc_ring_vm_funcs;
 			else /* CHIP_ALDEBARAN */
 				adev->vcn.inst[j].ring_enc[i].funcs = &vcn_v2_6_enc_ring_vm_funcs;

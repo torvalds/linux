@@ -8,6 +8,8 @@
 #include <cxlmem.h>
 #include "core.h"
 
+static DECLARE_RWSEM(cxl_memdev_rwsem);
+
 /*
  * An entire PCI topology full of devices should be enough for any
  * config
@@ -132,16 +134,53 @@ static const struct device_type cxl_memdev_type = {
 	.groups = cxl_memdev_attribute_groups,
 };
 
+/**
+ * set_exclusive_cxl_commands() - atomically disable user cxl commands
+ * @cxlm: cxl_mem instance to modify
+ * @cmds: bitmap of commands to mark exclusive
+ *
+ * Grab the cxl_memdev_rwsem in write mode to flush in-flight
+ * invocations of the ioctl path and then disable future execution of
+ * commands with the command ids set in @cmds.
+ */
+void set_exclusive_cxl_commands(struct cxl_mem *cxlm, unsigned long *cmds)
+{
+	down_write(&cxl_memdev_rwsem);
+	bitmap_or(cxlm->exclusive_cmds, cxlm->exclusive_cmds, cmds,
+		  CXL_MEM_COMMAND_ID_MAX);
+	up_write(&cxl_memdev_rwsem);
+}
+EXPORT_SYMBOL_GPL(set_exclusive_cxl_commands);
+
+/**
+ * clear_exclusive_cxl_commands() - atomically enable user cxl commands
+ * @cxlm: cxl_mem instance to modify
+ * @cmds: bitmap of commands to mark available for userspace
+ */
+void clear_exclusive_cxl_commands(struct cxl_mem *cxlm, unsigned long *cmds)
+{
+	down_write(&cxl_memdev_rwsem);
+	bitmap_andnot(cxlm->exclusive_cmds, cxlm->exclusive_cmds, cmds,
+		      CXL_MEM_COMMAND_ID_MAX);
+	up_write(&cxl_memdev_rwsem);
+}
+EXPORT_SYMBOL_GPL(clear_exclusive_cxl_commands);
+
+static void cxl_memdev_shutdown(struct device *dev)
+{
+	struct cxl_memdev *cxlmd = to_cxl_memdev(dev);
+
+	down_write(&cxl_memdev_rwsem);
+	cxlmd->cxlm = NULL;
+	up_write(&cxl_memdev_rwsem);
+}
+
 static void cxl_memdev_unregister(void *_cxlmd)
 {
 	struct cxl_memdev *cxlmd = _cxlmd;
 	struct device *dev = &cxlmd->dev;
-	struct cdev *cdev = &cxlmd->cdev;
-	const struct cdevm_file_operations *cdevm_fops;
 
-	cdevm_fops = container_of(cdev->ops, typeof(*cdevm_fops), fops);
-	cdevm_fops->shutdown(dev);
-
+	cxl_memdev_shutdown(dev);
 	cdev_device_del(&cxlmd->cdev, dev);
 	put_device(dev);
 }
@@ -149,7 +188,6 @@ static void cxl_memdev_unregister(void *_cxlmd)
 static struct cxl_memdev *cxl_memdev_alloc(struct cxl_mem *cxlm,
 					   const struct file_operations *fops)
 {
-	struct pci_dev *pdev = cxlm->pdev;
 	struct cxl_memdev *cxlmd;
 	struct device *dev;
 	struct cdev *cdev;
@@ -166,7 +204,7 @@ static struct cxl_memdev *cxl_memdev_alloc(struct cxl_mem *cxlm,
 
 	dev = &cxlmd->dev;
 	device_initialize(dev);
-	dev->parent = &pdev->dev;
+	dev->parent = cxlm->dev;
 	dev->bus = &cxl_bus_type;
 	dev->devt = MKDEV(cxl_mem_major, cxlmd->id);
 	dev->type = &cxl_memdev_type;
@@ -181,16 +219,72 @@ err:
 	return ERR_PTR(rc);
 }
 
+static long __cxl_memdev_ioctl(struct cxl_memdev *cxlmd, unsigned int cmd,
+			       unsigned long arg)
+{
+	switch (cmd) {
+	case CXL_MEM_QUERY_COMMANDS:
+		return cxl_query_cmd(cxlmd, (void __user *)arg);
+	case CXL_MEM_SEND_COMMAND:
+		return cxl_send_cmd(cxlmd, (void __user *)arg);
+	default:
+		return -ENOTTY;
+	}
+}
+
+static long cxl_memdev_ioctl(struct file *file, unsigned int cmd,
+			     unsigned long arg)
+{
+	struct cxl_memdev *cxlmd = file->private_data;
+	int rc = -ENXIO;
+
+	down_read(&cxl_memdev_rwsem);
+	if (cxlmd->cxlm)
+		rc = __cxl_memdev_ioctl(cxlmd, cmd, arg);
+	up_read(&cxl_memdev_rwsem);
+
+	return rc;
+}
+
+static int cxl_memdev_open(struct inode *inode, struct file *file)
+{
+	struct cxl_memdev *cxlmd =
+		container_of(inode->i_cdev, typeof(*cxlmd), cdev);
+
+	get_device(&cxlmd->dev);
+	file->private_data = cxlmd;
+
+	return 0;
+}
+
+static int cxl_memdev_release_file(struct inode *inode, struct file *file)
+{
+	struct cxl_memdev *cxlmd =
+		container_of(inode->i_cdev, typeof(*cxlmd), cdev);
+
+	put_device(&cxlmd->dev);
+
+	return 0;
+}
+
+static const struct file_operations cxl_memdev_fops = {
+	.owner = THIS_MODULE,
+	.unlocked_ioctl = cxl_memdev_ioctl,
+	.open = cxl_memdev_open,
+	.release = cxl_memdev_release_file,
+	.compat_ioctl = compat_ptr_ioctl,
+	.llseek = noop_llseek,
+};
+
 struct cxl_memdev *
-devm_cxl_add_memdev(struct device *host, struct cxl_mem *cxlm,
-		    const struct cdevm_file_operations *cdevm_fops)
+devm_cxl_add_memdev(struct cxl_mem *cxlm)
 {
 	struct cxl_memdev *cxlmd;
 	struct device *dev;
 	struct cdev *cdev;
 	int rc;
 
-	cxlmd = cxl_memdev_alloc(cxlm, &cdevm_fops->fops);
+	cxlmd = cxl_memdev_alloc(cxlm, &cxl_memdev_fops);
 	if (IS_ERR(cxlmd))
 		return cxlmd;
 
@@ -210,7 +304,7 @@ devm_cxl_add_memdev(struct device *host, struct cxl_mem *cxlm,
 	if (rc)
 		goto err;
 
-	rc = devm_add_action_or_reset(host, cxl_memdev_unregister, cxlmd);
+	rc = devm_add_action_or_reset(cxlm->dev, cxl_memdev_unregister, cxlmd);
 	if (rc)
 		return ERR_PTR(rc);
 	return cxlmd;
@@ -220,7 +314,7 @@ err:
 	 * The cdev was briefly live, shutdown any ioctl operations that
 	 * saw that state.
 	 */
-	cdevm_fops->shutdown(dev);
+	cxl_memdev_shutdown(dev);
 	put_device(dev);
 	return ERR_PTR(rc);
 }

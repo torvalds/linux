@@ -41,7 +41,7 @@ void arch_remove_kprobe(struct kprobe *p);
 int kprobe_fault_handler(struct pt_regs *regs, unsigned int trapnr);
 int kprobe_breakpoint_handler(struct pt_regs *regs);
 int kprobe_single_step_handler(struct pt_regs *regs);
-void kretprobe_trampoline(void);
+void __kretprobe_trampoline(void);
 void __kprobes *trampoline_probe_handler(struct pt_regs *regs);
 
 #endif /* CONFIG_KPROBES */

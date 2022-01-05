@@ -50,13 +50,11 @@
 #define DRIVER_PATCHLEVEL 0
 
 /* Helper function for mapping the regs on a platform device. */
-void __iomem *vc4_ioremap_regs(struct platform_device *dev, int index)
+void __iomem *vc4_ioremap_regs(struct platform_device *pdev, int index)
 {
-	struct resource *res;
 	void __iomem *map;
 
-	res = platform_get_resource(dev, IORESOURCE_MEM, index);
-	map = devm_ioremap_resource(&dev->dev, res);
+	map = devm_platform_ioremap_resource(pdev, index);
 	if (IS_ERR(map))
 		return map;
 

@@ -57,6 +57,7 @@ struct perf_guest_info_callbacks {
 #include <linux/cgroup.h>
 #include <linux/refcount.h>
 #include <linux/security.h>
+#include <linux/static_call.h>
 #include <asm/local.h>
 
 struct perf_callchain_entry {
@@ -1400,6 +1401,7 @@ perf_event_addr_filters(struct perf_event *event)
 }
 
 extern void perf_event_addr_filters_sync(struct perf_event *event);
+extern void perf_report_aux_output_id(struct perf_event *event, u64 hw_id);
 
 extern int perf_output_begin(struct perf_output_handle *handle,
 			     struct perf_sample_data *data,
@@ -1613,5 +1615,27 @@ extern void __weak arch_perf_update_userpage(struct perf_event *event,
 #ifdef CONFIG_MMU
 extern __weak u64 arch_perf_get_page_size(struct mm_struct *mm, unsigned long addr);
 #endif
+
+/*
+ * Snapshot branch stack on software events.
+ *
+ * Branch stack can be very useful in understanding software events. For
+ * example, when a long function, e.g. sys_perf_event_open, returns an
+ * errno, it is not obvious why the function failed. Branch stack could
+ * provide very helpful information in this type of scenarios.
+ *
+ * On software event, it is necessary to stop the hardware branch recorder
+ * fast. Otherwise, the hardware register/buffer will be flushed with
+ * entries of the triggering event. Therefore, static call is used to
+ * stop the hardware recorder.
+ */
+
+/*
+ * cnt is the number of entries allocated for entries.
+ * Return number of entries copied to .
+ */
+typedef int (perf_snapshot_branch_stack_t)(struct perf_branch_entry *entries,
+					   unsigned int cnt);
+DECLARE_STATIC_CALL(perf_snapshot_branch_stack, perf_snapshot_branch_stack_t);
 
 #endif /* _LINUX_PERF_EVENT_H */

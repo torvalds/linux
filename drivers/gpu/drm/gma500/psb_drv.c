@@ -124,7 +124,7 @@ void psb_spank(struct drm_psb_private *dev_priv)
 
 static int psb_do_init(struct drm_device *dev)
 {
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	struct psb_gtt *pg = &dev_priv->gtt;
 
 	uint32_t stolen_gtt;
@@ -163,71 +163,74 @@ static int psb_do_init(struct drm_device *dev)
 
 static void psb_driver_unload(struct drm_device *dev)
 {
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 
 	/* TODO: Kill vblank etc here */
 
-	if (dev_priv) {
-		if (dev_priv->backlight_device)
-			gma_backlight_exit(dev);
-		psb_modeset_cleanup(dev);
+	if (dev_priv->backlight_device)
+		gma_backlight_exit(dev);
+	psb_modeset_cleanup(dev);
 
-		if (dev_priv->ops->chip_teardown)
-			dev_priv->ops->chip_teardown(dev);
+	if (dev_priv->ops->chip_teardown)
+		dev_priv->ops->chip_teardown(dev);
 
-		psb_intel_opregion_fini(dev);
+	psb_intel_opregion_fini(dev);
 
-		if (dev_priv->pf_pd) {
-			psb_mmu_free_pagedir(dev_priv->pf_pd);
-			dev_priv->pf_pd = NULL;
-		}
-		if (dev_priv->mmu) {
-			struct psb_gtt *pg = &dev_priv->gtt;
-
-			down_read(&pg->sem);
-			psb_mmu_remove_pfn_sequence(
-				psb_mmu_get_default_pd
-				(dev_priv->mmu),
-				pg->mmu_gatt_start,
-				dev_priv->vram_stolen_size >> PAGE_SHIFT);
-			up_read(&pg->sem);
-			psb_mmu_driver_takedown(dev_priv->mmu);
-			dev_priv->mmu = NULL;
-		}
-		psb_gtt_takedown(dev);
-		if (dev_priv->scratch_page) {
-			set_pages_wb(dev_priv->scratch_page, 1);
-			__free_page(dev_priv->scratch_page);
-			dev_priv->scratch_page = NULL;
-		}
-		if (dev_priv->vdc_reg) {
-			iounmap(dev_priv->vdc_reg);
-			dev_priv->vdc_reg = NULL;
-		}
-		if (dev_priv->sgx_reg) {
-			iounmap(dev_priv->sgx_reg);
-			dev_priv->sgx_reg = NULL;
-		}
-		if (dev_priv->aux_reg) {
-			iounmap(dev_priv->aux_reg);
-			dev_priv->aux_reg = NULL;
-		}
-		pci_dev_put(dev_priv->aux_pdev);
-		pci_dev_put(dev_priv->lpc_pdev);
-
-		/* Destroy VBT data */
-		psb_intel_destroy_bios(dev);
-
-		kfree(dev_priv);
-		dev->dev_private = NULL;
+	if (dev_priv->pf_pd) {
+		psb_mmu_free_pagedir(dev_priv->pf_pd);
+		dev_priv->pf_pd = NULL;
 	}
+	if (dev_priv->mmu) {
+		struct psb_gtt *pg = &dev_priv->gtt;
+
+		down_read(&pg->sem);
+		psb_mmu_remove_pfn_sequence(
+			psb_mmu_get_default_pd
+			(dev_priv->mmu),
+			pg->mmu_gatt_start,
+			dev_priv->vram_stolen_size >> PAGE_SHIFT);
+		up_read(&pg->sem);
+		psb_mmu_driver_takedown(dev_priv->mmu);
+		dev_priv->mmu = NULL;
+	}
+	psb_gtt_takedown(dev);
+	if (dev_priv->scratch_page) {
+		set_pages_wb(dev_priv->scratch_page, 1);
+		__free_page(dev_priv->scratch_page);
+		dev_priv->scratch_page = NULL;
+	}
+	if (dev_priv->vdc_reg) {
+		iounmap(dev_priv->vdc_reg);
+		dev_priv->vdc_reg = NULL;
+	}
+	if (dev_priv->sgx_reg) {
+		iounmap(dev_priv->sgx_reg);
+		dev_priv->sgx_reg = NULL;
+	}
+	if (dev_priv->aux_reg) {
+		iounmap(dev_priv->aux_reg);
+		dev_priv->aux_reg = NULL;
+	}
+	pci_dev_put(dev_priv->aux_pdev);
+	pci_dev_put(dev_priv->lpc_pdev);
+
+	/* Destroy VBT data */
+	psb_intel_destroy_bios(dev);
+
 	gma_power_uninit(dev);
+}
+
+static void psb_device_release(void *data)
+{
+	struct drm_device *dev = data;
+
+	psb_driver_unload(dev);
 }
 
 static int psb_driver_load(struct drm_device *dev, unsigned long flags)
 {
 	struct pci_dev *pdev = to_pci_dev(dev->dev);
-	struct drm_psb_private *dev_priv;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	unsigned long resource_start, resource_len;
 	unsigned long irqflags;
 	int ret = -ENOMEM;
@@ -235,14 +238,9 @@ static int psb_driver_load(struct drm_device *dev, unsigned long flags)
 	struct gma_encoder *gma_encoder;
 	struct psb_gtt *pg;
 
-	/* allocating and initializing driver private data */
-	dev_priv = kzalloc(sizeof(*dev_priv), GFP_KERNEL);
-	if (dev_priv == NULL)
-		return -ENOMEM;
+	/* initializing driver private data */
 
 	dev_priv->ops = (struct psb_ops *)flags;
-	dev_priv->dev = dev;
-	dev->dev_private = (void *) dev_priv;
 
 	pg = &dev_priv->gtt;
 
@@ -409,8 +407,9 @@ static int psb_driver_load(struct drm_device *dev, unsigned long flags)
 	pm_runtime_enable(dev->dev);
 	pm_runtime_set_active(dev->dev);
 #endif
-	/* Intel drm driver load is done, continue doing pvr load */
-	return 0;
+
+	return devm_add_action_or_reset(dev->dev, psb_device_release, dev);
+
 out_err:
 	psb_driver_unload(dev);
 	return ret;
@@ -431,7 +430,7 @@ static long psb_unlocked_ioctl(struct file *filp, unsigned int cmd,
 {
 	struct drm_file *file_priv = filp->private_data;
 	struct drm_device *dev = file_priv->minor->dev;
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	static unsigned int runtime_allowed;
 
 	if (runtime_allowed == 1 && dev_priv->is_lvds_on) {
@@ -445,38 +444,30 @@ static long psb_unlocked_ioctl(struct file *filp, unsigned int cmd,
 
 static int psb_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
+	struct drm_psb_private *dev_priv;
 	struct drm_device *dev;
 	int ret;
 
-	ret = pci_enable_device(pdev);
+	ret = pcim_enable_device(pdev);
 	if (ret)
 		return ret;
 
-	dev = drm_dev_alloc(&driver, &pdev->dev);
-	if (IS_ERR(dev)) {
-		ret = PTR_ERR(dev);
-		goto err_pci_disable_device;
-	}
+	dev_priv = devm_drm_dev_alloc(&pdev->dev, &driver, struct drm_psb_private, dev);
+	if (IS_ERR(dev_priv))
+		return PTR_ERR(dev_priv);
+	dev = &dev_priv->dev;
 
 	pci_set_drvdata(pdev, dev);
 
 	ret = psb_driver_load(dev, ent->driver_data);
 	if (ret)
-		goto err_drm_dev_put;
+		return ret;
 
 	ret = drm_dev_register(dev, ent->driver_data);
 	if (ret)
-		goto err_psb_driver_unload;
+		return ret;
 
 	return 0;
-
-err_psb_driver_unload:
-	psb_driver_unload(dev);
-err_drm_dev_put:
-	drm_dev_put(dev);
-err_pci_disable_device:
-	pci_disable_device(pdev);
-	return ret;
 }
 
 static void psb_pci_remove(struct pci_dev *pdev)
@@ -484,8 +475,6 @@ static void psb_pci_remove(struct pci_dev *pdev)
 	struct drm_device *dev = pci_get_drvdata(pdev);
 
 	drm_dev_unregister(dev);
-	psb_driver_unload(dev);
-	drm_dev_put(dev);
 }
 
 static const struct dev_pm_ops psb_pm_ops = {

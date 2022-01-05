@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0 OR X11
 /*
- * Device Tree Include file for TQ Systems TQMa7x boards with full mounted PCB.
+ * Device Tree Include file for TQ-Systems TQMa7x boards with full mounted PCB.
  *
- * Copyright (C) 2016 TQ Systems GmbH
+ * Copyright (C) 2016 TQ-Systems GmbH
  * Author: Markus Niebel <Markus.Niebel@tq-group.com>
  * Copyright (C) 2019 Bruno Thomsen <bruno.thomsen@gmail.com>
  */
@@ -17,6 +17,16 @@
 
 &cpu0 {
 	cpu-supply = <&sw1a_reg>;
+};
+
+&gpio2 {
+	/* Configured as pullup by QSPI pin group */
+	qspi-reset-hog {
+		gpio-hog;
+		gpios = <4 GPIO_ACTIVE_LOW>;
+		input;
+		line-name = "qspi-reset";
+	};
 };
 
 &i2c1 {
@@ -160,6 +170,25 @@
 		>;
 	};
 
+	pinctrl_qspi: qspigrp {
+		fsl,pins = <
+			MX7D_PAD_EPDC_DATA00__QSPI_A_DATA0	0x5A
+			MX7D_PAD_EPDC_DATA01__QSPI_A_DATA1	0x5A
+			MX7D_PAD_EPDC_DATA02__QSPI_A_DATA2	0x5A
+			MX7D_PAD_EPDC_DATA03__QSPI_A_DATA3	0x5A
+			MX7D_PAD_EPDC_DATA05__QSPI_A_SCLK	0x11
+			MX7D_PAD_EPDC_DATA06__QSPI_A_SS0_B	0x54
+			MX7D_PAD_EPDC_DATA07__QSPI_A_SS1_B	0x54
+		>;
+	};
+
+	pinctrl_qspi_reset: qspi_resetgrp {
+		fsl,pins = <
+			/* #QSPI_RESET */
+			MX7D_PAD_EPDC_DATA04__GPIO2_IO4		0x52
+		>;
+	};
+
 	pinctrl_usdhc3: usdhc3grp {
 		fsl,pins = <
 			MX7D_PAD_SD3_CMD__SD3_CMD		0x59
@@ -214,6 +243,20 @@
 		fsl,pins = <
 			MX7D_PAD_LPSR_GPIO1_IO00__WDOG1_WDOG_B	0x30
 		>;
+	};
+};
+
+&qspi {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_qspi &pinctrl_qspi_reset>;
+	status = "okay";
+
+	flash0: flash@0 {
+		compatible = "jedec,spi-nor";
+		reg = <0>;
+		spi-max-frequency = <29000000>;
+		spi-rx-bus-width = <4>;
+		spi-tx-bus-width = <4>;
 	};
 };
 

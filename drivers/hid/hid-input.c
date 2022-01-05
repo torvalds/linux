@@ -871,6 +871,7 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 			break;
 
 		case 0x5b: /* TransducerSerialNumber */
+		case 0x6e: /* TransducerSerialNumber2 */
 			usage->type = EV_MSC;
 			usage->code = MSC_SERIAL;
 			bit = input->mscbit;

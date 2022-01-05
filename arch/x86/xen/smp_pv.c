@@ -225,7 +225,6 @@ static void __init xen_pv_smp_prepare_boot_cpu(void)
 static void __init xen_pv_smp_prepare_cpus(unsigned int max_cpus)
 {
 	unsigned cpu;
-	unsigned int i;
 
 	if (skip_ioapic_setup) {
 		char *m = (max_cpus == 0) ?
@@ -238,16 +237,9 @@ static void __init xen_pv_smp_prepare_cpus(unsigned int max_cpus)
 	}
 	xen_init_lock_cpu(0);
 
-	smp_store_boot_cpu_info();
-	cpu_data(0).x86_max_cores = 1;
+	smp_prepare_cpus_common();
 
-	for_each_possible_cpu(i) {
-		zalloc_cpumask_var(&per_cpu(cpu_sibling_map, i), GFP_KERNEL);
-		zalloc_cpumask_var(&per_cpu(cpu_core_map, i), GFP_KERNEL);
-		zalloc_cpumask_var(&per_cpu(cpu_die_map, i), GFP_KERNEL);
-		zalloc_cpumask_var(&per_cpu(cpu_llc_shared_map, i), GFP_KERNEL);
-	}
-	set_cpu_sibling_map(0);
+	cpu_data(0).x86_max_cores = 1;
 
 	speculative_store_bypass_ht_init();
 
@@ -458,10 +450,8 @@ static void xen_pv_stop_other_cpus(int wait)
 
 static irqreturn_t xen_irq_work_interrupt(int irq, void *dev_id)
 {
-	irq_enter();
 	irq_work_run();
 	inc_irq_stat(apic_irq_work_irqs);
-	irq_exit();
 
 	return IRQ_HANDLED;
 }

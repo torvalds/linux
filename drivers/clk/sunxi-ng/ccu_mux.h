@@ -40,7 +40,6 @@ struct ccu_mux_internal {
 	_SUNXI_CCU_MUX_TABLE(_shift, _width, NULL)
 
 struct ccu_mux {
-	u16			reg;
 	u32			enable;
 
 	struct ccu_mux_internal	mux;

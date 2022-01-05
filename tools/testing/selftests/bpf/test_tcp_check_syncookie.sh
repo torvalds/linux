@@ -76,8 +76,8 @@ DIR=$(dirname $0)
 TEST_IF=lo
 MAX_PING_TRIES=5
 BPF_PROG_OBJ="${DIR}/test_tcp_check_syncookie_kern.o"
-CLSACT_SECTION="clsact/check_syncookie"
-XDP_SECTION="xdp/check_syncookie"
+CLSACT_SECTION="tc"
+XDP_SECTION="xdp"
 BPF_PROG_ID=0
 PROG="${DIR}/test_tcp_check_syncookie_user"
 

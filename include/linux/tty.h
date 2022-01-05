@@ -252,20 +252,20 @@ static inline bool tty_throttled(struct tty_struct *tty)
 }
 
 #ifdef CONFIG_TTY
-extern void tty_kref_put(struct tty_struct *tty);
-extern struct pid *tty_get_pgrp(struct tty_struct *tty);
-extern void tty_vhangup_self(void);
-extern void disassociate_ctty(int priv);
-extern dev_t tty_devnum(struct tty_struct *tty);
-extern void proc_clear_tty(struct task_struct *p);
-extern struct tty_struct *get_current_tty(void);
+void tty_kref_put(struct tty_struct *tty);
+struct pid *tty_get_pgrp(struct tty_struct *tty);
+void tty_vhangup_self(void);
+void disassociate_ctty(int priv);
+dev_t tty_devnum(struct tty_struct *tty);
+void proc_clear_tty(struct task_struct *p);
+struct tty_struct *get_current_tty(void);
 /* tty_io.c */
-extern int __init tty_init(void);
-extern const char *tty_name(const struct tty_struct *tty);
-extern struct tty_struct *tty_kopen_exclusive(dev_t device);
-extern struct tty_struct *tty_kopen_shared(dev_t device);
-extern void tty_kclose(struct tty_struct *tty);
-extern int tty_dev_name_to_number(const char *name, dev_t *number);
+int __init tty_init(void);
+const char *tty_name(const struct tty_struct *tty);
+struct tty_struct *tty_kopen_exclusive(dev_t device);
+struct tty_struct *tty_kopen_shared(dev_t device);
+void tty_kclose(struct tty_struct *tty);
+int tty_dev_name_to_number(const char *name, dev_t *number);
 #else
 static inline void tty_kref_put(struct tty_struct *tty)
 { }
@@ -296,7 +296,7 @@ static inline int tty_dev_name_to_number(const char *name, dev_t *number)
 
 extern struct ktermios tty_std_termios;
 
-extern int vcs_init(void);
+int vcs_init(void);
 
 extern struct class *tty_class;
 
@@ -316,34 +316,34 @@ static inline struct tty_struct *tty_kref_get(struct tty_struct *tty)
 	return tty;
 }
 
-extern const char *tty_driver_name(const struct tty_struct *tty);
-extern void tty_wait_until_sent(struct tty_struct *tty, long timeout);
-extern void stop_tty(struct tty_struct *tty);
-extern void start_tty(struct tty_struct *tty);
-extern void tty_write_message(struct tty_struct *tty, char *msg);
-extern int tty_send_xchar(struct tty_struct *tty, char ch);
-extern int tty_put_char(struct tty_struct *tty, unsigned char c);
-extern unsigned int tty_chars_in_buffer(struct tty_struct *tty);
-extern unsigned int tty_write_room(struct tty_struct *tty);
-extern void tty_driver_flush_buffer(struct tty_struct *tty);
-extern void tty_unthrottle(struct tty_struct *tty);
-extern int tty_throttle_safe(struct tty_struct *tty);
-extern int tty_unthrottle_safe(struct tty_struct *tty);
-extern int tty_do_resize(struct tty_struct *tty, struct winsize *ws);
-extern int tty_get_icount(struct tty_struct *tty,
-			  struct serial_icounter_struct *icount);
-extern int is_current_pgrp_orphaned(void);
-extern void tty_hangup(struct tty_struct *tty);
-extern void tty_vhangup(struct tty_struct *tty);
-extern int tty_hung_up_p(struct file *filp);
-extern void do_SAK(struct tty_struct *tty);
-extern void __do_SAK(struct tty_struct *tty);
-extern void no_tty(void);
-extern speed_t tty_termios_baud_rate(struct ktermios *termios);
-extern void tty_termios_encode_baud_rate(struct ktermios *termios,
-						speed_t ibaud, speed_t obaud);
-extern void tty_encode_baud_rate(struct tty_struct *tty,
-						speed_t ibaud, speed_t obaud);
+const char *tty_driver_name(const struct tty_struct *tty);
+void tty_wait_until_sent(struct tty_struct *tty, long timeout);
+void stop_tty(struct tty_struct *tty);
+void start_tty(struct tty_struct *tty);
+void tty_write_message(struct tty_struct *tty, char *msg);
+int tty_send_xchar(struct tty_struct *tty, char ch);
+int tty_put_char(struct tty_struct *tty, unsigned char c);
+unsigned int tty_chars_in_buffer(struct tty_struct *tty);
+unsigned int tty_write_room(struct tty_struct *tty);
+void tty_driver_flush_buffer(struct tty_struct *tty);
+void tty_unthrottle(struct tty_struct *tty);
+int tty_throttle_safe(struct tty_struct *tty);
+int tty_unthrottle_safe(struct tty_struct *tty);
+int tty_do_resize(struct tty_struct *tty, struct winsize *ws);
+int tty_get_icount(struct tty_struct *tty,
+		struct serial_icounter_struct *icount);
+int is_current_pgrp_orphaned(void);
+void tty_hangup(struct tty_struct *tty);
+void tty_vhangup(struct tty_struct *tty);
+int tty_hung_up_p(struct file *filp);
+void do_SAK(struct tty_struct *tty);
+void __do_SAK(struct tty_struct *tty);
+void no_tty(void);
+speed_t tty_termios_baud_rate(struct ktermios *termios);
+void tty_termios_encode_baud_rate(struct ktermios *termios, speed_t ibaud,
+		speed_t obaud);
+void tty_encode_baud_rate(struct tty_struct *tty, speed_t ibaud,
+		speed_t obaud);
 
 /**
  *	tty_get_baud_rate	-	get tty bit rates
@@ -363,37 +363,36 @@ static inline speed_t tty_get_baud_rate(struct tty_struct *tty)
 unsigned char tty_get_char_size(unsigned int cflag);
 unsigned char tty_get_frame_size(unsigned int cflag);
 
-extern void tty_termios_copy_hw(struct ktermios *new, struct ktermios *old);
-extern int tty_termios_hw_change(const struct ktermios *a, const struct ktermios *b);
-extern int tty_set_termios(struct tty_struct *tty, struct ktermios *kt);
+void tty_termios_copy_hw(struct ktermios *new, struct ktermios *old);
+int tty_termios_hw_change(const struct ktermios *a, const struct ktermios *b);
+int tty_set_termios(struct tty_struct *tty, struct ktermios *kt);
 
-extern void tty_wakeup(struct tty_struct *tty);
+void tty_wakeup(struct tty_struct *tty);
 
-extern int tty_mode_ioctl(struct tty_struct *tty, struct file *file,
-			unsigned int cmd, unsigned long arg);
-extern int tty_perform_flush(struct tty_struct *tty, unsigned long arg);
-extern struct tty_struct *tty_init_dev(struct tty_driver *driver, int idx);
-extern void tty_release_struct(struct tty_struct *tty, int idx);
-extern void tty_init_termios(struct tty_struct *tty);
-extern void tty_save_termios(struct tty_struct *tty);
-extern int tty_standard_install(struct tty_driver *driver,
+int tty_mode_ioctl(struct tty_struct *tty, unsigned int cmd, unsigned long arg);
+int tty_perform_flush(struct tty_struct *tty, unsigned long arg);
+struct tty_struct *tty_init_dev(struct tty_driver *driver, int idx);
+void tty_release_struct(struct tty_struct *tty, int idx);
+void tty_init_termios(struct tty_struct *tty);
+void tty_save_termios(struct tty_struct *tty);
+int tty_standard_install(struct tty_driver *driver,
 		struct tty_struct *tty);
 
 extern struct mutex tty_mutex;
 
 /* n_tty.c */
-extern void n_tty_inherit_ops(struct tty_ldisc_ops *ops);
+void n_tty_inherit_ops(struct tty_ldisc_ops *ops);
 #ifdef CONFIG_TTY
-extern void __init n_tty_init(void);
+void __init n_tty_init(void);
 #else
 static inline void n_tty_init(void) { }
 #endif
 
 /* tty_audit.c */
 #ifdef CONFIG_AUDIT
-extern void tty_audit_exit(void);
-extern void tty_audit_fork(struct signal_struct *sig);
-extern int tty_audit_push(void);
+void tty_audit_exit(void);
+void tty_audit_fork(struct signal_struct *sig);
+int tty_audit_push(void);
 #else
 static inline void tty_audit_exit(void)
 {
@@ -408,24 +407,23 @@ static inline int tty_audit_push(void)
 #endif
 
 /* tty_ioctl.c */
-extern int n_tty_ioctl_helper(struct tty_struct *tty, struct file *file,
-		       unsigned int cmd, unsigned long arg);
+int n_tty_ioctl_helper(struct tty_struct *tty, unsigned int cmd,
+		unsigned long arg);
 
 /* vt.c */
 
-extern int vt_ioctl(struct tty_struct *tty,
-		    unsigned int cmd, unsigned long arg);
+int vt_ioctl(struct tty_struct *tty, unsigned int cmd, unsigned long arg);
 
-extern long vt_compat_ioctl(struct tty_struct *tty,
-		     unsigned int cmd, unsigned long arg);
+long vt_compat_ioctl(struct tty_struct *tty, unsigned int cmd,
+		unsigned long arg);
 
 /* tty_mutex.c */
 /* functions for preparation of BKL removal */
-extern void tty_lock(struct tty_struct *tty);
-extern int  tty_lock_interruptible(struct tty_struct *tty);
-extern void tty_unlock(struct tty_struct *tty);
-extern void tty_lock_slave(struct tty_struct *tty);
-extern void tty_unlock_slave(struct tty_struct *tty);
-extern void tty_set_lock_subclass(struct tty_struct *tty);
+void tty_lock(struct tty_struct *tty);
+int  tty_lock_interruptible(struct tty_struct *tty);
+void tty_unlock(struct tty_struct *tty);
+void tty_lock_slave(struct tty_struct *tty);
+void tty_unlock_slave(struct tty_struct *tty);
+void tty_set_lock_subclass(struct tty_struct *tty);
 
 #endif

@@ -328,7 +328,7 @@ static int gvt_dma_map_page(struct intel_vgpu *vgpu, unsigned long gfn,
 		return ret;
 
 	/* Setup DMA mapping. */
-	*dma_addr = dma_map_page(dev, page, 0, size, PCI_DMA_BIDIRECTIONAL);
+	*dma_addr = dma_map_page(dev, page, 0, size, DMA_BIDIRECTIONAL);
 	if (dma_mapping_error(dev, *dma_addr)) {
 		gvt_vgpu_err("DMA mapping failed for pfn 0x%lx, ret %d\n",
 			     page_to_pfn(page), ret);
@@ -344,7 +344,7 @@ static void gvt_dma_unmap_page(struct intel_vgpu *vgpu, unsigned long gfn,
 {
 	struct device *dev = vgpu->gvt->gt->i915->drm.dev;
 
-	dma_unmap_page(dev, dma_addr, size, PCI_DMA_BIDIRECTIONAL);
+	dma_unmap_page(dev, dma_addr, size, DMA_BIDIRECTIONAL);
 	gvt_unpin_guest_page(vgpu, gfn, size);
 }
 

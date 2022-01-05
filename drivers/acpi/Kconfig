@@ -71,7 +71,7 @@ config ACPI_DEBUGGER
 if ACPI_DEBUGGER
 
 config ACPI_DEBUGGER_USER
-	tristate "Userspace debugger accessiblity"
+	tristate "Userspace debugger accessibility"
 	depends on DEBUG_FS
 	help
 	  Export /sys/kernel/debug/acpi/acpidbg for userspace utilities

@@ -495,6 +495,10 @@ static ssize_t read_iter_zero(struct kiocb *iocb, struct iov_iter *iter)
 		written += n;
 		if (signal_pending(current))
 			return written ? written : -ERESTARTSYS;
+		if (!need_resched())
+			continue;
+		if (iocb->ki_flags & IOCB_NOWAIT)
+			return written ? written : -EAGAIN;
 		cond_resched();
 	}
 	return written;
@@ -696,11 +700,11 @@ static const struct memdev {
 #ifdef CONFIG_DEVMEM
 	 [DEVMEM_MINOR] = { "mem", 0, &mem_fops, FMODE_UNSIGNED_OFFSET },
 #endif
-	 [3] = { "null", 0666, &null_fops, 0 },
+	 [3] = { "null", 0666, &null_fops, FMODE_NOWAIT },
 #ifdef CONFIG_DEVPORT
 	 [4] = { "port", 0, &port_fops, 0 },
 #endif
-	 [5] = { "zero", 0666, &zero_fops, 0 },
+	 [5] = { "zero", 0666, &zero_fops, FMODE_NOWAIT },
 	 [7] = { "full", 0666, &full_fops, 0 },
 	 [8] = { "random", 0666, &random_fops, 0 },
 	 [9] = { "urandom", 0666, &urandom_fops, 0 },

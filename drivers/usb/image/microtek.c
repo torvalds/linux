@@ -561,10 +561,9 @@ mts_build_transfer_context(struct scsi_cmnd *srb, struct mts_desc* desc)
 	desc->context.data_pipe = pipe;
 }
 
-
-static int
-mts_scsi_queuecommand_lck(struct scsi_cmnd *srb, mts_scsi_cmnd_callback callback)
+static int mts_scsi_queuecommand_lck(struct scsi_cmnd *srb)
 {
+	mts_scsi_cmnd_callback callback = scsi_done;
 	struct mts_desc* desc = (struct mts_desc*)(srb->device->host->hostdata[0]);
 	int res;
 

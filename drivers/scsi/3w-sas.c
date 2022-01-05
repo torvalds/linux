@@ -198,10 +198,12 @@ static struct device_attribute twl_host_stats_attr = {
 };
 
 /* Host attributes initializer */
-static struct device_attribute *twl_host_attrs[] = {
-	&twl_host_stats_attr,
+static struct attribute *twl_host_attrs[] = {
+	&twl_host_stats_attr.attr,
 	NULL,
 };
+
+ATTRIBUTE_GROUPS(twl_host);
 
 /* This function will look up an AEN severity string */
 static char *twl_aen_severity_lookup(unsigned char severity_code)
@@ -1216,7 +1218,7 @@ static irqreturn_t twl_interrupt(int irq, void *dev_instance)
 
 			/* Now complete the io */
 			scsi_dma_unmap(cmd);
-			cmd->scsi_done(cmd);
+			scsi_done(cmd);
 			tw_dev->state[request_id] = TW_S_COMPLETED;
 			twl_free_request_id(tw_dev, request_id);
 			tw_dev->posted_request_count--;
@@ -1369,7 +1371,7 @@ static int twl_reset_device_extension(TW_Device_Extension *tw_dev, int ioctl_res
 			if (cmd) {
 				cmd->result = (DID_RESET << 16);
 				scsi_dma_unmap(cmd);
-				cmd->scsi_done(cmd);
+				scsi_done(cmd);
 			}
 		}
 	}
@@ -1450,8 +1452,9 @@ out:
 } /* End twl_scsi_eh_reset() */
 
 /* This is the main scsi queue function to handle scsi opcodes */
-static int twl_scsi_queue_lck(struct scsi_cmnd *SCpnt, void (*done)(struct scsi_cmnd *))
+static int twl_scsi_queue_lck(struct scsi_cmnd *SCpnt)
 {
+	void (*done)(struct scsi_cmnd *) = scsi_done;
 	int request_id, retval;
 	TW_Device_Extension *tw_dev = (TW_Device_Extension *)SCpnt->device->host->hostdata;
 
@@ -1460,9 +1463,6 @@ static int twl_scsi_queue_lck(struct scsi_cmnd *SCpnt, void (*done)(struct scsi_
 		retval = SCSI_MLQUEUE_HOST_BUSY;
 		goto out;
 	}
-
-	/* Save done function into scsi_cmnd struct */
-	SCpnt->scsi_done = done;
 
 	/* Get a free request id */
 	twl_get_request_id(tw_dev, &request_id);
@@ -1544,7 +1544,7 @@ static struct scsi_host_template driver_template = {
 	.sg_tablesize		= TW_LIBERATOR_MAX_SGL_LENGTH,
 	.max_sectors		= TW_MAX_SECTORS,
 	.cmd_per_lun		= TW_MAX_CMDS_PER_LUN,
-	.shost_attrs		= twl_host_attrs,
+	.shost_groups		= twl_host_groups,
 	.emulated		= 1,
 	.no_write_same		= 1,
 };

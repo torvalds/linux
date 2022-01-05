@@ -47,6 +47,10 @@
 #include "test_btf.h"
 #include "../../../include/linux/filter.h"
 
+#ifndef ENOTSUPP
+#define ENOTSUPP 524
+#endif
+
 #define MAX_INSNS	BPF_MAXINSNS
 #define MAX_TEST_INSNS	1000000
 #define MAX_FIXUPS	8
@@ -974,7 +978,7 @@ static int do_prog_test_run(int fd_prog, bool unpriv, uint32_t expected_val,
 
 	if (err) {
 		switch (saved_errno) {
-		case 524/*ENOTSUPP*/:
+		case ENOTSUPP:
 			printf("Did not run the program (not supported) ");
 			return 0;
 		case EPERM:
@@ -1115,6 +1119,12 @@ static void do_test_single(struct bpf_test *test, bool unpriv,
 	if (fd_prog < 0 && prog_type != BPF_PROG_TYPE_TRACING &&
 	    !bpf_probe_prog_type(prog_type, 0)) {
 		printf("SKIP (unsupported program type %d)\n", prog_type);
+		skips++;
+		goto close_fds;
+	}
+
+	if (fd_prog < 0 && saved_errno == ENOTSUPP) {
+		printf("SKIP (program uses an unsupported feature)\n");
 		skips++;
 		goto close_fds;
 	}

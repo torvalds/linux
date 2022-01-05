@@ -49,6 +49,12 @@ static int page_pool_init(struct page_pool *pool,
 	 * which is the XDP_TX use-case.
 	 */
 	if (pool->p.flags & PP_FLAG_DMA_MAP) {
+		/* DMA-mapping is not supported on 32-bit systems with
+		 * 64-bit DMA mapping.
+		 */
+		if (sizeof(dma_addr_t) > sizeof(unsigned long))
+			return -EOPNOTSUPP;
+
 		if ((pool->p.dma_dir != DMA_FROM_DEVICE) &&
 		    (pool->p.dma_dir != DMA_BIDIRECTIONAL))
 			return -EINVAL;
@@ -68,10 +74,6 @@ static int page_pool_init(struct page_pool *pool,
 		 * offset used by the DMA engine to start copying rx data
 		 */
 	}
-
-	if (PAGE_POOL_DMA_USE_PP_FRAG_COUNT &&
-	    pool->p.flags & PP_FLAG_PAGE_FRAG)
-		return -EINVAL;
 
 	if (ptr_ring_init(&pool->ring, ring_qsize, GFP_KERNEL) < 0)
 		return -ENOMEM;

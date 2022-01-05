@@ -48,7 +48,8 @@ static void on_sample(void *ctx, int cpu, void *data, __u32 size)
 	*(bool *)ctx = true;
 }
 
-void test_kfree_skb(void)
+/* TODO: fix kernel panic caused by this test in parallel mode */
+void serial_test_kfree_skb(void)
 {
 	struct __sk_buff skb = {};
 	struct bpf_prog_test_run_attr tattr = {
@@ -92,7 +93,7 @@ void test_kfree_skb(void)
 	if (CHECK(!fexit, "find_prog", "prog eth_type_trans not found\n"))
 		goto close_prog;
 
-	global_data = bpf_object__find_map_by_name(obj2, "kfree_sk.bss");
+	global_data = bpf_object__find_map_by_name(obj2, ".bss");
 	if (CHECK(!global_data, "find global data", "not found\n"))
 		goto close_prog;
 

@@ -25,7 +25,8 @@ static void *worker(void *p)
 	return NULL;
 }
 
-void test_send_signal_sched_switch(void)
+/* NOTE: cause events loss */
+void serial_test_send_signal_sched_switch(void)
 {
 	struct test_send_signal_kern *skel;
 	pthread_t threads[THREAD_COUNT];

@@ -1733,7 +1733,6 @@ static void etnaviv_gpu_unbind(struct device *dev, struct device *master,
 
 	DBG("%s", dev_name(gpu->dev));
 
-	flush_workqueue(gpu->wq);
 	destroy_workqueue(gpu->wq);
 
 	etnaviv_sched_fini(gpu);

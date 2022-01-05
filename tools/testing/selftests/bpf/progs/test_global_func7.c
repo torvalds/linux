@@ -10,7 +10,7 @@ void foo(struct __sk_buff *skb)
 	skb->tc_index = 0;
 }
 
-SEC("classifier/test")
+SEC("tc")
 int test_cls(struct __sk_buff *skb)
 {
 	foo(skb);

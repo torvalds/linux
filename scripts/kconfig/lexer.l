@@ -84,8 +84,7 @@ static void warn_ignored_character(char chr)
 n	[A-Za-z0-9_-]
 
 %%
-	int str = 0;
-	int ts, i;
+	char open_quote = 0;
 
 #.*			/* ignore comment */
 [ \t]*			/* whitespaces */
@@ -134,7 +133,7 @@ n	[A-Za-z0-9_-]
 ":="			return T_COLON_EQUAL;
 "+="			return T_PLUS_EQUAL;
 \"|\'			{
-				str = yytext[0];
+				open_quote = yytext[0];
 				new_string();
 				BEGIN(STRING);
 			}
@@ -171,7 +170,7 @@ n	[A-Za-z0-9_-]
 		append_string(yytext + 1, yyleng - 1);
 	}
 	\'|\"	{
-		if (str == yytext[0]) {
+		if (open_quote == yytext[0]) {
 			BEGIN(INITIAL);
 			yylval.string = text;
 			return T_WORD_QUOTE;
@@ -196,6 +195,8 @@ n	[A-Za-z0-9_-]
 
 <HELP>{
 	[ \t]+	{
+		int ts, i;
+
 		ts = 0;
 		for (i = 0; i < yyleng; i++) {
 			if (yytext[i] == '\t')

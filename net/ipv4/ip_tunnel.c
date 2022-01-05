@@ -834,7 +834,7 @@ static void ip_tunnel_update(struct ip_tunnel_net *itn,
 	t->parms.i_key = p->i_key;
 	t->parms.o_key = p->o_key;
 	if (dev->type != ARPHRD_ETHER) {
-		memcpy(dev->dev_addr, &p->iph.saddr, 4);
+		__dev_addr_set(dev, &p->iph.saddr, 4);
 		memcpy(dev->broadcast, &p->iph.daddr, 4);
 	}
 	ip_tunnel_add(itn, t);

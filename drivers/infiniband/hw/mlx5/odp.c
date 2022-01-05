@@ -430,7 +430,7 @@ static struct mlx5_ib_mr *implicit_get_child_mr(struct mlx5_ib_mr *imr,
 	mr->umem = &odp->umem;
 	mr->ibmr.lkey = mr->mmkey.key;
 	mr->ibmr.rkey = mr->mmkey.key;
-	mr->mmkey.iova = idx * MLX5_IMR_MTT_SIZE;
+	mr->ibmr.iova = idx * MLX5_IMR_MTT_SIZE;
 	mr->parent = imr;
 	odp->private = mr;
 
@@ -500,7 +500,7 @@ struct mlx5_ib_mr *mlx5_ib_alloc_implicit_mr(struct mlx5_ib_pd *pd,
 	}
 
 	imr->ibmr.pd = &pd->ibpd;
-	imr->mmkey.iova = 0;
+	imr->ibmr.iova = 0;
 	imr->umem = &umem_odp->umem;
 	imr->ibmr.lkey = imr->mmkey.key;
 	imr->ibmr.rkey = imr->mmkey.key;
@@ -738,7 +738,7 @@ static int pagefault_mr(struct mlx5_ib_mr *mr, u64 io_virt, size_t bcnt,
 {
 	struct ib_umem_odp *odp = to_ib_umem_odp(mr->umem);
 
-	if (unlikely(io_virt < mr->mmkey.iova))
+	if (unlikely(io_virt < mr->ibmr.iova))
 		return -EFAULT;
 
 	if (mr->umem->is_dmabuf)
@@ -747,7 +747,7 @@ static int pagefault_mr(struct mlx5_ib_mr *mr, u64 io_virt, size_t bcnt,
 	if (!odp->is_implicit_odp) {
 		u64 user_va;
 
-		if (check_add_overflow(io_virt - mr->mmkey.iova,
+		if (check_add_overflow(io_virt - mr->ibmr.iova,
 				       (u64)odp->umem.address, &user_va))
 			return -EFAULT;
 		if (unlikely(user_va >= ib_umem_end(odp) ||
@@ -788,28 +788,13 @@ struct pf_frame {
 	int depth;
 };
 
-static bool mkey_is_eq(struct mlx5_core_mkey *mmkey, u32 key)
+static bool mkey_is_eq(struct mlx5_ib_mkey *mmkey, u32 key)
 {
 	if (!mmkey)
 		return false;
 	if (mmkey->type == MLX5_MKEY_MW)
 		return mlx5_base_mkey(mmkey->key) == mlx5_base_mkey(key);
 	return mmkey->key == key;
-}
-
-static int get_indirect_num_descs(struct mlx5_core_mkey *mmkey)
-{
-	struct mlx5_ib_mw *mw;
-	struct mlx5_ib_devx_mr *devx_mr;
-
-	if (mmkey->type == MLX5_MKEY_MW) {
-		mw = container_of(mmkey, struct mlx5_ib_mw, mmkey);
-		return mw->ndescs;
-	}
-
-	devx_mr = container_of(mmkey, struct mlx5_ib_devx_mr,
-			       mmkey);
-	return devx_mr->ndescs;
 }
 
 /*
@@ -831,12 +816,11 @@ static int pagefault_single_data_segment(struct mlx5_ib_dev *dev,
 {
 	int npages = 0, ret, i, outlen, cur_outlen = 0, depth = 0;
 	struct pf_frame *head = NULL, *frame;
-	struct mlx5_core_mkey *mmkey;
+	struct mlx5_ib_mkey *mmkey;
 	struct mlx5_ib_mr *mr;
 	struct mlx5_klm *pklm;
 	u32 *out = NULL;
 	size_t offset;
-	int ndescs;
 
 	io_virt += *bytes_committed;
 	bcnt -= *bytes_committed;
@@ -885,8 +869,6 @@ next_mr:
 
 	case MLX5_MKEY_MW:
 	case MLX5_MKEY_INDIRECT_DEVX:
-		ndescs = get_indirect_num_descs(mmkey);
-
 		if (depth >= MLX5_CAP_GEN(dev->mdev, max_indirection)) {
 			mlx5_ib_dbg(dev, "indirection level exceeded\n");
 			ret = -EFAULT;
@@ -894,7 +876,7 @@ next_mr:
 		}
 
 		outlen = MLX5_ST_SZ_BYTES(query_mkey_out) +
-			sizeof(*pklm) * (ndescs - 2);
+			sizeof(*pklm) * (mmkey->ndescs - 2);
 
 		if (outlen > cur_outlen) {
 			kfree(out);
@@ -909,14 +891,14 @@ next_mr:
 		pklm = (struct mlx5_klm *)MLX5_ADDR_OF(query_mkey_out, out,
 						       bsf0_klm0_pas_mtt0_1);
 
-		ret = mlx5_core_query_mkey(dev->mdev, mmkey, out, outlen);
+		ret = mlx5_core_query_mkey(dev->mdev, mmkey->key, out, outlen);
 		if (ret)
 			goto end;
 
 		offset = io_virt - MLX5_GET64(query_mkey_out, out,
 					      memory_key_mkey_entry.start_addr);
 
-		for (i = 0; bcnt && i < ndescs; i++, pklm++) {
+		for (i = 0; bcnt && i < mmkey->ndescs; i++, pklm++) {
 			if (offset >= be32_to_cpu(pklm->bcount)) {
 				offset -= be32_to_cpu(pklm->bcount);
 				continue;
@@ -1559,6 +1541,7 @@ int mlx5r_odp_create_eq(struct mlx5_ib_dev *dev, struct mlx5_ib_pf_eq *eq)
 
 	eq->irq_nb.notifier_call = mlx5_ib_eq_pf_int;
 	param = (struct mlx5_eq_param) {
+		.irq_index = MLX5_IRQ_EQ_CTRL,
 		.nent = MLX5_IB_NUM_PF_EQE,
 	};
 	param.mask[0] = 1ull << MLX5_EVENT_TYPE_PAGE_FAULT;
@@ -1703,25 +1686,31 @@ get_prefetchable_mr(struct ib_pd *pd, enum ib_uverbs_advise_mr_advice advice,
 		    u32 lkey)
 {
 	struct mlx5_ib_dev *dev = to_mdev(pd->device);
-	struct mlx5_core_mkey *mmkey;
 	struct mlx5_ib_mr *mr = NULL;
+	struct mlx5_ib_mkey *mmkey;
 
 	xa_lock(&dev->odp_mkeys);
 	mmkey = xa_load(&dev->odp_mkeys, mlx5_base_mkey(lkey));
-	if (!mmkey || mmkey->key != lkey || mmkey->type != MLX5_MKEY_MR)
+	if (!mmkey || mmkey->key != lkey) {
+		mr = ERR_PTR(-ENOENT);
 		goto end;
+	}
+	if (mmkey->type != MLX5_MKEY_MR) {
+		mr = ERR_PTR(-EINVAL);
+		goto end;
+	}
 
 	mr = container_of(mmkey, struct mlx5_ib_mr, mmkey);
 
 	if (mr->ibmr.pd != pd) {
-		mr = NULL;
+		mr = ERR_PTR(-EPERM);
 		goto end;
 	}
 
 	/* prefetch with write-access must be supported by the MR */
 	if (advice == IB_UVERBS_ADVISE_MR_ADVICE_PREFETCH_WRITE &&
 	    !mr->umem->writable) {
-		mr = NULL;
+		mr = ERR_PTR(-EPERM);
 		goto end;
 	}
 
@@ -1753,7 +1742,7 @@ static void mlx5_ib_prefetch_mr_work(struct work_struct *w)
 	destroy_prefetch_work(work);
 }
 
-static bool init_prefetch_work(struct ib_pd *pd,
+static int init_prefetch_work(struct ib_pd *pd,
 			       enum ib_uverbs_advise_mr_advice advice,
 			       u32 pf_flags, struct prefetch_mr_work *work,
 			       struct ib_sge *sg_list, u32 num_sge)
@@ -1764,17 +1753,19 @@ static bool init_prefetch_work(struct ib_pd *pd,
 	work->pf_flags = pf_flags;
 
 	for (i = 0; i < num_sge; ++i) {
+		struct mlx5_ib_mr *mr;
+
+		mr = get_prefetchable_mr(pd, advice, sg_list[i].lkey);
+		if (IS_ERR(mr)) {
+			work->num_sge = i;
+			return PTR_ERR(mr);
+		}
 		work->frags[i].io_virt = sg_list[i].addr;
 		work->frags[i].length = sg_list[i].length;
-		work->frags[i].mr =
-			get_prefetchable_mr(pd, advice, sg_list[i].lkey);
-		if (!work->frags[i].mr) {
-			work->num_sge = i;
-			return false;
-		}
+		work->frags[i].mr = mr;
 	}
 	work->num_sge = num_sge;
-	return true;
+	return 0;
 }
 
 static int mlx5_ib_prefetch_sg_list(struct ib_pd *pd,
@@ -1790,8 +1781,8 @@ static int mlx5_ib_prefetch_sg_list(struct ib_pd *pd,
 		struct mlx5_ib_mr *mr;
 
 		mr = get_prefetchable_mr(pd, advice, sg_list[i].lkey);
-		if (!mr)
-			return -ENOENT;
+		if (IS_ERR(mr))
+			return PTR_ERR(mr);
 		ret = pagefault_mr(mr, sg_list[i].addr, sg_list[i].length,
 				   &bytes_mapped, pf_flags);
 		if (ret < 0) {
@@ -1811,6 +1802,7 @@ int mlx5_ib_advise_mr_prefetch(struct ib_pd *pd,
 {
 	u32 pf_flags = 0;
 	struct prefetch_mr_work *work;
+	int rc;
 
 	if (advice == IB_UVERBS_ADVISE_MR_ADVICE_PREFETCH)
 		pf_flags |= MLX5_PF_FLAGS_DOWNGRADE;
@@ -1826,9 +1818,10 @@ int mlx5_ib_advise_mr_prefetch(struct ib_pd *pd,
 	if (!work)
 		return -ENOMEM;
 
-	if (!init_prefetch_work(pd, advice, pf_flags, work, sg_list, num_sge)) {
+	rc = init_prefetch_work(pd, advice, pf_flags, work, sg_list, num_sge);
+	if (rc) {
 		destroy_prefetch_work(work);
-		return -EINVAL;
+		return rc;
 	}
 	queue_work(system_unbound_wq, &work->work);
 	return 0;

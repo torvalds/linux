@@ -78,6 +78,18 @@ int intel_memory_region_reserve(struct intel_memory_region *mem,
 	return i915_ttm_buddy_man_reserve(man, offset, size);
 }
 
+void intel_memory_region_debug(struct intel_memory_region *mr,
+			       struct drm_printer *printer)
+{
+	drm_printf(printer, "%s: ", mr->name);
+
+	if (mr->region_private)
+		ttm_resource_manager_debug(mr->region_private, printer);
+	else
+		drm_printf(printer, "total:%pa, available:%pa bytes\n",
+			   &mr->total, &mr->avail);
+}
+
 struct intel_memory_region *
 intel_memory_region_create(struct drm_i915_private *i915,
 			   resource_size_t start,

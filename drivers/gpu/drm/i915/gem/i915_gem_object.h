@@ -58,6 +58,9 @@ void i915_gem_object_init(struct drm_i915_gem_object *obj,
 			  const struct drm_i915_gem_object_ops *ops,
 			  struct lock_class_key *key,
 			  unsigned alloc_flags);
+
+void __i915_gem_object_fini(struct drm_i915_gem_object *obj);
+
 struct drm_i915_gem_object *
 i915_gem_object_create_shmem(struct drm_i915_private *i915,
 			     resource_size_t size);
@@ -267,6 +270,12 @@ static inline void
 i915_gem_object_clear_tiling_quirk(struct drm_i915_gem_object *obj)
 {
 	clear_bit(I915_TILING_QUIRK_BIT, &obj->flags);
+}
+
+static inline bool
+i915_gem_object_is_protected(const struct drm_i915_gem_object *obj)
+{
+	return obj->flags & I915_BO_PROTECTED;
 }
 
 static inline bool
@@ -503,25 +512,9 @@ i915_gem_object_finish_access(struct drm_i915_gem_object *obj)
 	i915_gem_object_unpin_pages(obj);
 }
 
-static inline struct intel_engine_cs *
-i915_gem_object_last_write_engine(struct drm_i915_gem_object *obj)
-{
-	struct intel_engine_cs *engine = NULL;
-	struct dma_fence *fence;
-
-	rcu_read_lock();
-	fence = dma_resv_get_excl_unlocked(obj->base.resv);
-	rcu_read_unlock();
-
-	if (fence && dma_fence_is_i915(fence) && !dma_fence_is_signaled(fence))
-		engine = to_request(fence)->engine;
-	dma_fence_put(fence);
-
-	return engine;
-}
-
 void i915_gem_object_set_cache_coherency(struct drm_i915_gem_object *obj,
 					 unsigned int cache_level);
+bool i915_gem_object_can_bypass_llc(struct drm_i915_gem_object *obj);
 void i915_gem_object_flush_if_display(struct drm_i915_gem_object *obj);
 void i915_gem_object_flush_if_display_locked(struct drm_i915_gem_object *obj);
 
@@ -598,6 +591,8 @@ int i915_gem_object_read_from_page(struct drm_i915_gem_object *obj, u64 offset, 
 bool i915_gem_object_is_shmem(const struct drm_i915_gem_object *obj);
 
 void __i915_gem_free_object_rcu(struct rcu_head *head);
+
+void __i915_gem_object_pages_fini(struct drm_i915_gem_object *obj);
 
 void __i915_gem_free_object(struct drm_i915_gem_object *obj);
 

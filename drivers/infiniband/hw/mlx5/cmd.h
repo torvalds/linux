@@ -57,4 +57,6 @@ int mlx5_cmd_xrcd_alloc(struct mlx5_core_dev *dev, u32 *xrcdn, u16 uid);
 int mlx5_cmd_xrcd_dealloc(struct mlx5_core_dev *dev, u32 xrcdn, u16 uid);
 int mlx5_cmd_mad_ifc(struct mlx5_core_dev *dev, const void *inb, void *outb,
 		     u16 opmod, u8 port);
+int mlx5_cmd_uar_alloc(struct mlx5_core_dev *dev, u32 *uarn, u16 uid);
+int mlx5_cmd_uar_dealloc(struct mlx5_core_dev *dev, u32 uarn, u16 uid);
 #endif /* MLX5_IB_CMD_H */

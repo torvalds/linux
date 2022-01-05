@@ -78,7 +78,7 @@ static struct i915_address_space *migrate_vm(struct intel_gt *gt)
 	 * TODO: Add support for huge LMEM PTEs
 	 */
 
-	vm = i915_ppgtt_create(gt);
+	vm = i915_ppgtt_create(gt, I915_BO_ALLOC_PM_EARLY);
 	if (IS_ERR(vm))
 		return ERR_CAST(vm);
 

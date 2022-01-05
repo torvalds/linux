@@ -82,6 +82,15 @@ Testing and debugging BPF
    s390
 
 
+Licensing
+=========
+
+.. toctree::
+   :maxdepth: 1
+
+   bpf_licensing
+
+
 Other
 =====
 

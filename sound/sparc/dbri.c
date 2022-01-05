@@ -688,7 +688,7 @@ static void dbri_cmdsend(struct snd_dbri *dbri, s32 *cmd, int len)
 {
 	u32 dvma_addr = (u32)dbri->dma_dvma;
 	s32 tmp, addr;
-	static int wait_id = 0;
+	static int wait_id;
 
 	wait_id++;
 	wait_id &= 0xffff;	/* restrict it to a 16 bit counter. */
@@ -1926,7 +1926,7 @@ static void dbri_process_interrupt_buffer(struct snd_dbri *dbri)
 static irqreturn_t snd_dbri_interrupt(int irq, void *dev_id)
 {
 	struct snd_dbri *dbri = dev_id;
-	static int errcnt = 0;
+	static int errcnt;
 	int x;
 
 	if (dbri == NULL)
@@ -2591,7 +2591,7 @@ static int dbri_probe(struct platform_device *op)
 	struct snd_dbri *dbri;
 	struct resource *rp;
 	struct snd_card *card;
-	static int dev = 0;
+	static int dev;
 	int irq;
 	int err;
 

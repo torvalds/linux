@@ -80,6 +80,7 @@ struct vduse_dev {
 	struct vdpa_callback config_cb;
 	struct work_struct inject;
 	spinlock_t irq_lock;
+	struct rw_semaphore rwsem;
 	int minor;
 	bool broken;
 	bool connected;
@@ -410,6 +411,8 @@ static void vduse_dev_reset(struct vduse_dev *dev)
 	if (domain->bounce_map)
 		vduse_domain_reset_bounce_map(domain);
 
+	down_write(&dev->rwsem);
+
 	dev->status = 0;
 	dev->driver_features = 0;
 	dev->generation++;
@@ -443,6 +446,8 @@ static void vduse_dev_reset(struct vduse_dev *dev)
 		flush_work(&vq->inject);
 		flush_work(&vq->kick);
 	}
+
+	up_write(&dev->rwsem);
 }
 
 static int vduse_vdpa_set_vq_address(struct vdpa_device *vdpa, u16 idx,
@@ -885,6 +890,23 @@ static void vduse_vq_irq_inject(struct work_struct *work)
 	spin_unlock_irq(&vq->irq_lock);
 }
 
+static int vduse_dev_queue_irq_work(struct vduse_dev *dev,
+				    struct work_struct *irq_work)
+{
+	int ret = -EINVAL;
+
+	down_read(&dev->rwsem);
+	if (!(dev->status & VIRTIO_CONFIG_S_DRIVER_OK))
+		goto unlock;
+
+	ret = 0;
+	queue_work(vduse_irq_wq, irq_work);
+unlock:
+	up_read(&dev->rwsem);
+
+	return ret;
+}
+
 static long vduse_dev_ioctl(struct file *file, unsigned int cmd,
 			    unsigned long arg)
 {
@@ -966,8 +988,7 @@ static long vduse_dev_ioctl(struct file *file, unsigned int cmd,
 		break;
 	}
 	case VDUSE_DEV_INJECT_CONFIG_IRQ:
-		ret = 0;
-		queue_work(vduse_irq_wq, &dev->inject);
+		ret = vduse_dev_queue_irq_work(dev, &dev->inject);
 		break;
 	case VDUSE_VQ_SETUP: {
 		struct vduse_vq_config config;
@@ -1053,9 +1074,8 @@ static long vduse_dev_ioctl(struct file *file, unsigned int cmd,
 		if (index >= dev->vq_num)
 			break;
 
-		ret = 0;
 		index = array_index_nospec(index, dev->vq_num);
-		queue_work(vduse_irq_wq, &dev->vqs[index].inject);
+		ret = vduse_dev_queue_irq_work(dev, &dev->vqs[index].inject);
 		break;
 	}
 	default:
@@ -1136,6 +1156,7 @@ static struct vduse_dev *vduse_dev_create(void)
 	INIT_LIST_HEAD(&dev->send_list);
 	INIT_LIST_HEAD(&dev->recv_list);
 	spin_lock_init(&dev->irq_lock);
+	init_rwsem(&dev->rwsem);
 
 	INIT_WORK(&dev->inject, vduse_dev_irq_inject);
 	init_waitqueue_head(&dev->waitq);
@@ -1482,7 +1503,8 @@ static int vduse_dev_init_vdpa(struct vduse_dev *dev, const char *name)
 	return 0;
 }
 
-static int vdpa_dev_add(struct vdpa_mgmt_dev *mdev, const char *name)
+static int vdpa_dev_add(struct vdpa_mgmt_dev *mdev, const char *name,
+			const struct vdpa_dev_set_config *config)
 {
 	struct vduse_dev *dev;
 	int ret;

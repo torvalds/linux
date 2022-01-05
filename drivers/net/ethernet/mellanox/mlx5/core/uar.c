@@ -36,7 +36,7 @@
 #include <linux/mlx5/driver.h>
 #include "mlx5_core.h"
 
-int mlx5_cmd_alloc_uar(struct mlx5_core_dev *dev, u32 *uarn)
+static int mlx5_cmd_alloc_uar(struct mlx5_core_dev *dev, u32 *uarn)
 {
 	u32 out[MLX5_ST_SZ_DW(alloc_uar_out)] = {};
 	u32 in[MLX5_ST_SZ_DW(alloc_uar_in)] = {};
@@ -44,13 +44,14 @@ int mlx5_cmd_alloc_uar(struct mlx5_core_dev *dev, u32 *uarn)
 
 	MLX5_SET(alloc_uar_in, in, opcode, MLX5_CMD_OP_ALLOC_UAR);
 	err = mlx5_cmd_exec_inout(dev, alloc_uar, in, out);
-	if (!err)
-		*uarn = MLX5_GET(alloc_uar_out, out, uar);
-	return err;
-}
-EXPORT_SYMBOL(mlx5_cmd_alloc_uar);
+	if (err)
+		return err;
 
-int mlx5_cmd_free_uar(struct mlx5_core_dev *dev, u32 uarn)
+	*uarn = MLX5_GET(alloc_uar_out, out, uar);
+	return 0;
+}
+
+static int mlx5_cmd_free_uar(struct mlx5_core_dev *dev, u32 uarn)
 {
 	u32 in[MLX5_ST_SZ_DW(dealloc_uar_in)] = {};
 
@@ -58,7 +59,6 @@ int mlx5_cmd_free_uar(struct mlx5_core_dev *dev, u32 uarn)
 	MLX5_SET(dealloc_uar_in, in, uar, uarn);
 	return mlx5_cmd_exec_in(dev, dealloc_uar, in);
 }
-EXPORT_SYMBOL(mlx5_cmd_free_uar);
 
 static int uars_per_sys_page(struct mlx5_core_dev *mdev)
 {

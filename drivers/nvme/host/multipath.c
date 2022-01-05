@@ -85,8 +85,13 @@ void nvme_failover_req(struct request *req)
 	}
 
 	spin_lock_irqsave(&ns->head->requeue_lock, flags);
-	for (bio = req->bio; bio; bio = bio->bi_next)
+	for (bio = req->bio; bio; bio = bio->bi_next) {
 		bio_set_dev(bio, ns->head->disk->part0);
+		if (bio->bi_opf & REQ_POLLED) {
+			bio->bi_opf &= ~REQ_POLLED;
+			bio->bi_cookie = BLK_QC_T_NONE;
+		}
+	}
 	blk_steal_bios(&ns->head->requeue_list, req);
 	spin_unlock_irqrestore(&ns->head->requeue_lock, flags);
 
@@ -100,8 +105,11 @@ void nvme_kick_requeue_lists(struct nvme_ctrl *ctrl)
 
 	down_read(&ctrl->namespaces_rwsem);
 	list_for_each_entry(ns, &ctrl->namespaces, list) {
-		if (ns->head->disk)
-			kblockd_schedule_work(&ns->head->requeue_work);
+		if (!ns->head->disk)
+			continue;
+		kblockd_schedule_work(&ns->head->requeue_work);
+		if (ctrl->state == NVME_CTRL_LIVE)
+			disk_uevent(ns->head->disk, KOBJ_CHANGE);
 	}
 	up_read(&ctrl->namespaces_rwsem);
 }
@@ -138,13 +146,12 @@ void nvme_mpath_clear_ctrl_paths(struct nvme_ctrl *ctrl)
 {
 	struct nvme_ns *ns;
 
-	mutex_lock(&ctrl->scan_lock);
 	down_read(&ctrl->namespaces_rwsem);
-	list_for_each_entry(ns, &ctrl->namespaces, list)
-		if (nvme_mpath_clear_current_path(ns))
-			kblockd_schedule_work(&ns->head->requeue_work);
+	list_for_each_entry(ns, &ctrl->namespaces, list) {
+		nvme_mpath_clear_current_path(ns);
+		kblockd_schedule_work(&ns->head->requeue_work);
+	}
 	up_read(&ctrl->namespaces_rwsem);
-	mutex_unlock(&ctrl->scan_lock);
 }
 
 void nvme_mpath_revalidate_paths(struct nvme_ns *ns)
@@ -312,12 +319,11 @@ static bool nvme_available_path(struct nvme_ns_head *head)
 	return false;
 }
 
-static blk_qc_t nvme_ns_head_submit_bio(struct bio *bio)
+static void nvme_ns_head_submit_bio(struct bio *bio)
 {
 	struct nvme_ns_head *head = bio->bi_bdev->bd_disk->private_data;
 	struct device *dev = disk_to_dev(head->disk);
 	struct nvme_ns *ns;
-	blk_qc_t ret = BLK_QC_T_NONE;
 	int srcu_idx;
 
 	/*
@@ -334,7 +340,7 @@ static blk_qc_t nvme_ns_head_submit_bio(struct bio *bio)
 		bio->bi_opf |= REQ_NVME_MPATH;
 		trace_block_bio_remap(bio, disk_devt(ns->head->disk),
 				      bio->bi_iter.bi_sector);
-		ret = submit_bio_noacct(bio);
+		submit_bio_noacct(bio);
 	} else if (nvme_available_path(head)) {
 		dev_warn_ratelimited(dev, "no usable path - requeuing I/O\n");
 
@@ -349,7 +355,6 @@ static blk_qc_t nvme_ns_head_submit_bio(struct bio *bio)
 	}
 
 	srcu_read_unlock(&head->srcu, srcu_idx);
-	return ret;
 }
 
 static int nvme_ns_head_open(struct block_device *bdev, fmode_t mode)
@@ -479,6 +484,15 @@ int nvme_mpath_alloc_disk(struct nvme_ctrl *ctrl, struct nvme_ns_head *head)
 
 	blk_queue_flag_set(QUEUE_FLAG_NONROT, head->disk->queue);
 	blk_queue_flag_set(QUEUE_FLAG_NOWAIT, head->disk->queue);
+	/*
+	 * This assumes all controllers that refer to a namespace either
+	 * support poll queues or not.  That is not a strict guarantee,
+	 * but if the assumption is wrong the effect is only suboptimal
+	 * performance but not correctness problem.
+	 */
+	if (ctrl->tagset->nr_maps > HCTX_TYPE_POLL &&
+	    ctrl->tagset->map[HCTX_TYPE_POLL].nr_queues)
+		blk_queue_flag_set(QUEUE_FLAG_POLL, head->disk->queue);
 
 	/* set to a default value of 512 until the disk is validated */
 	blk_queue_logical_block_size(head->disk->queue, 512);
@@ -494,13 +508,23 @@ int nvme_mpath_alloc_disk(struct nvme_ctrl *ctrl, struct nvme_ns_head *head)
 static void nvme_mpath_set_live(struct nvme_ns *ns)
 {
 	struct nvme_ns_head *head = ns->head;
+	int rc;
 
 	if (!head->disk)
 		return;
 
+	/*
+	 * test_and_set_bit() is used because it is protecting against two nvme
+	 * paths simultaneously calling device_add_disk() on the same namespace
+	 * head.
+	 */
 	if (!test_and_set_bit(NVME_NSHEAD_DISK_LIVE, &head->flags)) {
-		device_add_disk(&head->subsys->dev, head->disk,
-				nvme_ns_id_attr_groups);
+		rc = device_add_disk(&head->subsys->dev, head->disk,
+				     nvme_ns_id_attr_groups);
+		if (rc) {
+			clear_bit(NVME_NSHEAD_DISK_LIVE, &ns->flags);
+			return;
+		}
 		nvme_add_ns_head_cdev(head);
 	}
 
@@ -538,7 +562,7 @@ static int nvme_parse_ana_log(struct nvme_ctrl *ctrl, void *data,
 			return -EINVAL;
 
 		nr_nsids = le32_to_cpu(desc->nnsids);
-		nsid_buf_size = nr_nsids * sizeof(__le32);
+		nsid_buf_size = flex_array_size(desc, nsids, nr_nsids);
 
 		if (WARN_ON_ONCE(desc->grpid == 0))
 			return -EINVAL;

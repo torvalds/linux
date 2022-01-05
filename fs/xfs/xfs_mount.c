@@ -567,6 +567,18 @@ xfs_mount_setup_inode_geom(
 	xfs_ialloc_setup_geometry(mp);
 }
 
+/* Compute maximum possible height for per-AG btree types for this fs. */
+static inline void
+xfs_agbtree_compute_maxlevels(
+	struct xfs_mount	*mp)
+{
+	unsigned int		levels;
+
+	levels = max(mp->m_alloc_maxlevels, M_IGEO(mp)->inobt_maxlevels);
+	levels = max(levels, mp->m_rmap_maxlevels);
+	mp->m_agbtree_maxlevels = max(levels, mp->m_refc_maxlevels);
+}
+
 /*
  * This function does the following on an initial mount of a file system:
  *	- reads the superblock from disk and init the mount struct
@@ -637,6 +649,8 @@ xfs_mountfs(
 	xfs_mount_setup_inode_geom(mp);
 	xfs_rmapbt_compute_maxlevels(mp);
 	xfs_refcountbt_compute_maxlevels(mp);
+
+	xfs_agbtree_compute_maxlevels(mp);
 
 	/*
 	 * Check if sb_agblocks is aligned at stripe boundary.  If sb_agblocks

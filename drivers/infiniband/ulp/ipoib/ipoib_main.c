@@ -1696,6 +1696,7 @@ static void ipoib_dev_uninit_default(struct net_device *dev)
 static int ipoib_dev_init_default(struct net_device *dev)
 {
 	struct ipoib_dev_priv *priv = ipoib_priv(dev);
+	u8 addr_mod[3];
 
 	ipoib_napi_add(dev);
 
@@ -1723,9 +1724,10 @@ static int ipoib_dev_init_default(struct net_device *dev)
 	}
 
 	/* after qp created set dev address */
-	priv->dev->dev_addr[1] = (priv->qp->qp_num >> 16) & 0xff;
-	priv->dev->dev_addr[2] = (priv->qp->qp_num >>  8) & 0xff;
-	priv->dev->dev_addr[3] = (priv->qp->qp_num) & 0xff;
+	addr_mod[0] = (priv->qp->qp_num >> 16) & 0xff;
+	addr_mod[1] = (priv->qp->qp_num >>  8) & 0xff;
+	addr_mod[2] = (priv->qp->qp_num) & 0xff;
+	dev_addr_mod(priv->dev, 1, addr_mod, sizeof(addr_mod));
 
 	return 0;
 
@@ -1886,8 +1888,7 @@ static int ipoib_parent_init(struct net_device *ndev)
 			priv->ca->name, priv->port, result);
 		return result;
 	}
-	memcpy(priv->dev->dev_addr + 4, priv->local_gid.raw,
-	       sizeof(union ib_gid));
+	dev_addr_mod(priv->dev, 4, priv->local_gid.raw, sizeof(union ib_gid));
 
 	SET_NETDEV_DEV(priv->dev, priv->ca->dev.parent);
 	priv->dev->dev_port = priv->port - 1;
@@ -1908,8 +1909,8 @@ static void ipoib_child_init(struct net_device *ndev)
 		memcpy(&priv->local_gid, priv->dev->dev_addr + 4,
 		       sizeof(priv->local_gid));
 	else {
-		memcpy(priv->dev->dev_addr, ppriv->dev->dev_addr,
-		       INFINIBAND_ALEN);
+		__dev_addr_set(priv->dev, ppriv->dev->dev_addr,
+			       INFINIBAND_ALEN);
 		memcpy(&priv->local_gid, &ppriv->local_gid,
 		       sizeof(priv->local_gid));
 	}
@@ -1997,7 +1998,6 @@ static void ipoib_ndo_uninit(struct net_device *dev)
 	if (priv->wq) {
 		/* See ipoib_mcast_carrier_on_task() */
 		WARN_ON(test_bit(IPOIB_FLAG_OPER_UP, &priv->flags));
-		flush_workqueue(priv->wq);
 		destroy_workqueue(priv->wq);
 		priv->wq = NULL;
 	}
@@ -2327,7 +2327,7 @@ static void set_base_guid(struct ipoib_dev_priv *priv, union ib_gid *gid)
 	memcpy(&priv->local_gid.global.interface_id,
 	       &gid->global.interface_id,
 	       sizeof(gid->global.interface_id));
-	memcpy(netdev->dev_addr + 4, &priv->local_gid, sizeof(priv->local_gid));
+	dev_addr_mod(netdev, 4, (u8 *)&priv->local_gid, sizeof(priv->local_gid));
 	clear_bit(IPOIB_FLAG_DEV_ADDR_SET, &priv->flags);
 
 	netif_addr_unlock_bh(netdev);

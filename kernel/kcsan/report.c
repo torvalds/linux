@@ -8,6 +8,7 @@
 #include <linux/debug_locks.h>
 #include <linux/delay.h>
 #include <linux/jiffies.h>
+#include <linux/kallsyms.h>
 #include <linux/kernel.h>
 #include <linux/lockdep.h>
 #include <linux/preempt.h>
@@ -31,6 +32,7 @@ struct access_info {
 	int			access_type;
 	int			task_pid;
 	int			cpu_id;
+	unsigned long		ip;
 };
 
 /*
@@ -245,6 +247,10 @@ static const char *get_access_type(int type)
 		return "write (scoped)";
 	case KCSAN_ACCESS_SCOPED | KCSAN_ACCESS_WRITE | KCSAN_ACCESS_ATOMIC:
 		return "write (marked, scoped)";
+	case KCSAN_ACCESS_SCOPED | KCSAN_ACCESS_COMPOUND | KCSAN_ACCESS_WRITE:
+		return "read-write (scoped)";
+	case KCSAN_ACCESS_SCOPED | KCSAN_ACCESS_COMPOUND | KCSAN_ACCESS_WRITE | KCSAN_ACCESS_ATOMIC:
+		return "read-write (marked, scoped)";
 	default:
 		BUG();
 	}
@@ -300,6 +306,48 @@ static int get_stack_skipnr(const unsigned long stack_entries[], int num_entries
 	return skip;
 }
 
+/*
+ * Skips to the first entry that matches the function of @ip, and then replaces
+ * that entry with @ip, returning the entries to skip.
+ */
+static int
+replace_stack_entry(unsigned long stack_entries[], int num_entries, unsigned long ip)
+{
+	unsigned long symbolsize, offset;
+	unsigned long target_func;
+	int skip;
+
+	if (kallsyms_lookup_size_offset(ip, &symbolsize, &offset))
+		target_func = ip - offset;
+	else
+		goto fallback;
+
+	for (skip = 0; skip < num_entries; ++skip) {
+		unsigned long func = stack_entries[skip];
+
+		if (!kallsyms_lookup_size_offset(func, &symbolsize, &offset))
+			goto fallback;
+		func -= offset;
+
+		if (func == target_func) {
+			stack_entries[skip] = ip;
+			return skip;
+		}
+	}
+
+fallback:
+	/* Should not happen; the resulting stack trace is likely misleading. */
+	WARN_ONCE(1, "Cannot find frame for %pS in stack trace", (void *)ip);
+	return get_stack_skipnr(stack_entries, num_entries);
+}
+
+static int
+sanitize_stack_entries(unsigned long stack_entries[], int num_entries, unsigned long ip)
+{
+	return ip ? replace_stack_entry(stack_entries, num_entries, ip) :
+			  get_stack_skipnr(stack_entries, num_entries);
+}
+
 /* Compares symbolized strings of addr1 and addr2. */
 static int sym_strcmp(void *addr1, void *addr2)
 {
@@ -327,12 +375,12 @@ static void print_verbose_info(struct task_struct *task)
 
 static void print_report(enum kcsan_value_change value_change,
 			 const struct access_info *ai,
-			 const struct other_info *other_info,
+			 struct other_info *other_info,
 			 u64 old, u64 new, u64 mask)
 {
 	unsigned long stack_entries[NUM_STACK_ENTRIES] = { 0 };
 	int num_stack_entries = stack_trace_save(stack_entries, NUM_STACK_ENTRIES, 1);
-	int skipnr = get_stack_skipnr(stack_entries, num_stack_entries);
+	int skipnr = sanitize_stack_entries(stack_entries, num_stack_entries, ai->ip);
 	unsigned long this_frame = stack_entries[skipnr];
 	unsigned long other_frame = 0;
 	int other_skipnr = 0; /* silence uninit warnings */
@@ -344,8 +392,9 @@ static void print_report(enum kcsan_value_change value_change,
 		return;
 
 	if (other_info) {
-		other_skipnr = get_stack_skipnr(other_info->stack_entries,
-						other_info->num_stack_entries);
+		other_skipnr = sanitize_stack_entries(other_info->stack_entries,
+						      other_info->num_stack_entries,
+						      other_info->ai.ip);
 		other_frame = other_info->stack_entries[other_skipnr];
 
 		/* @value_change is only known for the other thread */
@@ -576,21 +625,23 @@ discard:
 }
 
 static struct access_info prepare_access_info(const volatile void *ptr, size_t size,
-					      int access_type)
+					      int access_type, unsigned long ip)
 {
 	return (struct access_info) {
 		.ptr		= ptr,
 		.size		= size,
 		.access_type	= access_type,
 		.task_pid	= in_task() ? task_pid_nr(current) : -1,
-		.cpu_id		= raw_smp_processor_id()
+		.cpu_id		= raw_smp_processor_id(),
+		/* Only replace stack entry with @ip if scoped access. */
+		.ip		= (access_type & KCSAN_ACCESS_SCOPED) ? ip : 0,
 	};
 }
 
 void kcsan_report_set_info(const volatile void *ptr, size_t size, int access_type,
-			   int watchpoint_idx)
+			   unsigned long ip, int watchpoint_idx)
 {
-	const struct access_info ai = prepare_access_info(ptr, size, access_type);
+	const struct access_info ai = prepare_access_info(ptr, size, access_type, ip);
 	unsigned long flags;
 
 	kcsan_disable_current();
@@ -603,10 +654,10 @@ void kcsan_report_set_info(const volatile void *ptr, size_t size, int access_typ
 }
 
 void kcsan_report_known_origin(const volatile void *ptr, size_t size, int access_type,
-			       enum kcsan_value_change value_change, int watchpoint_idx,
-			       u64 old, u64 new, u64 mask)
+			       unsigned long ip, enum kcsan_value_change value_change,
+			       int watchpoint_idx, u64 old, u64 new, u64 mask)
 {
-	const struct access_info ai = prepare_access_info(ptr, size, access_type);
+	const struct access_info ai = prepare_access_info(ptr, size, access_type, ip);
 	struct other_info *other_info = &other_infos[watchpoint_idx];
 	unsigned long flags = 0;
 
@@ -637,9 +688,9 @@ out:
 }
 
 void kcsan_report_unknown_origin(const volatile void *ptr, size_t size, int access_type,
-				 u64 old, u64 new, u64 mask)
+				 unsigned long ip, u64 old, u64 new, u64 mask)
 {
-	const struct access_info ai = prepare_access_info(ptr, size, access_type);
+	const struct access_info ai = prepare_access_info(ptr, size, access_type, ip);
 	unsigned long flags;
 
 	kcsan_disable_current();

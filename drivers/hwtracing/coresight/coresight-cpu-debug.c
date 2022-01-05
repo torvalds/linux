@@ -105,7 +105,7 @@ static DEFINE_PER_CPU(struct debug_drvdata *, debug_drvdata);
 static int debug_count;
 static struct dentry *debug_debugfs_dir;
 
-static bool debug_enable;
+static bool debug_enable = IS_ENABLED(CONFIG_CORESIGHT_CPU_DEBUG_DEFAULT_ON);
 module_param_named(enable, debug_enable, bool, 0600);
 MODULE_PARM_DESC(enable, "Control to enable coresight CPU debug functionality");
 

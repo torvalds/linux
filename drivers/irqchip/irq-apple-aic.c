@@ -245,7 +245,7 @@ static void __exception_irq_entry aic_handle_irq(struct pt_regs *regs)
 		irq = FIELD_GET(AIC_EVENT_NUM, event);
 
 		if (type == AIC_EVENT_TYPE_HW)
-			handle_domain_irq(aic_irqc->hw_domain, irq, regs);
+			generic_handle_domain_irq(aic_irqc->hw_domain, irq);
 		else if (type == AIC_EVENT_TYPE_IPI && irq == 1)
 			aic_handle_ipi(regs);
 		else if (event != 0)
@@ -392,25 +392,25 @@ static void __exception_irq_entry aic_handle_fiq(struct pt_regs *regs)
 	}
 
 	if (TIMER_FIRING(read_sysreg(cntp_ctl_el0)))
-		handle_domain_irq(aic_irqc->hw_domain,
-				  aic_irqc->nr_hw + AIC_TMR_EL0_PHYS, regs);
+		generic_handle_domain_irq(aic_irqc->hw_domain,
+					  aic_irqc->nr_hw + AIC_TMR_EL0_PHYS);
 
 	if (TIMER_FIRING(read_sysreg(cntv_ctl_el0)))
-		handle_domain_irq(aic_irqc->hw_domain,
-				  aic_irqc->nr_hw + AIC_TMR_EL0_VIRT, regs);
+		generic_handle_domain_irq(aic_irqc->hw_domain,
+					  aic_irqc->nr_hw + AIC_TMR_EL0_VIRT);
 
 	if (is_kernel_in_hyp_mode()) {
 		uint64_t enabled = read_sysreg_s(SYS_IMP_APL_VM_TMR_FIQ_ENA_EL2);
 
 		if ((enabled & VM_TMR_FIQ_ENABLE_P) &&
 		    TIMER_FIRING(read_sysreg_s(SYS_CNTP_CTL_EL02)))
-			handle_domain_irq(aic_irqc->hw_domain,
-					  aic_irqc->nr_hw + AIC_TMR_EL02_PHYS, regs);
+			generic_handle_domain_irq(aic_irqc->hw_domain,
+						  aic_irqc->nr_hw + AIC_TMR_EL02_PHYS);
 
 		if ((enabled & VM_TMR_FIQ_ENABLE_V) &&
 		    TIMER_FIRING(read_sysreg_s(SYS_CNTV_CTL_EL02)))
-			handle_domain_irq(aic_irqc->hw_domain,
-					  aic_irqc->nr_hw + AIC_TMR_EL02_VIRT, regs);
+			generic_handle_domain_irq(aic_irqc->hw_domain,
+						  aic_irqc->nr_hw + AIC_TMR_EL02_VIRT);
 	}
 
 	if ((read_sysreg_s(SYS_IMP_APL_PMCR0_EL1) & (PMCR0_IMODE | PMCR0_IACT)) ==
@@ -674,7 +674,7 @@ static void aic_handle_ipi(struct pt_regs *regs)
 	firing = atomic_fetch_andnot(enabled, this_cpu_ptr(&aic_vipi_flag)) & enabled;
 
 	for_each_set_bit(i, &firing, AIC_NR_SWIPI)
-		handle_domain_irq(aic_irqc->ipi_domain, i, regs);
+		generic_handle_domain_irq(aic_irqc->ipi_domain, i);
 
 	/*
 	 * No ordering needed here; at worst this just changes the timing of

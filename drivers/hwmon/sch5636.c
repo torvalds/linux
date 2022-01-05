@@ -56,7 +56,7 @@ struct sch5636_data {
 	struct device *hwmon_dev;
 
 	struct mutex update_lock;
-	char valid;			/* !=0 if following fields are valid */
+	bool valid;			/* true if following fields are valid */
 	unsigned long last_updated;	/* In jiffies */
 	u8 in[SCH5636_NO_INS];
 	u8 temp_val[SCH5636_NO_TEMPS];
@@ -140,7 +140,7 @@ static struct sch5636_data *sch5636_update_device(struct device *dev)
 	}
 
 	data->last_updated = jiffies;
-	data->valid = 1;
+	data->valid = true;
 abort:
 	mutex_unlock(&data->update_lock);
 	return ret;

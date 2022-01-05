@@ -46,6 +46,9 @@ patternProperties:
   "^gpio@[0-9a-f]+$":
     $ref: /schemas/gpio/xylon,logicvc-gpio.yaml#
 
+  "^display@[0-9a-f]+$":
+    $ref: /schemas/display/xylon,logicvc-display.yaml#
+
 required:
   - compatible
   - reg

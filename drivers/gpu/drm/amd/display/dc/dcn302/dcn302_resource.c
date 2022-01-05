@@ -542,8 +542,12 @@ static struct stream_encoder *dcn302_stream_encoder_create(enum engine_id eng_id
 	vpg = dcn302_vpg_create(ctx, vpg_inst);
 	afmt = dcn302_afmt_create(ctx, afmt_inst);
 
-	if (!enc1 || !vpg || !afmt)
+	if (!enc1 || !vpg || !afmt) {
+		kfree(enc1);
+		kfree(vpg);
+		kfree(afmt);
 		return NULL;
+	}
 
 	dcn30_dio_stream_encoder_construct(enc1, ctx, ctx->dc_bios, eng_id, vpg, afmt, &stream_enc_regs[eng_id],
 			&se_shift, &se_mask);
@@ -1462,7 +1466,7 @@ static const struct dccg_mask dccg_mask = {
 };
 
 #define abm_regs(id)\
-		[id] = { ABM_DCN301_REG_LIST(id) }
+		[id] = { ABM_DCN302_REG_LIST(id) }
 
 static const struct dce_abm_registers abm_regs[] = {
 		abm_regs(0),

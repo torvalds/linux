@@ -378,6 +378,10 @@ static inline unsigned long compute_tlbie_rb(unsigned long v, unsigned long r,
 		rb |= 1;		/* L field */
 		rb |= r & 0xff000 & ((1ul << a_pgshift) - 1); /* LP field */
 	}
+	/*
+	 * This sets both bits of the B field in the PTE. 0b1x values are
+	 * reserved, but those will have been filtered by kvmppc_do_h_enter.
+	 */
 	rb |= (v >> HPTE_V_SSIZE_SHIFT) << 8;	/* B field */
 	return rb;
 }

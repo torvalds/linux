@@ -34,15 +34,21 @@ struct icl_ddi_buf_trans {
 };
 
 struct icl_mg_phy_ddi_buf_trans {
-	u32 cri_txdeemph_override_11_6;
-	u32 cri_txdeemph_override_5_0;
-	u32 cri_txdeemph_override_17_12;
+	u8 cri_txdeemph_override_11_6;
+	u8 cri_txdeemph_override_5_0;
+	u8 cri_txdeemph_override_17_12;
 };
 
 struct tgl_dkl_phy_ddi_buf_trans {
-	u32 dkl_vswing_control;
-	u32 dkl_preshoot_control;
-	u32 dkl_de_emphasis_control;
+	u8 vswing;
+	u8 preshoot;
+	u8 de_emphasis;
+};
+
+struct dg2_snps_phy_buf_trans {
+	u8 vswing;
+	u8 pre_cursor;
+	u8 post_cursor;
 };
 
 union intel_ddi_buf_trans_entry {
@@ -51,6 +57,7 @@ union intel_ddi_buf_trans_entry {
 	struct icl_ddi_buf_trans icl;
 	struct icl_mg_phy_ddi_buf_trans mg;
 	struct tgl_dkl_phy_ddi_buf_trans dkl;
+	struct dg2_snps_phy_buf_trans snps;
 };
 
 struct intel_ddi_buf_trans {
@@ -60,10 +67,6 @@ struct intel_ddi_buf_trans {
 };
 
 bool is_hobl_buf_trans(const struct intel_ddi_buf_trans *table);
-
-int intel_ddi_hdmi_num_entries(struct intel_encoder *encoder,
-			       const struct intel_crtc_state *crtc_state,
-			       int *default_entry);
 
 void intel_ddi_buf_trans_init(struct intel_encoder *encoder);
 

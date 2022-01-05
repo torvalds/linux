@@ -42,7 +42,7 @@ static void test_signal_pending_by_type(enum bpf_prog_type prog_type)
 	signal(SIGALRM, SIG_DFL);
 }
 
-void test_signal_pending(enum bpf_prog_type prog_type)
+void test_signal_pending(void)
 {
 	test_signal_pending_by_type(BPF_PROG_TYPE_SOCKET_FILTER);
 	test_signal_pending_by_type(BPF_PROG_TYPE_FLOW_DISSECTOR);

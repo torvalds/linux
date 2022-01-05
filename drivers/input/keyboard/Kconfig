@@ -788,4 +788,14 @@ config KEYBOARD_MTK_PMIC
 	  To compile this driver as a module, choose M here: the
 	  module will be called pmic-keys.
 
+config KEYBOARD_CYPRESS_SF
+	tristate "Cypress StreetFighter touchkey support"
+	depends on I2C
+	help
+	  Say Y here if you want to enable support for Cypress StreetFighter
+	  touchkeys.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called cypress-sf.
+
 endif

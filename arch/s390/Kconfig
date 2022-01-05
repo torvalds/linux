@@ -153,12 +153,15 @@ config S390
 	select HAVE_DEBUG_KMEMLEAK
 	select HAVE_DMA_CONTIGUOUS
 	select HAVE_DYNAMIC_FTRACE
+	select HAVE_DYNAMIC_FTRACE_WITH_ARGS
+	select HAVE_DYNAMIC_FTRACE_WITH_DIRECT_CALLS
 	select HAVE_DYNAMIC_FTRACE_WITH_REGS
 	select HAVE_EBPF_JIT if PACK_STACK && HAVE_MARCH_Z196_FEATURES
 	select HAVE_EFFICIENT_UNALIGNED_ACCESS
 	select HAVE_FAST_GUP
 	select HAVE_FENTRY
 	select HAVE_FTRACE_MCOUNT_RECORD
+	select HAVE_FUNCTION_ARG_ACCESS_API
 	select HAVE_FUNCTION_ERROR_INJECTION
 	select HAVE_FUNCTION_GRAPH_TRACER
 	select HAVE_FUNCTION_TRACER
@@ -190,6 +193,7 @@ config S390
 	select HAVE_REGS_AND_STACK_ACCESS_API
 	select HAVE_RELIABLE_STACKTRACE
 	select HAVE_RSEQ
+	select HAVE_SAMPLE_FTRACE_DIRECT
 	select HAVE_SOFTIRQ_ON_OWN_STACK
 	select HAVE_SYSCALL_TRACEPOINTS
 	select HAVE_VIRT_CPU_ACCOUNTING
@@ -433,6 +437,14 @@ endchoice
 
 config 64BIT
 	def_bool y
+
+config COMMAND_LINE_SIZE
+	int "Maximum size of kernel command line"
+	default 4096
+	range 896 1048576
+	help
+	  This allows you to specify the maximum length of the kernel command
+	  line.
 
 config COMPAT
 	def_bool y
@@ -938,11 +950,25 @@ menu "Selftests"
 
 config S390_UNWIND_SELFTEST
 	def_tristate n
+	depends on KUNIT
+	default KUNIT_ALL_TESTS
 	prompt "Test unwind functions"
 	help
 	  This option enables s390 specific stack unwinder testing kernel
 	  module. This option is not useful for distributions or general
 	  kernels, but only for kernel developers working on architecture code.
+
+	  Say N if you are unsure.
+
+config S390_KPROBES_SANITY_TEST
+	def_tristate n
+	prompt "Enable s390 specific kprobes tests"
+	depends on KPROBES
+	depends on KUNIT
+	help
+	  This option enables an s390 specific kprobes test module. This option
+	  is not useful for distributions or general kernels, but only for kernel
+	  developers working on architecture code.
 
 	  Say N if you are unsure.
 

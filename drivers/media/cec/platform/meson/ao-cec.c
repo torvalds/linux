@@ -602,7 +602,6 @@ static int meson_ao_cec_probe(struct platform_device *pdev)
 {
 	struct meson_ao_cec_device *ao_cec;
 	struct device *hdmi_dev;
-	struct resource *res;
 	int ret, irq;
 
 	hdmi_dev = cec_notifier_parse_hdmi_phandle(&pdev->dev);
@@ -626,8 +625,7 @@ static int meson_ao_cec_probe(struct platform_device *pdev)
 
 	ao_cec->adap->owner = THIS_MODULE;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	ao_cec->base = devm_ioremap_resource(&pdev->dev, res);
+	ao_cec->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(ao_cec->base)) {
 		ret = PTR_ERR(ao_cec->base);
 		goto out_probe_adapter;

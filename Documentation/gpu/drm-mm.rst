@@ -28,56 +28,53 @@ UMA devices.
 The Translation Table Manager (TTM)
 ===================================
 
-TTM design background and information belongs here.
+.. kernel-doc:: drivers/gpu/drm/ttm/ttm_module.c
+   :doc: TTM
 
-TTM initialization
-------------------
+.. kernel-doc:: include/drm/ttm/ttm_caching.h
+   :internal:
 
-    **Warning**
-    This section is outdated.
+TTM device object reference
+---------------------------
 
-Drivers wishing to support TTM must pass a filled :c:type:`ttm_bo_driver
-<ttm_bo_driver>` structure to ttm_device_init, together with an
-initialized global reference to the memory manager.  The ttm_bo_driver
-structure contains several fields with function pointers for
-initializing the TTM, allocating and freeing memory, waiting for command
-completion and fence synchronization, and memory migration.
+.. kernel-doc:: include/drm/ttm/ttm_device.h
+   :internal:
 
-The :c:type:`struct drm_global_reference <drm_global_reference>` is made
-up of several fields:
+.. kernel-doc:: drivers/gpu/drm/ttm/ttm_device.c
+   :export:
 
-.. code-block:: c
+TTM resource placement reference
+--------------------------------
 
-              struct drm_global_reference {
-                      enum ttm_global_types global_type;
-                      size_t size;
-                      void *object;
-                      int (*init) (struct drm_global_reference *);
-                      void (*release) (struct drm_global_reference *);
-              };
+.. kernel-doc:: include/drm/ttm/ttm_placement.h
+   :internal:
 
+TTM resource object reference
+-----------------------------
 
-There should be one global reference structure for your memory manager
-as a whole, and there will be others for each object created by the
-memory manager at runtime. Your global TTM should have a type of
-TTM_GLOBAL_TTM_MEM. The size field for the global object should be
-sizeof(struct ttm_mem_global), and the init and release hooks should
-point at your driver-specific init and release routines, which probably
-eventually call ttm_mem_global_init and ttm_mem_global_release,
-respectively.
+.. kernel-doc:: include/drm/ttm/ttm_resource.h
+   :internal:
 
-Once your global TTM accounting structure is set up and initialized by
-calling ttm_global_item_ref() on it, you need to create a buffer
-object TTM to provide a pool for buffer object allocation by clients and
-the kernel itself. The type of this object should be
-TTM_GLOBAL_TTM_BO, and its size should be sizeof(struct
-ttm_bo_global). Again, driver-specific init and release functions may
-be provided, likely eventually calling ttm_bo_global_ref_init() and
-ttm_bo_global_ref_release(), respectively. Also, like the previous
-object, ttm_global_item_ref() is used to create an initial reference
-count for the TTM, which will call your initialization function.
+.. kernel-doc:: drivers/gpu/drm/ttm/ttm_resource.c
+   :export:
 
-See the radeon_ttm.c file for an example of usage.
+TTM TT object reference
+-----------------------
+
+.. kernel-doc:: include/drm/ttm/ttm_tt.h
+   :internal:
+
+.. kernel-doc:: drivers/gpu/drm/ttm/ttm_tt.c
+   :export:
+
+TTM page pool reference
+-----------------------
+
+.. kernel-doc:: include/drm/ttm/ttm_pool.h
+   :internal:
+
+.. kernel-doc:: drivers/gpu/drm/ttm/ttm_pool.c
+   :export:
 
 The Graphics Execution Manager (GEM)
 ====================================
@@ -503,4 +500,7 @@ Scheduler Function References
    :internal:
 
 .. kernel-doc:: drivers/gpu/drm/scheduler/sched_main.c
+   :export:
+
+.. kernel-doc:: drivers/gpu/drm/scheduler/sched_entity.c
    :export:

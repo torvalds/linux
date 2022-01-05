@@ -29,6 +29,7 @@
 
 enum {
 	UAC_FBACK_CTRL,
+	UAC_P_PITCH_CTRL,
 	UAC_MUTE_CTRL,
 	UAC_VOLUME_CTRL,
 };
@@ -74,13 +75,9 @@ struct snd_uac_chip {
 	struct snd_card *card;
 	struct snd_pcm *pcm;
 
-	/* timekeeping for the playback endpoint */
-	unsigned int p_interval;
-	unsigned int p_residue;
-
 	/* pre-calculated values for playback iso completion */
-	unsigned int p_pktsize;
-	unsigned int p_pktsize_residue;
+	unsigned long long p_interval_mil;
+	unsigned long long p_residue_mil;
 	unsigned int p_framesize;
 };
 
@@ -153,6 +150,11 @@ static void u_audio_iso_complete(struct usb_ep *ep, struct usb_request *req)
 	struct snd_pcm_runtime *runtime;
 	struct uac_rtd_params *prm = req->context;
 	struct snd_uac_chip *uac = prm->uac;
+	struct g_audio *audio_dev = uac->audio_dev;
+	struct uac_params *params = &audio_dev->params;
+	unsigned int frames, p_pktsize;
+	unsigned long long pitched_rate_mil, p_pktsize_residue_mil,
+			residue_frames_mil, div_result;
 
 	/* i/f shutting down */
 	if (!prm->ep_enabled) {
@@ -192,19 +194,42 @@ static void u_audio_iso_complete(struct usb_ep *ep, struct usb_request *req)
 		 * If there is a residue from this division, add it to the
 		 * residue accumulator.
 		 */
-		req->length = uac->p_pktsize;
-		uac->p_residue += uac->p_pktsize_residue;
+		pitched_rate_mil = (unsigned long long)
+				params->p_srate * prm->pitch;
+		div_result = pitched_rate_mil;
+		do_div(div_result, uac->p_interval_mil);
+		frames = (unsigned int) div_result;
+
+		pr_debug("p_srate %d, pitch %d, interval_mil %llu, frames %d\n",
+				params->p_srate, prm->pitch, uac->p_interval_mil, frames);
+
+		p_pktsize = min_t(unsigned int,
+					uac->p_framesize * frames,
+					ep->maxpacket);
+
+		if (p_pktsize < ep->maxpacket) {
+			residue_frames_mil = pitched_rate_mil - frames * uac->p_interval_mil;
+			p_pktsize_residue_mil = uac->p_framesize * residue_frames_mil;
+		} else
+			p_pktsize_residue_mil = 0;
+
+		req->length = p_pktsize;
+		uac->p_residue_mil += p_pktsize_residue_mil;
 
 		/*
-		 * Whenever there are more bytes in the accumulator than we
+		 * Whenever there are more bytes in the accumulator p_residue_mil than we
 		 * need to add one more sample frame, increase this packet's
 		 * size and decrease the accumulator.
 		 */
-		if (uac->p_residue / uac->p_interval >= uac->p_framesize) {
+		div_result = uac->p_residue_mil;
+		do_div(div_result, uac->p_interval_mil);
+		if ((unsigned int) div_result >= uac->p_framesize) {
 			req->length += uac->p_framesize;
-			uac->p_residue -= uac->p_framesize *
-					   uac->p_interval;
+			uac->p_residue_mil -= uac->p_framesize *
+					   uac->p_interval_mil;
+			pr_debug("increased req length to %d\n", req->length);
 		}
+		pr_debug("remains uac->p_residue_mil %llu\n", uac->p_residue_mil);
 
 		req->actual = req->length;
 	}
@@ -371,7 +396,7 @@ static int uac_pcm_open(struct snd_pcm_substream *substream)
 	c_srate = params->c_srate;
 	p_chmask = params->p_chmask;
 	c_chmask = params->c_chmask;
-	uac->p_residue = 0;
+	uac->p_residue_mil = 0;
 
 	runtime->hw = uac_pcm_hardware;
 
@@ -566,12 +591,17 @@ int u_audio_start_playback(struct g_audio *audio_dev)
 	unsigned int factor;
 	const struct usb_endpoint_descriptor *ep_desc;
 	int req_len, i;
+	unsigned int p_interval, p_pktsize;
 
 	ep = audio_dev->in_ep;
 	prm = &uac->p_prm;
 	config_ep_by_speed(gadget, &audio_dev->func, ep);
 
 	ep_desc = ep->desc;
+	/*
+	 * Always start with original frequency
+	 */
+	prm->pitch = 1000000;
 
 	/* pre-calculate the playback endpoint's interval */
 	if (gadget->speed == USB_SPEED_FULL)
@@ -582,20 +612,15 @@ int u_audio_start_playback(struct g_audio *audio_dev)
 	/* pre-compute some values for iso_complete() */
 	uac->p_framesize = params->p_ssize *
 			    num_channels(params->p_chmask);
-	uac->p_interval = factor / (1 << (ep_desc->bInterval - 1));
-	uac->p_pktsize = min_t(unsigned int,
+	p_interval = factor / (1 << (ep_desc->bInterval - 1));
+	uac->p_interval_mil = (unsigned long long) p_interval * 1000000;
+	p_pktsize = min_t(unsigned int,
 				uac->p_framesize *
-					(params->p_srate / uac->p_interval),
+					(params->p_srate / p_interval),
 				ep->maxpacket);
 
-	if (uac->p_pktsize < ep->maxpacket)
-		uac->p_pktsize_residue = uac->p_framesize *
-			(params->p_srate % uac->p_interval);
-	else
-		uac->p_pktsize_residue = 0;
-
-	req_len = uac->p_pktsize;
-	uac->p_residue = 0;
+	req_len = p_pktsize;
+	uac->p_residue_mil = 0;
 
 	prm->ep_enabled = true;
 	usb_ep_enable(ep);
@@ -925,6 +950,13 @@ static struct snd_kcontrol_new u_audio_controls[]  = {
     .get =          u_audio_pitch_get,
     .put =          u_audio_pitch_put,
   },
+	[UAC_P_PITCH_CTRL] {
+		.iface =        SNDRV_CTL_ELEM_IFACE_PCM,
+		.name =         "Playback Pitch 1000000",
+		.info =         u_audio_pitch_info,
+		.get =          u_audio_pitch_get,
+		.put =          u_audio_pitch_put,
+	},
   [UAC_MUTE_CTRL] {
 		.iface =	SNDRV_CTL_ELEM_IFACE_MIXER,
 		.name =		"", /* will be filled later */
@@ -1049,6 +1081,22 @@ int g_audio_setup(struct g_audio *g_audio, const char *pcm_name,
 	if (c_chmask && g_audio->in_ep_fback) {
 		kctl = snd_ctl_new1(&u_audio_controls[UAC_FBACK_CTRL],
 				    &uac->c_prm);
+		if (!kctl) {
+			err = -ENOMEM;
+			goto snd_fail;
+		}
+
+		kctl->id.device = pcm->device;
+		kctl->id.subdevice = 0;
+
+		err = snd_ctl_add(card, kctl);
+		if (err < 0)
+			goto snd_fail;
+	}
+
+	if (p_chmask) {
+		kctl = snd_ctl_new1(&u_audio_controls[UAC_P_PITCH_CTRL],
+				    &uac->p_prm);
 		if (!kctl) {
 			err = -ENOMEM;
 			goto snd_fail;

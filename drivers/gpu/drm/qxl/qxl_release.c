@@ -36,10 +36,10 @@
 /* manage releaseables */
 /* stack them 16 high for now -drawable object is 191 */
 #define RELEASE_SIZE 256
-#define RELEASES_PER_BO (4096 / RELEASE_SIZE)
+#define RELEASES_PER_BO (PAGE_SIZE / RELEASE_SIZE)
 /* put an alloc/dealloc surface cmd into one bo and round up to 128 */
 #define SURFACE_RELEASE_SIZE 128
-#define SURFACE_RELEASES_PER_BO (4096 / SURFACE_RELEASE_SIZE)
+#define SURFACE_RELEASES_PER_BO (PAGE_SIZE / SURFACE_RELEASE_SIZE)
 
 static const int release_size_per_bo[] = { RELEASE_SIZE, SURFACE_RELEASE_SIZE, RELEASE_SIZE };
 static const int releases_per_bo[] = { RELEASES_PER_BO, SURFACE_RELEASES_PER_BO, RELEASES_PER_BO };

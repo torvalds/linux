@@ -125,15 +125,15 @@ struct mlx5e_ethtool_steering {
 
 void mlx5e_ethtool_init_steering(struct mlx5e_priv *priv);
 void mlx5e_ethtool_cleanup_steering(struct mlx5e_priv *priv);
-int mlx5e_ethtool_set_rxnfc(struct net_device *dev, struct ethtool_rxnfc *cmd);
-int mlx5e_ethtool_get_rxnfc(struct net_device *dev,
+int mlx5e_ethtool_set_rxnfc(struct mlx5e_priv *priv, struct ethtool_rxnfc *cmd);
+int mlx5e_ethtool_get_rxnfc(struct mlx5e_priv *priv,
 			    struct ethtool_rxnfc *info, u32 *rule_locs);
 #else
 static inline void mlx5e_ethtool_init_steering(struct mlx5e_priv *priv)    { }
 static inline void mlx5e_ethtool_cleanup_steering(struct mlx5e_priv *priv) { }
-static inline int mlx5e_ethtool_set_rxnfc(struct net_device *dev, struct ethtool_rxnfc *cmd)
+static inline int mlx5e_ethtool_set_rxnfc(struct mlx5e_priv *priv, struct ethtool_rxnfc *cmd)
 { return -EOPNOTSUPP; }
-static inline int mlx5e_ethtool_get_rxnfc(struct net_device *dev,
+static inline int mlx5e_ethtool_get_rxnfc(struct mlx5e_priv *priv,
 					  struct ethtool_rxnfc *info, u32 *rule_locs)
 { return -EOPNOTSUPP; }
 #endif /* CONFIG_MLX5_EN_RXNFC */
@@ -198,6 +198,9 @@ void mlx5e_disable_cvlan_filter(struct mlx5e_priv *priv);
 
 int mlx5e_create_flow_steering(struct mlx5e_priv *priv);
 void mlx5e_destroy_flow_steering(struct mlx5e_priv *priv);
+
+int mlx5e_fs_init(struct mlx5e_priv *priv);
+void mlx5e_fs_cleanup(struct mlx5e_priv *priv);
 
 int mlx5e_add_vlan_trap(struct mlx5e_priv *priv, int  trap_id, int tir_num);
 void mlx5e_remove_vlan_trap(struct mlx5e_priv *priv);

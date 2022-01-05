@@ -944,7 +944,7 @@ u32 hw_atl_utils_get_fw_version(struct aq_hw_s *self)
 }
 
 static int aq_fw1x_set_wake_magic(struct aq_hw_s *self, bool wol_enabled,
-				  u8 *mac)
+				  const u8 *mac)
 {
 	struct hw_atl_utils_fw_rpc *prpc = NULL;
 	unsigned int rpc_size = 0U;
@@ -987,7 +987,7 @@ err_exit:
 }
 
 static int aq_fw1x_set_power(struct aq_hw_s *self, unsigned int power_state,
-			     u8 *mac)
+			     const u8 *mac)
 {
 	struct hw_atl_utils_fw_rpc *prpc = NULL;
 	unsigned int rpc_size = 0U;

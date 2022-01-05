@@ -24,7 +24,6 @@
  * could be acquired so far.
  */
 #define SPECTRAL_ATH10K_MAX_NUM_BINS		256
-#define SPECTRAL_ATH11K_MAX_NUM_BINS		512
 
 /* FFT sample format given to userspace via debugfs.
  *

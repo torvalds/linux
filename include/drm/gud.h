@@ -246,10 +246,12 @@ struct gud_state_req {
 /* Get supported pixel formats as a byte array of GUD_PIXEL_FORMAT_* */
 #define GUD_REQ_GET_FORMATS				0x40
   #define GUD_FORMATS_MAX_NUM			32
-  /* R1 is a 1-bit monochrome transfer format presented to userspace as XRGB8888 */
-  #define GUD_PIXEL_FORMAT_R1			0x01
+  #define GUD_PIXEL_FORMAT_R1			0x01 /* 1-bit monochrome */
+  #define GUD_PIXEL_FORMAT_R8			0x08 /* 8-bit greyscale */
   #define GUD_PIXEL_FORMAT_XRGB1111		0x20
+  #define GUD_PIXEL_FORMAT_RGB332		0x30
   #define GUD_PIXEL_FORMAT_RGB565		0x40
+  #define GUD_PIXEL_FORMAT_RGB888		0x50
   #define GUD_PIXEL_FORMAT_XRGB8888		0x80
   #define GUD_PIXEL_FORMAT_ARGB8888		0x81
 

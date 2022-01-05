@@ -881,8 +881,8 @@ static int wacom_add_shared_data(struct hid_device *hdev)
 	if (!data) {
 		data = kzalloc(sizeof(struct wacom_hdev_data), GFP_KERNEL);
 		if (!data) {
-			retval = -ENOMEM;
-			goto out;
+			mutex_unlock(&wacom_udev_list_lock);
+			return -ENOMEM;
 		}
 
 		kref_init(&data->kref);
@@ -890,22 +890,19 @@ static int wacom_add_shared_data(struct hid_device *hdev)
 		list_add_tail(&data->list, &wacom_udev_list);
 	}
 
+	mutex_unlock(&wacom_udev_list_lock);
+
 	wacom_wac->shared = &data->shared;
 
-	retval = devm_add_action(&hdev->dev, wacom_remove_shared_data, wacom);
-	if (retval) {
-		mutex_unlock(&wacom_udev_list_lock);
-		wacom_remove_shared_data(wacom);
+	retval = devm_add_action_or_reset(&hdev->dev, wacom_remove_shared_data, wacom);
+	if (retval)
 		return retval;
-	}
 
 	if (wacom_wac->features.device_type & WACOM_DEVICETYPE_TOUCH)
 		wacom_wac->shared->touch = hdev;
 	else if (wacom_wac->features.device_type & WACOM_DEVICETYPE_PEN)
 		wacom_wac->shared->pen = hdev;
 
-out:
-	mutex_unlock(&wacom_udev_list_lock);
 	return retval;
 }
 

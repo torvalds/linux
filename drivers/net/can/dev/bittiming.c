@@ -175,27 +175,29 @@ int can_calc_bittiming(struct net_device *dev, struct can_bittiming *bt,
 	return 0;
 }
 
-void can_calc_tdco(struct net_device *dev)
-{
-	struct can_priv *priv = netdev_priv(dev);
-	const struct can_bittiming *dbt = &priv->data_bittiming;
-	struct can_tdc *tdc = &priv->tdc;
-	const struct can_tdc_const *tdc_const = priv->tdc_const;
+void can_calc_tdco(struct can_tdc *tdc, const struct can_tdc_const *tdc_const,
+		   const struct can_bittiming *dbt,
+		   u32 *ctrlmode, u32 ctrlmode_supported)
 
-	if (!tdc_const)
+{
+	if (!tdc_const || !(ctrlmode_supported & CAN_CTRLMODE_TDC_AUTO))
 		return;
+
+	*ctrlmode &= ~CAN_CTRLMODE_TDC_MASK;
 
 	/* As specified in ISO 11898-1 section 11.3.3 "Transmitter
 	 * delay compensation" (TDC) is only applicable if data BRP is
 	 * one or two.
 	 */
 	if (dbt->brp == 1 || dbt->brp == 2) {
-		/* Reuse "normal" sample point and convert it to time quanta */
-		u32 sample_point_in_tq = can_bit_time(dbt) * dbt->sample_point / 1000;
+		/* Sample point in clock periods */
+		u32 sample_point_in_tc = (CAN_SYNC_SEG + dbt->prop_seg +
+					  dbt->phase_seg1) * dbt->brp;
 
-		tdc->tdco = min(sample_point_in_tq, tdc_const->tdco_max);
-	} else {
-		tdc->tdco = 0;
+		if (sample_point_in_tc < tdc_const->tdco_min)
+			return;
+		tdc->tdco = min(sample_point_in_tc, tdc_const->tdco_max);
+		*ctrlmode |= CAN_CTRLMODE_TDC_AUTO;
 	}
 }
 #endif /* CONFIG_CAN_CALC_BITTIMING */
@@ -209,7 +211,7 @@ static int can_fixup_bittiming(struct net_device *dev, struct can_bittiming *bt,
 			       const struct can_bittiming_const *btc)
 {
 	struct can_priv *priv = netdev_priv(dev);
-	int tseg1, alltseg;
+	unsigned int tseg1, alltseg;
 	u64 brp64;
 
 	tseg1 = bt->prop_seg + bt->phase_seg1;

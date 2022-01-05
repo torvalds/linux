@@ -68,7 +68,7 @@ static int dwmac100_irq_status(struct mac_device_info *hw,
 }
 
 static void dwmac100_set_umac_addr(struct mac_device_info *hw,
-				   unsigned char *addr,
+				   const unsigned char *addr,
 				   unsigned int reg_n)
 {
 	void __iomem *ioaddr = hw->pcsr;

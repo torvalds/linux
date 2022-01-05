@@ -220,14 +220,14 @@
 
 		amba {
 			/* eMMC */
-			sdcc1: sdcc@12400000 {
+			sdcc1: mmc@12400000 {
 				status = "okay";
 				vmmc-supply = <&pm8921_l5>;
 				vqmmc-supply = <&pm8921_s4>;
 			};
 
 			/* External micro SD card */
-			sdcc3: sdcc@12180000 {
+			sdcc3: mmc@12180000 {
 				status = "okay";
 				vmmc-supply = <&v3p3_fixed>;
 				pinctrl-names	= "default";
@@ -235,7 +235,7 @@
 				cd-gpios	= <&tlmm_pinmux 26 GPIO_ACTIVE_LOW>;
 			};
 			/* WLAN */
-			sdcc4: sdcc@121c0000 {
+			sdcc4: mmc@121c0000 {
 				status = "okay";
 				vmmc-supply = <&v3p3_fixed>;
 				vqmmc-supply = <&v3p3_fixed>;

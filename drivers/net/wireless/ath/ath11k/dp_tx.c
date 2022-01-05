@@ -78,7 +78,7 @@ enum hal_encrypt_type ath11k_dp_tx_get_encrypt_type(u32 cipher)
 }
 
 int ath11k_dp_tx(struct ath11k *ar, struct ath11k_vif *arvif,
-		 struct sk_buff *skb)
+		 struct ath11k_sta *arsta, struct sk_buff *skb)
 {
 	struct ath11k_base *ab = ar->ab;
 	struct ath11k_dp *dp = &ab->dp;
@@ -115,11 +115,8 @@ int ath11k_dp_tx(struct ath11k *ar, struct ath11k_vif *arvif,
 
 tcl_ring_sel:
 	tcl_ring_retry = false;
-	/* For some chip, it can only use tcl0 to tx */
-	if (ar->ab->hw_params.tcl_0_only)
-		ti.ring_id = 0;
-	else
-		ti.ring_id = ring_selector % DP_TCL_NUM_RING_MAX;
+
+	ti.ring_id = ring_selector % ab->hw_params.max_tx_ring;
 
 	ring_map |= BIT(ti.ring_id);
 
@@ -131,7 +128,7 @@ tcl_ring_sel:
 	spin_unlock_bh(&tx_ring->tx_idr_lock);
 
 	if (ret < 0) {
-		if (ring_map == (BIT(DP_TCL_NUM_RING_MAX) - 1)) {
+		if (ring_map == (BIT(ab->hw_params.max_tx_ring) - 1)) {
 			atomic_inc(&ab->soc_stats.tx_err.misc_fail);
 			return -ENOSPC;
 		}
@@ -145,7 +142,15 @@ tcl_ring_sel:
 		     FIELD_PREP(DP_TX_DESC_ID_MSDU_ID, ret) |
 		     FIELD_PREP(DP_TX_DESC_ID_POOL_ID, pool_id);
 	ti.encap_type = ath11k_dp_tx_get_encap_type(arvif, skb);
-	ti.meta_data_flags = arvif->tcl_metadata;
+
+	if (ieee80211_has_a4(hdr->frame_control) &&
+	    is_multicast_ether_addr(hdr->addr3) && arsta &&
+	    arsta->use_4addr_set) {
+		ti.meta_data_flags = arsta->tcl_metadata;
+		ti.flags0 |= FIELD_PREP(HAL_TCL_DATA_CMD_INFO1_TO_FW, 1);
+	} else {
+		ti.meta_data_flags = arvif->tcl_metadata;
+	}
 
 	if (ti.encap_type == HAL_TCL_ENCAP_TYPE_RAW) {
 		if (skb_cb->flags & ATH11K_SKB_CIPHER_SET) {
@@ -240,8 +245,8 @@ tcl_ring_sel:
 		 * checking this ring earlier for each pkt tx.
 		 * Restart ring selection if some rings are not checked yet.
 		 */
-		if (ring_map != (BIT(DP_TCL_NUM_RING_MAX) - 1) &&
-		    !ar->ab->hw_params.tcl_0_only) {
+		if (ring_map != (BIT(ab->hw_params.max_tx_ring) - 1) &&
+		    ab->hw_params.max_tx_ring > 1) {
 			tcl_ring_retry = true;
 			ring_selector++;
 		}
@@ -613,6 +618,9 @@ int ath11k_dp_tx_send_reo_cmd(struct ath11k_base *ab, struct dp_rx_tid *rx_tid,
 	struct dp_reo_cmd *dp_cmd;
 	struct hal_srng *cmd_ring;
 	int cmd_num;
+
+	if (test_bit(ATH11K_FLAG_CRASH_FLUSH, &ab->dev_flags))
+		return -ESHUTDOWN;
 
 	cmd_ring = &ab->hal.srng_list[dp->reo_cmd_ring.ring_id];
 	cmd_num = ath11k_hal_reo_cmd_send(ab, cmd_ring, type, cmd);
@@ -1068,11 +1076,15 @@ int ath11k_dp_tx_htt_monitor_mode_ring_config(struct ath11k *ar, bool reset)
 
 	for (i = 0; i < ab->hw_params.num_rxmda_per_pdev; i++) {
 		ring_id = dp->rx_mon_status_refill_ring[i].refill_buf_ring.ring_id;
-		if (!reset)
+		if (!reset) {
 			tlv_filter.rx_filter =
 					HTT_RX_MON_FILTER_TLV_FLAGS_MON_STATUS_RING;
-		else
+		} else {
 			tlv_filter = ath11k_mac_mon_status_filter_default;
+
+			if (ath11k_debugfs_is_extd_rx_stats_enabled(ar))
+				tlv_filter.rx_filter = ath11k_debugfs_rx_filter(ar);
+		}
 
 		ret = ath11k_dp_tx_htt_rx_filter_setup(ab, ring_id,
 						       dp->mac_id + i,

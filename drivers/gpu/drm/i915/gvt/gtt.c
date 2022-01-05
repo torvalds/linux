@@ -745,7 +745,7 @@ static void ppgtt_free_spt(struct intel_vgpu_ppgtt_spt *spt)
 	trace_spt_free(spt->vgpu->id, spt, spt->guest_page.type);
 
 	dma_unmap_page(kdev, spt->shadow_page.mfn << I915_GTT_PAGE_SHIFT, 4096,
-		       PCI_DMA_BIDIRECTIONAL);
+		       DMA_BIDIRECTIONAL);
 
 	radix_tree_delete(&spt->vgpu->gtt.spt_tree, spt->shadow_page.mfn);
 
@@ -849,7 +849,7 @@ retry:
 	 */
 	spt->shadow_page.type = type;
 	daddr = dma_map_page(kdev, spt->shadow_page.page,
-			     0, 4096, PCI_DMA_BIDIRECTIONAL);
+			     0, 4096, DMA_BIDIRECTIONAL);
 	if (dma_mapping_error(kdev, daddr)) {
 		gvt_vgpu_err("fail to map dma addr\n");
 		ret = -EINVAL;
@@ -865,7 +865,7 @@ retry:
 	return spt;
 
 err_unmap_dma:
-	dma_unmap_page(kdev, daddr, PAGE_SIZE, PCI_DMA_BIDIRECTIONAL);
+	dma_unmap_page(kdev, daddr, PAGE_SIZE, DMA_BIDIRECTIONAL);
 err_free_spt:
 	free_spt(spt);
 	return ERR_PTR(ret);
@@ -2409,8 +2409,7 @@ static int alloc_scratch_pages(struct intel_vgpu *vgpu,
 		return -ENOMEM;
 	}
 
-	daddr = dma_map_page(dev, virt_to_page(scratch_pt), 0,
-			4096, PCI_DMA_BIDIRECTIONAL);
+	daddr = dma_map_page(dev, virt_to_page(scratch_pt), 0, 4096, DMA_BIDIRECTIONAL);
 	if (dma_mapping_error(dev, daddr)) {
 		gvt_vgpu_err("fail to dmamap scratch_pt\n");
 		__free_page(virt_to_page(scratch_pt));
@@ -2461,7 +2460,7 @@ static int release_scratch_page_tree(struct intel_vgpu *vgpu)
 		if (vgpu->gtt.scratch_pt[i].page != NULL) {
 			daddr = (dma_addr_t)(vgpu->gtt.scratch_pt[i].page_mfn <<
 					I915_GTT_PAGE_SHIFT);
-			dma_unmap_page(dev, daddr, 4096, PCI_DMA_BIDIRECTIONAL);
+			dma_unmap_page(dev, daddr, 4096, DMA_BIDIRECTIONAL);
 			__free_page(vgpu->gtt.scratch_pt[i].page);
 			vgpu->gtt.scratch_pt[i].page = NULL;
 			vgpu->gtt.scratch_pt[i].page_mfn = 0;
@@ -2741,7 +2740,7 @@ int intel_gvt_init_gtt(struct intel_gvt *gvt)
 	}
 
 	daddr = dma_map_page(dev, virt_to_page(page), 0,
-			4096, PCI_DMA_BIDIRECTIONAL);
+			4096, DMA_BIDIRECTIONAL);
 	if (dma_mapping_error(dev, daddr)) {
 		gvt_err("fail to dmamap scratch ggtt page\n");
 		__free_page(virt_to_page(page));
@@ -2755,7 +2754,7 @@ int intel_gvt_init_gtt(struct intel_gvt *gvt)
 		ret = setup_spt_oos(gvt);
 		if (ret) {
 			gvt_err("fail to initialize SPT oos\n");
-			dma_unmap_page(dev, daddr, 4096, PCI_DMA_BIDIRECTIONAL);
+			dma_unmap_page(dev, daddr, 4096, DMA_BIDIRECTIONAL);
 			__free_page(gvt->gtt.scratch_page);
 			return ret;
 		}
@@ -2779,7 +2778,7 @@ void intel_gvt_clean_gtt(struct intel_gvt *gvt)
 	dma_addr_t daddr = (dma_addr_t)(gvt->gtt.scratch_mfn <<
 					I915_GTT_PAGE_SHIFT);
 
-	dma_unmap_page(dev, daddr, 4096, PCI_DMA_BIDIRECTIONAL);
+	dma_unmap_page(dev, daddr, 4096, DMA_BIDIRECTIONAL);
 
 	__free_page(gvt->gtt.scratch_page);
 

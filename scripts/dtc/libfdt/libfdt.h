@@ -131,6 +131,13 @@ uint32_t fdt_next_tag(const void *fdt, int offset, int *nextoffset);
  * to work even with unaligned pointers on platforms (such as ARMv5) that don't
  * like unaligned loads and stores.
  */
+static inline uint16_t fdt16_ld(const fdt16_t *p)
+{
+	const uint8_t *bp = (const uint8_t *)p;
+
+	return ((uint16_t)bp[0] << 8) | bp[1];
+}
+
 static inline uint32_t fdt32_ld(const fdt32_t *p)
 {
 	const uint8_t *bp = (const uint8_t *)p;

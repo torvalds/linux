@@ -17,13 +17,20 @@
 #include "huge_gem_object.h"
 #include "mock_context.h"
 
+enum client_tiling {
+	CLIENT_TILING_LINEAR,
+	CLIENT_TILING_X,
+	CLIENT_TILING_Y,
+	CLIENT_NUM_TILING_TYPES
+};
+
 #define WIDTH 512
 #define HEIGHT 32
 
 struct blit_buffer {
 	struct i915_vma *vma;
 	u32 start_val;
-	u32 tiling;
+	enum client_tiling tiling;
 };
 
 struct tiled_blits {
@@ -53,9 +60,9 @@ static int prepare_blit(const struct tiled_blits *t,
 	*cs++ = MI_LOAD_REGISTER_IMM(1);
 	*cs++ = i915_mmio_reg_offset(BCS_SWCTRL);
 	cmd = (BCS_SRC_Y | BCS_DST_Y) << 16;
-	if (src->tiling == I915_TILING_Y)
+	if (src->tiling == CLIENT_TILING_Y)
 		cmd |= BCS_SRC_Y;
-	if (dst->tiling == I915_TILING_Y)
+	if (dst->tiling == CLIENT_TILING_Y)
 		cmd |= BCS_DST_Y;
 	*cs++ = cmd;
 
@@ -172,7 +179,7 @@ static int tiled_blits_create_buffers(struct tiled_blits *t,
 
 		t->buffers[i].vma = vma;
 		t->buffers[i].tiling =
-			i915_prandom_u32_max_state(I915_TILING_Y + 1, prng);
+			i915_prandom_u32_max_state(CLIENT_TILING_Y + 1, prng);
 	}
 
 	return 0;
@@ -197,17 +204,17 @@ static u64 swizzle_bit(unsigned int bit, u64 offset)
 static u64 tiled_offset(const struct intel_gt *gt,
 			u64 v,
 			unsigned int stride,
-			unsigned int tiling)
+			enum client_tiling tiling)
 {
 	unsigned int swizzle;
 	u64 x, y;
 
-	if (tiling == I915_TILING_NONE)
+	if (tiling == CLIENT_TILING_LINEAR)
 		return v;
 
 	y = div64_u64_rem(v, stride, &x);
 
-	if (tiling == I915_TILING_X) {
+	if (tiling == CLIENT_TILING_X) {
 		v = div64_u64_rem(y, 8, &y) * stride * 8;
 		v += y * 512;
 		v += div64_u64_rem(x, 512, &x) << 12;
@@ -244,12 +251,12 @@ static u64 tiled_offset(const struct intel_gt *gt,
 	return v;
 }
 
-static const char *repr_tiling(int tiling)
+static const char *repr_tiling(enum client_tiling tiling)
 {
 	switch (tiling) {
-	case I915_TILING_NONE: return "linear";
-	case I915_TILING_X: return "X";
-	case I915_TILING_Y: return "Y";
+	case CLIENT_TILING_LINEAR: return "linear";
+	case CLIENT_TILING_X: return "X";
+	case CLIENT_TILING_Y: return "Y";
 	default: return "unknown";
 	}
 }

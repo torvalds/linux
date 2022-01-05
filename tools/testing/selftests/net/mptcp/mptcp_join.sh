@@ -297,7 +297,7 @@ do_transfer()
 	if [ "$test_link_fail" -eq 2 ];then
 		timeout ${timeout_test} \
 			ip netns exec ${listener_ns} \
-				$mptcp_connect -t ${timeout_poll} -l -p $port -s ${cl_proto} \
+				$mptcp_connect -t ${timeout_poll} -l -p $port -s ${srv_proto} \
 					${local_addr} < "$sinfail" > "$sout" &
 	else
 		timeout ${timeout_test} \
@@ -945,12 +945,15 @@ subflows_tests()
 
 	# subflow limited by client
 	reset
+	ip netns exec $ns1 ./pm_nl_ctl limits 0 0
+	ip netns exec $ns2 ./pm_nl_ctl limits 0 0
 	ip netns exec $ns2 ./pm_nl_ctl add 10.0.3.2 flags subflow
 	run_tests $ns1 $ns2 10.0.1.1
 	chk_join_nr "single subflow, limited by client" 0 0 0
 
 	# subflow limited by server
 	reset
+	ip netns exec $ns1 ./pm_nl_ctl limits 0 0
 	ip netns exec $ns2 ./pm_nl_ctl limits 0 1
 	ip netns exec $ns2 ./pm_nl_ctl add 10.0.3.2 flags subflow
 	run_tests $ns1 $ns2 10.0.1.1
@@ -973,7 +976,7 @@ subflows_tests()
 	run_tests $ns1 $ns2 10.0.1.1
 	chk_join_nr "multiple subflows" 2 2 2
 
-	# multiple subflows limited by serverf
+	# multiple subflows limited by server
 	reset
 	ip netns exec $ns1 ./pm_nl_ctl limits 0 1
 	ip netns exec $ns2 ./pm_nl_ctl limits 0 2

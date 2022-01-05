@@ -78,6 +78,8 @@
 #define DSI_SEL_IN_RDMA				0x1
 #define DSI_SEL_IN_MASK				0x1
 
+#define MMSYS_SW0_RST_B				0x140
+
 struct mtk_mmsys_routes {
 	u32 from_comp;
 	u32 to_comp;

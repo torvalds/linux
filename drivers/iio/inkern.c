@@ -85,6 +85,23 @@ int iio_map_array_unregister(struct iio_dev *indio_dev)
 }
 EXPORT_SYMBOL_GPL(iio_map_array_unregister);
 
+static void iio_map_array_unregister_cb(void *indio_dev)
+{
+	iio_map_array_unregister(indio_dev);
+}
+
+int devm_iio_map_array_register(struct device *dev, struct iio_dev *indio_dev, struct iio_map *maps)
+{
+	int ret;
+
+	ret = iio_map_array_register(indio_dev, maps);
+	if (ret)
+		return ret;
+
+	return devm_add_action_or_reset(dev, iio_map_array_unregister_cb, indio_dev);
+}
+EXPORT_SYMBOL_GPL(devm_iio_map_array_register);
+
 static const struct iio_chan_spec
 *iio_chan_spec_from_name(const struct iio_dev *indio_dev, const char *name)
 {

@@ -84,7 +84,7 @@ void ASSABET_BCR_frob(unsigned int mask, unsigned int val)
 }
 EXPORT_SYMBOL(ASSABET_BCR_frob);
 
-static int __init assabet_init_gpio(void __iomem *reg, u32 def_val)
+static void __init assabet_init_gpio(void __iomem *reg, u32 def_val)
 {
 	struct gpio_chip *gc;
 
@@ -94,11 +94,9 @@ static int __init assabet_init_gpio(void __iomem *reg, u32 def_val)
 			   assabet_names, NULL, NULL);
 
 	if (IS_ERR(gc))
-		return PTR_ERR(gc);
+		return;
 
 	assabet_bcr_gc = gc;
-
-	return gc->base;
 }
 
 /*
@@ -475,16 +473,23 @@ static struct gpiod_lookup_table assabet_cf_vcc_gpio_table = {
 	},
 };
 
+static struct gpiod_lookup_table assabet_leds_gpio_table = {
+	.dev_id = "leds-gpio",
+	.table = {
+		GPIO_LOOKUP("assabet", 13, NULL, GPIO_ACTIVE_LOW),
+		GPIO_LOOKUP("assabet", 14, NULL, GPIO_ACTIVE_LOW),
+		{ },
+	},
+};
+
 static struct gpio_led assabet_leds[] __initdata = {
 	{
 		.name = "assabet:red",
 		.default_trigger = "cpu0",
-		.active_low = 1,
 		.default_state = LEDS_GPIO_DEFSTATE_KEEP,
 	}, {
 		.name = "assabet:green",
 		.default_trigger = "heartbeat",
-		.active_low = 1,
 		.default_state = LEDS_GPIO_DEFSTATE_KEEP,
 	},
 };
@@ -603,6 +608,7 @@ static void __init assabet_init(void)
 					  &assabet_keys_pdata,
 					  sizeof(assabet_keys_pdata));
 
+	gpiod_add_lookup_table(&assabet_leds_gpio_table);
 	gpio_led_register_device(-1, &assabet_leds_pdata);
 
 #ifndef ASSABET_PAL_VIDEO
@@ -739,7 +745,6 @@ static void __init assabet_map_io(void)
 
 void __init assabet_init_irq(void)
 {
-	unsigned int assabet_gpio_base;
 	u32 def_val;
 
 	sa1100_init_irq();
@@ -754,10 +759,7 @@ void __init assabet_init_irq(void)
 	 *
 	 * This must precede any driver calls to BCR_set() or BCR_clear().
 	 */
-	assabet_gpio_base = assabet_init_gpio((void *)&ASSABET_BCR, def_val);
-
-	assabet_leds[0].gpio = assabet_gpio_base + 13;
-	assabet_leds[1].gpio = assabet_gpio_base + 14;
+	assabet_init_gpio((void *)&ASSABET_BCR, def_val);
 }
 
 MACHINE_START(ASSABET, "Intel-Assabet")

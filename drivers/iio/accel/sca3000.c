@@ -731,8 +731,7 @@ static int sca3000_read_raw(struct iio_dev *indio_dev,
 				return ret;
 			}
 			*val = (be16_to_cpup((__be16 *)st->rx) >> 3) & 0x1FFF;
-			*val = ((*val) << (sizeof(*val) * 8 - 13)) >>
-				(sizeof(*val) * 8 - 13);
+			*val = sign_extend32(*val, 12);
 		} else {
 			/* get the temperature when available */
 			ret = sca3000_read_data_short(st,

@@ -699,6 +699,16 @@ unsigned int nf_nat_packet(struct nf_conn *ct,
 }
 EXPORT_SYMBOL_GPL(nf_nat_packet);
 
+static bool in_vrf_postrouting(const struct nf_hook_state *state)
+{
+#if IS_ENABLED(CONFIG_NET_L3_MASTER_DEV)
+	if (state->hook == NF_INET_POST_ROUTING &&
+	    netif_is_l3_master(state->out))
+		return true;
+#endif
+	return false;
+}
+
 unsigned int
 nf_nat_inet_fn(void *priv, struct sk_buff *skb,
 	       const struct nf_hook_state *state)
@@ -715,7 +725,7 @@ nf_nat_inet_fn(void *priv, struct sk_buff *skb,
 	 * packet filter it out, or implement conntrack/NAT for that
 	 * protocol. 8) --RR
 	 */
-	if (!ct)
+	if (!ct || in_vrf_postrouting(state))
 		return NF_ACCEPT;
 
 	nat = nfct_nat(ct);

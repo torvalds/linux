@@ -70,6 +70,7 @@ bool dal_bios_parser_init_cmd_tbl_helper2(
 	case DCN_VERSION_1_01:
 	case DCN_VERSION_2_0:
 	case DCN_VERSION_2_1:
+	case DCN_VERSION_2_01:
 	case DCN_VERSION_3_0:
 	case DCN_VERSION_3_01:
 	case DCN_VERSION_3_02:

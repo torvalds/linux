@@ -57,7 +57,7 @@ static int do_pin(int argc, char **argv)
 		goto close_obj;
 	}
 
-	prog = bpf_program__next(NULL, obj);
+	prog = bpf_object__next_program(obj, NULL);
 	if (!prog) {
 		p_err("can't find bpf program in objfile %s", objfile);
 		goto close_obj;

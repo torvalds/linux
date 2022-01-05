@@ -121,6 +121,12 @@ struct afmt_funcs {
 
 	void (*setup_dp_audio)(
 		struct afmt *afmt);
+
+	void (*afmt_poweron)(
+		struct afmt *afmt);
+
+	void (*afmt_powerdown)(
+		struct afmt *afmt);
 };
 
 struct afmt {
@@ -135,6 +141,24 @@ struct dcn30_afmt {
 	const struct dcn30_afmt_shift *afmt_shift;
 	const struct dcn30_afmt_mask *afmt_mask;
 };
+
+void afmt3_setup_hdmi_audio(
+	struct afmt *afmt);
+
+void afmt3_se_audio_setup(
+	struct afmt *afmt,
+	unsigned int az_inst,
+	struct audio_info *audio_info);
+
+void afmt3_audio_mute_control(
+	struct afmt *afmt,
+	bool mute);
+
+void afmt3_audio_info_immediate_update(
+	struct afmt *afmt);
+
+void afmt3_setup_dp_audio(
+		struct afmt *afmt);
 
 void afmt3_construct(struct dcn30_afmt *afmt3,
 	struct dc_context *ctx,

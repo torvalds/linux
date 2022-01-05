@@ -109,6 +109,8 @@ struct mxc_jpeg_dev {
 	spinlock_t			hw_lock; /* hardware access lock */
 	unsigned int			mode;
 	struct mutex			lock; /* v4l2 ioctls serialization */
+	struct clk			*clk_ipg;
+	struct clk			*clk_per;
 	struct platform_device		*pdev;
 	struct device			*dev;
 	void __iomem			*base_reg;

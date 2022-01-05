@@ -2704,7 +2704,7 @@ bnx2_alloc_bad_rbuf(struct bnx2 *bp)
 }
 
 static void
-bnx2_set_mac_addr(struct bnx2 *bp, u8 *mac_addr, u32 pos)
+bnx2_set_mac_addr(struct bnx2 *bp, const u8 *mac_addr, u32 pos)
 {
 	u32 val;
 
@@ -7910,7 +7910,7 @@ bnx2_change_mac_addr(struct net_device *dev, void *p)
 	if (!is_valid_ether_addr(addr->sa_data))
 		return -EADDRNOTAVAIL;
 
-	memcpy(dev->dev_addr, addr->sa_data, dev->addr_len);
+	eth_hw_addr_set(dev, addr->sa_data);
 	if (netif_running(dev))
 		bnx2_set_mac_addr(bp, bp->dev->dev_addr, 0);
 
@@ -8574,7 +8574,7 @@ bnx2_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (is_kdump_kernel())
 		bnx2_wait_dma_complete(bp);
 
-	memcpy(dev->dev_addr, bp->mac_addr, ETH_ALEN);
+	eth_hw_addr_set(dev, bp->mac_addr);
 
 	dev->hw_features = NETIF_F_IP_CSUM | NETIF_F_SG |
 		NETIF_F_TSO | NETIF_F_TSO_ECN |

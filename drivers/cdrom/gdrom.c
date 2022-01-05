@@ -805,9 +805,14 @@ static int probe_gdrom(struct platform_device *devptr)
 		err = -ENOMEM;
 		goto probe_fail_free_irqs;
 	}
-	add_disk(gd.disk);
+	err = add_disk(gd.disk);
+	if (err)
+		goto probe_fail_add_disk;
+
 	return 0;
 
+probe_fail_add_disk:
+	kfree(gd.toc);
 probe_fail_free_irqs:
 	free_irq(HW_EVENT_GDROM_DMA, &gd);
 	free_irq(HW_EVENT_GDROM_CMD, &gd);

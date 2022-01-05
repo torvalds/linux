@@ -60,10 +60,12 @@ struct amvdec_session;
  * @dos_clk: DOS clock
  * @vdec_1_clk: VDEC_1 clock
  * @vdec_hevc_clk: VDEC_HEVC clock
+ * @vdec_hevcf_clk: VDEC_HEVCF clock
  * @esparser_reset: RESET for the PARSER
- * @vdec_dec: video device for the decoder
+ * @vdev_dec: video device for the decoder
  * @v4l2_dev: v4l2 device
  * @cur_sess: current decoding session
+ * @lock: video device lock
  */
 struct amvdec_core {
 	void __iomem *dos_base;
@@ -88,7 +90,7 @@ struct amvdec_core {
 	struct v4l2_device v4l2_dev;
 
 	struct amvdec_session *cur_sess;
-	struct mutex lock; /* video device lock */
+	struct mutex lock;
 };
 
 /**
@@ -120,6 +122,7 @@ struct amvdec_ops {
  * @recycle: optional call to tell the codec to recycle a dst buffer. Must go
  *	     in pair with @can_recycle
  * @drain: optional call if the codec has a custom way of draining
+ * @resume: optional call to resume after a resolution change
  * @eos_sequence: optional call to get an end sequence to send to esparser
  *		  for flush. Mutually exclusive with @drain.
  * @isr: mandatory call when the ISR triggers
@@ -185,6 +188,7 @@ enum amvdec_status {
  * @m2m_ctx: v4l2 m2m context
  * @ctrl_handler: V4L2 control handler
  * @ctrl_min_buf_capture: V4L2 control V4L2_CID_MIN_BUFFERS_FOR_CAPTURE
+ * @lock: cap & out queues lock
  * @fmt_out: vdec pixel format for the OUTPUT queue
  * @pixfmt_cap: V4L2 pixel format for the CAPTURE queue
  * @src_buffer_size: size in bytes of the OUTPUT buffers' only plane
@@ -200,9 +204,12 @@ enum amvdec_status {
  * @streamon_cap: stream on flag for capture queue
  * @streamon_out: stream on flag for output queue
  * @sequence_cap: capture sequence counter
+ * @sequence_out: output sequence counter
  * @should_stop: flag set if userspace signaled EOS via command
  *		 or empty buffer
  * @keyframe_found: flag set once a keyframe has been parsed
+ * @num_dst_bufs: number of destination buffers
+ * @changed_format: the format changed
  * @canvas_alloc: array of all the canvas IDs allocated
  * @canvas_num: number of canvas IDs allocated
  * @vififo_vaddr: virtual address for the VIFIFO
@@ -214,6 +221,9 @@ enum amvdec_status {
  * @timestamps: chronological list of src timestamps
  * @ts_spinlock: spinlock for the timestamps list
  * @last_irq_jiffies: tracks last time the vdec triggered an IRQ
+ * @last_offset: tracks last offset of vififo
+ * @wrap_count: number of times the vififo wrapped around
+ * @fw_idx_to_vb2_idx: firmware buffer index to vb2 buffer index
  * @status: current decoding status
  * @priv: codec private data
  */
@@ -225,7 +235,7 @@ struct amvdec_session {
 	struct v4l2_m2m_ctx *m2m_ctx;
 	struct v4l2_ctrl_handler ctrl_handler;
 	struct v4l2_ctrl *ctrl_min_buf_capture;
-	struct mutex lock; /* cap & out queues lock */
+	struct mutex lock;
 
 	const struct amvdec_format *fmt_out;
 	u32 pixfmt_cap;

@@ -266,7 +266,7 @@ static void check_return_regs_valid(struct pt_regs *regs)
 	if (trap_is_scv(regs))
 		return;
 
-	trap = regs->trap;
+	trap = TRAP(regs);
 	// EE in HV mode sets HSRRs like 0xea0
 	if (cpu_has_feature(CPU_FTR_HVMODE) && trap == INTERRUPT_EXTERNAL)
 		trap = 0xea0;

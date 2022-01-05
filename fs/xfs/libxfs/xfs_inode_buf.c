@@ -51,9 +51,9 @@ xfs_inode_buf_verify(
 	agno = xfs_daddr_to_agno(mp, xfs_buf_daddr(bp));
 	ni = XFS_BB_TO_FSB(mp, bp->b_length) * mp->m_sb.sb_inopblock;
 	for (i = 0; i < ni; i++) {
-		int		di_ok;
-		xfs_dinode_t	*dip;
-		xfs_agino_t	unlinked_ino;
+		struct xfs_dinode	*dip;
+		xfs_agino_t		unlinked_ino;
+		int			di_ok;
 
 		dip = xfs_buf_offset(bp, (i << mp->m_sb.sb_inodelog));
 		unlinked_ino = be32_to_cpu(dip->di_next_unlinked);

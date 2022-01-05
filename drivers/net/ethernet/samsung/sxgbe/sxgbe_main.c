@@ -931,10 +931,13 @@ static int sxgbe_get_hw_features(struct sxgbe_priv_data * const priv)
 static void sxgbe_check_ether_addr(struct sxgbe_priv_data *priv)
 {
 	if (!is_valid_ether_addr(priv->dev->dev_addr)) {
+		u8 addr[ETH_ALEN];
+
 		priv->hw->mac->get_umac_addr((void __iomem *)
-					     priv->ioaddr,
-					     priv->dev->dev_addr, 0);
-		if (!is_valid_ether_addr(priv->dev->dev_addr))
+					     priv->ioaddr, addr, 0);
+		if (is_valid_ether_addr(addr))
+			eth_hw_addr_set(priv->dev, addr);
+		else
 			eth_hw_addr_random(priv->dev);
 	}
 	dev_info(priv->device, "device MAC address %pM\n",

@@ -12,6 +12,9 @@
 #include <dt-bindings/phy/phy-cadence.h>
 
 / {
+	compatible = "ti,j721e-evm", "ti,j721e";
+	model = "Texas Instruments J721e EVM";
+
 	chosen {
 		stdout-path = "serial2:115200n8";
 		bootargs = "console=ttyS2,115200n8 earlycon=ns16550a,mmio32,0x02800000";

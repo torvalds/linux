@@ -15,6 +15,7 @@
 
 struct drm_i915_private;
 struct drm_i915_gem_object;
+struct drm_printer;
 struct intel_memory_region;
 struct sg_table;
 struct ttm_resource;
@@ -126,6 +127,9 @@ intel_memory_region_set_name(struct intel_memory_region *mem,
 int intel_memory_region_reserve(struct intel_memory_region *mem,
 				resource_size_t offset,
 				resource_size_t size);
+
+void intel_memory_region_debug(struct intel_memory_region *mr,
+			       struct drm_printer *printer);
 
 struct intel_memory_region *
 i915_gem_ttm_system_setup(struct drm_i915_private *i915,

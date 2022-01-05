@@ -34,6 +34,7 @@
 #include <asm/set_memory.h>
 #endif
 #include "amdgpu.h"
+#include <drm/drm_drv.h>
 
 /*
  * GART
@@ -230,11 +231,15 @@ int amdgpu_gart_unbind(struct amdgpu_device *adev, uint64_t offset,
 	u64 page_base;
 	/* Starting from VEGA10, system bit must be 0 to mean invalid. */
 	uint64_t flags = 0;
+	int idx;
 
 	if (!adev->gart.ready) {
 		WARN(1, "trying to unbind memory from uninitialized GART !\n");
 		return -EINVAL;
 	}
+
+	if (!drm_dev_enter(adev_to_drm(adev), &idx))
+		return 0;
 
 	t = offset / AMDGPU_GPU_PAGE_SIZE;
 	p = t / AMDGPU_GPU_PAGES_IN_CPU_PAGE;
@@ -254,6 +259,7 @@ int amdgpu_gart_unbind(struct amdgpu_device *adev, uint64_t offset,
 	for (i = 0; i < adev->num_vmhubs; i++)
 		amdgpu_gmc_flush_gpu_tlb(adev, 0, i, 0);
 
+	drm_dev_exit(idx);
 	return 0;
 }
 
@@ -276,11 +282,15 @@ int amdgpu_gart_map(struct amdgpu_device *adev, uint64_t offset,
 {
 	uint64_t page_base;
 	unsigned i, j, t;
+	int idx;
 
 	if (!adev->gart.ready) {
 		WARN(1, "trying to bind memory to uninitialized GART !\n");
 		return -EINVAL;
 	}
+
+	if (!drm_dev_enter(adev_to_drm(adev), &idx))
+		return 0;
 
 	t = offset / AMDGPU_GPU_PAGE_SIZE;
 
@@ -291,6 +301,7 @@ int amdgpu_gart_map(struct amdgpu_device *adev, uint64_t offset,
 			page_base += AMDGPU_GPU_PAGE_SIZE;
 		}
 	}
+	drm_dev_exit(idx);
 	return 0;
 }
 

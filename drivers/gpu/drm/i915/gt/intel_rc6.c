@@ -9,8 +9,8 @@
 #include "i915_vgpu.h"
 #include "intel_gt.h"
 #include "intel_gt_pm.h"
+#include "intel_pcode.h"
 #include "intel_rc6.h"
-#include "intel_sideband.h"
 
 /**
  * DOC: RC6

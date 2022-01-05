@@ -2325,7 +2325,7 @@ static int pxa25x_udc_probe(struct platform_device *pdev)
 	pr_info("%s: version %s\n", driver_name, DRIVER_VERSION);
 
 	/* insist on Intel/ARM/XScale */
-	asm("mrc%? p15, 0, %0, c0, c0" : "=r" (chiprev));
+	asm("mrc p15, 0, %0, c0, c0" : "=r" (chiprev));
 	if ((chiprev & CP15R0_VENDOR_MASK) != CP15R0_XSCALE_VALUE) {
 		pr_err("%s: not XScale!\n", driver_name);
 		return -ENODEV;

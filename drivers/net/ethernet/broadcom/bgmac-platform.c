@@ -191,7 +191,7 @@ static int bgmac_probe(struct platform_device *pdev)
 	bgmac->dev = &pdev->dev;
 	bgmac->dma_dev = &pdev->dev;
 
-	ret = of_get_mac_address(np, bgmac->net_dev->dev_addr);
+	ret = of_get_ethdev_address(np, bgmac->net_dev);
 	if (ret == -EPROBE_DEFER)
 		return ret;
 

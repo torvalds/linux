@@ -34,7 +34,7 @@
 static const unsigned short normal_i2c[] = { 0x48, 0x49, 0x4a, 0x4c, 0x4d,
 	0x4e, 0x4f, I2C_CLIENT_END };
 
-enum chips { tmp401, tmp411, tmp431, tmp432, tmp435, tmp461 };
+enum chips { tmp401, tmp411, tmp431, tmp432, tmp435 };
 
 /*
  * The TMP401 registers, note some registers have different addresses for
@@ -56,7 +56,6 @@ static const u8 TMP401_TEMP_MSB_READ[7][2] = {
 	{ 0x20, 0x19 },	/* therm (crit) limit */
 	{ 0x30, 0x34 },	/* lowest */
 	{ 0x32, 0x36 },	/* highest */
-	{ 0, 0x11 },	/* offset */
 };
 
 static const u8 TMP401_TEMP_MSB_WRITE[7][2] = {
@@ -66,7 +65,6 @@ static const u8 TMP401_TEMP_MSB_WRITE[7][2] = {
 	{ 0x20, 0x19 },	/* therm (crit) limit */
 	{ 0x30, 0x34 },	/* lowest */
 	{ 0x32, 0x36 },	/* highest */
-	{ 0, 0x11 },	/* offset */
 };
 
 static const u8 TMP432_TEMP_MSB_READ[4][3] = {
@@ -123,7 +121,6 @@ static const struct i2c_device_id tmp401_id[] = {
 	{ "tmp431", tmp431 },
 	{ "tmp432", tmp432 },
 	{ "tmp435", tmp435 },
-	{ "tmp461", tmp461 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, tmp401_id);
@@ -136,7 +133,7 @@ struct tmp401_data {
 	struct i2c_client *client;
 	const struct attribute_group *groups[3];
 	struct mutex update_lock;
-	char valid; /* zero until following fields are valid */
+	bool valid; /* false until following fields are valid */
 	unsigned long last_updated; /* in jiffies */
 	enum chips kind;
 
@@ -267,7 +264,7 @@ static struct tmp401_data *tmp401_update_device(struct device *dev)
 		data->temp_crit_hyst = val;
 
 		data->last_updated = jiffies;
-		data->valid = 1;
+		data->valid = true;
 	}
 
 abort:
@@ -413,7 +410,7 @@ static ssize_t reset_temp_history_store(struct device *dev,
 	}
 	mutex_lock(&data->update_lock);
 	i2c_smbus_write_byte_data(client, TMP401_TEMP_MSB_WRITE[5][0], val);
-	data->valid = 0;
+	data->valid = false;
 	mutex_unlock(&data->update_lock);
 
 	return count;
@@ -571,21 +568,6 @@ static const struct attribute_group tmp432_group = {
 };
 
 /*
- * Additional features of the TMP461 chip.
- * The TMP461 temperature offset for the remote channel.
- */
-static SENSOR_DEVICE_ATTR_2_RW(temp2_offset, temp, 6, 1);
-
-static struct attribute *tmp461_attributes[] = {
-	&sensor_dev_attr_temp2_offset.dev_attr.attr,
-	NULL
-};
-
-static const struct attribute_group tmp461_group = {
-	.attrs = tmp461_attributes,
-};
-
-/*
  * Begin non sysfs callback code (aka Real code)
  */
 
@@ -686,7 +668,7 @@ static int tmp401_detect(struct i2c_client *client,
 static int tmp401_probe(struct i2c_client *client)
 {
 	static const char * const names[] = {
-		"TMP401", "TMP411", "TMP431", "TMP432", "TMP435", "TMP461"
+		"TMP401", "TMP411", "TMP431", "TMP432", "TMP435"
 	};
 	struct device *dev = &client->dev;
 	struct device *hwmon_dev;
@@ -716,9 +698,6 @@ static int tmp401_probe(struct i2c_client *client)
 	/* Register additional tmp432 sysfs hooks */
 	if (data->kind == tmp432)
 		data->groups[groups++] = &tmp432_group;
-
-	if (data->kind == tmp461)
-		data->groups[groups++] = &tmp461_group;
 
 	hwmon_dev = devm_hwmon_device_register_with_groups(dev, client->name,
 							   data, data->groups);

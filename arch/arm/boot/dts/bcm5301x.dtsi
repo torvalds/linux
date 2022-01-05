@@ -19,7 +19,7 @@
 	#size-cells = <1>;
 	interrupt-parent = <&gic>;
 
-	chipcommonA@18000000 {
+	chipcommon-a-bus@18000000 {
 		compatible = "simple-bus";
 		ranges = <0x00000000 0x18000000 0x00001000>;
 		#address-cells = <1>;
@@ -44,7 +44,7 @@
 		};
 	};
 
-	mpcore@19000000 {
+	mpcore-bus@19000000 {
 		compatible = "simple-bus";
 		ranges = <0x00000000 0x19000000 0x00023000>;
 		#address-cells = <1>;
@@ -369,8 +369,8 @@
 		#address-cells = <1>;
 	};
 
-	mdio-bus-mux@18003000 {
-		compatible = "mdio-mux-mmioreg";
+	mdio-mux@18003000 {
+		compatible = "mdio-mux-mmioreg", "mdio-mux";
 		mdio-parent-bus = <&mdio>;
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -415,7 +415,7 @@
 		status = "disabled";
 	};
 
-	dmu@1800c000 {
+	dmu-bus@1800c000 {
 		compatible = "simple-bus";
 		ranges = <0 0x1800c000 0x1000>;
 		#address-cells = <1>;

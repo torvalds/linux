@@ -8,6 +8,7 @@
 #include <linux/delay.h>
 #include <linux/dma-mapping.h>
 #include <linux/highmem.h>
+#include <linux/iopoll.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
@@ -38,6 +39,9 @@
 #define  SDHCI_SPRD_BIT_CMD_DLY_INV		BIT(13)
 #define  SDHCI_SPRD_BIT_POSRD_DLY_INV		BIT(21)
 #define  SDHCI_SPRD_BIT_NEGRD_DLY_INV		BIT(29)
+
+#define SDHCI_SPRD_REG_32_DLL_STS0	0x210
+#define SDHCI_SPRD_DLL_LOCKED		BIT(18)
 
 #define SDHCI_SPRD_REG_32_BUSY_POSI		0x250
 #define  SDHCI_SPRD_BIT_OUTR_CLK_AUTO_EN	BIT(25)
@@ -256,6 +260,15 @@ static void sdhci_sprd_enable_phy_dll(struct sdhci_host *host)
 	sdhci_writel(host, tmp, SDHCI_SPRD_REG_32_DLL_CFG);
 	/* wait 1ms */
 	usleep_range(1000, 1250);
+
+	if (read_poll_timeout(sdhci_readl, tmp, (tmp & SDHCI_SPRD_DLL_LOCKED),
+		2000, USEC_PER_SEC, false, host, SDHCI_SPRD_REG_32_DLL_STS0)) {
+		pr_err("%s: DLL locked fail!\n", mmc_hostname(host->mmc));
+		pr_info("%s: DLL_STS0 : 0x%x, DLL_CFG : 0x%x\n",
+			 mmc_hostname(host->mmc),
+			 sdhci_readl(host, SDHCI_SPRD_REG_32_DLL_STS0),
+			 sdhci_readl(host, SDHCI_SPRD_REG_32_DLL_CFG));
+	}
 }
 
 static void sdhci_sprd_set_clock(struct sdhci_host *host, unsigned int clock)

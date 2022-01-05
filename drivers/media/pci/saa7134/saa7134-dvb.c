@@ -1189,6 +1189,22 @@ static struct s5h1411_config kworld_s5h1411_config = {
 		S5H1411_MPEGTIMING_CONTINUOUS_NONINVERTING_CLOCK,
 };
 
+static struct tda18271_config hdtv200h_tda18271_config = {
+	.gate    = TDA18271_GATE_ANALOG,
+	.config  = 3	/* Use tuner callback for AGC */
+};
+
+static struct s5h1411_config hdtv200h_s5h1411_config = {
+	.output_mode   = S5H1411_PARALLEL_OUTPUT,
+	.gpio          = S5H1411_GPIO_OFF,
+	.qam_if        = S5H1411_IF_4000,
+	.vsb_if        = S5H1411_IF_3250,
+	.inversion     = S5H1411_INVERSION_ON,
+	.status_mode   = S5H1411_DEMODLOCKING,
+	.mpeg_timing   =
+		S5H1411_MPEGTIMING_CONTINUOUS_NONINVERTING_CLOCK,
+};
+
 
 /* ==================================================================
  * Core code
@@ -1852,6 +1868,19 @@ static int dvb_init(struct saa7134_dev *dev)
 					0x60, &dev->i2c_adap) == NULL)
 				pr_warn("%s: No zl10039 found!\n",
 					__func__);
+		}
+		break;
+	case SAA7134_BOARD_LEADTEK_WINFAST_HDTV200_H:
+		fe0->dvb.frontend = dvb_attach(s5h1411_attach,
+					       &hdtv200h_s5h1411_config,
+					       &dev->i2c_adap);
+		if (fe0->dvb.frontend) {
+			dvb_attach(tda829x_attach, fe0->dvb.frontend,
+				   &dev->i2c_adap, 0x4b,
+				   &tda829x_no_probe);
+			dvb_attach(tda18271_attach, fe0->dvb.frontend,
+				   0x60, &dev->i2c_adap,
+				   &hdtv200h_tda18271_config);
 		}
 		break;
 	default:

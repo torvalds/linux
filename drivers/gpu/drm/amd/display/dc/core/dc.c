@@ -229,6 +229,25 @@ static bool create_links(
 
 	DC_LOG_DC("BIOS object table - end");
 
+	/* Create a link for each usb4 dpia port */
+	for (i = 0; i < dc->res_pool->usb4_dpia_count; i++) {
+		struct link_init_data link_init_params = {0};
+		struct dc_link *link;
+
+		link_init_params.ctx = dc->ctx;
+		link_init_params.connector_index = i;
+		link_init_params.link_index = dc->link_count;
+		link_init_params.dc = dc;
+		link_init_params.is_dpia_link = true;
+
+		link = link_create(&link_init_params);
+		if (link) {
+			dc->links[dc->link_count] = link;
+			link->dc = dc;
+			++dc->link_count;
+		}
+	}
+
 	for (i = 0; i < num_virtual_links; i++) {
 		struct dc_link *link = kzalloc(sizeof(*link), GFP_KERNEL);
 		struct encoder_init_data enc_init = {0};
@@ -255,6 +274,24 @@ static bool create_links(
 			goto failed_alloc;
 		}
 
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+		if (IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment) &&
+				dc->caps.dp_hpo &&
+				link->dc->res_pool->res_cap->num_hpo_dp_link_encoder > 0) {
+			/* FPGA case - Allocate HPO DP link encoder */
+			if (i < link->dc->res_pool->res_cap->num_hpo_dp_link_encoder) {
+				link->hpo_dp_link_enc = link->dc->res_pool->hpo_dp_link_enc[i];
+
+				if (link->hpo_dp_link_enc == NULL) {
+					BREAK_TO_DEBUGGER();
+					goto failed_alloc;
+				}
+				link->hpo_dp_link_enc->hpd_source = link->link_enc->hpd_source;
+				link->hpo_dp_link_enc->transmitter = link->link_enc->transmitter;
+			}
+		}
+#endif
+
 		link->link_status.dpcd_caps = &link->dpcd_caps;
 
 		enc_init.ctx = dc->ctx;
@@ -274,6 +311,75 @@ static bool create_links(
 
 failed_alloc:
 	return false;
+}
+
+/* Create additional DIG link encoder objects if fewer than the platform
+ * supports were created during link construction. This can happen if the
+ * number of physical connectors is less than the number of DIGs.
+ */
+static bool create_link_encoders(struct dc *dc)
+{
+	bool res = true;
+	unsigned int num_usb4_dpia = dc->res_pool->res_cap->num_usb4_dpia;
+	unsigned int num_dig_link_enc = dc->res_pool->res_cap->num_dig_link_enc;
+	int i;
+
+	/* A platform without USB4 DPIA endpoints has a fixed mapping between DIG
+	 * link encoders and physical display endpoints and does not require
+	 * additional link encoder objects.
+	 */
+	if (num_usb4_dpia == 0)
+		return res;
+
+	/* Create as many link encoder objects as the platform supports. DPIA
+	 * endpoints can be programmably mapped to any DIG.
+	 */
+	if (num_dig_link_enc > dc->res_pool->dig_link_enc_count) {
+		for (i = 0; i < num_dig_link_enc; i++) {
+			struct link_encoder *link_enc = dc->res_pool->link_encoders[i];
+
+			if (!link_enc && dc->res_pool->funcs->link_enc_create_minimal) {
+				link_enc = dc->res_pool->funcs->link_enc_create_minimal(dc->ctx,
+						(enum engine_id)(ENGINE_ID_DIGA + i));
+				if (link_enc) {
+					dc->res_pool->link_encoders[i] = link_enc;
+					dc->res_pool->dig_link_enc_count++;
+				} else {
+					res = false;
+				}
+			}
+		}
+	}
+
+	return res;
+}
+
+/* Destroy any additional DIG link encoder objects created by
+ * create_link_encoders().
+ * NB: Must only be called after destroy_links().
+ */
+static void destroy_link_encoders(struct dc *dc)
+{
+	unsigned int num_usb4_dpia = dc->res_pool->res_cap->num_usb4_dpia;
+	unsigned int num_dig_link_enc = dc->res_pool->res_cap->num_dig_link_enc;
+	int i;
+
+	/* A platform without USB4 DPIA endpoints has a fixed mapping between DIG
+	 * link encoders and physical display endpoints and does not require
+	 * additional link encoder objects.
+	 */
+	if (num_usb4_dpia == 0)
+		return;
+
+	for (i = 0; i < num_dig_link_enc; i++) {
+		struct link_encoder *link_enc = dc->res_pool->link_encoders[i];
+
+		if (link_enc) {
+			link_enc->funcs->destroy(&link_enc);
+			dc->res_pool->link_encoders[i] = NULL;
+			dc->res_pool->dig_link_enc_count--;
+		}
+	}
 }
 
 static struct dc_perf_trace *dc_perf_trace_create(void)
@@ -709,6 +815,8 @@ static void dc_destruct(struct dc *dc)
 
 	destroy_links(dc);
 
+	destroy_link_encoders(dc);
+
 	if (dc->clk_mgr) {
 		dc_destroy_clk_mgr(dc->clk_mgr);
 		dc->clk_mgr = NULL;
@@ -913,6 +1021,12 @@ static bool dc_construct(struct dc *dc,
 	if (!create_links(dc, init_params->num_virtual_links))
 		goto fail;
 
+	/* Create additional DIG link encoder objects if fewer than the platform
+	 * supports were created during link construction.
+	 */
+	if (!create_link_encoders(dc))
+		goto fail;
+
 	/* Initialise DIG link encoder resource tracking variables. */
 	link_enc_cfg_init(dc, dc->current_state);
 
@@ -971,6 +1085,8 @@ static void disable_dangling_plane(struct dc *dc, struct dc_state *context)
 		struct dc_stream_state *old_stream =
 				dc->current_state->res_ctx.pipe_ctx[i].stream;
 		bool should_disable = true;
+		bool pipe_split_change =
+			context->res_ctx.pipe_ctx[i].top_pipe != dc->current_state->res_ctx.pipe_ctx[i].top_pipe;
 
 		for (j = 0; j < context->stream_count; j++) {
 			if (old_stream == context->streams[j]) {
@@ -978,6 +1094,9 @@ static void disable_dangling_plane(struct dc *dc, struct dc_state *context)
 				break;
 			}
 		}
+		if (!should_disable && pipe_split_change)
+			should_disable = true;
+
 		if (should_disable && old_stream) {
 			dc_rem_all_planes_for_stream(dc, old_stream, dangling_context);
 			disable_all_writeback_pipes_for_stream(dc, old_stream, dangling_context);
@@ -1544,7 +1663,7 @@ static uint8_t get_stream_mask(struct dc *dc, struct dc_state *context)
 }
 
 #if defined(CONFIG_DRM_AMD_DC_DCN)
-void dc_z10_restore(struct dc *dc)
+void dc_z10_restore(const struct dc *dc)
 {
 	if (dc->hwss.z10_restore)
 		dc->hwss.z10_restore(dc);
@@ -1773,6 +1892,27 @@ static bool is_flip_pending_in_pipes(struct dc *dc, struct dc_state *context)
 	return false;
 }
 
+#ifdef CONFIG_DRM_AMD_DC_DCN
+/* Perform updates here which need to be deferred until next vupdate
+ *
+ * i.e. blnd lut, 3dlut, and shaper lut bypass regs are double buffered
+ * but forcing lut memory to shutdown state is immediate. This causes
+ * single frame corruption as lut gets disabled mid-frame unless shutdown
+ * is deferred until after entering bypass.
+ */
+static void process_deferred_updates(struct dc *dc)
+{
+	int i = 0;
+
+	if (dc->debug.enable_mem_low_power.bits.cm) {
+		ASSERT(dc->dcn_ip->max_num_dpp);
+		for (i = 0; i < dc->dcn_ip->max_num_dpp; i++)
+			if (dc->res_pool->dpps[i]->funcs->dpp_deferred_update)
+				dc->res_pool->dpps[i]->funcs->dpp_deferred_update(dc->res_pool->dpps[i]);
+	}
+}
+#endif /* CONFIG_DRM_AMD_DC_DCN */
+
 void dc_post_update_surfaces_to_stream(struct dc *dc)
 {
 	int i;
@@ -1783,6 +1923,11 @@ void dc_post_update_surfaces_to_stream(struct dc *dc)
 
 	post_surface_trace(dc);
 
+	if (dc->ctx->dce_version >= DCE_VERSION_MAX)
+		TRACE_DCN_CLOCK_STATE(&context->bw_ctx.bw.dcn.clk);
+	else
+		TRACE_DCE_CLOCK_STATE(&context->bw_ctx.bw.dce);
+
 	if (is_flip_pending_in_pipes(dc, context))
 		return;
 
@@ -1792,6 +1937,10 @@ void dc_post_update_surfaces_to_stream(struct dc *dc)
 			context->res_ctx.pipe_ctx[i].pipe_idx = i;
 			dc->hwss.disable_plane(dc, &context->res_ctx.pipe_ctx[i]);
 		}
+
+#ifdef CONFIG_DRM_AMD_DC_DCN
+	process_deferred_updates(dc);
+#endif
 
 	dc->hwss.optimize_bandwidth(dc, context);
 
@@ -1990,7 +2139,7 @@ static enum surface_update_type get_plane_info_update_type(const struct dc_surfa
 	}
 
 	if (u->plane_info->dcc.enable != u->surface->dcc.enable
-			|| u->plane_info->dcc.independent_64b_blks != u->surface->dcc.independent_64b_blks
+			|| u->plane_info->dcc.dcc_ind_blk != u->surface->dcc.dcc_ind_blk
 			|| u->plane_info->dcc.meta_pitch != u->surface->dcc.meta_pitch) {
 		/* During DCC on/off, stutter period is calculated before
 		 * DCC has fully transitioned. This results in incorrect
@@ -2143,6 +2292,9 @@ static enum surface_update_type det_surface_update(const struct dc *dc,
 			update_flags->bits.gamma_change = 1;
 	}
 
+	if (u->lut3d_func || u->func_shaper)
+		update_flags->bits.lut_3d = 1;
+
 	if (u->hdr_mult.value)
 		if (u->hdr_mult.value != u->surface->hdr_mult.value) {
 			update_flags->bits.hdr_mult = 1;
@@ -2156,6 +2308,7 @@ static enum surface_update_type det_surface_update(const struct dc *dc,
 
 	if (update_flags->bits.input_csc_change
 			|| update_flags->bits.coeff_reduction_change
+			|| update_flags->bits.lut_3d
 			|| update_flags->bits.gamma_change
 			|| update_flags->bits.gamut_remap_change) {
 		type = UPDATE_TYPE_FULL;
@@ -2213,6 +2366,11 @@ static enum surface_update_type check_update_surfaces_for_stream(
 
 		if (stream_update->dsc_config)
 			su_flags->bits.dsc_changed = 1;
+
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+		if (stream_update->mst_bw_update)
+			su_flags->bits.mst_bw = 1;
+#endif
 
 		if (su_flags->raw != 0)
 			overall_type = UPDATE_TYPE_FULL;
@@ -2591,6 +2749,15 @@ static void commit_planes_do_stream_update(struct dc *dc,
 			if (stream_update->dsc_config)
 				dp_update_dsc_config(pipe_ctx);
 
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+			if (stream_update->mst_bw_update) {
+				if (stream_update->mst_bw_update->is_increase)
+					dc_link_increase_mst_payload(pipe_ctx, stream_update->mst_bw_update->mst_stream_bw);
+				else
+					dc_link_reduce_mst_payload(pipe_ctx, stream_update->mst_bw_update->mst_stream_bw);
+			}
+#endif
+
 			if (stream_update->pending_test_pattern) {
 				dc_link_dp_set_test_pattern(stream->link,
 					stream->test_pattern.type,
@@ -2968,6 +3135,14 @@ void dc_commit_updates_for_stream(struct dc *dc,
 			if (new_pipe->plane_state && new_pipe->plane_state != old_pipe->plane_state)
 				new_pipe->plane_state->force_full_update = true;
 		}
+	} else if (update_type == UPDATE_TYPE_FAST && dc_ctx->dce_version >= DCE_VERSION_MAX) {
+		/*
+		 * Previous frame finished and HW is ready for optimization.
+		 *
+		 * Only relevant for DCN behavior where we can guarantee the optimization
+		 * is safe to apply - retain the legacy behavior for DCE.
+		 */
+		dc_post_update_surfaces_to_stream(dc);
 	}
 
 
@@ -3024,14 +3199,11 @@ void dc_commit_updates_for_stream(struct dc *dc,
 				pipe_ctx->plane_state->force_full_update = false;
 		}
 	}
-	/*let's use current_state to update watermark etc*/
-	if (update_type >= UPDATE_TYPE_FULL) {
-		dc_post_update_surfaces_to_stream(dc);
 
-		if (dc_ctx->dce_version >= DCE_VERSION_MAX)
-			TRACE_DCN_CLOCK_STATE(&context->bw_ctx.bw.dcn.clk);
-		else
-			TRACE_DCE_CLOCK_STATE(&context->bw_ctx.bw.dce);
+	/* Legacy optimization path for DCE. */
+	if (update_type >= UPDATE_TYPE_FULL && dc_ctx->dce_version < DCE_VERSION_MAX) {
+		dc_post_update_surfaces_to_stream(dc);
+		TRACE_DCE_CLOCK_STATE(&context->bw_ctx.bw.dce);
 	}
 
 	return;
@@ -3334,6 +3506,7 @@ void dc_get_clock(struct dc *dc, enum dc_clock_type clock_type, struct dc_clock_
 bool dc_set_psr_allow_active(struct dc *dc, bool enable)
 {
 	int i;
+	bool allow_active;
 
 	for (i = 0; i < dc->current_state->stream_count ; i++) {
 		struct dc_link *link;
@@ -3345,10 +3518,12 @@ bool dc_set_psr_allow_active(struct dc *dc, bool enable)
 
 		if (link->psr_settings.psr_feature_enabled) {
 			if (enable && !link->psr_settings.psr_allow_active) {
-				if (!dc_link_set_psr_allow_active(link, true, false, false))
+				allow_active = true;
+				if (!dc_link_set_psr_allow_active(link, &allow_active, false, false, NULL))
 					return false;
 			} else if (!enable && link->psr_settings.psr_allow_active) {
-				if (!dc_link_set_psr_allow_active(link, false, true, false))
+				allow_active = false;
+				if (!dc_link_set_psr_allow_active(link, &allow_active, true, false, NULL))
 					return false;
 			}
 		}
@@ -3432,6 +3607,13 @@ void dc_hardware_release(struct dc *dc)
  */
 bool dc_enable_dmub_notifications(struct dc *dc)
 {
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+	/* YELLOW_CARP B0 USB4 DPIA needs dmub notifications for interrupts */
+	if (dc->ctx->asic_id.chip_family == FAMILY_YELLOW_CARP &&
+	    dc->ctx->asic_id.hw_internal_rev == YELLOW_CARP_B0 &&
+	    !dc->debug.dpia_debug.bits.disable_dpia)
+		return true;
+#endif
 	/* dmub aux needs dmub notifications to be enabled */
 	return dc->debug.enable_dmub_aux_for_legacy_ddc;
 }
@@ -3457,7 +3639,12 @@ bool dc_process_dmub_aux_transfer_async(struct dc *dc,
 
 	cmd.dp_aux_access.header.type = DMUB_CMD__DP_AUX_ACCESS;
 	cmd.dp_aux_access.header.payload_bytes = 0;
-	cmd.dp_aux_access.aux_control.type = AUX_CHANNEL_LEGACY_DDC;
+	/* For dpia, ddc_pin is set to NULL */
+	if (!dc->links[link_index]->ddc->ddc_pin)
+		cmd.dp_aux_access.aux_control.type = AUX_CHANNEL_DPIA;
+	else
+		cmd.dp_aux_access.aux_control.type = AUX_CHANNEL_LEGACY_DDC;
+
 	cmd.dp_aux_access.aux_control.instance = dc->links[link_index]->ddc_hw_inst;
 	cmd.dp_aux_access.aux_control.sw_crc_enabled = 0;
 	cmd.dp_aux_access.aux_control.timeout = 0;
@@ -3501,6 +3688,130 @@ bool dc_process_dmub_aux_transfer_async(struct dc *dc,
 	return true;
 }
 
+uint8_t get_link_index_from_dpia_port_index(const struct dc *dc,
+					    uint8_t dpia_port_index)
+{
+	uint8_t index, link_index = 0xFF;
+
+	for (index = 0; index < dc->link_count; index++) {
+		/* ddc_hw_inst has dpia port index for dpia links
+		 * and ddc instance for legacy links
+		 */
+		if (!dc->links[index]->ddc->ddc_pin) {
+			if (dc->links[index]->ddc_hw_inst == dpia_port_index) {
+				link_index = index;
+				break;
+			}
+		}
+	}
+	ASSERT(link_index != 0xFF);
+	return link_index;
+}
+
+/**
+ *****************************************************************************
+ *  Function: dc_process_dmub_set_config_async
+ *
+ *  @brief
+ *		Submits set_config command to dmub via inbox message
+ *
+ *  @param
+ *		[in] dc: dc structure
+ *		[in] link_index: link index
+ *		[in] payload: aux payload
+ *		[out] notify: set_config immediate reply
+ *
+ *	@return
+ *		True if successful, False if failure
+ *****************************************************************************
+ */
+bool dc_process_dmub_set_config_async(struct dc *dc,
+				uint32_t link_index,
+				struct set_config_cmd_payload *payload,
+				struct dmub_notification *notify)
+{
+	union dmub_rb_cmd cmd = {0};
+	struct dc_dmub_srv *dmub_srv = dc->ctx->dmub_srv;
+	bool is_cmd_complete = true;
+
+	/* prepare SET_CONFIG command */
+	cmd.set_config_access.header.type = DMUB_CMD__DPIA;
+	cmd.set_config_access.header.sub_type = DMUB_CMD__DPIA_SET_CONFIG_ACCESS;
+
+	cmd.set_config_access.set_config_control.instance = dc->links[link_index]->ddc_hw_inst;
+	cmd.set_config_access.set_config_control.cmd_pkt.msg_type = payload->msg_type;
+	cmd.set_config_access.set_config_control.cmd_pkt.msg_data = payload->msg_data;
+
+	if (!dc_dmub_srv_cmd_with_reply_data(dmub_srv, &cmd)) {
+		/* command is not processed by dmub */
+		notify->sc_status = SET_CONFIG_UNKNOWN_ERROR;
+		return is_cmd_complete;
+	}
+
+	/* command processed by dmub, if ret_status is 1, it is completed instantly */
+	if (cmd.set_config_access.header.ret_status == 1)
+		notify->sc_status = cmd.set_config_access.set_config_control.immed_status;
+	else
+		/* cmd pending, will receive notification via outbox */
+		is_cmd_complete = false;
+
+	return is_cmd_complete;
+}
+
+/**
+ *****************************************************************************
+ *  Function: dc_process_dmub_set_mst_slots
+ *
+ *  @brief
+ *		Submits mst slot allocation command to dmub via inbox message
+ *
+ *  @param
+ *		[in] dc: dc structure
+ *		[in] link_index: link index
+ *		[in] mst_alloc_slots: mst slots to be allotted
+ *		[out] mst_slots_in_use: mst slots in use returned in failure case
+ *
+ *	@return
+ *		DC_OK if successful, DC_ERROR if failure
+ *****************************************************************************
+ */
+enum dc_status dc_process_dmub_set_mst_slots(const struct dc *dc,
+				uint32_t link_index,
+				uint8_t mst_alloc_slots,
+				uint8_t *mst_slots_in_use)
+{
+	union dmub_rb_cmd cmd = {0};
+	struct dc_dmub_srv *dmub_srv = dc->ctx->dmub_srv;
+
+	/* prepare MST_ALLOC_SLOTS command */
+	cmd.set_mst_alloc_slots.header.type = DMUB_CMD__DPIA;
+	cmd.set_mst_alloc_slots.header.sub_type = DMUB_CMD__DPIA_MST_ALLOC_SLOTS;
+
+	cmd.set_mst_alloc_slots.mst_slots_control.instance = dc->links[link_index]->ddc_hw_inst;
+	cmd.set_mst_alloc_slots.mst_slots_control.mst_alloc_slots = mst_alloc_slots;
+
+	if (!dc_dmub_srv_cmd_with_reply_data(dmub_srv, &cmd))
+		/* command is not processed by dmub */
+		return DC_ERROR_UNEXPECTED;
+
+	/* command processed by dmub, if ret_status is 1 */
+	if (cmd.set_config_access.header.ret_status != 1)
+		/* command processing error */
+		return DC_ERROR_UNEXPECTED;
+
+	/* command processed and we have a status of 2, mst not enabled in dpia */
+	if (cmd.set_mst_alloc_slots.mst_slots_control.immed_status == 2)
+		return DC_FAIL_UNSUPPORTED_1;
+
+	/* previously configured mst alloc and used slots did not match */
+	if (cmd.set_mst_alloc_slots.mst_slots_control.immed_status == 3) {
+		*mst_slots_in_use = cmd.set_mst_alloc_slots.mst_slots_control.mst_slots_in_use;
+		return DC_NOT_SUPPORTED;
+	}
+
+	return DC_OK;
+}
+
 /**
  * dc_disable_accelerated_mode - disable accelerated mode
  * @dc: dc structure
@@ -3508,4 +3819,58 @@ bool dc_process_dmub_aux_transfer_async(struct dc *dc,
 void dc_disable_accelerated_mode(struct dc *dc)
 {
 	bios_set_scratch_acc_mode_change(dc->ctx->dc_bios, 0);
+}
+
+
+/**
+ *****************************************************************************
+ *  dc_notify_vsync_int_state() - notifies vsync enable/disable state
+ *  @dc: dc structure
+ *	@stream: stream where vsync int state changed
+ *	@enable: whether vsync is enabled or disabled
+ *
+ *  Called when vsync is enabled/disabled
+ *	Will notify DMUB to start/stop ABM interrupts after steady state is reached
+ *
+ *****************************************************************************
+ */
+void dc_notify_vsync_int_state(struct dc *dc, struct dc_stream_state *stream, bool enable)
+{
+	int i;
+	int edp_num;
+	struct pipe_ctx *pipe = NULL;
+	struct dc_link *link = stream->sink->link;
+	struct dc_link *edp_links[MAX_NUM_EDP];
+
+
+	if (link->psr_settings.psr_feature_enabled)
+		return;
+
+	/*find primary pipe associated with stream*/
+	for (i = 0; i < MAX_PIPES; i++) {
+		pipe = &dc->current_state->res_ctx.pipe_ctx[i];
+
+		if (pipe->stream == stream && pipe->stream_res.tg)
+			break;
+	}
+
+	if (i == MAX_PIPES) {
+		ASSERT(0);
+		return;
+	}
+
+	get_edp_links(dc, edp_links, &edp_num);
+
+	/* Determine panel inst */
+	for (i = 0; i < edp_num; i++) {
+		if (edp_links[i] == link)
+			break;
+	}
+
+	if (i == edp_num) {
+		return;
+	}
+
+	if (pipe->stream_res.abm && pipe->stream_res.abm->funcs->set_abm_pause)
+		pipe->stream_res.abm->funcs->set_abm_pause(pipe->stream_res.abm, !enable, i, pipe->stream_res.tg->inst);
 }

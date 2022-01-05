@@ -112,7 +112,7 @@ static int mpc52xx_fec_set_mac_address(struct net_device *dev, void *addr)
 {
 	struct sockaddr *sock = addr;
 
-	memcpy(dev->dev_addr, sock->sa_data, dev->addr_len);
+	eth_hw_addr_set(dev, sock->sa_data);
 
 	mpc52xx_fec_set_paddr(dev, sock->sa_data);
 	return 0;
@@ -890,7 +890,7 @@ static int mpc52xx_fec_probe(struct platform_device *op)
 	 *
 	 * First try to read MAC address from DT
 	 */
-	rv = of_get_mac_address(np, ndev->dev_addr);
+	rv = of_get_ethdev_address(np, ndev);
 	if (rv) {
 		struct mpc52xx_fec __iomem *fec = priv->fec;
 

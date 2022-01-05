@@ -58,15 +58,20 @@ Camera sensor devices
 ============  ==========================================================
 Driver        Name
 ============  ==========================================================
+ccs           MIPI CCS compliant camera sensors (also SMIA++ and SMIA)
 et8ek8        ET8EK8 camera sensor
 hi556         Hynix Hi-556 sensor
+hi846         Hynix Hi-846 sensor
+imx208        Sony IMX208 sensor
 imx214        Sony IMX214 sensor
 imx219        Sony IMX219 sensor
 imx258        Sony IMX258 sensor
 imx274        Sony IMX274 sensor
 imx290        Sony IMX290 sensor
 imx319        Sony IMX319 sensor
+imx334        Sony IMX334 sensor
 imx355        Sony IMX355 sensor
+imx412        Sony IMX412 sensor
 m5mols        Fujitsu M-5MOLS 8MP sensor
 mt9m001       mt9m001
 mt9m032       MT9M032 camera sensor
@@ -79,6 +84,7 @@ mt9v032       Micron MT9V032 sensor
 mt9v111       Aptina MT9V111 sensor
 noon010pc30   Siliconfile NOON010PC30 sensor
 ov13858       OmniVision OV13858 sensor
+ov13b10       OmniVision OV13B10 sensor
 ov2640        OmniVision OV2640 sensor
 ov2659        OmniVision OV2659 sensor
 ov2680        OmniVision OV2680 sensor
@@ -104,7 +110,6 @@ s5k4ecgx      Samsung S5K4ECGX sensor
 s5k5baf       Samsung S5K5BAF sensor
 s5k6a3        Samsung S5K6A3 sensor
 s5k6aa        Samsung S5K6AAFX sensor
-smiapp        SMIA++/SMIA sensor
 sr030pc30     Siliconfile SR030PC30 sensor
 vs6624        ST VS6624 sensor
 ============  ==========================================================
@@ -138,6 +143,7 @@ Driver        Name
 ad5820        AD5820 lens voice coil
 ak7375        AK7375 lens voice coil
 dw9714        DW9714 lens voice coil
+dw9768        DW9768 lens voice coil
 dw9807-vcm    DW9807 lens voice coil
 ============  ==========================================================
 

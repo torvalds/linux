@@ -158,8 +158,6 @@ struct ast_private {
 	uint32_t dram_type;
 	uint32_t mclk;
 
-	int fb_mtrr;
-
 	struct drm_plane primary_plane;
 	struct ast_cursor_plane cursor_plane;
 	struct drm_crtc crtc;

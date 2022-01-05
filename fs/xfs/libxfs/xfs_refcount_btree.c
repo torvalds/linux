@@ -21,6 +21,8 @@
 #include "xfs_rmap.h"
 #include "xfs_ag.h"
 
+static struct kmem_cache	*xfs_refcountbt_cur_cache;
+
 static struct xfs_btree_cur *
 xfs_refcountbt_dup_cursor(
 	struct xfs_btree_cur	*cur)
@@ -322,11 +324,8 @@ xfs_refcountbt_init_common(
 
 	ASSERT(pag->pag_agno < mp->m_sb.sb_agcount);
 
-	cur = kmem_cache_zalloc(xfs_btree_cur_zone, GFP_NOFS | __GFP_NOFAIL);
-	cur->bc_tp = tp;
-	cur->bc_mp = mp;
-	cur->bc_btnum = XFS_BTNUM_REFC;
-	cur->bc_blocklog = mp->m_sb.sb_blocklog;
+	cur = xfs_btree_alloc_cursor(mp, tp, XFS_BTNUM_REFC,
+			mp->m_refc_maxlevels, xfs_refcountbt_cur_cache);
 	cur->bc_statoff = XFS_STATS_CALC_INDEX(xs_refcbt_2);
 
 	cur->bc_flags |= XFS_BTREE_CRC_BLOCKS;
@@ -396,6 +395,18 @@ xfs_refcountbt_commit_staged_btree(
 	xfs_btree_commit_afakeroot(cur, tp, agbp, &xfs_refcountbt_ops);
 }
 
+/* Calculate number of records in a refcount btree block. */
+static inline unsigned int
+xfs_refcountbt_block_maxrecs(
+	unsigned int		blocklen,
+	bool			leaf)
+{
+	if (leaf)
+		return blocklen / sizeof(struct xfs_refcount_rec);
+	return blocklen / (sizeof(struct xfs_refcount_key) +
+			   sizeof(xfs_refcount_ptr_t));
+}
+
 /*
  * Calculate the number of records in a refcount btree block.
  */
@@ -405,11 +416,22 @@ xfs_refcountbt_maxrecs(
 	bool			leaf)
 {
 	blocklen -= XFS_REFCOUNT_BLOCK_LEN;
+	return xfs_refcountbt_block_maxrecs(blocklen, leaf);
+}
 
-	if (leaf)
-		return blocklen / sizeof(struct xfs_refcount_rec);
-	return blocklen / (sizeof(struct xfs_refcount_key) +
-			   sizeof(xfs_refcount_ptr_t));
+/* Compute the max possible height of the maximally sized refcount btree. */
+unsigned int
+xfs_refcountbt_maxlevels_ondisk(void)
+{
+	unsigned int		minrecs[2];
+	unsigned int		blocklen;
+
+	blocklen = XFS_MIN_CRC_BLOCKSIZE - XFS_BTREE_SBLOCK_CRC_LEN;
+
+	minrecs[0] = xfs_refcountbt_block_maxrecs(blocklen, true) / 2;
+	minrecs[1] = xfs_refcountbt_block_maxrecs(blocklen, false) / 2;
+
+	return xfs_btree_compute_maxlevels(minrecs, XFS_MAX_CRC_AG_BLOCKS);
 }
 
 /* Compute the maximum height of a refcount btree. */
@@ -417,8 +439,14 @@ void
 xfs_refcountbt_compute_maxlevels(
 	struct xfs_mount		*mp)
 {
+	if (!xfs_has_reflink(mp)) {
+		mp->m_refc_maxlevels = 0;
+		return;
+	}
+
 	mp->m_refc_maxlevels = xfs_btree_compute_maxlevels(
 			mp->m_refc_mnr, mp->m_sb.sb_agblocks);
+	ASSERT(mp->m_refc_maxlevels <= xfs_refcountbt_maxlevels_ondisk());
 }
 
 /* Calculate the refcount btree size for some records. */
@@ -487,4 +515,23 @@ xfs_refcountbt_calc_reserves(
 	*used += tree_len;
 
 	return error;
+}
+
+int __init
+xfs_refcountbt_init_cur_cache(void)
+{
+	xfs_refcountbt_cur_cache = kmem_cache_create("xfs_refcbt_cur",
+			xfs_btree_cur_sizeof(xfs_refcountbt_maxlevels_ondisk()),
+			0, 0, NULL);
+
+	if (!xfs_refcountbt_cur_cache)
+		return -ENOMEM;
+	return 0;
+}
+
+void
+xfs_refcountbt_destroy_cur_cache(void)
+{
+	kmem_cache_destroy(xfs_refcountbt_cur_cache);
+	xfs_refcountbt_cur_cache = NULL;
 }

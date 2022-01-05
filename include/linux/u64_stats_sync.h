@@ -83,6 +83,11 @@ static inline u64 u64_stats_read(const u64_stats_t *p)
 	return local64_read(&p->v);
 }
 
+static inline void u64_stats_set(u64_stats_t *p, u64 val)
+{
+	local64_set(&p->v, val);
+}
+
 static inline void u64_stats_add(u64_stats_t *p, unsigned long val)
 {
 	local64_add(val, &p->v);
@@ -102,6 +107,11 @@ typedef struct {
 static inline u64 u64_stats_read(const u64_stats_t *p)
 {
 	return p->v;
+}
+
+static inline void u64_stats_set(u64_stats_t *p, u64 val)
+{
+	p->v = val;
 }
 
 static inline void u64_stats_add(u64_stats_t *p, unsigned long val)

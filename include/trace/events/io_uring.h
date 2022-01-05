@@ -6,6 +6,7 @@
 #define _TRACE_IO_URING_H
 
 #include <linux/tracepoint.h>
+#include <uapi/linux/io_uring.h>
 
 struct io_wq_work;
 
@@ -495,6 +496,66 @@ TRACE_EVENT(io_uring_task_run,
 	TP_printk("ring %p, req %p, op %d, data 0x%llx",
 		  __entry->ctx, __entry->req, __entry->opcode,
 		  (unsigned long long) __entry->user_data)
+);
+
+/*
+ * io_uring_req_failed - called when an sqe is errored dring submission
+ *
+ * @sqe:		pointer to the io_uring_sqe that failed
+ * @error:		error it failed with
+ *
+ * Allows easier diagnosing of malformed requests in production systems.
+ */
+TRACE_EVENT(io_uring_req_failed,
+
+	TP_PROTO(const struct io_uring_sqe *sqe, int error),
+
+	TP_ARGS(sqe, error),
+
+	TP_STRUCT__entry (
+		__field(  u8,	opcode )
+		__field(  u8,	flags )
+		__field(  u8,	ioprio )
+		__field( u64,	off )
+		__field( u64,	addr )
+		__field( u32,	len )
+		__field( u32,	op_flags )
+		__field( u64,	user_data )
+		__field( u16,	buf_index )
+		__field( u16,	personality )
+		__field( u32,	file_index )
+		__field( u64,	pad1 )
+		__field( u64,	pad2 )
+		__field( int,	error )
+	),
+
+	TP_fast_assign(
+		__entry->opcode		= sqe->opcode;
+		__entry->flags		= sqe->flags;
+		__entry->ioprio		= sqe->ioprio;
+		__entry->off		= sqe->off;
+		__entry->addr		= sqe->addr;
+		__entry->len		= sqe->len;
+		__entry->op_flags	= sqe->rw_flags;
+		__entry->user_data	= sqe->user_data;
+		__entry->buf_index	= sqe->buf_index;
+		__entry->personality	= sqe->personality;
+		__entry->file_index	= sqe->file_index;
+		__entry->pad1		= sqe->__pad2[0];
+		__entry->pad2		= sqe->__pad2[1];
+		__entry->error		= error;
+	),
+
+	TP_printk("op %d, flags=0x%x, prio=%d, off=%llu, addr=%llu, "
+		  "len=%u, rw_flags=0x%x, user_data=0x%llx, buf_index=%d, "
+		  "personality=%d, file_index=%d, pad=0x%llx/%llx, error=%d",
+		  __entry->opcode, __entry->flags, __entry->ioprio,
+		  (unsigned long long)__entry->off,
+		  (unsigned long long) __entry->addr, __entry->len,
+		  __entry->op_flags, (unsigned long long) __entry->user_data,
+		  __entry->buf_index, __entry->personality, __entry->file_index,
+		  (unsigned long long) __entry->pad1,
+		  (unsigned long long) __entry->pad2, __entry->error)
 );
 
 #endif /* _TRACE_IO_URING_H */

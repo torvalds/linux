@@ -265,18 +265,6 @@ static inline int ttm_bo_wait_ctx(struct ttm_buffer_object *bo, struct ttm_opera
 }
 
 /**
- * ttm_bo_mem_compat - Check if proposed placement is compatible with a bo
- *
- * @placement:  Return immediately if buffer is busy.
- * @mem:  The struct ttm_resource indicating the region where the bo resides
- * @new_flags: Describes compatible placement found
- *
- * Returns true if the placement is compatible
- */
-bool ttm_bo_mem_compat(struct ttm_placement *placement, struct ttm_resource *mem,
-		       uint32_t *new_flags);
-
-/**
  * ttm_bo_validate
  *
  * @bo: The buffer object.
@@ -363,9 +351,10 @@ bool ttm_bo_eviction_valuable(struct ttm_buffer_object *bo,
  * @bo: Pointer to a ttm_buffer_object to be initialized.
  * @size: Requested size of buffer object.
  * @type: Requested type of buffer object.
- * @flags: Initial placement flags.
+ * @placement: Initial placement for buffer object.
  * @page_alignment: Data alignment in pages.
  * @ctx: TTM operation context for memory allocation.
+ * @sg: Scatter-gather table.
  * @resv: Pointer to a dma_resv, or NULL to let ttm allocate one.
  * @destroy: Destroy function. Use NULL for kfree().
  *
@@ -406,7 +395,7 @@ int ttm_bo_init_reserved(struct ttm_device *bdev,
  * @bo: Pointer to a ttm_buffer_object to be initialized.
  * @size: Requested size of buffer object.
  * @type: Requested type of buffer object.
- * @flags: Initial placement flags.
+ * @placement: Initial placement for buffer object.
  * @page_alignment: Data alignment in pages.
  * @interruptible: If needing to sleep to wait for GPU resources,
  * sleep interruptible.
@@ -414,6 +403,7 @@ int ttm_bo_init_reserved(struct ttm_device *bdev,
  * holds a pointer to a persistent shmem object. Typically, this would
  * point to the shmem object backing a GEM object if TTM is used to back a
  * GEM user interface.
+ * @sg: Scatter-gather table.
  * @resv: Pointer to a dma_resv, or NULL to let ttm allocate one.
  * @destroy: Destroy function. Use NULL for kfree().
  *
@@ -594,8 +584,7 @@ vm_fault_t ttm_bo_vm_reserve(struct ttm_buffer_object *bo,
 
 vm_fault_t ttm_bo_vm_fault_reserved(struct vm_fault *vmf,
 				    pgprot_t prot,
-				    pgoff_t num_prefault,
-				    pgoff_t fault_page_size);
+				    pgoff_t num_prefault);
 
 vm_fault_t ttm_bo_vm_fault(struct vm_fault *vmf);
 

@@ -200,8 +200,7 @@ static int ps3rom_write_request(struct ps3_storage_device *dev,
 	return 0;
 }
 
-static int ps3rom_queuecommand_lck(struct scsi_cmnd *cmd,
-			       void (*done)(struct scsi_cmnd *))
+static int ps3rom_queuecommand_lck(struct scsi_cmnd *cmd)
 {
 	struct ps3rom_private *priv = shost_priv(cmd->device->host);
 	struct ps3_storage_device *dev = priv->dev;
@@ -209,7 +208,6 @@ static int ps3rom_queuecommand_lck(struct scsi_cmnd *cmd,
 	int res;
 
 	priv->curr_cmd = cmd;
-	cmd->scsi_done = done;
 
 	opcode = cmd->cmnd[0];
 	/*
@@ -237,7 +235,7 @@ static int ps3rom_queuecommand_lck(struct scsi_cmnd *cmd,
 		scsi_build_sense(cmd, 0, ILLEGAL_REQUEST, 0, 0);
 		cmd->result = res;
 		priv->curr_cmd = NULL;
-		cmd->scsi_done(cmd);
+		scsi_done(cmd);
 	}
 
 	return 0;
@@ -321,7 +319,7 @@ static irqreturn_t ps3rom_interrupt(int irq, void *data)
 
 done:
 	priv->curr_cmd = NULL;
-	cmd->scsi_done(cmd);
+	scsi_done(cmd);
 	return IRQ_HANDLED;
 }
 

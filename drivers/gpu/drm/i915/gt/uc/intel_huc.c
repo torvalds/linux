@@ -87,17 +87,25 @@ static int intel_huc_rsa_data_create(struct intel_huc *huc)
 									vma->obj, true));
 	if (IS_ERR(vaddr)) {
 		i915_vma_unpin_and_release(&vma, 0);
-		return PTR_ERR(vaddr);
+		err = PTR_ERR(vaddr);
+		goto unpin_out;
 	}
 
 	copied = intel_uc_fw_copy_rsa(&huc->fw, vaddr, vma->size);
-	GEM_BUG_ON(copied < huc->fw.rsa_size);
-
 	i915_gem_object_unpin_map(vma->obj);
+
+	if (copied < huc->fw.rsa_size) {
+		err = -ENOMEM;
+		goto unpin_out;
+	}
 
 	huc->rsa_data = vma;
 
 	return 0;
+
+unpin_out:
+	i915_vma_unpin_and_release(&vma, 0);
+	return err;
 }
 
 static void intel_huc_rsa_data_destroy(struct intel_huc *huc)
