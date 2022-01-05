@@ -249,6 +249,23 @@ static inline unsigned short req_get_ioprio(struct request *req)
 #define rq_list_next(rq)	(rq)->rq_next
 #define rq_list_empty(list)	((list) == (struct request *) NULL)
 
+/**
+ * rq_list_move() - move a struct request from one list to another
+ * @src: The source list @rq is currently in
+ * @dst: The destination list that @rq will be appended to
+ * @rq: The request to move
+ * @prev: The request preceding @rq in @src (NULL if @rq is the head)
+ */
+static void inline rq_list_move(struct request **src, struct request **dst,
+				struct request *rq, struct request *prev)
+{
+	if (prev)
+		prev->rq_next = rq->rq_next;
+	else
+		*src = rq->rq_next;
+	rq_list_add(dst, rq);
+}
+
 enum blk_eh_timer_return {
 	BLK_EH_DONE,		/* drivers has completed the command */
 	BLK_EH_RESET_TIMER,	/* reset timer and try again */
