@@ -116,7 +116,7 @@ struct clk *msm_clk_get(struct platform_device *pdev, const char *name)
 }
 
 static void __iomem *_msm_ioremap(struct platform_device *pdev, const char *name,
-				  const char *dbgname, bool quiet, phys_addr_t *psize)
+				  bool quiet, phys_addr_t *psize)
 {
 	struct resource *res;
 	unsigned long size;
@@ -148,22 +148,20 @@ static void __iomem *_msm_ioremap(struct platform_device *pdev, const char *name
 	return ptr;
 }
 
-void __iomem *msm_ioremap(struct platform_device *pdev, const char *name,
-			  const char *dbgname)
+void __iomem *msm_ioremap(struct platform_device *pdev, const char *name)
 {
-	return _msm_ioremap(pdev, name, dbgname, false, NULL);
+	return _msm_ioremap(pdev, name, false, NULL);
 }
 
-void __iomem *msm_ioremap_quiet(struct platform_device *pdev, const char *name,
-				const char *dbgname)
+void __iomem *msm_ioremap_quiet(struct platform_device *pdev, const char *name)
 {
-	return _msm_ioremap(pdev, name, dbgname, true, NULL);
+	return _msm_ioremap(pdev, name, true, NULL);
 }
 
 void __iomem *msm_ioremap_size(struct platform_device *pdev, const char *name,
-			  const char *dbgname, phys_addr_t *psize)
+			  phys_addr_t *psize)
 {
-	return _msm_ioremap(pdev, name, dbgname, false, psize);
+	return _msm_ioremap(pdev, name, false, psize);
 }
 
 void msm_writel(u32 data, void __iomem *addr)
