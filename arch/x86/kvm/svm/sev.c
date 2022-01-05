@@ -1565,7 +1565,7 @@ static int sev_lock_two_vms(struct kvm *dst_kvm, struct kvm *src_kvm)
 	r = -EINTR;
 	if (mutex_lock_killable(&dst_kvm->lock))
 		goto release_src;
-	if (mutex_lock_killable(&src_kvm->lock))
+	if (mutex_lock_killable_nested(&src_kvm->lock, SINGLE_DEPTH_NESTING))
 		goto unlock_dst;
 	return 0;
 
