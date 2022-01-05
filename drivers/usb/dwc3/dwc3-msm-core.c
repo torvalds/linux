@@ -4741,7 +4741,7 @@ static bool dwc3_msm_role_allowed(struct dwc3_msm *mdwc, enum usb_role role)
 {
 	dev_dbg(mdwc->dev, "%s: dr_mode=%s role_requested=%s\n",
 			__func__, usb_dr_modes[mdwc->dr_mode],
-			usb_role_string(role));
+			dwc3_msm_usb_role_string(role));
 
 	if (role == USB_ROLE_HOST && mdwc->dr_mode == USB_DR_MODE_PERIPHERAL)
 		return false;
@@ -4779,6 +4779,20 @@ static int dwc3_msm_usb_set_role(struct usb_role_switch *sw, enum usb_role role)
 	mutex_lock(&mdwc->role_switch_mutex);
 	cur_role = dwc3_msm_usb_get_role(sw);
 
+	dbg_log_string("cur_role:%s new_role:%s\n", dwc3_msm_usb_role_string(cur_role),
+						dwc3_msm_usb_role_string(role));
+
+	/*
+	 * For boot up without USB cable connected case, don't check
+	 * previous role value to allow resetting USB controller and
+	 * PHYs.
+	 */
+	if (mdwc->drd_state != DRD_STATE_UNDEFINED && cur_role == role) {
+		dbg_log_string("no USB role change");
+		mutex_unlock(&mdwc->role_switch_mutex);
+		return 0;
+	}
+
 	switch (role) {
 	case USB_ROLE_HOST:
 		mdwc->vbus_active = false;
@@ -4796,19 +4810,6 @@ static int dwc3_msm_usb_set_role(struct usb_role_switch *sw, enum usb_role role)
 		break;
 	}
 	mutex_unlock(&mdwc->role_switch_mutex);
-
-	dbg_log_string("cur_role:%s new_role:%s\n", dwc3_msm_usb_role_string(cur_role),
-						dwc3_msm_usb_role_string(role));
-
-	/*
-	 * For boot up without USB cable connected case, don't check
-	 * previous role value to allow resetting USB controller and
-	 * PHYs.
-	 */
-	if (mdwc->drd_state != DRD_STATE_UNDEFINED && cur_role == role) {
-		dbg_log_string("no USB role change");
-		return 0;
-	}
 
 	dwc3_ext_event_notify(mdwc);
 	return 0;
