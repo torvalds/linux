@@ -109,6 +109,9 @@ static void pmc_reprogram_counter(struct kvm_pmc *pmc, u32 type,
 		.config = config,
 	};
 
+	if (type == PERF_TYPE_HARDWARE && config >= PERF_COUNT_HW_MAX)
+		return;
+
 	attr.sample_period = get_sample_period(pmc, pmc->counter);
 
 	if (in_tx)
