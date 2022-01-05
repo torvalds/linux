@@ -159,13 +159,6 @@ static inline bool is_available_bucket(struct bucket_mark mark)
 	return !mark.dirty_sectors && !mark.stripe;
 }
 
-static inline bool bucket_needs_journal_commit(struct bucket_mark m,
-					       u16 last_seq_ondisk)
-{
-	return m.journal_seq_valid &&
-		((s16) m.journal_seq - (s16) last_seq_ondisk > 0);
-}
-
 /* Device usage: */
 
 struct bch_dev_usage bch2_dev_usage_read(struct bch_dev *);
@@ -240,7 +233,6 @@ bch2_fs_usage_read_short(struct bch_fs *);
 
 /* key/bucket marking: */
 
-void bch2_bucket_seq_cleanup(struct bch_fs *);
 void bch2_fs_usage_initialize(struct bch_fs *);
 
 void bch2_mark_alloc_bucket(struct bch_fs *, struct bch_dev *, size_t, bool);

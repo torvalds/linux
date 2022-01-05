@@ -355,6 +355,7 @@ enum bch_time_stats {
 #include "alloc_types.h"
 #include "btree_types.h"
 #include "buckets_types.h"
+#include "buckets_waiting_for_journal_types.h"
 #include "clock_types.h"
 #include "ec_types.h"
 #include "journal_types.h"
@@ -482,6 +483,7 @@ struct bch_dev {
 
 	size_t			inc_gen_needs_gc;
 	size_t			inc_gen_really_needs_gc;
+	size_t			buckets_waiting_on_journal;
 
 	enum allocator_states	allocator_state;
 
@@ -776,6 +778,8 @@ struct bch_fs {
 	struct hlist_head	write_points_hash[WRITE_POINT_HASH_NR];
 	struct mutex		write_points_hash_lock;
 	unsigned		write_points_nr;
+
+	struct buckets_waiting_for_journal buckets_waiting_for_journal;
 
 	/* GARBAGE COLLECTION */
 	struct task_struct	*gc_thread;

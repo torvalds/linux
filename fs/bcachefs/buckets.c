@@ -11,6 +11,7 @@
 #include "btree_gc.h"
 #include "btree_update.h"
 #include "buckets.h"
+#include "buckets_waiting_for_journal.h"
 #include "ec.h"
 #include "error.h"
 #include "inode.h"
@@ -40,43 +41,6 @@ static inline void fs_usage_data_type_to_base(struct bch_fs_usage *fs_usage,
 		break;
 	default:
 		break;
-	}
-}
-
-/*
- * Clear journal_seq_valid for buckets for which it's not needed, to prevent
- * wraparound:
- */
-void bch2_bucket_seq_cleanup(struct bch_fs *c)
-{
-	u64 journal_seq = atomic64_read(&c->journal.seq);
-	u16 last_seq_ondisk = c->journal.flushed_seq_ondisk;
-	struct bch_dev *ca;
-	struct bucket_array *buckets;
-	struct bucket *g;
-	struct bucket_mark m;
-	unsigned i;
-
-	if (journal_seq - c->last_bucket_seq_cleanup <
-	    (1U << (BUCKET_JOURNAL_SEQ_BITS - 2)))
-		return;
-
-	c->last_bucket_seq_cleanup = journal_seq;
-
-	for_each_member_device(ca, c, i) {
-		down_read(&ca->bucket_lock);
-		buckets = bucket_array(ca);
-
-		for_each_bucket(g, buckets) {
-			bucket_cmpxchg(g, m, ({
-				if (!m.journal_seq_valid ||
-				    bucket_needs_journal_commit(m, last_seq_ondisk))
-					break;
-
-				m.journal_seq_valid = 0;
-			}));
-		}
-		up_read(&ca->bucket_lock);
 	}
 }
 
@@ -576,16 +540,28 @@ static int bch2_mark_alloc(struct btree_trans *trans,
 		v->journal_seq = cpu_to_le64(new_u.journal_seq);
 	}
 
-	ca = bch_dev_bkey_exists(c, new.k->p.inode);
+	if (old_u.data_type && !new_u.data_type && new_u.journal_seq) {
+		ret = bch2_set_bucket_needs_journal_commit(&c->buckets_waiting_for_journal,
+				c->journal.flushed_seq_ondisk,
+				new_u.dev, new_u.bucket,
+				new_u.journal_seq);
+		if (ret) {
+			bch2_fs_fatal_error(c,
+				"error setting bucket_needs_journal_commit: %i", ret);
+			return ret;
+		}
+	}
 
-	if (new.k->p.offset >= ca->mi.nbuckets)
+	ca = bch_dev_bkey_exists(c, new_u.dev);
+
+	if (new_u.bucket >= ca->mi.nbuckets)
 		return 0;
 
 	percpu_down_read(&c->mark_lock);
 	if (!gc && new_u.gen != old_u.gen)
-		*bucket_gen(ca, new.k->p.offset) = new_u.gen;
+		*bucket_gen(ca, new_u.bucket) = new_u.gen;
 
-	g = __bucket(ca, new.k->p.offset, gc);
+	g = __bucket(ca, new_u.bucket, gc);
 
 	old_m = bucket_cmpxchg(g, m, ({
 		m.gen			= new_u.gen;
@@ -593,11 +569,6 @@ static int bch2_mark_alloc(struct btree_trans *trans,
 		m.dirty_sectors		= new_u.dirty_sectors;
 		m.cached_sectors	= new_u.cached_sectors;
 		m.stripe		= new_u.stripe != 0;
-
-		if (journal_seq) {
-			m.journal_seq_valid	= 1;
-			m.journal_seq		= journal_seq;
-		}
 	}));
 
 	bch2_dev_usage_update(c, ca, old_m, m, journal_seq, gc);
@@ -625,7 +596,7 @@ static int bch2_mark_alloc(struct btree_trans *trans,
 			return ret;
 		}
 
-		trace_invalidate(ca, bucket_to_sector(ca, new.k->p.offset),
+		trace_invalidate(ca, bucket_to_sector(ca, new_u.bucket),
 				 old_m.cached_sectors);
 	}
 
@@ -775,9 +746,10 @@ static int check_bucket_ref(struct bch_fs *c,
 static int mark_stripe_bucket(struct btree_trans *trans,
 			      struct bkey_s_c k,
 			      unsigned ptr_idx,
-			      u64 journal_seq, unsigned flags)
+			      unsigned flags)
 {
 	struct bch_fs *c = trans->c;
+	u64 journal_seq = trans->journal_res.seq;
 	const struct bch_stripe *s = bkey_s_c_to_stripe(k).v;
 	unsigned nr_data = s->nr_blocks - s->nr_redundant;
 	bool parity = ptr_idx >= nr_data;
@@ -817,11 +789,6 @@ static int mark_stripe_bucket(struct btree_trans *trans,
 		new.dirty_sectors += sectors;
 		if (data_type)
 			new.data_type		= data_type;
-
-		if (journal_seq) {
-			new.journal_seq_valid	= 1;
-			new.journal_seq		= journal_seq;
-		}
 
 		new.stripe = true;
 	}));
@@ -893,11 +860,6 @@ static int bch2_mark_pointer(struct btree_trans *trans,
 			goto err;
 
 		new.data_type = bucket_data_type;
-
-		if (journal_seq) {
-			new.journal_seq_valid = 1;
-			new.journal_seq = journal_seq;
-		}
 
 		if (flags & BTREE_TRIGGER_NOATOMIC) {
 			g->_mark = new;
@@ -1119,7 +1081,7 @@ static int bch2_mark_stripe(struct btree_trans *trans,
 		memset(m->block_sectors, 0, sizeof(m->block_sectors));
 
 		for (i = 0; i < new_s->nr_blocks; i++) {
-			ret = mark_stripe_bucket(trans, new, i, journal_seq, flags);
+			ret = mark_stripe_bucket(trans, new, i, flags);
 			if (ret)
 				return ret;
 		}

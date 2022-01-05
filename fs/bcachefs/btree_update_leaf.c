@@ -396,10 +396,11 @@ static inline void do_btree_insert_one(struct btree_trans *trans,
 	}
 }
 
-static noinline void bch2_trans_mark_gc(struct btree_trans *trans)
+static noinline int bch2_trans_mark_gc(struct btree_trans *trans)
 {
 	struct bch_fs *c = trans->c;
 	struct btree_insert_entry *i;
+	int ret = 0;
 
 	trans_for_each_update(trans, i) {
 		/*
@@ -408,10 +409,15 @@ static noinline void bch2_trans_mark_gc(struct btree_trans *trans)
 		 */
 		BUG_ON(i->cached || i->level);
 
-		if (gc_visited(c, gc_pos_btree_node(insert_l(i)->b)))
-			bch2_mark_update(trans, i->path, i->k,
-					 i->flags|BTREE_TRIGGER_GC);
+		if (gc_visited(c, gc_pos_btree_node(insert_l(i)->b))) {
+			ret = bch2_mark_update(trans, i->path, i->k,
+					       i->flags|BTREE_TRIGGER_GC);
+			if (ret)
+				break;
+		}
 	}
+
+	return ret;
 }
 
 static inline int
@@ -510,11 +516,17 @@ bch2_trans_commit_write_locked(struct btree_trans *trans,
 		return BTREE_INSERT_NEED_MARK_REPLICAS;
 
 	trans_for_each_update(trans, i)
-		if (BTREE_NODE_TYPE_HAS_MEM_TRIGGERS & (1U << i->bkey_type))
-			bch2_mark_update(trans, i->path, i->k, i->flags);
+		if (BTREE_NODE_TYPE_HAS_MEM_TRIGGERS & (1U << i->bkey_type)) {
+			ret = bch2_mark_update(trans, i->path, i->k, i->flags);
+			if (ret)
+				return ret;
+		}
 
-	if (unlikely(c->gc_pos.phase))
-		bch2_trans_mark_gc(trans);
+	if (unlikely(c->gc_pos.phase)) {
+		ret = bch2_trans_mark_gc(trans);
+		if  (ret)
+			return ret;
+	}
 
 	trans_for_each_update(trans, i)
 		do_btree_insert_one(trans, i);

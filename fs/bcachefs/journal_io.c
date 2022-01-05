@@ -1666,13 +1666,9 @@ retry_alloc:
 		}
 	}
 
-	bch2_bucket_seq_cleanup(c);
-
 	continue_at(cl, do_journal_write, c->io_complete_wq);
 	return;
 no_io:
-	bch2_bucket_seq_cleanup(c);
-
 	continue_at(cl, journal_write_done, c->io_complete_wq);
 	return;
 err:

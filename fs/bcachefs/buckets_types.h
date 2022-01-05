@@ -15,18 +15,9 @@ struct bucket_mark {
 	u8		gen;
 	u8		data_type:3,
 			owned_by_allocator:1,
-			journal_seq_valid:1,
 			stripe:1;
 	u16		dirty_sectors;
 	u16		cached_sectors;
-
-	/*
-	 * low bits of journal sequence number when this bucket was most
-	 * recently modified: if journal_seq_valid is set, this bucket can't be
-	 * reused until the journal sequence number written to disk is >= the
-	 * bucket's journal sequence number:
-	 */
-	u16		journal_seq;
 	};
 	};
 };
