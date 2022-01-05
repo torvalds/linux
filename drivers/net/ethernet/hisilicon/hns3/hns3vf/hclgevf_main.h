@@ -10,6 +10,7 @@
 #include "hclge_mbx.h"
 #include "hclgevf_cmd.h"
 #include "hnae3.h"
+#include "hclge_comm_rss.h"
 
 #define HCLGEVF_MOD_VERSION "1.0"
 #define HCLGEVF_DRIVER_NAME "hclgevf"
@@ -190,27 +191,6 @@ struct hclgevf_cfg {
 	u32 numa_node_map;
 };
 
-struct hclgevf_rss_tuple_cfg {
-	u8 ipv4_tcp_en;
-	u8 ipv4_udp_en;
-	u8 ipv4_sctp_en;
-	u8 ipv4_fragment_en;
-	u8 ipv6_tcp_en;
-	u8 ipv6_udp_en;
-	u8 ipv6_sctp_en;
-	u8 ipv6_fragment_en;
-};
-
-struct hclgevf_rss_cfg {
-	u8  rss_hash_key[HCLGEVF_RSS_KEY_SIZE]; /* user configured hash keys */
-	u32 hash_algo;
-	u32 rss_size;
-	u8 hw_tc_map;
-	/* shadow table */
-	u8 *rss_indirection_tbl;
-	struct hclgevf_rss_tuple_cfg rss_tuple_sets;
-};
-
 struct hclgevf_misc_vector {
 	u8 __iomem *addr;
 	int vector_irq;
@@ -255,7 +235,7 @@ struct hclgevf_dev {
 	struct hnae3_ae_dev *ae_dev;
 	struct hclgevf_hw hw;
 	struct hclgevf_misc_vector misc_vector;
-	struct hclgevf_rss_cfg rss_cfg;
+	struct hclge_comm_rss_cfg rss_cfg;
 	unsigned long state;
 	unsigned long flr_state;
 	unsigned long default_reset_request;

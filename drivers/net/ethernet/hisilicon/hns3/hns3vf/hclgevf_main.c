@@ -9,6 +9,7 @@
 #include "hclge_mbx.h"
 #include "hnae3.h"
 #include "hclgevf_devlink.h"
+#include "hclge_comm_rss.h"
 
 #define HCLGEVF_NAME	"hclgevf"
 
@@ -672,14 +673,9 @@ static int hclgevf_set_rss_algo_key(struct hclgevf_dev *hdev,
 	return 0;
 }
 
-static u32 hclgevf_get_rss_key_size(struct hnae3_handle *handle)
-{
-	return HCLGEVF_RSS_KEY_SIZE;
-}
-
 static int hclgevf_set_rss_indir_table(struct hclgevf_dev *hdev)
 {
-	const u8 *indir = hdev->rss_cfg.rss_indirection_tbl;
+	const u16 *indir = hdev->rss_cfg.rss_indirection_tbl;
 	struct hclgevf_rss_indirection_table_cmd *req;
 	struct hclge_desc desc;
 	int rss_cfg_tbl_num;
@@ -762,7 +758,7 @@ static int hclgevf_set_rss_tc_mode(struct hclgevf_dev *hdev,  u16 rss_size)
 static int hclgevf_get_rss_hash_key(struct hclgevf_dev *hdev)
 {
 #define HCLGEVF_RSS_MBX_RESP_LEN	8
-	struct hclgevf_rss_cfg *rss_cfg = &hdev->rss_cfg;
+	struct hclge_comm_rss_cfg *rss_cfg = &hdev->rss_cfg;
 	u8 resp_msg[HCLGEVF_RSS_MBX_RESP_LEN];
 	struct hclge_vf_to_pf_msg send_msg;
 	u16 msg_num, hash_key_index;
@@ -800,13 +796,13 @@ static int hclgevf_get_rss(struct hnae3_handle *handle, u32 *indir, u8 *key,
 			   u8 *hfunc)
 {
 	struct hclgevf_dev *hdev = hclgevf_ae_get_hdev(handle);
-	struct hclgevf_rss_cfg *rss_cfg = &hdev->rss_cfg;
+	struct hclge_comm_rss_cfg *rss_cfg = &hdev->rss_cfg;
 	int i, ret;
 
 	if (hdev->ae_dev->dev_version >= HNAE3_DEVICE_VERSION_V2) {
 		/* Get hash algorithm */
 		if (hfunc) {
-			switch (rss_cfg->hash_algo) {
+			switch (rss_cfg->rss_algo) {
 			case HCLGEVF_RSS_HASH_ALGO_TOEPLITZ:
 				*hfunc = ETH_RSS_HASH_TOP;
 				break;
@@ -842,34 +838,16 @@ static int hclgevf_get_rss(struct hnae3_handle *handle, u32 *indir, u8 *key,
 	return 0;
 }
 
-static int hclgevf_parse_rss_hfunc(struct hclgevf_dev *hdev, const u8 hfunc,
-				   u8 *hash_algo)
-{
-	switch (hfunc) {
-	case ETH_RSS_HASH_TOP:
-		*hash_algo = HCLGEVF_RSS_HASH_ALGO_TOEPLITZ;
-		return 0;
-	case ETH_RSS_HASH_XOR:
-		*hash_algo = HCLGEVF_RSS_HASH_ALGO_SIMPLE;
-		return 0;
-	case ETH_RSS_HASH_NO_CHANGE:
-		*hash_algo = hdev->rss_cfg.hash_algo;
-		return 0;
-	default:
-		return -EINVAL;
-	}
-}
-
 static int hclgevf_set_rss(struct hnae3_handle *handle, const u32 *indir,
 			   const u8 *key, const u8 hfunc)
 {
 	struct hclgevf_dev *hdev = hclgevf_ae_get_hdev(handle);
-	struct hclgevf_rss_cfg *rss_cfg = &hdev->rss_cfg;
+	struct hclge_comm_rss_cfg *rss_cfg = &hdev->rss_cfg;
 	u8 hash_algo;
 	int ret, i;
 
 	if (hdev->ae_dev->dev_version >= HNAE3_DEVICE_VERSION_V2) {
-		ret = hclgevf_parse_rss_hfunc(hdev, hfunc, &hash_algo);
+		ret = hclge_comm_parse_rss_hfunc(rss_cfg, hfunc, &hash_algo);
 		if (ret)
 			return ret;
 
@@ -891,7 +869,7 @@ static int hclgevf_set_rss(struct hnae3_handle *handle, const u32 *indir,
 			if (ret)
 				return ret;
 		}
-		rss_cfg->hash_algo = hash_algo;
+		rss_cfg->rss_algo = hash_algo;
 	}
 
 	/* update the shadow RSS table with user specified qids */
@@ -932,7 +910,7 @@ static int hclgevf_init_rss_tuple_cmd(struct hnae3_handle *handle,
 				      struct hclgevf_rss_input_tuple_cmd *req)
 {
 	struct hclgevf_dev *hdev = hclgevf_ae_get_hdev(handle);
-	struct hclgevf_rss_cfg *rss_cfg = &hdev->rss_cfg;
+	struct hclge_comm_rss_cfg *rss_cfg = &hdev->rss_cfg;
 	u8 tuple_sets;
 
 	req->ipv4_tcp_en = rss_cfg->rss_tuple_sets.ipv4_tcp_en;
@@ -985,7 +963,7 @@ static int hclgevf_set_rss_tuple(struct hnae3_handle *handle,
 				 struct ethtool_rxnfc *nfc)
 {
 	struct hclgevf_dev *hdev = hclgevf_ae_get_hdev(handle);
-	struct hclgevf_rss_cfg *rss_cfg = &hdev->rss_cfg;
+	struct hclge_comm_rss_cfg *rss_cfg = &hdev->rss_cfg;
 	struct hclgevf_rss_input_tuple_cmd *req;
 	struct hclge_desc desc;
 	int ret;
@@ -1025,39 +1003,6 @@ static int hclgevf_set_rss_tuple(struct hnae3_handle *handle,
 	return 0;
 }
 
-static int hclgevf_get_rss_tuple_by_flow_type(struct hclgevf_dev *hdev,
-					      int flow_type, u8 *tuple_sets)
-{
-	switch (flow_type) {
-	case TCP_V4_FLOW:
-		*tuple_sets = hdev->rss_cfg.rss_tuple_sets.ipv4_tcp_en;
-		break;
-	case UDP_V4_FLOW:
-		*tuple_sets = hdev->rss_cfg.rss_tuple_sets.ipv4_udp_en;
-		break;
-	case TCP_V6_FLOW:
-		*tuple_sets = hdev->rss_cfg.rss_tuple_sets.ipv6_tcp_en;
-		break;
-	case UDP_V6_FLOW:
-		*tuple_sets = hdev->rss_cfg.rss_tuple_sets.ipv6_udp_en;
-		break;
-	case SCTP_V4_FLOW:
-		*tuple_sets = hdev->rss_cfg.rss_tuple_sets.ipv4_sctp_en;
-		break;
-	case SCTP_V6_FLOW:
-		*tuple_sets = hdev->rss_cfg.rss_tuple_sets.ipv6_sctp_en;
-		break;
-	case IPV4_FLOW:
-	case IPV6_FLOW:
-		*tuple_sets = HCLGEVF_S_IP_BIT | HCLGEVF_D_IP_BIT;
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
 static u64 hclgevf_convert_rss_tuple(u8 tuple_sets)
 {
 	u64 tuple_data = 0;
@@ -1086,8 +1031,8 @@ static int hclgevf_get_rss_tuple(struct hnae3_handle *handle,
 
 	nfc->data = 0;
 
-	ret = hclgevf_get_rss_tuple_by_flow_type(hdev, nfc->flow_type,
-						 &tuple_sets);
+	ret = hclge_comm_get_rss_tuple(&hdev->rss_cfg, nfc->flow_type,
+				       &tuple_sets);
 	if (ret || !tuple_sets)
 		return ret;
 
@@ -1097,7 +1042,7 @@ static int hclgevf_get_rss_tuple(struct hnae3_handle *handle,
 }
 
 static int hclgevf_set_rss_input_tuple(struct hclgevf_dev *hdev,
-				       struct hclgevf_rss_cfg *rss_cfg)
+				       struct hclge_comm_rss_cfg *rss_cfg)
 {
 	struct hclgevf_rss_input_tuple_cmd *req;
 	struct hclge_desc desc;
@@ -1126,7 +1071,7 @@ static int hclgevf_set_rss_input_tuple(struct hclgevf_dev *hdev,
 static int hclgevf_get_tc_size(struct hnae3_handle *handle)
 {
 	struct hclgevf_dev *hdev = hclgevf_ae_get_hdev(handle);
-	struct hclgevf_rss_cfg *rss_cfg = &hdev->rss_cfg;
+	struct hclge_comm_rss_cfg *rss_cfg = &hdev->rss_cfg;
 
 	return rss_cfg->rss_size;
 }
@@ -2621,17 +2566,17 @@ static int hclgevf_config_gro(struct hclgevf_dev *hdev)
 static int hclgevf_rss_init_cfg(struct hclgevf_dev *hdev)
 {
 	u16 rss_ind_tbl_size = hdev->ae_dev->dev_specs.rss_ind_tbl_size;
-	struct hclgevf_rss_cfg *rss_cfg = &hdev->rss_cfg;
-	struct hclgevf_rss_tuple_cfg *tuple_sets;
+	struct hclge_comm_rss_cfg *rss_cfg = &hdev->rss_cfg;
+	struct hclge_comm_rss_tuple_cfg *tuple_sets;
 	u32 i;
 
-	rss_cfg->hash_algo = HCLGEVF_RSS_HASH_ALGO_TOEPLITZ;
+	rss_cfg->rss_algo = HCLGEVF_RSS_HASH_ALGO_TOEPLITZ;
 	rss_cfg->rss_size = hdev->nic.kinfo.rss_size;
 	tuple_sets = &rss_cfg->rss_tuple_sets;
 	if (hdev->ae_dev->dev_version >= HNAE3_DEVICE_VERSION_V2) {
-		u8 *rss_ind_tbl;
+		u16 *rss_ind_tbl;
 
-		rss_cfg->hash_algo = HCLGEVF_RSS_HASH_ALGO_SIMPLE;
+		rss_cfg->rss_algo = HCLGEVF_RSS_HASH_ALGO_SIMPLE;
 
 		rss_ind_tbl = devm_kcalloc(&hdev->pdev->dev, rss_ind_tbl_size,
 					   sizeof(*rss_ind_tbl), GFP_KERNEL);
@@ -2664,11 +2609,11 @@ static int hclgevf_rss_init_cfg(struct hclgevf_dev *hdev)
 
 static int hclgevf_rss_init_hw(struct hclgevf_dev *hdev)
 {
-	struct hclgevf_rss_cfg *rss_cfg = &hdev->rss_cfg;
+	struct hclge_comm_rss_cfg *rss_cfg = &hdev->rss_cfg;
 	int ret;
 
 	if (hdev->ae_dev->dev_version >= HNAE3_DEVICE_VERSION_V2) {
-		ret = hclgevf_set_rss_algo_key(hdev, rss_cfg->hash_algo,
+		ret = hclgevf_set_rss_algo_key(hdev, rss_cfg->rss_algo,
 					       rss_cfg->rss_hash_key);
 		if (ret)
 			return ret;
@@ -3892,7 +3837,7 @@ static const struct hnae3_ae_ops hclgevf_ops = {
 	.update_stats = hclgevf_update_stats,
 	.get_strings = hclgevf_get_strings,
 	.get_sset_count = hclgevf_get_sset_count,
-	.get_rss_key_size = hclgevf_get_rss_key_size,
+	.get_rss_key_size = hclge_comm_get_rss_key_size,
 	.get_rss = hclgevf_get_rss,
 	.set_rss = hclgevf_set_rss,
 	.get_rss_tuple = hclgevf_get_rss_tuple,
