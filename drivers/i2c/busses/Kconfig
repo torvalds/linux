@@ -9,6 +9,13 @@ menu "I2C Hardware Bus support"
 comment "PC SMBus host controller drivers"
 	depends on PCI
 
+config I2C_CCGX_UCSI
+	tristate
+	help
+	  A common module to provide an API to instantiate UCSI device
+	  for Cypress CCGx Type-C controller. Individual bus drivers
+	  need to select this one on demand.
+
 config I2C_ALI1535
 	tristate "ALI 1535"
 	depends on PCI
