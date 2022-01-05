@@ -265,7 +265,7 @@ static int bpf_program_profiler__read(struct evsel *evsel)
 	return 0;
 }
 
-static int bpf_program_profiler__install_pe(struct evsel *evsel, int cpu,
+static int bpf_program_profiler__install_pe(struct evsel *evsel, int cpu_map_idx,
 					    int fd)
 {
 	struct bpf_prog_profiler_bpf *skel;
@@ -277,7 +277,7 @@ static int bpf_program_profiler__install_pe(struct evsel *evsel, int cpu,
 		assert(skel != NULL);
 
 		ret = bpf_map_update_elem(bpf_map__fd(skel->maps.events),
-					  &cpu, &fd, BPF_ANY);
+					  &cpu_map_idx, &fd, BPF_ANY);
 		if (ret)
 			return ret;
 	}
@@ -566,12 +566,12 @@ out:
 	return err;
 }
 
-static int bperf__install_pe(struct evsel *evsel, int cpu, int fd)
+static int bperf__install_pe(struct evsel *evsel, int cpu_map_idx, int fd)
 {
 	struct bperf_leader_bpf *skel = evsel->leader_skel;
 
 	return bpf_map_update_elem(bpf_map__fd(skel->maps.events),
-				   &cpu, &fd, BPF_ANY);
+				   &cpu_map_idx, &fd, BPF_ANY);
 }
 
 /*
@@ -608,7 +608,8 @@ static int bperf__read(struct evsel *evsel)
 	__u32 num_cpu_bpf = cpu__max_cpu();
 	struct bpf_perf_event_value values[num_cpu_bpf];
 	int reading_map_fd, err = 0;
-	__u32 i, j, num_cpu;
+	__u32 i;
+	int j;
 
 	bperf_sync_counters(evsel);
 	reading_map_fd = bpf_map__fd(skel->maps.accum_readings);
@@ -623,9 +624,7 @@ static int bperf__read(struct evsel *evsel)
 		case BPERF_FILTER_GLOBAL:
 			assert(i == 0);
 
-			num_cpu = all_cpu_map->nr;
-			for (j = 0; j < num_cpu; j++) {
-				cpu = all_cpu_map->map[j];
+			perf_cpu_map__for_each_cpu(cpu, j, all_cpu_map) {
 				perf_counts(evsel->counts, cpu, 0)->val = values[cpu].counter;
 				perf_counts(evsel->counts, cpu, 0)->ena = values[cpu].enabled;
 				perf_counts(evsel->counts, cpu, 0)->run = values[cpu].running;
@@ -757,11 +756,11 @@ static inline bool bpf_counter_skip(struct evsel *evsel)
 		evsel->follower_skel == NULL;
 }
 
-int bpf_counter__install_pe(struct evsel *evsel, int cpu, int fd)
+int bpf_counter__install_pe(struct evsel *evsel, int cpu_map_idx, int fd)
 {
 	if (bpf_counter_skip(evsel))
 		return 0;
-	return evsel->bpf_counter_ops->install_pe(evsel, cpu, fd);
+	return evsel->bpf_counter_ops->install_pe(evsel, cpu_map_idx, fd);
 }
 
 int bpf_counter__load(struct evsel *evsel, struct target *target)
