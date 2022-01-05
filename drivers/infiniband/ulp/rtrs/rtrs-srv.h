@@ -73,7 +73,7 @@ struct rtrs_srv_mr {
 
 struct rtrs_srv_path {
 	struct rtrs_path	s;
-	struct rtrs_srv	*srv;
+	struct rtrs_srv_sess	*srv;
 	struct work_struct	close_work;
 	enum rtrs_srv_state	state;
 	spinlock_t		state_lock;
@@ -90,7 +90,7 @@ struct rtrs_srv_path {
 	struct rtrs_srv_stats	*stats;
 };
 
-struct rtrs_srv {
+struct rtrs_srv_sess {
 	struct list_head	paths_list;
 	int			paths_up;
 	struct mutex		paths_ev_mutex;

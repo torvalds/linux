@@ -263,7 +263,7 @@ out:
 	kfree(srv_sess);
 }
 
-static int create_sess(struct rtrs_srv *rtrs)
+static int create_sess(struct rtrs_srv_sess *rtrs)
 {
 	struct rnbd_srv_session *srv_sess;
 	char pathname[NAME_MAX];
@@ -305,7 +305,7 @@ static int create_sess(struct rtrs_srv *rtrs)
 	return 0;
 }
 
-static int rnbd_srv_link_ev(struct rtrs_srv *rtrs,
+static int rnbd_srv_link_ev(struct rtrs_srv_sess *rtrs,
 			     enum rtrs_srv_link_ev ev, void *priv)
 {
 	struct rnbd_srv_session *srv_sess = priv;

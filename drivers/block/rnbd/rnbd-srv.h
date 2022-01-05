@@ -20,7 +20,7 @@
 struct rnbd_srv_session {
 	/* Entry inside global sess_list */
 	struct list_head        list;
-	struct rtrs_srv		*rtrs;
+	struct rtrs_srv_sess	*rtrs;
 	char			sessname[NAME_MAX];
 	int			queue_depth;
 	struct bio_set		sess_bio_set;

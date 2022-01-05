@@ -154,7 +154,7 @@ static const struct attribute_group rtrs_srv_stats_attr_group = {
 
 static int rtrs_srv_create_once_sysfs_root_folders(struct rtrs_srv_path *srv_path)
 {
-	struct rtrs_srv *srv = srv_path->srv;
+	struct rtrs_srv_sess *srv = srv_path->srv;
 	int err = 0;
 
 	mutex_lock(&srv->paths_mutex);
@@ -199,7 +199,7 @@ unlock:
 static void
 rtrs_srv_destroy_once_sysfs_root_folders(struct rtrs_srv_path *srv_path)
 {
-	struct rtrs_srv *srv = srv_path->srv;
+	struct rtrs_srv_sess *srv = srv_path->srv;
 
 	mutex_lock(&srv->paths_mutex);
 	if (!--srv->dev_ref) {
@@ -258,7 +258,7 @@ err:
 
 int rtrs_srv_create_path_files(struct rtrs_srv_path *srv_path)
 {
-	struct rtrs_srv *srv = srv_path->srv;
+	struct rtrs_srv_sess *srv = srv_path->srv;
 	struct rtrs_path *s = &srv_path->s;
 	char str[NAME_MAX];
 	int err;

@@ -15,7 +15,7 @@
 struct rtrs_permit;
 struct rtrs_clt;
 struct rtrs_srv_ctx;
-struct rtrs_srv;
+struct rtrs_srv_sess;
 struct rtrs_srv_op;
 
 /*
@@ -163,7 +163,7 @@ struct rtrs_srv_ops {
 	 *	@priv:		Private data from user if previously set with
 	 *			rtrs_srv_set_sess_priv()
 	 */
-	int (*link_ev)(struct rtrs_srv *sess, enum rtrs_srv_link_ev ev,
+	int (*link_ev)(struct rtrs_srv_sess *sess, enum rtrs_srv_link_ev ev,
 		       void *priv);
 };
 
@@ -173,12 +173,12 @@ void rtrs_srv_close(struct rtrs_srv_ctx *ctx);
 
 bool rtrs_srv_resp_rdma(struct rtrs_srv_op *id, int errno);
 
-void rtrs_srv_set_sess_priv(struct rtrs_srv *sess, void *priv);
+void rtrs_srv_set_sess_priv(struct rtrs_srv_sess *sess, void *priv);
 
-int rtrs_srv_get_path_name(struct rtrs_srv *sess, char *pathname,
+int rtrs_srv_get_path_name(struct rtrs_srv_sess *sess, char *pathname,
 			   size_t len);
 
-int rtrs_srv_get_queue_depth(struct rtrs_srv *sess);
+int rtrs_srv_get_queue_depth(struct rtrs_srv_sess *sess);
 
 int rtrs_addr_to_sockaddr(const char *str, size_t len, u16 port,
 			  struct rtrs_addr *addr);
