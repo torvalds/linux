@@ -246,6 +246,10 @@ struct dsa_port {
 	struct dsa_switch_tree *dst;
 	struct sk_buff *(*rcv)(struct sk_buff *skb, struct net_device *dev);
 
+	struct dsa_switch	*ds;
+
+	unsigned int		index;
+
 	enum {
 		DSA_PORT_TYPE_UNUSED = 0,
 		DSA_PORT_TYPE_CPU,
@@ -253,8 +257,6 @@ struct dsa_port {
 		DSA_PORT_TYPE_USER,
 	} type;
 
-	struct dsa_switch	*ds;
-	unsigned int		index;
 	const char		*name;
 	struct dsa_port		*cpu_dp;
 	u8			mac[ETH_ALEN];
