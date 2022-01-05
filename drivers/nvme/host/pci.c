@@ -999,30 +999,30 @@ static bool nvme_prep_rq_batch(struct nvme_queue *nvmeq, struct request *req)
 
 static void nvme_queue_rqs(struct request **rqlist)
 {
-	struct request *req = rq_list_peek(rqlist), *prev = NULL;
+	struct request *req, *next, *prev = NULL;
 	struct request *requeue_list = NULL;
 
-	do {
+	rq_list_for_each_safe(rqlist, req, next) {
 		struct nvme_queue *nvmeq = req->mq_hctx->driver_data;
 
 		if (!nvme_prep_rq_batch(nvmeq, req)) {
 			/* detach 'req' and add to remainder list */
-			if (prev)
-				prev->rq_next = req->rq_next;
-			rq_list_add(&requeue_list, req);
-		} else {
-			prev = req;
+			rq_list_move(rqlist, &requeue_list, req, prev);
+
+			req = prev;
+			if (!req)
+				continue;
 		}
 
-		req = rq_list_next(req);
-		if (!req || (prev && req->mq_hctx != prev->mq_hctx)) {
+		if (!next || req->mq_hctx != next->mq_hctx) {
 			/* detach rest of list, and submit */
-			if (prev)
-				prev->rq_next = NULL;
+			req->rq_next = NULL;
 			nvme_submit_cmds(nvmeq, rqlist);
-			*rqlist = req;
-		}
-	} while (req);
+			*rqlist = next;
+			prev = NULL;
+		} else
+			prev = req;
+	}
 
 	*rqlist = requeue_list;
 }
