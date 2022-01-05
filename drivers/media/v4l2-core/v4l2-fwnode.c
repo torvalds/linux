@@ -207,13 +207,11 @@ static int v4l2_fwnode_endpoint_parse_csi2_bus(struct fwnode_handle *fwnode,
 	if (fwnode_property_present(fwnode, "clock-noncontinuous")) {
 		flags |= V4L2_MBUS_CSI2_NONCONTINUOUS_CLOCK;
 		pr_debug("non-continuous clock\n");
-	} else {
-		flags |= V4L2_MBUS_CSI2_CONTINUOUS_CLOCK;
 	}
 
 	if (bus_type == V4L2_MBUS_CSI2_DPHY ||
-	    bus_type == V4L2_MBUS_CSI2_CPHY || lanes_used ||
-	    have_clk_lane || (flags & ~V4L2_MBUS_CSI2_CONTINUOUS_CLOCK)) {
+	    bus_type == V4L2_MBUS_CSI2_CPHY ||
+	    lanes_used || have_clk_lane || flags) {
 		/* Only D-PHY has a clock lane. */
 		unsigned int dfl_data_lane_index =
 			bus_type == V4L2_MBUS_CSI2_DPHY;
