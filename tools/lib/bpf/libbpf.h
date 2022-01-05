@@ -677,7 +677,8 @@ bpf_object__find_map_fd_by_name(const struct bpf_object *obj, const char *name);
  * Get bpf_map through the offset of corresponding struct bpf_map_def
  * in the BPF object file.
  */
-LIBBPF_API struct bpf_map *
+LIBBPF_API LIBBPF_DEPRECATED_SINCE(0, 8, "use bpf_object__find_map_by_name() instead")
+struct bpf_map *
 bpf_object__find_map_by_offset(struct bpf_object *obj, size_t offset);
 
 LIBBPF_API LIBBPF_DEPRECATED_SINCE(0, 7, "use bpf_object__next_map() instead")
