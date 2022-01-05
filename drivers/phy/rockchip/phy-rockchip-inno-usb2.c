@@ -2484,7 +2484,7 @@ static int rk3588_usb2phy_tuning(struct rockchip_usb2phy *rphy)
 
 		/* Pullup iddig pin for USB3_0 OTG mode */
 		ret |= regmap_write(rphy->grf, 0x0010,
-				    GENMASK(16, 16) | 0x0001);
+				    GENMASK(17, 16) | 0x0003);
 	} else if (rphy->phy_cfg->reg == 0x4000) {
 		/*
 		 * Set USB2 PHY1 suspend configuration for USB3_1
@@ -2505,7 +2505,7 @@ static int rk3588_usb2phy_tuning(struct rockchip_usb2phy *rphy)
 
 		/* Pullup iddig pin for USB3_1 OTG mode */
 		ret |= regmap_write(rphy->grf, 0x0010,
-				    GENMASK(16, 16) | 0x0001);
+				    GENMASK(17, 16) | 0x0003);
 	} else if (rphy->phy_cfg->reg == 0x8000) {
 		/*
 		 * Set USB2 PHY2 suspend configuration for USB2_0
