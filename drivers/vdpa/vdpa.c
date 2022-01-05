@@ -514,6 +514,16 @@ static int vdpa_mgmtdev_fill(const struct vdpa_mgmt_dev *mdev, struct sk_buff *m
 		err = -EMSGSIZE;
 		goto msg_err;
 	}
+	if (nla_put_u32(msg, VDPA_ATTR_DEV_MGMTDEV_MAX_VQS,
+			mdev->max_supported_vqs)) {
+		err = -EMSGSIZE;
+		goto msg_err;
+	}
+	if (nla_put_u64_64bit(msg, VDPA_ATTR_DEV_SUPPORTED_FEATURES,
+			      mdev->supported_features, VDPA_ATTR_PAD)) {
+		err = -EMSGSIZE;
+		goto msg_err;
+	}
 
 	genlmsg_end(msg, hdr);
 	return 0;

@@ -460,6 +460,8 @@ struct vdpa_mgmt_dev {
 	const struct virtio_device_id *id_table;
 	u64 config_attr_mask;
 	struct list_head list;
+	u64 supported_features;
+	u32 max_supported_vqs;
 };
 
 int vdpa_mgmtdev_register(struct vdpa_mgmt_dev *mdev);

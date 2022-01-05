@@ -44,6 +44,8 @@ enum vdpa_attr {
 	VDPA_ATTR_DEV_NET_CFG_MTU,		/* u16 */
 
 	VDPA_ATTR_DEV_NEGOTIATED_FEATURES,	/* u64 */
+	VDPA_ATTR_DEV_MGMTDEV_MAX_VQS,		/* u32 */
+	VDPA_ATTR_DEV_SUPPORTED_FEATURES,	/* u64 */
 	/* new attributes must be added above here */
 	VDPA_ATTR_MAX,
 };
