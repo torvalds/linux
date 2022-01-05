@@ -885,6 +885,8 @@ void __noreturn make_task_dead(int signr)
 	if (unlikely(tsk->flags & PF_EXITING)) {
 		pr_alert("Fixing recursive fault but reboot is needed!\n");
 		futex_exit_recursive(tsk);
+		tsk->exit_state = EXIT_DEAD;
+		refcount_inc(&tsk->rcu_users);
 		do_task_dead();
 	}
 
