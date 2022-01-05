@@ -1878,7 +1878,7 @@ static u64 mlx_to_vritio_features(u16 dev_features)
 	return result;
 }
 
-static u64 mlx5_vdpa_get_features(struct vdpa_device *vdev)
+static u64 mlx5_vdpa_get_device_features(struct vdpa_device *vdev)
 {
 	struct mlx5_vdpa_dev *mvdev = to_mvdev(vdev);
 	struct mlx5_vdpa_net *ndev = to_mlx5_vdpa_ndev(mvdev);
@@ -1971,7 +1971,7 @@ static void update_cvq_info(struct mlx5_vdpa_dev *mvdev)
 	}
 }
 
-static int mlx5_vdpa_set_features(struct vdpa_device *vdev, u64 features)
+static int mlx5_vdpa_set_driver_features(struct vdpa_device *vdev, u64 features)
 {
 	struct mlx5_vdpa_dev *mvdev = to_mvdev(vdev);
 	struct mlx5_vdpa_net *ndev = to_mlx5_vdpa_ndev(mvdev);
@@ -2338,6 +2338,13 @@ static int mlx5_get_vq_irq(struct vdpa_device *vdv, u16 idx)
 	return -EOPNOTSUPP;
 }
 
+static u64 mlx5_vdpa_get_driver_features(struct vdpa_device *vdev)
+{
+	struct mlx5_vdpa_dev *mvdev = to_mvdev(vdev);
+
+	return mvdev->actual_features;
+}
+
 static const struct vdpa_config_ops mlx5_vdpa_ops = {
 	.set_vq_address = mlx5_vdpa_set_vq_address,
 	.set_vq_num = mlx5_vdpa_set_vq_num,
@@ -2350,8 +2357,9 @@ static const struct vdpa_config_ops mlx5_vdpa_ops = {
 	.get_vq_notification = mlx5_get_vq_notification,
 	.get_vq_irq = mlx5_get_vq_irq,
 	.get_vq_align = mlx5_vdpa_get_vq_align,
-	.get_features = mlx5_vdpa_get_features,
-	.set_features = mlx5_vdpa_set_features,
+	.get_device_features = mlx5_vdpa_get_device_features,
+	.set_driver_features = mlx5_vdpa_set_driver_features,
+	.get_driver_features = mlx5_vdpa_get_driver_features,
 	.set_config_cb = mlx5_vdpa_set_config_cb,
 	.get_vq_num_max = mlx5_vdpa_get_vq_num_max,
 	.get_device_id = mlx5_vdpa_get_device_id,

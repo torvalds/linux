@@ -169,7 +169,7 @@ static struct ifcvf_hw *vdpa_to_vf(struct vdpa_device *vdpa_dev)
 	return &adapter->vf;
 }
 
-static u64 ifcvf_vdpa_get_features(struct vdpa_device *vdpa_dev)
+static u64 ifcvf_vdpa_get_device_features(struct vdpa_device *vdpa_dev)
 {
 	struct ifcvf_adapter *adapter = vdpa_to_adapter(vdpa_dev);
 	struct ifcvf_hw *vf = vdpa_to_vf(vdpa_dev);
@@ -187,7 +187,7 @@ static u64 ifcvf_vdpa_get_features(struct vdpa_device *vdpa_dev)
 	return features;
 }
 
-static int ifcvf_vdpa_set_features(struct vdpa_device *vdpa_dev, u64 features)
+static int ifcvf_vdpa_set_driver_features(struct vdpa_device *vdpa_dev, u64 features)
 {
 	struct ifcvf_hw *vf = vdpa_to_vf(vdpa_dev);
 	int ret;
@@ -199,6 +199,13 @@ static int ifcvf_vdpa_set_features(struct vdpa_device *vdpa_dev, u64 features)
 	vf->req_features = features;
 
 	return 0;
+}
+
+static u64 ifcvf_vdpa_get_driver_features(struct vdpa_device *vdpa_dev)
+{
+	struct ifcvf_hw *vf = vdpa_to_vf(vdpa_dev);
+
+	return vf->req_features;
 }
 
 static u8 ifcvf_vdpa_get_status(struct vdpa_device *vdpa_dev)
@@ -426,8 +433,9 @@ static struct vdpa_notification_area ifcvf_get_vq_notification(struct vdpa_devic
  * implemented set_map()/dma_map()/dma_unmap()
  */
 static const struct vdpa_config_ops ifc_vdpa_ops = {
-	.get_features	= ifcvf_vdpa_get_features,
-	.set_features	= ifcvf_vdpa_set_features,
+	.get_device_features = ifcvf_vdpa_get_device_features,
+	.set_driver_features = ifcvf_vdpa_set_driver_features,
+	.get_driver_features = ifcvf_vdpa_get_driver_features,
 	.get_status	= ifcvf_vdpa_get_status,
 	.set_status	= ifcvf_vdpa_set_status,
 	.reset		= ifcvf_vdpa_reset,

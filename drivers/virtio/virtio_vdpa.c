@@ -308,7 +308,7 @@ static u64 virtio_vdpa_get_features(struct virtio_device *vdev)
 	struct vdpa_device *vdpa = vd_get_vdpa(vdev);
 	const struct vdpa_config_ops *ops = vdpa->config;
 
-	return ops->get_features(vdpa);
+	return ops->get_device_features(vdpa);
 }
 
 static int virtio_vdpa_finalize_features(struct virtio_device *vdev)

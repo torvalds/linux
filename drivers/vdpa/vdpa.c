@@ -808,7 +808,7 @@ static int vdpa_dev_net_config_fill(struct vdpa_device *vdev, struct sk_buff *ms
 	if (nla_put_u16(msg, VDPA_ATTR_DEV_NET_CFG_MTU, val_u16))
 		return -EMSGSIZE;
 
-	features = vdev->config->get_features(vdev);
+	features = vdev->config->get_driver_features(vdev);
 
 	return vdpa_dev_net_mq_config_fill(vdev, msg, features, &config);
 }

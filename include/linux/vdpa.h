@@ -171,14 +171,17 @@ struct vdpa_map_file {
  *				for the device
  *				@vdev: vdpa device
  *				Returns virtqueue algin requirement
- * @get_features:		Get virtio features supported by the device
+ * @get_device_features:	Get virtio features supported by the device
  *				@vdev: vdpa device
  *				Returns the virtio features support by the
  *				device
- * @set_features:		Set virtio features supported by the driver
+ * @set_driver_features:	Set virtio features supported by the driver
  *				@vdev: vdpa device
  *				@features: feature support by the driver
  *				Returns integer: success (0) or error (< 0)
+ * @get_driver_features:	Get the virtio driver features in action
+ *				@vdev: vdpa device
+ *				Returns the virtio features accepted
  * @set_config_cb:		Set the config interrupt callback
  *				@vdev: vdpa device
  *				@cb: virtio-vdev interrupt callback structure
@@ -278,8 +281,9 @@ struct vdpa_config_ops {
 
 	/* Device ops */
 	u32 (*get_vq_align)(struct vdpa_device *vdev);
-	u64 (*get_features)(struct vdpa_device *vdev);
-	int (*set_features)(struct vdpa_device *vdev, u64 features);
+	u64 (*get_device_features)(struct vdpa_device *vdev);
+	int (*set_driver_features)(struct vdpa_device *vdev, u64 features);
+	u64 (*get_driver_features)(struct vdpa_device *vdev);
 	void (*set_config_cb)(struct vdpa_device *vdev,
 			      struct vdpa_callback *cb);
 	u16 (*get_vq_num_max)(struct vdpa_device *vdev);
@@ -397,7 +401,7 @@ static inline int vdpa_set_features(struct vdpa_device *vdev, u64 features)
 	const struct vdpa_config_ops *ops = vdev->config;
 
 	vdev->features_valid = true;
-	return ops->set_features(vdev, features);
+	return ops->set_driver_features(vdev, features);
 }
 
 void vdpa_get_config(struct vdpa_device *vdev, unsigned int offset,
