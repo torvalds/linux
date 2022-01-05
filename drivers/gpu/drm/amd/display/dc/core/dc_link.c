@@ -4663,8 +4663,10 @@ bool dc_link_should_enable_fec(const struct dc_link *link)
 			link->local_sink->edid_caps.panel_patch.disable_fec)
 		force_disable = true;
 	else if (link->connector_signal == SIGNAL_TYPE_EDP
-			&& link->dpcd_caps.dsc_caps.dsc_basic_caps.fields.
-			 dsc_support.DSC_SUPPORT == false)
+			&& (link->dpcd_caps.dsc_caps.dsc_basic_caps.fields.
+			 dsc_support.DSC_SUPPORT == false
+				|| link->dc->debug.disable_dsc_edp
+				|| !link->dc->caps.edp_dsc_support))
 		force_disable = true;
 
 	return !force_disable && dc_link_is_fec_supported(link);
