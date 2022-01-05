@@ -405,36 +405,33 @@ static int read_counter_cpu(struct evsel *counter, struct timespec *rs, int cpu)
 
 static int read_affinity_counters(struct timespec *rs)
 {
-	struct evsel *counter;
-	struct affinity affinity;
-	int i, ncpus, cpu;
+	struct evlist_cpu_iterator evlist_cpu_itr;
+	struct affinity saved_affinity, *affinity;
 
 	if (all_counters_use_bpf)
 		return 0;
 
-	if (affinity__setup(&affinity) < 0)
-		return -1;
-
-	ncpus = perf_cpu_map__nr(evsel_list->core.all_cpus);
 	if (!target__has_cpu(&target) || target__has_per_thread(&target))
-		ncpus = 1;
-	evlist__for_each_cpu(evsel_list, i, cpu) {
-		if (i >= ncpus)
-			break;
-		affinity__set(&affinity, cpu);
+		affinity = NULL;
+	else if (affinity__setup(&saved_affinity) < 0)
+		return -1;
+	else
+		affinity = &saved_affinity;
 
-		evlist__for_each_entry(evsel_list, counter) {
-			if (evsel__cpu_iter_skip(counter, cpu))
-				continue;
-			if (evsel__is_bpf(counter))
-				continue;
-			if (!counter->err) {
-				counter->err = read_counter_cpu(counter, rs,
-								counter->cpu_iter - 1);
-			}
+	evlist__for_each_cpu(evlist_cpu_itr, evsel_list, affinity) {
+		struct evsel *counter = evlist_cpu_itr.evsel;
+
+		if (evsel__is_bpf(counter))
+			continue;
+
+		if (!counter->err) {
+			counter->err = read_counter_cpu(counter, rs,
+							evlist_cpu_itr.cpu_map_idx);
 		}
 	}
-	affinity__cleanup(&affinity);
+	if (affinity)
+		affinity__cleanup(&saved_affinity);
+
 	return 0;
 }
 
@@ -788,8 +785,9 @@ static int __run_perf_stat(int argc, const char **argv, int run_idx)
 	int status = 0;
 	const bool forks = (argc > 0);
 	bool is_pipe = STAT_RECORD ? perf_stat.data.is_pipe : false;
+	struct evlist_cpu_iterator evlist_cpu_itr;
 	struct affinity affinity;
-	int i, cpu, err;
+	int err;
 	bool second_pass = false;
 
 	if (forks) {
@@ -813,56 +811,53 @@ static int __run_perf_stat(int argc, const char **argv, int run_idx)
 			all_counters_use_bpf = false;
 	}
 
-	evlist__for_each_cpu (evsel_list, i, cpu) {
+	evlist__for_each_cpu(evlist_cpu_itr, evsel_list, &affinity) {
+		counter = evlist_cpu_itr.evsel;
+
 		/*
 		 * bperf calls evsel__open_per_cpu() in bperf__load(), so
 		 * no need to call it again here.
 		 */
 		if (target.use_bpf)
 			break;
-		affinity__set(&affinity, cpu);
 
-		evlist__for_each_entry(evsel_list, counter) {
-			if (evsel__cpu_iter_skip(counter, cpu))
-				continue;
-			if (counter->reset_group || counter->errored)
-				continue;
-			if (evsel__is_bpf(counter))
-				continue;
+		if (counter->reset_group || counter->errored)
+			continue;
+		if (evsel__is_bpf(counter))
+			continue;
 try_again:
-			if (create_perf_stat_counter(counter, &stat_config, &target,
-						     counter->cpu_iter - 1) < 0) {
+		if (create_perf_stat_counter(counter, &stat_config, &target,
+					     evlist_cpu_itr.cpu_map_idx) < 0) {
 
-				/*
-				 * Weak group failed. We cannot just undo this here
-				 * because earlier CPUs might be in group mode, and the kernel
-				 * doesn't support mixing group and non group reads. Defer
-				 * it to later.
-				 * Don't close here because we're in the wrong affinity.
-				 */
-				if ((errno == EINVAL || errno == EBADF) &&
-				    evsel__leader(counter) != counter &&
-				    counter->weak_group) {
-					evlist__reset_weak_group(evsel_list, counter, false);
-					assert(counter->reset_group);
-					second_pass = true;
-					continue;
-				}
-
-				switch (stat_handle_error(counter)) {
-				case COUNTER_FATAL:
-					return -1;
-				case COUNTER_RETRY:
-					goto try_again;
-				case COUNTER_SKIP:
-					continue;
-				default:
-					break;
-				}
-
+			/*
+			 * Weak group failed. We cannot just undo this here
+			 * because earlier CPUs might be in group mode, and the kernel
+			 * doesn't support mixing group and non group reads. Defer
+			 * it to later.
+			 * Don't close here because we're in the wrong affinity.
+			 */
+			if ((errno == EINVAL || errno == EBADF) &&
+				evsel__leader(counter) != counter &&
+				counter->weak_group) {
+				evlist__reset_weak_group(evsel_list, counter, false);
+				assert(counter->reset_group);
+				second_pass = true;
+				continue;
 			}
-			counter->supported = true;
+
+			switch (stat_handle_error(counter)) {
+			case COUNTER_FATAL:
+				return -1;
+			case COUNTER_RETRY:
+				goto try_again;
+			case COUNTER_SKIP:
+				continue;
+			default:
+				break;
+			}
+
 		}
+		counter->supported = true;
 	}
 
 	if (second_pass) {
@@ -871,42 +866,40 @@ try_again:
 		 * and also close errored counters.
 		 */
 
-		evlist__for_each_cpu(evsel_list, i, cpu) {
-			affinity__set(&affinity, cpu);
-			/* First close errored or weak retry */
-			evlist__for_each_entry(evsel_list, counter) {
-				if (!counter->reset_group && !counter->errored)
-					continue;
-				if (evsel__cpu_iter_skip_no_inc(counter, cpu))
-					continue;
-				perf_evsel__close_cpu(&counter->core, counter->cpu_iter);
-			}
-			/* Now reopen weak */
-			evlist__for_each_entry(evsel_list, counter) {
-				if (!counter->reset_group && !counter->errored)
-					continue;
-				if (evsel__cpu_iter_skip(counter, cpu))
-					continue;
-				if (!counter->reset_group)
-					continue;
-try_again_reset:
-				pr_debug2("reopening weak %s\n", evsel__name(counter));
-				if (create_perf_stat_counter(counter, &stat_config, &target,
-							     counter->cpu_iter - 1) < 0) {
+		/* First close errored or weak retry */
+		evlist__for_each_cpu(evlist_cpu_itr, evsel_list, &affinity) {
+			counter = evlist_cpu_itr.evsel;
 
-					switch (stat_handle_error(counter)) {
-					case COUNTER_FATAL:
-						return -1;
-					case COUNTER_RETRY:
-						goto try_again_reset;
-					case COUNTER_SKIP:
-						continue;
-					default:
-						break;
-					}
+			if (!counter->reset_group && !counter->errored)
+				continue;
+
+			perf_evsel__close_cpu(&counter->core, evlist_cpu_itr.cpu_map_idx);
+		}
+		/* Now reopen weak */
+		evlist__for_each_cpu(evlist_cpu_itr, evsel_list, &affinity) {
+			counter = evlist_cpu_itr.evsel;
+
+			if (!counter->reset_group && !counter->errored)
+				continue;
+			if (!counter->reset_group)
+				continue;
+try_again_reset:
+			pr_debug2("reopening weak %s\n", evsel__name(counter));
+			if (create_perf_stat_counter(counter, &stat_config, &target,
+						     evlist_cpu_itr.cpu_map_idx) < 0) {
+
+				switch (stat_handle_error(counter)) {
+				case COUNTER_FATAL:
+					return -1;
+				case COUNTER_RETRY:
+					goto try_again_reset;
+				case COUNTER_SKIP:
+					continue;
+				default:
+					break;
 				}
-				counter->supported = true;
 			}
+			counter->supported = true;
 		}
 	}
 	affinity__cleanup(&affinity);

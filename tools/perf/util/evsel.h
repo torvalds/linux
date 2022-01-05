@@ -121,7 +121,6 @@ struct evsel {
 	bool			errored;
 	struct hashmap		*per_pkg_mask;
 	int			err;
-	int			cpu_iter;
 	struct {
 		evsel__sb_cb_t	*cb;
 		void		*data;
