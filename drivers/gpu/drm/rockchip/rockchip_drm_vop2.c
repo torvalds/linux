@@ -1273,6 +1273,26 @@ static int32_t vop2_pending_done_bits(struct vop2_video_port *vp)
 	return done_bits;
 }
 
+static inline void rk3588_vop2_dsc_cfg_done(struct drm_crtc *crtc)
+{
+	struct vop2_video_port *vp = to_vop2_video_port(crtc);
+	struct vop2 *vop2 = vp->vop2;
+	struct rockchip_crtc_state *vcstate = to_rockchip_crtc_state(crtc->state);
+	struct vop2_dsc *dsc = &vop2->dscs[vcstate->dsc_id];
+
+	if (vcstate->output_flags & ROCKCHIP_OUTPUT_DUAL_CHANNEL_LEFT_RIGHT_MODE) {
+		dsc = &vop2->dscs[0];
+		if (vcstate->dsc_enable)
+			VOP_MODULE_SET(vop2, dsc, dsc_cfg_done, 1);
+		dsc = &vop2->dscs[1];
+		if (vcstate->dsc_enable)
+			VOP_MODULE_SET(vop2, dsc, dsc_cfg_done, 1);
+	} else {
+		if (vcstate->dsc_enable)
+			VOP_MODULE_SET(vop2, dsc, dsc_cfg_done, 1);
+	}
+}
+
 static inline void rk3568_vop2_cfg_done(struct drm_crtc *crtc)
 {
 	struct vop2_video_port *vp = to_vop2_video_port(crtc);
@@ -1326,23 +1346,11 @@ static inline void rk3588_vop2_cfg_done(struct drm_crtc *crtc)
 	struct rockchip_crtc_state *vcstate = to_rockchip_crtc_state(crtc->state);
 	const struct vop2_video_port_data *vp_data = &vp->vop2->data->vp[vp->id];
 	struct vop2 *vop2 = vp->vop2;
-	struct vop2_dsc *dsc = &vop2->dscs[vcstate->dsc_id];
 	uint32_t val;
 
 	val = RK3568_VOP2_GLB_CFG_DONE_EN | BIT(vp->id) | (BIT(vp->id) << 16);
 	if (vcstate->splice_mode)
 		val |= BIT(vp_data->splice_vp_id) | (BIT(vp_data->splice_vp_id) << 16);
-	if (vcstate->output_flags & ROCKCHIP_OUTPUT_DUAL_CHANNEL_LEFT_RIGHT_MODE) {
-		dsc = &vop2->dscs[0];
-		if (vcstate->dsc_enable)
-			VOP_MODULE_SET(vop2, dsc, dsc_cfg_done, 1);
-		dsc = &vop2->dscs[1];
-		if (vcstate->dsc_enable)
-			VOP_MODULE_SET(vop2, dsc, dsc_cfg_done, 1);
-	} else {
-		if (vcstate->dsc_enable)
-			VOP_MODULE_SET(vop2, dsc, dsc_cfg_done, 1);
-	}
 
 	vop2_writel(vop2, 0, val);
 }
@@ -3306,7 +3314,6 @@ static void vop2_crtc_disable_dsc(struct vop2 *vop2, u8 dsc_id)
 	VOP_MODULE_SET(vop2, dsc, dsc_mer, 1);
 	VOP_MODULE_SET(vop2, dsc, dsc_interface_mode, 0);
 	VOP_MODULE_SET(vop2, dsc, dsc_en, 0);
-	VOP_MODULE_SET(vop2, dsc, dsc_cfg_done, 0);
 	VOP_MODULE_SET(vop2, dsc, rst_deassert, 0);
 }
 
@@ -6166,6 +6173,8 @@ static void vop2_crtc_atomic_enable(struct drm_crtc *crtc, struct drm_crtc_state
 
 	if (!vp->loader_protect)
 		vop2_clk_reset(vp->dclk_rst);
+	if (vcstate->dsc_enable)
+		rk3588_vop2_dsc_cfg_done(crtc);
 
 	drm_crtc_vblank_on(crtc);
 out:
