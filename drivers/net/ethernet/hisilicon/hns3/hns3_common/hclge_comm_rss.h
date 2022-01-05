@@ -6,6 +6,7 @@
 #include <linux/types.h>
 
 #include "hnae3.h"
+#include "hclge_comm_cmd.h"
 
 #define HCLGE_COMM_RSS_HASH_ALGO_TOEPLITZ	0
 #define HCLGE_COMM_RSS_HASH_ALGO_SIMPLE		1
@@ -34,6 +35,20 @@ struct hclge_comm_rss_tuple_cfg {
 };
 
 #define HCLGE_COMM_RSS_KEY_SIZE		40
+#define HCLGE_COMM_RSS_CFG_TBL_SIZE	16
+#define HCLGE_COMM_RSS_CFG_TBL_BW_H	2U
+#define HCLGE_COMM_RSS_CFG_TBL_BW_L	8U
+#define HCLGE_COMM_RSS_CFG_TBL_SIZE_H	4
+#define HCLGE_COMM_RSS_SET_BITMAP_MSK	GENMASK(15, 0)
+#define HCLGE_COMM_RSS_HASH_ALGO_MASK	GENMASK(3, 0)
+#define HCLGE_COMM_RSS_HASH_KEY_OFFSET_B	4
+
+#define HCLGE_COMM_RSS_HASH_KEY_NUM	16
+struct hclge_comm_rss_config_cmd {
+	u8 hash_config;
+	u8 rsv[7];
+	u8 hash_key[HCLGE_COMM_RSS_HASH_KEY_NUM];
+};
 
 struct hclge_comm_rss_cfg {
 	u8 rss_hash_key[HCLGE_COMM_RSS_KEY_SIZE]; /* user configured hash keys */
@@ -44,6 +59,25 @@ struct hclge_comm_rss_cfg {
 
 	struct hclge_comm_rss_tuple_cfg rss_tuple_sets;
 	u32 rss_size;
+};
+
+struct hclge_comm_rss_input_tuple_cmd {
+	u8 ipv4_tcp_en;
+	u8 ipv4_udp_en;
+	u8 ipv4_sctp_en;
+	u8 ipv4_fragment_en;
+	u8 ipv6_tcp_en;
+	u8 ipv6_udp_en;
+	u8 ipv6_sctp_en;
+	u8 ipv6_fragment_en;
+	u8 rsv[16];
+};
+
+struct hclge_comm_rss_ind_tbl_cmd {
+	__le16 start_table_index;
+	__le16 rss_set_bitmap;
+	u8 rss_qid_h[HCLGE_COMM_RSS_CFG_TBL_SIZE_H];
+	u8 rss_qid_l[HCLGE_COMM_RSS_CFG_TBL_SIZE];
 };
 
 u32 hclge_comm_get_rss_key_size(struct hnae3_handle *handle);
@@ -58,8 +92,20 @@ int hclge_comm_parse_rss_hfunc(struct hclge_comm_rss_cfg *rss_cfg,
 void hclge_comm_get_rss_hash_info(struct hclge_comm_rss_cfg *rss_cfg, u8 *key,
 				  u8 *hfunc);
 void hclge_comm_get_rss_indir_tbl(struct hclge_comm_rss_cfg *rss_cfg,
-				  u32 *indir, u16 rss_ind_tbl_size);
+				  u32 *indir, __le16 rss_ind_tbl_size);
+int hclge_comm_set_rss_algo_key(struct hclge_comm_hw *hw, const u8 hfunc,
+				const u8 *key);
 u8 hclge_comm_get_rss_hash_bits(struct ethtool_rxnfc *nfc);
+int hclge_comm_init_rss_tuple_cmd(struct hclge_comm_rss_cfg *rss_cfg,
+				  struct ethtool_rxnfc *nfc,
+				  struct hnae3_ae_dev *ae_dev,
+				  struct hclge_comm_rss_input_tuple_cmd *req);
 u64 hclge_comm_convert_rss_tuple(u8 tuple_sets);
+int hclge_comm_set_rss_input_tuple(struct hnae3_handle *nic,
+				   struct hclge_comm_hw *hw,  bool is_pf,
+				   struct hclge_comm_rss_cfg *rss_cfg);
+int hclge_comm_set_rss_indir_table(struct hnae3_ae_dev *ae_dev,
+				   struct hclge_comm_hw *hw, const u16 *indir);
+
 
 #endif
