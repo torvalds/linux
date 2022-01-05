@@ -22,6 +22,8 @@
 static const struct i2c_device_id cs35l41_id_i2c[] = {
 	{ "cs35l40", 0 },
 	{ "cs35l41", 0 },
+	{ "cs35l51", 0 },
+	{ "cs35l53", 0 },
 	{}
 };
 
