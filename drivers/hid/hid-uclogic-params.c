@@ -66,7 +66,7 @@ static int uclogic_params_get_str_desc(__u8 **pbuf, struct hid_device *hdev,
 					__u8 idx, size_t len)
 {
 	int rc;
-	struct usb_device *udev = hid_to_usb_dev(hdev);
+	struct usb_device *udev;
 	__u8 *buf = NULL;
 
 	/* Check arguments */
@@ -74,6 +74,8 @@ static int uclogic_params_get_str_desc(__u8 **pbuf, struct hid_device *hdev,
 		rc = -EINVAL;
 		goto cleanup;
 	}
+
+	udev = hid_to_usb_dev(hdev);
 
 	buf = kmalloc(len, GFP_KERNEL);
 	if (buf == NULL) {
