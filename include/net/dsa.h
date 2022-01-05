@@ -265,6 +265,10 @@ struct dsa_port {
 
 	u8			stp_state;
 
+	/* Warning: the following bit fields are not atomic, and updating them
+	 * can only be done from code paths where concurrency is not possible
+	 * (probe time or under rtnl_lock).
+	 */
 	u8			vlan_filtering:1;
 
 	/* Managed by DSA on user ports and by drivers on CPU and DSA ports */
@@ -333,6 +337,10 @@ struct dsa_switch {
 	struct dsa_switch_tree	*dst;
 	unsigned int		index;
 
+	/* Warning: the following bit fields are not atomic, and updating them
+	 * can only be done from code paths where concurrency is not possible
+	 * (probe time or under rtnl_lock).
+	 */
 	u32			setup:1;
 
 	/* Disallow bridge core from requesting different VLAN awareness
