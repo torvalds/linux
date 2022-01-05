@@ -158,8 +158,14 @@ static inline void xfd_update_state(struct fpstate *fpstate)
 		}
 	}
 }
+
+extern int __xfd_enable_feature(u64 which, struct fpu_guest *guest_fpu);
 #else
 static inline void xfd_update_state(struct fpstate *fpstate) { }
+
+static inline int __xfd_enable_feature(u64 which, struct fpu_guest *guest_fpu) {
+	return -EPERM;
+}
 #endif
 
 /*
