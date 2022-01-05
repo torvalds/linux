@@ -229,7 +229,7 @@ struct rtrs_msg_conn_rsp {
 /**
  * struct rtrs_msg_info_req
  * @type:		@RTRS_MSG_INFO_REQ
- * @sessname:		Session name chosen by client
+ * @pathname:		Path name chosen by client
  */
 struct rtrs_msg_info_req {
 	__le16		type;
