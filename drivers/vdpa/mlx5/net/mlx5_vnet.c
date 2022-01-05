@@ -1259,17 +1259,10 @@ static int create_rqt(struct mlx5_vdpa_net *ndev)
 	MLX5_SET(rqtc, rqtc, list_q_type, MLX5_RQTC_LIST_Q_TYPE_VIRTIO_NET_Q);
 	MLX5_SET(rqtc, rqtc, rqt_max_size, max_rqt);
 	list = MLX5_ADDR_OF(rqtc, rqtc, rq_num[0]);
-	for (i = 0, j = 0; j < max_rqt; j++) {
-		if (!ndev->vqs[j].initialized)
-			continue;
+	for (i = 0, j = 0; i < max_rqt; i++, j += 2)
+		list[i] = cpu_to_be32(ndev->vqs[j % ndev->mvdev.max_vqs].virtq_id);
 
-		if (!vq_is_tx(ndev->vqs[j].index)) {
-			list[i] = cpu_to_be32(ndev->vqs[j].virtq_id);
-			i++;
-		}
-	}
-	MLX5_SET(rqtc, rqtc, rqt_actual_size, i);
-
+	MLX5_SET(rqtc, rqtc, rqt_actual_size, max_rqt);
 	err = mlx5_vdpa_create_rqt(&ndev->mvdev, in, inlen, &ndev->res.rqtn);
 	kfree(in);
 	if (err)
@@ -1290,7 +1283,7 @@ static int modify_rqt(struct mlx5_vdpa_net *ndev, int num)
 	int i, j;
 	int err;
 
-	max_rqt = min_t(int, ndev->cur_num_vqs / 2,
+	max_rqt = min_t(int, roundup_pow_of_two(ndev->cur_num_vqs / 2),
 			1 << MLX5_CAP_GEN(ndev->mvdev.mdev, log_max_rqt_size));
 	if (max_rqt < 1)
 		return -EOPNOTSUPP;
@@ -1306,16 +1299,10 @@ static int modify_rqt(struct mlx5_vdpa_net *ndev, int num)
 	MLX5_SET(rqtc, rqtc, list_q_type, MLX5_RQTC_LIST_Q_TYPE_VIRTIO_NET_Q);
 
 	list = MLX5_ADDR_OF(rqtc, rqtc, rq_num[0]);
-	for (i = 0, j = 0; j < num; j++) {
-		if (!ndev->vqs[j].initialized)
-			continue;
+	for (i = 0, j = 0; i < max_rqt; i++, j += 2)
+		list[i] = cpu_to_be32(ndev->vqs[j % num].virtq_id);
 
-		if (!vq_is_tx(ndev->vqs[j].index)) {
-			list[i] = cpu_to_be32(ndev->vqs[j].virtq_id);
-			i++;
-		}
-	}
-	MLX5_SET(rqtc, rqtc, rqt_actual_size, i);
+	MLX5_SET(rqtc, rqtc, rqt_actual_size, max_rqt);
 	err = mlx5_vdpa_modify_rqt(&ndev->mvdev, in, inlen, ndev->res.rqtn);
 	kfree(in);
 	if (err)
@@ -1578,9 +1565,6 @@ static virtio_net_ctrl_ack handle_ctrl_mq(struct mlx5_vdpa_dev *mvdev, u8 cmd)
 			status = VIRTIO_NET_OK;
 			break;
 		}
-
-		if (newqps & (newqps - 1))
-			break;
 
 		if (!change_num_qps(mvdev, newqps))
 			status = VIRTIO_NET_OK;
