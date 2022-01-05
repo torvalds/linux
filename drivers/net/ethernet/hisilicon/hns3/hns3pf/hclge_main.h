@@ -14,6 +14,7 @@
 #include "hclge_ptp.h"
 #include "hnae3.h"
 #include "hclge_comm_rss.h"
+#include "hclge_comm_tqp_stats.h"
 
 #define HCLGE_MOD_VERSION "1.0"
 #define HCLGE_DRIVER_NAME "hclge"
@@ -268,26 +269,6 @@ struct hclge_hw {
 	struct hclge_comm_hw hw;
 	struct hclge_mac mac;
 	int num_vec;
-};
-
-/* TQP stats */
-struct hlcge_tqp_stats {
-	/* query_tqp_tx_queue_statistics ,opcode id:  0x0B03 */
-	u64 rcb_tx_ring_pktnum_rcd; /* 32bit */
-	/* query_tqp_rx_queue_statistics ,opcode id:  0x0B13 */
-	u64 rcb_rx_ring_pktnum_rcd; /* 32bit */
-};
-
-struct hclge_tqp {
-	/* copy of device pointer from pci_dev,
-	 * used when perform DMA mapping
-	 */
-	struct device *dev;
-	struct hnae3_queue q;
-	struct hlcge_tqp_stats tqp_stats;
-	u16 index;	/* Global index in a NIC controller */
-
-	bool alloced;
 };
 
 enum hclge_fc_mode {
@@ -894,7 +875,7 @@ struct hclge_dev {
 	bool cur_promisc;
 	int num_alloc_vfs;	/* Actual number of VFs allocated */
 
-	struct hclge_tqp *htqp;
+	struct hclge_comm_tqp *htqp;
 	struct hclge_vport *vport;
 
 	struct dentry *hclge_dbgfs;
@@ -1073,7 +1054,8 @@ int hclge_bind_ring_with_vector(struct hclge_vport *vport,
 
 static inline int hclge_get_queue_id(struct hnae3_queue *queue)
 {
-	struct hclge_tqp *tqp = container_of(queue, struct hclge_tqp, q);
+	struct hclge_comm_tqp *tqp =
+			container_of(queue, struct hclge_comm_tqp, q);
 
 	return tqp->index;
 }
