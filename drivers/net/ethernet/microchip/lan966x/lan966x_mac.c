@@ -68,22 +68,48 @@ static void lan966x_mac_select(struct lan966x *lan966x,
 	lan_wr(mach, lan966x, ANA_MACHDATA);
 }
 
-int lan966x_mac_learn(struct lan966x *lan966x, int port,
-		      const unsigned char mac[ETH_ALEN],
-		      unsigned int vid,
-		      enum macaccess_entry_type type)
+static int __lan966x_mac_learn(struct lan966x *lan966x, int pgid,
+			       bool cpu_copy,
+			       const unsigned char mac[ETH_ALEN],
+			       unsigned int vid,
+			       enum macaccess_entry_type type)
 {
 	lan966x_mac_select(lan966x, mac, vid);
 
 	/* Issue a write command */
 	lan_wr(ANA_MACACCESS_VALID_SET(1) |
 	       ANA_MACACCESS_CHANGE2SW_SET(0) |
-	       ANA_MACACCESS_DEST_IDX_SET(port) |
+	       ANA_MACACCESS_MAC_CPU_COPY_SET(cpu_copy) |
+	       ANA_MACACCESS_DEST_IDX_SET(pgid) |
 	       ANA_MACACCESS_ENTRYTYPE_SET(type) |
 	       ANA_MACACCESS_MAC_TABLE_CMD_SET(MACACCESS_CMD_LEARN),
 	       lan966x, ANA_MACACCESS);
 
 	return lan966x_mac_wait_for_completion(lan966x);
+}
+
+/* The mask of the front ports is encoded inside the mac parameter via a call
+ * to lan966x_mdb_encode_mac().
+ */
+int lan966x_mac_ip_learn(struct lan966x *lan966x,
+			 bool cpu_copy,
+			 const unsigned char mac[ETH_ALEN],
+			 unsigned int vid,
+			 enum macaccess_entry_type type)
+{
+	WARN_ON(type != ENTRYTYPE_MACV4 && type != ENTRYTYPE_MACV6);
+
+	return __lan966x_mac_learn(lan966x, 0, cpu_copy, mac, vid, type);
+}
+
+int lan966x_mac_learn(struct lan966x *lan966x, int port,
+		      const unsigned char mac[ETH_ALEN],
+		      unsigned int vid,
+		      enum macaccess_entry_type type)
+{
+	WARN_ON(type != ENTRYTYPE_NORMAL && type != ENTRYTYPE_LOCKED);
+
+	return __lan966x_mac_learn(lan966x, port, false, mac, vid, type);
 }
 
 int lan966x_mac_forget(struct lan966x *lan966x,

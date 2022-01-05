@@ -30,6 +30,8 @@
 /* Reserved amount for (SRC, PRIO) at index 8*SRC + PRIO */
 #define QSYS_Q_RSRV			95
 
+#define CPU_PORT			8
+
 /* Reserved PGIDs */
 #define PGID_CPU			(PGID_AGGR - 6)
 #define PGID_UC				(PGID_AGGR - 5)
@@ -38,13 +40,15 @@
 #define PGID_MCIPV4			(PGID_AGGR - 2)
 #define PGID_MCIPV6			(PGID_AGGR - 1)
 
+/* Non-reserved PGIDs, used for general purpose */
+#define PGID_GP_START			(CPU_PORT + 1)
+#define PGID_GP_END			PGID_CPU
+
 #define LAN966X_SPEED_NONE		0
 #define LAN966X_SPEED_2500		1
 #define LAN966X_SPEED_1000		1
 #define LAN966X_SPEED_100		2
 #define LAN966X_SPEED_10		3
-
-#define CPU_PORT			8
 
 /* MAC table entry types.
  * ENTRYTYPE_NORMAL is subject to aging.
@@ -105,6 +109,10 @@ struct lan966x {
 	/* worqueue for fdb */
 	struct workqueue_struct *fdb_work;
 	struct list_head fdb_entries;
+
+	/* mdb */
+	struct list_head mdb_entries;
+	struct list_head pgid_entries;
 };
 
 struct lan966x_port_config {
@@ -157,6 +165,11 @@ int lan966x_port_pcs_set(struct lan966x_port *port,
 			 struct lan966x_port_config *config);
 void lan966x_port_init(struct lan966x_port *port);
 
+int lan966x_mac_ip_learn(struct lan966x *lan966x,
+			 bool cpu_copy,
+			 const unsigned char mac[ETH_ALEN],
+			 unsigned int vid,
+			 enum macaccess_entry_type type);
 int lan966x_mac_learn(struct lan966x *lan966x, int port,
 		      const unsigned char mac[ETH_ALEN],
 		      unsigned int vid,
@@ -205,6 +218,15 @@ int lan966x_handle_fdb(struct net_device *dev,
 		       struct net_device *orig_dev,
 		       unsigned long event, const void *ctx,
 		       const struct switchdev_notifier_fdb_info *fdb_info);
+
+void lan966x_mdb_init(struct lan966x *lan966x);
+void lan966x_mdb_deinit(struct lan966x *lan966x);
+int lan966x_handle_port_mdb_add(struct lan966x_port *port,
+				const struct switchdev_obj *obj);
+int lan966x_handle_port_mdb_del(struct lan966x_port *port,
+				const struct switchdev_obj *obj);
+void lan966x_mdb_erase_entries(struct lan966x *lan966x, u16 vid);
+void lan966x_mdb_write_entries(struct lan966x *lan966x, u16 vid);
 
 static inline void __iomem *lan_addr(void __iomem *base[],
 				     int id, int tinst, int tcnt,

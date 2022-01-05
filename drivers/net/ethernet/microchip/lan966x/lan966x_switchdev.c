@@ -438,6 +438,10 @@ static int lan966x_handle_port_obj_add(struct net_device *dev, const void *ctx,
 	case SWITCHDEV_OBJ_ID_PORT_VLAN:
 		err = lan966x_handle_port_vlan_add(port, obj);
 		break;
+	case SWITCHDEV_OBJ_ID_PORT_MDB:
+	case SWITCHDEV_OBJ_ID_HOST_MDB:
+		err = lan966x_handle_port_mdb_add(port, obj);
+		break;
 	default:
 		err = -EOPNOTSUPP;
 		break;
@@ -472,6 +476,10 @@ static int lan966x_handle_port_obj_del(struct net_device *dev, const void *ctx,
 	switch (obj->id) {
 	case SWITCHDEV_OBJ_ID_PORT_VLAN:
 		err = lan966x_handle_port_vlan_del(port, obj);
+		break;
+	case SWITCHDEV_OBJ_ID_PORT_MDB:
+	case SWITCHDEV_OBJ_ID_HOST_MDB:
+		err = lan966x_handle_port_mdb_del(port, obj);
 		break;
 	default:
 		err = -EOPNOTSUPP;
