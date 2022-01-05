@@ -185,7 +185,15 @@ struct cpu_aggr_map *cpu_aggr_map__new(const struct perf_cpu_map *cpus,
 			c->nr++;
 		}
 	}
+	/* Trim. */
+	if (c->nr != cpus->nr) {
+		struct cpu_aggr_map *trimmed_c =
+			realloc(c,
+				sizeof(struct cpu_aggr_map) + sizeof(struct aggr_cpu_id) * c->nr);
 
+		if (trimmed_c)
+			c = trimmed_c;
+	}
 	/* ensure we process id in increasing order */
 	qsort(c->map, c->nr, sizeof(struct aggr_cpu_id), aggr_cpu_id__cmp);
 
