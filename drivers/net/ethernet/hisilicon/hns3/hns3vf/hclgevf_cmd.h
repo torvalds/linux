@@ -98,34 +98,8 @@ struct hclgevf_cfg_gro_status_cmd {
 };
 
 #define HCLGEVF_RSS_DEFAULT_OUTPORT_B	4
-#define HCLGEVF_RSS_HASH_KEY_OFFSET_B	4
-#define HCLGEVF_RSS_HASH_KEY_NUM	16
-struct hclgevf_rss_config_cmd {
-	u8 hash_config;
-	u8 rsv[7];
-	u8 hash_key[HCLGEVF_RSS_HASH_KEY_NUM];
-};
-
-struct hclgevf_rss_input_tuple_cmd {
-	u8 ipv4_tcp_en;
-	u8 ipv4_udp_en;
-	u8 ipv4_sctp_en;
-	u8 ipv4_fragment_en;
-	u8 ipv6_tcp_en;
-	u8 ipv6_udp_en;
-	u8 ipv6_sctp_en;
-	u8 ipv6_fragment_en;
-	u8 rsv[16];
-};
 
 #define HCLGEVF_RSS_CFG_TBL_SIZE	16
-
-struct hclgevf_rss_indirection_table_cmd {
-	__le16 start_table_index;
-	__le16 rss_set_bitmap;
-	u8 rsv[4];
-	u8 rss_result[HCLGEVF_RSS_CFG_TBL_SIZE];
-};
 
 #define HCLGEVF_RSS_TC_OFFSET_S		0
 #define HCLGEVF_RSS_TC_OFFSET_M		GENMASK(10, 0)
