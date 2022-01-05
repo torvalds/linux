@@ -590,9 +590,9 @@ out:
 	return msg->len;
 }
 
-#define VDPA_DEV_NET_ATTRS_MASK ((1 << VDPA_ATTR_DEV_NET_CFG_MACADDR) | \
-				 (1 << VDPA_ATTR_DEV_NET_CFG_MTU) | \
-				 (1 << VDPA_ATTR_DEV_NET_CFG_MAX_VQP))
+#define VDPA_DEV_NET_ATTRS_MASK (BIT_ULL(VDPA_ATTR_DEV_NET_CFG_MACADDR) | \
+				 BIT_ULL(VDPA_ATTR_DEV_NET_CFG_MTU)     | \
+				 BIT_ULL(VDPA_ATTR_DEV_NET_CFG_MAX_VQP))
 
 static int vdpa_nl_cmd_dev_add_set_doit(struct sk_buff *skb, struct genl_info *info)
 {
@@ -611,12 +611,12 @@ static int vdpa_nl_cmd_dev_add_set_doit(struct sk_buff *skb, struct genl_info *i
 	if (nl_attrs[VDPA_ATTR_DEV_NET_CFG_MACADDR]) {
 		macaddr = nla_data(nl_attrs[VDPA_ATTR_DEV_NET_CFG_MACADDR]);
 		memcpy(config.net.mac, macaddr, sizeof(config.net.mac));
-		config.mask |= (1 << VDPA_ATTR_DEV_NET_CFG_MACADDR);
+		config.mask |= BIT_ULL(VDPA_ATTR_DEV_NET_CFG_MACADDR);
 	}
 	if (nl_attrs[VDPA_ATTR_DEV_NET_CFG_MTU]) {
 		config.net.mtu =
 			nla_get_u16(nl_attrs[VDPA_ATTR_DEV_NET_CFG_MTU]);
-		config.mask |= (1 << VDPA_ATTR_DEV_NET_CFG_MTU);
+		config.mask |= BIT_ULL(VDPA_ATTR_DEV_NET_CFG_MTU);
 	}
 	if (nl_attrs[VDPA_ATTR_DEV_NET_CFG_MAX_VQP]) {
 		config.net.max_vq_pairs =
@@ -828,7 +828,7 @@ static int vdpa_dev_net_mq_config_fill(struct vdpa_device *vdev,
 {
 	u16 val_u16;
 
-	if ((features & (1ULL << VIRTIO_NET_F_MQ)) == 0)
+	if ((features & BIT_ULL(VIRTIO_NET_F_MQ)) == 0)
 		return 0;
 
 	val_u16 = le16_to_cpu(config->max_virtqueue_pairs);
