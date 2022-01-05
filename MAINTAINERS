@@ -3769,7 +3769,8 @@ S:	Supported
 F:	drivers/net/wireless/broadcom/brcm80211/
 
 BROADCOM BRCMSTB GPIO DRIVER
-M:	Gregory Fong <gregory.0xf0@gmail.com>
+M:	Doug Berger <opendmb@gmail.com>
+M:	Florian Fainelli <f.fainelli@gmail.com>
 L:	bcm-kernel-feedback-list@broadcom.com
 S:	Supported
 F:	Documentation/devicetree/bindings/gpio/brcm,brcmstb-gpio.txt
