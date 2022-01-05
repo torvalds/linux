@@ -25,8 +25,6 @@ enum {
 	DSA_NOTIFIER_FDB_DEL,
 	DSA_NOTIFIER_HOST_FDB_ADD,
 	DSA_NOTIFIER_HOST_FDB_DEL,
-	DSA_NOTIFIER_HSR_JOIN,
-	DSA_NOTIFIER_HSR_LEAVE,
 	DSA_NOTIFIER_LAG_CHANGE,
 	DSA_NOTIFIER_LAG_JOIN,
 	DSA_NOTIFIER_LAG_LEAVE,
@@ -40,10 +38,6 @@ enum {
 	DSA_NOTIFIER_TAG_PROTO,
 	DSA_NOTIFIER_TAG_PROTO_CONNECT,
 	DSA_NOTIFIER_TAG_PROTO_DISCONNECT,
-	DSA_NOTIFIER_MRP_ADD,
-	DSA_NOTIFIER_MRP_DEL,
-	DSA_NOTIFIER_MRP_ADD_RING_ROLE,
-	DSA_NOTIFIER_MRP_DEL_RING_ROLE,
 	DSA_NOTIFIER_TAG_8021Q_VLAN_ADD,
 	DSA_NOTIFIER_TAG_8021Q_VLAN_DEL,
 };
@@ -107,20 +101,6 @@ struct dsa_notifier_tag_proto_info {
 	const struct dsa_device_ops *tag_ops;
 };
 
-/* DSA_NOTIFIER_MRP_* */
-struct dsa_notifier_mrp_info {
-	const struct switchdev_obj_mrp *mrp;
-	int sw_index;
-	int port;
-};
-
-/* DSA_NOTIFIER_MRP_* */
-struct dsa_notifier_mrp_ring_role_info {
-	const struct switchdev_obj_ring_role_mrp *mrp;
-	int sw_index;
-	int port;
-};
-
 /* DSA_NOTIFIER_TAG_8021Q_VLAN_* */
 struct dsa_notifier_tag_8021q_vlan_info {
 	int tree_index;
@@ -141,13 +121,6 @@ struct dsa_switchdev_event_work {
 	unsigned char addr[ETH_ALEN];
 	u16 vid;
 	bool host_addr;
-};
-
-/* DSA_NOTIFIER_HSR_* */
-struct dsa_notifier_hsr_info {
-	struct net_device *hsr;
-	int sw_index;
-	int port;
 };
 
 struct dsa_slave_priv {
