@@ -13,6 +13,7 @@
 #include "hclge_cmd.h"
 #include "hclge_ptp.h"
 #include "hnae3.h"
+#include "hclge_comm_rss.h"
 
 #define HCLGE_MOD_VERSION "1.0"
 #define HCLGE_DRIVER_NAME "hclge"
@@ -968,6 +969,7 @@ struct hclge_dev {
 	cpumask_t affinity_mask;
 	struct hclge_ptp *ptp;
 	struct devlink *devlink;
+	struct hclge_comm_rss_cfg rss_cfg;
 };
 
 /* VPort level vlan tag configuration for TX direction */
@@ -992,17 +994,6 @@ struct hclge_rx_vtag_cfg {
 	bool vlan2_vlan_prionly; /* Outer vlan tag up to descriptor enable */
 	bool strip_tag1_discard_en; /* Inner vlan tag discard for BD enable */
 	bool strip_tag2_discard_en; /* Outer vlan tag discard for BD enable */
-};
-
-struct hclge_rss_tuple_cfg {
-	u8 ipv4_tcp_en;
-	u8 ipv4_udp_en;
-	u8 ipv4_sctp_en;
-	u8 ipv4_fragment_en;
-	u8 ipv6_tcp_en;
-	u8 ipv6_udp_en;
-	u8 ipv6_sctp_en;
-	u8 ipv6_fragment_en;
 };
 
 enum HCLGE_VPORT_STATE {
@@ -1037,15 +1028,6 @@ struct hclge_vf_info {
 
 struct hclge_vport {
 	u16 alloc_tqps;	/* Allocated Tx/Rx queues */
-
-	u8  rss_hash_key[HCLGE_RSS_KEY_SIZE]; /* User configured hash keys */
-	/* User configured lookup table entries */
-	u16 *rss_indirection_tbl;
-	int rss_algo;		/* User configured hash algorithm */
-	/* User configured rss tuple sets */
-	struct hclge_rss_tuple_cfg rss_tuple_sets;
-
-	u16 alloc_rss_size;
 
 	u16 qs_offset;
 	u32 bw_limit;		/* VSI BW Limit (0 = disabled) */
@@ -1125,7 +1107,6 @@ int hclge_en_hw_strip_rxvtag(struct hnae3_handle *handle, bool enable);
 
 int hclge_buffer_alloc(struct hclge_dev *hdev);
 int hclge_rss_init_hw(struct hclge_dev *hdev);
-void hclge_rss_indir_init_cfg(struct hclge_dev *hdev);
 
 void hclge_mbx_handler(struct hclge_dev *hdev);
 int hclge_reset_tqp(struct hnae3_handle *handle);
