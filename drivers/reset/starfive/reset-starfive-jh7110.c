@@ -31,6 +31,12 @@
 #define AONCRG_RESET_ASSERT0	0x38
 #define AONCRG_RESET_STATUS0	0x3C
 
+#define ISPCRG_RESET_ASSERT0	0x38
+#define ISPCRG_RESET_STATUS0	0x3C
+
+#define VOUTCRG_RESET_ASSERT0	0x48
+#define VOUTCRG_RESET_STATUS0	0x4C
+
 struct reset_assert_t {
 	void *__iomem reg_assert;
 	void *__iomem reg_status;
@@ -43,16 +49,20 @@ enum JH7110_RESET_CRG_GROUP {
 	SYSCRG_3,
 	STGCRG_0,
 	AONCRG_0,
+	ISPCRG_0,
+	VOUTCRG_0,
 };
 
 struct jh7110_reset {
-	struct reset_assert_t reset_assert[6];
+	struct reset_assert_t reset_assert[8];
 	struct reset_controller_dev rcdev;
 	/* protect registers against concurrent read-modify-write */
 	spinlock_t lock;
 	void __iomem *syscrg;
 	void __iomem *stgcrg;
 	void __iomem *aoncrg;
+	void __iomem *ispcrg;
+	void __iomem *voutcrg;
 	const u32 *asserted;
 };
 
@@ -64,7 +74,7 @@ struct jh7110_reset {
  * lines don't though, so store the expected value of the status registers when
  * all lines are asserted.
  */
-static const u32 jh7110_reset_asserted[6] = {
+static const u32 jh7110_reset_asserted[8] = {
 	/* SYSCRG_STATUS0 */
 	BIT(RSTN_U0_U7MC_RST_BUS % 32) |
 	BIT(RSTN_U0_U7MC_CORE0 % 32) |
@@ -82,6 +92,10 @@ static const u32 jh7110_reset_asserted[6] = {
 	BIT(RSTN_U0_HIFI4_CORE % 32) |
 	BIT(RSTN_U0_E24_CORE % 32),
 	/* AONCRG */
+	0,
+	/* ISPCRG */
+	0,
+	/* VOUTCRG */
 	0,
 };
 
@@ -112,6 +126,12 @@ static void jh7110_devm_reset_set(struct device *dev)
 
 	data->reset_assert[AONCRG_0].reg_assert = data->aoncrg + AONCRG_RESET_ASSERT0;
 	data->reset_assert[AONCRG_0].reg_status = data->aoncrg + AONCRG_RESET_STATUS0;
+
+	data->reset_assert[ISPCRG_0].reg_assert = data->ispcrg + ISPCRG_RESET_ASSERT0;
+	data->reset_assert[ISPCRG_0].reg_status = data->ispcrg + ISPCRG_RESET_STATUS0;
+
+	data->reset_assert[VOUTCRG_0].reg_assert = data->voutcrg + VOUTCRG_RESET_ASSERT0;
+	data->reset_assert[VOUTCRG_0].reg_status = data->voutcrg + VOUTCRG_RESET_STATUS0;
 }
 
 static int jh7110_reset_update(struct reset_controller_dev *rcdev,
@@ -237,6 +257,14 @@ int __init reset_starfive_jh7110_generic_probe(struct platform_device *pdev,
 	data->aoncrg =  platform_ioremap_iomem_byname(pdev, "aoncrg");
 	if (IS_ERR(data->aoncrg))
 		return PTR_ERR(data->aoncrg);
+
+	data->ispcrg =  platform_ioremap_iomem_byname(pdev, "ispcrg");
+	if (IS_ERR(data->ispcrg))
+		return PTR_ERR(data->ispcrg);
+
+	data->voutcrg =  platform_ioremap_iomem_byname(pdev, "voutcrg");
+	if (IS_ERR(data->voutcrg))
+		return PTR_ERR(data->voutcrg);
 
 	jh7110_devm_reset_set(dev);
 
