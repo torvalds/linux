@@ -119,6 +119,9 @@ struct dsa_netdevice_ops {
 struct dsa_switch_tree {
 	struct list_head	list;
 
+	/* List of switch ports */
+	struct list_head ports;
+
 	/* Notifier chain for switch-wide events */
 	struct raw_notifier_head	nh;
 
@@ -127,6 +130,11 @@ struct dsa_switch_tree {
 
 	/* Number of switches attached to this tree */
 	struct kref refcount;
+
+	/* Maps offloaded LAG netdevs to a zero-based linear ID for
+	 * drivers that need it.
+	 */
+	struct net_device **lags;
 
 	/* Has this tree been applied to the hardware? */
 	bool setup;
@@ -145,16 +153,10 @@ struct dsa_switch_tree {
 	 */
 	struct dsa_platform_data	*pd;
 
-	/* List of switch ports */
-	struct list_head ports;
-
 	/* List of DSA links composing the routing table */
 	struct list_head rtable;
 
-	/* Maps offloaded LAG netdevs to a zero-based linear ID for
-	 * drivers that need it.
-	 */
-	struct net_device **lags;
+	/* Length of "lags" array */
 	unsigned int lags_len;
 
 	/* Track the largest switch index within a tree */
