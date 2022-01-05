@@ -181,17 +181,21 @@ static SOC_ENUM_SINGLE_DECL(pcm_sft_ramp,
 static int cs35l41_dsp_preload_ev(struct snd_soc_dapm_widget *w,
 				  struct snd_kcontrol *kcontrol, int event)
 {
+	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
+	struct cs35l41_private *cs35l41 = snd_soc_component_get_drvdata(component);
 	int ret;
 
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
 		return wm_adsp_early_event(w, kcontrol, event);
 	case SND_SOC_DAPM_PRE_PMD:
-		ret = wm_adsp_early_event(w, kcontrol, event);
-		if (ret)
-			return ret;
+		if (cs35l41->dsp.cs_dsp.running) {
+			ret = wm_adsp_event(w, kcontrol, event);
+			if (ret)
+				return ret;
+		}
 
-		return wm_adsp_event(w, kcontrol, event);
+		return wm_adsp_early_event(w, kcontrol, event);
 	default:
 		return 0;
 	}
