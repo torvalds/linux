@@ -1188,8 +1188,8 @@ static int quad8_probe(struct device *dev, unsigned int id)
 	/* Enable all counters and enable interrupt function */
 	outb(QUAD8_CHAN_OP_ENABLE_INTERRUPT_FUNC, base[id] + QUAD8_REG_CHAN_OP);
 
-	err = devm_request_irq(dev, irq[id], quad8_irq_handler, IRQF_SHARED,
-			       counter->name, counter);
+	err = devm_request_irq(&counter->dev, irq[id], quad8_irq_handler,
+			       IRQF_SHARED, counter->name, counter);
 	if (err)
 		return err;
 
