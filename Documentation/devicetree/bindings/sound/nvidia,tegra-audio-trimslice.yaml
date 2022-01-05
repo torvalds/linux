@@ -1,0 +1,33 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/sound/nvidia,tegra-audio-trimslice.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: NVIDIA Tegra audio complex with TrimSlice CODEC
+
+maintainers:
+  - Jon Hunter <jonathanh@nvidia.com>
+  - Thierry Reding <thierry.reding@gmail.com>
+
+allOf:
+  - $ref: nvidia,tegra-audio-common.yaml#
+
+properties:
+  compatible:
+    const: nvidia,tegra-audio-trimslice
+
+required:
+  - nvidia,i2s-controller
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    sound {
+        compatible = "nvidia,tegra-audio-trimslice";
+        nvidia,i2s-controller = <&tegra_i2s1>;
+        nvidia,audio-codec = <&codec>;
+        clocks = <&tegra_car 112>, <&tegra_car 113>, <&tegra_car 93>;
+        clock-names = "pll_a", "pll_a_out0", "mclk";
+    };

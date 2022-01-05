@@ -21,8 +21,6 @@
 #endif
 
 struct hda_pipe_params {
-	u8 host_dma_id;
-	u8 link_dma_id;
 	u32 ch;
 	u32 s_freq;
 	u32 s_fmt;
@@ -30,7 +28,6 @@ struct hda_pipe_params {
 	snd_pcm_format_t format;
 	int link_index;
 	int stream;
-	unsigned int host_bps;
 	unsigned int link_bps;
 };
 
@@ -182,24 +179,6 @@ static struct sof_ipc_dai_config *hda_dai_update_config(struct snd_soc_dapm_widg
 	return config;
 }
 
-static int hda_link_config_ipc(struct sof_intel_hda_stream *hda_stream,
-			       struct snd_soc_dapm_widget *w, int channel)
-{
-	struct snd_sof_dev *sdev = hda_stream->sdev;
-	struct sof_ipc_dai_config *config;
-	struct sof_ipc_reply reply;
-
-	config = hda_dai_update_config(w, channel);
-	if (!config) {
-		dev_err(sdev->dev, "error: no config for DAI %s\n", w->name);
-		return -ENOENT;
-	}
-
-	/* send DAI_CONFIG IPC */
-	return sof_ipc_tx_message(sdev->ipc, config->hdr.cmd, config, config->hdr.size,
-				  &reply, sizeof(reply));
-}
-
 static int hda_link_dai_widget_update(struct sof_intel_hda_stream *hda_stream,
 				      struct snd_soc_dapm_widget *w,
 				      int channel, bool widget_setup)
@@ -215,9 +194,9 @@ static int hda_link_dai_widget_update(struct sof_intel_hda_stream *hda_stream,
 
 	/* set up/free DAI widget and send DAI_CONFIG IPC */
 	if (widget_setup)
-		return hda_ctrl_dai_widget_setup(w);
+		return hda_ctrl_dai_widget_setup(w, SOF_DAI_CONFIG_FLAGS_2_STEP_STOP);
 
-	return hda_ctrl_dai_widget_free(w);
+	return hda_ctrl_dai_widget_free(w, SOF_DAI_CONFIG_FLAGS_NONE);
 }
 
 static int hda_link_hw_params(struct snd_pcm_substream *substream,
@@ -264,17 +243,13 @@ static int hda_link_hw_params(struct snd_pcm_substream *substream,
 	if (!link)
 		return -EINVAL;
 
-	/* set the stream tag in the codec dai dma params */
-	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
-		snd_soc_dai_set_tdm_slot(codec_dai, stream_tag, 0, 0, 0);
-	else
-		snd_soc_dai_set_tdm_slot(codec_dai, 0, stream_tag, 0, 0);
+	/* set the hdac_stream in the codec dai */
+	snd_soc_dai_set_stream(codec_dai, hdac_stream(link_dev), substream->stream);
 
 	p_params.s_fmt = snd_pcm_format_width(params_format(params));
 	p_params.ch = params_channels(params);
 	p_params.s_freq = params_rate(params);
 	p_params.stream = substream->stream;
-	p_params.link_dma_id = stream_tag - 1;
 	p_params.link_index = link->index;
 	p_params.format = params_format(params);
 
@@ -305,6 +280,36 @@ static int hda_link_pcm_prepare(struct snd_pcm_substream *substream,
 				  dai);
 }
 
+static int hda_link_dai_config_pause_push_ipc(struct snd_soc_dapm_widget *w)
+{
+	struct snd_sof_widget *swidget = w->dobj.private;
+	struct snd_soc_component *component = swidget->scomp;
+	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(component);
+	struct sof_ipc_dai_config *config;
+	struct snd_sof_dai *sof_dai;
+	struct sof_ipc_reply reply;
+	int ret;
+
+	sof_dai = swidget->private;
+
+	if (!sof_dai || !sof_dai->dai_config) {
+		dev_err(sdev->dev, "No config for DAI %s\n", w->name);
+		return -EINVAL;
+	}
+
+	config = &sof_dai->dai_config[sof_dai->current_config];
+
+	/* set PAUSE command flag */
+	config->flags = FIELD_PREP(SOF_DAI_CONFIG_FLAGS_CMD_MASK, SOF_DAI_CONFIG_FLAGS_PAUSE);
+
+	ret = sof_ipc_tx_message(sdev->ipc, config->hdr.cmd, config, config->hdr.size,
+				 &reply, sizeof(reply));
+	if (ret < 0)
+		dev_err(sdev->dev, "DAI config for %s failed during pause push\n", w->name);
+
+	return ret;
+}
+
 static int hda_link_pcm_trigger(struct snd_pcm_substream *substream,
 				int cmd, struct snd_soc_dai *dai)
 {
@@ -330,33 +335,22 @@ static int hda_link_pcm_trigger(struct snd_pcm_substream *substream,
 	hda_stream = hstream_to_sof_hda_stream(link_dev);
 
 	dev_dbg(dai->dev, "In %s cmd=%d\n", __func__, cmd);
-	switch (cmd) {
-	case SNDRV_PCM_TRIGGER_RESUME:
-		/* set up hw_params */
-		ret = hda_link_pcm_prepare(substream, dai);
-		if (ret < 0) {
-			dev_err(dai->dev,
-				"error: setting up hw_params during resume\n");
-			return ret;
-		}
 
-		fallthrough;
+	w = snd_soc_dai_get_widget(dai, substream->stream);
+
+	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
 		snd_hdac_ext_link_stream_start(link_dev);
 		break;
 	case SNDRV_PCM_TRIGGER_SUSPEND:
 	case SNDRV_PCM_TRIGGER_STOP:
-		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
-			w = dai->playback_widget;
-		else
-			w = dai->capture_widget;
+		snd_hdac_ext_link_stream_clear(link_dev);
 
 		/*
-		 * clear link DMA channel. It will be assigned when
-		 * hw_params is set up again after resume.
+		 * free DAI widget during stop/suspend to keep widget use_count's balanced.
 		 */
-		ret = hda_link_config_ipc(hda_stream, w, DMA_CHAN_INVALID);
+		ret = hda_link_dai_widget_update(hda_stream, w, DMA_CHAN_INVALID, false);
 		if (ret < 0)
 			return ret;
 
@@ -366,10 +360,13 @@ static int hda_link_pcm_trigger(struct snd_pcm_substream *substream,
 		}
 
 		link_dev->link_prepared = 0;
-
-		fallthrough;
+		break;
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
 		snd_hdac_ext_link_stream_clear(link_dev);
+
+		ret = hda_link_dai_config_pause_push_ipc(w);
+		if (ret < 0)
+			return ret;
 		break;
 	default:
 		return -EINVAL;
@@ -470,9 +467,9 @@ static int ssp_dai_setup_or_free(struct snd_pcm_substream *substream, struct snd
 		return 0;
 
 	if (setup)
-		return hda_ctrl_dai_widget_setup(w);
+		return hda_ctrl_dai_widget_setup(w, SOF_DAI_CONFIG_FLAGS_NONE);
 
-	return hda_ctrl_dai_widget_free(w);
+	return hda_ctrl_dai_widget_free(w, SOF_DAI_CONFIG_FLAGS_NONE);
 }
 
 static int ssp_dai_startup(struct snd_pcm_substream *substream,

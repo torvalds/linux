@@ -173,29 +173,20 @@ static int stm32_sai_probe(struct platform_device *pdev)
 
 	if (!STM_SAI_IS_F4(sai)) {
 		sai->pclk = devm_clk_get(&pdev->dev, "pclk");
-		if (IS_ERR(sai->pclk)) {
-			if (PTR_ERR(sai->pclk) != -EPROBE_DEFER)
-				dev_err(&pdev->dev, "missing bus clock pclk: %ld\n",
-					PTR_ERR(sai->pclk));
-			return PTR_ERR(sai->pclk);
-		}
+		if (IS_ERR(sai->pclk))
+			return dev_err_probe(&pdev->dev, PTR_ERR(sai->pclk),
+					     "missing bus clock pclk\n");
 	}
 
 	sai->clk_x8k = devm_clk_get(&pdev->dev, "x8k");
-	if (IS_ERR(sai->clk_x8k)) {
-		if (PTR_ERR(sai->clk_x8k) != -EPROBE_DEFER)
-			dev_err(&pdev->dev, "missing x8k parent clock: %ld\n",
-				PTR_ERR(sai->clk_x8k));
-		return PTR_ERR(sai->clk_x8k);
-	}
+	if (IS_ERR(sai->clk_x8k))
+		return dev_err_probe(&pdev->dev, PTR_ERR(sai->clk_x8k),
+				     "missing x8k parent clock\n");
 
 	sai->clk_x11k = devm_clk_get(&pdev->dev, "x11k");
-	if (IS_ERR(sai->clk_x11k)) {
-		if (PTR_ERR(sai->clk_x11k) != -EPROBE_DEFER)
-			dev_err(&pdev->dev, "missing x11k parent clock: %ld\n",
-				PTR_ERR(sai->clk_x11k));
-		return PTR_ERR(sai->clk_x11k);
-	}
+	if (IS_ERR(sai->clk_x11k))
+		return dev_err_probe(&pdev->dev, PTR_ERR(sai->clk_x11k),
+				     "missing x11k parent clock\n");
 
 	/* init irqs */
 	sai->irq = platform_get_irq(pdev, 0);
@@ -204,12 +195,10 @@ static int stm32_sai_probe(struct platform_device *pdev)
 
 	/* reset */
 	rst = devm_reset_control_get_optional_exclusive(&pdev->dev, NULL);
-	if (IS_ERR(rst)) {
-		if (PTR_ERR(rst) != -EPROBE_DEFER)
-			dev_err(&pdev->dev, "Reset controller error %ld\n",
-				PTR_ERR(rst));
-		return PTR_ERR(rst);
-	}
+	if (IS_ERR(rst))
+		return dev_err_probe(&pdev->dev, PTR_ERR(rst),
+				     "Reset controller error\n");
+
 	reset_control_assert(rst);
 	udelay(2);
 	reset_control_deassert(rst);

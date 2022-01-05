@@ -20,7 +20,7 @@
 #include <uapi/sound/sof/fw.h>
 #include <sound/sof/ext_manifest.h>
 
-/* debug flags */
+/* Flag definitions used in sof_core_debug (sof_debug module parameter) */
 #define SOF_DBG_ENABLE_TRACE	BIT(0)
 #define SOF_DBG_RETAIN_CTX	BIT(1)	/* prevent DSP D3 on FW exception */
 #define SOF_DBG_VERIFY_TPLG	BIT(2) /* verify topology during load */
@@ -35,14 +35,16 @@
 							*/
 #define SOF_DBG_PRINT_ALL_DUMPS		BIT(6) /* Print all ipc and dsp dumps */
 
+/* Flag definitions used for controlling the DSP dump behavior */
 #define SOF_DBG_DUMP_REGS		BIT(0)
 #define SOF_DBG_DUMP_MBOX		BIT(1)
 #define SOF_DBG_DUMP_TEXT		BIT(2)
 #define SOF_DBG_DUMP_PCI		BIT(3)
-#define SOF_DBG_DUMP_OPTIONAL		BIT(4) /* only dump if SOF_DBG_PRINT_ALL_DUMPS is set */
+/* Output this dump (at the DEBUG level) only when SOF_DBG_PRINT_ALL_DUMPS is set */
+#define SOF_DBG_DUMP_OPTIONAL		BIT(4)
 
 /* global debug state set by SOF_DBG_ flags */
-extern int sof_core_debug;
+bool sof_debug_check_flag(int mask);
 
 /* max BARs mmaped devices can use */
 #define SND_SOF_BARS	8
@@ -70,6 +72,9 @@ extern int sof_core_debug;
 
 /* So far the primary core on all DSPs has ID 0 */
 #define SOF_DSP_PRIMARY_CORE 0
+
+/* max number of DSP cores */
+#define SOF_MAX_DSP_NUM_CORES 8
 
 /* DSP power state */
 enum sof_dsp_power_states {
@@ -127,10 +132,8 @@ struct snd_sof_dsp_ops {
 	int (*run)(struct snd_sof_dev *sof_dev); /* mandatory */
 	int (*stall)(struct snd_sof_dev *sof_dev, unsigned int core_mask); /* optional */
 	int (*reset)(struct snd_sof_dev *sof_dev); /* optional */
-	int (*core_power_up)(struct snd_sof_dev *sof_dev,
-			     unsigned int core_mask); /* optional */
-	int (*core_power_down)(struct snd_sof_dev *sof_dev,
-			       unsigned int core_mask); /* optional */
+	int (*core_get)(struct snd_sof_dev *sof_dev, int core); /* optional */
+	int (*core_put)(struct snd_sof_dev *sof_dev, int core); /* optional */
 
 	/*
 	 * Register IO: only used by respective drivers themselves,
@@ -205,6 +208,9 @@ struct snd_sof_dsp_ops {
 	/* host stream pointer */
 	snd_pcm_uframes_t (*pcm_pointer)(struct snd_sof_dev *sdev,
 					 struct snd_pcm_substream *substream); /* optional */
+
+	/* pcm ack */
+	int (*pcm_ack)(struct snd_sof_dev *sdev, struct snd_pcm_substream *substream); /* optional */
 
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_DEBUG_PROBES)
 	/* Except for probe_pointer, all probe ops are mandatory */
@@ -289,8 +295,8 @@ struct snd_sof_dsp_ops {
 				void *pdata); /* optional */
 	void (*machine_unregister)(struct snd_sof_dev *sdev,
 				   void *pdata); /* optional */
-	void (*machine_select)(struct snd_sof_dev *sdev); /* optional */
-	void (*set_mach_params)(const struct snd_soc_acpi_mach *mach,
+	struct snd_soc_acpi_mach * (*machine_select)(struct snd_sof_dev *sdev); /* optional */
+	void (*set_mach_params)(struct snd_soc_acpi_mach *mach,
 				struct snd_sof_dev *sdev); /* optional */
 
 	/* DAI ops */
@@ -305,8 +311,8 @@ struct snd_sof_dsp_ops {
 
 /* DSP architecture specific callbacks for oops and stack dumps */
 struct dsp_arch_ops {
-	void (*dsp_oops)(struct snd_sof_dev *sdev, void *oops);
-	void (*dsp_stack)(struct snd_sof_dev *sdev, void *oops,
+	void (*dsp_oops)(struct snd_sof_dev *sdev, const char *level, void *oops);
+	void (*dsp_stack)(struct snd_sof_dev *sdev, const char *level, void *oops,
 			  u32 *stack, u32 stack_words);
 };
 
@@ -325,6 +331,10 @@ struct snd_sof_dfsentry {
 	enum sof_debugfs_access_type access_type;
 #if ENABLE_DEBUGFS_CACHEBUF
 	char *cache_buf; /* buffer to cache the contents of debugfs memory */
+#endif
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_DEBUG_IPC_MSG_INJECTOR)
+	void *msg_inject_tx;
+	void *msg_inject_rx;
 #endif
 	struct snd_sof_dev *sdev;
 	struct list_head list;  /* list in sdev dfsentry list */
@@ -367,15 +377,6 @@ struct snd_sof_ipc_msg {
 	bool ipc_complete;
 };
 
-enum snd_sof_fw_state {
-	SOF_FW_BOOT_NOT_STARTED = 0,
-	SOF_FW_BOOT_PREPARE,
-	SOF_FW_BOOT_IN_PROGRESS,
-	SOF_FW_BOOT_FAILED,
-	SOF_FW_BOOT_READY_FAILED, /* firmware booted but fw_ready op failed */
-	SOF_FW_BOOT_COMPLETE,
-};
-
 /*
  * SOF Device Level.
  */
@@ -400,7 +401,7 @@ struct snd_sof_dev {
 
 	/* DSP firmware boot */
 	wait_queue_head_t boot_wait;
-	enum snd_sof_fw_state fw_state;
+	enum sof_fw_state fw_state;
 	bool first_boot;
 
 	/* work queue in case the probe is implemented in two steps */
@@ -473,6 +474,18 @@ struct snd_sof_dev {
 
 	bool msi_enabled;
 
+	/* DSP core context */
+	u32 num_cores;
+
+	/*
+	 * ref count per core that will be modified during system suspend/resume and during pcm
+	 * hw_params/hw_free. This doesn't need to be protected with a mutex because pcm
+	 * hw_params/hw_free are already protected by the PCM mutex in the ALSA framework in
+	 * sound/core/ when streams are active and during system suspend/resume, streams are
+	 * already suspended.
+	 */
+	int dsp_core_ref_count[SOF_MAX_DSP_NUM_CORES];
+
 	void *private;			/* core does not touch this */
 };
 
@@ -515,6 +528,7 @@ void snd_sof_fw_unload(struct snd_sof_dev *sdev);
  */
 struct snd_sof_ipc *snd_sof_ipc_init(struct snd_sof_dev *sdev);
 void snd_sof_ipc_free(struct snd_sof_dev *sdev);
+void snd_sof_ipc_get_reply(struct snd_sof_dev *sdev);
 void snd_sof_ipc_reply(struct snd_sof_dev *sdev, u32 msg_id);
 void snd_sof_ipc_msgs_rx(struct snd_sof_dev *sdev);
 int snd_sof_ipc_stream_pcm_params(struct snd_sof_dev *sdev,
@@ -527,6 +541,11 @@ int sof_ipc_tx_message_no_pm(struct snd_sof_ipc *ipc, u32 header,
 			     void *msg_data, size_t msg_bytes,
 			     void *reply_data, size_t reply_bytes);
 int sof_ipc_init_msg_memory(struct snd_sof_dev *sdev);
+static inline void snd_sof_ipc_process_reply(struct snd_sof_dev *sdev, u32 msg_id)
+{
+	snd_sof_ipc_get_reply(sdev);
+	snd_sof_ipc_reply(sdev, msg_id);
+}
 
 /*
  * Trace/debug
@@ -542,10 +561,10 @@ int snd_sof_debugfs_buf_item(struct snd_sof_dev *sdev,
 int snd_sof_trace_update_pos(struct snd_sof_dev *sdev,
 			     struct sof_ipc_dma_trace_posn *posn);
 void snd_sof_trace_notify_for_error(struct snd_sof_dev *sdev);
-void snd_sof_get_status(struct snd_sof_dev *sdev, u32 panic_code,
-			u32 tracep_code, void *oops,
-			struct sof_ipc_panic_info *panic_info,
-			void *stack, size_t stack_words);
+void sof_print_oops_and_stack(struct snd_sof_dev *sdev, const char *level,
+			      u32 panic_code, u32 tracep_code, void *oops,
+			      struct sof_ipc_panic_info *panic_info,
+			      void *stack, size_t stack_words);
 int snd_sof_init_trace_ipc(struct snd_sof_dev *sdev);
 void snd_sof_handle_fw_exception(struct snd_sof_dev *sdev);
 int snd_sof_dbg_memory_info_init(struct snd_sof_dev *sdev);
@@ -556,16 +575,17 @@ int snd_sof_debugfs_add_region_item_iomem(struct snd_sof_dev *sdev,
 /*
  * DSP Architectures.
  */
-static inline void sof_stack(struct snd_sof_dev *sdev, void *oops, u32 *stack,
-			     u32 stack_words)
+static inline void sof_stack(struct snd_sof_dev *sdev, const char *level,
+			     void *oops, u32 *stack, u32 stack_words)
 {
-		sof_dsp_arch_ops(sdev)->dsp_stack(sdev, oops, stack, stack_words);
+		sof_dsp_arch_ops(sdev)->dsp_stack(sdev, level,  oops, stack,
+						  stack_words);
 }
 
-static inline void sof_oops(struct snd_sof_dev *sdev, void *oops)
+static inline void sof_oops(struct snd_sof_dev *sdev, const char *level, void *oops)
 {
 	if (sof_dsp_arch_ops(sdev)->dsp_oops)
-		sof_dsp_arch_ops(sdev)->dsp_oops(sdev, oops);
+		sof_dsp_arch_ops(sdev)->dsp_oops(sdev, level, oops);
 }
 
 extern const struct dsp_arch_ops sof_xtensa_arch_ops;
@@ -574,7 +594,7 @@ extern const struct dsp_arch_ops sof_xtensa_arch_ops;
  * Firmware state tracking
  */
 static inline void sof_set_fw_state(struct snd_sof_dev *sdev,
-				    enum snd_sof_fw_state new_state)
+				    enum sof_fw_state new_state)
 {
 	if (sdev->fw_state == new_state)
 		return;

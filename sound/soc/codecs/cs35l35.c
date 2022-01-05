@@ -1311,7 +1311,7 @@ static int cs35l35_handle_of_data(struct i2c_client *i2c_client,
 	pdata->gain_zc = of_property_read_bool(np, "cirrus,amp-gain-zc");
 
 	classh = of_get_child_by_name(np, "cirrus,classh-internal-algo");
-	classh_config->classh_algo_enable = classh ? true : false;
+	classh_config->classh_algo_enable = (classh != NULL);
 
 	if (classh_config->classh_algo_enable) {
 		classh_config->classh_bst_override =
