@@ -903,31 +903,6 @@ static struct amdgpu_ras_block_object* amdgpu_ras_get_ras_block(struct amdgpu_de
 	return NULL;
 }
 
-static void amdgpu_ras_mca_query_error_status(struct amdgpu_device *adev,
-					      struct ras_common_if *ras_block,
-					      struct ras_err_data  *err_data)
-{
-	switch (ras_block->sub_block_index) {
-	case AMDGPU_RAS_MCA_BLOCK__MP0:
-		if (adev->mca.mp0.ras_funcs &&
-		    adev->mca.mp0.ras_funcs->query_ras_error_count)
-			adev->mca.mp0.ras_funcs->query_ras_error_count(adev, &err_data);
-		break;
-	case AMDGPU_RAS_MCA_BLOCK__MP1:
-		if (adev->mca.mp1.ras_funcs &&
-		    adev->mca.mp1.ras_funcs->query_ras_error_count)
-			adev->mca.mp1.ras_funcs->query_ras_error_count(adev, &err_data);
-		break;
-	case AMDGPU_RAS_MCA_BLOCK__MPIO:
-		if (adev->mca.mpio.ras_funcs &&
-		    adev->mca.mpio.ras_funcs->query_ras_error_count)
-			adev->mca.mpio.ras_funcs->query_ras_error_count(adev, &err_data);
-		break;
-	default:
-		break;
-	}
-}
-
 static void amdgpu_ras_get_ecc_info(struct amdgpu_device *adev, struct ras_err_data *err_data)
 {
 	struct amdgpu_ras *ras = amdgpu_ras_get_context(adev);
@@ -994,6 +969,7 @@ int amdgpu_ras_query_error_status(struct amdgpu_device *adev,
 	case AMDGPU_RAS_BLOCK__PCIE_BIF:
 	case AMDGPU_RAS_BLOCK__XGMI_WAFL:
 	case AMDGPU_RAS_BLOCK__HDP:
+	case AMDGPU_RAS_BLOCK__MCA:
 		if (!block_obj || !block_obj->hw_ops)	{
 			dev_info(adev->dev, "%s doesn't config ras function \n",
 				get_ras_block_str(&info->head));
@@ -1001,9 +977,6 @@ int amdgpu_ras_query_error_status(struct amdgpu_device *adev,
 		}
 		if (block_obj->hw_ops->query_ras_error_count)
 			block_obj->hw_ops->query_ras_error_count(adev, &err_data);
-		break;
-	case AMDGPU_RAS_BLOCK__MCA:
-		amdgpu_ras_mca_query_error_status(adev, &info->head, &err_data);
 		break;
 	default:
 		break;
@@ -1099,32 +1072,6 @@ int amdgpu_ras_reset_error_status(struct amdgpu_device *adev,
 	return 0;
 }
 
-/* Trigger XGMI/WAFL error */
-static int amdgpu_ras_error_inject_xgmi(struct amdgpu_device *adev,
-				 struct ta_ras_trigger_error_input *block_info)
-{
-	int ret;
-
-	if (amdgpu_dpm_set_df_cstate(adev, DF_CSTATE_DISALLOW))
-		dev_warn(adev->dev, "Failed to disallow df cstate");
-
-	if (amdgpu_dpm_allow_xgmi_power_down(adev, false))
-		dev_warn(adev->dev, "Failed to disallow XGMI power down");
-
-	ret = psp_ras_trigger_error(&adev->psp, block_info);
-
-	if (amdgpu_ras_intr_triggered())
-		return ret;
-
-	if (amdgpu_dpm_allow_xgmi_power_down(adev, true))
-		dev_warn(adev->dev, "Failed to allow XGMI power down");
-
-	if (amdgpu_dpm_set_df_cstate(adev, DF_CSTATE_ALLOW))
-		dev_warn(adev->dev, "Failed to allow df cstate");
-
-	return ret;
-}
-
 /* wrapper of psp_ras_trigger_error */
 int amdgpu_ras_error_inject(struct amdgpu_device *adev,
 		struct ras_inject_if *info)
@@ -1143,6 +1090,11 @@ int amdgpu_ras_error_inject(struct amdgpu_device *adev,
 	if (!obj)
 		return -EINVAL;
 
+	if (!block_obj || !block_obj->hw_ops)	{
+		dev_info(adev->dev, "%s doesn't config ras function \n", get_ras_block_str(&info->head));
+		return -EINVAL;
+	}
+
 	/* Calculate XGMI relative offset */
 	if (adev->gmc.xgmi.num_physical_nodes > 1) {
 		block_info.address =
@@ -1150,30 +1102,15 @@ int amdgpu_ras_error_inject(struct amdgpu_device *adev,
 							  block_info.address);
 	}
 
-	switch (info->head.block) {
-	case AMDGPU_RAS_BLOCK__GFX:
-		if (!block_obj || !block_obj->hw_ops)   {
-			dev_info(adev->dev, "%s doesn't config ras function \n", get_ras_block_str(&info->head));
-			return -EINVAL;
-		}
-
+	if (info->head.block == AMDGPU_RAS_BLOCK__GFX) {
 		if (block_obj->hw_ops->ras_error_inject)
 			ret = block_obj->hw_ops->ras_error_inject(adev, info);
-		break;
-	case AMDGPU_RAS_BLOCK__UMC:
-	case AMDGPU_RAS_BLOCK__SDMA:
-	case AMDGPU_RAS_BLOCK__MMHUB:
-	case AMDGPU_RAS_BLOCK__PCIE_BIF:
-	case AMDGPU_RAS_BLOCK__MCA:
-		ret = psp_ras_trigger_error(&adev->psp, &block_info);
-		break;
-	case AMDGPU_RAS_BLOCK__XGMI_WAFL:
-		ret = amdgpu_ras_error_inject_xgmi(adev, &block_info);
-		break;
-	default:
-		dev_info(adev->dev, "%s error injection is not supported yet\n",
-			 get_ras_block_str(&info->head));
-		ret = -EINVAL;
+	} else {
+		/* If defined special ras_error_inject(e.g: xgmi), implement special ras_error_inject */
+		if (block_obj->hw_ops->ras_error_inject)
+			ret = block_obj->hw_ops->ras_error_inject(adev, &block_info);
+		else  /*If not defined .ras_error_inject, use default ras_error_inject*/
+			ret = psp_ras_trigger_error(&adev->psp, &block_info);
 	}
 
 	if (ret)

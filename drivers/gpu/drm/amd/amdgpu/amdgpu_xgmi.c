@@ -946,9 +946,36 @@ static void amdgpu_xgmi_query_ras_error_count(struct amdgpu_device *adev,
 	err_data->ce_count += ce_cnt;
 }
 
+/* Trigger XGMI/WAFL error */
+static int amdgpu_ras_error_inject_xgmi(struct amdgpu_device *adev,  void *inject_if)
+{
+	int ret = 0;
+	struct ta_ras_trigger_error_input *block_info =  (struct ta_ras_trigger_error_input *)inject_if;
+
+	if (amdgpu_dpm_set_df_cstate(adev, DF_CSTATE_DISALLOW))
+		dev_warn(adev->dev, "Failed to disallow df cstate");
+
+	if (amdgpu_dpm_allow_xgmi_power_down(adev, false))
+		dev_warn(adev->dev, "Failed to disallow XGMI power down");
+
+	ret = psp_ras_trigger_error(&adev->psp, block_info);
+
+	if (amdgpu_ras_intr_triggered())
+		return ret;
+
+	if (amdgpu_dpm_allow_xgmi_power_down(adev, true))
+		dev_warn(adev->dev, "Failed to allow XGMI power down");
+
+	if (amdgpu_dpm_set_df_cstate(adev, DF_CSTATE_ALLOW))
+		dev_warn(adev->dev, "Failed to allow df cstate");
+
+	return ret;
+}
+
 struct amdgpu_ras_block_hw_ops  xgmi_ras_hw_ops = {
 	.query_ras_error_count = amdgpu_xgmi_query_ras_error_count,
 	.reset_ras_error_count = amdgpu_xgmi_reset_ras_error_count,
+	.ras_error_inject = amdgpu_ras_error_inject_xgmi,
 };
 
 struct amdgpu_xgmi_ras xgmi_ras = {
