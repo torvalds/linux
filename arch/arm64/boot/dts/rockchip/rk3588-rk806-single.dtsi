@@ -258,7 +258,7 @@
 				regulator-ramp-delay = <12500>;
 				regulator-name = "vdd_log_s0";
 				regulator-state-mem {
-					regulator-off-in-suspend;
+					regulator-on-in-suspend;
 				};
 			};
 
@@ -283,7 +283,7 @@
 				regulator-ramp-delay = <12500>;
 				regulator-name = "vdd_ddr_s0";
 				regulator-state-mem {
-					regulator-on-in-suspend;
+					regulator-off-in-suspend;
 					regulator-suspend-microvolt = <850000>;
 				};
 			};
@@ -316,7 +316,7 @@
 				regulator-max-microvolt = <3300000>;
 				regulator-name = "vcc_3v3_s3";
 				regulator-state-mem {
-					regulator-off-in-suspend;
+					regulator-on-in-suspend;
 				};
 			};
 
@@ -359,7 +359,7 @@
 				regulator-max-microvolt = <1800000>;
 				regulator-name = "vcc_1v8_s0";
 				regulator-state-mem {
-					regulator-on-in-suspend;
+					regulator-off-in-suspend;
 					regulator-suspend-microvolt = <1800000>;
 				};
 			};
@@ -428,7 +428,7 @@
 				regulator-max-microvolt = <850000>;
 				regulator-name = "vdd_ddr_pll_s0";
 				regulator-state-mem {
-					regulator-on-in-suspend;
+					regulator-off-in-suspend;
 					regulator-suspend-microvolt = <850000>;
 				};
 			};
