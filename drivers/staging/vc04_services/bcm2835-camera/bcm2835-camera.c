@@ -654,7 +654,7 @@ static void stop_streaming(struct vb2_queue *vq)
 		v4l2_err(&dev->v4l2_dev, "Failed to disable camera\n");
 }
 
-static const struct vb2_ops bm2835_mmal_video_qops = {
+static const struct vb2_ops bcm2835_mmal_video_qops = {
 	.queue_setup = queue_setup,
 	.buf_init = buffer_init,
 	.buf_prepare = buffer_prepare,
@@ -1930,7 +1930,7 @@ static int bcm2835_mmal_probe(struct platform_device *pdev)
 		q->io_modes = VB2_MMAP | VB2_USERPTR | VB2_READ;
 		q->drv_priv = dev;
 		q->buf_struct_size = sizeof(struct vb2_mmal_buffer);
-		q->ops = &bm2835_mmal_video_qops;
+		q->ops = &bcm2835_mmal_video_qops;
 		q->mem_ops = &vb2_vmalloc_memops;
 		q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 		q->lock = &dev->mutex;

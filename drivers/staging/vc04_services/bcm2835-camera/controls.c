@@ -58,7 +58,7 @@ static const u32 iso_values[] = {
 	0, 100, 200, 400, 800,
 };
 
-enum bm2835_mmal_ctrl_type {
+enum bcm2835_mmal_ctrl_type {
 	MMAL_CONTROL_TYPE_STD,
 	MMAL_CONTROL_TYPE_STD_MENU,
 	MMAL_CONTROL_TYPE_INT_MENU,
@@ -67,7 +67,7 @@ enum bm2835_mmal_ctrl_type {
 
 struct bcm2835_mmal_v4l2_ctrl {
 	u32 id; /* v4l2 control identifier */
-	enum bm2835_mmal_ctrl_type type;
+	enum bcm2835_mmal_ctrl_type type;
 	/* control minimum value or
 	 * mask for MMAL_CONTROL_TYPE_STD_MENU
 	 */
@@ -903,7 +903,7 @@ static int bcm2835_mmal_s_ctrl(struct v4l2_ctrl *ctrl)
 	return ret;
 }
 
-static const struct v4l2_ctrl_ops bm2835_mmal_ctrl_ops = {
+static const struct v4l2_ctrl_ops bcm2835_mmal_ctrl_ops = {
 	.s_ctrl = bcm2835_mmal_s_ctrl,
 };
 
@@ -1323,12 +1323,9 @@ int bcm2835_mmal_init_controls(struct bcm2835_mmal_dev *dev, struct v4l2_ctrl_ha
 
 		switch (ctrl->type) {
 		case MMAL_CONTROL_TYPE_STD:
-			dev->ctrls[c] =
-				v4l2_ctrl_new_std(hdl,
-						  &bm2835_mmal_ctrl_ops,
-						  ctrl->id, ctrl->min,
-						  ctrl->max, ctrl->step,
-						  ctrl->def);
+			dev->ctrls[c] = v4l2_ctrl_new_std(hdl, &bcm2835_mmal_ctrl_ops,
+							  ctrl->id, ctrl->min, ctrl->max,
+							  ctrl->step, ctrl->def);
 			break;
 
 		case MMAL_CONTROL_TYPE_STD_MENU:
@@ -1352,20 +1349,16 @@ int bcm2835_mmal_init_controls(struct bcm2835_mmal_dev *dev, struct v4l2_ctrl_ha
 				mask = ~mask;
 			}
 
-			dev->ctrls[c] =
-				v4l2_ctrl_new_std_menu(hdl,
-						       &bm2835_mmal_ctrl_ops,
-						       ctrl->id, ctrl->max,
-						       mask, ctrl->def);
+			dev->ctrls[c] = v4l2_ctrl_new_std_menu(hdl, &bcm2835_mmal_ctrl_ops,
+							       ctrl->id, ctrl->max, mask,
+							       ctrl->def);
 			break;
 		}
 
 		case MMAL_CONTROL_TYPE_INT_MENU:
-			dev->ctrls[c] =
-				v4l2_ctrl_new_int_menu(hdl,
-						       &bm2835_mmal_ctrl_ops,
-						       ctrl->id, ctrl->max,
-						       ctrl->def, ctrl->imenu);
+			dev->ctrls[c] = v4l2_ctrl_new_int_menu(hdl, &bcm2835_mmal_ctrl_ops,
+							       ctrl->id, ctrl->max,
+							       ctrl->def, ctrl->imenu);
 			break;
 
 		case MMAL_CONTROL_TYPE_CLUSTER:
