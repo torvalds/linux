@@ -490,7 +490,7 @@ static const struct key_info tuple_key_info[] = {
  **/
 int hclge_cmd_send(struct hclge_hw *hw, struct hclge_desc *desc, int num)
 {
-	return hclge_comm_cmd_send(&hw->hw, desc, num, true);
+	return hclge_comm_cmd_send(&hw->hw, desc, num);
 }
 
 static int hclge_mac_update_stats_defective(struct hclge_dev *hdev)
@@ -11968,7 +11968,7 @@ err_msi_irq_uninit:
 err_msi_uninit:
 	pci_free_irq_vectors(pdev);
 err_cmd_uninit:
-	hclge_comm_cmd_uninit(hdev->ae_dev, true, &hdev->hw.hw);
+	hclge_comm_cmd_uninit(hdev->ae_dev, &hdev->hw.hw);
 err_devlink_uninit:
 	hclge_devlink_uninit(hdev);
 err_pci_uninit:
@@ -12360,7 +12360,7 @@ static void hclge_uninit_ae_dev(struct hnae3_ae_dev *ae_dev)
 	hclge_config_nic_hw_error(hdev, false);
 	hclge_config_rocee_ras_interrupt(hdev, false);
 
-	hclge_comm_cmd_uninit(hdev->ae_dev, true, &hdev->hw.hw);
+	hclge_comm_cmd_uninit(hdev->ae_dev, &hdev->hw.hw);
 	hclge_misc_irq_uninit(hdev);
 	hclge_devlink_uninit(hdev);
 	hclge_pci_uninit(hdev);

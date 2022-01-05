@@ -209,15 +209,15 @@ int hclge_comm_cmd_query_version_and_capability(struct hnae3_ae_dev *ae_dev,
 						u32 *fw_version, bool is_pf);
 int hclge_comm_alloc_cmd_queue(struct hclge_comm_hw *hw, int ring_type);
 int hclge_comm_cmd_send(struct hclge_comm_hw *hw, struct hclge_desc *desc,
-			int num, bool is_pf);
+			int num);
 void hclge_comm_cmd_reuse_desc(struct hclge_desc *desc, bool is_read);
-int hclge_comm_firmware_compat_config(struct hnae3_ae_dev *ae_dev, bool is_pf,
+int hclge_comm_firmware_compat_config(struct hnae3_ae_dev *ae_dev,
 				      struct hclge_comm_hw *hw, bool en);
 void hclge_comm_free_cmd_desc(struct hclge_comm_cmq_ring *ring);
 void hclge_comm_cmd_setup_basic_desc(struct hclge_desc *desc,
 				     enum hclge_comm_opcode_type opcode,
 				     bool is_read);
-void hclge_comm_cmd_uninit(struct hnae3_ae_dev *ae_dev, bool is_pf,
+void hclge_comm_cmd_uninit(struct hnae3_ae_dev *ae_dev,
 			   struct hclge_comm_hw *hw);
 int hclge_comm_cmd_queue_init(struct pci_dev *pdev, struct hclge_comm_hw *hw);
 int hclge_comm_cmd_init(struct hnae3_ae_dev *ae_dev, struct hclge_comm_hw *hw,

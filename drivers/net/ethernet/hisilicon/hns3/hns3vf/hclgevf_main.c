@@ -102,7 +102,7 @@ static const u32 tqp_intr_reg_addr_list[] = {HCLGEVF_TQP_INTR_CTRL_REG,
  */
 int hclgevf_cmd_send(struct hclgevf_hw *hw, struct hclge_desc *desc, int num)
 {
-	return hclge_comm_cmd_send(&hw->hw, desc, num, false);
+	return hclge_comm_cmd_send(&hw->hw, desc, num);
 }
 
 void hclgevf_arq_init(struct hclgevf_dev *hdev)
@@ -3498,7 +3498,7 @@ err_misc_irq_init:
 	hclgevf_state_uninit(hdev);
 	hclgevf_uninit_msi(hdev);
 err_cmd_init:
-	hclge_comm_cmd_uninit(hdev->ae_dev, false, &hdev->hw.hw);
+	hclge_comm_cmd_uninit(hdev->ae_dev, &hdev->hw.hw);
 err_cmd_queue_init:
 	hclgevf_devlink_uninit(hdev);
 err_devlink_init:
@@ -3522,7 +3522,7 @@ static void hclgevf_uninit_hdev(struct hclgevf_dev *hdev)
 		hclgevf_uninit_msi(hdev);
 	}
 
-	hclge_comm_cmd_uninit(hdev->ae_dev, false, &hdev->hw.hw);
+	hclge_comm_cmd_uninit(hdev->ae_dev, &hdev->hw.hw);
 	hclgevf_devlink_uninit(hdev);
 	hclgevf_pci_uninit(hdev);
 	hclgevf_uninit_mac_list(hdev);
