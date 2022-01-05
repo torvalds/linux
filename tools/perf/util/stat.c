@@ -356,14 +356,14 @@ static int check_per_pkg(struct evsel *counter, struct perf_counts_values *vals,
 
 static int
 process_counter_values(struct perf_stat_config *config, struct evsel *evsel,
-		       int cpu, int thread,
+		       int cpu_map_idx, int thread,
 		       struct perf_counts_values *count)
 {
 	struct perf_counts_values *aggr = &evsel->counts->aggr;
 	static struct perf_counts_values zero;
 	bool skip = false;
 
-	if (check_per_pkg(evsel, count, cpu, &skip)) {
+	if (check_per_pkg(evsel, count, cpu_map_idx, &skip)) {
 		pr_err("failed to read per-pkg counter\n");
 		return -1;
 	}
@@ -379,11 +379,11 @@ process_counter_values(struct perf_stat_config *config, struct evsel *evsel,
 	case AGGR_NODE:
 	case AGGR_NONE:
 		if (!evsel->snapshot)
-			evsel__compute_deltas(evsel, cpu, thread, count);
+			evsel__compute_deltas(evsel, cpu_map_idx, thread, count);
 		perf_counts_values__scale(count, config->scale, NULL);
 		if ((config->aggr_mode == AGGR_NONE) && (!evsel->percore)) {
 			perf_stat__update_shadow_stats(evsel, count->val,
-						       cpu, &rt_stat);
+						       cpu_map_idx, &rt_stat);
 		}
 
 		if (config->aggr_mode == AGGR_THREAD) {
@@ -412,15 +412,15 @@ static int process_counter_maps(struct perf_stat_config *config,
 {
 	int nthreads = perf_thread_map__nr(counter->core.threads);
 	int ncpus = evsel__nr_cpus(counter);
-	int cpu, thread;
+	int idx, thread;
 
 	if (counter->core.system_wide)
 		nthreads = 1;
 
 	for (thread = 0; thread < nthreads; thread++) {
-		for (cpu = 0; cpu < ncpus; cpu++) {
-			if (process_counter_values(config, counter, cpu, thread,
-						   perf_counts(counter->counts, cpu, thread)))
+		for (idx = 0; idx < ncpus; idx++) {
+			if (process_counter_values(config, counter, idx, thread,
+						   perf_counts(counter->counts, idx, thread)))
 				return -1;
 		}
 	}
