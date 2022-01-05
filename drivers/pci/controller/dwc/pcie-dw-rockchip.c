@@ -35,6 +35,7 @@
 #include <linux/regmap.h>
 #include <linux/reset.h>
 #include <linux/resource.h>
+#include <linux/rfkill-wlan.h>
 #include <linux/signal.h>
 #include <linux/types.h>
 #include <linux/uaccess.h>
@@ -152,6 +153,7 @@ struct rk_pcie {
 	struct regmap			*pmu_grf;
 	struct dma_trx_obj		*dma_obj;
 	bool				in_suspend;
+	bool				skip_scan_in_resume;
 	bool				is_rk1808;
 	bool				is_signal_test;
 	bool				bifurcation;
@@ -689,7 +691,7 @@ static void rk_pcie_debug_dump(struct rk_pcie *rk_pcie)
 
 static int rk_pcie_establish_link(struct dw_pcie *pci)
 {
-	int retries;
+	int retries, power;
 	struct rk_pcie *rk_pcie = to_rk_pcie(pci);
 	bool std_rc = rk_pcie->mode == RK_PCIE_RC_TYPE && !rk_pcie->dma_obj;
 
@@ -717,6 +719,21 @@ static int rk_pcie_establish_link(struct dw_pcie *pci)
 	rk_pcie_enable_ltssm(rk_pcie);
 
 	/*
+	 * In resume routine, function devices' resume function must be late after
+	 * controllers'. Some devices, such as Wi-Fi, need special IO setting before
+	 * finishing training. So there must be timeout here. These kinds of devices
+	 * need rescan devices by its driver when used. So no need to waste time waiting
+	 * for training pass.
+	 */
+	if (rk_pcie->in_suspend && rk_pcie->skip_scan_in_resume) {
+		rfkill_get_wifi_power_state(&power);
+		if (!power) {
+			gpiod_set_value_cansleep(rk_pcie->rst_gpio, 1);
+			return 0;
+		}
+	}
+
+	/*
 	 * PCIe requires the refclk to be stable for 100µs prior to releasing
 	 * PERST and T_PVPERL (Power stable to PERST# inactive) should be a
 	 * minimum of 100ms.  See table 2-4 in section 2.6.2 AC, the PCI Express
@@ -725,6 +742,12 @@ static int rk_pcie_establish_link(struct dw_pcie *pci)
 	 */
 	msleep(200);
 	gpiod_set_value_cansleep(rk_pcie->rst_gpio, 1);
+
+	/*
+	 * Add this 1ms delay because we observe link is always up stably after it and
+	 * could help us save 20ms for scanning devices.
+	 */
+	usleep_range(1000, 1100);
 
 	for (retries = 0; retries < 100; retries++) {
 		if (dw_pcie_link_up(pci)) {
@@ -1803,6 +1826,10 @@ static int rk_pcie_really_probe(void *p)
 		dw_pcie_writel_dbi(pci, PCIE_CAP_LINK_CONTROL2_LINK_STATUS, val);
 		rk_pcie->is_signal_test = true;
 	}
+
+	/* Skip waiting for training to pass in system PM routine */
+	if (device_property_read_bool(dev, "rockchip,skip-scan-in-resume"))
+		rk_pcie->skip_scan_in_resume = true;
 
 	switch (rk_pcie->mode) {
 	case RK_PCIE_RC_TYPE:
