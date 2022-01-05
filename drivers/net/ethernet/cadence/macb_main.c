@@ -510,7 +510,7 @@ static void macb_usx_pcs_link_up(struct phylink_pcs *pcs, unsigned int mode,
 				 phy_interface_t interface, int speed,
 				 int duplex)
 {
-	struct macb *bp = container_of(pcs, struct macb, phylink_pcs);
+	struct macb *bp = container_of(pcs, struct macb, phylink_usx_pcs);
 	u32 config;
 
 	config = gem_readl(bp, USX_CONTROL);
@@ -524,7 +524,7 @@ static void macb_usx_pcs_link_up(struct phylink_pcs *pcs, unsigned int mode,
 static void macb_usx_pcs_get_state(struct phylink_pcs *pcs,
 				   struct phylink_link_state *state)
 {
-	struct macb *bp = container_of(pcs, struct macb, phylink_pcs);
+	struct macb *bp = container_of(pcs, struct macb, phylink_usx_pcs);
 	u32 val;
 
 	state->speed = SPEED_10000;
@@ -544,7 +544,7 @@ static int macb_usx_pcs_config(struct phylink_pcs *pcs,
 			       const unsigned long *advertising,
 			       bool permit_pause_to_mac)
 {
-	struct macb *bp = container_of(pcs, struct macb, phylink_pcs);
+	struct macb *bp = container_of(pcs, struct macb, phylink_usx_pcs);
 
 	gem_writel(bp, USX_CONTROL, gem_readl(bp, USX_CONTROL) |
 		   GEM_BIT(SIGNAL_OK));
@@ -727,28 +727,23 @@ static void macb_mac_link_up(struct phylink_config *config,
 	netif_tx_wake_all_queues(ndev);
 }
 
-static int macb_mac_prepare(struct phylink_config *config, unsigned int mode,
-			    phy_interface_t interface)
+static struct phylink_pcs *macb_mac_select_pcs(struct phylink_config *config,
+					       phy_interface_t interface)
 {
 	struct net_device *ndev = to_net_dev(config->dev);
 	struct macb *bp = netdev_priv(ndev);
 
 	if (interface == PHY_INTERFACE_MODE_10GBASER)
-		bp->phylink_pcs.ops = &macb_phylink_usx_pcs_ops;
+		return &bp->phylink_usx_pcs;
 	else if (interface == PHY_INTERFACE_MODE_SGMII)
-		bp->phylink_pcs.ops = &macb_phylink_pcs_ops;
+		return &bp->phylink_sgmii_pcs;
 	else
-		bp->phylink_pcs.ops = NULL;
-
-	if (bp->phylink_pcs.ops)
-		phylink_set_pcs(bp->phylink, &bp->phylink_pcs);
-
-	return 0;
+		return NULL;
 }
 
 static const struct phylink_mac_ops macb_phylink_ops = {
 	.validate = phylink_generic_validate,
-	.mac_prepare = macb_mac_prepare,
+	.mac_select_pcs = macb_mac_select_pcs,
 	.mac_config = macb_mac_config,
 	.mac_link_down = macb_mac_link_down,
 	.mac_link_up = macb_mac_link_up,
@@ -805,6 +800,9 @@ static void macb_get_pcs_fixed_state(struct phylink_config *config,
 static int macb_mii_probe(struct net_device *dev)
 {
 	struct macb *bp = netdev_priv(dev);
+
+	bp->phylink_sgmii_pcs.ops = &macb_phylink_pcs_ops;
+	bp->phylink_usx_pcs.ops = &macb_phylink_usx_pcs_ops;
 
 	bp->phylink_config.dev = &dev->dev;
 	bp->phylink_config.type = PHYLINK_NETDEV;
