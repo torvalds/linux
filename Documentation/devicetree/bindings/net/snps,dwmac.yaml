@@ -286,7 +286,8 @@ properties:
       MAC2MAC connection.
 
   mdio:
-    type: object
+    $ref: mdio.yaml#
+    unevaluatedProperties: false
     description:
       Creates and registers an MDIO bus.
 

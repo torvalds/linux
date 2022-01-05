@@ -122,6 +122,7 @@ allOf:
 
         mdio-mux:
           type: object
+          unevaluatedProperties: false
 
           properties:
             compatible:
@@ -132,17 +133,18 @@ allOf:
               description:
                 Phandle to EMAC MDIO.
 
+            "#address-cells":
+              const: 1
+
+            "#size-cells":
+              const: 0
+
             mdio@1:
-              type: object
+              $ref: mdio.yaml#
+              unevaluatedProperties: false
               description: Internal MDIO Bus
 
               properties:
-                "#address-cells":
-                  const: 1
-
-                "#size-cells":
-                  const: 0
-
                 compatible:
                   const: allwinner,sun8i-h3-mdio-internal
 
@@ -168,16 +170,11 @@ allOf:
 
 
             mdio@2:
-              type: object
+              $ref: mdio.yaml#
+              unevaluatedProperties: false
               description: External MDIO Bus (H3 only)
 
               properties:
-                "#address-cells":
-                  const: 1
-
-                "#size-cells":
-                  const: 0
-
                 reg:
                   const: 2
 
