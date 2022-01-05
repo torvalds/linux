@@ -22,6 +22,15 @@
 #define HCLGE_COMM_V_TAG_BIT		BIT(4)
 #define HCLGE_COMM_RSS_INPUT_TUPLE_SCTP_NO_PORT	\
 	(HCLGE_COMM_D_IP_BIT | HCLGE_COMM_S_IP_BIT | HCLGE_COMM_V_TAG_BIT)
+#define HCLGE_COMM_MAX_TC_NUM		8
+
+#define HCLGE_COMM_RSS_TC_OFFSET_S		0
+#define HCLGE_COMM_RSS_TC_OFFSET_M		GENMASK(10, 0)
+#define HCLGE_COMM_RSS_TC_SIZE_MSB_B	11
+#define HCLGE_COMM_RSS_TC_SIZE_S		12
+#define HCLGE_COMM_RSS_TC_SIZE_M		GENMASK(14, 12)
+#define HCLGE_COMM_RSS_TC_VALID_B		15
+#define HCLGE_COMM_RSS_TC_SIZE_MSB_OFFSET	3
 
 struct hclge_comm_rss_tuple_cfg {
 	u8 ipv4_tcp_en;
@@ -80,6 +89,11 @@ struct hclge_comm_rss_ind_tbl_cmd {
 	u8 rss_qid_l[HCLGE_COMM_RSS_CFG_TBL_SIZE];
 };
 
+struct hclge_comm_rss_tc_mode_cmd {
+	__le16 rss_tc_mode[HCLGE_COMM_MAX_TC_NUM];
+	u8 rsv[8];
+};
+
 u32 hclge_comm_get_rss_key_size(struct hnae3_handle *handle);
 void hclge_comm_get_rss_type(struct hnae3_handle *nic,
 			     struct hclge_comm_rss_tuple_cfg *rss_tuple_sets);
@@ -95,17 +109,28 @@ void hclge_comm_get_rss_indir_tbl(struct hclge_comm_rss_cfg *rss_cfg,
 				  u32 *indir, __le16 rss_ind_tbl_size);
 int hclge_comm_set_rss_algo_key(struct hclge_comm_hw *hw, const u8 hfunc,
 				const u8 *key);
-u8 hclge_comm_get_rss_hash_bits(struct ethtool_rxnfc *nfc);
 int hclge_comm_init_rss_tuple_cmd(struct hclge_comm_rss_cfg *rss_cfg,
 				  struct ethtool_rxnfc *nfc,
 				  struct hnae3_ae_dev *ae_dev,
 				  struct hclge_comm_rss_input_tuple_cmd *req);
 u64 hclge_comm_convert_rss_tuple(u8 tuple_sets);
 int hclge_comm_set_rss_input_tuple(struct hnae3_handle *nic,
-				   struct hclge_comm_hw *hw,  bool is_pf,
+				   struct hclge_comm_hw *hw, bool is_pf,
 				   struct hclge_comm_rss_cfg *rss_cfg);
 int hclge_comm_set_rss_indir_table(struct hnae3_ae_dev *ae_dev,
 				   struct hclge_comm_hw *hw, const u16 *indir);
-
-
+int hclge_comm_rss_init_cfg(struct hnae3_handle *nic,
+			    struct hnae3_ae_dev *ae_dev,
+			    struct hclge_comm_rss_cfg *rss_cfg);
+void hclge_comm_get_rss_tc_info(u16 rss_size, u8 hw_tc_map, u16 *tc_offset,
+				u16 *tc_valid, u16 *tc_size);
+int hclge_comm_set_rss_tc_mode(struct hclge_comm_hw *hw, u16 *tc_offset,
+			       u16 *tc_valid, u16 *tc_size);
+int hclge_comm_set_rss_hash_key(struct hclge_comm_rss_cfg *rss_cfg,
+				struct hclge_comm_hw *hw, const u8 *key,
+				const u8 hfunc);
+int hclge_comm_set_rss_tuple(struct hnae3_ae_dev *ae_dev,
+			     struct hclge_comm_hw *hw,
+			     struct hclge_comm_rss_cfg *rss_cfg,
+			     struct ethtool_rxnfc *nfc);
 #endif
