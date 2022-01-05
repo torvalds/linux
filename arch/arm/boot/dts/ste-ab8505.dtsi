@@ -93,7 +93,6 @@
 				};
 
 				ab8500_fg {
-					status = "disabled";
 					compatible = "stericsson,ab8500-fg";
 					interrupts = <24 IRQ_TYPE_LEVEL_HIGH>,
 						     <8 IRQ_TYPE_LEVEL_HIGH>,
@@ -111,7 +110,6 @@
 				};
 
 				ab8500_btemp {
-					status = "disabled";
 					compatible = "stericsson,ab8500-btemp";
 					interrupts = <20 IRQ_TYPE_LEVEL_HIGH>,
 						     <80 IRQ_TYPE_LEVEL_HIGH>,
@@ -131,7 +129,6 @@
 				};
 
 				ab8500_charger {
-					status = "disabled";
 					compatible = "stericsson,ab8500-charger";
 					interrupts = <10 IRQ_TYPE_LEVEL_HIGH>,
 						     <11 IRQ_TYPE_LEVEL_HIGH>,
@@ -170,7 +167,6 @@
 				};
 
 				ab8500_chargalg {
-					status = "disabled";
 					compatible = "stericsson,ab8500-chargalg";
 					monitored-battery = <&battery>;
 				};
