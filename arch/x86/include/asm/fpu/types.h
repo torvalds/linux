@@ -518,6 +518,11 @@ struct fpu_guest {
 	u64				perm;
 
 	/*
+	 * @xfd_err:			Save the guest value.
+	 */
+	u64				xfd_err;
+
+	/*
 	 * @fpstate:			Pointer to the allocated guest fpstate
 	 */
 	struct fpstate			*fpstate;
