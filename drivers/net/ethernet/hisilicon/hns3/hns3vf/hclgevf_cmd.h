@@ -16,30 +16,6 @@ struct hclgevf_dev;
 
 #define HCLGEVF_SYNC_RX_RING_HEAD_EN_B	4
 
-enum hclgevf_opcode_type {
-	/* Generic command */
-	HCLGEVF_OPC_QUERY_FW_VER	= 0x0001,
-	HCLGEVF_OPC_QUERY_VF_RSRC	= 0x0024,
-	HCLGEVF_OPC_QUERY_DEV_SPECS	= 0x0050,
-
-	/* TQP command */
-	HCLGEVF_OPC_QUERY_TX_STATUS	= 0x0B03,
-	HCLGEVF_OPC_QUERY_RX_STATUS	= 0x0B13,
-	HCLGEVF_OPC_CFG_COM_TQP_QUEUE	= 0x0B20,
-	/* GRO command */
-	HCLGEVF_OPC_GRO_GENERIC_CONFIG  = 0x0C10,
-	/* RSS cmd */
-	HCLGEVF_OPC_RSS_GENERIC_CONFIG	= 0x0D01,
-	HCLGEVF_OPC_RSS_INPUT_TUPLE     = 0x0D02,
-	HCLGEVF_OPC_RSS_INDIR_TABLE	= 0x0D07,
-	HCLGEVF_OPC_RSS_TC_MODE		= 0x0D08,
-	/* Mailbox cmd */
-	HCLGEVF_OPC_MBX_VF_TO_PF	= 0x2001,
-
-	/* IMP stats command */
-	HCLGEVF_OPC_IMP_COMPAT_CFG	= 0x701A,
-};
-
 #define HCLGEVF_TQP_REG_OFFSET		0x80000
 #define HCLGEVF_TQP_REG_SIZE		0x200
 
@@ -97,50 +73,6 @@ struct hclgevf_cfg_gro_status_cmd {
 	u8 rsv[23];
 };
 
-#define HCLGEVF_RSS_DEFAULT_OUTPORT_B	4
-#define HCLGEVF_RSS_HASH_KEY_OFFSET_B	4
-#define HCLGEVF_RSS_HASH_KEY_NUM	16
-struct hclgevf_rss_config_cmd {
-	u8 hash_config;
-	u8 rsv[7];
-	u8 hash_key[HCLGEVF_RSS_HASH_KEY_NUM];
-};
-
-struct hclgevf_rss_input_tuple_cmd {
-	u8 ipv4_tcp_en;
-	u8 ipv4_udp_en;
-	u8 ipv4_sctp_en;
-	u8 ipv4_fragment_en;
-	u8 ipv6_tcp_en;
-	u8 ipv6_udp_en;
-	u8 ipv6_sctp_en;
-	u8 ipv6_fragment_en;
-	u8 rsv[16];
-};
-
-#define HCLGEVF_RSS_CFG_TBL_SIZE	16
-
-struct hclgevf_rss_indirection_table_cmd {
-	__le16 start_table_index;
-	__le16 rss_set_bitmap;
-	u8 rsv[4];
-	u8 rss_result[HCLGEVF_RSS_CFG_TBL_SIZE];
-};
-
-#define HCLGEVF_RSS_TC_OFFSET_S		0
-#define HCLGEVF_RSS_TC_OFFSET_M		GENMASK(10, 0)
-#define HCLGEVF_RSS_TC_SIZE_MSB_B	11
-#define HCLGEVF_RSS_TC_SIZE_S		12
-#define HCLGEVF_RSS_TC_SIZE_M		GENMASK(14, 12)
-#define HCLGEVF_RSS_TC_VALID_B		15
-#define HCLGEVF_MAX_TC_NUM		8
-#define HCLGEVF_RSS_TC_SIZE_MSB_OFFSET	3
-
-struct hclgevf_rss_tc_mode_cmd {
-	__le16 rss_tc_mode[HCLGEVF_MAX_TC_NUM];
-	u8 rsv[8];
-};
-
 #define HCLGEVF_LINK_STS_B	0
 #define HCLGEVF_LINK_STATUS	BIT(HCLGEVF_LINK_STS_B)
 struct hclgevf_link_status_cmd {
@@ -177,8 +109,7 @@ struct hclgevf_cfg_tx_queue_pointer_cmd {
 #define HCLGEVF_QUERY_DEV_SPECS_BD_NUM		4
 
 #define hclgevf_cmd_setup_basic_desc(desc, opcode, is_read) \
-	hclge_comm_cmd_setup_basic_desc(desc, (enum hclge_comm_opcode_type)opcode, \
-					is_read)
+	hclge_comm_cmd_setup_basic_desc(desc, opcode, is_read)
 
 struct hclgevf_dev_specs_0_cmd {
 	__le32 rsv0;

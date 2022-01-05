@@ -4,6 +4,7 @@
 #include "hclge_main.h"
 #include "hclge_mbx.h"
 #include "hnae3.h"
+#include "hclge_comm_rss.h"
 
 #define CREATE_TRACE_POINTS
 #include "hclge_trace.h"
@@ -612,15 +613,17 @@ static void hclge_get_rss_key(struct hclge_vport *vport,
 {
 #define HCLGE_RSS_MBX_RESP_LEN	8
 	struct hclge_dev *hdev = vport->back;
+	struct hclge_comm_rss_cfg *rss_cfg;
 	u8 index;
 
 	index = mbx_req->msg.data[0];
+	rss_cfg = &hdev->rss_cfg;
 
 	/* Check the query index of rss_hash_key from VF, make sure no
 	 * more than the size of rss_hash_key.
 	 */
 	if (((index + 1) * HCLGE_RSS_MBX_RESP_LEN) >
-	      sizeof(vport[0].rss_hash_key)) {
+	      sizeof(rss_cfg->rss_hash_key)) {
 		dev_warn(&hdev->pdev->dev,
 			 "failed to get the rss hash key, the index(%u) invalid !\n",
 			 index);
@@ -628,7 +631,7 @@ static void hclge_get_rss_key(struct hclge_vport *vport,
 	}
 
 	memcpy(resp_msg->data,
-	       &hdev->vport[0].rss_hash_key[index * HCLGE_RSS_MBX_RESP_LEN],
+	       &rss_cfg->rss_hash_key[index * HCLGE_RSS_MBX_RESP_LEN],
 	       HCLGE_RSS_MBX_RESP_LEN);
 	resp_msg->len = HCLGE_RSS_MBX_RESP_LEN;
 }

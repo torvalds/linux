@@ -13,6 +13,8 @@
 #include "hclge_cmd.h"
 #include "hclge_ptp.h"
 #include "hnae3.h"
+#include "hclge_comm_rss.h"
+#include "hclge_comm_tqp_stats.h"
 
 #define HCLGE_MOD_VERSION "1.0"
 #define HCLGE_DRIVER_NAME "hclge"
@@ -80,22 +82,6 @@
 #define HCLGE_TQP_INTR_RL_REG		0x20900
 
 #define HCLGE_RSS_IND_TBL_SIZE		512
-#define HCLGE_RSS_SET_BITMAP_MSK	GENMASK(15, 0)
-#define HCLGE_RSS_KEY_SIZE		40
-#define HCLGE_RSS_HASH_ALGO_TOEPLITZ	0
-#define HCLGE_RSS_HASH_ALGO_SIMPLE	1
-#define HCLGE_RSS_HASH_ALGO_SYMMETRIC	2
-#define HCLGE_RSS_HASH_ALGO_MASK	GENMASK(3, 0)
-
-#define HCLGE_RSS_INPUT_TUPLE_OTHER	GENMASK(3, 0)
-#define HCLGE_RSS_INPUT_TUPLE_SCTP	GENMASK(4, 0)
-#define HCLGE_D_PORT_BIT		BIT(0)
-#define HCLGE_S_PORT_BIT		BIT(1)
-#define HCLGE_D_IP_BIT			BIT(2)
-#define HCLGE_S_IP_BIT			BIT(3)
-#define HCLGE_V_TAG_BIT			BIT(4)
-#define HCLGE_RSS_INPUT_TUPLE_SCTP_NO_PORT	\
-		(HCLGE_D_IP_BIT | HCLGE_S_IP_BIT | HCLGE_V_TAG_BIT)
 
 #define HCLGE_RSS_TC_SIZE_0		1
 #define HCLGE_RSS_TC_SIZE_1		2
@@ -283,26 +269,6 @@ struct hclge_hw {
 	struct hclge_comm_hw hw;
 	struct hclge_mac mac;
 	int num_vec;
-};
-
-/* TQP stats */
-struct hlcge_tqp_stats {
-	/* query_tqp_tx_queue_statistics ,opcode id:  0x0B03 */
-	u64 rcb_tx_ring_pktnum_rcd; /* 32bit */
-	/* query_tqp_rx_queue_statistics ,opcode id:  0x0B13 */
-	u64 rcb_rx_ring_pktnum_rcd; /* 32bit */
-};
-
-struct hclge_tqp {
-	/* copy of device pointer from pci_dev,
-	 * used when perform DMA mapping
-	 */
-	struct device *dev;
-	struct hnae3_queue q;
-	struct hlcge_tqp_stats tqp_stats;
-	u16 index;	/* Global index in a NIC controller */
-
-	bool alloced;
 };
 
 enum hclge_fc_mode {
@@ -909,7 +875,7 @@ struct hclge_dev {
 	bool cur_promisc;
 	int num_alloc_vfs;	/* Actual number of VFs allocated */
 
-	struct hclge_tqp *htqp;
+	struct hclge_comm_tqp *htqp;
 	struct hclge_vport *vport;
 
 	struct dentry *hclge_dbgfs;
@@ -968,6 +934,7 @@ struct hclge_dev {
 	cpumask_t affinity_mask;
 	struct hclge_ptp *ptp;
 	struct devlink *devlink;
+	struct hclge_comm_rss_cfg rss_cfg;
 };
 
 /* VPort level vlan tag configuration for TX direction */
@@ -992,17 +959,6 @@ struct hclge_rx_vtag_cfg {
 	bool vlan2_vlan_prionly; /* Outer vlan tag up to descriptor enable */
 	bool strip_tag1_discard_en; /* Inner vlan tag discard for BD enable */
 	bool strip_tag2_discard_en; /* Outer vlan tag discard for BD enable */
-};
-
-struct hclge_rss_tuple_cfg {
-	u8 ipv4_tcp_en;
-	u8 ipv4_udp_en;
-	u8 ipv4_sctp_en;
-	u8 ipv4_fragment_en;
-	u8 ipv6_tcp_en;
-	u8 ipv6_udp_en;
-	u8 ipv6_sctp_en;
-	u8 ipv6_fragment_en;
 };
 
 enum HCLGE_VPORT_STATE {
@@ -1037,15 +993,6 @@ struct hclge_vf_info {
 
 struct hclge_vport {
 	u16 alloc_tqps;	/* Allocated Tx/Rx queues */
-
-	u8  rss_hash_key[HCLGE_RSS_KEY_SIZE]; /* User configured hash keys */
-	/* User configured lookup table entries */
-	u16 *rss_indirection_tbl;
-	int rss_algo;		/* User configured hash algorithm */
-	/* User configured rss tuple sets */
-	struct hclge_rss_tuple_cfg rss_tuple_sets;
-
-	u16 alloc_rss_size;
 
 	u16 qs_offset;
 	u32 bw_limit;		/* VSI BW Limit (0 = disabled) */
@@ -1107,7 +1054,8 @@ int hclge_bind_ring_with_vector(struct hclge_vport *vport,
 
 static inline int hclge_get_queue_id(struct hnae3_queue *queue)
 {
-	struct hclge_tqp *tqp = container_of(queue, struct hclge_tqp, q);
+	struct hclge_comm_tqp *tqp =
+			container_of(queue, struct hclge_comm_tqp, q);
 
 	return tqp->index;
 }
@@ -1125,7 +1073,6 @@ int hclge_en_hw_strip_rxvtag(struct hnae3_handle *handle, bool enable);
 
 int hclge_buffer_alloc(struct hclge_dev *hdev);
 int hclge_rss_init_hw(struct hclge_dev *hdev);
-void hclge_rss_indir_init_cfg(struct hclge_dev *hdev);
 
 void hclge_mbx_handler(struct hclge_dev *hdev);
 int hclge_reset_tqp(struct hnae3_handle *handle);

@@ -10,6 +10,8 @@
 #include "hclge_mbx.h"
 #include "hclgevf_cmd.h"
 #include "hnae3.h"
+#include "hclge_comm_rss.h"
+#include "hclge_comm_tqp_stats.h"
 
 #define HCLGEVF_MOD_VERSION "1.0"
 #define HCLGEVF_DRIVER_NAME "hclgevf"
@@ -93,22 +95,6 @@
 #define HCLGEVF_WAIT_RESET_DONE		100
 
 #define HCLGEVF_RSS_IND_TBL_SIZE		512
-#define HCLGEVF_RSS_SET_BITMAP_MSK	0xffff
-#define HCLGEVF_RSS_KEY_SIZE		40
-#define HCLGEVF_RSS_HASH_ALGO_TOEPLITZ	0
-#define HCLGEVF_RSS_HASH_ALGO_SIMPLE	1
-#define HCLGEVF_RSS_HASH_ALGO_SYMMETRIC	2
-#define HCLGEVF_RSS_HASH_ALGO_MASK	0xf
-
-#define HCLGEVF_RSS_INPUT_TUPLE_OTHER	GENMASK(3, 0)
-#define HCLGEVF_RSS_INPUT_TUPLE_SCTP	GENMASK(4, 0)
-#define HCLGEVF_D_PORT_BIT		BIT(0)
-#define HCLGEVF_S_PORT_BIT		BIT(1)
-#define HCLGEVF_D_IP_BIT		BIT(2)
-#define HCLGEVF_S_IP_BIT		BIT(3)
-#define HCLGEVF_V_TAG_BIT		BIT(4)
-#define HCLGEVF_RSS_INPUT_TUPLE_SCTP_NO_PORT	\
-	(HCLGEVF_D_IP_BIT | HCLGEVF_S_IP_BIT | HCLGEVF_V_TAG_BIT)
 
 #define HCLGEVF_MAC_MAX_FRAME		9728
 
@@ -163,23 +149,6 @@ struct hclgevf_hw {
 	struct hclgevf_mac mac;
 };
 
-/* TQP stats */
-struct hlcgevf_tqp_stats {
-	/* query_tqp_tx_queue_statistics, opcode id: 0x0B03 */
-	u64 rcb_tx_ring_pktnum_rcd; /* 32bit */
-	/* query_tqp_rx_queue_statistics, opcode id: 0x0B13 */
-	u64 rcb_rx_ring_pktnum_rcd; /* 32bit */
-};
-
-struct hclgevf_tqp {
-	struct device *dev;	/* device for DMA mapping */
-	struct hnae3_queue q;
-	struct hlcgevf_tqp_stats tqp_stats;
-	u16 index;		/* global index in a NIC controller */
-
-	bool alloced;
-};
-
 struct hclgevf_cfg {
 	u8 tc_num;
 	u16 tqp_desc_num;
@@ -188,27 +157,6 @@ struct hclgevf_cfg {
 	u8 media_type;
 	u8 mac_addr[ETH_ALEN];
 	u32 numa_node_map;
-};
-
-struct hclgevf_rss_tuple_cfg {
-	u8 ipv4_tcp_en;
-	u8 ipv4_udp_en;
-	u8 ipv4_sctp_en;
-	u8 ipv4_fragment_en;
-	u8 ipv6_tcp_en;
-	u8 ipv6_udp_en;
-	u8 ipv6_sctp_en;
-	u8 ipv6_fragment_en;
-};
-
-struct hclgevf_rss_cfg {
-	u8  rss_hash_key[HCLGEVF_RSS_KEY_SIZE]; /* user configured hash keys */
-	u32 hash_algo;
-	u32 rss_size;
-	u8 hw_tc_map;
-	/* shadow table */
-	u8 *rss_indirection_tbl;
-	struct hclgevf_rss_tuple_cfg rss_tuple_sets;
 };
 
 struct hclgevf_misc_vector {
@@ -255,7 +203,7 @@ struct hclgevf_dev {
 	struct hnae3_ae_dev *ae_dev;
 	struct hclgevf_hw hw;
 	struct hclgevf_misc_vector misc_vector;
-	struct hclgevf_rss_cfg rss_cfg;
+	struct hclge_comm_rss_cfg rss_cfg;
 	unsigned long state;
 	unsigned long flr_state;
 	unsigned long default_reset_request;
@@ -306,7 +254,7 @@ struct hclgevf_dev {
 
 	struct delayed_work service_task;
 
-	struct hclgevf_tqp *htqp;
+	struct hclge_comm_tqp *htqp;
 
 	struct hnae3_handle nic;
 	struct hnae3_handle roce;
