@@ -393,6 +393,21 @@ void vdpa_mgmtdev_unregister(struct vdpa_mgmt_dev *mdev)
 }
 EXPORT_SYMBOL_GPL(vdpa_mgmtdev_unregister);
 
+static void vdpa_get_config_unlocked(struct vdpa_device *vdev,
+				     unsigned int offset,
+				     void *buf, unsigned int len)
+{
+	const struct vdpa_config_ops *ops = vdev->config;
+
+	/*
+	 * Config accesses aren't supposed to trigger before features are set.
+	 * If it does happen we assume a legacy guest.
+	 */
+	if (!vdev->features_valid)
+		vdpa_set_features(vdev, 0);
+	ops->get_config(vdev, offset, buf, len);
+}
+
 /**
  * vdpa_get_config - Get one or more device configuration fields.
  * @vdev: vdpa device to operate on
@@ -403,16 +418,8 @@ EXPORT_SYMBOL_GPL(vdpa_mgmtdev_unregister);
 void vdpa_get_config(struct vdpa_device *vdev, unsigned int offset,
 		     void *buf, unsigned int len)
 {
-	const struct vdpa_config_ops *ops = vdev->config;
-
 	mutex_lock(&vdev->cf_mutex);
-	/*
-	 * Config accesses aren't supposed to trigger before features are set.
-	 * If it does happen we assume a legacy guest.
-	 */
-	if (!vdev->features_valid)
-		vdpa_set_features(vdev, 0);
-	ops->get_config(vdev, offset, buf, len);
+	vdpa_get_config_unlocked(vdev, offset, buf, len);
 	mutex_unlock(&vdev->cf_mutex);
 }
 EXPORT_SYMBOL_GPL(vdpa_get_config);
@@ -813,7 +820,7 @@ static int vdpa_dev_net_config_fill(struct vdpa_device *vdev, struct sk_buff *ms
 	u64 features;
 	u16 val_u16;
 
-	vdpa_get_config(vdev, 0, &config, sizeof(config));
+	vdpa_get_config_unlocked(vdev, 0, &config, sizeof(config));
 
 	if (nla_put(msg, VDPA_ATTR_DEV_NET_CFG_MACADDR, sizeof(config.mac),
 		    config.mac))
@@ -838,12 +845,23 @@ vdpa_dev_config_fill(struct vdpa_device *vdev, struct sk_buff *msg, u32 portid, 
 {
 	u32 device_id;
 	void *hdr;
+	u8 status;
 	int err;
+
+	mutex_lock(&vdev->cf_mutex);
+	status = vdev->config->get_status(vdev);
+	if (!(status & VIRTIO_CONFIG_S_FEATURES_OK)) {
+		NL_SET_ERR_MSG_MOD(extack, "Features negotiation not completed");
+		err = -EAGAIN;
+		goto out;
+	}
 
 	hdr = genlmsg_put(msg, portid, seq, &vdpa_nl_family, flags,
 			  VDPA_CMD_DEV_CONFIG_GET);
-	if (!hdr)
-		return -EMSGSIZE;
+	if (!hdr) {
+		err = -EMSGSIZE;
+		goto out;
+	}
 
 	if (nla_put_string(msg, VDPA_ATTR_DEV_NAME, dev_name(&vdev->dev))) {
 		err = -EMSGSIZE;
@@ -867,11 +885,14 @@ vdpa_dev_config_fill(struct vdpa_device *vdev, struct sk_buff *msg, u32 portid, 
 	if (err)
 		goto msg_err;
 
+	mutex_unlock(&vdev->cf_mutex);
 	genlmsg_end(msg, hdr);
 	return 0;
 
 msg_err:
 	genlmsg_cancel(msg, hdr);
+out:
+	mutex_unlock(&vdev->cf_mutex);
 	return err;
 }
 
