@@ -589,6 +589,7 @@
 
 &pcie2x1l2 {
 	reset-gpios = <&gpio4 RK_PC1 GPIO_ACTIVE_HIGH>;
+	rockchip,skip-scan-in-resume;
 	status = "okay";
 };
 
