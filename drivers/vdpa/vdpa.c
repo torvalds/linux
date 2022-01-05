@@ -404,7 +404,7 @@ static void vdpa_get_config_unlocked(struct vdpa_device *vdev,
 	 * If it does happen we assume a legacy guest.
 	 */
 	if (!vdev->features_valid)
-		vdpa_set_features(vdev, 0);
+		vdpa_set_features(vdev, 0, true);
 	ops->get_config(vdev, offset, buf, len);
 }
 
@@ -581,7 +581,8 @@ out:
 }
 
 #define VDPA_DEV_NET_ATTRS_MASK ((1 << VDPA_ATTR_DEV_NET_CFG_MACADDR) | \
-				 (1 << VDPA_ATTR_DEV_NET_CFG_MTU))
+				 (1 << VDPA_ATTR_DEV_NET_CFG_MTU) | \
+				 (1 << VDPA_ATTR_DEV_NET_CFG_MAX_VQP))
 
 static int vdpa_nl_cmd_dev_add_set_doit(struct sk_buff *skb, struct genl_info *info)
 {
@@ -606,6 +607,16 @@ static int vdpa_nl_cmd_dev_add_set_doit(struct sk_buff *skb, struct genl_info *i
 		config.net.mtu =
 			nla_get_u16(nl_attrs[VDPA_ATTR_DEV_NET_CFG_MTU]);
 		config.mask |= (1 << VDPA_ATTR_DEV_NET_CFG_MTU);
+	}
+	if (nl_attrs[VDPA_ATTR_DEV_NET_CFG_MAX_VQP]) {
+		config.net.max_vq_pairs =
+			nla_get_u16(nl_attrs[VDPA_ATTR_DEV_NET_CFG_MAX_VQP]);
+		if (!config.net.max_vq_pairs) {
+			NL_SET_ERR_MSG_MOD(info->extack,
+					   "At least one pair of VQs is required");
+			return -EINVAL;
+		}
+		config.mask |= BIT_ULL(VDPA_ATTR_DEV_NET_CFG_MAX_VQP);
 	}
 
 	/* Skip checking capability if user didn't prefer to configure any

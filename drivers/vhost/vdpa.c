@@ -285,7 +285,7 @@ static long vhost_vdpa_set_features(struct vhost_vdpa *v, u64 __user *featurep)
 	if (copy_from_user(&features, featurep, sizeof(features)))
 		return -EFAULT;
 
-	if (vdpa_set_features(vdpa, features))
+	if (vdpa_set_features(vdpa, features, false))
 		return -EINVAL;
 
 	return 0;

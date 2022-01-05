@@ -101,6 +101,7 @@ struct vdpa_dev_set_config {
 	struct {
 		u8 mac[ETH_ALEN];
 		u16 mtu;
+		u16 max_vq_pairs;
 	} net;
 	u64 mask;
 };
@@ -391,17 +392,29 @@ static inline struct device *vdpa_get_dma_dev(struct vdpa_device *vdev)
 static inline int vdpa_reset(struct vdpa_device *vdev)
 {
 	const struct vdpa_config_ops *ops = vdev->config;
+	int ret;
 
+	mutex_lock(&vdev->cf_mutex);
 	vdev->features_valid = false;
-	return ops->reset(vdev);
+	ret = ops->reset(vdev);
+	mutex_unlock(&vdev->cf_mutex);
+	return ret;
 }
 
-static inline int vdpa_set_features(struct vdpa_device *vdev, u64 features)
+static inline int vdpa_set_features(struct vdpa_device *vdev, u64 features, bool locked)
 {
 	const struct vdpa_config_ops *ops = vdev->config;
+	int ret;
+
+	if (!locked)
+		mutex_lock(&vdev->cf_mutex);
 
 	vdev->features_valid = true;
-	return ops->set_driver_features(vdev, features);
+	ret = ops->set_driver_features(vdev, features);
+	if (!locked)
+		mutex_unlock(&vdev->cf_mutex);
+
+	return ret;
 }
 
 void vdpa_get_config(struct vdpa_device *vdev, unsigned int offset,
