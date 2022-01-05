@@ -469,23 +469,20 @@ int amdgpu_gmc_ras_late_init(struct amdgpu_device *adev)
 			return r;
 	}
 
-	if (adev->mca.mp0.ras_funcs &&
-	    adev->mca.mp0.ras_funcs->ras_late_init) {
-		r = adev->mca.mp0.ras_funcs->ras_late_init(adev);
+	if (adev->mca.mp0.ras && adev->mca.mp0.ras->ras_block.ras_late_init) {
+		r = adev->mca.mp0.ras->ras_block.ras_late_init(adev, NULL);
 		if (r)
 			return r;
 	}
 
-	if (adev->mca.mp1.ras_funcs &&
-	    adev->mca.mp1.ras_funcs->ras_late_init) {
-		r = adev->mca.mp1.ras_funcs->ras_late_init(adev);
+	if (adev->mca.mp1.ras && adev->mca.mp1.ras->ras_block.ras_late_init) {
+		r = adev->mca.mp1.ras->ras_block.ras_late_init(adev, NULL);
 		if (r)
 			return r;
 	}
 
-	if (adev->mca.mpio.ras_funcs &&
-	    adev->mca.mpio.ras_funcs->ras_late_init) {
-		r = adev->mca.mpio.ras_funcs->ras_late_init(adev);
+	if (adev->mca.mpio.ras && adev->mca.mpio.ras->ras_block.ras_late_init) {
+		r = adev->mca.mpio.ras->ras_block.ras_late_init(adev, NULL);
 		if (r)
 			return r;
 	}
