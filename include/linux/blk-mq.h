@@ -242,6 +242,10 @@ static inline unsigned short req_get_ioprio(struct request *req)
 #define rq_list_for_each(listptr, pos)			\
 	for (pos = rq_list_peek((listptr)); pos; pos = rq_list_next(pos))
 
+#define rq_list_for_each_safe(listptr, pos, nxt)			\
+	for (pos = rq_list_peek((listptr)), nxt = rq_list_next(pos);	\
+		pos; pos = nxt, nxt = pos ? rq_list_next(pos) : NULL)
+
 #define rq_list_next(rq)	(rq)->rq_next
 #define rq_list_empty(list)	((list) == (struct request *) NULL)
 
