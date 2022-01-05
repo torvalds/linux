@@ -4507,16 +4507,13 @@ static void hci_pscan_rep_mode_evt(struct hci_dev *hdev, void *data,
 static void hci_inquiry_result_with_rssi_evt(struct hci_dev *hdev, void *edata,
 					     struct sk_buff *skb)
 {
-	union {
-		struct hci_ev_inquiry_result_rssi *res1;
-		struct hci_ev_inquiry_result_rssi_pscan *res2;
-	} *ev = edata;
+	struct hci_ev_inquiry_result_rssi *ev = edata;
 	struct inquiry_data data;
 	int i;
 
-	bt_dev_dbg(hdev, "num_rsp %d", ev->res1->num);
+	bt_dev_dbg(hdev, "num_rsp %d", ev->num);
 
-	if (!ev->res1->num)
+	if (!ev->num)
 		return;
 
 	if (hci_dev_test_flag(hdev, HCI_PERIODIC_INQ))
@@ -4524,10 +4521,11 @@ static void hci_inquiry_result_with_rssi_evt(struct hci_dev *hdev, void *edata,
 
 	hci_dev_lock(hdev);
 
-	if (skb->len == flex_array_size(ev, res2->info, ev->res2->num)) {
+	if (skb->len == array_size(ev->num,
+				   sizeof(struct inquiry_info_rssi_pscan))) {
 		struct inquiry_info_rssi_pscan *info;
 
-		for (i = 0; i < ev->res2->num; i++) {
+		for (i = 0; i < ev->num; i++) {
 			u32 flags;
 
 			info = hci_ev_skb_pull(hdev, skb,
@@ -4554,10 +4552,11 @@ static void hci_inquiry_result_with_rssi_evt(struct hci_dev *hdev, void *edata,
 					  info->dev_class, info->rssi,
 					  flags, NULL, 0, NULL, 0);
 		}
-	} else if (skb->len == flex_array_size(ev, res1->info, ev->res1->num)) {
+	} else if (skb->len == array_size(ev->num,
+					  sizeof(struct inquiry_info_rssi))) {
 		struct inquiry_info_rssi *info;
 
-		for (i = 0; i < ev->res1->num; i++) {
+		for (i = 0; i < ev->num; i++) {
 			u32 flags;
 
 			info = hci_ev_skb_pull(hdev, skb,
