@@ -131,11 +131,6 @@ struct mlx5_vdpa_virtqueue {
 	struct mlx5_vq_restore_info ri;
 };
 
-/* We will remove this limitation once mlx5_vdpa_alloc_resources()
- * provides for driver space allocation
- */
-#define MLX5_MAX_SUPPORTED_VQS 16
-
 static bool is_index_valid(struct mlx5_vdpa_dev *mvdev, u16 idx)
 {
 	if (unlikely(idx > mvdev->max_idx))
@@ -148,8 +143,8 @@ struct mlx5_vdpa_net {
 	struct mlx5_vdpa_dev mvdev;
 	struct mlx5_vdpa_net_resources res;
 	struct virtio_net_config config;
-	struct mlx5_vdpa_virtqueue vqs[MLX5_MAX_SUPPORTED_VQS];
-	struct vdpa_callback event_cbs[MLX5_MAX_SUPPORTED_VQS + 1];
+	struct mlx5_vdpa_virtqueue *vqs;
+	struct vdpa_callback *event_cbs;
 
 	/* Serialize vq resources creation and destruction. This is required
 	 * since memory map might change and we need to destroy and create
@@ -1216,7 +1211,7 @@ static void suspend_vqs(struct mlx5_vdpa_net *ndev)
 {
 	int i;
 
-	for (i = 0; i < MLX5_MAX_SUPPORTED_VQS; i++)
+	for (i = 0; i < ndev->mvdev.max_vqs; i++)
 		suspend_vq(ndev, &ndev->vqs[i]);
 }
 
@@ -1242,8 +1237,15 @@ static int create_rqt(struct mlx5_vdpa_net *ndev)
 	void *in;
 	int i, j;
 	int err;
+	int num;
 
-	max_rqt = min_t(int, MLX5_MAX_SUPPORTED_VQS / 2,
+	if (!(ndev->mvdev.actual_features & BIT_ULL(VIRTIO_NET_F_MQ)))
+		num = 1;
+	else
+		num = mlx5vdpa16_to_cpu(&ndev->mvdev,
+					ndev->config.max_virtqueue_pairs);
+
+	max_rqt = min_t(int, roundup_pow_of_two(num),
 			1 << MLX5_CAP_GEN(ndev->mvdev.mdev, log_max_rqt_size));
 	if (max_rqt < 1)
 		return -EOPNOTSUPP;
@@ -1260,7 +1262,7 @@ static int create_rqt(struct mlx5_vdpa_net *ndev)
 	MLX5_SET(rqtc, rqtc, rqt_max_size, max_rqt);
 	list = MLX5_ADDR_OF(rqtc, rqtc, rq_num[0]);
 	for (i = 0, j = 0; i < max_rqt; i++, j += 2)
-		list[i] = cpu_to_be32(ndev->vqs[j % ndev->mvdev.max_vqs].virtq_id);
+		list[i] = cpu_to_be32(ndev->vqs[j % (2 * num)].virtq_id);
 
 	MLX5_SET(rqtc, rqtc, rqt_actual_size, max_rqt);
 	err = mlx5_vdpa_create_rqt(&ndev->mvdev, in, inlen, &ndev->res.rqtn);
@@ -2218,7 +2220,7 @@ static int mlx5_vdpa_reset(struct vdpa_device *vdev)
 	clear_vqs_ready(ndev);
 	mlx5_vdpa_destroy_mr(&ndev->mvdev);
 	ndev->mvdev.status = 0;
-	memset(ndev->event_cbs, 0, sizeof(ndev->event_cbs));
+	memset(ndev->event_cbs, 0, sizeof(*ndev->event_cbs) * (mvdev->max_vqs + 1));
 	ndev->mvdev.actual_features = 0;
 	++mvdev->generation;
 	if (MLX5_CAP_GEN(mvdev->mdev, umem_uid_0)) {
@@ -2291,6 +2293,8 @@ static void mlx5_vdpa_free(struct vdpa_device *vdev)
 	}
 	mlx5_vdpa_free_resources(&ndev->mvdev);
 	mutex_destroy(&ndev->reslock);
+	kfree(ndev->event_cbs);
+	kfree(ndev->vqs);
 }
 
 static struct vdpa_notification_area mlx5_get_vq_notification(struct vdpa_device *vdev, u16 idx)
@@ -2536,9 +2540,21 @@ static int mlx5_vdpa_dev_add(struct vdpa_mgmt_dev *v_mdev, const char *name,
 		return -EOPNOTSUPP;
 	}
 
-	/* we save one virtqueue for control virtqueue should we require it */
 	max_vqs = MLX5_CAP_DEV_VDPA_EMULATION(mdev, max_num_virtio_queues);
-	max_vqs = min_t(u32, max_vqs, MLX5_MAX_SUPPORTED_VQS);
+	if (max_vqs < 2) {
+		dev_warn(mdev->device,
+			 "%d virtqueues are supported. At least 2 are required\n",
+			 max_vqs);
+		return -EAGAIN;
+	}
+
+	if (add_config->mask & BIT_ULL(VDPA_ATTR_DEV_NET_CFG_MAX_VQP)) {
+		if (add_config->net.max_vq_pairs > max_vqs / 2)
+			return -EINVAL;
+		max_vqs = min_t(u32, max_vqs, 2 * add_config->net.max_vq_pairs);
+	} else {
+		max_vqs = 2;
+	}
 
 	ndev = vdpa_alloc_device(struct mlx5_vdpa_net, mvdev.vdev, mdev->device, &mlx5_vdpa_ops,
 				 name, false);
@@ -2548,6 +2564,14 @@ static int mlx5_vdpa_dev_add(struct vdpa_mgmt_dev *v_mdev, const char *name,
 	ndev->mvdev.max_vqs = max_vqs;
 	mvdev = &ndev->mvdev;
 	mvdev->mdev = mdev;
+
+	ndev->vqs = kcalloc(max_vqs, sizeof(*ndev->vqs), GFP_KERNEL);
+	ndev->event_cbs = kcalloc(max_vqs + 1, sizeof(*ndev->event_cbs), GFP_KERNEL);
+	if (!ndev->vqs || !ndev->event_cbs) {
+		err = -ENOMEM;
+		goto err_alloc;
+	}
+
 	init_mvqs(ndev);
 	mutex_init(&ndev->reslock);
 	config = &ndev->config;
@@ -2625,6 +2649,7 @@ err_mpfs:
 		mlx5_mpfs_del_mac(pfmdev, config->mac);
 err_mtu:
 	mutex_destroy(&ndev->reslock);
+err_alloc:
 	put_device(&mvdev->vdev.dev);
 	return err;
 }
@@ -2667,7 +2692,8 @@ static int mlx5v_probe(struct auxiliary_device *adev,
 	mgtdev->mgtdev.ops = &mdev_ops;
 	mgtdev->mgtdev.device = mdev->device;
 	mgtdev->mgtdev.id_table = id_table;
-	mgtdev->mgtdev.config_attr_mask = BIT_ULL(VDPA_ATTR_DEV_NET_CFG_MACADDR);
+	mgtdev->mgtdev.config_attr_mask = BIT_ULL(VDPA_ATTR_DEV_NET_CFG_MACADDR) |
+					  BIT_ULL(VDPA_ATTR_DEV_NET_CFG_MAX_VQP);
 	mgtdev->madev = madev;
 
 	err = vdpa_mgmtdev_register(&mgtdev->mgtdev);
