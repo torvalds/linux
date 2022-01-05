@@ -89,7 +89,9 @@
 	status = "okay";
 	assigned-clocks = <&cru CLK_SPI2>;
 	assigned-clock-rates = <200000000>;
-	num-cs = <2>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&spi2m2_cs0 &spi2m2_pins>;
+	num-cs = <1>;
 
 	rk806single@0 {
 		compatible = "rockchip,rk806";
