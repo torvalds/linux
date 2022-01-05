@@ -337,25 +337,25 @@ static int evsel__write_stat_event(struct evsel *counter, int cpu_map_idx, u32 t
 					   process_synthesized_event, NULL);
 }
 
-static int read_single_counter(struct evsel *counter, int cpu,
+static int read_single_counter(struct evsel *counter, int cpu_map_idx,
 			       int thread, struct timespec *rs)
 {
 	if (counter->tool_event == PERF_TOOL_DURATION_TIME) {
 		u64 val = rs->tv_nsec + rs->tv_sec*1000000000ULL;
 		struct perf_counts_values *count =
-			perf_counts(counter->counts, cpu, thread);
+			perf_counts(counter->counts, cpu_map_idx, thread);
 		count->ena = count->run = val;
 		count->val = val;
 		return 0;
 	}
-	return evsel__read_counter(counter, cpu, thread);
+	return evsel__read_counter(counter, cpu_map_idx, thread);
 }
 
 /*
  * Read out the results of a single counter:
  * do not aggregate counts across CPUs in system-wide mode
  */
-static int read_counter_cpu(struct evsel *counter, struct timespec *rs, int cpu)
+static int read_counter_cpu(struct evsel *counter, struct timespec *rs, int cpu_map_idx)
 {
 	int nthreads = perf_thread_map__nr(evsel_list->core.threads);
 	int thread;
@@ -369,24 +369,24 @@ static int read_counter_cpu(struct evsel *counter, struct timespec *rs, int cpu)
 	for (thread = 0; thread < nthreads; thread++) {
 		struct perf_counts_values *count;
 
-		count = perf_counts(counter->counts, cpu, thread);
+		count = perf_counts(counter->counts, cpu_map_idx, thread);
 
 		/*
 		 * The leader's group read loads data into its group members
 		 * (via evsel__read_counter()) and sets their count->loaded.
 		 */
-		if (!perf_counts__is_loaded(counter->counts, cpu, thread) &&
-		    read_single_counter(counter, cpu, thread, rs)) {
+		if (!perf_counts__is_loaded(counter->counts, cpu_map_idx, thread) &&
+		    read_single_counter(counter, cpu_map_idx, thread, rs)) {
 			counter->counts->scaled = -1;
-			perf_counts(counter->counts, cpu, thread)->ena = 0;
-			perf_counts(counter->counts, cpu, thread)->run = 0;
+			perf_counts(counter->counts, cpu_map_idx, thread)->ena = 0;
+			perf_counts(counter->counts, cpu_map_idx, thread)->run = 0;
 			return -1;
 		}
 
-		perf_counts__set_loaded(counter->counts, cpu, thread, false);
+		perf_counts__set_loaded(counter->counts, cpu_map_idx, thread, false);
 
 		if (STAT_RECORD) {
-			if (evsel__write_stat_event(counter, cpu, thread, count)) {
+			if (evsel__write_stat_event(counter, cpu_map_idx, thread, count)) {
 				pr_err("failed to write stat event\n");
 				return -1;
 			}
@@ -396,7 +396,7 @@ static int read_counter_cpu(struct evsel *counter, struct timespec *rs, int cpu)
 			fprintf(stat_config.output,
 				"%s: %d: %" PRIu64 " %" PRIu64 " %" PRIu64 "\n",
 					evsel__name(counter),
-					cpu,
+					perf_cpu_map__cpu(evsel__cpus(counter), cpu_map_idx),
 					count->val, count->ena, count->run);
 		}
 	}

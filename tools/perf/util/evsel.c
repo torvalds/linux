@@ -1476,11 +1476,11 @@ void evsel__compute_deltas(struct evsel *evsel, int cpu, int thread,
 	count->run = count->run - tmp.run;
 }
 
-static int evsel__read_one(struct evsel *evsel, int cpu, int thread)
+static int evsel__read_one(struct evsel *evsel, int cpu_map_idx, int thread)
 {
-	struct perf_counts_values *count = perf_counts(evsel->counts, cpu, thread);
+	struct perf_counts_values *count = perf_counts(evsel->counts, cpu_map_idx, thread);
 
-	return perf_evsel__read(&evsel->core, cpu, thread, count);
+	return perf_evsel__read(&evsel->core, cpu_map_idx, thread, count);
 }
 
 static void evsel__set_count(struct evsel *counter, int cpu, int thread, u64 val, u64 ena, u64 run)
@@ -1530,7 +1530,7 @@ static int evsel__process_group_data(struct evsel *leader, int cpu, int thread, 
 	return 0;
 }
 
-static int evsel__read_group(struct evsel *leader, int cpu, int thread)
+static int evsel__read_group(struct evsel *leader, int cpu_map_idx, int thread)
 {
 	struct perf_stat_evsel *ps = leader->stats;
 	u64 read_format = leader->core.attr.read_format;
@@ -1551,42 +1551,42 @@ static int evsel__read_group(struct evsel *leader, int cpu, int thread)
 		ps->group_data = data;
 	}
 
-	if (FD(leader, cpu, thread) < 0)
+	if (FD(leader, cpu_map_idx, thread) < 0)
 		return -EINVAL;
 
-	if (readn(FD(leader, cpu, thread), data, size) <= 0)
+	if (readn(FD(leader, cpu_map_idx, thread), data, size) <= 0)
 		return -errno;
 
-	return evsel__process_group_data(leader, cpu, thread, data);
+	return evsel__process_group_data(leader, cpu_map_idx, thread, data);
 }
 
-int evsel__read_counter(struct evsel *evsel, int cpu, int thread)
+int evsel__read_counter(struct evsel *evsel, int cpu_map_idx, int thread)
 {
 	u64 read_format = evsel->core.attr.read_format;
 
 	if (read_format & PERF_FORMAT_GROUP)
-		return evsel__read_group(evsel, cpu, thread);
+		return evsel__read_group(evsel, cpu_map_idx, thread);
 
-	return evsel__read_one(evsel, cpu, thread);
+	return evsel__read_one(evsel, cpu_map_idx, thread);
 }
 
-int __evsel__read_on_cpu(struct evsel *evsel, int cpu, int thread, bool scale)
+int __evsel__read_on_cpu(struct evsel *evsel, int cpu_map_idx, int thread, bool scale)
 {
 	struct perf_counts_values count;
 	size_t nv = scale ? 3 : 1;
 
-	if (FD(evsel, cpu, thread) < 0)
+	if (FD(evsel, cpu_map_idx, thread) < 0)
 		return -EINVAL;
 
 	if (evsel->counts == NULL && evsel__alloc_counts(evsel) < 0)
 		return -ENOMEM;
 
-	if (readn(FD(evsel, cpu, thread), &count, nv * sizeof(u64)) <= 0)
+	if (readn(FD(evsel, cpu_map_idx, thread), &count, nv * sizeof(u64)) <= 0)
 		return -errno;
 
-	evsel__compute_deltas(evsel, cpu, thread, &count);
+	evsel__compute_deltas(evsel, cpu_map_idx, thread, &count);
 	perf_counts_values__scale(&count, scale, NULL);
-	*perf_counts(evsel->counts, cpu, thread) = count;
+	*perf_counts(evsel->counts, cpu_map_idx, thread) = count;
 	return 0;
 }
 
