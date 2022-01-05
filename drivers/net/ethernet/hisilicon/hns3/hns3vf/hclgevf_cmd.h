@@ -97,24 +97,6 @@ struct hclgevf_cfg_gro_status_cmd {
 	u8 rsv[23];
 };
 
-#define HCLGEVF_RSS_DEFAULT_OUTPORT_B	4
-
-#define HCLGEVF_RSS_CFG_TBL_SIZE	16
-
-#define HCLGEVF_RSS_TC_OFFSET_S		0
-#define HCLGEVF_RSS_TC_OFFSET_M		GENMASK(10, 0)
-#define HCLGEVF_RSS_TC_SIZE_MSB_B	11
-#define HCLGEVF_RSS_TC_SIZE_S		12
-#define HCLGEVF_RSS_TC_SIZE_M		GENMASK(14, 12)
-#define HCLGEVF_RSS_TC_VALID_B		15
-#define HCLGEVF_MAX_TC_NUM		8
-#define HCLGEVF_RSS_TC_SIZE_MSB_OFFSET	3
-
-struct hclgevf_rss_tc_mode_cmd {
-	__le16 rss_tc_mode[HCLGEVF_MAX_TC_NUM];
-	u8 rsv[8];
-};
-
 #define HCLGEVF_LINK_STS_B	0
 #define HCLGEVF_LINK_STATUS	BIT(HCLGEVF_LINK_STS_B)
 struct hclgevf_link_status_cmd {
