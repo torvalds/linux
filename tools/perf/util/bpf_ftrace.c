@@ -63,7 +63,7 @@ int perf_ftrace__latency_prepare_bpf(struct perf_ftrace *ftrace)
 		fd = bpf_map__fd(skel->maps.cpu_filter);
 
 		for (i = 0; i < ncpus; i++) {
-			cpu = cpu_map__cpu(ftrace->evlist->core.cpus, i);
+			cpu = perf_cpu_map__cpu(ftrace->evlist->core.cpus, i);
 			bpf_map_update_elem(fd, &cpu, &val, BPF_ANY);
 		}
 	}
