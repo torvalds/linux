@@ -125,7 +125,7 @@ struct rtrs_rbuf {
 };
 
 struct rtrs_clt_sess {
-	struct rtrs_sess	s;
+	struct rtrs_path	s;
 	struct rtrs_clt	*clt;
 	wait_queue_head_t	state_wq;
 	enum rtrs_clt_state	state;
@@ -186,7 +186,7 @@ static inline struct rtrs_clt_con *to_clt_con(struct rtrs_con *c)
 	return container_of(c, struct rtrs_clt_con, c);
 }
 
-static inline struct rtrs_clt_sess *to_clt_sess(struct rtrs_sess *s)
+static inline struct rtrs_clt_sess *to_clt_sess(struct rtrs_path *s)
 {
 	return container_of(s, struct rtrs_clt_sess, s);
 }

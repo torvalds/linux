@@ -37,7 +37,7 @@ static ssize_t rtrs_srv_disconnect_store(struct kobject *kobj,
 					  const char *buf, size_t count)
 {
 	struct rtrs_srv_sess *sess;
-	struct rtrs_sess *s;
+	struct rtrs_path *s;
 	char str[MAXHOSTNAMELEN];
 
 	sess = container_of(kobj, struct rtrs_srv_sess, kobj);
@@ -230,7 +230,7 @@ static struct kobj_type ktype_stats = {
 static int rtrs_srv_create_stats_files(struct rtrs_srv_sess *sess)
 {
 	int err;
-	struct rtrs_sess *s = &sess->s;
+	struct rtrs_path *s = &sess->s;
 
 	err = kobject_init_and_add(&sess->stats->kobj_stats, &ktype_stats,
 				   &sess->kobj, "stats");
@@ -258,7 +258,7 @@ err:
 int rtrs_srv_create_sess_files(struct rtrs_srv_sess *sess)
 {
 	struct rtrs_srv *srv = sess->srv;
-	struct rtrs_sess *s = &sess->s;
+	struct rtrs_path *s = &sess->s;
 	char str[NAME_MAX];
 	int err;
 	struct rtrs_addr path = {

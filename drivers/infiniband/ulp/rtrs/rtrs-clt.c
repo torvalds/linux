@@ -298,7 +298,7 @@ static bool rtrs_clt_change_state_from_to(struct rtrs_clt_sess *sess,
 
 static void rtrs_rdma_error_recovery(struct rtrs_clt_con *con)
 {
-	struct rtrs_clt_sess *sess = to_clt_sess(con->c.sess);
+	struct rtrs_clt_sess *sess = to_clt_sess(con->c.path);
 
 	if (rtrs_clt_change_state_from_to(sess,
 					   RTRS_CLT_CONNECTED,
@@ -330,7 +330,7 @@ static void rtrs_clt_fast_reg_done(struct ib_cq *cq, struct ib_wc *wc)
 	struct rtrs_clt_con *con = to_clt_con(wc->qp->qp_context);
 
 	if (wc->status != IB_WC_SUCCESS) {
-		rtrs_err(con->c.sess, "Failed IB_WR_REG_MR: %s\n",
+		rtrs_err(con->c.path, "Failed IB_WR_REG_MR: %s\n",
 			  ib_wc_status_msg(wc->status));
 		rtrs_rdma_error_recovery(con);
 	}
@@ -350,7 +350,7 @@ static void rtrs_clt_inv_rkey_done(struct ib_cq *cq, struct ib_wc *wc)
 	struct rtrs_clt_con *con = to_clt_con(wc->qp->qp_context);
 
 	if (wc->status != IB_WC_SUCCESS) {
-		rtrs_err(con->c.sess, "Failed IB_WR_LOCAL_INV: %s\n",
+		rtrs_err(con->c.path, "Failed IB_WR_LOCAL_INV: %s\n",
 			  ib_wc_status_msg(wc->status));
 		rtrs_rdma_error_recovery(con);
 	}
@@ -387,7 +387,7 @@ static void complete_rdma_req(struct rtrs_clt_io_req *req, int errno,
 		return;
 	if (WARN_ON(!req->con))
 		return;
-	sess = to_clt_sess(con->c.sess);
+	sess = to_clt_sess(con->c.path);
 
 	if (req->sg_cnt) {
 		if (req->dir == DMA_FROM_DEVICE && req->need_inv) {
@@ -417,7 +417,7 @@ static void complete_rdma_req(struct rtrs_clt_io_req *req, int errno,
 			refcount_inc(&req->ref);
 			err = rtrs_inv_rkey(req);
 			if (err) {
-				rtrs_err(con->c.sess, "Send INV WR key=%#x: %d\n",
+				rtrs_err(con->c.path, "Send INV WR key=%#x: %d\n",
 					  req->mr->rkey, err);
 			} else if (can_wait) {
 				wait_for_completion(&req->inv_comp);
@@ -445,7 +445,7 @@ static void complete_rdma_req(struct rtrs_clt_io_req *req, int errno,
 	req->con = NULL;
 
 	if (errno) {
-		rtrs_err_rl(con->c.sess, "IO request failed: error=%d path=%s [%s:%u] notify=%d\n",
+		rtrs_err_rl(con->c.path, "IO request failed: error=%d path=%s [%s:%u] notify=%d\n",
 			    errno, kobject_name(&sess->kobj), sess->hca_name,
 			    sess->hca_port, notify);
 	}
@@ -459,12 +459,12 @@ static int rtrs_post_send_rdma(struct rtrs_clt_con *con,
 				struct rtrs_rbuf *rbuf, u32 off,
 				u32 imm, struct ib_send_wr *wr)
 {
-	struct rtrs_clt_sess *sess = to_clt_sess(con->c.sess);
+	struct rtrs_clt_sess *sess = to_clt_sess(con->c.path);
 	enum ib_send_flags flags;
 	struct ib_sge sge;
 
 	if (!req->sg_size) {
-		rtrs_wrn(con->c.sess,
+		rtrs_wrn(con->c.path,
 			 "Doing RDMA Write failed, no data supplied\n");
 		return -EINVAL;
 	}
@@ -507,21 +507,21 @@ static void rtrs_clt_recv_done(struct rtrs_clt_con *con, struct ib_wc *wc)
 {
 	struct rtrs_iu *iu;
 	int err;
-	struct rtrs_clt_sess *sess = to_clt_sess(con->c.sess);
+	struct rtrs_clt_sess *sess = to_clt_sess(con->c.path);
 
 	WARN_ON((sess->flags & RTRS_MSG_NEW_RKEY_F) == 0);
 	iu = container_of(wc->wr_cqe, struct rtrs_iu,
 			  cqe);
 	err = rtrs_iu_post_recv(&con->c, iu);
 	if (err) {
-		rtrs_err(con->c.sess, "post iu failed %d\n", err);
+		rtrs_err(con->c.path, "post iu failed %d\n", err);
 		rtrs_rdma_error_recovery(con);
 	}
 }
 
 static void rtrs_clt_rkey_rsp_done(struct rtrs_clt_con *con, struct ib_wc *wc)
 {
-	struct rtrs_clt_sess *sess = to_clt_sess(con->c.sess);
+	struct rtrs_clt_sess *sess = to_clt_sess(con->c.path);
 	struct rtrs_msg_rkey_rsp *msg;
 	u32 imm_type, imm_payload;
 	bool w_inval = false;
@@ -534,7 +534,7 @@ static void rtrs_clt_rkey_rsp_done(struct rtrs_clt_con *con, struct ib_wc *wc)
 	iu = container_of(wc->wr_cqe, struct rtrs_iu, cqe);
 
 	if (wc->byte_len < sizeof(*msg)) {
-		rtrs_err(con->c.sess, "rkey response is malformed: size %d\n",
+		rtrs_err(con->c.path, "rkey response is malformed: size %d\n",
 			  wc->byte_len);
 		goto out;
 	}
@@ -600,7 +600,7 @@ static int rtrs_post_recv_empty_x2(struct rtrs_con *con, struct ib_cqe *cqe)
 static void rtrs_clt_rdma_done(struct ib_cq *cq, struct ib_wc *wc)
 {
 	struct rtrs_clt_con *con = to_clt_con(wc->qp->qp_context);
-	struct rtrs_clt_sess *sess = to_clt_sess(con->c.sess);
+	struct rtrs_clt_sess *sess = to_clt_sess(con->c.path);
 	u32 imm_type, imm_payload;
 	bool w_inval = false;
 	int err;
@@ -646,7 +646,7 @@ static void rtrs_clt_rdma_done(struct ib_cq *cq, struct ib_wc *wc)
 			if (sess->flags & RTRS_MSG_NEW_RKEY_F)
 				return  rtrs_clt_recv_done(con, wc);
 		} else {
-			rtrs_wrn(con->c.sess, "Unknown IMM type %u\n",
+			rtrs_wrn(con->c.path, "Unknown IMM type %u\n",
 				  imm_type);
 		}
 		if (w_inval)
@@ -658,7 +658,7 @@ static void rtrs_clt_rdma_done(struct ib_cq *cq, struct ib_wc *wc)
 		else
 			err = rtrs_post_recv_empty(&con->c, &io_comp_cqe);
 		if (err) {
-			rtrs_err(con->c.sess, "rtrs_post_recv_empty(): %d\n",
+			rtrs_err(con->c.path, "rtrs_post_recv_empty(): %d\n",
 				  err);
 			rtrs_rdma_error_recovery(con);
 		}
@@ -693,7 +693,7 @@ static void rtrs_clt_rdma_done(struct ib_cq *cq, struct ib_wc *wc)
 static int post_recv_io(struct rtrs_clt_con *con, size_t q_size)
 {
 	int err, i;
-	struct rtrs_clt_sess *sess = to_clt_sess(con->c.sess);
+	struct rtrs_clt_sess *sess = to_clt_sess(con->c.path);
 
 	for (i = 0; i < q_size; i++) {
 		if (sess->flags & RTRS_MSG_NEW_RKEY_F) {
@@ -1013,7 +1013,7 @@ static int rtrs_post_rdma_write_sg(struct rtrs_clt_con *con,
 				   u32 size, u32 imm, struct ib_send_wr *wr,
 				   struct ib_send_wr *tail)
 {
-	struct rtrs_clt_sess *sess = to_clt_sess(con->c.sess);
+	struct rtrs_clt_sess *sess = to_clt_sess(con->c.path);
 	struct ib_sge *sge = req->sge;
 	enum ib_send_flags flags;
 	struct scatterlist *sg;
@@ -1074,7 +1074,7 @@ static int rtrs_map_sg_fr(struct rtrs_clt_io_req *req, size_t count)
 static int rtrs_clt_write_req(struct rtrs_clt_io_req *req)
 {
 	struct rtrs_clt_con *con = req->con;
-	struct rtrs_sess *s = con->c.sess;
+	struct rtrs_path *s = con->c.path;
 	struct rtrs_clt_sess *sess = to_clt_sess(s);
 	struct rtrs_msg_rdma_write *msg;
 
@@ -1168,7 +1168,7 @@ static int rtrs_clt_write_req(struct rtrs_clt_io_req *req)
 static int rtrs_clt_read_req(struct rtrs_clt_io_req *req)
 {
 	struct rtrs_clt_con *con = req->con;
-	struct rtrs_sess *s = con->c.sess;
+	struct rtrs_path *s = con->c.path;
 	struct rtrs_clt_sess *sess = to_clt_sess(s);
 	struct rtrs_msg_rdma_read *msg;
 	struct rtrs_ib_dev *dev = sess->s.dev;
@@ -1601,7 +1601,7 @@ static int create_con(struct rtrs_clt_sess *sess, unsigned int cid)
 	/* Map first two connections to the first CPU */
 	con->cpu  = (cid ? cid - 1 : 0) % nr_cpu_ids;
 	con->c.cid = cid;
-	con->c.sess = &sess->s;
+	con->c.path = &sess->s;
 	/* Align with srv, init as 1 */
 	atomic_set(&con->c.wr_cnt, 1);
 	mutex_init(&con->con_mutex);
@@ -1613,7 +1613,7 @@ static int create_con(struct rtrs_clt_sess *sess, unsigned int cid)
 
 static void destroy_con(struct rtrs_clt_con *con)
 {
-	struct rtrs_clt_sess *sess = to_clt_sess(con->c.sess);
+	struct rtrs_clt_sess *sess = to_clt_sess(con->c.path);
 
 	sess->s.con[con->c.cid] = NULL;
 	mutex_destroy(&con->con_mutex);
@@ -1622,7 +1622,7 @@ static void destroy_con(struct rtrs_clt_con *con)
 
 static int create_con_cq_qp(struct rtrs_clt_con *con)
 {
-	struct rtrs_clt_sess *sess = to_clt_sess(con->c.sess);
+	struct rtrs_clt_sess *sess = to_clt_sess(con->c.path);
 	u32 max_send_wr, max_recv_wr, cq_num, max_send_sge, wr_limit;
 	int err, cq_vector;
 	struct rtrs_msg_rkey_rsp *rsp;
@@ -1711,7 +1711,7 @@ static int create_con_cq_qp(struct rtrs_clt_con *con)
 
 static void destroy_con_cq_qp(struct rtrs_clt_con *con)
 {
-	struct rtrs_clt_sess *sess = to_clt_sess(con->c.sess);
+	struct rtrs_clt_sess *sess = to_clt_sess(con->c.path);
 
 	/*
 	 * Be careful here: destroy_con_cq_qp() can be called even
@@ -1745,7 +1745,7 @@ static void destroy_cm(struct rtrs_clt_con *con)
 
 static int rtrs_rdma_addr_resolved(struct rtrs_clt_con *con)
 {
-	struct rtrs_sess *s = con->c.sess;
+	struct rtrs_path *s = con->c.path;
 	int err;
 
 	mutex_lock(&con->con_mutex);
@@ -1764,7 +1764,7 @@ static int rtrs_rdma_addr_resolved(struct rtrs_clt_con *con)
 
 static int rtrs_rdma_route_resolved(struct rtrs_clt_con *con)
 {
-	struct rtrs_clt_sess *sess = to_clt_sess(con->c.sess);
+	struct rtrs_clt_sess *sess = to_clt_sess(con->c.path);
 	struct rtrs_clt *clt = sess->clt;
 	struct rtrs_msg_conn_req msg;
 	struct rdma_conn_param param;
@@ -1799,7 +1799,7 @@ static int rtrs_rdma_route_resolved(struct rtrs_clt_con *con)
 static int rtrs_rdma_conn_established(struct rtrs_clt_con *con,
 				       struct rdma_cm_event *ev)
 {
-	struct rtrs_clt_sess *sess = to_clt_sess(con->c.sess);
+	struct rtrs_clt_sess *sess = to_clt_sess(con->c.path);
 	struct rtrs_clt *clt = sess->clt;
 	const struct rtrs_msg_conn_rsp *msg;
 	u16 version, queue_depth;
@@ -1887,7 +1887,7 @@ static int rtrs_rdma_conn_established(struct rtrs_clt_con *con,
 
 static inline void flag_success_on_conn(struct rtrs_clt_con *con)
 {
-	struct rtrs_clt_sess *sess = to_clt_sess(con->c.sess);
+	struct rtrs_clt_sess *sess = to_clt_sess(con->c.path);
 
 	atomic_inc(&sess->connected_cnt);
 	con->cm_err = 1;
@@ -1896,7 +1896,7 @@ static inline void flag_success_on_conn(struct rtrs_clt_con *con)
 static int rtrs_rdma_conn_rejected(struct rtrs_clt_con *con,
 				    struct rdma_cm_event *ev)
 {
-	struct rtrs_sess *s = con->c.sess;
+	struct rtrs_path *s = con->c.path;
 	const struct rtrs_msg_conn_rsp *msg;
 	const char *rej_msg;
 	int status, errno;
@@ -1937,7 +1937,7 @@ static inline void flag_error_on_conn(struct rtrs_clt_con *con, int cm_err)
 	if (con->cm_err == 1) {
 		struct rtrs_clt_sess *sess;
 
-		sess = to_clt_sess(con->c.sess);
+		sess = to_clt_sess(con->c.path);
 		if (atomic_dec_and_test(&sess->connected_cnt))
 
 			wake_up(&sess->state_wq);
@@ -1949,7 +1949,7 @@ static int rtrs_clt_rdma_cm_handler(struct rdma_cm_id *cm_id,
 				     struct rdma_cm_event *ev)
 {
 	struct rtrs_clt_con *con = cm_id->context;
-	struct rtrs_sess *s = con->c.sess;
+	struct rtrs_path *s = con->c.path;
 	struct rtrs_clt_sess *sess = to_clt_sess(s);
 	int cm_err = 0;
 
@@ -2020,7 +2020,7 @@ static int rtrs_clt_rdma_cm_handler(struct rdma_cm_id *cm_id,
 
 static int create_cm(struct rtrs_clt_con *con)
 {
-	struct rtrs_sess *s = con->c.sess;
+	struct rtrs_path *s = con->c.path;
 	struct rtrs_clt_sess *sess = to_clt_sess(s);
 	struct rdma_cm_id *cm_id;
 	int err;
@@ -2375,7 +2375,7 @@ destroy:
 static void rtrs_clt_info_req_done(struct ib_cq *cq, struct ib_wc *wc)
 {
 	struct rtrs_clt_con *con = to_clt_con(wc->qp->qp_context);
-	struct rtrs_clt_sess *sess = to_clt_sess(con->c.sess);
+	struct rtrs_clt_sess *sess = to_clt_sess(con->c.path);
 	struct rtrs_iu *iu;
 
 	iu = container_of(wc->wr_cqe, struct rtrs_iu, cqe);
@@ -2456,7 +2456,7 @@ static int process_info_rsp(struct rtrs_clt_sess *sess,
 static void rtrs_clt_info_rsp_done(struct ib_cq *cq, struct ib_wc *wc)
 {
 	struct rtrs_clt_con *con = to_clt_con(wc->qp->qp_context);
-	struct rtrs_clt_sess *sess = to_clt_sess(con->c.sess);
+	struct rtrs_clt_sess *sess = to_clt_sess(con->c.path);
 	struct rtrs_msg_info_rsp *msg;
 	enum rtrs_clt_state state;
 	struct rtrs_iu *iu;
