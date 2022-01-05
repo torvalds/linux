@@ -3550,8 +3550,6 @@ xlog_recover_check_summary(
 	uint64_t		ifree;
 	int			error;
 
-	mp = log->l_mp;
-
 	freeblks = 0LL;
 	itotal = 0LL;
 	ifree = 0LL;
