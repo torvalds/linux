@@ -898,7 +898,7 @@ static void bch2_journal_read_device(struct closure *cl)
 	struct journal_read_buf buf = { NULL, 0 };
 	u64 min_seq = U64_MAX;
 	unsigned i;
-	int ret;
+	int ret = 0;
 
 	if (!ja->nr)
 		goto out;
