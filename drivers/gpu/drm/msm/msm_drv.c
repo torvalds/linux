@@ -57,14 +57,6 @@ static const struct drm_mode_config_helper_funcs mode_config_helper_funcs = {
 	.atomic_commit_tail = msm_atomic_commit_tail,
 };
 
-#ifdef CONFIG_DRM_MSM_REGISTER_LOGGING
-static bool reglog;
-MODULE_PARM_DESC(reglog, "Enable register read/write logging");
-module_param(reglog, bool, 0600);
-#else
-#define reglog 0
-#endif
-
 #ifdef CONFIG_DRM_FBDEV_EMULATION
 static bool fbdev = true;
 MODULE_PARM_DESC(fbdev, "Enable fbdev compat layer");
@@ -150,9 +142,6 @@ static void __iomem *_msm_ioremap(struct platform_device *pdev, const char *name
 		return ERR_PTR(-ENOMEM);
 	}
 
-	if (reglog)
-		printk(KERN_DEBUG "IO:region %s %p %08lx\n", dbgname, ptr, size);
-
 	if (psize)
 		*psize = size;
 
@@ -179,16 +168,13 @@ void __iomem *msm_ioremap_size(struct platform_device *pdev, const char *name,
 
 void msm_writel(u32 data, void __iomem *addr)
 {
-	if (reglog)
-		printk(KERN_DEBUG "IO:W %p %08x\n", addr, data);
 	writel(data, addr);
 }
 
 u32 msm_readl(const void __iomem *addr)
 {
 	u32 val = readl(addr);
-	if (reglog)
-		pr_err("IO:R %p %08x\n", addr, val);
+
 	return val;
 }
 
