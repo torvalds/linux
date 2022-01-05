@@ -119,7 +119,7 @@ struct dma_buf_attachment *dma_buf_cache_attach(struct dma_buf *dmabuf,
 
 	/* Cache attachment */
 	attach = dma_buf_attach(dmabuf, dev);
-	if (!IS_ERR_OR_NULL(attach)) {
+	if (IS_ERR_OR_NULL(attach)) {
 		kfree(cache);
 		return attach;
 	}
