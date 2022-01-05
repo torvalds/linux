@@ -435,7 +435,7 @@ struct dsa_switch {
 	 */
 	unsigned int		max_num_bridges;
 
-	size_t num_ports;
+	unsigned int		num_ports;
 };
 
 static inline struct dsa_port *dsa_to_port(struct dsa_switch *ds, int p)
