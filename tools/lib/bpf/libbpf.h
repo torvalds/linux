@@ -744,6 +744,7 @@ LIBBPF_API void *bpf_map__priv(const struct bpf_map *map);
 LIBBPF_API int bpf_map__set_initial_value(struct bpf_map *map,
 					  const void *data, size_t size);
 LIBBPF_API const void *bpf_map__initial_value(struct bpf_map *map, size_t *psize);
+LIBBPF_DEPRECATED_SINCE(0, 8, "use bpf_map__type() instead")
 LIBBPF_API bool bpf_map__is_offload_neutral(const struct bpf_map *map);
 
 /**
