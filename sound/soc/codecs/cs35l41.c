@@ -181,17 +181,21 @@ static SOC_ENUM_SINGLE_DECL(pcm_sft_ramp,
 static int cs35l41_dsp_preload_ev(struct snd_soc_dapm_widget *w,
 				  struct snd_kcontrol *kcontrol, int event)
 {
+	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
+	struct cs35l41_private *cs35l41 = snd_soc_component_get_drvdata(component);
 	int ret;
 
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
 		return wm_adsp_early_event(w, kcontrol, event);
 	case SND_SOC_DAPM_PRE_PMD:
-		ret = wm_adsp_early_event(w, kcontrol, event);
-		if (ret)
-			return ret;
+		if (cs35l41->dsp.cs_dsp.running) {
+			ret = wm_adsp_event(w, kcontrol, event);
+			if (ret)
+				return ret;
+		}
 
-		return wm_adsp_event(w, kcontrol, event);
+		return wm_adsp_early_event(w, kcontrol, event);
 	default:
 		return 0;
 	}
@@ -1338,8 +1342,6 @@ int cs35l41_probe(struct cs35l41_private *cs35l41,
 	ret = devm_request_threaded_irq(cs35l41->dev, cs35l41->irq, NULL, cs35l41_irq,
 					IRQF_ONESHOT | IRQF_SHARED | irq_pol,
 					"cs35l41", cs35l41);
-
-	/* CS35L41 needs INT for PDN_DONE */
 	if (ret != 0) {
 		dev_err(cs35l41->dev, "Failed to request IRQ: %d\n", ret);
 		goto err;

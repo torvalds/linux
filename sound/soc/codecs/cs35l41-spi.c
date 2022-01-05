@@ -20,6 +20,8 @@
 static const struct spi_device_id cs35l41_id_spi[] = {
 	{ "cs35l40", 0 },
 	{ "cs35l41", 0 },
+	{ "cs35l51", 0 },
+	{ "cs35l53", 0 },
 	{}
 };
 

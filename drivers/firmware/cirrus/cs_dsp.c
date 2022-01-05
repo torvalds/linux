@@ -2744,10 +2744,16 @@ EXPORT_SYMBOL_GPL(cs_dsp_stop);
 
 static int cs_dsp_halo_start_core(struct cs_dsp *dsp)
 {
-	return regmap_update_bits(dsp->regmap,
-				  dsp->base + HALO_CCM_CORE_CONTROL,
-				  HALO_CORE_RESET | HALO_CORE_EN,
-				  HALO_CORE_RESET | HALO_CORE_EN);
+	int ret;
+
+	ret = regmap_update_bits(dsp->regmap, dsp->base + HALO_CCM_CORE_CONTROL,
+				 HALO_CORE_RESET | HALO_CORE_EN,
+				 HALO_CORE_RESET | HALO_CORE_EN);
+	if (ret)
+		return ret;
+
+	return regmap_update_bits(dsp->regmap, dsp->base + HALO_CCM_CORE_CONTROL,
+				  HALO_CORE_RESET, 0);
 }
 
 static void cs_dsp_halo_stop_core(struct cs_dsp *dsp)
