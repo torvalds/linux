@@ -43,10 +43,6 @@ struct aggr_cpu_id cpu_map__get_socket_aggr_by_cpu(int cpu, void *data);
 struct aggr_cpu_id cpu_map__get_die_aggr_by_cpu(int cpu, void *data);
 struct aggr_cpu_id cpu_map__get_core_aggr_by_cpu(int cpu, void *data);
 struct aggr_cpu_id cpu_map__get_node_aggr_by_cpu(int cpu, void *data);
-int cpu_map__build_socket_map(struct perf_cpu_map *cpus, struct cpu_aggr_map **sockp);
-int cpu_map__build_die_map(struct perf_cpu_map *cpus, struct cpu_aggr_map **diep);
-int cpu_map__build_core_map(struct perf_cpu_map *cpus, struct cpu_aggr_map **corep);
-int cpu_map__build_node_map(struct perf_cpu_map *cpus, struct cpu_aggr_map **nodep);
 const struct perf_cpu_map *cpu_map__online(void); /* thread unsafe */
 
 int cpu__setup_cpunode_map(void);
@@ -75,10 +71,16 @@ int cpu__get_die_id(int cpu);
  */
 int cpu__get_core_id(int cpu);
 
+typedef struct aggr_cpu_id (*aggr_cpu_id_get_t)(int cpu, void *data);
 
-int cpu_map__build_map(struct perf_cpu_map *cpus, struct cpu_aggr_map **res,
-		       struct aggr_cpu_id (*f)(int cpu, void *data),
-		       void *data);
+/**
+ * cpu_aggr_map__new - Create a cpu_aggr_map with an aggr_cpu_id for each cpu in
+ * cpus. The aggr_cpu_id is created with 'get_id' that may have a data value
+ * passed to it. The cpu_aggr_map is sorted with duplicate values removed.
+ */
+struct cpu_aggr_map *cpu_aggr_map__new(const struct perf_cpu_map *cpus,
+				       aggr_cpu_id_get_t get_id,
+				       void *data);
 
 bool cpu_map__has(struct perf_cpu_map *cpus, int cpu);
 

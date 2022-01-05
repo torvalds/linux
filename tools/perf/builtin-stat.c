@@ -1322,6 +1322,17 @@ static struct option stat_options[] = {
 	OPT_END()
 };
 
+static const char *const aggr_mode__string[] = {
+	[AGGR_CORE] = "core",
+	[AGGR_DIE] = "die",
+	[AGGR_GLOBAL] = "global",
+	[AGGR_NODE] = "node",
+	[AGGR_NONE] = "none",
+	[AGGR_SOCKET] = "socket",
+	[AGGR_THREAD] = "thread",
+	[AGGR_UNSET] = "unset",
+};
+
 static struct aggr_cpu_id perf_stat__get_socket(struct perf_stat_config *config __maybe_unused,
 						int cpu)
 {
@@ -1394,54 +1405,67 @@ static bool term_percore_set(void)
 	return false;
 }
 
-static int perf_stat_init_aggr_mode(void)
+static aggr_cpu_id_get_t aggr_mode__get_aggr(enum aggr_mode aggr_mode)
 {
-	int nr;
-
-	switch (stat_config.aggr_mode) {
+	switch (aggr_mode) {
 	case AGGR_SOCKET:
-		if (cpu_map__build_socket_map(evsel_list->core.cpus, &stat_config.aggr_map)) {
-			perror("cannot build socket map");
-			return -1;
-		}
-		stat_config.aggr_get_id = perf_stat__get_socket_cached;
-		break;
+		return cpu_map__get_socket_aggr_by_cpu;
 	case AGGR_DIE:
-		if (cpu_map__build_die_map(evsel_list->core.cpus, &stat_config.aggr_map)) {
-			perror("cannot build die map");
-			return -1;
-		}
-		stat_config.aggr_get_id = perf_stat__get_die_cached;
-		break;
+		return cpu_map__get_die_aggr_by_cpu;
 	case AGGR_CORE:
-		if (cpu_map__build_core_map(evsel_list->core.cpus, &stat_config.aggr_map)) {
-			perror("cannot build core map");
-			return -1;
-		}
-		stat_config.aggr_get_id = perf_stat__get_core_cached;
-		break;
+		return cpu_map__get_core_aggr_by_cpu;
 	case AGGR_NODE:
-		if (cpu_map__build_node_map(evsel_list->core.cpus, &stat_config.aggr_map)) {
-			perror("cannot build core map");
-			return -1;
-		}
-		stat_config.aggr_get_id = perf_stat__get_node_cached;
-		break;
+		return cpu_map__get_node_aggr_by_cpu;
 	case AGGR_NONE:
-		if (term_percore_set()) {
-			if (cpu_map__build_core_map(evsel_list->core.cpus,
-						    &stat_config.aggr_map)) {
-				perror("cannot build core map");
-				return -1;
-			}
-			stat_config.aggr_get_id = perf_stat__get_core_cached;
-		}
-		break;
+		if (term_percore_set())
+			return cpu_map__get_core_aggr_by_cpu;
+
+		return NULL;
 	case AGGR_GLOBAL:
 	case AGGR_THREAD:
 	case AGGR_UNSET:
 	default:
-		break;
+		return NULL;
+	}
+}
+
+static aggr_get_id_t aggr_mode__get_id(enum aggr_mode aggr_mode)
+{
+	switch (aggr_mode) {
+	case AGGR_SOCKET:
+		return perf_stat__get_socket_cached;
+	case AGGR_DIE:
+		return perf_stat__get_die_cached;
+	case AGGR_CORE:
+		return perf_stat__get_core_cached;
+	case AGGR_NODE:
+		return perf_stat__get_node_cached;
+	case AGGR_NONE:
+		if (term_percore_set()) {
+			return perf_stat__get_core_cached;
+		}
+		return NULL;
+	case AGGR_GLOBAL:
+	case AGGR_THREAD:
+	case AGGR_UNSET:
+	default:
+		return NULL;
+	}
+}
+
+static int perf_stat_init_aggr_mode(void)
+{
+	int nr;
+	aggr_cpu_id_get_t get_id = aggr_mode__get_aggr(stat_config.aggr_mode);
+
+	if (get_id) {
+		stat_config.aggr_map = cpu_aggr_map__new(evsel_list->core.cpus,
+							 get_id, /*data=*/NULL);
+		if (!stat_config.aggr_map) {
+			pr_err("cannot build %s map", aggr_mode__string[stat_config.aggr_mode]);
+			return -1;
+		}
+		stat_config.aggr_get_id = aggr_mode__get_id(stat_config.aggr_mode);
 	}
 
 	/*
@@ -1533,30 +1557,6 @@ static struct aggr_cpu_id perf_env__get_node_aggr_by_cpu(int cpu, void *data)
 	return id;
 }
 
-static int perf_env__build_socket_map(struct perf_env *env, struct perf_cpu_map *cpus,
-				      struct cpu_aggr_map **sockp)
-{
-	return cpu_map__build_map(cpus, sockp, perf_env__get_socket_aggr_by_cpu, env);
-}
-
-static int perf_env__build_die_map(struct perf_env *env, struct perf_cpu_map *cpus,
-				   struct cpu_aggr_map **diep)
-{
-	return cpu_map__build_map(cpus, diep, perf_env__get_die_aggr_by_cpu, env);
-}
-
-static int perf_env__build_core_map(struct perf_env *env, struct perf_cpu_map *cpus,
-				    struct cpu_aggr_map **corep)
-{
-	return cpu_map__build_map(cpus, corep, perf_env__get_core_aggr_by_cpu, env);
-}
-
-static int perf_env__build_node_map(struct perf_env *env, struct perf_cpu_map *cpus,
-				    struct cpu_aggr_map **nodep)
-{
-	return cpu_map__build_map(cpus, nodep, perf_env__get_node_aggr_by_cpu, env);
-}
-
 static struct aggr_cpu_id perf_stat__get_socket_file(struct perf_stat_config *config __maybe_unused,
 						     int cpu)
 {
@@ -1580,47 +1580,60 @@ static struct aggr_cpu_id perf_stat__get_node_file(struct perf_stat_config *conf
 	return perf_env__get_node_aggr_by_cpu(cpu, &perf_stat.session->header.env);
 }
 
-static int perf_stat_init_aggr_mode_file(struct perf_stat *st)
+static aggr_cpu_id_get_t aggr_mode__get_aggr_file(enum aggr_mode aggr_mode)
 {
-	struct perf_env *env = &st->session->header.env;
-
-	switch (stat_config.aggr_mode) {
+	switch (aggr_mode) {
 	case AGGR_SOCKET:
-		if (perf_env__build_socket_map(env, evsel_list->core.cpus, &stat_config.aggr_map)) {
-			perror("cannot build socket map");
-			return -1;
-		}
-		stat_config.aggr_get_id = perf_stat__get_socket_file;
-		break;
+		return perf_env__get_socket_aggr_by_cpu;
 	case AGGR_DIE:
-		if (perf_env__build_die_map(env, evsel_list->core.cpus, &stat_config.aggr_map)) {
-			perror("cannot build die map");
-			return -1;
-		}
-		stat_config.aggr_get_id = perf_stat__get_die_file;
-		break;
+		return perf_env__get_die_aggr_by_cpu;
 	case AGGR_CORE:
-		if (perf_env__build_core_map(env, evsel_list->core.cpus, &stat_config.aggr_map)) {
-			perror("cannot build core map");
-			return -1;
-		}
-		stat_config.aggr_get_id = perf_stat__get_core_file;
-		break;
+		return perf_env__get_core_aggr_by_cpu;
 	case AGGR_NODE:
-		if (perf_env__build_node_map(env, evsel_list->core.cpus, &stat_config.aggr_map)) {
-			perror("cannot build core map");
-			return -1;
-		}
-		stat_config.aggr_get_id = perf_stat__get_node_file;
-		break;
+		return perf_env__get_node_aggr_by_cpu;
 	case AGGR_NONE:
 	case AGGR_GLOBAL:
 	case AGGR_THREAD:
 	case AGGR_UNSET:
 	default:
-		break;
+		return NULL;
 	}
+}
 
+static aggr_get_id_t aggr_mode__get_id_file(enum aggr_mode aggr_mode)
+{
+	switch (aggr_mode) {
+	case AGGR_SOCKET:
+		return perf_stat__get_socket_file;
+	case AGGR_DIE:
+		return perf_stat__get_die_file;
+	case AGGR_CORE:
+		return perf_stat__get_core_file;
+	case AGGR_NODE:
+		return perf_stat__get_node_file;
+	case AGGR_NONE:
+	case AGGR_GLOBAL:
+	case AGGR_THREAD:
+	case AGGR_UNSET:
+	default:
+		return NULL;
+	}
+}
+
+static int perf_stat_init_aggr_mode_file(struct perf_stat *st)
+{
+	struct perf_env *env = &st->session->header.env;
+	aggr_cpu_id_get_t get_id = aggr_mode__get_aggr_file(stat_config.aggr_mode);
+
+	if (!get_id)
+		return 0;
+
+	stat_config.aggr_map = cpu_aggr_map__new(evsel_list->core.cpus, get_id, env);
+	if (!stat_config.aggr_map) {
+		pr_err("cannot build %s map", aggr_mode__string[stat_config.aggr_mode]);
+		return -1;
+	}
+	stat_config.aggr_get_id = aggr_mode__get_id_file(stat_config.aggr_mode);
 	return 0;
 }
 

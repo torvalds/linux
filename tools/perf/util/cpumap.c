@@ -140,7 +140,7 @@ struct aggr_cpu_id cpu_map__get_socket_aggr_by_cpu(int cpu, void *data __maybe_u
 	return id;
 }
 
-static int cmp_aggr_cpu_id(const void *a_pointer, const void *b_pointer)
+static int aggr_cpu_id__cmp(const void *a_pointer, const void *b_pointer)
 {
 	struct aggr_cpu_id *a = (struct aggr_cpu_id *)a_pointer;
 	struct aggr_cpu_id *b = (struct aggr_cpu_id *)b_pointer;
@@ -157,37 +157,40 @@ static int cmp_aggr_cpu_id(const void *a_pointer, const void *b_pointer)
 		return a->thread - b->thread;
 }
 
-int cpu_map__build_map(struct perf_cpu_map *cpus, struct cpu_aggr_map **res,
-		       struct aggr_cpu_id (*f)(int cpu, void *data),
-		       void *data)
+struct cpu_aggr_map *cpu_aggr_map__new(const struct perf_cpu_map *cpus,
+				       aggr_cpu_id_get_t get_id,
+				       void *data)
 {
-	int nr = cpus->nr;
-	struct cpu_aggr_map *c = cpu_aggr_map__empty_new(nr);
-	int cpu, s2;
-	struct aggr_cpu_id s1;
+	int cpu, idx;
+	struct cpu_aggr_map *c = cpu_aggr_map__empty_new(cpus->nr);
 
 	if (!c)
-		return -1;
+		return NULL;
 
 	/* Reset size as it may only be partially filled */
 	c->nr = 0;
 
-	for (cpu = 0; cpu < nr; cpu++) {
-		s1 = f(cpu, data);
-		for (s2 = 0; s2 < c->nr; s2++) {
-			if (aggr_cpu_id__equal(&s1, &c->map[s2]))
+	perf_cpu_map__for_each_cpu(cpu, idx, cpus) {
+		bool duplicate = false;
+		struct aggr_cpu_id cpu_id = get_id(cpu, data);
+
+		for (int j = 0; j < c->nr; j++) {
+			if (aggr_cpu_id__equal(&cpu_id, &c->map[j])) {
+				duplicate = true;
 				break;
+			}
 		}
-		if (s2 == c->nr) {
-			c->map[c->nr] = s1;
+		if (!duplicate) {
+			c->map[c->nr] = cpu_id;
 			c->nr++;
 		}
 	}
-	/* ensure we process id in increasing order */
-	qsort(c->map, c->nr, sizeof(struct aggr_cpu_id), cmp_aggr_cpu_id);
 
-	*res = c;
-	return 0;
+	/* ensure we process id in increasing order */
+	qsort(c->map, c->nr, sizeof(struct aggr_cpu_id), aggr_cpu_id__cmp);
+
+	return c;
+
 }
 
 int cpu__get_die_id(int cpu)
@@ -251,26 +254,6 @@ struct aggr_cpu_id cpu_map__get_node_aggr_by_cpu(int cpu, void *data __maybe_unu
 
 	id.node = cpu__get_node(cpu);
 	return id;
-}
-
-int cpu_map__build_socket_map(struct perf_cpu_map *cpus, struct cpu_aggr_map **sockp)
-{
-	return cpu_map__build_map(cpus, sockp, cpu_map__get_socket_aggr_by_cpu, NULL);
-}
-
-int cpu_map__build_die_map(struct perf_cpu_map *cpus, struct cpu_aggr_map **diep)
-{
-	return cpu_map__build_map(cpus, diep, cpu_map__get_die_aggr_by_cpu, NULL);
-}
-
-int cpu_map__build_core_map(struct perf_cpu_map *cpus, struct cpu_aggr_map **corep)
-{
-	return cpu_map__build_map(cpus, corep, cpu_map__get_core_aggr_by_cpu, NULL);
-}
-
-int cpu_map__build_node_map(struct perf_cpu_map *cpus, struct cpu_aggr_map **numap)
-{
-	return cpu_map__build_map(cpus, numap, cpu_map__get_node_aggr_by_cpu, NULL);
 }
 
 /* setup simple routines to easily access node numbers given a cpu number */
