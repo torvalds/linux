@@ -32,7 +32,7 @@ enum {
 
 extern int bcm2835_v4l2_debug;
 
-struct bm2835_mmal_dev {
+struct bcm2835_mmal_dev {
 	/* v4l2 devices */
 	struct v4l2_device v4l2_dev;
 	struct video_device vdev;
@@ -111,11 +111,11 @@ struct bm2835_mmal_dev {
 };
 
 int bm2835_mmal_init_controls(
-			struct bm2835_mmal_dev *dev,
+			struct bcm2835_mmal_dev *dev,
 			struct v4l2_ctrl_handler *hdl);
 
-int bm2835_mmal_set_all_camera_controls(struct bm2835_mmal_dev *dev);
-int set_framerate_params(struct bm2835_mmal_dev *dev);
+int bm2835_mmal_set_all_camera_controls(struct bcm2835_mmal_dev *dev);
+int set_framerate_params(struct bcm2835_mmal_dev *dev);
 
 /* Debug helpers */
 
