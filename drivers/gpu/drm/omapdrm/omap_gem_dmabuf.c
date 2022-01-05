@@ -93,6 +93,7 @@ struct dma_buf *omap_gem_prime_export(struct drm_gem_object *obj, int flags)
 	exp_info.size = omap_gem_mmap_size(obj);
 	exp_info.flags = flags;
 	exp_info.priv = obj;
+	exp_info.resv = obj->resv;
 
 	return drm_gem_dmabuf_export(obj->dev, &exp_info);
 }
