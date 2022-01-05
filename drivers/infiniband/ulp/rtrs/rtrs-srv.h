@@ -72,7 +72,7 @@ struct rtrs_srv_mr {
 };
 
 struct rtrs_srv_sess {
-	struct rtrs_sess	s;
+	struct rtrs_path	s;
 	struct rtrs_srv	*srv;
 	struct work_struct	close_work;
 	enum rtrs_srv_state	state;
