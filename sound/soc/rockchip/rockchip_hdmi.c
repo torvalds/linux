@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Rockchip machine ASoC driver for Rockchip HDMI audio output
+ * Rockchip machine ASoC driver for Rockchip HDMI audio
  *
  * Copyright (C) 2021 Rockchip Electronics Co., Ltd
  *
@@ -137,6 +137,37 @@ static const struct snd_soc_ops rk_ops = {
 	.hw_params = rk_hdmi_hw_params,
 };
 
+static unsigned int rk_hdmi_parse_daifmt(struct device_node *node,
+				struct device_node *cpu,
+				char *prefix)
+{
+	struct device_node *bitclkmaster = NULL;
+	struct device_node *framemaster = NULL;
+	unsigned int daifmt;
+
+	daifmt = snd_soc_of_parse_daifmt(node, prefix,
+					 &bitclkmaster, &framemaster);
+	daifmt &= ~SND_SOC_DAIFMT_MASTER_MASK;
+
+	if (!bitclkmaster || cpu == bitclkmaster)
+		daifmt |= (!framemaster || cpu == framemaster) ?
+			SND_SOC_DAIFMT_CBS_CFS : SND_SOC_DAIFMT_CBS_CFM;
+	else
+		daifmt |= (!framemaster || cpu == framemaster) ?
+			SND_SOC_DAIFMT_CBM_CFS : SND_SOC_DAIFMT_CBM_CFM;
+
+	/*
+	 * If there is NULL format means that the format isn't specified, we
+	 * need to set i2s format by default.
+	 */
+	if (!(daifmt & SND_SOC_DAIFMT_FORMAT_MASK))
+		daifmt |= SND_SOC_DAIFMT_I2S;
+
+	of_node_put(bitclkmaster);
+	of_node_put(framemaster);
+	return daifmt;
+}
+
 static int rk_hdmi_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
@@ -144,7 +175,7 @@ static int rk_hdmi_probe(struct platform_device *pdev)
 	struct snd_soc_dai_link_component *platforms;
 	struct snd_soc_dai_link_component *cpus;
 	struct of_phandle_args args;
-	struct device_node *codec_np, *cpu_np;
+	struct device_node *cpu_np;
 	struct rk_hdmi_data *rk_data;
 	int count;
 	u32 val;
@@ -169,26 +200,26 @@ static int rk_hdmi_probe(struct platform_device *pdev)
 	rk_data->dai.platforms = platforms;
 	rk_data->dai.num_cpus = 1;
 	rk_data->dai.num_platforms = 1;
-	rk_data->dai.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
-			       SND_SOC_DAIFMT_CBS_CFS;
 	/* Parse the card name from DT */
 	ret = snd_soc_of_parse_card_name(&rk_data->card, "rockchip,card-name");
 	if (ret < 0)
 		return ret;
 	rk_data->dai.name = rk_data->card.name;
 	rk_data->dai.stream_name = rk_data->card.name;
-	count = of_count_phandle_with_args(np, "rockchip,codec", NULL);
+	count = of_count_phandle_with_args(np, "rockchip,codec", "#sound-dai-cells");
 	if (count < 0 || count > MAX_CODECS)
 		return -EINVAL;
 
 	/* refine codecs, remove unavailable node */
 	for (i = 0; i < count; i++) {
-		codec_np = of_parse_phandle(np, "rockchip,codec", i);
-		if (!codec_np)
+		ret = of_parse_phandle_with_args(np, "rockchip,codec", "#sound-dai-cells", i, &args);
+		if (ret) {
+			dev_err(&pdev->dev, "error getting codec phandle index %d\n", i);
 			return -ENODEV;
-		if (of_device_is_available(codec_np))
+		}
+		if (of_device_is_available(args.np))
 			idx++;
-		of_node_put(codec_np);
+		of_node_put(args.np);
 	}
 
 	if (!idx)
@@ -200,21 +231,16 @@ static int rk_hdmi_probe(struct platform_device *pdev)
 	rk_data->dai.num_codecs = idx;
 	idx = 0;
 	for (i = 0; i < count; i++) {
-		codec_np = of_parse_phandle(np, "rockchip,codec", i);
-		if (!codec_np)
-			return -ENODEV;
-		if (!of_device_is_available(codec_np))
-			continue;
-
-		ret = of_parse_phandle_with_fixed_args(np, "rockchip,codec",
-						       0, i, &args);
+		ret = of_parse_phandle_with_args(np, "rockchip,codec", "#sound-dai-cells", i, &args);
 		if (ret) {
-			of_node_put(codec_np);
-			return ret;
+			dev_err(&pdev->dev, "error getting codec phandle index %d\n", i);
+			return -ENODEV;
 		}
-
-		codecs[idx].of_node = codec_np;
-		of_node_put(codec_np);
+		if (!of_device_is_available(args.np)) {
+			of_node_put(args.np);
+			continue;
+		}
+		codecs[idx].of_node = args.np;
 		ret = snd_soc_get_dai_name(&args, &codecs[idx].dai_name);
 		if (ret)
 			return ret;
@@ -225,6 +251,7 @@ static int rk_hdmi_probe(struct platform_device *pdev)
 	if (!cpu_np)
 		return -ENODEV;
 
+	rk_data->dai.dai_fmt = rk_hdmi_parse_daifmt(np, cpu_np, "rockchip,");
 	rk_data->mclk_fs = DEFAULT_MCLK_FS;
 	if (!of_property_read_u32(np, "rockchip,mclk-fs", &val))
 		rk_data->mclk_fs = val;
