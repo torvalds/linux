@@ -234,7 +234,7 @@ struct rtrs_msg_conn_rsp {
  */
 struct rtrs_msg_info_req {
 	__le16		type;
-	u8		sessname[NAME_MAX];
+	u8		pathname[NAME_MAX];
 	u8		reserved[15];
 };
 

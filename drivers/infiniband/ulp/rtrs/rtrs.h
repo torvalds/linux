@@ -175,7 +175,8 @@ bool rtrs_srv_resp_rdma(struct rtrs_srv_op *id, int errno);
 
 void rtrs_srv_set_sess_priv(struct rtrs_srv *sess, void *priv);
 
-int rtrs_srv_get_sess_name(struct rtrs_srv *sess, char *sessname, size_t len);
+int rtrs_srv_get_path_name(struct rtrs_srv *sess, char *pathname,
+			   size_t len);
 
 int rtrs_srv_get_queue_depth(struct rtrs_srv *sess);
 
