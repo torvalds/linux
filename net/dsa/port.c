@@ -1317,16 +1317,15 @@ EXPORT_SYMBOL_GPL(dsa_port_get_phy_sset_count);
 
 int dsa_port_hsr_join(struct dsa_port *dp, struct net_device *hsr)
 {
-	struct dsa_notifier_hsr_info info = {
-		.sw_index = dp->ds->index,
-		.port = dp->index,
-		.hsr = hsr,
-	};
+	struct dsa_switch *ds = dp->ds;
 	int err;
+
+	if (!ds->ops->port_hsr_join)
+		return -EOPNOTSUPP;
 
 	dp->hsr_dev = hsr;
 
-	err = dsa_port_notify(dp, DSA_NOTIFIER_HSR_JOIN, &info);
+	err = ds->ops->port_hsr_join(ds, dp->index, hsr);
 	if (err)
 		dp->hsr_dev = NULL;
 
@@ -1335,20 +1334,18 @@ int dsa_port_hsr_join(struct dsa_port *dp, struct net_device *hsr)
 
 void dsa_port_hsr_leave(struct dsa_port *dp, struct net_device *hsr)
 {
-	struct dsa_notifier_hsr_info info = {
-		.sw_index = dp->ds->index,
-		.port = dp->index,
-		.hsr = hsr,
-	};
+	struct dsa_switch *ds = dp->ds;
 	int err;
 
 	dp->hsr_dev = NULL;
 
-	err = dsa_port_notify(dp, DSA_NOTIFIER_HSR_LEAVE, &info);
-	if (err)
-		dev_err(dp->ds->dev,
-			"port %d failed to notify DSA_NOTIFIER_HSR_LEAVE: %pe\n",
-			dp->index, ERR_PTR(err));
+	if (ds->ops->port_hsr_leave) {
+		err = ds->ops->port_hsr_leave(ds, dp->index, hsr);
+		if (err)
+			dev_err(dp->ds->dev,
+				"port %d failed to leave HSR %s: %pe\n",
+				dp->index, hsr->name, ERR_PTR(err));
+	}
 }
 
 int dsa_port_tag_8021q_vlan_add(struct dsa_port *dp, u16 vid, bool broadcast)

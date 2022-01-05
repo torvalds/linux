@@ -25,8 +25,6 @@ enum {
 	DSA_NOTIFIER_FDB_DEL,
 	DSA_NOTIFIER_HOST_FDB_ADD,
 	DSA_NOTIFIER_HOST_FDB_DEL,
-	DSA_NOTIFIER_HSR_JOIN,
-	DSA_NOTIFIER_HSR_LEAVE,
 	DSA_NOTIFIER_LAG_CHANGE,
 	DSA_NOTIFIER_LAG_JOIN,
 	DSA_NOTIFIER_LAG_LEAVE,
@@ -123,13 +121,6 @@ struct dsa_switchdev_event_work {
 	unsigned char addr[ETH_ALEN];
 	u16 vid;
 	bool host_addr;
-};
-
-/* DSA_NOTIFIER_HSR_* */
-struct dsa_notifier_hsr_info {
-	struct net_device *hsr;
-	int sw_index;
-	int port;
 };
 
 struct dsa_slave_priv {
