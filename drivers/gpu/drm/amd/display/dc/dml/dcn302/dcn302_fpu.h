@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Advanced Micro Devices, Inc.
+ * Copyright 2019-2021 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -23,16 +23,10 @@
  *
  */
 
-#ifndef _DCN302_RESOURCE_H_
-#define _DCN302_RESOURCE_H_
+#ifndef __DCN302_FPU_H__
+#define __DCN302_FPU_H__
 
-#include "core_types.h"
+void dcn302_fpu_init_soc_bounding_box(struct bp_soc_bb_info bb_info);
+void dcn302_fpu_update_bw_bounding_box(struct dc *dc, struct clk_bw_params *bw_params);
 
-extern struct _vcs_dpi_ip_params_st dcn3_02_ip;
-extern struct _vcs_dpi_soc_bounding_box_st dcn3_02_soc;
-
-struct resource_pool *dcn302_create_resource_pool(const struct dc_init_data *init_data, struct dc *dc);
-
-void dcn302_update_bw_bounding_box(struct dc *dc, struct clk_bw_params *bw_params);
-
-#endif /* _DCN302_RESOURCE_H_ */
+#endif /* __DCN302_FPU_H__*/
