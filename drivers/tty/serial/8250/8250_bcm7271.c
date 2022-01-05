@@ -1075,7 +1075,7 @@ static int brcmuart_probe(struct platform_device *pdev)
 						   priv->rx_size,
 						   &priv->rx_addr, GFP_KERNEL);
 		if (!priv->rx_bufs) {
-			ret = -EINVAL;
+			ret = -ENOMEM;
 			goto err;
 		}
 		priv->tx_size = UART_XMIT_SIZE;
@@ -1083,7 +1083,7 @@ static int brcmuart_probe(struct platform_device *pdev)
 						  priv->tx_size,
 						  &priv->tx_addr, GFP_KERNEL);
 		if (!priv->tx_buf) {
-			ret = -EINVAL;
+			ret = -ENOMEM;
 			goto err;
 		}
 	}
