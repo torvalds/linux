@@ -745,7 +745,7 @@ static struct bch_fs *bch2_fs_alloc(struct bch_sb *sb, struct bch_opts opts)
 	if (ret)
 		goto err;
 
-	scnprintf(c->name, sizeof(c->name), "%pU", &c->sb.user_uuid);
+	uuid_unparse_lower(c->sb.user_uuid.b, c->name);
 
 	/* Compat: */
 	if (sb->version <= bcachefs_metadata_version_inode_v2 &&

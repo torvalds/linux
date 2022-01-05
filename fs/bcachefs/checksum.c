@@ -407,15 +407,11 @@ int bch2_rechecksum_bio(struct bch_fs *c, struct bio *bio,
 }
 
 #ifdef __KERNEL__
-int bch2_request_key(struct bch_sb *sb, struct bch_key *key)
+static int __bch2_request_key(char *key_description, struct bch_key *key)
 {
-	char key_description[60];
 	struct key *keyring_key;
 	const struct user_key_payload *ukp;
 	int ret;
-
-	snprintf(key_description, sizeof(key_description),
-		 "bcachefs:%pUb", &sb->user_uuid);
 
 	keyring_key = request_key(&key_type_logon, key_description, NULL);
 	if (IS_ERR(keyring_key))
@@ -436,16 +432,10 @@ int bch2_request_key(struct bch_sb *sb, struct bch_key *key)
 }
 #else
 #include <keyutils.h>
-#include <uuid/uuid.h>
 
-int bch2_request_key(struct bch_sb *sb, struct bch_key *key)
+static int __bch2_request_key(char *key_description, struct bch_key *key)
 {
 	key_serial_t key_id;
-	char key_description[60];
-	char uuid[40];
-
-	uuid_unparse_lower(sb->user_uuid.b, uuid);
-	sprintf(key_description, "bcachefs:%s", uuid);
 
 	key_id = request_key("user", key_description, NULL,
 			     KEY_SPEC_USER_KEYRING);
@@ -458,6 +448,17 @@ int bch2_request_key(struct bch_sb *sb, struct bch_key *key)
 	return 0;
 }
 #endif
+
+int bch2_request_key(struct bch_sb *sb, struct bch_key *key)
+{
+	char key_description[60];
+	char uuid[40];
+
+	uuid_unparse_lower(sb->user_uuid.b, uuid);
+	sprintf(key_description, "bcachefs:%s", uuid);
+
+	return __bch2_request_key(key_description, key);
+}
 
 int bch2_decrypt_sb_key(struct bch_fs *c,
 			struct bch_sb_field_crypt *crypt,

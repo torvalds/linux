@@ -967,19 +967,23 @@ int bch2_btree_node_read_done(struct bch_fs *c, struct bch_dev *ca,
 
 		SET_BSET_BIG_ENDIAN(i, CPU_BIG_ENDIAN);
 
-		b->written += sectors;
-
 		blacklisted = bch2_journal_seq_is_blacklisted(c,
 					le64_to_cpu(i->journal_seq),
 					true);
 
 		btree_err_on(blacklisted && first,
 			     BTREE_ERR_FIXABLE, c, ca, b, i,
-			     "first btree node bset has blacklisted journal seq");
+			     "first btree node bset has blacklisted journal seq (%llu)",
+			     le64_to_cpu(i->journal_seq));
 
 		btree_err_on(blacklisted && ptr_written,
 			     BTREE_ERR_FIXABLE, c, ca, b, i,
-			     "found blacklisted bset in btree node with sectors_written");
+			     "found blacklisted bset (journal seq %llu) in btree node at offset %u-%u/%u",
+			     le64_to_cpu(i->journal_seq),
+			     b->written, b->written + sectors, ptr_written);
+
+		b->written += sectors;
+
 		if (blacklisted && !first)
 			continue;
 

@@ -764,4 +764,13 @@ static inline int u8_cmp(u8 l, u8 r)
 	return cmp_int(l, r);
 }
 
+#ifdef __KERNEL__
+static inline void uuid_unparse_lower(u8 *uuid, char *out)
+{
+	sprintf(out, "%plU", uuid);
+}
+#else
+#include <uuid/uuid.h>
+#endif
+
 #endif /* _BCACHEFS_UTIL_H */

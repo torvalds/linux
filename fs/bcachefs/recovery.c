@@ -530,10 +530,8 @@ static int bch2_journal_replay(struct bch_fs *c)
 	     sizeof(keys_sorted[0]),
 	     journal_sort_seq_cmp, NULL);
 
-	if (keys->nr) {
-		bch_verbose(c, "starting journal replay, %zu keys", keys->nr);
+	if (keys->nr)
 		replay_now_at(j, keys->journal_seq_base);
-	}
 
 	for (i = 0; i < keys->nr; i++) {
 		k = keys_sorted[i];
@@ -901,7 +899,6 @@ static int bch2_fs_initialize_subvolumes(struct bch_fs *c)
 
 static int bch2_fs_upgrade_for_subvolumes(struct btree_trans *trans)
 {
-	struct bch_fs *c = trans->c;
 	struct btree_iter iter;
 	struct bkey_s_c k;
 	struct bch_inode_unpacked inode;
@@ -915,7 +912,7 @@ static int bch2_fs_upgrade_for_subvolumes(struct btree_trans *trans)
 		goto err;
 
 	if (!bkey_is_inode(k.k)) {
-		bch_err(c, "root inode not found");
+		bch_err(trans->c, "root inode not found");
 		ret = -ENOENT;
 		goto err;
 	}
@@ -1138,7 +1135,7 @@ use_clean:
 	if (c->opts.norecovery)
 		goto out;
 
-	bch_verbose(c, "starting journal replay");
+	bch_verbose(c, "starting journal replay, %zu keys", c->journal_keys.nr);
 	err = "journal replay failed";
 	ret = bch2_journal_replay(c);
 	if (ret)
