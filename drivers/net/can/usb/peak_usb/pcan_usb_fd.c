@@ -507,13 +507,13 @@ static int pcan_usb_fd_decode_canmsg(struct pcan_usb_fd_if *usb_if,
 	if (rx_msg_flags & PUCAN_MSG_EXT_ID)
 		cfd->can_id |= CAN_EFF_FLAG;
 
-	if (rx_msg_flags & PUCAN_MSG_RTR)
+	if (rx_msg_flags & PUCAN_MSG_RTR) {
 		cfd->can_id |= CAN_RTR_FLAG;
-	else
+	} else {
 		memcpy(cfd->data, rm->d, cfd->len);
-
+		netdev->stats.rx_bytes += cfd->len;
+	}
 	netdev->stats.rx_packets++;
-	netdev->stats.rx_bytes += cfd->len;
 
 	peak_usb_netif_rx_64(skb, le32_to_cpu(rm->ts_low),
 			     le32_to_cpu(rm->ts_high));
@@ -576,9 +576,6 @@ static int pcan_usb_fd_decode_status(struct pcan_usb_fd_if *usb_if,
 
 	if (!skb)
 		return -ENOMEM;
-
-	netdev->stats.rx_packets++;
-	netdev->stats.rx_bytes += cf->len;
 
 	peak_usb_netif_rx_64(skb, le32_to_cpu(sm->ts_low),
 			     le32_to_cpu(sm->ts_high));
