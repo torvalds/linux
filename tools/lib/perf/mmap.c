@@ -32,7 +32,7 @@ size_t perf_mmap__mmap_len(struct perf_mmap *map)
 }
 
 int perf_mmap__mmap(struct perf_mmap *map, struct perf_mmap_param *mp,
-		    int fd, int cpu)
+		    int fd, struct perf_cpu cpu)
 {
 	map->prev = 0;
 	map->mask = mp->mask;

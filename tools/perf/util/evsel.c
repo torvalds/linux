@@ -1594,7 +1594,7 @@ int __evsel__read_on_cpu(struct evsel *evsel, int cpu_map_idx, int thread, bool 
 static int evsel__match_other_cpu(struct evsel *evsel, struct evsel *other,
 				  int cpu_map_idx)
 {
-	int cpu;
+	struct perf_cpu cpu;
 
 	cpu = perf_cpu_map__cpu(evsel->core.cpus, cpu_map_idx);
 	return perf_cpu_map__idx(other->core.cpus, cpu);
@@ -2020,9 +2020,9 @@ retry_open:
 			test_attr__ready();
 
 			pr_debug2_peo("sys_perf_event_open: pid %d  cpu %d  group_fd %d  flags %#lx",
-				pid, cpus->map[idx], group_fd, evsel->open_flags);
+				pid, cpus->map[idx].cpu, group_fd, evsel->open_flags);
 
-			fd = sys_perf_event_open(&evsel->core.attr, pid, cpus->map[idx],
+			fd = sys_perf_event_open(&evsel->core.attr, pid, cpus->map[idx].cpu,
 						group_fd, evsel->open_flags);
 
 			FD(evsel, idx, thread) = fd;

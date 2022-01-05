@@ -2538,15 +2538,15 @@ int perf_session__cpu_bitmap(struct perf_session *session,
 	}
 
 	for (i = 0; i < map->nr; i++) {
-		int cpu = map->map[i];
+		struct perf_cpu cpu = map->map[i];
 
-		if (cpu >= nr_cpus) {
+		if (cpu.cpu >= nr_cpus) {
 			pr_err("Requested CPU %d too large. "
-			       "Consider raising MAX_NR_CPUS\n", cpu);
+			       "Consider raising MAX_NR_CPUS\n", cpu.cpu);
 			goto out_delete_map;
 		}
 
-		set_bit(cpu, cpu_bitmap);
+		set_bit(cpu.cpu, cpu_bitmap);
 	}
 
 	err = 0;
@@ -2598,7 +2598,7 @@ int perf_event__process_id_index(struct perf_session *session,
 		if (!sid)
 			return -ENOENT;
 		sid->idx = e->idx;
-		sid->cpu = e->cpu;
+		sid->cpu.cpu = e->cpu;
 		sid->tid = e->tid;
 	}
 	return 0;

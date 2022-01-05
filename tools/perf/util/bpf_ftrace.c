@@ -63,7 +63,7 @@ int perf_ftrace__latency_prepare_bpf(struct perf_ftrace *ftrace)
 		fd = bpf_map__fd(skel->maps.cpu_filter);
 
 		for (i = 0; i < ncpus; i++) {
-			cpu = perf_cpu_map__cpu(ftrace->evlist->core.cpus, i);
+			cpu = perf_cpu_map__cpu(ftrace->evlist->core.cpus, i).cpu;
 			bpf_map_update_elem(fd, &cpu, &val, BPF_ANY);
 		}
 	}
@@ -122,7 +122,7 @@ int perf_ftrace__latency_read_bpf(struct perf_ftrace *ftrace __maybe_unused,
 	int i, fd, err;
 	u32 idx;
 	u64 *hist;
-	int ncpus = cpu__max_cpu();
+	int ncpus = cpu__max_cpu().cpu;
 
 	fd = bpf_map__fd(skel->maps.latency);
 

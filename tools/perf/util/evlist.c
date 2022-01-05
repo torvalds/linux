@@ -350,13 +350,13 @@ struct evlist_cpu_iterator evlist__cpu_begin(struct evlist *evlist, struct affin
 		.cpu_map_idx = 0,
 		.evlist_cpu_map_idx = 0,
 		.evlist_cpu_map_nr = perf_cpu_map__nr(evlist->core.all_cpus),
-		.cpu = -1,
+		.cpu = (struct perf_cpu){ .cpu = -1},
 		.affinity = affinity,
 	};
 
 	if (itr.affinity) {
 		itr.cpu = perf_cpu_map__cpu(evlist->core.all_cpus, 0);
-		affinity__set(itr.affinity, itr.cpu);
+		affinity__set(itr.affinity, itr.cpu.cpu);
 		itr.cpu_map_idx = perf_cpu_map__idx(itr.evsel->core.cpus, itr.cpu);
 		/*
 		 * If this CPU isn't in the evsel's cpu map then advance through
@@ -385,7 +385,7 @@ void evlist_cpu_iterator__next(struct evlist_cpu_iterator *evlist_cpu_itr)
 			perf_cpu_map__cpu(evlist_cpu_itr->container->core.all_cpus,
 					  evlist_cpu_itr->evlist_cpu_map_idx);
 		if (evlist_cpu_itr->affinity)
-			affinity__set(evlist_cpu_itr->affinity, evlist_cpu_itr->cpu);
+			affinity__set(evlist_cpu_itr->affinity, evlist_cpu_itr->cpu.cpu);
 		evlist_cpu_itr->cpu_map_idx =
 			perf_cpu_map__idx(evlist_cpu_itr->evsel->core.cpus,
 					  evlist_cpu_itr->cpu);
@@ -819,7 +819,7 @@ perf_evlist__mmap_cb_get(struct perf_evlist *_evlist, bool overwrite, int idx)
 
 static int
 perf_evlist__mmap_cb_mmap(struct perf_mmap *_map, struct perf_mmap_param *_mp,
-			  int output, int cpu)
+			  int output, struct perf_cpu cpu)
 {
 	struct mmap *map = container_of(_map, struct mmap, core);
 	struct mmap_params *mp = container_of(_mp, struct mmap_params, core);

@@ -344,7 +344,7 @@ struct evlist_cpu_iterator {
 	/** The number of CPU map entries in evlist->core.all_cpus. */
 	int evlist_cpu_map_nr;
 	/** The current CPU of the iterator. */
-	int cpu;
+	struct perf_cpu cpu;
 	/** If present, used to set the affinity when switching between CPUs. */
 	struct affinity *affinity;
 };

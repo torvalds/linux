@@ -410,7 +410,7 @@ double expr__get_literal(const char *literal)
 		return smt_on() > 0 ? 1.0 : 0.0;
 
 	if (!strcmp("#num_cpus", literal))
-		return cpu__max_present_cpu();
+		return cpu__max_present_cpu().cpu;
 
 	/*
 	 * Assume that topology strings are consistent, such as CPUs "0-1"

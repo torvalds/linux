@@ -4,6 +4,11 @@
 
 #include <linux/refcount.h>
 
+/** A wrapper around a CPU to avoid confusion with the perf_cpu_map's map's indices. */
+struct perf_cpu {
+	int cpu;
+};
+
 /**
  * A sized, reference counted, sorted array of integers representing CPU
  * numbers. This is commonly used to capture which CPUs a PMU is associated
@@ -16,13 +21,13 @@ struct perf_cpu_map {
 	/** Length of the map array. */
 	int		nr;
 	/** The CPU values. */
-	int		map[];
+	struct perf_cpu	map[];
 };
 
 #ifndef MAX_NR_CPUS
 #define MAX_NR_CPUS	2048
 #endif
 
-int perf_cpu_map__idx(const struct perf_cpu_map *cpus, int cpu);
+int perf_cpu_map__idx(const struct perf_cpu_map *cpus, struct perf_cpu cpu);
 
 #endif /* __LIBPERF_INTERNAL_CPUMAP_H */

@@ -203,9 +203,11 @@ static int cs_etm_set_option(struct auxtrace_record *itr,
 	struct perf_cpu_map *online_cpus = perf_cpu_map__new(NULL);
 
 	/* Set option of each CPU we have */
-	for (i = 0; i < cpu__max_cpu(); i++) {
-		if (!perf_cpu_map__has(event_cpus, i) ||
-		    !perf_cpu_map__has(online_cpus, i))
+	for (i = 0; i < cpu__max_cpu().cpu; i++) {
+		struct perf_cpu cpu = { .cpu = i, };
+
+		if (!perf_cpu_map__has(event_cpus, cpu) ||
+		    !perf_cpu_map__has(online_cpus, cpu))
 			continue;
 
 		if (option & BIT(ETM_OPT_CTXTID)) {
@@ -522,9 +524,11 @@ cs_etm_info_priv_size(struct auxtrace_record *itr __maybe_unused,
 
 	/* cpu map is not empty, we have specific CPUs to work with */
 	if (!perf_cpu_map__empty(event_cpus)) {
-		for (i = 0; i < cpu__max_cpu(); i++) {
-			if (!perf_cpu_map__has(event_cpus, i) ||
-			    !perf_cpu_map__has(online_cpus, i))
+		for (i = 0; i < cpu__max_cpu().cpu; i++) {
+			struct perf_cpu cpu = { .cpu = i, };
+
+			if (!perf_cpu_map__has(event_cpus, cpu) ||
+			    !perf_cpu_map__has(online_cpus, cpu))
 				continue;
 
 			if (cs_etm_is_ete(itr, i))
@@ -536,8 +540,10 @@ cs_etm_info_priv_size(struct auxtrace_record *itr __maybe_unused,
 		}
 	} else {
 		/* get configuration for all CPUs in the system */
-		for (i = 0; i < cpu__max_cpu(); i++) {
-			if (!perf_cpu_map__has(online_cpus, i))
+		for (i = 0; i < cpu__max_cpu().cpu; i++) {
+			struct perf_cpu cpu = { .cpu = i, };
+
+			if (!perf_cpu_map__has(online_cpus, cpu))
 				continue;
 
 			if (cs_etm_is_ete(itr, i))
@@ -722,8 +728,10 @@ static int cs_etm_info_fill(struct auxtrace_record *itr,
 	} else {
 		/* Make sure all specified CPUs are online */
 		for (i = 0; i < perf_cpu_map__nr(event_cpus); i++) {
-			if (perf_cpu_map__has(event_cpus, i) &&
-			    !perf_cpu_map__has(online_cpus, i))
+			struct perf_cpu cpu = { .cpu = i, };
+
+			if (perf_cpu_map__has(event_cpus, cpu) &&
+			    !perf_cpu_map__has(online_cpus, cpu))
 				return -EINVAL;
 		}
 
@@ -743,9 +751,12 @@ static int cs_etm_info_fill(struct auxtrace_record *itr,
 
 	offset = CS_ETM_SNAPSHOT + 1;
 
-	for (i = 0; i < cpu__max_cpu() && offset < priv_size; i++)
-		if (perf_cpu_map__has(cpu_map, i))
+	for (i = 0; i < cpu__max_cpu().cpu && offset < priv_size; i++) {
+		struct perf_cpu cpu = { .cpu = i, };
+
+		if (perf_cpu_map__has(cpu_map, cpu))
 			cs_etm_get_metadata(i, &offset, itr, info);
+	}
 
 	perf_cpu_map__put(online_cpus);
 

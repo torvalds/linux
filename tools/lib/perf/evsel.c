@@ -78,10 +78,10 @@ static int perf_evsel__alloc_mmap(struct perf_evsel *evsel, int ncpus, int nthre
 
 static int
 sys_perf_event_open(struct perf_event_attr *attr,
-		    pid_t pid, int cpu, int group_fd,
+		    pid_t pid, struct perf_cpu cpu, int group_fd,
 		    unsigned long flags)
 {
-	return syscall(__NR_perf_event_open, attr, pid, cpu, group_fd, flags);
+	return syscall(__NR_perf_event_open, attr, pid, cpu.cpu, group_fd, flags);
 }
 
 static int get_group_fd(struct perf_evsel *evsel, int cpu_map_idx, int thread, int *group_fd)
@@ -113,7 +113,8 @@ static int get_group_fd(struct perf_evsel *evsel, int cpu_map_idx, int thread, i
 int perf_evsel__open(struct perf_evsel *evsel, struct perf_cpu_map *cpus,
 		     struct perf_thread_map *threads)
 {
-	int cpu, idx, thread, err = 0;
+	struct perf_cpu cpu;
+	int idx, thread, err = 0;
 
 	if (cpus == NULL) {
 		static struct perf_cpu_map *empty_cpu_map;
@@ -252,7 +253,7 @@ int perf_evsel__mmap(struct perf_evsel *evsel, int pages)
 		for (thread = 0; thread < xyarray__max_y(evsel->fd); thread++) {
 			int *fd = FD(evsel, idx, thread);
 			struct perf_mmap *map;
-			int cpu = perf_cpu_map__cpu(evsel->cpus, idx);
+			struct perf_cpu cpu = perf_cpu_map__cpu(evsel->cpus, idx);
 
 			if (fd == NULL || *fd < 0)
 				continue;

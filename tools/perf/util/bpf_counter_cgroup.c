@@ -48,7 +48,7 @@ static int bperf_load_program(struct evlist *evlist)
 	struct cgroup *cgrp, *leader_cgrp;
 	__u32 i, cpu;
 	__u32 nr_cpus = evlist->core.all_cpus->nr;
-	int total_cpus = cpu__max_cpu();
+	int total_cpus = cpu__max_cpu().cpu;
 	int map_size, map_fd;
 	int prog_fd, err;
 
@@ -125,7 +125,7 @@ static int bperf_load_program(struct evlist *evlist)
 			for (cpu = 0; cpu < nr_cpus; cpu++) {
 				int fd = FD(evsel, cpu);
 				__u32 idx = evsel->core.idx * total_cpus +
-					evlist->core.all_cpus->map[cpu];
+					evlist->core.all_cpus->map[cpu].cpu;
 
 				err = bpf_map_update_elem(map_fd, &idx, &fd,
 							  BPF_ANY);
@@ -212,7 +212,7 @@ static int bperf_cgrp__sync_counters(struct evlist *evlist)
 	int prog_fd = bpf_program__fd(skel->progs.trigger_read);
 
 	for (i = 0; i < nr_cpus; i++) {
-		cpu = evlist->core.all_cpus->map[i];
+		cpu = evlist->core.all_cpus->map[i].cpu;
 		bperf_trigger_reading(prog_fd, cpu);
 	}
 
@@ -245,7 +245,7 @@ static int bperf_cgrp__read(struct evsel *evsel)
 {
 	struct evlist *evlist = evsel->evlist;
 	int i, cpu, nr_cpus = evlist->core.all_cpus->nr;
-	int total_cpus = cpu__max_cpu();
+	int total_cpus = cpu__max_cpu().cpu;
 	struct perf_counts_values *counts;
 	struct bpf_perf_event_value *values;
 	int reading_map_fd, err = 0;
@@ -272,7 +272,7 @@ static int bperf_cgrp__read(struct evsel *evsel)
 		}
 
 		for (i = 0; i < nr_cpus; i++) {
-			cpu = evlist->core.all_cpus->map[i];
+			cpu = evlist->core.all_cpus->map[i].cpu;
 
 			counts = perf_counts(evsel->counts, i, 0);
 			counts->val = values[cpu].counter;

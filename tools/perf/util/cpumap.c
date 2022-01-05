@@ -13,8 +13,8 @@
 #include <linux/ctype.h>
 #include <linux/zalloc.h>
 
-static int max_cpu_num;
-static int max_present_cpu_num;
+static struct perf_cpu max_cpu_num;
+static struct perf_cpu max_present_cpu_num;
 static int max_node_num;
 /**
  * The numa node X as read from /sys/devices/system/node/nodeX indexed by the
@@ -37,9 +37,9 @@ static struct perf_cpu_map *cpu_map__from_entries(struct cpu_map_entries *cpus)
 			 * otherwise it would become 65535.
 			 */
 			if (cpus->cpu[i] == (u16) -1)
-				map->map[i] = -1;
+				map->map[i].cpu = -1;
 			else
-				map->map[i] = (int) cpus->cpu[i];
+				map->map[i].cpu = (int) cpus->cpu[i];
 		}
 	}
 
@@ -58,7 +58,7 @@ static struct perf_cpu_map *cpu_map__from_mask(struct perf_record_record_cpu_map
 		int cpu, i = 0;
 
 		for_each_set_bit(cpu, mask->mask, nbits)
-			map->map[i++] = cpu;
+			map->map[i++].cpu = cpu;
 	}
 	return map;
 
@@ -91,7 +91,7 @@ struct perf_cpu_map *perf_cpu_map__empty_new(int nr)
 
 		cpus->nr = nr;
 		for (i = 0; i < nr; i++)
-			cpus->map[i] = -1;
+			cpus->map[i].cpu = -1;
 
 		refcount_set(&cpus->refcnt, 1);
 	}
@@ -126,13 +126,13 @@ static int cpu__get_topology_int(int cpu, const char *name, int *value)
 	return sysfs__read_int(path, value);
 }
 
-int cpu__get_socket_id(int cpu)
+int cpu__get_socket_id(struct perf_cpu cpu)
 {
-	int value, ret = cpu__get_topology_int(cpu, "physical_package_id", &value);
+	int value, ret = cpu__get_topology_int(cpu.cpu, "physical_package_id", &value);
 	return ret ?: value;
 }
 
-struct aggr_cpu_id aggr_cpu_id__socket(int cpu, void *data __maybe_unused)
+struct aggr_cpu_id aggr_cpu_id__socket(struct perf_cpu cpu, void *data __maybe_unused)
 {
 	struct aggr_cpu_id id = aggr_cpu_id__empty();
 
@@ -161,7 +161,8 @@ struct cpu_aggr_map *cpu_aggr_map__new(const struct perf_cpu_map *cpus,
 				       aggr_cpu_id_get_t get_id,
 				       void *data)
 {
-	int cpu, idx;
+	int idx;
+	struct perf_cpu cpu;
 	struct cpu_aggr_map *c = cpu_aggr_map__empty_new(cpus->nr);
 
 	if (!c)
@@ -201,14 +202,14 @@ struct cpu_aggr_map *cpu_aggr_map__new(const struct perf_cpu_map *cpus,
 
 }
 
-int cpu__get_die_id(int cpu)
+int cpu__get_die_id(struct perf_cpu cpu)
 {
-	int value, ret = cpu__get_topology_int(cpu, "die_id", &value);
+	int value, ret = cpu__get_topology_int(cpu.cpu, "die_id", &value);
 
 	return ret ?: value;
 }
 
-struct aggr_cpu_id aggr_cpu_id__die(int cpu, void *data)
+struct aggr_cpu_id aggr_cpu_id__die(struct perf_cpu cpu, void *data)
 {
 	struct aggr_cpu_id id;
 	int die;
@@ -231,13 +232,13 @@ struct aggr_cpu_id aggr_cpu_id__die(int cpu, void *data)
 	return id;
 }
 
-int cpu__get_core_id(int cpu)
+int cpu__get_core_id(struct perf_cpu cpu)
 {
-	int value, ret = cpu__get_topology_int(cpu, "core_id", &value);
+	int value, ret = cpu__get_topology_int(cpu.cpu, "core_id", &value);
 	return ret ?: value;
 }
 
-struct aggr_cpu_id aggr_cpu_id__core(int cpu, void *data)
+struct aggr_cpu_id aggr_cpu_id__core(struct perf_cpu cpu, void *data)
 {
 	struct aggr_cpu_id id;
 	int core = cpu__get_core_id(cpu);
@@ -256,7 +257,7 @@ struct aggr_cpu_id aggr_cpu_id__core(int cpu, void *data)
 
 }
 
-struct aggr_cpu_id aggr_cpu_id__cpu(int cpu, void *data)
+struct aggr_cpu_id aggr_cpu_id__cpu(struct perf_cpu cpu, void *data)
 {
 	struct aggr_cpu_id id;
 
@@ -270,7 +271,7 @@ struct aggr_cpu_id aggr_cpu_id__cpu(int cpu, void *data)
 
 }
 
-struct aggr_cpu_id aggr_cpu_id__node(int cpu, void *data __maybe_unused)
+struct aggr_cpu_id aggr_cpu_id__node(struct perf_cpu cpu, void *data __maybe_unused)
 {
 	struct aggr_cpu_id id = aggr_cpu_id__empty();
 
@@ -318,8 +319,8 @@ static void set_max_cpu_num(void)
 	int ret = -1;
 
 	/* set up default */
-	max_cpu_num = 4096;
-	max_present_cpu_num = 4096;
+	max_cpu_num.cpu = 4096;
+	max_present_cpu_num.cpu = 4096;
 
 	mnt = sysfs__mountpoint();
 	if (!mnt)
@@ -332,7 +333,7 @@ static void set_max_cpu_num(void)
 		goto out;
 	}
 
-	ret = get_max_num(path, &max_cpu_num);
+	ret = get_max_num(path, &max_cpu_num.cpu);
 	if (ret)
 		goto out;
 
@@ -343,11 +344,11 @@ static void set_max_cpu_num(void)
 		goto out;
 	}
 
-	ret = get_max_num(path, &max_present_cpu_num);
+	ret = get_max_num(path, &max_present_cpu_num.cpu);
 
 out:
 	if (ret)
-		pr_err("Failed to read max cpus, using default of %d\n", max_cpu_num);
+		pr_err("Failed to read max cpus, using default of %d\n", max_cpu_num.cpu);
 }
 
 /* Determine highest possible node in the system for sparse allocation */
@@ -386,31 +387,31 @@ int cpu__max_node(void)
 	return max_node_num;
 }
 
-int cpu__max_cpu(void)
+struct perf_cpu cpu__max_cpu(void)
 {
-	if (unlikely(!max_cpu_num))
+	if (unlikely(!max_cpu_num.cpu))
 		set_max_cpu_num();
 
 	return max_cpu_num;
 }
 
-int cpu__max_present_cpu(void)
+struct perf_cpu cpu__max_present_cpu(void)
 {
-	if (unlikely(!max_present_cpu_num))
+	if (unlikely(!max_present_cpu_num.cpu))
 		set_max_cpu_num();
 
 	return max_present_cpu_num;
 }
 
 
-int cpu__get_node(int cpu)
+int cpu__get_node(struct perf_cpu cpu)
 {
 	if (unlikely(cpunode_map == NULL)) {
 		pr_debug("cpu_map not initialized\n");
 		return -1;
 	}
 
-	return cpunode_map[cpu];
+	return cpunode_map[cpu.cpu];
 }
 
 static int init_cpunode_map(void)
@@ -420,13 +421,13 @@ static int init_cpunode_map(void)
 	set_max_cpu_num();
 	set_max_node_num();
 
-	cpunode_map = calloc(max_cpu_num, sizeof(int));
+	cpunode_map = calloc(max_cpu_num.cpu, sizeof(int));
 	if (!cpunode_map) {
 		pr_err("%s: calloc failed\n", __func__);
 		return -1;
 	}
 
-	for (i = 0; i < max_cpu_num; i++)
+	for (i = 0; i < max_cpu_num.cpu; i++)
 		cpunode_map[i] = -1;
 
 	return 0;
@@ -487,35 +488,37 @@ int cpu__setup_cpunode_map(void)
 
 size_t cpu_map__snprint(struct perf_cpu_map *map, char *buf, size_t size)
 {
-	int i, cpu, start = -1;
+	int i, start = -1;
 	bool first = true;
 	size_t ret = 0;
 
 #define COMMA first ? "" : ","
 
 	for (i = 0; i < map->nr + 1; i++) {
+		struct perf_cpu cpu = { .cpu = INT_MAX };
 		bool last = i == map->nr;
 
-		cpu = last ? INT_MAX : map->map[i];
+		if (!last)
+			cpu = map->map[i];
 
 		if (start == -1) {
 			start = i;
 			if (last) {
 				ret += snprintf(buf + ret, size - ret,
 						"%s%d", COMMA,
-						map->map[i]);
+						map->map[i].cpu);
 			}
-		} else if (((i - start) != (cpu - map->map[start])) || last) {
+		} else if (((i - start) != (cpu.cpu - map->map[start].cpu)) || last) {
 			int end = i - 1;
 
 			if (start == end) {
 				ret += snprintf(buf + ret, size - ret,
 						"%s%d", COMMA,
-						map->map[start]);
+						map->map[start].cpu);
 			} else {
 				ret += snprintf(buf + ret, size - ret,
 						"%s%d-%d", COMMA,
-						map->map[start], map->map[end]);
+						map->map[start].cpu, map->map[end].cpu);
 			}
 			first = false;
 			start = i;
@@ -542,23 +545,23 @@ size_t cpu_map__snprint_mask(struct perf_cpu_map *map, char *buf, size_t size)
 	int i, cpu;
 	char *ptr = buf;
 	unsigned char *bitmap;
-	int last_cpu = perf_cpu_map__cpu(map, map->nr - 1);
+	struct perf_cpu last_cpu = perf_cpu_map__cpu(map, map->nr - 1);
 
 	if (buf == NULL)
 		return 0;
 
-	bitmap = zalloc(last_cpu / 8 + 1);
+	bitmap = zalloc(last_cpu.cpu / 8 + 1);
 	if (bitmap == NULL) {
 		buf[0] = '\0';
 		return 0;
 	}
 
 	for (i = 0; i < map->nr; i++) {
-		cpu = perf_cpu_map__cpu(map, i);
+		cpu = perf_cpu_map__cpu(map, i).cpu;
 		bitmap[cpu / 8] |= 1 << (cpu % 8);
 	}
 
-	for (cpu = last_cpu / 4 * 4; cpu >= 0; cpu -= 4) {
+	for (cpu = last_cpu.cpu / 4 * 4; cpu >= 0; cpu -= 4) {
 		unsigned char bits = bitmap[cpu / 8];
 
 		if (cpu % 8)
@@ -594,7 +597,7 @@ bool aggr_cpu_id__equal(const struct aggr_cpu_id *a, const struct aggr_cpu_id *b
 		a->socket == b->socket &&
 		a->die == b->die &&
 		a->core == b->core &&
-		a->cpu == b->cpu;
+		a->cpu.cpu == b->cpu.cpu;
 }
 
 bool aggr_cpu_id__is_empty(const struct aggr_cpu_id *a)
@@ -604,7 +607,7 @@ bool aggr_cpu_id__is_empty(const struct aggr_cpu_id *a)
 		a->socket == -1 &&
 		a->die == -1 &&
 		a->core == -1 &&
-		a->cpu == -1;
+		a->cpu.cpu == -1;
 }
 
 struct aggr_cpu_id aggr_cpu_id__empty(void)
@@ -615,7 +618,7 @@ struct aggr_cpu_id aggr_cpu_id__empty(void)
 		.socket = -1,
 		.die = -1,
 		.core = -1,
-		.cpu = -1
+		.cpu = (struct perf_cpu){ .cpu = -1 },
 	};
 	return ret;
 }

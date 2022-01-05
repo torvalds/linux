@@ -22,7 +22,8 @@
 static int test__openat_syscall_event_on_all_cpus(struct test_suite *test __maybe_unused,
 						  int subtest __maybe_unused)
 {
-	int err = -1, fd, idx, cpu;
+	int err = -1, fd, idx;
+	struct perf_cpu cpu;
 	struct perf_cpu_map *cpus;
 	struct evsel *evsel;
 	unsigned int nr_openat_calls = 111, i;
@@ -66,15 +67,15 @@ static int test__openat_syscall_event_on_all_cpus(struct test_suite *test __mayb
 		 * without CPU_ALLOC. 1024 cpus in 2010 still seems
 		 * a reasonable upper limit tho :-)
 		 */
-		if (cpu >= CPU_SETSIZE) {
-			pr_debug("Ignoring CPU %d\n", cpu);
+		if (cpu.cpu >= CPU_SETSIZE) {
+			pr_debug("Ignoring CPU %d\n", cpu.cpu);
 			continue;
 		}
 
-		CPU_SET(cpu, &cpu_set);
+		CPU_SET(cpu.cpu, &cpu_set);
 		if (sched_setaffinity(0, sizeof(cpu_set), &cpu_set) < 0) {
 			pr_debug("sched_setaffinity() failed on CPU %d: %s ",
-				 cpu,
+				 cpu.cpu,
 				 str_error_r(errno, sbuf, sizeof(sbuf)));
 			goto out_close_fd;
 		}
@@ -82,7 +83,7 @@ static int test__openat_syscall_event_on_all_cpus(struct test_suite *test __mayb
 			fd = openat(0, "/etc/passwd", O_RDONLY);
 			close(fd);
 		}
-		CPU_CLR(cpu, &cpu_set);
+		CPU_CLR(cpu.cpu, &cpu_set);
 	}
 
 	evsel->core.cpus = perf_cpu_map__get(cpus);
@@ -92,7 +93,7 @@ static int test__openat_syscall_event_on_all_cpus(struct test_suite *test __mayb
 	perf_cpu_map__for_each_cpu(cpu, idx, cpus) {
 		unsigned int expected;
 
-		if (cpu >= CPU_SETSIZE)
+		if (cpu.cpu >= CPU_SETSIZE)
 			continue;
 
 		if (evsel__read_on_cpu(evsel, idx, 0) < 0) {
@@ -104,7 +105,7 @@ static int test__openat_syscall_event_on_all_cpus(struct test_suite *test __mayb
 		expected = nr_openat_calls + idx;
 		if (perf_counts(evsel->counts, idx, 0)->val != expected) {
 			pr_debug("evsel__read_on_cpu: expected to intercept %d calls on cpu %d, got %" PRIu64 "\n",
-				 expected, cpu, perf_counts(evsel->counts, idx, 0)->val);
+				 expected, cpu.cpu, perf_counts(evsel->counts, idx, 0)->val);
 			err = -1;
 		}
 	}

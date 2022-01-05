@@ -1555,7 +1555,7 @@ static void get_handler_name(char *str, size_t size,
 }
 
 static void
-process_stat(struct evsel *counter, int cpu, int thread, u64 tstamp,
+process_stat(struct evsel *counter, struct perf_cpu cpu, int thread, u64 tstamp,
 	     struct perf_counts_values *count)
 {
 	PyObject *handler, *t;
@@ -1575,7 +1575,7 @@ process_stat(struct evsel *counter, int cpu, int thread, u64 tstamp,
 		return;
 	}
 
-	PyTuple_SetItem(t, n++, _PyLong_FromLong(cpu));
+	PyTuple_SetItem(t, n++, _PyLong_FromLong(cpu.cpu));
 	PyTuple_SetItem(t, n++, _PyLong_FromLong(thread));
 
 	tuple_set_u64(t, n++, tstamp);
@@ -1599,7 +1599,7 @@ static void python_process_stat(struct perf_stat_config *config,
 	int cpu, thread;
 
 	if (config->aggr_mode == AGGR_GLOBAL) {
-		process_stat(counter, -1, -1, tstamp,
+		process_stat(counter, (struct perf_cpu){ .cpu = -1 }, -1, tstamp,
 			     &counter->counts->aggr);
 		return;
 	}

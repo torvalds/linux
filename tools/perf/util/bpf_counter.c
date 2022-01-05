@@ -540,7 +540,7 @@ static int bperf__load(struct evsel *evsel, struct target *target)
 		    filter_type == BPERF_FILTER_TGID)
 			key = evsel->core.threads->map[i].pid;
 		else if (filter_type == BPERF_FILTER_CPU)
-			key = evsel->core.cpus->map[i];
+			key = evsel->core.cpus->map[i].cpu;
 		else
 			break;
 
@@ -584,7 +584,7 @@ static int bperf_sync_counters(struct evsel *evsel)
 
 	num_cpu = all_cpu_map->nr;
 	for (i = 0; i < num_cpu; i++) {
-		cpu = all_cpu_map->map[i];
+		cpu = all_cpu_map->map[i].cpu;
 		bperf_trigger_reading(evsel->bperf_leader_prog_fd, cpu);
 	}
 	return 0;
@@ -605,7 +605,7 @@ static int bperf__disable(struct evsel *evsel)
 static int bperf__read(struct evsel *evsel)
 {
 	struct bperf_follower_bpf *skel = evsel->follower_skel;
-	__u32 num_cpu_bpf = cpu__max_cpu();
+	__u32 num_cpu_bpf = cpu__max_cpu().cpu;
 	struct bpf_perf_event_value values[num_cpu_bpf];
 	int reading_map_fd, err = 0;
 	__u32 i;
@@ -615,6 +615,7 @@ static int bperf__read(struct evsel *evsel)
 	reading_map_fd = bpf_map__fd(skel->maps.accum_readings);
 
 	for (i = 0; i < bpf_map__max_entries(skel->maps.accum_readings); i++) {
+		struct perf_cpu entry;
 		__u32 cpu;
 
 		err = bpf_map_lookup_elem(reading_map_fd, &i, values);
@@ -624,14 +625,15 @@ static int bperf__read(struct evsel *evsel)
 		case BPERF_FILTER_GLOBAL:
 			assert(i == 0);
 
-			perf_cpu_map__for_each_cpu(cpu, j, all_cpu_map) {
+			perf_cpu_map__for_each_cpu(entry, j, all_cpu_map) {
+				cpu = entry.cpu;
 				perf_counts(evsel->counts, cpu, 0)->val = values[cpu].counter;
 				perf_counts(evsel->counts, cpu, 0)->ena = values[cpu].enabled;
 				perf_counts(evsel->counts, cpu, 0)->run = values[cpu].running;
 			}
 			break;
 		case BPERF_FILTER_CPU:
-			cpu = evsel->core.cpus->map[i];
+			cpu = evsel->core.cpus->map[i].cpu;
 			perf_counts(evsel->counts, i, 0)->val = values[cpu].counter;
 			perf_counts(evsel->counts, i, 0)->ena = values[cpu].enabled;
 			perf_counts(evsel->counts, i, 0)->run = values[cpu].running;

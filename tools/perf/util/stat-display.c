@@ -121,10 +121,10 @@ static void aggr_printout(struct perf_stat_config *config,
 				id.die,
 				config->csv_output ? 0 : -3,
 				id.core, config->csv_sep);
-		} else if (id.cpu > -1) {
+		} else if (id.cpu.cpu > -1) {
 			fprintf(config->output, "CPU%*d%s",
 				config->csv_output ? 0 : -7,
-				id.cpu, config->csv_sep);
+				id.cpu.cpu, config->csv_sep);
 		}
 		break;
 	case AGGR_THREAD:
@@ -331,7 +331,8 @@ static int first_shadow_cpu_map_idx(struct perf_stat_config *config,
 				struct evsel *evsel, const struct aggr_cpu_id *id)
 {
 	struct perf_cpu_map *cpus = evsel__cpus(evsel);
-	int cpu, idx;
+	struct perf_cpu cpu;
+	int idx;
 
 	if (config->aggr_mode == AGGR_NONE)
 		return perf_cpu_map__idx(cpus, id->cpu);
@@ -513,7 +514,8 @@ static void printout(struct perf_stat_config *config, struct aggr_cpu_id id, int
 static void aggr_update_shadow(struct perf_stat_config *config,
 			       struct evlist *evlist)
 {
-	int cpu, idx, s;
+	int idx, s;
+	struct perf_cpu cpu;
 	struct aggr_cpu_id s2, id;
 	u64 val;
 	struct evsel *counter;
@@ -633,7 +635,8 @@ static void aggr_cb(struct perf_stat_config *config,
 		    struct evsel *counter, void *data, bool first)
 {
 	struct aggr_data *ad = data;
-	int idx, cpu;
+	int idx;
+	struct perf_cpu cpu;
 	struct perf_cpu_map *cpus;
 	struct aggr_cpu_id s2;
 
@@ -666,7 +669,7 @@ static void aggr_cb(struct perf_stat_config *config,
 static void print_counter_aggrdata(struct perf_stat_config *config,
 				   struct evsel *counter, int s,
 				   char *prefix, bool metric_only,
-				   bool *first, int cpu)
+				   bool *first, struct perf_cpu cpu)
 {
 	struct aggr_data ad;
 	FILE *output = config->output;
@@ -696,7 +699,7 @@ static void print_counter_aggrdata(struct perf_stat_config *config,
 		fprintf(output, "%s", prefix);
 
 	uval = val * counter->scale;
-	if (cpu != -1)
+	if (cpu.cpu != -1)
 		id = aggr_cpu_id__cpu(cpu, /*data=*/NULL);
 
 	printout(config, id, nr, counter, uval,
@@ -731,8 +734,8 @@ static void print_aggr(struct perf_stat_config *config,
 		first = true;
 		evlist__for_each_entry(evlist, counter) {
 			print_counter_aggrdata(config, counter, s,
-					       prefix, metric_only,
-					       &first, /*cpu=*/-1);
+					prefix, metric_only,
+					&first, (struct perf_cpu){ .cpu = -1 });
 		}
 		if (metric_only)
 			fputc('\n', output);
@@ -893,7 +896,8 @@ static void print_counter(struct perf_stat_config *config,
 	FILE *output = config->output;
 	u64 ena, run, val;
 	double uval;
-	int idx, cpu;
+	int idx;
+	struct perf_cpu cpu;
 	struct aggr_cpu_id id;
 
 	perf_cpu_map__for_each_cpu(cpu, idx, evsel__cpus(counter)) {
@@ -921,7 +925,8 @@ static void print_no_aggr_metric(struct perf_stat_config *config,
 				 struct evlist *evlist,
 				 char *prefix)
 {
-	int all_idx, cpu;
+	int all_idx;
+	struct perf_cpu cpu;
 
 	perf_cpu_map__for_each_cpu(cpu, all_idx, evlist->core.cpus) {
 		struct evsel *counter;
@@ -1211,7 +1216,8 @@ static void print_percore_thread(struct perf_stat_config *config,
 	struct aggr_cpu_id s2, id;
 	struct perf_cpu_map *cpus;
 	bool first = true;
-	int idx, cpu;
+	int idx;
+	struct perf_cpu cpu;
 
 	cpus = evsel__cpus(counter);
 	perf_cpu_map__for_each_cpu(cpu, idx, cpus) {
@@ -1247,8 +1253,8 @@ static void print_percore(struct perf_stat_config *config,
 			fprintf(output, "%s", prefix);
 
 		print_counter_aggrdata(config, counter, s,
-				       prefix, metric_only,
-				       &first, /*cpu=*/-1);
+				prefix, metric_only,
+				&first, (struct perf_cpu){ .cpu = -1 });
 	}
 
 	if (metric_only)

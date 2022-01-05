@@ -23,7 +23,7 @@ struct aggr_cpu_id {
 	/** The core id as read from /sys/devices/system/cpu/cpuX/topology/core_id. */
 	int core;
 	/** CPU aggregation, note there is one CPU for each SMT thread. */
-	int cpu;
+	struct perf_cpu cpu;
 };
 
 /** A collection of aggr_cpu_id values, the "built" version is sorted and uniqued. */
@@ -48,28 +48,28 @@ const struct perf_cpu_map *cpu_map__online(void); /* thread unsafe */
 int cpu__setup_cpunode_map(void);
 
 int cpu__max_node(void);
-int cpu__max_cpu(void);
-int cpu__max_present_cpu(void);
+struct perf_cpu cpu__max_cpu(void);
+struct perf_cpu cpu__max_present_cpu(void);
 /**
  * cpu__get_node - Returns the numa node X as read from
  * /sys/devices/system/node/nodeX for the given CPU.
  */
-int cpu__get_node(int cpu);
+int cpu__get_node(struct perf_cpu cpu);
 /**
  * cpu__get_socket_id - Returns the socket number as read from
  * /sys/devices/system/cpu/cpuX/topology/physical_package_id for the given CPU.
  */
-int cpu__get_socket_id(int cpu);
+int cpu__get_socket_id(struct perf_cpu cpu);
 /**
  * cpu__get_die_id - Returns the die id as read from
  * /sys/devices/system/cpu/cpuX/topology/die_id for the given CPU.
  */
-int cpu__get_die_id(int cpu);
+int cpu__get_die_id(struct perf_cpu cpu);
 /**
  * cpu__get_core_id - Returns the core id as read from
  * /sys/devices/system/cpu/cpuX/topology/core_id for the given CPU.
  */
-int cpu__get_core_id(int cpu);
+int cpu__get_core_id(struct perf_cpu cpu);
 
 /**
  * cpu_aggr_map__empty_new - Create a cpu_aggr_map of size nr with every entry
@@ -77,7 +77,7 @@ int cpu__get_core_id(int cpu);
  */
 struct cpu_aggr_map *cpu_aggr_map__empty_new(int nr);
 
-typedef struct aggr_cpu_id (*aggr_cpu_id_get_t)(int cpu, void *data);
+typedef struct aggr_cpu_id (*aggr_cpu_id_get_t)(struct perf_cpu cpu, void *data);
 
 /**
  * cpu_aggr_map__new - Create a cpu_aggr_map with an aggr_cpu_id for each cpu in
@@ -98,29 +98,29 @@ struct aggr_cpu_id aggr_cpu_id__empty(void);
  * the socket for cpu. The function signature is compatible with
  * aggr_cpu_id_get_t.
  */
-struct aggr_cpu_id aggr_cpu_id__socket(int cpu, void *data);
+struct aggr_cpu_id aggr_cpu_id__socket(struct perf_cpu cpu, void *data);
 /**
  * aggr_cpu_id__die - Create an aggr_cpu_id with the die and socket populated
  * with the die and socket for cpu. The function signature is compatible with
  * aggr_cpu_id_get_t.
  */
-struct aggr_cpu_id aggr_cpu_id__die(int cpu, void *data);
+struct aggr_cpu_id aggr_cpu_id__die(struct perf_cpu cpu, void *data);
 /**
  * aggr_cpu_id__core - Create an aggr_cpu_id with the core, die and socket
  * populated with the core, die and socket for cpu. The function signature is
  * compatible with aggr_cpu_id_get_t.
  */
-struct aggr_cpu_id aggr_cpu_id__core(int cpu, void *data);
+struct aggr_cpu_id aggr_cpu_id__core(struct perf_cpu cpu, void *data);
 /**
  * aggr_cpu_id__core - Create an aggr_cpu_id with the cpu, core, die and socket
  * populated with the cpu, core, die and socket for cpu. The function signature
  * is compatible with aggr_cpu_id_get_t.
  */
-struct aggr_cpu_id aggr_cpu_id__cpu(int cpu, void *data);
+struct aggr_cpu_id aggr_cpu_id__cpu(struct perf_cpu cpu, void *data);
 /**
  * aggr_cpu_id__node - Create an aggr_cpu_id with the numa node populated for
  * cpu. The function signature is compatible with aggr_cpu_id_get_t.
  */
-struct aggr_cpu_id aggr_cpu_id__node(int cpu, void *data);
+struct aggr_cpu_id aggr_cpu_id__node(struct perf_cpu cpu, void *data);
 
 #endif /* __PERF_CPUMAP_H */

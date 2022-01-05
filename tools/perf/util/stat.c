@@ -297,7 +297,7 @@ static int check_per_pkg(struct evsel *counter, struct perf_counts_values *vals,
 {
 	struct hashmap *mask = counter->per_pkg_mask;
 	struct perf_cpu_map *cpus = evsel__cpus(counter);
-	int cpu = perf_cpu_map__cpu(cpus, cpu_map_idx);
+	struct perf_cpu cpu = perf_cpu_map__cpu(cpus, cpu_map_idx);
 	int s, d, ret = 0;
 	uint64_t *key;
 
