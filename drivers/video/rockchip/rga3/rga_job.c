@@ -108,6 +108,66 @@ static void print_job_info(struct rga_job *job)
 		job->priority, job->core);
 }
 
+static int rga_job_get_current_mm(struct rga_job *job)
+{
+	int mmu_flag;
+
+	struct rga_img_info_t *src0 = NULL;
+	struct rga_img_info_t *src1 = NULL;
+	struct rga_img_info_t *dst = NULL;
+	struct rga_img_info_t *els = NULL;
+
+	src0 = &job->rga_command_base.src;
+	dst = &job->rga_command_base.dst;
+	if (job->rga_command_base.render_mode != UPDATE_PALETTE_TABLE_MODE)
+		src1 = &job->rga_command_base.pat;
+	else
+		els = &job->rga_command_base.pat;
+
+	if (likely(src0 != NULL)) {
+		mmu_flag = ((job->rga_command_base.mmu_info.mmu_flag >> 8) & 1);
+		if (mmu_flag && src0->uv_addr)
+			goto get_current_mm;
+	}
+
+	if (likely(dst != NULL)) {
+		mmu_flag = ((job->rga_command_base.mmu_info.mmu_flag >> 10) & 1);
+		if (mmu_flag && dst->uv_addr)
+			goto get_current_mm;
+	}
+
+	if (src1 != NULL) {
+		mmu_flag = ((job->rga_command_base.mmu_info.mmu_flag >> 9) & 1);
+		if (mmu_flag && src1->yrgb_addr)
+			goto get_current_mm;
+	}
+
+	if (els != NULL) {
+		mmu_flag = ((job->rga_command_base.mmu_info.mmu_flag >> 11) & 1);
+		if (mmu_flag && els->yrgb_addr)
+			goto get_current_mm;
+	}
+
+	return 0;
+
+get_current_mm:
+	mmgrab(current->mm);
+	mmget(current->mm);
+	job->mm = current->mm;
+
+	return 1;
+}
+
+static void rga_job_put_current_mm(struct rga_job *job)
+{
+	if (job->mm == NULL)
+		return;
+
+	mmput(job->mm);
+	mmdrop(job->mm);
+	job->mm = NULL;
+}
+
 static int rga_job_run(struct rga_job *job, struct rga_scheduler_t *scheduler)
 {
 	int ret = 0;
@@ -230,9 +290,7 @@ void rga_job_done(struct rga_scheduler_t *rga_scheduler, int ret)
 			rga_scheduler);
 
 	rga_dma_put_info(job);
-
-	mmput(job->mm);
-	mmdrop(job->mm);
+	rga_job_put_current_mm(job);
 
 	if (job->out_fence)
 		dma_fence_signal(job->out_fence);
@@ -265,9 +323,7 @@ static void rga_job_timeout_clean(struct rga_scheduler_t *scheduler)
 		scheduler->ops->soft_reset(scheduler);
 
 		rga_dma_put_info(job);
-
-		mmput(job->mm);
-		mmdrop(job->mm);
+		rga_job_put_current_mm(job);
 
 		if (job->out_fence)
 			dma_fence_signal(job->out_fence);
@@ -442,9 +498,7 @@ int rga_job_commit(struct rga_req *rga_command_base, int flags)
 		return ret;
 	}
 
-	mmgrab(current->mm);
-	mmget(current->mm);
-	job->mm = current->mm;
+	rga_job_get_current_mm(job);
 
 	if (flags == RGA_BLIT_ASYNC) {
 		ret = rga_out_fence_alloc(job);
