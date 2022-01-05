@@ -106,7 +106,6 @@
 #include "i915_scheduler.h"
 #include "gt/intel_timeline.h"
 #include "i915_vma.h"
-#include "i915_irq.h"
 
 
 /* General customization:
