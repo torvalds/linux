@@ -183,7 +183,6 @@ struct hal_data_8188e {
 	/* If only one tx, only BW20 and OFDM are used. */
 	s8	OFDM_24G_Diff[RF_PATH_MAX][MAX_TX_COUNT];
 	s8	BW20_24G_Diff[RF_PATH_MAX][MAX_TX_COUNT];
-	s8	BW40_24G_Diff[RF_PATH_MAX][MAX_TX_COUNT];
 
 	/*  HT 20<->40 Pwr diff */
 	u8	TxPwrHt20Diff[RF_PATH_MAX][CHANNEL_MAX_NUMBER];
