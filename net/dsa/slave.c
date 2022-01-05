@@ -2011,13 +2011,6 @@ int dsa_slave_create(struct dsa_port *port)
 	port->slave = slave_dev;
 	dsa_slave_setup_tagger(slave_dev);
 
-	rtnl_lock();
-	ret = dsa_slave_change_mtu(slave_dev, ETH_DATA_LEN);
-	rtnl_unlock();
-	if (ret && ret != -EOPNOTSUPP)
-		dev_warn(ds->dev, "nonfatal error %d setting MTU to %d on port %d\n",
-			 ret, ETH_DATA_LEN, port->index);
-
 	netif_carrier_off(slave_dev);
 
 	ret = dsa_slave_phy_setup(slave_dev);
@@ -2027,6 +2020,13 @@ int dsa_slave_create(struct dsa_port *port)
 			   ret, ds->dst->index, ds->index, port->index);
 		goto out_gcells;
 	}
+
+	rtnl_lock();
+	ret = dsa_slave_change_mtu(slave_dev, ETH_DATA_LEN);
+	rtnl_unlock();
+	if (ret && ret != -EOPNOTSUPP)
+		dev_warn(ds->dev, "nonfatal error %d setting MTU to %d on port %d\n",
+			 ret, ETH_DATA_LEN, port->index);
 
 	rtnl_lock();
 
