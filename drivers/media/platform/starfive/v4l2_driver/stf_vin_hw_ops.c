@@ -40,23 +40,25 @@ static int vin_rstgen_assert_reset(struct stf_vin_dev *vin)
 
 static void vin_intr_clear(void __iomem * sysctrl_base)
 {
-	reg_set_bit(sysctrl_base, SYSCTRL_VIN_INTP_CTRL, BIT(0), 0x1);
-	reg_set_bit(sysctrl_base, SYSCTRL_VIN_INTP_CTRL, BIT(0), 0x0);
+
+	reg_set_bit(sysctrl_base, SYSCONSAIF_SYSCFG_28, 
+		U0_VIN_CNFG_AXIWR0_INTR_CLEAN, 
+		0x1);
+	reg_set_bit(sysctrl_base, SYSCONSAIF_SYSCFG_28, 
+		U0_VIN_CNFG_AXIWR0_INTR_CLEAN, 
+		0x0);
 }
 
 static irqreturn_t stf_vin_wr_irq_handler(int irq, void *priv)
 {
-#if 0
-
 	static struct vin_params params;
 	static struct vin_params vparams;
 	struct stf_vin2_dev *vin_dev = priv;
 	struct stf_vin_dev *vin = vin_dev->stfcamss->vin;
 
 	vin_dev->hw_ops->isr_buffer_done(&vin_dev->line[VIN_LINE_WR], &params);
-
 	vin_intr_clear(vin->sysctrl_base);
-#endif
+
 	return IRQ_HANDLED;
 }
 
@@ -98,52 +100,11 @@ static int stf_vin_clk_init(struct stf_vin2_dev *vin_dev)
 	return 0;
 
 }
-extern  void stf_dvp_io_pad_config(struct stf_vin_dev *vin);
-void stf_do_port_configure(struct stfcamss *stfcamss)
-{
-	struct stf_vin_dev *vin = stfcamss->vin;
-	struct device *dev = stfcamss->dev;
-	struct device_node *node = NULL;
-	struct device_node *remote = NULL;
 
-	for_each_endpoint_of_node(dev->of_node, node) {
-		struct stfcamss_async_subdev *csd;
-		struct v4l2_async_subdev *asd;
-
-		if (!of_device_is_available(node))
-			continue;
-		remote = of_graph_get_remote_port_parent(node);
-		if (!remote)
-			st_err(ST_VIN, "Cannot get remote parent1\n");
-		
-		list_for_each_entry(asd, &stfcamss->notifier.asd_list, asd_list) {
-			csd = container_of(asd, struct stfcamss_async_subdev, asd);
-			switch(csd->port){
-				case CSI2RX0_PORT_NUMBER:
-				case CSI2RX1_PORT_NUMBER:
-					break;
-				case DVP_SENSOR_PORT_NUMBER:
-					stf_dvp_io_pad_config(vin);
-					break;
-				case CSI2RX0_SENSOR_PORT_NUMBER:
-				case CSI2RX1_SENSOR_PORT_NUMBER:
-					break;
-				default:
-					break;
-			}
-		}
-
-		of_node_put(remote);
-		if (IS_ERR(asd)) {
-				st_err(ST_CAMSS, "Cannot get remote parent2\n");
-		}
-	}
-}
 static int stf_vin_clk_enable(struct stf_vin2_dev *vin_dev)
 {
 
 	struct stf_vin_dev *vin = vin_dev->stfcamss->vin;
-	//stf_do_port_configure(vin_dev->stfcamss);
 
 	reg_set_bit(vin->clkgen_base, CLK_DOM4_APB_FUNC, CLK_MUX_SEL, 0x8);
 	reg_set_bit(vin->clkgen_base, CLK_U0_VIN_PCLK, CLK_U0_VIN_PCLK_ICG, 0x1<<31);
@@ -197,19 +158,16 @@ static int stf_vin_config_set(struct stf_vin2_dev *vin_dev)
 static int stf_vin_wr_stream_set(struct stf_vin2_dev *vin_dev, int on)
 {
 
-#if 0
 	struct stf_vin_dev *vin = vin_dev->stfcamss->vin;
 
-	print_reg(ST_VIN, vin->sysctrl_base, SYSCTRL_VIN_AXI_CTRL);
+	print_reg(ST_VIN, vin->sysctrl_base, SYSCONSAIF_SYSCFG_20);
 	if (on) {
-		reg_set(vin->sysctrl_base,
-				SYSCTRL_VIN_AXI_CTRL, BIT(1));
+		reg_set(vin->sysctrl_base, SYSCONSAIF_SYSCFG_20, U0_VIN_CNFG_AXIWR0_EN);	  
 	} else {
-		reg_clear(vin->sysctrl_base,
-				SYSCTRL_VIN_AXI_CTRL, BIT(1));
+		//reg_clear(vin->sysctrl_base, SYSCONSAIF_SYSCFG_20, U0_VIN_CNFG_AXIWR0_EN);
+		;
 	}
-	print_reg(ST_VIN, vin->sysctrl_base, SYSCTRL_VIN_AXI_CTRL);
-#endif
+	print_reg(ST_VIN, vin->sysctrl_base, SYSCONSAIF_SYSCFG_20);
 
 	return 0;
 }
@@ -218,36 +176,36 @@ static void stf_vin_wr_irq_enable(struct stf_vin2_dev *vin_dev,
 		int enable)
 {
 
-#if 0
+
 	struct stf_vin_dev *vin = vin_dev->stfcamss->vin;
-	unsigned int mask_value = 0, value = 0;
+	unsigned int value = 0;
 
 	if (enable) {
-		// value = ~((0x1 << 4) | (0x1 << 20));
-		value = ~(0x1 << 4);
-
-		reg_set_bit(vin->sysctrl_base,
-				SYSCTRL_VIN_INTP_CTRL, BIT(4), value);
+		value = ~(0x1 << 1);
+		reg_set_bit(vin->sysctrl_base, SYSCONSAIF_SYSCFG_28, 
+			U0_VIN_CNFG_AXIWR0_MASK, 
+			value);
 	} else {
-		/* mask and clear vin interrupt */
-		// mask_value = (0x1 << 4) | (0x1 << 20);
-		// value = 0x1 | (0x1 << 16) | mask_value;
-		reg_set_bit(vin->sysctrl_base,
-				SYSCTRL_VIN_INTP_CTRL, BIT(0), 0x1);
-		reg_set_bit(vin->sysctrl_base,
-				SYSCTRL_VIN_INTP_CTRL, BIT(0), 0x0);
-
-		value = 0x1 << 4;
-		reg_set_bit(vin->sysctrl_base,
-				SYSCTRL_VIN_INTP_CTRL, BIT(4), value);
+		/* clear vin interrupt */
+		value = 0x1 << 1;
+		reg_set_bit(vin->sysctrl_base, SYSCONSAIF_SYSCFG_28, 
+			U0_VIN_CNFG_AXIWR0_INTR_CLEAN, 
+			0x1);
+		reg_set_bit(vin->sysctrl_base, SYSCONSAIF_SYSCFG_28, 
+			U0_VIN_CNFG_AXIWR0_INTR_CLEAN, 
+			0x0);
+		reg_set_bit(vin->sysctrl_base, SYSCONSAIF_SYSCFG_28, 
+			U0_VIN_CNFG_AXIWR0_MASK, 
+			value);
 	}
-#endif
+
 }
 
 static void stf_vin_power_on(struct stf_vin2_dev *vin_dev,	int enable)
 {
 	struct stf_vin_dev *vin = vin_dev->stfcamss->vin;
-
+	u32 reg = 0;
+	
 	if(enable){
 		reg_write(vin->pmu_test, SW_DEST_POWER_ON, (0x1<<5));
 		reg_write(vin->pmu_test, SW_ENCOURAGE, 0xff);
@@ -259,14 +217,17 @@ static void stf_vin_power_on(struct stf_vin2_dev *vin_dev,	int enable)
 		reg_clear_rst(vin->sys_crg, 0x2FCU,0x30CU, (0x1 << 9));
 		reg_clear_rst(vin->sys_crg, 0x2FCU,0x30CU, (0x1 << 10));	
 	} else {
-		reg_assert_rst(vin->sys_crg, 0x2FCU ,0x30cu, BIT(9));  //u0_dom_isp_top_disable
-		reg_assert_rst(vin->sys_crg, 0x2FCU ,0x30cu, BIT(10)); 
-		reg_set_bit(vin->sys_crg, 0xccu, BIT(31), 0x0);
-		reg_set_bit(vin->sys_crg, 0xd0u, BIT(31), 0x0);
-		reg_write(vin->pmu_test, SW_DEST_POWER_ON, (0x1<<5));
-		reg_write(vin->pmu_test, SW_ENCOURAGE, 0xff);
-		reg_write(vin->pmu_test, SW_ENCOURAGE, 0x0a);
-		reg_write(vin->pmu_test, SW_ENCOURAGE, 0xa0);
+		reg = reg_read(vin->sysctrl_base, SYSCONSAIF_SYSCFG_36);
+		if(reg && U0_VIN_CNFG_ISP_DVP_EN0) {
+			reg_assert_rst(vin->sys_crg, 0x2FCU ,0x30cu, BIT(9));  
+			reg_assert_rst(vin->sys_crg, 0x2FCU ,0x30cu, BIT(10)); 
+			reg_set_bit(vin->sys_crg, 0xccu, BIT(31), 0x0);
+			reg_set_bit(vin->sys_crg, 0xd0u, BIT(31), 0x0);
+			reg_write(vin->pmu_test, SW_DEST_POWER_ON, (0x1<<5));
+			reg_write(vin->pmu_test, SW_ENCOURAGE, 0xff);
+			reg_write(vin->pmu_test, SW_ENCOURAGE, 0x0a);
+			reg_write(vin->pmu_test, SW_ENCOURAGE, 0xa0);
+		}
 	}
 }
 
@@ -290,26 +251,18 @@ static void stf_vin_wr_rd_set_addr(struct stf_vin2_dev *vin_dev,
 void stf_vin_wr_set_ping_addr(struct stf_vin2_dev *vin_dev,
 		dma_addr_t addr)
 {
-
-#if 0
-
 	struct stf_vin_dev *vin = vin_dev->stfcamss->vin;
 
 	/* set the start address */
-	reg_write(vin->sysctrl_base, SYSCTRL_VIN_WR_START_ADDR, (long)addr);
-#endif
+	reg_write(vin->sysctrl_base,  SYSCONSAIF_SYSCFG_24, (long)addr);
 }
 
 void stf_vin_wr_set_pong_addr(struct stf_vin2_dev *vin_dev, dma_addr_t addr)
 {
-
-#if 0
-
 	struct stf_vin_dev *vin = vin_dev->stfcamss->vin;
 
 	/* set the start address */
-	reg_write(vin->sysctrl_base, SYSCTRL_VIN_RD_END_ADDR, (long)addr);
-#endif
+	reg_write(vin->sysctrl_base, SYSCONSAIF_SYSCFG_32, (long)addr);
 }
 
 void stf_vin_isp_set_yuv_addr(struct stf_vin2_dev *vin_dev, int isp_id,

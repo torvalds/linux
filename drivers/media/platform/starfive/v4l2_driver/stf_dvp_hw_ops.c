@@ -95,9 +95,9 @@ static int stf_dvp_config_set(struct stf_dvp_dev *dvp_dev)
 	if (flags & V4L2_MBUS_VSYNC_ACTIVE_HIGH)
 		polarities |= BIT(3);
 	print_reg(ST_DVP, vin->sysctrl_base, SYSCONSAIF_SYSCFG_36);
-	reg_set_bit(vin->sysctrl_base,	SYSCONSAIF_SYSCFG_36,
-		BIT(1) 
-		| BIT(3),
+	reg_set_bit(vin->sysctrl_base,	SYSCONSAIF_SYSCFG_36, 
+		U0_VIN_CNFG_DVP_HS_POS 
+		| U0_VIN_CNFG_DVP_VS_POS,
 		polarities);
 	print_reg(ST_DVP, vin->sysctrl_base, SYSCONSAIF_SYSCFG_36);
 
@@ -118,10 +118,11 @@ static int stf_dvp_config_set(struct stf_dvp_dev *dvp_dev)
 		data_shift = 0;
 		break;
 	};
-	print_reg(ST_DVP, vin->sysctrl_base, SYSCTRL_VIN_RW_CTRL);
+	print_reg(ST_DVP, vin->sysctrl_base, SYSCONSAIF_SYSCFG_28);
 	reg_set_bit(vin->sysctrl_base, SYSCONSAIF_SYSCFG_28,
-			UO_VIN_CNFG_AXIWR0_PIXEL_HEIGH_BIT_SEL, data_shift << 15);
-	print_reg(ST_DVP, vin->sysctrl_base, SYSCTRL_VIN_RW_CTRL);
+		UO_VIN_CNFG_AXIWR0_PIXEL_HEIGH_BIT_SEL, 
+		data_shift << 15);
+	print_reg(ST_DVP, vin->sysctrl_base, SYSCONSAIF_SYSCFG_28);
 
 	return 0;
 }
@@ -135,16 +136,18 @@ static int set_vin_axiwr_pix_ct(struct stf_vin_dev *vin, u8 bpp)
 	if (cnfg_axiwr_pix_ct == 2)
 		value = 1;
 	else if (cnfg_axiwr_pix_ct == 4)
-		value = 2;
+		value = 1;
 	else if (cnfg_axiwr_pix_ct == 8)
 		value = 0;
 	else
 		return 0;
 
-	print_reg(ST_DVP, vin->sysctrl_base, SYSCTRL_VIN_RW_CTRL);
-	reg_set_bit(vin->sysctrl_base,
-			SYSCTRL_VIN_RW_CTRL, BIT(1) | BIT(0), value);
-	print_reg(ST_DVP, vin->sysctrl_base, SYSCTRL_VIN_RW_CTRL);
+	print_reg(ST_DVP, vin->sysctrl_base, SYSCONSAIF_SYSCFG_28);
+	reg_set_bit(vin->sysctrl_base, 
+		SYSCONSAIF_SYSCFG_28, 
+		U0_VIN_CNFG_AXIWR0_PIX_CT, 
+		value<<13);
+	print_reg(ST_DVP, vin->sysctrl_base, SYSCONSAIF_SYSCFG_28);
 
 	return cnfg_axiwr_pix_ct;
 
@@ -160,7 +163,10 @@ static int stf_dvp_set_format(struct stf_dvp_dev *dvp_dev,
 		pix_ct = set_vin_axiwr_pix_ct(vin, bpp);
 		val = (pix_width / pix_ct) - 1;
 		print_reg(ST_DVP, vin->sysctrl_base, SYSCTRL_VIN_WR_PIX_TOTAL);
-		reg_write(vin->sysctrl_base, SYSCTRL_VIN_WR_PIX_TOTAL, val);
+		reg_set_bit(vin->sysctrl_base, 
+			SYSCONSAIF_SYSCFG_28, 
+			U0_VIN_CNFG_AXIWR0_PIX_CNT_END, 
+			val << 2);
 		print_reg(ST_DVP, vin->sysctrl_base, SYSCTRL_VIN_WR_PIX_TOTAL);
 
 	}
@@ -174,43 +180,27 @@ static int stf_dvp_stream_set(struct stf_dvp_dev *dvp_dev, int on)
 
 	switch (dvp_dev->s_type) {
 	case SENSOR_VIN:
-#if 0
-		/*View segment register (2.7.4.1.ispv2 ) is vin RD WR related (data stream not
-		 through ISP, directly to DDR, or take data from DDR) 2021 1110*/
-		reg_set_bit(vin->sysctrl_base, SYSCONSAIF_SYSCFG_0, U0_VIN_CNFG_AXIRD_AXI_CNT_END, 0x0);
-		reg_set_bit(vin->sysctrl_base, SYSCONSAIF_SYSCFG_4, U0_VIN_CNFG_AXIRD_END_ADDR, 0x0);
-		reg_set_bit(vin->sysctrl_base, SYSCONSAIF_SYSCFG_8,	U0_VIN_CNFG_AXIRD_LINE_CNT_END, 0x0);
-		reg_set_bit(vin->sysctrl_base, SYSCONSAIF_SYSCFG_8,	U0_VIN_CNFG_AXIRD_LINE_CNT_START, 0x0);
-		reg_set_bit(vin->sysctrl_base, SYSCONSAIF_SYSCFG_12, U0_VIN_CNFG_AXIRD_PIX_CNT_END 
-			| U0_VIN_CNFG_AXIRD_PIX_CNT_START 
-			| U0_VIN_CNFG_AXIRD_PIX_CT, 0x0);
-		reg_set_bit(vin->sysctrl_base, SYSCONSAIF_SYSCFG_16, U0_VIN_CNFG_AXIRD_START_ADDR, 0x0);
-		reg_set_bit(vin->sysctrl_base, SYSCONSAIF_SYSCFG_20, U0_VIN_CNFG_AXIWR0_CHANNEL_SEL
-			| U0_VIN_CNFG_AXIWR0_EN, 0x0);
-		reg_set_bit(vin->sysctrl_base, SYSCONSAIF_SYSCFG_24, U0_VIN_CNFG_AXIWR0_END_ADDR, 0x0);
-		reg_set_bit(vin->sysctrl_base, SYSCONSAIF_SYSCFG_28, U0_VIN_CNFG_AXIWR0_PIXEL_HITH_BIT_SEL 
-			| U0_VIN_CNFG_AXIWR0_PIX_CNT_CNT_END
-			| U0_VIN_CNFG_AXIWR0_PIX_CNT_CT
-			| SYSCONSAIF_SYSCFG_28, 0x0);
-		reg_set_bit(vin->sysctrl_base, SYSCONSAIF_SYSCFG_32, U0_VIN_CNFG_AXIWR0_START_ADDR, 0x0);
-		reg_set_bit(vin->sysctrl_base, SYSCONSAIF_SYSCFG_8,	U0_VIN_CNFG_AXIRD_INTR_MASK, 0x0);
-		reg_set_bit(vin->sysctrl_base, SYSCONSAIF_SYSCFG_0, U0_VIN_CNFG_AXI_DVP_EN, 0x0);
-		reg_set_bit(vin->sysctrl_base, SYSCONSAIF_SYSCFG_36, U0_VIN_CNFG_COLOR_BAR_EN, 0x0);
-#endif 
-		reg_set_bit(vin->sysctrl_base,
-				SYSCTRL_VIN_AXI_CTRL, BIT(0), on);
-		reg_set_bit(vin->clkgen_base,
-				CLK_VIN_AXI_WR_CTRL,
-				BIT(25) | BIT(24), 2 << 24);
+		reg_set_bit(vin->sysctrl_base, SYSCONSAIF_SYSCFG_36, 
+	 		U0_VIN_CNFG_ISP_DVP_EN0,
+			0);
+	 	reg_set_bit(vin->sysctrl_base, SYSCONSAIF_SYSCFG_0, 
+	 		U0_VIN_CNFG_AXI_DVP_EN, 
+			1<<2);
 		break;
 	case SENSOR_ISP0:
-		reg_set_bit(vin->sysctrl_base,	SYSCONSAIF_SYSCFG_36,
-			BIT(U0_VIN_CNFG_ISP_DVP_EN0), 
-			!!on<<U0_VIN_CNFG_ISP_DVP_EN0);	
-		reg_set_bit(vin->sysctrl_base,	SYSCONSAIF_SYSCFG_36, 
-			BIT(U0_VIN_CNFG_DVP_SWAP_EN), 0x0);	  
-		reg_set_bit(vin->sysctrl_base,	SYSCONSAIF_SYSCFG_36, 
-			BIT(U0_VIN_CNFG_GEN_EN_AXIRD), 0x0);
+		reg_set_bit(vin->sysctrl_base, SYSCONSAIF_SYSCFG_36, 
+			U0_VIN_CNFG_ISP_DVP_EN0, 
+			!!on<<5);
+	 	reg_set_bit(vin->sysctrl_base, SYSCONSAIF_SYSCFG_0, 
+	 		U0_VIN_CNFG_AXI_DVP_EN, 
+			0);
+		reg_set_bit(vin->sysctrl_base, SYSCONSAIF_SYSCFG_36, 
+			U0_VIN_CNFG_DVP_SWAP_EN,
+			0);
+		reg_set_bit(vin->sysctrl_base, SYSCONSAIF_SYSCFG_36, 
+			U0_VIN_CNFG_GEN_EN_AXIRD, 
+			0);
+
 		break;
 	case SENSOR_ISP1:
 		st_err(ST_DVP, "please check dvp_dev s_type:%d\n", dvp_dev->s_type);

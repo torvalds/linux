@@ -248,7 +248,6 @@ static struct reg_value sc2235_init_tbl_1080p_7fps[] = {
     {0x3908,0x11,0,0},
     {0x391b,0x4d,0,0},
     {0x391e,0x00,0,0},
-    {0x3d08,0x02,0,0},
     {0x3e01,0x46,0,0},
     {0x3e03,0x0b,0,0},
     {0x3f00,0x07,0,0},
@@ -263,8 +262,6 @@ static struct reg_value sc2235_init_tbl_1080p_7fps[] = {
     {0x3301,0x0a,0,0},
     {0x3631,0x88,0,0},
     {0x366f,0x2f,0,0},
-
-    {0x3d08,0x02,0,0},//hs-vs polity
 };
 
 static struct reg_value sc2235_setting_1080P_1920_1080[] = {
@@ -786,18 +783,12 @@ static int sc2235_set_framefmt(struct sc2235_dev *sensor,
 static int sc2235_restore_mode(struct sc2235_dev *sensor)
 {
 	int ret;
-	unsigned int hs_polity = 1;             /* 1: valid when high; 0: valid when low */
-    unsigned int vs_polity = 1;             /* 1: valid when high; 0: valid when low */
-	unsigned char val;
-	
+
 	/* first load the initial register values */
 	ret = sc2235_load_regs(sensor, &sc2235_mode_init_data);
 	if (ret < 0)
 		return ret;
 	sensor->last_mode = &sc2235_mode_init_data;
-	val = (vs_polity<<1)|((!hs_polity)<<2);
-	sc2235_write_reg16(sensor, 0x3d08, val);
-
 	/* now restore the last capture mode */
 	ret = sc2235_set_mode(sensor);
 	if (ret < 0)

@@ -14,7 +14,7 @@
 #include <linux/delay.h>
 
 static const regval_t isp_sc2235_reg_config_list[] = {
-	{0x00000014, 0x0000000c, 0, 0},
+	{0x00000014, 0x00000008, 0, 0},
 //	{0x00000018, 0x000011BB, 0, 0},
 	{0x00000A1C, 0x00000032, 0, 0},
 //	{0x0000001C, 0x00000000, 0, 0},

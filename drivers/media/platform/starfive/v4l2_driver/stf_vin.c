@@ -92,6 +92,7 @@ int stf_vin_subdev_init(struct stfcamss *stfcamss)
 		st_err(ST_VIN, "failed to request isp0 irq\n");
 		goto out;
 	}
+#if 0 
 
 	ret = devm_request_irq(dev,
 			vin->isp1_irq, vin_dev->hw_ops->vin_isp_irq_handler,
@@ -103,7 +104,7 @@ int stf_vin_subdev_init(struct stfcamss *stfcamss)
 
 	vin_dev->hw_ops->vin_wr_irq_enable(vin_dev, 1);
 	vin_dev->hw_ops->vin_wr_irq_enable(vin_dev, 0);
-#if 0
+
 	/* Reset device */
 	/*Do not configure the CLK before powering on the device,
 	add vin_power_on() to vin_set_power() 2021 1111 */
