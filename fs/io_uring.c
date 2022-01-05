@@ -10151,7 +10151,7 @@ static __cold void __io_uring_show_fdinfo(struct io_ring_ctx *ctx,
 	 * and sq_tail and cq_head are changed by userspace. But it's ok since
 	 * we usually use these info when it is stuck.
 	 */
-	seq_printf(m, "SqMask:\t\t0x%x\n", sq_mask);
+	seq_printf(m, "SqMask:\t0x%x\n", sq_mask);
 	seq_printf(m, "SqHead:\t%u\n", sq_head);
 	seq_printf(m, "SqTail:\t%u\n", sq_tail);
 	seq_printf(m, "CachedSqHead:\t%u\n", ctx->cached_sq_head);
