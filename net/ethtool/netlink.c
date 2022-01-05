@@ -627,7 +627,6 @@ static void ethnl_default_notify(struct net_device *dev, unsigned int cmd,
 	}
 
 	req_info->dev = dev;
-	netdev_tracker_alloc(dev, &req_info->dev_tracker, GFP_KERNEL);
 	req_info->flags |= ETHTOOL_FLAG_COMPACT_BITSETS;
 
 	ethnl_init_reply_data(reply_data, ops, dev);
