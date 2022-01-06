@@ -2298,7 +2298,7 @@ EXPORT_SYMBOL_GPL(rt5640_detect_headset);
 static void rt5640_jack_work(struct work_struct *work)
 {
 	struct rt5640_priv *rt5640 =
-		container_of(work, struct rt5640_priv, jack_work);
+		container_of(work, struct rt5640_priv, jack_work.work);
 	struct snd_soc_component *component = rt5640->component;
 	int status;
 
@@ -2381,7 +2381,7 @@ static void rt5640_jack_work(struct work_struct *work)
 		 * disabled the OVCD IRQ, the IRQ pin will stay high and as
 		 * we react to edges, we miss the unplug event -> recheck.
 		 */
-		queue_work(system_long_wq, &rt5640->jack_work);
+		queue_delayed_work(system_long_wq, &rt5640->jack_work, 0);
 	}
 }
 
@@ -2390,7 +2390,7 @@ static irqreturn_t rt5640_irq(int irq, void *data)
 	struct rt5640_priv *rt5640 = data;
 
 	if (rt5640->jack)
-		queue_work(system_long_wq, &rt5640->jack_work);
+		queue_delayed_work(system_long_wq, &rt5640->jack_work, 0);
 
 	return IRQ_HANDLED;
 }
@@ -2399,7 +2399,7 @@ static void rt5640_cancel_work(void *data)
 {
 	struct rt5640_priv *rt5640 = data;
 
-	cancel_work_sync(&rt5640->jack_work);
+	cancel_delayed_work_sync(&rt5640->jack_work);
 	cancel_delayed_work_sync(&rt5640->bp_work);
 }
 
@@ -2508,7 +2508,7 @@ static void rt5640_enable_jack_detect(struct snd_soc_component *component,
 	}
 
 	/* sync initial jack state */
-	queue_work(system_long_wq, &rt5640->jack_work);
+	queue_delayed_work(system_long_wq, &rt5640->jack_work, 0);
 }
 
 static void rt5640_enable_hda_jack_detect(
@@ -2546,7 +2546,7 @@ static void rt5640_enable_hda_jack_detect(
 	}
 
 	/* sync initial jack state */
-	queue_work(system_long_wq, &rt5640->jack_work);
+	queue_delayed_work(system_long_wq, &rt5640->jack_work, 0);
 }
 
 static int rt5640_set_jack(struct snd_soc_component *component,
@@ -2745,7 +2745,7 @@ static int rt5640_resume(struct snd_soc_component *component)
 			snd_soc_component_write(component, RT5640_DUMMY2,
 				0x4001);
 
-		queue_work(system_long_wq, &rt5640->jack_work);
+		queue_delayed_work(system_long_wq, &rt5640->jack_work, 0);
 	}
 
 	return 0;
@@ -2950,7 +2950,7 @@ static int rt5640_i2c_probe(struct i2c_client *i2c,
 	rt5640->hp_mute = true;
 	rt5640->irq = i2c->irq;
 	INIT_DELAYED_WORK(&rt5640->bp_work, rt5640_button_press_work);
-	INIT_WORK(&rt5640->jack_work, rt5640_jack_work);
+	INIT_DELAYED_WORK(&rt5640->jack_work, rt5640_jack_work);
 
 	/* Make sure work is stopped on probe-error / remove */
 	ret = devm_add_action_or_reset(&i2c->dev, rt5640_cancel_work, rt5640);

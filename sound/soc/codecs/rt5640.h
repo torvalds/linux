@@ -2145,7 +2145,7 @@ struct rt5640_priv {
 	int release_count;
 	int poll_count;
 	struct delayed_work bp_work;
-	struct work_struct jack_work;
+	struct delayed_work jack_work;
 	struct snd_soc_jack *jack;
 	unsigned int jd_src;
 	bool jd_inverted;
