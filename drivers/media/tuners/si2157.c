@@ -446,7 +446,8 @@ static int si2157_set_params(struct dvb_frontend *fe)
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	int ret;
 	struct si2157_cmd cmd;
-	u8 bandwidth, delivery_system;
+	u8 bw, delivery_system;
+	u32 bandwidth;
 	u32 if_frequency = 5000000;
 
 	dev_dbg(&client->dev,
@@ -458,16 +459,22 @@ static int si2157_set_params(struct dvb_frontend *fe)
 		goto err;
 	}
 
-	if (SUPPORTS_1700KHz(dev) && c->bandwidth_hz <= 1700000)
-		bandwidth = 9;
-	else if (c->bandwidth_hz <= 6000000)
-		bandwidth = 6;
-	else if (SUPPORTS_1700KHz(dev) && c->bandwidth_hz <= 6100000)
-		bandwidth = 10;
-	else if (c->bandwidth_hz <= 7000000)
-		bandwidth = 7;
-	else
-		bandwidth = 8;
+	if (SUPPORTS_1700KHz(dev) && c->bandwidth_hz <= 1700000) {
+		bandwidth = 1700000;
+		bw = 9;
+	} else if (c->bandwidth_hz <= 6000000) {
+		bandwidth = 6000000;
+		bw = 6;
+	} else if (SUPPORTS_1700KHz(dev) && c->bandwidth_hz <= 6100000) {
+		bandwidth = 6100000;
+		bw = 10;
+	} else if (c->bandwidth_hz <= 7000000) {
+		bandwidth = 7000000;
+		bw = 7;
+	} else {
+		bandwidth = 8000000;
+		bw = 8;
+	}
 
 	switch (c->delivery_system) {
 	case SYS_ATSC:
@@ -497,7 +504,7 @@ static int si2157_set_params(struct dvb_frontend *fe)
 	}
 
 	memcpy(cmd.args, "\x14\x00\x03\x07\x00\x00", 6);
-	cmd.args[4] = delivery_system | bandwidth;
+	cmd.args[4] = delivery_system | bw;
 	if (dev->inversion)
 		cmd.args[5] = 0x01;
 	cmd.wlen = 6;
