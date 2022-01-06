@@ -2452,7 +2452,8 @@ static void rt5640_disable_jack_detect(struct snd_soc_component *component)
 }
 
 static void rt5640_enable_jack_detect(struct snd_soc_component *component,
-				      struct snd_soc_jack *jack)
+				      struct snd_soc_jack *jack,
+				      struct rt5640_set_jack_data *jack_data)
 {
 	struct rt5640_priv *rt5640 = snd_soc_component_get_drvdata(component);
 	int ret;
@@ -2495,6 +2496,9 @@ static void rt5640_enable_jack_detect(struct snd_soc_component *component,
 		rt5640_enable_micbias1_for_ovcd(component);
 		rt5640_enable_micbias1_ovcd_irq(component);
 	}
+
+	if (jack_data && jack_data->codec_irq_override)
+		rt5640->irq = jack_data->codec_irq_override;
 
 	ret = request_irq(rt5640->irq, rt5640_irq,
 			  IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
@@ -2558,7 +2562,7 @@ static int rt5640_set_jack(struct snd_soc_component *component,
 		if (rt5640->jd_src == RT5640_JD_SRC_HDA_HEADER)
 			rt5640_enable_hda_jack_detect(component, jack);
 		else
-			rt5640_enable_jack_detect(component, jack);
+			rt5640_enable_jack_detect(component, jack, data);
 	} else {
 		rt5640_disable_jack_detect(component);
 	}

@@ -2153,6 +2153,10 @@ struct rt5640_priv {
 	unsigned int ovcd_sf;
 };
 
+struct rt5640_set_jack_data {
+	int codec_irq_override;
+};
+
 int rt5640_dmic_enable(struct snd_soc_component *component,
 		       bool dmic1_data_pin, bool dmic2_data_pin);
 int rt5640_sel_asrc_clk_src(struct snd_soc_component *component,
