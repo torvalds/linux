@@ -99,12 +99,11 @@ retry:
  *
  *    FOLL_GET: page's refcount will be incremented by @refs.
  *
- *    FOLL_PIN on compound pages that are > two pages long: page's refcount will
- *    be incremented by @refs, and page[2].hpage_pinned_refcount will be
- *    incremented by @refs * GUP_PIN_COUNTING_BIAS.
+ *    FOLL_PIN on compound pages: page's refcount will be incremented by
+ *    @refs, and page[1].compound_pincount will be incremented by @refs.
  *
- *    FOLL_PIN on normal pages, or compound pages that are two pages long:
- *    page's refcount will be incremented by @refs * GUP_PIN_COUNTING_BIAS.
+ *    FOLL_PIN on normal pages: page's refcount will be incremented by
+ *    @refs * GUP_PIN_COUNTING_BIAS.
  *
  * Return: head page (with refcount appropriately incremented) for success, or
  * NULL upon failure. If neither FOLL_GET nor FOLL_PIN was set, that's
@@ -135,16 +134,15 @@ __maybe_unused struct page *try_grab_compound_head(struct page *page,
 			return NULL;
 
 		/*
-		 * When pinning a compound page of order > 1 (which is
-		 * what hpage_pincount_available() checks for), use an
-		 * exact count to track it.
+		 * When pinning a compound page, use an exact count to
+		 * track it.
 		 *
 		 * However, be sure to *also* increment the normal page
 		 * refcount field at least once, so that the page really
 		 * is pinned.  That's why the refcount from the earlier
 		 * try_get_compound_head() is left intact.
 		 */
-		if (hpage_pincount_available(page))
+		if (PageHead(page))
 			atomic_add(refs, compound_pincount_ptr(page));
 		else
 			page_ref_add(page, refs * (GUP_PIN_COUNTING_BIAS - 1));
@@ -166,7 +164,7 @@ static void put_compound_head(struct page *page, int refs, unsigned int flags)
 	if (flags & FOLL_PIN) {
 		mod_node_page_state(page_pgdat(page), NR_FOLL_PIN_RELEASED,
 				    refs);
-		if (hpage_pincount_available(page))
+		if (PageHead(page))
 			atomic_sub(refs, compound_pincount_ptr(page));
 		else
 			refs *= GUP_PIN_COUNTING_BIAS;
@@ -211,7 +209,7 @@ bool __must_check try_grab_page(struct page *page, unsigned int flags)
 		 * increment the normal page refcount field at least once,
 		 * so that the page really is pinned.
 		 */
-		if (hpage_pincount_available(page)) {
+		if (PageHead(page)) {
 			page_ref_add(page, 1);
 			atomic_add(1, compound_pincount_ptr(page));
 		} else {
