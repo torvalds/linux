@@ -1106,6 +1106,7 @@ extern const struct mlxsw_afa_ops mlxsw_sp2_act_afa_ops;
 /* spectrum_acl_flex_keys.c */
 extern const struct mlxsw_afk_ops mlxsw_sp1_afk_ops;
 extern const struct mlxsw_afk_ops mlxsw_sp2_afk_ops;
+extern const struct mlxsw_afk_ops mlxsw_sp4_afk_ops;
 
 /* spectrum_matchall.c */
 struct mlxsw_sp_mall_ops {

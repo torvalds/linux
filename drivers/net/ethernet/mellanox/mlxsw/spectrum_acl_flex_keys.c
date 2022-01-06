@@ -311,3 +311,45 @@ const struct mlxsw_afk_ops mlxsw_sp2_afk_ops = {
 	.encode_block	= mlxsw_sp2_afk_encode_block,
 	.clear_block	= mlxsw_sp2_afk_clear_block,
 };
+
+static struct mlxsw_afk_element_inst mlxsw_sp_afk_element_info_mac_5b[] = {
+	MLXSW_AFK_ELEMENT_INST_U32(VID, 0x04, 18, 12),
+	MLXSW_AFK_ELEMENT_INST_EXT_U32(SRC_SYS_PORT, 0x04, 0, 9, -1, true), /* RX_ACL_SYSTEM_PORT */
+};
+
+static struct mlxsw_afk_element_inst mlxsw_sp_afk_element_info_ipv4_4b[] = {
+	MLXSW_AFK_ELEMENT_INST_U32(VIRT_ROUTER_LSB, 0x04, 13, 8),
+	MLXSW_AFK_ELEMENT_INST_EXT_U32(VIRT_ROUTER_MSB, 0x04, 21, 4, 0, true),
+};
+
+static struct mlxsw_afk_element_inst mlxsw_sp_afk_element_info_ipv6_2b[] = {
+	MLXSW_AFK_ELEMENT_INST_BUF(DST_IP_96_127, 0x04, 4),
+};
+
+static const struct mlxsw_afk_block mlxsw_sp4_afk_blocks[] = {
+	MLXSW_AFK_BLOCK(0x10, mlxsw_sp_afk_element_info_mac_0),
+	MLXSW_AFK_BLOCK(0x11, mlxsw_sp_afk_element_info_mac_1),
+	MLXSW_AFK_BLOCK(0x12, mlxsw_sp_afk_element_info_mac_2),
+	MLXSW_AFK_BLOCK(0x13, mlxsw_sp_afk_element_info_mac_3),
+	MLXSW_AFK_BLOCK(0x14, mlxsw_sp_afk_element_info_mac_4),
+	MLXSW_AFK_BLOCK(0x1A, mlxsw_sp_afk_element_info_mac_5b),
+	MLXSW_AFK_BLOCK(0x38, mlxsw_sp_afk_element_info_ipv4_0),
+	MLXSW_AFK_BLOCK(0x39, mlxsw_sp_afk_element_info_ipv4_1),
+	MLXSW_AFK_BLOCK(0x3A, mlxsw_sp_afk_element_info_ipv4_2),
+	MLXSW_AFK_BLOCK(0x35, mlxsw_sp_afk_element_info_ipv4_4b),
+	MLXSW_AFK_BLOCK(0x40, mlxsw_sp_afk_element_info_ipv6_0),
+	MLXSW_AFK_BLOCK(0x41, mlxsw_sp_afk_element_info_ipv6_1),
+	MLXSW_AFK_BLOCK(0x47, mlxsw_sp_afk_element_info_ipv6_2b),
+	MLXSW_AFK_BLOCK(0x43, mlxsw_sp_afk_element_info_ipv6_3),
+	MLXSW_AFK_BLOCK(0x44, mlxsw_sp_afk_element_info_ipv6_4),
+	MLXSW_AFK_BLOCK(0x45, mlxsw_sp_afk_element_info_ipv6_5),
+	MLXSW_AFK_BLOCK(0x90, mlxsw_sp_afk_element_info_l4_0),
+	MLXSW_AFK_BLOCK(0x92, mlxsw_sp_afk_element_info_l4_2),
+};
+
+const struct mlxsw_afk_ops mlxsw_sp4_afk_ops = {
+	.blocks		= mlxsw_sp4_afk_blocks,
+	.blocks_count	= ARRAY_SIZE(mlxsw_sp4_afk_blocks),
+	.encode_block	= mlxsw_sp2_afk_encode_block,
+	.clear_block	= mlxsw_sp2_afk_clear_block,
+};
