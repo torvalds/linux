@@ -76,6 +76,20 @@
 		method = "smc";
 	};
 
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		smem@4ab00000 {
+			compatible = "qcom,smem";
+			reg = <0x0 0x4ab00000 0x0 0x00100000>;
+			no-map;
+
+			hwlocks = <&tcsr_mutex 0>;
+		};
+	};
+
 	firmware {
 		scm {
 			compatible = "qcom,scm-ipq8074", "qcom,scm";
@@ -329,6 +343,12 @@
 			reg = <0x01800000 0x80000>;
 			#clock-cells = <0x1>;
 			#reset-cells = <0x1>;
+		};
+
+		tcsr_mutex: hwlock@1905000 {
+			compatible = "qcom,tcsr-mutex";
+			reg = <0x01905000 0x20000>;
+			#hwlock-cells = <1>;
 		};
 
 		spmi_bus: spmi@200f000 {
