@@ -460,8 +460,8 @@ static ssize_t pfru_write(struct file *file, const char __user *buf,
 	/* map the communication buffer */
 	phy_addr = (phys_addr_t)((buf_info.addr_hi << 32) | buf_info.addr_lo);
 	buf_ptr = memremap(phy_addr, buf_info.buf_size, MEMREMAP_WB);
-	if (IS_ERR(buf_ptr))
-		return PTR_ERR(buf_ptr);
+	if (!buf_ptr)
+		return -ENOMEM;
 
 	if (!copy_from_iter_full(buf_ptr, len, &iter)) {
 		ret = -EINVAL;
