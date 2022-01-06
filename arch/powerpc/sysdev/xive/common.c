@@ -1791,7 +1791,7 @@ static int xive_ipi_debug_show(struct seq_file *m, void *private)
 	if (xive_ops->debug_show)
 		xive_ops->debug_show(m, private);
 
-	for_each_possible_cpu(cpu)
+	for_each_online_cpu(cpu)
 		xive_debug_show_ipi(m, cpu);
 	return 0;
 }
