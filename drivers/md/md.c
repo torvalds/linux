@@ -3608,6 +3608,7 @@ static struct attribute *rdev_default_attrs[] = {
 	&rdev_ppl_size.attr,
 	NULL,
 };
+ATTRIBUTE_GROUPS(rdev_default);
 static ssize_t
 rdev_attr_show(struct kobject *kobj, struct attribute *attr, char *page)
 {
@@ -3657,7 +3658,7 @@ static const struct sysfs_ops rdev_sysfs_ops = {
 static struct kobj_type rdev_ktype = {
 	.release	= rdev_free,
 	.sysfs_ops	= &rdev_sysfs_ops,
-	.default_attrs	= rdev_default_attrs,
+	.default_groups	= rdev_default_groups,
 };
 
 int md_rdev_init(struct md_rdev *rdev)
