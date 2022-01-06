@@ -476,7 +476,9 @@ static irqreturn_t fuel_gauge_thread_handler(int irq, void *dev)
 		dev_warn(info->dev, "Spurious Interrupt!!!\n");
 	}
 
+	mutex_lock(&info->lock);
 	info->valid = 0; /* Force updating of the cached registers */
+	mutex_unlock(&info->lock);
 
 	power_supply_changed(info->bat);
 	return IRQ_HANDLED;
@@ -486,7 +488,9 @@ static void fuel_gauge_external_power_changed(struct power_supply *psy)
 {
 	struct axp288_fg_info *info = power_supply_get_drvdata(psy);
 
+	mutex_lock(&info->lock);
 	info->valid = 0; /* Force updating of the cached registers */
+	mutex_unlock(&info->lock);
 	power_supply_changed(info->bat);
 }
 
