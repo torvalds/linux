@@ -107,7 +107,6 @@ enum {
 struct axp288_fg_info {
 	struct device *dev;
 	struct regmap *regmap;
-	struct regmap_irq_chip_data *regmap_irqc;
 	int irq[AXP288_FG_INTR_NUM];
 	struct iio_channel *iio_channel[IIO_CHANNEL_NUM];
 	struct power_supply *bat;
@@ -502,38 +501,6 @@ static const struct power_supply_desc fuel_gauge_desc = {
 	.external_power_changed	= fuel_gauge_external_power_changed,
 };
 
-static void fuel_gauge_init_irq(struct axp288_fg_info *info, struct platform_device *pdev)
-{
-	int ret, i, pirq;
-
-	for (i = 0; i < AXP288_FG_INTR_NUM; i++) {
-		pirq = platform_get_irq(pdev, i);
-		info->irq[i] = regmap_irq_get_virq(info->regmap_irqc, pirq);
-		if (info->irq[i] < 0) {
-			dev_warn(info->dev, "regmap_irq get virq failed for IRQ %d: %d\n",
-				pirq, info->irq[i]);
-			info->irq[i] = -1;
-			goto intr_failed;
-		}
-		ret = request_threaded_irq(info->irq[i],
-				NULL, fuel_gauge_thread_handler,
-				IRQF_ONESHOT, DEV_NAME, info);
-		if (ret) {
-			dev_warn(info->dev, "request irq failed for IRQ %d: %d\n",
-				pirq, info->irq[i]);
-			info->irq[i] = -1;
-			goto intr_failed;
-		}
-	}
-	return;
-
-intr_failed:
-	for (; i > 0; i--) {
-		free_irq(info->irq[i - 1], info);
-		info->irq[i - 1] = -1;
-	}
-}
-
 /*
  * Some devices have no battery (HDMI sticks) and the axp288 battery's
  * detection reports one despite it not being there.
@@ -678,7 +645,6 @@ static void axp288_fuel_gauge_release_iio_chans(void *data)
 
 static int axp288_fuel_gauge_probe(struct platform_device *pdev)
 {
-	int i, ret = 0;
 	struct axp288_fg_info *info;
 	struct axp20x_dev *axp20x = dev_get_drvdata(pdev->dev.parent);
 	struct power_supply_config psy_cfg = {};
@@ -688,6 +654,7 @@ static int axp288_fuel_gauge_probe(struct platform_device *pdev)
 		[BAT_VOLT] = "axp288-batt-volt",
 	};
 	struct device *dev = &pdev->dev;
+	int i, pirq, ret;
 
 	if (dmi_check_system(axp288_no_battery_list))
 		return -ENODEV;
@@ -698,13 +665,21 @@ static int axp288_fuel_gauge_probe(struct platform_device *pdev)
 
 	info->dev = dev;
 	info->regmap = axp20x->regmap;
-	info->regmap_irqc = axp20x->regmap_irqc;
 	info->status = POWER_SUPPLY_STATUS_UNKNOWN;
 	info->valid = 0;
 
 	platform_set_drvdata(pdev, info);
 
 	mutex_init(&info->lock);
+
+	for (i = 0; i < AXP288_FG_INTR_NUM; i++) {
+		pirq = platform_get_irq(pdev, i);
+		ret = regmap_irq_get_virq(axp20x->regmap_irqc, pirq);
+		if (ret < 0)
+			return dev_err_probe(dev, ret, "getting vIRQ %d\n", pirq);
+
+		info->irq[i] = ret;
+	}
 
 	for (i = 0; i < IIO_CHANNEL_NUM; i++) {
 		/*
@@ -747,7 +722,13 @@ static int axp288_fuel_gauge_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	fuel_gauge_init_irq(info, pdev);
+	for (i = 0; i < AXP288_FG_INTR_NUM; i++) {
+		ret = devm_request_threaded_irq(dev, info->irq[i], NULL,
+						fuel_gauge_thread_handler,
+						IRQF_ONESHOT, DEV_NAME, info);
+		if (ret)
+			return dev_err_probe(dev, ret, "requesting IRQ %d\n", info->irq[i]);
+	}
 
 	return 0;
 }
@@ -758,21 +739,8 @@ static const struct platform_device_id axp288_fg_id_table[] = {
 };
 MODULE_DEVICE_TABLE(platform, axp288_fg_id_table);
 
-static int axp288_fuel_gauge_remove(struct platform_device *pdev)
-{
-	struct axp288_fg_info *info = platform_get_drvdata(pdev);
-	int i;
-
-	for (i = 0; i < AXP288_FG_INTR_NUM; i++)
-		if (info->irq[i] >= 0)
-			free_irq(info->irq[i], info);
-
-	return 0;
-}
-
 static struct platform_driver axp288_fuel_gauge_driver = {
 	.probe = axp288_fuel_gauge_probe,
-	.remove = axp288_fuel_gauge_remove,
 	.id_table = axp288_fg_id_table,
 	.driver = {
 		.name = DEV_NAME,
