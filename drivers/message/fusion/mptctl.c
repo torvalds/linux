@@ -1041,7 +1041,8 @@ kbuf_alloc_2_sgl(int bytes, u32 sgdir, int sge_offset, int *frags,
 	 * copying the data in this array into the correct place in the
 	 * request and chain buffers.
 	 */
-	sglbuf = pci_alloc_consistent(ioc->pcidev, MAX_SGL_BYTES, sglbuf_dma);
+	sglbuf = dma_alloc_coherent(&ioc->pcidev->dev, MAX_SGL_BYTES,
+				    sglbuf_dma, GFP_KERNEL);
 	if (sglbuf == NULL)
 		goto free_and_fail;
 
@@ -1062,9 +1063,9 @@ kbuf_alloc_2_sgl(int bytes, u32 sgdir, int sge_offset, int *frags,
 	while (bytes_allocd < bytes) {
 		this_alloc = min(alloc_sz, bytes-bytes_allocd);
 		buflist[buflist_ent].len = this_alloc;
-		buflist[buflist_ent].kptr = pci_alloc_consistent(ioc->pcidev,
-								 this_alloc,
-								 &pa);
+		buflist[buflist_ent].kptr = dma_alloc_coherent(&ioc->pcidev->dev,
+							       this_alloc,
+							       &pa, GFP_KERNEL);
 		if (buflist[buflist_ent].kptr == NULL) {
 			alloc_sz = alloc_sz / 2;
 			if (alloc_sz == 0) {
@@ -2105,8 +2106,9 @@ mptctl_do_mpt_command (MPT_ADAPTER *ioc, struct mpt_ioctl_command karg, void __u
 			}
 			flagsLength |= karg.dataOutSize;
 			bufOut.len = karg.dataOutSize;
-			bufOut.kptr = pci_alloc_consistent(
-					ioc->pcidev, bufOut.len, &dma_addr_out);
+			bufOut.kptr = dma_alloc_coherent(&ioc->pcidev->dev,
+							 bufOut.len,
+							 &dma_addr_out, GFP_KERNEL);
 
 			if (bufOut.kptr == NULL) {
 				rc = -ENOMEM;
@@ -2139,8 +2141,9 @@ mptctl_do_mpt_command (MPT_ADAPTER *ioc, struct mpt_ioctl_command karg, void __u
 			flagsLength |= karg.dataInSize;
 
 			bufIn.len = karg.dataInSize;
-			bufIn.kptr = pci_alloc_consistent(ioc->pcidev,
-					bufIn.len, &dma_addr_in);
+			bufIn.kptr = dma_alloc_coherent(&ioc->pcidev->dev,
+							bufIn.len,
+							&dma_addr_in, GFP_KERNEL);
 
 			if (bufIn.kptr == NULL) {
 				rc = -ENOMEM;
@@ -2400,7 +2403,9 @@ mptctl_hp_hostinfo(MPT_ADAPTER *ioc, unsigned long arg, unsigned int data_size)
 			/* Issue the second config page request */
 			cfg.action = MPI_CONFIG_ACTION_PAGE_READ_CURRENT;
 
-			pbuf = pci_alloc_consistent(ioc->pcidev, hdr.PageLength * 4, &buf_dma);
+			pbuf = dma_alloc_coherent(&ioc->pcidev->dev,
+						  hdr.PageLength * 4,
+						  &buf_dma, GFP_KERNEL);
 			if (pbuf) {
 				cfg.physAddr = buf_dma;
 				if (mpt_config(ioc, &cfg) == 0) {
@@ -2477,7 +2482,7 @@ mptctl_hp_hostinfo(MPT_ADAPTER *ioc, unsigned long arg, unsigned int data_size)
 	else
 		IstwiRWRequest->DeviceAddr = 0xB0;
 
-	pbuf = pci_alloc_consistent(ioc->pcidev, 4, &buf_dma);
+	pbuf = dma_alloc_coherent(&ioc->pcidev->dev, 4, &buf_dma, GFP_KERNEL);
 	if (!pbuf)
 		goto out;
 	ioc->add_sge((char *)&IstwiRWRequest->SGL,
@@ -2592,7 +2597,8 @@ mptctl_hp_targetinfo(MPT_ADAPTER *ioc, unsigned long arg)
        /* Get the data transfer speeds
         */
 	data_sz = ioc->spi_data.sdp0length * 4;
-	pg0_alloc = pci_alloc_consistent(ioc->pcidev, data_sz, &page_dma);
+	pg0_alloc = dma_alloc_coherent(&ioc->pcidev->dev, data_sz, &page_dma,
+				       GFP_KERNEL);
 	if (pg0_alloc) {
 		hdr.PageVersion = ioc->spi_data.sdp0version;
 		hdr.PageLength = data_sz;
@@ -2657,7 +2663,8 @@ mptctl_hp_targetinfo(MPT_ADAPTER *ioc, unsigned long arg)
 		/* Issue the second config page request */
 		cfg.action = MPI_CONFIG_ACTION_PAGE_READ_CURRENT;
 		data_sz = (int) cfg.cfghdr.hdr->PageLength * 4;
-		pg3_alloc = pci_alloc_consistent(ioc->pcidev, data_sz, &page_dma);
+		pg3_alloc = dma_alloc_coherent(&ioc->pcidev->dev, data_sz,
+					       &page_dma, GFP_KERNEL);
 		if (pg3_alloc) {
 			cfg.physAddr = page_dma;
 			cfg.pageAddr = (karg.hdr.channel << 8) | karg.hdr.id;
