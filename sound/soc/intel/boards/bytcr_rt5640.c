@@ -79,6 +79,7 @@ enum {
 #define BYT_RT5640_LINEOUT_AS_HP2	BIT(26)
 #define BYT_RT5640_HSMIC2_ON_IN1	BIT(27)
 #define BYT_RT5640_JD_HP_ELITEP_1000G2	BIT(28)
+#define BYT_RT5640_USE_AMCR0F28		BIT(29)
 
 #define BYTCR_INPUT_DEFAULTS				\
 	(BYT_RT5640_IN3_MAP |				\
@@ -93,6 +94,7 @@ enum {
 struct byt_rt5640_private {
 	struct snd_soc_jack jack;
 	struct snd_soc_jack jack2;
+	struct rt5640_set_jack_data jack_data;
 	struct gpio_desc *hsmic_detect;
 	struct clk *mclk;
 	struct device *codec_dev;
@@ -597,7 +599,8 @@ static const struct dmi_system_id byt_rt5640_quirk_table[] = {
 					BYT_RT5640_OVCD_TH_2000UA |
 					BYT_RT5640_OVCD_SF_0P75 |
 					BYT_RT5640_SSP0_AIF1 |
-					BYT_RT5640_MCLK_EN),
+					BYT_RT5640_MCLK_EN |
+					BYT_RT5640_USE_AMCR0F28),
 	},
 	{
 		.matches = {
@@ -1109,6 +1112,32 @@ static int byt_rt5640_add_codec_device_props(struct device *i2c_dev,
 	return ret;
 }
 
+/* Some Android devs specify IRQs/GPIOS in a special AMCR0F28 ACPI device */
+static int byt_rt5640_get_amcr0f28_settings(struct snd_soc_card *card)
+{
+	struct byt_rt5640_private *priv = snd_soc_card_get_drvdata(card);
+	struct rt5640_set_jack_data *data = &priv->jack_data;
+	struct acpi_device *adev;
+	int ret = 0;
+
+	adev = acpi_dev_get_first_match_dev("AMCR0F28", "1", -1);
+	if (!adev) {
+		dev_err(card->dev, "error cannot find AMCR0F28 adev\n");
+		return -ENOENT;
+	}
+
+	data->codec_irq_override = acpi_dev_gpio_irq_get(adev, 0);
+	if (data->codec_irq_override < 0) {
+		ret = data->codec_irq_override;
+		dev_err(card->dev, "error %d getting codec IRQ\n", ret);
+		goto put_adev;
+	}
+
+put_adev:
+	acpi_dev_put(adev);
+	return ret;
+}
+
 static int byt_rt5640_init(struct snd_soc_pcm_runtime *runtime)
 {
 	struct snd_soc_card *card = runtime->card;
@@ -1244,7 +1273,14 @@ static int byt_rt5640_init(struct snd_soc_pcm_runtime *runtime)
 		}
 		snd_jack_set_key(priv->jack.jack, SND_JACK_BTN_0,
 				 KEY_PLAYPAUSE);
-		snd_soc_component_set_jack(component, &priv->jack, NULL);
+
+		if (byt_rt5640_quirk & BYT_RT5640_USE_AMCR0F28) {
+			ret = byt_rt5640_get_amcr0f28_settings(card);
+			if (ret)
+				return ret;
+		}
+
+		snd_soc_component_set_jack(component, &priv->jack, &priv->jack_data);
 	}
 
 	if (byt_rt5640_quirk & BYT_RT5640_JD_HP_ELITEP_1000G2) {
@@ -1448,7 +1484,8 @@ static int byt_rt5640_resume(struct snd_soc_card *card)
 	for_each_card_components(card, component) {
 		if (!strcmp(component->name, byt_rt5640_codec_name)) {
 			dev_dbg(component->dev, "re-enabling jack detect after resume\n");
-			snd_soc_component_set_jack(component, &priv->jack, NULL);
+			snd_soc_component_set_jack(component, &priv->jack,
+						   &priv->jack_data);
 			break;
 		}
 	}
