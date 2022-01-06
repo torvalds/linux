@@ -1840,9 +1840,27 @@ static int anx7625_audio_hook_plugged_cb(struct device *dev, void *data,
 	return 0;
 }
 
+static int anx7625_audio_get_eld(struct device *dev, void *data,
+				 u8 *buf, size_t len)
+{
+	struct anx7625_data *ctx = dev_get_drvdata(dev);
+
+	if (!ctx->connector) {
+		dev_err(dev, "connector not initial\n");
+		return -EINVAL;
+	}
+
+	dev_dbg(dev, "audio copy eld\n");
+	memcpy(buf, ctx->connector->eld,
+	       min(sizeof(ctx->connector->eld), len));
+
+	return 0;
+}
+
 static const struct hdmi_codec_ops anx7625_codec_ops = {
 	.hw_params	= anx7625_audio_hw_params,
 	.audio_shutdown = anx7625_audio_shutdown,
+	.get_eld	= anx7625_audio_get_eld,
 	.get_dai_id	= anx7625_hdmi_i2s_get_dai_id,
 	.hook_plugged_cb = anx7625_audio_hook_plugged_cb,
 };
