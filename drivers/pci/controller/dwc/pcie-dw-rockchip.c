@@ -691,8 +691,14 @@ static int rk_pcie_establish_link(struct dw_pcie *pci)
 {
 	int retries;
 	struct rk_pcie *rk_pcie = to_rk_pcie(pci);
+	bool std_rc = rk_pcie->mode == RK_PCIE_RC_TYPE && !rk_pcie->dma_obj;
 
-	if (dw_pcie_link_up(pci)) {
+	/*
+	 * For standard RC, even if the link has been setup by firmware,
+	 * we still need to reset link as we need to remove all resource info
+	 * from devices, for instance BAR, as it wasn't assigned by kernel.
+	 */
+	if (dw_pcie_link_up(pci) && !std_rc) {
 		dev_err(pci->dev, "link is already up\n");
 		return 0;
 	}
