@@ -4485,14 +4485,6 @@ static int modify_qp_rtr_to_rts(struct ib_qp *ibqp,
 	return 0;
 }
 
-static inline u16 get_udp_sport(u32 fl, u32 lqpn, u32 rqpn)
-{
-	if (!fl)
-		fl = rdma_calc_flow_label(lqpn, rqpn);
-
-	return rdma_flow_label_to_udp_sport(fl);
-}
-
 static int get_dip_ctx_idx(struct ib_qp *ibqp, const struct ib_qp_attr *attr,
 			   u32 *dip_idx)
 {
@@ -4709,8 +4701,9 @@ static int hns_roce_v2_set_path(struct ib_qp *ibqp,
 	}
 
 	hr_reg_write(context, QPC_UDPSPN,
-		     is_udp ? get_udp_sport(grh->flow_label, ibqp->qp_num,
-					    attr->dest_qp_num) : 0);
+		     is_udp ? rdma_get_udp_sport(grh->flow_label, ibqp->qp_num,
+						 attr->dest_qp_num) :
+				    0);
 
 	hr_reg_clear(qpc_mask, QPC_UDPSPN);
 
