@@ -20,6 +20,7 @@ rockchipdrm-$(CONFIG_ROCKCHIP_INNO_HDMI) += inno_hdmi.o
 rockchipdrm-$(CONFIG_ROCKCHIP_LVDS) += rockchip_lvds.o
 rockchipdrm-$(CONFIG_ROCKCHIP_RGB) += rockchip_rgb.o
 rockchipdrm-$(CONFIG_ROCKCHIP_RK3066_HDMI) += rk3066_hdmi.o
+rockchipdrm-$(CONFIG_ROCKCHIP_VCONN) += rockchip_drm_vconn.o
 
 obj-$(CONFIG_DRM_ROCKCHIP) += rockchipdrm.o
 

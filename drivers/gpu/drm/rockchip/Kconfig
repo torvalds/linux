@@ -110,6 +110,13 @@ config ROCKCHIP_RK3066_HDMI
 	  for the RK3066 HDMI driver. If you want to enable
 	  HDMI on RK3066 based SoC, you should select this option.
 
+config ROCKCHIP_VCONN
+	bool "Rockchip Virtual connector driver for HDMI/DP/DSI"
+	depends on DRM_ROCKCHIP
+	help
+	  This selects support virtual HDMI/DP/DSI drived by
+	  rockchip vop, This is used for some test.
+
 source "drivers/gpu/drm/rockchip/rk628/Kconfig"
 
 endif

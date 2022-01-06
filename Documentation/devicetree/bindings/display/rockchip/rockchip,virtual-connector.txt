@@ -1,0 +1,21 @@
+Rockchip virtual connector driver
+================================
+
+Required properties:
+- compatible: should be "rockchip,virtual-connector"
+
+patternProperties:
+  "connector-enable": if this connector should be enabled
+  "connector-vp-id": which video port this connector attached to.
+  The connector here should be hdmi0/1, dp0/1, mipi0/1
+
+Example:
+vconn {
+	compatible = "rockchip,virtual-connector";
+	hdmi0-enable;
+	hdmi1-enable;
+	hdmi0-vp-id = <0>;
+	hdmi1-vp-id = <1>;
+	status = "okay";
+};
+
