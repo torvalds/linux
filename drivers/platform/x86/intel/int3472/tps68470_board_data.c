@@ -110,6 +110,12 @@ static const struct int3472_tps68470_board_data surface_go_tps68470_board_data =
 	.tps68470_regulator_pdata = &surface_go_tps68470_pdata,
 };
 
+static const struct int3472_tps68470_board_data surface_go3_tps68470_board_data = {
+	.dev_name = "i2c-INT3472:01",
+	.tps68470_gpio_lookup_table = &surface_go_tps68470_gpios,
+	.tps68470_regulator_pdata = &surface_go_tps68470_pdata,
+};
+
 static const struct dmi_system_id int3472_tps68470_board_data_table[] = {
 	{
 		.matches = {
@@ -124,6 +130,13 @@ static const struct dmi_system_id int3472_tps68470_board_data_table[] = {
 			DMI_EXACT_MATCH(DMI_PRODUCT_NAME, "Surface Go 2"),
 		},
 		.driver_data = (void *)&surface_go_tps68470_board_data,
+	},
+	{
+		.matches = {
+			DMI_EXACT_MATCH(DMI_SYS_VENDOR, "Microsoft Corporation"),
+			DMI_EXACT_MATCH(DMI_PRODUCT_NAME, "Surface Go 3"),
+		},
+		.driver_data = (void *)&surface_go3_tps68470_board_data,
 	},
 	{ }
 };
