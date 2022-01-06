@@ -857,14 +857,89 @@ bch2_trans_commit_get_rw_cold(struct btree_trans *trans)
 	return 0;
 }
 
-static int bch2_trans_commit_run_triggers(struct btree_trans *trans)
+static int run_one_trigger(struct btree_trans *trans, struct btree_insert_entry *i,
+			   bool overwrite)
 {
 	struct bkey		_deleted = KEY(0, 0, 0);
 	struct bkey_s_c		deleted = (struct bkey_s_c) { &_deleted, NULL };
 	struct bkey_s_c		old;
 	struct bkey		unpacked;
-	struct btree_insert_entry *i = NULL, *btree_id_start = trans->updates;
+	int ret = 0;
+
+	if ((i->flags & BTREE_TRIGGER_NORUN) ||
+	    !(BTREE_NODE_TYPE_HAS_TRANS_TRIGGERS & (1U << i->bkey_type)))
+		return 0;
+
+	if (!overwrite) {
+		if (i->insert_trigger_run)
+			return 0;
+
+		BUG_ON(i->overwrite_trigger_run);
+		i->insert_trigger_run = true;
+	} else {
+		if (i->overwrite_trigger_run)
+			return 0;
+
+		BUG_ON(!i->insert_trigger_run);
+		i->overwrite_trigger_run = true;
+	}
+
+	old = bch2_btree_path_peek_slot(i->path, &unpacked);
+	_deleted.p = i->path->pos;
+
+	if (overwrite) {
+		ret = bch2_trans_mark_key(trans, old, deleted,
+				BTREE_TRIGGER_OVERWRITE|i->flags);
+	} else if (old.k->type == i->k->k.type &&
+	    ((1U << old.k->type) & BTREE_TRIGGER_WANTS_OLD_AND_NEW)) {
+		i->overwrite_trigger_run = true;
+		ret = bch2_trans_mark_key(trans, old, bkey_i_to_s_c(i->k),
+				BTREE_TRIGGER_INSERT|BTREE_TRIGGER_OVERWRITE|i->flags);
+	} else {
+		ret = bch2_trans_mark_key(trans, deleted, bkey_i_to_s_c(i->k),
+				BTREE_TRIGGER_INSERT|i->flags);
+	}
+
+	if (ret == -EINTR)
+		trace_trans_restart_mark(trans->fn, _RET_IP_,
+					 i->btree_id, &i->path->pos);
+	return ret ?: 1;
+}
+
+static int run_btree_triggers(struct btree_trans *trans, enum btree_id btree_id,
+			      struct btree_insert_entry *btree_id_start)
+{
+	struct btree_insert_entry *i;
 	bool trans_trigger_run;
+	int ret, overwrite;
+
+	for (overwrite = 0; overwrite < 2; overwrite++) {
+
+		/*
+		 * Running triggers will append more updates to the list of updates as
+		 * we're walking it:
+		 */
+		do {
+			trans_trigger_run = false;
+
+			for (i = btree_id_start;
+			     i < trans->updates + trans->nr_updates && i->btree_id <= btree_id;
+			     i++) {
+				ret = run_one_trigger(trans, i, overwrite);
+				if (ret < 0)
+					return ret;
+				if (ret)
+					trans_trigger_run = true;
+			}
+		} while (trans_trigger_run);
+	}
+
+	return 0;
+}
+
+static int bch2_trans_commit_run_triggers(struct btree_trans *trans)
+{
+	struct btree_insert_entry *i = NULL, *btree_id_start = trans->updates;
 	unsigned btree_id = 0;
 	int ret = 0;
 
@@ -880,76 +955,9 @@ static int bch2_trans_commit_run_triggers(struct btree_trans *trans)
 		       btree_id_start->btree_id < btree_id)
 			btree_id_start++;
 
-		/*
-		 * Running triggers will append more updates to the list of updates as
-		 * we're walking it:
-		 */
-		do {
-			trans_trigger_run = false;
-
-			for (i = btree_id_start;
-			     i < trans->updates + trans->nr_updates && i->btree_id <= btree_id;
-			     i++) {
-				if (i->insert_trigger_run ||
-				    (i->flags & BTREE_TRIGGER_NORUN) ||
-				    !(BTREE_NODE_TYPE_HAS_TRANS_TRIGGERS & (1U << i->bkey_type)))
-					continue;
-
-				BUG_ON(i->overwrite_trigger_run);
-
-				i->insert_trigger_run = true;
-				trans_trigger_run = true;
-
-				old = bch2_btree_path_peek_slot(i->path, &unpacked);
-				_deleted.p = i->path->pos;
-
-				if (old.k->type == i->k->k.type &&
-				    ((1U << old.k->type) & BTREE_TRIGGER_WANTS_OLD_AND_NEW)) {
-					i->overwrite_trigger_run = true;
-					ret = bch2_trans_mark_key(trans, old, bkey_i_to_s_c(i->k),
-							BTREE_TRIGGER_INSERT|BTREE_TRIGGER_OVERWRITE|i->flags);
-				} else {
-					ret = bch2_trans_mark_key(trans, deleted, bkey_i_to_s_c(i->k),
-							BTREE_TRIGGER_INSERT|i->flags);
-				}
-
-				if (ret == -EINTR)
-					trace_trans_restart_mark(trans->fn, _RET_IP_,
-							i->btree_id, &i->path->pos);
-				if (ret)
-					return ret;
-			}
-		} while (trans_trigger_run);
-
-		do {
-			trans_trigger_run = false;
-
-			for (i = btree_id_start;
-			     i < trans->updates + trans->nr_updates && i->btree_id <= btree_id;
-			     i++) {
-				if (i->overwrite_trigger_run ||
-				    (i->flags & BTREE_TRIGGER_NORUN) ||
-				    !(BTREE_NODE_TYPE_HAS_TRANS_TRIGGERS & (1U << i->bkey_type)))
-					continue;
-
-				BUG_ON(!i->insert_trigger_run);
-
-				i->overwrite_trigger_run = true;
-				trans_trigger_run = true;
-
-				old = bch2_btree_path_peek_slot(i->path, &unpacked);
-				_deleted.p = i->path->pos;
-
-				ret = bch2_trans_mark_key(trans, old, deleted,
-						BTREE_TRIGGER_OVERWRITE|i->flags);
-
-				if (ret == -EINTR)
-					trace_trans_restart_mark(trans->fn, _RET_IP_,
-							i->btree_id, &i->path->pos);
-				if (ret)
-					return ret;
-			}
-		} while (trans_trigger_run);
+		ret = run_btree_triggers(trans, btree_id, btree_id_start);
+		if (ret)
+			return ret;
 	}
 
 	trans_for_each_update(trans, i)
