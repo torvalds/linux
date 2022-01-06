@@ -438,6 +438,75 @@ static void rga_viraddr_put_channel_info(struct rga_dma_buffer_t **rga_dma_buffe
 	*rga_dma_buffer = NULL;
 }
 
+void rga_iommu_unmap_virt_addr(struct rga_dma_buffer *virt_dma_buf)
+{
+	if (virt_dma_buf == NULL)
+		return;
+
+	iommu_unmap(virt_dma_buf->domain, virt_dma_buf->iova, virt_dma_buf->size);
+	rga_iommu_dma_free_iova(virt_dma_buf->cookie, virt_dma_buf->iova, virt_dma_buf->size);
+}
+
+int rga_iommu_map_virt_addr(struct rga_memory_parm *memory_parm,
+			    struct rga_virt_addr *virt_addr,
+			    struct rga_dma_buffer *virt_dma_buf,
+			    struct device *rga_dev,
+			    struct mm_struct *mm)
+{
+	unsigned long size;
+	size_t map_size;
+	bool coherent;
+	int ioprot;
+	struct iommu_domain *domain = NULL;
+	struct rga_iommu_dma_cookie *cookie;
+	struct iova_domain *iovad;
+	dma_addr_t iova;
+	struct sg_table *sgt = NULL;
+
+
+	coherent = dev_is_dma_coherent(rga_dev);
+	ioprot = rga_dma_info_to_prot(DMA_BIDIRECTIONAL, coherent, 0);
+	domain = iommu_get_dma_domain(rga_dev);
+	cookie = domain->iova_cookie;
+	iovad = &cookie->iovad;
+	size = iova_align(iovad, virt_addr->size);
+	sgt = virt_addr->sgt;
+	if (sgt == NULL) {
+		pr_err("can not map iommu, because sgt is null!\n");
+		return -EFAULT;
+	}
+
+	if (RGA_DEBUG_MSG)
+		pr_debug("iova_align size = %ld", size);
+
+	iova = rga_iommu_dma_alloc_iova(domain, size, rga_dev->coherent_dma_mask, rga_dev);
+	if (!iova) {
+		pr_err("rga_iommu_dma_alloc_iova failed");
+		return -ENOMEM;
+	}
+
+	if (!(ioprot & IOMMU_CACHE)) {
+		struct scatterlist *sg;
+		int i;
+
+		for_each_sg(sgt->sgl, sg, sgt->orig_nents, i)
+			arch_dma_prep_coherent(sg_page(sg), sg->length);
+	}
+
+	map_size = iommu_map_sg_atomic(domain, iova, sgt->sgl, sgt->orig_nents, ioprot);
+	if (map_size < size) {
+		pr_err("iommu can not map sgt to iova");
+		return -EINVAL;
+	}
+
+	virt_dma_buf->cookie = cookie;
+	virt_dma_buf->domain = domain;
+	virt_dma_buf->iova = iova;
+	virt_dma_buf->size = size;
+
+	return 0;
+}
+
 static int rga_viraddr_get_channel_info(struct rga_img_info_t *channel_info,
 					 struct rga_dma_buffer_t **rga_dma_buffer,
 					 int writeFlag, int core, struct mm_struct *mm)

@@ -170,14 +170,28 @@ struct rga_dma_buffer {
 	struct dma_buf *dma_buf;
 	struct dma_buf_attachment *attach;
 	struct sg_table *sgt;
+	void *vmap_ptr;
+
+	struct iommu_domain *domain;
+	struct rga_iommu_dma_cookie *cookie;
+
+	enum dma_data_direction dir;
 
 	dma_addr_t iova;
 	unsigned long size;
-	void *vmap_ptr;
-	enum dma_data_direction dir;
 
 	/* The core of the mapping */
 	int core;
+};
+
+struct rga_virt_addr {
+	uint64_t addr;
+
+	struct page **pages;
+	int pages_order;
+
+	struct sg_table *sgt;
+	unsigned long size;
 };
 
 struct rga_internal_buffer {
@@ -186,14 +200,15 @@ struct rga_internal_buffer {
 	uint32_t dma_buffer_size;
 
 	/* virtual address */
-	uint64_t vir_addr;
+	struct rga_virt_addr *virt_addr;
 
 	/* physical address */
-	uint64_t phy_addr;
+	uint64_t phys_addr;
 
-	/* cached pagetable. */
-	struct sg_table *sgt;
-	uint64_t pt_size;
+	struct rga_memory_parm memory_parm;
+
+
+	struct mm_struct *current_mm;
 
 	/* memory type. */
 	uint32_t type;

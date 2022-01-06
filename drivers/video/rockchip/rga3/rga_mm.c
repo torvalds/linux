@@ -10,6 +10,243 @@
 #include "rga.h"
 #include "rga_mm.h"
 #include "rga_dma_buf.h"
+#include "rga_hw_config.h"
+
+static void rga_current_mm_read_lock(struct mm_struct *mm)
+{
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0)
+	mmap_read_lock(mm);
+#else
+	down_read(&mm->mmap_sem);
+#endif
+}
+
+static void rga_current_mm_read_unlock(struct mm_struct *mm)
+{
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0)
+	mmap_read_unlock(mm);
+#else
+	up_read(&mm->mmap_sem);
+#endif
+}
+
+static int rga_get_user_pages_from_vma(struct page **pages, unsigned long Memory,
+				       uint32_t pageCount, struct mm_struct *current_mm)
+{
+	int ret = 0;
+	int i;
+	struct vm_area_struct *vma;
+	spinlock_t *ptl;
+	pte_t *pte;
+	pgd_t *pgd;
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0)
+	p4d_t *p4d;
+#endif
+	pud_t *pud;
+	pmd_t *pmd;
+	unsigned long pfn;
+
+	for (i = 0; i < pageCount; i++) {
+		vma = find_vma(current_mm, (Memory + i) << PAGE_SHIFT);
+		if (!vma) {
+			pr_err("failed to get vma\n");
+			ret = RGA_OUT_OF_RESOURCES;
+			break;
+		}
+
+		pgd = pgd_offset(current_mm, (Memory + i) << PAGE_SHIFT);
+		if (pgd_none(*pgd) || unlikely(pgd_bad(*pgd))) {
+			pr_err("failed to get pgd\n");
+			ret = RGA_OUT_OF_RESOURCES;
+			break;
+		}
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0)
+		/*
+		 * In the four-level page table,
+		 * it will do nothing and return pgd.
+		 */
+		p4d = p4d_offset(pgd, (Memory + i) << PAGE_SHIFT);
+		if (p4d_none(*p4d) || unlikely(p4d_bad(*p4d))) {
+			pr_err("failed to get p4d\n");
+			ret = RGA_OUT_OF_RESOURCES;
+			break;
+		}
+
+		pud = pud_offset(p4d, (Memory + i) << PAGE_SHIFT);
+#else
+		pud = pud_offset(pgd, (Memory + i) << PAGE_SHIFT);
+#endif
+
+		if (pud_none(*pud) || unlikely(pud_bad(*pud))) {
+			pr_err("failed to get pud\n");
+			ret = RGA_OUT_OF_RESOURCES;
+			break;
+		}
+		pmd = pmd_offset(pud, (Memory + i) << PAGE_SHIFT);
+		if (pmd_none(*pmd) || unlikely(pmd_bad(*pmd))) {
+			pr_err("failed to get pmd\n");
+			ret = RGA_OUT_OF_RESOURCES;
+			break;
+		}
+		pte = pte_offset_map_lock(current_mm, pmd,
+					  (Memory + i) << PAGE_SHIFT, &ptl);
+		if (pte_none(*pte)) {
+			pr_err("failed to get pte\n");
+			pte_unmap_unlock(pte, ptl);
+			ret = RGA_OUT_OF_RESOURCES;
+			break;
+		}
+
+		pfn = pte_pfn(*pte);
+		pages[i] = pfn_to_page(pfn);
+		pte_unmap_unlock(pte, ptl);
+	}
+
+	return ret;
+}
+
+static int rga_get_user_pages(struct page **pages, unsigned long Memory,
+			      uint32_t pageCount, int writeFlag,
+			      struct mm_struct *current_mm)
+{
+	uint32_t i;
+	int32_t ret = 0;
+	int32_t result;
+
+	rga_current_mm_read_lock(current_mm);
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 4, 168) && \
+    LINUX_VERSION_CODE < KERNEL_VERSION(4, 5, 0)
+	result = get_user_pages(current, current_mm, Memory << PAGE_SHIFT,
+				pageCount, writeFlag ? FOLL_WRITE : 0,
+				pages, NULL);
+#elif LINUX_VERSION_CODE < KERNEL_VERSION(4, 6, 0)
+	result = get_user_pages(current, current_mm, Memory << PAGE_SHIFT,
+				pageCount, writeFlag, 0, pages, NULL);
+#elif LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0)
+	result = get_user_pages_remote(current, current_mm,
+				       Memory << PAGE_SHIFT,
+				       pageCount, writeFlag, pages, NULL, NULL);
+#else
+	result = get_user_pages_remote(current_mm, Memory << PAGE_SHIFT,
+				       pageCount, writeFlag, pages, NULL, NULL);
+#endif
+
+	if (result > 0 && result >= pageCount) {
+		ret = result;
+	} else {
+		if (result > 0)
+			for (i = 0; i < result; i++)
+				put_page(pages[i]);
+
+		ret = rga_get_user_pages_from_vma(pages, Memory, pageCount, current_mm);
+		if (ret < 0) {
+			pr_err("Can not get user pages from vma, result = %d, pagecount = %d\n",
+			       result, pageCount);
+		}
+	}
+
+	rga_current_mm_read_unlock(current_mm);
+
+	return ret;
+}
+
+static void rga_virt_addr_put_sgt(struct rga_virt_addr *virt_addr)
+{
+	if (virt_addr == NULL)
+		return;
+
+	sg_free_table(virt_addr->sgt);
+	kfree(virt_addr->sgt);
+	virt_addr->sgt = NULL;
+
+	free_pages((unsigned long)virt_addr->pages, virt_addr->pages_order);
+	virt_addr->pages = 0;
+	virt_addr->pages_order = 0;
+}
+
+
+static int rga_virt_addr_get_sgt(uint64_t viraddr,
+				 struct rga_memory_parm *memory_parm,
+				 struct rga_virt_addr *virt_addr,
+				 int writeFlag,
+				 struct mm_struct *mm)
+{
+	int i;
+	int ret;
+	int result = 0;
+	int order;
+	int format;
+	unsigned int count;
+	unsigned long start_addr;
+	unsigned long size;
+
+	struct page **pages = NULL;
+	struct sg_table *sgt;
+
+	user_format_convert(&format, memory_parm->format);
+
+	/* Calculate page size. */
+	count = rga_buf_size_cal(viraddr, viraddr, viraddr, format,
+				 memory_parm->width, memory_parm->height,
+				 &start_addr, &size);
+
+	/* alloc pages and page_table */
+	order = get_order(size / 4096 * sizeof(struct page *));
+	pages = (struct page **)__get_free_pages(GFP_KERNEL, order);
+	if (pages == NULL) {
+		pr_err("%s can not alloc pages for pages\n", __func__);
+		return -ENOMEM;
+	}
+
+	/* get pages from virtual address. */
+	ret = rga_get_user_pages(pages, start_addr, count, writeFlag, mm);
+	if (ret < 0) {
+		pr_err("failed to get pages");
+		ret = -EINVAL;
+		goto out_free_pages;
+	} else if (ret > 0) {
+		result = ret;
+	}
+
+	sgt = kzalloc(sizeof(struct sg_table), GFP_KERNEL);
+	if (sgt == NULL) {
+		pr_err("%s alloc sgt error!\n", __func__);
+		ret = -ENOMEM;
+		goto out_free_and_put_pages;
+	}
+
+	/* get sg form pages. */
+	if (sg_alloc_table_from_pages(sgt, pages, count, 0, size, GFP_KERNEL)) {
+		pr_err("sg_alloc_table_from_pages failed");
+		ret = -ENOMEM;
+		goto out_free_sgt;
+	}
+
+	virt_addr->sgt = sgt;
+	virt_addr->pages = pages;
+	virt_addr->pages_order = order;
+	virt_addr->size = size;
+
+	if (result)
+		for (i = 0; i < result; i++)
+			put_page(pages[i]);
+
+	return 0;
+
+out_free_sgt:
+	kfree(sgt);
+
+out_free_and_put_pages:
+	if (result)
+		for (i = 0; i < result; i++)
+			put_page(pages[i]);
+
+out_free_pages:
+	free_pages((unsigned long)pages, order);
+
+	return ret;
+}
 
 /* If it is within 0~4G, return 1 (true). */
 static int rga_mm_check_range_sgt(struct sg_table *sgt)
@@ -39,7 +276,7 @@ static void rga_mm_unmap_dma_buffer(struct rga_internal_buffer *internal_buffer)
 }
 
 static int rga_mm_map_dma_buffer(struct rga_external_buffer *external_buffer,
-	struct rga_internal_buffer *internal_buffer)
+				 struct rga_internal_buffer *internal_buffer)
 {
 	int ret, i;
 
@@ -83,6 +320,121 @@ FREE_RGA_DMA_BUF:
 	return ret;
 }
 
+static void rga_mm_unmap_virt_addr(struct rga_internal_buffer *internal_buffer)
+{
+	int i;
+
+	for (i = 0; i < internal_buffer->dma_buffer_size; i++)
+		if (internal_buffer->dma_buffer[i].iova > 0)
+			rga_iommu_unmap_virt_addr(&internal_buffer->dma_buffer[i]);
+
+	rga_virt_addr_put_sgt(internal_buffer->virt_addr);
+
+	kfree(internal_buffer->virt_addr);
+	internal_buffer->virt_addr = NULL;
+
+	if (internal_buffer->current_mm != NULL) {
+		mmput(internal_buffer->current_mm);
+		mmdrop(internal_buffer->current_mm);
+		internal_buffer->current_mm = NULL;
+	}
+}
+
+static int rga_mm_map_virt_addr(struct rga_external_buffer *external_buffer,
+				struct rga_internal_buffer *internal_buffer)
+{
+	int i;
+	int ret;
+	int iommu_dev_count;
+	int iommu_dev_num;
+
+	internal_buffer->current_mm = current->mm;
+	if (internal_buffer->current_mm == NULL) {
+		pr_err("%s, cannot get current mm!\n", __func__);
+		return -EFAULT;
+	}
+	mmgrab(internal_buffer->current_mm);
+	mmget(internal_buffer->current_mm);
+
+	internal_buffer->virt_addr = kzalloc(sizeof(struct rga_virt_addr), GFP_KERNEL);
+	if (internal_buffer->virt_addr == NULL) {
+		pr_err("%s alloc internal_buffer->virt_addr error!\n", __func__);
+		ret = -ENOMEM;
+		goto put_current_mm;
+	}
+
+	ret = rga_virt_addr_get_sgt(external_buffer->memory,
+				    &internal_buffer->memory_parm,
+				    internal_buffer->virt_addr,
+				    0, internal_buffer->current_mm);
+	if (ret < 0) {
+		pr_err("Can not get sgt from 0x%lx\n", (unsigned long)external_buffer->memory);
+			goto free_virt_addr;
+	}
+
+	internal_buffer->virt_addr->addr = external_buffer->memory;
+
+	if (rga_mm_check_range_sgt(internal_buffer->virt_addr->sgt))
+		internal_buffer->mm_flag |= RGA_MM_UNDER_4G;
+
+	iommu_dev_count = 0;
+	for (i = 0; i < rga_drvdata->num_of_scheduler; i++)
+		if (rga_drvdata->rga_scheduler[i]->core == RGA3_SCHEDULER_CORE0 ||
+		    rga_drvdata->rga_scheduler[i]->core == RGA3_SCHEDULER_CORE1)
+			iommu_dev_count++;
+
+	internal_buffer->dma_buffer = kcalloc(iommu_dev_count,
+					      sizeof(struct rga_dma_buffer), GFP_KERNEL);
+	if (internal_buffer->dma_buffer == NULL) {
+		pr_err("%s alloc internal_buffer->dma_buffer error!\n", __func__);
+		ret = -ENOMEM;
+		goto put_virt_addr_sgt;
+	}
+	internal_buffer->dma_buffer_size = iommu_dev_count;
+
+	iommu_dev_num = 0;
+	for (i = 0; i < rga_drvdata->num_of_scheduler; i++) {
+		if (rga_drvdata->rga_scheduler[i]->core == RGA2_SCHEDULER_CORE0)
+			continue;
+
+		if (iommu_dev_num >= internal_buffer->dma_buffer_size)
+			break;
+
+		ret = rga_iommu_map_virt_addr(&internal_buffer->memory_parm,
+					      internal_buffer->virt_addr,
+					      &internal_buffer->dma_buffer[iommu_dev_num],
+					      rga_drvdata->rga_scheduler[i]->dev,
+					      internal_buffer->current_mm);
+		if (ret < 0) {
+			pr_err("%s core[%d] iommu_map virtual address error!\n",
+				__func__, rga_drvdata->rga_scheduler[0]->core);
+			goto unmap_virt_addr;
+		}
+
+		internal_buffer->dma_buffer[iommu_dev_num].core =
+			rga_drvdata->rga_scheduler[i]->core;
+
+		iommu_dev_num++;
+	}
+
+	return 0;
+
+unmap_virt_addr:
+	rga_mm_unmap_virt_addr(internal_buffer);
+	return ret;
+
+put_virt_addr_sgt:
+	rga_virt_addr_put_sgt(internal_buffer->virt_addr);
+free_virt_addr:
+	kfree(internal_buffer->virt_addr);
+put_current_mm:
+	mmput(internal_buffer->current_mm);
+	mmdrop(internal_buffer->current_mm);
+	internal_buffer->current_mm = NULL;
+
+	return ret;
+}
+
 static int rga_mm_unmap_buffer(struct rga_internal_buffer *internal_buffer)
 {
 	switch (internal_buffer->type) {
@@ -90,10 +442,10 @@ static int rga_mm_unmap_buffer(struct rga_internal_buffer *internal_buffer)
 		rga_mm_unmap_dma_buffer(internal_buffer);
 		break;
 	case RGA_VIRTUAL_ADDRESS:
-		internal_buffer->vir_addr = 0;
+		rga_mm_unmap_virt_addr(internal_buffer);
 		break;
 	case RGA_PHYSICAL_ADDRESS:
-		internal_buffer->phy_addr = 0;
+		internal_buffer->phys_addr = 0;
 		break;
 	default:
 		pr_err("Illegal external buffer!\n");
@@ -108,6 +460,9 @@ static int rga_mm_map_buffer(struct rga_external_buffer *external_buffer,
 {
 	int ret;
 
+	memcpy(&internal_buffer->memory_parm, &external_buffer->memory_parm,
+	       sizeof(internal_buffer->memory_parm));
+
 	switch (external_buffer->type) {
 	case RGA_DMA_BUFFER:
 		internal_buffer->type = RGA_DMA_BUFFER;
@@ -117,16 +472,24 @@ static int rga_mm_map_buffer(struct rga_external_buffer *external_buffer,
 			pr_err("%s map dma_buf error!\n", __func__);
 			return ret;
 		}
+
+		internal_buffer->mm_flag |= RGA_MM_NEED_USE_IOMMU;
 		break;
 	case RGA_VIRTUAL_ADDRESS:
 		internal_buffer->type = RGA_VIRTUAL_ADDRESS;
 
-		internal_buffer->vir_addr = external_buffer->memory;
+		ret = rga_mm_map_virt_addr(external_buffer, internal_buffer);
+		if (ret < 0) {
+			pr_err("%s iommu_map virtual address error!\n", __func__);
+			return ret;
+		}
+
+		internal_buffer->mm_flag |= RGA_MM_NEED_USE_IOMMU;
 		break;
 	case RGA_PHYSICAL_ADDRESS:
 		internal_buffer->type = RGA_PHYSICAL_ADDRESS;
 
-		internal_buffer->phy_addr = external_buffer->memory;
+		internal_buffer->phys_addr = external_buffer->memory;
 		break;
 	default:
 		pr_err("Illegal external buffer!\n");
@@ -178,6 +541,9 @@ rga_mm_internal_buffer_lookup_external(struct rga_mm *mm_session,
 			return (struct rga_internal_buffer *)dma_buf;
 
 		idr_for_each_entry(&mm_session->memory_idr, temp_buffer, id) {
+			if (temp_buffer->dma_buffer == NULL)
+				continue;
+
 			if (temp_buffer->dma_buffer[0].dma_buf == dma_buf) {
 				output_buffer = temp_buffer;
 				break;
@@ -188,7 +554,10 @@ rga_mm_internal_buffer_lookup_external(struct rga_mm *mm_session,
 		break;
 	case RGA_VIRTUAL_ADDRESS:
 		idr_for_each_entry(&mm_session->memory_idr, temp_buffer, id) {
-			if (temp_buffer->vir_addr == external_buffer->memory) {
+			if (temp_buffer->virt_addr == NULL)
+				continue;
+
+			if (temp_buffer->virt_addr->addr == external_buffer->memory) {
 				output_buffer = temp_buffer;
 				break;
 			}
@@ -197,7 +566,7 @@ rga_mm_internal_buffer_lookup_external(struct rga_mm *mm_session,
 		break;
 	case RGA_PHYSICAL_ADDRESS:
 		idr_for_each_entry(&mm_session->memory_idr, temp_buffer, id) {
-			if (temp_buffer->phy_addr == external_buffer->memory) {
+			if (temp_buffer->phys_addr == external_buffer->memory) {
 				output_buffer = temp_buffer;
 				break;
 			}
@@ -212,8 +581,7 @@ rga_mm_internal_buffer_lookup_external(struct rga_mm *mm_session,
 	return output_buffer;
 }
 
-struct rga_internal_buffer *
-rga_mm_internal_buffer_lookup_handle(struct rga_mm *mm_session, uint32_t handle)
+struct rga_internal_buffer *rga_mm_lookup_handle(struct rga_mm *mm_session, uint32_t handle)
 {
 	struct rga_internal_buffer *output_buffer;
 
@@ -253,11 +621,21 @@ void rga_mm_dump_info(struct rga_mm *mm_session)
 			break;
 		case RGA_VIRTUAL_ADDRESS:
 			pr_info("virtual address:\n");
-			pr_info("\t va = 0x%lx\n", (unsigned long)dump_buffer->vir_addr);
+			pr_info("\t va = 0x%lx, sgt = %p, size = %ld\n",
+				(unsigned long)dump_buffer->virt_addr->addr,
+				dump_buffer->virt_addr->sgt,
+				dump_buffer->virt_addr->size);
+
+			for (i = 0; i < dump_buffer->dma_buffer_size; i++) {
+				pr_info("\t core %d:\n", dump_buffer->dma_buffer[i].core);
+				pr_info("\t\t iova = 0x%lx, size = %ld\n",
+					(unsigned long)dump_buffer->dma_buffer[i].iova,
+					dump_buffer->dma_buffer[i].size);
+			}
 			break;
 		case RGA_PHYSICAL_ADDRESS:
 			pr_info("physical address:\n");
-			pr_info("\t pa = 0x%lx\n", (unsigned long)dump_buffer->phy_addr);
+			pr_info("\t pa = 0x%lx\n", (unsigned long)dump_buffer->phys_addr);
 			break;
 		default:
 			pr_err("Illegal external buffer!\n");
@@ -340,7 +718,7 @@ int rga_mm_release_buffer(uint32_t handle)
 	mutex_lock(&mm->lock);
 
 	/* Find the buffer that has been imported */
-	internal_buffer = rga_mm_internal_buffer_lookup_handle(mm, handle);
+	internal_buffer = rga_mm_lookup_handle(mm, handle);
 	if (IS_ERR_OR_NULL(internal_buffer)) {
 		pr_err("This is not a buffer that has been imported, handle = %d\n", (int)handle);
 

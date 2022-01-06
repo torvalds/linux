@@ -217,11 +217,21 @@ static int rga_mm_session_show(struct seq_file *m, void *data)
 			break;
 		case RGA_VIRTUAL_ADDRESS:
 			seq_puts(m, "virtual address:\n");
-			seq_printf(m, "\t va = 0x%lx\n", (unsigned long)dump_buffer->vir_addr);
+			seq_printf(m, "\t va = 0x%lx, sgt = %p, size = %ld\n",
+				   (unsigned long)dump_buffer->virt_addr->addr,
+				   dump_buffer->virt_addr->sgt,
+				   dump_buffer->virt_addr->size);
+
+			for (i = 0; i < dump_buffer->dma_buffer_size; i++) {
+				seq_printf(m, "\t core %d:\n", dump_buffer->dma_buffer[i].core);
+				seq_printf(m, "\t\t iova = 0x%lx, size = %ld\n",
+					   (unsigned long)dump_buffer->dma_buffer[i].iova,
+					   dump_buffer->dma_buffer[i].size);
+			}
 			break;
 		case RGA_PHYSICAL_ADDRESS:
 			seq_puts(m, "physical address:\n");
-			seq_printf(m, "\t pa = 0x%lx\n", (unsigned long)dump_buffer->phy_addr);
+			seq_printf(m, "\t pa = 0x%lx\n", (unsigned long)dump_buffer->phys_addr);
 			break;
 		default:
 			seq_puts(m, "Illegal external buffer!\n");

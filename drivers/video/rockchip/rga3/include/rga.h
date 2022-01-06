@@ -180,11 +180,20 @@ struct rga_hw_versions_t {
 	uint32_t size;
 };
 
+struct rga_memory_parm {
+	uint32_t width;
+	uint32_t height;
+	uint32_t format;
+};
+
 struct rga_external_buffer {
 	uint64_t memory;
 	uint32_t type;
 
 	uint32_t handle;
+	struct rga_memory_parm memory_parm;
+
+	uint8_t reserve[256];
 };
 
 struct rga_buffer_pool {
