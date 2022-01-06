@@ -622,16 +622,17 @@ static int axp288_fuel_gauge_probe(struct platform_device *pdev)
 		[BAT_D_CURR] = "axp288-chrg-d-curr",
 		[BAT_VOLT] = "axp288-batt-volt",
 	};
+	struct device *dev = &pdev->dev;
 	unsigned int val;
 
 	if (dmi_check_system(axp288_no_battery_list))
 		return -ENODEV;
 
-	info = devm_kzalloc(&pdev->dev, sizeof(*info), GFP_KERNEL);
+	info = devm_kzalloc(dev, sizeof(*info), GFP_KERNEL);
 	if (!info)
 		return -ENOMEM;
 
-	info->dev = &pdev->dev;
+	info->dev = dev;
 	info->regmap = axp20x->regmap;
 	info->regmap_irqc = axp20x->regmap_irqc;
 	info->status = POWER_SUPPLY_STATUS_UNKNOWN;
@@ -651,8 +652,7 @@ static int axp288_fuel_gauge_probe(struct platform_device *pdev)
 			iio_channel_get(NULL, iio_chan_name[i]);
 		if (IS_ERR(info->iio_channel[i])) {
 			ret = PTR_ERR(info->iio_channel[i]);
-			dev_dbg(&pdev->dev, "error getting iiochan %s: %d\n",
-				iio_chan_name[i], ret);
+			dev_dbg(dev, "error getting iiochan %s: %d\n", iio_chan_name[i], ret);
 			/* Wait for axp288_adc to load */
 			if (ret == -ENODEV)
 				ret = -EPROBE_DEFER;
@@ -722,10 +722,10 @@ unblock_punit_i2c_access:
 		goto out_free_iio_chan;
 
 	psy_cfg.drv_data = info;
-	info->bat = power_supply_register(&pdev->dev, &fuel_gauge_desc, &psy_cfg);
+	info->bat = power_supply_register(dev, &fuel_gauge_desc, &psy_cfg);
 	if (IS_ERR(info->bat)) {
 		ret = PTR_ERR(info->bat);
-		dev_err(&pdev->dev, "failed to register battery: %d\n", ret);
+		dev_err(dev, "failed to register battery: %d\n", ret);
 		goto out_free_iio_chan;
 	}
 
