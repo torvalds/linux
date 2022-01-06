@@ -342,6 +342,7 @@
 
 		interrupt-parent = <&gpio0>;
 		interrupts = <RK_PC4 IRQ_TYPE_LEVEL_LOW>;
+		wakeup-source;
 	};
 
 	cw2015@62 {
