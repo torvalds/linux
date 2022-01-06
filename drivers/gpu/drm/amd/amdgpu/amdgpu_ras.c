@@ -1592,6 +1592,7 @@ static void amdgpu_ras_interrupt_handler(struct ras_manager *obj)
 				/* Let IP handle its data, maybe we need get the output
 				 * from the callback to udpate the error type/count, etc
 				 */
+				memset(&err_data, 0, sizeof(err_data));
 				ret = data->cb(obj->adev, &err_data, &entry);
 				/* ue will trigger an interrupt, and in that case
 				 * we need do a reset to recovery the whole system.
