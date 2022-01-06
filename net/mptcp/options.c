@@ -823,10 +823,13 @@ bool mptcp_established_options(struct sock *sk, struct sk_buff *skb,
 	if (mptcp_established_options_mp(sk, skb, snd_data_fin, &opt_size, remaining, opts))
 		ret = true;
 	else if (mptcp_established_options_dss(sk, skb, snd_data_fin, &opt_size, remaining, opts)) {
+		unsigned int mp_fail_size;
+
 		ret = true;
-		if (mptcp_established_options_mp_fail(sk, &opt_size, remaining, opts)) {
-			*size += opt_size;
-			remaining -= opt_size;
+		if (mptcp_established_options_mp_fail(sk, &mp_fail_size,
+						      remaining - opt_size, opts)) {
+			*size += opt_size + mp_fail_size;
+			remaining -= opt_size - mp_fail_size;
 			return true;
 		}
 	}
