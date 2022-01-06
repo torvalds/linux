@@ -2896,7 +2896,8 @@ mptsas_exp_repmanufacture_info(MPT_ADAPTER *ioc,
 
 	sz = sizeof(struct rep_manu_request) + sizeof(struct rep_manu_reply);
 
-	data_out = pci_alloc_consistent(ioc->pcidev, sz, &data_out_dma);
+	data_out = dma_alloc_coherent(&ioc->pcidev->dev, sz, &data_out_dma,
+				      GFP_KERNEL);
 	if (!data_out) {
 		printk(KERN_ERR "Memory allocation failure at %s:%d/%s()!\n",
 			__FILE__, __LINE__, __func__);
