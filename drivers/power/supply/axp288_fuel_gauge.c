@@ -88,6 +88,11 @@
 
 #define AXP288_REG_UPDATE_INTERVAL		(60 * HZ)
 #define AXP288_FG_INTR_NUM			6
+
+static bool no_current_sense_res;
+module_param(no_current_sense_res, bool, 0444);
+MODULE_PARM_DESC(no_current_sense_res, "No (or broken) current sense resisitor");
+
 enum {
 	QWBTU_IRQ = 0,
 	WBTU_IRQ,
@@ -137,12 +142,13 @@ static enum power_supply_property fuel_gauge_props[] = {
 	POWER_SUPPLY_PROP_VOLTAGE_MAX_DESIGN,
 	POWER_SUPPLY_PROP_VOLTAGE_NOW,
 	POWER_SUPPLY_PROP_VOLTAGE_OCV,
-	POWER_SUPPLY_PROP_CURRENT_NOW,
 	POWER_SUPPLY_PROP_CAPACITY,
 	POWER_SUPPLY_PROP_CAPACITY_ALERT_MIN,
 	POWER_SUPPLY_PROP_TECHNOLOGY,
+	/* The 3 props below are not used when no_current_sense_res is set */
 	POWER_SUPPLY_PROP_CHARGE_FULL,
 	POWER_SUPPLY_PROP_CHARGE_NOW,
+	POWER_SUPPLY_PROP_CURRENT_NOW,
 };
 
 static int fuel_gauge_reg_readb(struct axp288_fg_info *info, int reg)
@@ -224,7 +230,10 @@ static int fuel_gauge_update_registers(struct axp288_fg_info *info)
 		goto out;
 	info->pwr_stat = ret;
 
-	ret = fuel_gauge_reg_readb(info, AXP20X_FG_RES);
+	if (no_current_sense_res)
+		ret = fuel_gauge_reg_readb(info, AXP288_FG_OCV_CAP_REG);
+	else
+		ret = fuel_gauge_reg_readb(info, AXP20X_FG_RES);
 	if (ret < 0)
 		goto out;
 	info->fg_res = ret;
@@ -232,6 +241,14 @@ static int fuel_gauge_update_registers(struct axp288_fg_info *info)
 	ret = iio_read_channel_raw(info->iio_channel[BAT_VOLT], &info->bat_volt);
 	if (ret < 0)
 		goto out;
+
+	ret = fuel_gauge_read_12bit_word(info, AXP288_FG_OCVH_REG);
+	if (ret < 0)
+		goto out;
+	info->ocv = ret;
+
+	if (no_current_sense_res)
+		goto out_no_current_sense_res;
 
 	if (info->pwr_stat & PS_STAT_BAT_CHRG_DIR) {
 		info->d_curr = 0;
@@ -245,11 +262,6 @@ static int fuel_gauge_update_registers(struct axp288_fg_info *info)
 			goto out;
 	}
 
-	ret = fuel_gauge_read_12bit_word(info, AXP288_FG_OCVH_REG);
-	if (ret < 0)
-		goto out;
-	info->ocv = ret;
-
 	ret = fuel_gauge_read_15bit_word(info, AXP288_FG_CC_MTR1_REG);
 	if (ret < 0)
 		goto out;
@@ -260,6 +272,7 @@ static int fuel_gauge_update_registers(struct axp288_fg_info *info)
 		goto out;
 	info->fg_des_cap1 = ret;
 
+out_no_current_sense_res:
 	info->last_updated = jiffies;
 	info->valid = 1;
 	ret = 0;
@@ -292,7 +305,7 @@ static void fuel_gauge_get_status(struct axp288_fg_info *info)
 	 * When this happens the AXP288 reports a not-charging status and
 	 * 0 mA discharge current.
 	 */
-	if (fg_res < 90 || (pwr_stat & PS_STAT_BAT_CHRG_DIR))
+	if (fg_res < 90 || (pwr_stat & PS_STAT_BAT_CHRG_DIR) || no_current_sense_res)
 		goto not_full;
 
 	if (curr == 0) {
@@ -494,7 +507,7 @@ static void fuel_gauge_external_power_changed(struct power_supply *psy)
 	power_supply_changed(info->bat);
 }
 
-static const struct power_supply_desc fuel_gauge_desc = {
+static struct power_supply_desc fuel_gauge_desc = {
 	.name			= DEV_NAME,
 	.type			= POWER_SUPPLY_TYPE_BATTERY,
 	.properties		= fuel_gauge_props,
@@ -719,6 +732,8 @@ static int axp288_fuel_gauge_probe(struct platform_device *pdev)
 		return ret;
 
 	psy_cfg.drv_data = info;
+	if (no_current_sense_res)
+		fuel_gauge_desc.num_properties = ARRAY_SIZE(fuel_gauge_props) - 3;
 	info->bat = devm_power_supply_register(dev, &fuel_gauge_desc, &psy_cfg);
 	if (IS_ERR(info->bat)) {
 		ret = PTR_ERR(info->bat);
