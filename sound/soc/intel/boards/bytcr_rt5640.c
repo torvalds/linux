@@ -40,6 +40,8 @@ enum {
 	BYT_RT5640_NO_INTERNAL_MIC_MAP,
 };
 
+#define RT5640_JD_SRC_EXT_GPIO			0x0f
+
 enum {
 	BYT_RT5640_JD_SRC_GPIO1		= (RT5640_JD_SRC_GPIO1 << 4),
 	BYT_RT5640_JD_SRC_JD1_IN4P	= (RT5640_JD_SRC_JD1_IN4P << 4),
@@ -47,6 +49,7 @@ enum {
 	BYT_RT5640_JD_SRC_GPIO2		= (RT5640_JD_SRC_GPIO2 << 4),
 	BYT_RT5640_JD_SRC_GPIO3		= (RT5640_JD_SRC_GPIO3 << 4),
 	BYT_RT5640_JD_SRC_GPIO4		= (RT5640_JD_SRC_GPIO4 << 4),
+	BYT_RT5640_JD_SRC_EXT_GPIO	= (RT5640_JD_SRC_EXT_GPIO << 4)
 };
 
 enum {
@@ -627,6 +630,19 @@ static const struct dmi_system_id byt_rt5640_quirk_table[] = {
 					BYT_RT5640_SSP0_AIF2 |
 					BYT_RT5640_MCLK_EN),
 	},
+	{
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "ASUSTeK COMPUTER INC."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "TF103C"),
+		},
+		.driver_data = (void *)(BYT_RT5640_IN1_MAP |
+					BYT_RT5640_JD_SRC_EXT_GPIO |
+					BYT_RT5640_OVCD_TH_2000UA |
+					BYT_RT5640_OVCD_SF_0P75 |
+					BYT_RT5640_SSP0_AIF1 |
+					BYT_RT5640_MCLK_EN |
+					BYT_RT5640_USE_AMCR0F28),
+	},
 	{	/* Chuwi Vi8 (CWI506) */
 		.matches = {
 			DMI_EXACT_MATCH(DMI_SYS_VENDOR, "Insyde"),
@@ -1083,9 +1099,11 @@ static int byt_rt5640_add_codec_device_props(struct device *i2c_dev,
 	}
 
 	if (BYT_RT5640_JDSRC(byt_rt5640_quirk)) {
-		props[cnt++] = PROPERTY_ENTRY_U32(
-				    "realtek,jack-detect-source",
-				    BYT_RT5640_JDSRC(byt_rt5640_quirk));
+		if (BYT_RT5640_JDSRC(byt_rt5640_quirk) != RT5640_JD_SRC_EXT_GPIO) {
+			props[cnt++] = PROPERTY_ENTRY_U32(
+					    "realtek,jack-detect-source",
+					    BYT_RT5640_JDSRC(byt_rt5640_quirk));
+		}
 
 		props[cnt++] = PROPERTY_ENTRY_U32(
 				    "realtek,over-current-threshold-microamp",
@@ -1113,6 +1131,13 @@ static int byt_rt5640_add_codec_device_props(struct device *i2c_dev,
 }
 
 /* Some Android devs specify IRQs/GPIOS in a special AMCR0F28 ACPI device */
+static const struct acpi_gpio_params amcr0f28_jd_gpio = { 1, 0, false };
+
+static const struct acpi_gpio_mapping amcr0f28_gpios[] = {
+	{ "rt5640-jd-gpios", &amcr0f28_jd_gpio, 1 },
+	{ }
+};
+
 static int byt_rt5640_get_amcr0f28_settings(struct snd_soc_card *card)
 {
 	struct byt_rt5640_private *priv = snd_soc_card_get_drvdata(card);
@@ -1131,6 +1156,18 @@ static int byt_rt5640_get_amcr0f28_settings(struct snd_soc_card *card)
 		ret = data->codec_irq_override;
 		dev_err(card->dev, "error %d getting codec IRQ\n", ret);
 		goto put_adev;
+	}
+
+	if (BYT_RT5640_JDSRC(byt_rt5640_quirk) == RT5640_JD_SRC_EXT_GPIO) {
+		acpi_dev_add_driver_gpios(adev, amcr0f28_gpios);
+		data->jd_gpio = devm_fwnode_gpiod_get(card->dev, acpi_fwnode_handle(adev),
+						      "rt5640-jd", GPIOD_IN, "rt5640-jd");
+		acpi_dev_remove_driver_gpios(adev);
+
+		if (IS_ERR(data->jd_gpio)) {
+			ret = PTR_ERR(data->jd_gpio);
+			dev_err(card->dev, "error %d getting jd GPIO\n", ret);
+		}
 	}
 
 put_adev:
