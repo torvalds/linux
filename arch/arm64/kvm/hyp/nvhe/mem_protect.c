@@ -1823,3 +1823,103 @@ unlock:
 
 	return ret;
 }
+
+/* Replace this with something more structured once day */
+#define MMIO_NOTE	(('M' << 24 | 'M' << 16 | 'I' << 8 | 'O') << 1)
+
+static bool __check_ioguard_page(struct pkvm_hyp_vcpu *hyp_vcpu, u64 ipa)
+{
+	struct pkvm_hyp_vm *vm = pkvm_hyp_vcpu_to_hyp_vm(hyp_vcpu);
+	kvm_pte_t pte;
+	u32 level;
+	int ret;
+
+	ret = kvm_pgtable_get_leaf(&vm->pgt, ipa, &pte, &level);
+	if (ret)
+		return false;
+
+	/* Must be a PAGE_SIZE mapping with our annotation */
+	return (BIT(ARM64_HW_PGTABLE_LEVEL_SHIFT(level)) == PAGE_SIZE &&
+		pte == MMIO_NOTE);
+}
+
+int __pkvm_install_ioguard_page(struct pkvm_hyp_vcpu *hyp_vcpu, u64 ipa)
+{
+	struct pkvm_hyp_vm *vm = pkvm_hyp_vcpu_to_hyp_vm(hyp_vcpu);
+	kvm_pte_t pte;
+	u32 level;
+	int ret;
+
+	if (!test_bit(KVM_ARCH_FLAG_MMIO_GUARD, &vm->kvm.arch.flags))
+		return -EINVAL;
+
+	if (ipa & ~PAGE_MASK)
+		return -EINVAL;
+
+	guest_lock_component(vm);
+
+	ret = kvm_pgtable_get_leaf(&vm->pgt, ipa, &pte, &level);
+	if (ret)
+		goto unlock;
+
+	if (pte && BIT(ARM64_HW_PGTABLE_LEVEL_SHIFT(level)) == PAGE_SIZE) {
+		/*
+		 * Already flagged as MMIO, let's accept it, and fail
+		 * otherwise
+		 */
+		if (pte != MMIO_NOTE)
+			ret = -EBUSY;
+
+		goto unlock;
+	}
+
+	ret = kvm_pgtable_stage2_annotate(&vm->pgt, ipa, PAGE_SIZE,
+					  &hyp_vcpu->vcpu.arch.pkvm_memcache,
+					  MMIO_NOTE);
+
+unlock:
+	guest_unlock_component(vm);
+	return ret;
+}
+
+int __pkvm_remove_ioguard_page(struct pkvm_hyp_vcpu *hyp_vcpu, u64 ipa)
+{
+	struct pkvm_hyp_vm *vm = pkvm_hyp_vcpu_to_hyp_vm(hyp_vcpu);
+
+	if (!test_bit(KVM_ARCH_FLAG_MMIO_GUARD, &vm->kvm.arch.flags))
+		return -EINVAL;
+
+	guest_lock_component(vm);
+
+	if (__check_ioguard_page(hyp_vcpu, ipa))
+		WARN_ON(kvm_pgtable_stage2_unmap(&vm->pgt,
+				ALIGN_DOWN(ipa, PAGE_SIZE), PAGE_SIZE));
+
+	guest_unlock_component(vm);
+	return 0;
+}
+
+bool __pkvm_check_ioguard_page(struct pkvm_hyp_vcpu *hyp_vcpu)
+{
+	struct pkvm_hyp_vm *vm = pkvm_hyp_vcpu_to_hyp_vm(hyp_vcpu);
+	u64 ipa, end;
+	bool ret;
+
+	if (!kvm_vcpu_dabt_isvalid(&hyp_vcpu->vcpu))
+		return false;
+
+	if (!test_bit(KVM_ARCH_FLAG_MMIO_GUARD, &vm->kvm.arch.flags))
+		return true;
+
+	ipa  = kvm_vcpu_get_fault_ipa(&hyp_vcpu->vcpu);
+	ipa |= kvm_vcpu_get_hfar(&hyp_vcpu->vcpu) & FAR_MASK;
+	end = ipa + kvm_vcpu_dabt_get_as(&hyp_vcpu->vcpu) - 1;
+
+	guest_lock_component(vm);
+	ret = __check_ioguard_page(hyp_vcpu, ipa);
+	if ((end & PAGE_MASK) != (ipa & PAGE_MASK))
+		ret &= __check_ioguard_page(hyp_vcpu, end);
+	guest_unlock_component(vm);
+
+	return ret;
+}
