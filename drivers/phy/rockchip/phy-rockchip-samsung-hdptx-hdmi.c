@@ -1897,6 +1897,13 @@ static int rockchip_hdptx_phy_probe(struct platform_device *pdev)
 	udelay(10);
 	reset_control_deassert(hdptx->apb_reset);
 
+	reset_control_assert(hdptx->cmn_reset);
+	udelay(10);
+	reset_control_deassert(hdptx->cmn_reset);
+
+	reset_control_assert(hdptx->init_reset);
+	udelay(10);
+	reset_control_deassert(hdptx->init_reset);
 	/*
 	 * the default state of hdmiphy power on, power consumption
 	 * is high. some configurations need to be adjusted.
