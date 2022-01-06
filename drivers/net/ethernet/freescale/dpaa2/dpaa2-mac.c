@@ -41,7 +41,7 @@ static int phy_mode(enum dpmac_eth_if eth_if, phy_interface_t *if_mode)
 static struct fwnode_handle *dpaa2_mac_get_node(struct device *dev,
 						u16 dpmac_id)
 {
-	struct fwnode_handle *fwnode, *parent, *child  = NULL;
+	struct fwnode_handle *fwnode, *parent = NULL, *child  = NULL;
 	struct device_node *dpmacs = NULL;
 	int err;
 	u32 id;
@@ -55,6 +55,9 @@ static struct fwnode_handle *dpaa2_mac_get_node(struct device *dev,
 	} else if (is_acpi_node(fwnode)) {
 		parent = fwnode;
 	}
+
+	if (!parent)
+		return NULL;
 
 	fwnode_for_each_child_node(parent, child) {
 		err = -EINVAL;
