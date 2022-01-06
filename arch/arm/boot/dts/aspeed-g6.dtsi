@@ -783,13 +783,6 @@
 				ranges = <0 0x1e7a0000 0x8000>;
 			};
 
-			i2csec: bus@1e7a8000 {
-				compatible = "simple-bus";
-				#address-cells = <1>;
-				#size-cells = <1>;
-				ranges = <0 0x1e7a8000 0x1000>;
-			};
-
 			peci: bus@1e78b000 {
 				compatible = "simple-bus";
 				#address-cells = <1>;
@@ -1193,6 +1186,13 @@
 				compatible = "aspeed,ast2600-udma";
 				reg = <0x1e79e000 0x400>;
 				interrupts = <GIC_SPI 56 IRQ_TYPE_LEVEL_HIGH>;
+			};
+
+			i2csec: bus@1e7a8000 {
+				compatible = "simple-bus";
+				#address-cells = <1>;
+				#size-cells = <1>;
+				ranges = <0 0x1e7a8000 0x1000>;
 			};
 
 			bmc_dev: bmc_dev@1e7e0000 {

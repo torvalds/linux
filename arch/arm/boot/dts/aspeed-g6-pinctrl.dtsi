@@ -317,32 +317,32 @@
 		groups = "SI2C4";
 	};
 
-	pinctrl_si2c5_default: si2c1_default {
+	pinctrl_si2c5_default: si2c5_default {
 		function = "SI2C5";
 		groups = "SI2C5";
 	};
 
-	pinctrl_si2c1_default: si2c1_default {
+	pinctrl_si2c6_default: si2c6_default {
 		function = "SI2C6";
 		groups = "SI2C6";
 	};
 
-	pinctrl_si2c1_default: si2c1_default {
+	pinctrl_si2c7_default: si2c7_default {
 		function = "SI2C7";
 		groups = "SI2C7";
 	};
 
-	pinctrl_si2c1_default: si2c1_default {
+	pinctrl_si2c8_default: si2c8_default {
 		function = "SI2C8";
 		groups = "SI2C8";
 	};
 
-	pinctrl_si2c1_default: si2c1_default {
+	pinctrl_si2c9_default: si2c9_default {
 		function = "SI2C9";
 		groups = "SI2C9";
 	};
 
-	pinctrl_si2c1_default: si2c1_default {
+	pinctrl_si2c10_default: si2c10_default {
 		function = "SI2C10";
 		groups = "SI2C10";
 	};
