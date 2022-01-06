@@ -22,12 +22,6 @@
 
 #define BIO_SPECIAL(bio) ((unsigned long)bio <= 2)
 
-/* When there are this many requests queue to be written by
- * the raid thread, we become 'congested' to provide back-pressure
- * for writeback.
- */
-static int max_queued_requests = 1024;
-
 /* for managing resync I/O pages */
 struct resync_pages {
 	void		*raid_bio;
