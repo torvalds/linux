@@ -30,16 +30,15 @@ static int generate_ip_tun_hdr(char buf[],
 			       struct mlx5e_encap_entry *r)
 {
 	const struct ip_tunnel_key *tun_key = &r->tun_info->key;
+	const struct mlx5e_mpls_info *mpls_info = &r->mpls_info;
 	struct udphdr *udp = (struct udphdr *)(buf);
 	struct mpls_shim_hdr *mpls;
-	u32 tun_id;
 
-	tun_id = be32_to_cpu(tunnel_id_to_key32(tun_key->tun_id));
 	mpls = (struct mpls_shim_hdr *)(udp + 1);
 	*ip_proto = IPPROTO_UDP;
 
 	udp->dest = tun_key->tp_dst;
-	*mpls = mpls_entry_encode(tun_id, tun_key->ttl, tun_key->tos, true);
+	*mpls = mpls_entry_encode(mpls_info->label, mpls_info->ttl, mpls_info->tc, mpls_info->bos);
 
 	return 0;
 }

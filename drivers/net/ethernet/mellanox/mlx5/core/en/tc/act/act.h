@@ -22,6 +22,7 @@ struct mlx5e_tc_act_parse_state {
 	bool mpls_push;
 	bool ptype_host;
 	const struct ip_tunnel_info *tun_info;
+	struct mlx5e_mpls_info mpls_info;
 	struct pedit_headers_action hdrs[__PEDIT_CMD_MAX];
 	int ifindexes[MLX5_MAX_FLOW_FWD_VPORTS];
 	int if_count;
