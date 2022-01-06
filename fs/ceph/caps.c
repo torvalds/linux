@@ -3375,8 +3375,7 @@ static void handle_cap_grant(struct inode *inode,
 	if ((newcaps & CEPH_CAP_LINK_SHARED) &&
 	    (extra_info->issued & CEPH_CAP_LINK_EXCL) == 0) {
 		set_nlink(inode, le32_to_cpu(grant->nlink));
-		if (inode->i_nlink == 0 &&
-		    (newcaps & (CEPH_CAP_LINK_SHARED | CEPH_CAP_LINK_EXCL)))
+		if (inode->i_nlink == 0)
 			deleted_inode = true;
 	}
 
