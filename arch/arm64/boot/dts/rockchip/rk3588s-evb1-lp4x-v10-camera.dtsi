@@ -20,6 +20,11 @@
 				remote-endpoint = <&lt7911d_out>;
 				data-lanes = <1 2 3 4>;
 			};
+			mipi_in_dcphy0: endpoint@2 {
+				reg = <2>;
+				remote-endpoint = <&ov50c40_out0>;
+				data-lanes = <1 2 3 4>;
+			};
 		};
 
 		port@1 {
@@ -39,10 +44,55 @@
 	status = "okay";
 };
 
+&csi2_dcphy1 {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi_in_dcphy1: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&ov50c40_out1>;
+				data-lanes = <1 2 3 4>;
+			};
+		};
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			csidcphy1_out: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&mipi1_csi2_input>;
+			};
+		};
+	};
+};
+
+&csi2_dcphy1_hw {
+	status = "okay";
+};
+
 &i2c6 {
 	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c6m4_xfer>;
+
+	aw8601: aw8601@c {
+		compatible = "awinic,aw8601";
+		status = "okay";
+		reg = <0x0c>;
+		rockchip,vcm-start-current = <56>;
+		rockchip,vcm-rated-current = <96>;
+		rockchip,vcm-step-mode = <4>;
+		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-facing = "back";
+	};
 
 	lt7911d: lt7911d@2b {
 		compatible = "lontium,lt7911d";
@@ -69,6 +119,87 @@
 				data-lanes = <1 2 3 4>;
 			};
 		};
+	};
+
+	ov50c40: ov50c40@36 {
+		compatible = "ovti,ov50c40";
+		status = "okay";
+		reg = <0x36>;
+		clocks = <&cru CLK_MIPI_CAMARAOUT_M1>;
+		clock-names = "xvclk";
+		power-domains = <&power RK3588_PD_VI>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&mipim1_camera1_clk>;
+		rockchip,grf = <&sys_grf>;
+		reset-gpios = <&gpio3 RK_PC4 GPIO_ACTIVE_LOW>;
+		pwdn-gpios = <&gpio3 RK_PD4 GPIO_ACTIVE_LOW>;
+		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-facing = "back";
+		rockchip,camera-module-name = "HZGA06";
+		rockchip,camera-module-lens-name = "ZE0082C1";
+		eeprom-ctrl = <&otp_eeprom>;
+		lens-focus = <&aw8601>;
+		port {
+			ov50c40_out0: endpoint {
+				remote-endpoint = <&mipi_in_dcphy0>;
+				data-lanes = <1 2 3 4>;
+			};
+		};
+	};
+
+	otp_eeprom: otp_eeprom@50 {
+		compatible = "rk,otp_eeprom";
+		status = "okay";
+		reg = <0x50>;
+	};
+};
+
+&i2c7 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c7m2_xfer>;
+
+	aw8601b: aw8601b@c {
+		compatible = "awinic,aw8601";
+		status = "okay";
+		reg = <0x0c>;
+		rockchip,vcm-start-current = <56>;
+		rockchip,vcm-rated-current = <96>;
+		rockchip,vcm-step-mode = <4>;
+		rockchip,camera-module-index = <1>;
+		rockchip,camera-module-facing = "back";
+	};
+
+	ov50c40b: ov50c40b@36 {
+		compatible = "ovti,ov50c40";
+		status = "okay";
+		reg = <0x36>;
+		clocks = <&cru CLK_MIPI_CAMARAOUT_M2>;
+		clock-names = "xvclk";
+		power-domains = <&power RK3588_PD_VI>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&mipim1_camera2_clk>;
+		rockchip,grf = <&sys_grf>;
+		reset-gpios = <&gpio3 RK_PC5 GPIO_ACTIVE_LOW>;
+		pwdn-gpios = <&gpio3 RK_PD5 GPIO_ACTIVE_LOW>;
+		rockchip,camera-module-index = <1>;
+		rockchip,camera-module-facing = "back";
+		rockchip,camera-module-name = "HZGA06";
+		rockchip,camera-module-lens-name = "ZE0082C1";
+		eeprom-ctrl = <&otp_eeprom_b>;
+		lens-focus = <&aw8601b>;
+		port {
+			ov50c40_out1: endpoint {
+				remote-endpoint = <&mipi_in_dcphy1>;
+				data-lanes = <1 2 3 4>;
+			};
+		};
+	};
+
+	otp_eeprom_b: otp_eeprom_b@50 {
+		compatible = "rk,otp_eeprom";
+		status = "okay";
+		reg = <0x50>;
 	};
 };
 
@@ -103,6 +234,37 @@
 	};
 };
 
+&mipi1_csi2 {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi1_csi2_input: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&csidcphy1_out>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi1_csi2_output: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&cif_mipi_in1>;
+			};
+		};
+	};
+};
+
 &rkcif {
 	status = "okay";
 };
@@ -117,6 +279,67 @@
 	};
 };
 
+&rkcif_mipi_lvds_sditf {
+	status = "okay";
+
+	port {
+		mipi_lvds_sditf: endpoint {
+			remote-endpoint = <&isp1_in1>;
+		};
+	};
+};
+
+&rkcif_mipi_lvds1 {
+	status = "okay";
+
+	port {
+		cif_mipi_in1: endpoint {
+			remote-endpoint = <&mipi1_csi2_output>;
+		};
+	};
+};
+
+&rkcif_mipi_lvds1_sditf {
+	status = "okay";
+
+	port {
+		mipi1_lvds_sditf: endpoint {
+			remote-endpoint = <&isp1_in2>;
+		};
+	};
+};
+
 &rkcif_mmu {
 	status = "okay";
+};
+
+&rkisp_unite {
+	status = "okay";
+
+};
+
+&rkisp_unite_mmu {
+	status = "okay";
+};
+
+&rkisp0_vir0 {
+	status = "okay";
+	/*
+	 * dual isp process image case
+	 * other rkisp hw and virtual nodes should disabled
+	 */
+	rockchip,hw = <&rkisp_unite>;
+	port {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		isp1_in1: endpoint@0 {
+			reg = <0>;
+			remote-endpoint = <&mipi_lvds_sditf>;
+		};
+		isp1_in2: endpoint@1 {
+			reg = <1>;
+			remote-endpoint = <&mipi1_lvds_sditf>;
+		};
+	};
 };
