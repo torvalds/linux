@@ -137,6 +137,16 @@ Supported chips:
 
 	       https://www.onsemi.com/PowerSolutions/product.do?id=NCT1008
 
+  * ON Semiconductor NCT210
+
+    Prefix: 'adm1021'
+
+    Addresses scanned: I2C 0x18 - 0x1a, 0x29 - 0x2b, 0x4c - 0x4e
+
+    Datasheet: Publicly available at the ON Semiconductor website
+
+	       https://www.onsemi.com/PowerSolutions/product.do?id=NCT210
+
   * Maxim MAX1617
 
     Prefix: 'max1617'
@@ -419,6 +429,10 @@ LM84:
 
 ADM1021, GL523SM, MAX1617, NE1617, NE1617A, THMC10:
   * 8 bit sensor resolution
+  * Low temperature limits
+
+NCT210:
+  * 11 bit sensor resolution for remote temperature sensor
   * Low temperature limits
 
 ADM1021A, ADM1023:

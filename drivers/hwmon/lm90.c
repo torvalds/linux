@@ -125,7 +125,7 @@ static const unsigned short normal_i2c[] = {
 enum chips { adm1023, adm1032, adt7461, adt7461a, adt7481,
 	g781, lm84, lm90, lm99,
 	max1617, max6642, max6646, max6648, max6654, max6657, max6659, max6680, max6696,
-	sa56004, tmp451, tmp461, w83l771,
+	nct210, sa56004, tmp451, tmp461, w83l771,
 };
 
 /*
@@ -257,6 +257,7 @@ static const struct i2c_device_id lm90_id[] = {
 	{ "max6696", max6696 },
 	{ "mc1066", max1617 },
 	{ "nct1008", adt7461a },
+	{ "nct210", nct210 },
 	{ "w83l771", w83l771 },
 	{ "sa56004", sa56004 },
 	{ "thmc10", max1617 },
@@ -532,6 +533,14 @@ static const struct lm90_params lm90_params[] = {
 		.max_convrate = 6,
 		.reg_status2 = MAX6696_REG_STATUS2,
 		.reg_local_ext = MAX6657_REG_LOCAL_TEMPL,
+	},
+	[nct210] = {
+		.flags = LM90_HAVE_ALARMS | LM90_HAVE_BROKEN_ALERT
+		  | LM90_HAVE_REM_LIMIT_EXT | LM90_HAVE_LOW | LM90_HAVE_CONVRATE
+		  | LM90_HAVE_REMOTE_EXT,
+		.alert_alarms = 0x7c,
+		.resolution = 11,
+		.max_convrate = 7,
 	},
 	[w83l771] = {
 		.flags = LM90_HAVE_OFFSET | LM90_HAVE_REM_LIMIT_EXT | LM90_HAVE_CRIT
@@ -1768,7 +1777,7 @@ static const char *lm90_detect_analog(struct i2c_client *client, bool common_add
 		    !(status & 0x03) && !(config1 & 0x3f) && !(convrate & 0xf8))
 			name = "adm1021";
 		break;
-	case 0x30 ... 0x3f:	/* ADM1021A, ADM1023 */
+	case 0x30 ... 0x3e:	/* ADM1021A, ADM1023 */
 		/*
 		 * ADM1021A and compatible chips will be mis-detected as
 		 * ADM1023. Chips labeled 'ADM1021A' and 'ADM1023' were both
@@ -1785,6 +1794,11 @@ static const char *lm90_detect_analog(struct i2c_client *client, bool common_add
 		if (man_id2 == 0x00 && chip_id2 == 0x00 && common_address &&
 		    !(status & 0x03) && !(config1 & 0x3f) && !(convrate & 0xf8))
 			name = "adm1023";
+		break;
+	case 0x3f:		/* NCT210 */
+		if (man_id2 == 0x00 && chip_id2 == 0x00 && common_address &&
+		    !(status & 0x03) && !(config1 & 0x3f) && !(convrate & 0xf8))
+			name = "nct210";
 		break;
 	case 0x40 ... 0x4f:	/* ADM1032 */
 		if (man_id2 == 0x00 && chip_id2 == 0x00 &&
