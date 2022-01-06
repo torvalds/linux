@@ -3914,6 +3914,7 @@ MLXSW_ITEM32(reg, qeec, max_shaper_bs, 0x1C, 0, 6);
 #define MLXSW_REG_QEEC_LOWEST_SHAPER_BS_SP1	5
 #define MLXSW_REG_QEEC_LOWEST_SHAPER_BS_SP2	11
 #define MLXSW_REG_QEEC_LOWEST_SHAPER_BS_SP3	11
+#define MLXSW_REG_QEEC_LOWEST_SHAPER_BS_SP4	11
 
 static inline void mlxsw_reg_qeec_pack(char *payload, u16 local_port,
 				       enum mlxsw_reg_qeec_hr hr, u8 index,
