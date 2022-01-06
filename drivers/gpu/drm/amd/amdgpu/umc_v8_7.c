@@ -324,10 +324,14 @@ static void umc_v8_7_err_cnt_init(struct amdgpu_device *adev)
 	}
 }
 
-const struct amdgpu_umc_ras_funcs umc_v8_7_ras_funcs = {
-	.err_cnt_init = umc_v8_7_err_cnt_init,
-	.ras_late_init = amdgpu_umc_ras_late_init,
-	.ras_fini = amdgpu_umc_ras_fini,
+const struct amdgpu_ras_block_hw_ops umc_v8_7_ras_hw_ops = {
 	.query_ras_error_count = umc_v8_7_query_ras_error_count,
 	.query_ras_error_address = umc_v8_7_query_ras_error_address,
+};
+
+struct amdgpu_umc_ras umc_v8_7_ras = {
+	.ras_block = {
+		.hw_ops = &umc_v8_7_ras_hw_ops,
+	},
+	.err_cnt_init = umc_v8_7_err_cnt_init,
 };

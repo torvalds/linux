@@ -480,11 +480,15 @@ static bool umc_v6_7_query_ras_poison_mode(struct amdgpu_device *adev)
 	return true;
 }
 
-const struct amdgpu_umc_ras_funcs umc_v6_7_ras_funcs = {
-	.ras_late_init = amdgpu_umc_ras_late_init,
-	.ras_fini = amdgpu_umc_ras_fini,
+const struct amdgpu_ras_block_hw_ops umc_v6_7_ras_hw_ops = {
 	.query_ras_error_count = umc_v6_7_query_ras_error_count,
 	.query_ras_error_address = umc_v6_7_query_ras_error_address,
+};
+
+struct amdgpu_umc_ras umc_v6_7_ras = {
+	.ras_block = {
+		.hw_ops = &umc_v6_7_ras_hw_ops,
+	},
 	.query_ras_poison_mode = umc_v6_7_query_ras_poison_mode,
 	.ecc_info_query_ras_error_count = umc_v6_7_ecc_info_query_ras_error_count,
 	.ecc_info_query_ras_error_address = umc_v6_7_ecc_info_query_ras_error_address,

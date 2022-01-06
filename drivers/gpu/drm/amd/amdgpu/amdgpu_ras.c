@@ -939,24 +939,24 @@ static void amdgpu_ras_get_ecc_info(struct amdgpu_device *adev, struct ras_err_d
 	 */
 	ret = amdgpu_dpm_get_ecc_info(adev, (void *)&(ras->umc_ecc));
 	if (ret == -EOPNOTSUPP) {
-		if (adev->umc.ras_funcs &&
-			adev->umc.ras_funcs->query_ras_error_count)
-			adev->umc.ras_funcs->query_ras_error_count(adev, err_data);
+		if (adev->umc.ras && adev->umc.ras->ras_block.hw_ops &&
+			adev->umc.ras->ras_block.hw_ops->query_ras_error_count)
+			adev->umc.ras->ras_block.hw_ops->query_ras_error_count(adev, err_data);
 
 		/* umc query_ras_error_address is also responsible for clearing
 		 * error status
 		 */
-		if (adev->umc.ras_funcs &&
-		    adev->umc.ras_funcs->query_ras_error_address)
-			adev->umc.ras_funcs->query_ras_error_address(adev, err_data);
+		if (adev->umc.ras && adev->umc.ras->ras_block.hw_ops &&
+		    adev->umc.ras->ras_block.hw_ops->query_ras_error_address)
+			adev->umc.ras->ras_block.hw_ops->query_ras_error_address(adev, err_data);
 	} else if (!ret) {
-		if (adev->umc.ras_funcs &&
-			adev->umc.ras_funcs->ecc_info_query_ras_error_count)
-			adev->umc.ras_funcs->ecc_info_query_ras_error_count(adev, err_data);
+		if (adev->umc.ras &&
+			adev->umc.ras->ecc_info_query_ras_error_count)
+			adev->umc.ras->ecc_info_query_ras_error_count(adev, err_data);
 
-		if (adev->umc.ras_funcs &&
-			adev->umc.ras_funcs->ecc_info_query_ras_error_address)
-			adev->umc.ras_funcs->ecc_info_query_ras_error_address(adev, err_data);
+		if (adev->umc.ras &&
+			adev->umc.ras->ecc_info_query_ras_error_address)
+			adev->umc.ras->ecc_info_query_ras_error_address(adev, err_data);
 	}
 }
 
@@ -2412,12 +2412,12 @@ int amdgpu_ras_init(struct amdgpu_device *adev)
 	}
 	else if (adev->df.funcs &&
 	    adev->df.funcs->query_ras_poison_mode &&
-	    adev->umc.ras_funcs &&
-	    adev->umc.ras_funcs->query_ras_poison_mode) {
+	    adev->umc.ras &&
+	    adev->umc.ras->query_ras_poison_mode) {
 		df_poison =
 			adev->df.funcs->query_ras_poison_mode(adev);
 		umc_poison =
-			adev->umc.ras_funcs->query_ras_poison_mode(adev);
+			adev->umc.ras->query_ras_poison_mode(adev);
 		/* Only poison is set in both DF and UMC, we can support it */
 		if (df_poison && umc_poison)
 			con->poison_supported = true;
