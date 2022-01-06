@@ -116,6 +116,9 @@
  *  27 Dec 2021 : 1. Support for eMAC Reset and unused clock disable during Suspend and restoring it back during resume.
 		  2. Version update.
  *  VERSION     : 01-00-32
+ *  06 Jan 2022 : 1. Code comments corrected for flow control configuration
+		  2. Version update.
+ *  VERSION     : 01-00-33
  */
 
 #include <linux/clk-provider.h>
@@ -174,7 +177,7 @@ static unsigned int mac1_txq1_size = TX_QUEUE1_SIZE;
 unsigned int mac0_en_lp_pause_frame_cnt = DISABLE;
 unsigned int mac1_en_lp_pause_frame_cnt = DISABLE;
 
-static const struct tc956x_version tc956x_drv_version = {0, 1, 0, 0, 3, 2};
+static const struct tc956x_version tc956x_drv_version = {0, 1, 0, 0, 3, 3};
 
 static int tc956xmac_pm_usage_counter; /* Device Usage Counter */
 struct mutex tc956x_pm_suspend_lock; /* This mutex is shared between all available EMAC ports. */
@@ -1281,7 +1284,7 @@ static int tc956xmac_xgmac3_default_data(struct pci_dev *pdev,
 		plat->rx_queues_cfg[0].rfd = queue0_rfd;
 		plat->rx_queues_cfg[0].rfa = queue0_rfa;
 	} else {
-		temp_var = ((plat->rx_queues_cfg[0].size - (((plat->rx_queues_cfg[0].size)*8)/10))/SIZE_512B); /* configuration to 80% of FIFO Size */
+		temp_var = ((plat->rx_queues_cfg[0].size - (((plat->rx_queues_cfg[0].size)*8)/10))/SIZE_512B); /* configuration to 20% of FIFO Size */
 		if(temp_var >= 2) {
 			temp_var = (temp_var - 2);
 		} else {
@@ -1289,7 +1292,7 @@ static int tc956xmac_xgmac3_default_data(struct pci_dev *pdev,
 		}
 		plat->rx_queues_cfg[0].rfd = temp_var;
 		plat->rx_queues_cfg[0].rfa = temp_var;
-		NMSGPR_INFO(&(pdev->dev), "%s: ERROR Invalid Flow control threshold for Rx Queue-0 passed rxq0_rfd=%d, rxq0_rfa=%d,configuring to 80%% of Queue size, rxq0_rfd=%d, rxq0_rfa=%d of port=%d\n",
+		NMSGPR_INFO(&(pdev->dev), "%s: ERROR Invalid Flow control threshold for Rx Queue-0 passed rxq0_rfd=%d, rxq0_rfa=%d,configuring to 20%% of Queue size, rxq0_rfd=%d, rxq0_rfa=%d of port=%d\n",
 			__func__, queue0_rfd, queue0_rfa, plat->rx_queues_cfg[0].rfd, plat->rx_queues_cfg[0].rfa, plat->port_num);
 	}
 
@@ -1298,7 +1301,7 @@ static int tc956xmac_xgmac3_default_data(struct pci_dev *pdev,
 		plat->rx_queues_cfg[1].rfd = queue1_rfd;
 		plat->rx_queues_cfg[1].rfa = queue1_rfa;
 	} else {
-		temp_var = ((plat->rx_queues_cfg[1].size - (((plat->rx_queues_cfg[1].size)*8)/10))/SIZE_512B); /* configuration to 80% of FIFO Size */
+		temp_var = ((plat->rx_queues_cfg[1].size - (((plat->rx_queues_cfg[1].size)*8)/10))/SIZE_512B); /* configuration to 20% of FIFO Size */
 		if(temp_var >= 2){
 			temp_var = (temp_var - 2);
 		} else {
@@ -1306,7 +1309,7 @@ static int tc956xmac_xgmac3_default_data(struct pci_dev *pdev,
 		}
 		plat->rx_queues_cfg[1].rfd = temp_var;
 		plat->rx_queues_cfg[1].rfa = temp_var;
-		NMSGPR_INFO(&(pdev->dev), "%s: ERROR Invalid Flow control threshold for Rx Queue-1 passed rxq1_rfd=%d, rxq1_rfa=%d,configuring to 80%% of Queue size, rxq1_rfd=%d, rxq1_rfa=%d of port=%d\n",
+		NMSGPR_INFO(&(pdev->dev), "%s: ERROR Invalid Flow control threshold for Rx Queue-1 passed rxq1_rfd=%d, rxq1_rfa=%d,configuring to 20%% of Queue size, rxq1_rfd=%d, rxq1_rfa=%d of port=%d\n",
 			__func__, queue1_rfd, queue1_rfa, plat->rx_queues_cfg[1].rfd, plat->rx_queues_cfg[1].rfa, plat->port_num);
 	}
 

@@ -90,7 +90,9 @@
 		  3. Valid phy-address and mii-pointer NULL check in tc956xmac_suspend().
 		  4. Version update.
  *  VERSION     : 01-00-32
- */
+ *  06 Jan 2022 : 1. Null check added while freeing skb buff data
+ *  VERSION     : 01-00-33
+*/
 
 #include <linux/clk.h>
 #include <linux/kernel.h>
@@ -2492,24 +2494,28 @@ static void tc956xmac_free_tx_buffer(struct tc956xmac_priv *priv, u32 queue, int
 {
 	struct tc956xmac_tx_queue *tx_q = &priv->tx_queue[queue];
 
-	if (tx_q->tx_skbuff_dma[i].buf) {
-		if (tx_q->tx_skbuff_dma[i].map_as_page)
-			dma_unmap_page(priv->device,
-				       tx_q->tx_skbuff_dma[i].buf,
-				       tx_q->tx_skbuff_dma[i].len,
-				       DMA_TO_DEVICE);
-		else
-			dma_unmap_single(priv->device,
-					 tx_q->tx_skbuff_dma[i].buf,
-					 tx_q->tx_skbuff_dma[i].len,
-					 DMA_TO_DEVICE);
+	if (tx_q->tx_skbuff_dma) {
+		if (tx_q->tx_skbuff_dma[i].buf) {
+			if (tx_q->tx_skbuff_dma[i].map_as_page)
+				dma_unmap_page(priv->device,
+					       tx_q->tx_skbuff_dma[i].buf,
+					       tx_q->tx_skbuff_dma[i].len,
+					       DMA_TO_DEVICE);
+			else
+				dma_unmap_single(priv->device,
+						 tx_q->tx_skbuff_dma[i].buf,
+						 tx_q->tx_skbuff_dma[i].len,
+						 DMA_TO_DEVICE);
+		}
 	}
 
-	if (tx_q->tx_skbuff[i]) {
-		dev_kfree_skb_any(tx_q->tx_skbuff[i]);
-		tx_q->tx_skbuff[i] = NULL;
-		tx_q->tx_skbuff_dma[i].buf = 0;
-		tx_q->tx_skbuff_dma[i].map_as_page = false;
+	if (tx_q->tx_skbuff) {
+		if (tx_q->tx_skbuff[i]) {
+			dev_kfree_skb_any(tx_q->tx_skbuff[i]);
+			tx_q->tx_skbuff[i] = NULL;
+			tx_q->tx_skbuff_dma[i].buf = 0;
+			tx_q->tx_skbuff_dma[i].map_as_page = false;
+		}
 	}
 }
 
@@ -2784,7 +2790,11 @@ static void free_dma_tx_desc_resources(struct tc956xmac_priv *priv)
 		dma_free_coherent(priv->device, size, addr, tx_q->dma_tx_phy);
 
 		kfree(tx_q->tx_skbuff_dma);
+		tx_q->tx_skbuff_dma = NULL;
+
 		kfree(tx_q->tx_skbuff);
+		tx_q->tx_skbuff = NULL;
+
 	}
 }
 
