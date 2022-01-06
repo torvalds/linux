@@ -1625,6 +1625,8 @@ int tcf_classify(struct sk_buff *skb,
 		ext->chain = last_executed_chain;
 		ext->mru = cb->mru;
 		ext->post_ct = cb->post_ct;
+		ext->post_ct_snat = cb->post_ct_snat;
+		ext->post_ct_dnat = cb->post_ct_dnat;
 		ext->zone = cb->zone;
 	}
 
