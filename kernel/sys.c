@@ -1441,13 +1441,7 @@ static int do_prlimit(struct task_struct *tsk, unsigned int resource,
 			return -EPERM;
 	}
 
-	/* protect tsk->signal and tsk->sighand from disappearing */
-	read_lock(&tasklist_lock);
-	if (!tsk->sighand) {
-		retval = -ESRCH;
-		goto out;
-	}
-
+	/* Holding a refcount on tsk protects tsk->signal from disappearing. */
 	rlim = tsk->signal->rlim + resource;
 	task_lock(tsk->group_leader);
 	if (new_rlim) {
@@ -1476,10 +1470,19 @@ static int do_prlimit(struct task_struct *tsk, unsigned int resource,
 	 */
 	if (!retval && new_rlim && resource == RLIMIT_CPU &&
 	    new_rlim->rlim_cur != RLIM_INFINITY &&
-	    IS_ENABLED(CONFIG_POSIX_TIMERS))
-		update_rlimit_cpu(tsk, new_rlim->rlim_cur);
-out:
-	read_unlock(&tasklist_lock);
+	    IS_ENABLED(CONFIG_POSIX_TIMERS)) {
+		/*
+		 * update_rlimit_cpu can fail if the task is exiting, but there
+		 * may be other tasks in the thread group that are not exiting,
+		 * and they need their cpu timers adjusted.
+		 *
+		 * The group_leader is the last task to be released, so if we
+		 * cannot update_rlimit_cpu on it, then the entire process is
+		 * exiting and we do not need to update at all.
+		 */
+		update_rlimit_cpu(tsk->group_leader, new_rlim->rlim_cur);
+	}
+
 	return retval;
 }
 
