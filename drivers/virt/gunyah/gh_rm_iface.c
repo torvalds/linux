@@ -2207,11 +2207,6 @@ int gh_rm_mem_donate(u8 mem_type, u8 flags, gh_label_t label,
 	trace_gh_rm_mem_donate(mem_type, flags, label, acl_desc, sgl_desc,
 			       mem_attr_desc, handle, 0, DONATE);
 
-	if (sgl_desc->n_sgl_entries != 1) {
-		pr_err("%s: Physically contiguous memory required\n", __func__);
-		return -EINVAL;
-	}
-
 	if (acl_desc->n_acl_entries != 1) {
 		pr_err("%s: Donate requires single destination VM\n", __func__);
 		return -EINVAL;

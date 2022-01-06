@@ -360,32 +360,14 @@ err_free_sgt:
 int mem_buf_assign_mem_gunyah(u32 op, struct sg_table *sgt,
 			      struct mem_buf_lend_kernel_arg *arg)
 {
-	int ret, i;
+	int ret;
 	struct gh_sgl_desc *gh_sgl;
 	struct gh_acl_desc *gh_acl;
-	size_t size;
-	struct scatterlist *sgl;
 
 	arg->memparcel_hdl = MEM_BUF_MEMPARCEL_INVALID;
 	ret = mem_buf_vm_uses_gunyah(arg->vmids, arg->nr_acl_entries);
 	if (ret <= 0)
 		return ret;
-
-	/* Physically contiguous memory only */
-	if (sgt->nents > 1) {
-		pr_err_ratelimited("Operation requires physically contiguous memory\n");
-		return -EINVAL;
-	}
-
-	/* Due to memory-hotplug */
-	size = 0;
-	for_each_sgtable_sg(sgt, sgl, i)
-		size += sgl->length;
-	if (!IS_ALIGNED(size, SUBSECTION_SIZE)) {
-		pr_err_ratelimited("Operation requires SUBSECTION_SIZE alignemnt, size = %zx\n",
-				   size);
-		return -EINVAL;
-	}
 
 	gh_sgl = mem_buf_sgt_to_gh_sgl_desc(sgt);
 	if (IS_ERR(gh_sgl))
