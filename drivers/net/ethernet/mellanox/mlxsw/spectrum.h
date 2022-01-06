@@ -1111,6 +1111,7 @@ extern const struct mlxsw_afk_ops mlxsw_sp4_afk_ops;
 
 /* spectrum_acl_bloom_filter.c */
 extern const struct mlxsw_sp_acl_bf_ops mlxsw_sp2_acl_bf_ops;
+extern const struct mlxsw_sp_acl_bf_ops mlxsw_sp4_acl_bf_ops;
 
 /* spectrum_matchall.c */
 struct mlxsw_sp_mall_ops {
