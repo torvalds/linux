@@ -254,17 +254,128 @@ struct bpf_map_batch_opts {
 };
 #define bpf_map_batch_opts__last_field flags
 
-LIBBPF_API int bpf_map_delete_batch(int fd, void *keys,
+
+/**
+ * @brief **bpf_map_delete_batch()** allows for batch deletion of multiple
+ * elements in a BPF map.
+ *
+ * @param fd BPF map file descriptor
+ * @param keys pointer to an array of *count* keys
+ * @param count input and output parameter; on input **count** represents the
+ * number of  elements in the map to delete in batch;
+ * on output if a non-EFAULT error is returned, **count** represents the number of deleted
+ * elements if the output **count** value is not equal to the input **count** value
+ * If EFAULT is returned, **count** should not be trusted to be correct.
+ * @param opts options for configuring the way the batch deletion works
+ * @return 0, on success; negative error code, otherwise (errno is also set to
+ * the error code)
+ */
+LIBBPF_API int bpf_map_delete_batch(int fd, const void *keys,
 				    __u32 *count,
 				    const struct bpf_map_batch_opts *opts);
+
+/**
+ * @brief **bpf_map_lookup_batch()** allows for batch lookup of BPF map elements.
+ *
+ * The parameter *in_batch* is the address of the first element in the batch to read.
+ * *out_batch* is an output parameter that should be passed as *in_batch* to subsequent
+ * calls to **bpf_map_lookup_batch()**. NULL can be passed for *in_batch* to indicate
+ * that the batched lookup starts from the beginning of the map.
+ *
+ * The *keys* and *values* are output parameters which must point to memory large enough to
+ * hold *count* items based on the key and value size of the map *map_fd*. The *keys*
+ * buffer must be of *key_size* * *count*. The *values* buffer must be of
+ * *value_size* * *count*.
+ *
+ * @param fd BPF map file descriptor
+ * @param in_batch address of the first element in batch to read, can pass NULL to
+ * indicate that the batched lookup starts from the beginning of the map.
+ * @param out_batch output parameter that should be passed to next call as *in_batch*
+ * @param keys pointer to an array large enough for *count* keys
+ * @param values pointer to an array large enough for *count* values
+ * @param count input and output parameter; on input it's the number of elements
+ * in the map to read in batch; on output it's the number of elements that were
+ * successfully read.
+ * If a non-EFAULT error is returned, count will be set as the number of elements
+ * that were read before the error occurred.
+ * If EFAULT is returned, **count** should not be trusted to be correct.
+ * @param opts options for configuring the way the batch lookup works
+ * @return 0, on success; negative error code, otherwise (errno is also set to
+ * the error code)
+ */
 LIBBPF_API int bpf_map_lookup_batch(int fd, void *in_batch, void *out_batch,
 				    void *keys, void *values, __u32 *count,
 				    const struct bpf_map_batch_opts *opts);
+
+/**
+ * @brief **bpf_map_lookup_and_delete_batch()** allows for batch lookup and deletion
+ * of BPF map elements where each element is deleted after being retrieved.
+ *
+ * @param fd BPF map file descriptor
+ * @param in_batch address of the first element in batch to read, can pass NULL to
+ * get address of the first element in *out_batch*
+ * @param out_batch output parameter that should be passed to next call as *in_batch*
+ * @param keys pointer to an array of *count* keys
+ * @param values pointer to an array large enough for *count* values
+ * @param count input and output parameter; on input it's the number of elements
+ * in the map to read and delete in batch; on output it represents the number of
+ * elements that were successfully read and deleted
+ * If a non-**EFAULT** error code is returned and if the output **count** value
+ * is not equal to the input **count** value, up to **count** elements may
+ * have been deleted.
+ * if **EFAULT** is returned up to *count* elements may have been deleted without
+ * being returned via the *keys* and *values* output parameters.
+ * @param opts options for configuring the way the batch lookup and delete works
+ * @return 0, on success; negative error code, otherwise (errno is also set to
+ * the error code)
+ */
 LIBBPF_API int bpf_map_lookup_and_delete_batch(int fd, void *in_batch,
 					void *out_batch, void *keys,
 					void *values, __u32 *count,
 					const struct bpf_map_batch_opts *opts);
-LIBBPF_API int bpf_map_update_batch(int fd, void *keys, void *values,
+
+/**
+ * @brief **bpf_map_update_batch()** updates multiple elements in a map
+ * by specifying keys and their corresponding values.
+ *
+ * The *keys* and *values* parameters must point to memory large enough
+ * to hold *count* items based on the key and value size of the map.
+ *
+ * The *opts* parameter can be used to control how *bpf_map_update_batch()*
+ * should handle keys that either do or do not already exist in the map.
+ * In particular the *flags* parameter of *bpf_map_batch_opts* can be
+ * one of the following:
+ *
+ * Note that *count* is an input and output parameter, where on output it
+ * represents how many elements were successfully updated. Also note that if
+ * **EFAULT** then *count* should not be trusted to be correct.
+ *
+ * **BPF_ANY**
+ *    Create new elements or update existing.
+ *
+ * **BPF_NOEXIST**
+ *    Create new elements only if they do not exist.
+ *
+ * **BPF_EXIST**
+ *    Update existing elements.
+ *
+ * **BPF_F_LOCK**
+ *    Update spin_lock-ed map elements. This must be
+ *    specified if the map value contains a spinlock.
+ *
+ * @param fd BPF map file descriptor
+ * @param keys pointer to an array of *count* keys
+ * @param values pointer to an array of *count* values
+ * @param count input and output parameter; on input it's the number of elements
+ * in the map to update in batch; on output if a non-EFAULT error is returned,
+ * **count** represents the number of updated elements if the output **count**
+ * value is not equal to the input **count** value.
+ * If EFAULT is returned, **count** should not be trusted to be correct.
+ * @param opts options for configuring the way the batch update works
+ * @return 0, on success; negative error code, otherwise (errno is also set to
+ * the error code)
+ */
+LIBBPF_API int bpf_map_update_batch(int fd, const void *keys, const void *values,
 				    __u32 *count,
 				    const struct bpf_map_batch_opts *opts);
 
