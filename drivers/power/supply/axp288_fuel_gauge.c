@@ -740,7 +740,7 @@ static int axp288_fuel_gauge_probe(struct platform_device *pdev)
 		return ret;
 
 	psy_cfg.drv_data = info;
-	info->bat = power_supply_register(dev, &fuel_gauge_desc, &psy_cfg);
+	info->bat = devm_power_supply_register(dev, &fuel_gauge_desc, &psy_cfg);
 	if (IS_ERR(info->bat)) {
 		ret = PTR_ERR(info->bat);
 		dev_err(dev, "failed to register battery: %d\n", ret);
@@ -762,8 +762,6 @@ static int axp288_fuel_gauge_remove(struct platform_device *pdev)
 {
 	struct axp288_fg_info *info = platform_get_drvdata(pdev);
 	int i;
-
-	power_supply_unregister(info->bat);
 
 	for (i = 0; i < AXP288_FG_INTR_NUM; i++)
 		if (info->irq[i] >= 0)
