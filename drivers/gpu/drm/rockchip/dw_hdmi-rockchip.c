@@ -3127,8 +3127,39 @@ static int dw_hdmi_rockchip_suspend(struct device *dev)
 static int dw_hdmi_rockchip_resume(struct device *dev)
 {
 	struct rockchip_hdmi *hdmi = dev_get_drvdata(dev);
+	u32 val;
 
 	if (hdmi->is_hdmi_qp) {
+		if (!hdmi->id) {
+			val = HIWORD_UPDATE(RK3588_SCLIN_MASK, RK3588_SCLIN_MASK) |
+			      HIWORD_UPDATE(RK3588_SDAIN_MASK, RK3588_SDAIN_MASK) |
+			      HIWORD_UPDATE(RK3588_MODE_MASK, RK3588_MODE_MASK) |
+			      HIWORD_UPDATE(RK3588_I2S_SEL_MASK, RK3588_I2S_SEL_MASK);
+			regmap_write(hdmi->vo1_regmap, RK3588_GRF_VO1_CON3, val);
+
+			val = HIWORD_UPDATE(RK3588_SET_HPD_PATH_MASK,
+					    RK3588_SET_HPD_PATH_MASK);
+			regmap_write(hdmi->regmap, RK3588_GRF_SOC_CON7, val);
+
+			val = HIWORD_UPDATE(RK3588_HDMI0_GRANT_SEL,
+					    RK3588_HDMI0_GRANT_SEL);
+			regmap_write(hdmi->vo1_regmap, RK3588_GRF_VO1_CON9, val);
+		} else {
+			val = HIWORD_UPDATE(RK3588_SCLIN_MASK, RK3588_SCLIN_MASK) |
+			      HIWORD_UPDATE(RK3588_SDAIN_MASK, RK3588_SDAIN_MASK) |
+			      HIWORD_UPDATE(RK3588_MODE_MASK, RK3588_MODE_MASK) |
+			      HIWORD_UPDATE(RK3588_I2S_SEL_MASK, RK3588_I2S_SEL_MASK);
+			regmap_write(hdmi->vo1_regmap, RK3588_GRF_VO1_CON6, val);
+
+			val = HIWORD_UPDATE(RK3588_SET_HPD_PATH_MASK,
+					    RK3588_SET_HPD_PATH_MASK);
+			regmap_write(hdmi->regmap, RK3588_GRF_SOC_CON7, val);
+
+			val = HIWORD_UPDATE(RK3588_HDMI1_GRANT_SEL,
+					    RK3588_HDMI1_GRANT_SEL);
+			regmap_write(hdmi->vo1_regmap, RK3588_GRF_VO1_CON9, val);
+		}
+
 		dw_hdmi_qp_resume(dev, hdmi->hdmi_qp);
 		drm_helper_hpd_irq_event(hdmi->encoder.dev);
 	} else {
