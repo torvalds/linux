@@ -54,6 +54,7 @@
 #define FIRMWARE_YELLOW_CARP	"amdgpu/yellow_carp_vcn.bin"
 #define FIRMWARE_VCN_3_1_2	"amdgpu/vcn_3_1_2.bin"
 #define FIRMWARE_VCN4_0_0	"amdgpu/vcn_4_0_0.bin"
+#define FIRMWARE_VCN4_0_4      "amdgpu/vcn_4_0_4.bin"
 
 MODULE_FIRMWARE(FIRMWARE_RAVEN);
 MODULE_FIRMWARE(FIRMWARE_PICASSO);
@@ -73,6 +74,7 @@ MODULE_FIRMWARE(FIRMWARE_BEIGE_GOBY);
 MODULE_FIRMWARE(FIRMWARE_YELLOW_CARP);
 MODULE_FIRMWARE(FIRMWARE_VCN_3_1_2);
 MODULE_FIRMWARE(FIRMWARE_VCN4_0_0);
+MODULE_FIRMWARE(FIRMWARE_VCN4_0_4);
 
 static void amdgpu_vcn_idle_work_handler(struct work_struct *work);
 
@@ -182,6 +184,12 @@ int amdgpu_vcn_sw_init(struct amdgpu_device *adev)
 		if ((adev->firmware.load_type == AMDGPU_FW_LOAD_PSP) &&
 			(adev->pg_flags & AMD_PG_SUPPORT_VCN_DPG))
 			adev->vcn.indirect_sram = true;
+		break;
+	case IP_VERSION(4, 0, 4):
+		fw_name = FIRMWARE_VCN4_0_4;
+		if ((adev->firmware.load_type == AMDGPU_FW_LOAD_PSP) &&
+			(adev->pg_flags & AMD_PG_SUPPORT_VCN_DPG))
+			adev->vcn.indirect_sram = false;
 		break;
 	default:
 		return -EINVAL;
