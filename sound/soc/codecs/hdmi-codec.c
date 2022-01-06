@@ -278,6 +278,7 @@ struct hdmi_codec_priv {
 	struct snd_soc_jack *jack;
 	unsigned int jack_status;
 	u8 iec_status[24];
+	struct snd_pcm_substream *substream;
 };
 
 static const struct snd_soc_dapm_widget hdmi_widgets[] = {
@@ -462,6 +463,7 @@ static int hdmi_codec_startup(struct snd_pcm_substream *substream,
 	}
 
 	hcp->busy = true;
+	hcp->substream = substream;
 
 err:
 	mutex_unlock(&hcp->lock);
@@ -477,6 +479,7 @@ static void hdmi_codec_shutdown(struct snd_pcm_substream *substream,
 	hcp->hcd.ops->audio_shutdown(dai->dev->parent, hcp->hcd.data);
 
 	mutex_lock(&hcp->lock);
+	hcp->substream = NULL;
 	hcp->busy = false;
 	mutex_unlock(&hcp->lock);
 }
@@ -842,6 +845,10 @@ static void plugged_cb(struct device *dev, bool plugged)
 		hdmi_codec_jack_report(hcp, 0);
 		memset(hcp->eld, 0, sizeof(hcp->eld));
 	}
+	mutex_lock(&hcp->lock);
+	if (hcp->substream && !plugged)
+		snd_pcm_stop(hcp->substream, SNDRV_PCM_STATE_DISCONNECTED);
+	mutex_unlock(&hcp->lock);
 }
 
 static int hdmi_codec_set_jack(struct snd_soc_component *component,
