@@ -111,7 +111,7 @@ void pci_no_aer(void)
 
 bool pci_aer_available(void)
 {
-	return !pcie_aer_disable && pci_msi_enabled();
+	return !pcie_aer_disable;
 }
 
 #ifdef CONFIG_PCIE_ECRC

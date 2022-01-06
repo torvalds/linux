@@ -16,6 +16,7 @@
 
 #include <linux/module.h>
 #include <linux/init.h>
+#include <linux/irq.h>
 #include <linux/interrupt.h>
 #include <linux/miscdevice.h>
 #include <linux/pci.h>
@@ -471,7 +472,9 @@ static int aer_inject(struct aer_error_inj *einj)
 		}
 		pci_info(edev->port, "Injecting errors %08x/%08x into device %s\n",
 			 einj->cor_status, einj->uncor_status, pci_name(dev));
-		ret = irq_inject_interrupt(edev->irq);
+		local_irq_disable();
+		generic_handle_irq(edev->irq);
+		local_irq_enable();
 	} else {
 		pci_err(rpdev, "AER device not found\n");
 		ret = -ENODEV;
