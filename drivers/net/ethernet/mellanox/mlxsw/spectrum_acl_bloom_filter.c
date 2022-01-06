@@ -27,7 +27,7 @@ struct mlxsw_sp_acl_bf {
  * +-------------------------+------------------------+------------------------+
  */
 #define MLXSW_BLOOM_KEY_CHUNKS 3
-#define MLXSW_BLOOM_KEY_LEN 69
+#define MLXSW_SP2_BLOOM_KEY_LEN 69
 
 /* Each chunk size is 23 bytes. 18 bytes of it contain 4 key blocks, each is
  * 36 bits, 2 bytes which hold eRP ID and region ID, and 3 bytes of zero
@@ -42,14 +42,14 @@ struct mlxsw_sp_acl_bf {
  * |    0    | region ID |  eRP ID  |      4 Key blocks (18 Bytes)      |
  * +---------+-----------+----------+-----------------------------------+
  */
-#define MLXSW_BLOOM_CHUNK_PAD_BYTES 3
-#define MLXSW_BLOOM_CHUNK_KEY_BYTES 18
-#define MLXSW_BLOOM_KEY_CHUNK_BYTES 23
+#define MLXSW_SP2_BLOOM_CHUNK_PAD_BYTES 3
+#define MLXSW_SP2_BLOOM_CHUNK_KEY_BYTES 18
+#define MLXSW_SP2_BLOOM_KEY_CHUNK_BYTES 23
 
 /* The offset of the key block within a chunk is 5 bytes as it comes after
  * 3 bytes of zero padding and 16 bits of region ID and eRP ID.
  */
-#define MLXSW_BLOOM_CHUNK_KEY_OFFSET 5
+#define MLXSW_SP2_BLOOM_CHUNK_KEY_OFFSET 5
 
 /* Each chunk contains 4 key blocks. Chunk 2 uses key blocks 11-8,
  * and we need to populate it with 4 key blocks copied from the entry encoded
@@ -66,7 +66,7 @@ static const u8 chunk_key_offsets[MLXSW_BLOOM_KEY_CHUNKS] = {2, 20, 38};
  * which is 0x8529 (1 + x^3 + x^5 + x^8 + x^10 + x^15 and
  * the implicit x^16).
  */
-static const u16 mlxsw_sp_acl_bf_crc_tab[256] = {
+static const u16 mlxsw_sp2_acl_bf_crc16_tab[256] = {
 0x0000, 0x8529, 0x8f7b, 0x0a52, 0x9bdf, 0x1ef6, 0x14a4, 0x918d,
 0xb297, 0x37be, 0x3dec, 0xb8c5, 0x2948, 0xac61, 0xa633, 0x231a,
 0xe007, 0x652e, 0x6f7c, 0xea55, 0x7bd8, 0xfef1, 0xf4a3, 0x718a,
@@ -101,17 +101,17 @@ static const u16 mlxsw_sp_acl_bf_crc_tab[256] = {
 0x0c4c, 0x8965, 0x8337, 0x061e, 0x9793, 0x12ba, 0x18e8, 0x9dc1,
 };
 
-static u16 mlxsw_sp_acl_bf_crc_byte(u16 crc, u8 c)
+static u16 mlxsw_sp2_acl_bf_crc16_byte(u16 crc, u8 c)
 {
-	return (crc << 8) ^ mlxsw_sp_acl_bf_crc_tab[(crc >> 8) ^ c];
+	return (crc << 8) ^ mlxsw_sp2_acl_bf_crc16_tab[(crc >> 8) ^ c];
 }
 
-static u16 mlxsw_sp_acl_bf_crc(const u8 *buffer, size_t len)
+static u16 mlxsw_sp2_acl_bf_crc(const u8 *buffer, size_t len)
 {
 	u16 crc = 0;
 
 	while (len--)
-		crc = mlxsw_sp_acl_bf_crc_byte(crc, *buffer++);
+		crc = mlxsw_sp2_acl_bf_crc16_byte(crc, *buffer++);
 	return crc;
 }
 
@@ -144,28 +144,28 @@ __mlxsw_sp_acl_bf_key_encode(struct mlxsw_sp_acl_atcam_region *aregion,
 }
 
 static void
-mlxsw_sp_acl_bf_key_encode(struct mlxsw_sp_acl_atcam_region *aregion,
-			   struct mlxsw_sp_acl_atcam_entry *aentry,
-			   char *output, u8 *len)
+mlxsw_sp2_acl_bf_key_encode(struct mlxsw_sp_acl_atcam_region *aregion,
+			    struct mlxsw_sp_acl_atcam_entry *aentry,
+			    char *output, u8 *len)
 {
 	__mlxsw_sp_acl_bf_key_encode(aregion, aentry, output, len,
 				     MLXSW_BLOOM_KEY_CHUNKS,
-				     MLXSW_BLOOM_CHUNK_PAD_BYTES,
-				     MLXSW_BLOOM_CHUNK_KEY_OFFSET,
-				     MLXSW_BLOOM_CHUNK_KEY_BYTES,
-				     MLXSW_BLOOM_KEY_CHUNK_BYTES);
+				     MLXSW_SP2_BLOOM_CHUNK_PAD_BYTES,
+				     MLXSW_SP2_BLOOM_CHUNK_KEY_OFFSET,
+				     MLXSW_SP2_BLOOM_CHUNK_KEY_BYTES,
+				     MLXSW_SP2_BLOOM_KEY_CHUNK_BYTES);
 }
 
 static unsigned int
-mlxsw_sp_acl_bf_index_get(struct mlxsw_sp_acl_bf *bf,
-			  struct mlxsw_sp_acl_atcam_region *aregion,
-			  struct mlxsw_sp_acl_atcam_entry *aentry)
+mlxsw_sp2_acl_bf_index_get(struct mlxsw_sp_acl_bf *bf,
+			   struct mlxsw_sp_acl_atcam_region *aregion,
+			   struct mlxsw_sp_acl_atcam_entry *aentry)
 {
-	char bf_key[MLXSW_BLOOM_KEY_LEN];
+	char bf_key[MLXSW_SP2_BLOOM_KEY_LEN];
 	u8 bf_size;
 
-	mlxsw_sp_acl_bf_key_encode(aregion, aentry, bf_key, &bf_size);
-	return mlxsw_sp_acl_bf_crc(bf_key, bf_size);
+	mlxsw_sp2_acl_bf_key_encode(aregion, aentry, bf_key, &bf_size);
+	return mlxsw_sp2_acl_bf_crc(bf_key, bf_size);
 }
 
 static unsigned int
@@ -190,7 +190,7 @@ mlxsw_sp_acl_bf_entry_add(struct mlxsw_sp *mlxsw_sp,
 
 	mutex_lock(&bf->lock);
 
-	bf_index = mlxsw_sp_acl_bf_index_get(bf, aregion, aentry);
+	bf_index = mlxsw_sp2_acl_bf_index_get(bf, aregion, aentry);
 	rule_index = mlxsw_sp_acl_bf_rule_count_index_get(bf, erp_bank,
 							  bf_index);
 
@@ -233,7 +233,7 @@ mlxsw_sp_acl_bf_entry_del(struct mlxsw_sp *mlxsw_sp,
 
 	mutex_lock(&bf->lock);
 
-	bf_index = mlxsw_sp_acl_bf_index_get(bf, aregion, aentry);
+	bf_index = mlxsw_sp2_acl_bf_index_get(bf, aregion, aentry);
 	rule_index = mlxsw_sp_acl_bf_rule_count_index_get(bf, erp_bank,
 							  bf_index);
 
