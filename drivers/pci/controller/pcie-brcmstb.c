@@ -1155,11 +1155,23 @@ static int brcm_pcie_suspend(struct device *dev)
 	int ret;
 
 	brcm_pcie_turn_off(pcie);
-	ret = brcm_phy_stop(pcie);
-	reset_control_rearm(pcie->rescal);
+	/*
+	 * If brcm_phy_stop() returns an error, just dev_err(). If we
+	 * return the error it will cause the suspend to fail and this is a
+	 * forgivable offense that will probably be erased on resume.
+	 */
+	if (brcm_phy_stop(pcie))
+		dev_err(dev, "Could not stop phy for suspend\n");
+
+	ret = reset_control_rearm(pcie->rescal);
+	if (ret) {
+		dev_err(dev, "Could not rearm rescal reset\n");
+		return ret;
+	}
+
 	clk_disable_unprepare(pcie->clk);
 
-	return ret;
+	return 0;
 }
 
 static int brcm_pcie_resume(struct device *dev)
@@ -1170,7 +1182,9 @@ static int brcm_pcie_resume(struct device *dev)
 	int ret;
 
 	base = pcie->base;
-	clk_prepare_enable(pcie->clk);
+	ret = clk_prepare_enable(pcie->clk);
+	if (ret)
+		return ret;
 
 	ret = reset_control_reset(pcie->rescal);
 	if (ret)
@@ -1211,8 +1225,10 @@ static void __brcm_pcie_remove(struct brcm_pcie *pcie)
 {
 	brcm_msi_remove(pcie);
 	brcm_pcie_turn_off(pcie);
-	brcm_phy_stop(pcie);
-	reset_control_rearm(pcie->rescal);
+	if (brcm_phy_stop(pcie))
+		dev_err(pcie->dev, "Could not stop phy\n");
+	if (reset_control_rearm(pcie->rescal))
+		dev_err(pcie->dev, "Could not rearm rescal reset\n");
 	clk_disable_unprepare(pcie->clk);
 }
 
