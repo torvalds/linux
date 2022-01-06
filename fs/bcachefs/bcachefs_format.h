@@ -351,7 +351,8 @@ static inline void bkey_init(struct bkey *k)
 	x(subvolume,		21)			\
 	x(snapshot,		22)			\
 	x(inode_v2,		23)			\
-	x(alloc_v3,		24)
+	x(alloc_v3,		24)			\
+	x(set,			25)
 
 enum bch_bkey_type {
 #define x(name, nr) KEY_TYPE_##name	= nr,
@@ -378,6 +379,10 @@ struct bch_cookie {
 };
 
 struct bch_hash_whiteout {
+	struct bch_val		v;
+};
+
+struct bch_set {
 	struct bch_val		v;
 };
 

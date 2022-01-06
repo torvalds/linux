@@ -85,6 +85,24 @@ static void key_type_inline_data_to_text(struct printbuf *out, struct bch_fs *c,
 	.val_to_text	= key_type_inline_data_to_text,	\
 }
 
+static const char *key_type_set_invalid(const struct bch_fs *c, struct bkey_s_c k)
+{
+	if (bkey_val_bytes(k.k))
+		return "nonempty value";
+	return NULL;
+}
+
+static bool key_type_set_merge(struct bch_fs *c, struct bkey_s l, struct bkey_s_c r)
+{
+	bch2_key_resize(l.k, l.k->size + r.k->size);
+	return true;
+}
+
+#define bch2_bkey_ops_set (struct bkey_ops) {		\
+	.key_invalid	= key_type_set_invalid,		\
+	.key_merge	= key_type_set_merge,		\
+}
+
 const struct bkey_ops bch2_bkey_ops[] = {
 #define x(name, nr) [KEY_TYPE_##name]	= bch2_bkey_ops_##name,
 	BCH_BKEY_TYPES()
