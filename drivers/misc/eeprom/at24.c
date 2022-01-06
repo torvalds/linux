@@ -68,11 +68,6 @@
  * which won't work on pure SMBus systems.
  */
 
-struct at24_client {
-	struct i2c_client *client;
-	struct regmap *regmap;
-};
-
 struct at24_data {
 	/*
 	 * Lock protects against activities from other Linux tasks,
@@ -94,9 +89,10 @@ struct at24_data {
 
 	/*
 	 * Some chips tie up multiple I2C addresses; dummy devices reserve
-	 * them for us, and we'll use them with SMBus calls.
+	 * them for us.
 	 */
-	struct at24_client client[];
+	u8 bank_addr_shift;
+	struct regmap *client_regmaps[];
 };
 
 /*
@@ -123,6 +119,7 @@ MODULE_PARM_DESC(at24_write_timeout, "Time (in ms) to try writes (default 25)");
 struct at24_chip_data {
 	u32 byte_len;
 	u8 flags;
+	u8 bank_addr_shift;
 	void (*read_post)(unsigned int off, char *buf, size_t count);
 };
 
@@ -135,6 +132,12 @@ struct at24_chip_data {
 	static const struct at24_chip_data _name = {			\
 		.byte_len = _len, .flags = _flags,			\
 		.read_post = _read_post,				\
+	}
+
+#define AT24_CHIP_DATA_BS(_name, _len, _flags, _bank_addr_shift)	\
+	static const struct at24_chip_data _name = {			\
+		.byte_len = _len, .flags = _flags,			\
+		.bank_addr_shift = _bank_addr_shift			\
 	}
 
 static void at24_read_post_vaio(unsigned int off, char *buf, size_t count)
@@ -197,6 +200,7 @@ AT24_CHIP_DATA(at24_data_24c128, 131072 / 8, AT24_FLAG_ADDR16);
 AT24_CHIP_DATA(at24_data_24c256, 262144 / 8, AT24_FLAG_ADDR16);
 AT24_CHIP_DATA(at24_data_24c512, 524288 / 8, AT24_FLAG_ADDR16);
 AT24_CHIP_DATA(at24_data_24c1024, 1048576 / 8, AT24_FLAG_ADDR16);
+AT24_CHIP_DATA_BS(at24_data_24c1025, 1048576 / 8, AT24_FLAG_ADDR16, 2);
 AT24_CHIP_DATA(at24_data_24c2048, 2097152 / 8, AT24_FLAG_ADDR16);
 /* identical to 24c08 ? */
 AT24_CHIP_DATA(at24_data_INT3499, 8192 / 8, 0);
@@ -225,6 +229,7 @@ static const struct i2c_device_id at24_ids[] = {
 	{ "24c256",	(kernel_ulong_t)&at24_data_24c256 },
 	{ "24c512",	(kernel_ulong_t)&at24_data_24c512 },
 	{ "24c1024",	(kernel_ulong_t)&at24_data_24c1024 },
+	{ "24c1025",	(kernel_ulong_t)&at24_data_24c1025 },
 	{ "24c2048",    (kernel_ulong_t)&at24_data_24c2048 },
 	{ "at24",	0 },
 	{ /* END OF LIST */ }
@@ -254,6 +259,7 @@ static const struct of_device_id at24_of_match[] = {
 	{ .compatible = "atmel,24c256",		.data = &at24_data_24c256 },
 	{ .compatible = "atmel,24c512",		.data = &at24_data_24c512 },
 	{ .compatible = "atmel,24c1024",	.data = &at24_data_24c1024 },
+	{ .compatible = "atmel,24c1025",	.data = &at24_data_24c1025 },
 	{ .compatible = "atmel,24c2048",	.data = &at24_data_24c2048 },
 	{ /* END OF LIST */ },
 };
@@ -275,8 +281,8 @@ MODULE_DEVICE_TABLE(acpi, at24_acpi_ids);
  * set the byte address; on a multi-master board, another master
  * may have changed the chip's "current" address pointer.
  */
-static struct at24_client *at24_translate_offset(struct at24_data *at24,
-						 unsigned int *offset)
+static struct regmap *at24_translate_offset(struct at24_data *at24,
+					    unsigned int *offset)
 {
 	unsigned int i;
 
@@ -288,12 +294,12 @@ static struct at24_client *at24_translate_offset(struct at24_data *at24,
 		*offset &= 0xff;
 	}
 
-	return &at24->client[i];
+	return at24->client_regmaps[i];
 }
 
 static struct device *at24_base_client_dev(struct at24_data *at24)
 {
-	return &at24->client[0].client->dev;
+	return regmap_get_device(at24->client_regmaps[0]);
 }
 
 static size_t at24_adjust_read_count(struct at24_data *at24,
@@ -324,14 +330,10 @@ static ssize_t at24_regmap_read(struct at24_data *at24, char *buf,
 				unsigned int offset, size_t count)
 {
 	unsigned long timeout, read_time;
-	struct at24_client *at24_client;
-	struct i2c_client *client;
 	struct regmap *regmap;
 	int ret;
 
-	at24_client = at24_translate_offset(at24, &offset);
-	regmap = at24_client->regmap;
-	client = at24_client->client;
+	regmap = at24_translate_offset(at24, &offset);
 	count = at24_adjust_read_count(at24, offset, count);
 
 	/* adjust offset for mac and serial read ops */
@@ -346,7 +348,7 @@ static ssize_t at24_regmap_read(struct at24_data *at24, char *buf,
 		read_time = jiffies;
 
 		ret = regmap_bulk_read(regmap, offset, buf, count);
-		dev_dbg(&client->dev, "read %zu@%d --> %d (%ld)\n",
+		dev_dbg(regmap_get_device(regmap), "read %zu@%d --> %d (%ld)\n",
 			count, offset, ret, jiffies);
 		if (!ret)
 			return count;
@@ -387,14 +389,10 @@ static ssize_t at24_regmap_write(struct at24_data *at24, const char *buf,
 				 unsigned int offset, size_t count)
 {
 	unsigned long timeout, write_time;
-	struct at24_client *at24_client;
-	struct i2c_client *client;
 	struct regmap *regmap;
 	int ret;
 
-	at24_client = at24_translate_offset(at24, &offset);
-	regmap = at24_client->regmap;
-	client = at24_client->client;
+	regmap = at24_translate_offset(at24, &offset);
 	count = at24_adjust_write_count(at24, offset, count);
 	timeout = jiffies + msecs_to_jiffies(at24_write_timeout);
 
@@ -406,7 +404,7 @@ static ssize_t at24_regmap_write(struct at24_data *at24, const char *buf,
 		write_time = jiffies;
 
 		ret = regmap_bulk_write(regmap, offset, buf, count);
-		dev_dbg(&client->dev, "write %zu@%d --> %d (%ld)\n",
+		dev_dbg(regmap_get_device(regmap), "write %zu@%d --> %d (%ld)\n",
 			count, offset, ret, jiffies);
 		if (!ret)
 			return count;
@@ -538,17 +536,16 @@ static const struct at24_chip_data *at24_get_chip_data(struct device *dev)
 }
 
 static int at24_make_dummy_client(struct at24_data *at24, unsigned int index,
+				  struct i2c_client *base_client,
 				  struct regmap_config *regmap_config)
 {
-	struct i2c_client *base_client, *dummy_client;
+	struct i2c_client *dummy_client;
 	struct regmap *regmap;
-	struct device *dev;
 
-	base_client = at24->client[0].client;
-	dev = &base_client->dev;
-
-	dummy_client = devm_i2c_new_dummy_device(dev, base_client->adapter,
-						 base_client->addr + index);
+	dummy_client = devm_i2c_new_dummy_device(&base_client->dev,
+						 base_client->adapter,
+						 base_client->addr +
+						 (index << at24->bank_addr_shift));
 	if (IS_ERR(dummy_client))
 		return PTR_ERR(dummy_client);
 
@@ -556,8 +553,7 @@ static int at24_make_dummy_client(struct at24_data *at24, unsigned int index,
 	if (IS_ERR(regmap))
 		return PTR_ERR(regmap);
 
-	at24->client[index].client = dummy_client;
-	at24->client[index].regmap = regmap;
+	at24->client_regmaps[index] = regmap;
 
 	return 0;
 }
@@ -680,7 +676,7 @@ static int at24_probe(struct i2c_client *client)
 	if (IS_ERR(regmap))
 		return PTR_ERR(regmap);
 
-	at24 = devm_kzalloc(dev, struct_size(at24, client, num_addresses),
+	at24 = devm_kzalloc(dev, struct_size(at24, client_regmaps, num_addresses),
 			    GFP_KERNEL);
 	if (!at24)
 		return -ENOMEM;
@@ -690,10 +686,10 @@ static int at24_probe(struct i2c_client *client)
 	at24->page_size = page_size;
 	at24->flags = flags;
 	at24->read_post = cdata->read_post;
+	at24->bank_addr_shift = cdata->bank_addr_shift;
 	at24->num_addresses = num_addresses;
 	at24->offset_adj = at24_get_offset_adj(flags, byte_len);
-	at24->client[0].client = client;
-	at24->client[0].regmap = regmap;
+	at24->client_regmaps[0] = regmap;
 
 	at24->vcc_reg = devm_regulator_get(dev, "vcc");
 	if (IS_ERR(at24->vcc_reg))
@@ -709,7 +705,7 @@ static int at24_probe(struct i2c_client *client)
 
 	/* use dummy devices for multiple-address chips */
 	for (i = 1; i < num_addresses; i++) {
-		err = at24_make_dummy_client(at24, i, &regmap_config);
+		err = at24_make_dummy_client(at24, i, client, &regmap_config);
 		if (err)
 			return err;
 	}
