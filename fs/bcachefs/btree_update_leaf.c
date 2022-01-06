@@ -507,6 +507,9 @@ static int run_btree_triggers(struct btree_trans *trans, enum btree_id btree_id,
 			for (i = btree_id_start;
 			     i < trans->updates + trans->nr_updates && i->btree_id <= btree_id;
 			     i++) {
+				if (i->btree_id != btree_id)
+					continue;
+
 				ret = run_one_trans_trigger(trans, i, overwrite);
 				if (ret < 0)
 					return ret;
@@ -533,6 +536,9 @@ static int bch2_trans_commit_run_triggers(struct btree_trans *trans)
 	 * they are re-added.
 	 */
 	for (btree_id = 0; btree_id < BTREE_ID_NR; btree_id++) {
+		if (btree_id == BTREE_ID_alloc)
+			continue;
+
 		while (btree_id_start < trans->updates + trans->nr_updates &&
 		       btree_id_start->btree_id < btree_id)
 			btree_id_start++;
@@ -540,6 +546,17 @@ static int bch2_trans_commit_run_triggers(struct btree_trans *trans)
 		ret = run_btree_triggers(trans, btree_id, btree_id_start);
 		if (ret)
 			return ret;
+	}
+
+	trans_for_each_update(trans, i) {
+		if (i->btree_id > BTREE_ID_alloc)
+			break;
+		if (i->btree_id == BTREE_ID_alloc) {
+			ret = run_btree_triggers(trans, BTREE_ID_alloc, i);
+			if (ret)
+				return ret;
+			break;
+		}
 	}
 
 	trans_for_each_update(trans, i)
