@@ -164,8 +164,11 @@ static int stf_vin_wr_stream_set(struct stf_vin2_dev *vin_dev, int on)
 	if (on) {
 		reg_set(vin->sysctrl_base, SYSCONSAIF_SYSCFG_20, U0_VIN_CNFG_AXIWR0_EN);	  
 	} else {
-		//reg_clear(vin->sysctrl_base, SYSCONSAIF_SYSCFG_20, U0_VIN_CNFG_AXIWR0_EN);
-		;
+		reg_assert_rst(vin->clkgen_base,SOFTWARE_RESET_ASSERT0_ASSERT_SET,
+			SOFTWARE_RESET_ASSERT0_ASSERT_SET_STATE, 
+			RSTN_U0_VIN_RST_P_AXIWR); 
+		usleep_range(500, 1000);
+		reg_clear(vin->sysctrl_base, SYSCONSAIF_SYSCFG_20, U0_VIN_CNFG_AXIWR0_EN);
 	}
 	print_reg(ST_VIN, vin->sysctrl_base, SYSCONSAIF_SYSCFG_20);
 

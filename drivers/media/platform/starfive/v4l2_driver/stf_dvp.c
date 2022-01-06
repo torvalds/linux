@@ -56,15 +56,11 @@ static int dvp_set_power(struct v4l2_subdev *sd, int on)
 
 static struct v4l2_mbus_framefmt *
 __dvp_get_format(struct stf_dvp_dev *dvp_dev,
-		struct v4l2_subdev_pad_config *cfg,
+		struct v4l2_subdev_state *state,
 		unsigned int pad,
 		enum v4l2_subdev_format_whence which)
 {
-	struct v4l2_subdev_state *state;
-	state = kzalloc(sizeof(*state), GFP_KERNEL);
-	if (!state)
-		return ERR_PTR(-ENOMEM);
-	
+
 	if (which == V4L2_SUBDEV_FORMAT_TRY)
 		return v4l2_subdev_get_try_format(
 			&dvp_dev->subdev, state, pad);
@@ -110,7 +106,7 @@ exit:
 }
 
 static void dvp_try_format(struct stf_dvp_dev *dvp_dev,
-			struct v4l2_subdev_pad_config *cfg,
+			struct v4l2_subdev_state *state,
 			unsigned int pad,
 			struct v4l2_mbus_framefmt *fmt,
 			enum v4l2_subdev_format_whence which)
@@ -141,7 +137,7 @@ static void dvp_try_format(struct stf_dvp_dev *dvp_dev,
 
 	case STF_DVP_PAD_SRC:
 
-		*fmt = *__dvp_get_format(dvp_dev, cfg, STF_DVP_PAD_SINK, which);
+		*fmt = *__dvp_get_format(dvp_dev, state, STF_DVP_PAD_SINK, which);
 
 		break;
 	}
@@ -161,7 +157,7 @@ static int dvp_enum_mbus_code(struct v4l2_subdev *sd,
 	} else {
 		struct v4l2_mbus_framefmt *sink_fmt;
 
-		sink_fmt = __dvp_get_format(dvp_dev, state->pads, STF_DVP_PAD_SINK,
+		sink_fmt = __dvp_get_format(dvp_dev, state, STF_DVP_PAD_SINK,
 					code->which);
 
 		code->code = sink_fmt->code;
@@ -186,7 +182,7 @@ static int dvp_enum_frame_size(struct v4l2_subdev *sd,
 	format.code = fse->code;
 	format.width = 1;
 	format.height = 1;
-	dvp_try_format(dvp_dev, state->pads, fse->pad, &format, fse->which);
+	dvp_try_format(dvp_dev, state, fse->pad, &format, fse->which);
 	fse->min_width = format.width;
 	fse->min_height = format.height;
 
@@ -196,7 +192,7 @@ static int dvp_enum_frame_size(struct v4l2_subdev *sd,
 	format.code = fse->code;
 	format.width = -1;
 	format.height = -1;
-	dvp_try_format(dvp_dev, state->pads, fse->pad, &format, fse->which);
+	dvp_try_format(dvp_dev, state, fse->pad, &format, fse->which);
 	fse->max_width = format.width;
 	fse->max_height = format.height;
 
@@ -210,7 +206,7 @@ static int dvp_get_format(struct v4l2_subdev *sd,
 	struct stf_dvp_dev *dvp_dev = v4l2_get_subdevdata(sd);
 	struct v4l2_mbus_framefmt *format;
 
-	format = __dvp_get_format(dvp_dev, state->pads, fmt->pad, fmt->which);
+	format = __dvp_get_format(dvp_dev, state, fmt->pad, fmt->which);
 	if (format == NULL)
 		return -EINVAL;
 
@@ -227,20 +223,20 @@ static int dvp_set_format(struct v4l2_subdev *sd,
 	struct v4l2_mbus_framefmt *format;
 	int ret;
 
-	format = __dvp_get_format(dvp_dev, state->pads, fmt->pad, fmt->which);
+	format = __dvp_get_format(dvp_dev, state, fmt->pad, fmt->which);
 	if (format == NULL)
 		return -EINVAL;
 
-	dvp_try_format(dvp_dev, state->pads, fmt->pad, &fmt->format, fmt->which);
+	dvp_try_format(dvp_dev, state, fmt->pad, &fmt->format, fmt->which);
 	*format = fmt->format;
 
 	/* Propagate the format from sink to source */
 	if (fmt->pad == STF_DVP_PAD_SINK) {
-		format = __dvp_get_format(dvp_dev, state->pads, STF_DVP_PAD_SRC,
+		format = __dvp_get_format(dvp_dev, state, STF_DVP_PAD_SRC,
 					fmt->which);
 
 		*format = fmt->format;
-		dvp_try_format(dvp_dev, state->pads, STF_DVP_PAD_SRC, format,
+		dvp_try_format(dvp_dev, state, STF_DVP_PAD_SRC, format,
 					fmt->which);
 	}
 

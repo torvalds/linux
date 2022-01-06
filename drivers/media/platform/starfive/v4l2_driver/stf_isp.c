@@ -336,13 +336,11 @@ static int isp_set_power(struct v4l2_subdev *sd, int on)
 
 static struct v4l2_mbus_framefmt *
 __isp_get_format(struct stf_isp_dev *isp_dev,
-		struct v4l2_subdev_pad_config *cfg,
+		struct v4l2_subdev_state *state,
 		unsigned int pad,
 		enum v4l2_subdev_format_whence which)
 {
-	struct v4l2_subdev_state *state;
 
-	state = kzalloc(sizeof(*state), GFP_KERNEL);
 	if (which == V4L2_SUBDEV_FORMAT_TRY)
 		return v4l2_subdev_get_try_format(&isp_dev->subdev, state, pad);
 
@@ -389,7 +387,7 @@ exit:
 }
 
 static void isp_try_format(struct stf_isp_dev *isp_dev,
-			struct v4l2_subdev_pad_config *cfg,
+			struct v4l2_subdev_state *state,
 			unsigned int pad,
 			struct v4l2_mbus_framefmt *fmt,
 			enum v4l2_subdev_format_whence which)
@@ -421,7 +419,7 @@ static void isp_try_format(struct stf_isp_dev *isp_dev,
 
 	case STF_ISP_PAD_SRC:
 
-		*fmt = *__isp_get_format(isp_dev, cfg, STF_ISP_PAD_SINK, which);
+		*fmt = *__isp_get_format(isp_dev, state, STF_ISP_PAD_SINK, which);
 
 		break;
 	}
@@ -440,7 +438,7 @@ static int isp_enum_mbus_code(struct v4l2_subdev *sd,
 	} else {
 		struct v4l2_mbus_framefmt *sink_fmt;
 
-		sink_fmt = __isp_get_format(isp_dev, state->pads, STF_ISP_PAD_SINK,
+		sink_fmt = __isp_get_format(isp_dev, state, STF_ISP_PAD_SINK,
 					code->which);
 
 		code->code = sink_fmt->code;
@@ -465,7 +463,7 @@ static int isp_enum_frame_size(struct v4l2_subdev *sd,
 	format.code = fse->code;
 	format.width = 1;
 	format.height = 1;
-	isp_try_format(isp_dev, state->pads, fse->pad, &format, fse->which);
+	isp_try_format(isp_dev, state, fse->pad, &format, fse->which);
 	fse->min_width = format.width;
 	fse->min_height = format.height;
 
@@ -475,7 +473,7 @@ static int isp_enum_frame_size(struct v4l2_subdev *sd,
 	format.code = fse->code;
 	format.width = -1;
 	format.height = -1;
-	isp_try_format(isp_dev, state->pads, fse->pad, &format, fse->which);
+	isp_try_format(isp_dev, state, fse->pad, &format, fse->which);
 	fse->max_width = format.width;
 	fse->max_height = format.height;
 
@@ -489,7 +487,7 @@ static int isp_get_format(struct v4l2_subdev *sd,
 	struct stf_isp_dev *isp_dev = v4l2_get_subdevdata(sd);
 	struct v4l2_mbus_framefmt *format;
 
-	format = __isp_get_format(isp_dev, state->pads, fmt->pad, fmt->which);
+	format = __isp_get_format(isp_dev, state, fmt->pad, fmt->which);
 	if (format == NULL)
 		return -EINVAL;
 
@@ -509,11 +507,11 @@ static int isp_set_format(struct v4l2_subdev *sd,
 	struct stf_isp_dev *isp_dev = v4l2_get_subdevdata(sd);
 	struct v4l2_mbus_framefmt *format;
 
-	format = __isp_get_format(isp_dev, state->pads, fmt->pad, fmt->which);
+	format = __isp_get_format(isp_dev, state, fmt->pad, fmt->which);
 	if (format == NULL)
 		return -EINVAL;
 
-	isp_try_format(isp_dev, state->pads, fmt->pad, &fmt->format, fmt->which);
+	isp_try_format(isp_dev, state, fmt->pad, &fmt->format, fmt->which);
 	*format = fmt->format;
 
 	/* Propagate the format from sink to source */
@@ -521,11 +519,11 @@ static int isp_set_format(struct v4l2_subdev *sd,
 		struct v4l2_subdev_selection sel = { 0 };
 		int ret;
 
-		format = __isp_get_format(isp_dev, state->pads, STF_ISP_PAD_SRC,
+		format = __isp_get_format(isp_dev, state, STF_ISP_PAD_SRC,
 					fmt->which);
 
 		*format = fmt->format;
-		isp_try_format(isp_dev, state->pads, STF_ISP_PAD_SRC, format,
+		isp_try_format(isp_dev, state, STF_ISP_PAD_SRC, format,
 					fmt->which);
 
 		/* Reset sink pad compose selection */
@@ -568,13 +566,13 @@ __isp_get_crop(struct stf_isp_dev *isp_dev,
 }
 
 static void isp_try_compose(struct stf_isp_dev *isp_dev,
-			    struct v4l2_subdev_pad_config *cfg,
+			    struct v4l2_subdev_state *state,
 			    struct v4l2_rect *rect,
 			    enum v4l2_subdev_format_whence which)
 {
 	struct v4l2_mbus_framefmt *fmt;
 
-	fmt = __isp_get_format(isp_dev, cfg, STF_ISP_PAD_SINK, which);
+	fmt = __isp_get_format(isp_dev, state, STF_ISP_PAD_SINK, which);
 
 	if (rect->width > fmt->width)
 		rect->width = fmt->width;
@@ -710,7 +708,7 @@ static int isp_set_selection(struct v4l2_subdev *sd,
 		if (rect == NULL)
 			return -EINVAL;
 
-		isp_try_compose(isp_dev, state->pads, &sel->r, sel->which);
+		isp_try_compose(isp_dev, state, &sel->r, sel->which);
 		*rect = sel->r;
 
 		/* Reset source crop selection */

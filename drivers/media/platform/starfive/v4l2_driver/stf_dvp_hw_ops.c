@@ -185,7 +185,7 @@ static int stf_dvp_stream_set(struct stf_dvp_dev *dvp_dev, int on)
 			0);
 	 	reg_set_bit(vin->sysctrl_base, SYSCONSAIF_SYSCFG_0, 
 	 		U0_VIN_CNFG_AXI_DVP_EN, 
-			1<<2);
+			!!on<<2);
 		break;
 	case SENSOR_ISP0:
 		reg_set_bit(vin->sysctrl_base, SYSCONSAIF_SYSCFG_36, 
