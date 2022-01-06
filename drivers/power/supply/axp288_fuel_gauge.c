@@ -666,6 +666,16 @@ static int axp288_fuel_gauge_read_initial_regs(struct axp288_fg_info *info)
 	return 0;
 }
 
+static void axp288_fuel_gauge_release_iio_chans(void *data)
+{
+	struct axp288_fg_info *info = data;
+	int i;
+
+	for (i = 0; i < IIO_CHANNEL_NUM; i++)
+		if (!IS_ERR_OR_NULL(info->iio_channel[i]))
+			iio_channel_release(info->iio_channel[i]);
+}
+
 static int axp288_fuel_gauge_probe(struct platform_device *pdev)
 {
 	int i, ret = 0;
@@ -711,37 +721,35 @@ static int axp288_fuel_gauge_probe(struct platform_device *pdev)
 			if (ret == -ENODEV)
 				ret = -EPROBE_DEFER;
 
-			goto out_free_iio_chan;
+			axp288_fuel_gauge_release_iio_chans(info);
+			return ret;
 		}
 	}
 
+	ret = devm_add_action_or_reset(dev, axp288_fuel_gauge_release_iio_chans, info);
+	if (ret)
+		return ret;
+
 	ret = iosf_mbi_block_punit_i2c_access();
 	if (ret < 0)
-		goto out_free_iio_chan;
+		return ret;
 
 	ret = axp288_fuel_gauge_read_initial_regs(info);
 	iosf_mbi_unblock_punit_i2c_access();
 	if (ret < 0)
-		goto out_free_iio_chan;
+		return ret;
 
 	psy_cfg.drv_data = info;
 	info->bat = power_supply_register(dev, &fuel_gauge_desc, &psy_cfg);
 	if (IS_ERR(info->bat)) {
 		ret = PTR_ERR(info->bat);
 		dev_err(dev, "failed to register battery: %d\n", ret);
-		goto out_free_iio_chan;
+		return ret;
 	}
 
 	fuel_gauge_init_irq(info, pdev);
 
 	return 0;
-
-out_free_iio_chan:
-	for (i = 0; i < IIO_CHANNEL_NUM; i++)
-		if (!IS_ERR_OR_NULL(info->iio_channel[i]))
-			iio_channel_release(info->iio_channel[i]);
-
-	return ret;
 }
 
 static const struct platform_device_id axp288_fg_id_table[] = {
@@ -760,9 +768,6 @@ static int axp288_fuel_gauge_remove(struct platform_device *pdev)
 	for (i = 0; i < AXP288_FG_INTR_NUM; i++)
 		if (info->irq[i] >= 0)
 			free_irq(info->irq[i], info);
-
-	for (i = 0; i < IIO_CHANNEL_NUM; i++)
-		iio_channel_release(info->iio_channel[i]);
 
 	return 0;
 }
