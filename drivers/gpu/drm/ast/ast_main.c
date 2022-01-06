@@ -213,6 +213,7 @@ static int ast_detect_chip(struct drm_device *dev, bool *need_post)
 		break;
 	}
 
+	ast->support_wide_screen = true;
 	/* Check 3rd Tx option (digital output afaik) */
 	ast->tx_chip_type = AST_TX_NONE;
 
@@ -230,7 +231,7 @@ static int ast_detect_chip(struct drm_device *dev, bool *need_post)
 			ast->tx_chip_type = AST_TX_SIL164;
 	}
 
-	if ((ast->chip == AST2300) || (ast->chip == AST2400)) {
+	if ((ast->chip == AST2300) || (ast->chip == AST2400) || (ast->chip == AST2500)) {
 		/*
 		 * On AST2300 and 2400, look the configuration set by the SoC in
 		 * the SOC scratch register #1 bits 11:8 (interestingly marked
@@ -254,7 +255,8 @@ static int ast_detect_chip(struct drm_device *dev, bool *need_post)
 		case 0x0c:
 			ast->tx_chip_type = AST_TX_DP501;
 		}
-	}
+	} else if (ast->chip == AST2600)
+		ast_dp_launch(&ast->base, 0);
 
 	/* Print stuff for diagnostic purposes */
 	switch(ast->tx_chip_type) {
@@ -263,6 +265,9 @@ static int ast_detect_chip(struct drm_device *dev, bool *need_post)
 		break;
 	case AST_TX_DP501:
 		drm_info(dev, "Using DP501 DisplayPort transmitter\n");
+		break;
+	case AST_TX_ASTDP:
+		drm_info(dev, "Using ASPEED DisplayPort transmitter\n");
 		break;
 	default:
 		drm_info(dev, "Analog VGA only\n");
@@ -304,7 +309,7 @@ static int ast_get_dram_info(struct drm_device *dev)
 	default:
 		ast->dram_bus_width = 16;
 		ast->dram_type = AST_DRAM_1Gx16;
-		if (ast->chip == AST2500)
+		if (ast->chip == AST2500 || ast->chip == AST2600)
 			ast->mclk = 800;
 		else
 			ast->mclk = 396;
@@ -427,10 +432,7 @@ struct ast_private *ast_device_create(const struct drm_driver *drv,
 	 * assume the chip has MMIO enabled by default (rev 0x20
 	 * and higher).
 	 */
-	if (!(pci_resource_flags(pdev, 2) & IORESOURCE_IO)) {
-		drm_info(dev, "platform has no IO space, trying MMIO\n");
-		ast->ioregs = ast->regs + AST_IO_MM_OFFSET;
-	}
+	ast->ioregs = ast->regs + AST_IO_MM_OFFSET;
 
 	/* "map" IO regs if the above hasn't done so already */
 	if (!ast->ioregs) {

@@ -109,6 +109,36 @@ static const struct ast_vbios_dclk_info dclk_table[] = {
 	{0x3b, 0x2c, 0x81},			/* 1A: VCLK118_25	*/
 };
 
+static const struct ast_vbios_dclk_info dclk_table_25MHz[] = {
+	{0x2C, 0xE7, 0x03},			/* 00: VCLK25_175	*/
+	{0x95, 0x62, 0x03},			/* 01: VCLK28_322	*/
+	{0x67, 0x63, 0x01},			/* 02: VCLK31_5         */
+	{0x76, 0x63, 0x01},			/* 03: VCLK36		*/
+	{0xEE, 0x67, 0x01},			/* 04: VCLK40		*/
+	{0x82, 0x62, 0x01},			/* 05: VCLK49_5		*/
+	{0xC6, 0x64, 0x01},			/* 06: VCLK50		*/
+	{0x94, 0x62, 0x01},			/* 07: VCLK56_25	*/
+	{0x80, 0x64, 0x00},			/* 08: VCLK65		*/
+	{0x7B, 0x63, 0x00},			/* 09: VCLK75		*/
+	{0x67, 0x62, 0x00},			/* 0A: VCLK78_75	*/
+	{0x7C, 0x62, 0x00},			/* 0B: VCLK94_5		*/
+	{0x8E, 0x62, 0x00},			/* 0C: VCLK108		*/
+	{0x85, 0x24, 0x00},			/* 0D: VCLK135		*/
+	{0x67, 0x22, 0x00},			/* 0E: VCLK157_5	*/
+	{0x6A, 0x22, 0x00},			/* 0F: VCLK162		*/
+	{0x25, 0x46, 0x80},			/* 10: VCLK154		*/
+	{0x14, 0x63, 0x80},			/* 11: VCLK83.5         */
+	{0x11, 0x44, 0x80},			/* 12: VCLK106.5        */
+	{0x23, 0x46, 0x80},			/* 13: VCLK146.25       */
+	{0x4d, 0x4d, 0x80},			/* 14: VCLK148.5        */
+	{0x11, 0x63, 0x80},			/* 15: VCLK71           */
+	{0x47, 0x6a, 0x80},			/* 16: VCLK88.75        */
+	{0x13, 0x44, 0x80},			/* 17: VCLK119          */
+	{0x29, 0x66, 0x80},		    /* 18: VCLK85_5         */
+	{0x2f, 0x66, 0x80},			/* 19: VCLK97_75 */
+	{0x21, 0x47, 0x80},			/* 1A: VCLK118_25 */
+};
+
 static const struct ast_vbios_dclk_info dclk_table_ast2500[] = {
 	{0x2C, 0xE7, 0x03},			/* 00: VCLK25_175	*/
 	{0x95, 0x62, 0x03},			/* 01: VCLK28_322	*/
@@ -137,6 +167,36 @@ static const struct ast_vbios_dclk_info dclk_table_ast2500[] = {
 	{0x32, 0x67, 0x80},			/* 18: VCLK85_5		*/
 	{0x6a, 0x6d, 0x80},			/* 19: VCLK97_75	*/
 	{0x44, 0x20, 0x43},			/* 1A: VCLK118_25	*/
+};
+
+static const struct ast_vbios_dclk_info dclk_table_ast2500_25MHz[] = {
+	{0x2C, 0xE7, 0x03},			/* 00: VCLK25_175	*/
+	{0x95, 0x62, 0x03},			/* 01: VCLK28_322	*/
+	{0x67, 0x63, 0x01},			/* 02: VCLK31_5         */
+	{0x76, 0x63, 0x01},			/* 03: VCLK36		*/
+	{0xEE, 0x67, 0x01},			/* 04: VCLK40		*/
+	{0x82, 0x62, 0x01},			/* 05: VCLK49_5		*/
+	{0xC6, 0x64, 0x01},			/* 06: VCLK50		*/
+	{0x94, 0x62, 0x01},			/* 07: VCLK56_25	*/
+	{0x80, 0x64, 0x00},			/* 08: VCLK65		*/
+	{0x7B, 0x63, 0x00},			/* 09: VCLK75		*/
+	{0x67, 0x62, 0x00},			/* 0A: VCLK78_75	*/
+	{0x7C, 0x62, 0x00},			/* 0B: VCLK94_5		*/
+	{0x8E, 0x62, 0x00},			/* 0C: VCLK108		*/
+	{0x85, 0x24, 0x00},			/* 0D: VCLK135		*/
+	{0x67, 0x22, 0x00},			/* 0E: VCLK157_5	*/
+	{0x6A, 0x22, 0x00},			/* 0F: VCLK162		*/
+	{0x4d, 0x4c, 0x80},			/* 10: VCLK154		*/
+	{0x68, 0x6f, 0x80},			/* 11: VCLK83.5         */
+	{0x28, 0x49, 0x80},			/* 12: VCLK106.5        */
+	{0x37, 0x49, 0x80},			/* 13: VCLK146.25       */
+	{0x1f, 0x45, 0x80},			/* 14: VCLK148.5        */
+	{0x47, 0x6c, 0x80},			/* 15: VCLK71           */
+	{0x25, 0x65, 0x80},			/* 16: VCLK88.75        */
+	{0x38, 0x60, 0x42},			/* 17: VCLK119          */
+	{0x32, 0x67, 0x80},		    /* 18: VCLK85_5         */
+	{0x6a, 0x6d, 0x80},			/* 19: VCLK97_75 */
+	{0x41, 0x20, 0x43},			/* 1A: VCLK118_25 */
 };
 
 static const struct ast_vbios_stdtable vbios_stdtable[] = {
@@ -272,6 +332,13 @@ static const struct ast_vbios_enhtable res_1600x1200[] = {
 	 (SyncPP | Charx8Dot), 0xFF, 1, 0x33 },
 };
 
+static const struct ast_vbios_enhtable res_1152x864[] = {
+	{1600, 1152, 64, 128,  900,  864, 1, 3, VCLK108,	/* 75Hz */
+	 (SyncPP | Charx8Dot | NewModeInfo), 75, 1, 0x3B },
+	{1600, 1152, 64, 128,  900,  864, 1, 3, VCLK108,	/* end */
+	 (SyncPP | Charx8Dot | NewModeInfo), 0xFF, 1, 0x3B },
+};
+
 /* 16:9 */
 static const struct ast_vbios_enhtable res_1360x768[] = {
 	{1792, 1360, 64, 112, 795, 768, 3, 6, VCLK85_5,		/* 60Hz */
@@ -282,8 +349,6 @@ static const struct ast_vbios_enhtable res_1360x768[] = {
 };
 
 static const struct ast_vbios_enhtable res_1600x900[] = {
-	{1800, 1600, 24, 80, 1000,  900, 1, 3, VCLK108,		/* 60Hz */
-	 (SyncPP | Charx8Dot | LineCompareOff | WideScreenMode | NewModeInfo), 60, 3, 0x3A },
 	{1760, 1600, 48, 32, 926, 900, 3, 5, VCLK97_75,		/* 60Hz CVT RB */
 	 (SyncNP | Charx8Dot | LineCompareOff | WideScreenMode | NewModeInfo |
 	  AST2500PreCatchCRT), 60, 1, 0x3A },

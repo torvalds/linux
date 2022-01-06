@@ -44,11 +44,11 @@
 
 #define DRIVER_NAME		"ast"
 #define DRIVER_DESC		"AST"
-#define DRIVER_DATE		"20120228"
+#define DRIVER_DATE		"20210923"
 
-#define DRIVER_MAJOR		0
-#define DRIVER_MINOR		1
-#define DRIVER_PATCHLEVEL	0
+#define DRIVER_MAJOR		1
+#define DRIVER_MINOR		12
+#define DRIVER_PATCHLEVEL	2
 
 #define PCI_CHIP_AST2000 0x2000
 #define PCI_CHIP_AST2100 0x2010
@@ -71,6 +71,7 @@ enum ast_tx_chip {
 	AST_TX_SIL164,
 	AST_TX_ITE66121,
 	AST_TX_DP501,
+	AST_TX_ASTDP,
 };
 
 #define AST_DRAM_512Mx16 0
@@ -167,6 +168,7 @@ struct ast_private {
 	struct ast_connector connector;
 
 	bool support_wide_screen;
+	bool RefCLK25MHz;
 	enum {
 		ast_use_p2a,
 		ast_use_dt,
@@ -177,6 +179,9 @@ struct ast_private {
 	u8 dp501_maxclk;
 	u8 *dp501_fw_addr;
 	const struct firmware *dp501_fw;	/* dp501 fw */
+
+    // ASTDP
+	u8 ASTDP_State;
 };
 
 static inline struct ast_private *to_ast_private(struct drm_device *dev)
@@ -359,4 +364,13 @@ bool ast_dp501_read_edid(struct drm_device *dev, u8 *ediddata);
 u8 ast_get_dp501_max_clk(struct drm_device *dev);
 void ast_init_3rdtx(struct drm_device *dev);
 
+/* aspeed DP */
+#define DPControlPower
+bool ast_dp_read_edid(struct drm_device *dev, u8 *ediddata);
+bool ast_dp_launch(struct drm_device *dev, u8 bPower);
+#ifdef DPControlPower
+void ast_dp_PowerOnOff(struct drm_device *dev, u8 Mode);
+#endif
+void ast_dp_SetOnOff(struct drm_device *dev, u8 Mode);
+void ast_dp_SetOutput(struct drm_crtc *crtc, struct ast_vbios_mode_info *vbios_mode);
 #endif
