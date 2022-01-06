@@ -190,6 +190,7 @@ struct mlxsw_sp {
 	const struct mlxsw_sp_mr_tcam_ops *mr_tcam_ops;
 	const struct mlxsw_sp_acl_rulei_ops *acl_rulei_ops;
 	const struct mlxsw_sp_acl_tcam_ops *acl_tcam_ops;
+	const struct mlxsw_sp_acl_bf_ops *acl_bf_ops;
 	const struct mlxsw_sp_nve_ops **nve_ops_arr;
 	const struct mlxsw_sp_sb_vals *sb_vals;
 	const struct mlxsw_sp_sb_ops *sb_ops;
@@ -1107,6 +1108,9 @@ extern const struct mlxsw_afa_ops mlxsw_sp2_act_afa_ops;
 extern const struct mlxsw_afk_ops mlxsw_sp1_afk_ops;
 extern const struct mlxsw_afk_ops mlxsw_sp2_afk_ops;
 extern const struct mlxsw_afk_ops mlxsw_sp4_afk_ops;
+
+/* spectrum_acl_bloom_filter.c */
+extern const struct mlxsw_sp_acl_bf_ops mlxsw_sp2_acl_bf_ops;
 
 /* spectrum_matchall.c */
 struct mlxsw_sp_mall_ops {

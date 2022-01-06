@@ -190,7 +190,7 @@ mlxsw_sp_acl_bf_entry_add(struct mlxsw_sp *mlxsw_sp,
 
 	mutex_lock(&bf->lock);
 
-	bf_index = mlxsw_sp2_acl_bf_index_get(bf, aregion, aentry);
+	bf_index = mlxsw_sp->acl_bf_ops->index_get(bf, aregion, aentry);
 	rule_index = mlxsw_sp_acl_bf_rule_count_index_get(bf, erp_bank,
 							  bf_index);
 
@@ -233,7 +233,7 @@ mlxsw_sp_acl_bf_entry_del(struct mlxsw_sp *mlxsw_sp,
 
 	mutex_lock(&bf->lock);
 
-	bf_index = mlxsw_sp2_acl_bf_index_get(bf, aregion, aentry);
+	bf_index = mlxsw_sp->acl_bf_ops->index_get(bf, aregion, aentry);
 	rule_index = mlxsw_sp_acl_bf_rule_count_index_get(bf, erp_bank,
 							  bf_index);
 
@@ -281,3 +281,7 @@ void mlxsw_sp_acl_bf_fini(struct mlxsw_sp_acl_bf *bf)
 	mutex_destroy(&bf->lock);
 	kfree(bf);
 }
+
+const struct mlxsw_sp_acl_bf_ops mlxsw_sp2_acl_bf_ops = {
+	.index_get = mlxsw_sp2_acl_bf_index_get,
+};
