@@ -159,7 +159,7 @@ int mc146818_get_time(struct rtc_time *time)
 #endif
 
 #ifdef CONFIG_ACPI
-	if (p.century > 20)
+	if (p.century > 19)
 		time->tm_year += (p.century - 19) * 100;
 #endif
 
