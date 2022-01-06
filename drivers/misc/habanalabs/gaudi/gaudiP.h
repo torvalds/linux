@@ -312,8 +312,6 @@ struct gaudi_internal_qman_info {
  * struct gaudi_device - ASIC specific manage structure.
  * @cpucp_info_get: get information on device from CPU-CP
  * @hw_queues_lock: protects the H/W queues from concurrent access.
- * @clk_gate_mutex: protects code areas that require clock gating to be disabled
- *                  temporarily
  * @internal_qmans: Internal QMANs information. The array size is larger than
  *                  the actual number of internal queues because they are not in
  *                  consecutive order.
@@ -336,7 +334,6 @@ struct gaudi_device {
 
 	/* TODO: remove hw_queues_lock after moving to scheduler code */
 	spinlock_t			hw_queues_lock;
-	struct mutex			clk_gate_mutex;
 
 	struct gaudi_internal_qman_info	internal_qmans[GAUDI_QUEUE_ID_SIZE];
 

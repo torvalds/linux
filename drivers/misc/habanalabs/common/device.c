@@ -644,9 +644,6 @@ int hl_device_set_debug_mode(struct hl_device *hdev, struct hl_ctx *ctx, bool en
 
 		hdev->in_debug = 0;
 
-		if (!hdev->reset_info.hard_reset_pending)
-			hdev->asic_funcs->set_clock_gating(hdev);
-
 		goto out;
 	}
 
@@ -657,7 +654,6 @@ int hl_device_set_debug_mode(struct hl_device *hdev, struct hl_ctx *ctx, bool en
 		goto out;
 	}
 
-	hdev->asic_funcs->disable_clock_gating(hdev);
 	hdev->in_debug = 1;
 
 out:

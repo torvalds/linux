@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 
 /*
- * Copyright 2016-2021 HabanaLabs, Ltd.
+ * Copyright 2016-2022 HabanaLabs, Ltd.
  * All Rights Reserved.
  */
 
@@ -458,7 +458,6 @@ struct ecc_info_extract_params {
 	u64 block_address;
 	u32 num_memories;
 	bool derr;
-	bool disable_clock_gating;
 };
 
 static int gaudi_mmu_update_asid_hop0_addr(struct hl_device *hdev, u32 asid,
@@ -1896,7 +1895,6 @@ static int gaudi_sw_init(struct hl_device *hdev)
 		goto free_cpu_accessible_dma_pool;
 
 	spin_lock_init(&gaudi->hw_queues_lock);
-	mutex_init(&gaudi->clk_gate_mutex);
 
 	hdev->supports_sync_stream = true;
 	hdev->supports_coresight = true;
@@ -1945,8 +1943,6 @@ static int gaudi_sw_fini(struct hl_device *hdev)
 			hdev->cpu_accessible_dma_address);
 
 	dma_pool_destroy(hdev->dma_pool);
-
-	mutex_destroy(&gaudi->clk_gate_mutex);
 
 	kfree(gaudi);
 
@@ -3738,10 +3734,6 @@ static void gaudi_tpc_stall(struct hl_device *hdev)
 	WREG32(mmTPC7_CFG_TPC_STALL, 1 << TPC0_CFG_TPC_STALL_V_SHIFT);
 }
 
-static void gaudi_set_clock_gating(struct hl_device *hdev)
-{
-}
-
 static void gaudi_disable_clock_gating(struct hl_device *hdev)
 {
 	u32 qman_offset;
@@ -3809,8 +3801,6 @@ static void gaudi_halt_engines(struct hl_device *hdev, bool hard_reset, bool fw_
 	gaudi_stop_tpc_qmans(hdev);
 	gaudi_stop_hbm_dma_qmans(hdev);
 	gaudi_stop_pci_dma_qmans(hdev);
-
-	hdev->asic_funcs->disable_clock_gating(hdev);
 
 	msleep(wait_timeout_ms);
 
@@ -4137,10 +4127,8 @@ static int gaudi_hw_init(struct hl_device *hdev)
 
 	/* In case the clock gating was enabled in preboot we need to disable
 	 * it here before touching the MME/TPC registers.
-	 * There is no need to take clk gating mutex because when this function
-	 * runs, no other relevant code can run
 	 */
-	hdev->asic_funcs->disable_clock_gating(hdev);
+	gaudi_disable_clock_gating(hdev);
 
 	/* SRAM scrambler must be initialized after CPU is running from HBM */
 	gaudi_init_scrambler_sram(hdev);
@@ -4165,8 +4153,6 @@ static int gaudi_hw_init(struct hl_device *hdev)
 	gaudi_init_tpc_qmans(hdev);
 
 	gaudi_init_nic_qmans(hdev);
-
-	hdev->asic_funcs->set_clock_gating(hdev);
 
 	gaudi_enable_timestamp(hdev);
 
@@ -4815,7 +4801,6 @@ static int gaudi_hbm_scrubbing(struct hl_device *hdev)
 static int gaudi_scrub_device_mem(struct hl_device *hdev, u64 addr, u64 size)
 {
 	struct asic_fixed_properties *prop = &hdev->asic_prop;
-	struct gaudi_device *gaudi = hdev->asic_specific;
 	int rc = 0;
 	u64 val = 0;
 
@@ -4850,17 +4835,11 @@ static int gaudi_scrub_device_mem(struct hl_device *hdev, u64 addr, u64 size)
 			return rc;
 		}
 
-		mutex_lock(&gaudi->clk_gate_mutex);
-		hdev->asic_funcs->disable_clock_gating(hdev);
-
 		/* Scrub HBM using all DMA channels in parallel */
 		rc = gaudi_hbm_scrubbing(hdev);
 		if (rc)
 			dev_err(hdev->dev,
 				"Failed to clear HBM in mem scrub all\n");
-
-		hdev->asic_funcs->set_clock_gating(hdev);
-		mutex_unlock(&gaudi->clk_gate_mutex);
 	}
 
 	return rc;
@@ -6344,7 +6323,6 @@ static int gaudi_debugfs_read_dma(struct hl_device *hdev, u64 addr, u32 size,
 				void *blob_addr)
 {
 	u32 dma_core_sts0, err_cause, cfg1, size_left, pos, size_to_dma;
-	struct gaudi_device *gaudi = hdev->asic_specific;
 	u32 qm_glbl_sts0, qm_cgm_sts;
 	u64 dma_offset, qm_offset;
 	dma_addr_t dma_addr;
@@ -6359,10 +6337,6 @@ static int gaudi_debugfs_read_dma(struct hl_device *hdev, u64 addr, u32 size,
 
 	if (!kernel_addr)
 		return -ENOMEM;
-
-	mutex_lock(&gaudi->clk_gate_mutex);
-
-	hdev->asic_funcs->disable_clock_gating(hdev);
 
 	hdev->asic_funcs->hw_queues_lock(hdev);
 
@@ -6448,10 +6422,6 @@ static int gaudi_debugfs_read_dma(struct hl_device *hdev, u64 addr, u32 size,
 out:
 	hdev->asic_funcs->hw_queues_unlock(hdev);
 
-	hdev->asic_funcs->set_clock_gating(hdev);
-
-	mutex_unlock(&gaudi->clk_gate_mutex);
-
 	hdev->asic_funcs->asic_dma_free_coherent(hdev, SZ_2M, kernel_addr,
 						dma_addr);
 
@@ -6498,10 +6468,6 @@ static void gaudi_mmu_prepare(struct hl_device *hdev, u32 asid)
 		dev_crit(hdev->dev, "asid %u is too big\n", asid);
 		return;
 	}
-
-	mutex_lock(&gaudi->clk_gate_mutex);
-
-	hdev->asic_funcs->disable_clock_gating(hdev);
 
 	gaudi_mmu_prepare_reg(hdev, mmDMA0_QM_GLBL_NON_SECURE_PROPS_0, asid);
 	gaudi_mmu_prepare_reg(hdev, mmDMA0_QM_GLBL_NON_SECURE_PROPS_1, asid);
@@ -6780,10 +6746,6 @@ static void gaudi_mmu_prepare(struct hl_device *hdev, u32 asid)
 
 	gaudi_mmu_prepare_reg(hdev, mmPSOC_GLOBAL_CONF_TRACE_ARUSER, asid);
 	gaudi_mmu_prepare_reg(hdev, mmPSOC_GLOBAL_CONF_TRACE_AWUSER, asid);
-
-	hdev->asic_funcs->set_clock_gating(hdev);
-
-	mutex_unlock(&gaudi->clk_gate_mutex);
 }
 
 static int gaudi_send_job_on_qman0(struct hl_device *hdev,
@@ -7164,10 +7126,8 @@ static int gaudi_extract_ecc_info(struct hl_device *hdev,
 		struct ecc_info_extract_params *params, u64 *ecc_address,
 		u64 *ecc_syndrom, u8 *memory_wrapper_idx)
 {
-	struct gaudi_device *gaudi = hdev->asic_specific;
 	u32 i, num_mem_regs, reg, err_bit;
 	u64 err_addr, err_word = 0;
-	int rc = 0;
 
 	num_mem_regs = params->num_memories / 32 +
 			((params->num_memories % 32) ? 1 : 0);
@@ -7179,11 +7139,6 @@ static int gaudi_extract_ecc_info(struct hl_device *hdev,
 		err_addr = params->block_address + GAUDI_ECC_DERR0_OFFSET;
 	else
 		err_addr = params->block_address + GAUDI_ECC_SERR0_OFFSET;
-
-	if (params->disable_clock_gating) {
-		mutex_lock(&gaudi->clk_gate_mutex);
-		hdev->asic_funcs->disable_clock_gating(hdev);
-	}
 
 	/* Set invalid wrapper index */
 	*memory_wrapper_idx = 0xFF;
@@ -7201,8 +7156,7 @@ static int gaudi_extract_ecc_info(struct hl_device *hdev,
 
 	if (*memory_wrapper_idx == 0xFF) {
 		dev_err(hdev->dev, "ECC error information cannot be found\n");
-		rc = -EINVAL;
-		goto enable_clk_gate;
+		return -EINVAL;
 	}
 
 	WREG32(params->block_address + GAUDI_ECC_MEM_SEL_OFFSET,
@@ -7222,14 +7176,7 @@ static int gaudi_extract_ecc_info(struct hl_device *hdev,
 
 	WREG32(params->block_address + GAUDI_ECC_MEM_INFO_CLR_OFFSET, reg);
 
-enable_clk_gate:
-	if (params->disable_clock_gating) {
-		hdev->asic_funcs->set_clock_gating(hdev);
-
-		mutex_unlock(&gaudi->clk_gate_mutex);
-	}
-
-	return rc;
+	return 0;
 }
 
 /*
@@ -7487,7 +7434,6 @@ static void gaudi_handle_ecc_event(struct hl_device *hdev, u16 event_type,
 		params.block_address = mmTPC0_CFG_BASE + index * TPC_CFG_OFFSET;
 		params.num_memories = 90;
 		params.derr = false;
-		params.disable_clock_gating = true;
 		extract_info_from_fw = false;
 		break;
 	case GAUDI_EVENT_TPC0_DERR ... GAUDI_EVENT_TPC7_DERR:
@@ -7496,7 +7442,6 @@ static void gaudi_handle_ecc_event(struct hl_device *hdev, u16 event_type,
 			mmTPC0_CFG_BASE + index * TPC_CFG_OFFSET;
 		params.num_memories = 90;
 		params.derr = true;
-		params.disable_clock_gating = true;
 		extract_info_from_fw = false;
 		break;
 	case GAUDI_EVENT_MME0_ACC_SERR:
@@ -7507,7 +7452,6 @@ static void gaudi_handle_ecc_event(struct hl_device *hdev, u16 event_type,
 		params.block_address = mmMME0_ACC_BASE + index * MME_ACC_OFFSET;
 		params.num_memories = 128;
 		params.derr = false;
-		params.disable_clock_gating = true;
 		extract_info_from_fw = false;
 		break;
 	case GAUDI_EVENT_MME0_ACC_DERR:
@@ -7518,7 +7462,6 @@ static void gaudi_handle_ecc_event(struct hl_device *hdev, u16 event_type,
 		params.block_address = mmMME0_ACC_BASE + index * MME_ACC_OFFSET;
 		params.num_memories = 128;
 		params.derr = true;
-		params.disable_clock_gating = true;
 		extract_info_from_fw = false;
 		break;
 	case GAUDI_EVENT_MME0_SBAB_SERR:
@@ -7530,7 +7473,6 @@ static void gaudi_handle_ecc_event(struct hl_device *hdev, u16 event_type,
 			mmMME0_SBAB_BASE + index * MME_ACC_OFFSET;
 		params.num_memories = 33;
 		params.derr = false;
-		params.disable_clock_gating = true;
 		extract_info_from_fw = false;
 		break;
 	case GAUDI_EVENT_MME0_SBAB_DERR:
@@ -7542,7 +7484,6 @@ static void gaudi_handle_ecc_event(struct hl_device *hdev, u16 event_type,
 			mmMME0_SBAB_BASE + index * MME_ACC_OFFSET;
 		params.num_memories = 33;
 		params.derr = true;
-		params.disable_clock_gating = true;
 		extract_info_from_fw = false;
 		break;
 	default:
@@ -7864,18 +7805,8 @@ static int gaudi_hbm_event_to_dev(u16 hbm_event_type)
 static bool gaudi_tpc_read_interrupts(struct hl_device *hdev, u8 tpc_id,
 					char *interrupt_name)
 {
-	struct gaudi_device *gaudi = hdev->asic_specific;
 	u32 tpc_offset = tpc_id * TPC_CFG_OFFSET, tpc_interrupts_cause, i;
 	bool soft_reset_required = false;
-
-	/* Accessing the TPC_INTR_CAUSE registers requires disabling the clock
-	 * gating, and thus cannot be done in CPU-CP and should be done instead
-	 * by the driver.
-	 */
-
-	mutex_lock(&gaudi->clk_gate_mutex);
-
-	hdev->asic_funcs->disable_clock_gating(hdev);
 
 	tpc_interrupts_cause = RREG32(mmTPC0_CFG_TPC_INTR_CAUSE + tpc_offset) &
 				TPC0_CFG_TPC_INTR_CAUSE_CAUSE_MASK;
@@ -7893,10 +7824,6 @@ static bool gaudi_tpc_read_interrupts(struct hl_device *hdev, u8 tpc_id,
 
 	/* Clear interrupts */
 	WREG32(mmTPC0_CFG_TPC_INTR_CAUSE + tpc_offset, 0);
-
-	hdev->asic_funcs->set_clock_gating(hdev);
-
-	mutex_unlock(&gaudi->clk_gate_mutex);
 
 	return soft_reset_required;
 }
@@ -8359,10 +8286,6 @@ static bool gaudi_is_device_idle(struct hl_device *hdev, u64 *mask_arr,
 	u64 offset;
 	int i, dma_id, port;
 
-	mutex_lock(&gaudi->clk_gate_mutex);
-
-	hdev->asic_funcs->disable_clock_gating(hdev);
-
 	if (s)
 		seq_puts(s,
 			"\nDMA  is_idle  QM_GLBL_STS0  QM_CGM_STS  DMA_CORE_STS0\n"
@@ -8483,10 +8406,6 @@ static bool gaudi_is_device_idle(struct hl_device *hdev, u64 *mask_arr,
 	if (s)
 		seq_puts(s, "\n");
 
-	hdev->asic_funcs->set_clock_gating(hdev);
-
-	mutex_unlock(&gaudi->clk_gate_mutex);
-
 	return is_idle;
 }
 
@@ -8526,10 +8445,8 @@ static int gaudi_get_eeprom_data(struct hl_device *hdev, void *data,
  * this function should be used only during initialization and/or after reset,
  * when there are no active users.
  */
-static int gaudi_run_tpc_kernel(struct hl_device *hdev, u64 tpc_kernel,
-				u32 tpc_id)
+static int gaudi_run_tpc_kernel(struct hl_device *hdev, u64 tpc_kernel,	u32 tpc_id)
 {
-	struct gaudi_device *gaudi = hdev->asic_specific;
 	u64 kernel_timeout;
 	u32 status, offset;
 	int rc;
@@ -8540,10 +8457,6 @@ static int gaudi_run_tpc_kernel(struct hl_device *hdev, u64 tpc_kernel,
 		kernel_timeout = GAUDI_PLDM_TPC_KERNEL_WAIT_USEC;
 	else
 		kernel_timeout = HL_DEVICE_TIMEOUT_USEC;
-
-	mutex_lock(&gaudi->clk_gate_mutex);
-
-	hdev->asic_funcs->disable_clock_gating(hdev);
 
 	WREG32(mmTPC0_CFG_QM_KERNEL_BASE_ADDRESS_LOW + offset,
 			lower_32_bits(tpc_kernel));
@@ -8584,8 +8497,6 @@ static int gaudi_run_tpc_kernel(struct hl_device *hdev, u64 tpc_kernel,
 		dev_err(hdev->dev,
 			"Timeout while waiting for TPC%d icache prefetch\n",
 			tpc_id);
-		hdev->asic_funcs->set_clock_gating(hdev);
-		mutex_unlock(&gaudi->clk_gate_mutex);
 		return -EIO;
 	}
 
@@ -8609,8 +8520,6 @@ static int gaudi_run_tpc_kernel(struct hl_device *hdev, u64 tpc_kernel,
 		dev_err(hdev->dev,
 			"Timeout while waiting for TPC%d vector pipe\n",
 			tpc_id);
-		hdev->asic_funcs->set_clock_gating(hdev);
-		mutex_unlock(&gaudi->clk_gate_mutex);
 		return -EIO;
 	}
 
@@ -8621,9 +8530,6 @@ static int gaudi_run_tpc_kernel(struct hl_device *hdev, u64 tpc_kernel,
 		(status == 0),
 		1000,
 		kernel_timeout);
-
-	hdev->asic_funcs->set_clock_gating(hdev);
-	mutex_unlock(&gaudi->clk_gate_mutex);
 
 	if (rc) {
 		dev_err(hdev->dev,
@@ -9191,22 +9097,14 @@ static int gaudi_gen_sync_to_engine_map(struct hl_device *hdev,
 				struct hl_sync_to_engine_map *map)
 {
 	struct hl_state_dump_specs *sds = &hdev->state_dump_specs;
-	struct gaudi_device *gaudi = hdev->asic_specific;
 	int i, j, rc;
 	u32 reg_value;
 
 	/* Iterate over TPC engines */
 	for (i = 0; i < sds->props[SP_NUM_OF_TPC_ENGINES]; ++i) {
-		/* TPC registered must be accessed with clock gating disabled */
-		mutex_lock(&gaudi->clk_gate_mutex);
-		hdev->asic_funcs->disable_clock_gating(hdev);
 
 		reg_value = RREG32(sds->props[SP_TPC0_CFG_SO] +
 					sds->props[SP_NEXT_TPC] * i);
-
-		/* We can reenable clock_gating */
-		hdev->asic_funcs->set_clock_gating(hdev);
-		mutex_unlock(&gaudi->clk_gate_mutex);
 
 		rc = gaudi_add_sync_to_engine_map_entry(map, reg_value,
 							ENGINE_TPC, i);
@@ -9217,19 +9115,10 @@ static int gaudi_gen_sync_to_engine_map(struct hl_device *hdev,
 	/* Iterate over MME engines */
 	for (i = 0; i < sds->props[SP_NUM_OF_MME_ENGINES]; ++i) {
 		for (j = 0; j < sds->props[SP_SUB_MME_ENG_NUM]; ++j) {
-			/* MME registered must be accessed with clock gating
-			 * disabled
-			 */
-			mutex_lock(&gaudi->clk_gate_mutex);
-			hdev->asic_funcs->disable_clock_gating(hdev);
 
 			reg_value = RREG32(sds->props[SP_MME_CFG_SO] +
 						sds->props[SP_NEXT_MME] * i +
 						j * sizeof(u32));
-
-			/* We can reenable clock_gating */
-			hdev->asic_funcs->set_clock_gating(hdev);
-			mutex_unlock(&gaudi->clk_gate_mutex);
 
 			rc = gaudi_add_sync_to_engine_map_entry(
 				map, reg_value, ENGINE_MME,
@@ -9481,8 +9370,6 @@ static const struct hl_asic_funcs gaudi_funcs = {
 	.mmu_invalidate_cache = gaudi_mmu_invalidate_cache,
 	.mmu_invalidate_cache_range = gaudi_mmu_invalidate_cache_range,
 	.send_heartbeat = gaudi_send_heartbeat,
-	.set_clock_gating = gaudi_set_clock_gating,
-	.disable_clock_gating = gaudi_disable_clock_gating,
 	.debug_coresight = gaudi_debug_coresight,
 	.is_device_idle = gaudi_is_device_idle,
 	.non_hard_reset_late_init = gaudi_non_hard_reset_late_init,

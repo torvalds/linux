@@ -1164,9 +1164,6 @@ struct fw_load_mgr {
  * @mmu_invalidate_cache_range: flush specific MMU STLB cache lines with
  *                              ASID-VA-size mask.
  * @send_heartbeat: send is-alive packet to CPU-CP and verify response.
- * @set_clock_gating: enable/disable clock gating per engine according to
- *                    clock gating mask in hdev
- * @disable_clock_gating: disable clock gating completely
  * @debug_coresight: perform certain actions on Coresight for debugging.
  * @is_device_idle: return true if device is idle, false otherwise.
  * @non_hard_reset_late_init: perform certain actions needed after a reset which is not hard-reset
@@ -1300,8 +1297,6 @@ struct hl_asic_funcs {
 	int (*mmu_invalidate_cache_range)(struct hl_device *hdev, bool is_hard,
 				u32 flags, u32 asid, u64 va, u64 size);
 	int (*send_heartbeat)(struct hl_device *hdev);
-	void (*set_clock_gating)(struct hl_device *hdev);
-	void (*disable_clock_gating)(struct hl_device *hdev);
 	int (*debug_coresight)(struct hl_device *hdev, struct hl_ctx *ctx, void *data);
 	bool (*is_device_idle)(struct hl_device *hdev, u64 *mask_arr,
 					u8 mask_len, struct seq_file *s);
