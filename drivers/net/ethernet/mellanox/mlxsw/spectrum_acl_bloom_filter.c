@@ -143,14 +143,6 @@ mlxsw_sp_acl_bf_key_encode(struct mlxsw_sp_acl_atcam_region *aregion,
 }
 
 static unsigned int
-mlxsw_sp_acl_bf_rule_count_index_get(struct mlxsw_sp_acl_bf *bf,
-				     unsigned int erp_bank,
-				     unsigned int bf_index)
-{
-	return erp_bank * bf->bank_size + bf_index;
-}
-
-static unsigned int
 mlxsw_sp_acl_bf_index_get(struct mlxsw_sp_acl_bf *bf,
 			  struct mlxsw_sp_acl_atcam_region *aregion,
 			  struct mlxsw_sp_acl_atcam_entry *aentry)
@@ -160,6 +152,14 @@ mlxsw_sp_acl_bf_index_get(struct mlxsw_sp_acl_bf *bf,
 
 	mlxsw_sp_acl_bf_key_encode(aregion, aentry, bf_key, &bf_size);
 	return mlxsw_sp_acl_bf_crc(bf_key, bf_size);
+}
+
+static unsigned int
+mlxsw_sp_acl_bf_rule_count_index_get(struct mlxsw_sp_acl_bf *bf,
+				     unsigned int erp_bank,
+				     unsigned int bf_index)
+{
+	return erp_bank * bf->bank_size + bf_index;
 }
 
 int
