@@ -783,6 +783,13 @@
 				ranges = <0 0x1e7a0000 0x8000>;
 			};
 
+			i2csec: bus@1e7a8000 {
+				compatible = "simple-bus";
+				#address-cells = <1>;
+				#size-cells = <1>;
+				ranges = <0 0x1e7a8000 0x1000>;
+			};
+
 			peci: bus@1e78b000 {
 				compatible = "simple-bus";
 				#address-cells = <1>;
@@ -1467,6 +1474,77 @@
 		pinctrl-0 = <&pinctrl_i2c16_default>;
 		status = "disabled";
 	};
+};
+
+&i2csec {
+
+	i2c_gr0: i2c-global-regs@0 {
+		compatible = "aspeed,ast2600-i2c-global", "syscon";
+		reg = <0x0 0x20>;
+		clocks = <&syscon ASPEED_CLK_APB2>;
+		status = "disabled";
+	};
+
+	i2c16: i2c-bus@80 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		#interrupt-cells = <1>;
+		reg = <0x80 0x80>, <0xC00 0x20>;
+		compatible = "aspeed,ast2600-i2c-bus";
+		clocks = <&syscon ASPEED_CLK_APB2>;
+		interrupts = <GIC_SPI 75 IRQ_TYPE_LEVEL_HIGH>;
+		bus-frequency = <100000>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_si2c1_default>;
+		buff-mode;
+		status = "disabled";
+	};
+
+	i2c17: i2c-bus@100 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		#interrupt-cells = <1>;
+		reg = <0x100 0x80>, <0xC20 0x20>;
+		compatible = "aspeed,ast2600-i2c-bus";
+		clocks = <&syscon ASPEED_CLK_APB2>;
+		interrupts = <GIC_SPI 76 IRQ_TYPE_LEVEL_HIGH>;
+		bus-frequency = <100000>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_si2c2_default>;
+		buff-mode;
+		status = "disabled";
+	};
+
+	i2c18: i2c-bus@180 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		#interrupt-cells = <1>;
+		reg = <0x180 0x80>, <0xC40 0x20>;
+		compatible = "aspeed,ast2600-i2c-bus";
+		clocks = <&syscon ASPEED_CLK_APB2>;
+		interrupts = <GIC_SPI 77 IRQ_TYPE_LEVEL_HIGH>;
+		bus-frequency = <100000>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_si2c3_default>;
+		buff-mode;
+		status = "disabled";
+	};
+
+	i2c19: i2c-bus@200 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		#interrupt-cells = <1>;
+		reg = <0x200 0x80>, <0xC60 0x20>;
+		compatible = "aspeed,ast2600-i2c-bus";
+		clocks = <&syscon ASPEED_CLK_APB2>;
+		interrupts = <GIC_SPI 78 IRQ_TYPE_LEVEL_HIGH>;
+		bus-frequency = <100000>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_si2c4_default>;
+		buff-mode;
+		status = "disabled";
+	};
+
 };
 
 &i3c{
