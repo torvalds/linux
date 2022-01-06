@@ -228,6 +228,7 @@ enum chips { adm1023, adm1032, adt7461, adt7461a, adt7481,
  */
 
 static const struct i2c_device_id lm90_id[] = {
+	{ "adm1020", max1617 },
 	{ "adm1021", max1617 },
 	{ "adm1023", adm1023 },
 	{ "adm1032", adm1032 },
@@ -1831,7 +1832,8 @@ static const char *lm90_detect_analog(struct i2c_client *client, bool common_add
 		    (config1 & 0x0b) == 0x08 && convrate <= 0x0a)
 			name = "adt7421";
 		break;
-	case 0x30 ... 0x3e:	/* ADM1021A, ADM1023 */
+	case 0x30 ... 0x38:	/* ADM1021A, ADM1023 */
+	case 0x3a ... 0x3e:
 		/*
 		 * ADM1021A and compatible chips will be mis-detected as
 		 * ADM1023. Chips labeled 'ADM1021A' and 'ADM1023' were both
@@ -1848,6 +1850,12 @@ static const char *lm90_detect_analog(struct i2c_client *client, bool common_add
 		if (man_id2 == 0x00 && chip_id2 == 0x00 && common_address &&
 		    !(status & 0x03) && !(config1 & 0x3f) && !(convrate & 0xf8))
 			name = "adm1023";
+		break;
+	case 0x39:		/* ADM1020 (undocumented) */
+		if (man_id2 == 0x00 && chip_id2 == 0x00 &&
+		    (address == 0x4c || address == 0x4d || address == 0x4e) &&
+		    !(status & 0x03) && !(config1 & 0x3f) && !(convrate & 0xf8))
+			name = "adm1020";
 		break;
 	case 0x3f:		/* NCT210 */
 		if (man_id2 == 0x00 && chip_id2 == 0x00 && common_address &&

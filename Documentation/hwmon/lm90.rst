@@ -51,6 +51,14 @@ Supported chips:
 
 	       http://www.national.com/mpf/LM/LM86.html
 
+  * Analog Devices ADM1020
+
+    Prefix: 'adm1020'
+
+    Addresses scanned: I2C 0x4c - 0x4e
+
+    Datasheet: Publicly available at the Analog Devices website
+
   * Analog Devices ADM1021
 
     Prefix: 'adm1021'
@@ -457,7 +465,7 @@ features:
 LM84:
   * 8 bit sensor resolution
 
-ADM1021, GL523SM, MAX1617, NE1617, NE1617A, THMC10:
+ADM1020, ADM1021, GL523SM, MAX1617, NE1617, NE1617A, THMC10:
   * 8 bit sensor resolution
   * Low temperature limits
 
