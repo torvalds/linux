@@ -34,17 +34,6 @@
 #define DRVINFO_SZ	4 /*  unit is 8bytes */
 #define PageNum_128(_Len)	(u32)(((_Len)>>7) + ((_Len) & 0x7F ? 1 : 0))
 
-/*  download firmware related data structure */
-#define FW_8188E_START_ADDRESS		0x1000
-
-#define MAX_PAGE_SIZE			4096	/*  @ page : 4k bytes */
-
-#define IS_FW_HEADER_EXIST(_fwhdr)				\
-	((le16_to_cpu(_fwhdr->Signature) & 0xFFF0) == 0x92C0 ||	\
-	(le16_to_cpu(_fwhdr->Signature) & 0xFFF0) == 0x88C0 ||	\
-	(le16_to_cpu(_fwhdr->Signature) & 0xFFF0) == 0x2300 ||	\
-	(le16_to_cpu(_fwhdr->Signature) & 0xFFF0) == 0x88E0)
-
 /*  This structure must be careful with byte-ordering */
 
 struct rt_firmware_hdr {
