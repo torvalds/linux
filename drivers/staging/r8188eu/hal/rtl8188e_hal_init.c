@@ -498,9 +498,6 @@ static void Hal_EfuseReadEFuse88E(struct adapter *Adapter,
 	for (i = 0; i < _size_byte; i++)
 		pbuf[i] = efuseTbl[_offset + i];
 
-	/*  5. Calculate Efuse utilization. */
-	SetHwReg8188EU(Adapter, HW_VAR_EFUSE_BYTES, (u8 *)&eFuse_Addr);
-
 exit:
 	kfree(efuseTbl);
 	kfree(eFuseWord);

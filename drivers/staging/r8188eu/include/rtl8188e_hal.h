@@ -216,8 +216,6 @@ struct hal_data_8188e {
 	u8	OutEpQueueSel;
 	u8	OutEpNumber;
 
-	u16	EfuseUsedBytes;
-
 	struct P2P_PS_Offload_t	p2p_ps_offload;
 
 	/*  Auto FSM to Turn On, include clock, isolation, power control
