@@ -163,7 +163,7 @@ cifs_get_next_mid(struct TCP_Server_Info *server)
 {
 	__u64 mid = 0;
 	__u16 last_mid, cur_mid;
-	bool collision, reconnect;
+	bool collision, reconnect = false;
 
 	spin_lock(&GlobalMid_Lock);
 
