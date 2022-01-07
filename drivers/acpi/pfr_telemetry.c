@@ -83,6 +83,7 @@ static int get_pfrt_log_data_info(struct pfrt_log_data_info *data_info,
 	union acpi_object *out_obj, in_obj, in_buf;
 	int ret = -EBUSY;
 
+	memset(data_info, 0, sizeof(*data_info));
 	memset(&in_obj, 0, sizeof(in_obj));
 	memset(&in_buf, 0, sizeof(in_buf));
 	in_obj.type = ACPI_TYPE_PACKAGE;
