@@ -928,6 +928,59 @@ fail:
 	return -EBUSY;
 }
 
+#define H2C_BCN_BASE_LEN 12
+int rtw89_fw_h2c_update_beacon(struct rtw89_dev *rtwdev,
+			       struct rtw89_vif *rtwvif)
+{
+	struct rtw89_hal *hal = &rtwdev->hal;
+	struct ieee80211_vif *vif = rtwvif_to_vif(rtwvif);
+	struct sk_buff *skb;
+	struct sk_buff *skb_beacon;
+	u16 tim_offset;
+	int bcn_total_len;
+
+	skb_beacon = ieee80211_beacon_get_tim(rtwdev->hw, vif, &tim_offset, NULL);
+	if (!skb_beacon) {
+		rtw89_err(rtwdev, "failed to get beacon skb\n");
+		return -ENOMEM;
+	}
+
+	bcn_total_len = H2C_BCN_BASE_LEN + skb_beacon->len;
+	skb = rtw89_fw_h2c_alloc_skb_with_hdr(bcn_total_len);
+	if (!skb) {
+		rtw89_err(rtwdev, "failed to alloc skb for fw dl\n");
+		dev_kfree_skb_any(skb_beacon);
+		return -ENOMEM;
+	}
+	skb_put(skb, H2C_BCN_BASE_LEN);
+
+	SET_BCN_UPD_PORT(skb->data, rtwvif->port);
+	SET_BCN_UPD_MBSSID(skb->data, 0);
+	SET_BCN_UPD_BAND(skb->data, rtwvif->mac_idx);
+	SET_BCN_UPD_GRP_IE_OFST(skb->data, tim_offset);
+	SET_BCN_UPD_MACID(skb->data, rtwvif->mac_id);
+	SET_BCN_UPD_SSN_SEL(skb->data, RTW89_MGMT_HW_SSN_SEL);
+	SET_BCN_UPD_SSN_MODE(skb->data, RTW89_MGMT_HW_SEQ_MODE);
+	SET_BCN_UPD_RATE(skb->data, hal->current_band_type == RTW89_BAND_2G ?
+				    RTW89_HW_RATE_CCK1 : RTW89_HW_RATE_OFDM6);
+
+	skb_put_data(skb, skb_beacon->data, skb_beacon->len);
+	dev_kfree_skb_any(skb_beacon);
+
+	rtw89_h2c_pkt_set_hdr(rtwdev, skb, FWCMD_TYPE_H2C,
+			      H2C_CAT_MAC, H2C_CL_MAC_FR_EXCHG,
+			      H2C_FUNC_MAC_BCN_UPD, 0, 1,
+			      bcn_total_len);
+
+	if (rtw89_h2c_tx(rtwdev, skb, false)) {
+		rtw89_err(rtwdev, "failed to send h2c\n");
+		dev_kfree_skb_any(skb);
+		return -EBUSY;
+	}
+
+	return 0;
+}
+
 #define H2C_VIF_MAINTAIN_LEN 4
 int rtw89_fw_h2c_vif_maintain(struct rtw89_dev *rtwdev,
 			      struct rtw89_vif *rtwvif,

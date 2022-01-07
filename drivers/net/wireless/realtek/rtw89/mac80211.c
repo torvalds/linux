@@ -349,6 +349,9 @@ static void rtw89_ops_bss_info_changed(struct ieee80211_hw *hw,
 		rtw89_fw_h2c_cam(rtwdev, rtwvif, NULL, NULL);
 	}
 
+	if (changed & BSS_CHANGED_BEACON)
+		rtw89_fw_h2c_update_beacon(rtwdev, rtwvif);
+
 	if (changed & BSS_CHANGED_ERP_SLOT)
 		rtw89_conf_tx(rtwdev, rtwvif);
 
