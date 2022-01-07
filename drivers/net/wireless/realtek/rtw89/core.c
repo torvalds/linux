@@ -1889,6 +1889,9 @@ int rtw89_core_sta_add(struct rtw89_dev *rtwdev,
 		rtw89_btc_ntfy_role_info(rtwdev, rtwvif, rtwsta,
 					 BTC_ROLE_MSTS_STA_CONN_START);
 		rtw89_chip_rfk_channel(rtwdev);
+	} else if (vif->type == NL80211_IFTYPE_AP) {
+		rtwsta->mac_id = rtw89_core_acquire_bit_map(rtwdev->mac_id_map,
+							    RTW89_MAX_MAC_ID_NUM);
 	}
 
 	return 0;
@@ -2001,6 +2004,8 @@ int rtw89_core_sta_remove(struct rtw89_dev *rtwdev,
 	if (vif->type == NL80211_IFTYPE_STATION)
 		rtw89_btc_ntfy_role_info(rtwdev, rtwvif, rtwsta,
 					 BTC_ROLE_MSTS_STA_DIS_CONN);
+	else if (vif->type == NL80211_IFTYPE_AP)
+		rtw89_core_release_bit_map(rtwdev->mac_id_map, rtwsta->mac_id);
 
 	return 0;
 }
