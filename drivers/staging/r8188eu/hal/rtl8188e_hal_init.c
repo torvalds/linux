@@ -508,7 +508,7 @@ static s32 _FWFreeToGo(struct adapter *padapter)
 	return _FAIL;
 }
 
-static int load_firmware(struct rt_firmware *pFirmware, struct device *device)
+static int load_firmware(struct rt_firmware *rtfw, struct device *device)
 {
 	int ret = _SUCCESS;
 	const struct firmware *fw;
@@ -530,15 +530,15 @@ static int load_firmware(struct rt_firmware *pFirmware, struct device *device)
 		goto exit;
 	}
 
-	pFirmware->szFwBuffer = kzalloc(FW_8188E_SIZE, GFP_KERNEL);
-	if (!pFirmware->szFwBuffer) {
-		pr_err("Failed to allocate pFirmware->szFwBuffer\n");
+	rtfw->szFwBuffer = kzalloc(FW_8188E_SIZE, GFP_KERNEL);
+	if (!rtfw->szFwBuffer) {
+		pr_err("Failed to allocate rtfw->szFwBuffer\n");
 		ret = _FAIL;
 		goto exit;
 	}
-	memcpy(pFirmware->szFwBuffer, fw->data, fw->size);
-	pFirmware->ulFwLength = fw->size;
-	dev_dbg(device, "!bUsedWoWLANFw, FmrmwareLen:%d+\n", pFirmware->ulFwLength);
+	memcpy(rtfw->szFwBuffer, fw->data, fw->size);
+	rtfw->ulFwLength = fw->size;
+	dev_dbg(device, "!bUsedWoWLANFw, FmrmwareLen:%d+\n", rtfw->ulFwLength);
 
 exit:
 	release_firmware(fw);
