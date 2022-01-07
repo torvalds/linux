@@ -1655,7 +1655,7 @@ static int load_with_options(int argc, char **argv, bool first_prog_only)
 	j = 0;
 	idx = 0;
 	bpf_object__for_each_map(map, obj) {
-		if (!bpf_map__is_offload_neutral(map))
+		if (bpf_map__type(map) != BPF_MAP_TYPE_PERF_EVENT_ARRAY)
 			bpf_map__set_ifindex(map, ifindex);
 
 		if (j < old_map_fds && idx == map_replace[j].idx) {

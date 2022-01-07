@@ -19,23 +19,37 @@ The eBPF calling convention is defined as:
 R0 - R5 are scratch registers and eBPF programs needs to spill/fill them if
 necessary across calls.
 
+Instruction encoding
+====================
+
+eBPF uses 64-bit instructions with the following encoding:
+
+ =============  =======  ===============  ====================  ============
+ 32 bits (MSB)  16 bits  4 bits           4 bits                8 bits (LSB)
+ =============  =======  ===============  ====================  ============
+ immediate      offset   source register  destination register  opcode
+ =============  =======  ===============  ====================  ============
+
+Note that most instructions do not use all of the fields.
+Unused fields shall be cleared to zero.
+
 Instruction classes
-===================
+-------------------
 
 The three LSB bits of the 'opcode' field store the instruction class:
 
-  ========= =====
-  class     value
-  ========= =====
-  BPF_LD    0x00
-  BPF_LDX   0x01
-  BPF_ST    0x02
-  BPF_STX   0x03
-  BPF_ALU   0x04
-  BPF_JMP   0x05
-  BPF_JMP32 0x06
-  BPF_ALU64 0x07
-  ========= =====
+  =========  =====  ===============================
+  class      value  description
+  =========  =====  ===============================
+  BPF_LD     0x00   non-standard load operations
+  BPF_LDX    0x01   load into register operations
+  BPF_ST     0x02   store from immediate operations
+  BPF_STX    0x03   store from register operations
+  BPF_ALU    0x04   32-bit arithmetic operations
+  BPF_JMP    0x05   64-bit jump operations
+  BPF_JMP32  0x06   32-bit jump operations
+  BPF_ALU64  0x07   64-bit arithmetic operations
+  =========  =====  ===============================
 
 Arithmetic and jump instructions
 ================================
@@ -60,66 +74,78 @@ The 4th bit encodes the source operand:
 
 The four MSB bits store the operation code.
 
-For class BPF_ALU or BPF_ALU64:
 
-  ========  =====  =========================
+Arithmetic instructions
+-----------------------
+
+BPF_ALU uses 32-bit wide operands while BPF_ALU64 uses 64-bit wide operands for
+otherwise identical operations.
+The code field encodes the operation as below:
+
+  ========  =====  ==========================
   code      value  description
-  ========  =====  =========================
-  BPF_ADD   0x00
-  BPF_SUB   0x10
-  BPF_MUL   0x20
-  BPF_DIV   0x30
-  BPF_OR    0x40
-  BPF_AND   0x50
-  BPF_LSH   0x60
-  BPF_RSH   0x70
-  BPF_NEG   0x80
-  BPF_MOD   0x90
-  BPF_XOR   0xa0
-  BPF_MOV   0xb0   mov reg to reg
+  ========  =====  ==========================
+  BPF_ADD   0x00   dst += src
+  BPF_SUB   0x10   dst -= src
+  BPF_MUL   0x20   dst \*= src
+  BPF_DIV   0x30   dst /= src
+  BPF_OR    0x40   dst \|= src
+  BPF_AND   0x50   dst &= src
+  BPF_LSH   0x60   dst <<= src
+  BPF_RSH   0x70   dst >>= src
+  BPF_NEG   0x80   dst = ~src
+  BPF_MOD   0x90   dst %= src
+  BPF_XOR   0xa0   dst ^= src
+  BPF_MOV   0xb0   dst = src
   BPF_ARSH  0xc0   sign extending shift right
   BPF_END   0xd0   endianness conversion
-  ========  =====  =========================
+  ========  =====  ==========================
 
-For class BPF_JMP or BPF_JMP32:
-
-  ========  =====  =========================
-  code      value  description
-  ========  =====  =========================
-  BPF_JA    0x00   BPF_JMP only
-  BPF_JEQ   0x10
-  BPF_JGT   0x20
-  BPF_JGE   0x30
-  BPF_JSET  0x40
-  BPF_JNE   0x50   jump '!='
-  BPF_JSGT  0x60   signed '>'
-  BPF_JSGE  0x70   signed '>='
-  BPF_CALL  0x80   function call
-  BPF_EXIT  0x90   function return
-  BPF_JLT   0xa0   unsigned '<'
-  BPF_JLE   0xb0   unsigned '<='
-  BPF_JSLT  0xc0   signed '<'
-  BPF_JSLE  0xd0   signed '<='
-  ========  =====  =========================
-
-So BPF_ADD | BPF_X | BPF_ALU means::
+BPF_ADD | BPF_X | BPF_ALU means::
 
   dst_reg = (u32) dst_reg + (u32) src_reg;
 
-Similarly, BPF_XOR | BPF_K | BPF_ALU means::
-
-  src_reg = (u32) src_reg ^ (u32) imm32
-
-eBPF is using BPF_MOV | BPF_X | BPF_ALU to represent A = B moves.  BPF_ALU64
-is used to mean exactly the same operations as BPF_ALU, but with 64-bit wide
-operands instead. So BPF_ADD | BPF_X | BPF_ALU64 means 64-bit addition, i.e.::
+BPF_ADD | BPF_X | BPF_ALU64 means::
 
   dst_reg = dst_reg + src_reg
 
-BPF_JMP | BPF_EXIT means function exit only. The eBPF program needs to store
-the return value into register R0 before doing a BPF_EXIT. Class 6 is used as
-BPF_JMP32 to mean exactly the same operations as BPF_JMP, but with 32-bit wide
-operands for the comparisons instead.
+BPF_XOR | BPF_K | BPF_ALU means::
+
+  src_reg = (u32) src_reg ^ (u32) imm32
+
+BPF_XOR | BPF_K | BPF_ALU64 means::
+
+  src_reg = src_reg ^ imm32
+
+
+Jump instructions
+-----------------
+
+BPF_JMP32 uses 32-bit wide operands while BPF_JMP uses 64-bit wide operands for
+otherwise identical operations.
+The code field encodes the operation as below:
+
+  ========  =====  =========================  ============
+  code      value  description                notes
+  ========  =====  =========================  ============
+  BPF_JA    0x00   PC += off                  BPF_JMP only
+  BPF_JEQ   0x10   PC += off if dst == src
+  BPF_JGT   0x20   PC += off if dst > src     unsigned
+  BPF_JGE   0x30   PC += off if dst >= src    unsigned
+  BPF_JSET  0x40   PC += off if dst & src
+  BPF_JNE   0x50   PC += off if dst != src
+  BPF_JSGT  0x60   PC += off if dst > src     signed
+  BPF_JSGE  0x70   PC += off if dst >= src    signed
+  BPF_CALL  0x80   function call
+  BPF_EXIT  0x90   function / program return  BPF_JMP only
+  BPF_JLT   0xa0   PC += off if dst < src     unsigned
+  BPF_JLE   0xb0   PC += off if dst <= src    unsigned
+  BPF_JSLT  0xc0   PC += off if dst < src     signed
+  BPF_JSLE  0xd0   PC += off if dst <= src    signed
+  ========  =====  =========================  ============
+
+The eBPF program needs to store the return value into register R0 before doing a
+BPF_EXIT.
 
 
 Load and store instructions
@@ -147,15 +173,15 @@ The size modifier is one of:
 
 The mode modifier is one of:
 
-  =============  =====  =====================
+  =============  =====  ====================================
   mode modifier  value  description
-  =============  =====  =====================
+  =============  =====  ====================================
   BPF_IMM        0x00   used for 64-bit mov
-  BPF_ABS        0x20
-  BPF_IND        0x40
-  BPF_MEM        0x60
+  BPF_ABS        0x20   legacy BPF packet access
+  BPF_IND        0x40   legacy BPF packet access
+  BPF_MEM        0x60   all normal load and store operations
   BPF_ATOMIC     0xc0   atomic operations
-  =============  =====  =====================
+  =============  =====  ====================================
 
 BPF_MEM | <size> | BPF_STX means::
 
