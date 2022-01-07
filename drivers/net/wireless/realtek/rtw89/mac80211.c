@@ -161,7 +161,7 @@ static void rtw89_ops_configure_filter(struct ieee80211_hw *hw,
 	rtw89_leave_ps_mode(rtwdev);
 
 	*new_flags &= FIF_ALLMULTI | FIF_OTHER_BSS | FIF_FCSFAIL |
-		      FIF_BCN_PRBRESP_PROMISC;
+		      FIF_BCN_PRBRESP_PROMISC | FIF_PROBE_REQ;
 
 	if (changed_flags & FIF_ALLMULTI) {
 		if (*new_flags & FIF_ALLMULTI)
@@ -190,6 +190,15 @@ static void rtw89_ops_configure_filter(struct ieee80211_hw *hw,
 			rtwdev->hal.rx_fltr |= B_AX_A_BCN_CHK_EN;
 			rtwdev->hal.rx_fltr |= B_AX_A_BC;
 			rtwdev->hal.rx_fltr |= B_AX_A_A1_MATCH;
+		}
+	}
+	if (changed_flags & FIF_PROBE_REQ) {
+		if (*new_flags & FIF_PROBE_REQ) {
+			rtwdev->hal.rx_fltr &= ~B_AX_A_BC_CAM_MATCH;
+			rtwdev->hal.rx_fltr &= ~B_AX_A_UC_CAM_MATCH;
+		} else {
+			rtwdev->hal.rx_fltr |= B_AX_A_BC_CAM_MATCH;
+			rtwdev->hal.rx_fltr |= B_AX_A_UC_CAM_MATCH;
 		}
 	}
 
