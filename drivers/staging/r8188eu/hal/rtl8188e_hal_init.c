@@ -541,7 +541,7 @@ exit:
 
 int rtl8188e_firmware_download(struct adapter *padapter)
 {
-	int rtStatus = _SUCCESS;
+	int ret = _SUCCESS;
 	u8 writeFW_retry = 0;
 	u32 fwdl_start_time;
 	struct dvobj_priv *dvobj = adapter_to_dvobj(padapter);
@@ -553,8 +553,8 @@ int rtl8188e_firmware_download(struct adapter *padapter)
 	static int log_version;
 
 	if (!dvobj->firmware.data)
-		rtStatus = load_firmware(&dvobj->firmware, device);
-	if (rtStatus == _FAIL) {
+		ret = load_firmware(&dvobj->firmware, device);
+	if (ret == _FAIL) {
 		dvobj->firmware.data = NULL;
 		goto exit;
 	}
@@ -591,9 +591,9 @@ int rtl8188e_firmware_download(struct adapter *padapter)
 		/* reset the FWDL chksum */
 		rtw_write8(padapter, REG_MCUFWDL, rtw_read8(padapter, REG_MCUFWDL) | FWDL_ChkSum_rpt);
 
-		rtStatus = write_fw(padapter, pFirmwareBuf, FirmwareLen);
+		ret = write_fw(padapter, pFirmwareBuf, FirmwareLen);
 
-		if (rtStatus == _SUCCESS ||
+		if (ret == _SUCCESS ||
 		    (rtw_get_passing_time_ms(fwdl_start_time) > 500 && writeFW_retry++ >= 3))
 			break;
 
@@ -602,19 +602,19 @@ int rtl8188e_firmware_download(struct adapter *padapter)
 		);
 	}
 	fw_download_enable(padapter, false);
-	if (_SUCCESS != rtStatus) {
+	if (ret != _SUCCESS) {
 		DBG_88E("DL Firmware failed!\n");
 		goto exit;
 	}
 
-	rtStatus = fw_free_to_go(padapter);
-	if (_SUCCESS != rtStatus) {
+	ret = fw_free_to_go(padapter);
+	if (ret != _SUCCESS) {
 		DBG_88E("DL Firmware failed!\n");
 		goto exit;
 	}
 
 exit:
-	return rtStatus;
+	return ret;
 }
 
 /*  */
