@@ -51,6 +51,7 @@ int cachefiles_add_cache(struct cachefiles_cache *cache)
 
 	/* Check features of the backing filesystem:
 	 * - Directories must support looking up and directory creation
+	 * - We create tmpfiles to handle invalidation
 	 * - We use xattrs to store metadata
 	 * - We need to be able to query the amount of space available
 	 * - We want to be able to sync the filesystem when stopping the cache
@@ -60,6 +61,7 @@ int cachefiles_add_cache(struct cachefiles_cache *cache)
 	if (d_is_negative(root) ||
 	    !d_backing_inode(root)->i_op->lookup ||
 	    !d_backing_inode(root)->i_op->mkdir ||
+	    !d_backing_inode(root)->i_op->tmpfile ||
 	    !(d_backing_inode(root)->i_opflags & IOP_XATTR) ||
 	    !root->d_sb->s_op->statfs ||
 	    !root->d_sb->s_op->sync_fs ||
