@@ -990,19 +990,19 @@ int rtw89_fw_h2c_update_beacon(struct rtw89_dev *rtwdev,
 	return 0;
 }
 
-#define H2C_VIF_MAINTAIN_LEN 4
-int rtw89_fw_h2c_vif_maintain(struct rtw89_dev *rtwdev,
-			      struct rtw89_vif *rtwvif,
-			      enum rtw89_upd_mode upd_mode)
+#define H2C_ROLE_MAINTAIN_LEN 4
+int rtw89_fw_h2c_role_maintain(struct rtw89_dev *rtwdev,
+			       struct rtw89_vif *rtwvif,
+			       enum rtw89_upd_mode upd_mode)
 {
 	struct sk_buff *skb;
 
-	skb = rtw89_fw_h2c_alloc_skb_with_hdr(H2C_VIF_MAINTAIN_LEN);
+	skb = rtw89_fw_h2c_alloc_skb_with_hdr(H2C_ROLE_MAINTAIN_LEN);
 	if (!skb) {
 		rtw89_err(rtwdev, "failed to alloc skb for h2c join\n");
 		return -ENOMEM;
 	}
-	skb_put(skb, H2C_VIF_MAINTAIN_LEN);
+	skb_put(skb, H2C_ROLE_MAINTAIN_LEN);
 	SET_FWROLE_MAINTAIN_MACID(skb->data, rtwvif->mac_id);
 	SET_FWROLE_MAINTAIN_SELF_ROLE(skb->data, rtwvif->self_role);
 	SET_FWROLE_MAINTAIN_UPD_MODE(skb->data, upd_mode);
@@ -1011,7 +1011,7 @@ int rtw89_fw_h2c_vif_maintain(struct rtw89_dev *rtwdev,
 	rtw89_h2c_pkt_set_hdr(rtwdev, skb, FWCMD_TYPE_H2C,
 			      H2C_CAT_MAC, H2C_CL_MAC_MEDIA_RPT,
 			      H2C_FUNC_MAC_FWROLE_MAINTAIN, 0, 1,
-			      H2C_VIF_MAINTAIN_LEN);
+			      H2C_ROLE_MAINTAIN_LEN);
 
 	if (rtw89_h2c_tx(rtwdev, skb, false)) {
 		rtw89_err(rtwdev, "failed to send h2c\n");
