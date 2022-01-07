@@ -64,6 +64,10 @@ DECLARE_RESTRICTED_HOOK(android_rvh_is_cpu_allowed,
 	TP_PROTO(struct task_struct *p, int cpu, bool *allowed),
 	TP_ARGS(p, cpu, allowed), 1);
 
+DECLARE_RESTRICTED_HOOK(android_rvh_get_nohz_timer_target,
+	TP_PROTO(int *cpu, bool *done),
+	TP_ARGS(cpu, done), 1);
+
 DECLARE_RESTRICTED_HOOK(android_rvh_set_user_nice,
 	TP_PROTO(struct task_struct *p, long *nice, bool *allowed),
 	TP_ARGS(p, nice, allowed), 1);

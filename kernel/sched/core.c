@@ -1088,6 +1088,11 @@ int get_nohz_timer_target(void)
 	int i, cpu = smp_processor_id(), default_cpu = -1;
 	struct sched_domain *sd;
 	const struct cpumask *hk_mask;
+	bool done = false;
+
+	trace_android_rvh_get_nohz_timer_target(&cpu, &done);
+	if (done)
+		return cpu;
 
 	if (housekeeping_cpu(cpu, HK_TYPE_TIMER)) {
 		if (!idle_cpu(cpu))
