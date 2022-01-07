@@ -525,18 +525,13 @@ static int load_firmware(struct rt_firmware *rtfw, struct device *device)
 		ret = _FAIL;
 		goto exit;
 	}
-	if (fw->size > FW_8188E_SIZE) {
-		ret = _FAIL;
-		goto exit;
-	}
 
-	rtfw->data = kzalloc(FW_8188E_SIZE, GFP_KERNEL);
+	rtfw->data = kmemdup(fw->data, fw->size, GFP_KERNEL);
 	if (!rtfw->data) {
 		pr_err("Failed to allocate rtfw->data\n");
 		ret = _FAIL;
 		goto exit;
 	}
-	memcpy(rtfw->data, fw->data, fw->size);
 	rtfw->size = fw->size;
 	dev_dbg(device, "!bUsedWoWLANFw, FmrmwareLen:%d+\n", rtfw->size);
 

@@ -35,7 +35,6 @@
 #define PageNum_128(_Len)	(u32)(((_Len)>>7) + ((_Len) & 0x7F ? 1 : 0))
 
 /*  download firmware related data structure */
-#define FW_8188E_SIZE			0x4000 /* 16384,16k */
 #define FW_8188E_START_ADDRESS		0x1000
 
 #define MAX_PAGE_SIZE			4096	/*  @ page : 4k bytes */
