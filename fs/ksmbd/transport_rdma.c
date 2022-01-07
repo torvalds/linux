@@ -428,6 +428,7 @@ static void free_transport(struct smb_direct_transport *t)
 
 	if (t->qp) {
 		ib_drain_qp(t->qp);
+		ib_mr_pool_destroy(t->qp, &t->qp->rdma_mrs);
 		ib_destroy_qp(t->qp);
 	}
 
@@ -1708,7 +1709,9 @@ static int smb_direct_init_params(struct smb_direct_transport *t,
 	cap->max_send_sge = SMB_DIRECT_MAX_SEND_SGES;
 	cap->max_recv_sge = SMB_DIRECT_MAX_RECV_SGES;
 	cap->max_inline_data = 0;
-	cap->max_rdma_ctxs = 0;
+	cap->max_rdma_ctxs =
+		rdma_rw_mr_factor(device, t->cm_id->port_num, max_pages) *
+		smb_direct_max_outstanding_rw_ops;
 	return 0;
 }
 
@@ -1790,6 +1793,7 @@ static int smb_direct_create_qpair(struct smb_direct_transport *t,
 {
 	int ret;
 	struct ib_qp_init_attr qp_attr;
+	int pages_per_rw;
 
 	t->pd = ib_alloc_pd(t->cm_id->device, 0);
 	if (IS_ERR(t->pd)) {
@@ -1836,6 +1840,23 @@ static int smb_direct_create_qpair(struct smb_direct_transport *t,
 
 	t->qp = t->cm_id->qp;
 	t->cm_id->event_handler = smb_direct_cm_handler;
+
+	pages_per_rw = DIV_ROUND_UP(t->max_rdma_rw_size, PAGE_SIZE) + 1;
+	if (pages_per_rw > t->cm_id->device->attrs.max_sgl_rd) {
+		int pages_per_mr, mr_count;
+
+		pages_per_mr = min_t(int, pages_per_rw,
+				     t->cm_id->device->attrs.max_fast_reg_page_list_len);
+		mr_count = DIV_ROUND_UP(pages_per_rw, pages_per_mr) *
+			atomic_read(&t->rw_avail_ops);
+		ret = ib_mr_pool_init(t->qp, &t->qp->rdma_mrs, mr_count,
+				      IB_MR_TYPE_MEM_REG, pages_per_mr, 0);
+		if (ret) {
+			pr_err("failed to init mr pool count %d pages %d\n",
+			       mr_count, pages_per_mr);
+			goto err;
+		}
+	}
 
 	return 0;
 err:
