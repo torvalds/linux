@@ -414,7 +414,8 @@ const struct dev_pm_ops __maybe_unused name = { \
  * .resume_early(), to the same routines as .runtime_suspend() and
  * .runtime_resume(), respectively (and analogously for hibernation).
  *
- * Deprecated. You most likely don't want this macro.
+ * Deprecated. You most likely don't want this macro. Use
+ * DEFINE_RUNTIME_DEV_PM_OPS() instead.
  */
 #define UNIVERSAL_DEV_PM_OPS(name, suspend_fn, resume_fn, idle_fn) \
 const struct dev_pm_ops __maybe_unused name = { \
