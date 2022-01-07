@@ -789,8 +789,8 @@ int netdev_close(struct net_device *pnetdev)
 
 	rtw_p2p_enable(padapter, P2P_ROLE_DISABLE);
 
-	kfree(dvobj->firmware.szFwBuffer);
-	dvobj->firmware.szFwBuffer = NULL;
+	kfree(dvobj->firmware.data);
+	dvobj->firmware.data = NULL;
 
 	DBG_88E("-88eu_drv - drv_close, bup =%d\n", padapter->bup);
 	return 0;

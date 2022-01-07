@@ -117,8 +117,8 @@ struct registry_priv {
 #define MAX_CONTINUAL_URB_ERR		4
 
 struct rt_firmware {
-	u8			*szFwBuffer;
-	u32			ulFwLength;
+	u8 *data;
+	u32 size;
 };
 
 struct dvobj_priv {

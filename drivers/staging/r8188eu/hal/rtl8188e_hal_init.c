@@ -530,15 +530,15 @@ static int load_firmware(struct rt_firmware *rtfw, struct device *device)
 		goto exit;
 	}
 
-	rtfw->szFwBuffer = kzalloc(FW_8188E_SIZE, GFP_KERNEL);
-	if (!rtfw->szFwBuffer) {
-		pr_err("Failed to allocate rtfw->szFwBuffer\n");
+	rtfw->data = kzalloc(FW_8188E_SIZE, GFP_KERNEL);
+	if (!rtfw->data) {
+		pr_err("Failed to allocate rtfw->data\n");
 		ret = _FAIL;
 		goto exit;
 	}
-	memcpy(rtfw->szFwBuffer, fw->data, fw->size);
-	rtfw->ulFwLength = fw->size;
-	dev_dbg(device, "!bUsedWoWLANFw, FmrmwareLen:%d+\n", rtfw->ulFwLength);
+	memcpy(rtfw->data, fw->data, fw->size);
+	rtfw->size = fw->size;
+	dev_dbg(device, "!bUsedWoWLANFw, FmrmwareLen:%d+\n", rtfw->size);
 
 exit:
 	release_firmware(fw);
@@ -558,17 +558,17 @@ s32 rtl8188e_FirmwareDownload(struct adapter *padapter)
 	u32 FirmwareLen;
 	static int log_version;
 
-	if (!dvobj->firmware.szFwBuffer)
+	if (!dvobj->firmware.data)
 		rtStatus = load_firmware(&dvobj->firmware, device);
 	if (rtStatus == _FAIL) {
-		dvobj->firmware.szFwBuffer = NULL;
+		dvobj->firmware.data = NULL;
 		goto Exit;
 	}
-	pFirmwareBuf = dvobj->firmware.szFwBuffer;
-	FirmwareLen = dvobj->firmware.ulFwLength;
+	pFirmwareBuf = dvobj->firmware.data;
+	FirmwareLen = dvobj->firmware.size;
 
 	/*  To Check Fw header. Added by tynli. 2009.12.04. */
-	pFwHdr = (struct rt_firmware_hdr *)dvobj->firmware.szFwBuffer;
+	pFwHdr = (struct rt_firmware_hdr *)dvobj->firmware.data;
 
 	fw_version = le16_to_cpu(pFwHdr->Version);
 	fw_subversion = pFwHdr->Subversion;
