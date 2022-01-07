@@ -29,14 +29,6 @@ struct follow_page_context {
 	unsigned int page_mask;
 };
 
-static void hpage_pincount_add(struct page *page, int refs)
-{
-	VM_BUG_ON_PAGE(!hpage_pincount_available(page), page);
-	VM_BUG_ON_PAGE(page != compound_head(page), page);
-
-	atomic_add(refs, compound_pincount_ptr(page));
-}
-
 static void hpage_pincount_sub(struct page *page, int refs)
 {
 	VM_BUG_ON_PAGE(!hpage_pincount_available(page), page);
@@ -151,17 +143,17 @@ __maybe_unused struct page *try_grab_compound_head(struct page *page,
 			return NULL;
 
 		/*
-		 * When pinning a compound page of order > 1 (which is what
-		 * hpage_pincount_available() checks for), use an exact count to
-		 * track it, via hpage_pincount_add/_sub().
+		 * When pinning a compound page of order > 1 (which is
+		 * what hpage_pincount_available() checks for), use an
+		 * exact count to track it.
 		 *
-		 * However, be sure to *also* increment the normal page refcount
-		 * field at least once, so that the page really is pinned.
-		 * That's why the refcount from the earlier
+		 * However, be sure to *also* increment the normal page
+		 * refcount field at least once, so that the page really
+		 * is pinned.  That's why the refcount from the earlier
 		 * try_get_compound_head() is left intact.
 		 */
 		if (hpage_pincount_available(page))
-			hpage_pincount_add(page, refs);
+			atomic_add(refs, compound_pincount_ptr(page));
 		else
 			page_ref_add(page, refs * (GUP_PIN_COUNTING_BIAS - 1));
 
@@ -222,14 +214,13 @@ bool __must_check try_grab_page(struct page *page, unsigned int flags)
 			return false;
 
 		/*
-		 * Similar to try_grab_compound_head(): even if using the
-		 * hpage_pincount_add/_sub() routines, be sure to
-		 * *also* increment the normal page refcount field at least
-		 * once, so that the page really is pinned.
+		 * Similar to try_grab_compound_head(): be sure to *also*
+		 * increment the normal page refcount field at least once,
+		 * so that the page really is pinned.
 		 */
 		if (hpage_pincount_available(page)) {
 			page_ref_add(page, 1);
-			hpage_pincount_add(page, 1);
+			atomic_add(1, compound_pincount_ptr(page));
 		} else {
 			page_ref_add(page, GUP_PIN_COUNTING_BIAS);
 		}
