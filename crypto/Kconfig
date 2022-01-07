@@ -1008,6 +1008,19 @@ config CRYPTO_SM3
 	  http://www.oscca.gov.cn/UpFile/20101222141857786.pdf
 	  https://datatracker.ietf.org/doc/html/draft-shen-sm3-hash
 
+config CRYPTO_SM3_AVX_X86_64
+	tristate "SM3 digest algorithm (x86_64/AVX)"
+	depends on X86 && 64BIT
+	select CRYPTO_HASH
+	select CRYPTO_LIB_SM3
+	help
+	  SM3 secure hash function as defined by OSCCA GM/T 0004-2012 SM3).
+	  It is part of the Chinese Commercial Cryptography suite. This is
+	  SM3 optimized implementation using Advanced Vector Extensions (AVX)
+	  when available.
+
+	  If unsure, say N.
+
 config CRYPTO_STREEBOG
 	tristate "Streebog Hash Function"
 	select CRYPTO_HASH
