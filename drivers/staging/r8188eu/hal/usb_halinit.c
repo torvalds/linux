@@ -1616,9 +1616,6 @@ void GetHwReg8188EU(struct adapter *Adapter, u8 variable, u8 *val)
 			}
 		}
 		break;
-	case HW_VAR_EFUSE_BYTES: /*  To get EFUE total used bytes, added by Roger, 2008.12.22. */
-		*((u16 *)(val)) = haldata->EfuseUsedBytes;
-		break;
 	case HW_VAR_APFM_ON_MAC:
 		*val = haldata->bMacPwrCtrlOn;
 		break;
