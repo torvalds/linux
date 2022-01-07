@@ -247,6 +247,7 @@ LIBBPF_0.0.8 {
 		bpf_link_create;
 		bpf_link_update;
 		bpf_map__set_initial_value;
+		bpf_prog_attach_opts;
 		bpf_program__attach_cgroup;
 		bpf_program__attach_lsm;
 		bpf_program__is_lsm;
