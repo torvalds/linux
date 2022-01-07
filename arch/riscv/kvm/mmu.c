@@ -83,43 +83,6 @@ static int stage2_level_to_page_size(u32 level, unsigned long *out_pgsize)
 	return 0;
 }
 
-static int stage2_cache_topup(struct kvm_mmu_page_cache *pcache,
-			      int min, int max)
-{
-	void *page;
-
-	BUG_ON(max > KVM_MMU_PAGE_CACHE_NR_OBJS);
-	if (pcache->nobjs >= min)
-		return 0;
-	while (pcache->nobjs < max) {
-		page = (void *)__get_free_page(GFP_KERNEL | __GFP_ZERO);
-		if (!page)
-			return -ENOMEM;
-		pcache->objects[pcache->nobjs++] = page;
-	}
-
-	return 0;
-}
-
-static void stage2_cache_flush(struct kvm_mmu_page_cache *pcache)
-{
-	while (pcache && pcache->nobjs)
-		free_page((unsigned long)pcache->objects[--pcache->nobjs]);
-}
-
-static void *stage2_cache_alloc(struct kvm_mmu_page_cache *pcache)
-{
-	void *p;
-
-	if (!pcache)
-		return NULL;
-
-	BUG_ON(!pcache->nobjs);
-	p = pcache->objects[--pcache->nobjs];
-
-	return p;
-}
-
 static bool stage2_get_leaf_entry(struct kvm *kvm, gpa_t addr,
 				  pte_t **ptepp, u32 *ptep_level)
 {
@@ -171,7 +134,7 @@ static void stage2_remote_tlb_flush(struct kvm *kvm, u32 level, gpa_t addr)
 }
 
 static int stage2_set_pte(struct kvm *kvm, u32 level,
-			   struct kvm_mmu_page_cache *pcache,
+			   struct kvm_mmu_memory_cache *pcache,
 			   gpa_t addr, const pte_t *new_pte)
 {
 	u32 current_level = stage2_pgd_levels - 1;
@@ -186,7 +149,9 @@ static int stage2_set_pte(struct kvm *kvm, u32 level,
 			return -EEXIST;
 
 		if (!pte_val(*ptep)) {
-			next_ptep = stage2_cache_alloc(pcache);
+			if (!pcache)
+				return -ENOMEM;
+			next_ptep = kvm_mmu_memory_cache_alloc(pcache);
 			if (!next_ptep)
 				return -ENOMEM;
 			*ptep = pfn_pte(PFN_DOWN(__pa(next_ptep)),
@@ -209,7 +174,7 @@ static int stage2_set_pte(struct kvm *kvm, u32 level,
 }
 
 static int stage2_map_page(struct kvm *kvm,
-			   struct kvm_mmu_page_cache *pcache,
+			   struct kvm_mmu_memory_cache *pcache,
 			   gpa_t gpa, phys_addr_t hpa,
 			   unsigned long page_size,
 			   bool page_rdonly, bool page_exec)
@@ -384,7 +349,10 @@ static int stage2_ioremap(struct kvm *kvm, gpa_t gpa, phys_addr_t hpa,
 	int ret = 0;
 	unsigned long pfn;
 	phys_addr_t addr, end;
-	struct kvm_mmu_page_cache pcache = { 0, };
+	struct kvm_mmu_memory_cache pcache;
+
+	memset(&pcache, 0, sizeof(pcache));
+	pcache.gfp_zero = __GFP_ZERO;
 
 	end = (gpa + size + PAGE_SIZE - 1) & PAGE_MASK;
 	pfn = __phys_to_pfn(hpa);
@@ -395,9 +363,7 @@ static int stage2_ioremap(struct kvm *kvm, gpa_t gpa, phys_addr_t hpa,
 		if (!writable)
 			pte = pte_wrprotect(pte);
 
-		ret = stage2_cache_topup(&pcache,
-					 stage2_pgd_levels,
-					 KVM_MMU_PAGE_CACHE_NR_OBJS);
+		ret = kvm_mmu_topup_memory_cache(&pcache, stage2_pgd_levels);
 		if (ret)
 			goto out;
 
@@ -411,7 +377,7 @@ static int stage2_ioremap(struct kvm *kvm, gpa_t gpa, phys_addr_t hpa,
 	}
 
 out:
-	stage2_cache_flush(&pcache);
+	kvm_mmu_free_memory_cache(&pcache);
 	return ret;
 }
 
@@ -649,7 +615,7 @@ int kvm_riscv_stage2_map(struct kvm_vcpu *vcpu,
 	gfn_t gfn = gpa >> PAGE_SHIFT;
 	struct vm_area_struct *vma;
 	struct kvm *kvm = vcpu->kvm;
-	struct kvm_mmu_page_cache *pcache = &vcpu->arch.mmu_page_cache;
+	struct kvm_mmu_memory_cache *pcache = &vcpu->arch.mmu_page_cache;
 	bool logging = (memslot->dirty_bitmap &&
 			!(memslot->flags & KVM_MEM_READONLY)) ? true : false;
 	unsigned long vma_pagesize, mmu_seq;
@@ -684,8 +650,7 @@ int kvm_riscv_stage2_map(struct kvm_vcpu *vcpu,
 	}
 
 	/* We need minimum second+third level pages */
-	ret = stage2_cache_topup(pcache, stage2_pgd_levels,
-				 KVM_MMU_PAGE_CACHE_NR_OBJS);
+	ret = kvm_mmu_topup_memory_cache(pcache, stage2_pgd_levels);
 	if (ret) {
 		kvm_err("Failed to topup stage2 cache\n");
 		return ret;
@@ -732,11 +697,6 @@ out_unlock:
 	kvm_set_pfn_accessed(hfn);
 	kvm_release_pfn_clean(hfn);
 	return ret;
-}
-
-void kvm_riscv_stage2_flush_cache(struct kvm_vcpu *vcpu)
-{
-	stage2_cache_flush(&vcpu->arch.mmu_page_cache);
 }
 
 int kvm_riscv_stage2_alloc_pgd(struct kvm *kvm)
@@ -808,4 +768,9 @@ void kvm_riscv_stage2_mode_detect(void)
 unsigned long kvm_riscv_stage2_mode(void)
 {
 	return stage2_mode >> HGATP_MODE_SHIFT;
+}
+
+int kvm_riscv_stage2_gpa_bits(void)
+{
+	return stage2_gpa_bits;
 }
