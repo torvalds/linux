@@ -50,7 +50,4 @@ void ice_fltr_remove_all(struct ice_vsi *vsi);
 int
 ice_fltr_update_flags(struct ice_vsi *vsi, u16 rule_id, u16 recipe_id,
 		      u32 new_flags);
-int
-ice_fltr_update_flags_dflt_rule(struct ice_vsi *vsi, u16 rule_id, u8 direction,
-				u32 new_flags);
 #endif
