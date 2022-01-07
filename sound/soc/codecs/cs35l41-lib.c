@@ -623,8 +623,6 @@ static const struct cs35l41_otp_packed_element_t otp_map_2[CS35L41_NUM_OTP_ELEM]
 };
 
 static const struct reg_sequence cs35l41_reva0_errata_patch[] = {
-	{ 0x00000040,			 0x00005555 },
-	{ 0x00000040,			 0x0000AAAA },
 	{ 0x00003854,			 0x05180240 },
 	{ CS35L41_VIMON_SPKMON_RESYNC,	 0x00000000 },
 	{ 0x00004310,			 0x00000000 },
@@ -637,38 +635,28 @@ static const struct reg_sequence cs35l41_reva0_errata_patch[] = {
 	{ CS35L41_IRQ2_DB3,		 0x00000000 },
 	{ CS35L41_DSP1_YM_ACCEL_PL0_PRI, 0x00000000 },
 	{ CS35L41_DSP1_XM_ACCEL_PL0_PRI, 0x00000000 },
-	{ 0x00000040,			 0x0000CCCC },
-	{ 0x00000040,			 0x00003333 },
 	{ CS35L41_PWR_CTRL2,		 0x00000000 },
 	{ CS35L41_AMP_GAIN_CTRL,	 0x00000000 },
 };
 
 static const struct reg_sequence cs35l41_revb0_errata_patch[] = {
-	{ 0x00000040,			 0x00005555 },
-	{ 0x00000040,			 0x0000AAAA },
 	{ CS35L41_VIMON_SPKMON_RESYNC,	 0x00000000 },
 	{ 0x00004310,			 0x00000000 },
 	{ CS35L41_VPVBST_FS_SEL,	 0x00000000 },
 	{ CS35L41_BSTCVRT_DCM_CTRL,	 0x00000051 },
 	{ CS35L41_DSP1_YM_ACCEL_PL0_PRI, 0x00000000 },
 	{ CS35L41_DSP1_XM_ACCEL_PL0_PRI, 0x00000000 },
-	{ 0x00000040,			 0x0000CCCC },
-	{ 0x00000040,			 0x00003333 },
 	{ CS35L41_PWR_CTRL2,		 0x00000000 },
 	{ CS35L41_AMP_GAIN_CTRL,	 0x00000000 },
 };
 
 static const struct reg_sequence cs35l41_revb2_errata_patch[] = {
-	{ 0x00000040,			 0x00005555 },
-	{ 0x00000040,			 0x0000AAAA },
 	{ CS35L41_VIMON_SPKMON_RESYNC,	 0x00000000 },
 	{ 0x00004310,			 0x00000000 },
 	{ CS35L41_VPVBST_FS_SEL,	 0x00000000 },
 	{ CS35L41_BSTCVRT_DCM_CTRL,	 0x00000051 },
 	{ CS35L41_DSP1_YM_ACCEL_PL0_PRI, 0x00000000 },
 	{ CS35L41_DSP1_XM_ACCEL_PL0_PRI, 0x00000000 },
-	{ 0x00000040,			 0x0000CCCC },
-	{ 0x00000040,			 0x00003333 },
 	{ CS35L41_PWR_CTRL2,		 0x00000000 },
 	{ CS35L41_AMP_GAIN_CTRL,	 0x00000000 },
 };
@@ -756,6 +744,39 @@ static const struct cs35l41_otp_map_element_t *cs35l41_find_otp_map(u32 otp_id)
 	return NULL;
 }
 
+int cs35l41_test_key_unlock(struct device *dev, struct regmap *regmap)
+{
+	static const struct reg_sequence unlock[] = {
+		{ CS35L41_TEST_KEY_CTL, 0x00000055 },
+		{ CS35L41_TEST_KEY_CTL, 0x000000AA },
+	};
+	int ret;
+
+	ret = regmap_multi_reg_write(regmap, unlock, ARRAY_SIZE(unlock));
+	if (ret)
+		dev_err(dev, "Failed to unlock test key: %d\n", ret);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(cs35l41_test_key_unlock);
+
+int cs35l41_test_key_lock(struct device *dev, struct regmap *regmap)
+{
+	static const struct reg_sequence unlock[] = {
+		{ CS35L41_TEST_KEY_CTL, 0x000000CC },
+		{ CS35L41_TEST_KEY_CTL, 0x00000033 },
+	};
+	int ret;
+
+	ret = regmap_multi_reg_write(regmap, unlock, ARRAY_SIZE(unlock));
+	if (ret)
+		dev_err(dev, "Failed to lock test key: %d\n", ret);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(cs35l41_test_key_lock);
+
+/* Must be called with the TEST_KEY unlocked */
 int cs35l41_otp_unpack(struct device *dev, struct regmap *regmap)
 {
 	const struct cs35l41_otp_map_element_t *otp_map_match;
@@ -794,17 +815,6 @@ int cs35l41_otp_unpack(struct device *dev, struct regmap *regmap)
 	bit_offset = otp_map_match->bit_offset;
 	word_offset = otp_map_match->word_offset;
 
-	ret = regmap_write(regmap, CS35L41_TEST_KEY_CTL, 0x00000055);
-	if (ret) {
-		dev_err(dev, "Write Unlock key failed 1/2: %d\n", ret);
-		goto err_otp_unpack;
-	}
-	ret = regmap_write(regmap, CS35L41_TEST_KEY_CTL, 0x000000AA);
-	if (ret) {
-		dev_err(dev, "Write Unlock key failed 2/2: %d\n", ret);
-		goto err_otp_unpack;
-	}
-
 	for (i = 0; i < otp_map_match->num_elements; i++) {
 		dev_dbg(dev, "bitoffset= %d, word_offset=%d, bit_sum mod 32=%d\n",
 			bit_offset, word_offset, bit_sum % 32);
@@ -840,16 +850,6 @@ int cs35l41_otp_unpack(struct device *dev, struct regmap *regmap)
 		}
 	}
 
-	ret = regmap_write(regmap, CS35L41_TEST_KEY_CTL, 0x000000CC);
-	if (ret) {
-		dev_err(dev, "Write Lock key failed 1/2: %d\n", ret);
-		goto err_otp_unpack;
-	}
-	ret = regmap_write(regmap, CS35L41_TEST_KEY_CTL, 0x00000033);
-	if (ret) {
-		dev_err(dev, "Write Lock key failed 2/2: %d\n", ret);
-		goto err_otp_unpack;
-	}
 	ret = 0;
 
 err_otp_unpack:
@@ -859,6 +859,7 @@ err_otp_unpack:
 }
 EXPORT_SYMBOL_GPL(cs35l41_otp_unpack);
 
+/* Must be called with the TEST_KEY unlocked */
 int cs35l41_register_errata_patch(struct device *dev, struct regmap *reg, unsigned int reg_revid)
 {
 	char *rev;

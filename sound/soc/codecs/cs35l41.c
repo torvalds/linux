@@ -534,19 +534,19 @@ static irqreturn_t cs35l41_irq(int irq, void *data)
 }
 
 static const struct reg_sequence cs35l41_pup_patch[] = {
-	{ 0x00000040, 0x00000055 },
-	{ 0x00000040, 0x000000AA },
+	{ CS35L41_TEST_KEY_CTL, 0x00000055 },
+	{ CS35L41_TEST_KEY_CTL, 0x000000AA },
 	{ 0x00002084, 0x002F1AA0 },
-	{ 0x00000040, 0x000000CC },
-	{ 0x00000040, 0x00000033 },
+	{ CS35L41_TEST_KEY_CTL, 0x000000CC },
+	{ CS35L41_TEST_KEY_CTL, 0x00000033 },
 };
 
 static const struct reg_sequence cs35l41_pdn_patch[] = {
-	{ 0x00000040, 0x00000055 },
-	{ 0x00000040, 0x000000AA },
+	{ CS35L41_TEST_KEY_CTL, 0x00000055 },
+	{ CS35L41_TEST_KEY_CTL, 0x000000AA },
 	{ 0x00002084, 0x002F1AA3 },
-	{ 0x00000040, 0x000000CC },
-	{ 0x00000040, 0x00000033 },
+	{ CS35L41_TEST_KEY_CTL, 0x000000CC },
+	{ CS35L41_TEST_KEY_CTL, 0x00000033 },
 };
 
 static int cs35l41_main_amp_event(struct snd_soc_dapm_widget *w,
@@ -1329,9 +1329,19 @@ int cs35l41_probe(struct cs35l41_private *cs35l41,
 		goto err;
 	}
 
+	cs35l41_test_key_unlock(cs35l41->dev, cs35l41->regmap);
+
 	ret = cs35l41_register_errata_patch(cs35l41->dev, cs35l41->regmap, reg_revid);
 	if (ret)
 		goto err;
+
+	ret = cs35l41_otp_unpack(cs35l41->dev, cs35l41->regmap);
+	if (ret < 0) {
+		dev_err(cs35l41->dev, "OTP Unpack failed: %d\n", ret);
+		goto err;
+	}
+
+	cs35l41_test_key_lock(cs35l41->dev, cs35l41->regmap);
 
 	irq_pol = cs35l41_irq_gpio_config(cs35l41);
 
@@ -1344,12 +1354,6 @@ int cs35l41_probe(struct cs35l41_private *cs35l41,
 					"cs35l41", cs35l41);
 	if (ret != 0) {
 		dev_err(cs35l41->dev, "Failed to request IRQ: %d\n", ret);
-		goto err;
-	}
-
-	ret = cs35l41_otp_unpack(cs35l41->dev, cs35l41->regmap);
-	if (ret < 0) {
-		dev_err(cs35l41->dev, "OTP Unpack failed: %d\n", ret);
 		goto err;
 	}
 
