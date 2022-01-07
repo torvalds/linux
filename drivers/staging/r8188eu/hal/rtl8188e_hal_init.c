@@ -510,30 +510,30 @@ static s32 _FWFreeToGo(struct adapter *padapter)
 
 static int load_firmware(struct rt_firmware *pFirmware, struct device *device)
 {
-	s32	rtStatus = _SUCCESS;
+	s32 ret = _SUCCESS;
 	const struct firmware *fw;
 	const char *fw_name = "rtlwifi/rtl8188eufw.bin";
 	int err = request_firmware(&fw, fw_name, device);
 
 	if (err) {
 		pr_err("Request firmware failed with error 0x%x\n", err);
-		rtStatus = _FAIL;
+		ret = _FAIL;
 		goto exit;
 	}
 	if (!fw) {
 		pr_err("Firmware %s not available\n", fw_name);
-		rtStatus = _FAIL;
+		ret = _FAIL;
 		goto exit;
 	}
 	if (fw->size > FW_8188E_SIZE) {
-		rtStatus = _FAIL;
+		ret = _FAIL;
 		goto exit;
 	}
 
 	pFirmware->szFwBuffer = kzalloc(FW_8188E_SIZE, GFP_KERNEL);
 	if (!pFirmware->szFwBuffer) {
 		pr_err("Failed to allocate pFirmware->szFwBuffer\n");
-		rtStatus = _FAIL;
+		ret = _FAIL;
 		goto exit;
 	}
 	memcpy(pFirmware->szFwBuffer, fw->data, fw->size);
@@ -542,7 +542,7 @@ static int load_firmware(struct rt_firmware *pFirmware, struct device *device)
 
 exit:
 	release_firmware(fw);
-	return rtStatus;
+	return ret;
 }
 
 s32 rtl8188e_FirmwareDownload(struct adapter *padapter)
