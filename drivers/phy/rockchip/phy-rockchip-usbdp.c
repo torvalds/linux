@@ -1023,13 +1023,15 @@ static int rockchip_udphy_probe(struct platform_device *pdev)
 	udphy->dev = dev;
 	platform_set_drvdata(pdev, udphy);
 
-	ret = udphy_setup_orien_switch(udphy);
-	if (ret)
-		return ret;
+	if (device_property_present(dev, "orientation-switch")) {
+		ret = udphy_setup_orien_switch(udphy);
+		if (ret)
+			return ret;
 
-	ret = devm_add_action_or_reset(dev, udphy_orien_switch_unregister, udphy);
-	if (ret)
-		return ret;
+		ret = devm_add_action_or_reset(dev, udphy_orien_switch_unregister, udphy);
+		if (ret)
+			return ret;
+	}
 
 	ret = udphy_setup_typec_mux(udphy);
 	if (ret)
