@@ -690,6 +690,7 @@ struct rtw89_tx_desc_info {
 #define RTW89_MGMT_HW_SSN_SEL	1
 	u8 hw_seq_mode;
 #define RTW89_MGMT_HW_SEQ_MODE	1
+	bool hiq;
 };
 
 struct rtw89_core_tx_request {
