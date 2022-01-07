@@ -277,6 +277,12 @@ bcm47xx_buttons_linksys_wrt310nv1[] __initconst = {
 };
 
 static const struct gpio_keys_button
+bcm47xx_buttons_linksys_wrt310n_v2[] __initconst = {
+	BCM47XX_GPIO_KEY(5, KEY_WPS_BUTTON),
+	BCM47XX_GPIO_KEY(6, KEY_RESTART),
+};
+
+static const struct gpio_keys_button
 bcm47xx_buttons_linksys_wrt54g3gv2[] __initconst = {
 	BCM47XX_GPIO_KEY(5, KEY_WIMAX),
 	BCM47XX_GPIO_KEY(6, KEY_RESTART),
@@ -607,6 +613,9 @@ int __init bcm47xx_buttons_register(void)
 		break;
 	case BCM47XX_BOARD_LINKSYS_WRT310NV1:
 		err = bcm47xx_copy_bdata(bcm47xx_buttons_linksys_wrt310nv1);
+		break;
+	case BCM47XX_BOARD_LINKSYS_WRT310NV2:
+		err = bcm47xx_copy_bdata(bcm47xx_buttons_linksys_wrt310n_v2);
 		break;
 	case BCM47XX_BOARD_LINKSYS_WRT54G3GV2:
 		err = bcm47xx_copy_bdata(bcm47xx_buttons_linksys_wrt54g3gv2);
