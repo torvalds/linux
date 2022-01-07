@@ -92,6 +92,8 @@
  *  VERSION     : 01-00-32
  *  06 Jan 2022 : 1. Null check added while freeing skb buff data
  *  VERSION     : 01-00-33
+ *  07 Jan 2022 : 1. During emac resume, attach the net device after initializing the queues
+ *  VERSION     : 01-00-34
 */
 
 #include <linux/clk.h>
@@ -10953,9 +10955,6 @@ int tc956xmac_resume(struct device *dev)
 	//	KPRINT_INFO("%s : Port %d - Phy Speed Up", __func__, priv->port_num);
 	//	phy_speed_up(phydev);
 	//}
-
-	/* Attach network device */
-	netif_device_attach(ndev);
 #ifndef TC956X
 	/* Reset Parameters. */
 	tc956xmac_reset_queues_param(priv);
@@ -10966,6 +10965,9 @@ int tc956xmac_resume(struct device *dev)
 	rtnl_lock();
 	tc956xmac_open(ndev);
 	rtnl_unlock();
+
+	/* Attach network device */
+	netif_device_attach(ndev);
 
 clean_exit:
 	if (priv->tc956xmac_pm_wol_interrupt) {
