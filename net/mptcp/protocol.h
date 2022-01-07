@@ -110,18 +110,20 @@
 /* MPTCP TCPRST flags */
 #define MPTCP_RST_TRANSIENT	BIT(0)
 
-/* MPTCP socket flags */
+/* MPTCP socket atomic flags */
 #define MPTCP_NOSPACE		1
 #define MPTCP_WORK_RTX		2
 #define MPTCP_WORK_EOF		3
 #define MPTCP_FALLBACK_DONE	4
 #define MPTCP_WORK_CLOSE_SUBFLOW 5
-#define MPTCP_PUSH_PENDING	6
-#define MPTCP_CLEAN_UNA		7
-#define MPTCP_ERROR_REPORT	8
-#define MPTCP_RETRANSMIT	9
-#define MPTCP_FLUSH_JOIN_LIST	10
-#define MPTCP_CONNECTED		11
+
+/* MPTCP socket release cb flags */
+#define MPTCP_PUSH_PENDING	1
+#define MPTCP_CLEAN_UNA		2
+#define MPTCP_ERROR_REPORT	3
+#define MPTCP_RETRANSMIT	4
+#define MPTCP_FLUSH_JOIN_LIST	5
+#define MPTCP_CONNECTED		6
 
 static inline bool before64(__u64 seq1, __u64 seq2)
 {
@@ -250,6 +252,8 @@ struct mptcp_sock {
 	u32		token;
 	int		rmem_released;
 	unsigned long	flags;
+	unsigned long	cb_flags;
+	unsigned long	push_pending;
 	bool		recovery;		/* closing subflow write queue reinjected */
 	bool		can_ack;
 	bool		fully_established;

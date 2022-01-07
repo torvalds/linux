@@ -388,7 +388,7 @@ static void mptcp_set_connected(struct sock *sk)
 	if (!sock_owned_by_user(sk))
 		__mptcp_set_connected(sk);
 	else
-		set_bit(MPTCP_CONNECTED, &mptcp_sk(sk)->flags);
+		__set_bit(MPTCP_CONNECTED, &mptcp_sk(sk)->cb_flags);
 	mptcp_data_unlock(sk);
 }
 
@@ -1274,7 +1274,7 @@ static void subflow_error_report(struct sock *ssk)
 	if (!sock_owned_by_user(sk))
 		__mptcp_error_report(sk);
 	else
-		set_bit(MPTCP_ERROR_REPORT,  &mptcp_sk(sk)->flags);
+		__set_bit(MPTCP_ERROR_REPORT,  &mptcp_sk(sk)->cb_flags);
 	mptcp_data_unlock(sk);
 }
 
