@@ -1958,7 +1958,7 @@ static void of_unittest_remove_tracked_overlays(void)
 				__func__, overlay_name, ret);
 		}
 		of_unittest_untrack_overlay(save_ovcs_id);
-	};
+	}
 
 }
 
