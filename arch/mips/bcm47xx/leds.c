@@ -30,6 +30,14 @@
 /* Asus */
 
 static const struct gpio_led
+bcm47xx_leds_asus_rtn10u[] __initconst = {
+	BCM47XX_GPIO_LED(5, "green", "wlan", 0, LEDS_GPIO_DEFSTATE_OFF),
+	BCM47XX_GPIO_LED(6, "green", "power", 1, LEDS_GPIO_DEFSTATE_ON),
+	BCM47XX_GPIO_LED(7, "green", "wps", 0, LEDS_GPIO_DEFSTATE_OFF),
+	BCM47XX_GPIO_LED(8, "green", "usb", 0, LEDS_GPIO_DEFSTATE_OFF),
+};
+
+static const struct gpio_led
 bcm47xx_leds_asus_rtn12[] __initconst = {
 	BCM47XX_GPIO_LED(2, "unk", "power", 1, LEDS_GPIO_DEFSTATE_ON),
 	BCM47XX_GPIO_LED(7, "unk", "wlan", 0, LEDS_GPIO_DEFSTATE_OFF),
@@ -563,6 +571,9 @@ void __init bcm47xx_leds_register(void)
 	enum bcm47xx_board board = bcm47xx_board_get();
 
 	switch (board) {
+	case BCM47XX_BOARD_ASUS_RTN10U:
+		bcm47xx_set_pdata(bcm47xx_leds_asus_rtn10u);
+		break;
 	case BCM47XX_BOARD_ASUS_RTN12:
 		bcm47xx_set_pdata(bcm47xx_leds_asus_rtn12);
 		break;

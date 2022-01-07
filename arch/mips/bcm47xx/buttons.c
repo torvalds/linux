@@ -27,6 +27,12 @@
 /* Asus */
 
 static const struct gpio_keys_button
+bcm47xx_buttons_asus_rtn10u[] __initconst = {
+	BCM47XX_GPIO_KEY(20, KEY_WPS_BUTTON),
+	BCM47XX_GPIO_KEY(21, KEY_RESTART),
+};
+
+static const struct gpio_keys_button
 bcm47xx_buttons_asus_rtn12[] __initconst = {
 	BCM47XX_GPIO_KEY(0, KEY_WPS_BUTTON),
 	BCM47XX_GPIO_KEY(1, KEY_RESTART),
@@ -490,6 +496,9 @@ int __init bcm47xx_buttons_register(void)
 	int err;
 
 	switch (board) {
+	case BCM47XX_BOARD_ASUS_RTN10U:
+		err = bcm47xx_copy_bdata(bcm47xx_buttons_asus_rtn10u);
+		break;
 	case BCM47XX_BOARD_ASUS_RTN12:
 		err = bcm47xx_copy_bdata(bcm47xx_buttons_asus_rtn12);
 		break;
