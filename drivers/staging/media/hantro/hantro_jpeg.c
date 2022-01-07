@@ -49,7 +49,7 @@ static const unsigned char chroma_q_table[] = {
 	0x63, 0x63, 0x63, 0x63, 0x63, 0x63, 0x63, 0x63
 };
 
-static const unsigned char zigzag[64] = {
+static const unsigned char zigzag[] = {
 	 0,  1,  8, 16,  9,  2,  3, 10,
 	17, 24, 32, 25, 18, 11,  4,  5,
 	12, 19, 26, 33, 40, 48, 41, 34,
@@ -60,7 +60,7 @@ static const unsigned char zigzag[64] = {
 	53, 60, 61, 54, 47, 55, 62, 63
 };
 
-static const u32 hw_reorder[64] = {
+static const u32 hw_reorder[] = {
 	 0,  8, 16, 24,  1,  9, 17, 25,
 	32, 40, 48, 56, 33, 41, 49, 57,
 	 2, 10, 18, 26,  3, 11, 19, 27,
@@ -292,7 +292,10 @@ jpeg_scale_quant_table(unsigned char *file_q_tab,
 {
 	int i;
 
-	for (i = 0; i < 64; i++) {
+	BUILD_BUG_ON(ARRAY_SIZE(zigzag) != JPEG_QUANT_SIZE);
+	BUILD_BUG_ON(ARRAY_SIZE(hw_reorder) != JPEG_QUANT_SIZE);
+
+	for (i = 0; i < JPEG_QUANT_SIZE; i++) {
 		file_q_tab[i] = jpeg_scale_qp(tab[zigzag[i]], scale);
 		reordered_q_tab[i] = jpeg_scale_qp(tab[hw_reorder[i]], scale);
 	}
@@ -310,6 +313,11 @@ static void jpeg_set_quality(struct hantro_jpeg_ctx *ctx)
 		scale = 5000 / ctx->quality;
 	else
 		scale = 200 - 2 * ctx->quality;
+
+	BUILD_BUG_ON(ARRAY_SIZE(luma_q_table) != JPEG_QUANT_SIZE);
+	BUILD_BUG_ON(ARRAY_SIZE(chroma_q_table) != JPEG_QUANT_SIZE);
+	BUILD_BUG_ON(ARRAY_SIZE(ctx->hw_luma_qtable) != JPEG_QUANT_SIZE);
+	BUILD_BUG_ON(ARRAY_SIZE(ctx->hw_chroma_qtable) != JPEG_QUANT_SIZE);
 
 	jpeg_scale_quant_table(ctx->buffer + LUMA_QUANT_OFF,
 			       ctx->hw_luma_qtable, luma_q_table, scale);
