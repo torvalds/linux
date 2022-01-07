@@ -43,7 +43,6 @@ required:
   - gpio-controller
   - interrupt-controller
   - "#interrupt-cells"
-  - interrupt-parent
 
 additionalProperties: false
 
