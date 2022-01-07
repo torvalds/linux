@@ -703,6 +703,8 @@ static struct snd_soc_dai_driver es8323_dai = {
 
 static int es8323_suspend(struct snd_soc_component *component)
 {
+	struct es8323_priv *es8323 = snd_soc_component_get_drvdata(component);
+
 	snd_soc_component_write(component, 0x19, 0x06);
 	snd_soc_component_write(component, 0x30, 0x00);
 	snd_soc_component_write(component, 0x31, 0x00);
@@ -713,11 +715,17 @@ static int es8323_suspend(struct snd_soc_component *component)
 	snd_soc_component_write(component, 0x01, 0x58);
 	snd_soc_component_write(component, 0x2b, 0x9c);
 	usleep_range(18000, 20000);
+	regcache_cache_only(es8323->regmap, true);
+	regcache_mark_dirty(es8323->regmap);
 	return 0;
 }
 
 static int es8323_resume(struct snd_soc_component *component)
 {
+	struct es8323_priv *es8323 = snd_soc_component_get_drvdata(component);
+
+	regcache_cache_only(es8323->regmap, false);
+	snd_soc_component_cache_sync(component);
 	snd_soc_component_write(component, 0x2b, 0x80);
 	snd_soc_component_write(component, 0x01, 0x50);
 	snd_soc_component_write(component, 0x00, 0x32);
