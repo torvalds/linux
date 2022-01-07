@@ -721,7 +721,7 @@ enum {
  *
  * Fields with static values for the port. Initialized by the
  * port_info struct supplied to the registration call.
- * @port_num:  NVME-FC transport subsytem port number
+ * @port_num:  NVME-FC transport subsystem port number
  * @node_name: FC WWNN for the port
  * @port_name: FC WWPN for the port
  * @private:   pointer to memory allocated alongside the local port
