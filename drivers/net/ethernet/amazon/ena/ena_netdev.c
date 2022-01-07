@@ -1558,7 +1558,7 @@ static void ena_rx_checksum(struct ena_ring *rx_ring,
 		     (ena_rx_ctx->l3_csum_err))) {
 		/* ipv4 checksum error */
 		skb->ip_summed = CHECKSUM_NONE;
-		ena_increase_stat(&rx_ring->rx_stats.bad_csum, 1,
+		ena_increase_stat(&rx_ring->rx_stats.csum_bad, 1,
 				  &rx_ring->syncp);
 		netif_dbg(rx_ring->adapter, rx_err, rx_ring->netdev,
 			  "RX IPv4 header checksum error\n");
@@ -1570,7 +1570,7 @@ static void ena_rx_checksum(struct ena_ring *rx_ring,
 		   (ena_rx_ctx->l4_proto == ENA_ETH_IO_L4_PROTO_UDP))) {
 		if (unlikely(ena_rx_ctx->l4_csum_err)) {
 			/* TCP/UDP checksum error */
-			ena_increase_stat(&rx_ring->rx_stats.bad_csum, 1,
+			ena_increase_stat(&rx_ring->rx_stats.csum_bad, 1,
 					  &rx_ring->syncp);
 			netif_dbg(rx_ring->adapter, rx_err, rx_ring->netdev,
 				  "RX L4 checksum error\n");
