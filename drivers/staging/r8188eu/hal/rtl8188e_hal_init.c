@@ -510,7 +510,7 @@ static s32 _FWFreeToGo(struct adapter *padapter)
 
 static int load_firmware(struct rt_firmware *pFirmware, struct device *device)
 {
-	s32 ret = _SUCCESS;
+	int ret = _SUCCESS;
 	const struct firmware *fw;
 	const char *fw_name = "rtlwifi/rtl8188eufw.bin";
 	int err = request_firmware(&fw, fw_name, device);
