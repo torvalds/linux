@@ -855,6 +855,7 @@ static inline bool tb_switch_is_alpine_ridge(const struct tb_switch *sw)
 	if (sw->config.vendor_id == PCI_VENDOR_ID_INTEL) {
 		switch (sw->config.device_id) {
 		case PCI_DEVICE_ID_INTEL_ALPINE_RIDGE_2C_BRIDGE:
+		case PCI_DEVICE_ID_INTEL_ALPINE_RIDGE_4C_BRIDGE:
 		case PCI_DEVICE_ID_INTEL_ALPINE_RIDGE_LP_BRIDGE:
 		case PCI_DEVICE_ID_INTEL_ALPINE_RIDGE_C_4C_BRIDGE:
 		case PCI_DEVICE_ID_INTEL_ALPINE_RIDGE_C_2C_BRIDGE:
