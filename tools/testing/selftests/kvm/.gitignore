@@ -4,6 +4,7 @@
 /aarch64/get-reg-list
 /aarch64/psci_cpu_on_test
 /aarch64/vgic_init
+/aarch64/vgic_irq
 /s390x/memop
 /s390x/resets
 /s390x/sync_regs_test

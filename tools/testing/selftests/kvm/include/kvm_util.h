@@ -42,18 +42,26 @@ enum vm_guest_mode {
 	VM_MODE_P52V48_4K,
 	VM_MODE_P52V48_64K,
 	VM_MODE_P48V48_4K,
+	VM_MODE_P48V48_16K,
 	VM_MODE_P48V48_64K,
 	VM_MODE_P40V48_4K,
+	VM_MODE_P40V48_16K,
 	VM_MODE_P40V48_64K,
 	VM_MODE_PXXV48_4K,	/* For 48bits VA but ANY bits PA */
 	VM_MODE_P47V64_4K,
 	VM_MODE_P44V64_4K,
+	VM_MODE_P36V48_4K,
+	VM_MODE_P36V48_16K,
+	VM_MODE_P36V48_64K,
+	VM_MODE_P36V47_16K,
 	NUM_VM_MODES,
 };
 
 #if defined(__aarch64__)
 
-#define VM_MODE_DEFAULT			VM_MODE_P40V48_4K
+extern enum vm_guest_mode vm_mode_default;
+
+#define VM_MODE_DEFAULT			vm_mode_default
 #define MIN_PAGE_SHIFT			12U
 #define ptes_per_page(page_size)	((page_size) / 8)
 
@@ -240,6 +248,8 @@ int _kvm_device_access(int dev_fd, uint32_t group, uint64_t attr,
 		       void *val, bool write);
 int kvm_device_access(int dev_fd, uint32_t group, uint64_t attr,
 		      void *val, bool write);
+void kvm_irq_line(struct kvm_vm *vm, uint32_t irq, int level);
+int _kvm_irq_line(struct kvm_vm *vm, uint32_t irq, int level);
 
 int _vcpu_has_device_attr(struct kvm_vm *vm, uint32_t vcpuid, uint32_t group,
 			  uint64_t attr);
@@ -249,6 +259,14 @@ int _vcpu_access_device_attr(struct kvm_vm *vm, uint32_t vcpuid, uint32_t group,
 			  uint64_t attr, void *val, bool write);
 int vcpu_access_device_attr(struct kvm_vm *vm, uint32_t vcpuid, uint32_t group,
 			 uint64_t attr, void *val, bool write);
+
+#define KVM_MAX_IRQ_ROUTES		4096
+
+struct kvm_irq_routing *kvm_gsi_routing_create(void);
+void kvm_gsi_routing_irqchip_add(struct kvm_irq_routing *routing,
+		uint32_t gsi, uint32_t pin);
+int _kvm_gsi_routing_write(struct kvm_vm *vm, struct kvm_irq_routing *routing);
+void kvm_gsi_routing_write(struct kvm_vm *vm, struct kvm_irq_routing *routing);
 
 const char *exit_reason_str(unsigned int exit_reason);
 

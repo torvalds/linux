@@ -109,7 +109,7 @@ static unsigned long kvm_psci_vcpu_on(struct kvm_vcpu *source_vcpu)
 
 	/*
 	 * Make sure the reset request is observed if the change to
-	 * power_state is observed.
+	 * power_off is observed.
 	 */
 	smp_wmb();
 
