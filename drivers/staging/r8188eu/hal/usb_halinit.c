@@ -1594,9 +1594,6 @@ void GetHwReg8188EU(struct adapter *Adapter, u8 variable, u8 *val)
 	struct odm_dm_struct *podmpriv = &haldata->odmpriv;
 
 	switch (variable) {
-	case HW_VAR_BASIC_RATE:
-		*((u16 *)(val)) = haldata->BasicRateSet;
-		fallthrough;
 	case HW_VAR_TXPAUSE:
 		val[0] = rtw_read8(Adapter, REG_TXPAUSE);
 		break;
