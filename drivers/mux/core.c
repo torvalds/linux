@@ -674,6 +674,32 @@ struct mux_control *devm_mux_control_get(struct device *dev,
 EXPORT_SYMBOL_GPL(devm_mux_control_get);
 
 /*
+ * mux_state_get() - Get the mux-state for a device.
+ * @dev: The device that needs a mux-state.
+ * @mux_name: The name identifying the mux-state.
+ *
+ * Return: A pointer to the mux-state, or an ERR_PTR with a negative errno.
+ */
+static struct mux_state *mux_state_get(struct device *dev, const char *mux_name)
+{
+	struct mux_state *mstate;
+
+	mstate = kzalloc(sizeof(*mstate), GFP_KERNEL);
+	if (!mstate)
+		return ERR_PTR(-ENOMEM);
+
+	mstate->mux = mux_get(dev, mux_name, &mstate->state);
+	if (IS_ERR(mstate->mux)) {
+		int err = PTR_ERR(mstate->mux);
+
+		kfree(mstate);
+		return ERR_PTR(err);
+	}
+
+	return mstate;
+}
+
+/*
  * mux_state_put() - Put away the mux-state for good.
  * @mstate: The mux-state to put away.
  *
@@ -704,25 +730,17 @@ struct mux_state *devm_mux_state_get(struct device *dev,
 				     const char *mux_name)
 {
 	struct mux_state **ptr, *mstate;
-	struct mux_control *mux_ctrl;
-	int state;
-
-	mstate = devm_kzalloc(dev, sizeof(struct mux_state), GFP_KERNEL);
-	if (!mstate)
-		return ERR_PTR(-ENOMEM);
 
 	ptr = devres_alloc(devm_mux_state_release, sizeof(*ptr), GFP_KERNEL);
 	if (!ptr)
 		return ERR_PTR(-ENOMEM);
 
-	mux_ctrl = mux_get(dev, mux_name, &state);
-	if (IS_ERR(mux_ctrl)) {
+	mstate = mux_state_get(dev, mux_name);
+	if (IS_ERR(mstate)) {
 		devres_free(ptr);
-		return (struct mux_state *)mux_ctrl;
+		return mstate;
 	}
 
-	mstate->mux = mux_ctrl;
-	mstate->state = state;
 	*ptr = mstate;
 	devres_add(dev, ptr);
 
