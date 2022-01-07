@@ -518,29 +518,29 @@ static int load_firmware(struct rt_firmware *pFirmware, struct device *device)
 	if (err) {
 		pr_err("Request firmware failed with error 0x%x\n", err);
 		rtStatus = _FAIL;
-		goto Exit;
+		goto exit;
 	}
 	if (!fw) {
 		pr_err("Firmware %s not available\n", fw_name);
 		rtStatus = _FAIL;
-		goto Exit;
+		goto exit;
 	}
 	if (fw->size > FW_8188E_SIZE) {
 		rtStatus = _FAIL;
-		goto Exit;
+		goto exit;
 	}
 
 	pFirmware->szFwBuffer = kzalloc(FW_8188E_SIZE, GFP_KERNEL);
 	if (!pFirmware->szFwBuffer) {
 		pr_err("Failed to allocate pFirmware->szFwBuffer\n");
 		rtStatus = _FAIL;
-		goto Exit;
+		goto exit;
 	}
 	memcpy(pFirmware->szFwBuffer, fw->data, fw->size);
 	pFirmware->ulFwLength = fw->size;
 	dev_dbg(device, "!bUsedWoWLANFw, FmrmwareLen:%d+\n", pFirmware->ulFwLength);
 
-Exit:
+exit:
 	release_firmware(fw);
 	return rtStatus;
 }
