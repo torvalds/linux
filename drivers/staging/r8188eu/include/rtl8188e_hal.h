@@ -249,10 +249,6 @@ struct hal_data_8188e {
 	u8	UsbRxAggPageTimeout;
 };
 
-/*  rtl8188e_hal_init.c */
-int rtl8188e_firmware_download(struct adapter *padapter);
-void rtw_reset_8051(struct adapter *padapter);
-
 s32 InitLLTTable(struct adapter *padapter, u8 txpktbuf_bndy);
 
 /*  EFuse */

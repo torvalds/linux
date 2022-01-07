@@ -37,6 +37,7 @@ r8188eu-y = \
 		core/rtw_br_ext.o \
 		core/rtw_cmd.o \
 		core/rtw_efuse.o \
+		core/rtw_fw.o \
 		core/rtw_ieee80211.o \
 		core/rtw_ioctl_set.o \
 		core/rtw_iol.o \
