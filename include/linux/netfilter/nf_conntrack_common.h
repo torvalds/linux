@@ -29,6 +29,8 @@ struct nf_conntrack {
 };
 
 void nf_conntrack_destroy(struct nf_conntrack *nfct);
+
+/* like nf_ct_put, but without module dependency on nf_conntrack */
 static inline void nf_conntrack_put(struct nf_conntrack *nfct)
 {
 	if (nfct && refcount_dec_and_test(&nfct->use))
