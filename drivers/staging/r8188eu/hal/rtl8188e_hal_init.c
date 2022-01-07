@@ -546,7 +546,7 @@ int rtl8188e_firmware_download(struct adapter *padapter)
 	u32 fwdl_start_time;
 	struct dvobj_priv *dvobj = adapter_to_dvobj(padapter);
 	struct device *device = dvobj_to_dev(dvobj);
-	struct rt_firmware_hdr *pFwHdr = NULL;
+	struct rt_firmware_hdr *fwhdr = NULL;
 	u16 fw_version, fw_subversion, fw_signature;
 	u8 *pFirmwareBuf;
 	u32 FirmwareLen;
@@ -562,17 +562,17 @@ int rtl8188e_firmware_download(struct adapter *padapter)
 	FirmwareLen = dvobj->firmware.size;
 
 	/*  To Check Fw header. Added by tynli. 2009.12.04. */
-	pFwHdr = (struct rt_firmware_hdr *)dvobj->firmware.data;
+	fwhdr = (struct rt_firmware_hdr *)dvobj->firmware.data;
 
-	fw_version = le16_to_cpu(pFwHdr->Version);
-	fw_subversion = pFwHdr->Subversion;
-	fw_signature = le16_to_cpu(pFwHdr->Signature);
+	fw_version = le16_to_cpu(fwhdr->Version);
+	fw_subversion = fwhdr->Subversion;
+	fw_signature = le16_to_cpu(fwhdr->Signature);
 
 	if (!log_version++)
 		pr_info("%sFirmware Version %d, SubVersion %d, Signature 0x%x\n",
 			DRIVER_PREFIX, fw_version, fw_subversion, fw_signature);
 
-	if (IS_FW_HEADER_EXIST(pFwHdr)) {
+	if (IS_FW_HEADER_EXIST(fwhdr)) {
 		/*  Shift 32 bytes for FW header */
 		pFirmwareBuf = pFirmwareBuf + 32;
 		FirmwareLen = FirmwareLen - 32;
