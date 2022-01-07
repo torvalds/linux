@@ -21,7 +21,7 @@ static void iol_mode_enable(struct adapter *padapter, u8 enable)
 
 		if (!padapter->bFWReady) {
 			DBG_88E("bFWReady == false call reset 8051...\n");
-			_8051Reset88E(padapter);
+			rtw_reset_8051(padapter);
 		}
 
 	} else {
@@ -336,7 +336,7 @@ exit:
 	return ret;
 }
 
-static void _FWDownloadEnable(struct adapter *padapter, bool enable)
+static void fw_download_enable(struct adapter *padapter, bool enable)
 {
 	u8 tmp;
 
@@ -360,7 +360,7 @@ static void _FWDownloadEnable(struct adapter *padapter, bool enable)
 
 #define MAX_REG_BOLCK_SIZE	196
 
-static int _BlockWrite(struct adapter *padapter, void *buffer, u32 buffSize)
+static int block_write(struct adapter *padapter, void *buffer, u32 buffSize)
 {
 	int ret = _SUCCESS;
 	u32	blockSize_p1 = 4;	/*  (Default) Phase #1 : PCI muse use 4-byte write to download FW */
@@ -416,7 +416,7 @@ exit:
 	return ret;
 }
 
-static int _PageWrite(struct adapter *padapter, u32 page, void *buffer, u32 size)
+static int page_write(struct adapter *padapter, u32 page, void *buffer, u32 size)
 {
 	u8 value8;
 	u8 u8Page = (u8)(page & 0x07);
@@ -424,10 +424,10 @@ static int _PageWrite(struct adapter *padapter, u32 page, void *buffer, u32 size
 	value8 = (rtw_read8(padapter, REG_MCUFWDL + 2) & 0xF8) | u8Page;
 	rtw_write8(padapter, REG_MCUFWDL + 2, value8);
 
-	return _BlockWrite(padapter, buffer, size);
+	return block_write(padapter, buffer, size);
 }
 
-static int _WriteFW(struct adapter *padapter, void *buffer, u32 size)
+static int write_fw(struct adapter *padapter, void *buffer, u32 size)
 {
 	/*  Since we need dynamic decide method of dwonload fw, so we call this function to get chip version. */
 	/*  We can remove _ReadChipVersion from ReadpadapterInfo8192C later. */
@@ -441,7 +441,7 @@ static int _WriteFW(struct adapter *padapter, void *buffer, u32 size)
 
 	for (page = 0; page < pageNums; page++) {
 		offset = page * MAX_PAGE_SIZE;
-		ret = _PageWrite(padapter, page, bufferPtr + offset, MAX_PAGE_SIZE);
+		ret = page_write(padapter, page, bufferPtr + offset, MAX_PAGE_SIZE);
 
 		if (ret == _FAIL)
 			goto exit;
@@ -449,7 +449,7 @@ static int _WriteFW(struct adapter *padapter, void *buffer, u32 size)
 	if (remainSize) {
 		offset = pageNums * MAX_PAGE_SIZE;
 		page = pageNums;
-		ret = _PageWrite(padapter, page, bufferPtr + offset, remainSize);
+		ret = page_write(padapter, page, bufferPtr + offset, remainSize);
 
 		if (ret == _FAIL)
 			goto exit;
@@ -458,7 +458,7 @@ exit:
 	return ret;
 }
 
-void _8051Reset88E(struct adapter *padapter)
+void rtw_reset_8051(struct adapter *padapter)
 {
 	u8 u1bTmp;
 
@@ -468,7 +468,7 @@ void _8051Reset88E(struct adapter *padapter)
 	DBG_88E("=====> _8051Reset88E(): 8051 reset success .\n");
 }
 
-static s32 _FWFreeToGo(struct adapter *padapter)
+static s32 fw_free_to_go(struct adapter *padapter)
 {
 	u32	counter = 0;
 	u32	value32;
@@ -491,7 +491,7 @@ static s32 _FWFreeToGo(struct adapter *padapter)
 	value32 &= ~WINTINI_RDY;
 	rtw_write32(padapter, REG_MCUFWDL, value32);
 
-	_8051Reset88E(padapter);
+	rtw_reset_8051(padapter);
 
 	/*  polling for FW ready */
 	counter = 0;
@@ -540,7 +540,7 @@ exit:
 	return ret;
 }
 
-s32 rtl8188e_FirmwareDownload(struct adapter *padapter)
+s32 rtl8188e_firmware_download(struct adapter *padapter)
 {
 	s32	rtStatus = _SUCCESS;
 	u8 writeFW_retry = 0;
@@ -583,16 +583,16 @@ s32 rtl8188e_FirmwareDownload(struct adapter *padapter)
 	/*  or it will cause download Fw fail. 2010.02.01. by tynli. */
 	if (rtw_read8(padapter, REG_MCUFWDL) & RAM_DL_SEL) { /* 8051 RAM code */
 		rtw_write8(padapter, REG_MCUFWDL, 0x00);
-		_8051Reset88E(padapter);
+		rtw_reset_8051(padapter);
 	}
 
-	_FWDownloadEnable(padapter, true);
+	fw_download_enable(padapter, true);
 	fwdl_start_time = jiffies;
 	while (1) {
 		/* reset the FWDL chksum */
 		rtw_write8(padapter, REG_MCUFWDL, rtw_read8(padapter, REG_MCUFWDL) | FWDL_ChkSum_rpt);
 
-		rtStatus = _WriteFW(padapter, pFirmwareBuf, FirmwareLen);
+		rtStatus = write_fw(padapter, pFirmwareBuf, FirmwareLen);
 
 		if (rtStatus == _SUCCESS ||
 		    (rtw_get_passing_time_ms(fwdl_start_time) > 500 && writeFW_retry++ >= 3))
@@ -602,13 +602,13 @@ s32 rtl8188e_FirmwareDownload(struct adapter *padapter)
 			__func__, writeFW_retry, rtw_get_passing_time_ms(fwdl_start_time)
 		);
 	}
-	_FWDownloadEnable(padapter, false);
+	fw_download_enable(padapter, false);
 	if (_SUCCESS != rtStatus) {
 		DBG_88E("DL Firmware failed!\n");
 		goto Exit;
 	}
 
-	rtStatus = _FWFreeToGo(padapter);
+	rtStatus = fw_free_to_go(padapter);
 	if (_SUCCESS != rtStatus) {
 		DBG_88E("DL Firmware failed!\n");
 		goto Exit;
