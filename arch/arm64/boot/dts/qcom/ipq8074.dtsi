@@ -88,6 +88,11 @@
 
 			hwlocks = <&tcsr_mutex 0>;
 		};
+
+		memory@4ac00000 {
+			no-map;
+			reg = <0x0 0x4ac00000 0x0 0x00400000>;
+		};
 	};
 
 	firmware {
