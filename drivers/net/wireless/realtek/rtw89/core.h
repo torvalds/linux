@@ -665,6 +665,7 @@ struct rtw89_rxdesc_long {
 struct rtw89_tx_desc_info {
 	u16 pkt_size;
 	u8 wp_offset;
+	u8 mac_id;
 	u8 qsel;
 	u8 ch_dma;
 	u8 hdr_llc_len;
@@ -691,6 +692,7 @@ struct rtw89_tx_desc_info {
 	u8 hw_seq_mode;
 #define RTW89_MGMT_HW_SEQ_MODE	1
 	bool hiq;
+	u8 port;
 };
 
 struct rtw89_core_tx_request {
