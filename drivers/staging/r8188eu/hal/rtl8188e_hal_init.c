@@ -623,17 +623,6 @@ Exit:
 	return rtStatus;
 }
 
-void rtl8188e_InitializeFirmwareVars(struct adapter *padapter)
-{
-	struct hal_data_8188e *pHalData = &padapter->haldata;
-
-	/*  Init Fw LPS related. */
-	padapter->pwrctrlpriv.bFwCurrentInPSMode = false;
-
-	/*  Init H2C counter. by tynli. 2009.12.09. */
-	pHalData->LastHMEBoxNum = 0;
-}
-
 /*  */
 /*			Efuse related code */
 /*  */
