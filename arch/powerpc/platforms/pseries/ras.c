@@ -60,11 +60,17 @@ struct pseries_mc_errorlog {
 	 *      XX	2: Reserved.
 	 *        XXX	3: Type of UE error.
 	 *
-	 * For error_type != MC_ERROR_TYPE_UE
+	 * For error_type == MC_ERROR_TYPE_SLB/ERAT/TLB
 	 *   XXXXXXXX
 	 *   X		1: Effective address provided.
 	 *    XXXXX	5: Reserved.
 	 *         XX	2: Type of SLB/ERAT/TLB error.
+	 *
+	 * For error_type == MC_ERROR_TYPE_CTRL_MEM_ACCESS
+	 *   XXXXXXXX
+	 *   X		1: Error causing address provided.
+	 *    XXX	3: Type of error.
+	 *       XXXX	4: Reserved.
 	 */
 	u8	sub_err_type;
 	u8	reserved_1[6];
@@ -80,6 +86,7 @@ struct pseries_mc_errorlog {
 #define MC_ERROR_TYPE_TLB		0x04
 #define MC_ERROR_TYPE_D_CACHE		0x05
 #define MC_ERROR_TYPE_I_CACHE		0x07
+#define MC_ERROR_TYPE_CTRL_MEM_ACCESS	0x08
 
 /* RTAS pseries MCE error sub types */
 #define MC_ERROR_UE_INDETERMINATE		0
@@ -90,6 +97,7 @@ struct pseries_mc_errorlog {
 
 #define UE_EFFECTIVE_ADDR_PROVIDED		0x40
 #define UE_LOGICAL_ADDR_PROVIDED		0x20
+#define MC_EFFECTIVE_ADDR_PROVIDED		0x80
 
 #define MC_ERROR_SLB_PARITY		0
 #define MC_ERROR_SLB_MULTIHIT		1
@@ -103,6 +111,9 @@ struct pseries_mc_errorlog {
 #define MC_ERROR_TLB_MULTIHIT		2
 #define MC_ERROR_TLB_INDETERMINATE	3
 
+#define MC_ERROR_CTRL_MEM_ACCESS_PTABLE_WALK	0
+#define MC_ERROR_CTRL_MEM_ACCESS_OP_ACCESS	1
+
 static inline u8 rtas_mc_error_sub_type(const struct pseries_mc_errorlog *mlog)
 {
 	switch (mlog->error_type) {
@@ -112,6 +123,8 @@ static inline u8 rtas_mc_error_sub_type(const struct pseries_mc_errorlog *mlog)
 	case	MC_ERROR_TYPE_ERAT:
 	case	MC_ERROR_TYPE_TLB:
 		return (mlog->sub_err_type & 0x03);
+	case	MC_ERROR_TYPE_CTRL_MEM_ACCESS:
+		return (mlog->sub_err_type & 0x70) >> 4;
 	default:
 		return 0;
 	}
@@ -658,7 +671,7 @@ static int mce_handle_err_virtmode(struct pt_regs *regs,
 			mce_err.u.slb_error_type = MCE_SLB_ERROR_INDETERMINATE;
 			break;
 		}
-		if (mce_log->sub_err_type & 0x80)
+		if (mce_log->sub_err_type & MC_EFFECTIVE_ADDR_PROVIDED)
 			eaddr = be64_to_cpu(mce_log->effective_address);
 		break;
 	case MC_ERROR_TYPE_ERAT:
@@ -675,7 +688,7 @@ static int mce_handle_err_virtmode(struct pt_regs *regs,
 			mce_err.u.erat_error_type = MCE_ERAT_ERROR_INDETERMINATE;
 			break;
 		}
-		if (mce_log->sub_err_type & 0x80)
+		if (mce_log->sub_err_type & MC_EFFECTIVE_ADDR_PROVIDED)
 			eaddr = be64_to_cpu(mce_log->effective_address);
 		break;
 	case MC_ERROR_TYPE_TLB:
@@ -692,7 +705,7 @@ static int mce_handle_err_virtmode(struct pt_regs *regs,
 			mce_err.u.tlb_error_type = MCE_TLB_ERROR_INDETERMINATE;
 			break;
 		}
-		if (mce_log->sub_err_type & 0x80)
+		if (mce_log->sub_err_type & MC_EFFECTIVE_ADDR_PROVIDED)
 			eaddr = be64_to_cpu(mce_log->effective_address);
 		break;
 	case MC_ERROR_TYPE_D_CACHE:
@@ -700,6 +713,21 @@ static int mce_handle_err_virtmode(struct pt_regs *regs,
 		break;
 	case MC_ERROR_TYPE_I_CACHE:
 		mce_err.error_type = MCE_ERROR_TYPE_ICACHE;
+		break;
+	case MC_ERROR_TYPE_CTRL_MEM_ACCESS:
+		mce_err.error_type = MCE_ERROR_TYPE_RA;
+		switch (err_sub_type) {
+		case MC_ERROR_CTRL_MEM_ACCESS_PTABLE_WALK:
+			mce_err.u.ra_error_type =
+				MCE_RA_ERROR_PAGE_TABLE_WALK_LOAD_STORE_FOREIGN;
+			break;
+		case MC_ERROR_CTRL_MEM_ACCESS_OP_ACCESS:
+			mce_err.u.ra_error_type =
+				MCE_RA_ERROR_LOAD_STORE_FOREIGN;
+			break;
+		}
+		if (mce_log->sub_err_type & MC_EFFECTIVE_ADDR_PROVIDED)
+			eaddr = be64_to_cpu(mce_log->effective_address);
 		break;
 	case MC_ERROR_TYPE_UNKNOWN:
 	default:
