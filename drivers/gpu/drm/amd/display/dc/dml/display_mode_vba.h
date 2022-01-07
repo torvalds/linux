@@ -544,6 +544,8 @@ struct vba_vars_st {
 	bool DTBCLKRequiredMoreThanSupported[DC__VOLTAGE_STATES];
 	double UrgentRoundTripAndOutOfOrderLatencyPerState[DC__VOLTAGE_STATES];
 	bool ROBSupport[DC__VOLTAGE_STATES][2];
+	//based on rev 99: Dim DCCMetaBufferSizeSupport(NumberOfStates, 1) As Boolean
+	bool DCCMetaBufferSizeSupport[DC__VOLTAGE_STATES][2];
 	bool PTEBufferSizeNotExceeded[DC__VOLTAGE_STATES][2];
 	bool TotalVerticalActiveBandwidthSupport[DC__VOLTAGE_STATES][2];
 	double MaxTotalVerticalActiveAvailableBandwidth[DC__VOLTAGE_STATES][2];
