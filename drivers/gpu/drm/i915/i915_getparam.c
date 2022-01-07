@@ -6,6 +6,7 @@
 #include "gt/intel_engine_user.h"
 
 #include "i915_drv.h"
+#include "i915_getparam.h"
 #include "i915_perf.h"
 
 int i915_getparam_ioctl(struct drm_device *dev, void *data,
