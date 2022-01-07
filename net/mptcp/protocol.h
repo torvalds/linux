@@ -111,7 +111,6 @@
 #define MPTCP_RST_TRANSIENT	BIT(0)
 
 /* MPTCP socket flags */
-#define MPTCP_DATA_READY	0
 #define MPTCP_NOSPACE		1
 #define MPTCP_WORK_RTX		2
 #define MPTCP_WORK_EOF		3
