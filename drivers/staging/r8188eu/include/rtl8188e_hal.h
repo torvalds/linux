@@ -40,10 +40,10 @@
 #define MAX_PAGE_SIZE			4096	/*  @ page : 4k bytes */
 
 #define IS_FW_HEADER_EXIST(_fwhdr)				\
-	((le16_to_cpu(_fwhdr->Signature)&0xFFF0) == 0x92C0 ||	\
-	(le16_to_cpu(_fwhdr->Signature)&0xFFF0) == 0x88C0 ||	\
-	(le16_to_cpu(_fwhdr->Signature)&0xFFF0) == 0x2300 ||	\
-	(le16_to_cpu(_fwhdr->Signature)&0xFFF0) == 0x88E0)
+	((le16_to_cpu(_fwhdr->Signature) & 0xFFF0) == 0x92C0 ||	\
+	(le16_to_cpu(_fwhdr->Signature) & 0xFFF0) == 0x88C0 ||	\
+	(le16_to_cpu(_fwhdr->Signature) & 0xFFF0) == 0x2300 ||	\
+	(le16_to_cpu(_fwhdr->Signature) & 0xFFF0) == 0x88E0)
 
 /*  This structure must be careful with byte-ordering */
 
