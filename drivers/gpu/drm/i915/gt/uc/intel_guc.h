@@ -328,6 +328,8 @@ int intel_guc_resume(struct intel_guc *guc);
 struct i915_vma *intel_guc_allocate_vma(struct intel_guc *guc, u32 size);
 int intel_guc_allocate_and_map_vma(struct intel_guc *guc, u32 size,
 				   struct i915_vma **out_vma, void **out_vaddr);
+int intel_guc_self_cfg32(struct intel_guc *guc, u16 key, u32 value);
+int intel_guc_self_cfg64(struct intel_guc *guc, u16 key, u64 value);
 
 static inline bool intel_guc_is_supported(struct intel_guc *guc)
 {
@@ -404,6 +406,8 @@ int intel_guc_context_reset_process_msg(struct intel_guc *guc,
 					const u32 *msg, u32 len);
 int intel_guc_engine_failure_process_msg(struct intel_guc *guc,
 					 const u32 *msg, u32 len);
+int intel_guc_error_capture_process_msg(struct intel_guc *guc,
+					const u32 *msg, u32 len);
 
 void intel_guc_find_hung_context(struct intel_engine_cs *engine);
 

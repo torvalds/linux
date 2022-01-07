@@ -49,21 +49,21 @@ void intel_uc_fw_change_status(struct intel_uc_fw *uc_fw,
  * firmware as TGL.
  */
 #define INTEL_GUC_FIRMWARE_DEFS(fw_def, guc_def) \
-	fw_def(ALDERLAKE_P,  0, guc_def(adlp, 62, 0, 3)) \
-	fw_def(ALDERLAKE_S,  0, guc_def(tgl,  62, 0, 0)) \
-	fw_def(DG1,          0, guc_def(dg1,  62, 0, 0)) \
-	fw_def(ROCKETLAKE,   0, guc_def(tgl,  62, 0, 0)) \
-	fw_def(TIGERLAKE,    0, guc_def(tgl,  62, 0, 0)) \
-	fw_def(JASPERLAKE,   0, guc_def(ehl,  62, 0, 0)) \
-	fw_def(ELKHARTLAKE,  0, guc_def(ehl,  62, 0, 0)) \
-	fw_def(ICELAKE,      0, guc_def(icl,  62, 0, 0)) \
-	fw_def(COMETLAKE,    5, guc_def(cml,  62, 0, 0)) \
-	fw_def(COMETLAKE,    0, guc_def(kbl,  62, 0, 0)) \
-	fw_def(COFFEELAKE,   0, guc_def(kbl,  62, 0, 0)) \
-	fw_def(GEMINILAKE,   0, guc_def(glk,  62, 0, 0)) \
-	fw_def(KABYLAKE,     0, guc_def(kbl,  62, 0, 0)) \
-	fw_def(BROXTON,      0, guc_def(bxt,  62, 0, 0)) \
-	fw_def(SKYLAKE,      0, guc_def(skl,  62, 0, 0))
+	fw_def(ALDERLAKE_P,  0, guc_def(adlp, 69, 0, 3)) \
+	fw_def(ALDERLAKE_S,  0, guc_def(tgl,  69, 0, 3)) \
+	fw_def(DG1,          0, guc_def(dg1,  69, 0, 3)) \
+	fw_def(ROCKETLAKE,   0, guc_def(tgl,  69, 0, 3)) \
+	fw_def(TIGERLAKE,    0, guc_def(tgl,  69, 0, 3)) \
+	fw_def(JASPERLAKE,   0, guc_def(ehl,  69, 0, 3)) \
+	fw_def(ELKHARTLAKE,  0, guc_def(ehl,  69, 0, 3)) \
+	fw_def(ICELAKE,      0, guc_def(icl,  69, 0, 3)) \
+	fw_def(COMETLAKE,    5, guc_def(cml,  69, 0, 3)) \
+	fw_def(COMETLAKE,    0, guc_def(kbl,  69, 0, 3)) \
+	fw_def(COFFEELAKE,   0, guc_def(kbl,  69, 0, 3)) \
+	fw_def(GEMINILAKE,   0, guc_def(glk,  69, 0, 3)) \
+	fw_def(KABYLAKE,     0, guc_def(kbl,  69, 0, 3)) \
+	fw_def(BROXTON,      0, guc_def(bxt,  69, 0, 3)) \
+	fw_def(SKYLAKE,      0, guc_def(skl,  69, 0, 3))
 
 #define INTEL_HUC_FIRMWARE_DEFS(fw_def, huc_def) \
 	fw_def(ALDERLAKE_P,  0, huc_def(tgl,  7, 9, 3)) \
