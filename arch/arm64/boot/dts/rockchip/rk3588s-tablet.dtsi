@@ -189,6 +189,7 @@
 	vcc3v3_lcd_edp: vcc3v3-lcd-edp {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc3v3_lcd_edp";
+		regulator-boot-on;
 		gpio = <&gpio1 RK_PB1 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
 		vin-supply = <&vcc_3v3_s3>;
