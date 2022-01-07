@@ -4016,16 +4016,11 @@ int amdgpu_device_suspend(struct drm_device *dev, bool fbcon)
 	if (!adev->in_s0ix)
 		amdgpu_amdkfd_suspend(adev, adev->in_runpm);
 
-	/* First evict vram memory */
 	amdgpu_device_evict_resources(adev);
 
 	amdgpu_fence_driver_hw_fini(adev);
 
 	amdgpu_device_ip_suspend_phase2(adev);
-	/* This second call to evict device resources is to evict
-	 * the gart page table using the CPU.
-	 */
-	amdgpu_device_evict_resources(adev);
 
 	return 0;
 }
@@ -4370,8 +4365,6 @@ static int amdgpu_device_reset_sriov(struct amdgpu_device *adev,
 		goto error;
 
 	amdgpu_virt_init_data_exchange(adev);
-	/* we need recover gart prior to run SMC/CP/SDMA resume */
-	amdgpu_gtt_mgr_recover(&adev->mman.gtt_mgr);
 
 	r = amdgpu_device_fw_loading(adev);
 	if (r)
@@ -4690,10 +4683,6 @@ int amdgpu_do_asic_reset(struct list_head *device_list_handle,
 					DRM_INFO("VRAM is lost due to GPU reset!\n");
 					amdgpu_inc_vram_lost(tmp_adev);
 				}
-
-				r = amdgpu_gtt_mgr_recover(&tmp_adev->mman.gtt_mgr);
-				if (r)
-					goto out;
 
 				r = amdgpu_device_fw_loading(tmp_adev);
 				if (r)
