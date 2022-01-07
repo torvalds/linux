@@ -1929,7 +1929,7 @@ int rtw89_core_sta_disconnect(struct rtw89_dev *rtwdev,
 		return ret;
 	}
 
-	ret = rtw89_fw_h2c_join_info(rtwdev, rtwvif, 1);
+	ret = rtw89_fw_h2c_join_info(rtwdev, rtwvif, rtwsta, true);
 	if (ret) {
 		rtw89_warn(rtwdev, "failed to send h2c join info\n");
 		return ret;
@@ -1961,7 +1961,7 @@ int rtw89_core_sta_assoc(struct rtw89_dev *rtwdev,
 		return ret;
 	}
 
-	ret = rtw89_fw_h2c_join_info(rtwdev, rtwvif, 0);
+	ret = rtw89_fw_h2c_join_info(rtwdev, rtwvif, rtwsta, false);
 	if (ret) {
 		rtw89_warn(rtwdev, "failed to send h2c join info\n");
 		return ret;
