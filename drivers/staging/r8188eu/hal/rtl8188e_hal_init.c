@@ -460,12 +460,11 @@ exit:
 
 void rtw_reset_8051(struct adapter *padapter)
 {
-	u8 u1bTmp;
+	u8 val8;
 
-	u1bTmp = rtw_read8(padapter, REG_SYS_FUNC_EN + 1);
-	rtw_write8(padapter, REG_SYS_FUNC_EN + 1, u1bTmp & (~BIT(2)));
-	rtw_write8(padapter, REG_SYS_FUNC_EN + 1, u1bTmp | (BIT(2)));
-	DBG_88E("=====> _8051Reset88E(): 8051 reset success .\n");
+	val8 = rtw_read8(padapter, REG_SYS_FUNC_EN + 1);
+	rtw_write8(padapter, REG_SYS_FUNC_EN + 1, val8 & (~BIT(2)));
+	rtw_write8(padapter, REG_SYS_FUNC_EN + 1, val8 | (BIT(2)));
 }
 
 static s32 fw_free_to_go(struct adapter *padapter)
