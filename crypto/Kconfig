@@ -999,6 +999,7 @@ config CRYPTO_SHA3
 config CRYPTO_SM3
 	tristate "SM3 digest algorithm"
 	select CRYPTO_HASH
+	select CRYPTO_LIB_SM3
 	help
 	  SM3 secure hash function as defined by OSCCA GM/T 0004-2012 SM3).
 	  It is part of the Chinese Commercial Cryptography suite.
