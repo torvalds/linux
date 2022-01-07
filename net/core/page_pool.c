@@ -130,9 +130,6 @@ static struct page *page_pool_refill_alloc_cache(struct page_pool *pool)
 	pref_nid = numa_mem_id(); /* will be zero like page_to_nid() */
 #endif
 
-	/* Slower-path: Get pages from locked ring queue */
-	spin_lock(&r->consumer_lock);
-
 	/* Refill alloc array, but only if NUMA match */
 	do {
 		page = __ptr_ring_consume(r);
@@ -157,7 +154,6 @@ static struct page *page_pool_refill_alloc_cache(struct page_pool *pool)
 	if (likely(pool->alloc.count > 0))
 		page = pool->alloc.cache[--pool->alloc.count];
 
-	spin_unlock(&r->consumer_lock);
 	return page;
 }
 
