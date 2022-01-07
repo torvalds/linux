@@ -8,6 +8,7 @@
 
 #include "rk3588-evb3-lp5.dtsi"
 #include "rk3588-android.dtsi"
+#include "rk3588-evb3-imx415.dtsi"
 
 / {
 	model = "Rockchip RK3588 EVB3 LP5 V10 Board";
