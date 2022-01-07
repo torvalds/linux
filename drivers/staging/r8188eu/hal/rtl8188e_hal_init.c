@@ -467,7 +467,7 @@ void rtw_reset_8051(struct adapter *padapter)
 	rtw_write8(padapter, REG_SYS_FUNC_EN + 1, val8 | (BIT(2)));
 }
 
-static s32 fw_free_to_go(struct adapter *padapter)
+static int fw_free_to_go(struct adapter *padapter)
 {
 	u32	counter = 0;
 	u32	value32;
@@ -539,9 +539,9 @@ exit:
 	return ret;
 }
 
-s32 rtl8188e_firmware_download(struct adapter *padapter)
+int rtl8188e_firmware_download(struct adapter *padapter)
 {
-	s32	rtStatus = _SUCCESS;
+	int rtStatus = _SUCCESS;
 	u8 writeFW_retry = 0;
 	u32 fwdl_start_time;
 	struct dvobj_priv *dvobj = adapter_to_dvobj(padapter);
