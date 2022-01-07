@@ -415,6 +415,12 @@ bcm47xx_buttons_netgear_r6300_v1[] __initconst = {
 };
 
 static const struct gpio_keys_button
+bcm47xx_buttons_netgear_wn2500rp_v1[] __initconst = {
+	BCM47XX_GPIO_KEY(12, KEY_RESTART),
+	BCM47XX_GPIO_KEY(31, KEY_WPS_BUTTON),
+};
+
+static const struct gpio_keys_button
 bcm47xx_buttons_netgear_wndr3400v1[] __initconst = {
 	BCM47XX_GPIO_KEY(4, KEY_RESTART),
 	BCM47XX_GPIO_KEY(6, KEY_WPS_BUTTON),
@@ -708,6 +714,9 @@ int __init bcm47xx_buttons_register(void)
 		break;
 	case BCM47XX_BOARD_NETGEAR_R6300_V1:
 		err = bcm47xx_copy_bdata(bcm47xx_buttons_netgear_r6300_v1);
+		break;
+	case BCM47XX_BOARD_NETGEAR_WN2500RP_V1:
+		err = bcm47xx_copy_bdata(bcm47xx_buttons_netgear_wn2500rp_v1);
 		break;
 	case BCM47XX_BOARD_NETGEAR_WNDR3400V1:
 		err = bcm47xx_copy_bdata(bcm47xx_buttons_netgear_wndr3400v1);
