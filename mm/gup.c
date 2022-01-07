@@ -68,7 +68,10 @@ static void put_page_refs(struct page *page, int refs)
  */
 static inline struct page *try_get_compound_head(struct page *page, int refs)
 {
-	struct page *head = compound_head(page);
+	struct page *head;
+
+retry:
+	head = compound_head(page);
 
 	if (WARN_ON_ONCE(page_ref_count(head) < 0))
 		return NULL;
@@ -86,7 +89,7 @@ static inline struct page *try_get_compound_head(struct page *page, int refs)
 	 */
 	if (unlikely(compound_head(page) != head)) {
 		put_page_refs(head, refs);
-		return NULL;
+		goto retry;
 	}
 
 	return head;
