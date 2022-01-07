@@ -737,6 +737,20 @@ void __noreturn do_exit(long code)
 
 	WARN_ON(blk_needs_flush_plug(tsk));
 
+	/*
+	 * If do_dead is called because this processes oopsed, it's possible
+	 * that get_fs() was left as KERNEL_DS, so reset it to USER_DS before
+	 * continuing. Amongst other possible reasons, this is to prevent
+	 * mm_release()->clear_child_tid() from writing to a user-controlled
+	 * kernel address.
+	 *
+	 * On uptodate architectures force_uaccess_begin is a noop.  On
+	 * architectures that still have set_fs/get_fs in addition to handling
+	 * oopses handles kernel threads that run as set_fs(KERNEL_DS) by
+	 * default.
+	 */
+	force_uaccess_begin();
+
 	profile_task_exit(tsk);
 	kcov_task_exit(tsk);
 
@@ -861,15 +875,6 @@ void __noreturn make_task_dead(int signr)
 		panic("Aiee, killing interrupt handler!");
 	if (unlikely(!tsk->pid))
 		panic("Attempted to kill the idle task!");
-
-	/*
-	 * If make_task_dead is called because this processes oopsed, it's possible
-	 * that get_fs() was left as KERNEL_DS, so reset it to USER_DS before
-	 * continuing. Amongst other possible reasons, this is to prevent
-	 * mm_release()->clear_child_tid() from writing to a user-controlled
-	 * kernel address.
-	 */
-	force_uaccess_begin();
 
 	if (unlikely(in_atomic())) {
 		pr_info("note: %s[%d] exited with preempt_count %d\n",
