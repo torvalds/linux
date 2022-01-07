@@ -231,8 +231,11 @@ static int bch2_copygc(struct bch_fs *c)
 
 	buckets_to_move = h->used;
 
-	if (!buckets_to_move)
+	if (!buckets_to_move) {
+		bch_err_ratelimited(c, "copygc cannot run - sectors_reserved %llu!",
+				    sectors_reserved);
 		return 0;
+	}
 
 	eytzinger0_sort(h->data, h->used,
 			sizeof(h->data[0]),

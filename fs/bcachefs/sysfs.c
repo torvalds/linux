@@ -192,7 +192,7 @@ read_attribute(new_stripes);
 read_attribute(io_timers_read);
 read_attribute(io_timers_write);
 
-read_attribute(data_op_data_progress);
+read_attribute(data_jobs);
 
 #ifdef CONFIG_BCACHEFS_TESTS
 write_attribute(perf_test);
@@ -230,32 +230,20 @@ static size_t bch2_btree_avg_write_size(struct bch_fs *c)
 	return nr ? div64_u64(sectors, nr) : 0;
 }
 
-static long stats_to_text(struct printbuf *out, struct bch_fs *c,
-			  struct bch_move_stats *stats)
-{
-	pr_buf(out, "%s: data type %s btree_id %s position: ",
-		stats->name,
-		bch2_data_types[stats->data_type],
-		bch2_btree_ids[stats->btree_id]);
-	bch2_bpos_to_text(out, stats->pos);
-	pr_buf(out, "%s", "\n");
-
-	return 0;
-}
-
 static long data_progress_to_text(struct printbuf *out, struct bch_fs *c)
 {
 	long ret = 0;
-	struct bch_move_stats *iter;
+	struct bch_move_stats *stats;
 
 	mutex_lock(&c->data_progress_lock);
-
-	if (list_empty(&c->data_progress_list))
-		pr_buf(out, "%s", "no progress to report\n");
-	else
-		list_for_each_entry(iter, &c->data_progress_list, list) {
-			stats_to_text(out, c, iter);
-		}
+	list_for_each_entry(stats, &c->data_progress_list, list) {
+		pr_buf(out, "%s: data type %s btree_id %s position: ",
+		       stats->name,
+		       bch2_data_types[stats->data_type],
+		       bch2_btree_ids[stats->btree_id]);
+		bch2_bpos_to_text(out, stats->pos);
+		pr_buf(out, "%s", "\n");
+	}
 
 	mutex_unlock(&c->data_progress_lock);
 	return ret;
@@ -463,7 +451,7 @@ SHOW(bch2_fs)
 		return out.pos - buf;
 	}
 
-	if (attr == &sysfs_data_op_data_progress) {
+	if (attr == &sysfs_data_jobs) {
 		data_progress_to_text(&out, c);
 		return out.pos - buf;
 	}
@@ -616,7 +604,7 @@ struct attribute *bch2_fs_internal_files[] = {
 	&sysfs_rebalance_work,
 	sysfs_pd_controller_files(rebalance),
 
-	&sysfs_data_op_data_progress,
+	&sysfs_data_jobs,
 
 	&sysfs_internal_uuid,
 	NULL
