@@ -1341,6 +1341,43 @@ static int ocelot_mact_read(struct ocelot *ocelot, int port, int row, int col,
 	return 0;
 }
 
+int ocelot_mact_flush(struct ocelot *ocelot, int port)
+{
+	int err;
+
+	mutex_lock(&ocelot->mact_lock);
+
+	/* Program ageing filter for a single port */
+	ocelot_write(ocelot, ANA_ANAGEFIL_PID_EN | ANA_ANAGEFIL_PID_VAL(port),
+		     ANA_ANAGEFIL);
+
+	/* Flushing dynamic FDB entries requires two successive age scans */
+	ocelot_write(ocelot,
+		     ANA_TABLES_MACACCESS_MAC_TABLE_CMD(MACACCESS_CMD_AGE),
+		     ANA_TABLES_MACACCESS);
+
+	err = ocelot_mact_wait_for_completion(ocelot);
+	if (err) {
+		mutex_unlock(&ocelot->mact_lock);
+		return err;
+	}
+
+	/* And second... */
+	ocelot_write(ocelot,
+		     ANA_TABLES_MACACCESS_MAC_TABLE_CMD(MACACCESS_CMD_AGE),
+		     ANA_TABLES_MACACCESS);
+
+	err = ocelot_mact_wait_for_completion(ocelot);
+
+	/* Restore ageing filter */
+	ocelot_write(ocelot, 0, ANA_ANAGEFIL);
+
+	mutex_unlock(&ocelot->mact_lock);
+
+	return err;
+}
+EXPORT_SYMBOL_GPL(ocelot_mact_flush);
+
 int ocelot_fdb_dump(struct ocelot *ocelot, int port,
 		    dsa_fdb_dump_cb_t *cb, void *data)
 {

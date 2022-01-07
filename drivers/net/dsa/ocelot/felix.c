@@ -639,6 +639,17 @@ static int felix_set_ageing_time(struct dsa_switch *ds,
 	return 0;
 }
 
+static void felix_port_fast_age(struct dsa_switch *ds, int port)
+{
+	struct ocelot *ocelot = ds->priv;
+	int err;
+
+	err = ocelot_mact_flush(ocelot, port);
+	if (err)
+		dev_err(ds->dev, "Flushing MAC table on port %d returned %pe\n",
+			port, ERR_PTR(err));
+}
+
 static int felix_fdb_dump(struct dsa_switch *ds, int port,
 			  dsa_fdb_dump_cb_t *cb, void *data)
 {
@@ -1622,6 +1633,7 @@ const struct dsa_switch_ops felix_switch_ops = {
 	.phylink_mac_config		= felix_phylink_mac_config,
 	.phylink_mac_link_down		= felix_phylink_mac_link_down,
 	.phylink_mac_link_up		= felix_phylink_mac_link_up,
+	.port_fast_age			= felix_port_fast_age,
 	.port_fdb_dump			= felix_fdb_dump,
 	.port_fdb_add			= felix_fdb_add,
 	.port_fdb_del			= felix_fdb_del,
