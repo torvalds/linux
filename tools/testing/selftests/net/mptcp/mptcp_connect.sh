@@ -7,6 +7,7 @@ optstring="S:R:d:e:l:r:h4cm:f:tC"
 ret=0
 sin=""
 sout=""
+cin_disconnect=""
 cin=""
 cout=""
 ksft_skip=4
@@ -24,6 +25,7 @@ options_log=true
 do_tcp=0
 checksum=false
 filesize=0
+connect_per_transfer=1
 
 if [ $tc_loss -eq 100 ];then
 	tc_loss=1%
@@ -127,6 +129,7 @@ TEST_COUNT=0
 
 cleanup()
 {
+	rm -f "$cin_disconnect" "$cout_disconnect"
 	rm -f "$cin" "$cout"
 	rm -f "$sin" "$sout"
 	rm -f "$capout"
@@ -149,6 +152,8 @@ sout=$(mktemp)
 cin=$(mktemp)
 cout=$(mktemp)
 capout=$(mktemp)
+cin_disconnect="$cin".disconnect
+cout_disconnect="$cout".disconnect
 trap cleanup EXIT
 
 for i in "$ns1" "$ns2" "$ns3" "$ns4";do
@@ -500,8 +505,8 @@ do_transfer()
 	cookies=${cookies##*=}
 
 	if [ ${cl_proto} = "MPTCP" ] && [ ${srv_proto} = "MPTCP" ]; then
-		expect_synrx=$((stat_synrx_last_l+1))
-		expect_ackrx=$((stat_ackrx_last_l+1))
+		expect_synrx=$((stat_synrx_last_l+$connect_per_transfer))
+		expect_ackrx=$((stat_ackrx_last_l+$connect_per_transfer))
 	fi
 
 	if [ ${stat_synrx_now_l} -lt ${expect_synrx} ]; then
@@ -738,6 +743,33 @@ run_tests_peekmode()
 	run_tests_lo "$ns1" "$ns1" dead:beef:1::1 1 "-P ${peekmode}"
 }
 
+run_tests_disconnect()
+{
+	local peekmode="$1"
+	local old_cin=$cin
+	local old_sin=$sin
+
+	cat $cin $cin $cin > "$cin".disconnect
+
+	# force do_transfer to cope with the multiple tranmissions
+	sin="$cin.disconnect"
+	sin_disconnect=$old_sin
+	cin="$cin.disconnect"
+	cin_disconnect="$old_cin"
+	connect_per_transfer=3
+
+	echo "INFO: disconnect"
+	run_tests_lo "$ns1" "$ns1" 10.0.1.1 1 "-I 3 -i $old_cin"
+	run_tests_lo "$ns1" "$ns1" dead:beef:1::1 1 "-I 3 -i $old_cin"
+
+	# restore previous status
+	cout=$old_cout
+	cout_disconnect="$cout".disconnect
+	cin=$old_cin
+	cin_disconnect="$cin".disconnect
+	connect_per_transfer=1
+}
+
 display_time()
 {
 	time_end=$(date +%s)
@@ -853,6 +885,9 @@ stop_if_error "Tests with peek mode have failed"
 # connect to ns4 ip address, ns2 should intercept/proxy
 run_test_transparent 10.0.3.1 "tproxy ipv4"
 run_test_transparent dead:beef:3::1 "tproxy ipv6"
+stop_if_error "Tests with tproxy have failed"
+
+run_tests_disconnect
 
 display_time
 exit $ret
