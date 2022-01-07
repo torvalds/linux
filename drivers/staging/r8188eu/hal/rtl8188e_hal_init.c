@@ -548,8 +548,8 @@ int rtl8188e_firmware_download(struct adapter *padapter)
 	struct device *device = dvobj_to_dev(dvobj);
 	struct rt_firmware_hdr *fwhdr = NULL;
 	u16 fw_version, fw_subversion, fw_signature;
-	u8 *pFirmwareBuf;
-	u32 FirmwareLen;
+	u8 *fw_data;
+	u32 fw_size;
 	static int log_version;
 
 	if (!dvobj->firmware.data)
@@ -558,8 +558,8 @@ int rtl8188e_firmware_download(struct adapter *padapter)
 		dvobj->firmware.data = NULL;
 		goto exit;
 	}
-	pFirmwareBuf = dvobj->firmware.data;
-	FirmwareLen = dvobj->firmware.size;
+	fw_data = dvobj->firmware.data;
+	fw_size = dvobj->firmware.size;
 
 	/*  To Check Fw header. Added by tynli. 2009.12.04. */
 	fwhdr = (struct rt_firmware_hdr *)dvobj->firmware.data;
@@ -574,8 +574,8 @@ int rtl8188e_firmware_download(struct adapter *padapter)
 
 	if (IS_FW_HEADER_EXIST(fwhdr)) {
 		/*  Shift 32 bytes for FW header */
-		pFirmwareBuf = pFirmwareBuf + 32;
-		FirmwareLen = FirmwareLen - 32;
+		fw_data = fw_data + 32;
+		fw_size = fw_size - 32;
 	}
 
 	/*  Suggested by Filen. If 8051 is running in RAM code, driver should inform Fw to reset by itself, */
@@ -591,7 +591,7 @@ int rtl8188e_firmware_download(struct adapter *padapter)
 		/* reset the FWDL chksum */
 		rtw_write8(padapter, REG_MCUFWDL, rtw_read8(padapter, REG_MCUFWDL) | FWDL_CHKSUM_RPT);
 
-		ret = write_fw(padapter, pFirmwareBuf, FirmwareLen);
+		ret = write_fw(padapter, fw_data, fw_size);
 
 		if (ret == _SUCCESS ||
 		    (rtw_get_passing_time_ms(fwdl_start_time) > 500 && write_fw_retry++ >= 3))
