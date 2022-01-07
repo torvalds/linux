@@ -3208,7 +3208,6 @@ static int ab8500_fg_probe(struct platform_device *pdev)
 
 static int ab8500_fg_remove(struct platform_device *pdev)
 {
-	int ret = 0;
 	struct ab8500_fg *di = platform_get_drvdata(pdev);
 
 	component_del(&pdev->dev, &ab8500_fg_component_ops);
@@ -3216,7 +3215,7 @@ static int ab8500_fg_remove(struct platform_device *pdev)
 	ab8500_fg_sysfs_exit(di);
 	ab8500_fg_sysfs_psy_remove_attrs(di);
 
-	return ret;
+	return 0;
 }
 
 static SIMPLE_DEV_PM_OPS(ab8500_fg_pm_ops, ab8500_fg_suspend, ab8500_fg_resume);
