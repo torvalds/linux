@@ -542,7 +542,7 @@ exit:
 int rtl8188e_firmware_download(struct adapter *padapter)
 {
 	int ret = _SUCCESS;
-	u8 writeFW_retry = 0;
+	u8 write_fw_retry = 0;
 	u32 fwdl_start_time;
 	struct dvobj_priv *dvobj = adapter_to_dvobj(padapter);
 	struct device *device = dvobj_to_dev(dvobj);
@@ -594,11 +594,11 @@ int rtl8188e_firmware_download(struct adapter *padapter)
 		ret = write_fw(padapter, pFirmwareBuf, FirmwareLen);
 
 		if (ret == _SUCCESS ||
-		    (rtw_get_passing_time_ms(fwdl_start_time) > 500 && writeFW_retry++ >= 3))
+		    (rtw_get_passing_time_ms(fwdl_start_time) > 500 && write_fw_retry++ >= 3))
 			break;
 
-		DBG_88E("%s writeFW_retry:%u, time after fwdl_start_time:%ums\n",
-			__func__, writeFW_retry, rtw_get_passing_time_ms(fwdl_start_time)
+		DBG_88E("%s write_fw_retry:%u, time after fwdl_start_time:%ums\n",
+			__func__, write_fw_retry, rtw_get_passing_time_ms(fwdl_start_time)
 		);
 	}
 	fw_download_enable(padapter, false);
