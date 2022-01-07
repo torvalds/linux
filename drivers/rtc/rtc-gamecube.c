@@ -319,8 +319,8 @@ static int gamecube_rtc_probe(struct platform_device *pdev)
 	int ret;
 
 	d = devm_kzalloc(dev, sizeof(struct priv), GFP_KERNEL);
-	if (IS_ERR(d))
-		return PTR_ERR(d);
+	if (!d)
+		return -ENOMEM;
 
 	d->iob = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(d->iob))
