@@ -87,6 +87,9 @@
  * This driver also supports MAX1617 and various clones such as G767
  * and NE1617. Such clones will be detected as MAX1617.
  *
+ * This driver also supports NE1618 from Philips. It is similar to NE1617
+ * but supports 11 bit external temperature values.
+ *
  * Since the LM90 was the first chipset supported by this driver, most
  * comments will refer to this chipset, but are actually general and
  * concern all supported chipsets, unless mentioned otherwise.
@@ -129,7 +132,7 @@ static const unsigned short normal_i2c[] = {
 enum chips { adm1023, adm1032, adt7461, adt7461a, adt7481,
 	g781, lm84, lm90, lm99,
 	max1617, max6642, max6646, max6648, max6654, max6657, max6659, max6680, max6696,
-	nct210, nct72, sa56004, tmp451, tmp461, w83l771,
+	nct210, nct72, ne1618, sa56004, tmp451, tmp461, w83l771,
 };
 
 /*
@@ -267,6 +270,7 @@ static const struct i2c_device_id lm90_id[] = {
 	{ "nct214", nct72 },
 	{ "nct218", nct72 },
 	{ "nct72", nct72 },
+	{ "ne1618", ne1618 },
 	{ "w83l771", w83l771 },
 	{ "sa56004", sa56004 },
 	{ "thmc10", max1617 },
@@ -568,6 +572,13 @@ static const struct lm90_params lm90_params[] = {
 		.flags = LM90_HAVE_ALARMS | LM90_HAVE_BROKEN_ALERT
 		  | LM90_HAVE_REM_LIMIT_EXT | LM90_HAVE_LOW | LM90_HAVE_CONVRATE
 		  | LM90_HAVE_REMOTE_EXT,
+		.alert_alarms = 0x7c,
+		.resolution = 11,
+		.max_convrate = 7,
+	},
+	[ne1618] = {
+		.flags = LM90_PAUSE_FOR_CONFIG | LM90_HAVE_BROKEN_ALERT
+		  | LM90_HAVE_LOW | LM90_HAVE_CONVRATE | LM90_HAVE_REMOTE_EXT,
 		.alert_alarms = 0x7c,
 		.resolution = 11,
 		.max_convrate = 7,
@@ -2151,20 +2162,29 @@ static const char *lm90_detect_nuvoton(struct i2c_client *client, int chip_id,
 	return name;
 }
 
-static const char *lm90_detect_nxp(struct i2c_client *client, int chip_id,
-				   int config1, int convrate)
+static const char *lm90_detect_nxp(struct i2c_client *client, bool common_address,
+				   int chip_id, int config1, int convrate)
 {
-	int config2 = i2c_smbus_read_byte_data(client, LM90_REG_CONFIG2);
 	int address = client->addr;
 	const char *name = NULL;
+	int config2;
 
-	if (config2 < 0)
-		return NULL;
-
-	if (address >= 0x48 && address <= 0x4f && chip_id == 0x00 &&
-	    !(config1 & 0x2a) && !(config2 & 0xfe) && convrate <= 0x09)
-		name = "sa56004";
-
+	switch (chip_id) {
+	case 0x00:
+		config2 = i2c_smbus_read_byte_data(client, LM90_REG_CONFIG2);
+		if (config2 < 0)
+			return NULL;
+		if (address >= 0x48 && address <= 0x4f &&
+		    !(config1 & 0x2a) && !(config2 & 0xfe) && convrate <= 0x09)
+			name = "sa56004";
+		break;
+	case 0x80:
+		if (common_address && !(config1 & 0x3f) && convrate <= 0x07)
+			name = "ne1618";
+		break;
+	default:
+		break;
+	}
 	return name;
 }
 
@@ -2337,7 +2357,7 @@ static int lm90_detect(struct i2c_client *client, struct i2c_board_info *info)
 		name = lm90_detect_nuvoton(client, chip_id, config1, convrate);
 		break;
 	case 0xa1:	/*  NXP Semiconductor/Philips */
-		name = lm90_detect_nxp(client, chip_id, config1, convrate);
+		name = lm90_detect_nxp(client, common_address, chip_id, config1, convrate);
 		break;
 	case 0xff:	/* MAX1617, G767, NE1617 */
 		if (common_address && chip_id == 0xff && convrate < 8)

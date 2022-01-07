@@ -411,6 +411,14 @@ Supported chips:
 
     Datasheets: Publicly available at the Philips website
 
+  * Philips NE1618
+
+    Prefix: 'ne1618'
+
+    Addresses scanned: I2C 0x18 - 0x1a, 0x29 - 0x2b, 0x4c - 0x4e
+
+    Datasheets: Publicly available at the Philips website
+
   * Genesys Logic GL523SM
 
     Prefix: 'gl523sm'
@@ -469,7 +477,7 @@ ADM1020, ADM1021, GL523SM, MAX1617, NE1617, NE1617A, THMC10:
   * 8 bit sensor resolution
   * Low temperature limits
 
-NCT210:
+NCT210, NE1618:
   * 11 bit sensor resolution for remote temperature sensor
   * Low temperature limits
 
