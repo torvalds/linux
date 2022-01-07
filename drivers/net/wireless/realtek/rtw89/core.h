@@ -1923,6 +1923,7 @@ struct rtw89_phy_rate_pattern {
 
 struct rtw89_vif {
 	struct list_head list;
+	struct rtw89_dev *rtwdev;
 	u8 mac_id;
 	u8 port;
 	u8 mac_addr[ETH_ALEN];
@@ -1944,6 +1945,7 @@ struct rtw89_vif {
 	bool wowlan_magic;
 	bool is_hesta;
 	bool last_a_ctrl;
+	struct work_struct update_beacon_work;
 	struct rtw89_addr_cam_entry addr_cam;
 	struct rtw89_bssid_cam_entry bssid_cam;
 	struct ieee80211_tx_queue_params tx_params[IEEE80211_NUM_ACS];
@@ -3395,5 +3397,6 @@ void rtw89_traffic_stats_init(struct rtw89_dev *rtwdev,
 			      struct rtw89_traffic_stats *stats);
 int rtw89_core_start(struct rtw89_dev *rtwdev);
 void rtw89_core_stop(struct rtw89_dev *rtwdev);
+void rtw89_core_update_beacon_work(struct work_struct *work);
 
 #endif

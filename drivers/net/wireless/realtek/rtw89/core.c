@@ -2243,6 +2243,21 @@ static void rtw89_core_ppdu_sts_init(struct rtw89_dev *rtwdev)
 		rtwdev->ppdu_sts.curr_rx_ppdu_cnt[i] = U8_MAX;
 }
 
+void rtw89_core_update_beacon_work(struct work_struct *work)
+{
+	struct rtw89_dev *rtwdev;
+	struct rtw89_vif *rtwvif = container_of(work, struct rtw89_vif,
+						update_beacon_work);
+
+	if (rtwvif->net_type != RTW89_NET_TYPE_AP_MODE)
+		return;
+
+	rtwdev = rtwvif->rtwdev;
+	mutex_lock(&rtwdev->mutex);
+	rtw89_fw_h2c_update_beacon(rtwdev, rtwvif);
+	mutex_unlock(&rtwdev->mutex);
+}
+
 int rtw89_core_start(struct rtw89_dev *rtwdev)
 {
 	int ret;

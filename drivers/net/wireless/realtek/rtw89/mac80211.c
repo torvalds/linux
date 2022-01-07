@@ -102,7 +102,9 @@ static int rtw89_ops_add_interface(struct ieee80211_hw *hw,
 	int ret = 0;
 
 	mutex_lock(&rtwdev->mutex);
+	rtwvif->rtwdev = rtwdev;
 	list_add_tail(&rtwvif->list, &rtwdev->rtwvifs_list);
+	INIT_WORK(&rtwvif->update_beacon_work, rtw89_core_update_beacon_work);
 	rtw89_leave_ps_mode(rtwdev);
 
 	rtw89_traffic_stats_init(rtwdev, &rtwvif->stats);
@@ -140,6 +142,8 @@ static void rtw89_ops_remove_interface(struct ieee80211_hw *hw,
 {
 	struct rtw89_dev *rtwdev = hw->priv;
 	struct rtw89_vif *rtwvif = (struct rtw89_vif *)vif->drv_priv;
+
+	cancel_work_sync(&rtwvif->update_beacon_work);
 
 	mutex_lock(&rtwdev->mutex);
 	rtw89_leave_ps_mode(rtwdev);
@@ -362,6 +366,18 @@ static void rtw89_ops_bss_info_changed(struct ieee80211_hw *hw,
 		rtw89_mac_bf_set_gid_table(rtwdev, vif, conf);
 
 	mutex_unlock(&rtwdev->mutex);
+}
+
+static int rtw89_ops_set_tim(struct ieee80211_hw *hw, struct ieee80211_sta *sta,
+			     bool set)
+{
+	struct rtw89_dev *rtwdev = hw->priv;
+	struct rtw89_sta *rtwsta = (struct rtw89_sta *)sta->drv_priv;
+	struct rtw89_vif *rtwvif = rtwsta->rtwvif;
+
+	ieee80211_queue_work(rtwdev->hw, &rtwvif->update_beacon_work);
+
+	return 0;
 }
 
 static int rtw89_ops_conf_tx(struct ieee80211_hw *hw,
@@ -680,6 +696,7 @@ const struct ieee80211_ops rtw89_ops = {
 	.remove_interface	= rtw89_ops_remove_interface,
 	.configure_filter	= rtw89_ops_configure_filter,
 	.bss_info_changed	= rtw89_ops_bss_info_changed,
+	.set_tim		= rtw89_ops_set_tim,
 	.conf_tx		= rtw89_ops_conf_tx,
 	.sta_state		= rtw89_ops_sta_state,
 	.set_key		= rtw89_ops_set_key,
