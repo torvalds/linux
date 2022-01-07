@@ -3605,11 +3605,6 @@ static int set_feature_hw_gro(struct net_device *netdev, bool enable)
 	new_params = priv->channels.params;
 
 	if (enable) {
-		if (MLX5E_GET_PFLAG(&new_params, MLX5E_PFLAG_RX_CQE_COMPRESS)) {
-			netdev_warn(netdev, "Can't set HW-GRO when CQE compress is active\n");
-			err = -EINVAL;
-			goto out;
-		}
 		new_params.packet_merge.type = MLX5E_PACKET_MERGE_SHAMPO;
 		new_params.packet_merge.shampo.match_criteria_type =
 			MLX5_RQC_SHAMPO_MATCH_CRITERIA_TYPE_EXTENDED;
@@ -3871,6 +3866,11 @@ static netdev_features_t mlx5e_fix_features(struct net_device *netdev,
 		features &= ~NETIF_F_RXHASH;
 		if (netdev->features & NETIF_F_RXHASH)
 			netdev_warn(netdev, "Disabling rxhash, not supported when CQE compress is active\n");
+
+		if (features & NETIF_F_GRO_HW) {
+			netdev_warn(netdev, "Disabling HW-GRO, not supported when CQE compress is active\n");
+			features &= ~NETIF_F_GRO_HW;
+		}
 	}
 
 	if (mlx5e_is_uplink_rep(priv))

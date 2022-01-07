@@ -1883,24 +1883,19 @@ static int set_pflag_cqe_based_moder(struct net_device *netdev, bool enable,
 				     bool is_rx_cq)
 {
 	struct mlx5e_priv *priv = netdev_priv(netdev);
-	struct mlx5_core_dev *mdev = priv->mdev;
-	struct mlx5e_params new_params;
-	bool mode_changed;
 	u8 cq_period_mode, current_cq_period_mode;
+	struct mlx5e_params new_params;
 
-	cq_period_mode = enable ?
-		MLX5_CQ_PERIOD_MODE_START_FROM_CQE :
-		MLX5_CQ_PERIOD_MODE_START_FROM_EQE;
+	if (enable && !MLX5_CAP_GEN(priv->mdev, cq_period_start_from_cqe))
+		return -EOPNOTSUPP;
+
+	cq_period_mode = cqe_mode_to_period_mode(enable);
+
 	current_cq_period_mode = is_rx_cq ?
 		priv->channels.params.rx_cq_moderation.cq_period_mode :
 		priv->channels.params.tx_cq_moderation.cq_period_mode;
-	mode_changed = cq_period_mode != current_cq_period_mode;
 
-	if (cq_period_mode == MLX5_CQ_PERIOD_MODE_START_FROM_CQE &&
-	    !MLX5_CAP_GEN(mdev, cq_period_start_from_cqe))
-		return -EOPNOTSUPP;
-
-	if (!mode_changed)
+	if (cq_period_mode == current_cq_period_mode)
 		return 0;
 
 	new_params = priv->channels.params;
