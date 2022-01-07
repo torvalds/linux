@@ -16,6 +16,7 @@
 #include <unistd.h>
 #include <time.h>
 
+#include <sys/ioctl.h>
 #include <sys/poll.h>
 #include <sys/sendfile.h>
 #include <sys/stat.h>
@@ -28,6 +29,7 @@
 
 #include <linux/tcp.h>
 #include <linux/time_types.h>
+#include <linux/sockios.h>
 
 extern int optind;
 
@@ -68,6 +70,8 @@ static unsigned int cfg_time;
 static unsigned int cfg_do_w;
 static int cfg_wait;
 static uint32_t cfg_mark;
+static char *cfg_input;
+static int cfg_repeat = 1;
 
 struct cfg_cmsg_types {
 	unsigned int cmsg_enabled:1;
@@ -91,22 +95,31 @@ static struct cfg_sockopt_types cfg_sockopt_types;
 
 static void die_usage(void)
 {
-	fprintf(stderr, "Usage: mptcp_connect [-6] [-u] [-s MPTCP|TCP] [-p port] [-m mode]"
-		"[-l] [-w sec] [-t num] [-T num] connect_address\n");
+	fprintf(stderr, "Usage: mptcp_connect [-6] [-c cmsg] [-i file] [-I num] [-j] [-l] "
+		"[-m mode] [-M mark] [-o option] [-p port] [-P mode] [-j] [-l] [-r num] "
+		"[-s MPTCP|TCP] [-S num] [-r num] [-t num] [-T num] [-u] [-w sec] connect_address\n");
 	fprintf(stderr, "\t-6 use ipv6\n");
-	fprintf(stderr, "\t-t num -- set poll timeout to num\n");
-	fprintf(stderr, "\t-T num -- set expected runtime to num ms\n");
-	fprintf(stderr, "\t-S num -- set SO_SNDBUF to num\n");
-	fprintf(stderr, "\t-R num -- set SO_RCVBUF to num\n");
-	fprintf(stderr, "\t-p num -- use port num\n");
-	fprintf(stderr, "\t-s [MPTCP|TCP] -- use mptcp(default) or tcp sockets\n");
+	fprintf(stderr, "\t-c cmsg -- test cmsg type <cmsg>\n");
+	fprintf(stderr, "\t-i file -- read the data to send from the given file instead of stdin");
+	fprintf(stderr, "\t-I num -- repeat the transfer 'num' times. In listen mode accepts num "
+		"incoming connections, in client mode, disconnect and reconnect to the server\n");
+	fprintf(stderr, "\t-j     -- add additional sleep at connection start and tear down "
+		"-- for MPJ tests\n");
+	fprintf(stderr, "\t-l     -- listens mode, accepts incoming connection\n");
 	fprintf(stderr, "\t-m [poll|mmap|sendfile] -- use poll(default)/mmap+write/sendfile\n");
 	fprintf(stderr, "\t-M mark -- set socket packet mark\n");
-	fprintf(stderr, "\t-w num -- wait num sec before closing the socket\n");
-	fprintf(stderr, "\t-c cmsg -- test cmsg type <cmsg>\n");
 	fprintf(stderr, "\t-o option -- test sockopt <option>\n");
+	fprintf(stderr, "\t-p num -- use port num\n");
 	fprintf(stderr,
 		"\t-P [saveWithPeek|saveAfterPeek] -- save data with/after MSG_PEEK form tcp socket\n");
+	fprintf(stderr, "\t-t num -- set poll timeout to num\n");
+	fprintf(stderr, "\t-T num -- set expected runtime to num ms\n");
+	fprintf(stderr, "\t-r num -- enable slow mode, limiting each write to num bytes "
+		"-- for remove addr tests\n");
+	fprintf(stderr, "\t-R num -- set SO_RCVBUF to num\n");
+	fprintf(stderr, "\t-s [MPTCP|TCP] -- use mptcp(default) or tcp sockets\n");
+	fprintf(stderr, "\t-S num -- set SO_SNDBUF to num\n");
+	fprintf(stderr, "\t-w num -- wait num sec before closing the socket\n");
 	exit(1);
 }
 
@@ -310,7 +323,8 @@ static int sock_listen_mptcp(const char * const listenaddr,
 }
 
 static int sock_connect_mptcp(const char * const remoteaddr,
-			      const char * const port, int proto)
+			      const char * const port, int proto,
+			      struct addrinfo **peer)
 {
 	struct addrinfo hints = {
 		.ai_protocol = IPPROTO_TCP,
@@ -334,8 +348,10 @@ static int sock_connect_mptcp(const char * const remoteaddr,
 		if (cfg_mark)
 			set_mark(sock, cfg_mark);
 
-		if (connect(sock, a->ai_addr, a->ai_addrlen) == 0)
+		if (connect(sock, a->ai_addr, a->ai_addrlen) == 0) {
+			*peer = a;
 			break; /* success */
+		}
 
 		perror("connect()");
 		close(sock);
@@ -524,14 +540,17 @@ static ssize_t do_rnd_read(const int fd, char *buf, const size_t len)
 	return ret;
 }
 
-static void set_nonblock(int fd)
+static void set_nonblock(int fd, bool nonblock)
 {
 	int flags = fcntl(fd, F_GETFL);
 
 	if (flags == -1)
 		return;
 
-	fcntl(fd, F_SETFL, flags | O_NONBLOCK);
+	if (nonblock)
+		fcntl(fd, F_SETFL, flags | O_NONBLOCK);
+	else
+		fcntl(fd, F_SETFL, flags & ~O_NONBLOCK);
 }
 
 static int copyfd_io_poll(int infd, int peerfd, int outfd, bool *in_closed_after_out)
@@ -543,7 +562,7 @@ static int copyfd_io_poll(int infd, int peerfd, int outfd, bool *in_closed_after
 	unsigned int woff = 0, wlen = 0;
 	char wbuf[8192];
 
-	set_nonblock(peerfd);
+	set_nonblock(peerfd, true);
 
 	for (;;) {
 		char rbuf[8192];
@@ -638,7 +657,6 @@ static int copyfd_io_poll(int infd, int peerfd, int outfd, bool *in_closed_after
 	if (cfg_remove)
 		usleep(cfg_wait);
 
-	close(peerfd);
 	return 0;
 }
 
@@ -780,7 +798,7 @@ static int copyfd_io_sendfile(int infd, int peerfd, int outfd,
 	return err;
 }
 
-static int copyfd_io(int infd, int peerfd, int outfd)
+static int copyfd_io(int infd, int peerfd, int outfd, bool close_peerfd)
 {
 	bool in_closed_after_out = false;
 	struct timespec start, end;
@@ -818,6 +836,9 @@ static int copyfd_io(int infd, int peerfd, int outfd)
 
 	if (ret)
 		return ret;
+
+	if (close_peerfd)
+		close(peerfd);
 
 	if (cfg_time) {
 		unsigned int delta_ms;
@@ -930,7 +951,7 @@ static void maybe_close(int fd)
 {
 	unsigned int r = rand();
 
-	if (!(cfg_join || cfg_remove) && (r & 1))
+	if (!(cfg_join || cfg_remove || cfg_repeat > 1) && (r & 1))
 		close(fd);
 }
 
@@ -940,7 +961,9 @@ int main_loop_s(int listensock)
 	struct pollfd polls;
 	socklen_t salen;
 	int remotesock;
+	int fd = 0;
 
+again:
 	polls.fd = listensock;
 	polls.events = POLLIN;
 
@@ -961,14 +984,27 @@ int main_loop_s(int listensock)
 		check_sockaddr(pf, &ss, salen);
 		check_getpeername(remotesock, &ss, salen);
 
+		if (cfg_input) {
+			fd = open(cfg_input, O_RDONLY);
+			if (fd < 0)
+				xerror("can't open %s: %d", cfg_input, errno);
+		}
+
 		SOCK_TEST_TCPULP(remotesock, 0);
 
-		return copyfd_io(0, remotesock, 1);
+		copyfd_io(fd, remotesock, 1, true);
+	} else {
+		perror("accept");
+		return 1;
 	}
 
-	perror("accept");
+	if (--cfg_repeat > 0) {
+		if (cfg_input)
+			close(fd);
+		goto again;
+	}
 
-	return 1;
+	return 0;
 }
 
 static void init_rng(void)
@@ -1057,15 +1093,47 @@ static void parse_setsock_options(const char *name)
 	exit(1);
 }
 
+void xdisconnect(int fd, int addrlen)
+{
+	struct sockaddr_storage empty;
+	int msec_sleep = 10;
+	int queued = 1;
+	int i;
+
+	shutdown(fd, SHUT_WR);
+
+	/* while until the pending data is completely flushed, the later
+	 * disconnect will bypass/ignore/drop any pending data.
+	 */
+	for (i = 0; ; i += msec_sleep) {
+		if (ioctl(fd, SIOCOUTQ, &queued) < 0)
+			xerror("can't query out socket queue: %d", errno);
+
+		if (!queued)
+			break;
+
+		if (i > poll_timeout)
+			xerror("timeout while waiting for spool to complete");
+		usleep(msec_sleep * 1000);
+	}
+
+	memset(&empty, 0, sizeof(empty));
+	empty.ss_family = AF_UNSPEC;
+	if (connect(fd, (struct sockaddr *)&empty, addrlen) < 0)
+		xerror("can't disconnect: %d", errno);
+}
+
 int main_loop(void)
 {
-	int fd;
+	int fd, ret, fd_in = 0;
+	struct addrinfo *peer;
 
 	/* listener is ready. */
-	fd = sock_connect_mptcp(cfg_host, cfg_port, cfg_sock_proto);
+	fd = sock_connect_mptcp(cfg_host, cfg_port, cfg_sock_proto, &peer);
 	if (fd < 0)
 		return 2;
 
+again:
 	check_getpeername_connect(fd);
 
 	SOCK_TEST_TCPULP(fd, cfg_sock_proto);
@@ -1077,7 +1145,31 @@ int main_loop(void)
 	if (cfg_cmsg_types.cmsg_enabled)
 		apply_cmsg_types(fd, &cfg_cmsg_types);
 
-	return copyfd_io(0, fd, 1);
+	if (cfg_input) {
+		fd_in = open(cfg_input, O_RDONLY);
+		if (fd < 0)
+			xerror("can't open %s:%d", cfg_input, errno);
+	}
+
+	/* close the client socket open only if we are not going to reconnect */
+	ret = copyfd_io(fd_in, fd, 1, cfg_repeat == 1);
+	if (ret)
+		return ret;
+
+	if (--cfg_repeat > 0) {
+		xdisconnect(fd, peer->ai_addrlen);
+
+		/* the socket could be unblocking at this point, we need the
+		 * connect to be blocking
+		 */
+		set_nonblock(fd, false);
+		if (connect(fd, peer->ai_addr, peer->ai_addrlen))
+			xerror("can't reconnect: %d", errno);
+		if (cfg_input)
+			close(fd_in);
+		goto again;
+	}
+	return 0;
 }
 
 int parse_proto(const char *proto)
@@ -1162,7 +1254,7 @@ static void parse_opts(int argc, char **argv)
 {
 	int c;
 
-	while ((c = getopt(argc, argv, "6jr:lp:s:ht:T:m:S:R:w:M:P:c:o:")) != -1) {
+	while ((c = getopt(argc, argv, "6c:hi:I:jlm:M:o:p:P:r:R:s:S:t:T:w:")) != -1) {
 		switch (c) {
 		case 'j':
 			cfg_join = true;
@@ -1175,6 +1267,12 @@ static void parse_opts(int argc, char **argv)
 			cfg_do_w = atoi(optarg);
 			if (cfg_do_w <= 0)
 				cfg_do_w = 50;
+			break;
+		case 'i':
+			cfg_input = optarg;
+			break;
+		case 'I':
+			cfg_repeat = atoi(optarg);
 			break;
 		case 'l':
 			listen_mode = true;
