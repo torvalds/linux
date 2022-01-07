@@ -194,14 +194,14 @@ void serial_test_cgroup_attach_multi(void)
 
 	attach_opts.flags = BPF_F_ALLOW_OVERRIDE | BPF_F_REPLACE;
 	attach_opts.replace_prog_fd = allow_prog[0];
-	if (CHECK(!bpf_prog_attach_xattr(allow_prog[6], cg1,
+	if (CHECK(!bpf_prog_attach_opts(allow_prog[6], cg1,
 					 BPF_CGROUP_INET_EGRESS, &attach_opts),
 		  "fail_prog_replace_override", "unexpected success\n"))
 		goto err;
 	CHECK_FAIL(errno != EINVAL);
 
 	attach_opts.flags = BPF_F_REPLACE;
-	if (CHECK(!bpf_prog_attach_xattr(allow_prog[6], cg1,
+	if (CHECK(!bpf_prog_attach_opts(allow_prog[6], cg1,
 					 BPF_CGROUP_INET_EGRESS, &attach_opts),
 		  "fail_prog_replace_no_multi", "unexpected success\n"))
 		goto err;
@@ -209,7 +209,7 @@ void serial_test_cgroup_attach_multi(void)
 
 	attach_opts.flags = BPF_F_ALLOW_MULTI | BPF_F_REPLACE;
 	attach_opts.replace_prog_fd = -1;
-	if (CHECK(!bpf_prog_attach_xattr(allow_prog[6], cg1,
+	if (CHECK(!bpf_prog_attach_opts(allow_prog[6], cg1,
 					 BPF_CGROUP_INET_EGRESS, &attach_opts),
 		  "fail_prog_replace_bad_fd", "unexpected success\n"))
 		goto err;
@@ -217,7 +217,7 @@ void serial_test_cgroup_attach_multi(void)
 
 	/* replacing a program that is not attached to cgroup should fail  */
 	attach_opts.replace_prog_fd = allow_prog[3];
-	if (CHECK(!bpf_prog_attach_xattr(allow_prog[6], cg1,
+	if (CHECK(!bpf_prog_attach_opts(allow_prog[6], cg1,
 					 BPF_CGROUP_INET_EGRESS, &attach_opts),
 		  "fail_prog_replace_no_ent", "unexpected success\n"))
 		goto err;
@@ -225,14 +225,14 @@ void serial_test_cgroup_attach_multi(void)
 
 	/* replace 1st from the top program */
 	attach_opts.replace_prog_fd = allow_prog[0];
-	if (CHECK(bpf_prog_attach_xattr(allow_prog[6], cg1,
+	if (CHECK(bpf_prog_attach_opts(allow_prog[6], cg1,
 					BPF_CGROUP_INET_EGRESS, &attach_opts),
 		  "prog_replace", "errno=%d\n", errno))
 		goto err;
 
 	/* replace program with itself */
 	attach_opts.replace_prog_fd = allow_prog[6];
-	if (CHECK(bpf_prog_attach_xattr(allow_prog[6], cg1,
+	if (CHECK(bpf_prog_attach_opts(allow_prog[6], cg1,
 					BPF_CGROUP_INET_EGRESS, &attach_opts),
 		  "prog_replace", "errno=%d\n", errno))
 		goto err;
