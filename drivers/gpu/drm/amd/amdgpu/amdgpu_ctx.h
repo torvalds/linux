@@ -53,6 +53,7 @@ struct amdgpu_ctx {
 	atomic_t			guilty;
 	unsigned long			ras_counter_ce;
 	unsigned long			ras_counter_ue;
+	uint32_t			stable_pstate;
 };
 
 struct amdgpu_ctx_mgr {

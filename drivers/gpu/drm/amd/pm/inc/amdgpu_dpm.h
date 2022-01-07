@@ -338,6 +338,9 @@ struct amdgpu_pm {
 	uint32_t		smu_debug_mask;
 
 	bool			pp_force_state_enabled;
+
+	struct mutex            stable_pstate_ctx_lock;
+	struct amdgpu_ctx       *stable_pstate_ctx;
 };
 
 u32 amdgpu_dpm_get_vblank_time(struct amdgpu_device *adev);
