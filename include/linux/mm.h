@@ -212,8 +212,10 @@ int overcommit_policy_handler(struct ctl_table *, int, void *, size_t *,
 
 #if defined(CONFIG_SPARSEMEM) && !defined(CONFIG_SPARSEMEM_VMEMMAP)
 #define nth_page(page,n) pfn_to_page(page_to_pfn((page)) + (n))
+#define page_nth(head, tail)	(page_to_pfn(tail) - page_to_pfn(head))
 #else
 #define nth_page(page,n) ((page) + (n))
+#define page_nth(head, tail)	((tail) - (head))
 #endif
 
 /* to align the pointer to the (next) page boundary */

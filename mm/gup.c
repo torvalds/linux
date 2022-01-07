@@ -261,8 +261,8 @@ static inline struct page *compound_range_next(struct page *start,
 	next = nth_page(start, i);
 	page = compound_head(next);
 	if (PageHead(page))
-		nr = min_t(unsigned int,
-			   page + compound_nr(page) - next, npages - i);
+		nr = min_t(unsigned int, npages - i,
+			   compound_nr(page) - page_nth(page, next));
 
 	*ntails = nr;
 	return page;
