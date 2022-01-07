@@ -3162,12 +3162,10 @@ static int packet_do_bind(struct sock *sk, const char *name, int ifindex,
 			  __be16 proto)
 {
 	struct packet_sock *po = pkt_sk(sk);
-	struct net_device *dev_curr;
-	__be16 proto_curr;
-	bool need_rehook;
 	struct net_device *dev = NULL;
-	int ret = 0;
 	bool unlisted = false;
+	bool need_rehook;
+	int ret = 0;
 
 	lock_sock(sk);
 	spin_lock(&po->bind_lock);
@@ -3192,14 +3190,10 @@ static int packet_do_bind(struct sock *sk, const char *name, int ifindex,
 		}
 	}
 
-	dev_hold(dev);
-
-	proto_curr = po->prot_hook.type;
-	dev_curr = po->prot_hook.dev;
-
-	need_rehook = proto_curr != proto || dev_curr != dev;
+	need_rehook = po->prot_hook.type != proto || po->prot_hook.dev != dev;
 
 	if (need_rehook) {
+		dev_hold(dev);
 		if (po->running) {
 			rcu_read_unlock();
 			/* prevents packet_notifier() from calling
@@ -3208,7 +3202,6 @@ static int packet_do_bind(struct sock *sk, const char *name, int ifindex,
 			WRITE_ONCE(po->num, 0);
 			__unregister_prot_hook(sk, true);
 			rcu_read_lock();
-			dev_curr = po->prot_hook.dev;
 			if (dev)
 				unlisted = !dev_get_by_index_rcu(sock_net(sk),
 								 dev->ifindex);
@@ -3218,25 +3211,21 @@ static int packet_do_bind(struct sock *sk, const char *name, int ifindex,
 		WRITE_ONCE(po->num, proto);
 		po->prot_hook.type = proto;
 
-		dev_put_track(dev_curr, &po->prot_hook.dev_tracker);
-		dev_curr = NULL;
+		dev_put_track(po->prot_hook.dev, &po->prot_hook.dev_tracker);
 
 		if (unlikely(unlisted)) {
-			dev_put(dev);
 			po->prot_hook.dev = NULL;
 			WRITE_ONCE(po->ifindex, -1);
 			packet_cached_dev_reset(po);
 		} else {
-			if (dev)
-				netdev_tracker_alloc(dev,
-						     &po->prot_hook.dev_tracker,
-						     GFP_ATOMIC);
+			dev_hold_track(dev, &po->prot_hook.dev_tracker,
+				       GFP_ATOMIC);
 			po->prot_hook.dev = dev;
 			WRITE_ONCE(po->ifindex, dev ? dev->ifindex : 0);
 			packet_cached_dev_assign(po, dev);
 		}
+		dev_put(dev);
 	}
-	dev_put_track(dev_curr, &po->prot_hook.dev_tracker);
 
 	if (proto == 0 || !need_rehook)
 		goto out_unlock;
