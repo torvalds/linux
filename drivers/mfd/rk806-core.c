@@ -674,6 +674,10 @@ static int rk806_parse_dt(struct rk806 *rk806)
 	} else
 		rk806_field_write(rk806, RST_FUN, rst_fun);
 
+	/* PWRON_ON_TIME: 0:500mS; 1:20mS */
+	if (device_property_read_bool(dev, "pwron-on-time-500ms"))
+		rk806_field_write(rk806, PWRON_ON_TIME, 0x00);
+
 	return 0;
 }
 
