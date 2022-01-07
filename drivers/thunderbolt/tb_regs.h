@@ -463,6 +463,8 @@ struct tb_regs_hop {
 #define TMU_ADP_CS_6_DISABLE_TMU_OBJ_CL2	BIT(3)
 
 /* Plug Events registers */
+#define TB_PLUG_EVENTS_USB_DISABLE		BIT(2)
+
 #define TB_PLUG_EVENTS_PCIE_WR_DATA		0x1b
 #define TB_PLUG_EVENTS_PCIE_CMD			0x1c
 #define TB_PLUG_EVENTS_PCIE_CMD_DW_OFFSET_MASK	GENMASK(9, 0)
@@ -502,6 +504,9 @@ struct tb_regs_hop {
 #define TB_LC_POWER				0x740
 
 /* Link controller registers */
+#define TB_LC_CS_42				0x2a
+#define TB_LC_CS_42_USB_PLUGGED			BIT(31)
+
 #define TB_LC_PORT_ATTR				0x8d
 #define TB_LC_PORT_ATTR_BE			BIT(12)
 
@@ -521,5 +526,8 @@ struct tb_regs_hop {
 #define TB_LC_SX_CTRL_SLP			BIT(31)
 #define TB_LC_LINK_ATTR				0x97
 #define TB_LC_LINK_ATTR_CPS			BIT(18)
+
+#define TB_LC_LINK_REQ				0xad
+#define TB_LC_LINK_REQ_XHCI_CONNECT		BIT(31)
 
 #endif
