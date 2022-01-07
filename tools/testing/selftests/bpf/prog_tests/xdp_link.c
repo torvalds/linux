@@ -127,6 +127,11 @@ void serial_test_xdp_link(void)
 	ASSERT_EQ(link_info.prog_id, id1, "link_prog_id");
 	ASSERT_EQ(link_info.xdp.ifindex, IFINDEX_LO, "link_ifindex");
 
+	/* updating program under active BPF link with different type fails */
+	err = bpf_link__update_program(link, skel1->progs.tc_handler);
+	if (!ASSERT_ERR(err, "link_upd_invalid"))
+		goto cleanup;
+
 	err = bpf_link__detach(link);
 	if (!ASSERT_OK(err, "link_detach"))
 		goto cleanup;
