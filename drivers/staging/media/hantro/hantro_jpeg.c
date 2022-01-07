@@ -9,7 +9,6 @@
 
 #include <linux/align.h>
 #include <linux/build_bug.h>
-#include <linux/dma-mapping.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include "hantro_jpeg.h"
@@ -338,31 +337,4 @@ void hantro_jpeg_header_assemble(struct hantro_jpeg_ctx *ctx)
 	       sizeof(chroma_ac_table));
 
 	jpeg_set_quality(ctx);
-}
-
-int hantro_jpeg_enc_init(struct hantro_ctx *ctx)
-{
-	ctx->jpeg_enc.bounce_buffer.size =
-		ctx->dst_fmt.plane_fmt[0].sizeimage -
-		ctx->vpu_dst_fmt->header_size;
-
-	ctx->jpeg_enc.bounce_buffer.cpu =
-		dma_alloc_attrs(ctx->dev->dev,
-				ctx->jpeg_enc.bounce_buffer.size,
-				&ctx->jpeg_enc.bounce_buffer.dma,
-				GFP_KERNEL,
-				DMA_ATTR_ALLOC_SINGLE_PAGES);
-	if (!ctx->jpeg_enc.bounce_buffer.cpu)
-		return -ENOMEM;
-
-	return 0;
-}
-
-void hantro_jpeg_enc_exit(struct hantro_ctx *ctx)
-{
-	dma_free_attrs(ctx->dev->dev,
-		       ctx->jpeg_enc.bounce_buffer.size,
-		       ctx->jpeg_enc.bounce_buffer.cpu,
-		       ctx->jpeg_enc.bounce_buffer.dma,
-		       DMA_ATTR_ALLOC_SINGLE_PAGES);
 }

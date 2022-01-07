@@ -66,17 +66,23 @@ static void rockchip_vpu2_set_src_img_ctrl(struct hantro_dev *vpu,
 
 static void rockchip_vpu2_jpeg_enc_set_buffers(struct hantro_dev *vpu,
 					       struct hantro_ctx *ctx,
-					       struct vb2_buffer *src_buf)
+					       struct vb2_buffer *src_buf,
+					       struct vb2_buffer *dst_buf)
 {
 	struct v4l2_pix_format_mplane *pix_fmt = &ctx->src_fmt;
 	dma_addr_t src[3];
+	u32 size_left;
+
+	size_left = vb2_plane_size(dst_buf, 0) - ctx->vpu_dst_fmt->header_size;
+	if (WARN_ON(vb2_plane_size(dst_buf, 0) < ctx->vpu_dst_fmt->header_size))
+		size_left = 0;
 
 	WARN_ON(pix_fmt->num_planes > 3);
 
-	vepu_write_relaxed(vpu, ctx->jpeg_enc.bounce_buffer.dma,
+	vepu_write_relaxed(vpu, vb2_dma_contig_plane_dma_addr(dst_buf, 0) +
+				ctx->vpu_dst_fmt->header_size,
 			   VEPU_REG_ADDR_OUTPUT_STREAM);
-	vepu_write_relaxed(vpu, ctx->jpeg_enc.bounce_buffer.size,
-			   VEPU_REG_STR_BUF_LIMIT);
+	vepu_write_relaxed(vpu, size_left, VEPU_REG_STR_BUF_LIMIT);
 
 	if (pix_fmt->num_planes == 1) {
 		src[0] = vb2_dma_contig_plane_dma_addr(src_buf, 0);
@@ -137,6 +143,9 @@ int rockchip_vpu2_jpeg_enc_run(struct hantro_ctx *ctx)
 
 	memset(&jpeg_ctx, 0, sizeof(jpeg_ctx));
 	jpeg_ctx.buffer = vb2_plane_vaddr(&dst_buf->vb2_buf, 0);
+	if (!jpeg_ctx.buffer)
+		return -ENOMEM;
+
 	jpeg_ctx.width = ctx->dst_fmt.width;
 	jpeg_ctx.height = ctx->dst_fmt.height;
 	jpeg_ctx.quality = ctx->jpeg_quality;
@@ -147,7 +156,8 @@ int rockchip_vpu2_jpeg_enc_run(struct hantro_ctx *ctx)
 			   VEPU_REG_ENCODE_START);
 
 	rockchip_vpu2_set_src_img_ctrl(vpu, ctx);
-	rockchip_vpu2_jpeg_enc_set_buffers(vpu, ctx, &src_buf->vb2_buf);
+	rockchip_vpu2_jpeg_enc_set_buffers(vpu, ctx, &src_buf->vb2_buf,
+					   &dst_buf->vb2_buf);
 	rockchip_vpu2_jpeg_enc_set_qtable(vpu, jpeg_ctx.hw_luma_qtable,
 					  jpeg_ctx.hw_chroma_qtable);
 
@@ -182,13 +192,6 @@ void rockchip_vpu2_jpeg_enc_done(struct hantro_ctx *ctx)
 	u32 bytesused = vepu_read(vpu, VEPU_REG_STR_BUF_LIMIT) / 8;
 	struct vb2_v4l2_buffer *dst_buf = hantro_get_dst_buf(ctx);
 
-	/*
-	 * TODO: Rework the JPEG encoder to eliminate the need
-	 * for a bounce buffer.
-	 */
-	memcpy(vb2_plane_vaddr(&dst_buf->vb2_buf, 0) +
-	       ctx->vpu_dst_fmt->header_size,
-	       ctx->jpeg_enc.bounce_buffer.cpu, bytesused);
 	vb2_set_plane_payload(&dst_buf->vb2_buf, 0,
 			      ctx->vpu_dst_fmt->header_size + bytesused);
 }

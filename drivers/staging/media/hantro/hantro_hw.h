@@ -43,15 +43,6 @@ struct hantro_aux_buf {
 	unsigned long attrs;
 };
 
-/**
- * struct hantro_jpeg_enc_hw_ctx
- *
- * @bounce_buffer:	Bounce buffer
- */
-struct hantro_jpeg_enc_hw_ctx {
-	struct hantro_aux_buf bounce_buffer;
-};
-
 /* Max. number of entries in the DPB (HW limitation). */
 #define HANTRO_H264_DPB_SIZE		16
 
@@ -327,8 +318,6 @@ void hantro_g1_reset(struct hantro_ctx *ctx);
 
 int hantro_h1_jpeg_enc_run(struct hantro_ctx *ctx);
 int rockchip_vpu2_jpeg_enc_run(struct hantro_ctx *ctx);
-int hantro_jpeg_enc_init(struct hantro_ctx *ctx);
-void hantro_jpeg_enc_exit(struct hantro_ctx *ctx);
 void hantro_h1_jpeg_enc_done(struct hantro_ctx *ctx);
 void rockchip_vpu2_jpeg_enc_done(struct hantro_ctx *ctx);
 

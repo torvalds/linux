@@ -219,21 +219,15 @@ queue_init(void *priv, struct vb2_queue *src_vq, struct vb2_queue *dst_vq)
 	if (ret)
 		return ret;
 
+	dst_vq->bidirectional = true;
+	dst_vq->mem_ops = &vb2_dma_contig_memops;
+	dst_vq->dma_attrs = DMA_ATTR_ALLOC_SINGLE_PAGES;
 	/*
-	 * When encoding, the CAPTURE queue doesn't need dma memory,
-	 * as the CPU needs to create the JPEG frames, from the
-	 * hardware-produced JPEG payload.
-	 *
-	 * For the DMA destination buffer, we use a bounce buffer.
+	 * The Kernel needs access to the JPEG destination buffer for the
+	 * JPEG encoder to fill in the JPEG headers.
 	 */
-	if (ctx->is_encoder) {
-		dst_vq->mem_ops = &vb2_vmalloc_memops;
-	} else {
-		dst_vq->bidirectional = true;
-		dst_vq->mem_ops = &vb2_dma_contig_memops;
-		dst_vq->dma_attrs = DMA_ATTR_ALLOC_SINGLE_PAGES |
-				    DMA_ATTR_NO_KERNEL_MAPPING;
-	}
+	if (!ctx->is_encoder)
+		dst_vq->dma_attrs |= DMA_ATTR_NO_KERNEL_MAPPING;
 
 	dst_vq->type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
 	dst_vq->io_modes = VB2_MMAP | VB2_DMABUF;
