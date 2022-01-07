@@ -8,7 +8,6 @@
 #include <asm/asm.h>
 #include <asm/cmpxchg.h>
 #include <asm/compiler.h>
-#include <asm/asm.h>
 
 typedef struct
 {
