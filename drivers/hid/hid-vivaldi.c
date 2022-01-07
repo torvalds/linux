@@ -6,15 +6,16 @@
  * Author: Sean O'Brien <seobrien@chromium.org>
  */
 
+#include <linux/device.h>
 #include <linux/hid.h>
+#include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/sysfs.h>
 
 #define MIN_FN_ROW_KEY	1
 #define MAX_FN_ROW_KEY	24
 #define HID_VD_FN_ROW_PHYSMAP 0x00000001
 #define HID_USAGE_FN_ROW_PHYSMAP (HID_UP_GOOGLEVENDOR | HID_VD_FN_ROW_PHYSMAP)
-
-static struct hid_driver hid_vivaldi;
 
 struct vivaldi_data {
 	u32 function_row_physmap[MAX_FN_ROW_KEY - MIN_FN_ROW_KEY + 1];
@@ -40,7 +41,7 @@ static ssize_t function_row_physmap_show(struct device *dev,
 	return size;
 }
 
-DEVICE_ATTR_RO(function_row_physmap);
+static DEVICE_ATTR_RO(function_row_physmap);
 static struct attribute *sysfs_attrs[] = {
 	&dev_attr_function_row_physmap.attr,
 	NULL
