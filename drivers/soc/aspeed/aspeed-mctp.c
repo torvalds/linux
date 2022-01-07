@@ -162,7 +162,7 @@
 #define PCI_BUS_NUM_SHIFT	5
 #define PCI_BUS_NUM_MASK	GENMASK(12, PCI_BUS_NUM_SHIFT)
 #define GET_PCI_DEV_NUM(x)	((x) & PCI_DEV_NUM_MASK)
-#define GET_PCI_BUS_NUM(x)	((((x) & PCI_BUS_NUM_MASK) >> PCI_BUS_NUM_SHIFT) + 1)
+#define GET_PCI_BUS_NUM(x)	(((x) & PCI_BUS_NUM_MASK) >> PCI_BUS_NUM_SHIFT)
 
 /* MCTP header definitions */
 #define MCTP_HDR_SRC_EID_OFFSET		14
@@ -427,16 +427,18 @@ static void aspeed_mctp_rx_trigger(struct mctp_channel *rx)
 	regmap_write(priv->map, ASPEED_MCTP_RX_BUF_WR_PTR, 0);
 
 	/* After re-enabling RX we need to restart WA logic */
-	if (priv->rx_runaway_wa.enable) {
-		priv->rx_runaway_wa.first_loop = true;
-		priv->rx_runaway_wa.packet_counter = 0;
+	if (priv->rx_runaway_wa.enable)
 		priv->rx.buffer_count = RX_PACKET_COUNT;
-	}
 	/*
 	 * When Rx warmup MCTP controller may store first packet into the 0th to the
-	 * 3rd cmd. It's independent from rx runaway.
+	 * 3rd cmd. In ast2600 A3, If the packet isn't stored in the 0th cmd we need
+	 * to change the rx buffer size to avoid rx runaway in first loop. In ast2600
+	 * A1/A2, after first loop hardware is guaranteed to use (RX_PACKET_COUNT - 4)
+	 * buffers.
 	 */
 	priv->rx_warmup = true;
+	priv->rx_runaway_wa.first_loop = true;
+	priv->rx_runaway_wa.packet_counter = 0;
 
 	regmap_update_bits(priv->map, ASPEED_MCTP_CTRL, RX_CMD_READY,
 			   RX_CMD_READY);
@@ -732,6 +734,7 @@ static void aspeed_mctp_rx_tasklet(unsigned long data)
 
 	if (priv->match_data->vdm_hdr_direct_xfer && priv->match_data->fifo_auto_surround) {
 		struct mctp_pcie_packet_data *rx_buf;
+		u32 residual_cmds;
 
 		/* Trigger HW read pointer update, must be done before RX loop */
 		regmap_write(priv->map, ASPEED_MCTP_RX_BUF_RD_PTR, UPDATE_RX_RD_PTR);
@@ -760,25 +763,39 @@ static void aspeed_mctp_rx_tasklet(unsigned long data)
 			if (tmp_wr_ptr != rx->wr_ptr) {
 				dev_dbg(priv->dev, "Runaway RX packet found %d -> %d\n",
 					rx->wr_ptr, tmp_wr_ptr);
+				residual_cmds = abs(tmp_wr_ptr - rx->wr_ptr);
 				rx->wr_ptr = tmp_wr_ptr;
 			}
+			if (!priv->rx_runaway_wa.enable && priv->rx_warmup &&
+			    priv->rx_runaway_wa.first_loop)
+				regmap_write(priv->map, ASPEED_MCTP_RX_BUF_SIZE,
+					     rx->buffer_count - residual_cmds);
 			priv->rx_warmup = false;
 		}
-		/*
-		 * Once we receive RX_PACKET_COUNT packets, hardware is
-		 * guaranteed to use (RX_PACKET_COUNT - 4) buffers. Decrease
-		 * buffer count by 4, then we can turn off scanning of RX
-		 * buffers. RX buffer scanning should be enabled every time
-		 * RX hardware is started.
-		 * This is just a performance optimization - we could keep
-		 * scanning RX buffers forever, but under heavy traffic it is
-		 * fairly common that rx_tasklet is executed while RX buffer
-		 * ring is empty.
-		 */
-		if (priv->rx_runaway_wa.enable &&
-		    priv->rx_runaway_wa.packet_counter > RX_PACKET_COUNT) {
+
+		if (priv->rx_runaway_wa.packet_counter > RX_PACKET_COUNT &&
+		    priv->rx_runaway_wa.first_loop) {
+			if (priv->rx_runaway_wa.enable)
+				/*
+				 * Once we receive RX_PACKET_COUNT packets, hardware is
+				 * guaranteed to use (RX_PACKET_COUNT - 4) buffers. Decrease
+				 * buffer count by 4, then we can turn off scanning of RX
+				 * buffers. RX buffer scanning should be enabled every time
+				 * RX hardware is started.
+				 * This is just a performance optimization - we could keep
+				 * scanning RX buffers forever, but under heavy traffic it is
+				 * fairly common that rx_tasklet is executed while RX buffer
+				 * ring is empty.
+				 */
+				rx->buffer_count = RX_PACKET_COUNT - 4;
+			else
+				/*
+				 * Once we receive RX_PACKET_COUNT packets, we need to restore the
+				 * RX buffer size to 4 byte aligned value to avoid rx runaway.
+				 */
+				regmap_write(priv->map, ASPEED_MCTP_RX_BUF_SIZE,
+					     rx->buffer_count);
 			priv->rx_runaway_wa.first_loop = false;
-			rx->buffer_count = RX_PACKET_COUNT - 4;
 		}
 
 		while (*hdr != 0) {
