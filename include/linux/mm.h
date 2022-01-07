@@ -863,6 +863,13 @@ static inline struct page *virt_to_head_page(const void *x)
 	return compound_head(page);
 }
 
+static inline struct folio *virt_to_folio(const void *x)
+{
+	struct page *page = virt_to_page(x);
+
+	return page_folio(page);
+}
+
 void __put_page(struct page *page);
 
 void put_pages_list(struct list_head *pages);
@@ -1752,6 +1759,11 @@ void page_address_init(void);
 #define set_page_address(page, address)  do { } while(0)
 #define page_address_init()  do { } while(0)
 #endif
+
+static inline void *folio_address(const struct folio *folio)
+{
+	return page_address(&folio->page);
+}
 
 extern void *page_rmapping(struct page *page);
 extern struct anon_vma *page_anon_vma(struct page *page);
