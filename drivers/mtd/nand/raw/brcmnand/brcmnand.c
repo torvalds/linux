@@ -598,7 +598,11 @@ enum {
 
 static inline bool brcmnand_non_mmio_ops(struct brcmnand_controller *ctrl)
 {
+#if IS_ENABLED(CONFIG_MTD_NAND_BRCMNAND_BCMA)
 	return static_branch_unlikely(&brcmnand_soc_has_ops_key);
+#else
+	return false;
+#endif
 }
 
 static inline u32 nand_readreg(struct brcmnand_controller *ctrl, u32 offs)
