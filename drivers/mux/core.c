@@ -33,7 +33,7 @@
  * struct mux_state -	Represents a mux controller state specific to a given
  *			consumer.
  * @mux:		Pointer to a mux controller.
- * @state		State of the mux to be selected.
+ * @state:		State of the mux to be selected.
  *
  * This structure is specific to the consumer that acquires it and has
  * information specific to that consumer.
