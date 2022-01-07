@@ -1214,7 +1214,7 @@ static void mptcp_set_rwin(const struct tcp_sock *tp)
 		WRITE_ONCE(msk->rcv_wnd_sent, ack_seq);
 }
 
-static u16 __mptcp_make_csum(u64 data_seq, u32 subflow_seq, u16 data_len, __sum16 sum)
+u16 __mptcp_make_csum(u64 data_seq, u32 subflow_seq, u16 data_len, __wsum sum)
 {
 	struct csum_pseudo_header header;
 	__wsum csum;
@@ -1229,14 +1229,14 @@ static u16 __mptcp_make_csum(u64 data_seq, u32 subflow_seq, u16 data_len, __sum1
 	header.data_len = htons(data_len);
 	header.csum = 0;
 
-	csum = csum_partial(&header, sizeof(header), ~csum_unfold(sum));
+	csum = csum_partial(&header, sizeof(header), sum);
 	return (__force u16)csum_fold(csum);
 }
 
 static u16 mptcp_make_csum(const struct mptcp_ext *mpext)
 {
 	return __mptcp_make_csum(mpext->data_seq, mpext->subflow_seq, mpext->data_len,
-				 mpext->csum);
+				 ~csum_unfold(mpext->csum));
 }
 
 void mptcp_write_options(__be32 *ptr, const struct tcp_sock *tp,
@@ -1368,7 +1368,7 @@ void mptcp_write_options(__be32 *ptr, const struct tcp_sock *tp,
 					   __mptcp_make_csum(opts->data_seq,
 							     opts->subflow_seq,
 							     opts->data_len,
-							     opts->csum), ptr);
+							     ~csum_unfold(opts->csum)), ptr);
 		} else {
 			put_unaligned_be32(opts->data_len << 16 |
 					   TCPOPT_NOP << 8 | TCPOPT_NOP, ptr);
