@@ -692,16 +692,25 @@ void amdgpu_dpm_set_power_state(struct amdgpu_device *adev,
 		amdgpu_dpm_compute_clocks(adev);
 }
 
-enum amd_dpm_forced_level amdgpu_dpm_get_performance_level(struct amdgpu_device *adev)
+static enum amd_dpm_forced_level amdgpu_dpm_get_performance_level_locked(struct amdgpu_device *adev)
 {
 	const struct amd_pm_funcs *pp_funcs = adev->powerplay.pp_funcs;
 	enum amd_dpm_forced_level level;
 
-	mutex_lock(&adev->pm.mutex);
 	if (pp_funcs->get_performance_level)
 		level = pp_funcs->get_performance_level(adev->powerplay.pp_handle);
 	else
 		level = adev->pm.dpm.forced_level;
+
+	return level;
+}
+
+enum amd_dpm_forced_level amdgpu_dpm_get_performance_level(struct amdgpu_device *adev)
+{
+	enum amd_dpm_forced_level level;
+
+	mutex_lock(&adev->pm.mutex);
+	level = amdgpu_dpm_get_performance_level_locked(adev);
 	mutex_unlock(&adev->pm.mutex);
 
 	return level;
@@ -711,6 +720,11 @@ int amdgpu_dpm_force_performance_level(struct amdgpu_device *adev,
 				       enum amd_dpm_forced_level level)
 {
 	const struct amd_pm_funcs *pp_funcs = adev->powerplay.pp_funcs;
+	enum amd_dpm_forced_level current_level;
+	uint32_t profile_mode_mask = AMD_DPM_FORCED_LEVEL_PROFILE_STANDARD |
+					AMD_DPM_FORCED_LEVEL_PROFILE_MIN_SCLK |
+					AMD_DPM_FORCED_LEVEL_PROFILE_MIN_MCLK |
+					AMD_DPM_FORCED_LEVEL_PROFILE_PEAK;
 	int ret = 0;
 
 	if (!pp_funcs->force_performance_level)
@@ -721,6 +735,49 @@ int amdgpu_dpm_force_performance_level(struct amdgpu_device *adev,
 	if (adev->pm.dpm.thermal_active) {
 		ret = -EINVAL;
 		goto out;
+	}
+
+	current_level = amdgpu_dpm_get_performance_level_locked(adev);
+	if (current_level == level) {
+		ret = 0;
+		goto out;
+	}
+
+	if (adev->asic_type == CHIP_RAVEN) {
+		if (!(adev->apu_flags & AMD_APU_IS_RAVEN2)) {
+			if (current_level != AMD_DPM_FORCED_LEVEL_MANUAL &&
+			    level == AMD_DPM_FORCED_LEVEL_MANUAL)
+				amdgpu_gfx_off_ctrl(adev, false);
+			else if (current_level == AMD_DPM_FORCED_LEVEL_MANUAL &&
+				 level != AMD_DPM_FORCED_LEVEL_MANUAL)
+				amdgpu_gfx_off_ctrl(adev, true);
+		}
+	}
+
+	if (!(current_level & profile_mode_mask) &&
+	    (level == AMD_DPM_FORCED_LEVEL_PROFILE_EXIT)) {
+		ret = -EINVAL;
+		goto out;
+	}
+
+	if (!(current_level & profile_mode_mask) &&
+	      (level & profile_mode_mask)) {
+		/* enter UMD Pstate */
+		amdgpu_device_ip_set_powergating_state(adev,
+						       AMD_IP_BLOCK_TYPE_GFX,
+						       AMD_PG_STATE_UNGATE);
+		amdgpu_device_ip_set_clockgating_state(adev,
+						       AMD_IP_BLOCK_TYPE_GFX,
+						       AMD_CG_STATE_UNGATE);
+	} else if ((current_level & profile_mode_mask) &&
+		    !(level & profile_mode_mask)) {
+		/* exit UMD Pstate */
+		amdgpu_device_ip_set_clockgating_state(adev,
+						       AMD_IP_BLOCK_TYPE_GFX,
+						       AMD_CG_STATE_GATE);
+		amdgpu_device_ip_set_powergating_state(adev,
+						       AMD_IP_BLOCK_TYPE_GFX,
+						       AMD_PG_STATE_GATE);
 	}
 
 	if (pp_funcs->force_performance_level(adev->powerplay.pp_handle,

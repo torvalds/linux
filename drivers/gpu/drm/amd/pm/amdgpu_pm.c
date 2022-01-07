@@ -299,11 +299,6 @@ static ssize_t amdgpu_set_power_dpm_force_performance_level(struct device *dev,
 	struct drm_device *ddev = dev_get_drvdata(dev);
 	struct amdgpu_device *adev = drm_to_adev(ddev);
 	enum amd_dpm_forced_level level;
-	enum amd_dpm_forced_level current_level;
-	uint32_t profile_mode_mask = AMD_DPM_FORCED_LEVEL_PROFILE_STANDARD |
-					AMD_DPM_FORCED_LEVEL_PROFILE_MIN_SCLK |
-					AMD_DPM_FORCED_LEVEL_PROFILE_MIN_MCLK |
-					AMD_DPM_FORCED_LEVEL_PROFILE_PEAK;
 	int ret = 0;
 
 	if (amdgpu_in_reset(adev))
@@ -339,51 +334,6 @@ static ssize_t amdgpu_set_power_dpm_force_performance_level(struct device *dev,
 	if (ret < 0) {
 		pm_runtime_put_autosuspend(ddev->dev);
 		return ret;
-	}
-
-	current_level = amdgpu_dpm_get_performance_level(adev);
-	if (current_level == level) {
-		pm_runtime_mark_last_busy(ddev->dev);
-		pm_runtime_put_autosuspend(ddev->dev);
-		return count;
-	}
-
-	if (adev->asic_type == CHIP_RAVEN) {
-		if (!(adev->apu_flags & AMD_APU_IS_RAVEN2)) {
-			if (current_level != AMD_DPM_FORCED_LEVEL_MANUAL && level == AMD_DPM_FORCED_LEVEL_MANUAL)
-				amdgpu_gfx_off_ctrl(adev, false);
-			else if (current_level == AMD_DPM_FORCED_LEVEL_MANUAL && level != AMD_DPM_FORCED_LEVEL_MANUAL)
-				amdgpu_gfx_off_ctrl(adev, true);
-		}
-	}
-
-	/* profile_exit setting is valid only when current mode is in profile mode */
-	if (!(current_level & profile_mode_mask) &&
-	    (level == AMD_DPM_FORCED_LEVEL_PROFILE_EXIT)) {
-		pr_err("Currently not in any profile mode!\n");
-		pm_runtime_mark_last_busy(ddev->dev);
-		pm_runtime_put_autosuspend(ddev->dev);
-		return -EINVAL;
-	}
-
-	if (!(current_level & profile_mode_mask) &&
-	      (level & profile_mode_mask)) {
-		/* enter UMD Pstate */
-		amdgpu_device_ip_set_powergating_state(adev,
-						       AMD_IP_BLOCK_TYPE_GFX,
-						       AMD_PG_STATE_UNGATE);
-		amdgpu_device_ip_set_clockgating_state(adev,
-						       AMD_IP_BLOCK_TYPE_GFX,
-						       AMD_CG_STATE_UNGATE);
-	} else if ((current_level & profile_mode_mask) &&
-		    !(level & profile_mode_mask)) {
-		/* exit UMD Pstate */
-		amdgpu_device_ip_set_clockgating_state(adev,
-						       AMD_IP_BLOCK_TYPE_GFX,
-						       AMD_CG_STATE_GATE);
-		amdgpu_device_ip_set_powergating_state(adev,
-						       AMD_IP_BLOCK_TYPE_GFX,
-						       AMD_PG_STATE_GATE);
 	}
 
 	if (amdgpu_dpm_force_performance_level(adev, level)) {
