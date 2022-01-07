@@ -385,6 +385,8 @@ rtw89_core_tx_update_mgmt_info(struct rtw89_dev *rtwdev,
 
 	desc_info->qsel = RTW89_TX_QSEL_B0_MGMT;
 	desc_info->ch_dma = ch_dma;
+	desc_info->hw_ssn_sel = RTW89_MGMT_HW_SSN_SEL;
+	desc_info->hw_seq_mode = RTW89_MGMT_HW_SEQ_MODE;
 
 	/* fixed data rate for mgmt frames */
 	desc_info->en_wd_info = true;
@@ -710,7 +712,9 @@ static __le32 rtw89_build_txwd_body0(struct rtw89_tx_desc_info *desc_info)
 		    FIELD_PREP(RTW89_TXWD_BODY0_CHANNEL_DMA, desc_info->ch_dma) |
 		    FIELD_PREP(RTW89_TXWD_BODY0_HDR_LLC_LEN, desc_info->hdr_llc_len) |
 		    FIELD_PREP(RTW89_TXWD_BODY0_WD_PAGE, desc_info->wd_page) |
-		    FIELD_PREP(RTW89_TXWD_BODY0_FW_DL, desc_info->fw_dl);
+		    FIELD_PREP(RTW89_TXWD_BODY0_FW_DL, desc_info->fw_dl) |
+		    FIELD_PREP(RTW89_TXWD_BODY0_HW_SSN_SEL, desc_info->hw_ssn_sel) |
+		    FIELD_PREP(RTW89_TXWD_BODY0_HW_SSN_MODE, desc_info->hw_seq_mode);
 
 	return cpu_to_le32(dword);
 }

@@ -686,6 +686,10 @@ struct rtw89_tx_desc_info {
 	bool fw_dl;
 	u16 seq;
 	bool a_ctrl_bsr;
+	u8 hw_ssn_sel;
+#define RTW89_MGMT_HW_SSN_SEL	1
+	u8 hw_seq_mode;
+#define RTW89_MGMT_HW_SEQ_MODE	1
 };
 
 struct rtw89_core_tx_request {
