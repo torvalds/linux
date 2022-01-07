@@ -29,14 +29,6 @@ struct follow_page_context {
 	unsigned int page_mask;
 };
 
-static void hpage_pincount_sub(struct page *page, int refs)
-{
-	VM_BUG_ON_PAGE(!hpage_pincount_available(page), page);
-	VM_BUG_ON_PAGE(page != compound_head(page), page);
-
-	atomic_sub(refs, compound_pincount_ptr(page));
-}
-
 /* Equivalent to calling put_page() @refs times. */
 static void put_page_refs(struct page *page, int refs)
 {
@@ -169,12 +161,13 @@ __maybe_unused struct page *try_grab_compound_head(struct page *page,
 
 static void put_compound_head(struct page *page, int refs, unsigned int flags)
 {
+	VM_BUG_ON_PAGE(PageTail(page), page);
+
 	if (flags & FOLL_PIN) {
 		mod_node_page_state(page_pgdat(page), NR_FOLL_PIN_RELEASED,
 				    refs);
-
 		if (hpage_pincount_available(page))
-			hpage_pincount_sub(page, refs);
+			atomic_sub(refs, compound_pincount_ptr(page));
 		else
 			refs *= GUP_PIN_COUNTING_BIAS;
 	}
