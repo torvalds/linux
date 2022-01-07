@@ -1754,7 +1754,7 @@ static int reserve_stack(struct nameidata *nd, struct path *link, unsigned seq)
 		// unlazy even if we fail to grab the link - cleanup needs it
 		bool grabbed_link = legitimize_path(nd, link, seq);
 
-		if (!try_to_unlazy(nd) != 0 || !grabbed_link)
+		if (!try_to_unlazy(nd) || !grabbed_link)
 			return -ECHILD;
 
 		if (nd_alloc_stack(nd))
