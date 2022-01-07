@@ -256,7 +256,7 @@ static inline unsigned short req_get_ioprio(struct request *req)
  * @rq: The request to move
  * @prev: The request preceding @rq in @src (NULL if @rq is the head)
  */
-static void inline rq_list_move(struct request **src, struct request **dst,
+static inline void rq_list_move(struct request **src, struct request **dst,
 				struct request *rq, struct request *prev)
 {
 	if (prev)
