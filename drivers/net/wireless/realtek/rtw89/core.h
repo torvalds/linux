@@ -1879,7 +1879,6 @@ struct rtw89_addr_cam_entry {
 	u8 wapi		: 1;
 	u8 mask_sel	: 2;
 	u8 bssid_cam_idx: 6;
-	u8 sma[ETH_ALEN];
 
 	u8 sec_ent_mode;
 	DECLARE_BITMAP(sec_cam_map, RTW89_SEC_CAM_IN_ADDR_CAM);
