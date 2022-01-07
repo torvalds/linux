@@ -556,7 +556,7 @@ int rtl8188e_firmware_download(struct adapter *padapter)
 		rtStatus = load_firmware(&dvobj->firmware, device);
 	if (rtStatus == _FAIL) {
 		dvobj->firmware.data = NULL;
-		goto Exit;
+		goto exit;
 	}
 	pFirmwareBuf = dvobj->firmware.data;
 	FirmwareLen = dvobj->firmware.size;
@@ -604,16 +604,16 @@ int rtl8188e_firmware_download(struct adapter *padapter)
 	fw_download_enable(padapter, false);
 	if (_SUCCESS != rtStatus) {
 		DBG_88E("DL Firmware failed!\n");
-		goto Exit;
+		goto exit;
 	}
 
 	rtStatus = fw_free_to_go(padapter);
 	if (_SUCCESS != rtStatus) {
 		DBG_88E("DL Firmware failed!\n");
-		goto Exit;
+		goto exit;
 	}
 
-Exit:
+exit:
 	return rtStatus;
 }
 
