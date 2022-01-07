@@ -416,7 +416,7 @@ EXPORT_SYMBOL_GPL(mux_state_select_delay);
  * @delay_us: The time to delay (in microseconds) if the mux state is changed.
  *
  * On successfully selecting the mux-control state, it will be locked until
- * mux_control_deselect() called.
+ * mux_control_deselect() is called.
  *
  * Therefore, make sure to call mux_control_deselect() when the operation is
  * complete and the mux-control is free for others to use, but do not call
