@@ -972,7 +972,9 @@ static void __mptcp_mem_reclaim_partial(struct sock *sk)
 
 	lockdep_assert_held_once(&sk->sk_lock.slock);
 
-	__mptcp_rmem_reclaim(sk, reclaimable - 1);
+	if (reclaimable > SK_MEM_QUANTUM)
+		__mptcp_rmem_reclaim(sk, reclaimable - 1);
+
 	sk_mem_reclaim_partial(sk);
 }
 
