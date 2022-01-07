@@ -49,7 +49,13 @@ int cachefiles_add_cache(struct cachefiles_cache *cache)
 		goto error_unsupported;
 	}
 
-	/* check parameters */
+	/* Check features of the backing filesystem:
+	 * - Directories must support looking up and directory creation
+	 * - We use xattrs to store metadata
+	 * - We need to be able to query the amount of space available
+	 * - We want to be able to sync the filesystem when stopping the cache
+	 * - We use DIO to/from pages, so the blocksize mustn't be too big.
+	 */
 	ret = -EOPNOTSUPP;
 	if (d_is_negative(root) ||
 	    !d_backing_inode(root)->i_op->lookup ||
