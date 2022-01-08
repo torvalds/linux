@@ -2960,7 +2960,15 @@ static int module_sig_check(struct load_info *info, int flags)
 		return -EKEYREJECTED;
 	}
 
+/*
+ * ANDROID: GKI: Do not prevent loading of unsigned modules;
+ * as all modules except GKI modules are not signed.
+ */
+#ifndef CONFIG_MODULE_SIG_PROTECT
 	return security_locked_down(LOCKDOWN_MODULE_SIGNATURE);
+#else
+	return 0;
+#endif
 }
 #else /* !CONFIG_MODULE_SIG */
 static int module_sig_check(struct load_info *info, int flags)
