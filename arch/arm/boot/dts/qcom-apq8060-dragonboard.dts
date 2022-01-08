@@ -674,14 +674,14 @@
 					bias-pull-down;
 				};
 
-				/* LVS0 thru 3 and mvs0 are just switches */
+				/* LVS0 thru 3 and mvs are just switches */
 				lvs0 {
 					regulator-always-on;
 				};
 				lvs1 { };
 				lvs2 { };
 				lvs3 { };
-				mvs0 {};
+				mvs { };
 
 			};
 
