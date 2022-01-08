@@ -846,7 +846,7 @@ static int sh_mobile_i2c_hook_irqs(struct platform_device *dev, struct sh_mobile
 				return ret;
 			}
 			k++;
-		};
+		}
 	} else {
 		struct resource *res;
 		resource_size_t n;
