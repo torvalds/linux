@@ -587,7 +587,6 @@ static void phy_PowerIndexCheck88E(struct adapter *Adapter, u8 channel, u8 *cckP
 	struct hal_data_8188e *pHalData = &Adapter->haldata;
 
 	pHalData->CurrentCckTxPwrIdx = cckPowerLevel[0];
-	pHalData->CurrentOfdm24GTxPwrIdx = ofdmPowerLevel[0];
 }
 
 /*-----------------------------------------------------------------------------
