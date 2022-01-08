@@ -683,6 +683,7 @@ static const struct file_operations objects_fops = {
 	.open = open_objects,
 	.read = seq_read,
 	.llseek = seq_lseek,
+	.release = seq_release,
 };
 
 static int __init kfence_debugfs_init(void)

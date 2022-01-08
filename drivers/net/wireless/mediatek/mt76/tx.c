@@ -173,7 +173,7 @@ mt76_tx_status_skb_get(struct mt76_dev *dev, struct mt76_wcid *wcid, int pktid,
 			if (!(cb->flags & MT_TX_CB_DMA_DONE))
 				continue;
 
-			if (!time_is_after_jiffies(cb->jiffies +
+			if (time_is_after_jiffies(cb->jiffies +
 						   MT_TX_STATUS_SKB_TIMEOUT))
 				continue;
 		}

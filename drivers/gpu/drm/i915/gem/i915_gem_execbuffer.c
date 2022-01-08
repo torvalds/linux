@@ -3017,7 +3017,7 @@ eb_composite_fence_create(struct i915_execbuffer *eb, int out_fence_fd)
 	fence_array = dma_fence_array_create(eb->num_batches,
 					     fences,
 					     eb->context->parallel.fence_context,
-					     eb->context->parallel.seqno,
+					     eb->context->parallel.seqno++,
 					     false);
 	if (!fence_array) {
 		kfree(fences);
@@ -3277,6 +3277,7 @@ i915_gem_do_execbuffer(struct drm_device *dev,
 	out_fence = eb_requests_create(&eb, in_fence, out_fence_fd);
 	if (IS_ERR(out_fence)) {
 		err = PTR_ERR(out_fence);
+		out_fence = NULL;
 		if (eb.requests[0])
 			goto err_request;
 		else

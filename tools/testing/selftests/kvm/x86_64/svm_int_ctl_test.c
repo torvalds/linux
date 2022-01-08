@@ -75,7 +75,7 @@ static void l1_guest_code(struct svm_test_data *svm)
 	vmcb->control.int_ctl &= ~V_INTR_MASKING_MASK;
 
 	/* No intercepts for real and virtual interrupts */
-	vmcb->control.intercept &= ~(1ULL << INTERCEPT_INTR | INTERCEPT_VINTR);
+	vmcb->control.intercept &= ~(BIT(INTERCEPT_INTR) | BIT(INTERCEPT_VINTR));
 
 	/* Make a virtual interrupt VINTR_IRQ_NUMBER pending */
 	vmcb->control.int_ctl |= V_IRQ_MASK | (0x1 << V_INTR_PRIO_SHIFT);

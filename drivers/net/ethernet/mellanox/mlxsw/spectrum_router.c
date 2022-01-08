@@ -8494,7 +8494,8 @@ mlxsw_sp_rif_mac_profile_replace(struct mlxsw_sp *mlxsw_sp,
 	u8 mac_profile;
 	int err;
 
-	if (!mlxsw_sp_rif_mac_profile_is_shared(rif))
+	if (!mlxsw_sp_rif_mac_profile_is_shared(rif) &&
+	    !mlxsw_sp_rif_mac_profile_find(mlxsw_sp, new_mac))
 		return mlxsw_sp_rif_mac_profile_edit(rif, new_mac);
 
 	err = mlxsw_sp_rif_mac_profile_get(mlxsw_sp, new_mac,

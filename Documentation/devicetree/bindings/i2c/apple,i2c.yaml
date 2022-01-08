@@ -20,9 +20,9 @@ allOf:
 
 properties:
   compatible:
-    enum:
-      - apple,t8103-i2c
-      - apple,i2c
+    items:
+      - const: apple,t8103-i2c
+      - const: apple,i2c
 
   reg:
     maxItems: 1
@@ -51,7 +51,7 @@ unevaluatedProperties: false
 examples:
   - |
     i2c@35010000 {
-      compatible = "apple,t8103-i2c";
+      compatible = "apple,t8103-i2c", "apple,i2c";
       reg = <0x35010000 0x4000>;
       interrupt-parent = <&aic>;
       interrupts = <0 627 4>;

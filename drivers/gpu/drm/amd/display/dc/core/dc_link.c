@@ -758,6 +758,18 @@ static bool detect_dp(struct dc_link *link,
 			dal_ddc_service_set_transaction_type(link->ddc,
 							     sink_caps->transaction_type);
 
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+			/* Apply work around for tunneled MST on certain USB4 docks. Always use DSC if dock
+			 * reports DSC support.
+			 */
+			if (link->ep_type == DISPLAY_ENDPOINT_USB4_DPIA &&
+					link->type == dc_connection_mst_branch &&
+					link->dpcd_caps.branch_dev_id == DP_BRANCH_DEVICE_ID_90CC24 &&
+					link->dpcd_caps.dsc_caps.dsc_basic_caps.fields.dsc_support.DSC_SUPPORT &&
+					!link->dc->debug.dpia_debug.bits.disable_mst_dsc_work_around)
+				link->wa_flags.dpia_mst_dsc_always_on = true;
+#endif
+
 #if defined(CONFIG_DRM_AMD_DC_HDCP)
 			/* In case of fallback to SST when topology discovery below fails
 			 * HDCP caps will be querried again later by the upper layer (caller
@@ -1202,6 +1214,10 @@ static bool dc_link_detect_helper(struct dc_link *link,
 		if (link->type == dc_connection_mst_branch) {
 			LINK_INFO("link=%d, mst branch is now Disconnected\n",
 				  link->link_index);
+
+			/* Disable work around which keeps DSC on for tunneled MST on certain USB4 docks. */
+			if (link->ep_type == DISPLAY_ENDPOINT_USB4_DPIA)
+				link->wa_flags.dpia_mst_dsc_always_on = false;
 
 			dm_helpers_dp_mst_stop_top_mgr(link->ctx, link);
 
@@ -3929,12 +3945,9 @@ static void update_psp_stream_config(struct pipe_ctx *pipe_ctx, bool dpms_off)
 		config.dig_be = pipe_ctx->stream->link->link_enc_hw_inst;
 #if defined(CONFIG_DRM_AMD_DC_DCN)
 		config.stream_enc_idx = pipe_ctx->stream_res.stream_enc->id - ENGINE_ID_DIGA;
-		
+
 		if (pipe_ctx->stream->link->ep_type == DISPLAY_ENDPOINT_PHY ||
 				pipe_ctx->stream->link->ep_type == DISPLAY_ENDPOINT_USB4_DPIA) {
-			link_enc = pipe_ctx->stream->link->link_enc;
-			config.dio_output_type = pipe_ctx->stream->link->ep_type;
-			config.dio_output_idx = link_enc->transmitter - TRANSMITTER_UNIPHY_A;
 			if (pipe_ctx->stream->link->ep_type == DISPLAY_ENDPOINT_PHY)
 				link_enc = pipe_ctx->stream->link->link_enc;
 			else if (pipe_ctx->stream->link->ep_type == DISPLAY_ENDPOINT_USB4_DPIA)

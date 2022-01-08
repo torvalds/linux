@@ -1563,8 +1563,10 @@ int ocelot_hwstamp_set(struct ocelot *ocelot, int port, struct ifreq *ifr)
 	}
 
 	err = ocelot_setup_ptp_traps(ocelot, port, l2, l4);
-	if (err)
+	if (err) {
+		mutex_unlock(&ocelot->ptp_lock);
 		return err;
+	}
 
 	if (l2 && l4)
 		cfg.rx_filter = HWTSTAMP_FILTER_PTP_V2_EVENT;

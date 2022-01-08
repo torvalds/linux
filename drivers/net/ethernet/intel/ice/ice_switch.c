@@ -3796,10 +3796,13 @@ static struct ice_protocol_entry ice_prot_id_tbl[ICE_PROTOCOL_LAST] = {
  * ice_find_recp - find a recipe
  * @hw: pointer to the hardware structure
  * @lkup_exts: extension sequence to match
+ * @tun_type: type of recipe tunnel
  *
  * Returns index of matching recipe, or ICE_MAX_NUM_RECIPES if not found.
  */
-static u16 ice_find_recp(struct ice_hw *hw, struct ice_prot_lkup_ext *lkup_exts)
+static u16
+ice_find_recp(struct ice_hw *hw, struct ice_prot_lkup_ext *lkup_exts,
+	      enum ice_sw_tunnel_type tun_type)
 {
 	bool refresh_required = true;
 	struct ice_sw_recipe *recp;
@@ -3860,8 +3863,9 @@ static u16 ice_find_recp(struct ice_hw *hw, struct ice_prot_lkup_ext *lkup_exts)
 			}
 			/* If for "i"th recipe the found was never set to false
 			 * then it means we found our match
+			 * Also tun type of recipe needs to be checked
 			 */
-			if (found)
+			if (found && recp[i].tun_type == tun_type)
 				return i; /* Return the recipe ID */
 		}
 	}
@@ -4651,11 +4655,12 @@ ice_add_adv_recipe(struct ice_hw *hw, struct ice_adv_lkup_elem *lkups,
 	}
 
 	/* Look for a recipe which matches our requested fv / mask list */
-	*rid = ice_find_recp(hw, lkup_exts);
+	*rid = ice_find_recp(hw, lkup_exts, rinfo->tun_type);
 	if (*rid < ICE_MAX_NUM_RECIPES)
 		/* Success if found a recipe that match the existing criteria */
 		goto err_unroll;
 
+	rm->tun_type = rinfo->tun_type;
 	/* Recipe we need does not exist, add a recipe */
 	status = ice_add_sw_recipe(hw, rm, profiles);
 	if (status)
@@ -4958,11 +4963,13 @@ ice_fill_adv_packet_tun(struct ice_hw *hw, enum ice_sw_tunnel_type tun_type,
 
 	switch (tun_type) {
 	case ICE_SW_TUN_VXLAN:
-	case ICE_SW_TUN_GENEVE:
-		if (!ice_get_open_tunnel_port(hw, &open_port))
+		if (!ice_get_open_tunnel_port(hw, &open_port, TNL_VXLAN))
 			return ICE_ERR_CFG;
 		break;
-
+	case ICE_SW_TUN_GENEVE:
+		if (!ice_get_open_tunnel_port(hw, &open_port, TNL_GENEVE))
+			return ICE_ERR_CFG;
+		break;
 	default:
 		/* Nothing needs to be done for this tunnel type */
 		return 0;
@@ -5555,7 +5562,7 @@ ice_rem_adv_rule(struct ice_hw *hw, struct ice_adv_lkup_elem *lkups,
 	if (status)
 		return status;
 
-	rid = ice_find_recp(hw, &lkup_exts);
+	rid = ice_find_recp(hw, &lkup_exts, rinfo->tun_type);
 	/* If did not find a recipe that match the existing criteria */
 	if (rid == ICE_MAX_NUM_RECIPES)
 		return ICE_ERR_PARAM;

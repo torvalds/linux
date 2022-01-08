@@ -282,7 +282,6 @@ int damon_set_targets(struct damon_ctx *ctx,
 	for (i = 0; i < nr_ids; i++) {
 		t = damon_new_target(ids[i]);
 		if (!t) {
-			pr_err("Failed to alloc damon_target\n");
 			/* The caller should do cleanup of the ids itself */
 			damon_for_each_target_safe(t, next, ctx)
 				damon_destroy_target(t);
@@ -312,16 +311,10 @@ int damon_set_attrs(struct damon_ctx *ctx, unsigned long sample_int,
 		    unsigned long aggr_int, unsigned long primitive_upd_int,
 		    unsigned long min_nr_reg, unsigned long max_nr_reg)
 {
-	if (min_nr_reg < 3) {
-		pr_err("min_nr_regions (%lu) must be at least 3\n",
-				min_nr_reg);
+	if (min_nr_reg < 3)
 		return -EINVAL;
-	}
-	if (min_nr_reg > max_nr_reg) {
-		pr_err("invalid nr_regions.  min (%lu) > max (%lu)\n",
-				min_nr_reg, max_nr_reg);
+	if (min_nr_reg > max_nr_reg)
 		return -EINVAL;
-	}
 
 	ctx->sample_interval = sample_int;
 	ctx->aggr_interval = aggr_int;
@@ -980,10 +973,11 @@ static unsigned long damos_wmark_wait_us(struct damos *scheme)
 
 static void kdamond_usleep(unsigned long usecs)
 {
-	if (usecs > 100 * 1000)
-		schedule_timeout_interruptible(usecs_to_jiffies(usecs));
+	/* See Documentation/timers/timers-howto.rst for the thresholds */
+	if (usecs > 20 * USEC_PER_MSEC)
+		schedule_timeout_idle(usecs_to_jiffies(usecs));
 	else
-		usleep_range(usecs, usecs + 1);
+		usleep_idle_range(usecs, usecs + 1);
 }
 
 /* Returns negative error code if it's not activated but should return */
@@ -1038,7 +1032,7 @@ static int kdamond_fn(void *data)
 				ctx->callback.after_sampling(ctx))
 			done = true;
 
-		usleep_range(ctx->sample_interval, ctx->sample_interval + 1);
+		kdamond_usleep(ctx->sample_interval);
 
 		if (ctx->primitive.check_accesses)
 			max_nr_accesses = ctx->primitive.check_accesses(ctx);
