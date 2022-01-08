@@ -927,7 +927,6 @@ static int do_skeleton(int argc, char **argv)
 			s = (struct bpf_object_skeleton *)calloc(1, sizeof(*s));\n\
 			if (!s)						    \n\
 				goto err;				    \n\
-			obj->skeleton = s;				    \n\
 									    \n\
 			s->sz = sizeof(*s);				    \n\
 			s->name = \"%1$s\";				    \n\
@@ -1000,6 +999,7 @@ static int do_skeleton(int argc, char **argv)
 									    \n\
 			s->data = (void *)%2$s__elf_bytes(&s->data_sz);	    \n\
 									    \n\
+			obj->skeleton = s;				    \n\
 			return 0;					    \n\
 		err:							    \n\
 			bpf_object__destroy_skeleton(s);		    \n\
