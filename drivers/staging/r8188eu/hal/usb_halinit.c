@@ -13,10 +13,6 @@
 #include "../include/usb_osintf.h"
 #include "../include/Hal8188EPwrSeq.h"
 
-#define		HAL_MAC_ENABLE	1
-#define		HAL_BB_ENABLE		1
-#define		HAL_RF_ENABLE		1
-
 static void _ConfigNormalChipOutEP_8188E(struct adapter *adapt, u8 NumOutPipe)
 {
 	struct hal_data_8188e *haldata = &adapt->haldata;
@@ -640,32 +636,26 @@ u32 rtl8188eu_hal_init(struct adapter *Adapter)
 	Adapter->pwrctrlpriv.bFwCurrentInPSMode = false;
 	haldata->LastHMEBoxNum = 0;
 
-#if (HAL_MAC_ENABLE == 1)
 	status = PHY_MACConfig8188E(Adapter);
 	if (status == _FAIL) {
 		DBG_88E(" ### Failed to init MAC ......\n ");
 		goto exit;
 	}
-#endif
 
 	/*  */
 	/* d. Initialize BB related configurations. */
 	/*  */
-#if (HAL_BB_ENABLE == 1)
 	status = PHY_BBConfig8188E(Adapter);
 	if (status == _FAIL) {
 		DBG_88E(" ### Failed to init BB ......\n ");
 		goto exit;
 	}
-#endif
 
-#if (HAL_RF_ENABLE == 1)
 	status = PHY_RFConfig8188E(Adapter);
 	if (status == _FAIL) {
 		DBG_88E(" ### Failed to init RF ......\n ");
 		goto exit;
 	}
-#endif
 
 	status = rtl8188e_iol_efuse_patch(Adapter);
 	if (status == _FAIL) {
