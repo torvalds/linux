@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 
 /*
- * Copyright 2016-2021 HabanaLabs, Ltd.
+ * Copyright 2016-2022 HabanaLabs, Ltd.
  * All Rights Reserved.
  */
 
@@ -1228,7 +1228,7 @@ kill_processes:
 			goto out_err;
 		}
 
-		hl_set_max_power(hdev);
+		hl_fw_set_max_power(hdev);
 	} else {
 		rc = hdev->asic_funcs->non_hard_reset_late_init(hdev);
 		if (rc) {
@@ -1534,7 +1534,7 @@ int hl_device_init(struct hl_device *hdev, struct class *hclass)
 	/* Need to call this again because the max power might change,
 	 * depending on card type for certain ASICs
 	 */
-	hl_set_max_power(hdev);
+	hl_fw_set_max_power(hdev);
 
 	/*
 	 * hl_hwmon_init() must be called after device_late_init(), because only

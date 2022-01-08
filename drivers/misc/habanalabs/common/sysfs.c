@@ -9,106 +9,6 @@
 
 #include <linux/pci.h>
 
-long hl_get_frequency(struct hl_device *hdev, u32 pll_index, bool curr)
-{
-	struct cpucp_packet pkt;
-	u32 used_pll_idx;
-	u64 result;
-	int rc;
-
-	rc = get_used_pll_index(hdev, pll_index, &used_pll_idx);
-	if (rc)
-		return rc;
-
-	memset(&pkt, 0, sizeof(pkt));
-
-	if (curr)
-		pkt.ctl = cpu_to_le32(CPUCP_PACKET_FREQUENCY_CURR_GET <<
-						CPUCP_PKT_CTL_OPCODE_SHIFT);
-	else
-		pkt.ctl = cpu_to_le32(CPUCP_PACKET_FREQUENCY_GET <<
-						CPUCP_PKT_CTL_OPCODE_SHIFT);
-	pkt.pll_index = cpu_to_le32((u32)used_pll_idx);
-
-	rc = hdev->asic_funcs->send_cpu_message(hdev, (u32 *) &pkt, sizeof(pkt),
-						0, &result);
-
-	if (rc) {
-		dev_err(hdev->dev,
-			"Failed to get frequency of PLL %d, error %d\n",
-			used_pll_idx, rc);
-		return rc;
-	}
-
-	return (long) result;
-}
-
-void hl_set_frequency(struct hl_device *hdev, u32 pll_index, u64 freq)
-{
-	struct cpucp_packet pkt;
-	u32 used_pll_idx;
-	int rc;
-
-	rc = get_used_pll_index(hdev, pll_index, &used_pll_idx);
-	if (rc)
-		return;
-
-	memset(&pkt, 0, sizeof(pkt));
-
-	pkt.ctl = cpu_to_le32(CPUCP_PACKET_FREQUENCY_SET <<
-					CPUCP_PKT_CTL_OPCODE_SHIFT);
-	pkt.pll_index = cpu_to_le32((u32)used_pll_idx);
-	pkt.value = cpu_to_le64(freq);
-
-	rc = hdev->asic_funcs->send_cpu_message(hdev, (u32 *) &pkt, sizeof(pkt),
-						0, NULL);
-
-	if (rc)
-		dev_err(hdev->dev,
-			"Failed to set frequency to PLL %d, error %d\n",
-			used_pll_idx, rc);
-}
-
-u64 hl_get_max_power(struct hl_device *hdev)
-{
-	struct cpucp_packet pkt;
-	u64 result;
-	int rc;
-
-	memset(&pkt, 0, sizeof(pkt));
-
-	pkt.ctl = cpu_to_le32(CPUCP_PACKET_MAX_POWER_GET <<
-				CPUCP_PKT_CTL_OPCODE_SHIFT);
-
-	rc = hdev->asic_funcs->send_cpu_message(hdev, (u32 *) &pkt, sizeof(pkt),
-						0, &result);
-
-	if (rc) {
-		dev_err(hdev->dev, "Failed to get max power, error %d\n", rc);
-		return (u64) rc;
-	}
-
-	return result;
-}
-
-void hl_set_max_power(struct hl_device *hdev)
-{
-	struct cpucp_packet pkt;
-	int rc;
-
-	memset(&pkt, 0, sizeof(pkt));
-
-	pkt.ctl = cpu_to_le32(CPUCP_PACKET_MAX_POWER_SET <<
-				CPUCP_PKT_CTL_OPCODE_SHIFT);
-	pkt.value = cpu_to_le64(hdev->max_power);
-
-	rc = hdev->asic_funcs->send_cpu_message(hdev, (u32 *) &pkt, sizeof(pkt),
-						0, NULL);
-
-	if (rc)
-		dev_err(hdev->dev, "Failed to set max power, error %d\n", rc);
-}
-
 static ssize_t clk_max_freq_mhz_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct hl_device *hdev = dev_get_drvdata(dev);
@@ -117,7 +17,7 @@ static ssize_t clk_max_freq_mhz_show(struct device *dev, struct device_attribute
 	if (!hl_device_operational(hdev, NULL))
 		return -ENODEV;
 
-	value = hl_get_frequency(hdev, hdev->asic_prop.clk_pll_index, false);
+	value = hl_fw_get_frequency(hdev, hdev->asic_prop.clk_pll_index, false);
 
 	hdev->asic_prop.max_freq_value = value;
 
@@ -144,7 +44,7 @@ static ssize_t clk_max_freq_mhz_store(struct device *dev, struct device_attribut
 
 	hdev->asic_prop.max_freq_value = value * 1000 * 1000;
 
-	hl_set_frequency(hdev, hdev->asic_prop.clk_pll_index, hdev->asic_prop.max_freq_value);
+	hl_fw_set_frequency(hdev, hdev->asic_prop.clk_pll_index, hdev->asic_prop.max_freq_value);
 
 fail:
 	return count;
@@ -158,7 +58,7 @@ static ssize_t clk_cur_freq_mhz_show(struct device *dev, struct device_attribute
 	if (!hl_device_operational(hdev, NULL))
 		return -ENODEV;
 
-	value = hl_get_frequency(hdev, hdev->asic_prop.clk_pll_index, true);
+	value = hl_fw_get_frequency(hdev, hdev->asic_prop.clk_pll_index, true);
 
 	return sprintf(buf, "%lu\n", (value / 1000 / 1000));
 }
@@ -386,7 +286,7 @@ static ssize_t max_power_show(struct device *dev, struct device_attribute *attr,
 	if (!hl_device_operational(hdev, NULL))
 		return -ENODEV;
 
-	val = hl_get_max_power(hdev);
+	val = hl_fw_get_max_power(hdev);
 
 	return sprintf(buf, "%lu\n", val);
 }
@@ -411,7 +311,7 @@ static ssize_t max_power_store(struct device *dev,
 	}
 
 	hdev->max_power = value;
-	hl_set_max_power(hdev);
+	hl_fw_set_max_power(hdev);
 
 out:
 	return count;

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 
 /*
- * Copyright 2016-2021 HabanaLabs, Ltd.
+ * Copyright 2016-2022 HabanaLabs, Ltd.
  * All Rights Reserved.
  */
 
@@ -13,19 +13,19 @@ void goya_set_pll_profile(struct hl_device *hdev, enum hl_pll_frequency freq)
 
 	switch (freq) {
 	case PLL_HIGH:
-		hl_set_frequency(hdev, HL_GOYA_MME_PLL, hdev->high_pll);
-		hl_set_frequency(hdev, HL_GOYA_TPC_PLL, hdev->high_pll);
-		hl_set_frequency(hdev, HL_GOYA_IC_PLL, hdev->high_pll);
+		hl_fw_set_frequency(hdev, HL_GOYA_MME_PLL, hdev->high_pll);
+		hl_fw_set_frequency(hdev, HL_GOYA_TPC_PLL, hdev->high_pll);
+		hl_fw_set_frequency(hdev, HL_GOYA_IC_PLL, hdev->high_pll);
 		break;
 	case PLL_LOW:
-		hl_set_frequency(hdev, HL_GOYA_MME_PLL, GOYA_PLL_FREQ_LOW);
-		hl_set_frequency(hdev, HL_GOYA_TPC_PLL, GOYA_PLL_FREQ_LOW);
-		hl_set_frequency(hdev, HL_GOYA_IC_PLL, GOYA_PLL_FREQ_LOW);
+		hl_fw_set_frequency(hdev, HL_GOYA_MME_PLL, GOYA_PLL_FREQ_LOW);
+		hl_fw_set_frequency(hdev, HL_GOYA_TPC_PLL, GOYA_PLL_FREQ_LOW);
+		hl_fw_set_frequency(hdev, HL_GOYA_IC_PLL, GOYA_PLL_FREQ_LOW);
 		break;
 	case PLL_LAST:
-		hl_set_frequency(hdev, HL_GOYA_MME_PLL, goya->mme_clk);
-		hl_set_frequency(hdev, HL_GOYA_TPC_PLL, goya->tpc_clk);
-		hl_set_frequency(hdev, HL_GOYA_IC_PLL, goya->ic_clk);
+		hl_fw_set_frequency(hdev, HL_GOYA_MME_PLL, goya->mme_clk);
+		hl_fw_set_frequency(hdev, HL_GOYA_TPC_PLL, goya->tpc_clk);
+		hl_fw_set_frequency(hdev, HL_GOYA_IC_PLL, goya->ic_clk);
 		break;
 	default:
 		dev_err(hdev->dev, "unknown frequency setting\n");
@@ -41,7 +41,7 @@ static ssize_t mme_clk_show(struct device *dev, struct device_attribute *attr,
 	if (!hl_device_operational(hdev, NULL))
 		return -ENODEV;
 
-	value = hl_get_frequency(hdev, HL_GOYA_MME_PLL, false);
+	value = hl_fw_get_frequency(hdev, HL_GOYA_MME_PLL, false);
 
 	if (value < 0)
 		return value;
@@ -74,7 +74,7 @@ static ssize_t mme_clk_store(struct device *dev, struct device_attribute *attr,
 		goto fail;
 	}
 
-	hl_set_frequency(hdev, HL_GOYA_MME_PLL, value);
+	hl_fw_set_frequency(hdev, HL_GOYA_MME_PLL, value);
 	goya->mme_clk = value;
 
 fail:
@@ -90,7 +90,7 @@ static ssize_t tpc_clk_show(struct device *dev, struct device_attribute *attr,
 	if (!hl_device_operational(hdev, NULL))
 		return -ENODEV;
 
-	value = hl_get_frequency(hdev, HL_GOYA_TPC_PLL, false);
+	value = hl_fw_get_frequency(hdev, HL_GOYA_TPC_PLL, false);
 
 	if (value < 0)
 		return value;
@@ -123,7 +123,7 @@ static ssize_t tpc_clk_store(struct device *dev, struct device_attribute *attr,
 		goto fail;
 	}
 
-	hl_set_frequency(hdev, HL_GOYA_TPC_PLL, value);
+	hl_fw_set_frequency(hdev, HL_GOYA_TPC_PLL, value);
 	goya->tpc_clk = value;
 
 fail:
@@ -139,7 +139,7 @@ static ssize_t ic_clk_show(struct device *dev, struct device_attribute *attr,
 	if (!hl_device_operational(hdev, NULL))
 		return -ENODEV;
 
-	value = hl_get_frequency(hdev, HL_GOYA_IC_PLL, false);
+	value = hl_fw_get_frequency(hdev, HL_GOYA_IC_PLL, false);
 
 	if (value < 0)
 		return value;
@@ -172,7 +172,7 @@ static ssize_t ic_clk_store(struct device *dev, struct device_attribute *attr,
 		goto fail;
 	}
 
-	hl_set_frequency(hdev, HL_GOYA_IC_PLL, value);
+	hl_fw_set_frequency(hdev, HL_GOYA_IC_PLL, value);
 	goya->ic_clk = value;
 
 fail:
@@ -188,7 +188,7 @@ static ssize_t mme_clk_curr_show(struct device *dev,
 	if (!hl_device_operational(hdev, NULL))
 		return -ENODEV;
 
-	value = hl_get_frequency(hdev, HL_GOYA_MME_PLL, true);
+	value = hl_fw_get_frequency(hdev, HL_GOYA_MME_PLL, true);
 
 	if (value < 0)
 		return value;
@@ -205,7 +205,7 @@ static ssize_t tpc_clk_curr_show(struct device *dev,
 	if (!hl_device_operational(hdev, NULL))
 		return -ENODEV;
 
-	value = hl_get_frequency(hdev, HL_GOYA_TPC_PLL, true);
+	value = hl_fw_get_frequency(hdev, HL_GOYA_TPC_PLL, true);
 
 	if (value < 0)
 		return value;
@@ -222,7 +222,7 @@ static ssize_t ic_clk_curr_show(struct device *dev,
 	if (!hl_device_operational(hdev, NULL))
 		return -ENODEV;
 
-	value = hl_get_frequency(hdev, HL_GOYA_IC_PLL, true);
+	value = hl_fw_get_frequency(hdev, HL_GOYA_IC_PLL, true);
 
 	if (value < 0)
 		return value;

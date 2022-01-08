@@ -3092,37 +3092,25 @@ enum pci_region hl_get_pci_memory_region(struct hl_device *hdev, u64 addr);
 int hl_pci_init(struct hl_device *hdev);
 void hl_pci_fini(struct hl_device *hdev);
 
-long hl_get_frequency(struct hl_device *hdev, u32 pll_index,
-								bool curr);
-void hl_set_frequency(struct hl_device *hdev, u32 pll_index,
-								u64 freq);
-int hl_get_temperature(struct hl_device *hdev,
-		       int sensor_index, u32 attr, long *value);
-int hl_set_temperature(struct hl_device *hdev,
-		       int sensor_index, u32 attr, long value);
-int hl_get_voltage(struct hl_device *hdev,
-		   int sensor_index, u32 attr, long *value);
-int hl_get_current(struct hl_device *hdev,
-		   int sensor_index, u32 attr, long *value);
-int hl_get_fan_speed(struct hl_device *hdev,
-		     int sensor_index, u32 attr, long *value);
-int hl_get_pwm_info(struct hl_device *hdev,
-		    int sensor_index, u32 attr, long *value);
-void hl_set_pwm_info(struct hl_device *hdev, int sensor_index, u32 attr,
-			long value);
-u64 hl_get_max_power(struct hl_device *hdev);
-void hl_set_max_power(struct hl_device *hdev);
-int hl_set_voltage(struct hl_device *hdev,
-			int sensor_index, u32 attr, long value);
-int hl_set_current(struct hl_device *hdev,
-			int sensor_index, u32 attr, long value);
-int hl_set_power(struct hl_device *hdev,
-			int sensor_index, u32 attr, long value);
-int hl_get_power(struct hl_device *hdev,
-			int sensor_index, u32 attr, long *value);
+long hl_fw_get_frequency(struct hl_device *hdev, u32 pll_index, bool curr);
+void hl_fw_set_frequency(struct hl_device *hdev, u32 pll_index, u64 freq);
+int hl_get_temperature(struct hl_device *hdev, int sensor_index, u32 attr, long *value);
+int hl_set_temperature(struct hl_device *hdev, int sensor_index, u32 attr, long value);
+int hl_get_voltage(struct hl_device *hdev, int sensor_index, u32 attr, long *value);
+int hl_get_current(struct hl_device *hdev, int sensor_index, u32 attr, long *value);
+int hl_get_fan_speed(struct hl_device *hdev, int sensor_index, u32 attr, long *value);
+int hl_get_pwm_info(struct hl_device *hdev, int sensor_index, u32 attr, long *value);
+void hl_set_pwm_info(struct hl_device *hdev, int sensor_index, u32 attr, long value);
+u64 hl_fw_get_max_power(struct hl_device *hdev);
+void hl_fw_set_max_power(struct hl_device *hdev);
+int hl_set_voltage(struct hl_device *hdev, int sensor_index, u32 attr, long value);
+int hl_set_current(struct hl_device *hdev, int sensor_index, u32 attr, long value);
+int hl_set_power(struct hl_device *hdev, int sensor_index, u32 attr, long value);
+int hl_get_power(struct hl_device *hdev, int sensor_index, u32 attr, long *value);
 int hl_fw_get_clk_rate(struct hl_device *hdev, u32 *cur_clk, u32 *max_clk);
 void hl_fw_set_pll_profile(struct hl_device *hdev, enum hl_pll_frequency freq);
 void hl_sysfs_add_dev_clk_attr(struct hl_device *hdev, struct attribute_group *dev_attr_grp);
+
 void hw_sob_get(struct hl_hw_sob *hw_sob);
 void hw_sob_put(struct hl_hw_sob *hw_sob);
 void hl_encaps_handle_do_release(struct kref *ref);
