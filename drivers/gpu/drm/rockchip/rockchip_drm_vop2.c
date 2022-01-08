@@ -1595,17 +1595,20 @@ static enum vop2_data_format vop2_convert_format(uint32_t format)
 	case DRM_FORMAT_BGR565:
 		return VOP2_FMT_RGB565;
 	case DRM_FORMAT_NV12:
+	case DRM_FORMAT_NV21:
 	case DRM_FORMAT_YUV420_8BIT:
 		return VOP2_FMT_YUV420SP;
 	case DRM_FORMAT_NV15:
 	case DRM_FORMAT_YUV420_10BIT:
 		return VOP2_FMT_YUV420SP_10;
 	case DRM_FORMAT_NV16:
+	case DRM_FORMAT_NV61:
 		return VOP2_FMT_YUV422SP;
 	case DRM_FORMAT_NV20:
 	case DRM_FORMAT_Y210:
 		return VOP2_FMT_YUV422SP_10;
 	case DRM_FORMAT_NV24:
+	case DRM_FORMAT_NV42:
 		return VOP2_FMT_YUV444SP;
 	case DRM_FORMAT_NV30:
 		return VOP2_FMT_YUV444SP_10;
