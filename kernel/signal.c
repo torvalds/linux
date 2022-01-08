@@ -906,7 +906,7 @@ static bool prepare_signal(int sig, struct task_struct *p, bool force)
 	struct task_struct *t;
 	sigset_t flush;
 
-	if ((signal->flags & SIGNAL_GROUP_EXIT) || signal->core_state) {
+	if (signal->flags & SIGNAL_GROUP_EXIT) {
 		if (signal->core_state)
 			return sig == SIGKILL;
 		/*
