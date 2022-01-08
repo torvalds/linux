@@ -616,7 +616,7 @@ static void mark_reg_scratched(struct bpf_verifier_env *env, u32 regno)
 
 static void mark_stack_slot_scratched(struct bpf_verifier_env *env, u32 spi)
 {
-	env->scratched_stack_slots |= 1UL << spi;
+	env->scratched_stack_slots |= 1ULL << spi;
 }
 
 static bool reg_scratched(const struct bpf_verifier_env *env, u32 regno)
@@ -637,14 +637,14 @@ static bool verifier_state_scratched(const struct bpf_verifier_env *env)
 static void mark_verifier_state_clean(struct bpf_verifier_env *env)
 {
 	env->scratched_regs = 0U;
-	env->scratched_stack_slots = 0UL;
+	env->scratched_stack_slots = 0ULL;
 }
 
 /* Used for printing the entire verifier state. */
 static void mark_verifier_state_scratched(struct bpf_verifier_env *env)
 {
 	env->scratched_regs = ~0U;
-	env->scratched_stack_slots = ~0UL;
+	env->scratched_stack_slots = ~0ULL;
 }
 
 /* The reg state of a pointer or a bounded scalar was saved when
