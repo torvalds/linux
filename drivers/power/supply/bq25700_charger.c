@@ -2061,6 +2061,9 @@ static void bq25700_shutdown(struct i2c_client *client)
 	bq25700_field_write(charger, INPUT_VOLTAGE, vol_idx);
 	bq25700_field_write(charger, INPUT_CURRENT,
 			    charger->init_data.input_current_sdp);
+
+	if (!bq25700_field_read(charger, AC_STAT))
+		bq25700_field_write(charger, EN_LWPWR, 1);
 }
 
 #ifdef CONFIG_PM_SLEEP
