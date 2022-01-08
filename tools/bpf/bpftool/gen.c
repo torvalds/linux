@@ -227,7 +227,7 @@ static int codegen_datasecs(struct bpf_object *obj, const char *obj_name)
 		/* only generate definitions for memory-mapped internal maps */
 		if (!bpf_map__is_internal(map))
 			continue;
-		if (!(bpf_map__def(map)->map_flags & BPF_F_MMAPABLE))
+		if (!(bpf_map__map_flags(map) & BPF_F_MMAPABLE))
 			continue;
 
 		if (!get_map_ident(map, map_ident, sizeof(map_ident)))
@@ -468,7 +468,7 @@ static void codegen_destroy(struct bpf_object *obj, const char *obj_name)
 		if (!get_map_ident(map, ident, sizeof(ident)))
 			continue;
 		if (bpf_map__is_internal(map) &&
-		    (bpf_map__def(map)->map_flags & BPF_F_MMAPABLE))
+		    (bpf_map__map_flags(map) & BPF_F_MMAPABLE))
 			printf("\tmunmap(skel->%1$s, %2$zd);\n",
 			       ident, bpf_map_mmap_sz(map));
 		codegen("\
@@ -536,7 +536,7 @@ static int gen_trace(struct bpf_object *obj, const char *obj_name, const char *h
 			continue;
 
 		if (!bpf_map__is_internal(map) ||
-		    !(bpf_map__def(map)->map_flags & BPF_F_MMAPABLE))
+		    !(bpf_map__map_flags(map) & BPF_F_MMAPABLE))
 			continue;
 
 		codegen("\
@@ -600,10 +600,10 @@ static int gen_trace(struct bpf_object *obj, const char *obj_name, const char *h
 			continue;
 
 		if (!bpf_map__is_internal(map) ||
-		    !(bpf_map__def(map)->map_flags & BPF_F_MMAPABLE))
+		    !(bpf_map__map_flags(map) & BPF_F_MMAPABLE))
 			continue;
 
-		if (bpf_map__def(map)->map_flags & BPF_F_RDONLY_PROG)
+		if (bpf_map__map_flags(map) & BPF_F_RDONLY_PROG)
 			mmap_flags = "PROT_READ";
 		else
 			mmap_flags = "PROT_READ | PROT_WRITE";
@@ -961,7 +961,7 @@ static int do_skeleton(int argc, char **argv)
 				i, bpf_map__name(map), i, ident);
 			/* memory-mapped internal maps */
 			if (bpf_map__is_internal(map) &&
-			    (bpf_map__def(map)->map_flags & BPF_F_MMAPABLE)) {
+			    (bpf_map__map_flags(map) & BPF_F_MMAPABLE)) {
 				printf("\ts->maps[%zu].mmaped = (void **)&obj->%s;\n",
 				       i, ident);
 			}
