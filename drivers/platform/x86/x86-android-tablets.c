@@ -815,8 +815,10 @@ static __init int x86_android_tablet_init(void)
 		gpiod_add_lookup_table(gpiod_lookup_tables[i]);
 
 	i2c_clients = kcalloc(dev_info->i2c_client_count, sizeof(*i2c_clients), GFP_KERNEL);
-	if (!i2c_clients)
+	if (!i2c_clients) {
+		x86_android_tablet_cleanup();
 		return -ENOMEM;
+	}
 
 	i2c_client_count = dev_info->i2c_client_count;
 	for (i = 0; i < i2c_client_count; i++) {
