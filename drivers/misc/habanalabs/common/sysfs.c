@@ -69,7 +69,26 @@ static DEVICE_ATTR_RO(clk_cur_freq_mhz);
 static struct attribute *hl_dev_clk_attrs[] = {
 	&dev_attr_clk_max_freq_mhz.attr,
 	&dev_attr_clk_cur_freq_mhz.attr,
-	NULL,
+};
+
+static ssize_t vrm_ver_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct hl_device *hdev = dev_get_drvdata(dev);
+	struct cpucp_info *cpucp_info;
+
+	cpucp_info = &hdev->asic_prop.cpucp_info;
+
+	if (cpucp_info->infineon_second_stage_version)
+		return sprintf(buf, "%#04x %#04x\n", le32_to_cpu(cpucp_info->infineon_version),
+				le32_to_cpu(cpucp_info->infineon_second_stage_version));
+	else
+		return sprintf(buf, "%#04x\n", le32_to_cpu(cpucp_info->infineon_version));
+}
+
+static DEVICE_ATTR_RO(vrm_ver);
+
+static struct attribute *hl_dev_vrm_attrs[] = {
+	&dev_attr_vrm_ver.attr,
 };
 
 static ssize_t uboot_ver_show(struct device *dev, struct device_attribute *attr,
@@ -119,20 +138,6 @@ static ssize_t cpucp_ver_show(struct device *dev, struct device_attribute *attr,
 	struct hl_device *hdev = dev_get_drvdata(dev);
 
 	return sprintf(buf, "%s\n", hdev->asic_prop.cpucp_info.cpucp_version);
-}
-
-static ssize_t infineon_ver_show(struct device *dev,
-				struct device_attribute *attr, char *buf)
-{
-	struct hl_device *hdev = dev_get_drvdata(dev);
-
-	if (hdev->asic_prop.cpucp_info.infineon_second_stage_version)
-		return sprintf(buf, "%#04x %#04x\n",
-			le32_to_cpu(hdev->asic_prop.cpucp_info.infineon_version),
-			le32_to_cpu(hdev->asic_prop.cpucp_info.infineon_second_stage_version));
-	else
-		return sprintf(buf, "%#04x\n",
-			le32_to_cpu(hdev->asic_prop.cpucp_info.infineon_version));
 }
 
 static ssize_t fuse_ver_show(struct device *dev, struct device_attribute *attr,
@@ -357,7 +362,6 @@ static DEVICE_ATTR_RO(device_type);
 static DEVICE_ATTR_RO(fuse_ver);
 static DEVICE_ATTR_WO(hard_reset);
 static DEVICE_ATTR_RO(hard_reset_cnt);
-static DEVICE_ATTR_RO(infineon_ver);
 static DEVICE_ATTR_RW(max_power);
 static DEVICE_ATTR_RO(pci_addr);
 static DEVICE_ATTR_RO(preboot_btl_ver);
@@ -383,7 +387,6 @@ static struct attribute *hl_dev_attrs[] = {
 	&dev_attr_fuse_ver.attr,
 	&dev_attr_hard_reset.attr,
 	&dev_attr_hard_reset_cnt.attr,
-	&dev_attr_infineon_ver.attr,
 	&dev_attr_max_power.attr,
 	&dev_attr_pci_addr.attr,
 	&dev_attr_preboot_btl_ver.attr,
@@ -404,10 +407,12 @@ static struct attribute_group hl_dev_attr_group = {
 };
 
 static struct attribute_group hl_dev_clks_attr_group;
+static struct attribute_group hl_dev_vrm_attr_group;
 
 static const struct attribute_group *hl_dev_attr_groups[] = {
 	&hl_dev_attr_group,
 	&hl_dev_clks_attr_group,
+	&hl_dev_vrm_attr_group,
 	NULL,
 };
 
@@ -431,13 +436,18 @@ void hl_sysfs_add_dev_clk_attr(struct hl_device *hdev, struct attribute_group *d
 	dev_clk_attr_grp->attrs = hl_dev_clk_attrs;
 }
 
+void hl_sysfs_add_dev_vrm_attr(struct hl_device *hdev, struct attribute_group *dev_vrm_attr_grp)
+{
+	dev_vrm_attr_grp->attrs = hl_dev_vrm_attrs;
+}
+
 int hl_sysfs_init(struct hl_device *hdev)
 {
 	int rc;
 
 	hdev->max_power = hdev->asic_prop.max_power_default;
 
-	hdev->asic_funcs->add_device_attr(hdev, &hl_dev_clks_attr_group);
+	hdev->asic_funcs->add_device_attr(hdev, &hl_dev_clks_attr_group, &hl_dev_vrm_attr_group);
 
 	rc = device_add_groups(hdev->dev, hl_dev_attr_groups);
 	if (rc) {

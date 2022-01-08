@@ -1286,7 +1286,8 @@ struct hl_asic_funcs {
 				bool user_address, u64 val);
 	int (*debugfs_read_dma)(struct hl_device *hdev, u64 addr, u32 size,
 				void *blob_addr);
-	void (*add_device_attr)(struct hl_device *hdev, struct attribute_group *dev_clk_attr_grp);
+	void (*add_device_attr)(struct hl_device *hdev, struct attribute_group *dev_clk_attr_grp,
+				struct attribute_group *dev_vrm_attr_grp);
 	void (*handle_eqe)(struct hl_device *hdev,
 				struct hl_eq_entry *eq_entry);
 	void* (*get_events_stat)(struct hl_device *hdev, bool aggregate,
@@ -3106,6 +3107,7 @@ int hl_get_power(struct hl_device *hdev, int sensor_index, u32 attr, long *value
 int hl_fw_get_clk_rate(struct hl_device *hdev, u32 *cur_clk, u32 *max_clk);
 void hl_fw_set_pll_profile(struct hl_device *hdev);
 void hl_sysfs_add_dev_clk_attr(struct hl_device *hdev, struct attribute_group *dev_clk_attr_grp);
+void hl_sysfs_add_dev_vrm_attr(struct hl_device *hdev, struct attribute_group *dev_vrm_attr_grp);
 
 void hw_sob_get(struct hl_hw_sob *hw_sob);
 void hw_sob_put(struct hl_hw_sob *hw_sob);

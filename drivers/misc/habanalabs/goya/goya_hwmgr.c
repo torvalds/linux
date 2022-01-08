@@ -359,10 +359,27 @@ static struct attribute *goya_clk_dev_attrs[] = {
 	&dev_attr_pm_mng_profile.attr,
 	&dev_attr_tpc_clk.attr,
 	&dev_attr_tpc_clk_curr.attr,
-	NULL,
 };
 
-void goya_add_device_attr(struct hl_device *hdev, struct attribute_group *dev_clk_attr_grp)
+static ssize_t infineon_ver_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct hl_device *hdev = dev_get_drvdata(dev);
+	struct cpucp_info *cpucp_info;
+
+	cpucp_info = &hdev->asic_prop.cpucp_info;
+
+	return sprintf(buf, "%#04x\n", le32_to_cpu(cpucp_info->infineon_version));
+}
+
+static DEVICE_ATTR_RO(infineon_ver);
+
+static struct attribute *goya_vrm_dev_attrs[] = {
+	&dev_attr_infineon_ver.attr,
+};
+
+void goya_add_device_attr(struct hl_device *hdev, struct attribute_group *dev_clk_attr_grp,
+				struct attribute_group *dev_vrm_attr_grp)
 {
 	dev_clk_attr_grp->attrs = goya_clk_dev_attrs;
+	dev_vrm_attr_grp->attrs = goya_vrm_dev_attrs;
 }

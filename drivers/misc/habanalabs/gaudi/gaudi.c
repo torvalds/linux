@@ -9324,6 +9324,29 @@ static u32 *gaudi_get_stream_master_qid_arr(void)
 	return gaudi_stream_master;
 }
 
+static ssize_t infineon_ver_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct hl_device *hdev = dev_get_drvdata(dev);
+	struct cpucp_info *cpucp_info;
+
+	cpucp_info = &hdev->asic_prop.cpucp_info;
+
+	return sprintf(buf, "%#04x\n", le32_to_cpu(cpucp_info->infineon_version));
+}
+
+static DEVICE_ATTR_RO(infineon_ver);
+
+static struct attribute *gaudi_vrm_dev_attrs[] = {
+	&dev_attr_infineon_ver.attr,
+};
+
+static void gaudi_add_device_attr(struct hl_device *hdev, struct attribute_group *dev_clk_attr_grp,
+					struct attribute_group *dev_vrm_attr_grp)
+{
+	hl_sysfs_add_dev_clk_attr(hdev, dev_clk_attr_grp);
+	dev_vrm_attr_grp->attrs = gaudi_vrm_dev_attrs;
+}
+
 static const struct hl_asic_funcs gaudi_funcs = {
 	.early_init = gaudi_early_init,
 	.early_fini = gaudi_early_fini,
@@ -9361,7 +9384,7 @@ static const struct hl_asic_funcs gaudi_funcs = {
 	.debugfs_read64 = gaudi_debugfs_read64,
 	.debugfs_write64 = gaudi_debugfs_write64,
 	.debugfs_read_dma = gaudi_debugfs_read_dma,
-	.add_device_attr = hl_sysfs_add_dev_clk_attr,
+	.add_device_attr = gaudi_add_device_attr,
 	.handle_eqe = gaudi_handle_eqe,
 	.get_events_stat = gaudi_get_events_stat,
 	.read_pte = gaudi_read_pte,
