@@ -1161,7 +1161,6 @@ struct fw_load_mgr {
  *                    internal memory via DMA engine.
  * @add_device_attr: add ASIC specific device attributes.
  * @handle_eqe: handle event queue entry (IRQ) from CPU-CP.
- * @set_pll_profile: change PLL profile (manual/automatic).
  * @get_events_stat: retrieve event queue entries histogram.
  * @read_pte: read MMU page table entry from DRAM.
  * @write_pte: write MMU page table entry to DRAM.
@@ -1291,8 +1290,6 @@ struct hl_asic_funcs {
 				struct attribute_group *dev_attr_grp);
 	void (*handle_eqe)(struct hl_device *hdev,
 				struct hl_eq_entry *eq_entry);
-	void (*set_pll_profile)(struct hl_device *hdev,
-			enum hl_pll_frequency freq);
 	void* (*get_events_stat)(struct hl_device *hdev, bool aggregate,
 				u32 *size);
 	u64 (*read_pte)(struct hl_device *hdev, u64 addr);
@@ -3108,7 +3105,7 @@ int hl_set_current(struct hl_device *hdev, int sensor_index, u32 attr, long valu
 int hl_set_power(struct hl_device *hdev, int sensor_index, u32 attr, long value);
 int hl_get_power(struct hl_device *hdev, int sensor_index, u32 attr, long *value);
 int hl_fw_get_clk_rate(struct hl_device *hdev, u32 *cur_clk, u32 *max_clk);
-void hl_fw_set_pll_profile(struct hl_device *hdev, enum hl_pll_frequency freq);
+void hl_fw_set_pll_profile(struct hl_device *hdev);
 void hl_sysfs_add_dev_clk_attr(struct hl_device *hdev, struct attribute_group *dev_attr_grp);
 
 void hw_sob_get(struct hl_hw_sob *hw_sob);

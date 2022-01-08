@@ -11,6 +11,9 @@ void goya_set_pll_profile(struct hl_device *hdev, enum hl_pll_frequency freq)
 {
 	struct goya_device *goya = hdev->asic_specific;
 
+	if (!hdev->pdev)
+		return;
+
 	switch (freq) {
 	case PLL_HIGH:
 		hl_fw_set_frequency(hdev, HL_GOYA_MME_PLL, hdev->high_pll);

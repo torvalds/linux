@@ -2683,7 +2683,7 @@ int hl_fw_init_cpu(struct hl_device *hdev)
 			hl_fw_static_init_cpu(hdev, fw_loader);
 }
 
-void hl_fw_set_pll_profile(struct hl_device *hdev, enum hl_pll_frequency freq)
+void hl_fw_set_pll_profile(struct hl_device *hdev)
 {
 	hl_fw_set_frequency(hdev, hdev->asic_prop.clk_pll_index,
 				hdev->asic_prop.max_freq_value);

@@ -893,7 +893,7 @@ int goya_late_init(struct hl_device *hdev)
 
 	goya->pm_mng_profile = PM_AUTO;
 
-	hdev->asic_funcs->set_pll_profile(hdev, PLL_LOW);
+	goya_set_pll_profile(hdev, PLL_LOW);
 
 	schedule_delayed_work(&goya->goya_work->work_freq,
 		usecs_to_jiffies(HL_PLL_LOW_JOB_FREQ_USEC));
@@ -5717,7 +5717,6 @@ static const struct hl_asic_funcs goya_funcs = {
 	.debugfs_read_dma = goya_debugfs_read_dma,
 	.add_device_attr = goya_add_device_attr,
 	.handle_eqe = goya_handle_eqe,
-	.set_pll_profile = goya_set_pll_profile,
 	.get_events_stat = goya_get_events_stat,
 	.read_pte = goya_read_pte,
 	.write_pte = goya_write_pte,

@@ -1635,7 +1635,7 @@ static int gaudi_late_init(struct hl_device *hdev)
 	 */
 	gaudi_mmu_prepare(hdev, 1);
 
-	hdev->asic_funcs->set_pll_profile(hdev, PLL_LAST);
+	hl_fw_set_pll_profile(hdev);
 
 	return 0;
 
@@ -9363,7 +9363,6 @@ static const struct hl_asic_funcs gaudi_funcs = {
 	.debugfs_read_dma = gaudi_debugfs_read_dma,
 	.add_device_attr = hl_sysfs_add_dev_clk_attr,
 	.handle_eqe = gaudi_handle_eqe,
-	.set_pll_profile = hl_fw_set_pll_profile,
 	.get_events_stat = gaudi_get_events_stat,
 	.read_pte = gaudi_read_pte,
 	.write_pte = gaudi_write_pte,
