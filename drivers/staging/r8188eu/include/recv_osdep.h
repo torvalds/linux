@@ -21,7 +21,6 @@ void rtw_free_recv_priv(struct recv_priv *precvpriv);
 
 int rtw_os_recv_resource_init(struct recv_priv *recvpr, struct adapter *adapt);
 int rtw_os_recv_resource_alloc(struct adapter *adapt, struct recv_frame *recvfr);
-void rtw_os_recv_resource_free(struct recv_priv *precvpriv);
 
 int rtw_os_recvbuf_resource_alloc(struct adapter *adapt, struct recv_buf *buf);
 int rtw_os_recvbuf_resource_free(struct adapter *adapt, struct recv_buf *buf);

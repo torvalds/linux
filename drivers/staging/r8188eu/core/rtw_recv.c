@@ -100,8 +100,6 @@ void _rtw_free_recv_priv(struct recv_priv *precvpriv)
 
 	rtw_free_uc_swdec_pending_queue(padapter);
 
-	rtw_os_recv_resource_free(precvpriv);
-
 	vfree(precvpriv->pallocated_frame_buf);
 
 	rtl8188eu_free_recv_priv(padapter);
