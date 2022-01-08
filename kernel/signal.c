@@ -913,8 +913,9 @@ static bool prepare_signal(int sig, struct task_struct *p, bool force)
 		if (signal->core_state)
 			return sig == SIGKILL;
 		/*
-		 * The process is in the middle of dying, nothing to do.
+		 * The process is in the middle of dying, drop the signal.
 		 */
+		return false;
 	} else if (sig_kernel_stop(sig)) {
 		/*
 		 * This is a stop signal.  Remove SIGCONT from all queues.
