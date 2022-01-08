@@ -70,7 +70,8 @@ int _rtw_init_recv_priv(struct recv_priv *precvpriv, struct adapter *padapter)
 
 		list_add_tail(&precvframe->list, &precvpriv->free_recv_queue.queue);
 
-		res = rtw_os_recv_resource_alloc(padapter, precvframe);
+		precvframe->pkt_newalloc = NULL;
+		precvframe->pkt = NULL;
 
 		precvframe->len = 0;
 
