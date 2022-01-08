@@ -93,6 +93,7 @@ struct amdgpu_nbio_funcs {
 	void (*apply_lc_spc_mode_wa)(struct amdgpu_device *adev);
 	void (*apply_l1_link_width_reconfig_wa)(struct amdgpu_device *adev);
 	void (*clear_doorbell_interrupt)(struct amdgpu_device *adev);
+	u32 (*get_rom_offset)(struct amdgpu_device *adev);
 };
 
 struct amdgpu_nbio {
