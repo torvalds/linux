@@ -18,6 +18,26 @@ static const char flexcan_priv_flags_strings[][ETH_GSTRING_LEN] = {
 };
 
 static void
+flexcan_get_ringparam(struct net_device *ndev, struct ethtool_ringparam *ring,
+		      struct kernel_ethtool_ringparam *kernel_ring,
+		      struct netlink_ext_ack *ext_ack)
+{
+	const struct flexcan_priv *priv = netdev_priv(ndev);
+
+	ring->rx_max_pending = priv->mb_count;
+	ring->tx_max_pending = priv->mb_count;
+
+	if (priv->devtype_data.quirks & FLEXCAN_QUIRK_USE_RX_MAILBOX)
+		ring->rx_pending = priv->offload.mb_last -
+			priv->offload.mb_first + 1;
+	else
+		ring->rx_pending = 6;	/* RX-FIFO depth is fixed */
+
+	/* the drive currently supports only on TX buffer */
+	ring->tx_pending = 1;
+}
+
+static void
 flexcan_get_strings(struct net_device *ndev, u32 stringset, u8 *data)
 {
 	switch (stringset) {
@@ -81,6 +101,7 @@ static int flexcan_get_sset_count(struct net_device *netdev, int sset)
 }
 
 static const struct ethtool_ops flexcan_ethtool_ops = {
+	.get_ringparam = flexcan_get_ringparam,
 	.get_strings = flexcan_get_strings,
 	.get_priv_flags = flexcan_get_priv_flags,
 	.set_priv_flags = flexcan_set_priv_flags,
