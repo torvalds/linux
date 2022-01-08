@@ -1937,6 +1937,7 @@ static int __bch2_btree_node_update_key(struct btree_trans *trans,
 	ret = bch2_trans_commit(trans, NULL, NULL,
 				BTREE_INSERT_NOFAIL|
 				BTREE_INSERT_NOCHECK_RW|
+				BTREE_INSERT_USE_RESERVE|
 				BTREE_INSERT_JOURNAL_RECLAIM|
 				BTREE_INSERT_JOURNAL_RESERVED);
 	if (ret)
