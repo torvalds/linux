@@ -1413,14 +1413,12 @@ close_srv1:
 
 static void test_ops_cleanup(const struct bpf_map *map)
 {
-	const struct bpf_map_def *def;
 	int err, mapfd;
 	u32 key;
 
-	def = bpf_map__def(map);
 	mapfd = bpf_map__fd(map);
 
-	for (key = 0; key < def->max_entries; key++) {
+	for (key = 0; key < bpf_map__max_entries(map); key++) {
 		err = bpf_map_delete_elem(mapfd, &key);
 		if (err && errno != EINVAL && errno != ENOENT)
 			FAIL_ERRNO("map_delete: expected EINVAL/ENOENT");
@@ -1443,13 +1441,13 @@ static const char *family_str(sa_family_t family)
 
 static const char *map_type_str(const struct bpf_map *map)
 {
-	const struct bpf_map_def *def;
+	int type;
 
-	def = bpf_map__def(map);
-	if (IS_ERR(def))
+	if (!map)
 		return "invalid";
+	type = bpf_map__type(map);
 
-	switch (def->type) {
+	switch (type) {
 	case BPF_MAP_TYPE_SOCKMAP:
 		return "sockmap";
 	case BPF_MAP_TYPE_SOCKHASH:
