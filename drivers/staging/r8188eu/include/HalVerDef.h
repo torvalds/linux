@@ -6,7 +6,6 @@
 enum HAL_CHIP_TYPE {
 	TEST_CHIP	=	0,
 	NORMAL_CHIP	=	1,
-	FPGA		=	2,
 };
 
 enum HAL_CUT_VERSION {
@@ -40,8 +39,6 @@ struct HAL_VERSION {
 /* HAL_VERSION VersionID */
 
 /* HAL_CHIP_TYPE_E */
-#define IS_TEST_CHIP(version)				\
-	((GET_CVID_CHIP_TYPE(version) == TEST_CHIP) ? true : false)
 #define IS_NORMAL_CHIP(version)				\
 	((GET_CVID_CHIP_TYPE(version) == NORMAL_CHIP) ? true : false)
 
@@ -60,7 +57,5 @@ struct HAL_VERSION {
 /* HAL_VENDOR_E */
 #define IS_CHIP_VENDOR_TSMC(version)			\
 	((GET_CVID_MANUFACTUER(version) == CHIP_VENDOR_TSMC) ? true : false)
-#define IS_CHIP_VENDOR_UMC(version)			\
-	((GET_CVID_MANUFACTUER(version) == CHIP_VENDOR_UMC) ? true : false)
 
 #endif
