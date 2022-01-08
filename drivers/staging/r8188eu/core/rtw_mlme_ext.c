@@ -443,24 +443,13 @@ void mgt_dispatcher(struct adapter *padapter, struct recv_frame *precv_frame)
 		psta->RxMgmtFrameSeqNum = precv_frame->attrib.seq_num;
 	}
 
-	switch (GetFrameSubType(pframe)) {
-	case WIFI_AUTH:
+	if (GetFrameSubType(pframe) == WIFI_AUTH) {
 		if (check_fwstate(pmlmepriv, WIFI_AP_STATE))
 			ptable->func = &OnAuth;
 		else
 			ptable->func = &OnAuthClient;
-		fallthrough;
-	case WIFI_ASSOCREQ:
-	case WIFI_REASSOCREQ:
-	case WIFI_PROBEREQ:
-	case WIFI_BEACON:
-	case WIFI_ACTION:
-		_mgt_dispatcher(padapter, ptable, precv_frame);
-		break;
-	default:
-		_mgt_dispatcher(padapter, ptable, precv_frame);
-		break;
 	}
+	_mgt_dispatcher(padapter, ptable, precv_frame);
 }
 
 static u32 p2p_listen_state_process(struct adapter *padapter, unsigned char *da)
