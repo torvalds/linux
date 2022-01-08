@@ -133,7 +133,7 @@ struct folio *try_grab_folio(struct page *page, int refs, unsigned int flags)
 	return NULL;
 }
 
-struct page *try_grab_compound_head(struct page *page,
+static inline struct page *try_grab_compound_head(struct page *page,
 		int refs, unsigned int flags)
 {
 	return &try_grab_folio(page, refs, flags)->page;

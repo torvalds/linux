@@ -6076,7 +6076,7 @@ long follow_hugetlb_page(struct mm_struct *mm, struct vm_area_struct *vma,
 
 		if (pages) {
 			/*
-			 * try_grab_compound_head() should always succeed here,
+			 * try_grab_folio() should always succeed here,
 			 * because: a) we hold the ptl lock, and b) we've just
 			 * checked that the huge page is present in the page
 			 * tables. If the huge page is present, then the tail
@@ -6085,9 +6085,8 @@ long follow_hugetlb_page(struct mm_struct *mm, struct vm_area_struct *vma,
 			 * any way. So this page must be available at this
 			 * point, unless the page refcount overflowed:
 			 */
-			if (WARN_ON_ONCE(!try_grab_compound_head(pages[i],
-								 refs,
-								 flags))) {
+			if (WARN_ON_ONCE(!try_grab_folio(pages[i], refs,
+							 flags))) {
 				spin_unlock(ptl);
 				remainder = 0;
 				err = -ENOMEM;
