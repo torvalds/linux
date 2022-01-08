@@ -54,7 +54,6 @@ static void Update_ODM_ComInfo_88E(struct adapter *Adapter)
 	int i;
 
 	pdmpriv->InitODMFlag = ODM_BB_RSSI_MONITOR |
-				ODM_BB_CCK_PD |
 				ODM_RF_CALIBRATION |
 				ODM_RF_TX_PWR_TRACK;
 	if (hal_data->AntDivCfg)
