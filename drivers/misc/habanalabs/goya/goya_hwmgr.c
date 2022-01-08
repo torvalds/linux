@@ -350,7 +350,7 @@ static DEVICE_ATTR_RW(pm_mng_profile);
 static DEVICE_ATTR_RW(tpc_clk);
 static DEVICE_ATTR_RO(tpc_clk_curr);
 
-static struct attribute *goya_dev_attrs[] = {
+static struct attribute *goya_clk_dev_attrs[] = {
 	&dev_attr_high_pll.attr,
 	&dev_attr_ic_clk.attr,
 	&dev_attr_ic_clk_curr.attr,
@@ -362,8 +362,7 @@ static struct attribute *goya_dev_attrs[] = {
 	NULL,
 };
 
-void goya_add_device_attr(struct hl_device *hdev,
-			struct attribute_group *dev_attr_grp)
+void goya_add_device_attr(struct hl_device *hdev, struct attribute_group *dev_clk_attr_grp)
 {
-	dev_attr_grp->attrs = goya_dev_attrs;
+	dev_clk_attr_grp->attrs = goya_clk_dev_attrs;
 }

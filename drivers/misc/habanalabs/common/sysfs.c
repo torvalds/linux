@@ -426,9 +426,9 @@ static const struct attribute_group *hl_dev_inference_attr_groups[] = {
 	NULL,
 };
 
-void hl_sysfs_add_dev_clk_attr(struct hl_device *hdev, struct attribute_group *dev_attr_grp)
+void hl_sysfs_add_dev_clk_attr(struct hl_device *hdev, struct attribute_group *dev_clk_attr_grp)
 {
-	dev_attr_grp->attrs = hl_dev_clk_attrs;
+	dev_clk_attr_grp->attrs = hl_dev_clk_attrs;
 }
 
 int hl_sysfs_init(struct hl_device *hdev)
