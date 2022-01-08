@@ -3125,8 +3125,7 @@ int hl_get_power(struct hl_device *hdev,
 int hl_get_clk_rate(struct hl_device *hdev,
 			u32 *cur_clk, u32 *max_clk);
 void hl_set_pll_profile(struct hl_device *hdev, enum hl_pll_frequency freq);
-void hl_add_device_attr(struct hl_device *hdev,
-			struct attribute_group *dev_attr_grp);
+void hl_sysfs_add_dev_clk_attr(struct hl_device *hdev, struct attribute_group *dev_attr_grp);
 void hw_sob_get(struct hl_hw_sob *hw_sob);
 void hw_sob_put(struct hl_hw_sob *hw_sob);
 void hl_encaps_handle_do_release(struct kref *ref);

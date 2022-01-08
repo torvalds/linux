@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 
 /*
- * Copyright 2016-2019 HabanaLabs, Ltd.
+ * Copyright 2016-2022 HabanaLabs, Ltd.
  * All Rights Reserved.
  */
 
@@ -108,6 +108,69 @@ void hl_set_max_power(struct hl_device *hdev)
 	if (rc)
 		dev_err(hdev->dev, "Failed to set max power, error %d\n", rc);
 }
+
+static ssize_t clk_max_freq_mhz_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct hl_device *hdev = dev_get_drvdata(dev);
+	long value;
+
+	if (!hl_device_operational(hdev, NULL))
+		return -ENODEV;
+
+	value = hl_get_frequency(hdev, hdev->asic_prop.clk_pll_index, false);
+
+	hdev->asic_prop.max_freq_value = value;
+
+	return sprintf(buf, "%lu\n", (value / 1000 / 1000));
+}
+
+static ssize_t clk_max_freq_mhz_store(struct device *dev, struct device_attribute *attr,
+					const char *buf, size_t count)
+{
+	struct hl_device *hdev = dev_get_drvdata(dev);
+	int rc;
+	u64 value;
+
+	if (!hl_device_operational(hdev, NULL)) {
+		count = -ENODEV;
+		goto fail;
+	}
+
+	rc = kstrtoull(buf, 0, &value);
+	if (rc) {
+		count = -EINVAL;
+		goto fail;
+	}
+
+	hdev->asic_prop.max_freq_value = value * 1000 * 1000;
+
+	hl_set_frequency(hdev, hdev->asic_prop.clk_pll_index, hdev->asic_prop.max_freq_value);
+
+fail:
+	return count;
+}
+
+static ssize_t clk_cur_freq_mhz_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct hl_device *hdev = dev_get_drvdata(dev);
+	long value;
+
+	if (!hl_device_operational(hdev, NULL))
+		return -ENODEV;
+
+	value = hl_get_frequency(hdev, hdev->asic_prop.clk_pll_index, true);
+
+	return sprintf(buf, "%lu\n", (value / 1000 / 1000));
+}
+
+static DEVICE_ATTR_RW(clk_max_freq_mhz);
+static DEVICE_ATTR_RO(clk_cur_freq_mhz);
+
+static struct attribute *hl_dev_clk_attrs[] = {
+	&dev_attr_clk_max_freq_mhz.attr,
+	&dev_attr_clk_cur_freq_mhz.attr,
+	NULL,
+};
 
 static ssize_t uboot_ver_show(struct device *dev, struct device_attribute *attr,
 				char *buf)
@@ -462,6 +525,11 @@ static const struct attribute_group *hl_dev_inference_attr_groups[] = {
 	&hl_dev_inference_attr_group,
 	NULL,
 };
+
+void hl_sysfs_add_dev_clk_attr(struct hl_device *hdev, struct attribute_group *dev_attr_grp)
+{
+	dev_attr_grp->attrs = hl_dev_clk_attrs;
+}
 
 int hl_sysfs_init(struct hl_device *hdev)
 {
