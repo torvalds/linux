@@ -102,6 +102,11 @@ static inline int rf69_read_mod_write(struct spi_device *spi, u8 reg,
 
 /*-------------------------------------------------------------------------*/
 
+int rf69_get_version(struct spi_device *spi)
+{
+	return rf69_read_reg(spi, REG_VERSION);
+}
+
 int rf69_set_mode(struct spi_device *spi, enum mode mode)
 {
 	static const u8 mode_map[] = {
