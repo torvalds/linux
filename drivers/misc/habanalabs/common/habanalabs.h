@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0
  *
- * Copyright 2016-2021 HabanaLabs, Ltd.
+ * Copyright 2016-2022 HabanaLabs, Ltd.
  * All Rights Reserved.
  *
  */
@@ -1190,7 +1190,6 @@ struct fw_load_mgr {
  * @halt_coresight: stop the ETF and ETR traces.
  * @ctx_init: context dependent initialization.
  * @ctx_fini: context dependent cleanup.
- * @get_clk_rate: Retrieve the ASIC current and maximum clock rate in MHz
  * @get_queue_id_for_cq: Get the H/W queue id related to the given CQ index.
  * @load_firmware_to_device: load the firmware to the device's memory
  * @load_boot_fit_to_device: load boot fit to device's memory
@@ -1321,7 +1320,6 @@ struct hl_asic_funcs {
 	void (*halt_coresight)(struct hl_device *hdev, struct hl_ctx *ctx);
 	int (*ctx_init)(struct hl_ctx *ctx);
 	void (*ctx_fini)(struct hl_ctx *ctx);
-	int (*get_clk_rate)(struct hl_device *hdev, u32 *cur_clk, u32 *max_clk);
 	u32 (*get_queue_id_for_cq)(struct hl_device *hdev, u32 cq_idx);
 	int (*load_firmware_to_device)(struct hl_device *hdev);
 	int (*load_boot_fit_to_device)(struct hl_device *hdev);
@@ -3122,8 +3120,7 @@ int hl_set_power(struct hl_device *hdev,
 			int sensor_index, u32 attr, long value);
 int hl_get_power(struct hl_device *hdev,
 			int sensor_index, u32 attr, long *value);
-int hl_get_clk_rate(struct hl_device *hdev,
-			u32 *cur_clk, u32 *max_clk);
+int hl_get_clk_rate(struct hl_device *hdev, u32 *cur_clk, u32 *max_clk);
 void hl_set_pll_profile(struct hl_device *hdev, enum hl_pll_frequency freq);
 void hl_sysfs_add_dev_clk_attr(struct hl_device *hdev, struct attribute_group *dev_attr_grp);
 void hw_sob_get(struct hl_hw_sob *hw_sob);

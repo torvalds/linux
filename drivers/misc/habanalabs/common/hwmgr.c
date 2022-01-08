@@ -20,11 +20,16 @@ int hl_get_clk_rate(struct hl_device *hdev, u32 *cur_clk, u32 *max_clk)
 	if (!hl_device_operational(hdev, NULL))
 		return -ENODEV;
 
+	if (!hdev->pdev) {
+		*cur_clk = 0;
+		*max_clk = 0;
+		return 0;
+	}
+
 	value = hl_get_frequency(hdev, hdev->asic_prop.clk_pll_index, false);
 
 	if (value < 0) {
-		dev_err(hdev->dev, "Failed to retrieve device max clock %ld\n",
-			value);
+		dev_err(hdev->dev, "Failed to retrieve device max clock %ld\n", value);
 		return value;
 	}
 
@@ -33,9 +38,7 @@ int hl_get_clk_rate(struct hl_device *hdev, u32 *cur_clk, u32 *max_clk)
 	value = hl_get_frequency(hdev, hdev->asic_prop.clk_pll_index, true);
 
 	if (value < 0) {
-		dev_err(hdev->dev,
-			"Failed to retrieve device current clock %ld\n",
-			value);
+		dev_err(hdev->dev, "Failed to retrieve device current clock %ld\n", value);
 		return value;
 	}
 
