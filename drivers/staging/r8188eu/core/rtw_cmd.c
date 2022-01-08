@@ -952,7 +952,9 @@ static void rtl8188e_sreset_xmit_status_check(struct adapter *padapter)
 
 	txdma_status = rtw_read32(padapter, REG_TXDMA_STATUS);
 	if (txdma_status != 0x00) {
-		DBG_88E("%s REG_TXDMA_STATUS:0x%08x\n", __func__, txdma_status);
+		netdev_dbg(padapter->pnetdev,
+			   "REG_TXDMA_STATUS: 0x%08x\n",
+			   txdma_status);
 		rtw_write32(padapter, REG_TXDMA_STATUS, txdma_status);
 	}
 	/* total xmit irp = 4 */
