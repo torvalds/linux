@@ -8,25 +8,6 @@
 #include "../include/rtw_iol.h"
 #include "../include/rtl8188e_hal.h"
 
-/*---------------------------Define Local Constant---------------------------*/
-/* Channel switch:The size of command tables for switch channel*/
-#define MAX_PRECMD_CNT 16
-#define MAX_RFDEPENDCMD_CNT 16
-#define MAX_POSTCMD_CNT 16
-
-#define MAX_DOZE_WAITING_TIMES_9x 64
-
-/*---------------------------Define Local Constant---------------------------*/
-
-/*------------------------Define global variable-----------------------------*/
-
-/*------------------------Define local variable------------------------------*/
-
-/*--------------------Define export function prototype-----------------------*/
-/*  Please refer to header file */
-/*--------------------Define export function prototype-----------------------*/
-
-/*----------------------------Function Body----------------------------------*/
 /*  */
 /*  1. BB register R/W API */
 /*  */
