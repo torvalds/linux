@@ -811,7 +811,7 @@ static struct rockchip_clk_branch rk3588_clk_branches[] __initdata = {
 
 	/* dsu */
 	COMPOSITE(0, "sclk_dsu", b0pll_b1pll_lpll_gpll_p, CLK_IS_CRITICAL,
-			RK3588_DSU_CLKSEL_CON(0), 5, 2, MFLAGS, 0, 5, DFLAGS,
+			RK3588_DSU_CLKSEL_CON(0), 12, 2, MFLAGS, 0, 5, DFLAGS,
 			RK3588_DSU_CLKGATE_CON(0), 4, GFLAGS),
 	COMPOSITE_NOMUX(0, "atclk_dsu", "sclk_dsu", CLK_IS_CRITICAL,
 			RK3588_DSU_CLKSEL_CON(3), 0, 5, DFLAGS | CLK_DIVIDER_READ_ONLY,
