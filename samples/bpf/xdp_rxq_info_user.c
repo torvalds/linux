@@ -209,7 +209,7 @@ static struct datarec *alloc_record_per_cpu(void)
 
 static struct record *alloc_record_per_rxq(void)
 {
-	unsigned int nr_rxqs = bpf_map__def(rx_queue_index_map)->max_entries;
+	unsigned int nr_rxqs = bpf_map__max_entries(rx_queue_index_map);
 	struct record *array;
 
 	array = calloc(nr_rxqs, sizeof(struct record));
@@ -222,7 +222,7 @@ static struct record *alloc_record_per_rxq(void)
 
 static struct stats_record *alloc_stats_record(void)
 {
-	unsigned int nr_rxqs = bpf_map__def(rx_queue_index_map)->max_entries;
+	unsigned int nr_rxqs = bpf_map__max_entries(rx_queue_index_map);
 	struct stats_record *rec;
 	int i;
 
@@ -241,7 +241,7 @@ static struct stats_record *alloc_stats_record(void)
 
 static void free_stats_record(struct stats_record *r)
 {
-	unsigned int nr_rxqs = bpf_map__def(rx_queue_index_map)->max_entries;
+	unsigned int nr_rxqs = bpf_map__max_entries(rx_queue_index_map);
 	int i;
 
 	for (i = 0; i < nr_rxqs; i++)
@@ -289,7 +289,7 @@ static void stats_collect(struct stats_record *rec)
 	map_collect_percpu(fd, 0, &rec->stats);
 
 	fd = bpf_map__fd(rx_queue_index_map);
-	max_rxqs = bpf_map__def(rx_queue_index_map)->max_entries;
+	max_rxqs = bpf_map__max_entries(rx_queue_index_map);
 	for (i = 0; i < max_rxqs; i++)
 		map_collect_percpu(fd, i, &rec->rxq[i]);
 }
@@ -335,7 +335,7 @@ static void stats_print(struct stats_record *stats_rec,
 			struct stats_record *stats_prev,
 			int action, __u32 cfg_opt)
 {
-	unsigned int nr_rxqs = bpf_map__def(rx_queue_index_map)->max_entries;
+	unsigned int nr_rxqs = bpf_map__max_entries(rx_queue_index_map);
 	unsigned int nr_cpus = bpf_num_possible_cpus();
 	double pps = 0, err = 0;
 	struct record *rec, *prev;
