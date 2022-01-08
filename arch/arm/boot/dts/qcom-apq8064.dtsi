@@ -815,6 +815,7 @@
 			nvmem-cells = <&tsens_calib>, <&tsens_backup>;
 			nvmem-cell-names = "calib", "calib_backup";
 			#clock-cells = <1>;
+			#power-domain-cells = <1>;
 			#reset-cells = <1>;
 			#thermal-sensor-cells = <1>;
 		};
@@ -830,6 +831,7 @@
 			compatible = "qcom,mmcc-apq8064";
 			reg = <0x4000000 0x1000>;
 			#clock-cells = <1>;
+			#power-domain-cells = <1>;
 			#reset-cells = <1>;
 		};
 
