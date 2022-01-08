@@ -61,14 +61,6 @@ static inline void profile_hit(int type, void *ip)
 struct task_struct;
 struct mm_struct;
 
-/* task is dead, free task struct ? Returns 1 if
- * the task was taken, 0 if the task should be freed.
- */
-int profile_handoff_task(struct task_struct * task);
-
-int task_handoff_register(struct notifier_block * n);
-int task_handoff_unregister(struct notifier_block * n);
-
 #else
 
 #define prof_on 0
@@ -93,17 +85,6 @@ static inline void profile_hit(int type, void *ip)
 	return;
 }
 
-static inline int task_handoff_register(struct notifier_block * n)
-{
-	return -ENOSYS;
-}
-
-static inline int task_handoff_unregister(struct notifier_block * n)
-{
-	return -ENOSYS;
-}
-
-#define profile_handoff_task(a) (0)
 
 #endif /* CONFIG_PROFILING */
 
