@@ -390,7 +390,7 @@
 		};
 
 		l2cc: clock-controller@2082000 {
-			compatible	= "syscon";
+			compatible	= "qcom,kpss-gcc", "syscon";
 			reg		= <0x02082000 0x1000>;
 		};
 
