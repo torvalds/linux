@@ -919,8 +919,8 @@ static int emac_configure_dma(struct emac_board_info *db)
 		goto out_clear_chan;
 	}
 
-	netdev_info(ndev, "get io resource from device: 0x%x, size = %u\n",
-		    regs->start, resource_size(regs));
+	netdev_info(ndev, "get io resource from device: %pa, size = %u\n",
+		    &regs->start, (unsigned int)resource_size(regs));
 	db->emac_rx_fifo = regs->start + EMAC_RX_IO_DATA_REG;
 
 	db->rx_chan = dma_request_chan(&pdev->dev, "rx");
