@@ -2594,6 +2594,18 @@ static int resp_ie_l_pg(unsigned char *arr)
 	return sizeof(ie_l_pg);
 }
 
+static int resp_env_rep_l_spg(unsigned char *arr)
+{
+	unsigned char env_rep_l_spg[] = {0x0, 0x0, 0x23, 0x8,
+					 0x0, 40, 72, 0xff, 45, 18, 0, 0,
+					 0x1, 0x0, 0x23, 0x8,
+					 0x0, 55, 72, 35, 55, 45, 0, 0,
+		};
+
+	memcpy(arr, env_rep_l_spg, sizeof(env_rep_l_spg));
+	return sizeof(env_rep_l_spg);
+}
+
 #define SDEBUG_MAX_LSENSE_SZ 512
 
 static int resp_log_sense(struct scsi_cmnd *scp,
@@ -2646,23 +2658,44 @@ static int resp_log_sense(struct scsi_cmnd *scp,
 			arr[n++] = 0xff;	/* this page */
 			arr[n++] = 0xd;
 			arr[n++] = 0x0;		/* Temperature */
+			arr[n++] = 0xd;
+			arr[n++] = 0x1;		/* Environment reporting */
+			arr[n++] = 0xd;
+			arr[n++] = 0xff;	/* all 0xd subpages */
 			arr[n++] = 0x2f;
 			arr[n++] = 0x0;	/* Informational exceptions */
+			arr[n++] = 0x2f;
+			arr[n++] = 0xff;	/* all 0x2f subpages */
 			arr[3] = n - 4;
 			break;
 		case 0xd:	/* Temperature subpages */
 			n = 4;
 			arr[n++] = 0xd;
 			arr[n++] = 0x0;		/* Temperature */
+			arr[n++] = 0xd;
+			arr[n++] = 0x1;		/* Environment reporting */
+			arr[n++] = 0xd;
+			arr[n++] = 0xff;	/* these subpages */
 			arr[3] = n - 4;
 			break;
 		case 0x2f:	/* Informational exceptions subpages */
 			n = 4;
 			arr[n++] = 0x2f;
 			arr[n++] = 0x0;		/* Informational exceptions */
+			arr[n++] = 0x2f;
+			arr[n++] = 0xff;	/* these subpages */
 			arr[3] = n - 4;
 			break;
 		default:
+			mk_sense_invalid_fld(scp, SDEB_IN_CDB, 2, 5);
+			return check_condition_result;
+		}
+	} else if (subpcode > 0) {
+		arr[0] |= 0x40;
+		arr[1] = subpcode;
+		if (pcode == 0xd && subpcode == 1)
+			arr[3] = resp_env_rep_l_spg(arr + 4);
+		else {
 			mk_sense_invalid_fld(scp, SDEB_IN_CDB, 2, 5);
 			return check_condition_result;
 		}
