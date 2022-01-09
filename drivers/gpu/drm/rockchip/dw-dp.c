@@ -246,6 +246,16 @@ struct dw_dp_hotplug {
 	bool status;
 };
 
+struct dw_dp_compliance_data {
+	struct drm_dp_phy_test_params phytest;
+};
+
+struct dw_dp_compliance {
+	unsigned long test_type;
+	struct dw_dp_compliance_data test_data;
+	bool test_active;
+};
+
 struct dw_dp {
 	struct device *dev;
 	struct regmap *regmap;
@@ -275,6 +285,7 @@ struct dw_dp {
 	struct dw_dp_link link;
 	struct dw_dp_video video;
 	struct dw_dp_audio audio;
+	struct dw_dp_compliance compliance;
 
 	DECLARE_BITMAP(sdp_reg_bank, SDP_REG_BANK_SIZE);
 
@@ -865,27 +876,28 @@ static int dw_dp_link_probe(struct dw_dp *dp)
 	return 0;
 }
 
-static int dw_dp_link_train_update_vs_emph(struct dw_dp *dp)
+static int dw_dp_phy_update_vs_emph(struct dw_dp *dp, unsigned int rate, unsigned int lanes,
+				    struct drm_dp_link_train_set *train_set)
 {
-	struct dw_dp_link *link = &dp->link;
-	struct drm_dp_link_train_set *request = &link->train.request;
 	union phy_configure_opts phy_cfg;
-	unsigned int lanes = link->lanes, *vs, *pe;
+	unsigned int *vs, *pe;
 	u8 buf[4];
 	int i, ret;
 
-	vs = request->voltage_swing;
-	pe = request->pre_emphasis;
+	vs = train_set->voltage_swing;
+	pe = train_set->pre_emphasis;
 
 	for (i = 0; i < lanes; i++) {
 		phy_cfg.dp.voltage[i] = vs[i];
 		phy_cfg.dp.pre[i] = pe[i];
 	}
+
 	phy_cfg.dp.lanes = lanes;
-	phy_cfg.dp.link_rate = link->rate / 100;
+	phy_cfg.dp.link_rate = rate / 100;
 	phy_cfg.dp.set_lanes = false;
 	phy_cfg.dp.set_rate = false;
 	phy_cfg.dp.set_voltages = true;
+
 	ret = phy_configure(dp->phy, &phy_cfg);
 	if (ret)
 		return ret;
@@ -900,20 +912,27 @@ static int dw_dp_link_train_update_vs_emph(struct dw_dp *dp)
 	return 0;
 }
 
-static int dw_dp_link_configure(struct dw_dp *dp)
+static int dw_dp_link_train_update_vs_emph(struct dw_dp *dp)
 {
 	struct dw_dp_link *link = &dp->link;
+	struct drm_dp_link_train_set *request = &link->train.request;
+
+	return dw_dp_phy_update_vs_emph(dp, dp->link.rate, dp->link.lanes, request);
+}
+
+static int dw_dp_phy_configure(struct dw_dp *dp, unsigned int rate,
+			       unsigned int lanes, bool ssc)
+{
 	union phy_configure_opts phy_cfg;
-	u8 buf[2];
 	int ret;
 
 	/* Move PHY to P3 */
 	regmap_update_bits(dp->regmap, DPTX_PHYIF_CTRL, PHY_POWERDOWN,
 			   FIELD_PREP(PHY_POWERDOWN, 0x3));
 
-	phy_cfg.dp.lanes = link->lanes;
-	phy_cfg.dp.link_rate = link->rate / 100;
-	phy_cfg.dp.ssc = link->caps.ssc;
+	phy_cfg.dp.lanes = lanes;
+	phy_cfg.dp.link_rate = rate / 100;
+	phy_cfg.dp.ssc = ssc;
 	phy_cfg.dp.set_lanes = true;
 	phy_cfg.dp.set_rate = true;
 	phy_cfg.dp.set_voltages = false;
@@ -922,14 +941,26 @@ static int dw_dp_link_configure(struct dw_dp *dp)
 		return ret;
 
 	regmap_update_bits(dp->regmap, DPTX_PHYIF_CTRL, PHY_LANES,
-			   FIELD_PREP(PHY_LANES, link->lanes / 2));
+			   FIELD_PREP(PHY_LANES, lanes / 2));
 
 	/* Move PHY to P0 */
 	regmap_update_bits(dp->regmap, DPTX_PHYIF_CTRL, PHY_POWERDOWN,
 			   FIELD_PREP(PHY_POWERDOWN, 0x0));
 
-	dw_dp_phy_xmit_enable(dp, link->lanes);
+	dw_dp_phy_xmit_enable(dp, lanes);
 
+	return 0;
+}
+
+static int dw_dp_link_configure(struct dw_dp *dp)
+{
+	struct dw_dp_link *link = &dp->link;
+	u8 buf[2];
+	int ret;
+
+	ret = dw_dp_phy_configure(dp, link->rate, link->lanes, link->caps.ssc);
+	if (ret)
+		return ret;
 	buf[0] = drm_dp_link_rate_to_bw_code(link->rate);
 	buf[1] = link->lanes;
 
@@ -2330,6 +2361,198 @@ static int dw_dp_link_retrain(struct dw_dp *dp)
 	return ret;
 }
 
+static u8 dw_dp_autotest_phy_pattern(struct dw_dp *dp)
+{
+	struct drm_dp_phy_test_params *data = &dp->compliance.test_data.phytest;
+
+	if (drm_dp_get_phy_test_pattern(&dp->aux, data)) {
+		dev_err(dp->dev, "DP Phy Test pattern AUX read failure\n");
+		return DP_TEST_NAK;
+	}
+
+	/* Set test active flag here so userspace doesn't interrupt things */
+	dp->compliance.test_active = true;
+
+	return DP_TEST_ACK;
+}
+
+static void dw_dp_handle_test_request(struct dw_dp *dp)
+{
+	u8 response = DP_TEST_NAK;
+	u8 request = 0;
+	int status;
+
+	status = drm_dp_dpcd_readb(&dp->aux, DP_TEST_REQUEST, &request);
+	if (status <= 0) {
+		dev_err(dp->dev, "Could not read test request from sink\n");
+		goto update_status;
+	}
+
+	switch (request) {
+	case DP_TEST_LINK_PHY_TEST_PATTERN:
+		dev_dbg(dp->dev, "PHY_PATTERN test requested\n");
+		response = dw_dp_autotest_phy_pattern(dp);
+		break;
+	default:
+		dev_warn(dp->dev, "Invalid test request '%02x'\n", request);
+		break;
+	}
+
+	if (response & DP_TEST_ACK)
+		dp->compliance.test_type = request;
+
+update_status:
+	status = drm_dp_dpcd_writeb(&dp->aux, DP_TEST_RESPONSE, response);
+	if (status <= 0)
+		dev_warn(dp->dev, "Could not write test response to sink\n");
+}
+
+static void dw_dp_check_service_irq(struct dw_dp *dp)
+{
+	struct dw_dp_link *link = &dp->link;
+	u8 val;
+
+	if (link->dpcd[DP_DPCD_REV] < 0x11)
+		return;
+
+	if (drm_dp_dpcd_readb(&dp->aux, DP_DEVICE_SERVICE_IRQ_VECTOR, &val) != 1 || !val)
+		return;
+
+	drm_dp_dpcd_writeb(&dp->aux, DP_DEVICE_SERVICE_IRQ_VECTOR, val);
+
+	if (val & DP_AUTOMATED_TEST_REQUEST)
+		dw_dp_handle_test_request(dp);
+
+	if (val & DP_SINK_SPECIFIC_IRQ)
+		dev_info(dp->dev, "Sink specific irq unhandled\n");
+}
+
+static void dw_dp_phy_pattern_update(struct dw_dp *dp)
+{
+	struct drm_dp_phy_test_params *data = &dp->compliance.test_data.phytest;
+
+	switch (data->phy_pattern) {
+	case DP_PHY_TEST_PATTERN_NONE:
+		dev_dbg(dp->dev, "Disable Phy Test Pattern\n");
+		regmap_update_bits(dp->regmap, DPTX_CCTL, SCRAMBLE_DIS,
+				   FIELD_PREP(SCRAMBLE_DIS, 1));
+		dw_dp_phy_set_pattern(dp, DPTX_PHY_PATTERN_NONE);
+		break;
+	case DP_PHY_TEST_PATTERN_D10_2:
+		dev_dbg(dp->dev, "Set D10.2 Phy Test Pattern\n");
+		regmap_update_bits(dp->regmap, DPTX_CCTL, SCRAMBLE_DIS,
+				   FIELD_PREP(SCRAMBLE_DIS, 1));
+		dw_dp_phy_set_pattern(dp, DPTX_PHY_PATTERN_TPS_1);
+		break;
+	case DP_PHY_TEST_PATTERN_ERROR_COUNT:
+		regmap_update_bits(dp->regmap, DPTX_CCTL, SCRAMBLE_DIS,
+				   FIELD_PREP(SCRAMBLE_DIS, 0));
+		dev_dbg(dp->dev, "Set Error Count Phy Test Pattern\n");
+		dw_dp_phy_set_pattern(dp, DPTX_PHY_PATTERN_SERM);
+		break;
+	case DP_PHY_TEST_PATTERN_PRBS7:
+		dev_dbg(dp->dev, "Set PRBS7 Phy Test Pattern\n");
+		regmap_update_bits(dp->regmap, DPTX_CCTL, SCRAMBLE_DIS,
+				   FIELD_PREP(SCRAMBLE_DIS, 1));
+		dw_dp_phy_set_pattern(dp, DPTX_PHY_PATTERN_PBRS7);
+		break;
+	case DP_PHY_TEST_PATTERN_80BIT_CUSTOM:
+		dev_dbg(dp->dev, "Set 80Bit Custom Phy Test Pattern\n");
+		regmap_update_bits(dp->regmap, DPTX_CCTL, SCRAMBLE_DIS,
+				   FIELD_PREP(SCRAMBLE_DIS, 1));
+		regmap_write(dp->regmap, DPTX_CUSTOMPAT0, 0x3e0f83e0);
+		regmap_write(dp->regmap, DPTX_CUSTOMPAT1, 0x3e0f83e0);
+		regmap_write(dp->regmap, DPTX_CUSTOMPAT2, 0x000f83e0);
+		dw_dp_phy_set_pattern(dp, DPTX_PHY_PATTERN_CUSTOM_80BIT);
+		break;
+	case DP_PHY_TEST_PATTERN_CP2520:
+		dev_dbg(dp->dev, "Set HBR2 compliance Phy Test Pattern\n");
+		regmap_update_bits(dp->regmap, DPTX_CCTL, SCRAMBLE_DIS,
+				   FIELD_PREP(SCRAMBLE_DIS, 0));
+		dw_dp_phy_set_pattern(dp, DPTX_PHY_PATTERN_CP2520_1);
+		break;
+	case DP_PHY_TEST_PATTERN_SEL_MASK:
+		dev_dbg(dp->dev, "Set TPS4  Phy Test Pattern\n");
+		regmap_update_bits(dp->regmap, DPTX_CCTL, SCRAMBLE_DIS,
+				   FIELD_PREP(SCRAMBLE_DIS, 0));
+		dw_dp_phy_set_pattern(dp, DPTX_PHY_PATTERN_TPS_4);
+		break;
+	default:
+		WARN(1, "Invalid Phy Test Pattern\n");
+	}
+}
+
+static void dw_dp_process_phy_request(struct dw_dp *dp)
+{
+	struct drm_dp_phy_test_params *data = &dp->compliance.test_data.phytest;
+	u8 link_status[DP_LINK_STATUS_SIZE], spread;
+	int ret;
+
+	ret = drm_dp_dpcd_read(&dp->aux, DP_LANE0_1_STATUS, link_status, DP_LINK_STATUS_SIZE);
+	if (ret < 0) {
+		dev_err(dp->dev, "failed to get link status\n");
+		return;
+	}
+
+	ret = drm_dp_dpcd_readb(&dp->aux, DP_MAX_DOWNSPREAD, &spread);
+	if (ret < 0) {
+		dev_err(dp->dev, "failed to get spread\n");
+		return;
+	}
+
+	dw_dp_phy_configure(dp, data->link_rate, data->num_lanes,
+			    !!(spread & DP_MAX_DOWNSPREAD_0_5));
+	dw_dp_link_get_adjustments(&dp->link, link_status);
+	dw_dp_phy_update_vs_emph(dp, data->link_rate, data->num_lanes, &dp->link.train.adjust);
+	dw_dp_phy_pattern_update(dp);
+	drm_dp_set_phy_test_pattern(&dp->aux, data, link_status[DP_DPCD_REV]);
+
+	dev_dbg(dp->dev, "phy test rate:%d, lane count:%d, ssc:%d, vs:%d, pe: %d\n",
+		 data->link_rate, data->num_lanes, spread, dp->link.train.adjust.voltage_swing[0],
+		 dp->link.train.adjust.pre_emphasis[0]);
+}
+
+static void dw_dp_phy_test(struct dw_dp *dp)
+{
+	struct drm_device *dev = dp->bridge.dev;
+	struct drm_modeset_acquire_ctx ctx;
+	int ret;
+
+	drm_modeset_acquire_init(&ctx, 0);
+
+	for (;;) {
+		ret = drm_modeset_lock(&dev->mode_config.connection_mutex, &ctx);
+		if (ret != -EDEADLK)
+			break;
+
+		drm_modeset_backoff(&ctx);
+	}
+
+	dw_dp_process_phy_request(dp);
+	drm_modeset_drop_locks(&ctx);
+	drm_modeset_acquire_fini(&ctx);
+}
+
+static bool dw_dp_hpd_short_pulse(struct dw_dp *dp)
+{
+	memset(&dp->compliance, 0, sizeof(dp->compliance));
+
+	dw_dp_check_service_irq(dp);
+
+	if (dw_dp_needs_link_retrain(dp))
+		return false;
+
+	switch (dp->compliance.test_type) {
+	case DP_TEST_LINK_PHY_TEST_PATTERN:
+		return false;
+	default:
+		dev_warn(dp->dev, "test_type%lu is not support\n", dp->compliance.test_type);
+		break;
+	}
+
+	return true;
+}
+
 static void dw_dp_hpd_work(struct work_struct *work)
 {
 	struct dw_dp *dp = container_of(work, struct dw_dp, hpd_work);
@@ -2343,6 +2566,16 @@ static void dw_dp_hpd_work(struct work_struct *work)
 	dev_dbg(dp->dev, "got hpd irq - %s\n", long_hpd ? "long" : "short");
 
 	if (!long_hpd) {
+		if (dw_dp_hpd_short_pulse(dp))
+			return;
+
+		if (dp->compliance.test_active &&
+		    dp->compliance.test_type == DP_TEST_LINK_PHY_TEST_PATTERN) {
+			dw_dp_phy_test(dp);
+			/* just do the PHY test and nothing else */
+			return;
+		}
+
 		ret = dw_dp_link_retrain(dp);
 		if (ret)
 			dev_warn(dp->dev, "Retrain link failed\n");
