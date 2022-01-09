@@ -235,7 +235,7 @@ static bool nft_payload_reduce(struct nft_regs_track *track,
 	if (!track->regs[priv->dreg].bitwise)
 		return true;
 
-	return false;
+	return nft_expr_reduce_bitwise(track, expr);
 }
 
 static bool nft_payload_offload_mask(struct nft_offload_reg *reg,

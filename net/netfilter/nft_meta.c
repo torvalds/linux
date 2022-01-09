@@ -774,7 +774,7 @@ static bool nft_meta_get_reduce(struct nft_regs_track *track,
 	if (!track->regs[priv->dreg].bitwise)
 		return true;
 
-	return false;
+	return nft_expr_reduce_bitwise(track, expr);
 }
 
 static const struct nft_expr_ops nft_meta_get_ops = {
