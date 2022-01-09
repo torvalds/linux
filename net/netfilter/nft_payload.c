@@ -798,12 +798,33 @@ nla_put_failure:
 	return -1;
 }
 
+static bool nft_payload_set_reduce(struct nft_regs_track *track,
+				   const struct nft_expr *expr)
+{
+	int i;
+
+	for (i = 0; i < NFT_REG32_NUM; i++) {
+		if (!track->regs[i].selector)
+			continue;
+
+		if (track->regs[i].selector->ops != &nft_payload_ops &&
+		    track->regs[i].selector->ops != &nft_payload_fast_ops)
+			continue;
+
+		track->regs[i].selector = NULL;
+		track->regs[i].bitwise = NULL;
+	}
+
+	return false;
+}
+
 static const struct nft_expr_ops nft_payload_set_ops = {
 	.type		= &nft_payload_type,
 	.size		= NFT_EXPR_SIZE(sizeof(struct nft_payload_set)),
 	.eval		= nft_payload_set_eval,
 	.init		= nft_payload_set_init,
 	.dump		= nft_payload_set_dump,
+	.reduce		= nft_payload_set_reduce,
 };
 
 static const struct nft_expr_ops *
