@@ -252,21 +252,20 @@ void unpin_user_page(struct page *page)
 }
 EXPORT_SYMBOL(unpin_user_page);
 
-static inline void compound_range_next(unsigned long i, unsigned long npages,
-				       struct page **list, struct page **head,
-				       unsigned int *ntails)
+static inline struct page *compound_range_next(struct page *start,
+		unsigned long npages, unsigned long i, unsigned int *ntails)
 {
 	struct page *next, *page;
 	unsigned int nr = 1;
 
-	next = *list + i;
+	next = start + i;
 	page = compound_head(next);
 	if (PageCompound(page) && compound_order(page) >= 1)
 		nr = min_t(unsigned int,
 			   page + compound_nr(page) - next, npages - i);
 
-	*head = page;
 	*ntails = nr;
+	return page;
 }
 
 static inline void compound_next(unsigned long i, unsigned long npages,
@@ -378,7 +377,7 @@ void unpin_user_page_range_dirty_lock(struct page *page, unsigned long npages,
 	unsigned int ntails;
 
 	for (index = 0; index < npages; index += ntails) {
-		compound_range_next(index, npages, &page, &head, &ntails);
+		head = compound_range_next(page, npages, index, &ntails);
 		if (make_dirty && !PageDirty(head))
 			set_page_dirty_lock(head);
 		put_compound_head(head, ntails, FOLL_PIN);
