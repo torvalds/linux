@@ -223,7 +223,8 @@ static int btree_key_cache_fill(struct btree_trans *trans,
 		goto err;
 
 	if (!bch2_btree_node_relock(trans, ck_path, 0)) {
-		trace_transaction_restart_ip(trans->fn, _THIS_IP_);
+		trace_trans_restart_relock_key_cache_fill(trans->fn,
+				_THIS_IP_, ck_path->btree_id, &ck_path->pos);
 		ret = btree_trans_restart(trans);
 		goto err;
 	}

@@ -166,19 +166,25 @@ bool __bch2_btree_node_relock(struct btree_trans *trans,
 	int want = __btree_lock_want(path, level);
 
 	if (!is_btree_node(path, level))
-		return false;
+		goto fail;
 
 	if (race_fault())
-		return false;
+		goto fail;
 
 	if (six_relock_type(&b->c.lock, want, path->l[level].lock_seq) ||
 	    (btree_node_lock_seq_matches(path, b, level) &&
 	     btree_node_lock_increment(trans, b, level, want))) {
 		mark_btree_node_locked(path, level, want);
 		return true;
-	} else {
-		return false;
 	}
+fail:
+	trace_btree_node_relock_fail(trans->fn, _RET_IP_,
+				     path->btree_id,
+				     &path->pos,
+				     (unsigned long) b,
+				     path->l[level].lock_seq,
+				     is_btree_node(path, level) ? b->c.lock.state.seq : 0);
+	return false;
 }
 
 bool bch2_btree_node_upgrade(struct btree_trans *trans,
@@ -225,7 +231,7 @@ success:
 
 static inline bool btree_path_get_locks(struct btree_trans *trans,
 					struct btree_path *path,
-					bool upgrade, unsigned long trace_ip)
+					bool upgrade)
 {
 	unsigned l = path->level;
 	int fail_idx = -1;
@@ -427,6 +433,8 @@ bool bch2_btree_path_relock_intent(struct btree_trans *trans,
 		if (!bch2_btree_node_relock(trans, path, l)) {
 			__bch2_btree_path_unlock(path);
 			btree_path_set_dirty(path, BTREE_ITER_NEED_TRAVERSE);
+			trace_trans_restart_relock_path_intent(trans->fn, _RET_IP_,
+						   path->btree_id, &path->pos);
 			btree_trans_restart(trans);
 			return false;
 		}
@@ -439,10 +447,13 @@ __flatten
 static bool bch2_btree_path_relock(struct btree_trans *trans,
 			struct btree_path *path, unsigned long trace_ip)
 {
-	bool ret = btree_path_get_locks(trans, path, false, trace_ip);
+	bool ret = btree_path_get_locks(trans, path, false);
 
-	if (!ret)
+	if (!ret) {
+		trace_trans_restart_relock_path(trans->fn, trace_ip,
+						path->btree_id, &path->pos);
 		btree_trans_restart(trans);
+	}
 	return ret;
 }
 
@@ -456,7 +467,7 @@ bool __bch2_btree_path_upgrade(struct btree_trans *trans,
 
 	path->locks_want = new_locks_want;
 
-	if (btree_path_get_locks(trans, path, true, _THIS_IP_))
+	if (btree_path_get_locks(trans, path, true))
 		return true;
 
 	/*
@@ -484,7 +495,7 @@ bool __bch2_btree_path_upgrade(struct btree_trans *trans,
 		    linked->btree_id == path->btree_id &&
 		    linked->locks_want < new_locks_want) {
 			linked->locks_want = new_locks_want;
-			btree_path_get_locks(trans, linked, true, _THIS_IP_);
+			btree_path_get_locks(trans, linked, true);
 		}
 
 	return false;
@@ -1955,7 +1966,7 @@ struct btree_path *bch2_path_get(struct btree_trans *trans,
 	locks_want = min(locks_want, BTREE_MAX_DEPTH);
 	if (locks_want > path->locks_want) {
 		path->locks_want = locks_want;
-		btree_path_get_locks(trans, path, true, _THIS_IP_);
+		btree_path_get_locks(trans, path, true);
 	}
 
 	return path;
@@ -2090,6 +2101,8 @@ struct btree *bch2_btree_iter_next_node(struct btree_iter *iter)
 		__bch2_btree_path_unlock(path);
 		path->l[path->level].b = BTREE_ITER_NO_NODE_GET_LOCKS;
 		path->l[path->level + 1].b = BTREE_ITER_NO_NODE_GET_LOCKS;
+		trace_trans_restart_relock_next_node(trans->fn, _THIS_IP_,
+					   path->btree_id, &path->pos);
 		btree_trans_restart(trans);
 		ret = -EINTR;
 		goto err;

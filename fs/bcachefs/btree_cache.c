@@ -665,6 +665,8 @@ static noinline struct btree *bch2_btree_node_fill(struct bch_fs *c,
 	 * been freed:
 	 */
 	if (trans && !bch2_btree_node_relock(trans, path, level + 1)) {
+		trace_trans_restart_relock_parent_for_fill(trans->fn,
+					_THIS_IP_, btree_id, &path->pos);
 		btree_trans_restart(trans);
 		return ERR_PTR(-EINTR);
 	}
@@ -712,6 +714,8 @@ static noinline struct btree *bch2_btree_node_fill(struct bch_fs *c,
 	}
 
 	if (!six_relock_type(&b->c.lock, lock_type, seq)) {
+		trace_trans_restart_relock_after_fill(trans->fn, _THIS_IP_,
+					   btree_id, &path->pos);
 		btree_trans_restart(trans);
 		return ERR_PTR(-EINTR);
 	}
