@@ -542,25 +542,28 @@ static int fsi_master_aspeed_probe(struct platform_device *pdev)
 		return rc;
 	}
 
-	aspeed = devm_kzalloc(&pdev->dev, sizeof(*aspeed), GFP_KERNEL);
+	aspeed = kzalloc(sizeof(*aspeed), GFP_KERNEL);
 	if (!aspeed)
 		return -ENOMEM;
 
 	aspeed->dev = &pdev->dev;
 
 	aspeed->base = devm_platform_ioremap_resource(pdev, 0);
-	if (IS_ERR(aspeed->base))
-		return PTR_ERR(aspeed->base);
+	if (IS_ERR(aspeed->base)) {
+		rc = PTR_ERR(aspeed->base);
+		goto err_free_aspeed;
+	}
 
 	aspeed->clk = devm_clk_get(aspeed->dev, NULL);
 	if (IS_ERR(aspeed->clk)) {
 		dev_err(aspeed->dev, "couldn't get clock\n");
-		return PTR_ERR(aspeed->clk);
+		rc = PTR_ERR(aspeed->clk);
+		goto err_free_aspeed;
 	}
 	rc = clk_prepare_enable(aspeed->clk);
 	if (rc) {
 		dev_err(aspeed->dev, "couldn't enable clock\n");
-		return rc;
+		goto err_free_aspeed;
 	}
 
 	rc = setup_cfam_reset(aspeed);
@@ -595,7 +598,7 @@ static int fsi_master_aspeed_probe(struct platform_device *pdev)
 	rc = opb_readl(aspeed, ctrl_base + FSI_MVER, &raw);
 	if (rc) {
 		dev_err(&pdev->dev, "failed to read hub version\n");
-		return rc;
+		goto err_release;
 	}
 
 	reg = be32_to_cpu(raw);
@@ -634,6 +637,8 @@ static int fsi_master_aspeed_probe(struct platform_device *pdev)
 
 err_release:
 	clk_disable_unprepare(aspeed->clk);
+err_free_aspeed:
+	kfree(aspeed);
 	return rc;
 }
 
