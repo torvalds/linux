@@ -260,7 +260,7 @@ static inline struct page *compound_range_next(struct page *start,
 
 	next = start + i;
 	page = compound_head(next);
-	if (PageCompound(page) && compound_order(page) >= 1)
+	if (PageHead(page))
 		nr = min_t(unsigned int,
 			   page + compound_nr(page) - next, npages - i);
 
