@@ -47,17 +47,15 @@ $(obj)/vmlinux: $(addprefix $(obj)/, $(OBJECTS)) FORCE
 $(obj)/vmlinux.bin: vmlinux FORCE
 	$(call if_changed,objcopy)
 
-vmlinux.bin.all-y := $(obj)/vmlinux.bin
-
-$(obj)/vmlinux.bin.gz: $(vmlinux.bin.all-y) FORCE
+$(obj)/vmlinux.bin.gz: $(obj)/vmlinux.bin FORCE
 	$(call if_changed,gzip)
-$(obj)/vmlinux.bin.bz2: $(vmlinux.bin.all-y) FORCE
+$(obj)/vmlinux.bin.bz2: $(obj)/vmlinux.bin FORCE
 	$(call if_changed,bzip2_with_size)
-$(obj)/vmlinux.bin.lzma: $(vmlinux.bin.all-y) FORCE
+$(obj)/vmlinux.bin.lzma: $(obj)/vmlinux.bin FORCE
 	$(call if_changed,lzma_with_size)
-$(obj)/vmlinux.bin.xz: $(vmlinux.bin.all-y) FORCE
+$(obj)/vmlinux.bin.xz: $(obj)/vmlinux.bin FORCE
 	$(call if_changed,xzkern_with_size)
-$(obj)/vmlinux.bin.lzo: $(vmlinux.bin.all-y) FORCE
+$(obj)/vmlinux.bin.lzo: $(obj)/vmlinux.bin FORCE
 	$(call if_changed,lzo_with_size)
 
 OBJCOPYFLAGS += -R .empty_zero_page
