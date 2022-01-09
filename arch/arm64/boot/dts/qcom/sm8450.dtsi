@@ -203,9 +203,9 @@
 				compatible = "arm,idle-state";
 				idle-state-name = "silver-rail-power-collapse";
 				arm,psci-suspend-param = <0x40000004>;
-				entry-latency-us = <274>;
-				exit-latency-us = <480>;
-				min-residency-us = <3934>;
+				entry-latency-us = <800>;
+				exit-latency-us = <750>;
+				min-residency-us = <4090>;
 				local-timer-stop;
 			};
 
@@ -213,9 +213,9 @@
 				compatible = "arm,idle-state";
 				idle-state-name = "gold-rail-power-collapse";
 				arm,psci-suspend-param = <0x40000004>;
-				entry-latency-us = <327>;
-				exit-latency-us = <1502>;
-				min-residency-us = <4488>;
+				entry-latency-us = <600>;
+				exit-latency-us = <1550>;
+				min-residency-us = <4791>;
 				local-timer-stop;
 			};
 		};
@@ -224,10 +224,10 @@
 			CLUSTER_SLEEP_0: cluster-sleep-0 {
 				compatible = "domain-idle-state";
 				idle-state-name = "cluster-l3-off";
-				arm,psci-suspend-param = <0x4100c344>;
-				entry-latency-us = <584>;
-				exit-latency-us = <2332>;
-				min-residency-us = <6118>;
+				arm,psci-suspend-param = <0x41000044>;
+				entry-latency-us = <1050>;
+				exit-latency-us = <2500>;
+				min-residency-us = <5309>;
 				local-timer-stop;
 			};
 
@@ -235,9 +235,9 @@
 				compatible = "domain-idle-state";
 				idle-state-name = "cluster-power-collapse";
 				arm,psci-suspend-param = <0x4100c344>;
-				entry-latency-us = <2893>;
-				exit-latency-us = <4023>;
-				min-residency-us = <9987>;
+				entry-latency-us = <2700>;
+				exit-latency-us = <3500>;
+				min-residency-us = <13959>;
 				local-timer-stop;
 			};
 		};
@@ -315,7 +315,7 @@
 
 		CLUSTER_PD: cpu-cluster0 {
 			#power-domain-cells = <0>;
-			domain-idle-states = <&CLUSTER_SLEEP_0>;
+			domain-idle-states = <&CLUSTER_SLEEP_0>, <&CLUSTER_SLEEP_1>;
 		};
 	};
 
