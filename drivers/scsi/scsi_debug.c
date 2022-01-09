@@ -4782,7 +4782,7 @@ static void sdebug_q_cmd_complete(struct sdebug_defer *sd_dp)
 		return;
 	}
 	spin_lock_irqsave(&sqp->qc_lock, iflags);
-	sd_dp->defer_t = SDEB_DEFER_NONE;
+	WRITE_ONCE(sd_dp->defer_t, SDEB_DEFER_NONE);
 	sqcp = &sqp->qc_arr[qc_idx];
 	scp = sqcp->a_cmnd;
 	if (unlikely(scp == NULL)) {
@@ -5103,8 +5103,8 @@ static bool stop_queued_cmnd(struct scsi_cmnd *cmnd)
 				sqcp->a_cmnd = NULL;
 				sd_dp = sqcp->sd_dp;
 				if (sd_dp) {
-					l_defer_t = sd_dp->defer_t;
-					sd_dp->defer_t = SDEB_DEFER_NONE;
+					l_defer_t = READ_ONCE(sd_dp->defer_t);
+					WRITE_ONCE(sd_dp->defer_t, SDEB_DEFER_NONE);
 				} else
 					l_defer_t = SDEB_DEFER_NONE;
 				spin_unlock_irqrestore(&sqp->qc_lock, iflags);
@@ -5145,8 +5145,8 @@ static void stop_all_queued(bool done_with_no_conn)
 				sqcp->a_cmnd = NULL;
 				sd_dp = sqcp->sd_dp;
 				if (sd_dp) {
-					l_defer_t = sd_dp->defer_t;
-					sd_dp->defer_t = SDEB_DEFER_NONE;
+					l_defer_t = READ_ONCE(sd_dp->defer_t);
+					WRITE_ONCE(sd_dp->defer_t, SDEB_DEFER_NONE);
 				} else
 					l_defer_t = SDEB_DEFER_NONE;
 				spin_unlock_irqrestore(&sqp->qc_lock, iflags);
@@ -5627,7 +5627,7 @@ static int schedule_resp(struct scsi_cmnd *cmnd, struct sdebug_dev_info *devip,
 				sd_dp->sqa_idx = sqp - sdebug_q_arr;
 				sd_dp->qc_idx = k;
 			}
-			sd_dp->defer_t = SDEB_DEFER_POLL;
+			WRITE_ONCE(sd_dp->defer_t, SDEB_DEFER_POLL);
 			spin_unlock_irqrestore(&sqp->qc_lock, iflags);
 		} else {
 			if (!sd_dp->init_hrt) {
@@ -5639,7 +5639,7 @@ static int schedule_resp(struct scsi_cmnd *cmnd, struct sdebug_dev_info *devip,
 				sd_dp->sqa_idx = sqp - sdebug_q_arr;
 				sd_dp->qc_idx = k;
 			}
-			sd_dp->defer_t = SDEB_DEFER_HRT;
+			WRITE_ONCE(sd_dp->defer_t, SDEB_DEFER_HRT);
 			/* schedule the invocation of scsi_done() for a later time */
 			hrtimer_start(&sd_dp->hrt, kt, HRTIMER_MODE_REL_PINNED);
 		}
@@ -5658,7 +5658,7 @@ static int schedule_resp(struct scsi_cmnd *cmnd, struct sdebug_dev_info *devip,
 				sd_dp->sqa_idx = sqp - sdebug_q_arr;
 				sd_dp->qc_idx = k;
 			}
-			sd_dp->defer_t = SDEB_DEFER_POLL;
+			WRITE_ONCE(sd_dp->defer_t, SDEB_DEFER_POLL);
 			spin_unlock_irqrestore(&sqp->qc_lock, iflags);
 		} else {
 			if (!sd_dp->init_wq) {
@@ -5668,7 +5668,7 @@ static int schedule_resp(struct scsi_cmnd *cmnd, struct sdebug_dev_info *devip,
 				sd_dp->qc_idx = k;
 				INIT_WORK(&sd_dp->ew.work, sdebug_q_cmd_wq_complete);
 			}
-			sd_dp->defer_t = SDEB_DEFER_WQ;
+			WRITE_ONCE(sd_dp->defer_t, SDEB_DEFER_WQ);
 			schedule_work(&sd_dp->ew.work);
 		}
 		if (sdebug_statistics)
@@ -7436,7 +7436,7 @@ static int sdebug_blk_mq_poll(struct Scsi_Host *shost, unsigned int queue_num)
 			       queue_num, qc_idx, __func__);
 			break;
 		}
-		if (sd_dp->defer_t == SDEB_DEFER_POLL) {
+		if (READ_ONCE(sd_dp->defer_t) == SDEB_DEFER_POLL) {
 			if (kt_from_boot < sd_dp->cmpl_ts)
 				continue;
 
@@ -7470,7 +7470,7 @@ static int sdebug_blk_mq_poll(struct Scsi_Host *shost, unsigned int queue_num)
 			else
 				atomic_set(&retired_max_queue, k + 1);
 		}
-		sd_dp->defer_t = SDEB_DEFER_NONE;
+		WRITE_ONCE(sd_dp->defer_t, SDEB_DEFER_NONE);
 		spin_unlock_irqrestore(&sqp->qc_lock, iflags);
 		scsi_done(scp); /* callback to mid level */
 		spin_lock_irqsave(&sqp->qc_lock, iflags);
