@@ -387,17 +387,24 @@ out:
 static void stop_sessions(void)
 {
 	struct ksmbd_conn *conn;
+	struct ksmbd_transport *t;
 
 again:
 	read_lock(&conn_list_lock);
 	list_for_each_entry(conn, &conn_list, conns_list) {
 		struct task_struct *task;
 
-		task = conn->transport->handler;
+		t = conn->transport;
+		task = t->handler;
 		if (task)
 			ksmbd_debug(CONN, "Stop session handler %s/%d\n",
 				    task->comm, task_pid_nr(task));
 		conn->status = KSMBD_SESS_EXITING;
+		if (t->ops->shutdown) {
+			read_unlock(&conn_list_lock);
+			t->ops->shutdown(t);
+			read_lock(&conn_list_lock);
+		}
 	}
 	read_unlock(&conn_list_lock);
 
