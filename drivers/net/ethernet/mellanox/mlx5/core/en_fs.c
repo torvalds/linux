@@ -135,7 +135,6 @@ struct mlx5_flow_table *mlx5e_vlan_get_flowtable(struct mlx5e_vlan_table *vlan)
 
 static int mlx5e_vport_context_update_vlans(struct mlx5e_priv *priv)
 {
-	struct net_device *ndev = priv->netdev;
 	int max_list_size;
 	int list_size;
 	u16 *vlans;
@@ -150,9 +149,9 @@ static int mlx5e_vport_context_update_vlans(struct mlx5e_priv *priv)
 	max_list_size = 1 << MLX5_CAP_GEN(priv->mdev, log_max_vlan_list);
 
 	if (list_size > max_list_size) {
-		netdev_warn(ndev,
-			    "netdev vlans list size (%d) > (%d) max vport list size, some vlans will be dropped\n",
-			    list_size, max_list_size);
+		mlx5_core_warn(priv->mdev,
+			       "netdev vlans list size (%d) > (%d) max vport list size, some vlans will be dropped\n",
+			       list_size, max_list_size);
 		list_size = max_list_size;
 	}
 
@@ -169,8 +168,8 @@ static int mlx5e_vport_context_update_vlans(struct mlx5e_priv *priv)
 
 	err = mlx5_modify_nic_vport_vlans(priv->mdev, vlans, list_size);
 	if (err)
-		netdev_err(ndev, "Failed to modify vport vlans list err(%d)\n",
-			   err);
+		mlx5_core_err(priv->mdev, "Failed to modify vport vlans list err(%d)\n",
+			      err);
 
 	kvfree(vlans);
 	return err;
@@ -251,7 +250,7 @@ static int __mlx5e_add_vlan_rule(struct mlx5e_priv *priv,
 	if (IS_ERR(*rule_p)) {
 		err = PTR_ERR(*rule_p);
 		*rule_p = NULL;
-		netdev_err(priv->netdev, "%s: add rule failed\n", __func__);
+		mlx5_core_err(priv->mdev, "%s: add rule failed\n", __func__);
 	}
 
 	return err;
@@ -363,8 +362,8 @@ int mlx5e_add_vlan_trap(struct mlx5e_priv *priv, int trap_id, int tir_num)
 	if (IS_ERR(rule)) {
 		err = PTR_ERR(rule);
 		priv->fs->vlan->trap_rule = NULL;
-		netdev_err(priv->netdev, "%s: add VLAN trap rule failed, err %d\n",
-			   __func__, err);
+		mlx5_core_err(priv->mdev, "%s: add VLAN trap rule failed, err %d\n",
+			      __func__, err);
 		return err;
 	}
 	priv->fs->vlan->trap_rule = rule;
@@ -389,8 +388,8 @@ int mlx5e_add_mac_trap(struct mlx5e_priv *priv, int trap_id, int tir_num)
 	if (IS_ERR(rule)) {
 		err = PTR_ERR(rule);
 		priv->fs->l2.trap_rule = NULL;
-		netdev_err(priv->netdev, "%s: add MAC trap rule failed, err %d\n",
-			   __func__, err);
+		mlx5_core_err(priv->mdev, "%s: add MAC trap rule failed, err %d\n",
+			      __func__, err);
 		return err;
 	}
 	priv->fs->l2.trap_rule = rule;
@@ -565,8 +564,8 @@ static void mlx5e_execute_l2_action(struct mlx5e_priv *priv,
 	}
 
 	if (l2_err)
-		netdev_warn(priv->netdev, "MPFS, failed to %s mac %pM, err(%d)\n",
-			    action == MLX5E_ACTION_ADD ? "add" : "del", mac_addr, l2_err);
+		mlx5_core_warn(priv->mdev, "MPFS, failed to %s mac %pM, err(%d)\n",
+			       action == MLX5E_ACTION_ADD ? "add" : "del", mac_addr, l2_err);
 }
 
 static void mlx5e_sync_netdev_addr(struct mlx5e_priv *priv)
@@ -638,9 +637,9 @@ static void mlx5e_vport_context_update_addr_list(struct mlx5e_priv *priv,
 		size++;
 
 	if (size > max_size) {
-		netdev_warn(priv->netdev,
-			    "netdev %s list size (%d) > (%d) max vport list size, some addresses will be dropped\n",
-			    is_uc ? "UC" : "MC", size, max_size);
+		mlx5_core_warn(priv->mdev,
+			       "mdev %s list size (%d) > (%d) max vport list size, some addresses will be dropped\n",
+			      is_uc ? "UC" : "MC", size, max_size);
 		size = max_size;
 	}
 
@@ -656,9 +655,9 @@ static void mlx5e_vport_context_update_addr_list(struct mlx5e_priv *priv,
 	err = mlx5_modify_nic_vport_mac_list(priv->mdev, list_type, addr_array, size);
 out:
 	if (err)
-		netdev_err(priv->netdev,
-			   "Failed to modify vport %s list err(%d)\n",
-			   is_uc ? "UC" : "MC", err);
+		mlx5_core_err(priv->mdev,
+			      "Failed to modify vport %s list err(%d)\n",
+			      is_uc ? "UC" : "MC", err);
 	kfree(addr_array);
 }
 
@@ -726,7 +725,7 @@ static int mlx5e_add_promisc_rule(struct mlx5e_priv *priv)
 	if (IS_ERR(*rule_p)) {
 		err = PTR_ERR(*rule_p);
 		*rule_p = NULL;
-		netdev_err(priv->netdev, "%s: add promiscuous rule failed\n", __func__);
+		mlx5_core_err(priv->mdev, "%s: add promiscuous rule failed\n", __func__);
 	}
 	kvfree(spec);
 	return err;
@@ -746,7 +745,7 @@ static int mlx5e_create_promisc_table(struct mlx5e_priv *priv)
 	ft->t = mlx5_create_auto_grouped_flow_table(priv->fs->ns, &ft_attr);
 	if (IS_ERR(ft->t)) {
 		err = PTR_ERR(ft->t);
-		netdev_err(priv->netdev, "fail to create promisc table err=%d\n", err);
+		mlx5_core_err(priv->mdev, "fail to create promisc table err=%d\n", err);
 		return err;
 	}
 
@@ -806,8 +805,8 @@ void mlx5e_set_rx_mode_work(struct work_struct *work)
 		if (err)
 			enable_promisc = false;
 		if (!priv->channels.params.vlan_strip_disable && !err)
-			netdev_warn_once(ndev,
-					 "S-tagged traffic will be dropped while C-tag vlan stripping is enabled\n");
+			mlx5_core_warn_once(priv->mdev,
+					    "S-tagged traffic will be dropped while C-tag vlan stripping is enabled\n");
 	}
 	if (enable_allmulti)
 		mlx5e_add_l2_flow_rule(priv, &ea->allmulti, MLX5E_ALLMULTI);
@@ -958,8 +957,8 @@ static int mlx5e_add_l2_flow_rule(struct mlx5e_priv *priv,
 
 	ai->rule = mlx5_add_flow_rules(ft, spec, &flow_act, &dest, 1);
 	if (IS_ERR(ai->rule)) {
-		netdev_err(priv->netdev, "%s: add l2 rule(mac:%pM) failed\n",
-			   __func__, mv_dmac);
+		mlx5_core_err(priv->mdev, "%s: add l2 rule(mac:%pM) failed\n",
+			      __func__, mv_dmac);
 		err = PTR_ERR(ai->rule);
 		ai->rule = NULL;
 	}
@@ -1276,37 +1275,36 @@ int mlx5e_create_flow_steering(struct mlx5e_priv *priv)
 
 	err = mlx5e_arfs_create_tables(priv);
 	if (err) {
-		netdev_err(priv->netdev, "Failed to create arfs tables, err=%d\n",
-			   err);
+		mlx5_core_err(priv->mdev, "Failed to create arfs tables, err=%d\n",
+			      err);
 		priv->netdev->hw_features &= ~NETIF_F_NTUPLE;
 	}
 
 	err = mlx5e_create_inner_ttc_table(priv);
 	if (err) {
-		netdev_err(priv->netdev,
-			   "Failed to create inner ttc table, err=%d\n",
-			   err);
+		mlx5_core_err(priv->mdev,
+			      "Failed to create inner ttc table, err=%d\n", err);
 		goto err_destroy_arfs_tables;
 	}
 
 	err = mlx5e_create_ttc_table(priv);
 	if (err) {
-		netdev_err(priv->netdev, "Failed to create ttc table, err=%d\n",
-			   err);
+		mlx5_core_err(priv->mdev, "Failed to create ttc table, err=%d\n",
+			      err);
 		goto err_destroy_inner_ttc_table;
 	}
 
 	err = mlx5e_create_l2_table(priv);
 	if (err) {
-		netdev_err(priv->netdev, "Failed to create l2 table, err=%d\n",
-			   err);
+		mlx5_core_err(priv->mdev, "Failed to create l2 table, err=%d\n",
+			      err);
 		goto err_destroy_ttc_table;
 	}
 
 	err = mlx5e_create_vlan_table(priv);
 	if (err) {
-		netdev_err(priv->netdev, "Failed to create vlan table, err=%d\n",
-			   err);
+		mlx5_core_err(priv->mdev, "Failed to create vlan table, err=%d\n",
+			      err);
 		goto err_destroy_l2_table;
 	}
 
