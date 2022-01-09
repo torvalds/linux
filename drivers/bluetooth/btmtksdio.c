@@ -816,7 +816,7 @@ static int btmtksdio_mtk_reg_read(struct hci_dev *hdev, u32 reg, u32 *val)
 
 	err = mtk_hci_wmt_sync(hdev, &wmt_params);
 	if (err < 0) {
-		bt_dev_err(hdev, "Failed to read reg(%d)", err);
+		bt_dev_err(hdev, "Failed to read reg (%d)", err);
 		return err;
 	}
 
