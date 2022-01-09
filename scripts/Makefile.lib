@@ -394,6 +394,9 @@ printf "%08x\n" $$dec_size |						\
 	}								\
 )
 
+quiet_cmd_file_size = GEN     $@
+      cmd_file_size = $(size_append) > $@
+
 quiet_cmd_bzip2 = BZIP2   $@
       cmd_bzip2 = cat $(real-prereqs) | $(KBZIP2) -9 > $@
 
