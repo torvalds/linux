@@ -7694,19 +7694,6 @@ static void __bnxt_map_fw_health_reg(struct bnxt *bp, u32 reg)
 					 BNXT_FW_HEALTH_WIN_MAP_OFF);
 }
 
-bool bnxt_is_fw_healthy(struct bnxt *bp)
-{
-	if (bp->fw_health && bp->fw_health->status_reliable) {
-		u32 fw_status;
-
-		fw_status = bnxt_fw_health_readl(bp, BNXT_FW_HEALTH_REG);
-		if (fw_status && !BNXT_FW_IS_HEALTHY(fw_status))
-			return false;
-	}
-
-	return true;
-}
-
 static void bnxt_inv_fw_health_reg(struct bnxt *bp)
 {
 	struct bnxt_fw_health *fw_health = bp->fw_health;

@@ -444,6 +444,18 @@ static void hwrm_req_dbg(struct bnxt *bp, struct input *req)
 			netdev_err((bp)->dev, fmt, __VA_ARGS__);       \
 	} while (0)
 
+static bool hwrm_wait_must_abort(struct bnxt *bp, u32 req_type, u32 *fw_status)
+{
+	if (req_type == HWRM_VER_GET)
+		return false;
+
+	if (!bp->fw_health || !bp->fw_health->status_reliable)
+		return false;
+
+	*fw_status = bnxt_fw_health_readl(bp, BNXT_FW_HEALTH_REG);
+	return *fw_status && !BNXT_FW_IS_HEALTHY(*fw_status);
+}
+
 static int __hwrm_send(struct bnxt *bp, struct bnxt_hwrm_ctx *ctx)
 {
 	u32 doorbell_offset = BNXT_GRCPF_REG_CHIMP_COMM_TRIGGER;
@@ -455,8 +467,8 @@ static int __hwrm_send(struct bnxt *bp, struct bnxt_hwrm_ctx *ctx)
 	unsigned int i, timeout, tmo_count;
 	u32 *data = (u32 *)ctx->req;
 	u32 msg_len = ctx->req_len;
+	u32 req_type, sts;
 	int rc = -EBUSY;
-	u32 req_type;
 	u16 len = 0;
 	u8 *valid;
 
@@ -556,8 +568,11 @@ static int __hwrm_send(struct bnxt *bp, struct bnxt_hwrm_ctx *ctx)
 				usleep_range(HWRM_SHORT_MIN_TIMEOUT,
 					     HWRM_SHORT_MAX_TIMEOUT);
 			} else {
-				if (HWRM_WAIT_MUST_ABORT(bp, ctx))
-					break;
+				if (hwrm_wait_must_abort(bp, req_type, &sts)) {
+					hwrm_err(bp, ctx, "Resp cmpl intr abandoning msg: 0x%x due to firmware status: 0x%x\n",
+						 req_type, sts);
+					goto exit;
+				}
 				usleep_range(HWRM_MIN_TIMEOUT,
 					     HWRM_MAX_TIMEOUT);
 			}
@@ -608,15 +623,19 @@ static int __hwrm_send(struct bnxt *bp, struct bnxt_hwrm_ctx *ctx)
 				usleep_range(HWRM_SHORT_MIN_TIMEOUT,
 					     HWRM_SHORT_MAX_TIMEOUT);
 			} else {
-				if (HWRM_WAIT_MUST_ABORT(bp, ctx))
-					goto timeout_abort;
+				if (hwrm_wait_must_abort(bp, req_type, &sts)) {
+					hwrm_err(bp, ctx, "Abandoning msg {0x%x 0x%x} len: %d due to firmware status: 0x%x\n",
+						 req_type,
+						 le16_to_cpu(ctx->req->seq_id),
+						 len, sts);
+					goto exit;
+				}
 				usleep_range(HWRM_MIN_TIMEOUT,
 					     HWRM_MAX_TIMEOUT);
 			}
 		}
 
 		if (i >= tmo_count) {
-timeout_abort:
 			hwrm_err(bp, ctx, "Error (timeout: %u) msg {0x%x 0x%x} len:%d\n",
 				 hwrm_total_timeout(i), req_type,
 				 le16_to_cpu(ctx->req->seq_id), len);

@@ -82,10 +82,6 @@ void hwrm_update_token(struct bnxt *bp, u16 seq, enum bnxt_hwrm_wait_state s);
 #define HWRM_MIN_TIMEOUT		25
 #define HWRM_MAX_TIMEOUT		40
 
-#define HWRM_WAIT_MUST_ABORT(bp, ctx)					\
-	(le16_to_cpu((ctx)->req->req_type) != HWRM_VER_GET &&		\
-	 !bnxt_is_fw_healthy(bp))
-
 static inline unsigned int hwrm_total_timeout(unsigned int n)
 {
 	return n <= HWRM_SHORT_TIMEOUT_COUNTER ? n * HWRM_SHORT_MIN_TIMEOUT :
