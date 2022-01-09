@@ -2899,7 +2899,6 @@ static int cxgb4vf_pci_probe(struct pci_dev *pdev,
 	struct net_device *netdev;
 	struct port_info *pi;
 	unsigned int pmask;
-	int pci_using_dac;
 	int err, pidx;
 
 	/*
@@ -2920,19 +2919,12 @@ static int cxgb4vf_pci_probe(struct pci_dev *pdev,
 	}
 
 	/*
-	 * Set up our DMA mask: try for 64-bit address masking first and
-	 * fall back to 32-bit if we can't get 64 bits ...
+	 * Set up our DMA mask
 	 */
 	err = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64));
-	if (err == 0) {
-		pci_using_dac = 1;
-	} else {
-		err = dma_set_mask(&pdev->dev, DMA_BIT_MASK(32));
-		if (err != 0) {
-			dev_err(&pdev->dev, "no usable DMA configuration\n");
-			goto err_release_regions;
-		}
-		pci_using_dac = 0;
+	if (err) {
+		dev_err(&pdev->dev, "no usable DMA configuration\n");
+		goto err_release_regions;
 	}
 
 	/*
@@ -3078,9 +3070,7 @@ static int cxgb4vf_pci_probe(struct pci_dev *pdev,
 		netdev->hw_features = NETIF_F_SG | TSO_FLAGS | NETIF_F_GRO |
 			NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM | NETIF_F_RXCSUM |
 			NETIF_F_HW_VLAN_CTAG_TX | NETIF_F_HW_VLAN_CTAG_RX;
-		netdev->features = netdev->hw_features;
-		if (pci_using_dac)
-			netdev->features |= NETIF_F_HIGHDMA;
+		netdev->features = netdev->hw_features | NETIF_F_HIGHDMA;
 		netdev->vlan_features = netdev->features & VLAN_FEAT;
 
 		netdev->priv_flags |= IFF_UNICAST_FLT;
