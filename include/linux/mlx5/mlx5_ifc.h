@@ -64,13 +64,6 @@ enum {
 };
 
 enum {
-	MLX5_MODIFY_TIR_BITMASK_LRO                   = 0x0,
-	MLX5_MODIFY_TIR_BITMASK_INDIRECT_TABLE        = 0x1,
-	MLX5_MODIFY_TIR_BITMASK_HASH                  = 0x2,
-	MLX5_MODIFY_TIR_BITMASK_TUNNELED_OFFLOAD_EN   = 0x3
-};
-
-enum {
 	MLX5_SET_HCA_CAP_OP_MOD_GENERAL_DEVICE        = 0x0,
 	MLX5_SET_HCA_CAP_OP_MOD_ODP                   = 0x2,
 	MLX5_SET_HCA_CAP_OP_MOD_ATOMIC                = 0x3,
