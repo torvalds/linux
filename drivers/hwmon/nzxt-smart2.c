@@ -583,7 +583,7 @@ static int set_update_interval(struct drvdata *drvdata, long val)
 static int init_device(struct drvdata *drvdata, long update_interval)
 {
 	int ret;
-	u8 detect_fans_report[] = {
+	static const u8 detect_fans_report[] = {
 		OUTPUT_REPORT_ID_INIT_COMMAND,
 		INIT_COMMAND_DETECT_FANS,
 	};
