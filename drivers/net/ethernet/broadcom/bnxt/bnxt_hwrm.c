@@ -416,6 +416,32 @@ hwrm_update_token(struct bnxt *bp, u16 seq_id, enum bnxt_hwrm_wait_state state)
 	netdev_err(bp->dev, "Invalid hwrm seq id %d\n", seq_id);
 }
 
+static void hwrm_req_dbg(struct bnxt *bp, struct input *req)
+{
+	u32 ring = le16_to_cpu(req->cmpl_ring);
+	u32 type = le16_to_cpu(req->req_type);
+	u32 tgt = le16_to_cpu(req->target_id);
+	u32 seq = le16_to_cpu(req->seq_id);
+	char opt[32] = "\n";
+
+	if (unlikely(ring != (u16)BNXT_HWRM_NO_CMPL_RING))
+		snprintf(opt, 16, " ring %d\n", ring);
+
+	if (unlikely(tgt != BNXT_HWRM_TARGET))
+		snprintf(opt + strlen(opt) - 1, 16, " tgt 0x%x\n", tgt);
+
+	netdev_dbg(bp->dev, "sent hwrm req_type 0x%x seq id 0x%x%s",
+		   type, seq, opt);
+}
+
+#define hwrm_err(bp, ctx, fmt, ...)				       \
+	do {							       \
+		if ((ctx)->flags & BNXT_HWRM_CTX_SILENT)	       \
+			netdev_dbg((bp)->dev, fmt, __VA_ARGS__);       \
+		else						       \
+			netdev_err((bp)->dev, fmt, __VA_ARGS__);       \
+	} while (0)
+
 static int __hwrm_send(struct bnxt *bp, struct bnxt_hwrm_ctx *ctx)
 {
 	u32 doorbell_offset = BNXT_GRCPF_REG_CHIMP_COMM_TRIGGER;
@@ -436,8 +462,11 @@ static int __hwrm_send(struct bnxt *bp, struct bnxt_hwrm_ctx *ctx)
 		memset(ctx->resp, 0, PAGE_SIZE);
 
 	req_type = le16_to_cpu(ctx->req->req_type);
-	if (BNXT_NO_FW_ACCESS(bp) && req_type != HWRM_FUNC_RESET)
+	if (BNXT_NO_FW_ACCESS(bp) && req_type != HWRM_FUNC_RESET) {
+		netdev_dbg(bp->dev, "hwrm req_type 0x%x skipped, FW channel down\n",
+			   req_type);
 		goto exit;
+	}
 
 	if (msg_len > BNXT_HWRM_MAX_REQ_LEN &&
 	    msg_len > bp->hwrm_max_ext_req_len) {
@@ -490,6 +519,8 @@ static int __hwrm_send(struct bnxt *bp, struct bnxt_hwrm_ctx *ctx)
 	/* Ring channel doorbell */
 	writel(1, bp->bar0 + doorbell_offset);
 
+	hwrm_req_dbg(bp, ctx->req);
+
 	if (!pci_is_enabled(bp->pdev)) {
 		rc = -ENODEV;
 		goto exit;
@@ -531,9 +562,8 @@ static int __hwrm_send(struct bnxt *bp, struct bnxt_hwrm_ctx *ctx)
 		}
 
 		if (READ_ONCE(token->state) != BNXT_HWRM_COMPLETE) {
-			if (!(ctx->flags & BNXT_HWRM_CTX_SILENT))
-				netdev_err(bp->dev, "Resp cmpl intr err msg: 0x%x\n",
-					   le16_to_cpu(ctx->req->req_type));
+			hwrm_err(bp, ctx, "Resp cmpl intr err msg: 0x%x\n",
+				 req_type);
 			goto exit;
 		}
 		len = le16_to_cpu(READ_ONCE(ctx->resp->resp_len));
@@ -565,7 +595,7 @@ static int __hwrm_send(struct bnxt *bp, struct bnxt_hwrm_ctx *ctx)
 				if (resp_seq != seen_out_of_seq) {
 					netdev_warn(bp->dev, "Discarding out of seq response: 0x%x for msg {0x%x 0x%x}\n",
 						    le16_to_cpu(resp_seq),
-						    le16_to_cpu(ctx->req->req_type),
+						    req_type,
 						    le16_to_cpu(ctx->req->seq_id));
 					seen_out_of_seq = resp_seq;
 				}
@@ -585,11 +615,9 @@ static int __hwrm_send(struct bnxt *bp, struct bnxt_hwrm_ctx *ctx)
 
 		if (i >= tmo_count) {
 timeout_abort:
-			if (!(ctx->flags & BNXT_HWRM_CTX_SILENT))
-				netdev_err(bp->dev, "Error (timeout: %u) msg {0x%x 0x%x} len:%d\n",
-					   hwrm_total_timeout(i),
-					   le16_to_cpu(ctx->req->req_type),
-					   le16_to_cpu(ctx->req->seq_id), len);
+			hwrm_err(bp, ctx, "Error (timeout: %u) msg {0x%x 0x%x} len:%d\n",
+				 hwrm_total_timeout(i), req_type,
+				 le16_to_cpu(ctx->req->seq_id), len);
 			goto exit;
 		}
 
@@ -604,12 +632,9 @@ timeout_abort:
 		}
 
 		if (j >= HWRM_VALID_BIT_DELAY_USEC) {
-			if (!(ctx->flags & BNXT_HWRM_CTX_SILENT))
-				netdev_err(bp->dev, "Error (timeout: %u) msg {0x%x 0x%x} len:%d v:%d\n",
-					   hwrm_total_timeout(i),
-					   le16_to_cpu(ctx->req->req_type),
-					   le16_to_cpu(ctx->req->seq_id), len,
-					   *valid);
+			hwrm_err(bp, ctx, "Error (timeout: %u) msg {0x%x 0x%x} len:%d v:%d\n",
+				 hwrm_total_timeout(i), req_type,
+				 le16_to_cpu(ctx->req->seq_id), len, *valid);
 			goto exit;
 		}
 	}
@@ -620,11 +645,12 @@ timeout_abort:
 	 */
 	*valid = 0;
 	rc = le16_to_cpu(ctx->resp->error_code);
-	if (rc && !(ctx->flags & BNXT_HWRM_CTX_SILENT)) {
-		netdev_err(bp->dev, "hwrm req_type 0x%x seq id 0x%x error 0x%x\n",
-			   le16_to_cpu(ctx->resp->req_type),
-			   le16_to_cpu(ctx->resp->seq_id), rc);
-	}
+	if (rc == HWRM_ERR_CODE_BUSY && !(ctx->flags & BNXT_HWRM_CTX_SILENT))
+		netdev_warn(bp->dev, "FW returned busy, hwrm req_type 0x%x\n",
+			    req_type);
+	else if (rc)
+		hwrm_err(bp, ctx, "hwrm req_type 0x%x seq id 0x%x error 0x%x\n",
+			 req_type, token->seq_id, rc);
 	rc = __hwrm_to_stderr(rc);
 exit:
 	if (token)
