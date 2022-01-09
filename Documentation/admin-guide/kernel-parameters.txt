@@ -962,6 +962,12 @@
 			[HW] Allow controlling fans only if SYS_ADMIN
 			capability is set.
 
+	dell_smm_hwmon.fan_mult=
+			[HW] Factor to multiply fan speed with.
+
+	dell_smm_hwmon.fan_max=
+			[HW] Maximum configurable fan speed.
+
 	dfltcc=		[HW,S390]
 			Format: { on | off | def_only | inf_only | always }
 			on:       s390 zlib hardware support for compression on
