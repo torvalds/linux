@@ -8259,6 +8259,7 @@ EXPORT_SYMBOL_GPL(nf_tables_trans_destroy_flush_work);
 static int nf_tables_commit_chain_prepare(struct net *net, struct nft_chain *chain)
 {
 	const struct nft_expr *expr, *last;
+	struct nft_regs_track track = {};
 	unsigned int size, data_size;
 	void *data, *data_boundary;
 	struct nft_rule_dp *prule;
@@ -8298,7 +8299,17 @@ static int nf_tables_commit_chain_prepare(struct net *net, struct nft_chain *cha
 		if (WARN_ON_ONCE(data > data_boundary))
 			return -ENOMEM;
 
+		size = 0;
+		track.last = last;
 		nft_rule_for_each_expr(expr, last, rule) {
+			track.cur = expr;
+
+			if (expr->ops->reduce &&
+			    expr->ops->reduce(&track, expr)) {
+				expr = track.cur;
+				continue;
+			}
+
 			if (WARN_ON_ONCE(data + expr->ops->size > data_boundary))
 				return -ENOMEM;
 
