@@ -174,7 +174,7 @@ static const char *sdebug_version_date = "20200710";
 #define SDEBUG_OPT_MAC_TIMEOUT		128
 #define SDEBUG_OPT_SHORT_TRANSFER	0x100
 #define SDEBUG_OPT_Q_NOISE		0x200
-#define SDEBUG_OPT_ALL_TSF		0x400
+#define SDEBUG_OPT_ALL_TSF		0x400	/* ignore */
 #define SDEBUG_OPT_RARE_TSF		0x800
 #define SDEBUG_OPT_N_WCE		0x1000
 #define SDEBUG_OPT_RESET_NOISE		0x2000
@@ -861,7 +861,7 @@ static const int illegal_condition_result =
 	(DID_ABORT << 16) | SAM_STAT_CHECK_CONDITION;
 
 static const int device_qfull_result =
-	(DID_OK << 16) | SAM_STAT_TASK_SET_FULL;
+	(DID_ABORT << 16) | SAM_STAT_TASK_SET_FULL;
 
 static const int condition_met_result = SAM_STAT_CONDITION_MET;
 
@@ -5521,18 +5521,11 @@ static int schedule_resp(struct scsi_cmnd *cmnd, struct sdebug_dev_info *devip,
 		spin_unlock_irqrestore(&sqp->qc_lock, iflags);
 		if (scsi_result)
 			goto respond_in_thread;
-		else if (SDEBUG_OPT_ALL_TSF & sdebug_opts)
-			scsi_result = device_qfull_result;
+		scsi_result = device_qfull_result;
 		if (SDEBUG_OPT_Q_NOISE & sdebug_opts)
-			sdev_printk(KERN_INFO, sdp,
-				    "%s: max_queue=%d exceeded, %s\n",
-				    __func__, sdebug_max_queue,
-				    (scsi_result ?  "status: TASK SET FULL" :
-						    "report: host busy"));
-		if (scsi_result)
-			goto respond_in_thread;
-		else
-			return SCSI_MLQUEUE_HOST_BUSY;
+			sdev_printk(KERN_INFO, sdp, "%s: max_queue=%d exceeded: TASK SET FULL\n",
+				    __func__, sdebug_max_queue);
+		goto respond_in_thread;
 	}
 	set_bit(k, sqp->in_use_bm);
 	atomic_inc(&devip->num_in_q);
