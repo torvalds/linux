@@ -522,7 +522,7 @@ static int bch2_snapshot_node_create(struct btree_trans *trans, u32 parent,
 		n = bch2_trans_kmalloc(trans, sizeof(*n));
 		ret = PTR_ERR_OR_ZERO(n);
 		if (ret)
-			return ret;
+			goto err;
 
 		bkey_reassemble(&n->k_i, k);
 
