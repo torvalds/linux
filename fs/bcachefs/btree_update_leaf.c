@@ -1181,10 +1181,10 @@ static noinline int extent_back_merge(struct btree_trans *trans,
 	return 0;
 }
 
-static int bch2_trans_update_extent(struct btree_trans *trans,
-				    struct btree_iter *orig_iter,
-				    struct bkey_i *insert,
-				    enum btree_update_flags flags)
+int bch2_trans_update_extent(struct btree_trans *trans,
+			     struct btree_iter *orig_iter,
+			     struct bkey_i *insert,
+			     enum btree_update_flags flags)
 {
 	struct btree_iter iter, update_iter;
 	struct bpos start = bkey_start_pos(&insert->k);
@@ -1308,13 +1308,9 @@ static int bch2_trans_update_extent(struct btree_trans *trans,
 			bkey_reassemble(update, k);
 			bch2_cut_front(insert->k.p, update);
 
-			bch2_trans_copy_iter(&update_iter, &iter);
-			update_iter.pos = update->k.p;
-			ret   = bch2_trans_update(trans, &update_iter, update,
+			ret = bch2_trans_update_by_path(trans, iter.path, update,
 						  BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE|
 						  flags);
-			bch2_trans_iter_exit(trans, &update_iter);
-
 			if (ret)
 				goto err;
 			goto out;
@@ -1385,26 +1381,23 @@ static int need_whiteout_for_snapshot(struct btree_trans *trans,
 	return ret;
 }
 
-int __must_check bch2_trans_update(struct btree_trans *trans, struct btree_iter *iter,
+int __must_check bch2_trans_update_by_path(struct btree_trans *trans, struct btree_path *path,
 				   struct bkey_i *k, enum btree_update_flags flags)
 {
 	struct btree_insert_entry *i, n;
 
-	BUG_ON(!iter->path->should_be_locked);
-
-	if (iter->flags & BTREE_ITER_IS_EXTENTS)
-		return bch2_trans_update_extent(trans, iter, k, flags);
+	BUG_ON(!path->should_be_locked);
 
 	BUG_ON(trans->nr_updates >= BTREE_ITER_MAX);
-	BUG_ON(bpos_cmp(k->k.p, iter->path->pos));
+	BUG_ON(bpos_cmp(k->k.p, path->pos));
 
 	n = (struct btree_insert_entry) {
 		.flags		= flags,
-		.bkey_type	= __btree_node_type(iter->path->level, iter->btree_id),
-		.btree_id	= iter->btree_id,
-		.level		= iter->path->level,
-		.cached		= iter->flags & BTREE_ITER_CACHED,
-		.path		= iter->path,
+		.bkey_type	= __btree_node_type(path->level, path->btree_id),
+		.btree_id	= path->btree_id,
+		.level		= path->level,
+		.cached		= path->cached,
+		.path		= path,
 		.k		= k,
 		.ip_allocated	= _RET_IP_,
 	};
@@ -1414,16 +1407,6 @@ int __must_check bch2_trans_update(struct btree_trans *trans, struct btree_iter 
 		BUG_ON(i != trans->updates &&
 		       btree_insert_entry_cmp(i - 1, i) >= 0);
 #endif
-
-	if (bkey_deleted(&n.k->k) &&
-	    (iter->flags & BTREE_ITER_FILTER_SNAPSHOTS)) {
-		int ret = need_whiteout_for_snapshot(trans, n.btree_id, n.k->k.p);
-		if (unlikely(ret < 0))
-			return ret;
-
-		if (ret)
-			n.k->k.type = KEY_TYPE_whiteout;
-	}
 
 	/*
 	 * Pending updates are kept sorted: first, find position of new update,
@@ -1455,8 +1438,27 @@ int __must_check bch2_trans_update(struct btree_trans *trans, struct btree_iter 
 				  i - trans->updates, n);
 
 	__btree_path_get(n.path, true);
-
 	return 0;
+}
+
+int __must_check bch2_trans_update(struct btree_trans *trans, struct btree_iter *iter,
+				   struct bkey_i *k, enum btree_update_flags flags)
+{
+	if (iter->flags & BTREE_ITER_IS_EXTENTS)
+		return bch2_trans_update_extent(trans, iter, k, flags);
+
+	if (bkey_deleted(&k->k) &&
+	    (iter->flags & BTREE_ITER_FILTER_SNAPSHOTS)) {
+		int ret = need_whiteout_for_snapshot(trans, iter->btree_id, k->k.p);
+		if (unlikely(ret < 0))
+			return ret;
+
+		if (ret)
+			k->k.type = KEY_TYPE_whiteout;
+	}
+
+	return bch2_trans_update_by_path(trans, iter->update_path ?: iter->path,
+					 k, flags);
 }
 
 void bch2_trans_commit_hook(struct btree_trans *trans,

@@ -258,6 +258,11 @@ static inline void __bch2_btree_iter_set_pos(struct btree_iter *iter, struct bpo
 
 static inline void bch2_btree_iter_set_pos(struct btree_iter *iter, struct bpos new_pos)
 {
+	if (unlikely(iter->update_path))
+		bch2_path_put(iter->trans, iter->update_path,
+			      iter->flags & BTREE_ITER_INTENT);
+	iter->update_path = NULL;
+
 	if (!(iter->flags & BTREE_ITER_ALL_SNAPSHOTS))
 		new_pos.snapshot = iter->snapshot;
 

@@ -276,6 +276,7 @@ static inline struct btree_path_level *path_l(struct btree_path *path)
 struct btree_iter {
 	struct btree_trans	*trans;
 	struct btree_path	*path;
+	struct btree_path	*update_path;
 
 	enum btree_id		btree_id:4;
 	unsigned		min_depth:4;
