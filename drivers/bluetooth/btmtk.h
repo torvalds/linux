@@ -7,7 +7,11 @@
 
 #define HCI_WMT_MAX_EVENT_SIZE		64
 
+#define BTMTK_WMT_REG_WRITE 0x1
 #define BTMTK_WMT_REG_READ 0x2
+
+#define MT7921_PINMUX_0 0x70005050
+#define MT7921_PINMUX_1 0x70005054
 
 enum {
 	BTMTK_WMT_PATCH_DWNLD = 0x1,
@@ -74,6 +78,22 @@ struct btmtk_wakeon {
 	u8 active_high;
 	__le16 enable_delay;
 	__le16 wakeup_delay;
+} __packed;
+
+struct btmtk_sco {
+	u8 clock_config;
+	u8 transmit_format_config;
+	u8 channel_format_config;
+	u8 channel_select_config;
+} __packed;
+
+struct reg_write_cmd {
+	u8 type;
+	u8 rsv;
+	u8 num;
+	__le32 addr;
+	__le32 data;
+	__le32 mask;
 } __packed;
 
 struct btmtk_hci_wmt_params {
