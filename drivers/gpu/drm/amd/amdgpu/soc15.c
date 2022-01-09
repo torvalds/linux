@@ -1097,7 +1097,8 @@ static int soc15_common_early_init(void *handle)
 		adev->asic_funcs = &vega20_asic_funcs;
 		adev->cg_flags =
 			AMD_CG_SUPPORT_JPEG_MGCG;
-		adev->pg_flags = 0;
+		adev->pg_flags =
+			AMD_PG_SUPPORT_JPEG;
 		break;
 	default:
 		/* FIXME: not supported yet */
