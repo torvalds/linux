@@ -276,9 +276,6 @@ static inline void compound_next(unsigned long i, unsigned long npages,
 	struct page *page;
 	unsigned int nr;
 
-	if (i >= npages)
-		return;
-
 	page = compound_head(list[i]);
 	for (nr = i + 1; nr < npages; nr++) {
 		if (compound_head(list[nr]) != page)
@@ -288,12 +285,6 @@ static inline void compound_next(unsigned long i, unsigned long npages,
 	*head = page;
 	*ntails = nr - i;
 }
-
-#define for_each_compound_head(__i, __list, __npages, __head, __ntails) \
-	for (__i = 0, \
-	     compound_next(__i, __npages, __list, &(__head), &(__ntails)); \
-	     __i < __npages; __i += __ntails, \
-	     compound_next(__i, __npages, __list, &(__head), &(__ntails)))
 
 /**
  * unpin_user_pages_dirty_lock() - release and optionally dirty gup-pinned pages
@@ -329,7 +320,8 @@ void unpin_user_pages_dirty_lock(struct page **pages, unsigned long npages,
 		return;
 	}
 
-	for_each_compound_head(index, pages, npages, head, ntails) {
+	for (index = 0; index < npages; index += ntails) {
+		compound_next(index, npages, pages, &head, &ntails);
 		/*
 		 * Checking PageDirty at this point may race with
 		 * clear_page_dirty_for_io(), but that's OK. Two key
@@ -417,8 +409,10 @@ void unpin_user_pages(struct page **pages, unsigned long npages)
 	if (WARN_ON(IS_ERR_VALUE(npages)))
 		return;
 
-	for_each_compound_head(index, pages, npages, head, ntails)
+	for (index = 0; index < npages; index += ntails) {
+		compound_next(index, npages, pages, &head, &ntails);
 		put_compound_head(head, ntails, FOLL_PIN);
+	}
 }
 EXPORT_SYMBOL(unpin_user_pages);
 
