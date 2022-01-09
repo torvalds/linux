@@ -382,7 +382,7 @@ validate_vp9_seg_params(struct v4l2_vp9_segmentation *seg)
 	}
 
 	for (i = 0; i < ARRAY_SIZE(seg->feature_data); i++) {
-		const int range[] = { 255, 63, 3, 0 };
+		static const int range[] = { 255, 63, 3, 0 };
 
 		for (j = 0; j < ARRAY_SIZE(seg->feature_data[j]); j++) {
 			if (seg->feature_data[i][j] < -range[j] ||
