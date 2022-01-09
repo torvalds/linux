@@ -697,9 +697,6 @@ static void bch2_btree_iter_verify(struct btree_iter *iter)
 
 	BUG_ON(!!(iter->flags & BTREE_ITER_CACHED) != iter->path->cached);
 
-	BUG_ON(!(iter->flags & BTREE_ITER_ALL_SNAPSHOTS) &&
-	       iter->pos.snapshot != iter->snapshot);
-
 	BUG_ON((iter->flags & BTREE_ITER_IS_EXTENTS) &&
 	       (iter->flags & BTREE_ITER_ALL_SNAPSHOTS));
 
@@ -2252,21 +2249,15 @@ struct bkey_s_c btree_trans_peek_journal(struct btree_trans *trans,
 	return k;
 }
 
-/**
- * bch2_btree_iter_peek: returns first key greater than or equal to iterator's
- * current position
- */
-struct bkey_s_c bch2_btree_iter_peek(struct btree_iter *iter)
+static struct bkey_s_c __bch2_btree_iter_peek(struct btree_iter *iter, struct bpos search_key)
 {
 	struct btree_trans *trans = iter->trans;
-	struct bpos search_key = btree_iter_search_key(iter);
 	struct bkey_i *next_update;
 	struct bkey_s_c k;
 	int ret;
 
 	EBUG_ON(iter->path->cached || iter->path->level);
 	bch2_btree_iter_verify(iter);
-	bch2_btree_iter_verify_entry_exit(iter);
 
 	while (1) {
 		iter->path = btree_path_set_pos(trans, iter->path, search_key,
@@ -2309,24 +2300,6 @@ struct bkey_s_c bch2_btree_iter_peek(struct btree_iter *iter)
 		}
 
 		if (likely(k.k)) {
-			/*
-			 * We can never have a key in a leaf node at POS_MAX, so
-			 * we don't have to check these successor() calls:
-			 */
-			if ((iter->flags & BTREE_ITER_FILTER_SNAPSHOTS) &&
-			    !bch2_snapshot_is_ancestor(trans->c,
-						       iter->snapshot,
-						       k.k->p.snapshot)) {
-				search_key = bpos_successor(k.k->p);
-				continue;
-			}
-
-			if (bkey_whiteout(k.k) &&
-			    !(iter->flags & BTREE_ITER_ALL_SNAPSHOTS)) {
-				search_key = bkey_successor(iter, k.k->p);
-				continue;
-			}
-
 			break;
 		} else if (likely(bpos_cmp(iter->path->l[0].b->key.k.p, SPOS_MAX))) {
 			/* Advance to next leaf node: */
@@ -2339,6 +2312,56 @@ struct bkey_s_c bch2_btree_iter_peek(struct btree_iter *iter)
 		}
 	}
 
+	iter->path = btree_path_set_pos(trans, iter->path, k.k->p,
+				iter->flags & BTREE_ITER_INTENT);
+	BUG_ON(!iter->path->nodes_locked);
+out:
+	iter->path->should_be_locked = true;
+
+	bch2_btree_iter_verify(iter);
+
+	return k;
+}
+
+/**
+ * bch2_btree_iter_peek: returns first key greater than or equal to iterator's
+ * current position
+ */
+struct bkey_s_c bch2_btree_iter_peek(struct btree_iter *iter)
+{
+	struct btree_trans *trans = iter->trans;
+	struct bpos search_key = btree_iter_search_key(iter);
+	struct bkey_s_c k;
+	int ret;
+
+	bch2_btree_iter_verify_entry_exit(iter);
+
+	while (1) {
+		k = __bch2_btree_iter_peek(iter, search_key);
+		if (!k.k || bkey_err(k))
+			goto out;
+
+		/*
+		 * We can never have a key in a leaf node at POS_MAX, so
+		 * we don't have to check these successor() calls:
+		 */
+		if ((iter->flags & BTREE_ITER_FILTER_SNAPSHOTS) &&
+		    !bch2_snapshot_is_ancestor(trans->c,
+					       iter->snapshot,
+					       k.k->p.snapshot)) {
+			search_key = bpos_successor(k.k->p);
+			continue;
+		}
+
+		if (bkey_whiteout(k.k) &&
+		    !(iter->flags & BTREE_ITER_ALL_SNAPSHOTS)) {
+			search_key = bkey_successor(iter, k.k->p);
+			continue;
+		}
+
+		break;
+	}
+
 	/*
 	 * iter->pos should be mononotically increasing, and always be equal to
 	 * the key we just returned - except extents can straddle iter->pos:
@@ -2347,21 +2370,17 @@ struct bkey_s_c bch2_btree_iter_peek(struct btree_iter *iter)
 		iter->pos = k.k->p;
 	else if (bkey_cmp(bkey_start_pos(k.k), iter->pos) > 0)
 		iter->pos = bkey_start_pos(k.k);
-
-	if (iter->flags & BTREE_ITER_FILTER_SNAPSHOTS)
+out:
+	if (!(iter->flags & BTREE_ITER_ALL_SNAPSHOTS))
 		iter->pos.snapshot = iter->snapshot;
 
-	iter->path = btree_path_set_pos(trans, iter->path, k.k->p,
-				iter->flags & BTREE_ITER_INTENT);
-	BUG_ON(!iter->path->nodes_locked);
-out:
-	iter->path->should_be_locked = true;
+	ret = bch2_btree_iter_verify_ret(iter, k);
+	if (unlikely(ret)) {
+		bch2_btree_iter_set_pos(iter, iter->pos);
+		k = bkey_s_c_err(ret);
+	}
 
 	bch2_btree_iter_verify_entry_exit(iter);
-	bch2_btree_iter_verify(iter);
-	ret = bch2_btree_iter_verify_ret(iter, k);
-	if (unlikely(ret))
-		return bkey_s_c_err(ret);
 
 	return k;
 }

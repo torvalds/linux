@@ -247,16 +247,21 @@ struct bkey_s_c bch2_btree_iter_prev_slot(struct btree_iter *);
 bool bch2_btree_iter_advance(struct btree_iter *);
 bool bch2_btree_iter_rewind(struct btree_iter *);
 
-static inline void bch2_btree_iter_set_pos(struct btree_iter *iter, struct bpos new_pos)
+static inline void __bch2_btree_iter_set_pos(struct btree_iter *iter, struct bpos new_pos)
 {
-	if (!(iter->flags & BTREE_ITER_ALL_SNAPSHOTS))
-		new_pos.snapshot = iter->snapshot;
-
 	iter->k.type = KEY_TYPE_deleted;
 	iter->k.p.inode		= iter->pos.inode	= new_pos.inode;
 	iter->k.p.offset	= iter->pos.offset	= new_pos.offset;
 	iter->k.p.snapshot	= iter->pos.snapshot	= new_pos.snapshot;
 	iter->k.size = 0;
+}
+
+static inline void bch2_btree_iter_set_pos(struct btree_iter *iter, struct bpos new_pos)
+{
+	if (!(iter->flags & BTREE_ITER_ALL_SNAPSHOTS))
+		new_pos.snapshot = iter->snapshot;
+
+	__bch2_btree_iter_set_pos(iter, new_pos);
 }
 
 static inline void bch2_btree_iter_set_pos_to_extent_start(struct btree_iter *iter)
@@ -320,7 +325,7 @@ static inline int bkey_err(struct bkey_s_c k)
 	return PTR_ERR_OR_ZERO(k.k);
 }
 
-static inline struct bkey_s_c __bch2_btree_iter_peek(struct btree_iter *iter,
+static inline struct bkey_s_c bch2_btree_iter_peek_type(struct btree_iter *iter,
 						     unsigned flags)
 {
 	return flags & BTREE_ITER_SLOTS
@@ -341,7 +346,7 @@ __bch2_btree_iter_peek_and_restart(struct btree_trans *trans,
 	struct bkey_s_c k;
 
 	while (btree_trans_too_many_iters(trans) ||
-	       (k = __bch2_btree_iter_peek(iter, flags),
+	       (k = bch2_btree_iter_peek_type(iter, flags),
 		bkey_err(k) == -EINTR))
 		bch2_trans_begin(trans);
 
@@ -360,7 +365,7 @@ __bch2_btree_iter_peek_and_restart(struct btree_trans *trans,
 			   _start, _flags, _k, _ret)			\
 	for (bch2_trans_iter_init((_trans), &(_iter), (_btree_id),	\
 				  (_start), (_flags));			\
-	     (_k) = __bch2_btree_iter_peek(&(_iter), _flags),		\
+	     (_k) = bch2_btree_iter_peek_type(&(_iter), _flags),	\
 	     !((_ret) = bkey_err(_k)) && (_k).k;			\
 	     bch2_btree_iter_advance(&(_iter)))
 
@@ -372,7 +377,7 @@ __bch2_btree_iter_peek_and_restart(struct btree_trans *trans,
 
 #define for_each_btree_key_continue_norestart(_iter, _flags, _k, _ret)	\
 	for (;								\
-	     (_k) = __bch2_btree_iter_peek(&(_iter), _flags),		\
+	     (_k) = bch2_btree_iter_peek_type(&(_iter), _flags),	\
 	     !((_ret) = bkey_err(_k)) && (_k).k;			\
 	     bch2_btree_iter_advance(&(_iter)))
 
