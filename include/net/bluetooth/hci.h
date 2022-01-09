@@ -2233,11 +2233,7 @@ struct inquiry_info_rssi_pscan {
 } __packed;
 struct hci_ev_inquiry_result_rssi {
 	__u8     num;
-	struct inquiry_info_rssi info[];
-} __packed;
-struct hci_ev_inquiry_result_rssi_pscan {
-	__u8     num;
-	struct inquiry_info_rssi_pscan info[];
+	__u8     data[];
 } __packed;
 
 #define HCI_EV_REMOTE_EXT_FEATURES	0x23

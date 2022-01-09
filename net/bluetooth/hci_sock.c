@@ -1911,7 +1911,8 @@ static int hci_sock_setsockopt(struct socket *sock, int level, int optname,
 			       sockptr_t optval, unsigned int len)
 {
 	struct sock *sk = sock->sk;
-	int err = 0, opt = 0;
+	int err = 0;
+	u16 opt;
 
 	BT_DBG("sk %p, opt %d", sk, optname);
 
@@ -1937,7 +1938,7 @@ static int hci_sock_setsockopt(struct socket *sock, int level, int optname,
 			goto done;
 		}
 
-		if (copy_from_sockptr(&opt, optval, sizeof(u16))) {
+		if (copy_from_sockptr(&opt, optval, sizeof(opt))) {
 			err = -EFAULT;
 			break;
 		}
