@@ -1850,8 +1850,10 @@ static int storvsc_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *scmnd)
 		payload->range.offset = offset_in_hvpg;
 
 		sg_count = scsi_dma_map(scmnd);
-		if (sg_count < 0)
-			return SCSI_MLQUEUE_DEVICE_BUSY;
+		if (sg_count < 0) {
+			ret = SCSI_MLQUEUE_DEVICE_BUSY;
+			goto err_free_payload;
+		}
 
 		for_each_sg(sgl, sg, sg_count, j) {
 			/*
@@ -1886,13 +1888,18 @@ static int storvsc_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *scmnd)
 	put_cpu();
 
 	if (ret == -EAGAIN) {
-		if (payload_sz > sizeof(cmd_request->mpb))
-			kfree(payload);
 		/* no more space */
-		return SCSI_MLQUEUE_DEVICE_BUSY;
+		ret = SCSI_MLQUEUE_DEVICE_BUSY;
+		goto err_free_payload;
 	}
 
 	return 0;
+
+err_free_payload:
+	if (payload_sz > sizeof(cmd_request->mpb))
+		kfree(payload);
+
+	return ret;
 }
 
 static struct scsi_host_template scsi_driver = {
