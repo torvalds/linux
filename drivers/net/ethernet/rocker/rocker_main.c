@@ -2870,19 +2870,10 @@ static int rocker_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		goto err_pci_request_regions;
 	}
 
-	err = dma_set_mask(&pdev->dev, DMA_BIT_MASK(64));
-	if (!err) {
-		err = dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(64));
-		if (err) {
-			dev_err(&pdev->dev, "dma_set_coherent_mask failed\n");
-			goto err_pci_set_dma_mask;
-		}
-	} else {
-		err = dma_set_mask(&pdev->dev, DMA_BIT_MASK(32));
-		if (err) {
-			dev_err(&pdev->dev, "dma_set_mask failed\n");
-			goto err_pci_set_dma_mask;
-		}
+	err = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64));
+	if (err) {
+		dev_err(&pdev->dev, "dma_set_mask failed\n");
+		goto err_pci_set_dma_mask;
 	}
 
 	if (pci_resource_len(pdev, 0) < ROCKER_PCI_BAR0_SIZE) {
