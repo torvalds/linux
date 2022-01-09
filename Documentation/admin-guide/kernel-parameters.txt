@@ -944,6 +944,24 @@
 			dump out devices still on the deferred probe list after
 			retrying.
 
+	dell_smm_hwmon.ignore_dmi=
+			[HW] Continue probing hardware even if DMI data
+			indicates that the driver is running on unsupported
+			hardware.
+
+	dell_smm_hwmon.force=
+			[HW] Activate driver even if SMM BIOS signature does
+			not match list of supported models and enable otherwise
+			blacklisted features.
+
+	dell_smm_hwmon.power_status=
+			[HW] Report power status in /proc/i8k
+			(disabled by default).
+
+	dell_smm_hwmon.restricted=
+			[HW] Allow controlling fans only if SYS_ADMIN
+			capability is set.
+
 	dfltcc=		[HW,S390]
 			Format: { on | off | def_only | inf_only | always }
 			on:       s390 zlib hardware support for compression on
@@ -1702,17 +1720,6 @@
 			[HW] Allow deferred probing upon i8042 probe errors
 
 	i810=		[HW,DRM]
-
-	i8k.ignore_dmi	[HW] Continue probing hardware even if DMI data
-			indicates that the driver is running on unsupported
-			hardware.
-	i8k.force	[HW] Activate i8k driver even if SMM BIOS signature
-			does not match list of supported models.
-	i8k.power_status
-			[HW] Report power status in /proc/i8k
-			(disabled by default)
-	i8k.restricted	[HW] Allow controlling fans only if SYS_ADMIN
-			capability is set.
 
 	i915.invert_brightness=
 			[DRM] Invert the sense of the variable that is used to
