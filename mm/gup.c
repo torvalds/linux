@@ -259,9 +259,6 @@ static inline void compound_range_next(unsigned long i, unsigned long npages,
 	struct page *next, *page;
 	unsigned int nr = 1;
 
-	if (i >= npages)
-		return;
-
 	next = *list + i;
 	page = compound_head(next);
 	if (PageCompound(page) && compound_order(page) >= 1)
@@ -271,12 +268,6 @@ static inline void compound_range_next(unsigned long i, unsigned long npages,
 	*head = page;
 	*ntails = nr;
 }
-
-#define for_each_compound_range(__i, __list, __npages, __head, __ntails) \
-	for (__i = 0, \
-	     compound_range_next(__i, __npages, __list, &(__head), &(__ntails)); \
-	     __i < __npages; __i += __ntails, \
-	     compound_range_next(__i, __npages, __list, &(__head), &(__ntails)))
 
 static inline void compound_next(unsigned long i, unsigned long npages,
 				 struct page **list, struct page **head,
@@ -394,7 +385,8 @@ void unpin_user_page_range_dirty_lock(struct page *page, unsigned long npages,
 	struct page *head;
 	unsigned int ntails;
 
-	for_each_compound_range(index, &page, npages, head, ntails) {
+	for (index = 0; index < npages; index += ntails) {
+		compound_range_next(index, npages, &page, &head, &ntails);
 		if (make_dirty && !PageDirty(head))
 			set_page_dirty_lock(head);
 		put_compound_head(head, ntails, FOLL_PIN);
