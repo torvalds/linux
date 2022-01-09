@@ -31,9 +31,6 @@
 #include "bnxt_nvm_defs.h"	/* NVRAM content constant and structure defs */
 #include "bnxt_fw_hdr.h"	/* Firmware hdr constant and structure defs */
 #include "bnxt_coredump.h"
-#define FLASH_NVRAM_TIMEOUT	((HWRM_CMD_TIMEOUT) * 100)
-#define FLASH_PACKAGE_TIMEOUT	((HWRM_CMD_TIMEOUT) * 200)
-#define INSTALL_PACKAGE_TIMEOUT	((HWRM_CMD_TIMEOUT) * 200)
 
 static u32 bnxt_get_msglevel(struct net_device *dev)
 {
@@ -2167,7 +2164,7 @@ static int bnxt_flash_nvram(struct net_device *dev, u16 dir_type,
 		req->host_src_addr = cpu_to_le64(dma_handle);
 	}
 
-	hwrm_req_timeout(bp, req, FLASH_NVRAM_TIMEOUT);
+	hwrm_req_timeout(bp, req, bp->hwrm_cmd_max_timeout);
 	req->dir_type = cpu_to_le16(dir_type);
 	req->dir_ordinal = cpu_to_le16(dir_ordinal);
 	req->dir_ext = cpu_to_le16(dir_ext);
@@ -2508,8 +2505,8 @@ int bnxt_flash_package_from_fw_obj(struct net_device *dev, const struct firmware
 		return rc;
 	}
 
-	hwrm_req_timeout(bp, modify, FLASH_PACKAGE_TIMEOUT);
-	hwrm_req_timeout(bp, install, INSTALL_PACKAGE_TIMEOUT);
+	hwrm_req_timeout(bp, modify, bp->hwrm_cmd_max_timeout);
+	hwrm_req_timeout(bp, install, bp->hwrm_cmd_max_timeout);
 
 	hwrm_req_hold(bp, modify);
 	modify->host_src_addr = cpu_to_le64(dma_handle);

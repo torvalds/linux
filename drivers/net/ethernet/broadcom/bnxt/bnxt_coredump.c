@@ -32,7 +32,7 @@ static int bnxt_hwrm_dbg_dma_data(struct bnxt *bp, void *msg,
 		return -ENOMEM;
 	}
 
-	hwrm_req_timeout(bp, msg, HWRM_COREDUMP_TIMEOUT);
+	hwrm_req_timeout(bp, msg, bp->hwrm_cmd_max_timeout);
 	cmn_resp = hwrm_req_hold(bp, msg);
 	resp = cmn_resp;
 
@@ -125,7 +125,7 @@ static int bnxt_hwrm_dbg_coredump_initiate(struct bnxt *bp, u16 component_id,
 	if (rc)
 		return rc;
 
-	hwrm_req_timeout(bp, req, HWRM_COREDUMP_TIMEOUT);
+	hwrm_req_timeout(bp, req, bp->hwrm_cmd_max_timeout);
 	req->component_id = cpu_to_le16(component_id);
 	req->segment_id = cpu_to_le16(segment_id);
 
