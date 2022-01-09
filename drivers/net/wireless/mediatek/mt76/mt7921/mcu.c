@@ -740,7 +740,6 @@ EXPORT_SYMBOL_GPL(mt7921_mcu_exit);
 int mt7921_mcu_set_tx(struct mt7921_dev *dev, struct ieee80211_vif *vif)
 {
 	struct mt7921_vif *mvif = (struct mt7921_vif *)vif->drv_priv;
-
 	struct edca {
 		__le16 cw_min;
 		__le16 cw_max;
@@ -760,7 +759,6 @@ int mt7921_mcu_set_tx(struct mt7921_dev *dev, struct ieee80211_vif *vif)
 		.qos = vif->bss_conf.qos,
 		.wmm_idx = mvif->mt76.wmm_idx,
 	};
-
 	struct mu_edca {
 		u8 cw_min;
 		u8 cw_max;
@@ -784,20 +782,20 @@ int mt7921_mcu_set_tx(struct mt7921_dev *dev, struct ieee80211_vif *vif)
 		.qos = vif->bss_conf.qos,
 		.wmm_idx = mvif->mt76.wmm_idx,
 	};
-	int to_aci[] = {1, 0, 2, 3};
+	static const int to_aci[] = { 1, 0, 2, 3 };
 	int ac, ret;
 
 	for (ac = 0; ac < IEEE80211_NUM_ACS; ac++) {
 		struct ieee80211_tx_queue_params *q = &mvif->queue_params[ac];
 		struct edca *e = &req.edca[to_aci[ac]];
 
-		e->aifs = q->aifs;
+		e->aifs = cpu_to_le16(q->aifs);
 		e->txop = cpu_to_le16(q->txop);
 
 		if (q->cw_min)
 			e->cw_min = cpu_to_le16(q->cw_min);
 		else
-			e->cw_min = 5;
+			e->cw_min = cpu_to_le16(5);
 
 		if (q->cw_max)
 			e->cw_max = cpu_to_le16(q->cw_max);
