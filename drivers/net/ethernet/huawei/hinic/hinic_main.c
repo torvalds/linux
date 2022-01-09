@@ -1392,12 +1392,8 @@ static int hinic_probe(struct pci_dev *pdev,
 
 	err = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64));
 	if (err) {
-		dev_warn(&pdev->dev, "Couldn't set 64-bit DMA mask\n");
-		err = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
-		if (err) {
-			dev_err(&pdev->dev, "Failed to set DMA mask\n");
-			goto err_dma_mask;
-		}
+		dev_err(&pdev->dev, "Failed to set DMA mask\n");
+		goto err_dma_mask;
 	}
 
 	err = nic_dev_init(pdev);
