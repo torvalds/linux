@@ -359,6 +359,8 @@ static int __hwrm_to_stderr(u32 hwrm_err)
 		return -EAGAIN;
 	case HWRM_ERR_CODE_CMD_NOT_SUPPORTED:
 		return -EOPNOTSUPP;
+	case HWRM_ERR_CODE_PF_UNAVAILABLE:
+		return -ENODEV;
 	default:
 		return -EIO;
 	}
@@ -648,7 +650,7 @@ timeout_abort:
 	if (rc == HWRM_ERR_CODE_BUSY && !(ctx->flags & BNXT_HWRM_CTX_SILENT))
 		netdev_warn(bp->dev, "FW returned busy, hwrm req_type 0x%x\n",
 			    req_type);
-	else if (rc)
+	else if (rc && rc != HWRM_ERR_CODE_PF_UNAVAILABLE)
 		hwrm_err(bp, ctx, "hwrm req_type 0x%x seq id 0x%x error 0x%x\n",
 			 req_type, token->seq_id, rc);
 	rc = __hwrm_to_stderr(rc);
