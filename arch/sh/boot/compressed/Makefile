@@ -64,5 +64,5 @@ OBJCOPYFLAGS += -R .empty_zero_page
 
 LDFLAGS_piggy.o := -r --format binary --oformat $(ld-bfd) -T
 
-$(obj)/piggy.o: $(obj)/vmlinux.scr $(obj)/vmlinux.bin.$(suffix-y) FORCE
+$(obj)/piggy.o: $(obj)/vmlinux.scr $(obj)/vmlinux.bin.$(suffix_y) FORCE
 	$(call if_changed,ld)
