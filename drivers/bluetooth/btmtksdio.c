@@ -797,7 +797,7 @@ static int mt79xx_setup(struct hci_dev *hdev, const char *fwname)
 	return err;
 }
 
-static int btsdio_mtk_reg_read(struct hci_dev *hdev, u32 reg, u32 *val)
+static int btmtksdio_mtk_reg_read(struct hci_dev *hdev, u32 reg, u32 *val)
 {
 	struct btmtk_hci_wmt_params wmt_params;
 	struct reg_read_cmd {
@@ -844,13 +844,13 @@ static int btmtksdio_setup(struct hci_dev *hdev)
 
 	switch (bdev->data->chipid) {
 	case 0x7921:
-		err = btsdio_mtk_reg_read(hdev, 0x70010200, &dev_id);
+		err = btmtksdio_mtk_reg_read(hdev, 0x70010200, &dev_id);
 		if (err < 0) {
 			bt_dev_err(hdev, "Failed to get device id (%d)", err);
 			return err;
 		}
 
-		err = btsdio_mtk_reg_read(hdev, 0x80021004, &fw_version);
+		err = btmtksdio_mtk_reg_read(hdev, 0x80021004, &fw_version);
 		if (err < 0) {
 			bt_dev_err(hdev, "Failed to get fw version (%d)", err);
 			return err;
