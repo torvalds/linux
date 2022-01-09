@@ -1096,6 +1096,7 @@ static int soc15_common_early_init(void *handle)
 	case IP_VERSION(9, 4, 3):
 		adev->asic_funcs = &vega20_asic_funcs;
 		adev->cg_flags =
+			AMD_CG_SUPPORT_VCN_MGCG |
 			AMD_CG_SUPPORT_JPEG_MGCG;
 		adev->pg_flags =
 			AMD_PG_SUPPORT_JPEG;
