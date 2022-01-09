@@ -921,7 +921,7 @@ struct mlx5e_priv {
 	struct mlx5e_rx_res       *rx_res;
 	u32                       *tx_rates;
 
-	struct mlx5e_flow_steering fs;
+	struct mlx5e_flow_steering *fs;
 
 	struct workqueue_struct    *wq;
 	struct work_struct         update_carrier_work;

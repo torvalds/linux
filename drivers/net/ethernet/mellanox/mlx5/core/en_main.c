@@ -3888,8 +3888,8 @@ static netdev_features_t mlx5e_fix_features(struct net_device *netdev,
 
 	mutex_lock(&priv->state_lock);
 	params = &priv->channels.params;
-	if (!priv->fs.vlan ||
-	    !bitmap_empty(mlx5e_vlan_get_active_svlans(priv->fs.vlan), VLAN_N_VID)) {
+	if (!priv->fs->vlan ||
+	    !bitmap_empty(mlx5e_vlan_get_active_svlans(priv->fs->vlan), VLAN_N_VID)) {
 		/* HW strips the outer C-tag header, this is a problem
 		 * for S-tag traffic.
 		 */
@@ -5012,6 +5012,7 @@ static int mlx5e_nic_init(struct mlx5_core_dev *mdev,
 			  struct net_device *netdev)
 {
 	struct mlx5e_priv *priv = netdev_priv(netdev);
+	struct mlx5e_flow_steering *fs;
 	int err;
 
 	mlx5e_build_nic_params(priv, &priv->xsk, netdev->mtu);
@@ -5019,11 +5020,13 @@ static int mlx5e_nic_init(struct mlx5_core_dev *mdev,
 
 	mlx5e_timestamp_init(priv);
 
-	err = mlx5e_fs_init(priv);
-	if (err) {
+	fs = mlx5e_fs_init(priv->profile);
+	if (!fs) {
+		err = -ENOMEM;
 		mlx5_core_err(mdev, "FS initialization failed, %d\n", err);
 		return err;
 	}
+	priv->fs = fs;
 
 	err = mlx5e_ipsec_init(priv);
 	if (err)
@@ -5042,7 +5045,7 @@ static void mlx5e_nic_cleanup(struct mlx5e_priv *priv)
 	mlx5e_health_destroy_reporters(priv);
 	mlx5e_ktls_cleanup(priv);
 	mlx5e_ipsec_cleanup(priv);
-	mlx5e_fs_cleanup(priv);
+	mlx5e_fs_cleanup(priv->fs);
 }
 
 static int mlx5e_init_nic_rx(struct mlx5e_priv *priv)
