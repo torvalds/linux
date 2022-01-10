@@ -295,26 +295,28 @@ esw_setup_chain_src_port_rewrite(struct mlx5_flow_destination *dest,
 				 int *i)
 {
 	struct mlx5_esw_flow_attr *esw_attr = attr->esw_attr;
-	int j, err;
+	int err;
 
 	if (!(attr->flags & MLX5_ESW_ATTR_FLAG_SRC_REWRITE))
 		return -EOPNOTSUPP;
 
-	for (j = esw_attr->split_count; j < esw_attr->out_count; j++, (*i)++) {
-		err = esw_setup_chain_dest(dest, flow_act, chains, attr->dest_chain, 1, 0, *i);
-		if (err)
-			goto err_setup_chain;
+	/* flow steering cannot handle more than one dest with the same ft
+	 * in a single flow
+	 */
+	if (esw_attr->out_count - esw_attr->split_count > 1)
+		return -EOPNOTSUPP;
 
-		if (esw_attr->dests[j].pkt_reformat) {
-			flow_act->action |= MLX5_FLOW_CONTEXT_ACTION_PACKET_REFORMAT;
-			flow_act->pkt_reformat = esw_attr->dests[j].pkt_reformat;
-		}
+	err = esw_setup_chain_dest(dest, flow_act, chains, attr->dest_chain, 1, 0, *i);
+	if (err)
+		return err;
+
+	if (esw_attr->dests[esw_attr->split_count].pkt_reformat) {
+		flow_act->action |= MLX5_FLOW_CONTEXT_ACTION_PACKET_REFORMAT;
+		flow_act->pkt_reformat = esw_attr->dests[esw_attr->split_count].pkt_reformat;
 	}
-	return 0;
+	(*i)++;
 
-err_setup_chain:
-	esw_put_dest_tables_loop(esw, attr, esw_attr->split_count, j);
-	return err;
+	return 0;
 }
 
 static void esw_cleanup_chain_src_port_rewrite(struct mlx5_eswitch *esw,
