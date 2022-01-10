@@ -2086,6 +2086,9 @@ static int bnxt_async_event_process(struct bnxt *bp,
 	u32 data1 = le32_to_cpu(cmpl->event_data1);
 	u32 data2 = le32_to_cpu(cmpl->event_data2);
 
+	netdev_dbg(bp->dev, "hwrm event 0x%x {0x%x, 0x%x}\n",
+		   event_id, data1, data2);
+
 	/* TODO CHIMP_FW: Define event id's for link change, error etc */
 	switch (event_id) {
 	case ASYNC_EVENT_CMPL_EVENT_ID_LINK_SPEED_CFG_CHANGE: {
@@ -7691,19 +7694,6 @@ static void __bnxt_map_fw_health_reg(struct bnxt *bp, u32 reg)
 					 BNXT_FW_HEALTH_WIN_MAP_OFF);
 }
 
-bool bnxt_is_fw_healthy(struct bnxt *bp)
-{
-	if (bp->fw_health && bp->fw_health->status_reliable) {
-		u32 fw_status;
-
-		fw_status = bnxt_fw_health_readl(bp, BNXT_FW_HEALTH_REG);
-		if (fw_status && !BNXT_FW_IS_HEALTHY(fw_status))
-			return false;
-	}
-
-	return true;
-}
-
 static void bnxt_inv_fw_health_reg(struct bnxt *bp)
 {
 	struct bnxt_fw_health *fw_health = bp->fw_health;
@@ -8031,6 +8021,12 @@ static int bnxt_hwrm_ver_get(struct bnxt *bp)
 	bp->hwrm_cmd_timeout = le16_to_cpu(resp->def_req_timeout);
 	if (!bp->hwrm_cmd_timeout)
 		bp->hwrm_cmd_timeout = DFLT_HWRM_CMD_TIMEOUT;
+	bp->hwrm_cmd_max_timeout = le16_to_cpu(resp->max_req_timeout) * 1000;
+	if (!bp->hwrm_cmd_max_timeout)
+		bp->hwrm_cmd_max_timeout = HWRM_CMD_MAX_TIMEOUT;
+	else if (bp->hwrm_cmd_max_timeout > HWRM_CMD_MAX_TIMEOUT)
+		netdev_warn(bp->dev, "Device requests max timeout of %d seconds, may trigger hung task watchdog\n",
+			    bp->hwrm_cmd_max_timeout / 1000);
 
 	if (resp->hwrm_intf_maj_8b >= 1) {
 		bp->hwrm_max_req_len = le16_to_cpu(resp->max_req_win_len);
@@ -8634,7 +8630,10 @@ static int bnxt_init_chip(struct bnxt *bp, bool irq_re_init)
 	/* Filter for default vnic 0 */
 	rc = bnxt_hwrm_set_vnic_filter(bp, 0, 0, bp->dev->dev_addr);
 	if (rc) {
-		netdev_err(bp->dev, "HWRM vnic filter failure rc: %x\n", rc);
+		if (BNXT_VF(bp) && rc == -ENODEV)
+			netdev_err(bp->dev, "Cannot configure L2 filter while PF is unavailable\n");
+		else
+			netdev_err(bp->dev, "HWRM vnic filter failure rc: %x\n", rc);
 		goto err_out;
 	}
 	vnic->uc_filter_count = 1;
@@ -9427,6 +9426,10 @@ int bnxt_update_link(struct bnxt *bp, bool chng_link_state)
 	rc = hwrm_req_send(bp, req);
 	if (rc) {
 		hwrm_req_drop(bp, req);
+		if (BNXT_VF(bp) && rc == -ENODEV) {
+			netdev_warn(bp->dev, "Cannot obtain link state while PF unavailable.\n");
+			rc = 0;
+		}
 		return rc;
 	}
 
@@ -10825,12 +10828,21 @@ static int bnxt_cfg_rx_mode(struct bnxt *bp)
 	for (i = 1, off = 0; i < vnic->uc_filter_count; i++, off += ETH_ALEN) {
 		rc = bnxt_hwrm_set_vnic_filter(bp, 0, i, vnic->uc_list + off);
 		if (rc) {
-			netdev_err(bp->dev, "HWRM vnic filter failure rc: %x\n",
-				   rc);
+			if (BNXT_VF(bp) && rc == -ENODEV) {
+				if (!test_and_set_bit(BNXT_STATE_L2_FILTER_RETRY, &bp->state))
+					netdev_warn(bp->dev, "Cannot configure L2 filters while PF is unavailable, will retry\n");
+				else
+					netdev_dbg(bp->dev, "PF still unavailable while configuring L2 filters.\n");
+				rc = 0;
+			} else {
+				netdev_err(bp->dev, "HWRM vnic filter failure rc: %x\n", rc);
+			}
 			vnic->uc_filter_count = i;
 			return rc;
 		}
 	}
+	if (test_and_clear_bit(BNXT_STATE_L2_FILTER_RETRY, &bp->state))
+		netdev_notice(bp->dev, "Retry of L2 filter configuration successful.\n");
 
 skip_uc:
 	if ((vnic->rx_mask & CFA_L2_SET_RX_MASK_REQ_MASK_PROMISCUOUS) &&
@@ -11393,6 +11405,11 @@ static void bnxt_timer(struct timer_list *t)
 			set_bit(BNXT_UPDATE_PHY_SP_EVENT, &bp->sp_event);
 			bnxt_queue_sp_work(bp);
 		}
+	}
+
+	if (test_bit(BNXT_STATE_L2_FILTER_RETRY, &bp->state)) {
+		set_bit(BNXT_RX_MASK_SP_EVENT, &bp->sp_event);
+		bnxt_queue_sp_work(bp);
 	}
 
 	if ((bp->flags & BNXT_FLAG_CHIP_P5) && !bp->chip_rev &&
@@ -13101,7 +13118,7 @@ static int bnxt_set_dflt_rings(struct bnxt *bp, bool sh)
 	bp->tx_nr_rings = bp->tx_nr_rings_per_tc;
 
 	rc = __bnxt_reserve_rings(bp);
-	if (rc)
+	if (rc && rc != -ENODEV)
 		netdev_warn(bp->dev, "Unable to reserve tx rings\n");
 	bp->tx_nr_rings_per_tc = bp->tx_nr_rings;
 	if (sh)
@@ -13110,7 +13127,7 @@ static int bnxt_set_dflt_rings(struct bnxt *bp, bool sh)
 	/* Rings may have been trimmed, re-reserve the trimmed rings. */
 	if (bnxt_need_reserve_rings(bp)) {
 		rc = __bnxt_reserve_rings(bp);
-		if (rc)
+		if (rc && rc != -ENODEV)
 			netdev_warn(bp->dev, "2nd rings reservation failed.\n");
 		bp->tx_nr_rings_per_tc = bp->tx_nr_rings;
 	}
@@ -13136,7 +13153,10 @@ static int bnxt_init_dflt_ring_mode(struct bnxt *bp)
 	bnxt_clear_int_mode(bp);
 	rc = bnxt_set_dflt_rings(bp, true);
 	if (rc) {
-		netdev_err(bp->dev, "Not enough rings available.\n");
+		if (BNXT_VF(bp) && rc == -ENODEV)
+			netdev_err(bp->dev, "Cannot configure VF rings while PF is unavailable.\n");
+		else
+			netdev_err(bp->dev, "Not enough rings available.\n");
 		goto init_dflt_ring_err;
 	}
 	rc = bnxt_init_int_mode(bp);
@@ -13424,8 +13444,12 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	bnxt_set_ring_params(bp);
 	rc = bnxt_set_dflt_rings(bp, true);
 	if (rc) {
-		netdev_err(bp->dev, "Not enough rings available.\n");
-		rc = -ENOMEM;
+		if (BNXT_VF(bp) && rc == -ENODEV) {
+			netdev_err(bp->dev, "Cannot configure VF rings while PF is unavailable.\n");
+		} else {
+			netdev_err(bp->dev, "Not enough rings available.\n");
+			rc = -ENOMEM;
+		}
 		goto init_err_pci_clean;
 	}
 
