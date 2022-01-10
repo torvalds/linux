@@ -92,8 +92,6 @@ enum ec_command {
 
 enum {
 	EC_FLAGS_QUERY_ENABLED,		/* Query is enabled */
-	EC_FLAGS_QUERY_PENDING,		/* Query is pending */
-	EC_FLAGS_QUERY_GUARDING,	/* Guard for SCI_EVT check */
 	EC_FLAGS_EVENT_HANDLER_INSTALLED,	/* Event handler installed */
 	EC_FLAGS_EC_HANDLER_INSTALLED,	/* OpReg handler installed */
 	EC_FLAGS_QUERY_METHODS_INSTALLED, /* _Qxx handlers installed */
@@ -166,12 +164,12 @@ struct acpi_ec_query {
 	struct transaction transaction;
 	struct work_struct work;
 	struct acpi_ec_query_handler *handler;
+	struct acpi_ec *ec;
 };
 
-static int acpi_ec_query(struct acpi_ec *ec, u8 *data);
-static void advance_transaction(struct acpi_ec *ec, bool interrupt);
+static int acpi_ec_submit_query(struct acpi_ec *ec);
+static bool advance_transaction(struct acpi_ec *ec, bool interrupt);
 static void acpi_ec_event_handler(struct work_struct *work);
-static void acpi_ec_event_processor(struct work_struct *work);
 
 struct acpi_ec *first_ec;
 EXPORT_SYMBOL(first_ec);
@@ -443,24 +441,51 @@ static bool acpi_ec_submit_flushable_request(struct acpi_ec *ec)
 	return true;
 }
 
-static void acpi_ec_submit_query(struct acpi_ec *ec)
+static bool acpi_ec_submit_event(struct acpi_ec *ec)
 {
 	acpi_ec_mask_events(ec);
 	if (!acpi_ec_event_enabled(ec))
-		return;
-	if (!test_and_set_bit(EC_FLAGS_QUERY_PENDING, &ec->flags)) {
+		return false;
+
+	if (ec->event_state == EC_EVENT_READY) {
 		ec_dbg_evt("Command(%s) submitted/blocked",
 			   acpi_ec_cmd_string(ACPI_EC_COMMAND_QUERY));
-		ec->nr_pending_queries++;
-		queue_work(ec_wq, &ec->work);
+
+		ec->event_state = EC_EVENT_IN_PROGRESS;
+		/*
+		 * If events_to_process is greqter than 0 at this point, the
+		 * while () loop in acpi_ec_event_handler() is still running
+		 * and incrementing events_to_process will cause it to invoke
+		 * acpi_ec_submit_query() once more, so it is not necessary to
+		 * queue up the event work to start the same loop again.
+		 */
+		if (ec->events_to_process++ > 0)
+			return true;
+
+		ec->events_in_progress++;
+		return queue_work(ec_wq, &ec->work);
 	}
+
+	/*
+	 * The event handling work has not been completed yet, so it needs to be
+	 * flushed.
+	 */
+	return true;
 }
 
-static void acpi_ec_complete_query(struct acpi_ec *ec)
+static void acpi_ec_complete_event(struct acpi_ec *ec)
 {
-	if (test_and_clear_bit(EC_FLAGS_QUERY_PENDING, &ec->flags))
+	if (ec->event_state == EC_EVENT_IN_PROGRESS)
+		ec->event_state = EC_EVENT_COMPLETE;
+}
+
+static void acpi_ec_close_event(struct acpi_ec *ec)
+{
+	if (ec->event_state != EC_EVENT_READY)
 		ec_dbg_evt("Command(%s) unblocked",
 			   acpi_ec_cmd_string(ACPI_EC_COMMAND_QUERY));
+
+	ec->event_state = EC_EVENT_READY;
 	acpi_ec_unmask_events(ec);
 }
 
@@ -487,12 +512,10 @@ static inline void __acpi_ec_disable_event(struct acpi_ec *ec)
  */
 static void acpi_ec_clear(struct acpi_ec *ec)
 {
-	int i, status;
-	u8 value = 0;
+	int i;
 
 	for (i = 0; i < ACPI_EC_CLEAR_MAX; i++) {
-		status = acpi_ec_query(ec, &value);
-		if (status || !value)
+		if (acpi_ec_submit_query(ec))
 			break;
 	}
 	if (unlikely(i == ACPI_EC_CLEAR_MAX))
@@ -518,7 +541,7 @@ static void acpi_ec_enable_event(struct acpi_ec *ec)
 #ifdef CONFIG_PM_SLEEP
 static void __acpi_ec_flush_work(void)
 {
-	drain_workqueue(ec_wq); /* flush ec->work */
+	flush_workqueue(ec_wq); /* flush ec->work */
 	flush_workqueue(ec_query_wq); /* flush queries */
 }
 
@@ -549,8 +572,8 @@ void acpi_ec_flush_work(void)
 
 static bool acpi_ec_guard_event(struct acpi_ec *ec)
 {
-	bool guarded = true;
 	unsigned long flags;
+	bool guarded;
 
 	spin_lock_irqsave(&ec->lock, flags);
 	/*
@@ -559,19 +582,15 @@ static bool acpi_ec_guard_event(struct acpi_ec *ec)
 	 * evaluating _Qxx, so we need to re-check SCI_EVT after waiting an
 	 * acceptable period.
 	 *
-	 * The guarding period begins when EC_FLAGS_QUERY_PENDING is
-	 * flagged, which means SCI_EVT check has just been performed.
-	 * But if the current transaction is ACPI_EC_COMMAND_QUERY, the
-	 * guarding should have already been performed (via
-	 * EC_FLAGS_QUERY_GUARDING) and should not be applied so that the
-	 * ACPI_EC_COMMAND_QUERY transaction can be transitioned into
-	 * ACPI_EC_COMMAND_POLL state immediately.
+	 * The guarding period is applicable if the event state is not
+	 * EC_EVENT_READY, but otherwise if the current transaction is of the
+	 * ACPI_EC_COMMAND_QUERY type, the guarding should have elapsed already
+	 * and it should not be applied to let the transaction transition into
+	 * the ACPI_EC_COMMAND_POLL state immediately.
 	 */
-	if (ec_event_clearing == ACPI_EC_EVT_TIMING_STATUS ||
-	    ec_event_clearing == ACPI_EC_EVT_TIMING_QUERY ||
-	    !test_bit(EC_FLAGS_QUERY_PENDING, &ec->flags) ||
-	    (ec->curr && ec->curr->command == ACPI_EC_COMMAND_QUERY))
-		guarded = false;
+	guarded = ec_event_clearing == ACPI_EC_EVT_TIMING_EVENT &&
+		ec->event_state != EC_EVENT_READY &&
+		(!ec->curr || ec->curr->command != ACPI_EC_COMMAND_QUERY);
 	spin_unlock_irqrestore(&ec->lock, flags);
 	return guarded;
 }
@@ -603,16 +622,26 @@ static int ec_transaction_completed(struct acpi_ec *ec)
 static inline void ec_transaction_transition(struct acpi_ec *ec, unsigned long flag)
 {
 	ec->curr->flags |= flag;
-	if (ec->curr->command == ACPI_EC_COMMAND_QUERY) {
-		if (ec_event_clearing == ACPI_EC_EVT_TIMING_STATUS &&
-		    flag == ACPI_EC_COMMAND_POLL)
-			acpi_ec_complete_query(ec);
-		if (ec_event_clearing == ACPI_EC_EVT_TIMING_QUERY &&
-		    flag == ACPI_EC_COMMAND_COMPLETE)
-			acpi_ec_complete_query(ec);
-		if (ec_event_clearing == ACPI_EC_EVT_TIMING_EVENT &&
-		    flag == ACPI_EC_COMMAND_COMPLETE)
-			set_bit(EC_FLAGS_QUERY_GUARDING, &ec->flags);
+
+	if (ec->curr->command != ACPI_EC_COMMAND_QUERY)
+		return;
+
+	switch (ec_event_clearing) {
+	case ACPI_EC_EVT_TIMING_STATUS:
+		if (flag == ACPI_EC_COMMAND_POLL)
+			acpi_ec_close_event(ec);
+
+		return;
+
+	case ACPI_EC_EVT_TIMING_QUERY:
+		if (flag == ACPI_EC_COMMAND_COMPLETE)
+			acpi_ec_close_event(ec);
+
+		return;
+
+	case ACPI_EC_EVT_TIMING_EVENT:
+		if (flag == ACPI_EC_COMMAND_COMPLETE)
+			acpi_ec_complete_event(ec);
 	}
 }
 
@@ -626,10 +655,11 @@ static void acpi_ec_spurious_interrupt(struct acpi_ec *ec, struct transaction *t
 		acpi_ec_mask_events(ec);
 }
 
-static void advance_transaction(struct acpi_ec *ec, bool interrupt)
+static bool advance_transaction(struct acpi_ec *ec, bool interrupt)
 {
 	struct transaction *t = ec->curr;
 	bool wakeup = false;
+	bool ret = false;
 	u8 status;
 
 	ec_dbg_stm("%s (%d)", interrupt ? "IRQ" : "TASK", smp_processor_id());
@@ -657,11 +687,9 @@ static void advance_transaction(struct acpi_ec *ec, bool interrupt)
 	 */
 	if (!t || !(t->flags & ACPI_EC_COMMAND_POLL)) {
 		if (ec_event_clearing == ACPI_EC_EVT_TIMING_EVENT &&
-		    (!ec->nr_pending_queries ||
-		     test_bit(EC_FLAGS_QUERY_GUARDING, &ec->flags))) {
-			clear_bit(EC_FLAGS_QUERY_GUARDING, &ec->flags);
-			acpi_ec_complete_query(ec);
-		}
+		    ec->event_state == EC_EVENT_COMPLETE)
+			acpi_ec_close_event(ec);
+
 		if (!t)
 			goto out;
 	}
@@ -696,10 +724,12 @@ static void advance_transaction(struct acpi_ec *ec, bool interrupt)
 
 out:
 	if (status & ACPI_EC_FLAG_SCI)
-		acpi_ec_submit_query(ec);
+		ret = acpi_ec_submit_event(ec);
 
 	if (wakeup && interrupt)
 		wake_up(&ec->wait);
+
+	return ret;
 }
 
 static void start_transaction(struct acpi_ec *ec)
@@ -1103,7 +1133,30 @@ void acpi_ec_remove_query_handler(struct acpi_ec *ec, u8 query_bit)
 }
 EXPORT_SYMBOL_GPL(acpi_ec_remove_query_handler);
 
-static struct acpi_ec_query *acpi_ec_create_query(u8 *pval)
+static void acpi_ec_event_processor(struct work_struct *work)
+{
+	struct acpi_ec_query *q = container_of(work, struct acpi_ec_query, work);
+	struct acpi_ec_query_handler *handler = q->handler;
+	struct acpi_ec *ec = q->ec;
+
+	ec_dbg_evt("Query(0x%02x) started", handler->query_bit);
+
+	if (handler->func)
+		handler->func(handler->data);
+	else if (handler->handle)
+		acpi_evaluate_object(handler->handle, NULL, NULL, NULL);
+
+	ec_dbg_evt("Query(0x%02x) stopped", handler->query_bit);
+
+	spin_lock_irq(&ec->lock);
+	ec->queries_in_progress--;
+	spin_unlock_irq(&ec->lock);
+
+	acpi_ec_put_query_handler(handler);
+	kfree(q);
+}
+
+static struct acpi_ec_query *acpi_ec_create_query(struct acpi_ec *ec, u8 *pval)
 {
 	struct acpi_ec_query *q;
 	struct transaction *t;
@@ -1111,44 +1164,23 @@ static struct acpi_ec_query *acpi_ec_create_query(u8 *pval)
 	q = kzalloc(sizeof (struct acpi_ec_query), GFP_KERNEL);
 	if (!q)
 		return NULL;
+
 	INIT_WORK(&q->work, acpi_ec_event_processor);
 	t = &q->transaction;
 	t->command = ACPI_EC_COMMAND_QUERY;
 	t->rdata = pval;
 	t->rlen = 1;
+	q->ec = ec;
 	return q;
 }
 
-static void acpi_ec_delete_query(struct acpi_ec_query *q)
+static int acpi_ec_submit_query(struct acpi_ec *ec)
 {
-	if (q) {
-		if (q->handler)
-			acpi_ec_put_query_handler(q->handler);
-		kfree(q);
-	}
-}
-
-static void acpi_ec_event_processor(struct work_struct *work)
-{
-	struct acpi_ec_query *q = container_of(work, struct acpi_ec_query, work);
-	struct acpi_ec_query_handler *handler = q->handler;
-
-	ec_dbg_evt("Query(0x%02x) started", handler->query_bit);
-	if (handler->func)
-		handler->func(handler->data);
-	else if (handler->handle)
-		acpi_evaluate_object(handler->handle, NULL, NULL, NULL);
-	ec_dbg_evt("Query(0x%02x) stopped", handler->query_bit);
-	acpi_ec_delete_query(q);
-}
-
-static int acpi_ec_query(struct acpi_ec *ec, u8 *data)
-{
+	struct acpi_ec_query *q;
 	u8 value = 0;
 	int result;
-	struct acpi_ec_query *q;
 
-	q = acpi_ec_create_query(&value);
+	q = acpi_ec_create_query(ec, &value);
 	if (!q)
 		return -ENOMEM;
 
@@ -1158,10 +1190,13 @@ static int acpi_ec_query(struct acpi_ec *ec, u8 *data)
 	 * bit to be cleared (and thus clearing the interrupt source).
 	 */
 	result = acpi_ec_transaction(ec, &q->transaction);
-	if (!value)
-		result = -ENODATA;
 	if (result)
 		goto err_exit;
+
+	if (!value) {
+		result = -ENODATA;
+		goto err_exit;
+	}
 
 	q->handler = acpi_ec_get_query_handler_by_value(ec, value);
 	if (!q->handler) {
@@ -1170,76 +1205,73 @@ static int acpi_ec_query(struct acpi_ec *ec, u8 *data)
 	}
 
 	/*
-	 * It is reported that _Qxx are evaluated in a parallel way on
-	 * Windows:
+	 * It is reported that _Qxx are evaluated in a parallel way on Windows:
 	 * https://bugzilla.kernel.org/show_bug.cgi?id=94411
 	 *
-	 * Put this log entry before schedule_work() in order to make
-	 * it appearing before any other log entries occurred during the
-	 * work queue execution.
+	 * Put this log entry before queue_work() to make it appear in the log
+	 * before any other messages emitted during workqueue handling.
 	 */
 	ec_dbg_evt("Query(0x%02x) scheduled", value);
-	if (!queue_work(ec_query_wq, &q->work)) {
-		ec_dbg_evt("Query(0x%02x) overlapped", value);
-		result = -EBUSY;
-	}
+
+	spin_lock_irq(&ec->lock);
+
+	ec->queries_in_progress++;
+	queue_work(ec_query_wq, &q->work);
+
+	spin_unlock_irq(&ec->lock);
+
+	return 0;
 
 err_exit:
-	if (result)
-		acpi_ec_delete_query(q);
-	if (data)
-		*data = value;
+	kfree(q);
+
 	return result;
-}
-
-static void acpi_ec_check_event(struct acpi_ec *ec)
-{
-	unsigned long flags;
-
-	if (ec_event_clearing == ACPI_EC_EVT_TIMING_EVENT) {
-		if (ec_guard(ec)) {
-			spin_lock_irqsave(&ec->lock, flags);
-			/*
-			 * Take care of the SCI_EVT unless no one else is
-			 * taking care of it.
-			 */
-			if (!ec->curr)
-				advance_transaction(ec, false);
-			spin_unlock_irqrestore(&ec->lock, flags);
-		}
-	}
 }
 
 static void acpi_ec_event_handler(struct work_struct *work)
 {
-	unsigned long flags;
 	struct acpi_ec *ec = container_of(work, struct acpi_ec, work);
 
 	ec_dbg_evt("Event started");
 
-	spin_lock_irqsave(&ec->lock, flags);
-	while (ec->nr_pending_queries) {
-		spin_unlock_irqrestore(&ec->lock, flags);
-		(void)acpi_ec_query(ec, NULL);
-		spin_lock_irqsave(&ec->lock, flags);
-		ec->nr_pending_queries--;
-		/*
-		 * Before exit, make sure that this work item can be
-		 * scheduled again. There might be QR_EC failures, leaving
-		 * EC_FLAGS_QUERY_PENDING uncleared and preventing this work
-		 * item from being scheduled again.
-		 */
-		if (!ec->nr_pending_queries) {
-			if (ec_event_clearing == ACPI_EC_EVT_TIMING_STATUS ||
-			    ec_event_clearing == ACPI_EC_EVT_TIMING_QUERY)
-				acpi_ec_complete_query(ec);
-		}
+	spin_lock_irq(&ec->lock);
+
+	while (ec->events_to_process) {
+		spin_unlock_irq(&ec->lock);
+
+		acpi_ec_submit_query(ec);
+
+		spin_lock_irq(&ec->lock);
+		ec->events_to_process--;
 	}
-	spin_unlock_irqrestore(&ec->lock, flags);
+
+	/*
+	 * Before exit, make sure that the it will be possible to queue up the
+	 * event handling work again regardless of whether or not the query
+	 * queued up above is processed successfully.
+	 */
+	if (ec_event_clearing == ACPI_EC_EVT_TIMING_EVENT)
+		acpi_ec_complete_event(ec);
+	else
+		acpi_ec_close_event(ec);
+
+	spin_unlock_irq(&ec->lock);
 
 	ec_dbg_evt("Event stopped");
 
-	acpi_ec_check_event(ec);
+	if (ec_event_clearing == ACPI_EC_EVT_TIMING_EVENT && ec_guard(ec)) {
+		spin_lock_irq(&ec->lock);
+
+		/* Take care of SCI_EVT unless someone else is doing that. */
+		if (!ec->curr)
+			advance_transaction(ec, false);
+
+		spin_unlock_irq(&ec->lock);
+	}
+
+	spin_lock_irq(&ec->lock);
+	ec->events_in_progress--;
+	spin_unlock_irq(&ec->lock);
 }
 
 static void acpi_ec_handle_interrupt(struct acpi_ec *ec)
@@ -2021,7 +2053,7 @@ void acpi_ec_set_gpe_wake_mask(u8 action)
 
 bool acpi_ec_dispatch_gpe(void)
 {
-	u32 ret;
+	bool work_in_progress = false;
 
 	if (!first_ec)
 		return acpi_any_gpe_status_set(U32_MAX);
@@ -2037,12 +2069,31 @@ bool acpi_ec_dispatch_gpe(void)
 	 * Dispatch the EC GPE in-band, but do not report wakeup in any case
 	 * to allow the caller to process events properly after that.
 	 */
-	ret = acpi_dispatch_gpe(NULL, first_ec->gpe);
-	if (ret == ACPI_INTERRUPT_HANDLED)
-		pm_pr_dbg("ACPI EC GPE dispatched\n");
+	spin_lock_irq(&first_ec->lock);
 
-	/* Flush the event and query workqueues. */
-	acpi_ec_flush_work();
+	if (acpi_ec_gpe_status_set(first_ec))
+		work_in_progress = advance_transaction(first_ec, false);
+
+	spin_unlock_irq(&first_ec->lock);
+
+	if (!work_in_progress)
+		return false;
+
+	pm_pr_dbg("ACPI EC GPE dispatched\n");
+
+	/* Drain EC work. */
+	do {
+		acpi_ec_flush_work();
+
+		pm_pr_dbg("ACPI EC work flushed\n");
+
+		spin_lock_irq(&first_ec->lock);
+
+		work_in_progress = first_ec->events_in_progress +
+			first_ec->queries_in_progress > 0;
+
+		spin_unlock_irq(&first_ec->lock);
+	} while (work_in_progress && !pm_wakeup_pending());
 
 	return false;
 }
