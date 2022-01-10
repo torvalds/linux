@@ -24,12 +24,14 @@
 #define BQ25890_ID			3
 #define BQ25895_ID			7
 #define BQ25896_ID			0
+#define SY6970_ID			1
 
 enum bq25890_chip_version {
 	BQ25890,
 	BQ25892,
 	BQ25895,
 	BQ25896,
+	SY6970,
 };
 
 static const char *const bq25890_chip_name[] = {
@@ -37,6 +39,7 @@ static const char *const bq25890_chip_name[] = {
 	"BQ25892",
 	"BQ25895",
 	"BQ25896",
+	"SY6970",
 };
 
 enum bq25890_fields {
@@ -824,6 +827,10 @@ static int bq25890_get_chip_version(struct bq25890_device *bq)
 		bq->chip_version = BQ25895;
 		break;
 
+	case SY6970_ID:
+		bq->chip_version = SY6970;
+		break;
+
 	default:
 		dev_err(bq->dev, "Unknown chip ID %d\n", id);
 		return -ENODEV;
@@ -1071,6 +1078,7 @@ static const struct i2c_device_id bq25890_i2c_ids[] = {
 	{ "bq25892", 0 },
 	{ "bq25895", 0 },
 	{ "bq25896", 0 },
+	{ "sy6970", 0 },
 	{},
 };
 MODULE_DEVICE_TABLE(i2c, bq25890_i2c_ids);
@@ -1080,6 +1088,7 @@ static const struct of_device_id bq25890_of_match[] = {
 	{ .compatible = "ti,bq25892", },
 	{ .compatible = "ti,bq25895", },
 	{ .compatible = "ti,bq25896", },
+	{ .compatible = "sy,sy6970", },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, bq25890_of_match);
