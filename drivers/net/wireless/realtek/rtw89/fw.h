@@ -282,8 +282,10 @@ struct rtw89_h2creg_sch_tx_en {
 	le32_get_bits(*((__le32 *)(fwhdr) + 6), GENMASK(15, 8))
 #define GET_FW_HDR_CMD_VERSERION(fwhdr)	\
 	le32_get_bits(*((__le32 *)(fwhdr) + 7), GENMASK(31, 24))
-#define SET_FW_HDR_PART_SIZE(fwhdr, val)	\
-	le32p_replace_bits((__le32 *)(fwhdr) + 7, val, GENMASK(15, 0))
+static inline void SET_FW_HDR_PART_SIZE(void *fwhdr, u32 val)
+{
+	le32p_replace_bits((__le32 *)fwhdr + 7, val, GENMASK(15, 0));
+}
 
 #define SET_CTRL_INFO_MACID(table, val) \
 	le32p_replace_bits((__le32 *)(table) + 0, val, GENMASK(6, 0))

@@ -363,8 +363,10 @@ void blk_cleanup_queue(struct request_queue *q)
 	blk_queue_flag_set(QUEUE_FLAG_DEAD, q);
 
 	blk_sync_queue(q);
-	if (queue_is_mq(q))
+	if (queue_is_mq(q)) {
+		blk_mq_cancel_work_sync(q);
 		blk_mq_exit_queue(q);
+	}
 
 	/*
 	 * In theory, request pool of sched_tags belongs to request queue.
@@ -1015,6 +1017,7 @@ EXPORT_SYMBOL(submit_bio);
 /**
  * bio_poll - poll for BIO completions
  * @bio: bio to poll for
+ * @iob: batches of IO
  * @flags: BLK_POLL_* flags that control the behavior
  *
  * Poll for completions on queue associated with the bio. Returns number of

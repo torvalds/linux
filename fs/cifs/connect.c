@@ -1271,10 +1271,8 @@ static int match_server(struct TCP_Server_Info *server, struct smb3_fs_context *
 {
 	struct sockaddr *addr = (struct sockaddr *)&ctx->dstaddr;
 
-	if (ctx->nosharesock) {
-		server->nosharesock = true;
+	if (ctx->nosharesock)
 		return 0;
-	}
 
 	/* this server does not share socket */
 	if (server->nosharesock)
@@ -1438,6 +1436,9 @@ cifs_get_tcp_session(struct smb3_fs_context *ctx,
 		goto out_err;
 	}
 
+	if (ctx->nosharesock)
+		tcp_ses->nosharesock = true;
+
 	tcp_ses->ops = ctx->ops;
 	tcp_ses->vals = ctx->vals;
 	cifs_set_net_ns(tcp_ses, get_net(current->nsproxy->net_ns));
@@ -1452,8 +1453,10 @@ cifs_get_tcp_session(struct smb3_fs_context *ctx,
 	tcp_ses->max_in_flight = 0;
 	tcp_ses->credits = 1;
 	if (primary_server) {
+		spin_lock(&cifs_tcp_ses_lock);
 		++primary_server->srv_count;
 		tcp_ses->primary_server = primary_server;
+		spin_unlock(&cifs_tcp_ses_lock);
 	}
 	init_waitqueue_head(&tcp_ses->response_q);
 	init_waitqueue_head(&tcp_ses->request_q);
@@ -1559,6 +1562,10 @@ smbd_connected:
 	/* fscache server cookies are based on primary channel only */
 	if (!CIFS_SERVER_IS_CHAN(tcp_ses))
 		cifs_fscache_get_client_cookie(tcp_ses);
+#ifdef CONFIG_CIFS_FSCACHE
+	else
+		tcp_ses->fscache = tcp_ses->primary_server->fscache;
+#endif /* CONFIG_CIFS_FSCACHE */
 
 	/* queue echo request delayed work */
 	queue_delayed_work(cifsiod_wq, &tcp_ses->echo, tcp_ses->echo_interval);
@@ -3043,12 +3050,6 @@ static int mount_get_conns(struct mount_ctx *mnt_ctx)
 				cifs_dbg(VFS, "read only mount of RW share\n");
 			/* no need to log a RW mount of a typical RW share */
 		}
-		/*
-		 * The cookie is initialized from volume info returned above.
-		 * Inside cifs_fscache_get_super_cookie it checks
-		 * that we do not get super cookie twice.
-		 */
-		cifs_fscache_get_super_cookie(tcon);
 	}
 
 	/*
@@ -3423,6 +3424,7 @@ static int connect_dfs_root(struct mount_ctx *mnt_ctx, struct dfs_cache_tgt_list
 	 */
 	mount_put_conns(mnt_ctx);
 	mount_get_dfs_conns(mnt_ctx);
+	set_root_ses(mnt_ctx);
 
 	full_path = build_unc_path_to_root(ctx, cifs_sb, true);
 	if (IS_ERR(full_path))
@@ -4111,18 +4113,6 @@ cifs_prune_tlinks(struct work_struct *work)
 }
 
 #ifdef CONFIG_CIFS_DFS_UPCALL
-static void mark_tcon_tcp_ses_for_reconnect(struct cifs_tcon *tcon)
-{
-	int i;
-
-	for (i = 0; i < tcon->ses->chan_count; i++) {
-		spin_lock(&GlobalMid_Lock);
-		if (tcon->ses->chans[i].server->tcpStatus != CifsExiting)
-			tcon->ses->chans[i].server->tcpStatus = CifsNeedReconnect;
-		spin_unlock(&GlobalMid_Lock);
-	}
-}
-
 /* Update dfs referral path of superblock */
 static int update_server_fullpath(struct TCP_Server_Info *server, struct cifs_sb_info *cifs_sb,
 				  const char *target)
@@ -4299,7 +4289,7 @@ static int tree_connect_dfs_target(const unsigned int xid, struct cifs_tcon *tco
 	 */
 	if (rc && server->current_fullpath != server->origin_fullpath) {
 		server->current_fullpath = server->origin_fullpath;
-		mark_tcon_tcp_ses_for_reconnect(tcon);
+		cifs_ses_mark_for_reconnect(tcon->ses);
 	}
 
 	dfs_cache_free_tgts(tl);

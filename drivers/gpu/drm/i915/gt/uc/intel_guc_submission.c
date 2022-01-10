@@ -3080,8 +3080,8 @@ guc_create_parallel(struct intel_engine_cs **engines,
 
 		ce = intel_engine_create_virtual(siblings, num_siblings,
 						 FORCE_VIRTUAL);
-		if (!ce) {
-			err = ERR_PTR(-ENOMEM);
+		if (IS_ERR(ce)) {
+			err = ERR_CAST(ce);
 			goto unwind;
 		}
 

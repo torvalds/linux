@@ -166,16 +166,13 @@ static struct dtpm_ops dtpm_ops = {
 
 static int cpuhp_dtpm_cpu_offline(unsigned int cpu)
 {
-	struct em_perf_domain *pd;
 	struct dtpm_cpu *dtpm_cpu;
 
-	pd = em_cpu_get(cpu);
-	if (!pd)
-		return -EINVAL;
-
 	dtpm_cpu = per_cpu(dtpm_per_cpu, cpu);
+	if (dtpm_cpu)
+		dtpm_update_power(&dtpm_cpu->dtpm);
 
-	return dtpm_update_power(&dtpm_cpu->dtpm);
+	return 0;
 }
 
 static int cpuhp_dtpm_cpu_online(unsigned int cpu)

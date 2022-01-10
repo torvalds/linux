@@ -347,28 +347,3 @@ void acpi_device_notify_remove(struct device *dev)
 
 	acpi_unbind_one(dev);
 }
-
-int acpi_dev_turn_off_if_unused(struct device *dev, void *not_used)
-{
-	struct acpi_device *adev = to_acpi_device(dev);
-
-	/*
-	 * Skip device objects with device IDs, because they may be in use even
-	 * if they are not companions of any physical device objects.
-	 */
-	if (adev->pnp.type.hardware_id)
-		return 0;
-
-	mutex_lock(&adev->physical_node_lock);
-
-	/*
-	 * Device objects without device IDs are not in use if they have no
-	 * corresponding physical device objects.
-	 */
-	if (list_empty(&adev->physical_node_list))
-		acpi_device_set_power(adev, ACPI_STATE_D3_COLD);
-
-	mutex_unlock(&adev->physical_node_lock);
-
-	return 0;
-}

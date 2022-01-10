@@ -991,6 +991,16 @@ config HAVE_ARCH_COMPAT_MMAP_BASES
 	  and vice-versa 32-bit applications to call 64-bit mmap().
 	  Required for applications doing different bitness syscalls.
 
+config PAGE_SIZE_LESS_THAN_64KB
+	def_bool y
+	depends on !ARM64_64K_PAGES
+	depends on !IA64_PAGE_SIZE_64KB
+	depends on !PAGE_SIZE_64KB
+	depends on !PARISC_PAGE_SIZE_64KB
+	depends on !PPC_64K_PAGES
+	depends on !PPC_256K_PAGES
+	depends on !PAGE_SIZE_256KB
+
 # This allows to use a set of generic functions to determine mmap base
 # address by giving priority to top-down scheme only if the process
 # is not in legacy mode (compat task, unlimited stack size or

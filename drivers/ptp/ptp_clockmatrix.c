@@ -1699,11 +1699,8 @@ static int initialize_dco_operating_mode(struct idtcm_channel *channel)
 
 /* PTP Hardware Clock interface */
 
-/**
+/*
  * Maximum absolute value for write phase offset in picoseconds
- *
- * @channel:  channel
- * @delta_ns: delta in nanoseconds
  *
  * Destination signed register is 32-bit register in resolution of 50ps
  *
