@@ -505,6 +505,7 @@ extern int unregister_acpi_notifier(struct notifier_block *);
  */
 
 int acpi_bus_get_device(acpi_handle handle, struct acpi_device **device);
+struct acpi_device *acpi_fetch_acpi_dev(acpi_handle handle);
 acpi_status acpi_bus_get_status_handle(acpi_handle handle,
 				       unsigned long long *sta);
 int acpi_bus_get_status(struct acpi_device *device);
@@ -618,6 +619,22 @@ bool acpi_device_always_present(struct acpi_device *adev);
 static inline bool acpi_device_always_present(struct acpi_device *adev)
 {
 	return false;
+}
+#endif
+
+#if IS_ENABLED(CONFIG_X86_ANDROID_TABLETS)
+bool acpi_quirk_skip_i2c_client_enumeration(struct acpi_device *adev);
+int acpi_quirk_skip_serdev_enumeration(struct device *controller_parent, bool *skip);
+#else
+static inline bool acpi_quirk_skip_i2c_client_enumeration(struct acpi_device *adev)
+{
+	return false;
+}
+static inline int
+acpi_quirk_skip_serdev_enumeration(struct device *controller_parent, bool *skip)
+{
+	*skip = false;
+	return 0;
 }
 #endif
 

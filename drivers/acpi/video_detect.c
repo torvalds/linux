@@ -59,18 +59,16 @@ static void acpi_video_parse_cmdline(void)
 static acpi_status
 find_video(acpi_handle handle, u32 lvl, void *context, void **rv)
 {
+	struct acpi_device *acpi_dev = acpi_fetch_acpi_dev(handle);
 	long *cap = context;
 	struct pci_dev *dev;
-	struct acpi_device *acpi_dev;
 
 	static const struct acpi_device_id video_ids[] = {
 		{ACPI_VIDEO_HID, 0},
 		{"", 0},
 	};
-	if (acpi_bus_get_device(handle, &acpi_dev))
-		return AE_OK;
 
-	if (!acpi_match_device_ids(acpi_dev, video_ids)) {
+	if (acpi_dev && !acpi_match_device_ids(acpi_dev, video_ids)) {
 		dev = acpi_get_pci_dev(handle);
 		if (!dev)
 			return AE_OK;
