@@ -146,7 +146,7 @@ struct x86_serdev_info {
 struct x86_dev_info {
 	char *invalid_aei_gpiochip;
 	const char * const *modules;
-	struct gpiod_lookup_table **gpiod_lookup_tables;
+	struct gpiod_lookup_table * const *gpiod_lookup_tables;
 	const struct x86_i2c_client_info *i2c_client_info;
 	const struct platform_device_info *pdev_info;
 	const struct x86_serdev_info *serdev_info;
@@ -306,7 +306,7 @@ static struct gpiod_lookup_table asus_me176c_goodix_gpios = {
 	},
 };
 
-static struct gpiod_lookup_table *asus_me176c_gpios[] = {
+static struct gpiod_lookup_table * const asus_me176c_gpios[] = {
 	&int3496_gpo2_pin22_gpios,
 	&asus_me176c_goodix_gpios,
 	NULL
@@ -410,7 +410,7 @@ static const struct x86_i2c_client_info asus_tf103c_i2c_clients[] __initconst = 
 	},
 };
 
-static struct gpiod_lookup_table *asus_tf103c_gpios[] = {
+static struct gpiod_lookup_table * const asus_tf103c_gpios[] = {
 	&int3496_gpo2_pin22_gpios,
 	NULL
 };
@@ -565,7 +565,7 @@ static struct gpiod_lookup_table whitelabel_tm800a550l_goodix_gpios = {
 	},
 };
 
-static struct gpiod_lookup_table *whitelabel_tm800a550l_gpios[] = {
+static struct gpiod_lookup_table * const whitelabel_tm800a550l_gpios[] = {
 	&whitelabel_tm800a550l_goodix_gpios,
 	NULL
 };
@@ -675,7 +675,7 @@ static int serdev_count;
 static struct i2c_client **i2c_clients;
 static struct platform_device **pdevs;
 static struct serdev_device **serdevs;
-static struct gpiod_lookup_table **gpiod_lookup_tables;
+static struct gpiod_lookup_table * const *gpiod_lookup_tables;
 static void (*exit_handler)(void);
 
 static __init int x86_instantiate_i2c_client(const struct x86_dev_info *dev_info,
