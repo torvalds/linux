@@ -13,6 +13,10 @@
 #include "qla_def.h"
 #include "qla_dsd.h"
 
+#define MIN_NVME_HW_QUEUES 1
+#define MAX_NVME_HW_QUEUES 128
+#define DEF_NVME_HW_QUEUES 8
+
 #define NVME_ATIO_CMD_OFF 32
 #define NVME_FIRST_PACKET_CMDLEN (64 - NVME_ATIO_CMD_OFF)
 #define Q2T_NVME_NUM_TAGS 2048

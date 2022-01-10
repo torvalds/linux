@@ -710,7 +710,7 @@ static struct nvme_fc_port_template qla_nvme_fc_transport = {
 	.fcp_io		= qla_nvme_post_cmd,
 	.fcp_abort	= qla_nvme_fcp_abort,
 	.map_queues	= qla_nvme_map_queues,
-	.max_hw_queues  = 8,
+	.max_hw_queues  = DEF_NVME_HW_QUEUES,
 	.max_sgl_segments = 1024,
 	.max_dif_sgl_segments = 64,
 	.dma_boundary = 0xFFFFFFFF,
@@ -779,9 +779,21 @@ int qla_nvme_register_hba(struct scsi_qla_host *vha)
 
 	WARN_ON(vha->nvme_local_port);
 
+	if (ql2xnvme_queues < MIN_NVME_HW_QUEUES || ql2xnvme_queues > MAX_NVME_HW_QUEUES) {
+		ql_log(ql_log_warn, vha, 0xfffd,
+		    "ql2xnvme_queues=%d is out of range(MIN:%d - MAX:%d). Resetting ql2xnvme_queues to:%d\n",
+		    ql2xnvme_queues, MIN_NVME_HW_QUEUES, MAX_NVME_HW_QUEUES,
+		    DEF_NVME_HW_QUEUES);
+		ql2xnvme_queues = DEF_NVME_HW_QUEUES;
+	}
+
 	qla_nvme_fc_transport.max_hw_queues =
-	    min((uint8_t)(qla_nvme_fc_transport.max_hw_queues),
+	    min((uint8_t)(ql2xnvme_queues),
 		(uint8_t)(ha->max_qpairs ? ha->max_qpairs : 1));
+
+	ql_log(ql_log_info, vha, 0xfffb,
+	    "Number of NVME queues used for this port: %d\n",
+	    qla_nvme_fc_transport.max_hw_queues);
 
 	pinfo.node_name = wwn_to_u64(vha->node_name);
 	pinfo.port_name = wwn_to_u64(vha->port_name);
