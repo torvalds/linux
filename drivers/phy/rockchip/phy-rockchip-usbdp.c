@@ -636,30 +636,22 @@ static int udphy_setup(struct rockchip_udphy *udphy)
 	const struct rockchip_udphy_cfg *cfg = udphy->cfgs;
 	int ret = 0;
 
-	mutex_lock(&udphy->mutex);
-
 	ret = clk_bulk_prepare_enable(udphy->num_clks, udphy->clks);
 	if (ret) {
 		dev_err(udphy->dev, "failed to enable clk\n");
-		goto unlock;
+		return ret;
 	}
 
 	if (cfg->combophy_init) {
 		ret = cfg->combophy_init(udphy);
 		if (ret) {
 			dev_err(udphy->dev, "failed to init combophy\n");
-			goto disable_clks;
+			clk_bulk_disable_unprepare(udphy->num_clks, udphy->clks);
+			return ret;
 		}
 	}
 
-	mutex_unlock(&udphy->mutex);
 	return 0;
-
-disable_clks:
-	clk_bulk_disable_unprepare(udphy->num_clks, udphy->clks);
-unlock:
-	mutex_unlock(&udphy->mutex);
-	return ret;
 }
 
 static int udphy_disable(struct rockchip_udphy *udphy)
@@ -667,14 +659,11 @@ static int udphy_disable(struct rockchip_udphy *udphy)
 	const struct rockchip_udphy_cfg *cfg = udphy->cfgs;
 	int i;
 
-	mutex_lock(&udphy->mutex);
-
 	clk_bulk_disable_unprepare(udphy->num_clks, udphy->clks);
 
 	for (i = 0; i < cfg->num_rsts; i++)
 		reset_control_assert(udphy->rsts[i]);
 
-	mutex_unlock(&udphy->mutex);
 	return 0;
 }
 
@@ -866,19 +855,24 @@ static int rockchip_dp_phy_power_on(struct phy *phy)
 	struct rockchip_udphy *udphy = phy_get_drvdata(phy);
 	int ret, dp_lanes;
 
+	mutex_lock(&udphy->mutex);
+
 	dp_lanes = udphy_dplane_get(udphy);
 	phy_set_bus_width(phy, dp_lanes);
 
 	ret = udphy_power_on(udphy, UDPHY_MODE_DP);
 	if (ret)
-		return ret;
+		goto unlock;
 
 	ret = udphy_dplane_enable(udphy, dp_lanes);
 	if (ret)
-		return ret;
+		goto unlock;
 
-	return udphy_dplane_select(udphy);
+	ret = udphy_dplane_select(udphy);
 
+unlock:
+	mutex_unlock(&udphy->mutex);
+	return ret;
 }
 
 static int rockchip_dp_phy_power_off(struct phy *phy)
@@ -886,11 +880,16 @@ static int rockchip_dp_phy_power_off(struct phy *phy)
 	struct rockchip_udphy *udphy = phy_get_drvdata(phy);
 	int ret;
 
+	mutex_lock(&udphy->mutex);
 	ret = udphy_dplane_enable(udphy, 0);
 	if (ret)
-		return ret;
+		goto unlock;
 
-	return udphy_power_off(udphy, UDPHY_MODE_DP);
+	ret = udphy_power_off(udphy, UDPHY_MODE_DP);
+
+unlock:
+	mutex_unlock(&udphy->mutex);
+	return ret;
 }
 
 static int rockchip_dp_phy_verify_config(struct rockchip_udphy *udphy,
@@ -987,25 +986,37 @@ static const struct phy_ops rockchip_dp_phy_ops = {
 static int rockchip_u3phy_init(struct phy *phy)
 {
 	struct rockchip_udphy *udphy = phy_get_drvdata(phy);
+	int ret = 0;
 
+	mutex_lock(&udphy->mutex);
 	/* DP only or high-speed, disable U3 port */
 	if (!(udphy->mode & UDPHY_MODE_USB) || udphy->hs) {
 		udphy_u3_port_disable(udphy, true);
-		return 0;
+		goto unlock;
 	}
 
-	return udphy_power_on(udphy, UDPHY_MODE_USB);
+	ret = udphy_power_on(udphy, UDPHY_MODE_USB);
+
+unlock:
+	mutex_unlock(&udphy->mutex);
+	return ret;
 }
 
 static int rockchip_u3phy_exit(struct phy *phy)
 {
 	struct rockchip_udphy *udphy = phy_get_drvdata(phy);
+	int ret = 0;
 
+	mutex_lock(&udphy->mutex);
 	/* DP only or high-speed */
 	if (!(udphy->mode & UDPHY_MODE_USB) || udphy->hs)
-		return 0;
+		goto unlock;
 
-	return udphy_power_off(udphy, UDPHY_MODE_USB);
+	ret = udphy_power_off(udphy, UDPHY_MODE_USB);
+
+unlock:
+	mutex_unlock(&udphy->mutex);
+	return ret;
 }
 
 static const struct phy_ops rockchip_u3phy_ops = {
@@ -1020,6 +1031,8 @@ static int usbdp_typec_mux_set(struct typec_mux *mux,
 	struct rockchip_udphy *udphy = typec_mux_get_drvdata(mux);
 	const struct rockchip_udphy_cfg *cfg = udphy->cfgs;
 	u8 mode;
+
+	mutex_lock(&udphy->mutex);
 
 	switch (state->mode) {
 	case TYPEC_DP_STATE_C:
@@ -1062,6 +1075,7 @@ static int usbdp_typec_mux_set(struct typec_mux *mux,
 			cfg->hpd_event_trigger(udphy, hpd);
 	}
 
+	mutex_unlock(&udphy->mutex);
 	return 0;
 }
 
