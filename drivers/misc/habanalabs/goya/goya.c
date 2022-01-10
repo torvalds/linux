@@ -5554,16 +5554,7 @@ static void goya_reset_sob_group(struct hl_device *hdev, u16 sob_group)
 
 static void goya_set_dma_mask_from_fw(struct hl_device *hdev)
 {
-	if (RREG32(mmPSOC_GLOBAL_CONF_NON_RST_FLOPS_0) ==
-							HL_POWER9_HOST_MAGIC) {
-		dev_dbg(hdev->dev, "Working in 64-bit DMA mode\n");
-		hdev->power9_64bit_dma_enable = 1;
-		hdev->dma_mask = 64;
-	} else {
-		dev_dbg(hdev->dev, "Working in 48-bit DMA mode\n");
-		hdev->power9_64bit_dma_enable = 0;
-		hdev->dma_mask = 48;
-	}
+	hdev->dma_mask = 48;
 }
 
 u64 goya_get_device_time(struct hl_device *hdev)
