@@ -701,16 +701,19 @@ static int __bch2_move_data(struct bch_fs *c,
 		bch2_trans_begin(&trans);
 
 		k = bch2_btree_iter_peek(&iter);
-
-		stats->pos = iter.pos;
-
 		if (!k.k)
 			break;
+
 		ret = bkey_err(k);
+		if (ret == -EINTR)
+			continue;
 		if (ret)
 			break;
+
 		if (bkey_cmp(bkey_start_pos(k.k), end) >= 0)
 			break;
+
+		stats->pos = iter.pos;
 
 		if (!bkey_extent_is_direct_data(k.k))
 			goto next_nondata;
@@ -754,10 +757,8 @@ static int __bch2_move_data(struct bch_fs *c,
 		ret2 = bch2_move_extent(&trans, ctxt, wp, io_opts, btree_id, k,
 					data_cmd, data_opts);
 		if (ret2) {
-			if (ret2 == -EINTR) {
-				bch2_trans_begin(&trans);
+			if (ret2 == -EINTR)
 				continue;
-			}
 
 			if (ret2 == -ENOMEM) {
 				/* memory allocation failure, wait for some IO to finish */
