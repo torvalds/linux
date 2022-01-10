@@ -105,6 +105,8 @@ has to do extra work between the various steps. In such cases it has to
 ensure that enter_from_user_mode() is called first on entry and
 exit_to_user_mode() is called last on exit.
 
+Do not nest syscalls. Nested systcalls will cause RCU and/or context tracking
+to print a warning.
 
 KVM
 ---
@@ -120,6 +122,8 @@ The state operations have the same ordering.
 Task work handling is done separately for guest at the boundary of the
 vcpu_run() loop via xfer_to_guest_mode_handle_work() which is a subset of
 the work handled on return to user space.
+
+Do not nest KVM entry/exit transitions because doing so is nonsensical.
 
 Interrupts and regular exceptions
 ---------------------------------
@@ -179,6 +183,16 @@ Note that irq_exit_rcu() must remove HARDIRQ_OFFSET from the preemption count
 before it handles soft interrupts, whose handlers must run in BH context rather
 than irq-disabled context. In addition, irqentry_exit() might schedule, which
 also requires that HARDIRQ_OFFSET has been removed from the preemption count.
+
+Even though interrupt handlers are expected to run with local interrupts
+disabled, interrupt nesting is common from an entry/exit perspective. For
+example, softirq handling happens within an irqentry_{enter,exit}() block with
+local interrupts enabled. Also, although uncommon, nothing prevents an
+interrupt handler from re-enabling interrupts.
+
+Interrupt entry/exit code doesn't strictly need to handle reentrancy, since it
+runs with local interrupts disabled. But NMIs can happen anytime, and a lot of
+the entry code is shared between the two.
 
 NMI and NMI-like exceptions
 ---------------------------
@@ -259,3 +273,7 @@ and for e.g. a debug exception it can look like this:
 
 There is no combined irqentry_nmi_if_kernel() function available as the
 above cannot be handled in an exception-agnostic way.
+
+NMIs can happen in any context. For example, an NMI-like exception triggered
+while handling an NMI. So NMI entry code has to be reentrant and state updates
+need to handle nesting.
