@@ -77,14 +77,22 @@ static int bpf_jit_stack_offsetof(struct codegen_context *ctx, int reg)
 	return BPF_PPC_STACKFRAME(ctx) - 4;
 }
 
+#define SEEN_VREG_MASK		0x1ff80000 /* Volatile registers r3-r12 */
+#define SEEN_NVREG_FULL_MASK	0x0003ffff /* Non volatile registers r14-r31 */
+#define SEEN_NVREG_TEMP_MASK	0x00001e01 /* BPF_REG_5, BPF_REG_AX, TMP_REG */
+
 void bpf_jit_realloc_regs(struct codegen_context *ctx)
 {
-	if (ctx->seen & SEEN_FUNC)
-		return;
+	unsigned int nvreg_mask;
 
-	while (ctx->seen & SEEN_NVREG_MASK &&
+	if (ctx->seen & SEEN_FUNC)
+		nvreg_mask = SEEN_NVREG_TEMP_MASK;
+	else
+		nvreg_mask = SEEN_NVREG_FULL_MASK;
+
+	while (ctx->seen & nvreg_mask &&
 	      (ctx->seen & SEEN_VREG_MASK) != SEEN_VREG_MASK) {
-		int old = 32 - fls(ctx->seen & (SEEN_NVREG_MASK & 0xaaaaaaab));
+		int old = 32 - fls(ctx->seen & (nvreg_mask & 0xaaaaaaab));
 		int new = 32 - fls(~ctx->seen & (SEEN_VREG_MASK & 0xaaaaaaaa));
 		int i;
 

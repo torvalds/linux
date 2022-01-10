@@ -127,9 +127,6 @@
 #define SEEN_FUNC	0x20000000 /* might call external helpers */
 #define SEEN_TAILCALL	0x40000000 /* uses tail calls */
 
-#define SEEN_VREG_MASK	0x1ff80000 /* Volatile registers r3-r12 */
-#define SEEN_NVREG_MASK	0x0003ffff /* Non volatile registers r14-r31 */
-
 #ifdef CONFIG_PPC64
 extern const int b2p[MAX_BPF_JIT_REG + 2];
 #else
