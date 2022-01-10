@@ -46,6 +46,11 @@ struct mt6577_auxadc_device {
 	const struct mtk_auxadc_compatible *dev_comp;
 };
 
+static const struct mtk_auxadc_compatible mt8186_compat = {
+	.sample_data_cali = false,
+	.check_global_idle = false,
+};
+
 static const struct mtk_auxadc_compatible mt8173_compat = {
 	.sample_data_cali = false,
 	.check_global_idle = true,
@@ -334,6 +339,7 @@ static const struct of_device_id mt6577_auxadc_of_match[] = {
 	{ .compatible = "mediatek,mt2712-auxadc", .data = &mt8173_compat },
 	{ .compatible = "mediatek,mt7622-auxadc", .data = &mt8173_compat },
 	{ .compatible = "mediatek,mt8173-auxadc", .data = &mt8173_compat },
+	{ .compatible = "mediatek,mt8186-auxadc", .data = &mt8186_compat },
 	{ .compatible = "mediatek,mt6765-auxadc", .data = &mt6765_compat },
 	{ }
 };
