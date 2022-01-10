@@ -229,12 +229,16 @@ static inline void check_heap_object(const void *ptr, unsigned long n,
 	if (!virt_addr_valid(ptr))
 		return;
 
-	/*
-	 * When CONFIG_HIGHMEM=y, kmap_to_page() will give either the
-	 * highmem page or fallback to virt_to_page(). The following
-	 * is effectively a highmem-aware virt_to_slab().
-	 */
-	folio = page_folio(kmap_to_page((void *)ptr));
+	if (is_kmap_addr(ptr)) {
+		unsigned long page_end = (unsigned long)ptr | (PAGE_SIZE - 1);
+
+		if ((unsigned long)ptr + n - 1 > page_end)
+			usercopy_abort("kmap", NULL, to_user,
+					offset_in_page(ptr), n);
+		return;
+	}
+
+	folio = virt_to_folio(ptr);
 
 	if (folio_test_slab(folio)) {
 		/* Check slab allocator for flags and size. */
