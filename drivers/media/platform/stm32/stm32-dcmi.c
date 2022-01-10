@@ -113,7 +113,7 @@ struct dcmi_framesize {
 struct dcmi_buf {
 	struct vb2_v4l2_buffer	vb;
 	bool			prepared;
-	dma_addr_t		paddr;
+	struct sg_table		sgt;
 	size_t			size;
 	struct list_head	list;
 };
@@ -157,6 +157,7 @@ struct stm32_dcmi {
 	enum state			state;
 	struct dma_chan			*dma_chan;
 	dma_cookie_t			dma_cookie;
+	u32				dma_max_burst;
 	u32				misr;
 	int				errors_count;
 	int				overrun_count;
@@ -326,13 +327,11 @@ static int dcmi_start_dma(struct stm32_dcmi *dcmi,
 	mutex_lock(&dcmi->dma_lock);
 
 	/* Prepare a DMA transaction */
-	desc = dmaengine_prep_slave_single(dcmi->dma_chan, buf->paddr,
-					   buf->size,
-					   DMA_DEV_TO_MEM,
-					   DMA_PREP_INTERRUPT);
+	desc = dmaengine_prep_slave_sg(dcmi->dma_chan, buf->sgt.sgl, buf->sgt.nents,
+				       DMA_DEV_TO_MEM,
+				       DMA_PREP_INTERRUPT);
 	if (!desc) {
-		dev_err(dcmi->dev, "%s: DMA dmaengine_prep_slave_single failed for buffer phy=%pad size=%zu\n",
-			__func__, &buf->paddr, buf->size);
+		dev_err(dcmi->dev, "%s: DMA dmaengine_prep_slave_sg failed\n", __func__);
 		mutex_unlock(&dcmi->dma_lock);
 		return -EINVAL;
 	}
@@ -524,6 +523,10 @@ static int dcmi_buf_prepare(struct vb2_buffer *vb)
 	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
 	struct dcmi_buf *buf = container_of(vbuf, struct dcmi_buf, vb);
 	unsigned long size;
+	unsigned int num_sgs = 1;
+	dma_addr_t dma_buf;
+	struct scatterlist *sg;
+	int i, ret;
 
 	size = dcmi->fmt.fmt.pix.sizeimage;
 
@@ -537,15 +540,33 @@ static int dcmi_buf_prepare(struct vb2_buffer *vb)
 
 	if (!buf->prepared) {
 		/* Get memory addresses */
-		buf->paddr =
-			vb2_dma_contig_plane_dma_addr(&buf->vb.vb2_buf, 0);
 		buf->size = vb2_plane_size(&buf->vb.vb2_buf, 0);
+		if (buf->size > dcmi->dma_max_burst)
+			num_sgs = DIV_ROUND_UP(buf->size, dcmi->dma_max_burst);
+
+		ret = sg_alloc_table(&buf->sgt, num_sgs, GFP_ATOMIC);
+		if (ret) {
+			dev_err(dcmi->dev, "sg table alloc failed\n");
+			return ret;
+		}
+
+		dma_buf = vb2_dma_contig_plane_dma_addr(&buf->vb.vb2_buf, 0);
+
+		dev_dbg(dcmi->dev, "buffer[%d] phy=%pad size=%zu\n",
+			vb->index, &dma_buf, buf->size);
+
+		for_each_sg(buf->sgt.sgl, sg, num_sgs, i) {
+			size_t bytes = min_t(size_t, size, dcmi->dma_max_burst);
+
+			sg_dma_address(sg) = dma_buf;
+			sg_dma_len(sg) = bytes;
+			dma_buf += bytes;
+			size -= bytes;
+		}
+
 		buf->prepared = true;
 
 		vb2_set_plane_payload(&buf->vb.vb2_buf, 0, buf->size);
-
-		dev_dbg(dcmi->dev, "buffer[%d] phy=%pad size=%zu\n",
-			vb->index, &buf->paddr, buf->size);
 	}
 
 	return 0;
@@ -1866,6 +1887,7 @@ static int dcmi_probe(struct platform_device *pdev)
 	struct stm32_dcmi *dcmi;
 	struct vb2_queue *q;
 	struct dma_chan *chan;
+	struct dma_slave_caps caps;
 	struct clk *mclk;
 	int irq;
 	int ret = 0;
@@ -1952,6 +1974,11 @@ static int dcmi_probe(struct platform_device *pdev)
 				"Failed to request DMA channel: %d\n", ret);
 		return ret;
 	}
+
+	dcmi->dma_max_burst = UINT_MAX;
+	ret = dma_get_slave_caps(chan, &caps);
+	if (!ret && caps.max_sg_burst)
+		dcmi->dma_max_burst = caps.max_sg_burst	* DMA_SLAVE_BUSWIDTH_4_BYTES;
 
 	spin_lock_init(&dcmi->irqlock);
 	mutex_init(&dcmi->lock);
