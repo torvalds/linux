@@ -40,6 +40,9 @@
 #define CS35L41_PROTECT_REL_ERR_IGN	0x00002034
 #define CS35L41_GPIO_PAD_CONTROL	0x0000242C
 #define CS35L41_JTAG_CONTROL		0x00002438
+#define CS35L41_PWRMGT_CTL		0x00002900
+#define CS35L41_WAKESRC_CTL		0x00002904
+#define CS35L41_PWRMGT_STS		0x00002908
 #define CS35L41_PLL_CLK_CTRL		0x00002C04
 #define CS35L41_DSP_CLK_CTRL		0x00002C08
 #define CS35L41_GLOBAL_CLK_CTRL		0x00002C0C
@@ -635,6 +638,8 @@
 #define CS35L41_INPUT_DSP_TX1		0x32
 #define CS35L41_INPUT_DSP_TX2		0x33
 
+#define CS35L41_WR_PEND_STS_MASK	0x2
+
 #define CS35L41_PLL_CLK_SEL_MASK	0x07
 #define CS35L41_PLL_CLK_SEL_SHIFT	0
 #define CS35L41_PLL_CLK_EN_MASK		0x10
@@ -762,6 +767,8 @@ struct cs35l41_otp_map_element_t {
 extern struct regmap_config cs35l41_regmap_i2c;
 extern struct regmap_config cs35l41_regmap_spi;
 
+int cs35l41_test_key_unlock(struct device *dev, struct regmap *regmap);
+int cs35l41_test_key_lock(struct device *dev, struct regmap *regmap);
 int cs35l41_otp_unpack(struct device *dev, struct regmap *regmap);
 int cs35l41_register_errata_patch(struct device *dev, struct regmap *reg, unsigned int reg_revid);
 int cs35l41_set_channels(struct device *dev, struct regmap *reg,

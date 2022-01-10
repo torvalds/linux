@@ -20,6 +20,11 @@ static const struct reg_default cs35l41_reg[] = {
 	{ CS35L41_PWR_CTRL2,			0x00000000 },
 	{ CS35L41_PWR_CTRL3,			0x01000010 },
 	{ CS35L41_GPIO_PAD_CONTROL,		0x00000000 },
+	{ CS35L41_GLOBAL_CLK_CTRL,		0x00000003 },
+	{ CS35L41_TST_FS_MON0,			0x00020016 },
+	{ CS35L41_BSTCVRT_COEFF,		0x00002424 },
+	{ CS35L41_BSTCVRT_SLOPE_LBST,		0x00007500 },
+	{ CS35L41_BSTCVRT_PEAK_CUR,		0x0000004A },
 	{ CS35L41_SP_ENABLES,			0x00000000 },
 	{ CS35L41_SP_RATE_CTRL,			0x00000028 },
 	{ CS35L41_SP_FORMAT,			0x18180200 },
@@ -48,11 +53,16 @@ static const struct reg_default cs35l41_reg[] = {
 	{ CS35L41_WKFET_CFG,			0x00000111 },
 	{ CS35L41_NG_CFG,			0x00000033 },
 	{ CS35L41_AMP_GAIN_CTRL,		0x00000000 },
+	{ CS35L41_IRQ1_MASK1,			0xFFFFFFFF },
+	{ CS35L41_IRQ1_MASK2,			0xFFFFFFFF },
+	{ CS35L41_IRQ1_MASK3,			0xFFFF87FF },
+	{ CS35L41_IRQ1_MASK4,			0xFEFFFFFF },
 	{ CS35L41_GPIO1_CTRL1,			0xE1000001 },
 	{ CS35L41_GPIO2_CTRL1,			0xE1000001 },
 	{ CS35L41_MIXER_NGATE_CFG,		0x00000000 },
 	{ CS35L41_MIXER_NGATE_CH1_CFG,		0x00000303 },
 	{ CS35L41_MIXER_NGATE_CH2_CFG,		0x00000303 },
+	{ CS35L41_DSP1_CCM_CORE_CTRL,		0x00000101 },
 };
 
 static bool cs35l41_readable_reg(struct device *dev, unsigned int reg)
@@ -80,10 +90,14 @@ static bool cs35l41_readable_reg(struct device *dev, unsigned int reg)
 	case CS35L41_PROTECT_REL_ERR_IGN:
 	case CS35L41_GPIO_PAD_CONTROL:
 	case CS35L41_JTAG_CONTROL:
+	case CS35L41_PWRMGT_CTL:
+	case CS35L41_WAKESRC_CTL:
+	case CS35L41_PWRMGT_STS:
 	case CS35L41_PLL_CLK_CTRL:
 	case CS35L41_DSP_CLK_CTRL:
 	case CS35L41_GLOBAL_CLK_CTRL:
 	case CS35L41_DATA_FS_SEL:
+	case CS35L41_TST_FS_MON0:
 	case CS35L41_MDSYNC_EN:
 	case CS35L41_MDSYNC_TX_ID:
 	case CS35L41_MDSYNC_PWR_CTRL:
@@ -342,7 +356,10 @@ static bool cs35l41_readable_reg(struct device *dev, unsigned int reg)
 static bool cs35l41_precious_reg(struct device *dev, unsigned int reg)
 {
 	switch (reg) {
+	case CS35L41_TEST_KEY_CTL:
+	case CS35L41_USER_KEY_CTL:
 	case CS35L41_OTP_MEM0 ... CS35L41_OTP_MEM31:
+	case CS35L41_TST_FS_MON0:
 	case CS35L41_DSP1_XMEM_PACK_0 ... CS35L41_DSP1_XMEM_PACK_3068:
 	case CS35L41_DSP1_YMEM_PACK_0 ... CS35L41_DSP1_YMEM_PACK_1532:
 	case CS35L41_DSP1_PMEM_0 ... CS35L41_DSP1_PMEM_5114:
@@ -359,6 +376,12 @@ static bool cs35l41_volatile_reg(struct device *dev, unsigned int reg)
 	case CS35L41_SFT_RESET:
 	case CS35L41_FABID:
 	case CS35L41_REVID:
+	case CS35L41_OTPID:
+	case CS35L41_TEST_KEY_CTL:
+	case CS35L41_USER_KEY_CTL:
+	case CS35L41_PWRMGT_CTL:
+	case CS35L41_WAKESRC_CTL:
+	case CS35L41_PWRMGT_STS:
 	case CS35L41_DTEMP_EN:
 	case CS35L41_IRQ1_STATUS:
 	case CS35L41_IRQ1_STATUS1:
@@ -369,17 +392,6 @@ static bool cs35l41_volatile_reg(struct device *dev, unsigned int reg)
 	case CS35L41_IRQ1_RAW_STATUS2:
 	case CS35L41_IRQ1_RAW_STATUS3:
 	case CS35L41_IRQ1_RAW_STATUS4:
-	case CS35L41_IRQ1_FRC1:
-	case CS35L41_IRQ1_FRC2:
-	case CS35L41_IRQ1_FRC3:
-	case CS35L41_IRQ1_FRC4:
-	case CS35L41_IRQ1_EDGE1:
-	case CS35L41_IRQ1_EDGE4:
-	case CS35L41_IRQ1_POL1:
-	case CS35L41_IRQ1_POL2:
-	case CS35L41_IRQ1_POL3:
-	case CS35L41_IRQ1_POL4:
-	case CS35L41_IRQ1_DB3:
 	case CS35L41_IRQ2_STATUS:
 	case CS35L41_IRQ2_STATUS1:
 	case CS35L41_IRQ2_STATUS2:
@@ -389,54 +401,7 @@ static bool cs35l41_volatile_reg(struct device *dev, unsigned int reg)
 	case CS35L41_IRQ2_RAW_STATUS2:
 	case CS35L41_IRQ2_RAW_STATUS3:
 	case CS35L41_IRQ2_RAW_STATUS4:
-	case CS35L41_IRQ2_FRC1:
-	case CS35L41_IRQ2_FRC2:
-	case CS35L41_IRQ2_FRC3:
-	case CS35L41_IRQ2_FRC4:
-	case CS35L41_IRQ2_EDGE1:
-	case CS35L41_IRQ2_EDGE4:
-	case CS35L41_IRQ2_POL1:
-	case CS35L41_IRQ2_POL2:
-	case CS35L41_IRQ2_POL3:
-	case CS35L41_IRQ2_POL4:
-	case CS35L41_IRQ2_DB3:
 	case CS35L41_GPIO_STATUS1:
-	case CS35L41_OTP_TRIM_1:
-	case CS35L41_OTP_TRIM_2:
-	case CS35L41_OTP_TRIM_3:
-	case CS35L41_OTP_TRIM_4:
-	case CS35L41_OTP_TRIM_5:
-	case CS35L41_OTP_TRIM_6:
-	case CS35L41_OTP_TRIM_7:
-	case CS35L41_OTP_TRIM_8:
-	case CS35L41_OTP_TRIM_9:
-	case CS35L41_OTP_TRIM_10:
-	case CS35L41_OTP_TRIM_11:
-	case CS35L41_OTP_TRIM_12:
-	case CS35L41_OTP_TRIM_13:
-	case CS35L41_OTP_TRIM_14:
-	case CS35L41_OTP_TRIM_15:
-	case CS35L41_OTP_TRIM_16:
-	case CS35L41_OTP_TRIM_17:
-	case CS35L41_OTP_TRIM_18:
-	case CS35L41_OTP_TRIM_19:
-	case CS35L41_OTP_TRIM_20:
-	case CS35L41_OTP_TRIM_21:
-	case CS35L41_OTP_TRIM_22:
-	case CS35L41_OTP_TRIM_23:
-	case CS35L41_OTP_TRIM_24:
-	case CS35L41_OTP_TRIM_25:
-	case CS35L41_OTP_TRIM_26:
-	case CS35L41_OTP_TRIM_27:
-	case CS35L41_OTP_TRIM_28:
-	case CS35L41_OTP_TRIM_29:
-	case CS35L41_OTP_TRIM_30:
-	case CS35L41_OTP_TRIM_31:
-	case CS35L41_OTP_TRIM_32:
-	case CS35L41_OTP_TRIM_33:
-	case CS35L41_OTP_TRIM_34:
-	case CS35L41_OTP_TRIM_35:
-	case CS35L41_OTP_TRIM_36:
 	case CS35L41_DSP_MBOX_1 ... CS35L41_DSP_VIRT2_MBOX_8:
 	case CS35L41_DSP1_XMEM_PACK_0 ... CS35L41_DSP1_XMEM_PACK_3068:
 	case CS35L41_DSP1_XMEM_UNPACK32_0 ... CS35L41_DSP1_XMEM_UNPACK32_2046:
@@ -445,7 +410,11 @@ static bool cs35l41_volatile_reg(struct device *dev, unsigned int reg)
 	case CS35L41_DSP1_YMEM_UNPACK32_0 ... CS35L41_DSP1_YMEM_UNPACK32_1022:
 	case CS35L41_DSP1_YMEM_UNPACK24_0 ... CS35L41_DSP1_YMEM_UNPACK24_2045:
 	case CS35L41_DSP1_PMEM_0 ... CS35L41_DSP1_PMEM_5114:
-	case CS35L41_DSP1_CCM_CORE_CTRL ... CS35L41_DSP1_WDT_STATUS:
+	case CS35L41_DSP1_SCRATCH1:
+	case CS35L41_DSP1_SCRATCH2:
+	case CS35L41_DSP1_SCRATCH3:
+	case CS35L41_DSP1_SCRATCH4:
+	case CS35L41_DSP1_CCM_CLK_OVERRIDE ... CS35L41_DSP1_WDT_STATUS:
 	case CS35L41_OTP_MEM0 ... CS35L41_OTP_MEM31:
 		return true;
 	default:
@@ -660,8 +629,6 @@ static const struct cs35l41_otp_packed_element_t otp_map_2[CS35L41_NUM_OTP_ELEM]
 };
 
 static const struct reg_sequence cs35l41_reva0_errata_patch[] = {
-	{ 0x00000040,			 0x00005555 },
-	{ 0x00000040,			 0x0000AAAA },
 	{ 0x00003854,			 0x05180240 },
 	{ CS35L41_VIMON_SPKMON_RESYNC,	 0x00000000 },
 	{ 0x00004310,			 0x00000000 },
@@ -674,38 +641,28 @@ static const struct reg_sequence cs35l41_reva0_errata_patch[] = {
 	{ CS35L41_IRQ2_DB3,		 0x00000000 },
 	{ CS35L41_DSP1_YM_ACCEL_PL0_PRI, 0x00000000 },
 	{ CS35L41_DSP1_XM_ACCEL_PL0_PRI, 0x00000000 },
-	{ 0x00000040,			 0x0000CCCC },
-	{ 0x00000040,			 0x00003333 },
 	{ CS35L41_PWR_CTRL2,		 0x00000000 },
 	{ CS35L41_AMP_GAIN_CTRL,	 0x00000000 },
 };
 
 static const struct reg_sequence cs35l41_revb0_errata_patch[] = {
-	{ 0x00000040,			 0x00005555 },
-	{ 0x00000040,			 0x0000AAAA },
 	{ CS35L41_VIMON_SPKMON_RESYNC,	 0x00000000 },
 	{ 0x00004310,			 0x00000000 },
 	{ CS35L41_VPVBST_FS_SEL,	 0x00000000 },
 	{ CS35L41_BSTCVRT_DCM_CTRL,	 0x00000051 },
 	{ CS35L41_DSP1_YM_ACCEL_PL0_PRI, 0x00000000 },
 	{ CS35L41_DSP1_XM_ACCEL_PL0_PRI, 0x00000000 },
-	{ 0x00000040,			 0x0000CCCC },
-	{ 0x00000040,			 0x00003333 },
 	{ CS35L41_PWR_CTRL2,		 0x00000000 },
 	{ CS35L41_AMP_GAIN_CTRL,	 0x00000000 },
 };
 
 static const struct reg_sequence cs35l41_revb2_errata_patch[] = {
-	{ 0x00000040,			 0x00005555 },
-	{ 0x00000040,			 0x0000AAAA },
 	{ CS35L41_VIMON_SPKMON_RESYNC,	 0x00000000 },
 	{ 0x00004310,			 0x00000000 },
 	{ CS35L41_VPVBST_FS_SEL,	 0x00000000 },
 	{ CS35L41_BSTCVRT_DCM_CTRL,	 0x00000051 },
 	{ CS35L41_DSP1_YM_ACCEL_PL0_PRI, 0x00000000 },
 	{ CS35L41_DSP1_XM_ACCEL_PL0_PRI, 0x00000000 },
-	{ 0x00000040,			 0x0000CCCC },
-	{ 0x00000040,			 0x00003333 },
 	{ CS35L41_PWR_CTRL2,		 0x00000000 },
 	{ CS35L41_AMP_GAIN_CTRL,	 0x00000000 },
 };
@@ -793,6 +750,39 @@ static const struct cs35l41_otp_map_element_t *cs35l41_find_otp_map(u32 otp_id)
 	return NULL;
 }
 
+int cs35l41_test_key_unlock(struct device *dev, struct regmap *regmap)
+{
+	static const struct reg_sequence unlock[] = {
+		{ CS35L41_TEST_KEY_CTL, 0x00000055 },
+		{ CS35L41_TEST_KEY_CTL, 0x000000AA },
+	};
+	int ret;
+
+	ret = regmap_multi_reg_write(regmap, unlock, ARRAY_SIZE(unlock));
+	if (ret)
+		dev_err(dev, "Failed to unlock test key: %d\n", ret);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(cs35l41_test_key_unlock);
+
+int cs35l41_test_key_lock(struct device *dev, struct regmap *regmap)
+{
+	static const struct reg_sequence unlock[] = {
+		{ CS35L41_TEST_KEY_CTL, 0x000000CC },
+		{ CS35L41_TEST_KEY_CTL, 0x00000033 },
+	};
+	int ret;
+
+	ret = regmap_multi_reg_write(regmap, unlock, ARRAY_SIZE(unlock));
+	if (ret)
+		dev_err(dev, "Failed to lock test key: %d\n", ret);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(cs35l41_test_key_lock);
+
+/* Must be called with the TEST_KEY unlocked */
 int cs35l41_otp_unpack(struct device *dev, struct regmap *regmap)
 {
 	const struct cs35l41_otp_map_element_t *otp_map_match;
@@ -831,17 +821,6 @@ int cs35l41_otp_unpack(struct device *dev, struct regmap *regmap)
 	bit_offset = otp_map_match->bit_offset;
 	word_offset = otp_map_match->word_offset;
 
-	ret = regmap_write(regmap, CS35L41_TEST_KEY_CTL, 0x00000055);
-	if (ret) {
-		dev_err(dev, "Write Unlock key failed 1/2: %d\n", ret);
-		goto err_otp_unpack;
-	}
-	ret = regmap_write(regmap, CS35L41_TEST_KEY_CTL, 0x000000AA);
-	if (ret) {
-		dev_err(dev, "Write Unlock key failed 2/2: %d\n", ret);
-		goto err_otp_unpack;
-	}
-
 	for (i = 0; i < otp_map_match->num_elements; i++) {
 		dev_dbg(dev, "bitoffset= %d, word_offset=%d, bit_sum mod 32=%d\n",
 			bit_offset, word_offset, bit_sum % 32);
@@ -877,16 +856,6 @@ int cs35l41_otp_unpack(struct device *dev, struct regmap *regmap)
 		}
 	}
 
-	ret = regmap_write(regmap, CS35L41_TEST_KEY_CTL, 0x000000CC);
-	if (ret) {
-		dev_err(dev, "Write Lock key failed 1/2: %d\n", ret);
-		goto err_otp_unpack;
-	}
-	ret = regmap_write(regmap, CS35L41_TEST_KEY_CTL, 0x00000033);
-	if (ret) {
-		dev_err(dev, "Write Lock key failed 2/2: %d\n", ret);
-		goto err_otp_unpack;
-	}
 	ret = 0;
 
 err_otp_unpack:
@@ -896,6 +865,7 @@ err_otp_unpack:
 }
 EXPORT_SYMBOL_GPL(cs35l41_otp_unpack);
 
+/* Must be called with the TEST_KEY unlocked */
 int cs35l41_register_errata_patch(struct device *dev, struct regmap *reg, unsigned int reg_revid)
 {
 	char *rev;
