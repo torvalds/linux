@@ -3855,7 +3855,7 @@ static int gaudi_mmu_init(struct hl_device *hdev)
 	/* mem cache invalidation */
 	WREG32(mmSTLB_MEM_CACHE_INVALIDATION, 1);
 
-	hdev->asic_funcs->mmu_invalidate_cache(hdev, true, 0);
+	hl_mmu_invalidate_cache(hdev, true, 0);
 
 	WREG32(mmMMU_UP_MMU_ENABLE, 1);
 	WREG32(mmMMU_UP_SPI_MASK, 0xF);
@@ -8595,7 +8595,7 @@ static int gaudi_internal_cb_pool_init(struct hl_device *hdev,
 			hdev->internal_cb_pool_dma_addr,
 			HOST_SPACE_INTERNAL_CB_SZ);
 
-	hdev->asic_funcs->mmu_invalidate_cache(hdev, false, MMU_OP_USERPTR);
+	hl_mmu_invalidate_cache(hdev, false, MMU_OP_USERPTR);
 	mutex_unlock(&ctx->mmu_lock);
 
 	if (rc)
@@ -8630,7 +8630,7 @@ static void gaudi_internal_cb_pool_fini(struct hl_device *hdev,
 			HOST_SPACE_INTERNAL_CB_SZ);
 	hl_unreserve_va_block(hdev, ctx, hdev->internal_cb_va_base,
 			HOST_SPACE_INTERNAL_CB_SZ);
-	hdev->asic_funcs->mmu_invalidate_cache(hdev, true, MMU_OP_USERPTR);
+	hl_mmu_invalidate_cache(hdev, true, MMU_OP_USERPTR);
 	mutex_unlock(&ctx->mmu_lock);
 
 	gen_pool_destroy(hdev->internal_cb_pool);

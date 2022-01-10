@@ -2700,8 +2700,7 @@ int goya_mmu_init(struct hl_device *hdev)
 	WREG32_AND(mmSTLB_STLB_FEATURE_EN,
 			(~STLB_STLB_FEATURE_EN_FOLLOWER_EN_MASK));
 
-	hdev->asic_funcs->mmu_invalidate_cache(hdev, true,
-					MMU_OP_USERPTR | MMU_OP_PHYS_PACK);
+	hl_mmu_invalidate_cache(hdev, true, MMU_OP_USERPTR | MMU_OP_PHYS_PACK);
 
 	WREG32(mmMMU_MMU_ENABLE, 1);
 	WREG32(mmMMU_SPI_MASK, 0xF);
@@ -5341,7 +5340,7 @@ static int goya_mmu_invalidate_cache_range(struct hl_device *hdev,
 	/* Treat as invalidate all because there is no range invalidation
 	 * in Goya
 	 */
-	return hdev->asic_funcs->mmu_invalidate_cache(hdev, is_hard, flags);
+	return hl_mmu_invalidate_cache(hdev, is_hard, flags);
 }
 
 int goya_send_heartbeat(struct hl_device *hdev)
