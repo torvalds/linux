@@ -3226,6 +3226,18 @@ static void vop2_initial(struct drm_crtc *crtc)
 			return;
 		}
 
+		/*
+		 * we should rest axi to clear register state
+		 * when set pd_off_imd in vop2_power_off_all_pd,
+		 * otherwise the bit0/1/2 of POWER_CTRL register
+		 * will auto cleared after we clear pd_off_imd
+		 * in the following.
+		 */
+		if (vop2->version == VOP_VERSION_RK3588) {
+			if (!vp->loader_protect)
+				vop2_clk_reset(vop2->axi_rst);
+		}
+
 		if (vop2_soc_is_rk3566())
 			VOP_CTRL_SET(vop2, otp_en, 1);
 
