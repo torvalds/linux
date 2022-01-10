@@ -841,7 +841,8 @@ bch2_trans_commit_get_rw_cold(struct btree_trans *trans)
 	struct bch_fs *c = trans->c;
 	int ret;
 
-	if (likely(!(trans->flags & BTREE_INSERT_LAZY_RW)))
+	if (likely(!(trans->flags & BTREE_INSERT_LAZY_RW)) ||
+	    test_bit(BCH_FS_STARTED, &c->flags))
 		return -EROFS;
 
 	bch2_trans_unlock(trans);
