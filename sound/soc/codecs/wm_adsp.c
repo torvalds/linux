@@ -896,11 +896,12 @@ int wm_adsp2_preloader_put(struct snd_kcontrol *kcontrol,
 	struct wm_adsp *dsp = &dsps[mc->shift - 1];
 	char preload[32];
 
+	if (dsp->preloaded == ucontrol->value.integer.value[0])
+		return 0;
+
 	snprintf(preload, ARRAY_SIZE(preload), "%s Preload", dsp->cs_dsp.name);
 
-	dsp->preloaded = ucontrol->value.integer.value[0];
-
-	if (ucontrol->value.integer.value[0])
+	if (ucontrol->value.integer.value[0] || dsp->toggle_preload)
 		snd_soc_component_force_enable_pin(component, preload);
 	else
 		snd_soc_component_disable_pin(component, preload);
@@ -908,6 +909,13 @@ int wm_adsp2_preloader_put(struct snd_kcontrol *kcontrol,
 	snd_soc_dapm_sync(dapm);
 
 	flush_work(&dsp->boot_work);
+
+	dsp->preloaded = ucontrol->value.integer.value[0];
+
+	if (dsp->toggle_preload) {
+		snd_soc_component_disable_pin(component, preload);
+		snd_soc_dapm_sync(dapm);
+	}
 
 	return 0;
 }

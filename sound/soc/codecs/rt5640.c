@@ -2160,7 +2160,11 @@ static bool rt5640_jack_inserted(struct snd_soc_component *component)
 	struct rt5640_priv *rt5640 = snd_soc_component_get_drvdata(component);
 	int val;
 
-	val = snd_soc_component_read(component, RT5640_INT_IRQ_ST);
+	if (rt5640->jd_gpio)
+		val = gpiod_get_value(rt5640->jd_gpio) ? RT5640_JD_STATUS : 0;
+	else
+		val = snd_soc_component_read(component, RT5640_INT_IRQ_ST);
+
 	dev_dbg(component->dev, "irq status %#04x\n", val);
 
 	if (rt5640->jd_inverted)
@@ -2298,7 +2302,7 @@ EXPORT_SYMBOL_GPL(rt5640_detect_headset);
 static void rt5640_jack_work(struct work_struct *work)
 {
 	struct rt5640_priv *rt5640 =
-		container_of(work, struct rt5640_priv, jack_work);
+		container_of(work, struct rt5640_priv, jack_work.work);
 	struct snd_soc_component *component = rt5640->component;
 	int status;
 
@@ -2381,7 +2385,7 @@ static void rt5640_jack_work(struct work_struct *work)
 		 * disabled the OVCD IRQ, the IRQ pin will stay high and as
 		 * we react to edges, we miss the unplug event -> recheck.
 		 */
-		queue_work(system_long_wq, &rt5640->jack_work);
+		queue_delayed_work(system_long_wq, &rt5640->jack_work, 0);
 	}
 }
 
@@ -2390,7 +2394,17 @@ static irqreturn_t rt5640_irq(int irq, void *data)
 	struct rt5640_priv *rt5640 = data;
 
 	if (rt5640->jack)
-		queue_work(system_long_wq, &rt5640->jack_work);
+		queue_delayed_work(system_long_wq, &rt5640->jack_work, 0);
+
+	return IRQ_HANDLED;
+}
+
+static irqreturn_t rt5640_jd_gpio_irq(int irq, void *data)
+{
+	struct rt5640_priv *rt5640 = data;
+
+	queue_delayed_work(system_long_wq, &rt5640->jack_work,
+			   msecs_to_jiffies(JACK_SETTLE_TIME));
 
 	return IRQ_HANDLED;
 }
@@ -2399,7 +2413,7 @@ static void rt5640_cancel_work(void *data)
 {
 	struct rt5640_priv *rt5640 = data;
 
-	cancel_work_sync(&rt5640->jack_work);
+	cancel_delayed_work_sync(&rt5640->jack_work);
 	cancel_delayed_work_sync(&rt5640->bp_work);
 }
 
@@ -2439,7 +2453,12 @@ static void rt5640_disable_jack_detect(struct snd_soc_component *component)
 	if (!rt5640->jack)
 		return;
 
-	free_irq(rt5640->irq, rt5640);
+	if (rt5640->jd_gpio_irq_requested)
+		free_irq(rt5640->jd_gpio_irq, rt5640);
+
+	if (rt5640->irq_requested)
+		free_irq(rt5640->irq, rt5640);
+
 	rt5640_cancel_work(rt5640);
 
 	if (rt5640->jack->status & SND_JACK_MICROPHONE) {
@@ -2448,11 +2467,15 @@ static void rt5640_disable_jack_detect(struct snd_soc_component *component)
 		snd_soc_jack_report(rt5640->jack, 0, SND_JACK_BTN_0);
 	}
 
+	rt5640->jd_gpio_irq_requested = false;
+	rt5640->irq_requested = false;
+	rt5640->jd_gpio = NULL;
 	rt5640->jack = NULL;
 }
 
 static void rt5640_enable_jack_detect(struct snd_soc_component *component,
-				      struct snd_soc_jack *jack)
+				      struct snd_soc_jack *jack,
+				      struct rt5640_set_jack_data *jack_data)
 {
 	struct rt5640_priv *rt5640 = snd_soc_component_get_drvdata(component);
 	int ret;
@@ -2496,19 +2519,37 @@ static void rt5640_enable_jack_detect(struct snd_soc_component *component,
 		rt5640_enable_micbias1_ovcd_irq(component);
 	}
 
+	if (jack_data && jack_data->codec_irq_override)
+		rt5640->irq = jack_data->codec_irq_override;
+
+	if (jack_data && jack_data->jd_gpio) {
+		rt5640->jd_gpio = jack_data->jd_gpio;
+		rt5640->jd_gpio_irq = gpiod_to_irq(rt5640->jd_gpio);
+
+		ret = request_irq(rt5640->jd_gpio_irq, rt5640_jd_gpio_irq,
+				  IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
+				  "rt5640-jd-gpio", rt5640);
+		if (ret) {
+			dev_warn(component->dev, "Failed to request jd GPIO IRQ %d: %d\n",
+				 rt5640->jd_gpio_irq, ret);
+			rt5640_disable_jack_detect(component);
+			return;
+		}
+		rt5640->jd_gpio_irq_requested = true;
+	}
+
 	ret = request_irq(rt5640->irq, rt5640_irq,
 			  IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
 			  "rt5640", rt5640);
 	if (ret) {
 		dev_warn(component->dev, "Failed to reguest IRQ %d: %d\n", rt5640->irq, ret);
-		rt5640->irq = -ENXIO;
-		/* Undo above settings */
 		rt5640_disable_jack_detect(component);
 		return;
 	}
+	rt5640->irq_requested = true;
 
 	/* sync initial jack state */
-	queue_work(system_long_wq, &rt5640->jack_work);
+	queue_delayed_work(system_long_wq, &rt5640->jack_work, 0);
 }
 
 static void rt5640_enable_hda_jack_detect(
@@ -2546,7 +2587,7 @@ static void rt5640_enable_hda_jack_detect(
 	}
 
 	/* sync initial jack state */
-	queue_work(system_long_wq, &rt5640->jack_work);
+	queue_delayed_work(system_long_wq, &rt5640->jack_work, 0);
 }
 
 static int rt5640_set_jack(struct snd_soc_component *component,
@@ -2558,7 +2599,7 @@ static int rt5640_set_jack(struct snd_soc_component *component,
 		if (rt5640->jd_src == RT5640_JD_SRC_HDA_HEADER)
 			rt5640_enable_hda_jack_detect(component, jack);
 		else
-			rt5640_enable_jack_detect(component, jack);
+			rt5640_enable_jack_detect(component, jack, data);
 	} else {
 		rt5640_disable_jack_detect(component);
 	}
@@ -2737,7 +2778,7 @@ static int rt5640_resume(struct snd_soc_component *component)
 	regcache_cache_only(rt5640->regmap, false);
 	regcache_sync(rt5640->regmap);
 
-	if (rt5640->jd_src) {
+	if (rt5640->jack) {
 		if (rt5640->jd_src == RT5640_JD_SRC_HDA_HEADER)
 			snd_soc_component_update_bits(component,
 				RT5640_DUMMY2, 0x1100, 0x1100);
@@ -2745,7 +2786,7 @@ static int rt5640_resume(struct snd_soc_component *component)
 			snd_soc_component_write(component, RT5640_DUMMY2,
 				0x4001);
 
-		queue_work(system_long_wq, &rt5640->jack_work);
+		queue_delayed_work(system_long_wq, &rt5640->jack_work, 0);
 	}
 
 	return 0;
@@ -2950,7 +2991,7 @@ static int rt5640_i2c_probe(struct i2c_client *i2c,
 	rt5640->hp_mute = true;
 	rt5640->irq = i2c->irq;
 	INIT_DELAYED_WORK(&rt5640->bp_work, rt5640_button_press_work);
-	INIT_WORK(&rt5640->jack_work, rt5640_jack_work);
+	INIT_DELAYED_WORK(&rt5640->jack_work, rt5640_jack_work);
 
 	/* Make sure work is stopped on probe-error / remove */
 	ret = devm_add_action_or_reset(&i2c->dev, rt5640_cancel_work, rt5640);
