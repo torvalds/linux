@@ -29,6 +29,7 @@
 #include <linux/mfd/syscon.h>
 #include <linux/usb/of.h>
 #include <linux/usb/otg.h>
+#include <linux/usb/typec_mux.h>
 #include <linux/wakelock.h>
 
 #define BIT_WRITEABLE_SHIFT	16
@@ -125,6 +126,8 @@ struct rockchip_chg_det_reg {
  * @bvalid_det_st: vbus valid rise detection status register.
  * @bvalid_det_clr: vbus valid rise detection clear register.
  * @bvalid_grf_con: vbus valid software control.
+ * @bvalid_grf_sel: vbus valid software control select.
+ * @bvalid_phy_con: vbus valid external select and enable.
  * @bypass_dm_en: usb bypass uart DM enable register.
  * @bypass_sel: usb bypass uart select register.
  * @bypass_iomux: usb bypass uart GRF iomux register.
@@ -162,6 +165,8 @@ struct rockchip_usb2phy_port_cfg {
 	struct usb2phy_reg	bvalid_det_st;
 	struct usb2phy_reg	bvalid_det_clr;
 	struct usb2phy_reg	bvalid_grf_con;
+	struct usb2phy_reg	bvalid_grf_sel;
+	struct usb2phy_reg	bvalid_phy_con;
 	struct usb2phy_reg	bypass_dm_en;
 	struct usb2phy_reg	bypass_sel;
 	struct usb2phy_reg	bypass_iomux;
@@ -241,6 +246,7 @@ struct rockchip_usb2phy_cfg {
  * @otg_sm_work: OTG state machine work.
  * @sm_work: HOST state machine work.
  * @vbus: vbus regulator supply on few rockchip boards.
+ * @sw: orientation switch, communicate with TCPM (Type-C Port Manager).
  * @port_cfg: port register configuration, assigned by driver data.
  * @event_nb: hold event notification callback.
  * @state: define OTG enumeration states before device reset.
@@ -270,6 +276,7 @@ struct rockchip_usb2phy_port {
 	struct		delayed_work otg_sm_work;
 	struct		delayed_work sm_work;
 	struct		regulator *vbus;
+	struct		typec_switch *sw;
 	const struct	rockchip_usb2phy_port_cfg *port_cfg;
 	struct notifier_block	event_nb;
 	struct wake_lock	wakelock;
@@ -1837,6 +1844,61 @@ static int rockchip_usb2phy_port_irq_init(struct rockchip_usb2phy *rphy,
 	return ret;
 }
 
+static void rockchip_usb2phy_usb_bvalid_enable(struct rockchip_usb2phy_port *rport,
+					       u8 enable)
+{
+	struct rockchip_usb2phy *rphy = dev_get_drvdata(rport->phy->dev.parent);
+	const struct rockchip_usb2phy_port_cfg *cfg = rport->port_cfg;
+
+	if (cfg->bvalid_phy_con.enable)
+		property_enable(rphy->grf, &cfg->bvalid_phy_con, enable);
+
+	if (cfg->bvalid_grf_con.enable)
+		property_enable(rphy->grf, &cfg->bvalid_grf_con, enable);
+}
+
+static int rockchip_usb2phy_orien_sw_set(struct typec_switch *sw,
+					 enum typec_orientation orien)
+{
+	struct rockchip_usb2phy_port *rport = typec_switch_get_drvdata(sw);
+
+	dev_dbg(&rport->phy->dev, "type-c orientation: %d\n", orien);
+
+	mutex_lock(&rport->mutex);
+	rockchip_usb2phy_usb_bvalid_enable(rport, orien != TYPEC_ORIENTATION_NONE);
+	mutex_unlock(&rport->mutex);
+
+	return 0;
+}
+
+static int
+rockchip_usb2phy_setup_orien_switch(struct rockchip_usb2phy *rphy,
+				    struct rockchip_usb2phy_port *rport)
+{
+	struct typec_switch_desc sw_desc = { };
+	struct device *dev = rphy->dev;
+
+	sw_desc.drvdata = rport;
+	sw_desc.fwnode = dev_fwnode(dev);
+	sw_desc.set = rockchip_usb2phy_orien_sw_set;
+
+	rport->sw = typec_switch_register(dev, &sw_desc);
+	if (IS_ERR(rport->sw)) {
+		dev_err(dev, "Error register typec orientation switch: %ld\n",
+			PTR_ERR(rport->sw));
+		return PTR_ERR(rport->sw);
+	}
+
+	return 0;
+}
+
+static void rockchip_usb2phy_orien_switch_unregister(void *data)
+{
+	struct rockchip_usb2phy_port *rport = data;
+
+	typec_switch_unregister(rport->sw);
+}
+
 static int rockchip_usb2phy_host_port_init(struct rockchip_usb2phy *rphy,
 					   struct rockchip_usb2phy_port *rport,
 					   struct device_node *child_np)
@@ -1949,13 +2011,26 @@ static int rockchip_usb2phy_otg_port_init(struct rockchip_usb2phy *rphy,
 		return ret;
 	}
 
+	if (IS_REACHABLE(CONFIG_TYPEC) &&
+	    device_property_present(rphy->dev, "orientation-switch")) {
+		ret = rockchip_usb2phy_setup_orien_switch(rphy, rport);
+		if (ret)
+			return ret;
+
+		ret = devm_add_action_or_reset(rphy->dev,
+					       rockchip_usb2phy_orien_switch_unregister,
+					       rport);
+		if (ret)
+			return ret;
+	}
+
 	if (rport->vbus_always_on || rport->mode == USB_DR_MODE_HOST ||
 	    rport->mode == USB_DR_MODE_UNKNOWN)
 		goto out;
 
 	/* Select bvalid of usb phy as bvalid of usb controller */
-	if (rport->port_cfg->bvalid_grf_con.enable != 0)
-		property_enable(base, &rport->port_cfg->bvalid_grf_con, false);
+	if (rport->port_cfg->bvalid_grf_sel.enable != 0)
+		property_enable(base, &rport->port_cfg->bvalid_grf_sel, false);
 
 	wake_lock_init(&rport->wakelock, WAKE_LOCK_SUSPEND, "rockchip_otg");
 	INIT_DELAYED_WORK(&rport->bypass_uart_work,
@@ -3159,7 +3234,7 @@ static const struct rockchip_usb2phy_cfg rk3568_phy_cfgs[] = {
 				.bvalid_det_en	= { 0x0080, 2, 2, 0, 1 },
 				.bvalid_det_st	= { 0x0084, 2, 2, 0, 1 },
 				.bvalid_det_clr = { 0x0088, 2, 2, 0, 1 },
-				.bvalid_grf_con	= { 0x0008, 15, 14, 0, 3 },
+				.bvalid_grf_sel	= { 0x0008, 15, 14, 0, 3 },
 				.bypass_dm_en	= { 0x0008, 2, 2, 0, 1},
 				.bypass_sel	= { 0x0008, 3, 3, 0, 1},
 				.iddig_output	= { 0x0000, 10, 10, 0, 1 },
@@ -3240,7 +3315,9 @@ static const struct rockchip_usb2phy_cfg rk3588_phy_cfgs[] = {
 				.bvalid_det_en	= { 0x0080, 1, 1, 0, 1 },
 				.bvalid_det_st	= { 0x0084, 1, 1, 0, 1 },
 				.bvalid_det_clr = { 0x0088, 1, 1, 0, 1 },
-				.bvalid_grf_con	= { 0x0010, 3, 2, 0, 3 },
+				.bvalid_grf_sel	= { 0x0010, 3, 3, 0, 1 },
+				.bvalid_grf_con	= { 0x0010, 3, 2, 2, 3 },
+				.bvalid_phy_con	= { 0x0008, 1, 0, 2, 3 },
 				.bypass_dm_en	= { 0x000c, 5, 5, 0, 1 },
 				.bypass_sel	= { 0x000c, 6, 6, 0, 1 },
 				.iddig_output	= { 0x0010, 0, 0, 0, 1 },
