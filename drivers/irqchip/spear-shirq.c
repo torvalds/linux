@@ -149,6 +149,8 @@ static struct spear_shirq spear320_shirq_ras3 = {
 	.offset		= 0,
 	.nr_irqs	= 7,
 	.mask		= ((0x1 << 7) - 1) << 0,
+	.irq_chip	= &dummy_irq_chip,
+	.status_reg	= SPEAR320_INT_STS_MASK_REG,
 };
 
 static struct spear_shirq spear320_shirq_ras1 = {
