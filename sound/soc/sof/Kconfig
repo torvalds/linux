@@ -47,7 +47,7 @@ config SND_SOC_SOF_OF
 	  Say Y if you need this option. If unsure select "N".
 
 config SND_SOC_SOF_COMPRESS
-	tristate
+	bool
 	select SND_SOC_COMPRESS
 
 config SND_SOC_SOF_DEBUG_PROBES

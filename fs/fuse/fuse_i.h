@@ -1031,7 +1031,9 @@ void fuse_change_attributes(struct inode *inode, struct fuse_attr *attr,
 			    u64 attr_valid, u64 attr_version);
 
 void fuse_change_attributes_common(struct inode *inode, struct fuse_attr *attr,
-				   u64 attr_valid);
+				   u64 attr_valid, u32 cache_mask);
+
+u32 fuse_get_cache_mask(struct inode *inode);
 
 /**
  * Initialize the client device
@@ -1065,7 +1067,15 @@ void fuse_wait_aborted(struct fuse_conn *fc);
 /**
  * Invalidate inode attributes
  */
+
+/* Attributes possibly changed on data modification */
+#define FUSE_STATX_MODIFY	(STATX_MTIME | STATX_CTIME | STATX_BLOCKS)
+
+/* Attributes possibly changed on data and/or size modification */
+#define FUSE_STATX_MODSIZE	(FUSE_STATX_MODIFY | STATX_SIZE)
+
 void fuse_invalidate_attr(struct inode *inode);
+void fuse_invalidate_attr_mask(struct inode *inode, u32 mask);
 
 void fuse_invalidate_entry_cache(struct dentry *entry);
 
@@ -1148,9 +1158,10 @@ int fuse_allow_current_process(struct fuse_conn *fc);
 
 u64 fuse_lock_owner_id(struct fuse_conn *fc, fl_owner_t id);
 
+void fuse_flush_time_update(struct inode *inode);
 void fuse_update_ctime(struct inode *inode);
 
-int fuse_update_attributes(struct inode *inode, struct file *file);
+int fuse_update_attributes(struct inode *inode, struct file *file, u32 mask);
 
 void fuse_flush_writepages(struct inode *inode);
 
@@ -1208,7 +1219,7 @@ long fuse_ioctl_common(struct file *file, unsigned int cmd,
 __poll_t fuse_file_poll(struct file *file, poll_table *wait);
 int fuse_dev_release(struct inode *inode, struct file *file);
 
-bool fuse_write_update_size(struct inode *inode, loff_t pos);
+bool fuse_write_update_attr(struct inode *inode, loff_t pos, ssize_t written);
 
 int fuse_flush_times(struct inode *inode, struct fuse_file *ff);
 int fuse_write_inode(struct inode *inode, struct writeback_control *wbc);

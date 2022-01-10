@@ -1564,6 +1564,9 @@ int itrace_do_parse_synth_opts(struct itrace_synth_opts *synth_opts,
 		case 'q':
 			synth_opts->quick += 1;
 			break;
+		case 'A':
+			synth_opts->approx_ipc = true;
+			break;
 		case 'Z':
 			synth_opts->timeless_decoding = true;
 			break;

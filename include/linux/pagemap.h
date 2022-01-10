@@ -24,6 +24,56 @@ static inline bool mapping_empty(struct address_space *mapping)
 }
 
 /*
+ * mapping_shrinkable - test if page cache state allows inode reclaim
+ * @mapping: the page cache mapping
+ *
+ * This checks the mapping's cache state for the pupose of inode
+ * reclaim and LRU management.
+ *
+ * The caller is expected to hold the i_lock, but is not required to
+ * hold the i_pages lock, which usually protects cache state. That's
+ * because the i_lock and the list_lru lock that protect the inode and
+ * its LRU state don't nest inside the irq-safe i_pages lock.
+ *
+ * Cache deletions are performed under the i_lock, which ensures that
+ * when an inode goes empty, it will reliably get queued on the LRU.
+ *
+ * Cache additions do not acquire the i_lock and may race with this
+ * check, in which case we'll report the inode as shrinkable when it
+ * has cache pages. This is okay: the shrinker also checks the
+ * refcount and the referenced bit, which will be elevated or set in
+ * the process of adding new cache pages to an inode.
+ */
+static inline bool mapping_shrinkable(struct address_space *mapping)
+{
+	void *head;
+
+	/*
+	 * On highmem systems, there could be lowmem pressure from the
+	 * inodes before there is highmem pressure from the page
+	 * cache. Make inodes shrinkable regardless of cache state.
+	 */
+	if (IS_ENABLED(CONFIG_HIGHMEM))
+		return true;
+
+	/* Cache completely empty? Shrink away. */
+	head = rcu_access_pointer(mapping->i_pages.xa_head);
+	if (!head)
+		return true;
+
+	/*
+	 * The xarray stores single offset-0 entries directly in the
+	 * head pointer, which allows non-resident page cache entries
+	 * to escape the shadow shrinker's list of xarray nodes. The
+	 * inode shrinker needs to pick them up under memory pressure.
+	 */
+	if (!xa_is_node(head) && xa_is_value(head))
+		return true;
+
+	return false;
+}
+
+/*
  * Bits in mapping->flags.
  */
 enum mapping_flags {
@@ -203,6 +253,20 @@ static inline struct address_space *page_mapping_file(struct page *page)
 	return folio_mapping(folio);
 }
 
+/**
+ * folio_inode - Get the host inode for this folio.
+ * @folio: The folio.
+ *
+ * For folios which are in the page cache, return the inode that this folio
+ * belongs to.
+ *
+ * Do not call this for folios which aren't in the page cache.
+ */
+static inline struct inode *folio_inode(struct folio *folio)
+{
+	return folio->mapping->host;
+}
+
 static inline bool page_cache_add_speculative(struct page *page, int count)
 {
 	VM_BUG_ON_PAGE(PageTail(page), page);
@@ -227,6 +291,25 @@ static inline void folio_attach_private(struct folio *folio, void *data)
 	folio_get(folio);
 	folio->private = data;
 	folio_set_private(folio);
+}
+
+/**
+ * folio_change_private - Change private data on a folio.
+ * @folio: Folio to change the data on.
+ * @data: Data to set on the folio.
+ *
+ * Change the private data attached to a folio and return the old
+ * data.  The page must previously have had data attached and the data
+ * must be detached before the folio will be freed.
+ *
+ * Return: Data that was previously attached to the folio.
+ */
+static inline void *folio_change_private(struct folio *folio, void *data)
+{
+	void *old = folio_get_private(folio);
+
+	folio->private = data;
+	return old;
 }
 
 /**

@@ -8,7 +8,7 @@
 
 #define CG_NAME "/netcnt"
 
-void test_netcnt(void)
+void serial_test_netcnt(void)
 {
 	union percpu_net_cnt *percpu_netcnt = NULL;
 	struct bpf_cgroup_storage_key key;

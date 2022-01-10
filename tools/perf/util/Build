@@ -138,6 +138,7 @@ perf-y += expr.o
 perf-y += branch.o
 perf-y += mem2node.o
 perf-y += clockid.o
+perf-y += list_sort.o
 
 perf-$(CONFIG_LIBBPF) += bpf-loader.o
 perf-$(CONFIG_LIBBPF) += bpf_map.o
@@ -201,6 +202,7 @@ endif
 perf-y += perf-hooks.o
 
 perf-$(CONFIG_LIBBPF) += bpf-event.o
+perf-$(CONFIG_LIBBPF) += bpf-utils.o
 
 perf-$(CONFIG_CXX) += c++/
 
@@ -313,5 +315,9 @@ $(OUTPUT)util/hweight.o: ../lib/hweight.c FORCE
 	$(call if_changed_dep,cc_o_c)
 
 $(OUTPUT)util/vsprintf.o: ../lib/vsprintf.c FORCE
+	$(call rule_mkdir)
+	$(call if_changed_dep,cc_o_c)
+
+$(OUTPUT)util/list_sort.o: ../lib/list_sort.c FORCE
 	$(call rule_mkdir)
 	$(call if_changed_dep,cc_o_c)

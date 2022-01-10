@@ -25,6 +25,11 @@ static int iterations = 100;
 static int nr_events = 1;
 static const char *event_string = "dummy";
 
+static inline u64 timeval2usec(struct timeval *tv)
+{
+	return tv->tv_sec * USEC_PER_SEC + tv->tv_usec;
+}
+
 static struct record_opts opts = {
 	.sample_time	     = true,
 	.mmap_pages	     = UINT_MAX,
@@ -73,7 +78,7 @@ static int evlist__count_evsel_fds(struct evlist *evlist)
 
 static struct evlist *bench__create_evlist(char *evstr)
 {
-	struct parse_events_error err = { .idx = 0, };
+	struct parse_events_error err;
 	struct evlist *evlist = evlist__new();
 	int ret;
 
@@ -82,14 +87,16 @@ static struct evlist *bench__create_evlist(char *evstr)
 		return NULL;
 	}
 
+	parse_events_error__init(&err);
 	ret = parse_events(evlist, evstr, &err);
 	if (ret) {
-		parse_events_print_error(&err, evstr);
+		parse_events_error__print(&err, evstr);
+		parse_events_error__exit(&err);
 		pr_err("Run 'perf list' for a list of valid events\n");
 		ret = 1;
 		goto out_delete_evlist;
 	}
-
+	parse_events_error__exit(&err);
 	ret = evlist__create_maps(evlist, &opts.target);
 	if (ret < 0) {
 		pr_err("Not enough memory to create thread/cpu maps\n");
@@ -167,7 +174,7 @@ static int bench_evlist_open_close__run(char *evstr)
 
 		gettimeofday(&end, NULL);
 		timersub(&end, &start, &diff);
-		runtime_us = diff.tv_sec * USEC_PER_SEC + diff.tv_usec;
+		runtime_us = timeval2usec(&diff);
 		update_stats(&time_stats, runtime_us);
 
 		evlist__delete(evlist);

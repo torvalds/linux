@@ -160,8 +160,7 @@ static int audit_mark_handle_event(struct fsnotify_mark *inode_mark, u32 mask,
 
 	audit_mark = container_of(inode_mark, struct audit_fsnotify_mark, mark);
 
-	if (WARN_ON_ONCE(inode_mark->group != audit_fsnotify_group) ||
-	    WARN_ON_ONCE(!inode))
+	if (WARN_ON_ONCE(inode_mark->group != audit_fsnotify_group))
 		return 0;
 
 	if (mask & (FS_CREATE|FS_MOVED_TO|FS_DELETE|FS_MOVED_FROM)) {

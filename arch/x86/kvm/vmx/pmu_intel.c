@@ -118,16 +118,15 @@ static struct kvm_pmc *intel_pmc_idx_to_pmc(struct kvm_pmu *pmu, int pmc_idx)
 	}
 }
 
-/* returns 0 if idx's corresponding MSR exists; otherwise returns 1. */
-static int intel_is_valid_rdpmc_ecx(struct kvm_vcpu *vcpu, unsigned int idx)
+static bool intel_is_valid_rdpmc_ecx(struct kvm_vcpu *vcpu, unsigned int idx)
 {
 	struct kvm_pmu *pmu = vcpu_to_pmu(vcpu);
 	bool fixed = idx & (1u << 30);
 
 	idx &= ~(3u << 30);
 
-	return (!fixed && idx >= pmu->nr_arch_gp_counters) ||
-		(fixed && idx >= pmu->nr_arch_fixed_counters);
+	return fixed ? idx < pmu->nr_arch_fixed_counters
+		     : idx < pmu->nr_arch_gp_counters;
 }
 
 static struct kvm_pmc *intel_rdpmc_ecx_to_pmc(struct kvm_vcpu *vcpu,

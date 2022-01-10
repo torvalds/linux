@@ -213,7 +213,10 @@ void blkdev_show(struct seq_file *seqf, off_t offset)
  * @major: the requested major device number [1..BLKDEV_MAJOR_MAX-1]. If
  *         @major = 0, try to allocate any unused major number.
  * @name: the name of the new block device as a zero terminated string
- * @probe: allback that is called on access to any minor number of @major
+ * @probe: pre-devtmpfs / pre-udev callback used to create disks when their
+ *	   pre-created device node is accessed. When a probe call uses
+ *	   add_disk() and it fails the driver must cleanup resources. This
+ *	   interface may soon be removed.
  *
  * The @name must be unique within the system.
  *
@@ -391,8 +394,8 @@ static void disk_scan_partitions(struct gendisk *disk)
  * This function registers the partitioning information in @disk
  * with the kernel.
  */
-int device_add_disk(struct device *parent, struct gendisk *disk,
-		     const struct attribute_group **groups)
+int __must_check device_add_disk(struct device *parent, struct gendisk *disk,
+				 const struct attribute_group **groups)
 
 {
 	struct device *ddev = disk_to_dev(disk);
@@ -469,11 +472,15 @@ int device_add_disk(struct device *parent, struct gendisk *disk,
 
 	disk->part0->bd_holder_dir =
 		kobject_create_and_add("holders", &ddev->kobj);
-	if (!disk->part0->bd_holder_dir)
+	if (!disk->part0->bd_holder_dir) {
+		ret = -ENOMEM;
 		goto out_del_integrity;
+	}
 	disk->slave_dir = kobject_create_and_add("slaves", &ddev->kobj);
-	if (!disk->slave_dir)
+	if (!disk->slave_dir) {
+		ret = -ENOMEM;
 		goto out_put_holder_dir;
+	}
 
 	ret = bd_register_pending_holders(disk);
 	if (ret < 0)
@@ -537,7 +544,7 @@ out_disk_release_events:
 out_free_ext_minor:
 	if (disk->major == BLOCK_EXT_MAJOR)
 		blk_free_ext_minor(disk->first_minor);
-	return WARN_ON_ONCE(ret); /* keep until all callers handle errors */
+	return ret;
 }
 EXPORT_SYMBOL(device_add_disk);
 
@@ -1103,6 +1110,8 @@ static void disk_release(struct device *dev)
 
 	might_sleep();
 	WARN_ON_ONCE(disk_live(disk));
+
+	blk_mq_cancel_work_sync(disk->queue);
 
 	disk_release_events(disk);
 	kfree(disk->random);

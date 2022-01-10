@@ -1792,7 +1792,7 @@ static struct mapped_device *alloc_dev(int minor)
 
 	format_dev_t(md->name, MKDEV(_major, minor));
 
-	md->wq = alloc_workqueue("kdmflush", WQ_MEM_RECLAIM, 0);
+	md->wq = alloc_workqueue("kdmflush/%s", WQ_MEM_RECLAIM, 0, md->name);
 	if (!md->wq)
 		goto bad;
 
@@ -1926,16 +1926,6 @@ static struct dm_table *__bind(struct mapped_device *md, struct dm_table *t,
 		set_capacity_and_notify(md->disk, size);
 
 	dm_table_event_callback(t, event_callback, md);
-
-	/*
-	 * The queue hasn't been stopped yet, if the old table type wasn't
-	 * for request-based during suspension.  So stop it to prevent
-	 * I/O mapping before resume.
-	 * This must be done before setting the queue restrictions,
-	 * because request-based dm may be run just after the setting.
-	 */
-	if (request_based)
-		dm_stop_queue(q);
 
 	if (request_based) {
 		/*

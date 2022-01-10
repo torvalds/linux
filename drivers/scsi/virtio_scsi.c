@@ -164,7 +164,7 @@ static void virtscsi_complete_cmd(struct virtio_scsi *vscsi, void *buf)
 			     VIRTIO_SCSI_SENSE_SIZE));
 	}
 
-	sc->scsi_done(sc);
+	scsi_done(sc);
 }
 
 static void virtscsi_vq_done(struct virtio_scsi *vscsi,
@@ -620,9 +620,8 @@ static int virtscsi_tmf(struct virtio_scsi *vscsi, struct virtio_scsi_cmd *cmd)
 	 * we're using independent interrupts (e.g. MSI).  Poll the
 	 * virtqueues once.
 	 *
-	 * In the abort case, sc->scsi_done will do nothing, because
-	 * the block layer must have detected a timeout and as a result
-	 * REQ_ATOM_COMPLETE has been set.
+	 * In the abort case, scsi_done() will do nothing, because the
+	 * command timed out and hence SCMD_STATE_COMPLETE has been set.
 	 */
 	virtscsi_poll_requests(vscsi);
 

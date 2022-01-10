@@ -183,8 +183,11 @@ EXPORT_SYMBOL_GPL(snd_devm_alloc_dir_pages);
 int snd_dma_buffer_mmap(struct snd_dma_buffer *dmab,
 			struct vm_area_struct *area)
 {
-	const struct snd_malloc_ops *ops = snd_dma_get_ops(dmab);
+	const struct snd_malloc_ops *ops;
 
+	if (!dmab)
+		return -ENOENT;
+	ops = snd_dma_get_ops(dmab);
 	if (ops && ops->mmap)
 		return ops->mmap(dmab, area);
 	else
@@ -549,60 +552,73 @@ static void snd_dma_noncontig_sync(struct snd_dma_buffer *dmab,
 	}
 }
 
+static inline void snd_dma_noncontig_iter_set(struct snd_dma_buffer *dmab,
+					      struct sg_page_iter *piter,
+					      size_t offset)
+{
+	struct sg_table *sgt = dmab->private_data;
+
+	__sg_page_iter_start(piter, sgt->sgl, sgt->orig_nents,
+			     offset >> PAGE_SHIFT);
+}
+
+static dma_addr_t snd_dma_noncontig_get_addr(struct snd_dma_buffer *dmab,
+					     size_t offset)
+{
+	struct sg_dma_page_iter iter;
+
+	snd_dma_noncontig_iter_set(dmab, &iter.base, offset);
+	__sg_page_iter_dma_next(&iter);
+	return sg_page_iter_dma_address(&iter) + offset % PAGE_SIZE;
+}
+
+static struct page *snd_dma_noncontig_get_page(struct snd_dma_buffer *dmab,
+					       size_t offset)
+{
+	struct sg_page_iter iter;
+
+	snd_dma_noncontig_iter_set(dmab, &iter, offset);
+	__sg_page_iter_next(&iter);
+	return sg_page_iter_page(&iter);
+}
+
+static unsigned int
+snd_dma_noncontig_get_chunk_size(struct snd_dma_buffer *dmab,
+				 unsigned int ofs, unsigned int size)
+{
+	struct sg_dma_page_iter iter;
+	unsigned int start, end;
+	unsigned long addr;
+
+	start = ALIGN_DOWN(ofs, PAGE_SIZE);
+	end = ofs + size - 1; /* the last byte address */
+	snd_dma_noncontig_iter_set(dmab, &iter.base, start);
+	if (!__sg_page_iter_dma_next(&iter))
+		return 0;
+	/* check page continuity */
+	addr = sg_page_iter_dma_address(&iter);
+	for (;;) {
+		start += PAGE_SIZE;
+		if (start > end)
+			break;
+		addr += PAGE_SIZE;
+		if (!__sg_page_iter_dma_next(&iter) ||
+		    sg_page_iter_dma_address(&iter) != addr)
+			return start - ofs;
+	}
+	/* ok, all on continuous pages */
+	return size;
+}
+
 static const struct snd_malloc_ops snd_dma_noncontig_ops = {
 	.alloc = snd_dma_noncontig_alloc,
 	.free = snd_dma_noncontig_free,
 	.mmap = snd_dma_noncontig_mmap,
 	.sync = snd_dma_noncontig_sync,
-	/* re-use vmalloc helpers for get_* ops */
-	.get_addr = snd_dma_vmalloc_get_addr,
-	.get_page = snd_dma_vmalloc_get_page,
-	.get_chunk_size = snd_dma_vmalloc_get_chunk_size,
+	.get_addr = snd_dma_noncontig_get_addr,
+	.get_page = snd_dma_noncontig_get_page,
+	.get_chunk_size = snd_dma_noncontig_get_chunk_size,
 };
-
-/* x86-specific SG-buffer with WC pages */
-#ifdef CONFIG_SND_DMA_SGBUF
-#define vmalloc_to_virt(v) (unsigned long)page_to_virt(vmalloc_to_page(v))
-
-static void *snd_dma_sg_wc_alloc(struct snd_dma_buffer *dmab, size_t size)
-{
-	void *p = snd_dma_noncontig_alloc(dmab, size);
-	size_t ofs;
-
-	if (!p)
-		return NULL;
-	for (ofs = 0; ofs < size; ofs += PAGE_SIZE)
-		set_memory_uc(vmalloc_to_virt(p + ofs), 1);
-	return p;
-}
-
-static void snd_dma_sg_wc_free(struct snd_dma_buffer *dmab)
-{
-	size_t ofs;
-
-	for (ofs = 0; ofs < dmab->bytes; ofs += PAGE_SIZE)
-		set_memory_wb(vmalloc_to_virt(dmab->area + ofs), 1);
-	snd_dma_noncontig_free(dmab);
-}
-
-static int snd_dma_sg_wc_mmap(struct snd_dma_buffer *dmab,
-			      struct vm_area_struct *area)
-{
-	area->vm_page_prot = pgprot_writecombine(area->vm_page_prot);
-	/* FIXME: dma_mmap_noncontiguous() works? */
-	return -ENOENT; /* continue with the default mmap handler */
-}
-
-const struct snd_malloc_ops snd_dma_sg_wc_ops = {
-	.alloc = snd_dma_sg_wc_alloc,
-	.free = snd_dma_sg_wc_free,
-	.mmap = snd_dma_sg_wc_mmap,
-	.sync = snd_dma_noncontig_sync,
-	.get_addr = snd_dma_vmalloc_get_addr,
-	.get_page = snd_dma_vmalloc_get_page,
-	.get_chunk_size = snd_dma_vmalloc_get_chunk_size,
-};
-#endif /* CONFIG_SND_DMA_SGBUF */
 
 /*
  * Non-coherent pages allocator
@@ -663,17 +679,20 @@ static const struct snd_malloc_ops *dma_ops[] = {
 	[SNDRV_DMA_TYPE_DEV_WC] = &snd_dma_wc_ops,
 	[SNDRV_DMA_TYPE_NONCONTIG] = &snd_dma_noncontig_ops,
 	[SNDRV_DMA_TYPE_NONCOHERENT] = &snd_dma_noncoherent_ops,
-#ifdef CONFIG_SND_DMA_SGBUF
-	[SNDRV_DMA_TYPE_DEV_WC_SG] = &snd_dma_sg_wc_ops,
-#endif
 #ifdef CONFIG_GENERIC_ALLOCATOR
 	[SNDRV_DMA_TYPE_DEV_IRAM] = &snd_dma_iram_ops,
 #endif /* CONFIG_GENERIC_ALLOCATOR */
 #endif /* CONFIG_HAS_DMA */
+#ifdef CONFIG_SND_DMA_SGBUF
+	[SNDRV_DMA_TYPE_DEV_SG] = &snd_dma_sg_ops,
+	[SNDRV_DMA_TYPE_DEV_WC_SG] = &snd_dma_sg_ops,
+#endif
 };
 
 static const struct snd_malloc_ops *snd_dma_get_ops(struct snd_dma_buffer *dmab)
 {
+	if (WARN_ON_ONCE(!dmab))
+		return NULL;
 	if (WARN_ON_ONCE(dmab->dev.type <= SNDRV_DMA_TYPE_UNKNOWN ||
 			 dmab->dev.type >= ARRAY_SIZE(dma_ops)))
 		return NULL;

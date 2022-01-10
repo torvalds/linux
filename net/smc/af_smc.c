@@ -149,14 +149,18 @@ static int __smc_release(struct smc_sock *smc)
 		sock_set_flag(sk, SOCK_DEAD);
 		sk->sk_shutdown |= SHUTDOWN_MASK;
 	} else {
-		if (sk->sk_state != SMC_LISTEN && sk->sk_state != SMC_INIT)
-			sock_put(sk); /* passive closing */
-		if (sk->sk_state == SMC_LISTEN) {
-			/* wake up clcsock accept */
-			rc = kernel_sock_shutdown(smc->clcsock, SHUT_RDWR);
+		if (sk->sk_state != SMC_CLOSED) {
+			if (sk->sk_state != SMC_LISTEN &&
+			    sk->sk_state != SMC_INIT)
+				sock_put(sk); /* passive closing */
+			if (sk->sk_state == SMC_LISTEN) {
+				/* wake up clcsock accept */
+				rc = kernel_sock_shutdown(smc->clcsock,
+							  SHUT_RDWR);
+			}
+			sk->sk_state = SMC_CLOSED;
+			sk->sk_state_change(sk);
 		}
-		sk->sk_state = SMC_CLOSED;
-		sk->sk_state_change(sk);
 		smc_restore_fallback_changes(smc);
 	}
 
@@ -562,6 +566,10 @@ static void smc_stat_fallback(struct smc_sock *smc)
 
 static void smc_switch_to_fallback(struct smc_sock *smc, int reason_code)
 {
+	wait_queue_head_t *smc_wait = sk_sleep(&smc->sk);
+	wait_queue_head_t *clc_wait = sk_sleep(smc->clcsock->sk);
+	unsigned long flags;
+
 	smc->use_fallback = true;
 	smc->fallback_rsn = reason_code;
 	smc_stat_fallback(smc);
@@ -571,6 +579,16 @@ static void smc_switch_to_fallback(struct smc_sock *smc, int reason_code)
 		smc->clcsock->file->private_data = smc->clcsock;
 		smc->clcsock->wq.fasync_list =
 			smc->sk.sk_socket->wq.fasync_list;
+
+		/* There may be some entries remaining in
+		 * smc socket->wq, which should be removed
+		 * to clcsocket->wq during the fallback.
+		 */
+		spin_lock_irqsave(&smc_wait->lock, flags);
+		spin_lock(&clc_wait->lock);
+		list_splice_init(&smc_wait->head, &clc_wait->head);
+		spin_unlock(&clc_wait->lock);
+		spin_unlock_irqrestore(&smc_wait->lock, flags);
 	}
 }
 

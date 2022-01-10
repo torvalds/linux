@@ -36,11 +36,9 @@ static uint64_t guest_percpu_mem_size = DEFAULT_PER_VCPU_MEM_SIZE;
 
 static bool run_vcpus = true;
 
-static void *vcpu_worker(void *data)
+static void vcpu_worker(struct perf_test_vcpu_args *vcpu_args)
 {
 	int ret;
-	struct perf_test_vcpu_args *vcpu_args =
-		(struct perf_test_vcpu_args *)data;
 	int vcpu_id = vcpu_args->vcpu_id;
 	struct kvm_vm *vm = perf_test_args.vm;
 	struct kvm_run *run;
@@ -59,8 +57,6 @@ static void *vcpu_worker(void *data)
 			    "Invalid guest sync status: exit_reason=%s\n",
 			    exit_reason_str(run->exit_reason));
 	}
-
-	return NULL;
 }
 
 struct memslot_antagonist_args {
@@ -80,7 +76,7 @@ static void add_remove_memslot(struct kvm_vm *vm, useconds_t delay,
 	 * Add the dummy memslot just below the perf_test_util memslot, which is
 	 * at the top of the guest physical address space.
 	 */
-	gpa = guest_test_phys_mem - pages * vm_get_page_size(vm);
+	gpa = perf_test_args.gpa - pages * vm_get_page_size(vm);
 
 	for (i = 0; i < nr_modifications; i++) {
 		usleep(delay);
@@ -100,29 +96,15 @@ struct test_params {
 static void run_test(enum vm_guest_mode mode, void *arg)
 {
 	struct test_params *p = arg;
-	pthread_t *vcpu_threads;
 	struct kvm_vm *vm;
-	int vcpu_id;
 
 	vm = perf_test_create_vm(mode, nr_vcpus, guest_percpu_mem_size, 1,
-				 VM_MEM_SRC_ANONYMOUS);
-
-	perf_test_args.wr_fract = 1;
-
-	vcpu_threads = malloc(nr_vcpus * sizeof(*vcpu_threads));
-	TEST_ASSERT(vcpu_threads, "Memory allocation failed");
-
-	perf_test_setup_vcpus(vm, nr_vcpus, guest_percpu_mem_size,
-			      p->partition_vcpu_memory_access);
-
-	/* Export the shared variables to the guest */
-	sync_global_to_guest(vm, perf_test_args);
+				 VM_MEM_SRC_ANONYMOUS,
+				 p->partition_vcpu_memory_access);
 
 	pr_info("Finished creating vCPUs\n");
 
-	for (vcpu_id = 0; vcpu_id < nr_vcpus; vcpu_id++)
-		pthread_create(&vcpu_threads[vcpu_id], NULL, vcpu_worker,
-			       &perf_test_args.vcpu_args[vcpu_id]);
+	perf_test_start_vcpu_threads(nr_vcpus, vcpu_worker);
 
 	pr_info("Started all vCPUs\n");
 
@@ -131,16 +113,10 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 
 	run_vcpus = false;
 
-	/* Wait for the vcpu threads to quit */
-	for (vcpu_id = 0; vcpu_id < nr_vcpus; vcpu_id++)
-		pthread_join(vcpu_threads[vcpu_id], NULL);
-
+	perf_test_join_vcpu_threads(nr_vcpus);
 	pr_info("All vCPU threads joined\n");
 
-	ucall_uninit(vm);
-	kvm_vm_free(vm);
-
-	free(vcpu_threads);
+	perf_test_destroy_vm(vm);
 }
 
 static void help(char *name)

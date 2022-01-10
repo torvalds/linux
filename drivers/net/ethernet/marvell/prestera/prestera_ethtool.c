@@ -499,7 +499,8 @@ static void prestera_port_mdix_get(struct ethtool_link_ksettings *ecmd,
 {
 	struct prestera_port_phy_state *state = &port->state_phy;
 
-	if (prestera_hw_port_phy_mode_get(port, &state->mdix, NULL, NULL, NULL)) {
+	if (prestera_hw_port_phy_mode_get(port,
+					  &state->mdix, NULL, NULL, NULL)) {
 		netdev_warn(port->dev, "MDIX params get failed");
 		state->mdix = ETH_TP_MDI_INVALID;
 	}

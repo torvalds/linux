@@ -24,7 +24,6 @@
 #include <linux/sysctl.h>
 #include <linux/proc_fs.h>
 #include <linux/workqueue.h>
-#include <linux/swap.h>
 #include <linux/seq_file.h>
 #include <linux/slab.h>
 
@@ -47,6 +46,8 @@
 #include <linux/uaccess.h>
 
 #include <net/ip_vs.h>
+
+MODULE_ALIAS_GENL_FAMILY(IPVS_GENL_NAME);
 
 /* semaphore for IPVS sockopts. And, [gs]etsockopt may sleep. */
 static DEFINE_MUTEX(__ip_vs_mutex);

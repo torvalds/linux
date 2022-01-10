@@ -96,7 +96,8 @@ static phys_addr_t __init early_pgtable_alloc(int shift)
 	phys_addr_t phys;
 	void *ptr;
 
-	phys = memblock_phys_alloc(PAGE_SIZE, PAGE_SIZE);
+	phys = memblock_phys_alloc_range(PAGE_SIZE, PAGE_SIZE, 0,
+					 MEMBLOCK_ALLOC_NOLEAKTRACE);
 	if (!phys)
 		panic("Failed to allocate page table page\n");
 
@@ -738,8 +739,8 @@ void __init paging_init(void)
 	cpu_replace_ttbr1(lm_alias(swapper_pg_dir));
 	init_mm.pgd = swapper_pg_dir;
 
-	memblock_free(__pa_symbol(init_pg_dir),
-		      __pa_symbol(init_pg_end) - __pa_symbol(init_pg_dir));
+	memblock_phys_free(__pa_symbol(init_pg_dir),
+			   __pa_symbol(init_pg_end) - __pa_symbol(init_pg_dir));
 
 	memblock_allow_resize();
 }

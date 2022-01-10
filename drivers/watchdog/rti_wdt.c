@@ -194,7 +194,6 @@ static int rti_wdt_probe(struct platform_device *pdev)
 {
 	int ret = 0;
 	struct device *dev = &pdev->dev;
-	struct resource *wdt_mem;
 	struct watchdog_device *wdd;
 	struct rti_wdt_device *wdt;
 	struct clk *clk;
@@ -246,8 +245,7 @@ static int rti_wdt_probe(struct platform_device *pdev)
 	watchdog_set_nowayout(wdd, 1);
 	watchdog_set_restart_priority(wdd, 128);
 
-	wdt_mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	wdt->base = devm_ioremap_resource(dev, wdt_mem);
+	wdt->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(wdt->base)) {
 		ret = PTR_ERR(wdt->base);
 		goto err_iomap;

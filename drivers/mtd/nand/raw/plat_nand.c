@@ -21,9 +21,8 @@ struct plat_nand_data {
 
 static int plat_nand_attach_chip(struct nand_chip *chip)
 {
-	chip->ecc.engine_type = NAND_ECC_ENGINE_TYPE_SOFT;
-
-	if (chip->ecc.algo == NAND_ECC_ALGO_UNKNOWN)
+	if (chip->ecc.engine_type == NAND_ECC_ENGINE_TYPE_SOFT &&
+	    chip->ecc.algo == NAND_ECC_ALGO_UNKNOWN)
 		chip->ecc.algo = NAND_ECC_ALGO_HAMMING;
 
 	return 0;
@@ -41,7 +40,6 @@ static int plat_nand_probe(struct platform_device *pdev)
 	struct platform_nand_data *pdata = dev_get_platdata(&pdev->dev);
 	struct plat_nand_data *data;
 	struct mtd_info *mtd;
-	struct resource *res;
 	const char **part_types;
 	int err = 0;
 
@@ -65,8 +63,7 @@ static int plat_nand_probe(struct platform_device *pdev)
 	nand_controller_init(&data->controller);
 	data->chip.controller = &data->controller;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	data->io_base = devm_ioremap_resource(&pdev->dev, res);
+	data->io_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(data->io_base))
 		return PTR_ERR(data->io_base);
 
@@ -93,6 +90,13 @@ static int plat_nand_probe(struct platform_device *pdev)
 		if (err)
 			goto out;
 	}
+
+	/*
+	 * This driver assumes that the default ECC engine should be TYPE_SOFT.
+	 * Set ->engine_type before registering the NAND devices in order to
+	 * provide a driver specific default value.
+	 */
+	data->chip.ecc.engine_type = NAND_ECC_ENGINE_TYPE_SOFT;
 
 	/* Scan to find existence of the device */
 	err = nand_scan(&data->chip, pdata->chip.nr_chips);

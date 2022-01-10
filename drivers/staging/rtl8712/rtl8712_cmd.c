@@ -393,7 +393,7 @@ _next:
 		r8712_free_cmd_obj(pcmd);
 	} while (1);
 	complete(&pcmdpriv->terminate_cmdthread_comp);
-	thread_exit();
+	return 0;
 }
 
 void r8712_event_handle(struct _adapter *padapter, __le32 *peventbuf)

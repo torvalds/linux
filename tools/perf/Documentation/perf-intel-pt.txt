@@ -157,6 +157,17 @@ of instructions and number of cycles since the last update, and thus represent
 the average IPC since the last IPC for that event type.  Note IPC for "branches"
 events is calculated separately from IPC for "instructions" events.
 
+Even with the 'cyc' config term, it is possible to produce IPC information for
+every change of timestamp, but at the expense of accuracy.  That is selected by
+specifying the itrace 'A' option.  Due to the granularity of timestamps, the
+actual number of cycles increases even though the cycles reported does not.
+The number of instructions is known, but if IPC is reported, cycles can be too
+low and so IPC is too high.  Note that inaccuracy decreases as the period of
+sampling increases i.e. if the number of cycles is too low by a small amount,
+that becomes less significant if the number of cycles is large.  It may also be
+useful to use the 'A' option in conjunction with dlfilter-show-cycles.so to
+provide higher granularity cycle information.
+
 Also note that the IPC instruction count may or may not include the current
 instruction.  If the cycle count is associated with an asynchronous branch
 (e.g. page fault or interrupt), then the instruction count does not include the
@@ -873,6 +884,7 @@ The letters are:
 	L	synthesize last branch entries on existing event records
 	s	skip initial number of events
 	q	quicker (less detailed) decoding
+	A	approximate IPC
 	Z	prefer to ignore timestamps (so-called "timeless" decoding)
 
 "Instructions" events look like they were recorded by "perf record -e
@@ -941,6 +953,7 @@ by flags which affect what debug messages will or will not be logged. Each flag
 must be preceded by either '+' or '-'. The flags support by Intel PT are:
 		-a	Suppress logging of perf events
 		+a	Log all perf events
+		+o	Output to stdout instead of "intel_pt.log"
 By default, logged perf events are filtered by any specified time ranges, but
 flag +a overrides that.
 
@@ -1072,6 +1085,21 @@ The Z option is equivalent to having recorded a trace without TSC
 decoding a trace of a virtual machine.
 
 
+dlfilter-show-cycles.so
+~~~~~~~~~~~~~~~~~~~~~~~
+
+Cycles can be displayed using dlfilter-show-cycles.so in which case the itrace A
+option can be useful to provide higher granularity cycle information:
+
+	perf script --itrace=A --call-trace --dlfilter dlfilter-show-cycles.so
+
+To see a list of dlfilters:
+
+	perf script -v --list-dlfilters
+
+See also linkperf:perf-dlfilters[1]
+
+
 dump option
 ~~~~~~~~~~~
 
@@ -1144,7 +1172,12 @@ Recording is selected by using the aux-output config term e.g.
 
 	perf record -c 10000 -e '{intel_pt/branch=0/,cycles/aux-output/ppp}' uname
 
-Note that currently, software only supports redirecting at most one PEBS event.
+Originally, software only supported redirecting at most one PEBS event because it
+was not able to differentiate one event from another. To overcome that, more recent
+kernels and perf tools add support for the PERF_RECORD_AUX_OUTPUT_HW_ID side-band event.
+To check for the presence of that event in a PEBS-via-PT trace:
+
+	perf script -D --no-itrace | grep PERF_RECORD_AUX_OUTPUT_HW_ID
 
 To display PEBS events from the Intel PT trace, use the itrace 'o' option e.g.
 

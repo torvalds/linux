@@ -25,48 +25,9 @@ enum {
 };
 
 /* CreateOptions */
-/* Flag is set, it must not be a file , valid for directory only */
-#define FILE_DIRECTORY_FILE_LE			cpu_to_le32(0x00000001)
-#define FILE_WRITE_THROUGH_LE			cpu_to_le32(0x00000002)
-#define FILE_SEQUENTIAL_ONLY_LE			cpu_to_le32(0x00000004)
-
-/* Should not buffer on server*/
-#define FILE_NO_INTERMEDIATE_BUFFERING_LE	cpu_to_le32(0x00000008)
-/* MBZ */
-#define FILE_SYNCHRONOUS_IO_ALERT_LE		cpu_to_le32(0x00000010)
-/* MBZ */
-#define FILE_SYNCHRONOUS_IO_NONALERT_LE		cpu_to_le32(0x00000020)
-
-/* Flaf must not be set for directory */
-#define FILE_NON_DIRECTORY_FILE_LE		cpu_to_le32(0x00000040)
-
-/* Should be zero */
 #define CREATE_TREE_CONNECTION			cpu_to_le32(0x00000080)
-#define FILE_COMPLETE_IF_OPLOCKED_LE		cpu_to_le32(0x00000100)
-#define FILE_NO_EA_KNOWLEDGE_LE			cpu_to_le32(0x00000200)
-#define FILE_OPEN_REMOTE_INSTANCE		cpu_to_le32(0x00000400)
-
-/**
- * Doc says this is obsolete "open for recovery" flag should be zero
- * in any case.
- */
-#define CREATE_OPEN_FOR_RECOVERY		cpu_to_le32(0x00000400)
-#define FILE_RANDOM_ACCESS_LE			cpu_to_le32(0x00000800)
-#define FILE_DELETE_ON_CLOSE_LE			cpu_to_le32(0x00001000)
-#define FILE_OPEN_BY_FILE_ID_LE			cpu_to_le32(0x00002000)
-#define FILE_OPEN_FOR_BACKUP_INTENT_LE		cpu_to_le32(0x00004000)
-#define FILE_NO_COMPRESSION_LE			cpu_to_le32(0x00008000)
-
-/* Should be zero*/
-#define FILE_OPEN_REQUIRING_OPLOCK		cpu_to_le32(0x00010000)
-#define FILE_DISALLOW_EXCLUSIVE			cpu_to_le32(0x00020000)
 #define FILE_RESERVE_OPFILTER_LE		cpu_to_le32(0x00100000)
-#define FILE_OPEN_REPARSE_POINT_LE		cpu_to_le32(0x00200000)
-#define FILE_OPEN_NO_RECALL_LE			cpu_to_le32(0x00400000)
 
-/* Should be zero */
-#define FILE_OPEN_FOR_FREE_SPACE_QUERY_LE	cpu_to_le32(0x00800000)
-#define CREATE_OPTIONS_MASK			cpu_to_le32(0x00FFFFFF)
 #define CREATE_OPTION_READONLY			0x10000000
 /* system. NB not sent over wire */
 #define CREATE_OPTION_SPECIAL			0x20000000

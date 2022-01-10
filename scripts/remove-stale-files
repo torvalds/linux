@@ -28,4 +28,9 @@ if [ -n "${building_out_of_srctree}" ]; then
 	do
 		rm -f arch/arm/boot/compressed/${f}
 	done
+
+	for f in uart-ath79.c ashldi3.c bswapdi.c bswapsi.c
+	do
+		rm -f arch/mips/boot/compressed/${f}
+	done
 fi

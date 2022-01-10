@@ -240,12 +240,6 @@ static bool bpf_pseudo_kfunc_call(const struct bpf_insn *insn)
 	       insn->src_reg == BPF_PSEUDO_KFUNC_CALL;
 }
 
-static bool bpf_pseudo_func(const struct bpf_insn *insn)
-{
-	return insn->code == (BPF_LD | BPF_IMM | BPF_DW) &&
-	       insn->src_reg == BPF_PSEUDO_FUNC;
-}
-
 struct bpf_call_arg_meta {
 	struct bpf_map *map_ptr;
 	bool raw_mode;
@@ -1157,7 +1151,8 @@ static void mark_ptr_not_null_reg(struct bpf_reg_state *reg)
 			/* transfer reg's id which is unique for every map_lookup_elem
 			 * as UID of the inner map.
 			 */
-			reg->map_uid = reg->id;
+			if (map_value_has_timer(map->inner_map_meta))
+				reg->map_uid = reg->id;
 		} else if (map->map_type == BPF_MAP_TYPE_XSKMAP) {
 			reg->type = PTR_TO_XDP_SOCK;
 		} else if (map->map_type == BPF_MAP_TYPE_SOCKMAP ||
@@ -1960,16 +1955,10 @@ static int add_subprog_and_kfunc(struct bpf_verifier_env *env)
 			return -EPERM;
 		}
 
-		if (bpf_pseudo_func(insn)) {
+		if (bpf_pseudo_func(insn) || bpf_pseudo_call(insn))
 			ret = add_subprog(env, i + insn->imm + 1);
-			if (ret >= 0)
-				/* remember subprog */
-				insn[1].imm = ret;
-		} else if (bpf_pseudo_call(insn)) {
-			ret = add_subprog(env, i + insn->imm + 1);
-		} else {
+		else
 			ret = add_kfunc_call(env, insn->imm, insn->off);
-		}
 
 		if (ret < 0)
 			return ret;
@@ -3088,9 +3077,12 @@ static int check_stack_read_fixed_off(struct bpf_verifier_env *env,
 	reg = &reg_state->stack[spi].spilled_ptr;
 
 	if (is_spilled_reg(&reg_state->stack[spi])) {
-		if (size != BPF_REG_SIZE) {
-			u8 scalar_size = 0;
+		u8 spill_size = 1;
 
+		for (i = BPF_REG_SIZE - 1; i > 0 && stype[i - 1] == STACK_SPILL; i--)
+			spill_size++;
+
+		if (size != BPF_REG_SIZE || spill_size != BPF_REG_SIZE) {
 			if (reg->type != SCALAR_VALUE) {
 				verbose_linfo(env, env->insn_idx, "; ");
 				verbose(env, "invalid size of register fill\n");
@@ -3101,10 +3093,7 @@ static int check_stack_read_fixed_off(struct bpf_verifier_env *env,
 			if (dst_regno < 0)
 				return 0;
 
-			for (i = BPF_REG_SIZE; i > 0 && stype[i - 1] == STACK_SPILL; i--)
-				scalar_size++;
-
-			if (!(off % BPF_REG_SIZE) && size == scalar_size) {
+			if (!(off % BPF_REG_SIZE) && size == spill_size) {
 				/* The earlier check_reg_arg() has decided the
 				 * subreg_def for this insn.  Save it first.
 				 */
@@ -3127,12 +3116,6 @@ static int check_stack_read_fixed_off(struct bpf_verifier_env *env,
 			}
 			state->regs[dst_regno].live |= REG_LIVE_WRITTEN;
 			return 0;
-		}
-		for (i = 1; i < BPF_REG_SIZE; i++) {
-			if (stype[(slot - i) % BPF_REG_SIZE] != STACK_SPILL) {
-				verbose(env, "corrupted spill memory\n");
-				return -EACCES;
-			}
 		}
 
 		if (dst_regno >= 0) {
@@ -4073,7 +4056,22 @@ static void coerce_reg_to_size(struct bpf_reg_state *reg, int size)
 
 static bool bpf_map_is_rdonly(const struct bpf_map *map)
 {
-	return (map->map_flags & BPF_F_RDONLY_PROG) && map->frozen;
+	/* A map is considered read-only if the following condition are true:
+	 *
+	 * 1) BPF program side cannot change any of the map content. The
+	 *    BPF_F_RDONLY_PROG flag is throughout the lifetime of a map
+	 *    and was set at map creation time.
+	 * 2) The map value(s) have been initialized from user space by a
+	 *    loader and then "frozen", such that no new map update/delete
+	 *    operations from syscall side are possible for the rest of
+	 *    the map's lifetime from that point onwards.
+	 * 3) Any parallel/pending map update/delete operations from syscall
+	 *    side have been completed. Only after that point, it's safe to
+	 *    assume that map value(s) are immutable.
+	 */
+	return (map->map_flags & BPF_F_RDONLY_PROG) &&
+	       READ_ONCE(map->frozen) &&
+	       !bpf_map_write_active(map);
 }
 
 static int bpf_map_direct_read(struct bpf_map *map, int off, int size, u64 *val)
@@ -9393,7 +9391,8 @@ static int check_ld_imm(struct bpf_verifier_env *env, struct bpf_insn *insn)
 
 	if (insn->src_reg == BPF_PSEUDO_FUNC) {
 		struct bpf_prog_aux *aux = env->prog->aux;
-		u32 subprogno = insn[1].imm;
+		u32 subprogno = find_subprog(env,
+					     env->insn_idx + insn->imm + 1);
 
 		if (!aux->func_info) {
 			verbose(env, "missing btf func_info\n");
@@ -11648,6 +11647,13 @@ static int check_map_prog_compatibility(struct bpf_verifier_env *env,
 		}
 	}
 
+	if (map_value_has_timer(map)) {
+		if (is_tracing_prog_type(prog_type)) {
+			verbose(env, "tracing progs cannot use bpf_timer yet\n");
+			return -EINVAL;
+		}
+	}
+
 	if ((bpf_prog_is_dev_bound(prog->aux) || bpf_map_is_dev_bound(map)) &&
 	    !bpf_offload_prog_map_match(prog, map)) {
 		verbose(env, "offload device mismatch between prog and map\n");
@@ -12563,14 +12569,9 @@ static int jit_subprogs(struct bpf_verifier_env *env)
 		return 0;
 
 	for (i = 0, insn = prog->insnsi; i < prog->len; i++, insn++) {
-		if (bpf_pseudo_func(insn)) {
-			env->insn_aux_data[i].call_imm = insn->imm;
-			/* subprog is encoded in insn[1].imm */
+		if (!bpf_pseudo_func(insn) && !bpf_pseudo_call(insn))
 			continue;
-		}
 
-		if (!bpf_pseudo_call(insn))
-			continue;
 		/* Upon error here we cannot fall back to interpreter but
 		 * need a hard reject of the program. Thus -EFAULT is
 		 * propagated in any case.
@@ -12591,6 +12592,12 @@ static int jit_subprogs(struct bpf_verifier_env *env)
 		env->insn_aux_data[i].call_imm = insn->imm;
 		/* point imm to __bpf_call_base+1 from JITs point of view */
 		insn->imm = 1;
+		if (bpf_pseudo_func(insn))
+			/* jit (e.g. x86_64) may emit fewer instructions
+			 * if it learns a u32 imm is the same as a u64 imm.
+			 * Force a non zero here.
+			 */
+			insn[1].imm = 1;
 	}
 
 	err = bpf_prog_alloc_jited_linfo(prog);
@@ -12675,7 +12682,7 @@ static int jit_subprogs(struct bpf_verifier_env *env)
 		insn = func[i]->insnsi;
 		for (j = 0; j < func[i]->len; j++, insn++) {
 			if (bpf_pseudo_func(insn)) {
-				subprog = insn[1].imm;
+				subprog = insn->off;
 				insn[0].imm = (u32)(long)func[subprog]->bpf_func;
 				insn[1].imm = ((u64)(long)func[subprog]->bpf_func) >> 32;
 				continue;
@@ -12726,7 +12733,8 @@ static int jit_subprogs(struct bpf_verifier_env *env)
 	for (i = 0, insn = prog->insnsi; i < prog->len; i++, insn++) {
 		if (bpf_pseudo_func(insn)) {
 			insn[0].imm = env->insn_aux_data[i].call_imm;
-			insn[1].imm = find_subprog(env, i + insn[0].imm + 1);
+			insn[1].imm = insn->off;
+			insn->off = 0;
 			continue;
 		}
 		if (!bpf_pseudo_call(insn))

@@ -271,8 +271,7 @@ nfs_page_set_headlock(struct nfs_page *req)
 void
 nfs_page_clear_headlock(struct nfs_page *req)
 {
-	smp_mb__before_atomic();
-	clear_bit(PG_HEADLOCK, &req->wb_flags);
+	clear_bit_unlock(PG_HEADLOCK, &req->wb_flags);
 	smp_mb__after_atomic();
 	if (!test_bit(PG_CONTENDED1, &req->wb_flags))
 		return;
@@ -525,12 +524,7 @@ nfs_create_subreq(struct nfs_page *req,
  */
 void nfs_unlock_request(struct nfs_page *req)
 {
-	if (!NFS_WBACK_BUSY(req)) {
-		printk(KERN_ERR "NFS: Invalid unlock attempted\n");
-		BUG();
-	}
-	smp_mb__before_atomic();
-	clear_bit(PG_BUSY, &req->wb_flags);
+	clear_bit_unlock(PG_BUSY, &req->wb_flags);
 	smp_mb__after_atomic();
 	if (!test_bit(PG_CONTENDED2, &req->wb_flags))
 		return;
@@ -869,9 +863,6 @@ static void nfs_pgio_result(struct rpc_task *task, void *calldata)
 {
 	struct nfs_pgio_header *hdr = calldata;
 	struct inode *inode = hdr->inode;
-
-	dprintk("NFS: %s: %5u, (status %d)\n", __func__,
-		task->tk_pid, task->tk_status);
 
 	if (hdr->rw_ops->rw_done(task, hdr, inode) != 0)
 		return;

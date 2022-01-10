@@ -196,7 +196,7 @@ int	ahd_dmamap_unload(struct ahd_softc *, bus_dma_tag_t, bus_dmamap_t);
 /*
  * XXX
  * ahd_dmamap_sync is only used on buffers allocated with
- * the pci_alloc_consistent() API.  Although I'm not sure how
+ * the dma_alloc_coherent() API.  Although I'm not sure how
  * this works on architectures with a write buffer, Linux does
  * not have an API to sync "coherent" memory.  Perhaps we need
  * to do an mb()?

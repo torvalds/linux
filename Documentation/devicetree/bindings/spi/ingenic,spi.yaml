@@ -55,7 +55,7 @@ unevaluatedProperties: false
 
 examples:
   - |
-    #include <dt-bindings/clock/jz4770-cgu.h>
+    #include <dt-bindings/clock/ingenic,jz4770-cgu.h>
     spi@10043000 {
       compatible = "ingenic,jz4770-spi", "ingenic,jz4750-spi";
       reg = <0x10043000 0x1c>;

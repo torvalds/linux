@@ -207,38 +207,6 @@ struct device *to_nvdimm_bus_dev(struct nvdimm_bus *nvdimm_bus)
 }
 EXPORT_SYMBOL_GPL(to_nvdimm_bus_dev);
 
-static bool is_uuid_sep(char sep)
-{
-	if (sep == '\n' || sep == '-' || sep == ':' || sep == '\0')
-		return true;
-	return false;
-}
-
-static int nd_uuid_parse(struct device *dev, u8 *uuid_out, const char *buf,
-		size_t len)
-{
-	const char *str = buf;
-	u8 uuid[16];
-	int i;
-
-	for (i = 0; i < 16; i++) {
-		if (!isxdigit(str[0]) || !isxdigit(str[1])) {
-			dev_dbg(dev, "pos: %d buf[%zd]: %c buf[%zd]: %c\n",
-					i, str - buf, str[0],
-					str + 1 - buf, str[1]);
-			return -EINVAL;
-		}
-
-		uuid[i] = (hex_to_bin(str[0]) << 4) | hex_to_bin(str[1]);
-		str += 2;
-		if (is_uuid_sep(*str))
-			str++;
-	}
-
-	memcpy(uuid_out, uuid, sizeof(uuid));
-	return 0;
-}
-
 /**
  * nd_uuid_store: common implementation for writing 'uuid' sysfs attributes
  * @dev: container device for the uuid property
@@ -249,21 +217,21 @@ static int nd_uuid_parse(struct device *dev, u8 *uuid_out, const char *buf,
  * (driver detached)
  * LOCKING: expects nd_device_lock() is held on entry
  */
-int nd_uuid_store(struct device *dev, u8 **uuid_out, const char *buf,
+int nd_uuid_store(struct device *dev, uuid_t **uuid_out, const char *buf,
 		size_t len)
 {
-	u8 uuid[16];
+	uuid_t uuid;
 	int rc;
 
 	if (dev->driver)
 		return -EBUSY;
 
-	rc = nd_uuid_parse(dev, uuid, buf, len);
+	rc = uuid_parse(buf, &uuid);
 	if (rc)
 		return rc;
 
 	kfree(*uuid_out);
-	*uuid_out = kmemdup(uuid, sizeof(uuid), GFP_KERNEL);
+	*uuid_out = kmemdup(&uuid, sizeof(uuid), GFP_KERNEL);
 	if (!(*uuid_out))
 		return -ENOMEM;
 

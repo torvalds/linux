@@ -11,6 +11,8 @@
 #define _CIFS_TRACE_H
 
 #include <linux/tracepoint.h>
+#include <linux/net.h>
+#include <linux/inet.h>
 
 /*
  * Please use this 3-part article as a reference for writing new tracepoints:
@@ -853,6 +855,75 @@ DEFINE_EVENT(smb3_lease_err_class, smb3_##name,  \
 	TP_ARGS(lease_state, tid, sesid, lease_key_low, lease_key_high, rc))
 
 DEFINE_SMB3_LEASE_ERR_EVENT(lease_err);
+
+DECLARE_EVENT_CLASS(smb3_connect_class,
+	TP_PROTO(char *hostname,
+		__u64 conn_id,
+		const struct __kernel_sockaddr_storage *dst_addr),
+	TP_ARGS(hostname, conn_id, dst_addr),
+	TP_STRUCT__entry(
+		__string(hostname, hostname)
+		__field(__u64, conn_id)
+		__array(__u8, dst_addr, sizeof(struct sockaddr_storage))
+	),
+	TP_fast_assign(
+		struct sockaddr_storage *pss = NULL;
+
+		__entry->conn_id = conn_id;
+		pss = (struct sockaddr_storage *)__entry->dst_addr;
+		*pss = *dst_addr;
+		__assign_str(hostname, hostname);
+	),
+	TP_printk("conn_id=0x%llx server=%s addr=%pISpsfc",
+		__entry->conn_id,
+		__get_str(hostname),
+		__entry->dst_addr)
+)
+
+#define DEFINE_SMB3_CONNECT_EVENT(name)        \
+DEFINE_EVENT(smb3_connect_class, smb3_##name,  \
+	TP_PROTO(char *hostname,		\
+		__u64 conn_id,			\
+		const struct __kernel_sockaddr_storage *addr),	\
+	TP_ARGS(hostname, conn_id, addr))
+
+DEFINE_SMB3_CONNECT_EVENT(connect_done);
+
+DECLARE_EVENT_CLASS(smb3_connect_err_class,
+	TP_PROTO(char *hostname, __u64 conn_id,
+		const struct __kernel_sockaddr_storage *dst_addr, int rc),
+	TP_ARGS(hostname, conn_id, dst_addr, rc),
+	TP_STRUCT__entry(
+		__string(hostname, hostname)
+		__field(__u64, conn_id)
+		__array(__u8, dst_addr, sizeof(struct sockaddr_storage))
+		__field(int, rc)
+	),
+	TP_fast_assign(
+		struct sockaddr_storage *pss = NULL;
+
+		__entry->conn_id = conn_id;
+		__entry->rc = rc;
+		pss = (struct sockaddr_storage *)__entry->dst_addr;
+		*pss = *dst_addr;
+		__assign_str(hostname, hostname);
+	),
+	TP_printk("rc=%d conn_id=0x%llx server=%s addr=%pISpsfc",
+		__entry->rc,
+		__entry->conn_id,
+		__get_str(hostname),
+		__entry->dst_addr)
+)
+
+#define DEFINE_SMB3_CONNECT_ERR_EVENT(name)        \
+DEFINE_EVENT(smb3_connect_err_class, smb3_##name,  \
+	TP_PROTO(char *hostname,		\
+		__u64 conn_id,			\
+		const struct __kernel_sockaddr_storage *addr,	\
+		int rc),			\
+	TP_ARGS(hostname, conn_id, addr, rc))
+
+DEFINE_SMB3_CONNECT_ERR_EVENT(connect_err);
 
 DECLARE_EVENT_CLASS(smb3_reconnect_class,
 	TP_PROTO(__u64	currmid,

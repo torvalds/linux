@@ -738,7 +738,6 @@ static int hisi_nfc_probe(struct platform_device *pdev)
 	struct hinfc_host *host;
 	struct nand_chip  *chip;
 	struct mtd_info   *mtd;
-	struct resource	  *res;
 	struct device_node *np = dev->of_node;
 
 	host = devm_kzalloc(dev, sizeof(*host), GFP_KERNEL);
@@ -754,13 +753,11 @@ static int hisi_nfc_probe(struct platform_device *pdev)
 	if (irq < 0)
 		return -ENXIO;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	host->iobase = devm_ioremap_resource(dev, res);
+	host->iobase = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(host->iobase))
 		return PTR_ERR(host->iobase);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-	host->mmio = devm_ioremap_resource(dev, res);
+	host->mmio = devm_platform_ioremap_resource(pdev, 1);
 	if (IS_ERR(host->mmio))
 		return PTR_ERR(host->mmio);
 

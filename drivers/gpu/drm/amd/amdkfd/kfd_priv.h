@@ -766,8 +766,10 @@ struct svm_range_list {
 	struct list_head		deferred_range_list;
 	spinlock_t			deferred_list_lock;
 	atomic_t			evicted_ranges;
+	bool				drain_pagefaults;
 	struct delayed_work		restore_work;
 	DECLARE_BITMAP(bitmap_supported, MAX_GPU_INSTANCE);
+	struct task_struct 		*faulting_task;
 };
 
 /* Process data */

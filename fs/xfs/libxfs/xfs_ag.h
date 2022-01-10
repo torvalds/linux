@@ -64,6 +64,10 @@ struct xfs_perag {
 	/* Blocks reserved for the reverse mapping btree. */
 	struct xfs_ag_resv	pag_rmapbt_resv;
 
+	/* for rcu-safe freeing */
+	struct rcu_head	rcu_head;
+
+#ifdef __KERNEL__
 	/* -- kernel only structures below this line -- */
 
 	/*
@@ -90,9 +94,6 @@ struct xfs_perag {
 	spinlock_t	pag_buf_lock;	/* lock for pag_buf_hash */
 	struct rhashtable pag_buf_hash;
 
-	/* for rcu-safe freeing */
-	struct rcu_head	rcu_head;
-
 	/* background prealloc block trimming */
 	struct delayed_work	pag_blockgc_work;
 
@@ -102,6 +103,7 @@ struct xfs_perag {
 	 * or have some other means to control concurrency.
 	 */
 	struct rhashtable	pagi_unlinked_hash;
+#endif /* __KERNEL__ */
 };
 
 int xfs_initialize_perag(struct xfs_mount *mp, xfs_agnumber_t agcount,

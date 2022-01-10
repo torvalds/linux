@@ -1630,7 +1630,6 @@ static const struct of_device_id clk_rk3399_match_table[] = {
 	},
 	{ }
 };
-MODULE_DEVICE_TABLE(of, clk_rk3399_match_table);
 
 static int __init clk_rk3399_probe(struct platform_device *pdev)
 {
@@ -1656,7 +1655,4 @@ static struct platform_driver clk_rk3399_driver = {
 		.suppress_bind_attrs = true,
 	},
 };
-module_platform_driver_probe(clk_rk3399_driver, clk_rk3399_probe);
-
-MODULE_DESCRIPTION("Rockchip RK3399 Clock Driver");
-MODULE_LICENSE("GPL");
+builtin_platform_driver_probe(clk_rk3399_driver, clk_rk3399_probe);

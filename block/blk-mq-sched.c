@@ -370,15 +370,17 @@ bool blk_mq_sched_bio_merge(struct request_queue *q, struct bio *bio,
 	bool ret = false;
 	enum hctx_type type;
 
-	if (e && e->type->ops.bio_merge)
-		return e->type->ops.bio_merge(q, bio, nr_segs);
+	if (e && e->type->ops.bio_merge) {
+		ret = e->type->ops.bio_merge(q, bio, nr_segs);
+		goto out_put;
+	}
 
 	ctx = blk_mq_get_ctx(q);
 	hctx = blk_mq_map_queue(q, bio->bi_opf, ctx);
 	type = hctx->type;
 	if (!(hctx->flags & BLK_MQ_F_SHOULD_MERGE) ||
 	    list_empty_careful(&ctx->rq_lists[type]))
-		return false;
+		goto out_put;
 
 	/* default per sw-queue merge */
 	spin_lock(&ctx->lock);
@@ -391,6 +393,7 @@ bool blk_mq_sched_bio_merge(struct request_queue *q, struct bio *bio,
 		ret = true;
 
 	spin_unlock(&ctx->lock);
+out_put:
 	return ret;
 }
 
@@ -497,7 +500,7 @@ void blk_mq_sched_insert_requests(struct blk_mq_hw_ctx *hctx,
 		 * busy in case of 'none' scheduler, and this way may save
 		 * us one extra enqueue & dequeue to sw queue.
 		 */
-		if (!hctx->dispatch_busy && !e && !run_queue_async) {
+		if (!hctx->dispatch_busy && !run_queue_async) {
 			blk_mq_try_issue_list_directly(hctx, list);
 			if (list_empty(list))
 				goto out;

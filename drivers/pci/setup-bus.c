@@ -1525,7 +1525,7 @@ static void pci_bridge_release_resources(struct pci_bus *bus,
 {
 	struct pci_dev *dev = bus->self;
 	struct resource *r;
-	unsigned old_flags = 0;
+	unsigned int old_flags = 0;
 	struct resource *b_res;
 	int idx = 1;
 

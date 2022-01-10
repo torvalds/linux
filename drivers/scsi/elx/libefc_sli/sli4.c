@@ -4145,7 +4145,7 @@ static int
 sli_get_read_config(struct sli4 *sli4)
 {
 	struct sli4_rsp_read_config *conf = sli4->bmbx.virt;
-	u32 i, total, total_size;
+	u32 i, total;
 	u32 *base;
 
 	if (sli_cmd_read_config(sli4, sli4->bmbx.virt)) {
@@ -4203,8 +4203,7 @@ sli_get_read_config(struct sli4 *sli4)
 
 	for (i = 0; i < SLI4_RSRC_MAX; i++) {
 		total = sli4->ext[i].number * sli4->ext[i].size;
-		total_size = BITS_TO_LONGS(total) * sizeof(long);
-		sli4->ext[i].use_map = kzalloc(total_size, GFP_KERNEL);
+		sli4->ext[i].use_map = bitmap_zalloc(total, GFP_KERNEL);
 		if (!sli4->ext[i].use_map) {
 			efc_log_err(sli4, "bitmap memory allocation failed %d\n",
 				    i);
@@ -4743,7 +4742,7 @@ sli_reset(struct sli4 *sli4)
 	sli4->ext[0].base = NULL;
 
 	for (i = 0; i < SLI4_RSRC_MAX; i++) {
-		kfree(sli4->ext[i].use_map);
+		bitmap_free(sli4->ext[i].use_map);
 		sli4->ext[i].use_map = NULL;
 		sli4->ext[i].base = NULL;
 	}
@@ -4784,7 +4783,7 @@ sli_teardown(struct sli4 *sli4)
 	for (i = 0; i < SLI4_RSRC_MAX; i++) {
 		sli4->ext[i].base = NULL;
 
-		kfree(sli4->ext[i].use_map);
+		bitmap_free(sli4->ext[i].use_map);
 		sli4->ext[i].use_map = NULL;
 	}
 

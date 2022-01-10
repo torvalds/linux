@@ -16,7 +16,7 @@
 
 #define BIT63		((uint64_t)1 << 63)
 
-#if __BYTE_ORDER == __BIG_ENDIAN
+#if __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
 #define le16_to_cpu bswap_16
 #define le32_to_cpu bswap_32
 #define le64_to_cpu bswap_64

@@ -522,6 +522,16 @@ struct i2c_client *i2c_acpi_new_device(struct device *dev, int index,
 }
 EXPORT_SYMBOL_GPL(i2c_acpi_new_device);
 
+bool i2c_acpi_waive_d0_probe(struct device *dev)
+{
+	struct i2c_driver *driver = to_i2c_driver(dev->driver);
+	struct acpi_device *adev = ACPI_COMPANION(dev);
+
+	return driver->flags & I2C_DRV_ACPI_WAIVE_D0_PROBE &&
+		adev && adev->power.state_for_enumeration >= adev->power.state;
+}
+EXPORT_SYMBOL_GPL(i2c_acpi_waive_d0_probe);
+
 #ifdef CONFIG_ACPI_I2C_OPREGION
 static int acpi_gsb_i2c_read_bytes(struct i2c_client *client,
 		u8 cmd, u8 *data, u8 data_len)

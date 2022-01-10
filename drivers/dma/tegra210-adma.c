@@ -43,10 +43,8 @@
 #define TEGRA186_ADMA_CH_CONFIG_OUTSTANDING_REQS(reqs)	(reqs << 4)
 
 #define ADMA_CH_FIFO_CTRL				0x2c
-#define TEGRA210_ADMA_CH_FIFO_CTRL_TXSIZE(val)		(((val) & 0xf) << 8)
-#define TEGRA210_ADMA_CH_FIFO_CTRL_RXSIZE(val)		((val) & 0xf)
-#define TEGRA186_ADMA_CH_FIFO_CTRL_TXSIZE(val)		(((val) & 0x1f) << 8)
-#define TEGRA186_ADMA_CH_FIFO_CTRL_RXSIZE(val)		((val) & 0x1f)
+#define ADMA_CH_TX_FIFO_SIZE_SHIFT			8
+#define ADMA_CH_RX_FIFO_SIZE_SHIFT			0
 
 #define ADMA_CH_LOWER_SRC_ADDR				0x34
 #define ADMA_CH_LOWER_TRG_ADDR				0x3c
@@ -61,29 +59,26 @@
 
 #define TEGRA_ADMA_BURST_COMPLETE_TIME			20
 
-#define TEGRA210_FIFO_CTRL_DEFAULT (TEGRA210_ADMA_CH_FIFO_CTRL_TXSIZE(3) | \
-				    TEGRA210_ADMA_CH_FIFO_CTRL_RXSIZE(3))
-
-#define TEGRA186_FIFO_CTRL_DEFAULT (TEGRA186_ADMA_CH_FIFO_CTRL_TXSIZE(3) | \
-				    TEGRA186_ADMA_CH_FIFO_CTRL_RXSIZE(3))
-
 #define ADMA_CH_REG_FIELD_VAL(val, mask, shift)	(((val) & mask) << shift)
 
 struct tegra_adma;
 
 /*
  * struct tegra_adma_chip_data - Tegra chip specific data
+ * @adma_get_burst_config: Function callback used to set DMA burst size.
  * @global_reg_offset: Register offset of DMA global register.
  * @global_int_clear: Register offset of DMA global interrupt clear.
  * @ch_req_tx_shift: Register offset for AHUB transmit channel select.
  * @ch_req_rx_shift: Register offset for AHUB receive channel select.
  * @ch_base_offset: Register offset of DMA channel registers.
- * @has_outstanding_reqs: If DMA channel can have outstanding requests.
  * @ch_fifo_ctrl: Default value for channel FIFO CTRL register.
  * @ch_req_mask: Mask for Tx or Rx channel select.
  * @ch_req_max: Maximum number of Tx or Rx channels available.
  * @ch_reg_size: Size of DMA channel register space.
  * @nr_channels: Number of DMA channels available.
+ * @ch_fifo_size_mask: Mask for FIFO size field.
+ * @sreq_index_offset: Slave channel index offset.
+ * @has_outstanding_reqs: If DMA channel can have outstanding requests.
  */
 struct tegra_adma_chip_data {
 	unsigned int (*adma_get_burst_config)(unsigned int burst_size);
@@ -97,6 +92,8 @@ struct tegra_adma_chip_data {
 	unsigned int ch_req_max;
 	unsigned int ch_reg_size;
 	unsigned int nr_channels;
+	unsigned int ch_fifo_size_mask;
+	unsigned int sreq_index_offset;
 	bool has_outstanding_reqs;
 };
 
@@ -560,13 +557,14 @@ static int tegra_adma_set_xfer_params(struct tegra_adma_chan *tdc,
 {
 	struct tegra_adma_chan_regs *ch_regs = &desc->ch_regs;
 	const struct tegra_adma_chip_data *cdata = tdc->tdma->cdata;
-	unsigned int burst_size, adma_dir;
+	unsigned int burst_size, adma_dir, fifo_size_shift;
 
 	if (desc->num_periods > ADMA_CH_CONFIG_MAX_BUFS)
 		return -EINVAL;
 
 	switch (direction) {
 	case DMA_MEM_TO_DEV:
+		fifo_size_shift = ADMA_CH_TX_FIFO_SIZE_SHIFT;
 		adma_dir = ADMA_CH_CTRL_DIR_MEM2AHUB;
 		burst_size = tdc->sconfig.dst_maxburst;
 		ch_regs->config = ADMA_CH_CONFIG_SRC_BUF(desc->num_periods - 1);
@@ -577,6 +575,7 @@ static int tegra_adma_set_xfer_params(struct tegra_adma_chan *tdc,
 		break;
 
 	case DMA_DEV_TO_MEM:
+		fifo_size_shift = ADMA_CH_RX_FIFO_SIZE_SHIFT;
 		adma_dir = ADMA_CH_CTRL_DIR_AHUB2MEM;
 		burst_size = tdc->sconfig.src_maxburst;
 		ch_regs->config = ADMA_CH_CONFIG_TRG_BUF(desc->num_periods - 1);
@@ -598,7 +597,27 @@ static int tegra_adma_set_xfer_params(struct tegra_adma_chan *tdc,
 	ch_regs->config |= ADMA_CH_CONFIG_WEIGHT_FOR_WRR(1);
 	if (cdata->has_outstanding_reqs)
 		ch_regs->config |= TEGRA186_ADMA_CH_CONFIG_OUTSTANDING_REQS(8);
-	ch_regs->fifo_ctrl = cdata->ch_fifo_ctrl;
+
+	/*
+	 * 'sreq_index' represents the current ADMAIF channel number and as per
+	 * HW recommendation its FIFO size should match with the corresponding
+	 * ADMA channel.
+	 *
+	 * ADMA FIFO size is set as per below (based on default ADMAIF channel
+	 * FIFO sizes):
+	 *    fifo_size = 0x2 (sreq_index > sreq_index_offset)
+	 *    fifo_size = 0x3 (sreq_index <= sreq_index_offset)
+	 *
+	 */
+	if (tdc->sreq_index > cdata->sreq_index_offset)
+		ch_regs->fifo_ctrl =
+			ADMA_CH_REG_FIELD_VAL(2, cdata->ch_fifo_size_mask,
+					      fifo_size_shift);
+	else
+		ch_regs->fifo_ctrl =
+			ADMA_CH_REG_FIELD_VAL(3, cdata->ch_fifo_size_mask,
+					      fifo_size_shift);
+
 	ch_regs->tc = desc->period_len & ADMA_CH_TC_COUNT_MASK;
 
 	return tegra_adma_request_alloc(tdc, direction);
@@ -782,12 +801,13 @@ static const struct tegra_adma_chip_data tegra210_chip_data = {
 	.ch_req_tx_shift	= 28,
 	.ch_req_rx_shift	= 24,
 	.ch_base_offset		= 0,
-	.has_outstanding_reqs	= false,
-	.ch_fifo_ctrl		= TEGRA210_FIFO_CTRL_DEFAULT,
 	.ch_req_mask		= 0xf,
 	.ch_req_max		= 10,
 	.ch_reg_size		= 0x80,
 	.nr_channels		= 22,
+	.ch_fifo_size_mask	= 0xf,
+	.sreq_index_offset	= 2,
+	.has_outstanding_reqs	= false,
 };
 
 static const struct tegra_adma_chip_data tegra186_chip_data = {
@@ -797,12 +817,13 @@ static const struct tegra_adma_chip_data tegra186_chip_data = {
 	.ch_req_tx_shift	= 27,
 	.ch_req_rx_shift	= 22,
 	.ch_base_offset		= 0x10000,
-	.has_outstanding_reqs	= true,
-	.ch_fifo_ctrl		= TEGRA186_FIFO_CTRL_DEFAULT,
 	.ch_req_mask		= 0x1f,
 	.ch_req_max		= 20,
 	.ch_reg_size		= 0x100,
 	.nr_channels		= 32,
+	.ch_fifo_size_mask	= 0x1f,
+	.sreq_index_offset	= 4,
+	.has_outstanding_reqs	= true,
 };
 
 static const struct of_device_id tegra_adma_of_match[] = {
@@ -867,7 +888,7 @@ static int tegra_adma_probe(struct platform_device *pdev)
 
 	pm_runtime_enable(&pdev->dev);
 
-	ret = pm_runtime_get_sync(&pdev->dev);
+	ret = pm_runtime_resume_and_get(&pdev->dev);
 	if (ret < 0)
 		goto rpm_disable;
 
@@ -940,7 +961,6 @@ static int tegra_adma_remove(struct platform_device *pdev)
 	for (i = 0; i < tdma->nr_channels; ++i)
 		irq_dispose_mapping(tdma->channels[i].irq);
 
-	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 
 	return 0;

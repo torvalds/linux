@@ -1805,7 +1805,7 @@ syscall_restore:
 
 	/* Are we being ptraced? */
 	LDREG	TASK_TI_FLAGS(%r1),%r19
-	ldi	_TIF_SYSCALL_TRACE_MASK,%r2
+	ldi	_TIF_SINGLESTEP|_TIF_BLOCKSTEP,%r2
 	and,COND(=)	%r19,%r2,%r0
 	b,n	syscall_restore_rfi
 
