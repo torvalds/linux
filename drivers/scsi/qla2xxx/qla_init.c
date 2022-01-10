@@ -167,15 +167,13 @@ int qla24xx_async_abort_cmd(srb_t *cmd_sp, bool wait)
 	if (wait)
 		sp->flags = SRB_WAKEUP_ON_COMP;
 
-	abt_iocb->timeout = qla24xx_abort_iocb_timeout;
 	init_completion(&abt_iocb->u.abt.comp);
 	/* FW can send 2 x ABTS's timeout/20s */
-	qla2x00_init_timer(sp, 42);
+	qla2x00_init_async_sp(sp, 42, qla24xx_abort_sp_done);
+	sp->u.iocb_cmd.timeout = qla24xx_abort_iocb_timeout;
 
 	abt_iocb->u.abt.cmd_hndl = cmd_sp->handle;
 	abt_iocb->u.abt.req_que_no = cpu_to_le16(cmd_sp->qpair->req->id);
-
-	sp->done = qla24xx_abort_sp_done;
 
 	ql_dbg(ql_dbg_async, vha, 0x507c,
 	       "Abort command issued - hdl=%x, type=%x\n", cmd_sp->handle,
@@ -320,12 +318,10 @@ qla2x00_async_login(struct scsi_qla_host *vha, fc_port_t *fcport,
 	sp->name = "login";
 	sp->gen1 = fcport->rscn_gen;
 	sp->gen2 = fcport->login_gen;
+	qla2x00_init_async_sp(sp, qla2x00_get_async_timeout(vha) + 2,
+			      qla2x00_async_login_sp_done);
 
 	lio = &sp->u.iocb_cmd;
-	lio->timeout = qla2x00_async_iocb_timeout;
-	qla2x00_init_timer(sp, qla2x00_get_async_timeout(vha) + 2);
-
-	sp->done = qla2x00_async_login_sp_done;
 	if (N2N_TOPO(fcport->vha->hw) && fcport_is_bigger(fcport)) {
 		lio->u.logio.flags |= SRB_LOGIN_PRLI_ONLY;
 	} else {
@@ -378,7 +374,6 @@ int
 qla2x00_async_logout(struct scsi_qla_host *vha, fc_port_t *fcport)
 {
 	srb_t *sp;
-	struct srb_iocb *lio;
 	int rval = QLA_FUNCTION_FAILED;
 
 	fcport->flags |= FCF_ASYNC_SENT;
@@ -388,12 +383,8 @@ qla2x00_async_logout(struct scsi_qla_host *vha, fc_port_t *fcport)
 
 	sp->type = SRB_LOGOUT_CMD;
 	sp->name = "logout";
-
-	lio = &sp->u.iocb_cmd;
-	lio->timeout = qla2x00_async_iocb_timeout;
-	qla2x00_init_timer(sp, qla2x00_get_async_timeout(vha) + 2);
-
-	sp->done = qla2x00_async_logout_sp_done;
+	qla2x00_init_async_sp(sp, qla2x00_get_async_timeout(vha) + 2,
+			      qla2x00_async_logout_sp_done),
 
 	ql_dbg(ql_dbg_disc, vha, 0x2070,
 	    "Async-logout - hdl=%x loop-id=%x portid=%02x%02x%02x %8phC explicit %d.\n",
@@ -440,7 +431,6 @@ int
 qla2x00_async_prlo(struct scsi_qla_host *vha, fc_port_t *fcport)
 {
 	srb_t *sp;
-	struct srb_iocb *lio;
 	int rval;
 
 	rval = QLA_FUNCTION_FAILED;
@@ -450,12 +440,8 @@ qla2x00_async_prlo(struct scsi_qla_host *vha, fc_port_t *fcport)
 
 	sp->type = SRB_PRLO_CMD;
 	sp->name = "prlo";
-
-	lio = &sp->u.iocb_cmd;
-	lio->timeout = qla2x00_async_iocb_timeout;
-	qla2x00_init_timer(sp, qla2x00_get_async_timeout(vha) + 2);
-
-	sp->done = qla2x00_async_prlo_sp_done;
+	qla2x00_init_async_sp(sp, qla2x00_get_async_timeout(vha) + 2,
+			      qla2x00_async_prlo_sp_done);
 
 	ql_dbg(ql_dbg_disc, vha, 0x2070,
 	    "Async-prlo - hdl=%x loop-id=%x portid=%02x%02x%02x.\n",
@@ -576,16 +562,15 @@ qla2x00_async_adisc(struct scsi_qla_host *vha, fc_port_t *fcport,
 
 	sp->type = SRB_ADISC_CMD;
 	sp->name = "adisc";
-
-	lio = &sp->u.iocb_cmd;
-	lio->timeout = qla2x00_async_iocb_timeout;
 	sp->gen1 = fcport->rscn_gen;
 	sp->gen2 = fcport->login_gen;
-	qla2x00_init_timer(sp, qla2x00_get_async_timeout(vha) + 2);
+	qla2x00_init_async_sp(sp, qla2x00_get_async_timeout(vha) + 2,
+			      qla2x00_async_adisc_sp_done);
 
-	sp->done = qla2x00_async_adisc_sp_done;
-	if (data[1] & QLA_LOGIO_LOGIN_RETRIED)
+	if (data[1] & QLA_LOGIO_LOGIN_RETRIED) {
+		lio = &sp->u.iocb_cmd;
 		lio->u.logio.flags |= SRB_LOGIN_RETRIED;
+	}
 
 	ql_dbg(ql_dbg_disc, vha, 0x206f,
 	    "Async-adisc - hdl=%x loopid=%x portid=%06x %8phC.\n",
@@ -1085,7 +1070,6 @@ static void qla24xx_async_gnl_sp_done(srb_t *sp, int res)
 int qla24xx_async_gnl(struct scsi_qla_host *vha, fc_port_t *fcport)
 {
 	srb_t *sp;
-	struct srb_iocb *mbx;
 	int rval = QLA_FUNCTION_FAILED;
 	unsigned long flags;
 	u16 *mb;
@@ -1118,10 +1102,8 @@ int qla24xx_async_gnl(struct scsi_qla_host *vha, fc_port_t *fcport)
 	sp->name = "gnlist";
 	sp->gen1 = fcport->rscn_gen;
 	sp->gen2 = fcport->login_gen;
-
-	mbx = &sp->u.iocb_cmd;
-	mbx->timeout = qla2x00_async_iocb_timeout;
-	qla2x00_init_timer(sp, qla2x00_get_async_timeout(vha)+2);
+	qla2x00_init_async_sp(sp, qla2x00_get_async_timeout(vha) + 2,
+			      qla24xx_async_gnl_sp_done);
 
 	mb = sp->u.iocb_cmd.u.mbx.out_mb;
 	mb[0] = MBC_PORT_NODE_NAME_LIST;
@@ -1132,8 +1114,6 @@ int qla24xx_async_gnl(struct scsi_qla_host *vha, fc_port_t *fcport)
 	mb[7] = LSW(MSD(vha->gnl.ldma));
 	mb[8] = vha->gnl.size;
 	mb[9] = vha->vp_idx;
-
-	sp->done = qla24xx_async_gnl_sp_done;
 
 	ql_dbg(ql_dbg_disc, vha, 0x20da,
 	    "Async-%s - OUT WWPN %8phC hndl %x\n",
@@ -1270,12 +1250,10 @@ qla24xx_async_prli(struct scsi_qla_host *vha, fc_port_t *fcport)
 
 	sp->type = SRB_PRLI_CMD;
 	sp->name = "prli";
+	qla2x00_init_async_sp(sp, qla2x00_get_async_timeout(vha) + 2,
+			      qla2x00_async_prli_sp_done);
 
 	lio = &sp->u.iocb_cmd;
-	lio->timeout = qla2x00_async_iocb_timeout;
-	qla2x00_init_timer(sp, qla2x00_get_async_timeout(vha) + 2);
-
-	sp->done = qla2x00_async_prli_sp_done;
 	lio->u.logio.flags = 0;
 
 	if (NVME_TARGET(vha->hw, fcport))
@@ -1345,10 +1323,8 @@ int qla24xx_async_gpdb(struct scsi_qla_host *vha, fc_port_t *fcport, u8 opt)
 	sp->name = "gpdb";
 	sp->gen1 = fcport->rscn_gen;
 	sp->gen2 = fcport->login_gen;
-
-	mbx = &sp->u.iocb_cmd;
-	mbx->timeout = qla2x00_async_iocb_timeout;
-	qla2x00_init_timer(sp, qla2x00_get_async_timeout(vha) + 2);
+	qla2x00_init_async_sp(sp, qla2x00_get_async_timeout(vha) + 2,
+			      qla24xx_async_gpdb_sp_done);
 
 	pd = dma_pool_zalloc(ha->s_dma_pool, GFP_KERNEL, &pd_dma);
 	if (pd == NULL) {
@@ -1367,10 +1343,9 @@ int qla24xx_async_gpdb(struct scsi_qla_host *vha, fc_port_t *fcport, u8 opt)
 	mb[9] = vha->vp_idx;
 	mb[10] = opt;
 
-	mbx->u.mbx.in = pd;
+	mbx = &sp->u.iocb_cmd;
+	mbx->u.mbx.in = (void *)pd;
 	mbx->u.mbx.in_dma = pd_dma;
-
-	sp->done = qla24xx_async_gpdb_sp_done;
 
 	ql_dbg(ql_dbg_disc, vha, 0x20dc,
 	    "Async-%s %8phC hndl %x opt %x\n",
@@ -1955,18 +1930,16 @@ qla2x00_async_tm_cmd(fc_port_t *fcport, uint32_t flags, uint32_t lun,
 	if (!sp)
 		goto done;
 
-	tm_iocb = &sp->u.iocb_cmd;
 	sp->type = SRB_TM_CMD;
 	sp->name = "tmf";
+	qla2x00_init_async_sp(sp, qla2x00_get_async_timeout(vha),
+			      qla2x00_tmf_sp_done);
+	sp->u.iocb_cmd.timeout = qla2x00_tmf_iocb_timeout;
 
-	tm_iocb->timeout = qla2x00_tmf_iocb_timeout;
+	tm_iocb = &sp->u.iocb_cmd;
 	init_completion(&tm_iocb->u.tmf.comp);
-	qla2x00_init_timer(sp, qla2x00_get_async_timeout(vha));
-
 	tm_iocb->u.tmf.flags = flags;
 	tm_iocb->u.tmf.lun = lun;
-	tm_iocb->u.tmf.data = tag;
-	sp->done = qla2x00_tmf_sp_done;
 
 	ql_dbg(ql_dbg_taskm, vha, 0x802f,
 	    "Async-tmf hdl=%x loop-id=%x portid=%02x%02x%02x.\n",
