@@ -206,17 +206,9 @@ static void __bch2_fs_read_only(struct bch_fs *c)
 	 */
 	bch2_journal_flush_all_pins(&c->journal);
 
-	/*
-	 * If the allocator threads didn't all start up, the btree updates to
-	 * write out alloc info aren't going to work:
-	 */
-	if (!test_bit(BCH_FS_ALLOCATOR_RUNNING, &c->flags))
-		goto nowrote_alloc;
-
 	bch_verbose(c, "flushing journal and stopping allocators");
 
 	bch2_journal_flush_all_pins(&c->journal);
-	set_bit(BCH_FS_ALLOCATOR_STOPPING, &c->flags);
 
 	do {
 		clean_passes++;
@@ -241,16 +233,10 @@ static void __bch2_fs_read_only(struct bch_fs *c)
 	bch_verbose(c, "flushing journal and stopping allocators complete");
 
 	set_bit(BCH_FS_ALLOC_CLEAN, &c->flags);
-nowrote_alloc:
+
 	closure_wait_event(&c->btree_interior_update_wait,
 			   !bch2_btree_interior_updates_nr_pending(c));
 	flush_work(&c->btree_interior_update_work);
-
-	for_each_member_device(ca, c, i)
-		bch2_dev_allocator_stop(ca);
-
-	clear_bit(BCH_FS_ALLOCATOR_RUNNING, &c->flags);
-	clear_bit(BCH_FS_ALLOCATOR_STOPPING, &c->flags);
 
 	bch2_fs_journal_stop(&c->journal);
 
@@ -287,10 +273,6 @@ void bch2_fs_read_only(struct bch_fs *c)
 	/*
 	 * Block new foreground-end write operations from starting - any new
 	 * writes will return -EROFS:
-	 *
-	 * (This is really blocking new _allocations_, writes to previously
-	 * allocated space can still happen until stopping the allocator in
-	 * bch2_dev_allocator_stop()).
 	 */
 	percpu_ref_kill(&c->writes);
 
@@ -418,20 +400,6 @@ static int __bch2_fs_read_write(struct bch_fs *c, bool early)
 	for_each_rw_member(ca, c, i)
 		bch2_dev_allocator_add(c, ca);
 	bch2_recalc_capacity(c);
-
-	for_each_rw_member(ca, c, i) {
-		ret = bch2_dev_allocator_start(ca);
-		if (ret) {
-			bch_err(c, "error starting allocator threads");
-			percpu_ref_put(&ca->io_ref);
-			goto err;
-		}
-	}
-
-	set_bit(BCH_FS_ALLOCATOR_RUNNING, &c->flags);
-
-	for_each_rw_member(ca, c, i)
-		bch2_wake_allocator(ca);
 
 	if (!early) {
 		ret = bch2_fs_read_write_late(c);
@@ -946,20 +914,6 @@ int bch2_fs_start(struct bch_fs *c)
 
 	set_bit(BCH_FS_STARTED, &c->flags);
 
-	/*
-	 * Allocator threads don't start filling copygc reserve until after we
-	 * set BCH_FS_STARTED - wake them now:
-	 *
-	 * XXX ugly hack:
-	 * Need to set ca->allocator_state here instead of relying on the
-	 * allocator threads to do it to avoid racing with the copygc threads
-	 * checking it and thinking they have no alloc reserve:
-	 */
-	for_each_online_member(ca, c, i) {
-		ca->allocator_state = ALLOCATOR_running;
-		bch2_wake_allocator(ca);
-	}
-
 	if (c->opts.read_only || c->opts.nochanges) {
 		bch2_fs_read_only(c);
 	} else {
@@ -1051,8 +1005,6 @@ static void bch2_dev_release(struct kobject *kobj)
 
 static void bch2_dev_free(struct bch_dev *ca)
 {
-	bch2_dev_allocator_stop(ca);
-
 	cancel_work_sync(&ca->io_error_work);
 
 	if (ca->kobj.state_in_sysfs &&
@@ -1167,6 +1119,9 @@ static struct bch_dev *__bch2_dev_alloc(struct bch_fs *c,
 	ca->mi = bch2_mi_to_cpu(member);
 	ca->uuid = member->uuid;
 
+	ca->nr_btree_reserve = DIV_ROUND_UP(BTREE_NODE_RESERVE,
+			     ca->mi.bucket_size / btree_sectors(c));
+
 	if (percpu_ref_init(&ca->ref, bch2_dev_ref_complete,
 			    0, GFP_KERNEL) ||
 	    percpu_ref_init(&ca->io_ref, bch2_dev_io_ref_complete,
@@ -1215,12 +1170,6 @@ static int bch2_dev_alloc(struct bch_fs *c, unsigned dev_idx)
 		goto err;
 
 	ca->fs = c;
-
-	if (ca->mi.state == BCH_MEMBER_STATE_rw &&
-	    bch2_dev_allocator_start(ca)) {
-		bch2_dev_free(ca);
-		goto err;
-	}
 
 	bch2_dev_attach(c, ca, dev_idx);
 out:
@@ -1405,14 +1354,13 @@ static void __bch2_dev_read_only(struct bch_fs *c, struct bch_dev *ca)
 	/*
 	 * The allocator thread itself allocates btree nodes, so stop it first:
 	 */
-	bch2_dev_allocator_stop(ca);
 	bch2_dev_allocator_remove(c, ca);
 	bch2_dev_journal_stop(&c->journal, ca);
 
 	bch2_copygc_start(c);
 }
 
-static int __bch2_dev_read_write(struct bch_fs *c, struct bch_dev *ca)
+static void __bch2_dev_read_write(struct bch_fs *c, struct bch_dev *ca)
 {
 	lockdep_assert_held(&c->state_lock);
 
@@ -1420,8 +1368,6 @@ static int __bch2_dev_read_write(struct bch_fs *c, struct bch_dev *ca)
 
 	bch2_dev_allocator_add(c, ca);
 	bch2_recalc_capacity(c);
-
-	return bch2_dev_allocator_start(ca);
 }
 
 int __bch2_dev_set_state(struct bch_fs *c, struct bch_dev *ca,
@@ -1448,7 +1394,7 @@ int __bch2_dev_set_state(struct bch_fs *c, struct bch_dev *ca,
 	mutex_unlock(&c->sb_lock);
 
 	if (new_state == BCH_MEMBER_STATE_rw)
-		ret = __bch2_dev_read_write(c, ca);
+		__bch2_dev_read_write(c, ca);
 
 	rebalance_wakeup(c);
 
@@ -1710,13 +1656,8 @@ have_slot:
 
 	ca->new_fs_bucket_idx = 0;
 
-	if (ca->mi.state == BCH_MEMBER_STATE_rw) {
-		ret = __bch2_dev_read_write(c, ca);
-		if (ret) {
-			bch_err(c, "device add error: error going RW on new device: %i", ret);
-			goto err_late;
-		}
-	}
+	if (ca->mi.state == BCH_MEMBER_STATE_rw)
+		__bch2_dev_read_write(c, ca);
 
 	up_write(&c->state_lock);
 	return 0;
@@ -1776,11 +1717,8 @@ int bch2_dev_online(struct bch_fs *c, const char *path)
 		goto err;
 	}
 
-	if (ca->mi.state == BCH_MEMBER_STATE_rw) {
-		ret = __bch2_dev_read_write(c, ca);
-		if (ret)
-			goto err;
-	}
+	if (ca->mi.state == BCH_MEMBER_STATE_rw)
+		__bch2_dev_read_write(c, ca);
 
 	mutex_lock(&c->sb_lock);
 	mi = bch2_sb_get_members(c->disk_sb.sb);

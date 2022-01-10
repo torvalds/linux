@@ -462,33 +462,17 @@ struct bch_dev {
 
 	/* Allocator: */
 	u64			new_fs_bucket_idx;
-	struct task_struct __rcu *alloc_thread;
+	u64			alloc_cursor;
 
-	/*
-	 * free: Buckets that are ready to be used
-	 *
-	 * free_inc: Incoming buckets - these are buckets that currently have
-	 * cached data in them, and we can't reuse them until after we write
-	 * their new gen to disk. After prio_write() finishes writing the new
-	 * gens/prios, they'll be moved to the free list (and possibly discarded
-	 * in the process)
-	 */
-	alloc_fifo		free[RESERVE_NR];
-	alloc_fifo		free_inc;
 	unsigned		nr_open_buckets;
+	unsigned		nr_btree_reserve;
 
 	open_bucket_idx_t	open_buckets_partial[OPEN_BUCKETS_COUNT];
 	open_bucket_idx_t	open_buckets_partial_nr;
 
-	size_t			fifo_last_bucket;
-
 	size_t			inc_gen_needs_gc;
 	size_t			inc_gen_really_needs_gc;
 	size_t			buckets_waiting_on_journal;
-
-	enum allocator_states	allocator_state;
-
-	alloc_heap		alloc_heap;
 
 	atomic64_t		rebalance_work;
 
@@ -511,8 +495,6 @@ struct bch_dev {
 enum {
 	/* startup: */
 	BCH_FS_ALLOC_CLEAN,
-	BCH_FS_ALLOCATOR_RUNNING,
-	BCH_FS_ALLOCATOR_STOPPING,
 	BCH_FS_INITIAL_GC_DONE,
 	BCH_FS_INITIAL_GC_UNFIXED,
 	BCH_FS_TOPOLOGY_REPAIR_DONE,
@@ -914,6 +896,7 @@ mempool_t		bio_bounce_pages;
 	atomic_long_t		read_realloc_races;
 	atomic_long_t		extent_migrate_done;
 	atomic_long_t		extent_migrate_raced;
+	atomic_long_t		bucket_alloc_fail;
 
 	unsigned		btree_gc_periodic:1;
 	unsigned		copy_gc_enabled:1;

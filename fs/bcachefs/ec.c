@@ -1295,9 +1295,6 @@ static int new_stripe_alloc_buckets(struct bch_fs *c, struct ec_stripe_head *h,
 	BUG_ON(nr_have_data	> h->s->nr_data);
 	BUG_ON(nr_have_parity	> h->s->nr_parity);
 
-	percpu_down_read(&c->mark_lock);
-	rcu_read_lock();
-
 	buckets.nr = 0;
 	if (nr_have_parity < h->s->nr_parity) {
 		ret = bch2_bucket_alloc_set(c, &buckets,
@@ -1324,7 +1321,7 @@ static int new_stripe_alloc_buckets(struct bch_fs *c, struct ec_stripe_head *h,
 		}
 
 		if (ret)
-			goto err;
+			return ret;
 	}
 
 	buckets.nr = 0;
@@ -1352,12 +1349,10 @@ static int new_stripe_alloc_buckets(struct bch_fs *c, struct ec_stripe_head *h,
 		}
 
 		if (ret)
-			goto err;
+			return ret;
 	}
-err:
-	rcu_read_unlock();
-	percpu_up_read(&c->mark_lock);
-	return ret;
+
+	return 0;
 }
 
 /* XXX: doesn't obey target: */

@@ -1684,9 +1684,8 @@ static void bch2_gc_stripes_reset(struct bch_fs *c, bool metadata_only)
  */
 int bch2_gc(struct bch_fs *c, bool initial, bool metadata_only)
 {
-	struct bch_dev *ca;
 	u64 start_time = local_clock();
-	unsigned i, iter = 0;
+	unsigned iter = 0;
 	int ret;
 
 	lockdep_assert_held(&c->state_lock);
@@ -1786,13 +1785,6 @@ out:
 
 	trace_gc_end(c);
 	bch2_time_stats_update(&c->times[BCH_TIME_btree_gc], start_time);
-
-	/*
-	 * Wake up allocator in case it was waiting for buckets
-	 * because of not being able to inc gens
-	 */
-	for_each_member_device(ca, c, i)
-		bch2_wake_allocator(ca);
 
 	/*
 	 * At startup, allocations can happen directly instead of via the

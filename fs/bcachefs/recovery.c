@@ -1374,6 +1374,7 @@ int bch2_fs_initialize(struct bch_fs *c)
 	 * Write out the superblock and journal buckets, now that we can do
 	 * btree updates
 	 */
+	bch_verbose(c, "marking superblocks");
 	err = "error marking superblock and journal";
 	for_each_member_device(ca, c, i) {
 		ret = bch2_trans_mark_dev_sb(c, ca);
@@ -1385,6 +1386,7 @@ int bch2_fs_initialize(struct bch_fs *c)
 		ca->new_fs_bucket_idx = 0;
 	}
 
+	bch_verbose(c, "initializing freespace");
 	err = "error initializing freespace";
 	ret = bch2_fs_freespace_init(c);
 	if (ret)

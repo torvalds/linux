@@ -296,11 +296,6 @@ static inline int bucket_sectors_fragmented(struct bch_dev *ca,
 		: 0;
 }
 
-static inline int is_stripe_data_bucket(struct bucket_mark m)
-{
-	return m.stripe && m.data_type != BCH_DATA_parity;
-}
-
 static inline enum bch_data_type bucket_type(struct bucket_mark m)
 {
 	return m.cached_sectors && !m.dirty_sectors
@@ -350,9 +345,6 @@ static void bch2_dev_usage_update(struct bch_fs *c, struct bch_dev *ca,
 	u->d[new.data_type].fragmented += bucket_sectors_fragmented(ca, new);
 
 	preempt_enable();
-
-	if (!is_available_bucket(old) && is_available_bucket(new))
-		bch2_wake_allocator(ca);
 }
 
 static inline int __update_replicas(struct bch_fs *c,
@@ -488,19 +480,6 @@ static inline void update_cached_sectors_list(struct btree_trans *trans,
 	update_replicas_list(trans, &r.e, sectors);
 }
 
-void bch2_mark_alloc_bucket(struct bch_fs *c, struct bch_dev *ca,
-			    size_t b, bool owned_by_allocator)
-{
-	struct bucket *g = bucket(ca, b);
-	struct bucket_mark old, new;
-
-	old = bucket_cmpxchg(g, new, ({
-		new.owned_by_allocator	= owned_by_allocator;
-	}));
-
-	BUG_ON(owned_by_allocator == old.owned_by_allocator);
-}
-
 int bch2_mark_alloc(struct btree_trans *trans,
 		    struct bkey_s_c old, struct bkey_s_c new,
 		    unsigned flags)
@@ -560,6 +539,10 @@ int bch2_mark_alloc(struct btree_trans *trans,
 		}
 	}
 
+	if (!new_a.data_type &&
+	    (!new_a.journal_seq || new_a.journal_seq < c->journal.flushed_seq_ondisk))
+		closure_wake_up(&c->freelist_wait);
+
 	if (bucket_state(new_a) == BUCKET_need_gc_gens) {
 		atomic_inc(&c->kick_gc);
 		wake_up_process(c->gc_thread);
@@ -583,7 +566,6 @@ int bch2_mark_alloc(struct btree_trans *trans,
 
 	g->io_time[READ]	= new_a.io_time[READ];
 	g->io_time[WRITE]	= new_a.io_time[WRITE];
-	g->oldest_gen		= new_a.oldest_gen;
 	g->gen_valid		= 1;
 	g->stripe		= new_a.stripe;
 	g->stripe_redundancy	= new_a.stripe_redundancy;
@@ -1861,8 +1843,7 @@ static int __bch2_trans_mark_metadata_bucket(struct btree_trans *trans,
 	a->v.data_type		= type;
 	a->v.dirty_sectors	= sectors;
 
-	ret = bch2_trans_update(trans, &iter, &a->k_i,
-				BTREE_UPDATE_NO_KEY_CACHE_COHERENCY);
+	ret = bch2_trans_update(trans, &iter, &a->k_i, 0);
 	if (ret)
 		goto out;
 out:
@@ -2048,24 +2029,8 @@ int bch2_dev_buckets_resize(struct bch_fs *c, struct bch_dev *ca, u64 nbuckets)
 	struct bucket_array *buckets = NULL, *old_buckets = NULL;
 	struct bucket_gens *bucket_gens = NULL, *old_bucket_gens = NULL;
 	unsigned long *buckets_nouse = NULL;
-	alloc_fifo	free[RESERVE_NR];
-	alloc_fifo	free_inc;
-	alloc_heap	alloc_heap;
-
-	size_t btree_reserve	= DIV_ROUND_UP(BTREE_NODE_RESERVE,
-			     ca->mi.bucket_size / btree_sectors(c));
-	/* XXX: these should be tunable */
-	size_t reserve_none	= max_t(size_t, 1, nbuckets >> 9);
-	size_t copygc_reserve	= max_t(size_t, 2, nbuckets >> 6);
-	size_t free_inc_nr	= max(max_t(size_t, 1, nbuckets >> 12),
-				      btree_reserve * 2);
 	bool resize = ca->buckets[0] != NULL;
 	int ret = -ENOMEM;
-	unsigned i;
-
-	memset(&free,		0, sizeof(free));
-	memset(&free_inc,	0, sizeof(free_inc));
-	memset(&alloc_heap,	0, sizeof(alloc_heap));
 
 	if (!(buckets		= kvpmalloc(sizeof(struct bucket_array) +
 					    nbuckets * sizeof(struct bucket),
@@ -2075,12 +2040,7 @@ int bch2_dev_buckets_resize(struct bch_fs *c, struct bch_dev *ca, u64 nbuckets)
 	    (c->opts.buckets_nouse &&
 	     !(buckets_nouse	= kvpmalloc(BITS_TO_LONGS(nbuckets) *
 					    sizeof(unsigned long),
-					    GFP_KERNEL|__GFP_ZERO))) ||
-	    !init_fifo(&free[RESERVE_movinggc],
-		       copygc_reserve, GFP_KERNEL) ||
-	    !init_fifo(&free[RESERVE_none], reserve_none, GFP_KERNEL) ||
-	    !init_fifo(&free_inc,	free_inc_nr, GFP_KERNEL) ||
-	    !init_heap(&alloc_heap,	ALLOC_SCAN_BATCH(ca) << 1, GFP_KERNEL))
+					    GFP_KERNEL|__GFP_ZERO))))
 		goto err;
 
 	buckets->first_bucket	= ca->mi.first_bucket;
@@ -2126,18 +2086,6 @@ int bch2_dev_buckets_resize(struct bch_fs *c, struct bch_dev *ca, u64 nbuckets)
 		up_write(&c->gc_lock);
 	}
 
-	spin_lock(&c->freelist_lock);
-	for (i = 0; i < RESERVE_NR; i++) {
-		fifo_move(&free[i], &ca->free[i]);
-		swap(ca->free[i], free[i]);
-	}
-	fifo_move(&free_inc, &ca->free_inc);
-	swap(ca->free_inc, free_inc);
-	spin_unlock(&c->freelist_lock);
-
-	/* with gc lock held, alloc_heap can't be in use: */
-	swap(ca->alloc_heap, alloc_heap);
-
 	nbuckets = ca->mi.nbuckets;
 
 	if (resize)
@@ -2145,10 +2093,6 @@ int bch2_dev_buckets_resize(struct bch_fs *c, struct bch_dev *ca, u64 nbuckets)
 
 	ret = 0;
 err:
-	free_heap(&alloc_heap);
-	free_fifo(&free_inc);
-	for (i = 0; i < RESERVE_NR; i++)
-		free_fifo(&free[i]);
 	kvpfree(buckets_nouse,
 		BITS_TO_LONGS(nbuckets) * sizeof(unsigned long));
 	if (bucket_gens)
@@ -2163,10 +2107,6 @@ void bch2_dev_buckets_free(struct bch_dev *ca)
 {
 	unsigned i;
 
-	free_heap(&ca->alloc_heap);
-	free_fifo(&ca->free_inc);
-	for (i = 0; i < RESERVE_NR; i++)
-		free_fifo(&ca->free[i]);
 	kvpfree(ca->buckets_nouse,
 		BITS_TO_LONGS(ca->mi.nbuckets) * sizeof(unsigned long));
 	kvpfree(rcu_dereference_protected(ca->bucket_gens, 1),

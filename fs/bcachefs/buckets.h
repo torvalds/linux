@@ -58,11 +58,6 @@ static inline struct bucket *gc_bucket(struct bch_dev *ca, size_t b)
 	return __bucket(ca, b, true);
 }
 
-static inline struct bucket *bucket(struct bch_dev *ca, size_t b)
-{
-	return __bucket(ca, b, false);
-}
-
 static inline struct bucket_gens *bucket_gens(struct bch_dev *ca)
 {
 	return rcu_dereference_check(ca->bucket_gens,
@@ -151,50 +146,50 @@ static inline bool is_available_bucket(struct bucket_mark mark)
 struct bch_dev_usage bch2_dev_usage_read(struct bch_dev *);
 
 static inline u64 __dev_buckets_available(struct bch_dev *ca,
-					  struct bch_dev_usage stats)
+					  struct bch_dev_usage stats,
+					  enum alloc_reserve reserve)
 {
-	u64 total = ca->mi.nbuckets - ca->mi.first_bucket;
+	s64 total = ca->mi.nbuckets - ca->mi.first_bucket;
+	s64 reserved = 0;
+
+	switch (reserve) {
+	case RESERVE_none:
+		reserved += ca->mi.nbuckets >> 6;
+		fallthrough;
+	case RESERVE_movinggc:
+		reserved += ca->nr_btree_reserve;
+		fallthrough;
+	case RESERVE_btree:
+		reserved += ca->nr_btree_reserve;
+		fallthrough;
+	case RESERVE_btree_movinggc:
+		break;
+	default:
+		BUG();
+	}
 
 	if (WARN_ONCE(stats.buckets_unavailable > total,
 		      "buckets_unavailable overflow (%llu > %llu)\n",
 		      stats.buckets_unavailable, total))
 		return 0;
 
-	return total - stats.buckets_unavailable;
+	return max_t(s64, 0,
+		     total -
+		     stats.buckets_unavailable -
+		     ca->nr_open_buckets -
+		     reserved);
 }
 
-static inline u64 dev_buckets_available(struct bch_dev *ca)
+static inline u64 dev_buckets_available(struct bch_dev *ca,
+					enum alloc_reserve reserve)
 {
-	return __dev_buckets_available(ca, bch2_dev_usage_read(ca));
-}
-
-static inline u64 __dev_buckets_reclaimable(struct bch_dev *ca,
-					    struct bch_dev_usage stats)
-{
-	struct bch_fs *c = ca->fs;
-	s64 available = __dev_buckets_available(ca, stats);
-	unsigned i;
-
-	spin_lock(&c->freelist_lock);
-	for (i = 0; i < RESERVE_NR; i++)
-		available -= fifo_used(&ca->free[i]);
-	available -= fifo_used(&ca->free_inc);
-	available -= ca->nr_open_buckets;
-	spin_unlock(&c->freelist_lock);
-
-	return max(available, 0LL);
-}
-
-static inline u64 dev_buckets_reclaimable(struct bch_dev *ca)
-{
-	return __dev_buckets_reclaimable(ca, bch2_dev_usage_read(ca));
+	return __dev_buckets_available(ca, bch2_dev_usage_read(ca), reserve);
 }
 
 /* Filesystem usage: */
 
 static inline unsigned fs_usage_u64s(struct bch_fs *c)
 {
-
 	return sizeof(struct bch_fs_usage) / sizeof(u64) +
 		READ_ONCE(c->replicas.nr);
 }
@@ -222,7 +217,6 @@ bch2_fs_usage_read_short(struct bch_fs *);
 
 void bch2_fs_usage_initialize(struct bch_fs *);
 
-void bch2_mark_alloc_bucket(struct bch_fs *, struct bch_dev *, size_t, bool);
 void bch2_mark_metadata_bucket(struct bch_fs *, struct bch_dev *,
 			       size_t, enum bch_data_type, unsigned,
 			       struct gc_pos, unsigned);

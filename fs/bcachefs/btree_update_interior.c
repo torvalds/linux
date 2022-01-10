@@ -178,12 +178,13 @@ static void bch2_btree_node_free_inmem(struct btree_trans *trans,
 	six_unlock_intent(&b->c.lock);
 }
 
-static struct btree *__bch2_btree_node_alloc(struct bch_fs *c,
+static struct btree *__bch2_btree_node_alloc(struct btree_trans *trans,
 					     struct disk_reservation *res,
 					     struct closure *cl,
 					     bool interior_node,
 					     unsigned flags)
 {
+	struct bch_fs *c = trans->c;
 	struct write_point *wp;
 	struct btree *b;
 	__BKEY_PADDED(k, BKEY_BTREE_PTR_VAL_U64s_MAX) tmp;
@@ -214,7 +215,7 @@ static struct btree *__bch2_btree_node_alloc(struct bch_fs *c,
 	mutex_unlock(&c->btree_reserve_cache_lock);
 
 retry:
-	ret = bch2_alloc_sectors_start(c,
+	ret = bch2_alloc_sectors_start_trans(trans,
 				      c->opts.metadata_target ?:
 				      c->opts.foreground_target,
 				      0,
@@ -414,7 +415,8 @@ static void bch2_btree_reserve_put(struct btree_update *as)
 	mutex_unlock(&c->btree_reserve_cache_lock);
 }
 
-static int bch2_btree_reserve_get(struct btree_update *as,
+static int bch2_btree_reserve_get(struct btree_trans *trans,
+				  struct btree_update *as,
 				  unsigned nr_nodes[2],
 				  unsigned flags,
 				  struct closure *cl)
@@ -441,7 +443,7 @@ static int bch2_btree_reserve_get(struct btree_update *as,
 		struct prealloc_nodes *p = as->prealloc_nodes + interior;
 
 		while (p->nr < nr_nodes[interior]) {
-			b = __bch2_btree_node_alloc(c, &as->disk_res,
+			b = __bch2_btree_node_alloc(trans, &as->disk_res,
 					flags & BTREE_INSERT_NOWAIT ? NULL : cl,
 					interior, flags);
 			if (IS_ERR(b)) {
@@ -1066,8 +1068,9 @@ bch2_btree_update_start(struct btree_trans *trans, struct btree_path *path,
 	if (ret)
 		goto err;
 
-	ret = bch2_btree_reserve_get(as, nr_nodes, flags, NULL);
-	if (ret) {
+	ret = bch2_btree_reserve_get(trans, as, nr_nodes, flags, NULL);
+	if (ret == -EAGAIN ||
+	    ret == -ENOMEM) {
 		struct closure cl;
 
 		closure_init_stack(&cl);
@@ -1075,7 +1078,7 @@ bch2_btree_update_start(struct btree_trans *trans, struct btree_path *path,
 		bch2_trans_unlock(trans);
 
 		do {
-			ret = bch2_btree_reserve_get(as, nr_nodes, flags, &cl);
+			ret = bch2_btree_reserve_get(trans, as, nr_nodes, flags, &cl);
 			closure_sync(&cl);
 		} while (ret == -EAGAIN);
 	}

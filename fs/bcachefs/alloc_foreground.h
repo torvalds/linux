@@ -14,6 +14,8 @@ struct bch_devs_List;
 
 extern const char * const bch2_alloc_reserves[];
 
+void bch2_reset_alloc_cursors(struct bch_fs *);
+
 struct dev_alloc_list {
 	unsigned	nr;
 	u8		devs[BCH_SB_MEMBERS_MAX];
@@ -136,6 +138,15 @@ int bch2_bucket_alloc_set(struct bch_fs *, struct open_buckets *,
 		      unsigned, unsigned *, bool *, enum alloc_reserve,
 		      unsigned, struct closure *);
 
+int bch2_alloc_sectors_start_trans(struct btree_trans *,
+				   unsigned, unsigned,
+				   struct write_point_specifier,
+				   struct bch_devs_list *,
+				   unsigned, unsigned,
+				   enum alloc_reserve,
+				   unsigned,
+				   struct closure *,
+				   struct write_point **);
 int bch2_alloc_sectors_start(struct bch_fs *,
 			     unsigned, unsigned,
 			     struct write_point_specifier,

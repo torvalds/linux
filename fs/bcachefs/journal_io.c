@@ -1398,6 +1398,10 @@ static void journal_write_done(struct closure *cl)
 		if (!JSET_NO_FLUSH(w->data)) {
 			j->flushed_seq_ondisk = seq;
 			j->last_seq_ondisk = w->last_seq;
+
+			closure_wake_up(&c->freelist_wait);
+
+			bch2_reset_alloc_cursors(c);
 		}
 	} else if (!j->err_seq || seq < j->err_seq)
 		j->err_seq	= seq;

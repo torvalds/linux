@@ -10,18 +10,6 @@
 
 struct ec_bucket_buf;
 
-#define ALLOC_THREAD_STATES()		\
-	x(stopped)			\
-	x(running)			\
-	x(blocked)			\
-	x(blocked_full)
-
-enum allocator_states {
-#define x(n)	ALLOCATOR_##n,
-	ALLOC_THREAD_STATES()
-#undef x
-};
-
 #define BCH_ALLOC_RESERVES()		\
 	x(btree_movinggc)		\
 	x(btree)			\
@@ -32,10 +20,7 @@ enum alloc_reserve {
 #define x(name)	RESERVE_##name,
 	BCH_ALLOC_RESERVES()
 #undef x
-	RESERVE_NR
 };
-
-typedef FIFO(long)	alloc_fifo;
 
 #define OPEN_BUCKETS_COUNT	1024
 
@@ -126,13 +111,5 @@ struct write_point {
 struct write_point_specifier {
 	unsigned long		v;
 };
-
-struct alloc_heap_entry {
-	size_t			bucket;
-	size_t			nr;
-	unsigned long		key;
-};
-
-typedef HEAP(struct alloc_heap_entry) alloc_heap;
 
 #endif /* _BCACHEFS_ALLOC_TYPES_H */

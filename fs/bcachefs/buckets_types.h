@@ -14,7 +14,6 @@ struct bucket_mark {
 	struct {
 	u8		gen;
 	u8		data_type:3,
-			owned_by_allocator:1,
 			stripe:1;
 	u16		dirty_sectors;
 	u16		cached_sectors;
@@ -29,7 +28,6 @@ struct bucket {
 	};
 
 	u64				io_time[2];
-	u8				oldest_gen;
 	unsigned			gen_valid:1;
 	u8				stripe_redundancy;
 	u32				stripe;

@@ -104,18 +104,6 @@ static enum data_cmd copygc_pred(struct bch_fs *c, void *arg,
 	return DATA_SKIP;
 }
 
-static bool have_copygc_reserve(struct bch_dev *ca)
-{
-	bool ret;
-
-	spin_lock(&ca->fs->freelist_lock);
-	ret = fifo_full(&ca->free[RESERVE_movinggc]) ||
-		ca->allocator_state != ALLOCATOR_running;
-	spin_unlock(&ca->fs->freelist_lock);
-
-	return ret;
-}
-
 static inline int fragmentation_cmp(copygc_heap *heap,
 				   struct copygc_heap_entry l,
 				   struct copygc_heap_entry r)
@@ -247,11 +235,10 @@ static int bch2_copygc(struct bch_fs *c)
 	}
 
 	for_each_rw_member(ca, c, dev_idx) {
-		closure_wait_event(&c->freelist_wait, have_copygc_reserve(ca));
+		s64 avail = min(dev_buckets_available(ca, RESERVE_movinggc),
+				ca->mi.nbuckets >> 6);
 
-		spin_lock(&ca->fs->freelist_lock);
-		sectors_reserved += fifo_used(&ca->free[RESERVE_movinggc]) * ca->mi.bucket_size;
-		spin_unlock(&ca->fs->freelist_lock);
+		sectors_reserved += avail * ca->mi.bucket_size;
 	}
 
 	ret = walk_buckets_to_copygc(c);
@@ -352,8 +339,8 @@ unsigned long bch2_copygc_wait_amount(struct bch_fs *c)
 	for_each_rw_member(ca, c, dev_idx) {
 		struct bch_dev_usage usage = bch2_dev_usage_read(ca);
 
-		fragmented_allowed = ((__dev_buckets_reclaimable(ca, usage) *
-					ca->mi.bucket_size) >> 1);
+		fragmented_allowed = ((__dev_buckets_available(ca, usage, RESERVE_none) *
+				       ca->mi.bucket_size) >> 1);
 		fragmented = usage.d[BCH_DATA_user].fragmented;
 
 		wait = min(wait, max(0LL, fragmented_allowed - fragmented));

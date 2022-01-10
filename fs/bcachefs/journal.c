@@ -812,10 +812,8 @@ static int __bch2_set_nr_journal_buckets(struct bch_dev *ca, unsigned nr,
 				break;
 			}
 		} else {
-			rcu_read_lock();
 			ob[nr_got] = bch2_bucket_alloc(c, ca, RESERVE_none,
 					       false, cl);
-			rcu_read_unlock();
 			if (IS_ERR(ob[nr_got])) {
 				ret = cl ? -EAGAIN : -ENOSPC;
 				break;
