@@ -461,7 +461,9 @@ struct rga_req {
 	uint8_t priority;
 	int32_t out_fence_fd;
 
-	uint8_t reservr[128];
+	uint8_t handle_flag;
+
+	uint8_t reservr[127];
 };
 
 struct rga2_req {

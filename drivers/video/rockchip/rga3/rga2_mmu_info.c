@@ -9,6 +9,8 @@
 
 #include "rga2_mmu_info.h"
 #include "rga_dma_buf.h"
+#include "rga_mm.h"
+#include "rga_job.h"
 
 #if CONFIG_ROCKCHIP_RGA_DEBUGGER
 extern int RGA_DEBUG_CHECK_MODE;
@@ -511,6 +513,7 @@ static int rga2_mmu_info_BitBlt_mode(struct rga2_mmu_other_t *reg,
 	int status;
 	uint32_t uv_size, v_size;
 	struct page **pages = NULL;
+	struct sg_table *sgt;
 
 	struct rga_scheduler_t *scheduler = NULL;
 
@@ -590,24 +593,52 @@ static int rga2_mmu_info_BitBlt_mode(struct rga2_mmu_other_t *reg,
 	mutex_unlock(&rga_drvdata->lock);
 
 	if (Src0MemSize) {
-		if (job->rga_dma_buffer_src0) {
-			ret = rga2_MapION(job->rga_dma_buffer_src0->sgt,
-					 &MMU_Base[0], Src0MemSize);
+		if (job->src_buffer) {
+			switch (job->src_buffer->type) {
+			case RGA_DMA_BUFFER:
+				sgt = rga_mm_lookup_sgt(job->src_buffer, scheduler->core);
+				if (sgt == NULL) {
+					pr_err("rga2 cannot get sgt from handle!\n");
+					status = -EFAULT;
+					goto out;
+				}
+				ret = rga2_MapION(sgt, &MMU_Base[0], Src0MemSize);
+
+				break;
+			case RGA_VIRTUAL_ADDRESS:
+				ret = rga2_MapUserMemory(&pages[0], &MMU_Base[0],
+							 Src0Start, Src0PageCount,
+							 0, MMU_MAP_CLEAN, scheduler,
+							 job->src_buffer->current_mm);
+				/* Save pagetable to unmap. */
+				reg->MMU_src0_base = MMU_Base;
+				reg->MMU_src0_count = Src0PageCount;
+
+				break;
+			default:
+				status = -EFAULT;
+				goto out;
+			}
 		} else {
-			ret = rga2_MapUserMemory(&pages[0], &MMU_Base[0],
-						 Src0Start, Src0PageCount,
-						 0, MMU_MAP_CLEAN, scheduler, job->mm);
+			if (job->rga_dma_buffer_src0) {
+				ret = rga2_MapION(job->rga_dma_buffer_src0->sgt,
+						  &MMU_Base[0], Src0MemSize);
+			} else {
+				ret = rga2_MapUserMemory(&pages[0], &MMU_Base[0],
+							 Src0Start, Src0PageCount,
+							 0, MMU_MAP_CLEAN, scheduler, job->mm);
 #if CONFIG_ROCKCHIP_RGA_DEBUGGER
-			if (RGA_DEBUG_CHECK_MODE)
-				/* TODO: */
-				rga2_user_memory_check(&pages[0],
-							 req->src.vir_w,
-							 req->src.vir_h,
-							 req->src.format, 1);
+				if (RGA_DEBUG_CHECK_MODE)
+					/* TODO: */
+					rga2_user_memory_check(&pages[0],
+							       req->src.vir_w,
+							       req->src.vir_h,
+							       req->src.format, 1);
 #endif
-			/* Save pagetable to unmap. */
-			reg->MMU_src0_base = MMU_Base;
-			reg->MMU_src0_count = Src0PageCount;
+				/* Save pagetable to unmap. */
+				reg->MMU_src0_base = MMU_Base;
+				reg->MMU_src0_count = Src0PageCount;
+			}
 		}
 
 		if (ret < 0) {
@@ -630,18 +661,48 @@ static int rga2_mmu_info_BitBlt_mode(struct rga2_mmu_other_t *reg,
 	}
 
 	if (Src1MemSize) {
-		if (job->rga_dma_buffer_src1) {
-			ret = rga2_MapION(job->rga_dma_buffer_src1->sgt,
-					 MMU_Base + Src0MemSize, Src1MemSize);
-		} else {
-			ret = rga2_MapUserMemory(&pages[0],
-						 MMU_Base + Src0MemSize,
-						 Src1Start, Src1PageCount,
-						 0, MMU_MAP_CLEAN, scheduler, job->mm);
+		if (job->src1_buffer) {
+			switch (job->src1_buffer->type) {
+			case RGA_DMA_BUFFER:
+				sgt = rga_mm_lookup_sgt(job->src1_buffer, scheduler->core);
+				if (sgt == NULL) {
+					pr_err("rga2 cannot get sgt from handle!\n");
+					status = -EFAULT;
+					goto out;
+				}
+				ret = rga2_MapION(sgt, MMU_Base + Src0MemSize, Src1MemSize);
 
-			/* Save pagetable to unmap. */
-			reg->MMU_src1_base = MMU_Base + Src0MemSize;
-			reg->MMU_src1_count = Src1PageCount;
+				break;
+			case RGA_VIRTUAL_ADDRESS:
+				ret = rga2_MapUserMemory(&pages[0],
+							 MMU_Base + Src0MemSize,
+							 Src1Start, Src1PageCount,
+							 0, MMU_MAP_CLEAN, scheduler,
+							 job->src1_buffer->current_mm);
+
+				/* Save pagetable to unmap. */
+				reg->MMU_src1_base = MMU_Base + Src0MemSize;
+				reg->MMU_src1_count = Src1PageCount;
+
+				break;
+			default:
+				status = -EFAULT;
+				goto out;
+			}
+		} else {
+			if (job->rga_dma_buffer_src1) {
+				ret = rga2_MapION(job->rga_dma_buffer_src1->sgt,
+						  MMU_Base + Src0MemSize, Src1MemSize);
+			} else {
+				ret = rga2_MapUserMemory(&pages[0],
+							 MMU_Base + Src0MemSize,
+							 Src1Start, Src1PageCount,
+							 0, MMU_MAP_CLEAN, scheduler, job->mm);
+
+				/* Save pagetable to unmap. */
+				reg->MMU_src1_base = MMU_Base + Src0MemSize;
+				reg->MMU_src1_count = Src1PageCount;
+			}
 		}
 
 		if (ret < 0) {
@@ -656,48 +717,88 @@ static int rga2_mmu_info_BitBlt_mode(struct rga2_mmu_other_t *reg,
 	}
 
 	if (DstMemSize) {
-		if (job->rga_dma_buffer_dst) {
-			ret =
-				rga2_MapION(job->rga_dma_buffer_dst->sgt,
-					MMU_Base + Src0MemSize + Src1MemSize,
-					DstMemSize);
-		} else if (req->alpha_mode_0 != 0 && req->bitblt_mode == 0) {
-			/*
-			 * The blend mode of src + dst => dst
-			 * requires clean and invalidate
-			 */
-			ret = rga2_MapUserMemory(&pages[0], MMU_Base
-						 + Src0MemSize + Src1MemSize,
-						 DstStart, DstPageCount, 1,
-						 MMU_MAP_CLEAN |
-						 MMU_MAP_INVALID, scheduler, job->mm);
-#if CONFIG_ROCKCHIP_RGA_DEBUGGER
-			if (RGA_DEBUG_CHECK_MODE)
-				rga2_user_memory_check(&pages[0],
-							 req->dst.vir_w,
-							 req->dst.vir_h,
-							 req->dst.format, 2);
-#endif
-			/* Save pagetable to invalid cache and unmap. */
-			reg->MMU_dst_base =
-				MMU_Base + Src0MemSize + Src1MemSize;
-			reg->MMU_dst_count = DstPageCount;
+		if (job->dst_buffer) {
+			switch (job->dst_buffer->type) {
+			case RGA_DMA_BUFFER:
+				sgt = rga_mm_lookup_sgt(job->dst_buffer, scheduler->core);
+				if (sgt == NULL) {
+					pr_err("rga2 cannot get sgt from handle!\n");
+					status = -EFAULT;
+					goto out;
+				}
+				ret = rga2_MapION(sgt, MMU_Base + Src0MemSize + Src1MemSize,
+						  DstMemSize);
+
+				break;
+			case RGA_VIRTUAL_ADDRESS:
+				if (req->alpha_mode_0 != 0 && req->bitblt_mode == 0)
+					ret = rga2_MapUserMemory(&pages[0], MMU_Base
+								 + Src0MemSize + Src1MemSize,
+								 DstStart, DstPageCount,
+								 1,
+								 MMU_MAP_CLEAN | MMU_MAP_INVALID,
+								 scheduler,
+								 job->dst_buffer->current_mm);
+				else
+					ret = rga2_MapUserMemory(&pages[0], MMU_Base
+								 + Src0MemSize + Src1MemSize,
+								 DstStart, DstPageCount,
+								 1,
+								 MMU_MAP_INVALID,
+								 scheduler,
+								 job->dst_buffer->current_mm);
+
+				/* Save pagetable to invalid cache and unmap. */
+				reg->MMU_dst_base = MMU_Base + Src0MemSize + Src1MemSize;
+				reg->MMU_dst_count = DstPageCount;
+
+				break;
+			default:
+				status = -EFAULT;
+				goto out;
+			}
+
 		} else {
-			ret = rga2_MapUserMemory(&pages[0], MMU_Base
-						 + Src0MemSize + Src1MemSize,
-						 DstStart, DstPageCount,
-						 1, MMU_MAP_INVALID, scheduler, job->mm);
+			if (job->rga_dma_buffer_dst) {
+				ret = rga2_MapION(job->rga_dma_buffer_dst->sgt,
+						  MMU_Base + Src0MemSize + Src1MemSize,
+						  DstMemSize);
+			} else if (req->alpha_mode_0 != 0 && req->bitblt_mode == 0) {
+				/*
+				 * The blend mode of src + dst => dst
+				 * requires clean and invalidate
+				 */
+				ret = rga2_MapUserMemory(&pages[0], MMU_Base
+							 + Src0MemSize + Src1MemSize,
+							 DstStart, DstPageCount, 1,
+							 MMU_MAP_CLEAN |
+							 MMU_MAP_INVALID, scheduler, job->mm);
 #if CONFIG_ROCKCHIP_RGA_DEBUGGER
-			if (RGA_DEBUG_CHECK_MODE)
-				rga2_user_memory_check(&pages[0],
-							 req->dst.vir_w,
-							 req->dst.vir_h,
-							 req->dst.format, 2);
+				if (RGA_DEBUG_CHECK_MODE)
+					rga2_user_memory_check(&pages[0],
+							       req->dst.vir_w,
+							       req->dst.vir_h,
+							       req->dst.format, 2);
 #endif
-			/* Save pagetable to invalid cache and unmap. */
-			reg->MMU_dst_base =
-				MMU_Base + Src0MemSize + Src1MemSize;
-			reg->MMU_dst_count = DstPageCount;
+				/* Save pagetable to invalid cache and unmap. */
+				reg->MMU_dst_base = MMU_Base + Src0MemSize + Src1MemSize;
+				reg->MMU_dst_count = DstPageCount;
+			} else {
+				ret = rga2_MapUserMemory(&pages[0], MMU_Base
+							 + Src0MemSize + Src1MemSize,
+							 DstStart, DstPageCount,
+							 1, MMU_MAP_INVALID, scheduler, job->mm);
+#if CONFIG_ROCKCHIP_RGA_DEBUGGER
+				if (RGA_DEBUG_CHECK_MODE)
+					rga2_user_memory_check(&pages[0],
+							       req->dst.vir_w,
+							       req->dst.vir_h,
+							       req->dst.format, 2);
+#endif
+				/* Save pagetable to invalid cache and unmap. */
+				reg->MMU_dst_base = MMU_Base + Src0MemSize + Src1MemSize;
+				reg->MMU_dst_count = DstPageCount;
+			}
 		}
 
 		if (ret < 0) {
@@ -755,6 +856,11 @@ static int rga2_mmu_info_color_palette_mode(struct rga2_mmu_other_t *reg,
 	uint32_t sw, byte_num;
 
 	struct rga_scheduler_t *scheduler = NULL;
+
+	if (job->flags & RGA_JOB_USE_HANDLE) {
+		pr_err("color palette mode can not support handle.\n");
+		return -EINVAL;
+	}
 
 	scheduler = get_scheduler(job->core);
 	if (scheduler == NULL) {
@@ -920,6 +1026,7 @@ static int rga2_mmu_info_color_fill_mode(struct rga2_mmu_other_t *reg,
 	uint32_t *MMU_Base, *MMU_Base_phys;
 	int ret;
 	int status;
+	struct sg_table *sgt;
 
 	struct rga_scheduler_t *scheduler = NULL;
 
@@ -964,13 +1071,46 @@ static int rga2_mmu_info_color_fill_mode(struct rga2_mmu_other_t *reg,
 		mutex_unlock(&rga_drvdata->lock);
 
 		if (DstMemSize) {
-			if (job->rga_dma_buffer_dst) {
-				ret = rga2_MapION(job->rga_dma_buffer_dst->sgt,
-					&MMU_Base[0], DstMemSize);
+			if (job->dst_buffer) {
+				switch (job->src_buffer->type) {
+				case RGA_DMA_BUFFER:
+					sgt = rga_mm_lookup_sgt(job->dst_buffer, scheduler->core);
+					if (sgt == NULL) {
+						pr_err("rga2 cannot get sgt from handle!\n");
+						status = -EFAULT;
+						goto out;
+					}
+					ret = rga2_MapION(sgt, &MMU_Base[0], DstMemSize);
+
+					break;
+				case RGA_VIRTUAL_ADDRESS:
+					ret = rga2_MapUserMemory(&pages[0], &MMU_Base[0],
+								 DstStart, DstPageCount,
+								 1, MMU_MAP_INVALID,
+								 scheduler,
+								 job->dst_buffer->current_mm);
+
+					/* Save pagetable to invalid cache and unmap. */
+					reg->MMU_dst_base = MMU_Base;
+					reg->MMU_dst_count = DstPageCount;
+
+					break;
+				default:
+					status = -EFAULT;
+					goto out;
+				}
+
 			} else {
-				ret = rga2_MapUserMemory(&pages[0],
-					&MMU_Base[0], DstStart, DstPageCount,
-					1, MMU_MAP_INVALID, scheduler, job->mm);
+				if (job->rga_dma_buffer_dst) {
+					ret = rga2_MapION(job->rga_dma_buffer_dst->sgt,
+							  &MMU_Base[0], DstMemSize);
+				} else {
+					ret = rga2_MapUserMemory(&pages[0],
+								 &MMU_Base[0], DstStart,
+								 DstPageCount, 1,
+								 MMU_MAP_INVALID,
+								 scheduler, job->mm);
+				}
 			}
 			if (ret < 0) {
 				pr_err("map dst memory failed\n");
@@ -1002,6 +1142,7 @@ static int rga2_mmu_info_color_fill_mode(struct rga2_mmu_other_t *reg,
 		return 0;
 	} while (0);
 
+out:
 	return status;
 }
 
@@ -1019,6 +1160,11 @@ static int rga2_mmu_info_update_palette_table_mode(struct rga2_mmu_other_t *reg,
 	int ret, status;
 
 	struct rga_scheduler_t *scheduler = NULL;
+
+	if (job->flags & RGA_JOB_USE_HANDLE) {
+		pr_err("update palette table mode can not support handle.\n");
+		return -EINVAL;
+	}
 
 	scheduler = get_scheduler(job->core);
 	if (scheduler == NULL) {

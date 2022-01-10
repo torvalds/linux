@@ -249,6 +249,12 @@ struct rga_job {
 	/* used by rga2 */
 	struct rga_dma_buffer_t *rga_dma_buffer_els;
 
+	struct rga_internal_buffer *src_buffer;
+	struct rga_internal_buffer *src1_buffer;
+	struct rga_internal_buffer *dst_buffer;
+	/* used by rga2 */
+	struct rga_internal_buffer *els_buffer;
+
 	struct dma_buf *dma_buf_src0;
 	struct dma_buf *dma_buf_src1;
 	struct dma_buf *dma_buf_dst;

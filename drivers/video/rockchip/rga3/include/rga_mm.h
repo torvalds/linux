@@ -34,8 +34,13 @@ struct rga_mm {
 };
 
 struct rga_internal_buffer *rga_mm_lookup_handle(struct rga_mm *mm_session, uint32_t handle);
+dma_addr_t rga_mm_lookup_iova(struct rga_internal_buffer *buffer, int core);
+struct sg_table *rga_mm_lookup_sgt(struct rga_internal_buffer *buffer, int core);
 
 void rga_mm_dump_info(struct rga_mm *session);
+
+int rga_mm_get_handle_info(struct rga_job *job);
+void rga_mm_put_handle_info(struct rga_job *job);
 
 uint32_t rga_mm_import_buffer(struct rga_external_buffer *external_buffer);
 int rga_mm_release_buffer(uint32_t handle);

@@ -12,6 +12,37 @@
 #include "rga_dma_buf.h"
 #include "rga_hw_config.h"
 
+static bool is_yuv422p_format(u32 format)
+{
+	bool ret = false;
+
+	switch (format) {
+	case RGA2_FORMAT_YCbCr_422_P:
+	case RGA2_FORMAT_YCrCb_422_P:
+		ret = true;
+		break;
+	}
+	return ret;
+}
+
+static void rga_convert_addr(struct rga_img_info_t *img)
+{
+	if (img->rd_mode != RGA_FBC_MODE) {
+		img->uv_addr = img->yrgb_addr + (img->vir_w * img->vir_h);
+
+		//warning: rga3 may need /2 for all
+		if (is_yuv422p_format(img->format))
+			img->v_addr =
+				img->uv_addr + (img->vir_w * img->vir_h) / 2;
+		else
+			img->v_addr =
+				img->uv_addr + (img->vir_w * img->vir_h) / 4;
+	} else {
+		img->uv_addr = img->yrgb_addr;
+		img->v_addr = 0;
+	}
+}
+
 static void rga_current_mm_read_lock(struct mm_struct *mm)
 {
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0)
@@ -524,8 +555,8 @@ static int rga_mm_handle_remove(int id, void *ptr, void *data)
 }
 
 static struct rga_internal_buffer *
-rga_mm_internal_buffer_lookup_external(struct rga_mm *mm_session,
-				       struct rga_external_buffer *external_buffer)
+rga_mm_lookup_external(struct rga_mm *mm_session,
+		       struct rga_external_buffer *external_buffer)
 {
 	int id;
 	struct dma_buf *dma_buf = NULL;
@@ -592,6 +623,38 @@ struct rga_internal_buffer *rga_mm_lookup_handle(struct rga_mm *mm_session, uint
 	return output_buffer;
 }
 
+dma_addr_t rga_mm_lookup_iova(struct rga_internal_buffer *buffer, int core)
+{
+	int i;
+
+	for (i = 0; i < buffer->dma_buffer_size; i++)
+		if (buffer->dma_buffer[i].core == core)
+			return buffer->dma_buffer[i].iova;
+
+	return -EFAULT;
+}
+
+struct sg_table *rga_mm_lookup_sgt(struct rga_internal_buffer *buffer, int core)
+{
+	int i;
+
+	switch (buffer->type) {
+	case RGA_DMA_BUFFER:
+		for (i = 0; i < buffer->dma_buffer_size; i++)
+			if (buffer->dma_buffer[i].core == core)
+				return buffer->dma_buffer[i].sgt;
+		break;
+	case RGA_VIRTUAL_ADDRESS:
+		return buffer->virt_addr->sgt;
+	case RGA_PHYSICAL_ADDRESS:
+	default:
+		pr_err("Illegal internal buffer, no sgt can be obtained!\n");
+		return NULL;
+	}
+
+	return NULL;
+}
+
 void rga_mm_dump_info(struct rga_mm *mm_session)
 {
 	int id, i;
@@ -646,6 +709,162 @@ void rga_mm_dump_info(struct rga_mm *mm_session)
 	}
 }
 
+static int rga_mm_set_mmu_flag(struct rga_job *job)
+{
+	struct rga_mmu_t *mmu_info;
+	int src_mmu_en;
+	int src1_mmu_en;
+	int dst_mmu_en;
+	int els_mmu_en;
+
+	src_mmu_en = job->src_buffer ? job->src_buffer->mm_flag & RGA_MM_NEED_USE_IOMMU : 0;
+	src1_mmu_en = job->src1_buffer ? job->src1_buffer->mm_flag & RGA_MM_NEED_USE_IOMMU : 0;
+	dst_mmu_en = job->dst_buffer ? job->dst_buffer->mm_flag & RGA_MM_NEED_USE_IOMMU : 0;
+	els_mmu_en = job->els_buffer ? job->els_buffer->mm_flag & RGA_MM_NEED_USE_IOMMU : 0;
+
+	mmu_info = &job->rga_command_base.mmu_info;
+	if (src_mmu_en)
+		mmu_info->mmu_flag |= (0x1 << 8);
+	if (src1_mmu_en)
+		mmu_info->mmu_flag |= (0x1 << 9);
+	if (dst_mmu_en)
+		mmu_info->mmu_flag |= (0x1 << 10);
+	if (els_mmu_en)
+		mmu_info->mmu_flag |= (0x1 << 11);
+
+	if (mmu_info->mmu_flag & (0xf << 8)) {
+		mmu_info->mmu_flag |= 1;
+		mmu_info->mmu_flag |= 1 << 31;
+		mmu_info->mmu_en  = 1;
+	}
+
+	return 0;
+}
+
+static int rga_mm_get_channel_handle_info(struct rga_mm *mm,
+					  struct rga_job *job,
+					  struct rga_img_info_t *img,
+					  struct rga_internal_buffer **buf)
+{
+	struct rga_internal_buffer *internal_buffer = NULL;
+
+	if (!(img->yrgb_addr > 0)) {
+		pr_err("No buffer handle can be used!\n");
+		return -EFAULT;
+	}
+
+	mutex_lock(&mm->lock);
+	*buf = rga_mm_lookup_handle(mm, img->yrgb_addr);
+	if (*buf == NULL) {
+		pr_err("This handle[%ld] is illegal.\n", (unsigned long)img->yrgb_addr);
+
+		mutex_unlock(&mm->lock);
+		return -EFAULT;
+	}
+
+	internal_buffer = *buf;
+	kref_get(&internal_buffer->refcount);
+
+	switch (internal_buffer->type) {
+	case RGA_DMA_BUFFER:
+		if (job->core == RGA3_SCHEDULER_CORE0 ||
+		    job->core == RGA3_SCHEDULER_CORE1)
+			img->yrgb_addr = rga_mm_lookup_iova(internal_buffer, job->core);
+		else
+			img->yrgb_addr = 0;
+		break;
+	case RGA_VIRTUAL_ADDRESS:
+		if (job->core == RGA3_SCHEDULER_CORE0 ||
+		    job->core == RGA3_SCHEDULER_CORE1)
+			img->yrgb_addr = rga_mm_lookup_iova(internal_buffer, job->core);
+		else
+			img->yrgb_addr = internal_buffer->virt_addr->addr;
+		break;
+	case RGA_PHYSICAL_ADDRESS:
+		img->yrgb_addr = internal_buffer->phys_addr;
+		break;
+	default:
+		pr_err("Illegal external buffer!\n");
+
+		mutex_unlock(&mm->lock);
+		return -EFAULT;
+	}
+	mutex_unlock(&mm->lock);
+
+	rga_convert_addr(img);
+
+	return 0;
+}
+
+static void rga_mm_put_channel_handle_info(struct rga_mm *mm,
+					   struct rga_internal_buffer *internal_buffer)
+{
+	mutex_lock(&mm->lock);
+
+	kref_put(&internal_buffer->refcount, rga_mm_kref_release_buffer);
+
+	mutex_unlock(&mm->lock);
+}
+
+int rga_mm_get_handle_info(struct rga_job *job)
+{
+	int ret = 0;
+	struct rga_req *req = NULL;
+	struct rga_mm *mm = NULL;
+
+	req = &job->rga_command_base;
+	mm = rga_drvdata->mm;
+
+	if (likely(req->src.yrgb_addr > 0)) {
+		ret = rga_mm_get_channel_handle_info(mm, job, &req->src, &job->src_buffer);
+		if (ret < 0) {
+			pr_err("Can't get src buffer info!\n");
+			return ret;
+		}
+	}
+
+	if (likely(req->dst.yrgb_addr > 0)) {
+		ret = rga_mm_get_channel_handle_info(mm, job, &req->dst, &job->dst_buffer);
+		if (ret < 0) {
+			pr_err("Can't get dst buffer info!\n");
+			return ret;
+		}
+	}
+
+	if (likely(req->pat.yrgb_addr > 0)) {
+		if (job->rga_command_base.render_mode != UPDATE_PALETTE_TABLE_MODE)
+			ret = rga_mm_get_channel_handle_info(mm, job, &req->pat,
+							     &job->src1_buffer);
+		else
+			ret = rga_mm_get_channel_handle_info(mm, job, &req->pat,
+							     &job->els_buffer);
+		if (ret < 0) {
+			pr_err("Can't get pat buffer info!\n");
+			return ret;
+		}
+	}
+
+	rga_mm_set_mmu_flag(job);
+
+	return 0;
+}
+
+void rga_mm_put_handle_info(struct rga_job *job)
+{
+	struct rga_mm *mm = NULL;
+
+	mm = rga_drvdata->mm;
+
+	if (job->src_buffer)
+		rga_mm_put_channel_handle_info(mm, job->src_buffer);
+	if (job->dst_buffer)
+		rga_mm_put_channel_handle_info(mm, job->dst_buffer);
+	if (job->src1_buffer)
+		rga_mm_put_channel_handle_info(mm, job->src1_buffer);
+	if (job->els_buffer)
+		rga_mm_put_channel_handle_info(mm, job->els_buffer);
+}
+
 uint32_t rga_mm_import_buffer(struct rga_external_buffer *external_buffer)
 {
 	int ret = 0;
@@ -661,7 +880,7 @@ uint32_t rga_mm_import_buffer(struct rga_external_buffer *external_buffer)
 	mutex_lock(&mm->lock);
 
 	/* first, Check whether to rga_mm */
-	internal_buffer = rga_mm_internal_buffer_lookup_external(mm, external_buffer);
+	internal_buffer = rga_mm_lookup_external(mm, external_buffer);
 	if (!IS_ERR_OR_NULL(internal_buffer)) {
 		kref_get(&internal_buffer->refcount);
 
