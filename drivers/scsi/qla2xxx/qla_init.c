@@ -51,6 +51,9 @@ qla2x00_sp_timeout(struct timer_list *t)
 	WARN_ON(irqs_disabled());
 	iocb = &sp->u.iocb_cmd;
 	iocb->timeout(sp);
+
+	/* ref: TMR */
+	kref_put(&sp->cmd_kref, qla2x00_sp_release);
 }
 
 void qla2x00_sp_free(srb_t *sp)
@@ -125,8 +128,13 @@ static void qla24xx_abort_iocb_timeout(void *data)
 	}
 	spin_unlock_irqrestore(qpair->qp_lock_ptr, flags);
 
-	if (sp->cmd_sp)
+	if (sp->cmd_sp) {
+		/*
+		 * This done function should take care of
+		 * original command ref: INIT
+		 */
 		sp->cmd_sp->done(sp->cmd_sp, QLA_OS_TIMER_EXPIRED);
+	}
 
 	abt->u.abt.comp_status = cpu_to_le16(CS_TIMEOUT);
 	sp->done(sp, QLA_OS_TIMER_EXPIRED);
@@ -140,11 +148,11 @@ static void qla24xx_abort_sp_done(srb_t *sp, int res)
 	if (orig_sp)
 		qla_wait_nvme_release_cmd_kref(orig_sp);
 
-	del_timer(&sp->u.iocb_cmd.timer);
 	if (sp->flags & SRB_WAKEUP_ON_COMP)
 		complete(&abt->u.abt.comp);
 	else
-		sp->free(sp);
+		/* ref: INIT */
+		kref_put(&sp->cmd_kref, qla2x00_sp_release);
 }
 
 int qla24xx_async_abort_cmd(srb_t *cmd_sp, bool wait)
@@ -154,6 +162,7 @@ int qla24xx_async_abort_cmd(srb_t *cmd_sp, bool wait)
 	srb_t *sp;
 	int rval = QLA_FUNCTION_FAILED;
 
+	/* ref: INIT for ABTS command */
 	sp = qla2xxx_get_qpair_sp(cmd_sp->vha, cmd_sp->qpair, cmd_sp->fcport,
 				  GFP_ATOMIC);
 	if (!sp)
@@ -181,7 +190,8 @@ int qla24xx_async_abort_cmd(srb_t *cmd_sp, bool wait)
 
 	rval = qla2x00_start_sp(sp);
 	if (rval != QLA_SUCCESS) {
-		sp->free(sp);
+		/* ref: INIT */
+		kref_put(&sp->cmd_kref, qla2x00_sp_release);
 		return rval;
 	}
 
@@ -189,7 +199,8 @@ int qla24xx_async_abort_cmd(srb_t *cmd_sp, bool wait)
 		wait_for_completion(&abt_iocb->u.abt.comp);
 		rval = abt_iocb->u.abt.comp_status == CS_COMPLETE ?
 			QLA_SUCCESS : QLA_ERR_FROM_FW;
-		sp->free(sp);
+		/* ref: INIT */
+		kref_put(&sp->cmd_kref, qla2x00_sp_release);
 	}
 
 	return rval;
@@ -287,7 +298,8 @@ static void qla2x00_async_login_sp_done(srb_t *sp, int res)
 		qla24xx_handle_plogi_done_event(vha, &ea);
 	}
 
-	sp->free(sp);
+	/* ref: INIT */
+	kref_put(&sp->cmd_kref, qla2x00_sp_release);
 }
 
 int
@@ -306,6 +318,7 @@ qla2x00_async_login(struct scsi_qla_host *vha, fc_port_t *fcport,
 		return rval;
 	}
 
+	/* ref: INIT */
 	sp = qla2x00_get_sp(vha, fcport, GFP_KERNEL);
 	if (!sp)
 		goto done;
@@ -354,7 +367,8 @@ qla2x00_async_login(struct scsi_qla_host *vha, fc_port_t *fcport,
 	return rval;
 
 done_free_sp:
-	sp->free(sp);
+	/* ref: INIT */
+	kref_put(&sp->cmd_kref, qla2x00_sp_release);
 	fcport->flags &= ~FCF_ASYNC_SENT;
 done:
 	fcport->flags &= ~FCF_ASYNC_ACTIVE;
@@ -366,7 +380,8 @@ static void qla2x00_async_logout_sp_done(srb_t *sp, int res)
 	sp->fcport->flags &= ~(FCF_ASYNC_SENT | FCF_ASYNC_ACTIVE);
 	sp->fcport->login_gen++;
 	qlt_logo_completion_handler(sp->fcport, sp->u.iocb_cmd.u.logio.data[0]);
-	sp->free(sp);
+	/* ref: INIT */
+	kref_put(&sp->cmd_kref, qla2x00_sp_release);
 }
 
 int
@@ -376,6 +391,7 @@ qla2x00_async_logout(struct scsi_qla_host *vha, fc_port_t *fcport)
 	int rval = QLA_FUNCTION_FAILED;
 
 	fcport->flags |= FCF_ASYNC_SENT;
+	/* ref: INIT */
 	sp = qla2x00_get_sp(vha, fcport, GFP_KERNEL);
 	if (!sp)
 		goto done;
@@ -397,7 +413,8 @@ qla2x00_async_logout(struct scsi_qla_host *vha, fc_port_t *fcport)
 	return rval;
 
 done_free_sp:
-	sp->free(sp);
+	/* ref: INIT */
+	kref_put(&sp->cmd_kref, qla2x00_sp_release);
 done:
 	fcport->flags &= ~(FCF_ASYNC_SENT | FCF_ASYNC_ACTIVE);
 	return rval;
@@ -423,7 +440,8 @@ static void qla2x00_async_prlo_sp_done(srb_t *sp, int res)
 	if (!test_bit(UNLOADING, &vha->dpc_flags))
 		qla2x00_post_async_prlo_done_work(sp->fcport->vha, sp->fcport,
 		    lio->u.logio.data);
-	sp->free(sp);
+	/* ref: INIT */
+	kref_put(&sp->cmd_kref, qla2x00_sp_release);
 }
 
 int
@@ -433,6 +451,7 @@ qla2x00_async_prlo(struct scsi_qla_host *vha, fc_port_t *fcport)
 	int rval;
 
 	rval = QLA_FUNCTION_FAILED;
+	/* ref: INIT */
 	sp = qla2x00_get_sp(vha, fcport, GFP_KERNEL);
 	if (!sp)
 		goto done;
@@ -454,7 +473,8 @@ qla2x00_async_prlo(struct scsi_qla_host *vha, fc_port_t *fcport)
 	return rval;
 
 done_free_sp:
-	sp->free(sp);
+	/* ref: INIT */
+	kref_put(&sp->cmd_kref, qla2x00_sp_release);
 done:
 	fcport->flags &= ~FCF_ASYNC_ACTIVE;
 	return rval;
@@ -539,8 +559,8 @@ static void qla2x00_async_adisc_sp_done(srb_t *sp, int res)
 	ea.sp = sp;
 
 	qla24xx_handle_adisc_event(vha, &ea);
-
-	sp->free(sp);
+	/* ref: INIT */
+	kref_put(&sp->cmd_kref, qla2x00_sp_release);
 }
 
 int
@@ -555,6 +575,7 @@ qla2x00_async_adisc(struct scsi_qla_host *vha, fc_port_t *fcport,
 		return rval;
 
 	fcport->flags |= FCF_ASYNC_SENT;
+	/* ref: INIT */
 	sp = qla2x00_get_sp(vha, fcport, GFP_KERNEL);
 	if (!sp)
 		goto done;
@@ -582,7 +603,8 @@ qla2x00_async_adisc(struct scsi_qla_host *vha, fc_port_t *fcport,
 	return rval;
 
 done_free_sp:
-	sp->free(sp);
+	/* ref: INIT */
+	kref_put(&sp->cmd_kref, qla2x00_sp_release);
 done:
 	fcport->flags &= ~(FCF_ASYNC_SENT | FCF_ASYNC_ACTIVE);
 	qla2x00_post_async_adisc_work(vha, fcport, data);
@@ -1063,7 +1085,8 @@ static void qla24xx_async_gnl_sp_done(srb_t *sp, int res)
 	}
 	spin_unlock_irqrestore(&vha->hw->tgt.sess_lock, flags);
 
-	sp->free(sp);
+	/* ref: INIT */
+	kref_put(&sp->cmd_kref, qla2x00_sp_release);
 }
 
 int qla24xx_async_gnl(struct scsi_qla_host *vha, fc_port_t *fcport)
@@ -1093,6 +1116,7 @@ int qla24xx_async_gnl(struct scsi_qla_host *vha, fc_port_t *fcport)
 	vha->gnl.sent = 1;
 	spin_unlock_irqrestore(&vha->hw->tgt.sess_lock, flags);
 
+	/* ref: INIT */
 	sp = qla2x00_get_sp(vha, fcport, GFP_KERNEL);
 	if (!sp)
 		goto done;
@@ -1125,7 +1149,8 @@ int qla24xx_async_gnl(struct scsi_qla_host *vha, fc_port_t *fcport)
 	return rval;
 
 done_free_sp:
-	sp->free(sp);
+	/* ref: INIT */
+	kref_put(&sp->cmd_kref, qla2x00_sp_release);
 done:
 	fcport->flags &= ~(FCF_ASYNC_ACTIVE | FCF_ASYNC_SENT);
 	return rval;
@@ -1171,7 +1196,7 @@ done:
 	dma_pool_free(ha->s_dma_pool, sp->u.iocb_cmd.u.mbx.in,
 		sp->u.iocb_cmd.u.mbx.in_dma);
 
-	sp->free(sp);
+	kref_put(&sp->cmd_kref, qla2x00_sp_release);
 }
 
 int qla24xx_post_prli_work(struct scsi_qla_host *vha, fc_port_t *fcport)
@@ -1216,7 +1241,7 @@ static void qla2x00_async_prli_sp_done(srb_t *sp, int res)
 		qla24xx_handle_prli_done_event(vha, &ea);
 	}
 
-	sp->free(sp);
+	kref_put(&sp->cmd_kref, qla2x00_sp_release);
 }
 
 int
@@ -1274,7 +1299,8 @@ qla24xx_async_prli(struct scsi_qla_host *vha, fc_port_t *fcport)
 	return rval;
 
 done_free_sp:
-	sp->free(sp);
+	/* ref: INIT */
+	kref_put(&sp->cmd_kref, qla2x00_sp_release);
 	fcport->flags &= ~FCF_ASYNC_SENT;
 	return rval;
 }
@@ -1359,7 +1385,7 @@ done_free_sp:
 	if (pd)
 		dma_pool_free(ha->s_dma_pool, pd, pd_dma);
 
-	sp->free(sp);
+	kref_put(&sp->cmd_kref, qla2x00_sp_release);
 	fcport->flags &= ~FCF_ASYNC_SENT;
 done:
 	fcport->flags &= ~FCF_ASYNC_ACTIVE;
@@ -1945,6 +1971,7 @@ qla2x00_async_tm_cmd(fc_port_t *fcport, uint32_t flags, uint32_t lun,
 	srb_t *sp;
 	int rval = QLA_FUNCTION_FAILED;
 
+	/* ref: INIT */
 	sp = qla2x00_get_sp(vha, fcport, GFP_KERNEL);
 	if (!sp)
 		goto done;
@@ -1988,7 +2015,8 @@ qla2x00_async_tm_cmd(fc_port_t *fcport, uint32_t flags, uint32_t lun,
 	}
 
 done_free_sp:
-	sp->free(sp);
+	/* ref: INIT */
+	kref_put(&sp->cmd_kref, qla2x00_sp_release);
 	fcport->flags &= ~FCF_ASYNC_SENT;
 done:
 	return rval;

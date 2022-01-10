@@ -184,6 +184,8 @@ static void qla2xxx_init_sp(srb_t *sp, scsi_qla_host_t *vha,
 	sp->vha = vha;
 	sp->qpair = qpair;
 	sp->cmd_type = TYPE_SRB;
+	/* ref : INIT - normal flow */
+	kref_init(&sp->cmd_kref);
 	INIT_LIST_HEAD(&sp->elem);
 }
 

@@ -529,7 +529,6 @@ static void qla2x00_async_sns_sp_done(srb_t *sp, int rc)
 		if (!e)
 			goto err2;
 
-		del_timer(&sp->u.iocb_cmd.timer);
 		e->u.iosb.sp = sp;
 		qla2x00_post_work(vha, e);
 		return;
@@ -556,8 +555,8 @@ err2:
 			sp->u.iocb_cmd.u.ctarg.rsp = NULL;
 		}
 
-		sp->free(sp);
-
+		/* ref: INIT */
+		kref_put(&sp->cmd_kref, qla2x00_sp_release);
 		return;
 	}
 
@@ -592,6 +591,7 @@ static int qla_async_rftid(scsi_qla_host_t *vha, port_id_t *d_id)
 	if (!vha->flags.online)
 		goto done;
 
+	/* ref: INIT */
 	sp = qla2x00_get_sp(vha, NULL, GFP_KERNEL);
 	if (!sp)
 		goto done;
@@ -652,7 +652,8 @@ static int qla_async_rftid(scsi_qla_host_t *vha, port_id_t *d_id)
 	}
 	return rval;
 done_free_sp:
-	sp->free(sp);
+	/* ref: INIT */
+	kref_put(&sp->cmd_kref, qla2x00_sp_release);
 done:
 	return rval;
 }
@@ -687,6 +688,7 @@ static int qla_async_rffid(scsi_qla_host_t *vha, port_id_t *d_id,
 	srb_t *sp;
 	struct ct_sns_pkt *ct_sns;
 
+	/* ref: INIT */
 	sp = qla2x00_get_sp(vha, NULL, GFP_KERNEL);
 	if (!sp)
 		goto done;
@@ -747,7 +749,8 @@ static int qla_async_rffid(scsi_qla_host_t *vha, port_id_t *d_id,
 	return rval;
 
 done_free_sp:
-	sp->free(sp);
+	/* ref: INIT */
+	kref_put(&sp->cmd_kref, qla2x00_sp_release);
 done:
 	return rval;
 }
@@ -777,6 +780,7 @@ static int qla_async_rnnid(scsi_qla_host_t *vha, port_id_t *d_id,
 	srb_t *sp;
 	struct ct_sns_pkt *ct_sns;
 
+	/* ref: INIT */
 	sp = qla2x00_get_sp(vha, NULL, GFP_KERNEL);
 	if (!sp)
 		goto done;
@@ -836,7 +840,8 @@ static int qla_async_rnnid(scsi_qla_host_t *vha, port_id_t *d_id,
 	return rval;
 
 done_free_sp:
-	sp->free(sp);
+	/* ref: INIT */
+	kref_put(&sp->cmd_kref, qla2x00_sp_release);
 done:
 	return rval;
 }
@@ -882,6 +887,7 @@ static int qla_async_rsnn_nn(scsi_qla_host_t *vha)
 	srb_t *sp;
 	struct ct_sns_pkt *ct_sns;
 
+	/* ref: INIT */
 	sp = qla2x00_get_sp(vha, NULL, GFP_KERNEL);
 	if (!sp)
 		goto done;
@@ -947,7 +953,8 @@ static int qla_async_rsnn_nn(scsi_qla_host_t *vha)
 	return rval;
 
 done_free_sp:
-	sp->free(sp);
+	/* ref: INIT */
+	kref_put(&sp->cmd_kref, qla2x00_sp_release);
 done:
 	return rval;
 }
@@ -2887,7 +2894,8 @@ static void qla24xx_async_gpsc_sp_done(srb_t *sp, int res)
 	qla24xx_handle_gpsc_event(vha, &ea);
 
 done:
-	sp->free(sp);
+	/* ref: INIT */
+	kref_put(&sp->cmd_kref, qla2x00_sp_release);
 }
 
 int qla24xx_async_gpsc(scsi_qla_host_t *vha, fc_port_t *fcport)
@@ -2899,6 +2907,7 @@ int qla24xx_async_gpsc(scsi_qla_host_t *vha, fc_port_t *fcport)
 	if (!vha->flags.online || (fcport->flags & FCF_ASYNC_SENT))
 		return rval;
 
+	/* ref: INIT */
 	sp = qla2x00_get_sp(vha, fcport, GFP_KERNEL);
 	if (!sp)
 		goto done;
@@ -2938,7 +2947,8 @@ int qla24xx_async_gpsc(scsi_qla_host_t *vha, fc_port_t *fcport)
 	return rval;
 
 done_free_sp:
-	sp->free(sp);
+	/* ref: INIT */
+	kref_put(&sp->cmd_kref, qla2x00_sp_release);
 done:
 	return rval;
 }
@@ -2987,7 +2997,8 @@ void qla24xx_sp_unmap(scsi_qla_host_t *vha, srb_t *sp)
 		break;
 	}
 
-	sp->free(sp);
+	/* ref: INIT */
+	kref_put(&sp->cmd_kref, qla2x00_sp_release);
 }
 
 void qla24xx_handle_gpnid_event(scsi_qla_host_t *vha, struct event_arg *ea)
@@ -3126,13 +3137,15 @@ static void qla2x00_async_gpnid_sp_done(srb_t *sp, int res)
 	if (res) {
 		if (res == QLA_FUNCTION_TIMEOUT) {
 			qla24xx_post_gpnid_work(sp->vha, &ea.id);
-			sp->free(sp);
+			/* ref: INIT */
+			kref_put(&sp->cmd_kref, qla2x00_sp_release);
 			return;
 		}
 	} else if (sp->gen1) {
 		/* There was another RSCN for this Nport ID */
 		qla24xx_post_gpnid_work(sp->vha, &ea.id);
-		sp->free(sp);
+		/* ref: INIT */
+		kref_put(&sp->cmd_kref, qla2x00_sp_release);
 		return;
 	}
 
@@ -3153,7 +3166,8 @@ static void qla2x00_async_gpnid_sp_done(srb_t *sp, int res)
 				  sp->u.iocb_cmd.u.ctarg.rsp_dma);
 		sp->u.iocb_cmd.u.ctarg.rsp = NULL;
 
-		sp->free(sp);
+		/* ref: INIT */
+		kref_put(&sp->cmd_kref, qla2x00_sp_release);
 		return;
 	}
 
@@ -3173,6 +3187,7 @@ int qla24xx_async_gpnid(scsi_qla_host_t *vha, port_id_t *id)
 	if (!vha->flags.online)
 		goto done;
 
+	/* ref: INIT */
 	sp = qla2x00_get_sp(vha, NULL, GFP_KERNEL);
 	if (!sp)
 		goto done;
@@ -3189,7 +3204,8 @@ int qla24xx_async_gpnid(scsi_qla_host_t *vha, port_id_t *id)
 		if (tsp->u.iocb_cmd.u.ctarg.id.b24 == id->b24) {
 			tsp->gen1++;
 			spin_unlock_irqrestore(&vha->hw->tgt.sess_lock, flags);
-			sp->free(sp);
+			/* ref: INIT */
+			kref_put(&sp->cmd_kref, qla2x00_sp_release);
 			goto done;
 		}
 	}
@@ -3259,8 +3275,8 @@ done_free_sp:
 			sp->u.iocb_cmd.u.ctarg.rsp_dma);
 		sp->u.iocb_cmd.u.ctarg.rsp = NULL;
 	}
-
-	sp->free(sp);
+	/* ref: INIT */
+	kref_put(&sp->cmd_kref, qla2x00_sp_release);
 done:
 	return rval;
 }
@@ -3315,7 +3331,8 @@ void qla24xx_async_gffid_sp_done(srb_t *sp, int res)
 	ea.rc = res;
 
 	qla24xx_handle_gffid_event(vha, &ea);
-	sp->free(sp);
+	/* ref: INIT */
+	kref_put(&sp->cmd_kref, qla2x00_sp_release);
 }
 
 /* Get FC4 Feature with Nport ID. */
@@ -3328,6 +3345,7 @@ int qla24xx_async_gffid(scsi_qla_host_t *vha, fc_port_t *fcport)
 	if (!vha->flags.online || (fcport->flags & FCF_ASYNC_SENT))
 		return rval;
 
+	/* ref: INIT */
 	sp = qla2x00_get_sp(vha, fcport, GFP_KERNEL);
 	if (!sp)
 		return rval;
@@ -3366,7 +3384,8 @@ int qla24xx_async_gffid(scsi_qla_host_t *vha, fc_port_t *fcport)
 
 	return rval;
 done_free_sp:
-	sp->free(sp);
+	/* ref: INIT */
+	kref_put(&sp->cmd_kref, qla2x00_sp_release);
 	fcport->flags &= ~FCF_ASYNC_SENT;
 	return rval;
 }
@@ -3753,7 +3772,6 @@ static void qla2x00_async_gpnft_gnnft_sp_done(srb_t *sp, int res)
 	    "Async done-%s res %x FC4Type %x\n",
 	    sp->name, res, sp->gen2);
 
-	del_timer(&sp->u.iocb_cmd.timer);
 	sp->rc = res;
 	if (res) {
 		unsigned long flags;
@@ -3921,8 +3939,8 @@ done_free_sp:
 		    sp->u.iocb_cmd.u.ctarg.rsp_dma);
 		sp->u.iocb_cmd.u.ctarg.rsp = NULL;
 	}
-
-	sp->free(sp);
+	/* ref: INIT */
+	kref_put(&sp->cmd_kref, qla2x00_sp_release);
 
 	spin_lock_irqsave(&vha->work_lock, flags);
 	vha->scan.scan_flags &= ~SF_SCANNING;
@@ -3974,9 +3992,12 @@ int qla24xx_async_gpnft(scsi_qla_host_t *vha, u8 fc4_type, srb_t *sp)
 		ql_dbg(ql_dbg_disc + ql_dbg_verbose, vha, 0xffff,
 		    "%s: Performing FCP Scan\n", __func__);
 
-		if (sp)
-			sp->free(sp); /* should not happen */
+		if (sp) {
+			/* ref: INIT */
+			kref_put(&sp->cmd_kref, qla2x00_sp_release);
+		}
 
+		/* ref: INIT */
 		sp = qla2x00_get_sp(vha, NULL, GFP_KERNEL);
 		if (!sp) {
 			spin_lock_irqsave(&vha->work_lock, flags);
@@ -4021,6 +4042,7 @@ int qla24xx_async_gpnft(scsi_qla_host_t *vha, u8 fc4_type, srb_t *sp)
 			    sp->u.iocb_cmd.u.ctarg.req,
 			    sp->u.iocb_cmd.u.ctarg.req_dma);
 			sp->u.iocb_cmd.u.ctarg.req = NULL;
+			/* ref: INIT */
 			qla2x00_rel_sp(sp);
 			return rval;
 		}
@@ -4083,7 +4105,8 @@ done_free_sp:
 		sp->u.iocb_cmd.u.ctarg.rsp = NULL;
 	}
 
-	sp->free(sp);
+	/* ref: INIT */
+	kref_put(&sp->cmd_kref, qla2x00_sp_release);
 
 	spin_lock_irqsave(&vha->work_lock, flags);
 	vha->scan.scan_flags &= ~SF_SCANNING;
@@ -4147,7 +4170,8 @@ static void qla2x00_async_gnnid_sp_done(srb_t *sp, int res)
 
 	qla24xx_handle_gnnid_event(vha, &ea);
 
-	sp->free(sp);
+	/* ref: INIT */
+	kref_put(&sp->cmd_kref, qla2x00_sp_release);
 }
 
 int qla24xx_async_gnnid(scsi_qla_host_t *vha, fc_port_t *fcport)
@@ -4160,6 +4184,7 @@ int qla24xx_async_gnnid(scsi_qla_host_t *vha, fc_port_t *fcport)
 		return rval;
 
 	qla2x00_set_fcport_disc_state(fcport, DSC_GNN_ID);
+	/* ref: INIT */
 	sp = qla2x00_get_sp(vha, fcport, GFP_ATOMIC);
 	if (!sp)
 		goto done;
@@ -4200,7 +4225,8 @@ int qla24xx_async_gnnid(scsi_qla_host_t *vha, fc_port_t *fcport)
 	return rval;
 
 done_free_sp:
-	sp->free(sp);
+	/* ref: INIT */
+	kref_put(&sp->cmd_kref, qla2x00_sp_release);
 	fcport->flags &= ~FCF_ASYNC_SENT;
 done:
 	return rval;
@@ -4274,7 +4300,8 @@ static void qla2x00_async_gfpnid_sp_done(srb_t *sp, int res)
 
 	qla24xx_handle_gfpnid_event(vha, &ea);
 
-	sp->free(sp);
+	/* ref: INIT */
+	kref_put(&sp->cmd_kref, qla2x00_sp_release);
 }
 
 int qla24xx_async_gfpnid(scsi_qla_host_t *vha, fc_port_t *fcport)
@@ -4286,6 +4313,7 @@ int qla24xx_async_gfpnid(scsi_qla_host_t *vha, fc_port_t *fcport)
 	if (!vha->flags.online || (fcport->flags & FCF_ASYNC_SENT))
 		return rval;
 
+	/* ref: INIT */
 	sp = qla2x00_get_sp(vha, fcport, GFP_ATOMIC);
 	if (!sp)
 		goto done;
@@ -4326,7 +4354,8 @@ int qla24xx_async_gfpnid(scsi_qla_host_t *vha, fc_port_t *fcport)
 	return rval;
 
 done_free_sp:
-	sp->free(sp);
+	/* ref: INIT */
+	kref_put(&sp->cmd_kref, qla2x00_sp_release);
 done:
 	return rval;
 }

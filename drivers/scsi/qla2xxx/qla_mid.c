@@ -965,6 +965,7 @@ int qla24xx_control_vp(scsi_qla_host_t *vha, int cmd)
 	if (vp_index == 0 || vp_index >= ha->max_npiv_vports)
 		return QLA_PARAMETER_ERROR;
 
+	/* ref: INIT */
 	sp = qla2x00_get_sp(base_vha, NULL, GFP_KERNEL);
 	if (!sp)
 		return rval;
@@ -1007,6 +1008,7 @@ int qla24xx_control_vp(scsi_qla_host_t *vha, int cmd)
 		break;
 	}
 done:
-	sp->free(sp);
+	/* ref: INIT */
+	kref_put(&sp->cmd_kref, qla2x00_sp_release);
 	return rval;
 }

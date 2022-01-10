@@ -620,7 +620,7 @@ static void qla2x00_async_nack_sp_done(srb_t *sp, int res)
 	}
 	spin_unlock_irqrestore(&vha->hw->tgt.sess_lock, flags);
 
-	sp->free(sp);
+	kref_put(&sp->cmd_kref, qla2x00_sp_release);
 }
 
 int qla24xx_async_notify_ack(scsi_qla_host_t *vha, fc_port_t *fcport,
@@ -672,7 +672,7 @@ int qla24xx_async_notify_ack(scsi_qla_host_t *vha, fc_port_t *fcport,
 	return rval;
 
 done_free_sp:
-	sp->free(sp);
+	kref_put(&sp->cmd_kref, qla2x00_sp_release);
 done:
 	fcport->flags &= ~FCF_ASYNC_SENT;
 	return rval;
