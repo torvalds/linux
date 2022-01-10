@@ -215,6 +215,9 @@ void free_initmem(void)
 	__set_memory((unsigned long)_sinittext,
 		     (unsigned long)(_einittext - _sinittext) >> PAGE_SHIFT,
 		     SET_MEMORY_RW | SET_MEMORY_NX);
+	free_reserved_area(sclp_early_sccb,
+			   sclp_early_sccb + EXT_SCCB_READ_SCP,
+			   POISON_FREE_INITMEM, "unused early sccb");
 	free_initmem_default(POISON_FREE_INITMEM);
 }
 

@@ -351,19 +351,18 @@ static void setup_qib(struct qdio_irq *irq_ptr,
 		       sizeof(irq_ptr->qib.parm));
 }
 
-int qdio_setup_irq(struct qdio_irq *irq_ptr, struct qdio_initialize *init_data)
+void qdio_setup_irq(struct qdio_irq *irq_ptr, struct qdio_initialize *init_data)
 {
 	struct ccw_device *cdev = irq_ptr->cdev;
-	struct ciw *ciw;
 
 	irq_ptr->qdioac1 = 0;
-	memset(&irq_ptr->ccw, 0, sizeof(irq_ptr->ccw));
 	memset(&irq_ptr->ssqd_desc, 0, sizeof(irq_ptr->ssqd_desc));
 	memset(&irq_ptr->perf_stat, 0, sizeof(irq_ptr->perf_stat));
 
 	irq_ptr->debugfs_dev = NULL;
 	irq_ptr->sch_token = irq_ptr->perf_stat_enabled = 0;
 	irq_ptr->state = QDIO_IRQ_STATE_INACTIVE;
+	irq_ptr->error_handler = init_data->input_handler;
 
 	irq_ptr->int_parm = init_data->int_parm;
 	irq_ptr->nr_input_qs = init_data->no_input_qs;
@@ -386,23 +385,6 @@ int qdio_setup_irq(struct qdio_irq *irq_ptr, struct qdio_initialize *init_data)
 	irq_ptr->orig_handler = cdev->handler;
 	cdev->handler = qdio_int_handler;
 	spin_unlock_irq(get_ccwdev_lock(cdev));
-
-	/* get qdio commands */
-	ciw = ccw_device_get_ciw(cdev, CIW_TYPE_EQUEUE);
-	if (!ciw) {
-		DBF_ERROR("%4x NO EQ", irq_ptr->schid.sch_no);
-		return -EINVAL;
-	}
-	irq_ptr->equeue = *ciw;
-
-	ciw = ccw_device_get_ciw(cdev, CIW_TYPE_AQUEUE);
-	if (!ciw) {
-		DBF_ERROR("%4x NO AQ", irq_ptr->schid.sch_no);
-		return -EINVAL;
-	}
-	irq_ptr->aqueue = *ciw;
-
-	return 0;
 }
 
 void qdio_shutdown_irq(struct qdio_irq *irq)
