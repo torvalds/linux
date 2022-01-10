@@ -360,22 +360,22 @@ void ODM_PhyStatusQuery(struct odm_dm_struct *dm_odm,
 
 enum HAL_STATUS ODM_ConfigRFWithHeaderFile(struct odm_dm_struct *dm_odm)
 {
-	ODM_ReadAndConfig_RadioA_1T_8188E(dm_odm);
-
-	return HAL_STATUS_SUCCESS;
+	return ODM_ReadAndConfig_RadioA_1T_8188E(dm_odm);
 }
 
 enum HAL_STATUS ODM_ConfigBBWithHeaderFile(struct odm_dm_struct *dm_odm,
 					   enum odm_bb_config_type config_tp)
 {
-	if (config_tp == CONFIG_BB_PHY_REG)
-		ODM_ReadAndConfig_PHY_REG_1T_8188E(dm_odm);
-	else if (config_tp == CONFIG_BB_AGC_TAB)
-		ODM_ReadAndConfig_AGC_TAB_1T_8188E(dm_odm);
-	else if (config_tp == CONFIG_BB_PHY_REG_PG)
+	if (config_tp == CONFIG_BB_PHY_REG) {
+		return ODM_ReadAndConfig_PHY_REG_1T_8188E(dm_odm);
+	} else if (config_tp == CONFIG_BB_AGC_TAB) {
+		return ODM_ReadAndConfig_AGC_TAB_1T_8188E(dm_odm);
+	} else if (config_tp == CONFIG_BB_PHY_REG_PG) {
 		ODM_ReadAndConfig_PHY_REG_PG_8188E(dm_odm);
+		return HAL_STATUS_SUCCESS;
+	}
 
-	return HAL_STATUS_SUCCESS;
+	return HAL_STATUS_FAILURE;
 }
 
 enum HAL_STATUS ODM_ConfigMACWithHeaderFile(struct odm_dm_struct *dm_odm)
