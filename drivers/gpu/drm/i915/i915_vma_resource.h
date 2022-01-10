@@ -10,8 +10,11 @@
 #include <linux/refcount.h>
 
 #include "i915_gem.h"
+#include "i915_scatterlist.h"
 #include "i915_sw_fence.h"
 #include "intel_runtime_pm.h"
+
+struct intel_memory_region;
 
 struct i915_page_sizes {
 	/**
@@ -46,6 +49,7 @@ struct i915_page_sizes {
  * @__subtree_last: Interval tree private member.
  * @vm: non-refcounted pointer to the vm. This is for internal use only and
  * this member is cleared after vm_resource unbind.
+ * @mr: The memory region of the object pointed to by the vma.
  * @ops: Pointer to the backend i915_vma_ops.
  * @private: Bind backend private info.
  * @start: Offset into the address space of bind range start.
@@ -54,8 +58,10 @@ struct i915_page_sizes {
  * @page_sizes_gtt: Resulting page sizes from the bind operation.
  * @bound_flags: Flags indicating binding status.
  * @allocated: Backend private data. TODO: Should move into @private.
- * @immediate_unbind: Unbind can be done immediately and don't need to be
- * deferred to a work item awaiting unsignaled fences.
+ * @immediate_unbind: Unbind can be done immediately and doesn't need to be
+ * deferred to a work item awaiting unsignaled fences. This is a hack.
+ * (dma_fence_work uses a fence flag for this, but this seems slightly
+ * cleaner).
  *
  * The lifetime of a struct i915_vma_resource is from a binding request to
  * the actual possible asynchronous unbind has completed.
@@ -80,16 +86,22 @@ struct i915_vma_resource {
 	 * and flags
 	 * @pages: The pages sg-table.
 	 * @page_sizes: Page sizes of the pages.
+	 * @pages_rsgt: Refcounted sg-table when delayed object destruction
+	 * is supported. May be NULL.
 	 * @readonly: Whether the vma should be bound read-only.
 	 * @lmem: Whether the vma points to lmem.
 	 */
 	struct i915_vma_bindinfo {
 		struct sg_table *pages;
 		struct i915_page_sizes page_sizes;
+		struct i915_refct_sgt *pages_rsgt;
 		bool readonly:1;
 		bool lmem:1;
 	} bi;
 
+#if IS_ENABLED(CONFIG_DRM_I915_CAPTURE_ERROR)
+	struct intel_memory_region *mr;
+#endif
 	const struct i915_vma_ops *ops;
 	void *private;
 	u64 start;
@@ -145,8 +157,11 @@ static inline void i915_vma_resource_put(struct i915_vma_resource *vma_res)
  * @vm: Pointer to the vm.
  * @pages: The pages sg-table.
  * @page_sizes: Page sizes of the pages.
+ * @pages_rsgt: Pointer to a struct i915_refct_sgt of an object with
+ * delayed destruction.
  * @readonly: Whether the vma should be bound read-only.
  * @lmem: Whether the vma points to lmem.
+ * @mr: The memory region of the object the vma points to.
  * @ops: The backend ops.
  * @private: Bind backend private info.
  * @start: Offset into the address space of bind range start.
@@ -162,8 +177,10 @@ static inline void i915_vma_resource_init(struct i915_vma_resource *vma_res,
 					  struct i915_address_space *vm,
 					  struct sg_table *pages,
 					  const struct i915_page_sizes *page_sizes,
+					  struct i915_refct_sgt *pages_rsgt,
 					  bool readonly,
 					  bool lmem,
+					  struct intel_memory_region *mr,
 					  const struct i915_vma_ops *ops,
 					  void *private,
 					  u64 start,
@@ -174,8 +191,13 @@ static inline void i915_vma_resource_init(struct i915_vma_resource *vma_res,
 	vma_res->vm = vm;
 	vma_res->bi.pages = pages;
 	vma_res->bi.page_sizes = *page_sizes;
+	if (pages_rsgt)
+		vma_res->bi.pages_rsgt = i915_refct_sgt_get(pages_rsgt);
 	vma_res->bi.readonly = readonly;
 	vma_res->bi.lmem = lmem;
+#if IS_ENABLED(CONFIG_DRM_I915_CAPTURE_ERROR)
+	vma_res->mr = mr;
+#endif
 	vma_res->ops = ops;
 	vma_res->private = private;
 	vma_res->start = start;
@@ -186,6 +208,8 @@ static inline void i915_vma_resource_init(struct i915_vma_resource *vma_res,
 static inline void i915_vma_resource_fini(struct i915_vma_resource *vma_res)
 {
 	GEM_BUG_ON(refcount_read(&vma_res->hold_count) != 1);
+	if (vma_res->bi.pages_rsgt)
+		i915_refct_sgt_put(vma_res->bi.pages_rsgt);
 	i915_sw_fence_fini(&vma_res->chain);
 }
 

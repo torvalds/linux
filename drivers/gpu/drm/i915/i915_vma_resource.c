@@ -9,6 +9,7 @@
 #include "i915_sw_fence.h"
 #include "i915_vma_resource.h"
 #include "i915_drv.h"
+#include "intel_memory_region.h"
 
 #include "gt/intel_gtt.h"
 
@@ -117,6 +118,9 @@ static void __i915_vma_resource_unhold(struct i915_vma_resource *vma_res)
 		vma_res_itree_remove(vma_res, &vm->pending_unbind);
 		mutex_unlock(&vm->mutex);
 	}
+
+	if (vma_res->bi.pages_rsgt)
+		i915_refct_sgt_put(vma_res->bi.pages_rsgt);
 }
 
 /**
