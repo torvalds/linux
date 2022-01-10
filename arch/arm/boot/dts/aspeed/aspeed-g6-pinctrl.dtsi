@@ -1191,4 +1191,124 @@
 		function = "WDTRST4";
 		groups = "WDTRST4";
 	};
+
+	pinctrl_ncts1_default: ncts1_default {
+		function = "NCTS1";
+		groups = "NCTS1";
+	};
+
+	pinctrl_ncts2_default: ncts2_default {
+		function = "NCTS2";
+		groups = "NCTS2";
+	};
+
+	pinctrl_ncts3_default: ncts3_default {
+		function = "NCTS3";
+		groups = "NCTS3";
+	};
+
+	pinctrl_ncts4_default: ncts4_default {
+		function = "NCTS4";
+		groups = "NCTS4";
+	};
+
+	pinctrl_ndcd1_default: ndcd1_default {
+		function = "NDCD1";
+		groups = "NDCD1";
+	};
+
+	pinctrl_ndcd2_default: ndcd2_default {
+		function = "NDCD2";
+		groups = "NDCD2";
+	};
+
+	pinctrl_ndcd3_default: ndcd3_default {
+		function = "NDCD3";
+		groups = "NDCD3";
+	};
+
+	pinctrl_ndcd4_default: ndcd4_default {
+		function = "NDCD4";
+		groups = "NDCD4";
+	};
+
+	pinctrl_ndsr1_default: ndsr1_default {
+		function = "NDSR1";
+		groups = "NDSR1";
+	};
+
+	pinctrl_ndsr2_default: ndsr2_default {
+		function = "NDSR2";
+		groups = "NDSR2";
+	};
+
+	pinctrl_ndsr3_default: ndsr3_default {
+		function = "NDSR3";
+		groups = "NDSR3";
+	};
+
+	pinctrl_ndsr4_default: ndsr4_default {
+		function = "NDSR4";
+		groups = "NDSR4";
+	};
+
+	pinctrl_nri1_default: nri1_default {
+		function = "NRI1";
+		groups = "NRI1";
+	};
+
+	pinctrl_nri2_default: nri2_default {
+		function = "NRI2";
+		groups = "NRI2";
+	};
+
+	pinctrl_nri3_default: nri3_default {
+		function = "NRI3";
+		groups = "NRI3";
+	};
+
+	pinctrl_nri4_default: nri4_default {
+		function = "NRI4";
+		groups = "NRI4";
+	};
+
+	pinctrl_ndtr1_default: ndtr1_default {
+		function = "NDTR1";
+		groups = "NDTR1";
+	};
+
+	pinctrl_ndtr2_default: ndtr2_default {
+		function = "NDTR2";
+		groups = "NDTR2";
+	};
+
+	pinctrl_ndtr3_default: ndtr3_default {
+		function = "NDTR3";
+		groups = "NDTR3";
+	};
+
+	pinctrl_ndtr4_default: ndtr4_default {
+		function = "NDTR4";
+		groups = "NDTR4";
+	};
+
+	pinctrl_nrts1_default: nrts1_default {
+		function = "NRTS1";
+		groups = "NRTS1";
+	};
+
+	pinctrl_nrts2_default: nrts2_default {
+		function = "NRTS2";
+		groups = "NRTS2";
+	};
+
+	pinctrl_nrts3_default: nrts3_default {
+		function = "NRTS3";
+		groups = "NRTS3";
+	};
+
+	pinctrl_nrts4_default: nrts4_default {
+		function = "NRTS4";
+		groups = "NRTS4";
+	};
 };
