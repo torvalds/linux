@@ -5106,6 +5106,7 @@ static const char * const asus_wmi_boards[] = {
 	"Pro WS X570-ACE",
 	"PRIME B360-PLUS",
 	"PRIME B460-PLUS",
+	"PRIME B550-PLUS",
 	"PRIME B550M-A",
 	"PRIME B550M-A (WI-FI)",
 	"PRIME X570-PRO",
