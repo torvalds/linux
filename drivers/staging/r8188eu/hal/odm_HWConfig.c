@@ -362,11 +362,9 @@ void ODM_PhyStatusQuery(struct odm_dm_struct *dm_odm,
 	odm_Process_RSSIForDM(dm_odm, pPhyInfo, pPktinfo);
 }
 
-enum HAL_STATUS ODM_ConfigRFWithHeaderFile(struct odm_dm_struct *dm_odm,
-					   enum rf_radio_path rfpath)
+enum HAL_STATUS ODM_ConfigRFWithHeaderFile(struct odm_dm_struct *dm_odm)
 {
-	if (rfpath == RF_PATH_A)
-		READ_AND_CONFIG(8188E, _RadioA_1T_);
+	READ_AND_CONFIG(8188E, _RadioA_1T_);
 
 	return HAL_STATUS_SUCCESS;
 }
