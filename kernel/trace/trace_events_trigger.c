@@ -540,7 +540,6 @@ void update_cond_flag(struct trace_event_file *file)
 /**
  * register_trigger - Generic event_command @reg implementation
  * @glob: The raw string used to register the trigger
- * @ops: The trigger ops associated with the trigger
  * @data: Trigger-specific data to associate with the trigger
  * @file: The trace_event_file associated with the event
  *
@@ -551,7 +550,7 @@ void update_cond_flag(struct trace_event_file *file)
  *
  * Return: 0 on success, errno otherwise
  */
-static int register_trigger(char *glob, struct event_trigger_ops *ops,
+static int register_trigger(char *glob,
 			    struct event_trigger_data *data,
 			    struct trace_event_file *file)
 {
@@ -589,7 +588,6 @@ out:
 /**
  * unregister_trigger - Generic event_command @unreg implementation
  * @glob: The raw string used to register the trigger
- * @ops: The trigger ops associated with the trigger
  * @test: Trigger-specific data used to find the trigger to remove
  * @file: The trace_event_file associated with the event
  *
@@ -598,7 +596,7 @@ out:
  * Usually used directly as the @unreg method in event command
  * implementations.
  */
-static void unregister_trigger(char *glob, struct event_trigger_ops *ops,
+static void unregister_trigger(char *glob,
 			       struct event_trigger_data *test,
 			       struct trace_event_file *file)
 {
@@ -673,7 +671,7 @@ event_trigger_parse(struct event_command *cmd_ops,
 	INIT_LIST_HEAD(&trigger_data->named_list);
 
 	if (glob[0] == '!') {
-		cmd_ops->unreg(glob+1, trigger_ops, trigger_data, file);
+		cmd_ops->unreg(glob+1, trigger_data, file);
 		kfree(trigger_data);
 		ret = 0;
 		goto out;
@@ -708,14 +706,14 @@ event_trigger_parse(struct event_command *cmd_ops,
  out_reg:
 	/* Up the trigger_data count to make sure reg doesn't free it on failure */
 	event_trigger_init(trigger_ops, trigger_data);
-	ret = cmd_ops->reg(glob, trigger_ops, trigger_data, file);
+	ret = cmd_ops->reg(glob, trigger_data, file);
 	/*
 	 * The above returns on success the # of functions enabled,
 	 * but if it didn't find any functions it returns zero.
 	 * Consider no functions a failure too.
 	 */
 	if (!ret) {
-		cmd_ops->unreg(glob, trigger_ops, trigger_data, file);
+		cmd_ops->unreg(glob, trigger_data, file);
 		ret = -ENOENT;
 	} else if (ret > 0)
 		ret = 0;
@@ -1116,14 +1114,14 @@ snapshot_count_trigger(struct event_trigger_data *data,
 }
 
 static int
-register_snapshot_trigger(char *glob, struct event_trigger_ops *ops,
+register_snapshot_trigger(char *glob,
 			  struct event_trigger_data *data,
 			  struct trace_event_file *file)
 {
 	if (tracing_alloc_snapshot_instance(file->tr) != 0)
 		return 0;
 
-	return register_trigger(glob, ops, data, file);
+	return register_trigger(glob, data, file);
 }
 
 static int
@@ -1455,7 +1453,7 @@ int event_enable_trigger_parse(struct event_command *cmd_ops,
 	trigger_data->private_data = enable_data;
 
 	if (glob[0] == '!') {
-		cmd_ops->unreg(glob+1, trigger_ops, trigger_data, file);
+		cmd_ops->unreg(glob+1, trigger_data, file);
 		kfree(trigger_data);
 		kfree(enable_data);
 		ret = 0;
@@ -1502,7 +1500,7 @@ int event_enable_trigger_parse(struct event_command *cmd_ops,
 	ret = trace_event_enable_disable(event_enable_file, 1, 1);
 	if (ret < 0)
 		goto out_put;
-	ret = cmd_ops->reg(glob, trigger_ops, trigger_data, file);
+	ret = cmd_ops->reg(glob, trigger_data, file);
 	/*
 	 * The above returns on success the # of functions enabled,
 	 * but if it didn't find any functions it returns zero.
@@ -1532,7 +1530,6 @@ int event_enable_trigger_parse(struct event_command *cmd_ops,
 }
 
 int event_enable_register_trigger(char *glob,
-				  struct event_trigger_ops *ops,
 				  struct event_trigger_data *data,
 				  struct trace_event_file *file)
 {
@@ -1574,7 +1571,6 @@ out:
 }
 
 void event_enable_unregister_trigger(char *glob,
-				     struct event_trigger_ops *ops,
 				     struct event_trigger_data *test,
 				     struct trace_event_file *file)
 {

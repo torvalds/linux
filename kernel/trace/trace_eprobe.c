@@ -556,16 +556,16 @@ static int eprobe_trigger_cmd_parse(struct event_command *cmd_ops,
 	return -1;
 }
 
-static int eprobe_trigger_reg_func(char *glob, struct event_trigger_ops *ops,
-				 struct event_trigger_data *data,
-				 struct trace_event_file *file)
+static int eprobe_trigger_reg_func(char *glob,
+				   struct event_trigger_data *data,
+				   struct trace_event_file *file)
 {
 	return -1;
 }
 
-static void eprobe_trigger_unreg_func(char *glob, struct event_trigger_ops *ops,
-				    struct event_trigger_data *data,
-				    struct trace_event_file *file)
+static void eprobe_trigger_unreg_func(char *glob,
+				      struct event_trigger_data *data,
+				      struct trace_event_file *file)
 {
 
 }
