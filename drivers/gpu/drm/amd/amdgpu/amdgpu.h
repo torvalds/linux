@@ -372,7 +372,8 @@ int amdgpu_device_ip_block_add(struct amdgpu_device *adev,
  */
 bool amdgpu_get_bios(struct amdgpu_device *adev);
 bool amdgpu_read_bios(struct amdgpu_device *adev);
-
+bool amdgpu_soc15_read_bios_from_rom(struct amdgpu_device *adev,
+				     u8 *bios, u32 length_bytes);
 /*
  * Clocks
  */

@@ -330,38 +330,6 @@ static bool nv_read_disabled_bios(struct amdgpu_device *adev)
 	return false;
 }
 
-static bool nv_read_bios_from_rom(struct amdgpu_device *adev,
-				  u8 *bios, u32 length_bytes)
-{
-	u32 *dw_ptr;
-	u32 i, length_dw;
-	u32 rom_index_offset, rom_data_offset;
-
-	if (bios == NULL)
-		return false;
-	if (length_bytes == 0)
-		return false;
-	/* APU vbios image is part of sbios image */
-	if (adev->flags & AMD_IS_APU)
-		return false;
-
-	dw_ptr = (u32 *)bios;
-	length_dw = ALIGN(length_bytes, 4) / 4;
-
-	rom_index_offset =
-		adev->smuio.funcs->get_rom_index_offset(adev);
-	rom_data_offset =
-		adev->smuio.funcs->get_rom_data_offset(adev);
-
-	/* set rom index to 0 */
-	WREG32(rom_index_offset, 0);
-	/* read out the rom data */
-	for (i = 0; i < length_dw; i++)
-		dw_ptr[i] = RREG32(rom_data_offset);
-
-	return true;
-}
-
 static struct soc15_allowed_register_entry nv_allowed_read_registers[] = {
 	{ SOC15_REG_ENTRY(GC, 0, mmGRBM_STATUS)},
 	{ SOC15_REG_ENTRY(GC, 0, mmGRBM_STATUS2)},
@@ -678,7 +646,7 @@ static int nv_update_umd_stable_pstate(struct amdgpu_device *adev,
 static const struct amdgpu_asic_funcs nv_asic_funcs =
 {
 	.read_disabled_bios = &nv_read_disabled_bios,
-	.read_bios_from_rom = &nv_read_bios_from_rom,
+	.read_bios_from_rom = &amdgpu_soc15_read_bios_from_rom,
 	.read_register = &nv_read_register,
 	.reset = &nv_asic_reset,
 	.reset_method = &nv_asic_reset_method,
