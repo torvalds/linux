@@ -239,11 +239,11 @@ static int lowlevel_hole(struct i915_address_space *vm,
 			 unsigned long end_time)
 {
 	I915_RND_STATE(seed_prng);
-	struct i915_vma *mock_vma;
+	struct i915_vma_resource *mock_vma_res;
 	unsigned int size;
 
-	mock_vma = kzalloc(sizeof(*mock_vma), GFP_KERNEL);
-	if (!mock_vma)
+	mock_vma_res = kzalloc(sizeof(*mock_vma_res), GFP_KERNEL);
+	if (!mock_vma_res)
 		return -ENOMEM;
 
 	/* Keep creating larger objects until one cannot fit into the hole */
@@ -269,7 +269,7 @@ static int lowlevel_hole(struct i915_address_space *vm,
 				break;
 		} while (count >>= 1);
 		if (!count) {
-			kfree(mock_vma);
+			kfree(mock_vma_res);
 			return -ENOMEM;
 		}
 		GEM_BUG_ON(!order);
@@ -343,12 +343,12 @@ alloc_vm_end:
 					break;
 			}
 
-			mock_vma->pages = obj->mm.pages;
-			mock_vma->node.size = BIT_ULL(size);
-			mock_vma->node.start = addr;
+			mock_vma_res->bi.pages = obj->mm.pages;
+			mock_vma_res->node_size = BIT_ULL(size);
+			mock_vma_res->start = addr;
 
 			with_intel_runtime_pm(vm->gt->uncore->rpm, wakeref)
-				vm->insert_entries(vm, mock_vma,
+			  vm->insert_entries(vm, mock_vma_res,
 						   I915_CACHE_NONE, 0);
 		}
 		count = n;
@@ -371,7 +371,7 @@ alloc_vm_end:
 		cleanup_freed_objects(vm->i915);
 	}
 
-	kfree(mock_vma);
+	kfree(mock_vma_res);
 	return 0;
 }
 
@@ -1280,6 +1280,7 @@ static void track_vma_bind(struct i915_vma *vma)
 	atomic_set(&vma->pages_count, I915_VMA_PAGES_ACTIVE);
 	__i915_gem_object_pin_pages(obj);
 	vma->pages = obj->mm.pages;
+	vma->resource->bi.pages = vma->pages;
 
 	mutex_lock(&vma->vm->mutex);
 	list_add_tail(&vma->vm_link, &vma->vm->bound_list);
@@ -1354,7 +1355,7 @@ static int reserve_gtt_with_resource(struct i915_vma *vma, u64 offset)
 				   obj->cache_level,
 				   0);
 	if (!err) {
-		i915_vma_resource_init(vma_res);
+		i915_vma_resource_init_from_vma(vma_res, vma);
 		vma->resource = vma_res;
 	} else {
 		kfree(vma_res);
@@ -1533,7 +1534,7 @@ static int insert_gtt_with_resource(struct i915_vma *vma)
 	err = i915_gem_gtt_insert(vm, &vma->node, obj->base.size, 0,
 				  obj->cache_level, 0, vm->total, 0);
 	if (!err) {
-		i915_vma_resource_init(vma_res);
+		i915_vma_resource_init_from_vma(vma_res, vma);
 		vma->resource = vma_res;
 	} else {
 		kfree(vma_res);
@@ -1960,6 +1961,7 @@ static int igt_cs_tlb(void *arg)
 			struct i915_vm_pt_stash stash = {};
 			struct i915_request *rq;
 			struct i915_gem_ww_ctx ww;
+			struct i915_vma_resource *vma_res;
 			u64 offset;
 
 			offset = igt_random_offset(&prng,
@@ -1979,6 +1981,13 @@ static int igt_cs_tlb(void *arg)
 			i915_gem_object_unlock(bbe);
 			if (err)
 				goto end;
+
+			vma_res = i915_vma_resource_alloc();
+			if (IS_ERR(vma_res)) {
+				i915_vma_put_pages(vma);
+				err = PTR_ERR(vma_res);
+				goto end;
+			}
 
 			i915_gem_ww_ctx_init(&ww, false);
 retry:
@@ -2001,33 +2010,41 @@ end_ww:
 					goto retry;
 			}
 			i915_gem_ww_ctx_fini(&ww);
-			if (err)
+			if (err) {
+				kfree(vma_res);
 				goto end;
+			}
 
+			i915_vma_resource_init_from_vma(vma_res, vma);
 			/* Prime the TLB with the dummy pages */
 			for (i = 0; i < count; i++) {
-				vma->node.start = offset + i * PAGE_SIZE;
-				vm->insert_entries(vm, vma, I915_CACHE_NONE, 0);
+				vma_res->start = offset + i * PAGE_SIZE;
+				vm->insert_entries(vm, vma_res, I915_CACHE_NONE,
+						   0);
 
-				rq = submit_batch(ce, vma->node.start);
+				rq = submit_batch(ce, vma_res->start);
 				if (IS_ERR(rq)) {
 					err = PTR_ERR(rq);
+					i915_vma_resource_fini(vma_res);
+					kfree(vma_res);
 					goto end;
 				}
 				i915_request_put(rq);
 			}
-
+			i915_vma_resource_fini(vma_res);
 			i915_vma_put_pages(vma);
 
 			err = context_sync(ce);
 			if (err) {
 				pr_err("%s: dummy setup timed out\n",
 				       ce->engine->name);
+				kfree(vma_res);
 				goto end;
 			}
 
 			vma = i915_vma_instance(act, vm, NULL);
 			if (IS_ERR(vma)) {
+				kfree(vma_res);
 				err = PTR_ERR(vma);
 				goto end;
 			}
@@ -2035,19 +2052,22 @@ end_ww:
 			i915_gem_object_lock(act, NULL);
 			err = i915_vma_get_pages(vma);
 			i915_gem_object_unlock(act);
-			if (err)
+			if (err) {
+				kfree(vma_res);
 				goto end;
+			}
 
+			i915_vma_resource_init_from_vma(vma_res, vma);
 			/* Replace the TLB with target batches */
 			for (i = 0; i < count; i++) {
 				struct i915_request *rq;
 				u32 *cs = batch + i * 64 / sizeof(*cs);
 				u64 addr;
 
-				vma->node.start = offset + i * PAGE_SIZE;
-				vm->insert_entries(vm, vma, I915_CACHE_NONE, 0);
+				vma_res->start = offset + i * PAGE_SIZE;
+				vm->insert_entries(vm, vma_res, I915_CACHE_NONE, 0);
 
-				addr = vma->node.start + i * 64;
+				addr = vma_res->start + i * 64;
 				cs[4] = MI_NOOP;
 				cs[6] = lower_32_bits(addr);
 				cs[7] = upper_32_bits(addr);
@@ -2056,6 +2076,8 @@ end_ww:
 				rq = submit_batch(ce, addr);
 				if (IS_ERR(rq)) {
 					err = PTR_ERR(rq);
+					i915_vma_resource_fini(vma_res);
+					kfree(vma_res);
 					goto end;
 				}
 
@@ -2072,6 +2094,8 @@ end_ww:
 			}
 			end_spin(batch, count - 1);
 
+			i915_vma_resource_fini(vma_res);
+			kfree(vma_res);
 			i915_vma_put_pages(vma);
 
 			err = context_sync(ce);

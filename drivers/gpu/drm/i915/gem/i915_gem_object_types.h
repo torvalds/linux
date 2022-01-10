@@ -15,6 +15,7 @@
 
 #include "i915_active.h"
 #include "i915_selftest.h"
+#include "i915_vma_resource.h"
 
 struct drm_i915_gem_object;
 struct intel_fronbuffer;
@@ -566,31 +567,7 @@ struct drm_i915_gem_object {
 		struct sg_table *pages;
 		void *mapping;
 
-		struct i915_page_sizes {
-			/**
-			 * The sg mask of the pages sg_table. i.e the mask of
-			 * of the lengths for each sg entry.
-			 */
-			unsigned int phys;
-
-			/**
-			 * The gtt page sizes we are allowed to use given the
-			 * sg mask and the supported page sizes. This will
-			 * express the smallest unit we can use for the whole
-			 * object, as well as the larger sizes we may be able
-			 * to use opportunistically.
-			 */
-			unsigned int sg;
-
-			/**
-			 * The actual gtt page size usage. Since we can have
-			 * multiple vma associated with this object we need to
-			 * prevent any trampling of state, hence a copy of this
-			 * struct also lives in each vma, therefore the gtt
-			 * value here should only be read/write through the vma.
-			 */
-			unsigned int gtt;
-		} page_sizes;
+		struct i915_page_sizes page_sizes;
 
 		I915_SELFTEST_DECLARE(unsigned int page_mask);
 

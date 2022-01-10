@@ -339,12 +339,6 @@ void __iomem *i915_vma_pin_iomap(struct i915_vma *vma);
  */
 void i915_vma_unpin_iomap(struct i915_vma *vma);
 
-static inline struct page *i915_vma_first_page(struct i915_vma *vma)
-{
-	GEM_BUG_ON(!vma->pages);
-	return sg_page(vma->pages->sgl);
-}
-
 /**
  * i915_vma_pin_fence - pin fencing state
  * @vma: vma to pin fencing for
@@ -444,6 +438,11 @@ i915_vma_get_current_resource(struct i915_vma *vma)
 {
 	return i915_vma_resource_get(vma->resource);
 }
+
+#if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)
+void i915_vma_resource_init_from_vma(struct i915_vma_resource *vma_res,
+				     struct i915_vma *vma);
+#endif
 
 void i915_vma_module_exit(void);
 int i915_vma_module_init(void);

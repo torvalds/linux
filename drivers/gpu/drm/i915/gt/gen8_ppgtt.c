@@ -453,20 +453,21 @@ gen8_ppgtt_insert_pte(struct i915_ppgtt *ppgtt,
 	return idx;
 }
 
-static void gen8_ppgtt_insert_huge(struct i915_vma *vma,
+static void gen8_ppgtt_insert_huge(struct i915_address_space *vm,
+				   struct i915_vma_resource *vma_res,
 				   struct sgt_dma *iter,
 				   enum i915_cache_level cache_level,
 				   u32 flags)
 {
 	const gen8_pte_t pte_encode = gen8_pte_encode(0, cache_level, flags);
 	unsigned int rem = sg_dma_len(iter->sg);
-	u64 start = vma->node.start;
+	u64 start = vma_res->start;
 
-	GEM_BUG_ON(!i915_vm_is_4lvl(vma->vm));
+	GEM_BUG_ON(!i915_vm_is_4lvl(vm));
 
 	do {
 		struct i915_page_directory * const pdp =
-			gen8_pdp_for_page_address(vma->vm, start);
+			gen8_pdp_for_page_address(vm, start);
 		struct i915_page_directory * const pd =
 			i915_pd_entry(pdp, __gen8_pte_index(start, 2));
 		gen8_pte_t encode = pte_encode;
@@ -475,7 +476,7 @@ static void gen8_ppgtt_insert_huge(struct i915_vma *vma,
 		gen8_pte_t *vaddr;
 		u16 index;
 
-		if (vma->page_sizes.sg & I915_GTT_PAGE_SIZE_2M &&
+		if (vma_res->bi.page_sizes.sg & I915_GTT_PAGE_SIZE_2M &&
 		    IS_ALIGNED(iter->dma, I915_GTT_PAGE_SIZE_2M) &&
 		    rem >= I915_GTT_PAGE_SIZE_2M &&
 		    !__gen8_pte_index(start, 0)) {
@@ -492,7 +493,7 @@ static void gen8_ppgtt_insert_huge(struct i915_vma *vma,
 			page_size = I915_GTT_PAGE_SIZE;
 
 			if (!index &&
-			    vma->page_sizes.sg & I915_GTT_PAGE_SIZE_64K &&
+			    vma_res->bi.page_sizes.sg & I915_GTT_PAGE_SIZE_64K &&
 			    IS_ALIGNED(iter->dma, I915_GTT_PAGE_SIZE_64K) &&
 			    (IS_ALIGNED(rem, I915_GTT_PAGE_SIZE_64K) ||
 			     rem >= (I915_PDES - index) * I915_GTT_PAGE_SIZE))
@@ -541,9 +542,9 @@ static void gen8_ppgtt_insert_huge(struct i915_vma *vma,
 		 */
 		if (maybe_64K != -1 &&
 		    (index == I915_PDES ||
-		     (i915_vm_has_scratch_64K(vma->vm) &&
-		      !iter->sg && IS_ALIGNED(vma->node.start +
-					      vma->node.size,
+		     (i915_vm_has_scratch_64K(vm) &&
+		      !iter->sg && IS_ALIGNED(vma_res->start +
+					      vma_res->node_size,
 					      I915_GTT_PAGE_SIZE_2M)))) {
 			vaddr = px_vaddr(pd);
 			vaddr[maybe_64K] |= GEN8_PDE_IPS_64K;
@@ -559,10 +560,10 @@ static void gen8_ppgtt_insert_huge(struct i915_vma *vma,
 			 * instead - which we detect as missing results during
 			 * selftests.
 			 */
-			if (I915_SELFTEST_ONLY(vma->vm->scrub_64K)) {
+			if (I915_SELFTEST_ONLY(vm->scrub_64K)) {
 				u16 i;
 
-				encode = vma->vm->scratch[0]->encode;
+				encode = vm->scratch[0]->encode;
 				vaddr = px_vaddr(i915_pt_entry(pd, maybe_64K));
 
 				for (i = 1; i < index; i += 16)
@@ -572,22 +573,22 @@ static void gen8_ppgtt_insert_huge(struct i915_vma *vma,
 			}
 		}
 
-		vma->page_sizes.gtt |= page_size;
+		vma_res->page_sizes_gtt |= page_size;
 	} while (iter->sg && sg_dma_len(iter->sg));
 }
 
 static void gen8_ppgtt_insert(struct i915_address_space *vm,
-			      struct i915_vma *vma,
+			      struct i915_vma_resource *vma_res,
 			      enum i915_cache_level cache_level,
 			      u32 flags)
 {
 	struct i915_ppgtt * const ppgtt = i915_vm_to_ppgtt(vm);
-	struct sgt_dma iter = sgt_dma(vma);
+	struct sgt_dma iter = sgt_dma(vma_res);
 
-	if (vma->page_sizes.sg > I915_GTT_PAGE_SIZE) {
-		gen8_ppgtt_insert_huge(vma, &iter, cache_level, flags);
+	if (vma_res->bi.page_sizes.sg > I915_GTT_PAGE_SIZE) {
+		gen8_ppgtt_insert_huge(vm, vma_res, &iter, cache_level, flags);
 	} else  {
-		u64 idx = vma->node.start >> GEN8_PTE_SHIFT;
+		u64 idx = vma_res->start >> GEN8_PTE_SHIFT;
 
 		do {
 			struct i915_page_directory * const pdp =
@@ -597,7 +598,7 @@ static void gen8_ppgtt_insert(struct i915_address_space *vm,
 						    cache_level, flags);
 		} while (idx);
 
-		vma->page_sizes.gtt = I915_GTT_PAGE_SIZE;
+		vma_res->page_sizes_gtt = I915_GTT_PAGE_SIZE;
 	}
 }
 

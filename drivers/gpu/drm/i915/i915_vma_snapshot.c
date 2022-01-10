@@ -24,11 +24,7 @@ void i915_vma_snapshot_init(struct i915_vma_snapshot *vsnap,
 		assert_object_held(vma->obj);
 
 	vsnap->name = name;
-	vsnap->size = vma->size;
 	vsnap->obj_size = vma->obj->base.size;
-	vsnap->gtt_offset = vma->node.start;
-	vsnap->gtt_size = vma->node.size;
-	vsnap->page_sizes = vma->page_sizes.gtt;
 	vsnap->pages = vma->pages;
 	vsnap->pages_rsgt = NULL;
 	vsnap->mr = NULL;

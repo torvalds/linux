@@ -23,31 +23,23 @@ struct sg_table;
 
 /**
  * struct i915_vma_snapshot - Snapshot of vma metadata.
- * @size: The vma size in bytes.
  * @obj_size: The size of the underlying object in bytes.
- * @gtt_offset: The gtt offset the vma is bound to.
- * @gtt_size: The size in bytes allocated for the vma in the GTT.
  * @pages: The struct sg_table pointing to the pages bound.
  * @pages_rsgt: The refcounted sg_table holding the reference for @pages if any.
  * @mr: The memory region pointed for the pages bound.
  * @kref: Reference for this structure.
  * @vma_resource: Pointer to the vma resource representing the vma binding.
- * @page_sizes: The vma GTT page sizes information.
  * @onstack: Whether the structure shouldn't be freed on final put.
  * @present: Whether the structure is present and initialized.
  */
 struct i915_vma_snapshot {
 	const char *name;
-	size_t size;
 	size_t obj_size;
-	size_t gtt_offset;
-	size_t gtt_size;
 	struct sg_table *pages;
 	struct i915_refct_sgt *pages_rsgt;
 	struct intel_memory_region *mr;
 	struct kref kref;
 	struct i915_vma_resource *vma_resource;
-	u32 page_sizes;
 	bool onstack:1;
 	bool present:1;
 };

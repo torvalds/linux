@@ -1718,8 +1718,8 @@ static void print_request_ring(struct drm_printer *m, struct i915_request *rq)
 	drm_printf(m,
 		   "[head %04x, postfix %04x, tail %04x, batch 0x%08x_%08x]:\n",
 		   rq->head, rq->postfix, rq->tail,
-		   vsnap ? upper_32_bits(vsnap->gtt_offset) : ~0u,
-		   vsnap ? lower_32_bits(vsnap->gtt_offset) : ~0u);
+		   vsnap ? upper_32_bits(vsnap->vma_resource->start) : ~0u,
+		   vsnap ? lower_32_bits(vsnap->vma_resource->start) : ~0u);
 
 	size = rq->tail - rq->head;
 	if (rq->tail < rq->head)

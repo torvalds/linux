@@ -298,7 +298,7 @@ static void __vma_bind(struct dma_fence_work *work)
 	struct i915_vma *vma = vw->vma;
 
 	vma->ops->bind_vma(vw->vm, &vw->stash,
-			   vma, vw->cache_level, vw->flags);
+			   vma->resource, vw->cache_level, vw->flags);
 }
 
 static void __vma_release(struct dma_fence_work *work)
@@ -375,6 +375,21 @@ static int i915_vma_verify_bind_complete(struct i915_vma *vma)
 #define i915_vma_verify_bind_complete(_vma) 0
 #endif
 
+I915_SELFTEST_EXPORT void
+i915_vma_resource_init_from_vma(struct i915_vma_resource *vma_res,
+				struct i915_vma *vma)
+{
+	struct drm_i915_gem_object *obj = vma->obj;
+
+	i915_vma_resource_init(vma_res, vma->pages, &vma->page_sizes,
+			       i915_gem_object_is_readonly(obj),
+			       i915_gem_object_is_lmem(obj),
+			       vma->private,
+			       vma->node.start,
+			       vma->node.size,
+			       vma->size);
+}
+
 /**
  * i915_vma_bind - Sets up PTEs for an VMA in it's corresponding address space.
  * @vma: VMA to map
@@ -432,7 +447,7 @@ int i915_vma_bind(struct i915_vma *vma,
 		GEM_WARN_ON(!vma_flags);
 		kfree(vma_res);
 	} else {
-		i915_vma_resource_init(vma_res);
+		i915_vma_resource_init_from_vma(vma_res, vma);
 		vma->resource = vma_res;
 	}
 	trace_i915_vma_bind(vma, bind_flags);
@@ -472,7 +487,8 @@ int i915_vma_bind(struct i915_vma *vma,
 			if (ret)
 				return ret;
 		}
-		vma->ops->bind_vma(vma->vm, NULL, vma, cache_level, bind_flags);
+		vma->ops->bind_vma(vma->vm, NULL, vma->resource, cache_level,
+				   bind_flags);
 	}
 
 	atomic_or(bind_flags, &vma->flags);
@@ -1723,7 +1739,7 @@ void __i915_vma_evict(struct i915_vma *vma)
 
 	if (likely(atomic_read(&vma->vm->open))) {
 		trace_i915_vma_unbind(vma);
-		vma->ops->unbind_vma(vma->vm, vma);
+		vma->ops->unbind_vma(vma->vm, vma->resource);
 	}
 	atomic_and(~(I915_VMA_BIND_MASK | I915_VMA_ERROR | I915_VMA_GGTT_WRITE),
 		   &vma->flags);

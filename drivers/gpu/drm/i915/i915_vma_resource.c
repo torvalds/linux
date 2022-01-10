@@ -23,15 +23,12 @@ static struct dma_fence_ops unbind_fence_ops = {
 };
 
 /**
- * i915_vma_resource_init - Initialize a vma resource.
+ * __i915_vma_resource_init - Initialize a vma resource.
  * @vma_res: The vma resource to initialize
  *
- * Initializes a vma resource allocated using i915_vma_resource_alloc().
- * The reason for having separate allocate and initialize function is that
- * initialization may need to be performed from under a lock where
- * allocation is not allowed.
+ * Initializes the private members of a vma resource.
  */
-void i915_vma_resource_init(struct i915_vma_resource *vma_res)
+void __i915_vma_resource_init(struct i915_vma_resource *vma_res)
 {
 	spin_lock_init(&vma_res->lock);
 	dma_fence_init(&vma_res->unbind_fence, &unbind_fence_ops,

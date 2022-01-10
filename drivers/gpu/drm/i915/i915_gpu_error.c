@@ -1040,9 +1040,9 @@ i915_vma_coredump_create(const struct intel_gt *gt,
 	strcpy(dst->name, vsnap->name);
 	dst->next = NULL;
 
-	dst->gtt_offset = vsnap->gtt_offset;
-	dst->gtt_size = vsnap->gtt_size;
-	dst->gtt_page_sizes = vsnap->page_sizes;
+	dst->gtt_offset = vsnap->vma_resource->start;
+	dst->gtt_size = vsnap->vma_resource->node_size;
+	dst->gtt_page_sizes = vsnap->vma_resource->page_sizes_gtt;
 	dst->unused = 0;
 
 	ret = -EINVAL;

@@ -448,20 +448,19 @@ static void uc_fw_bind_ggtt(struct intel_uc_fw *uc_fw)
 {
 	struct drm_i915_gem_object *obj = uc_fw->obj;
 	struct i915_ggtt *ggtt = __uc_fw_to_gt(uc_fw)->ggtt;
-	struct i915_vma *dummy = &uc_fw->dummy;
+	struct i915_vma_resource *dummy = &uc_fw->dummy;
 	u32 pte_flags = 0;
 
-	dummy->node.start = uc_fw_ggtt_offset(uc_fw);
-	dummy->node.size = obj->base.size;
-	dummy->pages = obj->mm.pages;
-	dummy->vm = &ggtt->vm;
+	dummy->start = uc_fw_ggtt_offset(uc_fw);
+	dummy->node_size = obj->base.size;
+	dummy->bi.pages = obj->mm.pages;
 
 	GEM_BUG_ON(!i915_gem_object_has_pinned_pages(obj));
-	GEM_BUG_ON(dummy->node.size > ggtt->uc_fw.size);
+	GEM_BUG_ON(dummy->node_size > ggtt->uc_fw.size);
 
 	/* uc_fw->obj cache domains were not controlled across suspend */
 	if (i915_gem_object_has_struct_page(obj))
-		drm_clflush_sg(dummy->pages);
+		drm_clflush_sg(dummy->bi.pages);
 
 	if (i915_gem_object_is_lmem(obj))
 		pte_flags |= PTE_LM;
