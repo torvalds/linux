@@ -1,0 +1,43 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/misc/nvidia,tegra186-misc.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: NVIDIA Tegra186 (and later) MISC register block
+
+maintainers:
+  - Thierry Reding <thierry.reding@gmail.com>
+  - Jon Hunter <jonathanh@nvidia.com>
+
+description: The MISC register block found on Tegra186 and later SoCs contains
+  registers that can be used to identify a given chip and various strapping
+  options.
+
+properties:
+  compatible:
+    enum:
+      - nvidia,tegra186-misc
+      - nvidia,tegra194-misc
+      - nvidia,tegra234-misc
+
+  reg:
+    items:
+      - description: physical address and length of the registers which
+          contain revision and debug features
+      - description: physical address and length of the registers which
+          indicate strapping options
+
+additionalProperties: false
+
+required:
+  - compatible
+  - reg
+
+examples:
+  - |
+    misc@100000 {
+        compatible = "nvidia,tegra186-misc";
+        reg = <0x00100000 0xf000>,
+              <0x0010f000 0x1000>;
+    };

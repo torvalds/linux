@@ -492,7 +492,7 @@ static void mpc_i2c_finish(struct mpc_i2c *i2c, int rc)
 
 static void mpc_i2c_do_action(struct mpc_i2c *i2c)
 {
-	struct i2c_msg *msg = &i2c->msgs[i2c->curr_msg];
+	struct i2c_msg *msg = NULL;
 	int dir = 0;
 	int recv_len = 0;
 	u8 byte;
@@ -501,10 +501,13 @@ static void mpc_i2c_do_action(struct mpc_i2c *i2c)
 
 	i2c->cntl_bits &= ~(CCR_RSTA | CCR_MTX | CCR_TXAK);
 
-	if (msg->flags & I2C_M_RD)
-		dir = 1;
-	if (msg->flags & I2C_M_RECV_LEN)
-		recv_len = 1;
+	if (i2c->action != MPC_I2C_ACTION_STOP) {
+		msg = &i2c->msgs[i2c->curr_msg];
+		if (msg->flags & I2C_M_RD)
+			dir = 1;
+		if (msg->flags & I2C_M_RECV_LEN)
+			recv_len = 1;
+	}
 
 	switch (i2c->action) {
 	case MPC_I2C_ACTION_RESTART:
@@ -581,7 +584,7 @@ static void mpc_i2c_do_action(struct mpc_i2c *i2c)
 		break;
 	}
 
-	if (msg->len == i2c->byte_posn) {
+	if (msg && msg->len == i2c->byte_posn) {
 		i2c->curr_msg++;
 		i2c->byte_posn = 0;
 

@@ -1072,7 +1072,7 @@
 	};
 
 	dsi: dsi@ff450000 {
-		compatible = "rockchip,px30-mipi-dsi";
+		compatible = "rockchip,px30-mipi-dsi", "snps,dw-mipi-dsi";
 		reg = <0x0 0xff450000 0x0 0x10000>;
 		interrupts = <GIC_SPI 75 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru PCLK_MIPI_DSI>;

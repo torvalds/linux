@@ -239,24 +239,6 @@
 		>;
 		/* enable this and disable ssp3 below, if you need full duplex SPI transfer */
 		status = "disabled";
-
-		spi@0 {
-			compatible = "spidev";
-			reg = <0>;
-			spi-max-frequency = <57600000>;
-		};
-
-		spi@1 {
-			compatible = "spidev";
-			reg = <1>;
-			spi-max-frequency = <57600000>;
-		};
-
-		spi@2 {
-			compatible = "spidev";
-			reg = <2>;
-			spi-max-frequency = <57600000>;
-		};
 	};
 };
 
@@ -700,24 +682,6 @@
 	pinctrl-0 = <&spi3_pins_a>;
 	clock-frequency = <57600000>;
 	status = "okay";
-
-	spi@0 {
-		compatible = "spidev";
-		reg = <0>;
-		spi-max-frequency = <57600000>;
-	};
-
-	spi@1 {
-		compatible = "spidev";
-		reg = <1>;
-		spi-max-frequency = <57600000>;
-	};
-
-	spi@2 {
-		compatible = "spidev";
-		reg = <2>;
-		spi-max-frequency = <57600000>;
-	};
 };
 
 &usb0 {

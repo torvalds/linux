@@ -265,6 +265,8 @@
 					    "lane2_sata_usb3";
 				#address-cells = <1>;
 				#size-cells = <0>;
+				clocks = <&xtalclk>;
+				clock-names = "xtal";
 
 				comphy0: phy@0 {
 					reg = <0>;
