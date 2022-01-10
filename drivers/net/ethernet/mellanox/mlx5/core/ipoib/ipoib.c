@@ -320,13 +320,15 @@ static void mlx5i_cleanup_tx(struct mlx5e_priv *priv)
 
 static int mlx5i_create_flow_steering(struct mlx5e_priv *priv)
 {
+	struct mlx5_flow_namespace *ns =
+		mlx5_get_flow_namespace(priv->mdev, MLX5_FLOW_NAMESPACE_KERNEL);
 	int err;
 
-	priv->fs->ns = mlx5_get_flow_namespace(priv->mdev,
-					       MLX5_FLOW_NAMESPACE_KERNEL);
 
-	if (!priv->fs->ns)
+	if (!ns)
 		return -EINVAL;
+
+	mlx5e_fs_set_ns(priv->fs, ns, false);
 
 	err = mlx5e_arfs_create_tables(priv);
 	if (err) {

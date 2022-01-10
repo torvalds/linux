@@ -8,6 +8,7 @@
 #include "lib/fs_ttc.h"
 
 struct mlx5e_post_act;
+struct mlx5e_tc_table;
 
 enum {
 	MLX5E_TC_FT_LEVEL = 0,
@@ -83,6 +84,7 @@ enum {
 #endif
 };
 
+struct mlx5e_flow_steering;
 struct mlx5e_priv;
 
 #ifdef CONFIG_MLX5_EN_RXNFC
@@ -142,31 +144,6 @@ struct mlx5e_fs_udp;
 struct mlx5e_fs_any;
 struct mlx5e_ptp_fs;
 
-struct mlx5e_flow_steering {
-	bool				state_destroy;
-	bool				vlan_strip_disable;
-	struct mlx5_core_dev		*mdev;
-	struct mlx5_flow_namespace      *ns;
-#ifdef CONFIG_MLX5_EN_RXNFC
-	struct mlx5e_ethtool_steering   ethtool;
-#endif
-	struct mlx5e_tc_table           *tc;
-	struct mlx5e_promisc_table      promisc;
-	struct mlx5e_vlan_table         *vlan;
-	struct mlx5e_l2_table           l2;
-	struct mlx5_ttc_table           *ttc;
-	struct mlx5_ttc_table           *inner_ttc;
-#ifdef CONFIG_MLX5_EN_ARFS
-	struct mlx5e_arfs_tables       *arfs;
-#endif
-#ifdef CONFIG_MLX5_EN_TLS
-	struct mlx5e_accel_fs_tcp      *accel_tcp;
-#endif
-	struct mlx5e_fs_udp            *udp;
-	struct mlx5e_fs_any            *any;
-	struct mlx5e_ptp_fs            *ptp_fs;
-};
-
 void mlx5e_set_ttc_params(struct mlx5e_priv *priv,
 			  struct ttc_params *ttc_params, bool tunnel);
 
@@ -185,7 +162,35 @@ struct mlx5e_flow_steering *mlx5e_fs_init(const struct mlx5e_profile *profile,
 					  struct mlx5_core_dev *mdev,
 					  bool state_destroy);
 void mlx5e_fs_cleanup(struct mlx5e_flow_steering *fs);
+struct mlx5e_vlan_table *mlx5e_fs_get_vlan(struct mlx5e_flow_steering *fs);
+void mlx5e_fs_set_tc(struct mlx5e_flow_steering *fs, struct mlx5e_tc_table *tc);
+struct mlx5e_tc_table *mlx5e_fs_get_tc(struct mlx5e_flow_steering *fs);
+struct mlx5e_l2_table *mlx5e_fs_get_l2(struct mlx5e_flow_steering *fs);
+struct mlx5_flow_namespace *mlx5e_fs_get_ns(struct mlx5e_flow_steering *fs, bool egress);
+void mlx5e_fs_set_ns(struct mlx5e_flow_steering *fs, struct mlx5_flow_namespace *ns, bool egress);
+#ifdef CONFIG_MLX5_EN_RXNFC
+struct mlx5e_ethtool_steering *mlx5e_fs_get_ethtool(struct mlx5e_flow_steering *fs);
+#endif
+struct mlx5_ttc_table *mlx5e_fs_get_ttc(struct mlx5e_flow_steering *fs, bool inner);
+void mlx5e_fs_set_ttc(struct mlx5e_flow_steering *fs, struct mlx5_ttc_table *ttc, bool inner);
+#ifdef CONFIG_MLX5_EN_ARFS
+struct mlx5e_arfs_tables *mlx5e_fs_get_arfs(struct mlx5e_flow_steering *fs);
+void mlx5e_fs_set_arfs(struct mlx5e_flow_steering *fs, struct mlx5e_arfs_tables *arfs);
+#endif
+struct mlx5e_ptp_fs *mlx5e_fs_get_ptp(struct mlx5e_flow_steering *fs);
+void mlx5e_fs_set_ptp(struct mlx5e_flow_steering *fs, struct mlx5e_ptp_fs *ptp_fs);
+struct mlx5e_fs_any *mlx5e_fs_get_any(struct mlx5e_flow_steering *fs);
+void mlx5e_fs_set_any(struct mlx5e_flow_steering *fs, struct mlx5e_fs_any *any);
+struct mlx5e_fs_udp *mlx5e_fs_get_udp(struct mlx5e_flow_steering *fs);
+void mlx5e_fs_set_udp(struct mlx5e_flow_steering *fs, struct mlx5e_fs_udp *udp);
+#ifdef CONFIG_MLX5_EN_TLS
+struct mlx5e_accel_fs_tcp *mlx5e_fs_get_accel_tcp(struct mlx5e_flow_steering *fs);
+void mlx5e_fs_set_accel_tcp(struct mlx5e_flow_steering *fs, struct mlx5e_accel_fs_tcp *accel_tcp);
+#endif
+void mlx5e_fs_set_state_destroy(struct mlx5e_flow_steering *fs, bool state_destroy);
+void mlx5e_fs_set_vlan_strip_disable(struct mlx5e_flow_steering *fs, bool vlan_strip_disable);
 
+struct mlx5_core_dev *mlx5e_fs_get_mdev(struct mlx5e_flow_steering *fs);
 int mlx5e_add_vlan_trap(struct mlx5e_priv *priv, int  trap_id, int tir_num);
 void mlx5e_remove_vlan_trap(struct mlx5e_priv *priv);
 int mlx5e_add_mac_trap(struct mlx5e_priv *priv, int  trap_id, int tir_num);

@@ -41,6 +41,34 @@
 #include "lib/mpfs.h"
 #include "en/ptp.h"
 
+struct mlx5e_flow_steering {
+	struct work_struct		set_rx_mode_work;
+	bool				state_destroy;
+	bool				vlan_strip_disable;
+	struct mlx5_core_dev		*mdev;
+	struct net_device		*netdev;
+	struct mlx5_flow_namespace      *ns;
+	struct mlx5_flow_namespace      *egress_ns;
+#ifdef CONFIG_MLX5_EN_RXNFC
+	struct mlx5e_ethtool_steering   ethtool;
+#endif
+	struct mlx5e_tc_table           *tc;
+	struct mlx5e_promisc_table      promisc;
+	struct mlx5e_vlan_table         *vlan;
+	struct mlx5e_l2_table           l2;
+	struct mlx5_ttc_table           *ttc;
+	struct mlx5_ttc_table           *inner_ttc;
+#ifdef CONFIG_MLX5_EN_ARFS
+	struct mlx5e_arfs_tables       *arfs;
+#endif
+#ifdef CONFIG_MLX5_EN_TLS
+	struct mlx5e_accel_fs_tcp      *accel_tcp;
+#endif
+	struct mlx5e_fs_udp            *udp;
+	struct mlx5e_fs_any            *any;
+	struct mlx5e_ptp_fs            *ptp_fs;
+};
+
 static int mlx5e_add_l2_flow_rule(struct mlx5e_flow_steering *fs,
 				  struct mlx5e_l2_rule *ai, int type);
 static void mlx5e_del_l2_flow_rule(struct mlx5e_flow_steering *fs,
@@ -1267,14 +1295,14 @@ int mlx5e_create_ttc_table(struct mlx5e_priv *priv)
 
 int mlx5e_create_flow_steering(struct mlx5e_priv *priv)
 {
+	struct mlx5_flow_namespace *ns = mlx5_get_flow_namespace(priv->fs->mdev,
+								 MLX5_FLOW_NAMESPACE_KERNEL);
 	int err;
 
-	priv->fs->ns = mlx5_get_flow_namespace(priv->fs->mdev,
-					       MLX5_FLOW_NAMESPACE_KERNEL);
-
-	if (!priv->fs->ns)
+	if (!ns)
 		return -EOPNOTSUPP;
 
+	mlx5e_fs_set_ns(priv->fs, ns, false);
 	err = mlx5e_arfs_create_tables(priv);
 	if (err) {
 		mlx5_core_err(priv->fs->mdev, "Failed to create arfs tables, err=%d\n",
@@ -1356,6 +1384,11 @@ static void mlx5e_fs_vlan_free(struct mlx5e_flow_steering *fs)
 	kvfree(fs->vlan);
 }
 
+struct mlx5e_vlan_table *mlx5e_fs_get_vlan(struct mlx5e_flow_steering *fs)
+{
+	return fs->vlan;
+}
+
 static int mlx5e_fs_tc_alloc(struct mlx5e_flow_steering *fs)
 {
 	fs->tc = mlx5e_tc_table_alloc();
@@ -1367,6 +1400,11 @@ static int mlx5e_fs_tc_alloc(struct mlx5e_flow_steering *fs)
 static void mlx5e_fs_tc_free(struct mlx5e_flow_steering *fs)
 {
 	mlx5e_tc_table_free(fs->tc);
+}
+
+struct mlx5e_tc_table *mlx5e_fs_get_tc(struct mlx5e_flow_steering *fs)
+{
+	return fs->tc;
 }
 
 struct mlx5e_flow_steering *mlx5e_fs_init(const struct mlx5e_profile *profile,
@@ -1408,4 +1446,112 @@ void mlx5e_fs_cleanup(struct mlx5e_flow_steering *fs)
 	mlx5e_fs_tc_free(fs);
 	mlx5e_fs_vlan_free(fs);
 	kvfree(fs);
+}
+
+struct mlx5e_l2_table *mlx5e_fs_get_l2(struct mlx5e_flow_steering *fs)
+{
+	return &fs->l2;
+}
+
+struct mlx5_flow_namespace *mlx5e_fs_get_ns(struct mlx5e_flow_steering *fs, bool egress)
+{
+	return  egress ? fs->egress_ns : fs->ns;
+}
+
+void mlx5e_fs_set_ns(struct mlx5e_flow_steering *fs, struct mlx5_flow_namespace *ns, bool egress)
+{
+	if (!egress)
+		fs->ns = ns;
+	else
+		fs->egress_ns = ns;
+}
+
+#ifdef CONFIG_MLX5_EN_RXNFC
+struct mlx5e_ethtool_steering *mlx5e_fs_get_ethtool(struct mlx5e_flow_steering *fs)
+{
+	return &fs->ethtool;
+}
+#endif
+
+struct mlx5_ttc_table *mlx5e_fs_get_ttc(struct mlx5e_flow_steering *fs, bool inner)
+{
+	return inner ? fs->inner_ttc : fs->ttc;
+}
+
+void mlx5e_fs_set_ttc(struct mlx5e_flow_steering *fs, struct mlx5_ttc_table *ttc, bool inner)
+{
+	if (!inner)
+		fs->ttc = ttc;
+	else
+		fs->inner_ttc = ttc;
+}
+
+#ifdef CONFIG_MLX5_EN_ARFS
+struct mlx5e_arfs_tables *mlx5e_fs_get_arfs(struct mlx5e_flow_steering *fs)
+{
+	return fs->arfs;
+}
+
+void mlx5e_fs_set_arfs(struct mlx5e_flow_steering *fs, struct mlx5e_arfs_tables *arfs)
+{
+	fs->arfs = arfs;
+}
+#endif
+
+struct mlx5e_ptp_fs *mlx5e_fs_get_ptp(struct mlx5e_flow_steering *fs)
+{
+	return fs->ptp_fs;
+}
+
+void mlx5e_fs_set_ptp(struct mlx5e_flow_steering *fs, struct mlx5e_ptp_fs *ptp_fs)
+{
+	fs->ptp_fs = ptp_fs;
+}
+
+struct mlx5e_fs_any *mlx5e_fs_get_any(struct mlx5e_flow_steering *fs)
+{
+	return fs->any;
+}
+
+void mlx5e_fs_set_any(struct mlx5e_flow_steering *fs, struct mlx5e_fs_any *any)
+{
+	fs->any = any;
+}
+
+#ifdef CONFIG_MLX5_EN_TLS
+struct mlx5e_accel_fs_tcp *mlx5e_fs_get_accel_tcp(struct mlx5e_flow_steering *fs)
+{
+	return fs->accel_tcp;
+}
+
+void mlx5e_fs_set_accel_tcp(struct mlx5e_flow_steering *fs, struct mlx5e_accel_fs_tcp *accel_tcp)
+{
+	fs->accel_tcp = accel_tcp;
+}
+#endif
+
+void mlx5e_fs_set_state_destroy(struct mlx5e_flow_steering *fs, bool state_destroy)
+{
+	fs->state_destroy = state_destroy;
+}
+
+void mlx5e_fs_set_vlan_strip_disable(struct mlx5e_flow_steering *fs,
+				     bool vlan_strip_disable)
+{
+	fs->vlan_strip_disable = vlan_strip_disable;
+}
+
+struct mlx5e_fs_udp *mlx5e_fs_get_udp(struct mlx5e_flow_steering *fs)
+{
+	return fs->udp;
+}
+
+void mlx5e_fs_set_udp(struct mlx5e_flow_steering *fs, struct mlx5e_fs_udp *udp)
+{
+	fs->udp = udp;
+}
+
+struct mlx5_core_dev *mlx5e_fs_get_mdev(struct mlx5e_flow_steering *fs)
+{
+	return fs->mdev;
 }

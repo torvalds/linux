@@ -174,6 +174,8 @@ static void rx_destroy(struct mlx5e_priv *priv, enum accel_fs_esp_type type)
 
 static int rx_create(struct mlx5e_priv *priv, enum accel_fs_esp_type type)
 {
+	struct mlx5_flow_namespace *ns = mlx5e_fs_get_ns(priv->fs, false);
+	struct mlx5_ttc_table *ttc = mlx5e_fs_get_ttc(priv->fs, false);
 	struct mlx5_flow_table_attr ft_attr = {};
 	struct mlx5e_accel_fs_esp_prot *fs_prot;
 	struct mlx5e_accel_fs_esp *accel_esp;
@@ -182,15 +184,14 @@ static int rx_create(struct mlx5e_priv *priv, enum accel_fs_esp_type type)
 
 	accel_esp = priv->ipsec->rx_fs;
 	fs_prot = &accel_esp->fs_prot[type];
-
 	fs_prot->default_dest =
-		mlx5_ttc_get_default_dest(priv->fs->ttc, fs_esp2tt(type));
+		mlx5_ttc_get_default_dest(ttc, fs_esp2tt(type));
 
 	ft_attr.max_fte = 1;
 	ft_attr.autogroup.max_num_groups = 1;
 	ft_attr.level = MLX5E_ACCEL_FS_ESP_FT_ERR_LEVEL;
 	ft_attr.prio = MLX5E_NIC_PRIO;
-	ft = mlx5_create_auto_grouped_flow_table(priv->fs->ns, &ft_attr);
+	ft = mlx5_create_auto_grouped_flow_table(ns, &ft_attr);
 	if (IS_ERR(ft))
 		return PTR_ERR(ft);
 
@@ -205,7 +206,7 @@ static int rx_create(struct mlx5e_priv *priv, enum accel_fs_esp_type type)
 	ft_attr.prio = MLX5E_NIC_PRIO;
 	ft_attr.autogroup.num_reserved_entries = 1;
 	ft_attr.autogroup.max_num_groups = 1;
-	ft = mlx5_create_auto_grouped_flow_table(priv->fs->ns, &ft_attr);
+	ft = mlx5_create_auto_grouped_flow_table(ns, &ft_attr);
 	if (IS_ERR(ft)) {
 		err = PTR_ERR(ft);
 		goto err_fs_ft;
@@ -230,6 +231,7 @@ err_add:
 
 static int rx_ft_get(struct mlx5e_priv *priv, enum accel_fs_esp_type type)
 {
+	struct mlx5_ttc_table *ttc = mlx5e_fs_get_ttc(priv->fs, false);
 	struct mlx5e_accel_fs_esp_prot *fs_prot;
 	struct mlx5_flow_destination dest = {};
 	struct mlx5e_accel_fs_esp *accel_esp;
@@ -249,7 +251,7 @@ static int rx_ft_get(struct mlx5e_priv *priv, enum accel_fs_esp_type type)
 	/* connect */
 	dest.type = MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE;
 	dest.ft = fs_prot->ft;
-	mlx5_ttc_fwd_dest(priv->fs->ttc, fs_esp2tt(type), &dest);
+	mlx5_ttc_fwd_dest(ttc, fs_esp2tt(type), &dest);
 
 skip:
 	fs_prot->refcnt++;
@@ -260,6 +262,7 @@ out:
 
 static void rx_ft_put(struct mlx5e_priv *priv, enum accel_fs_esp_type type)
 {
+	struct mlx5_ttc_table *ttc = mlx5e_fs_get_ttc(priv->fs, false);
 	struct mlx5e_accel_fs_esp_prot *fs_prot;
 	struct mlx5e_accel_fs_esp *accel_esp;
 
@@ -271,7 +274,7 @@ static void rx_ft_put(struct mlx5e_priv *priv, enum accel_fs_esp_type type)
 		goto out;
 
 	/* disconnect */
-	mlx5_ttc_fwd_default_dest(priv->fs->ttc, fs_esp2tt(type));
+	mlx5_ttc_fwd_default_dest(ttc, fs_esp2tt(type));
 
 	/* remove FT */
 	rx_destroy(priv, type);
