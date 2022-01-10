@@ -296,6 +296,11 @@ config ARCH_R9A07G044
 	help
 	  This enables support for the Renesas RZ/G2L SoC variants.
 
+config ARCH_R9A07G054
+	bool "ARM64 Platform support for RZ/V2L"
+	help
+	  This enables support for the Renesas RZ/V2L SoC variants.
+
 endif # ARM64
 
 config RST_RCAR
