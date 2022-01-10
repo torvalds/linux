@@ -27,6 +27,8 @@
 #include <linux/ceph/auth.h>
 #include <linux/ceph/debugfs.h>
 
+#include <uapi/linux/magic.h>
+
 static DEFINE_SPINLOCK(ceph_fsc_lock);
 static LIST_HEAD(ceph_fsc_list);
 

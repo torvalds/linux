@@ -25,9 +25,6 @@
 #include <linux/fscache.h>
 #endif
 
-/* f_type in struct statfs */
-#define CEPH_SUPER_MAGIC 0x00c36400
-
 /* large granularity for statfs utilization stats to facilitate
  * large volume sizes on 32-bit machines. */
 #define CEPH_BLOCK_SHIFT   22  /* 4 MB */
