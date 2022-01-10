@@ -377,8 +377,3 @@ enum HAL_STATUS ODM_ConfigBBWithHeaderFile(struct odm_dm_struct *dm_odm,
 
 	return HAL_STATUS_FAILURE;
 }
-
-enum HAL_STATUS ODM_ConfigMACWithHeaderFile(struct odm_dm_struct *dm_odm)
-{
-	return ODM_ReadAndConfig_MAC_REG_8188E(dm_odm);
-}
