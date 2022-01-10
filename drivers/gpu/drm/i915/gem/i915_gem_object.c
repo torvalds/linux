@@ -756,6 +756,18 @@ i915_gem_object_get_moving_fence(struct drm_i915_gem_object *obj)
 	return dma_fence_get(i915_gem_to_ttm(obj)->moving);
 }
 
+void i915_gem_object_set_moving_fence(struct drm_i915_gem_object *obj,
+				      struct dma_fence *fence)
+{
+	struct dma_fence **moving = &i915_gem_to_ttm(obj)->moving;
+
+	if (*moving == fence)
+		return;
+
+	dma_fence_put(*moving);
+	*moving = dma_fence_get(fence);
+}
+
 /**
  * i915_gem_object_wait_moving_fence - Wait for the object's moving fence if any
  * @obj: The object whose moving fence to wait for.
