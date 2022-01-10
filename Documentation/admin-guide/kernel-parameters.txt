@@ -225,14 +225,23 @@
 			For broken nForce2 BIOS resulting in XT-PIC timer.
 
 	acpi_sleep=	[HW,ACPI] Sleep options
-			Format: { s3_bios, s3_mode, s3_beep, s4_nohwsig,
-				  old_ordering, nonvs, sci_force_enable, nobl }
+			Format: { s3_bios, s3_mode, s3_beep, s4_hwsig,
+				  s4_nohwsig, old_ordering, nonvs,
+				  sci_force_enable, nobl }
 			See Documentation/power/video.rst for information on
 			s3_bios and s3_mode.
 			s3_beep is for debugging; it makes the PC's speaker beep
 			as soon as the kernel's real-mode entry point is called.
+			s4_hwsig causes the kernel to check the ACPI hardware
+			signature during resume from hibernation, and gracefully
+			refuse to resume if it has changed. This complies with
+			the ACPI specification but not with reality, since
+			Windows does not do this and many laptops do change it
+			on docking. So the default behaviour is to allow resume
+			and simply warn when the signature changes, unless the
+			s4_hwsig option is enabled.
 			s4_nohwsig prevents ACPI hardware signature from being
-			used during resume from hibernation.
+			used (or even warned about) during resume.
 			old_ordering causes the ACPI 1.0 ordering of the _PTS
 			control method, with respect to putting devices into
 			low power states, to be enforced (the ACPI 2.0 ordering
