@@ -61,6 +61,10 @@ properties:
       command to SMI to speed up the data rate.
     type: boolean
 
+  mediatek,merge-mute:
+    description: Support mute function. Mute the content of merge output.
+    type: boolean
+
   mediatek,gce-client-reg:
     description: The register of client driver can be configured by gce with
       4 arguments defined in this property, such as phandle of gce, subsys id,
