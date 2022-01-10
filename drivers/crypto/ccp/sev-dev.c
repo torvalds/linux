@@ -241,7 +241,7 @@ static int __sev_platform_init_locked(int *error)
 	struct psp_device *psp = psp_master;
 	struct sev_data_init data;
 	struct sev_device *sev;
-	int psp_ret, rc = 0;
+	int psp_ret = -1, rc = 0;
 
 	if (!psp || !psp->sev_data)
 		return -ENODEV;
