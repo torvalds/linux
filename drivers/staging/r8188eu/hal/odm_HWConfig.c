@@ -363,7 +363,6 @@ void ODM_PhyStatusQuery(struct odm_dm_struct *dm_odm,
 }
 
 enum HAL_STATUS ODM_ConfigRFWithHeaderFile(struct odm_dm_struct *dm_odm,
-					   enum rf_radio_path content,
 					   enum rf_radio_path rfpath)
 {
 	if (rfpath == RF_PATH_A)
