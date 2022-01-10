@@ -164,7 +164,6 @@ static inline void check_page_span(const void *ptr, unsigned long n,
 {
 #ifdef CONFIG_HARDENED_USERCOPY_PAGESPAN
 	const void *end = ptr + n - 1;
-	struct page *endpage;
 	bool is_reserved, is_cma;
 
 	/*
@@ -193,11 +192,6 @@ static inline void check_page_span(const void *ptr, unsigned long n,
 	/* Is the object wholly within one base page? */
 	if (likely(((unsigned long)ptr & (unsigned long)PAGE_MASK) ==
 		   ((unsigned long)end & (unsigned long)PAGE_MASK)))
-		return;
-
-	/* Allow if fully inside the same compound (__GFP_COMP) page. */
-	endpage = virt_to_head_page(end);
-	if (likely(endpage == page))
 		return;
 
 	/*
@@ -259,6 +253,10 @@ static inline void check_heap_object(const void *ptr, unsigned long n,
 	if (folio_test_slab(folio)) {
 		/* Check slab allocator for flags and size. */
 		__check_heap_object(ptr, n, folio_slab(folio), to_user);
+	} else if (folio_test_large(folio)) {
+		unsigned long offset = ptr - folio_address(folio);
+		if (offset + n > folio_size(folio))
+			usercopy_abort("page alloc", NULL, to_user, offset, n);
 	} else {
 		/* Verify object does not incorrectly span multiple pages. */
 		check_page_span(ptr, n, folio_page(folio, 0), to_user);
