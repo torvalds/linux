@@ -8,7 +8,7 @@
 
 #include "core.h"
 
-static void gd25q256_default_init(struct spi_nor *nor)
+static void gd25q256_post_sfdp(struct spi_nor *nor)
 {
 	/*
 	 * Some manufacturer like GigaDevice may use different
@@ -16,11 +16,11 @@ static void gd25q256_default_init(struct spi_nor *nor)
 	 * indicate the quad_enable method for this case, we need
 	 * to set it in the default_init fixup hook.
 	 */
-	nor->params->quad_enable = spi_nor_sr1_bit6_quad_enable;
+	nor->params->quad_enable = spi_nor_sr2_bit1_quad_enable;
 }
 
 static struct spi_nor_fixups gd25q256_fixups = {
-	.default_init = gd25q256_default_init,
+	.post_sfdp  = gd25q256_post_sfdp,
 };
 
 static const struct flash_info gigadevice_parts[] = {
