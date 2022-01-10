@@ -5518,6 +5518,11 @@ void qla2x00_relogin(struct scsi_qla_host *vha)
 					ea.fcport = fcport;
 					qla24xx_handle_relogin_event(vha, &ea);
 				} else if (vha->hw->current_topology ==
+					 ISP_CFG_NL &&
+					IS_QLA2XXX_MIDTYPE(vha->hw)) {
+					(void)qla24xx_fcport_handle_login(vha,
+									fcport);
+				} else if (vha->hw->current_topology ==
 				    ISP_CFG_NL) {
 					fcport->login_retry--;
 					status =
