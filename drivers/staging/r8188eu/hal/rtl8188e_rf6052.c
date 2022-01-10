@@ -406,12 +406,6 @@ static int phy_RF6052_Config_ParaFile(struct adapter *Adapter)
 	/*----Restore RFENV control type----*/;
 	rtl8188e_PHY_SetBBReg(Adapter, pPhyReg->rfintfs, bRFSI_RFENV, u4RegValue);
 
-	if (rtStatus != _SUCCESS)
-		goto phy_RF6052_Config_ParaFile_Fail;
-
-	return rtStatus;
-
-phy_RF6052_Config_ParaFile_Fail:
 	return rtStatus;
 }
 
