@@ -543,7 +543,7 @@ static void eprobe_trigger_func(struct event_trigger_data *data,
 }
 
 static struct event_trigger_ops eprobe_trigger_ops = {
-	.func			= eprobe_trigger_func,
+	.trigger		= eprobe_trigger_func,
 	.print			= eprobe_trigger_print,
 	.init			= eprobe_trigger_init,
 	.free			= eprobe_trigger_free,

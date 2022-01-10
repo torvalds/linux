@@ -68,7 +68,7 @@ event_triggers_call(struct trace_event_file *file,
 		if (data->paused)
 			continue;
 		if (!rec) {
-			data->ops->func(data, buffer, rec, event);
+			data->ops->trigger(data, buffer, rec, event);
 			continue;
 		}
 		filter = rcu_dereference_sched(data->filter);
@@ -78,7 +78,7 @@ event_triggers_call(struct trace_event_file *file,
 			tt |= data->cmd_ops->trigger_type;
 			continue;
 		}
-		data->ops->func(data, buffer, rec, event);
+		data->ops->trigger(data, buffer, rec, event);
 	}
 	return tt;
 }
@@ -106,7 +106,7 @@ event_triggers_post_call(struct trace_event_file *file,
 		if (data->paused)
 			continue;
 		if (data->cmd_ops->trigger_type & tt)
-			data->ops->func(data, NULL, NULL, NULL);
+			data->ops->trigger(data, NULL, NULL, NULL);
 	}
 }
 EXPORT_SYMBOL_GPL(event_triggers_post_call);
@@ -1023,28 +1023,28 @@ traceoff_trigger_print(struct seq_file *m, struct event_trigger_ops *ops,
 }
 
 static struct event_trigger_ops traceon_trigger_ops = {
-	.func			= traceon_trigger,
+	.trigger		= traceon_trigger,
 	.print			= traceon_trigger_print,
 	.init			= event_trigger_init,
 	.free			= event_trigger_free,
 };
 
 static struct event_trigger_ops traceon_count_trigger_ops = {
-	.func			= traceon_count_trigger,
+	.trigger		= traceon_count_trigger,
 	.print			= traceon_trigger_print,
 	.init			= event_trigger_init,
 	.free			= event_trigger_free,
 };
 
 static struct event_trigger_ops traceoff_trigger_ops = {
-	.func			= traceoff_trigger,
+	.trigger		= traceoff_trigger,
 	.print			= traceoff_trigger_print,
 	.init			= event_trigger_init,
 	.free			= event_trigger_free,
 };
 
 static struct event_trigger_ops traceoff_count_trigger_ops = {
-	.func			= traceoff_count_trigger,
+	.trigger		= traceoff_count_trigger,
 	.print			= traceoff_trigger_print,
 	.init			= event_trigger_init,
 	.free			= event_trigger_free,
@@ -1135,14 +1135,14 @@ snapshot_trigger_print(struct seq_file *m, struct event_trigger_ops *ops,
 }
 
 static struct event_trigger_ops snapshot_trigger_ops = {
-	.func			= snapshot_trigger,
+	.trigger		= snapshot_trigger,
 	.print			= snapshot_trigger_print,
 	.init			= event_trigger_init,
 	.free			= event_trigger_free,
 };
 
 static struct event_trigger_ops snapshot_count_trigger_ops = {
-	.func			= snapshot_count_trigger,
+	.trigger		= snapshot_count_trigger,
 	.print			= snapshot_trigger_print,
 	.init			= event_trigger_init,
 	.free			= event_trigger_free,
@@ -1226,14 +1226,14 @@ stacktrace_trigger_print(struct seq_file *m, struct event_trigger_ops *ops,
 }
 
 static struct event_trigger_ops stacktrace_trigger_ops = {
-	.func			= stacktrace_trigger,
+	.trigger		= stacktrace_trigger,
 	.print			= stacktrace_trigger_print,
 	.init			= event_trigger_init,
 	.free			= event_trigger_free,
 };
 
 static struct event_trigger_ops stacktrace_count_trigger_ops = {
-	.func			= stacktrace_count_trigger,
+	.trigger		= stacktrace_count_trigger,
 	.print			= stacktrace_trigger_print,
 	.init			= event_trigger_init,
 	.free			= event_trigger_free,
@@ -1353,28 +1353,28 @@ void event_enable_trigger_free(struct event_trigger_ops *ops,
 }
 
 static struct event_trigger_ops event_enable_trigger_ops = {
-	.func			= event_enable_trigger,
+	.trigger		= event_enable_trigger,
 	.print			= event_enable_trigger_print,
 	.init			= event_trigger_init,
 	.free			= event_enable_trigger_free,
 };
 
 static struct event_trigger_ops event_enable_count_trigger_ops = {
-	.func			= event_enable_count_trigger,
+	.trigger		= event_enable_count_trigger,
 	.print			= event_enable_trigger_print,
 	.init			= event_trigger_init,
 	.free			= event_enable_trigger_free,
 };
 
 static struct event_trigger_ops event_disable_trigger_ops = {
-	.func			= event_enable_trigger,
+	.trigger		= event_enable_trigger,
 	.print			= event_enable_trigger_print,
 	.init			= event_trigger_init,
 	.free			= event_enable_trigger_free,
 };
 
 static struct event_trigger_ops event_disable_count_trigger_ops = {
-	.func			= event_enable_count_trigger,
+	.trigger		= event_enable_count_trigger,
 	.print			= event_enable_trigger_print,
 	.init			= event_trigger_init,
 	.free			= event_enable_trigger_free,
