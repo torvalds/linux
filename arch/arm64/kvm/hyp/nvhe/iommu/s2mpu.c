@@ -113,10 +113,26 @@ static void __set_control_regs(struct s2mpu *dev)
 	writel_relaxed(ctrl0, dev->va + REG_NS_CTRL0);
 }
 
+/* Poll the given SFR as long as its value has all bits of a given mask set. */
+static void __wait_while(void __iomem *addr, u32 mask)
+{
+	while ((readl_relaxed(addr) & mask) == mask)
+		continue;
+}
+
+static void __wait_for_invalidation_complete(struct s2mpu *dev)
+{
+	/* Must not access SFRs while S2MPU is busy invalidating (v9 only). */
+	if (is_version(dev, S2MPU_VERSION_9)) {
+		__wait_while(dev->va + REG_NS_STATUS,
+			     STATUS_BUSY | STATUS_ON_INVALIDATING);
+	}
+}
+
 static void __all_invalidation(struct s2mpu *dev)
 {
-	writel_relaxed(INVALIDATION_INVALIDATE,
-		       dev->va + REG_NS_ALL_INVALIDATION);
+	writel_relaxed(INVALIDATION_INVALIDATE, dev->va + REG_NS_ALL_INVALIDATION);
+	__wait_for_invalidation_complete(dev);
 }
 
 static void __range_invalidation(struct s2mpu *dev, phys_addr_t first_byte,
@@ -128,6 +144,7 @@ static void __range_invalidation(struct s2mpu *dev, phys_addr_t first_byte,
 	writel_relaxed(start_ppn, dev->va + REG_NS_RANGE_INVALIDATION_START_PPN);
 	writel_relaxed(end_ppn, dev->va + REG_NS_RANGE_INVALIDATION_END_PPN);
 	writel_relaxed(INVALIDATION_INVALIDATE, dev->va + REG_NS_RANGE_INVALIDATION);
+	__wait_for_invalidation_complete(dev);
 }
 
 static void __set_l1entry_attr_with_prot(struct s2mpu *dev, unsigned int gb,
