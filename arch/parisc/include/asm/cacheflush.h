@@ -50,7 +50,6 @@ void invalidate_kernel_vmap_range(void *vaddr, int size);
 
 #define ARCH_IMPLEMENTS_FLUSH_DCACHE_PAGE 1
 void flush_dcache_page(struct page *page);
-void flush_dcache_folio(struct folio *folio);
 
 #define flush_dcache_mmap_lock(mapping)		xa_lock_irq(&mapping->i_pages)
 #define flush_dcache_mmap_unlock(mapping)	xa_unlock_irq(&mapping->i_pages)

@@ -2,8 +2,8 @@
 VERSION = 5
 PATCHLEVEL = 16
 SUBLEVEL = 0
-EXTRAVERSION = -rc2
-NAME = Trick or Treat
+EXTRAVERSION = -rc4
+NAME = Gobble Gobble
 
 # *DOCUMENTATION*
 # To see a list of typical targets execute "make help"
@@ -789,7 +789,7 @@ stackp-flags-$(CONFIG_STACKPROTECTOR_STRONG)      := -fstack-protector-strong
 KBUILD_CFLAGS += $(stackp-flags-y)
 
 KBUILD_CFLAGS-$(CONFIG_WERROR) += -Werror
-KBUILD_CFLAGS += $(KBUILD_CFLAGS-y) $(CONFIG_CC_IMPLICIT_FALLTHROUGH)
+KBUILD_CFLAGS += $(KBUILD_CFLAGS-y) $(CONFIG_CC_IMPLICIT_FALLTHROUGH:"%"=%)
 
 ifdef CONFIG_CC_IS_CLANG
 KBUILD_CPPFLAGS += -Qunused-arguments

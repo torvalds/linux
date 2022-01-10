@@ -289,22 +289,6 @@ xfs_perag_clear_inode_tag(
 	trace_xfs_perag_clear_inode_tag(mp, pag->pag_agno, tag, _RET_IP_);
 }
 
-static inline void
-xfs_inew_wait(
-	struct xfs_inode	*ip)
-{
-	wait_queue_head_t *wq = bit_waitqueue(&ip->i_flags, __XFS_INEW_BIT);
-	DEFINE_WAIT_BIT(wait, &ip->i_flags, __XFS_INEW_BIT);
-
-	do {
-		prepare_to_wait(wq, &wait.wq_entry, TASK_UNINTERRUPTIBLE);
-		if (!xfs_iflags_test(ip, XFS_INEW))
-			break;
-		schedule();
-	} while (true);
-	finish_wait(wq, &wait.wq_entry);
-}
-
 /*
  * When we recycle a reclaimable inode, we need to re-initialise the VFS inode
  * part of the structure. This is made more complex by the fact we store
@@ -368,18 +352,13 @@ xfs_iget_recycle(
 	ASSERT(!rwsem_is_locked(&inode->i_rwsem));
 	error = xfs_reinit_inode(mp, inode);
 	if (error) {
-		bool	wake;
-
 		/*
 		 * Re-initializing the inode failed, and we are in deep
 		 * trouble.  Try to re-add it to the reclaim list.
 		 */
 		rcu_read_lock();
 		spin_lock(&ip->i_flags_lock);
-		wake = !!__xfs_iflags_test(ip, XFS_INEW);
 		ip->i_flags &= ~(XFS_INEW | XFS_IRECLAIM);
-		if (wake)
-			wake_up_bit(&ip->i_flags, __XFS_INEW_BIT);
 		ASSERT(ip->i_flags & XFS_IRECLAIMABLE);
 		spin_unlock(&ip->i_flags_lock);
 		rcu_read_unlock();
