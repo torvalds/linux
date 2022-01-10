@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2016-2022, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2016-2021, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/syscore_ops.h>
@@ -4244,6 +4245,14 @@ static void android_rvh_rto_next_cpu(void *unused,
 	}
 }
 
+static void android_rvh_is_cpu_allowed(void *unused, int cpu, bool *allowed)
+{
+	if (unlikely(walt_disabled))
+		return;
+
+	*allowed = !cpumask_test_cpu(cpu, cpu_halt_mask);
+}
+
 static void register_walt_hooks(void)
 {
 	register_trace_android_rvh_wake_up_new_task(android_rvh_wake_up_new_task, NULL);
@@ -4274,6 +4283,7 @@ static void register_walt_hooks(void)
 	register_trace_android_rvh_set_cpus_allowed_ptr_locked(
 						android_rvh_set_cpus_allowed_ptr_locked, NULL);
 	register_trace_android_rvh_rto_next_cpu(android_rvh_rto_next_cpu, NULL);
+	register_trace_android_rvh_is_cpu_allowed(android_rvh_is_cpu_allowed, NULL);
 }
 
 atomic64_t walt_irq_work_lastq_ws;
