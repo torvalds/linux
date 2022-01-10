@@ -268,17 +268,6 @@ Contact: Daniel Vetter
 
 Level: Intermediate
 
-Clean up mmap forwarding
-------------------------
-
-A lot of drivers forward gem mmap calls to dma-buf mmap for imported buffers.
-And also a lot of them forward dma-buf mmap to the gem mmap implementations.
-There's drm_gem_prime_mmap() for this now, but still needs to be rolled out.
-
-Contact: Daniel Vetter
-
-Level: Intermediate
-
 Generic fbdev defio support
 ---------------------------
 
@@ -463,6 +452,21 @@ Contact: Thomas Zimmermann <tzimmermann@suse.de>, Christian König, Daniel Vette
 
 Level: Intermediate
 
+Review all drivers for setting struct drm_mode_config.{max_width,max_height} correctly
+--------------------------------------------------------------------------------------
+
+The values in struct drm_mode_config.{max_width,max_height} describe the
+maximum supported framebuffer size. It's the virtual screen size, but many
+drivers treat it like limitations of the physical resolution.
+
+The maximum width depends on the hardware's maximum scanline pitch. The
+maximum height depends on the amount of addressable video memory. Review all
+drivers to initialize the fields to the correct values.
+
+Contact: Thomas Zimmermann <tzimmermann@suse.de>
+
+Level: Intermediate
+
 
 Core refactorings
 =================
@@ -641,6 +645,17 @@ a bunch of progress cleaning it up but there's still plenty of work to be done.
 See drivers/gpu/drm/amd/display/TODO for tasks.
 
 Contact: Harry Wentland, Alex Deucher
+
+vmwgfx: Replace hashtable with Linux' implementation
+----------------------------------------------------
+
+The vmwgfx driver uses its own hashtable implementation. Replace the
+code with Linux' implementation and update the callers. It's mostly a
+refactoring task, but the interfaces are different.
+
+Contact: Zack Rusin, Thomas Zimmermann <tzimmermann@suse.de>
+
+Level: Intermediate
 
 Bootsplash
 ==========

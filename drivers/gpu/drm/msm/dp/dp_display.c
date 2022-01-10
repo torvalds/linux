@@ -135,8 +135,18 @@ static const struct msm_dp_config sc7180_dp_cfg = {
 	.num_descs = 1,
 };
 
+static const struct msm_dp_config sc7280_dp_cfg = {
+	.descs = (const struct msm_dp_desc[]) {
+		[MSM_DP_CONTROLLER_0] =	{ .io_start = 0x0ae90000, .connector_type = DRM_MODE_CONNECTOR_DisplayPort },
+		[MSM_DP_CONTROLLER_1] =	{ .io_start = 0x0aea0000, .connector_type = DRM_MODE_CONNECTOR_eDP },
+	},
+	.num_descs = 2,
+};
+
 static const struct of_device_id dp_dt_match[] = {
 	{ .compatible = "qcom,sc7180-dp", .data = &sc7180_dp_cfg },
+	{ .compatible = "qcom,sc7280-dp", .data = &sc7280_dp_cfg },
+	{ .compatible = "qcom,sc7280-edp", .data = &sc7280_dp_cfg },
 	{}
 };
 
@@ -224,13 +234,10 @@ static int dp_display_bind(struct device *dev, struct device *master,
 {
 	int rc = 0;
 	struct dp_display_private *dp = dev_get_dp_display_private(dev);
-	struct msm_drm_private *priv;
-	struct drm_device *drm;
-
-	drm = dev_get_drvdata(master);
+	struct msm_drm_private *priv = dev_get_drvdata(master);
+	struct drm_device *drm = priv->dev;
 
 	dp->dp_display.drm_dev = drm;
-	priv = drm->dev_private;
 	priv->dp[dp->id] = &dp->dp_display;
 
 	rc = dp->parser->parse(dp->parser, dp->dp_display.connector_type);
@@ -266,8 +273,7 @@ static void dp_display_unbind(struct device *dev, struct device *master,
 			      void *data)
 {
 	struct dp_display_private *dp = dev_get_dp_display_private(dev);
-	struct drm_device *drm = dev_get_drvdata(master);
-	struct msm_drm_private *priv = drm->dev_private;
+	struct msm_drm_private *priv = dev_get_drvdata(master);
 
 	dp_power_client_deinit(dp->power);
 	dp_aux_unregister(dp->aux);
@@ -410,12 +416,11 @@ static int dp_display_usbpd_configure_cb(struct device *dev)
 
 static int dp_display_usbpd_disconnect_cb(struct device *dev)
 {
-	int rc = 0;
 	struct dp_display_private *dp = dev_get_dp_display_private(dev);
 
 	dp_add_event(dp, EV_USER_NOTIFICATION, false, 0);
 
-	return rc;
+	return 0;
 }
 
 static void dp_display_handle_video_request(struct dp_display_private *dp)
@@ -522,11 +527,8 @@ static int dp_hpd_plug_handle(struct dp_display_private *dp, u32 data)
 
 	dp->hpd_state = ST_CONNECT_PENDING;
 
-	hpd->hpd_high = 1;
-
 	ret = dp_display_usbpd_configure_cb(&dp->pdev->dev);
 	if (ret) {	/* link train failed */
-		hpd->hpd_high = 0;
 		dp->hpd_state = ST_DISCONNECTED;
 
 		if (ret == -ECONNRESET) { /* cable unplugged */
@@ -603,7 +605,6 @@ static int dp_hpd_unplug_handle(struct dp_display_private *dp, u32 data)
 		/* triggered by irq_hdp with sink_count = 0 */
 		if (dp->link->sink_count == 0) {
 			dp_ctrl_off_phy(dp->ctrl);
-			hpd->hpd_high = 0;
 			dp->core_initialized = false;
 		}
 		mutex_unlock(&dp->event_mutex);
@@ -626,8 +627,6 @@ static int dp_hpd_unplug_handle(struct dp_display_private *dp, u32 data)
 
 	/* disable HPD plug interrupts */
 	dp_catalog_hpd_config_intr(dp->catalog, DP_DP_HPD_PLUG_INT_MASK, false);
-
-	hpd->hpd_high = 0;
 
 	/*
 	 * We don't need separate work for disconnect as
@@ -693,9 +692,15 @@ static int dp_irq_hpd_handle(struct dp_display_private *dp, u32 data)
 		return 0;
 	}
 
-	ret = dp_display_usbpd_attention_cb(&dp->pdev->dev);
-	if (ret == -ECONNRESET) { /* cable unplugged */
-		dp->core_initialized = false;
+	/*
+	 * dp core (ahb/aux clks) must be initialized before
+	 * irq_hpd be handled
+	 */
+	if (dp->core_initialized) {
+		ret = dp_display_usbpd_attention_cb(&dp->pdev->dev);
+		if (ret == -ECONNRESET) { /* cable unplugged */
+			dp->core_initialized = false;
+		}
 	}
 	DRM_DEBUG_DP("hpd_state=%d\n", state);
 
@@ -707,9 +712,9 @@ static int dp_irq_hpd_handle(struct dp_display_private *dp, u32 data)
 static void dp_display_deinit_sub_modules(struct dp_display_private *dp)
 {
 	dp_debug_put(dp->debug);
+	dp_audio_put(dp->audio);
 	dp_panel_put(dp->panel);
 	dp_aux_put(dp->aux);
-	dp_audio_put(dp->audio);
 }
 
 static int dp_init_sub_modules(struct dp_display_private *dp)
@@ -1481,6 +1486,18 @@ int msm_dp_modeset_init(struct msm_dp *dp_display, struct drm_device *dev,
 	}
 
 	priv->connectors[priv->num_connectors++] = dp_display->connector;
+
+	dp_display->bridge = msm_dp_bridge_init(dp_display, dev, encoder);
+	if (IS_ERR(dp_display->bridge)) {
+		ret = PTR_ERR(dp_display->bridge);
+		DRM_DEV_ERROR(dev->dev,
+			"failed to create dp bridge: %d\n", ret);
+		dp_display->bridge = NULL;
+		return ret;
+	}
+
+	priv->bridges[priv->num_bridges++] = dp_display->bridge;
+
 	return 0;
 }
 
@@ -1584,8 +1601,8 @@ int msm_dp_display_disable(struct msm_dp *dp, struct drm_encoder *encoder)
 }
 
 void msm_dp_display_mode_set(struct msm_dp *dp, struct drm_encoder *encoder,
-				struct drm_display_mode *mode,
-				struct drm_display_mode *adjusted_mode)
+				const struct drm_display_mode *mode,
+				const struct drm_display_mode *adjusted_mode)
 {
 	struct dp_display_private *dp_display;
 

@@ -113,6 +113,7 @@ struct dce_audio_shift {
 	uint8_t DCCG_AUDIO_DTO2_USE_512FBR_DTO;
 	uint32_t DCCG_AUDIO_DTO0_USE_512FBR_DTO;
 	uint32_t DCCG_AUDIO_DTO1_USE_512FBR_DTO;
+	uint32_t CLOCK_GATING_DISABLE;
 };
 
 struct dce_audio_mask {
@@ -132,6 +133,7 @@ struct dce_audio_mask {
 	uint32_t DCCG_AUDIO_DTO2_USE_512FBR_DTO;
 	uint32_t DCCG_AUDIO_DTO0_USE_512FBR_DTO;
 	uint32_t DCCG_AUDIO_DTO1_USE_512FBR_DTO;
+	uint32_t CLOCK_GATING_DISABLE;
 
 };
 

@@ -11,6 +11,7 @@
 #include "intel_migrate_types.h"
 
 struct dma_fence;
+struct i915_deps;
 struct i915_request;
 struct i915_gem_ww_ctx;
 struct intel_gt;
@@ -23,7 +24,7 @@ struct intel_context *intel_migrate_create_context(struct intel_migrate *m);
 
 int intel_migrate_copy(struct intel_migrate *m,
 		       struct i915_gem_ww_ctx *ww,
-		       struct dma_fence *await,
+		       const struct i915_deps *deps,
 		       struct scatterlist *src,
 		       enum i915_cache_level src_cache_level,
 		       bool src_is_lmem,
@@ -33,7 +34,7 @@ int intel_migrate_copy(struct intel_migrate *m,
 		       struct i915_request **out);
 
 int intel_context_migrate_copy(struct intel_context *ce,
-			       struct dma_fence *await,
+			       const struct i915_deps *deps,
 			       struct scatterlist *src,
 			       enum i915_cache_level src_cache_level,
 			       bool src_is_lmem,
@@ -45,7 +46,7 @@ int intel_context_migrate_copy(struct intel_context *ce,
 int
 intel_migrate_clear(struct intel_migrate *m,
 		    struct i915_gem_ww_ctx *ww,
-		    struct dma_fence *await,
+		    const struct i915_deps *deps,
 		    struct scatterlist *sg,
 		    enum i915_cache_level cache_level,
 		    bool is_lmem,
@@ -53,7 +54,7 @@ intel_migrate_clear(struct intel_migrate *m,
 		    struct i915_request **out);
 int
 intel_context_migrate_clear(struct intel_context *ce,
-			    struct dma_fence *await,
+			    const struct i915_deps *deps,
 			    struct scatterlist *sg,
 			    enum i915_cache_level cache_level,
 			    bool is_lmem,

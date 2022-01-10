@@ -32,7 +32,6 @@
 #define _TTM_BO_API_H_
 
 #include <drm/drm_gem.h>
-#include <drm/drm_hashtab.h>
 #include <drm/drm_vma_manager.h>
 #include <linux/kref.h>
 #include <linux/list.h>

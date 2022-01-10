@@ -26,6 +26,7 @@
 #include "intel_dpio_phy.h"
 #include "intel_dpll.h"
 #include "intel_dpll_mgr.h"
+#include "intel_pch_refclk.h"
 #include "intel_tc.h"
 
 /**
@@ -3740,7 +3741,7 @@ static void combo_pll_enable(struct drm_i915_private *dev_priv,
 		 * domain.
 		 */
 		pll->wakeref = intel_display_power_get(dev_priv,
-						       POWER_DOMAIN_DPLL_DC_OFF);
+						       POWER_DOMAIN_DC_OFF);
 	}
 
 	icl_pll_power_enable(dev_priv, pll, enable_reg);
@@ -3847,7 +3848,7 @@ static void combo_pll_disable(struct drm_i915_private *dev_priv,
 
 	if (IS_JSL_EHL(dev_priv) &&
 	    pll->info->id == DPLL_ID_EHL_DPLL4)
-		intel_display_power_put(dev_priv, POWER_DOMAIN_DPLL_DC_OFF,
+		intel_display_power_put(dev_priv, POWER_DOMAIN_DC_OFF,
 					pll->wakeref);
 }
 
@@ -4231,7 +4232,7 @@ static void readout_dpll_hw_state(struct drm_i915_private *i915,
 	if (IS_JSL_EHL(i915) && pll->on &&
 	    pll->info->id == DPLL_ID_EHL_DPLL4) {
 		pll->wakeref = intel_display_power_get(i915,
-						       POWER_DOMAIN_DPLL_DC_OFF);
+						       POWER_DOMAIN_DC_OFF);
 	}
 
 	pll->state.pipe_mask = 0;

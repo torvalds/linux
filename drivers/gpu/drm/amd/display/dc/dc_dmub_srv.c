@@ -115,13 +115,44 @@ void dc_dmub_srv_wait_idle(struct dc_dmub_srv *dc_dmub_srv)
 	}
 }
 
+void dc_dmub_srv_clear_inbox0_ack(struct dc_dmub_srv *dmub_srv)
+{
+	struct dmub_srv *dmub = dmub_srv->dmub;
+	struct dc_context *dc_ctx = dmub_srv->ctx;
+	enum dmub_status status = DMUB_STATUS_OK;
+
+	status = dmub_srv_clear_inbox0_ack(dmub);
+	if (status != DMUB_STATUS_OK) {
+		DC_ERROR("Error clearing INBOX0 ack: status=%d\n", status);
+		dc_dmub_srv_log_diagnostic_data(dmub_srv);
+	}
+}
+
+void dc_dmub_srv_wait_for_inbox0_ack(struct dc_dmub_srv *dmub_srv)
+{
+	struct dmub_srv *dmub = dmub_srv->dmub;
+	struct dc_context *dc_ctx = dmub_srv->ctx;
+	enum dmub_status status = DMUB_STATUS_OK;
+
+	status = dmub_srv_wait_for_inbox0_ack(dmub, 100000);
+	if (status != DMUB_STATUS_OK) {
+		DC_ERROR("Error waiting for INBOX0 HW Lock Ack\n");
+		dc_dmub_srv_log_diagnostic_data(dmub_srv);
+	}
+}
+
 void dc_dmub_srv_send_inbox0_cmd(struct dc_dmub_srv *dmub_srv,
 		union dmub_inbox0_data_register data)
 {
 	struct dmub_srv *dmub = dmub_srv->dmub;
-	if (dmub->hw_funcs.send_inbox0_cmd)
-		dmub->hw_funcs.send_inbox0_cmd(dmub, data);
-	// TODO: Add wait command -- poll register for ACK
+	struct dc_context *dc_ctx = dmub_srv->ctx;
+	enum dmub_status status = DMUB_STATUS_OK;
+
+	status = dmub_srv_send_inbox0_cmd(dmub, data);
+	if (status != DMUB_STATUS_OK) {
+		DC_ERROR("Error sending INBOX0 cmd\n");
+		dc_dmub_srv_log_diagnostic_data(dmub_srv);
+	}
 }
 
 bool dc_dmub_srv_cmd_with_reply_data(struct dc_dmub_srv *dc_dmub_srv, union dmub_rb_cmd *cmd)

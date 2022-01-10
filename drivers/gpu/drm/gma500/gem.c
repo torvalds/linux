@@ -13,24 +13,105 @@
 
 #include <linux/pagemap.h>
 
+#include <asm/set_memory.h>
+
 #include <drm/drm.h>
 #include <drm/drm_vma_manager.h>
 
 #include "gem.h"
 #include "psb_drv.h"
 
+int psb_gem_pin(struct psb_gem_object *pobj)
+{
+	struct drm_gem_object *obj = &pobj->base;
+	struct drm_device *dev = obj->dev;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
+	u32 gpu_base = dev_priv->gtt.gatt_start;
+	struct page **pages;
+	unsigned int npages;
+	int ret;
+
+	mutex_lock(&dev_priv->gtt_mutex);
+
+	if (pobj->in_gart || pobj->stolen)
+		goto out; /* already mapped */
+
+	pages = drm_gem_get_pages(obj);
+	if (IS_ERR(pages)) {
+		ret = PTR_ERR(pages);
+		goto err_mutex_unlock;
+	}
+
+	npages = obj->size / PAGE_SIZE;
+
+	set_pages_array_wc(pages, npages);
+
+	psb_gtt_insert_pages(dev_priv, &pobj->resource, pages);
+	psb_mmu_insert_pages(psb_mmu_get_default_pd(dev_priv->mmu), pages,
+			     (gpu_base + pobj->offset), npages, 0, 0,
+			     PSB_MMU_CACHED_MEMORY);
+
+	pobj->npage = npages;
+	pobj->pages = pages;
+
+out:
+	++pobj->in_gart;
+	mutex_unlock(&dev_priv->gtt_mutex);
+
+	return 0;
+
+err_mutex_unlock:
+	mutex_unlock(&dev_priv->gtt_mutex);
+	return ret;
+}
+
+void psb_gem_unpin(struct psb_gem_object *pobj)
+{
+	struct drm_gem_object *obj = &pobj->base;
+	struct drm_device *dev = obj->dev;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
+	u32 gpu_base = dev_priv->gtt.gatt_start;
+
+	mutex_lock(&dev_priv->gtt_mutex);
+
+	WARN_ON(!pobj->in_gart);
+
+	--pobj->in_gart;
+
+	if (pobj->in_gart || pobj->stolen)
+		goto out;
+
+	psb_mmu_remove_pages(psb_mmu_get_default_pd(dev_priv->mmu),
+			     (gpu_base + pobj->offset), pobj->npage, 0, 0);
+	psb_gtt_remove_pages(dev_priv, &pobj->resource);
+
+	/* Reset caching flags */
+	set_pages_array_wb(pobj->pages, pobj->npage);
+
+	drm_gem_put_pages(obj, pobj->pages, true, false);
+	pobj->pages = NULL;
+	pobj->npage = 0;
+
+out:
+	mutex_unlock(&dev_priv->gtt_mutex);
+}
+
 static vm_fault_t psb_gem_fault(struct vm_fault *vmf);
 
 static void psb_gem_free_object(struct drm_gem_object *obj)
 {
-	struct gtt_range *gtt = container_of(obj, struct gtt_range, gem);
+	struct psb_gem_object *pobj = to_psb_gem_object(obj);
 
-	/* Remove the list map if one is present */
-	drm_gem_free_mmap_offset(obj);
 	drm_gem_object_release(obj);
 
-	/* This must occur last as it frees up the memory of the GEM object */
-	psb_gtt_free_range(obj->dev, gtt);
+	/* Undo the mmap pin if we are destroying the object */
+	if (pobj->mmapping)
+		psb_gem_unpin(pobj);
+
+	WARN_ON(pobj->in_gart && !pobj->stolen);
+
+	release_resource(&pobj->resource);
+	kfree(pobj);
 }
 
 static const struct vm_operations_struct psb_gem_vm_ops = {
@@ -39,63 +120,60 @@ static const struct vm_operations_struct psb_gem_vm_ops = {
 	.close = drm_gem_vm_close,
 };
 
-const struct drm_gem_object_funcs psb_gem_object_funcs = {
+static const struct drm_gem_object_funcs psb_gem_object_funcs = {
 	.free = psb_gem_free_object,
 	.vm_ops = &psb_gem_vm_ops,
 };
 
-/**
- *	psb_gem_create		-	create a mappable object
- *	@file: the DRM file of the client
- *	@dev: our device
- *	@size: the size requested
- *	@handlep: returned handle (opaque number)
- *	@stolen: unused
- *	@align: unused
- *
- *	Create a GEM object, fill in the boilerplate and attach a handle to
- *	it so that userspace can speak about it. This does the core work
- *	for the various methods that do/will create GEM objects for things
- */
-int psb_gem_create(struct drm_file *file, struct drm_device *dev, u64 size,
-		   u32 *handlep, int stolen, u32 align)
+struct psb_gem_object *
+psb_gem_create(struct drm_device *dev, u64 size, const char *name, bool stolen, u32 align)
 {
-	struct gtt_range *r;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
+	struct psb_gem_object *pobj;
+	struct drm_gem_object *obj;
 	int ret;
-	u32 handle;
 
 	size = roundup(size, PAGE_SIZE);
 
-	/* Allocate our object - for now a direct gtt range which is not
-	   stolen memory backed */
-	r = psb_gtt_alloc_range(dev, size, "gem", 0, PAGE_SIZE);
-	if (r == NULL) {
-		dev_err(dev->dev, "no memory for %lld byte GEM object\n", size);
-		return -ENOSPC;
+	pobj = kzalloc(sizeof(*pobj), GFP_KERNEL);
+	if (!pobj)
+		return ERR_PTR(-ENOMEM);
+	obj = &pobj->base;
+
+	/* GTT resource */
+
+	ret = psb_gtt_allocate_resource(dev_priv, &pobj->resource, name, size, align, stolen,
+					&pobj->offset);
+	if (ret)
+		goto err_kfree;
+
+	if (stolen) {
+		pobj->stolen = true;
+		pobj->in_gart = 1;
 	}
-	r->gem.funcs = &psb_gem_object_funcs;
-	/* Initialize the extra goodies GEM needs to do all the hard work */
-	if (drm_gem_object_init(dev, &r->gem, size) != 0) {
-		psb_gtt_free_range(dev, r);
-		/* GEM doesn't give an error code so use -ENOMEM */
-		dev_err(dev->dev, "GEM init failed for %lld\n", size);
-		return -ENOMEM;
+
+	/* GEM object */
+
+	obj->funcs = &psb_gem_object_funcs;
+
+	if (stolen) {
+		drm_gem_private_object_init(dev, obj, size);
+	} else {
+		ret = drm_gem_object_init(dev, obj, size);
+		if (ret)
+			goto err_release_resource;
+
+		/* Limit the object to 32-bit mappings */
+		mapping_set_gfp_mask(obj->filp->f_mapping, GFP_KERNEL | __GFP_DMA32);
 	}
-	/* Limit the object to 32bit mappings */
-	mapping_set_gfp_mask(r->gem.filp->f_mapping, GFP_KERNEL | __GFP_DMA32);
-	/* Give the object a handle so we can carry it more easily */
-	ret = drm_gem_handle_create(file, &r->gem, &handle);
-	if (ret) {
-		dev_err(dev->dev, "GEM handle failed for %p, %lld\n",
-							&r->gem, size);
-		drm_gem_object_release(&r->gem);
-		psb_gtt_free_range(dev, r);
-		return ret;
-	}
-	/* We have the initial and handle reference but need only one now */
-	drm_gem_object_put(&r->gem);
-	*handlep = handle;
-	return 0;
+
+	return pobj;
+
+err_release_resource:
+	release_resource(&pobj->resource);
+err_kfree:
+	kfree(pobj);
+	return ERR_PTR(ret);
 }
 
 /**
@@ -111,10 +189,40 @@ int psb_gem_create(struct drm_file *file, struct drm_device *dev, u64 size,
 int psb_gem_dumb_create(struct drm_file *file, struct drm_device *dev,
 			struct drm_mode_create_dumb *args)
 {
-	args->pitch = ALIGN(args->width * ((args->bpp + 7) / 8), 64);
-	args->size = args->pitch * args->height;
-	return psb_gem_create(file, dev, args->size, &args->handle, 0,
-			      PAGE_SIZE);
+	size_t pitch, size;
+	struct psb_gem_object *pobj;
+	struct drm_gem_object *obj;
+	u32 handle;
+	int ret;
+
+	pitch = args->width * DIV_ROUND_UP(args->bpp, 8);
+	pitch = ALIGN(pitch, 64);
+
+	size = pitch * args->height;
+	size = roundup(size, PAGE_SIZE);
+	if (!size)
+		return -EINVAL;
+
+	pobj = psb_gem_create(dev, size, "gem", false, PAGE_SIZE);
+	if (IS_ERR(pobj))
+		return PTR_ERR(pobj);
+	obj = &pobj->base;
+
+	ret = drm_gem_handle_create(file, obj, &handle);
+	if (ret)
+		goto err_drm_gem_object_put;
+
+	drm_gem_object_put(obj);
+
+	args->pitch = pitch;
+	args->size = size;
+	args->handle = handle;
+
+	return 0;
+
+err_drm_gem_object_put:
+	drm_gem_object_put(obj);
+	return ret;
 }
 
 /**
@@ -137,7 +245,7 @@ static vm_fault_t psb_gem_fault(struct vm_fault *vmf)
 {
 	struct vm_area_struct *vma = vmf->vma;
 	struct drm_gem_object *obj;
-	struct gtt_range *r;
+	struct psb_gem_object *pobj;
 	int err;
 	vm_fault_t ret;
 	unsigned long pfn;
@@ -149,7 +257,7 @@ static vm_fault_t psb_gem_fault(struct vm_fault *vmf)
 	dev = obj->dev;
 	dev_priv = to_drm_psb_private(dev);
 
-	r = container_of(obj, struct gtt_range, gem);	/* Get the gtt range */
+	pobj = to_psb_gem_object(obj);
 
 	/* Make sure we don't parallel update on a fault, nor move or remove
 	   something from beneath our feet */
@@ -157,14 +265,14 @@ static vm_fault_t psb_gem_fault(struct vm_fault *vmf)
 
 	/* For now the mmap pins the object and it stays pinned. As things
 	   stand that will do us no harm */
-	if (r->mmapping == 0) {
-		err = psb_gtt_pin(r);
+	if (pobj->mmapping == 0) {
+		err = psb_gem_pin(pobj);
 		if (err < 0) {
 			dev_err(dev->dev, "gma500: pin failed: %d\n", err);
 			ret = vmf_error(err);
 			goto fail;
 		}
-		r->mmapping = 1;
+		pobj->mmapping = 1;
 	}
 
 	/* Page relative to the VMA start - we must calculate this ourselves
@@ -172,10 +280,10 @@ static vm_fault_t psb_gem_fault(struct vm_fault *vmf)
 	page_offset = (vmf->address - vma->vm_start) >> PAGE_SHIFT;
 
 	/* CPU view of the page, don't go via the GART for CPU writes */
-	if (r->stolen)
-		pfn = (dev_priv->stolen_base + r->offset) >> PAGE_SHIFT;
+	if (pobj->stolen)
+		pfn = (dev_priv->stolen_base + pobj->offset) >> PAGE_SHIFT;
 	else
-		pfn = page_to_pfn(r->pages[page_offset]);
+		pfn = page_to_pfn(pobj->pages[page_offset]);
 	ret = vmf_insert_pfn(vma, vmf->address, pfn);
 fail:
 	mutex_unlock(&dev_priv->mmap_mutex);

@@ -458,7 +458,6 @@ struct amdgpu_flip_work {
 	uint64_t			base;
 	struct drm_pending_vblank_event *event;
 	struct amdgpu_bo		*old_abo;
-	struct dma_fence		*excl;
 	unsigned			shared_count;
 	struct dma_fence		**shared;
 	struct dma_fence_cb		cb;
@@ -813,6 +812,7 @@ struct amd_powerplay {
 
 #define AMDGPU_RESET_MAGIC_NUM 64
 #define AMDGPU_MAX_DF_PERFMONS 4
+#define AMDGPU_PRODUCT_NAME_LEN 64
 struct amdgpu_device {
 	struct device			*dev;
 	struct pci_dev			*pdev;
@@ -1084,7 +1084,7 @@ struct amdgpu_device {
 
 	/* Chip product information */
 	char				product_number[16];
-	char				product_name[32];
+	char				product_name[AMDGPU_PRODUCT_NAME_LEN];
 	char				serial[20];
 
 	atomic_t			throttling_logging_enabled;
@@ -1097,7 +1097,9 @@ struct amdgpu_device {
 	pci_channel_state_t		pci_channel_state;
 
 	struct amdgpu_reset_control     *reset_cntl;
-	uint32_t                        ip_versions[HW_ID_MAX][HWIP_MAX_INSTANCE];
+	uint32_t                        ip_versions[MAX_HWIP][HWIP_MAX_INSTANCE];
+
+	bool				ram_is_direct_mapped;
 };
 
 static inline struct amdgpu_device *drm_to_adev(struct drm_device *ddev)
@@ -1318,6 +1320,8 @@ void amdgpu_device_flush_hdp(struct amdgpu_device *adev,
 void amdgpu_device_invalidate_hdp(struct amdgpu_device *adev,
 		struct amdgpu_ring *ring);
 
+void amdgpu_device_halt(struct amdgpu_device *adev);
+
 /* atpx handler */
 #if defined(CONFIG_VGA_SWITCHEROO)
 void amdgpu_register_atpx_handler(void);
@@ -1361,8 +1365,6 @@ int amdgpu_device_resume(struct drm_device *dev, bool fbcon);
 u32 amdgpu_get_vblank_counter_kms(struct drm_crtc *crtc);
 int amdgpu_enable_vblank_kms(struct drm_crtc *crtc);
 void amdgpu_disable_vblank_kms(struct drm_crtc *crtc);
-long amdgpu_kms_compat_ioctl(struct file *filp, unsigned int cmd,
-			     unsigned long arg);
 int amdgpu_info_ioctl(struct drm_device *dev, void *data,
 		      struct drm_file *filp);
 

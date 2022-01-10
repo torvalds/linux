@@ -169,7 +169,7 @@ headc57d_olut_load(struct drm_color_lut *in, int size, void __iomem *mem)
 	writew(readw(mem - 4), mem + 4);
 }
 
-bool
+static bool
 headc57d_olut(struct nv50_head *head, struct nv50_head_atom *asyh, int size)
 {
 	if (size != 0 && size != 256 && size != 1024)
@@ -236,6 +236,7 @@ headc57d = {
 	.view = headc37d_view,
 	.mode = headc57d_mode,
 	.olut = headc57d_olut,
+	.ilut_check = head907d_ilut_check,
 	.olut_identity = true,
 	.olut_size = 1024,
 	.olut_set = headc57d_olut_set,

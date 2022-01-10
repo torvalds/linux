@@ -177,7 +177,7 @@ static void vc4_bo_destroy(struct vc4_bo *bo)
 		bo->validated_shader = NULL;
 	}
 
-	drm_gem_cma_free_object(obj);
+	drm_gem_cma_free(&bo->base);
 }
 
 static void vc4_bo_remove_from_cache(struct vc4_bo *bo)
@@ -391,7 +391,7 @@ struct drm_gem_object *vc4_create_object(struct drm_device *dev, size_t size)
 
 	bo = kzalloc(sizeof(*bo), GFP_KERNEL);
 	if (!bo)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	bo->madv = VC4_MADV_WILLNEED;
 	refcount_set(&bo->usecnt, 0);
@@ -720,7 +720,7 @@ static int vc4_gem_object_mmap(struct drm_gem_object *obj, struct vm_area_struct
 		return -EINVAL;
 	}
 
-	return drm_gem_cma_mmap(obj, vma);
+	return drm_gem_cma_mmap(&bo->base, vma);
 }
 
 static const struct vm_operations_struct vc4_vm_ops = {
@@ -732,8 +732,8 @@ static const struct vm_operations_struct vc4_vm_ops = {
 static const struct drm_gem_object_funcs vc4_gem_object_funcs = {
 	.free = vc4_free_object,
 	.export = vc4_prime_export,
-	.get_sg_table = drm_gem_cma_get_sg_table,
-	.vmap = drm_gem_cma_vmap,
+	.get_sg_table = drm_gem_cma_object_get_sg_table,
+	.vmap = drm_gem_cma_object_vmap,
 	.mmap = vc4_gem_object_mmap,
 	.vm_ops = &vc4_vm_ops,
 };

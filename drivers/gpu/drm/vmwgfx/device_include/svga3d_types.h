@@ -1,6 +1,6 @@
-/**********************************************************
+/* SPDX-License-Identifier: GPL-2.0 OR MIT */
+/*
  * Copyright 2012-2021 VMware, Inc.
- * SPDX-License-Identifier: GPL-2.0 OR MIT
  *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
@@ -22,7 +22,7 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  *
- **********************************************************/
+ */
 
 /*
  * svga3d_types.h --
@@ -370,7 +370,6 @@ typedef enum SVGA3dSurfaceFormat {
 #define SVGA3D_SURFACE_TRANSFER_FROM_BUFFER (CONST64U(1) << 30)
 
 #define SVGA3D_SURFACE_RESERVED1 (CONST64U(1) << 31)
-#define SVGA3D_SURFACE_VADECODE SVGA3D_SURFACE_RESERVED1
 
 #define SVGA3D_SURFACE_MULTISAMPLE (CONST64U(1) << 32)
 

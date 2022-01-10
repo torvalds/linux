@@ -3093,8 +3093,7 @@ static enum dcn_zstate_support_state  decide_zstate_support(struct dc *dc, struc
 	else if (context->stream_count == 1 &&  context->streams[0]->signal == SIGNAL_TYPE_EDP) {
 		struct dc_link *link = context->streams[0]->sink->link;
 
-		if ((link->link_index == 0 && link->psr_settings.psr_feature_enabled)
-				|| context->bw_ctx.dml.vba.StutterPeriod > 5000.0)
+		if (link->link_index == 0 && context->bw_ctx.dml.vba.StutterPeriod > 5000.0)
 			return DCN_ZSTATE_SUPPORT_ALLOW;
 		else
 			return DCN_ZSTATE_SUPPORT_DISALLOW;
@@ -3795,6 +3794,8 @@ static bool dcn20_resource_construct(
 	dc->caps.color.mpc.ogam_rom_caps.pq = 0;
 	dc->caps.color.mpc.ogam_rom_caps.hlg = 0;
 	dc->caps.color.mpc.ocsc = 1;
+
+	dc->caps.hdmi_frl_pcon_support = true;
 
 	if (dc->ctx->dce_environment == DCE_ENV_PRODUCTION_DRV) {
 		dc->debug = debug_defaults_drv;

@@ -4,6 +4,8 @@
  */
 
 #include <drm/drm_mipi_dsi.h>
+
+#include "i915_drv.h"
 #include "intel_dsi.h"
 #include "intel_panel.h"
 

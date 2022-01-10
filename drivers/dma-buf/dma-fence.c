@@ -15,6 +15,7 @@
 #include <linux/atomic.h>
 #include <linux/dma-fence.h>
 #include <linux/sched/signal.h>
+#include <linux/seq_file.h>
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/dma_fence.h>
@@ -906,6 +907,22 @@ err_free_cb:
 	return ret;
 }
 EXPORT_SYMBOL(dma_fence_wait_any_timeout);
+
+/**
+ * dma_fence_describe - Dump fence describtion into seq_file
+ * @fence: the 6fence to describe
+ * @seq: the seq_file to put the textual description into
+ *
+ * Dump a textual description of the fence and it's state into the seq_file.
+ */
+void dma_fence_describe(struct dma_fence *fence, struct seq_file *seq)
+{
+	seq_printf(seq, "%s %s seq %llu %ssignalled\n",
+		   fence->ops->get_driver_name(fence),
+		   fence->ops->get_timeline_name(fence), fence->seqno,
+		   dma_fence_is_signaled(fence) ? "" : "un");
+}
+EXPORT_SYMBOL(dma_fence_describe);
 
 /**
  * dma_fence_init - Initialize a custom fence.

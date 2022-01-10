@@ -33,6 +33,7 @@ static const struct hvs_format {
 	u32 hvs; /* HVS_FORMAT_* */
 	u32 pixel_order;
 	u32 pixel_order_hvs5;
+	bool hvs5_only;
 } hvs_formats[] = {
 	{
 		.drm = DRM_FORMAT_XRGB8888,
@@ -127,6 +128,12 @@ static const struct hvs_format {
 		.drm = DRM_FORMAT_NV61,
 		.hvs = HVS_PIXEL_FORMAT_YCBCR_YUV422_2PLANE,
 		.pixel_order = HVS_PIXEL_ORDER_XYCRCB,
+	},
+	{
+		.drm = DRM_FORMAT_P030,
+		.hvs = HVS_PIXEL_FORMAT_YCBCR_10BIT,
+		.pixel_order = HVS_PIXEL_ORDER_XYCBCR,
+		.hvs5_only = true,
 	},
 };
 
@@ -529,11 +536,6 @@ static void vc4_plane_calc_load(struct drm_plane_state *state)
 	struct vc4_plane_state *vc4_state;
 	struct drm_crtc_state *crtc_state;
 	unsigned int vscale_factor;
-	struct vc4_dev *vc4;
-
-	vc4 = to_vc4_dev(state->plane->dev);
-	if (!vc4->load_tracker_available)
-		return;
 
 	vc4_state = to_vc4_plane_state(state);
 	crtc_state = drm_atomic_get_existing_crtc_state(state->state,
@@ -620,6 +622,51 @@ static int vc4_plane_allocate_lbm(struct drm_plane_state *state)
 
 	return 0;
 }
+
+/*
+ * The colorspace conversion matrices are held in 3 entries in the dlist.
+ * Create an array of them, with entries for each full and limited mode, and
+ * each supported colorspace.
+ */
+static const u32 colorspace_coeffs[2][DRM_COLOR_ENCODING_MAX][3] = {
+	{
+		/* Limited range */
+		{
+			/* BT601 */
+			SCALER_CSC0_ITR_R_601_5,
+			SCALER_CSC1_ITR_R_601_5,
+			SCALER_CSC2_ITR_R_601_5,
+		}, {
+			/* BT709 */
+			SCALER_CSC0_ITR_R_709_3,
+			SCALER_CSC1_ITR_R_709_3,
+			SCALER_CSC2_ITR_R_709_3,
+		}, {
+			/* BT2020 */
+			SCALER_CSC0_ITR_R_2020,
+			SCALER_CSC1_ITR_R_2020,
+			SCALER_CSC2_ITR_R_2020,
+		}
+	}, {
+		/* Full range */
+		{
+			/* JFIF */
+			SCALER_CSC0_JPEG_JFIF,
+			SCALER_CSC1_JPEG_JFIF,
+			SCALER_CSC2_JPEG_JFIF,
+		}, {
+			/* BT709 */
+			SCALER_CSC0_ITR_R_709_3_FR,
+			SCALER_CSC1_ITR_R_709_3_FR,
+			SCALER_CSC2_ITR_R_709_3_FR,
+		}, {
+			/* BT2020 */
+			SCALER_CSC0_ITR_R_2020_FR,
+			SCALER_CSC1_ITR_R_2020_FR,
+			SCALER_CSC2_ITR_R_2020_FR,
+		}
+	}
+};
 
 /* Writes out a full display list for an active plane to the plane's
  * private dlist state.
@@ -767,47 +814,90 @@ static int vc4_plane_mode_set(struct drm_plane *plane,
 	case DRM_FORMAT_MOD_BROADCOM_SAND128:
 	case DRM_FORMAT_MOD_BROADCOM_SAND256: {
 		uint32_t param = fourcc_mod_broadcom_param(fb->modifier);
-		u32 tile_w, tile, x_off, pix_per_tile;
-
-		hvs_format = HVS_PIXEL_FORMAT_H264;
-
-		switch (base_format_mod) {
-		case DRM_FORMAT_MOD_BROADCOM_SAND64:
-			tiling = SCALER_CTL0_TILING_64B;
-			tile_w = 64;
-			break;
-		case DRM_FORMAT_MOD_BROADCOM_SAND128:
-			tiling = SCALER_CTL0_TILING_128B;
-			tile_w = 128;
-			break;
-		case DRM_FORMAT_MOD_BROADCOM_SAND256:
-			tiling = SCALER_CTL0_TILING_256B_OR_T;
-			tile_w = 256;
-			break;
-		default:
-			break;
-		}
 
 		if (param > SCALER_TILE_HEIGHT_MASK) {
-			DRM_DEBUG_KMS("SAND height too large (%d)\n", param);
+			DRM_DEBUG_KMS("SAND height too large (%d)\n",
+				      param);
 			return -EINVAL;
 		}
 
-		pix_per_tile = tile_w / fb->format->cpp[0];
-		tile = vc4_state->src_x / pix_per_tile;
-		x_off = vc4_state->src_x % pix_per_tile;
+		if (fb->format->format == DRM_FORMAT_P030) {
+			hvs_format = HVS_PIXEL_FORMAT_YCBCR_10BIT;
+			tiling = SCALER_CTL0_TILING_128B;
+		} else {
+			hvs_format = HVS_PIXEL_FORMAT_H264;
+
+			switch (base_format_mod) {
+			case DRM_FORMAT_MOD_BROADCOM_SAND64:
+				tiling = SCALER_CTL0_TILING_64B;
+				break;
+			case DRM_FORMAT_MOD_BROADCOM_SAND128:
+				tiling = SCALER_CTL0_TILING_128B;
+				break;
+			case DRM_FORMAT_MOD_BROADCOM_SAND256:
+				tiling = SCALER_CTL0_TILING_256B_OR_T;
+				break;
+			default:
+				return -EINVAL;
+			}
+		}
 
 		/* Adjust the base pointer to the first pixel to be scanned
 		 * out.
+		 *
+		 * For P030, y_ptr [31:4] is the 128bit word for the start pixel
+		 * y_ptr [3:0] is the pixel (0-11) contained within that 128bit
+		 * word that should be taken as the first pixel.
+		 * Ditto uv_ptr [31:4] vs [3:0], however [3:0] contains the
+		 * element within the 128bit word, eg for pixel 3 the value
+		 * should be 6.
 		 */
 		for (i = 0; i < num_planes; i++) {
+			u32 tile_w, tile, x_off, pix_per_tile;
+
+			if (fb->format->format == DRM_FORMAT_P030) {
+				/*
+				 * Spec says: bits [31:4] of the given address
+				 * should point to the 128-bit word containing
+				 * the desired starting pixel, and bits[3:0]
+				 * should be between 0 and 11, indicating which
+				 * of the 12-pixels in that 128-bit word is the
+				 * first pixel to be used
+				 */
+				u32 remaining_pixels = vc4_state->src_x % 96;
+				u32 aligned = remaining_pixels / 12;
+				u32 last_bits = remaining_pixels % 12;
+
+				x_off = aligned * 16 + last_bits;
+				tile_w = 128;
+				pix_per_tile = 96;
+			} else {
+				switch (base_format_mod) {
+				case DRM_FORMAT_MOD_BROADCOM_SAND64:
+					tile_w = 64;
+					break;
+				case DRM_FORMAT_MOD_BROADCOM_SAND128:
+					tile_w = 128;
+					break;
+				case DRM_FORMAT_MOD_BROADCOM_SAND256:
+					tile_w = 256;
+					break;
+				default:
+					return -EINVAL;
+				}
+				pix_per_tile = tile_w / fb->format->cpp[0];
+				x_off = (vc4_state->src_x % pix_per_tile) /
+					(i ? h_subsample : 1) *
+					fb->format->cpp[i];
+			}
+
+			tile = vc4_state->src_x / pix_per_tile;
+
 			vc4_state->offsets[i] += param * tile_w * tile;
 			vc4_state->offsets[i] += src_y /
 						 (i ? v_subsample : 1) *
 						 tile_w;
-			vc4_state->offsets[i] += x_off /
-						 (i ? h_subsample : 1) *
-						 fb->format->cpp[i];
+			vc4_state->offsets[i] += x_off & ~(i ? 1 : 0);
 		}
 
 		pitch0 = VC4_SET_FIELD(param, SCALER_TILE_HEIGHT);
@@ -960,7 +1050,8 @@ static int vc4_plane_mode_set(struct drm_plane *plane,
 
 	/* Pitch word 1/2 */
 	for (i = 1; i < num_planes; i++) {
-		if (hvs_format != HVS_PIXEL_FORMAT_H264) {
+		if (hvs_format != HVS_PIXEL_FORMAT_H264 &&
+		    hvs_format != HVS_PIXEL_FORMAT_YCBCR_10BIT) {
 			vc4_dlist_write(vc4_state,
 					VC4_SET_FIELD(fb->pitches[i],
 						      SCALER_SRC_PITCH));
@@ -971,9 +1062,20 @@ static int vc4_plane_mode_set(struct drm_plane *plane,
 
 	/* Colorspace conversion words */
 	if (vc4_state->is_yuv) {
-		vc4_dlist_write(vc4_state, SCALER_CSC0_ITR_R_601_5);
-		vc4_dlist_write(vc4_state, SCALER_CSC1_ITR_R_601_5);
-		vc4_dlist_write(vc4_state, SCALER_CSC2_ITR_R_601_5);
+		enum drm_color_encoding color_encoding = state->color_encoding;
+		enum drm_color_range color_range = state->color_range;
+		const u32 *ccm;
+
+		if (color_encoding >= DRM_COLOR_ENCODING_MAX)
+			color_encoding = DRM_COLOR_YCBCR_BT601;
+		if (color_range >= DRM_COLOR_RANGE_MAX)
+			color_range = DRM_COLOR_YCBCR_LIMITED_RANGE;
+
+		ccm = colorspace_coeffs[color_range][color_encoding];
+
+		vc4_dlist_write(vc4_state, ccm[0]);
+		vc4_dlist_write(vc4_state, ccm[1]);
+		vc4_dlist_write(vc4_state, ccm[2]);
 	}
 
 	vc4_state->lbm_offset = 0;
@@ -1320,6 +1422,13 @@ static bool vc4_format_mod_supported(struct drm_plane *plane,
 		default:
 			return false;
 		}
+	case DRM_FORMAT_P030:
+		switch (fourcc_mod_broadcom_mod(modifier)) {
+		case DRM_FORMAT_MOD_BROADCOM_SAND128:
+			return true;
+		default:
+			return false;
+		}
 	case DRM_FORMAT_RGBX1010102:
 	case DRM_FORMAT_BGRX1010102:
 	case DRM_FORMAT_RGBA1010102:
@@ -1352,8 +1461,11 @@ struct drm_plane *vc4_plane_init(struct drm_device *dev,
 	struct drm_plane *plane = NULL;
 	struct vc4_plane *vc4_plane;
 	u32 formats[ARRAY_SIZE(hvs_formats)];
+	int num_formats = 0;
 	int ret = 0;
 	unsigned i;
+	bool hvs5 = of_device_is_compatible(dev->dev->of_node,
+					    "brcm,bcm2711-vc5");
 	static const uint64_t modifiers[] = {
 		DRM_FORMAT_MOD_BROADCOM_VC4_T_TILED,
 		DRM_FORMAT_MOD_BROADCOM_SAND128,
@@ -1368,13 +1480,17 @@ struct drm_plane *vc4_plane_init(struct drm_device *dev,
 	if (!vc4_plane)
 		return ERR_PTR(-ENOMEM);
 
-	for (i = 0; i < ARRAY_SIZE(hvs_formats); i++)
-		formats[i] = hvs_formats[i].drm;
+	for (i = 0; i < ARRAY_SIZE(hvs_formats); i++) {
+		if (!hvs_formats[i].hvs5_only || hvs5) {
+			formats[num_formats] = hvs_formats[i].drm;
+			num_formats++;
+		}
+	}
 
 	plane = &vc4_plane->base;
 	ret = drm_universal_plane_init(dev, plane, 0,
 				       &vc4_plane_funcs,
-				       formats, ARRAY_SIZE(formats),
+				       formats, num_formats,
 				       modifiers, type, NULL);
 	if (ret)
 		return ERR_PTR(ret);
@@ -1387,6 +1503,15 @@ struct drm_plane *vc4_plane_init(struct drm_device *dev,
 					   DRM_MODE_ROTATE_180 |
 					   DRM_MODE_REFLECT_X |
 					   DRM_MODE_REFLECT_Y);
+
+	drm_plane_create_color_properties(plane,
+					  BIT(DRM_COLOR_YCBCR_BT601) |
+					  BIT(DRM_COLOR_YCBCR_BT709) |
+					  BIT(DRM_COLOR_YCBCR_BT2020),
+					  BIT(DRM_COLOR_YCBCR_LIMITED_RANGE) |
+					  BIT(DRM_COLOR_YCBCR_FULL_RANGE),
+					  DRM_COLOR_YCBCR_BT709,
+					  DRM_COLOR_YCBCR_LIMITED_RANGE);
 
 	return plane;
 }

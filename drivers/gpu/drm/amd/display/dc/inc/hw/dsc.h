@@ -61,6 +61,8 @@ struct dcn_dsc_state {
 	uint32_t dsc_pic_height;
 	uint32_t dsc_slice_bpg_offset;
 	uint32_t dsc_chunk_size;
+	uint32_t dsc_fw_en;
+	uint32_t dsc_opp_source;
 };
 
 
@@ -88,6 +90,7 @@ struct dsc_enc_caps {
 	int32_t max_total_throughput_mps; /* Maximum total throughput with all the slices combined */
 	int32_t max_slice_width;
 	uint32_t bpp_increment_div; /* bpp increment divisor, e.g. if 16, it's 1/16th of a bit */
+	uint32_t edp_sink_max_bits_per_pixel;
 	bool is_dp;
 };
 

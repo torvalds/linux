@@ -788,8 +788,9 @@ static bool dce110_link_encoder_validate_hdmi_output(
 			crtc_timing->pixel_encoding == PIXEL_ENCODING_YCBCR420)
 		return false;
 
-	if (!enc110->base.features.flags.bits.HDMI_6GB_EN &&
-		adjusted_pix_clk_khz >= 300000)
+	if ((!enc110->base.features.flags.bits.HDMI_6GB_EN ||
+			enc110->base.ctx->dc->debug.hdmi20_disable) &&
+			adjusted_pix_clk_khz >= 300000)
 		return false;
 	if (enc110->base.ctx->dc->debug.hdmi20_disable &&
 		crtc_timing->pixel_encoding == PIXEL_ENCODING_YCBCR420)

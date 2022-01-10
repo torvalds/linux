@@ -246,6 +246,9 @@
 #define NV907D_HEAD_SET_CRC_CONTROL_CRC_DURING_SNOOZE                           5:5
 #define NV907D_HEAD_SET_CRC_CONTROL_CRC_DURING_SNOOZE_DISABLE                   (0x00000000)
 #define NV907D_HEAD_SET_CRC_CONTROL_CRC_DURING_SNOOZE_ENABLE                    (0x00000001)
+#define NV907D_HEAD_SET_CRC_CONTROL_WIDE_PIPE_CRC                               6:6
+#define NV907D_HEAD_SET_CRC_CONTROL_WIDE_PIPE_CRC_DISABLE                       (0x00000000)
+#define NV907D_HEAD_SET_CRC_CONTROL_WIDE_PIPE_CRC_ENABLE                        (0x00000001)
 #define NV907D_HEAD_SET_CONTEXT_DMA_CRC(a)                                      (0x00000438 + (a)*0x00000300)
 #define NV907D_HEAD_SET_CONTEXT_DMA_CRC_HANDLE                                  31:0
 #define NV907D_HEAD_SET_OUTPUT_LUT_LO(a)                                        (0x00000448 + (a)*0x00000300)

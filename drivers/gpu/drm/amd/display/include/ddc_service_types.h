@@ -35,6 +35,7 @@
 #define DP_BRANCH_DEVICE_ID_00E04C 0x00E04C
 #define DP_BRANCH_DEVICE_ID_006037 0x006037
 
+#define DP_DEVICE_ID_38EC11 0x38EC11
 enum ddc_result {
 	DDC_RESULT_UNKNOWN = 0,
 	DDC_RESULT_SUCESSFULL,
@@ -116,5 +117,8 @@ struct av_sync_data {
 	uint8_t aud_del_ins2;/* DPCD 0002Ch */
 	uint8_t aud_del_ins3;/* DPCD 0002Dh */
 };
+
+static const uint8_t DP_SINK_DEVICE_STR_ID_1[] = {7, 1, 8, 7, 3, 0};
+static const uint8_t DP_SINK_DEVICE_STR_ID_2[] = {7, 1, 8, 7, 5, 0};
 
 #endif /* __DAL_DDC_SERVICE_TYPES_H__ */
