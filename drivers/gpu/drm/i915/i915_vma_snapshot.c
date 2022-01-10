@@ -3,6 +3,7 @@
  * Copyright © 2021 Intel Corporation
  */
 
+#include "i915_vma_resource.h"
 #include "i915_vma_snapshot.h"
 #include "i915_vma_types.h"
 #include "i915_vma.h"
@@ -35,7 +36,7 @@ void i915_vma_snapshot_init(struct i915_vma_snapshot *vsnap,
 		vsnap->pages_rsgt = i915_refct_sgt_get(vma->obj->mm.rsgt);
 	vsnap->mr = vma->obj->mm.region;
 	kref_init(&vsnap->kref);
-	vsnap->vma_resource = &vma->active;
+	vsnap->vma_resource = i915_vma_get_current_resource(vma);
 	vsnap->onstack = false;
 	vsnap->present = true;
 }
@@ -62,6 +63,7 @@ static void vma_snapshot_release(struct kref *ref)
 		container_of(ref, typeof(*vsnap), kref);
 
 	vsnap->present = false;
+	i915_vma_resource_put(vsnap->vma_resource);
 	if (vsnap->pages_rsgt)
 		i915_refct_sgt_put(vsnap->pages_rsgt);
 	if (!vsnap->onstack)
@@ -109,12 +111,7 @@ void i915_vma_snapshot_put_onstack(struct i915_vma_snapshot *vsnap)
 bool i915_vma_snapshot_resource_pin(struct i915_vma_snapshot *vsnap,
 				    bool *lockdep_cookie)
 {
-	bool pinned = i915_active_acquire_if_busy(vsnap->vma_resource);
-
-	if (pinned)
-		*lockdep_cookie = dma_fence_begin_signalling();
-
-	return pinned;
+	return i915_vma_resource_hold(vsnap->vma_resource, lockdep_cookie);
 }
 
 /**
@@ -128,7 +125,5 @@ bool i915_vma_snapshot_resource_pin(struct i915_vma_snapshot *vsnap,
 void i915_vma_snapshot_resource_unpin(struct i915_vma_snapshot *vsnap,
 				      bool lockdep_cookie)
 {
-	dma_fence_end_signalling(lockdep_cookie);
-
-	return i915_active_release(vsnap->vma_resource);
+	i915_vma_resource_unhold(vsnap->vma_resource, lockdep_cookie);
 }

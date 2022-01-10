@@ -31,10 +31,7 @@ struct sg_table;
  * @pages_rsgt: The refcounted sg_table holding the reference for @pages if any.
  * @mr: The memory region pointed for the pages bound.
  * @kref: Reference for this structure.
- * @vma_resource: FIXME: A means to keep the unbind fence from signaling.
- * Temporarily while we have only sync unbinds, and still use the vma
- * active, we use that. With async unbinding we need a signaling refcount
- * for the unbind fence.
+ * @vma_resource: Pointer to the vma resource representing the vma binding.
  * @page_sizes: The vma GTT page sizes information.
  * @onstack: Whether the structure shouldn't be freed on final put.
  * @present: Whether the structure is present and initialized.
@@ -49,7 +46,7 @@ struct i915_vma_snapshot {
 	struct i915_refct_sgt *pages_rsgt;
 	struct intel_memory_region *mr;
 	struct kref kref;
-	struct i915_active *vma_resource;
+	struct i915_vma_resource *vma_resource;
 	u32 page_sizes;
 	bool onstack:1;
 	bool present:1;

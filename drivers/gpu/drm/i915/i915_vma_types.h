@@ -95,6 +95,8 @@ enum i915_cache_level;
  *
  */
 
+struct i915_vma_resource;
+
 struct intel_remapped_plane_info {
 	/* in gtt pages */
 	u32 offset;
@@ -282,6 +284,9 @@ struct i915_vma {
 	struct list_head evict_link;
 
 	struct list_head closed_link;
+
+	/** The async vma resource. Protected by the vm_mutex */
+	struct i915_vma_resource *resource;
 };
 
 #endif

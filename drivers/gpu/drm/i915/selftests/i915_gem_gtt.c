@@ -32,6 +32,7 @@
 
 #include "i915_random.h"
 #include "i915_selftest.h"
+#include "i915_vma_resource.h"
 
 #include "mock_drm.h"
 #include "mock_gem_device.h"
@@ -1336,6 +1337,33 @@ static int igt_mock_drunk(void *arg)
 	return exercise_mock(ggtt->vm.i915, drunk_hole);
 }
 
+static int reserve_gtt_with_resource(struct i915_vma *vma, u64 offset)
+{
+	struct i915_address_space *vm = vma->vm;
+	struct i915_vma_resource *vma_res;
+	struct drm_i915_gem_object *obj = vma->obj;
+	int err;
+
+	vma_res = i915_vma_resource_alloc();
+	if (IS_ERR(vma_res))
+		return PTR_ERR(vma_res);
+
+	mutex_lock(&vm->mutex);
+	err = i915_gem_gtt_reserve(vm, &vma->node, obj->base.size,
+				   offset,
+				   obj->cache_level,
+				   0);
+	if (!err) {
+		i915_vma_resource_init(vma_res);
+		vma->resource = vma_res;
+	} else {
+		kfree(vma_res);
+	}
+	mutex_unlock(&vm->mutex);
+
+	return err;
+}
+
 static int igt_gtt_reserve(void *arg)
 {
 	struct i915_ggtt *ggtt = arg;
@@ -1370,20 +1398,13 @@ static int igt_gtt_reserve(void *arg)
 		}
 
 		list_add(&obj->st_link, &objects);
-
 		vma = i915_vma_instance(obj, &ggtt->vm, NULL);
 		if (IS_ERR(vma)) {
 			err = PTR_ERR(vma);
 			goto out;
 		}
 
-		mutex_lock(&ggtt->vm.mutex);
-		err = i915_gem_gtt_reserve(&ggtt->vm, &vma->node,
-					   obj->base.size,
-					   total,
-					   obj->cache_level,
-					   0);
-		mutex_unlock(&ggtt->vm.mutex);
+		err = reserve_gtt_with_resource(vma, total);
 		if (err) {
 			pr_err("i915_gem_gtt_reserve (pass 1) failed at %llu/%llu with err=%d\n",
 			       total, ggtt->vm.total, err);
@@ -1429,13 +1450,7 @@ static int igt_gtt_reserve(void *arg)
 			goto out;
 		}
 
-		mutex_lock(&ggtt->vm.mutex);
-		err = i915_gem_gtt_reserve(&ggtt->vm, &vma->node,
-					   obj->base.size,
-					   total,
-					   obj->cache_level,
-					   0);
-		mutex_unlock(&ggtt->vm.mutex);
+		err = reserve_gtt_with_resource(vma, total);
 		if (err) {
 			pr_err("i915_gem_gtt_reserve (pass 2) failed at %llu/%llu with err=%d\n",
 			       total, ggtt->vm.total, err);
@@ -1476,13 +1491,7 @@ static int igt_gtt_reserve(void *arg)
 					   2 * I915_GTT_PAGE_SIZE,
 					   I915_GTT_MIN_ALIGNMENT);
 
-		mutex_lock(&ggtt->vm.mutex);
-		err = i915_gem_gtt_reserve(&ggtt->vm, &vma->node,
-					   obj->base.size,
-					   offset,
-					   obj->cache_level,
-					   0);
-		mutex_unlock(&ggtt->vm.mutex);
+		err = reserve_gtt_with_resource(vma, offset);
 		if (err) {
 			pr_err("i915_gem_gtt_reserve (pass 3) failed at %llu/%llu with err=%d\n",
 			       total, ggtt->vm.total, err);
@@ -1506,6 +1515,31 @@ out:
 		i915_gem_object_unpin_pages(obj);
 		i915_gem_object_put(obj);
 	}
+	return err;
+}
+
+static int insert_gtt_with_resource(struct i915_vma *vma)
+{
+	struct i915_address_space *vm = vma->vm;
+	struct i915_vma_resource *vma_res;
+	struct drm_i915_gem_object *obj = vma->obj;
+	int err;
+
+	vma_res = i915_vma_resource_alloc();
+	if (IS_ERR(vma_res))
+		return PTR_ERR(vma_res);
+
+	mutex_lock(&vm->mutex);
+	err = i915_gem_gtt_insert(vm, &vma->node, obj->base.size, 0,
+				  obj->cache_level, 0, vm->total, 0);
+	if (!err) {
+		i915_vma_resource_init(vma_res);
+		vma->resource = vma_res;
+	} else {
+		kfree(vma_res);
+	}
+	mutex_unlock(&vm->mutex);
+
 	return err;
 }
 
@@ -1593,12 +1627,7 @@ static int igt_gtt_insert(void *arg)
 			goto out;
 		}
 
-		mutex_lock(&ggtt->vm.mutex);
-		err = i915_gem_gtt_insert(&ggtt->vm, &vma->node,
-					  obj->base.size, 0, obj->cache_level,
-					  0, ggtt->vm.total,
-					  0);
-		mutex_unlock(&ggtt->vm.mutex);
+		err = insert_gtt_with_resource(vma);
 		if (err == -ENOSPC) {
 			/* maxed out the GGTT space */
 			i915_gem_object_put(obj);
@@ -1653,12 +1682,7 @@ static int igt_gtt_insert(void *arg)
 			goto out;
 		}
 
-		mutex_lock(&ggtt->vm.mutex);
-		err = i915_gem_gtt_insert(&ggtt->vm, &vma->node,
-					  obj->base.size, 0, obj->cache_level,
-					  0, ggtt->vm.total,
-					  0);
-		mutex_unlock(&ggtt->vm.mutex);
+		err = insert_gtt_with_resource(vma);
 		if (err) {
 			pr_err("i915_gem_gtt_insert (pass 2) failed at %llu/%llu with err=%d\n",
 			       total, ggtt->vm.total, err);
@@ -1702,12 +1726,7 @@ static int igt_gtt_insert(void *arg)
 			goto out;
 		}
 
-		mutex_lock(&ggtt->vm.mutex);
-		err = i915_gem_gtt_insert(&ggtt->vm, &vma->node,
-					  obj->base.size, 0, obj->cache_level,
-					  0, ggtt->vm.total,
-					  0);
-		mutex_unlock(&ggtt->vm.mutex);
+		err = insert_gtt_with_resource(vma);
 		if (err) {
 			pr_err("i915_gem_gtt_insert (pass 3) failed at %llu/%llu with err=%d\n",
 			       total, ggtt->vm.total, err);

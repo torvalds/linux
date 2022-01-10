@@ -37,6 +37,7 @@
 #include "i915_sw_fence_work.h"
 #include "i915_trace.h"
 #include "i915_vma.h"
+#include "i915_vma_resource.h"
 
 static struct kmem_cache *slab_vmas;
 
@@ -380,6 +381,8 @@ static int i915_vma_verify_bind_complete(struct i915_vma *vma)
  * @cache_level: mapping cache level
  * @flags: flags like global or local mapping
  * @work: preallocated worker for allocating and binding the PTE
+ * @vma_res: pointer to a preallocated vma resource. The resource is either
+ * consumed or freed.
  *
  * DMA addresses are taken from the scatter-gather table of this object (or of
  * this VMA in case of non-default GGTT views) and PTE entries set up.
@@ -388,7 +391,8 @@ static int i915_vma_verify_bind_complete(struct i915_vma *vma)
 int i915_vma_bind(struct i915_vma *vma,
 		  enum i915_cache_level cache_level,
 		  u32 flags,
-		  struct i915_vma_work *work)
+		  struct i915_vma_work *work,
+		  struct i915_vma_resource *vma_res)
 {
 	u32 bind_flags;
 	u32 vma_flags;
@@ -399,11 +403,15 @@ int i915_vma_bind(struct i915_vma *vma,
 
 	if (GEM_DEBUG_WARN_ON(range_overflows(vma->node.start,
 					      vma->node.size,
-					      vma->vm->total)))
+					      vma->vm->total))) {
+		kfree(vma_res);
 		return -ENODEV;
+	}
 
-	if (GEM_DEBUG_WARN_ON(!flags))
+	if (GEM_DEBUG_WARN_ON(!flags)) {
+		kfree(vma_res);
 		return -EINVAL;
+	}
 
 	bind_flags = flags;
 	bind_flags &= I915_VMA_GLOBAL_BIND | I915_VMA_LOCAL_BIND;
@@ -412,11 +420,21 @@ int i915_vma_bind(struct i915_vma *vma,
 	vma_flags &= I915_VMA_GLOBAL_BIND | I915_VMA_LOCAL_BIND;
 
 	bind_flags &= ~vma_flags;
-	if (bind_flags == 0)
+	if (bind_flags == 0) {
+		kfree(vma_res);
 		return 0;
+	}
 
 	GEM_BUG_ON(!atomic_read(&vma->pages_count));
 
+	if (vma->resource || !vma_res) {
+		/* Rebinding with an additional I915_VMA_*_BIND */
+		GEM_WARN_ON(!vma_flags);
+		kfree(vma_res);
+	} else {
+		i915_vma_resource_init(vma_res);
+		vma->resource = vma_res;
+	}
 	trace_i915_vma_bind(vma, bind_flags);
 	if (work && bind_flags & vma->vm->bind_async_flags) {
 		struct dma_fence *prev;
@@ -1224,6 +1242,7 @@ int i915_vma_pin_ww(struct i915_vma *vma, struct i915_gem_ww_ctx *ww,
 {
 	struct i915_vma_work *work = NULL;
 	struct dma_fence *moving = NULL;
+	struct i915_vma_resource *vma_res = NULL;
 	intel_wakeref_t wakeref = 0;
 	unsigned int bound;
 	int err;
@@ -1278,6 +1297,12 @@ int i915_vma_pin_ww(struct i915_vma *vma, struct i915_gem_ww_ctx *ww,
 		}
 	}
 
+	vma_res = i915_vma_resource_alloc();
+	if (IS_ERR(vma_res)) {
+		err = PTR_ERR(vma_res);
+		goto err_fence;
+	}
+
 	/*
 	 * Differentiate between user/kernel vma inside the aliasing-ppgtt.
 	 *
@@ -1298,7 +1323,7 @@ int i915_vma_pin_ww(struct i915_vma *vma, struct i915_gem_ww_ctx *ww,
 	err = mutex_lock_interruptible_nested(&vma->vm->mutex,
 					      !(flags & PIN_GLOBAL));
 	if (err)
-		goto err_fence;
+		goto err_vma_res;
 
 	/* No more allocations allowed now we hold vm->mutex */
 
@@ -1339,7 +1364,8 @@ int i915_vma_pin_ww(struct i915_vma *vma, struct i915_gem_ww_ctx *ww,
 	GEM_BUG_ON(!vma->pages);
 	err = i915_vma_bind(vma,
 			    vma->obj->cache_level,
-			    flags, work);
+			    flags, work, vma_res);
+	vma_res = NULL;
 	if (err)
 		goto err_remove;
 
@@ -1362,6 +1388,8 @@ err_active:
 	i915_active_release(&vma->active);
 err_unlock:
 	mutex_unlock(&vma->vm->mutex);
+err_vma_res:
+	kfree(vma_res);
 err_fence:
 	if (work)
 		dma_fence_work_commit_imm(&work->base);
@@ -1512,6 +1540,7 @@ void i915_vma_release(struct kref *ref)
 	i915_vm_put(vma->vm);
 
 	i915_active_fini(&vma->active);
+	GEM_WARN_ON(vma->resource);
 	i915_vma_free(vma);
 }
 
@@ -1660,6 +1689,8 @@ int _i915_vma_move_to_active(struct i915_vma *vma,
 
 void __i915_vma_evict(struct i915_vma *vma)
 {
+	struct dma_fence *unbind_fence;
+
 	GEM_BUG_ON(i915_vma_is_pinned(vma));
 
 	if (i915_vma_is_map_and_fenceable(vma)) {
@@ -1697,8 +1728,20 @@ void __i915_vma_evict(struct i915_vma *vma)
 	atomic_and(~(I915_VMA_BIND_MASK | I915_VMA_ERROR | I915_VMA_GGTT_WRITE),
 		   &vma->flags);
 
+	unbind_fence = i915_vma_resource_unbind(vma->resource);
+	i915_vma_resource_put(vma->resource);
+	vma->resource = NULL;
+
 	i915_vma_detach(vma);
 	vma_unbind_pages(vma);
+
+	/*
+	 * This uninterruptible wait under the vm mutex is currently
+	 * only ever blocking while the vma is being captured from.
+	 * With async unbinding, this wait here will be removed.
+	 */
+	dma_fence_wait(unbind_fence, false);
+	dma_fence_put(unbind_fence);
 }
 
 int __i915_vma_unbind(struct i915_vma *vma)

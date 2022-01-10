@@ -1411,7 +1411,7 @@ eb_relocate_entry(struct i915_execbuffer *eb,
 			mutex_lock(&vma->vm->mutex);
 			err = i915_vma_bind(target->vma,
 					    target->vma->obj->cache_level,
-					    PIN_GLOBAL, NULL);
+					    PIN_GLOBAL, NULL, NULL);
 			mutex_unlock(&vma->vm->mutex);
 			reloc_cache_remap(&eb->reloc_cache, ev->vma->obj);
 			if (err)

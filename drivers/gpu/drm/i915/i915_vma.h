@@ -37,6 +37,7 @@
 
 #include "i915_active.h"
 #include "i915_request.h"
+#include "i915_vma_resource.h"
 #include "i915_vma_types.h"
 
 struct i915_vma *
@@ -204,7 +205,8 @@ struct i915_vma_work *i915_vma_work(void);
 int i915_vma_bind(struct i915_vma *vma,
 		  enum i915_cache_level cache_level,
 		  u32 flags,
-		  struct i915_vma_work *work);
+		  struct i915_vma_work *work,
+		  struct i915_vma_resource *vma_res);
 
 bool i915_gem_valid_gtt_space(struct i915_vma *vma, unsigned long color);
 bool i915_vma_misplaced(const struct i915_vma *vma,
@@ -426,6 +428,21 @@ static inline int i915_vma_sync(struct i915_vma *vma)
 {
 	/* Wait for the asynchronous bindings and pending GPU reads */
 	return i915_active_wait(&vma->active);
+}
+
+/**
+ * i915_vma_get_current_resource - Get the current resource of the vma
+ * @vma: The vma to get the current resource from.
+ *
+ * It's illegal to call this function if the vma is not bound.
+ *
+ * Return: A refcounted pointer to the current vma resource
+ * of the vma, assuming the vma is bound.
+ */
+static inline struct i915_vma_resource *
+i915_vma_get_current_resource(struct i915_vma *vma)
+{
+	return i915_vma_resource_get(vma->resource);
 }
 
 void i915_vma_module_exit(void);
