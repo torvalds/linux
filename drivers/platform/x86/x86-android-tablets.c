@@ -26,6 +26,7 @@
 #include <linux/string.h>
 /* For gpio_get_desc() which is EXPORT_SYMBOL_GPL() */
 #include "../../gpio/gpiolib.h"
+#include "../../gpio/gpiolib-acpi.h"
 
 /*
  * Helper code to get Linux IRQ numbers given a description of the IRQ source
@@ -47,7 +48,7 @@ struct x86_acpi_irq_data {
 	int polarity; /* ACPI_ACTIVE_HIGH / ACPI_ACTIVE_LOW / ACPI_ACTIVE_BOTH */
 };
 
-static int x86_acpi_irq_helper_gpiochip_find(struct gpio_chip *gc, void *data)
+static int gpiochip_find_match_label(struct gpio_chip *gc, void *data)
 {
 	return gc->label && !strcmp(gc->label, data);
 }
@@ -73,7 +74,7 @@ static int x86_acpi_irq_helper_get(const struct x86_acpi_irq_data *data)
 		return irq;
 	case X86_ACPI_IRQ_TYPE_GPIOINT:
 		/* Like acpi_dev_gpio_irq_get(), but without parsing ACPI resources */
-		chip = gpiochip_find(data->chip, x86_acpi_irq_helper_gpiochip_find);
+		chip = gpiochip_find(data->chip, gpiochip_find_match_label);
 		if (!chip) {
 			pr_err("error cannot find GPIO chip %s\n", data->chip);
 			return -ENODEV;
@@ -143,6 +144,7 @@ struct x86_serdev_info {
 };
 
 struct x86_dev_info {
+	char *invalid_aei_gpiochip;
 	const char * const *modules;
 	struct gpiod_lookup_table **gpiod_lookup_tables;
 	const struct x86_i2c_client_info *i2c_client_info;
@@ -317,6 +319,7 @@ static const struct x86_dev_info asus_me176c_info __initconst = {
 	.serdev_count = ARRAY_SIZE(asus_me176c_serdevs),
 	.gpiod_lookup_tables = asus_me176c_gpios,
 	.modules = bq24190_modules,
+	.invalid_aei_gpiochip = "INT33FC:02",
 };
 
 /* Asus TF103C tablets have an Android factory img with everything hardcoded */
@@ -417,6 +420,7 @@ static const struct x86_dev_info asus_tf103c_info __initconst = {
 	.pdev_count = ARRAY_SIZE(int3496_pdevs),
 	.gpiod_lookup_tables = asus_tf103c_gpios,
 	.modules = bq24190_modules,
+	.invalid_aei_gpiochip = "INT33FC:02",
 };
 
 /*
@@ -795,6 +799,7 @@ static __init int x86_android_tablet_init(void)
 {
 	const struct x86_dev_info *dev_info;
 	const struct dmi_system_id *id;
+	struct gpio_chip *chip;
 	int i, ret = 0;
 
 	id = dmi_first_match(x86_android_tablet_ids);
@@ -802,6 +807,20 @@ static __init int x86_android_tablet_init(void)
 		return -ENODEV;
 
 	dev_info = id->driver_data;
+
+	/*
+	 * The broken DSDTs on these devices often also include broken
+	 * _AEI (ACPI Event Interrupt) handlers, disable these.
+	 */
+	if (dev_info->invalid_aei_gpiochip) {
+		chip = gpiochip_find(dev_info->invalid_aei_gpiochip,
+				     gpiochip_find_match_label);
+		if (!chip) {
+			pr_err("error cannot find GPIO chip %s\n", dev_info->invalid_aei_gpiochip);
+			return -ENODEV;
+		}
+		acpi_gpiochip_free_interrupts(chip);
+	}
 
 	/*
 	 * Since this runs from module_init() it cannot use -EPROBE_DEFER,
