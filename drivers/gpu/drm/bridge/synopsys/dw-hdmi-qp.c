@@ -1388,7 +1388,6 @@ static int dw_hdmi_qp_setup(struct dw_hdmi_qp *hdmi,
 	u8 bytes = 0;
 
 	hdmi->vic = drm_match_cea_mode(mode);
-
 	if (!hdmi->vic)
 		dev_dbg(hdmi->dev, "Non-CEA mode used in HDMI\n");
 	else
@@ -1477,6 +1476,9 @@ static int dw_hdmi_qp_setup(struct dw_hdmi_qp *hdmi,
 	ret = hdmi->phy.ops->init(hdmi, hdmi->phy.data, &hdmi->previous_mode);
 	if (ret)
 		return ret;
+
+	if (hdmi->plat_data->set_grf_cfg)
+		hdmi->plat_data->set_grf_cfg(data);
 
 	if (hdmi->sink_has_audio) {
 		dev_dbg(hdmi->dev, "sink has audio support\n");

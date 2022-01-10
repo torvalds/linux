@@ -227,6 +227,7 @@ struct dw_hdmi_plat_data {
 	int (*get_next_hdr_data)(void *data, struct edid *edid,
 				 struct drm_connector *connector);
 	struct dw_hdmi_link_config *(*get_link_cfg)(void *data);
+	void (*set_grf_cfg)(void *data);
 
 	/* Vendor Property support */
 	const struct dw_hdmi_property_ops *property_ops;
