@@ -1147,6 +1147,10 @@
 	vmmc-supply = <&vcc_3v3_sd_s0>;
 };
 
+&u2phy0_otg {
+	rockchip,typec-vbus-det;
+};
+
 &u2phy1_otg {
 	phy-supply = <&vcc5v0_host>;
 };

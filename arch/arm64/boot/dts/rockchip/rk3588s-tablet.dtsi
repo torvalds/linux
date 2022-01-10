@@ -1168,6 +1168,7 @@
 };
 
 &u2phy0_otg {
+	rockchip,typec-vbus-det;
 	status = "okay";
 };
 

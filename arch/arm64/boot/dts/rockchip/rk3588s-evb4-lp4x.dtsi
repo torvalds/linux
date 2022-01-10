@@ -822,6 +822,10 @@
 	num-cs = <1>;
 };
 
+&u2phy0_otg {
+	rockchip,typec-vbus-det;
+};
+
 &u2phy2_host {
 	phy-supply = <&vcc5v0_host>;
 };

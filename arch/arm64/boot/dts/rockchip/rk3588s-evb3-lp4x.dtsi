@@ -281,6 +281,10 @@
 	status = "okay";
 };
 
+&u2phy0_otg {
+	rockchip,typec-vbus-det;
+};
+
 &u2phy2 {
 	status = "disabled";
 };
