@@ -164,7 +164,7 @@ static int tegra210_mvc_put_mute(struct snd_kcontrol *kcontrol,
 	if (err < 0)
 		goto end;
 
-	return 1;
+	err = 1;
 
 end:
 	pm_runtime_put(cmpnt->dev);
@@ -236,7 +236,7 @@ static int tegra210_mvc_put_vol(struct snd_kcontrol *kcontrol,
 			   TEGRA210_MVC_VOLUME_SWITCH_MASK,
 			   TEGRA210_MVC_VOLUME_SWITCH_TRIGGER);
 
-	return 1;
+	err = 1;
 
 end:
 	pm_runtime_put(cmpnt->dev);
@@ -639,8 +639,8 @@ static int tegra210_mvc_platform_remove(struct platform_device *pdev)
 static const struct dev_pm_ops tegra210_mvc_pm_ops = {
 	SET_RUNTIME_PM_OPS(tegra210_mvc_runtime_suspend,
 			   tegra210_mvc_runtime_resume, NULL)
-	SET_LATE_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
-				     pm_runtime_force_resume)
+	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
+				pm_runtime_force_resume)
 };
 
 static struct platform_driver tegra210_mvc_driver = {

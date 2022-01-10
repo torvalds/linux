@@ -21,6 +21,7 @@ $(KERNEL_INCLUDE):
 
 $(objdir)%.o: %.c $(KERNEL_INCLUDE)
 	$(ECHO) "  CC      " $(subst $(OUTPUT),,$@)
+	$(QUIET) $(MKDIR) -p $(objdir) 2>/dev/null
 	$(QUIET) $(CC) -c $(CFLAGS) -o $@ $<
 
 all: $(OUTPUT)$(TOOL)

@@ -590,8 +590,8 @@ int decode_ntlmssp_challenge(char *bcc_ptr, int blob_len,
 {
 	unsigned int tioffset; /* challenge message target info area */
 	unsigned int tilen; /* challenge message target info area length  */
-
 	CHALLENGE_MESSAGE *pblob = (CHALLENGE_MESSAGE *)bcc_ptr;
+	__u32 server_flags;
 
 	if (blob_len < sizeof(CHALLENGE_MESSAGE)) {
 		cifs_dbg(VFS, "challenge blob len %d too small\n", blob_len);
@@ -609,12 +609,37 @@ int decode_ntlmssp_challenge(char *bcc_ptr, int blob_len,
 		return -EINVAL;
 	}
 
+	server_flags = le32_to_cpu(pblob->NegotiateFlags);
+	cifs_dbg(FYI, "%s: negotiate=0x%08x challenge=0x%08x\n", __func__,
+		 ses->ntlmssp->client_flags, server_flags);
+
+	if ((ses->ntlmssp->client_flags & (NTLMSSP_NEGOTIATE_SEAL | NTLMSSP_NEGOTIATE_SIGN)) &&
+	    (!(server_flags & NTLMSSP_NEGOTIATE_56) && !(server_flags & NTLMSSP_NEGOTIATE_128))) {
+		cifs_dbg(VFS, "%s: requested signing/encryption but server did not return either 56-bit or 128-bit session key size\n",
+			 __func__);
+		return -EINVAL;
+	}
+	if (!(server_flags & NTLMSSP_NEGOTIATE_NTLM) && !(server_flags & NTLMSSP_NEGOTIATE_EXTENDED_SEC)) {
+		cifs_dbg(VFS, "%s: server does not seem to support either NTLMv1 or NTLMv2\n", __func__);
+		return -EINVAL;
+	}
+	if (ses->server->sign && !(server_flags & NTLMSSP_NEGOTIATE_SIGN)) {
+		cifs_dbg(VFS, "%s: forced packet signing but server does not seem to support it\n",
+			 __func__);
+		return -EOPNOTSUPP;
+	}
+	if ((ses->ntlmssp->client_flags & NTLMSSP_NEGOTIATE_KEY_XCH) &&
+	    !(server_flags & NTLMSSP_NEGOTIATE_KEY_XCH))
+		pr_warn_once("%s: authentication has been weakened as server does not support key exchange\n",
+			     __func__);
+
+	ses->ntlmssp->server_flags = server_flags;
+
 	memcpy(ses->ntlmssp->cryptkey, pblob->Challenge, CIFS_CRYPTO_KEY_SIZE);
-	/* BB we could decode pblob->NegotiateFlags; some may be useful */
 	/* In particular we can examine sign flags */
 	/* BB spec says that if AvId field of MsvAvTimestamp is populated then
 		we must set the MIC field of the AUTHENTICATE_MESSAGE */
-	ses->ntlmssp->server_flags = le32_to_cpu(pblob->NegotiateFlags);
+
 	tioffset = le32_to_cpu(pblob->TargetInfoArray.BufferOffset);
 	tilen = le16_to_cpu(pblob->TargetInfoArray.Length);
 	if (tioffset > blob_len || tioffset + tilen > blob_len) {
@@ -721,13 +746,13 @@ int build_ntlmssp_negotiate_blob(unsigned char **pbuffer,
 	flags = NTLMSSP_NEGOTIATE_56 |	NTLMSSP_REQUEST_TARGET |
 		NTLMSSP_NEGOTIATE_128 | NTLMSSP_NEGOTIATE_UNICODE |
 		NTLMSSP_NEGOTIATE_NTLM | NTLMSSP_NEGOTIATE_EXTENDED_SEC |
-		NTLMSSP_NEGOTIATE_SEAL;
-	if (server->sign)
-		flags |= NTLMSSP_NEGOTIATE_SIGN;
+		NTLMSSP_NEGOTIATE_ALWAYS_SIGN | NTLMSSP_NEGOTIATE_SEAL |
+		NTLMSSP_NEGOTIATE_SIGN;
 	if (!server->session_estab || ses->ntlmssp->sesskey_per_smbsess)
 		flags |= NTLMSSP_NEGOTIATE_KEY_XCH;
 
 	tmp = *pbuffer + sizeof(NEGOTIATE_MESSAGE);
+	ses->ntlmssp->client_flags = flags;
 	sec_blob->NegotiateFlags = cpu_to_le32(flags);
 
 	/* these fields should be null in negotiate phase MS-NLMP 3.1.5.1.1 */
@@ -779,15 +804,8 @@ int build_ntlmssp_auth_blob(unsigned char **pbuffer,
 	memcpy(sec_blob->Signature, NTLMSSP_SIGNATURE, 8);
 	sec_blob->MessageType = NtLmAuthenticate;
 
-	flags = NTLMSSP_NEGOTIATE_56 |
-		NTLMSSP_REQUEST_TARGET | NTLMSSP_NEGOTIATE_TARGET_INFO |
-		NTLMSSP_NEGOTIATE_128 | NTLMSSP_NEGOTIATE_UNICODE |
-		NTLMSSP_NEGOTIATE_NTLM | NTLMSSP_NEGOTIATE_EXTENDED_SEC |
-		NTLMSSP_NEGOTIATE_SEAL | NTLMSSP_NEGOTIATE_WORKSTATION_SUPPLIED;
-	if (ses->server->sign)
-		flags |= NTLMSSP_NEGOTIATE_SIGN;
-	if (!ses->server->session_estab || ses->ntlmssp->sesskey_per_smbsess)
-		flags |= NTLMSSP_NEGOTIATE_KEY_XCH;
+	flags = ses->ntlmssp->server_flags | NTLMSSP_REQUEST_TARGET |
+		NTLMSSP_NEGOTIATE_TARGET_INFO | NTLMSSP_NEGOTIATE_WORKSTATION_SUPPLIED;
 
 	tmp = *pbuffer + sizeof(AUTHENTICATE_MESSAGE);
 	sec_blob->NegotiateFlags = cpu_to_le32(flags);
@@ -834,9 +852,9 @@ int build_ntlmssp_auth_blob(unsigned char **pbuffer,
 				      *pbuffer, &tmp,
 				      nls_cp);
 
-	if (((ses->ntlmssp->server_flags & NTLMSSP_NEGOTIATE_KEY_XCH) ||
-		(ses->ntlmssp->server_flags & NTLMSSP_NEGOTIATE_EXTENDED_SEC))
-			&& !calc_seckey(ses)) {
+	if ((ses->ntlmssp->server_flags & NTLMSSP_NEGOTIATE_KEY_XCH) &&
+	    (!ses->server->session_estab || ses->ntlmssp->sesskey_per_smbsess) &&
+	    !calc_seckey(ses)) {
 		memcpy(tmp, ses->ntlmssp->ciphertext, CIFS_CPHTXT_SIZE);
 		sec_blob->SessionKey.BufferOffset = cpu_to_le32(tmp - *pbuffer);
 		sec_blob->SessionKey.Length = cpu_to_le16(CIFS_CPHTXT_SIZE);
