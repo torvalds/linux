@@ -614,9 +614,15 @@ int acpi_enable_wakeup_device_power(struct acpi_device *dev, int state);
 int acpi_disable_wakeup_device_power(struct acpi_device *dev);
 
 #ifdef CONFIG_X86
-bool acpi_device_always_present(struct acpi_device *adev);
+bool acpi_device_override_status(struct acpi_device *adev, unsigned long long *status);
+bool acpi_quirk_skip_acpi_ac_and_battery(void);
 #else
-static inline bool acpi_device_always_present(struct acpi_device *adev)
+static inline bool acpi_device_override_status(struct acpi_device *adev,
+					       unsigned long long *status)
+{
+	return false;
+}
+static inline bool acpi_quirk_skip_acpi_ac_and_battery(void)
 {
 	return false;
 }
