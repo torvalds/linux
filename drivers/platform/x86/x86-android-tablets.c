@@ -153,6 +153,8 @@ struct x86_dev_info {
 	int i2c_client_count;
 	int pdev_count;
 	int serdev_count;
+	int (*init)(void);
+	void (*exit)(void);
 };
 
 /* Generic / shared bq24190 settings */
@@ -674,6 +676,7 @@ static struct i2c_client **i2c_clients;
 static struct platform_device **pdevs;
 static struct serdev_device **serdevs;
 static struct gpiod_lookup_table **gpiod_lookup_tables;
+static void (*exit_handler)(void);
 
 static __init int x86_instantiate_i2c_client(const struct x86_dev_info *dev_info,
 					     int idx)
@@ -791,6 +794,9 @@ static void x86_android_tablet_cleanup(void)
 
 	kfree(i2c_clients);
 
+	if (exit_handler)
+		exit_handler();
+
 	for (i = 0; gpiod_lookup_tables && gpiod_lookup_tables[i]; i++)
 		gpiod_remove_lookup_table(gpiod_lookup_tables[i]);
 }
@@ -832,6 +838,15 @@ static __init int x86_android_tablet_init(void)
 	gpiod_lookup_tables = dev_info->gpiod_lookup_tables;
 	for (i = 0; gpiod_lookup_tables && gpiod_lookup_tables[i]; i++)
 		gpiod_add_lookup_table(gpiod_lookup_tables[i]);
+
+	if (dev_info->init) {
+		ret = dev_info->init();
+		if (ret < 0) {
+			x86_android_tablet_cleanup();
+			return ret;
+		}
+		exit_handler = dev_info->exit;
+	}
 
 	i2c_clients = kcalloc(dev_info->i2c_client_count, sizeof(*i2c_clients), GFP_KERNEL);
 	if (!i2c_clients) {
