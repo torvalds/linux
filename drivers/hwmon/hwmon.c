@@ -625,7 +625,9 @@ static const int __templates_size[] = {
 int hwmon_notify_event(struct device *dev, enum hwmon_sensor_types type,
 		       u32 attr, int channel)
 {
+	char event[MAX_SYSFS_ATTR_NAME_LENGTH + 5];
 	char sattr[MAX_SYSFS_ATTR_NAME_LENGTH];
+	char *envp[] = { event, NULL };
 	const char * const *templates;
 	const char *template;
 	int base;
@@ -641,8 +643,9 @@ int hwmon_notify_event(struct device *dev, enum hwmon_sensor_types type,
 	base = hwmon_attr_base(type);
 
 	scnprintf(sattr, MAX_SYSFS_ATTR_NAME_LENGTH, template, base + channel);
+	scnprintf(event, sizeof(event), "NAME=%s", sattr);
 	sysfs_notify(&dev->kobj, NULL, sattr);
-	kobject_uevent(&dev->kobj, KOBJ_CHANGE);
+	kobject_uevent_env(&dev->kobj, KOBJ_CHANGE, envp);
 
 	if (type == hwmon_temp)
 		hwmon_thermal_notify(dev, channel);
