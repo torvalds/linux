@@ -318,7 +318,7 @@ static irqreturn_t titsc_irq(int irq, void *dev)
 			/*
 			 * Calculate pressure using formula
 			 * Resistance(touch) = x plate resistance *
-			 * x postion/4096 * ((z2 / z1) - 1)
+			 * x position/4096 * ((z2 / z1) - 1)
 			 */
 			z = z1 - z2;
 			z *= x;
