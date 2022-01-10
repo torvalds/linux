@@ -32,6 +32,7 @@
 #include "i915_drv.h"
 #include "i915_reg.h"
 #include "i915_suspend.h"
+#include "intel_pci_config.h"
 
 static void intel_save_swf(struct drm_i915_private *dev_priv)
 {

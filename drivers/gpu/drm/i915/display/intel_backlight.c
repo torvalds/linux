@@ -13,6 +13,7 @@
 #include "intel_dp_aux_backlight.h"
 #include "intel_dsi_dcs_backlight.h"
 #include "intel_panel.h"
+#include "intel_pci_config.h"
 
 /**
  * scale - scale values from one range to another
