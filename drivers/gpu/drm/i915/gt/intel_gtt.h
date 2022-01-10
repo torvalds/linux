@@ -265,6 +265,9 @@ struct i915_address_space {
 	/* Flags used when creating page-table objects for this vm */
 	unsigned long lmem_pt_obj_flags;
 
+	/* Interval tree for pending unbind vma resources */
+	struct rb_root_cached pending_unbind;
+
 	struct drm_i915_gem_object *
 		(*alloc_pt_dma)(struct i915_address_space *vm, int sz);
 	struct drm_i915_gem_object *

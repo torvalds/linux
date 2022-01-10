@@ -156,10 +156,16 @@ try_again:
 		spin_unlock(&obj->vma.lock);
 
 		if (vma) {
+			bool vm_trylock = !!(flags & I915_GEM_OBJECT_UNBIND_VM_TRYLOCK);
 			ret = -EBUSY;
-			if (flags & I915_GEM_OBJECT_UNBIND_ACTIVE ||
-			    !i915_vma_is_active(vma)) {
-				if (flags & I915_GEM_OBJECT_UNBIND_VM_TRYLOCK) {
+			if (flags & I915_GEM_OBJECT_UNBIND_ASYNC) {
+				assert_object_held(vma->obj);
+				ret = i915_vma_unbind_async(vma, vm_trylock);
+			}
+
+			if (ret == -EBUSY && (flags & I915_GEM_OBJECT_UNBIND_ACTIVE ||
+					      !i915_vma_is_active(vma))) {
+				if (vm_trylock) {
 					if (mutex_trylock(&vma->vm->mutex)) {
 						ret = __i915_vma_unbind(vma);
 						mutex_unlock(&vma->vm->mutex);

@@ -160,6 +160,9 @@ static void __i915_vm_release(struct work_struct *work)
 	struct i915_address_space *vm =
 		container_of(work, struct i915_address_space, release_work);
 
+	/* Synchronize async unbinds. */
+	i915_vma_resource_bind_dep_sync_all(vm);
+
 	vm->cleanup(vm);
 	i915_address_space_fini(vm);
 
@@ -188,6 +191,7 @@ void i915_address_space_init(struct i915_address_space *vm, int subclass)
 	if (!kref_read(&vm->resv_ref))
 		kref_init(&vm->resv_ref);
 
+	vm->pending_unbind = RB_ROOT_CACHED;
 	INIT_WORK(&vm->release_work, __i915_vm_release);
 	atomic_set(&vm->open, 1);
 

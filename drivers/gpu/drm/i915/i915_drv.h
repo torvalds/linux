@@ -1878,6 +1878,7 @@ int i915_gem_object_unbind(struct drm_i915_gem_object *obj,
 #define I915_GEM_OBJECT_UNBIND_BARRIER BIT(1)
 #define I915_GEM_OBJECT_UNBIND_TEST BIT(2)
 #define I915_GEM_OBJECT_UNBIND_VM_TRYLOCK BIT(3)
+#define I915_GEM_OBJECT_UNBIND_ASYNC BIT(4)
 
 void i915_gem_runtime_suspend(struct drm_i915_private *dev_priv);
 
