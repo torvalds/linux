@@ -993,6 +993,13 @@ S:	Supported
 T:	git https://gitlab.freedesktop.org/agd5f/linux.git
 F:	drivers/gpu/drm/amd/pm/
 
+AMD PSTATE DRIVER
+M:	Huang Rui <ray.huang@amd.com>
+L:	linux-pm@vger.kernel.org
+S:	Supported
+F:	Documentation/admin-guide/pm/amd-pstate.rst
+F:	drivers/cpufreq/amd-pstate*
+
 AMD PTDMA DRIVER
 M:	Sanjay R Mehta <sanju.mehta@amd.com>
 L:	dmaengine@vger.kernel.org
