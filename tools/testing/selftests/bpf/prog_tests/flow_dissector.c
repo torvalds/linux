@@ -457,7 +457,7 @@ static int init_prog_array(struct bpf_object *obj, struct bpf_map *prog_array)
 	if (map_fd < 0)
 		return -1;
 
-	for (i = 0; i < bpf_map__def(prog_array)->max_entries; i++) {
+	for (i = 0; i < bpf_map__max_entries(prog_array); i++) {
 		snprintf(prog_name, sizeof(prog_name), "flow_dissector_%d", i);
 
 		prog = bpf_object__find_program_by_name(obj, prog_name);
