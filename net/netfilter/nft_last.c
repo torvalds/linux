@@ -106,7 +106,7 @@ static int nft_last_clone(struct nft_expr *dst, const struct nft_expr *src)
 	struct nft_last_priv *priv_dst = nft_expr_priv(dst);
 
 	priv_dst->last = kzalloc(sizeof(*priv_dst->last), GFP_ATOMIC);
-	if (priv_dst->last)
+	if (!priv_dst->last)
 		return -ENOMEM;
 
 	return 0;

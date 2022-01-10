@@ -145,7 +145,7 @@ static int nft_limit_clone(struct nft_limit_priv *priv_dst,
 	priv_dst->invert = priv_src->invert;
 
 	priv_dst->limit = kmalloc(sizeof(*priv_dst->limit), GFP_ATOMIC);
-	if (priv_dst->limit)
+	if (!priv_dst->limit)
 		return -ENOMEM;
 
 	spin_lock_init(&priv_dst->limit->lock);
