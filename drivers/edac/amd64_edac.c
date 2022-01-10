@@ -2925,6 +2925,26 @@ static struct amd64_family_type family_types[] = {
 			.dbam_to_cs		= f17_addr_mask_to_cs_size,
 		}
 	},
+	[F19_M10H_CPUS] = {
+		.ctl_name = "F19h_M10h",
+		.f0_id = PCI_DEVICE_ID_AMD_19H_M10H_DF_F0,
+		.f6_id = PCI_DEVICE_ID_AMD_19H_M10H_DF_F6,
+		.max_mcs = 12,
+		.ops = {
+			.early_channel_count	= f17_early_channel_count,
+			.dbam_to_cs		= f17_addr_mask_to_cs_size,
+		}
+	},
+	[F19_M50H_CPUS] = {
+		.ctl_name = "F19h_M50h",
+		.f0_id = PCI_DEVICE_ID_AMD_19H_M50H_DF_F0,
+		.f6_id = PCI_DEVICE_ID_AMD_19H_M50H_DF_F6,
+		.max_mcs = 2,
+		.ops = {
+			.early_channel_count	= f17_early_channel_count,
+			.dbam_to_cs		= f17_addr_mask_to_cs_size,
+		}
+	},
 };
 
 /*
@@ -3962,10 +3982,24 @@ static struct amd64_family_type *per_family_init(struct amd64_pvt *pvt)
 		break;
 
 	case 0x19:
-		if (pvt->model >= 0x20 && pvt->model <= 0x2f) {
+		if (pvt->model >= 0x10 && pvt->model <= 0x1f) {
+			fam_type = &family_types[F19_M10H_CPUS];
+			pvt->ops = &family_types[F19_M10H_CPUS].ops;
+			break;
+		} else if (pvt->model >= 0x20 && pvt->model <= 0x2f) {
 			fam_type = &family_types[F17_M70H_CPUS];
 			pvt->ops = &family_types[F17_M70H_CPUS].ops;
 			fam_type->ctl_name = "F19h_M20h";
+			break;
+		} else if (pvt->model >= 0x50 && pvt->model <= 0x5f) {
+			fam_type = &family_types[F19_M50H_CPUS];
+			pvt->ops = &family_types[F19_M50H_CPUS].ops;
+			fam_type->ctl_name = "F19h_M50h";
+			break;
+		} else if (pvt->model >= 0xa0 && pvt->model <= 0xaf) {
+			fam_type = &family_types[F19_M10H_CPUS];
+			pvt->ops = &family_types[F19_M10H_CPUS].ops;
+			fam_type->ctl_name = "F19h_MA0h";
 			break;
 		}
 		fam_type	= &family_types[F19_CPUS];
