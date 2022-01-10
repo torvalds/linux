@@ -950,6 +950,6 @@ static __init int x86_android_tablet_init(void)
 module_init(x86_android_tablet_init);
 module_exit(x86_android_tablet_cleanup);
 
-MODULE_AUTHOR("Hans de Goede <hdegoede@redhat.com");
+MODULE_AUTHOR("Hans de Goede <hdegoede@redhat.com>");
 MODULE_DESCRIPTION("X86 Android tablets DSDT fixups driver");
 MODULE_LICENSE("GPL");
