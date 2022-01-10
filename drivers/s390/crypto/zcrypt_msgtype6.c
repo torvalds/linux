@@ -510,7 +510,8 @@ static int XCRB_msg_to_type6CPRB_msgX(bool userspace, struct ap_message *ap_msg,
 
 static int xcrb_msg_to_type6_ep11cprb_msgx(bool userspace, struct ap_message *ap_msg,
 					   struct ep11_urb *xcRB,
-					   unsigned int *fcode)
+					   unsigned int *fcode,
+					   unsigned int *domain)
 {
 	unsigned int lfmt;
 	static struct type6_hdr static_type6_ep11_hdr = {
@@ -591,6 +592,8 @@ static int xcrb_msg_to_type6_ep11cprb_msgx(bool userspace, struct ap_message *ap
 		ap_msg->flags |= AP_MSG_FLAG_ADMIN;
 	else
 		ap_msg->flags |= AP_MSG_FLAG_USAGE;
+
+	*domain = msg->cprbx.target_id;
 
 	return 0;
 }
@@ -1244,7 +1247,7 @@ out:
  */
 int prep_ep11_ap_msg(bool userspace, struct ep11_urb *xcrb,
 		     struct ap_message *ap_msg,
-		     unsigned int *func_code)
+		     unsigned int *func_code, unsigned int *domain)
 {
 	struct response_type resp_type = {
 		.type = CEXXC_RESPONSE_TYPE_EP11,
@@ -1260,7 +1263,8 @@ int prep_ep11_ap_msg(bool userspace, struct ep11_urb *xcrb,
 	ap_msg->private = kmemdup(&resp_type, sizeof(resp_type), GFP_KERNEL);
 	if (!ap_msg->private)
 		return -ENOMEM;
-	return xcrb_msg_to_type6_ep11cprb_msgx(userspace, ap_msg, xcrb, func_code);
+	return xcrb_msg_to_type6_ep11cprb_msgx(userspace, ap_msg, xcrb,
+					       func_code, domain);
 }
 
 /*

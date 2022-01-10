@@ -99,7 +99,7 @@ int prep_cca_ap_msg(bool userspace, struct ica_xcRB *xcrb,
 		    unsigned int *fc, unsigned short **dom);
 int prep_ep11_ap_msg(bool userspace, struct ep11_urb *xcrb,
 		     struct ap_message *ap_msg,
-		     unsigned int *fc);
+		     unsigned int *fc, unsigned int *dom);
 int prep_rng_ap_msg(struct ap_message *ap_msg,
 		    int *fc, unsigned int *dom);
 

@@ -1021,7 +1021,7 @@ static long _zcrypt_send_ep11_cprb(bool userspace, struct ap_perms *perms,
 	struct ep11_target_dev *targets;
 	unsigned short target_num;
 	unsigned int wgt = 0, pref_wgt = 0;
-	unsigned int func_code;
+	unsigned int func_code, domain;
 	struct ap_message ap_msg;
 	int cpen, qpen, qid = 0, rc = -ENODEV;
 	struct module *mod;
@@ -1058,7 +1058,7 @@ static long _zcrypt_send_ep11_cprb(bool userspace, struct ap_perms *perms,
 		}
 	}
 
-	rc = prep_ep11_ap_msg(userspace, xcrb, &ap_msg, &func_code);
+	rc = prep_ep11_ap_msg(userspace, xcrb, &ap_msg, &func_code, &domain);
 	if (rc)
 		goto out_free;
 
