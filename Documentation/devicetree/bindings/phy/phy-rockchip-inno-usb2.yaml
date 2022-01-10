@@ -147,6 +147,11 @@ properties:
        $ref: /schemas/types.yaml#/definitions/flag
        description: when set, the port will enter low power state when suspend.
 
+     rockchip,typec-vbus-det:
+       $ref: /schemas/types.yaml#/definitions/flag
+       description: when set, check the vbus status from grf con for Type-C
+         interface. It's used when the vbusdet pin is always pulled up.
+
     required:
       - "#phy-cells"
       - interrupts
