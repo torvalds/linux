@@ -508,6 +508,22 @@
 		};
 	};
 
+	timer@3010000 {
+		compatible = "nvidia,tegra186-timer";
+		reg = <0x0 0x03010000 0x0 0x000e0000>;
+		interrupts = <GIC_SPI 0 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 1 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 2 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 3 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 4 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 5 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 6 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 7 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 8 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 9 IRQ_TYPE_LEVEL_HIGH>;
+		status = "disabled";
+	};
+
 	uarta: serial@3100000 {
 		compatible = "nvidia,tegra186-uart", "nvidia,tegra20-uart";
 		reg = <0x0 0x03100000 0x0 0x40>;
@@ -569,7 +585,7 @@
 	};
 
 	gen1_i2c: i2c@3160000 {
-		compatible = "nvidia,tegra186-i2c", "nvidia,tegra210-i2c";
+		compatible = "nvidia,tegra186-i2c";
 		reg = <0x0 0x03160000 0x0 0x10000>;
 		interrupts = <GIC_SPI 25 IRQ_TYPE_LEVEL_HIGH>;
 		#address-cells = <1>;
@@ -582,7 +598,7 @@
 	};
 
 	cam_i2c: i2c@3180000 {
-		compatible = "nvidia,tegra186-i2c", "nvidia,tegra210-i2c";
+		compatible = "nvidia,tegra186-i2c";
 		reg = <0x0 0x03180000 0x0 0x10000>;
 		interrupts = <GIC_SPI 27 IRQ_TYPE_LEVEL_HIGH>;
 		#address-cells = <1>;
@@ -596,7 +612,7 @@
 
 	/* shares pads with dpaux1 */
 	dp_aux_ch1_i2c: i2c@3190000 {
-		compatible = "nvidia,tegra186-i2c", "nvidia,tegra210-i2c";
+		compatible = "nvidia,tegra186-i2c";
 		reg = <0x0 0x03190000 0x0 0x10000>;
 		interrupts = <GIC_SPI 28 IRQ_TYPE_LEVEL_HIGH>;
 		#address-cells = <1>;
@@ -613,7 +629,7 @@
 
 	/* controlled by BPMP, should not be enabled */
 	pwr_i2c: i2c@31a0000 {
-		compatible = "nvidia,tegra186-i2c", "nvidia,tegra210-i2c";
+		compatible = "nvidia,tegra186-i2c";
 		reg = <0x0 0x031a0000 0x0 0x10000>;
 		interrupts = <GIC_SPI 29 IRQ_TYPE_LEVEL_HIGH>;
 		#address-cells = <1>;
@@ -627,7 +643,7 @@
 
 	/* shares pads with dpaux0 */
 	dp_aux_ch0_i2c: i2c@31b0000 {
-		compatible = "nvidia,tegra186-i2c", "nvidia,tegra210-i2c";
+		compatible = "nvidia,tegra186-i2c";
 		reg = <0x0 0x031b0000 0x0 0x10000>;
 		interrupts = <GIC_SPI 30 IRQ_TYPE_LEVEL_HIGH>;
 		#address-cells = <1>;
@@ -643,7 +659,7 @@
 	};
 
 	gen7_i2c: i2c@31c0000 {
-		compatible = "nvidia,tegra186-i2c", "nvidia,tegra210-i2c";
+		compatible = "nvidia,tegra186-i2c";
 		reg = <0x0 0x031c0000 0x0 0x10000>;
 		interrupts = <GIC_SPI 31 IRQ_TYPE_LEVEL_HIGH>;
 		#address-cells = <1>;
@@ -656,7 +672,7 @@
 	};
 
 	gen9_i2c: i2c@31e0000 {
-		compatible = "nvidia,tegra186-i2c", "nvidia,tegra210-i2c";
+		compatible = "nvidia,tegra186-i2c";
 		reg = <0x0 0x031e0000 0x0 0x10000>;
 		interrupts = <GIC_SPI 33 IRQ_TYPE_LEVEL_HIGH>;
 		#address-cells = <1>;
@@ -1073,7 +1089,7 @@
 	};
 
 	gen2_i2c: i2c@c240000 {
-		compatible = "nvidia,tegra186-i2c", "nvidia,tegra210-i2c";
+		compatible = "nvidia,tegra186-i2c";
 		reg = <0x0 0x0c240000 0x0 0x10000>;
 		interrupts = <GIC_SPI 26 IRQ_TYPE_LEVEL_HIGH>;
 		#address-cells = <1>;
@@ -1086,7 +1102,7 @@
 	};
 
 	gen8_i2c: i2c@c250000 {
-		compatible = "nvidia,tegra186-i2c", "nvidia,tegra210-i2c";
+		compatible = "nvidia,tegra186-i2c";
 		reg = <0x0 0x0c250000 0x0 0x10000>;
 		interrupts = <GIC_SPI 32 IRQ_TYPE_LEVEL_HIGH>;
 		#address-cells = <1>;
@@ -1199,7 +1215,7 @@
 
 	ccplex@e000000 {
 		compatible = "nvidia,tegra186-ccplex-cluster";
-		reg = <0x0 0x0e000000 0x0 0x3fffff>;
+		reg = <0x0 0x0e000000 0x0 0x400000>;
 
 		nvidia,bpmp = <&bpmp>;
 	};
@@ -1538,6 +1554,21 @@
 			iommus = <&smmu TEGRA186_SID_VIC>;
 		};
 
+		nvjpg@15380000 {
+			compatible = "nvidia,tegra186-nvjpg";
+			reg = <0x15380000 0x40000>;
+			clocks = <&bpmp TEGRA186_CLK_NVJPG>;
+			clock-names = "nvjpg";
+			resets = <&bpmp TEGRA186_RESET_NVJPG>;
+			reset-names = "nvjpg";
+
+			power-domains = <&bpmp TEGRA186_POWER_DOMAIN_NVJPG>;
+			interconnects = <&mc TEGRA186_MEMORY_CLIENT_NVJPGSRD &emc>,
+					<&mc TEGRA186_MEMORY_CLIENT_NVJPGSWR &emc>;
+			interconnect-names = "dma-mem", "write";
+			iommus = <&smmu TEGRA186_SID_NVJPG>;
+		};
+
 		dsib: dsi@15400000 {
 			compatible = "nvidia,tegra186-dsi";
 			reg = <0x15400000 0x10000>;
@@ -1567,6 +1598,21 @@
 					<&mc TEGRA186_MEMORY_CLIENT_NVDECSWR &emc>;
 			interconnect-names = "dma-mem", "read-1", "write";
 			iommus = <&smmu TEGRA186_SID_NVDEC>;
+		};
+
+		nvenc@154c0000 {
+			compatible = "nvidia,tegra186-nvenc";
+			reg = <0x154c0000 0x40000>;
+			clocks = <&bpmp TEGRA186_CLK_NVENC>;
+			clock-names = "nvenc";
+			resets = <&bpmp TEGRA186_RESET_NVENC>;
+			reset-names = "nvenc";
+
+			power-domains = <&bpmp TEGRA186_POWER_DOMAIN_MPE>;
+			interconnects = <&mc TEGRA186_MEMORY_CLIENT_NVENCSRD &emc>,
+					<&mc TEGRA186_MEMORY_CLIENT_NVENCSWR &emc>;
+			interconnect-names = "dma-mem", "write";
+			iommus = <&smmu TEGRA186_SID_NVENC>;
 		};
 
 		sor0: sor@15540000 {
@@ -1771,7 +1817,7 @@
 		iommus = <&smmu TEGRA186_SID_BPMP>;
 		mboxes = <&hsp_top0 TEGRA_HSP_MBOX_TYPE_DB
 				    TEGRA_HSP_DB_MASTER_BPMP>;
-		shmem = <&cpu_bpmp_tx &cpu_bpmp_rx>;
+		shmem = <&cpu_bpmp_tx>, <&cpu_bpmp_rx>;
 		#clock-cells = <1>;
 		#reset-cells = <1>;
 		#power-domain-cells = <1>;
@@ -1930,12 +1976,12 @@
 	};
 
 	thermal-zones {
-		a57 {
+		/* Cortex-A57 cluster */
+		cpu-thermal {
 			polling-delay = <0>;
 			polling-delay-passive = <1000>;
 
-			thermal-sensors =
-				<&bpmp_thermal TEGRA186_BPMP_THERMAL_ZONE_CPU>;
+			thermal-sensors = <&bpmp_thermal TEGRA186_BPMP_THERMAL_ZONE_CPU>;
 
 			trips {
 				critical {
@@ -1949,12 +1995,12 @@
 			};
 		};
 
-		denver {
+		/* Denver cluster */
+		aux-thermal {
 			polling-delay = <0>;
 			polling-delay-passive = <1000>;
 
-			thermal-sensors =
-				<&bpmp_thermal TEGRA186_BPMP_THERMAL_ZONE_AUX>;
+			thermal-sensors = <&bpmp_thermal TEGRA186_BPMP_THERMAL_ZONE_AUX>;
 
 			trips {
 				critical {
@@ -1968,12 +2014,11 @@
 			};
 		};
 
-		gpu {
+		gpu-thermal {
 			polling-delay = <0>;
 			polling-delay-passive = <1000>;
 
-			thermal-sensors =
-				<&bpmp_thermal TEGRA186_BPMP_THERMAL_ZONE_GPU>;
+			thermal-sensors = <&bpmp_thermal TEGRA186_BPMP_THERMAL_ZONE_GPU>;
 
 			trips {
 				critical {
@@ -1987,12 +2032,11 @@
 			};
 		};
 
-		pll {
+		pll-thermal {
 			polling-delay = <0>;
 			polling-delay-passive = <1000>;
 
-			thermal-sensors =
-				<&bpmp_thermal TEGRA186_BPMP_THERMAL_ZONE_PLLX>;
+			thermal-sensors = <&bpmp_thermal TEGRA186_BPMP_THERMAL_ZONE_PLLX>;
 
 			trips {
 				critical {
@@ -2006,12 +2050,11 @@
 			};
 		};
 
-		always_on {
+		ao-thermal {
 			polling-delay = <0>;
 			polling-delay-passive = <1000>;
 
-			thermal-sensors =
-				<&bpmp_thermal TEGRA186_BPMP_THERMAL_ZONE_AO>;
+			thermal-sensors = <&bpmp_thermal TEGRA186_BPMP_THERMAL_ZONE_AO>;
 
 			trips {
 				critical {

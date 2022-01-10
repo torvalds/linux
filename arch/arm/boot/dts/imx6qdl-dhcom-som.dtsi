@@ -132,14 +132,15 @@
 		#size-cells = <0>;
 
 		ethphy0: ethernet-phy@0 { /* SMSC LAN8710Ai */
-			compatible = "ethernet-phy-ieee802.3-c22";
+			compatible = "ethernet-phy-id0007.c0f0",
+				     "ethernet-phy-ieee802.3-c22";
 			interrupt-parent = <&gpio4>;
 			interrupts = <15 IRQ_TYPE_LEVEL_LOW>;
 			pinctrl-0 = <&pinctrl_ethphy0>;
 			pinctrl-names = "default";
 			reg = <0>;
-			reset-assert-us = <1000>;
-			reset-deassert-us = <1000>;
+			reset-assert-us = <500>;
+			reset-deassert-us = <500>;
 			reset-gpios = <&gpio5 0 GPIO_ACTIVE_LOW>;
 			smsc,disable-energy-detect; /* Make plugin detection reliable */
 		};
@@ -728,6 +729,7 @@
 	pinctrl_usbh1: usbh1-grp {
 		fsl,pins = <
 			MX6QDL_PAD_EIM_D31__GPIO3_IO31		0x120b0
+			MX6QDL_PAD_EIM_D30__USB_H1_OC		0x1b0b1
 		>;
 	};
 
