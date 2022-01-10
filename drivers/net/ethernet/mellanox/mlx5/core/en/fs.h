@@ -20,6 +20,7 @@ struct mlx5e_tc_table {
 	 * which is the nic tc root table.
 	 */
 	struct mutex			t_lock;
+	struct mlx5e_priv		*priv;
 	struct mlx5_flow_table		*t;
 	struct mlx5_flow_table		*miss_t;
 	struct mlx5_fs_chains           *chains;
@@ -169,7 +170,7 @@ struct mlx5e_flow_steering {
 #ifdef CONFIG_MLX5_EN_RXNFC
 	struct mlx5e_ethtool_steering   ethtool;
 #endif
-	struct mlx5e_tc_table           tc;
+	struct mlx5e_tc_table           *tc;
 	struct mlx5e_promisc_table      promisc;
 	struct mlx5e_vlan_table         *vlan;
 	struct mlx5e_l2_table           l2;

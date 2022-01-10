@@ -11,7 +11,7 @@
 
 #define MLX5E_TC_MAX_SPLITS 1
 
-#define mlx5e_nic_chains(priv) ((priv)->fs.tc.chains)
+#define mlx5e_nic_chains(priv) ((priv)->fs.tc->chains)
 
 enum {
 	MLX5E_TC_FLOW_FLAG_INGRESS               = MLX5E_TC_FLAG_INGRESS_BIT,

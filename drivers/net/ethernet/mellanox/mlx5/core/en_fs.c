@@ -1346,12 +1346,21 @@ int mlx5e_fs_init(struct mlx5e_priv *priv)
 {
 	priv->fs.vlan = kvzalloc(sizeof(*priv->fs.vlan), GFP_KERNEL);
 	if (!priv->fs.vlan)
-		return -ENOMEM;
+		goto err;
+	priv->fs.tc = kvzalloc(sizeof(*priv->fs.tc), GFP_KERNEL);
+	if (!priv->fs.tc)
+		goto err_free_vlan;
 	return 0;
+err_free_vlan:
+	kvfree(priv->fs.vlan);
+	priv->fs.vlan = NULL;
+err:
+	return -ENOMEM;
 }
 
 void mlx5e_fs_cleanup(struct mlx5e_priv *priv)
 {
+	kvfree(priv->fs.tc);
 	kvfree(priv->fs.vlan);
 	priv->fs.vlan = NULL;
 }
