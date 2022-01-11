@@ -139,7 +139,7 @@ static int sch_gpio_direction_out(struct gpio_chip *gc, unsigned int gpio_num,
 	/*
 	 * according to the datasheet, writing to the level register has no
 	 * effect when GPIO is programmed as input.
-	 * Actually the the level register is read-only when configured as input.
+	 * Actually the level register is read-only when configured as input.
 	 * Thus presetting the output level before switching to output is _NOT_ possible.
 	 * Hence we set the level after configuring the GPIO as output.
 	 * But we cannot prevent a short low pulse if direction is set to high
