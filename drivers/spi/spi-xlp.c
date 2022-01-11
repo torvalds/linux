@@ -9,7 +9,6 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/spi/spi.h>
-#include <linux/of.h>
 #include <linux/interrupt.h>
 
 /* SPI Configuration Register */
@@ -436,17 +435,10 @@ static const struct acpi_device_id xlp_spi_acpi_match[] = {
 MODULE_DEVICE_TABLE(acpi, xlp_spi_acpi_match);
 #endif
 
-static const struct of_device_id xlp_spi_dt_id[] = {
-	{ .compatible = "netlogic,xlp832-spi" },
-	{ },
-};
-MODULE_DEVICE_TABLE(of, xlp_spi_dt_id);
-
 static struct platform_driver xlp_spi_driver = {
 	.probe	= xlp_spi_probe,
 	.driver = {
 		.name	= "xlp-spi",
-		.of_match_table = xlp_spi_dt_id,
 		.acpi_match_table = ACPI_PTR(xlp_spi_acpi_match),
 	},
 };
