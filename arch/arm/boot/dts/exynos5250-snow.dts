@@ -43,7 +43,7 @@
 };
 
 &pinctrl_0 {
-	max98095_en: max98095-en {
+	max98095_en: max98095-en-pins {
 		samsung,pins = "gpx1-7";
 		samsung,pin-function = <EXYNOS_PIN_FUNC_INPUT>;
 		samsung,pin-pud = <EXYNOS_PIN_PULL_UP>;
