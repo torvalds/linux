@@ -21,17 +21,6 @@ static LIST_HEAD(mdev_head);
 static DEFINE_MUTEX(vdpa_dev_mutex);
 static DEFINE_IDA(vdpa_index_ida);
 
-u8 vdpa_get_status(struct vdpa_device *vdev)
-{
-	u8 status;
-
-	mutex_lock(&vdev->cf_mutex);
-	status = vdev->config->get_status(vdev);
-	mutex_unlock(&vdev->cf_mutex);
-	return status;
-}
-EXPORT_SYMBOL(vdpa_get_status);
-
 void vdpa_set_status(struct vdpa_device *vdev, u8 status)
 {
 	mutex_lock(&vdev->cf_mutex);

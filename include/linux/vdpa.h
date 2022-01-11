@@ -421,7 +421,6 @@ void vdpa_get_config(struct vdpa_device *vdev, unsigned int offset,
 		     void *buf, unsigned int len);
 void vdpa_set_config(struct vdpa_device *dev, unsigned int offset,
 		     const void *buf, unsigned int length);
-u8 vdpa_get_status(struct vdpa_device *vdev);
 void vdpa_set_status(struct vdpa_device *vdev, u8 status);
 
 /**
