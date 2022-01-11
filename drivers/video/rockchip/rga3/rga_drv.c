@@ -50,7 +50,14 @@ int rga_mpi_commit(struct rga_req *cmd, struct rga_mpi_job_t *mpi_job)
 
 	ret = rga_job_mpi_commit(cmd, mpi_job, RGA_BLIT_SYNC);
 	if (ret < 0) {
-		pr_err("%s, commit mpi job failed\n", __func__);
+		if (ret == -ERESTARTSYS) {
+			if (RGA_DEBUG_MSG)
+				pr_err("%s, commit mpi job failed, by a software interrupt.\n",
+				       __func__);
+		} else {
+			pr_err("%s, commit mpi job failed\n", __func__);
+		}
+
 		return ret;
 	}
 
@@ -67,7 +74,14 @@ int rga_kernel_commit(struct rga_req *cmd)
 
 	ret = rga_job_commit(cmd, RGA_BLIT_SYNC);
 	if (ret < 0) {
-		pr_err("%s, commit kernel job failed\n", __func__);
+		if (ret == -ERESTARTSYS) {
+			if (RGA_DEBUG_MSG)
+				pr_err("%s, commit kernel job failed, by a software interrupt.\n",
+				       __func__);
+		} else {
+			pr_err("%s, commit kernel job failed\n", __func__);
+		}
+
 		return ret;
 	}
 
@@ -323,7 +337,13 @@ static long rga_ioctl(struct file *file, uint32_t cmd, unsigned long arg)
 
 		ret = rga_job_commit(&req_rga, cmd);
 		if (ret < 0) {
-			pr_err("rga_job_commit failed\n");
+			if (ret == -ERESTARTSYS) {
+				if (RGA_DEBUG_MSG)
+					pr_err("rga_job_commit failed, by a software interrupt.\n");
+			} else {
+				pr_err("rga_job_commit failed\n");
+			}
+
 			break;
 		}
 
