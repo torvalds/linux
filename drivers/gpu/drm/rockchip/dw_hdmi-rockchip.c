@@ -1283,10 +1283,12 @@ static int rockchip_hdmi_parse_dt(struct rockchip_hdmi *hdmi)
 		return PTR_ERR(hdmi->regmap);
 	}
 
-	hdmi->vo1_regmap = syscon_regmap_lookup_by_phandle(np, "rockchip,vo1_grf");
-	if (IS_ERR(hdmi->vo1_regmap)) {
-		DRM_DEV_ERROR(hdmi->dev, "Unable to get rockchip,vo1_grf\n");
-		return PTR_ERR(hdmi->vo1_regmap);
+	if (hdmi->is_hdmi_qp) {
+		hdmi->vo1_regmap = syscon_regmap_lookup_by_phandle(np, "rockchip,vo1_grf");
+		if (IS_ERR(hdmi->vo1_regmap)) {
+			DRM_DEV_ERROR(hdmi->dev, "Unable to get rockchip,vo1_grf\n");
+			return PTR_ERR(hdmi->vo1_regmap);
+		}
 	}
 
 	hdmi->phyref_clk = devm_clk_get(hdmi->dev, "vpll");
@@ -3125,9 +3127,11 @@ static void dw_hdmi_rockchip_unbind(struct device *dev, struct device *master,
 {
 	struct rockchip_hdmi *hdmi = dev_get_drvdata(dev);
 
-	cancel_delayed_work(&hdmi->work);
-	flush_workqueue(hdmi->workqueue);
-	destroy_workqueue(hdmi->workqueue);
+	if (hdmi->is_hdmi_qp) {
+		cancel_delayed_work(&hdmi->work);
+		flush_workqueue(hdmi->workqueue);
+		destroy_workqueue(hdmi->workqueue);
+	}
 
 	if (hdmi->sub_dev.connector)
 		rockchip_drm_unregister_sub_dev(&hdmi->sub_dev);
@@ -3165,9 +3169,14 @@ static void dw_hdmi_rockchip_shutdown(struct platform_device *pdev)
 
 	if (!hdmi)
 		return;
-	cancel_delayed_work(&hdmi->work);
-	flush_workqueue(hdmi->workqueue);
-	dw_hdmi_suspend(hdmi->hdmi);
+
+	if (hdmi->is_hdmi_qp) {
+		cancel_delayed_work(&hdmi->work);
+		flush_workqueue(hdmi->workqueue);
+		dw_hdmi_qp_suspend(hdmi->dev, hdmi->hdmi_qp);
+	} else {
+		dw_hdmi_suspend(hdmi->hdmi);
+	}
 	pm_runtime_put_sync(&pdev->dev);
 }
 
