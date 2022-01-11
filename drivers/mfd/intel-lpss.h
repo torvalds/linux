@@ -19,6 +19,7 @@ struct software_node;
 
 struct intel_lpss_platform_info {
 	struct resource *mem;
+	bool ignore_resource_conflicts;
 	int irq;
 	unsigned long clk_rate;
 	const char *clk_con_id;
