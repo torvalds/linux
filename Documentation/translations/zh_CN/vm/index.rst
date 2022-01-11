@@ -22,10 +22,10 @@ TODO:待引用文档集被翻译完毕后请及时修改此处）
    :maxdepth: 1
 
    active_mm
+   balance
 
 TODOLIST:
 * arch_pgtable_helpers
-* balance
 * damon/index
 * free_page_reporting
 * frontswap
