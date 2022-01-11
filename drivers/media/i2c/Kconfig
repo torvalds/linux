@@ -759,6 +759,19 @@ config VIDEO_HI846
 	  To compile this driver as a module, choose M here: the
 	  module will be called hi846.
 
+config VIDEO_HI847
+        tristate "Hynix Hi-847 sensor support"
+        depends on I2C && VIDEO_V4L2
+        select MEDIA_CONTROLLER
+        select VIDEO_V4L2_SUBDEV_API
+        select V4L2_FWNODE
+        help
+          This is a Video4Linux2 sensor driver for the Hynix
+          Hi-847 camera.
+
+          To compile this driver as a module, choose M here: the
+          module will be called hi847.
+
 config VIDEO_IMX208
 	tristate "Sony IMX208 sensor support"
 	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
