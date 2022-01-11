@@ -16,9 +16,12 @@ description: |
   controller.
 
   External wake-up interrupts for Samsung S3C/S5P/Exynos SoC pin controller.
-  Only one pin-controller device node can include external wake-up interrupts
-  child node (in other words, only one External wake-up interrupts
+  For S3C24xx, S3C64xx, S5PV210 and Exynos4210 compatible wake-up interrupt
+  controllers, only one pin-controller device node can include external wake-up
+  interrupts child node (in other words, only one External wake-up interrupts
   pin-controller is supported).
+  For newer controllers, multiple pin-controller device node can include
+  external wake-up interrupts child node.
 
   See also Documentation/devicetree/bindings/pinctrl/samsung,pinctrl.yaml for
   additional information and example.
@@ -32,6 +35,8 @@ properties:
       - samsung,s5pv210-wakeup-eint
       - samsung,exynos4210-wakeup-eint
       - samsung,exynos7-wakeup-eint
+      - samsung,exynos850-wakeup-eint
+      - samsung,exynosautov9-wakeup-eint
 
   interrupts:
     description:
@@ -41,7 +46,6 @@ properties:
 
 required:
   - compatible
-  - interrupts
 
 allOf:
   - if:
@@ -56,6 +60,8 @@ allOf:
         interrupts:
           minItems: 6
           maxItems: 6
+      required:
+        - interrupts
 
   - if:
       properties:
@@ -67,6 +73,8 @@ allOf:
         interrupts:
           minItems: 4
           maxItems: 4
+      required:
+        - interrupts
 
   - if:
       properties:
@@ -81,5 +89,18 @@ allOf:
         interrupts:
           minItems: 1
           maxItems: 1
+      required:
+        - interrupts
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - samsung,exynos850-wakeup-eint
+              - samsung,exynosautov9-wakeup-eint
+    then:
+      properties:
+        interrupts: false
 
 additionalProperties: false
