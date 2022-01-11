@@ -32,5 +32,6 @@ prestera_rif_entry_create(struct prestera_switch *sw,
 			  struct prestera_rif_entry_key *k,
 			  u32 tb_id, const unsigned char *addr);
 int prestera_router_hw_init(struct prestera_switch *sw);
+void prestera_router_hw_fini(struct prestera_switch *sw);
 
 #endif /* _PRESTERA_ROUTER_HW_H_ */

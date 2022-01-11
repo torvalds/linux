@@ -29,6 +29,12 @@ int prestera_router_hw_init(struct prestera_switch *sw)
 	return 0;
 }
 
+void prestera_router_hw_fini(struct prestera_switch *sw)
+{
+	WARN_ON(!list_empty(&sw->router->vr_list));
+	WARN_ON(!list_empty(&sw->router->rif_entry_list));
+}
+
 static struct prestera_vr *__prestera_vr_find(struct prestera_switch *sw,
 					      u32 tb_id)
 {

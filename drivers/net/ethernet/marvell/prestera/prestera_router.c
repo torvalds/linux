@@ -168,7 +168,7 @@ int prestera_router_init(struct prestera_switch *sw)
 err_register_inetaddr_notifier:
 	unregister_inetaddr_validator_notifier(&router->inetaddr_valid_nb);
 err_register_inetaddr_validator_notifier:
-	/* prestera_router_hw_fini */
+	prestera_router_hw_fini(sw);
 err_router_lib_init:
 	kfree(sw->router);
 	return err;
@@ -178,7 +178,7 @@ void prestera_router_fini(struct prestera_switch *sw)
 {
 	unregister_inetaddr_notifier(&sw->router->inetaddr_nb);
 	unregister_inetaddr_validator_notifier(&sw->router->inetaddr_valid_nb);
-	/* router_hw_fini */
+	prestera_router_hw_fini(sw);
 	kfree(sw->router);
 	sw->router = NULL;
 }
