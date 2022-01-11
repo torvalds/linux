@@ -55,6 +55,7 @@
 #include "nbio_v7_2.h"
 #include "nbio_v7_7.h"
 #include "hdp_v5_0.h"
+#include "hdp_v5_2.h"
 #include "hdp_v6_0.h"
 #include "nv.h"
 #include "soc21.h"
@@ -2227,6 +2228,9 @@ int amdgpu_discovery_set_ip_blocks(struct amdgpu_device *adev)
 	case IP_VERSION(5, 0, 4):
 	case IP_VERSION(5, 2, 0):
 		adev->hdp.funcs = &hdp_v5_0_funcs;
+		break;
+	case IP_VERSION(5, 2, 1):
+		adev->hdp.funcs = &hdp_v5_2_funcs;
 		break;
 	case IP_VERSION(6, 0, 0):
 	case IP_VERSION(6, 0, 1):
