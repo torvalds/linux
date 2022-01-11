@@ -501,6 +501,93 @@ out:
 	return status;
 }
 
+static int rga2_sgt_to_page_table(struct sg_table *sg,
+				  uint32_t *page_table,
+				  int32_t pageCount,
+				  int32_t use_dma_address)
+{
+	uint32_t i;
+	unsigned long Address;
+	uint32_t mapped_size = 0;
+	uint32_t len;
+	struct scatterlist *sgl = sg->sgl;
+	uint32_t sg_num = 0;
+	uint32_t break_flag = 0;
+
+	do {
+		len = sg_dma_len(sgl) >> PAGE_SHIFT;
+		if (len == 0)
+			len = sgl->length >> PAGE_SHIFT;
+
+		if (use_dma_address)
+			/*
+			 * The fd passed by user space gets sg through
+			 * dma_buf_map_attachment,
+			 * so dma_address can be use here.
+			 */
+			Address = sg_dma_address(sgl);
+		else
+			Address = sg_phys(sgl);
+
+		for (i = 0; i < len; i++) {
+			if (mapped_size + i >= pageCount) {
+				break_flag = 1;
+				break;
+			}
+			page_table[mapped_size + i] =
+				(uint32_t) (Address + (i << PAGE_SHIFT));
+		}
+		if (break_flag)
+			break;
+		mapped_size += len;
+		sg_num += 1;
+	} while ((sgl = sg_next(sgl)) && (mapped_size < pageCount)
+		 && (sg_num < sg->nents));
+
+	return 0;
+}
+
+static int rga2_mmu_set_channel_internal(struct rga_scheduler_t *scheduler,
+					 struct rga_internal_buffer *internal_buffer,
+					 uint32_t *mmu_base,
+					 unsigned long page_count,
+					 uint32_t **virt_flush_base,
+					 uint32_t *virt_flush_count,
+					 int map_flag)
+{
+	int i;
+	struct sg_table *sgt = NULL;
+
+	sgt = rga_mm_lookup_sgt(internal_buffer, scheduler->core);
+	if (sgt == NULL) {
+		pr_err("rga2 cannot get sgt from handle!\n");
+		return -EINVAL;
+	}
+
+	if (internal_buffer->type == RGA_VIRTUAL_ADDRESS) {
+		rga2_sgt_to_page_table(sgt, mmu_base, page_count, false);
+
+		/*
+		 * Some userspace virtual addresses do not have an
+		 * interface for flushing the cache, so it is mandatory
+		 * to flush the cache when the virtual address is used.
+		 */
+		for (i = 0; i < page_count; i++)
+			mmu_base[i] = rga2_dma_map_flush_page(phys_to_page(mmu_base[i]),
+								map_flag,
+								scheduler);
+
+		/* Save pagetable to unmap. */
+		*virt_flush_base = mmu_base;
+		*virt_flush_count = page_count;
+	} else {
+		page_count = (page_count + 15) & (~15);
+		rga2_sgt_to_page_table(sgt, mmu_base, page_count, true);
+	}
+
+	return page_count;
+}
+
 static int rga2_mmu_info_BitBlt_mode(struct rga2_mmu_other_t *reg,
 			struct rga2_req *req, struct rga_job *job)
 {
@@ -511,9 +598,9 @@ static int rga2_mmu_info_BitBlt_mode(struct rga2_mmu_other_t *reg,
 	uint32_t *MMU_Base, *MMU_Base_phys;
 	int ret;
 	int status;
+	int map_flag;
 	uint32_t uv_size, v_size;
 	struct page **pages = NULL;
-	struct sg_table *sgt;
 
 	struct rga_scheduler_t *scheduler = NULL;
 
@@ -594,30 +681,16 @@ static int rga2_mmu_info_BitBlt_mode(struct rga2_mmu_other_t *reg,
 
 	if (Src0MemSize) {
 		if (job->src_buffer) {
-			switch (job->src_buffer->type) {
-			case RGA_DMA_BUFFER:
-				sgt = rga_mm_lookup_sgt(job->src_buffer, scheduler->core);
-				if (sgt == NULL) {
-					pr_err("rga2 cannot get sgt from handle!\n");
-					status = -EFAULT;
-					goto out;
-				}
-				ret = rga2_MapION(sgt, &MMU_Base[0], Src0MemSize);
-
-				break;
-			case RGA_VIRTUAL_ADDRESS:
-				ret = rga2_MapUserMemory(&pages[0], &MMU_Base[0],
-							 Src0Start, Src0PageCount,
-							 0, MMU_MAP_CLEAN, scheduler,
-							 job->src_buffer->current_mm);
-				/* Save pagetable to unmap. */
-				reg->MMU_src0_base = MMU_Base;
-				reg->MMU_src0_count = Src0PageCount;
-
-				break;
-			default:
-				status = -EFAULT;
-				goto out;
+			ret = rga2_mmu_set_channel_internal(scheduler,
+							    job->src_buffer,
+							    MMU_Base,
+							    Src0PageCount,
+							    &reg->MMU_src0_base,
+							    &reg->MMU_src0_count,
+							    MMU_MAP_CLEAN);
+			if (ret < 0) {
+				pr_err("src0 channel set mmu base error!\n");
+				return ret;
 			}
 		} else {
 			if (job->rga_dma_buffer_src0) {
@@ -662,32 +735,16 @@ static int rga2_mmu_info_BitBlt_mode(struct rga2_mmu_other_t *reg,
 
 	if (Src1MemSize) {
 		if (job->src1_buffer) {
-			switch (job->src1_buffer->type) {
-			case RGA_DMA_BUFFER:
-				sgt = rga_mm_lookup_sgt(job->src1_buffer, scheduler->core);
-				if (sgt == NULL) {
-					pr_err("rga2 cannot get sgt from handle!\n");
-					status = -EFAULT;
-					goto out;
-				}
-				ret = rga2_MapION(sgt, MMU_Base + Src0MemSize, Src1MemSize);
-
-				break;
-			case RGA_VIRTUAL_ADDRESS:
-				ret = rga2_MapUserMemory(&pages[0],
-							 MMU_Base + Src0MemSize,
-							 Src1Start, Src1PageCount,
-							 0, MMU_MAP_CLEAN, scheduler,
-							 job->src1_buffer->current_mm);
-
-				/* Save pagetable to unmap. */
-				reg->MMU_src1_base = MMU_Base + Src0MemSize;
-				reg->MMU_src1_count = Src1PageCount;
-
-				break;
-			default:
-				status = -EFAULT;
-				goto out;
+			ret = rga2_mmu_set_channel_internal(scheduler,
+							    job->src1_buffer,
+							    MMU_Base + Src0MemSize,
+							    Src1PageCount,
+							    &reg->MMU_src1_base,
+							    &reg->MMU_src1_count,
+							    MMU_MAP_CLEAN);
+			if (ret < 0) {
+				pr_err("src1 channel set mmu base error!\n");
+				return ret;
 			}
 		} else {
 			if (job->rga_dma_buffer_src1) {
@@ -717,77 +774,38 @@ static int rga2_mmu_info_BitBlt_mode(struct rga2_mmu_other_t *reg,
 	}
 
 	if (DstMemSize) {
+		if (req->alpha_mode_0 != 0 && req->bitblt_mode == 0)
+			/*
+			 * The blend mode of src + dst => dst
+			 * requires clean and invalidate
+			 */
+			map_flag = MMU_MAP_CLEAN | MMU_MAP_INVALID;
+		else
+			map_flag = MMU_MAP_INVALID;
+
 		if (job->dst_buffer) {
-			switch (job->dst_buffer->type) {
-			case RGA_DMA_BUFFER:
-				sgt = rga_mm_lookup_sgt(job->dst_buffer, scheduler->core);
-				if (sgt == NULL) {
-					pr_err("rga2 cannot get sgt from handle!\n");
-					status = -EFAULT;
-					goto out;
-				}
-				ret = rga2_MapION(sgt, MMU_Base + Src0MemSize + Src1MemSize,
-						  DstMemSize);
-
-				break;
-			case RGA_VIRTUAL_ADDRESS:
-				if (req->alpha_mode_0 != 0 && req->bitblt_mode == 0)
-					ret = rga2_MapUserMemory(&pages[0], MMU_Base
-								 + Src0MemSize + Src1MemSize,
-								 DstStart, DstPageCount,
-								 1,
-								 MMU_MAP_CLEAN | MMU_MAP_INVALID,
-								 scheduler,
-								 job->dst_buffer->current_mm);
-				else
-					ret = rga2_MapUserMemory(&pages[0], MMU_Base
-								 + Src0MemSize + Src1MemSize,
-								 DstStart, DstPageCount,
-								 1,
-								 MMU_MAP_INVALID,
-								 scheduler,
-								 job->dst_buffer->current_mm);
-
-				/* Save pagetable to invalid cache and unmap. */
-				reg->MMU_dst_base = MMU_Base + Src0MemSize + Src1MemSize;
-				reg->MMU_dst_count = DstPageCount;
-
-				break;
-			default:
-				status = -EFAULT;
-				goto out;
+			ret = rga2_mmu_set_channel_internal(scheduler,
+							    job->dst_buffer,
+							    MMU_Base + Src0MemSize + Src1MemSize,
+							    DstPageCount,
+							    &reg->MMU_dst_base,
+							    &reg->MMU_dst_count,
+							    map_flag);
+			if (ret < 0) {
+				pr_err("dst channel set mmu base error!\n");
+				return ret;
 			}
-
 		} else {
 			if (job->rga_dma_buffer_dst) {
 				ret = rga2_MapION(job->rga_dma_buffer_dst->sgt,
 						  MMU_Base + Src0MemSize + Src1MemSize,
 						  DstMemSize);
-			} else if (req->alpha_mode_0 != 0 && req->bitblt_mode == 0) {
-				/*
-				 * The blend mode of src + dst => dst
-				 * requires clean and invalidate
-				 */
-				ret = rga2_MapUserMemory(&pages[0], MMU_Base
-							 + Src0MemSize + Src1MemSize,
-							 DstStart, DstPageCount, 1,
-							 MMU_MAP_CLEAN |
-							 MMU_MAP_INVALID, scheduler, job->mm);
-#if CONFIG_ROCKCHIP_RGA_DEBUGGER
-				if (RGA_DEBUG_CHECK_MODE)
-					rga2_user_memory_check(&pages[0],
-							       req->dst.vir_w,
-							       req->dst.vir_h,
-							       req->dst.format, 2);
-#endif
-				/* Save pagetable to invalid cache and unmap. */
-				reg->MMU_dst_base = MMU_Base + Src0MemSize + Src1MemSize;
-				reg->MMU_dst_count = DstPageCount;
 			} else {
-				ret = rga2_MapUserMemory(&pages[0], MMU_Base
-							 + Src0MemSize + Src1MemSize,
+				ret = rga2_MapUserMemory(&pages[0],
+							 MMU_Base + Src0MemSize + Src1MemSize,
 							 DstStart, DstPageCount,
-							 1, MMU_MAP_INVALID, scheduler, job->mm);
+							 1, map_flag,
+							 scheduler, job->mm);
 #if CONFIG_ROCKCHIP_RGA_DEBUGGER
 				if (RGA_DEBUG_CHECK_MODE)
 					rga2_user_memory_check(&pages[0],
