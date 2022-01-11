@@ -879,4 +879,7 @@ source "drivers/leds/flash/Kconfig"
 comment "LED Triggers"
 source "drivers/leds/trigger/Kconfig"
 
+comment "Simple LED drivers"
+source "drivers/leds/simple/Kconfig"
+
 endif # NEW_LEDS
