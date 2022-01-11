@@ -2637,7 +2637,6 @@ static inline bool i915_mmio_reg_valid(i915_reg_t reg)
 	 GEN9_STATE_ACK_TDL1 | GEN9_STATE_ACK_TDL0)
 
 #define GFX_MODE	_MMIO(0x2520)
-#define GFX_MODE_GEN7	_MMIO(0x229c)
 #define RING_MODE_GEN7(base)	_MMIO((base) + 0x29c)
 #define   GFX_RUN_LIST_ENABLE		(1 << 15)
 #define   GFX_INTERRUPT_STEERING	(1 << 14)

@@ -2013,7 +2013,7 @@ rcs_engine_wa_init(struct intel_engine_cs *engine, struct i915_wa_list *wal)
 	if (GRAPHICS_VER(i915) == 7) {
 		/* WaBCSVCSTlbInvalidationMode:ivb,vlv,hsw */
 		wa_masked_en(wal,
-			     GFX_MODE_GEN7,
+			     RING_MODE_GEN7(RENDER_RING_BASE),
 			     GFX_TLB_INVALIDATE_EXPLICIT | GFX_REPLAY_MODE);
 
 		/* WaDisable_RenderCache_OperationalFlush:ivb,vlv,hsw */
