@@ -490,13 +490,13 @@ static int ltc294x_i2c_probe(struct i2c_client *client,
 	if (info->id == LTC2943_ID) {
 		if (prescaler_exp > LTC2943_MAX_PRESCALER_EXP)
 			prescaler_exp = LTC2943_MAX_PRESCALER_EXP;
-		info->Qlsb = ((340 * 50000) / r_sense) /
-				(4096 / (1 << (2*prescaler_exp)));
+		info->Qlsb = ((340 * 50000) / r_sense) >>
+			     (12 - 2*prescaler_exp);
 	} else {
 		if (prescaler_exp > LTC2941_MAX_PRESCALER_EXP)
 			prescaler_exp = LTC2941_MAX_PRESCALER_EXP;
-		info->Qlsb = ((85 * 50000) / r_sense) /
-				(128 / (1 << prescaler_exp));
+		info->Qlsb = ((85 * 50000) / r_sense) >>
+			     (7 - prescaler_exp);
 	}
 
 	/* Read status register to check for LTC2942 */
