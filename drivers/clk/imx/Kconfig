@@ -105,3 +105,10 @@ config CLK_IMX8ULP
 	select MXC_CLK
 	help
 	    Build the driver for i.MX8ULP CCM Clock Driver
+
+config CLK_IMXRT1050
+	tristate "IMXRT1050 CCM Clock Driver"
+	depends on SOC_IMXRT
+	select MXC_CLK
+	help
+	    Build the driver for i.MXRT1050 CCM Clock Driver
