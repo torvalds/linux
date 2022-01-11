@@ -1293,11 +1293,14 @@ out_err:
 		hdev->reset_info.hard_reset_cnt++;
 	} else if (reset_upon_device_release) {
 		dev_err(hdev->dev, "Failed to reset device after user release\n");
+		flags |= HL_DRV_RESET_HARD;
+		flags &= ~HL_DRV_RESET_DEV_RELEASE;
 		hard_reset = true;
 		goto again;
 	} else {
 		dev_err(hdev->dev, "Failed to do soft-reset\n");
 		hdev->reset_info.soft_reset_cnt++;
+		flags |= HL_DRV_RESET_HARD;
 		hard_reset = true;
 		goto again;
 	}
