@@ -24,6 +24,7 @@
 #define PMC_PLLACK		7
 #define PMC_PLLBCK		8
 #define PMC_AUDIOPLLCK		9
+#define PMC_AUDIOPINCK		10
 
 /* SAMA7G5 */
 #define PMC_CPUPLL		(PMC_MAIN + 1)
