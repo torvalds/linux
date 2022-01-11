@@ -152,7 +152,8 @@ struct csid_device {
 	char irq_name[30];
 	struct camss_clock *clock;
 	int nclocks;
-	struct regulator *vdda;
+	struct regulator_bulk_data *supplies;
+	int num_supplies;
 	struct completion reset_complete;
 	struct csid_testgen_config testgen;
 	struct csid_phy_config phy;

@@ -160,7 +160,7 @@ static int csid_set_power(struct v4l2_subdev *sd, int on)
 	struct device *dev = camss->dev;
 	struct vfe_device *vfe = &camss->vfe[csid->id];
 	u32 version = camss->version;
-	int ret;
+	int ret = 0;
 
 	if (on) {
 		if (version == CAMSS_8250 || version == CAMSS_845) {
@@ -173,7 +173,8 @@ static int csid_set_power(struct v4l2_subdev *sd, int on)
 		if (ret < 0)
 			return ret;
 
-		ret = csid->vdda ? regulator_enable(csid->vdda) : 0;
+		ret = regulator_bulk_enable(csid->num_supplies,
+					    csid->supplies);
 		if (ret < 0) {
 			pm_runtime_put_sync(dev);
 			return ret;
@@ -181,16 +182,16 @@ static int csid_set_power(struct v4l2_subdev *sd, int on)
 
 		ret = csid_set_clock_rates(csid);
 		if (ret < 0) {
-			if (csid->vdda)
-				regulator_disable(csid->vdda);
+			regulator_bulk_disable(csid->num_supplies,
+					       csid->supplies);
 			pm_runtime_put_sync(dev);
 			return ret;
 		}
 
 		ret = camss_enable_clocks(csid->nclocks, csid->clock, dev);
 		if (ret < 0) {
-			if (csid->vdda)
-				regulator_disable(csid->vdda);
+			regulator_bulk_disable(csid->num_supplies,
+					       csid->supplies);
 			pm_runtime_put_sync(dev);
 			return ret;
 		}
@@ -201,8 +202,8 @@ static int csid_set_power(struct v4l2_subdev *sd, int on)
 		if (ret < 0) {
 			disable_irq(csid->irq);
 			camss_disable_clocks(csid->nclocks, csid->clock);
-			if (csid->vdda)
-				regulator_disable(csid->vdda);
+			regulator_bulk_disable(csid->num_supplies,
+					       csid->supplies);
 			pm_runtime_put_sync(dev);
 			return ret;
 		}
@@ -211,7 +212,8 @@ static int csid_set_power(struct v4l2_subdev *sd, int on)
 	} else {
 		disable_irq(csid->irq);
 		camss_disable_clocks(csid->nclocks, csid->clock);
-		ret = csid->vdda ? regulator_disable(csid->vdda) : 0;
+		regulator_bulk_disable(csid->num_supplies,
+				       csid->supplies);
 		pm_runtime_put_sync(dev);
 		if (version == CAMSS_8250 || version == CAMSS_845)
 			vfe_put(vfe);
@@ -656,14 +658,27 @@ int msm_csid_subdev_init(struct camss *camss, struct csid_device *csid,
 	}
 
 	/* Regulator */
-
-	csid->vdda = NULL;
-	if (res->regulator[0])
-		csid->vdda = devm_regulator_get(dev, res->regulator[0]);
-	if (IS_ERR(csid->vdda)) {
-		dev_err(dev, "could not get regulator\n");
-		return PTR_ERR(csid->vdda);
+	for (i = 0; i < ARRAY_SIZE(res->regulators); i++) {
+		if (res->regulators[i])
+			csid->num_supplies++;
 	}
+
+	if (csid->num_supplies) {
+		csid->supplies = devm_kmalloc_array(camss->dev,
+						    csid->num_supplies,
+						    sizeof(csid->supplies),
+						    GFP_KERNEL);
+		if (!csid->supplies)
+			return -ENOMEM;
+	}
+
+	for (i = 0; i < csid->num_supplies; i++)
+		csid->supplies[i].supply = res->regulators[i];
+
+	ret = devm_regulator_bulk_get(camss->dev, csid->num_supplies,
+				      csid->supplies);
+	if (ret)
+		return ret;
 
 	init_completion(&csid->reset_complete);
 

@@ -42,7 +42,7 @@
 #define CAMSS_RES_MAX 17
 
 struct resources {
-	char *regulator[CAMSS_RES_MAX];
+	char *regulators[CAMSS_RES_MAX];
 	char *clock[CAMSS_RES_MAX];
 	u32 clock_rate[CAMSS_RES_MAX][CAMSS_RES_MAX];
 	char *reg[CAMSS_RES_MAX];
