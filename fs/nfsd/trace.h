@@ -613,20 +613,21 @@ TRACE_EVENT(nfsd_clid_cred_mismatch,
 		__field(u32, cl_id)
 		__field(unsigned long, cl_flavor)
 		__field(unsigned long, new_flavor)
-		__array(unsigned char, addr, sizeof(struct sockaddr_in6))
+		__sockaddr(addr, rqstp->rq_xprt->xpt_remotelen)
 	),
 	TP_fast_assign(
 		__entry->cl_boot = clp->cl_clientid.cl_boot;
 		__entry->cl_id = clp->cl_clientid.cl_id;
 		__entry->cl_flavor = clp->cl_cred.cr_flavor;
 		__entry->new_flavor = rqstp->rq_cred.cr_flavor;
-		memcpy(__entry->addr, &rqstp->rq_xprt->xpt_remote,
-			sizeof(struct sockaddr_in6));
+		__assign_sockaddr(addr, &rqstp->rq_xprt->xpt_remote,
+				  rqstp->rq_xprt->xpt_remotelen);
 	),
 	TP_printk("client %08x:%08x flavor=%s, conflict=%s from addr=%pISpc",
 		__entry->cl_boot, __entry->cl_id,
 		show_nfsd_authflavor(__entry->cl_flavor),
-		show_nfsd_authflavor(__entry->new_flavor), __entry->addr
+		show_nfsd_authflavor(__entry->new_flavor),
+		__get_sockaddr(addr)
 	)
 )
 
@@ -642,7 +643,7 @@ TRACE_EVENT(nfsd_clid_verf_mismatch,
 		__field(u32, cl_id)
 		__array(unsigned char, cl_verifier, NFS4_VERIFIER_SIZE)
 		__array(unsigned char, new_verifier, NFS4_VERIFIER_SIZE)
-		__array(unsigned char, addr, sizeof(struct sockaddr_in6))
+		__sockaddr(addr, rqstp->rq_xprt->xpt_remotelen)
 	),
 	TP_fast_assign(
 		__entry->cl_boot = clp->cl_clientid.cl_boot;
@@ -651,14 +652,14 @@ TRACE_EVENT(nfsd_clid_verf_mismatch,
 		       NFS4_VERIFIER_SIZE);
 		memcpy(__entry->new_verifier, (void *)verf,
 		       NFS4_VERIFIER_SIZE);
-		memcpy(__entry->addr, &rqstp->rq_xprt->xpt_remote,
-			sizeof(struct sockaddr_in6));
+		__assign_sockaddr(addr, &rqstp->rq_xprt->xpt_remote,
+				  rqstp->rq_xprt->xpt_remotelen);
 	),
 	TP_printk("client %08x:%08x verf=0x%s, updated=0x%s from addr=%pISpc",
 		__entry->cl_boot, __entry->cl_id,
 		__print_hex_str(__entry->cl_verifier, NFS4_VERIFIER_SIZE),
 		__print_hex_str(__entry->new_verifier, NFS4_VERIFIER_SIZE),
-		__entry->addr
+		__get_sockaddr(addr)
 	)
 );
 
@@ -908,18 +909,17 @@ TRACE_EVENT(nfsd_cb_args,
 		__field(u32, cl_id)
 		__field(u32, prog)
 		__field(u32, ident)
-		__array(unsigned char, addr, sizeof(struct sockaddr_in6))
+		__sockaddr(addr, conn->cb_addrlen)
 	),
 	TP_fast_assign(
 		__entry->cl_boot = clp->cl_clientid.cl_boot;
 		__entry->cl_id = clp->cl_clientid.cl_id;
 		__entry->prog = conn->cb_prog;
 		__entry->ident = conn->cb_ident;
-		memcpy(__entry->addr, &conn->cb_addr,
-			sizeof(struct sockaddr_in6));
+		__assign_sockaddr(addr, &conn->cb_addr, conn->cb_addrlen);
 	),
 	TP_printk("addr=%pISpc client %08x:%08x prog=%u ident=%u",
-		__entry->addr, __entry->cl_boot, __entry->cl_id,
+		__get_sockaddr(addr), __entry->cl_boot, __entry->cl_id,
 		__entry->prog, __entry->ident)
 );
 
@@ -951,17 +951,17 @@ DECLARE_EVENT_CLASS(nfsd_cb_class,
 		__field(unsigned long, state)
 		__field(u32, cl_boot)
 		__field(u32, cl_id)
-		__array(unsigned char, addr, sizeof(struct sockaddr_in6))
+		__sockaddr(addr, clp->cl_cb_conn.cb_addrlen)
 	),
 	TP_fast_assign(
 		__entry->state = clp->cl_cb_state;
 		__entry->cl_boot = clp->cl_clientid.cl_boot;
 		__entry->cl_id = clp->cl_clientid.cl_id;
-		memcpy(__entry->addr, &clp->cl_cb_conn.cb_addr,
-			sizeof(struct sockaddr_in6));
+		__assign_sockaddr(addr, &clp->cl_cb_conn.cb_addr,
+				  clp->cl_cb_conn.cb_addrlen)
 	),
 	TP_printk("addr=%pISpc client %08x:%08x state=%s",
-		__entry->addr, __entry->cl_boot, __entry->cl_id,
+		__get_sockaddr(addr), __entry->cl_boot, __entry->cl_id,
 		show_cb_state(__entry->state))
 );
 
@@ -1001,7 +1001,7 @@ TRACE_EVENT(nfsd_cb_setup,
 		__field(u32, cl_boot)
 		__field(u32, cl_id)
 		__field(unsigned long, authflavor)
-		__array(unsigned char, addr, sizeof(struct sockaddr_in6))
+		__sockaddr(addr, clp->cl_cb_conn.cb_addrlen)
 		__array(unsigned char, netid, 8)
 	),
 	TP_fast_assign(
@@ -1009,11 +1009,11 @@ TRACE_EVENT(nfsd_cb_setup,
 		__entry->cl_id = clp->cl_clientid.cl_id;
 		strlcpy(__entry->netid, netid, sizeof(__entry->netid));
 		__entry->authflavor = authflavor;
-		memcpy(__entry->addr, &clp->cl_cb_conn.cb_addr,
-			sizeof(struct sockaddr_in6));
+		__assign_sockaddr(addr, &clp->cl_cb_conn.cb_addr,
+				  clp->cl_cb_conn.cb_addrlen)
 	),
 	TP_printk("addr=%pISpc client %08x:%08x proto=%s flavor=%s",
-		__entry->addr, __entry->cl_boot, __entry->cl_id,
+		__get_sockaddr(addr), __entry->cl_boot, __entry->cl_id,
 		__entry->netid, show_nfsd_authflavor(__entry->authflavor))
 );
 
@@ -1027,30 +1027,32 @@ TRACE_EVENT(nfsd_cb_setup_err,
 		__field(long, error)
 		__field(u32, cl_boot)
 		__field(u32, cl_id)
-		__array(unsigned char, addr, sizeof(struct sockaddr_in6))
+		__sockaddr(addr, clp->cl_cb_conn.cb_addrlen)
 	),
 	TP_fast_assign(
 		__entry->error = error;
 		__entry->cl_boot = clp->cl_clientid.cl_boot;
 		__entry->cl_id = clp->cl_clientid.cl_id;
-		memcpy(__entry->addr, &clp->cl_cb_conn.cb_addr,
-			sizeof(struct sockaddr_in6));
+		__assign_sockaddr(addr, &clp->cl_cb_conn.cb_addr,
+				  clp->cl_cb_conn.cb_addrlen)
 	),
 	TP_printk("addr=%pISpc client %08x:%08x error=%ld",
-		__entry->addr, __entry->cl_boot, __entry->cl_id, __entry->error)
+		__get_sockaddr(addr), __entry->cl_boot, __entry->cl_id,
+		__entry->error)
 );
 
-TRACE_EVENT(nfsd_cb_recall,
+TRACE_EVENT_CONDITION(nfsd_cb_recall,
 	TP_PROTO(
 		const struct nfs4_stid *stid
 	),
 	TP_ARGS(stid),
+	TP_CONDITION(stid->sc_client),
 	TP_STRUCT__entry(
 		__field(u32, cl_boot)
 		__field(u32, cl_id)
 		__field(u32, si_id)
 		__field(u32, si_generation)
-		__array(unsigned char, addr, sizeof(struct sockaddr_in6))
+		__sockaddr(addr, stid->sc_client->cl_cb_conn.cb_addrlen)
 	),
 	TP_fast_assign(
 		const stateid_t *stp = &stid->sc_stateid;
@@ -1060,14 +1062,11 @@ TRACE_EVENT(nfsd_cb_recall,
 		__entry->cl_id = stp->si_opaque.so_clid.cl_id;
 		__entry->si_id = stp->si_opaque.so_id;
 		__entry->si_generation = stp->si_generation;
-		if (clp)
-			memcpy(__entry->addr, &clp->cl_cb_conn.cb_addr,
-				sizeof(struct sockaddr_in6));
-		else
-			memset(__entry->addr, 0, sizeof(struct sockaddr_in6));
+		__assign_sockaddr(addr, &clp->cl_cb_conn.cb_addr,
+				  clp->cl_cb_conn.cb_addrlen)
 	),
 	TP_printk("addr=%pISpc client %08x:%08x stateid %08x:%08x",
-		__entry->addr, __entry->cl_boot, __entry->cl_id,
+		__get_sockaddr(addr), __entry->cl_boot, __entry->cl_id,
 		__entry->si_id, __entry->si_generation)
 );
 
@@ -1081,7 +1080,7 @@ TRACE_EVENT(nfsd_cb_notify_lock,
 		__field(u32, cl_boot)
 		__field(u32, cl_id)
 		__field(u32, fh_hash)
-		__array(unsigned char, addr, sizeof(struct sockaddr_in6))
+		__sockaddr(addr, lo->lo_owner.so_client->cl_cb_conn.cb_addrlen)
 	),
 	TP_fast_assign(
 		const struct nfs4_client *clp = lo->lo_owner.so_client;
@@ -1089,11 +1088,11 @@ TRACE_EVENT(nfsd_cb_notify_lock,
 		__entry->cl_boot = clp->cl_clientid.cl_boot;
 		__entry->cl_id = clp->cl_clientid.cl_id;
 		__entry->fh_hash = knfsd_fh_hash(&nbl->nbl_fh);
-		memcpy(__entry->addr, &clp->cl_cb_conn.cb_addr,
-			sizeof(struct sockaddr_in6));
+		__assign_sockaddr(addr, &clp->cl_cb_conn.cb_addr,
+				  clp->cl_cb_conn.cb_addrlen)
 	),
 	TP_printk("addr=%pISpc client %08x:%08x fh_hash=0x%08x",
-		__entry->addr, __entry->cl_boot, __entry->cl_id,
+		__get_sockaddr(addr), __entry->cl_boot, __entry->cl_id,
 		__entry->fh_hash)
 );
 
@@ -1114,7 +1113,7 @@ TRACE_EVENT(nfsd_cb_offload,
 		__field(u32, fh_hash)
 		__field(int, status)
 		__field(u64, count)
-		__array(unsigned char, addr, sizeof(struct sockaddr_in6))
+		__sockaddr(addr, clp->cl_cb_conn.cb_addrlen)
 	),
 	TP_fast_assign(
 		__entry->cl_boot = stp->si_opaque.so_clid.cl_boot;
@@ -1124,11 +1123,11 @@ TRACE_EVENT(nfsd_cb_offload,
 		__entry->fh_hash = knfsd_fh_hash(fh);
 		__entry->status = be32_to_cpu(status);
 		__entry->count = count;
-		memcpy(__entry->addr, &clp->cl_cb_conn.cb_addr,
-			sizeof(struct sockaddr_in6));
+		__assign_sockaddr(addr, &clp->cl_cb_conn.cb_addr,
+				  clp->cl_cb_conn.cb_addrlen)
 	),
 	TP_printk("addr=%pISpc client %08x:%08x stateid %08x:%08x fh_hash=0x%08x count=%llu status=%d",
-		__entry->addr, __entry->cl_boot, __entry->cl_id,
+		__get_sockaddr(addr), __entry->cl_boot, __entry->cl_id,
 		__entry->si_id, __entry->si_generation,
 		__entry->fh_hash, __entry->count, __entry->status)
 );
