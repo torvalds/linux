@@ -200,6 +200,7 @@ static netdev_tx_t batadv_interface_tx(struct sk_buff *skb,
 	int gw_mode;
 	enum batadv_forw_mode forw_mode = BATADV_FORW_SINGLE;
 	struct batadv_orig_node *mcast_single_orig = NULL;
+	int mcast_is_routable = 0;
 	int network_offset = ETH_HLEN;
 	__be16 proto;
 
@@ -302,7 +303,8 @@ static netdev_tx_t batadv_interface_tx(struct sk_buff *skb,
 send:
 		if (do_bcast && !is_broadcast_ether_addr(ethhdr->h_dest)) {
 			forw_mode = batadv_mcast_forw_mode(bat_priv, skb,
-							   &mcast_single_orig);
+							   &mcast_single_orig,
+							   &mcast_is_routable);
 			if (forw_mode == BATADV_FORW_NONE)
 				goto dropped;
 
@@ -367,7 +369,8 @@ send:
 			ret = batadv_mcast_forw_send_orig(bat_priv, skb, vid,
 							  mcast_single_orig);
 		} else if (forw_mode == BATADV_FORW_SOME) {
-			ret = batadv_mcast_forw_send(bat_priv, skb, vid);
+			ret = batadv_mcast_forw_send(bat_priv, skb, vid,
+						     mcast_is_routable);
 		} else {
 			if (batadv_dat_snoop_outgoing_arp_request(bat_priv,
 								  skb))

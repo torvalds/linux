@@ -45,6 +45,8 @@ static struct page *efx_reuse_page(struct efx_rx_queue *rx_queue)
 	unsigned int index;
 	struct page *page;
 
+	if (unlikely(!rx_queue->page_ring))
+		return NULL;
 	index = rx_queue->page_remove & rx_queue->page_ptr_mask;
 	page = rx_queue->page_ring[index];
 	if (page == NULL)
@@ -113,6 +115,9 @@ void efx_recycle_rx_pages(struct efx_channel *channel,
 			  unsigned int n_frags)
 {
 	struct efx_rx_queue *rx_queue = efx_channel_get_rx_queue(channel);
+
+	if (unlikely(!rx_queue->page_ring))
+		return;
 
 	do {
 		efx_recycle_rx_page(channel, rx_buf);
