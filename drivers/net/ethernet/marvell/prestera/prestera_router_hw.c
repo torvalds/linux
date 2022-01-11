@@ -123,7 +123,7 @@ __prestera_rif_entry_key_copy(const struct prestera_rif_entry_key *in,
 		out->iface.vlan_id = in->iface.vlan_id;
 		break;
 	default:
-		pr_err("Unsupported iface type");
+		WARN(1, "Unsupported iface type");
 		return -EINVAL;
 	}
 
