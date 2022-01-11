@@ -419,6 +419,25 @@ struct cxl_nvdimm {
 	struct device dev;
 	struct cxl_memdev *cxlmd;
 	struct cxl_nvdimm_bridge *bridge;
+	struct cxl_pmem_region *region;
+};
+
+struct cxl_pmem_region_mapping {
+	struct cxl_memdev *cxlmd;
+	struct cxl_nvdimm *cxl_nvd;
+	u64 start;
+	u64 size;
+	int position;
+};
+
+struct cxl_pmem_region {
+	struct device dev;
+	struct cxl_region *cxlr;
+	struct nd_region *nd_region;
+	struct cxl_nvdimm_bridge *bridge;
+	struct range hpa_range;
+	int nr_mappings;
+	struct cxl_pmem_region_mapping mapping[];
 };
 
 /**
@@ -601,6 +620,7 @@ void cxl_driver_unregister(struct cxl_driver *cxl_drv);
 #define CXL_DEVICE_ROOT			4
 #define CXL_DEVICE_MEMORY_EXPANDER	5
 #define CXL_DEVICE_REGION		6
+#define CXL_DEVICE_PMEM_REGION		7
 
 #define MODULE_ALIAS_CXL(type) MODULE_ALIAS("cxl:t" __stringify(type) "*")
 #define CXL_MODALIAS_FMT "cxl:t%d"
@@ -612,7 +632,21 @@ struct cxl_nvdimm *to_cxl_nvdimm(struct device *dev);
 bool is_cxl_nvdimm(struct device *dev);
 bool is_cxl_nvdimm_bridge(struct device *dev);
 int devm_cxl_add_nvdimm(struct device *host, struct cxl_memdev *cxlmd);
-struct cxl_nvdimm_bridge *cxl_find_nvdimm_bridge(struct cxl_nvdimm *cxl_nvd);
+struct cxl_nvdimm_bridge *cxl_find_nvdimm_bridge(struct device *dev);
+
+#ifdef CONFIG_CXL_REGION
+bool is_cxl_pmem_region(struct device *dev);
+struct cxl_pmem_region *to_cxl_pmem_region(struct device *dev);
+#else
+static inline bool is_cxl_pmem_region(struct device *dev)
+{
+	return false;
+}
+static inline struct cxl_pmem_region *to_cxl_pmem_region(struct device *dev)
+{
+	return NULL;
+}
+#endif
 
 /*
  * Unit test builds overrides this to __weak, find the 'strong' version

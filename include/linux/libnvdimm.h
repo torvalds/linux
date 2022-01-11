@@ -59,6 +59,9 @@ enum {
 	/* Platform provides asynchronous flush mechanism */
 	ND_REGION_ASYNC = 3,
 
+	/* Region was created by CXL subsystem */
+	ND_REGION_CXL = 4,
+
 	/* mark newly adjusted resources as requiring a label update */
 	DPA_RESOURCE_ADJUSTED = 1 << 0,
 };
@@ -122,6 +125,7 @@ struct nd_region_desc {
 	int numa_node;
 	int target_node;
 	unsigned long flags;
+	int memregion;
 	struct device_node *of_node;
 	int (*flush)(struct nd_region *nd_region, struct bio *bio);
 };
@@ -259,6 +263,7 @@ static inline struct nvdimm *nvdimm_create(struct nvdimm_bus *nvdimm_bus,
 			cmd_mask, num_flush, flush_wpq, NULL, NULL, NULL);
 }
 void nvdimm_delete(struct nvdimm *nvdimm);
+void nvdimm_region_delete(struct nd_region *nd_region);
 
 const struct nd_cmd_desc *nd_cmd_dimm_desc(int cmd);
 const struct nd_cmd_desc *nd_cmd_bus_desc(int cmd);
