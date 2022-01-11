@@ -120,6 +120,8 @@ static int rpi_hwmon_probe(struct platform_device *pdev)
 							       data,
 							       &rpi_chip_info,
 							       NULL);
+	if (IS_ERR(data->hwmon_dev))
+		return PTR_ERR(data->hwmon_dev);
 
 	ret = devm_delayed_work_autocancel(dev, &data->get_values_poll_work,
 					   get_values_poll);
@@ -127,10 +129,9 @@ static int rpi_hwmon_probe(struct platform_device *pdev)
 		return ret;
 	platform_set_drvdata(pdev, data);
 
-	if (!PTR_ERR_OR_ZERO(data->hwmon_dev))
-		schedule_delayed_work(&data->get_values_poll_work, 2 * HZ);
+	schedule_delayed_work(&data->get_values_poll_work, 2 * HZ);
 
-	return PTR_ERR_OR_ZERO(data->hwmon_dev);
+	return 0;
 }
 
 static struct platform_driver rpi_hwmon_driver = {

@@ -43,6 +43,8 @@ Hardware Monitoring Kernel Drivers
    asb100
    asc7621
    aspeed-pwm-tacho
+   asus_wmi_ec_sensors
+   asus_wmi_sensors
    bcm54140
    bel-pfe
    bpa-rs600
@@ -76,6 +78,7 @@ Hardware Monitoring Kernel Drivers
    ibmpowernv
    ina209
    ina2xx
+   ina238
    ina3221
    intel-m10-bmc-hwmon
    ir35221
@@ -142,6 +145,7 @@ Hardware Monitoring Kernel Drivers
    mlxreg-fan
    mp2888
    mp2975
+   mp5023
    nct6683
    nct6775
    nct7802
@@ -150,6 +154,7 @@ Hardware Monitoring Kernel Drivers
    nsa320
    ntc_thermistor
    nzxt-kraken2
+   nzxt-smart2
    occ
    pc87360
    pc87427

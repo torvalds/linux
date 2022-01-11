@@ -3154,10 +3154,8 @@ store_speed_tolerance(struct device *dev, struct device_attribute *attr,
 	if (err < 0)
 		return err;
 
-	high = fan_from_reg16(data->target_speed[nr],
-			      data->fan_div[nr]) + val;
-	low = fan_from_reg16(data->target_speed[nr],
-			     data->fan_div[nr]) - val;
+	high = fan_from_reg16(data->target_speed[nr], data->fan_div[nr]) + val;
+	low = fan_from_reg16(data->target_speed[nr], data->fan_div[nr]) - val;
 	if (low <= 0)
 		low = 1;
 	if (high < low)
@@ -4995,11 +4993,13 @@ static const char * const asus_wmi_boards[] = {
 	"ROG CROSSHAIR VIII FORMULA",
 	"ROG CROSSHAIR VIII HERO",
 	"ROG CROSSHAIR VIII IMPACT",
+	"ROG STRIX B550-A GAMING",
 	"ROG STRIX B550-E GAMING",
 	"ROG STRIX B550-F GAMING",
 	"ROG STRIX B550-F GAMING (WI-FI)",
 	"ROG STRIX B550-I GAMING",
 	"ROG STRIX X570-F GAMING",
+	"ROG STRIX X570-I GAMING",
 	"ROG STRIX Z390-E GAMING",
 	"ROG STRIX Z490-I GAMING",
 	"TUF GAMING B550M-PLUS",
@@ -5038,7 +5038,7 @@ static int __init sensors_nct6775_init(void)
 				   board_name);
 		if (err >= 0) {
 			/* if reading chip id via WMI succeeds, use WMI */
-			if (!nct6775_asuswmi_read(0, NCT6775_PORT_CHIPID, &tmp)) {
+			if (!nct6775_asuswmi_read(0, NCT6775_PORT_CHIPID, &tmp) && tmp) {
 				pr_info("Using Asus WMI to access %#x chip.\n", tmp);
 				access = access_asuswmi;
 			} else {
