@@ -2296,6 +2296,13 @@ static inline bool i915_mmio_reg_valid(i915_reg_t reg)
 #define GEN6_VEVSYNC	(RING_SYNC_2(VEBOX_RING_BASE))
 #define GEN6_NOSYNC	INVALID_MMIO_REG
 #define RING_PSMI_CTL(base)	_MMIO((base) + 0x50)
+#define   GEN8_RC_SEMA_IDLE_MSG_DISABLE		REG_BIT(12)
+#define   GEN8_FF_DOP_CLOCK_GATE_DISABLE	REG_BIT(10)
+#define   GEN12_WAIT_FOR_EVENT_POWER_DOWN_DISABLE REG_BIT(7)
+#define   GEN6_BSD_GO_INDICATOR			REG_BIT(4)
+#define   GEN6_BSD_SLEEP_INDICATOR		REG_BIT(3)
+#define   GEN6_BSD_SLEEP_FLUSH_DISABLE		REG_BIT(2)
+#define   GEN6_PSMI_SLEEP_MSG_DISABLE		REG_BIT(0)
 #define RING_MAX_IDLE(base)	_MMIO((base) + 0x54)
 #define RING_HWS_PGA(base)	_MMIO((base) + 0x80)
 #define RING_ID(base)		_MMIO((base) + 0x8c)
@@ -2841,12 +2848,6 @@ static inline bool i915_mmio_reg_valid(i915_reg_t reg)
 #define   GEN8_4x4_STC_OPTIMIZATION_DISABLE	(1 << 6)
 #define   GEN9_PARTIAL_RESOLVE_IN_VC_DISABLE	(1 << 1)
 
-#define GEN6_RC_SLEEP_PSMI_CONTROL	_MMIO(0x2050)
-#define   GEN6_PSMI_SLEEP_MSG_DISABLE	(1 << 0)
-#define   GEN12_WAIT_FOR_EVENT_POWER_DOWN_DISABLE REG_BIT(7)
-#define   GEN8_RC_SEMA_IDLE_MSG_DISABLE	(1 << 12)
-#define   GEN8_FF_DOP_CLOCK_GATE_DISABLE	(1 << 10)
-
 #define GEN6_RCS_PWR_FSM _MMIO(0x22ac)
 #define GEN9_RCS_FE_FSM2 _MMIO(0x22a4)
 
@@ -2930,12 +2931,6 @@ static inline bool i915_mmio_reg_valid(i915_reg_t reg)
 
 #define XEHP_EU_ENABLE			_MMIO(0x9134)
 #define XEHP_EU_ENA_MASK		0xFF
-
-#define GEN6_BSD_SLEEP_PSMI_CONTROL	_MMIO(0x12050)
-#define   GEN6_BSD_SLEEP_MSG_DISABLE	(1 << 0)
-#define   GEN6_BSD_SLEEP_FLUSH_DISABLE	(1 << 2)
-#define   GEN6_BSD_SLEEP_INDICATOR	(1 << 3)
-#define   GEN6_BSD_GO_INDICATOR		(1 << 4)
 
 /* On modern GEN architectures interrupt control consists of two sets
  * of registers. The first set pertains to the ring generating the
