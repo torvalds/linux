@@ -1284,7 +1284,6 @@ static int bdisp_remove(struct platform_device *pdev)
 static int bdisp_probe(struct platform_device *pdev)
 {
 	struct bdisp_dev *bdisp;
-	struct resource *res;
 	struct device *dev = &pdev->dev;
 	int ret;
 
@@ -1335,14 +1334,11 @@ static int bdisp_probe(struct platform_device *pdev)
 		goto err_wq;
 	}
 
-	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
-	if (!res) {
-		dev_err(dev, "failed to get IRQ resource\n");
-		ret = -EINVAL;
+	ret = platform_get_irq(pdev, 0);
+	if (ret < 0)
 		goto err_clk;
-	}
 
-	ret = devm_request_threaded_irq(dev, res->start, bdisp_irq_handler,
+	ret = devm_request_threaded_irq(dev, ret, bdisp_irq_handler,
 					bdisp_irq_thread, IRQF_ONESHOT,
 					pdev->name, bdisp);
 	if (ret) {
