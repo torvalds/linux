@@ -113,7 +113,7 @@ repack_boot_img()
 
 check_mkimage()
 {
-	MKIMAGE=$(type -path ${MKIMAGE})
+	MKIMAGE=$(type -p ${MKIMAGE} || true)
 	if [ -z "${MKIMAGE}" ]; then
 		# Doesn't exist
 		echo '"mkimage" command not found - U-Boot images will not be built' >&2
