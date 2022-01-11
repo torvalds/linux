@@ -44,6 +44,8 @@
  *  VERSION     : 01-00-10
  *  08 Dec 2021 : 1. Added Module parameters for Flow control thresholds per Queue.
  *  VERSION     : 01-00-30
+ *  11 Jan 2022 : 1. Forced speed mode parameter added for fixed phy mode.
+ *  VERSION     : 01-00-35
  */
 
 #ifndef __TC956XMAC_PLATFORM_DATA
@@ -310,5 +312,6 @@ struct plat_tc956xmacenet_data {
 	u32 port_num;
 	u32 port_interface; /* Kernel module parameter variable for interface */
 	bool phy_interrupt_mode; /* For Handling of PHY Operating mode */
+	int forced_speed; /* applicable only in case of fixed phy mode */
 };
 #endif

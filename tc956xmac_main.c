@@ -94,6 +94,9 @@
  *  VERSION     : 01-00-33
  *  07 Jan 2022 : 1. During emac resume, attach the net device after initializing the queues
  *  VERSION     : 01-00-34
+ *  11 Jan 2022 : 1. Fixed phymode support added
+ *	          2. Error return when no phy driver found during ISR work queue execution
+ *  VERSION     : 01-00-35
 */
 
 #include <linux/clk.h>
@@ -255,6 +258,9 @@ static u8 phy_sa_addr[2][6] = {
 };
 extern unsigned int mac0_en_lp_pause_frame_cnt;
 extern unsigned int mac1_en_lp_pause_frame_cnt;
+
+extern unsigned int mac0_force_speed_mode;
+extern unsigned int mac1_force_speed_mode;
 
 /**
  *  tc956x_GPIO_OutputConfigPin - to configure GPIO as output and write the value
@@ -2142,6 +2148,12 @@ static void tc956xmac_defer_phy_isr_work(struct work_struct *work)
 		netdev_err(priv->dev, "no phy at addr %d\n", addr);
 		return;
 	}
+
+	if(!phydev->drv) {
+		netdev_err(priv->dev, "no phy driver\n");
+		return;
+	}
+
 	/* Call ack interrupt to clear the WOL interrupt status fields */
 	if (phydev->drv->ack_interrupt)
 		phydev->drv->ack_interrupt(phydev);
@@ -2243,7 +2255,25 @@ static int tc956xmac_init_phy(struct net_device *dev)
 	if (priv->phylink) {
 		phylink_ethtool_set_eee(priv->phylink, &edata);
 	}
+	/* In forced speed mode, donot return error here */
+	if (((priv->port_num == RM_PF1_ID) && (mac1_force_speed_mode == ENABLE)) ||
+		((priv->port_num == RM_PF0_ID) && (mac0_force_speed_mode == ENABLE)))
+		ret = 0;
+
 	return ret;
+}
+
+static void tc956xmac_phylink_fixed_state(struct net_device *dev, struct phylink_link_state *state)
+{
+	struct tc956xmac_priv *priv = netdev_priv(dev);
+
+	state->link = 1;
+	state->duplex = DUPLEX_FULL;
+	state->speed = priv->plat->forced_speed;
+
+	DBGPR_FUNC(priv->device, "%s state->speed: %d\n", __func__, state->speed);
+
+	return;
 }
 
 static int tc956xmac_phy_setup(struct tc956xmac_priv *priv)
@@ -2253,12 +2283,18 @@ static int tc956xmac_phy_setup(struct tc956xmac_priv *priv)
 	struct phylink *phylink;
 
 	priv->phylink_config.dev = &priv->dev->dev;
-		priv->phylink_config.type = PHYLINK_NETDEV;
+	priv->phylink_config.type = PHYLINK_NETDEV;
 
-		phylink = phylink_create(&priv->phylink_config, fwnode,
-					 mode, &tc956xmac_phylink_mac_ops);
-		if (IS_ERR(phylink))
-			return PTR_ERR(phylink);
+	phylink = phylink_create(&priv->phylink_config, fwnode,
+				 mode, &tc956xmac_phylink_mac_ops);
+	if (IS_ERR(phylink))
+		return PTR_ERR(phylink);
+
+	/* Fixed phy mode should be set using device tree, driver just registers callback here */
+	if (((priv->port_num == RM_PF1_ID) && (mac1_force_speed_mode == ENABLE)) ||
+		((priv->port_num == RM_PF0_ID) && (mac0_force_speed_mode == ENABLE)))
+		phylink_fixed_state_cb(phylink, tc956xmac_phylink_fixed_state);
+
 	priv->phylink = phylink;
 	return 0;
 }
