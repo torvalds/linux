@@ -118,6 +118,10 @@
 		vcc14-supply = <&vcc_1v1_nldo_s3>;
 		vcca-supply = <&vcc5v0_sys>;
 
+		pwrkey {
+			status = "okay";
+		};
+
 		pinctrl_rk806: pinctrl_rk806 {
 			gpio-controller;
 			#gpio-cells = <2>;
