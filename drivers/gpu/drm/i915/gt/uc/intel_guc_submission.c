@@ -1149,23 +1149,51 @@ static void guc_update_engine_gt_clks(struct intel_engine_cs *engine)
 	}
 }
 
-static void guc_update_pm_timestamp(struct intel_guc *guc,
-				    struct intel_engine_cs *engine,
-				    ktime_t *now)
+static u32 gpm_timestamp_shift(struct intel_gt *gt)
 {
-	u32 gt_stamp_now, gt_stamp_hi;
+	intel_wakeref_t wakeref;
+	u32 reg, shift;
+
+	with_intel_runtime_pm(gt->uncore->rpm, wakeref)
+		reg = intel_uncore_read(gt->uncore, RPM_CONFIG0);
+
+	shift = (reg & GEN10_RPM_CONFIG0_CTC_SHIFT_PARAMETER_MASK) >>
+		GEN10_RPM_CONFIG0_CTC_SHIFT_PARAMETER_SHIFT;
+
+	return 3 - shift;
+}
+
+static u64 gpm_timestamp(struct intel_gt *gt)
+{
+	u32 lo, hi, old_hi, loop = 0;
+
+	hi = intel_uncore_read(gt->uncore, MISC_STATUS1);
+	do {
+		lo = intel_uncore_read(gt->uncore, MISC_STATUS0);
+		old_hi = hi;
+		hi = intel_uncore_read(gt->uncore, MISC_STATUS1);
+	} while (old_hi != hi && loop++ < 2);
+
+	return ((u64)hi << 32) | lo;
+}
+
+static void guc_update_pm_timestamp(struct intel_guc *guc, ktime_t *now)
+{
+	struct intel_gt *gt = guc_to_gt(guc);
+	u32 gt_stamp_lo, gt_stamp_hi;
+	u64 gpm_ts;
 
 	lockdep_assert_held(&guc->timestamp.lock);
 
 	gt_stamp_hi = upper_32_bits(guc->timestamp.gt_stamp);
-	gt_stamp_now = intel_uncore_read(engine->uncore,
-					 RING_TIMESTAMP(engine->mmio_base));
+	gpm_ts = gpm_timestamp(gt) >> guc->timestamp.shift;
+	gt_stamp_lo = lower_32_bits(gpm_ts);
 	*now = ktime_get();
 
-	if (gt_stamp_now < lower_32_bits(guc->timestamp.gt_stamp))
+	if (gt_stamp_lo < lower_32_bits(guc->timestamp.gt_stamp))
 		gt_stamp_hi++;
 
-	guc->timestamp.gt_stamp = ((u64)gt_stamp_hi << 32) | gt_stamp_now;
+	guc->timestamp.gt_stamp = ((u64)gt_stamp_hi << 32) | gt_stamp_lo;
 }
 
 /*
@@ -1209,7 +1237,7 @@ static ktime_t guc_engine_busyness(struct intel_engine_cs *engine, ktime_t *now)
 		stats_saved = *stats;
 		gt_stamp_saved = guc->timestamp.gt_stamp;
 		guc_update_engine_gt_clks(engine);
-		guc_update_pm_timestamp(guc, engine, now);
+		guc_update_pm_timestamp(guc, now);
 		intel_gt_pm_put_async(gt);
 		if (i915_reset_count(gpu_error) != reset_count) {
 			*stats = stats_saved;
@@ -1241,8 +1269,8 @@ static void __reset_guc_busyness_stats(struct intel_guc *guc)
 
 	spin_lock_irqsave(&guc->timestamp.lock, flags);
 
+	guc_update_pm_timestamp(guc, &unused);
 	for_each_engine(engine, gt, id) {
-		guc_update_pm_timestamp(guc, engine, &unused);
 		guc_update_engine_gt_clks(engine);
 		engine->stats.guc.prev_total = 0;
 	}
@@ -1259,10 +1287,11 @@ static void __update_guc_busyness_stats(struct intel_guc *guc)
 	ktime_t unused;
 
 	spin_lock_irqsave(&guc->timestamp.lock, flags);
-	for_each_engine(engine, gt, id) {
-		guc_update_pm_timestamp(guc, engine, &unused);
+
+	guc_update_pm_timestamp(guc, &unused);
+	for_each_engine(engine, gt, id)
 		guc_update_engine_gt_clks(engine);
-	}
+
 	spin_unlock_irqrestore(&guc->timestamp.lock, flags);
 }
 
@@ -1783,6 +1812,7 @@ int intel_guc_submission_init(struct intel_guc *guc)
 	spin_lock_init(&guc->timestamp.lock);
 	INIT_DELAYED_WORK(&guc->timestamp.work, guc_timestamp_ping);
 	guc->timestamp.ping_delay = (POLL_TIME_CLKS / gt->clock_frequency + 1) * HZ;
+	guc->timestamp.shift = gpm_timestamp_shift(gt);
 
 	return 0;
 }
