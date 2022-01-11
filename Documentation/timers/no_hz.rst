@@ -184,16 +184,12 @@ There are situations in which idle CPUs cannot be permitted to
 enter either dyntick-idle mode or adaptive-tick mode, the most
 common being when that CPU has RCU callbacks pending.
 
-The CONFIG_RCU_FAST_NO_HZ=y Kconfig option may be used to cause such CPUs
-to enter dyntick-idle mode or adaptive-tick mode anyway.  In this case,
-a timer will awaken these CPUs every four jiffies in order to ensure
-that the RCU callbacks are processed in a timely fashion.
-
-Another approach is to offload RCU callback processing to "rcuo" kthreads
+Avoid this by offloading RCU callback processing to "rcuo" kthreads
 using the CONFIG_RCU_NOCB_CPU=y Kconfig option.  The specific CPUs to
 offload may be selected using The "rcu_nocbs=" kernel boot parameter,
 which takes a comma-separated list of CPUs and CPU ranges, for example,
-"1,3-5" selects CPUs 1, 3, 4, and 5.
+"1,3-5" selects CPUs 1, 3, 4, and 5.  Note that CPUs specified by
+the "nohz_full" kernel boot parameter are also offloaded.
 
 The offloaded CPUs will never queue RCU callbacks, and therefore RCU
 never prevents offloaded CPUs from entering either dyntick-idle mode
