@@ -810,7 +810,6 @@ static int mtk_vpu_probe(struct platform_device *pdev)
 {
 	struct mtk_vpu *vpu;
 	struct device *dev;
-	struct resource *res;
 	int ret = 0;
 
 	dev_dbg(&pdev->dev, "initialization\n");
@@ -908,13 +907,10 @@ static int mtk_vpu_probe(struct platform_device *pdev)
 	init_waitqueue_head(&vpu->run.wq);
 	init_waitqueue_head(&vpu->ack_wq);
 
-	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
-	if (!res) {
-		dev_err(dev, "get IRQ resource failed.\n");
-		ret = -ENXIO;
+	ret = platform_get_irq(pdev, 0);
+	if (ret < 0)
 		goto free_p_mem;
-	}
-	vpu->reg.irq = platform_get_irq(pdev, 0);
+	vpu->reg.irq = ret;
 	ret = devm_request_irq(dev, vpu->reg.irq, vpu_irq_handler, 0,
 			       pdev->name, vpu);
 	if (ret) {
