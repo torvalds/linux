@@ -1380,7 +1380,7 @@ config GPIO_TPS65912
 	  This driver supports TPS65912 GPIO chip.
 
 config GPIO_TPS68470
-	bool "TPS68470 GPIO"
+	tristate "TPS68470 GPIO"
 	depends on INTEL_SKL_INT3472
 	help
 	  Select this option to enable GPIO driver for the TPS68470
@@ -1389,10 +1389,6 @@ config GPIO_TPS68470
 	  by the TPS68470. While the 7 GPIOs can be configured as
 	  input or output as appropriate, the sensor related GPIOs
 	  are "output only" GPIOs.
-
-	  This driver config is bool, as the GPIO functionality
-	  of the TPS68470 must be available before dependent
-	  drivers are loaded.
 
 config GPIO_TQMX86
 	tristate "TQ-Systems QTMX86 GPIO"
