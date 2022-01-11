@@ -524,6 +524,23 @@ config ACPI_PPTT
 	bool
 endif
 
+config ACPI_PCC
+	bool "ACPI PCC Address Space"
+	depends on PCC
+	default y
+	help
+	  The PCC Address Space also referred as PCC Operation Region pertains
+	  to the region of PCC subspace that succeeds the PCC signature.
+
+	  The PCC Operation Region works in conjunction with the PCC Table
+	  (Platform Communications Channel Table). PCC subspaces that are
+	  marked for use as PCC Operation Regions must not be used as PCC
+	  subspaces for the standard ACPI features such as CPPC, RASF, PDTT and
+	  MPST. These standard features must always use the PCC Table instead.
+
+	  Enable this feature if you want to set up and install the PCC Address
+	  Space handler to handle PCC OpRegion in the firmware.
+
 source "drivers/acpi/pmic/Kconfig"
 
 config ACPI_VIOT
