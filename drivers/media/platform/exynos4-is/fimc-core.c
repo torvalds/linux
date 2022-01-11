@@ -926,6 +926,7 @@ static int fimc_probe(struct platform_device *pdev)
 	struct fimc_dev *fimc;
 	struct resource *res;
 	int ret = 0;
+	int irq;
 
 	fimc = devm_kzalloc(dev, sizeof(*fimc), GFP_KERNEL);
 	if (!fimc)
@@ -965,11 +966,9 @@ static int fimc_probe(struct platform_device *pdev)
 	if (IS_ERR(fimc->regs))
 		return PTR_ERR(fimc->regs);
 
-	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
-	if (res == NULL) {
-		dev_err(dev, "Failed to get IRQ resource\n");
-		return -ENXIO;
-	}
+	irq = platform_get_irq(pdev, 0);
+	if (irq < 0)
+		return irq;
 
 	ret = fimc_clk_get(fimc);
 	if (ret)
@@ -986,7 +985,7 @@ static int fimc_probe(struct platform_device *pdev)
 	if (ret < 0)
 		return ret;
 
-	ret = devm_request_irq(dev, res->start, fimc_irq_handler,
+	ret = devm_request_irq(dev, irq, fimc_irq_handler,
 			       0, dev_name(dev), fimc);
 	if (ret < 0) {
 		dev_err(dev, "failed to install irq (%d)\n", ret);

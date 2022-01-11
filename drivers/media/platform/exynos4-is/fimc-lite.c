@@ -1454,6 +1454,7 @@ static int fimc_lite_probe(struct platform_device *pdev)
 	struct fimc_lite *fimc;
 	struct resource *res;
 	int ret;
+	int irq;
 
 	if (!dev->of_node)
 		return -ENODEV;
@@ -1485,17 +1486,15 @@ static int fimc_lite_probe(struct platform_device *pdev)
 	if (IS_ERR(fimc->regs))
 		return PTR_ERR(fimc->regs);
 
-	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
-	if (res == NULL) {
-		dev_err(dev, "Failed to get IRQ resource\n");
-		return -ENXIO;
-	}
+	irq = platform_get_irq(pdev, 0);
+	if (irq < 0)
+		return irq;
 
 	ret = fimc_lite_clk_get(fimc);
 	if (ret)
 		return ret;
 
-	ret = devm_request_irq(dev, res->start, flite_irq_handler,
+	ret = devm_request_irq(dev, irq, flite_irq_handler,
 			       0, dev_name(dev), fimc);
 	if (ret) {
 		dev_err(dev, "Failed to install irq (%d)\n", ret);
