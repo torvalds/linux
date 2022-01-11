@@ -43,6 +43,13 @@ static inline u8 ath11k_dp_rx_h_msdu_start_decap_type(struct ath11k_base *ab,
 }
 
 static inline
+bool ath11k_dp_rx_h_msdu_start_ldpc_support(struct ath11k_base *ab,
+					    struct hal_rx_desc *desc)
+{
+	return ab->hw_params.hw_ops->rx_desc_get_ldpc_support(desc);
+}
+
+static inline
 u8 ath11k_dp_rx_h_msdu_start_mesh_ctl_present(struct ath11k_base *ab,
 					      struct hal_rx_desc *desc)
 {
@@ -2313,7 +2320,7 @@ static void ath11k_dp_rx_h_rate(struct ath11k *ar, struct hal_rx_desc *rx_desc,
 	u8 bw;
 	u8 rate_mcs, nss;
 	u8 sgi;
-	bool is_cck;
+	bool is_cck, is_ldpc;
 
 	pkt_type = ath11k_dp_rx_h_msdu_start_pkt_type(ar->ab, rx_desc);
 	bw = ath11k_dp_rx_h_msdu_start_rx_bw(ar->ab, rx_desc);
@@ -2355,6 +2362,9 @@ static void ath11k_dp_rx_h_rate(struct ath11k *ar, struct hal_rx_desc *rx_desc,
 		if (sgi)
 			rx_status->enc_flags |= RX_ENC_FLAG_SHORT_GI;
 		rx_status->bw = ath11k_mac_bw_to_mac80211_bw(bw);
+		is_ldpc = ath11k_dp_rx_h_msdu_start_ldpc_support(ar->ab, rx_desc);
+		if (is_ldpc)
+			rx_status->enc_flags |= RX_ENC_FLAG_LDPC;
 		break;
 	case RX_MSDU_START_PKT_TYPE_11AX:
 		rx_status->rate_idx = rate_mcs;
