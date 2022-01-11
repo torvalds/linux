@@ -421,18 +421,10 @@ err:
 	goto out;
 }
 
-static int __bch2_mark_replicas(struct bch_fs *c,
-				struct bch_replicas_entry *r,
-				bool check)
-{
-	return likely(bch2_replicas_marked(c, r))	? 0
-		: check					? -1
-		: bch2_mark_replicas_slowpath(c, r);
-}
-
 int bch2_mark_replicas(struct bch_fs *c, struct bch_replicas_entry *r)
 {
-	return __bch2_mark_replicas(c, r, false);
+	return likely(bch2_replicas_marked(c, r))
+		? 0 : bch2_mark_replicas_slowpath(c, r);
 }
 
 /* replicas delta list: */
