@@ -2826,10 +2826,12 @@ static inline bool i915_mmio_reg_valid(i915_reg_t reg)
 #define GFX_FLSH_CNTL	_MMIO(0x2170) /* 915+ only */
 #define GFX_FLSH_CNTL_GEN6	_MMIO(0x101008)
 #define   GFX_FLSH_CNTL_EN	(1 << 0)
-#define ECOSKPD		_MMIO(0x21d0)
-#define   ECO_CONSTANT_BUFFER_SR_DISABLE REG_BIT(4)
-#define   ECO_GATING_CX_ONLY	(1 << 3)
-#define   ECO_FLIP_DONE		(1 << 0)
+#define ECOSKPD(base)		_MMIO((base) + 0x1d0)
+#define   ECO_CONSTANT_BUFFER_SR_DISABLE	REG_BIT(4)
+#define   ECO_GATING_CX_ONLY			REG_BIT(3)
+#define   GEN6_BLITTER_FBC_NOTIFY		REG_BIT(3)
+#define   ECO_FLIP_DONE				REG_BIT(0)
+#define   GEN6_BLITTER_LOCK_SHIFT		16
 
 #define CACHE_MODE_0_GEN7	_MMIO(0x7000) /* IVB+ */
 #define RC_OP_FLUSH_ENABLE (1 << 0)
@@ -2838,10 +2840,6 @@ static inline bool i915_mmio_reg_valid(i915_reg_t reg)
 #define   PIXEL_SUBSPAN_COLLECT_OPT_DISABLE	(1 << 6)
 #define   GEN8_4x4_STC_OPTIMIZATION_DISABLE	(1 << 6)
 #define   GEN9_PARTIAL_RESOLVE_IN_VC_DISABLE	(1 << 1)
-
-#define GEN6_BLITTER_ECOSKPD	_MMIO(0x221d0)
-#define   GEN6_BLITTER_LOCK_SHIFT			16
-#define   GEN6_BLITTER_FBC_NOTIFY			(1 << 3)
 
 #define GEN6_RC_SLEEP_PSMI_CONTROL	_MMIO(0x2050)
 #define   GEN6_PSMI_SLEEP_MSG_DISABLE	(1 << 0)
