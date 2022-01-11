@@ -28,6 +28,7 @@
 #include "intel_dpll_mgr.h"
 #include "intel_pch_refclk.h"
 #include "intel_tc.h"
+#include "intel_tc_phy_regs.h"
 
 /**
  * DOC: Display PLLs

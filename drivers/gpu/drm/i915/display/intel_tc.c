@@ -8,6 +8,7 @@
 #include "intel_display_types.h"
 #include "intel_dp_mst.h"
 #include "intel_tc.h"
+#include "intel_tc_phy_regs.h"
 
 static const char *tc_port_mode_name(enum tc_port_mode mode)
 {
