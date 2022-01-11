@@ -291,8 +291,8 @@ static inline int is_unavailable_bucket(struct bucket_mark m)
 static inline int bucket_sectors_fragmented(struct bch_dev *ca,
 					    struct bucket_mark m)
 {
-	return bucket_sectors_used(m)
-		? max(0, (int) ca->mi.bucket_size - (int) bucket_sectors_used(m))
+	return m.dirty_sectors
+		? max(0, (int) ca->mi.bucket_size - (int) m.dirty_sectors)
 		: 0;
 }
 

@@ -69,10 +69,14 @@ static enum data_cmd copygc_pred(struct bch_fs *c, void *arg,
 			.dev	= p.ptr.dev,
 			.offset	= p.ptr.offset,
 		};
+		ssize_t i;
 
-		ssize_t i = eytzinger0_find_le(h->data, h->used,
-					       sizeof(h->data[0]),
-					       bucket_offset_cmp, &search);
+		if (p.ptr.cached)
+			continue;
+
+		i = eytzinger0_find_le(h->data, h->used,
+				       sizeof(h->data[0]),
+				       bucket_offset_cmp, &search);
 #if 0
 		/* eytzinger search verify code: */
 		ssize_t j = -1, k;
@@ -185,8 +189,7 @@ static int bch2_copygc(struct bch_fs *c)
 
 			if (m.owned_by_allocator ||
 			    m.data_type != BCH_DATA_user ||
-			    !bucket_sectors_used(m) ||
-			    bucket_sectors_used(m) >= ca->mi.bucket_size)
+			    m.dirty_sectors >= ca->mi.bucket_size)
 				continue;
 
 			WARN_ON(m.stripe && !g->stripe_redundancy);
@@ -195,9 +198,9 @@ static int bch2_copygc(struct bch_fs *c)
 				.dev		= dev_idx,
 				.gen		= m.gen,
 				.replicas	= 1 + g->stripe_redundancy,
-				.fragmentation	= bucket_sectors_used(m) * (1U << 15)
+				.fragmentation	= m.dirty_sectors * (1U << 15)
 					/ ca->mi.bucket_size,
-				.sectors	= bucket_sectors_used(m),
+				.sectors	= m.dirty_sectors,
 				.offset		= bucket_to_sector(ca, b),
 			};
 			heap_add_or_replace(h, e, -fragmentation_cmp, NULL);
@@ -263,8 +266,8 @@ static int bch2_copygc(struct bch_fs *c)
 			m = READ_ONCE(buckets->b[b].mark);
 
 			if (i->gen == m.gen &&
-			    bucket_sectors_used(m)) {
-				sectors_not_moved += bucket_sectors_used(m);
+			    m.dirty_sectors) {
+				sectors_not_moved += m.dirty_sectors;
 				buckets_not_moved++;
 			}
 		}

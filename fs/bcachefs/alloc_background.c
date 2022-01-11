@@ -544,7 +544,7 @@ static bool bch2_can_invalidate_bucket(struct bch_dev *ca, size_t b,
 static unsigned bucket_sort_key(struct bucket *g, struct bucket_mark m,
 				u64 now, u64 last_seq_ondisk)
 {
-	unsigned used = bucket_sectors_used(m);
+	unsigned used = m.cached_sectors;
 
 	if (used) {
 		/*

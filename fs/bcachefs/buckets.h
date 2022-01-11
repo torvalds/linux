@@ -149,11 +149,6 @@ static inline u8 ptr_stale(struct bch_dev *ca,
 
 /* bucket gc marks */
 
-static inline unsigned bucket_sectors_used(struct bucket_mark mark)
-{
-	return mark.dirty_sectors + mark.cached_sectors;
-}
-
 static inline bool is_available_bucket(struct bucket_mark mark)
 {
 	return !mark.dirty_sectors && !mark.stripe;
