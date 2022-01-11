@@ -497,6 +497,7 @@ STATIC int
 xchk_directory_leaf1_bestfree(
 	struct xfs_scrub		*sc,
 	struct xfs_da_args		*args,
+	xfs_dir2_db_t			last_data_db,
 	xfs_dablk_t			lblk)
 {
 	struct xfs_dir3_icleaf_hdr	leafhdr;
@@ -534,10 +535,14 @@ xchk_directory_leaf1_bestfree(
 	}
 
 	/*
-	 * There should be as many bestfree slots as there are dir data
-	 * blocks that can fit under i_size.
+	 * There must be enough bestfree slots to cover all the directory data
+	 * blocks that we scanned.  It is possible for there to be a hole
+	 * between the last data block and i_disk_size.  This seems like an
+	 * oversight to the scrub author, but as we have been writing out
+	 * directories like this (and xfs_repair doesn't mind them) for years,
+	 * that's what we have to check.
 	 */
-	if (bestcount != xfs_dir2_byte_to_db(geo, sc->ip->i_disk_size)) {
+	if (bestcount != last_data_db + 1) {
 		xchk_fblock_set_corrupt(sc, XFS_DATA_FORK, lblk);
 		goto out;
 	}
@@ -669,6 +674,7 @@ xchk_directory_blocks(
 	xfs_fileoff_t		lblk;
 	struct xfs_iext_cursor	icur;
 	xfs_dablk_t		dabno;
+	xfs_dir2_db_t		last_data_db = 0;
 	bool			found;
 	int			is_block = 0;
 	int			error;
@@ -712,6 +718,7 @@ xchk_directory_blocks(
 				args.geo->fsbcount);
 		     lblk < got.br_startoff + got.br_blockcount;
 		     lblk += args.geo->fsbcount) {
+			last_data_db = xfs_dir2_da_to_db(args.geo, lblk);
 			error = xchk_directory_data_bestfree(sc, lblk,
 					is_block);
 			if (error)
@@ -734,7 +741,7 @@ xchk_directory_blocks(
 			xchk_fblock_set_corrupt(sc, XFS_DATA_FORK, lblk);
 			goto out;
 		}
-		error = xchk_directory_leaf1_bestfree(sc, &args,
+		error = xchk_directory_leaf1_bestfree(sc, &args, last_data_db,
 				leaf_lblk);
 		if (error)
 			goto out;

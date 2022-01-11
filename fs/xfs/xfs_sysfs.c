@@ -67,11 +67,12 @@ static const struct sysfs_ops xfs_sysfs_ops = {
 static struct attribute *xfs_mp_attrs[] = {
 	NULL,
 };
+ATTRIBUTE_GROUPS(xfs_mp);
 
 struct kobj_type xfs_mp_ktype = {
 	.release = xfs_sysfs_release,
 	.sysfs_ops = &xfs_sysfs_ops,
-	.default_attrs = xfs_mp_attrs,
+	.default_groups = xfs_mp_groups,
 };
 
 #ifdef DEBUG
@@ -239,11 +240,12 @@ static struct attribute *xfs_dbg_attrs[] = {
 #endif
 	NULL,
 };
+ATTRIBUTE_GROUPS(xfs_dbg);
 
 struct kobj_type xfs_dbg_ktype = {
 	.release = xfs_sysfs_release,
 	.sysfs_ops = &xfs_sysfs_ops,
-	.default_attrs = xfs_dbg_attrs,
+	.default_groups = xfs_dbg_groups,
 };
 
 #endif /* DEBUG */
@@ -296,11 +298,12 @@ static struct attribute *xfs_stats_attrs[] = {
 	ATTR_LIST(stats_clear),
 	NULL,
 };
+ATTRIBUTE_GROUPS(xfs_stats);
 
 struct kobj_type xfs_stats_ktype = {
 	.release = xfs_sysfs_release,
 	.sysfs_ops = &xfs_sysfs_ops,
-	.default_attrs = xfs_stats_attrs,
+	.default_groups = xfs_stats_groups,
 };
 
 /* xlog */
@@ -381,11 +384,12 @@ static struct attribute *xfs_log_attrs[] = {
 	ATTR_LIST(write_grant_head),
 	NULL,
 };
+ATTRIBUTE_GROUPS(xfs_log);
 
 struct kobj_type xfs_log_ktype = {
 	.release = xfs_sysfs_release,
 	.sysfs_ops = &xfs_sysfs_ops,
-	.default_attrs = xfs_log_attrs,
+	.default_groups = xfs_log_groups,
 };
 
 /*
@@ -534,12 +538,12 @@ static struct attribute *xfs_error_attrs[] = {
 	ATTR_LIST(retry_timeout_seconds),
 	NULL,
 };
-
+ATTRIBUTE_GROUPS(xfs_error);
 
 static struct kobj_type xfs_error_cfg_ktype = {
 	.release = xfs_sysfs_release,
 	.sysfs_ops = &xfs_sysfs_ops,
-	.default_attrs = xfs_error_attrs,
+	.default_groups = xfs_error_groups,
 };
 
 static struct kobj_type xfs_error_ktype = {

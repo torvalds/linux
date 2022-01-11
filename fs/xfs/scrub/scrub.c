@@ -173,10 +173,6 @@ xchk_teardown(
 		mnt_drop_write_file(sc->file);
 	if (sc->flags & XCHK_REAPING_DISABLED)
 		xchk_start_reaping(sc);
-	if (sc->flags & XCHK_HAS_QUOTAOFFLOCK) {
-		mutex_unlock(&sc->mp->m_quotainfo->qi_quotaofflock);
-		sc->flags &= ~XCHK_HAS_QUOTAOFFLOCK;
-	}
 	if (sc->buf) {
 		kmem_free(sc->buf);
 		sc->buf = NULL;
