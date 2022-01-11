@@ -766,7 +766,7 @@ static bool ag71xx_check_dma_stuck(struct ag71xx *ag)
 	unsigned long timestamp;
 	u32 rx_sm, tx_sm, rx_fd;
 
-	timestamp = netdev_get_tx_queue(ag->ndev, 0)->trans_start;
+	timestamp = READ_ONCE(netdev_get_tx_queue(ag->ndev, 0)->trans_start);
 	if (likely(time_before(jiffies, timestamp + HZ / 10)))
 		return false;
 
@@ -1024,83 +1024,6 @@ static void ag71xx_mac_config(struct phylink_config *config, unsigned int mode,
 	ag71xx_wr(ag, AG71XX_REG_FIFO_CFG3, ag->fifodata[2]);
 }
 
-static void ag71xx_mac_validate(struct phylink_config *config,
-			    unsigned long *supported,
-			    struct phylink_link_state *state)
-{
-	struct ag71xx *ag = netdev_priv(to_net_dev(config->dev));
-	__ETHTOOL_DECLARE_LINK_MODE_MASK(mask) = { 0, };
-
-	switch (state->interface) {
-	case PHY_INTERFACE_MODE_NA:
-		break;
-	case PHY_INTERFACE_MODE_MII:
-		if ((ag71xx_is(ag, AR9330) && ag->mac_idx == 0) ||
-		    ag71xx_is(ag, AR9340) ||
-		    ag71xx_is(ag, QCA9530) ||
-		    (ag71xx_is(ag, QCA9550) && ag->mac_idx == 1))
-			break;
-		goto unsupported;
-	case PHY_INTERFACE_MODE_GMII:
-		if ((ag71xx_is(ag, AR9330) && ag->mac_idx == 1) ||
-		    (ag71xx_is(ag, AR9340) && ag->mac_idx == 1) ||
-		    (ag71xx_is(ag, QCA9530) && ag->mac_idx == 1))
-			break;
-		goto unsupported;
-	case PHY_INTERFACE_MODE_SGMII:
-		if (ag71xx_is(ag, QCA9550) && ag->mac_idx == 0)
-			break;
-		goto unsupported;
-	case PHY_INTERFACE_MODE_RMII:
-		if (ag71xx_is(ag, AR9340) && ag->mac_idx == 0)
-			break;
-		goto unsupported;
-	case PHY_INTERFACE_MODE_RGMII:
-		if ((ag71xx_is(ag, AR9340) && ag->mac_idx == 0) ||
-		    (ag71xx_is(ag, QCA9550) && ag->mac_idx == 1))
-			break;
-		goto unsupported;
-	default:
-		goto unsupported;
-	}
-
-	phylink_set(mask, MII);
-
-	phylink_set(mask, Pause);
-	phylink_set(mask, Asym_Pause);
-	phylink_set(mask, Autoneg);
-	phylink_set(mask, 10baseT_Half);
-	phylink_set(mask, 10baseT_Full);
-	phylink_set(mask, 100baseT_Half);
-	phylink_set(mask, 100baseT_Full);
-
-	if (state->interface == PHY_INTERFACE_MODE_NA ||
-	    state->interface == PHY_INTERFACE_MODE_SGMII ||
-	    state->interface == PHY_INTERFACE_MODE_RGMII ||
-	    state->interface == PHY_INTERFACE_MODE_GMII) {
-		phylink_set(mask, 1000baseT_Full);
-		phylink_set(mask, 1000baseX_Full);
-	}
-
-	linkmode_and(supported, supported, mask);
-	linkmode_and(state->advertising, state->advertising, mask);
-
-	return;
-unsupported:
-	linkmode_zero(supported);
-}
-
-static void ag71xx_mac_pcs_get_state(struct phylink_config *config,
-				     struct phylink_link_state *state)
-{
-	state->link = 0;
-}
-
-static void ag71xx_mac_an_restart(struct phylink_config *config)
-{
-	/* Not Supported */
-}
-
 static void ag71xx_mac_link_down(struct phylink_config *config,
 				 unsigned int mode, phy_interface_t interface)
 {
@@ -1163,9 +1086,7 @@ static void ag71xx_mac_link_up(struct phylink_config *config,
 }
 
 static const struct phylink_mac_ops ag71xx_phylink_mac_ops = {
-	.validate = ag71xx_mac_validate,
-	.mac_pcs_get_state = ag71xx_mac_pcs_get_state,
-	.mac_an_restart = ag71xx_mac_an_restart,
+	.validate = phylink_generic_validate,
 	.mac_config = ag71xx_mac_config,
 	.mac_link_down = ag71xx_mac_link_down,
 	.mac_link_up = ag71xx_mac_link_up,
@@ -1177,6 +1098,34 @@ static int ag71xx_phylink_setup(struct ag71xx *ag)
 
 	ag->phylink_config.dev = &ag->ndev->dev;
 	ag->phylink_config.type = PHYLINK_NETDEV;
+	ag->phylink_config.mac_capabilities = MAC_SYM_PAUSE | MAC_ASYM_PAUSE |
+		MAC_10 | MAC_100 | MAC_1000FD;
+
+	if ((ag71xx_is(ag, AR9330) && ag->mac_idx == 0) ||
+	    ag71xx_is(ag, AR9340) ||
+	    ag71xx_is(ag, QCA9530) ||
+	    (ag71xx_is(ag, QCA9550) && ag->mac_idx == 1))
+		__set_bit(PHY_INTERFACE_MODE_MII,
+			  ag->phylink_config.supported_interfaces);
+
+	if ((ag71xx_is(ag, AR9330) && ag->mac_idx == 1) ||
+	    (ag71xx_is(ag, AR9340) && ag->mac_idx == 1) ||
+	    (ag71xx_is(ag, QCA9530) && ag->mac_idx == 1))
+		__set_bit(PHY_INTERFACE_MODE_GMII,
+			  ag->phylink_config.supported_interfaces);
+
+	if (ag71xx_is(ag, QCA9550) && ag->mac_idx == 0)
+		__set_bit(PHY_INTERFACE_MODE_SGMII,
+			  ag->phylink_config.supported_interfaces);
+
+	if (ag71xx_is(ag, AR9340) && ag->mac_idx == 0)
+		__set_bit(PHY_INTERFACE_MODE_RMII,
+			  ag->phylink_config.supported_interfaces);
+
+	if ((ag71xx_is(ag, AR9340) && ag->mac_idx == 0) ||
+	    (ag71xx_is(ag, QCA9550) && ag->mac_idx == 1))
+		__set_bit(PHY_INTERFACE_MODE_RGMII,
+			  ag->phylink_config.supported_interfaces);
 
 	phylink = phylink_create(&ag->phylink_config, ag->pdev->dev.fwnode,
 				 ag->phy_if_mode, &ag71xx_phylink_mac_ops);

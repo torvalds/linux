@@ -14,6 +14,7 @@
 #include <bpf/libbpf.h>
 
 #include "cgroup_helpers.h"
+#include "testing_helpers.h"
 #include "bpf_rlimit.h"
 
 #define DEV_CGROUP_PROG "./dev_cgroup.o"
@@ -27,7 +28,7 @@ int main(int argc, char **argv)
 	int prog_fd, cgroup_fd;
 	__u32 prog_cnt;
 
-	if (bpf_prog_load(DEV_CGROUP_PROG, BPF_PROG_TYPE_CGROUP_DEVICE,
+	if (bpf_prog_test_load(DEV_CGROUP_PROG, BPF_PROG_TYPE_CGROUP_DEVICE,
 			  &obj, &prog_fd)) {
 		printf("Failed to load DEV_CGROUP program\n");
 		goto out;

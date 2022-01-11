@@ -6,10 +6,17 @@
 #ifndef __NETNS_BPF_H__
 #define __NETNS_BPF_H__
 
-#include <linux/bpf-netns.h>
+#include <linux/list.h>
 
 struct bpf_prog;
 struct bpf_prog_array;
+
+enum netns_bpf_attach_type {
+	NETNS_BPF_INVALID = -1,
+	NETNS_BPF_FLOW_DISSECTOR = 0,
+	NETNS_BPF_SK_LOOKUP,
+	MAX_NETNS_BPF_ATTACH_TYPE
+};
 
 struct netns_bpf {
 	/* Array of programs to run compiled from progs or links */

@@ -3,10 +3,10 @@
 #define _BPF_CGROUP_H
 
 #include <linux/bpf.h>
+#include <linux/bpf-cgroup-defs.h>
 #include <linux/errno.h>
 #include <linux/jump_label.h>
 #include <linux/percpu.h>
-#include <linux/percpu-refcount.h>
 #include <linux/rbtree.h>
 #include <uapi/linux/bpf.h>
 
@@ -23,33 +23,6 @@ struct ctl_table_header;
 struct task_struct;
 
 #ifdef CONFIG_CGROUP_BPF
-enum cgroup_bpf_attach_type {
-	CGROUP_BPF_ATTACH_TYPE_INVALID = -1,
-	CGROUP_INET_INGRESS = 0,
-	CGROUP_INET_EGRESS,
-	CGROUP_INET_SOCK_CREATE,
-	CGROUP_SOCK_OPS,
-	CGROUP_DEVICE,
-	CGROUP_INET4_BIND,
-	CGROUP_INET6_BIND,
-	CGROUP_INET4_CONNECT,
-	CGROUP_INET6_CONNECT,
-	CGROUP_INET4_POST_BIND,
-	CGROUP_INET6_POST_BIND,
-	CGROUP_UDP4_SENDMSG,
-	CGROUP_UDP6_SENDMSG,
-	CGROUP_SYSCTL,
-	CGROUP_UDP4_RECVMSG,
-	CGROUP_UDP6_RECVMSG,
-	CGROUP_GETSOCKOPT,
-	CGROUP_SETSOCKOPT,
-	CGROUP_INET4_GETPEERNAME,
-	CGROUP_INET6_GETPEERNAME,
-	CGROUP_INET4_GETSOCKNAME,
-	CGROUP_INET6_GETSOCKNAME,
-	CGROUP_INET_SOCK_RELEASE,
-	MAX_CGROUP_BPF_ATTACH_TYPE
-};
 
 #define CGROUP_ATYPE(type) \
 	case BPF_##type: return type
@@ -125,33 +98,6 @@ struct bpf_prog_list {
 	struct bpf_prog *prog;
 	struct bpf_cgroup_link *link;
 	struct bpf_cgroup_storage *storage[MAX_BPF_CGROUP_STORAGE_TYPE];
-};
-
-struct bpf_prog_array;
-
-struct cgroup_bpf {
-	/* array of effective progs in this cgroup */
-	struct bpf_prog_array __rcu *effective[MAX_CGROUP_BPF_ATTACH_TYPE];
-
-	/* attached progs to this cgroup and attach flags
-	 * when flags == 0 or BPF_F_ALLOW_OVERRIDE the progs list will
-	 * have either zero or one element
-	 * when BPF_F_ALLOW_MULTI the list can have up to BPF_CGROUP_MAX_PROGS
-	 */
-	struct list_head progs[MAX_CGROUP_BPF_ATTACH_TYPE];
-	u32 flags[MAX_CGROUP_BPF_ATTACH_TYPE];
-
-	/* list of cgroup shared storages */
-	struct list_head storages;
-
-	/* temp storage for effective prog array used by prog_attach/detach */
-	struct bpf_prog_array *inactive;
-
-	/* reference counter used to detach bpf programs after cgroup removal */
-	struct percpu_ref refcnt;
-
-	/* cgroup_bpf is released using a work queue */
-	struct work_struct release_work;
 };
 
 int cgroup_bpf_inherit(struct cgroup *cgrp);
@@ -451,7 +397,6 @@ int cgroup_bpf_prog_query(const union bpf_attr *attr,
 			  union bpf_attr __user *uattr);
 #else
 
-struct cgroup_bpf {};
 static inline int cgroup_bpf_inherit(struct cgroup *cgrp) { return 0; }
 static inline void cgroup_bpf_offline(struct cgroup *cgrp) {}
 

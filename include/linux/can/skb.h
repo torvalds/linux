@@ -21,8 +21,9 @@ int can_put_echo_skb(struct sk_buff *skb, struct net_device *dev,
 		     unsigned int idx, unsigned int frame_len);
 struct sk_buff *__can_get_echo_skb(struct net_device *dev, unsigned int idx,
 				   u8 *len_ptr, unsigned int *frame_len_ptr);
-unsigned int can_get_echo_skb(struct net_device *dev, unsigned int idx,
-			      unsigned int *frame_len_ptr);
+unsigned int __must_check can_get_echo_skb(struct net_device *dev,
+					   unsigned int idx,
+					   unsigned int *frame_len_ptr);
 void can_free_echo_skb(struct net_device *dev, unsigned int idx,
 		       unsigned int *frame_len_ptr);
 struct sk_buff *alloc_can_skb(struct net_device *dev, struct can_frame **cf);

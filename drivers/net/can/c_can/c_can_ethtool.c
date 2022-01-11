@@ -20,7 +20,9 @@ static void c_can_get_drvinfo(struct net_device *netdev,
 }
 
 static void c_can_get_ringparam(struct net_device *netdev,
-				struct ethtool_ringparam *ring)
+				struct ethtool_ringparam *ring,
+				struct kernel_ethtool_ringparam *kernel_ring,
+				struct netlink_ext_ack *extack)
 {
 	struct c_can_priv *priv = netdev_priv(netdev);
 

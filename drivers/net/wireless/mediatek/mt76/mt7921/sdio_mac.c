@@ -219,5 +219,5 @@ bool mt7921s_tx_status_data(struct mt76_dev *mdev, u8 *update)
 	mt7921_mac_sta_poll(dev);
 	mt7921_mutex_release(dev);
 
-	return 0;
+	return false;
 }

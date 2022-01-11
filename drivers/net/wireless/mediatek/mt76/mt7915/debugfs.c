@@ -82,6 +82,225 @@ DEFINE_DEBUGFS_ATTRIBUTE(fops_radar_trigger, NULL,
 			 mt7915_radar_trigger, "%lld\n");
 
 static int
+mt7915_muru_debug_set(void *data, u64 val)
+{
+	struct mt7915_dev *dev = data;
+
+	dev->muru_debug = val;
+	mt7915_mcu_muru_debug_set(dev, data);
+
+	return 0;
+}
+
+static int
+mt7915_muru_debug_get(void *data, u64 *val)
+{
+	struct mt7915_dev *dev = data;
+
+	*val = dev->muru_debug;
+
+	return 0;
+}
+
+DEFINE_DEBUGFS_ATTRIBUTE(fops_muru_debug, mt7915_muru_debug_get,
+			 mt7915_muru_debug_set, "%lld\n");
+
+static int mt7915_muru_stats_show(struct seq_file *file, void *data)
+{
+	struct mt7915_phy *phy = file->private;
+	struct mt7915_dev *dev = phy->dev;
+	struct mt7915_mcu_muru_stats mu_stats = {};
+	static const char * const dl_non_he_type[] = {
+		"CCK", "OFDM", "HT MIX", "HT GF",
+		"VHT SU", "VHT 2MU", "VHT 3MU", "VHT 4MU"
+	};
+	static const char * const dl_he_type[] = {
+		"HE SU", "HE EXT", "HE 2MU", "HE 3MU", "HE 4MU",
+		"HE 2RU", "HE 3RU", "HE 4RU", "HE 5-8RU", "HE 9-16RU",
+		"HE >16RU"
+	};
+	static const char * const ul_he_type[] = {
+		"HE 2MU", "HE 3MU", "HE 4MU", "HE SU", "HE 2RU",
+		"HE 3RU", "HE 4RU", "HE 5-8RU", "HE 9-16RU", "HE >16RU"
+	};
+	int ret, i;
+	u64 total_ppdu_cnt, sub_total_cnt;
+
+	if (!dev->muru_debug) {
+		seq_puts(file, "Please enable muru_debug first.\n");
+		return 0;
+	}
+
+	mutex_lock(&dev->mt76.mutex);
+
+	ret = mt7915_mcu_muru_debug_get(phy, &mu_stats);
+	if (ret)
+		goto exit;
+
+	/* Non-HE Downlink*/
+	seq_puts(file, "[Non-HE]\nDownlink\nData Type:  ");
+
+	for (i = 0; i < 5; i++)
+		seq_printf(file, "%8s | ", dl_non_he_type[i]);
+
+#define __dl_u32(s)     le32_to_cpu(mu_stats.dl.s)
+	seq_puts(file, "\nTotal Count:");
+	seq_printf(file, "%8u | %8u | %8u | %8u | %8u | ",
+		   __dl_u32(cck_cnt),
+		   __dl_u32(ofdm_cnt),
+		   __dl_u32(htmix_cnt),
+		   __dl_u32(htgf_cnt),
+		   __dl_u32(vht_su_cnt));
+
+	seq_puts(file, "\nDownlink MU-MIMO\nData Type:  ");
+
+	for (i = 5; i < 8; i++)
+		seq_printf(file, "%8s | ", dl_non_he_type[i]);
+
+	seq_puts(file, "\nTotal Count:");
+	seq_printf(file, "%8u | %8u | %8u | ",
+		   __dl_u32(vht_2mu_cnt),
+		   __dl_u32(vht_3mu_cnt),
+		   __dl_u32(vht_4mu_cnt));
+
+	sub_total_cnt = __dl_u32(vht_2mu_cnt) +
+		__dl_u32(vht_3mu_cnt) +
+		__dl_u32(vht_4mu_cnt);
+
+	seq_printf(file, "\nTotal non-HE MU-MIMO DL PPDU count: %lld",
+		   sub_total_cnt);
+
+	total_ppdu_cnt = sub_total_cnt +
+		__dl_u32(cck_cnt) +
+		__dl_u32(ofdm_cnt) +
+		__dl_u32(htmix_cnt) +
+		__dl_u32(htgf_cnt) +
+		__dl_u32(vht_su_cnt);
+
+	seq_printf(file, "\nAll non-HE DL PPDU count: %lld", total_ppdu_cnt);
+
+	/* HE Downlink */
+	seq_puts(file, "\n\n[HE]\nDownlink\nData Type:  ");
+
+	for (i = 0; i < 2; i++)
+		seq_printf(file, "%8s | ", dl_he_type[i]);
+
+	seq_puts(file, "\nTotal Count:");
+	seq_printf(file, "%8u | %8u | ",
+		   __dl_u32(he_su_cnt),
+		   __dl_u32(he_ext_su_cnt));
+
+	seq_puts(file, "\nDownlink MU-MIMO\nData Type:  ");
+
+	for (i = 2; i < 5; i++)
+		seq_printf(file, "%8s | ", dl_he_type[i]);
+
+	seq_puts(file, "\nTotal Count:");
+	seq_printf(file, "%8u | %8u | %8u | ",
+		   __dl_u32(he_2mu_cnt),
+		   __dl_u32(he_3mu_cnt),
+		   __dl_u32(he_4mu_cnt));
+
+	seq_puts(file, "\nDownlink OFDMA\nData Type:  ");
+
+	for (i = 5; i < 11; i++)
+		seq_printf(file, "%8s | ", dl_he_type[i]);
+
+	seq_puts(file, "\nTotal Count:");
+	seq_printf(file, "%8u | %8u | %8u | %8u | %9u | %8u | ",
+		   __dl_u32(he_2ru_cnt),
+		   __dl_u32(he_3ru_cnt),
+		   __dl_u32(he_4ru_cnt),
+		   __dl_u32(he_5to8ru_cnt),
+		   __dl_u32(he_9to16ru_cnt),
+		   __dl_u32(he_gtr16ru_cnt));
+
+	sub_total_cnt = __dl_u32(he_2mu_cnt) +
+		__dl_u32(he_3mu_cnt) +
+		__dl_u32(he_4mu_cnt);
+	total_ppdu_cnt = sub_total_cnt;
+
+	seq_printf(file, "\nTotal HE MU-MIMO DL PPDU count: %lld",
+		   sub_total_cnt);
+
+	sub_total_cnt = __dl_u32(he_2ru_cnt) +
+		__dl_u32(he_3ru_cnt) +
+		__dl_u32(he_4ru_cnt) +
+		__dl_u32(he_5to8ru_cnt) +
+		__dl_u32(he_9to16ru_cnt) +
+		__dl_u32(he_gtr16ru_cnt);
+	total_ppdu_cnt += sub_total_cnt;
+
+	seq_printf(file, "\nTotal HE OFDMA DL PPDU count: %lld",
+		   sub_total_cnt);
+
+	total_ppdu_cnt += __dl_u32(he_su_cnt) +
+		__dl_u32(he_ext_su_cnt);
+
+	seq_printf(file, "\nAll HE DL PPDU count: %lld", total_ppdu_cnt);
+#undef __dl_u32
+
+	/* HE Uplink */
+	seq_puts(file, "\n\nUplink");
+	seq_puts(file, "\nTrigger-based Uplink MU-MIMO\nData Type:  ");
+
+	for (i = 0; i < 3; i++)
+		seq_printf(file, "%8s | ", ul_he_type[i]);
+
+#define __ul_u32(s)     le32_to_cpu(mu_stats.ul.s)
+	seq_puts(file, "\nTotal Count:");
+	seq_printf(file, "%8u | %8u | %8u | ",
+		   __ul_u32(hetrig_2mu_cnt),
+		   __ul_u32(hetrig_3mu_cnt),
+		   __ul_u32(hetrig_4mu_cnt));
+
+	seq_puts(file, "\nTrigger-based Uplink OFDMA\nData Type:  ");
+
+	for (i = 3; i < 10; i++)
+		seq_printf(file, "%8s | ", ul_he_type[i]);
+
+	seq_puts(file, "\nTotal Count:");
+	seq_printf(file, "%8u | %8u | %8u | %8u | %8u | %9u |  %7u | ",
+		   __ul_u32(hetrig_su_cnt),
+		   __ul_u32(hetrig_2ru_cnt),
+		   __ul_u32(hetrig_3ru_cnt),
+		   __ul_u32(hetrig_4ru_cnt),
+		   __ul_u32(hetrig_5to8ru_cnt),
+		   __ul_u32(hetrig_9to16ru_cnt),
+		   __ul_u32(hetrig_gtr16ru_cnt));
+
+	sub_total_cnt = __ul_u32(hetrig_2mu_cnt) +
+		__ul_u32(hetrig_3mu_cnt) +
+		__ul_u32(hetrig_4mu_cnt);
+	total_ppdu_cnt = sub_total_cnt;
+
+	seq_printf(file, "\nTotal HE MU-MIMO UL TB PPDU count: %lld",
+		   sub_total_cnt);
+
+	sub_total_cnt = __ul_u32(hetrig_2ru_cnt) +
+		__ul_u32(hetrig_3ru_cnt) +
+		__ul_u32(hetrig_4ru_cnt) +
+		__ul_u32(hetrig_5to8ru_cnt) +
+		__ul_u32(hetrig_9to16ru_cnt) +
+		__ul_u32(hetrig_gtr16ru_cnt);
+	total_ppdu_cnt += sub_total_cnt;
+
+	seq_printf(file, "\nTotal HE OFDMA UL TB PPDU count: %lld",
+		   sub_total_cnt);
+
+	total_ppdu_cnt += __ul_u32(hetrig_su_cnt);
+
+	seq_printf(file, "\nAll HE UL TB PPDU count: %lld\n", total_ppdu_cnt);
+#undef __ul_u32
+
+exit:
+	mutex_unlock(&dev->mt76.mutex);
+
+	return ret;
+}
+DEFINE_SHOW_ATTRIBUTE(mt7915_muru_stats);
+
+static int
 mt7915_fw_debug_wm_set(void *data, u64 val)
 {
 	struct mt7915_dev *dev = data;
@@ -355,8 +574,8 @@ mt7915_sta_hw_queue_read(void *data, struct ieee80211_sta *sta)
 		qlen = mt76_get_field(dev, MT_PLE_BASE + MT_FL_Q3_CTRL,
 				      GENMASK(11, 0));
 		seq_printf(s, "\tSTA %pM wcid %d: AC%d%d queued:%d\n",
-			   sta->addr, msta->wcid.idx, msta->vif->wmm_idx,
-			   ac, qlen);
+			   sta->addr, msta->wcid.idx,
+			   msta->vif->mt76.wmm_idx, ac, qlen);
 	}
 }
 
@@ -528,7 +747,9 @@ int mt7915_init_debugfs(struct mt7915_phy *phy)
 	dir = mt76_register_debugfs_fops(phy->mt76, NULL);
 	if (!dir)
 		return -ENOMEM;
-
+	debugfs_create_file("muru_debug", 0600, dir, dev, &fops_muru_debug);
+	debugfs_create_file("muru_stats", 0400, dir, phy,
+			    &mt7915_muru_stats_fops);
 	debugfs_create_file("hw-queues", 0400, dir, phy,
 			    &mt7915_hw_queues_fops);
 	debugfs_create_file("xmit-queues", 0400, dir, phy,

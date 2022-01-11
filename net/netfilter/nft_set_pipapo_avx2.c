@@ -1048,10 +1048,8 @@ static int nft_pipapo_avx2_lookup_slow(unsigned long *map, unsigned long *fill,
 					struct nft_pipapo_field *f, int offset,
 					const u8 *pkt, bool first, bool last)
 {
-	unsigned long *lt = f->lt, bsize = f->bsize;
+	unsigned long bsize = f->bsize;
 	int i, ret = -1, b;
-
-	lt += offset * NFT_PIPAPO_LONGS_PER_M256;
 
 	if (first)
 		memset(map, 0xff, bsize * sizeof(*map));

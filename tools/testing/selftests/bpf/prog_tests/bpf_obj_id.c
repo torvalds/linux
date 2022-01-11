@@ -48,7 +48,7 @@ void serial_test_bpf_obj_id(void)
 	bzero(zeros, sizeof(zeros));
 	for (i = 0; i < nr_iters; i++) {
 		now = time(NULL);
-		err = bpf_prog_load(file, BPF_PROG_TYPE_RAW_TRACEPOINT,
+		err = bpf_prog_test_load(file, BPF_PROG_TYPE_RAW_TRACEPOINT,
 				    &objs[i], &prog_fds[i]);
 		/* test_obj_id.o is a dumb prog. It should never fail
 		 * to load.
@@ -65,8 +65,8 @@ void serial_test_bpf_obj_id(void)
 		if (CHECK_FAIL(err))
 			goto done;
 
-		prog = bpf_object__find_program_by_title(objs[i],
-							 "raw_tp/sys_enter");
+		prog = bpf_object__find_program_by_name(objs[i],
+							"test_obj_id");
 		if (CHECK_FAIL(!prog))
 			goto done;
 		links[i] = bpf_program__attach(prog);

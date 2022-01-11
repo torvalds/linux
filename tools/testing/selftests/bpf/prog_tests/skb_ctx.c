@@ -32,7 +32,7 @@ void test_skb_ctx(void)
 	int err;
 	int i;
 
-	err = bpf_prog_load("./test_skb_ctx.o", BPF_PROG_TYPE_SCHED_CLS, &obj,
+	err = bpf_prog_test_load("./test_skb_ctx.o", BPF_PROG_TYPE_SCHED_CLS, &obj,
 			    &tattr.prog_fd);
 	if (CHECK_ATTR(err, "load", "err %d errno %d\n", err, errno))
 		return;
@@ -111,4 +111,6 @@ void test_skb_ctx(void)
 		   "ctx_out_mark",
 		   "skb->mark == %u, expected %d\n",
 		   skb.mark, 10);
+
+	bpf_object__close(obj);
 }

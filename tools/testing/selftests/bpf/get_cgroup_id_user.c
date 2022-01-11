@@ -19,6 +19,7 @@
 #include <bpf/libbpf.h>
 
 #include "cgroup_helpers.h"
+#include "testing_helpers.h"
 #include "bpf_rlimit.h"
 
 #define CHECK(condition, tag, format...) ({		\
@@ -66,8 +67,8 @@ int main(int argc, char **argv)
 	if (CHECK(cgroup_fd < 0, "cgroup_setup_and_join", "err %d errno %d\n", cgroup_fd, errno))
 		return 1;
 
-	err = bpf_prog_load(file, BPF_PROG_TYPE_TRACEPOINT, &obj, &prog_fd);
-	if (CHECK(err, "bpf_prog_load", "err %d errno %d\n", err, errno))
+	err = bpf_prog_test_load(file, BPF_PROG_TYPE_TRACEPOINT, &obj, &prog_fd);
+	if (CHECK(err, "bpf_prog_test_load", "err %d errno %d\n", err, errno))
 		goto cleanup_cgroup_env;
 
 	cgidmap_fd = bpf_find_map(__func__, obj, "cg_ids");

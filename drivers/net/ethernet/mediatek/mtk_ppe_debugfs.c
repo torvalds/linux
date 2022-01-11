@@ -207,9 +207,6 @@ int mtk_ppe_debugfs_init(struct mtk_ppe *ppe)
 	struct dentry *root;
 
 	root = debugfs_create_dir("mtk_ppe", NULL);
-	if (!root)
-		return -ENOMEM;
-
 	debugfs_create_file("entries", S_IRUGO, root, ppe, &fops_all);
 	debugfs_create_file("bind", S_IRUGO, root, ppe, &fops_bind);
 

@@ -568,37 +568,21 @@ static int
 mlxsw_sp2_ipip_rem_addr_set_gre6(struct mlxsw_sp *mlxsw_sp,
 				 struct mlxsw_sp_ipip_entry *ipip_entry)
 {
-	char rips_pl[MLXSW_REG_RIPS_LEN];
 	struct __ip6_tnl_parm parms6;
-	int err;
-
-	err = mlxsw_sp_kvdl_alloc(mlxsw_sp,
-				  MLXSW_SP_KVDL_ENTRY_TYPE_IPV6_ADDRESS, 1,
-				  &ipip_entry->dip_kvdl_index);
-	if (err)
-		return err;
 
 	parms6 = mlxsw_sp_ipip_netdev_parms6(ipip_entry->ol_dev);
-	mlxsw_reg_rips_pack(rips_pl, ipip_entry->dip_kvdl_index,
-			    &parms6.raddr);
-	err = mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(rips), rips_pl);
-	if (err)
-		goto err_rips_write;
-
-	return 0;
-
-err_rips_write:
-	mlxsw_sp_kvdl_free(mlxsw_sp, MLXSW_SP_KVDL_ENTRY_TYPE_IPV6_ADDRESS, 1,
-			   ipip_entry->dip_kvdl_index);
-	return err;
+	return mlxsw_sp_ipv6_addr_kvdl_index_get(mlxsw_sp, &parms6.raddr,
+						 &ipip_entry->dip_kvdl_index);
 }
 
 static void
 mlxsw_sp2_ipip_rem_addr_unset_gre6(struct mlxsw_sp *mlxsw_sp,
 				   const struct mlxsw_sp_ipip_entry *ipip_entry)
 {
-	mlxsw_sp_kvdl_free(mlxsw_sp, MLXSW_SP_KVDL_ENTRY_TYPE_IPV6_ADDRESS, 1,
-			   ipip_entry->dip_kvdl_index);
+	struct __ip6_tnl_parm parms6;
+
+	parms6 = mlxsw_sp_ipip_netdev_parms6(ipip_entry->ol_dev);
+	mlxsw_sp_ipv6_addr_put(mlxsw_sp, &parms6.raddr);
 }
 
 static const struct mlxsw_sp_ipip_ops mlxsw_sp2_ipip_gre6_ops = {

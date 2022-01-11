@@ -54,11 +54,7 @@ struct smc_wr_tx_pend {	/* control data for a pending send request */
 /* returns true if at least one tx work request is pending on the given link */
 static inline bool smc_wr_is_tx_pend(struct smc_link *link)
 {
-	if (find_first_bit(link->wr_tx_mask, link->wr_tx_cnt) !=
-							link->wr_tx_cnt) {
-		return true;
-	}
-	return false;
+	return !bitmap_empty(link->wr_tx_mask, link->wr_tx_cnt);
 }
 
 /* wait till all pending tx work requests on the given link are completed */
@@ -696,7 +692,7 @@ void smc_wr_free_link_mem(struct smc_link *lnk)
 	lnk->wr_tx_compl = NULL;
 	kfree(lnk->wr_tx_pends);
 	lnk->wr_tx_pends = NULL;
-	kfree(lnk->wr_tx_mask);
+	bitmap_free(lnk->wr_tx_mask);
 	lnk->wr_tx_mask = NULL;
 	kfree(lnk->wr_tx_sges);
 	lnk->wr_tx_sges = NULL;
@@ -772,9 +768,7 @@ int smc_wr_alloc_link_mem(struct smc_link *link)
 				   GFP_KERNEL);
 	if (!link->wr_rx_sges)
 		goto no_mem_wr_tx_sges;
-	link->wr_tx_mask = kcalloc(BITS_TO_LONGS(SMC_WR_BUF_CNT),
-				   sizeof(*link->wr_tx_mask),
-				   GFP_KERNEL);
+	link->wr_tx_mask = bitmap_zalloc(SMC_WR_BUF_CNT, GFP_KERNEL);
 	if (!link->wr_tx_mask)
 		goto no_mem_wr_rx_sges;
 	link->wr_tx_pends = kcalloc(SMC_WR_BUF_CNT,
@@ -887,8 +881,7 @@ int smc_wr_create_link(struct smc_link *lnk)
 		goto dma_unmap;
 	}
 	smc_wr_init_sge(lnk);
-	memset(lnk->wr_tx_mask, 0,
-	       BITS_TO_LONGS(SMC_WR_BUF_CNT) * sizeof(*lnk->wr_tx_mask));
+	bitmap_zero(lnk->wr_tx_mask, SMC_WR_BUF_CNT);
 	init_waitqueue_head(&lnk->wr_tx_wait);
 	atomic_set(&lnk->wr_tx_refcnt, 0);
 	init_waitqueue_head(&lnk->wr_reg_wait);

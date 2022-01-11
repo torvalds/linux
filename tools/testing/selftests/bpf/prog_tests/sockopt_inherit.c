@@ -136,7 +136,8 @@ static int start_server(void)
 	return fd;
 }
 
-static int prog_attach(struct bpf_object *obj, int cgroup_fd, const char *title)
+static int prog_attach(struct bpf_object *obj, int cgroup_fd, const char *title,
+		       const char *prog_name)
 {
 	enum bpf_attach_type attach_type;
 	enum bpf_prog_type prog_type;
@@ -145,20 +146,20 @@ static int prog_attach(struct bpf_object *obj, int cgroup_fd, const char *title)
 
 	err = libbpf_prog_type_by_name(title, &prog_type, &attach_type);
 	if (err) {
-		log_err("Failed to deduct types for %s BPF program", title);
+		log_err("Failed to deduct types for %s BPF program", prog_name);
 		return -1;
 	}
 
-	prog = bpf_object__find_program_by_title(obj, title);
+	prog = bpf_object__find_program_by_name(obj, prog_name);
 	if (!prog) {
-		log_err("Failed to find %s BPF program", title);
+		log_err("Failed to find %s BPF program", prog_name);
 		return -1;
 	}
 
 	err = bpf_prog_attach(bpf_program__fd(prog), cgroup_fd,
 			      attach_type, 0);
 	if (err) {
-		log_err("Failed to attach %s BPF program", title);
+		log_err("Failed to attach %s BPF program", prog_name);
 		return -1;
 	}
 
@@ -167,25 +168,25 @@ static int prog_attach(struct bpf_object *obj, int cgroup_fd, const char *title)
 
 static void run_test(int cgroup_fd)
 {
-	struct bpf_prog_load_attr attr = {
-		.file = "./sockopt_inherit.o",
-	};
 	int server_fd = -1, client_fd;
 	struct bpf_object *obj;
 	void *server_err;
 	pthread_t tid;
-	int ignored;
 	int err;
 
-	err = bpf_prog_load_xattr(&attr, &obj, &ignored);
-	if (CHECK_FAIL(err))
+	obj = bpf_object__open_file("sockopt_inherit.o", NULL);
+	if (!ASSERT_OK_PTR(obj, "obj_open"))
 		return;
 
-	err = prog_attach(obj, cgroup_fd, "cgroup/getsockopt");
+	err = bpf_object__load(obj);
+	if (!ASSERT_OK(err, "obj_load"))
+		goto close_bpf_object;
+
+	err = prog_attach(obj, cgroup_fd, "cgroup/getsockopt", "_getsockopt");
 	if (CHECK_FAIL(err))
 		goto close_bpf_object;
 
-	err = prog_attach(obj, cgroup_fd, "cgroup/setsockopt");
+	err = prog_attach(obj, cgroup_fd, "cgroup/setsockopt", "_setsockopt");
 	if (CHECK_FAIL(err))
 		goto close_bpf_object;
 

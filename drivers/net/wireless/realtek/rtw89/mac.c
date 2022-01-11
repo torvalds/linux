@@ -1093,7 +1093,6 @@ static int cmac_func_en(struct rtw89_dev *rtwdev, u8 mac_idx, bool en)
 static int dmac_func_en(struct rtw89_dev *rtwdev)
 {
 	u32 val32;
-	u32 ret = 0;
 
 	val32 = (B_AX_MAC_FUNC_EN | B_AX_DMAC_FUNC_EN | B_AX_MAC_SEC_EN |
 		 B_AX_DISPATCHER_EN | B_AX_DLE_CPUIO_EN | B_AX_PKT_IN_EN |
@@ -1107,7 +1106,7 @@ static int dmac_func_en(struct rtw89_dev *rtwdev)
 		 B_AX_WD_RLS_CLK_EN);
 	rtw89_write32(rtwdev, R_AX_DMAC_CLK_EN, val32);
 
-	return ret;
+	return 0;
 }
 
 static int chip_func_en(struct rtw89_dev *rtwdev)
@@ -2991,7 +2990,7 @@ int rtw89_mac_vif_init(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif)
 	if (ret)
 		return ret;
 
-	ret = rtw89_fw_h2c_cam(rtwdev, rtwvif);
+	ret = rtw89_fw_h2c_cam(rtwdev, rtwvif, NULL, NULL);
 	if (ret)
 		return ret;
 
@@ -3012,7 +3011,7 @@ int rtw89_mac_vif_deinit(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif)
 
 	rtw89_cam_deinit(rtwdev, rtwvif);
 
-	ret = rtw89_fw_h2c_cam(rtwdev, rtwvif);
+	ret = rtw89_fw_h2c_cam(rtwdev, rtwvif, NULL, NULL);
 	if (ret)
 		return ret;
 
@@ -3451,6 +3450,18 @@ bool rtw89_mac_get_ctrl_path(struct rtw89_dev *rtwdev)
 	return FIELD_GET(B_AX_LTE_MUX_CTRL_PATH >> 24, val);
 }
 
+u16 rtw89_mac_get_plt_cnt(struct rtw89_dev *rtwdev, u8 band)
+{
+	u32 reg;
+	u16 cnt;
+
+	reg = rtw89_mac_reg_by_idx(R_AX_BT_PLT, band);
+	cnt = rtw89_read32_mask(rtwdev, reg, B_AX_BT_PLT_PKT_CNT_MASK);
+	rtw89_write16_set(rtwdev, reg, B_AX_BT_PLT_RST);
+
+	return cnt;
+}
+
 static void rtw89_mac_bfee_ctrl(struct rtw89_dev *rtwdev, u8 mac_idx, bool en)
 {
 	u32 reg;
@@ -3695,7 +3706,7 @@ void _rtw89_mac_bf_monitor_track(struct rtw89_dev *rtwdev)
 {
 	struct rtw89_traffic_stats *stats = &rtwdev->stats;
 	struct rtw89_vif *rtwvif;
-	bool en = stats->tx_tfc_lv > stats->rx_tfc_lv ? false : true;
+	bool en = stats->tx_tfc_lv <= stats->rx_tfc_lv;
 	bool old = test_bit(RTW89_FLAG_BFEE_EN, rtwdev->flags);
 
 	if (en == old)

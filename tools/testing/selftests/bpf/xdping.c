@@ -22,6 +22,7 @@
 #include "bpf/libbpf.h"
 
 #include "xdping.h"
+#include "testing_helpers.h"
 
 static int ifindex;
 static __u32 xdp_flags = XDP_FLAGS_UPDATE_IF_NOEXIST;
@@ -173,7 +174,7 @@ int main(int argc, char **argv)
 
 	snprintf(filename, sizeof(filename), "%s_kern.o", argv[0]);
 
-	if (bpf_prog_load(filename, BPF_PROG_TYPE_XDP, &obj, &prog_fd)) {
+	if (bpf_prog_test_load(filename, BPF_PROG_TYPE_XDP, &obj, &prog_fd)) {
 		fprintf(stderr, "load of %s failed\n", filename);
 		return 1;
 	}

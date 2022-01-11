@@ -128,7 +128,6 @@ static int cfserl_receive(struct cflayer *l, struct cfpkt *newpkt)
 				if (pkt != NULL)
 					cfpkt_destroy(pkt);
 				layr->incomplete_frm = NULL;
-				expectlen = 0;
 				spin_unlock(&layr->sync);
 				return -EPROTO;
 			}

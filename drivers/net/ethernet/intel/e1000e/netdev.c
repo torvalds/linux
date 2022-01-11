@@ -3614,10 +3614,6 @@ static int e1000e_config_hwtstamp(struct e1000_adapter *adapter,
 	if (!(adapter->flags & FLAG_HAS_HW_TIMESTAMP))
 		return -EINVAL;
 
-	/* flags reserved for future extensions - must be zero */
-	if (config->flags)
-		return -EINVAL;
-
 	switch (config->tx_type) {
 	case HWTSTAMP_TX_OFF:
 		tsync_tx_ctl = 0;

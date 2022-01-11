@@ -24,6 +24,7 @@ union inet_addr {
 
 struct netpoll {
 	struct net_device *dev;
+	netdevice_tracker dev_tracker;
 	char dev_name[IFNAMSIZ];
 	const char *name;
 

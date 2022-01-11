@@ -3,6 +3,8 @@
  * Copyright (c) 2018-2020 The Linux Foundation. All rights reserved.
  */
 
+#include <linux/vmalloc.h>
+
 #include "debugfs.h"
 
 #include "core.h"
@@ -126,6 +128,11 @@ void ath11k_debugfs_fw_stats_process(struct ath11k_base *ab, struct sk_buff *skb
 		goto complete;
 	}
 
+	if (stats.stats_id == WMI_REQUEST_RSSI_PER_CHAIN_STAT) {
+		ar->debug.fw_stats_done = true;
+		goto complete;
+	}
+
 	if (stats.stats_id == WMI_REQUEST_VDEV_STAT) {
 		if (list_empty(&stats.vdevs)) {
 			ath11k_warn(ab, "empty vdev stats");
@@ -195,7 +202,7 @@ static int ath11k_debugfs_fw_stats_request(struct ath11k *ar,
 	 * received 'update stats' event, we keep a 3 seconds timeout in case,
 	 * fw_stats_done is not marked yet
 	 */
-	timeout = jiffies + msecs_to_jiffies(3 * HZ);
+	timeout = jiffies + msecs_to_jiffies(3 * 1000);
 
 	ath11k_debugfs_fw_stats_reset(ar);
 
@@ -227,6 +234,38 @@ static int ath11k_debugfs_fw_stats_request(struct ath11k *ar,
 		spin_unlock_bh(&ar->data_lock);
 	}
 	return 0;
+}
+
+int ath11k_debugfs_get_fw_stats(struct ath11k *ar, u32 pdev_id,
+				u32 vdev_id, u32 stats_id)
+{
+	struct ath11k_base *ab = ar->ab;
+	struct stats_request_params req_param;
+	int ret;
+
+	mutex_lock(&ar->conf_mutex);
+
+	if (ar->state != ATH11K_STATE_ON) {
+		ret = -ENETDOWN;
+		goto err_unlock;
+	}
+
+	req_param.pdev_id = pdev_id;
+	req_param.vdev_id = vdev_id;
+	req_param.stats_id = stats_id;
+
+	ret = ath11k_debugfs_fw_stats_request(ar, &req_param);
+	if (ret)
+		ath11k_warn(ab, "failed to request fw stats: %d\n", ret);
+
+	ath11k_dbg(ab, ATH11K_DBG_WMI,
+		   "debug get fw stat pdev id %d vdev id %d stats id 0x%x\n",
+		   pdev_id, vdev_id, stats_id);
+
+err_unlock:
+	mutex_unlock(&ar->conf_mutex);
+
+	return ret;
 }
 
 static int ath11k_open_pdev_stats(struct inode *inode, struct file *file)

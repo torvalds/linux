@@ -306,6 +306,8 @@ struct smc_link_group {
 			u8			nexthop_mac[ETH_ALEN];
 			u8			uses_gateway;
 			__be32			saddr;
+						/* net namespace */
+			struct net		*net;
 		};
 		struct { /* SMC-D */
 			u64			peer_gid;
@@ -407,7 +409,13 @@ static inline struct smc_connection *smc_lgr_find_conn(
 	return res;
 }
 
-/* returns true if the specified link is usable */
+/*
+ * Returns true if the specified link is usable.
+ *
+ * usable means the link is ready to receive RDMA messages, map memory
+ * on the link, etc. This doesn't ensure we are able to send RDMA messages
+ * on this link, if sending RDMA messages is needed, use smc_link_sendable()
+ */
 static inline bool smc_link_usable(struct smc_link *lnk)
 {
 	if (lnk->state == SMC_LNK_UNUSED || lnk->state == SMC_LNK_INACTIVE)
@@ -415,6 +423,15 @@ static inline bool smc_link_usable(struct smc_link *lnk)
 	return true;
 }
 
+/*
+ * Returns true if the specified link is ready to receive AND send RDMA
+ * messages.
+ *
+ * For the client side in first contact, the underlying QP may still in
+ * RESET or RTR when the link state is ACTIVATING, checks in smc_link_usable()
+ * is not strong enough. For those places that need to send any CDC or LLC
+ * messages, use smc_link_sendable(), otherwise, use smc_link_usable() instead
+ */
 static inline bool smc_link_sendable(struct smc_link *lnk)
 {
 	return smc_link_usable(lnk) &&
@@ -468,7 +485,7 @@ static inline void smc_set_pci_values(struct pci_dev *pci_dev,
 struct smc_sock;
 struct smc_clc_msg_accept_confirm;
 
-void smc_lgr_cleanup_early(struct smc_connection *conn);
+void smc_lgr_cleanup_early(struct smc_link_group *lgr);
 void smc_lgr_terminate_sched(struct smc_link_group *lgr);
 void smcr_port_add(struct smc_ib_device *smcibdev, u8 ibport);
 void smcr_port_err(struct smc_ib_device *smcibdev, u8 ibport);

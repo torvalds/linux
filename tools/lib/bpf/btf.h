@@ -157,7 +157,7 @@ LIBBPF_API int btf__get_map_kv_tids(const struct btf *btf, const char *map_name,
 				    __u32 expected_value_size,
 				    __u32 *key_type_id, __u32 *value_type_id);
 
-LIBBPF_API struct btf_ext *btf_ext__new(__u8 *data, __u32 size);
+LIBBPF_API struct btf_ext *btf_ext__new(const __u8 *data, __u32 size);
 LIBBPF_API void btf_ext__free(struct btf_ext *btf_ext);
 LIBBPF_API const void *btf_ext__get_raw_data(const struct btf_ext *btf_ext,
 					     __u32 *size);
@@ -227,6 +227,7 @@ LIBBPF_API int btf__add_typedef(struct btf *btf, const char *name, int ref_type_
 LIBBPF_API int btf__add_volatile(struct btf *btf, int ref_type_id);
 LIBBPF_API int btf__add_const(struct btf *btf, int ref_type_id);
 LIBBPF_API int btf__add_restrict(struct btf *btf, int ref_type_id);
+LIBBPF_API int btf__add_type_tag(struct btf *btf, const char *value, int ref_type_id);
 
 /* func and func_proto construction APIs */
 LIBBPF_API int btf__add_func(struct btf *btf, const char *name,
@@ -245,25 +246,86 @@ LIBBPF_API int btf__add_decl_tag(struct btf *btf, const char *value, int ref_typ
 			    int component_idx);
 
 struct btf_dedup_opts {
-	unsigned int dedup_table_size;
-	bool dont_resolve_fwds;
+	size_t sz;
+	/* optional .BTF.ext info to dedup along the main BTF info */
+	struct btf_ext *btf_ext;
+	/* force hash collisions (used for testing) */
+	bool force_collisions;
+	size_t :0;
 };
+#define btf_dedup_opts__last_field force_collisions
 
-LIBBPF_API int btf__dedup(struct btf *btf, struct btf_ext *btf_ext,
-			  const struct btf_dedup_opts *opts);
+LIBBPF_API int btf__dedup(struct btf *btf, const struct btf_dedup_opts *opts);
+
+LIBBPF_API int btf__dedup_v0_6_0(struct btf *btf, const struct btf_dedup_opts *opts);
+
+LIBBPF_DEPRECATED_SINCE(0, 7, "use btf__dedup() instead")
+LIBBPF_API int btf__dedup_deprecated(struct btf *btf, struct btf_ext *btf_ext, const void *opts);
+#define btf__dedup(...) ___libbpf_overload(___btf_dedup, __VA_ARGS__)
+#define ___btf_dedup3(btf, btf_ext, opts) btf__dedup_deprecated(btf, btf_ext, opts)
+#define ___btf_dedup2(btf, opts) btf__dedup(btf, opts)
 
 struct btf_dump;
 
 struct btf_dump_opts {
-	void *ctx;
+	union {
+		size_t sz;
+		void *ctx; /* DEPRECATED: will be gone in v1.0 */
+	};
 };
 
 typedef void (*btf_dump_printf_fn_t)(void *ctx, const char *fmt, va_list args);
 
 LIBBPF_API struct btf_dump *btf_dump__new(const struct btf *btf,
-					  const struct btf_ext *btf_ext,
-					  const struct btf_dump_opts *opts,
-					  btf_dump_printf_fn_t printf_fn);
+					  btf_dump_printf_fn_t printf_fn,
+					  void *ctx,
+					  const struct btf_dump_opts *opts);
+
+LIBBPF_API struct btf_dump *btf_dump__new_v0_6_0(const struct btf *btf,
+						 btf_dump_printf_fn_t printf_fn,
+						 void *ctx,
+						 const struct btf_dump_opts *opts);
+
+LIBBPF_API struct btf_dump *btf_dump__new_deprecated(const struct btf *btf,
+						     const struct btf_ext *btf_ext,
+						     const struct btf_dump_opts *opts,
+						     btf_dump_printf_fn_t printf_fn);
+
+/* Choose either btf_dump__new() or btf_dump__new_deprecated() based on the
+ * type of 4th argument. If it's btf_dump's print callback, use deprecated
+ * API; otherwise, choose the new btf_dump__new(). ___libbpf_override()
+ * doesn't work here because both variants have 4 input arguments.
+ *
+ * (void *) casts are necessary to avoid compilation warnings about type
+ * mismatches, because even though __builtin_choose_expr() only ever evaluates
+ * one side the other side still has to satisfy type constraints (this is
+ * compiler implementation limitation which might be lifted eventually,
+ * according to the documentation). So passing struct btf_ext in place of
+ * btf_dump_printf_fn_t would be generating compilation warning.  Casting to
+ * void * avoids this issue.
+ *
+ * Also, two type compatibility checks for a function and function pointer are
+ * required because passing function reference into btf_dump__new() as
+ * btf_dump__new(..., my_callback, ...) and as btf_dump__new(...,
+ * &my_callback, ...) (not explicit ampersand in the latter case) actually
+ * differs as far as __builtin_types_compatible_p() is concerned. Thus two
+ * checks are combined to detect callback argument.
+ *
+ * The rest works just like in case of ___libbpf_override() usage with symbol
+ * versioning.
+ *
+ * C++ compilers don't support __builtin_types_compatible_p(), so at least
+ * don't screw up compilation for them and let C++ users pick btf_dump__new
+ * vs btf_dump__new_deprecated explicitly.
+ */
+#ifndef __cplusplus
+#define btf_dump__new(a1, a2, a3, a4) __builtin_choose_expr(				\
+	__builtin_types_compatible_p(typeof(a4), btf_dump_printf_fn_t) ||		\
+	__builtin_types_compatible_p(typeof(a4), void(void *, const char *, va_list)),	\
+	btf_dump__new_deprecated((void *)a1, (void *)a2, (void *)a3, (void *)a4),	\
+	btf_dump__new((void *)a1, (void *)a2, (void *)a3, (void *)a4))
+#endif
+
 LIBBPF_API void btf_dump__free(struct btf_dump *d);
 
 LIBBPF_API int btf_dump__dump_type(struct btf_dump *d, __u32 id);
@@ -403,7 +465,8 @@ static inline bool btf_is_mod(const struct btf_type *t)
 
 	return kind == BTF_KIND_VOLATILE ||
 	       kind == BTF_KIND_CONST ||
-	       kind == BTF_KIND_RESTRICT;
+	       kind == BTF_KIND_RESTRICT ||
+	       kind == BTF_KIND_TYPE_TAG;
 }
 
 static inline bool btf_is_func(const struct btf_type *t)
@@ -434,6 +497,11 @@ static inline bool btf_is_float(const struct btf_type *t)
 static inline bool btf_is_decl_tag(const struct btf_type *t)
 {
 	return btf_kind(t) == BTF_KIND_DECL_TAG;
+}
+
+static inline bool btf_is_type_tag(const struct btf_type *t)
+{
+	return btf_kind(t) == BTF_KIND_TYPE_TAG;
 }
 
 static inline __u8 btf_int_encoding(const struct btf_type *t)

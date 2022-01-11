@@ -14683,7 +14683,7 @@ static struct tail_call_test tail_call_tests[] = {
 			BPF_EXIT_INSN(),
 		},
 		.flags = FLAG_NEED_STATE | FLAG_RESULT_IN_STATE,
-		.result = (MAX_TAIL_CALL_CNT + 1 + 1) * MAX_TESTRUNS,
+		.result = (MAX_TAIL_CALL_CNT + 1) * MAX_TESTRUNS,
 	},
 	{
 		"Tail call count preserved across function calls",
@@ -14705,7 +14705,7 @@ static struct tail_call_test tail_call_tests[] = {
 		},
 		.stack_depth = 8,
 		.flags = FLAG_NEED_STATE | FLAG_RESULT_IN_STATE,
-		.result = (MAX_TAIL_CALL_CNT + 1 + 1) * MAX_TESTRUNS,
+		.result = (MAX_TAIL_CALL_CNT + 1) * MAX_TESTRUNS,
 	},
 	{
 		"Tail call error path, NULL target",

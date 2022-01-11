@@ -422,6 +422,17 @@ arp_all_targets
 		consider the slave up only when all of the arp_ip_targets
 		are reachable
 
+arp_missed_max
+
+	Specifies the number of arp_interval monitor checks that must
+	fail in order for an interface to be marked down by the ARP monitor.
+
+	In order to provide orderly failover semantics, backup interfaces
+	are permitted an extra monitor check (i.e., they must fail
+	arp_missed_max + 1 times before being marked down).
+
+	The default value is 2, and the allowable range is 1 - 255.
+
 downdelay
 
 	Specifies the time, in milliseconds, to wait before disabling

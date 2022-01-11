@@ -719,6 +719,8 @@ static void dr_ste_copy_mask_misc(char *mask, struct mlx5dr_match_misc *spec, bo
 	spec->vxlan_vni = IFC_GET_CLR(fte_match_set_misc, mask, vxlan_vni, clr);
 
 	spec->geneve_vni = IFC_GET_CLR(fte_match_set_misc, mask, geneve_vni, clr);
+	spec->geneve_tlv_option_0_exist =
+		IFC_GET_CLR(fte_match_set_misc, mask, geneve_tlv_option_0_exist, clr);
 	spec->geneve_oam = IFC_GET_CLR(fte_match_set_misc, mask, geneve_oam, clr);
 
 	spec->outer_ipv6_flow_label =
@@ -880,6 +882,26 @@ static void dr_ste_copy_mask_misc4(char *mask, struct mlx5dr_match_misc4 *spec, 
 		IFC_GET_CLR(fte_match_set_misc4, mask, prog_sample_field_value_3, clr);
 }
 
+static void dr_ste_copy_mask_misc5(char *mask, struct mlx5dr_match_misc5 *spec, bool clr)
+{
+	spec->macsec_tag_0 =
+		IFC_GET_CLR(fte_match_set_misc5, mask, macsec_tag_0, clr);
+	spec->macsec_tag_1 =
+		IFC_GET_CLR(fte_match_set_misc5, mask, macsec_tag_1, clr);
+	spec->macsec_tag_2 =
+		IFC_GET_CLR(fte_match_set_misc5, mask, macsec_tag_2, clr);
+	spec->macsec_tag_3 =
+		IFC_GET_CLR(fte_match_set_misc5, mask, macsec_tag_3, clr);
+	spec->tunnel_header_0 =
+		IFC_GET_CLR(fte_match_set_misc5, mask, tunnel_header_0, clr);
+	spec->tunnel_header_1 =
+		IFC_GET_CLR(fte_match_set_misc5, mask, tunnel_header_1, clr);
+	spec->tunnel_header_2 =
+		IFC_GET_CLR(fte_match_set_misc5, mask, tunnel_header_2, clr);
+	spec->tunnel_header_3 =
+		IFC_GET_CLR(fte_match_set_misc5, mask, tunnel_header_3, clr);
+}
+
 void mlx5dr_ste_copy_param(u8 match_criteria,
 			   struct mlx5dr_match_param *set_param,
 			   struct mlx5dr_match_parameters *mask,
@@ -965,6 +987,20 @@ void mlx5dr_ste_copy_param(u8 match_criteria,
 			buff = data + param_location;
 		}
 		dr_ste_copy_mask_misc4(buff, &set_param->misc4, clr);
+	}
+
+	param_location += sizeof(struct mlx5dr_match_misc4);
+
+	if (match_criteria & DR_MATCHER_CRITERIA_MISC5) {
+		if (mask->match_sz < param_location +
+		    sizeof(struct mlx5dr_match_misc5)) {
+			memcpy(tail_param, data + param_location,
+			       mask->match_sz - param_location);
+			buff = tail_param;
+		} else {
+			buff = data + param_location;
+		}
+		dr_ste_copy_mask_misc5(buff, &set_param->misc5, clr);
 	}
 }
 
@@ -1180,6 +1216,21 @@ void mlx5dr_ste_build_tnl_geneve_tlv_opt(struct mlx5dr_ste_ctx *ste_ctx,
 	ste_ctx->build_tnl_geneve_tlv_opt_init(sb, mask);
 }
 
+void mlx5dr_ste_build_tnl_geneve_tlv_opt_exist(struct mlx5dr_ste_ctx *ste_ctx,
+					       struct mlx5dr_ste_build *sb,
+					       struct mlx5dr_match_param *mask,
+					       struct mlx5dr_cmd_caps *caps,
+					       bool inner, bool rx)
+{
+	if (!ste_ctx->build_tnl_geneve_tlv_opt_exist_init)
+		return;
+
+	sb->rx = rx;
+	sb->caps = caps;
+	sb->inner = inner;
+	ste_ctx->build_tnl_geneve_tlv_opt_exist_init(sb, mask);
+}
+
 void mlx5dr_ste_build_tnl_gtpu(struct mlx5dr_ste_ctx *ste_ctx,
 			       struct mlx5dr_ste_build *sb,
 			       struct mlx5dr_match_param *mask,
@@ -1267,6 +1318,16 @@ void mlx5dr_ste_build_flex_parser_1(struct mlx5dr_ste_ctx *ste_ctx,
 	sb->rx = rx;
 	sb->inner = inner;
 	ste_ctx->build_flex_parser_1_init(sb, mask);
+}
+
+void mlx5dr_ste_build_tnl_header_0_1(struct mlx5dr_ste_ctx *ste_ctx,
+				     struct mlx5dr_ste_build *sb,
+				     struct mlx5dr_match_param *mask,
+				     bool inner, bool rx)
+{
+	sb->rx = rx;
+	sb->inner = inner;
+	ste_ctx->build_tnl_header_0_1_init(sb, mask);
 }
 
 static struct mlx5dr_ste_ctx *mlx5dr_ste_ctx_arr[] = {

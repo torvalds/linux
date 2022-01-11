@@ -18,7 +18,7 @@ static int prog_load(int verdict)
 	};
 	size_t insns_cnt = sizeof(prog) / sizeof(struct bpf_insn);
 
-	return bpf_load_program(BPF_PROG_TYPE_CGROUP_SKB,
+	return bpf_test_load_program(BPF_PROG_TYPE_CGROUP_SKB,
 			       prog, insns_cnt, "GPL", 0,
 			       bpf_log_buf, BPF_LOG_BUF_SIZE);
 }

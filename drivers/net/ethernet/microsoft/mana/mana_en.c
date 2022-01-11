@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /* Copyright (c) 2021, Microsoft Corporation. */
 
+#include <uapi/linux/bpf.h>
+
 #include <linux/inetdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/ethtool.h>
@@ -125,7 +127,7 @@ frag_err:
 	return -ENOMEM;
 }
 
-static int mana_start_xmit(struct sk_buff *skb, struct net_device *ndev)
+int mana_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 {
 	enum mana_tx_pkt_format pkt_fmt = MANA_SHORT_PKT_FMT;
 	struct mana_port_context *apc = netdev_priv(ndev);
@@ -378,6 +380,7 @@ static const struct net_device_ops mana_devops = {
 	.ndo_start_xmit		= mana_start_xmit,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_get_stats64	= mana_get_stats64,
+	.ndo_bpf		= mana_bpf,
 };
 
 static void mana_cleanup_port_context(struct mana_port_context *apc)
@@ -749,6 +752,61 @@ out:
 	return err;
 }
 
+static int mana_fence_rq(struct mana_port_context *apc, struct mana_rxq *rxq)
+{
+	struct mana_fence_rq_resp resp = {};
+	struct mana_fence_rq_req req = {};
+	int err;
+
+	init_completion(&rxq->fence_event);
+
+	mana_gd_init_req_hdr(&req.hdr, MANA_FENCE_RQ,
+			     sizeof(req), sizeof(resp));
+	req.wq_obj_handle =  rxq->rxobj;
+
+	err = mana_send_request(apc->ac, &req, sizeof(req), &resp,
+				sizeof(resp));
+	if (err) {
+		netdev_err(apc->ndev, "Failed to fence RQ %u: %d\n",
+			   rxq->rxq_idx, err);
+		return err;
+	}
+
+	err = mana_verify_resp_hdr(&resp.hdr, MANA_FENCE_RQ, sizeof(resp));
+	if (err || resp.hdr.status) {
+		netdev_err(apc->ndev, "Failed to fence RQ %u: %d, 0x%x\n",
+			   rxq->rxq_idx, err, resp.hdr.status);
+		if (!err)
+			err = -EPROTO;
+
+		return err;
+	}
+
+	if (wait_for_completion_timeout(&rxq->fence_event, 10 * HZ) == 0) {
+		netdev_err(apc->ndev, "Failed to fence RQ %u: timed out\n",
+			   rxq->rxq_idx);
+		return -ETIMEDOUT;
+	}
+
+	return 0;
+}
+
+static void mana_fence_rqs(struct mana_port_context *apc)
+{
+	unsigned int rxq_idx;
+	struct mana_rxq *rxq;
+	int err;
+
+	for (rxq_idx = 0; rxq_idx < apc->num_queues; rxq_idx++) {
+		rxq = apc->rxqs[rxq_idx];
+		err = mana_fence_rq(apc, rxq);
+
+		/* In case of any error, use sleep instead. */
+		if (err)
+			msleep(100);
+	}
+}
+
 static int mana_move_wq_tail(struct gdma_queue *wq, u32 num_units)
 {
 	u32 used_space_old;
@@ -906,6 +964,25 @@ static void mana_post_pkt_rxq(struct mana_rxq *rxq)
 	WARN_ON_ONCE(recv_buf_oob->wqe_inf.wqe_size_in_bu != 1);
 }
 
+static struct sk_buff *mana_build_skb(void *buf_va, uint pkt_len,
+				      struct xdp_buff *xdp)
+{
+	struct sk_buff *skb = build_skb(buf_va, PAGE_SIZE);
+
+	if (!skb)
+		return NULL;
+
+	if (xdp->data_hard_start) {
+		skb_reserve(skb, xdp->data - xdp->data_hard_start);
+		skb_put(skb, xdp->data_end - xdp->data);
+	} else {
+		skb_reserve(skb, XDP_PACKET_HEADROOM);
+		skb_put(skb, pkt_len);
+	}
+
+	return skb;
+}
+
 static void mana_rx_skb(void *buf_va, struct mana_rxcomp_oob *cqe,
 			struct mana_rxq *rxq)
 {
@@ -914,8 +991,10 @@ static void mana_rx_skb(void *buf_va, struct mana_rxcomp_oob *cqe,
 	uint pkt_len = cqe->ppi[0].pkt_len;
 	u16 rxq_idx = rxq->rxq_idx;
 	struct napi_struct *napi;
+	struct xdp_buff xdp = {};
 	struct sk_buff *skb;
 	u32 hash_value;
+	u32 act;
 
 	rxq->rx_cq.work_done++;
 	napi = &rxq->rx_cq.napi;
@@ -925,15 +1004,16 @@ static void mana_rx_skb(void *buf_va, struct mana_rxcomp_oob *cqe,
 		return;
 	}
 
-	skb = build_skb(buf_va, PAGE_SIZE);
+	act = mana_run_xdp(ndev, rxq, &xdp, buf_va, pkt_len);
 
-	if (!skb) {
-		free_page((unsigned long)buf_va);
-		++ndev->stats.rx_dropped;
-		return;
-	}
+	if (act != XDP_PASS && act != XDP_TX)
+		goto drop;
 
-	skb_put(skb, pkt_len);
+	skb = mana_build_skb(buf_va, pkt_len, &xdp);
+
+	if (!skb)
+		goto drop;
+
 	skb->dev = napi->dev;
 
 	skb->protocol = eth_type_trans(skb, ndev);
@@ -954,12 +1034,24 @@ static void mana_rx_skb(void *buf_va, struct mana_rxcomp_oob *cqe,
 			skb_set_hash(skb, hash_value, PKT_HASH_TYPE_L3);
 	}
 
+	if (act == XDP_TX) {
+		skb_set_queue_mapping(skb, rxq_idx);
+		mana_xdp_tx(skb, ndev);
+		return;
+	}
+
 	napi_gro_receive(napi, skb);
 
 	u64_stats_update_begin(&rx_stats->syncp);
 	rx_stats->packets++;
 	rx_stats->bytes += pkt_len;
 	u64_stats_update_end(&rx_stats->syncp);
+	return;
+
+drop:
+	free_page((unsigned long)buf_va);
+	++ndev->stats.rx_dropped;
+	return;
 }
 
 static void mana_process_rx_cqe(struct mana_rxq *rxq, struct mana_cq *cq,
@@ -988,7 +1080,7 @@ static void mana_process_rx_cqe(struct mana_rxq *rxq, struct mana_cq *cq,
 		return;
 
 	case CQE_RX_OBJECT_FENCE:
-		netdev_err(ndev, "RX Fencing is unsupported\n");
+		complete(&rxq->fence_event);
 		return;
 
 	default:
@@ -1016,7 +1108,7 @@ static void mana_process_rx_cqe(struct mana_rxq *rxq, struct mana_cq *cq,
 	new_page = alloc_page(GFP_ATOMIC);
 
 	if (new_page) {
-		da = dma_map_page(dev, new_page, 0, rxq->datasize,
+		da = dma_map_page(dev, new_page, XDP_PACKET_HEADROOM, rxq->datasize,
 				  DMA_FROM_DEVICE);
 
 		if (dma_mapping_error(dev, da)) {
@@ -1291,6 +1383,9 @@ static void mana_destroy_rxq(struct mana_port_context *apc,
 		napi_synchronize(napi);
 
 	napi_disable(napi);
+
+	xdp_rxq_info_unreg(&rxq->xdp_rxq);
+
 	netif_napi_del(napi);
 
 	mana_destroy_wq_obj(apc, GDMA_RQ, rxq->rxobj);
@@ -1342,7 +1437,8 @@ static int mana_alloc_rx_wqe(struct mana_port_context *apc,
 		if (!page)
 			return -ENOMEM;
 
-		da = dma_map_page(dev, page, 0, rxq->datasize, DMA_FROM_DEVICE);
+		da = dma_map_page(dev, page, XDP_PACKET_HEADROOM, rxq->datasize,
+				  DMA_FROM_DEVICE);
 
 		if (dma_mapping_error(dev, da)) {
 			__free_page(page);
@@ -1485,6 +1581,12 @@ static struct mana_rxq *mana_create_rxq(struct mana_port_context *apc,
 	gc->cq_table[cq->gdma_id] = cq->gdma_cq;
 
 	netif_napi_add(ndev, &cq->napi, mana_poll, 1);
+
+	WARN_ON(xdp_rxq_info_reg(&rxq->xdp_rxq, ndev, rxq_idx,
+				 cq->napi.napi_id));
+	WARN_ON(xdp_rxq_info_reg_mem_model(&rxq->xdp_rxq,
+					   MEM_TYPE_PAGE_SHARED, NULL));
+
 	napi_enable(&cq->napi);
 
 	mana_gd_ring_cq(cq->gdma_cq, SET_ARM_BIT);
@@ -1572,6 +1674,7 @@ int mana_config_rss(struct mana_port_context *apc, enum TRI_STATE rx,
 		    bool update_hash, bool update_tab)
 {
 	u32 queue_idx;
+	int err;
 	int i;
 
 	if (update_tab) {
@@ -1581,7 +1684,13 @@ int mana_config_rss(struct mana_port_context *apc, enum TRI_STATE rx,
 		}
 	}
 
-	return mana_cfg_vport_steering(apc, rx, true, update_hash, update_tab);
+	err = mana_cfg_vport_steering(apc, rx, true, update_hash, update_tab);
+	if (err)
+		return err;
+
+	mana_fence_rqs(apc);
+
+	return 0;
 }
 
 static int mana_init_port(struct net_device *ndev)
@@ -1650,6 +1759,8 @@ int mana_alloc_queues(struct net_device *ndev)
 	if (err)
 		goto destroy_vport;
 
+	mana_chn_setxdp(apc, mana_xdp_get(apc));
+
 	return 0;
 
 destroy_vport:
@@ -1698,6 +1809,8 @@ static int mana_dealloc_queues(struct net_device *ndev)
 	if (apc->port_is_up)
 		return -EINVAL;
 
+	mana_chn_setxdp(apc, NULL);
+
 	/* No packet can be transmitted now since apc->port_is_up is false.
 	 * There is still a tiny chance that mana_poll_tx_cq() can re-enable
 	 * a txq because it may not timely see apc->port_is_up being cleared
@@ -1723,9 +1836,6 @@ static int mana_dealloc_queues(struct net_device *ndev)
 		netdev_err(ndev, "Failed to disable vPort: %d\n", err);
 		return err;
 	}
-
-	/* TODO: Implement RX fencing */
-	ssleep(1);
 
 	mana_destroy_vport(apc);
 

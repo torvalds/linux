@@ -39,6 +39,7 @@ static const char * const btf_kind_str[NR_BTF_KINDS] = {
 	[BTF_KIND_DATASEC]	= "DATASEC",
 	[BTF_KIND_FLOAT]	= "FLOAT",
 	[BTF_KIND_DECL_TAG]	= "DECL_TAG",
+	[BTF_KIND_TYPE_TAG]	= "TYPE_TAG",
 };
 
 struct btf_attach_point {
@@ -142,6 +143,7 @@ static int dump_btf_type(const struct btf *btf, __u32 id,
 	case BTF_KIND_VOLATILE:
 	case BTF_KIND_RESTRICT:
 	case BTF_KIND_TYPEDEF:
+	case BTF_KIND_TYPE_TAG:
 		if (json_output)
 			jsonw_uint_field(w, "type_id", t->type);
 		else
@@ -418,9 +420,10 @@ static int dump_btf_c(const struct btf *btf,
 	struct btf_dump *d;
 	int err = 0, i;
 
-	d = btf_dump__new(btf, NULL, NULL, btf_dump_printf);
-	if (IS_ERR(d))
-		return PTR_ERR(d);
+	d = btf_dump__new(btf, btf_dump_printf, NULL, NULL);
+	err = libbpf_get_error(d);
+	if (err)
+		return err;
 
 	printf("#ifndef __VMLINUX_H__\n");
 	printf("#define __VMLINUX_H__\n");
@@ -547,8 +550,8 @@ static int do_dump(int argc, char **argv)
 		}
 
 		btf = btf__parse_split(*argv, base ?: base_btf);
-		if (IS_ERR(btf)) {
-			err = -PTR_ERR(btf);
+		err = libbpf_get_error(btf);
+		if (err) {
 			btf = NULL;
 			p_err("failed to load BTF from %s: %s",
 			      *argv, strerror(err));

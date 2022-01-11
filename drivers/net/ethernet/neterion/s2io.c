@@ -5461,8 +5461,11 @@ static int s2io_ethtool_set_led(struct net_device *dev,
 	return 0;
 }
 
-static void s2io_ethtool_gringparam(struct net_device *dev,
-				    struct ethtool_ringparam *ering)
+static void
+s2io_ethtool_gringparam(struct net_device *dev,
+			struct ethtool_ringparam *ering,
+			struct kernel_ethtool_ringparam *kernel_ering,
+			struct netlink_ext_ack *extack)
 {
 	struct s2io_nic *sp = netdev_priv(dev);
 	int i, tx_desc_count = 0, rx_desc_count = 0;
@@ -7655,7 +7658,6 @@ s2io_init_nic(struct pci_dev *pdev, const struct pci_device_id *pre)
 	struct s2io_nic *sp;
 	struct net_device *dev;
 	int i, j, ret;
-	int dma_flag = false;
 	u32 mac_up, mac_down;
 	u64 val64 = 0, tmp64 = 0;
 	struct XENA_dev_config __iomem *bar0 = NULL;
@@ -7677,17 +7679,8 @@ s2io_init_nic(struct pci_dev *pdev, const struct pci_device_id *pre)
 		return ret;
 	}
 
-	if (!dma_set_mask(&pdev->dev, DMA_BIT_MASK(64))) {
+	if (!dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64))) {
 		DBG_PRINT(INIT_DBG, "%s: Using 64bit DMA\n", __func__);
-		dma_flag = true;
-		if (dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(64))) {
-			DBG_PRINT(ERR_DBG,
-				  "Unable to obtain 64bit DMA for coherent allocations\n");
-			pci_disable_device(pdev);
-			return -ENOMEM;
-		}
-	} else if (!dma_set_mask(&pdev->dev, DMA_BIT_MASK(32))) {
-		DBG_PRINT(INIT_DBG, "%s: Using 32bit DMA\n", __func__);
 	} else {
 		pci_disable_device(pdev);
 		return -ENOMEM;
@@ -7717,7 +7710,6 @@ s2io_init_nic(struct pci_dev *pdev, const struct pci_device_id *pre)
 	sp = netdev_priv(dev);
 	sp->dev = dev;
 	sp->pdev = pdev;
-	sp->high_dma_flag = dma_flag;
 	sp->device_enabled_once = false;
 	if (rx_ring_mode == 1)
 		sp->rxd_mode = RXD_MODE_1;
@@ -7865,9 +7857,8 @@ s2io_init_nic(struct pci_dev *pdev, const struct pci_device_id *pre)
 		NETIF_F_TSO | NETIF_F_TSO6 |
 		NETIF_F_RXCSUM | NETIF_F_LRO;
 	dev->features |= dev->hw_features |
-		NETIF_F_HW_VLAN_CTAG_TX | NETIF_F_HW_VLAN_CTAG_RX;
-	if (sp->high_dma_flag == true)
-		dev->features |= NETIF_F_HIGHDMA;
+		NETIF_F_HW_VLAN_CTAG_TX | NETIF_F_HW_VLAN_CTAG_RX |
+		NETIF_F_HIGHDMA;
 	dev->watchdog_timeo = WATCH_DOG_TIMEOUT;
 	INIT_WORK(&sp->rst_timer_task, s2io_restart_nic);
 	INIT_WORK(&sp->set_link_task, s2io_set_link);

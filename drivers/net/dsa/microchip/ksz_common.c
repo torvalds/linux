@@ -43,7 +43,7 @@ void ksz_update_port_member(struct ksz_device *dev, int port)
 			continue;
 		if (port == i)
 			continue;
-		if (!dp->bridge_dev || dp->bridge_dev != other_dp->bridge_dev)
+		if (!dsa_port_bridge_same(dp, other_dp))
 			continue;
 
 		if (other_p->stp_state == BR_STATE_FORWARDING &&
@@ -192,7 +192,8 @@ void ksz_get_ethtool_stats(struct dsa_switch *ds, int port, uint64_t *buf)
 EXPORT_SYMBOL_GPL(ksz_get_ethtool_stats);
 
 int ksz_port_bridge_join(struct dsa_switch *ds, int port,
-			 struct net_device *br)
+			 struct dsa_bridge bridge,
+			 bool *tx_fwd_offload)
 {
 	/* port_stp_state_set() will be called after to put the port in
 	 * appropriate state so there is no need to do anything.
@@ -203,7 +204,7 @@ int ksz_port_bridge_join(struct dsa_switch *ds, int port,
 EXPORT_SYMBOL_GPL(ksz_port_bridge_join);
 
 void ksz_port_bridge_leave(struct dsa_switch *ds, int port,
-			   struct net_device *br)
+			   struct dsa_bridge bridge)
 {
 	/* port_stp_state_set() will be called after to put the port in
 	 * forwarding state so there is no need to do anything.
@@ -301,7 +302,6 @@ int ksz_port_mdb_del(struct dsa_switch *ds, int port,
 	struct ksz_device *dev = ds->priv;
 	struct alu_struct alu;
 	int index;
-	int ret = 0;
 
 	for (index = 0; index < dev->num_statics; index++) {
 		if (!dev->dev_ops->r_sta_mac_table(dev, index, &alu)) {
@@ -323,7 +323,7 @@ int ksz_port_mdb_del(struct dsa_switch *ds, int port,
 	dev->dev_ops->w_sta_mac_table(dev, index, &alu);
 
 exit:
-	return ret;
+	return 0;
 }
 EXPORT_SYMBOL_GPL(ksz_port_mdb_del);
 

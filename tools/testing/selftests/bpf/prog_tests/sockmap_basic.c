@@ -91,9 +91,9 @@ static void test_sockmap_create_update_free(enum bpf_map_type map_type)
 	if (CHECK_FAIL(s < 0))
 		return;
 
-	map = bpf_create_map(map_type, sizeof(int), sizeof(int), 1, 0);
+	map = bpf_map_create(map_type, NULL, sizeof(int), sizeof(int), 1, NULL);
 	if (CHECK_FAIL(map < 0)) {
-		perror("bpf_create_map");
+		perror("bpf_cmap_create");
 		goto out;
 	}
 

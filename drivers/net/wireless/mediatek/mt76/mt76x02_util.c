@@ -138,7 +138,7 @@ mt76x02_led_set_brightness(struct led_classdev *led_cdev,
 		mt76x02_led_set_config(mdev, 0xff, 0);
 }
 
-void mt76x02_init_device(struct mt76x02_dev *dev)
+int mt76x02_init_device(struct mt76x02_dev *dev)
 {
 	struct ieee80211_hw *hw = mt76_hw(dev);
 	struct wiphy *wiphy = hw->wiphy;
@@ -197,6 +197,8 @@ void mt76x02_init_device(struct mt76x02_dev *dev)
 		dev->mphy.chainmask = 0x101;
 		dev->mphy.antenna_mask = 1;
 	}
+
+	return 0;
 }
 EXPORT_SYMBOL_GPL(mt76x02_init_device);
 

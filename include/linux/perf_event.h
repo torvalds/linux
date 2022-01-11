@@ -620,6 +620,7 @@ struct swevent_hlist {
 #define PERF_ATTACH_SCHED_CB	0x20
 #define PERF_ATTACH_CHILD	0x40
 
+struct bpf_prog;
 struct perf_cgroup;
 struct perf_buffer;
 

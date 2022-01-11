@@ -456,7 +456,7 @@ static int realtek_smi_probe(struct platform_device *pdev)
 	smi->ds->ops = var->ds_ops;
 	ret = dsa_register_switch(smi->ds);
 	if (ret) {
-		dev_err(dev, "unable to register switch ret = %d\n", ret);
+		dev_err_probe(dev, ret, "unable to register switch\n");
 		return ret;
 	}
 	return 0;

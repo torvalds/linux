@@ -100,6 +100,76 @@ static enum bpf_attach_type parse_attach_type(const char *str)
 	return __MAX_BPF_ATTACH_TYPE;
 }
 
+static int prep_prog_info(struct bpf_prog_info *const info, enum dump_mode mode,
+			  void **info_data, size_t *const info_data_sz)
+{
+	struct bpf_prog_info holder = {};
+	size_t needed = 0;
+	void *ptr;
+
+	if (mode == DUMP_JITED) {
+		holder.jited_prog_len = info->jited_prog_len;
+		needed += info->jited_prog_len;
+	} else {
+		holder.xlated_prog_len = info->xlated_prog_len;
+		needed += info->xlated_prog_len;
+	}
+
+	holder.nr_jited_ksyms = info->nr_jited_ksyms;
+	needed += info->nr_jited_ksyms * sizeof(__u64);
+
+	holder.nr_jited_func_lens = info->nr_jited_func_lens;
+	needed += info->nr_jited_func_lens * sizeof(__u32);
+
+	holder.nr_func_info = info->nr_func_info;
+	holder.func_info_rec_size = info->func_info_rec_size;
+	needed += info->nr_func_info * info->func_info_rec_size;
+
+	holder.nr_line_info = info->nr_line_info;
+	holder.line_info_rec_size = info->line_info_rec_size;
+	needed += info->nr_line_info * info->line_info_rec_size;
+
+	holder.nr_jited_line_info = info->nr_jited_line_info;
+	holder.jited_line_info_rec_size = info->jited_line_info_rec_size;
+	needed += info->nr_jited_line_info * info->jited_line_info_rec_size;
+
+	if (needed > *info_data_sz) {
+		ptr = realloc(*info_data, needed);
+		if (!ptr)
+			return -1;
+
+		*info_data = ptr;
+		*info_data_sz = needed;
+	}
+	ptr = *info_data;
+
+	if (mode == DUMP_JITED) {
+		holder.jited_prog_insns = ptr_to_u64(ptr);
+		ptr += holder.jited_prog_len;
+	} else {
+		holder.xlated_prog_insns = ptr_to_u64(ptr);
+		ptr += holder.xlated_prog_len;
+	}
+
+	holder.jited_ksyms = ptr_to_u64(ptr);
+	ptr += holder.nr_jited_ksyms * sizeof(__u64);
+
+	holder.jited_func_lens = ptr_to_u64(ptr);
+	ptr += holder.nr_jited_func_lens * sizeof(__u32);
+
+	holder.func_info = ptr_to_u64(ptr);
+	ptr += holder.nr_func_info * holder.func_info_rec_size;
+
+	holder.line_info = ptr_to_u64(ptr);
+	ptr += holder.nr_line_info * holder.line_info_rec_size;
+
+	holder.jited_line_info = ptr_to_u64(ptr);
+	ptr += holder.nr_jited_line_info * holder.jited_line_info_rec_size;
+
+	*info = holder;
+	return 0;
+}
+
 static void print_boot_time(__u64 nsecs, char *buf, unsigned int size)
 {
 	struct timespec real_time_ts, boot_time_ts;
@@ -639,8 +709,8 @@ prog_dump(struct bpf_prog_info *info, enum dump_mode mode,
 	char func_sig[1024];
 	unsigned char *buf;
 	__u32 member_len;
+	int fd, err = -1;
 	ssize_t n;
-	int fd;
 
 	if (mode == DUMP_JITED) {
 		if (info->jited_prog_len == 0 || !info->jited_prog_insns) {
@@ -679,7 +749,7 @@ prog_dump(struct bpf_prog_info *info, enum dump_mode mode,
 		if (fd < 0) {
 			p_err("can't open file %s: %s", filepath,
 			      strerror(errno));
-			return -1;
+			goto exit_free;
 		}
 
 		n = write(fd, buf, member_len);
@@ -687,7 +757,7 @@ prog_dump(struct bpf_prog_info *info, enum dump_mode mode,
 		if (n != (ssize_t)member_len) {
 			p_err("error writing output file: %s",
 			      n < 0 ? strerror(errno) : "short write");
-			return -1;
+			goto exit_free;
 		}
 
 		if (json_output)
@@ -701,7 +771,7 @@ prog_dump(struct bpf_prog_info *info, enum dump_mode mode,
 						     info->netns_ino,
 						     &disasm_opt);
 			if (!name)
-				return -1;
+				goto exit_free;
 		}
 
 		if (info->nr_jited_func_lens && info->jited_func_lens) {
@@ -796,23 +866,28 @@ prog_dump(struct bpf_prog_info *info, enum dump_mode mode,
 		kernel_syms_destroy(&dd);
 	}
 
-	btf__free(btf);
+	err = 0;
 
-	return 0;
+exit_free:
+	btf__free(btf);
+	bpf_prog_linfo__free(prog_linfo);
+	return err;
 }
 
 static int do_dump(int argc, char **argv)
 {
-	struct bpf_prog_info_linear *info_linear;
+	struct bpf_prog_info info;
+	__u32 info_len = sizeof(info);
+	size_t info_data_sz = 0;
+	void *info_data = NULL;
 	char *filepath = NULL;
 	bool opcodes = false;
 	bool visual = false;
 	enum dump_mode mode;
 	bool linum = false;
-	int *fds = NULL;
 	int nb_fds, i = 0;
+	int *fds = NULL;
 	int err = -1;
-	__u64 arrays;
 
 	if (is_prefix(*argv, "jited")) {
 		if (disasm_init())
@@ -872,43 +947,44 @@ static int do_dump(int argc, char **argv)
 		goto exit_close;
 	}
 
-	if (mode == DUMP_JITED)
-		arrays = 1UL << BPF_PROG_INFO_JITED_INSNS;
-	else
-		arrays = 1UL << BPF_PROG_INFO_XLATED_INSNS;
-
-	arrays |= 1UL << BPF_PROG_INFO_JITED_KSYMS;
-	arrays |= 1UL << BPF_PROG_INFO_JITED_FUNC_LENS;
-	arrays |= 1UL << BPF_PROG_INFO_FUNC_INFO;
-	arrays |= 1UL << BPF_PROG_INFO_LINE_INFO;
-	arrays |= 1UL << BPF_PROG_INFO_JITED_LINE_INFO;
-
 	if (json_output && nb_fds > 1)
 		jsonw_start_array(json_wtr);	/* root array */
 	for (i = 0; i < nb_fds; i++) {
-		info_linear = bpf_program__get_prog_info_linear(fds[i], arrays);
-		if (IS_ERR_OR_NULL(info_linear)) {
+		memset(&info, 0, sizeof(info));
+
+		err = bpf_obj_get_info_by_fd(fds[i], &info, &info_len);
+		if (err) {
+			p_err("can't get prog info: %s", strerror(errno));
+			break;
+		}
+
+		err = prep_prog_info(&info, mode, &info_data, &info_data_sz);
+		if (err) {
+			p_err("can't grow prog info_data");
+			break;
+		}
+
+		err = bpf_obj_get_info_by_fd(fds[i], &info, &info_len);
+		if (err) {
 			p_err("can't get prog info: %s", strerror(errno));
 			break;
 		}
 
 		if (json_output && nb_fds > 1) {
 			jsonw_start_object(json_wtr);	/* prog object */
-			print_prog_header_json(&info_linear->info);
+			print_prog_header_json(&info);
 			jsonw_name(json_wtr, "insns");
 		} else if (nb_fds > 1) {
-			print_prog_header_plain(&info_linear->info);
+			print_prog_header_plain(&info);
 		}
 
-		err = prog_dump(&info_linear->info, mode, filepath, opcodes,
-				visual, linum);
+		err = prog_dump(&info, mode, filepath, opcodes, visual, linum);
 
 		if (json_output && nb_fds > 1)
 			jsonw_end_object(json_wtr);	/* prog object */
 		else if (i != nb_fds - 1 && nb_fds > 1)
 			printf("\n");
 
-		free(info_linear);
 		if (err)
 			break;
 		close(fds[i]);
@@ -920,6 +996,7 @@ exit_close:
 	for (; i < nb_fds; i++)
 		close(fds[i]);
 exit_free:
+	free(info_data);
 	free(fds);
 	return err;
 }
@@ -1387,7 +1464,6 @@ static int load_with_options(int argc, char **argv, bool first_prog_only)
 	DECLARE_LIBBPF_OPTS(bpf_object_open_opts, open_opts,
 		.relaxed_maps = relaxed_maps,
 	);
-	struct bpf_object_load_attr load_attr = { 0 };
 	enum bpf_attach_type expected_attach_type;
 	struct map_replace *map_replace = NULL;
 	struct bpf_program *prog = NULL, *pos;
@@ -1409,8 +1485,6 @@ static int load_with_options(int argc, char **argv, bool first_prog_only)
 
 	while (argc) {
 		if (is_prefix(*argv, "type")) {
-			char *type;
-
 			NEXT_ARG();
 
 			if (common_prog_type != BPF_PROG_TYPE_UNSPEC) {
@@ -1420,21 +1494,26 @@ static int load_with_options(int argc, char **argv, bool first_prog_only)
 			if (!REQ_ARGS(1))
 				goto err_free_reuse_maps;
 
-			/* Put a '/' at the end of type to appease libbpf */
-			type = malloc(strlen(*argv) + 2);
-			if (!type) {
-				p_err("mem alloc failed");
-				goto err_free_reuse_maps;
-			}
-			*type = 0;
-			strcat(type, *argv);
-			strcat(type, "/");
+			err = libbpf_prog_type_by_name(*argv, &common_prog_type,
+						       &expected_attach_type);
+			if (err < 0) {
+				/* Put a '/' at the end of type to appease libbpf */
+				char *type = malloc(strlen(*argv) + 2);
 
-			err = get_prog_type_by_name(type, &common_prog_type,
-						    &expected_attach_type);
-			free(type);
-			if (err < 0)
-				goto err_free_reuse_maps;
+				if (!type) {
+					p_err("mem alloc failed");
+					goto err_free_reuse_maps;
+				}
+				*type = 0;
+				strcat(type, *argv);
+				strcat(type, "/");
+
+				err = get_prog_type_by_name(type, &common_prog_type,
+							    &expected_attach_type);
+				free(type);
+				if (err < 0)
+					goto err_free_reuse_maps;
+			}
 
 			NEXT_ARG();
 		} else if (is_prefix(*argv, "map")) {
@@ -1518,6 +1597,10 @@ static int load_with_options(int argc, char **argv, bool first_prog_only)
 
 	set_max_rlimit();
 
+	if (verifier_logs)
+		/* log_level1 + log_level2 + stats, but not stable UAPI */
+		open_opts.kernel_log_level = 1 + 2 + 4;
+
 	obj = bpf_object__open_file(file, &open_opts);
 	if (libbpf_get_error(obj)) {
 		p_err("failed to open object file");
@@ -1572,7 +1655,7 @@ static int load_with_options(int argc, char **argv, bool first_prog_only)
 	j = 0;
 	idx = 0;
 	bpf_object__for_each_map(map, obj) {
-		if (!bpf_map__is_offload_neutral(map))
+		if (bpf_map__type(map) != BPF_MAP_TYPE_PERF_EVENT_ARRAY)
 			bpf_map__set_ifindex(map, ifindex);
 
 		if (j < old_map_fds && idx == map_replace[j].idx) {
@@ -1597,12 +1680,7 @@ static int load_with_options(int argc, char **argv, bool first_prog_only)
 		goto err_close_obj;
 	}
 
-	load_attr.obj = obj;
-	if (verifier_logs)
-		/* log_level1 + log_level2 + stats, but not stable UAPI */
-		load_attr.log_level = 1 + 2 + 4;
-
-	err = bpf_object__load_xattr(&load_attr);
+	err = bpf_object__load(obj);
 	if (err) {
 		p_err("failed to load object file");
 		goto err_close_obj;
@@ -1657,6 +1735,11 @@ err_unpin:
 	else
 		bpf_object__unpin_programs(obj, pinfile);
 err_close_obj:
+	if (!legacy_libbpf) {
+		p_info("Warning: bpftool is now running in libbpf strict mode and has more stringent requirements about BPF programs.\n"
+		       "If it used to work for this object file but now doesn't, see --legacy option for more details.\n");
+	}
+
 	bpf_object__close(obj);
 err_free_reuse_maps:
 	for (i = 0; i < old_map_fds; i++)
@@ -1689,17 +1772,19 @@ static int try_loader(struct gen_loader_opts *gen)
 					     sizeof(struct bpf_prog_desc));
 	int log_buf_sz = (1u << 24) - 1;
 	int err, fds_before, fd_delta;
-	char *log_buf;
+	char *log_buf = NULL;
 
 	ctx = alloca(ctx_sz);
 	memset(ctx, 0, ctx_sz);
 	ctx->sz = ctx_sz;
-	ctx->log_level = 1;
-	ctx->log_size = log_buf_sz;
-	log_buf = malloc(log_buf_sz);
-	if (!log_buf)
-		return -ENOMEM;
-	ctx->log_buf = (long) log_buf;
+	if (verifier_logs) {
+		ctx->log_level = 1 + 2 + 4;
+		ctx->log_size = log_buf_sz;
+		log_buf = malloc(log_buf_sz);
+		if (!log_buf)
+			return -ENOMEM;
+		ctx->log_buf = (long) log_buf;
+	}
 	opts.ctx = ctx;
 	opts.data = gen->data;
 	opts.data_sz = gen->data_sz;
@@ -1708,9 +1793,9 @@ static int try_loader(struct gen_loader_opts *gen)
 	fds_before = count_open_fds();
 	err = bpf_load_and_run(&opts);
 	fd_delta = count_open_fds() - fds_before;
-	if (err < 0) {
+	if (err < 0 || verifier_logs) {
 		fprintf(stderr, "err %d\n%s\n%s", err, opts.errstr, log_buf);
-		if (fd_delta)
+		if (fd_delta && err < 0)
 			fprintf(stderr, "loader prog leaked %d FDs\n",
 				fd_delta);
 	}
@@ -1722,7 +1807,6 @@ static int do_loader(int argc, char **argv)
 {
 	DECLARE_LIBBPF_OPTS(bpf_object_open_opts, open_opts);
 	DECLARE_LIBBPF_OPTS(gen_loader_opts, gen);
-	struct bpf_object_load_attr load_attr = {};
 	struct bpf_object *obj;
 	const char *file;
 	int err = 0;
@@ -1730,6 +1814,10 @@ static int do_loader(int argc, char **argv)
 	if (!REQ_ARGS(1))
 		return -1;
 	file = GET_ARG();
+
+	if (verifier_logs)
+		/* log_level1 + log_level2 + stats, but not stable UAPI */
+		open_opts.kernel_log_level = 1 + 2 + 4;
 
 	obj = bpf_object__open_file(file, &open_opts);
 	if (libbpf_get_error(obj)) {
@@ -1741,12 +1829,7 @@ static int do_loader(int argc, char **argv)
 	if (err)
 		goto err_close_obj;
 
-	load_attr.obj = obj;
-	if (verifier_logs)
-		/* log_level1 + log_level2 + stats, but not stable UAPI */
-		load_attr.log_level = 1 + 2 + 4;
-
-	err = bpf_object__load_xattr(&load_attr);
+	err = bpf_object__load(obj);
 	if (err) {
 		p_err("failed to load object file");
 		goto err_close_obj;
@@ -2016,41 +2099,58 @@ static void profile_print_readings(void)
 
 static char *profile_target_name(int tgt_fd)
 {
-	struct bpf_prog_info_linear *info_linear;
-	struct bpf_func_info *func_info;
+	struct bpf_func_info func_info;
+	struct bpf_prog_info info = {};
+	__u32 info_len = sizeof(info);
 	const struct btf_type *t;
+	__u32 func_info_rec_size;
 	struct btf *btf = NULL;
 	char *name = NULL;
+	int err;
 
-	info_linear = bpf_program__get_prog_info_linear(
-		tgt_fd, 1UL << BPF_PROG_INFO_FUNC_INFO);
-	if (IS_ERR_OR_NULL(info_linear)) {
-		p_err("failed to get info_linear for prog FD %d", tgt_fd);
-		return NULL;
+	err = bpf_obj_get_info_by_fd(tgt_fd, &info, &info_len);
+	if (err) {
+		p_err("failed to bpf_obj_get_info_by_fd for prog FD %d", tgt_fd);
+		goto out;
 	}
 
-	if (info_linear->info.btf_id == 0) {
+	if (info.btf_id == 0) {
 		p_err("prog FD %d doesn't have valid btf", tgt_fd);
 		goto out;
 	}
 
-	btf = btf__load_from_kernel_by_id(info_linear->info.btf_id);
+	func_info_rec_size = info.func_info_rec_size;
+	if (info.nr_func_info == 0) {
+		p_err("bpf_obj_get_info_by_fd for prog FD %d found 0 func_info", tgt_fd);
+		goto out;
+	}
+
+	memset(&info, 0, sizeof(info));
+	info.nr_func_info = 1;
+	info.func_info_rec_size = func_info_rec_size;
+	info.func_info = ptr_to_u64(&func_info);
+
+	err = bpf_obj_get_info_by_fd(tgt_fd, &info, &info_len);
+	if (err) {
+		p_err("failed to get func_info for prog FD %d", tgt_fd);
+		goto out;
+	}
+
+	btf = btf__load_from_kernel_by_id(info.btf_id);
 	if (libbpf_get_error(btf)) {
 		p_err("failed to load btf for prog FD %d", tgt_fd);
 		goto out;
 	}
 
-	func_info = u64_to_ptr(info_linear->info.func_info);
-	t = btf__type_by_id(btf, func_info[0].type_id);
+	t = btf__type_by_id(btf, func_info.type_id);
 	if (!t) {
 		p_err("btf %d doesn't have type %d",
-		      info_linear->info.btf_id, func_info[0].type_id);
+		      info.btf_id, func_info.type_id);
 		goto out;
 	}
 	name = strdup(btf__name_by_offset(btf, t->name_off));
 out:
 	btf__free(btf);
-	free(info_linear);
 	return name;
 }
 

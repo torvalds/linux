@@ -609,7 +609,7 @@ int qlcnic_83xx_read_flash_descriptor_table(struct qlcnic_adapter *);
 int qlcnic_83xx_flash_read32(struct qlcnic_adapter *, u32, u8 *, int);
 int qlcnic_83xx_lockless_flash_read32(struct qlcnic_adapter *,
 				      u32, u8 *, int);
-int qlcnic_83xx_init(struct qlcnic_adapter *, int);
+int qlcnic_83xx_init(struct qlcnic_adapter *);
 int qlcnic_83xx_idc_ready_state_entry(struct qlcnic_adapter *);
 void qlcnic_83xx_idc_poll_dev_state(struct work_struct *);
 void qlcnic_83xx_idc_exit(struct qlcnic_adapter *);
