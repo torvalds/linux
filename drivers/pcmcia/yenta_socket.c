@@ -1299,7 +1299,7 @@ static int yenta_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	return ret;
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int yenta_dev_suspend_noirq(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
