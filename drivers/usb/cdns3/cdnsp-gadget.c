@@ -1243,12 +1243,9 @@ static int cdnsp_run(struct cdnsp_device *pdev,
 		     enum usb_device_speed speed)
 {
 	u32 fs_speed = 0;
-	u64 temp_64;
 	u32 temp;
 	int ret;
 
-	temp_64 = cdnsp_read_64(&pdev->ir_set->erst_dequeue);
-	temp_64 &= ~ERST_PTR_MASK;
 	temp = readl(&pdev->ir_set->irq_control);
 	temp &= ~IMOD_INTERVAL_MASK;
 	temp |= ((IMOD_DEFAULT_INTERVAL / 250) & IMOD_INTERVAL_MASK);
