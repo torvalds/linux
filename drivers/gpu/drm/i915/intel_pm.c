@@ -43,6 +43,7 @@
 #include "display/intel_sprite.h"
 #include "display/skl_universal_plane.h"
 
+#include "gt/intel_engine_regs.h"
 #include "gt/intel_llc.h"
 
 #include "i915_drv.h"

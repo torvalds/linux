@@ -5,6 +5,7 @@
 
 #include <linux/bsearch.h>
 
+#include "gt/intel_engine_regs.h"
 #include "gt/intel_gt.h"
 #include "gt/intel_lrc.h"
 #include "gt/shmem_utils.h"

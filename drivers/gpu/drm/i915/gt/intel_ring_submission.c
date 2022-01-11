@@ -11,6 +11,7 @@
 #include "i915_mitigations.h"
 #include "intel_breadcrumbs.h"
 #include "intel_context.h"
+#include "intel_engine_regs.h"
 #include "intel_gt.h"
 #include "intel_gt_irq.h"
 #include "intel_reset.h"

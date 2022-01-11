@@ -272,14 +272,6 @@
 #define GEN12_SFC_DONE(n)		_MMIO(0x1cc000 + (n) * 0x1000)
 #define GEN12_SFC_DONE_MAX		4
 
-#define RING_PP_DIR_BASE(base)		_MMIO((base) + 0x228)
-#define RING_PP_DIR_BASE_READ(base)	_MMIO((base) + 0x518)
-#define RING_PP_DIR_DCLV(base)		_MMIO((base) + 0x220)
-#define   PP_DIR_DCLV_2G		0xffffffff
-
-#define GEN8_RING_PDP_UDW(base, n)	_MMIO((base) + 0x270 + (n) * 8 + 4)
-#define GEN8_RING_PDP_LDW(base, n)	_MMIO((base) + 0x270 + (n) * 8)
-
 #define GEN8_R_PWR_CLK_STATE		_MMIO(0x20C8)
 #define   GEN8_RPCS_ENABLE		(1 << 31)
 #define   GEN8_RPCS_S_CNT_ENABLE	(1 << 18)
@@ -2188,71 +2180,8 @@
 #define XEHP_VEBOX3_RING_BASE		0x1e8000
 #define XEHP_VEBOX4_RING_BASE		0x1f8000
 #define BLT_RING_BASE		0x22000
-#define RING_TAIL(base)		_MMIO((base) + 0x30)
-#define RING_HEAD(base)		_MMIO((base) + 0x34)
-#define RING_START(base)	_MMIO((base) + 0x38)
-#define RING_CTL(base)		_MMIO((base) + 0x3c)
-#define   RING_CTL_SIZE(size)	((size) - PAGE_SIZE) /* in bytes -> pages */
-#define RING_SYNC_0(base)	_MMIO((base) + 0x40)
-#define RING_SYNC_1(base)	_MMIO((base) + 0x44)
-#define RING_SYNC_2(base)	_MMIO((base) + 0x48)
-#define GEN6_RVSYNC	(RING_SYNC_0(RENDER_RING_BASE))
-#define GEN6_RBSYNC	(RING_SYNC_1(RENDER_RING_BASE))
-#define GEN6_RVESYNC	(RING_SYNC_2(RENDER_RING_BASE))
-#define GEN6_VBSYNC	(RING_SYNC_0(GEN6_BSD_RING_BASE))
-#define GEN6_VRSYNC	(RING_SYNC_1(GEN6_BSD_RING_BASE))
-#define GEN6_VVESYNC	(RING_SYNC_2(GEN6_BSD_RING_BASE))
-#define GEN6_BRSYNC	(RING_SYNC_0(BLT_RING_BASE))
-#define GEN6_BVSYNC	(RING_SYNC_1(BLT_RING_BASE))
-#define GEN6_BVESYNC	(RING_SYNC_2(BLT_RING_BASE))
-#define GEN6_VEBSYNC	(RING_SYNC_0(VEBOX_RING_BASE))
-#define GEN6_VERSYNC	(RING_SYNC_1(VEBOX_RING_BASE))
-#define GEN6_VEVSYNC	(RING_SYNC_2(VEBOX_RING_BASE))
-#define GEN6_NOSYNC	INVALID_MMIO_REG
-#define RING_PSMI_CTL(base)	_MMIO((base) + 0x50)
-#define   GEN8_RC_SEMA_IDLE_MSG_DISABLE		REG_BIT(12)
-#define   GEN8_FF_DOP_CLOCK_GATE_DISABLE	REG_BIT(10)
-#define   GEN12_WAIT_FOR_EVENT_POWER_DOWN_DISABLE REG_BIT(7)
-#define   GEN6_BSD_GO_INDICATOR			REG_BIT(4)
-#define   GEN6_BSD_SLEEP_INDICATOR		REG_BIT(3)
-#define   GEN6_BSD_SLEEP_FLUSH_DISABLE		REG_BIT(2)
-#define   GEN6_PSMI_SLEEP_MSG_DISABLE		REG_BIT(0)
-#define RING_MAX_IDLE(base)	_MMIO((base) + 0x54)
-#define RING_HWS_PGA(base)	_MMIO((base) + 0x80)
-#define RING_ID(base)		_MMIO((base) + 0x8c)
-#define RING_HWS_PGA_GEN6(base)	_MMIO((base) + 0x2080)
 
-#define RING_CMD_CCTL(base)	_MMIO((base) + 0xc4)
-/*
- * CMD_CCTL read/write fields take a MOCS value and _not_ a table index.
- * The lsb of each can be considered a separate enabling bit for encryption.
- * 6:0 == default MOCS value for reads  =>  6:1 == table index for reads.
- * 13:7 == default MOCS value for writes => 13:8 == table index for writes.
- * 15:14 == Reserved => 31:30 are set to 0.
- */
-#define CMD_CCTL_WRITE_OVERRIDE_MASK REG_GENMASK(13, 7)
-#define CMD_CCTL_READ_OVERRIDE_MASK REG_GENMASK(6, 0)
-#define CMD_CCTL_MOCS_MASK (CMD_CCTL_WRITE_OVERRIDE_MASK | \
-			    CMD_CCTL_READ_OVERRIDE_MASK)
-#define CMD_CCTL_MOCS_OVERRIDE(write, read)				      \
-		(REG_FIELD_PREP(CMD_CCTL_WRITE_OVERRIDE_MASK, (write) << 1) | \
-		 REG_FIELD_PREP(CMD_CCTL_READ_OVERRIDE_MASK, (read) << 1))
 
-#define BLIT_CCTL(base) _MMIO((base) + 0x204)
-#define   BLIT_CCTL_DST_MOCS_MASK       REG_GENMASK(14, 8)
-#define   BLIT_CCTL_SRC_MOCS_MASK       REG_GENMASK(6, 0)
-#define   BLIT_CCTL_MASK (BLIT_CCTL_DST_MOCS_MASK | \
-			  BLIT_CCTL_SRC_MOCS_MASK)
-#define   BLIT_CCTL_MOCS(dst, src)				       \
-		(REG_FIELD_PREP(BLIT_CCTL_DST_MOCS_MASK, (dst) << 1) | \
-		 REG_FIELD_PREP(BLIT_CCTL_SRC_MOCS_MASK, (src) << 1))
-
-#define RING_RESET_CTL(base)	_MMIO((base) + 0xd0)
-#define   RESET_CTL_CAT_ERROR	   REG_BIT(2)
-#define   RESET_CTL_READY_TO_RESET REG_BIT(1)
-#define   RESET_CTL_REQUEST_RESET  REG_BIT(0)
-
-#define RING_SEMA_WAIT_POLL(base) _MMIO((base) + 0x24c)
 
 #define HSW_GTT_CACHE_EN	_MMIO(0x4024)
 #define   GTT_CACHE_EN_ALL	0xF0007FFF
@@ -2307,49 +2236,6 @@
 #define   AUX_INV		REG_BIT(0)
 #define BLT_HWS_PGA_GEN7	_MMIO(0x04280)
 #define VEBOX_HWS_PGA_GEN7	_MMIO(0x04380)
-#define RING_ACTHD(base)	_MMIO((base) + 0x74)
-#define RING_ACTHD_UDW(base)	_MMIO((base) + 0x5c)
-#define RING_NOPID(base)	_MMIO((base) + 0x94)
-#define RING_IMR(base)		_MMIO((base) + 0xa8)
-#define RING_HWSTAM(base)	_MMIO((base) + 0x98)
-#define RING_TIMESTAMP(base)		_MMIO((base) + 0x358)
-#define RING_TIMESTAMP_UDW(base)	_MMIO((base) + 0x358 + 4)
-#define   TAIL_ADDR		0x001FFFF8
-#define   HEAD_WRAP_COUNT	0xFFE00000
-#define   HEAD_WRAP_ONE		0x00200000
-#define   HEAD_ADDR		0x001FFFFC
-#define   RING_NR_PAGES		0x001FF000
-#define   RING_REPORT_MASK	0x00000006
-#define   RING_REPORT_64K	0x00000002
-#define   RING_REPORT_128K	0x00000004
-#define   RING_NO_REPORT	0x00000000
-#define   RING_VALID_MASK	0x00000001
-#define   RING_VALID		0x00000001
-#define   RING_INVALID		0x00000000
-#define   RING_WAIT_I8XX	(1 << 0) /* gen2, PRBx_HEAD */
-#define   RING_WAIT		(1 << 11) /* gen3+, PRBx_CTL */
-#define   RING_WAIT_SEMAPHORE	(1 << 10) /* gen6+ */
-
-/* There are 16 64-bit CS General Purpose Registers per-engine on Gen8+ */
-#define GEN8_RING_CS_GPR(base, n)	_MMIO((base) + 0x600 + (n) * 8)
-#define GEN8_RING_CS_GPR_UDW(base, n)	_MMIO((base) + 0x600 + (n) * 8 + 4)
-
-#define RING_FORCE_TO_NONPRIV(base, i) _MMIO(((base) + 0x4D0) + (i) * 4)
-#define   RING_FORCE_TO_NONPRIV_ADDRESS_MASK	REG_GENMASK(25, 2)
-#define   RING_FORCE_TO_NONPRIV_ACCESS_RW	(0 << 28)    /* CFL+ & Gen11+ */
-#define   RING_FORCE_TO_NONPRIV_ACCESS_RD	(1 << 28)
-#define   RING_FORCE_TO_NONPRIV_ACCESS_WR	(2 << 28)
-#define   RING_FORCE_TO_NONPRIV_ACCESS_INVALID	(3 << 28)
-#define   RING_FORCE_TO_NONPRIV_ACCESS_MASK	(3 << 28)
-#define   RING_FORCE_TO_NONPRIV_RANGE_1		(0 << 0)     /* CFL+ & Gen11+ */
-#define   RING_FORCE_TO_NONPRIV_RANGE_4		(1 << 0)
-#define   RING_FORCE_TO_NONPRIV_RANGE_16	(2 << 0)
-#define   RING_FORCE_TO_NONPRIV_RANGE_64	(3 << 0)
-#define   RING_FORCE_TO_NONPRIV_RANGE_MASK	(3 << 0)
-#define   RING_FORCE_TO_NONPRIV_MASK_VALID	\
-					(RING_FORCE_TO_NONPRIV_RANGE_MASK \
-					| RING_FORCE_TO_NONPRIV_ACCESS_MASK)
-#define   RING_MAX_NONPRIV_SLOTS  12
 
 #define GEN7_TLB_RD_ADDR	_MMIO(0x4700)
 
@@ -2394,23 +2280,11 @@
 #define   GEN11_MCR_SLICE_MASK		GEN11_MCR_SLICE(0xf)
 #define   GEN11_MCR_SUBSLICE(subslice)	(((subslice) & 0x7) << 24)
 #define   GEN11_MCR_SUBSLICE_MASK	GEN11_MCR_SUBSLICE(0x7)
-#define RING_IPEIR(base)	_MMIO((base) + 0x64)
-#define RING_IPEHR(base)	_MMIO((base) + 0x68)
-#define RING_EIR(base)		_MMIO((base) + 0xb0)
-#define RING_EMR(base)		_MMIO((base) + 0xb4)
-#define RING_ESR(base)		_MMIO((base) + 0xb8)
 /*
  * On GEN4, only the render ring INSTDONE exists and has a different
  * layout than the GEN7+ version.
  * The GEN2 counterpart of this register is GEN2_INSTDONE.
  */
-#define RING_INSTDONE(base)	_MMIO((base) + 0x6c)
-#define RING_INSTPS(base)	_MMIO((base) + 0x70)
-#define RING_DMA_FADD(base)	_MMIO((base) + 0x78)
-#define RING_DMA_FADD_UDW(base)	_MMIO((base) + 0x60) /* gen8+ */
-#define RING_INSTPM(base)	_MMIO((base) + 0xc0)
-#define RING_MI_MODE(base)	_MMIO((base) + 0x9c)
-#define RING_CMD_BUF_CCTL(base) _MMIO((base) + 0x84)
 #define INSTPS		_MMIO(0x2070) /* 965+ only */
 #define GEN4_INSTDONE1	_MMIO(0x207c) /* 965+ only, aka INSTDONE_2 on SNB */
 #define ACTHD_I965	_MMIO(0x2074)
@@ -2419,26 +2293,9 @@
 #define HWS_START_ADDRESS_SHIFT	4
 #define PWRCTXA		_MMIO(0x2088) /* 965GM+ only */
 #define   PWRCTX_EN	(1 << 0)
-#define IPEIR(base)	_MMIO((base) + 0x88)
-#define IPEHR(base)	_MMIO((base) + 0x8c)
 #define GEN2_INSTDONE	_MMIO(0x2090)
 #define NOPID		_MMIO(0x2094)
 #define HWSTAM		_MMIO(0x2098)
-#define DMA_FADD_I8XX(base)	_MMIO((base) + 0xd0)
-#define RING_BBSTATE(base)	_MMIO((base) + 0x110)
-#define   RING_BB_PPGTT		(1 << 5)
-#define RING_SBBADDR(base)	_MMIO((base) + 0x114) /* hsw+ */
-#define RING_SBBSTATE(base)	_MMIO((base) + 0x118) /* hsw+ */
-#define RING_SBBADDR_UDW(base)	_MMIO((base) + 0x11c) /* gen8+ */
-#define RING_BBADDR(base)	_MMIO((base) + 0x140)
-#define RING_BBADDR_UDW(base)	_MMIO((base) + 0x168) /* gen8+ */
-#define RING_BB_PER_CTX_PTR(base)	_MMIO((base) + 0x1c0) /* gen8+ */
-#define RING_INDIRECT_CTX(base)		_MMIO((base) + 0x1c4) /* gen8+ */
-#define RING_INDIRECT_CTX_OFFSET(base)	_MMIO((base) + 0x1c8) /* gen8+ */
-#define RING_CTX_TIMESTAMP(base)	_MMIO((base) + 0x3a8) /* gen8+ */
-
-#define VDBOX_CGCTL3F10(base)		_MMIO((base) + 0x3f10)
-#define   IECPUNIT_CLKGATE_DIS		REG_BIT(22)
 
 #define ERROR_GEN6	_MMIO(0x40a0)
 #define GEN7_ERR_INT	_MMIO(0x44040)
@@ -2551,22 +2408,6 @@
 	 GEN9_STATE_ACK_TDL1 | GEN9_STATE_ACK_TDL0)
 
 #define GFX_MODE	_MMIO(0x2520)
-#define RING_MODE_GEN7(base)	_MMIO((base) + 0x29c)
-#define   GFX_RUN_LIST_ENABLE		(1 << 15)
-#define   GFX_INTERRUPT_STEERING	(1 << 14)
-#define   GFX_TLB_INVALIDATE_EXPLICIT	(1 << 13)
-#define   GFX_SURFACE_FAULT_ENABLE	(1 << 12)
-#define   GFX_REPLAY_MODE		(1 << 11)
-#define   GFX_PSMI_GRANULARITY		(1 << 10)
-#define   GFX_PPGTT_ENABLE		(1 << 9)
-#define   GEN8_GFX_PPGTT_48B		(1 << 7)
-
-#define   GFX_FORWARD_VBLANK_MASK	(3 << 5)
-#define   GFX_FORWARD_VBLANK_NEVER	(0 << 5)
-#define   GFX_FORWARD_VBLANK_ALWAYS	(1 << 5)
-#define   GFX_FORWARD_VBLANK_COND	(2 << 5)
-
-#define   GEN11_GFX_DISABLE_LEGACY_MODE	(1 << 3)
 
 #define VLV_GU_CTL0	_MMIO(VLV_DISPLAY_BASE + 0x2030)
 #define VLV_GU_CTL1	_MMIO(VLV_DISPLAY_BASE + 0x2034)
@@ -2607,7 +2448,6 @@
 #define   INSTPM_FORCE_ORDERING				(1 << 7) /* GEN6+ */
 #define   INSTPM_TLB_INVALIDATE	(1 << 9)
 #define   INSTPM_SYNC_FLUSH	(1 << 5)
-#define ACTHD(base)	_MMIO((base) + 0xc8)
 #define MEM_MODE	_MMIO(0x20cc)
 #define   MEM_DISPLAY_B_TRICKLE_FEED_DISABLE (1 << 3) /* 830 only */
 #define   MEM_DISPLAY_A_TRICKLE_FEED_DISABLE (1 << 2) /* 830/845 only */
@@ -2746,12 +2586,6 @@
 #define GFX_FLSH_CNTL	_MMIO(0x2170) /* 915+ only */
 #define GFX_FLSH_CNTL_GEN6	_MMIO(0x101008)
 #define   GFX_FLSH_CNTL_EN	(1 << 0)
-#define ECOSKPD(base)		_MMIO((base) + 0x1d0)
-#define   ECO_CONSTANT_BUFFER_SR_DISABLE	REG_BIT(4)
-#define   ECO_GATING_CX_ONLY			REG_BIT(3)
-#define   GEN6_BLITTER_FBC_NOTIFY		REG_BIT(3)
-#define   ECO_FLIP_DONE				REG_BIT(0)
-#define   GEN6_BLITTER_LOCK_SHIFT		16
 
 #define CACHE_MODE_0_GEN7	_MMIO(0x7000) /* IVB+ */
 #define RC_OP_FLUSH_ENABLE (1 << 0)
@@ -3813,10 +3647,6 @@
 /*
  * Logical Context regs
  */
-#define CCID(base)			_MMIO((base) + 0x180)
-#define   CCID_EN			BIT(0)
-#define   CCID_EXTENDED_STATE_RESTORE	BIT(2)
-#define   CCID_EXTENDED_STATE_SAVE	BIT(3)
 /*
  * Notes on SNB/IVB/VLV context size:
  * - Power context is saved elsewhere (LLC or stolen)
@@ -8860,8 +8690,6 @@ enum {
 #define	   RC6_CTX_IN_DRAM			(1 << 0)
 #define  RC6_CTX_BASE				_MMIO(0xD48)
 #define    RC6_CTX_BASE_MASK			0xFFFFFFF0
-#define  PWRCTX_MAXCNT(base)			_MMIO((base) + 0x54)
-#define    IDLE_TIME_MASK			0xFFFFF
 #define  FORCEWAKE				_MMIO(0xA18C)
 #define  FORCEWAKE_VLV				_MMIO(0x1300b0)
 #define  FORCEWAKE_ACK_VLV			_MMIO(0x1300b4)

@@ -10,6 +10,7 @@
 #include "gem/i915_gem_lmem.h"
 #include "i915_drv.h"
 #include "intel_context.h"
+#include "intel_engine_regs.h"
 #include "intel_gt.h"
 #include "intel_gt_buffer_pool.h"
 #include "intel_gt_clock_utils.h"

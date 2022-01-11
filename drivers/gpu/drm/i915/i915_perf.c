@@ -197,6 +197,7 @@
 
 #include "gem/i915_gem_context.h"
 #include "gt/intel_engine_pm.h"
+#include "gt/intel_engine_regs.h"
 #include "gt/intel_engine_user.h"
 #include "gt/intel_execlists_submission.h"
 #include "gt/intel_gpu_commands.h"

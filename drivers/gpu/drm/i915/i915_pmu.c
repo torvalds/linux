@@ -8,6 +8,7 @@
 
 #include "gt/intel_engine.h"
 #include "gt/intel_engine_pm.h"
+#include "gt/intel_engine_regs.h"
 #include "gt/intel_engine_user.h"
 #include "gt/intel_gt_pm.h"
 #include "gt/intel_rc6.h"

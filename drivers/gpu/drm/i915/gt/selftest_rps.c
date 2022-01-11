@@ -8,6 +8,7 @@
 
 #include "intel_engine_heartbeat.h"
 #include "intel_engine_pm.h"
+#include "intel_engine_regs.h"
 #include "intel_gpu_commands.h"
 #include "intel_gt_clock_utils.h"
 #include "intel_gt_pm.h"

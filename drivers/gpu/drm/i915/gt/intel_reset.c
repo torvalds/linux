@@ -16,6 +16,7 @@
 #include "i915_irq.h"
 #include "intel_breadcrumbs.h"
 #include "intel_engine_pm.h"
+#include "intel_engine_regs.h"
 #include "intel_gt.h"
 #include "intel_gt_pm.h"
 #include "intel_gt_requests.h"
