@@ -3930,6 +3930,10 @@ static void android_rvh_enqueue_task(void *unused, struct rq *rq, struct task_st
 		double_enqueue = true;
 	}
 
+	if (!cpumask_test_cpu(cpu_of(rq), p->cpus_ptr))
+		WALT_BUG(p, "enqueueing on rq=%d comm=%s(%d) affinity=0x%x",
+			 cpu_of(rq), p->comm, p->pid, (*(cpumask_bits(p->cpus_ptr))));
+
 	wts->prev_on_rq = 1;
 	wts->prev_on_rq_cpu = cpu_of(rq);
 
