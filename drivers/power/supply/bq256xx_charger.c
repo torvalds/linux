@@ -1504,7 +1504,7 @@ static int bq256xx_power_supply_init(struct bq256xx_device *bq,
 
 static int bq256xx_hw_init(struct bq256xx_device *bq)
 {
-	struct power_supply_battery_info bat_info = { };
+	struct power_supply_battery_info *bat_info;
 	int wd_reg_val = BQ256XX_WATCHDOG_DIS;
 	int ret = 0;
 	int i;
@@ -1526,16 +1526,16 @@ static int bq256xx_hw_init(struct bq256xx_device *bq)
 	if (ret) {
 		dev_warn(bq->dev, "battery info missing, default values will be applied\n");
 
-		bat_info.constant_charge_current_max_ua =
+		bat_info->constant_charge_current_max_ua =
 				bq->chip_info->bq256xx_def_ichg;
 
-		bat_info.constant_charge_voltage_max_uv =
+		bat_info->constant_charge_voltage_max_uv =
 				bq->chip_info->bq256xx_def_vbatreg;
 
-		bat_info.precharge_current_ua =
+		bat_info->precharge_current_ua =
 				bq->chip_info->bq256xx_def_iprechg;
 
-		bat_info.charge_term_current_ua =
+		bat_info->charge_term_current_ua =
 				bq->chip_info->bq256xx_def_iterm;
 
 		bq->init_data.ichg_max =
@@ -1545,10 +1545,10 @@ static int bq256xx_hw_init(struct bq256xx_device *bq)
 				bq->chip_info->bq256xx_max_vbatreg;
 	} else {
 		bq->init_data.ichg_max =
-			bat_info.constant_charge_current_max_ua;
+			bat_info->constant_charge_current_max_ua;
 
 		bq->init_data.vbatreg_max =
-			bat_info.constant_charge_voltage_max_uv;
+			bat_info->constant_charge_voltage_max_uv;
 	}
 
 	ret = bq->chip_info->bq256xx_set_vindpm(bq, bq->init_data.vindpm);
@@ -1560,26 +1560,26 @@ static int bq256xx_hw_init(struct bq256xx_device *bq)
 		return ret;
 
 	ret = bq->chip_info->bq256xx_set_ichg(bq,
-				bat_info.constant_charge_current_max_ua);
+				bat_info->constant_charge_current_max_ua);
 	if (ret)
 		return ret;
 
 	ret = bq->chip_info->bq256xx_set_iprechg(bq,
-				bat_info.precharge_current_ua);
+				bat_info->precharge_current_ua);
 	if (ret)
 		return ret;
 
 	ret = bq->chip_info->bq256xx_set_vbatreg(bq,
-				bat_info.constant_charge_voltage_max_uv);
+				bat_info->constant_charge_voltage_max_uv);
 	if (ret)
 		return ret;
 
 	ret = bq->chip_info->bq256xx_set_iterm(bq,
-				bat_info.charge_term_current_ua);
+				bat_info->charge_term_current_ua);
 	if (ret)
 		return ret;
 
-	power_supply_put_battery_info(bq->charger, &bat_info);
+	power_supply_put_battery_info(bq->charger, bat_info);
 
 	return 0;
 }

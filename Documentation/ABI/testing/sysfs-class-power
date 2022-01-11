@@ -413,7 +413,7 @@ Description:
 			      "Over voltage", "Unspecified failure", "Cold",
 			      "Watchdog timer expire", "Safety timer expire",
 			      "Over current", "Calibration required", "Warm",
-			      "Cool", "Hot"
+			      "Cool", "Hot", "No battery"
 
 What:		/sys/class/power_supply/<supply_name>/precharge_current
 Date:		June 2017

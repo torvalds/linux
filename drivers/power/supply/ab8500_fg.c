@@ -38,7 +38,6 @@
 
 #include "ab8500-bm.h"
 
-#define MILLI_TO_MICRO			1000
 #define FG_LSB_IN_MA			1627
 #define QLSB_NANO_AMP_HOURS_X10		1071
 #define INS_CURR_TIMEOUT		(3 * HZ)
@@ -157,10 +156,10 @@ struct inst_curr_result_list {
  * @dev:		Pointer to the structure device
  * @node:		a list of AB8500 FGs, hence prepared for reentrance
  * @irq			holds the CCEOC interrupt number
- * @vbat:		Battery voltage in mV
- * @vbat_nom:		Nominal battery voltage in mV
- * @inst_curr:		Instantenous battery current in mA
- * @avg_curr:		Average battery current in mA
+ * @vbat_uv:		Battery voltage in uV
+ * @vbat_nom_uv:	Nominal battery voltage in uV
+ * @inst_curr_ua:	Instantenous battery current in uA
+ * @avg_curr_ua:	Average battery current in uA
  * @bat_temp		battery temperature
  * @fg_samples:		Number of samples used in the FG accumulation
  * @accu_charge:	Accumulated charge from the last conversion
@@ -199,10 +198,10 @@ struct ab8500_fg {
 	struct device *dev;
 	struct list_head node;
 	int irq;
-	int vbat;
-	int vbat_nom;
-	int inst_curr;
-	int avg_curr;
+	int vbat_uv;
+	int vbat_nom_uv;
+	int inst_curr_ua;
+	int avg_curr_ua;
 	int bat_temp;
 	int fg_samples;
 	int accu_charge;
@@ -266,84 +265,84 @@ static enum power_supply_property ab8500_fg_props[] = {
 
 /*
  * This array maps the raw hex value to lowbat voltage used by the AB8500
- * Values taken from the UM0836
+ * Values taken from the UM0836, in microvolts.
  */
 static int ab8500_fg_lowbat_voltage_map[] = {
-	2300 ,
-	2325 ,
-	2350 ,
-	2375 ,
-	2400 ,
-	2425 ,
-	2450 ,
-	2475 ,
-	2500 ,
-	2525 ,
-	2550 ,
-	2575 ,
-	2600 ,
-	2625 ,
-	2650 ,
-	2675 ,
-	2700 ,
-	2725 ,
-	2750 ,
-	2775 ,
-	2800 ,
-	2825 ,
-	2850 ,
-	2875 ,
-	2900 ,
-	2925 ,
-	2950 ,
-	2975 ,
-	3000 ,
-	3025 ,
-	3050 ,
-	3075 ,
-	3100 ,
-	3125 ,
-	3150 ,
-	3175 ,
-	3200 ,
-	3225 ,
-	3250 ,
-	3275 ,
-	3300 ,
-	3325 ,
-	3350 ,
-	3375 ,
-	3400 ,
-	3425 ,
-	3450 ,
-	3475 ,
-	3500 ,
-	3525 ,
-	3550 ,
-	3575 ,
-	3600 ,
-	3625 ,
-	3650 ,
-	3675 ,
-	3700 ,
-	3725 ,
-	3750 ,
-	3775 ,
-	3800 ,
-	3825 ,
-	3850 ,
-	3850 ,
+	2300000,
+	2325000,
+	2350000,
+	2375000,
+	2400000,
+	2425000,
+	2450000,
+	2475000,
+	2500000,
+	2525000,
+	2550000,
+	2575000,
+	2600000,
+	2625000,
+	2650000,
+	2675000,
+	2700000,
+	2725000,
+	2750000,
+	2775000,
+	2800000,
+	2825000,
+	2850000,
+	2875000,
+	2900000,
+	2925000,
+	2950000,
+	2975000,
+	3000000,
+	3025000,
+	3050000,
+	3075000,
+	3100000,
+	3125000,
+	3150000,
+	3175000,
+	3200000,
+	3225000,
+	3250000,
+	3275000,
+	3300000,
+	3325000,
+	3350000,
+	3375000,
+	3400000,
+	3425000,
+	3450000,
+	3475000,
+	3500000,
+	3525000,
+	3550000,
+	3575000,
+	3600000,
+	3625000,
+	3650000,
+	3675000,
+	3700000,
+	3725000,
+	3750000,
+	3775000,
+	3800000,
+	3825000,
+	3850000,
+	3850000,
 };
 
-static u8 ab8500_volt_to_regval(int voltage)
+static u8 ab8500_volt_to_regval(int voltage_uv)
 {
 	int i;
 
-	if (voltage < ab8500_fg_lowbat_voltage_map[0])
+	if (voltage_uv < ab8500_fg_lowbat_voltage_map[0])
 		return 0;
 
 	for (i = 0; i < ARRAY_SIZE(ab8500_fg_lowbat_voltage_map); i++) {
-		if (voltage < ab8500_fg_lowbat_voltage_map[i])
+		if (voltage_uv < ab8500_fg_lowbat_voltage_map[i])
 			return (u8) i - 1;
 	}
 
@@ -354,16 +353,16 @@ static u8 ab8500_volt_to_regval(int voltage)
 /**
  * ab8500_fg_is_low_curr() - Low or high current mode
  * @di:		pointer to the ab8500_fg structure
- * @curr:	the current to base or our decision on
+ * @curr_ua:	the current to base or our decision on in microampere
  *
  * Low current mode if the current consumption is below a certain threshold
  */
-static int ab8500_fg_is_low_curr(struct ab8500_fg *di, int curr)
+static int ab8500_fg_is_low_curr(struct ab8500_fg *di, int curr_ua)
 {
 	/*
 	 * We want to know if we're in low current mode
 	 */
-	if (curr > -di->bm->fg_params->high_curr_threshold)
+	if (curr_ua > -di->bm->fg_params->high_curr_threshold_ua)
 		return true;
 	else
 		return false;
@@ -601,13 +600,13 @@ int ab8500_fg_inst_curr_done(struct ab8500_fg *di)
 /**
  * ab8500_fg_inst_curr_finalize() - battery instantaneous current
  * @di:         pointer to the ab8500_fg structure
- * @res:	battery instantenous current(on success)
+ * @curr_ua:	battery instantenous current in microampere (on success)
  *
  * Returns 0 or an error code
  * Note: This is part "two" and has to be called at earliest 250 ms
  * after ab8500_fg_inst_curr_start()
  */
-int ab8500_fg_inst_curr_finalize(struct ab8500_fg *di, int *res)
+int ab8500_fg_inst_curr_finalize(struct ab8500_fg *di, int *curr_ua)
 {
 	u8 low, high;
 	int val;
@@ -663,14 +662,13 @@ int ab8500_fg_inst_curr_finalize(struct ab8500_fg *di, int *res)
 	/*
 	 * Convert to unit value in mA
 	 * Full scale input voltage is
-	 * 63.160mV => LSB = 63.160mV/(4096*res) = 1.542mA
+	 * 63.160mV => LSB = 63.160mV/(4096*res) = 1.542.000 uA
 	 * Given a 250ms conversion cycle time the LSB corresponds
 	 * to 107.1 nAh. Convert to current by dividing by the conversion
 	 * time in hours (250ms = 1 / (3600 * 4)h)
 	 * 107.1nAh assumes 10mOhm, but fg_res is in 0.1mOhm
 	 */
-	val = (val * QLSB_NANO_AMP_HOURS_X10 * 36 * 4) /
-		(1000 * di->bm->fg_res);
+	val = (val * QLSB_NANO_AMP_HOURS_X10 * 36 * 4) / di->bm->fg_res;
 
 	if (di->turn_off_fg) {
 		dev_dbg(di->dev, "%s Disable FG\n", __func__);
@@ -688,7 +686,7 @@ int ab8500_fg_inst_curr_finalize(struct ab8500_fg *di, int *res)
 			goto fail;
 	}
 	mutex_unlock(&di->cc_lock);
-	(*res) = val;
+	*curr_ua = val;
 
 	return 0;
 fail:
@@ -699,15 +697,15 @@ fail:
 /**
  * ab8500_fg_inst_curr_blocking() - battery instantaneous current
  * @di:         pointer to the ab8500_fg structure
- * @res:	battery instantenous current(on success)
  *
- * Returns 0 else error code
+ * Returns battery instantenous current in microampere (on success)
+ * else error code
  */
 int ab8500_fg_inst_curr_blocking(struct ab8500_fg *di)
 {
 	int ret;
 	unsigned long timeout;
-	int res = 0;
+	int curr_ua = 0;
 
 	ret = ab8500_fg_inst_curr_start(di);
 	if (ret) {
@@ -730,14 +728,14 @@ int ab8500_fg_inst_curr_blocking(struct ab8500_fg *di)
 		}
 	}
 
-	ret = ab8500_fg_inst_curr_finalize(di, &res);
+	ret = ab8500_fg_inst_curr_finalize(di, &curr_ua);
 	if (ret) {
 		dev_err(di->dev, "Failed to finalize fg_inst\n");
 		return 0;
 	}
 
-	dev_dbg(di->dev, "%s instant current: %d", __func__, res);
-	return res;
+	dev_dbg(di->dev, "%s instant current: %d uA", __func__, curr_ua);
+	return curr_ua;
 fail:
 	disable_irq(di->irq);
 	mutex_unlock(&di->cc_lock);
@@ -797,13 +795,12 @@ static void ab8500_fg_acc_cur_work(struct work_struct *work)
 		(100 * di->bm->fg_res);
 
 	/*
-	 * Convert to unit value in mA
+	 * Convert to unit value in uA
 	 * by dividing by the conversion
 	 * time in hours (= samples / (3600 * 4)h)
-	 * and multiply with 1000
 	 */
-	di->avg_curr = (val * QLSB_NANO_AMP_HOURS_X10 * 36) /
-		(1000 * di->bm->fg_res * (di->fg_samples / 4));
+	di->avg_curr_ua = (val * QLSB_NANO_AMP_HOURS_X10 * 36) /
+		(di->bm->fg_res * (di->fg_samples / 4));
 
 	di->flags.conv_done = true;
 
@@ -825,7 +822,7 @@ exit:
  * ab8500_fg_bat_voltage() - get battery voltage
  * @di:		pointer to the ab8500_fg structure
  *
- * Returns battery voltage(on success) else error code
+ * Returns battery voltage in microvolts (on success) else error code
  */
 static int ab8500_fg_bat_voltage(struct ab8500_fg *di)
 {
@@ -840,6 +837,8 @@ static int ab8500_fg_bat_voltage(struct ab8500_fg *di)
 		return prev;
 	}
 
+	/* IIO returns millivolts but we want microvolts */
+	vbat *= 1000;
 	prev = vbat;
 	return vbat;
 }
@@ -847,41 +846,16 @@ static int ab8500_fg_bat_voltage(struct ab8500_fg *di)
 /**
  * ab8500_fg_volt_to_capacity() - Voltage based capacity
  * @di:		pointer to the ab8500_fg structure
- * @voltage:	The voltage to convert to a capacity
+ * @voltage_uv:	The voltage to convert to a capacity in microvolt
  *
  * Returns battery capacity in per mille based on voltage
  */
-static int ab8500_fg_volt_to_capacity(struct ab8500_fg *di, int voltage)
+static int ab8500_fg_volt_to_capacity(struct ab8500_fg *di, int voltage_uv)
 {
-	int i, tbl_size;
-	const struct ab8500_v_to_cap *tbl;
-	int cap = 0;
+	struct power_supply_battery_info *bi = di->bm->bi;
 
-	tbl = di->bm->bat_type[di->bm->batt_id].v_to_cap_tbl;
-	tbl_size = di->bm->bat_type[di->bm->batt_id].n_v_cap_tbl_elements;
-
-	for (i = 0; i < tbl_size; ++i) {
-		if (voltage > tbl[i].voltage)
-			break;
-	}
-
-	if ((i > 0) && (i < tbl_size)) {
-		cap = fixp_linear_interpolate(
-			tbl[i].voltage,
-			tbl[i].capacity * 10,
-			tbl[i-1].voltage,
-			tbl[i-1].capacity * 10,
-			voltage);
-	} else if (i == 0) {
-		cap = 1000;
-	} else {
-		cap = 0;
-	}
-
-	dev_dbg(di->dev, "%s Vbat: %d, Cap: %d per mille",
-		__func__, voltage, cap);
-
-	return cap;
+	/* Multiply by 10 because the capacity is tracked in per mille */
+	return power_supply_batinfo_ocv2cap(bi, voltage_uv, di->bat_temp) *  10;
 }
 
 /**
@@ -893,8 +867,8 @@ static int ab8500_fg_volt_to_capacity(struct ab8500_fg *di, int voltage)
  */
 static int ab8500_fg_uncomp_volt_to_capacity(struct ab8500_fg *di)
 {
-	di->vbat = ab8500_fg_bat_voltage(di);
-	return ab8500_fg_volt_to_capacity(di, di->vbat);
+	di->vbat_uv = ab8500_fg_bat_voltage(di);
+	return ab8500_fg_volt_to_capacity(di, di->vbat_uv);
 }
 
 /**
@@ -902,44 +876,35 @@ static int ab8500_fg_uncomp_volt_to_capacity(struct ab8500_fg *di)
  * @di:		pointer to the ab8500_fg structure
  *
  * Returns battery inner resistance added with the fuel gauge resistor value
- * to get the total resistance in the whole link from gnd to bat+ node.
+ * to get the total resistance in the whole link from gnd to bat+ node
+ * in milliohm.
  */
 static int ab8500_fg_battery_resistance(struct ab8500_fg *di)
 {
-	int i, tbl_size;
-	const struct batres_vs_temp *tbl;
-	int resist = 0;
+	struct power_supply_battery_info *bi = di->bm->bi;
+	int resistance_percent = 0;
+	int resistance;
 
-	tbl = di->bm->bat_type[di->bm->batt_id].batres_tbl;
-	tbl_size = di->bm->bat_type[di->bm->batt_id].n_batres_tbl_elements;
-
-	for (i = 0; i < tbl_size; ++i) {
-		if (di->bat_temp / 10 > tbl[i].temp)
-			break;
-	}
-
-	if ((i > 0) && (i < tbl_size)) {
-		resist = fixp_linear_interpolate(
-			tbl[i].temp,
-			tbl[i].resist,
-			tbl[i-1].temp,
-			tbl[i-1].resist,
-			di->bat_temp / 10);
-	} else if (i == 0) {
-		resist = tbl[0].resist;
-	} else {
-		resist = tbl[tbl_size - 1].resist;
-	}
+	resistance_percent = power_supply_temp2resist_simple(bi->resist_table,
+						 bi->resist_table_size,
+						 di->bat_temp / 10);
+	/*
+	 * We get a percentage of factory resistance here so first get
+	 * the factory resistance in milliohms then calculate how much
+	 * resistance we have at this temperature.
+	 */
+	resistance = (bi->factory_internal_resistance_uohm / 1000);
+	resistance = resistance * resistance_percent / 100;
 
 	dev_dbg(di->dev, "%s Temp: %d battery internal resistance: %d"
 	    " fg resistance %d, total: %d (mOhm)\n",
-		__func__, di->bat_temp, resist, di->bm->fg_res / 10,
-		(di->bm->fg_res / 10) + resist);
+		__func__, di->bat_temp, resistance, di->bm->fg_res / 10,
+		(di->bm->fg_res / 10) + resistance);
 
 	/* fg_res variable is in 0.1mOhm */
-	resist += di->bm->fg_res / 10;
+	resistance += di->bm->fg_res / 10;
 
-	return resist;
+	return resistance;
 }
 
 /**
@@ -951,31 +916,34 @@ static int ab8500_fg_battery_resistance(struct ab8500_fg *di)
  */
 static int ab8500_fg_load_comp_volt_to_capacity(struct ab8500_fg *di)
 {
-	int vbat_comp, res;
+	int vbat_comp_uv, res;
 	int i = 0;
-	int vbat = 0;
+	int vbat_uv = 0;
 
 	ab8500_fg_inst_curr_start(di);
 
 	do {
-		vbat += ab8500_fg_bat_voltage(di);
+		vbat_uv += ab8500_fg_bat_voltage(di);
 		i++;
 		usleep_range(5000, 6000);
 	} while (!ab8500_fg_inst_curr_done(di));
 
-	ab8500_fg_inst_curr_finalize(di, &di->inst_curr);
+	ab8500_fg_inst_curr_finalize(di, &di->inst_curr_ua);
 
-	di->vbat = vbat / i;
+	di->vbat_uv = vbat_uv / i;
 	res = ab8500_fg_battery_resistance(di);
 
-	/* Use Ohms law to get the load compensated voltage */
-	vbat_comp = di->vbat - (di->inst_curr * res) / 1000;
+	/*
+	 * Use Ohms law to get the load compensated voltage.
+	 * Divide by 1000 to get from milliohms to ohms.
+	 */
+	vbat_comp_uv = di->vbat_uv - (di->inst_curr_ua * res) / 1000;
 
-	dev_dbg(di->dev, "%s Measured Vbat: %dmV,Compensated Vbat %dmV, "
-		"R: %dmOhm, Current: %dmA Vbat Samples: %d\n",
-		__func__, di->vbat, vbat_comp, res, di->inst_curr, i);
+	dev_dbg(di->dev, "%s Measured Vbat: %d uV,Compensated Vbat %d uV, "
+		"R: %d mOhm, Current: %d uA Vbat Samples: %d\n",
+		__func__, di->vbat_uv, vbat_comp_uv, res, di->inst_curr_ua, i);
 
-	return ab8500_fg_volt_to_capacity(di, vbat_comp);
+	return ab8500_fg_volt_to_capacity(di, vbat_comp_uv);
 }
 
 /**
@@ -1014,11 +982,16 @@ static int ab8500_fg_convert_mah_to_uwh(struct ab8500_fg *di, int cap_mah)
 	u64 div_res;
 	u32 div_rem;
 
-	div_res = ((u64) cap_mah) * ((u64) di->vbat_nom);
-	div_rem = do_div(div_res, 1000);
+	/*
+	 * Capacity is in milli ampere hours (10^-3)Ah
+	 * Nominal voltage is in microvolts (10^-6)V
+	 * divide by 1000000 after multiplication to get to mWh
+	 */
+	div_res = ((u64) cap_mah) * ((u64) di->vbat_nom_uv);
+	div_rem = do_div(div_res, 1000000);
 
 	/* Make sure to round upwards if necessary */
-	if (div_rem >= 1000 / 2)
+	if (div_rem >= 1000000 / 2)
 		div_res++;
 
 	return (int) div_res;
@@ -1057,8 +1030,8 @@ static int ab8500_fg_calc_cap_charging(struct ab8500_fg *di)
 		ab8500_fg_convert_mah_to_permille(di, di->bat_cap.mah);
 
 	/* We need to update battery voltage and inst current when charging */
-	di->vbat = ab8500_fg_bat_voltage(di);
-	di->inst_curr = ab8500_fg_inst_curr_blocking(di);
+	di->vbat_uv = ab8500_fg_bat_voltage(di);
+	di->inst_curr_ua = ab8500_fg_inst_curr_blocking(di);
 
 	return di->bat_cap.mah;
 }
@@ -1585,9 +1558,9 @@ static void ab8500_fg_algorithm_discharging(struct ab8500_fg *di)
 		 * RECOVERY_SLEEP if time left.
 		 * If high, go to READOUT
 		 */
-		di->inst_curr = ab8500_fg_inst_curr_blocking(di);
+		di->inst_curr_ua = ab8500_fg_inst_curr_blocking(di);
 
-		if (ab8500_fg_is_low_curr(di, di->inst_curr)) {
+		if (ab8500_fg_is_low_curr(di, di->inst_curr_ua)) {
 			if (di->recovery_cnt >
 				di->bm->fg_params->recovery_total_time) {
 				di->fg_samples = SEC_TO_SAMPLE(
@@ -1620,9 +1593,9 @@ static void ab8500_fg_algorithm_discharging(struct ab8500_fg *di)
 		break;
 
 	case AB8500_FG_DISCHARGE_READOUT:
-		di->inst_curr = ab8500_fg_inst_curr_blocking(di);
+		di->inst_curr_ua = ab8500_fg_inst_curr_blocking(di);
 
-		if (ab8500_fg_is_low_curr(di, di->inst_curr)) {
+		if (ab8500_fg_is_low_curr(di, di->inst_curr_ua)) {
 			/* Detect mode change */
 			if (di->high_curr_mode) {
 				di->high_curr_mode = false;
@@ -1768,9 +1741,9 @@ static void ab8500_fg_algorithm(struct ab8500_fg *di)
 		di->bat_cap.prev_mah,
 		di->bat_cap.prev_percent,
 		di->bat_cap.prev_level,
-		di->vbat,
-		di->inst_curr,
-		di->avg_curr,
+		di->vbat_uv,
+		di->inst_curr_ua,
+		di->avg_curr_ua,
 		di->accu_charge,
 		di->flags.charging,
 		di->charge_state,
@@ -1863,15 +1836,15 @@ static void ab8500_fg_check_hw_failure_work(struct work_struct *work)
  */
 static void ab8500_fg_low_bat_work(struct work_struct *work)
 {
-	int vbat;
+	int vbat_uv;
 
 	struct ab8500_fg *di = container_of(work, struct ab8500_fg,
 		fg_low_bat_work.work);
 
-	vbat = ab8500_fg_bat_voltage(di);
+	vbat_uv = ab8500_fg_bat_voltage(di);
 
 	/* Check if LOW_BAT still fulfilled */
-	if (vbat < di->bm->fg_params->lowbat_threshold) {
+	if (vbat_uv < di->bm->fg_params->lowbat_threshold_uv) {
 		/* Is it time to shut down? */
 		if (di->low_bat_cnt < 1) {
 			di->flags.low_bat = true;
@@ -2101,15 +2074,15 @@ static int ab8500_fg_get_property(struct power_supply *psy,
 	switch (psp) {
 	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
 		if (di->flags.bat_ovv)
-			val->intval = BATT_OVV_VALUE * 1000;
+			val->intval = BATT_OVV_VALUE;
 		else
-			val->intval = di->vbat * 1000;
+			val->intval = di->vbat_uv;
 		break;
 	case POWER_SUPPLY_PROP_CURRENT_NOW:
-		val->intval = di->inst_curr * 1000;
+		val->intval = di->inst_curr_ua;
 		break;
 	case POWER_SUPPLY_PROP_CURRENT_AVG:
-		val->intval = di->avg_curr * 1000;
+		val->intval = di->avg_curr_ua;
 		break;
 	case POWER_SUPPLY_PROP_ENERGY_FULL_DESIGN:
 		val->intval = ab8500_fg_convert_mah_to_uwh(di,
@@ -2167,11 +2140,13 @@ static int ab8500_fg_get_ext_psy_data(struct device *dev, void *data)
 	struct power_supply *ext = dev_get_drvdata(dev);
 	const char **supplicants = (const char **)ext->supplied_to;
 	struct ab8500_fg *di;
+	struct power_supply_battery_info *bi;
 	union power_supply_propval ret;
 	int j;
 
 	psy = (struct power_supply *)data;
 	di = power_supply_get_drvdata(psy);
+	bi = di->bm->bi;
 
 	/*
 	 * For all psy where the name of your driver
@@ -2234,21 +2209,22 @@ static int ab8500_fg_get_ext_psy_data(struct device *dev, void *data)
 			switch (ext->desc->type) {
 			case POWER_SUPPLY_TYPE_BATTERY:
 				if (!di->flags.batt_id_received &&
-				    di->bm->batt_id != BATTERY_UNKNOWN) {
+				    (bi && (bi->technology !=
+					    POWER_SUPPLY_TECHNOLOGY_UNKNOWN))) {
 					const struct ab8500_battery_type *b;
 
-					b = &(di->bm->bat_type[di->bm->batt_id]);
+					b = di->bm->bat_type;
 
 					di->flags.batt_id_received = true;
 
 					di->bat_cap.max_mah_design =
-						MILLI_TO_MICRO *
-						b->charge_full_design;
+						di->bm->bi->charge_full_design_uah;
 
 					di->bat_cap.max_mah =
 						di->bat_cap.max_mah_design;
 
-					di->vbat_nom = b->nominal_voltage;
+					di->vbat_nom_uv =
+						di->bm->bi->voltage_max_design_uv;
 				}
 
 				if (ret.intval)
@@ -2314,7 +2290,7 @@ static int ab8500_fg_init_hw_registers(struct ab8500_fg *di)
 		AB8500_SYS_CTRL2_BLOCK,
 		AB8500_LOW_BAT_REG,
 		ab8500_volt_to_regval(
-			di->bm->fg_params->lowbat_threshold) << 1 |
+			di->bm->fg_params->lowbat_threshold_uv) << 1 |
 		LOW_BAT_ENABLE);
 	if (ret) {
 		dev_err(di->dev, "%s write failed\n", __func__);
@@ -3018,6 +2994,10 @@ static int ab8500_fg_bind(struct device *dev, struct device *master,
 		return -ENOMEM;
 	}
 
+	di->bat_cap.max_mah_design = di->bm->bi->charge_full_design_uah;
+	di->bat_cap.max_mah = di->bat_cap.max_mah_design;
+	di->vbat_nom_uv = di->bm->bi->voltage_max_design_uv;
+
 	/* Start the coulomb counter */
 	ab8500_fg_coulomb_counter(di, true);
 	/* Run the FG algorithm */
@@ -3076,13 +3056,6 @@ static int ab8500_fg_probe(struct platform_device *pdev)
 	psy_cfg.supplied_to = supply_interface;
 	psy_cfg.num_supplicants = ARRAY_SIZE(supply_interface);
 	psy_cfg.drv_data = di;
-
-	di->bat_cap.max_mah_design = MILLI_TO_MICRO *
-		di->bm->bat_type[di->bm->batt_id].charge_full_design;
-
-	di->bat_cap.max_mah = di->bat_cap.max_mah_design;
-
-	di->vbat_nom = di->bm->bat_type[di->bm->batt_id].nominal_voltage;
 
 	di->init_capacity = true;
 
