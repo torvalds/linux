@@ -633,14 +633,11 @@ static int dma2d_probe(struct platform_device *pdev)
 		goto put_clk_gate;
 	}
 
-	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
-	if (!res) {
-		dev_err(&pdev->dev, "failed to find IRQ\n");
-		ret = -ENXIO;
+	ret = platform_get_irq(pdev, 0);
+	if (ret < 0)
 		goto unprep_clk_gate;
-	}
 
-	dev->irq = res->start;
+	dev->irq = ret;
 
 	ret = devm_request_irq(&pdev->dev, dev->irq, dma2d_isr,
 			       0, pdev->name, dev);
