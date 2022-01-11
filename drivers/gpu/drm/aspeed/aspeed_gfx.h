@@ -15,6 +15,7 @@ struct aspeed_gfx {
 	struct regmap			*dpmcu;
 	struct regmap			*pcie_ep;
 	u8				dp_support;
+	u8				pcie_advance;
 	u8				pcie_active;
 
 	u32				dac_reg;
@@ -130,8 +131,9 @@ int aspeed_gfx_create_output(struct drm_device *drm);
 /* GFX FLAGS */
 #define RESET_MASK			BIT(0)
 #define RESET_G6			BIT(0)
-#define CLK_MASK			BIT(4)
-#define CLK_G6				BIT(4)
+#define CLK_MASK			(BIT(4)|BIT(5))
+#define CLK_G4				BIT(4)
+#define CLK_G6				BIT(5)
 
 /* PCIE interrupt */
 #define PCIE_PERST_L_T_H		BIT(18)

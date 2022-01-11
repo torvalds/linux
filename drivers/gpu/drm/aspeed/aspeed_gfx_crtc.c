@@ -82,12 +82,16 @@ static void aspeed_gfx_enable_controller(struct aspeed_gfx *priv)
 	u32 ctrl2 = readl(priv->base + CRT_CTRL2);
 
 	/* change the display source is coming from soc display */
-	if (!priv->pcie_active) {
-		regmap_update_bits(priv->scu, priv->dac_reg, CRT_FROM_SOC, CRT_FROM_SOC);
-		if (priv->dp_support) {
-			regmap_update_bits(priv->scu, priv->dac_reg,
-			DP_FROM_SOC, DP_FROM_SOC);
+	if (priv->pcie_advance) {
+		if (!priv->pcie_active) {
+			regmap_update_bits(priv->scu, priv->dac_reg, CRT_FROM_SOC, CRT_FROM_SOC);
+			if (priv->dp_support) {
+				regmap_update_bits(priv->scu, priv->dac_reg,
+				DP_FROM_SOC, DP_FROM_SOC);
+			}
 		}
+	} else {
+		regmap_update_bits(priv->scu, priv->dac_reg, CRT_FROM_SOC, CRT_FROM_SOC);
 	}
 
 	writel(ctrl1 | CRT_CTRL_EN, priv->base + CRT_CTRL1);
