@@ -36,6 +36,8 @@ enum {
 struct mtk_cpufreq_data {
 	struct cpufreq_frequency_table *table;
 	void __iomem *reg_bases[REG_ARRAY_SIZE];
+	struct resource *res;
+	void __iomem *base;
 	int nr_opp;
 };
 
@@ -156,6 +158,7 @@ static int mtk_cpu_resources_init(struct platform_device *pdev,
 {
 	struct mtk_cpufreq_data *data;
 	struct device *dev = &pdev->dev;
+	struct resource *res;
 	void __iomem *base;
 	int ret, i;
 	int index;
@@ -170,9 +173,26 @@ static int mtk_cpu_resources_init(struct platform_device *pdev,
 	if (index < 0)
 		return index;
 
-	base = devm_platform_ioremap_resource(pdev, index);
-	if (IS_ERR(base))
-		return PTR_ERR(base);
+	res = platform_get_resource(pdev, IORESOURCE_MEM, index);
+	if (!res) {
+		dev_err(dev, "failed to get mem resource %d\n", index);
+		return -ENODEV;
+	}
+
+	if (!request_mem_region(res->start, resource_size(res), res->name)) {
+		dev_err(dev, "failed to request resource %pR\n", res);
+		return -EBUSY;
+	}
+
+	base = ioremap(res->start, resource_size(res));
+	if (!base) {
+		dev_err(dev, "failed to map resource %pR\n", res);
+		ret = -ENOMEM;
+		goto release_region;
+	}
+
+	data->base = base;
+	data->res = res;
 
 	for (i = REG_FREQ_LUT_TABLE; i < REG_ARRAY_SIZE; i++)
 		data->reg_bases[i] = base + offsets[i];
@@ -187,6 +207,9 @@ static int mtk_cpu_resources_init(struct platform_device *pdev,
 	policy->driver_data = data;
 
 	return 0;
+release_region:
+	release_mem_region(res->start, resource_size(res));
+	return ret;
 }
 
 static int mtk_cpufreq_hw_cpu_init(struct cpufreq_policy *policy)
@@ -233,9 +256,13 @@ static int mtk_cpufreq_hw_cpu_init(struct cpufreq_policy *policy)
 static int mtk_cpufreq_hw_cpu_exit(struct cpufreq_policy *policy)
 {
 	struct mtk_cpufreq_data *data = policy->driver_data;
+	struct resource *res = data->res;
+	void __iomem *base = data->base;
 
 	/* HW should be in paused state now */
 	writel_relaxed(0x0, data->reg_bases[REG_FREQ_ENABLE]);
+	iounmap(base);
+	release_mem_region(res->start, resource_size(res));
 
 	return 0;
 }
