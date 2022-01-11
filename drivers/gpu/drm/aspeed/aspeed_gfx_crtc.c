@@ -23,7 +23,15 @@ drm_pipe_to_aspeed_gfx(struct drm_simple_display_pipe *pipe)
 	return container_of(pipe, struct aspeed_gfx, pipe);
 }
 
-static void aspeed_gfx_set_clock_source(struct aspeed_gfx *priv, int mode_width)
+static void aspeed_gfx_set_g4_clock(struct aspeed_gfx *priv)
+{
+	/* turn on d2 pll for soc disply at ast2400 */
+	regmap_update_bits(priv->scu, priv->dac_reg, G4_DISABLE_D2_PLL, 0);
+	/* apply 800 x 600 @ 60 for soc disply at ast2400 */
+	writel(G4_40_CLK, priv->base + CRT_MISC);
+}
+
+static void aspeed_gfx_set_g6_clock_source(struct aspeed_gfx *priv, int mode_width)
 {
 	regmap_update_bits(priv->scu, G6_CLK_SOURCE, G6_CLK_SOURCE_MASK, 0x0);
 	regmap_update_bits(priv->scu, G6_CLK_SEL3, G6_CLK_DIV_MASK, 0x0);
@@ -117,8 +125,11 @@ static void aspeed_gfx_disable_controller(struct aspeed_gfx *priv)
 static void aspeed_gfx_set_clk(struct aspeed_gfx *priv, int mode_width)
 {
 	switch (priv->flags & CLK_MASK) {
+	case CLK_G4:
+		aspeed_gfx_set_g4_clock(priv);
+		break;
 	case CLK_G6:
-		aspeed_gfx_set_clock_source(priv, mode_width);
+		aspeed_gfx_set_g6_clock_source(priv, mode_width);
 		break;
 	default:
 		break;

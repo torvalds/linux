@@ -117,6 +117,8 @@ int aspeed_gfx_create_output(struct drm_device *drm);
 #define CRT_THROD_HIGH(x)		((x) << 8)
 
 /* SCU control */
+#define G4_DISABLE_D2_PLL		BIT(4)
+#define G4_40_CLK			0x46314
 #define G6_CLK_SOURCE			0x300
 #define G6_CLK_SOURCE_MASK		(BIT(8) | BIT(9) | BIT(10))
 #define G6_CLK_SOURCE_HPLL		(BIT(8) | BIT(9) | BIT(10))
