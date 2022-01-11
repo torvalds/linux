@@ -455,7 +455,7 @@ static ssize_t amdgpu_ras_debugfs_ctrl_write(struct file *f,
 	}
 
 	if (ret)
-		return -EINVAL;
+		return ret;
 
 	return size;
 }

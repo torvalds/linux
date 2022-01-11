@@ -1335,6 +1335,11 @@ static void psp_ras_ta_check_status(struct psp_context *psp)
 		break;
 	case TA_RAS_STATUS__SUCCESS:
 		break;
+	case TA_RAS_STATUS__TEE_ERROR_ACCESS_DENIED:
+		if (ras_cmd->cmd_id == TA_RAS_COMMAND__TRIGGER_ERROR)
+			dev_warn(psp->adev->dev,
+					"RAS WARNING: Inject error to critical region is not allowed\n");
+		break;
 	default:
 		dev_warn(psp->adev->dev,
 				"RAS WARNING: ras status = 0x%X\n", ras_cmd->ras_status);
@@ -1547,7 +1552,9 @@ int psp_ras_trigger_error(struct psp_context *psp,
 	if (amdgpu_ras_intr_triggered())
 		return 0;
 
-	if (ras_cmd->ras_status)
+	if (ras_cmd->ras_status == TA_RAS_STATUS__TEE_ERROR_ACCESS_DENIED)
+		return -EACCES;
+	else if (ras_cmd->ras_status)
 		return -EINVAL;
 
 	return 0;
