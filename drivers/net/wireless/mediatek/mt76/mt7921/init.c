@@ -229,7 +229,9 @@ int mt7921_register_device(struct mt7921_dev *dev)
 
 	/* TODO: mt7921s run sleep mode on default  */
 	if (mt76_is_mmio(&dev->mt76)) {
+		dev->pm.enable_user = true;
 		dev->pm.enable = true;
+		dev->pm.ds_enable_user = true;
 		dev->pm.ds_enable = true;
 	}
 

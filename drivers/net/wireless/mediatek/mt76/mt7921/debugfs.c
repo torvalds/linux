@@ -262,14 +262,6 @@ mt7921_txpwr(struct seq_file *s, void *data)
 	return 0;
 }
 
-static void
-mt7921_pm_interface_iter(void *priv, u8 *mac, struct ieee80211_vif *vif)
-{
-	struct mt7921_dev *dev = priv;
-
-	mt7921_mcu_set_beacon_filter(dev, vif, dev->pm.enable);
-}
-
 static int
 mt7921_pm_set(void *data, u64 val)
 {
@@ -278,10 +270,10 @@ mt7921_pm_set(void *data, u64 val)
 
 	mutex_lock(&dev->mt76.mutex);
 
-	if (val == pm->enable)
+	if (val == pm->enable_user)
 		goto out;
 
-	if (!pm->enable) {
+	if (!pm->enable_user) {
 		pm->stats.last_wake_event = jiffies;
 		pm->stats.last_doze_event = jiffies;
 	}
@@ -291,12 +283,8 @@ mt7921_pm_set(void *data, u64 val)
 	pm->enable = false;
 	mt76_connac_pm_wake(&dev->mphy, pm);
 
-	pm->enable = val;
-	ieee80211_iterate_active_interfaces(mt76_hw(dev),
-					    IEEE80211_IFACE_ITER_RESUME_ALL,
-					    mt7921_pm_interface_iter, dev);
-
-	mt76_connac_mcu_set_deep_sleep(&dev->mt76, pm->ds_enable);
+	pm->enable_user = val;
+	mt7921_set_runtime_pm(dev);
 	mt76_connac_power_save_sched(&dev->mphy, pm);
 out:
 	mutex_unlock(&dev->mt76.mutex);
@@ -309,7 +297,7 @@ mt7921_pm_get(void *data, u64 *val)
 {
 	struct mt7921_dev *dev = data;
 
-	*val = dev->pm.enable;
+	*val = dev->pm.enable_user;
 
 	return 0;
 }
@@ -321,13 +309,17 @@ mt7921_deep_sleep_set(void *data, u64 val)
 {
 	struct mt7921_dev *dev = data;
 	struct mt76_connac_pm *pm = &dev->pm;
+	bool monitor = !!(dev->mphy.hw->conf.flags & IEEE80211_CONF_MONITOR);
 	bool enable = !!val;
 
 	mt7921_mutex_acquire(dev);
-	if (pm->ds_enable != enable) {
-		mt76_connac_mcu_set_deep_sleep(&dev->mt76, enable);
-		pm->ds_enable = enable;
-	}
+	if (pm->ds_enable_user == enable)
+		goto out;
+
+	pm->ds_enable_user = enable;
+	pm->ds_enable = enable && !monitor;
+	mt76_connac_mcu_set_deep_sleep(&dev->mt76, pm->ds_enable);
+out:
 	mt7921_mutex_release(dev);
 
 	return 0;
@@ -338,7 +330,7 @@ mt7921_deep_sleep_get(void *data, u64 *val)
 {
 	struct mt7921_dev *dev = data;
 
-	*val = dev->pm.ds_enable;
+	*val = dev->pm.ds_enable_user;
 
 	return 0;
 }
