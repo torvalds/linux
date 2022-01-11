@@ -1106,9 +1106,9 @@ MODULE_DEVICE_TABLE(of, exynos_gsc_match);
 static int gsc_probe(struct platform_device *pdev)
 {
 	struct gsc_dev *gsc;
-	struct resource *res;
 	struct device *dev = &pdev->dev;
 	const struct gsc_driverdata *drv_data = of_device_get_match_data(dev);
+	int irq;
 	int ret;
 	int i;
 
@@ -1141,11 +1141,9 @@ static int gsc_probe(struct platform_device *pdev)
 	if (IS_ERR(gsc->regs))
 		return PTR_ERR(gsc->regs);
 
-	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
-	if (!res) {
-		dev_err(dev, "failed to get IRQ resource\n");
-		return -ENXIO;
-	}
+	irq = platform_get_irq(pdev, 0);
+	if (irq < 0)
+		return irq;
 
 	for (i = 0; i < gsc->num_clocks; i++) {
 		gsc->clock[i] = devm_clk_get(dev, drv_data->clk_names[i]);
@@ -1167,8 +1165,8 @@ static int gsc_probe(struct platform_device *pdev)
 		}
 	}
 
-	ret = devm_request_irq(dev, res->start, gsc_irq_handler,
-				0, pdev->name, gsc);
+	ret = devm_request_irq(dev, irq, gsc_irq_handler,
+			       0, pdev->name, gsc);
 	if (ret) {
 		dev_err(dev, "failed to install irq (%d)\n", ret);
 		goto err_clk;
