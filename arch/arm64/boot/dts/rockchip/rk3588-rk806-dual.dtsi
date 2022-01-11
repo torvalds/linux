@@ -7,19 +7,6 @@
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/pinctrl/rockchip.h>
 
-&pinctrl {
-	pmic {
-		soc_slppin_gpio: soc_slppin_gpio {
-			rockchip,pins = <0 RK_PA2
-				RK_FUNC_GPIO &pcfg_output_low>;
-		};
-		soc_slppin_shutdown: soc_slppin_shutdown {
-			rockchip,pins = <0 RK_PA2
-				RK_FUNC_GPIO &pcfg_output_high>;
-		};
-	};
-};
-
 &spi2 {
 	status = "okay";
 	assigned-clocks = <&cru CLK_SPI2>;
@@ -34,11 +21,8 @@
 		interrupt-parent = <&gpio0>;
 		interrupts = <7 IRQ_TYPE_LEVEL_LOW>;
 
-		pinctrl-names = "default", "pmic-sleep", "pmic-power-off", "pmic-reset";
-		pinctrl-0 = <&soc_slppin_gpio>, <&rk806_dvs1_null>, <&rk806_dvs2_null>, <&rk806_dvs3_null>;
-		pinctrl-1 = <&soc_slppin_gpio>, <&rk806_dvs1_slp>, <&rk806_dvs2_null>, <&rk806_dvs3_null>;
-		pinctrl-2 = <&rk806_dvs1_pwrdn>, <&rk806_dvs2_null>, <&rk806_dvs3_null>;
-		pinctrl-3 = <&rk806_dvs1_rst>, <&rk806_dvs2_null>, <&rk806_dvs3_null>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pmic_pins>, <&rk806_dvs1_null>, <&rk806_dvs2_null>, <&rk806_dvs3_null>;
 
 		/* 2800mv-3500mv */
 		low_voltage_threshold = <3000>;
@@ -422,9 +406,8 @@
 		interrupt-parent = <&gpio0>;
 		interrupts = <7 IRQ_TYPE_LEVEL_LOW>;
 
-		pinctrl-names = "default", "pmic-sleep";
+		pinctrl-names = "default";
 		pinctrl-0 = <&rk806_slave_dvs1_null>, <&rk806_slave_dvs2_null>, <&rk806_slave_dvs3_null>;
-		pinctrl-1 = <&rk806_slave_dvs1_slp>, <&rk806_slave_dvs2_null>, <&rk806_slave_dvs3_null>;
 
 		/* 0: restart PMU;
 		 * 1: reset all the power off reset registers,
