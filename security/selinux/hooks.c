@@ -230,19 +230,6 @@ static inline u32 cred_sid(const struct cred *cred)
 }
 
 /*
- * get the subjective security ID of a task
- */
-static inline u32 task_sid_subj(const struct task_struct *task)
-{
-	u32 sid;
-
-	rcu_read_lock();
-	sid = cred_sid(rcu_dereference(task->cred));
-	rcu_read_unlock();
-	return sid;
-}
-
-/*
  * get the objective security ID of a task
  */
 static inline u32 task_sid_obj(const struct task_struct *task)
@@ -988,82 +975,54 @@ out:
 static int selinux_add_opt(int token, const char *s, void **mnt_opts)
 {
 	struct selinux_mnt_opts *opts = *mnt_opts;
+	bool is_alloc_opts = false;
 
-	if (token == Opt_seclabel)	/* eaten and completely ignored */
+	if (token == Opt_seclabel)
+		/* eaten and completely ignored */
 		return 0;
+	if (!s)
+		return -ENOMEM;
 
 	if (!opts) {
-		opts = kzalloc(sizeof(struct selinux_mnt_opts), GFP_KERNEL);
+		opts = kzalloc(sizeof(*opts), GFP_KERNEL);
 		if (!opts)
 			return -ENOMEM;
 		*mnt_opts = opts;
+		is_alloc_opts = true;
 	}
-	if (!s)
-		return -ENOMEM;
+
 	switch (token) {
 	case Opt_context:
 		if (opts->context || opts->defcontext)
-			goto Einval;
+			goto err;
 		opts->context = s;
 		break;
 	case Opt_fscontext:
 		if (opts->fscontext)
-			goto Einval;
+			goto err;
 		opts->fscontext = s;
 		break;
 	case Opt_rootcontext:
 		if (opts->rootcontext)
-			goto Einval;
+			goto err;
 		opts->rootcontext = s;
 		break;
 	case Opt_defcontext:
 		if (opts->context || opts->defcontext)
-			goto Einval;
+			goto err;
 		opts->defcontext = s;
 		break;
 	}
+
 	return 0;
-Einval:
-	pr_warn(SEL_MOUNT_FAIL_MSG);
-	return -EINVAL;
-}
 
-static int selinux_add_mnt_opt(const char *option, const char *val, int len,
-			       void **mnt_opts)
-{
-	int token = Opt_error;
-	int rc, i;
-
-	for (i = 0; i < ARRAY_SIZE(tokens); i++) {
-		if (strcmp(option, tokens[i].name) == 0) {
-			token = tokens[i].opt;
-			break;
-		}
-	}
-
-	if (token == Opt_error)
-		return -EINVAL;
-
-	if (token != Opt_seclabel) {
-		val = kmemdup_nul(val, len, GFP_KERNEL);
-		if (!val) {
-			rc = -ENOMEM;
-			goto free_opt;
-		}
-	}
-	rc = selinux_add_opt(token, val, mnt_opts);
-	if (unlikely(rc)) {
-		kfree(val);
-		goto free_opt;
-	}
-	return rc;
-
-free_opt:
-	if (*mnt_opts) {
-		selinux_free_mnt_opts(*mnt_opts);
+err:
+	if (is_alloc_opts) {
+		kfree(opts);
 		*mnt_opts = NULL;
 	}
-	return rc;
+	pr_warn(SEL_MOUNT_FAIL_MSG);
+	return -EINVAL;
 }
 
 static int show_sid(struct seq_file *m, u32 sid)
@@ -4210,9 +4169,9 @@ static int selinux_task_getsid(struct task_struct *p)
 			    PROCESS__GETSESSION, NULL);
 }
 
-static void selinux_task_getsecid_subj(struct task_struct *p, u32 *secid)
+static void selinux_current_getsecid_subj(u32 *secid)
 {
-	*secid = task_sid_subj(p);
+	*secid = current_sid();
 }
 
 static void selinux_task_getsecid_obj(struct task_struct *p, u32 *secid)
@@ -7164,7 +7123,7 @@ static struct security_hook_list selinux_hooks[] __lsm_ro_after_init = {
 	LSM_HOOK_INIT(task_setpgid, selinux_task_setpgid),
 	LSM_HOOK_INIT(task_getpgid, selinux_task_getpgid),
 	LSM_HOOK_INIT(task_getsid, selinux_task_getsid),
-	LSM_HOOK_INIT(task_getsecid_subj, selinux_task_getsecid_subj),
+	LSM_HOOK_INIT(current_getsecid_subj, selinux_current_getsecid_subj),
 	LSM_HOOK_INIT(task_getsecid_obj, selinux_task_getsecid_obj),
 	LSM_HOOK_INIT(task_setnice, selinux_task_setnice),
 	LSM_HOOK_INIT(task_setioprio, selinux_task_setioprio),
@@ -7303,7 +7262,6 @@ static struct security_hook_list selinux_hooks[] __lsm_ro_after_init = {
 	LSM_HOOK_INIT(fs_context_dup, selinux_fs_context_dup),
 	LSM_HOOK_INIT(fs_context_parse_param, selinux_fs_context_parse_param),
 	LSM_HOOK_INIT(sb_eat_lsm_opts, selinux_sb_eat_lsm_opts),
-	LSM_HOOK_INIT(sb_add_mnt_opt, selinux_add_mnt_opt),
 #ifdef CONFIG_SECURITY_NETWORK_XFRM
 	LSM_HOOK_INIT(xfrm_policy_clone_security, selinux_xfrm_policy_clone),
 #endif
