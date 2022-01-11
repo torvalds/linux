@@ -112,7 +112,8 @@ struct asus_wmi_data {
 /* boards with EC support */
 static struct asus_wmi_data sensors_board_PW_X570_P = {
 	.known_board_sensors = {
-		SENSOR_TEMP_CHIPSET, SENSOR_TEMP_CPU, SENSOR_TEMP_MB, SENSOR_TEMP_VRM,
+		SENSOR_TEMP_CHIPSET, SENSOR_TEMP_CPU, SENSOR_TEMP_MB,
+		SENSOR_TEMP_T_SENSOR, SENSOR_TEMP_VRM,
 		SENSOR_FAN_CHIPSET,
 		SENSOR_MAX
 	},
