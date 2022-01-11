@@ -187,8 +187,8 @@ static struct bq24190_platform_data bq24190_pdata = {
 };
 
 static const char * const bq24190_modules[] __initconst = {
-	"crystal_cove_charger", /* For the bq24190 IRQ */
-	"bq24190_charger",      /* For the Vbus regulator for intel-int3496 */
+	"intel_crystal_cove_charger", /* For the bq24190 IRQ */
+	"bq24190_charger",            /* For the Vbus regulator for intel-int3496 */
 	NULL
 };
 
