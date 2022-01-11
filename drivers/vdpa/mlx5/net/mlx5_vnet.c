@@ -1246,8 +1246,7 @@ static int create_rqt(struct mlx5_vdpa_net *ndev)
 	if (!(ndev->mvdev.actual_features & BIT_ULL(VIRTIO_NET_F_MQ)))
 		num = 1;
 	else
-		num = mlx5vdpa16_to_cpu(&ndev->mvdev,
-					ndev->config.max_virtqueue_pairs);
+		num = ndev->cur_num_vqs / 2;
 
 	max_rqt = min_t(int, roundup_pow_of_two(num),
 			1 << MLX5_CAP_GEN(ndev->mvdev.mdev, log_max_rqt_size));
@@ -1983,6 +1982,11 @@ static int mlx5_vdpa_set_driver_features(struct vdpa_device *vdev, u64 features)
 		return err;
 
 	ndev->mvdev.actual_features = features & ndev->mvdev.mlx_features;
+	if (ndev->mvdev.actual_features & BIT_ULL(VIRTIO_NET_F_MQ))
+		ndev->cur_num_vqs = 2 * mlx5vdpa16_to_cpu(mvdev, ndev->config.max_virtqueue_pairs);
+	else
+		ndev->cur_num_vqs = 2;
+
 	update_cvq_info(mvdev);
 	return err;
 }
@@ -2233,6 +2237,7 @@ static int mlx5_vdpa_reset(struct vdpa_device *vdev)
 	clear_vqs_ready(ndev);
 	mlx5_vdpa_destroy_mr(&ndev->mvdev);
 	ndev->mvdev.status = 0;
+	ndev->cur_num_vqs = 0;
 	memset(ndev->event_cbs, 0, sizeof(*ndev->event_cbs) * (mvdev->max_vqs + 1));
 	ndev->mvdev.actual_features = 0;
 	++mvdev->generation;
@@ -2641,9 +2646,8 @@ static int mlx5_vdpa_dev_add(struct vdpa_mgmt_dev *v_mdev, const char *name,
 
 	ndev->nb.notifier_call = event_handler;
 	mlx5_notifier_register(mdev, &ndev->nb);
-	ndev->cur_num_vqs = 2 * mlx5_vdpa_max_qps(max_vqs);
 	mvdev->vdev.mdev = &mgtdev->mgtdev;
-	err = _vdpa_register_device(&mvdev->vdev, ndev->cur_num_vqs + 1);
+	err = _vdpa_register_device(&mvdev->vdev, 2 * mlx5_vdpa_max_qps(max_vqs) + 1);
 	if (err)
 		goto err_reg;
 
