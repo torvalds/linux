@@ -2542,9 +2542,8 @@ static void __init acpi_get_spcr_uart_addr(void)
 
 static bool acpi_scan_initialized;
 
-int __init acpi_scan_init(void)
+void __init acpi_scan_init(void)
 {
-	int result;
 	acpi_status status;
 	struct acpi_table_stao *stao_ptr;
 
@@ -2594,8 +2593,7 @@ int __init acpi_scan_init(void)
 	/*
 	 * Enumerate devices in the ACPI namespace.
 	 */
-	result = acpi_bus_scan(ACPI_ROOT_OBJECT);
-	if (result)
+	if (acpi_bus_scan(ACPI_ROOT_OBJECT))
 		goto out;
 
 	acpi_root = acpi_fetch_acpi_dev(ACPI_ROOT_OBJECT);
@@ -2604,8 +2602,7 @@ int __init acpi_scan_init(void)
 
 	/* Fixed feature devices do not exist on HW-reduced platform */
 	if (!acpi_gbl_reduced_hardware) {
-		result = acpi_bus_scan_fixed();
-		if (result) {
+		if (acpi_bus_scan_fixed()) {
 			acpi_detach_data(acpi_root->handle,
 					 acpi_scan_drop_device);
 			acpi_device_del(acpi_root);
@@ -2620,7 +2617,6 @@ int __init acpi_scan_init(void)
 
  out:
 	mutex_unlock(&acpi_scan_lock);
-	return result;
 }
 
 static struct acpi_probe_entry *ape;
