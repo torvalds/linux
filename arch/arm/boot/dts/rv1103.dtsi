@@ -1,0 +1,10 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2022 Rockchip Electronics Co., Ltd.
+ */
+
+#include "rv1106.dtsi"
+
+/ {
+	compatible = "rockchip,rv1103";
+};
