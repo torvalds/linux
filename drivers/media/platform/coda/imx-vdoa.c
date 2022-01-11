@@ -284,7 +284,6 @@ EXPORT_SYMBOL(vdoa_context_configure);
 static int vdoa_probe(struct platform_device *pdev)
 {
 	struct vdoa_data *vdoa;
-	struct resource *res;
 	int ret;
 
 	ret = dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(32));
@@ -309,10 +308,10 @@ static int vdoa_probe(struct platform_device *pdev)
 	if (IS_ERR(vdoa->regs))
 		return PTR_ERR(vdoa->regs);
 
-	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
-	if (!res)
-		return -EINVAL;
-	ret = devm_request_threaded_irq(&pdev->dev, res->start, NULL,
+	ret = platform_get_irq(pdev, 0);
+	if (ret < 0)
+		return ret;
+	ret = devm_request_threaded_irq(&pdev->dev, ret, NULL,
 					vdoa_irq_handler, IRQF_ONESHOT,
 					"vdoa", vdoa);
 	if (ret < 0) {
