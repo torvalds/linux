@@ -41,12 +41,6 @@
 #include <linux/dlm.h>
 #include "config.h"
 
-/* Size of the temp buffer midcomms allocates on the stack.
-   We try to make this large enough so most messages fit.
-   FIXME: should sctp make this unnecessary? */
-
-#define DLM_INBUF_LEN		148
-
 struct dlm_ls;
 struct dlm_lkb;
 struct dlm_rsb;
@@ -554,8 +548,9 @@ struct dlm_ls {
 	uint32_t		ls_generation;
 	uint32_t		ls_exflags;
 	int			ls_lvblen;
-	int			ls_count;	/* refcount of processes in
+	atomic_t		ls_count;	/* refcount of processes in
 						   the dlm using this ls */
+	wait_queue_head_t	ls_count_wait;
 	int			ls_create_count; /* create/release refcount */
 	unsigned long		ls_flags;	/* LSFL_ */
 	unsigned long		ls_scan_time;
@@ -581,6 +576,7 @@ struct dlm_ls {
 	struct list_head	ls_new_rsb;	/* new rsb structs */
 
 	spinlock_t		ls_remove_spin;
+	wait_queue_head_t	ls_remove_wait;
 	char			ls_remove_name[DLM_RESNAME_MAXLEN+1];
 	char			*ls_remove_names[DLM_REMOVE_NAMES_MAX];
 	int			ls_remove_len;
@@ -632,6 +628,8 @@ struct dlm_ls {
 	struct rw_semaphore	ls_in_recovery;	/* block local requests */
 	struct rw_semaphore	ls_recv_active;	/* block dlm_recv */
 	struct list_head	ls_requestqueue;/* queue remote requests */
+	atomic_t		ls_requestqueue_cnt;
+	wait_queue_head_t	ls_requestqueue_wait;
 	struct mutex		ls_requestqueue_mutex;
 	struct dlm_rcom		*ls_recover_buf;
 	int			ls_recover_nodeid; /* for debugging */
