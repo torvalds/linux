@@ -7557,6 +7557,7 @@ F:	include/video/
 FREESCALE CAAM (Cryptographic Acceleration and Assurance Module) DRIVER
 M:	Horia Geantă <horia.geanta@nxp.com>
 M:	Pankaj Gupta <pankaj.gupta@nxp.com>
+M:	Gaurav Jain <gaurav.jain@nxp.com>
 L:	linux-crypto@vger.kernel.org
 S:	Maintained
 F:	Documentation/devicetree/bindings/crypto/fsl-sec4.txt
@@ -8676,6 +8677,7 @@ F:	drivers/scsi/hisi_sas/
 
 HISILICON SECURITY ENGINE V2 DRIVER (SEC2)
 M:	Zaibo Xu <xuzaibo@huawei.com>
+M:	Kai Ye <yekai13@huawei.com>
 L:	linux-crypto@vger.kernel.org
 S:	Maintained
 F:	Documentation/ABI/testing/debugfs-hisi-sec
@@ -9721,7 +9723,6 @@ F:	Documentation/devicetree/bindings/crypto/intel,keembay-ocs-ecc.yaml
 F:	drivers/crypto/keembay/Kconfig
 F:	drivers/crypto/keembay/Makefile
 F:	drivers/crypto/keembay/keembay-ocs-ecc.c
-F:	drivers/crypto/keembay/ocs-ecc-curve-defs.h
 
 INTEL KEEM BAY OCS HCU CRYPTO DRIVER
 M:	Daniele Alessandrelli <daniele.alessandrelli@intel.com>

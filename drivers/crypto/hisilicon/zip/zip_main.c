@@ -103,8 +103,8 @@
 #define HZIP_PREFETCH_ENABLE		(~(BIT(26) | BIT(17) | BIT(0)))
 #define HZIP_SVA_PREFETCH_DISABLE	BIT(26)
 #define HZIP_SVA_DISABLE_READY		(BIT(26) | BIT(30))
-#define HZIP_SHAPER_RATE_COMPRESS	252
-#define HZIP_SHAPER_RATE_DECOMPRESS	229
+#define HZIP_SHAPER_RATE_COMPRESS	750
+#define HZIP_SHAPER_RATE_DECOMPRESS	140
 #define HZIP_DELAY_1_US		1
 #define HZIP_POLL_TIMEOUT_US	1000
 
@@ -364,15 +364,16 @@ static int hisi_zip_set_user_domain_and_cache(struct hisi_qm *qm)
 
 	/* user domain configurations */
 	writel(AXUSER_BASE, base + HZIP_BD_RUSER_32_63);
-	writel(AXUSER_BASE, base + HZIP_SGL_RUSER_32_63);
 	writel(AXUSER_BASE, base + HZIP_BD_WUSER_32_63);
 
 	if (qm->use_sva && qm->ver == QM_HW_V2) {
 		writel(AXUSER_BASE | AXUSER_SSV, base + HZIP_DATA_RUSER_32_63);
 		writel(AXUSER_BASE | AXUSER_SSV, base + HZIP_DATA_WUSER_32_63);
+		writel(AXUSER_BASE | AXUSER_SSV, base + HZIP_SGL_RUSER_32_63);
 	} else {
 		writel(AXUSER_BASE, base + HZIP_DATA_RUSER_32_63);
 		writel(AXUSER_BASE, base + HZIP_DATA_WUSER_32_63);
+		writel(AXUSER_BASE, base + HZIP_SGL_RUSER_32_63);
 	}
 
 	/* let's open all compression/decompression cores */
@@ -829,7 +830,10 @@ static int hisi_zip_qm_init(struct hisi_qm *qm, struct pci_dev *pdev)
 
 	qm->pdev = pdev;
 	qm->ver = pdev->revision;
-	qm->algs = "zlib\ngzip";
+	if (pdev->revision >= QM_HW_V3)
+		qm->algs = "zlib\ngzip\ndeflate\nlz77_zstd";
+	else
+		qm->algs = "zlib\ngzip";
 	qm->mode = uacce_mode;
 	qm->sqe_size = HZIP_SQE_SIZE;
 	qm->dev_name = hisi_zip_name;

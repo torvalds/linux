@@ -200,3 +200,8 @@ obj-$(CONFIG_ASYMMETRIC_KEY_TYPE) += asymmetric_keys/
 obj-$(CONFIG_CRYPTO_HASH_INFO) += hash_info.o
 crypto_simd-y := simd.o
 obj-$(CONFIG_CRYPTO_SIMD) += crypto_simd.o
+
+#
+# Key derivation function
+#
+obj-$(CONFIG_CRYPTO_KDF800108_CTR) += kdf_sp800108.o

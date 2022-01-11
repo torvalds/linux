@@ -8,9 +8,13 @@
 #ifndef _CRYPTO_SKCIPHER_H
 #define _CRYPTO_SKCIPHER_H
 
+#include <linux/container_of.h>
 #include <linux/crypto.h>
-#include <linux/kernel.h>
 #include <linux/slab.h>
+#include <linux/string.h>
+#include <linux/types.h>
+
+struct scatterlist;
 
 /**
  *	struct skcipher_request - Symmetric key cipher request

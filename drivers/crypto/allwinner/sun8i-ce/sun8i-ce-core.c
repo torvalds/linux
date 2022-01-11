@@ -106,6 +106,24 @@ static const struct ce_variant ce_a64_variant = {
 	.trng = CE_ID_NOTSUPP,
 };
 
+static const struct ce_variant ce_d1_variant = {
+	.alg_cipher = { CE_ALG_AES, CE_ALG_DES, CE_ALG_3DES,
+	},
+	.alg_hash = { CE_ALG_MD5, CE_ALG_SHA1, CE_ALG_SHA224, CE_ALG_SHA256,
+		CE_ALG_SHA384, CE_ALG_SHA512
+	},
+	.op_mode = { CE_OP_ECB, CE_OP_CBC
+	},
+	.ce_clks = {
+		{ "bus", 0, 200000000 },
+		{ "mod", 300000000, 0 },
+		{ "ram", 0, 400000000 },
+		},
+	.esr = ESR_D1,
+	.prng = CE_ALG_PRNG,
+	.trng = CE_ALG_TRNG,
+};
+
 static const struct ce_variant ce_r40_variant = {
 	.alg_cipher = { CE_ALG_AES, CE_ALG_DES, CE_ALG_3DES,
 	},
@@ -192,6 +210,7 @@ int sun8i_ce_run_task(struct sun8i_ce_dev *ce, int flow, const char *name)
 			dev_err(ce->dev, "CE ERROR: keysram access error for AES\n");
 		break;
 	case ESR_A64:
+	case ESR_D1:
 	case ESR_H5:
 	case ESR_R40:
 		v >>= (flow * 4);
@@ -990,6 +1009,8 @@ static const struct of_device_id sun8i_ce_crypto_of_match_table[] = {
 	  .data = &ce_h3_variant },
 	{ .compatible = "allwinner,sun8i-r40-crypto",
 	  .data = &ce_r40_variant },
+	{ .compatible = "allwinner,sun20i-d1-crypto",
+	  .data = &ce_d1_variant },
 	{ .compatible = "allwinner,sun50i-a64-crypto",
 	  .data = &ce_a64_variant },
 	{ .compatible = "allwinner,sun50i-h5-crypto",
