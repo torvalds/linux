@@ -6,7 +6,7 @@
 
 struct prestera_vr {
 	struct list_head router_node;
-	unsigned int ref_cnt;
+	refcount_t refcount;
 	u32 tb_id;			/* key (kernel fib table id) */
 	u16 hw_vr_id;			/* virtual router ID */
 	u8 __pad[2];

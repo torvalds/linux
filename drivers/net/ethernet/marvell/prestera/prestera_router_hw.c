@@ -47,12 +47,7 @@ static struct prestera_vr *__prestera_vr_create(struct prestera_switch *sw,
 						struct netlink_ext_ack *extack)
 {
 	struct prestera_vr *vr;
-	u16 hw_vr_id;
 	int err;
-
-	err = prestera_hw_vr_create(sw, &hw_vr_id);
-	if (err)
-		return ERR_PTR(-ENOMEM);
 
 	vr = kzalloc(sizeof(*vr), GFP_KERNEL);
 	if (!vr) {
@@ -61,23 +56,26 @@ static struct prestera_vr *__prestera_vr_create(struct prestera_switch *sw,
 	}
 
 	vr->tb_id = tb_id;
-	vr->hw_vr_id = hw_vr_id;
+
+	err = prestera_hw_vr_create(sw, &vr->hw_vr_id);
+	if (err)
+		goto err_hw_create;
 
 	list_add(&vr->router_node, &sw->router->vr_list);
 
 	return vr;
 
-err_alloc_vr:
-	prestera_hw_vr_delete(sw, hw_vr_id);
+err_hw_create:
 	kfree(vr);
+err_alloc_vr:
 	return ERR_PTR(err);
 }
 
 static void __prestera_vr_destroy(struct prestera_switch *sw,
 				  struct prestera_vr *vr)
 {
-	prestera_hw_vr_delete(sw, vr->hw_vr_id);
 	list_del(&vr->router_node);
+	prestera_hw_vr_delete(sw, vr->hw_vr_id);
 	kfree(vr);
 }
 
@@ -87,17 +85,22 @@ static struct prestera_vr *prestera_vr_get(struct prestera_switch *sw, u32 tb_id
 	struct prestera_vr *vr;
 
 	vr = __prestera_vr_find(sw, tb_id);
-	if (!vr)
+	if (vr) {
+		refcount_inc(&vr->refcount);
+	} else {
 		vr = __prestera_vr_create(sw, tb_id, extack);
-	if (IS_ERR(vr))
-		return ERR_CAST(vr);
+		if (IS_ERR(vr))
+			return ERR_CAST(vr);
+
+		refcount_set(&vr->refcount, 1);
+	}
 
 	return vr;
 }
 
 static void prestera_vr_put(struct prestera_switch *sw, struct prestera_vr *vr)
 {
-	if (!vr->ref_cnt)
+	if (refcount_dec_and_test(&vr->refcount))
 		__prestera_vr_destroy(sw, vr);
 }
 
@@ -158,7 +161,6 @@ void prestera_rif_entry_destroy(struct prestera_switch *sw,
 	iface.vr_id = e->vr->hw_vr_id;
 	prestera_hw_rif_delete(sw, e->hw_id, &iface);
 
-	e->vr->ref_cnt--;
 	prestera_vr_put(sw, e->vr);
 	kfree(e);
 }
@@ -183,7 +185,6 @@ prestera_rif_entry_create(struct prestera_switch *sw,
 	if (IS_ERR(e->vr))
 		goto err_vr_get;
 
-	e->vr->ref_cnt++;
 	memcpy(&e->addr, addr, sizeof(e->addr));
 
 	/* HW */
@@ -198,7 +199,6 @@ prestera_rif_entry_create(struct prestera_switch *sw,
 	return e;
 
 err_hw_create:
-	e->vr->ref_cnt--;
 	prestera_vr_put(sw, e->vr);
 err_vr_get:
 err_key_copy:
