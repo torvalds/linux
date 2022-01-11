@@ -517,6 +517,10 @@ static int fsl_sai_hw_params(struct snd_pcm_substream *substream,
 				   FSL_SAI_CR5_FBT_MASK, val_cr5);
 	}
 
+	if (sai->soc_data->pins > 1)
+		regmap_update_bits(sai->regmap, FSL_SAI_xCR4(tx, ofs),
+				   FSL_SAI_CR4_FCOMB_MASK, FSL_SAI_CR4_FCOMB_SOFT);
+
 	regmap_update_bits(sai->regmap, FSL_SAI_xCR3(tx, ofs),
 			   FSL_SAI_CR3_TRCE_MASK,
 			   FSL_SAI_CR3_TRCE((1 << pins) - 1));
@@ -1195,6 +1199,7 @@ static const struct fsl_sai_soc_data fsl_sai_vf610_data = {
 	.use_imx_pcm = false,
 	.use_edma = false,
 	.fifo_depth = 32,
+	.pins = 1,
 	.reg_offset = 0,
 	.mclk0_is_mclk1 = false,
 	.flags = 0,
@@ -1204,6 +1209,7 @@ static const struct fsl_sai_soc_data fsl_sai_imx6sx_data = {
 	.use_imx_pcm = true,
 	.use_edma = false,
 	.fifo_depth = 32,
+	.pins = 1,
 	.reg_offset = 0,
 	.mclk0_is_mclk1 = true,
 	.flags = 0,
@@ -1213,6 +1219,7 @@ static const struct fsl_sai_soc_data fsl_sai_imx7ulp_data = {
 	.use_imx_pcm = true,
 	.use_edma = false,
 	.fifo_depth = 16,
+	.pins = 2,
 	.reg_offset = 8,
 	.mclk0_is_mclk1 = false,
 	.flags = PMQOS_CPU_LATENCY,
@@ -1222,6 +1229,7 @@ static const struct fsl_sai_soc_data fsl_sai_imx8mq_data = {
 	.use_imx_pcm = true,
 	.use_edma = false,
 	.fifo_depth = 128,
+	.pins = 8,
 	.reg_offset = 8,
 	.mclk0_is_mclk1 = false,
 	.flags = 0,
@@ -1231,6 +1239,7 @@ static const struct fsl_sai_soc_data fsl_sai_imx8qm_data = {
 	.use_imx_pcm = true,
 	.use_edma = true,
 	.fifo_depth = 64,
+	.pins = 1,
 	.reg_offset = 0,
 	.mclk0_is_mclk1 = false,
 	.flags = 0,
