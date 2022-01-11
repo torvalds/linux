@@ -811,6 +811,9 @@ static void blk_release_queue(struct kobject *kobj)
 
 	bioset_exit(&q->bio_split);
 
+	if (blk_queue_has_srcu(q))
+		cleanup_srcu_struct(q->srcu);
+
 	ida_simple_remove(&blk_queue_ida, q->id);
 	call_rcu(&q->rcu_head, blk_free_queue_rcu);
 }
