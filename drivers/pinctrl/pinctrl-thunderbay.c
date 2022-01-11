@@ -839,27 +839,30 @@ static int thunderbay_build_functions(struct thunderbay_pinctrl *tpc)
 	void *ptr;
 	int pin;
 
-	/* Total number of functions is unknown at this point. Allocate first. */
+	/*
+	 * Allocate maximum possible number of functions. Assume every pin
+	 * being part of 8 (hw maximum) globally unique muxes.
+	 */
 	tpc->nfuncs = 0;
 	thunderbay_funcs = kcalloc(tpc->soc->npins * 8,
 				   sizeof(*thunderbay_funcs), GFP_KERNEL);
 	if (!thunderbay_funcs)
 		return -ENOMEM;
 
-	/* Find total number of functions and each's properties */
+	/* Setup 1 function for each unique mux */
 	for (pin = 0; pin < tpc->soc->npins; pin++) {
 		const struct pinctrl_pin_desc *pin_info = thunderbay_pins + pin;
-		struct thunderbay_mux_desc *pin_mux = pin_info->drv_data;
+		struct thunderbay_mux_desc *pin_mux;
 
-		while (pin_mux->name) {
-			struct function_desc *func = thunderbay_funcs;
+		for (pin_mux = pin_info->drv_data; pin_mux->name; pin_mux++) {
+			struct function_desc *func;
 
-			while (func->name) {
+			/* Check if we already have function for this mux */
+			for (func = thunderbay_funcs; func->name; func++) {
 				if (!strcmp(pin_mux->name, func->name)) {
 					func->num_group_names++;
 					break;
 				}
-				func++;
 			}
 
 			if (!func->name) {
@@ -868,8 +871,6 @@ static int thunderbay_build_functions(struct thunderbay_pinctrl *tpc)
 				func->data = (int *)&pin_mux->mode;
 				tpc->nfuncs++;
 			}
-
-			pin_mux++;
 		}
 	}
 
