@@ -288,7 +288,7 @@ static void ad74413r_gpio_set_multiple(struct gpio_chip *chip,
 	unsigned int offset = 0;
 	int ret;
 
-	for_each_set_bit_from(offset, mask, AD74413R_CHANNEL_MAX) {
+	for_each_set_bit_from(offset, mask, chip->ngpio) {
 		unsigned int real_offset = st->gpo_gpio_offsets[offset];
 
 		ret = ad74413r_set_gpo_config(st, real_offset,
@@ -334,7 +334,7 @@ static int ad74413r_gpio_get_multiple(struct gpio_chip *chip,
 	if (ret)
 		return ret;
 
-	for_each_set_bit_from(offset, mask, AD74413R_CHANNEL_MAX) {
+	for_each_set_bit_from(offset, mask, chip->ngpio) {
 		unsigned int real_offset = st->comp_gpio_offsets[offset];
 
 		if (val & BIT(real_offset))
