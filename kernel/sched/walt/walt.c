@@ -3942,6 +3942,11 @@ static void android_rvh_enqueue_task(void *unused, struct rq *rq, struct task_st
 		WALT_BUG(WALT_BUG_NONCRITICAL, p, "enqueueing on rq=%d comm=%s(%d) affinity=0x%x",
 			 cpu_of(rq), p->comm, p->pid, (*(cpumask_bits(p->cpus_ptr))));
 
+	if (cpu_halted(cpu_of(rq)) && !(p->flags & PF_KTHREAD) && !walt_halt_check_last(cpu_of(rq)))
+		WALT_BUG(WALT_BUG_NONCRITICAL, p,
+			 "Non Kthread Started on halted cpu_of(rq)=%d comm=%s(%d) affinity=0x%x\n",
+			 cpu_of(rq), p->comm, p->pid, (*(cpumask_bits(p->cpus_ptr))));
+
 	wts->prev_on_rq = 1;
 	wts->prev_on_rq_cpu = cpu_of(rq);
 

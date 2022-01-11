@@ -905,6 +905,7 @@ struct compute_energy_output {
 	unsigned int	cluster_first_cpu[MAX_CLUSTERS];
 };
 
+bool walt_halt_check_last(int cpu);
 extern struct cpumask __cpu_halt_mask;
 #define cpu_halt_mask ((struct cpumask *)&__cpu_halt_mask)
 #define cpu_halted(cpu) cpumask_test_cpu((cpu), cpu_halt_mask)

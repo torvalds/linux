@@ -15,10 +15,16 @@ struct cpumask __cpu_halt_mask;
 static DEFINE_MUTEX(halt_lock);
 
 struct halt_cpu_state {
+	u64		last_halt;
 	int		ref_count;
 };
 
 static DEFINE_PER_CPU(struct halt_cpu_state, halt_state);
+
+/* the amount of time allowed for enqueue operations that happen
+ * just after a halt operation.
+ */
+#define WALT_HALT_CHECK_THRESHOLD_NS 400000
 
 /*
  * Remove a task from the runqueue and pretend that it's migrating. This
@@ -177,6 +183,21 @@ static int cpu_drain_rq(unsigned int cpu)
 }
 
 /*
+ * returns true if last halt is within threshold
+ * note: do not take halt_lock, called from atomic context
+ */
+bool walt_halt_check_last(int cpu)
+{
+	u64 last_halt = per_cpu_ptr(&halt_state, cpu)->last_halt;
+
+	/* last_halt is valid, check it against sched_clock */
+	if (last_halt != 0 && sched_clock() - last_halt >  WALT_HALT_CHECK_THRESHOLD_NS)
+		return false;
+
+	return true;
+}
+
+/*
  * 1) add the cpus to the halt mask
  * 2) migrate tasks off the cpu
  *
@@ -186,13 +207,21 @@ static int halt_cpus(struct cpumask *cpus)
 	int cpu;
 	int ret = 0;
 	u64 start_time = sched_clock();
+	struct halt_cpu_state *halt_cpu_state;
 
 	trace_halt_cpus_start(cpus, 1);
 
 	for_each_cpu(cpu, cpus) {
 
+		halt_cpu_state = per_cpu_ptr(&halt_state, cpu);
+
 		/* set the cpu as halted */
 		cpumask_set_cpu(cpu, cpu_halt_mask);
+
+		/* guarantee mask written before updating last_halt */
+		wmb();
+
+		halt_cpu_state->last_halt = start_time;
 
 		/* only drain online cpus */
 		if (cpu_online(cpu)) {
@@ -219,12 +248,19 @@ static int halt_cpus(struct cpumask *cpus)
 static int start_cpus(struct cpumask *cpus)
 {
 	u64 start_time = sched_clock();
+	struct halt_cpu_state *halt_cpu_state;
+	int cpu;
 
 	trace_halt_cpus_start(cpus, 0);
-	if (!cpumask_empty(cpus)) {
 
-		/* remove the cpus from the halt mask */
-		cpumask_andnot(cpu_halt_mask, cpu_halt_mask, cpus);
+	for_each_cpu(cpu, cpus) {
+		halt_cpu_state = per_cpu_ptr(&halt_state, cpu);
+		halt_cpu_state->last_halt = 0;
+
+		/* guarantee zero'd last_halt before clearing from the mask */
+		wmb();
+
+		cpumask_clear_cpu(cpu, cpu_halt_mask);
 	}
 
 	trace_halt_cpus(cpus, start_time, 0, 0);
@@ -240,9 +276,9 @@ static void update_ref_counts(struct cpumask *cpus, bool halt)
 
 	for_each_cpu(cpu, cpus) {
 		halt_cpu_state = per_cpu_ptr(&halt_state, cpu);
-		if (halt)
+		if (halt) {
 			halt_cpu_state->ref_count++;
-		else {
+		} else {
 			WARN_ON_ONCE(halt_cpu_state->ref_count == 0);
 			halt_cpu_state->ref_count--;
 		}
