@@ -884,6 +884,11 @@ properties:
 
       - items:
           - enum:
+              - samsung,a6plte
+          - const: qcom,sdm450
+
+      - items:
+          - enum:
               - fairphone,fp3
               - motorola,ocean
           - const: qcom,sdm632
