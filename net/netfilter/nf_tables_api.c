@@ -8273,6 +8273,7 @@ static int nf_tables_commit_chain_prepare(struct net *net, struct nft_chain *cha
 	rule = list_entry(&chain->rules, struct nft_rule, list);
 	i = 0;
 
+	data_size = 0;
 	list_for_each_entry_continue(rule, &chain->rules, list) {
 		if (nft_is_active_next(net, rule)) {
 			data_size += sizeof(*prule) + rule->dlen;
