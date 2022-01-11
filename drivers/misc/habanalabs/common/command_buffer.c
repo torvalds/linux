@@ -464,6 +464,8 @@ int hl_cb_ioctl(struct hl_fpriv *hpriv, void *data)
 				args->in.flags,
 				&usage_cnt,
 				&device_va);
+		if (rc)
+			break;
 
 		memset(&args->out, 0, sizeof(args->out));
 
