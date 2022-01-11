@@ -919,14 +919,14 @@ static int dataflash_probe(struct spi_device *spi)
 static int dataflash_remove(struct spi_device *spi)
 {
 	struct dataflash	*flash = spi_get_drvdata(spi);
-	int			status;
 
 	dev_dbg(&spi->dev, "remove\n");
 
-	status = mtd_device_unregister(&flash->mtd);
-	if (status == 0)
-		kfree(flash);
-	return status;
+	WARN_ON(mtd_device_unregister(&flash->mtd));
+
+	kfree(flash);
+
+	return 0;
 }
 
 static struct spi_driver dataflash_driver = {
