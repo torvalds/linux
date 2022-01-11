@@ -178,7 +178,7 @@ static long vhost_vdpa_set_status(struct vhost_vdpa *v, u8 __user *statusp)
 			vhost_vdpa_unsetup_vq_irq(v, i);
 
 	if (status == 0) {
-		ret = ops->reset(vdpa);
+		ret = vdpa_reset(vdpa);
 		if (ret)
 			return ret;
 	} else
