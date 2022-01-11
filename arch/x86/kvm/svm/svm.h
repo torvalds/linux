@@ -32,7 +32,6 @@
 extern u32 msrpm_offsets[MSRPM_OFFSETS] __read_mostly;
 extern bool npt_enabled;
 extern bool intercept_smi;
-extern bool pmu;
 
 /*
  * Clean bits in VMCB.
