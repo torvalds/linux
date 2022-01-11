@@ -1268,7 +1268,6 @@ static int s5p_mfc_probe(struct platform_device *pdev)
 {
 	struct s5p_mfc_dev *dev;
 	struct video_device *vfd;
-	struct resource *res;
 	int ret;
 
 	pr_debug("%s++\n", __func__);
@@ -1294,12 +1293,10 @@ static int s5p_mfc_probe(struct platform_device *pdev)
 	if (IS_ERR(dev->regs_base))
 		return PTR_ERR(dev->regs_base);
 
-	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
-	if (!res) {
-		dev_err(&pdev->dev, "failed to get irq resource\n");
-		return -ENOENT;
-	}
-	dev->irq = res->start;
+	ret = platform_get_irq(pdev, 0);
+	if (ret < 0)
+		return ret;
+	dev->irq = ret;
 	ret = devm_request_irq(&pdev->dev, dev->irq, s5p_mfc_irq,
 					0, pdev->name, dev);
 	if (ret) {
