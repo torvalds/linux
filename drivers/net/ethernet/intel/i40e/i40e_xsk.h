@@ -22,7 +22,6 @@
 
 struct i40e_vsi;
 struct xsk_buff_pool;
-struct zero_copy_allocator;
 
 int i40e_queue_pair_disable(struct i40e_vsi *vsi, int queue_pair);
 int i40e_queue_pair_enable(struct i40e_vsi *vsi, int queue_pair);

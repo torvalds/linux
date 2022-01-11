@@ -53,7 +53,8 @@ static int hclgevf_get_mbx_resp(struct hclgevf_dev *hdev, u16 code0, u16 code1,
 	}
 
 	while ((!hdev->mbx_resp.received_resp) && (i < HCLGEVF_MAX_TRY_TIMES)) {
-		if (test_bit(HCLGEVF_STATE_CMD_DISABLE, &hdev->state))
+		if (test_bit(HCLGE_COMM_STATE_CMD_DISABLE,
+			     &hdev->hw.hw.comm_state))
 			return -EIO;
 
 		usleep_range(HCLGEVF_SLEEP_USECOND, HCLGEVF_SLEEP_USECOND * 2);
@@ -97,7 +98,7 @@ int hclgevf_send_mbx_msg(struct hclgevf_dev *hdev,
 			 u8 *resp_data, u16 resp_len)
 {
 	struct hclge_mbx_vf_to_pf_cmd *req;
-	struct hclgevf_desc desc;
+	struct hclge_desc desc;
 	int status;
 
 	req = (struct hclge_mbx_vf_to_pf_cmd *)desc.data;
@@ -114,7 +115,8 @@ int hclgevf_send_mbx_msg(struct hclgevf_dev *hdev,
 
 	memcpy(&req->msg, send_msg, sizeof(struct hclge_vf_to_pf_msg));
 
-	trace_hclge_vf_mbx_send(hdev, req);
+	if (test_bit(HCLGEVF_STATE_NIC_REGISTERED, &hdev->state))
+		trace_hclge_vf_mbx_send(hdev, req);
 
 	/* synchronous send */
 	if (need_resp) {
@@ -150,9 +152,9 @@ int hclgevf_send_mbx_msg(struct hclgevf_dev *hdev,
 
 static bool hclgevf_cmd_crq_empty(struct hclgevf_hw *hw)
 {
-	u32 tail = hclgevf_read_dev(hw, HCLGEVF_NIC_CRQ_TAIL_REG);
+	u32 tail = hclgevf_read_dev(hw, HCLGE_COMM_NIC_CRQ_TAIL_REG);
 
-	return tail == hw->cmq.crq.next_to_use;
+	return tail == hw->hw.cmq.crq.next_to_use;
 }
 
 static void hclgevf_handle_mbx_response(struct hclgevf_dev *hdev,
@@ -211,14 +213,15 @@ static void hclgevf_handle_mbx_msg(struct hclgevf_dev *hdev,
 void hclgevf_mbx_handler(struct hclgevf_dev *hdev)
 {
 	struct hclge_mbx_pf_to_vf_cmd *req;
-	struct hclgevf_cmq_ring *crq;
-	struct hclgevf_desc *desc;
+	struct hclge_comm_cmq_ring *crq;
+	struct hclge_desc *desc;
 	u16 flag;
 
-	crq = &hdev->hw.cmq.crq;
+	crq = &hdev->hw.hw.cmq.crq;
 
 	while (!hclgevf_cmd_crq_empty(&hdev->hw)) {
-		if (test_bit(HCLGEVF_STATE_CMD_DISABLE, &hdev->state)) {
+		if (test_bit(HCLGE_COMM_STATE_CMD_DISABLE,
+			     &hdev->hw.hw.comm_state)) {
 			dev_info(&hdev->pdev->dev, "vf crq need init\n");
 			return;
 		}
@@ -268,7 +271,7 @@ void hclgevf_mbx_handler(struct hclgevf_dev *hdev)
 	}
 
 	/* Write back CMDQ_RQ header pointer, M7 need this pointer */
-	hclgevf_write_dev(&hdev->hw, HCLGEVF_NIC_CRQ_HEAD_REG,
+	hclgevf_write_dev(&hdev->hw, HCLGE_COMM_NIC_CRQ_HEAD_REG,
 			  crq->next_to_use);
 }
 
@@ -295,7 +298,8 @@ void hclgevf_mbx_async_handler(struct hclgevf_dev *hdev)
 
 	/* process all the async queue messages */
 	while (tail != hdev->arq.head) {
-		if (test_bit(HCLGEVF_STATE_CMD_DISABLE, &hdev->state)) {
+		if (test_bit(HCLGE_COMM_STATE_CMD_DISABLE,
+			     &hdev->hw.hw.comm_state)) {
 			dev_info(&hdev->pdev->dev,
 				 "vf crq need init in async\n");
 			return;

@@ -48,7 +48,7 @@ static enum atomisp_bayer_order ov2680_bayer_order_mapping[] = {
 
 /* i2c read/write stuff */
 static int ov2680_read_reg(struct i2c_client *client,
-			   int len, u16 reg, u16 *val)
+			   int len, u16 reg, u32 *val)
 {
 	struct i2c_msg msgs[2];
 	u8 addr_buf[2] = { reg >> 8, reg & 0xff };
@@ -86,7 +86,7 @@ static int ov2680_write_reg(struct i2c_client *client, unsigned int len,
 	int ret;
 
 	if (len == 2)
-		put_unaligned_be16(val << (8 * (4 - len)), buf + 2);
+		put_unaligned_be16(val, buf + 2);
 	else if (len == 1)
 		buf[2] = val;
 	else
@@ -147,7 +147,7 @@ static int ov2680_g_bin_factor_x(struct v4l2_subdev *sd, s32 *val)
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 
 	dev_dbg(&client->dev,  "++++ov2680_g_bin_factor_x\n");
-	*val = ov2680_res[dev->fmt_idx].bin_factor_x;
+	*val = dev->res->bin_factor_x;
 
 	return 0;
 }
@@ -157,7 +157,7 @@ static int ov2680_g_bin_factor_y(struct v4l2_subdev *sd, s32 *val)
 	struct ov2680_device *dev = to_ov2680_sensor(sd);
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 
-	*val = ov2680_res[dev->fmt_idx].bin_factor_y;
+	*val = dev->res->bin_factor_y;
 	dev_dbg(&client->dev,  "++++ov2680_g_bin_factor_y\n");
 	return 0;
 }
@@ -166,11 +166,9 @@ static int ov2680_get_intg_factor(struct i2c_client *client,
 				  struct camera_mipi_info *info,
 				  const struct ov2680_resolution *res)
 {
-	struct v4l2_subdev *sd = i2c_get_clientdata(client);
-	struct ov2680_device *dev = to_ov2680_sensor(sd);
 	struct atomisp_sensor_mode_data *buf = &info->data;
 	unsigned int pix_clk_freq_hz;
-	u16 reg_val;
+	u32 reg_val;
 	int ret;
 
 	dev_dbg(&client->dev,  "++++ov2680_get_intg_factor\n");
@@ -180,7 +178,6 @@ static int ov2680_get_intg_factor(struct i2c_client *client,
 	/* pixel clock */
 	pix_clk_freq_hz = res->pix_clk_freq * 1000000;
 
-	dev->vt_pix_clk_freq_mhz = pix_clk_freq_hz;
 	buf->vt_pix_clk_freq_mhz = pix_clk_freq_hz;
 
 	/* get integration time */
@@ -254,7 +251,7 @@ static long __ov2680_set_exposure(struct v4l2_subdev *sd, int coarse_itg,
 		"+++++++__ov2680_set_exposure coarse_itg %d, gain %d, digitgain %d++\n",
 		coarse_itg, gain, digitgain);
 
-	vts = ov2680_res[dev->fmt_idx].lines_per_frame;
+	vts = dev->res->lines_per_frame;
 
 	/* group hold */
 	ret = ov2680_write_reg(client, 1,
@@ -359,10 +356,17 @@ static int ov2680_set_exposure(struct v4l2_subdev *sd, int exposure,
 			       int gain, int digitgain)
 {
 	struct ov2680_device *dev = to_ov2680_sensor(sd);
-	int ret;
+	int ret = 0;
 
 	mutex_lock(&dev->input_lock);
-	ret = __ov2680_set_exposure(sd, exposure, gain, digitgain);
+
+	dev->exposure = exposure;
+	dev->gain = gain;
+	dev->digitgain = digitgain;
+
+	if (dev->power_on)
+		ret = __ov2680_set_exposure(sd, exposure, gain, digitgain);
+
 	mutex_unlock(&dev->input_lock);
 
 	return ret;
@@ -383,7 +387,6 @@ static long ov2680_s_exposure(struct v4l2_subdev *sd,
 		return -EINVAL;
 	}
 
-	// EXPOSURE CONTROL DISABLED FOR INITIAL CHECKIN, TUNING DOESN'T WORK
 	return ov2680_set_exposure(sd, coarse_itg, analog_gain, digital_gain);
 }
 
@@ -406,56 +409,25 @@ static long ov2680_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 static int ov2680_q_exposure(struct v4l2_subdev *sd, s32 *value)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
-	u16 reg_v, reg_v2;
+	u32 reg_val;
 	int ret;
 
 	/* get exposure */
-	ret = ov2680_read_reg(client, 1,
-			      OV2680_EXPOSURE_L,
-			      &reg_v);
+	ret = ov2680_read_reg(client, 3, OV2680_EXPOSURE_H, &reg_val);
 	if (ret)
-		goto err;
+		return ret;
 
-	ret = ov2680_read_reg(client, 1,
-			      OV2680_EXPOSURE_M,
-			      &reg_v2);
-	if (ret)
-		goto err;
-
-	reg_v += reg_v2 << 8;
-	ret = ov2680_read_reg(client, 1,
-			      OV2680_EXPOSURE_H,
-			      &reg_v2);
-	if (ret)
-		goto err;
-
-	*value = reg_v + (((u32)reg_v2 << 16));
-err:
-	return ret;
-}
-
-static u32 ov2680_translate_bayer_order(enum atomisp_bayer_order code)
-{
-	switch (code) {
-	case atomisp_bayer_order_rggb:
-		return MEDIA_BUS_FMT_SRGGB10_1X10;
-	case atomisp_bayer_order_grbg:
-		return MEDIA_BUS_FMT_SGRBG10_1X10;
-	case atomisp_bayer_order_bggr:
-		return MEDIA_BUS_FMT_SBGGR10_1X10;
-	case atomisp_bayer_order_gbrg:
-		return MEDIA_BUS_FMT_SGBRG10_1X10;
-	}
+	/* Lower four bits are not part of the exposure val (always 0) */
+	*value = reg_val >> 4;
 	return 0;
 }
 
 static int ov2680_v_flip(struct v4l2_subdev *sd, s32 value)
 {
-	struct ov2680_device *dev = to_ov2680_sensor(sd);
 	struct camera_mipi_info *ov2680_info = NULL;
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	int ret;
-	u16 val;
+	u32 val;
 	u8 index;
 
 	dev_dbg(&client->dev, "@%s: value:%d\n", __func__, value);
@@ -476,19 +448,16 @@ static int ov2680_v_flip(struct v4l2_subdev *sd, s32 value)
 	ov2680_info = v4l2_get_subdev_hostdata(sd);
 	if (ov2680_info) {
 		ov2680_info->raw_bayer_order = ov2680_bayer_order_mapping[index];
-		dev->format.code = ov2680_translate_bayer_order(
-				       ov2680_info->raw_bayer_order);
 	}
 	return ret;
 }
 
 static int ov2680_h_flip(struct v4l2_subdev *sd, s32 value)
 {
-	struct ov2680_device *dev = to_ov2680_sensor(sd);
 	struct camera_mipi_info *ov2680_info = NULL;
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	int ret;
-	u16 val;
+	u32 val;
 	u8 index;
 
 	dev_dbg(&client->dev, "@%s: value:%d\n", __func__, value);
@@ -510,8 +479,6 @@ static int ov2680_h_flip(struct v4l2_subdev *sd, s32 value)
 	ov2680_info = v4l2_get_subdev_hostdata(sd);
 	if (ov2680_info) {
 		ov2680_info->raw_bayer_order = ov2680_bayer_order_mapping[index];
-		dev->format.code = ov2680_translate_bayer_order(
-				       ov2680_info->raw_bayer_order);
 	}
 	return ret;
 }
@@ -677,25 +644,6 @@ static int ov2680_init_registers(struct v4l2_subdev *sd)
 	return ret;
 }
 
-static int ov2680_init(struct v4l2_subdev *sd)
-{
-	struct ov2680_device *dev = to_ov2680_sensor(sd);
-
-	int ret;
-
-	mutex_lock(&dev->input_lock);
-
-	/* restore settings */
-	ov2680_res = ov2680_res_preview;
-	N_RES = N_RES_PREVIEW;
-
-	ret = ov2680_init_registers(sd);
-
-	mutex_unlock(&dev->input_lock);
-
-	return ret;
-}
-
 static int power_ctrl(struct v4l2_subdev *sd, bool flag)
 {
 	int ret = 0;
@@ -760,6 +708,9 @@ static int power_up(struct v4l2_subdev *sd)
 		return -ENODEV;
 	}
 
+	if (dev->power_on)
+		return 0; /* Already on */
+
 	/* power control */
 	ret = power_ctrl(sd, 1);
 	if (ret)
@@ -784,8 +735,19 @@ static int power_up(struct v4l2_subdev *sd)
 	/* according to DS, 20ms is needed between PWDN and i2c access */
 	msleep(20);
 
+	ret = ov2680_init_registers(sd);
+	if (ret)
+		goto fail_init_registers;
+
+	ret = __ov2680_set_exposure(sd, dev->exposure, dev->gain, dev->digitgain);
+	if (ret)
+		goto fail_init_registers;
+
+	dev->power_on = true;
 	return 0;
 
+fail_init_registers:
+	dev->platform_data->flisclk_ctrl(sd, 0);
 fail_clk:
 	gpio_ctrl(sd, 0);
 fail_power:
@@ -809,6 +771,9 @@ static int power_down(struct v4l2_subdev *sd)
 		return -ENODEV;
 	}
 
+	if (!dev->power_on)
+		return 0; /* Already off */
+
 	ret = dev->platform_data->flisclk_ctrl(sd, 0);
 	if (ret)
 		dev_err(&client->dev, "flisclk failed\n");
@@ -823,94 +788,31 @@ static int power_down(struct v4l2_subdev *sd)
 
 	/* power control */
 	ret = power_ctrl(sd, 0);
-	if (ret)
+	if (ret) {
 		dev_err(&client->dev, "vprog failed.\n");
+		return ret;
+	}
 
-	return ret;
+	dev->power_on = false;
+	return 0;
 }
 
 static int ov2680_s_power(struct v4l2_subdev *sd, int on)
 {
+	struct ov2680_device *dev = to_ov2680_sensor(sd);
 	int ret;
+
+	mutex_lock(&dev->input_lock);
 
 	if (on == 0) {
 		ret = power_down(sd);
 	} else {
 		ret = power_up(sd);
-		if (!ret)
-			return ov2680_init(sd);
 	}
+
+	mutex_unlock(&dev->input_lock);
+
 	return ret;
-}
-
-/*
- * distance - calculate the distance
- * @res: resolution
- * @w: width
- * @h: height
- *
- * Get the gap between resolution and w/h.
- * res->width/height smaller than w/h wouldn't be considered.
- * Returns the value of gap or -1 if fail.
- */
-#define LARGEST_ALLOWED_RATIO_MISMATCH 600
-static int distance(struct ov2680_resolution *res, u32 w, u32 h)
-{
-	unsigned int w_ratio = (res->width << 13) / w;
-	unsigned int h_ratio;
-	int match;
-
-	if (h == 0)
-		return -1;
-	h_ratio = (res->height << 13) / h;
-	if (h_ratio == 0)
-		return -1;
-	match   = abs(((w_ratio << 13) / h_ratio) - 8192);
-
-	if ((w_ratio < 8192) || (h_ratio < 8192)  ||
-	    (match > LARGEST_ALLOWED_RATIO_MISMATCH))
-		return -1;
-
-	return w_ratio + h_ratio;
-}
-
-/* Return the nearest higher resolution index */
-static int nearest_resolution_index(int w, int h)
-{
-	int i;
-	int idx = -1;
-	int dist;
-	int min_dist = INT_MAX;
-	struct ov2680_resolution *tmp_res = NULL;
-
-	for (i = 0; i < N_RES; i++) {
-		tmp_res = &ov2680_res[i];
-		dist = distance(tmp_res, w, h);
-		if (dist == -1)
-			continue;
-		if (dist < min_dist) {
-			min_dist = dist;
-			idx = i;
-		}
-	}
-
-	return idx;
-}
-
-static int get_resolution_index(int w, int h)
-{
-	int i;
-
-	for (i = 0; i < N_RES; i++) {
-		if (w != ov2680_res[i].width)
-			continue;
-		if (h != ov2680_res[i].height)
-			continue;
-
-		return i;
-	}
-
-	return -1;
 }
 
 static int ov2680_set_fmt(struct v4l2_subdev *sd,
@@ -921,8 +823,8 @@ static int ov2680_set_fmt(struct v4l2_subdev *sd,
 	struct ov2680_device *dev = to_ov2680_sensor(sd);
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct camera_mipi_info *ov2680_info = NULL;
-	int ret = 0;
-	int idx = 0;
+	struct ov2680_resolution *res;
+	int vts, ret = 0;
 
 	dev_dbg(&client->dev, "%s: %s: pad: %d, fmt: %p\n",
 		__func__,
@@ -940,41 +842,44 @@ static int ov2680_set_fmt(struct v4l2_subdev *sd,
 		return -EINVAL;
 
 	mutex_lock(&dev->input_lock);
-	idx = nearest_resolution_index(fmt->width, fmt->height);
-	if (idx == -1) {
-		/* return the largest resolution */
-		fmt->width = ov2680_res[N_RES - 1].width;
-		fmt->height = ov2680_res[N_RES - 1].height;
-	} else {
-		fmt->width = ov2680_res[idx].width;
-		fmt->height = ov2680_res[idx].height;
-	}
+
+	res = v4l2_find_nearest_size(ov2680_res_preview,
+				     ARRAY_SIZE(ov2680_res_preview), width,
+				     height, fmt->width, fmt->height);
+	if (!res)
+		res = &ov2680_res_preview[N_RES_PREVIEW - 1];
+
+	fmt->width = res->width;
+	fmt->height = res->height;
+
 	fmt->code = MEDIA_BUS_FMT_SBGGR10_1X10;
 	if (format->which == V4L2_SUBDEV_FORMAT_TRY) {
 		sd_state->pads->try_fmt = *fmt;
 		mutex_unlock(&dev->input_lock);
 		return 0;
 	}
-	dev->fmt_idx = get_resolution_index(fmt->width, fmt->height);
-	dev_dbg(&client->dev, "%s: Resolution index: %d\n",
-		__func__, dev->fmt_idx);
-	if (dev->fmt_idx == -1) {
-		dev_err(&client->dev, "get resolution fail\n");
-		mutex_unlock(&dev->input_lock);
-		return -EINVAL;
-	}
-	dev_dbg(&client->dev, "%s: i=%d, w=%d, h=%d\n",
-		__func__, dev->fmt_idx, fmt->width, fmt->height);
 
-	// IS IT NEEDED?
+	dev_dbg(&client->dev, "%s: %dx%d\n",
+		__func__, fmt->width, fmt->height);
+
+	/* s_power has not been called yet for std v4l2 clients (camorama) */
 	power_up(sd);
-	ret = ov2680_write_reg_array(client, ov2680_res[dev->fmt_idx].regs);
+	ret = ov2680_write_reg_array(client, dev->res->regs);
 	if (ret)
 		dev_err(&client->dev,
 			"ov2680 write resolution register err: %d\n", ret);
 
-	ret = ov2680_get_intg_factor(client, ov2680_info,
-				     &ov2680_res[dev->fmt_idx]);
+	vts = dev->res->lines_per_frame;
+
+	/* If necessary increase the VTS to match exposure + MARGIN */
+	if (dev->exposure > vts - OV2680_INTEGRATION_TIME_MARGIN)
+		vts = dev->exposure + OV2680_INTEGRATION_TIME_MARGIN;
+
+	ret = ov2680_write_reg(client, 2, OV2680_TIMING_VTS_H, vts);
+	if (ret)
+		dev_err(&client->dev, "ov2680 write vts err: %d\n", ret);
+
+	ret = ov2680_get_intg_factor(client, ov2680_info, res);
 	if (ret) {
 		dev_err(&client->dev, "failed to get integration factor\n");
 		goto err;
@@ -988,8 +893,6 @@ static int ov2680_set_fmt(struct v4l2_subdev *sd,
 		ov2680_h_flip(sd, h_flag);
 	if (v_flag)
 		ov2680_v_flip(sd, v_flag);
-
-	v4l2_info(client, "\n%s idx %d\n", __func__, dev->fmt_idx);
 
 	/*
 	 * ret = startup(sd);
@@ -1014,8 +917,8 @@ static int ov2680_get_fmt(struct v4l2_subdev *sd,
 	if (!fmt)
 		return -EINVAL;
 
-	fmt->width = ov2680_res[dev->fmt_idx].width;
-	fmt->height = ov2680_res[dev->fmt_idx].height;
+	fmt->width = dev->res->width;
+	fmt->height = dev->res->height;
 	fmt->code = MEDIA_BUS_FMT_SBGGR10_1X10;
 
 	return 0;
@@ -1024,7 +927,7 @@ static int ov2680_get_fmt(struct v4l2_subdev *sd,
 static int ov2680_detect(struct i2c_client *client)
 {
 	struct i2c_adapter *adapter = client->adapter;
-	u16 high, low;
+	u32 high, low;
 	int ret;
 	u16 id;
 	u8 revision;
@@ -1072,11 +975,6 @@ static int ov2680_s_stream(struct v4l2_subdev *sd, int enable)
 	ret = ov2680_write_reg(client, 1, OV2680_SW_STREAM,
 			       enable ? OV2680_START_STREAMING :
 			       OV2680_STOP_STREAMING);
-#if 0
-	/* restore settings */
-	ov2680_res = ov2680_res_preview;
-	N_RES = N_RES_PREVIEW;
-#endif
 
 	//otp valid at stream on state
 	//if(!dev->otp_data)
@@ -1101,16 +999,6 @@ static int ov2680_s_config(struct v4l2_subdev *sd,
 	    (struct camera_sensor_platform_data *)platform_data;
 
 	mutex_lock(&dev->input_lock);
-	/*
-	 * power off the module, then power on it in future
-	 * as first power on by board may not fulfill the
-	 * power on sequqence needed by the module
-	 */
-	ret = power_down(sd);
-	if (ret) {
-		dev_err(&client->dev, "ov2680 power-off err.\n");
-		goto fail_power_off;
-	}
 
 	ret = power_up(sd);
 	if (ret) {
@@ -1144,7 +1032,6 @@ fail_csi_cfg:
 fail_power_on:
 	power_down(sd);
 	dev_err(&client->dev, "sensor power-gating failed\n");
-fail_power_off:
 	mutex_unlock(&dev->input_lock);
 	return ret;
 }
@@ -1155,7 +1042,7 @@ static int ov2680_g_frame_interval(struct v4l2_subdev *sd,
 	struct ov2680_device *dev = to_ov2680_sensor(sd);
 
 	interval->interval.numerator = 1;
-	interval->interval.denominator = ov2680_res[dev->fmt_idx].fps;
+	interval->interval.denominator = dev->res->fps;
 
 	return 0;
 }
@@ -1177,13 +1064,33 @@ static int ov2680_enum_frame_size(struct v4l2_subdev *sd,
 {
 	int index = fse->index;
 
-	if (index >= N_RES)
+	if (index >= N_RES_PREVIEW)
 		return -EINVAL;
 
-	fse->min_width = ov2680_res[index].width;
-	fse->min_height = ov2680_res[index].height;
-	fse->max_width = ov2680_res[index].width;
-	fse->max_height = ov2680_res[index].height;
+	fse->min_width = ov2680_res_preview[index].width;
+	fse->min_height = ov2680_res_preview[index].height;
+	fse->max_width = ov2680_res_preview[index].width;
+	fse->max_height = ov2680_res_preview[index].height;
+
+	return 0;
+}
+
+static int ov2680_enum_frame_interval(struct v4l2_subdev *sd,
+				      struct v4l2_subdev_state *sd_state,
+				      struct v4l2_subdev_frame_interval_enum *fie)
+{
+	struct v4l2_fract fract;
+
+	if (fie->index >= N_RES_PREVIEW ||
+	    fie->width > ov2680_res_preview[0].width ||
+	    fie->height > ov2680_res_preview[0].height ||
+	    fie->which > V4L2_SUBDEV_FORMAT_ACTIVE)
+		return -EINVAL;
+
+	fract.denominator = ov2680_res_preview[fie->index].fps;
+	fract.numerator = 1;
+
+	fie->interval = fract;
 
 	return 0;
 }
@@ -1193,7 +1100,7 @@ static int ov2680_g_skip_frames(struct v4l2_subdev *sd, u32 *frames)
 	struct ov2680_device *dev = to_ov2680_sensor(sd);
 
 	mutex_lock(&dev->input_lock);
-	*frames = ov2680_res[dev->fmt_idx].skip_frames;
+	*frames = dev->res->skip_frames;
 	mutex_unlock(&dev->input_lock);
 
 	return 0;
@@ -1216,6 +1123,7 @@ static const struct v4l2_subdev_core_ops ov2680_core_ops = {
 static const struct v4l2_subdev_pad_ops ov2680_pad_ops = {
 	.enum_mbus_code = ov2680_enum_mbus_code,
 	.enum_frame_size = ov2680_enum_frame_size,
+	.enum_frame_interval = ov2680_enum_frame_interval,
 	.get_fmt = ov2680_get_fmt,
 	.set_fmt = ov2680_set_fmt,
 };
@@ -1257,7 +1165,9 @@ static int ov2680_probe(struct i2c_client *client)
 
 	mutex_init(&dev->input_lock);
 
-	dev->fmt_idx = 0;
+	dev->res = &ov2680_res_preview[0];
+	dev->exposure = dev->res->lines_per_frame - OV2680_INTEGRATION_TIME_MARGIN;
+	dev->gain = 250; /* 0-2047 */
 	v4l2_i2c_subdev_init(&dev->sd, client, &ov2680_ops);
 
 	pdata = gmin_camera_platform_data(&dev->sd,
@@ -1278,7 +1188,6 @@ static int ov2680_probe(struct i2c_client *client)
 
 	dev->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
 	dev->pad.flags = MEDIA_PAD_FL_SOURCE;
-	dev->format.code = MEDIA_BUS_FMT_SBGGR10_1X10;
 	dev->sd.entity.function = MEDIA_ENT_F_CAM_SENSOR;
 	ret =
 	    v4l2_ctrl_handler_init(&dev->ctrl_handler,

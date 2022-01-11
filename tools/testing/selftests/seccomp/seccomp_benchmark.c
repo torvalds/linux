@@ -18,7 +18,7 @@
 #include <sys/syscall.h>
 #include <sys/types.h>
 
-#define ARRAY_SIZE(a)    (sizeof(a) / sizeof(a[0]))
+#include "../kselftest.h"
 
 unsigned long long timing(clockid_t clk_id, unsigned long long samples)
 {

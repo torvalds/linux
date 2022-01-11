@@ -162,6 +162,16 @@ acpi_ev_address_space_dispatch(union acpi_operand_object *region_obj,
 			return_ACPI_STATUS(AE_NOT_EXIST);
 		}
 
+		if (region_obj->region.space_id == ACPI_ADR_SPACE_PLATFORM_COMM) {
+			struct acpi_pcc_info *ctx =
+			    handler_desc->address_space.context;
+
+			ctx->internal_buffer =
+			    field_obj->field.internal_pcc_buffer;
+			ctx->length = (u16)region_obj->region.length;
+			ctx->subspace_id = (u8)region_obj->region.address;
+		}
+
 		/*
 		 * We must exit the interpreter because the region setup will
 		 * potentially execute control methods (for example, the _REG method

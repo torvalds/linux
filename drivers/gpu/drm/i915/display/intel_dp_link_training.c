@@ -21,10 +21,10 @@
  * IN THE SOFTWARE.
  */
 
+#include "i915_drv.h"
 #include "intel_display_types.h"
 #include "intel_dp.h"
 #include "intel_dp_link_training.h"
-
 
 static void intel_dp_reset_lttpr_common_caps(struct intel_dp *intel_dp)
 {
@@ -301,7 +301,10 @@ static u8 intel_dp_phy_preemph_max(struct intel_dp *intel_dp,
 static bool has_per_lane_signal_levels(struct intel_dp *intel_dp,
 				       enum drm_dp_phy dp_phy)
 {
-	return !intel_dp_phy_is_downstream_of_source(intel_dp, dp_phy);
+	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
+
+	return !intel_dp_phy_is_downstream_of_source(intel_dp, dp_phy) ||
+		DISPLAY_VER(i915) >= 11;
 }
 
 /* 128b/132b */
@@ -683,15 +686,6 @@ intel_dp_prepare_link_train(struct intel_dp *intel_dp,
 	return true;
 }
 
-static void intel_dp_link_training_clock_recovery_delay(struct intel_dp *intel_dp,
-							enum drm_dp_phy dp_phy)
-{
-	if (dp_phy == DP_PHY_DPRX)
-		drm_dp_link_train_clock_recovery_delay(&intel_dp->aux, intel_dp->dpcd);
-	else
-		drm_dp_lttpr_link_train_clock_recovery_delay();
-}
-
 static bool intel_dp_adjust_request_changed(const struct intel_crtc_state *crtc_state,
 					    const u8 old_link_status[DP_LINK_STATUS_SIZE],
 					    const u8 new_link_status[DP_LINK_STATUS_SIZE])
@@ -750,6 +744,11 @@ intel_dp_link_training_clock_recovery(struct intel_dp *intel_dp,
 	u8 link_status[DP_LINK_STATUS_SIZE];
 	bool max_vswing_reached = false;
 	char phy_name[10];
+	int delay_us;
+
+	delay_us = drm_dp_read_clock_recovery_delay(&intel_dp->aux,
+						    intel_dp->dpcd, dp_phy,
+						    intel_dp_is_uhbr(crtc_state));
 
 	intel_dp_phy_name(dp_phy, phy_name, sizeof(phy_name));
 
@@ -777,7 +776,7 @@ intel_dp_link_training_clock_recovery(struct intel_dp *intel_dp,
 
 	voltage_tries = 1;
 	for (cr_tries = 0; cr_tries < max_cr_tries; ++cr_tries) {
-		intel_dp_link_training_clock_recovery_delay(intel_dp, dp_phy);
+		usleep_range(delay_us, 2 * delay_us);
 
 		if (drm_dp_dpcd_read_phy_link_status(&intel_dp->aux, dp_phy,
 						     link_status) < 0) {
@@ -895,19 +894,6 @@ static u32 intel_dp_training_pattern(struct intel_dp *intel_dp,
 	return DP_TRAINING_PATTERN_2;
 }
 
-static void
-intel_dp_link_training_channel_equalization_delay(struct intel_dp *intel_dp,
-						  enum drm_dp_phy dp_phy)
-{
-	if (dp_phy == DP_PHY_DPRX) {
-		drm_dp_link_train_channel_eq_delay(&intel_dp->aux, intel_dp->dpcd);
-	} else {
-		const u8 *phy_caps = intel_dp_lttpr_phy_caps(intel_dp, dp_phy);
-
-		drm_dp_lttpr_link_train_channel_eq_delay(&intel_dp->aux, phy_caps);
-	}
-}
-
 /*
  * Perform the link training channel equalization phase on the given DP PHY
  * using one of training pattern 2, 3 or 4 depending on the source and
@@ -925,6 +911,11 @@ intel_dp_link_training_channel_equalization(struct intel_dp *intel_dp,
 	u8 link_status[DP_LINK_STATUS_SIZE];
 	bool channel_eq = false;
 	char phy_name[10];
+	int delay_us;
+
+	delay_us = drm_dp_read_channel_eq_delay(&intel_dp->aux,
+						intel_dp->dpcd, dp_phy,
+						intel_dp_is_uhbr(crtc_state));
 
 	intel_dp_phy_name(dp_phy, phy_name, sizeof(phy_name));
 
@@ -944,8 +935,8 @@ intel_dp_link_training_channel_equalization(struct intel_dp *intel_dp,
 	}
 
 	for (tries = 0; tries < 5; tries++) {
-		intel_dp_link_training_channel_equalization_delay(intel_dp,
-								  dp_phy);
+		usleep_range(delay_us, 2 * delay_us);
+
 		if (drm_dp_dpcd_read_phy_link_status(&intel_dp->aux, dp_phy,
 						     link_status) < 0) {
 			drm_err(&i915->drm,

@@ -639,8 +639,6 @@ bool gve_rx_work_pending(struct gve_rx_ring *rx)
 	desc = rx->desc.desc_ring + next_idx;
 
 	flags_seq = desc->flags_seq;
-	/* Make sure we have synchronized the seq no with the device */
-	smp_rmb();
 
 	return (GVE_SEQNO(flags_seq) == rx->desc.seqno);
 }

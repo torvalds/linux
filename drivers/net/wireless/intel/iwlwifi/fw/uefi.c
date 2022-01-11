@@ -11,6 +11,7 @@
 #include "fw/uefi.h"
 #include "fw/api/alive.h"
 #include <linux/efi.h>
+#include "fw/runtime.h"
 
 #define IWL_EFI_VAR_GUID EFI_GUID(0x92daaf2f, 0xc02b, 0x455b,	\
 				  0xb2, 0xec, 0xf5, 0xa3,	\
@@ -86,6 +87,7 @@ static void *iwl_uefi_reduce_power_section(struct iwl_trans *trans,
 		if (len < tlv_len) {
 			IWL_ERR(trans, "invalid TLV len: %zd/%u\n",
 				len, tlv_len);
+			kfree(reduce_power_data);
 			reduce_power_data = ERR_PTR(-EINVAL);
 			goto out;
 		}
@@ -105,6 +107,7 @@ static void *iwl_uefi_reduce_power_section(struct iwl_trans *trans,
 				IWL_DEBUG_FW(trans,
 					     "Couldn't allocate (more) reduce_power_data\n");
 
+				kfree(reduce_power_data);
 				reduce_power_data = ERR_PTR(-ENOMEM);
 				goto out;
 			}
@@ -134,6 +137,10 @@ static void *iwl_uefi_reduce_power_section(struct iwl_trans *trans,
 done:
 	if (!size) {
 		IWL_DEBUG_FW(trans, "Empty REDUCE_POWER, skipping.\n");
+		/* Better safe than sorry, but 'reduce_power_data' should
+		 * always be NULL if !size.
+		 */
+		kfree(reduce_power_data);
 		reduce_power_data = ERR_PTR(-ENOENT);
 		goto out;
 	}
@@ -260,3 +267,90 @@ out:
 
 	return data;
 }
+
+#ifdef CONFIG_ACPI
+static int iwl_uefi_sgom_parse(struct uefi_cnv_wlan_sgom_data *sgom_data,
+			       struct iwl_fw_runtime *fwrt)
+{
+	int i, j;
+
+	if (sgom_data->revision != 1)
+		return -EINVAL;
+
+	memcpy(fwrt->sgom_table.offset_map, sgom_data->offset_map,
+	       sizeof(fwrt->sgom_table.offset_map));
+
+	for (i = 0; i < MCC_TO_SAR_OFFSET_TABLE_ROW_SIZE; i++) {
+		for (j = 0; j < MCC_TO_SAR_OFFSET_TABLE_COL_SIZE; j++) {
+			/* since each byte is composed of to values, */
+			/* one for each letter, */
+			/* extract and check each of them separately */
+			u8 value = fwrt->sgom_table.offset_map[i][j];
+			u8 low = value & 0xF;
+			u8 high = (value & 0xF0) >> 4;
+
+			if (high > fwrt->geo_num_profiles)
+				high = 0;
+			if (low > fwrt->geo_num_profiles)
+				low = 0;
+			fwrt->sgom_table.offset_map[i][j] = (high << 4) | low;
+		}
+	}
+
+	fwrt->sgom_enabled = true;
+	return 0;
+}
+
+void iwl_uefi_get_sgom_table(struct iwl_trans *trans,
+			     struct iwl_fw_runtime *fwrt)
+{
+	struct efivar_entry *sgom_efivar;
+	struct uefi_cnv_wlan_sgom_data *data;
+	unsigned long package_size;
+	int err, ret;
+
+	if (!fwrt->geo_enabled)
+		return;
+
+	sgom_efivar = kzalloc(sizeof(*sgom_efivar), GFP_KERNEL);
+	if (!sgom_efivar)
+		return;
+
+	memcpy(&sgom_efivar->var.VariableName, IWL_UEFI_SGOM_NAME,
+	       sizeof(IWL_UEFI_SGOM_NAME));
+	sgom_efivar->var.VendorGuid = IWL_EFI_VAR_GUID;
+
+	/* TODO: we hardcode a maximum length here, because reading
+	 * from the UEFI is not working.  To implement this properly,
+	 * we have to call efivar_entry_size().
+	 */
+	package_size = IWL_HARDCODED_SGOM_SIZE;
+
+	data = kmalloc(package_size, GFP_KERNEL);
+	if (!data) {
+		data = ERR_PTR(-ENOMEM);
+		goto out;
+	}
+
+	err = efivar_entry_get(sgom_efivar, NULL, &package_size, data);
+	if (err) {
+		IWL_DEBUG_FW(trans,
+			     "SGOM UEFI variable not found %d\n", err);
+		goto out_free;
+	}
+
+	IWL_DEBUG_FW(trans, "Read SGOM from UEFI with size %lu\n",
+		     package_size);
+
+	ret = iwl_uefi_sgom_parse(data, fwrt);
+	if (ret < 0)
+		IWL_DEBUG_FW(trans, "Cannot read SGOM tables. rev is invalid\n");
+
+out_free:
+	kfree(data);
+
+out:
+	kfree(sgom_efivar);
+}
+IWL_EXPORT_SYMBOL(iwl_uefi_get_sgom_table);
+#endif /* CONFIG_ACPI */

@@ -76,6 +76,7 @@ enum EnumRd {
 	APL7_FCCA = 0x5C,
 	APL8_WORLD = 0x5D,
 	APL9_WORLD = 0x5E,
+	APL10_WORLD = 0x5F,
 
 	WOR0_WORLD = 0x60,
 	WOR1_WORLD = 0x61,
@@ -204,6 +205,7 @@ static struct reg_dmn_pair_mapping regDomainPairs[] = {
 	{APL6_WORLD, CTL_ETSI, CTL_ETSI},
 	{APL8_WORLD, CTL_ETSI, CTL_ETSI},
 	{APL9_WORLD, CTL_ETSI, CTL_ETSI},
+	{APL10_WORLD, CTL_ETSI, CTL_ETSI},
 
 	{APL3_FCCA, CTL_FCC, CTL_FCC},
 	{APL7_FCCA, CTL_FCC, CTL_FCC},
@@ -426,6 +428,7 @@ static struct country_code_to_enum_rd allCountries[] = {
 	{CTRY_KOREA_ROC, APL9_WORLD, "KR"},
 	{CTRY_KOREA_ROC2, APL2_WORLD, "K2"},
 	{CTRY_KOREA_ROC3, APL9_WORLD, "K3"},
+	{CTRY_KOREA_ROC4, APL10_WORLD, "K4"},
 	{CTRY_KUWAIT, ETSI3_WORLD, "KW"},
 	{CTRY_LATVIA, ETSI1_WORLD, "LV"},
 	{CTRY_LEBANON, NULL1_WORLD, "LB"},

@@ -2303,7 +2303,7 @@ static int ipw_send_ssid(struct ipw_priv *priv, u8 * ssid, int len)
 				ssid);
 }
 
-static int ipw_send_adapter_address(struct ipw_priv *priv, u8 * mac)
+static int ipw_send_adapter_address(struct ipw_priv *priv, const u8 * mac)
 {
 	if (!priv || !mac) {
 		IPW_ERROR("Invalid args\n");

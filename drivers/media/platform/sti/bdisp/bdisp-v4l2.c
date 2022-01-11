@@ -1394,6 +1394,7 @@ err_filter:
 err_pm:
 	pm_runtime_put(dev);
 err_remove:
+	pm_runtime_disable(dev);
 	bdisp_debugfs_remove(bdisp);
 	v4l2_device_unregister(&bdisp->v4l2_dev);
 err_clk:

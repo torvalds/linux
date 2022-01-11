@@ -45,7 +45,7 @@ static const struct platform_device_id vpbe_osd_devtype[] = {
 MODULE_DEVICE_TABLE(platform, vpbe_osd_devtype);
 
 /* register access routines */
-static inline u32 osd_read(struct osd_state *sd, u32 offset)
+static inline u32 __always_unused osd_read(struct osd_state *sd, u32 offset)
 {
 	struct osd_state *osd = sd;
 

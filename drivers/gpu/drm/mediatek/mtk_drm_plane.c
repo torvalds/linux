@@ -44,8 +44,9 @@ static void mtk_plane_reset(struct drm_plane *plane)
 		state = kzalloc(sizeof(*state), GFP_KERNEL);
 		if (!state)
 			return;
-		plane->state = &state->base;
 	}
+
+	__drm_atomic_helper_plane_reset(plane, &state->base);
 
 	state->base.plane = plane;
 	state->pending.format = DRM_FORMAT_RGB565;

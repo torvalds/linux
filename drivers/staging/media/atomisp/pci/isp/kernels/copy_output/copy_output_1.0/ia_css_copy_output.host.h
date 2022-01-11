@@ -27,9 +27,7 @@ ia_css_copy_output_config(
     const struct ia_css_copy_output_configuration *from,
     unsigned int size);
 
-void
-ia_css_copy_output_configure(
-    const struct ia_css_binary     *binary,
-    bool enable);
+int ia_css_copy_output_configure(const struct ia_css_binary     *binary,
+				 bool enable);
 
 #endif /* __IA_CSS_COPY_OUTPUT_HOST_H */

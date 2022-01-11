@@ -5,6 +5,7 @@
  */
 
 #include <linux/vmalloc.h>
+#include <linux/sched/mm.h>
 
 #include "msm_drv.h"
 #include "msm_gem.h"

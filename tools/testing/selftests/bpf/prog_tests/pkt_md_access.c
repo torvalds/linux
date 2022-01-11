@@ -9,7 +9,7 @@ void test_pkt_md_access(void)
 	__u32 duration, retval;
 	int err, prog_fd;
 
-	err = bpf_prog_load(file, BPF_PROG_TYPE_SCHED_CLS, &obj, &prog_fd);
+	err = bpf_prog_test_load(file, BPF_PROG_TYPE_SCHED_CLS, &obj, &prog_fd);
 	if (CHECK_FAIL(err))
 		return;
 

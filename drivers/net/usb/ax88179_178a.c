@@ -1377,11 +1377,12 @@ static int ax88179_bind(struct usbnet *dev, struct usb_interface *intf)
 	dev->mii.phy_id = 0x03;
 	dev->mii.supports_gmii = 1;
 
-	dev->net->features |= NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
-			      NETIF_F_RXCSUM;
+	dev->net->features |= NETIF_F_SG | NETIF_F_IP_CSUM |
+			      NETIF_F_IPV6_CSUM | NETIF_F_RXCSUM | NETIF_F_TSO;
 
-	dev->net->hw_features |= NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
-				 NETIF_F_RXCSUM;
+	dev->net->hw_features |= dev->net->features;
+
+	netif_set_gso_max_size(dev->net, 16384);
 
 	/* Enable checksum offload */
 	*tmp = AX_RXCOE_IP | AX_RXCOE_TCP | AX_RXCOE_UDP |
@@ -1526,16 +1527,18 @@ ax88179_tx_fixup(struct usbnet *dev, struct sk_buff *skb, gfp_t flags)
 {
 	u32 tx_hdr1, tx_hdr2;
 	int frame_size = dev->maxpacket;
-	int mss = skb_shinfo(skb)->gso_size;
 	int headroom;
 	void *ptr;
 
 	tx_hdr1 = skb->len;
-	tx_hdr2 = mss;
+	tx_hdr2 = skb_shinfo(skb)->gso_size; /* Set TSO mss */
 	if (((skb->len + 8) % frame_size) == 0)
 		tx_hdr2 |= 0x80008000;	/* Enable padding */
 
 	headroom = skb_headroom(skb) - 8;
+
+	if ((dev->net->features & NETIF_F_SG) && skb_linearize(skb))
+		return NULL;
 
 	if ((skb_header_cloned(skb) || headroom < 0) &&
 	    pskb_expand_head(skb, headroom < 0 ? 8 : 0, 0, GFP_ATOMIC)) {
@@ -1546,6 +1549,8 @@ ax88179_tx_fixup(struct usbnet *dev, struct sk_buff *skb, gfp_t flags)
 	ptr = skb_push(skb, 8);
 	put_unaligned_le32(tx_hdr1, ptr);
 	put_unaligned_le32(tx_hdr2, ptr + 4);
+
+	usbnet_set_skb_tx_stats(skb, (skb_shinfo(skb)->gso_segs ?: 1), 0);
 
 	return skb;
 }

@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0-only
 config NET_VENDOR_MEDIATEK
 	bool "MediaTek devices"
-	depends on ARCH_MEDIATEK || SOC_MT7621 || SOC_MT7620
+	depends on ARCH_MEDIATEK || SOC_MT7621 || SOC_MT7620 || COMPILE_TEST
 	help
 	  If you have a Mediatek SoC with ethernet, say Y.
 
@@ -10,6 +10,7 @@ if NET_VENDOR_MEDIATEK
 config NET_MEDIATEK_SOC
 	tristate "MediaTek SoC Gigabit Ethernet support"
 	depends on NET_DSA || !NET_DSA
+	select PINCTRL
 	select PHYLINK
 	select DIMLIB
 	help

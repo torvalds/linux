@@ -23,8 +23,8 @@ TESTS="reported_issues correctness concurrency timeout"
 
 # Set types, defined by TYPE_ variables below
 TYPES="net_port port_net net6_port port_proto net6_port_mac net6_port_mac_proto
-       net_port_net net_mac net_mac_icmp net6_mac_icmp net6_port_net6_port
-       net_port_mac_proto_net"
+       net_port_net net_mac mac_net net_mac_icmp net6_mac_icmp
+       net6_port_net6_port net_port_mac_proto_net"
 
 # Reported bugs, also described by TYPE_ variables below
 BUGS="flush_remove_add"
@@ -275,6 +275,23 @@ perf_dst	addr4 mac
 perf_src	 
 perf_entries	1000
 perf_proto	ipv4
+"
+
+TYPE_mac_net="
+display		mac,net
+type_spec	ether_addr . ipv4_addr
+chain_spec	ether saddr . ip saddr
+dst		 
+src		mac addr4
+start		1
+count		5
+src_delta	2000
+tools		sendip nc bash
+proto		udp
+
+race_repeat	0
+
+perf_duration	0
 "
 
 TYPE_net_mac_icmp="
@@ -984,7 +1001,8 @@ format() {
 		fi
 	done
 	for f in ${src}; do
-		__expr="${__expr} . "
+		[ "${__expr}" != "{ " ] && __expr="${__expr} . "
+
 		__start="$(eval format_"${f}" "${srcstart}")"
 		__end="$(eval format_"${f}" "${srcend}")"
 

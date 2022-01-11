@@ -292,8 +292,9 @@ int mt76x2_register_device(struct mt76x02_dev *dev)
 	int ret;
 
 	INIT_DELAYED_WORK(&dev->cal_work, mt76x2_phy_calibrate);
-
-	mt76x02_init_device(dev);
+	ret = mt76x02_init_device(dev);
+	if (ret)
+		return ret;
 
 	ret = mt76x2_init_hardware(dev);
 	if (ret)

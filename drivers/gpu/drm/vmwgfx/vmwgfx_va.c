@@ -117,7 +117,7 @@ int vmw_stream_unref_ioctl(struct drm_device *dev, void *data,
 	struct drm_vmw_stream_arg *arg = (struct drm_vmw_stream_arg *)data;
 
 	return ttm_ref_object_base_unref(vmw_fpriv(file_priv)->tfile,
-					 arg->stream_id, TTM_REF_USAGE);
+					 arg->stream_id);
 }
 
 /**

@@ -58,6 +58,7 @@ struct vport_portids {
 /**
  * struct vport - one port within a datapath
  * @dev: Pointer to net_device.
+ * @dev_tracker: refcount tracker for @dev reference
  * @dp: Datapath to which this port belongs.
  * @upcall_portids: RCU protected 'struct vport_portids'.
  * @port_no: Index into @dp's @ports array.
@@ -69,6 +70,7 @@ struct vport_portids {
  */
 struct vport {
 	struct net_device *dev;
+	netdevice_tracker dev_tracker;
 	struct datapath	*dp;
 	struct vport_portids __rcu *upcall_portids;
 	u16 port_no;

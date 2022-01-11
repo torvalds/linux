@@ -1974,12 +1974,8 @@ static void iwl_nic_config(struct iwl_op_mode *op_mode)
 
 	/* SKU Control */
 	iwl_trans_set_bits_mask(priv->trans, CSR_HW_IF_CONFIG_REG,
-				CSR_HW_IF_CONFIG_REG_MSK_MAC_DASH |
-				CSR_HW_IF_CONFIG_REG_MSK_MAC_STEP,
-				(CSR_HW_REV_STEP(priv->trans->hw_rev) <<
-					CSR_HW_IF_CONFIG_REG_POS_MAC_STEP) |
-				(CSR_HW_REV_DASH(priv->trans->hw_rev) <<
-					CSR_HW_IF_CONFIG_REG_POS_MAC_DASH));
+				CSR_HW_IF_CONFIG_REG_MSK_MAC_STEP_DASH,
+				CSR_HW_REV_STEP_DASH(priv->trans->hw_rev));
 
 	/* write radio config values to register */
 	if (priv->nvm_data->radio_cfg_type <= EEPROM_RF_CONFIG_TYPE_MAX) {

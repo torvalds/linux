@@ -54,65 +54,6 @@ void intel_huc_init_early(struct intel_huc *huc)
 	}
 }
 
-static int intel_huc_rsa_data_create(struct intel_huc *huc)
-{
-	struct intel_gt *gt = huc_to_gt(huc);
-	struct intel_guc *guc = &gt->uc.guc;
-	struct i915_vma *vma;
-	size_t copied;
-	void *vaddr;
-	int err;
-
-	err = i915_inject_probe_error(gt->i915, -ENXIO);
-	if (err)
-		return err;
-
-	/*
-	 * HuC firmware will sit above GUC_GGTT_TOP and will not map
-	 * through GTT. Unfortunately, this means GuC cannot perform
-	 * the HuC auth. as the rsa offset now falls within the GuC
-	 * inaccessible range. We resort to perma-pinning an additional
-	 * vma within the accessible range that only contains the rsa
-	 * signature. The GuC can use this extra pinning to perform
-	 * the authentication since its GGTT offset will be GuC
-	 * accessible.
-	 */
-	GEM_BUG_ON(huc->fw.rsa_size > PAGE_SIZE);
-	vma = intel_guc_allocate_vma(guc, PAGE_SIZE);
-	if (IS_ERR(vma))
-		return PTR_ERR(vma);
-
-	vaddr = i915_gem_object_pin_map_unlocked(vma->obj,
-						 i915_coherent_map_type(gt->i915,
-									vma->obj, true));
-	if (IS_ERR(vaddr)) {
-		i915_vma_unpin_and_release(&vma, 0);
-		err = PTR_ERR(vaddr);
-		goto unpin_out;
-	}
-
-	copied = intel_uc_fw_copy_rsa(&huc->fw, vaddr, vma->size);
-	i915_gem_object_unpin_map(vma->obj);
-
-	if (copied < huc->fw.rsa_size) {
-		err = -ENOMEM;
-		goto unpin_out;
-	}
-
-	huc->rsa_data = vma;
-
-	return 0;
-
-unpin_out:
-	i915_vma_unpin_and_release(&vma, 0);
-	return err;
-}
-
-static void intel_huc_rsa_data_destroy(struct intel_huc *huc)
-{
-	i915_vma_unpin_and_release(&huc->rsa_data, 0);
-}
-
 int intel_huc_init(struct intel_huc *huc)
 {
 	struct drm_i915_private *i915 = huc_to_gt(huc)->i915;
@@ -122,21 +63,10 @@ int intel_huc_init(struct intel_huc *huc)
 	if (err)
 		goto out;
 
-	/*
-	 * HuC firmware image is outside GuC accessible range.
-	 * Copy the RSA signature out of the image into
-	 * a perma-pinned region set aside for it
-	 */
-	err = intel_huc_rsa_data_create(huc);
-	if (err)
-		goto out_fini;
-
 	intel_uc_fw_change_status(&huc->fw, INTEL_UC_FIRMWARE_LOADABLE);
 
 	return 0;
 
-out_fini:
-	intel_uc_fw_fini(&huc->fw);
 out:
 	i915_probe_error(i915, "failed with %d\n", err);
 	return err;
@@ -147,7 +77,6 @@ void intel_huc_fini(struct intel_huc *huc)
 	if (!intel_uc_fw_is_loadable(&huc->fw))
 		return;
 
-	intel_huc_rsa_data_destroy(huc);
 	intel_uc_fw_fini(&huc->fw);
 }
 
@@ -177,7 +106,7 @@ int intel_huc_auth(struct intel_huc *huc)
 		goto fail;
 
 	ret = intel_guc_auth_huc(guc,
-				 intel_guc_ggtt_offset(guc, huc->rsa_data));
+				 intel_guc_ggtt_offset(guc, huc->fw.rsa_data));
 	if (ret) {
 		DRM_ERROR("HuC: GuC did not ack Auth request %d\n", ret);
 		goto fail;
@@ -199,7 +128,7 @@ int intel_huc_auth(struct intel_huc *huc)
 
 fail:
 	i915_probe_error(gt->i915, "HuC: Authentication failed %d\n", ret);
-	intel_uc_fw_change_status(&huc->fw, INTEL_UC_FIRMWARE_FAIL);
+	intel_uc_fw_change_status(&huc->fw, INTEL_UC_FIRMWARE_LOAD_FAIL);
 	return ret;
 }
 

@@ -22,7 +22,7 @@ static void test_signal_pending_by_type(enum bpf_prog_type prog_type)
 		prog[i] = BPF_ALU64_IMM(BPF_MOV, BPF_REG_0, 0);
 	prog[ARRAY_SIZE(prog) - 1] = BPF_EXIT_INSN();
 
-	prog_fd = bpf_load_program(prog_type, prog, ARRAY_SIZE(prog),
+	prog_fd = bpf_test_load_program(prog_type, prog, ARRAY_SIZE(prog),
 				   "GPL", 0, NULL, 0);
 	CHECK(prog_fd < 0, "test-run", "errno %d\n", errno);
 

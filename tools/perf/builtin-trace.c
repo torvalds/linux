@@ -3257,10 +3257,21 @@ static void trace__set_bpf_map_syscalls(struct trace *trace)
 
 static struct bpf_program *trace__find_bpf_program_by_title(struct trace *trace, const char *name)
 {
+	struct bpf_program *pos, *prog = NULL;
+	const char *sec_name;
+
 	if (trace->bpf_obj == NULL)
 		return NULL;
 
-	return bpf_object__find_program_by_title(trace->bpf_obj, name);
+	bpf_object__for_each_program(pos, trace->bpf_obj) {
+		sec_name = bpf_program__section_name(pos);
+		if (sec_name && !strcmp(sec_name, name)) {
+			prog = pos;
+			break;
+		}
+	}
+
+	return prog;
 }
 
 static struct bpf_program *trace__find_syscall_bpf_prog(struct trace *trace, struct syscall *sc,
@@ -3925,6 +3936,7 @@ static int trace__run(struct trace *trace, int argc, const char **argv)
 	bool draining = false;
 
 	trace->live = true;
+	signal(SIGCHLD, sig_handler);
 
 	if (!trace->raw_augmented_syscalls) {
 		if (trace->trace_syscalls && trace__add_syscall_newtp(trace))
@@ -4873,7 +4885,6 @@ int cmd_trace(int argc, const char **argv)
 
 	signal(SIGSEGV, sighandler_dump_stack);
 	signal(SIGFPE, sighandler_dump_stack);
-	signal(SIGCHLD, sig_handler);
 	signal(SIGINT, sig_handler);
 
 	trace.evlist = evlist__new();

@@ -330,6 +330,7 @@ void hubp2_program_surface_config(
 bool hubp2_is_flip_pending(struct hubp *hubp);
 
 void hubp2_set_blank(struct hubp *hubp, bool blank);
+void hubp2_set_blank_regs(struct hubp *hubp, bool blank);
 
 void hubp2_cursor_set_position(
 		struct hubp *hubp,

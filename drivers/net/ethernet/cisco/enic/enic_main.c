@@ -2718,26 +2718,14 @@ static int enic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	 * fail to 32-bit.
 	 */
 
-	err = dma_set_mask(&pdev->dev, DMA_BIT_MASK(47));
+	err = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(47));
 	if (err) {
-		err = dma_set_mask(&pdev->dev, DMA_BIT_MASK(32));
+		err = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
 		if (err) {
 			dev_err(dev, "No usable DMA configuration, aborting\n");
 			goto err_out_release_regions;
 		}
-		err = dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(32));
-		if (err) {
-			dev_err(dev, "Unable to obtain %u-bit DMA "
-				"for consistent allocations, aborting\n", 32);
-			goto err_out_release_regions;
-		}
 	} else {
-		err = dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(47));
-		if (err) {
-			dev_err(dev, "Unable to obtain %u-bit DMA "
-				"for consistent allocations, aborting\n", 47);
-			goto err_out_release_regions;
-		}
 		using_dac = 1;
 	}
 

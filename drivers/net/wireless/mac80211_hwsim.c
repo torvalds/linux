@@ -1276,7 +1276,7 @@ static void mac80211_hwsim_tx_frame_nl(struct ieee80211_hw *hw,
 		hdr->frame_control |= cpu_to_le16(IEEE80211_FCTL_PM);
 	/* If the queue contains MAX_QUEUE skb's drop some */
 	if (skb_queue_len(&data->pending) >= MAX_QUEUE) {
-		/* Droping until WARN_QUEUE level */
+		/* Dropping until WARN_QUEUE level */
 		while (skb_queue_len(&data->pending) >= WARN_QUEUE) {
 			ieee80211_free_txskb(hw, skb_dequeue(&data->pending));
 			data->tx_dropped++;

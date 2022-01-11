@@ -27,20 +27,16 @@ atomisp-objs += \
 	pci/sh_css_firmware.o \
 	pci/sh_css_host_data.o \
 	pci/sh_css_hrt.o \
-	pci/sh_css_metadata.o \
 	pci/sh_css_metrics.o \
 	pci/sh_css_mipi.o \
 	pci/sh_css_mmu.o \
-	pci/sh_css_morph.o \
 	pci/sh_css.o \
 	pci/sh_css_param_dvs.o \
 	pci/sh_css_param_shading.o \
 	pci/sh_css_params.o \
 	pci/sh_css_properties.o \
-	pci/sh_css_shading.o \
 	pci/sh_css_sp.o \
 	pci/sh_css_stream_format.o \
-	pci/sh_css_stream.o \
 	pci/sh_css_version.o \
 	pci/base/circbuf/src/circbuf.o \
 	pci/base/refcount/src/refcount.o \
@@ -53,6 +49,9 @@ atomisp-objs += \
 	pci/hmm/hmm.o \
 	pci/hmm/hmm_reserved_pool.o \
 	pci/ia_css_device_access.o \
+	pci/ia_css_isp_configs.o \
+	pci/ia_css_isp_states.o \
+	pci/ia_css_isp_params.o \
 	pci/isp/kernels/aa/aa_2/ia_css_aa2.host.o \
 	pci/isp/kernels/anr/anr_1.0/ia_css_anr.host.o \
 	pci/isp/kernels/anr/anr_2/ia_css_anr2.host.o \
@@ -154,21 +153,13 @@ atomisp-objs += \
 	pci/hive_isp_css_common/host/timed_ctrl.o \
 	pci/hive_isp_css_common/host/vmem.o \
 	pci/hive_isp_css_shared/host/tag.o \
-	pci/system_local.o \
-
-obj-byt = \
-	pci/css_2400_system/hive/ia_css_isp_configs.o \
-	pci/css_2400_system/hive/ia_css_isp_params.o \
-	pci/css_2400_system/hive/ia_css_isp_states.o \
+	pci/system_local.o
 
 # These will be needed when clean merge CHT support nicely into the driver
 # Keep them here handy for when we get to that point
 #
 
 obj-cht = \
-	pci/css_2401_system/hive/ia_css_isp_configs.o \
-	pci/css_2401_system/hive/ia_css_isp_params.o \
-	pci/css_2401_system/hive/ia_css_isp_states.o \
 	pci/css_2401_system/host/csi_rx.o \
 	pci/css_2401_system/host/ibuf_ctrl.o \
 	pci/css_2401_system/host/isys_dma.o \
@@ -306,10 +297,8 @@ INCLUDES += \
 	-I$(atomisp)/pci/runtime/rmgr/interface/ \
 	-I$(atomisp)/pci/runtime/spctrl/interface/ \
 	-I$(atomisp)/pci/runtime/tagger/interface/ \
-	-I$(atomisp)/pci/css_2400_system/hive/ \
 	-I$(atomisp)/pci/css_2401_system/ \
 	-I$(atomisp)/pci/css_2401_system/host/ \
-	-I$(atomisp)/pci/css_2401_system/hive/ \
 	-I$(atomisp)/pci/css_2401_system/hrt/
 
 DEFINES := -DHRT_HW -DHRT_ISP_CSS_CUSTOM_HOST -DHRT_USE_VIR_ADDRS -D__HOST__
@@ -324,10 +313,7 @@ ifeq ($(CONFIG_VIDEO_ATOMISP_ISP2401),y)
 atomisp-objs += \
 	$(obj-cht) \
 	pci/runtime/isys/src/ibuf_ctrl_rmgr.o
-DEFINES += -DISP2401 -DISP2401_NEW_INPUT_SYSTEM -DSYSTEM_hive_isp_css_2401_system
-else
-atomisp-objs += $(obj-byt)
-DEFINES += -DISP2400 -DSYSTEM_hive_isp_css_2400_system
+DEFINES += -DISP2401
 endif
 
 ccflags-y += $(INCLUDES) $(DEFINES) -fno-common

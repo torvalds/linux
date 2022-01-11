@@ -4443,7 +4443,7 @@ void i915_perf_init(struct drm_i915_private *i915)
 		mutex_init(&perf->lock);
 
 		/* Choose a representative limit */
-		oa_sample_rate_hard_limit = i915->gt.clock_frequency / 2;
+		oa_sample_rate_hard_limit = to_gt(i915)->clock_frequency / 2;
 
 		mutex_init(&perf->metrics_lock);
 		idr_init_base(&perf->metrics_idr, 1);

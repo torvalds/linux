@@ -3901,6 +3901,24 @@ static void brcmf_configure_wowl(struct brcmf_cfg80211_info *cfg,
 	cfg->wowl.active = true;
 }
 
+static int brcmf_keepalive_start(struct brcmf_if *ifp, unsigned int interval)
+{
+	struct brcmf_mkeep_alive_pkt_le kalive = {0};
+	int ret = 0;
+
+	/* Configure Null function/data keepalive */
+	kalive.version = cpu_to_le16(1);
+	kalive.period_msec = cpu_to_le32(interval * MSEC_PER_SEC);
+	kalive.len_bytes = cpu_to_le16(0);
+	kalive.keep_alive_id = 0;
+
+	ret = brcmf_fil_iovar_data_set(ifp, "mkeep_alive", &kalive, sizeof(kalive));
+	if (ret)
+		brcmf_err("keep-alive packet config failed, ret=%d\n", ret);
+
+	return ret;
+}
+
 static s32 brcmf_cfg80211_suspend(struct wiphy *wiphy,
 				  struct cfg80211_wowlan *wowl)
 {
@@ -3947,6 +3965,9 @@ static s32 brcmf_cfg80211_suspend(struct wiphy *wiphy,
 	} else {
 		/* Configure WOWL paramaters */
 		brcmf_configure_wowl(cfg, ifp, wowl);
+
+		/* Prevent disassociation due to inactivity with keep-alive */
+		brcmf_keepalive_start(ifp, 30);
 	}
 
 exit:

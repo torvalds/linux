@@ -589,8 +589,7 @@ static int acenic_probe_one(struct pci_dev *pdev,
 	}
 	ap->name = dev->name;
 
-	if (ap->pci_using_dac)
-		dev->features |= NETIF_F_HIGHDMA;
+	dev->features |= NETIF_F_HIGHDMA;
 
 	pci_set_drvdata(pdev, dev);
 
@@ -1130,11 +1129,7 @@ static int ace_init(struct net_device *dev)
 	/*
 	 * Configure DMA attributes.
 	 */
-	if (!dma_set_mask(&pdev->dev, DMA_BIT_MASK(64))) {
-		ap->pci_using_dac = 1;
-	} else if (!dma_set_mask(&pdev->dev, DMA_BIT_MASK(32))) {
-		ap->pci_using_dac = 0;
-	} else {
+	if (dma_set_mask(&pdev->dev, DMA_BIT_MASK(64))) {
 		ecode = -ENODEV;
 		goto init_error;
 	}

@@ -114,18 +114,6 @@
 	pinctrl-0 = <&pinctrl_ecspi4>;
 	cs-gpios = <&gpio4 9 GPIO_ACTIVE_LOW>, <&gpio4 3 GPIO_ACTIVE_LOW>;
 	status = "okay";
-
-	spidev0: spi@0 {
-		compatible = "spidev";
-		reg = <0>;
-		spi-max-frequency = <5000000>;
-	};
-
-	spidev1: spi@1 {
-		compatible = "spidev";
-		reg = <1>;
-		spi-max-frequency = <5000000>;
-	};
 };
 
 &i2c1 {

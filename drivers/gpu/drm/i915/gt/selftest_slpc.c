@@ -39,7 +39,7 @@ static int slpc_set_max_freq(struct intel_guc_slpc *slpc, u32 freq)
 static int live_slpc_clamp_min(void *arg)
 {
 	struct drm_i915_private *i915 = arg;
-	struct intel_gt *gt = &i915->gt;
+	struct intel_gt *gt = to_gt(i915);
 	struct intel_guc_slpc *slpc = &gt->uc.guc.slpc;
 	struct intel_rps *rps = &gt->rps;
 	struct intel_engine_cs *engine;
@@ -166,7 +166,7 @@ static int live_slpc_clamp_min(void *arg)
 static int live_slpc_clamp_max(void *arg)
 {
 	struct drm_i915_private *i915 = arg;
-	struct intel_gt *gt = &i915->gt;
+	struct intel_gt *gt = to_gt(i915);
 	struct intel_guc_slpc *slpc;
 	struct intel_rps *rps;
 	struct intel_engine_cs *engine;
@@ -304,7 +304,7 @@ int intel_slpc_live_selftests(struct drm_i915_private *i915)
 		SUBTEST(live_slpc_clamp_min),
 	};
 
-	if (intel_gt_is_wedged(&i915->gt))
+	if (intel_gt_is_wedged(to_gt(i915)))
 		return 0;
 
 	return i915_live_subtests(tests, i915);

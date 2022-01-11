@@ -48,8 +48,10 @@ description: |
         sdx65
         sm7225
         sm8150
+        sdx65
         sm8250
         sm8350
+        sm8450
 
   The 'board' element must be one of the following strings:
 
@@ -201,8 +203,10 @@ properties:
 
       - items:
           - enum:
+              - qcom,sc7280-crd
               - qcom,sc7280-idp
               - qcom,sc7280-idp2
+              - google,hoglin
               - google,piglin
               - google,senor
           - const: qcom,sc7280
@@ -218,6 +222,11 @@ properties:
               - qcom,sdx55-telit-fn980-tlb
               - qcom,sdx55-t55
           - const: qcom,sdx55
+
+      - items:
+          - enum:
+              - qcom,sdx65-mtp
+          - const: qcom,sdx65
 
       - items:
           - enum:
@@ -256,6 +265,11 @@ properties:
               - qcom,sm8350-hdk
               - qcom,sm8350-mtp
           - const: qcom,sm8350
+
+      - items:
+          - enum:
+              - qcom,sm8450-qrd
+          - const: qcom,sm8450
 
 additionalProperties: true
 

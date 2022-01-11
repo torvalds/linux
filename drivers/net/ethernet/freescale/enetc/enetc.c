@@ -1547,7 +1547,7 @@ static int enetc_clean_rx_ring_xdp(struct enetc_bdr *rx_ring,
 
 		switch (xdp_act) {
 		default:
-			bpf_warn_invalid_xdp_action(xdp_act);
+			bpf_warn_invalid_xdp_action(rx_ring->ndev, prog, xdp_act);
 			fallthrough;
 		case XDP_ABORTED:
 			trace_xdp_exception(rx_ring->ndev, prog, xdp_act);
@@ -2897,12 +2897,8 @@ int enetc_pci_probe(struct pci_dev *pdev, const char *name, int sizeof_priv)
 	/* set up for high or low dma */
 	err = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64));
 	if (err) {
-		err = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
-		if (err) {
-			dev_err(&pdev->dev,
-				"DMA configuration failed: 0x%x\n", err);
-			goto err_dma;
-		}
+		dev_err(&pdev->dev, "DMA configuration failed: 0x%x\n", err);
+		goto err_dma;
 	}
 
 	err = pci_request_mem_regions(pdev, name);

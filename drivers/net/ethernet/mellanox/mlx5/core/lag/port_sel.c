@@ -608,4 +608,5 @@ void mlx5_lag_port_sel_destroy(struct mlx5_lag *ldev)
 	if (port_sel->tunnel)
 		mlx5_destroy_ttc_table(port_sel->inner.ttc);
 	mlx5_lag_destroy_definers(ldev);
+	memset(port_sel, 0, sizeof(*port_sel));
 }

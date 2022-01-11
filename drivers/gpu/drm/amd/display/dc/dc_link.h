@@ -30,6 +30,8 @@
 #include "dc_types.h"
 #include "grph_object_defs.h"
 
+struct link_resource;
+
 enum dc_link_fec_state {
 	dc_link_fec_not_ready,
 	dc_link_fec_ready,
@@ -113,6 +115,7 @@ struct dc_link {
 	 * DIG encoder. */
 	bool is_dig_mapping_flexible;
 	bool hpd_status; /* HPD status of link without physical HPD pin. */
+	bool is_hpd_pending; /* Indicates a new received hpd */
 
 	bool edp_sink_present;
 
@@ -159,9 +162,6 @@ struct dc_link {
 
 	struct panel_cntl *panel_cntl;
 	struct link_encoder *link_enc;
-#if defined(CONFIG_DRM_AMD_DC_DCN)
-	struct hpo_dp_link_encoder *hpo_dp_link_enc;
-#endif
 	struct graphics_object_id link_id;
 	/* Endpoint type distinguishes display endpoints which do not have entries
 	 * in the BIOS connector table from those that do. Helps when tracking link
@@ -185,12 +185,18 @@ struct dc_link {
 	/* Drive settings read from integrated info table */
 	struct dc_lane_settings bios_forced_drive_settings;
 
+	/* Vendor specific LTTPR workaround variables */
+	uint8_t vendor_specific_lttpr_link_rate_wa;
+	bool apply_vendor_specific_lttpr_link_rate_wa;
+
 	/* MST record stream using this link */
 	struct link_flags {
 		bool dp_keep_receiver_powered;
 		bool dp_skip_DID2;
 		bool dp_skip_reset_segment;
 		bool dp_mot_reset_segment;
+		/* Some USB4 docks do not handle turning off MST DSC once it has been enabled. */
+		bool dpia_mst_dsc_always_on;
 	} wa_flags;
 	struct link_mst_stream_allocation_table mst_stream_alloc_table;
 
@@ -224,6 +230,8 @@ static inline void get_edp_links(const struct dc *dc,
 	*edp_num = 0;
 	for (i = 0; i < dc->link_count; i++) {
 		// report any eDP links, even unconnected DDI's
+		if (!dc->links[i])
+			continue;
 		if (dc->links[i]->connector_signal == SIGNAL_TYPE_EDP) {
 			edp_links[*edp_num] = dc->links[i];
 			if (++(*edp_num) == MAX_NUM_EDP)
@@ -287,6 +295,10 @@ bool dc_link_setup_psr(struct dc_link *dc_link,
 
 void dc_link_get_psr_residency(const struct dc_link *link, uint32_t *residency);
 
+void dc_link_blank_all_dp_displays(struct dc *dc);
+
+void dc_link_blank_dp_stream(struct dc_link *link, bool hw_init);
+
 /* Request DC to detect if there is a Panel connected.
  * boot - If this call is during initial boot.
  * Return false for any type of detection failure or MST detection
@@ -298,7 +310,7 @@ enum dc_detect_reason {
 	DETECT_REASON_HPD,
 	DETECT_REASON_HPDRX,
 	DETECT_REASON_FALLBACK,
-	DETECT_REASON_RETRAIN
+	DETECT_REASON_RETRAIN,
 };
 
 bool dc_link_detect(struct dc_link *dc_link, enum dc_detect_reason reason);
@@ -346,14 +358,17 @@ void dc_link_remove_remote_sink(
 
 void dc_link_dp_set_drive_settings(
 	struct dc_link *link,
+	const struct link_resource *link_res,
 	struct link_training_settings *lt_settings);
 
 bool dc_link_dp_perform_link_training_skip_aux(
 	struct dc_link *link,
+	const struct link_resource *link_res,
 	const struct dc_link_settings *link_setting);
 
 enum link_training_result dc_link_dp_perform_link_training(
 	struct dc_link *link,
+	const struct link_resource *link_res,
 	const struct dc_link_settings *link_settings,
 	bool skip_video_pattern);
 
@@ -361,6 +376,7 @@ bool dc_link_dp_sync_lt_begin(struct dc_link *link);
 
 enum link_training_result dc_link_dp_sync_lt_attempt(
 	struct dc_link *link,
+	const struct link_resource *link_res,
 	struct dc_link_settings *link_setting,
 	struct dc_link_training_overrides *lt_settings);
 
@@ -438,6 +454,13 @@ bool dc_link_is_fec_supported(const struct dc_link *link);
 bool dc_link_should_enable_fec(const struct dc_link *link);
 
 #if defined(CONFIG_DRM_AMD_DC_DCN)
+uint32_t dc_link_bw_kbps_from_raw_frl_link_rate_data(uint8_t bw);
 enum dp_link_encoding dc_link_dp_mst_decide_link_encoding_format(const struct dc_link *link);
 #endif
+
+const struct link_resource *dc_link_get_cur_link_res(const struct dc_link *link);
+/* take a snapshot of current link resource allocation state */
+void dc_get_cur_link_res_map(const struct dc *dc, uint32_t *map);
+/* restore link resource allocation state from a snapshot */
+void dc_restore_link_res_map(const struct dc *dc, uint32_t *map);
 #endif /* DC_LINK_H_ */

@@ -54,21 +54,13 @@ struct smc_wr_tx_pend {	/* control data for a pending send request */
 /* returns true if at least one tx work request is pending on the given link */
 static inline bool smc_wr_is_tx_pend(struct smc_link *link)
 {
-	if (find_first_bit(link->wr_tx_mask, link->wr_tx_cnt) !=
-							link->wr_tx_cnt) {
-		return true;
-	}
-	return false;
+	return !bitmap_empty(link->wr_tx_mask, link->wr_tx_cnt);
 }
 
 /* wait till all pending tx work requests on the given link are completed */
-int smc_wr_tx_wait_no_pending_sends(struct smc_link *link)
+void smc_wr_tx_wait_no_pending_sends(struct smc_link *link)
 {
-	if (wait_event_timeout(link->wr_tx_wait, !smc_wr_is_tx_pend(link),
-			       SMC_WR_TX_WAIT_PENDING_TIME))
-		return 0;
-	else /* timeout */
-		return -EPIPE;
+	wait_event(link->wr_tx_wait, !smc_wr_is_tx_pend(link));
 }
 
 static inline int smc_wr_tx_find_pending_index(struct smc_link *link, u64 wr_id)
@@ -87,7 +79,6 @@ static inline void smc_wr_tx_process_cqe(struct ib_wc *wc)
 	struct smc_wr_tx_pend pnd_snd;
 	struct smc_link *link;
 	u32 pnd_snd_idx;
-	int i;
 
 	link = wc->qp->qp_context;
 
@@ -128,14 +119,6 @@ static inline void smc_wr_tx_process_cqe(struct ib_wc *wc)
 	}
 
 	if (wc->status) {
-		for_each_set_bit(i, link->wr_tx_mask, link->wr_tx_cnt) {
-			/* clear full struct smc_wr_tx_pend including .priv */
-			memset(&link->wr_tx_pends[i], 0,
-			       sizeof(link->wr_tx_pends[i]));
-			memset(&link->wr_tx_bufs[i], 0,
-			       sizeof(link->wr_tx_bufs[i]));
-			clear_bit(i, link->wr_tx_mask);
-		}
 		if (link->lgr->smc_version == SMC_V2) {
 			memset(link->wr_tx_v2_pend, 0,
 			       sizeof(*link->wr_tx_v2_pend));
@@ -188,7 +171,7 @@ void smc_wr_tx_cq_handler(struct ib_cq *ib_cq, void *cq_context)
 static inline int smc_wr_tx_get_free_slot_index(struct smc_link *link, u32 *idx)
 {
 	*idx = link->wr_tx_cnt;
-	if (!smc_link_usable(link))
+	if (!smc_link_sendable(link))
 		return -ENOLINK;
 	for_each_clear_bit(*idx, link->wr_tx_mask, link->wr_tx_cnt) {
 		if (!test_and_set_bit(*idx, link->wr_tx_mask))
@@ -231,7 +214,7 @@ int smc_wr_tx_get_free_slot(struct smc_link *link,
 	} else {
 		rc = wait_event_interruptible_timeout(
 			link->wr_tx_wait,
-			!smc_link_usable(link) ||
+			!smc_link_sendable(link) ||
 			lgr->terminating ||
 			(smc_wr_tx_get_free_slot_index(link, &idx) != -EBUSY),
 			SMC_WR_TX_WAIT_FREE_SLOT_TIME);
@@ -358,18 +341,20 @@ int smc_wr_tx_send_wait(struct smc_link *link, struct smc_wr_tx_pend_priv *priv,
 			unsigned long timeout)
 {
 	struct smc_wr_tx_pend *pend;
+	u32 pnd_idx;
 	int rc;
 
 	pend = container_of(priv, struct smc_wr_tx_pend, priv);
 	pend->compl_requested = 1;
-	init_completion(&link->wr_tx_compl[pend->idx]);
+	pnd_idx = pend->idx;
+	init_completion(&link->wr_tx_compl[pnd_idx]);
 
 	rc = smc_wr_tx_send(link, priv);
 	if (rc)
 		return rc;
 	/* wait for completion by smc_wr_tx_process_cqe() */
 	rc = wait_for_completion_interruptible_timeout(
-					&link->wr_tx_compl[pend->idx], timeout);
+					&link->wr_tx_compl[pnd_idx], timeout);
 	if (rc <= 0)
 		rc = -ENODATA;
 	if (rc > 0)
@@ -417,25 +402,6 @@ int smc_wr_reg_send(struct smc_link *link, struct ib_mr *mr)
 		break;
 	}
 	return rc;
-}
-
-void smc_wr_tx_dismiss_slots(struct smc_link *link, u8 wr_tx_hdr_type,
-			     smc_wr_tx_filter filter,
-			     smc_wr_tx_dismisser dismisser,
-			     unsigned long data)
-{
-	struct smc_wr_tx_pend_priv *tx_pend;
-	struct smc_wr_rx_hdr *wr_tx;
-	int i;
-
-	for_each_set_bit(i, link->wr_tx_mask, link->wr_tx_cnt) {
-		wr_tx = (struct smc_wr_rx_hdr *)&link->wr_tx_bufs[i];
-		if (wr_tx->type != wr_tx_hdr_type)
-			continue;
-		tx_pend = &link->wr_tx_pends[i].priv;
-		if (filter(tx_pend, data))
-			dismisser(tx_pend);
-	}
 }
 
 /****************************** receive queue ********************************/
@@ -673,10 +639,7 @@ void smc_wr_free_link(struct smc_link *lnk)
 	smc_wr_wakeup_reg_wait(lnk);
 	smc_wr_wakeup_tx_wait(lnk);
 
-	if (smc_wr_tx_wait_no_pending_sends(lnk))
-		memset(lnk->wr_tx_mask, 0,
-		       BITS_TO_LONGS(SMC_WR_BUF_CNT) *
-						sizeof(*lnk->wr_tx_mask));
+	smc_wr_tx_wait_no_pending_sends(lnk);
 	wait_event(lnk->wr_reg_wait, (!atomic_read(&lnk->wr_reg_refcnt)));
 	wait_event(lnk->wr_tx_wait, (!atomic_read(&lnk->wr_tx_refcnt)));
 
@@ -729,7 +692,7 @@ void smc_wr_free_link_mem(struct smc_link *lnk)
 	lnk->wr_tx_compl = NULL;
 	kfree(lnk->wr_tx_pends);
 	lnk->wr_tx_pends = NULL;
-	kfree(lnk->wr_tx_mask);
+	bitmap_free(lnk->wr_tx_mask);
 	lnk->wr_tx_mask = NULL;
 	kfree(lnk->wr_tx_sges);
 	lnk->wr_tx_sges = NULL;
@@ -805,9 +768,7 @@ int smc_wr_alloc_link_mem(struct smc_link *link)
 				   GFP_KERNEL);
 	if (!link->wr_rx_sges)
 		goto no_mem_wr_tx_sges;
-	link->wr_tx_mask = kcalloc(BITS_TO_LONGS(SMC_WR_BUF_CNT),
-				   sizeof(*link->wr_tx_mask),
-				   GFP_KERNEL);
+	link->wr_tx_mask = bitmap_zalloc(SMC_WR_BUF_CNT, GFP_KERNEL);
 	if (!link->wr_tx_mask)
 		goto no_mem_wr_rx_sges;
 	link->wr_tx_pends = kcalloc(SMC_WR_BUF_CNT,
@@ -920,8 +881,7 @@ int smc_wr_create_link(struct smc_link *lnk)
 		goto dma_unmap;
 	}
 	smc_wr_init_sge(lnk);
-	memset(lnk->wr_tx_mask, 0,
-	       BITS_TO_LONGS(SMC_WR_BUF_CNT) * sizeof(*lnk->wr_tx_mask));
+	bitmap_zero(lnk->wr_tx_mask, SMC_WR_BUF_CNT);
 	init_waitqueue_head(&lnk->wr_tx_wait);
 	atomic_set(&lnk->wr_tx_refcnt, 0);
 	init_waitqueue_head(&lnk->wr_reg_wait);

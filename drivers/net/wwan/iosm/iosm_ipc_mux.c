@@ -97,7 +97,7 @@ static bool ipc_mux_session_open(struct iosm_mux *ipc_mux,
 
 	/* Search for a free session interface id. */
 	if_id = le32_to_cpu(session_open->if_id);
-	if (if_id < 0 || if_id >= ipc_mux->nr_sessions) {
+	if (if_id < 0 || if_id >= IPC_MEM_MUX_IP_SESSION_ENTRIES) {
 		dev_err(ipc_mux->dev, "invalid interface id=%d", if_id);
 		return false;
 	}
@@ -129,6 +129,7 @@ static bool ipc_mux_session_open(struct iosm_mux *ipc_mux,
 
 	/* Save and return the assigned if id. */
 	session_open->if_id = cpu_to_le32(if_id);
+	ipc_mux->nr_sessions++;
 
 	return true;
 }
@@ -151,7 +152,7 @@ static void ipc_mux_session_close(struct iosm_mux *ipc_mux,
 	/* Copy the session interface id. */
 	if_id = le32_to_cpu(msg->if_id);
 
-	if (if_id < 0 || if_id >= ipc_mux->nr_sessions) {
+	if (if_id < 0 || if_id >= IPC_MEM_MUX_IP_SESSION_ENTRIES) {
 		dev_err(ipc_mux->dev, "invalid session id %d", if_id);
 		return;
 	}
@@ -170,6 +171,7 @@ static void ipc_mux_session_close(struct iosm_mux *ipc_mux,
 	ipc_mux->session[if_id].flow_ctl_mask = 0;
 
 	ipc_mux_session_reset(ipc_mux, if_id);
+	ipc_mux->nr_sessions--;
 }
 
 static void ipc_mux_channel_close(struct iosm_mux *ipc_mux,
@@ -178,7 +180,7 @@ static void ipc_mux_channel_close(struct iosm_mux *ipc_mux,
 	int i;
 
 	/* Free pending session UL packet. */
-	for (i = 0; i < ipc_mux->nr_sessions; i++)
+	for (i = 0; i < IPC_MEM_MUX_IP_SESSION_ENTRIES; i++)
 		if (ipc_mux->session[i].wwan)
 			ipc_mux_session_reset(ipc_mux, i);
 
@@ -244,6 +246,11 @@ static int ipc_mux_schedule(struct iosm_mux *ipc_mux, union mux_msg *msg)
 			/* Release an IP session. */
 			ipc_mux->event = MUX_E_MUX_SESSION_CLOSE;
 			ipc_mux_session_close(ipc_mux, &msg->session_close);
+			if (!ipc_mux->nr_sessions) {
+				ipc_mux->event = MUX_E_MUX_CHANNEL_CLOSE;
+				ipc_mux_channel_close(ipc_mux,
+						      &msg->channel_close);
+			}
 			ret = ipc_mux->channel_id;
 			goto out;
 
@@ -281,7 +288,6 @@ struct iosm_mux *ipc_mux_init(struct ipc_mux_config *mux_cfg,
 
 	ipc_mux->protocol = mux_cfg->protocol;
 	ipc_mux->ul_flow = mux_cfg->ul_flow;
-	ipc_mux->nr_sessions = mux_cfg->nr_sessions;
 	ipc_mux->instance_id = mux_cfg->instance_id;
 	ipc_mux->wwan_q_offset = 0;
 
@@ -340,7 +346,7 @@ static void ipc_mux_restart_tx_for_all_sessions(struct iosm_mux *ipc_mux)
 	struct mux_session *session;
 	int idx;
 
-	for (idx = 0; idx < ipc_mux->nr_sessions; idx++) {
+	for (idx = 0; idx < IPC_MEM_MUX_IP_SESSION_ENTRIES; idx++) {
 		session = &ipc_mux->session[idx];
 
 		if (!session->wwan)
@@ -365,7 +371,7 @@ static void ipc_mux_stop_netif_for_all_sessions(struct iosm_mux *ipc_mux)
 	struct mux_session *session;
 	int idx;
 
-	for (idx = 0; idx < ipc_mux->nr_sessions; idx++) {
+	for (idx = 0; idx < IPC_MEM_MUX_IP_SESSION_ENTRIES; idx++) {
 		session = &ipc_mux->session[idx];
 
 		if (!session->wwan)
@@ -387,7 +393,7 @@ void ipc_mux_check_n_restart_tx(struct iosm_mux *ipc_mux)
 
 int ipc_mux_get_max_sessions(struct iosm_mux *ipc_mux)
 {
-	return ipc_mux ? ipc_mux->nr_sessions : -EFAULT;
+	return ipc_mux ? IPC_MEM_MUX_IP_SESSION_ENTRIES : -EFAULT;
 }
 
 enum ipc_mux_protocol ipc_mux_get_active_protocol(struct iosm_mux *ipc_mux)
@@ -435,9 +441,11 @@ void ipc_mux_deinit(struct iosm_mux *ipc_mux)
 		return;
 	ipc_mux_stop_netif_for_all_sessions(ipc_mux);
 
-	channel_close = &mux_msg.channel_close;
-	channel_close->event = MUX_E_MUX_CHANNEL_CLOSE;
-	ipc_mux_schedule(ipc_mux, &mux_msg);
+	if (ipc_mux->state == MUX_S_ACTIVE) {
+		channel_close = &mux_msg.channel_close;
+		channel_close->event = MUX_E_MUX_CHANNEL_CLOSE;
+		ipc_mux_schedule(ipc_mux, &mux_msg);
+	}
 
 	/* Empty the ADB free list. */
 	free_list = &ipc_mux->ul_adb.free_list;

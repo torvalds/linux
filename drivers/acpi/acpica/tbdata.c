@@ -89,14 +89,27 @@ acpi_tb_init_table_descriptor(struct acpi_table_desc *table_desc,
 {
 
 	/*
-	 * Initialize the table descriptor. Set the pointer to NULL, since the
-	 * table is not fully mapped at this time.
+	 * Initialize the table descriptor. Set the pointer to NULL for external
+	 * tables, since the table is not fully mapped at this time.
 	 */
 	memset(table_desc, 0, sizeof(struct acpi_table_desc));
 	table_desc->address = address;
 	table_desc->length = table->length;
 	table_desc->flags = flags;
 	ACPI_MOVE_32_TO_32(table_desc->signature.ascii, table->signature);
+
+	switch (table_desc->flags & ACPI_TABLE_ORIGIN_MASK) {
+	case ACPI_TABLE_ORIGIN_INTERNAL_VIRTUAL:
+	case ACPI_TABLE_ORIGIN_EXTERNAL_VIRTUAL:
+
+		table_desc->pointer = table;
+		break;
+
+	case ACPI_TABLE_ORIGIN_INTERNAL_PHYSICAL:
+	default:
+
+		break;
+	}
 }
 
 /*******************************************************************************
@@ -132,9 +145,7 @@ acpi_tb_acquire_table(struct acpi_table_desc *table_desc,
 	case ACPI_TABLE_ORIGIN_INTERNAL_VIRTUAL:
 	case ACPI_TABLE_ORIGIN_EXTERNAL_VIRTUAL:
 
-		table = ACPI_CAST_PTR(struct acpi_table_header,
-				      ACPI_PHYSADDR_TO_PTR(table_desc->
-							   address));
+		table = table_desc->pointer;
 		break;
 
 	default:
@@ -196,6 +207,8 @@ acpi_tb_release_table(struct acpi_table_header *table,
  * PARAMETERS:  table_desc          - Table descriptor to be acquired
  *              address             - Address of the table
  *              flags               - Allocation flags of the table
+ *              table               - Pointer to the table (required for virtual
+ *                                    origins, optional for physical)
  *
  * RETURN:      Status
  *
@@ -208,49 +221,52 @@ acpi_tb_release_table(struct acpi_table_header *table,
 
 acpi_status
 acpi_tb_acquire_temp_table(struct acpi_table_desc *table_desc,
-			   acpi_physical_address address, u8 flags)
+			   acpi_physical_address address,
+			   u8 flags, struct acpi_table_header *table)
 {
-	struct acpi_table_header *table_header;
+	u8 mapped_table = FALSE;
 
 	switch (flags & ACPI_TABLE_ORIGIN_MASK) {
 	case ACPI_TABLE_ORIGIN_INTERNAL_PHYSICAL:
 
 		/* Get the length of the full table from the header */
 
-		table_header =
-		    acpi_os_map_memory(address,
-				       sizeof(struct acpi_table_header));
-		if (!table_header) {
-			return (AE_NO_MEMORY);
+		if (!table) {
+			table =
+			    acpi_os_map_memory(address,
+					       sizeof(struct
+						      acpi_table_header));
+			if (!table) {
+				return (AE_NO_MEMORY);
+			}
+
+			mapped_table = TRUE;
 		}
 
-		acpi_tb_init_table_descriptor(table_desc, address, flags,
-					      table_header);
-		acpi_os_unmap_memory(table_header,
-				     sizeof(struct acpi_table_header));
-		return (AE_OK);
+		break;
 
 	case ACPI_TABLE_ORIGIN_INTERNAL_VIRTUAL:
 	case ACPI_TABLE_ORIGIN_EXTERNAL_VIRTUAL:
 
-		table_header = ACPI_CAST_PTR(struct acpi_table_header,
-					     ACPI_PHYSADDR_TO_PTR(address));
-		if (!table_header) {
-			return (AE_NO_MEMORY);
+		if (!table) {
+			return (AE_BAD_PARAMETER);
 		}
 
-		acpi_tb_init_table_descriptor(table_desc, address, flags,
-					      table_header);
-		return (AE_OK);
+		break;
 
 	default:
 
-		break;
+		/* Table is not valid yet */
+
+		return (AE_NO_MEMORY);
 	}
 
-	/* Table is not valid yet */
+	acpi_tb_init_table_descriptor(table_desc, address, flags, table);
+	if (mapped_table) {
+		acpi_os_unmap_memory(table, sizeof(struct acpi_table_header));
+	}
 
-	return (AE_NO_MEMORY);
+	return (AE_OK);
 }
 
 /*******************************************************************************
@@ -335,7 +351,19 @@ void acpi_tb_invalidate_table(struct acpi_table_desc *table_desc)
 
 	acpi_tb_release_table(table_desc->pointer, table_desc->length,
 			      table_desc->flags);
-	table_desc->pointer = NULL;
+
+	switch (table_desc->flags & ACPI_TABLE_ORIGIN_MASK) {
+	case ACPI_TABLE_ORIGIN_INTERNAL_PHYSICAL:
+
+		table_desc->pointer = NULL;
+		break;
+
+	case ACPI_TABLE_ORIGIN_INTERNAL_VIRTUAL:
+	case ACPI_TABLE_ORIGIN_EXTERNAL_VIRTUAL:
+	default:
+
+		break;
+	}
 
 	return_VOID;
 }
@@ -959,6 +987,9 @@ acpi_tb_load_table(u32 table_index, struct acpi_namespace_node *parent_node)
  *
  * PARAMETERS:  address                 - Physical address of the table
  *              flags                   - Allocation flags of the table
+ *              table                   - Pointer to the table (required for
+ *                                        virtual origins, optional for
+ *                                        physical)
  *              override                - Whether override should be performed
  *              table_index             - Where table index is returned
  *
@@ -970,7 +1001,9 @@ acpi_tb_load_table(u32 table_index, struct acpi_namespace_node *parent_node)
 
 acpi_status
 acpi_tb_install_and_load_table(acpi_physical_address address,
-			       u8 flags, u8 override, u32 *table_index)
+			       u8 flags,
+			       struct acpi_table_header *table,
+			       u8 override, u32 *table_index)
 {
 	acpi_status status;
 	u32 i;
@@ -979,7 +1012,7 @@ acpi_tb_install_and_load_table(acpi_physical_address address,
 
 	/* Install the table and load it into the namespace */
 
-	status = acpi_tb_install_standard_table(address, flags, TRUE,
+	status = acpi_tb_install_standard_table(address, flags, table, TRUE,
 						override, &i);
 	if (ACPI_FAILURE(status)) {
 		goto exit;

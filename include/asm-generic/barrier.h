@@ -251,5 +251,16 @@ do {									\
 #define pmem_wmb()	wmb()
 #endif
 
+/*
+ * ioremap_wc() maps I/O memory as memory with write-combining attributes. For
+ * this kind of memory accesses, the CPU may wait for prior accesses to be
+ * merged with subsequent ones. In some situation, such wait is bad for the
+ * performance. io_stop_wc() can be used to prevent the merging of
+ * write-combining memory accesses before this macro with those after it.
+ */
+#ifndef io_stop_wc
+#define io_stop_wc do { } while (0)
+#endif
+
 #endif /* !__ASSEMBLY__ */
 #endif /* __ASM_GENERIC_BARRIER_H */

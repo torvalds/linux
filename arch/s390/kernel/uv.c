@@ -30,7 +30,7 @@ int __bootdata_preserved(prot_virt_host);
 EXPORT_SYMBOL(prot_virt_host);
 EXPORT_SYMBOL(uv_info);
 
-static int __init uv_init(unsigned long stor_base, unsigned long stor_len)
+static int __init uv_init(phys_addr_t stor_base, unsigned long stor_len)
 {
 	struct uv_cb_init uvcb = {
 		.header.cmd = UVC_CMD_INIT_UV,
@@ -49,12 +49,12 @@ static int __init uv_init(unsigned long stor_base, unsigned long stor_len)
 
 void __init setup_uv(void)
 {
-	unsigned long uv_stor_base;
+	void *uv_stor_base;
 
 	if (!is_prot_virt_host())
 		return;
 
-	uv_stor_base = (unsigned long)memblock_alloc_try_nid(
+	uv_stor_base = memblock_alloc_try_nid(
 		uv_info.uv_base_stor_len, SZ_1M, SZ_2G,
 		MEMBLOCK_ALLOC_ACCESSIBLE, NUMA_NO_NODE);
 	if (!uv_stor_base) {
@@ -63,8 +63,8 @@ void __init setup_uv(void)
 		goto fail;
 	}
 
-	if (uv_init(uv_stor_base, uv_info.uv_base_stor_len)) {
-		memblock_phys_free(uv_stor_base, uv_info.uv_base_stor_len);
+	if (uv_init(__pa(uv_stor_base), uv_info.uv_base_stor_len)) {
+		memblock_free(uv_stor_base, uv_info.uv_base_stor_len);
 		goto fail;
 	}
 

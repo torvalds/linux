@@ -25,37 +25,10 @@
 
 #include <linux/types.h>
 #include <linux/list.h>
+#include <linux/kfd_sysfs.h>
 #include "kfd_crat.h"
 
 #define KFD_TOPOLOGY_PUBLIC_NAME_SIZE 32
-
-#define HSA_CAP_HOT_PLUGGABLE			0x00000001
-#define HSA_CAP_ATS_PRESENT			0x00000002
-#define HSA_CAP_SHARED_WITH_GRAPHICS		0x00000004
-#define HSA_CAP_QUEUE_SIZE_POW2			0x00000008
-#define HSA_CAP_QUEUE_SIZE_32BIT		0x00000010
-#define HSA_CAP_QUEUE_IDLE_EVENT		0x00000020
-#define HSA_CAP_VA_LIMIT			0x00000040
-#define HSA_CAP_WATCH_POINTS_SUPPORTED		0x00000080
-#define HSA_CAP_WATCH_POINTS_TOTALBITS_MASK	0x00000f00
-#define HSA_CAP_WATCH_POINTS_TOTALBITS_SHIFT	8
-#define HSA_CAP_DOORBELL_TYPE_TOTALBITS_MASK	0x00003000
-#define HSA_CAP_DOORBELL_TYPE_TOTALBITS_SHIFT	12
-
-#define HSA_CAP_DOORBELL_TYPE_PRE_1_0		0x0
-#define HSA_CAP_DOORBELL_TYPE_1_0		0x1
-#define HSA_CAP_DOORBELL_TYPE_2_0		0x2
-#define HSA_CAP_AQL_QUEUE_DOUBLE_MAP		0x00004000
-
-#define HSA_CAP_RESERVED_WAS_SRAM_EDCSUPPORTED	0x00080000 /* Old buggy user mode depends on this being 0 */
-#define HSA_CAP_MEM_EDCSUPPORTED		0x00100000
-#define HSA_CAP_RASEVENTNOTIFY			0x00200000
-#define HSA_CAP_ASIC_REVISION_MASK		0x03c00000
-#define HSA_CAP_ASIC_REVISION_SHIFT		22
-#define HSA_CAP_SRAM_EDCSUPPORTED		0x04000000
-#define HSA_CAP_SVMAPI_SUPPORTED		0x08000000
-#define HSA_CAP_FLAGS_COHERENTHOSTACCESS	0x10000000
-#define HSA_CAP_RESERVED			0xe00f8000
 
 struct kfd_node_properties {
 	uint64_t hive_id;
@@ -93,17 +66,6 @@ struct kfd_node_properties {
 	char name[KFD_TOPOLOGY_PUBLIC_NAME_SIZE];
 };
 
-#define HSA_MEM_HEAP_TYPE_SYSTEM	0
-#define HSA_MEM_HEAP_TYPE_FB_PUBLIC	1
-#define HSA_MEM_HEAP_TYPE_FB_PRIVATE	2
-#define HSA_MEM_HEAP_TYPE_GPU_GDS	3
-#define HSA_MEM_HEAP_TYPE_GPU_LDS	4
-#define HSA_MEM_HEAP_TYPE_GPU_SCRATCH	5
-
-#define HSA_MEM_FLAGS_HOT_PLUGGABLE		0x00000001
-#define HSA_MEM_FLAGS_NON_VOLATILE		0x00000002
-#define HSA_MEM_FLAGS_RESERVED			0xfffffffc
-
 struct kfd_mem_properties {
 	struct list_head	list;
 	uint32_t		heap_type;
@@ -115,12 +77,6 @@ struct kfd_mem_properties {
 	struct kobject		*kobj;
 	struct attribute	attr;
 };
-
-#define HSA_CACHE_TYPE_DATA		0x00000001
-#define HSA_CACHE_TYPE_INSTRUCTION	0x00000002
-#define HSA_CACHE_TYPE_CPU		0x00000004
-#define HSA_CACHE_TYPE_HSACU		0x00000008
-#define HSA_CACHE_TYPE_RESERVED		0xfffffff0
 
 struct kfd_cache_properties {
 	struct list_head	list;

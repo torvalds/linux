@@ -26,7 +26,6 @@
 			status = "okay";
 			bus-width = <8>;
 			non-removable;
-			only-1-8-v;
 		};
 
 		rtc@c2a0000 {

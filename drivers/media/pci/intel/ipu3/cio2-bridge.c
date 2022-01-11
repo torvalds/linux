@@ -3,6 +3,7 @@
 
 #include <linux/acpi.h>
 #include <linux/device.h>
+#include <linux/i2c.h>
 #include <linux/pci.h>
 #include <linux/property.h>
 #include <media/v4l2-fwnode.h>
@@ -21,7 +22,9 @@
  */
 static const struct cio2_sensor_config cio2_supported_sensors[] = {
 	/* Omnivision OV5693 */
-	CIO2_SENSOR_CONFIG("INT33BE", 0),
+	CIO2_SENSOR_CONFIG("INT33BE", 1, 419200000),
+	/* Omnivision OV8865 */
+	CIO2_SENSOR_CONFIG("INT347A", 1, 360000000),
 	/* Omnivision OV2680 */
 	CIO2_SENSOR_CONFIG("OVTI2680", 0),
 };
@@ -34,6 +37,18 @@ static const struct cio2_property_names prop_names = {
 	.data_lanes = "data-lanes",
 	.remote_endpoint = "remote-endpoint",
 	.link_frequencies = "link-frequencies",
+};
+
+static const char * const cio2_vcm_types[] = {
+	"ad5823",
+	"dw9714",
+	"ad5816",
+	"dw9719",
+	"dw9718",
+	"dw9806b",
+	"wv517s",
+	"lc898122xa",
+	"lc898212axb",
 };
 
 static int cio2_bridge_read_acpi_buffer(struct acpi_device *adev, char *id,
@@ -132,6 +147,12 @@ static void cio2_bridge_create_fwnode_properties(
 	sensor->dev_properties[2] = PROPERTY_ENTRY_U32(
 					sensor->prop_names.orientation,
 					orientation);
+	if (sensor->ssdb.vcmtype) {
+		sensor->vcm_ref[0] =
+			SOFTWARE_NODE_REFERENCE(&sensor->swnodes[SWNODE_VCM]);
+		sensor->dev_properties[3] =
+			PROPERTY_ENTRY_REF_ARRAY("lens-focus", sensor->vcm_ref);
+	}
 
 	sensor->ep_properties[0] = PROPERTY_ENTRY_U32(
 					sensor->prop_names.bus_type,
@@ -193,6 +214,33 @@ static void cio2_bridge_create_connection_swnodes(struct cio2_bridge *bridge,
 						sensor->node_names.endpoint,
 						&nodes[SWNODE_CIO2_PORT],
 						sensor->cio2_properties);
+	if (sensor->ssdb.vcmtype)
+		nodes[SWNODE_VCM] =
+			NODE_VCM(cio2_vcm_types[sensor->ssdb.vcmtype - 1]);
+}
+
+static void cio2_bridge_instantiate_vcm_i2c_client(struct cio2_sensor *sensor)
+{
+	struct i2c_board_info board_info = { };
+	char name[16];
+
+	if (!sensor->ssdb.vcmtype)
+		return;
+
+	snprintf(name, sizeof(name), "%s-VCM", acpi_dev_name(sensor->adev));
+	board_info.dev_name = name;
+	strscpy(board_info.type, cio2_vcm_types[sensor->ssdb.vcmtype - 1],
+		ARRAY_SIZE(board_info.type));
+	board_info.swnode = &sensor->swnodes[SWNODE_VCM];
+
+	sensor->vcm_i2c_client =
+		i2c_acpi_new_device_by_fwnode(acpi_fwnode_handle(sensor->adev),
+					      1, &board_info);
+	if (IS_ERR(sensor->vcm_i2c_client)) {
+		dev_warn(&sensor->adev->dev, "Error instantiation VCM i2c-client: %ld\n",
+			 PTR_ERR(sensor->vcm_i2c_client));
+		sensor->vcm_i2c_client = NULL;
+	}
 }
 
 static void cio2_bridge_unregister_sensors(struct cio2_bridge *bridge)
@@ -205,6 +253,7 @@ static void cio2_bridge_unregister_sensors(struct cio2_bridge *bridge)
 		software_node_unregister_nodes(sensor->swnodes);
 		ACPI_FREE(sensor->pld);
 		acpi_dev_put(sensor->adev);
+		i2c_unregister_device(sensor->vcm_i2c_client);
 	}
 }
 
@@ -237,9 +286,17 @@ static int cio2_bridge_connect_sensor(const struct cio2_sensor_config *cfg,
 		if (ret)
 			goto err_put_adev;
 
+		if (sensor->ssdb.vcmtype > ARRAY_SIZE(cio2_vcm_types)) {
+			dev_warn(&adev->dev, "Unknown VCM type %d\n",
+				 sensor->ssdb.vcmtype);
+			sensor->ssdb.vcmtype = 0;
+		}
+
 		status = acpi_get_physical_device_location(adev->handle, &sensor->pld);
-		if (ACPI_FAILURE(status))
+		if (ACPI_FAILURE(status)) {
+			ret = -ENODEV;
 			goto err_put_adev;
+		}
 
 		if (sensor->ssdb.lanes > CIO2_MAX_LANES) {
 			dev_err(&adev->dev,
@@ -264,6 +321,8 @@ static int cio2_bridge_connect_sensor(const struct cio2_sensor_config *cfg,
 
 		sensor->adev = acpi_dev_get(adev);
 		adev->fwnode.secondary = fwnode;
+
+		cio2_bridge_instantiate_vcm_i2c_client(sensor);
 
 		dev_info(&cio2->dev, "Found supported sensor %s\n",
 			 acpi_dev_name(adev));
@@ -304,6 +363,40 @@ err_unregister_sensors:
 	return ret;
 }
 
+/*
+ * The VCM cannot be probed until the PMIC is completely setup. We cannot rely
+ * on -EPROBE_DEFER for this, since the consumer<->supplier relations between
+ * the VCM and regulators/clks are not described in ACPI, instead they are
+ * passed as board-data to the PMIC drivers. Since -PROBE_DEFER does not work
+ * for the clks/regulators the VCM i2c-clients must not be instantiated until
+ * the PMIC is fully setup.
+ *
+ * The sensor/VCM ACPI device has an ACPI _DEP on the PMIC, check this using the
+ * acpi_dev_ready_for_enumeration() helper, like the i2c-core-acpi code does
+ * for the sensors.
+ */
+static int cio2_bridge_sensors_are_ready(void)
+{
+	struct acpi_device *adev;
+	bool ready = true;
+	unsigned int i;
+
+	for (i = 0; i < ARRAY_SIZE(cio2_supported_sensors); i++) {
+		const struct cio2_sensor_config *cfg =
+			&cio2_supported_sensors[i];
+
+		for_each_acpi_dev_match(adev, cfg->hid, NULL, -1) {
+			if (!adev->status.enabled)
+				continue;
+
+			if (!acpi_dev_ready_for_enumeration(adev))
+				ready = false;
+		}
+	}
+
+	return ready;
+}
+
 int cio2_bridge_init(struct pci_dev *cio2)
 {
 	struct device *dev = &cio2->dev;
@@ -311,6 +404,9 @@ int cio2_bridge_init(struct pci_dev *cio2)
 	struct cio2_bridge *bridge;
 	unsigned int i;
 	int ret;
+
+	if (!cio2_bridge_sensors_are_ready())
+		return -EPROBE_DEFER;
 
 	bridge = kzalloc(sizeof(*bridge), GFP_KERNEL);
 	if (!bridge)

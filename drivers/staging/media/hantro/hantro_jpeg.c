@@ -36,8 +36,6 @@ static const unsigned char luma_q_table[] = {
 	0x48, 0x5c, 0x5f, 0x62, 0x70, 0x64, 0x67, 0x63
 };
 
-static unsigned char luma_q_table_reordered[ARRAY_SIZE(luma_q_table)];
-
 static const unsigned char chroma_q_table[] = {
 	0x11, 0x12, 0x18, 0x2f, 0x63, 0x63, 0x63, 0x63,
 	0x12, 0x15, 0x1a, 0x42, 0x63, 0x63, 0x63, 0x63,
@@ -48,8 +46,6 @@ static const unsigned char chroma_q_table[] = {
 	0x63, 0x63, 0x63, 0x63, 0x63, 0x63, 0x63, 0x63,
 	0x63, 0x63, 0x63, 0x63, 0x63, 0x63, 0x63, 0x63
 };
-
-static unsigned char chroma_q_table_reordered[ARRAY_SIZE(chroma_q_table)];
 
 static const unsigned char zigzag[64] = {
 	 0,  1,  8, 16,  9,  2,  3, 10,
@@ -277,7 +273,7 @@ jpeg_scale_quant_table(unsigned char *file_q_tab,
 	}
 }
 
-static void jpeg_set_quality(unsigned char *buffer, int quality)
+static void jpeg_set_quality(struct hantro_jpeg_ctx *ctx)
 {
 	int scale;
 
@@ -285,24 +281,15 @@ static void jpeg_set_quality(unsigned char *buffer, int quality)
 	 * Non-linear scaling factor:
 	 * [5,50] -> [1000..100], [51,100] -> [98..0]
 	 */
-	if (quality < 50)
-		scale = 5000 / quality;
+	if (ctx->quality < 50)
+		scale = 5000 / ctx->quality;
 	else
-		scale = 200 - 2 * quality;
+		scale = 200 - 2 * ctx->quality;
 
-	jpeg_scale_quant_table(buffer + LUMA_QUANT_OFF,
-			       luma_q_table_reordered,
-			       luma_q_table, scale);
-	jpeg_scale_quant_table(buffer + CHROMA_QUANT_OFF,
-			       chroma_q_table_reordered,
-			       chroma_q_table, scale);
-}
-
-unsigned char *hantro_jpeg_get_qtable(int index)
-{
-	if (index == 0)
-		return luma_q_table_reordered;
-	return chroma_q_table_reordered;
+	jpeg_scale_quant_table(ctx->buffer + LUMA_QUANT_OFF,
+			       ctx->hw_luma_qtable, luma_q_table, scale);
+	jpeg_scale_quant_table(ctx->buffer + CHROMA_QUANT_OFF,
+			       ctx->hw_chroma_qtable, chroma_q_table, scale);
 }
 
 void hantro_jpeg_header_assemble(struct hantro_jpeg_ctx *ctx)
@@ -324,7 +311,7 @@ void hantro_jpeg_header_assemble(struct hantro_jpeg_ctx *ctx)
 	memcpy(buf + HUFF_CHROMA_AC_OFF, chroma_ac_table,
 	       sizeof(chroma_ac_table));
 
-	jpeg_set_quality(buf, ctx->quality);
+	jpeg_set_quality(ctx);
 }
 
 int hantro_jpeg_enc_init(struct hantro_ctx *ctx)

@@ -6380,12 +6380,13 @@ static int ath10k_hw_scan(struct ieee80211_hw *hw,
 		scan_timeout = min_t(u32, arg.max_rest_time *
 				(arg.n_channels - 1) + (req->duration +
 				ATH10K_SCAN_CHANNEL_SWITCH_WMI_EVT_OVERHEAD) *
-				arg.n_channels, arg.max_scan_time + 200);
-
+				arg.n_channels, arg.max_scan_time);
 	} else {
-		/* Add a 200ms margin to account for event/command processing */
-		scan_timeout = arg.max_scan_time + 200;
+		scan_timeout = arg.max_scan_time;
 	}
+
+	/* Add a 200ms margin to account for event/command processing */
+	scan_timeout += 200;
 
 	ret = ath10k_start_scan(ar, &arg);
 	if (ret) {

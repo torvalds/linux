@@ -5,7 +5,7 @@
  * Copyright 2006-2010	Johannes Berg <johannes@sipsolutions.net>
  * Copyright 2013-2015  Intel Mobile Communications GmbH
  * Copyright (C) 2015-2017 Intel Deutschland GmbH
- * Copyright (C) 2018-2020 Intel Corporation
+ * Copyright (C) 2018-2021 Intel Corporation
  */
 
 #include <linux/ieee80211.h>
@@ -1264,7 +1264,10 @@ static int ieee80211_start_ap(struct wiphy *wiphy, struct net_device *dev,
 	return 0;
 
 error:
+	mutex_lock(&local->mtx);
 	ieee80211_vif_release_channel(sdata);
+	mutex_unlock(&local->mtx);
+
 	return err;
 }
 
@@ -3198,6 +3201,18 @@ void ieee80211_csa_finish(struct ieee80211_vif *vif)
 }
 EXPORT_SYMBOL(ieee80211_csa_finish);
 
+void ieee80211_channel_switch_disconnect(struct ieee80211_vif *vif, bool block_tx)
+{
+	struct ieee80211_sub_if_data *sdata = vif_to_sdata(vif);
+	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
+	struct ieee80211_local *local = sdata->local;
+
+	sdata->csa_block_tx = block_tx;
+	sdata_info(sdata, "channel switch failed, disconnecting\n");
+	ieee80211_queue_work(&local->hw, &ifmgd->csa_connection_drop_work);
+}
+EXPORT_SYMBOL(ieee80211_channel_switch_disconnect);
+
 static int ieee80211_set_after_csa_beacon(struct ieee80211_sub_if_data *sdata,
 					  u32 *changed)
 {
@@ -4268,6 +4283,21 @@ ieee80211_color_change_bss_config_notify(struct ieee80211_sub_if_data *sdata,
 	changed |= BSS_CHANGED_HE_BSS_COLOR;
 
 	ieee80211_bss_info_change_notify(sdata, changed);
+
+	if (!sdata->vif.bss_conf.nontransmitted && sdata->vif.mbssid_tx_vif) {
+		struct ieee80211_sub_if_data *child;
+
+		mutex_lock(&sdata->local->iflist_mtx);
+		list_for_each_entry(child, &sdata->local->interfaces, list) {
+			if (child != sdata && child->vif.mbssid_tx_vif == &sdata->vif) {
+				child->vif.bss_conf.he_bss_color.color = color;
+				child->vif.bss_conf.he_bss_color.enabled = enable;
+				ieee80211_bss_info_change_notify(child,
+								 BSS_CHANGED_HE_BSS_COLOR);
+			}
+		}
+		mutex_unlock(&sdata->local->iflist_mtx);
+	}
 }
 
 static int ieee80211_color_change_finalize(struct ieee80211_sub_if_data *sdata)
@@ -4352,6 +4382,9 @@ ieee80211_color_change(struct wiphy *wiphy, struct net_device *dev,
 
 	sdata_assert_lock(sdata);
 
+	if (sdata->vif.bss_conf.nontransmitted)
+		return -EINVAL;
+
 	mutex_lock(&local->mtx);
 
 	/* don't allow another color change if one is already active or if csa
@@ -4381,6 +4414,18 @@ out:
 	mutex_unlock(&local->mtx);
 
 	return err;
+}
+
+static int
+ieee80211_set_radar_background(struct wiphy *wiphy,
+			       struct cfg80211_chan_def *chandef)
+{
+	struct ieee80211_local *local = wiphy_priv(wiphy);
+
+	if (!local->ops->set_radar_background)
+		return -EOPNOTSUPP;
+
+	return local->ops->set_radar_background(&local->hw, chandef);
 }
 
 const struct cfg80211_ops mac80211_config_ops = {
@@ -4487,4 +4532,5 @@ const struct cfg80211_ops mac80211_config_ops = {
 	.reset_tid_config = ieee80211_reset_tid_config,
 	.set_sar_specs = ieee80211_set_sar_specs,
 	.color_change = ieee80211_color_change,
+	.set_radar_background = ieee80211_set_radar_background,
 };

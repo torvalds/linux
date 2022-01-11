@@ -56,11 +56,11 @@ static void setaffinity(void)
 
 void test_test_overhead(void)
 {
-	const char *kprobe_name = "kprobe/__set_task_comm";
-	const char *kretprobe_name = "kretprobe/__set_task_comm";
-	const char *raw_tp_name = "raw_tp/task_rename";
-	const char *fentry_name = "fentry/__set_task_comm";
-	const char *fexit_name = "fexit/__set_task_comm";
+	const char *kprobe_name = "prog1";
+	const char *kretprobe_name = "prog2";
+	const char *raw_tp_name = "prog3";
+	const char *fentry_name = "prog4";
+	const char *fexit_name = "prog5";
 	const char *kprobe_func = "__set_task_comm";
 	struct bpf_program *kprobe_prog, *kretprobe_prog, *raw_tp_prog;
 	struct bpf_program *fentry_prog, *fexit_prog;
@@ -76,23 +76,23 @@ void test_test_overhead(void)
 	if (!ASSERT_OK_PTR(obj, "obj_open_file"))
 		return;
 
-	kprobe_prog = bpf_object__find_program_by_title(obj, kprobe_name);
+	kprobe_prog = bpf_object__find_program_by_name(obj, kprobe_name);
 	if (CHECK(!kprobe_prog, "find_probe",
 		  "prog '%s' not found\n", kprobe_name))
 		goto cleanup;
-	kretprobe_prog = bpf_object__find_program_by_title(obj, kretprobe_name);
+	kretprobe_prog = bpf_object__find_program_by_name(obj, kretprobe_name);
 	if (CHECK(!kretprobe_prog, "find_probe",
 		  "prog '%s' not found\n", kretprobe_name))
 		goto cleanup;
-	raw_tp_prog = bpf_object__find_program_by_title(obj, raw_tp_name);
+	raw_tp_prog = bpf_object__find_program_by_name(obj, raw_tp_name);
 	if (CHECK(!raw_tp_prog, "find_probe",
 		  "prog '%s' not found\n", raw_tp_name))
 		goto cleanup;
-	fentry_prog = bpf_object__find_program_by_title(obj, fentry_name);
+	fentry_prog = bpf_object__find_program_by_name(obj, fentry_name);
 	if (CHECK(!fentry_prog, "find_probe",
 		  "prog '%s' not found\n", fentry_name))
 		goto cleanup;
-	fexit_prog = bpf_object__find_program_by_title(obj, fexit_name);
+	fexit_prog = bpf_object__find_program_by_name(obj, fexit_name);
 	if (CHECK(!fexit_prog, "find_probe",
 		  "prog '%s' not found\n", fexit_name))
 		goto cleanup;

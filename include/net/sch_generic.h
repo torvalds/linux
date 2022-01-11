@@ -125,7 +125,7 @@ struct Qdisc {
 	spinlock_t		seqlock;
 
 	struct rcu_head		rcu;
-
+	netdevice_tracker	dev_tracker;
 	/* private data */
 	long privdata[] ____cacheline_aligned;
 };
@@ -447,8 +447,6 @@ struct qdisc_skb_cb {
 	};
 #define QDISC_CB_PRIV_LEN 20
 	unsigned char		data[QDISC_CB_PRIV_LEN];
-	u16			mru;
-	bool			post_ct;
 };
 
 typedef void tcf_chain_head_change_t(struct tcf_proto *tp_head, void *priv);

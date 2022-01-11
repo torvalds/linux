@@ -82,7 +82,7 @@ static int mt76_rx_queues_read(struct seq_file *s, void *data)
 
 		queued = mt76_is_usb(dev) ? q->ndesc - q->queued : q->queued;
 		seq_printf(s, " %9d | %9d | %9d | %9d |\n",
-			   i, q->queued, q->head, q->tail);
+			   i, queued, q->head, q->tail);
 	}
 
 	return 0;

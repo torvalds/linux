@@ -367,6 +367,42 @@ mlxsw_##_type##_##_cname##_##_iname##_set(char *buf, u32 val)			\
 	__mlxsw_item_set32(buf, &__ITEM_NAME(_type, _cname, _iname), 0, val);	\
 }
 
+#define LOCAL_PORT_LSB_SIZE 8
+#define LOCAL_PORT_MSB_SIZE 2
+
+#define MLXSW_ITEM32_LP(_type, _cname, _offset1, _shift1, _offset2, _shift2)	\
+static struct mlxsw_item __ITEM_NAME(_type, _cname, local_port) = {		\
+	.offset = _offset1,							\
+	.shift = _shift1,							\
+	.size = {.bits = LOCAL_PORT_LSB_SIZE,},					\
+	.name = #_type "_" #_cname "_local_port",				\
+};										\
+static struct mlxsw_item __ITEM_NAME(_type, _cname, lp_msb) = {			\
+	.offset = _offset2,							\
+	.shift = _shift2,							\
+	.size = {.bits = LOCAL_PORT_MSB_SIZE,},					\
+	.name = #_type "_" #_cname "_lp_msb",					\
+};										\
+static inline u32 __maybe_unused						\
+mlxsw_##_type##_##_cname##_local_port_get(const char *buf)			\
+{										\
+	u32 local_port, lp_msb;							\
+										\
+	local_port = __mlxsw_item_get32(buf, &__ITEM_NAME(_type, _cname,	\
+					local_port), 0);			\
+	lp_msb = __mlxsw_item_get32(buf, &__ITEM_NAME(_type, _cname, lp_msb),	\
+				   0);						\
+	return (lp_msb << LOCAL_PORT_LSB_SIZE) + local_port;			\
+}										\
+static inline void __maybe_unused						\
+mlxsw_##_type##_##_cname##_local_port_set(char *buf, u32 val)			\
+{										\
+	__mlxsw_item_set32(buf, &__ITEM_NAME(_type, _cname, local_port), 0,	\
+			   val & ((1 << LOCAL_PORT_LSB_SIZE) - 1));		\
+	__mlxsw_item_set32(buf, &__ITEM_NAME(_type, _cname, lp_msb), 0,		\
+			   val >> LOCAL_PORT_LSB_SIZE);				\
+}
+
 #define MLXSW_ITEM32_INDEXED(_type, _cname, _iname, _offset, _shift, _sizebits,	\
 			     _step, _instepoffset, _norealshift)		\
 static struct mlxsw_item __ITEM_NAME(_type, _cname, _iname) = {			\

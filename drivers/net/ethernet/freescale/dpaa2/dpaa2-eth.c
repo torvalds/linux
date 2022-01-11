@@ -374,7 +374,7 @@ static u32 dpaa2_eth_run_xdp(struct dpaa2_eth_priv *priv,
 		dpaa2_eth_xdp_enqueue(priv, ch, fd, vaddr, rx_fq->flowid);
 		break;
 	default:
-		bpf_warn_invalid_xdp_action(xdp_act);
+		bpf_warn_invalid_xdp_action(priv->net_dev, xdp_prog, xdp_act);
 		fallthrough;
 	case XDP_ABORTED:
 		trace_xdp_exception(priv->net_dev, xdp_prog, xdp_act);
@@ -4549,6 +4549,8 @@ static int dpaa2_eth_remove(struct fsl_mc_device *ls_dev)
 	dpaa2_eth_free_dpni(priv);
 
 	fsl_mc_portal_free(priv->mc_io);
+
+	destroy_workqueue(priv->dpaa2_ptp_wq);
 
 	dev_dbg(net_dev->dev.parent, "Removed interface %s\n", net_dev->name);
 

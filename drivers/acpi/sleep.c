@@ -73,7 +73,6 @@ static int acpi_sleep_prepare(u32 acpi_state)
 		acpi_set_waking_vector(acpi_wakeup_address);
 
 	}
-	ACPI_FLUSH_CPU_CACHE();
 #endif
 	pr_info("Preparing to enter system sleep state S%d\n", acpi_state);
 	acpi_enable_wakeup_devices(acpi_state);
@@ -566,8 +565,6 @@ static int acpi_suspend_enter(suspend_state_t pm_state)
 	u32 acpi_state = acpi_target_sleep_state;
 	int error;
 
-	ACPI_FLUSH_CPU_CACHE();
-
 	trace_suspend_resume(TPS("acpi_suspend"), acpi_state, true);
 	switch (acpi_state) {
 	case ACPI_STATE_S1:
@@ -877,11 +874,11 @@ static inline void acpi_sleep_syscore_init(void) {}
 #ifdef CONFIG_HIBERNATION
 static unsigned long s4_hardware_signature;
 static struct acpi_table_facs *facs;
-static bool nosigcheck;
+static int sigcheck = -1; /* Default behaviour is just to warn */
 
-void __init acpi_no_s4_hw_signature(void)
+void __init acpi_check_s4_hw_signature(int check)
 {
-	nosigcheck = true;
+	sigcheck = check;
 }
 
 static int acpi_hibernation_begin(pm_message_t stage)
@@ -902,8 +899,6 @@ static int acpi_hibernation_begin(pm_message_t stage)
 static int acpi_hibernation_enter(void)
 {
 	acpi_status status = AE_OK;
-
-	ACPI_FLUSH_CPU_CACHE();
 
 	/* This shouldn't return.  If it returns, we have a problem */
 	status = acpi_enter_sleep_state(ACPI_STATE_S4);
@@ -1009,12 +1004,28 @@ static void acpi_sleep_hibernate_setup(void)
 	hibernation_set_ops(old_suspend_ordering ?
 			&acpi_hibernation_ops_old : &acpi_hibernation_ops);
 	sleep_states[ACPI_STATE_S4] = 1;
-	if (nosigcheck)
+	if (!sigcheck)
 		return;
 
 	acpi_get_table(ACPI_SIG_FACS, 1, (struct acpi_table_header **)&facs);
-	if (facs)
+	if (facs) {
+		/*
+		 * s4_hardware_signature is the local variable which is just
+		 * used to warn about mismatch after we're attempting to
+		 * resume (in violation of the ACPI specification.)
+		 */
 		s4_hardware_signature = facs->hardware_signature;
+
+		if (sigcheck > 0) {
+			/*
+			 * If we're actually obeying the ACPI specification
+			 * then the signature is written out as part of the
+			 * swsusp header, in order to allow the boot kernel
+			 * to gracefully decline to resume.
+			 */
+			swsusp_hardware_signature = facs->hardware_signature;
+		}
+	}
 }
 #else /* !CONFIG_HIBERNATION */
 static inline void acpi_sleep_hibernate_setup(void) {}

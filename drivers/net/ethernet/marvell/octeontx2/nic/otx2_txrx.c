@@ -1198,7 +1198,7 @@ static bool otx2_xdp_rcv_pkt_handler(struct otx2_nic *pfvf,
 		put_page(page);
 		break;
 	default:
-		bpf_warn_invalid_xdp_action(act);
+		bpf_warn_invalid_xdp_action(pfvf->netdev, prog, act);
 		break;
 	case XDP_ABORTED:
 		trace_xdp_exception(pfvf->netdev, prog, act);

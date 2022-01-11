@@ -287,7 +287,8 @@
 	spi@7000c380 {
 		status = "okay";
 		spi-max-frequency = <48000000>;
-		spi-flash@0 {
+
+		flash@0 {
 			compatible = "winbond,w25q80bl", "jedec,spi-nor";
 			reg = <0>;
 			spi-max-frequency = <48000000>;
@@ -321,6 +322,7 @@
 		nvidia,core-pwr-good-time = <3845 3845>;
 		nvidia,core-pwr-off-time = <3875>;
 		nvidia,sys-clock-req-active-high;
+		core-supply = <&vdd_core>;
 	};
 
 	pcie@80003000 {
@@ -348,8 +350,6 @@
 
 	usb@c5004000 {
 		status = "okay";
-		nvidia,phy-reset-gpio = <&gpio TEGRA_GPIO(V, 0)
-			GPIO_ACTIVE_LOW>;
 	};
 
 	usb-phy@c5004000 {
@@ -379,7 +379,7 @@
 		bus-width = <4>;
 	};
 
-	clk32k_in: clock@0 {
+	clk32k_in: clock-32k {
 		compatible = "fixed-clock";
 		clock-frequency = <32768>;
 		#clock-cells = <0>;
@@ -401,7 +401,7 @@
 		gpios = <&gpio TEGRA_GPIO(X, 7) GPIO_ACTIVE_LOW>;
 	};
 
-	hdmi_vdd_reg: regulator@0 {
+	hdmi_vdd_reg: regulator-hdmi {
 		compatible = "regulator-fixed";
 		regulator-name = "avdd_hdmi";
 		regulator-min-microvolt = <3300000>;
@@ -409,7 +409,7 @@
 		regulator-always-on;
 	};
 
-	hdmi_pll_reg: regulator@1 {
+	hdmi_pll_reg: regulator-hdmipll {
 		compatible = "regulator-fixed";
 		regulator-name = "avdd_hdmi_pll";
 		regulator-min-microvolt = <1800000>;
@@ -417,7 +417,7 @@
 		regulator-always-on;
 	};
 
-	vbus_reg: regulator@2 {
+	vbus_reg: regulator-vbus {
 		compatible = "regulator-fixed";
 		regulator-name = "usb1_vbus";
 		regulator-min-microvolt = <5000000>;
@@ -428,7 +428,7 @@
 		regulator-boot-on;
 	};
 
-	pci_clk_reg: regulator@3 {
+	pci_clk_reg: regulator-pciclk {
 		compatible = "regulator-fixed";
 		regulator-name = "pci_clk";
 		regulator-min-microvolt = <3300000>;
@@ -436,11 +436,19 @@
 		regulator-always-on;
 	};
 
-	pci_vdd_reg: regulator@4 {
+	pci_vdd_reg: regulator-pcivdd {
 		compatible = "regulator-fixed";
 		regulator-name = "pci_vdd";
 		regulator-min-microvolt = <1050000>;
 		regulator-max-microvolt = <1050000>;
+		regulator-always-on;
+	};
+
+	vdd_core: regulator-core {
+		compatible = "regulator-fixed";
+		regulator-name = "vdd_core";
+		regulator-min-microvolt = <1300000>;
+		regulator-max-microvolt = <1300000>;
 		regulator-always-on;
 	};
 

@@ -107,6 +107,7 @@
 #define RTL8365MB_LEARN_LIMIT_MAX_8365MB_VC	2112
 
 /* Family-specific data and limits */
+#define RTL8365MB_PHYADDRMAX	7
 #define RTL8365MB_NUM_PHYREGS	32
 #define RTL8365MB_PHYREGMAX	(RTL8365MB_NUM_PHYREGS - 1)
 #define RTL8365MB_MAX_NUM_PORTS	(RTL8365MB_CPU_PORT_NUM_8365MB_VC + 1)
@@ -176,7 +177,7 @@
 #define RTL8365MB_INDIRECT_ACCESS_STATUS_REG			0x1F01
 #define RTL8365MB_INDIRECT_ACCESS_ADDRESS_REG			0x1F02
 #define   RTL8365MB_INDIRECT_ACCESS_ADDRESS_OCPADR_5_1_MASK	GENMASK(4, 0)
-#define   RTL8365MB_INDIRECT_ACCESS_ADDRESS_PHYNUM_MASK		GENMASK(6, 5)
+#define   RTL8365MB_INDIRECT_ACCESS_ADDRESS_PHYNUM_MASK		GENMASK(7, 5)
 #define   RTL8365MB_INDIRECT_ACCESS_ADDRESS_OCPADR_9_6_MASK	GENMASK(11, 8)
 #define   RTL8365MB_PHY_BASE					0x2000
 #define RTL8365MB_INDIRECT_ACCESS_WRITE_DATA_REG		0x1F03
@@ -276,7 +277,7 @@
 		(RTL8365MB_PORT_ISOLATION_REG_BASE + (_physport))
 #define   RTL8365MB_PORT_ISOLATION_MASK			0x07FF
 
-/* MSTP port state registers - indexed by tree instancrSTI (tree ine */
+/* MSTP port state registers - indexed by tree instance */
 #define RTL8365MB_MSTI_CTRL_BASE			0x0A00
 #define RTL8365MB_MSTI_CTRL_REG(_msti, _physport) \
 		(RTL8365MB_MSTI_CTRL_BASE + ((_msti) << 1) + ((_physport) >> 3))
@@ -679,6 +680,9 @@ static int rtl8365mb_phy_read(struct realtek_smi *smi, int phy, int regnum)
 	u16 val;
 	int ret;
 
+	if (phy > RTL8365MB_PHYADDRMAX)
+		return -EINVAL;
+
 	if (regnum > RTL8365MB_PHYREGMAX)
 		return -EINVAL;
 
@@ -703,6 +707,9 @@ static int rtl8365mb_phy_write(struct realtek_smi *smi, int phy, int regnum,
 {
 	u32 ocp_addr;
 	int ret;
+
+	if (phy > RTL8365MB_PHYADDRMAX)
+		return -EINVAL;
 
 	if (regnum > RTL8365MB_PHYREGMAX)
 		return -EINVAL;
@@ -760,7 +767,8 @@ static int rtl8365mb_ext_config_rgmii(struct realtek_smi *smi, int port,
 	 *     0 = no delay, 1 = 2 ns delay
 	 *   RX delay:
 	 *     0 = no delay, 7 = maximum delay
-	 *     No units are specified, but there are a total of 8 steps.
+	 *     Each step is approximately 0.3 ns, so the maximum delay is about
+	 *     2.1 ns.
 	 *
 	 * The vendor driver also states that this must be configured *before*
 	 * forcing the external interface into a particular mode, which is done
@@ -771,10 +779,6 @@ static int rtl8365mb_ext_config_rgmii(struct realtek_smi *smi, int port,
 	 * specified. We ignore the detail of the RGMII interface mode
 	 * (RGMII_{RXID, TXID, etc.}), as this is considered to be a PHY-only
 	 * property.
-	 *
-	 * For the RX delay, we assume that a register value of 4 corresponds to
-	 * 2 ns. But this is just an educated guess, so ignore all other values
-	 * to avoid too much confusion.
 	 */
 	if (!of_property_read_u32(dn, "tx-internal-delay-ps", &val)) {
 		val = val / 1000; /* convert to ns */
@@ -787,13 +791,13 @@ static int rtl8365mb_ext_config_rgmii(struct realtek_smi *smi, int port,
 	}
 
 	if (!of_property_read_u32(dn, "rx-internal-delay-ps", &val)) {
-		val = val / 1000; /* convert to ns */
+		val = DIV_ROUND_CLOSEST(val, 300); /* convert to 0.3 ns step */
 
-		if (val == 0 || val == 2)
-			rx_delay = val * 2;
+		if (val <= 7)
+			rx_delay = val;
 		else
 			dev_warn(smi->dev,
-				 "EXT port RX delay must be 0 to 2 ns\n");
+				 "EXT port RX delay must be 0 to 2.1 ns\n");
 	}
 
 	ret = regmap_update_bits(
@@ -896,7 +900,8 @@ static bool rtl8365mb_phy_mode_supported(struct dsa_switch *ds, int port,
 {
 	if (dsa_is_user_port(ds, port) &&
 	    (interface == PHY_INTERFACE_MODE_NA ||
-	     interface == PHY_INTERFACE_MODE_INTERNAL))
+	     interface == PHY_INTERFACE_MODE_INTERNAL ||
+	     interface == PHY_INTERFACE_MODE_GMII))
 		/* Internal PHY */
 		return true;
 	else if (dsa_is_cpu_port(ds, port) &&

@@ -446,17 +446,17 @@ static bool gen8_gtt_test_present(struct intel_gvt_gtt_entry *e)
 			|| e->type == GTT_TYPE_PPGTT_ROOT_L4_ENTRY)
 		return (e->val64 != 0);
 	else
-		return (e->val64 & _PAGE_PRESENT);
+		return (e->val64 & GEN8_PAGE_PRESENT);
 }
 
 static void gtt_entry_clear_present(struct intel_gvt_gtt_entry *e)
 {
-	e->val64 &= ~_PAGE_PRESENT;
+	e->val64 &= ~GEN8_PAGE_PRESENT;
 }
 
 static void gtt_entry_set_present(struct intel_gvt_gtt_entry *e)
 {
-	e->val64 |= _PAGE_PRESENT;
+	e->val64 |= GEN8_PAGE_PRESENT;
 }
 
 static bool gen8_gtt_test_64k_splited(struct intel_gvt_gtt_entry *e)
@@ -2439,7 +2439,7 @@ static int alloc_scratch_pages(struct intel_vgpu *vgpu,
 		/* The entry parameters like present/writeable/cache type
 		 * set to the same as i915's scratch page tree.
 		 */
-		se.val64 |= _PAGE_PRESENT | _PAGE_RW;
+		se.val64 |= GEN8_PAGE_PRESENT | GEN8_PAGE_RW;
 		if (type == GTT_TYPE_PPGTT_PDE_PT)
 			se.val64 |= PPAT_CACHED;
 
@@ -2896,7 +2896,7 @@ void intel_gvt_restore_ggtt(struct intel_gvt *gvt)
 		offset = vgpu_aperture_gmadr_base(vgpu) >> PAGE_SHIFT;
 		for (idx = 0; idx < num_low; idx++) {
 			pte = mm->ggtt_mm.host_ggtt_aperture[idx];
-			if (pte & _PAGE_PRESENT)
+			if (pte & GEN8_PAGE_PRESENT)
 				write_pte64(vgpu->gvt->gt->ggtt, offset + idx, pte);
 		}
 
@@ -2904,7 +2904,7 @@ void intel_gvt_restore_ggtt(struct intel_gvt *gvt)
 		offset = vgpu_hidden_gmadr_base(vgpu) >> PAGE_SHIFT;
 		for (idx = 0; idx < num_hi; idx++) {
 			pte = mm->ggtt_mm.host_ggtt_hidden[idx];
-			if (pte & _PAGE_PRESENT)
+			if (pte & GEN8_PAGE_PRESENT)
 				write_pte64(vgpu->gvt->gt->ggtt, offset + idx, pte);
 		}
 	}

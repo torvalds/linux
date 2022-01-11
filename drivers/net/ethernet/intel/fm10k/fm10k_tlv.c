@@ -143,7 +143,7 @@ s32 fm10k_tlv_attr_put_mac_vlan(u32 *msg, u16 attr_id,
  *  @vlan: location of buffer to store VLAN
  *
  *  This function pulls the MAC address back out of the attribute and will
- *  place it in the array pointed by by mac_addr.  It will return success
+ *  place it in the array pointed by mac_addr.  It will return success
  *  if provided with a valid pointers.
  **/
 s32 fm10k_tlv_attr_get_mac_vlan(u32 *attr, u8 *mac_addr, u16 *vlan)

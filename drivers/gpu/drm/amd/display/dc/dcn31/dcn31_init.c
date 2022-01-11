@@ -31,6 +31,8 @@
 #include "dcn301/dcn301_hwseq.h"
 #include "dcn31/dcn31_hwseq.h"
 
+#include "dcn31_init.h"
+
 static const struct hw_sequencer_funcs dcn31_funcs = {
 	.program_gamut_remap = dcn10_program_gamut_remap,
 	.init_hw = dcn31_init_hw,
@@ -101,6 +103,8 @@ static const struct hw_sequencer_funcs dcn31_funcs = {
 	.z10_restore = dcn31_z10_restore,
 	.z10_save_init = dcn31_z10_save_init,
 	.set_disp_pattern_generator = dcn30_set_disp_pattern_generator,
+	.optimize_pwr_state = dcn21_optimize_pwr_state,
+	.exit_optimized_pwr_state = dcn21_exit_optimized_pwr_state,
 	.update_visual_confirm_color = dcn20_update_visual_confirm_color,
 };
 
@@ -148,5 +152,10 @@ void dcn31_hw_sequencer_construct(struct dc *dc)
 	if (IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment)) {
 		dc->hwss.init_hw = dcn20_fpga_init_hw;
 		dc->hwseq->funcs.init_pipes = NULL;
+	}
+	if (dc->debug.disable_z10) {
+		/*hw not support z10 or sw disable it*/
+		dc->hwss.z10_restore = NULL;
+		dc->hwss.z10_save_init = NULL;
 	}
 }

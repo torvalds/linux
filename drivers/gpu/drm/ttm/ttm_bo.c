@@ -727,6 +727,8 @@ int ttm_mem_evict_first(struct ttm_device *bdev,
 	ret = ttm_bo_evict(bo, ctx);
 	if (locked)
 		ttm_bo_unreserve(bo);
+	else
+		ttm_bo_move_to_lru_tail_unlocked(bo);
 
 	ttm_bo_put(bo);
 	return ret;
@@ -1084,7 +1086,6 @@ int ttm_bo_wait(struct ttm_buffer_object *bo,
 	if (timeout == 0)
 		return -EBUSY;
 
-	dma_resv_add_excl_fence(bo->base.resv, NULL);
 	return 0;
 }
 EXPORT_SYMBOL(ttm_bo_wait);
@@ -1103,7 +1104,7 @@ int ttm_bo_swapout(struct ttm_buffer_object *bo, struct ttm_operation_ctx *ctx,
 	 * as an indication that we're about to swap out.
 	 */
 	memset(&place, 0, sizeof(place));
-	place.mem_type = TTM_PL_SYSTEM;
+	place.mem_type = bo->resource->mem_type;
 	if (!ttm_bo_evict_swapout_allowable(bo, ctx, &place, &locked, NULL))
 		return -EBUSY;
 
@@ -1135,6 +1136,7 @@ int ttm_bo_swapout(struct ttm_buffer_object *bo, struct ttm_operation_ctx *ctx,
 		struct ttm_place hop;
 
 		memset(&hop, 0, sizeof(hop));
+		place.mem_type = TTM_PL_SYSTEM;
 		ret = ttm_resource_alloc(bo, &place, &evict_mem);
 		if (unlikely(ret))
 			goto out;

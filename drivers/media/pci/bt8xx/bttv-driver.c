@@ -170,14 +170,14 @@ MODULE_VERSION(BTTV_VERSION);
 /* ----------------------------------------------------------------------- */
 /* sysfs                                                                   */
 
-static ssize_t show_card(struct device *cd,
+static ssize_t card_show(struct device *cd,
 			 struct device_attribute *attr, char *buf)
 {
 	struct video_device *vfd = to_video_device(cd);
 	struct bttv *btv = video_get_drvdata(vfd);
 	return sprintf(buf, "%d\n", btv ? btv->c.type : UNSET);
 }
-static DEVICE_ATTR(card, S_IRUGO, show_card, NULL);
+static DEVICE_ATTR_RO(card);
 
 /* ----------------------------------------------------------------------- */
 /* dvb auto-load setup                                                     */

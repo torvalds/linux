@@ -270,28 +270,6 @@ static int adv7511_pktmem_rd(struct v4l2_subdev *sd, u8 reg)
 	return adv_smbus_read_byte_data(state->i2c_pktmem, reg);
 }
 
-static int adv7511_pktmem_wr(struct v4l2_subdev *sd, u8 reg, u8 val)
-{
-	struct adv7511_state *state = get_adv7511_state(sd);
-	int ret;
-	int i;
-
-	for (i = 0; i < 3; i++) {
-		ret = i2c_smbus_write_byte_data(state->i2c_pktmem, reg, val);
-		if (ret == 0)
-			return 0;
-	}
-	v4l2_err(sd, "%s: i2c write error\n", __func__);
-	return ret;
-}
-
-/* To set specific bits in the register, a clear-mask is given (to be AND-ed),
-   and then the value-mask (to be OR-ed). */
-static inline void adv7511_pktmem_wr_and_or(struct v4l2_subdev *sd, u8 reg, u8 clr_mask, u8 val_mask)
-{
-	adv7511_pktmem_wr(sd, reg, (adv7511_pktmem_rd(sd, reg) & clr_mask) | val_mask);
-}
-
 static inline bool adv7511_have_hotplug(struct v4l2_subdev *sd)
 {
 	return adv7511_rd(sd, 0x42) & MASK_ADV7511_HPD_DETECT;

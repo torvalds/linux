@@ -2821,7 +2821,7 @@ ia_css_debug_pipe_graph_dump_stage(
 		    "in", true);
 	}
 
-	for (i = 0; i < NUM_TNR_FRAMES; i++) {
+	for (i = 0; i < NUM_VIDEO_TNR_FRAMES; i++) {
 		if (stage->args.tnr_frames[i]) {
 			ia_css_debug_pipe_graph_dump_frame(
 			    stage->args.tnr_frames[i], id,

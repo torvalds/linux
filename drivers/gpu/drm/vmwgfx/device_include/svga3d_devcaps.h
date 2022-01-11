@@ -1,6 +1,6 @@
-/**********************************************************
+/* SPDX-License-Identifier: GPL-2.0 OR MIT */
+/*
  * Copyright 1998-2021 VMware, Inc.
- * SPDX-License-Identifier: GPL-2.0 OR MIT
  *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
@@ -22,7 +22,7 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  *
- **********************************************************/
+ */
 
 /*
  * svga3d_devcaps.h --
@@ -346,6 +346,10 @@ typedef uint32 SVGA3dDevCapIndex;
 
 #define SVGA3D_DEVCAP_SM5 258
 #define SVGA3D_DEVCAP_MULTISAMPLE_8X 259
+
+#define SVGA3D_DEVCAP_MAX_FORCED_SAMPLE_COUNT 260
+
+#define SVGA3D_DEVCAP_GL43 261
 
 #define SVGA3D_DEVCAP_MAX 262
 

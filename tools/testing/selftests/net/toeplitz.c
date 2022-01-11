@@ -498,7 +498,7 @@ static void parse_opts(int argc, char **argv)
 	bool have_toeplitz = false;
 	int index, c;
 
-	while ((c = getopt_long(argc, argv, "46C:d:i:k:r:stT:u:v", long_options, &index)) != -1) {
+	while ((c = getopt_long(argc, argv, "46C:d:i:k:r:stT:uv", long_options, &index)) != -1) {
 		switch (c) {
 		case '4':
 			cfg_family = AF_INET;

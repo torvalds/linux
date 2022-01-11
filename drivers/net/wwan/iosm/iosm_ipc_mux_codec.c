@@ -175,7 +175,7 @@ static int ipc_mux_dl_dlcmds_decode_process(struct iosm_mux *ipc_mux,
 	switch (le32_to_cpu(cmdh->command_type)) {
 	case MUX_LITE_CMD_FLOW_CTL:
 
-		if (cmdh->if_id >= ipc_mux->nr_sessions) {
+		if (cmdh->if_id >= IPC_MEM_MUX_IP_SESSION_ENTRIES) {
 			dev_err(ipc_mux->dev, "if_id [%d] not valid",
 				cmdh->if_id);
 			return -EINVAL; /* No session interface id. */
@@ -307,13 +307,13 @@ static void ipc_mux_dl_fcth_decode(struct iosm_mux *ipc_mux,
 	}
 
 	if_id = fct->if_id;
-	if (if_id >= ipc_mux->nr_sessions) {
+	if (if_id >= IPC_MEM_MUX_IP_SESSION_ENTRIES) {
 		dev_err(ipc_mux->dev, "not supported if_id: %d", if_id);
 		return;
 	}
 
 	/* Is the session active ? */
-	if_id = array_index_nospec(if_id, ipc_mux->nr_sessions);
+	if_id = array_index_nospec(if_id, IPC_MEM_MUX_IP_SESSION_ENTRIES);
 	wwan = ipc_mux->session[if_id].wwan;
 	if (!wwan) {
 		dev_err(ipc_mux->dev, "session Net ID is NULL");
@@ -355,13 +355,13 @@ static void ipc_mux_dl_adgh_decode(struct iosm_mux *ipc_mux,
 	}
 
 	if_id = adgh->if_id;
-	if (if_id >= ipc_mux->nr_sessions) {
+	if (if_id >= IPC_MEM_MUX_IP_SESSION_ENTRIES) {
 		dev_err(ipc_mux->dev, "invalid if_id while decoding %d", if_id);
 		return;
 	}
 
 	/* Is the session active ? */
-	if_id = array_index_nospec(if_id, ipc_mux->nr_sessions);
+	if_id = array_index_nospec(if_id, IPC_MEM_MUX_IP_SESSION_ENTRIES);
 	wwan = ipc_mux->session[if_id].wwan;
 	if (!wwan) {
 		dev_err(ipc_mux->dev, "session Net ID is NULL");
@@ -538,7 +538,7 @@ static void ipc_mux_stop_tx_for_all_sessions(struct iosm_mux *ipc_mux)
 	struct mux_session *session;
 	int idx;
 
-	for (idx = 0; idx < ipc_mux->nr_sessions; idx++) {
+	for (idx = 0; idx < IPC_MEM_MUX_IP_SESSION_ENTRIES; idx++) {
 		session = &ipc_mux->session[idx];
 
 		if (!session->wwan)
@@ -563,7 +563,7 @@ static bool ipc_mux_lite_send_qlt(struct iosm_mux *ipc_mux)
 	qlt_size = offsetof(struct ipc_mem_lite_gen_tbl, vfl) +
 		   MUX_QUEUE_LEVEL * sizeof(struct mux_lite_vfl);
 
-	for (i = 0; i < ipc_mux->nr_sessions; i++) {
+	for (i = 0; i < IPC_MEM_MUX_IP_SESSION_ENTRIES; i++) {
 		session = &ipc_mux->session[i];
 
 		if (!session->wwan || session->flow_ctl_mask)
@@ -777,13 +777,13 @@ bool ipc_mux_ul_data_encode(struct iosm_mux *ipc_mux)
 
 	ipc_mux->adb_prep_ongoing = true;
 
-	for (i = 0; i < ipc_mux->nr_sessions; i++) {
+	for (i = 0; i < IPC_MEM_MUX_IP_SESSION_ENTRIES; i++) {
 		session_id = ipc_mux->rr_next_session;
 		session = &ipc_mux->session[session_id];
 
 		/* Go to next handle rr_next_session overflow */
 		ipc_mux->rr_next_session++;
-		if (ipc_mux->rr_next_session >= ipc_mux->nr_sessions)
+		if (ipc_mux->rr_next_session >= IPC_MEM_MUX_IP_SESSION_ENTRIES)
 			ipc_mux->rr_next_session = 0;
 
 		if (!session->wwan || session->flow_ctl_mask ||

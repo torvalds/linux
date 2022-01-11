@@ -83,33 +83,26 @@ const char *intel_platform_name(enum intel_platform platform)
 	return platform_names[platform];
 }
 
-static const char *iommu_name(void)
-{
-	const char *msg = "n/a";
-
-#ifdef CONFIG_INTEL_IOMMU
-	msg = enableddisabled(intel_iommu_gfx_mapped);
-#endif
-
-	return msg;
-}
-
 void intel_device_info_print_static(const struct intel_device_info *info,
 				    struct drm_printer *p)
 {
-	if (info->graphics_rel)
-		drm_printf(p, "graphics version: %u.%02u\n", info->graphics_ver, info->graphics_rel);
+	if (info->graphics.rel)
+		drm_printf(p, "graphics version: %u.%02u\n", info->graphics.ver,
+			   info->graphics.rel);
 	else
-		drm_printf(p, "graphics version: %u\n", info->graphics_ver);
+		drm_printf(p, "graphics version: %u\n", info->graphics.ver);
 
-	if (info->media_rel)
-		drm_printf(p, "media version: %u.%02u\n", info->media_ver, info->media_rel);
+	if (info->media.rel)
+		drm_printf(p, "media version: %u.%02u\n", info->media.ver, info->media.rel);
 	else
-		drm_printf(p, "media version: %u\n", info->media_ver);
+		drm_printf(p, "media version: %u\n", info->media.ver);
 
-	drm_printf(p, "display version: %u\n", info->display.ver);
+	if (info->display.rel)
+		drm_printf(p, "display version: %u.%02u\n", info->display.ver, info->display.rel);
+	else
+		drm_printf(p, "display version: %u\n", info->display.ver);
+
 	drm_printf(p, "gt: %d\n", info->gt);
-	drm_printf(p, "iommu: %s\n", iommu_name());
 	drm_printf(p, "memory-regions: %x\n", info->memory_regions);
 	drm_printf(p, "page-sizes: %x\n", info->page_sizes);
 	drm_printf(p, "platform: %s\n", intel_platform_name(info->platform));
@@ -177,6 +170,10 @@ static const u16 subplatform_portf_ids[] = {
 	INTEL_ICL_PORT_F_IDS(0),
 };
 
+static const u16 subplatform_rpls_ids[] = {
+	INTEL_RPLS_IDS(0),
+};
+
 static bool find_devid(u16 id, const u16 *p, unsigned int num)
 {
 	for (; num; num--, p++) {
@@ -213,6 +210,9 @@ void intel_device_info_subplatform_init(struct drm_i915_private *i915)
 	} else if (find_devid(devid, subplatform_portf_ids,
 			      ARRAY_SIZE(subplatform_portf_ids))) {
 		mask = BIT(INTEL_SUBPLATFORM_PORTF);
+	} else if (find_devid(devid, subplatform_rpls_ids,
+			      ARRAY_SIZE(subplatform_rpls_ids))) {
+		mask = BIT(INTEL_SUBPLATFORM_RPL_S);
 	}
 
 	if (IS_TIGERLAKE(i915)) {
@@ -326,33 +326,33 @@ void intel_device_info_runtime_init(struct drm_i915_private *dev_priv)
 		     !(sfuse_strap & SFUSE_STRAP_FUSE_LOCK))) {
 			drm_info(&dev_priv->drm,
 				 "Display fused off, disabling\n");
-			info->pipe_mask = 0;
-			info->cpu_transcoder_mask = 0;
+			info->display.pipe_mask = 0;
+			info->display.cpu_transcoder_mask = 0;
 		} else if (fuse_strap & IVB_PIPE_C_DISABLE) {
 			drm_info(&dev_priv->drm, "PipeC fused off\n");
-			info->pipe_mask &= ~BIT(PIPE_C);
-			info->cpu_transcoder_mask &= ~BIT(TRANSCODER_C);
+			info->display.pipe_mask &= ~BIT(PIPE_C);
+			info->display.cpu_transcoder_mask &= ~BIT(TRANSCODER_C);
 		}
 	} else if (HAS_DISPLAY(dev_priv) && DISPLAY_VER(dev_priv) >= 9) {
 		u32 dfsm = intel_de_read(dev_priv, SKL_DFSM);
 
 		if (dfsm & SKL_DFSM_PIPE_A_DISABLE) {
-			info->pipe_mask &= ~BIT(PIPE_A);
-			info->cpu_transcoder_mask &= ~BIT(TRANSCODER_A);
+			info->display.pipe_mask &= ~BIT(PIPE_A);
+			info->display.cpu_transcoder_mask &= ~BIT(TRANSCODER_A);
 		}
 		if (dfsm & SKL_DFSM_PIPE_B_DISABLE) {
-			info->pipe_mask &= ~BIT(PIPE_B);
-			info->cpu_transcoder_mask &= ~BIT(TRANSCODER_B);
+			info->display.pipe_mask &= ~BIT(PIPE_B);
+			info->display.cpu_transcoder_mask &= ~BIT(TRANSCODER_B);
 		}
 		if (dfsm & SKL_DFSM_PIPE_C_DISABLE) {
-			info->pipe_mask &= ~BIT(PIPE_C);
-			info->cpu_transcoder_mask &= ~BIT(TRANSCODER_C);
+			info->display.pipe_mask &= ~BIT(PIPE_C);
+			info->display.cpu_transcoder_mask &= ~BIT(TRANSCODER_C);
 		}
 
 		if (DISPLAY_VER(dev_priv) >= 12 &&
 		    (dfsm & TGL_DFSM_PIPE_D_DISABLE)) {
-			info->pipe_mask &= ~BIT(PIPE_D);
-			info->cpu_transcoder_mask &= ~BIT(TRANSCODER_D);
+			info->display.pipe_mask &= ~BIT(PIPE_D);
+			info->display.cpu_transcoder_mask &= ~BIT(TRANSCODER_D);
 		}
 
 		if (dfsm & SKL_DFSM_DISPLAY_HDCP_DISABLE)
@@ -369,7 +369,7 @@ void intel_device_info_runtime_init(struct drm_i915_private *dev_priv)
 			info->display.has_dsc = 0;
 	}
 
-	if (GRAPHICS_VER(dev_priv) == 6 && intel_vtd_active()) {
+	if (GRAPHICS_VER(dev_priv) == 6 && intel_vtd_active(dev_priv)) {
 		drm_info(&dev_priv->drm,
 			 "Disabling ppGTT for VT-d support\n");
 		info->ppgtt_type = INTEL_PPGTT_NONE;

@@ -4,8 +4,8 @@ config DRM_MSM
 	tristate "MSM DRM"
 	depends on DRM
 	depends on ARCH_QCOM || SOC_IMX5 || COMPILE_TEST
+	depends on COMMON_CLK
 	depends on IOMMU_SUPPORT
-	depends on (OF && COMMON_CLK) || COMPILE_TEST
 	depends on QCOM_OCMEM || QCOM_OCMEM=n
 	depends on QCOM_LLCC || QCOM_LLCC=n
 	depends on QCOM_COMMAND_DB || QCOM_COMMAND_DB=n
@@ -65,6 +65,7 @@ config DRM_MSM_HDMI_HDCP
 config DRM_MSM_DP
 	bool "Enable DisplayPort support in MSM DRM driver"
 	depends on DRM_MSM
+	select RATIONAL
 	default y
 	help
 	  Compile in support for DP driver in MSM DRM driver. DP external

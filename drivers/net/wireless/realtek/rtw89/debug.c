@@ -2,6 +2,8 @@
 /* Copyright(c) 2019-2020  Realtek Corporation
  */
 
+#include <linux/vmalloc.h>
+
 #include "coex.h"
 #include "debug.h"
 #include "fw.h"
@@ -723,6 +725,7 @@ rtw89_debug_priv_mac_mem_dump_select(struct file *filp,
 }
 
 static const u32 mac_mem_base_addr_table[RTW89_MAC_MEM_MAX] = {
+	[RTW89_MAC_MEM_AXIDMA]	        = AXIDMA_BASE_ADDR,
 	[RTW89_MAC_MEM_SHARED_BUF]	= SHARED_BUF_BASE_ADDR,
 	[RTW89_MAC_MEM_DMAC_TBL]	= DMAC_TBL_BASE_ADDR,
 	[RTW89_MAC_MEM_SHCUT_MACHDR]	= SHCUT_MACHDR_BASE_ADDR,
@@ -735,6 +738,10 @@ static const u32 mac_mem_base_addr_table[RTW89_MAC_MEM_MAX] = {
 	[RTW89_MAC_MEM_BA_CAM]		= BA_CAM_BASE_ADDR,
 	[RTW89_MAC_MEM_BCN_IE_CAM0]	= BCN_IE_CAM0_BASE_ADDR,
 	[RTW89_MAC_MEM_BCN_IE_CAM1]	= BCN_IE_CAM1_BASE_ADDR,
+	[RTW89_MAC_MEM_TXD_FIFO_0]	= TXD_FIFO_0_BASE_ADDR,
+	[RTW89_MAC_MEM_TXD_FIFO_1]	= TXD_FIFO_1_BASE_ADDR,
+	[RTW89_MAC_MEM_TXDATA_FIFO_0]	= TXDATA_FIFO_0_BASE_ADDR,
+	[RTW89_MAC_MEM_TXDATA_FIFO_1]	= TXDATA_FIFO_1_BASE_ADDR,
 };
 
 static void rtw89_debug_dump_mac_mem(struct seq_file *m,
@@ -814,7 +821,7 @@ rtw89_debug_priv_mac_dbg_port_dump_select(struct file *filp,
 		return -EINVAL;
 	}
 
-	enable = set == 0 ? false : true;
+	enable = set != 0;
 	switch (sel) {
 	case 0:
 		debugfs_priv->dbgpkg_en.ss_dbg = enable;
@@ -2280,7 +2287,7 @@ static void rtw89_sta_info_get_iter(void *data, struct ieee80211_sta *sta)
 	switch (status->encoding) {
 	case RX_ENC_LEGACY:
 		seq_printf(m, "Legacy %d", status->rate_idx +
-			   (status->band == NL80211_BAND_5GHZ ? 4 : 0));
+			   (status->band != NL80211_BAND_2GHZ ? 4 : 0));
 		break;
 	case RX_ENC_HT:
 		seq_printf(m, "HT MCS-%d%s", status->rate_idx,

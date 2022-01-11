@@ -215,6 +215,11 @@ TPROGS_LDFLAGS := -L$(SYSROOT)/usr/lib
 endif
 
 TPROGS_LDLIBS			+= $(LIBBPF) -lelf -lz
+TPROGLDLIBS_xdp_monitor		+= -lm
+TPROGLDLIBS_xdp_redirect	+= -lm
+TPROGLDLIBS_xdp_redirect_cpu	+= -lm
+TPROGLDLIBS_xdp_redirect_map	+= -lm
+TPROGLDLIBS_xdp_redirect_map_multi += -lm
 TPROGLDLIBS_tracex4		+= -lrt
 TPROGLDLIBS_trace_output	+= -lrt
 TPROGLDLIBS_map_perf_test	+= -lrt
@@ -328,7 +333,7 @@ $(BPF_SAMPLES_PATH)/*.c: verify_target_bpf $(LIBBPF)
 $(src)/*.c: verify_target_bpf $(LIBBPF)
 
 libbpf_hdrs: $(LIBBPF)
-$(obj)/$(TRACE_HELPERS): | libbpf_hdrs
+$(obj)/$(TRACE_HELPERS) $(obj)/$(CGROUP_HELPERS) $(obj)/$(XDP_SAMPLE): | libbpf_hdrs
 
 .PHONY: libbpf_hdrs
 
@@ -342,6 +347,17 @@ $(obj)/tracex5_kern.o: $(obj)/syscall_nrs.h
 $(obj)/hbm_out_kern.o: $(src)/hbm.h $(src)/hbm_kern.h
 $(obj)/hbm.o: $(src)/hbm.h
 $(obj)/hbm_edt_kern.o: $(src)/hbm.h $(src)/hbm_kern.h
+
+# Override includes for xdp_sample_user.o because $(srctree)/usr/include in
+# TPROGS_CFLAGS causes conflicts
+XDP_SAMPLE_CFLAGS += -Wall -O2 \
+		     -I$(src)/../../tools/include \
+		     -I$(src)/../../tools/include/uapi \
+		     -I$(LIBBPF_INCLUDE) \
+		     -I$(src)/../../tools/testing/selftests/bpf
+
+$(obj)/$(XDP_SAMPLE): TPROGS_CFLAGS = $(XDP_SAMPLE_CFLAGS)
+$(obj)/$(XDP_SAMPLE): $(src)/xdp_sample_user.h $(src)/xdp_sample_shared.h
 
 -include $(BPF_SAMPLES_PATH)/Makefile.target
 

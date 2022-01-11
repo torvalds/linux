@@ -93,7 +93,10 @@ static inline enum vmw_view_type vmw_view_cmd_to_type(u32 id)
 	    id == SVGA_3D_CMD_DX_DESTROY_UA_VIEW)
 		return vmw_view_ua;
 
-	if (tmp > (u32)vmw_view_max)
+	if (id == SVGA_3D_CMD_DX_DEFINE_DEPTHSTENCIL_VIEW_V2)
+		return vmw_view_ds;
+
+	if (tmp > (u32)vmw_view_ds)
 		return vmw_view_max;
 
 	return (enum vmw_view_type) tmp;
@@ -123,6 +126,7 @@ static inline enum vmw_so_type vmw_so_cmd_to_type(u32 id)
 	case SVGA_3D_CMD_DX_DESTROY_DEPTHSTENCIL_STATE:
 		return vmw_so_ds;
 	case SVGA_3D_CMD_DX_DEFINE_RASTERIZER_STATE:
+	case SVGA_3D_CMD_DX_DEFINE_RASTERIZER_STATE_V2:
 	case SVGA_3D_CMD_DX_DESTROY_RASTERIZER_STATE:
 		return vmw_so_rs;
 	case SVGA_3D_CMD_DX_DEFINE_SAMPLER_STATE:

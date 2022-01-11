@@ -11,8 +11,8 @@
 #include <drm/ttm/ttm_bo_api.h>
 #include <drm/ttm/ttm_bo_driver.h>
 
+#include <linux/container_of.h>
 #include <linux/dma-buf-map.h>
-#include <linux/kernel.h> /* for container_of() */
 
 struct drm_mode_create_dumb;
 struct drm_plane;

@@ -46,6 +46,15 @@ mlx5_core-$(CONFIG_MLX5_CLS_ACT)     += en_tc.o en/rep/tc.o en/rep/neigh.o \
 					en/tc_tun_vxlan.o en/tc_tun_gre.o en/tc_tun_geneve.o \
 					en/tc_tun_mplsoudp.o diag/en_tc_tracepoint.o \
 					en/tc/post_act.o en/tc/int_port.o
+
+mlx5_core-$(CONFIG_MLX5_CLS_ACT)     += en/tc/act/act.o en/tc/act/drop.o en/tc/act/trap.o \
+					en/tc/act/accept.o en/tc/act/mark.o en/tc/act/goto.o \
+					en/tc/act/tun.o en/tc/act/csum.o en/tc/act/pedit.o \
+					en/tc/act/vlan.o en/tc/act/vlan_mangle.o en/tc/act/mpls.o \
+					en/tc/act/mirred.o en/tc/act/mirred_nic.o \
+					en/tc/act/ct.o en/tc/act/sample.o en/tc/act/ptype.o \
+					en/tc/act/redirect_ingress.o
+
 mlx5_core-$(CONFIG_MLX5_TC_CT)	     += en/tc_ct.o
 mlx5_core-$(CONFIG_MLX5_TC_SAMPLE)   += en/tc/sample.o
 
@@ -95,11 +104,12 @@ mlx5_core-$(CONFIG_MLX5_SW_STEERING) += steering/dr_domain.o steering/dr_table.o
 					steering/dr_ste.o steering/dr_send.o \
 					steering/dr_ste_v0.o steering/dr_ste_v1.o \
 					steering/dr_cmd.o steering/dr_fw.o \
-					steering/dr_action.o steering/fs_dr.o
+					steering/dr_action.o steering/fs_dr.o \
+					steering/dr_dbg.o
 #
 # SF device
 #
-mlx5_core-$(CONFIG_MLX5_SF) += sf/vhca_event.o sf/dev/dev.o sf/dev/driver.o
+mlx5_core-$(CONFIG_MLX5_SF) += sf/vhca_event.o sf/dev/dev.o sf/dev/driver.o irq_affinity.o
 
 #
 # SF manager

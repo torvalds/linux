@@ -16,7 +16,7 @@ static void test_tailcall_1(void)
 	char prog_name[32];
 	char buff[128] = {};
 
-	err = bpf_prog_load("tailcall1.o", BPF_PROG_TYPE_SCHED_CLS, &obj,
+	err = bpf_prog_test_load("tailcall1.o", BPF_PROG_TYPE_SCHED_CLS, &obj,
 			    &prog_fd);
 	if (CHECK_FAIL(err))
 		return;
@@ -154,7 +154,7 @@ static void test_tailcall_2(void)
 	char prog_name[32];
 	char buff[128] = {};
 
-	err = bpf_prog_load("tailcall2.o", BPF_PROG_TYPE_SCHED_CLS, &obj,
+	err = bpf_prog_test_load("tailcall2.o", BPF_PROG_TYPE_SCHED_CLS, &obj,
 			    &prog_fd);
 	if (CHECK_FAIL(err))
 		return;
@@ -228,7 +228,7 @@ static void test_tailcall_count(const char *which)
 	__u32 retval, duration;
 	char buff[128] = {};
 
-	err = bpf_prog_load(which, BPF_PROG_TYPE_SCHED_CLS, &obj,
+	err = bpf_prog_test_load(which, BPF_PROG_TYPE_SCHED_CLS, &obj,
 			    &prog_fd);
 	if (CHECK_FAIL(err))
 		return;
@@ -324,7 +324,7 @@ static void test_tailcall_4(void)
 	char buff[128] = {};
 	char prog_name[32];
 
-	err = bpf_prog_load("tailcall4.o", BPF_PROG_TYPE_SCHED_CLS, &obj,
+	err = bpf_prog_test_load("tailcall4.o", BPF_PROG_TYPE_SCHED_CLS, &obj,
 			    &prog_fd);
 	if (CHECK_FAIL(err))
 		return;
@@ -412,7 +412,7 @@ static void test_tailcall_5(void)
 	char buff[128] = {};
 	char prog_name[32];
 
-	err = bpf_prog_load("tailcall5.o", BPF_PROG_TYPE_SCHED_CLS, &obj,
+	err = bpf_prog_test_load("tailcall5.o", BPF_PROG_TYPE_SCHED_CLS, &obj,
 			    &prog_fd);
 	if (CHECK_FAIL(err))
 		return;
@@ -498,7 +498,7 @@ static void test_tailcall_bpf2bpf_1(void)
 	__u32 retval, duration;
 	char prog_name[32];
 
-	err = bpf_prog_load("tailcall_bpf2bpf1.o", BPF_PROG_TYPE_SCHED_CLS,
+	err = bpf_prog_test_load("tailcall_bpf2bpf1.o", BPF_PROG_TYPE_SCHED_CLS,
 			    &obj, &prog_fd);
 	if (CHECK_FAIL(err))
 		return;
@@ -582,7 +582,7 @@ static void test_tailcall_bpf2bpf_2(void)
 	__u32 retval, duration;
 	char buff[128] = {};
 
-	err = bpf_prog_load("tailcall_bpf2bpf2.o", BPF_PROG_TYPE_SCHED_CLS,
+	err = bpf_prog_test_load("tailcall_bpf2bpf2.o", BPF_PROG_TYPE_SCHED_CLS,
 			    &obj, &prog_fd);
 	if (CHECK_FAIL(err))
 		return;
@@ -660,7 +660,7 @@ static void test_tailcall_bpf2bpf_3(void)
 	__u32 retval, duration;
 	char prog_name[32];
 
-	err = bpf_prog_load("tailcall_bpf2bpf3.o", BPF_PROG_TYPE_SCHED_CLS,
+	err = bpf_prog_test_load("tailcall_bpf2bpf3.o", BPF_PROG_TYPE_SCHED_CLS,
 			    &obj, &prog_fd);
 	if (CHECK_FAIL(err))
 		return;
@@ -757,7 +757,7 @@ static void test_tailcall_bpf2bpf_4(bool noise)
 	__u32 retval, duration;
 	char prog_name[32];
 
-	err = bpf_prog_load("tailcall_bpf2bpf4.o", BPF_PROG_TYPE_SCHED_CLS,
+	err = bpf_prog_test_load("tailcall_bpf2bpf4.o", BPF_PROG_TYPE_SCHED_CLS,
 			    &obj, &prog_fd);
 	if (CHECK_FAIL(err))
 		return;
