@@ -31,7 +31,6 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/module.h>
 #include <linux/hardirq.h>
 #include <linux/mlx5/driver.h>
 #include <rdma/ib_verbs.h>

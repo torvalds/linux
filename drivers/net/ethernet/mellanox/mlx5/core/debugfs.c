@@ -30,7 +30,6 @@
  * SOFTWARE.
  */
 
-#include <linux/module.h>
 #include <linux/debugfs.h>
 #include <linux/mlx5/qp.h>
 #include <linux/mlx5/cq.h>

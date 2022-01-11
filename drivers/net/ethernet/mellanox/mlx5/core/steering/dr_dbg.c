@@ -3,7 +3,6 @@
 
 #include <linux/debugfs.h>
 #include <linux/kernel.h>
-#include <linux/module.h>
 #include <linux/seq_file.h>
 #include "dr_types.h"
 
