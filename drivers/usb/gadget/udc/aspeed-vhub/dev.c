@@ -116,6 +116,11 @@ static int ast_vhub_dev_feature(struct ast_vhub_dev *d,
 
 	if (wValue == USB_DEVICE_REMOTE_WAKEUP) {
 		d->wakeup_en = is_set;
+		val = readl(d->vhub->regs + AST_VHUB_CTRL);
+		if (is_set)
+			writel(val | VHUB_CTRL_AUTO_REMOTE_WAKEUP,
+			       d->vhub->regs + AST_VHUB_CTRL);
+
 		return std_req_complete;
 	}
 
