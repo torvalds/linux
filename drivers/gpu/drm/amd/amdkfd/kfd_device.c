@@ -64,34 +64,33 @@ static void kfd_device_info_set_sdma_queue_num(struct kfd_dev *kfd)
 	uint32_t sdma_version = kfd->adev->ip_versions[SDMA0_HWIP][0];
 
 	switch (sdma_version) {
-		case IP_VERSION(4, 0, 0):/* VEGA10 */
-		case IP_VERSION(4, 0, 1):/* VEGA12 */
-		case IP_VERSION(4, 1, 0):/* RAVEN */
-		case IP_VERSION(4, 1, 1):/* RAVEN */
-		case IP_VERSION(4, 1, 2):/* RENOIR */
-		case IP_VERSION(5, 2, 1):/* VANGOGH */
-		case IP_VERSION(5, 2, 3):/* YELLOW_CARP */
-			kfd->device_info.num_sdma_queues_per_engine = 2;
-			break;
-		case IP_VERSION(4, 2, 0):/* VEGA20 */
-		case IP_VERSION(4, 2, 2):/* ARCTURUS */
-		case IP_VERSION(4, 4, 0):/* ALDEBARAN */
-		case IP_VERSION(5, 0, 0):/* NAVI10 */
-		case IP_VERSION(5, 0, 1):/* CYAN_SKILLFISH */
-		case IP_VERSION(5, 0, 2):/* NAVI14 */
-		case IP_VERSION(5, 0, 5):/* NAVI12 */
-		case IP_VERSION(5, 2, 0):/* SIENNA_CICHLID */
-		case IP_VERSION(5, 2, 2):/* NAVY_FLOUNDER */
-		case IP_VERSION(5, 2, 4):/* DIMGREY_CAVEFISH */
-		case IP_VERSION(5, 2, 5):/* BEIGE_GOBY */
-			kfd->device_info.num_sdma_queues_per_engine = 8;
-			break;
-		default:
-			dev_warn(kfd_device,
-				"Default sdma queue per engine(8) is set due to "
-				"mismatch of sdma ip block(SDMA_HWIP:0x%x).\n",
-                                sdma_version);
-			kfd->device_info.num_sdma_queues_per_engine = 8;
+	case IP_VERSION(4, 0, 0):/* VEGA10 */
+	case IP_VERSION(4, 0, 1):/* VEGA12 */
+	case IP_VERSION(4, 1, 0):/* RAVEN */
+	case IP_VERSION(4, 1, 1):/* RAVEN */
+	case IP_VERSION(4, 1, 2):/* RENOIR */
+	case IP_VERSION(5, 2, 1):/* VANGOGH */
+	case IP_VERSION(5, 2, 3):/* YELLOW_CARP */
+		kfd->device_info.num_sdma_queues_per_engine = 2;
+		break;
+	case IP_VERSION(4, 2, 0):/* VEGA20 */
+	case IP_VERSION(4, 2, 2):/* ARCTURUS */
+	case IP_VERSION(4, 4, 0):/* ALDEBARAN */
+	case IP_VERSION(5, 0, 0):/* NAVI10 */
+	case IP_VERSION(5, 0, 1):/* CYAN_SKILLFISH */
+	case IP_VERSION(5, 0, 2):/* NAVI14 */
+	case IP_VERSION(5, 0, 5):/* NAVI12 */
+	case IP_VERSION(5, 2, 0):/* SIENNA_CICHLID */
+	case IP_VERSION(5, 2, 2):/* NAVY_FLOUNDER */
+	case IP_VERSION(5, 2, 4):/* DIMGREY_CAVEFISH */
+	case IP_VERSION(5, 2, 5):/* BEIGE_GOBY */
+		kfd->device_info.num_sdma_queues_per_engine = 8;
+		break;
+	default:
+		dev_warn(kfd_device,
+			"Default sdma queue per engine(8) is set due to mismatch of sdma ip block(SDMA_HWIP:0x%x).\n",
+			sdma_version);
+		kfd->device_info.num_sdma_queues_per_engine = 8;
 	}
 }
 
