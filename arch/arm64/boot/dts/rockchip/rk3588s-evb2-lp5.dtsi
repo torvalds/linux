@@ -944,8 +944,9 @@
 };
 
 &usbdrd_dwc3_0 {
-	dr_mode = "peripheral";
+	dr_mode = "otg";
 	phys = <&u2phy0_otg>;
 	phy-names = "usb2-phy";
 	maximum-speed = "high-speed";
+	extcon = <&u2phy0>;
 };
