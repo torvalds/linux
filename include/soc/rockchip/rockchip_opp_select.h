@@ -27,6 +27,7 @@ struct rockchip_opp_info {
 	const struct rockchip_opp_data *data;
 	struct volt_rm_table *volt_rm_tbl;
 	struct regmap *grf;
+	struct regmap *dsu_grf;
 	struct clk_bulk_data *clks;
 	int num_clks;
 	unsigned long volt_rm;
