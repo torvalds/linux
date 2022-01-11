@@ -31,6 +31,7 @@
 #include <kern_util.h>
 #include <os.h>
 #include <skas.h>
+#include <registers.h>
 #include <linux/time-internal.h>
 
 /*
@@ -261,11 +262,6 @@ int copy_from_user_proc(void *to, void __user *from, int size)
 int clear_user_proc(void __user *buf, int size)
 {
 	return clear_user(buf, size);
-}
-
-int cpu(void)
-{
-	return current_thread_info()->cpu;
 }
 
 static atomic_t using_sysemu = ATOMIC_INIT(0);
