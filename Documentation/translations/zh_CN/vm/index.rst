@@ -21,9 +21,9 @@ TODO:待引用文档集被翻译完毕后请及时修改此处）
 .. toctree::
    :maxdepth: 1
 
+   active_mm
 
 TODOLIST:
-* active_mm
 * arch_pgtable_helpers
 * balance
 * damon/index
