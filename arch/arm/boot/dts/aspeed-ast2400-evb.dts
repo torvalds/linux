@@ -22,24 +22,18 @@
 		#size-cells = <1>;
 		ranges;
 
-		gfx_memory: framebuffer {
-			size = <0x01000000>;
-			alignment = <0x01000000>;
-			compatible = "shared-dma-pool";
-			reusable;
-		};
-	};
-
-	reserved-memory {
-		#address-cells = <1>;
-		#size-cells = <1>;
-		ranges;
-
 		video_memory: video {
 			size = <0x04000000>;
 			alignment = <0x01000000>;
 			compatible = "shared-dma-pool";
 			no-map;
+		};
+
+		gfx_memory: framebuffer {
+			size = <0x01000000>;
+			alignment = <0x01000000>;
+			compatible = "shared-dma-pool";
+			reusable;
 		};
 	};
 };
@@ -52,3 +46,9 @@
 	status = "okay";
 };
 
+#if 0
+&gfx {
+	status = "okay";
+	memory-region = <&gfx_memory>;
+};
+#endif

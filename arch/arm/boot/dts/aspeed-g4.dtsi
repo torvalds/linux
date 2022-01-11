@@ -210,6 +210,17 @@
 				quality = <100>;
 			};
 
+			gfx: display@1e6e6000 {
+				compatible = "aspeed,ast2400-gfx", "syscon";
+				reg = <0x1e6e6000 0x1000>;
+				reg-io-width = <4>;
+				clocks = <&syscon ASPEED_CLK_GATE_D1CLK>;
+				resets = <&syscon ASPEED_RESET_CRT1>;
+				syscon = <&syscon>;
+				interrupts = <25>;
+				status = "disabled";
+			};
+
 			adc: adc@1e6e9000 {
 				compatible = "aspeed,ast2400-adc";
 				reg = <0x1e6e9000 0xb0>;
