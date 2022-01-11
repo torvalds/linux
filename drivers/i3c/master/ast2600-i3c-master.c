@@ -840,6 +840,33 @@ static void aspeed_i3c_master_end_xfer_locked(struct aspeed_i3c_master *master, 
 	aspeed_i3c_master_start_xfer_locked(master);
 }
 
+struct i3c_scl_timing_cfg {
+	unsigned long fscl;
+	u16 period_hi;
+	u16 period_lo;
+};
+
+static struct i3c_scl_timing_cfg jesd403_timing_cfg[5] = {
+	{ .fscl = I3C_BUS_TYP_I3C_SCL_RATE, .period_hi = 35, .period_lo = 45 },
+	{ .fscl = I3C_BUS_SDR1_SCL_RATE, .period_hi = 50, .period_lo = 75 },
+	{ .fscl = I3C_BUS_SDR2_SCL_RATE, .period_hi = 65, .period_lo = 100 },
+	{ .fscl = I3C_BUS_SDR3_SCL_RATE, .period_hi = 100, .period_lo = 150 },
+	{ .fscl = I3C_BUS_SDR4_SCL_RATE, .period_hi = 200, .period_lo = 300 }
+};
+
+struct i3c_scl_timing_cfg *ast2600_i3c_jesd403_scl_search(unsigned long fscl)
+{
+	int i;
+
+	for (i = 0; i < 5; i++) {
+		if (fscl == jesd403_timing_cfg[i].fscl)
+			return &jesd403_timing_cfg[i];
+	}
+
+	/* use typical 12.5M SCL if not found */
+	return &jesd403_timing_cfg[0];
+}
+
 static int aspeed_i3c_clk_cfg(struct aspeed_i3c_master *master)
 {
 	unsigned long core_rate, core_period;
@@ -854,10 +881,12 @@ static int aspeed_i3c_clk_cfg(struct aspeed_i3c_master *master)
 
 	/* I3C PP mode */
 	if (master->base.jdec_spd) {
-		hcnt = DIV_ROUND_UP(I3C_BUS_JESD300_PP_THIGH_MIN_NS, core_period);
-		lcnt = DIV_ROUND_UP(core_rate, I3C_BUS_TYP_I3C_SCL_RATE) - hcnt;
-		if (lcnt * core_period < I3C_BUS_JESD300_PP_TLOW_MIN_NS)
-			lcnt = DIV_ROUND_UP(I3C_BUS_JESD300_PP_TLOW_MIN_NS, core_period);
+		struct i3c_scl_timing_cfg *pp_timing;
+
+		pp_timing = ast2600_i3c_jesd403_scl_search(
+			master->base.bus.scl_rate.i3c);
+		hcnt = DIV_ROUND_UP(pp_timing->period_hi, core_period);
+		lcnt = DIV_ROUND_UP(pp_timing->period_lo, core_period);
 	} else {
 		hcnt = DIV_ROUND_UP(I3C_BUS_THIGH_MAX_NS, core_period) - 1;
 		if (hcnt < SCL_I3C_TIMING_CNT_MIN)
@@ -885,10 +914,9 @@ static int aspeed_i3c_clk_cfg(struct aspeed_i3c_master *master)
 	/* I3C OD mode:
 	 * JESD300-5 timing constrain for I2C/I3C OP mode
 	 *     tHIGH > 260, tLOW > 500 (same with MIPI 1.1 FMP constrain)
+	 *
 	 * MIPI 1.1 timing constrain for I3C OP mode
 	 *     tHIGH < 41, tLOW > 200
-	 *
-	 * Select JESD300-5
 	 */
 	if (master->base.jdec_spd) {
 		lcnt = lcnt > 0xff ? 0xff : lcnt;
@@ -1502,23 +1530,6 @@ static int aspeed_i3c_master_reattach_i3c_dev(struct i3c_dev_desc *dev,
 	return 0;
 }
 
-static int scl_rate_to_speed_index(unsigned long scl_rate)
-{
-	switch (scl_rate) {
-	case I3C_BUS_SDR1_SCL_RATE:
-		return 1;
-	case I3C_BUS_SDR2_SCL_RATE:
-		return 2;
-	case I3C_BUS_SDR3_SCL_RATE:
-		return 3;
-	case I3C_BUS_SDR4_SCL_RATE:
-		return 4;
-	case I3C_BUS_TYP_I3C_SCL_RATE:
-	default:
-		return 0;
-	}
-}
-
 static int aspeed_i3c_master_attach_i3c_dev(struct i3c_dev_desc *dev)
 {
 	struct i3c_master_controller *m = i3c_dev_get_master(dev);
@@ -1540,10 +1551,8 @@ static int aspeed_i3c_master_attach_i3c_dev(struct i3c_dev_desc *dev)
 	master->addrs[pos] = addr;
 	i3c_dev_set_master_data(dev, data);
 
-	if (master->base.jdec_spd) {
-		dev->info.max_write_ds = dev->info.max_read_ds =
-			scl_rate_to_speed_index(m->bus.scl_rate.i3c);
-	}
+	if (master->base.jdec_spd)
+		dev->info.max_write_ds = dev->info.max_read_ds = 0;
 
 	return 0;
 }
