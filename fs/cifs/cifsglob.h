@@ -24,8 +24,6 @@
 #include "../smbfs_common/smb2pdu.h"
 #include "smb2pdu.h"
 
-#define CIFS_MAGIC_NUMBER 0xFF534D42      /* the first four bytes of SMB PDUs */
-
 #define SMB_PATH_MAX 260
 #define CIFS_PORT 445
 #define RFC1001_PORT 139
