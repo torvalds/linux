@@ -196,7 +196,6 @@ static int twl4030reg_enable(struct regulator_dev *rdev)
 {
 	struct twlreg_info	*info = rdev_get_drvdata(rdev);
 	int			grp;
-	int			ret;
 
 	grp = twlreg_grp(rdev);
 	if (grp < 0)
@@ -204,16 +203,13 @@ static int twl4030reg_enable(struct regulator_dev *rdev)
 
 	grp |= P1_GRP_4030;
 
-	ret = twlreg_write(info, TWL_MODULE_PM_RECEIVER, VREG_GRP, grp);
-
-	return ret;
+	return twlreg_write(info, TWL_MODULE_PM_RECEIVER, VREG_GRP, grp);
 }
 
 static int twl4030reg_disable(struct regulator_dev *rdev)
 {
 	struct twlreg_info	*info = rdev_get_drvdata(rdev);
 	int			grp;
-	int			ret;
 
 	grp = twlreg_grp(rdev);
 	if (grp < 0)
@@ -221,9 +217,7 @@ static int twl4030reg_disable(struct regulator_dev *rdev)
 
 	grp &= ~(P1_GRP_4030 | P2_GRP_4030 | P3_GRP_4030);
 
-	ret = twlreg_write(info, TWL_MODULE_PM_RECEIVER, VREG_GRP, grp);
-
-	return ret;
+	return twlreg_write(info, TWL_MODULE_PM_RECEIVER, VREG_GRP, grp);
 }
 
 static int twl4030reg_get_status(struct regulator_dev *rdev)

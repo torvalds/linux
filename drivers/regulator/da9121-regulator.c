@@ -86,6 +86,22 @@ static struct da9121_range da9121_3A_1phase_current = {
 	.reg_max = 6,
 };
 
+static struct da9121_range da914x_40A_4phase_current = {
+	.val_min = 14000000,
+	.val_max = 80000000,
+	.val_stp =  2000000,
+	.reg_min = 1,
+	.reg_max = 14,
+};
+
+static struct da9121_range da914x_20A_2phase_current = {
+	.val_min =  7000000,
+	.val_max = 40000000,
+	.val_stp =  2000000,
+	.reg_min = 1,
+	.reg_max = 14,
+};
+
 struct da9121_variant_info {
 	int num_bucks;
 	int num_phases;
@@ -97,6 +113,8 @@ static const struct da9121_variant_info variant_parameters[] = {
 	{ 2, 1, &da9121_3A_1phase_current  },	//DA9121_TYPE_DA9220_DA9132
 	{ 2, 1, &da9121_5A_1phase_current  },	//DA9121_TYPE_DA9122_DA9131
 	{ 1, 2, &da9121_6A_2phase_current  },	//DA9121_TYPE_DA9217
+	{ 1, 4, &da914x_40A_4phase_current },   //DA9121_TYPE_DA9141
+	{ 1, 2, &da914x_20A_2phase_current },   //DA9121_TYPE_DA9142
 };
 
 struct da9121_field {
@@ -250,6 +268,11 @@ static int da9121_set_current_limit(struct regulator_dev *rdev,
 	if (min_ua < range->val_min ||
 	    max_ua > range->val_max) {
 		ret = -EINVAL;
+		goto error;
+	}
+
+	if (rdev->desc->ops->is_enabled(rdev)) {
+		ret = -EBUSY;
 		goto error;
 	}
 
@@ -537,11 +560,65 @@ static const struct regulator_desc da9217_reg = {
 	.vsel_mask = DA9121_MASK_BUCK_BUCKx_5_CHx_A_VOUT,
 };
 
+#define DA914X_MIN_MV		500
+#define DA914X_MAX_MV		1000
+#define DA914X_STEP_MV		10
+#define DA914X_MIN_SEL		(DA914X_MIN_MV / DA914X_STEP_MV)
+#define DA914X_N_VOLTAGES	(((DA914X_MAX_MV - DA914X_MIN_MV) / DA914X_STEP_MV) \
+				 + 1 + DA914X_MIN_SEL)
+
+static const struct regulator_desc da9141_reg = {
+	.id = DA9121_IDX_BUCK1,
+	.name = "DA9141",
+	.of_match = "buck1",
+	.of_parse_cb = da9121_of_parse_cb,
+	.owner = THIS_MODULE,
+	.regulators_node = of_match_ptr("regulators"),
+	.of_map_mode = da9121_map_mode,
+	.ops = &da9121_buck_ops,
+	.type = REGULATOR_VOLTAGE,
+	.n_voltages = DA914X_N_VOLTAGES,
+	.min_uV = DA914X_MIN_MV * 1000,
+	.uV_step = DA914X_STEP_MV * 1000,
+	.linear_min_sel = DA914X_MIN_SEL,
+	.vsel_reg = DA9121_REG_BUCK_BUCK1_5,
+	.vsel_mask = DA9121_MASK_BUCK_BUCKx_5_CHx_A_VOUT,
+	.enable_reg = DA9121_REG_BUCK_BUCK1_0,
+	.enable_mask = DA9121_MASK_BUCK_BUCKx_0_CHx_EN,
+	/* Default value of BUCK_BUCK1_0.CH1_SRC_DVC_UP */
+	.ramp_delay = 20000,
+	/* tBUCK_EN */
+	.enable_time = 20,
+};
+
+static const struct regulator_desc da9142_reg = {
+	.id = DA9121_IDX_BUCK1,
+	.name = "DA9142 BUCK1",
+	.of_match = "buck1",
+	.of_parse_cb = da9121_of_parse_cb,
+	.owner = THIS_MODULE,
+	.regulators_node = of_match_ptr("regulators"),
+	.of_map_mode = da9121_map_mode,
+	.ops = &da9121_buck_ops,
+	.type = REGULATOR_VOLTAGE,
+	.n_voltages = DA914X_N_VOLTAGES,
+	.min_uV = DA914X_MIN_MV * 1000,
+	.uV_step = DA914X_STEP_MV * 1000,
+	.linear_min_sel = DA914X_MIN_SEL,
+	.enable_reg = DA9121_REG_BUCK_BUCK1_0,
+	.enable_mask = DA9121_MASK_BUCK_BUCKx_0_CHx_EN,
+	.vsel_reg = DA9121_REG_BUCK_BUCK1_5,
+	.vsel_mask = DA9121_MASK_BUCK_BUCKx_5_CHx_A_VOUT,
+};
+
+
 static const struct regulator_desc *local_da9121_regulators[][DA9121_IDX_MAX] = {
 	[DA9121_TYPE_DA9121_DA9130] = { &da9121_reg, NULL },
 	[DA9121_TYPE_DA9220_DA9132] = { &da9220_reg[0], &da9220_reg[1] },
 	[DA9121_TYPE_DA9122_DA9131] = { &da9122_reg[0], &da9122_reg[1] },
 	[DA9121_TYPE_DA9217] = { &da9217_reg, NULL },
+	[DA9121_TYPE_DA9141] = { &da9141_reg, NULL },
+	[DA9121_TYPE_DA9142] = { &da9142_reg, NULL },
 };
 
 static void da9121_status_poll_on(struct work_struct *work)
@@ -835,7 +912,7 @@ static int da9121_check_device_type(struct i2c_client *i2c, struct da9121 *chip)
 		goto error;
 	}
 
-	if (device_id != DA9121_DEVICE_ID) {
+	if ((device_id != DA9121_DEVICE_ID) && (device_id != DA914x_DEVICE_ID)) {
 		dev_err(chip->dev, "Invalid device ID: 0x%02x\n", device_id);
 		ret = -ENODEV;
 		goto error;
@@ -877,6 +954,22 @@ static int da9121_check_device_type(struct i2c_client *i2c, struct da9121 *chip)
 		break;
 	}
 
+	if (device_id == DA914x_DEVICE_ID) {
+		switch (chip->subvariant_id) {
+		case DA9121_SUBTYPE_DA9141:
+			type = "DA9141";
+			config_match = (variant_vrc == DA9141_VARIANT_VRC);
+			break;
+		case DA9121_SUBTYPE_DA9142:
+			type = "DA9142";
+			config_match = (variant_vrc == DA9142_VARIANT_VRC);
+			break;
+		default:
+			type = "Unknown";
+			break;
+		}
+	}
+
 	dev_info(chip->dev,
 		 "Device detected (device-ID: 0x%02X, var-ID: 0x%02X, %s)\n",
 		 device_id, variant_id, type);
@@ -890,8 +983,10 @@ static int da9121_check_device_type(struct i2c_client *i2c, struct da9121 *chip)
 	variant_mrc = (variant_id & DA9121_MASK_OTP_VARIANT_ID_MRC)
 			>> DA9121_SHIFT_OTP_VARIANT_ID_MRC;
 
-	if ((device_id == DA9121_DEVICE_ID) &&
-	    (variant_mrc < DA9121_VARIANT_MRC_BASE)) {
+	if (((device_id == DA9121_DEVICE_ID) &&
+	     (variant_mrc < DA9121_VARIANT_MRC_BASE)) ||
+	    ((device_id == DA914x_DEVICE_ID) &&
+	     (variant_mrc != DA914x_VARIANT_MRC_BASE))) {
 		dev_err(chip->dev,
 			"Cannot support variant MRC: 0x%02X\n", variant_mrc);
 		ret = -EINVAL;
@@ -929,6 +1024,14 @@ static int da9121_assign_chip_model(struct i2c_client *i2c,
 	case DA9121_SUBTYPE_DA9220:
 	case DA9121_SUBTYPE_DA9132:
 		chip->variant_id = DA9121_TYPE_DA9220_DA9132;
+		regmap = &da9121_2ch_regmap_config;
+		break;
+	case DA9121_SUBTYPE_DA9141:
+		chip->variant_id = DA9121_TYPE_DA9141;
+		regmap = &da9121_1ch_regmap_config;
+		break;
+	case DA9121_SUBTYPE_DA9142:
+		chip->variant_id = DA9121_TYPE_DA9142;
 		regmap = &da9121_2ch_regmap_config;
 		break;
 	}
@@ -1010,6 +1113,8 @@ static const struct of_device_id da9121_dt_ids[] = {
 	{ .compatible = "dlg,da9131", .data = (void *) DA9121_SUBTYPE_DA9131 },
 	{ .compatible = "dlg,da9220", .data = (void *) DA9121_SUBTYPE_DA9220 },
 	{ .compatible = "dlg,da9132", .data = (void *) DA9121_SUBTYPE_DA9132 },
+	{ .compatible = "dlg,da9141", .data = (void *) DA9121_SUBTYPE_DA9141 },
+	{ .compatible = "dlg,da9142", .data = (void *) DA9121_SUBTYPE_DA9142 },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, da9121_dt_ids);
@@ -1065,7 +1170,7 @@ static int da9121_i2c_remove(struct i2c_client *i2c)
 {
 	struct da9121 *chip = i2c_get_clientdata(i2c);
 	const int mask_all[4] = { 0xFF, 0xFF, 0xFF, 0xFF };
-	int ret = 0;
+	int ret;
 
 	free_irq(chip->chip_irq, chip);
 	cancel_delayed_work_sync(&chip->work);
@@ -1073,7 +1178,7 @@ static int da9121_i2c_remove(struct i2c_client *i2c)
 	ret = regmap_bulk_write(chip->regmap, DA9121_REG_SYS_MASK_0, mask_all, 4);
 	if (ret != 0)
 		dev_err(chip->dev, "Failed to set IRQ masks: %d\n", ret);
-	return ret;
+	return 0;
 }
 
 static const struct i2c_device_id da9121_i2c_id[] = {
@@ -1084,6 +1189,8 @@ static const struct i2c_device_id da9121_i2c_id[] = {
 	{"da9131", DA9121_TYPE_DA9122_DA9131},
 	{"da9220", DA9121_TYPE_DA9220_DA9132},
 	{"da9132", DA9121_TYPE_DA9220_DA9132},
+	{"da9141", DA9121_TYPE_DA9141},
+	{"da9142", DA9121_TYPE_DA9142},
 	{},
 };
 MODULE_DEVICE_TABLE(i2c, da9121_i2c_id);

@@ -11653,6 +11653,13 @@ S:	Maintained
 F:	Documentation/devicetree/bindings/power/supply/maxim,max17042.yaml
 F:	drivers/power/supply/max17042_battery.c
 
+MAXIM MAX20086 CAMERA POWER PROTECTOR DRIVER
+M:	Laurent Pinchart <laurent.pinchart@ideasonboard.com>
+L:	linux-kernel@vger.kernel.org
+S:	Maintained
+F:	Documentation/devicetree/bindings/regulator/maxim,max20086.yaml
+F:	drivers/regulator/max20086-regulator.c
+
 MAXIM MAX77650 PMIC MFD DRIVER
 M:	Bartosz Golaszewski <brgl@bgdev.pl>
 L:	linux-kernel@vger.kernel.org

@@ -218,7 +218,7 @@ properties:
     description: Array of maximum spread between voltages of coupled regulators
       in microvolts, each value in the array relates to the corresponding
       couple specified by the regulator-coupled-with property.
-    $ref: "/schemas/types.yaml#/definitions/uint32"
+    $ref: "/schemas/types.yaml#/definitions/uint32-array"
 
   regulator-max-step-microvolt:
     description: Maximum difference between current and target voltages

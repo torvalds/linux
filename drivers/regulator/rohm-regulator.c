@@ -112,6 +112,22 @@ int rohm_regulator_set_dvs_levels(const struct rohm_dvs_config *dvs,
 }
 EXPORT_SYMBOL(rohm_regulator_set_dvs_levels);
 
+/*
+ * Few ROHM PMIC ICs have constrains on voltage changing:
+ * BD71837 - only buck 1-4 voltages can be changed when they are enabled.
+ * Other bucks and all LDOs must be disabled when voltage is changed.
+ * BD96801 - LDO voltage levels can be changed when LDOs are disabled.
+ */
+int rohm_regulator_set_voltage_sel_restricted(struct regulator_dev *rdev,
+					      unsigned int sel)
+{
+	if (rdev->desc->ops->is_enabled(rdev))
+		return -EBUSY;
+
+	return regulator_set_voltage_sel_regmap(rdev, sel);
+}
+EXPORT_SYMBOL_GPL(rohm_regulator_set_voltage_sel_restricted);
+
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Matti Vaittinen <matti.vaittinen@fi.rohmeurope.com>");
 MODULE_DESCRIPTION("Generic helpers for ROHM PMIC regulator drivers");
