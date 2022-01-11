@@ -1,0 +1,839 @@
+// SPDX-License-Identifier: BSD-3-Clause
+// Copyright (c) 2022, The Linux Foundation. All rights reserved.
+
+/dts-v1/;
+
+#include "sdm450.dtsi"
+#include "pm8953.dtsi"
+#include <dt-bindings/leds/common.h>
+
+/delete-node/ &wcnss_fw_mem;
+
+/ {
+	model = "Samsung A6-Plus LTE Rev.4";
+	compatible = "samsung,a6plte", "qcom,sdm450";
+	chassis-type = "handset";
+	qcom,msm-id = <338 0>;
+	qcom,board-id = <8 4>;
+
+	aliases {
+		mmc0 = &sdhc_1;
+		mmc1 = &sdhc_2;
+		i2c2 = &i2c_2;
+		i2c3 = &i2c_3;
+		i2c5 = &i2c_5;
+		i2c8 = &i2c_8;
+		i2c11 = &i2c_gpio_1;
+		i2c12 = &i2c_gpio_2;
+		i2c13 = &i2c_gpio_3;
+		i2c14 = &i2c_gpio_4;
+		i2c15 = &i2c_gpio_5;
+		i2c20 = &cci_i2c0;
+		i2c21 = &cci_i2c1;
+		serial0 = &uart_0;
+	};
+
+	chosen {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		framebuffer0: framebuffer@90001000 {
+			compatible = "simple-framebuffer";
+			reg = <0 0x90001000 0 (2220 * 1080 * 3)>;
+			width = <1080>;
+			height = <2220>;
+			stride = <(1080 * 3)>;
+			format = "r8g8b8";
+			power-domains = <&gcc MDSS_GDSC>;
+			clocks = <&gcc GCC_MDSS_AHB_CLK>,
+				 <&gcc GCC_MDSS_AXI_CLK>,
+				 <&gcc GCC_MDSS_VSYNC_CLK>,
+				 <&gcc GCC_MDSS_MDP_CLK>,
+				 <&gcc GCC_MDSS_BYTE0_CLK>,
+				 <&gcc GCC_MDSS_PCLK0_CLK>,
+				 <&gcc GCC_MDSS_ESC0_CLK>;
+		};
+	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+
+		key-volume-up {
+			label = "Volume Up";
+			gpios = <&tlmm 85 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_VOLUMEUP>;
+			wakeup-source;
+		};
+
+		event-lid {
+			label = "Hall Effect Sensor";
+			gpios = <&tlmm 44 GPIO_ACTIVE_LOW>;
+			linux,input-type = <EV_SW>;
+			linux,code = <SW_LID>;
+			linux,can-disable;
+		};
+	};
+
+	i2c_gpio_1: i2c-gpio-1 {
+		compatible = "i2c-gpio";
+		sda-gpios = <&tlmm 16 (GPIO_ACTIVE_HIGH|GPIO_OPEN_DRAIN)>;
+		scl-gpios = <&tlmm 17 (GPIO_ACTIVE_HIGH|GPIO_OPEN_DRAIN)>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+	};
+
+	i2c_gpio_2: i2c-gpio-2 {
+		compatible = "i2c-gpio";
+		sda-gpios = <&tlmm 21 (GPIO_ACTIVE_HIGH|GPIO_OPEN_DRAIN)>;
+		scl-gpios = <&tlmm 20 (GPIO_ACTIVE_HIGH|GPIO_OPEN_DRAIN)>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+	};
+
+	i2c_gpio_3: i2c-gpio-3 {
+		compatible = "i2c-gpio";
+		sda-gpios = <&tlmm 39 (GPIO_ACTIVE_HIGH|GPIO_OPEN_DRAIN)>;
+		scl-gpios = <&tlmm 38 (GPIO_ACTIVE_HIGH|GPIO_OPEN_DRAIN)>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+	};
+
+	i2c_gpio_4: i2c-gpio-4 {
+		compatible = "i2c-gpio";
+		sda-gpios = <&tlmm 64 (GPIO_ACTIVE_HIGH|GPIO_OPEN_DRAIN)>;
+		scl-gpios = <&tlmm 65 (GPIO_ACTIVE_HIGH|GPIO_OPEN_DRAIN)>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+	};
+
+	i2c_gpio_5: i2c-gpio-5 {
+		compatible = "i2c-gpio";
+		sda-gpios = <&tlmm 131 (GPIO_ACTIVE_HIGH|GPIO_OPEN_DRAIN)>;
+		scl-gpios = <&tlmm 128 (GPIO_ACTIVE_HIGH|GPIO_OPEN_DRAIN)>;
+
+		#address-cells = <1>;
+		#size-cells = <0>;
+	};
+
+	reserved-memory {
+		tzapp_mem@82800000 {
+			reg = <0x0 0x82800000 0x0 0x2800000>;
+			no-map;
+		};
+
+		sec_debug_low@85000000 {
+			reg = <0x0 0x85000000 0x0 0x400000>;
+			no-map;
+		};
+
+		/* This region and sec_lk_region are optional and
+		 * might be removed by bootloader depending on its
+		 * debugging settings.
+		 */
+		sec_debug_mid@85400000 {
+			reg = <0x0 0x85400000 0x0 0x400000>;
+			no-map;
+		};
+
+		qseecom_mem: qseecom@85b00000 {
+			reg = <0x0 0x85b00000 0x0 0x600000>;
+			no-map;
+		};
+
+		sec_lk_region@8f600000 {
+			reg = <0x0 0x8f600000 0x0 0x300000>;
+			no-map;
+		};
+
+		ramoops@86100000 {
+			compatible = "ramoops";
+			reg = <0 0x86100000 0 0x100000>;
+
+			console-size = <0x40000>;
+			ftrace-size = <0x40000>;
+			pmsg-size = <0x40000>;
+			record-size = <0x40000>;
+		};
+
+		mpss_mem: mpss@86c00000 {
+			reg = <0x0 0x86c00000 0x0 0x6400000>;
+			no-map;
+		};
+
+		adsp_fw_mem: adsp@8d600000  {
+			reg = <0x0 0x8d600000 0x0 0x1800000>;
+			no-map;
+		};
+
+		wcnss_fw_mem: wcnss@8ee00000 {
+			reg = <0x0 0x8ee00000 0x0 0x700000>;
+			no-map;
+		};
+
+		venus_mem: venus@91400000 {
+			reg = <0x0 0x91400000 0x0 0x500000>;
+			no-map;
+		};
+	};
+
+	vibrator {
+		compatible = "gpio-vibrator";
+		enable-gpios = <&tlmm 132 GPIO_ACTIVE_HIGH>;
+	};
+
+	vbat: vreg-vbat {
+		compatible = "regulator-fixed";
+		regulator-always-on;
+		regulator-max-microvolt = <3700000>;
+		regulator-min-microvolt = <3700000>;
+		regulator-name = "VBAT";
+	};
+
+	panel_vdd_vci: vreg-panel-vdd-vci {
+		compatible = "regulator-fixed";
+		enable-active-high;
+		gpio = <&tlmm 35 GPIO_ACTIVE_HIGH>;
+		regulator-boot-on;
+		regulator-max-microvolt = <3000000>;
+		regulator-min-microvolt = <3000000>;
+		regulator-name = "panel_vdd_vci";
+		startup-delay-us = <200>;
+		vin-supply = <&vbat>;
+	};
+
+	panel_vddr: vreg-panel-vddr {
+		compatible = "regulator-fixed";
+		enable-active-high;
+		gpio = <&tlmm 93 GPIO_ACTIVE_HIGH>;
+		regulator-boot-on;
+		regulator-max-microvolt = <1500000>;
+		regulator-min-microvolt = <1500000>;
+		regulator-name = "panel_vddr";
+		startup-delay-us = <200>;
+		vin-supply = <&pm8953_s4>;
+	};
+
+	ts_avdd: vreg-ts-avdd {
+		compatible = "regulator-fixed";
+		enable-active-high;
+		gpio = <&tlmm 139 GPIO_ACTIVE_HIGH>;
+		regulator-boot-on;
+		regulator-max-microvolt = <3300000>;
+		regulator-min-microvolt = <3300000>;
+		regulator-name = "ts_avdd";
+		startup-delay-us = <200>;
+		vin-supply = <&vbat>;
+	};
+
+	ts_vdd: vreg-ts-vdd {
+		compatible = "regulator-fixed";
+		enable-active-high;
+		gpio = <&tlmm 139 GPIO_ACTIVE_HIGH>;
+		regulator-boot-on;
+		regulator-max-microvolt = <1800000>;
+		regulator-min-microvolt = <1800000>;
+		regulator-name = "ts_vdd";
+		startup-delay-us = <200>;
+		vin-supply = <&pm8953_s4>;
+	};
+
+	sensors_vdd: vreg-sensors-1v8 {
+		compatible = "regulator-fixed";
+		enable-active-high;
+		gpio = <&expander 6 GPIO_ACTIVE_HIGH>;
+		regulator-max-microvolt = <1800000>;
+		regulator-min-microvolt = <1800000>;
+		regulator-name = "sensors_vdd";
+		startup-delay-us = <200>;
+		vin-supply = <&vbat>;
+	};
+
+	prox_led_vdd: vreg-prox-led-3v3 {
+		compatible = "regulator-fixed";
+		enable-active-high;
+		gpio = <&tlmm 127 GPIO_ACTIVE_HIGH>;
+		regulator-max-microvolt = <3300000>;
+		regulator-min-microvolt = <3300000>;
+		regulator-name = "proximity_led_vdd";
+		startup-delay-us = <200>;
+	};
+
+	grip_vdd: vreg-grip-sensor-2v8 {
+		compatible = "regulator-fixed";
+		enable-active-high;
+		gpio = <&tlmm 87 GPIO_ACTIVE_HIGH>;
+		regulator-max-microvolt = <2800000>;
+		regulator-min-microvolt = <2800000>;
+		regulator-name = "grip_sensor_vdd";
+		startup-delay-us = <200>;
+	};
+
+	vddio_cam: vreg-cam-io-1v8 {
+		compatible = "regulator-fixed";
+		enable-active-high;
+		gpio = <&expander 12 GPIO_ACTIVE_HIGH>;
+		regulator-max-microvolt = <1800000>;
+		regulator-min-microvolt = <1800000>;
+		regulator-name = "cam_vddio";
+		startup-delay-us = <200>;
+		vin-supply = <&vdd_cam_aux>;
+	};
+
+	avdd_cam_front: vreg-cam-avdd-2v8 {
+		compatible = "regulator-fixed";
+		enable-active-high;
+		gpio = <&expander 13 GPIO_ACTIVE_HIGH>;
+		regulator-max-microvolt = <2800000>;
+		regulator-min-microvolt = <2800000>;
+		regulator-name = "cam_avdd_front";
+		startup-delay-us = <200>;
+	};
+
+	vdd_cam_main: vreg-cam-main-vdd-2p8 {
+		compatible = "regulator-fixed";
+		enable-active-high;
+		gpio = <&tlmm 92 GPIO_ACTIVE_HIGH>;
+		regulator-max-microvolt = <2800000>;
+		regulator-min-microvolt = <2800000>;
+		regulator-name = "cam_vdd_main";
+		startup-delay-us = <200>;
+	};
+
+	vdd_cam_aux: vreg-cam-aux-io-2p8 {
+		compatible = "regulator-fixed";
+		enable-active-high;
+		gpio = <&tlmm 94 GPIO_ACTIVE_HIGH>;
+		regulator-max-microvolt = <2800000>;
+		regulator-min-microvolt = <2800000>;
+		regulator-name = "cam_aux_vddio";
+		startup-delay-us = <200>;
+	};
+
+	vdd_actuator: vreg-cam-lens-2p8 {
+		compatible = "regulator-fixed";
+		enable-active-high;
+		gpio = <&tlmm 89 GPIO_ACTIVE_HIGH>;
+		regulator-max-microvolt = <2800000>;
+		regulator-min-microvolt = <2800000>;
+		regulator-name = "cam_lens_vdd";
+		startup-delay-us = <200>;
+	};
+};
+
+&camss {
+	vdda-supply = <&pm8953_s3>;
+
+	status = "okay";
+
+	ports {
+		port@0 {
+			reg = <0>;
+
+			csiphy0_ep: endpoint {
+				clock-lanes = <7>;
+				data-lanes = <0 1 2 3>;
+				remote-endpoint = <&main_cam_ep>;
+			};
+		};
+		port@1 {
+			reg = <1>;
+
+			csiphy1_ep: endpoint {
+				clock-lanes = <7>;
+				data-lanes = <0 1 2 3>;
+				remote-endpoint = <&front_cam_ep>;
+			};
+		};
+		port@2 {
+			reg = <2>;
+
+			csiphy2_ep: endpoint {
+				clock-lanes = <7>;
+				data-lanes = <0 1>;
+				remote-endpoint = <&aux_cam_ep>;
+			};
+		};
+	};
+};
+
+
+&cci {
+	pinctrl-0 = <&cci0_default>,
+		    <&cci1_default>,
+		    <&camss_mclk0_default>,
+		    <&camss_mclk1_default>;
+	pinctrl-names = "default";
+	status = "okay";
+};
+
+&cci_i2c0 {
+	camera-sensor@10 { // Front camera
+		compatible = "samsung,s5k2x7sp";
+		reg = <0x10>;
+		clocks = <&gcc GCC_CAMSS_MCLK1_CLK>;
+		clock-frequency = <24000000>;
+		reset-gpios = <&tlmm 129 GPIO_ACTIVE_LOW>;
+		dvdd-supply = <&pm8953_l23>;
+		avdd-supply = <&avdd_cam_front>;
+		vio-supply = <&vddio_cam>;
+		rotation = <90>;
+		orientation = <0>;
+
+		port {
+			front_cam_ep: endpoint {
+				data-lanes = <0 1 2 3>;
+				remote-endpoint = <&csiphy1_ep>;
+			};
+		};
+	};
+
+	camera-sensor@28 { // Auxillary camera
+		compatible = "hynix,sr556";
+		reg = <0x28>;
+		clocks = <&gcc GCC_CAMSS_MCLK0_CLK>;
+		clock-frequency = <24000000>;
+		reset-gpios = <&tlmm 41 GPIO_ACTIVE_LOW>;
+		dvdd-supply = <&vdd_cam_aux>;
+		avdd-supply = <&vdd_cam_aux>;
+		vio-supply = <&vddio_cam>;
+		rotation = <270>;
+		orientation = <1>;
+
+		port {
+			aux_cam_ep: endpoint {
+				data-lanes = <0 1>;
+				remote-endpoint = <&csiphy2_ep>;
+				link-frequencies = /bits/ 64 <437000000>;
+			};
+		};
+	};
+
+};
+
+&cci_i2c1 {
+	camera-sensor@2d { // Main camera
+		compatible = "samsung,s5k2p6sx";
+		reg = <0x2d>;
+		clocks = <&gcc GCC_CAMSS_MCLK0_CLK>;
+		clock-frequency = <24000000>;
+		reset-gpios = <&tlmm 40 GPIO_ACTIVE_LOW>;
+		dvdd-supply = <&vdd_cam_main>;
+		avdd-supply = <&vdd_cam_main>;
+		vio-supply = <&vdd_cam_main>;
+		rotation = <270>;
+		orientation = <1>;
+
+		port {
+			main_cam_ep: endpoint {
+				data-lanes = <0 1 2 3>;
+				remote-endpoint = <&csiphy0_ep>;
+			};
+		};
+	};
+};
+
+&hsusb_phy {
+	vdd-supply = <&pm8953_l3>;
+	vdda-pll-supply = <&pm8953_l7>;
+	vdda-phy-dpdm-supply = <&pm8953_l13>;
+	status = "okay";
+};
+
+&i2c_2 {
+	status = "okay";
+
+	touchscreen@48 {
+		compatible = "samsung,s6sy761";
+		reg = <0x48>;
+		interrupts-extended = <&tlmm 59 IRQ_TYPE_EDGE_FALLING>;
+		pinctrl-0 = <&ts_int_default>;
+		pinctrl-names = "default";
+		avdd-supply = <&ts_avdd>;
+		vdd-supply = <&ts_vdd>;
+		touchscreen-size-x = <4096>;
+		touchscreen-size-y = <4096>;
+	};
+};
+
+&i2c_3 {
+	status = "okay";
+
+	lens_actuator: camera-lens@c {
+		compatible = "powerlogics,zc535";
+		reg = <0x0c>;
+		vdd-supply = <&vdd_actuator>;
+		vio-supply = <&vddio_cam>;
+	};
+};
+
+&i2c_5 {
+	status = "okay";
+
+	speaker_codec: audio-codec@34 {
+		compatible = "nxp,tfa9872";
+		reg = <0x34>;
+		max-coil-current = <12>;
+		first-boost-voltage = <4>;
+		first-boost-trip-lvl = <7>;
+		second-boost-voltage = <5>;
+		second-boost-trip-lvl = <5>;
+		#sound-dai-cells = <0>;
+	};
+};
+
+&i2c_8 {
+	status = "okay";
+
+	usb_extcon: extcon@25 {
+		compatible = "siliconmitus,sm5708-muic";
+		reg = <0x25>;
+		interrupts-extended = <&tlmm 63 IRQ_TYPE_LEVEL_HIGH>;
+		pinctrl-0 = <&muic_int_default>;
+		pinctrl-names = "default";
+	};
+
+	pmic@49 {
+		compatible = "siliconmitus,sm5708";
+		reg = <0x49>;
+	};
+};
+
+&i2c_gpio_1 {
+	light-proximity-sensor@60 {
+		compatible = "capella,cm36658";
+		reg = <0x60>;
+		interrupts-extended = <&tlmm 43 IRQ_TYPE_EDGE_FALLING>;
+		vdd-supply = <&sensors_vdd>;
+		vled-supply = <&prox_led_vdd>;
+	};
+};
+
+&i2c_gpio_2 {
+	expander: gpio@20 {
+		compatible = "nxp,pcal6416";
+		reg = <0x20>;
+		reset-gpios = <&tlmm 33 GPIO_ACTIVE_LOW>;
+		vcc-supply = <&pm8953_l5>;
+		gpio-controller;
+		#gpio-cells = <2>;
+	};
+};
+
+&i2c_gpio_4 {
+	accelerometer@6b {
+		compatible = "st,lsm6dsl";
+		reg = <0x6b>;
+		interrupts-extended = <&tlmm 42 IRQ_TYPE_EDGE_RISING>;
+		mount-matrix = "-1",  "0",  "0",
+			        "0", "-1",  "0",
+			        "0",  "0", "-1";
+		pinctrl-0 = <&accel_int_default>;
+		pinctrl-names = "default";
+		vdd-supply = <&sensors_vdd>;
+	};
+};
+
+&i2c_gpio_5 {
+	grip-sensor@20 {
+		compatible = "abov,a96t3x6";
+		reg = <0x20>;
+		interrupts-extended = <&tlmm 86 IRQ_TYPE_NONE>;
+		vdd-supply = <&grip_vdd>;
+	};
+};
+
+&lpass {
+	status = "okay";
+};
+
+&mdss {
+	status = "okay";
+};
+
+&mdss_dsi0 {
+	pinctrl-0 = <&mdss_te_default>;
+	pinctrl-names = "default";
+	vdda-supply = <&pm8953_s3>;
+	vddio-supply = <&pm8953_l6>;
+	status = "okay";
+
+	panel@0 {
+		compatible = "samsung,s6e3fa7-ams604nl01";
+		reg = <0>;
+		reset-gpios = <&tlmm 50 GPIO_ACTIVE_LOW>;
+		vdd-supply = <&panel_vdd_vci>;
+		vci-supply = <&panel_vdd_vci>;
+		vddr-supply = <&panel_vddr>;
+
+		port {
+			panel_in: endpoint {
+				remote-endpoint = <&mdss_dsi0_out>;
+			};
+		};
+	};
+};
+
+&mdss_dsi0_out {
+	data-lanes = <0 1 2 3>;
+	remote-endpoint = <&panel_in>;
+};
+
+&mdss_dsi0_phy {
+	vcca-supply = <&pm8953_l3>;
+	status = "okay";
+};
+
+&mpss {
+	mss-supply = <&pm8953_s1>;
+	pll-supply = <&pm8953_l7>;
+	status = "okay";
+};
+
+&pm8953_resin {
+	linux,code = <KEY_VOLUMEDOWN>;
+	status = "okay";
+};
+
+&q6afedai {
+	dai@22 {
+		reg = <QUATERNARY_MI2S_RX>;
+		qcom,sd-lines = <0>;
+	};
+};
+
+&rpm_requests {
+	pm8953-regulators {
+		compatible = "qcom,rpm-pm8953-regulators";
+		vdd_s1-supply = <&vbat>;
+		vdd_s2-supply = <&vbat>;
+		vdd_s3-supply = <&vbat>;
+		vdd_s4-supply = <&vbat>;
+		vdd_s5-supply = <&vbat>;
+		vdd_s6-supply = <&vbat>;
+		vdd_s7-supply = <&vbat>;
+		vdd_l1-supply = <&pm8953_s3>;
+		vdd_l2_l3-supply = <&pm8953_s3>;
+		vdd_l4_l5_l6_l7_l16_l19-supply = <&pm8953_s4>;
+		vdd_l8_l11_l12_l13_l14_l15-supply = <&vbat>;
+		vdd_l9_l10_l17_l18_l22-supply = <&vbat>;
+		vdd_l23-supply = <&pm8953_s3>;
+
+		pm8953_s1: s1 {
+			regulator-min-microvolt = <864000>;
+			regulator-max-microvolt = <1152000>;
+		};
+
+		pm8953_s3: s3 {
+			regulator-min-microvolt = <1224000>;
+			regulator-max-microvolt = <1224000>;
+		};
+
+		pm8953_s4: s4 {
+			regulator-min-microvolt = <1896000>;
+			regulator-max-microvolt = <2048000>;
+		};
+
+		pm8953_l1: l1 {
+			regulator-min-microvolt = <1000000>;
+			regulator-max-microvolt = <1100000>;
+		};
+
+		pm8953_l3: l3 {
+			regulator-min-microvolt = <925000>;
+			regulator-max-microvolt = <925000>;
+			regulator-allow-set-load;
+		};
+
+		pm8953_l5: l5 {
+			regulator-min-microvolt = <1800000>;
+			regulator-max-microvolt = <1800000>;
+			regulator-always-on;
+		};
+
+		pm8953_l6: l6 {
+			regulator-min-microvolt = <1800000>;
+			regulator-max-microvolt = <1800000>;
+		};
+
+		pm8953_l7: l7 {
+			regulator-min-microvolt = <1800000>;
+			regulator-max-microvolt = <1900000>;
+		};
+
+		pm8953_l8: l8 {
+			regulator-min-microvolt = <2900000>;
+			regulator-max-microvolt = <2900000>;
+		};
+
+		pm8953_l9: l9 {
+			regulator-min-microvolt = <3000000>;
+			regulator-max-microvolt = <3300000>;
+		};
+
+		pm8953_l11: l11 {
+			regulator-min-microvolt = <2800000>;
+			regulator-max-microvolt = <3000000>;
+		};
+
+		pm8953_l12: l12 {
+			regulator-min-microvolt = <1800000>;
+			regulator-max-microvolt = <3000000>;
+		};
+
+		pm8953_l13: l13 {
+			regulator-min-microvolt = <3075000>;
+			regulator-max-microvolt = <3125000>;
+		};
+
+		pm8953_l17: l17 {
+			regulator-min-microvolt = <2800000>;
+			regulator-max-microvolt = <3000000>;
+		};
+
+		pm8953_l19: l19 {
+			regulator-min-microvolt = <1200000>;
+			regulator-max-microvolt = <1350000>;
+		};
+
+		pm8953_l23: l23 {
+			regulator-min-microvolt = <1050000>;
+			regulator-max-microvolt = <1050000>;
+		};
+	};
+};
+
+&sdhc_1 {
+	vmmc-supply = <&pm8953_l8>;
+	vqmmc-supply = <&pm8953_l5>;
+	status = "okay";
+};
+
+&sdhc_2 {
+	cd-gpios = <&tlmm 133 GPIO_ACTIVE_LOW>;
+	pinctrl-0 = <&sdc2_clk_on &sdc2_cmd_on &sdc2_data_on &sdc2_cd_off>;
+	pinctrl-1 = <&sdc2_clk_off &sdc2_cmd_off &sdc2_data_off &sdc2_cd_off>;
+	pinctrl-names = "default", "sleep";
+	vmmc-supply = <&pm8953_l11>;
+	vqmmc-supply = <&pm8953_l12>;
+	status = "okay";
+};
+
+&sound_card {
+	model = "samsung-a2015";
+	audio-routing =
+		"AMIC1", "MIC BIAS External1",
+		"AMIC2", "MIC BIAS Internal2",
+		"AMIC3", "MIC BIAS External1";
+	pinctrl-0 = <&cdc_pdm_lines_act &cdc_pdm_lines_2_act &cdc_pdm_comp_lines_act &quat_tlmm_default>;
+	pinctrl-1 = <&cdc_pdm_lines_sus &cdc_pdm_lines_2_sus &cdc_pdm_comp_lines_sus &quat_tlmm_default>;
+	pinctrl-names = "default", "sleep";
+	status = "okay";
+
+	quaternary-mi2s-dai-link {
+		link-name = "Quaternary MI2S";
+		cpu {
+			sound-dai = <&q6afedai QUATERNARY_MI2S_RX>;
+		};
+
+		platform {
+			sound-dai = <&q6routing>;
+		};
+
+		codec {
+			sound-dai = <&speaker_codec>;
+		};
+	};
+};
+
+&tlmm {
+	/* Fingerprint sensor at SPI4 (BLSP1 QUP4) */
+	gpio-reserved-ranges = <12 4>;
+
+	accel_int_default: accel-int-default-state {
+		pins = "gpio42";
+		function = "gpio";
+		bias-disable;
+	};
+
+	charger_int_default: charger-int-state {
+		pins = "gpio60";
+		function = "gpio";
+		bias-disable;
+	};
+
+	fg_int_default: fg-int-default-state {
+		pins = "gpio62";
+		function = "gpio";
+		bias-disable;
+	};
+
+	jack_default: jack-default-state {
+		pins = "gpio48";
+		function = "gpio";
+		bias-disable;
+	};
+
+	muic_int_default: muic-int-default-state {
+		pins = "gpio63";
+		function = "gpio";
+		bias-disable;
+	};
+
+	quat_tlmm_default: quat-tlmm-state {
+		pins = "gpio135", "gpio136", "gpio137", "gpio138";
+		function = "sec_mi2s";
+		drive-strength = <8>;
+		bias-disable;
+	};
+
+	ts_int_default: ts-int-default-state {
+		pins = "gpio59";
+		function = "gpio";
+		bias-disable;
+	};
+};
+
+&uart_0 {
+	status = "okay";
+};
+
+&usb3 {
+	extcon = <&usb_extcon>;
+	status = "okay";
+};
+
+&usb3_dwc3 {
+	dr_mode = "otg";
+	extcon = <&usb_extcon>;
+	//vbus-supply = <&otg_vbus>;
+};
+
+&wcd_codec {
+	jack-gpios = <&tlmm 48 GPIO_ACTIVE_LOW>;
+	pinctrl-0 = <&jack_default>;
+	pinctrl-names = "default";
+	qcom,micbias-lvl = <2800>;
+	qcom,micbias1-ext-cap;
+	qcom,micbias2-ext-cap;
+	qcom,mbhc-vthreshold-low = <150 225 450 500 600>;
+	qcom,mbhc-vthreshold-high = <150 225 450 500 600>;
+	vdd-cdc-io-supply = <&pm8953_l5>;
+	vdd-cdc-tx-rx-cx-supply = <&pm8953_s4>;
+	vdd-micbias-supply = <&pm8953_l13>;
+	status = "okay";
+};
+
+&wcnss {
+	vddpx-supply = <&pm8953_l5>;
+	status = "okay";
+};
+
+&wcnss_iris {
+	compatible = "qcom,wcn3660b";
+	vddxo-supply = <&pm8953_l7>;
+	vddrfa-supply = <&pm8953_l19>;
+	vddpa-supply = <&pm8953_l9>;
+	vdddig-supply = <&pm8953_l5>;
+	status = "okay";
+};
