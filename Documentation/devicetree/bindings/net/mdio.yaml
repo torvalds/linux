@@ -76,12 +76,6 @@ patternProperties:
           the turn around line low at end of the control phase of the
           MDIO transaction.
 
-      resets:
-        maxItems: 1
-
-      reset-names:
-        const: phy
-
       reset-gpios:
         maxItems: 1
         description:
