@@ -214,7 +214,8 @@ static struct msft_monitor_advertisement_handle_data *msft_find_handle_data
 
 /* This function requires the caller holds hdev->lock */
 static int msft_monitor_device_del(struct hci_dev *hdev, __u16 mgmt_handle,
-				   bdaddr_t *bdaddr, __u8 addr_type)
+				   bdaddr_t *bdaddr, __u8 addr_type,
+				   bool notify)
 {
 	struct monitored_device *dev, *tmp;
 	int count = 0;
@@ -227,6 +228,12 @@ static int msft_monitor_device_del(struct hci_dev *hdev, __u16 mgmt_handle,
 		if ((!mgmt_handle || dev->handle == mgmt_handle) &&
 		    (!bdaddr || (!bacmp(bdaddr, &dev->bdaddr) &&
 				 addr_type == dev->addr_type))) {
+			if (notify && dev->notified) {
+				mgmt_adv_monitor_device_lost(hdev, dev->handle,
+							     &dev->bdaddr,
+							     dev->addr_type);
+			}
+
 			list_del(&dev->list);
 			kfree(dev);
 			count++;
@@ -328,7 +335,7 @@ static void msft_le_cancel_monitor_advertisement_cb(struct hci_dev *hdev,
 
 		/* Clear any monitored devices by this Adv Monitor */
 		msft_monitor_device_del(hdev, handle_data->mgmt_handle, NULL,
-					0);
+					0, false);
 
 		list_del(&handle_data->list);
 		kfree(handle_data);
@@ -596,8 +603,9 @@ void msft_do_close(struct hci_dev *hdev)
 
 	hci_dev_lock(hdev);
 
-	/* Clear any devices that are being monitored */
-	msft_monitor_device_del(hdev, 0, NULL, 0);
+	/* Clear any devices that are being monitored and notify device lost */
+	hdev->advmon_pend_notify = false;
+	msft_monitor_device_del(hdev, 0, NULL, 0, true);
 
 	hci_dev_unlock(hdev);
 }
@@ -653,13 +661,15 @@ static void msft_device_found(struct hci_dev *hdev, bdaddr_t *bdaddr,
 
 	INIT_LIST_HEAD(&dev->list);
 	list_add(&dev->list, &hdev->monitored_devices);
+	hdev->advmon_pend_notify = true;
 }
 
 /* This function requires the caller holds hdev->lock */
 static void msft_device_lost(struct hci_dev *hdev, bdaddr_t *bdaddr,
 			     __u8 addr_type, __u16 mgmt_handle)
 {
-	if (!msft_monitor_device_del(hdev, mgmt_handle, bdaddr, addr_type)) {
+	if (!msft_monitor_device_del(hdev, mgmt_handle, bdaddr, addr_type,
+				     true)) {
 		bt_dev_err(hdev, "MSFT vendor event %u: dev %pMR not in list",
 			   MSFT_EV_LE_MONITOR_DEVICE, bdaddr);
 	}
