@@ -270,12 +270,10 @@ static int mmpcam_probe(struct platform_device *pdev)
 	 * Finally, set up our IRQ now that the core is ready to
 	 * deal with it.
 	 */
-	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
-	if (res == NULL) {
-		ret = -ENODEV;
+	ret = platform_get_irq(pdev, 0);
+	if (ret < 0)
 		goto out;
-	}
-	cam->irq = res->start;
+	cam->irq = ret;
 	ret = devm_request_irq(&pdev->dev, cam->irq, mmpcam_irq, IRQF_SHARED,
 					"mmp-camera", mcam);
 	if (ret)
