@@ -9,6 +9,7 @@ Required properties:
 - "rockchip,pm-rk3328" - for RK3328 SOCs.
 - "rockchip,pm-rk3368" - for RK3368 SoCs.
 - "rockchip,pm-rk3399" - for RK3399 SoCs.
+- "rockchip,pm-rk3588" - for RK3588 SoCs.
 - "rockchip,pm-rv1126" - for RV1126 SoCs.
 
 - rockchip,sleep-mode-config : the sleep mode config,
@@ -187,6 +188,26 @@ Example:
 
 		rockchip,regulator-off-in-mem-ultra = ...;
 		rockchip,regulator-on-in-mem-ultra = ...;
+	};
+
+	rockchip_suspend: rockchip-suspend {
+		compatible = "rockchip,pm-rk3588";
+		status = "okay";
+		rockchip,sleep-debug-en = <0>;
+		rockchip,sleep-mode-config = <
+			(0
+			| RKPM_SLP_ARMOFF_DDRPD
+			| RKPM_SLP_PMU_PMUALIVE_32K
+			| RKPM_SLP_PMU_DIS_OSC
+			| RKPM_SLP_32K_EXT
+			| RKPM_SLP_PMU_DBG
+			)
+		>;
+		rockchip,wakeup-config = <
+			(0
+			| RKPM_GPIO_WKUP_EN
+			)
+		>;
 	};
 
 	rockchip_suspend: rockchip-suspend {
