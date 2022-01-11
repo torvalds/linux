@@ -158,7 +158,7 @@ static int iterate_object_props(struct btrfs_root *root,
 
 		di = btrfs_item_ptr(leaf, slot, struct btrfs_dir_item);
 		cur = 0;
-		total_len = btrfs_item_size_nr(leaf, slot);
+		total_len = btrfs_item_size(leaf, slot);
 
 		while (cur < total_len) {
 			u32 name_len = btrfs_dir_name_len(leaf, di);
@@ -377,8 +377,9 @@ static int inherit_props(struct btrfs_trans_handle *trans,
 		 */
 		if (need_reserve) {
 			num_bytes = btrfs_calc_insert_metadata_size(fs_info, 1);
-			ret = btrfs_block_rsv_add(root, trans->block_rsv,
-					num_bytes, BTRFS_RESERVE_NO_FLUSH);
+			ret = btrfs_block_rsv_add(fs_info, trans->block_rsv,
+						  num_bytes,
+						  BTRFS_RESERVE_NO_FLUSH);
 			if (ret)
 				return ret;
 		}
