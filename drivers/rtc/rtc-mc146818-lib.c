@@ -130,7 +130,7 @@ static void mc146818_get_time_callback(unsigned char seconds, void *param_in)
 	p->ctrl = CMOS_READ(RTC_CONTROL);
 }
 
-unsigned int mc146818_get_time(struct rtc_time *time)
+int mc146818_get_time(struct rtc_time *time)
 {
 	struct mc146818_get_time_callback_param p = {
 		.time = time
