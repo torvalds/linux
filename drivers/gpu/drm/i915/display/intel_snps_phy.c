@@ -10,6 +10,7 @@
 #include "intel_de.h"
 #include "intel_display_types.h"
 #include "intel_snps_phy.h"
+#include "intel_snps_phy_regs.h"
 
 /**
  * DOC: Synopsis PHY support
