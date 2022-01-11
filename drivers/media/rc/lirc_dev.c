@@ -102,8 +102,6 @@ void lirc_raw_event(struct rc_dev *dev, struct ir_raw_event ev)
 
 	spin_lock_irqsave(&dev->lirc_fh_lock, flags);
 	list_for_each_entry(fh, &dev->lirc_fh, list) {
-		if (LIRC_IS_TIMEOUT(sample) && !fh->send_timeout_reports)
-			continue;
 		if (kfifo_put(&fh->rawir, sample))
 			wake_up_poll(&fh->wait_poll, EPOLLIN | EPOLLRDNORM);
 	}
@@ -166,7 +164,6 @@ static int lirc_open(struct inode *inode, struct file *file)
 
 	fh->send_mode = LIRC_MODE_PULSE;
 	fh->rc = dev;
-	fh->send_timeout_reports = true;
 
 	if (dev->driver_type == RC_DRIVER_SCANCODE)
 		fh->rec_mode = LIRC_MODE_SCANCODE;
@@ -570,8 +567,6 @@ static long lirc_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	case LIRC_SET_REC_TIMEOUT_REPORTS:
 		if (dev->driver_type != RC_DRIVER_IR_RAW)
 			ret = -ENOTTY;
-		else
-			fh->send_timeout_reports = !!val;
 		break;
 
 	default:

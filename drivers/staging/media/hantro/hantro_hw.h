@@ -12,6 +12,7 @@
 #include <linux/interrupt.h>
 #include <linux/v4l2-controls.h>
 #include <media/v4l2-ctrls.h>
+#include <media/v4l2-vp9.h>
 #include <media/videobuf2-core.h>
 
 #define DEC_8190_ALIGN_MASK	0x07U
@@ -166,12 +167,99 @@ struct hantro_vp8_dec_hw_ctx {
 };
 
 /**
+ * struct hantro_vp9_frame_info
+ *
+ * @valid: frame info valid flag
+ * @frame_context_idx: index of frame context
+ * @reference_mode: inter prediction type
+ * @tx_mode: transform mode
+ * @interpolation_filter: filter selection for inter prediction
+ * @flags: frame flags
+ * @timestamp: frame timestamp
+ */
+struct hantro_vp9_frame_info {
+	u32 valid : 1;
+	u32 frame_context_idx : 2;
+	u32 reference_mode : 2;
+	u32 tx_mode : 3;
+	u32 interpolation_filter : 3;
+	u32 flags;
+	u64 timestamp;
+};
+
+#define MAX_SB_COLS	64
+#define MAX_SB_ROWS	34
+
+/**
+ * struct hantro_vp9_dec_hw_ctx
+ *
+ * @tile_edge: auxiliary DMA buffer for tile edge processing
+ * @segment_map: auxiliary DMA buffer for segment map
+ * @misc: auxiliary DMA buffer for tile info, probabilities and hw counters
+ * @cnts: vp9 library struct for abstracting hw counters access
+ * @probability_tables: VP9 probability tables implied by the spec
+ * @frame_context: VP9 frame contexts
+ * @cur: current frame information
+ * @last: last frame information
+ * @bsd_ctrl_offset: bsd offset into tile_edge
+ * @segment_map_size: size of segment map
+ * @ctx_counters_offset: hw counters offset into misc
+ * @tile_info_offset: tile info offset into misc
+ * @tile_r_info: per-tile information array
+ * @tile_c_info: per-tile information array
+ * @last_tile_r: last number of tile rows
+ * @last_tile_c: last number of tile cols
+ * @last_sbs_r: last number of superblock rows
+ * @last_sbs_c: last number of superblock cols
+ * @active_segment: number of active segment (alternating between 0 and 1)
+ * @feature_enabled: segmentation feature enabled flags
+ * @feature_data: segmentation feature data
+ */
+struct hantro_vp9_dec_hw_ctx {
+	struct hantro_aux_buf tile_edge;
+	struct hantro_aux_buf segment_map;
+	struct hantro_aux_buf misc;
+	struct v4l2_vp9_frame_symbol_counts cnts;
+	struct v4l2_vp9_frame_context probability_tables;
+	struct v4l2_vp9_frame_context frame_context[4];
+	struct hantro_vp9_frame_info cur;
+	struct hantro_vp9_frame_info last;
+
+	unsigned int bsd_ctrl_offset;
+	unsigned int segment_map_size;
+	unsigned int ctx_counters_offset;
+	unsigned int tile_info_offset;
+
+	unsigned short tile_r_info[MAX_SB_ROWS];
+	unsigned short tile_c_info[MAX_SB_COLS];
+	unsigned int last_tile_r;
+	unsigned int last_tile_c;
+	unsigned int last_sbs_r;
+	unsigned int last_sbs_c;
+
+	unsigned int active_segment;
+	u8 feature_enabled[8];
+	s16 feature_data[8][4];
+};
+
+/**
  * struct hantro_postproc_ctx
  *
  * @dec_q:		References buffers, in decoder format.
  */
 struct hantro_postproc_ctx {
 	struct hantro_aux_buf dec_q[VB2_MAX_FRAME];
+};
+
+/**
+ * struct hantro_postproc_ops - post-processor operations
+ *
+ * @enable:	Enable the post-processor block. Optional.
+ * @disable:	Disable the post-processor block. Optional.
+ */
+struct hantro_postproc_ops {
+	void (*enable)(struct hantro_ctx *ctx);
+	void (*disable)(struct hantro_ctx *ctx);
 };
 
 /**
@@ -220,8 +308,10 @@ extern const struct hantro_variant rk3288_vpu_variant;
 extern const struct hantro_variant rk3328_vpu_variant;
 extern const struct hantro_variant rk3399_vpu_variant;
 extern const struct hantro_variant sama5d4_vdec_variant;
+extern const struct hantro_variant sunxi_vpu_variant;
 
-extern const struct hantro_postproc_regs hantro_g1_postproc_regs;
+extern const struct hantro_postproc_ops hantro_g1_postproc_ops;
+extern const struct hantro_postproc_ops hantro_g2_postproc_ops;
 
 extern const u32 hantro_vp8_dec_mc_filter[8][6];
 
@@ -239,7 +329,8 @@ int hantro_h1_jpeg_enc_run(struct hantro_ctx *ctx);
 int rockchip_vpu2_jpeg_enc_run(struct hantro_ctx *ctx);
 int hantro_jpeg_enc_init(struct hantro_ctx *ctx);
 void hantro_jpeg_enc_exit(struct hantro_ctx *ctx);
-void hantro_jpeg_enc_done(struct hantro_ctx *ctx);
+void hantro_h1_jpeg_enc_done(struct hantro_ctx *ctx);
+void rockchip_vpu2_jpeg_enc_done(struct hantro_ctx *ctx);
 
 dma_addr_t hantro_h264_get_ref_buf(struct hantro_ctx *ctx,
 				   unsigned int dpb_idx);
@@ -256,9 +347,28 @@ void hantro_hevc_dec_exit(struct hantro_ctx *ctx);
 int hantro_g2_hevc_dec_run(struct hantro_ctx *ctx);
 int hantro_hevc_dec_prepare_run(struct hantro_ctx *ctx);
 dma_addr_t hantro_hevc_get_ref_buf(struct hantro_ctx *ctx, int poc);
+int hantro_hevc_add_ref_buf(struct hantro_ctx *ctx, int poc, dma_addr_t addr);
 void hantro_hevc_ref_remove_unused(struct hantro_ctx *ctx);
 size_t hantro_hevc_chroma_offset(const struct v4l2_ctrl_hevc_sps *sps);
 size_t hantro_hevc_motion_vectors_offset(const struct v4l2_ctrl_hevc_sps *sps);
+
+static inline unsigned short hantro_vp9_num_sbs(unsigned short dimension)
+{
+	return (dimension + 63) / 64;
+}
+
+static inline size_t
+hantro_vp9_mv_size(unsigned int width, unsigned int height)
+{
+	int num_ctbs;
+
+	/*
+	 * There can be up to (CTBs x 64) number of blocks,
+	 * and the motion vector for each block needs 16 bytes.
+	 */
+	num_ctbs = hantro_vp9_num_sbs(width) * hantro_vp9_num_sbs(height);
+	return (num_ctbs * 64) * 16;
+}
 
 static inline size_t
 hantro_h264_mv_size(unsigned int width, unsigned int height)
@@ -287,6 +397,16 @@ hantro_h264_mv_size(unsigned int width, unsigned int height)
 	return 64 * MB_WIDTH(width) * MB_WIDTH(height) + 32;
 }
 
+static inline size_t
+hantro_hevc_mv_size(unsigned int width, unsigned int height)
+{
+	/*
+	 * A CTB can be 64x64, 32x32 or 16x16.
+	 * Allocated memory for the "worse" case: 16x16
+	 */
+	return width * height / 16;
+}
+
 int hantro_g1_mpeg2_dec_run(struct hantro_ctx *ctx);
 int rockchip_vpu2_mpeg2_dec_run(struct hantro_ctx *ctx);
 void hantro_mpeg2_dec_copy_qtable(u8 *qtable,
@@ -300,5 +420,12 @@ int hantro_vp8_dec_init(struct hantro_ctx *ctx);
 void hantro_vp8_dec_exit(struct hantro_ctx *ctx);
 void hantro_vp8_prob_update(struct hantro_ctx *ctx,
 			    const struct v4l2_ctrl_vp8_frame *hdr);
+
+int hantro_g2_vp9_dec_run(struct hantro_ctx *ctx);
+void hantro_g2_vp9_dec_done(struct hantro_ctx *ctx);
+int hantro_vp9_dec_init(struct hantro_ctx *ctx);
+void hantro_vp9_dec_exit(struct hantro_ctx *ctx);
+void hantro_g2_check_idle(struct hantro_dev *vpu);
+irqreturn_t hantro_g2_irq(int irq, void *dev_id);
 
 #endif /* HANTRO_HW_H_ */

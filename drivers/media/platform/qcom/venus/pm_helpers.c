@@ -163,14 +163,12 @@ static u32 load_per_type(struct venus_core *core, u32 session_type)
 	struct venus_inst *inst = NULL;
 	u32 mbs_per_sec = 0;
 
-	mutex_lock(&core->lock);
 	list_for_each_entry(inst, &core->instances, list) {
 		if (inst->session_type != session_type)
 			continue;
 
 		mbs_per_sec += load_per_instance(inst);
 	}
-	mutex_unlock(&core->lock);
 
 	return mbs_per_sec;
 }
@@ -219,14 +217,12 @@ static int load_scale_bw(struct venus_core *core)
 	struct venus_inst *inst = NULL;
 	u32 mbs_per_sec, avg, peak, total_avg = 0, total_peak = 0;
 
-	mutex_lock(&core->lock);
 	list_for_each_entry(inst, &core->instances, list) {
 		mbs_per_sec = load_per_instance(inst);
 		mbs_to_bw(inst, mbs_per_sec, &avg, &peak);
 		total_avg += avg;
 		total_peak += peak;
 	}
-	mutex_unlock(&core->lock);
 
 	/*
 	 * keep minimum bandwidth vote for "video-mem" path,
@@ -253,8 +249,9 @@ static int load_scale_v1(struct venus_inst *inst)
 	struct device *dev = core->dev;
 	u32 mbs_per_sec;
 	unsigned int i;
-	int ret;
+	int ret = 0;
 
+	mutex_lock(&core->lock);
 	mbs_per_sec = load_per_type(core, VIDC_SESSION_TYPE_ENC) +
 		      load_per_type(core, VIDC_SESSION_TYPE_DEC);
 
@@ -279,17 +276,19 @@ set_freq:
 	if (ret) {
 		dev_err(dev, "failed to set clock rate %lu (%d)\n",
 			freq, ret);
-		return ret;
+		goto exit;
 	}
 
 	ret = load_scale_bw(core);
 	if (ret) {
 		dev_err(dev, "failed to set bandwidth (%d)\n",
 			ret);
-		return ret;
+		goto exit;
 	}
 
-	return 0;
+exit:
+	mutex_unlock(&core->lock);
+	return ret;
 }
 
 static int core_get_v1(struct venus_core *core)
@@ -587,8 +586,8 @@ min_loaded_core(struct venus_inst *inst, u32 *min_coreid, u32 *min_load, bool lo
 		if (inst->session_type == VIDC_SESSION_TYPE_DEC)
 			vpp_freq = inst_pos->clk_data.vpp_freq;
 		else if (inst->session_type == VIDC_SESSION_TYPE_ENC)
-			vpp_freq = low_power ? inst_pos->clk_data.vpp_freq :
-				inst_pos->clk_data.low_power_freq;
+			vpp_freq = low_power ? inst_pos->clk_data.low_power_freq :
+				inst_pos->clk_data.vpp_freq;
 		else
 			continue;
 
@@ -1116,13 +1115,13 @@ static int load_scale_v4(struct venus_inst *inst)
 	struct device *dev = core->dev;
 	unsigned long freq = 0, freq_core1 = 0, freq_core2 = 0;
 	unsigned long filled_len = 0;
-	int i, ret;
+	int i, ret = 0;
 
 	for (i = 0; i < inst->num_input_bufs; i++)
 		filled_len = max(filled_len, inst->payloads[i]);
 
 	if (inst->session_type == VIDC_SESSION_TYPE_DEC && !filled_len)
-		return 0;
+		return ret;
 
 	freq = calculate_inst_freq(inst, filled_len);
 	inst->clk_data.freq = freq;
@@ -1138,7 +1137,6 @@ static int load_scale_v4(struct venus_inst *inst)
 			freq_core2 += inst->clk_data.freq;
 		}
 	}
-	mutex_unlock(&core->lock);
 
 	freq = max(freq_core1, freq_core2);
 
@@ -1163,17 +1161,19 @@ set_freq:
 	if (ret) {
 		dev_err(dev, "failed to set clock rate %lu (%d)\n",
 			freq, ret);
-		return ret;
+		goto exit;
 	}
 
 	ret = load_scale_bw(core);
 	if (ret) {
 		dev_err(dev, "failed to set bandwidth (%d)\n",
 			ret);
-		return ret;
+		goto exit;
 	}
 
-	return 0;
+exit:
+	mutex_unlock(&core->lock);
+	return ret;
 }
 
 static const struct venus_pm_ops pm_ops_v4 = {

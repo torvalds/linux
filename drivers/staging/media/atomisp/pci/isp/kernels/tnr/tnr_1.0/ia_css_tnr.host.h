@@ -39,16 +39,12 @@ ia_css_tnr_debug_dtrace(
     const struct ia_css_tnr_config *config,
     unsigned int level);
 
-void
-ia_css_tnr_config(
-    struct sh_css_isp_tnr_isp_config      *to,
-    const struct ia_css_tnr_configuration *from,
-    unsigned int size);
+int ia_css_tnr_config(struct sh_css_isp_tnr_isp_config      *to,
+		      const struct ia_css_tnr_configuration *from,
+		      unsigned int size);
 
-void
-ia_css_tnr_configure(
-    const struct ia_css_binary     *binary,
-    const struct ia_css_frame * const *frames);
+int ia_css_tnr_configure(const struct ia_css_binary        *binary,
+			 const struct ia_css_frame * const *frames);
 
 void
 ia_css_init_tnr_state(

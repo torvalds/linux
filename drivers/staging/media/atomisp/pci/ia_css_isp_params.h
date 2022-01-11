@@ -121,9 +121,6 @@ struct ia_css_memory_offsets {
 		struct ia_css_isp_parameter sdis_vertcoef;
 		struct ia_css_isp_parameter sdis2_horicoef;
 		struct ia_css_isp_parameter sdis2_vertcoef;
-
-		/* ISP2401 */
-		struct ia_css_isp_parameter xnr3;
 	} vmem;
 	struct {
 		struct ia_css_isp_parameter bh;

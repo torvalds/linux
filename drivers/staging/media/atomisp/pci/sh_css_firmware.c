@@ -56,8 +56,7 @@ static struct firmware_header *firmware_header;
  * which will be replaced with the actual RELEASE_VERSION
  * during package generation. Please do not modify
  */
-static const char *isp2400_release_version = STR(irci_stable_candrpv_0415_20150521_0458);
-static const char *isp2401_release_version = STR(irci_ecr - master_20150911_0724);
+static const char *release_version = STR(irci_stable_candrpv_0415_20150521_0458);
 
 #define MAX_FW_REL_VER_NAME	300
 static char FW_rel_ver_name[MAX_FW_REL_VER_NAME] = "---";
@@ -190,13 +189,6 @@ sh_css_check_firmware_version(struct device *dev, const char *fw_data)
 {
 	struct sh_css_fw_bi_file_h *file_header;
 
-	const char *release_version;
-
-	if (!IS_ISP2401)
-		release_version = isp2400_release_version;
-	else
-		release_version = isp2401_release_version;
-
 	firmware_header = (struct firmware_header *)fw_data;
 	file_header = &firmware_header->file_header;
 
@@ -232,12 +224,6 @@ sh_css_load_firmware(struct device *dev, const char *fw_data,
 	struct ia_css_fw_info *binaries;
 	struct sh_css_fw_bi_file_h *file_header;
 	int ret;
-	const char *release_version;
-
-	if (!IS_ISP2401)
-		release_version = isp2400_release_version;
-	else
-		release_version = isp2401_release_version;
 
 	firmware_header = (struct firmware_header *)fw_data;
 	file_header = &firmware_header->file_header;

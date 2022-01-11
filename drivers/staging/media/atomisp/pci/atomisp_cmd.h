@@ -74,8 +74,6 @@ irqreturn_t atomisp_isr_thread(int irq, void *isp_ptr);
 const struct atomisp_format_bridge *get_atomisp_format_bridge_from_mbus(
     u32 mbus_code);
 bool atomisp_is_mbuscode_raw(uint32_t code);
-int atomisp_get_frame_pgnr(struct atomisp_device *isp,
-			   const struct ia_css_frame *frame, u32 *p_pgnr);
 void atomisp_delayed_init_work(struct work_struct *work);
 
 /* Get internal fmt according to V4L2 fmt */
@@ -266,8 +264,6 @@ int atomisp_compare_grid(struct atomisp_sub_device *asd,
 int atomisp_get_sensor_mode_data(struct atomisp_sub_device *asd,
 				 struct atomisp_sensor_mode_data *config);
 
-int atomisp_get_fmt(struct video_device *vdev, struct v4l2_format *f);
-
 /* This function looks up the closest available resolution. */
 int atomisp_try_fmt(struct video_device *vdev, struct v4l2_pix_format *f,
 		    bool *res_overflow);
@@ -340,6 +336,8 @@ int atomisp_enable_dz_capt_pipe(struct atomisp_sub_device *asd,
 enum atomisp_metadata_type
 atomisp_get_metadata_type(struct atomisp_sub_device *asd,
 			  enum ia_css_pipe_id pipe_id);
+
+u32 atomisp_get_pixel_depth(u32 pixelformat);
 
 /* Function for HAL to inject a fake event to wake up poll thread */
 int atomisp_inject_a_fake_event(struct atomisp_sub_device *asd, int *event);

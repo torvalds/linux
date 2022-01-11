@@ -148,7 +148,7 @@ static int mtk_mdp_probe(struct platform_device *pdev)
 			continue;
 		}
 
-		comp_type = (enum mtk_mdp_comp_type)of_id->data;
+		comp_type = (uintptr_t)of_id->data;
 
 		comp = devm_kzalloc(dev, sizeof(*comp), GFP_KERNEL);
 		if (!comp) {

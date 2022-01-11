@@ -28,9 +28,6 @@
 #define VDEC_IRQ_CLR	0x10
 #define VDEC_IRQ_CFG_REG	0xa4
 
-module_param(mtk_v4l2_dbg_level, int, 0644);
-module_param(mtk_vcodec_dbg, bool, 0644);
-
 /* Wake up context wait_queue */
 static void wake_up_ctx(struct mtk_vcodec_ctx *ctx)
 {
@@ -358,6 +355,8 @@ err_media_reg:
 	if (dev->vdec_pdata->uses_stateless_api)
 		v4l2_m2m_unregister_media_controller(dev->m2m_dev_dec);
 err_reg_cont:
+	if (dev->vdec_pdata->uses_stateless_api)
+		media_device_cleanup(&dev->mdev_dec);
 	destroy_workqueue(dev->decode_workqueue);
 err_event_workq:
 	v4l2_m2m_release(dev->m2m_dev_dec);
@@ -390,7 +389,6 @@ static int mtk_vcodec_dec_remove(struct platform_device *pdev)
 {
 	struct mtk_vcodec_dev *dev = platform_get_drvdata(pdev);
 
-	flush_workqueue(dev->decode_workqueue);
 	destroy_workqueue(dev->decode_workqueue);
 
 	if (media_devnode_is_registered(dev->mdev_dec.devnode)) {
