@@ -59,7 +59,7 @@ static int smu_handle_task(struct smu_context *smu,
 			   bool lock_needed);
 static int smu_reset(struct smu_context *smu);
 static int smu_set_fan_speed_pwm(void *handle, u32 speed);
-static int smu_set_fan_control_mode(struct smu_context *smu, int value);
+static int smu_set_fan_control_mode(void *handle, u32 value);
 static int smu_set_power_limit(void *handle, uint32_t limit);
 static int smu_set_fan_speed_rpm(void *handle, uint32_t speed);
 static int smu_set_gfx_cgpg(struct smu_context *smu, bool enabled);
@@ -407,7 +407,7 @@ static void smu_restore_dpm_user_profile(struct smu_context *smu)
 	if (smu->user_dpm_profile.fan_mode == AMD_FAN_CTRL_MANUAL ||
 	    smu->user_dpm_profile.fan_mode == AMD_FAN_CTRL_NONE) {
 		ret = smu_set_fan_control_mode(smu, smu->user_dpm_profile.fan_mode);
-		if (ret) {
+		if (ret != -EOPNOTSUPP) {
 			smu->user_dpm_profile.fan_speed_pwm = 0;
 			smu->user_dpm_profile.fan_speed_rpm = 0;
 			smu->user_dpm_profile.fan_mode = AMD_FAN_CTRL_AUTO;
@@ -416,13 +416,13 @@ static void smu_restore_dpm_user_profile(struct smu_context *smu)
 
 		if (smu->user_dpm_profile.fan_speed_pwm) {
 			ret = smu_set_fan_speed_pwm(smu, smu->user_dpm_profile.fan_speed_pwm);
-			if (ret)
+			if (ret != -EOPNOTSUPP)
 				dev_err(smu->adev->dev, "Failed to set manual fan speed in pwm\n");
 		}
 
 		if (smu->user_dpm_profile.fan_speed_rpm) {
 			ret = smu_set_fan_speed_rpm(smu, smu->user_dpm_profile.fan_speed_rpm);
-			if (ret)
+			if (ret != -EOPNOTSUPP)
 				dev_err(smu->adev->dev, "Failed to set manual fan speed in rpm\n");
 		}
 	}
@@ -2218,18 +2218,22 @@ static int smu_set_fan_speed_rpm(void *handle, uint32_t speed)
 	if (!smu->pm_enabled || !smu->adev->pm.dpm_enabled)
 		return -EOPNOTSUPP;
 
+	if (!smu->ppt_funcs->set_fan_speed_rpm)
+		return -EOPNOTSUPP;
+
+	if (speed == U32_MAX)
+		return -EINVAL;
+
 	mutex_lock(&smu->mutex);
 
-	if (smu->ppt_funcs->set_fan_speed_rpm) {
-		ret = smu->ppt_funcs->set_fan_speed_rpm(smu, speed);
-		if (!ret && !(smu->user_dpm_profile.flags & SMU_DPM_USER_PROFILE_RESTORE)) {
-			smu->user_dpm_profile.flags |= SMU_CUSTOM_FAN_SPEED_RPM;
-			smu->user_dpm_profile.fan_speed_rpm = speed;
+	ret = smu->ppt_funcs->set_fan_speed_rpm(smu, speed);
+	if (!ret && !(smu->user_dpm_profile.flags & SMU_DPM_USER_PROFILE_RESTORE)) {
+		smu->user_dpm_profile.flags |= SMU_CUSTOM_FAN_SPEED_RPM;
+		smu->user_dpm_profile.fan_speed_rpm = speed;
 
-			/* Override custom PWM setting as they cannot co-exist */
-			smu->user_dpm_profile.flags &= ~SMU_CUSTOM_FAN_SPEED_PWM;
-			smu->user_dpm_profile.fan_speed_pwm = 0;
-		}
+		/* Override custom PWM setting as they cannot co-exist */
+		smu->user_dpm_profile.flags &= ~SMU_CUSTOM_FAN_SPEED_PWM;
+		smu->user_dpm_profile.fan_speed_pwm = 0;
 	}
 
 	mutex_unlock(&smu->mutex);
@@ -2562,59 +2566,64 @@ static int smu_set_power_profile_mode(void *handle,
 }
 
 
-static u32 smu_get_fan_control_mode(void *handle)
+static int smu_get_fan_control_mode(void *handle, u32 *fan_mode)
 {
 	struct smu_context *smu = handle;
-	u32 ret = 0;
 
 	if (!smu->pm_enabled || !smu->adev->pm.dpm_enabled)
-		return AMD_FAN_CTRL_NONE;
+		return -EOPNOTSUPP;
+
+	if (!smu->ppt_funcs->get_fan_control_mode)
+		return -EOPNOTSUPP;
+
+	if (!fan_mode)
+		return -EINVAL;
 
 	mutex_lock(&smu->mutex);
 
-	if (smu->ppt_funcs->get_fan_control_mode)
-		ret = smu->ppt_funcs->get_fan_control_mode(smu);
+	*fan_mode = smu->ppt_funcs->get_fan_control_mode(smu);
 
 	mutex_unlock(&smu->mutex);
 
-	return ret;
+	return 0;
 }
 
-static int smu_set_fan_control_mode(struct smu_context *smu, int value)
+static int smu_set_fan_control_mode(void *handle, u32 value)
 {
+	struct smu_context *smu = handle;
 	int ret = 0;
 
 	if (!smu->pm_enabled || !smu->adev->pm.dpm_enabled)
-		return  -EOPNOTSUPP;
+		return -EOPNOTSUPP;
+
+	if (!smu->ppt_funcs->set_fan_control_mode)
+		return -EOPNOTSUPP;
+
+	if (value == U32_MAX)
+		return -EINVAL;
 
 	mutex_lock(&smu->mutex);
 
-	if (smu->ppt_funcs->set_fan_control_mode) {
-		ret = smu->ppt_funcs->set_fan_control_mode(smu, value);
-		if (!ret && !(smu->user_dpm_profile.flags & SMU_DPM_USER_PROFILE_RESTORE))
-			smu->user_dpm_profile.fan_mode = value;
+	ret = smu->ppt_funcs->set_fan_control_mode(smu, value);
+	if (ret)
+		goto out;
+
+	if (!(smu->user_dpm_profile.flags & SMU_DPM_USER_PROFILE_RESTORE)) {
+		smu->user_dpm_profile.fan_mode = value;
+
+		/* reset user dpm fan speed */
+		if (value != AMD_FAN_CTRL_MANUAL) {
+			smu->user_dpm_profile.fan_speed_pwm = 0;
+			smu->user_dpm_profile.fan_speed_rpm = 0;
+			smu->user_dpm_profile.flags &= ~(SMU_CUSTOM_FAN_SPEED_RPM | SMU_CUSTOM_FAN_SPEED_PWM);
+		}
 	}
 
+out:
 	mutex_unlock(&smu->mutex);
-
-	/* reset user dpm fan speed */
-	if (!ret && value != AMD_FAN_CTRL_MANUAL &&
-			!(smu->user_dpm_profile.flags & SMU_DPM_USER_PROFILE_RESTORE)) {
-		smu->user_dpm_profile.fan_speed_pwm = 0;
-		smu->user_dpm_profile.fan_speed_rpm = 0;
-		smu->user_dpm_profile.flags &= ~(SMU_CUSTOM_FAN_SPEED_RPM | SMU_CUSTOM_FAN_SPEED_PWM);
-	}
 
 	return ret;
 }
-
-static void smu_pp_set_fan_control_mode(void *handle, u32 value)
-{
-	struct smu_context *smu = handle;
-
-	smu_set_fan_control_mode(smu, value);
-}
-
 
 static int smu_get_fan_speed_pwm(void *handle, u32 *speed)
 {
@@ -2624,10 +2633,15 @@ static int smu_get_fan_speed_pwm(void *handle, u32 *speed)
 	if (!smu->pm_enabled || !smu->adev->pm.dpm_enabled)
 		return -EOPNOTSUPP;
 
+	if (!smu->ppt_funcs->get_fan_speed_pwm)
+		return -EOPNOTSUPP;
+
+	if (!speed)
+		return -EINVAL;
+
 	mutex_lock(&smu->mutex);
 
-	if (smu->ppt_funcs->get_fan_speed_pwm)
-		ret = smu->ppt_funcs->get_fan_speed_pwm(smu, speed);
+	ret = smu->ppt_funcs->get_fan_speed_pwm(smu, speed);
 
 	mutex_unlock(&smu->mutex);
 
@@ -2642,18 +2656,22 @@ static int smu_set_fan_speed_pwm(void *handle, u32 speed)
 	if (!smu->pm_enabled || !smu->adev->pm.dpm_enabled)
 		return -EOPNOTSUPP;
 
+	if (!smu->ppt_funcs->set_fan_speed_pwm)
+		return -EOPNOTSUPP;
+
+	if (speed == U32_MAX)
+		return -EINVAL;
+
 	mutex_lock(&smu->mutex);
 
-	if (smu->ppt_funcs->set_fan_speed_pwm) {
-		ret = smu->ppt_funcs->set_fan_speed_pwm(smu, speed);
-		if (!ret && !(smu->user_dpm_profile.flags & SMU_DPM_USER_PROFILE_RESTORE)) {
-			smu->user_dpm_profile.flags |= SMU_CUSTOM_FAN_SPEED_PWM;
-			smu->user_dpm_profile.fan_speed_pwm = speed;
+	ret = smu->ppt_funcs->set_fan_speed_pwm(smu, speed);
+	if (!ret && !(smu->user_dpm_profile.flags & SMU_DPM_USER_PROFILE_RESTORE)) {
+		smu->user_dpm_profile.flags |= SMU_CUSTOM_FAN_SPEED_PWM;
+		smu->user_dpm_profile.fan_speed_pwm = speed;
 
-			/* Override custom RPM setting as they cannot co-exist */
-			smu->user_dpm_profile.flags &= ~SMU_CUSTOM_FAN_SPEED_RPM;
-			smu->user_dpm_profile.fan_speed_rpm = 0;
-		}
+		/* Override custom RPM setting as they cannot co-exist */
+		smu->user_dpm_profile.flags &= ~SMU_CUSTOM_FAN_SPEED_RPM;
+		smu->user_dpm_profile.fan_speed_rpm = 0;
 	}
 
 	mutex_unlock(&smu->mutex);
@@ -2669,10 +2687,15 @@ static int smu_get_fan_speed_rpm(void *handle, uint32_t *speed)
 	if (!smu->pm_enabled || !smu->adev->pm.dpm_enabled)
 		return -EOPNOTSUPP;
 
+	if (!smu->ppt_funcs->get_fan_speed_rpm)
+		return -EOPNOTSUPP;
+
+	if (!speed)
+		return -EINVAL;
+
 	mutex_lock(&smu->mutex);
 
-	if (smu->ppt_funcs->get_fan_speed_rpm)
-		ret = smu->ppt_funcs->get_fan_speed_rpm(smu, speed);
+	ret = smu->ppt_funcs->get_fan_speed_rpm(smu, speed);
 
 	mutex_unlock(&smu->mutex);
 
@@ -3101,7 +3124,7 @@ static int smu_get_prv_buffer_details(void *handle, void **addr, size_t *size)
 
 static const struct amd_pm_funcs swsmu_pm_funcs = {
 	/* export for sysfs */
-	.set_fan_control_mode    = smu_pp_set_fan_control_mode,
+	.set_fan_control_mode    = smu_set_fan_control_mode,
 	.get_fan_control_mode    = smu_get_fan_control_mode,
 	.set_fan_speed_pwm   = smu_set_fan_speed_pwm,
 	.get_fan_speed_pwm   = smu_get_fan_speed_pwm,

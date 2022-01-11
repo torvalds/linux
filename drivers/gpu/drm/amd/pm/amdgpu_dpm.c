@@ -1087,15 +1087,17 @@ int amdgpu_dpm_get_fan_control_mode(struct amdgpu_device *adev,
 				    uint32_t *fan_mode)
 {
 	const struct amd_pm_funcs *pp_funcs = adev->powerplay.pp_funcs;
+	int ret = 0;
 
 	if (!pp_funcs->get_fan_control_mode)
 		return -EOPNOTSUPP;
 
 	mutex_lock(&adev->pm.mutex);
-	*fan_mode = pp_funcs->get_fan_control_mode(adev->powerplay.pp_handle);
+	ret = pp_funcs->get_fan_control_mode(adev->powerplay.pp_handle,
+					     fan_mode);
 	mutex_unlock(&adev->pm.mutex);
 
-	return 0;
+	return ret;
 }
 
 int amdgpu_dpm_set_fan_speed_pwm(struct amdgpu_device *adev,
@@ -1105,7 +1107,7 @@ int amdgpu_dpm_set_fan_speed_pwm(struct amdgpu_device *adev,
 	int ret = 0;
 
 	if (!pp_funcs->set_fan_speed_pwm)
-		return -EINVAL;
+		return -EOPNOTSUPP;
 
 	mutex_lock(&adev->pm.mutex);
 	ret = pp_funcs->set_fan_speed_pwm(adev->powerplay.pp_handle,
@@ -1122,7 +1124,7 @@ int amdgpu_dpm_get_fan_speed_pwm(struct amdgpu_device *adev,
 	int ret = 0;
 
 	if (!pp_funcs->get_fan_speed_pwm)
-		return -EINVAL;
+		return -EOPNOTSUPP;
 
 	mutex_lock(&adev->pm.mutex);
 	ret = pp_funcs->get_fan_speed_pwm(adev->powerplay.pp_handle,
@@ -1139,7 +1141,7 @@ int amdgpu_dpm_get_fan_speed_rpm(struct amdgpu_device *adev,
 	int ret = 0;
 
 	if (!pp_funcs->get_fan_speed_rpm)
-		return -EINVAL;
+		return -EOPNOTSUPP;
 
 	mutex_lock(&adev->pm.mutex);
 	ret = pp_funcs->get_fan_speed_rpm(adev->powerplay.pp_handle,
@@ -1156,7 +1158,7 @@ int amdgpu_dpm_set_fan_speed_rpm(struct amdgpu_device *adev,
 	int ret = 0;
 
 	if (!pp_funcs->set_fan_speed_rpm)
-		return -EINVAL;
+		return -EOPNOTSUPP;
 
 	mutex_lock(&adev->pm.mutex);
 	ret = pp_funcs->set_fan_speed_rpm(adev->powerplay.pp_handle,
@@ -1170,16 +1172,17 @@ int amdgpu_dpm_set_fan_control_mode(struct amdgpu_device *adev,
 				    uint32_t mode)
 {
 	const struct amd_pm_funcs *pp_funcs = adev->powerplay.pp_funcs;
+	int ret = 0;
 
 	if (!pp_funcs->set_fan_control_mode)
 		return -EOPNOTSUPP;
 
 	mutex_lock(&adev->pm.mutex);
-	pp_funcs->set_fan_control_mode(adev->powerplay.pp_handle,
-				       mode);
+	ret = pp_funcs->set_fan_control_mode(adev->powerplay.pp_handle,
+					     mode);
 	mutex_unlock(&adev->pm.mutex);
 
-	return 0;
+	return ret;
 }
 
 int amdgpu_dpm_get_power_limit(struct amdgpu_device *adev,

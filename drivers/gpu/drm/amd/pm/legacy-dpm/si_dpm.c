@@ -6619,6 +6619,9 @@ static int si_dpm_get_fan_speed_pwm(void *handle,
 	u64 tmp64;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
+	if (!speed)
+		return -EINVAL;
+
 	if (adev->pm.no_fan)
 		return -ENOENT;
 
@@ -6669,9 +6672,12 @@ static int si_dpm_set_fan_speed_pwm(void *handle,
 	return 0;
 }
 
-static void si_dpm_set_fan_control_mode(void *handle, u32 mode)
+static int si_dpm_set_fan_control_mode(void *handle, u32 mode)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
+	if (mode == U32_MAX)
+		return -EINVAL;
 
 	if (mode) {
 		/* stop auto-manage */
@@ -6685,19 +6691,26 @@ static void si_dpm_set_fan_control_mode(void *handle, u32 mode)
 		else
 			si_fan_ctrl_set_default_mode(adev);
 	}
+
+	return 0;
 }
 
-static u32 si_dpm_get_fan_control_mode(void *handle)
+static int si_dpm_get_fan_control_mode(void *handle, u32 *fan_mode)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	struct si_power_info *si_pi = si_get_pi(adev);
 	u32 tmp;
 
+	if (!fan_mode)
+		return -EINVAL;
+
 	if (si_pi->fan_is_controlled_by_smc)
 		return 0;
 
 	tmp = RREG32(CG_FDO_CTRL2) & FDO_PWM_MODE_MASK;
-	return (tmp >> FDO_PWM_MODE_SHIFT);
+	*fan_mode = (tmp >> FDO_PWM_MODE_SHIFT);
+
+	return 0;
 }
 
 #if 0

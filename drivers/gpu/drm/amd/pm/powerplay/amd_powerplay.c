@@ -488,38 +488,43 @@ static enum amd_pm_state_type pp_dpm_get_current_power_state(void *handle)
 	return pm_type;
 }
 
-static void pp_dpm_set_fan_control_mode(void *handle, uint32_t mode)
+static int pp_dpm_set_fan_control_mode(void *handle, uint32_t mode)
 {
 	struct pp_hwmgr *hwmgr = handle;
 
 	if (!hwmgr || !hwmgr->pm_en)
-		return;
+		return -EOPNOTSUPP;
 
-	if (hwmgr->hwmgr_func->set_fan_control_mode == NULL) {
-		pr_info_ratelimited("%s was not implemented.\n", __func__);
-		return;
-	}
+	if (hwmgr->hwmgr_func->set_fan_control_mode == NULL)
+		return -EOPNOTSUPP;
+
+	if (mode == U32_MAX)
+		return -EINVAL;
+
 	mutex_lock(&hwmgr->smu_lock);
 	hwmgr->hwmgr_func->set_fan_control_mode(hwmgr, mode);
 	mutex_unlock(&hwmgr->smu_lock);
+
+	return 0;
 }
 
-static uint32_t pp_dpm_get_fan_control_mode(void *handle)
+static int pp_dpm_get_fan_control_mode(void *handle, uint32_t *fan_mode)
 {
 	struct pp_hwmgr *hwmgr = handle;
-	uint32_t mode = 0;
 
 	if (!hwmgr || !hwmgr->pm_en)
-		return 0;
+		return -EOPNOTSUPP;
 
-	if (hwmgr->hwmgr_func->get_fan_control_mode == NULL) {
-		pr_info_ratelimited("%s was not implemented.\n", __func__);
-		return 0;
-	}
+	if (hwmgr->hwmgr_func->get_fan_control_mode == NULL)
+		return -EOPNOTSUPP;
+
+	if (!fan_mode)
+		return -EINVAL;
+
 	mutex_lock(&hwmgr->smu_lock);
-	mode = hwmgr->hwmgr_func->get_fan_control_mode(hwmgr);
+	*fan_mode = hwmgr->hwmgr_func->get_fan_control_mode(hwmgr);
 	mutex_unlock(&hwmgr->smu_lock);
-	return mode;
+	return 0;
 }
 
 static int pp_dpm_set_fan_speed_pwm(void *handle, uint32_t speed)
@@ -528,12 +533,14 @@ static int pp_dpm_set_fan_speed_pwm(void *handle, uint32_t speed)
 	int ret = 0;
 
 	if (!hwmgr || !hwmgr->pm_en)
+		return -EOPNOTSUPP;
+
+	if (hwmgr->hwmgr_func->set_fan_speed_pwm == NULL)
+		return -EOPNOTSUPP;
+
+	if (speed == U32_MAX)
 		return -EINVAL;
 
-	if (hwmgr->hwmgr_func->set_fan_speed_pwm == NULL) {
-		pr_info_ratelimited("%s was not implemented.\n", __func__);
-		return 0;
-	}
 	mutex_lock(&hwmgr->smu_lock);
 	ret = hwmgr->hwmgr_func->set_fan_speed_pwm(hwmgr, speed);
 	mutex_unlock(&hwmgr->smu_lock);
@@ -546,12 +553,13 @@ static int pp_dpm_get_fan_speed_pwm(void *handle, uint32_t *speed)
 	int ret = 0;
 
 	if (!hwmgr || !hwmgr->pm_en)
-		return -EINVAL;
+		return -EOPNOTSUPP;
 
-	if (hwmgr->hwmgr_func->get_fan_speed_pwm == NULL) {
-		pr_info_ratelimited("%s was not implemented.\n", __func__);
-		return 0;
-	}
+	if (hwmgr->hwmgr_func->get_fan_speed_pwm == NULL)
+		return -EOPNOTSUPP;
+
+	if (!speed)
+		return -EINVAL;
 
 	mutex_lock(&hwmgr->smu_lock);
 	ret = hwmgr->hwmgr_func->get_fan_speed_pwm(hwmgr, speed);
@@ -565,9 +573,12 @@ static int pp_dpm_get_fan_speed_rpm(void *handle, uint32_t *rpm)
 	int ret = 0;
 
 	if (!hwmgr || !hwmgr->pm_en)
-		return -EINVAL;
+		return -EOPNOTSUPP;
 
 	if (hwmgr->hwmgr_func->get_fan_speed_rpm == NULL)
+		return -EOPNOTSUPP;
+
+	if (!rpm)
 		return -EINVAL;
 
 	mutex_lock(&hwmgr->smu_lock);
@@ -582,12 +593,14 @@ static int pp_dpm_set_fan_speed_rpm(void *handle, uint32_t rpm)
 	int ret = 0;
 
 	if (!hwmgr || !hwmgr->pm_en)
+		return -EOPNOTSUPP;
+
+	if (hwmgr->hwmgr_func->set_fan_speed_rpm == NULL)
+		return -EOPNOTSUPP;
+
+	if (rpm == U32_MAX)
 		return -EINVAL;
 
-	if (hwmgr->hwmgr_func->set_fan_speed_rpm == NULL) {
-		pr_info_ratelimited("%s was not implemented.\n", __func__);
-		return 0;
-	}
 	mutex_lock(&hwmgr->smu_lock);
 	ret = hwmgr->hwmgr_func->set_fan_speed_rpm(hwmgr, rpm);
 	mutex_unlock(&hwmgr->smu_lock);

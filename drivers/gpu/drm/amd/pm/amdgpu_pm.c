@@ -3147,7 +3147,6 @@ static umode_t hwmon_attributes_visible(struct kobject *kobj,
 	struct device *dev = kobj_to_dev(kobj);
 	struct amdgpu_device *adev = dev_get_drvdata(dev);
 	umode_t effective_mode = attr->mode;
-	uint32_t speed = 0;
 
 	/* under multi-vf mode, the hwmon attributes are all not supported */
 	if (amdgpu_sriov_vf(adev) && !amdgpu_sriov_is_pp_one_vf(adev))
@@ -3213,15 +3212,15 @@ static umode_t hwmon_attributes_visible(struct kobject *kobj,
 		return 0;
 
 	/* mask fan attributes if we have no bindings for this asic to expose */
-	if (((amdgpu_dpm_get_fan_speed_pwm(adev, &speed) == -EINVAL) &&
+	if (((amdgpu_dpm_get_fan_speed_pwm(adev, NULL) == -EOPNOTSUPP) &&
 	      attr == &sensor_dev_attr_pwm1.dev_attr.attr) || /* can't query fan */
-	    ((amdgpu_dpm_get_fan_control_mode(adev, &speed) == -EOPNOTSUPP) &&
+	    ((amdgpu_dpm_get_fan_control_mode(adev, NULL) == -EOPNOTSUPP) &&
 	     attr == &sensor_dev_attr_pwm1_enable.dev_attr.attr)) /* can't query state */
 		effective_mode &= ~S_IRUGO;
 
-	if (((amdgpu_dpm_set_fan_speed_pwm(adev, speed) == -EINVAL) &&
+	if (((amdgpu_dpm_set_fan_speed_pwm(adev, U32_MAX) == -EOPNOTSUPP) &&
 	      attr == &sensor_dev_attr_pwm1.dev_attr.attr) || /* can't manage fan */
-	      ((amdgpu_dpm_set_fan_control_mode(adev, speed) == -EOPNOTSUPP) &&
+	      ((amdgpu_dpm_set_fan_control_mode(adev, U32_MAX) == -EOPNOTSUPP) &&
 	      attr == &sensor_dev_attr_pwm1_enable.dev_attr.attr)) /* can't manage state */
 		effective_mode &= ~S_IWUSR;
 
@@ -3241,16 +3240,16 @@ static umode_t hwmon_attributes_visible(struct kobject *kobj,
 		return 0;
 
 	/* hide max/min values if we can't both query and manage the fan */
-	if (((amdgpu_dpm_set_fan_speed_pwm(adev, speed) == -EINVAL) &&
-	      (amdgpu_dpm_get_fan_speed_pwm(adev, &speed) == -EINVAL) &&
-	      (amdgpu_dpm_set_fan_speed_rpm(adev, speed) == -EINVAL) &&
-	      (amdgpu_dpm_get_fan_speed_rpm(adev, &speed) == -EINVAL)) &&
+	if (((amdgpu_dpm_set_fan_speed_pwm(adev, U32_MAX) == -EOPNOTSUPP) &&
+	      (amdgpu_dpm_get_fan_speed_pwm(adev, NULL) == -EOPNOTSUPP) &&
+	      (amdgpu_dpm_set_fan_speed_rpm(adev, U32_MAX) == -EOPNOTSUPP) &&
+	      (amdgpu_dpm_get_fan_speed_rpm(adev, NULL) == -EOPNOTSUPP)) &&
 	    (attr == &sensor_dev_attr_pwm1_max.dev_attr.attr ||
 	     attr == &sensor_dev_attr_pwm1_min.dev_attr.attr))
 		return 0;
 
-	if ((amdgpu_dpm_set_fan_speed_rpm(adev, speed) == -EINVAL) &&
-	     (amdgpu_dpm_get_fan_speed_rpm(adev, &speed) == -EINVAL) &&
+	if ((amdgpu_dpm_set_fan_speed_rpm(adev, U32_MAX) == -EOPNOTSUPP) &&
+	     (amdgpu_dpm_get_fan_speed_rpm(adev, NULL) == -EOPNOTSUPP) &&
 	     (attr == &sensor_dev_attr_fan1_max.dev_attr.attr ||
 	     attr == &sensor_dev_attr_fan1_min.dev_attr.attr))
 		return 0;
