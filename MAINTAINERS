@@ -17251,6 +17251,13 @@ L:	linux-mmc@vger.kernel.org
 S:	Maintained
 F:	drivers/mmc/host/sdhci-omap.c
 
+SECURE DIGITAL HOST CONTROLLER INTERFACE (SDHCI) NXP i.MX DRIVER
+M:	Haibo Chen <haibo.chen@nxp.com>
+L:	linux-imx@nxp.com
+L:	linux-mmc@vger.kernel.org
+S:	Maintained
+F:	drivers/mmc/host/sdhci-esdhc-imx.c
+
 SECURE ENCRYPTING DEVICE (SED) OPAL DRIVER
 M:	Jonathan Derrick <jonathan.derrick@intel.com>
 M:	Revanth Rajashekar <revanth.rajashekar@intel.com>
