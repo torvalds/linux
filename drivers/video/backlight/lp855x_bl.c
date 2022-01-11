@@ -5,6 +5,7 @@
  *			Copyright (C) 2011 Texas Instruments
  */
 
+#include <linux/acpi.h>
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/i2c.h>
@@ -170,22 +171,6 @@ static int lp855x_configure(struct lp855x *lp)
 	int i, ret;
 	struct lp855x_platform_data *pd = lp->pdata;
 
-	switch (lp->chip_id) {
-	case LP8550:
-	case LP8551:
-	case LP8552:
-	case LP8553:
-	case LP8556:
-		lp->cfg = &lp855x_dev_cfg;
-		break;
-	case LP8555:
-	case LP8557:
-		lp->cfg = &lp8557_dev_cfg;
-		break;
-	default:
-		return -EINVAL;
-	}
-
 	if (lp->cfg->pre_init_device) {
 		ret = lp->cfg->pre_init_device(lp);
 		if (ret) {
@@ -346,17 +331,13 @@ static int lp855x_parse_dt(struct lp855x *lp)
 {
 	struct device *dev = lp->dev;
 	struct device_node *node = dev->of_node;
-	struct lp855x_platform_data *pdata;
+	struct lp855x_platform_data *pdata = lp->pdata;
 	int rom_length;
 
 	if (!node) {
 		dev_err(dev, "no platform data\n");
 		return -EINVAL;
 	}
-
-	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
-	if (!pdata)
-		return -ENOMEM;
 
 	of_property_read_string(node, "bl-name", &pdata->name);
 	of_property_read_u8(node, "dev-ctrl", &pdata->device_control);
@@ -384,8 +365,6 @@ static int lp855x_parse_dt(struct lp855x *lp)
 		pdata->rom_data = &rom[0];
 	}
 
-	lp->pdata = pdata;
-
 	return 0;
 }
 #else
@@ -395,28 +374,89 @@ static int lp855x_parse_dt(struct lp855x *lp)
 }
 #endif
 
+static int lp855x_parse_acpi(struct lp855x *lp)
+{
+	int ret;
+
+	/*
+	 * On ACPI the device has already been initialized by the firmware
+	 * and is in register mode, so we can read back the settings from
+	 * the registers.
+	 */
+	ret = i2c_smbus_read_byte_data(lp->client, lp->cfg->reg_brightness);
+	if (ret < 0)
+		return ret;
+
+	lp->pdata->initial_brightness = ret;
+
+	ret = i2c_smbus_read_byte_data(lp->client, lp->cfg->reg_devicectrl);
+	if (ret < 0)
+		return ret;
+
+	lp->pdata->device_control = ret;
+	return 0;
+}
+
 static int lp855x_probe(struct i2c_client *cl, const struct i2c_device_id *id)
 {
+	const struct acpi_device_id *acpi_id = NULL;
+	struct device *dev = &cl->dev;
 	struct lp855x *lp;
 	int ret;
 
 	if (!i2c_check_functionality(cl->adapter, I2C_FUNC_SMBUS_I2C_BLOCK))
 		return -EIO;
 
-	lp = devm_kzalloc(&cl->dev, sizeof(struct lp855x), GFP_KERNEL);
+	lp = devm_kzalloc(dev, sizeof(struct lp855x), GFP_KERNEL);
 	if (!lp)
 		return -ENOMEM;
 
 	lp->client = cl;
-	lp->dev = &cl->dev;
-	lp->chipname = id->name;
-	lp->chip_id = id->driver_data;
-	lp->pdata = dev_get_platdata(&cl->dev);
+	lp->dev = dev;
+	lp->pdata = dev_get_platdata(dev);
+
+	if (id) {
+		lp->chipname = id->name;
+		lp->chip_id = id->driver_data;
+	} else {
+		acpi_id = acpi_match_device(dev->driver->acpi_match_table, dev);
+		if (!acpi_id)
+			return -ENODEV;
+
+		lp->chipname = acpi_id->id;
+		lp->chip_id = acpi_id->driver_data;
+	}
+
+	switch (lp->chip_id) {
+	case LP8550:
+	case LP8551:
+	case LP8552:
+	case LP8553:
+	case LP8556:
+		lp->cfg = &lp855x_dev_cfg;
+		break;
+	case LP8555:
+	case LP8557:
+		lp->cfg = &lp8557_dev_cfg;
+		break;
+	default:
+		return -EINVAL;
+	}
 
 	if (!lp->pdata) {
-		ret = lp855x_parse_dt(lp);
-		if (ret < 0)
-			return ret;
+		lp->pdata = devm_kzalloc(dev, sizeof(*lp->pdata), GFP_KERNEL);
+		if (!lp->pdata)
+			return -ENOMEM;
+
+		if (id) {
+			ret = lp855x_parse_dt(lp);
+			if (ret < 0)
+				return ret;
+		} else {
+			ret = lp855x_parse_acpi(lp);
+			if (ret < 0)
+				return ret;
+		}
 	}
 
 	if (lp->pdata->period_ns > 0)
@@ -424,30 +464,27 @@ static int lp855x_probe(struct i2c_client *cl, const struct i2c_device_id *id)
 	else
 		lp->mode = REGISTER_BASED;
 
-	lp->supply = devm_regulator_get(lp->dev, "power");
+	lp->supply = devm_regulator_get(dev, "power");
 	if (IS_ERR(lp->supply)) {
 		if (PTR_ERR(lp->supply) == -EPROBE_DEFER)
 			return -EPROBE_DEFER;
 		lp->supply = NULL;
 	}
 
-	lp->enable = devm_regulator_get_optional(lp->dev, "enable");
+	lp->enable = devm_regulator_get_optional(dev, "enable");
 	if (IS_ERR(lp->enable)) {
 		ret = PTR_ERR(lp->enable);
 		if (ret == -ENODEV) {
 			lp->enable = NULL;
 		} else {
-			if (ret != -EPROBE_DEFER)
-				dev_err(lp->dev, "error getting enable regulator: %d\n",
-					ret);
-			return ret;
+			return dev_err_probe(dev, ret, "getting enable regulator\n");
 		}
 	}
 
 	if (lp->supply) {
 		ret = regulator_enable(lp->supply);
 		if (ret < 0) {
-			dev_err(&cl->dev, "failed to enable supply: %d\n", ret);
+			dev_err(dev, "failed to enable supply: %d\n", ret);
 			return ret;
 		}
 	}
@@ -455,7 +492,7 @@ static int lp855x_probe(struct i2c_client *cl, const struct i2c_device_id *id)
 	if (lp->enable) {
 		ret = regulator_enable(lp->enable);
 		if (ret < 0) {
-			dev_err(lp->dev, "failed to enable vddio: %d\n", ret);
+			dev_err(dev, "failed to enable vddio: %d\n", ret);
 			goto disable_supply;
 		}
 
@@ -470,20 +507,19 @@ static int lp855x_probe(struct i2c_client *cl, const struct i2c_device_id *id)
 
 	ret = lp855x_configure(lp);
 	if (ret) {
-		dev_err(lp->dev, "device config err: %d", ret);
+		dev_err(dev, "device config err: %d", ret);
 		goto disable_vddio;
 	}
 
 	ret = lp855x_backlight_register(lp);
 	if (ret) {
-		dev_err(lp->dev,
-			"failed to register backlight. err: %d\n", ret);
+		dev_err(dev, "failed to register backlight. err: %d\n", ret);
 		goto disable_vddio;
 	}
 
-	ret = sysfs_create_group(&lp->dev->kobj, &lp855x_attr_group);
+	ret = sysfs_create_group(&dev->kobj, &lp855x_attr_group);
 	if (ret) {
-		dev_err(lp->dev, "failed to register sysfs. err: %d\n", ret);
+		dev_err(dev, "failed to register sysfs. err: %d\n", ret);
 		goto disable_vddio;
 	}
 
@@ -540,10 +576,20 @@ static const struct i2c_device_id lp855x_ids[] = {
 };
 MODULE_DEVICE_TABLE(i2c, lp855x_ids);
 
+#ifdef CONFIG_ACPI
+static const struct acpi_device_id lp855x_acpi_match[] = {
+	/* Xiaomi specific HID used for the LP8556 on the Mi Pad 2 */
+	{ "XMCC0001", LP8556 },
+	{ }
+};
+MODULE_DEVICE_TABLE(acpi, lp855x_acpi_match);
+#endif
+
 static struct i2c_driver lp855x_driver = {
 	.driver = {
 		   .name = "lp855x",
 		   .of_match_table = of_match_ptr(lp855x_dt_ids),
+		   .acpi_match_table = ACPI_PTR(lp855x_acpi_match),
 		   },
 	.probe = lp855x_probe,
 	.remove = lp855x_remove,
