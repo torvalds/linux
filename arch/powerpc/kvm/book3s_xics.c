@@ -1016,19 +1016,10 @@ DEFINE_SHOW_ATTRIBUTE(xics_debug);
 
 static void xics_debugfs_init(struct kvmppc_xics *xics)
 {
-	char *name;
-
-	name = kasprintf(GFP_KERNEL, "kvm-xics-%p", xics);
-	if (!name) {
-		pr_err("%s: no memory for name\n", __func__);
-		return;
-	}
-
-	xics->dentry = debugfs_create_file(name, 0444, arch_debugfs_dir,
+	xics->dentry = debugfs_create_file("xics", 0444, xics->kvm->debugfs_dentry,
 					   xics, &xics_debug_fops);
 
-	pr_debug("%s: created %s\n", __func__, name);
-	kfree(name);
+	pr_debug("%s: created\n", __func__);
 }
 
 static struct kvmppc_ics *kvmppc_xics_create_ics(struct kvm *kvm,
