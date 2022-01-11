@@ -1323,10 +1323,15 @@ static void hdmi_set_op_mode(struct dw_hdmi_qp *hdmi,
 {
 	int frl_rate;
 
+	/* set sink frl mode disable and wait sink ready */
 	hdmi_writel(hdmi, 0, FLT_CONFIG0);
 	if (dw_hdmi_support_scdc(hdmi, &connector->display_info))
 		drm_scdc_writeb(hdmi->ddc, 0x31, 0);
-	msleep(20);
+	/*
+	 * some TVs must wait a while before switching frl mode resolution,
+	 * or the signal may not be recognized.
+	 */
+	msleep(200);
 	if (!link_cfg->frl_mode) {
 		dev_info(hdmi->dev, "dw hdmi qp use tmds mode\n");
 		hdmi_modb(hdmi, 0, OPMODE_FRL, LINK_CONFIG0);
