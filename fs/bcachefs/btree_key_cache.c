@@ -414,6 +414,7 @@ static int btree_key_cache_flush_pos(struct btree_trans *trans,
 	 * */
 	ret   = bch2_btree_iter_traverse(&b_iter) ?:
 		bch2_trans_update(trans, &b_iter, ck->k,
+				  BTREE_UPDATE_KEY_CACHE_RECLAIM|
 				  BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE|
 				  BTREE_TRIGGER_NORUN) ?:
 		bch2_trans_commit(trans, NULL, NULL,
@@ -555,13 +556,15 @@ bool bch2_btree_insert_key_cached(struct btree_trans *trans,
 	return true;
 }
 
-#ifdef CONFIG_BCACHEFS_DEBUG
-void bch2_btree_key_cache_verify_clean(struct btree_trans *trans,
-			       enum btree_id id, struct bpos pos)
+void bch2_btree_key_cache_drop(struct btree_trans *trans,
+			       struct btree_path *path)
 {
-	BUG_ON(bch2_btree_key_cache_find(trans->c, id, pos));
+	struct bkey_cached *ck = (void *) path->l[0].b;
+
+	ck->valid = false;
+
+	BUG_ON(test_bit(BKEY_CACHED_DIRTY, &ck->flags));
 }
-#endif
 
 static unsigned long bch2_btree_key_cache_scan(struct shrinker *shrink,
 					   struct shrink_control *sc)

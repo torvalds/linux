@@ -271,7 +271,8 @@ int bch2_alloc_write(struct btree_trans *trans, struct btree_iter *iter,
 		return PTR_ERR(a);
 
 	bch2_alloc_pack(trans->c, a, *u);
-	return bch2_trans_update(trans, iter, &a->k, trigger_flags);
+	return bch2_trans_update(trans, iter, &a->k, trigger_flags|
+				 BTREE_UPDATE_NO_KEY_CACHE_COHERENCY);
 }
 
 static unsigned bch_alloc_v1_val_u64s(const struct bch_alloc *a)

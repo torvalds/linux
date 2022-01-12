@@ -658,6 +658,12 @@ DEFINE_EVENT(transaction_restart,	trans_restart_mark_replicas,
 	TP_ARGS(trans_fn, caller_ip)
 );
 
+DEFINE_EVENT(transaction_restart,	trans_restart_key_cache_raced,
+	TP_PROTO(const char *trans_fn,
+		 unsigned long caller_ip),
+	TP_ARGS(trans_fn, caller_ip)
+);
+
 DECLARE_EVENT_CLASS(transaction_restart_iter,
 	TP_PROTO(const char *trans_fn,
 		 unsigned long caller_ip,

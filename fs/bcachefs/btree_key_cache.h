@@ -32,14 +32,8 @@ bool bch2_btree_insert_key_cached(struct btree_trans *,
 			struct btree_path *, struct bkey_i *);
 int bch2_btree_key_cache_flush(struct btree_trans *,
 			       enum btree_id, struct bpos);
-#ifdef CONFIG_BCACHEFS_DEBUG
-void bch2_btree_key_cache_verify_clean(struct btree_trans *,
-				enum btree_id, struct bpos);
-#else
-static inline void
-bch2_btree_key_cache_verify_clean(struct btree_trans *trans,
-				enum btree_id id, struct bpos pos) {}
-#endif
+void bch2_btree_key_cache_drop(struct btree_trans *,
+			       struct btree_path *);
 
 void bch2_fs_btree_key_cache_exit(struct btree_key_cache *);
 void bch2_fs_btree_key_cache_init_early(struct btree_key_cache *);

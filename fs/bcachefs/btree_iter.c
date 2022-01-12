@@ -2188,6 +2188,8 @@ struct bkey_i *__bch2_btree_trans_peek_updates(struct btree_iter *iter)
 			break;
 		if (bpos_cmp(i->k->k.p, iter->path->pos) < 0)
 			continue;
+		if (i->key_cache_already_flushed)
+			continue;
 		if (!ret || bpos_cmp(i->k->k.p, ret->k.p) < 0)
 			ret = i->k;
 	}

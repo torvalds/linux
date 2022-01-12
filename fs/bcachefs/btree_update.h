@@ -76,8 +76,6 @@ int bch2_btree_node_update_key_get_iter(struct btree_trans *,
 int bch2_trans_update_extent(struct btree_trans *, struct btree_iter *,
 			     struct bkey_i *, enum btree_update_flags);
 
-int __must_check bch2_trans_update_by_path(struct btree_trans *, struct btree_path *,
-				   struct bkey_i *, enum btree_update_flags);
 int __must_check bch2_trans_update(struct btree_trans *, struct btree_iter *,
 				   struct bkey_i *, enum btree_update_flags);
 
