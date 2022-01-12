@@ -683,9 +683,8 @@ static void icl_tc_cold_exit(struct drm_i915_private *i915)
 	int ret, tries = 0;
 
 	while (1) {
-		ret = sandybridge_pcode_write_timeout(i915,
-						      ICL_PCODE_EXIT_TCCOLD,
-						      0, 250, 1);
+		ret = snb_pcode_write_timeout(i915, ICL_PCODE_EXIT_TCCOLD, 0,
+					      250, 1);
 		if (ret != -EAGAIN || ++tries == 3)
 			break;
 		msleep(1);
@@ -4053,8 +4052,7 @@ tgl_tc_cold_request(struct drm_i915_private *i915, bool block)
 		 * Spec states that we should timeout the request after 200us
 		 * but the function below will timeout after 500us
 		 */
-		ret = sandybridge_pcode_read(i915, TGL_PCODE_TCCOLD, &low_val,
-					     &high_val);
+		ret = snb_pcode_read(i915, TGL_PCODE_TCCOLD, &low_val, &high_val);
 		if (ret == 0) {
 			if (block &&
 			    (low_val & TGL_PCODE_EXIT_TCCOLD_DATA_L_EXIT_FAILED))
@@ -5469,8 +5467,7 @@ static u32 hsw_read_dcomp(struct drm_i915_private *dev_priv)
 static void hsw_write_dcomp(struct drm_i915_private *dev_priv, u32 val)
 {
 	if (IS_HASWELL(dev_priv)) {
-		if (sandybridge_pcode_write(dev_priv,
-					    GEN6_PCODE_WRITE_D_COMP, val))
+		if (snb_pcode_write(dev_priv, GEN6_PCODE_WRITE_D_COMP, val))
 			drm_dbg_kms(&dev_priv->drm,
 				    "Failed to write to D_COMP\n");
 	} else {

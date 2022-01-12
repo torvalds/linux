@@ -1118,8 +1118,8 @@ void hsw_enable_ips(const struct intel_crtc_state *crtc_state)
 	drm_WARN_ON(dev, !(crtc_state->active_planes & ~BIT(PLANE_CURSOR)));
 
 	if (IS_BROADWELL(dev_priv)) {
-		drm_WARN_ON(dev, sandybridge_pcode_write(dev_priv, DISPLAY_IPS_CONTROL,
-							 IPS_ENABLE | IPS_PCODE_CONTROL));
+		drm_WARN_ON(dev, snb_pcode_write(dev_priv, DISPLAY_IPS_CONTROL,
+						 IPS_ENABLE | IPS_PCODE_CONTROL));
 		/* Quoting Art Runyan: "its not safe to expect any particular
 		 * value in IPS_CTL bit 31 after enabling IPS through the
 		 * mailbox." Moreover, the mailbox may return a bogus state,
@@ -1149,7 +1149,7 @@ void hsw_disable_ips(const struct intel_crtc_state *crtc_state)
 
 	if (IS_BROADWELL(dev_priv)) {
 		drm_WARN_ON(dev,
-			    sandybridge_pcode_write(dev_priv, DISPLAY_IPS_CONTROL, 0));
+			    snb_pcode_write(dev_priv, DISPLAY_IPS_CONTROL, 0));
 		/*
 		 * Wait for PCODE to finish disabling IPS. The BSpec specified
 		 * 42ms timeout value leads to occasional timeouts so use 100ms

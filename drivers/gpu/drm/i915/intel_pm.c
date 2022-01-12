@@ -2890,9 +2890,8 @@ static void intel_read_wm_latency(struct drm_i915_private *dev_priv,
 
 		/* read the first set of memory latencies[0:3] */
 		val = 0; /* data0 to be programmed to 0 for first set */
-		ret = sandybridge_pcode_read(dev_priv,
-					     GEN9_PCODE_READ_MEM_LATENCY,
-					     &val, NULL);
+		ret = snb_pcode_read(dev_priv, GEN9_PCODE_READ_MEM_LATENCY,
+				     &val, NULL);
 
 		if (ret) {
 			drm_err(&dev_priv->drm,
@@ -2910,9 +2909,8 @@ static void intel_read_wm_latency(struct drm_i915_private *dev_priv,
 
 		/* read the second set of memory latencies[4:7] */
 		val = 1; /* data0 to be programmed to 1 for second set */
-		ret = sandybridge_pcode_read(dev_priv,
-					     GEN9_PCODE_READ_MEM_LATENCY,
-					     &val, NULL);
+		ret = snb_pcode_read(dev_priv, GEN9_PCODE_READ_MEM_LATENCY,
+				     &val, NULL);
 		if (ret) {
 			drm_err(&dev_priv->drm,
 				"SKL Mailbox read error = %d\n", ret);
@@ -3702,9 +3700,9 @@ skl_setup_sagv_block_time(struct drm_i915_private *dev_priv)
 		u32 val = 0;
 		int ret;
 
-		ret = sandybridge_pcode_read(dev_priv,
-					     GEN12_PCODE_READ_SAGV_BLOCK_TIME_US,
-					     &val, NULL);
+		ret = snb_pcode_read(dev_priv,
+				     GEN12_PCODE_READ_SAGV_BLOCK_TIME_US,
+				     &val, NULL);
 		if (!ret) {
 			dev_priv->sagv_block_time_us = val;
 			return;
@@ -3751,8 +3749,8 @@ intel_enable_sagv(struct drm_i915_private *dev_priv)
 		return 0;
 
 	drm_dbg_kms(&dev_priv->drm, "Enabling SAGV\n");
-	ret = sandybridge_pcode_write(dev_priv, GEN9_PCODE_SAGV_CONTROL,
-				      GEN9_SAGV_ENABLE);
+	ret = snb_pcode_write(dev_priv, GEN9_PCODE_SAGV_CONTROL,
+			      GEN9_SAGV_ENABLE);
 
 	/* We don't need to wait for SAGV when enabling */
 
