@@ -746,12 +746,12 @@ repeat:
 	if (!pf_req && !set_next_request())
 		return;
 
-	pf_current = pf_req->rq_disk->private_data;
+	pf_current = pf_req->q->disk->private_data;
 	pf_block = blk_rq_pos(pf_req);
 	pf_run = blk_rq_sectors(pf_req);
 	pf_count = blk_rq_cur_sectors(pf_req);
 
-	if (pf_block + pf_count > get_capacity(pf_req->rq_disk)) {
+	if (pf_block + pf_count > get_capacity(pf_req->q->disk)) {
 		pf_end_request(BLK_STS_IOERR);
 		goto repeat;
 	}
@@ -942,6 +942,7 @@ static int __init pf_init_unit(struct pf_unit *pf, bool autoprobe, int port,
 	disk->minors = 1;
 	strcpy(disk->disk_name, pf->name);
 	disk->fops = &pf_fops;
+	disk->flags |= GENHD_FL_NO_PART;
 	disk->events = DISK_EVENT_MEDIA_CHANGE;
 	disk->private_data = pf;
 

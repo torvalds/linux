@@ -124,7 +124,7 @@ void __bio_advance(struct bio *, unsigned bytes);
 /**
  * bio_advance - increment/complete a bio by some number of bytes
  * @bio:	bio to advance
- * @bytes:	number of bytes to complete
+ * @nbytes:	number of bytes to complete
  *
  * This updates bi_sector, bi_size and bi_idx; if the number of bytes to
  * complete doesn't align with a bvec boundary, then bv_len and bv_offset will
@@ -332,7 +332,7 @@ extern struct bio *bio_split(struct bio *bio, int sectors,
  * @gfp:	gfp mask
  * @bs:		bio set to allocate from
  *
- * Returns a bio representing the next @sectors of @bio - if the bio is smaller
+ * Return: a bio representing the next @sectors of @bio - if the bio is smaller
  * than @sectors, returns the original bio unchanged.
  */
 static inline struct bio *bio_next_split(struct bio *bio, int sectors,

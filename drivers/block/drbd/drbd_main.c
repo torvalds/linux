@@ -2734,6 +2734,7 @@ enum drbd_ret_code drbd_create_device(struct drbd_config_context *adm_ctx, unsig
 	disk->first_minor = minor;
 	disk->minors = 1;
 	disk->fops = &drbd_ops;
+	disk->flags |= GENHD_FL_NO_PART;
 	sprintf(disk->disk_name, "drbd%d", minor);
 	disk->private_data = device;
 

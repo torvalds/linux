@@ -528,7 +528,7 @@ static void virtio_scsi_init_hdr_pi(struct virtio_device *vdev,
 	if (!rq || !scsi_prot_sg_count(sc))
 		return;
 
-	bi = blk_get_integrity(rq->rq_disk);
+	bi = blk_get_integrity(rq->q->disk);
 
 	if (sc->sc_data_direction == DMA_TO_DEVICE)
 		cmd_pi->pi_bytesout = cpu_to_virtio32(vdev,

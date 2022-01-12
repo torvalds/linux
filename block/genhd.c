@@ -25,8 +25,10 @@
 #include <linux/log2.h>
 #include <linux/pm_runtime.h>
 #include <linux/badblocks.h>
+#include <linux/part_stat.h>
 
 #include "blk.h"
+#include "blk-mq-sched.h"
 #include "blk-rq-qos.h"
 
 static struct kobject *block_depr;
@@ -372,17 +374,21 @@ void disk_uevent(struct gendisk *disk, enum kobject_action action)
 }
 EXPORT_SYMBOL_GPL(disk_uevent);
 
-static void disk_scan_partitions(struct gendisk *disk)
+int disk_scan_partitions(struct gendisk *disk, fmode_t mode)
 {
 	struct block_device *bdev;
 
-	if (!get_capacity(disk) || !disk_part_scan_enabled(disk))
-		return;
+	if (disk->flags & (GENHD_FL_NO_PART | GENHD_FL_HIDDEN))
+		return -EINVAL;
+	if (disk->open_partitions)
+		return -EBUSY;
 
 	set_bit(GD_NEED_PART_SCAN, &disk->state);
-	bdev = blkdev_get_by_dev(disk_devt(disk), FMODE_READ, NULL);
-	if (!IS_ERR(bdev))
-		blkdev_put(bdev, FMODE_READ);
+	bdev = blkdev_get_by_dev(disk_devt(disk), mode, NULL);
+	if (IS_ERR(bdev))
+		return PTR_ERR(bdev);
+	blkdev_put(bdev, mode);
+	return 0;
 }
 
 /**
@@ -425,6 +431,8 @@ int __must_check device_add_disk(struct device *parent, struct gendisk *disk,
 				DISK_MAX_PARTS);
 			disk->minors = DISK_MAX_PARTS;
 		}
+		if (disk->first_minor + disk->minors > MINORMASK + 1)
+			return -EINVAL;
 	} else {
 		if (WARN_ON(disk->minors))
 			return -EINVAL;
@@ -434,12 +442,7 @@ int __must_check device_add_disk(struct device *parent, struct gendisk *disk,
 			return ret;
 		disk->major = BLOCK_EXT_MAJOR;
 		disk->first_minor = ret;
-		disk->flags |= GENHD_FL_EXT_DEVT;
 	}
-
-	ret = disk_alloc_events(disk);
-	if (ret)
-		goto out_free_ext_minor;
 
 	/* delay uevents, until we scanned partition table */
 	dev_set_uevent_suppress(ddev, 1);
@@ -451,7 +454,12 @@ int __must_check device_add_disk(struct device *parent, struct gendisk *disk,
 		ddev->devt = MKDEV(disk->major, disk->first_minor);
 	ret = device_add(ddev);
 	if (ret)
-		goto out_disk_release_events;
+		goto out_free_ext_minor;
+
+	ret = disk_alloc_events(disk);
+	if (ret)
+		goto out_device_del;
+
 	if (!sysfs_deprecated) {
 		ret = sysfs_create_link(block_depr, &ddev->kobj,
 					kobject_name(&ddev->kobj));
@@ -490,14 +498,7 @@ int __must_check device_add_disk(struct device *parent, struct gendisk *disk,
 	if (ret)
 		goto out_put_slave_dir;
 
-	if (disk->flags & GENHD_FL_HIDDEN) {
-		/*
-		 * Don't let hidden disks show up in /proc/partitions,
-		 * and don't bother scanning for partitions either.
-		 */
-		disk->flags |= GENHD_FL_SUPPRESS_PARTITION_INFO;
-		disk->flags |= GENHD_FL_NO_PART_SCAN;
-	} else {
+	if (!(disk->flags & GENHD_FL_HIDDEN)) {
 		ret = bdi_register(disk->bdi, "%u:%u",
 				   disk->major, disk->first_minor);
 		if (ret)
@@ -509,7 +510,8 @@ int __must_check device_add_disk(struct device *parent, struct gendisk *disk,
 			goto out_unregister_bdi;
 
 		bdev_add(disk->part0, ddev->devt);
-		disk_scan_partitions(disk);
+		if (get_capacity(disk))
+			disk_scan_partitions(disk, FMODE_READ);
 
 		/*
 		 * Announce the disk and partitions after all partitions are
@@ -539,8 +541,6 @@ out_del_block_link:
 		sysfs_remove_link(block_depr, dev_name(ddev));
 out_device_del:
 	device_del(ddev);
-out_disk_release_events:
-	disk_release_events(disk);
 out_free_ext_minor:
 	if (disk->major == BLOCK_EXT_MAJOR)
 		blk_free_ext_minor(disk->first_minor);
@@ -720,8 +720,7 @@ void __init printk_all_partitions(void)
 		 * Don't show empty devices or things that have been
 		 * suppressed
 		 */
-		if (get_capacity(disk) == 0 ||
-		    (disk->flags & GENHD_FL_SUPPRESS_PARTITION_INFO))
+		if (get_capacity(disk) == 0 || (disk->flags & GENHD_FL_HIDDEN))
 			continue;
 
 		/*
@@ -814,11 +813,7 @@ static int show_partition(struct seq_file *seqf, void *v)
 	struct block_device *part;
 	unsigned long idx;
 
-	/* Don't show non-partitionable removeable devices or empty devices */
-	if (!get_capacity(sgp) || (!disk_max_parts(sgp) &&
-				   (sgp->flags & GENHD_FL_REMOVABLE)))
-		return 0;
-	if (sgp->flags & GENHD_FL_SUPPRESS_PARTITION_INFO)
+	if (!get_capacity(sgp) || (sgp->flags & GENHD_FL_HIDDEN))
 		return 0;
 
 	rcu_read_lock();
@@ -874,7 +869,8 @@ static ssize_t disk_ext_range_show(struct device *dev,
 {
 	struct gendisk *disk = dev_to_disk(dev);
 
-	return sprintf(buf, "%d\n", disk_max_parts(disk));
+	return sprintf(buf, "%d\n",
+		(disk->flags & GENHD_FL_NO_PART) ? 1 : DISK_MAX_PARTS);
 }
 
 static ssize_t disk_removable_show(struct device *dev,
@@ -1343,7 +1339,7 @@ struct gendisk *__blk_alloc_disk(int node, struct lock_class_key *lkclass)
 	struct request_queue *q;
 	struct gendisk *disk;
 
-	q = blk_alloc_queue(node);
+	q = blk_alloc_queue(node, false);
 	if (!q)
 		return NULL;
 
