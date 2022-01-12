@@ -300,6 +300,7 @@ alternative_else_nop_endif
 	str	w21, [sp, #S_SYSCALLNO]
 	.endif
 
+#ifdef CONFIG_ARM64_PSEUDO_NMI
 	/* Save pmr */
 alternative_if ARM64_HAS_IRQ_PRIO_MASKING
 	mrs_s	x20, SYS_ICC_PMR_EL1
@@ -307,6 +308,7 @@ alternative_if ARM64_HAS_IRQ_PRIO_MASKING
 	mov	x20, #GIC_PRIO_IRQON | GIC_PRIO_PSR_I_SET
 	msr_s	SYS_ICC_PMR_EL1, x20
 alternative_else_nop_endif
+#endif
 
 	/* Re-enable tag checking (TCO set on exception entry) */
 #ifdef CONFIG_ARM64_MTE
@@ -330,6 +332,7 @@ alternative_else_nop_endif
 	disable_daif
 	.endif
 
+#ifdef CONFIG_ARM64_PSEUDO_NMI
 	/* Restore pmr */
 alternative_if ARM64_HAS_IRQ_PRIO_MASKING
 	ldr	x20, [sp, #S_PMR_SAVE]
@@ -339,6 +342,7 @@ alternative_if ARM64_HAS_IRQ_PRIO_MASKING
 	dsb	sy				// Ensure priority change is seen by redistributor
 .L__skip_pmr_sync\@:
 alternative_else_nop_endif
+#endif
 
 	ldp	x21, x22, [sp, #S_PC]		// load ELR, SPSR
 
