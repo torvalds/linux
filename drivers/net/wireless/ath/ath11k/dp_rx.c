@@ -20,6 +20,9 @@
 
 #define ATH11K_DP_RX_FRAGMENT_TIMEOUT_MS (2 * HZ)
 
+static void ath11k_dp_rx_mon_dest_process(struct ath11k *ar, int mac_id,
+					  u32 quota, struct napi_struct *napi);
+
 static inline
 u8 *ath11k_dp_rx_h_80211_hdr(struct ath11k_base *ab, struct hal_rx_desc *desc)
 {
@@ -3097,12 +3100,14 @@ int ath11k_dp_rx_process_mon_status(struct ath11k_base *ab, int mac_id,
 	enum hal_rx_mon_status hal_status;
 	struct sk_buff *skb;
 	struct sk_buff_head skb_list;
-	struct hal_rx_mon_ppdu_info ppdu_info;
 	struct ath11k_peer *peer;
 	struct ath11k_sta *arsta;
 	int num_buffs_reaped = 0;
 	u32 rx_buf_sz;
 	u16 log_type = 0;
+	struct ath11k_mon_data *pmon = (struct ath11k_mon_data *)&ar->dp.mon_data;
+	struct ath11k_pdev_mon_stats *rx_mon_stats = &pmon->rx_mon_stats;
+	struct hal_rx_mon_ppdu_info *ppdu_info = &pmon->mon_ppdu_info;
 
 	__skb_queue_head_init(&skb_list);
 
@@ -3111,8 +3116,8 @@ int ath11k_dp_rx_process_mon_status(struct ath11k_base *ab, int mac_id,
 	if (!num_buffs_reaped)
 		goto exit;
 
-	memset(&ppdu_info, 0, sizeof(ppdu_info));
-	ppdu_info.peer_id = HAL_INVALID_PEERID;
+	memset(ppdu_info, 0, sizeof(*ppdu_info));
+	ppdu_info->peer_id = HAL_INVALID_PEERID;
 
 	while ((skb = __skb_dequeue(&skb_list))) {
 		if (ath11k_debugfs_is_pktlog_lite_mode_enabled(ar)) {
@@ -3126,9 +3131,18 @@ int ath11k_dp_rx_process_mon_status(struct ath11k_base *ab, int mac_id,
 		if (log_type)
 			trace_ath11k_htt_rxdesc(ar, skb->data, log_type, rx_buf_sz);
 
-		hal_status = ath11k_hal_rx_parse_mon_status(ab, &ppdu_info, skb);
+		hal_status = ath11k_hal_rx_parse_mon_status(ab, ppdu_info, skb);
 
-		if (ppdu_info.peer_id == HAL_INVALID_PEERID ||
+		if (test_bit(ATH11K_FLAG_MONITOR_STARTED, &ar->monitor_flags) &&
+		    pmon->mon_ppdu_status == DP_PPDU_STATUS_START &&
+		    hal_status == HAL_TLV_STATUS_PPDU_DONE) {
+			rx_mon_stats->status_ppdu_done++;
+			pmon->mon_ppdu_status = DP_PPDU_STATUS_DONE;
+			ath11k_dp_rx_mon_dest_process(ar, mac_id, budget, napi);
+			pmon->mon_ppdu_status = DP_PPDU_STATUS_START;
+		}
+
+		if (ppdu_info->peer_id == HAL_INVALID_PEERID ||
 		    hal_status != HAL_RX_MON_STATUS_PPDU_DONE) {
 			dev_kfree_skb_any(skb);
 			continue;
@@ -3136,17 +3150,17 @@ int ath11k_dp_rx_process_mon_status(struct ath11k_base *ab, int mac_id,
 
 		rcu_read_lock();
 		spin_lock_bh(&ab->base_lock);
-		peer = ath11k_peer_find_by_id(ab, ppdu_info.peer_id);
+		peer = ath11k_peer_find_by_id(ab, ppdu_info->peer_id);
 
 		if (!peer || !peer->sta) {
 			ath11k_dbg(ab, ATH11K_DBG_DATA,
 				   "failed to find the peer with peer_id %d\n",
-				   ppdu_info.peer_id);
+				   ppdu_info->peer_id);
 			goto next_skb;
 		}
 
 		arsta = (struct ath11k_sta *)peer->sta->drv_priv;
-		ath11k_dp_rx_update_peer_stats(arsta, &ppdu_info);
+		ath11k_dp_rx_update_peer_stats(arsta, ppdu_info);
 
 		if (ath11k_debugfs_is_pktlog_peer_valid(ar, peer->addr))
 			trace_ath11k_htt_rxdesc(ar, skb->data, log_type, rx_buf_sz);
@@ -3156,8 +3170,8 @@ next_skb:
 		rcu_read_unlock();
 
 		dev_kfree_skb_any(skb);
-		memset(&ppdu_info, 0, sizeof(ppdu_info));
-		ppdu_info.peer_id = HAL_INVALID_PEERID;
+		memset(ppdu_info, 0, sizeof(*ppdu_info));
+		ppdu_info->peer_id = HAL_INVALID_PEERID;
 	}
 exit:
 	return num_buffs_reaped;
@@ -5116,38 +5130,6 @@ static void ath11k_dp_rx_mon_dest_process(struct ath11k *ar, int mac_id,
 	}
 }
 
-static void ath11k_dp_rx_mon_status_process_tlv(struct ath11k *ar,
-						int mac_id, u32 quota,
-						struct napi_struct *napi)
-{
-	struct ath11k_pdev_dp *dp = &ar->dp;
-	struct ath11k_mon_data *pmon = (struct ath11k_mon_data *)&dp->mon_data;
-	struct hal_rx_mon_ppdu_info *ppdu_info;
-	struct sk_buff *status_skb;
-	u32 tlv_status = HAL_TLV_STATUS_BUF_DONE;
-	struct ath11k_pdev_mon_stats *rx_mon_stats;
-
-	ppdu_info = &pmon->mon_ppdu_info;
-	rx_mon_stats = &pmon->rx_mon_stats;
-
-	if (pmon->mon_ppdu_status != DP_PPDU_STATUS_START)
-		return;
-
-	while (!skb_queue_empty(&pmon->rx_status_q)) {
-		status_skb = skb_dequeue(&pmon->rx_status_q);
-
-		tlv_status = ath11k_hal_rx_parse_mon_status(ar->ab, ppdu_info,
-							    status_skb);
-		if (tlv_status == HAL_TLV_STATUS_PPDU_DONE) {
-			rx_mon_stats->status_ppdu_done++;
-			pmon->mon_ppdu_status = DP_PPDU_STATUS_DONE;
-			ath11k_dp_rx_mon_dest_process(ar, mac_id, quota, napi);
-			pmon->mon_ppdu_status = DP_PPDU_STATUS_START;
-		}
-		dev_kfree_skb_any(status_skb);
-	}
-}
-
 static u32
 ath11k_dp_rx_full_mon_mpdu_pop(struct ath11k *ar,
 			       void *ring_entry, struct sk_buff **head_msdu,
@@ -5499,22 +5481,6 @@ reap_status_ring:
 	return quota;
 }
 
-static int ath11k_dp_mon_process_rx(struct ath11k_base *ab, int mac_id,
-				    struct napi_struct *napi, int budget)
-{
-	struct ath11k *ar = ath11k_ab_to_ar(ab, mac_id);
-	struct ath11k_pdev_dp *dp = &ar->dp;
-	struct ath11k_mon_data *pmon = (struct ath11k_mon_data *)&dp->mon_data;
-	int num_buffs_reaped = 0;
-
-	num_buffs_reaped = ath11k_dp_rx_reap_mon_status_ring(ar->ab, mac_id, &budget,
-							     &pmon->rx_status_q);
-	if (num_buffs_reaped)
-		ath11k_dp_rx_mon_status_process_tlv(ar, mac_id, budget, napi);
-
-	return num_buffs_reaped;
-}
-
 int ath11k_dp_rx_process_mon_rings(struct ath11k_base *ab, int mac_id,
 				   struct napi_struct *napi, int budget)
 {
@@ -5524,8 +5490,6 @@ int ath11k_dp_rx_process_mon_rings(struct ath11k_base *ab, int mac_id,
 	if (test_bit(ATH11K_FLAG_MONITOR_STARTED, &ar->monitor_flags) &&
 	    ab->hw_params.full_monitor_mode)
 		ret = ath11k_dp_full_mon_process_rx(ab, mac_id, napi, budget);
-	else if (test_bit(ATH11K_FLAG_MONITOR_STARTED, &ar->monitor_flags))
-		ret = ath11k_dp_mon_process_rx(ab, mac_id, napi, budget);
 	else
 		ret = ath11k_dp_rx_process_mon_status(ab, mac_id, napi, budget);
 

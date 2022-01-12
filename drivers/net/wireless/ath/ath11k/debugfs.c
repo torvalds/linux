@@ -666,6 +666,12 @@ static ssize_t ath11k_write_extd_rx_stats(struct file *file,
 		goto exit;
 	}
 
+	if (test_bit(ATH11K_FLAG_MONITOR_STARTED, &ar->monitor_flags)) {
+		ar->debug.extd_rx_stats = enable;
+		ret = count;
+		goto exit;
+	}
+
 	if (enable) {
 		rx_filter =  HTT_RX_FILTER_TLV_FLAGS_MPDU_START;
 		rx_filter |= HTT_RX_FILTER_TLV_FLAGS_PPDU_START;
