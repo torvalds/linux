@@ -96,12 +96,67 @@
 	};
 };
 
+&mdss {
+	status = "okay";
+};
+
+&mdss_dsi0 {
+	vdda-supply = <&pm8953_s3>;
+	vddio-supply = <&pm8953_l6>;
+
+	status = "okay";
+
+	panel: panel@0 {
+		compatible = "tianma,622-v0";
+		reg = <0>;
+
+		backlight = <&backlight>;
+
+		pinctrl-names = "default", "sleep";
+		pinctrl-0 = <&pmx_mdss_default>;
+		pinctrl-1 = <&pmx_mdss_sleep>;
+
+		port {
+			panel_in: endpoint {
+				remote-endpoint = <&mdss_dsi0_out>;
+			};
+		};
+	};
+};
+
+&mdss_dsi0_out {
+	data-lanes = <0 1 2 3>;
+	remote-endpoint = <&panel_in>;
+};
+
+&mdss_dsi0_phy {
+	vcca-supply = <&pm8953_l3>;
+
+	status = "okay";
+};
+
 &hsusb_phy {
 	vdd-supply = <&pm8953_l3>;
 	vdda-pll-supply = <&pm8953_l7>;
 	vdda-phy-dpdm-supply = <&pm8953_l13>;
 
 	status = "okay";
+};
+
+&i2c_2 {
+	status = "okay";
+
+	speaker_codec: audio-codec@34 {
+		compatible = "nxp,tfa9874";
+		reg = <0x34>;
+
+		reset-gpio = <&tlmm 94 GPIO_ACTIVE_HIGH>;
+
+		first-boost-trip-lvl = <0x9>;
+		max-coil-current = <0xf>;
+
+		#sound-dai-cells = <0>;
+	};
 };
 
 &i2c_3 {
@@ -154,6 +209,13 @@
 &pm8953_resin {
 	linux,code = <KEY_VOLUMEDOWN>;
 	status = "okay";
+};
+
+&q6afedai {
+	dai@127 {
+		reg = <QUINARY_MI2S_RX>;
+		qcom,sd-lines = <1>;
+	};
 };
 
 &rpm_requests {
@@ -292,8 +354,75 @@
 	status = "okay";
 };
 
+&sound_card {
+	status = "okay";
+
+	model = "motorola-ocean";
+
+	pinctrl-names = "default", "sleep";
+	pinctrl-0 = <&cdc_pdm_lines_act &cdc_pdm_lines_2_act &cdc_pdm_comp_lines_act &tlmm_pri_act &tlmm_pri_ws_act>;
+	pinctrl-1 = <&cdc_pdm_lines_sus &cdc_pdm_lines_2_sus &cdc_pdm_comp_lines_act &tlmm_pri_sus &tlmm_pri_ws_sus>;
+
+	quinary-mi2s-dai-link {
+		link-name = "Quinary MI2S";
+		cpu {
+			sound-dai = <&q6afedai QUINARY_MI2S_RX>;
+		};
+
+		platform {
+			sound-dai = <&q6routing>;
+		};
+
+		codec {
+			sound-dai = <&speaker_codec>;
+		};
+	};
+};
+
 &tlmm {
 	gpio-reserved-ranges = <96 4>;
+
+	pmx_mdss_default: pmx-mdss-default-pins {
+		pins = "gpio61";
+		function = "gpio";
+		drive-strength = <8>;
+		bias-disable;
+		output-high;
+	};
+
+	pmx_mdss_sleep: pmx-mdss-sleep-pins {
+		pins = "gpio61";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-pull-down;
+	};
+
+	tlmm_pri_act: tlmm_quin_default {
+		pins = "gpio88", "gpio91", "gpio93";
+		function = "pri_mi2s";
+		drive-strength = <8>;
+		/* bias-disable; */
+	};
+
+	tlmm_pri_sus: tlmm_quin_sleep {
+		pins = "gpio88", "gpio91", "gpio93";
+		function = "pri_mi2s";
+		drive-strength = <2>;
+		bias-pull-down;
+	};
+
+	tlmm_pri_ws_act: tlmm_pri_ws_default {
+		pins = "gpio92";
+		function = "pri_mi2s_ws";
+		drive-strength = <8>;
+	};
+
+	tlmm_pri_ws_sus: tlmm_pri_ws_sleep {
+		pins = "gpio92";
+		function = "pri_mi2s_ws";
+		drive-strength = <2>;
+		bias-pull-down;
+	};
 };
 
 &usb3 {
@@ -303,4 +432,29 @@
 &usb3_dwc3 {
 	/delete-property/ usb-role-switch;
 	dr_mode = "peripheral";
+};
+
+&wcd_codec {
+	status = "okay";
+
+	qcom,hphl-jack-type-normally-open;
+	qcom,micbias1-ext-cap;
+	qcom,micbias2-ext-cap;
+
+	vdd-cdc-io-supply = <&pm8953_l5>;
+	vdd-cdc-tx-rx-cx-supply = <&pm8953_s4>;
+	vdd-micbias-supply = <&pm8953_l13>;
+};
+
+&wcnss {
+	status = "okay";
+
+	vddpx-supply = <&pm8953_l5>;
+};
+
+&wcnss_iris {
+	vddxo-supply = <&pm8953_l7>;
+	vddrfa-supply = <&pm8953_l19>;
+	vddpa-supply = <&pm8953_l9>;
+	vdddig-supply = <&pm8953_l5>;
 };
