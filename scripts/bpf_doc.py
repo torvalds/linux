@@ -87,6 +87,8 @@ class HeaderParser(object):
         self.line = ''
         self.helpers = []
         self.commands = []
+        self.desc_unique_helpers = set()
+        self.define_unique_helpers = []
 
     def parse_element(self):
         proto    = self.parse_symbol()
@@ -193,19 +195,42 @@ class HeaderParser(object):
             except NoSyscallCommandFound:
                 break
 
-    def parse_helpers(self):
+    def parse_desc_helpers(self):
         self.seek_to('* Start of BPF helper function descriptions:',
                      'Could not find start of eBPF helper descriptions list')
         while True:
             try:
                 helper = self.parse_helper()
                 self.helpers.append(helper)
+                proto = helper.proto_break_down()
+                self.desc_unique_helpers.add(proto['name'])
             except NoHelperFound:
                 break
 
+    def parse_define_helpers(self):
+        # Parse the number of FN(...) in #define __BPF_FUNC_MAPPER to compare
+        # later with the number of unique function names present in description.
+        # Note: seek_to(..) discards the first line below the target search text,
+        # resulting in FN(unspec) being skipped and not added to self.define_unique_helpers.
+        self.seek_to('#define __BPF_FUNC_MAPPER(FN)',
+                     'Could not find start of eBPF helper definition list')
+        # Searches for either one or more FN(\w+) defines or a backslash for newline
+        p = re.compile('\s*(FN\(\w+\))+|\\\\')
+        fn_defines_str = ''
+        while True:
+            capture = p.match(self.line)
+            if capture:
+                fn_defines_str += self.line
+            else:
+                break
+            self.line = self.reader.readline()
+        # Find the number of occurences of FN(\w+)
+        self.define_unique_helpers = re.findall('FN\(\w+\)', fn_defines_str)
+
     def run(self):
         self.parse_syscall()
-        self.parse_helpers()
+        self.parse_desc_helpers()
+        self.parse_define_helpers()
         self.reader.close()
 
 ###############################################################################
@@ -295,6 +320,25 @@ class PrinterRST(Printer):
 
         print('')
 
+def helper_number_check(desc_unique_helpers, define_unique_helpers):
+    """
+    Checks the number of functions documented within the header file
+    with those present as part of #define __BPF_FUNC_MAPPER and raise an
+    Exception if they don't match.
+    """
+    nr_desc_unique_helpers = len(desc_unique_helpers)
+    nr_define_unique_helpers = len(define_unique_helpers)
+    if nr_desc_unique_helpers != nr_define_unique_helpers:
+        helper_exception = '''
+The number of unique helpers in description (%d) doesn\'t match the number of unique helpers defined in __BPF_FUNC_MAPPER (%d)
+''' % (nr_desc_unique_helpers, nr_define_unique_helpers)
+        if nr_desc_unique_helpers < nr_define_unique_helpers:
+            # Function description is parsed until no helper is found (which can be due to
+            # misformatting). Hence, only print the first missing/misformatted function.
+            helper_exception += '''
+The description for %s is not present or formatted correctly.
+''' % (define_unique_helpers[nr_desc_unique_helpers])
+        raise Exception(helper_exception)
 
 class PrinterHelpersRST(PrinterRST):
     """
@@ -305,6 +349,7 @@ class PrinterHelpersRST(PrinterRST):
     """
     def __init__(self, parser):
         self.elements = parser.helpers
+        helper_number_check(parser.desc_unique_helpers, parser.define_unique_helpers)
 
     def print_header(self):
         header = '''\
@@ -509,6 +554,7 @@ class PrinterHelpers(Printer):
     """
     def __init__(self, parser):
         self.elements = parser.helpers
+        helper_number_check(parser.desc_unique_helpers, parser.define_unique_helpers)
 
     type_fwds = [
             'struct bpf_fib_lookup',
