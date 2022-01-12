@@ -1825,11 +1825,8 @@ static const struct nf_hook_ops apparmor_nf_ops[] = {
 
 static int __net_init apparmor_nf_register(struct net *net)
 {
-	int ret;
-
-	ret = nf_register_net_hooks(net, apparmor_nf_ops,
+	return nf_register_net_hooks(net, apparmor_nf_ops,
 				    ARRAY_SIZE(apparmor_nf_ops));
-	return ret;
 }
 
 static void __net_exit apparmor_nf_unregister(struct net *net)
