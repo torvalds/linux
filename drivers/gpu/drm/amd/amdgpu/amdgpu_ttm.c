@@ -1463,10 +1463,11 @@ static int amdgpu_ttm_access_memory_sdma(struct ttm_buffer_object *bo,
 	if (r)
 		goto out;
 
-	src_addr = write ? amdgpu_bo_gpu_offset(adev->mman.sdma_access_bo) :
-			amdgpu_bo_gpu_offset(abo);
-	dst_addr = write ? amdgpu_bo_gpu_offset(abo) :
-			amdgpu_bo_gpu_offset(adev->mman.sdma_access_bo);
+	src_addr = amdgpu_bo_gpu_offset(abo);
+	dst_addr = amdgpu_bo_gpu_offset(adev->mman.sdma_access_bo);
+	if (write)
+		swap(src_addr, dst_addr);
+
 	amdgpu_emit_copy_buffer(adev, &job->ibs[0], src_addr, dst_addr, PAGE_SIZE, false);
 
 	amdgpu_ring_pad_ib(adev->mman.buffer_funcs_ring, &job->ibs[0]);
@@ -1487,15 +1488,6 @@ static int amdgpu_ttm_access_memory_sdma(struct ttm_buffer_object *bo,
 out:
 	drm_dev_exit(idx);
 	return r;
-}
-
-static inline bool amdgpu_ttm_allow_post_mortem_debug(struct amdgpu_device *adev)
-{
-	return amdgpu_gpu_recovery == 0 ||
-		adev->gfx_timeout == MAX_SCHEDULE_TIMEOUT ||
-		adev->compute_timeout == MAX_SCHEDULE_TIMEOUT ||
-		adev->sdma_timeout == MAX_SCHEDULE_TIMEOUT ||
-		adev->video_timeout == MAX_SCHEDULE_TIMEOUT;
 }
 
 /**
@@ -1522,7 +1514,7 @@ static int amdgpu_ttm_access_memory(struct ttm_buffer_object *bo,
 	if (bo->resource->mem_type != TTM_PL_VRAM)
 		return -EIO;
 
-	if (!amdgpu_ttm_allow_post_mortem_debug(adev) &&
+	if (amdgpu_device_has_timeouts_enabled(adev) &&
 			!amdgpu_ttm_access_memory_sdma(bo, offset, buf, len, write))
 		return len;
 
@@ -1912,8 +1904,7 @@ void amdgpu_ttm_fini(struct amdgpu_device *adev)
 	ttm_range_man_fini(&adev->mman.bdev, AMDGPU_PL_OA);
 	ttm_device_fini(&adev->mman.bdev);
 	adev->mman.initialized = false;
-	if (adev->mman.sdma_access_ptr)
-		amdgpu_bo_free_kernel(&adev->mman.sdma_access_bo, NULL,
+	amdgpu_bo_free_kernel(&adev->mman.sdma_access_bo, NULL,
 					&adev->mman.sdma_access_ptr);
 	DRM_INFO("amdgpu: ttm finalized\n");
 }
