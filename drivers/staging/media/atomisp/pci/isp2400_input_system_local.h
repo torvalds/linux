@@ -29,8 +29,6 @@
 #include "isp_acquisition_defs.h"
 #include "input_system_ctrl_defs.h"
 
-typedef struct input_system_cfg2400_s		input_system_cfg2400_t;
-
 struct target_cfg2400_s {
 	input_switch_cfg_channel_t		input_switch_channel_cfg;
 	target_isp_cfg_t	target_isp_cfg;
