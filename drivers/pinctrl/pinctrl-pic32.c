@@ -2241,7 +2241,7 @@ static int pic32_gpio_probe(struct platform_device *pdev)
 	}
 
 	bank->gpio_chip.parent = &pdev->dev;
-	bank->gpio_chip.of_node = np;
+
 	girq = &bank->gpio_chip.irq;
 	girq->chip = &bank->irq_chip;
 	girq->parent_handler = pic32_gpio_irq_handler;

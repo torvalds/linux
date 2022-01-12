@@ -64,6 +64,9 @@ required:
   - gpio-controller
   - "#gpio-cells"
 
+allOf:
+  - $ref: "pinctrl.yaml#"
+
 patternProperties:
   '-[0-9]+$':
     type: object

@@ -73,6 +73,8 @@ additionalProperties:
         pins: true
         drive-strength:
           enum: [ 2, 4, 8, 12 ]
+        output-impedance-ohms:
+          enum: [ 33, 50, 66, 100 ]
         power-source:
           enum: [ 1800, 2500, 3300 ]
         slew-rate: true
@@ -89,6 +91,9 @@ additionalProperties:
 
       additionalProperties:
         $ref: "#/additionalProperties/anyOf/0"
+
+allOf:
+  - $ref: "pinctrl.yaml#"
 
 required:
   - compatible

@@ -551,7 +551,6 @@ int mcp23s08_probe_one(struct mcp23s08 *mcp, struct device *dev,
 	mcp->chip.set = mcp23s08_set;
 #ifdef CONFIG_OF_GPIO
 	mcp->chip.of_gpio_n_cells = 2;
-	mcp->chip.of_node = dev->of_node;
 #endif
 
 	mcp->chip.base = base;

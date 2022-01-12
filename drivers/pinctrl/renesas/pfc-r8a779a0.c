@@ -3835,7 +3835,7 @@ static const struct pinmux_drive_reg pinmux_drive_regs[] = {
 		{ RCAR_GP_PIN(3, 12), 16, 3 },	/* CANFD5_RX */
 		{ RCAR_GP_PIN(3, 11), 12, 3 },	/* CANFD5_TX */
 		{ RCAR_GP_PIN(3, 10),  8, 3 },	/* CANFD4_RX */
-		{ RCAR_GP_PIN(3,  9),  4, 3 },	/* CANFD4_TX*/
+		{ RCAR_GP_PIN(3,  9),  4, 3 },	/* CANFD4_TX */
 		{ RCAR_GP_PIN(3,  8),  0, 3 },	/* CANFD3_RX */
 	} },
 	{ PINMUX_DRIVE_REG("DRV2CTRL3", 0xe6058888) {
@@ -4305,7 +4305,7 @@ static const struct pinmux_bias_reg pinmux_bias_regs[] = {
 		[11] = RCAR_GP_PIN(6, 11),	/* AVB2_TD3 */
 		[12] = RCAR_GP_PIN(6, 12),	/* AVB2_TXCREFCLK */
 		[13] = RCAR_GP_PIN(6, 13),	/* AVB2_MDIO */
-		[14] = RCAR_GP_PIN(6, 14),	/* AVB2_MDC*/
+		[14] = RCAR_GP_PIN(6, 14),	/* AVB2_MDC */
 		[15] = RCAR_GP_PIN(6, 15),	/* AVB2_MAGIC */
 		[16] = RCAR_GP_PIN(6, 16),	/* AVB2_PHY_INT */
 		[17] = RCAR_GP_PIN(6, 17),	/* AVB2_LINK */
