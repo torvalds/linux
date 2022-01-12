@@ -79,7 +79,11 @@ mt7915_radar_trigger(void *data, u64 val)
 {
 	struct mt7915_dev *dev = data;
 
-	return mt76_connac_mcu_rdd_cmd(&dev->mt76, RDD_RADAR_EMULATE, 1, 0, 0);
+	if (val > MT_RX_SEL2)
+		return -EINVAL;
+
+	return mt76_connac_mcu_rdd_cmd(&dev->mt76, RDD_RADAR_EMULATE,
+				       val, 0, 0);
 }
 
 DEFINE_DEBUGFS_ATTRIBUTE(fops_radar_trigger, NULL,
