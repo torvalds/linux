@@ -179,7 +179,7 @@ static int fmc_spi_setup(struct spi_device *spi)
 	fmc_config = readl(host->base);
 
 	dev_dbg(host->dev, "%s cs: %d, spi->mode %d\n", __func__, spi->chip_select, spi->mode);
-	dev_dbg("%s cs: %d, spi->mode %d spi->max_speed_hz %d , spi->bits_per_word %d\n",
+	dev_dbg(host->dev, "%s cs: %d, spi->mode %d spi->max_speed_hz %d , spi->bits_per_word %d\n",
 		__func__, spi->chip_select, spi->mode, spi->max_speed_hz, spi->bits_per_word);
 
 	switch (spi->chip_select) {
