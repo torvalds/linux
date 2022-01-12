@@ -142,7 +142,7 @@ int usbhs_mod_probe(struct usbhs_priv *priv)
 
 	/* irq settings */
 	ret = devm_request_irq(dev, priv->irq, usbhs_interrupt,
-			  priv->irqflags, dev_name(dev), priv);
+			       0, dev_name(dev), priv);
 	if (ret) {
 		dev_err(dev, "irq request err\n");
 		goto mod_init_gadget_err;
@@ -218,18 +218,6 @@ static int usbhs_status_get_each_irq(struct usbhs_priv *priv,
 	}
 	usbhs_unlock(priv, flags);
 	/********************  spin unlock ******************/
-
-	/*
-	 * Check whether the irq enable registers and the irq status are set
-	 * when IRQF_SHARED is set.
-	 */
-	if (priv->irqflags & IRQF_SHARED) {
-		if (!(intenb0 & state->intsts0) &&
-		    !(intenb1 & state->intsts1) &&
-		    !(state->bempsts) &&
-		    !(state->brdysts))
-			return -EIO;
-	}
 
 	return 0;
 }

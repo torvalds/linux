@@ -1097,7 +1097,7 @@ static ssize_t f_midi_opts_##name##_show(struct config_item *item, char *page) \
 	int result;							\
 									\
 	mutex_lock(&opts->lock);					\
-	result = sprintf(page, "%d\n", opts->name);			\
+	result = sprintf(page, "%u\n", opts->name);			\
 	mutex_unlock(&opts->lock);					\
 									\
 	return result;							\
@@ -1134,7 +1134,51 @@ end:									\
 									\
 CONFIGFS_ATTR(f_midi_opts_, name);
 
-F_MIDI_OPT(index, true, SNDRV_CARDS);
+#define F_MIDI_OPT_SIGNED(name, test_limit, limit)				\
+static ssize_t f_midi_opts_##name##_show(struct config_item *item, char *page) \
+{									\
+	struct f_midi_opts *opts = to_f_midi_opts(item);		\
+	int result;							\
+									\
+	mutex_lock(&opts->lock);					\
+	result = sprintf(page, "%d\n", opts->name);			\
+	mutex_unlock(&opts->lock);					\
+									\
+	return result;							\
+}									\
+									\
+static ssize_t f_midi_opts_##name##_store(struct config_item *item,	\
+					 const char *page, size_t len)	\
+{									\
+	struct f_midi_opts *opts = to_f_midi_opts(item);		\
+	int ret;							\
+	s32 num;							\
+									\
+	mutex_lock(&opts->lock);					\
+	if (opts->refcnt > 1) {						\
+		ret = -EBUSY;						\
+		goto end;						\
+	}								\
+									\
+	ret = kstrtos32(page, 0, &num);					\
+	if (ret)							\
+		goto end;						\
+									\
+	if (test_limit && num > limit) {				\
+		ret = -EINVAL;						\
+		goto end;						\
+	}								\
+	opts->name = num;						\
+	ret = len;							\
+									\
+end:									\
+	mutex_unlock(&opts->lock);					\
+	return ret;							\
+}									\
+									\
+CONFIGFS_ATTR(f_midi_opts_, name);
+
+F_MIDI_OPT_SIGNED(index, true, SNDRV_CARDS);
 F_MIDI_OPT(buflen, false, 0);
 F_MIDI_OPT(qlen, false, 0);
 F_MIDI_OPT(in_ports, true, MAX_PORTS);

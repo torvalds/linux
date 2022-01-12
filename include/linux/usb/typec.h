@@ -305,16 +305,4 @@ void typec_partner_set_svdm_version(struct typec_partner *partner,
 				    enum usb_pd_svdm_ver svdm_version);
 int typec_get_negotiated_svdm_version(struct typec_port *port);
 
-#if IS_REACHABLE(CONFIG_TYPEC)
-int typec_link_port(struct device *port);
-void typec_unlink_port(struct device *port);
-#else
-static inline int typec_link_port(struct device *port)
-{
-	return 0;
-}
-
-static inline void typec_unlink_port(struct device *port) { }
-#endif
-
 #endif /* __LINUX_USB_TYPEC_H */

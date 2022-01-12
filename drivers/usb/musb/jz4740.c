@@ -231,6 +231,7 @@ static int jz4740_probe(struct platform_device *pdev)
 	musb->dev.parent		= dev;
 	musb->dev.dma_mask		= &musb->dev.coherent_dma_mask;
 	musb->dev.coherent_dma_mask	= DMA_BIT_MASK(32);
+	device_set_of_node_from_dev(&musb->dev, dev);
 
 	glue->pdev			= musb;
 	glue->clk			= clk;

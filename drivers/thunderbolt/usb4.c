@@ -50,28 +50,6 @@ enum usb4_ba_index {
 #define USB4_BA_VALUE_MASK		GENMASK(31, 16)
 #define USB4_BA_VALUE_SHIFT		16
 
-static int usb4_switch_wait_for_bit(struct tb_switch *sw, u32 offset, u32 bit,
-				    u32 value, int timeout_msec)
-{
-	ktime_t timeout = ktime_add_ms(ktime_get(), timeout_msec);
-
-	do {
-		u32 val;
-		int ret;
-
-		ret = tb_sw_read(sw, &val, TB_CFG_SWITCH, offset, 1);
-		if (ret)
-			return ret;
-
-		if ((val & bit) == value)
-			return 0;
-
-		usleep_range(50, 100);
-	} while (ktime_before(ktime_get(), timeout));
-
-	return -ETIMEDOUT;
-}
-
 static int usb4_native_switch_op(struct tb_switch *sw, u16 opcode,
 				 u32 *metadata, u8 *status,
 				 const void *tx_data, size_t tx_dwords,
@@ -97,7 +75,7 @@ static int usb4_native_switch_op(struct tb_switch *sw, u16 opcode,
 	if (ret)
 		return ret;
 
-	ret = usb4_switch_wait_for_bit(sw, ROUTER_CS_26, ROUTER_CS_26_OV, 0, 500);
+	ret = tb_switch_wait_for_bit(sw, ROUTER_CS_26, ROUTER_CS_26_OV, 0, 500);
 	if (ret)
 		return ret;
 
@@ -303,8 +281,8 @@ int usb4_switch_setup(struct tb_switch *sw)
 	if (ret)
 		return ret;
 
-	return usb4_switch_wait_for_bit(sw, ROUTER_CS_6, ROUTER_CS_6_CR,
-					ROUTER_CS_6_CR, 50);
+	return tb_switch_wait_for_bit(sw, ROUTER_CS_6, ROUTER_CS_6_CR,
+				      ROUTER_CS_6_CR, 50);
 }
 
 /**
@@ -480,8 +458,8 @@ int usb4_switch_set_sleep(struct tb_switch *sw)
 	if (ret)
 		return ret;
 
-	return usb4_switch_wait_for_bit(sw, ROUTER_CS_6, ROUTER_CS_6_SLPR,
-					ROUTER_CS_6_SLPR, 500);
+	return tb_switch_wait_for_bit(sw, ROUTER_CS_6, ROUTER_CS_6_SLPR,
+				      ROUTER_CS_6_SLPR, 500);
 }
 
 /**
@@ -1384,6 +1362,26 @@ int usb4_port_enumerate_retimers(struct tb_port *port)
 	val = USB4_SB_OPCODE_ENUMERATE_RETIMERS;
 	return usb4_port_sb_write(port, USB4_SB_TARGET_ROUTER, 0,
 				  USB4_SB_OPCODE, &val, sizeof(val));
+}
+
+/**
+ * usb4_port_clx_supported() - Check if CLx is supported by the link
+ * @port: Port to check for CLx support for
+ *
+ * PORT_CS_18_CPS bit reflects if the link supports CLx including
+ * active cables (if connected on the link).
+ */
+bool usb4_port_clx_supported(struct tb_port *port)
+{
+	int ret;
+	u32 val;
+
+	ret = tb_port_read(port, &val, TB_CFG_PORT,
+			   port->cap_usb4 + PORT_CS_18, 1);
+	if (ret)
+		return false;
+
+	return !!(val & PORT_CS_18_CPS);
 }
 
 static inline int usb4_port_retimer_op(struct tb_port *port, u8 index,

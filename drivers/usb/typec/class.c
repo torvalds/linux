@@ -2039,8 +2039,6 @@ struct typec_port *typec_register_port(struct device *parent,
 
 	ida_init(&port->mode_ids);
 	mutex_init(&port->port_type_lock);
-	mutex_init(&port->port_list_lock);
-	INIT_LIST_HEAD(&port->port_list);
 
 	port->id = id;
 	port->ops = cap->ops;

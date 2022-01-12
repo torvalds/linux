@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * drivers/usb/generic.c - generic driver for USB devices (not interfaces)
+ * drivers/usb/core/generic.c - generic driver for USB devices (not interfaces)
  *
  * (C) Copyright 2005 Greg Kroah-Hartman <gregkh@suse.de>
  *
