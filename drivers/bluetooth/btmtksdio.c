@@ -282,6 +282,54 @@ static u32 btmtksdio_drv_own_query(struct btmtksdio_dev *bdev)
 	return sdio_readl(bdev->func, MTK_REG_CHLPCR, NULL);
 }
 
+static int btmtksdio_fw_pmctrl(struct btmtksdio_dev *bdev)
+{
+	u32 status;
+	int err;
+
+	sdio_claim_host(bdev->func);
+
+	/* Return ownership to the device */
+	sdio_writel(bdev->func, C_FW_OWN_REQ_SET, MTK_REG_CHLPCR, &err);
+	if (err < 0)
+		goto out;
+
+	err = readx_poll_timeout(btmtksdio_drv_own_query, bdev, status,
+				 !(status & C_COM_DRV_OWN), 2000, 1000000);
+
+out:
+	sdio_release_host(bdev->func);
+
+	if (err < 0)
+		bt_dev_err(bdev->hdev, "Cannot return ownership to device");
+
+	return err;
+}
+
+static int btmtksdio_drv_pmctrl(struct btmtksdio_dev *bdev)
+{
+	u32 status;
+	int err;
+
+	sdio_claim_host(bdev->func);
+
+	/* Get ownership from the device */
+	sdio_writel(bdev->func, C_FW_OWN_REQ_CLR, MTK_REG_CHLPCR, &err);
+	if (err < 0)
+		goto out;
+
+	err = readx_poll_timeout(btmtksdio_drv_own_query, bdev, status,
+				 status & C_COM_DRV_OWN, 2000, 1000000);
+
+out:
+	sdio_release_host(bdev->func);
+
+	if (err < 0)
+		bt_dev_err(bdev->hdev, "Cannot get ownership from device");
+
+	return err;
+}
+
 static int btmtksdio_recv_event(struct hci_dev *hdev, struct sk_buff *skb)
 {
 	struct btmtksdio_dev *bdev = hci_get_drvdata(hdev);
@@ -541,7 +589,7 @@ static void btmtksdio_interrupt(struct sdio_func *func)
 static int btmtksdio_open(struct hci_dev *hdev)
 {
 	struct btmtksdio_dev *bdev = hci_get_drvdata(hdev);
-	u32 status, val;
+	u32 val;
 	int err;
 
 	sdio_claim_host(bdev->func);
@@ -552,17 +600,9 @@ static int btmtksdio_open(struct hci_dev *hdev)
 
 	set_bit(BTMTKSDIO_FUNC_ENABLED, &bdev->tx_state);
 
-	/* Get ownership from the device */
-	sdio_writel(bdev->func, C_FW_OWN_REQ_CLR, MTK_REG_CHLPCR, &err);
+	err = btmtksdio_drv_pmctrl(bdev);
 	if (err < 0)
 		goto err_disable_func;
-
-	err = readx_poll_timeout(btmtksdio_drv_own_query, bdev, status,
-				 status & C_COM_DRV_OWN, 2000, 1000000);
-	if (err < 0) {
-		bt_dev_err(bdev->hdev, "Cannot get ownership from device");
-		goto err_disable_func;
-	}
 
 	/* Disable interrupt & mask out all interrupt sources */
 	sdio_writel(bdev->func, C_INT_EN_CLR, MTK_REG_CHLPCR, &err);
@@ -633,8 +673,6 @@ err_release_host:
 static int btmtksdio_close(struct hci_dev *hdev)
 {
 	struct btmtksdio_dev *bdev = hci_get_drvdata(hdev);
-	u32 status;
-	int err;
 
 	sdio_claim_host(bdev->func);
 
@@ -645,13 +683,7 @@ static int btmtksdio_close(struct hci_dev *hdev)
 
 	cancel_work_sync(&bdev->txrx_work);
 
-	/* Return ownership to the device */
-	sdio_writel(bdev->func, C_FW_OWN_REQ_SET, MTK_REG_CHLPCR, NULL);
-
-	err = readx_poll_timeout(btmtksdio_drv_own_query, bdev, status,
-				 !(status & C_COM_DRV_OWN), 2000, 1000000);
-	if (err < 0)
-		bt_dev_err(bdev->hdev, "Cannot return ownership to device");
+	btmtksdio_fw_pmctrl(bdev);
 
 	clear_bit(BTMTKSDIO_FUNC_ENABLED, &bdev->tx_state);
 	sdio_disable_func(bdev->func);
@@ -1162,7 +1194,6 @@ static int btmtksdio_runtime_suspend(struct device *dev)
 {
 	struct sdio_func *func = dev_to_sdio_func(dev);
 	struct btmtksdio_dev *bdev;
-	u32 status;
 	int err;
 
 	bdev = sdio_get_drvdata(func);
@@ -1174,18 +1205,9 @@ static int btmtksdio_runtime_suspend(struct device *dev)
 
 	sdio_set_host_pm_flags(func, MMC_PM_KEEP_POWER);
 
-	sdio_claim_host(bdev->func);
+	err = btmtksdio_fw_pmctrl(bdev);
 
-	sdio_writel(bdev->func, C_FW_OWN_REQ_SET, MTK_REG_CHLPCR, &err);
-	if (err < 0)
-		goto out;
-
-	err = readx_poll_timeout(btmtksdio_drv_own_query, bdev, status,
-				 !(status & C_COM_DRV_OWN), 2000, 1000000);
-out:
 	bt_dev_info(bdev->hdev, "status (%d) return ownership to device", err);
-
-	sdio_release_host(bdev->func);
 
 	return err;
 }
@@ -1194,7 +1216,6 @@ static int btmtksdio_runtime_resume(struct device *dev)
 {
 	struct sdio_func *func = dev_to_sdio_func(dev);
 	struct btmtksdio_dev *bdev;
-	u32 status;
 	int err;
 
 	bdev = sdio_get_drvdata(func);
@@ -1204,18 +1225,9 @@ static int btmtksdio_runtime_resume(struct device *dev)
 	if (!test_bit(BTMTKSDIO_FUNC_ENABLED, &bdev->tx_state))
 		return 0;
 
-	sdio_claim_host(bdev->func);
+	err = btmtksdio_drv_pmctrl(bdev);
 
-	sdio_writel(bdev->func, C_FW_OWN_REQ_CLR, MTK_REG_CHLPCR, &err);
-	if (err < 0)
-		goto out;
-
-	err = readx_poll_timeout(btmtksdio_drv_own_query, bdev, status,
-				 status & C_COM_DRV_OWN, 2000, 1000000);
-out:
 	bt_dev_info(bdev->hdev, "status (%d) get ownership from device", err);
-
-	sdio_release_host(bdev->func);
 
 	return err;
 }
