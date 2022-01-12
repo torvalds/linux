@@ -3031,7 +3031,7 @@ void amdgpu_smu_stb_debug_fs_init(struct amdgpu_device *adev)
 
 	struct smu_context *smu = adev->powerplay.pp_handle;
 
-	if (!smu->stb_context.stb_buf_size)
+	if (!smu || (!smu->stb_context.stb_buf_size))
 		return;
 
 	debugfs_create_file_size("amdgpu_smu_stb_dump",
