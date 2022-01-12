@@ -3832,9 +3832,9 @@ static void sienna_cichlid_stb_init(struct smu_context *smu)
 
 }
 
-int sienna_cichlid_stb_get_data_direct(struct smu_context *smu,
-				       void *buf,
-				       uint32_t size)
+static int sienna_cichlid_stb_get_data_direct(struct smu_context *smu,
+					      void *buf,
+					      uint32_t size)
 {
 	uint32_t *p = buf;
 	struct amdgpu_device *adev = smu->adev;
