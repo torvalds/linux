@@ -40,6 +40,17 @@ enum ipa_endpoint_name {
 #define IPA_ENDPOINT_MAX		32	/* Max supported by driver */
 
 /**
+ * enum ipa_replenish_flag:	RX buffer replenish flags
+ *
+ * @IPA_REPLENISH_ENABLED:	Whether receive buffer replenishing is enabled
+ * @IPA_REPLENISH_COUNT:	Number of defined replenish flags
+ */
+enum ipa_replenish_flag {
+	IPA_REPLENISH_ENABLED,
+	IPA_REPLENISH_COUNT,	/* Number of flags (must be last) */
+};
+
+/**
  * struct ipa_endpoint - IPA endpoint information
  * @channel_id:	EP's GSI channel
  * @evt_ring_id: EP's GSI channel event ring
@@ -60,7 +71,7 @@ struct ipa_endpoint {
 	struct net_device *netdev;
 
 	/* Receive buffer replenishing for RX endpoints */
-	bool replenish_enabled;
+	DECLARE_BITMAP(replenish_flags, IPA_REPLENISH_COUNT);
 	u32 replenish_ready;
 	atomic_t replenish_saved;
 	atomic_t replenish_backlog;
