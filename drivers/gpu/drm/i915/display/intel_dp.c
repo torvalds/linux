@@ -3699,6 +3699,7 @@ intel_dp_check_mst_status(struct intel_dp *intel_dp)
 		    esi[3] & LINK_STATUS_CHANGED) {
 			if (!intel_dp_mst_link_status(intel_dp))
 				link_ok = false;
+			handled = true;
 		}
 
 		intel_dp_mst_hpd_irq(intel_dp, esi, &handled);
