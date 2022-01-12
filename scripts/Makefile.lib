@@ -425,6 +425,11 @@ quiet_cmd_lz4 = LZ4     $@
                   $(LZ4) -l -12 --favor-decSpeed stdin stdout; \
                   $(size_append); } > $@
 
+quiet_cmd_lz4c = LZ4C    $@
+      cmd_lz4c = { cat $(real-prereqs) | \
+                   $(LZ4) -12 --favor-decSpeed stdin stdout; \
+                   $(size_append); } > $@
+
 # U-Boot mkimage
 # ---------------------------------------------------------------------------
 
