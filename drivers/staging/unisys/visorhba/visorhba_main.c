@@ -266,7 +266,7 @@ static int forward_taskmgmt_command(enum task_mgmt_types tasktype,
 					 &notifyevent, &notifyresult);
 	if (ret) {
 		dev_dbg(&scsidev->sdev_gendev,
-		        "visorhba: setup_scsitaskmgmt_handles returned %d\n", ret);
+			"visorhba: setup_scsitaskmgmt_handles returned %d\n", ret);
 		return FAILED;
 	}
 

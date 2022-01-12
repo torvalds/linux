@@ -35,7 +35,7 @@ static struct ch_freq ch_freq_map[] = {
 	{216, 5080},/* Japan, means J16 */
 };
 
-static int ch_freq_map_num = (sizeof(ch_freq_map) / sizeof(struct ch_freq));
+static int ch_freq_map_num = ARRAY_SIZE(ch_freq_map);
 
 u32 rtw_ch2freq(u32 channel)
 {
