@@ -10,28 +10,11 @@
 #include "rga_dma_buf.h"
 #include "rga.h"
 #include "rga_hw_config.h"
+#include "rga_job.h"
 
 #if CONFIG_ROCKCHIP_RGA_DEBUGGER
 extern int RGA_DEBUG_CHECK_MODE;
 #endif
-
-static struct rga_scheduler_t *get_scheduler(int core)
-{
-	struct rga_scheduler_t *scheduler = NULL;
-	int i;
-
-	for (i = 0; i < rga_drvdata->num_of_scheduler; i++) {
-		if (core == rga_drvdata->rga_scheduler[i]->core) {
-			scheduler = rga_drvdata->rga_scheduler[i];
-			if (RGA_DEBUG_MSG)
-				pr_info("choose core: %d\n",
-					rga_drvdata->rga_scheduler[i]->core);
-			break;
-		}
-	}
-
-	return scheduler;
-}
 
 /**
  * rga_dma_info_to_prot - Translate DMA API directions and attributes to IOMMU API
@@ -545,7 +528,7 @@ static int rga_viraddr_get_channel_info(struct rga_img_info_t *channel_info,
 
 	user_format_convert(&format, channel_info->format);
 
-	scheduler = get_scheduler(core);
+	scheduler = rga_job_get_scheduler(core);
 	if (scheduler == NULL) {
 		pr_err("failed to get scheduler, %s(%d)\n", __func__,
 			__LINE__);
@@ -954,7 +937,7 @@ static int rga_dma_buf_get_channel_info(struct rga_img_info_t *channel_info,
 		alloc_buffer->use_dma_buf = false;
 		alloc_buffer->use_viraddr = false;
 
-		scheduler = get_scheduler(core);
+		scheduler = rga_job_get_scheduler(core);
 		if (scheduler == NULL) {
 			pr_err("failed to get scheduler, %s(%d)\n", __func__,
 				 __LINE__);

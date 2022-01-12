@@ -7,6 +7,7 @@
 
 #define pr_fmt(fmt) "rga2_reg: " fmt
 
+#include "rga_job.h"
 #include "rga2_reg_info.h"
 #include "rga2_mmu_info.h"
 #include "rga_hw_config.h"
@@ -94,24 +95,6 @@ unsigned int rga2_rop_code[256] = {
 	0x008004f0, 0x00004830, 0x00000048, 0x0080044e,
 	0x00000051, 0x008004d4, 0x00800451, 0x00800007,//f
 };
-
-static struct rga_scheduler_t *get_scheduler(int core)
-{
-	struct rga_scheduler_t *scheduler = NULL;
-	int i;
-
-	for (i = 0; i < rga_drvdata->num_of_scheduler; i++) {
-		if (core == rga_drvdata->rga_scheduler[i]->core) {
-			scheduler = rga_drvdata->rga_scheduler[i];
-			if (RGA_DEBUG_MSG)
-				pr_info("choose core: %d\n",
-					rga_drvdata->rga_scheduler[i]->core);
-			break;
-		}
-	}
-
-	return scheduler;
-}
 
 static void RGA2_reg_get_param(unsigned char *base, struct rga2_req *msg)
 {
@@ -2325,7 +2308,7 @@ int rga2_init_reg(struct rga_job *job)
 	struct rga2_mmu_info_t *tbuf = &rga2_mmu_info;
 	struct rga_scheduler_t *scheduler = NULL;
 
-	scheduler = get_scheduler(job->core);
+	scheduler = rga_job_get_scheduler(job->core);
 	if (scheduler == NULL) {
 		pr_err("failed to get scheduler, %s(%d)\n", __func__,
 				__LINE__);

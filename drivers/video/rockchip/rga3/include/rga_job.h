@@ -20,6 +20,8 @@ enum job_flags {
 	RGA_JOB_USE_HANDLE	= 1 << 3,
 };
 
+struct rga_scheduler_t *rga_job_get_scheduler(int core);
+
 void rga_job_done(struct rga_scheduler_t *rga_scheduler, int ret);
 int rga_job_commit(struct rga_req *rga_command_base, int flags);
 
