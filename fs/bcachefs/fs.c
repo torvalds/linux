@@ -105,7 +105,7 @@ void bch2_inode_update_after_write(struct btree_trans *trans,
 
 	bch2_assert_pos_locked(trans, BTREE_ID_inodes,
 			       POS(0, bi->bi_inum),
-			       0 && c->opts.inodes_use_key_cache);
+			       c->opts.inodes_use_key_cache);
 
 	set_nlink(&inode->v, bch2_inode_nlink_get(bi));
 	i_uid_write(&inode->v, bi->bi_uid);
@@ -1473,7 +1473,7 @@ static void bch2_evict_inode(struct inode *vinode)
 				KEY_TYPE_QUOTA_WARN);
 		bch2_quota_acct(c, inode->ei_qid, Q_INO, -1,
 				KEY_TYPE_QUOTA_WARN);
-		bch2_inode_rm(c, inode_inum(inode), true);
+		bch2_inode_rm(c, inode_inum(inode));
 	}
 }
 

@@ -2860,6 +2860,9 @@ static void __bch2_trans_iter_init(struct btree_trans *trans,
 	if (trans->journal_replay_not_finished)
 		flags |= BTREE_ITER_WITH_JOURNAL;
 
+	if (!btree_id_cached(trans->c, btree_id))
+		flags &= ~BTREE_ITER_CACHED;
+
 	iter->trans	= trans;
 	iter->path	= NULL;
 	iter->update_path = NULL;

@@ -252,15 +252,13 @@ int bch2_inode_peek(struct btree_trans *trans,
 	u32 snapshot;
 	int ret;
 
-	if (trans->c->opts.inodes_use_key_cache)
-		flags |= BTREE_ITER_CACHED;
-
 	ret = bch2_subvolume_get_snapshot(trans, inum.subvol, &snapshot);
 	if (ret)
 		return ret;
 
 	bch2_trans_iter_init(trans, iter, BTREE_ID_inodes,
-			     SPOS(0, inum.inum, snapshot), flags);
+			     SPOS(0, inum.inum, snapshot),
+			     flags|BTREE_ITER_CACHED);
 	k = bch2_btree_iter_peek_slot(iter);
 	ret = bkey_err(k);
 	if (ret)
@@ -631,19 +629,15 @@ err:
 	return ret;
 }
 
-int bch2_inode_rm(struct bch_fs *c, subvol_inum inum, bool cached)
+int bch2_inode_rm(struct bch_fs *c, subvol_inum inum)
 {
 	struct btree_trans trans;
 	struct btree_iter iter = { NULL };
 	struct bkey_i_inode_generation delete;
 	struct bch_inode_unpacked inode_u;
 	struct bkey_s_c k;
-	unsigned iter_flags = BTREE_ITER_INTENT;
 	u32 snapshot;
 	int ret;
-
-	if (cached && c->opts.inodes_use_key_cache)
-		iter_flags |= BTREE_ITER_CACHED;
 
 	bch2_trans_init(&trans, c, 0, 1024);
 
@@ -668,7 +662,8 @@ retry:
 		goto err;
 
 	bch2_trans_iter_init(&trans, &iter, BTREE_ID_inodes,
-			     SPOS(0, inum.inum, snapshot), iter_flags);
+			     SPOS(0, inum.inum, snapshot),
+			     BTREE_ITER_INTENT|BTREE_ITER_CACHED);
 	k = bch2_btree_iter_peek_slot(&iter);
 
 	ret = bkey_err(k);

@@ -87,7 +87,7 @@ void bch2_inode_init(struct bch_fs *, struct bch_inode_unpacked *,
 int bch2_inode_create(struct btree_trans *, struct btree_iter *,
 		      struct bch_inode_unpacked *, u32, u64);
 
-int bch2_inode_rm(struct bch_fs *, subvol_inum, bool);
+int bch2_inode_rm(struct bch_fs *, subvol_inum);
 
 int bch2_inode_find_by_inum_trans(struct btree_trans *, subvol_inum,
 				  struct bch_inode_unpacked *);
