@@ -293,6 +293,9 @@ mt7915_regd_notifier(struct wiphy *wiphy,
 	memcpy(dev->mt76.alpha2, request->alpha2, sizeof(dev->mt76.alpha2));
 	dev->mt76.region = request->dfs_region;
 
+	if (dev->mt76.region == NL80211_DFS_UNSET)
+		mt7915_mcu_rdd_background_enable(phy, NULL);
+
 	mt7915_init_txpower(dev, &mphy->sband_2g.sband);
 	mt7915_init_txpower(dev, &mphy->sband_5g.sband);
 
