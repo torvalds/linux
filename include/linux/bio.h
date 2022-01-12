@@ -166,7 +166,7 @@ static inline void bio_advance(struct bio *bio, unsigned int nbytes)
  */
 #define bio_for_each_bvec_all(bvl, bio, i)		\
 	for (i = 0, bvl = bio_first_bvec_all(bio);	\
-	     i < (bio)->bi_vcnt; i++, bvl++)		\
+	     i < (bio)->bi_vcnt; i++, bvl++)
 
 #define bio_iter_last(bvec, iter) ((iter).bi_size == (bvec).bv_len)
 
@@ -259,6 +259,57 @@ static inline struct bio_vec *bio_last_bvec_all(struct bio *bio)
 	WARN_ON_ONCE(bio_flagged(bio, BIO_CLONED));
 	return &bio->bi_io_vec[bio->bi_vcnt - 1];
 }
+
+/**
+ * struct folio_iter - State for iterating all folios in a bio.
+ * @folio: The current folio we're iterating.  NULL after the last folio.
+ * @offset: The byte offset within the current folio.
+ * @length: The number of bytes in this iteration (will not cross folio
+ *	boundary).
+ */
+struct folio_iter {
+	struct folio *folio;
+	size_t offset;
+	size_t length;
+	/* private: for use by the iterator */
+	size_t _seg_count;
+	int _i;
+};
+
+static inline void bio_first_folio(struct folio_iter *fi, struct bio *bio,
+				   int i)
+{
+	struct bio_vec *bvec = bio_first_bvec_all(bio) + i;
+
+	fi->folio = page_folio(bvec->bv_page);
+	fi->offset = bvec->bv_offset +
+			PAGE_SIZE * (bvec->bv_page - &fi->folio->page);
+	fi->_seg_count = bvec->bv_len;
+	fi->length = min(folio_size(fi->folio) - fi->offset, fi->_seg_count);
+	fi->_i = i;
+}
+
+static inline void bio_next_folio(struct folio_iter *fi, struct bio *bio)
+{
+	fi->_seg_count -= fi->length;
+	if (fi->_seg_count) {
+		fi->folio = folio_next(fi->folio);
+		fi->offset = 0;
+		fi->length = min(folio_size(fi->folio), fi->_seg_count);
+	} else if (fi->_i + 1 < bio->bi_vcnt) {
+		bio_first_folio(fi, bio, fi->_i + 1);
+	} else {
+		fi->folio = NULL;
+	}
+}
+
+/**
+ * bio_for_each_folio_all - Iterate over each folio in a bio.
+ * @fi: struct folio_iter which is updated for each folio.
+ * @bio: struct bio to iterate over.
+ */
+#define bio_for_each_folio_all(fi, bio)				\
+	for (bio_first_folio(&fi, bio, 0); fi.folio; bio_next_folio(&fi, bio))
 
 enum bip_flags {
 	BIP_BLOCK_INTEGRITY	= 1 << 0, /* block layer owns integrity data */
@@ -409,7 +460,8 @@ extern void bio_uninit(struct bio *);
 extern void bio_reset(struct bio *);
 void bio_chain(struct bio *, struct bio *);
 
-extern int bio_add_page(struct bio *, struct page *, unsigned int,unsigned int);
+int bio_add_page(struct bio *, struct page *, unsigned len, unsigned off);
+bool bio_add_folio(struct bio *, struct folio *, size_t len, size_t off);
 extern int bio_add_pc_page(struct request_queue *, struct bio *, struct page *,
 			   unsigned int, unsigned int);
 int bio_add_zone_append_page(struct bio *bio, struct page *page,
