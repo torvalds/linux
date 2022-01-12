@@ -309,6 +309,53 @@ exit:
 DEFINE_SHOW_ATTRIBUTE(mt7915_muru_stats);
 
 static int
+mt7915_rdd_monitor(struct seq_file *s, void *data)
+{
+	struct mt7915_dev *dev = dev_get_drvdata(s->private);
+	struct cfg80211_chan_def *chandef = &dev->rdd2_chandef;
+	const char *bw;
+	int ret = 0;
+
+	mutex_lock(&dev->mt76.mutex);
+
+	if (!cfg80211_chandef_valid(chandef)) {
+		ret = -EINVAL;
+		goto out;
+	}
+
+	if (!dev->rdd2_phy) {
+		seq_puts(s, "not running\n");
+		goto out;
+	}
+
+	switch (chandef->width) {
+	case NL80211_CHAN_WIDTH_40:
+		bw = "40";
+		break;
+	case NL80211_CHAN_WIDTH_80:
+		bw = "80";
+		break;
+	case NL80211_CHAN_WIDTH_160:
+		bw = "160";
+		break;
+	case NL80211_CHAN_WIDTH_80P80:
+		bw = "80P80";
+		break;
+	default:
+		bw = "20";
+		break;
+	}
+
+	seq_printf(s, "channel %d (%d MHz) width %s MHz center1: %d MHz\n",
+		   chandef->chan->hw_value, chandef->chan->center_freq,
+		   bw, chandef->center_freq1);
+out:
+	mutex_unlock(&dev->mt76.mutex);
+
+	return ret;
+}
+
+static int
 mt7915_fw_debug_wm_set(void *data, u64 val)
 {
 	struct mt7915_dev *dev = data;
@@ -856,6 +903,8 @@ int mt7915_init_debugfs(struct mt7915_phy *phy)
 				   &dev->hw_pattern);
 		debugfs_create_file("radar_trigger", 0200, dir, dev,
 				    &fops_radar_trigger);
+		debugfs_create_devm_seqfile(dev->mt76.dev, "rdd_monitor", dir,
+					    mt7915_rdd_monitor);
 	}
 
 	if (!ext_phy)
