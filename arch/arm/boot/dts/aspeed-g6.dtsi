@@ -151,14 +151,26 @@
 		};
 
 		fmc: spi@1e620000 {
-			reg = < 0x1e620000 0xc4
-				0x20000000 0x10000000 >;
+#if 1
+			reg = <0x1e620000 0xc4>,
+				<0x20000000 0x10000000>;
+			reg-names = "spi_ctrl_reg", "spi_mmap";
+			compatible = "aspeed,ast2600-fmc";
+#else
+			/* reg : cs0 : cs1 : cs2 */
+			reg = <0x1e620000 0x100
+				0x20000000 0x200000
+				0x24000000 0x200000
+				0x28000000 0x200000>;
+			compatible = "aspeed,ast2600-fmc-spi";
+			number_of_chip_select = /bits/ 16 <3>;
+#endif
 			#address-cells = <1>;
 			#size-cells = <0>;
-			compatible = "aspeed,ast2600-fmc";
 			clocks = <&syscon ASPEED_CLK_AHB>;
 			status = "disabled";
 			interrupts = <GIC_SPI 39 IRQ_TYPE_LEVEL_HIGH>;
+			num-cs = <3>;
 			flash@0 {
 				reg = < 0 >;
 				compatible = "jedec,spi-nor";
@@ -180,12 +192,24 @@
 		};
 
 		spi1: spi@1e630000 {
-			reg = < 0x1e630000 0xc4
-				0x30000000 0x10000000 >;
+#if 1
+			reg = <0x1e630000 0xc4>,
+				<0x30000000 0x10000000>;
+			reg-names = "spi_ctrl_reg", "spi_mmap";
+			compatible = "aspeed,ast2600-spi";
+#else
+			/* reg : cs0 : cs1 */
+			reg = <0x1e630000 0x100
+				0x30000000 0x200000
+				0x32000000 0x200000>;
+			compatible = "aspeed,ast2600-fmc-spi";
+			number_of_chip_select = /bits/ 16 <2>;
+#endif
 			#address-cells = <1>;
 			#size-cells = <0>;
-			compatible = "aspeed,ast2600-spi";
 			clocks = <&syscon ASPEED_CLK_AHB>;
+			num-cs = <2>;
+			interrupts = <GIC_SPI 65 IRQ_TYPE_LEVEL_HIGH>;
 			status = "disabled";
 			flash@0 {
 				reg = < 0 >;
@@ -202,12 +226,25 @@
 		};
 
 		spi2: spi@1e631000 {
-			reg = < 0x1e631000 0xc4
-				0x50000000 0x10000000 >;
+#if 1
+			reg = < 0x1e631000 0xc4>,
+				<0x50000000 0x10000000>;
+			reg-names = "spi_ctrl_reg", "spi_mmap";
+			compatible = "aspeed,ast2600-spi";
+#else
+			/* reg : cs0 : cs1 */
+			reg = <0x1e631000 0x100
+				0x50000000 0x200000
+				0x52000000 0x200000
+				0x54000000 0x200000>;
+			compatible = "aspeed,ast2600-fmc-spi";
+			number_of_chip_select = /bits/ 16 <3>;
+#endif
 			#address-cells = <1>;
 			#size-cells = <0>;
-			compatible = "aspeed,ast2600-spi";
 			clocks = <&syscon ASPEED_CLK_AHB>;
+			num-cs = <3>;
+			interrupts = <GIC_SPI 65 IRQ_TYPE_LEVEL_HIGH>;
 			status = "disabled";
 			flash@0 {
 				reg = < 0 >;

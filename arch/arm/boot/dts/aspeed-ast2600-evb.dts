@@ -510,27 +510,131 @@
 };
 
 &fmc {
+	fmc-spi-user-mode;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_fwqspi_default>;
 	status = "okay";
+
 	flash@0 {
 		status = "okay";
 		m25p,fast-read;
 		label = "bmc";
 		spi-max-frequency = <50000000>;
-#include "openbmc-flash-layout-64.dtsi"
+		spi-tx-bus-width = <4>;
+		spi-rx-bus-width = <4>;
+		partitions {
+			compatible = "fixed-partitions";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			u-boot@0 {
+				reg = <0x0 0xe0000>;
+				label = "u-boot";
+			};
+
+			u-boot-env@e0000 {
+				reg = <0xe0000 0x20000>; // 128KB
+				label = "u-boot-env";
+			};
+
+			kernel@100000 {
+				reg = <0x100000 0x900000>; // 9MB
+				label = "kernel";
+			};
+
+			rofs@a00000 {
+				reg = <0xa00000 0x2000000>; // 32MB
+				label = "rofs";
+			};
+
+			rwfs@2a00000 {
+				reg = <0x2a00000 0x1600000>; // 22MB
+				label = "rwfs";
+			};
+
+		};
+	};
+
+	flash@1 {
+		status = "okay";
+		m25p,fast-read;
+		label = "fmc0:1";
+		spi-max-frequency = <50000000>;
+		spi-tx-bus-width = <4>;
+		spi-rx-bus-width = <4>;
+	};
+
+	flash@2 {
+		status = "disabled";
+		m25p,fast-read;
+		label = "fmc0:2";
+		spi-max-frequency = <50000000>;
+		spi-tx-bus-width = <4>;
+		spi-rx-bus-width = <4>;
 	};
 };
 
 &spi1 {
-	status = "okay";
+	fmc-spi-user-mode;
 	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_spi1_default>;
+	pinctrl-0 = <&pinctrl_spi1_default &pinctrl_spi1cs1_default
+				&pinctrl_qspi1_default>;
+	status = "okay";
 
 	flash@0 {
 		status = "okay";
 		m25p,fast-read;
-		label = "pnor";
-		spi-max-frequency = <100000000>;
+		label = "spi1:0";
+		spi-max-frequency = <50000000>;
+		spi-tx-bus-width = <4>;
+		spi-rx-bus-width = <4>;
 	};
+
+	flash@1 {
+		status = "disabled";
+		m25p,fast-read;
+		label = "spi1:1";
+		spi-max-frequency = <50000000>;
+		spi-tx-bus-width = <4>;
+		spi-rx-bus-width = <4>;
+	};
+};
+
+&spi2 {
+	fmc-spi-user-mode;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_spi2_default &pinctrl_spi2cs1_default
+				&pinctrl_spi2cs2_default &pinctrl_qspi2_default>;
+	fmc-spi-user-mode;
+	status = "okay";
+
+	flash@0 {
+		status = "okay";
+		m25p,fast-read;
+		label = "spi2:0";
+		spi-max-frequency = <50000000>;
+		spi-tx-bus-width = <4>;
+		spi-rx-bus-width = <4>;
+	};
+
+	flash@1 {
+		status = "disabled";
+		m25p,fast-read;
+		label = "spi2:1";
+		spi-max-frequency = <50000000>;
+		spi-tx-bus-width = <4>;
+		spi-rx-bus-width = <4>;
+	};
+
+	flash@2 {
+		status = "disabled";
+		m25p,fast-read;
+		label = "spi2:2";
+		spi-max-frequency = <50000000>;
+		spi-tx-bus-width = <4>;
+		spi-rx-bus-width = <4>;
+	};
+
 };
 
 &i2c4 {

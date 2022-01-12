@@ -86,6 +86,14 @@ config SPI_AR934X
 	  This enables support for the SPI controller present on the
 	  Qualcomm Atheros AR934X/QCA95XX SoCs.
 
+config SPI_ASPEED
+	tristate "ASPEED SPI Controller"
+	depends on OF && HAS_IOMEM
+	help
+	  This is a driver for ASPEED SPI Controller. This driver
+	  is not a generic pure SPI driver, which is especially
+	  designed for spi-mem framework.
+
 config SPI_ATH79
 	tristate "Atheros AR71XX/AR724X/AR913X SPI controller driver"
 	depends on ATH79 || COMPILE_TEST
@@ -323,6 +331,12 @@ config SPI_FALCON
 	  emulation that is designed for serial flash access. This driver
 	  has only been tested with m25p80 type chips. The hardware has no
 	  support for other types of SPI peripherals.
+
+config SPI_FMC
+	tristate "Aspeed pure SPI Controller"
+	depends on ARCH_ASPEED
+	help
+	  This is a driver for the AST FMC SPI Controller
 
 config SPI_FSI
 	tristate "FSI SPI driver"
