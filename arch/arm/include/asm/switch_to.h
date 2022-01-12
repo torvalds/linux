@@ -23,23 +23,9 @@
  */
 extern struct task_struct *__switch_to(struct task_struct *, struct thread_info *, struct thread_info *);
 
-static inline void set_ti_cpu(struct task_struct *p)
-{
-#ifdef CONFIG_THREAD_INFO_IN_TASK
-	/*
-	 * The core code no longer maintains the thread_info::cpu field once
-	 * CONFIG_THREAD_INFO_IN_TASK is in effect, but we rely on it for
-	 * raw_smp_processor_id(), which cannot access struct task_struct*
-	 * directly for reasons of circular #inclusion hell.
-	 */
-	task_thread_info(p)->cpu = task_cpu(p);
-#endif
-}
-
 #define switch_to(prev,next,last)					\
 do {									\
 	__complete_pending_tlbi();					\
-	set_ti_cpu(next);						\
 	if (IS_ENABLED(CONFIG_CURRENT_POINTER_IN_TPIDRURO))		\
 		__this_cpu_write(__entry_task, next);			\
 	last = __switch_to(prev,task_thread_info(prev), task_thread_info(next));	\
