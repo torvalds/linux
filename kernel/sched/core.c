@@ -2184,6 +2184,9 @@ void migrate_enable(void)
 		return;
 	}
 
+	if (WARN_ON_ONCE(!p->migration_disabled))
+		return;
+
 	/*
 	 * Ensure stop_task runs either before or after this, and that
 	 * __set_cpus_allowed_ptr(SCA_MIGRATE_ENABLE) doesn't schedule().
