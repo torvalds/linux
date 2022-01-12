@@ -35,6 +35,7 @@ struct lag_tracker {
 	enum   netdev_lag_tx_type           tx_type;
 	struct netdev_lag_lower_state_info  netdev_state[MLX5_MAX_PORTS];
 	unsigned int is_bonded:1;
+	unsigned int has_inactive:1;
 	enum netdev_lag_hash hash_type;
 };
 

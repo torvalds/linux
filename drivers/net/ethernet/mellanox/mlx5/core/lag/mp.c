@@ -50,7 +50,7 @@ bool mlx5_lag_is_multipath(struct mlx5_core_dev *dev)
 static void mlx5_lag_set_port_affinity(struct mlx5_lag *ldev,
 				       enum mlx5_lag_port_affinity port)
 {
-	struct lag_tracker tracker;
+	struct lag_tracker tracker = {};
 
 	if (!__mlx5_lag_is_multipath(ldev))
 		return;

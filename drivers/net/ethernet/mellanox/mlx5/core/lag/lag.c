@@ -31,6 +31,7 @@
  */
 
 #include <linux/netdevice.h>
+#include <net/bonding.h>
 #include <linux/mlx5/driver.h>
 #include <linux/mlx5/eswitch.h>
 #include <linux/mlx5/vport.h>
@@ -619,6 +620,8 @@ static int mlx5_handle_changeupper_event(struct mlx5_lag *ldev,
 	struct net_device *upper = info->upper_dev, *ndev_tmp;
 	struct netdev_lag_upper_info *lag_upper_info = NULL;
 	bool is_bonded, is_in_lag, mode_supported;
+	bool has_inactive = 0;
+	struct slave *slave;
 	int bond_status = 0;
 	int num_slaves = 0;
 	int changed = 0;
@@ -638,8 +641,12 @@ static int mlx5_handle_changeupper_event(struct mlx5_lag *ldev,
 	rcu_read_lock();
 	for_each_netdev_in_bond_rcu(upper, ndev_tmp) {
 		idx = mlx5_lag_dev_get_netdev_idx(ldev, ndev_tmp);
-		if (idx >= 0)
+		if (idx >= 0) {
+			slave = bond_slave_get_rcu(ndev_tmp);
+			if (slave)
+				has_inactive |= bond_is_slave_inactive(slave);
 			bond_status |= (1 << idx);
+		}
 
 		num_slaves++;
 	}
@@ -654,6 +661,7 @@ static int mlx5_handle_changeupper_event(struct mlx5_lag *ldev,
 		tracker->hash_type = lag_upper_info->hash_type;
 	}
 
+	tracker->has_inactive = has_inactive;
 	/* Determine bonding status:
 	 * A device is considered bonded if both its physical ports are slaves
 	 * of the same lag master, and only them.
@@ -710,6 +718,38 @@ static int mlx5_handle_changelowerstate_event(struct mlx5_lag *ldev,
 	return 1;
 }
 
+static int mlx5_handle_changeinfodata_event(struct mlx5_lag *ldev,
+					    struct lag_tracker *tracker,
+					    struct net_device *ndev)
+{
+	struct net_device *ndev_tmp;
+	struct slave *slave;
+	bool has_inactive = 0;
+	int idx;
+
+	if (!netif_is_lag_master(ndev))
+		return 0;
+
+	rcu_read_lock();
+	for_each_netdev_in_bond_rcu(ndev, ndev_tmp) {
+		idx = mlx5_lag_dev_get_netdev_idx(ldev, ndev_tmp);
+		if (idx < 0)
+			continue;
+
+		slave = bond_slave_get_rcu(ndev_tmp);
+		if (slave)
+			has_inactive |= bond_is_slave_inactive(slave);
+	}
+	rcu_read_unlock();
+
+	if (tracker->has_inactive == has_inactive)
+		return 0;
+
+	tracker->has_inactive = has_inactive;
+
+	return 1;
+}
+
 static int mlx5_lag_netdev_event(struct notifier_block *this,
 				 unsigned long event, void *ptr)
 {
@@ -718,7 +758,9 @@ static int mlx5_lag_netdev_event(struct notifier_block *this,
 	struct mlx5_lag *ldev;
 	int changed = 0;
 
-	if ((event != NETDEV_CHANGEUPPER) && (event != NETDEV_CHANGELOWERSTATE))
+	if (event != NETDEV_CHANGEUPPER &&
+	    event != NETDEV_CHANGELOWERSTATE &&
+	    event != NETDEV_CHANGEINFODATA)
 		return NOTIFY_DONE;
 
 	ldev    = container_of(this, struct mlx5_lag, nb);
@@ -733,6 +775,9 @@ static int mlx5_lag_netdev_event(struct notifier_block *this,
 	case NETDEV_CHANGELOWERSTATE:
 		changed = mlx5_handle_changelowerstate_event(ldev, &tracker,
 							     ndev, ptr);
+		break;
+	case NETDEV_CHANGEINFODATA:
+		changed = mlx5_handle_changeinfodata_event(ldev, &tracker, ndev);
 		break;
 	}
 
