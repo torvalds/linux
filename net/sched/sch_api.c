@@ -1062,7 +1062,7 @@ static int qdisc_graft(struct net_device *dev, struct Qdisc *parent,
 
 		qdisc_offload_graft_root(dev, new, old, extack);
 
-		if (new && new->ops->attach)
+		if (new && new->ops->attach && !ingress)
 			goto skip;
 
 		for (i = 0; i < num_q; i++) {
