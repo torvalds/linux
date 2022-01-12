@@ -687,9 +687,9 @@ int __acpi_node_get_property_reference(const struct fwnode_handle *fwnode,
 		if (index)
 			return -EINVAL;
 
-		ret = acpi_bus_get_device(obj->reference.handle, &device);
-		if (ret)
-			return ret == -ENODEV ? -EINVAL : ret;
+		device = acpi_fetch_acpi_dev(obj->reference.handle);
+		if (!device)
+			return -EINVAL;
 
 		args->fwnode = acpi_fwnode_handle(device);
 		args->nargs = 0;
@@ -719,9 +719,8 @@ int __acpi_node_get_property_reference(const struct fwnode_handle *fwnode,
 		if (element->type == ACPI_TYPE_LOCAL_REFERENCE) {
 			struct fwnode_handle *ref_fwnode;
 
-			ret = acpi_bus_get_device(element->reference.handle,
-						  &device);
-			if (ret)
+			device = acpi_fetch_acpi_dev(element->reference.handle);
+			if (!device)
 				return -EINVAL;
 
 			nargs = 0;

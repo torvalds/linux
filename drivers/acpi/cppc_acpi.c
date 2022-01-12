@@ -179,10 +179,11 @@ static struct attribute *cppc_attrs[] = {
 	&lowest_freq.attr,
 	NULL
 };
+ATTRIBUTE_GROUPS(cppc);
 
 static struct kobj_type cppc_ktype = {
 	.sysfs_ops = &kobj_sysfs_ops,
-	.default_attrs = cppc_attrs,
+	.default_groups = cppc_groups,
 };
 
 static int check_pcc_chan(int pcc_ss_id, bool chk_err_bit)
@@ -604,47 +605,30 @@ static bool is_cppc_supported(int revision, int num_ent)
 /*
  * An example CPC table looks like the following.
  *
- *	Name(_CPC, Package()
- *			{
- *			17,
- *			NumEntries
- *			1,
- *			// Revision
- *			ResourceTemplate(){Register(PCC, 32, 0, 0x120, 2)},
- *			// Highest Performance
- *			ResourceTemplate(){Register(PCC, 32, 0, 0x124, 2)},
- *			// Nominal Performance
- *			ResourceTemplate(){Register(PCC, 32, 0, 0x128, 2)},
- *			// Lowest Nonlinear Performance
- *			ResourceTemplate(){Register(PCC, 32, 0, 0x12C, 2)},
- *			// Lowest Performance
- *			ResourceTemplate(){Register(PCC, 32, 0, 0x130, 2)},
- *			// Guaranteed Performance Register
- *			ResourceTemplate(){Register(PCC, 32, 0, 0x110, 2)},
- *			// Desired Performance Register
- *			ResourceTemplate(){Register(SystemMemory, 0, 0, 0, 0)},
- *			..
- *			..
- *			..
- *
- *		}
+ *  Name (_CPC, Package() {
+ *      17,							// NumEntries
+ *      1,							// Revision
+ *      ResourceTemplate() {Register(PCC, 32, 0, 0x120, 2)},	// Highest Performance
+ *      ResourceTemplate() {Register(PCC, 32, 0, 0x124, 2)},	// Nominal Performance
+ *      ResourceTemplate() {Register(PCC, 32, 0, 0x128, 2)},	// Lowest Nonlinear Performance
+ *      ResourceTemplate() {Register(PCC, 32, 0, 0x12C, 2)},	// Lowest Performance
+ *      ResourceTemplate() {Register(PCC, 32, 0, 0x130, 2)},	// Guaranteed Performance Register
+ *      ResourceTemplate() {Register(PCC, 32, 0, 0x110, 2)},	// Desired Performance Register
+ *      ResourceTemplate() {Register(SystemMemory, 0, 0, 0, 0)},
+ *      ...
+ *      ...
+ *      ...
+ *  }
  * Each Register() encodes how to access that specific register.
  * e.g. a sample PCC entry has the following encoding:
  *
- *	Register (
- *		PCC,
- *		AddressSpaceKeyword
- *		8,
- *		//RegisterBitWidth
- *		8,
- *		//RegisterBitOffset
- *		0x30,
- *		//RegisterAddress
- *		9
- *		//AccessSize (subspace ID)
- *		0
- *		)
- *	}
+ *  Register (
+ *      PCC,	// AddressSpaceKeyword
+ *      8,	// RegisterBitWidth
+ *      8,	// RegisterBitOffset
+ *      0x30,	// RegisterAddress
+ *      9,	// AccessSize (subspace ID)
+ *  )
  */
 
 #ifndef init_freq_invariance_cppc

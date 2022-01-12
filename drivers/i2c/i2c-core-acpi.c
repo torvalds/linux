@@ -257,6 +257,13 @@ static void i2c_acpi_register_device(struct i2c_adapter *adapter,
 				     struct acpi_device *adev,
 				     struct i2c_board_info *info)
 {
+	/*
+	 * Skip registration on boards where the ACPI tables are
+	 * known to contain bogus I2C devices.
+	 */
+	if (acpi_quirk_skip_i2c_client_enumeration(adev))
+		return;
+
 	adev->power.flags.ignore_parent = true;
 	acpi_device_set_enumerated(adev);
 
