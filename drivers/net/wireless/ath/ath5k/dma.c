@@ -723,11 +723,8 @@ ath5k_hw_get_isr(struct ath5k_hw *ah, enum ath5k_int *interrupt_mask)
 		}
 
 		/* A queue got triggered */
-		if (unlikely(pisr & (AR5K_ISR_QTRIG))) {
+		if (unlikely(pisr & (AR5K_ISR_QTRIG)))
 			*interrupt_mask |= AR5K_INT_QTRIG;
-			ah->ah_txq_isr_qtrig |= AR5K_REG_MS(sisr4,
-						AR5K_SISR4_QTRIG);
-		}
 
 		data = pisr;
 	}
