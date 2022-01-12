@@ -929,16 +929,18 @@ static int cpc_read(int cpu, struct cpc_register_resource *reg_res, u64 *val)
 
 	if (reg->space_id == ACPI_ADR_SPACE_SYSTEM_IO) {
 		u32 width = 8 << (reg->access_width - 1);
+		u32 val_u32;
 		acpi_status status;
 
 		status = acpi_os_read_port((acpi_io_address)reg->address,
-					   (u32 *)val, width);
+					   &val_u32, width);
 		if (ACPI_FAILURE(status)) {
 			pr_debug("Error: Failed to read SystemIO port %llx\n",
 				 reg->address);
 			return -EFAULT;
 		}
 
+		*val = val_u32;
 		return 0;
 	} else if (reg->space_id == ACPI_ADR_SPACE_PLATFORM_COMM && pcc_ss_id >= 0)
 		vaddr = GET_PCC_VADDR(reg->address, pcc_ss_id);
