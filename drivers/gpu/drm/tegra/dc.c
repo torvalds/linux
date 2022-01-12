@@ -345,18 +345,19 @@ static void tegra_dc_setup_window(struct tegra_plane *plane,
 {
 	unsigned h_offset, v_offset, h_size, v_size, h_dda, v_dda, bpp;
 	struct tegra_dc *dc = plane->dc;
-	bool yuv, planar;
+	unsigned int planes;
 	u32 value;
+	bool yuv;
 
 	/*
 	 * For YUV planar modes, the number of bytes per pixel takes into
 	 * account only the luma component and therefore is 1.
 	 */
-	yuv = tegra_plane_format_is_yuv(window->format, &planar, NULL);
+	yuv = tegra_plane_format_is_yuv(window->format, &planes, NULL);
 	if (!yuv)
 		bpp = window->bits_per_pixel / 8;
 	else
-		bpp = planar ? 1 : 2;
+		bpp = (planes > 1) ? 1 : 2;
 
 	tegra_plane_writel(plane, window->format, DC_WIN_COLOR_DEPTH);
 	tegra_plane_writel(plane, window->swap, DC_WIN_BYTE_SWAP);
@@ -385,7 +386,7 @@ static void tegra_dc_setup_window(struct tegra_plane *plane,
 	 * For DDA computations the number of bytes per pixel for YUV planar
 	 * modes needs to take into account all Y, U and V components.
 	 */
-	if (yuv && planar)
+	if (yuv && planes > 1)
 		bpp = 2;
 
 	h_dda = compute_dda_inc(window->src.w, window->dst.w, false, bpp);
@@ -405,9 +406,12 @@ static void tegra_dc_setup_window(struct tegra_plane *plane,
 
 	tegra_plane_writel(plane, window->base[0], DC_WINBUF_START_ADDR);
 
-	if (yuv && planar) {
+	if (yuv && planes > 1) {
 		tegra_plane_writel(plane, window->base[1], DC_WINBUF_START_ADDR_U);
-		tegra_plane_writel(plane, window->base[2], DC_WINBUF_START_ADDR_V);
+
+		if (planes > 2)
+			tegra_plane_writel(plane, window->base[2], DC_WINBUF_START_ADDR_V);
+
 		value = window->stride[1] << 16 | window->stride[0];
 		tegra_plane_writel(plane, value, DC_WIN_LINE_STRIDE);
 	} else {
@@ -1193,6 +1197,13 @@ static const u32 tegra114_overlay_formats[] = {
 	DRM_FORMAT_YUYV,
 	DRM_FORMAT_YUV420,
 	DRM_FORMAT_YUV422,
+	/* semi-planar formats */
+	DRM_FORMAT_NV12,
+	DRM_FORMAT_NV21,
+	DRM_FORMAT_NV16,
+	DRM_FORMAT_NV61,
+	DRM_FORMAT_NV24,
+	DRM_FORMAT_NV42,
 };
 
 static const u32 tegra124_overlay_formats[] = {
@@ -1223,6 +1234,13 @@ static const u32 tegra124_overlay_formats[] = {
 	DRM_FORMAT_YUYV,
 	DRM_FORMAT_YUV420,
 	DRM_FORMAT_YUV422,
+	/* semi-planar formats */
+	DRM_FORMAT_NV12,
+	DRM_FORMAT_NV21,
+	DRM_FORMAT_NV16,
+	DRM_FORMAT_NV61,
+	DRM_FORMAT_NV24,
+	DRM_FORMAT_NV42,
 };
 
 static struct drm_plane *tegra_dc_overlay_plane_create(struct drm_device *drm,
