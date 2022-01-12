@@ -141,6 +141,11 @@ struct iomap_page_ops {
 #define IOMAP_NOWAIT		(1 << 5) /* do not block */
 #define IOMAP_OVERWRITE_ONLY	(1 << 6) /* only pure overwrites allowed */
 #define IOMAP_UNSHARE		(1 << 7) /* unshare_file_range */
+#ifdef CONFIG_FS_DAX
+#define IOMAP_DAX		(1 << 8) /* DAX mapping */
+#else
+#define IOMAP_DAX		0
+#endif /* CONFIG_FS_DAX */
 
 struct iomap_ops {
 	/*
