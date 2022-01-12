@@ -8,6 +8,7 @@
 #define pr_fmt(fmt) "rga_mm: " fmt
 
 #include "rga.h"
+#include "rga_job.h"
 #include "rga_mm.h"
 #include "rga_dma_buf.h"
 #include "rga_hw_config.h"
@@ -744,8 +745,11 @@ static int rga_mm_set_mmu_flag(struct rga_job *job)
 static int rga_mm_get_channel_handle_info(struct rga_mm *mm,
 					  struct rga_job *job,
 					  struct rga_img_info_t *img,
-					  struct rga_internal_buffer **buf)
+					  struct rga_internal_buffer **buf,
+					  enum dma_data_direction dir)
 {
+	int ret = 0;
+	struct rga_scheduler_t *scheduler = NULL;
 	struct rga_internal_buffer *internal_buffer = NULL;
 
 	if (!(img->yrgb_addr > 0)) {
@@ -758,8 +762,8 @@ static int rga_mm_get_channel_handle_info(struct rga_mm *mm,
 	if (*buf == NULL) {
 		pr_err("This handle[%ld] is illegal.\n", (unsigned long)img->yrgb_addr);
 
-		mutex_unlock(&mm->lock);
-		return -EFAULT;
+		ret = -EFAULT;
+		goto unlock_mm_and_return;
 	}
 
 	internal_buffer = *buf;
@@ -775,10 +779,29 @@ static int rga_mm_get_channel_handle_info(struct rga_mm *mm,
 		break;
 	case RGA_VIRTUAL_ADDRESS:
 		if (job->core == RGA3_SCHEDULER_CORE0 ||
-		    job->core == RGA3_SCHEDULER_CORE1)
+		    job->core == RGA3_SCHEDULER_CORE1) {
 			img->yrgb_addr = rga_mm_lookup_iova(internal_buffer, job->core);
-		else
+
+			scheduler = rga_job_get_scheduler(job->core);
+			if (scheduler == NULL) {
+				pr_err("%s(%d), failed to get scheduler, core = 0x%x\n",
+				       __func__, __LINE__, job->core);
+
+				ret = -EFAULT;
+				goto unlock_mm_and_return;
+			}
+			/*
+			 * Some userspace virtual addresses do not have an
+			 * interface for flushing the cache, so it is mandatory
+			 * to flush the cache when the virtual address is used.
+			 */
+			dma_sync_sg_for_device(scheduler->dev,
+					       internal_buffer->virt_addr->sgt->sgl,
+					       internal_buffer->virt_addr->sgt->orig_nents,
+					       dir);
+		} else {
 			img->yrgb_addr = internal_buffer->virt_addr->addr;
+		}
 		break;
 	case RGA_PHYSICAL_ADDRESS:
 		img->yrgb_addr = internal_buffer->phys_addr;
@@ -786,19 +809,43 @@ static int rga_mm_get_channel_handle_info(struct rga_mm *mm,
 	default:
 		pr_err("Illegal external buffer!\n");
 
-		mutex_unlock(&mm->lock);
-		return -EFAULT;
+		ret = -EFAULT;
+		goto unlock_mm_and_return;
 	}
 	mutex_unlock(&mm->lock);
 
 	rga_convert_addr(img);
 
 	return 0;
+unlock_mm_and_return:
+	mutex_unlock(&mm->lock);
+	return ret;
 }
 
 static void rga_mm_put_channel_handle_info(struct rga_mm *mm,
-					   struct rga_internal_buffer *internal_buffer)
+					   struct rga_internal_buffer *internal_buffer,
+					   int core,
+					   enum dma_data_direction dir)
 {
+	struct rga_scheduler_t *scheduler = NULL;
+
+	if (internal_buffer->type == RGA_VIRTUAL_ADDRESS &&
+	    dir != DMA_NONE &&
+	    (core == RGA3_SCHEDULER_CORE0 || core == RGA3_SCHEDULER_CORE1)) {
+		scheduler = rga_job_get_scheduler(core);
+		if (scheduler == NULL) {
+			pr_err("%s(%d), failed to get scheduler, core = 0x%x\n",
+				__func__, __LINE__, core);
+
+			goto put_internal_buffer;
+		}
+		dma_sync_sg_for_cpu(scheduler->dev,
+				    internal_buffer->virt_addr->sgt->sgl,
+				    internal_buffer->virt_addr->sgt->orig_nents,
+				    dir);
+	}
+
+put_internal_buffer:
 	mutex_lock(&mm->lock);
 
 	kref_put(&internal_buffer->refcount, rga_mm_kref_release_buffer);
@@ -811,12 +858,15 @@ int rga_mm_get_handle_info(struct rga_job *job)
 	int ret = 0;
 	struct rga_req *req = NULL;
 	struct rga_mm *mm = NULL;
+	enum dma_data_direction dir;
 
 	req = &job->rga_command_base;
 	mm = rga_drvdata->mm;
 
 	if (likely(req->src.yrgb_addr > 0)) {
-		ret = rga_mm_get_channel_handle_info(mm, job, &req->src, &job->src_buffer);
+		ret = rga_mm_get_channel_handle_info(mm, job, &req->src,
+						     &job->src_buffer,
+						     DMA_TO_DEVICE);
 		if (ret < 0) {
 			pr_err("Can't get src buffer info!\n");
 			return ret;
@@ -824,7 +874,9 @@ int rga_mm_get_handle_info(struct rga_job *job)
 	}
 
 	if (likely(req->dst.yrgb_addr > 0)) {
-		ret = rga_mm_get_channel_handle_info(mm, job, &req->dst, &job->dst_buffer);
+		ret = rga_mm_get_channel_handle_info(mm, job, &req->dst,
+						     &job->dst_buffer,
+						     DMA_TO_DEVICE);
 		if (ret < 0) {
 			pr_err("Can't get dst buffer info!\n");
 			return ret;
@@ -832,12 +884,21 @@ int rga_mm_get_handle_info(struct rga_job *job)
 	}
 
 	if (likely(req->pat.yrgb_addr > 0)) {
-		if (job->rga_command_base.render_mode != UPDATE_PALETTE_TABLE_MODE)
+
+		if (job->rga_command_base.render_mode != UPDATE_PALETTE_TABLE_MODE) {
+			if (job->rga_command_base.bsfilter_flag)
+				dir = DMA_BIDIRECTIONAL;
+			else
+				dir = DMA_TO_DEVICE;
+
 			ret = rga_mm_get_channel_handle_info(mm, job, &req->pat,
-							     &job->src1_buffer);
-		else
+							     &job->src1_buffer,
+							     dir);
+		} else {
 			ret = rga_mm_get_channel_handle_info(mm, job, &req->pat,
-							     &job->els_buffer);
+							     &job->els_buffer,
+							     DMA_BIDIRECTIONAL);
+		}
 		if (ret < 0) {
 			pr_err("Can't get pat buffer info!\n");
 			return ret;
@@ -856,13 +917,13 @@ void rga_mm_put_handle_info(struct rga_job *job)
 	mm = rga_drvdata->mm;
 
 	if (job->src_buffer)
-		rga_mm_put_channel_handle_info(mm, job->src_buffer);
+		rga_mm_put_channel_handle_info(mm, job->src_buffer, job->core, DMA_NONE);
 	if (job->dst_buffer)
-		rga_mm_put_channel_handle_info(mm, job->dst_buffer);
+		rga_mm_put_channel_handle_info(mm, job->dst_buffer, job->core, DMA_FROM_DEVICE);
 	if (job->src1_buffer)
-		rga_mm_put_channel_handle_info(mm, job->src1_buffer);
+		rga_mm_put_channel_handle_info(mm, job->src1_buffer, job->core, DMA_NONE);
 	if (job->els_buffer)
-		rga_mm_put_channel_handle_info(mm, job->els_buffer);
+		rga_mm_put_channel_handle_info(mm, job->els_buffer, job->core, DMA_NONE);
 }
 
 uint32_t rga_mm_import_buffer(struct rga_external_buffer *external_buffer)
