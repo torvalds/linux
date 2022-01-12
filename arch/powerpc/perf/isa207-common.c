@@ -220,13 +220,13 @@ static inline u64 isa207_find_source(u64 idx, u32 sub_idx)
 		/* Nothing to do */
 		break;
 	case 1:
-		ret = PH(LVL, L1) | LEVEL(L1) | P(SNOOP, HIT);
+		ret = PH(LVL, L1);
 		break;
 	case 2:
-		ret = PH(LVL, L2) | LEVEL(L2) | P(SNOOP, HIT);
+		ret = PH(LVL, L2);
 		break;
 	case 3:
-		ret = PH(LVL, L3) | LEVEL(L3) | P(SNOOP, HIT);
+		ret = PH(LVL, L3);
 		break;
 	case 4:
 		if (cpu_has_feature(CPU_FTR_ARCH_31)) {
