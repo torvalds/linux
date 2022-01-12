@@ -2200,7 +2200,6 @@ config MODULE_SIG_FORCE
 config MODULE_SIG_PROTECT
 	bool "Android GKI module protection"
 	depends on MODULE_SIG && !MODULE_SIG_FORCE
-	select MODULE_SIG_ALL
 	help
 	  Enables Android GKI symbol and export protection support.
 
