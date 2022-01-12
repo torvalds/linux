@@ -1396,7 +1396,6 @@ struct ath5k_hw {
 
 	u32			ah_txq_isr_txok_all;
 	u32			ah_txq_isr_txurn;
-	u32			ah_txq_isr_qcborn;
 
 	u32			*ah_rf_banks;
 	size_t			ah_rf_banks_size;

@@ -709,11 +709,8 @@ ath5k_hw_get_isr(struct ath5k_hw *ah, enum ath5k_int *interrupt_mask)
 			*interrupt_mask |= AR5K_INT_BNR;
 
 		/* A queue got CBR overrun */
-		if (unlikely(pisr & (AR5K_ISR_QCBRORN))) {
+		if (unlikely(pisr & (AR5K_ISR_QCBRORN)))
 			*interrupt_mask |= AR5K_INT_QCBRORN;
-			ah->ah_txq_isr_qcborn |= AR5K_REG_MS(sisr3,
-						AR5K_SISR3_QCBRORN);
-		}
 
 		/* A queue got CBR underrun */
 		if (unlikely(pisr & (AR5K_ISR_QCBRURN)))
