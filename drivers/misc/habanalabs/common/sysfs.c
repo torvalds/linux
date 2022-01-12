@@ -18,6 +18,8 @@ static ssize_t clk_max_freq_mhz_show(struct device *dev, struct device_attribute
 		return -ENODEV;
 
 	value = hl_fw_get_frequency(hdev, hdev->asic_prop.clk_pll_index, false);
+	if (value < 0)
+		return value;
 
 	hdev->asic_prop.max_freq_value = value;
 
@@ -59,6 +61,8 @@ static ssize_t clk_cur_freq_mhz_show(struct device *dev, struct device_attribute
 		return -ENODEV;
 
 	value = hl_fw_get_frequency(hdev, hdev->asic_prop.clk_pll_index, true);
+	if (value < 0)
+		return value;
 
 	return sprintf(buf, "%lu\n", (value / 1000 / 1000));
 }
