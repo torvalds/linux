@@ -304,6 +304,8 @@ static ssize_t max_power_show(struct device *dev, struct device_attribute *attr,
 		return -ENODEV;
 
 	val = hl_fw_get_max_power(hdev);
+	if (val < 0)
+		return val;
 
 	return sprintf(buf, "%lu\n", val);
 }

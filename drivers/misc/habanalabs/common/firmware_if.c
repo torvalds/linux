@@ -2780,7 +2780,7 @@ void hl_fw_set_frequency(struct hl_device *hdev, u32 pll_index, u64 freq)
 			used_pll_idx, rc);
 }
 
-u64 hl_fw_get_max_power(struct hl_device *hdev)
+long hl_fw_get_max_power(struct hl_device *hdev)
 {
 	struct cpucp_packet pkt;
 	u64 result;
@@ -2794,7 +2794,7 @@ u64 hl_fw_get_max_power(struct hl_device *hdev)
 
 	if (rc) {
 		dev_err(hdev->dev, "Failed to get max power, error %d\n", rc);
-		return (u64) rc;
+		return rc;
 	}
 
 	return result;
