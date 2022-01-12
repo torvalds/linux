@@ -400,6 +400,10 @@ static int amdgpu_firmware_info(struct drm_amdgpu_info_firmware *fw_info,
 		fw_info->ver = adev->psp.toc.fw_version;
 		fw_info->feature = adev->psp.toc.feature_version;
 		break;
+	case AMDGPU_INFO_FW_CAP:
+		fw_info->ver = adev->psp.cap_fw_version;
+		fw_info->feature = adev->psp.cap_feature_version;
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -1616,6 +1620,16 @@ static int amdgpu_debugfs_firmware_info_show(struct seq_file *m, void *unused)
 		return ret;
 	seq_printf(m, "TOC feature version: %u, firmware version: 0x%08x\n",
 		   fw_info.feature, fw_info.ver);
+
+	/* CAP */
+	if (adev->psp.cap_fw) {
+		query_fw.fw_type = AMDGPU_INFO_FW_CAP;
+		ret = amdgpu_firmware_info(&fw_info, &query_fw, adev);
+		if (ret)
+			return ret;
+		seq_printf(m, "CAP feature version: %u, firmware version: 0x%08x\n",
+				fw_info.feature, fw_info.ver);
+	}
 
 	seq_printf(m, "VBIOS version: %s\n", ctx->vbios_version);
 
