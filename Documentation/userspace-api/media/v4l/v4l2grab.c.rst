@@ -134,7 +134,7 @@ file: media/v4l/v4l2grab.c
 			    tv.tv_usec = 0;
 
 			    r = select(fd + 1, &fds, NULL, NULL, &tv);
-		    } while ((r == -1 && (errno = EINTR)));
+		    } while ((r == -1 && (errno == EINTR)));
 		    if (r == -1) {
 			    perror("select");
 			    return errno;
