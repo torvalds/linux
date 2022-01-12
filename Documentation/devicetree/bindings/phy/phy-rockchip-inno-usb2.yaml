@@ -70,6 +70,13 @@ properties:
       When set the driver will request its phandle as one companion-grf
       for some special SoCs (e.g rv1108).
 
+  rockchip,usbctrl-grf:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description:
+      Phandle to the syscon managing the 'usb ctrl general register files'.
+      When set the driver will request its phandle as the
+      usb controller grf for some SoCs (e.g rk3588).
+
   rockchip,u2phy-tuning:
     $ref: /schemas/types.yaml#/definitions/flag
     description: when set, tuning u2phy to improve usb2 SI.
@@ -151,6 +158,12 @@ properties:
        $ref: /schemas/types.yaml#/definitions/flag
        description: when set, check the vbus status from grf con for Type-C
          interface. It's used when the vbusdet pin is always pulled up.
+
+     rockchip,sel-pipe-phystatus:
+       $ref: /schemas/types.yaml#/definitions/flag
+       description: when set, select the pipe phy status from grf for usb
+         controller. It's used when the usb3 phy is disabled, and it needs
+         to combine with the usbctrl-grf.
 
     required:
       - "#phy-cells"
