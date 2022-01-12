@@ -87,7 +87,11 @@ MODULE_DEVICE_TABLE(sdio, btmtksdio_table);
 #define RX_DONE_INT		BIT(1)
 #define TX_EMPTY		BIT(2)
 #define TX_FIFO_OVERFLOW	BIT(8)
+#define FW_MAILBOX_INT		BIT(15)
 #define RX_PKT_LEN		GENMASK(31, 16)
+
+#define MTK_REG_PH2DSM0R	0xc4
+#define PH2DSM0R_DRIVER_OWN	BIT(0)
 
 #define MTK_REG_CTDR		0x18
 
@@ -480,6 +484,12 @@ static void btmtksdio_txrx_work(struct work_struct *work)
 		 * FIFO.
 		 */
 		sdio_writel(bdev->func, int_status, MTK_REG_CHISR, NULL);
+
+		if ((int_status & FW_MAILBOX_INT) &&
+		    bdev->data->chipid == 0x7921) {
+			sdio_writel(bdev->func, PH2DSM0R_DRIVER_OWN,
+				    MTK_REG_PH2DSM0R, 0);
+		}
 
 		if (int_status & FW_OWN_BACK_INT)
 			bt_dev_dbg(bdev->hdev, "Get fw own back");
