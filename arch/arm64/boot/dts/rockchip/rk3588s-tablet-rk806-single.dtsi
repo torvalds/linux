@@ -926,8 +926,8 @@
 	pinctrl-0 = <&lcd_rst_gpio>;
 	dsi,lanes  = <8>;
 	panel-init-sequence = [
-		29 00 02 00 00
-		29 00 03 99 95 27
+		29 02 02 00 00
+		29 02 03 99 95 27
 		05 78 01 11
 		05 01 01 29
 		29 00 02 00 00
@@ -1451,7 +1451,7 @@
 };
 
 &route_dsi0 {
-	status = "disabled";
+	status = "okay";
 	connect = <&vp2_out_dsi0>;
 };
 
