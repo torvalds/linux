@@ -1462,6 +1462,11 @@
 	status = "okay";
 };
 
+&rockchip_suspend {
+	status = "okay";
+	rockchip,sleep-debug-en = <1>;
+};
+
 &route_dsi0 {
 	status = "okay";
 	connect = <&vp2_out_dsi0>;
