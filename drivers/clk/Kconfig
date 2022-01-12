@@ -169,6 +169,14 @@ config COMMON_CLK_CDCE706
 	help
 	  This driver supports TI CDCE706 programmable 3-PLL clock synthesizer.
 
+config COMMON_CLK_TPS68470
+	tristate "Clock Driver for TI TPS68470 PMIC"
+	depends on I2C
+	depends on INTEL_SKL_INT3472 || COMPILE_TEST
+	select REGMAP_I2C
+	help
+	  This driver supports the clocks provided by the TPS68470 PMIC.
+
 config COMMON_CLK_CDCE925
 	tristate "Clock driver for TI CDCE913/925/937/949 devices"
 	depends on I2C

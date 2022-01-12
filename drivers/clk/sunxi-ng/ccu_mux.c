@@ -64,6 +64,7 @@ unsigned long ccu_mux_helper_apply_prediv(struct ccu_common *common,
 {
 	return parent_rate / ccu_mux_get_prediv(common, cm, parent_index);
 }
+EXPORT_SYMBOL_NS_GPL(ccu_mux_helper_apply_prediv, SUNXI_CCU);
 
 static unsigned long ccu_mux_helper_unapply_prediv(struct ccu_common *common,
 					    struct ccu_mux_internal *cm,
@@ -152,6 +153,7 @@ out:
 	req->rate = best_rate;
 	return 0;
 }
+EXPORT_SYMBOL_NS_GPL(ccu_mux_helper_determine_rate, SUNXI_CCU);
 
 u8 ccu_mux_helper_get_parent(struct ccu_common *common,
 			     struct ccu_mux_internal *cm)
@@ -174,6 +176,7 @@ u8 ccu_mux_helper_get_parent(struct ccu_common *common,
 
 	return parent;
 }
+EXPORT_SYMBOL_NS_GPL(ccu_mux_helper_get_parent, SUNXI_CCU);
 
 int ccu_mux_helper_set_parent(struct ccu_common *common,
 			      struct ccu_mux_internal *cm,
@@ -195,6 +198,7 @@ int ccu_mux_helper_set_parent(struct ccu_common *common,
 
 	return 0;
 }
+EXPORT_SYMBOL_NS_GPL(ccu_mux_helper_set_parent, SUNXI_CCU);
 
 static void ccu_mux_disable(struct clk_hw *hw)
 {
@@ -251,6 +255,7 @@ const struct clk_ops ccu_mux_ops = {
 	.determine_rate	= __clk_mux_determine_rate,
 	.recalc_rate	= ccu_mux_recalc_rate,
 };
+EXPORT_SYMBOL_NS_GPL(ccu_mux_ops, SUNXI_CCU);
 
 /*
  * This clock notifier is called when the frequency of the of the parent
@@ -285,3 +290,4 @@ int ccu_mux_notifier_register(struct clk *clk, struct ccu_mux_nb *mux_nb)
 
 	return clk_notifier_register(clk, &mux_nb->clk_nb);
 }
+EXPORT_SYMBOL_NS_GPL(ccu_mux_notifier_register, SUNXI_CCU);

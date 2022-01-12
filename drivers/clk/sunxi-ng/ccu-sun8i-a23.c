@@ -5,7 +5,8 @@
 
 #include <linux/clk-provider.h>
 #include <linux/io.h>
-#include <linux/of_address.h>
+#include <linux/module.h>
+#include <linux/platform_device.h>
 
 #include "ccu_common.h"
 #include "ccu_reset.h"
@@ -724,16 +725,14 @@ static const struct sunxi_ccu_desc sun8i_a23_ccu_desc = {
 	.num_resets	= ARRAY_SIZE(sun8i_a23_ccu_resets),
 };
 
-static void __init sun8i_a23_ccu_setup(struct device_node *node)
+static int sun8i_a23_ccu_probe(struct platform_device *pdev)
 {
 	void __iomem *reg;
 	u32 val;
 
-	reg = of_io_request_and_map(node, 0, of_node_full_name(node));
-	if (IS_ERR(reg)) {
-		pr_err("%pOF: Could not map the clock registers\n", node);
-		return;
-	}
+	reg = devm_platform_ioremap_resource(pdev, 0);
+	if (IS_ERR(reg))
+		return PTR_ERR(reg);
 
 	/* Force the PLL-Audio-1x divider to 1 */
 	val = readl(reg + SUN8I_A23_PLL_AUDIO_REG);
@@ -745,7 +744,23 @@ static void __init sun8i_a23_ccu_setup(struct device_node *node)
 	val &= ~BIT(16);
 	writel(val, reg + SUN8I_A23_PLL_MIPI_REG);
 
-	of_sunxi_ccu_probe(node, reg, &sun8i_a23_ccu_desc);
+	return devm_sunxi_ccu_probe(&pdev->dev, reg, &sun8i_a23_ccu_desc);
 }
-CLK_OF_DECLARE(sun8i_a23_ccu, "allwinner,sun8i-a23-ccu",
-	       sun8i_a23_ccu_setup);
+
+static const struct of_device_id sun8i_a23_ccu_ids[] = {
+	{ .compatible = "allwinner,sun8i-a23-ccu" },
+	{ }
+};
+
+static struct platform_driver sun8i_a23_ccu_driver = {
+	.probe	= sun8i_a23_ccu_probe,
+	.driver	= {
+		.name			= "sun8i-a23-ccu",
+		.suppress_bind_attrs	= true,
+		.of_match_table		= sun8i_a23_ccu_ids,
+	},
+};
+module_platform_driver(sun8i_a23_ccu_driver);
+
+MODULE_IMPORT_NS(SUNXI_CCU);
+MODULE_LICENSE("GPL");

@@ -9,7 +9,7 @@
 #include <linux/regulator/driver.h>
 #include <linux/slab.h>
 
-#include "intel_skl_int3472_common.h"
+#include "common.h"
 
 /*
  * The regulators have to have .ops to be valid, but the only ops we actually
