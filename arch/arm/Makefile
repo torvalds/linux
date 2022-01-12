@@ -364,9 +364,9 @@ MAKE_MODULES ?= y
 
 %.img:
 ifeq ("$(CONFIG_MODULES)$(MAKE_MODULES)$(srctree)","yy$(objtree)")
-	$(Q)$(MAKE) $*.dtb Image.gz modules
+	$(Q)$(MAKE) $*.dtb zImage Image.gz modules
 else
-	$(Q)$(MAKE) $*.dtb Image.gz
+	$(Q)$(MAKE) $*.dtb zImage Image.gz
 endif
 	$(Q)$(srctree)/scripts/mkimg --dtb $*.dtb
 
