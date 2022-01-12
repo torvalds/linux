@@ -26,6 +26,8 @@ Optional properties:
   - usb2-lpm-disable: indicate if we don't want to enable USB2 HW LPM
   - usb3-lpm-capable: determines if platform is USB3 LPM capable
   - quirk-broken-port-ped: set if the controller has broken port disable mechanism
+  - quirk-skip-phy-init: indicate that do not manage the PHY state in the HCD core
+    and handle this in the controller's driver.
   - imod-interval-ns: default interrupt moderation interval is 5000ns
   - phys : see usb-hcd.yaml in the current directory
   - offload: supporting USB offload feature, 0: disabled, 1: audio
