@@ -145,7 +145,7 @@ static int ovl_copy_fileattr(struct inode *inode, struct path *old,
 		if (err == -ENOTTY || err == -EINVAL)
 			return 0;
 		pr_warn("failed to retrieve lower fileattr (%pd2, err=%i)\n",
-			old, err);
+			old->dentry, err);
 		return err;
 	}
 
@@ -168,7 +168,7 @@ static int ovl_copy_fileattr(struct inode *inode, struct path *old,
 	err = ovl_real_fileattr_get(new, &newfa);
 	if (err) {
 		pr_warn("failed to retrieve upper fileattr (%pd2, err=%i)\n",
-			new, err);
+			new->dentry, err);
 		return err;
 	}
 
