@@ -392,13 +392,10 @@ static int softing_netdev_open(struct net_device *ndev)
 
 static int softing_netdev_stop(struct net_device *ndev)
 {
-	int ret;
-
 	netif_stop_queue(ndev);
 
 	/* softing cycle does close_candev() */
-	ret = softing_startstop(ndev, 0);
-	return ret;
+	return softing_startstop(ndev, 0);
 }
 
 static int softing_candev_set_mode(struct net_device *ndev, enum can_mode mode)
