@@ -1279,10 +1279,13 @@ out_err:
 	return ret;
 }
 
-int fuse_dax_conn_alloc(struct fuse_conn *fc, struct dax_device *dax_dev)
+int fuse_dax_conn_alloc(struct fuse_conn *fc, enum fuse_dax_mode dax_mode,
+			struct dax_device *dax_dev)
 {
 	struct fuse_conn_dax *fcd;
 	int err;
+
+	fc->dax_mode = dax_mode;
 
 	if (!dax_dev)
 		return 0;
@@ -1327,15 +1330,44 @@ static const struct address_space_operations fuse_dax_file_aops  = {
 	.invalidatepage	= noop_invalidatepage,
 };
 
-void fuse_dax_inode_init(struct inode *inode)
+static bool fuse_should_enable_dax(struct inode *inode, unsigned int flags)
 {
 	struct fuse_conn *fc = get_fuse_conn(inode);
+	enum fuse_dax_mode dax_mode = fc->dax_mode;
 
+	if (dax_mode == FUSE_DAX_NEVER)
+		return false;
+
+	/*
+	 * fc->dax may be NULL in 'inode' mode when filesystem device doesn't
+	 * support DAX, in which case it will silently fallback to 'never' mode.
+	 */
 	if (!fc->dax)
+		return false;
+
+	if (dax_mode == FUSE_DAX_ALWAYS)
+		return true;
+
+	/* dax_mode is FUSE_DAX_INODE* */
+	return fc->inode_dax && (flags & FUSE_ATTR_DAX);
+}
+
+void fuse_dax_inode_init(struct inode *inode, unsigned int flags)
+{
+	if (!fuse_should_enable_dax(inode, flags))
 		return;
 
 	inode->i_flags |= S_DAX;
 	inode->i_data.a_ops = &fuse_dax_file_aops;
+}
+
+void fuse_dax_dontcache(struct inode *inode, unsigned int flags)
+{
+	struct fuse_conn *fc = get_fuse_conn(inode);
+
+	if (fuse_is_inode_dax_mode(fc->dax_mode) &&
+	    ((bool) IS_DAX(inode) != (bool) (flags & FUSE_ATTR_DAX)))
+		d_mark_dontcache(inode);
 }
 
 bool fuse_dax_check_alignment(struct fuse_conn *fc, unsigned int map_alignment)
