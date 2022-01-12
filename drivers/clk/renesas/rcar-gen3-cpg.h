@@ -17,6 +17,7 @@ enum rcar_gen3_clk_types {
 	CLK_TYPE_GEN3_PLL2,
 	CLK_TYPE_GEN3_PLL3,
 	CLK_TYPE_GEN3_PLL4,
+	CLK_TYPE_GEN3_SDH,
 	CLK_TYPE_GEN3_SD,
 	CLK_TYPE_GEN3_R,
 	CLK_TYPE_GEN3_MDSEL,	/* Select parent/divider using mode pin */
@@ -31,6 +32,9 @@ enum rcar_gen3_clk_types {
 	/* SoC specific definitions start here */
 	CLK_TYPE_GEN3_SOC_BASE,
 };
+
+#define DEF_GEN3_SDH(_name, _id, _parent, _offset)	\
+	DEF_BASE(_name, _id, CLK_TYPE_GEN3_SDH, _parent, .offset = _offset)
 
 #define DEF_GEN3_SD(_name, _id, _parent, _offset)	\
 	DEF_BASE(_name, _id, CLK_TYPE_GEN3_SD, _parent, .offset = _offset)
