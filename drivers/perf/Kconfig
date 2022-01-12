@@ -141,7 +141,7 @@ config ARM_DMC620_PMU
 
 config MARVELL_CN10K_TAD_PMU
 	tristate "Marvell CN10K LLC-TAD PMU"
-	depends on ARM64 || (COMPILE_TEST && 64BIT)
+	depends on ARCH_THUNDER || (COMPILE_TEST && 64BIT)
 	help
 	  Provides support for Last-Level cache Tag-and-data Units (LLC-TAD)
 	  performance monitors on CN10K family silicons.
