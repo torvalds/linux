@@ -21,7 +21,7 @@
 #include "ispstat.h"
 
 #define IS_OUT_OF_BOUNDS(value, min, max)		\
-	(((value) < (min)) || ((value) > (max)))
+	((((unsigned int)value) < (min)) || (((unsigned int)value) > (max)))
 
 static void h3a_af_setup_regs(struct ispstat *af, void *priv)
 {

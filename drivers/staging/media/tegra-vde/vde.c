@@ -85,6 +85,96 @@ static int tegra_vde_wait_mbe(struct tegra_vde *vde)
 					  (tmp >= 0x10), 1, 100);
 }
 
+static int tegra_vde_alloc_bo(struct tegra_vde *vde,
+			      struct tegra_vde_bo **ret_bo,
+			      enum dma_data_direction dma_dir,
+			      size_t size)
+{
+	struct device *dev = vde->miscdev.parent;
+	struct tegra_vde_bo *bo;
+	int err;
+
+	bo = kzalloc(sizeof(*bo), GFP_KERNEL);
+	if (!bo)
+		return -ENOMEM;
+
+	bo->vde = vde;
+	bo->size = size;
+	bo->dma_dir = dma_dir;
+	bo->dma_attrs = DMA_ATTR_WRITE_COMBINE |
+			DMA_ATTR_NO_KERNEL_MAPPING;
+
+	if (!vde->domain)
+		bo->dma_attrs |= DMA_ATTR_FORCE_CONTIGUOUS;
+
+	bo->dma_cookie = dma_alloc_attrs(dev, bo->size, &bo->dma_handle,
+					 GFP_KERNEL, bo->dma_attrs);
+	if (!bo->dma_cookie) {
+		dev_err(dev, "Failed to allocate DMA buffer of size: %zu\n",
+			bo->size);
+		err = -ENOMEM;
+		goto free_bo;
+	}
+
+	err = dma_get_sgtable_attrs(dev, &bo->sgt, bo->dma_cookie,
+				    bo->dma_handle, bo->size, bo->dma_attrs);
+	if (err) {
+		dev_err(dev, "Failed to get DMA buffer SG table: %d\n", err);
+		goto free_attrs;
+	}
+
+	err = dma_map_sgtable(dev, &bo->sgt, bo->dma_dir, bo->dma_attrs);
+	if (err) {
+		dev_err(dev, "Failed to map DMA buffer SG table: %d\n", err);
+		goto free_table;
+	}
+
+	if (vde->domain) {
+		err = tegra_vde_iommu_map(vde, &bo->sgt, &bo->iova, bo->size);
+		if (err) {
+			dev_err(dev, "Failed to map DMA buffer IOVA: %d\n", err);
+			goto unmap_sgtable;
+		}
+
+		bo->dma_addr = iova_dma_addr(&vde->iova, bo->iova);
+	} else {
+		bo->dma_addr = sg_dma_address(bo->sgt.sgl);
+	}
+
+	*ret_bo = bo;
+
+	return 0;
+
+unmap_sgtable:
+	dma_unmap_sgtable(dev, &bo->sgt, bo->dma_dir, bo->dma_attrs);
+free_table:
+	sg_free_table(&bo->sgt);
+free_attrs:
+	dma_free_attrs(dev, bo->size, bo->dma_cookie, bo->dma_handle,
+		       bo->dma_attrs);
+free_bo:
+	kfree(bo);
+
+	return err;
+}
+
+static void tegra_vde_free_bo(struct tegra_vde_bo *bo)
+{
+	struct tegra_vde *vde = bo->vde;
+	struct device *dev = vde->miscdev.parent;
+
+	if (vde->domain)
+		tegra_vde_iommu_unmap(vde, bo->iova);
+
+	dma_unmap_sgtable(dev, &bo->sgt, bo->dma_dir, bo->dma_attrs);
+
+	sg_free_table(&bo->sgt);
+
+	dma_free_attrs(dev, bo->size, bo->dma_cookie, bo->dma_handle,
+		       bo->dma_attrs);
+	kfree(bo);
+}
+
 static int tegra_vde_setup_mbe_frame_idx(struct tegra_vde *vde,
 					 unsigned int refs_nb,
 					 bool setup_refs)
@@ -250,7 +340,7 @@ static void tegra_vde_setup_iram_tables(struct tegra_vde *vde,
 			value |= frame->frame_num;
 		} else {
 			aux_addr = 0x6ADEAD00;
-			value = 0;
+			value = 0x3f;
 		}
 
 		tegra_vde_setup_iram_entry(vde, 0, i, value, aux_addr);
@@ -424,6 +514,9 @@ static int tegra_vde_setup_hw_context(struct tegra_vde *vde,
 	tegra_vde_writel(vde, value, vde->sxe, 0x68);
 
 	tegra_vde_writel(vde, bitstream_data_addr, vde->sxe, 0x6C);
+
+	if (vde->soc->supports_ref_pic_marking)
+		tegra_vde_writel(vde, vde->secure_bo->dma_addr, vde->sxe, 0x7c);
 
 	value = 0x10000005;
 	value |= ctx->pic_width_in_mbs << 11;
@@ -994,6 +1087,8 @@ static int tegra_vde_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, vde);
 
+	vde->soc = of_device_get_match_data(&pdev->dev);
+
 	vde->sxe = devm_platform_ioremap_resource_byname(pdev, "sxe");
 	if (IS_ERR(vde->sxe))
 		return PTR_ERR(vde->sxe);
@@ -1098,12 +1193,6 @@ static int tegra_vde_probe(struct platform_device *pdev)
 		goto err_gen_free;
 	}
 
-	err = misc_register(&vde->miscdev);
-	if (err) {
-		dev_err(dev, "Failed to register misc device: %d\n", err);
-		goto err_deinit_iommu;
-	}
-
 	pm_runtime_enable(dev);
 	pm_runtime_use_autosuspend(dev);
 	pm_runtime_set_autosuspend_delay(dev, 300);
@@ -1119,15 +1208,26 @@ static int tegra_vde_probe(struct platform_device *pdev)
 
 	pm_runtime_put(dev);
 
+	err = tegra_vde_alloc_bo(vde, &vde->secure_bo, DMA_FROM_DEVICE, 4096);
+	if (err) {
+		dev_err(dev, "Failed to allocate secure BO: %d\n", err);
+		goto err_pm_runtime;
+	}
+
+	err = misc_register(&vde->miscdev);
+	if (err) {
+		dev_err(dev, "Failed to register misc device: %d\n", err);
+		goto err_free_secure_bo;
+	}
+
 	return 0;
 
+err_free_secure_bo:
+	tegra_vde_free_bo(vde->secure_bo);
 err_pm_runtime:
-	misc_deregister(&vde->miscdev);
-
 	pm_runtime_dont_use_autosuspend(dev);
 	pm_runtime_disable(dev);
 
-err_deinit_iommu:
 	tegra_vde_iommu_deinit(vde);
 
 err_gen_free:
@@ -1141,6 +1241,10 @@ static int tegra_vde_remove(struct platform_device *pdev)
 {
 	struct tegra_vde *vde = platform_get_drvdata(pdev);
 	struct device *dev = &pdev->dev;
+
+	misc_deregister(&vde->miscdev);
+
+	tegra_vde_free_bo(vde->secure_bo);
 
 	/*
 	 * As it increments RPM usage_count even on errors, we don't need to
@@ -1157,8 +1261,6 @@ static int tegra_vde_remove(struct platform_device *pdev)
 	 */
 	pm_runtime_put_noidle(dev);
 	clk_disable_unprepare(vde->clk);
-
-	misc_deregister(&vde->miscdev);
 
 	tegra_vde_dmabuf_cache_unmap_all(vde);
 	tegra_vde_iommu_deinit(vde);
@@ -1214,8 +1316,27 @@ static const struct dev_pm_ops tegra_vde_pm_ops = {
 				tegra_vde_pm_resume)
 };
 
+static const struct tegra_vde_soc tegra124_vde_soc = {
+	.supports_ref_pic_marking = true,
+};
+
+static const struct tegra_vde_soc tegra114_vde_soc = {
+	.supports_ref_pic_marking = true,
+};
+
+static const struct tegra_vde_soc tegra30_vde_soc = {
+	.supports_ref_pic_marking = false,
+};
+
+static const struct tegra_vde_soc tegra20_vde_soc = {
+	.supports_ref_pic_marking = false,
+};
+
 static const struct of_device_id tegra_vde_of_match[] = {
-	{ .compatible = "nvidia,tegra20-vde", },
+	{ .compatible = "nvidia,tegra124-vde", .data = &tegra124_vde_soc },
+	{ .compatible = "nvidia,tegra114-vde", .data = &tegra114_vde_soc },
+	{ .compatible = "nvidia,tegra30-vde", .data = &tegra30_vde_soc },
+	{ .compatible = "nvidia,tegra20-vde", .data = &tegra20_vde_soc },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, tegra_vde_of_match);

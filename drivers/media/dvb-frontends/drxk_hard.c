@@ -3720,7 +3720,6 @@ static int set_dvbt(struct drxk_state *state, u16 intermediate_freqk_hz,
 {
 	u16 cmd_result = 0;
 	u16 transmission_params = 0;
-	u16 operation_mode = 0;
 	u32 iqm_rc_rate_ofs = 0;
 	u32 bandwidth = 0;
 	u16 param1;
@@ -3759,10 +3758,8 @@ static int set_dvbt(struct drxk_state *state, u16 intermediate_freqk_hz,
 	/* mode */
 	switch (state->props.transmission_mode) {
 	case TRANSMISSION_MODE_AUTO:
-	default:
-		operation_mode |= OFDM_SC_RA_RAM_OP_AUTO_MODE__M;
-		fallthrough;	/* try first guess DRX_FFTMODE_8K */
 	case TRANSMISSION_MODE_8K:
+	default:
 		transmission_params |= OFDM_SC_RA_RAM_OP_PARAM_MODE_8K;
 		break;
 	case TRANSMISSION_MODE_2K:
@@ -3773,9 +3770,7 @@ static int set_dvbt(struct drxk_state *state, u16 intermediate_freqk_hz,
 	/* guard */
 	switch (state->props.guard_interval) {
 	default:
-	case GUARD_INTERVAL_AUTO:
-		operation_mode |= OFDM_SC_RA_RAM_OP_AUTO_GUARD__M;
-		fallthrough;	/* try first guess DRX_GUARD_1DIV4 */
+	case GUARD_INTERVAL_AUTO: /* try first guess DRX_GUARD_1DIV4 */
 	case GUARD_INTERVAL_1_4:
 		transmission_params |= OFDM_SC_RA_RAM_OP_PARAM_GUARD_4;
 		break;
@@ -3794,11 +3789,7 @@ static int set_dvbt(struct drxk_state *state, u16 intermediate_freqk_hz,
 	switch (state->props.hierarchy) {
 	case HIERARCHY_AUTO:
 	case HIERARCHY_NONE:
-	default:
-		operation_mode |= OFDM_SC_RA_RAM_OP_AUTO_HIER__M;
-		/* try first guess SC_RA_RAM_OP_PARAM_HIER_NO */
-		/* transmission_params |= OFDM_SC_RA_RAM_OP_PARAM_HIER_NO; */
-		fallthrough;
+	default:	/* try first guess SC_RA_RAM_OP_PARAM_HIER_NO */
 	case HIERARCHY_1:
 		transmission_params |= OFDM_SC_RA_RAM_OP_PARAM_HIER_A1;
 		break;
@@ -3814,9 +3805,7 @@ static int set_dvbt(struct drxk_state *state, u16 intermediate_freqk_hz,
 	/* modulation */
 	switch (state->props.modulation) {
 	case QAM_AUTO:
-	default:
-		operation_mode |= OFDM_SC_RA_RAM_OP_AUTO_CONST__M;
-		fallthrough;	/* try first guess DRX_CONSTELLATION_QAM64 */
+	default:	/* try first guess DRX_CONSTELLATION_QAM64 */
 	case QAM_64:
 		transmission_params |= OFDM_SC_RA_RAM_OP_PARAM_CONST_QAM64;
 		break;
@@ -3857,9 +3846,7 @@ static int set_dvbt(struct drxk_state *state, u16 intermediate_freqk_hz,
 	/* coderate */
 	switch (state->props.code_rate_HP) {
 	case FEC_AUTO:
-	default:
-		operation_mode |= OFDM_SC_RA_RAM_OP_AUTO_RATE__M;
-		fallthrough;	/* try first guess DRX_CODERATE_2DIV3 */
+	default:	/* try first guess DRX_CODERATE_2DIV3 */
 	case FEC_2_3:
 		transmission_params |= OFDM_SC_RA_RAM_OP_PARAM_RATE_2_3;
 		break;

@@ -469,6 +469,7 @@ config VIDEO_VPX3220
 config VIDEO_MAX9286
 	tristate "Maxim MAX9286 GMSL deserializer support"
 	depends on I2C && I2C_MUX
+	depends on VIDEO_V4L2
 	depends on OF_GPIO
 	select V4L2_FWNODE
 	select VIDEO_V4L2_SUBDEV_API
@@ -1057,6 +1058,17 @@ config VIDEO_OV5675
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called ov5675.
+
+config VIDEO_OV5693
+	tristate "OmniVision OV5693 sensor support"
+	depends on I2C && VIDEO_V4L2
+	select V4L2_FWNODE
+	help
+	  This is a Video4Linux2 sensor driver for the OmniVision
+	  OV5693 camera.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ov5693.
 
 config VIDEO_OV5695
 	tristate "OmniVision OV5695 sensor support"

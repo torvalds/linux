@@ -2758,13 +2758,13 @@ ident_show(struct device *dev, struct device_attribute *attr, char *buf)
 	struct ccs_module_info *minfo = &sensor->minfo;
 
 	if (minfo->mipi_manufacturer_id)
-		return snprintf(buf, PAGE_SIZE, "%4.4x%4.4x%2.2x\n",
-				minfo->mipi_manufacturer_id, minfo->model_id,
-				minfo->revision_number) + 1;
+		return sysfs_emit(buf, "%4.4x%4.4x%2.2x\n",
+				    minfo->mipi_manufacturer_id, minfo->model_id,
+				    minfo->revision_number) + 1;
 	else
-		return snprintf(buf, PAGE_SIZE, "%2.2x%4.4x%2.2x\n",
-				minfo->smia_manufacturer_id, minfo->model_id,
-				minfo->revision_number) + 1;
+		return sysfs_emit(buf, "%2.2x%4.4x%2.2x\n",
+				    minfo->smia_manufacturer_id, minfo->model_id,
+				    minfo->revision_number) + 1;
 }
 static DEVICE_ATTR_RO(ident);
 
