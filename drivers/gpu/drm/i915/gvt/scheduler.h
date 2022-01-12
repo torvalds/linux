@@ -56,7 +56,7 @@ struct intel_gvt_workload_scheduler {
 	wait_queue_head_t waitq[I915_NUM_ENGINES];
 
 	void *sched_data;
-	struct intel_gvt_sched_policy_ops *sched_ops;
+	const struct intel_gvt_sched_policy_ops *sched_ops;
 };
 
 #define INDIRECT_CTX_ADDR_MASK 0xffffffc0

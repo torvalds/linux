@@ -40,12 +40,12 @@
 
 #define PRIMARY_FORMAT_NUM	16
 struct pixel_format {
-	int	drm_format;	/* Pixel format in DRM definition */
-	int	bpp;		/* Bits per pixel, 0 indicates invalid */
-	char	*desc;		/* The description */
+	int drm_format;	/* Pixel format in DRM definition */
+	int bpp; /* Bits per pixel, 0 indicates invalid */
+	const char *desc; /* The description */
 };
 
-static struct pixel_format bdw_pixel_formats[] = {
+static const struct pixel_format bdw_pixel_formats[] = {
 	{DRM_FORMAT_C8, 8, "8-bit Indexed"},
 	{DRM_FORMAT_RGB565, 16, "16-bit BGRX (5:6:5 MSB-R:G:B)"},
 	{DRM_FORMAT_XRGB8888, 32, "32-bit BGRX (8:8:8:8 MSB-X:R:G:B)"},
@@ -58,7 +58,7 @@ static struct pixel_format bdw_pixel_formats[] = {
 	{0, 0, NULL},
 };
 
-static struct pixel_format skl_pixel_formats[] = {
+static const struct pixel_format skl_pixel_formats[] = {
 	{DRM_FORMAT_YUYV, 16, "16-bit packed YUYV (8:8:8:8 MSB-V:Y2:U:Y1)"},
 	{DRM_FORMAT_UYVY, 16, "16-bit packed UYVY (8:8:8:8 MSB-Y2:V:Y1:U)"},
 	{DRM_FORMAT_YVYU, 16, "16-bit packed YVYU (8:8:8:8 MSB-U:Y2:V:Y1)"},
@@ -278,14 +278,14 @@ int intel_vgpu_decode_primary_plane(struct intel_vgpu *vgpu,
 
 #define CURSOR_FORMAT_NUM	(1 << 6)
 struct cursor_mode_format {
-	int	drm_format;	/* Pixel format in DRM definition */
-	u8	bpp;		/* Bits per pixel; 0 indicates invalid */
-	u32	width;		/* In pixel */
-	u32	height;		/* In lines */
-	char	*desc;		/* The description */
+	int drm_format;	/* Pixel format in DRM definition */
+	u8 bpp; /* Bits per pixel; 0 indicates invalid */
+	u32 width; /* In pixel */
+	u32 height; /* In lines */
+	const char *desc; /* The description */
 };
 
-static struct cursor_mode_format cursor_pixel_formats[] = {
+static const struct cursor_mode_format cursor_pixel_formats[] = {
 	{DRM_FORMAT_ARGB8888, 32, 128, 128, "128x128 32bpp ARGB"},
 	{DRM_FORMAT_ARGB8888, 32, 256, 256, "256x256 32bpp ARGB"},
 	{DRM_FORMAT_ARGB8888, 32, 64, 64, "64x64 32bpp ARGB"},
@@ -391,7 +391,7 @@ int intel_vgpu_decode_cursor_plane(struct intel_vgpu *vgpu,
 
 #define SPRITE_FORMAT_NUM	(1 << 3)
 
-static struct pixel_format sprite_pixel_formats[SPRITE_FORMAT_NUM] = {
+static const struct pixel_format sprite_pixel_formats[SPRITE_FORMAT_NUM] = {
 	[0x0] = {DRM_FORMAT_YUV422, 16, "YUV 16-bit 4:2:2 packed"},
 	[0x1] = {DRM_FORMAT_XRGB2101010, 32, "RGB 32-bit 2:10:10:10"},
 	[0x2] = {DRM_FORMAT_XRGB8888, 32, "RGB 32-bit 8:8:8:8"},
