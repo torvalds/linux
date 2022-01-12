@@ -81,6 +81,17 @@ endchoice
 config ARM_UNWIND
 	bool
 
+config BACKTRACE_VERBOSE
+	bool "Verbose backtrace"
+	depends on EXPERT
+	help
+	  When the kernel produces a warning or oops, the kernel prints a
+	  trace of the call chain. This option controls whether we include
+	  the numeric addresses or only include the symbolic information.
+
+	  In most cases, say N here, unless you are intending to debug the
+	  kernel and have access to the kernel binary image.
+
 config FRAME_POINTER
 	bool
 

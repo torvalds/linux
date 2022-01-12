@@ -199,12 +199,16 @@ static inline bool __is_kernel_text(unsigned long addr)
  * @addr: address to check
  *
  * Returns: true if the address is located in the kernel range, false otherwise.
- * Note: an internal helper, only check the range of _stext to _end.
+ * Note: an internal helper, check the range of _stext to _end,
+ *       and range from __init_begin to __init_end, which can be outside
+ *       of the _stext to _end range.
  */
 static inline bool __is_kernel(unsigned long addr)
 {
-	return addr >= (unsigned long)_stext &&
-	       addr < (unsigned long)_end;
+	return ((addr >= (unsigned long)_stext &&
+	         addr < (unsigned long)_end) ||
+		(addr >= (unsigned long)__init_begin &&
+		 addr < (unsigned long)__init_end));
 }
 
 #endif /* _ASM_GENERIC_SECTIONS_H_ */

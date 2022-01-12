@@ -138,6 +138,17 @@ To pass extra options to Sphinx, you can use the ``SPHINXOPTS`` make
 variable. For example, use ``make SPHINXOPTS=-v htmldocs`` to get more verbose
 output.
 
+It is also possible to pass an extra DOCS_CSS overlay file, in order to customize
+the html layout, by using the ``DOCS_CSS`` make variable.
+
+By default, the build will try to use the Read the Docs sphinx theme:
+
+    https://github.com/readthedocs/sphinx_rtd_theme
+
+If the theme is not available, it will fall-back to the classic one.
+
+The Sphinx theme can be overridden by using the ``DOCS_THEME`` make variable.
+
 To remove the generated documentation, run ``make cleandocs``.
 
 Writing Documentation
@@ -250,12 +261,11 @@ please feel free to remove it.
 list tables
 -----------
 
-We recommend the use of *list table* formats. The *list table* formats are
-double-stage lists. Compared to the ASCII-art they might not be as
-comfortable for
-readers of the text files. Their advantage is that they are easy to
-create or modify and that the diff of a modification is much more meaningful,
-because it is limited to the modified content.
+The list-table formats can be useful for tables that are not easily laid
+out in the usual Sphinx ASCII-art formats.  These formats are nearly
+impossible for readers of the plain-text documents to understand, though,
+and should be avoided in the absence of a strong justification for their
+use.
 
 The ``flat-table`` is a double-stage list similar to the ``list-table`` with
 some additional features:
