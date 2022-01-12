@@ -1071,6 +1071,9 @@ static ssize_t hl_stop_on_err_read(struct file *f, char __user *buf,
 	char tmp_buf[200];
 	ssize_t rc;
 
+	if (!hdev->asic_prop.configurable_stop_on_err)
+		return -EOPNOTSUPP;
+
 	if (*ppos)
 		return 0;
 
@@ -1088,6 +1091,9 @@ static ssize_t hl_stop_on_err_write(struct file *f, const char __user *buf,
 	struct hl_device *hdev = entry->hdev;
 	u32 value;
 	ssize_t rc;
+
+	if (!hdev->asic_prop.configurable_stop_on_err)
+		return -EOPNOTSUPP;
 
 	if (hdev->reset_info.in_reset) {
 		dev_warn_ratelimited(hdev->dev,

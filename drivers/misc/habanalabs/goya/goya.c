@@ -483,6 +483,8 @@ int goya_set_fixed_properties(struct hl_device *hdev)
 
 	prop->use_get_power_for_reset_history = true;
 
+	prop->configurable_stop_on_err = true;
+
 	return 0;
 }
 

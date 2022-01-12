@@ -222,6 +222,7 @@ KernelVersion:  5.6
 Contact:        ogabbay@kernel.org
 Description:    Sets the stop-on_error option for the device engines. Value of
                 "0" is for disable, otherwise enable.
+                Relevant only for GOYA and GAUDI.
 
 What:           /sys/kernel/debug/habanalabs/hl<n>/timeout_locked
 Date:           Sep 2021

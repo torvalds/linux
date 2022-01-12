@@ -561,6 +561,7 @@ struct hl_hints_range {
  *                              use-case of doing soft-reset in training (due
  *                              to the fact that training runs on multiple
  *                              devices)
+ * @configurable_stop_on_err: is stop-on-error option configurable via debugfs.
  */
 struct asic_fixed_properties {
 	struct hw_queue_properties	*hw_queues_props;
@@ -644,6 +645,7 @@ struct asic_fixed_properties {
 	u8				use_get_power_for_reset_history;
 	u8				supports_soft_reset;
 	u8				allow_inference_soft_reset;
+	u8				configurable_stop_on_err;
 };
 
 /**
