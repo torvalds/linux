@@ -32,6 +32,7 @@
 #define BYT_VAL_REG		0x008
 #define BYT_DFT_REG		0x00c
 #define BYT_INT_STAT_REG	0x800
+#define BYT_DIRECT_IRQ_REG	0x980
 #define BYT_DEBOUNCE_REG	0x9d0
 
 /* BYT_CONF0_REG register bits */
@@ -1465,6 +1466,51 @@ static void byt_gpio_irq_handler(struct irq_desc *desc)
 	chip->irq_eoi(data);
 }
 
+static bool byt_direct_irq_sanity_check(struct intel_pinctrl *vg, int pin, u32 conf0)
+{
+	int direct_irq, ioapic_direct_irq_base;
+	u8 *match, direct_irq_mux[16];
+	u32 trig;
+
+	memcpy_fromio(direct_irq_mux, vg->communities->pad_regs + BYT_DIRECT_IRQ_REG,
+		      sizeof(direct_irq_mux));
+	match = memchr(direct_irq_mux, pin, sizeof(direct_irq_mux));
+	if (!match) {
+		dev_warn(vg->dev, FW_BUG "pin %i: direct_irq_en set but no IRQ assigned, clearing\n", pin);
+		return false;
+	}
+
+	direct_irq = match - direct_irq_mux;
+	/* Base IO-APIC pin numbers come from atom-e3800-family-datasheet.pdf */
+	ioapic_direct_irq_base = (vg->communities->npins == BYT_NGPIO_SCORE) ? 51 : 67;
+	dev_dbg(vg->dev, "Pin %i: uses direct IRQ %d (IO-APIC %d)\n", pin,
+		direct_irq, direct_irq + ioapic_direct_irq_base);
+
+	/*
+	 * Testing has shown that the way direct IRQs work is that the combination of the
+	 * direct-irq-en flag and the direct IRQ mux connect the output of the GPIO's IRQ
+	 * trigger block, which normally sets the status flag in the IRQ status reg at
+	 * 0x800, to one of the IO-APIC pins according to the mux registers.
+	 *
+	 * This means that:
+	 * 1. The TRIG_MASK bits must be set to configure the GPIO's IRQ trigger block
+	 * 2. The TRIG_LVL bit *must* be set, so that the GPIO's input value is directly
+	 *    passed (1:1 or inverted) to the IO-APIC pin, if TRIG_LVL is not set,
+	 *    selecting edge mode operation then on the first edge the IO-APIC pin goes
+	 *    high, but since no write-to-clear write will be done to the IRQ status reg
+	 *    at 0x800, the detected edge condition will never get cleared.
+	 */
+	trig = conf0 & BYT_TRIG_MASK;
+	if (trig != (BYT_TRIG_POS | BYT_TRIG_LVL) &&
+	    trig != (BYT_TRIG_NEG | BYT_TRIG_LVL)) {
+		dev_warn(vg->dev, FW_BUG "pin %i: direct_irq_en set without trigger (conf0: %xh), clearing\n",
+			 pin, conf0);
+		return false;
+	}
+
+	return true;
+}
+
 static void byt_init_irq_valid_mask(struct gpio_chip *chip,
 				    unsigned long *valid_mask,
 				    unsigned int ngpios)
@@ -1492,8 +1538,13 @@ static void byt_init_irq_valid_mask(struct gpio_chip *chip,
 
 		value = readl(reg);
 		if (value & BYT_DIRECT_IRQ_EN) {
-			clear_bit(i, valid_mask);
-			dev_dbg(vg->dev, "excluding GPIO %d from IRQ domain\n", i);
+			if (byt_direct_irq_sanity_check(vg, i, value)) {
+				clear_bit(i, valid_mask);
+			} else {
+				value &= ~(BYT_DIRECT_IRQ_EN | BYT_TRIG_POS |
+					   BYT_TRIG_NEG | BYT_TRIG_LVL);
+				writel(value, reg);
+			}
 		} else if ((value & BYT_PIN_MUX) == byt_get_gpio_mux(vg, i)) {
 			byt_gpio_clear_triggering(vg, i);
 			dev_dbg(vg->dev, "disabling GPIO %d\n", i);
