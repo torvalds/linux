@@ -38,21 +38,25 @@ static bool enable_autosuspend;
 struct btmtksdio_data {
 	const char *fwname;
 	u16 chipid;
+	bool lp_mbox_supported;
 };
 
 static const struct btmtksdio_data mt7663_data = {
 	.fwname = FIRMWARE_MT7663,
 	.chipid = 0x7663,
+	.lp_mbox_supported = false,
 };
 
 static const struct btmtksdio_data mt7668_data = {
 	.fwname = FIRMWARE_MT7668,
 	.chipid = 0x7668,
+	.lp_mbox_supported = false,
 };
 
 static const struct btmtksdio_data mt7921_data = {
 	.fwname = FIRMWARE_MT7961,
 	.chipid = 0x7921,
+	.lp_mbox_supported = true,
 };
 
 static const struct sdio_device_id btmtksdio_table[] = {
@@ -90,8 +94,12 @@ MODULE_DEVICE_TABLE(sdio, btmtksdio_table);
 #define FW_MAILBOX_INT		BIT(15)
 #define RX_PKT_LEN		GENMASK(31, 16)
 
+#define MTK_REG_CSICR		0xc0
+#define CSICR_CLR_MBOX_ACK BIT(0)
 #define MTK_REG_PH2DSM0R	0xc4
 #define PH2DSM0R_DRIVER_OWN	BIT(0)
+#define MTK_REG_PD2HRM0R	0xdc
+#define PD2HRM0R_DRV_OWN	BIT(0)
 
 #define MTK_REG_CTDR		0x18
 
@@ -104,6 +112,7 @@ MODULE_DEVICE_TABLE(sdio, btmtksdio_table);
 #define BTMTKSDIO_TX_WAIT_VND_EVT	1
 #define BTMTKSDIO_HW_TX_READY		2
 #define BTMTKSDIO_FUNC_ENABLED		3
+#define BTMTKSDIO_PATCH_ENABLED		4
 
 struct mtkbtsdio_hdr {
 	__le16	len;
@@ -282,12 +291,30 @@ static u32 btmtksdio_drv_own_query(struct btmtksdio_dev *bdev)
 	return sdio_readl(bdev->func, MTK_REG_CHLPCR, NULL);
 }
 
+static u32 btmtksdio_drv_own_query_79xx(struct btmtksdio_dev *bdev)
+{
+	return sdio_readl(bdev->func, MTK_REG_PD2HRM0R, NULL);
+}
+
 static int btmtksdio_fw_pmctrl(struct btmtksdio_dev *bdev)
 {
 	u32 status;
 	int err;
 
 	sdio_claim_host(bdev->func);
+
+	if (bdev->data->lp_mbox_supported &&
+	    test_bit(BTMTKSDIO_PATCH_ENABLED, &bdev->tx_state)) {
+		sdio_writel(bdev->func, CSICR_CLR_MBOX_ACK, MTK_REG_CSICR,
+			    &err);
+		err = readx_poll_timeout(btmtksdio_drv_own_query_79xx, bdev,
+					 status, !(status & PD2HRM0R_DRV_OWN),
+					 2000, 1000000);
+		if (err < 0) {
+			bt_dev_err(bdev->hdev, "mailbox ACK not cleared");
+			goto out;
+		}
+	}
 
 	/* Return ownership to the device */
 	sdio_writel(bdev->func, C_FW_OWN_REQ_SET, MTK_REG_CHLPCR, &err);
@@ -320,6 +347,12 @@ static int btmtksdio_drv_pmctrl(struct btmtksdio_dev *bdev)
 
 	err = readx_poll_timeout(btmtksdio_drv_own_query, bdev, status,
 				 status & C_COM_DRV_OWN, 2000, 1000000);
+
+	if (!err && bdev->data->lp_mbox_supported &&
+	    test_bit(BTMTKSDIO_PATCH_ENABLED, &bdev->tx_state))
+		err = readx_poll_timeout(btmtksdio_drv_own_query_79xx, bdev,
+					 status, status & PD2HRM0R_DRV_OWN,
+					 2000, 1000000);
 
 out:
 	sdio_release_host(bdev->func);
@@ -728,6 +761,7 @@ static int btmtksdio_func_query(struct hci_dev *hdev)
 
 static int mt76xx_setup(struct hci_dev *hdev, const char *fwname)
 {
+	struct btmtksdio_dev *bdev = hci_get_drvdata(hdev);
 	struct btmtk_hci_wmt_params wmt_params;
 	struct btmtk_tci_sleep tci_sleep;
 	struct sk_buff *skb;
@@ -788,6 +822,8 @@ ignore_setup_fw:
 		return err;
 	}
 
+	set_bit(BTMTKSDIO_PATCH_ENABLED, &bdev->tx_state);
+
 ignore_func_on:
 	/* Apply the low power environment setup */
 	tci_sleep.mode = 0x5;
@@ -810,6 +846,7 @@ ignore_func_on:
 
 static int mt79xx_setup(struct hci_dev *hdev, const char *fwname)
 {
+	struct btmtksdio_dev *bdev = hci_get_drvdata(hdev);
 	struct btmtk_hci_wmt_params wmt_params;
 	u8 param = 0x1;
 	int err;
@@ -835,6 +872,7 @@ static int mt79xx_setup(struct hci_dev *hdev, const char *fwname)
 
 	hci_set_msft_opcode(hdev, 0xFD30);
 	hci_set_aosp_capable(hdev);
+	set_bit(BTMTKSDIO_PATCH_ENABLED, &bdev->tx_state);
 
 	return err;
 }
