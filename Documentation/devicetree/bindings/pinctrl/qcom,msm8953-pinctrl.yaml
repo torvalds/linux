@@ -105,6 +105,23 @@ $defs:
     required:
       - pins
 
+    anyOf:
+      - if:
+          properties:
+            pins:
+              contains:
+                enum: [ sdc1_clk, sdc1_cmd, sdc1_data, sdc1_rclk, sdc2_clk,
+                        sdc2_cmd, sdc2_data, qdsd_clk, qdsd_cmd, qdsd_data0,
+                        qdsd_data1, qdsd_data2, qdsd_data3 ]
+        then:
+          properties:
+            function: false
+        else:
+          required:
+            - function
+
+    additionalProperties: false
+
 allOf:
   - $ref: /schemas/pinctrl/qcom,tlmm-common.yaml#
 
