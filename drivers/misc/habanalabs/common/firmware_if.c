@@ -958,15 +958,17 @@ int hl_fw_cpucp_pll_info_get(struct hl_device *hdev, u32 pll_index,
 
 	rc = hdev->asic_funcs->send_cpu_message(hdev, (u32 *) &pkt, sizeof(pkt),
 			HL_CPUCP_INFO_TIMEOUT_USEC, &result);
-	if (rc)
+	if (rc) {
 		dev_err(hdev->dev, "Failed to read PLL info, error %d\n", rc);
+		return rc;
+	}
 
 	pll_freq_arr[0] = FIELD_GET(CPUCP_PKT_RES_PLL_OUT0_MASK, result);
 	pll_freq_arr[1] = FIELD_GET(CPUCP_PKT_RES_PLL_OUT1_MASK, result);
 	pll_freq_arr[2] = FIELD_GET(CPUCP_PKT_RES_PLL_OUT2_MASK, result);
 	pll_freq_arr[3] = FIELD_GET(CPUCP_PKT_RES_PLL_OUT3_MASK, result);
 
-	return rc;
+	return 0;
 }
 
 int hl_fw_cpucp_power_get(struct hl_device *hdev, u64 *power)
