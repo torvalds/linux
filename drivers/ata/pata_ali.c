@@ -123,7 +123,7 @@ static unsigned long ali_20_filter(struct ata_device *adev, unsigned long mask)
 		mask &= ~(ATA_MASK_MWDMA | ATA_MASK_UDMA);
 	ata_id_c_string(adev->id, model_num, ATA_ID_PROD, sizeof(model_num));
 	if (strstr(model_num, "WDC"))
-		return mask &= ~ATA_MASK_UDMA;
+		mask &= ~ATA_MASK_UDMA;
 	return mask;
 }
 
