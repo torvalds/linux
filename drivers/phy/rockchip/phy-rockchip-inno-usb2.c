@@ -122,6 +122,7 @@ struct rockchip_chg_det_reg {
 /**
  * struct rockchip_usb2phy_port_cfg - usb-phy port configuration.
  * @phy_sus: phy suspend register.
+ * @pipe_phystatus: select pipe phystatus from grf or phy.
  * @bvalid_det_en: vbus valid rise detection enable register.
  * @bvalid_det_st: vbus valid rise detection status register.
  * @bvalid_det_clr: vbus valid rise detection clear register.
@@ -161,6 +162,7 @@ struct rockchip_chg_det_reg {
  */
 struct rockchip_usb2phy_port_cfg {
 	struct usb2phy_reg	phy_sus;
+	struct usb2phy_reg	pipe_phystatus;
 	struct usb2phy_reg	bvalid_det_en;
 	struct usb2phy_reg	bvalid_det_st;
 	struct usb2phy_reg	bvalid_det_clr;
@@ -225,6 +227,7 @@ struct rockchip_usb2phy_cfg {
  * @low_power_en: enable enter low power when suspend.
  * @perip_connected: flag for periphyeral connect status.
  * @prev_iddig: previous otg port id pin status.
+ * @sel_pipe_phystatus: select pipe phystatus from grf.
  * @suspended: phy suspended flag.
  * @typec_vbus_det: Type-C otg vbus detect.
  * @utmi_avalid: utmi avalid status usage flag.
@@ -258,6 +261,7 @@ struct rockchip_usb2phy_port {
 	bool		low_power_en;
 	bool		perip_connected;
 	bool		prev_iddig;
+	bool		sel_pipe_phystatus;
 	bool		suspended;
 	bool		typec_vbus_det;
 	bool		utmi_avalid;
@@ -289,6 +293,7 @@ struct rockchip_usb2phy_port {
  * @dev: pointer to device.
  * @grf: General Register Files regmap.
  * @usbgrf: USB General Register Files regmap.
+ * @usbctrl_grf: USB Controller General Register Files regmap.
  * *phy_base: the base address of USB PHY.
  * @phy_reset: phy reset control.
  * @clk: clock struct of phy input clk.
@@ -312,6 +317,7 @@ struct rockchip_usb2phy {
 	struct device	*dev;
 	struct regmap	*grf;
 	struct regmap	*usbgrf;
+	struct regmap	*usbctrl_grf;
 	void __iomem	*phy_base;
 	struct reset_control	*phy_reset;
 	struct clk	*clk;
@@ -788,6 +794,10 @@ static int rockchip_usb2phy_power_on(struct phy *phy)
 	ret = clk_prepare_enable(rphy->clk480m);
 	if (ret)
 		goto unlock;
+
+	if (rport->sel_pipe_phystatus)
+		property_enable(rphy->usbctrl_grf,
+				&rport->port_cfg->pipe_phystatus, true);
 
 	ret = property_enable(base, &rport->port_cfg->phy_sus, false);
 	if (ret)
@@ -1979,6 +1989,19 @@ static int rockchip_usb2phy_otg_port_init(struct rockchip_usb2phy *rphy,
 	/* For type-c with vbus_det always pull up */
 	rport->typec_vbus_det =
 		of_property_read_bool(child_np, "rockchip,typec-vbus-det");
+
+	rport->sel_pipe_phystatus =
+		of_property_read_bool(child_np, "rockchip,sel-pipe-phystatus");
+
+	if (rport->sel_pipe_phystatus) {
+		rphy->usbctrl_grf =
+			syscon_regmap_lookup_by_phandle(rphy->dev->of_node,
+							"rockchip,usbctrl-grf");
+		if (IS_ERR(rphy->usbctrl_grf)) {
+			dev_err(rphy->dev, "Failed to map usbctrl-grf\n");
+			return PTR_ERR(rphy->usbctrl_grf);
+		}
+	}
 
 	/* Get Vbus regulators */
 	rport->vbus = devm_regulator_get_optional(&rport->phy->dev, "vbus");
@@ -3312,6 +3335,7 @@ static const struct rockchip_usb2phy_cfg rk3588_phy_cfgs[] = {
 		.port_cfgs	= {
 			[USB2PHY_PORT_OTG] = {
 				.phy_sus	= { 0x000c, 11, 11, 0, 1 },
+				.pipe_phystatus	= { 0x001c, 3, 2, 0, 2 },
 				.bvalid_det_en	= { 0x0080, 1, 1, 0, 1 },
 				.bvalid_det_st	= { 0x0084, 1, 1, 0, 1 },
 				.bvalid_det_clr = { 0x0088, 1, 1, 0, 1 },
@@ -3365,6 +3389,7 @@ static const struct rockchip_usb2phy_cfg rk3588_phy_cfgs[] = {
 			/* Select suspend control from controller */
 			[USB2PHY_PORT_OTG] = {
 				.phy_sus	= { 0x000c, 11, 11, 0, 0 },
+				.pipe_phystatus	= { 0x0034, 3, 2, 0, 2 },
 				.bvalid_det_en	= { 0x0080, 1, 1, 0, 1 },
 				.bvalid_det_st	= { 0x0084, 1, 1, 0, 1 },
 				.bvalid_det_clr = { 0x0088, 1, 1, 0, 1 },
