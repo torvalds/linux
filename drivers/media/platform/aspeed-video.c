@@ -1722,8 +1722,8 @@ static void aspeed_video_resolution_work(struct work_struct *work)
 	if (video->v4l2_input_status)
 		goto done;
 
-	is_res_chg = memcmp(&video->active_timings, &video->detected_timings,
-			    sizeof(video->active_timings));
+	is_res_chg = (video->detected_timings.width != video->active_timings.width ||
+		      video->detected_timings.height != video->active_timings.height);
 	video->active_timings = video->detected_timings;
 	aspeed_video_set_resolution(video);
 
