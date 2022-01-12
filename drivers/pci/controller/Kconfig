@@ -333,7 +333,7 @@ config PCIE_APPLE
 
 config PCIE_MT7621
 	tristate "MediaTek MT7621 PCIe Controller"
-	depends on (RALINK && SOC_MT7621) || (MIPS && COMPILE_TEST)
+	depends on SOC_MT7621 || COMPILE_TEST
 	select PHY_MT7621_PCI
 	default SOC_MT7621
 	help
