@@ -622,10 +622,7 @@ meson_serial_early_console_setup(struct earlycon_device *device, const char *opt
 	device->con->write = meson_serial_early_console_write;
 	return 0;
 }
-/* Legacy bindings, should be removed when no more used */
-OF_EARLYCON_DECLARE(meson, "amlogic,meson-uart",
-		    meson_serial_early_console_setup);
-/* Stable bindings */
+
 OF_EARLYCON_DECLARE(meson, "amlogic,meson-ao-uart",
 		    meson_serial_early_console_setup);
 
@@ -668,25 +665,6 @@ static inline struct clk *meson_uart_probe_clock(struct device *dev,
 	return clk;
 }
 
-/*
- * This function gets clocks in the legacy non-stable DT bindings.
- * This code will be remove once all the platforms switch to the
- * new DT bindings.
- */
-static int meson_uart_probe_clocks_legacy(struct platform_device *pdev,
-					  struct uart_port *port)
-{
-	struct clk *clk = NULL;
-
-	clk = meson_uart_probe_clock(&pdev->dev, NULL);
-	if (IS_ERR(clk))
-		return PTR_ERR(clk);
-
-	port->uartclk = clk_get_rate(clk);
-
-	return 0;
-}
-
 static int meson_uart_probe_clocks(struct platform_device *pdev,
 				   struct uart_port *port)
 {
@@ -713,10 +691,11 @@ static int meson_uart_probe_clocks(struct platform_device *pdev,
 
 static int meson_uart_probe(struct platform_device *pdev)
 {
-	struct resource *res_mem, *res_irq;
+	struct resource *res_mem;
 	struct uart_port *port;
 	u32 fifosize = 64; /* Default is 64, 128 for EE UART_0 */
 	int ret = 0;
+	int irq;
 
 	if (pdev->dev.of_node)
 		pdev->id = of_alias_get_id(pdev->dev.of_node, "serial");
@@ -739,9 +718,9 @@ static int meson_uart_probe(struct platform_device *pdev)
 	if (!res_mem)
 		return -ENODEV;
 
-	res_irq = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
-	if (!res_irq)
-		return -ENODEV;
+	irq = platform_get_irq(pdev, 0);
+	if (irq < 0)
+		return irq;
 
 	of_property_read_u32(pdev->dev.of_node, "fifo-size", &fifosize);
 
@@ -754,19 +733,14 @@ static int meson_uart_probe(struct platform_device *pdev)
 	if (!port)
 		return -ENOMEM;
 
-	/* Use legacy way until all platforms switch to new bindings */
-	if (of_device_is_compatible(pdev->dev.of_node, "amlogic,meson-uart"))
-		ret = meson_uart_probe_clocks_legacy(pdev, port);
-	else
-		ret = meson_uart_probe_clocks(pdev, port);
-
+	ret = meson_uart_probe_clocks(pdev, port);
 	if (ret)
 		return ret;
 
 	port->iotype = UPIO_MEM;
 	port->mapbase = res_mem->start;
 	port->mapsize = resource_size(res_mem);
-	port->irq = res_irq->start;
+	port->irq = irq;
 	port->flags = UPF_BOOT_AUTOCONF | UPF_LOW_LATENCY;
 	port->has_sysrq = IS_ENABLED(CONFIG_SERIAL_MESON_CONSOLE);
 	port->dev = &pdev->dev;
@@ -804,9 +778,6 @@ static int meson_uart_remove(struct platform_device *pdev)
 }
 
 static const struct of_device_id meson_uart_dt_match[] = {
-	/* Legacy bindings, should be removed when no more used */
-	{ .compatible = "amlogic,meson-uart" },
-	/* Stable bindings */
 	{ .compatible = "amlogic,meson6-uart" },
 	{ .compatible = "amlogic,meson8-uart" },
 	{ .compatible = "amlogic,meson8b-uart" },

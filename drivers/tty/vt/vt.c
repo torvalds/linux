@@ -1833,7 +1833,7 @@ static void csi_m(struct vc_data *vc)
 static void respond_string(const char *p, size_t len, struct tty_port *port)
 {
 	tty_insert_flip_string(port, p, len);
-	tty_schedule_flip(port);
+	tty_flip_buffer_push(port);
 }
 
 static void cursor_report(struct vc_data *vc, struct tty_struct *tty)

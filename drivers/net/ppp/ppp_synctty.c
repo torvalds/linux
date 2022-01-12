@@ -274,8 +274,7 @@ ppp_sync_write(struct tty_struct *tty, struct file *file,
 }
 
 static int
-ppp_synctty_ioctl(struct tty_struct *tty, struct file *file,
-		  unsigned int cmd, unsigned long arg)
+ppp_synctty_ioctl(struct tty_struct *tty, unsigned int cmd, unsigned long arg)
 {
 	struct syncppp *ap = sp_get(tty);
 	int __user *p = (int __user *)arg;
