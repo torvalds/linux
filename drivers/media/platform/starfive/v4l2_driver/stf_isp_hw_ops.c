@@ -59,6 +59,50 @@ static const regval_t isp_sc2235_reg_config_list[] = {
  	{0x00000000, 0x00000001, 0, 0},
 };
 
+static const regval_t isp_ov13850_reg_config_list[] = {
+	{0x00000014, 0x00000001, 0, 0},
+//	{0x00000018, 0x000011BB, 0, 0},
+	{0x00000A1C, 0x00000030, 0, 0},
+//	{0x0000001C, 0x00000000, 0, 0},
+//	{0x00000020, 0x0437077F, 0, 0},
+//	{0x00000A0C, 0x04380780, 0, 0},
+	{0x00000A80, 0x88000000, 0, 0},
+	{0x00000A84, 0x881fa400, 0, 0},
+//	{0x00000A88, 0x00000780, 0, 0},
+	{0x00000A8C, 0x00000010, 0, 0},
+	{0x00000A90, 0x00000000, 0, 0},
+	{0x00000A94, 0x803f4810, 0, 0},
+	{0x00000A98, 0x80517990, 0, 0},
+	{0x00000A9c, 0x000005c0, 0, 0},
+	{0x00000AA0, 0x0c000000, 0, 0},
+	{0x00000AA4, 0x0c000000, 0, 0},
+	{0x00000AA8, 0x05a0032a, 0, 0},
+	{0x00000AAC, 0x0418e410, 0, 0},
+	{0x00000AB0, 0x0420cd10, 0, 0},
+	{0x00000AB4, 0x0000021c, 0, 0},
+	{0x00000AB8, 0x08000000, 0, 0},
+	{0x00000ABc, 0x08000000, 0, 0},
+	{0x00000AC0, 0x021c03c0, 0, 0},
+	{0x00000AC4, 0x00000000, 0, 0},
+	{0x00000E40, 0x0000004D, 0, 0},
+	{0x00000E44, 0x00000096, 0, 0},
+	{0x00000E48, 0x0000001D, 0, 0},
+	{0x00000E4C, 0x000001DA, 0, 0},
+	{0x00000E50, 0x000001B6, 0, 0},
+	{0x00000E54, 0x00000070, 0, 0},
+	{0x00000E58, 0x0000009D, 0, 0},
+	{0x00000E5C, 0x0000017C, 0, 0},
+	{0x00000E60, 0x000001E6, 0, 0},
+	{0x00000010, 0x00000000, 0, 0},
+    {0x00000A08, 0x10000022, 0xFFFFFFF, 0},
+ 	{0x00000044, 0x00000000, 0, 0},
+	{0x00000008, 0x00010005, 0, 0},
+ 	{0x00000A00, 0x00120002, 0, 0},
+ 	{0x00000A00, 0x00120000, 0, 0},
+ 	{0x00000A00, 0x00120001, 0, 0},
+ 	{0x00000000, 0x00000001, 0, 0},
+};
+
 static const regval_t isp_1080p_reg_config_list[] = {
 	{0x00000014, 0x0000000D, 0, 0},
 	// {0x00000018, 0x000011BB, 0, 0},
@@ -138,6 +182,11 @@ const struct reg_table isp_1920_1080_settings[] = {
 const struct reg_table isp_sc2235_settings[] = {
 	{isp_sc2235_reg_config_list,
 	ARRAY_SIZE(isp_sc2235_reg_config_list)},
+};
+
+const struct reg_table isp_ov13850_settings[] = {
+	{isp_ov13850_reg_config_list,
+	ARRAY_SIZE(isp_ov13850_reg_config_list)},
 };
 
 static regval_t isp_format_reg_list[] = {
@@ -273,6 +322,7 @@ static int stf_isp_set_format(struct stf_isp_dev *isp_dev,
 	if (isp_dev->id == 0) {
 		ispbase = vin->isp_isp0_base;
 		isp_settings = isp_sc2235_settings;
+		//isp_settings = isp_ov13850_settings;
 	} else {
 		ispbase = vin->isp_isp1_base;
 		isp_settings = isp_sc2235_settings;

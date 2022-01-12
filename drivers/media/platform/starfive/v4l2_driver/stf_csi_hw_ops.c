@@ -37,6 +37,7 @@
 
 static int apb_clk_set(struct stf_vin_dev *vin, int on)
 {
+#if 0
 	static int init_flag;
 	static struct mutex count_lock;
 	static int count;
@@ -61,13 +62,15 @@ static int apb_clk_set(struct stf_vin_dev *vin, int on)
 	}
 exit:
 	mutex_unlock(&count_lock);
-	return 0;
+#endif
 
+	return 0;
 }
 static int stf_csi_clk_enable(struct stf_csi_dev *csi_dev)
 {
 	struct stf_vin_dev *vin = csi_dev->stfcamss->vin;
 
+#if 0
 	// reg_set_highest_bit(vin->clkgen_base, CLK_CSI2RX0_APB_CTRL);
 	apb_clk_set(vin, 1);
 
@@ -90,6 +93,7 @@ static int stf_csi_clk_enable(struct stf_csi_dev *csi_dev)
 		reg_set_highest_bit(vin->clkgen_base, CLK_MIPI_RX1_PXL_3_CTRL);
 		reg_set_highest_bit(vin->clkgen_base, CLK_MIPI_RX1_SYS1_CTRL);
 	}
+#endif
 
 	return 0;
 }
@@ -98,6 +102,7 @@ static int stf_csi_clk_disable(struct stf_csi_dev *csi_dev)
 {
 	struct stf_vin_dev *vin = csi_dev->stfcamss->vin;
 
+#if 0
 	// reg_clr_highest_bit(vin->clkgen_base, CLK_CSI2RX0_APB_CTRL);
 	apb_clk_set(vin, 0);
 
@@ -114,6 +119,7 @@ static int stf_csi_clk_disable(struct stf_csi_dev *csi_dev)
 		reg_clr_highest_bit(vin->clkgen_base, CLK_MIPI_RX1_PXL_3_CTRL);
 		reg_clr_highest_bit(vin->clkgen_base, CLK_MIPI_RX1_SYS1_CTRL);
 	}
+#endif
 
 	return 0;
 }
@@ -235,7 +241,7 @@ static void csi2rx_debug_config(void *reg_base, u32 frame_lines)
 	reg_write(reg_base, STREAM0_FCC_CTRL, (0x0 << 1) | 0x1);
 }
 
-static int csi2rx_start(struct stf_csi_dev *csi_dev)
+static int csi2rx_start(struct stf_csi_dev *csi_dev, void *reg_base)
 {
 	struct stfcamss *stfcamss = csi_dev->stfcamss;
 	struct stf_vin_dev *vin = stfcamss->vin;
@@ -245,7 +251,6 @@ static int csi2rx_start(struct stf_csi_dev *csi_dev)
 	unsigned long lanes_used = 0;
 	u32 reg;
 	int ret;
-	void *reg_base = NULL;
 
 	if (!csiphy) {
 		st_err(ST_CSI, "csiphy%d sensor not exist use csiphy%d init.\n",
@@ -257,13 +262,6 @@ static int csi2rx_start(struct stf_csi_dev *csi_dev)
 			return -EINVAL;
 		}
 	}
-
-	if (csi_dev->id == 0)
-		reg_base = vin->mipi0_base;
-	else if (csi_dev->id == 1)
-		reg_base = vin->mipi1_base;
-	else
-		return 0;
 
 	csi2rx_reset(reg_base);
 
@@ -302,7 +300,7 @@ static int csi2rx_start(struct stf_csi_dev *csi_dev)
 			| 1 << (csiphy->data_lanes[i] + 11);
 #else
 	for (i = 0; i < csiphy->num_data_lanes; i++)
-		reg |= 1 << i | 1 << (i + 12); 
+		reg |= 1 << i | 1 << (i + 12);
 #endif
 
 	reg |= 1 << 4 | 1 << 16;
@@ -335,9 +333,13 @@ static int csi2rx_start(struct stf_csi_dev *csi_dev)
 	return 0;
 }
 
-static void csi2rx_stop(void *reg_base)
+static void csi2rx_stop(struct stf_csi_dev *csi_dev, void *reg_base)
 {
+    struct stf_vin_dev *vin = csi_dev->stfcamss->vin;
 	unsigned int i;
+
+    reg_assert_rst(vin->clkgen_base, SOFTWARE_RESET_ASSERT0_ASSERT_SET,
+		SOFTWARE_RESET_ASSERT0_ASSERT_SET_STATE, BIT(2)|BIT(3));
 
 	for (i = 0; i < CSI2RX_STREAMS_MAX; i++)
 		writel(0, reg_base + CSI2RX_STREAM_CTRL_REG(i));
@@ -355,10 +357,33 @@ static int stf_csi_stream_set(struct stf_csi_dev *csi_dev, int on)
 	else
 		return 0;
 
+    switch (csi_dev->s_type) {
+    case SENSOR_VIN:
+    	st_err(ST_CSI, "please check csi_dev s_type:%d\n", csi_dev->s_type);
+		break;
+    case SENSOR_ISP0:
+        reg_set_bit(vin->sysctrl_base,	SYSCONSAIF_SYSCFG_36,
+			BIT(7)|BIT(6),
+			0<<6);        
+		reg_set_bit(vin->sysctrl_base,	SYSCONSAIF_SYSCFG_36,
+			BIT(11)|BIT(10)|BIT(9)|BIT(8),
+			0<<8);
+        reg_set_bit(vin->sysctrl_base,	SYSCONSAIF_SYSCFG_36,
+			BIT(12), 0<<12);
+        reg_set_bit(vin->sysctrl_base,	SYSCONSAIF_SYSCFG_36,
+			BIT(16)|BIT(15)|BIT(14)|BIT(13),
+			0<<13);
+    case SENSOR_ISP1:
+    	st_err(ST_CSI, "please check csi_dev s_type:%d\n", csi_dev->s_type);
+		break;
+    default:
+		break;
+    }
+
 	if (on)
-		csi2rx_start(csi_dev);
+		csi2rx_start(csi_dev, reg_base);
 	else
-		csi2rx_stop(reg_base);
+		csi2rx_stop(csi_dev, reg_base);
 
 	return 0;
 }

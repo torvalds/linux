@@ -70,6 +70,8 @@
 #define CLK_DOM4_APB_FUNC			0x0
 #define CLK_MUX_SEL					0xffffff
 
+#define CLK_MIPI_RX0_PXL            0x4
+
 #define CLK_DVP_INV					0x8
 #define CLK_U0_VIN_PCLK				0x18
 #define CLK_U0_VIN_PCLK_ICG						(0x1<<31)
@@ -77,6 +79,13 @@
 #define CLK_U0_VIN_SYS_CLK			0x1c
 #define CLK_U0_VIN_CLK_P_AXIWR 		0x30
 #define CLK_U0_VIN_MUX_SEL			(BIT(24) | BIT(25) | BIT(26) | BIT(27) | BIT(28) | BIT(29))
+
+#define CLK_U0_VIN_PIXEL_CLK_IF0    0x20
+#define CLK_U0_VIN_PIXEL_CLK_IF1    0x24
+#define CLK_U0_VIN_PIXEL_CLK_IF2    0x28
+#define CLK_U0_VIN_PIXEL_CLK_IF3    0x2c
+
+#define CLK_U0_VIN_CLK_P_AXIWR      0x30
 
 #define CLK_U0_ISPV2_TOP_WRAPPER_CLK_C	0x34u
 #define CLK_U0_ISPV2_MUX_SEL		(0x1<<24 | 0x1<<25 | 0x1<<26 | 0x1<<27 | 0x1<<28 | 0x1<< 29)
@@ -98,8 +107,9 @@
 
 
 
-
+//pmu registers
 #define SW_DEST_POWER_ON			0x0C
+#define SW_DEST_POWER_OFF			0x10
 #define SW_ENCOURAGE				0x44
 
 
@@ -280,6 +290,12 @@
 #define STREAM0_FCC_CFG         0x120
 #define STREAM0_FCC_CTRL        0x124
 #define STREAM0_FIFO_FILL_LVL   0x128
+
+//m31_dphy registers
+#define M31DPHY_APBCFGSAIF__SYSCFG_188      0xbc
+#define M31DPHY_APBCFGSAIF__SYSCFG_192      0xc0
+#define M31DPHY_APBCFGSAIF__SYSCFG_196      0xc4
+#define M31DPHY_APBCFGSAIF__SYSCFG_200      0xc8
 
 typedef enum
 {

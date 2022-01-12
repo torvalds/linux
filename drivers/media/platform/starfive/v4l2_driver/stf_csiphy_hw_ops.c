@@ -18,6 +18,20 @@ static int stf_csiphy_clk_set(struct stf_csiphy_dev *csiphy_dev, int on)
 	}
 	mutex_lock(&count_lock);
 	if (on) {
+        reg_set_bit(vin->rstgen_base,
+            M31DPHY_APBCFGSAIF__SYSCFG_188,
+            BIT(6), BIT(6));
+//need to check one or two mipi input
+#ifdef USE_CSIDPHY_ONE_CLK_MODE	//one mipi input
+        reg_set_bit(vin->rstgen_base,
+            M31DPHY_APBCFGSAIF__SYSCFG_188,
+            BIT(7), BIT(7));
+#else							//two mipi input
+        reg_set_bit(vin->rstgen_base,
+            M31DPHY_APBCFGSAIF__SYSCFG_188,
+            BIT(7), 0x2<<7);
+#endif
+#if 0
 		if (count == 0) {
 			reg_set_bit(vin->clkgen_base,
 				CLK_DPHY_CFGCLK_ISPCORE_2X_CTRL,
@@ -40,11 +54,13 @@ static int stf_csiphy_clk_set(struct stf_csiphy_dev *csiphy_dev, int on)
 				CLK_DPHY_TXCLKESC_IN_CTRL,
 				1 << 31, 1 << 31);
 		}
+#endif
 		count++;
 	} else {
 		if (count == 0)
 			goto exit;
 		if (count == 1) {
+#if 0
 			reg_set_bit(vin->clkgen_base,
 				CLK_DPHY_CFGCLK_ISPCORE_2X_CTRL,
 				1 << 31, 0 << 31);
@@ -56,6 +72,7 @@ static int stf_csiphy_clk_set(struct stf_csiphy_dev *csiphy_dev, int on)
 			reg_set_bit(vin->clkgen_base,
 				CLK_DPHY_TXCLKESC_IN_CTRL,
 				1 << 31, 0 << 31);
+#endif
 		}
 		count--;
 	}
@@ -175,6 +192,79 @@ static int csi2rx_dphy_config(struct stf_vin_dev *vin,
 
 	id = cfg->num_clks == 2 ? 1 : 0;
 
+    reg_set_bit(vin->rstgen_base,
+        M31DPHY_APBCFGSAIF__SYSCFG_188,
+        BIT(0), 0<<0);
+    reg_set_bit(vin->rstgen_base,
+        M31DPHY_APBCFGSAIF__SYSCFG_188,
+        BIT(1), 0<<1);
+    reg_set_bit(vin->rstgen_base,
+        M31DPHY_APBCFGSAIF__SYSCFG_188,
+        BIT(2), 0<<2);
+    reg_set_bit(vin->rstgen_base,
+        M31DPHY_APBCFGSAIF__SYSCFG_188,
+        BIT(3), 0<<3);
+    reg_set_bit(vin->rstgen_base,
+        M31DPHY_APBCFGSAIF__SYSCFG_188,
+        BIT(4), 0<<4);
+    reg_set_bit(vin->rstgen_base,
+        M31DPHY_APBCFGSAIF__SYSCFG_188,
+        BIT(5), 0<<5);
+
+    reg_set_bit(vin->rstgen_base,
+        M31DPHY_APBCFGSAIF__SYSCFG_188,
+        BIT(8), 1<<8);
+    reg_set_bit(vin->rstgen_base,
+        M31DPHY_APBCFGSAIF__SYSCFG_188,
+        BIT(9), 1<<9);
+    reg_set_bit(vin->rstgen_base,
+        M31DPHY_APBCFGSAIF__SYSCFG_188,
+        BIT(10), 1<<10);
+    reg_set_bit(vin->rstgen_base,
+        M31DPHY_APBCFGSAIF__SYSCFG_188,
+        BIT(11), 1<<11);
+    reg_set_bit(vin->rstgen_base,
+        M31DPHY_APBCFGSAIF__SYSCFG_188,
+        BIT(17)|BIT(16)|BIT(15)|BIT(14)|BIT(13)|BIT(12),
+        0<<12);
+    reg_set_bit(vin->rstgen_base,
+        M31DPHY_APBCFGSAIF__SYSCFG_188,
+        BIT(18), 0<<18);
+    reg_set_bit(vin->rstgen_base,
+        M31DPHY_APBCFGSAIF__SYSCFG_188,
+        BIT(19), 0<<19);
+
+    reg_set_bit(vin->rstgen_base,
+        M31DPHY_APBCFGSAIF__SYSCFG_188,
+        BIT(22)|BIT(21)|BIT(20), cfg->clock_lane<<20);          //clock lane 0
+    reg_set_bit(vin->rstgen_base,
+        M31DPHY_APBCFGSAIF__SYSCFG_188,
+        BIT(25)|BIT(24)|BIT(23), cfg->clock1_lane<<23);         //clock lane 1
+
+    reg_set_bit(vin->rstgen_base,
+        M31DPHY_APBCFGSAIF__SYSCFG_188,
+        BIT(28)|BIT(27)|BIT(26), cfg->data_lanes[0]<<26);       //data lane 0
+    reg_set_bit(vin->rstgen_base,
+        M31DPHY_APBCFGSAIF__SYSCFG_188,
+        BIT(31)|BIT(30)|BIT(29), cfg->data_lanes[1]<<29);       //data lane 1
+    reg_set_bit(vin->rstgen_base,
+        M31DPHY_APBCFGSAIF__SYSCFG_192,
+        BIT(2)|BIT(1)|BIT(0), cfg->data_lanes[2]<<0);           //data lane 2
+    reg_set_bit(vin->rstgen_base,
+        M31DPHY_APBCFGSAIF__SYSCFG_192,
+        BIT(5)|BIT(4)|BIT(3), cfg->data_lanes[3]<<3);           //data lane 3
+
+    reg_set_bit(vin->rstgen_base,
+        M31DPHY_APBCFGSAIF__SYSCFG_192,
+        BIT(6), 0<<6);
+    reg_set_bit(vin->rstgen_base,
+        M31DPHY_APBCFGSAIF__SYSCFG_192,
+        BIT(11)|BIT(10)|BIT(9)|BIT(8)|BIT(7), 0<<7);
+    reg_set_bit(vin->rstgen_base,
+        M31DPHY_APBCFGSAIF__SYSCFG_200,
+        BIT(8), 0<<8);
+
+#if 0
 	reg = reg_read(vin->sysctrl_base, SYSCTRL_REG4);
 
 	st_debug(ST_CSIPHY, "id = %d, clock_lane = %d, SYSCTRL_REG4: 0x%x\n",
@@ -208,7 +298,7 @@ static int csi2rx_dphy_config(struct stf_vin_dev *vin,
 
 	print_reg(ST_CSIPHY, vin->sysctrl_base, SYSCTRL_REG4);
 	print_reg(ST_CSIPHY, vin->sysctrl_base, SYSCTRL_DPHY_CTRL);
-
+#endif
 	return 0;
 }
 
