@@ -131,7 +131,7 @@
 			clock-names = "apb_pclk";
 			cap-sd-highspeed;
 			cap-mmc-highspeed;
-			max-frequency = <120000000>;
+			max-frequency = <130000000>;
 			status = "disabled";
 		};
 
