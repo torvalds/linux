@@ -650,6 +650,7 @@ ath5k_hw_get_isr(struct ath5k_hw *ah, enum ath5k_int *interrupt_mask)
 		 */
 		*interrupt_mask = (pisr & AR5K_INT_COMMON) & ah->ah_imr;
 
+		ah->ah_txq_isr_txok_all = 0;
 
 		/* We treat TXOK,TXDESC, TXERR and TXEOL
 		 * the same way (schedule the tx tasklet)
