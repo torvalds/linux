@@ -390,15 +390,19 @@ static int btree_key_cache_flush_pos(struct btree_trans *trans,
 		goto out;
 
 	ck = (void *) c_iter.path->l[0].b;
-	if (!ck ||
-	    (journal_seq && ck->journal.seq != journal_seq))
+	if (!ck)
 		goto out;
 
 	if (!test_bit(BKEY_CACHED_DIRTY, &ck->flags)) {
-		if (!evict)
-			goto out;
-		goto evict;
+		if (evict)
+			goto evict;
+		goto out;
 	}
+
+	BUG_ON(!ck->valid);
+
+	if (journal_seq && ck->journal.seq != journal_seq)
+		goto out;
 
 	/*
 	 * Since journal reclaim depends on us making progress here, and the
