@@ -278,24 +278,27 @@ DEFINE_EVENT(bch_fs, btree_node_cannibalize_unlock,
 );
 
 TRACE_EVENT(btree_reserve_get_fail,
-	TP_PROTO(struct bch_fs *c, size_t required, struct closure *cl),
-	TP_ARGS(c, required, cl),
+	TP_PROTO(const char *trans_fn,
+		 unsigned long caller_ip,
+		 size_t required),
+	TP_ARGS(trans_fn, caller_ip, required),
 
 	TP_STRUCT__entry(
-		__field(dev_t,		dev			)
+		__array(char,			trans_fn, 24	)
+		__field(unsigned long,		caller_ip	)
 		__field(size_t,			required	)
-		__field(struct closure *,	cl		)
 	),
 
 	TP_fast_assign(
-		__entry->dev		= c->dev;
-		__entry->required = required;
-		__entry->cl = cl;
+		strlcpy(__entry->trans_fn, trans_fn, sizeof(__entry->trans_fn));
+		__entry->caller_ip	= caller_ip;
+		__entry->required	= required;
 	),
 
-	TP_printk("%d,%d required %zu by %p",
-		  MAJOR(__entry->dev), MINOR(__entry->dev),
-		  __entry->required, __entry->cl)
+	TP_printk("%s %pS required %zu",
+		  __entry->trans_fn,
+		  (void *) __entry->caller_ip,
+		  __entry->required)
 );
 
 DEFINE_EVENT(btree_node, btree_split,
