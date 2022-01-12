@@ -3683,6 +3683,8 @@ intel_dp_check_mst_status(struct intel_dp *intel_dp)
 			break;
 		}
 
+		drm_dbg_kms(&i915->drm, "DPRX ESI: %4ph\n", esi);
+
 		/* check link status - esi[10] = 0x200c */
 		if (intel_dp->active_mst_links > 0 && link_ok &&
 		    !drm_dp_channel_eq_ok(&esi[10], intel_dp->lane_count)) {
@@ -3690,8 +3692,6 @@ intel_dp_check_mst_status(struct intel_dp *intel_dp)
 				    "channel EQ not ok, retraining\n");
 			link_ok = false;
 		}
-
-		drm_dbg_kms(&i915->drm, "got esi %3ph\n", esi);
 
 		intel_dp_mst_hpd_irq(intel_dp, esi, &handled);
 
