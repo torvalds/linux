@@ -89,7 +89,7 @@ struct v9fs_session_info {
 	unsigned int cache;
 #ifdef CONFIG_9P_FSCACHE
 	char *cachetag;
-	struct fscache_cookie *fscache;
+	struct fscache_volume *fscache;
 #endif
 
 	char *uname;		/* user name to mount as */
@@ -109,7 +109,6 @@ struct v9fs_session_info {
 
 struct v9fs_inode {
 #ifdef CONFIG_9P_FSCACHE
-	struct mutex fscache_lock;
 	struct fscache_cookie *fscache;
 #endif
 	struct p9_qid qid;
@@ -132,6 +131,16 @@ static inline struct fscache_cookie *v9fs_inode_cookie(struct v9fs_inode *v9inod
 	return NULL;
 #endif
 }
+
+static inline struct fscache_volume *v9fs_session_cache(struct v9fs_session_info *v9ses)
+{
+#ifdef CONFIG_9P_FSCACHE
+	return v9ses->fscache;
+#else
+	return NULL;
+#endif
+}
+
 
 extern int v9fs_show_options(struct seq_file *m, struct dentry *root);
 
