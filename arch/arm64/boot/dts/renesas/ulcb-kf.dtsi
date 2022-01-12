@@ -37,6 +37,13 @@
 		};
 	};
 
+	accel_3v3: regulator-acc-3v3 {
+		compatible = "regulator-fixed";
+		regulator-name = "accel-3v3";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+	};
+
 	hdmi_1v8: regulator-hdmi-1v8 {
 		compatible = "regulator-fixed";
 		regulator-name = "hdmi-1v8";
@@ -178,6 +185,14 @@
 			#size-cells = <0>;
 			reg = <7>;
 
+			accelerometer@1d {
+				compatible = "st,lsm9ds0-imu";
+				reg = <0x1d>;
+
+				vdd-supply = <&accel_3v3>;
+				vddio-supply = <&accel_3v3>;
+			};
+
 			pcm3168a: audio-codec@44 {
 				#sound-dai-cells = <0>;
 				compatible = "ti,pcm3168a";
@@ -211,6 +226,14 @@
 						};
 					};
 				};
+			};
+
+			gyroscope@6b {
+				compatible = "st,lsm9ds0-gyro";
+				reg = <0x6b>;
+
+				vdd-supply = <&accel_3v3>;
+				vddio-supply = <&accel_3v3>;
 			};
 		};
 	};
