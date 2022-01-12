@@ -485,7 +485,7 @@ static int analogix_dp_process_clock_recovery(struct analogix_dp_device *dp)
 	u8 link_status[2], adjust_request[2];
 	u8 training_pattern = TRAINING_PTN2;
 
-	usleep_range(100, 101);
+	drm_dp_link_train_clock_recovery_delay(dp->dpcd);
 
 	lane_count = dp->link_train.lane_count;
 
@@ -559,7 +559,7 @@ static int analogix_dp_process_equalizer_training(struct analogix_dp_device *dp)
 	u32 reg;
 	u8 link_align, link_status[2], adjust_request[2];
 
-	usleep_range(400, 401);
+	drm_dp_link_train_channel_eq_delay(dp->dpcd);
 
 	lane_count = dp->link_train.lane_count;
 
@@ -988,6 +988,12 @@ static int analogix_dp_commit(struct analogix_dp_device *dp)
 {
 	struct video_info *video = &dp->video_info;
 	int ret;
+
+	ret = drm_dp_read_dpcd_caps(&dp->aux, dp->dpcd);
+	if (ret < 0) {
+		dev_err(dp->dev, "failed to read dpcd caps: %d\n", ret);
+		return ret;
+	}
 
 	if (device_property_read_bool(dp->dev, "panel-self-test"))
 		return drm_dp_dpcd_writeb(&dp->aux, DP_EDP_CONFIGURATION_SET,
