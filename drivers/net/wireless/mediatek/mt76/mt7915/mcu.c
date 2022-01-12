@@ -358,7 +358,12 @@ mt7915_mcu_rx_radar_detected(struct mt7915_dev *dev, struct sk_buff *skb)
 	if (r->band_idx && dev->mt76.phy2)
 		mphy = dev->mt76.phy2;
 
-	ieee80211_radar_detected(mphy->hw);
+	if (r->band_idx == MT_RX_SEL2)
+		cfg80211_background_radar_event(mphy->hw->wiphy,
+						&dev->rdd2_chandef,
+						GFP_ATOMIC);
+	else
+		ieee80211_radar_detected(mphy->hw);
 	dev->hw_pattern++;
 }
 
