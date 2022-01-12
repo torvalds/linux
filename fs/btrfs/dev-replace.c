@@ -303,6 +303,9 @@ static int btrfs_init_dev_replace_tgtdev(struct btrfs_fs_info *fs_info,
 		goto error;
 	}
 	rcu_assign_pointer(device->name, name);
+	ret = lookup_bdev(device_path, &device->devt);
+	if (ret)
+		goto error;
 
 	set_bit(BTRFS_DEV_STATE_WRITEABLE, &device->dev_state);
 	device->generation = 0;
