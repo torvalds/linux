@@ -539,16 +539,15 @@ static int analogix_dp_process_clock_recovery(struct analogix_dp_device *dp)
 				return -EIO;
 			}
 		}
-
-		analogix_dp_get_adjust_training_lane(dp, adjust_request);
-		analogix_dp_set_lane_link_training(dp);
-
-		retval = drm_dp_dpcd_write(&dp->aux, DP_TRAINING_LANE0_SET,
-					   dp->link_train.training_lane,
-					   lane_count);
-		if (retval < 0)
-			return retval;
 	}
+
+	analogix_dp_get_adjust_training_lane(dp, adjust_request);
+	analogix_dp_set_lane_link_training(dp);
+
+	retval = drm_dp_dpcd_write(&dp->aux, DP_TRAINING_LANE0_SET,
+				   dp->link_train.training_lane, lane_count);
+	if (retval < 0)
+		return retval;
 
 	return 0;
 }
