@@ -918,10 +918,7 @@ static void ipa_endpoint_replenish(struct ipa_endpoint *endpoint, u32 count)
 
 try_again_later:
 	/* The last one didn't succeed, so fix the backlog */
-	backlog = atomic_inc_return(&endpoint->replenish_backlog);
-
-	if (count)
-		atomic_add(count, &endpoint->replenish_backlog);
+	backlog = atomic_add_return(count + 1, &endpoint->replenish_backlog);
 
 	/* Whenever a receive buffer transaction completes we'll try to
 	 * replenish again.  It's unlikely, but if we fail to supply even
