@@ -984,6 +984,52 @@ static int analogix_dp_fast_link_train_detection(struct analogix_dp_device *dp)
 	return 0;
 }
 
+static int analogix_dp_link_power_up(struct analogix_dp_device *dp)
+{
+	u8 value;
+	int ret;
+
+	if (dp->dpcd[DP_DPCD_REV] < 0x11)
+		return 0;
+
+	ret = drm_dp_dpcd_readb(&dp->aux, DP_SET_POWER, &value);
+	if (ret < 0)
+		return ret;
+
+	value &= ~DP_SET_POWER_MASK;
+	value |= DP_SET_POWER_D0;
+
+	ret = drm_dp_dpcd_writeb(&dp->aux, DP_SET_POWER, value);
+	if (ret < 0)
+		return ret;
+
+	usleep_range(1000, 2000);
+
+	return 0;
+}
+
+static int analogix_dp_link_power_down(struct analogix_dp_device *dp)
+{
+	u8 value;
+	int ret;
+
+	if (dp->dpcd[DP_DPCD_REV] < 0x11)
+		return 0;
+
+	ret = drm_dp_dpcd_readb(&dp->aux, DP_SET_POWER, &value);
+	if (ret < 0)
+		return ret;
+
+	value &= ~DP_SET_POWER_MASK;
+	value |= DP_SET_POWER_D3;
+
+	ret = drm_dp_dpcd_writeb(&dp->aux, DP_SET_POWER, value);
+	if (ret < 0)
+		return ret;
+
+	return 0;
+}
+
 static int analogix_dp_commit(struct analogix_dp_device *dp)
 {
 	struct video_info *video = &dp->video_info;
@@ -992,6 +1038,12 @@ static int analogix_dp_commit(struct analogix_dp_device *dp)
 	ret = drm_dp_read_dpcd_caps(&dp->aux, dp->dpcd);
 	if (ret < 0) {
 		dev_err(dp->dev, "failed to read dpcd caps: %d\n", ret);
+		return ret;
+	}
+
+	ret = analogix_dp_link_power_up(dp);
+	if (ret) {
+		dev_err(dp->dev, "failed to power up link: %d\n", ret);
 		return ret;
 	}
 
@@ -1444,6 +1496,9 @@ static void analogix_dp_bridge_disable(struct drm_bridge *bridge)
 			return;
 		}
 	}
+
+	if (!analogix_dp_get_plug_in_status(dp))
+		analogix_dp_link_power_down(dp);
 
 	disable_irq(dp->irq);
 
