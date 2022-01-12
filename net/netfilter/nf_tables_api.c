@@ -8299,7 +8299,7 @@ static int nf_tables_commit_chain_prepare(struct net *net, struct nft_chain *cha
 			return -ENOMEM;
 
 		size = 0;
-		track.last = last;
+		track.last = nft_expr_last(rule);
 		nft_rule_for_each_expr(expr, last, rule) {
 			track.cur = expr;
 
