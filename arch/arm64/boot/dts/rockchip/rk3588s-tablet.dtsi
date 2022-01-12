@@ -1064,6 +1064,11 @@
 	status = "okay";
 };
 
+&rockchip_suspend {
+	status = "okay";
+	rockchip,sleep-debug-en = <1>;
+};
+
 &route_edp0 {
 	connect = <&vp2_out_edp0>;
 	status = "okay";
