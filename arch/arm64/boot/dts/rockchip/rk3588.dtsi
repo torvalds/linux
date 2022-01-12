@@ -135,6 +135,7 @@
 			clock-names = "phyclk";
 			clock-output-names = "usb480m_phy1";
 			#clock-cells = <0>;
+			rockchip,usbctrl-grf = <&usb_grf>;
 			status = "disabled";
 
 			u2phy1_otg: otg-port {
