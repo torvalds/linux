@@ -913,6 +913,19 @@
 			#size-cells = <0>;
 		};
 
+		r_uart: serial@1f02800 {
+			compatible = "snps,dw-apb-uart";
+			reg = <0x01f02800 0x400>;
+			interrupts = <GIC_SPI 38 IRQ_TYPE_LEVEL_HIGH>;
+			reg-shift = <2>;
+			reg-io-width = <4>;
+			clocks = <&r_ccu CLK_APB0_UART>;
+			resets = <&r_ccu RST_APB0_UART>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&r_uart_pins>;
+			status = "disabled";
+		};
+
 		r_pio: pinctrl@1f02c00 {
 			compatible = "allwinner,sun8i-h3-r-pinctrl";
 			reg = <0x01f02c00 0x400>;
@@ -938,6 +951,11 @@
 			r_pwm_pin: r-pwm-pin {
 				pins = "PL10";
 				function = "s_pwm";
+			};
+
+			r_uart_pins: r-uart-pins {
+				pins = "PL2", "PL3";
+				function = "s_uart";
 			};
 		};
 
