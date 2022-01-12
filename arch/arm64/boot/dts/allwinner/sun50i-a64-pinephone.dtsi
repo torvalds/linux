@@ -12,6 +12,8 @@
 #include <dt-bindings/pwm/pwm.h>
 
 / {
+	chassis-type = "handset";
+
 	aliases {
 		ethernet0 = &rtl8723cs;
 		serial0 = &uart0;

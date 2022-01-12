@@ -37,6 +37,9 @@ properties:
           - const: toradex,colibri_t20
           - const: nvidia,tegra20
       - items:
+          - const: asus,tf101
+          - const: nvidia,tegra20
+      - items:
           - const: acer,picasso
           - const: nvidia,tegra20
       - items:
@@ -48,6 +51,18 @@ properties:
               - nvidia,cardhu-a02
               - nvidia,cardhu-a04
           - const: nvidia,cardhu
+          - const: nvidia,tegra30
+      - items:
+          - const: asus,tf201
+          - const: nvidia,tegra30
+      - items:
+          - const: asus,tf300t
+          - const: nvidia,tegra30
+      - items:
+          - const: asus,tf300tg
+          - const: nvidia,tegra30
+      - items:
+          - const: asus,tf700t
           - const: nvidia,tegra30
       - items:
           - const: toradex,apalis_t30-eval
@@ -75,7 +90,11 @@ properties:
           - const: ouya,ouya
           - const: nvidia,tegra30
       - items:
+          - const: pegatron,chagall
+          - const: nvidia,tegra30
+      - items:
           - enum:
+              - asus,tf701t
               - nvidia,dalmore
               - nvidia,roth
               - nvidia,tn7
@@ -108,14 +127,17 @@ properties:
               - nvidia,p2571
               - nvidia,p2894-0050-a08
           - const: nvidia,tegra210
-      - items:
-          - enum:
-              - nvidia,p2771-0000
-              - nvidia,p3509-0000+p3636-0001
+      - description: Jetson TX2 Developer Kit
+        items:
+          - const: nvidia,p2771-0000
           - const: nvidia,tegra186
-      - items:
-          - enum:
-              - nvidia,p2972-0000
+      - description: Jetson TX2 NX Developer Kit
+        items:
+          - const: nvidia,p3509-0000+p3636-0001
+          - const: nvidia,tegra186
+      - description: Jetson AGX Xavier Developer Kit
+        items:
+          - const: nvidia,p2972-0000
           - const: nvidia,tegra194
       - description: Jetson Xavier NX
         items:
@@ -134,8 +156,16 @@ properties:
           - const: nvidia,p3509-0000+p3668-0001
           - const: nvidia,tegra194
       - items:
-          - enum:
-              - nvidia,tegra234-vdk
+          - const: nvidia,tegra234-vdk
+          - const: nvidia,tegra234
+      - description: Jetson AGX Orin
+        items:
+          - const: nvidia,p3701-0000
+          - const: nvidia,tegra234
+      - description: Jetson AGX Orin Developer Kit
+        items:
+          - const: nvidia,p3737-0000+p3701-0000
+          - const: nvidia,p3701-0000
           - const: nvidia,tegra234
 
 additionalProperties: true

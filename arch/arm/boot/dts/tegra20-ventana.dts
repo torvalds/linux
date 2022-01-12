@@ -544,6 +544,7 @@
 		nvidia,core-pwr-good-time = <3845 3845>;
 		nvidia,core-pwr-off-time = <458>;
 		nvidia,sys-clock-req-active-high;
+		core-supply = <&vdd_core>;
 	};
 
 	usb@c5000000 {
@@ -556,8 +557,6 @@
 
 	usb@c5004000 {
 		status = "okay";
-		nvidia,phy-reset-gpio = <&gpio TEGRA_GPIO(V, 1)
-			GPIO_ACTIVE_LOW>;
 	};
 
 	usb-phy@c5004000 {
@@ -606,7 +605,7 @@
 		default-brightness-level = <6>;
 	};
 
-	clk32k_in: clock@0 {
+	clk32k_in: clock-32k {
 		compatible = "fixed-clock";
 		clock-frequency = <32768>;
 		#clock-cells = <0>;
@@ -647,7 +646,7 @@
 		ddc-i2c-bus = <&lvds_ddc>;
 	};
 
-	vdd_5v0_reg: regulator@0 {
+	vdd_5v0_reg: regulator-5v0 {
 		compatible = "regulator-fixed";
 		regulator-name = "vdd_5v0";
 		regulator-min-microvolt = <5000000>;
@@ -655,7 +654,7 @@
 		regulator-always-on;
 	};
 
-	regulator@1 {
+	regulator-1v5 {
 		compatible = "regulator-fixed";
 		regulator-name = "vdd_1v5";
 		regulator-min-microvolt = <1500000>;
@@ -663,7 +662,7 @@
 		gpio = <&pmic 0 GPIO_ACTIVE_HIGH>;
 	};
 
-	regulator@2 {
+	regulator-1v2 {
 		compatible = "regulator-fixed";
 		regulator-name = "vdd_1v2";
 		regulator-min-microvolt = <1200000>;
@@ -672,7 +671,7 @@
 		enable-active-high;
 	};
 
-	vdd_pnl_reg: regulator@3 {
+	vdd_pnl_reg: regulator-pnl {
 		compatible = "regulator-fixed";
 		regulator-name = "vdd_pnl";
 		regulator-min-microvolt = <2800000>;
@@ -681,7 +680,7 @@
 		enable-active-high;
 	};
 
-	vdd_bl_reg: regulator@4 {
+	vdd_bl_reg: regulator-bl {
 		compatible = "regulator-fixed";
 		regulator-name = "vdd_bl";
 		regulator-min-microvolt = <2800000>;

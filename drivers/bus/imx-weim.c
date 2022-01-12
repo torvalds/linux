@@ -21,6 +21,7 @@ struct imx_weim_devtype {
 	unsigned int	cs_stride;
 	unsigned int	wcr_offset;
 	unsigned int	wcr_bcm;
+	unsigned int	wcr_cont_bclk;
 };
 
 static const struct imx_weim_devtype imx1_weim_devtype = {
@@ -41,6 +42,7 @@ static const struct imx_weim_devtype imx50_weim_devtype = {
 	.cs_stride	= 0x18,
 	.wcr_offset	= 0x90,
 	.wcr_bcm	= BIT(0),
+	.wcr_cont_bclk	= BIT(3),
 };
 
 static const struct imx_weim_devtype imx51_weim_devtype = {
@@ -206,8 +208,20 @@ static int weim_parse_dt(struct platform_device *pdev, void __iomem *base)
 	if (of_property_read_bool(pdev->dev.of_node, "fsl,burst-clk-enable")) {
 		if (devtype->wcr_bcm) {
 			reg = readl(base + devtype->wcr_offset);
-			writel(reg | devtype->wcr_bcm,
-				base + devtype->wcr_offset);
+			reg |= devtype->wcr_bcm;
+
+			if (of_property_read_bool(pdev->dev.of_node,
+						"fsl,continuous-burst-clk")) {
+				if (devtype->wcr_cont_bclk) {
+					reg |= devtype->wcr_cont_bclk;
+				} else {
+					dev_err(&pdev->dev,
+						"continuous burst clk not supported.\n");
+					return -EINVAL;
+				}
+			}
+
+			writel(reg, base + devtype->wcr_offset);
 		} else {
 			dev_err(&pdev->dev, "burst clk mode not supported.\n");
 			return -EINVAL;

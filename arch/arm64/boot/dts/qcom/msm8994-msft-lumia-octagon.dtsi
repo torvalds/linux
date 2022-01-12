@@ -62,7 +62,6 @@
 
 	gpio-keys {
 		compatible = "gpio-keys";
-		input-name = "gpio-keys";
 		autorepeat;
 
 		volupkey {

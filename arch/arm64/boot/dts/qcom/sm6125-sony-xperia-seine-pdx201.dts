@@ -42,7 +42,6 @@
 	gpio-keys {
 		status = "okay";
 		compatible = "gpio-keys";
-		input-name = "gpio-keys";
 		#address-cells = <1>;
 		#size-cells = <0>;
 		autorepeat;

@@ -103,7 +103,7 @@
 
 &gsbi3_spi {
 	spi@0 {
-		compatible = "swir,mangoh-iotport-spi", "spidev";
+		compatible = "swir,mangoh-iotport-spi";
 		spi-max-frequency = <24000000>;
 		reg = <0>;
 	};

@@ -90,12 +90,6 @@
 
 &spi1 {
 	status = "okay";
-
-	spidev@0 {
-		compatible = "spidev";
-		reg = <0>;
-		spi-max-frequency = <8000000>;
-	};
 };
 
 &usb0 {
