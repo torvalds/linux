@@ -599,6 +599,11 @@ config DEBUG_MISC
 	  Say Y here if you need to enable miscellaneous debug code that should
 	  be under a more specific debug option but isn't.
 
+menu "Networking Debugging"
+
+source "net/Kconfig.debug"
+
+endmenu # "Networking Debugging"
 
 menu "Memory Debugging"
 
@@ -2104,6 +2109,16 @@ config BACKTRACE_SELF_TEST
 
 	  Note that if you want to also test saved backtraces, you will
 	  have to enable STACKTRACE as well.
+
+	  Say N if you are unsure.
+
+config TEST_REF_TRACKER
+	tristate "Self test for reference tracker"
+	depends on DEBUG_KERNEL && STACKTRACE_SUPPORT
+	select REF_TRACKER
+	help
+	  This option provides a kernel module performing tests
+	  using reference tracker infrastructure.
 
 	  Say N if you are unsure.
 

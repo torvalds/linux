@@ -1021,7 +1021,6 @@ static int smc_clc_send_confirm_accept(struct smc_sock *smc,
 		struct smc_link *link = conn->lnk;
 
 		/* SMC-R specific settings */
-		link = conn->lnk;
 		memcpy(clc->hdr.eyecatcher, SMC_EYECATCHER,
 		       sizeof(SMC_EYECATCHER));
 		clc->hdr.typev1 = SMC_TYPE_R;

@@ -30,6 +30,7 @@
 
 #include "cgroup-internal.h"
 
+#include <linux/bpf-cgroup.h>
 #include <linux/cred.h>
 #include <linux/errno.h>
 #include <linux/init_task.h>

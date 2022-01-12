@@ -2,6 +2,7 @@
 /* Copyright (c) 2016 Thomas Graf <tgraf@tgraf.ch>
  */
 
+#include <linux/filter.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/skbuff.h>

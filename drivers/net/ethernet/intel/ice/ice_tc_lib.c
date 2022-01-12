@@ -398,9 +398,8 @@ ice_eswitch_add_tc_fltr(struct ice_vsi *vsi, struct ice_tc_flower_fltr *fltr)
 	struct ice_hw *hw = &vsi->back->hw;
 	struct ice_adv_lkup_elem *list;
 	u32 flags = fltr->flags;
-	enum ice_status status;
 	int lkups_cnt;
-	int ret = 0;
+	int ret;
 	int i;
 
 	if (!flags || (flags & ICE_TC_FLWR_FIELD_ENC_SRC_L4_PORT)) {
@@ -449,14 +448,13 @@ ice_eswitch_add_tc_fltr(struct ice_vsi *vsi, struct ice_tc_flower_fltr *fltr)
 	/* specify the cookie as filter_rule_id */
 	rule_info.fltr_rule_id = fltr->cookie;
 
-	status = ice_add_adv_rule(hw, list, lkups_cnt, &rule_info, &rule_added);
-	if (status == ICE_ERR_ALREADY_EXISTS) {
+	ret = ice_add_adv_rule(hw, list, lkups_cnt, &rule_info, &rule_added);
+	if (ret == -EEXIST) {
 		NL_SET_ERR_MSG_MOD(fltr->extack, "Unable to add filter because it already exist");
 		ret = -EINVAL;
 		goto exit;
-	} else if (status) {
+	} else if (ret) {
 		NL_SET_ERR_MSG_MOD(fltr->extack, "Unable to add filter due to error");
-		ret = -EIO;
 		goto exit;
 	}
 
@@ -1162,7 +1160,7 @@ static int ice_del_tc_fltr(struct ice_vsi *vsi, struct ice_tc_flower_fltr *fltr)
 	rule_rem.vsi_handle = fltr->dest_id;
 	err = ice_rem_adv_rule_by_id(&pf->hw, &rule_rem);
 	if (err) {
-		if (err == ICE_ERR_DOES_NOT_EXIST) {
+		if (err == -ENOENT) {
 			NL_SET_ERR_MSG_MOD(fltr->extack, "Filter does not exist");
 			return -ENOENT;
 		}

@@ -46,12 +46,6 @@ static void usage(void)
 	printf("       -h          Display this help.\n");
 }
 
-static int bpf_map_create(void)
-{
-	return bpf_create_map(BPF_MAP_TYPE_ARRAY, sizeof(uint32_t),
-			      sizeof(uint32_t), 1024, 0);
-}
-
 static int bpf_prog_create(const char *object)
 {
 	static struct bpf_insn insns[] = {
@@ -60,16 +54,22 @@ static int bpf_prog_create(const char *object)
 	};
 	size_t insns_cnt = sizeof(insns) / sizeof(struct bpf_insn);
 	struct bpf_object *obj;
-	int prog_fd;
+	int err;
 
 	if (object) {
-		assert(!bpf_prog_load(object, BPF_PROG_TYPE_UNSPEC,
-				      &obj, &prog_fd));
-		return prog_fd;
+		obj = bpf_object__open_file(object, NULL);
+		assert(!libbpf_get_error(obj));
+		err = bpf_object__load(obj);
+		assert(!err);
+		return bpf_program__fd(bpf_object__next_program(obj, NULL));
 	} else {
-		return bpf_load_program(BPF_PROG_TYPE_SOCKET_FILTER,
-					insns, insns_cnt, "GPL", 0,
-					bpf_log_buf, BPF_LOG_BUF_SIZE);
+		LIBBPF_OPTS(bpf_prog_load_opts, opts,
+			.log_buf = bpf_log_buf,
+			.log_size = BPF_LOG_BUF_SIZE,
+		);
+
+		return bpf_prog_load(BPF_PROG_TYPE_SOCKET_FILTER, NULL, "GPL",
+				     insns, insns_cnt, &opts);
 	}
 }
 
@@ -79,7 +79,8 @@ static int bpf_do_map(const char *file, uint32_t flags, uint32_t key,
 	int fd, ret;
 
 	if (flags & BPF_F_PIN) {
-		fd = bpf_map_create();
+		fd = bpf_map_create(BPF_MAP_TYPE_ARRAY, NULL, sizeof(uint32_t),
+				    sizeof(uint32_t), 1024, NULL);
 		printf("bpf: map fd:%d (%s)\n", fd, strerror(errno));
 		assert(fd > 0);
 

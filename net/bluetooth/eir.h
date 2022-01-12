@@ -5,6 +5,8 @@
  * Copyright (C) 2021 Intel Corporation
  */
 
+#include <asm/unaligned.h>
+
 void eir_create(struct hci_dev *hdev, u8 *data);
 
 u8 eir_create_adv_data(struct hci_dev *hdev, u8 instance, u8 *ptr);

@@ -3750,7 +3750,7 @@ static int ql3xxx_probe(struct pci_dev *pdev,
 	struct net_device *ndev = NULL;
 	struct ql3_adapter *qdev = NULL;
 	static int cards_found;
-	int pci_using_dac, err;
+	int err;
 
 	err = pci_enable_device(pdev);
 	if (err) {
@@ -3766,11 +3766,7 @@ static int ql3xxx_probe(struct pci_dev *pdev,
 
 	pci_set_master(pdev);
 
-	if (!dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64)))
-		pci_using_dac = 1;
-	else if (!(err = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32))))
-		pci_using_dac = 0;
-
+	err = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64));
 	if (err) {
 		pr_err("%s no usable DMA configuration\n", pci_name(pdev));
 		goto err_out_free_regions;
@@ -3797,8 +3793,7 @@ static int ql3xxx_probe(struct pci_dev *pdev,
 
 	qdev->msg_enable = netif_msg_init(debug, default_msg);
 
-	if (pci_using_dac)
-		ndev->features |= NETIF_F_HIGHDMA;
+	ndev->features |= NETIF_F_HIGHDMA;
 	if (qdev->device_id == QL3032_DEVICE_ID)
 		ndev->features |= NETIF_F_IP_CSUM | NETIF_F_SG;
 

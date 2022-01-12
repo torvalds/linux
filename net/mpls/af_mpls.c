@@ -230,8 +230,8 @@ static struct mpls_nh *mpls_get_nexthop(struct mpls_route *rt, u8 index)
  * Since those fields can change at any moment, use READ_ONCE to
  * access both.
  */
-static struct mpls_nh *mpls_select_multipath(struct mpls_route *rt,
-					     struct sk_buff *skb)
+static const struct mpls_nh *mpls_select_multipath(struct mpls_route *rt,
+						   struct sk_buff *skb)
 {
 	u32 hash = 0;
 	int nh_index = 0;
@@ -343,8 +343,8 @@ static int mpls_forward(struct sk_buff *skb, struct net_device *dev,
 {
 	struct net *net = dev_net(dev);
 	struct mpls_shim_hdr *hdr;
+	const struct mpls_nh *nh;
 	struct mpls_route *rt;
-	struct mpls_nh *nh;
 	struct mpls_entry_decoded dec;
 	struct net_device *out_dev;
 	struct mpls_dev *out_mdev;
@@ -2360,12 +2360,12 @@ static int mpls_getroute(struct sk_buff *in_skb, struct nlmsghdr *in_nlh,
 	u32 labels[MAX_NEW_LABELS];
 	struct mpls_shim_hdr *hdr;
 	unsigned int hdr_size = 0;
+	const struct mpls_nh *nh;
 	struct net_device *dev;
 	struct mpls_route *rt;
 	struct rtmsg *rtm, *r;
 	struct nlmsghdr *nlh;
 	struct sk_buff *skb;
-	struct mpls_nh *nh;
 	u8 n_labels;
 	int err;
 

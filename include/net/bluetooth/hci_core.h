@@ -30,6 +30,7 @@
 #include <linux/rculist.h>
 
 #include <net/bluetooth/hci.h>
+#include <net/bluetooth/hci_sync.h>
 #include <net/bluetooth/hci_sock.h>
 
 /* HCI priority */
@@ -87,6 +88,7 @@ struct discovery_state {
 	u8			(*uuids)[16];
 	unsigned long		scan_start;
 	unsigned long		scan_duration;
+	unsigned long		name_resolve_timeout;
 };
 
 #define SUSPEND_NOTIFIER_TIMEOUT	msecs_to_jiffies(2000) /* 2 seconds */
@@ -150,22 +152,22 @@ struct bdaddr_list_with_irk {
 	u8 local_irk[16];
 };
 
+enum hci_conn_flags {
+	HCI_CONN_FLAG_REMOTE_WAKEUP,
+	HCI_CONN_FLAG_DEVICE_PRIVACY,
+
+	__HCI_CONN_NUM_FLAGS,
+};
+
+/* Make sure number of flags doesn't exceed sizeof(current_flags) */
+static_assert(__HCI_CONN_NUM_FLAGS < 32);
+
 struct bdaddr_list_with_flags {
 	struct list_head list;
 	bdaddr_t bdaddr;
 	u8 bdaddr_type;
-	u32 current_flags;
+	DECLARE_BITMAP(flags, __HCI_CONN_NUM_FLAGS);
 };
-
-enum hci_conn_flags {
-	HCI_CONN_FLAG_REMOTE_WAKEUP,
-	HCI_CONN_FLAG_MAX
-};
-
-#define hci_conn_test_flag(nr, flags) ((flags) & (1U << nr))
-
-/* Make sure number of flags doesn't exceed sizeof(current_flags) */
-static_assert(HCI_CONN_FLAG_MAX < 32);
 
 struct bt_uuid {
 	struct list_head list;
@@ -351,8 +353,8 @@ struct hci_dev {
 	__u16		lmp_subver;
 	__u16		voice_setting;
 	__u8		num_iac;
-	__u8		stored_max_keys;
-	__u8		stored_num_keys;
+	__u16		stored_max_keys;
+	__u16		stored_num_keys;
 	__u8		io_capability;
 	__s8		inq_tx_power;
 	__u8		err_data_reporting;
@@ -475,6 +477,10 @@ struct hci_dev {
 	struct work_struct	power_on;
 	struct delayed_work	power_off;
 	struct work_struct	error_reset;
+	struct work_struct	cmd_sync_work;
+	struct list_head	cmd_sync_work_list;
+	struct mutex		cmd_sync_work_lock;
+	struct work_struct	cmd_sync_cancel_work;
 
 	__u16			discov_timeout;
 	struct delayed_work	discov_off;
@@ -489,10 +495,7 @@ struct hci_dev {
 	struct work_struct	tx_work;
 
 	struct work_struct	discov_update;
-	struct work_struct	bg_scan_update;
 	struct work_struct	scan_update;
-	struct work_struct	connectable_update;
-	struct work_struct	discoverable_update;
 	struct delayed_work	le_scan_disable;
 	struct delayed_work	le_scan_restart;
 
@@ -519,7 +522,6 @@ struct hci_dev {
 	bool			advertising_paused;
 
 	struct notifier_block	suspend_notifier;
-	struct work_struct	suspend_prepare;
 	enum suspended_state	suspend_state_next;
 	enum suspended_state	suspend_state;
 	bool			scanning_paused;
@@ -527,9 +529,6 @@ struct hci_dev {
 	u8			wake_reason;
 	bdaddr_t		wake_addr;
 	u8			wake_addr_type;
-
-	wait_queue_head_t	suspend_wait_q;
-	DECLARE_BITMAP(suspend_tasks, __SUSPEND_NUM_TASKS);
 
 	struct hci_conn_hash	conn_hash;
 
@@ -562,6 +561,7 @@ struct hci_dev {
 	struct rfkill		*rfkill;
 
 	DECLARE_BITMAP(dev_flags, __HCI_NUM_FLAGS);
+	DECLARE_BITMAP(conn_flags, __HCI_CONN_NUM_FLAGS);
 
 	__s8			adv_tx_power;
 	__u8			adv_data[HCI_MAX_EXT_AD_LENGTH];
@@ -603,6 +603,7 @@ struct hci_dev {
 
 #if IS_ENABLED(CONFIG_BT_AOSPEXT)
 	bool			aosp_capable;
+	bool			aosp_quality_report;
 #endif
 
 	int (*open)(struct hci_dev *hdev);
@@ -756,7 +757,8 @@ struct hci_conn_params {
 
 	struct hci_conn *conn;
 	bool explicit_connect;
-	u32 current_flags;
+	DECLARE_BITMAP(flags, __HCI_CONN_NUM_FLAGS);
+	u8  privacy_mode;
 };
 
 extern struct list_head hci_dev_list;
@@ -780,6 +782,12 @@ extern struct mutex hci_cb_list_lock;
 		hci_dev_clear_flag(hdev, HCI_PERIODIC_INQ);	\
 		hci_dev_clear_flag(hdev, HCI_QUALITY_REPORT);	\
 	} while (0)
+
+#define hci_dev_le_state_simultaneous(hdev) \
+	(test_bit(HCI_QUIRK_VALID_LE_STATES, &hdev->quirks) && \
+	 (hdev->le_states[4] & 0x08) &&	/* Central */ \
+	 (hdev->le_states[4] & 0x40) &&	/* Peripheral */ \
+	 (hdev->le_states[3] & 0x10))	/* Simultaneous */
 
 /* ----- HCI interface to upper protocols ----- */
 int l2cap_connect_ind(struct hci_dev *hdev, bdaddr_t *bdaddr);
@@ -1119,8 +1127,7 @@ struct hci_conn *hci_connect_le_scan(struct hci_dev *hdev, bdaddr_t *dst,
 				     enum conn_reasons conn_reason);
 struct hci_conn *hci_connect_le(struct hci_dev *hdev, bdaddr_t *dst,
 				u8 dst_type, bool dst_resolved, u8 sec_level,
-				u16 conn_timeout, u8 role,
-				bdaddr_t *direct_rpa);
+				u16 conn_timeout, u8 role);
 struct hci_conn *hci_connect_acl(struct hci_dev *hdev, bdaddr_t *dst,
 				 u8 sec_level, u8 auth_type,
 				 enum conn_reasons conn_reason);
@@ -1461,8 +1468,14 @@ void hci_conn_del_sysfs(struct hci_conn *conn);
 #define scan_coded(dev) (((dev)->le_tx_def_phys & HCI_LE_SET_PHY_CODED) || \
 			 ((dev)->le_rx_def_phys & HCI_LE_SET_PHY_CODED))
 
+#define ll_privacy_capable(dev) ((dev)->le_features[0] & HCI_LE_LL_PRIVACY)
+
 /* Use LL Privacy based address resolution if supported */
-#define use_ll_privacy(dev) ((dev)->le_features[0] & HCI_LE_LL_PRIVACY)
+#define use_ll_privacy(dev) (ll_privacy_capable(dev) && \
+			     hci_dev_test_flag(dev, HCI_ENABLE_LL_PRIVACY))
+
+#define privacy_mode_capable(dev) (use_ll_privacy(dev) && \
+				   (hdev->commands[39] & 0x04))
 
 /* Use enhanced synchronous connection if command is supported */
 #define enhanced_sco_capable(dev) ((dev)->commands[29] & 0x08)
@@ -1690,10 +1703,6 @@ static inline int hci_check_conn_params(u16 min, u16 max, u16 latency,
 int hci_register_cb(struct hci_cb *hcb);
 int hci_unregister_cb(struct hci_cb *hcb);
 
-struct sk_buff *__hci_cmd_sync(struct hci_dev *hdev, u16 opcode, u32 plen,
-			       const void *param, u32 timeout);
-struct sk_buff *__hci_cmd_sync_ev(struct hci_dev *hdev, u16 opcode, u32 plen,
-				  const void *param, u8 event, u32 timeout);
 int __hci_cmd_send(struct hci_dev *hdev, u16 opcode, u32 plen,
 		   const void *param);
 
@@ -1703,9 +1712,6 @@ void hci_send_acl(struct hci_chan *chan, struct sk_buff *skb, __u16 flags);
 void hci_send_sco(struct hci_conn *conn, struct sk_buff *skb);
 
 void *hci_sent_cmd_data(struct hci_dev *hdev, __u16 opcode);
-
-struct sk_buff *hci_cmd_sync(struct hci_dev *hdev, u16 opcode, u32 plen,
-			     const void *param, u32 timeout);
 
 u32 hci_conn_get_phy(struct hci_conn *conn);
 
@@ -1765,6 +1771,8 @@ void hci_mgmt_chan_unregister(struct hci_mgmt_chan *c);
 #define DISCOV_LE_FAST_ADV_INT_MIN	0x00A0	/* 100 msec */
 #define DISCOV_LE_FAST_ADV_INT_MAX	0x00F0	/* 150 msec */
 
+#define NAME_RESOLVE_DURATION		msecs_to_jiffies(10240)	/* 10.24 sec */
+
 void mgmt_fill_version_info(void *ver);
 int mgmt_new_settings(struct hci_dev *hdev);
 void mgmt_index_added(struct hci_dev *hdev);
@@ -1806,7 +1814,6 @@ int mgmt_user_passkey_notify(struct hci_dev *hdev, bdaddr_t *bdaddr,
 			     u8 entered);
 void mgmt_auth_failed(struct hci_conn *conn, u8 status);
 void mgmt_auth_enable_complete(struct hci_dev *hdev, u8 status);
-void mgmt_ssp_enable_complete(struct hci_dev *hdev, u8 enable, u8 status);
 void mgmt_set_class_of_dev_complete(struct hci_dev *hdev, u8 *dev_class,
 				    u8 status);
 void mgmt_set_local_name_complete(struct hci_dev *hdev, u8 *name, u8 status);
@@ -1831,8 +1838,6 @@ void mgmt_new_conn_param(struct hci_dev *hdev, bdaddr_t *bdaddr,
 			 u16 max_interval, u16 latency, u16 timeout);
 void mgmt_smp_complete(struct hci_conn *conn, bool complete);
 bool mgmt_get_connectable(struct hci_dev *hdev);
-void mgmt_set_connectable_complete(struct hci_dev *hdev, u8 status);
-void mgmt_set_discoverable_complete(struct hci_dev *hdev, u8 status);
 u8 mgmt_get_adv_discov_flags(struct hci_dev *hdev);
 void mgmt_advertising_added(struct sock *sk, struct hci_dev *hdev,
 			    u8 instance);

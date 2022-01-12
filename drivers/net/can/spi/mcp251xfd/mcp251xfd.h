@@ -10,6 +10,7 @@
 #ifndef _MCP251XFD_H
 #define _MCP251XFD_H
 
+#include <linux/bitfield.h>
 #include <linux/can/core.h>
 #include <linux/can/dev.h>
 #include <linux/can/rx-offload.h>
@@ -625,6 +626,12 @@ MCP251XFD_IS(2517);
 MCP251XFD_IS(2518);
 MCP251XFD_IS(251X);
 
+static inline bool mcp251xfd_is_fd_mode(const struct mcp251xfd_priv *priv)
+{
+	/* listen-only mode works like FD mode */
+	return priv->can.ctrlmode & (CAN_CTRLMODE_LISTENONLY | CAN_CTRLMODE_FD);
+}
+
 static inline u8 mcp251xfd_first_byte_set(u32 mask)
 {
 	return (mask & 0x0000ffff) ?
@@ -761,6 +768,24 @@ mcp251xfd_get_rx_obj_addr(const struct mcp251xfd_rx_ring *ring, u8 n)
 	return ring->base + ring->obj_size * n;
 }
 
+static inline int
+mcp251xfd_tx_tail_get_from_chip(const struct mcp251xfd_priv *priv,
+				u8 *tx_tail)
+{
+	u32 fifo_sta;
+	int err;
+
+	err = regmap_read(priv->map_reg,
+			  MCP251XFD_REG_FIFOSTA(MCP251XFD_TX_FIFO),
+			  &fifo_sta);
+	if (err)
+		return err;
+
+	*tx_tail = FIELD_GET(MCP251XFD_REG_FIFOSTA_FIFOCI_MASK, fifo_sta);
+
+	return 0;
+}
+
 static inline u8 mcp251xfd_get_tef_head(const struct mcp251xfd_priv *priv)
 {
 	return priv->tef->head & (priv->tx->obj_num - 1);
@@ -849,14 +874,23 @@ mcp251xfd_get_rx_linear_len(const struct mcp251xfd_rx_ring *ring)
 	     (n) < (priv)->rx_ring_num; \
 	     (n)++, (ring) = *((priv)->rx + (n)))
 
-int mcp251xfd_regmap_init(struct mcp251xfd_priv *priv);
+int mcp251xfd_chip_fifo_init(const struct mcp251xfd_priv *priv);
 u16 mcp251xfd_crc16_compute2(const void *cmd, size_t cmd_size,
 			     const void *data, size_t data_size);
 u16 mcp251xfd_crc16_compute(const void *data, size_t data_size);
+int mcp251xfd_regmap_init(struct mcp251xfd_priv *priv);
+void mcp251xfd_ring_init(struct mcp251xfd_priv *priv);
+void mcp251xfd_ring_free(struct mcp251xfd_priv *priv);
+int mcp251xfd_ring_alloc(struct mcp251xfd_priv *priv);
+int mcp251xfd_handle_rxif(struct mcp251xfd_priv *priv);
+int mcp251xfd_handle_tefif(struct mcp251xfd_priv *priv);
 void mcp251xfd_skb_set_timestamp(const struct mcp251xfd_priv *priv,
 				 struct sk_buff *skb, u32 timestamp);
 void mcp251xfd_timestamp_init(struct mcp251xfd_priv *priv);
 void mcp251xfd_timestamp_stop(struct mcp251xfd_priv *priv);
+
+netdev_tx_t mcp251xfd_start_xmit(struct sk_buff *skb,
+				 struct net_device *ndev);
 
 #if IS_ENABLED(CONFIG_DEV_COREDUMP)
 void mcp251xfd_dump(const struct mcp251xfd_priv *priv);

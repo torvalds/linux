@@ -492,7 +492,9 @@ static void skge_get_strings(struct net_device *dev, u32 stringset, u8 *data)
 }
 
 static void skge_get_ring_param(struct net_device *dev,
-				struct ethtool_ringparam *p)
+				struct ethtool_ringparam *p,
+				struct kernel_ethtool_ringparam *kernel_p,
+				struct netlink_ext_ack *extack)
 {
 	struct skge_port *skge = netdev_priv(dev);
 
@@ -504,7 +506,9 @@ static void skge_get_ring_param(struct net_device *dev,
 }
 
 static int skge_set_ring_param(struct net_device *dev,
-			       struct ethtool_ringparam *p)
+			       struct ethtool_ringparam *p,
+			       struct kernel_ethtool_ringparam *kernel_p,
+			       struct netlink_ext_ack *extack)
 {
 	struct skge_port *skge = netdev_priv(dev);
 	int err = 0;

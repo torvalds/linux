@@ -30,7 +30,7 @@ struct {
 	__type(value, struct array_elem);
 } array_map SEC(".maps");
 
-SEC("map_lock_demo")
+SEC("cgroup/skb")
 int bpf_map_lock_test(struct __sk_buff *skb)
 {
 	struct hmap_elem zero = {}, *val;

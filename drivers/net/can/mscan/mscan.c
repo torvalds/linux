@@ -401,13 +401,15 @@ static int mscan_rx_poll(struct napi_struct *napi, int quota)
 			continue;
 		}
 
-		if (canrflg & MSCAN_RXF)
+		if (canrflg & MSCAN_RXF) {
 			mscan_get_rx_frame(dev, frame);
-		else if (canrflg & MSCAN_ERR_IF)
+			stats->rx_packets++;
+			if (!(frame->can_id & CAN_RTR_FLAG))
+				stats->rx_bytes += frame->len;
+		} else if (canrflg & MSCAN_ERR_IF) {
 			mscan_get_err_frame(dev, frame, canrflg);
+		}
 
-		stats->rx_packets++;
-		stats->rx_bytes += frame->len;
 		work_done++;
 		netif_receive_skb(skb);
 	}
@@ -446,9 +448,9 @@ static irqreturn_t mscan_isr(int irq, void *dev_id)
 				continue;
 
 			out_8(&regs->cantbsel, mask);
-			stats->tx_bytes += in_8(&regs->tx.dlr);
+			stats->tx_bytes += can_get_echo_skb(dev, entry->id,
+							    NULL);
 			stats->tx_packets++;
-			can_get_echo_skb(dev, entry->id, NULL);
 			priv->tx_active &= ~mask;
 			list_del(pos);
 		}

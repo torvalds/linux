@@ -381,6 +381,8 @@ patternProperties:
     description: Silicon Laboratories (formerly Energy Micro AS)
   "^engicam,.*":
     description: Engicam S.r.l.
+  "^engleder,.*":
+    description: Engleder
   "^epcos,.*":
     description: EPCOS AG
   "^epfl,.*":
@@ -1278,6 +1280,8 @@ patternProperties:
     description: Variscite Ltd.
   "^vdl,.*":
     description: Van der Laan b.v.
+  "^vertexcom,.*":
+    description: Vertexcom Technologies, Inc.
   "^via,.*":
     description: VIA Technologies, Inc.
   "^videostrong,.*":

@@ -666,32 +666,29 @@ EXPORT_SYMBOL(nf_hook_slow_list);
 /* This needs to be compiled in any case to avoid dependencies between the
  * nfnetlink_queue code and nf_conntrack.
  */
-struct nfnl_ct_hook __rcu *nfnl_ct_hook __read_mostly;
+const struct nfnl_ct_hook __rcu *nfnl_ct_hook __read_mostly;
 EXPORT_SYMBOL_GPL(nfnl_ct_hook);
 
-struct nf_ct_hook __rcu *nf_ct_hook __read_mostly;
+const struct nf_ct_hook __rcu *nf_ct_hook __read_mostly;
 EXPORT_SYMBOL_GPL(nf_ct_hook);
 
 #if IS_ENABLED(CONFIG_NF_CONNTRACK)
-/* This does not belong here, but locally generated errors need it if connection
-   tracking in use: without this, connection may not be in hash table, and hence
-   manufactured ICMP or RST packets will not be associated with it. */
-void (*ip_ct_attach)(struct sk_buff *, const struct sk_buff *)
-		__rcu __read_mostly;
-EXPORT_SYMBOL(ip_ct_attach);
-
-struct nf_nat_hook __rcu *nf_nat_hook __read_mostly;
+const struct nf_nat_hook __rcu *nf_nat_hook __read_mostly;
 EXPORT_SYMBOL_GPL(nf_nat_hook);
 
+/* This does not belong here, but locally generated errors need it if connection
+ * tracking in use: without this, connection may not be in hash table, and hence
+ * manufactured ICMP or RST packets will not be associated with it.
+ */
 void nf_ct_attach(struct sk_buff *new, const struct sk_buff *skb)
 {
-	void (*attach)(struct sk_buff *, const struct sk_buff *);
+	const struct nf_ct_hook *ct_hook;
 
 	if (skb->_nfct) {
 		rcu_read_lock();
-		attach = rcu_dereference(ip_ct_attach);
-		if (attach)
-			attach(new, skb);
+		ct_hook = rcu_dereference(nf_ct_hook);
+		if (ct_hook)
+			ct_hook->attach(new, skb);
 		rcu_read_unlock();
 	}
 }
@@ -699,7 +696,7 @@ EXPORT_SYMBOL(nf_ct_attach);
 
 void nf_conntrack_destroy(struct nf_conntrack *nfct)
 {
-	struct nf_ct_hook *ct_hook;
+	const struct nf_ct_hook *ct_hook;
 
 	rcu_read_lock();
 	ct_hook = rcu_dereference(nf_ct_hook);
@@ -712,7 +709,7 @@ EXPORT_SYMBOL(nf_conntrack_destroy);
 bool nf_ct_get_tuple_skb(struct nf_conntrack_tuple *dst_tuple,
 			 const struct sk_buff *skb)
 {
-	struct nf_ct_hook *ct_hook;
+	const struct nf_ct_hook *ct_hook;
 	bool ret = false;
 
 	rcu_read_lock();

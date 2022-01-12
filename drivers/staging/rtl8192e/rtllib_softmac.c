@@ -2515,7 +2515,7 @@ void rtllib_stop_all_queues(struct rtllib_device *ieee)
 	unsigned int i;
 
 	for (i = 0; i < ieee->dev->num_tx_queues; i++)
-		netdev_get_tx_queue(ieee->dev, i)->trans_start = jiffies;
+		txq_trans_cond_update(netdev_get_tx_queue(ieee->dev, i));
 
 	netif_tx_stop_all_queues(ieee->dev);
 }

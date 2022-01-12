@@ -1063,7 +1063,7 @@ int __br_vlan_set_default_pvid(struct net_bridge *br, u16 pvid,
 		if (br_vlan_delete(br, old_pvid))
 			br_vlan_notify(br, NULL, old_pvid, 0, RTM_DELVLAN);
 		br_vlan_notify(br, NULL, pvid, 0, RTM_NEWVLAN);
-		set_bit(0, changed);
+		__set_bit(0, changed);
 	}
 
 	list_for_each_entry(p, &br->port_list, list) {
@@ -1085,7 +1085,7 @@ int __br_vlan_set_default_pvid(struct net_bridge *br, u16 pvid,
 		if (nbp_vlan_delete(p, old_pvid))
 			br_vlan_notify(br, p, old_pvid, 0, RTM_DELVLAN);
 		br_vlan_notify(p->br, p, pvid, 0, RTM_NEWVLAN);
-		set_bit(p->port_no, changed);
+		__set_bit(p->port_no, changed);
 	}
 
 	br->default_pvid = pvid;

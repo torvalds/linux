@@ -1053,10 +1053,10 @@ static void rtw8852a_set_channel_bb(struct rtw89_dev *rtwdev,
 				    struct rtw89_channel_params *param,
 				    enum rtw89_phy_idx phy_idx)
 {
-	bool cck_en = param->center_chan > 14 ? false : true;
+	bool cck_en = param->center_chan <= 14;
 	u8 pri_ch_idx = param->pri_ch_idx;
 
-	if (param->center_chan <= 14)
+	if (cck_en)
 		rtw8852a_ctrl_sco_cck(rtwdev, param->center_chan,
 				      param->primary_chan, param->bandwidth);
 
@@ -1069,6 +1069,8 @@ static void rtw8852a_set_channel_bb(struct rtw89_dev *rtwdev,
 		rtw8852a_bbrst_for_rfk(rtwdev, phy_idx);
 	}
 	rtw8852a_spur_elimination(rtwdev, param->center_chan);
+	rtw89_phy_write32_mask(rtwdev, R_MAC_PIN_SEL, B_CH_IDX_SEG0,
+			       param->primary_chan);
 	rtw8852a_bb_reset_all(rtwdev, phy_idx);
 }
 
@@ -1927,6 +1929,21 @@ void rtw8852a_btc_wl_s1_standby(struct rtw89_dev *rtwdev, bool state)
 	rtw89_write_rf(rtwdev, RF_PATH_B, RR_LUTWE, RFREG_MASK, 0x0);
 }
 
+static void rtw8852a_fill_freq_with_ppdu(struct rtw89_dev *rtwdev,
+					 struct rtw89_rx_phy_ppdu *phy_ppdu,
+					 struct ieee80211_rx_status *status)
+{
+	u16 chan = phy_ppdu->chan_idx;
+	u8 band;
+
+	if (chan == 0)
+		return;
+
+	band = chan <= 14 ? NL80211_BAND_2GHZ : NL80211_BAND_5GHZ;
+	status->freq = ieee80211_channel_to_frequency(chan, band);
+	status->band = band;
+}
+
 static void rtw8852a_query_ppdu(struct rtw89_dev *rtwdev,
 				struct rtw89_rx_phy_ppdu *phy_ppdu,
 				struct ieee80211_rx_status *status)
@@ -1939,6 +1956,8 @@ static void rtw8852a_query_ppdu(struct rtw89_dev *rtwdev,
 		status->chains |= BIT(path);
 		status->chain_signal[path] = rx_power[path];
 	}
+	if (phy_ppdu->valid)
+		rtw8852a_fill_freq_with_ppdu(rtwdev, phy_ppdu, status);
 }
 
 static const struct rtw89_chip_ops rtw8852a_chip_ops = {
@@ -2012,7 +2031,7 @@ const struct rtw89_chip_info rtw8852a_chip_info = {
 	.limit_efuse_size	= 1152,
 	.phycap_addr		= 0x580,
 	.phycap_size		= 128,
-	.para_ver		= 0x05050764,
+	.para_ver		= 0x05050864,
 	.wlcx_desired		= 0x05050000,
 	.btcx_desired		= 0x5,
 	.scbd			= 0x1,

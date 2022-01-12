@@ -20,6 +20,9 @@
 	(1 * VCAP_BLOCK + (lookup) * VCAP_LOOKUP)
 #define VCAP_IS2_CHAIN(lookup, pag)	\
 	(2 * VCAP_BLOCK + (lookup) * VCAP_LOOKUP + (pag))
+/* PSFP chain and block ID */
+#define PSFP_BLOCK_ID			OCELOT_NUM_VCAP_BLOCKS
+#define OCELOT_PSFP_CHAIN		(3 * VCAP_BLOCK)
 
 static int ocelot_chain_to_block(int chain, bool ingress)
 {
@@ -45,6 +48,9 @@ static int ocelot_chain_to_block(int chain, bool ingress)
 		for (pag = 0; pag < VCAP_IS2_NUM_PAG; pag++)
 			if (chain == VCAP_IS2_CHAIN(lookup, pag))
 				return VCAP_IS2;
+
+	if (chain == OCELOT_PSFP_CHAIN)
+		return PSFP_BLOCK_ID;
 
 	return -EOPNOTSUPP;
 }
@@ -84,7 +90,8 @@ static bool ocelot_is_goto_target_valid(int goto_target, int chain,
 			goto_target == VCAP_IS1_CHAIN(1) ||
 			goto_target == VCAP_IS1_CHAIN(2) ||
 			goto_target == VCAP_IS2_CHAIN(0, 0) ||
-			goto_target == VCAP_IS2_CHAIN(1, 0));
+			goto_target == VCAP_IS2_CHAIN(1, 0) ||
+			goto_target == OCELOT_PSFP_CHAIN);
 
 	if (chain == VCAP_IS1_CHAIN(0))
 		return (goto_target == VCAP_IS1_CHAIN(1));
@@ -111,7 +118,11 @@ static bool ocelot_is_goto_target_valid(int goto_target, int chain,
 		if (chain == VCAP_IS2_CHAIN(0, pag))
 			return (goto_target == VCAP_IS2_CHAIN(1, pag));
 
-	/* VCAP IS2 lookup 1 cannot jump anywhere */
+	/* VCAP IS2 lookup 1 can goto to PSFP block if hardware support */
+	for (pag = 0; pag < VCAP_IS2_NUM_PAG; pag++)
+		if (chain == VCAP_IS2_CHAIN(1, pag))
+			return (goto_target == OCELOT_PSFP_CHAIN);
+
 	return false;
 }
 
@@ -211,6 +222,7 @@ static int ocelot_flower_parse_action(struct ocelot *ocelot, int port,
 	const struct flow_action_entry *a;
 	enum ocelot_tag_tpid_sel tpid;
 	int i, chain, egress_port;
+	u32 pol_ix, pol_max;
 	u64 rate;
 	int err;
 
@@ -269,10 +281,14 @@ static int ocelot_flower_parse_action(struct ocelot *ocelot, int port,
 			filter->type = OCELOT_VCAP_FILTER_OFFLOAD;
 			break;
 		case FLOW_ACTION_POLICE:
+			if (filter->block_id == PSFP_BLOCK_ID) {
+				filter->type = OCELOT_PSFP_FILTER_OFFLOAD;
+				break;
+			}
 			if (filter->block_id != VCAP_IS2 ||
 			    filter->lookup != 0) {
 				NL_SET_ERR_MSG_MOD(extack,
-						   "Police action can only be offloaded to VCAP IS2 lookup 0");
+						   "Police action can only be offloaded to VCAP IS2 lookup 0 or PSFP");
 				return -EOPNOTSUPP;
 			}
 			if (filter->goto_target != -1) {
@@ -286,6 +302,20 @@ static int ocelot_flower_parse_action(struct ocelot *ocelot, int port,
 				return -EOPNOTSUPP;
 			}
 			filter->action.police_ena = true;
+
+			pol_ix = a->hw_index + ocelot->vcap_pol.base;
+			pol_max = ocelot->vcap_pol.max;
+
+			if (ocelot->vcap_pol.max2 && pol_ix > pol_max) {
+				pol_ix += ocelot->vcap_pol.base2 - pol_max - 1;
+				pol_max = ocelot->vcap_pol.max2;
+			}
+
+			if (pol_ix >= pol_max)
+				return -EINVAL;
+
+			filter->action.pol_ix = pol_ix;
+
 			rate = a->police.rate_bytes_ps;
 			filter->action.pol.rate = div_u64(rate, 1000) * 8;
 			filter->action.pol.burst = a->police.burst;
@@ -399,6 +429,14 @@ static int ocelot_flower_parse_action(struct ocelot *ocelot, int port,
 			filter->action.pcp_a_val = a->vlan.prio;
 			filter->type = OCELOT_VCAP_FILTER_OFFLOAD;
 			break;
+		case FLOW_ACTION_GATE:
+			if (filter->block_id != PSFP_BLOCK_ID) {
+				NL_SET_ERR_MSG_MOD(extack,
+						   "Gate action can only be offloaded to PSFP chain");
+				return -EOPNOTSUPP;
+			}
+			filter->type = OCELOT_PSFP_FILTER_OFFLOAD;
+			break;
 		default:
 			NL_SET_ERR_MSG_MOD(extack, "Cannot offload action");
 			return -EOPNOTSUPP;
@@ -407,7 +445,7 @@ static int ocelot_flower_parse_action(struct ocelot *ocelot, int port,
 
 	if (filter->goto_target == -1) {
 		if ((filter->block_id == VCAP_IS2 && filter->lookup == 1) ||
-		    chain == 0) {
+		    chain == 0 || filter->block_id == PSFP_BLOCK_ID) {
 			allow_missing_goto_target = true;
 		} else {
 			NL_SET_ERR_MSG_MOD(extack, "Missing GOTO action");
@@ -689,6 +727,10 @@ static int ocelot_flower_parse(struct ocelot *ocelot, int port, bool ingress,
 	if (ret)
 		return ret;
 
+	/* PSFP filter need to parse key by stream identification function. */
+	if (filter->type == OCELOT_PSFP_FILTER_OFFLOAD)
+		return 0;
+
 	return ocelot_flower_parse_key(ocelot, port, ingress, f, filter);
 }
 
@@ -792,6 +834,15 @@ int ocelot_cls_flower_replace(struct ocelot *ocelot, int port,
 	if (filter->type == OCELOT_VCAP_FILTER_DUMMY)
 		return ocelot_vcap_dummy_filter_add(ocelot, filter);
 
+	if (filter->type == OCELOT_PSFP_FILTER_OFFLOAD) {
+		kfree(filter);
+		if (ocelot->ops->psfp_filter_add)
+			return ocelot->ops->psfp_filter_add(ocelot, port, f);
+
+		NL_SET_ERR_MSG_MOD(extack, "PSFP chain is not supported in HW");
+		return -EOPNOTSUPP;
+	}
+
 	return ocelot_vcap_filter_add(ocelot, filter, f->common.extack);
 }
 EXPORT_SYMBOL_GPL(ocelot_cls_flower_replace);
@@ -806,6 +857,13 @@ int ocelot_cls_flower_destroy(struct ocelot *ocelot, int port,
 	block_id = ocelot_chain_to_block(f->common.chain_index, ingress);
 	if (block_id < 0)
 		return 0;
+
+	if (block_id == PSFP_BLOCK_ID) {
+		if (ocelot->ops->psfp_filter_del)
+			return ocelot->ops->psfp_filter_del(ocelot, f);
+
+		return -EOPNOTSUPP;
+	}
 
 	block = &ocelot->block[block_id];
 
@@ -825,11 +883,24 @@ int ocelot_cls_flower_stats(struct ocelot *ocelot, int port,
 {
 	struct ocelot_vcap_filter *filter;
 	struct ocelot_vcap_block *block;
+	struct flow_stats stats = {0};
 	int block_id, ret;
 
 	block_id = ocelot_chain_to_block(f->common.chain_index, ingress);
 	if (block_id < 0)
 		return 0;
+
+	if (block_id == PSFP_BLOCK_ID) {
+		if (ocelot->ops->psfp_stats_get) {
+			ret = ocelot->ops->psfp_stats_get(ocelot, f, &stats);
+			if (ret)
+				return ret;
+
+			goto stats_update;
+		}
+
+		return -EOPNOTSUPP;
+	}
 
 	block = &ocelot->block[block_id];
 
@@ -841,7 +912,10 @@ int ocelot_cls_flower_stats(struct ocelot *ocelot, int port,
 	if (ret)
 		return ret;
 
-	flow_stats_update(&f->stats, 0x0, filter->stats.pkts, 0, 0x0,
+	stats.pkts = filter->stats.pkts;
+
+stats_update:
+	flow_stats_update(&f->stats, 0x0, stats.pkts, stats.drops, 0x0,
 			  FLOW_ACTION_HW_STATS_IMMEDIATE);
 	return 0;
 }

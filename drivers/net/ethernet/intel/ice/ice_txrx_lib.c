@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Copyright (c) 2019, Intel Corporation. */
 
+#include <linux/filter.h>
+
 #include "ice_txrx_lib.h"
 #include "ice_eswitch.h"
 #include "ice_lib.h"
@@ -187,8 +189,7 @@ ice_process_skb_fields(struct ice_rx_ring *rx_ring,
 	ice_rx_hash(rx_ring, rx_desc, skb, ptype);
 
 	/* modifies the skb - consumes the enet header */
-	skb->protocol = eth_type_trans(skb, ice_eswitch_get_target_netdev
-				       (rx_ring, rx_desc));
+	skb->protocol = eth_type_trans(skb, rx_ring->netdev);
 
 	ice_rx_csum(rx_ring, skb, rx_desc, ptype);
 

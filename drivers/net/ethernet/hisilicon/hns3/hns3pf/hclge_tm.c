@@ -678,8 +678,8 @@ static void hclge_tm_vport_tc_info_update(struct hclge_vport *vport)
 	hclge_tm_update_kinfo_rss_size(vport);
 	kinfo->num_tqps = hclge_vport_get_tqp_num(vport);
 	vport->dwrr = 100;  /* 100 percent as init */
-	vport->alloc_rss_size = kinfo->rss_size;
 	vport->bw_limit = hdev->tm_info.pg_info[0].bw_limit;
+	hdev->rss_cfg.rss_size = kinfo->rss_size;
 
 	/* when enable mqprio, the tc_info has been updated. */
 	if (kinfo->tc_info.mqprio_active)
@@ -916,37 +916,62 @@ static int hclge_vport_q_to_qs_map(struct hclge_dev *hdev,
 	return 0;
 }
 
+static int hclge_tm_pri_q_qs_cfg_tc_base(struct hclge_dev *hdev)
+{
+	struct hclge_vport *vport = hdev->vport;
+	u16 i, k;
+	int ret;
+
+	/* Cfg qs -> pri mapping, one by one mapping */
+	for (k = 0; k < hdev->num_alloc_vport; k++) {
+		struct hnae3_knic_private_info *kinfo = &vport[k].nic.kinfo;
+
+		for (i = 0; i < kinfo->tc_info.num_tc; i++) {
+			ret = hclge_tm_qs_to_pri_map_cfg(hdev,
+							 vport[k].qs_offset + i,
+							 i);
+			if (ret)
+				return ret;
+		}
+	}
+
+	return 0;
+}
+
+static int hclge_tm_pri_q_qs_cfg_vnet_base(struct hclge_dev *hdev)
+{
+	struct hclge_vport *vport = hdev->vport;
+	u16 i, k;
+	int ret;
+
+	/* Cfg qs -> pri mapping,  qs = tc, pri = vf, 8 qs -> 1 pri */
+	for (k = 0; k < hdev->num_alloc_vport; k++)
+		for (i = 0; i < HNAE3_MAX_TC; i++) {
+			ret = hclge_tm_qs_to_pri_map_cfg(hdev,
+							 vport[k].qs_offset + i,
+							 k);
+			if (ret)
+				return ret;
+		}
+
+	return 0;
+}
+
 static int hclge_tm_pri_q_qs_cfg(struct hclge_dev *hdev)
 {
 	struct hclge_vport *vport = hdev->vport;
 	int ret;
-	u32 i, k;
+	u32 i;
 
-	if (hdev->tx_sch_mode == HCLGE_FLAG_TC_BASE_SCH_MODE) {
-		/* Cfg qs -> pri mapping, one by one mapping */
-		for (k = 0; k < hdev->num_alloc_vport; k++) {
-			struct hnae3_knic_private_info *kinfo =
-				&vport[k].nic.kinfo;
-
-			for (i = 0; i < kinfo->tc_info.num_tc; i++) {
-				ret = hclge_tm_qs_to_pri_map_cfg(
-					hdev, vport[k].qs_offset + i, i);
-				if (ret)
-					return ret;
-			}
-		}
-	} else if (hdev->tx_sch_mode == HCLGE_FLAG_VNET_BASE_SCH_MODE) {
-		/* Cfg qs -> pri mapping,  qs = tc, pri = vf, 8 qs -> 1 pri */
-		for (k = 0; k < hdev->num_alloc_vport; k++)
-			for (i = 0; i < HNAE3_MAX_TC; i++) {
-				ret = hclge_tm_qs_to_pri_map_cfg(
-					hdev, vport[k].qs_offset + i, k);
-				if (ret)
-					return ret;
-			}
-	} else {
+	if (hdev->tx_sch_mode == HCLGE_FLAG_TC_BASE_SCH_MODE)
+		ret = hclge_tm_pri_q_qs_cfg_tc_base(hdev);
+	else if (hdev->tx_sch_mode == HCLGE_FLAG_VNET_BASE_SCH_MODE)
+		ret = hclge_tm_pri_q_qs_cfg_vnet_base(hdev);
+	else
 		return -EINVAL;
-	}
+
+	if (ret)
+		return ret;
 
 	/* Cfg q -> qs mapping */
 	for (i = 0; i < hdev->num_alloc_vport; i++) {
@@ -1274,6 +1299,27 @@ static int hclge_tm_lvl2_schd_mode_cfg(struct hclge_dev *hdev)
 	return 0;
 }
 
+static int hclge_tm_schd_mode_tc_base_cfg(struct hclge_dev *hdev, u8 pri_id)
+{
+	struct hclge_vport *vport = hdev->vport;
+	int ret;
+	u16 i;
+
+	ret = hclge_tm_pri_schd_mode_cfg(hdev, pri_id);
+	if (ret)
+		return ret;
+
+	for (i = 0; i < hdev->num_alloc_vport; i++) {
+		ret = hclge_tm_qs_schd_mode_cfg(hdev,
+						vport[i].qs_offset + pri_id,
+						HCLGE_SCH_MODE_DWRR);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
 static int hclge_tm_schd_mode_vnet_base_cfg(struct hclge_vport *vport)
 {
 	struct hnae3_knic_private_info *kinfo = &vport->nic.kinfo;
@@ -1304,21 +1350,13 @@ static int hclge_tm_lvl34_schd_mode_cfg(struct hclge_dev *hdev)
 {
 	struct hclge_vport *vport = hdev->vport;
 	int ret;
-	u8 i, k;
+	u8 i;
 
 	if (hdev->tx_sch_mode == HCLGE_FLAG_TC_BASE_SCH_MODE) {
 		for (i = 0; i < hdev->tm_info.num_tc; i++) {
-			ret = hclge_tm_pri_schd_mode_cfg(hdev, i);
+			ret = hclge_tm_schd_mode_tc_base_cfg(hdev, i);
 			if (ret)
 				return ret;
-
-			for (k = 0; k < hdev->num_alloc_vport; k++) {
-				ret = hclge_tm_qs_schd_mode_cfg(
-					hdev, vport[k].qs_offset + i,
-					HCLGE_SCH_MODE_DWRR);
-				if (ret)
-					return ret;
-			}
 		}
 	} else {
 		for (i = 0; i < hdev->num_alloc_vport; i++) {

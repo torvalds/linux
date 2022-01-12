@@ -7,39 +7,57 @@
 #include "fw/api/commands.h"
 #include "fw/api/phy-ctxt.h"
 
-/**
+/*
  * DDR needs frequency in units of 16.666MHz, so provide FW with the
  * frequency values in the adjusted format.
  */
 static const struct iwl_rfi_lut_entry iwl_rfi_table[IWL_RFI_LUT_SIZE] = {
-	/* LPDDR4 */
+	/* frequency 2667MHz */
+	{cpu_to_le16(160), {50, 58, 60, 62, 64, 52, 54, 56},
+	      {PHY_BAND_5, PHY_BAND_5, PHY_BAND_5, PHY_BAND_5, PHY_BAND_5,
+	       PHY_BAND_5, PHY_BAND_5, PHY_BAND_5,}},
+
+	/* frequency 2933MHz */
+	{cpu_to_le16(176), {149, 151, 153, 157, 159, 161, 165, 163, 167, 169,
+			    171, 173, 175},
+	      {PHY_BAND_5, PHY_BAND_5, PHY_BAND_5, PHY_BAND_5, PHY_BAND_5,
+	       PHY_BAND_5, PHY_BAND_5, PHY_BAND_5, PHY_BAND_5, PHY_BAND_5,
+	       PHY_BAND_5, PHY_BAND_5, PHY_BAND_5,}},
+
+	/* frequency 3200MHz */
+	{cpu_to_le16(192), {79, 81, 83, 85, 87, 89, 91, 93},
+	      {PHY_BAND_6, PHY_BAND_6, PHY_BAND_6, PHY_BAND_6, PHY_BAND_6,
+	       PHY_BAND_6, PHY_BAND_6, PHY_BAND_6,}},
 
 	/* frequency 3733MHz */
-	{cpu_to_le16(223), {114, 116, 118, 120, 122,},
-	      {PHY_BAND_5, PHY_BAND_5, PHY_BAND_5, PHY_BAND_5, PHY_BAND_5,}},
+	{cpu_to_le16(223), {114, 116, 118, 120, 122, 106, 110, 124, 126},
+	      {PHY_BAND_5, PHY_BAND_5, PHY_BAND_5, PHY_BAND_5, PHY_BAND_5,
+	       PHY_BAND_5, PHY_BAND_5, PHY_BAND_5, PHY_BAND_5,}},
+
+	/* frequency 4000MHz */
+	{cpu_to_le16(240), {114, 151, 155, 157, 159, 161, 165},
+	      {PHY_BAND_5, PHY_BAND_5, PHY_BAND_5, PHY_BAND_5, PHY_BAND_5,
+	       PHY_BAND_5, PHY_BAND_5,}},
 
 	/* frequency 4267MHz */
 	{cpu_to_le16(256), {79, 83, 85, 87, 89, 91, 93,},
 	       {PHY_BAND_6, PHY_BAND_6, PHY_BAND_6, PHY_BAND_6, PHY_BAND_6,
 		PHY_BAND_6, PHY_BAND_6,}},
 
-	/* DDR5ePOR */
-
-	/* frequency 4000MHz */
-	{cpu_to_le16(240), {3, 5, 7, 9, 11, 13, 15,},
-	      {PHY_BAND_6, PHY_BAND_6, PHY_BAND_6, PHY_BAND_6, PHY_BAND_6,
-	       PHY_BAND_6, PHY_BAND_6,}},
-
 	/* frequency 4400MHz */
 	{cpu_to_le16(264), {111, 119, 123, 125, 129, 131, 133, 135, 143,},
 	      {PHY_BAND_6, PHY_BAND_6, PHY_BAND_6, PHY_BAND_6, PHY_BAND_6,
 	       PHY_BAND_6, PHY_BAND_6, PHY_BAND_6, PHY_BAND_6,}},
 
-	/* LPDDR5iPOR */
-
 	/* frequency 5200MHz */
-	{cpu_to_le16(312), {36, 38, 40, 42, 50,},
-	       {PHY_BAND_5, PHY_BAND_5, PHY_BAND_5, PHY_BAND_5, PHY_BAND_5,}},
+	{cpu_to_le16(312), {36, 38, 40, 42, 44, 46, 50,},
+	       {PHY_BAND_5, PHY_BAND_5, PHY_BAND_5, PHY_BAND_5, PHY_BAND_5,
+		PHY_BAND_5, PHY_BAND_5,}},
+
+	/* frequency 5600MHz */
+	{cpu_to_le16(336), {106, 110, 112, 114, 116, 118, 120, 122},
+	       {PHY_BAND_5, PHY_BAND_5, PHY_BAND_5, PHY_BAND_5, PHY_BAND_5,
+		PHY_BAND_5, PHY_BAND_5, PHY_BAND_5,}},
 
 	/* frequency 6000MHz */
 	{cpu_to_le16(360), {3, 5, 7, 9, 11, 13, 15,},
