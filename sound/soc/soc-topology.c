@@ -685,12 +685,9 @@ static int soc_tplg_dbytes_create(struct soc_tplg *tplg, unsigned int count,
 	int err = 0;
 
 	if (soc_tplg_check_elem_count(tplg,
-		sizeof(struct snd_soc_tplg_bytes_control), count,
-			size, "mixer bytes")) {
-		dev_err(tplg->dev, "ASoC: Invalid count %d for byte control\n",
-			count);
+				      sizeof(struct snd_soc_tplg_bytes_control),
+				      count, size, "mixer bytes"))
 		return -EINVAL;
-	}
 
 	for (i = 0; i < count; i++) {
 		be = (struct snd_soc_tplg_bytes_control *)tplg->pos;
@@ -763,13 +760,9 @@ static int soc_tplg_dmixer_create(struct soc_tplg *tplg, unsigned int count,
 	int err = 0;
 
 	if (soc_tplg_check_elem_count(tplg,
-		sizeof(struct snd_soc_tplg_mixer_control),
-		count, size, "mixers")) {
-
-		dev_err(tplg->dev, "ASoC: invalid count %d for controls\n",
-			count);
+				      sizeof(struct snd_soc_tplg_mixer_control),
+				      count, size, "mixers"))
 		return -EINVAL;
-	}
 
 	for (i = 0; i < count; i++) {
 		mc = (struct snd_soc_tplg_mixer_control *)tplg->pos;
@@ -927,13 +920,9 @@ static int soc_tplg_denum_create(struct soc_tplg *tplg, unsigned int count,
 	int err = 0;
 
 	if (soc_tplg_check_elem_count(tplg,
-		sizeof(struct snd_soc_tplg_enum_control),
-		count, size, "enums")) {
-
-		dev_err(tplg->dev, "ASoC: invalid count %d for enum controls\n",
-			count);
+				      sizeof(struct snd_soc_tplg_enum_control),
+				      count, size, "enums"))
 		return -EINVAL;
-	}
 
 	for (i = 0; i < count; i++) {
 		ec = (struct snd_soc_tplg_enum_control *)tplg->pos;
@@ -1111,13 +1100,9 @@ static int soc_tplg_dapm_graph_elems_load(struct soc_tplg *tplg,
 	count = le32_to_cpu(hdr->count);
 
 	if (soc_tplg_check_elem_count(tplg,
-		sizeof(struct snd_soc_tplg_dapm_graph_elem),
-		count, le32_to_cpu(hdr->payload_size), "graph")) {
-
-		dev_err(tplg->dev, "ASoC: invalid count %d for DAPM routes\n",
-			count);
+				      sizeof(struct snd_soc_tplg_dapm_graph_elem),
+				      count, le32_to_cpu(hdr->payload_size), "graph"))
 		return -EINVAL;
-	}
 
 	dev_dbg(tplg->dev, "ASoC: adding %d DAPM routes for index %d\n", count,
 		hdr->index);
@@ -1965,11 +1950,8 @@ static int soc_tplg_pcm_elems_load(struct soc_tplg *tplg,
 	if (soc_tplg_check_elem_count(tplg,
 				      size, count,
 				      le32_to_cpu(hdr->payload_size),
-				      "PCM DAI")) {
-		dev_err(tplg->dev, "ASoC: invalid count %d for PCM DAI elems\n",
-			count);
+				      "PCM DAI"))
 		return -EINVAL;
-	}
 
 	for (i = 0; i < count; i++) {
 		pcm = (struct snd_soc_tplg_pcm *)tplg->pos;
@@ -2243,14 +2225,10 @@ static int soc_tplg_link_elems_load(struct soc_tplg *tplg,
 		return -EINVAL;
 	}
 
-	if (soc_tplg_check_elem_count(tplg,
-				      size, count,
+	if (soc_tplg_check_elem_count(tplg, size, count,
 				      le32_to_cpu(hdr->payload_size),
-				      "physical link config")) {
-		dev_err(tplg->dev, "ASoC: invalid count %d for physical link elems\n",
-			count);
+				      "physical link config"))
 		return -EINVAL;
-	}
 
 	/* config physical DAI links */
 	for (i = 0; i < count; i++) {
