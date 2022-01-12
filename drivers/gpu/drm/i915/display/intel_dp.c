@@ -73,8 +73,6 @@
 #include "intel_vdsc.h"
 #include "intel_vrr.h"
 
-#define DP_DPRX_ESI_LEN 14
-
 /* DP DSC throughput values used for slice count calculations KPixels/s */
 #define DP_DSC_PEAK_PIXEL_RATE			2720000
 #define DP_DSC_MAX_ENC_THROUGHPUT_0		340000
@@ -2814,11 +2812,9 @@ intel_dp_configure_mst(struct intel_dp *intel_dp)
 }
 
 static bool
-intel_dp_get_sink_irq_esi(struct intel_dp *intel_dp, u8 *sink_irq_vector)
+intel_dp_get_sink_irq_esi(struct intel_dp *intel_dp, u8 *esi)
 {
-	return drm_dp_dpcd_read(&intel_dp->aux, DP_SINK_COUNT_ESI,
-				sink_irq_vector, DP_DPRX_ESI_LEN) ==
-		DP_DPRX_ESI_LEN;
+	return drm_dp_dpcd_read(&intel_dp->aux, DP_SINK_COUNT_ESI, esi, 4) == 4;
 }
 
 static bool intel_dp_ack_sink_irq_esi(struct intel_dp *intel_dp, u8 esi[4])
@@ -3639,12 +3635,22 @@ intel_dp_mst_hpd_irq(struct intel_dp *intel_dp, u8 *esi, bool *handled)
 	}
 }
 
-static bool intel_dp_mst_link_status(struct intel_dp *intel_dp, u8 *esi)
+static bool intel_dp_mst_link_status(struct intel_dp *intel_dp)
 {
 	struct intel_encoder *encoder = &dp_to_dig_port(intel_dp)->base;
 	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
+	u8 link_status[DP_LINK_STATUS_SIZE] = {};
+	const size_t esi_link_status_size = DP_LINK_STATUS_SIZE - 2;
 
-	if (!drm_dp_channel_eq_ok(&esi[10], intel_dp->lane_count)) {
+	if (drm_dp_dpcd_read(&intel_dp->aux, DP_LANE0_1_STATUS_ESI, link_status,
+			     esi_link_status_size) != esi_link_status_size) {
+		drm_err(&i915->drm,
+			"[ENCODER:%d:%s] Failed to read link status\n",
+			encoder->base.base.id, encoder->base.name);
+		return false;
+	}
+
+	if (!drm_dp_channel_eq_ok(link_status, intel_dp->lane_count)) {
 		drm_dbg_kms(&i915->drm,
 			    "[ENCODER:%d:%s] channel EQ not ok, retraining\n",
 			    encoder->base.base.id, encoder->base.name);
@@ -3676,18 +3682,7 @@ intel_dp_check_mst_status(struct intel_dp *intel_dp)
 	drm_WARN_ON_ONCE(&i915->drm, intel_dp->active_mst_links < 0);
 
 	for (;;) {
-		/*
-		 * The +2 is because DP_DPRX_ESI_LEN is 14, but we then
-		 * pass in "esi+10" to drm_dp_channel_eq_ok(), which
-		 * takes a 6-byte array. So we actually need 16 bytes
-		 * here.
-		 *
-		 * Somebody who knows what the limits actually are
-		 * should check this, but for now this is at least
-		 * harmless and avoids a valid compiler warning about
-		 * using more of the array than we have allocated.
-		 */
-		u8 esi[DP_DPRX_ESI_LEN+2] = {};
+		u8 esi[4] = {};
 		bool handled;
 
 		if (!intel_dp_get_sink_irq_esi(intel_dp, esi)) {
@@ -3700,9 +3695,9 @@ intel_dp_check_mst_status(struct intel_dp *intel_dp)
 
 		drm_dbg_kms(&i915->drm, "DPRX ESI: %4ph\n", esi);
 
-		/* check link status - esi[10] = 0x200c */
-		if (intel_dp->active_mst_links > 0 && link_ok) {
-			if (!intel_dp_mst_link_status(intel_dp, esi))
+		if (intel_dp->active_mst_links > 0 && link_ok &&
+		    esi[3] & LINK_STATUS_CHANGED) {
+			if (!intel_dp_mst_link_status(intel_dp))
 				link_ok = false;
 		}
 
