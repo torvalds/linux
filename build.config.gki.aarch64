@@ -9,3 +9,6 @@ Image.lz4
 FILES="${FILES}
 arch/arm64/boot/Image.lz4
 "
+
+BUILD_SYSTEM_DLKM=1
+MODULES_LIST=${ROOT_DIR}/${KERNEL_DIR}/android/gki_system_dlkm_modules
