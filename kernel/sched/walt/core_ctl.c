@@ -772,7 +772,7 @@ static unsigned int get_active_cpu_count(const struct cluster_data *cluster)
 
 static bool is_active(const struct cpu_data *state)
 {
-	return cpu_online(state->cpu) && !cpu_halted(state->cpu);
+	return cpu_active(state->cpu) && !cpu_halted(state->cpu);
 }
 
 static bool adjustment_possible(const struct cluster_data *cluster,
@@ -1101,7 +1101,7 @@ static int __try_to_resume(struct cluster_data *cluster, unsigned int need,
 
 		if (!cpumask_test_cpu(c->cpu, &cpus_paused_by_us))
 			continue;
-		if ((cpu_online(c->cpu) && !cpu_halted(c->cpu)) ||
+		if ((cpu_active(c->cpu) && !cpu_halted(c->cpu)) ||
 			(!force && c->not_preferred))
 			continue;
 		if (active_cpus + nr_pending == need)

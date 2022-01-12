@@ -267,7 +267,7 @@ static void walt_find_best_target(struct sched_domain *sd,
 	/* fast path for prev_cpu */
 	if (((capacity_orig_of(prev_cpu) == capacity_orig_of(start_cpu)) ||
 				asym_cap_siblings(prev_cpu, start_cpu)) &&
-				cpu_active(prev_cpu) && cpu_online(prev_cpu) &&
+				cpu_active(prev_cpu) &&
 				available_idle_cpu(prev_cpu) &&
 				cpumask_test_cpu(prev_cpu, p->cpus_ptr) &&
 				!cpu_halted(prev_cpu)) {
