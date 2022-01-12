@@ -3639,6 +3639,21 @@ intel_dp_mst_hpd_irq(struct intel_dp *intel_dp, u8 *esi, bool *handled)
 	}
 }
 
+static bool intel_dp_mst_link_status(struct intel_dp *intel_dp, u8 *esi)
+{
+	struct intel_encoder *encoder = &dp_to_dig_port(intel_dp)->base;
+	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
+
+	if (!drm_dp_channel_eq_ok(&esi[10], intel_dp->lane_count)) {
+		drm_dbg_kms(&i915->drm,
+			    "[ENCODER:%d:%s] channel EQ not ok, retraining\n",
+			    encoder->base.base.id, encoder->base.name);
+		return false;
+	}
+
+	return true;
+}
+
 /**
  * intel_dp_check_mst_status - service any pending MST interrupts, check link status
  * @intel_dp: Intel DP struct
@@ -3686,11 +3701,9 @@ intel_dp_check_mst_status(struct intel_dp *intel_dp)
 		drm_dbg_kms(&i915->drm, "DPRX ESI: %4ph\n", esi);
 
 		/* check link status - esi[10] = 0x200c */
-		if (intel_dp->active_mst_links > 0 && link_ok &&
-		    !drm_dp_channel_eq_ok(&esi[10], intel_dp->lane_count)) {
-			drm_dbg_kms(&i915->drm,
-				    "channel EQ not ok, retraining\n");
-			link_ok = false;
+		if (intel_dp->active_mst_links > 0 && link_ok) {
+			if (!intel_dp_mst_link_status(intel_dp, esi))
+				link_ok = false;
 		}
 
 		intel_dp_mst_hpd_irq(intel_dp, esi, &handled);
