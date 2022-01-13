@@ -908,10 +908,6 @@ extern struct cpumask __cpu_halt_mask;
 #define cpu_halt_mask ((struct cpumask *)&__cpu_halt_mask)
 #define cpu_halted(cpu) cpumask_test_cpu((cpu), cpu_halt_mask)
 
-extern struct cpumask __cpu_can_halt_mask;
-#define cpu_can_halt_mask ((struct cpumask *)&__cpu_can_halt_mask)
-#define cpu_can_halt(cpu) cpumask_test_cpu((cpu), cpu_can_halt_mask)
-
 extern void walt_task_dump(struct task_struct *p);
 extern void walt_rq_dump(int cpu);
 extern void walt_dump(void);

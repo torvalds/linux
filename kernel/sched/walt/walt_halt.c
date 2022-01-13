@@ -11,7 +11,6 @@
 
 /* if a cpu is halting */
 struct cpumask __cpu_halt_mask;
-struct cpumask __cpu_can_halt_mask;
 
 static DEFINE_MUTEX(halt_lock);
 
@@ -337,9 +336,6 @@ EXPORT_SYMBOL(walt_resume_cpus);
 
 void walt_halt_init(void)
 {
-	cpumask_set_cpu(5, cpu_can_halt_mask);
-	cpumask_set_cpu(6, cpu_can_halt_mask);
-	cpumask_set_cpu(7, cpu_can_halt_mask);
 }
 
 #endif /* CONFIG_HOTPLUG_CPU */
