@@ -203,6 +203,7 @@ enum rtw89_port {
 enum rtw89_band {
 	RTW89_BAND_2G = 0,
 	RTW89_BAND_5G = 1,
+	RTW89_BAND_6G = 2,
 	RTW89_BAND_MAX,
 };
 
@@ -568,6 +569,7 @@ struct rtw89_channel_params {
 	u8 primary_chan;
 	u8 bandwidth;
 	u8 pri_ch_idx;
+	u8 band_type;
 };
 
 struct rtw89_channel_help_params {
@@ -2204,6 +2206,7 @@ struct rtw89_chip_info {
 	const struct rtw89_hfc_param_ini *hfc_param_ini;
 	const struct rtw89_dle_mem *dle_mem;
 	u32 rf_base_addr[2];
+	u8 support_bands;
 	u8 rf_path_num;
 	u8 tx_nss;
 	u8 rx_nss;
