@@ -862,6 +862,21 @@
 							<0x0 0x0 0x0 0x3 &plic 0x3>,
 							<0x0 0x0 0x0 0x4 &plic 0x4>;
 		};
+
+		mailbox_contrl0: mailbox@0 {
+			compatible = "starfive,mail_box";
+			reg = <0x0 0x13060000 0x0 0x0001000>;
+			interrupt-parent = <&plic>;
+			interrupts = <26 27>;
+			#mbox-cells = <2>;
+		};
+
+		mailbox_client@0 {
+			compatible = "starfive,mailbox-test";
+			interrupt-parent = <&plic>;
+			mbox-names = "rx", "tx";
+			mboxes = <&mailbox_contrl0 0 1>,<&mailbox_contrl0 1 0>;
+		};
 	};
 };
 

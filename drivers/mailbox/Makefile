@@ -58,3 +58,7 @@ obj-$(CONFIG_SUN6I_MSGBOX)	+= sun6i-msgbox.o
 obj-$(CONFIG_SPRD_MBOX)		+= sprd-mailbox.o
 
 obj-$(CONFIG_QCOM_IPCC)		+= qcom-ipcc.o
+
+obj-$(CONFIG_STARFIVE_MBOX)    += starfive_mailbox.o
+
+obj-$(CONFIG_STARFIVE_MBOX_TEST)    += starfive_mailbox-test.o
