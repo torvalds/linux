@@ -410,6 +410,11 @@ static inline struct smc_connection *smc_lgr_find_conn(
 	return res;
 }
 
+static inline bool smc_conn_lgr_valid(struct smc_connection *conn)
+{
+	return conn->lgr && conn->alert_token_local;
+}
+
 /*
  * Returns true if the specified link is usable.
  *
