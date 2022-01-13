@@ -8,20 +8,19 @@
 
 #include "clk.h"
 
-/**
- * pll v1
- *
- * @clk_hw	clock source
- * @parent	the parent clock name
- * @base	base address of pll registers
- *
- * PLL clock version 1, found on i.MX1/21/25/27/31/35
- */
-
 #define MFN_BITS	(10)
 #define MFN_SIGN	(BIT(MFN_BITS - 1))
 #define MFN_MASK	(MFN_SIGN - 1)
 
+/**
+ * struct clk_pllv1 - IMX PLLv1 clock descriptor
+ *
+ * @hw:		clock source
+ * @base:	base address of pll registers
+ * @type:	type of IMX_PLLV1
+ *
+ * PLL clock version 1, found on i.MX1/21/25/27/31/35
+ */
 struct clk_pllv1 {
 	struct clk_hw	hw;
 	void __iomem	*base;

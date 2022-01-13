@@ -34,7 +34,7 @@ static u8 socfpga_clk_get_parent(struct clk_hw *hwclk)
 
 	if (streq(name, SOCFPGA_L4_MP_CLK)) {
 		l4_src = readl(clk_mgr_base_addr + CLKMGR_L4SRC);
-		return l4_src &= 0x1;
+		return l4_src & 0x1;
 	}
 	if (streq(name, SOCFPGA_L4_SP_CLK)) {
 		l4_src = readl(clk_mgr_base_addr + CLKMGR_L4SRC);
@@ -43,7 +43,7 @@ static u8 socfpga_clk_get_parent(struct clk_hw *hwclk)
 
 	perpll_src = readl(clk_mgr_base_addr + CLKMGR_PERPLL_SRC);
 	if (streq(name, SOCFPGA_MMC_CLK))
-		return perpll_src &= 0x3;
+		return perpll_src & 0x3;
 	if (streq(name, SOCFPGA_NAND_CLK) ||
 	    streq(name, SOCFPGA_NAND_X_CLK))
 		return (perpll_src >> 2) & 3;
