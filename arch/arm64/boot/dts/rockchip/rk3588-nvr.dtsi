@@ -78,6 +78,7 @@
 	/delete-node/ opp-600000000;
 	/delete-node/ opp-816000000;
 	/delete-node/ opp-1008000000;
+	/delete-node/ opp-2400000000;
 };
 
 &cluster2_opp_table {
@@ -85,6 +86,7 @@
 	/delete-node/ opp-600000000;
 	/delete-node/ opp-816000000;
 	/delete-node/ opp-1008000000;
+	/delete-node/ opp-2400000000;
 };
 
 &cpu_l0 {
@@ -106,7 +108,9 @@
 	/delete-node/ opp-198000000;
 	/delete-node/ opp-297000000;
 	/delete-node/ opp-396000000;
-	/delete-node/ opp-594000000;
+	/delete-node/ opp-500000000;
+	/delete-node/ opp-1000000000;
+
 };
 
 &gpu {
