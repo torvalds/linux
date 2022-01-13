@@ -2051,6 +2051,11 @@ config SND_SOC_TDA7419
 	depends on I2C
 	select REGMAP_I2C
 
+config SND_SOC_TFA9872
+	tristate "NXP Semiconductors TFA9872 amplifier"
+	depends on I2C
+    select REGMAP_I2C
+
 config SND_SOC_TFA9879
 	tristate "NXP Semiconductors TFA9879 amplifier"
 	depends on I2C
