@@ -405,7 +405,7 @@ void wfx_handle_rx(struct wfx_dev *wdev, struct sk_buff *skb)
 			goto free;
 		}
 	}
-	if (hif_id & 0x80)
+	if (hif_id & HIF_ID_IS_INDICATION)
 		dev_err(wdev->dev, "unsupported HIF indication: ID %02x\n",
 			hif_id);
 	else
