@@ -312,7 +312,7 @@
 				     "mediatek,mt6765-timer";
 			reg = <0 0x10017000 0 0x1000>;
 			interrupts = <GIC_SPI 233 IRQ_TYPE_LEVEL_HIGH 0>;
-			clocks = <&clk26m>;
+			clocks = <&topckgen CLK_TOP_CSW_F26M_D2>;
 			clock-names = "clk13m";
 		};
 
