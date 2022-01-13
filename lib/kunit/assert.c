@@ -10,12 +10,13 @@
 
 #include "string-stream.h"
 
-void kunit_base_assert_format(const struct kunit_assert *assert,
+void kunit_assert_prologue(const struct kunit_loc *loc,
+			   enum kunit_assert_type type,
 			      struct string_stream *stream)
 {
 	const char *expect_or_assert = NULL;
 
-	switch (assert->type) {
+	switch (type) {
 	case KUNIT_EXPECTATION:
 		expect_or_assert = "EXPECTATION";
 		break;
@@ -25,9 +26,9 @@ void kunit_base_assert_format(const struct kunit_assert *assert,
 	}
 
 	string_stream_add(stream, "%s FAILED at %s:%d\n",
-			  expect_or_assert, assert->file, assert->line);
+			  expect_or_assert, loc->file, loc->line);
 }
-EXPORT_SYMBOL_GPL(kunit_base_assert_format);
+EXPORT_SYMBOL_GPL(kunit_assert_prologue);
 
 void kunit_assert_print_msg(const struct kunit_assert *assert,
 			    struct string_stream *stream)

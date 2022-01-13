@@ -772,13 +772,18 @@ void __printf(2, 3) kunit_log_append(char *log, const char *fmt, ...);
 #define KUNIT_SUCCEED(test) do {} while (0)
 
 void kunit_do_failed_assertion(struct kunit *test,
+			       const struct kunit_loc *loc,
+			       enum kunit_assert_type type,
 			       struct kunit_assert *assert,
 			       const char *fmt, ...);
 
-#define KUNIT_ASSERTION(test, pass, assert_class, INITIALIZER, fmt, ...) do {  \
+#define KUNIT_ASSERTION(test, assert_type, pass, assert_class, INITIALIZER, fmt, ...) do { \
 	if (unlikely(!(pass))) {					       \
+		static const struct kunit_loc loc = KUNIT_CURRENT_LOC;	       \
 		struct assert_class __assertion = INITIALIZER;		       \
 		kunit_do_failed_assertion(test,				       \
+					  &loc,				       \
+					  assert_type,			       \
 					  &__assertion.assert,		       \
 					  fmt,				       \
 					  ##__VA_ARGS__);		       \
@@ -788,6 +793,7 @@ void kunit_do_failed_assertion(struct kunit *test,
 
 #define KUNIT_FAIL_ASSERTION(test, assert_type, fmt, ...)		       \
 	KUNIT_ASSERTION(test,						       \
+			assert_type,					       \
 			false,						       \
 			kunit_fail_assert,				       \
 			KUNIT_INIT_FAIL_ASSERT_STRUCT(assert_type),      \
@@ -818,6 +824,7 @@ void kunit_do_failed_assertion(struct kunit *test,
 			      fmt,					       \
 			      ...)					       \
 	KUNIT_ASSERTION(test,						       \
+			assert_type,					       \
 			!!(condition) == !!expected_true,		       \
 			kunit_unary_assert,				       \
 			KUNIT_INIT_UNARY_ASSERT_STRUCT(assert_type,	       \
@@ -876,6 +883,7 @@ do {									       \
 	typeof(right) __right = (right);				       \
 									       \
 	KUNIT_ASSERTION(test,						       \
+			assert_type,					       \
 			__left op __right,				       \
 			assert_class,					       \
 			ASSERT_CLASS_INIT(assert_type,			       \
@@ -1230,6 +1238,7 @@ do {									       \
 	const char *__right = (right);				       \
 									       \
 	KUNIT_ASSERTION(test,						       \
+			assert_type,					       \
 			strcmp(__left, __right) op 0,			       \
 			kunit_binary_str_assert,			       \
 			KUNIT_INIT_BINARY_STR_ASSERT_STRUCT(assert_type,       \
@@ -1289,6 +1298,7 @@ do {									       \
 	typeof(ptr) __ptr = (ptr);					       \
 									       \
 	KUNIT_ASSERTION(test,						       \
+			assert_type,					       \
 			!IS_ERR_OR_NULL(__ptr),				       \
 			kunit_ptr_not_err_assert,			       \
 			KUNIT_INIT_PTR_NOT_ERR_STRUCT(assert_type,	       \

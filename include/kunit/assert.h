@@ -29,10 +29,20 @@ enum kunit_assert_type {
 };
 
 /**
+ * struct kunit_loc - Identifies the source location of a line of code.
+ * @line: the line number in the file.
+ * @file: the file name.
+ */
+struct kunit_loc {
+	int line;
+	const char *file;
+};
+
+#define KUNIT_CURRENT_LOC { .file = __FILE__, .line = __LINE__ }
+
+/**
  * struct kunit_assert - Data for printing a failed assertion or expectation.
  * @type: the type (either an expectation or an assertion) of this kunit_assert.
- * @line: the source code line number that the expectation/assertion is at.
- * @file: the file path of the source file that the expectation/assertion is in.
  * @message: an optional message to provide additional context.
  * @format: a function which formats the data in this kunit_assert to a string.
  *
@@ -40,9 +50,9 @@ enum kunit_assert_type {
  * format a string to a user reporting the failure.
  */
 struct kunit_assert {
+	 // TODO(dlatypov@google.com): delete this unused field when we've
+	 // updated all the related KUNIT_INIT_ASSERT* macros.
 	enum kunit_assert_type type;
-	int line;
-	const char *file;
 	struct va_format message;
 	void (*format)(const struct kunit_assert *assert,
 		       struct string_stream *stream);
@@ -65,14 +75,13 @@ struct kunit_assert {
  */
 #define KUNIT_INIT_ASSERT_STRUCT(assert_type, fmt) {			       \
 	.type = assert_type,						       \
-	.file = __FILE__,						       \
-	.line = __LINE__,						       \
 	.message = KUNIT_INIT_VA_FMT_NULL,				       \
 	.format = fmt							       \
 }
 
-void kunit_base_assert_format(const struct kunit_assert *assert,
-			      struct string_stream *stream);
+void kunit_assert_prologue(const struct kunit_loc *loc,
+			   enum kunit_assert_type type,
+			   struct string_stream *stream);
 
 void kunit_assert_print_msg(const struct kunit_assert *assert,
 			    struct string_stream *stream);
