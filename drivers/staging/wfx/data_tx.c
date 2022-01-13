@@ -173,7 +173,7 @@ static int wfx_tx_policy_upload(struct wfx_vif *wvif)
 			policies[i].uploaded = true;
 			memcpy(tmp_rates, policies[i].rates, sizeof(tmp_rates));
 			spin_unlock_bh(&wvif->tx_policy_cache.lock);
-			hif_set_tx_rate_retry_policy(wvif, i, tmp_rates);
+			wfx_hif_set_tx_rate_retry_policy(wvif, i, tmp_rates);
 		} else {
 			spin_unlock_bh(&wvif->tx_policy_cache.lock);
 		}

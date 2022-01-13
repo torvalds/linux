@@ -122,7 +122,7 @@ int wfx_cmd_send(struct wfx_dev *wdev, struct hif_msg *request,
 /* This function is special. After HIF_REQ_ID_SHUT_DOWN, chip won't reply to any
  * request anymore. Obviously, only call this function during device unregister.
  */
-int hif_shutdown(struct wfx_dev *wdev)
+int wfx_hif_shutdown(struct wfx_dev *wdev)
 {
 	int ret;
 	struct hif_msg *hif;
@@ -140,7 +140,7 @@ int hif_shutdown(struct wfx_dev *wdev)
 	return ret;
 }
 
-int hif_configuration(struct wfx_dev *wdev, const u8 *conf, size_t len)
+int wfx_hif_configuration(struct wfx_dev *wdev, const u8 *conf, size_t len)
 {
 	int ret;
 	size_t buf_len = sizeof(struct hif_req_configuration) + len;
@@ -157,7 +157,7 @@ int hif_configuration(struct wfx_dev *wdev, const u8 *conf, size_t len)
 	return ret;
 }
 
-int hif_reset(struct wfx_vif *wvif, bool reset_stat)
+int wfx_hif_reset(struct wfx_vif *wvif, bool reset_stat)
 {
 	int ret;
 	struct hif_msg *hif;
@@ -172,8 +172,8 @@ int hif_reset(struct wfx_vif *wvif, bool reset_stat)
 	return ret;
 }
 
-int hif_read_mib(struct wfx_dev *wdev, int vif_id, u16 mib_id,
-		 void *val, size_t val_len)
+int wfx_hif_read_mib(struct wfx_dev *wdev, int vif_id, u16 mib_id,
+		     void *val, size_t val_len)
 {
 	int ret;
 	struct hif_msg *hif;
@@ -208,8 +208,8 @@ out:
 	return ret;
 }
 
-int hif_write_mib(struct wfx_dev *wdev, int vif_id, u16 mib_id,
-		  void *val, size_t val_len)
+int wfx_hif_write_mib(struct wfx_dev *wdev, int vif_id, u16 mib_id,
+		      void *val, size_t val_len)
 {
 	int ret;
 	struct hif_msg *hif;
@@ -227,8 +227,8 @@ int hif_write_mib(struct wfx_dev *wdev, int vif_id, u16 mib_id,
 	return ret;
 }
 
-int hif_scan(struct wfx_vif *wvif, struct cfg80211_scan_request *req,
-	     int chan_start_idx, int chan_num)
+int wfx_hif_scan(struct wfx_vif *wvif, struct cfg80211_scan_request *req,
+		 int chan_start_idx, int chan_num)
 {
 	int ret, i;
 	struct hif_msg *hif;
@@ -276,7 +276,7 @@ int hif_scan(struct wfx_vif *wvif, struct cfg80211_scan_request *req,
 	return ret;
 }
 
-int hif_stop_scan(struct wfx_vif *wvif)
+int wfx_hif_stop_scan(struct wfx_vif *wvif)
 {
 	int ret;
 	struct hif_msg *hif;
@@ -291,8 +291,8 @@ int hif_stop_scan(struct wfx_vif *wvif)
 	return ret;
 }
 
-int hif_join(struct wfx_vif *wvif, const struct ieee80211_bss_conf *conf,
-	     struct ieee80211_channel *channel, const u8 *ssid, int ssidlen)
+int wfx_hif_join(struct wfx_vif *wvif, const struct ieee80211_bss_conf *conf,
+		 struct ieee80211_channel *channel, const u8 *ssid, int ssidlen)
 {
 	int ret;
 	struct hif_msg *hif;
@@ -322,7 +322,7 @@ int hif_join(struct wfx_vif *wvif, const struct ieee80211_bss_conf *conf,
 	return ret;
 }
 
-int hif_set_bss_params(struct wfx_vif *wvif, int aid, int beacon_lost_count)
+int wfx_hif_set_bss_params(struct wfx_vif *wvif, int aid, int beacon_lost_count)
 {
 	int ret;
 	struct hif_msg *hif;
@@ -340,7 +340,7 @@ int hif_set_bss_params(struct wfx_vif *wvif, int aid, int beacon_lost_count)
 	return ret;
 }
 
-int hif_add_key(struct wfx_dev *wdev, const struct hif_req_add_key *arg)
+int wfx_hif_add_key(struct wfx_dev *wdev, const struct hif_req_add_key *arg)
 {
 	int ret;
 	struct hif_msg *hif;
@@ -364,7 +364,7 @@ int hif_add_key(struct wfx_dev *wdev, const struct hif_req_add_key *arg)
 	return ret;
 }
 
-int hif_remove_key(struct wfx_dev *wdev, int idx)
+int wfx_hif_remove_key(struct wfx_dev *wdev, int idx)
 {
 	int ret;
 	struct hif_msg *hif;
@@ -379,8 +379,8 @@ int hif_remove_key(struct wfx_dev *wdev, int idx)
 	return ret;
 }
 
-int hif_set_edca_queue_params(struct wfx_vif *wvif, u16 queue,
-			      const struct ieee80211_tx_queue_params *arg)
+int wfx_hif_set_edca_queue_params(struct wfx_vif *wvif, u16 queue,
+				  const struct ieee80211_tx_queue_params *arg)
 {
 	int ret;
 	struct hif_msg *hif;
@@ -410,7 +410,7 @@ int hif_set_edca_queue_params(struct wfx_vif *wvif, u16 queue,
 	return ret;
 }
 
-int hif_set_pm(struct wfx_vif *wvif, bool ps, int dynamic_ps_timeout)
+int wfx_hif_set_pm(struct wfx_vif *wvif, bool ps, int dynamic_ps_timeout)
 {
 	int ret;
 	struct hif_msg *hif;
@@ -434,8 +434,8 @@ int hif_set_pm(struct wfx_vif *wvif, bool ps, int dynamic_ps_timeout)
 	return ret;
 }
 
-int hif_start(struct wfx_vif *wvif, const struct ieee80211_bss_conf *conf,
-	      const struct ieee80211_channel *channel)
+int wfx_hif_start(struct wfx_vif *wvif, const struct ieee80211_bss_conf *conf,
+		  const struct ieee80211_channel *channel)
 {
 	int ret;
 	struct hif_msg *hif;
@@ -458,7 +458,7 @@ int hif_start(struct wfx_vif *wvif, const struct ieee80211_bss_conf *conf,
 	return ret;
 }
 
-int hif_beacon_transmit(struct wfx_vif *wvif, bool enable)
+int wfx_hif_beacon_transmit(struct wfx_vif *wvif, bool enable)
 {
 	int ret;
 	struct hif_msg *hif;
@@ -475,7 +475,8 @@ int hif_beacon_transmit(struct wfx_vif *wvif, bool enable)
 	return ret;
 }
 
-int hif_map_link(struct wfx_vif *wvif, bool unmap, u8 *mac_addr, int sta_id, bool mfp)
+int wfx_hif_map_link(struct wfx_vif *wvif, bool unmap, u8 *mac_addr, int sta_id,
+		     bool mfp)
 {
 	int ret;
 	struct hif_msg *hif;
@@ -494,7 +495,8 @@ int hif_map_link(struct wfx_vif *wvif, bool unmap, u8 *mac_addr, int sta_id, boo
 	return ret;
 }
 
-int hif_update_ie_beacon(struct wfx_vif *wvif, const u8 *ies, size_t ies_len)
+int wfx_hif_update_ie_beacon(struct wfx_vif *wvif,
+			     const u8 *ies, size_t ies_len)
 {
 	int ret;
 	struct hif_msg *hif;

@@ -89,10 +89,12 @@ static void wfx_filter_beacon(struct wfx_vif *wvif, bool filter_beacon)
 	};
 
 	if (!filter_beacon) {
-		hif_beacon_filter_control(wvif, 0, 1);
+		wfx_hif_beacon_filter_control(wvif, 0, 1);
 	} else {
-		hif_set_beacon_filter_table(wvif, ARRAY_SIZE(filter_ies), filter_ies);
-		hif_beacon_filter_control(wvif, HIF_BEACON_FILTER_ENABLE, 0);
+		wfx_hif_set_beacon_filter_table(wvif, ARRAY_SIZE(filter_ies),
+						filter_ies);
+		wfx_hif_beacon_filter_control(wvif,
+					      HIF_BEACON_FILTER_ENABLE, 0);
 	}
 }
 
@@ -143,7 +145,7 @@ void wfx_configure_filter(struct ieee80211_hw *hw, unsigned int changed_flags,
 			filter_prbreq = false;
 		else
 			filter_prbreq = true;
-		hif_set_rx_filter(wvif, filter_bssid, filter_prbreq);
+		wfx_hif_set_rx_filter(wvif, filter_bssid, filter_prbreq);
 
 		mutex_unlock(&wvif->scan_lock);
 	}
@@ -210,7 +212,7 @@ int wfx_update_pm(struct wfx_vif *wvif)
 					 TU_TO_JIFFIES(512)))
 		dev_warn(wvif->wdev->dev,
 			 "timeout while waiting of set_pm_mode_complete\n");
-	return hif_set_pm(wvif, ps, ps_timeout);
+	return wfx_hif_set_pm(wvif, ps, ps_timeout);
 }
 
 int wfx_conf_tx(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
@@ -224,10 +226,10 @@ int wfx_conf_tx(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 
 	mutex_lock(&wdev->conf_mutex);
 	assign_bit(queue, &wvif->uapsd_mask, params->uapsd);
-	hif_set_edca_queue_params(wvif, queue, params);
+	wfx_hif_set_edca_queue_params(wvif, queue, params);
 	if (wvif->vif->type == NL80211_IFTYPE_STATION &&
 	    old_uapsd != wvif->uapsd_mask) {
-		hif_set_uapsd_info(wvif, wvif->uapsd_mask);
+		wfx_hif_set_uapsd_info(wvif, wvif->uapsd_mask);
 		wfx_update_pm(wvif);
 	}
 	mutex_unlock(&wdev->conf_mutex);
@@ -240,7 +242,7 @@ int wfx_set_rts_threshold(struct ieee80211_hw *hw, u32 value)
 	struct wfx_vif *wvif = NULL;
 
 	while ((wvif = wvif_iterate(wdev, wvif)) != NULL)
-		hif_rts_threshold(wvif, value);
+		wfx_hif_rts_threshold(wvif, value);
 	return 0;
 }
 
@@ -276,7 +278,7 @@ void wfx_set_default_unicast_key(struct ieee80211_hw *hw,
 {
 	struct wfx_vif *wvif = (struct wfx_vif *)vif->drv_priv;
 
-	hif_wep_default_key_id(wvif, idx);
+	wfx_hif_wep_default_key_id(wvif, idx);
 }
 
 void wfx_reset(struct wfx_vif *wvif)
@@ -284,10 +286,10 @@ void wfx_reset(struct wfx_vif *wvif)
 	struct wfx_dev *wdev = wvif->wdev;
 
 	wfx_tx_lock_flush(wdev);
-	hif_reset(wvif, false);
+	wfx_hif_reset(wvif, false);
 	wfx_tx_policy_init(wvif);
 	if (wvif_count(wdev) <= 1)
-		hif_set_block_ack_policy(wvif, 0xFF, 0xFF);
+		wfx_hif_set_block_ack_policy(wvif, 0xFF, 0xFF);
 	wfx_tx_unlock(wdev);
 	wvif->join_in_progress = false;
 	cancel_delayed_work_sync(&wvif->beacon_loss_work);
@@ -305,7 +307,7 @@ int wfx_sta_add(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	sta_priv->vif_id = wvif->id;
 
 	if (vif->type == NL80211_IFTYPE_STATION)
-		hif_set_mfp(wvif, sta->mfp, sta->mfp);
+		wfx_hif_set_mfp(wvif, sta->mfp, sta->mfp);
 
 	/* In station mode, the firmware interprets new link-id as a TDLS peer */
 	if (vif->type == NL80211_IFTYPE_STATION && !sta->tdls)
@@ -314,7 +316,7 @@ int wfx_sta_add(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	wvif->link_id_map |= BIT(sta_priv->link_id);
 	WARN_ON(!sta_priv->link_id);
 	WARN_ON(sta_priv->link_id >= HIF_LINK_ID_MAX);
-	hif_map_link(wvif, false, sta->addr, sta_priv->link_id, sta->mfp);
+	wfx_hif_map_link(wvif, false, sta->addr, sta_priv->link_id, sta->mfp);
 
 	return 0;
 }
@@ -329,7 +331,7 @@ int wfx_sta_remove(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	if (!sta_priv->link_id)
 		return 0;
 	/* FIXME add a mutex? */
-	hif_map_link(wvif, true, sta->addr, sta_priv->link_id, false);
+	wfx_hif_map_link(wvif, true, sta->addr, sta_priv->link_id, false);
 	wvif->link_id_map &= ~BIT(sta_priv->link_id);
 	return 0;
 }
@@ -341,15 +343,15 @@ static int wfx_upload_ap_templates(struct wfx_vif *wvif)
 	skb = ieee80211_beacon_get(wvif->wdev->hw, wvif->vif);
 	if (!skb)
 		return -ENOMEM;
-	hif_set_template_frame(wvif, skb, HIF_TMPLT_BCN,
-			       API_RATE_INDEX_B_1MBPS);
+	wfx_hif_set_template_frame(wvif, skb, HIF_TMPLT_BCN,
+				   API_RATE_INDEX_B_1MBPS);
 	dev_kfree_skb(skb);
 
 	skb = ieee80211_proberesp_get(wvif->wdev->hw, wvif->vif);
 	if (!skb)
 		return -ENOMEM;
-	hif_set_template_frame(wvif, skb, HIF_TMPLT_PRBRES,
-			       API_RATE_INDEX_B_1MBPS);
+	wfx_hif_set_template_frame(wvif, skb, HIF_TMPLT_PRBRES,
+				   API_RATE_INDEX_B_1MBPS);
 	dev_kfree_skb(skb);
 	return 0;
 }
@@ -375,7 +377,7 @@ static void wfx_set_mfp_ap(struct wfx_vif *wvif)
 		ptr += 1 + akm_suite_size * *ptr;
 		if (WARN_ON(ptr > (u16 *)skb_tail_pointer(skb)))
 			return;
-		hif_set_mfp(wvif, *ptr & BIT(7), *ptr & BIT(6));
+		wfx_hif_set_mfp(wvif, *ptr & BIT(7), *ptr & BIT(6));
 	}
 }
 
@@ -390,7 +392,7 @@ int wfx_start_ap(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 		wfx_update_pm(wvif);
 	wvif = (struct wfx_vif *)vif->drv_priv;
 	wfx_upload_ap_templates(wvif);
-	ret = hif_start(wvif, &vif->bss_conf, wvif->channel);
+	ret = wfx_hif_start(wvif, &vif->bss_conf, wvif->channel);
 	if (ret > 0)
 		return -EIO;
 	wfx_set_mfp_ap(wvif);
@@ -437,7 +439,7 @@ static void wfx_join(struct wfx_vif *wvif)
 	cfg80211_put_bss(wvif->wdev->hw->wiphy, bss);
 
 	wvif->join_in_progress = true;
-	ret = hif_join(wvif, conf, wvif->channel, ssid, ssidlen);
+	ret = wfx_hif_join(wvif, conf, wvif->channel, ssid, ssidlen);
 	if (ret) {
 		ieee80211_connection_loss(wvif->vif);
 		wfx_reset(wvif);
@@ -470,14 +472,14 @@ static void wfx_join_finalize(struct wfx_vif *wvif,
 	rcu_read_unlock();
 
 	wvif->join_in_progress = false;
-	hif_set_association_mode(wvif, ampdu_density, greenfield,
-				 info->use_short_preamble);
-	hif_keep_alive_period(wvif, 0);
+	wfx_hif_set_association_mode(wvif, ampdu_density, greenfield,
+				     info->use_short_preamble);
+	wfx_hif_keep_alive_period(wvif, 0);
 	/* beacon_loss_count is defined to 7 in net/mac80211/mlme.c. Let's use
 	 * the same value.
 	 */
-	hif_set_bss_params(wvif, info->aid, 7);
-	hif_set_beacon_wakeup_period(wvif, 1, 1);
+	wfx_hif_set_bss_params(wvif, info->aid, 7);
+	wfx_hif_set_beacon_wakeup_period(wvif, 1, 1);
 	wfx_update_pm(wvif);
 }
 
@@ -508,7 +510,7 @@ static void wfx_enable_beacon(struct wfx_vif *wvif, bool enable)
 		wvif->after_dtim_tx_allowed = true;
 		wfx_bh_request_tx(wvif->wdev);
 	}
-	hif_beacon_transmit(wvif, enable);
+	wfx_hif_beacon_transmit(wvif, enable);
 }
 
 void wfx_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
@@ -541,8 +543,8 @@ void wfx_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		if (vif->type != NL80211_IFTYPE_STATION)
 			dev_warn(wdev->dev, "%s: misunderstood change: BEACON_INFO\n",
 				 __func__);
-		hif_set_beacon_wakeup_period(wvif, info->dtim_period,
-					     info->dtim_period);
+		wfx_hif_set_beacon_wakeup_period(wvif, info->dtim_period,
+						 info->dtim_period);
 		/* We temporary forwarded beacon for join process. It is now no
 		 * more necessary.
 		 */
@@ -557,7 +559,7 @@ void wfx_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 				arp_addr = NULL;
 			if (i >= info->arp_addr_cnt)
 				arp_addr = NULL;
-			hif_set_arp_ipv4_filter(wvif, i, arp_addr);
+			wfx_hif_set_arp_ipv4_filter(wvif, i, arp_addr);
 		}
 	}
 
@@ -569,21 +571,21 @@ void wfx_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		wfx_enable_beacon(wvif, info->enable_beacon);
 
 	if (changed & BSS_CHANGED_KEEP_ALIVE)
-		hif_keep_alive_period(wvif, info->max_idle_period *
-					    USEC_PER_TU / USEC_PER_MSEC);
+		wfx_hif_keep_alive_period(wvif, info->max_idle_period *
+						USEC_PER_TU / USEC_PER_MSEC);
 
 	if (changed & BSS_CHANGED_ERP_CTS_PROT)
-		hif_erp_use_protection(wvif, info->use_cts_prot);
+		wfx_hif_erp_use_protection(wvif, info->use_cts_prot);
 
 	if (changed & BSS_CHANGED_ERP_SLOT)
-		hif_slot_time(wvif, info->use_short_slot ? 9 : 20);
+		wfx_hif_slot_time(wvif, info->use_short_slot ? 9 : 20);
 
 	if (changed & BSS_CHANGED_CQM)
-		hif_set_rcpi_rssi_threshold(wvif, info->cqm_rssi_thold,
-					    info->cqm_rssi_hyst);
+		wfx_hif_set_rcpi_rssi_threshold(wvif, info->cqm_rssi_thold,
+						info->cqm_rssi_hyst);
 
 	if (changed & BSS_CHANGED_TXPOWER)
-		hif_set_output_power(wvif, info->txpower);
+		wfx_hif_set_output_power(wvif, info->txpower);
 
 	if (changed & BSS_CHANGED_PS)
 		wfx_update_pm(wvif);
@@ -614,7 +616,7 @@ static int wfx_update_tim(struct wfx_vif *wvif)
 			tim_ptr[4] &= ~1;
 	}
 
-	hif_update_ie_beacon(wvif, tim_ptr, tim_length);
+	wfx_hif_update_ie_beacon(wvif, tim_ptr, tim_length);
 	dev_kfree_skb(skb);
 
 	return 0;
@@ -774,7 +776,7 @@ int wfx_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 	}
 	WARN(i == ARRAY_SIZE(wdev->vif), "try to instantiate more vif than supported");
 
-	hif_set_macaddr(wvif, vif->addr);
+	wfx_hif_set_macaddr(wvif, vif->addr);
 
 	mutex_unlock(&wdev->conf_mutex);
 
@@ -782,9 +784,9 @@ int wfx_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 	while ((wvif = wvif_iterate(wdev, wvif)) != NULL) {
 		/* Combo mode does not support Block Acks. We can re-enable them */
 		if (wvif_count(wdev) == 1)
-			hif_set_block_ack_policy(wvif, 0xFF, 0xFF);
+			wfx_hif_set_block_ack_policy(wvif, 0xFF, 0xFF);
 		else
-			hif_set_block_ack_policy(wvif, 0x00, 0x00);
+			wfx_hif_set_block_ack_policy(wvif, 0x00, 0x00);
 	}
 	return ret;
 }
@@ -800,8 +802,8 @@ void wfx_remove_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 	mutex_lock(&wdev->conf_mutex);
 	WARN(wvif->link_id_map != 1, "corrupted state");
 
-	hif_reset(wvif, false);
-	hif_set_macaddr(wvif, NULL);
+	wfx_hif_reset(wvif, false);
+	wfx_hif_set_macaddr(wvif, NULL);
 	wfx_tx_policy_init(wvif);
 
 	cancel_delayed_work_sync(&wvif->beacon_loss_work);
@@ -814,9 +816,9 @@ void wfx_remove_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 	while ((wvif = wvif_iterate(wdev, wvif)) != NULL) {
 		/* Combo mode does not support Block Acks. We can re-enable them */
 		if (wvif_count(wdev) == 1)
-			hif_set_block_ack_policy(wvif, 0xFF, 0xFF);
+			wfx_hif_set_block_ack_policy(wvif, 0xFF, 0xFF);
 		else
-			hif_set_block_ack_policy(wvif, 0x00, 0x00);
+			wfx_hif_set_block_ack_policy(wvif, 0x00, 0x00);
 	}
 }
 

@@ -201,8 +201,8 @@ int wfx_send_pds(struct wfx_dev *wdev, u8 *buf, size_t len)
 			buf[i] = 0;
 			dev_dbg(wdev->dev, "send PDS '%s}'\n", buf + start);
 			buf[i] = '}';
-			ret = hif_configuration(wdev, buf + start,
-						i - start + 1);
+			ret = wfx_hif_configuration(wdev, buf + start,
+						    i - start + 1);
 			if (ret > 0) {
 				dev_err(wdev->dev, "PDS bytes %d to %d: invalid data (unsupported options?)\n",
 					start, i);
@@ -418,7 +418,7 @@ int wfx_probe(struct wfx_dev *wdev)
 	if (err)
 		goto err0;
 
-	err = hif_use_multi_tx_conf(wdev, true);
+	err = wfx_hif_use_multi_tx_conf(wdev, true);
 	if (err)
 		dev_err(wdev->dev, "misconfigured IRQ?\n");
 
@@ -429,9 +429,9 @@ int wfx_probe(struct wfx_dev *wdev)
 			wdev->pdata.file_pds);
 		gpiod_set_value_cansleep(wdev->pdata.gpio_wakeup, 1);
 		control_reg_write(wdev, 0);
-		hif_set_operational_mode(wdev, HIF_OP_POWER_MODE_QUIESCENT);
+		wfx_hif_set_operational_mode(wdev, HIF_OP_POWER_MODE_QUIESCENT);
 	} else {
-		hif_set_operational_mode(wdev, HIF_OP_POWER_MODE_DOZE);
+		wfx_hif_set_operational_mode(wdev, HIF_OP_POWER_MODE_DOZE);
 	}
 
 	for (i = 0; i < ARRAY_SIZE(wdev->addresses); i++) {
@@ -478,7 +478,7 @@ err0:
 void wfx_release(struct wfx_dev *wdev)
 {
 	ieee80211_unregister_hw(wdev->hw);
-	hif_shutdown(wdev);
+	wfx_hif_shutdown(wdev);
 	wdev->hwbus_ops->irq_unsubscribe(wdev->hwbus_priv);
 	wfx_bh_unregister(wdev);
 }

@@ -205,7 +205,7 @@ static int wfx_add_key(struct wfx_vif *wvif, struct ieee80211_sta *sta,
 		wfx_free_key(wdev, idx);
 		return -EOPNOTSUPP;
 	}
-	ret = hif_add_key(wdev, &k);
+	ret = wfx_hif_add_key(wdev, &k);
 	if (ret) {
 		wfx_free_key(wdev, idx);
 		return -EOPNOTSUPP;
@@ -220,7 +220,7 @@ static int wfx_remove_key(struct wfx_vif *wvif, struct ieee80211_key_conf *key)
 {
 	WARN(key->hw_key_idx >= MAX_KEY_ENTRIES, "corrupted hw_key_idx");
 	wfx_free_key(wvif->wdev, key->hw_key_idx);
-	return hif_remove_key(wvif->wdev, key->hw_key_idx);
+	return wfx_hif_remove_key(wvif->wdev, key->hw_key_idx);
 }
 
 int wfx_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,

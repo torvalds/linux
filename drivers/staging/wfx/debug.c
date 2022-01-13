@@ -66,7 +66,7 @@ static int wfx_counters_show(struct seq_file *seq, void *v)
 	struct hif_mib_extended_count_table counters[3];
 
 	for (i = 0; i < ARRAY_SIZE(counters); i++) {
-		ret = hif_get_counters_table(wdev, i, counters + i);
+		ret = wfx_hif_get_counters_table(wdev, i, counters + i);
 		if (ret < 0)
 			return ret;
 		if (ret > 0)
