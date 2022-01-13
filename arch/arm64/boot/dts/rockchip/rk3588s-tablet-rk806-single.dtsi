@@ -1520,15 +1520,8 @@
 };
 
 &u2phy0_otg {
+	rockchip,sel-pipe-phystatus;
 	rockchip,typec-vbus-det;
-	status = "okay";
-};
-
-&usbdp_phy0 {
-	status = "okay";
-};
-
-&usbdp_phy0_u3 {
 	status = "okay";
 };
 
@@ -1541,8 +1534,8 @@
 	status = "okay";
 
 	maximum-speed = "high-speed";
-	/*phys = <&u2phy0_otg>;*/
-	/*phy-names = "usb2-phy";*/
+	phys = <&u2phy0_otg>;
+	phy-names = "usb2-phy";
 	usb-role-switch;
 	port {
 		#address-cells = <1>;
