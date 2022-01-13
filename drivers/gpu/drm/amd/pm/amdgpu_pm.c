@@ -3583,6 +3583,9 @@ void amdgpu_debugfs_pm_init(struct amdgpu_device *adev)
 	struct drm_minor *minor = adev_to_drm(adev)->primary;
 	struct dentry *root = minor->debugfs_root;
 
+	if (!adev->pm.dpm_enabled)
+		return;
+
 	debugfs_create_file("amdgpu_pm_info", 0444, root, adev,
 			    &amdgpu_debugfs_pm_info_fops);
 
