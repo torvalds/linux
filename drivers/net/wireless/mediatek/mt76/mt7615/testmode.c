@@ -91,7 +91,7 @@ mt7615_tm_set_tx_power(struct mt7615_phy *phy)
 	}
 
 	return mt76_mcu_skb_send_msg(&dev->mt76, skb,
-				     MCU_EXT_CMD_SET_TX_POWER_CTRL, false);
+				     MCU_EXT_CMD(SET_TX_POWER_CTRL), false);
 }
 
 static void
@@ -185,36 +185,35 @@ mt7615_tm_set_tx_antenna(struct mt7615_phy *phy, bool en)
 	for (i = 0; i < 4; i++) {
 		mt76_rmw_field(dev, MT_WF_PHY_RFINTF3_0(i),
 			       MT_WF_PHY_RFINTF3_0_ANT,
-			       (td->tx_antenna_mask & BIT(i)) ? 0 : 0xa);
-
+			       (mask & BIT(i)) ? 0 : 0xa);
 	}
 
 	/* 2.4 GHz band */
 	mt76_rmw_field(dev, MT_ANT_SWITCH_CON(3), MT_ANT_SWITCH_CON_MODE(0),
-		       (td->tx_antenna_mask & BIT(0)) ? 0x8 : 0x1b);
+		       (mask & BIT(0)) ? 0x8 : 0x1b);
 	mt76_rmw_field(dev, MT_ANT_SWITCH_CON(4), MT_ANT_SWITCH_CON_MODE(2),
-		       (td->tx_antenna_mask & BIT(1)) ? 0xe : 0x1b);
+		       (mask & BIT(1)) ? 0xe : 0x1b);
 	mt76_rmw_field(dev, MT_ANT_SWITCH_CON(6), MT_ANT_SWITCH_CON_MODE1(0),
-		       (td->tx_antenna_mask & BIT(2)) ? 0x0 : 0xf);
+		       (mask & BIT(2)) ? 0x0 : 0xf);
 	mt76_rmw_field(dev, MT_ANT_SWITCH_CON(7), MT_ANT_SWITCH_CON_MODE1(2),
-		       (td->tx_antenna_mask & BIT(3)) ? 0x6 : 0xf);
+		       (mask & BIT(3)) ? 0x6 : 0xf);
 
 	/* 5 GHz band */
 	mt76_rmw_field(dev, MT_ANT_SWITCH_CON(4), MT_ANT_SWITCH_CON_MODE(1),
-		       (td->tx_antenna_mask & BIT(0)) ? 0xd : 0x1b);
+		       (mask & BIT(0)) ? 0xd : 0x1b);
 	mt76_rmw_field(dev, MT_ANT_SWITCH_CON(2), MT_ANT_SWITCH_CON_MODE(3),
-		       (td->tx_antenna_mask & BIT(1)) ? 0x13 : 0x1b);
+		       (mask & BIT(1)) ? 0x13 : 0x1b);
 	mt76_rmw_field(dev, MT_ANT_SWITCH_CON(7), MT_ANT_SWITCH_CON_MODE1(1),
-		       (td->tx_antenna_mask & BIT(2)) ? 0x5 : 0xf);
+		       (mask & BIT(2)) ? 0x5 : 0xf);
 	mt76_rmw_field(dev, MT_ANT_SWITCH_CON(8), MT_ANT_SWITCH_CON_MODE1(3),
-		       (td->tx_antenna_mask & BIT(3)) ? 0xb : 0xf);
+		       (mask & BIT(3)) ? 0xb : 0xf);
 
 	for (i = 0; i < 4; i++) {
 		u32 val;
 
 		val = mt7615_rf_rr(dev, i, 0x48);
 		val &= ~(0x3ff << 20);
-		if (td->tx_antenna_mask & BIT(i))
+		if (mask & BIT(i))
 			val |= 3 << 20;
 		else
 			val |= (2 << 28) | (2 << 26) | (8 << 20);
@@ -229,7 +228,7 @@ mt7615_tm_set_tx_frames(struct mt7615_phy *phy, bool en)
 	struct ieee80211_tx_info *info;
 	struct sk_buff *skb = phy->mt76->test.tx_skb;
 
-	mt7615_mcu_set_chan_info(phy, MCU_EXT_CMD_SET_RX_PATH);
+	mt7615_mcu_set_chan_info(phy, MCU_EXT_CMD(SET_RX_PATH));
 	mt7615_tm_set_tx_antenna(phy, en);
 	mt7615_tm_set_rx_enable(dev, !en);
 	if (!en || !skb)

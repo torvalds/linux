@@ -553,7 +553,6 @@ static int altera_uart_probe(struct platform_device *pdev)
 	struct altera_uart_platform_uart *platp = dev_get_platdata(&pdev->dev);
 	struct uart_port *port;
 	struct resource *res_mem;
-	struct resource *res_irq;
 	int i = pdev->id;
 	int ret;
 
@@ -577,9 +576,11 @@ static int altera_uart_probe(struct platform_device *pdev)
 	else
 		return -EINVAL;
 
-	res_irq = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
-	if (res_irq)
-		port->irq = res_irq->start;
+	ret = platform_get_irq_optional(pdev, 0);
+	if (ret < 0 && ret != -ENXIO)
+		return ret;
+	if (ret > 0)
+		port->irq = ret;
 	else if (platp)
 		port->irq = platp->irq;
 

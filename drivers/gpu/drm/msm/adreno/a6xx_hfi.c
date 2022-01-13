@@ -36,6 +36,8 @@ static int a6xx_hfi_queue_read(struct a6xx_gmu *gmu,
 
 	hdr = queue->data[index];
 
+	queue->history[(queue->history_idx++) % HFI_HISTORY_SZ] = index;
+
 	/*
 	 * If we are to assume that the GMU firmware is in fact a rational actor
 	 * and is programmed to not send us a larger response than we expect
@@ -74,6 +76,8 @@ static int a6xx_hfi_queue_write(struct a6xx_gmu *gmu,
 		spin_unlock(&queue->lock);
 		return -ENOSPC;
 	}
+
+	queue->history[(queue->history_idx++) % HFI_HISTORY_SZ] = index;
 
 	for (i = 0; i < dwords; i++) {
 		queue->data[index] = data[i];
@@ -600,6 +604,9 @@ void a6xx_hfi_stop(struct a6xx_gmu *gmu)
 
 		queue->header->read_index = 0;
 		queue->header->write_index = 0;
+
+		memset(&queue->history, 0xff, sizeof(queue->history));
+		queue->history_idx = 0;
 	}
 }
 
@@ -611,6 +618,9 @@ static void a6xx_hfi_queue_init(struct a6xx_hfi_queue *queue,
 	queue->header = header;
 	queue->data = virt;
 	atomic_set(&queue->seqnum, 0);
+
+	memset(&queue->history, 0xff, sizeof(queue->history));
+	queue->history_idx = 0;
 
 	/* Set up the shared memory header */
 	header->iova = iova;

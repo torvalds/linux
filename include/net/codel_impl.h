@@ -49,6 +49,8 @@
  * Implemented on linux by Dave Taht and Eric Dumazet
  */
 
+#include <net/inet_ecn.h>
+
 static void codel_params_init(struct codel_params *params)
 {
 	params->interval = MS2TIME(100);

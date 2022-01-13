@@ -150,11 +150,6 @@ static void mctp_test_fragment(struct kunit *test)
 	rt = mctp_test_create_route(&init_net, NULL, 10, mtu);
 	KUNIT_ASSERT_TRUE(test, rt);
 
-	/* The refcount would usually be incremented as part of a route lookup,
-	 * but we're setting the route directly here.
-	 */
-	refcount_inc(&rt->rt.refs);
-
 	rc = mctp_do_fragment_route(&rt->rt, skb, mtu, MCTP_TAG_OWNER);
 	KUNIT_EXPECT_FALSE(test, rc);
 

@@ -141,6 +141,19 @@ static bool dr_mask_is_tnl_geneve_tlv_opt(struct mlx5dr_match_misc3 *misc3)
 }
 
 static bool
+dr_matcher_supp_flex_parser_ok(struct mlx5dr_cmd_caps *caps)
+{
+	return caps->flex_parser_ok_bits_supp;
+}
+
+static bool dr_mask_is_tnl_geneve_tlv_opt_exist_set(struct mlx5dr_match_misc *misc,
+						    struct mlx5dr_domain *dmn)
+{
+	return dr_matcher_supp_flex_parser_ok(&dmn->info.caps) &&
+	       misc->geneve_tlv_option_0_exist;
+}
+
+static bool
 dr_matcher_supp_tnl_geneve(struct mlx5dr_cmd_caps *caps)
 {
 	return (caps->sw_format_ver == MLX5_STEERING_FORMAT_CONNECTX_6DX) ||
@@ -359,7 +372,7 @@ static bool dr_mask_is_tnl_mpls_over_gre(struct mlx5dr_match_param *mask,
 
 static int dr_matcher_supp_tnl_mpls_over_udp(struct mlx5dr_cmd_caps *caps)
 {
-	return caps->flex_protocols & mlx5_FLEX_PARSER_MPLS_OVER_UDP_ENABLED;
+	return caps->flex_protocols & MLX5_FLEX_PARSER_MPLS_OVER_UDP_ENABLED;
 }
 
 static bool dr_mask_is_tnl_mpls_over_udp(struct mlx5dr_match_param *mask,
@@ -368,6 +381,12 @@ static bool dr_mask_is_tnl_mpls_over_udp(struct mlx5dr_match_param *mask,
 	return DR_MASK_IS_OUTER_MPLS_OVER_UDP_SET(&mask->misc2) &&
 	       dr_matcher_supp_tnl_mpls_over_udp(&dmn->info.caps);
 }
+
+static bool dr_mask_is_tnl_header_0_1_set(struct mlx5dr_match_misc5 *misc5)
+{
+	return misc5->tunnel_header_0 || misc5->tunnel_header_1;
+}
+
 int mlx5dr_matcher_select_builders(struct mlx5dr_matcher *matcher,
 				   struct mlx5dr_matcher_rx_tx *nic_matcher,
 				   enum mlx5dr_ipv outer_ipv,
@@ -424,6 +443,9 @@ static int dr_matcher_set_ste_builders(struct mlx5dr_matcher *matcher,
 	if (matcher->match_criteria & DR_MATCHER_CRITERIA_MISC4)
 		mask.misc4 = matcher->mask.misc4;
 
+	if (matcher->match_criteria & DR_MATCHER_CRITERIA_MISC5)
+		mask.misc5 = matcher->mask.misc5;
+
 	ret = mlx5dr_ste_build_pre_check(dmn, matcher->match_criteria,
 					 &matcher->mask, NULL);
 	if (ret)
@@ -443,7 +465,8 @@ static int dr_matcher_set_ste_builders(struct mlx5dr_matcher *matcher,
 	if (matcher->match_criteria & (DR_MATCHER_CRITERIA_OUTER |
 				       DR_MATCHER_CRITERIA_MISC |
 				       DR_MATCHER_CRITERIA_MISC2 |
-				       DR_MATCHER_CRITERIA_MISC3)) {
+				       DR_MATCHER_CRITERIA_MISC3 |
+				       DR_MATCHER_CRITERIA_MISC5)) {
 		inner = false;
 
 		if (dr_mask_is_wqe_metadata_set(&mask.misc2))
@@ -511,6 +534,10 @@ static int dr_matcher_set_ste_builders(struct mlx5dr_matcher *matcher,
 				mlx5dr_ste_build_tnl_geneve_tlv_opt(ste_ctx, &sb[idx++],
 								    &mask, &dmn->info.caps,
 								    inner, rx);
+			if (dr_mask_is_tnl_geneve_tlv_opt_exist_set(&mask.misc, dmn))
+				mlx5dr_ste_build_tnl_geneve_tlv_opt_exist(ste_ctx, &sb[idx++],
+									  &mask, &dmn->info.caps,
+									  inner, rx);
 		} else if (dr_mask_is_tnl_gtpu_any(&mask, dmn)) {
 			if (dr_mask_is_tnl_gtpu_flex_parser_0(&mask, dmn))
 				mlx5dr_ste_build_tnl_gtpu_flex_parser_0(ste_ctx, &sb[idx++],
@@ -525,6 +552,9 @@ static int dr_matcher_set_ste_builders(struct mlx5dr_matcher *matcher,
 			if (dr_mask_is_tnl_gtpu(&mask, dmn))
 				mlx5dr_ste_build_tnl_gtpu(ste_ctx, &sb[idx++],
 							  &mask, inner, rx);
+		} else if (dr_mask_is_tnl_header_0_1_set(&mask.misc5)) {
+			mlx5dr_ste_build_tnl_header_0_1(ste_ctx, &sb[idx++],
+							&mask, inner, rx);
 		}
 
 		if (DR_MASK_IS_ETH_L4_MISC_SET(mask.misc3, outer))
@@ -653,10 +683,10 @@ static int dr_matcher_set_ste_builders(struct mlx5dr_matcher *matcher,
 	return 0;
 }
 
-static int dr_matcher_connect(struct mlx5dr_domain *dmn,
-			      struct mlx5dr_matcher_rx_tx *curr_nic_matcher,
-			      struct mlx5dr_matcher_rx_tx *next_nic_matcher,
-			      struct mlx5dr_matcher_rx_tx *prev_nic_matcher)
+static int dr_nic_matcher_connect(struct mlx5dr_domain *dmn,
+				  struct mlx5dr_matcher_rx_tx *curr_nic_matcher,
+				  struct mlx5dr_matcher_rx_tx *next_nic_matcher,
+				  struct mlx5dr_matcher_rx_tx *prev_nic_matcher)
 {
 	struct mlx5dr_table_rx_tx *nic_tbl = curr_nic_matcher->nic_tbl;
 	struct mlx5dr_domain_rx_tx *nic_dmn = nic_tbl->nic_dmn;
@@ -712,58 +742,50 @@ static int dr_matcher_connect(struct mlx5dr_domain *dmn,
 	return 0;
 }
 
-static int dr_matcher_add_to_tbl(struct mlx5dr_matcher *matcher)
+int mlx5dr_matcher_add_to_tbl_nic(struct mlx5dr_domain *dmn,
+				  struct mlx5dr_matcher_rx_tx *nic_matcher)
 {
-	struct mlx5dr_matcher *next_matcher, *prev_matcher, *tmp_matcher;
-	struct mlx5dr_table *tbl = matcher->tbl;
-	struct mlx5dr_domain *dmn = tbl->dmn;
+	struct mlx5dr_matcher_rx_tx *next_nic_matcher, *prev_nic_matcher, *tmp_nic_matcher;
+	struct mlx5dr_table_rx_tx *nic_tbl = nic_matcher->nic_tbl;
 	bool first = true;
 	int ret;
 
-	next_matcher = NULL;
-	list_for_each_entry(tmp_matcher, &tbl->matcher_list, matcher_list) {
-		if (tmp_matcher->prio >= matcher->prio) {
-			next_matcher = tmp_matcher;
+	/* If the nic matcher is already on its parent nic table list,
+	 * then it is already connected to the chain of nic matchers.
+	 */
+	if (!list_empty(&nic_matcher->list_node))
+		return 0;
+
+	next_nic_matcher = NULL;
+	list_for_each_entry(tmp_nic_matcher, &nic_tbl->nic_matcher_list, list_node) {
+		if (tmp_nic_matcher->prio >= nic_matcher->prio) {
+			next_nic_matcher = tmp_nic_matcher;
 			break;
 		}
 		first = false;
 	}
 
-	prev_matcher = NULL;
-	if (next_matcher && !first)
-		prev_matcher = list_prev_entry(next_matcher, matcher_list);
+	prev_nic_matcher = NULL;
+	if (next_nic_matcher && !first)
+		prev_nic_matcher = list_prev_entry(next_nic_matcher, list_node);
 	else if (!first)
-		prev_matcher = list_last_entry(&tbl->matcher_list,
-					       struct mlx5dr_matcher,
-					       matcher_list);
+		prev_nic_matcher = list_last_entry(&nic_tbl->nic_matcher_list,
+						   struct mlx5dr_matcher_rx_tx,
+						   list_node);
 
-	if (dmn->type == MLX5DR_DOMAIN_TYPE_FDB ||
-	    dmn->type == MLX5DR_DOMAIN_TYPE_NIC_RX) {
-		ret = dr_matcher_connect(dmn, &matcher->rx,
-					 next_matcher ? &next_matcher->rx : NULL,
-					 prev_matcher ?	&prev_matcher->rx : NULL);
-		if (ret)
-			return ret;
-	}
+	ret = dr_nic_matcher_connect(dmn, nic_matcher,
+				     next_nic_matcher, prev_nic_matcher);
+	if (ret)
+		return ret;
 
-	if (dmn->type == MLX5DR_DOMAIN_TYPE_FDB ||
-	    dmn->type == MLX5DR_DOMAIN_TYPE_NIC_TX) {
-		ret = dr_matcher_connect(dmn, &matcher->tx,
-					 next_matcher ? &next_matcher->tx : NULL,
-					 prev_matcher ?	&prev_matcher->tx : NULL);
-		if (ret)
-			return ret;
-	}
-
-	if (prev_matcher)
-		list_add(&matcher->matcher_list, &prev_matcher->matcher_list);
-	else if (next_matcher)
-		list_add_tail(&matcher->matcher_list,
-			      &next_matcher->matcher_list);
+	if (prev_nic_matcher)
+		list_add(&nic_matcher->list_node, &prev_nic_matcher->list_node);
+	else if (next_nic_matcher)
+		list_add_tail(&nic_matcher->list_node, &next_nic_matcher->list_node);
 	else
-		list_add(&matcher->matcher_list, &tbl->matcher_list);
+		list_add(&nic_matcher->list_node, &nic_matcher->nic_tbl->nic_matcher_list);
 
-	return 0;
+	return ret;
 }
 
 static void dr_matcher_uninit_nic(struct mlx5dr_matcher_rx_tx *nic_matcher)
@@ -822,6 +844,9 @@ static int dr_matcher_init_nic(struct mlx5dr_matcher *matcher,
 	struct mlx5dr_domain *dmn = matcher->tbl->dmn;
 	int ret;
 
+	nic_matcher->prio = matcher->prio;
+	INIT_LIST_HEAD(&nic_matcher->list_node);
+
 	ret = dr_matcher_set_all_ste_builders(matcher, nic_matcher);
 	if (ret)
 		return ret;
@@ -872,13 +897,12 @@ uninit_nic_rx:
 	return ret;
 }
 
-static int dr_matcher_init(struct mlx5dr_matcher *matcher,
-			   struct mlx5dr_match_parameters *mask)
+static int dr_matcher_copy_param(struct mlx5dr_matcher *matcher,
+				 struct mlx5dr_match_parameters *mask)
 {
+	struct mlx5dr_domain *dmn = matcher->tbl->dmn;
 	struct mlx5dr_match_parameters consumed_mask;
-	struct mlx5dr_table *tbl = matcher->tbl;
-	struct mlx5dr_domain *dmn = tbl->dmn;
-	int i, ret;
+	int i, ret = 0;
 
 	if (matcher->match_criteria >= DR_MATCHER_CRITERIA_MAX) {
 		mlx5dr_err(dmn, "Invalid match criteria attribute\n");
@@ -898,9 +922,35 @@ static int dr_matcher_init(struct mlx5dr_matcher *matcher,
 		consumed_mask.match_sz = mask->match_sz;
 		memcpy(consumed_mask.match_buf, mask->match_buf, mask->match_sz);
 		mlx5dr_ste_copy_param(matcher->match_criteria,
-				      &matcher->mask, &consumed_mask,
-				      true);
+				      &matcher->mask, &consumed_mask, true);
+
+		/* Check that all mask data was consumed */
+		for (i = 0; i < consumed_mask.match_sz; i++) {
+			if (!((u8 *)consumed_mask.match_buf)[i])
+				continue;
+
+			mlx5dr_dbg(dmn,
+				   "Match param mask contains unsupported parameters\n");
+			ret = -EOPNOTSUPP;
+			break;
+		}
+
+		kfree(consumed_mask.match_buf);
 	}
+
+	return ret;
+}
+
+static int dr_matcher_init(struct mlx5dr_matcher *matcher,
+			   struct mlx5dr_match_parameters *mask)
+{
+	struct mlx5dr_table *tbl = matcher->tbl;
+	struct mlx5dr_domain *dmn = tbl->dmn;
+	int ret;
+
+	ret = dr_matcher_copy_param(matcher, mask);
+	if (ret)
+		return ret;
 
 	switch (dmn->type) {
 	case MLX5DR_DOMAIN_TYPE_NIC_RX:
@@ -919,23 +969,23 @@ static int dr_matcher_init(struct mlx5dr_matcher *matcher,
 	default:
 		WARN_ON(true);
 		ret = -EINVAL;
-		goto free_consumed_mask;
 	}
 
-	/* Check that all mask data was consumed */
-	for (i = 0; i < consumed_mask.match_sz; i++) {
-		if (!((u8 *)consumed_mask.match_buf)[i])
-			continue;
-
-		mlx5dr_dbg(dmn, "Match param mask contains unsupported parameters\n");
-		ret = -EOPNOTSUPP;
-		goto free_consumed_mask;
-	}
-
-	ret =  0;
-free_consumed_mask:
-	kfree(consumed_mask.match_buf);
 	return ret;
+}
+
+static void dr_matcher_add_to_dbg_list(struct mlx5dr_matcher *matcher)
+{
+	mutex_lock(&matcher->tbl->dmn->dump_info.dbg_mutex);
+	list_add(&matcher->list_node, &matcher->tbl->matcher_list);
+	mutex_unlock(&matcher->tbl->dmn->dump_info.dbg_mutex);
+}
+
+static void dr_matcher_remove_from_dbg_list(struct mlx5dr_matcher *matcher)
+{
+	mutex_lock(&matcher->tbl->dmn->dump_info.dbg_mutex);
+	list_del(&matcher->list_node);
+	mutex_unlock(&matcher->tbl->dmn->dump_info.dbg_mutex);
 }
 
 struct mlx5dr_matcher *
@@ -957,7 +1007,8 @@ mlx5dr_matcher_create(struct mlx5dr_table *tbl,
 	matcher->prio = priority;
 	matcher->match_criteria = match_criteria_enable;
 	refcount_set(&matcher->refcount, 1);
-	INIT_LIST_HEAD(&matcher->matcher_list);
+	INIT_LIST_HEAD(&matcher->list_node);
+	INIT_LIST_HEAD(&matcher->dbg_rule_list);
 
 	mlx5dr_domain_lock(tbl->dmn);
 
@@ -965,16 +1016,12 @@ mlx5dr_matcher_create(struct mlx5dr_table *tbl,
 	if (ret)
 		goto free_matcher;
 
-	ret = dr_matcher_add_to_tbl(matcher);
-	if (ret)
-		goto matcher_uninit;
+	dr_matcher_add_to_dbg_list(matcher);
 
 	mlx5dr_domain_unlock(tbl->dmn);
 
 	return matcher;
 
-matcher_uninit:
-	dr_matcher_uninit(matcher);
 free_matcher:
 	mlx5dr_domain_unlock(tbl->dmn);
 	kfree(matcher);
@@ -983,10 +1030,10 @@ dec_ref:
 	return NULL;
 }
 
-static int dr_matcher_disconnect(struct mlx5dr_domain *dmn,
-				 struct mlx5dr_table_rx_tx *nic_tbl,
-				 struct mlx5dr_matcher_rx_tx *next_nic_matcher,
-				 struct mlx5dr_matcher_rx_tx *prev_nic_matcher)
+static int dr_matcher_disconnect_nic(struct mlx5dr_domain *dmn,
+				     struct mlx5dr_table_rx_tx *nic_tbl,
+				     struct mlx5dr_matcher_rx_tx *next_nic_matcher,
+				     struct mlx5dr_matcher_rx_tx *prev_nic_matcher)
 {
 	struct mlx5dr_domain_rx_tx *nic_dmn = nic_tbl->nic_dmn;
 	struct mlx5dr_htbl_connect_info info;
@@ -1013,43 +1060,34 @@ static int dr_matcher_disconnect(struct mlx5dr_domain *dmn,
 						 &info, true);
 }
 
-static int dr_matcher_remove_from_tbl(struct mlx5dr_matcher *matcher)
+int mlx5dr_matcher_remove_from_tbl_nic(struct mlx5dr_domain *dmn,
+				       struct mlx5dr_matcher_rx_tx *nic_matcher)
 {
-	struct mlx5dr_matcher *prev_matcher, *next_matcher;
-	struct mlx5dr_table *tbl = matcher->tbl;
-	struct mlx5dr_domain *dmn = tbl->dmn;
-	int ret = 0;
+	struct mlx5dr_matcher_rx_tx *prev_nic_matcher, *next_nic_matcher;
+	struct mlx5dr_table_rx_tx *nic_tbl = nic_matcher->nic_tbl;
+	int ret;
 
-	if (list_is_last(&matcher->matcher_list, &tbl->matcher_list))
-		next_matcher = NULL;
+	/* If the nic matcher is not on its parent nic table list,
+	 * then it is detached - no need to disconnect it.
+	 */
+	if (list_empty(&nic_matcher->list_node))
+		return 0;
+
+	if (list_is_last(&nic_matcher->list_node, &nic_tbl->nic_matcher_list))
+		next_nic_matcher = NULL;
 	else
-		next_matcher = list_next_entry(matcher, matcher_list);
+		next_nic_matcher = list_next_entry(nic_matcher, list_node);
 
-	if (matcher->matcher_list.prev == &tbl->matcher_list)
-		prev_matcher = NULL;
+	if (nic_matcher->list_node.prev == &nic_tbl->nic_matcher_list)
+		prev_nic_matcher = NULL;
 	else
-		prev_matcher = list_prev_entry(matcher, matcher_list);
+		prev_nic_matcher = list_prev_entry(nic_matcher, list_node);
 
-	if (dmn->type == MLX5DR_DOMAIN_TYPE_FDB ||
-	    dmn->type == MLX5DR_DOMAIN_TYPE_NIC_RX) {
-		ret = dr_matcher_disconnect(dmn, &tbl->rx,
-					    next_matcher ? &next_matcher->rx : NULL,
-					    prev_matcher ? &prev_matcher->rx : NULL);
-		if (ret)
-			return ret;
-	}
+	ret = dr_matcher_disconnect_nic(dmn, nic_tbl, next_nic_matcher, prev_nic_matcher);
+	if (ret)
+		return ret;
 
-	if (dmn->type == MLX5DR_DOMAIN_TYPE_FDB ||
-	    dmn->type == MLX5DR_DOMAIN_TYPE_NIC_TX) {
-		ret = dr_matcher_disconnect(dmn, &tbl->tx,
-					    next_matcher ? &next_matcher->tx : NULL,
-					    prev_matcher ? &prev_matcher->tx : NULL);
-		if (ret)
-			return ret;
-	}
-
-	list_del(&matcher->matcher_list);
-
+	list_del_init(&nic_matcher->list_node);
 	return 0;
 }
 
@@ -1057,12 +1095,12 @@ int mlx5dr_matcher_destroy(struct mlx5dr_matcher *matcher)
 {
 	struct mlx5dr_table *tbl = matcher->tbl;
 
-	if (refcount_read(&matcher->refcount) > 1)
+	if (WARN_ON_ONCE(refcount_read(&matcher->refcount) > 1))
 		return -EBUSY;
 
 	mlx5dr_domain_lock(tbl->dmn);
 
-	dr_matcher_remove_from_tbl(matcher);
+	dr_matcher_remove_from_dbg_list(matcher);
 	dr_matcher_uninit(matcher);
 	refcount_dec(&matcher->tbl->refcount);
 

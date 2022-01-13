@@ -1133,14 +1133,11 @@ static int xemaclite_of_probe(struct platform_device *ofdev)
 	lp->ndev = ndev;
 
 	/* Get IRQ for the device */
-	res = platform_get_resource(ofdev, IORESOURCE_IRQ, 0);
-	if (!res) {
-		dev_err(dev, "no IRQ found\n");
-		rc = -ENXIO;
+	rc = platform_get_irq(ofdev, 0);
+	if (rc < 0)
 		goto error;
-	}
 
-	ndev->irq = res->start;
+	ndev->irq = rc;
 
 	res = platform_get_resource(ofdev, IORESOURCE_MEM, 0);
 	lp->base_addr = devm_ioremap_resource(&ofdev->dev, res);

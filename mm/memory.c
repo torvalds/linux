@@ -1304,6 +1304,28 @@ copy_page_range(struct vm_area_struct *dst_vma, struct vm_area_struct *src_vma)
 	return ret;
 }
 
+/*
+ * Parameter block passed down to zap_pte_range in exceptional cases.
+ */
+struct zap_details {
+	struct address_space *zap_mapping;	/* Check page->mapping if set */
+	struct folio *single_folio;	/* Locked folio to be unmapped */
+};
+
+/*
+ * We set details->zap_mapping when we want to unmap shared but keep private
+ * pages. Return true if skip zapping this page, false otherwise.
+ */
+static inline bool
+zap_skip_check_mapping(struct zap_details *details, struct page *page)
+{
+	if (!details || !page)
+		return false;
+
+	return details->zap_mapping &&
+		(details->zap_mapping != page_rmapping(page));
+}
+
 static unsigned long zap_pte_range(struct mmu_gather *tlb,
 				struct vm_area_struct *vma, pmd_t *pmd,
 				unsigned long addr, unsigned long end,
@@ -1443,8 +1465,8 @@ static inline unsigned long zap_pmd_range(struct mmu_gather *tlb,
 			else if (zap_huge_pmd(tlb, vma, pmd, addr))
 				goto next;
 			/* fall through */
-		} else if (details && details->single_page &&
-			   PageTransCompound(details->single_page) &&
+		} else if (details && details->single_folio &&
+			   folio_test_pmd_mappable(details->single_folio) &&
 			   next - addr == HPAGE_PMD_SIZE && pmd_none(*pmd)) {
 			spinlock_t *ptl = pmd_lock(tlb->mm, pmd);
 			/*
@@ -3332,31 +3354,30 @@ static inline void unmap_mapping_range_tree(struct rb_root_cached *root,
 }
 
 /**
- * unmap_mapping_page() - Unmap single page from processes.
- * @page: The locked page to be unmapped.
+ * unmap_mapping_folio() - Unmap single folio from processes.
+ * @folio: The locked folio to be unmapped.
  *
- * Unmap this page from any userspace process which still has it mmaped.
+ * Unmap this folio from any userspace process which still has it mmaped.
  * Typically, for efficiency, the range of nearby pages has already been
  * unmapped by unmap_mapping_pages() or unmap_mapping_range().  But once
- * truncation or invalidation holds the lock on a page, it may find that
- * the page has been remapped again: and then uses unmap_mapping_page()
+ * truncation or invalidation holds the lock on a folio, it may find that
+ * the page has been remapped again: and then uses unmap_mapping_folio()
  * to unmap it finally.
  */
-void unmap_mapping_page(struct page *page)
+void unmap_mapping_folio(struct folio *folio)
 {
-	struct address_space *mapping = page->mapping;
+	struct address_space *mapping = folio->mapping;
 	struct zap_details details = { };
 	pgoff_t	first_index;
 	pgoff_t	last_index;
 
-	VM_BUG_ON(!PageLocked(page));
-	VM_BUG_ON(PageTail(page));
+	VM_BUG_ON(!folio_test_locked(folio));
 
-	first_index = page->index;
-	last_index = page->index + thp_nr_pages(page) - 1;
+	first_index = folio->index;
+	last_index = folio->index + folio_nr_pages(folio) - 1;
 
 	details.zap_mapping = mapping;
-	details.single_page = page;
+	details.single_folio = folio;
 
 	i_mmap_lock_write(mapping);
 	if (unlikely(!RB_EMPTY_ROOT(&mapping->i_mmap.rb_root)))

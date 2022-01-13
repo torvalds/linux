@@ -28,39 +28,39 @@
  *  - Registers a CXL mailbox with cxl_core.
  */
 
-#define cxl_doorbell_busy(cxlm)                                                \
-	(readl((cxlm)->regs.mbox + CXLDEV_MBOX_CTRL_OFFSET) &                  \
+#define cxl_doorbell_busy(cxlds)                                                \
+	(readl((cxlds)->regs.mbox + CXLDEV_MBOX_CTRL_OFFSET) &                  \
 	 CXLDEV_MBOX_CTRL_DOORBELL)
 
 /* CXL 2.0 - 8.2.8.4 */
 #define CXL_MAILBOX_TIMEOUT_MS (2 * HZ)
 
-static int cxl_pci_mbox_wait_for_doorbell(struct cxl_mem *cxlm)
+static int cxl_pci_mbox_wait_for_doorbell(struct cxl_dev_state *cxlds)
 {
 	const unsigned long start = jiffies;
 	unsigned long end = start;
 
-	while (cxl_doorbell_busy(cxlm)) {
+	while (cxl_doorbell_busy(cxlds)) {
 		end = jiffies;
 
 		if (time_after(end, start + CXL_MAILBOX_TIMEOUT_MS)) {
 			/* Check again in case preempted before timeout test */
-			if (!cxl_doorbell_busy(cxlm))
+			if (!cxl_doorbell_busy(cxlds))
 				break;
 			return -ETIMEDOUT;
 		}
 		cpu_relax();
 	}
 
-	dev_dbg(cxlm->dev, "Doorbell wait took %dms",
+	dev_dbg(cxlds->dev, "Doorbell wait took %dms",
 		jiffies_to_msecs(end) - jiffies_to_msecs(start));
 	return 0;
 }
 
-static void cxl_pci_mbox_timeout(struct cxl_mem *cxlm,
+static void cxl_pci_mbox_timeout(struct cxl_dev_state *cxlds,
 				 struct cxl_mbox_cmd *mbox_cmd)
 {
-	struct device *dev = cxlm->dev;
+	struct device *dev = cxlds->dev;
 
 	dev_dbg(dev, "Mailbox command (opcode: %#x size: %zub) timed out\n",
 		mbox_cmd->opcode, mbox_cmd->size_in);
@@ -68,7 +68,7 @@ static void cxl_pci_mbox_timeout(struct cxl_mem *cxlm,
 
 /**
  * __cxl_pci_mbox_send_cmd() - Execute a mailbox command
- * @cxlm: The CXL memory device to communicate with.
+ * @cxlds: The device state to communicate with.
  * @mbox_cmd: Command to send to the memory device.
  *
  * Context: Any context. Expects mbox_mutex to be held.
@@ -88,16 +88,16 @@ static void cxl_pci_mbox_timeout(struct cxl_mem *cxlm,
  * not need to coordinate with each other. The driver only uses the primary
  * mailbox.
  */
-static int __cxl_pci_mbox_send_cmd(struct cxl_mem *cxlm,
+static int __cxl_pci_mbox_send_cmd(struct cxl_dev_state *cxlds,
 				   struct cxl_mbox_cmd *mbox_cmd)
 {
-	void __iomem *payload = cxlm->regs.mbox + CXLDEV_MBOX_PAYLOAD_OFFSET;
-	struct device *dev = cxlm->dev;
+	void __iomem *payload = cxlds->regs.mbox + CXLDEV_MBOX_PAYLOAD_OFFSET;
+	struct device *dev = cxlds->dev;
 	u64 cmd_reg, status_reg;
 	size_t out_len;
 	int rc;
 
-	lockdep_assert_held(&cxlm->mbox_mutex);
+	lockdep_assert_held(&cxlds->mbox_mutex);
 
 	/*
 	 * Here are the steps from 8.2.8.4 of the CXL 2.0 spec.
@@ -117,7 +117,7 @@ static int __cxl_pci_mbox_send_cmd(struct cxl_mem *cxlm,
 	 */
 
 	/* #1 */
-	if (cxl_doorbell_busy(cxlm)) {
+	if (cxl_doorbell_busy(cxlds)) {
 		dev_err_ratelimited(dev, "Mailbox re-busy after acquiring\n");
 		return -EBUSY;
 	}
@@ -134,22 +134,22 @@ static int __cxl_pci_mbox_send_cmd(struct cxl_mem *cxlm,
 	}
 
 	/* #2, #3 */
-	writeq(cmd_reg, cxlm->regs.mbox + CXLDEV_MBOX_CMD_OFFSET);
+	writeq(cmd_reg, cxlds->regs.mbox + CXLDEV_MBOX_CMD_OFFSET);
 
 	/* #4 */
 	dev_dbg(dev, "Sending command\n");
 	writel(CXLDEV_MBOX_CTRL_DOORBELL,
-	       cxlm->regs.mbox + CXLDEV_MBOX_CTRL_OFFSET);
+	       cxlds->regs.mbox + CXLDEV_MBOX_CTRL_OFFSET);
 
 	/* #5 */
-	rc = cxl_pci_mbox_wait_for_doorbell(cxlm);
+	rc = cxl_pci_mbox_wait_for_doorbell(cxlds);
 	if (rc == -ETIMEDOUT) {
-		cxl_pci_mbox_timeout(cxlm, mbox_cmd);
+		cxl_pci_mbox_timeout(cxlds, mbox_cmd);
 		return rc;
 	}
 
 	/* #6 */
-	status_reg = readq(cxlm->regs.mbox + CXLDEV_MBOX_STATUS_OFFSET);
+	status_reg = readq(cxlds->regs.mbox + CXLDEV_MBOX_STATUS_OFFSET);
 	mbox_cmd->return_code =
 		FIELD_GET(CXLDEV_MBOX_STATUS_RET_CODE_MASK, status_reg);
 
@@ -159,7 +159,7 @@ static int __cxl_pci_mbox_send_cmd(struct cxl_mem *cxlm,
 	}
 
 	/* #7 */
-	cmd_reg = readq(cxlm->regs.mbox + CXLDEV_MBOX_CMD_OFFSET);
+	cmd_reg = readq(cxlds->regs.mbox + CXLDEV_MBOX_CMD_OFFSET);
 	out_len = FIELD_GET(CXLDEV_MBOX_CMD_PAYLOAD_LENGTH_MASK, cmd_reg);
 
 	/* #8 */
@@ -171,7 +171,7 @@ static int __cxl_pci_mbox_send_cmd(struct cxl_mem *cxlm,
 		 * have requested less data than the hardware supplied even
 		 * within spec.
 		 */
-		size_t n = min3(mbox_cmd->size_out, cxlm->payload_size, out_len);
+		size_t n = min3(mbox_cmd->size_out, cxlds->payload_size, out_len);
 
 		memcpy_fromio(mbox_cmd->payload_out, payload, n);
 		mbox_cmd->size_out = n;
@@ -184,18 +184,18 @@ static int __cxl_pci_mbox_send_cmd(struct cxl_mem *cxlm,
 
 /**
  * cxl_pci_mbox_get() - Acquire exclusive access to the mailbox.
- * @cxlm: The memory device to gain access to.
+ * @cxlds: The device state to gain access to.
  *
  * Context: Any context. Takes the mbox_mutex.
  * Return: 0 if exclusive access was acquired.
  */
-static int cxl_pci_mbox_get(struct cxl_mem *cxlm)
+static int cxl_pci_mbox_get(struct cxl_dev_state *cxlds)
 {
-	struct device *dev = cxlm->dev;
+	struct device *dev = cxlds->dev;
 	u64 md_status;
 	int rc;
 
-	mutex_lock_io(&cxlm->mbox_mutex);
+	mutex_lock_io(&cxlds->mbox_mutex);
 
 	/*
 	 * XXX: There is some amount of ambiguity in the 2.0 version of the spec
@@ -214,13 +214,13 @@ static int cxl_pci_mbox_get(struct cxl_mem *cxlm)
 	 *    Mailbox Interface Ready bit. Therefore, waiting for the doorbell
 	 *    to be ready is sufficient.
 	 */
-	rc = cxl_pci_mbox_wait_for_doorbell(cxlm);
+	rc = cxl_pci_mbox_wait_for_doorbell(cxlds);
 	if (rc) {
 		dev_warn(dev, "Mailbox interface not ready\n");
 		goto out;
 	}
 
-	md_status = readq(cxlm->regs.memdev + CXLMDEV_STATUS_OFFSET);
+	md_status = readq(cxlds->regs.memdev + CXLMDEV_STATUS_OFFSET);
 	if (!(md_status & CXLMDEV_MBOX_IF_READY && CXLMDEV_READY(md_status))) {
 		dev_err(dev, "mbox: reported doorbell ready, but not mbox ready\n");
 		rc = -EBUSY;
@@ -249,41 +249,41 @@ static int cxl_pci_mbox_get(struct cxl_mem *cxlm)
 	return 0;
 
 out:
-	mutex_unlock(&cxlm->mbox_mutex);
+	mutex_unlock(&cxlds->mbox_mutex);
 	return rc;
 }
 
 /**
  * cxl_pci_mbox_put() - Release exclusive access to the mailbox.
- * @cxlm: The CXL memory device to communicate with.
+ * @cxlds: The device state to communicate with.
  *
  * Context: Any context. Expects mbox_mutex to be held.
  */
-static void cxl_pci_mbox_put(struct cxl_mem *cxlm)
+static void cxl_pci_mbox_put(struct cxl_dev_state *cxlds)
 {
-	mutex_unlock(&cxlm->mbox_mutex);
+	mutex_unlock(&cxlds->mbox_mutex);
 }
 
-static int cxl_pci_mbox_send(struct cxl_mem *cxlm, struct cxl_mbox_cmd *cmd)
+static int cxl_pci_mbox_send(struct cxl_dev_state *cxlds, struct cxl_mbox_cmd *cmd)
 {
 	int rc;
 
-	rc = cxl_pci_mbox_get(cxlm);
+	rc = cxl_pci_mbox_get(cxlds);
 	if (rc)
 		return rc;
 
-	rc = __cxl_pci_mbox_send_cmd(cxlm, cmd);
-	cxl_pci_mbox_put(cxlm);
+	rc = __cxl_pci_mbox_send_cmd(cxlds, cmd);
+	cxl_pci_mbox_put(cxlds);
 
 	return rc;
 }
 
-static int cxl_pci_setup_mailbox(struct cxl_mem *cxlm)
+static int cxl_pci_setup_mailbox(struct cxl_dev_state *cxlds)
 {
-	const int cap = readl(cxlm->regs.mbox + CXLDEV_MBOX_CAPS_OFFSET);
+	const int cap = readl(cxlds->regs.mbox + CXLDEV_MBOX_CAPS_OFFSET);
 
-	cxlm->mbox_send = cxl_pci_mbox_send;
-	cxlm->payload_size =
+	cxlds->mbox_send = cxl_pci_mbox_send;
+	cxlds->payload_size =
 		1 << FIELD_GET(CXLDEV_MBOX_CAP_PAYLOAD_SIZE_MASK, cap);
 
 	/*
@@ -293,15 +293,15 @@ static int cxl_pci_setup_mailbox(struct cxl_mem *cxlm)
 	 * there's no point in going forward. If the size is too large, there's
 	 * no harm is soft limiting it.
 	 */
-	cxlm->payload_size = min_t(size_t, cxlm->payload_size, SZ_1M);
-	if (cxlm->payload_size < 256) {
-		dev_err(cxlm->dev, "Mailbox is too small (%zub)",
-			cxlm->payload_size);
+	cxlds->payload_size = min_t(size_t, cxlds->payload_size, SZ_1M);
+	if (cxlds->payload_size < 256) {
+		dev_err(cxlds->dev, "Mailbox is too small (%zub)",
+			cxlds->payload_size);
 		return -ENXIO;
 	}
 
-	dev_dbg(cxlm->dev, "Mailbox payload sized %zu",
-		cxlm->payload_size);
+	dev_dbg(cxlds->dev, "Mailbox payload sized %zu",
+		cxlds->payload_size);
 
 	return 0;
 }
@@ -379,18 +379,18 @@ static int cxl_probe_regs(struct pci_dev *pdev, struct cxl_register_map *map)
 	return 0;
 }
 
-static int cxl_map_regs(struct cxl_mem *cxlm, struct cxl_register_map *map)
+static int cxl_map_regs(struct cxl_dev_state *cxlds, struct cxl_register_map *map)
 {
-	struct device *dev = cxlm->dev;
+	struct device *dev = cxlds->dev;
 	struct pci_dev *pdev = to_pci_dev(dev);
 
 	switch (map->reg_type) {
 	case CXL_REGLOC_RBI_COMPONENT:
-		cxl_map_component_regs(pdev, &cxlm->regs.component, map);
+		cxl_map_component_regs(pdev, &cxlds->regs.component, map);
 		dev_dbg(dev, "Mapping component registers...\n");
 		break;
 	case CXL_REGLOC_RBI_MEMDEV:
-		cxl_map_device_regs(pdev, &cxlm->regs.device_regs, map);
+		cxl_map_device_regs(pdev, &cxlds->regs.device_regs, map);
 		dev_dbg(dev, "Probing device registers...\n");
 		break;
 	default:
@@ -475,7 +475,7 @@ static int cxl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	struct cxl_register_map map;
 	struct cxl_memdev *cxlmd;
-	struct cxl_mem *cxlm;
+	struct cxl_dev_state *cxlds;
 	int rc;
 
 	/*
@@ -489,39 +489,39 @@ static int cxl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (rc)
 		return rc;
 
-	cxlm = cxl_mem_create(&pdev->dev);
-	if (IS_ERR(cxlm))
-		return PTR_ERR(cxlm);
+	cxlds = cxl_dev_state_create(&pdev->dev);
+	if (IS_ERR(cxlds))
+		return PTR_ERR(cxlds);
 
 	rc = cxl_setup_regs(pdev, CXL_REGLOC_RBI_MEMDEV, &map);
 	if (rc)
 		return rc;
 
-	rc = cxl_map_regs(cxlm, &map);
+	rc = cxl_map_regs(cxlds, &map);
 	if (rc)
 		return rc;
 
-	rc = cxl_pci_setup_mailbox(cxlm);
+	rc = cxl_pci_setup_mailbox(cxlds);
 	if (rc)
 		return rc;
 
-	rc = cxl_mem_enumerate_cmds(cxlm);
+	rc = cxl_enumerate_cmds(cxlds);
 	if (rc)
 		return rc;
 
-	rc = cxl_mem_identify(cxlm);
+	rc = cxl_dev_state_identify(cxlds);
 	if (rc)
 		return rc;
 
-	rc = cxl_mem_create_range_info(cxlm);
+	rc = cxl_mem_create_range_info(cxlds);
 	if (rc)
 		return rc;
 
-	cxlmd = devm_cxl_add_memdev(cxlm);
+	cxlmd = devm_cxl_add_memdev(cxlds);
 	if (IS_ERR(cxlmd))
 		return PTR_ERR(cxlmd);
 
-	if (range_len(&cxlm->pmem_range) && IS_ENABLED(CONFIG_CXL_PMEM))
+	if (range_len(&cxlds->pmem_range) && IS_ENABLED(CONFIG_CXL_PMEM))
 		rc = devm_cxl_add_nvdimm(&pdev->dev, cxlmd);
 
 	return rc;

@@ -67,10 +67,12 @@
 #define DSA_8021Q_PORT(x)		(((x) << DSA_8021Q_PORT_SHIFT) & \
 						 DSA_8021Q_PORT_MASK)
 
-u16 dsa_8021q_bridge_tx_fwd_offload_vid(int bridge_num)
+u16 dsa_8021q_bridge_tx_fwd_offload_vid(unsigned int bridge_num)
 {
-	/* The VBID value of 0 is reserved for precise TX */
-	return DSA_8021Q_DIR_TX | DSA_8021Q_VBID(bridge_num + 1);
+	/* The VBID value of 0 is reserved for precise TX, but it is also
+	 * reserved/invalid for the bridge_num, so all is well.
+	 */
+	return DSA_8021Q_DIR_TX | DSA_8021Q_VBID(bridge_num);
 }
 EXPORT_SYMBOL_GPL(dsa_8021q_bridge_tx_fwd_offload_vid);
 
@@ -335,7 +337,7 @@ dsa_port_tag_8021q_bridge_match(struct dsa_port *dp,
 		return false;
 
 	if (dsa_port_is_user(dp))
-		return dp->bridge_dev == info->br;
+		return dsa_port_offloads_bridge(dp, &info->bridge);
 
 	return false;
 }
@@ -408,10 +410,9 @@ int dsa_tag_8021q_bridge_leave(struct dsa_switch *ds,
 }
 
 int dsa_tag_8021q_bridge_tx_fwd_offload(struct dsa_switch *ds, int port,
-					struct net_device *br,
-					int bridge_num)
+					struct dsa_bridge bridge)
 {
-	u16 tx_vid = dsa_8021q_bridge_tx_fwd_offload_vid(bridge_num);
+	u16 tx_vid = dsa_8021q_bridge_tx_fwd_offload_vid(bridge.num);
 
 	return dsa_port_tag_8021q_vlan_add(dsa_to_port(ds, port), tx_vid,
 					   true);
@@ -419,10 +420,9 @@ int dsa_tag_8021q_bridge_tx_fwd_offload(struct dsa_switch *ds, int port,
 EXPORT_SYMBOL_GPL(dsa_tag_8021q_bridge_tx_fwd_offload);
 
 void dsa_tag_8021q_bridge_tx_fwd_unoffload(struct dsa_switch *ds, int port,
-					   struct net_device *br,
-					   int bridge_num)
+					   struct dsa_bridge bridge)
 {
-	u16 tx_vid = dsa_8021q_bridge_tx_fwd_offload_vid(bridge_num);
+	u16 tx_vid = dsa_8021q_bridge_tx_fwd_offload_vid(bridge.num);
 
 	dsa_port_tag_8021q_vlan_del(dsa_to_port(ds, port), tx_vid, true);
 }

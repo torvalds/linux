@@ -45,6 +45,7 @@
 #include "intel_fifo_underrun.h"
 #include "intel_gmbus.h"
 #include "intel_hotplug.h"
+#include "intel_pch_display.h"
 
 /* Here's the desired hotplug mode */
 #define ADPA_HOTPLUG_BITS (ADPA_CRT_HOTPLUG_PERIOD_128 |		\
@@ -143,7 +144,7 @@ static void intel_crt_get_config(struct intel_encoder *encoder,
 static void hsw_crt_get_config(struct intel_encoder *encoder,
 			       struct intel_crtc_state *pipe_config)
 {
-	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	lpt_pch_get_config(pipe_config);
 
 	hsw_ddi_get_config(encoder, pipe_config);
 
@@ -152,8 +153,6 @@ static void hsw_crt_get_config(struct intel_encoder *encoder,
 					      DRM_MODE_FLAG_PVSYNC |
 					      DRM_MODE_FLAG_NVSYNC);
 	pipe_config->hw.adjusted_mode.flags |= intel_crt_get_flags(encoder);
-
-	pipe_config->hw.adjusted_mode.crtc_clock = lpt_get_iclkip(dev_priv);
 }
 
 /* Note: The caller is required to filter out dpms modes not supported by the
@@ -247,6 +246,7 @@ static void hsw_post_disable_crt(struct intel_atomic_state *state,
 				 const struct intel_crtc_state *old_crtc_state,
 				 const struct drm_connector_state *old_conn_state)
 {
+	struct intel_crtc *crtc = to_intel_crtc(old_crtc_state->uapi.crtc);
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 
 	intel_crtc_vblank_off(old_crtc_state);
@@ -261,10 +261,9 @@ static void hsw_post_disable_crt(struct intel_atomic_state *state,
 
 	pch_post_disable_crt(state, encoder, old_crtc_state, old_conn_state);
 
-	lpt_disable_pch_transcoder(dev_priv);
-	lpt_disable_iclkip(dev_priv);
+	lpt_pch_disable(state, crtc);
 
-	intel_ddi_fdi_post_disable(state, encoder, old_crtc_state, old_conn_state);
+	hsw_fdi_disable(encoder);
 
 	drm_WARN_ON(&dev_priv->drm, !old_crtc_state->has_pch_encoder);
 
@@ -316,14 +315,14 @@ static void hsw_enable_crt(struct intel_atomic_state *state,
 
 	intel_enable_transcoder(crtc_state);
 
-	lpt_pch_enable(crtc_state);
+	lpt_pch_enable(state, crtc);
 
 	intel_crtc_vblank_on(crtc_state);
 
 	intel_crt_set_dpms(encoder, crtc_state, DRM_MODE_DPMS_ON);
 
-	intel_wait_for_vblank(dev_priv, pipe);
-	intel_wait_for_vblank(dev_priv, pipe);
+	intel_crtc_wait_for_next_vblank(crtc);
+	intel_crtc_wait_for_next_vblank(crtc);
 	intel_set_cpu_fifo_underrun_reporting(dev_priv, pipe, true);
 	intel_set_pch_fifo_underrun_reporting(dev_priv, PIPE_A, true);
 }
@@ -722,7 +721,7 @@ intel_crt_load_detect(struct intel_crt *crt, u32 pipe)
 		intel_uncore_posting_read(uncore, pipeconf_reg);
 		/* Wait for next Vblank to substitue
 		 * border color for Color info */
-		intel_wait_for_vblank(dev_priv, pipe);
+		intel_crtc_wait_for_next_vblank(intel_crtc_for_pipe(dev_priv, pipe));
 		st00 = intel_uncore_read8(uncore, _VGA_MSR_WRITE);
 		status = ((st00 & (1 << 4)) != 0) ?
 			connector_status_connected :

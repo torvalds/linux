@@ -35,6 +35,9 @@ config BLK_CGROUP_RWSTAT
 config BLK_DEV_BSG_COMMON
 	tristate
 
+config BLK_ICQ
+	bool
+
 config BLK_DEV_BSGLIB
 	bool "Block layer SG support v4 helper lib"
 	select BLK_DEV_BSG_COMMON

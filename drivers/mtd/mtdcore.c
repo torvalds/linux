@@ -747,6 +747,9 @@ int del_mtd_device(struct mtd_info *mtd)
 
 		device_unregister(&mtd->dev);
 
+		/* Clear dev so mtd can be safely re-registered later if desired */
+		memset(&mtd->dev, 0, sizeof(mtd->dev));
+
 		idr_remove(&mtd_idr, mtd->index);
 		of_node_put(mtd_get_of_node(mtd));
 
@@ -825,8 +828,7 @@ static struct nvmem_device *mtd_otp_nvmem_register(struct mtd_info *mtd,
 
 	/* OTP nvmem will be registered on the physical device */
 	config.dev = mtd->dev.parent;
-	/* just reuse the compatible as name */
-	config.name = compatible;
+	config.name = kasprintf(GFP_KERNEL, "%s-%s", dev_name(&mtd->dev), compatible);
 	config.id = NVMEM_DEVID_NONE;
 	config.owner = THIS_MODULE;
 	config.type = NVMEM_TYPE_OTP;
@@ -842,6 +844,7 @@ static struct nvmem_device *mtd_otp_nvmem_register(struct mtd_info *mtd,
 		nvmem = NULL;
 
 	of_node_put(np);
+	kfree(config.name);
 
 	return nvmem;
 }
@@ -1018,8 +1021,10 @@ int mtd_device_unregister(struct mtd_info *master)
 {
 	int err;
 
-	if (master->_reboot)
+	if (master->_reboot) {
 		unregister_reboot_notifier(&master->reboot_notifier);
+		memset(&master->reboot_notifier, 0, sizeof(master->reboot_notifier));
+	}
 
 	if (master->otp_user_nvmem)
 		nvmem_unregister(master->otp_user_nvmem);
@@ -2365,6 +2370,14 @@ static struct backing_dev_info * __init mtd_bdi_init(const char *name)
 	return ret ? ERR_PTR(ret) : bdi;
 }
 
+char *mtd_expert_analysis_warning =
+	"Bad block checks have been entirely disabled.\n"
+	"This is only reserved for post-mortem forensics and debug purposes.\n"
+	"Never enable this mode if you do not know what you are doing!\n";
+EXPORT_SYMBOL_GPL(mtd_expert_analysis_warning);
+bool mtd_expert_analysis_mode;
+EXPORT_SYMBOL_GPL(mtd_expert_analysis_mode);
+
 static struct proc_dir_entry *proc_mtd;
 
 static int __init init_mtd(void)
@@ -2388,6 +2401,8 @@ static int __init init_mtd(void)
 		goto out_procfs;
 
 	dfs_dir_mtd = debugfs_create_dir("mtd", NULL);
+	debugfs_create_bool("expert_analysis_mode", 0600, dfs_dir_mtd,
+			    &mtd_expert_analysis_mode);
 
 	return 0;
 

@@ -117,6 +117,9 @@ properties:
 
     additionalProperties: false
 
+allOf:
+  - $ref: "pinctrl.yaml#"
+
 required:
   - pinctrl-0
   - pinctrl-names

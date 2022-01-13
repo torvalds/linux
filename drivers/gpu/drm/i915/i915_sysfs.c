@@ -52,7 +52,7 @@ static u32 calc_residency(struct drm_i915_private *dev_priv,
 	u64 res = 0;
 
 	with_intel_runtime_pm(&dev_priv->runtime_pm, wakeref)
-		res = intel_rc6_residency_us(&dev_priv->gt.rc6, reg);
+		res = intel_rc6_residency_us(&to_gt(dev_priv)->rc6, reg);
 
 	return DIV_ROUND_CLOSEST_ULL(res, 1000);
 }
@@ -260,7 +260,7 @@ static ssize_t gt_act_freq_mhz_show(struct device *kdev,
 				    struct device_attribute *attr, char *buf)
 {
 	struct drm_i915_private *i915 = kdev_minor_to_i915(kdev);
-	struct intel_rps *rps = &i915->gt.rps;
+	struct intel_rps *rps = &to_gt(i915)->rps;
 
 	return sysfs_emit(buf, "%d\n", intel_rps_read_actual_frequency(rps));
 }
@@ -269,7 +269,7 @@ static ssize_t gt_cur_freq_mhz_show(struct device *kdev,
 				    struct device_attribute *attr, char *buf)
 {
 	struct drm_i915_private *i915 = kdev_minor_to_i915(kdev);
-	struct intel_rps *rps = &i915->gt.rps;
+	struct intel_rps *rps = &to_gt(i915)->rps;
 
 	return sysfs_emit(buf, "%d\n", intel_rps_get_requested_frequency(rps));
 }
@@ -277,9 +277,9 @@ static ssize_t gt_cur_freq_mhz_show(struct device *kdev,
 static ssize_t gt_boost_freq_mhz_show(struct device *kdev, struct device_attribute *attr, char *buf)
 {
 	struct drm_i915_private *i915 = kdev_minor_to_i915(kdev);
-	struct intel_rps *rps = &i915->gt.rps;
+	struct intel_rps *rps = &to_gt(i915)->rps;
 
-	return sysfs_emit(buf, "%d\n", intel_gpu_freq(rps, rps->boost_freq));
+	return sysfs_emit(buf, "%d\n", intel_rps_get_boost_frequency(rps));
 }
 
 static ssize_t gt_boost_freq_mhz_store(struct device *kdev,
@@ -287,8 +287,7 @@ static ssize_t gt_boost_freq_mhz_store(struct device *kdev,
 				       const char *buf, size_t count)
 {
 	struct drm_i915_private *dev_priv = kdev_minor_to_i915(kdev);
-	struct intel_rps *rps = &dev_priv->gt.rps;
-	bool boost = false;
+	struct intel_rps *rps = &to_gt(dev_priv)->rps;
 	ssize_t ret;
 	u32 val;
 
@@ -296,28 +295,16 @@ static ssize_t gt_boost_freq_mhz_store(struct device *kdev,
 	if (ret)
 		return ret;
 
-	/* Validate against (static) hardware limits */
-	val = intel_freq_opcode(rps, val);
-	if (val < rps->min_freq || val > rps->max_freq)
-		return -EINVAL;
+	ret = intel_rps_set_boost_frequency(rps, val);
 
-	mutex_lock(&rps->lock);
-	if (val != rps->boost_freq) {
-		rps->boost_freq = val;
-		boost = atomic_read(&rps->num_waiters);
-	}
-	mutex_unlock(&rps->lock);
-	if (boost)
-		schedule_work(&rps->work);
-
-	return count;
+	return ret ?: count;
 }
 
 static ssize_t vlv_rpe_freq_mhz_show(struct device *kdev,
 				     struct device_attribute *attr, char *buf)
 {
 	struct drm_i915_private *dev_priv = kdev_minor_to_i915(kdev);
-	struct intel_rps *rps = &dev_priv->gt.rps;
+	struct intel_rps *rps = &to_gt(dev_priv)->rps;
 
 	return sysfs_emit(buf, "%d\n", intel_gpu_freq(rps, rps->efficient_freq));
 }
@@ -325,7 +312,7 @@ static ssize_t vlv_rpe_freq_mhz_show(struct device *kdev,
 static ssize_t gt_max_freq_mhz_show(struct device *kdev, struct device_attribute *attr, char *buf)
 {
 	struct drm_i915_private *dev_priv = kdev_minor_to_i915(kdev);
-	struct intel_gt *gt = &dev_priv->gt;
+	struct intel_gt *gt = to_gt(dev_priv);
 	struct intel_rps *rps = &gt->rps;
 
 	return sysfs_emit(buf, "%d\n", intel_rps_get_max_frequency(rps));
@@ -336,7 +323,7 @@ static ssize_t gt_max_freq_mhz_store(struct device *kdev,
 				     const char *buf, size_t count)
 {
 	struct drm_i915_private *dev_priv = kdev_minor_to_i915(kdev);
-	struct intel_gt *gt = &dev_priv->gt;
+	struct intel_gt *gt = to_gt(dev_priv);
 	struct intel_rps *rps = &gt->rps;
 	ssize_t ret;
 	u32 val;
@@ -353,7 +340,7 @@ static ssize_t gt_max_freq_mhz_store(struct device *kdev,
 static ssize_t gt_min_freq_mhz_show(struct device *kdev, struct device_attribute *attr, char *buf)
 {
 	struct drm_i915_private *i915 = kdev_minor_to_i915(kdev);
-	struct intel_gt *gt = &i915->gt;
+	struct intel_gt *gt = to_gt(i915);
 	struct intel_rps *rps = &gt->rps;
 
 	return sysfs_emit(buf, "%d\n", intel_rps_get_min_frequency(rps));
@@ -364,7 +351,7 @@ static ssize_t gt_min_freq_mhz_store(struct device *kdev,
 				     const char *buf, size_t count)
 {
 	struct drm_i915_private *i915 = kdev_minor_to_i915(kdev);
-	struct intel_rps *rps = &i915->gt.rps;
+	struct intel_rps *rps = &to_gt(i915)->rps;
 	ssize_t ret;
 	u32 val;
 
@@ -394,7 +381,7 @@ static DEVICE_ATTR(gt_RPn_freq_mhz, S_IRUGO, gt_rp_mhz_show, NULL);
 static ssize_t gt_rp_mhz_show(struct device *kdev, struct device_attribute *attr, char *buf)
 {
 	struct drm_i915_private *dev_priv = kdev_minor_to_i915(kdev);
-	struct intel_rps *rps = &dev_priv->gt.rps;
+	struct intel_rps *rps = &to_gt(dev_priv)->rps;
 	u32 val;
 
 	if (attr == &dev_attr_gt_RP0_freq_mhz)

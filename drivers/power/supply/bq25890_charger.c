@@ -266,6 +266,7 @@ enum bq25890_table_ids {
 	/* lookup tables */
 	TBL_TREG,
 	TBL_BOOSTI,
+	TBL_TSPCT,
 };
 
 /* Thermal Regulation Threshold lookup table, in degrees Celsius */
@@ -279,6 +280,28 @@ static const u32 bq25890_boosti_tbl[] = {
 };
 
 #define BQ25890_BOOSTI_TBL_SIZE		ARRAY_SIZE(bq25890_boosti_tbl)
+
+/* NTC 10K temperature lookup table in tenths of a degree */
+static const u32 bq25890_tspct_tbl[] = {
+	850, 840, 830, 820, 810, 800, 790, 780,
+	770, 760, 750, 740, 730, 720, 710, 700,
+	690, 685, 680, 675, 670, 660, 650, 645,
+	640, 630, 620, 615, 610, 600, 590, 585,
+	580, 570, 565, 560, 550, 540, 535, 530,
+	520, 515, 510, 500, 495, 490, 480, 475,
+	470, 460, 455, 450, 440, 435, 430, 425,
+	420, 410, 405, 400, 390, 385, 380, 370,
+	365, 360, 355, 350, 340, 335, 330, 320,
+	310, 305, 300, 290, 285, 280, 275, 270,
+	260, 250, 245, 240, 230, 225, 220, 210,
+	205, 200, 190, 180, 175, 170, 160, 150,
+	145, 140, 130, 120, 115, 110, 100, 90,
+	80, 70, 60, 50, 40, 30, 20, 10,
+	0, -10, -20, -30, -40, -60, -70, -80,
+	-90, -10, -120, -140, -150, -170, -190, -210,
+};
+
+#define BQ25890_TSPCT_TBL_SIZE		ARRAY_SIZE(bq25890_tspct_tbl)
 
 struct bq25890_range {
 	u32 min;
@@ -308,7 +331,8 @@ static const union {
 
 	/* lookup tables */
 	[TBL_TREG] =	{ .lt = {bq25890_treg_tbl, BQ25890_TREG_TBL_SIZE} },
-	[TBL_BOOSTI] =	{ .lt = {bq25890_boosti_tbl, BQ25890_BOOSTI_TBL_SIZE} }
+	[TBL_BOOSTI] =	{ .lt = {bq25890_boosti_tbl, BQ25890_BOOSTI_TBL_SIZE} },
+	[TBL_TSPCT] =	{ .lt = {bq25890_tspct_tbl, BQ25890_TSPCT_TBL_SIZE} }
 };
 
 static int bq25890_field_read(struct bq25890_device *bq,
@@ -388,6 +412,7 @@ static bool bq25890_is_adc_property(enum power_supply_property psp)
 	switch (psp) {
 	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
 	case POWER_SUPPLY_PROP_CURRENT_NOW:
+	case POWER_SUPPLY_PROP_TEMP:
 		return true;
 
 	default:
@@ -526,6 +551,15 @@ static int bq25890_power_supply_get_property(struct power_supply *psy,
 
 		/* converted_val = ADC_val * 50mA (table 10.3.19) */
 		val->intval = ret * -50000;
+		break;
+
+	case POWER_SUPPLY_PROP_TEMP:
+		ret = bq25890_field_read(bq, F_TSPCT);
+		if (ret < 0)
+			return ret;
+
+		/* convert TS percentage into rough temperature */
+		val->intval = bq25890_find_val(ret, TBL_TSPCT);
 		break;
 
 	default:
@@ -713,6 +747,7 @@ static const enum power_supply_property bq25890_power_supply_props[] = {
 	POWER_SUPPLY_PROP_INPUT_CURRENT_LIMIT,
 	POWER_SUPPLY_PROP_VOLTAGE_NOW,
 	POWER_SUPPLY_PROP_CURRENT_NOW,
+	POWER_SUPPLY_PROP_TEMP,
 };
 
 static char *bq25890_charger_supplied_to[] = {

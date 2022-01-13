@@ -4,6 +4,7 @@
 
 #include <linux/raid/xor.h>
 #include <linux/dmaengine.h>
+#include <linux/local_lock.h>
 
 /*
  *
@@ -640,7 +641,8 @@ struct r5conf {
 					     * lists and performing address
 					     * conversions
 					     */
-		int scribble_obj_size;
+		int             scribble_obj_size;
+		local_lock_t    lock;
 	} __percpu *percpu;
 	int scribble_disks;
 	int scribble_sectors;

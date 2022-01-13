@@ -8,6 +8,7 @@
 #include <linux/kthread.h>
 #include <linux/packing.h>
 #include <linux/skbuff.h>
+#include <net/dsa.h>
 
 struct ocelot_skb_cb {
 	struct sk_buff *clone;
@@ -168,10 +169,17 @@ struct felix_deferred_xmit_work {
 	struct kthread_work work;
 };
 
-struct felix_port {
+struct ocelot_8021q_tagger_data {
 	void (*xmit_work_fn)(struct kthread_work *work);
-	struct kthread_worker *xmit_worker;
 };
+
+static inline struct ocelot_8021q_tagger_data *
+ocelot_8021q_tagger_data(struct dsa_switch *ds)
+{
+	BUG_ON(ds->dst->tag_ops->proto != DSA_TAG_PROTO_OCELOT_8021Q);
+
+	return ds->tagger_data;
+}
 
 static inline void ocelot_xfh_get_rew_val(void *extraction, u64 *rew_val)
 {

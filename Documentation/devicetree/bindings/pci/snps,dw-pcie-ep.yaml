@@ -64,16 +64,12 @@ properties:
     maxItems: 1
     deprecated: true
 
-  max-functions:
-    $ref: /schemas/types.yaml#/definitions/uint32
-    description: maximum number of functions that can be configured
-
 required:
   - reg
   - reg-names
   - compatible
 
-unevaluatedProperties: false
+additionalProperties: true
 
 examples:
   - |

@@ -1079,7 +1079,7 @@ static int bq25980_power_supply_init(struct bq25980_device *bq,
 
 static int bq25980_hw_init(struct bq25980_device *bq)
 {
-	struct power_supply_battery_info bat_info = { };
+	struct power_supply_battery_info *bat_info;
 	int wd_reg_val = BQ25980_WATCHDOG_DIS;
 	int wd_max_val = BQ25980_NUM_WD_VAL - 1;
 	int ret = 0;
@@ -1112,8 +1112,8 @@ static int bq25980_hw_init(struct bq25980_device *bq)
 		return -EINVAL;
 	}
 
-	bq->init_data.ichg_max = bat_info.constant_charge_current_max_ua;
-	bq->init_data.vreg_max = bat_info.constant_charge_voltage_max_uv;
+	bq->init_data.ichg_max = bat_info->constant_charge_current_max_ua;
+	bq->init_data.vreg_max = bat_info->constant_charge_voltage_max_uv;
 
 	if (bq->state.bypass) {
 		ret = regmap_update_bits(bq->regmap, BQ25980_CHRGR_CTRL_2,

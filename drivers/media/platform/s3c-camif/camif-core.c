@@ -291,7 +291,6 @@ static void camif_unregister_media_entities(struct camif_dev *camif)
 {
 	camif_unregister_video_nodes(camif);
 	camif_unregister_sensor(camif);
-	s3c_camif_unregister_subdev(camif);
 }
 
 /*
@@ -520,6 +519,7 @@ static int s3c_camif_remove(struct platform_device *pdev)
 
 	pm_runtime_disable(&pdev->dev);
 	camif_clk_put(camif);
+	s3c_camif_unregister_subdev(camif);
 	pdata->gpio_put();
 
 	return 0;

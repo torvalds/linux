@@ -13,6 +13,11 @@ struct ice_repr {
 	struct ice_q_vector *q_vector;
 	struct net_device *netdev;
 	struct metadata_dst *dst;
+#ifdef CONFIG_ICE_SWITCHDEV
+	/* info about slow path MAC rule  */
+	struct ice_rule_query_data *mac_rule;
+	u8 rule_added;
+#endif
 };
 
 int ice_repr_add_for_all_vfs(struct ice_pf *pf);

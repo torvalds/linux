@@ -195,6 +195,18 @@ litmus-tests
 	are listed in litmus-tests/README.  A great deal more litmus
 	tests are available at https://github.com/paulmckrcu/litmus.
 
+	By "representative", it means the one in the litmus-tests
+	directory is:
+
+		1) simple, the number of threads should be relatively
+		   small and each thread function should be relatively
+		   simple.
+		2) orthogonal, there should be no two litmus tests
+		   describing the same aspect of the memory model.
+		3) textbook, developers can easily copy-paste-modify
+		   the litmus tests to use the patterns on their own
+		   code.
+
 lock.cat
 	Provides a front-end analysis of lock acquisition and release,
 	for example, associating a lock acquisition with the preceding

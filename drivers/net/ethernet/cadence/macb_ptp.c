@@ -464,10 +464,6 @@ int gem_set_hwtst(struct net_device *dev, struct ifreq *ifr, int cmd)
 			   sizeof(*tstamp_config)))
 		return -EFAULT;
 
-	/* reserved for future extensions */
-	if (tstamp_config->flags)
-		return -EINVAL;
-
 	switch (tstamp_config->tx_type) {
 	case HWTSTAMP_TX_OFF:
 		break;

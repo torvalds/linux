@@ -8,6 +8,35 @@
 #include "eeprom.h"
 #include "../mt76x02_phy.h"
 
+int mt76x2_set_sar_specs(struct ieee80211_hw *hw,
+			 const struct cfg80211_sar_specs *sar)
+{
+	int err = -EINVAL, power = hw->conf.power_level * 2;
+	struct mt76x02_dev *dev = hw->priv;
+	struct mt76_phy *mphy = &dev->mphy;
+
+	mutex_lock(&dev->mt76.mutex);
+	if (!cfg80211_chandef_valid(&mphy->chandef))
+		goto out;
+
+	err = mt76_init_sar_power(hw, sar);
+	if (err)
+		goto out;
+
+	dev->txpower_conf = mt76_get_sar_power(mphy, mphy->chandef.chan,
+					       power);
+	/* convert to per-chain power for 2x2 devices */
+	dev->txpower_conf -= 6;
+
+	if (test_bit(MT76_STATE_RUNNING, &mphy->state))
+		mt76x2_phy_set_txpower(dev);
+out:
+	mutex_unlock(&dev->mt76.mutex);
+
+	return err;
+}
+EXPORT_SYMBOL_GPL(mt76x2_set_sar_specs);
+
 static void
 mt76x2_set_wlan_state(struct mt76x02_dev *dev, bool enable)
 {

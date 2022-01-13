@@ -73,16 +73,6 @@ struct dev_pagemap_ops {
 	void (*page_free)(struct page *page);
 
 	/*
-	 * Transition the refcount in struct dev_pagemap to the dead state.
-	 */
-	void (*kill)(struct dev_pagemap *pgmap);
-
-	/*
-	 * Wait for refcount in struct dev_pagemap to be idle and reap it.
-	 */
-	void (*cleanup)(struct dev_pagemap *pgmap);
-
-	/*
 	 * Used for private (un-addressable) device memory only.  Must migrate
 	 * the page back to a CPU accessible page.
 	 */
@@ -95,8 +85,7 @@ struct dev_pagemap_ops {
  * struct dev_pagemap - metadata for ZONE_DEVICE mappings
  * @altmap: pre-allocated/reserved memory for vmemmap allocations
  * @ref: reference count that pins the devm_memremap_pages() mapping
- * @internal_ref: internal reference if @ref is not provided by the caller
- * @done: completion for @internal_ref
+ * @done: completion for @ref
  * @type: memory type: see MEMORY_* in memory_hotplug.h
  * @flags: PGMAP_* flags to specify defailed behavior
  * @ops: method table
@@ -109,8 +98,7 @@ struct dev_pagemap_ops {
  */
 struct dev_pagemap {
 	struct vmem_altmap altmap;
-	struct percpu_ref *ref;
-	struct percpu_ref internal_ref;
+	struct percpu_ref ref;
 	struct completion done;
 	enum memory_type type;
 	unsigned int flags;
@@ -191,7 +179,7 @@ static inline unsigned long memremap_compat_align(void)
 static inline void put_dev_pagemap(struct dev_pagemap *pgmap)
 {
 	if (pgmap)
-		percpu_ref_put(pgmap->ref);
+		percpu_ref_put(&pgmap->ref);
 }
 
 #endif /* _LINUX_MEMREMAP_H_ */

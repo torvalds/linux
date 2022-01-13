@@ -35,12 +35,13 @@ static char *mps_inti_flags_trigger[] = { "dfl", "edge", "res", "level" };
 
 static struct acpi_table_desc initial_tables[ACPI_MAX_TABLES] __initdata;
 
-static int acpi_apic_instance __initdata;
+static int acpi_apic_instance __initdata_or_acpilib;
 
 enum acpi_subtable_type {
 	ACPI_SUBTABLE_COMMON,
 	ACPI_SUBTABLE_HMAT,
 	ACPI_SUBTABLE_PRMT,
+	ACPI_SUBTABLE_CEDT,
 };
 
 struct acpi_subtable_entry {
@@ -52,7 +53,7 @@ struct acpi_subtable_entry {
  * Disable table checksum verification for the early stage due to the size
  * limitation of the current x86 early mapping implementation.
  */
-static bool acpi_verify_table_checksum __initdata = false;
+static bool acpi_verify_table_checksum __initdata_or_acpilib = false;
 
 void acpi_table_print_madt_entry(struct acpi_subtable_header *header)
 {
@@ -216,7 +217,7 @@ void acpi_table_print_madt_entry(struct acpi_subtable_header *header)
 	}
 }
 
-static unsigned long __init
+static unsigned long __init_or_acpilib
 acpi_get_entry_type(struct acpi_subtable_entry *entry)
 {
 	switch (entry->type) {
@@ -226,11 +227,13 @@ acpi_get_entry_type(struct acpi_subtable_entry *entry)
 		return entry->hdr->hmat.type;
 	case ACPI_SUBTABLE_PRMT:
 		return 0;
+	case ACPI_SUBTABLE_CEDT:
+		return entry->hdr->cedt.type;
 	}
 	return 0;
 }
 
-static unsigned long __init
+static unsigned long __init_or_acpilib
 acpi_get_entry_length(struct acpi_subtable_entry *entry)
 {
 	switch (entry->type) {
@@ -240,11 +243,13 @@ acpi_get_entry_length(struct acpi_subtable_entry *entry)
 		return entry->hdr->hmat.length;
 	case ACPI_SUBTABLE_PRMT:
 		return entry->hdr->prmt.length;
+	case ACPI_SUBTABLE_CEDT:
+		return entry->hdr->cedt.length;
 	}
 	return 0;
 }
 
-static unsigned long __init
+static unsigned long __init_or_acpilib
 acpi_get_subtable_header_length(struct acpi_subtable_entry *entry)
 {
 	switch (entry->type) {
@@ -254,18 +259,38 @@ acpi_get_subtable_header_length(struct acpi_subtable_entry *entry)
 		return sizeof(entry->hdr->hmat);
 	case ACPI_SUBTABLE_PRMT:
 		return sizeof(entry->hdr->prmt);
+	case ACPI_SUBTABLE_CEDT:
+		return sizeof(entry->hdr->cedt);
 	}
 	return 0;
 }
 
-static enum acpi_subtable_type __init
+static enum acpi_subtable_type __init_or_acpilib
 acpi_get_subtable_type(char *id)
 {
 	if (strncmp(id, ACPI_SIG_HMAT, 4) == 0)
 		return ACPI_SUBTABLE_HMAT;
 	if (strncmp(id, ACPI_SIG_PRMT, 4) == 0)
 		return ACPI_SUBTABLE_PRMT;
+	if (strncmp(id, ACPI_SIG_CEDT, 4) == 0)
+		return ACPI_SUBTABLE_CEDT;
 	return ACPI_SUBTABLE_COMMON;
+}
+
+static __init_or_acpilib bool has_handler(struct acpi_subtable_proc *proc)
+{
+	return proc->handler || proc->handler_arg;
+}
+
+static __init_or_acpilib int call_handler(struct acpi_subtable_proc *proc,
+					  union acpi_subtable_headers *hdr,
+					  unsigned long end)
+{
+	if (proc->handler)
+		return proc->handler(hdr, end);
+	if (proc->handler_arg)
+		return proc->handler_arg(hdr, proc->arg, end);
+	return -EINVAL;
 }
 
 /**
@@ -291,10 +316,10 @@ acpi_get_subtable_type(char *id)
  * On success returns sum of all matching entries for all proc handlers.
  * Otherwise, -ENODEV or -EINVAL is returned.
  */
-static int __init acpi_parse_entries_array(char *id, unsigned long table_size,
-		struct acpi_table_header *table_header,
-		struct acpi_subtable_proc *proc, int proc_num,
-		unsigned int max_entries)
+static int __init_or_acpilib acpi_parse_entries_array(
+	char *id, unsigned long table_size,
+	struct acpi_table_header *table_header, struct acpi_subtable_proc *proc,
+	int proc_num, unsigned int max_entries)
 {
 	struct acpi_subtable_entry entry;
 	unsigned long table_end, subtable_len, entry_len;
@@ -318,8 +343,9 @@ static int __init acpi_parse_entries_array(char *id, unsigned long table_size,
 		for (i = 0; i < proc_num; i++) {
 			if (acpi_get_entry_type(&entry) != proc[i].id)
 				continue;
-			if (!proc[i].handler ||
-			     (!errs && proc[i].handler(entry.hdr, table_end))) {
+			if (!has_handler(&proc[i]) ||
+			    (!errs &&
+			     call_handler(&proc[i], entry.hdr, table_end))) {
 				errs++;
 				continue;
 			}
@@ -352,10 +378,9 @@ static int __init acpi_parse_entries_array(char *id, unsigned long table_size,
 	return errs ? -EINVAL : count;
 }
 
-int __init acpi_table_parse_entries_array(char *id,
-			 unsigned long table_size,
-			 struct acpi_subtable_proc *proc, int proc_num,
-			 unsigned int max_entries)
+int __init_or_acpilib acpi_table_parse_entries_array(
+	char *id, unsigned long table_size, struct acpi_subtable_proc *proc,
+	int proc_num, unsigned int max_entries)
 {
 	struct acpi_table_header *table_header = NULL;
 	int count;
@@ -386,19 +411,39 @@ int __init acpi_table_parse_entries_array(char *id,
 	return count;
 }
 
-int __init acpi_table_parse_entries(char *id,
-			unsigned long table_size,
-			int entry_id,
-			acpi_tbl_entry_handler handler,
-			unsigned int max_entries)
+static int __init_or_acpilib __acpi_table_parse_entries(
+	char *id, unsigned long table_size, int entry_id,
+	acpi_tbl_entry_handler handler, acpi_tbl_entry_handler_arg handler_arg,
+	void *arg, unsigned int max_entries)
 {
 	struct acpi_subtable_proc proc = {
 		.id		= entry_id,
 		.handler	= handler,
+		.handler_arg	= handler_arg,
+		.arg		= arg,
 	};
 
 	return acpi_table_parse_entries_array(id, table_size, &proc, 1,
 						max_entries);
+}
+
+int __init_or_acpilib
+acpi_table_parse_cedt(enum acpi_cedt_type id,
+		      acpi_tbl_entry_handler_arg handler_arg, void *arg)
+{
+	return __acpi_table_parse_entries(ACPI_SIG_CEDT,
+					  sizeof(struct acpi_table_cedt), id,
+					  NULL, handler_arg, arg, 0);
+}
+EXPORT_SYMBOL_ACPI_LIB(acpi_table_parse_cedt);
+
+int __init acpi_table_parse_entries(char *id, unsigned long table_size,
+				    int entry_id,
+				    acpi_tbl_entry_handler handler,
+				    unsigned int max_entries)
+{
+	return __acpi_table_parse_entries(id, table_size, entry_id, handler,
+					  NULL, NULL, max_entries);
 }
 
 int __init acpi_table_parse_madt(enum acpi_madt_type id,
@@ -500,7 +545,7 @@ static const char table_sigs[][ACPI_NAMESEG_SIZE] __initconst = {
 	ACPI_SIG_WDDT, ACPI_SIG_WDRT, ACPI_SIG_DSDT, ACPI_SIG_FADT,
 	ACPI_SIG_PSDT, ACPI_SIG_RSDT, ACPI_SIG_XSDT, ACPI_SIG_SSDT,
 	ACPI_SIG_IORT, ACPI_SIG_NFIT, ACPI_SIG_HMAT, ACPI_SIG_PPTT,
-	ACPI_SIG_NHLT };
+	ACPI_SIG_NHLT, ACPI_SIG_AEST };
 
 #define ACPI_HEADER_SIZE sizeof(struct acpi_table_header)
 
@@ -723,7 +768,7 @@ static void __init acpi_table_initrd_scan(void)
 		/*
 		 * Mark the table to avoid being used in
 		 * acpi_table_initrd_override(). Though this is not possible
-		 * because override is disabled in acpi_install_table().
+		 * because override is disabled in acpi_install_physical_table().
 		 */
 		if (test_and_set_bit(table_index, acpi_initrd_installed)) {
 			acpi_os_unmap_memory(table, ACPI_HEADER_SIZE);
@@ -734,7 +779,7 @@ static void __init acpi_table_initrd_scan(void)
 			table->signature, table->oem_id,
 			table->oem_table_id);
 		acpi_os_unmap_memory(table, ACPI_HEADER_SIZE);
-		acpi_install_table(acpi_tables_addr + table_offset, TRUE);
+		acpi_install_physical_table(acpi_tables_addr + table_offset);
 next_table:
 		table_offset += table_length;
 		table_index++;

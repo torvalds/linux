@@ -78,6 +78,7 @@ my %texlive = (
 	'ucs.sty'            => 'texlive-ucs',
 	'upquote.sty'        => 'texlive-upquote',
 	'wrapfig.sty'        => 'texlive-wrapfig',
+	'ctexhook.sty'       => 'texlive-ctex',
 );
 
 #
@@ -369,6 +370,9 @@ sub give_debian_hints()
 	);
 
 	if ($pdf) {
+		check_missing_file(["/usr/share/texlive/texmf-dist/tex/latex/ctex/ctexhook.sty"],
+				   "texlive-lang-chinese", 2);
+
 		check_missing_file(["/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"],
 				   "fonts-dejavu", 2);
 

@@ -4,7 +4,8 @@
  */
 
 #include <linux/clk-provider.h>
-#include <linux/of_address.h>
+#include <linux/module.h>
+#include <linux/of_device.h>
 #include <linux/platform_device.h>
 
 #include "ccu_common.h"
@@ -221,30 +222,43 @@ static const struct sunxi_ccu_desc sun50i_h616_r_ccu_desc = {
 	.num_resets	= ARRAY_SIZE(sun50i_h616_r_ccu_resets),
 };
 
-static void __init sunxi_r_ccu_init(struct device_node *node,
-				    const struct sunxi_ccu_desc *desc)
+static int sun50i_h6_r_ccu_probe(struct platform_device *pdev)
 {
+	const struct sunxi_ccu_desc *desc;
 	void __iomem *reg;
 
-	reg = of_io_request_and_map(node, 0, of_node_full_name(node));
-	if (IS_ERR(reg)) {
-		pr_err("%pOF: Could not map the clock registers\n", node);
-		return;
-	}
+	desc = of_device_get_match_data(&pdev->dev);
+	if (!desc)
+		return -EINVAL;
 
-	of_sunxi_ccu_probe(node, reg, desc);
+	reg = devm_platform_ioremap_resource(pdev, 0);
+	if (IS_ERR(reg))
+		return PTR_ERR(reg);
+
+	return devm_sunxi_ccu_probe(&pdev->dev, reg, desc);
 }
 
-static void __init sun50i_h6_r_ccu_setup(struct device_node *node)
-{
-	sunxi_r_ccu_init(node, &sun50i_h6_r_ccu_desc);
-}
-CLK_OF_DECLARE(sun50i_h6_r_ccu, "allwinner,sun50i-h6-r-ccu",
-	       sun50i_h6_r_ccu_setup);
+static const struct of_device_id sun50i_h6_r_ccu_ids[] = {
+	{
+		.compatible = "allwinner,sun50i-h6-r-ccu",
+		.data = &sun50i_h6_r_ccu_desc,
+	},
+	{
+		.compatible = "allwinner,sun50i-h616-r-ccu",
+		.data = &sun50i_h616_r_ccu_desc,
+	},
+	{ }
+};
 
-static void __init sun50i_h616_r_ccu_setup(struct device_node *node)
-{
-	sunxi_r_ccu_init(node, &sun50i_h616_r_ccu_desc);
-}
-CLK_OF_DECLARE(sun50i_h616_r_ccu, "allwinner,sun50i-h616-r-ccu",
-	       sun50i_h616_r_ccu_setup);
+static struct platform_driver sun50i_h6_r_ccu_driver = {
+	.probe	= sun50i_h6_r_ccu_probe,
+	.driver	= {
+		.name			= "sun50i-h6-r-ccu",
+		.suppress_bind_attrs	= true,
+		.of_match_table		= sun50i_h6_r_ccu_ids,
+	},
+};
+module_platform_driver(sun50i_h6_r_ccu_driver);
+
+MODULE_IMPORT_NS(SUNXI_CCU);
+MODULE_LICENSE("GPL");

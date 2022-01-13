@@ -55,11 +55,4 @@ examples:
                      <0 72 IRQ_TYPE_LEVEL_HIGH>;
         #clock-cells = <1>;
     };
-
-    can@53fc8000 {
-        compatible = "fsl,imx53-flexcan", "fsl,imx25-flexcan";
-        reg = <0x53fc8000 0x4000>;
-        interrupts = <82>;
-        clocks = <&clks IMX5_CLK_CAN1_IPG_GATE>, <&clks IMX5_CLK_CAN1_SERIAL_GATE>;
-        clock-names = "ipg", "per";
-    };
+...

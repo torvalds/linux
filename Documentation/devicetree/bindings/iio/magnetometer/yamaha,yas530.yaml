@@ -96,7 +96,7 @@ examples:
           vdd-supply = <&ldo1_reg>;
           iovdd-supply = <&ldo2_reg>;
           reset-gpios = <&gpio6 12 GPIO_ACTIVE_LOW>;
-          interrupts = <&gpio6 13 IRQ_TYPE_EDGE_RISING>;
+          interrupts = <13 IRQ_TYPE_EDGE_RISING>;
         };
     };
 

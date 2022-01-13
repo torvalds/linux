@@ -1590,7 +1590,7 @@ static void send_rcv_posts_if_needed(struct visornic_devdata *devdata)
 	netdev = devdata->netdev;
 	rcv_bufs_allocated = 0;
 	/* this code is trying to prevent getting stuck here forever,
-	 * but still retry it if you cant allocate them all this time.
+	 * but still retry it if you can't allocate them all this time.
 	 */
 	cur_num_rcv_bufs_to_alloc = devdata->num_rcv_bufs_could_not_alloc;
 	while (cur_num_rcv_bufs_to_alloc > 0) {
@@ -1759,13 +1759,11 @@ static void visornic_channel_interrupt(struct visor_device *dev)
 	if (!devdata)
 		return;
 
-	if (!visorchannel_signalempty(
-				   devdata->dev->visorchannel,
-				   IOCHAN_FROM_IOPART))
+	if (!visorchannel_signalempty(devdata->dev->visorchannel,
+				      IOCHAN_FROM_IOPART))
 		napi_schedule(&devdata->napi);
 
 	atomic_set(&devdata->interrupt_rcvd, 0);
-
 }
 
 /* visornic_probe - probe function for visornic devices

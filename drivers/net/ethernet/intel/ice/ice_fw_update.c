@@ -16,6 +16,18 @@ struct ice_fwu_priv {
 
 	/* Track which NVM banks to activate at the end of the update */
 	u8 activate_flags;
+
+	/* Track the firmware response of the required reset to complete the
+	 * flash update.
+	 *
+	 * 0 - ICE_AQC_NVM_POR_FLAG - A full power on is required
+	 * 1 - ICE_AQC_NVM_PERST_FLAG - A cold PCIe reset is required
+	 * 2 - ICE_AQC_NVM_EMPR_FLAG - An EMP reset is required
+	 */
+	u8 reset_level;
+
+	/* Track if EMP reset is available */
+	u8 emp_reset_available;
 };
 
 /**
@@ -40,8 +52,8 @@ ice_send_package_data(struct pldmfw *context, const u8 *data, u16 length)
 	struct device *dev = context->dev;
 	struct ice_pf *pf = priv->pf;
 	struct ice_hw *hw = &pf->hw;
-	enum ice_status status;
 	u8 *package_data;
+	int status;
 
 	dev_dbg(dev, "Sending PLDM record package data to firmware\n");
 
@@ -54,9 +66,8 @@ ice_send_package_data(struct pldmfw *context, const u8 *data, u16 length)
 	kfree(package_data);
 
 	if (status) {
-		dev_err(dev, "Failed to send record package data to firmware, err %s aq_err %s\n",
-			ice_stat_str(status),
-			ice_aq_str(hw->adminq.sq_last_status));
+		dev_err(dev, "Failed to send record package data to firmware, err %d aq_err %s\n",
+			status, ice_aq_str(hw->adminq.sq_last_status));
 		NL_SET_ERR_MSG_MOD(extack, "Failed to record package data to firmware");
 		return -EIO;
 	}
@@ -203,8 +214,8 @@ ice_send_component_table(struct pldmfw *context, struct pldmfw_component *compon
 	struct device *dev = context->dev;
 	struct ice_pf *pf = priv->pf;
 	struct ice_hw *hw = &pf->hw;
-	enum ice_status status;
 	size_t length;
+	int status;
 
 	switch (component->identifier) {
 	case NVM_COMP_ID_OROM:
@@ -240,9 +251,8 @@ ice_send_component_table(struct pldmfw *context, struct pldmfw_component *compon
 	kfree(comp_tbl);
 
 	if (status) {
-		dev_err(dev, "Failed to transfer component table to firmware, err %s aq_err %s\n",
-			ice_stat_str(status),
-			ice_aq_str(hw->adminq.sq_last_status));
+		dev_err(dev, "Failed to transfer component table to firmware, err %d aq_err %s\n",
+			status, ice_aq_str(hw->adminq.sq_last_status));
 		NL_SET_ERR_MSG_MOD(extack, "Failed to transfer component table to firmware");
 		return -EIO;
 	}
@@ -259,6 +269,7 @@ ice_send_component_table(struct pldmfw *context, struct pldmfw_component *compon
  * @block_size: size of the block to write, up to 4k
  * @block: pointer to block of data to write
  * @last_cmd: whether this is the last command
+ * @reset_level: storage for reset level required
  * @extack: netlink extended ACK structure
  *
  * Write a block of data to a flash module, and await for the completion
@@ -266,18 +277,24 @@ ice_send_component_table(struct pldmfw *context, struct pldmfw_component *compon
  *
  * Note this function assumes the caller has acquired the NVM resource.
  *
+ * On successful return, reset level indicates the device reset required to
+ * complete the update.
+ *
+ *   0 - ICE_AQC_NVM_POR_FLAG - A full power on is required
+ *   1 - ICE_AQC_NVM_PERST_FLAG - A cold PCIe reset is required
+ *   2 - ICE_AQC_NVM_EMPR_FLAG - An EMP reset is required
+ *
  * Returns: zero on success, or a negative error code on failure.
  */
 static int
 ice_write_one_nvm_block(struct ice_pf *pf, u16 module, u32 offset,
 			u16 block_size, u8 *block, bool last_cmd,
-			struct netlink_ext_ack *extack)
+			u8 *reset_level, struct netlink_ext_ack *extack)
 {
 	u16 completion_module, completion_retval;
 	struct device *dev = ice_pf_to_dev(pf);
 	struct ice_rq_event_info event;
 	struct ice_hw *hw = &pf->hw;
-	enum ice_status status;
 	u32 completion_offset;
 	int err;
 
@@ -286,11 +303,11 @@ ice_write_one_nvm_block(struct ice_pf *pf, u16 module, u32 offset,
 	dev_dbg(dev, "Writing block of %u bytes for module 0x%02x at offset %u\n",
 		block_size, module, offset);
 
-	status = ice_aq_update_nvm(hw, module, offset, block_size, block,
-				   last_cmd, 0, NULL);
-	if (status) {
-		dev_err(dev, "Failed to flash module 0x%02x with block of size %u at offset %u, err %s aq_err %s\n",
-			module, block_size, offset, ice_stat_str(status),
+	err = ice_aq_update_nvm(hw, module, offset, block_size, block,
+				last_cmd, 0, NULL);
+	if (err) {
+		dev_err(dev, "Failed to flash module 0x%02x with block of size %u at offset %u, err %d aq_err %s\n",
+			module, block_size, offset, err,
 			ice_aq_str(hw->adminq.sq_last_status));
 		NL_SET_ERR_MSG_MOD(extack, "Failed to program flash module");
 		return -EIO;
@@ -338,6 +355,24 @@ ice_write_one_nvm_block(struct ice_pf *pf, u16 module, u32 offset,
 		return -EIO;
 	}
 
+	/* For the last command to write the NVM bank, newer versions of
+	 * firmware indicate the required level of reset to complete
+	 * activation of firmware. If the firmware supports this, cache the
+	 * response for indicating to the user later. Otherwise, assume that
+	 * a full power cycle is required.
+	 */
+	if (reset_level && last_cmd && module == ICE_SR_1ST_NVM_BANK_PTR) {
+		if (hw->dev_caps.common_cap.pcie_reset_avoidance) {
+			*reset_level = (event.desc.params.nvm.cmd_flags &
+					ICE_AQC_NVM_RESET_LVL_M);
+			dev_dbg(dev, "Firmware reported required reset level as %u\n",
+				*reset_level);
+		} else {
+			*reset_level = ICE_AQC_NVM_POR_FLAG;
+			dev_dbg(dev, "Firmware doesn't support indicating required reset level. Assuming a power cycle is required\n");
+		}
+	}
+
 	return 0;
 }
 
@@ -348,6 +383,7 @@ ice_write_one_nvm_block(struct ice_pf *pf, u16 module, u32 offset,
  * @component: the name of the component being updated
  * @image: buffer of image data to write to the NVM
  * @length: length of the buffer
+ * @reset_level: storage for reset level required
  * @extack: netlink extended ACK structure
  *
  * Loop over the data for a given NVM module and program it in 4 Kb
@@ -360,7 +396,7 @@ ice_write_one_nvm_block(struct ice_pf *pf, u16 module, u32 offset,
  */
 static int
 ice_write_nvm_module(struct ice_pf *pf, u16 module, const char *component,
-		     const u8 *image, u32 length,
+		     const u8 *image, u32 length, u8 *reset_level,
 		     struct netlink_ext_ack *extack)
 {
 	struct device *dev = ice_pf_to_dev(pf);
@@ -394,7 +430,8 @@ ice_write_nvm_module(struct ice_pf *pf, u16 module, const char *component,
 		memcpy(block, image + offset, block_size);
 
 		err = ice_write_one_nvm_block(pf, module, offset, block_size,
-					      block, last_cmd, extack);
+					      block, last_cmd, reset_level,
+					      extack);
 		if (err)
 			break;
 
@@ -445,7 +482,6 @@ ice_erase_nvm_module(struct ice_pf *pf, u16 module, const char *component,
 	struct ice_rq_event_info event;
 	struct ice_hw *hw = &pf->hw;
 	struct devlink *devlink;
-	enum ice_status status;
 	int err;
 
 	dev_dbg(dev, "Beginning erase of flash component '%s', module 0x%02x\n", component, module);
@@ -456,10 +492,10 @@ ice_erase_nvm_module(struct ice_pf *pf, u16 module, const char *component,
 
 	devlink_flash_update_timeout_notify(devlink, "Erasing", component, ICE_FW_ERASE_TIMEOUT);
 
-	status = ice_aq_erase_nvm(hw, module, NULL);
-	if (status) {
-		dev_err(dev, "Failed to erase %s (module 0x%02x), err %s aq_err %s\n",
-			component, module, ice_stat_str(status),
+	err = ice_aq_erase_nvm(hw, module, NULL);
+	if (err) {
+		dev_err(dev, "Failed to erase %s (module 0x%02x), err %d aq_err %s\n",
+			component, module, err,
 			ice_aq_str(hw->adminq.sq_last_status));
 		NL_SET_ERR_MSG_MOD(extack, "Failed to erase flash module");
 		err = -EIO;
@@ -511,6 +547,7 @@ out_notify_devlink:
  * ice_switch_flash_banks - Tell firmware to switch NVM banks
  * @pf: Pointer to the PF data structure
  * @activate_flags: flags used for the activation command
+ * @emp_reset_available: on return, indicates if EMP reset is available
  * @extack: netlink extended ACK structure
  *
  * Notify firmware to activate the newly written flash banks, and wait for the
@@ -518,25 +555,41 @@ out_notify_devlink:
  *
  * Returns: zero on success or an error code on failure.
  */
-static int ice_switch_flash_banks(struct ice_pf *pf, u8 activate_flags,
-				  struct netlink_ext_ack *extack)
+static int
+ice_switch_flash_banks(struct ice_pf *pf, u8 activate_flags,
+		       u8 *emp_reset_available, struct netlink_ext_ack *extack)
 {
 	struct device *dev = ice_pf_to_dev(pf);
 	struct ice_rq_event_info event;
 	struct ice_hw *hw = &pf->hw;
-	enum ice_status status;
 	u16 completion_retval;
+	u8 response_flags;
 	int err;
 
 	memset(&event, 0, sizeof(event));
 
-	status = ice_nvm_write_activate(hw, activate_flags);
-	if (status) {
-		dev_err(dev, "Failed to switch active flash banks, err %s aq_err %s\n",
-			ice_stat_str(status),
-			ice_aq_str(hw->adminq.sq_last_status));
+	err = ice_nvm_write_activate(hw, activate_flags, &response_flags);
+	if (err) {
+		dev_err(dev, "Failed to switch active flash banks, err %d aq_err %s\n",
+			err, ice_aq_str(hw->adminq.sq_last_status));
 		NL_SET_ERR_MSG_MOD(extack, "Failed to switch active flash banks");
 		return -EIO;
+	}
+
+	/* Newer versions of firmware have support to indicate whether an EMP
+	 * reset to reload firmware is available. For older firmware, EMP
+	 * reset is always available.
+	 */
+	if (emp_reset_available) {
+		if (hw->dev_caps.common_cap.reset_restrict_support) {
+			*emp_reset_available = response_flags & ICE_AQC_NVM_EMPR_ENA;
+			dev_dbg(dev, "Firmware indicated that EMP reset is %s\n",
+				*emp_reset_available ?
+				"available" : "not available");
+		} else {
+			*emp_reset_available = ICE_AQC_NVM_EMPR_ENA;
+			dev_dbg(dev, "Firmware does not support restricting EMP reset availability\n");
+		}
 	}
 
 	err = ice_aq_wait_for_event(pf, ice_aqc_opc_nvm_write_activate, 30 * HZ,
@@ -579,6 +632,7 @@ ice_flash_component(struct pldmfw *context, struct pldmfw_component *component)
 	struct netlink_ext_ack *extack = priv->extack;
 	struct ice_pf *pf = priv->pf;
 	const char *name;
+	u8 *reset_level;
 	u16 module;
 	u8 flag;
 	int err;
@@ -587,16 +641,19 @@ ice_flash_component(struct pldmfw *context, struct pldmfw_component *component)
 	case NVM_COMP_ID_OROM:
 		module = ICE_SR_1ST_OROM_BANK_PTR;
 		flag = ICE_AQC_NVM_ACTIV_SEL_OROM;
+		reset_level = NULL;
 		name = "fw.undi";
 		break;
 	case NVM_COMP_ID_NVM:
 		module = ICE_SR_1ST_NVM_BANK_PTR;
 		flag = ICE_AQC_NVM_ACTIV_SEL_NVM;
+		reset_level = &priv->reset_level;
 		name = "fw.mgmt";
 		break;
 	case NVM_COMP_ID_NETLIST:
 		module = ICE_SR_NETLIST_BANK_PTR;
 		flag = ICE_AQC_NVM_ACTIV_SEL_NETLIST;
+		reset_level = NULL;
 		name = "fw.netlist";
 		break;
 	default:
@@ -616,7 +673,8 @@ ice_flash_component(struct pldmfw *context, struct pldmfw_component *component)
 		return err;
 
 	return ice_write_nvm_module(pf, module, name, component->component_data,
-				    component->component_size, extack);
+				    component->component_size, reset_level,
+				    extack);
 }
 
 /**
@@ -634,9 +692,48 @@ static int ice_finalize_update(struct pldmfw *context)
 	struct ice_fwu_priv *priv = container_of(context, struct ice_fwu_priv, context);
 	struct netlink_ext_ack *extack = priv->extack;
 	struct ice_pf *pf = priv->pf;
+	struct devlink *devlink;
+	int err;
 
 	/* Finally, notify firmware to activate the written NVM banks */
-	return ice_switch_flash_banks(pf, priv->activate_flags, extack);
+	err = ice_switch_flash_banks(pf, priv->activate_flags,
+				     &priv->emp_reset_available, extack);
+	if (err)
+		return err;
+
+	devlink = priv_to_devlink(pf);
+
+	/* If the required reset is EMPR, but EMPR is disabled, report that
+	 * a reboot is required instead.
+	 */
+	if (priv->reset_level == ICE_AQC_NVM_EMPR_FLAG &&
+	    !priv->emp_reset_available) {
+		dev_dbg(ice_pf_to_dev(pf), "Firmware indicated EMP reset as sufficient, but EMP reset is disabled\n");
+		priv->reset_level = ICE_AQC_NVM_PERST_FLAG;
+	}
+
+	switch (priv->reset_level) {
+	case ICE_AQC_NVM_EMPR_FLAG:
+		devlink_flash_update_status_notify(devlink,
+						   "Activate new firmware by devlink reload",
+						   NULL, 0, 0);
+		break;
+	case ICE_AQC_NVM_PERST_FLAG:
+		devlink_flash_update_status_notify(devlink,
+						   "Activate new firmware by rebooting the system",
+						   NULL, 0, 0);
+		break;
+	case ICE_AQC_NVM_POR_FLAG:
+	default:
+		devlink_flash_update_status_notify(devlink,
+						   "Activate new firmware by power cycling the system",
+						   NULL, 0, 0);
+		break;
+	}
+
+	pf->fw_emp_reset_disabled = !priv->emp_reset_available;
+
+	return 0;
 }
 
 static const struct pldmfw_ops ice_fwu_ops = {
@@ -648,96 +745,22 @@ static const struct pldmfw_ops ice_fwu_ops = {
 };
 
 /**
- * ice_flash_pldm_image - Write a PLDM-formatted firmware image to the device
- * @pf: private device driver structure
- * @fw: firmware object pointing to the relevant firmware file
- * @preservation: preservation level to request from firmware
- * @extack: netlink extended ACK structure
- *
- * Parse the data for a given firmware file, verifying that it is a valid PLDM
- * formatted image that matches this device.
- *
- * Extract the device record Package Data and Component Tables and send them
- * to the firmware. Extract and write the flash data for each of the three
- * main flash components, "fw.mgmt", "fw.undi", and "fw.netlist". Notify
- * firmware once the data is written to the inactive banks.
- *
- * Returns: zero on success or a negative error code on failure.
- */
-int ice_flash_pldm_image(struct ice_pf *pf, const struct firmware *fw,
-			 u8 preservation, struct netlink_ext_ack *extack)
-{
-	struct device *dev = ice_pf_to_dev(pf);
-	struct ice_hw *hw = &pf->hw;
-	struct ice_fwu_priv priv;
-	enum ice_status status;
-	int err;
-
-	switch (preservation) {
-	case ICE_AQC_NVM_PRESERVE_ALL:
-	case ICE_AQC_NVM_PRESERVE_SELECTED:
-	case ICE_AQC_NVM_NO_PRESERVATION:
-	case ICE_AQC_NVM_FACTORY_DEFAULT:
-		break;
-	default:
-		WARN(1, "Unexpected preservation level request %u", preservation);
-		return -EINVAL;
-	}
-
-	memset(&priv, 0, sizeof(priv));
-
-	priv.context.ops = &ice_fwu_ops;
-	priv.context.dev = dev;
-	priv.extack = extack;
-	priv.pf = pf;
-	priv.activate_flags = preservation;
-
-	status = ice_acquire_nvm(hw, ICE_RES_WRITE);
-	if (status) {
-		dev_err(dev, "Failed to acquire device flash lock, err %s aq_err %s\n",
-			ice_stat_str(status),
-			ice_aq_str(hw->adminq.sq_last_status));
-		NL_SET_ERR_MSG_MOD(extack, "Failed to acquire device flash lock");
-		return -EIO;
-	}
-
-	err = pldmfw_flash_image(&priv.context, fw);
-	if (err == -ENOENT) {
-		dev_err(dev, "Firmware image has no record matching this device\n");
-		NL_SET_ERR_MSG_MOD(extack, "Firmware image has no record matching this device");
-	} else if (err) {
-		/* Do not set a generic extended ACK message here. A more
-		 * specific message may already have been set by one of our
-		 * ops.
-		 */
-		dev_err(dev, "Failed to flash PLDM image, err %d", err);
-	}
-
-	ice_release_nvm(hw);
-
-	return err;
-}
-
-/**
- * ice_check_for_pending_update - Check for a pending flash update
+ * ice_get_pending_updates - Check if the component has a pending update
  * @pf: the PF driver structure
- * @component: if not NULL, the name of the component being updated
- * @extack: Netlink extended ACK structure
+ * @pending: on return, bitmap of updates pending
+ * @extack: Netlink extended ACK
  *
- * Check whether the device already has a pending flash update. If such an
- * update is found, cancel it so that the requested update may proceed.
+ * Check if the device has any pending updates on any flash components.
  *
- * Returns: zero on success, or a negative error code on failure.
+ * Returns: zero on success, or a negative error code on failure. Updates
+ * pending with the bitmap of pending updates.
  */
-int ice_check_for_pending_update(struct ice_pf *pf, const char *component,
-				 struct netlink_ext_ack *extack)
+int ice_get_pending_updates(struct ice_pf *pf, u8 *pending,
+			    struct netlink_ext_ack *extack)
 {
-	struct devlink *devlink = priv_to_devlink(pf);
 	struct device *dev = ice_pf_to_dev(pf);
 	struct ice_hw_dev_caps *dev_caps;
 	struct ice_hw *hw = &pf->hw;
-	enum ice_status status;
-	u8 pending = 0;
 	int err;
 
 	dev_caps = kzalloc(sizeof(*dev_caps), GFP_KERNEL);
@@ -749,29 +772,59 @@ int ice_check_for_pending_update(struct ice_pf *pf, const char *component,
 	 * may have changed, e.g. if an update was previously completed and
 	 * the system has not yet rebooted.
 	 */
-	status = ice_discover_dev_caps(hw, dev_caps);
-	if (status) {
+	err = ice_discover_dev_caps(hw, dev_caps);
+	if (err) {
 		NL_SET_ERR_MSG_MOD(extack, "Unable to read device capabilities");
 		kfree(dev_caps);
-		return -EIO;
+		return err;
 	}
+
+	*pending = 0;
 
 	if (dev_caps->common_cap.nvm_update_pending_nvm) {
 		dev_info(dev, "The fw.mgmt flash component has a pending update\n");
-		pending |= ICE_AQC_NVM_ACTIV_SEL_NVM;
+		*pending |= ICE_AQC_NVM_ACTIV_SEL_NVM;
 	}
 
 	if (dev_caps->common_cap.nvm_update_pending_orom) {
 		dev_info(dev, "The fw.undi flash component has a pending update\n");
-		pending |= ICE_AQC_NVM_ACTIV_SEL_OROM;
+		*pending |= ICE_AQC_NVM_ACTIV_SEL_OROM;
 	}
 
 	if (dev_caps->common_cap.nvm_update_pending_netlist) {
 		dev_info(dev, "The fw.netlist flash component has a pending update\n");
-		pending |= ICE_AQC_NVM_ACTIV_SEL_NETLIST;
+		*pending |= ICE_AQC_NVM_ACTIV_SEL_NETLIST;
 	}
 
 	kfree(dev_caps);
+
+	return 0;
+}
+
+/**
+ * ice_cancel_pending_update - Cancel any pending update for a component
+ * @pf: the PF driver structure
+ * @component: if not NULL, the name of the component being updated
+ * @extack: Netlink extended ACK structure
+ *
+ * Cancel any pending update for the specified component. If component is
+ * NULL, all device updates will be canceled.
+ *
+ * Returns: zero on success, or a negative error code on failure.
+ */
+static int
+ice_cancel_pending_update(struct ice_pf *pf, const char *component,
+			  struct netlink_ext_ack *extack)
+{
+	struct devlink *devlink = priv_to_devlink(pf);
+	struct device *dev = ice_pf_to_dev(pf);
+	struct ice_hw *hw = &pf->hw;
+	u8 pending;
+	int err;
+
+	err = ice_get_pending_updates(pf, &pending, extack);
+	if (err)
+		return err;
 
 	/* If the flash_update request is for a specific component, ignore all
 	 * of the other components.
@@ -798,17 +851,107 @@ int ice_check_for_pending_update(struct ice_pf *pf, const char *component,
 					   "Canceling previous pending update",
 					   component, 0, 0);
 
-	status = ice_acquire_nvm(hw, ICE_RES_WRITE);
-	if (status) {
-		dev_err(dev, "Failed to acquire device flash lock, err %s aq_err %s\n",
-			ice_stat_str(status),
-			ice_aq_str(hw->adminq.sq_last_status));
+	err = ice_acquire_nvm(hw, ICE_RES_WRITE);
+	if (err) {
+		dev_err(dev, "Failed to acquire device flash lock, err %d aq_err %s\n",
+			err, ice_aq_str(hw->adminq.sq_last_status));
 		NL_SET_ERR_MSG_MOD(extack, "Failed to acquire device flash lock");
-		return -EIO;
+		return err;
 	}
 
 	pending |= ICE_AQC_NVM_REVERT_LAST_ACTIV;
-	err = ice_switch_flash_banks(pf, pending, extack);
+	err = ice_switch_flash_banks(pf, pending, NULL, extack);
+
+	ice_release_nvm(hw);
+
+	/* Since we've canceled the pending update, we no longer know if EMP
+	 * reset is restricted.
+	 */
+	pf->fw_emp_reset_disabled = false;
+
+	return err;
+}
+
+/**
+ * ice_devlink_flash_update - Write a firmware image to the device
+ * @devlink: pointer to devlink associated with the device to update
+ * @params: devlink flash update parameters
+ * @extack: netlink extended ACK structure
+ *
+ * Parse the data for a given firmware file, verifying that it is a valid PLDM
+ * formatted image that matches this device.
+ *
+ * Extract the device record Package Data and Component Tables and send them
+ * to the firmware. Extract and write the flash data for each of the three
+ * main flash components, "fw.mgmt", "fw.undi", and "fw.netlist". Notify
+ * firmware once the data is written to the inactive banks.
+ *
+ * Returns: zero on success or a negative error code on failure.
+ */
+int ice_devlink_flash_update(struct devlink *devlink,
+			     struct devlink_flash_update_params *params,
+			     struct netlink_ext_ack *extack)
+{
+	struct ice_pf *pf = devlink_priv(devlink);
+	struct device *dev = ice_pf_to_dev(pf);
+	struct ice_hw *hw = &pf->hw;
+	struct ice_fwu_priv priv;
+	u8 preservation;
+	int err;
+
+	if (!params->overwrite_mask) {
+		/* preserve all settings and identifiers */
+		preservation = ICE_AQC_NVM_PRESERVE_ALL;
+	} else if (params->overwrite_mask == DEVLINK_FLASH_OVERWRITE_SETTINGS) {
+		/* overwrite settings, but preserve the vital device identifiers */
+		preservation = ICE_AQC_NVM_PRESERVE_SELECTED;
+	} else if (params->overwrite_mask == (DEVLINK_FLASH_OVERWRITE_SETTINGS |
+					      DEVLINK_FLASH_OVERWRITE_IDENTIFIERS)) {
+		/* overwrite both settings and identifiers, preserve nothing */
+		preservation = ICE_AQC_NVM_NO_PRESERVATION;
+	} else {
+		NL_SET_ERR_MSG_MOD(extack, "Requested overwrite mask is not supported");
+		return -EOPNOTSUPP;
+	}
+
+	if (!hw->dev_caps.common_cap.nvm_unified_update) {
+		NL_SET_ERR_MSG_MOD(extack, "Current firmware does not support unified update");
+		return -EOPNOTSUPP;
+	}
+
+	memset(&priv, 0, sizeof(priv));
+
+	priv.context.ops = &ice_fwu_ops;
+	priv.context.dev = dev;
+	priv.extack = extack;
+	priv.pf = pf;
+	priv.activate_flags = preservation;
+
+	devlink_flash_update_status_notify(devlink, "Preparing to flash", NULL, 0, 0);
+
+	err = ice_cancel_pending_update(pf, NULL, extack);
+	if (err)
+		return err;
+
+	err = ice_acquire_nvm(hw, ICE_RES_WRITE);
+	if (err) {
+		dev_err(dev, "Failed to acquire device flash lock, err %d aq_err %s\n",
+			err, ice_aq_str(hw->adminq.sq_last_status));
+		NL_SET_ERR_MSG_MOD(extack, "Failed to acquire device flash lock");
+		return err;
+	}
+
+	err = pldmfw_flash_image(&priv.context, params->fw);
+	if (err == -ENOENT) {
+		dev_err(dev, "Firmware image has no record matching this device\n");
+		NL_SET_ERR_MSG_MOD(extack, "Firmware image has no record matching this device");
+	} else if (err) {
+		/* Do not set a generic extended ACK message here. A more
+		 * specific message may already have been set by one of our
+		 * ops.
+		 */
+		dev_err(dev, "Failed to flash PLDM image, err %d", err);
+	}
 
 	ice_release_nvm(hw);
 

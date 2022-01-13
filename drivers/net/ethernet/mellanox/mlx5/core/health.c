@@ -420,6 +420,11 @@ static void print_health_info(struct mlx5_core_dev *dev)
 	if (!ioread8(&h->synd))
 		return;
 
+	if (ioread32be(&h->fw_ver) == 0xFFFFFFFF) {
+		mlx5_log(dev, LOGLEVEL_ERR, "PCI slot is unavailable\n");
+		return;
+	}
+
 	rfr_severity = ioread8(&h->rfr_severity);
 	severity  = mlx5_health_get_severity(rfr_severity);
 	mlx5_log(dev, severity, "Health issue observed, %s, severity(%d) %s:\n",

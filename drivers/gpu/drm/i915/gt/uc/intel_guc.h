@@ -95,6 +95,11 @@ struct intel_guc {
 		 */
 		struct ida guc_ids;
 		/**
+		 * @num_guc_ids: Number of guc_ids, selftest feature to be able
+		 * to reduce this number while testing.
+		 */
+		int num_guc_ids;
+		/**
 		 * @guc_ids_bitmap: used to allocate new guc_ids, multi-lrc
 		 */
 		unsigned long *guc_ids_bitmap;
@@ -138,6 +143,8 @@ struct intel_guc {
 	u32 ads_regset_size;
 	/** @ads_golden_ctxt_size: size of the golden contexts in the ADS */
 	u32 ads_golden_ctxt_size;
+	/** @ads_engine_usage_size: size of engine usage in the ADS */
+	u32 ads_engine_usage_size;
 
 	/** @lrc_desc_pool: object allocated to hold the GuC LRC descriptor pool */
 	struct i915_vma *lrc_desc_pool;
@@ -172,6 +179,41 @@ struct intel_guc {
 
 	/** @send_mutex: used to serialize the intel_guc_send actions */
 	struct mutex send_mutex;
+
+	/**
+	 * @timestamp: GT timestamp object that stores a copy of the timestamp
+	 * and adjusts it for overflow using a worker.
+	 */
+	struct {
+		/**
+		 * @lock: Lock protecting the below fields and the engine stats.
+		 */
+		spinlock_t lock;
+
+		/**
+		 * @gt_stamp: 64 bit extended value of the GT timestamp.
+		 */
+		u64 gt_stamp;
+
+		/**
+		 * @ping_delay: Period for polling the GT timestamp for
+		 * overflow.
+		 */
+		unsigned long ping_delay;
+
+		/**
+		 * @work: Periodic work to adjust GT timestamp, engine and
+		 * context usage for overflows.
+		 */
+		struct delayed_work work;
+	} timestamp;
+
+#ifdef CONFIG_DRM_I915_SELFTEST
+	/**
+	 * @number_guc_id_stolen: The number of guc_ids that have been stolen
+	 */
+	int number_guc_id_stolen;
+#endif
 };
 
 static inline struct intel_guc *log_to_guc(struct intel_guc_log *log)

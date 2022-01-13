@@ -939,10 +939,11 @@ static struct attribute *hotplug_profile_attrs[] = {
 	&hotplug_enabled_attr.attr,
 	NULL
 };
+ATTRIBUTE_GROUPS(hotplug_profile);
 
 static struct kobj_type acpi_hotplug_profile_ktype = {
 	.sysfs_ops = &kobj_sysfs_ops,
-	.default_attrs = hotplug_profile_attrs,
+	.default_groups = hotplug_profile_groups,
 };
 
 void acpi_sysfs_add_hotplug_profile(struct acpi_hotplug_profile *hotplug,

@@ -44,7 +44,8 @@
 #define DC_LOGGER \
 	dccg->ctx->logger
 
-void dccg201_update_dpp_dto(struct dccg *dccg, int dpp_inst, int req_dppclk)
+static void dccg201_update_dpp_dto(struct dccg *dccg, int dpp_inst,
+				   int req_dppclk)
 {
 	/* vbios handles it */
 }
