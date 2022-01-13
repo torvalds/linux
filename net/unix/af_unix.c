@@ -3240,32 +3240,40 @@ static struct sock *unix_from_bucket(struct seq_file *seq, loff_t *pos)
 	return sk;
 }
 
-static struct sock *unix_next_socket(struct seq_file *seq,
-				     struct sock *sk,
-				     loff_t *pos)
+static struct sock *unix_get_first(struct seq_file *seq, loff_t *pos)
 {
 	unsigned long bucket = get_bucket(*pos);
+	struct sock *sk;
 
-	while (sk > (struct sock *)SEQ_START_TOKEN) {
-		sk = sk_next(sk);
-		if (!sk)
-			goto next_bucket;
-		if (sock_net(sk) == seq_file_net(seq))
-			return sk;
-	}
-
-	do {
+	while (bucket < ARRAY_SIZE(unix_socket_table)) {
 		spin_lock(&unix_table_locks[bucket]);
+
 		sk = unix_from_bucket(seq, pos);
 		if (sk)
 			return sk;
 
-next_bucket:
-		spin_unlock(&unix_table_locks[bucket++]);
-		*pos = set_bucket_offset(bucket, 1);
-	} while (bucket < ARRAY_SIZE(unix_socket_table));
+		spin_unlock(&unix_table_locks[bucket]);
+
+		*pos = set_bucket_offset(++bucket, 1);
+	}
 
 	return NULL;
+}
+
+static struct sock *unix_get_next(struct seq_file *seq, struct sock *sk,
+				  loff_t *pos)
+{
+	unsigned long bucket = get_bucket(*pos);
+
+	for (sk = sk_next(sk); sk; sk = sk_next(sk))
+		if (sock_net(sk) == seq_file_net(seq))
+			return sk;
+
+	spin_unlock(&unix_table_locks[bucket]);
+
+	*pos = set_bucket_offset(++bucket, 1);
+
+	return unix_get_first(seq, pos);
 }
 
 static void *unix_seq_start(struct seq_file *seq, loff_t *pos)
@@ -3273,16 +3281,17 @@ static void *unix_seq_start(struct seq_file *seq, loff_t *pos)
 	if (!*pos)
 		return SEQ_START_TOKEN;
 
-	if (get_bucket(*pos) >= ARRAY_SIZE(unix_socket_table))
-		return NULL;
-
-	return unix_next_socket(seq, NULL, pos);
+	return unix_get_first(seq, pos);
 }
 
 static void *unix_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 {
 	++*pos;
-	return unix_next_socket(seq, v, pos);
+
+	if (v == SEQ_START_TOKEN)
+		return unix_get_first(seq, pos);
+
+	return unix_get_next(seq, v, pos);
 }
 
 static void unix_seq_stop(struct seq_file *seq, void *v)
