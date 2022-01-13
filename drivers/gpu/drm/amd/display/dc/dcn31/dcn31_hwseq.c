@@ -194,7 +194,7 @@ void dcn31_init_hw(struct dc *dc)
 
 	/* Enables outbox notifications for usb4 dpia */
 	if (dc->res_pool->usb4_dpia_count)
-		dmub_enable_outbox_notification(dc);
+		dmub_enable_outbox_notification(dc->ctx->dmub_srv);
 
 	/* we want to turn off all dp displays before doing detection */
 	dc_link_blank_all_dp_displays(dc);
