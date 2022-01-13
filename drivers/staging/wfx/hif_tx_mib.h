@@ -14,8 +14,8 @@
 struct sk_buff;
 struct wfx_vif;
 struct wfx_dev;
-struct hif_ie_table_entry;
-struct hif_mib_extended_count_table;
+struct wfx_hif_ie_table_entry;
+struct wfx_hif_mib_extended_count_table;
 
 int wfx_hif_set_output_power(struct wfx_vif *wvif, int val);
 int wfx_hif_set_beacon_wakeup_period(struct wfx_vif *wvif,
@@ -24,16 +24,16 @@ int wfx_hif_set_beacon_wakeup_period(struct wfx_vif *wvif,
 int wfx_hif_set_rcpi_rssi_threshold(struct wfx_vif *wvif,
 				    int rssi_thold, int rssi_hyst);
 int wfx_hif_get_counters_table(struct wfx_dev *wdev, int vif_id,
-			       struct hif_mib_extended_count_table *arg);
+			       struct wfx_hif_mib_extended_count_table *arg);
 int wfx_hif_set_macaddr(struct wfx_vif *wvif, u8 *mac);
 int wfx_hif_set_rx_filter(struct wfx_vif *wvif,
 			  bool filter_bssid, bool fwd_probe_req);
 int wfx_hif_set_beacon_filter_table(struct wfx_vif *wvif, int tbl_len,
-				    const struct hif_ie_table_entry *tbl);
+				    const struct wfx_hif_ie_table_entry *tbl);
 int wfx_hif_beacon_filter_control(struct wfx_vif *wvif,
 				  int enable, int beacon_count);
 int wfx_hif_set_operational_mode(struct wfx_dev *wdev,
-				 enum hif_op_power_mode mode);
+				 enum wfx_hif_op_power_mode mode);
 int wfx_hif_set_template_frame(struct wfx_vif *wvif, struct sk_buff *skb,
 			       u8 frame_type, int init_rate);
 int wfx_hif_set_mfp(struct wfx_vif *wvif, bool capable, bool required);

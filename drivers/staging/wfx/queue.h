@@ -30,7 +30,7 @@ void wfx_tx_queues_init(struct wfx_vif *wvif);
 void wfx_tx_queues_check_empty(struct wfx_vif *wvif);
 bool wfx_tx_queues_has_cab(struct wfx_vif *wvif);
 void wfx_tx_queues_put(struct wfx_vif *wvif, struct sk_buff *skb);
-struct hif_msg *wfx_tx_queues_get(struct wfx_dev *wdev);
+struct wfx_hif_msg *wfx_tx_queues_get(struct wfx_dev *wdev);
 
 bool wfx_tx_queue_empty(struct wfx_vif *wvif, struct wfx_queue *queue);
 void wfx_tx_queue_drop(struct wfx_vif *wvif, struct wfx_queue *queue,

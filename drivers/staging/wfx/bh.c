@@ -67,7 +67,7 @@ static void device_release(struct wfx_dev *wdev)
 static int rx_helper(struct wfx_dev *wdev, size_t read_len, int *is_cnf)
 {
 	struct sk_buff *skb;
-	struct hif_msg *hif;
+	struct wfx_hif_msg *hif;
 	size_t alloc_len;
 	size_t computed_len;
 	int release_count;
@@ -88,9 +88,9 @@ static int rx_helper(struct wfx_dev *wdev, size_t read_len, int *is_cnf)
 	piggyback = le16_to_cpup((__le16 *)(skb->data + alloc_len - 2));
 	_trace_piggyback(piggyback, false);
 
-	hif = (struct hif_msg *)skb->data;
+	hif = (struct wfx_hif_msg *)skb->data;
 	WARN(hif->encrypted & 0x3, "encryption is unsupported");
-	if (WARN(read_len < sizeof(struct hif_msg), "corrupted read"))
+	if (WARN(read_len < sizeof(struct wfx_hif_msg), "corrupted read"))
 		goto err;
 	computed_len = le16_to_cpu(hif->len);
 	computed_len = round_up(computed_len, 2);
@@ -105,7 +105,7 @@ static int rx_helper(struct wfx_dev *wdev, size_t read_len, int *is_cnf)
 	if (!(hif->id & HIF_ID_IS_INDICATION)) {
 		(*is_cnf)++;
 		if (hif->id == HIF_CNF_ID_MULTI_TRANSMIT)
-			release_count = ((struct hif_cnf_multi_transmit *)hif->body)->num_tx_confs;
+			release_count = ((struct wfx_hif_cnf_multi_transmit *)hif->body)->num_tx_confs;
 		else
 			release_count = 1;
 		WARN(wdev->hif.tx_buffers_used < release_count, "corrupted buffer counter");
@@ -169,7 +169,7 @@ static int bh_work_rx(struct wfx_dev *wdev, int max_msg, int *num_cnf)
 	return i;
 }
 
-static void tx_helper(struct wfx_dev *wdev, struct hif_msg *hif)
+static void tx_helper(struct wfx_dev *wdev, struct wfx_hif_msg *hif)
 {
 	int ret;
 	void *data;
@@ -199,7 +199,7 @@ end:
 
 static int bh_work_tx(struct wfx_dev *wdev, int max_msg)
 {
-	struct hif_msg *hif;
+	struct wfx_hif_msg *hif;
 	int i;
 
 	for (i = 0; i < max_msg; i++) {

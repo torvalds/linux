@@ -38,7 +38,7 @@ struct wfx_dev {
 
 	u8			keyset;
 	struct completion	firmware_ready;
-	struct hif_ind_startup	hw_caps;
+	struct wfx_hif_ind_startup hw_caps;
 	struct wfx_hif		hif;
 	struct delayed_work	cooling_timeout_work;
 	bool			poll_irq;
@@ -53,9 +53,9 @@ struct wfx_dev {
 	atomic_t		packet_id;
 	u32			key_map;
 
-	struct hif_rx_stats	rx_stats;
+	struct wfx_hif_rx_stats	rx_stats;
 	struct mutex		rx_stats_lock;
-	struct hif_tx_power_loop_info tx_power_loop_info;
+	struct wfx_hif_tx_power_loop_info tx_power_loop_info;
 	struct mutex		tx_power_loop_info_lock;
 	int			force_ps_timeout;
 };

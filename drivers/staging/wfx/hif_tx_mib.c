@@ -16,7 +16,7 @@
 
 int wfx_hif_set_output_power(struct wfx_vif *wvif, int val)
 {
-	struct hif_mib_current_tx_power_level arg = {
+	struct wfx_hif_mib_current_tx_power_level arg = {
 		.power_level = cpu_to_le32(val * 10),
 	};
 
@@ -29,7 +29,7 @@ int wfx_hif_set_beacon_wakeup_period(struct wfx_vif *wvif,
 				     unsigned int dtim_interval,
 				     unsigned int listen_interval)
 {
-	struct hif_mib_beacon_wake_up_period arg = {
+	struct wfx_hif_mib_beacon_wake_up_period arg = {
 		.wakeup_period_min = dtim_interval,
 		.receive_dtim = 0,
 		.wakeup_period_max = listen_interval,
@@ -45,7 +45,7 @@ int wfx_hif_set_beacon_wakeup_period(struct wfx_vif *wvif,
 int wfx_hif_set_rcpi_rssi_threshold(struct wfx_vif *wvif,
 				    int rssi_thold, int rssi_hyst)
 {
-	struct hif_mib_rcpi_rssi_threshold arg = {
+	struct wfx_hif_mib_rcpi_rssi_threshold arg = {
 		.rolling_average_count = 8,
 		.detection = 1,
 	};
@@ -66,23 +66,23 @@ int wfx_hif_set_rcpi_rssi_threshold(struct wfx_vif *wvif,
 }
 
 int wfx_hif_get_counters_table(struct wfx_dev *wdev, int vif_id,
-			       struct hif_mib_extended_count_table *arg)
+			       struct wfx_hif_mib_extended_count_table *arg)
 {
 	if (wfx_api_older_than(wdev, 1, 3)) {
 		/* extended_count_table is wider than count_table */
 		memset(arg, 0xFF, sizeof(*arg));
 		return wfx_hif_read_mib(wdev, vif_id, HIF_MIB_ID_COUNTERS_TABLE,
-				    arg, sizeof(struct hif_mib_count_table));
+				    arg, sizeof(struct wfx_hif_mib_count_table));
 	} else {
 		return wfx_hif_read_mib(wdev, vif_id,
 				    HIF_MIB_ID_EXTENDED_COUNTERS_TABLE, arg,
-				    sizeof(struct hif_mib_extended_count_table));
+				    sizeof(struct wfx_hif_mib_extended_count_table));
 	}
 }
 
 int wfx_hif_set_macaddr(struct wfx_vif *wvif, u8 *mac)
 {
-	struct hif_mib_mac_address arg = { };
+	struct wfx_hif_mib_mac_address arg = { };
 
 	if (mac)
 		ether_addr_copy(arg.mac_addr, mac);
@@ -94,7 +94,7 @@ int wfx_hif_set_macaddr(struct wfx_vif *wvif, u8 *mac)
 int wfx_hif_set_rx_filter(struct wfx_vif *wvif,
 			  bool filter_bssid, bool filter_prbreq)
 {
-	struct hif_mib_rx_filter arg = { };
+	struct wfx_hif_mib_rx_filter arg = { };
 
 	if (filter_bssid)
 		arg.bssid_filter = 1;
@@ -105,10 +105,10 @@ int wfx_hif_set_rx_filter(struct wfx_vif *wvif,
 }
 
 int wfx_hif_set_beacon_filter_table(struct wfx_vif *wvif, int tbl_len,
-				    const struct hif_ie_table_entry *tbl)
+				    const struct wfx_hif_ie_table_entry *tbl)
 {
 	int ret;
-	struct hif_mib_bcn_filter_table *arg;
+	struct wfx_hif_mib_bcn_filter_table *arg;
 	int buf_len = struct_size(arg, ie_table, tbl_len);
 
 	arg = kzalloc(buf_len, GFP_KERNEL);
@@ -125,7 +125,7 @@ int wfx_hif_set_beacon_filter_table(struct wfx_vif *wvif, int tbl_len,
 int wfx_hif_beacon_filter_control(struct wfx_vif *wvif,
 				  int enable, int beacon_count)
 {
-	struct hif_mib_bcn_filter_enable arg = {
+	struct wfx_hif_mib_bcn_filter_enable arg = {
 		.enable = cpu_to_le32(enable),
 		.bcn_count = cpu_to_le32(beacon_count),
 	};
@@ -135,9 +135,9 @@ int wfx_hif_beacon_filter_control(struct wfx_vif *wvif,
 }
 
 int wfx_hif_set_operational_mode(struct wfx_dev *wdev,
-				 enum hif_op_power_mode mode)
+				 enum wfx_hif_op_power_mode mode)
 {
-	struct hif_mib_gl_operational_power_mode arg = {
+	struct wfx_hif_mib_gl_operational_power_mode arg = {
 		.power_mode = mode,
 		.wup_ind_activation = 1,
 	};
@@ -149,11 +149,11 @@ int wfx_hif_set_operational_mode(struct wfx_dev *wdev,
 int wfx_hif_set_template_frame(struct wfx_vif *wvif, struct sk_buff *skb,
 			       u8 frame_type, int init_rate)
 {
-	struct hif_mib_template_frame *arg;
+	struct wfx_hif_mib_template_frame *arg;
 
 	WARN(skb->len > HIF_API_MAX_TEMPLATE_FRAME_SIZE, "frame is too big");
 	skb_push(skb, 4);
-	arg = (struct hif_mib_template_frame *)skb->data;
+	arg = (struct wfx_hif_mib_template_frame *)skb->data;
 	skb_pull(skb, 4);
 	arg->init_rate = init_rate;
 	arg->frame_type = frame_type;
@@ -164,7 +164,7 @@ int wfx_hif_set_template_frame(struct wfx_vif *wvif, struct sk_buff *skb,
 
 int wfx_hif_set_mfp(struct wfx_vif *wvif, bool capable, bool required)
 {
-	struct hif_mib_protected_mgmt_policy arg = { };
+	struct wfx_hif_mib_protected_mgmt_policy arg = { };
 
 	WARN(required && !capable, "incoherent arguments");
 	if (capable) {
@@ -181,7 +181,7 @@ int wfx_hif_set_mfp(struct wfx_vif *wvif, bool capable, bool required)
 int wfx_hif_set_block_ack_policy(struct wfx_vif *wvif,
 				 u8 tx_tid_policy, u8 rx_tid_policy)
 {
-	struct hif_mib_block_ack_policy arg = {
+	struct wfx_hif_mib_block_ack_policy arg = {
 		.block_ack_tx_tid_policy = tx_tid_policy,
 		.block_ack_rx_tid_policy = rx_tid_policy,
 	};
@@ -194,7 +194,7 @@ int wfx_hif_set_block_ack_policy(struct wfx_vif *wvif,
 int wfx_hif_set_association_mode(struct wfx_vif *wvif, int ampdu_density,
 				 bool greenfield, bool short_preamble)
 {
-	struct hif_mib_set_association_mode arg = {
+	struct wfx_hif_mib_set_association_mode arg = {
 		.preambtype_use = 1,
 		.mode = 1,
 		.spacing = 1,
@@ -211,7 +211,7 @@ int wfx_hif_set_association_mode(struct wfx_vif *wvif, int ampdu_density,
 int wfx_hif_set_tx_rate_retry_policy(struct wfx_vif *wvif,
 				     int policy_index, u8 *rates)
 {
-	struct hif_mib_set_tx_rate_retry_policy *arg;
+	struct wfx_hif_mib_set_tx_rate_retry_policy *arg;
 	size_t size = struct_size(arg, tx_rate_retry_policy, 1);
 	int ret;
 
@@ -236,7 +236,7 @@ int wfx_hif_set_tx_rate_retry_policy(struct wfx_vif *wvif,
 
 int wfx_hif_keep_alive_period(struct wfx_vif *wvif, int period)
 {
-	struct hif_mib_keep_alive_period arg = {
+	struct wfx_hif_mib_keep_alive_period arg = {
 		.keep_alive_period = cpu_to_le16(period),
 	};
 
@@ -247,7 +247,7 @@ int wfx_hif_keep_alive_period(struct wfx_vif *wvif, int period)
 
 int wfx_hif_set_arp_ipv4_filter(struct wfx_vif *wvif, int idx, __be32 *addr)
 {
-	struct hif_mib_arp_ip_addr_table arg = {
+	struct wfx_hif_mib_arp_ip_addr_table arg = {
 		.condition_idx = idx,
 		.arp_enable = HIF_ARP_NS_FILTERING_DISABLE,
 	};
@@ -264,7 +264,7 @@ int wfx_hif_set_arp_ipv4_filter(struct wfx_vif *wvif, int idx, __be32 *addr)
 
 int wfx_hif_use_multi_tx_conf(struct wfx_dev *wdev, bool enable)
 {
-	struct hif_mib_gl_set_multi_msg arg = {
+	struct wfx_hif_mib_gl_set_multi_msg arg = {
 		.enable_multi_tx_conf = enable,
 	};
 
@@ -274,7 +274,7 @@ int wfx_hif_use_multi_tx_conf(struct wfx_dev *wdev, bool enable)
 
 int wfx_hif_set_uapsd_info(struct wfx_vif *wvif, unsigned long val)
 {
-	struct hif_mib_set_uapsd_information arg = { };
+	struct wfx_hif_mib_set_uapsd_information arg = { };
 
 	if (val & BIT(IEEE80211_AC_VO))
 		arg.trig_voice = 1;
@@ -291,7 +291,7 @@ int wfx_hif_set_uapsd_info(struct wfx_vif *wvif, unsigned long val)
 
 int wfx_hif_erp_use_protection(struct wfx_vif *wvif, bool enable)
 {
-	struct hif_mib_non_erp_protection arg = {
+	struct wfx_hif_mib_non_erp_protection arg = {
 		.use_cts_to_self = enable,
 	};
 
@@ -302,7 +302,7 @@ int wfx_hif_erp_use_protection(struct wfx_vif *wvif, bool enable)
 
 int wfx_hif_slot_time(struct wfx_vif *wvif, int val)
 {
-	struct hif_mib_slot_time arg = {
+	struct wfx_hif_mib_slot_time arg = {
 		.slot_time = cpu_to_le32(val),
 	};
 
@@ -312,7 +312,7 @@ int wfx_hif_slot_time(struct wfx_vif *wvif, int val)
 
 int wfx_hif_wep_default_key_id(struct wfx_vif *wvif, int val)
 {
-	struct hif_mib_wep_default_key_id arg = {
+	struct wfx_hif_mib_wep_default_key_id arg = {
 		.wep_default_key_id = val,
 	};
 
@@ -323,7 +323,7 @@ int wfx_hif_wep_default_key_id(struct wfx_vif *wvif, int val)
 
 int wfx_hif_rts_threshold(struct wfx_vif *wvif, int val)
 {
-	struct hif_mib_dot11_rts_threshold arg = {
+	struct wfx_hif_mib_dot11_rts_threshold arg = {
 		.threshold = cpu_to_le32(val >= 0 ? val : 0xFFFF),
 	};
 

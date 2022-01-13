@@ -329,16 +329,16 @@ static int wfx_tx_get_icv_len(struct ieee80211_key_conf *hw_key)
 static int wfx_tx_inner(struct wfx_vif *wvif, struct ieee80211_sta *sta,
 			struct sk_buff *skb)
 {
-	struct hif_msg *hif_msg;
-	struct hif_req_tx *req;
+	struct wfx_hif_msg *hif_msg;
+	struct wfx_hif_req_tx *req;
 	struct wfx_tx_priv *tx_priv;
 	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(skb);
 	struct ieee80211_key_conf *hw_key = tx_info->control.hw_key;
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 	int queue_id = skb_get_queue_mapping(skb);
 	size_t offset = (size_t)skb->data & 3;
-	int wmsg_len = sizeof(struct hif_msg) +
-			sizeof(struct hif_req_tx) + offset;
+	int wmsg_len = sizeof(struct wfx_hif_msg) +
+			sizeof(struct wfx_hif_req_tx) + offset;
 
 	WARN(queue_id >= IEEE80211_NUM_ACS, "unsupported queue_id");
 	wfx_tx_fixup_rates(tx_info->driver_rates);
@@ -355,7 +355,7 @@ static int wfx_tx_inner(struct wfx_vif *wvif, struct ieee80211_sta *sta,
 	skb_put(skb, tx_priv->icv_size);
 	skb_push(skb, wmsg_len);
 	memset(skb->data, 0, wmsg_len);
-	hif_msg = (struct hif_msg *)skb->data;
+	hif_msg = (struct wfx_hif_msg *)skb->data;
 	hif_msg->len = cpu_to_le16(skb->len);
 	hif_msg->id = HIF_REQ_ID_TX;
 	hif_msg->interface = wvif->id;
@@ -368,7 +368,7 @@ static int wfx_tx_inner(struct wfx_vif *wvif, struct ieee80211_sta *sta,
 	}
 
 	/* Fill tx request */
-	req = (struct hif_req_tx *)hif_msg->body;
+	req = (struct wfx_hif_req_tx *)hif_msg->body;
 	/* packet_id just need to be unique on device. 32bits are more than
 	 * necessary for that task, so we tae advantage of it to add some extra
 	 * data for debug.
@@ -435,10 +435,10 @@ drop:
 
 static void wfx_skb_dtor(struct wfx_vif *wvif, struct sk_buff *skb)
 {
-	struct hif_msg *hif = (struct hif_msg *)skb->data;
-	struct hif_req_tx *req = (struct hif_req_tx *)hif->body;
-	unsigned int offset = sizeof(struct hif_msg) +
-			      sizeof(struct hif_req_tx) +
+	struct wfx_hif_msg *hif = (struct hif_msg *)skb->data;
+	struct wfx_hif_req_tx *req = (struct hif_req_tx *)hif->body;
+	unsigned int offset = sizeof(struct wfx_hif_msg) +
+			      sizeof(struct wfx_hif_req_tx) +
 			      req->fc_offset;
 
 	if (!wvif) {
@@ -452,7 +452,7 @@ static void wfx_skb_dtor(struct wfx_vif *wvif, struct sk_buff *skb)
 
 static void wfx_tx_fill_rates(struct wfx_dev *wdev,
 			      struct ieee80211_tx_info *tx_info,
-			      const struct hif_cnf_tx *arg)
+			      const struct wfx_hif_cnf_tx *arg)
 {
 	struct ieee80211_tx_rate *rate;
 	int tx_count;
@@ -488,7 +488,7 @@ static void wfx_tx_fill_rates(struct wfx_dev *wdev,
 		dev_dbg(wdev->dev, "%d more retries than expected\n", tx_count);
 }
 
-void wfx_tx_confirm_cb(struct wfx_dev *wdev, const struct hif_cnf_tx *arg)
+void wfx_tx_confirm_cb(struct wfx_dev *wdev, const struct wfx_hif_cnf_tx *arg)
 {
 	const struct wfx_tx_priv *tx_priv;
 	struct ieee80211_tx_info *tx_info;
@@ -503,7 +503,7 @@ void wfx_tx_confirm_cb(struct wfx_dev *wdev, const struct hif_cnf_tx *arg)
 	}
 	tx_info = IEEE80211_SKB_CB(skb);
 	tx_priv = wfx_skb_tx_priv(skb);
-	wvif = wdev_to_wvif(wdev, ((struct hif_msg *)skb->data)->interface);
+	wvif = wdev_to_wvif(wdev, ((struct wfx_hif_msg *)skb->data)->interface);
 	WARN_ON(!wvif);
 	if (!wvif)
 		return;
@@ -572,7 +572,7 @@ void wfx_flush(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	struct wfx_dev *wdev = hw->priv;
 	struct sk_buff_head dropped;
 	struct wfx_vif *wvif;
-	struct hif_msg *hif;
+	struct wfx_hif_msg *hif;
 	struct sk_buff *skb;
 
 	skb_queue_head_init(&dropped);
@@ -588,7 +588,7 @@ void wfx_flush(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	if (wdev->chip_frozen)
 		wfx_pending_drop(wdev, &dropped);
 	while ((skb = skb_dequeue(&dropped)) != NULL) {
-		hif = (struct hif_msg *)skb->data;
+		hif = (struct wfx_hif_msg *)skb->data;
 		wvif = wdev_to_wvif(wdev, hif->interface);
 		ieee80211_tx_info_clear_status(IEEE80211_SKB_CB(skb));
 		wfx_skb_dtor(wvif, skb);

@@ -127,13 +127,13 @@ void wfx_pending_drop(struct wfx_dev *wdev, struct sk_buff_head *dropped)
 {
 	struct wfx_queue *queue;
 	struct wfx_vif *wvif;
-	struct hif_msg *hif;
+	struct wfx_hif_msg *hif;
 	struct sk_buff *skb;
 
 	WARN(!wdev->chip_frozen, "%s should only be used to recover a frozen device",
 	     __func__);
 	while ((skb = skb_dequeue(&wdev->tx_pending)) != NULL) {
-		hif = (struct hif_msg *)skb->data;
+		hif = (struct wfx_hif_msg *)skb->data;
 		wvif = wdev_to_wvif(wdev, hif->interface);
 		if (wvif) {
 			queue = &wvif->tx_queue[skb_get_queue_mapping(skb)];
@@ -148,15 +148,15 @@ void wfx_pending_drop(struct wfx_dev *wdev, struct sk_buff_head *dropped)
 struct sk_buff *wfx_pending_get(struct wfx_dev *wdev, u32 packet_id)
 {
 	struct wfx_queue *queue;
-	struct hif_req_tx *req;
+	struct wfx_hif_req_tx *req;
 	struct wfx_vif *wvif;
-	struct hif_msg *hif;
+	struct wfx_hif_msg *hif;
 	struct sk_buff *skb;
 
 	spin_lock_bh(&wdev->tx_pending.lock);
 	skb_queue_walk(&wdev->tx_pending, skb) {
-		hif = (struct hif_msg *)skb->data;
-		req = (struct hif_req_tx *)hif->body;
+		hif = (struct wfx_hif_msg *)skb->data;
+		req = (struct wfx_hif_req_tx *)hif->body;
 		if (req->packet_id != packet_id)
 			continue;
 		spin_unlock_bh(&wdev->tx_pending.lock);
@@ -179,7 +179,7 @@ void wfx_pending_dump_old_frames(struct wfx_dev *wdev, unsigned int limit_ms)
 {
 	ktime_t now = ktime_get();
 	struct wfx_tx_priv *tx_priv;
-	struct hif_req_tx *req;
+	struct wfx_hif_req_tx *req;
 	struct sk_buff *skb;
 	bool first = true;
 
@@ -236,7 +236,7 @@ static struct sk_buff *wfx_tx_queues_get_skb(struct wfx_dev *wdev)
 	struct wfx_queue *queues[IEEE80211_NUM_ACS * ARRAY_SIZE(wdev->vif)];
 	int i, j, num_queues = 0;
 	struct wfx_vif *wvif;
-	struct hif_msg *hif;
+	struct wfx_hif_msg *hif;
 	struct sk_buff *skb;
 
 	/* sort the queues */
@@ -265,7 +265,7 @@ static struct sk_buff *wfx_tx_queues_get_skb(struct wfx_dev *wdev)
 			 * and only one vif can be AP, all queued frames has
 			 * same interface id
 			 */
-			hif = (struct hif_msg *)skb->data;
+			hif = (struct wfx_hif_msg *)skb->data;
 			WARN_ON(hif->interface != wvif->id);
 			WARN_ON(queues[i] !=
 				&wvif->tx_queue[skb_get_queue_mapping(skb)]);
@@ -289,7 +289,7 @@ static struct sk_buff *wfx_tx_queues_get_skb(struct wfx_dev *wdev)
 	return NULL;
 }
 
-struct hif_msg *wfx_tx_queues_get(struct wfx_dev *wdev)
+struct wfx_hif_msg *wfx_tx_queues_get(struct wfx_dev *wdev)
 {
 	struct wfx_tx_priv *tx_priv;
 	struct sk_buff *skb;
@@ -303,5 +303,5 @@ struct hif_msg *wfx_tx_queues_get(struct wfx_dev *wdev)
 	wake_up(&wdev->tx_dequeue);
 	tx_priv = wfx_skb_tx_priv(skb);
 	tx_priv->xmit_timestamp = ktime_get();
-	return (struct hif_msg *)skb->data;
+	return (struct wfx_hif_msg *)skb->data;
 }

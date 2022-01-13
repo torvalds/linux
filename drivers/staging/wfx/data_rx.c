@@ -35,7 +35,7 @@ static void wfx_rx_handle_ba(struct wfx_vif *wvif, struct ieee80211_mgmt *mgmt)
 }
 
 void wfx_rx_cb(struct wfx_vif *wvif,
-	       const struct hif_ind_rx *arg, struct sk_buff *skb)
+	       const struct wfx_hif_ind_rx *arg, struct sk_buff *skb)
 {
 	struct ieee80211_rx_status *hdr = IEEE80211_SKB_RXCB(skb);
 	struct ieee80211_hdr *frame = (struct ieee80211_hdr *)skb->data;
