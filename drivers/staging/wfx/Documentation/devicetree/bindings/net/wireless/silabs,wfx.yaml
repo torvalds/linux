@@ -39,7 +39,12 @@ description:
 
 properties:
   compatible:
-    const: silabs,wf200
+    items:
+      - enum:
+          - silabs,brd4001a # WGM160P Evaluation Board
+          - silabs,brd8022a # WF200 Evaluation Board
+          - silabs,brd8023a # WFM200 Evaluation Board
+      - const: silabs,wf200 # Chip alone without antenna
   reg:
     description:
       When used on SDIO bus, <reg> must be set to 1. When used on SPI bus, it is
@@ -87,7 +92,7 @@ examples:
         #size-cells = <0>;
 
         wfx@0 {
-            compatible = "silabs,wf200";
+            compatible = "silabs,brd8022a", "silabs,wf200";
             pinctrl-names = "default";
             pinctrl-0 = <&wfx_irq &wfx_gpios>;
             reg = <0>;
@@ -115,7 +120,7 @@ examples:
         #size-cells = <0>;
 
         mmc@1 {
-            compatible = "silabs,wf200";
+            compatible = "silabs,brd8022a", "silabs,wf200";
             pinctrl-names = "default";
             pinctrl-0 = <&wfx_wakeup>;
             reg = <1>;
