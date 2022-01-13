@@ -107,8 +107,8 @@ void wfx_configure_filter(struct ieee80211_hw *hw, unsigned int changed_flags,
 	 *   - PS-Poll (FIF_PSPOLL) are never filtered
 	 *   - RTS, CTS and Ack (FIF_CONTROL) are always filtered
 	 *   - Broken frames (FIF_FCSFAIL and FIF_PLCPFAIL) are always filtered
-	 *   - Firmware does (yet) allow to forward unicast traffic sent to
-	 *     other stations (aka. promiscuous mode)
+	 *   - Firmware does (yet) allow to forward unicast traffic sent to other stations (aka.
+	 *     promiscuous mode)
 	 */
 	*total_flags &= FIF_BCN_PRBRESP_PROMISC | FIF_ALLMULTI | FIF_OTHER_BSS |
 			FIF_PROBE_REQ | FIF_PSPOLL;
@@ -168,9 +168,7 @@ static int wfx_get_ps_timeout(struct wfx_vif *wvif, bool *enable_ps)
 				dev_info(wvif->wdev->dev, "ignoring requested PS mode");
 			return -1;
 		}
-		/* It is necessary to enable PS if channels
-		 * are different.
-		 */
+		/* It is necessary to enable PS if channels are different. */
 		if (enable_ps)
 			*enable_ps = true;
 		if (wvif->wdev->force_ps_timeout > -1)
@@ -429,10 +427,9 @@ static void wfx_join(struct wfx_vif *wvif)
 		ieee80211_connection_loss(wvif->vif);
 		wfx_reset(wvif);
 	} else {
-		/* Due to beacon filtering it is possible that the
-		 * AP's beacon is not known for the mac80211 stack.
-		 * Disable filtering temporary to make sure the stack
-		 * receives at least one
+		/* Due to beacon filtering it is possible that the AP's beacon is not known for the
+		 * mac80211 stack.  Disable filtering temporary to make sure the stack receives at
+		 * least one
 		 */
 		wfx_filter_beacon(wvif, false);
 	}
@@ -459,9 +456,7 @@ static void wfx_join_finalize(struct wfx_vif *wvif,
 	wvif->join_in_progress = false;
 	wfx_hif_set_association_mode(wvif, ampdu_density, greenfield, info->use_short_preamble);
 	wfx_hif_keep_alive_period(wvif, 0);
-	/* beacon_loss_count is defined to 7 in net/mac80211/mlme.c. Let's use
-	 * the same value.
-	 */
+	/* beacon_loss_count is defined to 7 in net/mac80211/mlme.c. Let's use the same value. */
 	wfx_hif_set_bss_params(wvif, info->aid, 7);
 	wfx_hif_set_beacon_wakeup_period(wvif, 1, 1);
 	wfx_update_pm(wvif);
@@ -485,10 +480,9 @@ void wfx_leave_ibss(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 
 static void wfx_enable_beacon(struct wfx_vif *wvif, bool enable)
 {
-	/* Driver has Content After DTIM Beacon in queue. Driver is waiting for
-	 * a signal from the firmware. Since we are going to stop to send
-	 * beacons, this signal will never happens. See also
-	 * wfx_suspend_resume_mc()
+	/* Driver has Content After DTIM Beacon in queue. Driver is waiting for a signal from the
+	 * firmware. Since we are going to stop to send beacons, this signal will never happens. See
+	 * also wfx_suspend_resume_mc()
 	 */
 	if (!enable && wfx_tx_queues_has_cab(wvif)) {
 		wvif->after_dtim_tx_allowed = true;
@@ -527,9 +521,7 @@ void wfx_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		if (vif->type != NL80211_IFTYPE_STATION)
 			dev_warn(wdev->dev, "%s: misunderstood change: BEACON_INFO\n", __func__);
 		wfx_hif_set_beacon_wakeup_period(wvif, info->dtim_period, info->dtim_period);
-		/* We temporary forwarded beacon for join process. It is now no
-		 * more necessary.
-		 */
+		/* We temporary forwarded beacon for join process. It is now no more necessary. */
 		wfx_filter_beacon(wvif, true);
 	}
 
@@ -629,8 +621,8 @@ void wfx_suspend_resume_mc(struct wfx_vif *wvif, enum sta_notify_cmd notify_cmd)
 	if (notify_cmd != STA_NOTIFY_AWAKE)
 		return;
 
-	/* Device won't be able to honor CAB if a scan is in progress on any
-	 * interface. Prefer to skip this DTIM and wait for the next one.
+	/* Device won't be able to honor CAB if a scan is in progress on any interface. Prefer to
+	 * skip this DTIM and wait for the next one.
 	 */
 	wvif_it = NULL;
 	while ((wvif_it = wvif_iterate(wvif->wdev, wvif_it)) != NULL)

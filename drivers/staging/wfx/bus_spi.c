@@ -38,13 +38,12 @@ struct wfx_spi_priv {
 	bool need_swab;
 };
 
-/* The chip reads 16bits of data at time and place them directly into (little
- * endian) CPU register. So, the chip expects bytes order to be "B1 B0 B3 B2"
- * (while LE is "B0 B1 B2 B3" and BE is "B3 B2 B1 B0")
+/* The chip reads 16bits of data at time and place them directly into (little endian) CPU register.
+ * So, the chip expects bytes order to be "B1 B0 B3 B2" (while LE is "B0 B1 B2 B3" and BE is
+ * "B3 B2 B1 B0")
  *
- * A little endian host with bits_per_word == 16 should do the right job
- * natively. The code below to support big endian host and commonly used SPI
- * 8bits.
+ * A little endian host with bits_per_word == 16 should do the right job natively. The code below to
+ * support big endian host and commonly used SPI 8bits.
  */
 static int wfx_spi_copy_from_io(void *priv, unsigned int addr, void *dst, size_t count)
 {
@@ -160,8 +159,7 @@ static int wfx_spi_irq_unsubscribe(void *priv)
 
 static size_t wfx_spi_align_size(void *priv, size_t size)
 {
-	/* Most of SPI controllers avoid DMA if buffer size is not 32bit aligned
-	 */
+	/* Most of SPI controllers avoid DMA if buffer size is not 32bit aligned */
 	return ALIGN(size, 4);
 }
 

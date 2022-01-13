@@ -23,8 +23,8 @@ struct wfx_platform_data {
 	const char *file_fw;
 	const char *file_pds;
 	struct gpio_desc *gpio_wakeup;
-	/* if true HIF D_out is sampled on the rising edge of the clock
-	 * (intended to be used in 50Mhz SDIO)
+	/* if true HIF D_out is sampled on the rising edge of the clock (intended to be used in
+	 * 50Mhz SDIO)
 	 */
 	bool use_rising_clk;
 };

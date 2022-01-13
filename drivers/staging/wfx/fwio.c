@@ -69,15 +69,13 @@ static const char * const fwio_errors[] = {
 	[ERR_MAC_KEY] = "MAC key not initialized",
 };
 
-/* request_firmware() allocate data using vmalloc(). It is not compatible with
- * underlying hardware that use DMA. Function below detect this case and
- * allocate a bounce buffer if necessary.
+/* request_firmware() allocate data using vmalloc(). It is not compatible with underlying hardware
+ * that use DMA. Function below detect this case and allocate a bounce buffer if necessary.
  *
- * Notice that, in doubt, you can enable CONFIG_DEBUG_SG to ask kernel to
- * detect this problem at runtime  (else, kernel silently fail).
+ * Notice that, in doubt, you can enable CONFIG_DEBUG_SG to ask kernel to detect this problem at
+ * runtime  (else, kernel silently fail).
  *
- * NOTE: it may also be possible to use 'pages' from struct firmware and avoid
- * bounce buffer
+ * NOTE: it may also be possible to use 'pages' from struct firmware and avoid bounce buffer
  */
 static int wfx_sram_write_dma_safe(struct wfx_dev *wdev, u32 addr, const u8 *buf, size_t len)
 {
@@ -202,9 +200,7 @@ static int upload_firmware(struct wfx_dev *wdev, const u8 *data, size_t len)
 		if (ret < 0)
 			return ret;
 
-		/* The device seems to not support writing 0 in this register
-		 * during first loop
-		 */
+		/* The device seems to not support writing 0 in this register during first loop */
 		offs += DNLD_BLOCK_SIZE;
 		ret = wfx_sram_reg_write(wdev, WFX_DCA_PUT, offs);
 		if (ret < 0)

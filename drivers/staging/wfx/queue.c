@@ -59,9 +59,8 @@ void wfx_tx_lock_flush(struct wfx_dev *wdev)
 
 void wfx_tx_queues_init(struct wfx_vif *wvif)
 {
-	/* The device is in charge to respect the details of the QoS parameters.
-	 * The driver just ensure that it roughtly respect the priorities to
-	 * avoid any shortage.
+	/* The device is in charge to respect the details of the QoS parameters. The driver just
+	 * ensure that it roughtly respect the priorities to avoid any shortage.
 	 */
 	const int priorities[IEEE80211_NUM_ACS] = { 1, 2, 64, 128 };
 	int i;

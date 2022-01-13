@@ -30,8 +30,8 @@ static int wfx_get_hw_rate(struct wfx_dev *wdev, const struct ieee80211_tx_rate 
 		}
 		return rate->idx + 14;
 	}
-	/* The device only support 2GHz, else band information should be
-	 * retrieved from ieee80211_tx_info
+	/* The device only support 2GHz, else band information should be retrieved from
+	 * ieee80211_tx_info
 	 */
 	band = wdev->hw->wiphy->bands[NL80211_BAND_2GHZ];
 	if (rate->idx >= band->n_bitrates) {
@@ -356,9 +356,8 @@ static int wfx_tx_inner(struct wfx_vif *wvif, struct ieee80211_sta *sta, struct 
 
 	/* Fill tx request */
 	req = (struct wfx_hif_req_tx *)hif_msg->body;
-	/* packet_id just need to be unique on device. 32bits are more than
-	 * necessary for that task, so we tae advantage of it to add some extra
-	 * data for debug.
+	/* packet_id just need to be unique on device. 32bits are more than necessary for that task,
+	 * so we take advantage of it to add some extra data for debug.
 	 */
 	req->packet_id = atomic_add_return(1, &wvif->wdev->packet_id) & 0xFFFF;
 	req->packet_id |= IEEE80211_SEQ_TO_SN(le16_to_cpu(hdr->seq_ctrl)) << 16;
@@ -402,8 +401,8 @@ void wfx_tx(struct ieee80211_hw *hw, struct ieee80211_tx_control *control, struc
 		wvif = wvif_iterate(wdev, NULL);
 	if (WARN_ON(!wvif))
 		goto drop;
-	/* Because of TX_AMPDU_SETUP_IN_HW, mac80211 does not try to send any
-	 * BlockAck session management frame. The check below exist just in case.
+	/* Because of TX_AMPDU_SETUP_IN_HW, mac80211 does not try to send any BlockAck session
+	 * management frame. The check below exist just in case.
 	 */
 	if (wfx_is_action_back(hdr)) {
 		dev_info(wdev->dev, "drop BA action\n");

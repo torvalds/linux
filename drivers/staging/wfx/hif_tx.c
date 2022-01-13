@@ -61,8 +61,8 @@ int wfx_cmd_send(struct wfx_dev *wdev, struct wfx_hif_msg *request,
 	mutex_lock(&wdev->hif_cmd.lock);
 	WARN(wdev->hif_cmd.buf_send, "data locking error");
 
-	/* Note: call to complete() below has an implicit memory barrier that
-	 * hopefully protect buf_send
+	/* Note: call to complete() below has an implicit memory barrier that hopefully protect
+	 * buf_send
 	 */
 	wdev->hif_cmd.buf_send = request;
 	wdev->hif_cmd.buf_recv = reply;
@@ -72,9 +72,7 @@ int wfx_cmd_send(struct wfx_dev *wdev, struct wfx_hif_msg *request,
 	wfx_bh_request_tx(wdev);
 
 	if (no_reply) {
-		/* Chip won't reply. Give enough time to the wq to send the
-		 * buffer.
-		 */
+		/* Chip won't reply. Give enough time to the wq to send the buffer. */
 		msleep(100);
 		wdev->hif_cmd.buf_send = NULL;
 		mutex_unlock(&wdev->hif_cmd.lock);
@@ -118,8 +116,8 @@ int wfx_cmd_send(struct wfx_dev *wdev, struct wfx_hif_msg *request,
 	return ret;
 }
 
-/* This function is special. After HIF_REQ_ID_SHUT_DOWN, chip won't reply to any
- * request anymore. Obviously, only call this function during device unregister.
+/* This function is special. After HIF_REQ_ID_SHUT_DOWN, chip won't reply to any request anymore.
+ * Obviously, only call this function during device unregister.
  */
 int wfx_hif_shutdown(struct wfx_dev *wdev)
 {
@@ -340,9 +338,7 @@ int wfx_hif_add_key(struct wfx_dev *wdev, const struct wfx_hif_req_add_key *arg)
 	/* FIXME: swap bytes as necessary in body */
 	memcpy(body, arg, sizeof(*body));
 	if (wfx_api_older_than(wdev, 1, 5))
-		/* Legacy firmwares expect that add_key to be sent on right
-		 * interface.
-		 */
+		/* Legacy firmwares expect that add_key to be sent on right interface. */
 		wfx_fill_header(hif, arg->int_id, HIF_REQ_ID_ADD_KEY, sizeof(*body));
 	else
 		wfx_fill_header(hif, -1, HIF_REQ_ID_ADD_KEY, sizeof(*body));

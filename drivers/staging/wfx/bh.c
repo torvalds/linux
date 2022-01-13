@@ -32,18 +32,15 @@ static void device_wakeup(struct wfx_dev *wdev)
 	}
 	for (;;) {
 		gpiod_set_value_cansleep(wdev->pdata.gpio_wakeup, 1);
-		/* completion.h does not provide any function to wait
-		 * completion without consume it (a kind of
-		 * wait_for_completion_done_timeout()). So we have to emulate
-		 * it.
+		/* completion.h does not provide any function to wait completion without consume it
+		 * (a kind of wait_for_completion_done_timeout()). So we have to emulate it.
 		 */
 		if (wait_for_completion_timeout(&wdev->hif.ctrl_ready, msecs_to_jiffies(2))) {
 			complete(&wdev->hif.ctrl_ready);
 			return;
 		} else if (max_retry-- > 0) {
-			/* Older firmwares have a race in sleep/wake-up process.
-			 * Redo the process is sufficient to unfreeze the
-			 * chip.
+			/* Older firmwares have a race in sleep/wake-up process.  Redo the process
+			 * is sufficient to unfreeze the chip.
 			 */
 			dev_err(wdev->dev, "timeout while wake up chip\n");
 			gpiod_set_value_cansleep(wdev->pdata.gpio_wakeup, 0);
@@ -219,9 +216,9 @@ static int bh_work_tx(struct wfx_dev *wdev, int max_msg)
 	return i;
 }
 
-/* In SDIO mode, it is necessary to make an access to a register to acknowledge
- * last received message. It could be possible to restrict this acknowledge to
- * SDIO mode and only if last operation was rx.
+/* In SDIO mode, it is necessary to make an access to a register to acknowledge last received
+ * message. It could be possible to restrict this acknowledge to SDIO mode and only if last
+ * operation was rx.
  */
 static void ack_sdio_data(struct wfx_dev *wdev)
 {
@@ -287,12 +284,11 @@ void wfx_bh_request_tx(struct wfx_dev *wdev)
 	queue_work(system_highpri_wq, &wdev->hif.bh);
 }
 
-/* If IRQ is not available, this function allow to manually poll the control
- * register and simulate an IRQ ahen an event happened.
+/* If IRQ is not available, this function allow to manually poll the control register and simulate
+ * an IRQ ahen an event happened.
  *
- * Note that the device has a bug: If an IRQ raise while host read control
- * register, the IRQ is lost. So, use this function carefully (only duing
- * device initialisation).
+ * Note that the device has a bug: If an IRQ raise while host read control register, the IRQ is
+ * lost. So, use this function carefully (only duing device initialisation).
  */
 void wfx_bh_poll_irq(struct wfx_dev *wdev)
 {

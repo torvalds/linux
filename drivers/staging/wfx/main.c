@@ -162,19 +162,17 @@ bool wfx_api_older_than(struct wfx_dev *wdev, int major, int minor)
 	return false;
 }
 
-/* The device needs data about the antenna configuration. This information in
- * provided by PDS (Platform Data Set, this is the wording used in WF200
- * documentation) files. For hardware integrators, the full process to create
- * PDS files is described here:
+/* The device needs data about the antenna configuration. This information in provided by PDS
+ * (Platform Data Set, this is the wording used in WF200 documentation) files. For hardware
+ * integrators, the full process to create PDS files is described here:
  *   https:github.com/SiliconLabs/wfx-firmware/blob/master/PDS/README.md
  *
- * So this function aims to send PDS to the device. However, the PDS file is
- * often bigger than Rx buffers of the chip, so it has to be sent in multiple
- * parts.
+ * So this function aims to send PDS to the device. However, the PDS file is often bigger than Rx
+ * buffers of the chip, so it has to be sent in multiple parts.
  *
- * In add, the PDS data cannot be split anywhere. The PDS files contains tree
- * structures. Braces are used to enter/leave a level of the tree (in a JSON
- * fashion). PDS files can only been split between root nodes.
+ * In add, the PDS data cannot be split anywhere. The PDS files contains tree structures. Braces are
+ * used to enter/leave a level of the tree (in a JSON fashion). PDS files can only been split
+ * between root nodes.
  */
 int wfx_send_pds(struct wfx_dev *wdev, u8 *buf, size_t len)
 {
@@ -341,8 +339,8 @@ int wfx_probe(struct wfx_dev *wdev)
 	int err;
 	struct gpio_desc *gpio_saved;
 
-	/* During first part of boot, gpio_wakeup cannot yet been used. So
-	 * prevent bh() to touch it.
+	/* During first part of boot, gpio_wakeup cannot yet been used. So prevent bh() to touch
+	 * it.
 	 */
 	gpio_saved = wdev->pdata.gpio_wakeup;
 	wdev->pdata.gpio_wakeup = NULL;

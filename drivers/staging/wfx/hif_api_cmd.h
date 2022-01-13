@@ -174,8 +174,8 @@ enum wfx_hif_frame_format {
 };
 
 struct wfx_hif_req_tx {
-	/* packet_id is not interpreted by the device, so it is not necessary to
-	 * declare it little endian
+	/* packet_id is not interpreted by the device, so it is not necessary to declare it little
+	 * endian
 	 */
 	u32    packet_id;
 	u8     max_tx_rate;
@@ -212,8 +212,8 @@ enum wfx_hif_qos_ackplcy {
 
 struct wfx_hif_cnf_tx {
 	__le32 status;
-	/* packet_id is copied from struct wfx_hif_req_tx without been interpreted
-	 * by the device, so it is not necessary to declare it little endian
+	/* packet_id is copied from struct wfx_hif_req_tx without been interpreted by the device, so
+	 * it is not necessary to declare it little endian
 	 */
 	u32    packet_id;
 	u8     txed_rate;
