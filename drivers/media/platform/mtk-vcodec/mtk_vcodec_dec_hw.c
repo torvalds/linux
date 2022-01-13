@@ -65,7 +65,7 @@ static irqreturn_t mtk_vdec_hw_irq_handler(int irq, void *priv)
 	void __iomem *vdec_misc_addr = dev->reg_base[VDEC_HW_MISC] +
 					VDEC_IRQ_CFG_REG;
 
-	ctx = mtk_vcodec_get_curr_ctx(dev->main_dev);
+	ctx = mtk_vcodec_get_curr_ctx(dev->main_dev, dev->hw_idx);
 
 	/* check if HW active or not */
 	cg_status = readl(dev->reg_base[VDEC_HW_SYS]);
