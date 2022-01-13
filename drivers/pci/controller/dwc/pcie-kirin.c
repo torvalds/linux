@@ -771,7 +771,6 @@ static const struct of_device_id kirin_pcie_match[] = {
 static int kirin_pcie_probe(struct platform_device *pdev)
 {
 	enum pcie_kirin_phy_type phy_type;
-	const struct of_device_id *of_id;
 	struct device *dev = &pdev->dev;
 	struct kirin_pcie *kirin_pcie;
 	struct dw_pcie *pci;
@@ -782,13 +781,12 @@ static int kirin_pcie_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	of_id = of_match_device(kirin_pcie_match, dev);
-	if (!of_id) {
+	phy_type = (long)of_device_get_match_data(dev);
+	if (!phy_type) {
 		dev_err(dev, "OF data missing\n");
 		return -EINVAL;
 	}
 
-	phy_type = (long)of_id->data;
 
 	kirin_pcie = devm_kzalloc(dev, sizeof(struct kirin_pcie), GFP_KERNEL);
 	if (!kirin_pcie)
