@@ -63,7 +63,7 @@ int dump_unix(struct bpf_iter__unix *ctx)
 			BPF_SEQ_PRINTF(seq, " @");
 
 			for (i = 1; i < len; i++) {
-				/* unix_mkname() tests this upper bound. */
+				/* unix_validate_addr() tests this upper bound. */
 				if (i >= sizeof(struct sockaddr_un))
 					break;
 
