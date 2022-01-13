@@ -60,32 +60,25 @@ void lirc_raw_event(struct rc_dev *dev, struct ir_raw_event ev)
 
 	/* Packet end */
 	} else if (ev.timeout) {
-		if (dev->gap)
-			return;
-
 		dev->gap_start = ktime_get();
-		dev->gap = true;
-		dev->gap_duration = ev.duration;
 
 		sample = LIRC_TIMEOUT(ev.duration);
 		dev_dbg(&dev->dev, "timeout report (duration: %d)\n", sample);
 
 	/* Normal sample */
 	} else {
-		if (dev->gap) {
-			dev->gap_duration += ktime_to_us(ktime_sub(ktime_get(),
-							 dev->gap_start));
+		if (dev->gap_start) {
+			u64 duration = ktime_us_delta(ktime_get(),
+						      dev->gap_start);
 
 			/* Cap by LIRC_VALUE_MASK */
-			dev->gap_duration = min_t(u64, dev->gap_duration,
-						  LIRC_VALUE_MASK);
+			duration = min_t(u64, duration, LIRC_VALUE_MASK);
 
 			spin_lock_irqsave(&dev->lirc_fh_lock, flags);
 			list_for_each_entry(fh, &dev->lirc_fh, list)
-				kfifo_put(&fh->rawir,
-					  LIRC_SPACE(dev->gap_duration));
+				kfifo_put(&fh->rawir, LIRC_SPACE(duration));
 			spin_unlock_irqrestore(&dev->lirc_fh_lock, flags);
-			dev->gap = false;
+			dev->gap_start = 0;
 		}
 
 		sample = ev.pulse ? LIRC_PULSE(ev.duration) :
