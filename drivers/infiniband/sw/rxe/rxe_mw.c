@@ -21,7 +21,7 @@ int rxe_alloc_mw(struct ib_mw *ibmw, struct ib_udata *udata)
 	}
 
 	rxe_add_index(mw);
-	mw->rkey = ibmw->rkey = (mw->pelem.index << 8) | rxe_get_next_key(-1);
+	mw->rkey = ibmw->rkey = (mw->elem.index << 8) | rxe_get_next_key(-1);
 	mw->state = (mw->ibmw.type == IB_MW_TYPE_2) ?
 			RXE_MW_STATE_FREE : RXE_MW_STATE_VALID;
 	spin_lock_init(&mw->lock);
@@ -56,11 +56,10 @@ int rxe_dealloc_mw(struct ib_mw *ibmw)
 {
 	struct rxe_mw *mw = to_rmw(ibmw);
 	struct rxe_pd *pd = to_rpd(ibmw->pd);
-	unsigned long flags;
 
-	spin_lock_irqsave(&mw->lock, flags);
+	spin_lock_bh(&mw->lock);
 	rxe_do_dealloc_mw(mw);
-	spin_unlock_irqrestore(&mw->lock, flags);
+	spin_unlock_bh(&mw->lock);
 
 	rxe_drop_ref(mw);
 	rxe_drop_ref(pd);
@@ -197,7 +196,6 @@ int rxe_bind_mw(struct rxe_qp *qp, struct rxe_send_wqe *wqe)
 	struct rxe_dev *rxe = to_rdev(qp->ibqp.device);
 	u32 mw_rkey = wqe->wr.wr.mw.mw_rkey;
 	u32 mr_lkey = wqe->wr.wr.mw.mr_lkey;
-	unsigned long flags;
 
 	mw = rxe_pool_get_index(&rxe->mw_pool, mw_rkey >> 8);
 	if (unlikely(!mw)) {
@@ -225,7 +223,7 @@ int rxe_bind_mw(struct rxe_qp *qp, struct rxe_send_wqe *wqe)
 		mr = NULL;
 	}
 
-	spin_lock_irqsave(&mw->lock, flags);
+	spin_lock_bh(&mw->lock);
 
 	ret = rxe_check_bind_mw(qp, wqe, mw, mr);
 	if (ret)
@@ -233,7 +231,7 @@ int rxe_bind_mw(struct rxe_qp *qp, struct rxe_send_wqe *wqe)
 
 	rxe_do_bind_mw(qp, wqe, mw, mr);
 err_unlock:
-	spin_unlock_irqrestore(&mw->lock, flags);
+	spin_unlock_bh(&mw->lock);
 err_drop_mr:
 	if (mr)
 		rxe_drop_ref(mr);
@@ -280,7 +278,6 @@ static void rxe_do_invalidate_mw(struct rxe_mw *mw)
 int rxe_invalidate_mw(struct rxe_qp *qp, u32 rkey)
 {
 	struct rxe_dev *rxe = to_rdev(qp->ibqp.device);
-	unsigned long flags;
 	struct rxe_mw *mw;
 	int ret;
 
@@ -295,7 +292,7 @@ int rxe_invalidate_mw(struct rxe_qp *qp, u32 rkey)
 		goto err_drop_ref;
 	}
 
-	spin_lock_irqsave(&mw->lock, flags);
+	spin_lock_bh(&mw->lock);
 
 	ret = rxe_check_invalidate_mw(qp, mw);
 	if (ret)
@@ -303,7 +300,7 @@ int rxe_invalidate_mw(struct rxe_qp *qp, u32 rkey)
 
 	rxe_do_invalidate_mw(mw);
 err_unlock:
-	spin_unlock_irqrestore(&mw->lock, flags);
+	spin_unlock_bh(&mw->lock);
 err_drop_ref:
 	rxe_drop_ref(mw);
 err:
@@ -333,9 +330,9 @@ struct rxe_mw *rxe_lookup_mw(struct rxe_qp *qp, int access, u32 rkey)
 	return mw;
 }
 
-void rxe_mw_cleanup(struct rxe_pool_entry *elem)
+void rxe_mw_cleanup(struct rxe_pool_elem *elem)
 {
-	struct rxe_mw *mw = container_of(elem, typeof(*mw), pelem);
+	struct rxe_mw *mw = container_of(elem, typeof(*mw), elem);
 
 	rxe_drop_index(mw);
 }

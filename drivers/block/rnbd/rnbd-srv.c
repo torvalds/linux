@@ -263,15 +263,15 @@ out:
 	kfree(srv_sess);
 }
 
-static int create_sess(struct rtrs_srv *rtrs)
+static int create_sess(struct rtrs_srv_sess *rtrs)
 {
 	struct rnbd_srv_session *srv_sess;
-	char sessname[NAME_MAX];
+	char pathname[NAME_MAX];
 	int err;
 
-	err = rtrs_srv_get_sess_name(rtrs, sessname, sizeof(sessname));
+	err = rtrs_srv_get_path_name(rtrs, pathname, sizeof(pathname));
 	if (err) {
-		pr_err("rtrs_srv_get_sess_name(%s): %d\n", sessname, err);
+		pr_err("rtrs_srv_get_path_name(%s): %d\n", pathname, err);
 
 		return err;
 	}
@@ -284,8 +284,8 @@ static int create_sess(struct rtrs_srv *rtrs)
 			  offsetof(struct rnbd_dev_blk_io, bio),
 			  BIOSET_NEED_BVECS);
 	if (err) {
-		pr_err("Allocating srv_session for session %s failed\n",
-		       sessname);
+		pr_err("Allocating srv_session for path %s failed\n",
+		       pathname);
 		kfree(srv_sess);
 		return err;
 	}
@@ -298,14 +298,14 @@ static int create_sess(struct rtrs_srv *rtrs)
 	mutex_unlock(&sess_lock);
 
 	srv_sess->rtrs = rtrs;
-	strscpy(srv_sess->sessname, sessname, sizeof(srv_sess->sessname));
+	strscpy(srv_sess->sessname, pathname, sizeof(srv_sess->sessname));
 
 	rtrs_srv_set_sess_priv(rtrs, srv_sess);
 
 	return 0;
 }
 
-static int rnbd_srv_link_ev(struct rtrs_srv *rtrs,
+static int rnbd_srv_link_ev(struct rtrs_srv_sess *rtrs,
 			     enum rtrs_srv_link_ev ev, void *priv)
 {
 	struct rnbd_srv_session *srv_sess = priv;
