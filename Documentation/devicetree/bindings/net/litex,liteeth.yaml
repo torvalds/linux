@@ -62,6 +62,7 @@ properties:
 
   mdio:
     $ref: mdio.yaml#
+    unevaluatedProperties: false
 
 required:
   - compatible

@@ -71,7 +71,7 @@ examples:
             phy-mode = "rgmii-id";
             phy-handle = <&phy0>;
 
-            mdio0 {
+            mdio {
                 #address-cells = <0x1>;
                 #size-cells = <0x0>;
                 compatible = "snps,dwmac-mdio";

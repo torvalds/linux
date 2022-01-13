@@ -69,6 +69,7 @@ properties:
       - rev-mii
       - rmii
       - rev-rmii
+      - moca
 
       # RX and TX delays are added by the MAC when required
       - rgmii
@@ -178,7 +179,7 @@ properties:
                   Duplex configuration. 0 for half duplex or 1 for
                   full duplex
 
-              - enum: [10, 100, 1000]
+              - enum: [10, 100, 1000, 2500, 10000]
                 description:
                   Link speed in Mbits/sec.
 
@@ -200,7 +201,7 @@ properties:
               description:
                 Link speed.
               $ref: /schemas/types.yaml#/definitions/uint32
-              enum: [10, 100, 1000]
+              enum: [10, 100, 1000, 2500, 10000]
 
             full-duplex:
               $ref: /schemas/types.yaml#/definitions/flag

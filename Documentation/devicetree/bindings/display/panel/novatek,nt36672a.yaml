@@ -34,7 +34,7 @@ properties:
     description: phandle of gpio for reset line - This should be 8mA, gpio
       can be configured using mux, pinctrl, pinctrl-names (active high)
 
-  vddio-supply:
+  vddi0-supply:
     description: phandle of the regulator that provides the supply voltage
       Power IC supply
 
@@ -75,8 +75,6 @@ examples:
 
             reset-gpios = <&tlmm 6 GPIO_ACTIVE_HIGH>;
 
-            #address-cells = <1>;
-            #size-cells = <0>;
             port {
                 tianma_nt36672a_in_0: endpoint {
                     remote-endpoint = <&dsi0_out>;
