@@ -44,6 +44,7 @@
 #define BC_WLS_FW_PUSH_BUF_RESP		0x43
 #define BC_WLS_FW_GET_VERSION		0x44
 #define BC_SHUTDOWN_NOTIFY		0x47
+#define BC_HBOOST_VMAX_CLAMP_NOTIFY	0x79
 #define BC_GENERIC_NOTIFY		0x80
 
 /* Generic definitions */
@@ -309,6 +310,20 @@ static const char * const power_supply_usb_type_text[] = {
 static const char * const qc_power_supply_usb_type_text[] = {
 	"HVDCP", "HVDCP_3", "HVDCP_3P5"
 };
+
+static RAW_NOTIFIER_HEAD(hboost_notifier);
+
+int register_hboost_event_notifier(struct notifier_block *nb)
+{
+	return raw_notifier_chain_register(&hboost_notifier, nb);
+}
+EXPORT_SYMBOL(register_hboost_event_notifier);
+
+int unregister_hboost_event_notifier(struct notifier_block *nb)
+{
+	return raw_notifier_chain_unregister(&hboost_notifier, nb);
+}
+EXPORT_SYMBOL(unregister_hboost_event_notifier);
 
 static int battery_chg_fw_write(struct battery_chg_dev *bcdev, void *data,
 				int len)
@@ -774,15 +789,23 @@ static void handle_notification(struct battery_chg_dev *bcdev, void *data,
 {
 	struct battery_charger_notify_msg *notify_msg = data;
 	struct psy_state *pst = NULL;
+	u32 hboost_vmax_mv, notification;
 
 	if (len != sizeof(*notify_msg)) {
 		pr_err("Incorrect response length %zu\n", len);
 		return;
 	}
 
-	pr_debug("notification: %#x\n", notify_msg->notification);
+	notification = notify_msg->notification;
+	pr_debug("notification: %#x\n", notification);
+	if ((notification & 0xffff) == BC_HBOOST_VMAX_CLAMP_NOTIFY) {
+		hboost_vmax_mv = (notification >> 16) & 0xffff;
+		raw_notifier_call_chain(&hboost_notifier, VMAX_CLAMP, &hboost_vmax_mv);
+		pr_debug("hBoost is clamped at %u mV\n", hboost_vmax_mv);
+		return;
+	}
 
-	switch (notify_msg->notification) {
+	switch (notification) {
 	case BC_BATTERY_STATUS_GET:
 	case BC_GENERIC_NOTIFY:
 		pst = &bcdev->psy_list[PSY_TYPE_BATTERY];
