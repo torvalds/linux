@@ -542,7 +542,7 @@ restart:
 			 * some reason. If this holder is the head of the list, it
 			 * means we have a blocked holder at the head, so return 1.
 			 */
-			if (gh->gh_list.prev == &gl->gl_holders)
+			if (list_is_first(&gh->gh_list, &gl->gl_holders))
 				return 1;
 			do_error(gl, 0);
 			break;
