@@ -869,7 +869,8 @@ static int amdgpu_ras_enable_all_features(struct amdgpu_device *adev,
 }
 /* feature ctl end */
 
-int amdgpu_ras_block_match_default(struct amdgpu_ras_block_object* block_obj, enum amdgpu_ras_block block)
+static int amdgpu_ras_block_match_default(struct amdgpu_ras_block_object *block_obj,
+		enum amdgpu_ras_block block)
 {
 	if(!block_obj)
 		return -EINVAL;
