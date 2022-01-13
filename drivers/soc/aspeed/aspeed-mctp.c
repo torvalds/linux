@@ -279,7 +279,6 @@ struct aspeed_mctp {
 		struct regmap *map;
 		struct delayed_work rst_dwork;
 		bool need_uevent;
-		u16 bdf;
 	} pcie;
 	struct {
 		bool enable;
@@ -354,18 +353,15 @@ EXPORT_SYMBOL_GPL(aspeed_mctp_packet_free);
 
 static u16 _get_bdf(struct aspeed_mctp *priv)
 {
+	u32 reg;
 	u16 bdf;
 
-	bdf = READ_ONCE(priv->pcie.bdf);
-	smp_rmb(); /* enforce ordering between flush and producer */
+	regmap_read(priv->pcie.map, ASPEED_PCIE_MISC_STS_1, &reg);
+
+	reg = reg & (PCI_BUS_NUM_MASK | PCI_DEV_NUM_MASK);
+	bdf = PCI_DEVID(GET_PCI_BUS_NUM(reg), GET_PCI_DEV_NUM(reg));
 
 	return bdf;
-}
-
-static void _set_bdf(struct aspeed_mctp *priv, u16 bdf)
-{
-	smp_wmb(); /* enforce ordering between flush and producer */
-	WRITE_ONCE(priv->pcie.bdf, bdf);
 }
 
 static uint32_t chip_version(struct device *dev)
@@ -1729,7 +1725,6 @@ static void aspeed_mctp_reset_work(struct work_struct *work)
 		if (!priv->miss_mctp_int)
 			aspeed_mctp_irq_enable(priv);
 		aspeed_mctp_rx_trigger(&priv->rx);
-		_set_bdf(priv, bdf);
 		aspeed_mctp_send_pcie_uevent(kobj, true);
 	}
 }
@@ -1790,7 +1785,6 @@ static irqreturn_t aspeed_mctp_pcie_rst_irq_handler(int irq, void *arg)
 	aspeed_mctp_channels_init(priv);
 
 	priv->pcie.need_uevent = true;
-	_set_bdf(priv, 0);
 	priv->eid = 0;
 
 	schedule_delayed_work(&priv->pcie.rst_dwork, 0);
@@ -2075,7 +2069,6 @@ static int aspeed_mctp_probe(struct platform_device *pdev)
 		regmap_update_bits(priv->map, ASPEED_MCTP_ENGINE_CTRL,
 				   TX_MAX_PAYLOAD_SIZE_MASK,
 				   FIELD_GET(TX_MAX_PAYLOAD_SIZE_MASK, fls(ASPEED_MCTP_MTU >> 6)));
-		_set_bdf(priv, bdf);
 	}
 
 	priv->peci_mctp =
