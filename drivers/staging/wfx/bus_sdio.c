@@ -204,24 +204,17 @@ static int wfx_sdio_probe(struct sdio_func *func, const struct sdio_device_id *i
 		return -ENODEV;
 	}
 
+	if (!pdata) {
+		dev_warn(&func->dev, "no compatible device found in DT\n");
+		return -ENODEV;
+	}
+
 	bus = devm_kzalloc(&func->dev, sizeof(*bus), GFP_KERNEL);
 	if (!bus)
 		return -ENOMEM;
 
-	if (np) {
-		if (!of_match_node(wfx_sdio_of_match, np)) {
-			dev_warn(&func->dev, "no compatible device found in DT\n");
-			return -ENODEV;
-		}
-		bus->of_irq = irq_of_parse_and_map(np, 0);
-	} else {
-		dev_warn(&func->dev,
-			 "device is not declared in DT, features will be limited\n");
-		/* FIXME: ignore VID/PID and only rely on device tree */
-		// return -ENODEV;
-	}
-
 	bus->func = func;
+	bus->of_irq = irq_of_parse_and_map(np, 0);
 	sdio_set_drvdata(func, bus);
 	func->card->quirks |= MMC_QUIRK_LENIENT_FN0 |
 			      MMC_QUIRK_BLKSZ_FOR_BYTE_MODE |
@@ -268,8 +261,6 @@ static void wfx_sdio_remove(struct sdio_func *func)
 #define SDIO_DEVICE_ID_SILABS_WF200  0x1000
 static const struct sdio_device_id wfx_sdio_ids[] = {
 	{ SDIO_DEVICE(SDIO_VENDOR_ID_SILABS, SDIO_DEVICE_ID_SILABS_WF200) },
-	/* FIXME: ignore VID/PID and only rely on device tree */
-	// { SDIO_DEVICE(SDIO_ANY_ID, SDIO_ANY_ID) },
 	{ },
 };
 MODULE_DEVICE_TABLE(sdio, wfx_sdio_ids);

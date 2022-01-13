@@ -7,3 +7,7 @@ config WFX
 	help
 	  This is a driver for Silicons Labs WFxxx series (WF200 and further)
 	  chipsets. This chip can be found on SPI or SDIO buses.
+
+	  Silabs does not use a reliable SDIO vendor ID. So, to avoid conflicts,
+	  the driver won't probe the device if it is not also declared in the
+	  Device Tree.
