@@ -2932,11 +2932,14 @@ static int _hl_interrupt_wait_ioctl(struct hl_device *hdev, struct hl_ctx *ctx,
 				rc = -EIO;
 				*status = HL_WAIT_CS_STATUS_ABORTED;
 			} else {
-				dev_err_ratelimited(hdev->dev, "Waiting for interrupt ID %d timedout\n",
-						interrupt->interrupt_id);
-				rc = -ETIMEDOUT;
+				/* The wait has timed-out. We don't know anything beyond that
+				 * because the workload wasn't submitted through the driver.
+				 * Therefore, from driver's perspective, the workload is still
+				 * executing.
+				 */
+				rc = 0;
+				*status = HL_WAIT_CS_STATUS_BUSY;
 			}
-			*status = HL_WAIT_CS_STATUS_BUSY;
 		}
 	}
 
@@ -3049,6 +3052,12 @@ wait_again:
 			interrupt->interrupt_id);
 		rc = -EINTR;
 	} else {
+		/* The wait has timed-out. We don't know anything beyond that
+		 * because the workload wasn't submitted through the driver.
+		 * Therefore, from driver's perspective, the workload is still
+		 * executing.
+		 */
+		rc = 0;
 		*status = HL_WAIT_CS_STATUS_BUSY;
 	}
 
