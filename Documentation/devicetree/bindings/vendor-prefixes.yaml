@@ -515,6 +515,8 @@ patternProperties:
     description: HannStar Display Co.
   "^holtek,.*":
     description: Holtek Semiconductor, Inc.
+  "^huawei,.*":
+    description: Huawei Technologies Co., Ltd.
   "^hugsun,.*":
     description: Shenzhen Hugsun Technology Co. Ltd.
   "^hwacom,.*":
