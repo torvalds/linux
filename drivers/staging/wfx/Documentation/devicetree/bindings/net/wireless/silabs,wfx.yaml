@@ -72,10 +72,11 @@ properties:
     description: Phandle of gpio that will be used to wake-up chip. Without this
       property, driver will disable most of power saving features.
     maxItems: 1
-  config-file:
-    description: Use an alternative file as PDS. Default is `wf200.pds`. Only
-      necessary for development/debug purpose.
-    maxItems: 1
+  silabs,antenna-config-file:
+    $ref: /schemas/types.yaml#/definitions/string
+    description: Use an alternative file for antenna configuration (aka
+      "Platform Data Set" in Silabs jargon). Default depends of "compatible"
+      string. For "silabs,wf200", the default is 'wf200.pds'.
 
 required:
   - compatible

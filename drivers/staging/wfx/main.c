@@ -309,7 +309,7 @@ struct wfx_dev *wfx_init_common(struct device *dev, const struct wfx_platform_da
 	wdev->hwbus_ops = hwbus_ops;
 	wdev->hwbus_priv = hwbus_priv;
 	memcpy(&wdev->pdata, pdata, sizeof(*pdata));
-	of_property_read_string(dev->of_node, "config-file", &wdev->pdata.file_pds);
+	of_property_read_string(dev->of_node, "silabs,antenna-config-file", &wdev->pdata.file_pds);
 	wdev->pdata.gpio_wakeup = devm_gpiod_get_optional(dev, "wakeup", GPIOD_OUT_LOW);
 	if (IS_ERR(wdev->pdata.gpio_wakeup))
 		return NULL;
