@@ -110,7 +110,7 @@ static int wfx_hif_receive_indication(struct wfx_dev *wdev,
 			 __func__, hif->interface);
 		return -EIO;
 	}
-	skb_pull(skb, sizeof(struct wfx_hif_msg) + sizeof(struct hif_ind_rx));
+	skb_pull(skb, sizeof(struct wfx_hif_msg) + sizeof(struct wfx_hif_ind_rx));
 	wfx_rx_cb(wvif, body, skb);
 
 	return 0;
@@ -380,7 +380,7 @@ static const struct {
 void wfx_handle_rx(struct wfx_dev *wdev, struct sk_buff *skb)
 {
 	int i;
-	const struct wfx_hif_msg *hif = (const struct hif_msg *)skb->data;
+	const struct wfx_hif_msg *hif = (const struct wfx_hif_msg *)skb->data;
 	int hif_id = hif->id;
 
 	if (hif_id == HIF_IND_ID_RX) {

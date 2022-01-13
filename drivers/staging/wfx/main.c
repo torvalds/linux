@@ -262,7 +262,7 @@ static void wfx_free_common(void *data)
 
 struct wfx_dev *wfx_init_common(struct device *dev,
 				const struct wfx_platform_data *pdata,
-				const struct hwbus_ops *hwbus_ops,
+				const struct wfx_hwbus_ops *hwbus_ops,
 				void *hwbus_priv)
 {
 	struct ieee80211_hw *hw;

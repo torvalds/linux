@@ -20,7 +20,7 @@
 #define WFX_REG_SET_GEN_R_W   0x6
 #define WFX_REG_FRAME_OUT     0x7
 
-struct hwbus_ops {
+struct wfx_hwbus_ops {
 	int (*copy_from_io)(void *bus_priv, unsigned int addr,
 			    void *dst, size_t count);
 	int (*copy_to_io)(void *bus_priv, unsigned int addr,

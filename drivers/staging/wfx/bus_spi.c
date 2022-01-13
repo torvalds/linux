@@ -168,7 +168,7 @@ static size_t wfx_spi_align_size(void *priv, size_t size)
 	return ALIGN(size, 4);
 }
 
-static const struct hwbus_ops wfx_spi_hwbus_ops = {
+static const struct wfx_hwbus_ops wfx_spi_hwbus_ops = {
 	.copy_from_io = wfx_spi_copy_from_io,
 	.copy_to_io = wfx_spi_copy_to_io,
 	.irq_subscribe = wfx_spi_irq_subscribe,
