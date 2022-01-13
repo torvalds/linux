@@ -4,12 +4,12 @@
 # define ZC_H
 
 /* For zero copy */
-int __get_userbuf(uint8_t __user *addr, uint32_t len, int write,
+int __cryptodev_get_userbuf(uint8_t __user *addr, uint32_t len, int write,
 		unsigned int pgcount, struct page **pg, struct scatterlist *sg,
 		struct task_struct *task, struct mm_struct *mm);
-void release_user_pages(struct csession *ses);
+void cryptodev_release_user_pages(struct csession *ses);
 
-int get_userbuf(struct csession *ses,
+int cryptodev_get_userbuf(struct csession *ses,
                 void *__user src, unsigned int src_len,
                 void *__user dst, unsigned int dst_len,
                 struct task_struct *task, struct mm_struct *mm,

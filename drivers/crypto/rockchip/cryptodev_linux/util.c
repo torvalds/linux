@@ -25,7 +25,7 @@
 
 /* These were taken from Maxim Levitsky's patch to lkml.
  */
-struct scatterlist *sg_advance(struct scatterlist *sg, int consumed)
+struct scatterlist *cryptodev_sg_advance(struct scatterlist *sg, int consumed)
 {
 	while (consumed >= sg->length) {
 		consumed -= sg->length;
@@ -53,10 +53,10 @@ struct scatterlist *sg_advance(struct scatterlist *sg, int consumed)
 }
 
 /**
- * sg_copy - copies sg entries from sg_from to sg_to, such
+ * cryptodev_sg_copy - copies sg entries from sg_from to sg_to, such
  * as sg_to covers first 'len' bytes from sg_from.
  */
-int sg_copy(struct scatterlist *sg_from, struct scatterlist *sg_to, int len)
+int cryptodev_sg_copy(struct scatterlist *sg_from, struct scatterlist *sg_to, int len)
 {
 	while (len > sg_from->length) {
 		len -= sg_from->length;

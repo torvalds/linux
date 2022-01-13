@@ -110,9 +110,9 @@ struct kernel_crypt_auth_op {
 
 /* auth */
 
-int kcaop_from_user(struct kernel_crypt_auth_op *kcop,
+int cryptodev_kcaop_from_user(struct kernel_crypt_auth_op *kcop,
 			struct fcrypt *fcr, void __user *arg);
-int kcaop_to_user(struct kernel_crypt_auth_op *kcaop,
+int cryptodev_kcaop_to_user(struct kernel_crypt_auth_op *kcaop,
 		struct fcrypt *fcr, void __user *arg);
 int crypto_auth_run(struct fcrypt *fcr, struct kernel_crypt_auth_op *kcaop);
 int crypto_run(struct fcrypt *fcr, struct kernel_crypt_op *kcop);
@@ -146,6 +146,6 @@ static inline void crypto_put_session(struct csession *ses_ptr)
 {
 	mutex_unlock(&ses_ptr->sem);
 }
-int adjust_sg_array(struct csession *ses, int pagecount);
+int cryptodev_adjust_sg_array(struct csession *ses, int pagecount);
 
 #endif /* CRYPTODEV_INT_H */
