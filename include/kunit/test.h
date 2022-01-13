@@ -790,7 +790,7 @@ void kunit_do_failed_assertion(struct kunit *test,
 	KUNIT_ASSERTION(test,						       \
 			false,						       \
 			kunit_fail_assert,				       \
-			KUNIT_INIT_FAIL_ASSERT_STRUCT(test, assert_type),      \
+			KUNIT_INIT_FAIL_ASSERT_STRUCT(assert_type),      \
 			fmt,						       \
 			##__VA_ARGS__)
 
@@ -820,8 +820,7 @@ void kunit_do_failed_assertion(struct kunit *test,
 	KUNIT_ASSERTION(test,						       \
 			!!(condition) == !!expected_true,		       \
 			kunit_unary_assert,				       \
-			KUNIT_INIT_UNARY_ASSERT_STRUCT(test,		       \
-						       assert_type,	       \
+			KUNIT_INIT_UNARY_ASSERT_STRUCT(assert_type,	       \
 						       #condition,	       \
 						       expected_true),	       \
 			fmt,						       \
@@ -879,8 +878,7 @@ do {									       \
 	KUNIT_ASSERTION(test,						       \
 			__left op __right,				       \
 			assert_class,					       \
-			ASSERT_CLASS_INIT(test,				       \
-					  assert_type,			       \
+			ASSERT_CLASS_INIT(assert_type,			       \
 					  #op,				       \
 					  #left,			       \
 					  __left,			       \
@@ -1234,8 +1232,7 @@ do {									       \
 	KUNIT_ASSERTION(test,						       \
 			strcmp(__left, __right) op 0,			       \
 			kunit_binary_str_assert,			       \
-			KUNIT_INIT_BINARY_STR_ASSERT_STRUCT(test,	       \
-							assert_type,	       \
+			KUNIT_INIT_BINARY_STR_ASSERT_STRUCT(assert_type,       \
 							#op,		       \
 							#left,		       \
 							__left,		       \
@@ -1294,8 +1291,7 @@ do {									       \
 	KUNIT_ASSERTION(test,						       \
 			!IS_ERR_OR_NULL(__ptr),				       \
 			kunit_ptr_not_err_assert,			       \
-			KUNIT_INIT_PTR_NOT_ERR_STRUCT(test,		       \
-						      assert_type,	       \
+			KUNIT_INIT_PTR_NOT_ERR_STRUCT(assert_type,	       \
 						      #ptr,		       \
 						      __ptr),		       \
 			fmt,						       \
