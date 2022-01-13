@@ -148,7 +148,7 @@ static void __iomem *mt7621_pcie_map_bus(struct pci_bus *bus,
 	return pcie->base + RALINK_PCI_CONFIG_DATA + (where & 3);
 }
 
-struct pci_ops mt7621_pci_ops = {
+static struct pci_ops mt7621_pci_ops = {
 	.map_bus	= mt7621_pcie_map_bus,
 	.read		= pci_generic_config_read,
 	.write		= pci_generic_config_write,
@@ -206,37 +206,6 @@ static inline void mt7621_control_deassert(struct mt7621_pcie_port *port)
 		reset_control_deassert(port->pcie_rst);
 	else
 		reset_control_assert(port->pcie_rst);
-}
-
-static int setup_cm_memory_region(struct pci_host_bridge *host)
-{
-	struct mt7621_pcie *pcie = pci_host_bridge_priv(host);
-	struct device *dev = pcie->dev;
-	struct resource_entry *entry;
-	resource_size_t mask;
-
-	entry = resource_list_first_type(&host->windows, IORESOURCE_MEM);
-	if (!entry) {
-		dev_err(dev, "cannot get memory resource\n");
-		return -EINVAL;
-	}
-
-	if (mips_cps_numiocu(0)) {
-		/*
-		 * FIXME: hardware doesn't accept mask values with 1s after
-		 * 0s (e.g. 0xffef), so it would be great to warn if that's
-		 * about to happen
-		 */
-		mask = ~(entry->res->end - entry->res->start);
-
-		write_gcr_reg1_base(entry->res->start);
-		write_gcr_reg1_mask(mask | CM_GCR_REGn_MASK_CMTGT_IOCU0);
-		dev_info(dev, "PCI coherence region base: 0x%08llx, mask/settings: 0x%08llx\n",
-			 (unsigned long long)read_gcr_reg1_base(),
-			 (unsigned long long)read_gcr_reg1_mask());
-	}
-
-	return 0;
 }
 
 static int mt7621_pcie_parse_port(struct mt7621_pcie *pcie,
@@ -557,12 +526,6 @@ static int mt7621_pci_probe(struct platform_device *pdev)
 		goto remove_resets;
 	}
 
-	err = setup_cm_memory_region(bridge);
-	if (err) {
-		dev_err(dev, "error setting up iocu mem regions\n");
-		goto remove_resets;
-	}
-
 	return mt7621_pcie_register_host(bridge);
 
 remove_resets:
@@ -598,3 +561,5 @@ static struct platform_driver mt7621_pci_driver = {
 	},
 };
 builtin_platform_driver(mt7621_pci_driver);
+
+MODULE_LICENSE("GPL v2");
