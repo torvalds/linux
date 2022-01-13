@@ -228,7 +228,7 @@
 
 				vddcpu: VDD_OTHER {
 					regulator-name = "VDD_OTHER";
-					regulator-min-microvolt = <1125000>;
+					regulator-min-microvolt = <1050000>;
 					regulator-max-microvolt = <1850000>;
 					regulator-initial-mode = <2>;
 					regulator-allowed-modes = <2>, <4>;
