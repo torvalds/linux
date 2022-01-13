@@ -131,7 +131,7 @@ struct irq_domain_ops {
 #endif
 };
 
-extern struct irq_domain_ops irq_generic_chip_ops;
+extern const struct irq_domain_ops irq_generic_chip_ops;
 
 struct irq_domain_chip_generic;
 
