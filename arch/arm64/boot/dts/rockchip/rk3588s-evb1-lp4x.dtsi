@@ -630,7 +630,7 @@
 };
 
 &spdif_tx1 {
-	status = "okay";
+	status = "disabled";
 	pinctrl-names = "default";
 	pinctrl-0 = <&spdif1m1_tx>;
 };
