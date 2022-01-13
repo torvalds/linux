@@ -391,8 +391,8 @@ void wfx_tx(struct ieee80211_hw *hw, struct ieee80211_tx_control *control, struc
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 	size_t driver_data_room = sizeof_field(struct ieee80211_tx_info, rate_driver_data);
 
-	compiletime_assert(sizeof(struct wfx_tx_priv) <= driver_data_room,
-			   "struct tx_priv is too large");
+	BUILD_BUG_ON_MSG(sizeof(struct wfx_tx_priv) > driver_data_room,
+			 "struct tx_priv is too large");
 	WARN(skb->next || skb->prev, "skb is already member of a list");
 	/* control.vif can be NULL for injected frames */
 	if (tx_info->control.vif)
