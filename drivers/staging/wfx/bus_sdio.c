@@ -33,8 +33,7 @@ struct wfx_sdio_priv {
 	int of_irq;
 };
 
-static int wfx_sdio_copy_from_io(void *priv, unsigned int reg_id,
-				 void *dst, size_t count)
+static int wfx_sdio_copy_from_io(void *priv, unsigned int reg_id, void *dst, size_t count)
 {
 	struct wfx_sdio_priv *bus = priv;
 	unsigned int sdio_addr = reg_id << 2;
@@ -54,8 +53,7 @@ static int wfx_sdio_copy_from_io(void *priv, unsigned int reg_id,
 	return ret;
 }
 
-static int wfx_sdio_copy_to_io(void *priv, unsigned int reg_id,
-			       const void *src, size_t count)
+static int wfx_sdio_copy_to_io(void *priv, unsigned int reg_id, const void *src, size_t count)
 {
 	struct wfx_sdio_priv *bus = priv;
 	unsigned int sdio_addr = reg_id << 2;
@@ -126,8 +124,7 @@ static int wfx_sdio_irq_subscribe(void *priv)
 		flags = IRQF_TRIGGER_HIGH;
 	flags |= IRQF_ONESHOT;
 	ret = devm_request_threaded_irq(&bus->func->dev, bus->of_irq, NULL,
-					wfx_sdio_irq_handler_ext, flags,
-					"wfx", bus);
+					wfx_sdio_irq_handler_ext, flags, "wfx", bus);
 	if (ret)
 		return ret;
 	sdio_claim_host(bus->func);
@@ -176,8 +173,7 @@ static const struct of_device_id wfx_sdio_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, wfx_sdio_of_match);
 
-static int wfx_sdio_probe(struct sdio_func *func,
-			  const struct sdio_device_id *id)
+static int wfx_sdio_probe(struct sdio_func *func, const struct sdio_device_id *id)
 {
 	struct device_node *np = func->dev.of_node;
 	struct wfx_sdio_priv *bus;

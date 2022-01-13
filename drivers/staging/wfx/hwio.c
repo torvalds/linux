@@ -25,14 +25,12 @@ static int wfx_read32(struct wfx_dev *wdev, int reg, u32 *val)
 	*val = ~0; /* Never return undefined value */
 	if (!tmp)
 		return -ENOMEM;
-	ret = wdev->hwbus_ops->copy_from_io(wdev->hwbus_priv, reg, tmp,
-					    sizeof(u32));
+	ret = wdev->hwbus_ops->copy_from_io(wdev->hwbus_priv, reg, tmp, sizeof(u32));
 	if (ret >= 0)
 		*val = le32_to_cpu(*tmp);
 	kfree(tmp);
 	if (ret)
-		dev_err(wdev->dev, "%s: bus communication error: %d\n",
-			__func__, ret);
+		dev_err(wdev->dev, "%s: bus communication error: %d\n", __func__, ret);
 	return ret;
 }
 
@@ -44,12 +42,10 @@ static int wfx_write32(struct wfx_dev *wdev, int reg, u32 val)
 	if (!tmp)
 		return -ENOMEM;
 	*tmp = cpu_to_le32(val);
-	ret = wdev->hwbus_ops->copy_to_io(wdev->hwbus_priv, reg, tmp,
-					  sizeof(u32));
+	ret = wdev->hwbus_ops->copy_to_io(wdev->hwbus_priv, reg, tmp, sizeof(u32));
 	kfree(tmp);
 	if (ret)
-		dev_err(wdev->dev, "%s: bus communication error: %d\n",
-			__func__, ret);
+		dev_err(wdev->dev, "%s: bus communication error: %d\n", __func__, ret);
 	return ret;
 }
 
@@ -187,8 +183,7 @@ static int wfx_indirect_write_locked(struct wfx_dev *wdev, int reg, u32 addr,
 	return ret;
 }
 
-static int wfx_indirect_read32_locked(struct wfx_dev *wdev, int reg,
-				      u32 addr, u32 *val)
+static int wfx_indirect_read32_locked(struct wfx_dev *wdev, int reg, u32 addr, u32 *val)
 {
 	int ret;
 	__le32 *tmp = kmalloc(sizeof(u32), GFP_KERNEL);
@@ -227,13 +222,11 @@ int wfx_data_read(struct wfx_dev *wdev, void *buf, size_t len)
 
 	WARN(!IS_ALIGNED((uintptr_t)buf, 4), "unaligned buffer");
 	wdev->hwbus_ops->lock(wdev->hwbus_priv);
-	ret = wdev->hwbus_ops->copy_from_io(wdev->hwbus_priv,
-					    WFX_REG_IN_OUT_QUEUE, buf, len);
+	ret = wdev->hwbus_ops->copy_from_io(wdev->hwbus_priv, WFX_REG_IN_OUT_QUEUE, buf, len);
 	_trace_io_read(WFX_REG_IN_OUT_QUEUE, buf, len);
 	wdev->hwbus_ops->unlock(wdev->hwbus_priv);
 	if (ret)
-		dev_err(wdev->dev, "%s: bus communication error: %d\n",
-			__func__, ret);
+		dev_err(wdev->dev, "%s: bus communication error: %d\n", __func__, ret);
 	return ret;
 }
 
@@ -243,52 +236,42 @@ int wfx_data_write(struct wfx_dev *wdev, const void *buf, size_t len)
 
 	WARN(!IS_ALIGNED((uintptr_t)buf, 4), "unaligned buffer");
 	wdev->hwbus_ops->lock(wdev->hwbus_priv);
-	ret = wdev->hwbus_ops->copy_to_io(wdev->hwbus_priv,
-					  WFX_REG_IN_OUT_QUEUE, buf, len);
+	ret = wdev->hwbus_ops->copy_to_io(wdev->hwbus_priv, WFX_REG_IN_OUT_QUEUE, buf, len);
 	_trace_io_write(WFX_REG_IN_OUT_QUEUE, buf, len);
 	wdev->hwbus_ops->unlock(wdev->hwbus_priv);
 	if (ret)
-		dev_err(wdev->dev, "%s: bus communication error: %d\n",
-			__func__, ret);
+		dev_err(wdev->dev, "%s: bus communication error: %d\n", __func__, ret);
 	return ret;
 }
 
 int wfx_sram_buf_read(struct wfx_dev *wdev, u32 addr, void *buf, size_t len)
 {
-	return wfx_indirect_read_locked(wdev, WFX_REG_SRAM_DPORT,
-					addr, buf, len);
+	return wfx_indirect_read_locked(wdev, WFX_REG_SRAM_DPORT, addr, buf, len);
 }
 
 int wfx_ahb_buf_read(struct wfx_dev *wdev, u32 addr, void *buf, size_t len)
 {
-	return wfx_indirect_read_locked(wdev, WFX_REG_AHB_DPORT,
-					addr, buf, len);
+	return wfx_indirect_read_locked(wdev, WFX_REG_AHB_DPORT, addr, buf, len);
 }
 
-int wfx_sram_buf_write(struct wfx_dev *wdev, u32 addr,
-		       const void *buf, size_t len)
+int wfx_sram_buf_write(struct wfx_dev *wdev, u32 addr, const void *buf, size_t len)
 {
-	return wfx_indirect_write_locked(wdev, WFX_REG_SRAM_DPORT,
-					 addr, buf, len);
+	return wfx_indirect_write_locked(wdev, WFX_REG_SRAM_DPORT, addr, buf, len);
 }
 
-int wfx_ahb_buf_write(struct wfx_dev *wdev, u32 addr,
-		      const void *buf, size_t len)
+int wfx_ahb_buf_write(struct wfx_dev *wdev, u32 addr, const void *buf, size_t len)
 {
-	return wfx_indirect_write_locked(wdev, WFX_REG_AHB_DPORT,
-					 addr, buf, len);
+	return wfx_indirect_write_locked(wdev, WFX_REG_AHB_DPORT, addr, buf, len);
 }
 
 int wfx_sram_reg_read(struct wfx_dev *wdev, u32 addr, u32 *val)
 {
-	return wfx_indirect_read32_locked(wdev, WFX_REG_SRAM_DPORT,
-					  addr, val);
+	return wfx_indirect_read32_locked(wdev, WFX_REG_SRAM_DPORT, addr, val);
 }
 
 int wfx_ahb_reg_read(struct wfx_dev *wdev, u32 addr, u32 *val)
 {
-	return wfx_indirect_read32_locked(wdev, WFX_REG_AHB_DPORT,
-					  addr, val);
+	return wfx_indirect_read32_locked(wdev, WFX_REG_AHB_DPORT, addr, val);
 }
 
 int wfx_sram_reg_write(struct wfx_dev *wdev, u32 addr, u32 val)

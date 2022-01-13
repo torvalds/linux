@@ -38,8 +38,7 @@ void wfx_tx_flush(struct wfx_dev *wdev)
 
 	wfx_tx_lock(wdev);
 	mutex_lock(&wdev->hif_cmd.lock);
-	ret = wait_event_timeout(wdev->hif.tx_buffers_empty,
-				 !wdev->hif.tx_buffers_used,
+	ret = wait_event_timeout(wdev->hif.tx_buffers_empty, !wdev->hif.tx_buffers_used,
 				 msecs_to_jiffies(3000));
 	if (!ret) {
 		dev_warn(wdev->dev, "cannot flush tx buffers (%d still busy)\n",
@@ -76,8 +75,7 @@ void wfx_tx_queues_init(struct wfx_vif *wvif)
 
 bool wfx_tx_queue_empty(struct wfx_vif *wvif, struct wfx_queue *queue)
 {
-	return skb_queue_empty_lockless(&queue->normal) &&
-	       skb_queue_empty_lockless(&queue->cab);
+	return skb_queue_empty_lockless(&queue->normal) && skb_queue_empty_lockless(&queue->cab);
 }
 
 void wfx_tx_queues_check_empty(struct wfx_vif *wvif)
@@ -91,8 +89,7 @@ void wfx_tx_queues_check_empty(struct wfx_vif *wvif)
 }
 
 static void __wfx_tx_queue_drop(struct wfx_vif *wvif,
-				struct sk_buff_head *skb_queue,
-				struct sk_buff_head *dropped)
+				struct sk_buff_head *skb_queue, struct sk_buff_head *dropped)
 {
 	struct sk_buff *skb, *tmp;
 
@@ -130,8 +127,7 @@ void wfx_pending_drop(struct wfx_dev *wdev, struct sk_buff_head *dropped)
 	struct wfx_hif_msg *hif;
 	struct sk_buff *skb;
 
-	WARN(!wdev->chip_frozen, "%s should only be used to recover a frozen device",
-	     __func__);
+	WARN(!wdev->chip_frozen, "%s should only be used to recover a frozen device", __func__);
 	while ((skb = skb_dequeue(&wdev->tx_pending)) != NULL) {
 		hif = (struct wfx_hif_msg *)skb->data;
 		wvif = wdev_to_wvif(wdev, hif->interface);
@@ -187,23 +183,20 @@ void wfx_pending_dump_old_frames(struct wfx_dev *wdev, unsigned int limit_ms)
 	skb_queue_walk(&wdev->tx_pending, skb) {
 		tx_priv = wfx_skb_tx_priv(skb);
 		req = wfx_skb_txreq(skb);
-		if (ktime_after(now, ktime_add_ms(tx_priv->xmit_timestamp,
-						  limit_ms))) {
+		if (ktime_after(now, ktime_add_ms(tx_priv->xmit_timestamp, limit_ms))) {
 			if (first) {
 				dev_info(wdev->dev, "frames stuck in firmware since %dms or more:\n",
 					 limit_ms);
 				first = false;
 			}
 			dev_info(wdev->dev, "   id %08x sent %lldms ago\n",
-				 req->packet_id,
-				 ktime_ms_delta(now, tx_priv->xmit_timestamp));
+				 req->packet_id, ktime_ms_delta(now, tx_priv->xmit_timestamp));
 		}
 	}
 	spin_unlock_bh(&wdev->tx_pending.lock);
 }
 
-unsigned int wfx_pending_get_pkt_us_delay(struct wfx_dev *wdev,
-					  struct sk_buff *skb)
+unsigned int wfx_pending_get_pkt_us_delay(struct wfx_dev *wdev, struct sk_buff *skb)
 {
 	ktime_t now = ktime_get();
 	struct wfx_tx_priv *tx_priv = wfx_skb_tx_priv(skb);
@@ -267,8 +260,7 @@ static struct sk_buff *wfx_tx_queues_get_skb(struct wfx_dev *wdev)
 			 */
 			hif = (struct wfx_hif_msg *)skb->data;
 			WARN_ON(hif->interface != wvif->id);
-			WARN_ON(queues[i] !=
-				&wvif->tx_queue[skb_get_queue_mapping(skb)]);
+			WARN_ON(queues[i] != &wvif->tx_queue[skb_get_queue_mapping(skb)]);
 			atomic_inc(&queues[i]->pending_frames);
 			trace_queues_stats(wdev, queues[i]);
 			return skb;

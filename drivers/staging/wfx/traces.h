@@ -190,8 +190,7 @@ DECLARE_EVENT_CLASS(hif_data,
 			__entry->mib = -1;
 			header_len = 0;
 		}
-		__entry->buf_len = min_t(int, __entry->msg_len,
-					 sizeof(__entry->buf))
+		__entry->buf_len = min_t(int, __entry->msg_len, sizeof(__entry->buf))
 				   - sizeof(struct wfx_hif_msg) - header_len;
 		memcpy(__entry->buf, hif->body + header_len, __entry->buf_len);
 	),
@@ -250,8 +249,7 @@ DECLARE_EVENT_CLASS(io_data,
 		__entry->reg = reg;
 		__entry->addr = addr;
 		__entry->msg_len = len;
-		__entry->buf_len = min_t(int, sizeof(__entry->buf),
-					 __entry->msg_len);
+		__entry->buf_len = min_t(int, sizeof(__entry->buf), __entry->msg_len);
 		memcpy(__entry->buf, io_buf, __entry->buf_len);
 		if (addr >= 0)
 			snprintf(__entry->addr_str, 10, "/%08x", addr);
@@ -379,8 +377,7 @@ TRACE_EVENT(tx_stats,
 	),
 	TP_fast_assign(
 		/* Keep sync with wfx_rates definition in main.c */
-		static const int hw_rate[] = { 0, 1, 2, 3, 6, 7, 8, 9,
-					       10, 11, 12, 13 };
+		static const int hw_rate[] = { 0, 1, 2, 3, 6, 7, 8, 9, 10, 11, 12, 13 };
 		const struct ieee80211_tx_info *tx_info =
 			(const struct ieee80211_tx_info *)skb->cb;
 		const struct ieee80211_tx_rate *rates = tx_info->driver_rates;
@@ -420,9 +417,8 @@ TRACE_EVENT(tx_stats,
 	TP_printk("packet ID: %08x, rate policy: %s %d|%d %d|%d %d|%d %d|%d -> %d attempt, Delays media/queue/total: %4dus/%4dus/%4dus",
 		__entry->pkt_id,
 		__print_flags(__entry->flags, NULL,
-			{ 0x01, "M" }, { 0x02, "S" }, { 0x04, "G" },
-			{ 0x08, "R" }, { 0x10, "D" }, { 0x20, "F" },
-			{ 0x40, "Q" }),
+			{ 0x01, "M" }, { 0x02, "S" }, { 0x04, "G" }, { 0x08, "R" },
+			{ 0x10, "D" }, { 0x20, "F" }, { 0x40, "Q" }),
 		__entry->rate[0],
 		__entry->tx_count[0],
 		__entry->rate[1],

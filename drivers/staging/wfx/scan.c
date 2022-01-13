@@ -12,8 +12,7 @@
 #include "sta.h"
 #include "hif_tx_mib.h"
 
-static void wfx_ieee80211_scan_completed_compat(struct ieee80211_hw *hw,
-						bool aborted)
+static void wfx_ieee80211_scan_completed_compat(struct ieee80211_hw *hw, bool aborted)
 {
 	struct cfg80211_scan_info info = {
 		.aborted = aborted,
@@ -22,13 +21,11 @@ static void wfx_ieee80211_scan_completed_compat(struct ieee80211_hw *hw,
 	ieee80211_scan_completed(hw, &info);
 }
 
-static int update_probe_tmpl(struct wfx_vif *wvif,
-			     struct cfg80211_scan_request *req)
+static int update_probe_tmpl(struct wfx_vif *wvif, struct cfg80211_scan_request *req)
 {
 	struct sk_buff *skb;
 
-	skb = ieee80211_probereq_get(wvif->wdev->hw, wvif->vif->addr,
-				     NULL, 0, req->ie_len);
+	skb = ieee80211_probereq_get(wvif->wdev->hw, wvif->vif->addr, NULL, 0, req->ie_len);
 	if (!skb)
 		return -ENOMEM;
 
@@ -38,8 +35,7 @@ static int update_probe_tmpl(struct wfx_vif *wvif,
 	return 0;
 }
 
-static int send_scan_req(struct wfx_vif *wvif,
-			 struct cfg80211_scan_request *req, int start_idx)
+static int send_scan_req(struct wfx_vif *wvif, struct cfg80211_scan_request *req, int start_idx)
 {
 	int i, ret;
 	struct ieee80211_channel *ch_start, *ch_cur;

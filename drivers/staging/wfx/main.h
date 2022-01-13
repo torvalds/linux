@@ -29,10 +29,8 @@ struct wfx_platform_data {
 	bool use_rising_clk;
 };
 
-struct wfx_dev *wfx_init_common(struct device *dev,
-				const struct wfx_platform_data *pdata,
-				const struct wfx_hwbus_ops *hwbus_ops,
-				void *hwbus_priv);
+struct wfx_dev *wfx_init_common(struct device *dev, const struct wfx_platform_data *pdata,
+				const struct wfx_hwbus_ops *hwbus_ops, void *hwbus_priv);
 
 int wfx_probe(struct wfx_dev *wdev);
 void wfx_release(struct wfx_dev *wdev);

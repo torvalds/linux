@@ -37,8 +37,7 @@ static void device_wakeup(struct wfx_dev *wdev)
 		 * wait_for_completion_done_timeout()). So we have to emulate
 		 * it.
 		 */
-		if (wait_for_completion_timeout(&wdev->hif.ctrl_ready,
-						msecs_to_jiffies(2))) {
+		if (wait_for_completion_timeout(&wdev->hif.ctrl_ready, msecs_to_jiffies(2))) {
 			complete(&wdev->hif.ctrl_ready);
 			return;
 		} else if (max_retry-- > 0) {
@@ -105,7 +104,8 @@ static int rx_helper(struct wfx_dev *wdev, size_t read_len, int *is_cnf)
 	if (!(hif->id & HIF_ID_IS_INDICATION)) {
 		(*is_cnf)++;
 		if (hif->id == HIF_CNF_ID_MULTI_TRANSMIT)
-			release_count = ((struct wfx_hif_cnf_multi_transmit *)hif->body)->num_tx_confs;
+			release_count =
+				((struct wfx_hif_cnf_multi_transmit *)hif->body)->num_tx_confs;
 		else
 			release_count = 1;
 		WARN(wdev->hif.tx_buffers_used < release_count, "corrupted buffer counter");
@@ -229,8 +229,7 @@ static void ack_sdio_data(struct wfx_dev *wdev)
 
 	wfx_config_reg_read(wdev, &cfg_reg);
 	if (cfg_reg & 0xFF) {
-		dev_warn(wdev->dev, "chip reports errors: %02x\n",
-			 cfg_reg & 0xFF);
+		dev_warn(wdev->dev, "chip reports errors: %02x\n", cfg_reg & 0xFF);
 		wfx_config_reg_write_bits(wdev, 0xFF, 0x00);
 	}
 }
@@ -261,8 +260,7 @@ static void bh_work(struct work_struct *work)
 		device_release(wdev);
 		release_chip = true;
 	}
-	_trace_bh_stats(stats_ind, stats_req, stats_cnf,
-			wdev->hif.tx_buffers_used, release_chip);
+	_trace_bh_stats(stats_ind, stats_req, stats_cnf, wdev->hif.tx_buffers_used, release_chip);
 }
 
 /* An IRQ from chip did occur */

@@ -40,8 +40,7 @@ u32 wfx_rate_mask_to_hw(struct wfx_dev *wdev, u32 rates)
 
 void wfx_cooling_timeout_work(struct work_struct *work)
 {
-	struct wfx_dev *wdev = container_of(to_delayed_work(work),
-					    struct wfx_dev,
+	struct wfx_dev *wdev = container_of(to_delayed_work(work), struct wfx_dev,
 					    cooling_timeout_work);
 
 	wdev->chip_frozen = true;
@@ -91,10 +90,8 @@ static void wfx_filter_beacon(struct wfx_vif *wvif, bool filter_beacon)
 	if (!filter_beacon) {
 		wfx_hif_beacon_filter_control(wvif, 0, 1);
 	} else {
-		wfx_hif_set_beacon_filter_table(wvif, ARRAY_SIZE(filter_ies),
-						filter_ies);
-		wfx_hif_beacon_filter_control(wvif,
-					      HIF_BEACON_FILTER_ENABLE, 0);
+		wfx_hif_set_beacon_filter_table(wvif, ARRAY_SIZE(filter_ies), filter_ies);
+		wfx_hif_beacon_filter_control(wvif, HIF_BEACON_FILTER_ENABLE, 0);
 	}
 }
 
@@ -135,8 +132,7 @@ void wfx_configure_filter(struct ieee80211_hw *hw, unsigned int changed_flags,
 			filter_bssid = true;
 
 		/* In AP mode, chip can reply to probe request itself */
-		if (*total_flags & FIF_PROBE_REQ &&
-		    wvif->vif->type == NL80211_IFTYPE_AP) {
+		if (*total_flags & FIF_PROBE_REQ && wvif->vif->type == NL80211_IFTYPE_AP) {
 			dev_dbg(wdev->dev, "do not forward probe request in AP mode\n");
 			*total_flags &= ~FIF_PROBE_REQ;
 		}
@@ -208,10 +204,8 @@ int wfx_update_pm(struct wfx_vif *wvif)
 	if (wvif->uapsd_mask)
 		ps_timeout = 0;
 
-	if (!wait_for_completion_timeout(&wvif->set_pm_mode_complete,
-					 TU_TO_JIFFIES(512)))
-		dev_warn(wvif->wdev->dev,
-			 "timeout while waiting of set_pm_mode_complete\n");
+	if (!wait_for_completion_timeout(&wvif->set_pm_mode_complete, TU_TO_JIFFIES(512)))
+		dev_warn(wvif->wdev->dev, "timeout while waiting of set_pm_mode_complete\n");
 	return wfx_hif_set_pm(wvif, ps, ps_timeout);
 }
 
@@ -227,8 +221,7 @@ int wfx_conf_tx(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	mutex_lock(&wdev->conf_mutex);
 	assign_bit(queue, &wvif->uapsd_mask, params->uapsd);
 	wfx_hif_set_edca_queue_params(wvif, queue, params);
-	if (wvif->vif->type == NL80211_IFTYPE_STATION &&
-	    old_uapsd != wvif->uapsd_mask) {
+	if (wvif->vif->type == NL80211_IFTYPE_STATION && old_uapsd != wvif->uapsd_mask) {
 		wfx_hif_set_uapsd_info(wvif, wvif->uapsd_mask);
 		wfx_update_pm(wvif);
 	}
@@ -264,17 +257,15 @@ void wfx_event_report_rssi(struct wfx_vif *wvif, u8 raw_rcpi_rssi)
 
 static void wfx_beacon_loss_work(struct work_struct *work)
 {
-	struct wfx_vif *wvif = container_of(to_delayed_work(work),
-					    struct wfx_vif, beacon_loss_work);
+	struct wfx_vif *wvif = container_of(to_delayed_work(work), struct wfx_vif,
+					    beacon_loss_work);
 	struct ieee80211_bss_conf *bss_conf = &wvif->vif->bss_conf;
 
 	ieee80211_beacon_loss(wvif->vif);
-	schedule_delayed_work(to_delayed_work(work),
-			      msecs_to_jiffies(bss_conf->beacon_int));
+	schedule_delayed_work(to_delayed_work(work), msecs_to_jiffies(bss_conf->beacon_int));
 }
 
-void wfx_set_default_unicast_key(struct ieee80211_hw *hw,
-				 struct ieee80211_vif *vif, int idx)
+void wfx_set_default_unicast_key(struct ieee80211_hw *hw, struct ieee80211_vif *vif, int idx)
 {
 	struct wfx_vif *wvif = (struct wfx_vif *)vif->drv_priv;
 
@@ -298,8 +289,7 @@ void wfx_reset(struct wfx_vif *wvif)
 		wfx_update_pm(wvif);
 }
 
-int wfx_sta_add(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-		struct ieee80211_sta *sta)
+int wfx_sta_add(struct ieee80211_hw *hw, struct ieee80211_vif *vif, struct ieee80211_sta *sta)
 {
 	struct wfx_vif *wvif = (struct wfx_vif *)vif->drv_priv;
 	struct wfx_sta_priv *sta_priv = (struct wfx_sta_priv *)&sta->drv_priv;
@@ -321,8 +311,7 @@ int wfx_sta_add(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	return 0;
 }
 
-int wfx_sta_remove(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-		   struct ieee80211_sta *sta)
+int wfx_sta_remove(struct ieee80211_hw *hw, struct ieee80211_vif *vif, struct ieee80211_sta *sta)
 {
 	struct wfx_vif *wvif = (struct wfx_vif *)vif->drv_priv;
 	struct wfx_sta_priv *sta_priv = (struct wfx_sta_priv *)&sta->drv_priv;
@@ -343,15 +332,13 @@ static int wfx_upload_ap_templates(struct wfx_vif *wvif)
 	skb = ieee80211_beacon_get(wvif->wdev->hw, wvif->vif);
 	if (!skb)
 		return -ENOMEM;
-	wfx_hif_set_template_frame(wvif, skb, HIF_TMPLT_BCN,
-				   API_RATE_INDEX_B_1MBPS);
+	wfx_hif_set_template_frame(wvif, skb, HIF_TMPLT_BCN, API_RATE_INDEX_B_1MBPS);
 	dev_kfree_skb(skb);
 
 	skb = ieee80211_proberesp_get(wvif->wdev->hw, wvif->vif);
 	if (!skb)
 		return -ENOMEM;
-	wfx_hif_set_template_frame(wvif, skb, HIF_TMPLT_PRBRES,
-				   API_RATE_INDEX_B_1MBPS);
+	wfx_hif_set_template_frame(wvif, skb, HIF_TMPLT_PRBRES, API_RATE_INDEX_B_1MBPS);
 	dev_kfree_skb(skb);
 	return 0;
 }
@@ -360,8 +347,7 @@ static void wfx_set_mfp_ap(struct wfx_vif *wvif)
 {
 	struct sk_buff *skb = ieee80211_beacon_get(wvif->wdev->hw, wvif->vif);
 	const int ieoffset = offsetof(struct ieee80211_mgmt, u.beacon.variable);
-	const u16 *ptr = (u16 *)cfg80211_find_ie(WLAN_EID_RSN,
-						 skb->data + ieoffset,
+	const u16 *ptr = (u16 *)cfg80211_find_ie(WLAN_EID_RSN, skb->data + ieoffset,
 						 skb->len - ieoffset);
 	const int pairwise_cipher_suite_count_offset = 8 / sizeof(u16);
 	const int pairwise_cipher_suite_size = 4 / sizeof(u16);
@@ -417,8 +403,7 @@ static void wfx_join(struct wfx_vif *wvif)
 
 	wfx_tx_lock_flush(wvif->wdev);
 
-	bss = cfg80211_get_bss(wvif->wdev->hw->wiphy, wvif->channel,
-			       conf->bssid, NULL, 0,
+	bss = cfg80211_get_bss(wvif->wdev->hw->wiphy, wvif->channel, conf->bssid, NULL, 0,
 			       IEEE80211_BSS_TYPE_ANY, IEEE80211_PRIVACY_ANY);
 	if (!bss && !conf->ibss_joined) {
 		wfx_tx_unlock(wvif->wdev);
@@ -472,8 +457,7 @@ static void wfx_join_finalize(struct wfx_vif *wvif,
 	rcu_read_unlock();
 
 	wvif->join_in_progress = false;
-	wfx_hif_set_association_mode(wvif, ampdu_density, greenfield,
-				     info->use_short_preamble);
+	wfx_hif_set_association_mode(wvif, ampdu_density, greenfield, info->use_short_preamble);
 	wfx_hif_keep_alive_period(wvif, 0);
 	/* beacon_loss_count is defined to 7 in net/mac80211/mlme.c. Let's use
 	 * the same value.
@@ -541,10 +525,8 @@ void wfx_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 
 	if (changed & BSS_CHANGED_BEACON_INFO) {
 		if (vif->type != NL80211_IFTYPE_STATION)
-			dev_warn(wdev->dev, "%s: misunderstood change: BEACON_INFO\n",
-				 __func__);
-		wfx_hif_set_beacon_wakeup_period(wvif, info->dtim_period,
-						 info->dtim_period);
+			dev_warn(wdev->dev, "%s: misunderstood change: BEACON_INFO\n", __func__);
+		wfx_hif_set_beacon_wakeup_period(wvif, info->dtim_period, info->dtim_period);
 		/* We temporary forwarded beacon for join process. It is now no
 		 * more necessary.
 		 */
@@ -563,8 +545,7 @@ void wfx_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		}
 	}
 
-	if (changed & BSS_CHANGED_AP_PROBE_RESP ||
-	    changed & BSS_CHANGED_BEACON)
+	if (changed & BSS_CHANGED_AP_PROBE_RESP || changed & BSS_CHANGED_BEACON)
 		wfx_upload_ap_templates(wvif);
 
 	if (changed & BSS_CHANGED_BEACON_ENABLED)
@@ -581,8 +562,7 @@ void wfx_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		wfx_hif_slot_time(wvif, info->use_short_slot ? 9 : 20);
 
 	if (changed & BSS_CHANGED_CQM)
-		wfx_hif_set_rcpi_rssi_threshold(wvif, info->cqm_rssi_thold,
-						info->cqm_rssi_hyst);
+		wfx_hif_set_rcpi_rssi_threshold(wvif, info->cqm_rssi_thold, info->cqm_rssi_hyst);
 
 	if (changed & BSS_CHANGED_TXPOWER)
 		wfx_hif_set_output_power(wvif, info->txpower);
@@ -599,8 +579,7 @@ static int wfx_update_tim(struct wfx_vif *wvif)
 	u16 tim_offset, tim_length;
 	u8 *tim_ptr;
 
-	skb = ieee80211_beacon_get_tim(wvif->wdev->hw, wvif->vif,
-				       &tim_offset, &tim_length);
+	skb = ieee80211_beacon_get_tim(wvif->wdev->hw, wvif->vif, &tim_offset, &tim_length);
 	if (!skb)
 		return -ENOENT;
 	tim_ptr = skb->data + tim_offset;
@@ -665,8 +644,7 @@ void wfx_suspend_resume_mc(struct wfx_vif *wvif, enum sta_notify_cmd notify_cmd)
 	wfx_bh_request_tx(wvif->wdev);
 }
 
-int wfx_ampdu_action(struct ieee80211_hw *hw,
-		     struct ieee80211_vif *vif,
+int wfx_ampdu_action(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		     struct ieee80211_ampdu_params *params)
 {
 	/* Aggregation is implemented fully in firmware */
@@ -681,20 +659,16 @@ int wfx_ampdu_action(struct ieee80211_hw *hw,
 	}
 }
 
-int wfx_add_chanctx(struct ieee80211_hw *hw,
-		    struct ieee80211_chanctx_conf *conf)
+int wfx_add_chanctx(struct ieee80211_hw *hw, struct ieee80211_chanctx_conf *conf)
 {
 	return 0;
 }
 
-void wfx_remove_chanctx(struct ieee80211_hw *hw,
-			struct ieee80211_chanctx_conf *conf)
+void wfx_remove_chanctx(struct ieee80211_hw *hw, struct ieee80211_chanctx_conf *conf)
 {
 }
 
-void wfx_change_chanctx(struct ieee80211_hw *hw,
-			struct ieee80211_chanctx_conf *conf,
-			u32 changed)
+void wfx_change_chanctx(struct ieee80211_hw *hw, struct ieee80211_chanctx_conf *conf, u32 changed)
 {
 }
 
@@ -710,8 +684,7 @@ int wfx_assign_vif_chanctx(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	return 0;
 }
 
-void wfx_unassign_vif_chanctx(struct ieee80211_hw *hw,
-			      struct ieee80211_vif *vif,
+void wfx_unassign_vif_chanctx(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			      struct ieee80211_chanctx_conf *conf)
 {
 	struct wfx_vif *wvif = (struct wfx_vif *)vif->drv_priv;

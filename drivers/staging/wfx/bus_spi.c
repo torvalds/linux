@@ -46,8 +46,7 @@ struct wfx_spi_priv {
  * natively. The code below to support big endian host and commonly used SPI
  * 8bits.
  */
-static int wfx_spi_copy_from_io(void *priv, unsigned int addr,
-				void *dst, size_t count)
+static int wfx_spi_copy_from_io(void *priv, unsigned int addr, void *dst, size_t count)
 {
 	struct wfx_spi_priv *bus = priv;
 	u16 regaddr = (addr << 12) | (count / 2) | SET_READ;
@@ -80,8 +79,7 @@ static int wfx_spi_copy_from_io(void *priv, unsigned int addr,
 	return ret;
 }
 
-static int wfx_spi_copy_to_io(void *priv, unsigned int addr,
-			      const void *src, size_t count)
+static int wfx_spi_copy_to_io(void *priv, unsigned int addr, const void *src, size_t count)
 {
 	struct wfx_spi_priv *bus = priv;
 	u16 regaddr = (addr << 12) | (count / 2);
@@ -149,8 +147,7 @@ static int wfx_spi_irq_subscribe(void *priv)
 		flags = IRQF_TRIGGER_HIGH;
 	flags |= IRQF_ONESHOT;
 	return devm_request_threaded_irq(&bus->func->dev, bus->func->irq, NULL,
-					 wfx_spi_irq_handler, IRQF_ONESHOT,
-					 "wfx", bus);
+					 wfx_spi_irq_handler, IRQF_ONESHOT, "wfx", bus);
 }
 
 static int wfx_spi_irq_unsubscribe(void *priv)
@@ -190,14 +187,11 @@ static int wfx_spi_probe(struct spi_device *func)
 		return ret;
 	/* Trace below is also displayed by spi_setup() if compiled with DEBUG */
 	dev_dbg(&func->dev, "SPI params: CS=%d, mode=%d bits/word=%d speed=%d\n",
-		func->chip_select, func->mode, func->bits_per_word,
-		func->max_speed_hz);
+		func->chip_select, func->mode, func->bits_per_word, func->max_speed_hz);
 	if (func->bits_per_word != 16 && func->bits_per_word != 8)
-		dev_warn(&func->dev, "unusual bits/word value: %d\n",
-			 func->bits_per_word);
+		dev_warn(&func->dev, "unusual bits/word value: %d\n", func->bits_per_word);
 	if (func->max_speed_hz > 50000000)
-		dev_warn(&func->dev, "%dHz is a very high speed\n",
-			 func->max_speed_hz);
+		dev_warn(&func->dev, "%dHz is a very high speed\n", func->max_speed_hz);
 
 	bus = devm_kzalloc(&func->dev, sizeof(*bus), GFP_KERNEL);
 	if (!bus)
@@ -207,13 +201,11 @@ static int wfx_spi_probe(struct spi_device *func)
 		bus->need_swab = true;
 	spi_set_drvdata(func, bus);
 
-	bus->gpio_reset = devm_gpiod_get_optional(&func->dev, "reset",
-						  GPIOD_OUT_LOW);
+	bus->gpio_reset = devm_gpiod_get_optional(&func->dev, "reset", GPIOD_OUT_LOW);
 	if (IS_ERR(bus->gpio_reset))
 		return PTR_ERR(bus->gpio_reset);
 	if (!bus->gpio_reset) {
-		dev_warn(&func->dev,
-			 "gpio reset is not defined, trying to load firmware anyway\n");
+		dev_warn(&func->dev, "gpio reset is not defined, trying to load firmware anyway\n");
 	} else {
 		gpiod_set_consumer_name(bus->gpio_reset, "wfx reset");
 		if (spi_get_device_id(func)->driver_data & WFX_RESET_INVERTED)
