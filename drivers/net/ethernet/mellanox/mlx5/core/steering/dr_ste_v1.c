@@ -1079,8 +1079,8 @@ static void dr_ste_v1_build_eth_l2_src_or_dst_bit_mask(struct mlx5dr_match_param
 	DR_STE_SET_TAG(eth_l2_src_v1, bit_mask, first_vlan_id, mask, first_vid);
 	DR_STE_SET_TAG(eth_l2_src_v1, bit_mask, first_cfi, mask, first_cfi);
 	DR_STE_SET_TAG(eth_l2_src_v1, bit_mask, first_priority, mask, first_prio);
-	DR_STE_SET_TAG(eth_l2_src_v1, bit_mask, ip_fragmented, mask, frag); // ?
-	DR_STE_SET_TAG(eth_l2_src_v1, bit_mask, l3_ethertype, mask, ethertype); // ?
+	DR_STE_SET_TAG(eth_l2_src_v1, bit_mask, ip_fragmented, mask, frag);
+	DR_STE_SET_TAG(eth_l2_src_v1, bit_mask, l3_ethertype, mask, ethertype);
 	DR_STE_SET_ONES(eth_l2_src_v1, bit_mask, l3_type, mask, ip_version);
 
 	if (mask->svlan_tag || mask->cvlan_tag) {
