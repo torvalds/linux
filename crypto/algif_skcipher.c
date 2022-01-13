@@ -47,6 +47,19 @@ static int skcipher_sendmsg(struct socket *sock, struct msghdr *msg,
 	return af_alg_sendmsg(sock, msg, size, ivsize);
 }
 
+static inline int skcipher_cipher_op(struct af_alg_ctx *ctx,
+				     struct af_alg_async_req *areq)
+{
+	switch (ctx->op) {
+	case ALG_OP_ENCRYPT:
+		return crypto_skcipher_encrypt(&areq->cra_u.skcipher_req);
+	case ALG_OP_DECRYPT:
+		return crypto_skcipher_decrypt(&areq->cra_u.skcipher_req);
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
 static int _skcipher_recvmsg(struct socket *sock, struct msghdr *msg,
 			     size_t ignored, int flags)
 {
@@ -118,10 +131,8 @@ static int _skcipher_recvmsg(struct socket *sock, struct msghdr *msg,
 		skcipher_request_set_callback(&areq->cra_u.skcipher_req,
 					      CRYPTO_TFM_REQ_MAY_SLEEP,
 					      af_alg_async_cb, areq);
-		err = ctx->enc ?
-			crypto_skcipher_encrypt(&areq->cra_u.skcipher_req) :
-			crypto_skcipher_decrypt(&areq->cra_u.skcipher_req);
-
+		err = skcipher_cipher_op(ctx, areq);
+		
 		/* AIO operation in progress */
 		if (err == -EINPROGRESS)
 			return -EIOCBQUEUED;
@@ -133,10 +144,8 @@ static int _skcipher_recvmsg(struct socket *sock, struct msghdr *msg,
 					      CRYPTO_TFM_REQ_MAY_SLEEP |
 					      CRYPTO_TFM_REQ_MAY_BACKLOG,
 					      crypto_req_done, &ctx->wait);
-		err = crypto_wait_req(ctx->enc ?
-			crypto_skcipher_encrypt(&areq->cra_u.skcipher_req) :
-			crypto_skcipher_decrypt(&areq->cra_u.skcipher_req),
-						 &ctx->wait);
+		err = crypto_wait_req(skcipher_cipher_op(ctx, areq),
+				      &ctx->wait);		
 	}
 
 

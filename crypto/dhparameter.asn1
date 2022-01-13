@@ -1,0 +1,4 @@
+DHParameter ::= SEQUENCE {
+	prime			INTEGER ({ dh_get_p }),
+	base			INTEGER ({ dh_get_g })
+}

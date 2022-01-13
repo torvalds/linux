@@ -27,7 +27,12 @@ obj-$(CONFIG_CRYPTO_HASH2) += crypto_hash.o
 obj-$(CONFIG_CRYPTO_AKCIPHER2) += akcipher.o
 obj-$(CONFIG_CRYPTO_KPP2) += kpp.o
 
-dh_generic-y := dh.o
+$(obj)/dhparameter-asn1.o: $(obj)/dhparameter.asn1.c $(obj)/dhparameter.asn1.h
+$(obj)/dh_helper.o: $(obj)/dhparameter.asn1.h
+clean-files += dhparameter.asn1.c dhparameter.asn1.h
+
+dh_generic-y := dhparameter.asn1.o
+dh_generic-y += dh.o
 dh_generic-y += dh_helper.o
 obj-$(CONFIG_CRYPTO_DH) += dh_generic.o
 
@@ -171,6 +176,8 @@ obj-$(CONFIG_CRYPTO_USER_API_HASH) += algif_hash.o
 obj-$(CONFIG_CRYPTO_USER_API_SKCIPHER) += algif_skcipher.o
 obj-$(CONFIG_CRYPTO_USER_API_RNG) += algif_rng.o
 obj-$(CONFIG_CRYPTO_USER_API_AEAD) += algif_aead.o
+obj-$(CONFIG_CRYPTO_USER_API_AKCIPHER) += algif_akcipher.o
+obj-$(CONFIG_CRYPTO_USER_API_KPP) += algif_kpp.o
 obj-$(CONFIG_CRYPTO_ZSTD) += zstd.o
 obj-$(CONFIG_CRYPTO_OFB) += ofb.o
 obj-$(CONFIG_CRYPTO_ECC) += ecc.o

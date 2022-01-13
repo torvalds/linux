@@ -202,12 +202,16 @@ unlock:
 	return err;
 }
 
-static int alg_setkey(struct sock *sk, sockptr_t ukey, unsigned int keylen)
+static int alg_setkey(struct sock *sk, sockptr_t ukey, unsigned int keylen,
+		      int (*setkey)(void *private, const u8 *key,
+				    unsigned int keylen))
 {
 	struct alg_sock *ask = alg_sk(sk);
-	const struct af_alg_type *type = ask->type;
 	u8 *key;
 	int err;
+
+	if (!setkey)
+		return -ENOPROTOOPT;
 
 	key = sock_kmalloc(sk, keylen, GFP_KERNEL);
 	if (!key)
@@ -217,8 +221,7 @@ static int alg_setkey(struct sock *sk, sockptr_t ukey, unsigned int keylen)
 	if (copy_from_sockptr(key, ukey, keylen))
 		goto out;
 
-	err = type->setkey(ask->private, key, keylen);
-
+	err = setkey(ask->private, key, keylen);
 out:
 	sock_kzfree_s(sk, key, keylen);
 
@@ -243,18 +246,23 @@ static int alg_setsockopt(struct socket *sock, int level, int optname,
 	if (level != SOL_ALG || !type)
 		goto unlock;
 
+	if (sock->state == SS_CONNECTED)
+		goto unlock;
+
 	switch (optname) {
 	case ALG_SET_KEY:
-		if (sock->state == SS_CONNECTED)
-			goto unlock;
-		if (!type->setkey)
-			goto unlock;
-
-		err = alg_setkey(sk, optval, optlen);
+		err = alg_setkey(sk, optval, optlen, type->setkey);
+		break;
+	case ALG_SET_PUBKEY:
+		err = alg_setkey(sk, optval, optlen, type->setpubkey);
+		break;
+	case ALG_SET_DH_PARAMETERS:
+		err = alg_setkey(sk, optval, optlen, type->dhparams);
+		break;
+	case ALG_SET_ECDH_CURVE:
+		err = alg_setkey(sk, optval, optlen, type->ecdhcurve);
 		break;
 	case ALG_SET_AEAD_AUTHSIZE:
-		if (sock->state == SS_CONNECTED)
-			goto unlock;
 		if (!type->setauthsize)
 			goto unlock;
 		err = type->setauthsize(ask->private, optlen);
@@ -836,7 +844,7 @@ int af_alg_sendmsg(struct socket *sock, struct msghdr *msg, size_t size,
 	struct af_alg_tsgl *sgl;
 	struct af_alg_control con = {};
 	long copied = 0;
-	bool enc = false;
+	int op = 0;
 	bool init = false;
 	int err = 0;
 
@@ -847,11 +855,13 @@ int af_alg_sendmsg(struct socket *sock, struct msghdr *msg, size_t size,
 
 		init = true;
 		switch (con.op) {
+		case ALG_OP_VERIFY:
+		case ALG_OP_SIGN:
 		case ALG_OP_ENCRYPT:
-			enc = true;
-			break;
 		case ALG_OP_DECRYPT:
-			enc = false;
+		case ALG_OP_KEYGEN:
+		case ALG_OP_SSGEN:
+			op = con.op;
 			break;
 		default:
 			return -EINVAL;
@@ -875,7 +885,7 @@ int af_alg_sendmsg(struct socket *sock, struct msghdr *msg, size_t size,
 	ctx->init = true;
 
 	if (init) {
-		ctx->enc = enc;
+		ctx->op = op;
 		if (con.iv)
 			memcpy(ctx->iv, con.iv->iv, ivsize);
 

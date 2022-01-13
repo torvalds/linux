@@ -32,10 +32,10 @@
  * @g_size:	Size of DH generator G
  */
 struct dh {
-	void *key;
-	void *p;
-	void *q;
-	void *g;
+	const void *key;
+	const void *p;
+	const void *q;
+	const void *g;
 	unsigned int key_size;
 	unsigned int p_size;
 	unsigned int q_size;
@@ -82,5 +82,20 @@ int crypto_dh_encode_key(char *buf, unsigned int len, const struct dh *params);
  * Return:	-EINVAL if buffer has insufficient size, 0 on success
  */
 int crypto_dh_decode_key(const char *buf, unsigned int len, struct dh *params);
+
+/**
+ * dh_parse_params_pkcs3() - decodes the PKCS#3 BER encoded buffer of the DH
+ *			    parameters and stores in the provided struct dh,
+ *			    pointers to the raw p and g parameters as is, so
+ *			    that the caller can copy it or MPI parse it, etc.
+ *
+ * @dh:		struct dh representation
+ * @param:	DH parameters in BER format following PKCS#3
+ * @param_len:	length of parameter buffer
+ *
+ * Return:	0 on success or error code in case of error
+ */
+int dh_parse_params_pkcs3(struct dh *dh, const void *param,
+			  unsigned int param_len);
 
 #endif

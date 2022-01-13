@@ -18,6 +18,8 @@
 
 #include <crypto/aead.h>
 #include <crypto/skcipher.h>
+#include <crypto/akcipher.h>
+#include <crypto/kpp.h>
 
 #define ALG_MAX_PAGES			16
 
@@ -46,7 +48,10 @@ struct af_alg_type {
 	void *(*bind)(const char *name, u32 type, u32 mask);
 	void (*release)(void *private);
 	int (*setkey)(void *private, const u8 *key, unsigned int keylen);
+	int (*setpubkey)(void *private, const u8 *key, unsigned int keylen);
 	int (*setentropy)(void *private, sockptr_t entropy, unsigned int len);
+	int (*dhparams)(void *private, const u8 *param, unsigned int paramlen);
+	int (*ecdhcurve)(void *private, const u8 *param, unsigned int paramlen);
 	int (*accept)(void *private, struct sock *sk);
 	int (*accept_nokey)(void *private, struct sock *sk);
 	int (*setauthsize)(void *private, unsigned int authsize);
@@ -110,6 +115,8 @@ struct af_alg_async_req {
 	union {
 		struct aead_request aead_req;
 		struct skcipher_request skcipher_req;
+		struct akcipher_request akcipher_req;
+		struct kpp_request kpp_req;
 	} cra_u;
 
 	/* req ctx trails this struct */
@@ -134,7 +141,7 @@ struct af_alg_async_req {
  * @more:		More data to be expected from user space?
  * @merge:		Shall new data from user space be merged into existing
  *			SG?
- * @enc:		Cryptographic operation to be performed when
+ * @op:			Cryptographic operation to be performed when
  *			recvmsg is invoked.
  * @init:		True if metadata has been sent.
  * @len:		Length of memory allocated for this data structure.
@@ -152,7 +159,7 @@ struct af_alg_ctx {
 
 	bool more;
 	bool merge;
-	bool enc;
+	int  op;
 	bool init;
 
 	unsigned int len;

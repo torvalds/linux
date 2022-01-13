@@ -19,13 +19,23 @@ struct dh_ctx {
 	MPI xa;	/* Value is guaranteed to be set. */
 };
 
-static void dh_clear_ctx(struct dh_ctx *ctx)
+static inline void dh_clear_params(struct dh_ctx *ctx)
 {
 	mpi_free(ctx->p);
 	mpi_free(ctx->q);
 	mpi_free(ctx->g);
+}
+
+static inline void dh_clear_key(struct dh_ctx *ctx)
+{
 	mpi_free(ctx->xa);
 	memset(ctx, 0, sizeof(*ctx));
+}
+
+static void dh_clear_ctx(struct dh_ctx *ctx)
+{
+	dh_clear_params(ctx);
+	dh_clear_key(ctx);
 }
 
 /*
@@ -52,6 +62,10 @@ static int dh_check_params_length(unsigned int p_len)
 
 static int dh_set_params(struct dh_ctx *ctx, struct dh *params)
 {
+	/* If DH parameters are not given, do not check them. */
+	if (!params->p_size && !params->g_size)
+		return 0;
+
 	if (dh_check_params_length(params->p_size << 3))
 		return -EINVAL;
 
@@ -72,6 +86,23 @@ static int dh_set_params(struct dh_ctx *ctx, struct dh *params)
 	return 0;
 }
 
+static int dh_set_params_pkcs3(struct crypto_kpp *tfm, const void *param,
+			       unsigned int param_len)
+{
+	struct dh_ctx *ctx = dh_get_ctx(tfm);
+	struct dh parsed_params;
+	int ret;
+
+	/* Free the old parameter if any */
+	dh_clear_params(ctx);
+
+	ret = dh_parse_params_pkcs3(&parsed_params, param, param_len);
+	if (ret)
+		return ret;
+
+	return dh_set_params(ctx, &parsed_params);
+}
+
 static int dh_set_secret(struct crypto_kpp *tfm, const void *buf,
 			 unsigned int len)
 {
@@ -79,7 +110,7 @@ static int dh_set_secret(struct crypto_kpp *tfm, const void *buf,
 	struct dh params;
 
 	/* Free the old MPI key if any */
-	dh_clear_ctx(ctx);
+	dh_clear_key(ctx);
 
 	if (crypto_dh_decode_key(buf, len, &params) < 0)
 		goto err_clear_ctx;
@@ -158,7 +189,7 @@ static int dh_compute_value(struct kpp_request *req)
 	if (!val)
 		return -ENOMEM;
 
-	if (unlikely(!ctx->xa)) {
+	if (unlikely(!ctx->xa || !ctx->p || !ctx->g)) {
 		ret = -EINVAL;
 		goto err_free_val;
 	}
@@ -246,6 +277,7 @@ static void dh_exit_tfm(struct crypto_kpp *tfm)
 }
 
 static struct kpp_alg dh = {
+	.set_params = dh_set_params_pkcs3,
 	.set_secret = dh_set_secret,
 	.generate_public_key = dh_compute_value,
 	.compute_shared_secret = dh_compute_value,

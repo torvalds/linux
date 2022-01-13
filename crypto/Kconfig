@@ -1916,6 +1916,25 @@ config CRYPTO_STATS
 	  - encrypt/decrypt/sign/verify numbers for asymmetric operations
 	  - generate/seed numbers for rng operations
 
+config CRYPTO_USER_API_AKCIPHER
+	tristate "User-space interface for asymmetric key cipher algorithms"
+	depends on NET
+	select CRYPTO_AKCIPHER2
+	select CRYPTO_USER_API
+	help
+	  This option enables the user-space interface for asymmetric
+	  key cipher algorithms.
+
+config CRYPTO_USER_API_KPP
+	tristate "User-space interface for key protocol primitives algorithms"
+	depends on NET
+	select CRYPTO_KPP2
+	select CRYPTO_USER_API
+	help
+	  This option enables the user-spaces interface for key protocol
+	  primitives algorithms. This covers Diffie-Hellman and EC
+	  Diffie-Hellman.
+
 config CRYPTO_HASH_INFO
 	bool
 

@@ -69,6 +69,8 @@ struct crypto_kpp {
  * @base:		Common crypto API algorithm data structure
  */
 struct kpp_alg {
+	int (*set_params)(struct crypto_kpp *tfm, const void *buffer,
+			  unsigned int len);
 	int (*set_secret)(struct crypto_kpp *tfm, const void *buffer,
 			  unsigned int len);
 	int (*generate_public_key)(struct kpp_request *req);
@@ -264,6 +266,29 @@ struct kpp_secret {
 	unsigned short type;
 	unsigned short len;
 };
+
+/**
+ * crypto_kpp_set_params() - Set parameters needed for kpp operation
+ *
+ * Function invokes the specific kpp operation for a given alg.
+ *
+ * @tfm:	tfm handle
+ * @buffer:	Buffer holding the protocol specific representation of the
+ *		parameters (e.g. PKCS#3 DER for DH)
+ * @len:	Length of the parameter buffer.
+ *
+ * Return: zero on success; error code in case of error
+ */
+static inline int crypto_kpp_set_params(struct crypto_kpp *tfm,
+				        const void *buffer, unsigned int len)
+{
+	struct kpp_alg *alg = crypto_kpp_alg(tfm);
+
+	if (alg->set_params)
+		return alg->set_params(tfm, buffer, len);
+	else
+		return -EOPNOTSUPP;
+}
 
 /**
  * crypto_kpp_set_secret() - Invoke kpp operation

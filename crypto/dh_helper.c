@@ -9,6 +9,7 @@
 #include <linux/string.h>
 #include <crypto/dh.h>
 #include <crypto/kpp.h>
+#include "dhparameter.asn1.h"
 
 #define DH_KPP_SECRET_MIN_SIZE (sizeof(struct kpp_secret) + 4 * sizeof(int))
 
@@ -49,16 +50,26 @@ int crypto_dh_encode_key(char *buf, unsigned int len, const struct dh *params)
 	if (unlikely(!len))
 		return -EINVAL;
 
+	/* Prevention of out-of-bounds access in decode code path */
+	if ((!params->key && params->key_size) ||
+	    (!params->p && params->p_size) ||
+	    (!params->g && params->g_size))
+		return -EINVAL;
+
 	ptr = dh_pack_data(ptr, end, &secret, sizeof(secret));
 	ptr = dh_pack_data(ptr, end, &params->key_size,
 			   sizeof(params->key_size));
 	ptr = dh_pack_data(ptr, end, &params->p_size, sizeof(params->p_size));
 	ptr = dh_pack_data(ptr, end, &params->q_size, sizeof(params->q_size));
 	ptr = dh_pack_data(ptr, end, &params->g_size, sizeof(params->g_size));
-	ptr = dh_pack_data(ptr, end, params->key, params->key_size);
-	ptr = dh_pack_data(ptr, end, params->p, params->p_size);
-	ptr = dh_pack_data(ptr, end, params->q, params->q_size);
-	ptr = dh_pack_data(ptr, end, params->g, params->g_size);
+	if (params->key)
+		ptr = dh_pack_data(ptr, end, params->key, params->key_size);
+	if (params->p)
+		ptr = dh_pack_data(ptr, end, params->p, params->p_size);
+	if (params->q)
+		ptr = dh_pack_data(ptr, end, params->q, params->q_size);
+	if (params->g)
+		ptr = dh_pack_data(ptr, end, params->g, params->g_size);
 	if (ptr != end)
 		return -EINVAL;
 	return 0;
@@ -116,3 +127,41 @@ int crypto_dh_decode_key(const char *buf, unsigned int len, struct dh *params)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(crypto_dh_decode_key);
+
+int dh_get_p(void *context, size_t hdrlen, unsigned char tag, const void *value,
+	     size_t vlen)
+{
+	struct dh *dh = context;
+
+	/* invalid key provided */
+	if (!value || !vlen)
+		return -EINVAL;
+
+	dh->p = value;
+	dh->p_size = vlen;
+
+	return 0;
+}
+
+int dh_get_g(void *context, size_t hdrlen, unsigned char tag,
+	     const void *value, size_t vlen)
+{
+	struct dh *dh = context;
+
+	/* invalid base provided */
+	if (!value || !dh->p_size || !vlen || vlen > dh->p_size)
+		return -EINVAL;
+
+	dh->g = value;
+	dh->g_size = vlen;
+
+	return 0;
+}
+
+int dh_parse_params_pkcs3(struct dh *dh, const void *param,
+			 unsigned int param_len)
+{
+	return asn1_ber_decoder(&dhparameter_decoder, dh, param, param_len);
+}
+EXPORT_SYMBOL_GPL(dh_parse_params_pkcs3);
+

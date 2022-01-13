@@ -55,7 +55,7 @@ static inline bool aead_sufficient_data(struct sock *sk)
 	 * The minimum amount of memory needed for an AEAD cipher is
 	 * the AAD and in case of decryption the tag.
 	 */
-	return ctx->used >= ctx->aead_assoclen + (ctx->enc ? 0 : as);
+	return ctx->used >= ctx->aead_assoclen + (ctx->op ? 0 : as);
 }
 
 static int aead_sendmsg(struct socket *sock, struct msghdr *msg, size_t size)
@@ -69,6 +69,19 @@ static int aead_sendmsg(struct socket *sock, struct msghdr *msg, size_t size)
 	unsigned int ivsize = crypto_aead_ivsize(tfm);
 
 	return af_alg_sendmsg(sock, msg, size, ivsize);
+}
+
+static inline int aead_cipher_op(struct af_alg_ctx *ctx,
+				 struct af_alg_async_req *areq)
+{
+	switch (ctx->op) {
+	case ALG_OP_ENCRYPT:
+		return crypto_aead_encrypt(&areq->cra_u.aead_req);
+	case ALG_OP_DECRYPT:
+		return crypto_aead_decrypt(&areq->cra_u.aead_req);
+	default:
+		return -EOPNOTSUPP;
+	}
 }
 
 static int crypto_aead_copy_sgl(struct crypto_sync_skcipher *null_tfm,
@@ -138,7 +151,7 @@ static int _aead_recvmsg(struct socket *sock, struct msghdr *msg,
 	 * buffer provides the tag which is consumed resulting in only the
 	 * plaintext without a buffer for the tag returned to the caller.
 	 */
-	if (ctx->enc)
+	if (ctx->op)
 		outlen = used + as;
 	else
 		outlen = used - as;
@@ -212,7 +225,7 @@ static int _aead_recvmsg(struct socket *sock, struct msghdr *msg,
 	/* Use the RX SGL as source (and destination) for crypto op. */
 	rsgl_src = areq->first_rsgl.sgl.sg;
 
-	if (ctx->enc) {
+	if (ctx->op == ALG_OP_ENCRYPT) {		
 		/*
 		 * Encryption operation - The in-place cipher operation is
 		 * achieved by the following operation:
@@ -228,7 +241,7 @@ static int _aead_recvmsg(struct socket *sock, struct msghdr *msg,
 		if (err)
 			goto free;
 		af_alg_pull_tsgl(sk, processed, NULL, 0);
-	} else {
+	} else if (ctx->op == ALG_OP_DECRYPT) {		
 		/*
 		 * Decryption operation - To achieve an in-place cipher
 		 * operation, the following  SGL structure is used:
@@ -293,9 +306,8 @@ static int _aead_recvmsg(struct socket *sock, struct msghdr *msg,
 		aead_request_set_callback(&areq->cra_u.aead_req,
 					  CRYPTO_TFM_REQ_MAY_SLEEP,
 					  af_alg_async_cb, areq);
-		err = ctx->enc ? crypto_aead_encrypt(&areq->cra_u.aead_req) :
-				 crypto_aead_decrypt(&areq->cra_u.aead_req);
-
+		err = aead_cipher_op(ctx, areq);
+ 
 		/* AIO operation in progress */
 		if (err == -EINPROGRESS)
 			return -EIOCBQUEUED;
@@ -307,10 +319,7 @@ static int _aead_recvmsg(struct socket *sock, struct msghdr *msg,
 					  CRYPTO_TFM_REQ_MAY_SLEEP |
 					  CRYPTO_TFM_REQ_MAY_BACKLOG,
 					  crypto_req_done, &ctx->wait);
-		err = crypto_wait_req(ctx->enc ?
-				crypto_aead_encrypt(&areq->cra_u.aead_req) :
-				crypto_aead_decrypt(&areq->cra_u.aead_req),
-				&ctx->wait);
+		err = crypto_wait_req(aead_cipher_op(ctx, areq), &ctx->wait);
 	}
 
 
