@@ -1211,7 +1211,7 @@ static bool aspeed_spi_support_op(struct spi_mem *mem,
 }
 
 /* AST2600-A3 */
-static const struct spi_controller_mem_ops aspeed_spi_ops_cmd_read_cmd_write = {
+static const struct spi_controller_mem_ops aspeed_spi_ops_user_read_write = {
 	.exec_op = aspeed_spi_exec_op_user_mode,
 	.get_name = aspeed_spi_get_name,
 	.supports_op = aspeed_spi_support_op,
@@ -1391,7 +1391,7 @@ static int aspeed_spi_probe(struct platform_device *pdev)
 		spi_ctrl->mem_ops = &aspeed_spi_ops_cmd_read_dma_write;
 	} else {
 		/* for AST2600-A3 */
-		spi_ctrl->mem_ops = &aspeed_spi_ops_cmd_read_cmd_write;
+		spi_ctrl->mem_ops = &aspeed_spi_ops_user_read_write;
 	}
 
 	spi_ctrl->dev.of_node = dev->of_node;
