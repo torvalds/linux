@@ -14,10 +14,11 @@
 #include "rga_drv.h"
 
 enum job_flags {
-	RGA_JOB_DONE		= 1 << 0,
-	RGA_JOB_ASYNC		= 1 << 1,
-	RGA_JOB_SYNC		= 1 << 2,
-	RGA_JOB_USE_HANDLE	= 1 << 3,
+	RGA_JOB_DONE			= 1 << 0,
+	RGA_JOB_ASYNC			= 1 << 1,
+	RGA_JOB_SYNC			= 1 << 2,
+	RGA_JOB_USE_HANDLE		= 1 << 3,
+	RGA_JOB_UNSUPPORT_RGA2		= 1 << 4,
 };
 
 struct rga_scheduler_t *rga_job_get_scheduler(int core);

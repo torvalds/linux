@@ -141,6 +141,67 @@ static int rga_job_cleanup(struct rga_job *job)
 	return 0;
 }
 
+static int rga_job_judgment_support_core(struct rga_job *job)
+{
+	int ret = 0;
+	uint32_t mm_flag;
+	struct rga_req *req;
+	struct rga_mm *mm;
+
+	req = &job->rga_command_base;
+	mm = rga_drvdata->mm;
+	if (mm == NULL) {
+		pr_err("rga mm is null!\n");
+		return -EFAULT;
+	}
+
+	mutex_lock(&mm->lock);
+
+	if (likely(req->src.yrgb_addr > 0)) {
+		ret = rga_mm_lookup_flag(mm, req->src.yrgb_addr);
+		if (ret < 0)
+			goto out_finish;
+		else
+			mm_flag = (uint32_t)ret;
+
+		if (~mm_flag & RGA_MM_UNDER_4G) {
+			job->flags |= RGA_JOB_UNSUPPORT_RGA2;
+			goto out_finish;
+		}
+	}
+
+	if (likely(req->dst.yrgb_addr > 0)) {
+		ret = rga_mm_lookup_flag(mm, req->dst.yrgb_addr);
+		if (ret < 0)
+			goto out_finish;
+		else
+			mm_flag = (uint32_t)ret;
+
+		if (~mm_flag & RGA_MM_UNDER_4G) {
+			job->flags |= RGA_JOB_UNSUPPORT_RGA2;
+			goto out_finish;
+		}
+	}
+
+	if (req->pat.yrgb_addr > 0) {
+		ret = rga_mm_lookup_flag(mm, req->pat.yrgb_addr);
+		if (ret < 0)
+			goto out_finish;
+		else
+			mm_flag = (uint32_t)ret;
+
+		if (~mm_flag & RGA_MM_UNDER_4G) {
+			job->flags |= RGA_JOB_UNSUPPORT_RGA2;
+			goto out_finish;
+		}
+	}
+
+out_finish:
+	mutex_unlock(&mm->lock);
+
+	return ret;
+}
+
 static struct rga_job *rga_job_alloc(struct rga_req *rga_command_base)
 {
 	struct rga_job *job = NULL;
@@ -164,10 +225,13 @@ static struct rga_job *rga_job_alloc(struct rga_req *rga_command_base)
 			job->priority = rga_command_base->priority;
 	}
 
-	if (job->rga_command_base.handle_flag & 1)
+	if (job->rga_command_base.handle_flag & 1) {
 		job->flags |= RGA_JOB_USE_HANDLE;
-	else
+
+		rga_job_judgment_support_core(job);
+	} else {
 		rga_job_get_current_mm(job);
+	}
 
 	return job;
 }

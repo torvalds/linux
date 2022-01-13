@@ -683,6 +683,19 @@ struct rga_internal_buffer *rga_mm_lookup_handle(struct rga_mm *mm_session, uint
 	return output_buffer;
 }
 
+int rga_mm_lookup_flag(struct rga_mm *mm_session, uint64_t handle)
+{
+	struct rga_internal_buffer *output_buffer;
+
+	output_buffer = rga_mm_lookup_handle(mm_session, handle);
+	if (output_buffer == NULL) {
+		pr_err("This handle[%ld] is illegal.\n", (unsigned long)handle);
+		return -EINVAL;
+	}
+
+	return output_buffer->mm_flag;
+}
+
 dma_addr_t rga_mm_lookup_iova(struct rga_internal_buffer *buffer, int core)
 {
 	int i;
