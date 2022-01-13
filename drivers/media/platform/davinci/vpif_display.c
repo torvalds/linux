@@ -1221,7 +1221,6 @@ static __init int vpif_probe(struct platform_device *pdev)
 {
 	struct vpif_subdev_info *subdevdata;
 	struct i2c_adapter *i2c_adap;
-	struct resource *res;
 	int subdev_count;
 	int res_idx = 0;
 	int i, err;
@@ -1245,18 +1244,25 @@ static __init int vpif_probe(struct platform_device *pdev)
 		goto vpif_free;
 	}
 
-	while ((res = platform_get_resource(pdev, IORESOURCE_IRQ, res_idx))) {
-		err = devm_request_irq(&pdev->dev, res->start, vpif_channel_isr,
-					IRQF_SHARED, VPIF_DRIVER_NAME,
-					(void *)(&vpif_obj.dev[res_idx]->
-					channel_id));
+	do {
+		int irq;
+
+		err = platform_get_irq_optional(pdev, res_idx);
+		if (err < 0 && err != -ENXIO)
+			goto vpif_unregister;
+		if (err > 0)
+			irq = err;
+		else
+			break;
+
+		err = devm_request_irq(&pdev->dev, irq, vpif_channel_isr,
+				       IRQF_SHARED, VPIF_DRIVER_NAME,
+				       (void *)(&vpif_obj.dev[res_idx]->channel_id));
 		if (err) {
-			err = -EINVAL;
 			vpif_err("VPIF IRQ request failed\n");
 			goto vpif_unregister;
 		}
-		res_idx++;
-	}
+	} while (++res_idx);
 
 	vpif_obj.config = pdev->dev.platform_data;
 	subdev_count = vpif_obj.config->subdev_count;

@@ -20,8 +20,10 @@
 #include <linux/err.h>
 #include <linux/init.h>
 #include <linux/io.h>
+#include <linux/irq.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/spinlock.h>
@@ -437,11 +439,12 @@ static void vpif_pdev_release(struct device *dev)
 
 static int vpif_probe(struct platform_device *pdev)
 {
-	static struct resource *res_irq;
+	static struct resource res_irq;
 	struct platform_device *pdev_capture, *pdev_display;
 	struct device_node *endpoint = NULL;
 	struct vpif_data *data;
 	int ret;
+	int irq;
 
 	vpif_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(vpif_base))
@@ -471,12 +474,13 @@ static int vpif_probe(struct platform_device *pdev)
 	 * For DT platforms, manually create platform_devices for
 	 * capture/display drivers.
 	 */
-	res_irq = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
-	if (!res_irq) {
-		dev_warn(&pdev->dev, "Missing IRQ resource.\n");
-		ret = -EINVAL;
+	irq = platform_get_irq(pdev, 0);
+	if (irq < 0) {
+		ret = irq;
 		goto err_put_rpm;
 	}
+	res_irq = (struct resource)DEFINE_RES_IRQ_NAMED(irq, of_node_full_name(pdev->dev.of_node));
+	res_irq.flags |= irq_get_trigger_type(irq);
 
 	pdev_capture = kzalloc(sizeof(*pdev_capture), GFP_KERNEL);
 	if (!pdev_capture) {
@@ -486,7 +490,7 @@ static int vpif_probe(struct platform_device *pdev)
 
 	pdev_capture->name = "vpif_capture";
 	pdev_capture->id = -1;
-	pdev_capture->resource = res_irq;
+	pdev_capture->resource = &res_irq;
 	pdev_capture->num_resources = 1;
 	pdev_capture->dev.dma_mask = pdev->dev.dma_mask;
 	pdev_capture->dev.coherent_dma_mask = pdev->dev.coherent_dma_mask;
@@ -505,7 +509,7 @@ static int vpif_probe(struct platform_device *pdev)
 
 	pdev_display->name = "vpif_display";
 	pdev_display->id = -1;
-	pdev_display->resource = res_irq;
+	pdev_display->resource = &res_irq;
 	pdev_display->num_resources = 1;
 	pdev_display->dev.dma_mask = pdev->dev.dma_mask;
 	pdev_display->dev.coherent_dma_mask = pdev->dev.coherent_dma_mask;
