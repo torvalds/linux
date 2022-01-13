@@ -25,15 +25,19 @@ int mux_div_set_src_div(struct clk_regmap_mux_div *md, u32 src, u32 div)
 	int ret, count;
 	u32 val, mask;
 	const char *name = clk_hw_get_name(&md->clkr.hw);
+	bool changed;
 
-	val = (div << md->hid_shift) | (src << md->src_shift);
+	val = ((div - 1) << md->hid_shift) | (src << md->src_shift);
 	mask = ((BIT(md->hid_width) - 1) << md->hid_shift) |
 	       ((BIT(md->src_width) - 1) << md->src_shift);
 
-	ret = regmap_update_bits(md->clkr.regmap, CFG_RCGR + md->reg_offset,
-				 mask, val);
+	ret = regmap_update_bits_check(md->clkr.regmap, CFG_RCGR + md->reg_offset,
+				 mask, val, &changed);
 	if (ret)
 		return ret;
+
+	if (!changed)
+		return 0;
 
 	ret = regmap_update_bits(md->clkr.regmap, CMD_RCGR + md->reg_offset,
 				 CMD_RCGR_UPDATE, CMD_RCGR_UPDATE);
@@ -76,47 +80,70 @@ static void mux_div_get_src_div(struct clk_regmap_mux_div *md, u32 *src,
 
 	d = (val >> md->hid_shift);
 	d &= BIT(md->hid_width) - 1;
-	*div = d;
+	*div = d + 1;
 }
 
-static inline bool is_better_rate(unsigned long req, unsigned long best,
-				  unsigned long new)
+static void __mux_div_determine_rate(struct clk_regmap_mux_div *md,
+		struct clk_rate_request *req)
 {
-	return (req <= new && new < best) || (best < req && best < new);
+	u64 rounded_rate, parent_rate;
+	u64 req_rate = req->rate, rate;
+	u32 div, max_div = BIT(md->hid_width);
+
+	if (clk_hw_can_set_rate_parent(&md->clkr.hw)) {
+		for (div = 2, parent_rate = req_rate;
+				div <= max_div;
+				div++, parent_rate += req_rate / 2) {
+			rounded_rate = clk_hw_round_rate(req->best_parent_hw, parent_rate);
+
+			if (rounded_rate > parent_rate)
+				continue;
+
+			req->rate = DIV_ROUND_UP(rounded_rate * 2, div);
+			req->best_parent_rate = rounded_rate;
+			return;
+		}
+	} else {
+		parent_rate = clk_hw_get_rate(req->best_parent_hw);
+		for (div = 2; div <= max_div; div++) {
+			rate = DIV_ROUND_UP(parent_rate * 2, div);
+
+
+			if (rate > req_rate)
+				continue;
+
+			req->rate = rate;
+			req->best_parent_rate = parent_rate;
+			return;
+		}
+	}
+}
+
+static inline bool is_better_rate(signed long req, signed long best, signed long new)
+{
+	return new > best && best <= req && new <= req;
 }
 
 static int mux_div_determine_rate(struct clk_hw *hw,
 				  struct clk_rate_request *req)
 {
 	struct clk_regmap_mux_div *md = to_clk_regmap_mux_div(hw);
-	unsigned int i, div, max_div;
-	unsigned long actual_rate, best_rate = 0;
-	unsigned long req_rate = req->rate;
+	struct clk_rate_request best = { 0 };
+	unsigned int i;
 
 	for (i = 0; i < clk_hw_get_num_parents(hw); i++) {
-		struct clk_hw *parent = clk_hw_get_parent_by_index(hw, i);
-		unsigned long parent_rate = clk_hw_get_rate(parent);
+		struct clk_rate_request rq = {
+			.rate = req->rate,
+			.best_parent_hw = clk_hw_get_parent_by_index(hw, i),
+		};
 
-		max_div = BIT(md->hid_width) - 1;
-		for (div = 1; div < max_div; div++) {
-			parent_rate = mult_frac(req_rate, div, 2);
-			parent_rate = clk_hw_round_rate(parent, parent_rate);
-			actual_rate = mult_frac(parent_rate, 2, div);
+		__mux_div_determine_rate(md, &rq);
 
-			if (is_better_rate(req_rate, best_rate, actual_rate)) {
-				best_rate = actual_rate;
-				req->rate = best_rate;
-				req->best_parent_rate = parent_rate;
-				req->best_parent_hw = parent;
-			}
-
-			if (actual_rate < req_rate || best_rate <= req_rate)
-				break;
-		}
+		if (is_better_rate(req->rate, best.rate, rq.rate))
+			best = rq;
 	}
 
-	if (!best_rate)
-		return -EINVAL;
+	*req = best;
 
 	return 0;
 }
@@ -125,62 +152,50 @@ static int __mux_div_set_rate_and_parent(struct clk_hw *hw, unsigned long rate,
 					 unsigned long prate, u32 src)
 {
 	struct clk_regmap_mux_div *md = to_clk_regmap_mux_div(hw);
+	u32 div, max_div;
 	int ret;
-	u32 div, max_div, best_src = 0, best_div = 0;
-	unsigned int i;
-	unsigned long actual_rate, best_rate = 0;
 
-	for (i = 0; i < clk_hw_get_num_parents(hw); i++) {
-		struct clk_hw *parent = clk_hw_get_parent_by_index(hw, i);
-		unsigned long parent_rate = clk_hw_get_rate(parent);
+	max_div = BIT(md->hid_width);
 
-		max_div = BIT(md->hid_width) - 1;
-		for (div = 1; div < max_div; div++) {
-			parent_rate = mult_frac(rate, div, 2);
-			parent_rate = clk_hw_round_rate(parent, parent_rate);
-			actual_rate = mult_frac(parent_rate, 2, div);
+	for (div = 2;
+	     div <= max_div && rate < mult_frac(prate, 2, div);
+	     div++);
 
-			if (is_better_rate(rate, best_rate, actual_rate)) {
-				best_rate = actual_rate;
-				best_src = md->parent_map[i];
-				best_div = div - 1;
-			}
+	ret = mux_div_set_src_div(md, src, div);
+	if (ret < 0)
+		return ret;
 
-			if (actual_rate < rate || best_rate <= rate)
-				break;
-		}
-	}
+	md->div = div;
+	md->src = src;
 
-	ret = mux_div_set_src_div(md, best_src, best_div);
-	if (!ret) {
-		md->div = best_div;
-		md->src = best_src;
-	}
-
-	return ret;
+	return 0;
 }
 
 static u8 mux_div_get_parent(struct clk_hw *hw)
 {
 	struct clk_regmap_mux_div *md = to_clk_regmap_mux_div(hw);
-	const char *name = clk_hw_get_name(hw);
-	u32 i, div, src = 0;
-
-	mux_div_get_src_div(md, &src, &div);
+	int i;
 
 	for (i = 0; i < clk_hw_get_num_parents(hw); i++)
-		if (src == md->parent_map[i])
+		if (md->src == md->parent_map[i])
 			return i;
 
-	pr_err("%s: Can't find parent with src %d\n", name, src);
+	pr_err("%s: Can't find parent with src %d\n", clk_hw_get_name(hw) ?: "NULL" , md->src);
 	return 0;
 }
 
 static int mux_div_set_parent(struct clk_hw *hw, u8 index)
 {
 	struct clk_regmap_mux_div *md = to_clk_regmap_mux_div(hw);
+	int ret;
 
-	return mux_div_set_src_div(md, md->parent_map[index], md->div);
+	ret = mux_div_set_src_div(md, md->parent_map[index], md->div);
+	if (ret < 0)
+		return ret;
+
+	md->src = md->parent_map[index];
+
+	return 0;
 }
 
 static int mux_div_set_rate(struct clk_hw *hw,
@@ -196,27 +211,25 @@ static int mux_div_set_rate_and_parent(struct clk_hw *hw,  unsigned long rate,
 {
 	struct clk_regmap_mux_div *md = to_clk_regmap_mux_div(hw);
 
-	return __mux_div_set_rate_and_parent(hw, rate, prate,
-					     md->parent_map[index]);
+	return __mux_div_set_rate_and_parent(hw, rate, prate, md->parent_map[index]);
 }
 
 static unsigned long mux_div_recalc_rate(struct clk_hw *hw, unsigned long prate)
 {
 	struct clk_regmap_mux_div *md = to_clk_regmap_mux_div(hw);
 	u32 div, src;
-	int i, num_parents = clk_hw_get_num_parents(hw);
-	const char *name = clk_hw_get_name(hw);
 
 	mux_div_get_src_div(md, &src, &div);
-	for (i = 0; i < num_parents; i++)
-		if (src == md->parent_map[i]) {
-			struct clk_hw *p = clk_hw_get_parent_by_index(hw, i);
-			unsigned long parent_rate = clk_hw_get_rate(p);
 
-			return mult_frac(parent_rate, 2, div + 1);
-		}
+	return mult_frac(prate, 2, div);
+}
 
-	pr_err("%s: Can't find parent %d\n", name, src);
+static int mux_div_init(struct clk_hw *hw)
+{
+	struct clk_regmap_mux_div *md = to_clk_regmap_mux_div(hw);
+
+	mux_div_get_src_div(md, &md->src, &md->div);
+
 	return 0;
 }
 
@@ -227,5 +240,6 @@ const struct clk_ops clk_regmap_mux_div_ops = {
 	.set_rate_and_parent = mux_div_set_rate_and_parent,
 	.determine_rate = mux_div_determine_rate,
 	.recalc_rate = mux_div_recalc_rate,
+	.init = mux_div_init,
 };
 EXPORT_SYMBOL_GPL(clk_regmap_mux_div_ops);
