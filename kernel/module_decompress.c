@@ -106,7 +106,7 @@ static ssize_t module_gzip_decompress(struct load_info *info,
 
 	rc = zlib_inflateInit2(&s, -MAX_WBITS);
 	if (rc != Z_OK) {
-		pr_err("failed to initialize decompresser: %d\n", rc);
+		pr_err("failed to initialize decompressor: %d\n", rc);
 		retval = -EINVAL;
 		goto out;
 	}
