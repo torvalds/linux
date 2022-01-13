@@ -101,8 +101,7 @@ static int wfx_hif_receive_indication(struct wfx_dev *wdev, const struct wfx_hif
 	const struct wfx_hif_ind_rx *body = buf;
 
 	if (!wvif) {
-		dev_warn(wdev->dev, "%s: ignore rx data for non-existent vif %d\n",
-			 __func__, hif->interface);
+		dev_warn(wdev->dev, "%s: received event for non-existent vif\n", __func__);
 		return -EIO;
 	}
 	skb_pull(skb, sizeof(struct wfx_hif_msg) + sizeof(struct wfx_hif_ind_rx));

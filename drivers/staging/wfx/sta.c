@@ -513,13 +513,12 @@ void wfx_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		else if (!info->assoc && vif->type == NL80211_IFTYPE_STATION)
 			wfx_reset(wvif);
 		else
-			dev_warn(wdev->dev, "%s: misunderstood change: ASSOC\n",
-				 __func__);
+			dev_warn(wdev->dev, "misunderstood change: ASSOC\n");
 	}
 
 	if (changed & BSS_CHANGED_BEACON_INFO) {
 		if (vif->type != NL80211_IFTYPE_STATION)
-			dev_warn(wdev->dev, "%s: misunderstood change: BEACON_INFO\n", __func__);
+			dev_warn(wdev->dev, "misunderstood change: BEACON_INFO\n");
 		wfx_hif_set_beacon_wakeup_period(wvif, info->dtim_period, info->dtim_period);
 		/* We temporary forwarded beacon for join process. It is now no more necessary. */
 		wfx_filter_beacon(wvif, true);

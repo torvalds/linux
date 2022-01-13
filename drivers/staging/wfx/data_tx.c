@@ -425,7 +425,7 @@ static void wfx_skb_dtor(struct wfx_vif *wvif, struct sk_buff *skb)
 			      req->fc_offset;
 
 	if (!wvif) {
-		pr_warn("%s: vif associated with the skb does not exist anymore\n", __func__);
+		pr_warn("vif associated with the skb does not exist anymore\n");
 		return;
 	}
 	wfx_tx_policy_put(wvif, req->retry_policy_index);
