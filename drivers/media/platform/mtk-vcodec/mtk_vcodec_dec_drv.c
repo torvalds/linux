@@ -11,6 +11,7 @@
 #include <linux/module.h>
 #include <linux/of_device.h>
 #include <linux/of.h>
+#include <linux/pm_runtime.h>
 #include <media/v4l2-event.h>
 #include <media/v4l2-mem2mem.h>
 #include <media/videobuf2-dma-contig.h>
@@ -128,12 +129,13 @@ static int mtk_vcodec_init_dec_resources(struct mtk_vcodec_dev *dev)
 		return ret;
 	}
 
-	ret = mtk_vcodec_init_dec_pm(pdev, &dev->pm);
+	ret = mtk_vcodec_init_dec_clk(pdev, &dev->pm);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "failed to get mt vcodec clock source");
 		return ret;
 	}
 
+	pm_runtime_enable(&pdev->dev);
 	return 0;
 }
 
@@ -447,7 +449,8 @@ err_core_workq:
 	if (IS_VDEC_LAT_ARCH(dev->vdec_pdata->hw_arch))
 		destroy_workqueue(dev->core_workqueue);
 err_res:
-	mtk_vcodec_release_dec_pm(&dev->pm);
+	pm_runtime_disable(dev->pm.dev);
+	put_device(dev->pm.larbvdec);
 err_dec_pm:
 	mtk_vcodec_fw_release(dev->fw_handler);
 	return ret;
@@ -490,7 +493,8 @@ static int mtk_vcodec_dec_remove(struct platform_device *pdev)
 		video_unregister_device(dev->vfd_dec);
 
 	v4l2_device_unregister(&dev->v4l2_dev);
-	mtk_vcodec_release_dec_pm(&dev->pm);
+	pm_runtime_disable(dev->pm.dev);
+	put_device(dev->pm.larbvdec);
 	mtk_vcodec_fw_release(dev->fw_handler);
 	return 0;
 }
