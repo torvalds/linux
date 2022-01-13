@@ -510,6 +510,9 @@ static u64 cs_etmv4_get_config(struct auxtrace_record *itr)
 	if (config_opts & BIT(ETM_OPT_CTXTID2))
 		config |= BIT(ETM4_CFG_BIT_VMID) |
 			  BIT(ETM4_CFG_BIT_VMID_OPT);
+	if (config_opts & BIT(ETM_OPT_BRANCH_BROADCAST))
+		config |= BIT(ETM4_CFG_BIT_BB);
+
 	return config;
 }
 
