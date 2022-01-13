@@ -12,6 +12,10 @@
 
 struct wfx_dev;
 
+/* Caution: in the functions below, 'buf' will used with a DMA. So, it must be
+ * kmalloc'd (do not use stack allocated buffers). In doubt, enable
+ * CONFIG_DEBUG_SG to detect badly located buffer.
+ */
 int wfx_data_read(struct wfx_dev *wdev, void *buf, size_t buf_len);
 int wfx_data_write(struct wfx_dev *wdev, const void *buf, size_t buf_len);
 
