@@ -260,8 +260,6 @@ void kbase_pm_driver_resume(struct kbase_device *kbdev, bool arb_gpu_start)
 	 * atoms
 	 */
 	kbasep_js_resume(kbdev);
-#else
-	kbase_csf_scheduler_pm_resume(kbdev);
 #endif
 
 	/* Matching idle call, to power off the GPU/cores if we didn't actually
