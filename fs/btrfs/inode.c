@@ -8200,7 +8200,7 @@ static void wait_subpage_spinlock(struct page *page)
 	struct btrfs_fs_info *fs_info = btrfs_sb(page->mapping->host->i_sb);
 	struct btrfs_subpage *subpage;
 
-	if (fs_info->sectorsize == PAGE_SIZE)
+	if (!btrfs_is_subpage(fs_info, page))
 		return;
 
 	ASSERT(PagePrivate(page) && page->private);

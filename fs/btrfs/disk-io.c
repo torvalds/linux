@@ -519,7 +519,7 @@ static int csum_dirty_buffer(struct btrfs_fs_info *fs_info, struct bio_vec *bvec
 	u64 found_start;
 	struct extent_buffer *eb;
 
-	if (fs_info->sectorsize < PAGE_SIZE)
+	if (fs_info->nodesize < PAGE_SIZE)
 		return csum_dirty_subpage_buffers(fs_info, bvec);
 
 	eb = (struct extent_buffer *)page->private;
@@ -704,7 +704,7 @@ int btrfs_validate_metadata_buffer(struct btrfs_bio *bbio,
 
 	ASSERT(page->private);
 
-	if (btrfs_sb(page->mapping->host->i_sb)->sectorsize < PAGE_SIZE)
+	if (btrfs_sb(page->mapping->host->i_sb)->nodesize < PAGE_SIZE)
 		return validate_subpage_buffer(page, start, end, mirror);
 
 	eb = (struct extent_buffer *)page->private;
