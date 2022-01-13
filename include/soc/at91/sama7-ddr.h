@@ -13,11 +13,11 @@
 
 /* DDR3PHY */
 #define DDR3PHY_PIR				(0x04)		/* DDR3PHY PHY Initialization Register	*/
-#define	DDR3PHY_PIR_DLLBYP		(1 << 17)	/* DLL Bypass */
+#define	DDR3PHY_PIR_DLLBYP			(1 << 17)	/* DLL Bypass */
 #define		DDR3PHY_PIR_ITMSRST		(1 << 4)	/* Interface Timing Module Soft Reset */
-#define	DDR3PHY_PIR_DLLLOCK		(1 << 2)	/* DLL Lock */
+#define	DDR3PHY_PIR_DLLLOCK			(1 << 2)	/* DLL Lock */
 #define		DDR3PHY_PIR_DLLSRST		(1 << 1)	/* DLL Soft Rest */
-#define	DDR3PHY_PIR_INIT		(1 << 0)	/* Initialization Trigger */
+#define	DDR3PHY_PIR_INIT			(1 << 0)	/* Initialization Trigger */
 
 #define DDR3PHY_PGCR				(0x08)		/* DDR3PHY PHY General Configuration Register */
 #define		DDR3PHY_PGCR_CKDV1		(1 << 13)	/* CK# Disable Value */
@@ -65,7 +65,7 @@
 #define		UDDRC_SWSTAT_SW_DONE_ACK	(1 << 0)	/* Register programming done */
 
 #define UDDRC_PSTAT				(0x3FC)		/* UDDRC Port Status Register */
-#define	UDDRC_PSTAT_ALL_PORTS		(0x1F001F)	/* Read + writes outstanding transactions on all ports */
+#define	UDDRC_PSTAT_ALL_PORTS			(0x1F001F)	/* Read + writes outstanding transactions on all ports */
 
 #define UDDRC_PCTRL_0				(0x490)		/* UDDRC Port 0 Control Register */
 #define UDDRC_PCTRL_1				(0x540)		/* UDDRC Port 1 Control Register */
