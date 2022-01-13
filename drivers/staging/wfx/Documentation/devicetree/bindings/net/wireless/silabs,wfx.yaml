@@ -64,8 +64,7 @@ properties:
   reset-gpios:
     description: (SPI only) Phandle of gpio that will be used to reset chip
       during probe. Without this property, you may encounter issues with warm
-      boot. (For legacy purpose, the gpio in inverted when compatible ==
-      "silabs,wfx-spi")
+      boot.
 
       For SDIO, the reset gpio should declared using a mmc-pwrseq.
     maxItems: 1

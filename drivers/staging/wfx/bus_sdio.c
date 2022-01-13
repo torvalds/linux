@@ -41,12 +41,6 @@ static const struct wfx_platform_data pdata_brd8023a = {
 	.file_pds = "wfx/brd8023a.pds",
 };
 
-/* Legacy DT don't use it */
-static const struct wfx_platform_data pdata_wfx_sdio = {
-	.file_fw = "wfm_wf200",
-	.file_pds = "wf200.pds",
-};
-
 struct wfx_sdio_priv {
 	struct sdio_func *func;
 	struct wfx_dev *core;
@@ -193,7 +187,6 @@ static const struct of_device_id wfx_sdio_of_match[] = {
 	{ .compatible = "silabs,brd4001a", .data = &pdata_brd4001a },
 	{ .compatible = "silabs,brd8022a", .data = &pdata_brd8022a },
 	{ .compatible = "silabs,brd8023a", .data = &pdata_brd8023a },
-	{ .compatible = "silabs,wfx-sdio", .data = &pdata_wfx_sdio },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, wfx_sdio_of_match);

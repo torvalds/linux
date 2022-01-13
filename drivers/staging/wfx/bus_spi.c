@@ -47,14 +47,6 @@ static const struct wfx_platform_data pdata_brd8023a = {
 	.use_rising_clk = true,
 };
 
-/* Legacy DT don't use it */
-static const struct wfx_platform_data pdata_wfx_spi = {
-	.file_fw = "wfm_wf200",
-	.file_pds = "wf200.pds",
-	.use_rising_clk = true,
-	.reset_inverted = true,
-};
-
 struct wfx_spi_priv {
 	struct spi_device *func;
 	struct wfx_dev *core;
@@ -237,8 +229,6 @@ static int wfx_spi_probe(struct spi_device *func)
 		dev_warn(&func->dev, "gpio reset is not defined, trying to load firmware anyway\n");
 	} else {
 		gpiod_set_consumer_name(bus->gpio_reset, "wfx reset");
-		if (pdata->reset_inverted)
-			gpiod_toggle_active_low(bus->gpio_reset);
 		gpiod_set_value_cansleep(bus->gpio_reset, 1);
 		usleep_range(100, 150);
 		gpiod_set_value_cansleep(bus->gpio_reset, 0);
@@ -269,7 +259,6 @@ static const struct spi_device_id wfx_spi_id[] = {
 	{ "brd4001a", (kernel_ulong_t)&pdata_brd4001a },
 	{ "brd8022a", (kernel_ulong_t)&pdata_brd8022a },
 	{ "brd8023a", (kernel_ulong_t)&pdata_brd8023a },
-	{ "wfx-spi",  (kernel_ulong_t)&pdata_wfx_spi },
 	{ },
 };
 MODULE_DEVICE_TABLE(spi, wfx_spi_id);
@@ -280,7 +269,6 @@ static const struct of_device_id wfx_spi_of_match[] = {
 	{ .compatible = "silabs,brd4001a" },
 	{ .compatible = "silabs,brd8022a" },
 	{ .compatible = "silabs,brd8023a" },
-	{ .compatible = "silabs,wfx-spi" },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, wfx_spi_of_match);
