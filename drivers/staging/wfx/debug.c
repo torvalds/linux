@@ -44,17 +44,17 @@ static const char *get_symbol(unsigned long val,
 	return "unknown";
 }
 
-const char *get_hif_name(unsigned long id)
+const char *wfx_get_hif_name(unsigned long id)
 {
 	return get_symbol(id, hif_msg_print_map);
 }
 
-const char *get_mib_name(unsigned long id)
+const char *wfx_get_mib_name(unsigned long id)
 {
 	return get_symbol(id, hif_mib_print_map);
 }
 
-const char *get_reg_name(unsigned long id)
+const char *wfx_get_reg_name(unsigned long id)
 {
 	return get_symbol(id, wfx_reg_print_map);
 }

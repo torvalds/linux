@@ -106,15 +106,15 @@ int wfx_cmd_send(struct wfx_dev *wdev, struct hif_msg *request,
 
 	if (ret &&
 	    (cmd == HIF_REQ_ID_READ_MIB || cmd == HIF_REQ_ID_WRITE_MIB)) {
-		mib_name = get_mib_name(((u16 *)request)[2]);
+		mib_name = wfx_get_mib_name(((u16 *)request)[2]);
 		mib_sep = "/";
 	}
 	if (ret < 0)
 		dev_err(wdev->dev, "hardware request %s%s%s (%#.2x) on vif %d returned error %d\n",
-			get_hif_name(cmd), mib_sep, mib_name, cmd, vif, ret);
+			wfx_get_hif_name(cmd), mib_sep, mib_name, cmd, vif, ret);
 	if (ret > 0)
 		dev_warn(wdev->dev, "hardware request %s%s%s (%#.2x) on vif %d returned status %d\n",
-			 get_hif_name(cmd), mib_sep, mib_name, cmd, vif, ret);
+			 wfx_get_hif_name(cmd), mib_sep, mib_name, cmd, vif, ret);
 
 	return ret;
 }
@@ -196,7 +196,7 @@ int wfx_hif_read_mib(struct wfx_dev *wdev, int vif_id, u16 mib_id,
 	}
 	if (ret == -ENOMEM)
 		dev_err(wdev->dev, "buffer is too small to receive %s (%zu < %d)\n",
-			get_mib_name(mib_id), val_len,
+			wfx_get_mib_name(mib_id), val_len,
 			le16_to_cpu(reply->length));
 	if (!ret)
 		memcpy(val, &reply->mib_data, le16_to_cpu(reply->length));
