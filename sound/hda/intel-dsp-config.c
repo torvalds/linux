@@ -309,12 +309,29 @@ static const struct config_entry config_table[] = {
 	},
 #endif
 
-/* JasperLake */
+/* Jasper Lake */
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_JASPERLAKE)
 	{
 		.flags = FLAG_SOF,
 		.device = 0x4dc8,
+		.dmi_table = (const struct dmi_system_id []) {
+			{
+				.ident = "Google Chromebooks",
+				.matches = {
+					DMI_MATCH(DMI_SYS_VENDOR, "Google"),
+				}
+			},
+			{}
+		}
+	},
+	{
+		.flags = FLAG_SOF,
+		.device = 0x4dc8,
 		.codec_hid = "ESSX8336",
+	},
+	{
+		.flags = FLAG_SOF | FLAG_SOF_ONLY_IF_DMIC,
+		.device = 0x4dc8,
 	},
 #endif
 
