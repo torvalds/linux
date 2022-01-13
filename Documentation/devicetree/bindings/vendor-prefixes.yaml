@@ -25,6 +25,8 @@ patternProperties:
   # Keep list in alphabetical order.
   "^70mai,.*":
     description: 70mai Co., Ltd.
+  "^8dev,.*":
+    description: 8devices, UAB
   "^abb,.*":
     description: ABB
   "^abilis,.*":
