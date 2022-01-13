@@ -464,10 +464,12 @@
 			compatible = "mediatek,mt8192-nor";
 			reg = <0 0x11234000 0 0xe0>;
 			interrupts = <GIC_SPI 431 IRQ_TYPE_LEVEL_HIGH 0>;
-			clocks = <&clk26m>,
-				 <&clk26m>,
-				 <&clk26m>;
+			clocks = <&topckgen CLK_TOP_SFLASH_SEL>,
+				 <&infracfg CLK_INFRA_FLASHIF_SFLASH>,
+				 <&infracfg CLK_INFRA_FLASHIF_TOP_H_133M>;
 			clock-names = "spi", "sf", "axi";
+			assigned-clocks = <&topckgen CLK_TOP_SFLASH_SEL>;
+			assigned-clock-parents = <&clk26m>;
 			#address-cells = <1>;
 			#size-cells = <0>;
 			status = "disable";
