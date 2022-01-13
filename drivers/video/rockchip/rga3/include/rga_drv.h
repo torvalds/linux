@@ -189,9 +189,10 @@ struct rga_virt_addr {
 
 	struct page **pages;
 	int pages_order;
-
-	struct sg_table *sgt;
+	int page_count;
 	unsigned long size;
+
+	int result;
 };
 
 struct rga_internal_buffer {

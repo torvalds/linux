@@ -537,7 +537,6 @@ static int rga2_mmu_set_channel_internal(struct rga_scheduler_t *scheduler,
 					 uint32_t *virt_flush_count,
 					 int map_flag)
 {
-	int i;
 	struct sg_table *sgt = NULL;
 
 	sgt = rga_mm_lookup_sgt(internal_buffer, scheduler->core);
@@ -548,20 +547,6 @@ static int rga2_mmu_set_channel_internal(struct rga_scheduler_t *scheduler,
 
 	if (internal_buffer->type == RGA_VIRTUAL_ADDRESS) {
 		rga2_sgt_to_page_table(sgt, mmu_base, page_count, false);
-
-		/*
-		 * Some userspace virtual addresses do not have an
-		 * interface for flushing the cache, so it is mandatory
-		 * to flush the cache when the virtual address is used.
-		 */
-		for (i = 0; i < page_count; i++)
-			mmu_base[i] = rga2_dma_map_flush_page(phys_to_page(mmu_base[i]),
-								map_flag,
-								scheduler);
-
-		/* Save pagetable to unmap. */
-		*virt_flush_base = mmu_base;
-		*virt_flush_count = page_count;
 	} else {
 		page_count = (page_count + 15) & (~15);
 		rga2_sgt_to_page_table(sgt, mmu_base, page_count, true);

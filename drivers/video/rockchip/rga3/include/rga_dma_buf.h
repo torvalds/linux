@@ -18,7 +18,6 @@ int rga_buf_size_cal(unsigned long yrgb_addr, unsigned long uv_addr,
 int rga_dma_buf_get(struct rga_job *job);
 
 int rga_iommu_map_virt_addr(struct rga_memory_parm *memory_parm,
-			    struct rga_virt_addr *virt_addr,
 			    struct rga_dma_buffer *virt_dma_buf,
 			    struct device *rga_dev,
 			    struct mm_struct *mm);

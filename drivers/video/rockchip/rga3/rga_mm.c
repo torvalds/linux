@@ -183,26 +183,73 @@ static int rga_get_user_pages(struct page **pages, unsigned long Memory,
 	return ret;
 }
 
-static void rga_virt_addr_put_sgt(struct rga_virt_addr *virt_addr)
+static void rga_free_sgt(struct rga_dma_buffer *virt_dma_buf)
 {
+	if (virt_dma_buf->sgt == NULL)
+		return;
+
+	sg_free_table(virt_dma_buf->sgt);
+	kfree(virt_dma_buf->sgt);
+	virt_dma_buf->sgt = NULL;
+}
+
+static int rga_alloc_sgt(struct rga_virt_addr *virt_addr,
+			 struct rga_dma_buffer *virt_dma_buf)
+{
+	int ret;
+	struct sg_table *sgt = NULL;
+
+	sgt = kzalloc(sizeof(struct sg_table), GFP_KERNEL);
+	if (sgt == NULL) {
+		pr_err("%s alloc sgt error!\n", __func__);
+		return -ENOMEM;
+	}
+
+	/* get sg form pages. */
+	if (sg_alloc_table_from_pages(sgt, virt_addr->pages,
+				      virt_addr->page_count, 0,
+				      virt_addr->size, GFP_KERNEL)) {
+		pr_err("sg_alloc_table_from_pages failed");
+		ret = -ENOMEM;
+		goto out_free_sgt;
+	}
+
+	virt_dma_buf->sgt = sgt;
+	virt_dma_buf->size = virt_addr->size;
+
+	return 0;
+
+out_free_sgt:
+	kfree(sgt);
+
+	return ret;
+}
+
+static void rga_free_virt_addr(struct rga_virt_addr **virt_addr_p)
+{
+	int i;
+	struct rga_virt_addr *virt_addr = NULL;
+
+	if (virt_addr_p == NULL)
+		return;
+
+	virt_addr = *virt_addr_p;
 	if (virt_addr == NULL)
 		return;
 
-	sg_free_table(virt_addr->sgt);
-	kfree(virt_addr->sgt);
-	virt_addr->sgt = NULL;
+	for (i = 0; i < virt_addr->result; i++)
+		put_page(virt_addr->pages[i]);
 
 	free_pages((unsigned long)virt_addr->pages, virt_addr->pages_order);
-	virt_addr->pages = 0;
-	virt_addr->pages_order = 0;
+	kfree(virt_addr);
+	*virt_addr_p = NULL;
 }
 
-
-static int rga_virt_addr_get_sgt(uint64_t viraddr,
-				 struct rga_memory_parm *memory_parm,
-				 struct rga_virt_addr *virt_addr,
-				 int writeFlag,
-				 struct mm_struct *mm)
+static int rga_alloc_virt_addr(struct rga_virt_addr **virt_addr_p,
+			       uint64_t viraddr,
+			       struct rga_memory_parm *memory_parm,
+			       int writeFlag,
+			       struct mm_struct *mm)
 {
 	int i;
 	int ret;
@@ -212,9 +259,8 @@ static int rga_virt_addr_get_sgt(uint64_t viraddr,
 	unsigned int count;
 	unsigned long start_addr;
 	unsigned long size;
-
 	struct page **pages = NULL;
-	struct sg_table *sgt;
+	struct rga_virt_addr *virt_addr = NULL;
 
 	user_format_convert(&format, memory_parm->format);
 
@@ -238,42 +284,30 @@ static int rga_virt_addr_get_sgt(uint64_t viraddr,
 		ret = -EINVAL;
 		goto out_free_pages;
 	} else if (ret > 0) {
+		/* For put pages */
 		result = ret;
 	}
 
-	sgt = kzalloc(sizeof(struct sg_table), GFP_KERNEL);
-	if (sgt == NULL) {
-		pr_err("%s alloc sgt error!\n", __func__);
+	*virt_addr_p = kzalloc(sizeof(struct rga_virt_addr), GFP_KERNEL);
+	if (*virt_addr_p == NULL) {
+		pr_err("%s alloc virt_addr error!\n", __func__);
 		ret = -ENOMEM;
-		goto out_free_and_put_pages;
+		goto out_put_and_free_pages;
 	}
+	virt_addr = *virt_addr_p;
 
-	/* get sg form pages. */
-	if (sg_alloc_table_from_pages(sgt, pages, count, 0, size, GFP_KERNEL)) {
-		pr_err("sg_alloc_table_from_pages failed");
-		ret = -ENOMEM;
-		goto out_free_sgt;
-	}
-
-	virt_addr->sgt = sgt;
+	virt_addr->addr = viraddr;
 	virt_addr->pages = pages;
 	virt_addr->pages_order = order;
+	virt_addr->page_count = count;
 	virt_addr->size = size;
-
-	if (result)
-		for (i = 0; i < result; i++)
-			put_page(pages[i]);
+	virt_addr->result = result;
 
 	return 0;
 
-out_free_sgt:
-	kfree(sgt);
-
-out_free_and_put_pages:
-	if (result)
-		for (i = 0; i < result; i++)
-			put_page(pages[i]);
-
+out_put_and_free_pages:
+	for (i = 0; i < result; i++)
+		put_page(pages[i]);
 out_free_pages:
 	free_pages((unsigned long)pages, order);
 
@@ -356,20 +390,28 @@ static void rga_mm_unmap_virt_addr(struct rga_internal_buffer *internal_buffer)
 {
 	int i;
 
+	WARN_ON(internal_buffer->dma_buffer == NULL || internal_buffer->virt_addr == NULL);
+
 	for (i = 0; i < internal_buffer->dma_buffer_size; i++)
-		if (internal_buffer->dma_buffer[i].iova > 0)
+		if (rga_drvdata->rga_scheduler[i]->core == RGA3_SCHEDULER_CORE0 ||
+		    rga_drvdata->rga_scheduler[i]->core == RGA3_SCHEDULER_CORE1)
 			rga_iommu_unmap_virt_addr(&internal_buffer->dma_buffer[i]);
+		else if (internal_buffer->dma_buffer[i].core != 0)
+			dma_unmap_sg(rga_drvdata->rga_scheduler[i]->dev,
+				     internal_buffer->dma_buffer[i].sgt->sgl,
+				     internal_buffer->dma_buffer[i].sgt->orig_nents,
+				     DMA_BIDIRECTIONAL);
 
-	rga_virt_addr_put_sgt(internal_buffer->virt_addr);
+	for (i = 0; i < internal_buffer->dma_buffer_size; i++)
+		rga_free_sgt(&internal_buffer->dma_buffer[i]);
+	kfree(internal_buffer->dma_buffer);
+	internal_buffer->dma_buffer_size = 0;
 
-	kfree(internal_buffer->virt_addr);
-	internal_buffer->virt_addr = NULL;
+	rga_free_virt_addr(&internal_buffer->virt_addr);
 
-	if (internal_buffer->current_mm != NULL) {
-		mmput(internal_buffer->current_mm);
-		mmdrop(internal_buffer->current_mm);
-		internal_buffer->current_mm = NULL;
-	}
+	mmput(internal_buffer->current_mm);
+	mmdrop(internal_buffer->current_mm);
+	internal_buffer->current_mm = NULL;
 }
 
 static int rga_mm_map_virt_addr(struct rga_external_buffer *external_buffer,
@@ -377,8 +419,6 @@ static int rga_mm_map_virt_addr(struct rga_external_buffer *external_buffer,
 {
 	int i;
 	int ret;
-	int iommu_dev_count;
-	int iommu_dev_num;
 
 	internal_buffer->current_mm = current->mm;
 	if (internal_buffer->current_mm == NULL) {
@@ -388,77 +428,96 @@ static int rga_mm_map_virt_addr(struct rga_external_buffer *external_buffer,
 	mmgrab(internal_buffer->current_mm);
 	mmget(internal_buffer->current_mm);
 
-	internal_buffer->virt_addr = kzalloc(sizeof(struct rga_virt_addr), GFP_KERNEL);
-	if (internal_buffer->virt_addr == NULL) {
-		pr_err("%s alloc internal_buffer->virt_addr error!\n", __func__);
-		ret = -ENOMEM;
+	ret = rga_alloc_virt_addr(&internal_buffer->virt_addr,
+				  external_buffer->memory,
+				  &internal_buffer->memory_parm,
+				  0, internal_buffer->current_mm);
+	if (ret < 0) {
+		pr_err("Can not alloc rga_virt_addr from 0x%lx\n",
+		       (unsigned long)external_buffer->memory);
 		goto put_current_mm;
 	}
 
-	ret = rga_virt_addr_get_sgt(external_buffer->memory,
-				    &internal_buffer->memory_parm,
-				    internal_buffer->virt_addr,
-				    0, internal_buffer->current_mm);
-	if (ret < 0) {
-		pr_err("Can not get sgt from 0x%lx\n", (unsigned long)external_buffer->memory);
-			goto free_virt_addr;
-	}
-
-	internal_buffer->virt_addr->addr = external_buffer->memory;
-
-	if (rga_mm_check_range_sgt(internal_buffer->virt_addr->sgt))
-		internal_buffer->mm_flag |= RGA_MM_UNDER_4G;
-
-	iommu_dev_count = 0;
-	for (i = 0; i < rga_drvdata->num_of_scheduler; i++)
-		if (rga_drvdata->rga_scheduler[i]->core == RGA3_SCHEDULER_CORE0 ||
-		    rga_drvdata->rga_scheduler[i]->core == RGA3_SCHEDULER_CORE1)
-			iommu_dev_count++;
-
-	internal_buffer->dma_buffer = kcalloc(iommu_dev_count,
+	internal_buffer->dma_buffer = kcalloc(rga_drvdata->num_of_scheduler,
 					      sizeof(struct rga_dma_buffer), GFP_KERNEL);
 	if (internal_buffer->dma_buffer == NULL) {
 		pr_err("%s alloc internal_buffer->dma_buffer error!\n", __func__);
 		ret = -ENOMEM;
-		goto put_virt_addr_sgt;
+		goto free_virt_addr;
 	}
-	internal_buffer->dma_buffer_size = iommu_dev_count;
+	internal_buffer->dma_buffer_size = rga_drvdata->num_of_scheduler;
 
-	iommu_dev_num = 0;
-	for (i = 0; i < rga_drvdata->num_of_scheduler; i++) {
-		if (rga_drvdata->rga_scheduler[i]->core == RGA2_SCHEDULER_CORE0)
+	for (i = 0; i < internal_buffer->dma_buffer_size; i++) {
+		/* If the physical address is greater than 4G, there is no need to map RGA2. */
+		if ((rga_drvdata->rga_scheduler[i]->core == RGA2_SCHEDULER_CORE0) &&
+		    (~internal_buffer->mm_flag & RGA_MM_UNDER_4G) &&
+		    i != 0)
 			continue;
 
-		if (iommu_dev_num >= internal_buffer->dma_buffer_size)
-			break;
-
-		ret = rga_iommu_map_virt_addr(&internal_buffer->memory_parm,
-					      internal_buffer->virt_addr,
-					      &internal_buffer->dma_buffer[iommu_dev_num],
-					      rga_drvdata->rga_scheduler[i]->dev,
-					      internal_buffer->current_mm);
+		ret = rga_alloc_sgt(internal_buffer->virt_addr,
+				    &internal_buffer->dma_buffer[i]);
 		if (ret < 0) {
-			pr_err("%s core[%d] iommu_map virtual address error!\n",
-				__func__, rga_drvdata->rga_scheduler[0]->core);
-			goto unmap_virt_addr;
+			pr_err("%s core[%d] alloc sgt error!\n", __func__,
+			       rga_drvdata->rga_scheduler[0]->core);
+			goto free_sgt_and_dma_buffer;
 		}
 
-		internal_buffer->dma_buffer[iommu_dev_num].core =
-			rga_drvdata->rga_scheduler[i]->core;
+		if (i == 0)
+			if (rga_mm_check_range_sgt(internal_buffer->dma_buffer[0].sgt))
+				internal_buffer->mm_flag |= RGA_MM_UNDER_4G;
+	}
 
-		iommu_dev_num++;
+	for (i = 0; i < internal_buffer->dma_buffer_size; i++) {
+		if ((rga_drvdata->rga_scheduler[i]->core == RGA2_SCHEDULER_CORE0) &&
+		    (~internal_buffer->mm_flag & RGA_MM_UNDER_4G))
+			continue;
+
+		if (rga_drvdata->rga_scheduler[i]->core == RGA3_SCHEDULER_CORE0 ||
+		    rga_drvdata->rga_scheduler[i]->core == RGA3_SCHEDULER_CORE1) {
+			ret = rga_iommu_map_virt_addr(&internal_buffer->memory_parm,
+						      &internal_buffer->dma_buffer[i],
+						      rga_drvdata->rga_scheduler[i]->dev,
+						      internal_buffer->current_mm);
+			if (ret < 0) {
+				pr_err("%s core[%d] iommu_map virtual address error!\n",
+				       __func__, rga_drvdata->rga_scheduler[i]->core);
+				goto unmap_virt_addr;
+			}
+		} else {
+			ret = dma_map_sg(rga_drvdata->rga_scheduler[i]->dev,
+					 internal_buffer->dma_buffer[i].sgt->sgl,
+					 internal_buffer->dma_buffer[i].sgt->orig_nents,
+					 DMA_BIDIRECTIONAL);
+			if (ret == 0) {
+				pr_err("%s core[%d] dma_map_sgt error! va = 0x%lx, nents = %d\n",
+				       __func__, rga_drvdata->rga_scheduler[i]->core,
+				       (unsigned long)internal_buffer->virt_addr->addr,
+				       internal_buffer->dma_buffer[i].sgt->orig_nents);
+				goto unmap_virt_addr;
+			}
+		}
+
+		internal_buffer->dma_buffer[i].core = rga_drvdata->rga_scheduler[i]->core;
 	}
 
 	return 0;
 
 unmap_virt_addr:
-	rga_mm_unmap_virt_addr(internal_buffer);
-	return ret;
-
-put_virt_addr_sgt:
-	rga_virt_addr_put_sgt(internal_buffer->virt_addr);
+	for (i = 0; i < internal_buffer->dma_buffer_size; i++)
+		if (rga_drvdata->rga_scheduler[i]->core == RGA3_SCHEDULER_CORE0 ||
+		    rga_drvdata->rga_scheduler[i]->core == RGA3_SCHEDULER_CORE1)
+			rga_iommu_unmap_virt_addr(&internal_buffer->dma_buffer[i]);
+		else if (internal_buffer->dma_buffer[i].core != 0)
+			dma_unmap_sg(rga_drvdata->rga_scheduler[i]->dev,
+				     internal_buffer->dma_buffer[i].sgt->sgl,
+				     internal_buffer->dma_buffer[i].sgt->orig_nents,
+				     DMA_BIDIRECTIONAL);
+free_sgt_and_dma_buffer:
+	for (i = 0; i < internal_buffer->dma_buffer_size; i++)
+		rga_free_sgt(&internal_buffer->dma_buffer[i]);
+	kfree(internal_buffer->dma_buffer);
 free_virt_addr:
-	kfree(internal_buffer->virt_addr);
+	rga_free_virt_addr(&internal_buffer->virt_addr);
 put_current_mm:
 	mmput(internal_buffer->current_mm);
 	mmdrop(internal_buffer->current_mm);
@@ -639,19 +698,9 @@ struct sg_table *rga_mm_lookup_sgt(struct rga_internal_buffer *buffer, int core)
 {
 	int i;
 
-	switch (buffer->type) {
-	case RGA_DMA_BUFFER:
-		for (i = 0; i < buffer->dma_buffer_size; i++)
-			if (buffer->dma_buffer[i].core == core)
-				return buffer->dma_buffer[i].sgt;
-		break;
-	case RGA_VIRTUAL_ADDRESS:
-		return buffer->virt_addr->sgt;
-	case RGA_PHYSICAL_ADDRESS:
-	default:
-		pr_err("Illegal internal buffer, no sgt can be obtained!\n");
-		return NULL;
-	}
+	for (i = 0; i < buffer->dma_buffer_size; i++)
+		if (buffer->dma_buffer[i].core == core)
+			return buffer->dma_buffer[i].sgt;
 
 	return NULL;
 }
@@ -685,15 +734,16 @@ void rga_mm_dump_info(struct rga_mm *mm_session)
 			break;
 		case RGA_VIRTUAL_ADDRESS:
 			pr_info("virtual address:\n");
-			pr_info("\t va = 0x%lx, sgt = %p, size = %ld\n",
+			pr_info("\t va = 0x%lx, pages = %p, size = %ld\n",
 				(unsigned long)dump_buffer->virt_addr->addr,
-				dump_buffer->virt_addr->sgt,
+				dump_buffer->virt_addr->pages,
 				dump_buffer->virt_addr->size);
 
 			for (i = 0; i < dump_buffer->dma_buffer_size; i++) {
 				pr_info("\t core %d:\n", dump_buffer->dma_buffer[i].core);
-				pr_info("\t\t iova = 0x%lx, size = %ld\n",
+				pr_info("\t\t iova = 0x%lx, sgt = %p, size = %ld\n",
 					(unsigned long)dump_buffer->dma_buffer[i].iova,
+					dump_buffer->dma_buffer[i].sgt,
 					dump_buffer->dma_buffer[i].size);
 			}
 			break;
@@ -742,6 +792,58 @@ static int rga_mm_set_mmu_flag(struct rga_job *job)
 	return 0;
 }
 
+static int rga_mm_sync_dma_sg_for_device(struct rga_internal_buffer *buffer,
+					 int core,
+					 enum dma_data_direction dir)
+{
+	struct sg_table *sgt;
+	struct rga_scheduler_t *scheduler;
+
+	scheduler = rga_job_get_scheduler(core);
+	if (scheduler == NULL) {
+		pr_err("%s(%d), failed to get scheduler, core = 0x%x\n",
+		       __func__, __LINE__, core);
+		return -EFAULT;
+	}
+
+	sgt = rga_mm_lookup_sgt(buffer, core);
+	if (sgt == NULL) {
+		pr_err("%s(%d), failed to get sgt, core = 0x%x\n",
+		       __func__, __LINE__, core);
+		return -EINVAL;
+	}
+
+	dma_sync_sg_for_device(scheduler->dev, sgt->sgl, sgt->orig_nents, dir);
+
+	return 0;
+}
+
+static int rga_mm_sync_dma_sg_for_cpu(struct rga_internal_buffer *buffer,
+				      int core,
+				      enum dma_data_direction dir)
+{
+	struct sg_table *sgt;
+	struct rga_scheduler_t *scheduler;
+
+	scheduler = rga_job_get_scheduler(core);
+	if (scheduler == NULL) {
+		pr_err("%s(%d), failed to get scheduler, core = 0x%x\n",
+		       __func__, __LINE__, core);
+		return -EFAULT;
+	}
+
+	sgt = rga_mm_lookup_sgt(buffer, core);
+	if (sgt == NULL) {
+		pr_err("%s(%d), failed to get sgt, core = 0x%x\n",
+		       __func__, __LINE__, core);
+		return -EINVAL;
+	}
+
+	dma_sync_sg_for_cpu(scheduler->dev, sgt->sgl, sgt->orig_nents, dir);
+
+	return 0;
+}
+
 static int rga_mm_get_channel_handle_info(struct rga_mm *mm,
 					  struct rga_job *job,
 					  struct rga_img_info_t *img,
@@ -749,7 +851,6 @@ static int rga_mm_get_channel_handle_info(struct rga_mm *mm,
 					  enum dma_data_direction dir)
 {
 	int ret = 0;
-	struct rga_scheduler_t *scheduler = NULL;
 	struct rga_internal_buffer *internal_buffer = NULL;
 
 	if (!(img->yrgb_addr > 0)) {
@@ -779,29 +880,22 @@ static int rga_mm_get_channel_handle_info(struct rga_mm *mm,
 		break;
 	case RGA_VIRTUAL_ADDRESS:
 		if (job->core == RGA3_SCHEDULER_CORE0 ||
-		    job->core == RGA3_SCHEDULER_CORE1) {
+		    job->core == RGA3_SCHEDULER_CORE1)
 			img->yrgb_addr = rga_mm_lookup_iova(internal_buffer, job->core);
-
-			scheduler = rga_job_get_scheduler(job->core);
-			if (scheduler == NULL) {
-				pr_err("%s(%d), failed to get scheduler, core = 0x%x\n",
-				       __func__, __LINE__, job->core);
-
-				ret = -EFAULT;
-				goto unlock_mm_and_return;
-			}
-			/*
-			 * Some userspace virtual addresses do not have an
-			 * interface for flushing the cache, so it is mandatory
-			 * to flush the cache when the virtual address is used.
-			 */
-			dma_sync_sg_for_device(scheduler->dev,
-					       internal_buffer->virt_addr->sgt->sgl,
-					       internal_buffer->virt_addr->sgt->orig_nents,
-					       dir);
-		} else {
+		else
 			img->yrgb_addr = internal_buffer->virt_addr->addr;
+
+		/*
+		 * Some userspace virtual addresses do not have an
+		 * interface for flushing the cache, so it is mandatory
+		 * to flush the cache when the virtual address is used.
+		 */
+		ret = rga_mm_sync_dma_sg_for_device(internal_buffer, job->core, dir);
+		if (ret < 0) {
+			pr_err("sync sgt for device error!\n");
+			goto unlock_mm_and_return;
 		}
+
 		break;
 	case RGA_PHYSICAL_ADDRESS:
 		img->yrgb_addr = internal_buffer->phys_addr;
@@ -827,22 +921,14 @@ static void rga_mm_put_channel_handle_info(struct rga_mm *mm,
 					   int core,
 					   enum dma_data_direction dir)
 {
-	struct rga_scheduler_t *scheduler = NULL;
+	int ret;
 
-	if (internal_buffer->type == RGA_VIRTUAL_ADDRESS &&
-	    dir != DMA_NONE &&
-	    (core == RGA3_SCHEDULER_CORE0 || core == RGA3_SCHEDULER_CORE1)) {
-		scheduler = rga_job_get_scheduler(core);
-		if (scheduler == NULL) {
-			pr_err("%s(%d), failed to get scheduler, core = 0x%x\n",
-				__func__, __LINE__, core);
-
+	if (internal_buffer->type == RGA_VIRTUAL_ADDRESS && dir != DMA_NONE) {
+		ret = rga_mm_sync_dma_sg_for_cpu(internal_buffer, core, dir);
+		if (ret < 0) {
+			pr_err("sync sgt for cpu error!\n");
 			goto put_internal_buffer;
 		}
-		dma_sync_sg_for_cpu(scheduler->dev,
-				    internal_buffer->virt_addr->sgt->sgl,
-				    internal_buffer->virt_addr->sgt->orig_nents,
-				    dir);
 	}
 
 put_internal_buffer:

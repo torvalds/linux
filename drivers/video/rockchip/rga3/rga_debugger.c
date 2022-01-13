@@ -217,15 +217,16 @@ static int rga_mm_session_show(struct seq_file *m, void *data)
 			break;
 		case RGA_VIRTUAL_ADDRESS:
 			seq_puts(m, "virtual address:\n");
-			seq_printf(m, "\t va = 0x%lx, sgt = %p, size = %ld\n",
+			seq_printf(m, "\t va = 0x%lx, pages = %p, size = %ld\n",
 				   (unsigned long)dump_buffer->virt_addr->addr,
-				   dump_buffer->virt_addr->sgt,
+				   dump_buffer->virt_addr->pages,
 				   dump_buffer->virt_addr->size);
 
 			for (i = 0; i < dump_buffer->dma_buffer_size; i++) {
 				seq_printf(m, "\t core %d:\n", dump_buffer->dma_buffer[i].core);
-				seq_printf(m, "\t\t iova = 0x%lx, size = %ld\n",
+				seq_printf(m, "\t\t iova = 0x%lx, sgt = %p, size = %ld\n",
 					   (unsigned long)dump_buffer->dma_buffer[i].iova,
+					   dump_buffer->dma_buffer[i].sgt,
 					   dump_buffer->dma_buffer[i].size);
 			}
 			break;

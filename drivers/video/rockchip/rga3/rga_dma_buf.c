@@ -425,13 +425,14 @@ void rga_iommu_unmap_virt_addr(struct rga_dma_buffer *virt_dma_buf)
 {
 	if (virt_dma_buf == NULL)
 		return;
+	if (virt_dma_buf->iova == 0)
+		return;
 
 	iommu_unmap(virt_dma_buf->domain, virt_dma_buf->iova, virt_dma_buf->size);
 	rga_iommu_dma_free_iova(virt_dma_buf->cookie, virt_dma_buf->iova, virt_dma_buf->size);
 }
 
 int rga_iommu_map_virt_addr(struct rga_memory_parm *memory_parm,
-			    struct rga_virt_addr *virt_addr,
 			    struct rga_dma_buffer *virt_dma_buf,
 			    struct device *rga_dev,
 			    struct mm_struct *mm)
@@ -452,8 +453,8 @@ int rga_iommu_map_virt_addr(struct rga_memory_parm *memory_parm,
 	domain = iommu_get_dma_domain(rga_dev);
 	cookie = domain->iova_cookie;
 	iovad = &cookie->iovad;
-	size = iova_align(iovad, virt_addr->size);
-	sgt = virt_addr->sgt;
+	size = iova_align(iovad, virt_dma_buf->size);
+	sgt = virt_dma_buf->sgt;
 	if (sgt == NULL) {
 		pr_err("can not map iommu, because sgt is null!\n");
 		return -EFAULT;
