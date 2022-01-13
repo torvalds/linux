@@ -24,26 +24,26 @@
 #define SET_READ 0x8000         /* usage: or operation */
 
 static const struct wfx_platform_data pdata_wf200 = {
-	.file_fw = "wfm_wf200",
-	.file_pds = "wf200.pds",
+	.file_fw = "wfx/wfm_wf200",
+	.file_pds = "wfx/wf200.pds",
 	.use_rising_clk = true,
 };
 
 static const struct wfx_platform_data pdata_brd4001a = {
-	.file_fw = "wfm_wf200",
-	.file_pds = "brd4001a.pds",
+	.file_fw = "wfx/wfm_wf200",
+	.file_pds = "wfx/brd4001a.pds",
 	.use_rising_clk = true,
 };
 
 static const struct wfx_platform_data pdata_brd8022a = {
-	.file_fw = "wfm_wf200",
-	.file_pds = "brd8022a.pds",
+	.file_fw = "wfx/wfm_wf200",
+	.file_pds = "wfx/brd8022a.pds",
 	.use_rising_clk = true,
 };
 
 static const struct wfx_platform_data pdata_brd8023a = {
-	.file_fw = "wfm_wf200",
-	.file_pds = "brd8023a.pds",
+	.file_fw = "wfx/wfm_wf200",
+	.file_pds = "wfx/brd8023a.pds",
 	.use_rising_clk = true,
 };
 
