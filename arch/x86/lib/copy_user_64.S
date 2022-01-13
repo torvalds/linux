@@ -32,14 +32,10 @@
 	decl %ecx
 	jnz 100b
 102:
-	.section .fixup,"ax"
-103:	addl %ecx,%edx			/* ecx is zerorest also */
-	jmp .Lcopy_user_handle_tail
-	.previous
 
-	_ASM_EXTABLE_CPY(100b, 103b)
-	_ASM_EXTABLE_CPY(101b, 103b)
-	.endm
+	_ASM_EXTABLE_CPY(100b, .Lcopy_user_handle_align)
+	_ASM_EXTABLE_CPY(101b, .Lcopy_user_handle_align)
+.endm
 
 /*
  * copy_user_generic_unrolled - memory copy with exception handling.
@@ -105,9 +101,8 @@ SYM_FUNC_START(copy_user_generic_unrolled)
 	jnz 21b
 23:	xor %eax,%eax
 	ASM_CLAC
-	ret
+	RET
 
-	.section .fixup,"ax"
 30:	shll $6,%ecx
 	addl %ecx,%edx
 	jmp 60f
@@ -115,7 +110,6 @@ SYM_FUNC_START(copy_user_generic_unrolled)
 	jmp 60f
 50:	movl %ecx,%edx
 60:	jmp .Lcopy_user_handle_tail /* ecx is zerorest also */
-	.previous
 
 	_ASM_EXTABLE_CPY(1b, 30b)
 	_ASM_EXTABLE_CPY(2b, 30b)
@@ -166,20 +160,16 @@ SYM_FUNC_START(copy_user_generic_string)
 	movl %edx,%ecx
 	shrl $3,%ecx
 	andl $7,%edx
-1:	rep
-	movsq
+1:	rep movsq
 2:	movl %edx,%ecx
-3:	rep
-	movsb
+3:	rep movsb
 	xorl %eax,%eax
 	ASM_CLAC
-	ret
+	RET
 
-	.section .fixup,"ax"
 11:	leal (%rdx,%rcx,8),%ecx
 12:	movl %ecx,%edx		/* ecx is zerorest also */
 	jmp .Lcopy_user_handle_tail
-	.previous
 
 	_ASM_EXTABLE_CPY(1b, 11b)
 	_ASM_EXTABLE_CPY(3b, 12b)
@@ -203,16 +193,13 @@ SYM_FUNC_START(copy_user_enhanced_fast_string)
 	/* CPUs without FSRM should avoid rep movsb for short copies */
 	ALTERNATIVE "cmpl $64, %edx; jb .L_copy_short_string", "", X86_FEATURE_FSRM
 	movl %edx,%ecx
-1:	rep
-	movsb
+1:	rep movsb
 	xorl %eax,%eax
 	ASM_CLAC
-	ret
+	RET
 
-	.section .fixup,"ax"
 12:	movl %ecx,%edx		/* ecx is zerorest also */
 	jmp .Lcopy_user_handle_tail
-	.previous
 
 	_ASM_EXTABLE_CPY(1b, 12b)
 SYM_FUNC_END(copy_user_enhanced_fast_string)
@@ -241,7 +228,7 @@ SYM_CODE_START_LOCAL(.Lcopy_user_handle_tail)
 1:	rep movsb
 2:	mov %ecx,%eax
 	ASM_CLAC
-	ret
+	RET
 
 3:
 	movl %edx,%eax
@@ -249,6 +236,11 @@ SYM_CODE_START_LOCAL(.Lcopy_user_handle_tail)
 	RET
 
 	_ASM_EXTABLE_CPY(1b, 2b)
+
+.Lcopy_user_handle_align:
+	addl %ecx,%edx			/* ecx is zerorest also */
+	jmp .Lcopy_user_handle_tail
+
 SYM_CODE_END(.Lcopy_user_handle_tail)
 
 /*
@@ -357,9 +349,8 @@ SYM_FUNC_START(__copy_user_nocache)
 	xorl %eax,%eax
 	ASM_CLAC
 	sfence
-	ret
+	RET
 
-	.section .fixup,"ax"
 .L_fixup_4x8b_copy:
 	shll $6,%ecx
 	addl %ecx,%edx
@@ -375,7 +366,6 @@ SYM_FUNC_START(__copy_user_nocache)
 .L_fixup_handle_tail:
 	sfence
 	jmp .Lcopy_user_handle_tail
-	.previous
 
 	_ASM_EXTABLE_CPY(1b, .L_fixup_4x8b_copy)
 	_ASM_EXTABLE_CPY(2b, .L_fixup_4x8b_copy)

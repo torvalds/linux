@@ -257,7 +257,7 @@ SYM_FUNC_START(crc_t10dif_pcl)
 	# Final CRC value (x^16 * M(x)) mod G(x) is in low 16 bits of xmm0.
 
 	pextrw	$0, %xmm0, %eax
-	ret
+	RET
 
 .align 16
 .Lless_than_256_bytes:
