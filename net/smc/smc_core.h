@@ -137,6 +137,8 @@ struct smc_link {
 	u8			peer_link_uid[SMC_LGR_ID_SIZE]; /* peer uid */
 	u8			link_idx;	/* index in lgr link array */
 	u8			link_is_asym;	/* is link asymmetric? */
+	u8			clearing : 1;	/* link is being cleared */
+	refcount_t		refcnt;		/* link reference count */
 	struct smc_link_group	*lgr;		/* parent link group */
 	struct work_struct	link_down_wrk;	/* wrk to bring link down */
 	char			ibname[IB_DEVICE_NAME_MAX]; /* ib device name */
@@ -526,6 +528,8 @@ void smc_core_exit(void);
 int smcr_link_init(struct smc_link_group *lgr, struct smc_link *lnk,
 		   u8 link_idx, struct smc_init_info *ini);
 void smcr_link_clear(struct smc_link *lnk, bool log);
+void smcr_link_hold(struct smc_link *lnk);
+void smcr_link_put(struct smc_link *lnk);
 void smc_switch_link_and_count(struct smc_connection *conn,
 			       struct smc_link *to_lnk);
 int smcr_buf_map_lgr(struct smc_link *lnk);

@@ -748,6 +748,8 @@ int smcr_link_init(struct smc_link_group *lgr, struct smc_link *lnk,
 	}
 	get_device(&lnk->smcibdev->ibdev->dev);
 	atomic_inc(&lnk->smcibdev->lnk_cnt);
+	refcount_set(&lnk->refcnt, 1); /* link refcnt is set to 1 */
+	lnk->clearing = 0;
 	lnk->path_mtu = lnk->smcibdev->pattr[lnk->ibport - 1].active_mtu;
 	lnk->link_id = smcr_next_link_id(lgr);
 	lnk->lgr = lgr;
@@ -998,8 +1000,12 @@ void smc_switch_link_and_count(struct smc_connection *conn,
 			       struct smc_link *to_lnk)
 {
 	atomic_dec(&conn->lnk->conn_cnt);
+	/* link_hold in smc_conn_create() */
+	smcr_link_put(conn->lnk);
 	conn->lnk = to_lnk;
 	atomic_inc(&conn->lnk->conn_cnt);
+	/* link_put in smc_conn_free() */
+	smcr_link_hold(conn->lnk);
 }
 
 struct smc_link *smc_switch_conns(struct smc_link_group *lgr,
@@ -1162,6 +1168,8 @@ void smc_conn_free(struct smc_connection *conn)
 	if (!lgr->conns_num)
 		smc_lgr_schedule_free_work(lgr);
 lgr_put:
+	if (!lgr->is_smcd)
+		smcr_link_put(conn->lnk); /* link_hold in smc_conn_create() */
 	smc_lgr_put(lgr); /* lgr_hold in smc_conn_create() */
 }
 
@@ -1218,22 +1226,11 @@ static void smcr_rtoken_clear_link(struct smc_link *lnk)
 	}
 }
 
-/* must be called under lgr->llc_conf_mutex lock */
-void smcr_link_clear(struct smc_link *lnk, bool log)
+static void __smcr_link_clear(struct smc_link *lnk)
 {
 	struct smc_link_group *lgr = lnk->lgr;
 	struct smc_ib_device *smcibdev;
 
-	if (!lgr || lnk->state == SMC_LNK_UNUSED)
-		return;
-	lnk->peer_qpn = 0;
-	smc_llc_link_clear(lnk, log);
-	smcr_buf_unmap_lgr(lnk);
-	smcr_rtoken_clear_link(lnk);
-	smc_ib_modify_qp_error(lnk);
-	smc_wr_free_link(lnk);
-	smc_ib_destroy_queue_pair(lnk);
-	smc_ib_dealloc_protection_domain(lnk);
 	smc_wr_free_link_mem(lnk);
 	smc_ibdev_cnt_dec(lnk);
 	put_device(&lnk->smcibdev->ibdev->dev);
@@ -1243,6 +1240,35 @@ void smcr_link_clear(struct smc_link *lnk, bool log)
 	if (!atomic_dec_return(&smcibdev->lnk_cnt))
 		wake_up(&smcibdev->lnks_deleted);
 	smc_lgr_put(lgr); /* lgr_hold in smcr_link_init() */
+}
+
+/* must be called under lgr->llc_conf_mutex lock */
+void smcr_link_clear(struct smc_link *lnk, bool log)
+{
+	if (!lnk->lgr || lnk->clearing ||
+	    lnk->state == SMC_LNK_UNUSED)
+		return;
+	lnk->clearing = 1;
+	lnk->peer_qpn = 0;
+	smc_llc_link_clear(lnk, log);
+	smcr_buf_unmap_lgr(lnk);
+	smcr_rtoken_clear_link(lnk);
+	smc_ib_modify_qp_error(lnk);
+	smc_wr_free_link(lnk);
+	smc_ib_destroy_queue_pair(lnk);
+	smc_ib_dealloc_protection_domain(lnk);
+	smcr_link_put(lnk); /* theoretically last link_put */
+}
+
+void smcr_link_hold(struct smc_link *lnk)
+{
+	refcount_inc(&lnk->refcnt);
+}
+
+void smcr_link_put(struct smc_link *lnk)
+{
+	if (refcount_dec_and_test(&lnk->refcnt))
+		__smcr_link_clear(lnk);
 }
 
 static void smcr_buf_free(struct smc_link_group *lgr, bool is_rmb,
@@ -1893,6 +1919,8 @@ create:
 		}
 	}
 	smc_lgr_hold(conn->lgr); /* lgr_put in smc_conn_free() */
+	if (!conn->lgr->is_smcd)
+		smcr_link_hold(conn->lnk); /* link_put in smc_conn_free() */
 	conn->freed = 0;
 	conn->local_tx_ctrl.common.type = SMC_CDC_MSG_TYPE;
 	conn->local_tx_ctrl.len = SMC_WR_TX_SIZE;
