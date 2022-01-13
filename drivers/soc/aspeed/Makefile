@@ -18,6 +18,7 @@ obj-$(CONFIG_ASPEED_ESPI_MMBI)		+= aspeed-espi-mmbi.o
 obj-$(CONFIG_ASPEED_LPC_MAILBOX)	+= aspeed-lpc-mbox.o
 obj-$(CONFIG_ASPEED_UDMA)		+= aspeed-udma.o
 obj-$(CONFIG_ASPEED_LPC_PCC)		+= aspeed-lpc-pcc.o
+obj-$(CONFIG_ASPEED_RVAS)		+= rvas/
 obj-$(CONFIG_SOC_ASPEED)		+= aspeed-usb-phy.o
 obj-$(CONFIG_SOC_ASPEED)		+= aspeed-usb-ahp.o
 obj-$(CONFIG_ASPEED_MCTP)		+= aspeed-mctp.o

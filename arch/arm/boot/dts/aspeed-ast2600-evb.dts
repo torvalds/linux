@@ -45,6 +45,13 @@
 			reusable;
 		};
 
+		rvas_memory: rvas {
+			size = <0x04000000>;
+			alignment = <0x01000000>;
+			compatible = "shared-dma-pool";
+			reusable;
+		};
+
 		bmc_dev_memory: bmc_dev_memory {
 			size = <0x00100000>;
 			alignment = <0x00100000>;
@@ -865,10 +872,17 @@
 	status = "okay";
 };
 
+#if 0
 &video {
 	status = "okay";
 	memory-region = <&video_engine_memory>;
 };
+#else
+&rvas {
+	status = "okay";
+	memory-region = <&rvas_memory>;
+};
+#endif
 
 #if 0
 /*
