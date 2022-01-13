@@ -137,6 +137,10 @@
 	};
 };
 
+&lpass {
+	status = "okay";
+};
+
 &mpss {
 	compatible = "qcom,msm8953-alt-mss-pil";
 	status = "okay";
