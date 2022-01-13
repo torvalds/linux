@@ -207,7 +207,7 @@ void wfx_tx_policy_init(struct wfx_vif *wvif)
 
 /* Tx implementation */
 
-static bool ieee80211_is_action_back(struct ieee80211_hdr *hdr)
+static bool wfx_is_action_back(struct ieee80211_hdr *hdr)
 {
 	struct ieee80211_mgmt *mgmt = (struct ieee80211_mgmt *)hdr;
 
@@ -420,7 +420,7 @@ void wfx_tx(struct ieee80211_hw *hw, struct ieee80211_tx_control *control,
 	/* Because of TX_AMPDU_SETUP_IN_HW, mac80211 does not try to send any
 	 * BlockAck session management frame. The check below exist just in case.
 	 */
-	if (ieee80211_is_action_back(hdr)) {
+	if (wfx_is_action_back(hdr)) {
 		dev_info(wdev->dev, "drop BA action\n");
 		goto drop;
 	}
