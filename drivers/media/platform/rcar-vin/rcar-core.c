@@ -816,7 +816,7 @@ static int rvin_csi2_link_notify(struct media_link *link, u32 flags,
 	 * running streams.
 	 */
 	media_device_for_each_entity(entity, &group->mdev)
-		if (entity->stream_count)
+		if (media_entity_is_streaming(entity))
 			return -EBUSY;
 
 	mutex_lock(&group->lock);

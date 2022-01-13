@@ -834,7 +834,8 @@ int __media_entity_setup_link(struct media_link *link, u32 flags)
 	sink = link->sink->entity;
 
 	if (!(link->flags & MEDIA_LNK_FL_DYNAMIC) &&
-	    (source->stream_count || sink->stream_count))
+	    (media_entity_is_streaming(source) ||
+	     media_entity_is_streaming(sink)))
 		return -EBUSY;
 
 	mdev = source->graph_obj.mdev;

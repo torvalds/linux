@@ -859,6 +859,18 @@ struct media_link *media_entity_find_link(struct media_pad *source,
 struct media_pad *media_entity_remote_pad(const struct media_pad *pad);
 
 /**
+ * media_entity_is_streaming - Test if an entity is part of a streaming pipeline
+ * @entity: The entity
+ *
+ * Return: True if the entity is part of a pipeline started with the
+ * media_pipeline_start() function, false otherwise.
+ */
+static inline bool media_entity_is_streaming(const struct media_entity *entity)
+{
+	return entity->stream_count > 0;
+}
+
+/**
  * media_entity_get_fwnode_pad - Get pad number from fwnode
  *
  * @entity: The entity
