@@ -1014,7 +1014,7 @@ static int ath11k_pci_alloc_msi(struct ath11k_pci *ab_pci)
 	}
 
 	ab_pci->msi_ep_base_data = msi_desc->msg.data;
-	if (msi_desc->msi_attrib.is_64)
+	if (msi_desc->pci.msi_attrib.is_64)
 		set_bit(ATH11K_PCI_FLAG_IS_MSI_64, &ab_pci->flags);
 
 	ath11k_dbg(ab, ATH11K_DBG_PCI, "msi base data is %d\n", ab_pci->msi_ep_base_data);
