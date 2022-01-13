@@ -12,8 +12,8 @@
 #include "sta.h"
 #include "hif_tx_mib.h"
 
-static void __ieee80211_scan_completed_compat(struct ieee80211_hw *hw,
-					      bool aborted)
+static void wfx_ieee80211_scan_completed_compat(struct ieee80211_hw *hw,
+						bool aborted)
 {
 	struct cfg80211_scan_info info = {
 		.aborted = aborted,
@@ -120,7 +120,7 @@ void wfx_hw_scan_work(struct work_struct *work)
 	} while (ret >= 0 && chan_cur < hw_req->req.n_channels);
 	mutex_unlock(&wvif->scan_lock);
 	mutex_unlock(&wvif->wdev->conf_mutex);
-	__ieee80211_scan_completed_compat(wvif->wdev->hw, ret < 0);
+	wfx_ieee80211_scan_completed_compat(wvif->wdev->hw, ret < 0);
 }
 
 int wfx_hw_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
