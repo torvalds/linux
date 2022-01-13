@@ -1780,10 +1780,14 @@ dw_hdmi_rockchip_select_output(struct drm_connector_state *conn_state,
 		if (info->color_formats & DRM_COLOR_FORMAT_YCRCB422)
 			*color_format = DRM_HDMI_OUTPUT_YCBCR422;
 		if (hdmi->is_hdmi_qp) {
-			if (info->color_formats & DRM_COLOR_FORMAT_YCRCB420)
-				*color_format = DRM_HDMI_OUTPUT_YCBCR420;
-			else
+			if (info->color_formats & DRM_COLOR_FORMAT_YCRCB420) {
+				if (mode->clock >= 340000)
+					*color_format = DRM_HDMI_OUTPUT_YCBCR420;
+				else
+					*color_format = DRM_HDMI_OUTPUT_DEFAULT_RGB;
+			} else {
 				*color_format = DRM_HDMI_OUTPUT_DEFAULT_RGB;
+			}
 		}
 	}
 
@@ -1820,7 +1824,7 @@ dw_hdmi_rockchip_select_output(struct drm_connector_state *conn_state,
 		}
 	}
 
-	if (mode->clock >= HDMI_8K60_RATE && !hdmi->dsc_cap.v_1p2)
+	if (mode->clock >= 340000 && hdmi->is_hdmi_qp)
 		*color_format = DRM_HDMI_OUTPUT_YCBCR420;
 
 	if (*color_format == DRM_HDMI_OUTPUT_YCBCR420) {
@@ -1910,6 +1914,8 @@ dw_hdmi_rockchip_encoder_atomic_check(struct drm_encoder *encoder,
 	if (hdmi->is_hdmi_qp) {
 		color_depth = hdmi_bus_fmt_color_depth(bus_format);
 		tmdsclk = hdmi_get_tmdsclock(hdmi, crtc_state->mode.clock);
+		if (hdmi_bus_fmt_is_yuv420(hdmi->output_bus_format))
+			tmdsclk /= 2;
 		hdmi_select_link_config(hdmi, crtc_state, tmdsclk);
 
 		if (hdmi->link_cfg.frl_mode) {
