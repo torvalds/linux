@@ -109,6 +109,20 @@ config VIDEO_HI556
 	  To compile this driver as a module, choose M here: the
 	  module will be called hi556.
 
+config VIDEO_SR556
+	tristate "Hynix Sr-556 sensor support"
+	depends on GPIOLIB && I2C && VIDEO_DEV
+	depends on OF
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
+	select V4L2_FWNODE
+	help
+	  This is a Video4Linux2 sensor driver for the Hynix
+	  Sr-556 camera.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called sr556.
+
 config VIDEO_HI846
 	tristate "Hynix Hi-846 sensor support"
 	help
