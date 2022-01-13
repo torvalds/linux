@@ -1053,7 +1053,7 @@ int devm_regmap_add_irq_chip_fwnode(struct device *dev,
 EXPORT_SYMBOL_GPL(devm_regmap_add_irq_chip_fwnode);
 
 /**
- * devm_regmap_add_irq_chip() - Resource manager regmap_add_irq_chip()
+ * devm_regmap_add_irq_chip() - Resource managed regmap_add_irq_chip()
  *
  * @dev: The device pointer on which irq_chip belongs to.
  * @map: The regmap for the device.
