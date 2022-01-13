@@ -9,8 +9,13 @@
 #ifndef WFX_HIF_TX_MIB_H
 #define WFX_HIF_TX_MIB_H
 
-struct wfx_vif;
+#include <linux/types.h>
+
 struct sk_buff;
+struct wfx_vif;
+struct wfx_dev;
+struct hif_ie_table_entry;
+struct hif_mib_extended_count_table;
 
 int hif_set_output_power(struct wfx_vif *wvif, int val);
 int hif_set_beacon_wakeup_period(struct wfx_vif *wvif,

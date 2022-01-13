@@ -10,6 +10,10 @@
 #ifndef WFX_HIF_TX_H
 #define WFX_HIF_TX_H
 
+#include <linux/types.h>
+#include <linux/mutex.h>
+#include <linux/completion.h>
+
 struct ieee80211_channel;
 struct ieee80211_bss_conf;
 struct ieee80211_tx_queue_params;
