@@ -209,19 +209,18 @@ static irqreturn_t mtk_ir_irq(int irqno, void *dev_id)
 	struct ir_raw_event rawir = {};
 
 	/*
-	 * Reset decoder state machine explicitly is required
-	 * because 1) the longest duration for space MTK IR hardware
-	 * could record is not safely long. e.g  12ms if rx resolution
-	 * is 46us by default. There is still the risk to satisfying
-	 * every decoder to reset themselves through long enough
-	 * trailing spaces and 2) the IRQ handler guarantees that
-	 * start of IR message is always contained in and starting
-	 * from register mtk_chkdata_reg(ir, i).
+	 * Each pulse and space is encoded as a single byte, each byte
+	 * alternating between pulse and space. If a pulse or space is longer
+	 * than can be encoded in a single byte, it is encoded as the maximum
+	 * value 0xff.
+	 *
+	 * If a space is longer than ok_count (about 23ms), the value is
+	 * encoded as zero, and all following bytes are zero. Any IR that
+	 * follows will be presented in the next interrupt.
+	 *
+	 * If there are more than 68 (=MTK_CHKDATA_SZ * 4) pulses and spaces,
+	 * then the only the first 68 will be presented; the rest is lost.
 	 */
-	ir_raw_event_reset(ir->rc);
-
-	/* First message must be pulse */
-	rawir.pulse = false;
 
 	/* Handle all pulse and space IR controller captures */
 	for (i = 0 ; i < MTK_CHKDATA_SZ ; i++) {
