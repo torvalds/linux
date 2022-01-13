@@ -125,6 +125,10 @@ config ASPEED_LPC_PCC
 	  allowing the BMC to snoop data bytes written by the
 	  the host to an arbitrary LPC I/O port.
 
+config ASPEED_OTP
+	tristate "Aspeed OTP Driver"
+	depends on MACH_ASPEED_G6
+
 endmenu
 
 endif
