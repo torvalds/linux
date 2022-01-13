@@ -570,6 +570,7 @@ struct rtw89_channel_params {
 	u8 bandwidth;
 	u8 pri_ch_idx;
 	u8 band_type;
+	u8 subband_type;
 };
 
 struct rtw89_channel_help_params {

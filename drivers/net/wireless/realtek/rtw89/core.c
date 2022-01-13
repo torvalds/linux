@@ -232,6 +232,7 @@ static void rtw89_get_channel_params(struct cfg80211_chan_def *chandef,
 	u8 bandwidth = RTW89_CHANNEL_WIDTH_20;
 	u8 primary_chan_idx = 0;
 	u8 band;
+	u8 subband;
 
 	center_chan = channel->hw_value;
 	primary_freq = channel->center_freq;
@@ -291,11 +292,28 @@ static void rtw89_get_channel_params(struct cfg80211_chan_def *chandef,
 		break;
 	}
 
+	switch (center_chan) {
+	default:
+	case 1 ... 14:
+		subband = RTW89_CH_2G;
+		break;
+	case 36 ... 64:
+		subband = RTW89_CH_5G_BAND_1;
+		break;
+	case 100 ... 144:
+		subband = RTW89_CH_5G_BAND_3;
+		break;
+	case 149 ... 177:
+		subband = RTW89_CH_5G_BAND_4;
+		break;
+	}
+
 	chan_param->center_chan = center_chan;
 	chan_param->primary_chan = channel->hw_value;
 	chan_param->bandwidth = bandwidth;
 	chan_param->pri_ch_idx = primary_chan_idx;
 	chan_param->band_type = band;
+	chan_param->subband_type = subband;
 }
 
 void rtw89_set_channel(struct rtw89_dev *rtwdev)
@@ -322,21 +340,7 @@ void rtw89_set_channel(struct rtw89_dev *rtwdev)
 	hal->prev_primary_channel = hal->current_primary_channel;
 	hal->current_primary_channel = ch_param.primary_chan;
 	hal->current_band_type = ch_param.band_type;
-
-	switch (center_chan) {
-	case 1 ... 14:
-		hal->current_subband = RTW89_CH_2G;
-		break;
-	case 36 ... 64:
-		hal->current_subband = RTW89_CH_5G_BAND_1;
-		break;
-	case 100 ... 144:
-		hal->current_subband = RTW89_CH_5G_BAND_3;
-		break;
-	case 149 ... 177:
-		hal->current_subband = RTW89_CH_5G_BAND_4;
-		break;
-	}
+	hal->current_subband = ch_param.subband_type;
 
 	rtw89_chip_set_channel_prepare(rtwdev, &bak);
 
