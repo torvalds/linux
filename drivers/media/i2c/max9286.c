@@ -849,6 +849,10 @@ static const struct v4l2_subdev_internal_ops max9286_subdev_internal_ops = {
 	.open = max9286_open,
 };
 
+static const struct media_entity_operations max9286_media_ops = {
+	.link_validate = v4l2_subdev_link_validate
+};
+
 static int max9286_s_ctrl(struct v4l2_ctrl *ctrl)
 {
 	switch (ctrl->id) {
@@ -898,6 +902,7 @@ static int max9286_v4l2_register(struct max9286_priv *priv)
 		goto err_async;
 
 	priv->sd.entity.function = MEDIA_ENT_F_VID_IF_BRIDGE;
+	priv->sd.entity.ops = &max9286_media_ops;
 
 	priv->pads[MAX9286_SRC_PAD].flags = MEDIA_PAD_FL_SOURCE;
 	for (i = 0; i < MAX9286_SRC_PAD; i++)
