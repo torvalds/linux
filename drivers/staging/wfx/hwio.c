@@ -8,6 +8,7 @@
 #include <linux/kernel.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
+#include <linux/align.h>
 
 #include "hwio.h"
 #include "wfx.h"
@@ -221,7 +222,7 @@ int wfx_data_read(struct wfx_dev *wdev, void *buf, size_t len)
 {
 	int ret;
 
-	WARN((long)buf & 3, "%s: unaligned buffer", __func__);
+	WARN(!IS_ALIGNED((uintptr_t)buf, 4), "unaligned buffer");
 	wdev->hwbus_ops->lock(wdev->hwbus_priv);
 	ret = wdev->hwbus_ops->copy_from_io(wdev->hwbus_priv,
 					    WFX_REG_IN_OUT_QUEUE, buf, len);
@@ -237,7 +238,7 @@ int wfx_data_write(struct wfx_dev *wdev, const void *buf, size_t len)
 {
 	int ret;
 
-	WARN((long)buf & 3, "%s: unaligned buffer", __func__);
+	WARN(!IS_ALIGNED((uintptr_t)buf, 4), "unaligned buffer");
 	wdev->hwbus_ops->lock(wdev->hwbus_priv);
 	ret = wdev->hwbus_ops->copy_to_io(wdev->hwbus_priv,
 					  WFX_REG_IN_OUT_QUEUE, buf, len);

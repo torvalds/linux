@@ -12,6 +12,7 @@
 #include <linux/interrupt.h>
 #include <linux/of_irq.h>
 #include <linux/irq.h>
+#include <linux/align.h>
 
 #include "bus.h"
 #include "wfx.h"
@@ -40,8 +41,8 @@ static int wfx_sdio_copy_from_io(void *priv, unsigned int reg_id,
 	int ret;
 
 	WARN(reg_id > 7, "chip only has 7 registers");
-	WARN(((uintptr_t)dst) & 3, "unaligned buffer size");
-	WARN(count & 3, "unaligned buffer address");
+	WARN(!IS_ALIGNED((uintptr_t)dst, 4), "unaligned buffer address");
+	WARN(!IS_ALIGNED(count, 4), "unaligned buffer size");
 
 	/* Use queue mode buffers */
 	if (reg_id == WFX_REG_IN_OUT_QUEUE)
@@ -61,8 +62,8 @@ static int wfx_sdio_copy_to_io(void *priv, unsigned int reg_id,
 	int ret;
 
 	WARN(reg_id > 7, "chip only has 7 registers");
-	WARN(((uintptr_t)src) & 3, "unaligned buffer size");
-	WARN(count & 3, "unaligned buffer address");
+	WARN(!IS_ALIGNED((uintptr_t)src, 4), "unaligned buffer address");
+	WARN(!IS_ALIGNED(count, 4), "unaligned buffer size");
 
 	/* Use queue mode buffers */
 	if (reg_id == WFX_REG_IN_OUT_QUEUE)
