@@ -354,7 +354,7 @@ static void qcom_iommu_domain_free(struct iommu_domain *domain)
 		 */
 		pm_runtime_get_sync(qcom_domain->iommu->dev);
 		free_io_pgtable_ops(qcom_domain->pgtbl_ops);
-		pm_runtime_put_sync(qcom_domain->iommu->dev);
+		pm_runtime_put_autosuspend(qcom_domain->iommu->dev);
 	}
 
 	kfree(qcom_domain);
@@ -374,7 +374,7 @@ static int qcom_iommu_attach_dev(struct iommu_domain *domain, struct device *dev
 	/* Ensure that the domain is finalized */
 	pm_runtime_get_sync(qcom_iommu->dev);
 	ret = qcom_iommu_init_domain(domain, qcom_iommu, dev);
-	pm_runtime_put_sync(qcom_iommu->dev);
+	pm_runtime_put_autosuspend(qcom_iommu->dev);
 	if (ret < 0)
 		return ret;
 
@@ -465,7 +465,7 @@ static size_t qcom_iommu_unmap(struct iommu_domain *domain, unsigned long iova,
 	spin_lock_irqsave(&qcom_domain->pgtbl_lock, flags);
 	ret = ops->unmap_pages(ops, iova, pgsize, pgcount, gather);
 	spin_unlock_irqrestore(&qcom_domain->pgtbl_lock, flags);
-	pm_runtime_put_sync(qcom_domain->iommu->dev);
+	pm_runtime_put_autosuspend(qcom_domain->iommu->dev);
 
 	return ret;
 }
@@ -480,7 +480,7 @@ static void qcom_iommu_flush_iotlb_all(struct iommu_domain *domain)
 
 	pm_runtime_get_sync(qcom_domain->iommu->dev);
 	qcom_iommu_tlb_sync(pgtable->cookie);
-	pm_runtime_put_sync(qcom_domain->iommu->dev);
+	pm_runtime_put_autosuspend(qcom_domain->iommu->dev);
 }
 
 static void qcom_iommu_iotlb_sync(struct iommu_domain *domain,
@@ -848,6 +848,21 @@ static int qcom_iommu_device_probe(struct platform_device *pdev)
 
 	pm_runtime_enable(dev);
 
+	/*
+	 * Setup an autosuspend delay to avoid bouncing runpm state.
+	 * Otherwise, if a driver for a suspended consumer device
+	 * unmaps buffers, it will runpm resume/suspend for each one.
+	 *
+	 * For example, when used by a GPU device, when an application
+	 * or game exits, it can trigger unmapping 100s or 1000s of
+	 * buffers.  With a runpm cycle for each buffer, that adds up
+	 * to 5-10sec worth of reprogramming the context bank, while
+	 * the system appears to be locked up to the user.
+	 */
+	pm_runtime_set_autosuspend_delay(dev, 20);
+	pm_runtime_use_autosuspend(dev);
+
+
 	/* register context bank devices, which are child nodes: */
 	ret = devm_of_platform_populate(dev);
 	if (ret) {
@@ -871,7 +886,7 @@ static int qcom_iommu_device_probe(struct platform_device *pdev)
 	if (qcom_iommu->local_base) {
 		pm_runtime_get_sync(dev);
 		writel_relaxed(0xffffffff, qcom_iommu->local_base + SMMU_INTR_SEL_NS);
-		pm_runtime_put_sync(dev);
+		pm_runtime_put_autosuspend(dev);
 	}
 
 	return 0;
