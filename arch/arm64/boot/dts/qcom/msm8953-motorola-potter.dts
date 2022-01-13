@@ -125,6 +125,13 @@
 	};
 };
 
+&mpss {
+	status = "okay";
+
+	mss-supply = <&pm8953_s1>;
+	pll-supply = <&pm8953_l7>;
+};
+
 &pm8953_resin {
 	linux,code = <KEY_VOLUMEDOWN>;
 	status = "okay";

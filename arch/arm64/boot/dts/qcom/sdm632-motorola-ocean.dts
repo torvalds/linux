@@ -137,6 +137,16 @@
 	};
 };
 
+&mpss {
+	compatible = "qcom,msm8953-alt-mss-pil";
+	status = "okay";
+
+	power-domains = <&rpmpd MSM8953_VDDCX>, <&rpmpd MSM8953_VDDMX>, <&rpmpd MSM8953_VDDMD>;
+	power-domain-names = "cx", "mx", "mss";
+
+	pll-supply = <&pm8953_l7>;
+};
+
 &pm8953_resin {
 	linux,code = <KEY_VOLUMEDOWN>;
 	status = "okay";
