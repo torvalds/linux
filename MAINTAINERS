@@ -6502,6 +6502,7 @@ F:	Documentation/devicetree/bindings/display/rockchip/
 F:	drivers/gpu/drm/rockchip/
 
 DRM DRIVERS FOR STI
+M:	Alain Volmat <alain.volmat@foss.st.com>
 L:	dri-devel@lists.freedesktop.org
 S:	Maintained
 T:	git git://anongit.freedesktop.org/drm/drm-misc
@@ -6510,6 +6511,7 @@ F:	drivers/gpu/drm/sti
 
 DRM DRIVERS FOR STM
 M:	Yannick Fertre <yannick.fertre@foss.st.com>
+M:	Raphael Gallais-Pou <raphael.gallais-pou@foss.st.com>
 M:	Philippe Cornu <philippe.cornu@foss.st.com>
 L:	dri-devel@lists.freedesktop.org
 S:	Maintained
@@ -18439,6 +18441,7 @@ F:	Documentation/devicetree/bindings/sound/st,sti-asoc-card.txt
 F:	sound/soc/sti/
 
 STI CEC DRIVER
+M:	Alain Volmat <alain.volmat@foss.st.com>
 S:	Maintained
 F:	Documentation/devicetree/bindings/media/stih-cec.txt
 F:	drivers/media/cec/platform/sti/
