@@ -66,8 +66,8 @@ static void wfx_tx_policy_build(struct wfx_vif *wvif, struct tx_policy *policy,
 	}
 }
 
-static bool tx_policy_is_equal(const struct tx_policy *a,
-			       const struct tx_policy *b)
+static bool wfx_tx_policy_is_equal(const struct tx_policy *a,
+				   const struct tx_policy *b)
 {
 	return !memcmp(a->rates, b->rates, sizeof(a->rates));
 }
@@ -78,10 +78,10 @@ static int wfx_tx_policy_find(struct tx_policy_cache *cache,
 	struct tx_policy *it;
 
 	list_for_each_entry(it, &cache->used, link)
-		if (tx_policy_is_equal(wanted, it))
+		if (wfx_tx_policy_is_equal(wanted, it))
 			return it - cache->cache;
 	list_for_each_entry(it, &cache->free, link)
-		if (tx_policy_is_equal(wanted, it))
+		if (wfx_tx_policy_is_equal(wanted, it))
 			return it - cache->cache;
 	return -1;
 }
