@@ -79,8 +79,8 @@ static const char * const fwio_errors[] = {
  * NOTE: it may also be possible to use 'pages' from struct firmware and avoid
  * bounce buffer
  */
-static int sram_write_dma_safe(struct wfx_dev *wdev, u32 addr, const u8 *buf,
-			       size_t len)
+static int wfx_sram_write_dma_safe(struct wfx_dev *wdev, u32 addr,
+				   const u8 *buf, size_t len)
 {
 	int ret;
 	const u8 *tmp;
@@ -92,7 +92,7 @@ static int sram_write_dma_safe(struct wfx_dev *wdev, u32 addr, const u8 *buf,
 	} else {
 		tmp = buf;
 	}
-	ret = sram_buf_write(wdev, addr, tmp, len);
+	ret = wfx_sram_buf_write(wdev, addr, tmp, len);
 	if (tmp != buf)
 		kfree(tmp);
 	return ret;
@@ -156,7 +156,7 @@ static int wait_ncp_status(struct wfx_dev *wdev, u32 status)
 
 	start = ktime_get();
 	for (;;) {
-		ret = sram_reg_read(wdev, WFX_DCA_NCP_STATUS, &reg);
+		ret = wfx_sram_reg_read(wdev, WFX_DCA_NCP_STATUS, &reg);
 		if (ret < 0)
 			return -EIO;
 		now = ktime_get();
@@ -192,7 +192,7 @@ static int upload_firmware(struct wfx_dev *wdev, const u8 *data, size_t len)
 				break;
 			if (ktime_after(now, ktime_add_ms(start, DCA_TIMEOUT)))
 				return -ETIMEDOUT;
-			ret = sram_reg_read(wdev, WFX_DCA_GET, &bytes_done);
+			ret = wfx_sram_reg_read(wdev, WFX_DCA_GET, &bytes_done);
 			if (ret < 0)
 				return ret;
 		}
@@ -200,9 +200,9 @@ static int upload_firmware(struct wfx_dev *wdev, const u8 *data, size_t len)
 			dev_dbg(wdev->dev, "answer after %lldus\n",
 				ktime_us_delta(now, start));
 
-		ret = sram_write_dma_safe(wdev, WFX_DNLD_FIFO +
-					  (offs % DNLD_FIFO_SIZE),
-					  data + offs, DNLD_BLOCK_SIZE);
+		ret = wfx_sram_write_dma_safe(wdev,
+					      WFX_DNLD_FIFO + (offs % DNLD_FIFO_SIZE),
+					      data + offs, DNLD_BLOCK_SIZE);
 		if (ret < 0)
 			return ret;
 
@@ -210,7 +210,7 @@ static int upload_firmware(struct wfx_dev *wdev, const u8 *data, size_t len)
 		 * during first loop
 		 */
 		offs += DNLD_BLOCK_SIZE;
-		ret = sram_reg_write(wdev, WFX_DCA_PUT, offs);
+		ret = wfx_sram_reg_write(wdev, WFX_DCA_PUT, offs);
 		if (ret < 0)
 			return ret;
 	}
@@ -221,10 +221,10 @@ static void print_boot_status(struct wfx_dev *wdev)
 {
 	u32 reg;
 
-	sram_reg_read(wdev, WFX_STATUS_INFO, &reg);
+	wfx_sram_reg_read(wdev, WFX_STATUS_INFO, &reg);
 	if (reg == 0x12345678)
 		return;
-	sram_reg_read(wdev, WFX_ERR_INFO, &reg);
+	wfx_sram_reg_read(wdev, WFX_ERR_INFO, &reg);
 	if (reg < ARRAY_SIZE(fwio_errors) && fwio_errors[reg])
 		dev_info(wdev->dev, "secure boot: %s\n", fwio_errors[reg]);
 	else
@@ -245,36 +245,36 @@ static int load_firmware_secure(struct wfx_dev *wdev)
 	if (!buf)
 		return -ENOMEM;
 
-	sram_reg_write(wdev, WFX_DCA_HOST_STATUS, HOST_READY);
+	wfx_sram_reg_write(wdev, WFX_DCA_HOST_STATUS, HOST_READY);
 	ret = wait_ncp_status(wdev, NCP_INFO_READY);
 	if (ret)
 		goto error;
 
-	sram_buf_read(wdev, WFX_BOOTLOADER_LABEL, buf, BOOTLOADER_LABEL_SIZE);
+	wfx_sram_buf_read(wdev, WFX_BOOTLOADER_LABEL, buf, BOOTLOADER_LABEL_SIZE);
 	buf[BOOTLOADER_LABEL_SIZE] = 0;
 	dev_dbg(wdev->dev, "bootloader: \"%s\"\n", buf);
 
-	sram_buf_read(wdev, WFX_PTE_INFO, buf, PTE_INFO_SIZE);
+	wfx_sram_buf_read(wdev, WFX_PTE_INFO, buf, PTE_INFO_SIZE);
 	ret = get_firmware(wdev, buf[PTE_INFO_KEYSET_IDX], &fw, &fw_offset);
 	if (ret)
 		goto error;
 	header_size = fw_offset + FW_SIGNATURE_SIZE + FW_HASH_SIZE;
 
-	sram_reg_write(wdev, WFX_DCA_HOST_STATUS, HOST_INFO_READ);
+	wfx_sram_reg_write(wdev, WFX_DCA_HOST_STATUS, HOST_INFO_READ);
 	ret = wait_ncp_status(wdev, NCP_READY);
 	if (ret)
 		goto error;
 
-	sram_reg_write(wdev, WFX_DNLD_FIFO, 0xFFFFFFFF); /* Fifo init */
-	sram_write_dma_safe(wdev, WFX_DCA_FW_VERSION, "\x01\x00\x00\x00",
-			    FW_VERSION_SIZE);
-	sram_write_dma_safe(wdev, WFX_DCA_FW_SIGNATURE, fw->data + fw_offset,
-			    FW_SIGNATURE_SIZE);
-	sram_write_dma_safe(wdev, WFX_DCA_FW_HASH,
-			    fw->data + fw_offset + FW_SIGNATURE_SIZE,
-			    FW_HASH_SIZE);
-	sram_reg_write(wdev, WFX_DCA_IMAGE_SIZE, fw->size - header_size);
-	sram_reg_write(wdev, WFX_DCA_HOST_STATUS, HOST_UPLOAD_PENDING);
+	wfx_sram_reg_write(wdev, WFX_DNLD_FIFO, 0xFFFFFFFF); /* Fifo init */
+	wfx_sram_write_dma_safe(wdev, WFX_DCA_FW_VERSION, "\x01\x00\x00\x00",
+				FW_VERSION_SIZE);
+	wfx_sram_write_dma_safe(wdev, WFX_DCA_FW_SIGNATURE, fw->data + fw_offset,
+				FW_SIGNATURE_SIZE);
+	wfx_sram_write_dma_safe(wdev, WFX_DCA_FW_HASH,
+				fw->data + fw_offset + FW_SIGNATURE_SIZE,
+				FW_HASH_SIZE);
+	wfx_sram_reg_write(wdev, WFX_DCA_IMAGE_SIZE, fw->size - header_size);
+	wfx_sram_reg_write(wdev, WFX_DCA_HOST_STATUS, HOST_UPLOAD_PENDING);
 	ret = wait_ncp_status(wdev, NCP_DOWNLOAD_PENDING);
 	if (ret)
 		goto error;
@@ -287,14 +287,14 @@ static int load_firmware_secure(struct wfx_dev *wdev)
 	dev_dbg(wdev->dev, "firmware load after %lldus\n",
 		ktime_us_delta(ktime_get(), start));
 
-	sram_reg_write(wdev, WFX_DCA_HOST_STATUS, HOST_UPLOAD_COMPLETE);
+	wfx_sram_reg_write(wdev, WFX_DCA_HOST_STATUS, HOST_UPLOAD_COMPLETE);
 	ret = wait_ncp_status(wdev, NCP_AUTH_OK);
 	/* Legacy ROM support */
 	if (ret < 0)
 		ret = wait_ncp_status(wdev, NCP_PUB_KEY_RDY);
 	if (ret < 0)
 		goto error;
-	sram_reg_write(wdev, WFX_DCA_HOST_STATUS, HOST_OK_TO_JUMP);
+	wfx_sram_reg_write(wdev, WFX_DCA_HOST_STATUS, HOST_OK_TO_JUMP);
 
 error:
 	kfree(buf);
@@ -320,8 +320,8 @@ static int init_gpr(struct wfx_dev *wdev)
 	};
 
 	for (i = 0; i < ARRAY_SIZE(gpr_init); i++) {
-		ret = igpr_reg_write(wdev, gpr_init[i].index,
-				     gpr_init[i].value);
+		ret = wfx_igpr_reg_write(wdev, gpr_init[i].index,
+					 gpr_init[i].value);
 		if (ret < 0)
 			return ret;
 		dev_dbg(wdev->dev, "  index %02x: %08x\n",
@@ -341,13 +341,13 @@ int wfx_init_device(struct wfx_dev *wdev)
 	reg = CFG_DIRECT_ACCESS_MODE | CFG_CPU_RESET | CFG_BYTE_ORDER_ABCD;
 	if (wdev->pdata.use_rising_clk)
 		reg |= CFG_CLK_RISE_EDGE;
-	ret = config_reg_write(wdev, reg);
+	ret = wfx_config_reg_write(wdev, reg);
 	if (ret < 0) {
 		dev_err(wdev->dev, "bus returned an error during first write access. Host configuration error?\n");
 		return -EIO;
 	}
 
-	ret = config_reg_read(wdev, &reg);
+	ret = wfx_config_reg_read(wdev, &reg);
 	if (ret < 0) {
 		dev_err(wdev->dev, "bus returned an error during first read access. Bus configuration error?\n");
 		return -EIO;
@@ -374,12 +374,12 @@ int wfx_init_device(struct wfx_dev *wdev)
 	if (ret < 0)
 		return ret;
 
-	ret = control_reg_write(wdev, CTRL_WLAN_WAKEUP);
+	ret = wfx_control_reg_write(wdev, CTRL_WLAN_WAKEUP);
 	if (ret < 0)
 		return -EIO;
 	start = ktime_get();
 	for (;;) {
-		ret = control_reg_read(wdev, &reg);
+		ret = wfx_control_reg_read(wdev, &reg);
 		now = ktime_get();
 		if (reg & CTRL_WLAN_READY)
 			break;
@@ -391,15 +391,15 @@ int wfx_init_device(struct wfx_dev *wdev)
 	dev_dbg(wdev->dev, "chip wake up after %lldus\n",
 		ktime_us_delta(now, start));
 
-	ret = config_reg_write_bits(wdev, CFG_CPU_RESET, 0);
+	ret = wfx_config_reg_write_bits(wdev, CFG_CPU_RESET, 0);
 	if (ret < 0)
 		return ret;
 	ret = load_firmware_secure(wdev);
 	if (ret < 0)
 		return ret;
-	return config_reg_write_bits(wdev,
-				     CFG_DIRECT_ACCESS_MODE |
-				     CFG_IRQ_ENABLE_DATA |
-				     CFG_IRQ_ENABLE_WRDY,
-				     CFG_IRQ_ENABLE_DATA);
+	return wfx_config_reg_write_bits(wdev,
+					 CFG_DIRECT_ACCESS_MODE |
+					 CFG_IRQ_ENABLE_DATA |
+					 CFG_IRQ_ENABLE_WRDY,
+					 CFG_IRQ_ENABLE_DATA);
 }

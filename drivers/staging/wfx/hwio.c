@@ -17,7 +17,7 @@
 
 #define WFX_HIF_BUFFER_SIZE 0x2000
 
-static int read32(struct wfx_dev *wdev, int reg, u32 *val)
+static int wfx_read32(struct wfx_dev *wdev, int reg, u32 *val)
 {
 	int ret;
 	__le32 *tmp = kmalloc(sizeof(u32), GFP_KERNEL);
@@ -36,7 +36,7 @@ static int read32(struct wfx_dev *wdev, int reg, u32 *val)
 	return ret;
 }
 
-static int write32(struct wfx_dev *wdev, int reg, u32 val)
+static int wfx_write32(struct wfx_dev *wdev, int reg, u32 val)
 {
 	int ret;
 	__le32 *tmp = kmalloc(sizeof(u32), GFP_KERNEL);
@@ -53,29 +53,30 @@ static int write32(struct wfx_dev *wdev, int reg, u32 val)
 	return ret;
 }
 
-static int read32_locked(struct wfx_dev *wdev, int reg, u32 *val)
+static int wfx_read32_locked(struct wfx_dev *wdev, int reg, u32 *val)
 {
 	int ret;
 
 	wdev->hwbus_ops->lock(wdev->hwbus_priv);
-	ret = read32(wdev, reg, val);
+	ret = wfx_read32(wdev, reg, val);
 	_trace_io_read32(reg, *val);
 	wdev->hwbus_ops->unlock(wdev->hwbus_priv);
 	return ret;
 }
 
-static int write32_locked(struct wfx_dev *wdev, int reg, u32 val)
+static int wfx_write32_locked(struct wfx_dev *wdev, int reg, u32 val)
 {
 	int ret;
 
 	wdev->hwbus_ops->lock(wdev->hwbus_priv);
-	ret = write32(wdev, reg, val);
+	ret = wfx_write32(wdev, reg, val);
 	_trace_io_write32(reg, val);
 	wdev->hwbus_ops->unlock(wdev->hwbus_priv);
 	return ret;
 }
 
-static int write32_bits_locked(struct wfx_dev *wdev, int reg, u32 mask, u32 val)
+static int wfx_write32_bits_locked(struct wfx_dev *wdev,
+				   int reg, u32 mask, u32 val)
 {
 	int ret;
 	u32 val_r, val_w;
@@ -83,13 +84,13 @@ static int write32_bits_locked(struct wfx_dev *wdev, int reg, u32 mask, u32 val)
 	WARN_ON(~mask & val);
 	val &= mask;
 	wdev->hwbus_ops->lock(wdev->hwbus_priv);
-	ret = read32(wdev, reg, &val_r);
+	ret = wfx_read32(wdev, reg, &val_r);
 	_trace_io_read32(reg, val_r);
 	if (ret < 0)
 		goto err;
 	val_w = (val_r & ~mask) | val;
 	if (val_w != val_r) {
-		ret = write32(wdev, reg, val_w);
+		ret = wfx_write32(wdev, reg, val_w);
 		_trace_io_write32(reg, val_w);
 	}
 err:
@@ -97,8 +98,8 @@ err:
 	return ret;
 }
 
-static int indirect_read(struct wfx_dev *wdev, int reg, u32 addr,
-			 void *buf, size_t len)
+static int wfx_indirect_read(struct wfx_dev *wdev, int reg, u32 addr,
+			     void *buf, size_t len)
 {
 	int ret;
 	int i;
@@ -115,20 +116,20 @@ static int indirect_read(struct wfx_dev *wdev, int reg, u32 addr,
 	else
 		return -ENODEV;
 
-	ret = write32(wdev, WFX_REG_BASE_ADDR, addr);
+	ret = wfx_write32(wdev, WFX_REG_BASE_ADDR, addr);
 	if (ret < 0)
 		goto err;
 
-	ret = read32(wdev, WFX_REG_CONFIG, &cfg);
+	ret = wfx_read32(wdev, WFX_REG_CONFIG, &cfg);
 	if (ret < 0)
 		goto err;
 
-	ret = write32(wdev, WFX_REG_CONFIG, cfg | prefetch);
+	ret = wfx_write32(wdev, WFX_REG_CONFIG, cfg | prefetch);
 	if (ret < 0)
 		goto err;
 
 	for (i = 0; i < 20; i++) {
-		ret = read32(wdev, WFX_REG_CONFIG, &cfg);
+		ret = wfx_read32(wdev, WFX_REG_CONFIG, &cfg);
 		if (ret < 0)
 			goto err;
 		if (!(cfg & prefetch))
@@ -148,46 +149,46 @@ err:
 	return ret;
 }
 
-static int indirect_write(struct wfx_dev *wdev, int reg, u32 addr,
-			  const void *buf, size_t len)
+static int wfx_indirect_write(struct wfx_dev *wdev, int reg, u32 addr,
+			      const void *buf, size_t len)
 {
 	int ret;
 
 	WARN_ON(len >= WFX_HIF_BUFFER_SIZE);
 	WARN_ON(reg != WFX_REG_AHB_DPORT && reg != WFX_REG_SRAM_DPORT);
-	ret = write32(wdev, WFX_REG_BASE_ADDR, addr);
+	ret = wfx_write32(wdev, WFX_REG_BASE_ADDR, addr);
 	if (ret < 0)
 		return ret;
 
 	return wdev->hwbus_ops->copy_to_io(wdev->hwbus_priv, reg, buf, len);
 }
 
-static int indirect_read_locked(struct wfx_dev *wdev, int reg, u32 addr,
-				void *buf, size_t len)
+static int wfx_indirect_read_locked(struct wfx_dev *wdev, int reg, u32 addr,
+				    void *buf, size_t len)
 {
 	int ret;
 
 	wdev->hwbus_ops->lock(wdev->hwbus_priv);
-	ret = indirect_read(wdev, reg, addr, buf, len);
+	ret = wfx_indirect_read(wdev, reg, addr, buf, len);
 	_trace_io_ind_read(reg, addr, buf, len);
 	wdev->hwbus_ops->unlock(wdev->hwbus_priv);
 	return ret;
 }
 
-static int indirect_write_locked(struct wfx_dev *wdev, int reg, u32 addr,
-				 const void *buf, size_t len)
+static int wfx_indirect_write_locked(struct wfx_dev *wdev, int reg, u32 addr,
+				     const void *buf, size_t len)
 {
 	int ret;
 
 	wdev->hwbus_ops->lock(wdev->hwbus_priv);
-	ret = indirect_write(wdev, reg, addr, buf, len);
+	ret = wfx_indirect_write(wdev, reg, addr, buf, len);
 	_trace_io_ind_write(reg, addr, buf, len);
 	wdev->hwbus_ops->unlock(wdev->hwbus_priv);
 	return ret;
 }
 
-static int indirect_read32_locked(struct wfx_dev *wdev, int reg,
-				  u32 addr, u32 *val)
+static int wfx_indirect_read32_locked(struct wfx_dev *wdev, int reg,
+				      u32 addr, u32 *val)
 {
 	int ret;
 	__le32 *tmp = kmalloc(sizeof(u32), GFP_KERNEL);
@@ -195,7 +196,7 @@ static int indirect_read32_locked(struct wfx_dev *wdev, int reg,
 	if (!tmp)
 		return -ENOMEM;
 	wdev->hwbus_ops->lock(wdev->hwbus_priv);
-	ret = indirect_read(wdev, reg, addr, tmp, sizeof(u32));
+	ret = wfx_indirect_read(wdev, reg, addr, tmp, sizeof(u32));
 	*val = le32_to_cpu(*tmp);
 	_trace_io_ind_read32(reg, addr, *val);
 	wdev->hwbus_ops->unlock(wdev->hwbus_priv);
@@ -203,8 +204,8 @@ static int indirect_read32_locked(struct wfx_dev *wdev, int reg,
 	return ret;
 }
 
-static int indirect_write32_locked(struct wfx_dev *wdev, int reg,
-				   u32 addr, u32 val)
+static int wfx_indirect_write32_locked(struct wfx_dev *wdev, int reg,
+				       u32 addr, u32 val)
 {
 	int ret;
 	__le32 *tmp = kmalloc(sizeof(u32), GFP_KERNEL);
@@ -213,7 +214,7 @@ static int indirect_write32_locked(struct wfx_dev *wdev, int reg,
 		return -ENOMEM;
 	*tmp = cpu_to_le32(val);
 	wdev->hwbus_ops->lock(wdev->hwbus_priv);
-	ret = indirect_write(wdev, reg, addr, tmp, sizeof(u32));
+	ret = wfx_indirect_write(wdev, reg, addr, tmp, sizeof(u32));
 	_trace_io_ind_write32(reg, addr, val);
 	wdev->hwbus_ops->unlock(wdev->hwbus_priv);
 	kfree(tmp);
@@ -252,92 +253,100 @@ int wfx_data_write(struct wfx_dev *wdev, const void *buf, size_t len)
 	return ret;
 }
 
-int sram_buf_read(struct wfx_dev *wdev, u32 addr, void *buf, size_t len)
+int wfx_sram_buf_read(struct wfx_dev *wdev, u32 addr, void *buf, size_t len)
 {
-	return indirect_read_locked(wdev, WFX_REG_SRAM_DPORT, addr, buf, len);
+	return wfx_indirect_read_locked(wdev, WFX_REG_SRAM_DPORT,
+					addr, buf, len);
 }
 
-int ahb_buf_read(struct wfx_dev *wdev, u32 addr, void *buf, size_t len)
+int wfx_ahb_buf_read(struct wfx_dev *wdev, u32 addr, void *buf, size_t len)
 {
-	return indirect_read_locked(wdev, WFX_REG_AHB_DPORT, addr, buf, len);
+	return wfx_indirect_read_locked(wdev, WFX_REG_AHB_DPORT,
+					addr, buf, len);
 }
 
-int sram_buf_write(struct wfx_dev *wdev, u32 addr, const void *buf, size_t len)
+int wfx_sram_buf_write(struct wfx_dev *wdev, u32 addr,
+		       const void *buf, size_t len)
 {
-	return indirect_write_locked(wdev, WFX_REG_SRAM_DPORT, addr, buf, len);
+	return wfx_indirect_write_locked(wdev, WFX_REG_SRAM_DPORT,
+					 addr, buf, len);
 }
 
-int ahb_buf_write(struct wfx_dev *wdev, u32 addr, const void *buf, size_t len)
+int wfx_ahb_buf_write(struct wfx_dev *wdev, u32 addr,
+		      const void *buf, size_t len)
 {
-	return indirect_write_locked(wdev, WFX_REG_AHB_DPORT, addr, buf, len);
+	return wfx_indirect_write_locked(wdev, WFX_REG_AHB_DPORT,
+					 addr, buf, len);
 }
 
-int sram_reg_read(struct wfx_dev *wdev, u32 addr, u32 *val)
+int wfx_sram_reg_read(struct wfx_dev *wdev, u32 addr, u32 *val)
 {
-	return indirect_read32_locked(wdev, WFX_REG_SRAM_DPORT, addr, val);
+	return wfx_indirect_read32_locked(wdev, WFX_REG_SRAM_DPORT,
+					  addr, val);
 }
 
-int ahb_reg_read(struct wfx_dev *wdev, u32 addr, u32 *val)
+int wfx_ahb_reg_read(struct wfx_dev *wdev, u32 addr, u32 *val)
 {
-	return indirect_read32_locked(wdev, WFX_REG_AHB_DPORT, addr, val);
+	return wfx_indirect_read32_locked(wdev, WFX_REG_AHB_DPORT,
+					  addr, val);
 }
 
-int sram_reg_write(struct wfx_dev *wdev, u32 addr, u32 val)
+int wfx_sram_reg_write(struct wfx_dev *wdev, u32 addr, u32 val)
 {
-	return indirect_write32_locked(wdev, WFX_REG_SRAM_DPORT, addr, val);
+	return wfx_indirect_write32_locked(wdev, WFX_REG_SRAM_DPORT, addr, val);
 }
 
-int ahb_reg_write(struct wfx_dev *wdev, u32 addr, u32 val)
+int wfx_ahb_reg_write(struct wfx_dev *wdev, u32 addr, u32 val)
 {
-	return indirect_write32_locked(wdev, WFX_REG_AHB_DPORT, addr, val);
+	return wfx_indirect_write32_locked(wdev, WFX_REG_AHB_DPORT, addr, val);
 }
 
-int config_reg_read(struct wfx_dev *wdev, u32 *val)
+int wfx_config_reg_read(struct wfx_dev *wdev, u32 *val)
 {
-	return read32_locked(wdev, WFX_REG_CONFIG, val);
+	return wfx_read32_locked(wdev, WFX_REG_CONFIG, val);
 }
 
-int config_reg_write(struct wfx_dev *wdev, u32 val)
+int wfx_config_reg_write(struct wfx_dev *wdev, u32 val)
 {
-	return write32_locked(wdev, WFX_REG_CONFIG, val);
+	return wfx_write32_locked(wdev, WFX_REG_CONFIG, val);
 }
 
-int config_reg_write_bits(struct wfx_dev *wdev, u32 mask, u32 val)
+int wfx_config_reg_write_bits(struct wfx_dev *wdev, u32 mask, u32 val)
 {
-	return write32_bits_locked(wdev, WFX_REG_CONFIG, mask, val);
+	return wfx_write32_bits_locked(wdev, WFX_REG_CONFIG, mask, val);
 }
 
-int control_reg_read(struct wfx_dev *wdev, u32 *val)
+int wfx_control_reg_read(struct wfx_dev *wdev, u32 *val)
 {
-	return read32_locked(wdev, WFX_REG_CONTROL, val);
+	return wfx_read32_locked(wdev, WFX_REG_CONTROL, val);
 }
 
-int control_reg_write(struct wfx_dev *wdev, u32 val)
+int wfx_control_reg_write(struct wfx_dev *wdev, u32 val)
 {
-	return write32_locked(wdev, WFX_REG_CONTROL, val);
+	return wfx_write32_locked(wdev, WFX_REG_CONTROL, val);
 }
 
-int control_reg_write_bits(struct wfx_dev *wdev, u32 mask, u32 val)
+int wfx_control_reg_write_bits(struct wfx_dev *wdev, u32 mask, u32 val)
 {
-	return write32_bits_locked(wdev, WFX_REG_CONTROL, mask, val);
+	return wfx_write32_bits_locked(wdev, WFX_REG_CONTROL, mask, val);
 }
 
-int igpr_reg_read(struct wfx_dev *wdev, int index, u32 *val)
+int wfx_igpr_reg_read(struct wfx_dev *wdev, int index, u32 *val)
 {
 	int ret;
 
 	*val = ~0; /* Never return undefined value */
-	ret = write32_locked(wdev, WFX_REG_SET_GEN_R_W, IGPR_RW | index << 24);
+	ret = wfx_write32_locked(wdev, WFX_REG_SET_GEN_R_W, IGPR_RW | index << 24);
 	if (ret)
 		return ret;
-	ret = read32_locked(wdev, WFX_REG_SET_GEN_R_W, val);
+	ret = wfx_read32_locked(wdev, WFX_REG_SET_GEN_R_W, val);
 	if (ret)
 		return ret;
 	*val &= IGPR_VALUE;
 	return ret;
 }
 
-int igpr_reg_write(struct wfx_dev *wdev, int index, u32 val)
+int wfx_igpr_reg_write(struct wfx_dev *wdev, int index, u32 val)
 {
-	return write32_locked(wdev, WFX_REG_SET_GEN_R_W, index << 24 | val);
+	return wfx_write32_locked(wdev, WFX_REG_SET_GEN_R_W, index << 24 | val);
 }

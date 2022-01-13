@@ -135,7 +135,7 @@ int wfx_hif_shutdown(struct wfx_dev *wdev)
 	if (wdev->pdata.gpio_wakeup)
 		gpiod_set_value(wdev->pdata.gpio_wakeup, 0);
 	else
-		control_reg_write(wdev, 0);
+		wfx_control_reg_write(wdev, 0);
 	kfree(hif);
 	return ret;
 }

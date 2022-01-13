@@ -428,7 +428,7 @@ int wfx_probe(struct wfx_dev *wdev)
 			"enable 'quiescent' power mode with wakeup GPIO and PDS file %s\n",
 			wdev->pdata.file_pds);
 		gpiod_set_value_cansleep(wdev->pdata.gpio_wakeup, 1);
-		control_reg_write(wdev, 0);
+		wfx_control_reg_write(wdev, 0);
 		wfx_hif_set_operational_mode(wdev, HIF_OP_POWER_MODE_QUIESCENT);
 	} else {
 		wfx_hif_set_operational_mode(wdev, HIF_OP_POWER_MODE_DOZE);
