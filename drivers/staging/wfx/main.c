@@ -232,18 +232,17 @@ static int wfx_send_pdata_pds(struct wfx_dev *wdev)
 	if (ret) {
 		dev_err(wdev->dev, "can't load antenna parameters (PDS file %s). The device may be unstable.\n",
 			wdev->pdata.file_pds);
-		goto err1;
+		return ret;
 	}
 	tmp_buf = kmemdup(pds->data, pds->size, GFP_KERNEL);
 	if (!tmp_buf) {
 		ret = -ENOMEM;
-		goto err2;
+		goto release_fw;
 	}
 	ret = wfx_send_pds(wdev, tmp_buf, pds->size);
 	kfree(tmp_buf);
-err2:
+release_fw:
 	release_firmware(pds);
-err1:
 	return ret;
 }
 
@@ -350,7 +349,7 @@ int wfx_probe(struct wfx_dev *wdev)
 
 	err = wfx_init_device(wdev);
 	if (err)
-		goto err0;
+		goto bh_unregister;
 
 	wfx_bh_poll_irq(wdev);
 	err = wait_for_completion_timeout(&wdev->firmware_ready, 1 * HZ);
@@ -361,7 +360,7 @@ int wfx_probe(struct wfx_dev *wdev)
 		} else if (err == -ERESTARTSYS) {
 			dev_info(wdev->dev, "probe interrupted by user\n");
 		}
-		goto err0;
+		goto bh_unregister;
 	}
 
 	/* FIXME: fill wiphy::hw_version */
@@ -380,13 +379,13 @@ int wfx_probe(struct wfx_dev *wdev)
 	if (wfx_api_older_than(wdev, 1, 0)) {
 		dev_err(wdev->dev, "unsupported firmware API version (expect 1 while firmware returns %d)\n",
 			wdev->hw_caps.api_version_major);
-		err = -ENOTSUPP;
-		goto err0;
+		err = -EOPNOTSUPP;
+		goto bh_unregister;
 	}
 
 	if (wdev->hw_caps.link_mode == SEC_LINK_ENFORCED) {
 		dev_err(wdev->dev, "chip require secure_link, but can't negotiate it\n");
-		goto err0;
+		goto bh_unregister;
 	}
 
 	if (wdev->hw_caps.region_sel_mode) {
@@ -401,12 +400,12 @@ int wfx_probe(struct wfx_dev *wdev)
 	dev_dbg(wdev->dev, "sending configuration file %s\n", wdev->pdata.file_pds);
 	err = wfx_send_pdata_pds(wdev);
 	if (err < 0 && err != -ENOENT)
-		goto err0;
+		goto bh_unregister;
 
 	wdev->poll_irq = false;
 	err = wdev->hwbus_ops->irq_subscribe(wdev->hwbus_priv);
 	if (err)
-		goto err0;
+		goto bh_unregister;
 
 	err = wfx_hif_use_multi_tx_conf(wdev, true);
 	if (err)
@@ -444,19 +443,19 @@ int wfx_probe(struct wfx_dev *wdev)
 
 	err = ieee80211_register_hw(wdev->hw);
 	if (err)
-		goto err1;
+		goto irq_unsubscribe;
 
 	err = wfx_debug_init(wdev);
 	if (err)
-		goto err2;
+		goto ieee80211_unregister;
 
 	return 0;
 
-err2:
+ieee80211_unregister:
 	ieee80211_unregister_hw(wdev->hw);
-err1:
+irq_unsubscribe:
 	wdev->hwbus_ops->irq_unsubscribe(wdev->hwbus_priv);
-err0:
+bh_unregister:
 	wfx_bh_unregister(wdev);
 	return err;
 }

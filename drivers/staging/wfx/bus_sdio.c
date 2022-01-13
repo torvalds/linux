@@ -214,26 +214,25 @@ static int wfx_sdio_probe(struct sdio_func *func, const struct sdio_device_id *i
 	sdio_set_block_size(func, 64);
 	sdio_release_host(func);
 	if (ret)
-		goto err0;
+		return ret;
 
 	bus->core = wfx_init_common(&func->dev, &wfx_sdio_pdata,
 				    &wfx_sdio_hwbus_ops, bus);
 	if (!bus->core) {
 		ret = -EIO;
-		goto err1;
+		goto sdio_release;
 	}
 
 	ret = wfx_probe(bus->core);
 	if (ret)
-		goto err1;
+		goto sdio_release;
 
 	return 0;
 
-err1:
+sdio_release:
 	sdio_claim_host(func);
 	sdio_disable_func(func);
 	sdio_release_host(func);
-err0:
 	return ret;
 }
 
