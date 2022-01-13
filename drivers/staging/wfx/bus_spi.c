@@ -164,13 +164,13 @@ static size_t wfx_spi_align_size(void *priv, size_t size)
 }
 
 static const struct wfx_hwbus_ops wfx_spi_hwbus_ops = {
-	.copy_from_io = wfx_spi_copy_from_io,
-	.copy_to_io = wfx_spi_copy_to_io,
-	.irq_subscribe = wfx_spi_irq_subscribe,
+	.copy_from_io    = wfx_spi_copy_from_io,
+	.copy_to_io      = wfx_spi_copy_to_io,
+	.irq_subscribe   = wfx_spi_irq_subscribe,
 	.irq_unsubscribe = wfx_spi_irq_unsubscribe,
-	.lock			= wfx_spi_lock,
-	.unlock			= wfx_spi_unlock,
-	.align_size		= wfx_spi_align_size,
+	.lock            = wfx_spi_lock,
+	.unlock          = wfx_spi_unlock,
+	.align_size      = wfx_spi_align_size,
 };
 
 static int wfx_spi_probe(struct spi_device *func)

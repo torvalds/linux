@@ -15,10 +15,10 @@ struct wfx_dev;
 struct wfx_vif;
 
 struct wfx_queue {
-	struct sk_buff_head	normal;
-	struct sk_buff_head	cab; /* Content After (DTIM) Beacon */
-	atomic_t		pending_frames;
-	int			priority;
+	struct sk_buff_head normal;
+	struct sk_buff_head cab; /* Content After (DTIM) Beacon */
+	atomic_t            pending_frames;
+	int                 priority;
 };
 
 void wfx_tx_lock(struct wfx_dev *wdev);

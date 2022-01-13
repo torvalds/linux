@@ -75,7 +75,7 @@ static int wfx_counters_show(struct seq_file *seq, void *v)
 	seq_printf(seq, "%-24s %12s %12s %12s\n", "", "global", "iface 0", "iface 1");
 
 #define PUT_COUNTER(name) \
-	seq_printf(seq, "%-24s %12d %12d %12d\n", #name, \
+	seq_printf(seq, "%-24s %12d %12d %12d\n", #name,  \
 		   le32_to_cpu(counters[2].count_##name), \
 		   le32_to_cpu(counters[0].count_##name), \
 		   le32_to_cpu(counters[1].count_##name))

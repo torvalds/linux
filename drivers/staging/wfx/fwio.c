@@ -64,9 +64,9 @@
 static const char * const fwio_errors[] = {
 	[ERR_INVALID_SEC_TYPE] = "Invalid section type or wrong encryption",
 	[ERR_SIG_VERIF_FAILED] = "Signature verification failed",
-	[ERR_AES_CTRL_KEY] = "AES control key not initialized",
-	[ERR_ECC_PUB_KEY] = "ECC public key not initialized",
-	[ERR_MAC_KEY] = "MAC key not initialized",
+	[ERR_AES_CTRL_KEY]     = "AES control key not initialized",
+	[ERR_ECC_PUB_KEY]      = "ECC public key not initialized",
+	[ERR_MAC_KEY]          = "MAC key not initialized",
 };
 
 /* request_firmware() allocate data using vmalloc(). It is not compatible with underlying hardware

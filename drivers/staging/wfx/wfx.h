@@ -28,68 +28,68 @@
 struct wfx_hwbus_ops;
 
 struct wfx_dev {
-	struct wfx_platform_data pdata;
-	struct device		*dev;
-	struct ieee80211_hw	*hw;
-	struct ieee80211_vif	*vif[2];
-	struct mac_address	addresses[2];
+	struct wfx_platform_data   pdata;
+	struct device              *dev;
+	struct ieee80211_hw        *hw;
+	struct ieee80211_vif       *vif[2];
+	struct mac_address         addresses[2];
 	const struct wfx_hwbus_ops *hwbus_ops;
-	void			*hwbus_priv;
+	void                       *hwbus_priv;
 
-	u8			keyset;
-	struct completion	firmware_ready;
+	u8                         keyset;
+	struct completion          firmware_ready;
 	struct wfx_hif_ind_startup hw_caps;
-	struct wfx_hif		hif;
-	struct delayed_work	cooling_timeout_work;
-	bool			poll_irq;
-	bool			chip_frozen;
-	struct mutex		conf_mutex;
+	struct wfx_hif             hif;
+	struct delayed_work        cooling_timeout_work;
+	bool                       poll_irq;
+	bool                       chip_frozen;
+	struct mutex               conf_mutex;
 
-	struct wfx_hif_cmd	hif_cmd;
-	struct sk_buff_head	tx_pending;
-	wait_queue_head_t	tx_dequeue;
-	atomic_t		tx_lock;
+	struct wfx_hif_cmd         hif_cmd;
+	struct sk_buff_head        tx_pending;
+	wait_queue_head_t          tx_dequeue;
+	atomic_t                   tx_lock;
 
-	atomic_t		packet_id;
-	u32			key_map;
+	atomic_t                   packet_id;
+	u32                        key_map;
 
-	struct wfx_hif_rx_stats	rx_stats;
-	struct mutex		rx_stats_lock;
+	struct wfx_hif_rx_stats    rx_stats;
+	struct mutex               rx_stats_lock;
 	struct wfx_hif_tx_power_loop_info tx_power_loop_info;
-	struct mutex		tx_power_loop_info_lock;
+	struct mutex               tx_power_loop_info_lock;
 	int			force_ps_timeout;
 };
 
 struct wfx_vif {
-	struct wfx_dev		*wdev;
-	struct ieee80211_vif	*vif;
-	struct ieee80211_channel *channel;
-	int			id;
+	struct wfx_dev             *wdev;
+	struct ieee80211_vif       *vif;
+	struct ieee80211_channel   *channel;
+	int                        id;
 
-	u32			link_id_map;
+	u32                        link_id_map;
 
-	bool			after_dtim_tx_allowed;
-	bool			join_in_progress;
+	bool                       after_dtim_tx_allowed;
+	bool                       join_in_progress;
 
-	struct delayed_work	beacon_loss_work;
+	struct delayed_work        beacon_loss_work;
 
-	struct wfx_queue	tx_queue[4];
+	struct wfx_queue           tx_queue[4];
 	struct wfx_tx_policy_cache tx_policy_cache;
-	struct work_struct	tx_policy_upload_work;
+	struct work_struct         tx_policy_upload_work;
 
-	struct work_struct	update_tim_work;
+	struct work_struct         update_tim_work;
 
-	unsigned long		uapsd_mask;
+	unsigned long              uapsd_mask;
 
 	/* avoid some operations in parallel with scan */
-	struct mutex		scan_lock;
-	struct work_struct	scan_work;
-	struct completion	scan_complete;
-	int			scan_nb_chan_done;
-	bool			scan_abort;
+	struct mutex               scan_lock;
+	struct work_struct         scan_work;
+	struct completion          scan_complete;
+	int                        scan_nb_chan_done;
+	bool                       scan_abort;
 	struct ieee80211_scan_request *scan_req;
 
-	struct completion	set_pm_mode_complete;
+	struct completion          set_pm_mode_complete;
 };
 
 static inline struct wfx_vif *wdev_to_wvif(struct wfx_dev *wdev, int vif_id)

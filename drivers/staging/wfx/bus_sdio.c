@@ -157,13 +157,13 @@ static size_t wfx_sdio_align_size(void *priv, size_t size)
 }
 
 static const struct wfx_hwbus_ops wfx_sdio_hwbus_ops = {
-	.copy_from_io = wfx_sdio_copy_from_io,
-	.copy_to_io = wfx_sdio_copy_to_io,
-	.irq_subscribe = wfx_sdio_irq_subscribe,
+	.copy_from_io    = wfx_sdio_copy_from_io,
+	.copy_to_io      = wfx_sdio_copy_to_io,
+	.irq_subscribe   = wfx_sdio_irq_subscribe,
 	.irq_unsubscribe = wfx_sdio_irq_unsubscribe,
-	.lock			= wfx_sdio_lock,
-	.unlock			= wfx_sdio_unlock,
-	.align_size		= wfx_sdio_align_size,
+	.lock            = wfx_sdio_lock,
+	.unlock          = wfx_sdio_unlock,
+	.align_size      = wfx_sdio_align_size,
 };
 
 static const struct of_device_id wfx_sdio_of_match[] = {
