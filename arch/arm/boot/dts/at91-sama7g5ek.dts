@@ -251,6 +251,7 @@
 
 					regulator-state-standby {
 						regulator-on-in-suspend;
+						regulator-suspend-microvolt = <3300000>;
 						regulator-mode = <4>;
 					};
 
@@ -291,6 +292,7 @@
 
 					regulator-state-standby {
 						regulator-on-in-suspend;
+						regulator-suspend-voltage = <1150000>;
 						regulator-mode = <4>;
 					};
 
@@ -311,6 +313,7 @@
 
 					regulator-state-standby {
 						regulator-on-in-suspend;
+						regulator-suspend-voltage = <1050000>;
 						regulator-mode = <4>;
 					};
 
@@ -327,6 +330,7 @@
 					regulator-always-on;
 
 					regulator-state-standby {
+						regulator-suspend-voltage = <1800000>;
 						regulator-on-in-suspend;
 					};
 
@@ -341,6 +345,7 @@
 					regulator-max-microvolt = <3700000>;
 
 					regulator-state-standby {
+						regulator-suspend-voltage = <1800000>;
 						regulator-on-in-suspend;
 					};
 
