@@ -1271,6 +1271,25 @@
 				aspeed,scu = <&syscon>;
 			};
 
+			hace: hace@1e6d0000 {
+				compatible = "aspeed,ast2600-hace";
+				reg = <0x1e6d0000 0x200>;
+				interrupts = <GIC_SPI 4 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&syscon ASPEED_CLK_GATE_YCLK>;
+				clock-names = "yclk";
+				resets = <&syscon ASPEED_RESET_HACE>;
+				status = "ok";
+			};
+
+			acry: acry@1e6fa000 {
+				compatible = "aspeed,ast2600-acry";
+				reg = <0x1e6fa000 0x400 0x1e710000 0x1800>;
+				interrupts = <GIC_SPI 160 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&syscon ASPEED_CLK_GATE_RSACLK>;
+				clock-names = "rsaclk";
+				status = "ok";
+			};
+
 		};
 	};
 };

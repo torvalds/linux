@@ -1057,3 +1057,11 @@
 &mbox {
 	status = "okay";
 };
+
+&hace {
+	status = "okay";
+};
+
+&acry {
+	status = "okay";
+};
