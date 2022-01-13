@@ -552,10 +552,8 @@ static int qcom_pcie_ep_enable_irq_resources(struct platform_device *pdev,
 	int irq, ret;
 
 	irq = platform_get_irq_byname(pdev, "global");
-	if (irq < 0) {
-		dev_err(&pdev->dev, "Failed to get Global IRQ\n");
+	if (irq < 0)
 		return irq;
-	}
 
 	ret = devm_request_threaded_irq(&pdev->dev, irq, NULL,
 					qcom_pcie_ep_global_irq_thread,
