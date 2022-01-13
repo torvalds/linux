@@ -1965,7 +1965,7 @@
 		pmic_pins: pmic-pins {
 			rockchip,pins =
 				/* pmic_int_l */
-				<0 RK_PA7 1 &pcfg_pull_none>,
+				<0 RK_PA7 0 &pcfg_pull_up>,
 				/* pmic_sleep1 */
 				<0 RK_PA2 1 &pcfg_pull_none>,
 				/* pmic_sleep2 */
