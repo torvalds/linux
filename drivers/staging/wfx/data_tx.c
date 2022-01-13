@@ -359,10 +359,10 @@ static int wfx_tx_inner(struct wfx_vif *wvif, struct ieee80211_sta *sta,
 	hif_msg->len = cpu_to_le16(skb->len);
 	hif_msg->id = HIF_REQ_ID_TX;
 	hif_msg->interface = wvif->id;
-	if (skb->len > wvif->wdev->hw_caps.size_inp_ch_buf) {
+	if (skb->len > le16_to_cpu(wvif->wdev->hw_caps.size_inp_ch_buf)) {
 		dev_warn(wvif->wdev->dev,
 			 "requested frame size (%d) is larger than maximum supported (%d)\n",
-			 skb->len, wvif->wdev->hw_caps.size_inp_ch_buf);
+			 skb->len, le16_to_cpu(wvif->wdev->hw_caps.size_inp_ch_buf));
 		skb_pull(skb, wmsg_len);
 		return -EIO;
 	}

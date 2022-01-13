@@ -182,9 +182,9 @@ static void tx_helper(struct wfx_dev *wdev, struct hif_msg *hif)
 	wdev->hif.tx_seqnum = (wdev->hif.tx_seqnum + 1) % (HIF_COUNTER_MAX + 1);
 
 	data = hif;
-	WARN(len > wdev->hw_caps.size_inp_ch_buf,
-	     "%s: request exceed the chip capability: %zu > %d\n", __func__,
-	     len, wdev->hw_caps.size_inp_ch_buf);
+	WARN(len > le16_to_cpu(wdev->hw_caps.size_inp_ch_buf),
+	     "request exceed the chip capability: %zu > %d\n",
+	     len, le16_to_cpu(wdev->hw_caps.size_inp_ch_buf));
 	len = wdev->hwbus_ops->align_size(wdev->hwbus_priv, len);
 	ret = wfx_data_write(wdev, data, len);
 	if (ret)
@@ -204,7 +204,7 @@ static int bh_work_tx(struct wfx_dev *wdev, int max_msg)
 
 	for (i = 0; i < max_msg; i++) {
 		hif = NULL;
-		if (wdev->hif.tx_buffers_used < wdev->hw_caps.num_inp_ch_bufs) {
+		if (wdev->hif.tx_buffers_used < le16_to_cpu(wdev->hw_caps.num_inp_ch_bufs)) {
 			if (try_wait_for_completion(&wdev->hif_cmd.ready)) {
 				WARN(!mutex_is_locked(&wdev->hif_cmd.lock), "data locking error");
 				hif = wdev->hif_cmd.buf_send;
