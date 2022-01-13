@@ -76,6 +76,7 @@
 		spi-max-frequency = <20000000>;
 		voltage-ranges = <3300 3300>;
 		disable-wp;
+		gpios = <&gpio 11 GPIO_ACTIVE_LOW>;
 	};
 };
 

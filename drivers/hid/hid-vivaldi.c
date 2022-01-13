@@ -57,6 +57,9 @@ static int vivaldi_probe(struct hid_device *hdev,
 	int ret;
 
 	drvdata = devm_kzalloc(&hdev->dev, sizeof(*drvdata), GFP_KERNEL);
+	if (!drvdata)
+		return -ENOMEM;
+
 	hid_set_drvdata(hdev, drvdata);
 
 	ret = hid_parse(hdev);

@@ -60,7 +60,7 @@
 
 &port02 {
 	bus-range = <3 3>;
-	ethernet0: pci@0,0 {
+	ethernet0: ethernet@0,0 {
 		reg = <0x30000 0x0 0x0 0x0 0x0>;
 		/* To be filled by the loader */
 		local-mac-address = [00 10 18 00 00 00];

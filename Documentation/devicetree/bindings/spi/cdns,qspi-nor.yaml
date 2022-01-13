@@ -29,6 +29,7 @@ properties:
               - ti,am654-ospi
               - intel,lgm-qspi
               - xlnx,versal-ospi-1.0
+              - intel,socfpga-qspi
           - const: cdns,qspi-nor
       - const: cdns,qspi-nor
 
