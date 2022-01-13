@@ -12,7 +12,7 @@
 #include <asm/ldcw.h>
 
 static unsigned int __aligned(16) toc_lock = 1;
-DEFINE_PER_CPU_PAGE_ALIGNED(char [16384], toc_stack);
+DEFINE_PER_CPU_PAGE_ALIGNED(char [16384], toc_stack) __visible;
 
 static void toc20_to_pt_regs(struct pt_regs *regs, struct pdc_toc_pim_20 *toc)
 {
