@@ -3279,7 +3279,6 @@ bool ieee80211_chandef_ht_oper(const struct ieee80211_ht_operation *ht_oper,
 		channel_type = NL80211_CHAN_HT40MINUS;
 		break;
 	default:
-		channel_type = NL80211_CHAN_NO_HT;
 		return false;
 	}
 
