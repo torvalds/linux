@@ -1,9 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2021-2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2021 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 #include <linux/cpu.h>
 #include <linux/cpumask.h>
+#include <linux/sched/isolation.h>
+#include <trace/hooks/sched.h>
 #include <walt.h>
 #include "trace.h"
 
@@ -379,8 +382,63 @@ int walt_resume_cpus(struct cpumask *cpus)
 }
 EXPORT_SYMBOL(walt_resume_cpus);
 
+static void android_rvh_get_nohz_timer_target(void *unused, int *cpu, bool *done)
+{
+	int i, default_cpu = -1;
+	struct sched_domain *sd;
+	cpumask_t unhalted;
+
+	*done = true;
+
+	if (housekeeping_cpu(*cpu, HK_FLAG_TIMER) && !cpu_halted(*cpu)) {
+		if (!available_idle_cpu(*cpu))
+			return;
+		default_cpu = *cpu;
+	}
+
+	rcu_read_lock();
+	for_each_domain(*cpu, sd) {
+		for_each_cpu_and(i, sched_domain_span(sd),
+			housekeeping_cpumask(HK_FLAG_TIMER)) {
+			if (*cpu == i)
+				continue;
+
+			if (!available_idle_cpu(i) && !cpu_halted(i)) {
+				*cpu = i;
+				goto unlock;
+			}
+		}
+	}
+
+	if (default_cpu == -1) {
+		cpumask_complement(&unhalted, cpu_halt_mask);
+		for_each_cpu_and(i, &unhalted,
+				 housekeeping_cpumask(HK_FLAG_TIMER)) {
+			if (*cpu == i)
+				continue;
+
+			if (!available_idle_cpu(i)) {
+				*cpu = i;
+				goto unlock;
+			}
+		}
+
+		/* no active, non-halted, not-idle, choose any */
+		default_cpu = cpumask_any(&unhalted);
+
+		if (unlikely(default_cpu >= nr_cpu_ids))
+			goto unlock;
+	}
+
+	*cpu = default_cpu;
+unlock:
+	rcu_read_unlock();
+}
+
 void walt_halt_init(void)
 {
+	register_trace_android_rvh_get_nohz_timer_target(android_rvh_get_nohz_timer_target, NULL);
+
 }
 
 #endif /* CONFIG_HOTPLUG_CPU */
