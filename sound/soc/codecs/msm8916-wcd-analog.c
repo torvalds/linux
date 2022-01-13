@@ -232,6 +232,9 @@
 #define RX_EAR_CTL_PA_SEL_MASK			BIT(7)
 #define RX_EAR_CTL_PA_SEL			BIT(7)
 
+#define CDC_A_RX_LO_DAC_CTL		(0xf1AC)
+#define CDC_A_RX_LO_EN_CTL		(0xf1AD)
+
 #define CDC_A_SPKR_DAC_CTL		(0xf1B0)
 #define SPKR_DAC_CTL_DAC_RESET_MASK	BIT(4)
 #define SPKR_DAC_CTL_DAC_RESET_NORMAL	0
@@ -322,6 +325,10 @@ static const struct soc_enum hph_enum = SOC_ENUM_SINGLE_VIRT(
 static const struct snd_kcontrol_new ear_mux = SOC_DAPM_ENUM("EAR_S", hph_enum);
 static const struct snd_kcontrol_new hphl_mux = SOC_DAPM_ENUM("HPHL", hph_enum);
 static const struct snd_kcontrol_new hphr_mux = SOC_DAPM_ENUM("HPHR", hph_enum);
+static const struct snd_kcontrol_new lineout_mux = SOC_DAPM_ENUM("LINEOUT",
+								 hph_enum);
+static const struct snd_kcontrol_new lineout_ext_mux = SOC_DAPM_ENUM("LINEOUT Ext PA",
+								     hph_enum);
 
 /* ADC2 MUX */
 static const struct soc_enum adc2_enum = SOC_ENUM_SINGLE_VIRT(
@@ -625,6 +632,47 @@ static int pm8916_wcd_analog_enable_adc(struct snd_soc_dapm_widget *w,
 	return 0;
 }
 
+static int pm8916_wcd_analog_enable_lineout_dac(struct snd_soc_dapm_widget *w,
+					 struct snd_kcontrol *kcontrol,
+					 int event)
+{
+	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
+
+	switch (event) {
+	case SND_SOC_DAPM_PRE_PMU:
+		snd_soc_component_update_bits(component, CDC_A_RX_LO_EN_CTL,
+				0x20, 0x20);
+		snd_soc_component_update_bits(component, CDC_A_RX_LO_EN_CTL,
+				0x80, 0x80);
+		snd_soc_component_update_bits(component, CDC_A_RX_LO_DAC_CTL,
+				0x08, 0x08);
+		snd_soc_component_update_bits(component, CDC_A_RX_LO_DAC_CTL,
+				0x40, 0x40);
+		msleep(5);
+		break;
+	case SND_SOC_DAPM_POST_PMU:
+		snd_soc_component_update_bits(component, CDC_A_RX_LO_DAC_CTL,
+				0x80, 0x80);
+		snd_soc_component_update_bits(component, CDC_A_RX_LO_DAC_CTL,
+				0x08, 0x00);
+		break;
+	case SND_SOC_DAPM_POST_PMD:
+		usleep_range(20000, 20100);
+		snd_soc_component_update_bits(component, CDC_A_RX_LO_DAC_CTL,
+				0x80, 0x00);
+		snd_soc_component_update_bits(component, CDC_A_RX_LO_DAC_CTL,
+				0x40, 0x00);
+		snd_soc_component_update_bits(component, CDC_A_RX_LO_DAC_CTL,
+				0x08, 0x00);
+		snd_soc_component_update_bits(component, CDC_A_RX_LO_EN_CTL,
+				0x80, 0x00);
+		snd_soc_component_update_bits(component, CDC_A_RX_LO_EN_CTL,
+				0x20, 0x00);
+		break;
+	}
+	return 0;
+}
+
 static int pm8916_wcd_analog_enable_spk_pa(struct snd_soc_dapm_widget *w,
 					    struct snd_kcontrol *kcontrol,
 					    int event)
@@ -878,6 +926,15 @@ static const struct snd_soc_dapm_route pm8916_wcd_analog_audio_map[] = {
 	{"SPK PA", NULL, "SPK DAC"},
 	{"SPK DAC", "Switch", "PDM_RX3"},
 
+	{"LINEOUT_OUT", NULL, "LINEOUT PA"},
+	{"LINEOUT Ext PA", NULL, "LINEOUT Ext"},
+	{"LINEOUT Ext", "Switch", "LINEOUT PA"},
+	{"LINEOUT PA", NULL, "RX_BIAS"},
+	{"LINEOUT PA", NULL, "SPKR_CLK"},
+	{"LINEOUT PA", NULL, "LINEOUT"},
+	{"LINEOUT", "Switch", "LINEOUT DAC"},
+	{"LINEOUT DAC", NULL, "PDM_RX3"},
+
 	{"MIC_BIAS1", NULL, "INT_LDO_H"},
 	{"MIC_BIAS2", NULL, "INT_LDO_H"},
 	{"MIC_BIAS1", NULL, "vdd-micbias"},
@@ -938,6 +995,21 @@ static const struct snd_soc_dapm_widget pm8916_wcd_analog_dapm_widgets[] = {
 
 	SND_SOC_DAPM_SUPPLY("DAC_REF", CDC_A_RX_COM_BIAS_DAC, 0, 0, NULL, 0),
 	SND_SOC_DAPM_SUPPLY("RX_BIAS", CDC_A_RX_COM_BIAS_DAC, 7, 0, NULL, 0),
+
+	/* Lineout */
+	SND_SOC_DAPM_OUTPUT("LINEOUT_OUT"),
+	SND_SOC_DAPM_OUTPUT("LINEOUT Ext PA"),
+
+	SND_SOC_DAPM_PGA_E("LINEOUT PA", CDC_A_RX_LO_EN_CTL,
+			   6, 0, NULL, 0, NULL, 0),
+
+	SND_SOC_DAPM_DAC_E("LINEOUT DAC", NULL, SND_SOC_NOPM, 0, 0,
+			   pm8916_wcd_analog_enable_lineout_dac,
+			   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU |
+			   SND_SOC_DAPM_POST_PMD),
+
+	SND_SOC_DAPM_MUX("LINEOUT", SND_SOC_NOPM, 0, 0, &lineout_mux),
+	SND_SOC_DAPM_MUX("LINEOUT Ext", SND_SOC_NOPM, 0, 0, &lineout_ext_mux),
 
 	/* TX */
 	SND_SOC_DAPM_SUPPLY("MIC_BIAS1", CDC_A_MICB_1_EN, 7, 0,
