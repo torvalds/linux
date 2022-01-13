@@ -3486,14 +3486,17 @@ static int vop2_cluter_splice_scale_check(struct vop2_win *win, struct drm_plane
 	if ((drm_rect_width(&src) >> 16) <= drm_rect_width(&dst))
 		return 0;
 
+	if ((drm_rect_width(&src) >> 16) <= VOP2_MAX_VP_OUTPUT_WIDTH)
+		return 0;
 	/*
 	 * Cluster scale down limitation in splice mode:
 	 * If scale down, must display at horizontal center
 	 */
 	if ((dst.x1 < half_hdisplay) && (dst.x2 > half_hdisplay)) {
 		if ((dst.x2 + dst.x1) != hdisplay) {
-			DRM_ERROR("%s dst(%d %d)must scale down at center in splice mode\n",
-				  win->name, dst.x1, dst.x2);
+			DRM_ERROR("%s src_w: %d dst_w %d dst(%d %d) must scale down at center in splice mode\n",
+				  win->name, drm_rect_width(&src) >> 16,
+				  drm_rect_width(&dst), dst.x1, dst.x2);
 			return -EINVAL;
 		}
 
