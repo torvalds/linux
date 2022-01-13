@@ -59,6 +59,9 @@ struct sm5502_muic_info {
 };
 
 struct sm5502_type {
+	u32 reg_adc;
+	const struct regmap_config *regmap_config;
+
 	struct muic_irq *muic_irqs;
 	unsigned int num_muic_irqs;
 	const struct regmap_irq_chip *irq_chip;
@@ -69,6 +72,8 @@ struct sm5502_type {
 	unsigned int otg_dev_type1;
 	int (*parse_irq)(struct sm5502_muic_info *info, int irq_type);
 };
+
+static const struct sm5502_type sm5708_data;
 
 /* Default value of SM5502 register to bring up MUIC device. */
 static struct reg_data sm5502_reg_data[] = {
@@ -123,6 +128,27 @@ static struct reg_data sm5504_reg_data[] = {
 			| SM5504_REG_CONTROL_ADC_EN_MASK,
 		.invert = true,
 	},
+};
+/* Default value of SM5708 register to bring up MUIC device. */
+static struct reg_data sm5708_reg_data[] = {
+	{
+		.reg = SM5708_REG_RESET,
+		.val = SM5502_REG_RESET_MASK,
+		.invert = true,
+	}, {
+		.reg = SM5708_REG_CONTROL,
+		.val = SM5502_REG_CONTROL_MASK_INT_MASK,
+		.invert = false,
+	}, {
+		.reg = SM5708_REG_INTMASK1,
+		.val = 0x3,
+		.invert = false,
+	}, {
+		.reg = SM5708_REG_INTMASK2,
+		.val = 0,
+		.invert = false,
+	},
+	{ }
 };
 
 /* List of detectable cables */
@@ -232,6 +258,15 @@ static const struct regmap_irq_chip sm5502_muic_irq_chip = {
 	.num_irqs		= ARRAY_SIZE(sm5502_irqs),
 };
 
+static const struct regmap_irq_chip sm5708_muic_irq_chip = {
+	.name			= "sm5708",
+	.status_base		= SM5708_REG_INT1,
+	.mask_base		= SM5708_REG_INTMASK1,
+	.num_regs		= 3,
+	.irqs			= sm5502_irqs,
+	.num_irqs		= ARRAY_SIZE(sm5502_irqs),
+};
+
 /* List of supported interrupt for SM5504 */
 static struct muic_irq sm5504_muic_irqs[] = {
 	{ SM5504_IRQ_INT1_ATTACH,	"muic-attach" },
@@ -300,6 +335,25 @@ static const struct regmap_config sm5502_muic_regmap_config = {
 	.max_register	= SM5502_REG_END,
 };
 
+/* Define regmap configuration of SM5708 for I2C communication  */
+static bool sm5708_muic_volatile_reg(struct device *dev, unsigned int reg)
+{
+	switch (reg) {
+	case SM5708_REG_INTMASK1 ... SM5708_REG_INTMASK3:
+		return true;
+	default:
+		break;
+	}
+	return false;
+}
+
+static const struct regmap_config sm5708_muic_regmap_config = {
+	.reg_bits	= 8,
+	.val_bits	= 8,
+	.volatile_reg	= sm5708_muic_volatile_reg,
+	.max_register	= 0x3b,
+};
+
 /* Change DM_CON/DP_CON/VBUSIN switch according to cable type */
 static int sm5502_muic_set_path(struct sm5502_muic_info *info,
 				unsigned int con_sw, unsigned int vbus_sw,
@@ -333,6 +387,10 @@ static int sm5502_muic_set_path(struct sm5502_muic_info *info,
 		return -EINVAL;
 	}
 
+	// SM5708 Doesn't have vbus switch
+	if (info->type == &sm5708_data)
+		return 0;
+
 	switch (vbus_sw) {
 	case VBUSIN_SWITCH_OPEN:
 	case VBUSIN_SWITCH_VBUSOUT:
@@ -362,7 +420,7 @@ static unsigned int sm5502_muic_get_cable_type(struct sm5502_muic_info *info)
 	int ret;
 
 	/* Read ADC value according to external cable or button */
-	ret = regmap_read(info->regmap, SM5502_REG_ADC, &adc);
+	ret = regmap_read(info->regmap, info->type->reg_adc, &adc);
 	if (ret) {
 		dev_err(info->dev, "failed to read ADC register\n");
 		return ret;
@@ -496,6 +554,7 @@ static int sm5502_muic_cable_handler(struct sm5502_muic_info *info,
 		break;
 	case SM5502_MUIC_ADC_GROUND_USB_OTG:
 	case SM5502_MUIC_ADC_OPEN_USB_OTG:
+	case SM5502_MUIC_ADC_GROUND:
 		id	= EXTCON_USB_HOST;
 		con_sw	= DM_DP_SWITCH_USB;
 		vbus_sw	= VBUSIN_SWITCH_OPEN;
@@ -701,7 +760,7 @@ static int sm5022_muic_i2c_probe(struct i2c_client *i2c)
 
 	INIT_WORK(&info->irq_work, sm5502_muic_irq_work);
 
-	info->regmap = devm_regmap_init_i2c(i2c, &sm5502_muic_regmap_config);
+	info->regmap = devm_regmap_init_i2c(i2c, info->type->regmap_config);
 	if (IS_ERR(info->regmap)) {
 		ret = PTR_ERR(info->regmap);
 		dev_err(info->dev, "failed to allocate register map: %d\n",
@@ -774,6 +833,8 @@ static int sm5022_muic_i2c_probe(struct i2c_client *i2c)
 }
 
 static const struct sm5502_type sm5502_data = {
+	.reg_adc = SM5502_REG_ADC,
+	.regmap_config = &sm5502_muic_regmap_config,
 	.muic_irqs = sm5502_muic_irqs,
 	.num_muic_irqs = ARRAY_SIZE(sm5502_muic_irqs),
 	.irq_chip = &sm5502_muic_irq_chip,
@@ -784,6 +845,8 @@ static const struct sm5502_type sm5502_data = {
 };
 
 static const struct sm5502_type sm5504_data = {
+	.reg_adc = SM5502_REG_ADC,
+	.regmap_config = &sm5502_muic_regmap_config,
 	.muic_irqs = sm5504_muic_irqs,
 	.num_muic_irqs = ARRAY_SIZE(sm5504_muic_irqs),
 	.irq_chip = &sm5504_muic_irq_chip,
@@ -793,10 +856,23 @@ static const struct sm5502_type sm5504_data = {
 	.parse_irq = sm5504_parse_irq,
 };
 
+static const struct sm5502_type sm5708_data = {
+	.reg_adc = SM5708_REG_ADC,
+	.regmap_config = &sm5708_muic_regmap_config,
+	.muic_irqs = sm5502_muic_irqs,
+	.num_muic_irqs = ARRAY_SIZE(sm5502_muic_irqs),
+	.irq_chip = &sm5708_muic_irq_chip,
+	.reg_data = sm5708_reg_data,
+	.num_reg_data = ARRAY_SIZE(sm5708_reg_data),
+	.otg_dev_type1 = SM5502_REG_DEV_TYPE1_USB_OTG_MASK,
+	.parse_irq = sm5502_parse_irq,
+};
+
 static const struct of_device_id sm5502_dt_match[] = {
 	{ .compatible = "siliconmitus,sm5502-muic", .data = &sm5502_data },
 	{ .compatible = "siliconmitus,sm5504-muic", .data = &sm5504_data },
 	{ .compatible = "siliconmitus,sm5703-muic", .data = &sm5502_data },
+	{ .compatible = "siliconmitus,sm5708-muic", .data = &sm5708_data },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, sm5502_dt_match);
@@ -830,6 +906,7 @@ static const struct i2c_device_id sm5502_i2c_id[] = {
 	{ "sm5502", (kernel_ulong_t)&sm5502_data },
 	{ "sm5504", (kernel_ulong_t)&sm5504_data },
 	{ "sm5703-muic", (kernel_ulong_t)&sm5502_data },
+	{ "sm5708-muic", (kernel_ulong_t)&sm5708_data },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, sm5502_i2c_id);
