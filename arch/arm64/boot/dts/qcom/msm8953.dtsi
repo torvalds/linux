@@ -45,6 +45,8 @@
 			enable-method = "psci";
 			capacity-dmips-mhz = <1024>;
 			next-level-cache = <&l2_0>;
+			power-domains = <&cpu_pd0>;
+			power-domain-names = "psci";
 			#cooling-cells = <2>;
 		};
 
@@ -55,6 +57,8 @@
 			enable-method = "psci";
 			capacity-dmips-mhz = <1024>;
 			next-level-cache = <&l2_0>;
+			power-domains = <&cpu_pd1>;
+			power-domain-names = "psci";
 			#cooling-cells = <2>;
 		};
 
@@ -65,6 +69,8 @@
 			enable-method = "psci";
 			capacity-dmips-mhz = <1024>;
 			next-level-cache = <&l2_0>;
+			power-domains = <&cpu_pd2>;
+			power-domain-names = "psci";
 			#cooling-cells = <2>;
 		};
 
@@ -75,6 +81,8 @@
 			enable-method = "psci";
 			capacity-dmips-mhz = <1024>;
 			next-level-cache = <&l2_0>;
+			power-domains = <&cpu_pd3>;
+			power-domain-names = "psci";
 			#cooling-cells = <2>;
 		};
 
@@ -85,6 +93,8 @@
 			enable-method = "psci";
 			capacity-dmips-mhz = <1024>;
 			next-level-cache = <&l2_1>;
+			power-domains = <&cpu_pd4>;
+			power-domain-names = "psci";
 			#cooling-cells = <2>;
 		};
 
@@ -95,6 +105,8 @@
 			enable-method = "psci";
 			capacity-dmips-mhz = <1024>;
 			next-level-cache = <&l2_1>;
+			power-domains = <&cpu_pd5>;
+			power-domain-names = "psci";
 			#cooling-cells = <2>;
 		};
 
@@ -105,6 +117,8 @@
 			enable-method = "psci";
 			capacity-dmips-mhz = <1024>;
 			next-level-cache = <&l2_1>;
+			power-domains = <&cpu_pd6>;
+			power-domain-names = "psci";
 			#cooling-cells = <2>;
 		};
 
@@ -115,6 +129,8 @@
 			enable-method = "psci";
 			capacity-dmips-mhz = <1024>;
 			next-level-cache = <&l2_1>;
+			power-domains = <&cpu_pd7>;
+			power-domain-names = "psci";
 			#cooling-cells = <2>;
 		};
 
@@ -147,6 +163,52 @@
 				core3 {
 					cpu = <&cpu7>;
 				};
+			};
+		};
+
+		idle-states {
+			entry-method = "psci";
+
+			cpu_pc: cpu-power-collapse {
+				compatible = "arm,idle-state";
+				idle-state-name = "cpu-pc";
+				arm,psci-suspend-param = <0x40000003>;
+				entry-latency-us = <90>;
+				exit-latency-us = <180>;
+				min-residency-us = <400>;
+				local-timer-stop;
+			};
+		};
+
+		cluster-idle-states {
+			cluster_ret: cluster-retention {
+				compatible = "domain-idle-state";
+				idle-state-name = "cluster-ret";
+				arm,psci-suspend-param = <0x41000033>;
+				entry-latency-us = <120>;
+				exit-latency-us = <200>;
+				min-residency-us = <1200>;
+				local-timer-stop;
+			};
+
+			cluster_gdhs: cluster-gdhs {
+				compatible = "domain-idle-state";
+				idle-state-name = "cluster-gdhs";
+				arm,psci-suspend-param = <0x41000043>;
+				entry-latency-us = <150>;
+				exit-latency-us = <220>;
+				min-residency-us = <1800>;
+				local-timer-stop;
+			};
+
+			cluster_pc: cluster-power-collapse {
+				compatible = "domain-idle-state";
+				idle-state-name = "cluster-pc";
+				arm,psci-suspend-param = <0x41000053>;
+				entry-latency-us = <270>;
+				exit-latency-us = <430>;
+				min-residency-us = <2500>;
+				local-timer-stop;
 			};
 		};
 
@@ -188,6 +250,64 @@
 	psci {
 		compatible = "arm,psci-1.0";
 		method = "smc";
+
+		cpu_pd0: power-domain-cpu0 {
+			#power-domain-cells = <0>;
+			domain-idle-states = <&cpu_pc>;
+			power-domains = <&cluster0_pd>;
+		};
+
+		cpu_pd1: power-domain-cpu1 {
+			#power-domain-cells = <0>;
+			domain-idle-states = <&cpu_pc>;
+			power-domains = <&cluster0_pd>;
+		};
+
+		cpu_pd2: power-domain-cpu2 {
+			#power-domain-cells = <0>;
+			domain-idle-states = <&cpu_pc>;
+			power-domains = <&cluster0_pd>;
+		};
+
+		cpu_pd3: power-domain-cpu3 {
+			#power-domain-cells = <0>;
+			domain-idle-states = <&cpu_pc>;
+			power-domains = <&cluster0_pd>;
+		};
+
+		cpu_pd4: power-domain-cpu4 {
+			#power-domain-cells = <0>;
+			domain-idle-states = <&cpu_pc>;
+			power-domains = <&cluster1_pd>;
+		};
+
+		cpu_pd5: power-domain-cpu5 {
+			#power-domain-cells = <0>;
+			domain-idle-states = <&cpu_pc>;
+			power-domains = <&cluster1_pd>;
+		};
+
+		cpu_pd6: power-domain-cpu6 {
+			#power-domain-cells = <0>;
+			domain-idle-states = <&cpu_pc>;
+			power-domains = <&cluster1_pd>;
+		};
+
+		cpu_pd7: power-domain-cpu7 {
+			#power-domain-cells = <0>;
+			domain-idle-states = <&cpu_pc>;
+			power-domains = <&cluster1_pd>;
+		};
+
+		cluster0_pd: power-domain-cluster0 {
+			#power-domain-cells = <0>;
+			domain-idle-states = <&cluster_ret>, <&cluster_gdhs>, <&cluster_pc>;
+		};
+
+		cluster1_pd: power-domain-cluster1 {
+			#power-domain-cells = <0>;
+			domain-idle-states = <&cluster_ret>, <&cluster_gdhs>, <&cluster_pc>;
+		};
 	};
 
 	rpm: remoteproc {
