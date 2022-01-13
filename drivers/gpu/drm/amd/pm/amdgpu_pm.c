@@ -1903,8 +1903,8 @@ static struct amdgpu_device_attr amdgpu_device_attrs[] = {
 	AMDGPU_DEVICE_ATTR_RW(pp_dpm_fclk,				ATTR_FLAG_BASIC|ATTR_FLAG_ONEVF),
 	AMDGPU_DEVICE_ATTR_RW(pp_dpm_vclk,				ATTR_FLAG_BASIC|ATTR_FLAG_ONEVF),
 	AMDGPU_DEVICE_ATTR_RW(pp_dpm_dclk,				ATTR_FLAG_BASIC|ATTR_FLAG_ONEVF),
-	AMDGPU_DEVICE_ATTR_RW(pp_dpm_dcefclk,				ATTR_FLAG_BASIC),
-	AMDGPU_DEVICE_ATTR_RW(pp_dpm_pcie,				ATTR_FLAG_BASIC),
+	AMDGPU_DEVICE_ATTR_RW(pp_dpm_dcefclk,				ATTR_FLAG_BASIC|ATTR_FLAG_ONEVF),
+	AMDGPU_DEVICE_ATTR_RW(pp_dpm_pcie,				ATTR_FLAG_BASIC|ATTR_FLAG_ONEVF),
 	AMDGPU_DEVICE_ATTR_RW(pp_sclk_od,				ATTR_FLAG_BASIC),
 	AMDGPU_DEVICE_ATTR_RW(pp_mclk_od,				ATTR_FLAG_BASIC),
 	AMDGPU_DEVICE_ATTR_RW(pp_power_profile_mode,			ATTR_FLAG_BASIC|ATTR_FLAG_ONEVF),
@@ -3150,19 +3150,6 @@ static umode_t hwmon_attributes_visible(struct kobject *kobj,
 
 	/* under multi-vf mode, the hwmon attributes are all not supported */
 	if (amdgpu_sriov_vf(adev) && !amdgpu_sriov_is_pp_one_vf(adev))
-		return 0;
-
-	/* there is no fan under pp one vf mode */
-	if (amdgpu_sriov_is_pp_one_vf(adev) &&
-	    (attr == &sensor_dev_attr_pwm1.dev_attr.attr ||
-	     attr == &sensor_dev_attr_pwm1_enable.dev_attr.attr ||
-	     attr == &sensor_dev_attr_pwm1_max.dev_attr.attr ||
-	     attr == &sensor_dev_attr_pwm1_min.dev_attr.attr ||
-	     attr == &sensor_dev_attr_fan1_input.dev_attr.attr ||
-	     attr == &sensor_dev_attr_fan1_min.dev_attr.attr ||
-	     attr == &sensor_dev_attr_fan1_max.dev_attr.attr ||
-	     attr == &sensor_dev_attr_fan1_target.dev_attr.attr ||
-	     attr == &sensor_dev_attr_fan1_enable.dev_attr.attr))
 		return 0;
 
 	/* Skip fan attributes if fan is not present */
