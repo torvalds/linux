@@ -89,7 +89,8 @@ const char *get_ras_block_str(struct ras_common_if *ras_block)
 	return ras_block_string[ras_block->block];
 }
 
-#define ras_block_str(_BLOCK_)  (((_BLOCK_) < (sizeof(*ras_block_string)/sizeof(const char*))) ? ras_block_string[_BLOCK_] : "Out Of Range")
+#define ras_block_str(_BLOCK_) \
+	(((_BLOCK_) < ARRAY_SIZE(ras_block_string)) ? ras_block_string[_BLOCK_] : "Out Of Range")
 
 #define ras_err_str(i) (ras_error_string[ffs(i)])
 
