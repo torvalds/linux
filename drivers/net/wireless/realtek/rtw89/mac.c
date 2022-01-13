@@ -172,6 +172,7 @@ static void rtw89_mac_dump_qta_lost(struct rtw89_dev *rtwdev)
 
 	qempty.dle_type = DLE_CTRL_TYPE_PLE;
 	qempty.grpsel = 0;
+	qempty.qempty = ~(u32)0;
 	ret = dle_dfi_qempty(rtwdev, &qempty);
 	if (ret)
 		rtw89_warn(rtwdev, "%s: query DLE fail\n", __func__);
