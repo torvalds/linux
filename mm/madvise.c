@@ -18,6 +18,7 @@
 #include <linux/fadvise.h>
 #include <linux/sched.h>
 #include <linux/sched/mm.h>
+#include <linux/mm_inline.h>
 #include <linux/string.h>
 #include <linux/uio.h>
 #include <linux/ksm.h>
