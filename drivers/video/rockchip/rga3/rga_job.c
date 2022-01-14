@@ -53,7 +53,7 @@ struct rga_scheduler_t *rga_job_get_scheduler(int core)
 		if (core == rga_drvdata->rga_scheduler[i]->core) {
 			scheduler = rga_drvdata->rga_scheduler[i];
 
-			if (RGA_DEBUG_MSG)
+			if (DEBUGGER_EN(MSG))
 				pr_info("job choose core: %d\n",
 					rga_drvdata->rga_scheduler[i]->core);
 			break;
@@ -280,7 +280,7 @@ static int rga_job_run(struct rga_job *job, struct rga_scheduler_t *scheduler)
 	}
 
 	/* for debug */
-	if (RGA_DEBUG_MSG)
+	if (DEBUGGER_EN(MSG))
 		print_job_info(job);
 
 	return ret;
@@ -366,7 +366,7 @@ void rga_job_done(struct rga_scheduler_t *rga_scheduler, int ret)
 	job->flags |= RGA_JOB_DONE;
 	job->ret = ret;
 
-	if (RGA_DEBUG_TIME)
+	if (DEBUGGER_EN(TIME))
 		pr_err("%s use time = %lld\n", __func__,
 			ktime_us_delta(now, job->running_time));
 
@@ -535,7 +535,7 @@ static inline int rga_job_wait(struct rga_scheduler_t *rga_scheduler,
 
 	now = ktime_get();
 
-	if (RGA_DEBUG_TIME)
+	if (DEBUGGER_EN(TIME))
 		pr_err("%s use time = %lld\n", __func__,
 			 ktime_to_us(ktime_sub(now, job->running_time)));
 
@@ -552,7 +552,7 @@ static void rga_input_fence_signaled(struct dma_fence *fence,
 
 	now = ktime_get();
 
-	if (RGA_DEBUG_TIME)
+	if (DEBUGGER_EN(TIME))
 		pr_err("rga job wait in_fence signal use time = %lld\n",
 			ktime_to_us(ktime_sub(now, waiter->job->timestamp)));
 
@@ -598,7 +598,7 @@ int rga_job_commit(struct rga_req *rga_command_base, int flags)
 		job->flags |= RGA_JOB_ASYNC;
 		rga_command_base->out_fence_fd = rga_out_fence_get_fd(job);
 
-		if (RGA_DEBUG_MSG)
+		if (DEBUGGER_EN(MSG))
 			pr_err("in_fence_fd = %d",
 				rga_command_base->in_fence_fd);
 

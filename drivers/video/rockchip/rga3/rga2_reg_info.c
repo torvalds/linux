@@ -2329,11 +2329,9 @@ int rga2_init_reg(struct rga_job *job)
 
 	rga2_align_check(&req);
 
-#if CONFIG_ROCKCHIP_RGA_DEBUGGER
 	/* for debug */
-	if (RGA_DEBUG_MSG)
+	if (DEBUGGER_EN(MSG))
 		print_debug_info(&req);
-#endif
 
 	/* RGA2 mmu set */
 	if ((req.mmu_info.src0_mmu_flag & 1) || (req.mmu_info.src1_mmu_flag & 1)
@@ -2436,8 +2434,7 @@ int rga2_set_reg(struct rga_job *job, struct rga_scheduler_t *scheduler)
 			 scheduler);
 	}
 
-#if CONFIG_ROCKCHIP_RGA_DEBUGGER
-	if (RGA_DEBUG_REG) {
+	if (DEBUGGER_EN(REG)) {
 		int32_t *p;
 
 		p = job->cmd_reg;
@@ -2454,7 +2451,6 @@ int rga2_set_reg(struct rga_job *job, struct rga_scheduler_t *scheduler)
 				p[0 + i * 4], p[1 + i * 4],
 				p[2 + i * 4], p[3 + i * 4]);
 	}
-#endif
 
 #ifndef CONFIG_ROCKCHIP_FPGA
 	/* master mode */
@@ -2470,7 +2466,7 @@ int rga2_set_reg(struct rga_job *job, struct rga_scheduler_t *scheduler)
 	rga_write(rga_read(RGA2_INT, scheduler) | (0x1 << 10) | (0x1 << 9) |
 		 (0x1 << 8), RGA2_INT, scheduler);
 
-	if (RGA_DEBUG_TIME) {
+	if (DEBUGGER_EN(TIME)) {
 		pr_err("sys_ctrl = %x, int = %x, set cmd use time = %lld\n",
 			 rga_read(RGA2_SYS_CTRL, scheduler),
 			 rga_read(RGA2_INT, scheduler),
@@ -2482,10 +2478,8 @@ int rga2_set_reg(struct rga_job *job, struct rga_scheduler_t *scheduler)
 
 	rga_write(1, RGA2_CMD_CTRL, scheduler);
 
-#if CONFIG_ROCKCHIP_RGA_DEBUGGER
-	if (RGA_DEBUG_REG)
+	if (DEBUGGER_EN(REG))
 		rga2_dump_read_back_reg(scheduler);
-#endif
 
 	return 0;
 }

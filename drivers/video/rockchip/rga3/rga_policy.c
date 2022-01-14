@@ -202,19 +202,19 @@ int rga_job_assign(struct rga_job *job)
 		data = rga_drvdata->rga_scheduler[i]->data;
 		scheduler = rga_drvdata->rga_scheduler[i];
 
-		if (RGA_DEBUG_MSG)
+		if (DEBUGGER_EN(MSG))
 			pr_err("start policy on core = %d", scheduler->core);
 
 		if (scheduler->core == RGA2_SCHEDULER_CORE0 &&
 		    job->flags & RGA_JOB_UNSUPPORT_RGA2) {
-			if (RGA_DEBUG_MSG)
+			if (DEBUGGER_EN(MSG))
 				pr_debug("RGA2 only support under 4G memory!\n");
 				continue;
 		}
 
 		if (feature > 0) {
 			if (!(feature & data->feature)) {
-				if (RGA_DEBUG_MSG)
+				if (DEBUGGER_EN(MSG))
 					pr_err("core = %d, break on feature",
 						scheduler->core);
 				continue;
@@ -227,7 +227,7 @@ int rga_job_assign(struct rga_job *job)
 				if ((!(src0->rd_mode & data->win[0].rd_mode)) ||
 					(!(src1->rd_mode & data->win[1].rd_mode)) ||
 					(!(dst->rd_mode & data->win[2].rd_mode))) {
-					if (RGA_DEBUG_MSG)
+					if (DEBUGGER_EN(MSG))
 						pr_err("core = %d, ABC break on rd_mode",
 							scheduler->core);
 					continue;
@@ -235,7 +235,7 @@ int rga_job_assign(struct rga_job *job)
 			} else {
 				if ((!(src0->rd_mode & data->win[0].rd_mode)) ||
 					(!(dst->rd_mode & data->win[2].rd_mode))) {
-					if (RGA_DEBUG_MSG)
+					if (DEBUGGER_EN(MSG))
 						pr_err("core = %d, ABB break on rd_mode",
 							scheduler->core);
 					continue;
@@ -243,14 +243,14 @@ int rga_job_assign(struct rga_job *job)
 			}
 
 			if (!rga_check_scale(data, rga_base)) {
-				if (RGA_DEBUG_MSG)
+				if (DEBUGGER_EN(MSG))
 					pr_err("core = %d, break on rga_check_scale",
 						scheduler->core);
 				continue;
 			}
 
 			if (!rga_check_src0(data, src0)) {
-				if (RGA_DEBUG_MSG)
+				if (DEBUGGER_EN(MSG))
 					pr_err("core = %d, break on rga_check_src0",
 						scheduler->core);
 				continue;
@@ -258,7 +258,7 @@ int rga_job_assign(struct rga_job *job)
 
 			if (src1->yrgb_addr > 0) {
 				if (!rga_check_src1(data, src1)) {
-					if (RGA_DEBUG_MSG)
+					if (DEBUGGER_EN(MSG))
 						pr_err("core = %d, break on rga_check_src1",
 						scheduler->core);
 					continue;
@@ -267,7 +267,7 @@ int rga_job_assign(struct rga_job *job)
 		}
 
 		if (!rga_check_dst(data, dst)) {
-			if (RGA_DEBUG_MSG)
+			if (DEBUGGER_EN(MSG))
 				pr_err("core = %d, break on rga_check_dst",
 					scheduler->core);
 			continue;
@@ -276,7 +276,7 @@ int rga_job_assign(struct rga_job *job)
 		optional_cores |= scheduler->core;
 	}
 
-	if (RGA_DEBUG_MSG)
+	if (DEBUGGER_EN(MSG))
 		pr_info("optional_cores = %d\n", optional_cores);
 
 	if (optional_cores == 0) {
@@ -311,7 +311,7 @@ skip_functional_policy:
 
 	/* TODO: need consider full load */
 finish:
-	if (RGA_DEBUG_MSG)
+	if (DEBUGGER_EN(MSG))
 		pr_info("assign core: %d\n", core);
 
 	return core;

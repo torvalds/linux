@@ -1606,7 +1606,7 @@ void rga3_soft_reset(struct rga_scheduler_t *scheduler)
 	rga_write(mmu_addr, 0xf00, scheduler);
 	rga_write(0, 0xf08, scheduler);
 
-	if (RGA_DEBUG_INT_FLAG)
+	if (DEBUGGER_EN(INT_FLAG))
 		pr_info("irq INT[%x], STATS0[%x], STATS1[%x]\n",
 			rga_read(RGA3_INT_RAW, scheduler),
 			rga_read(RGA3_STATUS0, scheduler),
@@ -1998,11 +1998,9 @@ int rga3_init_reg(struct rga_job *job)
 
 	rga3_align_check(&req);
 
-#if CONFIG_ROCKCHIP_RGA_DEBUGGER
 	/* for debug */
-	if (RGA_DEBUG_MSG)
+	if (DEBUGGER_EN(MSG))
 		print_debug_info(&req);
-#endif
 
 	if (rga3_gen_reg_info((uint8_t *) job->cmd_reg, &req) == -1) {
 		pr_err("RKA: gen reg info error\n");
@@ -2053,8 +2051,7 @@ int rga3_set_reg(struct rga_job *job, struct rga_scheduler_t *scheduler)
 	}
 #endif
 
-#if CONFIG_ROCKCHIP_RGA_DEBUGGER
-	if (RGA_DEBUG_REG) {
+	if (DEBUGGER_EN(REG)) {
 		int32_t i, *p;
 
 		p = job->cmd_reg;
@@ -2064,7 +2061,6 @@ int rga3_set_reg(struct rga_job *job, struct rga_scheduler_t *scheduler)
 				p[0 + i * 4], p[1 + i * 4],
 				p[2 + i * 4], p[3 + i * 4]);
 	}
-#endif
 
 #if 0
 	/* master mode */
@@ -2078,7 +2074,7 @@ int rga3_set_reg(struct rga_job *job, struct rga_scheduler_t *scheduler)
 	/* All CMD finish int */
 	rga_write(1, RGA3_INT_EN, scheduler);
 
-	if (RGA_DEBUG_MSG) {
+	if (DEBUGGER_EN(MSG)) {
 		pr_err("sys_ctrl = %x, int_en = %x, int_raw = %x\n",
 			 rga_read(RGA3_SYS_CTRL, scheduler),
 			 rga_read(RGA3_INT_EN, scheduler),
@@ -2089,7 +2085,7 @@ int rga3_set_reg(struct rga_job *job, struct rga_scheduler_t *scheduler)
 			 rga_read(RGA3_STATUS1, scheduler));
 	}
 
-	if (RGA_DEBUG_TIME)
+	if (DEBUGGER_EN(TIME))
 		pr_err("set cmd use time = %lld\n", ktime_to_us(ktime_sub(now, job->running_time)));
 
 	job->timestamp = now;
@@ -2097,10 +2093,8 @@ int rga3_set_reg(struct rga_job *job, struct rga_scheduler_t *scheduler)
 
 	rga_write(1, RGA3_SYS_CTRL, scheduler);
 
-#if CONFIG_ROCKCHIP_RGA_DEBUGGER
-	if (RGA_DEBUG_REG)
+	if (DEBUGGER_EN(REG))
 		rga3_dump_read_back_reg(scheduler);
-#endif
 
 	return 0;
 }

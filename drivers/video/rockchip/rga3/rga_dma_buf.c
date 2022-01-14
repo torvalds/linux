@@ -12,10 +12,6 @@
 #include "rga_hw_config.h"
 #include "rga_job.h"
 
-#if CONFIG_ROCKCHIP_RGA_DEBUGGER
-extern int RGA_DEBUG_CHECK_MODE;
-#endif
-
 /**
  * rga_dma_info_to_prot - Translate DMA API directions and attributes to IOMMU API
  *                    page flags.
@@ -460,7 +456,7 @@ int rga_iommu_map_virt_addr(struct rga_memory_parm *memory_parm,
 		return -EFAULT;
 	}
 
-	if (RGA_DEBUG_MSG)
+	if (DEBUGGER_EN(MSG))
 		pr_debug("iova_align size = %ld", size);
 
 	iova = rga_iommu_dma_alloc_iova(domain, size, rga_dev->coherent_dma_mask, rga_dev);
@@ -575,7 +571,7 @@ static int rga_viraddr_get_channel_info(struct rga_img_info_t *channel_info,
 
 	size = iova_align(iovad, size);
 
-	if (RGA_DEBUG_MSG)
+	if (DEBUGGER_EN(MSG))
 		pr_err("iova_align size = %ld", size);
 
 	iova = rga_iommu_dma_alloc_iova(domain, size, scheduler->dev->coherent_dma_mask,
@@ -959,8 +955,7 @@ static int rga_dma_buf_get_channel_info(struct rga_img_info_t *channel_info,
 		*rga_dma_buffer = alloc_buffer;
 	}
 
-#if CONFIG_ROCKCHIP_RGA_DEBUGGER
-	if (RGA_DEBUG_CHECK_MODE) {
+	if (DEBUGGER_EN(CHECK_MODE)) {
 		ret = rga_dma_memory_check(*rga_dma_buffer,
 			channel_info);
 		if (ret < 0) {
@@ -972,7 +967,6 @@ static int rga_dma_buf_get_channel_info(struct rga_img_info_t *channel_info,
 			return ret;
 		}
 	}
-#endif
 
 	/* The value of dma_fd is no longer needed. */
 	channel_info->yrgb_addr = 0;

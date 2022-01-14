@@ -12,10 +12,6 @@
 #include "rga_mm.h"
 #include "rga_job.h"
 
-#if CONFIG_ROCKCHIP_RGA_DEBUGGER
-extern int RGA_DEBUG_CHECK_MODE;
-#endif
-
 extern struct rga2_mmu_info_t rga2_mmu_info;
 
 #define KERNEL_SPACE_VALID	0xc0000000
@@ -174,8 +170,6 @@ static int rga2_mem_size_cal(unsigned long Mem, uint32_t MemSize,
 	return pageCount;
 }
 
-#if CONFIG_ROCKCHIP_RGA_DEBUGGER
-
 static int rga2_user_memory_check(struct page **pages, u32 w, u32 h, u32 format,
 				 int flag)
 {
@@ -214,7 +208,6 @@ static int rga2_user_memory_check(struct page **pages, u32 w, u32 h, u32 format,
 
 	return 0;
 }
-#endif
 
 static int rga2_MapUserMemory(struct page **pages, uint32_t *pageTable,
 				 unsigned long Memory, uint32_t pageCount,
@@ -462,13 +455,11 @@ static int rga2_mmu_flush_cache(struct rga2_mmu_other_t *reg,
 						 DstStart, DstPageCount, 1,
 						 MMU_MAP_CLEAN |
 						 MMU_MAP_INVALID, scheduler, job->mm);
-#if CONFIG_ROCKCHIP_RGA_DEBUGGER
-			if (RGA_DEBUG_CHECK_MODE)
+			if (DEBUGGER_EN(CHECK_MODE))
 				rga2_user_memory_check(&pages[0],
 							 req->dst.vir_w,
 							 req->dst.vir_h,
 							 req->dst.format, 2);
-#endif
 		}
 		if (ret < 0) {
 			pr_err("rga2 unmap dst memory failed\n");
@@ -667,14 +658,12 @@ static int rga2_mmu_info_BitBlt_mode(struct rga2_mmu_other_t *reg,
 				ret = rga2_MapUserMemory(&pages[0], &MMU_Base[0],
 							 Src0Start, Src0PageCount,
 							 0, MMU_MAP_CLEAN, scheduler, job->mm);
-#if CONFIG_ROCKCHIP_RGA_DEBUGGER
-				if (RGA_DEBUG_CHECK_MODE)
+				if (DEBUGGER_EN(CHECK_MODE))
 					/* TODO: */
 					rga2_user_memory_check(&pages[0],
 							       req->src.vir_w,
 							       req->src.vir_h,
 							       req->src.format, 1);
-#endif
 				/* Save pagetable to unmap. */
 				reg->MMU_src0_base = MMU_Base;
 				reg->MMU_src0_count = Src0PageCount;
@@ -773,13 +762,13 @@ static int rga2_mmu_info_BitBlt_mode(struct rga2_mmu_other_t *reg,
 							 DstStart, DstPageCount,
 							 1, map_flag,
 							 scheduler, job->mm);
-#if CONFIG_ROCKCHIP_RGA_DEBUGGER
-				if (RGA_DEBUG_CHECK_MODE)
+
+				if (DEBUGGER_EN(CHECK_MODE))
 					rga2_user_memory_check(&pages[0],
 							       req->dst.vir_w,
 							       req->dst.vir_h,
 							       req->dst.format, 2);
-#endif
+
 				/* Save pagetable to invalid cache and unmap. */
 				reg->MMU_dst_base = MMU_Base + Src0MemSize + Src1MemSize;
 				reg->MMU_dst_count = DstPageCount;
@@ -922,12 +911,11 @@ static int rga2_mmu_info_color_palette_mode(struct rga2_mmu_other_t *reg,
 				ret = rga2_MapUserMemory(&pages[0],
 					&MMU_Base[0], SrcStart, SrcPageCount,
 					0, MMU_MAP_CLEAN, scheduler, job->mm);
-#if CONFIG_ROCKCHIP_RGA_DEBUGGER
-				if (RGA_DEBUG_CHECK_MODE)
+
+				if (DEBUGGER_EN(CHECK_MODE))
 					rga2_user_memory_check(&pages[0],
 						req->src.vir_w, req->src.vir_h,
 						req->src.format, 1);
-#endif
 			}
 
 			if (ret < 0) {
@@ -958,12 +946,11 @@ static int rga2_mmu_info_color_palette_mode(struct rga2_mmu_other_t *reg,
 							 MMU_Base + SrcMemSize,
 							 DstStart, DstPageCount,
 							 1, MMU_MAP_INVALID, scheduler, job->mm);
-#if CONFIG_ROCKCHIP_RGA_DEBUGGER
-				if (RGA_DEBUG_CHECK_MODE)
+
+				if (DEBUGGER_EN(CHECK_MODE))
 					rga2_user_memory_check(&pages[0],
 						req->dst.vir_w, req->dst.vir_h,
 						req->dst.format, 1);
-#endif
 			}
 
 			if (ret < 0) {

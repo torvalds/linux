@@ -99,6 +99,8 @@
 	? (a) : (((x) > (b)) ? (b) : (x)))
 #endif
 
+extern struct rga_drvdata_t *rga_drvdata;
+
 enum {
 	RGA3_SCHEDULER_CORE0		= 1 << 0,
 	RGA3_SCHEDULER_CORE1		= 1 << 1,

@@ -19,7 +19,7 @@ extern int RGA_DEBUG_CHECK_MODE;
 extern int RGA_DEBUG_NONUSE;
 extern int RGA_DEBUG_INT_FLAG;
 
-extern struct rga_drvdata_t *rga_drvdata;
+#define DEBUGGER_EN(name) (unlikely(RGA_DEBUG_##name ? true : false))
 
 /*
  * struct rga_debugger - RGA debugger information
@@ -120,6 +120,10 @@ static inline int rga_procfs_init(void)
 	return 0;
 }
 #endif /* #ifdef CONFIG_ROCKCHIP_RGA_PROC_FS */
+
+#else
+
+#define DEBUGGER_EN(name) (unlikely(false))
 
 #endif /* #ifdef CONFIG_ROCKCHIP_RGA_DEBUGGER */
 
