@@ -451,9 +451,18 @@ static inline struct damon_region *damon_last_region(struct damon_target *t)
 #ifdef CONFIG_DAMON
 
 struct damon_region *damon_new_region(unsigned long start, unsigned long end);
-inline void damon_insert_region(struct damon_region *r,
+
+/*
+ * Add a region between two other regions
+ */
+static inline void damon_insert_region(struct damon_region *r,
 		struct damon_region *prev, struct damon_region *next,
-		struct damon_target *t);
+		struct damon_target *t)
+{
+	__list_add(&r->list, &prev->list, &next->list);
+	t->nr_regions++;
+}
+
 void damon_add_region(struct damon_region *r, struct damon_target *t);
 void damon_destroy_region(struct damon_region *r, struct damon_target *t);
 
