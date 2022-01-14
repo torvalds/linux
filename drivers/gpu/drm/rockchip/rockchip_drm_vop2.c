@@ -652,6 +652,13 @@ struct vop2_video_port {
 	enum vop2_layer_phy_id primary_plane_phy_id;
 };
 
+struct vop2_extend_pll {
+	struct list_head list;
+	struct clk *clk;
+	char clk_name[32];
+	u32 vp_mask;
+};
+
 struct vop2 {
 	u32 version;
 	struct device *dev;
@@ -715,11 +722,11 @@ struct vop2 {
 	struct clk *hclk;
 	struct clk *aclk;
 	struct clk *pclk;
-	struct clk *hdmi0_phy_pll;
-	struct clk *hdmi1_phy_pll;
 	struct reset_control *ahb_rst;
 	struct reset_control *axi_rst;
 
+	/* list_head of extend clk */
+	struct list_head extend_clk_list_head;
 	/* list_head of internal clk */
 	struct list_head clk_list_head;
 	struct list_head pd_list_head;
@@ -3344,6 +3351,246 @@ static void vop2_crtc_disable_dsc(struct vop2 *vop2, u8 dsc_id)
 	VOP_MODULE_SET(vop2, dsc, rst_deassert, 0);
 }
 
+static struct vop2_clk *vop2_clk_get(struct vop2 *vop2, const char *name)
+{
+	struct vop2_clk *clk, *n;
+
+	if (!name)
+		return NULL;
+
+	list_for_each_entry_safe(clk, n, &vop2->clk_list_head, list) {
+		if (!strcmp(clk_hw_get_name(&clk->hw), name))
+			return clk;
+	}
+
+	return NULL;
+}
+
+static void vop2_clk_set_parent(struct clk *clk, struct clk *parent)
+{
+	int ret = 0;
+
+	if (parent)
+		ret = clk_set_parent(clk, parent);
+	if (ret < 0)
+		DRM_WARN("failed to set %s as parent for %s\n",
+			 __clk_get_name(parent), __clk_get_name(clk));
+}
+
+static int vop2_extend_clk_init(struct vop2 *vop2)
+{
+	const char * const extend_clk_name[] = {
+		"hdmi0_phy_pll", "hdmi1_phy_pll"};
+	struct clk *clk;
+	struct vop2_extend_pll *extend_pll;
+	int i;
+
+	INIT_LIST_HEAD(&vop2->extend_clk_list_head);
+
+	if (vop2->version < VOP_VERSION_RK3588)
+		return 0;
+
+	for (i = 0; i < ARRAY_SIZE(extend_clk_name); i++) {
+		clk = devm_clk_get(vop2->dev, extend_clk_name[i]);
+		if (IS_ERR(clk)) {
+			dev_warn(vop2->dev, "failed to get %s: %ld\n",
+				 extend_clk_name[i], PTR_ERR(clk));
+			continue;
+		}
+
+		extend_pll = devm_kzalloc(vop2->dev, sizeof(*extend_pll), GFP_KERNEL);
+		if (!extend_pll)
+			return -ENOMEM;
+
+		extend_pll->clk = clk;
+		extend_pll->vp_mask = 0;
+		strncpy(extend_pll->clk_name, extend_clk_name[i], sizeof(extend_pll->clk_name));
+		list_add_tail(&extend_pll->list, &vop2->extend_clk_list_head);
+	}
+
+	return 0;
+}
+
+static struct vop2_extend_pll *vop2_extend_clk_find_by_name(struct vop2 *vop2, char *clk_name)
+{
+	struct vop2_extend_pll *extend_pll;
+
+	list_for_each_entry(extend_pll, &vop2->extend_clk_list_head, list) {
+		if (!strcmp(extend_pll->clk_name, clk_name))
+			return extend_pll;
+	}
+
+	return NULL;
+}
+
+static int vop2_extend_clk_switch_pll(struct vop2 *vop2, struct vop2_extend_pll *src,
+				      struct vop2_extend_pll *dst)
+{
+	struct vop2_clk *dclk;
+	u32 vp_mask;
+	int i = 0;
+	char clk_name[32];
+
+	if (!src->vp_mask)
+		return -EINVAL;
+
+	if (dst->vp_mask)
+		return -EBUSY;
+
+	vp_mask = src->vp_mask;
+
+	while (vp_mask) {
+		if ((BIT(i) & src->vp_mask)) {
+			snprintf(clk_name, sizeof(clk_name), "dclk%d", i);
+			dclk = vop2_clk_get(vop2, clk_name);
+			clk_set_rate(dst->clk, dclk->rate);
+			vop2_clk_set_parent(vop2->vps[i].dclk, dst->clk);
+			src->vp_mask &= ~BIT(i);
+			dst->vp_mask |= BIT(i);
+		}
+		i++;
+		vp_mask  = vp_mask >> 1;
+	}
+
+	return 0;
+}
+
+
+/*
+ * Here are 2 hdmi phy pll can use for video port dclk. The strategies of how to use hdmi phy pll
+ * as follow:
+ *
+ * 1. hdmi phy pll can be used for video port0/1/2 when output format under 4K@60Hz;
+ *
+ * 2. When a video port connect both hdmi0 and hdmi1(may also connect other output interface),
+ *    it must hold the hdmi0 and hdmi1 phy pll, and other video port can't use it. if request dclk
+ *    is under 4K@60Hz, set the video port dlk parent as hdmi0 phy pll.if hdmi0 or hdmi1 phy pll
+ *    is used by other video port, report a error.
+ *
+ * 3. When a video port(A) connect hdmi0(may also connect other output interface but not hdmi1),
+ *    it must hold the hdmi0 phy pll, and other video port can't use it. If both hdmi0 and hdmi1
+ *    phy pll is used by other video port, report a error. If hdmi0 phy pll is used by another
+ *    video port(B) and hdmi1 phy pll is free, set hdmi1 phy pll as video port(B) dclk parent and
+ *    video port(A) hold hdmi0 phy pll. If hdmi0 phy pll is free, video port(A) hold hdmi0 pll.If
+ *    video port(A) hold hdmi0 phy pll and request dclk is under 4k@60Hz, set hdmi0 phy pll as
+ *    video port(A) dclk parent.
+ *
+ * 4. When a video port(A) connect hdmi1(may also connect other output interface but not hdmi0),
+ *    it must hold the hdmi1 phy pll, and other video port can't use it. If both hdmi0 and hdmi1
+ *    phy pll is used by other video port, report a error. If hdmi1 phy pll is used by another
+ *    video port(B) and hdmi0 phy pll is free, set hdmi0 phy pll as video port(B) dclk parent and
+ *    video port(A) hold hdmi1 phy pll. If hdmi1 phy pll is free, video port(A) hold hdmi1 pll. If
+ *    video port(A) hold hdmi1 phy pll and request dclk is under 4k@60Hz, set hdmi1 phy pll as
+ *    video port(A) dclk parent.
+ *
+ * 5. When a video port connect dp(0, 1, or both, may also connect other output type but not hdmi0
+ *    and hdmi1). If the request dclk is higher than 4K@60Hz or video port id is 2, do nothing.
+ *    Otherwise get a free hdmi phy pll as video port dclk parent. If no free hdmi phy pll can be
+ *    get, report a error.
+ */
+
+static int vop2_clk_set_parent_extend(struct vop2_video_port *vp,
+				      struct rockchip_crtc_state *vcstate, bool enable)
+{
+	struct vop2 *vop2 = vp->vop2;
+	struct vop2_extend_pll *hdmi0_phy_pll, *hdmi1_phy_pll;
+	struct drm_crtc *crtc = &vp->rockchip_crtc.crtc;
+	struct drm_display_mode *adjusted_mode = &crtc->state->adjusted_mode;
+
+	hdmi0_phy_pll = vop2_extend_clk_find_by_name(vop2, "hdmi0_phy_pll");
+	hdmi1_phy_pll = vop2_extend_clk_find_by_name(vop2, "hdmi1_phy_pll");
+
+	if (!hdmi0_phy_pll || !hdmi1_phy_pll)
+		return 0;
+
+	if (enable) {
+		if ((vcstate->output_if & VOP_OUTPUT_IF_HDMI0) &&
+		    (vcstate->output_if & VOP_OUTPUT_IF_HDMI1)) {
+			if (hdmi0_phy_pll->vp_mask) {
+				DRM_ERROR("hdmi0 phy pll is used by vp%d\n",
+					  hdmi0_phy_pll->vp_mask);
+				return -EBUSY;
+			}
+
+			if (hdmi1_phy_pll->vp_mask) {
+				DRM_ERROR("hdmi1 phy pll is used by vp%d\n",
+					  hdmi1_phy_pll->vp_mask);
+				return -EBUSY;
+			}
+
+			if (adjusted_mode->crtc_clock > VOP2_MAX_DCLK_RATE)
+				vop2_clk_set_parent(vp->dclk, vp->dclk_parent);
+			else
+				vop2_clk_set_parent(vp->dclk, hdmi0_phy_pll->clk);
+
+			hdmi0_phy_pll->vp_mask |= BIT(vp->id);
+			hdmi1_phy_pll->vp_mask |= BIT(vp->id);
+		} else if ((vcstate->output_if & VOP_OUTPUT_IF_HDMI0) &&
+			   !(vcstate->output_if & VOP_OUTPUT_IF_HDMI1)) {
+			if (hdmi0_phy_pll->vp_mask) {
+				if (hdmi1_phy_pll->vp_mask) {
+					DRM_ERROR("hdmi0:  phy pll is used by vp%d:vp%d\n",
+						  hdmi0_phy_pll->vp_mask, hdmi1_phy_pll->vp_mask);
+					return -EBUSY;
+				}
+
+				vop2_extend_clk_switch_pll(vop2, hdmi0_phy_pll, hdmi1_phy_pll);
+			}
+
+			if (adjusted_mode->crtc_clock > VOP2_MAX_DCLK_RATE)
+				vop2_clk_set_parent(vp->dclk, vp->dclk_parent);
+			else
+				vop2_clk_set_parent(vp->dclk, hdmi0_phy_pll->clk);
+
+			hdmi0_phy_pll->vp_mask |= BIT(vp->id);
+		} else if (!(vcstate->output_if & VOP_OUTPUT_IF_HDMI0) &&
+			   (vcstate->output_if & VOP_OUTPUT_IF_HDMI1)) {
+			if (hdmi1_phy_pll->vp_mask) {
+				if (hdmi0_phy_pll->vp_mask) {
+					DRM_ERROR("hdmi1:  phy pll is used by vp%d:vp%d\n",
+						  hdmi0_phy_pll->vp_mask, hdmi1_phy_pll->vp_mask);
+					return -EBUSY;
+				}
+
+				vop2_extend_clk_switch_pll(vop2, hdmi1_phy_pll, hdmi0_phy_pll);
+			}
+
+			if (adjusted_mode->crtc_clock > VOP2_MAX_DCLK_RATE)
+				vop2_clk_set_parent(vp->dclk, vp->dclk_parent);
+			else
+				vop2_clk_set_parent(vp->dclk, hdmi1_phy_pll->clk);
+
+			hdmi1_phy_pll->vp_mask |= BIT(vp->id);
+		} else if (output_if_is_dp(vcstate->output_if)) {
+			if (adjusted_mode->crtc_clock > VOP2_MAX_DCLK_RATE || vp->id == 2) {
+				vop2_clk_set_parent(vp->dclk, vp->dclk_parent);
+				return 0;
+			}
+
+			if (!hdmi0_phy_pll->vp_mask) {
+				vop2_clk_set_parent(vp->dclk, hdmi0_phy_pll->clk);
+				hdmi0_phy_pll->vp_mask |= BIT(vp->id);
+			} else if (!hdmi1_phy_pll->vp_mask) {
+				vop2_clk_set_parent(vp->dclk, hdmi1_phy_pll->clk);
+				hdmi1_phy_pll->vp_mask |= BIT(vp->id);
+			} else {
+				DRM_ERROR("No free hdmi phy pll for DP\n");
+				DRM_ERROR("hdmi0/1  phy pll is used by vp%d:vp%d\n",
+					  hdmi0_phy_pll->vp_mask, hdmi1_phy_pll->vp_mask);
+				return -EBUSY;
+			}
+		}
+	} else {
+		if (BIT(vp->id) & hdmi0_phy_pll->vp_mask)
+			hdmi0_phy_pll->vp_mask &= ~BIT(vp->id);
+
+		if (BIT(vp->id) & hdmi1_phy_pll->vp_mask)
+			hdmi1_phy_pll->vp_mask &= ~BIT(vp->id);
+	}
+
+	return 0;
+}
+
 static void vop2_crtc_atomic_disable(struct drm_crtc *crtc,
 				     struct drm_crtc_state *old_state)
 {
@@ -3404,6 +3651,7 @@ static void vop2_crtc_atomic_disable(struct drm_crtc *crtc,
 
 	vp->output_if = 0;
 
+	vop2_clk_set_parent_extend(vp, vcstate, false);
 	/*
 	 * Vop standby will take effect at end of current frame,
 	 * if dsp hold valid irq happen, it means standby complete.
@@ -5281,21 +5529,6 @@ static bool vop2_crtc_mode_update(struct drm_crtc *crtc)
 	return false;
 }
 
-static struct vop2_clk *vop2_clk_get(struct vop2 *vop2, const char *name)
-{
-	struct vop2_clk *clk, *n;
-
-	if (!name)
-		return NULL;
-
-	list_for_each_entry_safe(clk, n, &vop2->clk_list_head, list) {
-		if (!strcmp(clk_hw_get_name(&clk->hw), name))
-			return clk;
-	}
-
-	return NULL;
-}
-
 static int vop2_cru_set_rate(struct vop2_clk *if_pixclk, struct vop2_clk *if_dclk)
 {
 	int ret = 0;
@@ -5317,17 +5550,6 @@ static int vop2_cru_set_rate(struct vop2_clk *if_pixclk, struct vop2_clk *if_dcl
 	}
 
 	return ret;
-}
-
-static void vop2_clk_set_parent(struct clk *clk, struct clk *parent)
-{
-	int ret = 0;
-
-	if (parent)
-		ret = clk_set_parent(clk, parent);
-	if (ret < 0)
-		DRM_WARN("failed to set %s as parent for %s\n",
-			 __clk_get_name(parent), __clk_get_name(clk));
 }
 
 static int vop2_set_dsc_clk(struct drm_crtc *crtc, u8 dsc_id)
@@ -5482,7 +5704,7 @@ static int vop2_calc_if_clk(struct drm_crtc *crtc, const struct vop2_connector_i
 	 * When used for HDMI, the input freq and v_pixclk must
 	 * keep 1:1 for rgb/yuv444, 1:2 for yuv420
 	 */
-	if (output_if_is_hdmi(conn_id)) {
+	if (output_if_is_hdmi(conn_id) || output_if_is_dp(conn_id)) {
 		snprintf(clk_name, sizeof(clk_name), "dclk%d", vp->id);
 		dclk = vop2_clk_get(vop2, clk_name);
 		if (v_pixclk <= (VOP2_MAX_DCLK_RATE * 1000)) {
@@ -6227,17 +6449,13 @@ static void vop2_crtc_atomic_enable(struct drm_crtc *crtc, struct drm_crtc_state
 	dclk = vop2_clk_get(vop2, clk_name);
 	if (dclk) {
 		/*
-		 * use HDMI_PHY_PLL as dclk source under 4K@60
+		 * use HDMI_PHY_PLL as dclk source under 4K@60 if it is available,
 		 * otherwise use system cru as dclk source.
 		 */
-		if (output_if_is_hdmi(vcstate->output_if)) {
-			if (adjusted_mode->crtc_clock > VOP2_MAX_DCLK_RATE)
-				vop2_clk_set_parent(vp->dclk, vp->dclk_parent);
-			else if (vcstate->output_if & VOP_OUTPUT_IF_HDMI0)
-				vop2_clk_set_parent(vp->dclk, vop2->hdmi0_phy_pll);
-			else if (vcstate->output_if & VOP_OUTPUT_IF_HDMI1)
-				vop2_clk_set_parent(vp->dclk, vop2->hdmi1_phy_pll);
-		}
+		ret = vop2_clk_set_parent_extend(vp, vcstate, true);
+		if (ret < 0)
+			goto out;
+
 		clk_set_rate(vp->dclk, dclk->rate);
 		DRM_DEV_INFO(vop2->dev, "set %s to %ld, get %ld\n",
 			      __clk_get_name(vp->dclk), dclk->rate, clk_get_rate(vp->dclk));
@@ -8770,20 +8988,6 @@ static int vop2_bind(struct device *dev, struct device *master, void *data)
 		return PTR_ERR(vop2->pclk);
 	}
 
-	vop2->hdmi0_phy_pll = devm_clk_get_optional(vop2->dev, "hdmi0_phy_pll");
-	if (IS_ERR(vop2->hdmi0_phy_pll)) {
-		dev_warn(vop2->dev, "failed to get hdmi0_phy_pll: %ld\n",
-			 PTR_ERR(vop2->hdmi0_phy_pll));
-		vop2->hdmi0_phy_pll = NULL;
-	}
-
-	vop2->hdmi1_phy_pll = devm_clk_get_optional(vop2->dev, "hdmi1_phy_pll");
-	if (IS_ERR(vop2->hdmi1_phy_pll)) {
-		dev_warn(vop2->dev, "failed to get hdmi1_phy_pll: %ld\n",
-			 PTR_ERR(vop2->hdmi1_phy_pll));
-		vop2->hdmi1_phy_pll = NULL;
-	}
-
 	vop2->ahb_rst = devm_reset_control_get_optional(vop2->dev, "ahb");
 	if (IS_ERR(vop2->ahb_rst)) {
 		DRM_DEV_ERROR(vop2->dev, "failed to get ahb reset\n");
@@ -8833,6 +9037,7 @@ static int vop2_bind(struct device *dev, struct device *master, void *data)
 		}
 	}
 
+	vop2_extend_clk_init(vop2);
 	spin_lock_init(&vop2->reg_lock);
 	spin_lock_init(&vop2->irq_lock);
 	mutex_init(&vop2->vop2_lock);
