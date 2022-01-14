@@ -722,7 +722,7 @@ static int pkt_generic_packet(struct pktcdvd_device *pd, struct packet_command *
 	if (cgc->quiet)
 		rq->rq_flags |= RQF_QUIET;
 
-	blk_execute_rq(pd->bdev->bd_disk, rq, 0);
+	blk_execute_rq(rq, false);
 	if (scsi_req(rq)->result)
 		ret = -EIO;
 out:
@@ -2719,7 +2719,7 @@ static int pkt_setup_dev(dev_t dev, dev_t* pkt_dev)
 	disk->first_minor = idx;
 	disk->minors = 1;
 	disk->fops = &pktcdvd_ops;
-	disk->flags = GENHD_FL_REMOVABLE;
+	disk->flags = GENHD_FL_REMOVABLE | GENHD_FL_NO_PART;
 	strcpy(disk->disk_name, pd->name);
 	disk->private_data = pd;
 

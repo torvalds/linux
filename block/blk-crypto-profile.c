@@ -465,11 +465,6 @@ bool blk_crypto_register(struct blk_crypto_profile *profile,
 }
 EXPORT_SYMBOL_GPL(blk_crypto_register);
 
-void blk_crypto_unregister(struct request_queue *q)
-{
-	q->crypto_profile = NULL;
-}
-
 /**
  * blk_crypto_derive_sw_secret() - Derive software secret from hardware-wrapped
  *				   key

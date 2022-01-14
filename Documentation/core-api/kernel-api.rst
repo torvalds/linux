@@ -294,9 +294,6 @@ Block Devices
 .. kernel-doc:: block/blk-settings.c
    :export:
 
-.. kernel-doc:: block/blk-exec.c
-   :export:
-
 .. kernel-doc:: block/blk-flush.c
    :export:
 
