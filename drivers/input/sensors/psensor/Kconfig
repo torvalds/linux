@@ -31,5 +31,8 @@ config PS_STK3410
 config PS_EM3071X
 	tristate "proximity sensor em3071x"
 
-endif
+config PS_UCS14620
+	tristate "proximity sensor ucs14620"
+	default n
 
+endif

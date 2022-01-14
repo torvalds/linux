@@ -7,3 +7,4 @@ obj-$(CONFIG_PS_AP321XX) 		+= ps_ap321xx.o
 obj-$(CONFIG_PS_STK3332)		+= ps_stk3332.o
 obj-$(CONFIG_PS_STK3410) 		+= ps_stk3410.o
 obj-$(CONFIG_PS_EM3071X)		+= ps_em3071x.o
+obj-$(CONFIG_PS_UCS14620)		+= ps_ucs14620.o
