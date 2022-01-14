@@ -1707,11 +1707,11 @@ static int rkvdec2_soft_ccu_reset(struct mpp_taskqueue *queue)
 		if (!atomic_read(&mpp->reset_request))
 			continue;
 		dev_info(mpp->dev, "resetting...\n");
+		disable_hardirq(mpp->irq);
+
 		/* foce idle, disconnect core and ccu */
 		writel(dec->core_mask, dec->ccu->reg_base + RKVDEC_CCU_CORE_IDLE_BASE);
-		rockchip_save_qos(mpp->dev);
 		rkvdec2_reset(mpp);
-		rockchip_restore_qos(mpp->dev);
 
 		/* clear error mask */
 		writel_relaxed(dec->core_mask & RKVDEC_CCU_CORE_RW_MASK,
@@ -1723,6 +1723,7 @@ static int rkvdec2_soft_ccu_reset(struct mpp_taskqueue *queue)
 		writel(dec->core_mask & RKVDEC_CCU_CORE_RW_MASK,
 		       dec->ccu->reg_base + RKVDEC_CCU_CORE_IDLE_BASE);
 
+		enable_irq(mpp->irq);
 		dev_info(mpp->dev, "reset done\n");
 	}
 	atomic_set(&queue->reset_request, 0);
