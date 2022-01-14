@@ -1930,7 +1930,7 @@ static void gfx_v9_4_2_reset_sq_timeout_status(struct amdgpu_device *adev)
 	mutex_unlock(&adev->grbm_idx_mutex);
 }
 
-struct amdgpu_ras_block_hw_ops  gfx_v9_4_2_ras_ops ={
+struct amdgpu_ras_block_hw_ops  gfx_v9_4_2_ras_ops = {
 		.ras_error_inject = &gfx_v9_4_2_ras_error_inject,
 		.query_ras_error_count = &gfx_v9_4_2_query_ras_error_count,
 		.reset_ras_error_count = &gfx_v9_4_2_reset_ras_error_count,
