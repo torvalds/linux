@@ -26,6 +26,8 @@
 #include <fcntl.h>
 #include <time.h>
 
+#include "../kselftest.h"
+
 #ifndef TCP_FASTOPEN_KEY
 #define TCP_FASTOPEN_KEY 33
 #endif
@@ -33,10 +35,6 @@
 #define N_LISTEN 10
 #define PROC_FASTOPEN_KEY "/proc/sys/net/ipv4/tcp_fastopen_key"
 #define KEY_LENGTH 16
-
-#ifndef ARRAY_SIZE
-#define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
-#endif
 
 static bool do_ipv6;
 static bool do_sockopt;

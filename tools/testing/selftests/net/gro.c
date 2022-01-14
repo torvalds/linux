@@ -57,10 +57,11 @@
 #include <string.h>
 #include <unistd.h>
 
+#include "../kselftest.h"
+
 #define DPORT 8000
 #define SPORT 1500
 #define PAYLOAD_LEN 100
-#define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
 #define NUM_PACKETS 4
 #define START_SEQ 100
 #define START_ACK 100
