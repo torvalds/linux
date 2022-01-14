@@ -283,6 +283,41 @@ void kfd_smi_event_migration_end(struct kfd_dev *dev, pid_t pid,
 			  from, to, trigger);
 }
 
+void kfd_smi_event_queue_eviction(struct kfd_dev *dev, pid_t pid,
+				  uint32_t trigger)
+{
+	kfd_smi_event_add(pid, dev, KFD_SMI_EVENT_QUEUE_EVICTION,
+			  "%lld -%d %x %d\n", ktime_get_boottime_ns(), pid,
+			  dev->id, trigger);
+}
+
+void kfd_smi_event_queue_restore(struct kfd_dev *dev, pid_t pid)
+{
+	kfd_smi_event_add(pid, dev, KFD_SMI_EVENT_QUEUE_RESTORE,
+			  "%lld -%d %x\n", ktime_get_boottime_ns(), pid,
+			  dev->id);
+}
+
+void kfd_smi_event_queue_restore_rescheduled(struct mm_struct *mm)
+{
+	struct kfd_process *p;
+	int i;
+
+	p = kfd_lookup_process_by_mm(mm);
+	if (!p)
+		return;
+
+	for (i = 0; i < p->n_pdds; i++) {
+		struct kfd_process_device *pdd = p->pdds[i];
+
+		kfd_smi_event_add(p->lead_thread->pid, pdd->dev,
+				  KFD_SMI_EVENT_QUEUE_RESTORE,
+				  "%lld -%d %x %c\n", ktime_get_boottime_ns(),
+				  p->lead_thread->pid, pdd->dev->id, 'R');
+	}
+	kfd_unref_process(p);
+}
+
 int kfd_smi_event_open(struct kfd_dev *dev, uint32_t *fd)
 {
 	struct kfd_smi_client *client;
