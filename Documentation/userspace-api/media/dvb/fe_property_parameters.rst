@@ -89,15 +89,20 @@ ATSC (version 1)	8-VSB and 16-VSB.
 DMTB			4-QAM, 16-QAM, 32-QAM, 64-QAM and 4-QAM-NR.
 DVB-C Annex A/C		16-QAM, 32-QAM, 64-QAM and 256-QAM.
 DVB-C Annex B		64-QAM.
+DVB-C2			QPSK, 16-QAM, 64-QAM, 256-QAM, 1024-QAM and 4096-QAM.
 DVB-T			QPSK, 16-QAM and 64-QAM.
 DVB-T2			QPSK, 16-QAM, 64-QAM and 256-QAM.
 DVB-S			No need to set. It supports only QPSK.
 DVB-S2			QPSK, 8-PSK, 16-APSK and 32-APSK.
+DVB-S2X			8-APSK-L, 16-APSK-L, 32-APSK-L, 64-APSK and 64-APSK-L.
 ISDB-T			QPSK, DQPSK, 16-QAM and 64-QAM.
 ISDB-S			8-PSK, QPSK and BPSK.
 ======================= =======================================================
 
 .. note::
+
+   As DVB-S2X specifies extensions to the DVB-S2 standard, the same
+   delivery system enum value is used (SYS_DVBS2).
 
    Please notice that some of the above modulation types may not be
    defined currently at the Kernel. The reason is simple: no driver
@@ -854,9 +859,10 @@ The acceptable values are defined by :c:type:`fe_guard_interval`.
    #. If ``DTV_GUARD_INTERVAL`` is set the ``GUARD_INTERVAL_AUTO`` the
       hardware will try to find the correct guard interval (if capable) and
       will use TMCC to fill in the missing parameters.
-   #. Intervals ``GUARD_INTERVAL_1_128``, ``GUARD_INTERVAL_19_128``
-      and ``GUARD_INTERVAL_19_256`` are used only for DVB-T2 at
-      present.
+   #. Interval ``GUARD_INTERVAL_1_64`` is used only for DVB-C2.
+   #. Interval ``GUARD_INTERVAL_1_128`` is used for both DVB-C2 and DVB_T2.
+   #. Intervals ``GUARD_INTERVAL_19_128`` and ``GUARD_INTERVAL_19_256`` are
+      used only for DVB-T2.
    #. Intervals ``GUARD_INTERVAL_PN420``, ``GUARD_INTERVAL_PN595`` and
       ``GUARD_INTERVAL_PN945`` are used only for DMTB at the present.
       On such standard, only those intervals and ``GUARD_INTERVAL_AUTO``
@@ -916,14 +922,15 @@ The acceptable values are defined by :c:type:`fe_hierarchy`.
 DTV_STREAM_ID
 =============
 
-Used on DVB-S2, DVB-T2 and ISDB-S.
+Used on DVB-C2, DVB-S2, DVB-T2 and ISDB-S.
 
-DVB-S2, DVB-T2 and ISDB-S support the transmission of several streams on
-a single transport stream. This property enables the digital TV driver to
-handle substream filtering, when supported by the hardware. By default,
-substream filtering is disabled.
+DVB-C2, DVB-S2, DVB-T2 and ISDB-S support the transmission of several
+streams on a single transport stream. This property enables the digital
+TV driver to handle substream filtering, when supported by the hardware.
+By default, substream filtering is disabled.
 
-For DVB-S2 and DVB-T2, the valid substream id range is from 0 to 255.
+For DVB-C2, DVB-S2 and DVB-T2, the valid substream id range is from 0 to
+255.
 
 For ISDB, the valid substream id range is from 1 to 65535.
 

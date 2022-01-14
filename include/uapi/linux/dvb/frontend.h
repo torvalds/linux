@@ -296,6 +296,22 @@ enum fe_spectral_inversion {
  * @FEC_3_5:  Forward Error Correction Code 3/5
  * @FEC_9_10: Forward Error Correction Code 9/10
  * @FEC_2_5:  Forward Error Correction Code 2/5
+ * @FEC_1_3:  Forward Error Correction Code 1/3
+ * @FEC_1_4:  Forward Error Correction Code 1/4
+ * @FEC_5_9:  Forward Error Correction Code 5/9
+ * @FEC_7_9:  Forward Error Correction Code 7/9
+ * @FEC_8_15:  Forward Error Correction Code 8/15
+ * @FEC_11_15: Forward Error Correction Code 11/15
+ * @FEC_13_18: Forward Error Correction Code 13/18
+ * @FEC_9_20:  Forward Error Correction Code 9/20
+ * @FEC_11_20: Forward Error Correction Code 11/20
+ * @FEC_23_36: Forward Error Correction Code 23/36
+ * @FEC_25_36: Forward Error Correction Code 25/36
+ * @FEC_13_45: Forward Error Correction Code 13/45
+ * @FEC_26_45: Forward Error Correction Code 26/45
+ * @FEC_28_45: Forward Error Correction Code 28/45
+ * @FEC_32_45: Forward Error Correction Code 32/45
+ * @FEC_77_90: Forward Error Correction Code 77/90
  *
  * Please note that not all FEC types are supported by a given standard.
  */
@@ -313,6 +329,22 @@ enum fe_code_rate {
 	FEC_3_5,
 	FEC_9_10,
 	FEC_2_5,
+	FEC_1_3,
+	FEC_1_4,
+	FEC_5_9,
+	FEC_7_9,
+	FEC_8_15,
+	FEC_11_15,
+	FEC_13_18,
+	FEC_9_20,
+	FEC_11_20,
+	FEC_23_36,
+	FEC_25_36,
+	FEC_13_45,
+	FEC_26_45,
+	FEC_28_45,
+	FEC_32_45,
+	FEC_77_90,
 };
 
 /**
@@ -331,6 +363,13 @@ enum fe_code_rate {
  * @APSK_32:	32-APSK modulation
  * @DQPSK:	DQPSK modulation
  * @QAM_4_NR:	4-QAM-NR modulation
+ * @QAM-1024:	1024-QAM modulation
+ * @QAM-4096:	4096-QAM modulation
+ * @APSK_8_L:	8APSK-L modulation
+ * @APSK_16_L:	16APSK-L modulation
+ * @APSK_32_L:	32APSK-L modulation
+ * @APSK_64:	64APSK modulation
+ * @APSK_64_L:	64APSK-L modulation
  *
  * Please note that not all modulations are supported by a given standard.
  *
@@ -350,6 +389,13 @@ enum fe_modulation {
 	APSK_32,
 	DQPSK,
 	QAM_4_NR,
+	QAM_1024,
+	QAM_4096,
+	APSK_8_L,
+	APSK_16_L,
+	APSK_32_L,
+	APSK_64,
+	APSK_64_L,
 };
 
 /**
@@ -404,6 +450,7 @@ enum fe_transmit_mode {
  * @GUARD_INTERVAL_PN420:	PN length 420 (1/4)
  * @GUARD_INTERVAL_PN595:	PN length 595 (1/6)
  * @GUARD_INTERVAL_PN945:	PN length 945 (1/9)
+ * @GUARD_INTERVAL_1_64:	Guard interval 1/64
  *
  * Please note that not all guard intervals are supported by a given standard.
  */
@@ -419,6 +466,7 @@ enum fe_guard_interval {
 	GUARD_INTERVAL_PN420,
 	GUARD_INTERVAL_PN595,
 	GUARD_INTERVAL_PN945,
+	GUARD_INTERVAL_1_64,
 };
 
 /**
@@ -571,6 +619,9 @@ enum fe_pilot {
  * @ROLLOFF_20:		Roloff factor: α=20%
  * @ROLLOFF_25:		Roloff factor: α=25%
  * @ROLLOFF_AUTO:	Auto-detect the roloff factor.
+ * @ROLLOFF_15:		Rolloff factor: α=15%
+ * @ROLLOFF_10:		Rolloff factor: α=10%
+ * @ROLLOFF_5:		Rolloff factor: α=5%
  *
  * .. note:
  *
@@ -581,6 +632,9 @@ enum fe_rolloff {
 	ROLLOFF_20,
 	ROLLOFF_25,
 	ROLLOFF_AUTO,
+	ROLLOFF_15,
+	ROLLOFF_10,
+	ROLLOFF_5,
 };
 
 /**
@@ -594,6 +648,8 @@ enum fe_rolloff {
  *	Cable TV: DVB-C following ITU-T J.83 Annex B spec (ClearQAM)
  * @SYS_DVBC_ANNEX_C:
  *	Cable TV: DVB-C following ITU-T J.83 Annex C spec
+ * @SYS_DVBC2:
+ *      Cable TV: DVB-C2
  * @SYS_ISDBC:
  *	Cable TV: ISDB-C (no drivers yet)
  * @SYS_DVBT:
@@ -611,7 +667,7 @@ enum fe_rolloff {
  * @SYS_DVBS:
  *	Satellite TV: DVB-S
  * @SYS_DVBS2:
- *	Satellite TV: DVB-S2
+ *	Satellite TV: DVB-S2 and DVB-S2X
  * @SYS_TURBO:
  *	Satellite TV: DVB-S Turbo
  * @SYS_ISDBS:
@@ -645,6 +701,7 @@ enum fe_delivery_system {
 	SYS_DVBT2,
 	SYS_TURBO,
 	SYS_DVBC_ANNEX_C,
+	SYS_DVBC2,
 };
 
 /* backward compatibility definitions for delivery systems */
