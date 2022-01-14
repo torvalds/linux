@@ -132,6 +132,8 @@
 #define to_vop2_win(x) container_of(x, struct vop2_win, base)
 #define to_vop2_plane_state(x) container_of(x, struct vop2_plane_state, base)
 #define to_wb_state(x) container_of(x, struct vop2_wb_connector_state, base)
+#define output_if_is_hdmi(x) (x & (VOP_OUTPUT_IF_HDMI0 | VOP_OUTPUT_IF_HDMI1))
+#define output_if_is_dp(x) (x & (VOP_OUTPUT_IF_DP0 | VOP_OUTPUT_IF_DP1))
 
 /*
  * max two jobs a time, one is running(writing back),
@@ -5779,6 +5781,26 @@ static u32 vop2_get_hdmi_pol(struct vop2 *vop2, u32 flags)
 	return val;
 }
 
+static void vop2_post_color_swap(struct drm_crtc *crtc)
+{
+	struct vop2_video_port *vp = to_vop2_video_port(crtc);
+	struct vop2 *vop2 = vp->vop2;
+	struct rockchip_crtc_state *vcstate = to_rockchip_crtc_state(crtc->state);
+	u32 output_if = vcstate->output_if;
+	u32 data_swap = 0;
+
+	if (vop2_output_uv_swap(vcstate->bus_format, vcstate->output_mode))
+		data_swap = DSP_RB_SWAP;
+
+	if (vop2->version == VOP_VERSION_RK3588 &&
+	    (output_if_is_hdmi(output_if) || output_if_is_dp(output_if)) &&
+	    (vcstate->bus_format == MEDIA_BUS_FMT_YUV8_1X24 ||
+	     vcstate->bus_format == MEDIA_BUS_FMT_YUV10_1X30))
+		data_swap |= DSP_RG_SWAP;
+
+	VOP_MODULE_SET(vop2, vp, dsp_data_swap, data_swap);
+}
+
 static void vop2_crtc_atomic_enable(struct drm_crtc *crtc, struct drm_crtc_state *old_state)
 {
 	struct vop2_video_port *vp = to_vop2_video_port(crtc);
@@ -6082,10 +6104,7 @@ static void vop2_crtc_atomic_enable(struct drm_crtc *crtc, struct drm_crtc_state
 		out_mode = vcstate->output_mode;
 	VOP_MODULE_SET(vop2, vp, out_mode, out_mode);
 
-	if (vop2_output_uv_swap(vcstate->bus_format, vcstate->output_mode))
-		VOP_MODULE_SET(vop2, vp, dsp_data_swap, DSP_RB_SWAP);
-	else
-		VOP_MODULE_SET(vop2, vp, dsp_data_swap, 0);
+	vop2_post_color_swap(crtc);
 
 	vop2_dither_setup(crtc);
 
