@@ -141,7 +141,7 @@ static void falcon_gpe_enable(void)
 	unsigned int freq;
 	unsigned int status;
 
-	/* if if the clock is already enabled */
+	/* if the clock is already enabled */
 	status = sysctl_r32(SYSCTL_SYS1, SYS1_INFRAC);
 	if (status & (1 << (GPPC_OFFSET + 1)))
 		return;
