@@ -1195,11 +1195,6 @@ int amdgpu_discovery_set_ip_blocks(struct amdgpu_device *adev)
 			return -EINVAL;
 
 		amdgpu_discovery_harvest_ip(adev);
-
-		if (!adev->mman.discovery_bin) {
-			DRM_ERROR("ip discovery uninitialized\n");
-			return -EINVAL;
-		}
 		break;
 	}
 
