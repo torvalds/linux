@@ -134,7 +134,7 @@ static int s2mpu_probe_v9(struct platform_device *pdev, void __iomem *kaddr,
 	return 0;
 }
 
-/**
+/*
  * Parse interrupt information from DT and if found, register IRQ handler.
  * This is considered optional and will not fail even if the initialization is
  * unsuccessful. In that case the IRQ will remain masked.

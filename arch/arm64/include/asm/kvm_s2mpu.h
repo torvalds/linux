@@ -268,7 +268,7 @@ static inline bool __is_smpt_uniform(u32 *smpt, enum mpt_prot prot)
 	return true;
 }
 
-/**
+/*
  * Set protection bits of FMPT/SMPT in a given range.
  * Returns flags specifying whether L1/L2 changes need to be made visible
  * to the device.

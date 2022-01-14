@@ -157,7 +157,7 @@ static void __set_l1entry_l2table_addr(struct s2mpu *dev, unsigned int gb,
 	       dev->va + REG_NS_L1ENTRY_L2TABLE_ADDR(vid, gb));
 }
 
-/**
+/*
  * Initialize S2MPU device and set all GB regions to 1G granularity with
  * given protection bits.
  */
@@ -176,7 +176,7 @@ static void initialize_with_prot(struct s2mpu *dev, enum mpt_prot prot)
 	__set_control_regs(dev);
 }
 
-/**
+/*
  * Initialize S2MPU device, set L2 table addresses and configure L1TABLE_ATTR
  * registers according to the given MPT struct.
  */
@@ -199,7 +199,7 @@ static void initialize_with_mpt(struct s2mpu *dev, struct mpt *mpt)
 	__set_control_regs(dev);
 }
 
-/**
+/*
  * Set MPT protection bits set to 'prot' in the give byte range (page-aligned).
  * Update currently powered S2MPUs.
  */
