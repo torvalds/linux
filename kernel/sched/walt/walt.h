@@ -917,6 +917,16 @@ extern int in_sched_bug;
 extern struct rq *__migrate_task(struct rq *rq, struct rq_flags *rf,
 				 struct task_struct *p, int dest_cpu);
 
+enum WALT_DEBUG_FEAT {
+	WALT_BUG_UPSTREAM,
+	WALT_BUG_WALT,
+	WALT_BUG_NONCRITICAL,
+	WALT_BUG_UNUSED,
+
+	/* maximum 4 entries allowed */
+	WALT_DEBUG_FEAT_NR,
+};
+
 #define WALT_PANIC(condition)				\
 ({							\
 	if (unlikely(!!(condition)) && !in_sched_bug) {	\
@@ -926,21 +936,46 @@ extern struct rq *__migrate_task(struct rq *rq, struct rq_flags *rf,
 	}						\
 })
 
-#define WALT_PANIC_SENTINEL 0x4544DEAD
+/* the least signifcant byte is the bitmask for features and printk */
+#define WALT_PANIC_SENTINEL	0x4544DE00
 
-/*
- * crash if walt bugs are fatal, otherwise return immediately.
- * output format and arguments to console
- */
-#define WALT_BUG(p, format, args...)					\
-({									\
-	if (unlikely(sysctl_panic_on_walt_bug == WALT_PANIC_SENTINEL)) {\
-		printk_deferred("WALT-BUG " format, args);		\
-		if (p)							\
-			walt_task_dump(p);				\
-		WALT_PANIC(1);						\
-	}								\
+#define walt_debug_bitmask_panic(x) (1UL << x)
+#define walt_debug_bitmask_print(x) (1UL << (x + WALT_DEBUG_FEAT_NR))
+
+/* setup initial values, bug and print on upstream and walt, ignore noncritical */
+#define walt_debug_initial_values()			\
+	(WALT_PANIC_SENTINEL |				\
+	 walt_debug_bitmask_panic(WALT_BUG_UPSTREAM) |	\
+	 walt_debug_bitmask_print(WALT_BUG_UPSTREAM) |	\
+	 walt_debug_bitmask_panic(WALT_BUG_WALT) |	\
+	 walt_debug_bitmask_print(WALT_BUG_WALT))
+
+/* least significant nibble is the bug feature itself */
+#define walt_debug_feat_panic(x) (!!(sysctl_panic_on_walt_bug & (1UL << x)))
+
+/* 2nd least significant nibble is the print capability */
+#define walt_debug_feat_print(x) (!!(sysctl_panic_on_walt_bug & (1UL << (x + WALT_DEBUG_FEAT_NR))))
+
+/* return true if the sentinel is set, regardless of feature set */
+static inline bool is_walt_sentinel(void)
+{
+	if (unlikely((sysctl_panic_on_walt_bug & 0xFFFFFF00) == WALT_PANIC_SENTINEL))
+		return true;
+	return false;
+}
+
+/* if the sentinel is properly set, print and/or panic as configured */
+#define WALT_BUG(feat, p, format, args...)					\
+({										\
+	if (is_walt_sentinel()) {						\
+		if (walt_debug_feat_print(feat))				\
+			printk_deferred("WALT-BUG " format, args);		\
+		if (walt_debug_feat_panic(feat)) {				\
+			if (p)							\
+				walt_task_dump(p);				\
+			WALT_PANIC(1);						\
+		}								\
+	}									\
 })
-
 
 #endif /* _WALT_H */

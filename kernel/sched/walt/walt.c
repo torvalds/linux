@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2016-2021, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2016-2022, The Linux Foundation. All rights reserved.
  */
 
 #include <linux/syscore_ops.h>
@@ -293,11 +293,11 @@ fixup_cumulative_runnable_avg(struct rq *rq,
 	lockdep_assert_held(&rq->__lock);
 
 	if (task_rq(p) != rq)
-		WALT_BUG(p, "on CPU %d task %s(%d) not on rq %d",
+		WALT_BUG(WALT_BUG_UPSTREAM, p, "on CPU %d task %s(%d) not on rq %d",
 			 raw_smp_processor_id(), p->comm, p->pid, rq->cpu);
 
 	if (cumulative_runnable_avg_scaled < 0) {
-		WALT_BUG(p, "on CPU %d task ds=%llu is higher than cra=%llu\n",
+		WALT_BUG(WALT_BUG_WALT, p, "on CPU %d task ds=%llu is higher than cra=%llu\n",
 			 raw_smp_processor_id(), wts->demand_scaled,
 			 stats->cumulative_runnable_avg_scaled);
 		cumulative_runnable_avg_scaled = 0;
@@ -305,7 +305,7 @@ fixup_cumulative_runnable_avg(struct rq *rq,
 	stats->cumulative_runnable_avg_scaled = (u64)cumulative_runnable_avg_scaled;
 
 	if (pred_demands_sum_scaled < 0) {
-		WALT_BUG(p, "on CPU %d task pds=%llu is higher than pds_sum=%llu\n",
+		WALT_BUG(WALT_BUG_WALT, p, "on CPU %d task pds=%llu is higher than pds_sum=%llu\n",
 			 raw_smp_processor_id(), wts->pred_demand_scaled,
 			 stats->pred_demands_sum_scaled);
 		pred_demands_sum_scaled = 0;
@@ -696,22 +696,22 @@ static inline void account_load_subtractions(struct rq *rq)
 	}
 
 	if ((s64)wrq->prev_runnable_sum < 0) {
-		WALT_BUG(NULL, "wrq->prev_runnable_sum=%llu < 0",
+		WALT_BUG(WALT_BUG_WALT, NULL, "wrq->prev_runnable_sum=%llu < 0",
 				(s64)wrq->prev_runnable_sum);
 		wrq->prev_runnable_sum = 0;
 	}
 	if ((s64)wrq->curr_runnable_sum < 0) {
-		WALT_BUG(NULL, "wrq->curr_runnable_sum=%llu < 0",
+		WALT_BUG(WALT_BUG_WALT, NULL, "wrq->curr_runnable_sum=%llu < 0",
 				(s64)wrq->curr_runnable_sum);
 		wrq->curr_runnable_sum = 0;
 	}
 	if ((s64)wrq->nt_prev_runnable_sum < 0) {
-		WALT_BUG(NULL, "wrq->nt_prev_runnable_sum=%llu < 0",
+		WALT_BUG(WALT_BUG_WALT, NULL, "wrq->nt_prev_runnable_sum=%llu < 0",
 				(s64)wrq->nt_prev_runnable_sum);
 		wrq->nt_prev_runnable_sum = 0;
 	}
 	if ((s64)wrq->nt_curr_runnable_sum < 0) {
-		WALT_BUG(NULL, "wrq->nt_curr_runnable_sum=%llu < 0",
+		WALT_BUG(WALT_BUG_WALT, NULL, "wrq->nt_curr_runnable_sum=%llu < 0",
 				(s64)wrq->nt_curr_runnable_sum);
 		wrq->nt_curr_runnable_sum = 0;
 	}
@@ -823,7 +823,8 @@ static inline void inter_cluster_migration_fixup
 	dest_wrq->prev_runnable_sum += wts->prev_window;
 
 	if (src_wrq->curr_runnable_sum < wts->curr_window_cpu[task_cpu]) {
-		WALT_BUG(p, "pid=%u CPU%d -> CPU%d src_crs=%llu is lesser than task_contrib=%llu",
+		WALT_BUG(WALT_BUG_WALT, p,
+			 "pid=%u CPU%d -> CPU%d src_crs=%llu is lesser than task_contrib=%llu",
 			 p->pid, src_rq->cpu, dest_rq->cpu,
 			 src_wrq->curr_runnable_sum,
 			 wts->curr_window_cpu[task_cpu]);
@@ -832,7 +833,8 @@ static inline void inter_cluster_migration_fixup
 	src_wrq->curr_runnable_sum -= wts->curr_window_cpu[task_cpu];
 
 	if (src_wrq->prev_runnable_sum < wts->prev_window_cpu[task_cpu]) {
-		WALT_BUG(p, "pid=%u CPU%d -> CPU%d src_prs=%llu is lesser than task_contrib=%llu",
+		WALT_BUG(WALT_BUG_WALT, p,
+			 "pid=%u CPU%d -> CPU%d src_prs=%llu is lesser than task_contrib=%llu",
 			 p->pid, src_rq->cpu, dest_rq->cpu,
 			 src_wrq->prev_runnable_sum,
 			 wts->prev_window_cpu[task_cpu]);
@@ -845,7 +847,8 @@ static inline void inter_cluster_migration_fixup
 		dest_wrq->nt_prev_runnable_sum += wts->prev_window;
 
 		if (src_wrq->nt_curr_runnable_sum < wts->curr_window_cpu[task_cpu]) {
-			WALT_BUG(p, "pid=%u CPU%d -> CPU%d src_nt_crs=%llu is lesser than task_contrib=%llu",
+			WALT_BUG(WALT_BUG_WALT, p,
+				 "pid=%u CPU%d -> CPU%d src_nt_crs=%llu is lesser than task_contrib=%llu",
 				 p->pid, src_rq->cpu, dest_rq->cpu,
 				 src_wrq->nt_curr_runnable_sum,
 				 wts->curr_window_cpu[task_cpu]);
@@ -855,7 +858,8 @@ static inline void inter_cluster_migration_fixup
 				wts->curr_window_cpu[task_cpu];
 
 		if (src_wrq->nt_prev_runnable_sum < wts->prev_window_cpu[task_cpu]) {
-			WALT_BUG(p, "pid=%u CPU%d -> CPU%d src_nt_prs=%llu is lesser than task_contrib=%llu",
+			WALT_BUG(WALT_BUG_WALT, p,
+				 "pid=%u CPU%d -> CPU%d src_nt_prs=%llu is lesser than task_contrib=%llu",
 				 p->pid, src_rq->cpu, dest_rq->cpu,
 				 src_wrq->nt_prev_runnable_sum,
 				 wts->prev_window_cpu[task_cpu]);
@@ -982,7 +986,7 @@ static void fixup_busy_time(struct task_struct *p, int new_cpu)
 	lockdep_assert_held(&dest_rq->__lock);
 
 	if (task_rq(p) != src_rq)
-		WALT_BUG(p, "on CPU %d task %s(%d) not on src_rq %d",
+		WALT_BUG(WALT_BUG_UPSTREAM, p, "on CPU %d task %s(%d) not on src_rq %d",
 				raw_smp_processor_id(), p->comm, p->pid, src_rq->cpu);
 
 	walt_update_task_ravg(task_rq(p)->curr, task_rq(p),
@@ -3188,7 +3192,8 @@ static void transfer_busy_time(struct rq *rq,
 		dst_nt_prev_runnable_sum = &cpu_time->nt_prev_runnable_sum;
 
 		if (*src_curr_runnable_sum < wts->curr_window_cpu[cpu]) {
-			WALT_BUG(p, "pid=%u CPU=%d event=%d src_crs=%llu is lesser than task_contrib=%llu",
+			WALT_BUG(WALT_BUG_WALT, p,
+				 "pid=%u CPU=%d event=%d src_crs=%llu is lesser than task_contrib=%llu",
 				 p->pid, cpu, event, *src_curr_runnable_sum,
 				 wts->curr_window_cpu[cpu]);
 			*src_curr_runnable_sum = wts->curr_window_cpu[cpu];
@@ -3196,7 +3201,8 @@ static void transfer_busy_time(struct rq *rq,
 		*src_curr_runnable_sum -= wts->curr_window_cpu[cpu];
 
 		if (*src_prev_runnable_sum < wts->prev_window_cpu[cpu]) {
-			WALT_BUG(p, "pid=%u CPU=%d event=%d src_prs=%llu is lesser than task_contrib=%llu",
+			WALT_BUG(WALT_BUG_WALT, p,
+				 "pid=%u CPU=%d event=%d src_prs=%llu is lesser than task_contrib=%llu",
 				 p->pid, cpu, event, *src_prev_runnable_sum,
 				 wts->prev_window_cpu[cpu]);
 			*src_prev_runnable_sum = wts->prev_window_cpu[cpu];
@@ -3205,7 +3211,8 @@ static void transfer_busy_time(struct rq *rq,
 
 		if (new_task) {
 			if (*src_nt_curr_runnable_sum < wts->curr_window_cpu[cpu]) {
-				WALT_BUG(p, "pid=%u CPU=%d event=%d src_nt_crs=%llu is lesser than task_contrib=%llu",
+				WALT_BUG(WALT_BUG_WALT, p,
+					 "pid=%u CPU=%d event=%d src_nt_crs=%llu is lesser than task_contrib=%llu",
 					 p->pid, cpu, event,
 					 *src_nt_curr_runnable_sum,
 					 wts->curr_window_cpu[cpu]);
@@ -3215,7 +3222,8 @@ static void transfer_busy_time(struct rq *rq,
 					wts->curr_window_cpu[cpu];
 
 			if (*src_nt_prev_runnable_sum < wts->prev_window_cpu[cpu]) {
-				WALT_BUG(p, "pid=%u CPU=%d event=%d src_nt_prs=%llu is lesser than task_contrib=%llu",
+				WALT_BUG(WALT_BUG_WALT, p,
+					 "pid=%u CPU=%d event=%d src_nt_prs=%llu is lesser than task_contrib=%llu",
 					 p->pid, cpu, event,
 					 *src_nt_prev_runnable_sum,
 					 wts->prev_window_cpu[cpu]);
@@ -3242,7 +3250,8 @@ static void transfer_busy_time(struct rq *rq,
 		dst_nt_prev_runnable_sum = &wrq->nt_prev_runnable_sum;
 
 		if (*src_curr_runnable_sum < wts->curr_window) {
-			WALT_BUG(p, "WALT-UG pid=%u CPU=%d event=%d src_crs=%llu is lesser than task_contrib=%llu",
+			WALT_BUG(WALT_BUG_WALT, p,
+				 "WALT-UG pid=%u CPU=%d event=%d src_crs=%llu is lesser than task_contrib=%llu",
 				 p->pid, cpu, event, *src_curr_runnable_sum,
 				 wts->curr_window);
 			*src_curr_runnable_sum = wts->curr_window;
@@ -3250,7 +3259,8 @@ static void transfer_busy_time(struct rq *rq,
 		*src_curr_runnable_sum -= wts->curr_window;
 
 		if (*src_prev_runnable_sum < wts->prev_window) {
-			WALT_BUG(p, "pid=%u CPU=%d event=%d src_prs=%llu is lesser than task_contrib=%llu",
+			WALT_BUG(WALT_BUG_WALT, p,
+				 "pid=%u CPU=%d event=%d src_prs=%llu is lesser than task_contrib=%llu",
 				 p->pid, cpu, event, *src_prev_runnable_sum,
 				 wts->prev_window);
 			*src_prev_runnable_sum = wts->prev_window;
@@ -3259,7 +3269,8 @@ static void transfer_busy_time(struct rq *rq,
 
 		if (new_task) {
 			if (*src_nt_curr_runnable_sum < wts->curr_window) {
-				WALT_BUG(p, "pid=%u CPU=%d event=%d src_nt_crs=%llu is lesser than task_contrib=%llu",
+				WALT_BUG(WALT_BUG_WALT, p,
+					 "pid=%u CPU=%d event=%d src_nt_crs=%llu is lesser than task_contrib=%llu",
 						p->pid, cpu, event,
 						*src_nt_curr_runnable_sum,
 						wts->curr_window);
@@ -3268,7 +3279,8 @@ static void transfer_busy_time(struct rq *rq,
 			*src_nt_curr_runnable_sum -= wts->curr_window;
 
 			if (*src_nt_prev_runnable_sum < wts->prev_window) {
-				WALT_BUG(p, "pid=%u CPU=%d event=%d src_nt_prs=%llu is lesser than task_contrib=%llu",
+				WALT_BUG(WALT_BUG_WALT, p,
+					 "pid=%u CPU=%d event=%d src_nt_prs=%llu is lesser than task_contrib=%llu",
 					 p->pid, cpu, event,
 					 *src_nt_prev_runnable_sum,
 					 wts->prev_window);
@@ -3916,18 +3928,18 @@ static void android_rvh_enqueue_task(void *unused, struct rq *rq, struct task_st
 	lockdep_assert_held(&rq->__lock);
 
 	if (p->cpu != cpu_of(rq))
-		WALT_BUG(p, "enqueuing on rq %d when task->cpu is %d\n",
+		WALT_BUG(WALT_BUG_UPSTREAM, p, "enqueuing on rq %d when task->cpu is %d\n",
 				cpu_of(rq), p->cpu);
 
 	/* catch double enqueue */
 	if (wts->prev_on_rq == 1) {
-		WALT_BUG(p, "double enqueue detected: task_cpu=%d new_cpu=%d\n",
+		WALT_BUG(WALT_BUG_UPSTREAM, p, "double enqueue detected: task_cpu=%d new_cpu=%d\n",
 			 task_cpu(p), cpu_of(rq));
 		double_enqueue = true;
 	}
 
 	if (!cpumask_test_cpu(cpu_of(rq), p->cpus_ptr))
-		WALT_BUG(p, "enqueueing on rq=%d comm=%s(%d) affinity=0x%x",
+		WALT_BUG(WALT_BUG_NONCRITICAL, p, "enqueueing on rq=%d comm=%s(%d) affinity=0x%x",
 			 cpu_of(rq), p->comm, p->pid, (*(cpumask_bits(p->cpus_ptr))));
 
 	wts->prev_on_rq = 1;
@@ -3965,7 +3977,7 @@ static void android_rvh_dequeue_task(void *unused, struct rq *rq, struct task_st
 	 * an invalid failure.
 	 */
 	if (wts->prev_on_rq_cpu >= 0 && wts->prev_on_rq_cpu != cpu_of(rq))
-		WALT_BUG(p, "dequeue cpu %d not same as enqueue %d\n",
+		WALT_BUG(WALT_BUG_UPSTREAM, p, "dequeue cpu %d not same as enqueue %d\n",
 			 cpu_of(rq), wts->prev_on_rq_cpu);
 
 	/* no longer on a cpu */
@@ -3973,7 +3985,7 @@ static void android_rvh_dequeue_task(void *unused, struct rq *rq, struct task_st
 
 	/* catch double deq */
 	if (wts->prev_on_rq == 2) {
-		WALT_BUG(p, "double dequeue detected: task_cpu=%d new_cpu=%d\n",
+		WALT_BUG(WALT_BUG_UPSTREAM, p, "double dequeue detected: task_cpu=%d new_cpu=%d\n",
 			 task_cpu(p), cpu_of(rq));
 		double_dequeue = true;
 	}
@@ -4123,7 +4135,7 @@ static void android_rvh_schedule(void *unused, struct task_struct *prev,
 		walt_update_task_ravg(prev, rq, PUT_PREV_TASK, wallclock, 0);
 		walt_update_task_ravg(next, rq, PICK_NEXT_TASK, wallclock, 0);
 		if (is_idle_task(next) && wrq->walt_stats.cumulative_runnable_avg_scaled != 0)
-			WALT_BUG(next, "next=idle cra non zero=%d\n",
+			WALT_BUG(WALT_BUG_WALT, next, "next=idle cra non zero=%d\n",
 				 wrq->walt_stats.cumulative_runnable_avg_scaled);
 	} else {
 		walt_update_task_ravg(prev, rq, TASK_UPDATE, wallclock, 0);
