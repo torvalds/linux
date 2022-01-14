@@ -272,7 +272,7 @@ static void __damon_va_init_regions(struct damon_ctx *ctx,
 }
 
 /* Initialize '->regions_list' of every target (task) */
-void damon_va_init(struct damon_ctx *ctx)
+static void damon_va_init(struct damon_ctx *ctx)
 {
 	struct damon_target *t;
 
@@ -292,7 +292,8 @@ void damon_va_init(struct damon_ctx *ctx)
  *
  * Returns true if it is.
  */
-static bool damon_intersect(struct damon_region *r, struct damon_addr_range *re)
+static bool damon_intersect(struct damon_region *r,
+		struct damon_addr_range *re)
 {
 	return !(r->ar.end <= re->start || re->end <= r->ar.start);
 }
@@ -356,7 +357,7 @@ static void damon_va_apply_three_regions(struct damon_target *t,
 /*
  * Update regions for current memory mappings
  */
-void damon_va_update(struct damon_ctx *ctx)
+static void damon_va_update(struct damon_ctx *ctx)
 {
 	struct damon_addr_range three_regions[3];
 	struct damon_target *t;
@@ -418,7 +419,7 @@ static void __damon_va_prepare_access_check(struct damon_ctx *ctx,
 	damon_va_mkold(mm, r->sampling_addr);
 }
 
-void damon_va_prepare_access_checks(struct damon_ctx *ctx)
+static void damon_va_prepare_access_checks(struct damon_ctx *ctx)
 {
 	struct damon_target *t;
 	struct mm_struct *mm;
@@ -539,7 +540,7 @@ static void __damon_va_check_access(struct damon_ctx *ctx,
 	last_addr = r->sampling_addr;
 }
 
-unsigned int damon_va_check_accesses(struct damon_ctx *ctx)
+static unsigned int damon_va_check_accesses(struct damon_ctx *ctx)
 {
 	struct damon_target *t;
 	struct mm_struct *mm;
@@ -603,7 +604,7 @@ out:
 }
 #endif	/* CONFIG_ADVISE_SYSCALLS */
 
-int damon_va_apply_scheme(struct damon_ctx *ctx, struct damon_target *t,
+static int damon_va_apply_scheme(struct damon_ctx *ctx, struct damon_target *t,
 		struct damon_region *r, struct damos *scheme)
 {
 	int madv_action;
@@ -633,8 +634,9 @@ int damon_va_apply_scheme(struct damon_ctx *ctx, struct damon_target *t,
 	return damos_madvise(t, r, madv_action);
 }
 
-int damon_va_scheme_score(struct damon_ctx *context, struct damon_target *t,
-		struct damon_region *r, struct damos *scheme)
+static int damon_va_scheme_score(struct damon_ctx *context,
+		struct damon_target *t, struct damon_region *r,
+		struct damos *scheme)
 {
 
 	switch (scheme->action) {
