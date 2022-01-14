@@ -7,30 +7,30 @@ Detailed Usages
 DAMON provides below three interfaces for different users.
 
 - *DAMON user space tool.*
-  This is for privileged people such as system administrators who want a
-  just-working human-friendly interface.  Using this, users can use the DAMON’s
-  major features in a human-friendly way.  It may not be highly tuned for
-  special cases, though.  It supports both virtual and physical address spaces
-  monitoring.
+  `This <https://github.com/awslabs/damo>`_ is for privileged people such as
+  system administrators who want a just-working human-friendly interface.
+  Using this, users can use the DAMON’s major features in a human-friendly way.
+  It may not be highly tuned for special cases, though.  It supports both
+  virtual and physical address spaces monitoring.  For more detail, please
+  refer to its `usage document
+  <https://github.com/awslabs/damo/blob/next/USAGE.md>`_.
 - *debugfs interface.*
-  This is for privileged user space programmers who want more optimized use of
-  DAMON.  Using this, users can use DAMON’s major features by reading
-  from and writing to special debugfs files.  Therefore, you can write and use
-  your personalized DAMON debugfs wrapper programs that reads/writes the
-  debugfs files instead of you.  The DAMON user space tool is also a reference
-  implementation of such programs.  It supports both virtual and physical
-  address spaces monitoring.
+  :ref:`This <debugfs_interface>` is for privileged user space programmers who
+  want more optimized use of DAMON.  Using this, users can use DAMON’s major
+  features by reading from and writing to special debugfs files.  Therefore,
+  you can write and use your personalized DAMON debugfs wrapper programs that
+  reads/writes the debugfs files instead of you.  The `DAMON user space tool
+  <https://github.com/awslabs/damo>`_ is one example of such programs.  It
+  supports both virtual and physical address spaces monitoring.
 - *Kernel Space Programming Interface.*
-  This is for kernel space programmers.  Using this, users can utilize every
-  feature of DAMON most flexibly and efficiently by writing kernel space
-  DAMON application programs for you.  You can even extend DAMON for various
-  address spaces.
+  :doc:`This </vm/damon/api>` is for kernel space programmers.  Using this,
+  users can utilize every feature of DAMON most flexibly and efficiently by
+  writing kernel space DAMON application programs for you.  You can even extend
+  DAMON for various address spaces.  For detail, please refer to the interface
+  :doc:`document </vm/damon/api>`.
 
-Nevertheless, you could write your own user space tool using the debugfs
-interface.  A reference implementation is available at
-https://github.com/awslabs/damo.  If you are a kernel programmer, you could
-refer to :doc:`/vm/damon/api` for the kernel space programming interface.  For
-the reason, this document describes only the debugfs interface
+
+.. _debugfs_interface:
 
 debugfs Interface
 =================
