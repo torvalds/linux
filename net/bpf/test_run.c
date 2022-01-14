@@ -5,6 +5,7 @@
 #include <linux/btf.h>
 #include <linux/btf_ids.h>
 #include <linux/slab.h>
+#include <linux/init.h>
 #include <linux/vmalloc.h>
 #include <linux/etherdevice.h>
 #include <linux/filter.h>
@@ -236,18 +237,11 @@ __diag_pop();
 
 ALLOW_ERROR_INJECTION(bpf_modify_return_test, ERRNO);
 
-BTF_SET_START(test_sk_kfunc_ids)
+BTF_SET_START(test_sk_check_kfunc_ids)
 BTF_ID(func, bpf_kfunc_call_test1)
 BTF_ID(func, bpf_kfunc_call_test2)
 BTF_ID(func, bpf_kfunc_call_test3)
-BTF_SET_END(test_sk_kfunc_ids)
-
-bool bpf_prog_test_check_kfunc_call(u32 kfunc_id, struct module *owner)
-{
-	if (btf_id_set_contains(&test_sk_kfunc_ids, kfunc_id))
-		return true;
-	return bpf_check_mod_kfunc_call(&prog_test_kfunc_list, kfunc_id, owner);
-}
+BTF_SET_END(test_sk_check_kfunc_ids)
 
 static void *bpf_test_init(const union bpf_attr *kattr, u32 size,
 			   u32 headroom, u32 tailroom)
@@ -1067,3 +1061,14 @@ out:
 	kfree(ctx);
 	return err;
 }
+
+static const struct btf_kfunc_id_set bpf_prog_test_kfunc_set = {
+	.owner     = THIS_MODULE,
+	.check_set = &test_sk_check_kfunc_ids,
+};
+
+static int __init bpf_prog_test_run_init(void)
+{
+	return register_btf_kfunc_id_set(BPF_PROG_TYPE_SCHED_CLS, &bpf_prog_test_kfunc_set);
+}
+late_initcall(bpf_prog_test_run_init);
