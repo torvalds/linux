@@ -1303,9 +1303,7 @@ static void qcom_channel_state_worker(struct work_struct *work)
 
 		spin_unlock_irqrestore(&edge->channels_lock, flags);
 		qcom_smd_create_device(channel);
-		channel->registered = true;
 		spin_lock_irqsave(&edge->channels_lock, flags);
-
 		channel->registered = true;
 	}
 
