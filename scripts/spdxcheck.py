@@ -200,7 +200,7 @@ class id_parser(object):
                 tok = pe.tok.value
                 sys.stdout.write('%s: %d:%d %s: %s\n' %(fname, self.curline, col, pe.txt, tok))
             else:
-                sys.stdout.write('%s: %d:0 %s\n' %(fname, self.curline, col, pe.txt))
+                sys.stdout.write('%s: %d:0 %s\n' %(fname, self.curline, pe.txt))
             self.spdx_errors += 1
 
 def scan_git_tree(tree):
