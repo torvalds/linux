@@ -2683,7 +2683,7 @@ static int mlx5v_probe(struct auxiliary_device *adev,
 	if (err)
 		goto reg_err;
 
-	dev_set_drvdata(&adev->dev, mgtdev);
+	auxiliary_set_drvdata(adev, mgtdev);
 
 	return 0;
 
@@ -2696,7 +2696,7 @@ static void mlx5v_remove(struct auxiliary_device *adev)
 {
 	struct mlx5_vdpa_mgmtdev *mgtdev;
 
-	mgtdev = dev_get_drvdata(&adev->dev);
+	mgtdev = auxiliary_get_drvdata(adev);
 	vdpa_mgmtdev_unregister(&mgtdev->mgtdev);
 	kfree(mgtdev);
 }

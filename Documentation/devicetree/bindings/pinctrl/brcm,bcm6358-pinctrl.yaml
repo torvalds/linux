@@ -34,6 +34,9 @@ patternProperties:
         enum: [ ebi_cs_grp, uart1_grp, serial_led_grp, legacy_led_grp,
                 led_grp, spi_cs_grp, utopia_grp, pwm_syn_clk, sys_irq_grp ]
 
+allOf:
+  - $ref: "pinctrl.yaml#"
+
 required:
   - compatible
   - reg

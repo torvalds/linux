@@ -1043,6 +1043,7 @@ struct bus_type acpi_bus_type = {
 	.remove		= acpi_device_remove,
 	.uevent		= acpi_device_uevent,
 };
+EXPORT_SYMBOL_GPL(acpi_bus_type);
 
 /* --------------------------------------------------------------------------
                              Initialization/Cleanup

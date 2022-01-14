@@ -696,16 +696,6 @@ config MFD_INTEL_PMC_BXT
 	  Register and P-unit access. In addition this creates devices
 	  for iTCO watchdog and telemetry that are part of the PMC.
 
-config MFD_INTEL_PMT
-	tristate "Intel Platform Monitoring Technology (PMT) support"
-	depends on X86 && PCI
-	select MFD_CORE
-	help
-	  The Intel Platform Monitoring Technology (PMT) is an interface that
-	  provides access to hardware monitor registers. This driver supports
-	  Telemetry, Watcher, and Crashlog PMT capabilities/devices for
-	  platforms starting from Tiger Lake.
-
 config MFD_IPAQ_MICRO
 	bool "Atmel Micro ASIC (iPAQ h3100/h3600/h3700) Support"
 	depends on SA1100_H3100 || SA1100_H3600

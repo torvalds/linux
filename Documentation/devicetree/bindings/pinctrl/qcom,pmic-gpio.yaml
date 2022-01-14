@@ -17,6 +17,7 @@ properties:
   compatible:
     items:
       - enum:
+          - qcom,pm2250-gpio
           - qcom,pm660-gpio
           - qcom,pm660l-gpio
           - qcom,pm6150-gpio
@@ -26,10 +27,12 @@ properties:
           - qcom,pm8005-gpio
           - qcom,pm8008-gpio
           - qcom,pm8018-gpio
+          - qcom,pm8019-gpio
           - qcom,pm8038-gpio
           - qcom,pm8058-gpio
           - qcom,pm8150-gpio
           - qcom,pm8150b-gpio
+          - qcom,pm8226-gpio
           - qcom,pm8350-gpio
           - qcom,pm8350b-gpio
           - qcom,pm8350c-gpio

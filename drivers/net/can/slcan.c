@@ -673,8 +673,8 @@ static void slcan_hangup(struct tty_struct *tty)
 }
 
 /* Perform I/O control on an active SLCAN channel. */
-static int slcan_ioctl(struct tty_struct *tty, struct file *file,
-		       unsigned int cmd, unsigned long arg)
+static int slcan_ioctl(struct tty_struct *tty, unsigned int cmd,
+		       unsigned long arg)
 {
 	struct slcan *sl = (struct slcan *) tty->disc_data;
 	unsigned int tmp;

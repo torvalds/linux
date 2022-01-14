@@ -809,6 +809,7 @@ static int zynqmp_pinctrl_prepare_pin_desc(struct device *dev,
 					   unsigned int *npins)
 {
 	struct pinctrl_pin_desc *pins, *pin;
+	char **pin_names;
 	int ret;
 	int i;
 
@@ -820,13 +821,14 @@ static int zynqmp_pinctrl_prepare_pin_desc(struct device *dev,
 	if (!pins)
 		return -ENOMEM;
 
+	pin_names = devm_kasprintf_strarray(dev, ZYNQMP_PIN_PREFIX, *npins);
+	if (IS_ERR(pin_names))
+		return PTR_ERR(pin_names);
+
 	for (i = 0; i < *npins; i++) {
 		pin = &pins[i];
 		pin->number = i;
-		pin->name = devm_kasprintf(dev, GFP_KERNEL, "%s%d",
-					   ZYNQMP_PIN_PREFIX, i);
-		if (!pin->name)
-			return -ENOMEM;
+		pin->name = pin_names[i];
 	}
 
 	*zynqmp_pins = pins;

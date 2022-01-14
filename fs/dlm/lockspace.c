@@ -216,8 +216,7 @@ static int do_uevent(struct dlm_ls *ls, int in)
 	return ls->ls_uevent_result;
 }
 
-static int dlm_uevent(struct kset *kset, struct kobject *kobj,
-		      struct kobj_uevent_env *env)
+static int dlm_uevent(struct kobject *kobj, struct kobj_uevent_env *env)
 {
 	struct dlm_ls *ls = container_of(kobj, struct dlm_ls, ls_kobj);
 

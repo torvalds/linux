@@ -19,10 +19,6 @@ enum power_mgnt {
 	PS_MODE_DTIM,
 	PS_MODE_VOIP,
 	PS_MODE_UAPSD_WMM,
-	PS_MODE_UAPSD,
-	PS_MODE_IBSS,
-	PS_MODE_WWLAN,
-	PM_Radio_Off,
 	PM_Card_Disable,
 	PS_MODE_NUM
 };
@@ -57,7 +53,6 @@ struct pwrctrl_priv {
 
 	u8	reg_rfoff;
 	u8	reg_pdnmode; /* powerdown mode */
-	u32	rfoff_reason;
 
 	/* RF OFF Level */
 	u32	cur_ps_level;
@@ -80,7 +75,6 @@ struct pwrctrl_priv {
 	s32		pnp_current_pwr_state;
 	u8		pnp_bstop_trx;
 
-	u8		bInternalAutoSuspend;
 	u8		bInSuspend;
 	u8		bSupportRemoteWakeup;
 	struct timer_list pwr_state_check_timer;
@@ -93,7 +87,6 @@ struct pwrctrl_priv {
 	enum rt_rf_power_state	change_rfpwrstate;
 
 	u8		wepkeymask;
-	u8		bHWPowerdown;/* if support hw power down */
 	u8		bkeepfwalive;
 };
 

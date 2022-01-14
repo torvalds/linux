@@ -36,6 +36,9 @@ patternProperties:
                 gpio20, gpio25, gpio26, gpio27, gpio28, hsspi_cs1,
                 usb_port1 ]
 
+allOf:
+  - $ref: "pinctrl.yaml#"
+
 required:
   - compatible
   - reg

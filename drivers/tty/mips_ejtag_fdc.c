@@ -955,19 +955,18 @@ static int mips_ejtag_fdc_tty_probe(struct mips_cdmm_device *dev)
 		mips_ejtag_fdc_con.tty_drv = driver;
 
 	init_waitqueue_head(&priv->waitqueue);
-	priv->thread = kthread_create(mips_ejtag_fdc_put, priv, priv->fdc_name);
-	if (IS_ERR(priv->thread)) {
-		ret = PTR_ERR(priv->thread);
-		dev_err(priv->dev, "Couldn't create kthread (%d)\n", ret);
-		goto err_destroy_ports;
-	}
 	/*
 	 * Bind the writer thread to the right CPU so it can't migrate.
 	 * The channels are per-CPU and we want all channel I/O to be on a
 	 * single predictable CPU.
 	 */
-	kthread_bind(priv->thread, dev->cpu);
-	wake_up_process(priv->thread);
+	priv->thread = kthread_run_on_cpu(mips_ejtag_fdc_put, priv,
+					  dev->cpu, "ttyFDC/%u");
+	if (IS_ERR(priv->thread)) {
+		ret = PTR_ERR(priv->thread);
+		dev_err(priv->dev, "Couldn't create kthread (%d)\n", ret);
+		goto err_destroy_ports;
+	}
 
 	/* Look for an FDC IRQ */
 	priv->irq = get_c0_fdc_int();
@@ -1095,15 +1094,14 @@ static int mips_ejtag_fdc_tty_cpu_up(struct mips_cdmm_device *dev)
 	}
 
 	/* Restart the kthread */
-	priv->thread = kthread_create(mips_ejtag_fdc_put, priv, priv->fdc_name);
+	/* Bind it back to the right CPU and set it off */
+	priv->thread = kthread_run_on_cpu(mips_ejtag_fdc_put, priv,
+					  dev->cpu, "ttyFDC/%u");
 	if (IS_ERR(priv->thread)) {
 		ret = PTR_ERR(priv->thread);
 		dev_err(priv->dev, "Couldn't re-create kthread (%d)\n", ret);
 		goto out;
 	}
-	/* Bind it back to the right CPU and set it off */
-	kthread_bind(priv->thread, dev->cpu);
-	wake_up_process(priv->thread);
 out:
 	return ret;
 }

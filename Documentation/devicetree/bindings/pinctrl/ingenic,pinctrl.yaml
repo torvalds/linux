@@ -28,9 +28,6 @@ maintainers:
   - Paul Cercueil <paul@crapouillou.net>
 
 properties:
-  nodename:
-    pattern: "^pinctrl@[0-9a-f]+$"
-
   compatible:
     oneOf:
       - enum:
@@ -121,6 +118,9 @@ patternProperties:
 
     additionalProperties: false
 
+allOf:
+  - $ref: "pinctrl.yaml#"
+
 required:
   - compatible
   - reg
@@ -169,7 +169,7 @@ additionalProperties:
 
 examples:
   - |
-    pin-controller@10010000 {
+    pinctrl@10010000 {
       compatible = "ingenic,jz4770-pinctrl";
       reg = <0x10010000 0x600>;
 

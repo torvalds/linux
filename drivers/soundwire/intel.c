@@ -1293,7 +1293,7 @@ static int intel_link_probe(struct auxiliary_device *auxdev,
 	bus->ops = &sdw_intel_ops;
 
 	/* set driver data, accessed by snd_soc_dai_get_drvdata() */
-	dev_set_drvdata(dev, cdns);
+	auxiliary_set_drvdata(auxdev, cdns);
 
 	/* use generic bandwidth allocation algorithm */
 	sdw->cdns.bus.compute_params = sdw_compute_params;
@@ -1321,7 +1321,7 @@ int intel_link_startup(struct auxiliary_device *auxdev)
 {
 	struct sdw_cdns_stream_config config;
 	struct device *dev = &auxdev->dev;
-	struct sdw_cdns *cdns = dev_get_drvdata(dev);
+	struct sdw_cdns *cdns = auxiliary_get_drvdata(auxdev);
 	struct sdw_intel *sdw = cdns_to_intel(cdns);
 	struct sdw_bus *bus = &cdns->bus;
 	int link_flags;
@@ -1463,7 +1463,7 @@ err_init:
 static void intel_link_remove(struct auxiliary_device *auxdev)
 {
 	struct device *dev = &auxdev->dev;
-	struct sdw_cdns *cdns = dev_get_drvdata(dev);
+	struct sdw_cdns *cdns = auxiliary_get_drvdata(auxdev);
 	struct sdw_intel *sdw = cdns_to_intel(cdns);
 	struct sdw_bus *bus = &cdns->bus;
 
@@ -1488,7 +1488,7 @@ int intel_link_process_wakeen_event(struct auxiliary_device *auxdev)
 	void __iomem *shim;
 	u16 wake_sts;
 
-	sdw = dev_get_drvdata(dev);
+	sdw = auxiliary_get_drvdata(auxdev);
 	bus = &sdw->cdns.bus;
 
 	if (bus->prop.hw_disabled || !sdw->startup_done) {
