@@ -399,14 +399,20 @@ struct damon_ctx {
 	struct list_head schemes;
 };
 
-#define damon_next_region(r) \
-	(container_of(r->list.next, struct damon_region, list))
+static inline struct damon_region *damon_next_region(struct damon_region *r)
+{
+	return container_of(r->list.next, struct damon_region, list);
+}
 
-#define damon_prev_region(r) \
-	(container_of(r->list.prev, struct damon_region, list))
+static inline struct damon_region *damon_prev_region(struct damon_region *r)
+{
+	return container_of(r->list.prev, struct damon_region, list);
+}
 
-#define damon_last_region(t) \
-	(list_last_entry(&t->regions_list, struct damon_region, list))
+static inline struct damon_region *damon_last_region(struct damon_target *t)
+{
+	return list_last_entry(&t->regions_list, struct damon_region, list);
+}
 
 #define damon_for_each_region(r, t) \
 	list_for_each_entry(r, &t->regions_list, list)

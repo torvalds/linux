@@ -729,7 +729,10 @@ static void kdamond_apply_schemes(struct damon_ctx *c)
 	}
 }
 
-#define sz_damon_region(r) (r->ar.end - r->ar.start)
+static inline unsigned long sz_damon_region(struct damon_region *r)
+{
+	return r->ar.end - r->ar.start;
+}
 
 /*
  * Merge two adjacent regions into one region
