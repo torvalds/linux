@@ -2069,11 +2069,20 @@ static void bq25700_shutdown(struct i2c_client *client)
 #ifdef CONFIG_PM_SLEEP
 static int bq25700_pm_suspend(struct device *dev)
 {
+	struct bq25700_device *charger = dev_get_drvdata(dev);
+
+	if (!bq25700_field_read(charger, AC_STAT))
+		bq25700_field_write(charger, EN_LWPWR, 1);
+
 	return 0;
 }
 
 static int bq25700_pm_resume(struct device *dev)
 {
+	struct bq25700_device *charger = dev_get_drvdata(dev);
+
+	bq25700_field_write(charger, EN_LWPWR, 0);
+
 	return 0;
 }
 #endif
