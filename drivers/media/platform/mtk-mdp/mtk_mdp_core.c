@@ -245,10 +245,8 @@ static int mtk_mdp_remove(struct platform_device *pdev)
 	mtk_mdp_unregister_m2m_device(mdp);
 	v4l2_device_unregister(&mdp->v4l2_dev);
 
-	flush_workqueue(mdp->wdt_wq);
 	destroy_workqueue(mdp->wdt_wq);
 
-	flush_workqueue(mdp->job_wq);
 	destroy_workqueue(mdp->job_wq);
 
 	list_for_each_entry_safe(comp, comp_temp, &mdp->comp_list, node) {
