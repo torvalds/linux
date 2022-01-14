@@ -248,10 +248,10 @@ static void sdma_v4_4_reset_ras_error_count(struct amdgpu_device *adev)
 static void sdma_v4_4_query_ras_error_count(struct amdgpu_device *adev,  void *ras_error_status)
 {
 	int i = 0;
+
 	for (i = 0; i < adev->sdma.num_instances; i++) {
-		if (sdma_v4_4_query_ras_error_count_by_instance(adev, i, ras_error_status))
-		{
-			dev_err(adev->dev, "Query ras error count failed in SDMA%d \n", i);
+		if (sdma_v4_4_query_ras_error_count_by_instance(adev, i, ras_error_status)) {
+			dev_err(adev->dev, "Query ras error count failed in SDMA%d\n", i);
 			return;
 		}
 	}

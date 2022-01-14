@@ -2766,10 +2766,10 @@ static int sdma_v4_0_query_ras_error_count_by_instance(struct amdgpu_device *ade
 static void sdma_v4_0_query_ras_error_count(struct amdgpu_device *adev,  void *ras_error_status)
 {
 	int i = 0;
+
 	for (i = 0; i < adev->sdma.num_instances; i++) {
-		if (sdma_v4_0_query_ras_error_count_by_instance(adev, i, ras_error_status))
-		{
-			dev_err(adev->dev, "Query ras error count failed in SDMA%d \n", i);
+		if (sdma_v4_0_query_ras_error_count_by_instance(adev, i, ras_error_status)) {
+			dev_err(adev->dev, "Query ras error count failed in SDMA%d\n", i);
 			return;
 		}
 	}
@@ -2814,7 +2814,7 @@ static void sdma_v4_0_set_ras_funcs(struct amdgpu_device *adev)
 	if (adev->sdma.ras) {
 		amdgpu_ras_register_ras_block(adev, &adev->sdma.ras->ras_block);
 
-		strcpy(adev->sdma.ras->ras_block.name,"sdma");
+		strcpy(adev->sdma.ras->ras_block.name, "sdma");
 		adev->sdma.ras->ras_block.block = AMDGPU_RAS_BLOCK__SDMA;
 
 		/* If don't define special ras_late_init function, use default ras_late_init */
