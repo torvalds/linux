@@ -1583,8 +1583,10 @@ static int venus_suspend_3xx(struct venus_core *core)
 	 */
 	ret = readx_poll_timeout(venus_cpu_and_video_core_idle, hdev, val, val,
 				 1500, 100 * 1500);
-	if (ret)
+	if (ret) {
+		dev_err(dev, "wait for cpu and video core idle fail (%d)\n", ret);
 		return ret;
+	}
 
 	ret = venus_prepare_power_collapse(hdev, false);
 	if (ret) {
