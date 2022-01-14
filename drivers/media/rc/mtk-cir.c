@@ -24,7 +24,8 @@
  * Register to setting ok count whose unit based on hardware sampling period
  * indicating IR receiving completion and then making IRQ fires
  */
-#define MTK_OK_COUNT(x)		  (((x) & GENMASK(23, 16)) << 16)
+#define MTK_OK_COUNT_MASK	  (GENMASK(22, 16))
+#define MTK_OK_COUNT(x)		  ((x) << 16)
 
 /* Bit to enable IR hardware function */
 #define MTK_IR_EN		  BIT(0)
@@ -268,7 +269,7 @@ static irqreturn_t mtk_ir_irq(int irqno, void *dev_id)
 static const struct mtk_ir_data mt7623_data = {
 	.regs = mt7623_regs,
 	.fields = mt7623_fields,
-	.ok_count = 0xf,
+	.ok_count = 3,
 	.hw_period = 0xff,
 	.div	= 4,
 };
@@ -276,7 +277,7 @@ static const struct mtk_ir_data mt7623_data = {
 static const struct mtk_ir_data mt7622_data = {
 	.regs = mt7622_regs,
 	.fields = mt7622_fields,
-	.ok_count = 0xf,
+	.ok_count = 3,
 	.hw_period = 0xffff,
 	.div	= 32,
 };
@@ -400,7 +401,7 @@ static int mtk_ir_probe(struct platform_device *pdev)
 	mtk_w32_mask(ir, MTK_DG_CNT(1), MTK_DG_CNT_MASK, MTK_IRTHD);
 
 	/* Enable IR and PWM */
-	val = mtk_r32(ir, MTK_CONFIG_HIGH_REG);
+	val = mtk_r32(ir, MTK_CONFIG_HIGH_REG) & ~MTK_OK_COUNT_MASK;
 	val |= MTK_OK_COUNT(ir->data->ok_count) |  MTK_PWM_EN | MTK_IR_EN;
 	mtk_w32(ir, val, MTK_CONFIG_HIGH_REG);
 
