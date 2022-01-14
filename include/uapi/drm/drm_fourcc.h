@@ -357,6 +357,7 @@ extern "C" {
  */
 
 /* Vendor Ids: */
+#define DRM_FORMAT_MOD_NONE           0
 #define DRM_FORMAT_MOD_VENDOR_NONE    0
 #define DRM_FORMAT_MOD_VENDOR_INTEL   0x01
 #define DRM_FORMAT_MOD_VENDOR_AMD     0x02
@@ -368,6 +369,7 @@ extern "C" {
 #define DRM_FORMAT_MOD_VENDOR_ARM     0x08
 #define DRM_FORMAT_MOD_VENDOR_ALLWINNER 0x09
 #define DRM_FORMAT_MOD_VENDOR_AMLOGIC 0x0a
+#define DRM_FORMAT_MOD_VENDOR_VS      0x0b
 
 /* add more to the end as needed */
 
@@ -1358,6 +1360,88 @@ drm_fourcc_canonicalize_nvidia_format_mod(__u64 modifier)
 #define AMD_FMT_MOD_CLEAR(field) \
 	(~((uint64_t)AMD_FMT_MOD_##field##_MASK << AMD_FMT_MOD_##field##_SHIFT))
 
+
+#define DRM_FORMAT_MOD_VS_TYPE_NORMAL        0x00
+#define DRM_FORMAT_MOD_VS_TYPE_COMPRESSED    0x01
+#define DRM_FORMAT_MOD_VS_TYPE_CUSTOM_10BIT  0x02
+#define DRM_FORMAT_MOD_VS_TYPE_MASK     ((__u64)0x3 << 54)
+
+#define fourcc_mod_vs_code(type, val) \
+    fourcc_mod_code(VS, ((((__u64)type) << 54) | (val)))
+
+#define DRM_FORMAT_MOD_VS_DEC_TILE_MODE_MASK    0x3F
+#define DRM_FORMAT_MOD_VS_DEC_TILE_8X8_XMAJOR   0x00
+#define DRM_FORMAT_MOD_VS_DEC_TILE_8X8_YMAJOR   0x01
+#define DRM_FORMAT_MOD_VS_DEC_TILE_16X4     0x02
+#define DRM_FORMAT_MOD_VS_DEC_TILE_8X4      0x03
+#define DRM_FORMAT_MOD_VS_DEC_TILE_4X8      0x04
+#define DRM_FORMAT_MOD_VS_DEC_RASTER_16X4   0x06
+#define DRM_FORMAT_MOD_VS_DEC_TILE_64X4     0x07
+#define DRM_FORMAT_MOD_VS_DEC_TILE_32X4     0x08
+#define DRM_FORMAT_MOD_VS_DEC_RASTER_256X1  0x09
+#define DRM_FORMAT_MOD_VS_DEC_RASTER_128X1  0x0A
+#define DRM_FORMAT_MOD_VS_DEC_RASTER_64X4   0x0B
+#define DRM_FORMAT_MOD_VS_DEC_RASTER_256X2  0x0C
+#define DRM_FORMAT_MOD_VS_DEC_RASTER_128X2  0x0D
+#define DRM_FORMAT_MOD_VS_DEC_RASTER_128X4  0x0E
+#define DRM_FORMAT_MOD_VS_DEC_RASTER_64X1   0x0F
+#define DRM_FORMAT_MOD_VS_DEC_TILE_16X8     0x10
+#define DRM_FORMAT_MOD_VS_DEC_TILE_8X16     0x11
+#define DRM_FORMAT_MOD_VS_DEC_RASTER_512X1  0x12
+#define DRM_FORMAT_MOD_VS_DEC_RASTER_32X4   0x13
+#define DRM_FORMAT_MOD_VS_DEC_RASTER_64X2   0x14
+#define DRM_FORMAT_MOD_VS_DEC_RASTER_32X2   0x15
+#define DRM_FORMAT_MOD_VS_DEC_RASTER_32X1   0x16
+#define DRM_FORMAT_MOD_VS_DEC_RASTER_16X1   0x17
+#define DRM_FORMAT_MOD_VS_DEC_TILE_128X4    0x18
+#define DRM_FORMAT_MOD_VS_DEC_TILE_256X4    0x19
+#define DRM_FORMAT_MOD_VS_DEC_TILE_512X4    0x1A
+#define DRM_FORMAT_MOD_VS_DEC_TILE_16X16    0x1B
+#define DRM_FORMAT_MOD_VS_DEC_TILE_32X16    0x1C
+#define DRM_FORMAT_MOD_VS_DEC_TILE_64X16    0x1D
+#define DRM_FORMAT_MOD_VS_DEC_TILE_128X8    0x1E
+#define DRM_FORMAT_MOD_VS_DEC_TILE_8X4_S    0x1F
+#define DRM_FORMAT_MOD_VS_DEC_TILE_16X4_S   0x20
+#define DRM_FORMAT_MOD_VS_DEC_TILE_32X4_S   0x21
+#define DRM_FORMAT_MOD_VS_DEC_TILE_16X4_LSB 0x22
+#define DRM_FORMAT_MOD_VS_DEC_TILE_32X4_LSB 0x23
+#define DRM_FORMAT_MOD_VS_DEC_TILE_32X8     0x24
+
+#define DRM_FORMAT_MOD_VS_DEC_ALIGN_32      (0x01 << 6)
+#define DRM_FORMAT_MOD_VS_DEC_ALIGN_64      (0x01 << 7)
+
+#define fourcc_mod_vs_dec_code(tile, align) \
+    fourcc_mod_vs_code(DRM_FORMAT_MOD_VS_TYPE_COMPRESSED, \
+                ((tile) | (align)))
+
+#define DRM_FORMAT_MOD_VS_NORM_MODE_MASK        0x1F
+#define DRM_FORMAT_MOD_VS_LINEAR                0x00
+#define DRM_FORMAT_MOD_VS_TILED4x4              0x01
+#define DRM_FORMAT_MOD_VS_SUPER_TILED_XMAJOR    0x02
+#define DRM_FORMAT_MOD_VS_SUPER_TILED_YMAJOR    0x03
+#define DRM_FORMAT_MOD_VS_TILE_8X8              0x04
+#define DRM_FORMAT_MOD_VS_TILE_MODE1            0x05
+#define DRM_FORMAT_MOD_VS_TILE_MODE2            0x06
+#define DRM_FORMAT_MOD_VS_TILE_8X4              0x07
+#define DRM_FORMAT_MOD_VS_TILE_MODE4            0x08
+#define DRM_FORMAT_MOD_VS_TILE_MODE5            0x09
+#define DRM_FORMAT_MOD_VS_TILE_MODE6            0x0A
+#define DRM_FORMAT_MOD_VS_SUPER_TILED_XMAJOR_8X4    0x0B
+#define DRM_FORMAT_MOD_VS_SUPER_TILED_YMAJOR_4X8    0x0C
+#define DRM_FORMAT_MOD_VS_TILE_Y                0x0D
+#define DRM_FORMAT_MOD_VS_TILE_128X1            0x0F
+#define DRM_FORMAT_MOD_VS_TILE_256X1            0x10
+#define DRM_FORMAT_MOD_VS_TILE_32X1             0x11
+#define DRM_FORMAT_MOD_VS_TILE_64X1             0x12
+#define DRM_FORMAT_MOD_VS_TILE_MODE4X4          0x15
+
+#define fourcc_mod_vs_norm_code(tile) \
+    fourcc_mod_vs_code(DRM_FORMAT_MOD_VS_TYPE_NORMAL, \
+                (tile))
+
+#define fourcc_mod_vs_custom_code(tile) \
+    fourcc_mod_vs_code(DRM_FORMAT_MOD_VS_TYPE_CUSTOM_10BIT, \
+                (tile))
 #if defined(__cplusplus)
 }
 #endif

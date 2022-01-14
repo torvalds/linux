@@ -128,3 +128,4 @@ obj-$(CONFIG_DRM_TIDSS) += tidss/
 obj-y			+= xlnx/
 obj-y			+= gud/
 obj-$(CONFIG_DRM_HYPERV) += hyperv/
+obj-$(CONFIG_DRM_VERISILICON) += verisilicon/

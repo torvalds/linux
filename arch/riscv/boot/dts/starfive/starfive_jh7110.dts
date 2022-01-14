@@ -468,6 +468,57 @@
 			};
 		};
 
+		i2c1: i2c@10040000 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "snps,designware-i2c";
+			reg = <0x0 0x10040000 0x0 0x10000>;
+			interrupt-parent = <&plic>;
+			interrupts = <36>;
+			/*clocks = <&hfclk>; */
+			clock-frequency = <100000>;
+			i2c-sda-hold-time-ns = <300>;
+			i2c-sda-falling-time-ns = <3000>;
+			i2c-scl-falling-time-ns = <3000>;
+			auto_calc_scl_lhcnt;
+
+			adv7513@39 {
+					compatible = "adi,adv7513";
+					reg = <0x39>, <0x49>, <0x29>, <0x59>;
+					reg-names = "main", "edid", "cec", "packet";
+
+					adi,input-depth = <8>;
+					adi,input-colorspace = "rgb";
+					adi,input-clock = "1x";
+					ports {
+						#address-cells = <1>;
+						#size-cells = <0>;
+
+						port@0 {
+							reg = <0>;
+							adv7513_0_in: endpoint {
+							};
+						};
+
+						port@1 {
+							reg = <1>;
+							adv7513_1_out: endpoint {
+							};
+						};
+					};
+			};
+			/*
+			seeed_plane_i2c@45 { //next to do handle this node to i2cX
+					compatible = "seeed_panel";
+					reg = <0x45>;
+
+					port {
+						panel_dsi_port: endpoint {
+							remote-endpoint = <&dsi_out_port>;
+						};
+					};
+			};*/
+		};
 		/*emmc*/
 		sdio0:sdio0@16010000{
 			compatible = "snps,dw-mshc";
@@ -884,6 +935,64 @@
 			interrupt-parent = <&plic>;
 			mbox-names = "rx", "tx";
 			mboxes = <&mailbox_contrl0 0 1>,<&mailbox_contrl0 1 0>;
+		};
+
+		display-subsystem {
+			compatible = "verisilicon,display-subsystem";
+			//memory-region = <&sffb_reserved>;
+			ports = <&dc_out_dpi0>;
+			status = "okay";
+		};
+
+		display-encoder {
+			compatible = "starfive,display-encoder";
+			encoder-type = <2>;	//2-TMDS, 3-LVDS, 6-DSI, 8-DPI
+			status = "okay";
+
+			ports {
+				port@0 {
+					endpoint {
+						remote-endpoint = <&adv7513_0_in>;
+						//remote-endpoint = <&dsi_0_in>;
+					};
+				};
+
+				port@1 {
+					endpoint {
+						remote-endpoint = <&dc_out_dpi0>;
+					};
+				};
+
+			};
+		};
+
+		dc8200@29400000 {
+			compatible = "verisilicon,dc8200";
+			reg = <0x0 0x29400000 0x0 0x100>,<0x0 0x29400800 0x0 0x2000>;
+			interrupt-parent = <&plic>;
+			interrupts = <95>;
+
+			port {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				dc_out_dpi0: endpoint@0 {
+					/*reg = <0>;
+					remote-endpoint = <&hdmi_input>;*/
+				};
+				dc_out_dpi1: endpoint@1 {
+					/*reg = <1>;
+					remote-endpoint = <&vd_input>;*/
+				};
+			};
+
+			/*port: port@0 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				reg = <0>;
+
+				crtc_0_out: endpoint {
+				};
+			};*/
 		};
 	};
 };

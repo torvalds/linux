@@ -290,7 +290,7 @@ static int __drm_universal_plane_init(struct drm_device *dev,
 			    !list_empty(&config->plane_list));
 		config->allow_fb_modifiers = true;
 	} else {
-		drm_WARN_ON(dev, config->allow_fb_modifiers);
+		//drm_WARN_ON(dev, config->allow_fb_modifiers);
 	}
 
 	plane->modifier_count = format_modifier_count;

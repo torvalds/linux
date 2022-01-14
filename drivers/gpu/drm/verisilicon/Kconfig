@@ -1,0 +1,62 @@
+# SPDX-License-Identifier: GPL-2.0
+
+config DRM_VERISILICON
+	tristate "DRM Support for VeriSilicon"
+	depends on DRM
+	select DRM_KMS_HELPER
+	help
+	  Choose this option if you have a VeriSilicon soc chipset.
+	  This driver provides VeriSilicon kernel mode
+	  setting and buffer management. It does not
+	  provide 2D or 3D acceleration.
+
+config VERISILICON_VIRTUAL_DISPLAY
+	bool "display content output to debugfs file"
+	depends on DRM_VERISILICON
+	select DEBUG_FS
+	help
+	  This is a debug feature which capture video content output
+	  from display controller. Output path is debugfs/dri/connector/.
+	  The content format is ARGB which Alpha is 0 for 8bits.
+	  Disabled in default.
+
+config VERISILICON_DW_MIPI_DSI
+	bool "VeriSilicon specific driver for Synopsys DW MIPI DSI"
+	depends on DRM_VERISILICON
+	select DRM_MIPI_DSI
+	select GENERIC_PHY
+	select GENERIC_PHY_MIPI_DPHY
+	help
+	  This driver supports Synopsys DW MIPI DSI controller.
+	  MIPI DSI controller is a bridge between encoder
+	  and panel. Also it is a MIPI DSI host and can work
+	  in dual mode.
+
+config VERISILICON_MMU
+	bool "MMU support for VeriSilicon display controller"
+	depends on DRM_VERISILICON
+	help
+	  This is a memory management function which translate virtual address
+	  to physical address. DPU MMU only do address translate, doesn't
+	  support shareable.
+
+config VERISILICON_DEC
+	bool "DEC support for VeriSilicon display controller"
+	depends on DRM_VERISILICON
+	help
+	  This is a decompression function which reads compressed pixels from
+	  external memory (DDR or SRAM) under DPU's control, then it decompress
+	  comprssed pixels before returing these pixels to DPU.
+
+config STARFIVE_INNO_HDMI
+	bool "HDMI2.0"
+	help
+	  This selects support for Rockchip SoC specific extensions
+	  for the Innosilicon HDMI driver. If you want to enable
+	  HDMI on RK3036 based SoC, you should select this option.
+config STARFIVE_DSI
+	bool "DSI"
+	help
+	  enable dsi, you should select this option.
+
+source "drivers/gpu/drm/verisilicon/adv7511/Kconfig"
