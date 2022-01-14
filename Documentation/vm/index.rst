@@ -36,5 +36,6 @@ algorithms.  If you are looking for advice on simply allocating memory, see the
    split_page_table_lock
    transhuge
    unevictable-lru
+   vmalloced-kernel-stacks
    z3fold
    zsmalloc
