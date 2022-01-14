@@ -10,8 +10,7 @@
 #define _COMEDI_USB_H
 
 #include <linux/usb.h>
-
-#include "comedidev.h"
+#include <linux/comedi/comedidev.h>
 
 struct usb_interface *comedi_to_usb_interface(struct comedi_device *dev);
 struct usb_device *comedi_to_usb_dev(struct comedi_device *dev);

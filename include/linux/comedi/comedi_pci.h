@@ -11,8 +11,7 @@
 #define _COMEDI_PCI_H
 
 #include <linux/pci.h>
-
-#include "comedidev.h"
+#include <linux/comedi/comedidev.h>
 
 /*
  * PCI Vendor IDs not in <linux/pci_ids.h>

@@ -40,9 +40,9 @@
 #include <linux/module.h>
 #include <linux/string.h>
 #include <linux/slab.h>
-#include "../comedi.h"
-#include "../comedilib.h"
-#include "../comedidev.h"
+#include <linux/comedi.h>
+#include <linux/comedi/comedilib.h>
+#include <linux/comedi/comedidev.h>
 
 struct bonded_device {
 	struct comedi_device *dev;

@@ -78,7 +78,7 @@ struct es2_cport_in {
  * @hd: pointer to our gb_host_device structure
  *
  * @cport_in: endpoint, urbs and buffer for cport in messages
- * @cport_out_endpoint: endpoint for for cport out messages
+ * @cport_out_endpoint: endpoint for cport out messages
  * @cport_out_urb: array of urbs for the CPort out messages
  * @cport_out_urb_busy: array of flags to see if the @cport_out_urb is busy or
  *			not.

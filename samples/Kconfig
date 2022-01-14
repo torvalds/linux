@@ -241,6 +241,15 @@ config SAMPLE_WATCH_QUEUE
 	  Build example userspace program to use the new mount_notify(),
 	  sb_notify() syscalls and the KEYCTL_WATCH_KEY keyctl() function.
 
+config SAMPLE_CORESIGHT_SYSCFG
+	tristate "Build example loadable module for CoreSight config"
+	depends on CORESIGHT && m
+	help
+	  Build an example loadable module that adds new CoreSight features
+	  and configuration using the CoreSight system configuration API.
+	  This demonstrates how a user may create their own CoreSight
+	  configurations and easily load them into the system at runtime.
+
 endif # SAMPLES
 
 config HAVE_SAMPLE_FTRACE_DIRECT

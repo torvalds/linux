@@ -467,9 +467,6 @@ int ad_sd_validate_trigger(struct iio_dev *indio_dev, struct iio_trigger *trig)
 }
 EXPORT_SYMBOL_GPL(ad_sd_validate_trigger);
 
-static const struct iio_trigger_ops ad_sd_trigger_ops = {
-};
-
 static int devm_ad_sd_probe_trigger(struct device *dev, struct iio_dev *indio_dev)
 {
 	struct ad_sigma_delta *sigma_delta = iio_device_get_drvdata(indio_dev);
@@ -486,7 +483,6 @@ static int devm_ad_sd_probe_trigger(struct device *dev, struct iio_dev *indio_de
 	if (sigma_delta->trig == NULL)
 		return -ENOMEM;
 
-	sigma_delta->trig->ops = &ad_sd_trigger_ops;
 	init_completion(&sigma_delta->completion);
 
 	sigma_delta->irq_dis = true;

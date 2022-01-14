@@ -407,24 +407,24 @@ static int sunrise_read_raw(struct iio_dev *iio_dev,
 			mutex_lock(&sunrise->lock);
 			ret = sunrise_read_word(sunrise, SUNRISE_CO2_FILTERED_COMP_REG,
 						&value);
-			*val = value;
 			mutex_unlock(&sunrise->lock);
 
 			if (ret)
 				return ret;
 
+			*val = value;
 			return IIO_VAL_INT;
 
 		case IIO_TEMP:
 			mutex_lock(&sunrise->lock);
 			ret = sunrise_read_word(sunrise, SUNRISE_CHIP_TEMPERATURE_REG,
 						&value);
-			*val = value;
 			mutex_unlock(&sunrise->lock);
 
 			if (ret)
 				return ret;
 
+			*val = value;
 			return IIO_VAL_INT;
 
 		default:
