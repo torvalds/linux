@@ -87,6 +87,10 @@ properties:
               - items:
                   pattern: cs1024$
               - items:
+                  pattern: c1025$
+              - items:
+                  pattern: cs1025$
+              - items:
                   pattern: c2048$
               - items:
                   pattern: cs2048$
@@ -95,17 +99,20 @@ properties:
       # These are special cases that don't conform to the above pattern.
       # Each requires a standard at24 model as fallback.
       - items:
-          - const: nxp,se97b
+          - enum:
+              - rohm,br24g01
+              - rohm,br24t01
+          - const: atmel,24c01
+      - items:
+          - enum:
+              - nxp,se97b
+              - renesas,r1ex24002
           - const: atmel,24c02
       - items:
-          - const: onnn,cat24c04
+          - enum:
+              - onnn,cat24c04
+              - onnn,cat24c05
           - const: atmel,24c04
-      - items:
-          - const: onnn,cat24c05
-          - const: atmel,24c04
-      - items:
-          - const: renesas,r1ex24002
-          - const: atmel,24c02
       - items:
           - const: renesas,r1ex24016
           - const: atmel,24c16
@@ -115,12 +122,6 @@ properties:
       - items:
           - const: renesas,r1ex24128
           - const: atmel,24c128
-      - items:
-          - const: rohm,br24g01
-          - const: atmel,24c01
-      - items:
-          - const: rohm,br24t01
-          - const: atmel,24c01
 
   label:
     description: Descriptive name of the EEPROM.
