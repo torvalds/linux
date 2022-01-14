@@ -4685,7 +4685,6 @@ static bool tcp_ooo_try_coalesce(struct sock *sk,
 
 static void tcp_drop(struct sock *sk, struct sk_buff *skb)
 {
-	trace_android_vh_kfree_skb(skb);
 	sk_drops_add(sk, skb);
 	__kfree_skb(skb);
 }
