@@ -805,13 +805,34 @@ int ocelot_cls_flower_replace(struct ocelot *ocelot, int port,
 	struct netlink_ext_ack *extack = f->common.extack;
 	struct ocelot_vcap_filter *filter;
 	int chain = f->common.chain_index;
-	int ret;
+	int block_id, ret;
 
 	if (chain && !ocelot_find_vcap_filter_that_points_at(ocelot, chain)) {
 		NL_SET_ERR_MSG_MOD(extack, "No default GOTO action points to this chain");
 		return -EOPNOTSUPP;
 	}
 
+	block_id = ocelot_chain_to_block(chain, ingress);
+	if (block_id < 0) {
+		NL_SET_ERR_MSG_MOD(extack, "Cannot offload to this chain");
+		return -EOPNOTSUPP;
+	}
+
+	filter = ocelot_vcap_block_find_filter_by_id(&ocelot->block[block_id],
+						     f->cookie, true);
+	if (filter) {
+		/* Filter already exists on other ports */
+		if (!ingress) {
+			NL_SET_ERR_MSG_MOD(extack, "VCAP ES0 does not support shared filters");
+			return -EOPNOTSUPP;
+		}
+
+		filter->ingress_port_mask |= BIT(port);
+
+		return ocelot_vcap_filter_replace(ocelot, filter);
+	}
+
+	/* Filter didn't exist, create it now */
 	filter = ocelot_vcap_filter_create(ocelot, port, ingress, f);
 	if (!filter)
 		return -ENOMEM;
@@ -873,6 +894,12 @@ int ocelot_cls_flower_destroy(struct ocelot *ocelot, int port,
 
 	if (filter->type == OCELOT_VCAP_FILTER_DUMMY)
 		return ocelot_vcap_dummy_filter_del(ocelot, filter);
+
+	if (ingress) {
+		filter->ingress_port_mask &= ~BIT(port);
+		if (filter->ingress_port_mask)
+			return ocelot_vcap_filter_replace(ocelot, filter);
+	}
 
 	return ocelot_vcap_filter_del(ocelot, filter);
 }
