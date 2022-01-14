@@ -36,6 +36,11 @@
 #include "cpufreq-dt.h"
 #include "rockchip-cpufreq.h"
 
+#define CPUFREQ_INTERNAL_VERSION	0x80
+#define CPUFREQ_LENGTH_MARGIN		0x1
+#define CPUFREQ_INTERMEDIATE_RATE	(CPUFREQ_INTERNAL_VERSION | \
+					 CPUFREQ_LENGTH_MARGIN)
+
 struct cluster_info {
 	struct list_head list_head;
 	struct monitor_dev_info *mdev_info;
@@ -350,6 +355,16 @@ static int rockchip_cpufreq_set_read_margin(struct device *dev,
 	return 0;
 }
 
+static int
+rockchip_cpufreq_set_intermediate_rate(struct rockchip_opp_info *opp_info,
+				       struct clk *clk, unsigned long new_freq)
+{
+	if (opp_info->data && opp_info->data->set_read_margin)
+		return clk_set_rate(clk, new_freq | CPUFREQ_INTERMEDIATE_RATE);
+
+	return 0;
+}
+
 static int cpu_opp_helper(struct dev_pm_set_opp_data *data)
 {
 	struct dev_pm_opp_supply *old_supply_vdd = &data->old_opp.supplies[0];
@@ -373,6 +388,13 @@ static int cpu_opp_helper(struct dev_pm_set_opp_data *data)
 
 	/* Scaling up? Scale voltage before frequency */
 	if (new_freq >= old_freq) {
+		ret = rockchip_cpufreq_set_intermediate_rate(opp_info, clk,
+							     new_freq);
+		if (ret) {
+			dev_err(dev, "%s: failed to set clk rate: %lu\n",
+				__func__, new_freq);
+			return -EINVAL;
+		}
 		ret = rockchip_cpufreq_set_volt(dev, mem_reg, new_supply_mem,
 						"mem");
 		if (ret)
