@@ -238,7 +238,7 @@ static void __damon_va_init_regions(struct damon_ctx *ctx,
 	int i;
 
 	if (damon_va_three_regions(t, regions)) {
-		pr_err("Failed to get three regions of target %lu\n", t->id);
+		pr_debug("Failed to get three regions of target %lu\n", t->id);
 		return;
 	}
 
