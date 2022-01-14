@@ -1421,7 +1421,7 @@ static inline int try_split_thp(struct page *page, struct page **page2,
  * @mode:		The migration mode that specifies the constraints for
  *			page migration, if any.
  * @reason:		The reason for page migration.
- * @ret_succeeded:	Set to the number of pages migrated successfully if
+ * @ret_succeeded:	Set to the number of normal pages migrated successfully if
  *			the caller passes a non-NULL pointer.
  *
  * The function returns after 10 attempts or if no pages are movable any more
@@ -1429,7 +1429,9 @@ static inline int try_split_thp(struct page *page, struct page **page2,
  * It is caller's responsibility to call putback_movable_pages() to return pages
  * to the LRU or free list only if ret != 0.
  *
- * Returns the number of pages that were not migrated, or an error code.
+ * Returns the number of {normal page, THP} that were not migrated, or an error code.
+ * The number of THP splits will be considered as the number of non-migrated THP,
+ * no matter how many subpages of the THP are migrated successfully.
  */
 int migrate_pages(struct list_head *from, new_page_t get_new_page,
 		free_page_t put_new_page, unsigned long private,
@@ -1438,6 +1440,7 @@ int migrate_pages(struct list_head *from, new_page_t get_new_page,
 	int retry = 1;
 	int thp_retry = 1;
 	int nr_failed = 0;
+	int nr_failed_pages = 0;
 	int nr_succeeded = 0;
 	int nr_thp_succeeded = 0;
 	int nr_thp_failed = 0;
@@ -1449,13 +1452,16 @@ int migrate_pages(struct list_head *from, new_page_t get_new_page,
 	int swapwrite = current->flags & PF_SWAPWRITE;
 	int rc, nr_subpages;
 	LIST_HEAD(ret_pages);
+	LIST_HEAD(thp_split_pages);
 	bool nosplit = (reason == MR_NUMA_MISPLACED);
+	bool no_subpage_counting = false;
 
 	trace_mm_migrate_pages_start(mode, reason);
 
 	if (!swapwrite)
 		current->flags |= PF_SWAPWRITE;
 
+thp_subpage_migration:
 	for (pass = 0; pass < 10 && (retry || thp_retry); pass++) {
 		retry = 0;
 		thp_retry = 0;
@@ -1504,18 +1510,20 @@ retry:
 			case -ENOSYS:
 				/* THP migration is unsupported */
 				if (is_thp) {
-					if (!try_split_thp(page, &page2, from)) {
+					nr_thp_failed++;
+					if (!try_split_thp(page, &page2, &thp_split_pages)) {
 						nr_thp_split++;
 						goto retry;
 					}
 
-					nr_thp_failed++;
-					nr_failed += nr_subpages;
+					nr_failed_pages += nr_subpages;
 					break;
 				}
 
 				/* Hugetlb migration is unsupported */
-				nr_failed++;
+				if (!no_subpage_counting)
+					nr_failed++;
+				nr_failed_pages++;
 				break;
 			case -ENOMEM:
 				/*
@@ -1524,16 +1532,19 @@ retry:
 				 * THP NUMA faulting doesn't split THP to retry.
 				 */
 				if (is_thp && !nosplit) {
-					if (!try_split_thp(page, &page2, from)) {
+					nr_thp_failed++;
+					if (!try_split_thp(page, &page2, &thp_split_pages)) {
 						nr_thp_split++;
 						goto retry;
 					}
 
-					nr_thp_failed++;
-					nr_failed += nr_subpages;
+					nr_failed_pages += nr_subpages;
 					goto out;
 				}
-				nr_failed++;
+
+				if (!no_subpage_counting)
+					nr_failed++;
+				nr_failed_pages++;
 				goto out;
 			case -EAGAIN:
 				if (is_thp) {
@@ -1559,17 +1570,37 @@ retry:
 				 */
 				if (is_thp) {
 					nr_thp_failed++;
-					nr_failed += nr_subpages;
+					nr_failed_pages += nr_subpages;
 					break;
 				}
-				nr_failed++;
+
+				if (!no_subpage_counting)
+					nr_failed++;
+				nr_failed_pages++;
 				break;
 			}
 		}
 	}
-	nr_failed += retry + thp_retry;
+	nr_failed += retry;
 	nr_thp_failed += thp_retry;
-	rc = nr_failed;
+	/*
+	 * Try to migrate subpages of fail-to-migrate THPs, no nr_failed
+	 * counting in this round, since all subpages of a THP is counted
+	 * as 1 failure in the first round.
+	 */
+	if (!list_empty(&thp_split_pages)) {
+		/*
+		 * Move non-migrated pages (after 10 retries) to ret_pages
+		 * to avoid migrating them again.
+		 */
+		list_splice_init(from, &ret_pages);
+		list_splice_init(&thp_split_pages, from);
+		no_subpage_counting = true;
+		retry = 1;
+		goto thp_subpage_migration;
+	}
+
+	rc = nr_failed + nr_thp_failed;
 out:
 	/*
 	 * Put the permanent failure page back to migration list, they
@@ -1578,11 +1609,11 @@ out:
 	list_splice(&ret_pages, from);
 
 	count_vm_events(PGMIGRATE_SUCCESS, nr_succeeded);
-	count_vm_events(PGMIGRATE_FAIL, nr_failed);
+	count_vm_events(PGMIGRATE_FAIL, nr_failed_pages);
 	count_vm_events(THP_MIGRATION_SUCCESS, nr_thp_succeeded);
 	count_vm_events(THP_MIGRATION_FAIL, nr_thp_failed);
 	count_vm_events(THP_MIGRATION_SPLIT, nr_thp_split);
-	trace_mm_migrate_pages(nr_succeeded, nr_failed, nr_thp_succeeded,
+	trace_mm_migrate_pages(nr_succeeded, nr_failed_pages, nr_thp_succeeded,
 			       nr_thp_failed, nr_thp_split, mode, reason);
 
 	if (!swapwrite)
