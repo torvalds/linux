@@ -6011,7 +6011,7 @@ static void set_crtc_test_pattern(struct dc_link *link,
 		else if (link->dc->hwss.set_disp_pattern_generator) {
 			struct pipe_ctx *odm_pipe;
 			int opp_cnt = 1;
-			int dpg_width = width;
+			int dpg_width;
 
 			for (odm_pipe = pipe_ctx->next_odm_pipe; odm_pipe; odm_pipe = odm_pipe->next_odm_pipe)
 				opp_cnt++;
