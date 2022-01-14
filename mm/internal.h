@@ -158,11 +158,6 @@ extern void reclaim_throttle(pg_data_t *pgdat, enum vmscan_throttle_state reason
 extern pmd_t *mm_find_pmd(struct mm_struct *mm, unsigned long address);
 
 /*
- * in mm/memcontrol.c:
- */
-extern bool cgroup_memory_nokmem;
-
-/*
  * in mm/page_alloc.c
  */
 
