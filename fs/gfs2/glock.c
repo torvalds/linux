@@ -1261,7 +1261,6 @@ void __gfs2_holder_init(struct gfs2_glock *gl, unsigned int state, u16 flags,
 	gh->gh_owner_pid = get_pid(task_pid(current));
 	gh->gh_state = state;
 	gh->gh_flags = flags;
-	gh->gh_error = 0;
 	gh->gh_iflags = 0;
 	gfs2_glock_hold(gl);
 }
@@ -1567,6 +1566,7 @@ int gfs2_glock_nq(struct gfs2_holder *gh)
 	if (test_bit(GLF_LRU, &gl->gl_flags))
 		gfs2_glock_remove_from_lru(gl);
 
+	gh->gh_error = 0;
 	spin_lock(&gl->gl_lockref.lock);
 	add_to_queue(gh);
 	if (unlikely((LM_FLAG_NOEXP & gh->gh_flags) &&
