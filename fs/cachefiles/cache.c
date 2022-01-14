@@ -84,9 +84,7 @@ int cachefiles_add_cache(struct cachefiles_cache *cache)
 		goto error_unsupported;
 
 	cache->bsize = stats.f_bsize;
-	cache->bshift = 0;
-	if (stats.f_bsize < PAGE_SIZE)
-		cache->bshift = PAGE_SHIFT - ilog2(stats.f_bsize);
+	cache->bshift = ilog2(stats.f_bsize);
 
 	_debug("blksize %u (shift %u)",
 	       cache->bsize, cache->bshift);
@@ -106,7 +104,6 @@ int cachefiles_add_cache(struct cachefiles_cache *cache)
 	       (unsigned long long) cache->fcull,
 	       (unsigned long long) cache->fstop);
 
-	stats.f_blocks >>= cache->bshift;
 	do_div(stats.f_blocks, 100);
 	cache->bstop = stats.f_blocks * cache->bstop_percent;
 	cache->bcull = stats.f_blocks * cache->bcull_percent;
@@ -209,7 +206,7 @@ int cachefiles_has_space(struct cachefiles_cache *cache,
 		return ret;
 	}
 
-	b_avail = stats.f_bavail >> cache->bshift;
+	b_avail = stats.f_bavail;
 	b_writing = atomic_long_read(&cache->b_writing);
 	if (b_avail > b_writing)
 		b_avail -= b_writing;
