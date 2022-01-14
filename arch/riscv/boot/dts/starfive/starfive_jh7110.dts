@@ -258,6 +258,14 @@
 			status = "okay";
 		};
 
+		pmu: pmu@17030000 {
+			compatible = "starfive,jh7110-pmu";
+			reg = <0x0 0x17030000 0x0 0x10000>;
+			interrupt-parent = <&plic>;
+			interrupts = <111>;
+			status = "okay";
+		};
+
 		uart0: serial@10000000 {
 			compatible = "snps,dw-apb-uart";
 			interrupt-parent = <&plic>;
