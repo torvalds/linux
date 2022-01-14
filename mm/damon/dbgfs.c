@@ -117,7 +117,7 @@ static ssize_t sprint_schemes(struct damon_ctx *c, char *buf, ssize_t len)
 				s->quota.weight_age,
 				s->wmarks.metric, s->wmarks.interval,
 				s->wmarks.high, s->wmarks.mid, s->wmarks.low,
-				s->stat_count, s->stat_sz);
+				s->stat.nr_tried, s->stat.sz_tried);
 		if (!rc)
 			return -ENOMEM;
 
