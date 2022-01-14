@@ -75,7 +75,6 @@ static const struct snd_sof_debugfs_map bdw_debugfs[] = {
 
 static void bdw_host_done(struct snd_sof_dev *sdev);
 static void bdw_dsp_done(struct snd_sof_dev *sdev);
-static void bdw_get_reply(struct snd_sof_dev *sdev);
 
 /*
  * DSP Control.
@@ -259,8 +258,8 @@ static void bdw_dump(struct snd_sof_dev *sdev, u32 flags)
 	panic = snd_sof_dsp_read(sdev, BDW_DSP_BAR, SHIM_IPCX);
 	bdw_get_registers(sdev, &xoops, &panic_info, stack,
 			  BDW_STACK_DUMP_SIZE);
-	snd_sof_get_status(sdev, status, panic, &xoops, &panic_info, stack,
-			   BDW_STACK_DUMP_SIZE);
+	sof_print_oops_and_stack(sdev, KERN_ERR, status, panic, &xoops,
+				 &panic_info, stack, BDW_STACK_DUMP_SIZE);
 
 	/* provide some context for firmware debug */
 	imrx = snd_sof_dsp_read(sdev, BDW_DSP_BAR, SHIM_IMRX);
@@ -326,8 +325,7 @@ static irqreturn_t bdw_irq_thread(int irq, void *context)
 		 * because the done bit can't be set in cmd_done function
 		 * which is triggered by msg
 		 */
-		bdw_get_reply(sdev);
-		snd_sof_ipc_reply(sdev, ipcx);
+		snd_sof_ipc_process_reply(sdev, ipcx);
 
 		bdw_dsp_done(sdev);
 
@@ -346,8 +344,8 @@ static irqreturn_t bdw_irq_thread(int irq, void *context)
 
 		/* Handle messages from DSP Core */
 		if ((ipcd & SOF_IPC_PANIC_MAGIC_MASK) == SOF_IPC_PANIC_MAGIC) {
-			snd_sof_dsp_panic(sdev, BDW_PANIC_OFFSET(ipcx) +
-					  MBOX_OFFSET);
+			snd_sof_dsp_panic(sdev, BDW_PANIC_OFFSET(ipcx) + MBOX_OFFSET,
+					  true);
 		} else {
 			snd_sof_ipc_msgs_rx(sdev);
 		}
@@ -370,45 +368,6 @@ static int bdw_send_msg(struct snd_sof_dev *sdev, struct snd_sof_ipc_msg *msg)
 	snd_sof_dsp_write(sdev, BDW_DSP_BAR, SHIM_IPCX, SHIM_IPCX_BUSY);
 
 	return 0;
-}
-
-static void bdw_get_reply(struct snd_sof_dev *sdev)
-{
-	struct snd_sof_ipc_msg *msg = sdev->msg;
-	struct sof_ipc_reply reply;
-	int ret = 0;
-
-	/*
-	 * Sometimes, there is unexpected reply ipc arriving. The reply
-	 * ipc belongs to none of the ipcs sent from driver.
-	 * In this case, the driver must ignore the ipc.
-	 */
-	if (!msg) {
-		dev_warn(sdev->dev, "unexpected ipc interrupt raised!\n");
-		return;
-	}
-
-	/* get reply */
-	sof_mailbox_read(sdev, sdev->host_box.offset, &reply, sizeof(reply));
-
-	if (reply.error < 0) {
-		memcpy(msg->reply_data, &reply, sizeof(reply));
-		ret = reply.error;
-	} else {
-		/* reply correct size ? */
-		if (reply.hdr.size != msg->reply_size) {
-			dev_err(sdev->dev, "error: reply expected %zu got %u bytes\n",
-				msg->reply_size, reply.hdr.size);
-			ret = -EINVAL;
-		}
-
-		/* read the message */
-		if (msg->reply_size > 0)
-			sof_mailbox_read(sdev, sdev->host_box.offset,
-					 msg->reply_data, msg->reply_size);
-	}
-
-	msg->reply_error = ret;
 }
 
 static int bdw_get_mailbox_offset(struct snd_sof_dev *sdev)
@@ -453,9 +412,18 @@ static int bdw_probe(struct snd_sof_dev *sdev)
 	const struct sof_dev_desc *desc = pdata->desc;
 	struct platform_device *pdev =
 		container_of(sdev->dev, struct platform_device, dev);
+	const struct sof_intel_dsp_desc *chip;
 	struct resource *mmio;
 	u32 base, size;
 	int ret;
+
+	chip = get_chip_info(sdev->pdata);
+	if (!chip) {
+		dev_err(sdev->dev, "error: no such device supported\n");
+		return -EIO;
+	}
+
+	sdev->num_cores = chip->cores_num;
 
 	/* LPE base */
 	mmio = platform_get_resource(pdev, IORESOURCE_MEM,
@@ -541,7 +509,7 @@ static int bdw_probe(struct snd_sof_dev *sdev)
 	return ret;
 }
 
-static void bdw_machine_select(struct snd_sof_dev *sdev)
+static struct snd_soc_acpi_mach *bdw_machine_select(struct snd_sof_dev *sdev)
 {
 	struct snd_sof_pdata *sof_pdata = sdev->pdata;
 	const struct sof_dev_desc *desc = sof_pdata->desc;
@@ -550,22 +518,23 @@ static void bdw_machine_select(struct snd_sof_dev *sdev)
 	mach = snd_soc_acpi_find_machine(desc->machines);
 	if (!mach) {
 		dev_warn(sdev->dev, "warning: No matching ASoC machine driver found\n");
-		return;
+		return NULL;
 	}
 
 	sof_pdata->tplg_filename = mach->sof_tplg_filename;
 	mach->mach_params.acpi_ipc_irq_index = desc->irqindex_host_ipc;
-	sof_pdata->machine = mach;
+
+	return mach;
 }
 
-static void bdw_set_mach_params(const struct snd_soc_acpi_mach *mach,
+static void bdw_set_mach_params(struct snd_soc_acpi_mach *mach,
 				struct snd_sof_dev *sdev)
 {
 	struct snd_sof_pdata *pdata = sdev->pdata;
 	const struct sof_dev_desc *desc = pdata->desc;
 	struct snd_soc_acpi_mach_params *mach_params;
 
-	mach_params = (struct snd_soc_acpi_mach_params *)&mach->mach_params;
+	mach_params = &mach->mach_params;
 	mach_params->platform = dev_name(sdev->dev);
 	mach_params->num_dai_drivers = desc->ops->num_drv;
 	mach_params->dai_drivers = desc->ops->drv;

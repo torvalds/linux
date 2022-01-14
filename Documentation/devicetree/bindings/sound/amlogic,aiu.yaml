@@ -9,6 +9,9 @@ title: Amlogic AIU audio output controller
 maintainers:
   - Jerome Brunet <jbrunet@baylibre.com>
 
+allOf:
+  - $ref: name-prefix.yaml#
+
 properties:
   $nodename:
     pattern: "^audio-controller@.*"
@@ -64,6 +67,8 @@ properties:
 
   resets:
     maxItems: 1
+
+  sound-name-prefix: true
 
 required:
   - "#sound-dai-cells"

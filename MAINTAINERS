@@ -4568,9 +4568,12 @@ F:	drivers/media/cec/i2c/ch7322.c
 CIRRUS LOGIC AUDIO CODEC DRIVERS
 M:	James Schulman <james.schulman@cirrus.com>
 M:	David Rhodes <david.rhodes@cirrus.com>
+M:	Lucas Tanure <tanureal@opensource.cirrus.com>
 L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
 L:	patches@opensource.cirrus.com
 S:	Maintained
+F:	Documentation/devicetree/bindings/sound/cirrus,cs*
+F:	sound/pci/hda/cs*
 F:	sound/soc/codecs/cs*
 
 CIRRUS LOGIC DSP FIRMWARE DRIVER
@@ -17988,6 +17991,7 @@ F:	Documentation/sound/
 F:	include/sound/
 F:	include/uapi/sound/
 F:	sound/
+F:	tools/testing/selftests/alsa
 
 SOUND - COMPRESSED AUDIO
 M:	Vinod Koul <vkoul@kernel.org>
@@ -18006,6 +18010,13 @@ S:	Supported
 F:	include/sound/dmaengine_pcm.h
 F:	sound/core/pcm_dmaengine.c
 F:	sound/soc/soc-generic-dmaengine-pcm.c
+
+SOUND - ALSA SELFTESTS
+M:	Mark Brown <broonie@kernel.org>
+L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
+L:	linux-kselftest@vger.kernel.org
+S:	Supported
+F:	tools/testing/selftests/alsa
 
 SOUND - SOC LAYER / DYNAMIC AUDIO POWER MANAGEMENT (ASoC)
 M:	Liam Girdwood <lgirdwood@gmail.com>

@@ -44,6 +44,16 @@ properties:
     minItems: 1
     maxItems: 3
 
+  interconnects:
+    items:
+      - description: APE read memory client
+      - description: APE write memory client
+
+  interconnect-names:
+    items:
+      - const: dma-mem # read
+      - const: write
+
   iommus:
     maxItems: 1
 

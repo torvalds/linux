@@ -49,6 +49,7 @@ enum mixart_message_id {
 	MSG_CLOCK_SET_PROPERTIES             = 0x200002,
 };
 
+#define MSG_DEFAULT_SIZE            512
 
 struct mixart_msg
 {
@@ -251,10 +252,17 @@ struct mixart_sample_pos
 	u32   sample_pos_low_part;
 } __attribute__((packed));
 
+/*
+ * This structure is limited by the size of MSG_DEFAULT_SIZE. Instead of
+ * having MIXART_MAX_STREAM_PER_CARD * MIXART_MAX_CARDS many streams,
+ * this is capped to have a total size below MSG_DEFAULT_SIZE.
+ */
+#define MIXART_MAX_TIMER_NOTIFY_STREAMS				\
+	((MSG_DEFAULT_SIZE - sizeof(u32)) / sizeof(struct mixart_sample_pos))
 struct mixart_timer_notify
 {
 	u32                  stream_count;
-	struct mixart_sample_pos  streams[MIXART_MAX_STREAM_PER_CARD * MIXART_MAX_CARDS];
+	struct mixart_sample_pos  streams[MIXART_MAX_TIMER_NOTIFY_STREAMS];
 } __attribute__((packed));
 
 

@@ -273,7 +273,7 @@
 #define BXT_D0I3_DELAY 5000
 
 #define FW_CL_STREAM_NUMBER		0x1
-#define HDA_FW_BOOT_ATTEMPTS	3
+#define HDA_FW_BOOT_ATTEMPTS		3
 
 /* ADSPCS - Audio DSP Control & Status */
 
@@ -487,6 +487,8 @@ struct sof_intel_hda_stream {
 	(SOF_HDA_ADSP_SD_ENTRY_SIZE * ((s)->index) \
 	 + SOF_HDA_ADSP_LOADER_BASE)
 
+#define SOF_STREAM_SD_OFFSET_CRST 0x1
+
 /*
  * DSP Core services.
  */
@@ -496,6 +498,7 @@ int hda_dsp_core_run(struct snd_sof_dev *sdev, unsigned int core_mask);
 int hda_dsp_enable_core(struct snd_sof_dev *sdev, unsigned int core_mask);
 int hda_dsp_core_reset_power_down(struct snd_sof_dev *sdev,
 				  unsigned int core_mask);
+int hda_dsp_core_get(struct snd_sof_dev *sdev, int core);
 void hda_dsp_ipc_int_enable(struct snd_sof_dev *sdev);
 void hda_dsp_ipc_int_disable(struct snd_sof_dev *sdev);
 
@@ -533,6 +536,7 @@ int hda_dsp_pcm_trigger(struct snd_sof_dev *sdev,
 			struct snd_pcm_substream *substream, int cmd);
 snd_pcm_uframes_t hda_dsp_pcm_pointer(struct snd_sof_dev *sdev,
 				      struct snd_pcm_substream *substream);
+int hda_dsp_pcm_ack(struct snd_sof_dev *sdev, struct snd_pcm_substream *substream);
 
 /*
  * DSP Stream Operations.
@@ -614,8 +618,6 @@ int hda_dsp_cl_boot_firmware_iccmax(struct snd_sof_dev *sdev);
 /* pre and post fw run ops */
 int hda_dsp_pre_fw_run(struct snd_sof_dev *sdev);
 int hda_dsp_post_fw_run(struct snd_sof_dev *sdev);
-int hda_dsp_post_fw_run_icl(struct snd_sof_dev *sdev);
-int hda_dsp_core_stall_icl(struct snd_sof_dev *sdev, unsigned int core_mask);
 
 /* parse platform specific ext manifest ops */
 int hda_dsp_ext_man_get_cavs_config_data(struct snd_sof_dev *sdev,
@@ -726,8 +728,8 @@ extern const struct sof_intel_dsp_desc jsl_chip_info;
 extern const struct sof_intel_dsp_desc adls_chip_info;
 
 /* machine driver select */
-void hda_machine_select(struct snd_sof_dev *sdev);
-void hda_set_mach_params(const struct snd_soc_acpi_mach *mach,
+struct snd_soc_acpi_mach *hda_machine_select(struct snd_sof_dev *sdev);
+void hda_set_mach_params(struct snd_soc_acpi_mach *mach,
 			 struct snd_sof_dev *sdev);
 
 /* PCI driver selection and probe */
@@ -735,7 +737,13 @@ int hda_pci_intel_probe(struct pci_dev *pci, const struct pci_device_id *pci_id)
 
 struct snd_sof_dai;
 struct sof_ipc_dai_config;
-int hda_ctrl_dai_widget_setup(struct snd_soc_dapm_widget *w);
-int hda_ctrl_dai_widget_free(struct snd_soc_dapm_widget *w);
+int hda_ctrl_dai_widget_setup(struct snd_soc_dapm_widget *w, unsigned int quirk_flags);
+int hda_ctrl_dai_widget_free(struct snd_soc_dapm_widget *w, unsigned int quirk_flags);
+
+#define SOF_HDA_POSITION_QUIRK_USE_SKYLAKE_LEGACY	(0) /* previous implementation */
+#define SOF_HDA_POSITION_QUIRK_USE_DPIB_REGISTERS	(1) /* recommended if VC0 only */
+#define SOF_HDA_POSITION_QUIRK_USE_DPIB_DDR_UPDATE	(2) /* recommended with VC0 or VC1 */
+
+extern int sof_hda_position_quirk;
 
 #endif

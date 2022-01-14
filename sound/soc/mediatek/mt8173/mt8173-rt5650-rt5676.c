@@ -282,9 +282,8 @@ static int mt8173_rt5650_rt5676_dev_probe(struct platform_device *pdev)
 	card->dev = &pdev->dev;
 
 	ret = devm_snd_soc_register_card(&pdev->dev, card);
-	if (ret)
-		dev_err(&pdev->dev, "%s snd_soc_register_card fail %d\n",
-			__func__, ret);
+
+	of_node_put(platform_node);
 	return ret;
 }
 
@@ -298,9 +297,7 @@ static struct platform_driver mt8173_rt5650_rt5676_driver = {
 	.driver = {
 		   .name = "mtk-rt5650-rt5676",
 		   .of_match_table = mt8173_rt5650_rt5676_dt_match,
-#ifdef CONFIG_PM
 		   .pm = &snd_soc_pm_ops,
-#endif
 	},
 	.probe = mt8173_rt5650_rt5676_dev_probe,
 };

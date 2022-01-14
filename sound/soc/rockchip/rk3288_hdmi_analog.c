@@ -249,13 +249,9 @@ static int snd_rk_mc_probe(struct platform_device *pdev)
 	snd_soc_card_set_drvdata(card, machine);
 
 	ret = devm_snd_soc_register_card(&pdev->dev, card);
-	if (ret == -EPROBE_DEFER)
-		return -EPROBE_DEFER;
-	if (ret) {
-		dev_err(&pdev->dev,
-			"Soc register card failed %d\n", ret);
-		return ret;
-	}
+	if (ret)
+		return dev_err_probe(&pdev->dev, ret,
+				     "Soc register card failed\n");
 
 	return ret;
 }

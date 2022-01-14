@@ -19,6 +19,12 @@ properties:
   interrupts:
     maxItems: 1
 
+  memory-region:
+    maxItems: 1
+    description: |
+      Shared memory region for AFE memif.  A "shared-dma-pool".
+      See ../reserved-memory/reserved-memory.txt for details.
+
   mediatek,topckgen:
     $ref: "/schemas/types.yaml#/definitions/phandle"
     description: The phandle of the mediatek topckgen controller
@@ -125,6 +131,7 @@ required:
   - power-domains
   - clocks
   - clock-names
+  - memory-region
 
 additionalProperties: false
 
@@ -139,6 +146,7 @@ examples:
         interrupts = <GIC_SPI 822 IRQ_TYPE_LEVEL_HIGH 0>;
         mediatek,topckgen = <&topckgen>;
         power-domains = <&spm 7>; //MT8195_POWER_DOMAIN_AUDIO
+        memory-region = <&snd_dma_mem_reserved>;
         clocks = <&clk26m>,
                  <&topckgen 163>, //CLK_TOP_APLL1
                  <&topckgen 166>, //CLK_TOP_APLL2
