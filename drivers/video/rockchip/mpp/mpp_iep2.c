@@ -870,7 +870,7 @@ static int iep2_reset(struct mpp_dev *mpp)
 
 	if (iep->rst_a && iep->rst_h && iep->rst_s) {
 		/* Don't skip this or iommu won't work after reset */
-		rockchip_pmu_idle_request(mpp->dev, true);
+		mpp_pmu_idle_request(mpp, true);
 		mpp_safe_reset(iep->rst_a);
 		mpp_safe_reset(iep->rst_h);
 		mpp_safe_reset(iep->rst_s);
@@ -878,7 +878,7 @@ static int iep2_reset(struct mpp_dev *mpp)
 		mpp_safe_unreset(iep->rst_a);
 		mpp_safe_unreset(iep->rst_h);
 		mpp_safe_unreset(iep->rst_s);
-		rockchip_pmu_idle_request(mpp->dev, false);
+		mpp_pmu_idle_request(mpp, false);
 	}
 
 	return 0;

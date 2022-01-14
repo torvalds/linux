@@ -22,6 +22,7 @@
 #include <linux/reset.h>
 #include <linux/irqreturn.h>
 #include <linux/poll.h>
+#include <soc/rockchip/pm_domains.h>
 
 #define MHZ			(1000 * 1000)
 
@@ -293,6 +294,8 @@ struct mpp_dev {
 	struct kthread_work work;
 	/* the flag for get/get/reduce freq */
 	bool auto_freq_en;
+	/* the flag for pmu idle request before device reset */
+	bool skip_idle;
 
 	/*
 	 * The task capacity is the task queue length that hardware can accept.
@@ -747,6 +750,14 @@ static inline int mpp_reset_up_write(struct mpp_reset_group *group)
 		up_write(&group->rw_sem);
 
 	return 0;
+}
+
+static inline int mpp_pmu_idle_request(struct mpp_dev *mpp, bool idle)
+{
+	if (mpp->skip_idle)
+		return 0;
+
+	return rockchip_pmu_idle_request(mpp->dev, idle);
 }
 
 #ifdef CONFIG_ROCKCHIP_MPP_PROC_FS

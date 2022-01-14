@@ -604,13 +604,13 @@ static int vdpu_reset(struct mpp_dev *mpp)
 	mpp_write(mpp, VDPU2_REG_DEC_INT, 0);
 	if (dec->rst_a && dec->rst_h) {
 		/* Don't skip this or iommu won't work after reset */
-		rockchip_pmu_idle_request(mpp->dev, true);
+		mpp_pmu_idle_request(mpp, true);
 		mpp_safe_reset(dec->rst_a);
 		mpp_safe_reset(dec->rst_h);
 		udelay(5);
 		mpp_safe_unreset(dec->rst_a);
 		mpp_safe_unreset(dec->rst_h);
-		rockchip_pmu_idle_request(mpp->dev, false);
+		mpp_pmu_idle_request(mpp, false);
 	}
 
 	return 0;
