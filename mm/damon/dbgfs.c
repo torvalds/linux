@@ -364,7 +364,7 @@ static ssize_t dbgfs_target_ids_write(struct file *file,
 	struct damon_ctx *ctx = file->private_data;
 	struct damon_target *t, *next_t;
 	bool id_is_pid = true;
-	char *kbuf, *nrs;
+	char *kbuf;
 	unsigned long *targets;
 	ssize_t nr_targets;
 	ssize_t ret;
@@ -374,14 +374,13 @@ static ssize_t dbgfs_target_ids_write(struct file *file,
 	if (IS_ERR(kbuf))
 		return PTR_ERR(kbuf);
 
-	nrs = kbuf;
 	if (!strncmp(kbuf, "paddr\n", count)) {
 		id_is_pid = false;
 		/* target id is meaningless here, but we set it just for fun */
 		scnprintf(kbuf, count, "42    ");
 	}
 
-	targets = str_to_target_ids(nrs, count, &nr_targets);
+	targets = str_to_target_ids(kbuf, count, &nr_targets);
 	if (!targets) {
 		ret = -ENOMEM;
 		goto out;
