@@ -1231,7 +1231,7 @@ static void gmc_v9_0_set_umc_funcs(struct amdgpu_device *adev)
 	if (adev->umc.ras) {
 		amdgpu_ras_register_ras_block(adev, &adev->umc.ras->ras_block);
 
-		strcpy(adev->umc.ras->ras_block.name,"umc");
+		strcpy(adev->umc.ras->ras_block.name, "umc");
 		adev->umc.ras->ras_block.block = AMDGPU_RAS_BLOCK__UMC;
 
 		/* If don't define special ras_late_init function, use default ras_late_init */
