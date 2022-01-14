@@ -198,6 +198,21 @@
 DEFINE_IDR(btf_idr);
 DEFINE_SPINLOCK(btf_idr_lock);
 
+enum btf_kfunc_hook {
+	BTF_KFUNC_HOOK_XDP,
+	BTF_KFUNC_HOOK_TC,
+	BTF_KFUNC_HOOK_STRUCT_OPS,
+	BTF_KFUNC_HOOK_MAX,
+};
+
+enum {
+	BTF_KFUNC_SET_MAX_CNT = 32,
+};
+
+struct btf_kfunc_set_tab {
+	struct btf_id_set *sets[BTF_KFUNC_HOOK_MAX][BTF_KFUNC_TYPE_MAX];
+};
+
 struct btf {
 	void *data;
 	struct btf_type **types;
@@ -212,6 +227,7 @@ struct btf {
 	refcount_t refcnt;
 	u32 id;
 	struct rcu_head rcu;
+	struct btf_kfunc_set_tab *kfunc_set_tab;
 
 	/* split BTF support */
 	struct btf *base_btf;
@@ -1531,8 +1547,30 @@ static void btf_free_id(struct btf *btf)
 	spin_unlock_irqrestore(&btf_idr_lock, flags);
 }
 
+static void btf_free_kfunc_set_tab(struct btf *btf)
+{
+	struct btf_kfunc_set_tab *tab = btf->kfunc_set_tab;
+	int hook, type;
+
+	if (!tab)
+		return;
+	/* For module BTF, we directly assign the sets being registered, so
+	 * there is nothing to free except kfunc_set_tab.
+	 */
+	if (btf_is_module(btf))
+		goto free_tab;
+	for (hook = 0; hook < ARRAY_SIZE(tab->sets); hook++) {
+		for (type = 0; type < ARRAY_SIZE(tab->sets[0]); type++)
+			kfree(tab->sets[hook][type]);
+	}
+free_tab:
+	kfree(tab);
+	btf->kfunc_set_tab = NULL;
+}
+
 static void btf_free(struct btf *btf)
 {
+	btf_free_kfunc_set_tab(btf);
 	kvfree(btf->types);
 	kvfree(btf->resolved_sizes);
 	kvfree(btf->resolved_ids);
@@ -6371,6 +6409,36 @@ struct module *btf_try_get_module(const struct btf *btf)
 	return res;
 }
 
+/* Returns struct btf corresponding to the struct module
+ *
+ * This function can return NULL or ERR_PTR. Note that caller must
+ * release reference for struct btf iff btf_is_module is true.
+ */
+static struct btf *btf_get_module_btf(const struct module *module)
+{
+	struct btf *btf = NULL;
+#ifdef CONFIG_DEBUG_INFO_BTF_MODULES
+	struct btf_module *btf_mod, *tmp;
+#endif
+
+	if (!module)
+		return bpf_get_btf_vmlinux();
+#ifdef CONFIG_DEBUG_INFO_BTF_MODULES
+	mutex_lock(&btf_module_mutex);
+	list_for_each_entry_safe(btf_mod, tmp, &btf_modules, list) {
+		if (btf_mod->module != module)
+			continue;
+
+		btf_get(btf_mod->btf);
+		btf = btf_mod->btf;
+		break;
+	}
+	mutex_unlock(&btf_module_mutex);
+#endif
+
+	return btf;
+}
+
 BPF_CALL_4(bpf_btf_find_by_name_kind, char *, name, int, name_sz, u32, kind, int, flags)
 {
 	struct btf *btf;
@@ -6438,7 +6506,181 @@ BTF_ID_LIST_GLOBAL(btf_tracing_ids, MAX_BTF_TRACING_TYPE)
 BTF_TRACING_TYPE_xxx
 #undef BTF_TRACING_TYPE
 
-/* BTF ID set registration API for modules */
+/* Kernel Function (kfunc) BTF ID set registration API */
+
+static int __btf_populate_kfunc_set(struct btf *btf, enum btf_kfunc_hook hook,
+				    enum btf_kfunc_type type,
+				    struct btf_id_set *add_set, bool vmlinux_set)
+{
+	struct btf_kfunc_set_tab *tab;
+	struct btf_id_set *set;
+	u32 set_cnt;
+	int ret;
+
+	if (hook >= BTF_KFUNC_HOOK_MAX || type >= BTF_KFUNC_TYPE_MAX) {
+		ret = -EINVAL;
+		goto end;
+	}
+
+	if (!add_set->cnt)
+		return 0;
+
+	tab = btf->kfunc_set_tab;
+	if (!tab) {
+		tab = kzalloc(sizeof(*tab), GFP_KERNEL | __GFP_NOWARN);
+		if (!tab)
+			return -ENOMEM;
+		btf->kfunc_set_tab = tab;
+	}
+
+	set = tab->sets[hook][type];
+	/* Warn when register_btf_kfunc_id_set is called twice for the same hook
+	 * for module sets.
+	 */
+	if (WARN_ON_ONCE(set && !vmlinux_set)) {
+		ret = -EINVAL;
+		goto end;
+	}
+
+	/* We don't need to allocate, concatenate, and sort module sets, because
+	 * only one is allowed per hook. Hence, we can directly assign the
+	 * pointer and return.
+	 */
+	if (!vmlinux_set) {
+		tab->sets[hook][type] = add_set;
+		return 0;
+	}
+
+	/* In case of vmlinux sets, there may be more than one set being
+	 * registered per hook. To create a unified set, we allocate a new set
+	 * and concatenate all individual sets being registered. While each set
+	 * is individually sorted, they may become unsorted when concatenated,
+	 * hence re-sorting the final set again is required to make binary
+	 * searching the set using btf_id_set_contains function work.
+	 */
+	set_cnt = set ? set->cnt : 0;
+
+	if (set_cnt > U32_MAX - add_set->cnt) {
+		ret = -EOVERFLOW;
+		goto end;
+	}
+
+	if (set_cnt + add_set->cnt > BTF_KFUNC_SET_MAX_CNT) {
+		ret = -E2BIG;
+		goto end;
+	}
+
+	/* Grow set */
+	set = krealloc(tab->sets[hook][type],
+		       offsetof(struct btf_id_set, ids[set_cnt + add_set->cnt]),
+		       GFP_KERNEL | __GFP_NOWARN);
+	if (!set) {
+		ret = -ENOMEM;
+		goto end;
+	}
+
+	/* For newly allocated set, initialize set->cnt to 0 */
+	if (!tab->sets[hook][type])
+		set->cnt = 0;
+	tab->sets[hook][type] = set;
+
+	/* Concatenate the two sets */
+	memcpy(set->ids + set->cnt, add_set->ids, add_set->cnt * sizeof(set->ids[0]));
+	set->cnt += add_set->cnt;
+
+	sort(set->ids, set->cnt, sizeof(set->ids[0]), btf_id_cmp_func, NULL);
+
+	return 0;
+end:
+	btf_free_kfunc_set_tab(btf);
+	return ret;
+}
+
+static int btf_populate_kfunc_set(struct btf *btf, enum btf_kfunc_hook hook,
+				  const struct btf_kfunc_id_set *kset)
+{
+	bool vmlinux_set = !btf_is_module(btf);
+	int type, ret;
+
+	for (type = 0; type < ARRAY_SIZE(kset->sets); type++) {
+		if (!kset->sets[type])
+			continue;
+
+		ret = __btf_populate_kfunc_set(btf, hook, type, kset->sets[type], vmlinux_set);
+		if (ret)
+			break;
+	}
+	return ret;
+}
+
+static bool __btf_kfunc_id_set_contains(const struct btf *btf,
+					enum btf_kfunc_hook hook,
+					enum btf_kfunc_type type,
+					u32 kfunc_btf_id)
+{
+	struct btf_id_set *set;
+
+	if (hook >= BTF_KFUNC_HOOK_MAX || type >= BTF_KFUNC_TYPE_MAX)
+		return false;
+	if (!btf->kfunc_set_tab)
+		return false;
+	set = btf->kfunc_set_tab->sets[hook][type];
+	if (!set)
+		return false;
+	return btf_id_set_contains(set, kfunc_btf_id);
+}
+
+static int bpf_prog_type_to_kfunc_hook(enum bpf_prog_type prog_type)
+{
+	switch (prog_type) {
+	case BPF_PROG_TYPE_XDP:
+		return BTF_KFUNC_HOOK_XDP;
+	case BPF_PROG_TYPE_SCHED_CLS:
+		return BTF_KFUNC_HOOK_TC;
+	case BPF_PROG_TYPE_STRUCT_OPS:
+		return BTF_KFUNC_HOOK_STRUCT_OPS;
+	default:
+		return BTF_KFUNC_HOOK_MAX;
+	}
+}
+
+/* Caution:
+ * Reference to the module (obtained using btf_try_get_module) corresponding to
+ * the struct btf *MUST* be held when calling this function from verifier
+ * context. This is usually true as we stash references in prog's kfunc_btf_tab;
+ * keeping the reference for the duration of the call provides the necessary
+ * protection for looking up a well-formed btf->kfunc_set_tab.
+ */
+bool btf_kfunc_id_set_contains(const struct btf *btf,
+			       enum bpf_prog_type prog_type,
+			       enum btf_kfunc_type type, u32 kfunc_btf_id)
+{
+	enum btf_kfunc_hook hook;
+
+	hook = bpf_prog_type_to_kfunc_hook(prog_type);
+	return __btf_kfunc_id_set_contains(btf, hook, type, kfunc_btf_id);
+}
+
+/* This function must be invoked only from initcalls/module init functions */
+int register_btf_kfunc_id_set(enum bpf_prog_type prog_type,
+			      const struct btf_kfunc_id_set *kset)
+{
+	enum btf_kfunc_hook hook;
+	struct btf *btf;
+	int ret;
+
+	btf = btf_get_module_btf(kset->owner);
+	if (IS_ERR_OR_NULL(btf))
+		return btf ? PTR_ERR(btf) : -ENOENT;
+
+	hook = bpf_prog_type_to_kfunc_hook(prog_type);
+	ret = btf_populate_kfunc_set(btf, hook, kset);
+	/* reference is only taken for module BTF */
+	if (btf_is_module(btf))
+		btf_put(btf);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(register_btf_kfunc_id_set);
 
 #ifdef CONFIG_DEBUG_INFO_BTF_MODULES
 
