@@ -134,6 +134,8 @@ static struct mempolicy preferred_node_policy[MAX_NUMNODES];
  * @node: Node id to start the search
  *
  * Lookup the next closest node by distance if @nid is not online.
+ *
+ * Return: this @node if it is online, otherwise the closest node by distance
  */
 int numa_map_to_online_node(int node)
 {
@@ -2150,7 +2152,6 @@ static struct page *alloc_pages_preferred_many(gfp_t gfp, unsigned int order,
  * @order: Order of the GFP allocation.
  * @vma: Pointer to VMA or NULL if not available.
  * @addr: Virtual address of the allocation.  Must be inside @vma.
- * @node: Which node to prefer for allocation (modulo policy).
  * @hugepage: For hugepages try only the preferred node if possible.
  *
  * Allocate a page for a specific address in @vma, using the appropriate
@@ -2966,7 +2967,7 @@ static const char * const policy_modes[] =
  * Format of input:
  *	<mode>[=<flags>][:<nodelist>]
  *
- * On success, returns 0, else 1
+ * Return: %0 on success, else %1
  */
 int mpol_parse_str(char *str, struct mempolicy **mpol)
 {
