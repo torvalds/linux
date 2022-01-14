@@ -987,10 +987,11 @@ static int gfx_v11_0_rlc_autoload_buffer_init(struct amdgpu_device *adev)
 	total_size = gfx_v11_0_calc_toc_total_size(adev);
 
 	r = amdgpu_bo_create_reserved(adev, total_size, 64 * 1024,
-			AMDGPU_GEM_DOMAIN_VRAM,
-			&adev->gfx.rlc.rlc_autoload_bo,
-			&adev->gfx.rlc.rlc_autoload_gpu_addr,
-			(void **)&adev->gfx.rlc.rlc_autoload_ptr);
+				      AMDGPU_GEM_DOMAIN_VRAM |
+				      AMDGPU_GEM_DOMAIN_GTT,
+				      &adev->gfx.rlc.rlc_autoload_bo,
+				      &adev->gfx.rlc.rlc_autoload_gpu_addr,
+				      (void **)&adev->gfx.rlc.rlc_autoload_ptr);
 
 	if (r) {
 		dev_err(adev->dev, "(%d) failed to create fw autoload bo\n", r);
@@ -2649,7 +2650,9 @@ static int gfx_v11_0_cp_gfx_load_pfp_microcode_rs64(struct amdgpu_device *adev)
 
 	/* 64kb align */
 	r = amdgpu_bo_create_reserved(adev, fw_ucode_size,
-				      64 * 1024, AMDGPU_GEM_DOMAIN_VRAM,
+				      64 * 1024,
+				      AMDGPU_GEM_DOMAIN_VRAM |
+				      AMDGPU_GEM_DOMAIN_GTT,
 				      &adev->gfx.pfp.pfp_fw_obj,
 				      &adev->gfx.pfp.pfp_fw_gpu_addr,
 				      (void **)&adev->gfx.pfp.pfp_fw_ptr);
@@ -2660,7 +2663,9 @@ static int gfx_v11_0_cp_gfx_load_pfp_microcode_rs64(struct amdgpu_device *adev)
 	}
 
 	r = amdgpu_bo_create_reserved(adev, fw_data_size,
-				      64 * 1024, AMDGPU_GEM_DOMAIN_VRAM,
+				      64 * 1024,
+				      AMDGPU_GEM_DOMAIN_VRAM |
+				      AMDGPU_GEM_DOMAIN_GTT,
 				      &adev->gfx.pfp.pfp_fw_data_obj,
 				      &adev->gfx.pfp.pfp_fw_data_gpu_addr,
 				      (void **)&adev->gfx.pfp.pfp_fw_data_ptr);
@@ -2863,7 +2868,9 @@ static int gfx_v11_0_cp_gfx_load_me_microcode_rs64(struct amdgpu_device *adev)
 
 	/* 64kb align*/
 	r = amdgpu_bo_create_reserved(adev, fw_ucode_size,
-				      64 * 1024, AMDGPU_GEM_DOMAIN_VRAM,
+				      64 * 1024,
+				      AMDGPU_GEM_DOMAIN_VRAM |
+				      AMDGPU_GEM_DOMAIN_GTT,
 				      &adev->gfx.me.me_fw_obj,
 				      &adev->gfx.me.me_fw_gpu_addr,
 				      (void **)&adev->gfx.me.me_fw_ptr);
@@ -2874,7 +2881,9 @@ static int gfx_v11_0_cp_gfx_load_me_microcode_rs64(struct amdgpu_device *adev)
 	}
 
 	r = amdgpu_bo_create_reserved(adev, fw_data_size,
-				      64 * 1024, AMDGPU_GEM_DOMAIN_VRAM,
+				      64 * 1024,
+				      AMDGPU_GEM_DOMAIN_VRAM |
+				      AMDGPU_GEM_DOMAIN_GTT,
 				      &adev->gfx.me.me_fw_data_obj,
 				      &adev->gfx.me.me_fw_data_gpu_addr,
 				      (void **)&adev->gfx.me.me_fw_data_ptr);
@@ -3380,7 +3389,9 @@ static int gfx_v11_0_cp_compute_load_microcode_rs64(struct amdgpu_device *adev)
 	fw_data_size = le32_to_cpu(mec_hdr->data_size_bytes);
 
 	r = amdgpu_bo_create_reserved(adev, fw_ucode_size,
-				      64 * 1024, AMDGPU_GEM_DOMAIN_VRAM,
+				      64 * 1024,
+				      AMDGPU_GEM_DOMAIN_VRAM |
+				      AMDGPU_GEM_DOMAIN_GTT,
 				      &adev->gfx.mec.mec_fw_obj,
 				      &adev->gfx.mec.mec_fw_gpu_addr,
 				      (void **)&fw_ucode_ptr);
@@ -3391,7 +3402,9 @@ static int gfx_v11_0_cp_compute_load_microcode_rs64(struct amdgpu_device *adev)
 	}
 
 	r = amdgpu_bo_create_reserved(adev, fw_data_size,
-				      64 * 1024, AMDGPU_GEM_DOMAIN_VRAM,
+				      64 * 1024,
+				      AMDGPU_GEM_DOMAIN_VRAM |
+				      AMDGPU_GEM_DOMAIN_GTT,
 				      &adev->gfx.mec.mec_fw_data_obj,
 				      &adev->gfx.mec.mec_fw_data_gpu_addr,
 				      (void **)&fw_data_ptr);

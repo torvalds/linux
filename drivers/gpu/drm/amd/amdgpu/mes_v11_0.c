@@ -549,7 +549,9 @@ static int mes_v11_0_allocate_ucode_buffer(struct amdgpu_device *adev,
 	fw_size = le32_to_cpu(mes_hdr->mes_ucode_size_bytes);
 
 	r = amdgpu_bo_create_reserved(adev, fw_size,
-				      PAGE_SIZE, AMDGPU_GEM_DOMAIN_VRAM,
+				      PAGE_SIZE,
+				      AMDGPU_GEM_DOMAIN_VRAM |
+				      AMDGPU_GEM_DOMAIN_GTT,
 				      &adev->mes.ucode_fw_obj[pipe],
 				      &adev->mes.ucode_fw_gpu_addr[pipe],
 				      (void **)&adev->mes.ucode_fw_ptr[pipe]);
@@ -582,7 +584,9 @@ static int mes_v11_0_allocate_ucode_data_buffer(struct amdgpu_device *adev,
 	fw_size = le32_to_cpu(mes_hdr->mes_ucode_data_size_bytes);
 
 	r = amdgpu_bo_create_reserved(adev, fw_size,
-				      64 * 1024, AMDGPU_GEM_DOMAIN_VRAM,
+				      64 * 1024,
+				      AMDGPU_GEM_DOMAIN_VRAM |
+				      AMDGPU_GEM_DOMAIN_GTT,
 				      &adev->mes.data_fw_obj[pipe],
 				      &adev->mes.data_fw_gpu_addr[pipe],
 				      (void **)&adev->mes.data_fw_ptr[pipe]);

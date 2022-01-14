@@ -755,6 +755,11 @@ struct amdgpu_mqd {
 #define AMDGPU_PRODUCT_NAME_LEN 64
 struct amdgpu_reset_domain;
 
+/*
+ * Non-zero (true) if the GPU has VRAM. Zero (false) otherwise.
+ */
+#define AMDGPU_HAS_VRAM(_adev) ((_adev)->gmc.real_vram_size)
+
 struct amdgpu_device {
 	struct device			*dev;
 	struct pci_dev			*pdev;

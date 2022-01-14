@@ -331,8 +331,11 @@ int amdgpu_uvd_sw_init(struct amdgpu_device *adev)
 		if (adev->uvd.harvest_config & (1 << j))
 			continue;
 		r = amdgpu_bo_create_kernel(adev, bo_size, PAGE_SIZE,
-					    AMDGPU_GEM_DOMAIN_VRAM, &adev->uvd.inst[j].vcpu_bo,
-					    &adev->uvd.inst[j].gpu_addr, &adev->uvd.inst[j].cpu_addr);
+					    AMDGPU_GEM_DOMAIN_VRAM |
+					    AMDGPU_GEM_DOMAIN_GTT,
+					    &adev->uvd.inst[j].vcpu_bo,
+					    &adev->uvd.inst[j].gpu_addr,
+					    &adev->uvd.inst[j].cpu_addr);
 		if (r) {
 			dev_err(adev->dev, "(%d) failed to allocate UVD bo\n", r);
 			return r;

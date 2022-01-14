@@ -934,7 +934,8 @@ static int amdgpu_device_asic_init(struct amdgpu_device *adev)
 static int amdgpu_device_vram_scratch_init(struct amdgpu_device *adev)
 {
 	return amdgpu_bo_create_kernel(adev, AMDGPU_GPU_PAGE_SIZE,
-				       PAGE_SIZE, AMDGPU_GEM_DOMAIN_VRAM,
+				       PAGE_SIZE,
+				       AMDGPU_GEM_DOMAIN_VRAM,
 				       &adev->vram_scratch.robj,
 				       &adev->vram_scratch.gpu_addr,
 				       (void **)&adev->vram_scratch.ptr);
@@ -2410,8 +2411,9 @@ static int amdgpu_device_ip_init(struct amdgpu_device *adev)
 			/* right after GMC hw init, we create CSA */
 			if (amdgpu_mcbp) {
 				r = amdgpu_allocate_static_csa(adev, &adev->virt.csa_obj,
-								AMDGPU_GEM_DOMAIN_VRAM,
-								AMDGPU_CSA_SIZE);
+							       AMDGPU_GEM_DOMAIN_VRAM |
+							       AMDGPU_GEM_DOMAIN_GTT,
+							       AMDGPU_CSA_SIZE);
 				if (r) {
 					DRM_ERROR("allocate CSA failed %d\n", r);
 					goto init_failed;

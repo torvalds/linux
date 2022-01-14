@@ -2375,7 +2375,8 @@ static int gfx_v6_0_rlc_init(struct amdgpu_device *adev)
 		dws = adev->gfx.rlc.clear_state_size + (256 / 4);
 
 		r = amdgpu_bo_create_reserved(adev, dws * 4, PAGE_SIZE,
-					      AMDGPU_GEM_DOMAIN_VRAM,
+					      AMDGPU_GEM_DOMAIN_VRAM |
+					      AMDGPU_GEM_DOMAIN_GTT,
 					      &adev->gfx.rlc.clear_state_obj,
 					      &adev->gfx.rlc.clear_state_gpu_addr,
 					      (void **)&adev->gfx.rlc.cs_ptr);

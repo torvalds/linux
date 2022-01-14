@@ -1679,10 +1679,10 @@ static int amdgpu_ttm_reserve_tmr(struct amdgpu_device *adev)
 		/* reserve vram for mem train according to TMR location */
 		amdgpu_ttm_training_data_block_init(adev);
 		ret = amdgpu_bo_create_kernel_at(adev,
-					 ctx->c2p_train_data_offset,
-					 ctx->train_data_size,
-					 &ctx->c2p_bo,
-					 NULL);
+						 ctx->c2p_train_data_offset,
+						 ctx->train_data_size,
+						 &ctx->c2p_bo,
+						 NULL);
 		if (ret) {
 			DRM_ERROR("alloc c2p_bo failed(%d)!\n", ret);
 			amdgpu_ttm_training_reserve_vram_fini(adev);
@@ -1692,10 +1692,10 @@ static int amdgpu_ttm_reserve_tmr(struct amdgpu_device *adev)
 	}
 
 	ret = amdgpu_bo_create_kernel_at(adev,
-				adev->gmc.real_vram_size - adev->mman.discovery_tmr_size,
-				adev->mman.discovery_tmr_size,
-				&adev->mman.discovery_memory,
-				NULL);
+					 adev->gmc.real_vram_size - adev->mman.discovery_tmr_size,
+					 adev->mman.discovery_tmr_size,
+					 &adev->mman.discovery_memory,
+					 NULL);
 	if (ret) {
 		DRM_ERROR("alloc tmr failed(%d)!\n", ret);
 		amdgpu_bo_free_kernel(&adev->mman.discovery_memory, NULL, NULL);
