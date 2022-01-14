@@ -327,11 +327,11 @@ const struct rcar_du_format_info *rcar_du_format_info(u32 fourcc)
  */
 
 static const struct drm_gem_object_funcs rcar_du_gem_funcs = {
-	.free = drm_gem_cma_free_object,
-	.print_info = drm_gem_cma_print_info,
-	.get_sg_table = drm_gem_cma_get_sg_table,
-	.vmap = drm_gem_cma_vmap,
-	.mmap = drm_gem_cma_mmap,
+	.free = drm_gem_cma_object_free,
+	.print_info = drm_gem_cma_object_print_info,
+	.get_sg_table = drm_gem_cma_object_get_sg_table,
+	.vmap = drm_gem_cma_object_vmap,
+	.mmap = drm_gem_cma_object_mmap,
 	.vm_ops = &drm_gem_cma_vm_ops,
 };
 

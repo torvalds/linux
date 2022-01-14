@@ -231,6 +231,8 @@ enum DC_FEATURE_MASK {
 	DC_DISABLE_FRACTIONAL_PWM_MASK = (1 << 2), //0x4, disabled by default
 	DC_PSR_MASK = (1 << 3), //0x8, disabled by default for dcn < 3.1
 	DC_EDP_NO_POWER_SEQUENCING = (1 << 4), //0x10, disabled by default
+	DC_DISABLE_LTTPR_DP1_4A = (1 << 5), //0x20, disabled by default
+	DC_DISABLE_LTTPR_DP2_0 = (1 << 6), //0x40, disabled by default
 };
 
 enum DC_DEBUG_MASK {
