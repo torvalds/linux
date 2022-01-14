@@ -226,7 +226,13 @@ EXPORT_SYMBOL_GPL(media_entity_pads_init);
  * Graph traversal
  */
 
-/*
+/**
+ * media_entity_has_pad_interdep - Check interdependency between two pads
+ *
+ * @entity: The entity
+ * @pad0: The first pad index
+ * @pad1: The second pad index
+ *
  * This function checks the interdependency inside the entity between @pad0
  * and @pad1. If two pads are interdependent they are part of the same pipeline
  * and enabling one of the pads means that the other pad will become "locked"
@@ -236,6 +242,13 @@ EXPORT_SYMBOL_GPL(media_entity_pads_init);
  * to check the dependency inside the entity between @pad0 and @pad1. If the
  * has_pad_interdep operation is not implemented, all pads of the entity are
  * considered to be interdependent.
+ *
+ * One of @pad0 and @pad1 must be a sink pad and the other one a source pad.
+ * The function returns false if both pads are sinks or sources.
+ *
+ * The caller must hold entity->graph_obj.mdev->mutex.
+ *
+ * Return: true if the pads are connected internally and false otherwise.
  */
 static bool media_entity_has_pad_interdep(struct media_entity *entity,
 					  unsigned int pad0, unsigned int pad1)

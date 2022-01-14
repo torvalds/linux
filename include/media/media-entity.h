@@ -242,7 +242,9 @@ struct media_pad {
  *			part of the same pipeline and enabling one of the pads
  *			means that the other pad will become "locked" and
  *			doesn't allow configuration changes. pad0 and pad1 are
- *			guaranteed to not both be sinks or sources.
+ *			guaranteed to not both be sinks or sources. Never call
+ *			the .has_pad_interdep() operation directly, always use
+ *			media_entity_has_pad_interdep().
  *			Optional: If the operation isn't implemented all pads
  *			will be considered as interdependent.
  *
