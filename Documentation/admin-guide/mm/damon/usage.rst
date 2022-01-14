@@ -21,7 +21,10 @@ DAMON provides below three interfaces for different users.
   you can write and use your personalized DAMON debugfs wrapper programs that
   reads/writes the debugfs files instead of you.  The `DAMON user space tool
   <https://github.com/awslabs/damo>`_ is one example of such programs.  It
-  supports both virtual and physical address spaces monitoring.
+  supports both virtual and physical address spaces monitoring.  Note that this
+  interface provides only simple :ref:`statistics <damos_stats>` for the
+  monitoring results.  For detailed monitoring results, DAMON provides a
+  :ref:`tracepoint <tracepoint>`.
 - *Kernel Space Programming Interface.*
   :doc:`This </vm/damon/api>` is for kernel space programmers.  Using this,
   users can utilize every feature of DAMON most flexibly and efficiently by
@@ -215,6 +218,8 @@ If the value is higher than ``<high mark>`` or lower than ``<low mark>``, the
 scheme is deactivated.  If the value is lower than ``<mid mark>``, the scheme
 is activated.
 
+.. _damos_stats:
+
 Statistics
 ~~~~~~~~~~
 
@@ -267,6 +272,8 @@ Please note that you cannot write to the above-mentioned debugfs files while
 the monitoring is turned on.  If you write to the files while DAMON is running,
 an error code such as ``-EBUSY`` will be returned.
 
+
+.. _tracepoint:
 
 Tracepoint for Monitoring Results
 =================================
