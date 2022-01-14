@@ -118,6 +118,8 @@ static const struct btf_kfunc_id_set bpf_testmod_kfunc_set = {
 	.check_set = &bpf_testmod_check_kfunc_ids,
 };
 
+extern int bpf_fentry_test1(int a);
+
 static int bpf_testmod_init(void)
 {
 	int ret;
@@ -125,6 +127,8 @@ static int bpf_testmod_init(void)
 	ret = register_btf_kfunc_id_set(BPF_PROG_TYPE_SCHED_CLS, &bpf_testmod_kfunc_set);
 	if (ret < 0)
 		return ret;
+	if (bpf_fentry_test1(0) < 0)
+		return -EINVAL;
 	return sysfs_create_bin_file(kernel_kobj, &bin_attr_bpf_testmod_file);
 }
 

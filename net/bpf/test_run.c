@@ -172,6 +172,8 @@ int noinline bpf_fentry_test1(int a)
 {
 	return a + 1;
 }
+EXPORT_SYMBOL_GPL(bpf_fentry_test1);
+ALLOW_ERROR_INJECTION(bpf_fentry_test1, ERRNO);
 
 int noinline bpf_fentry_test2(int a, u64 b)
 {
