@@ -163,6 +163,7 @@
 #define FORCE_VREG_RDY_BIT			BIT(0)
 
 #define HAP_CFG_MOD_STATUS_SEL_REG		0x70
+#define HAP_CFG_MOD_STATUS_XT_REG		0x71
 
 #define HAP_CFG_CAL_EN_REG			0x72
 #define CAL_RC_CLK_MASK				GENMASK(3, 2)
@@ -901,7 +902,12 @@ static int haptics_get_status_data(struct haptics_chip *chip,
 	mod_sel_val[0] = sel & 0xff;
 	mod_sel_val[1] = (sel >> 8) & 0xff;
 	rc = haptics_write(chip, chip->cfg_addr_base,
-			HAP_CFG_MOD_STATUS_SEL_REG, mod_sel_val, 2);
+			HAP_CFG_MOD_STATUS_XT_REG, &mod_sel_val[1], 1);
+	if (rc < 0)
+		return rc;
+
+	rc = haptics_write(chip, chip->cfg_addr_base,
+			HAP_CFG_MOD_STATUS_SEL_REG, mod_sel_val, 1);
 	if (rc < 0)
 		return rc;
 
