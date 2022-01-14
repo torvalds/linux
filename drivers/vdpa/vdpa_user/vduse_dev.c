@@ -655,7 +655,8 @@ static void vduse_vdpa_get_config(struct vdpa_device *vdpa, unsigned int offset,
 {
 	struct vduse_dev *dev = vdpa_to_vduse(vdpa);
 
-	if (len > dev->config_size - offset)
+	if (offset > dev->config_size ||
+	    len > dev->config_size - offset)
 		return;
 
 	memcpy(buf, dev->config + offset, len);
@@ -975,7 +976,8 @@ static long vduse_dev_ioctl(struct file *file, unsigned int cmd,
 			break;
 
 		ret = -EINVAL;
-		if (config.length == 0 ||
+		if (config.offset > dev->config_size ||
+		    config.length == 0 ||
 		    config.length > dev->config_size - config.offset)
 			break;
 

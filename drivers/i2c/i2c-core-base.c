@@ -466,14 +466,12 @@ static int i2c_smbus_host_notify_to_irq(const struct i2c_client *client)
 static int i2c_device_probe(struct device *dev)
 {
 	struct i2c_client	*client = i2c_verify_client(dev);
-	struct i2c_adapter	*adap;
 	struct i2c_driver	*driver;
 	int status;
 
 	if (!client)
 		return 0;
 
-	adap = client->adapter;
 	client->irq = client->init_irq;
 
 	if (!client->irq) {
@@ -539,14 +537,6 @@ static int i2c_device_probe(struct device *dev)
 
 	dev_dbg(dev, "probe\n");
 
-	if (adap->bus_regulator) {
-		status = regulator_enable(adap->bus_regulator);
-		if (status < 0) {
-			dev_err(&adap->dev, "Failed to enable bus regulator\n");
-			goto err_clear_wakeup_irq;
-		}
-	}
-
 	status = of_clk_set_defaults(dev->of_node, false);
 	if (status < 0)
 		goto err_clear_wakeup_irq;
@@ -604,10 +594,8 @@ put_sync_adapter:
 static void i2c_device_remove(struct device *dev)
 {
 	struct i2c_client	*client = to_i2c_client(dev);
-	struct i2c_adapter      *adap;
 	struct i2c_driver	*driver;
 
-	adap = client->adapter;
 	driver = to_i2c_driver(dev->driver);
 	if (driver->remove) {
 		int status;
@@ -622,8 +610,6 @@ static void i2c_device_remove(struct device *dev)
 	devres_release_group(&client->dev, client->devres_group_id);
 
 	dev_pm_domain_detach(&client->dev, true);
-	if (!pm_runtime_status_suspended(&client->dev) && adap->bus_regulator)
-		regulator_disable(adap->bus_regulator);
 
 	dev_pm_clear_wake_irq(&client->dev);
 	device_init_wakeup(&client->dev, false);
@@ -632,86 +618,6 @@ static void i2c_device_remove(struct device *dev)
 	if (client->flags & I2C_CLIENT_HOST_NOTIFY)
 		pm_runtime_put(&client->adapter->dev);
 }
-
-#ifdef CONFIG_PM_SLEEP
-static int i2c_resume_early(struct device *dev)
-{
-	struct i2c_client *client = i2c_verify_client(dev);
-	int err;
-
-	if (!client)
-		return 0;
-
-	if (pm_runtime_status_suspended(&client->dev) &&
-		client->adapter->bus_regulator) {
-		err = regulator_enable(client->adapter->bus_regulator);
-		if (err)
-			return err;
-	}
-
-	return pm_generic_resume_early(&client->dev);
-}
-
-static int i2c_suspend_late(struct device *dev)
-{
-	struct i2c_client *client = i2c_verify_client(dev);
-	int err;
-
-	if (!client)
-		return 0;
-
-	err = pm_generic_suspend_late(&client->dev);
-	if (err)
-		return err;
-
-	if (!pm_runtime_status_suspended(&client->dev) &&
-		client->adapter->bus_regulator)
-		return regulator_disable(client->adapter->bus_regulator);
-
-	return 0;
-}
-#endif
-
-#ifdef CONFIG_PM
-static int i2c_runtime_resume(struct device *dev)
-{
-	struct i2c_client *client = i2c_verify_client(dev);
-	int err;
-
-	if (!client)
-		return 0;
-
-	if (client->adapter->bus_regulator) {
-		err = regulator_enable(client->adapter->bus_regulator);
-		if (err)
-			return err;
-	}
-
-	return pm_generic_runtime_resume(&client->dev);
-}
-
-static int i2c_runtime_suspend(struct device *dev)
-{
-	struct i2c_client *client = i2c_verify_client(dev);
-	int err;
-
-	if (!client)
-		return 0;
-
-	err = pm_generic_runtime_suspend(&client->dev);
-	if (err)
-		return err;
-
-	if (client->adapter->bus_regulator)
-		return regulator_disable(client->adapter->bus_regulator);
-	return 0;
-}
-#endif
-
-static const struct dev_pm_ops i2c_device_pm = {
-	SET_LATE_SYSTEM_SLEEP_PM_OPS(i2c_suspend_late, i2c_resume_early)
-	SET_RUNTIME_PM_OPS(i2c_runtime_suspend, i2c_runtime_resume, NULL)
-};
 
 static void i2c_device_shutdown(struct device *dev)
 {
@@ -772,7 +678,6 @@ struct bus_type i2c_bus_type = {
 	.probe		= i2c_device_probe,
 	.remove		= i2c_device_remove,
 	.shutdown	= i2c_device_shutdown,
-	.pm		= &i2c_device_pm,
 };
 EXPORT_SYMBOL_GPL(i2c_bus_type);
 

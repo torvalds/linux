@@ -282,7 +282,6 @@ struct ipv6_pinfo {
 	__be32			rcv_flowinfo;
 
 	__u32			dst_cookie;
-	__u32			rx_dst_cookie;
 
 	struct ipv6_mc_socklist	__rcu *ipv6_mc_list;
 	struct ipv6_ac_socklist	*ipv6_ac_list;

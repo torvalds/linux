@@ -364,7 +364,7 @@ bool ice_alloc_rx_bufs_zc(struct ice_ring *rx_ring, u16 count)
 {
 	union ice_32b_rx_flex_desc *rx_desc;
 	u16 ntu = rx_ring->next_to_use;
-	struct ice_rx_buf *rx_buf;
+	struct xdp_buff **xdp;
 	bool ok = true;
 	dma_addr_t dma;
 
@@ -372,26 +372,26 @@ bool ice_alloc_rx_bufs_zc(struct ice_ring *rx_ring, u16 count)
 		return true;
 
 	rx_desc = ICE_RX_DESC(rx_ring, ntu);
-	rx_buf = &rx_ring->rx_buf[ntu];
+	xdp = &rx_ring->xdp_buf[ntu];
 
 	do {
-		rx_buf->xdp = xsk_buff_alloc(rx_ring->xsk_pool);
-		if (!rx_buf->xdp) {
+		*xdp = xsk_buff_alloc(rx_ring->xsk_pool);
+		if (!xdp) {
 			ok = false;
 			break;
 		}
 
-		dma = xsk_buff_xdp_get_dma(rx_buf->xdp);
+		dma = xsk_buff_xdp_get_dma(*xdp);
 		rx_desc->read.pkt_addr = cpu_to_le64(dma);
 		rx_desc->wb.status_error0 = 0;
 
 		rx_desc++;
-		rx_buf++;
+		xdp++;
 		ntu++;
 
 		if (unlikely(ntu == rx_ring->count)) {
 			rx_desc = ICE_RX_DESC(rx_ring, 0);
-			rx_buf = rx_ring->rx_buf;
+			xdp = rx_ring->xdp_buf;
 			ntu = 0;
 		}
 	} while (--count);
@@ -421,19 +421,19 @@ static void ice_bump_ntc(struct ice_ring *rx_ring)
 /**
  * ice_construct_skb_zc - Create an sk_buff from zero-copy buffer
  * @rx_ring: Rx ring
- * @rx_buf: zero-copy Rx buffer
+ * @xdp_arr: Pointer to the SW ring of xdp_buff pointers
  *
  * This function allocates a new skb from a zero-copy Rx buffer.
  *
  * Returns the skb on success, NULL on failure.
  */
 static struct sk_buff *
-ice_construct_skb_zc(struct ice_ring *rx_ring, struct ice_rx_buf *rx_buf)
+ice_construct_skb_zc(struct ice_ring *rx_ring, struct xdp_buff **xdp_arr)
 {
-	unsigned int metasize = rx_buf->xdp->data - rx_buf->xdp->data_meta;
-	unsigned int datasize = rx_buf->xdp->data_end - rx_buf->xdp->data;
-	unsigned int datasize_hard = rx_buf->xdp->data_end -
-				     rx_buf->xdp->data_hard_start;
+	struct xdp_buff *xdp = *xdp_arr;
+	unsigned int metasize = xdp->data - xdp->data_meta;
+	unsigned int datasize = xdp->data_end - xdp->data;
+	unsigned int datasize_hard = xdp->data_end - xdp->data_hard_start;
 	struct sk_buff *skb;
 
 	skb = __napi_alloc_skb(&rx_ring->q_vector->napi, datasize_hard,
@@ -441,13 +441,13 @@ ice_construct_skb_zc(struct ice_ring *rx_ring, struct ice_rx_buf *rx_buf)
 	if (unlikely(!skb))
 		return NULL;
 
-	skb_reserve(skb, rx_buf->xdp->data - rx_buf->xdp->data_hard_start);
-	memcpy(__skb_put(skb, datasize), rx_buf->xdp->data, datasize);
+	skb_reserve(skb, xdp->data - xdp->data_hard_start);
+	memcpy(__skb_put(skb, datasize), xdp->data, datasize);
 	if (metasize)
 		skb_metadata_set(skb, metasize);
 
-	xsk_buff_free(rx_buf->xdp);
-	rx_buf->xdp = NULL;
+	xsk_buff_free(xdp);
+	*xdp_arr = NULL;
 	return skb;
 }
 
@@ -521,7 +521,7 @@ int ice_clean_rx_irq_zc(struct ice_ring *rx_ring, int budget)
 	while (likely(total_rx_packets < (unsigned int)budget)) {
 		union ice_32b_rx_flex_desc *rx_desc;
 		unsigned int size, xdp_res = 0;
-		struct ice_rx_buf *rx_buf;
+		struct xdp_buff **xdp;
 		struct sk_buff *skb;
 		u16 stat_err_bits;
 		u16 vlan_tag = 0;
@@ -544,18 +544,18 @@ int ice_clean_rx_irq_zc(struct ice_ring *rx_ring, int budget)
 		if (!size)
 			break;
 
-		rx_buf = &rx_ring->rx_buf[rx_ring->next_to_clean];
-		rx_buf->xdp->data_end = rx_buf->xdp->data + size;
-		xsk_buff_dma_sync_for_cpu(rx_buf->xdp, rx_ring->xsk_pool);
+		xdp = &rx_ring->xdp_buf[rx_ring->next_to_clean];
+		(*xdp)->data_end = (*xdp)->data + size;
+		xsk_buff_dma_sync_for_cpu(*xdp, rx_ring->xsk_pool);
 
-		xdp_res = ice_run_xdp_zc(rx_ring, rx_buf->xdp);
+		xdp_res = ice_run_xdp_zc(rx_ring, *xdp);
 		if (xdp_res) {
 			if (xdp_res & (ICE_XDP_TX | ICE_XDP_REDIR))
 				xdp_xmit |= xdp_res;
 			else
-				xsk_buff_free(rx_buf->xdp);
+				xsk_buff_free(*xdp);
 
-			rx_buf->xdp = NULL;
+			*xdp = NULL;
 			total_rx_bytes += size;
 			total_rx_packets++;
 			cleaned_count++;
@@ -565,7 +565,7 @@ int ice_clean_rx_irq_zc(struct ice_ring *rx_ring, int budget)
 		}
 
 		/* XDP_PASS path */
-		skb = ice_construct_skb_zc(rx_ring, rx_buf);
+		skb = ice_construct_skb_zc(rx_ring, xdp);
 		if (!skb) {
 			rx_ring->rx_stats.alloc_buf_failed++;
 			break;
@@ -810,15 +810,15 @@ bool ice_xsk_any_rx_ring_ena(struct ice_vsi *vsi)
  */
 void ice_xsk_clean_rx_ring(struct ice_ring *rx_ring)
 {
-	u16 i;
+	u16 count_mask = rx_ring->count - 1;
+	u16 ntc = rx_ring->next_to_clean;
+	u16 ntu = rx_ring->next_to_use;
 
-	for (i = 0; i < rx_ring->count; i++) {
-		struct ice_rx_buf *rx_buf = &rx_ring->rx_buf[i];
+	for ( ; ntc != ntu; ntc = (ntc + 1) & count_mask) {
+		struct xdp_buff **xdp = &rx_ring->xdp_buf[ntc];
 
-		if (!rx_buf->xdp)
-			continue;
-
-		rx_buf->xdp = NULL;
+		xsk_buff_free(*xdp);
+		*xdp = NULL;
 	}
 }
 

@@ -101,12 +101,12 @@ int smc_ib_modify_qp_rts(struct smc_link *lnk)
 			    IB_QP_MAX_QP_RD_ATOMIC);
 }
 
-int smc_ib_modify_qp_reset(struct smc_link *lnk)
+int smc_ib_modify_qp_error(struct smc_link *lnk)
 {
 	struct ib_qp_attr qp_attr;
 
 	memset(&qp_attr, 0, sizeof(qp_attr));
-	qp_attr.qp_state = IB_QPS_RESET;
+	qp_attr.qp_state = IB_QPS_ERR;
 	return ib_modify_qp(lnk->roce_qp, &qp_attr, IB_QP_STATE);
 }
 

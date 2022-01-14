@@ -713,9 +713,6 @@ static void __init early_reserve_memory(void)
 
 	early_reserve_initrd();
 
-	if (efi_enabled(EFI_BOOT))
-		efi_memblock_x86_reserve_range();
-
 	memblock_x86_reserve_range_setup_data();
 
 	reserve_ibft_region();
@@ -740,28 +737,6 @@ dump_kernel_offset(struct notifier_block *self, unsigned long v, void *p)
 	}
 
 	return 0;
-}
-
-static char *prepare_command_line(void)
-{
-#ifdef CONFIG_CMDLINE_BOOL
-#ifdef CONFIG_CMDLINE_OVERRIDE
-	strlcpy(boot_command_line, builtin_cmdline, COMMAND_LINE_SIZE);
-#else
-	if (builtin_cmdline[0]) {
-		/* append boot loader cmdline to builtin */
-		strlcat(builtin_cmdline, " ", COMMAND_LINE_SIZE);
-		strlcat(builtin_cmdline, boot_command_line, COMMAND_LINE_SIZE);
-		strlcpy(boot_command_line, builtin_cmdline, COMMAND_LINE_SIZE);
-	}
-#endif
-#endif
-
-	strlcpy(command_line, boot_command_line, COMMAND_LINE_SIZE);
-
-	parse_early_param();
-
-	return command_line;
 }
 
 /*
@@ -853,23 +828,6 @@ void __init setup_arch(char **cmdline_p)
 	x86_init.oem.arch_setup();
 
 	/*
-	 * x86_configure_nx() is called before parse_early_param() (called by
-	 * prepare_command_line()) to detect whether hardware doesn't support
-	 * NX (so that the early EHCI debug console setup can safely call
-	 * set_fixmap()). It may then be called again from within noexec_setup()
-	 * during parsing early parameters to honor the respective command line
-	 * option.
-	 */
-	x86_configure_nx();
-
-	/*
-	 * This parses early params and it needs to run before
-	 * early_reserve_memory() because latter relies on such settings
-	 * supplied as early params.
-	 */
-	*cmdline_p = prepare_command_line();
-
-	/*
 	 * Do some memory reservations *before* memory is added to memblock, so
 	 * memblock allocations won't overwrite it.
 	 *
@@ -901,6 +859,36 @@ void __init setup_arch(char **cmdline_p)
 	data_resource.end = __pa_symbol(_edata)-1;
 	bss_resource.start = __pa_symbol(__bss_start);
 	bss_resource.end = __pa_symbol(__bss_stop)-1;
+
+#ifdef CONFIG_CMDLINE_BOOL
+#ifdef CONFIG_CMDLINE_OVERRIDE
+	strlcpy(boot_command_line, builtin_cmdline, COMMAND_LINE_SIZE);
+#else
+	if (builtin_cmdline[0]) {
+		/* append boot loader cmdline to builtin */
+		strlcat(builtin_cmdline, " ", COMMAND_LINE_SIZE);
+		strlcat(builtin_cmdline, boot_command_line, COMMAND_LINE_SIZE);
+		strlcpy(boot_command_line, builtin_cmdline, COMMAND_LINE_SIZE);
+	}
+#endif
+#endif
+
+	strlcpy(command_line, boot_command_line, COMMAND_LINE_SIZE);
+	*cmdline_p = command_line;
+
+	/*
+	 * x86_configure_nx() is called before parse_early_param() to detect
+	 * whether hardware doesn't support NX (so that the early EHCI debug
+	 * console setup can safely call set_fixmap()). It may then be called
+	 * again from within noexec_setup() during parsing early parameters
+	 * to honor the respective command line option.
+	 */
+	x86_configure_nx();
+
+	parse_early_param();
+
+	if (efi_enabled(EFI_BOOT))
+		efi_memblock_x86_reserve_range();
 
 #ifdef CONFIG_MEMORY_HOTPLUG
 	/*

@@ -253,6 +253,13 @@ static int vcn_v1_0_suspend(void *handle)
 {
 	int r;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	bool idle_work_unexecuted;
+
+	idle_work_unexecuted = cancel_delayed_work_sync(&adev->vcn.idle_work);
+	if (idle_work_unexecuted) {
+		if (adev->pm.dpm_enabled)
+			amdgpu_dpm_enable_uvd(adev, false);
+	}
 
 	r = vcn_v1_0_hw_fini(adev);
 	if (r)
