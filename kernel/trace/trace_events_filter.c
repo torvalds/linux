@@ -667,6 +667,23 @@ static __percpu struct ustring_buffer *ustring_per_cpu;
 static __always_inline char *test_string(char *str)
 {
 	struct ustring_buffer *ubuf;
+	char *kstr;
+
+	if (!ustring_per_cpu)
+		return NULL;
+
+	ubuf = this_cpu_ptr(ustring_per_cpu);
+	kstr = ubuf->buffer;
+
+	/* For safety, do not trust the string pointer */
+	if (!strncpy_from_kernel_nofault(kstr, str, USTRING_BUF_SIZE))
+		return NULL;
+	return kstr;
+}
+
+static __always_inline char *test_ustring(char *str)
+{
+	struct ustring_buffer *ubuf;
 	char __user *ustr;
 	char *kstr;
 
@@ -676,23 +693,11 @@ static __always_inline char *test_string(char *str)
 	ubuf = this_cpu_ptr(ustring_per_cpu);
 	kstr = ubuf->buffer;
 
-	/*
-	 * We use TASK_SIZE to denote user or kernel space, but this will
-	 * not work for all architectures. If it picks the wrong one, it may
-	 * just fail the filter (but will not bug).
-	 *
-	 * TODO: Have a way to properly denote which one this is for.
-	 */
-	if (likely((unsigned long)str >= TASK_SIZE)) {
-		/* For safety, do not trust the string pointer */
-		if (!strncpy_from_kernel_nofault(kstr, str, USTRING_BUF_SIZE))
-			return NULL;
-	} else {
-		/* user space address? */
-		ustr = (char __user *)str;
-		if (!strncpy_from_user_nofault(kstr, ustr, USTRING_BUF_SIZE))
-			return NULL;
-	}
+	/* user space address? */
+	ustr = (char __user *)str;
+	if (!strncpy_from_user_nofault(kstr, ustr, USTRING_BUF_SIZE))
+		return NULL;
+
 	return kstr;
 }
 
@@ -709,17 +714,10 @@ static int filter_pred_string(struct filter_pred *pred, void *event)
 	return match;
 }
 
-/* Filter predicate for char * pointers */
-static int filter_pred_pchar(struct filter_pred *pred, void *event)
+static __always_inline int filter_pchar(struct filter_pred *pred, char *str)
 {
-	char **addr = (char **)(event + pred->offset);
-	char *str;
 	int cmp, match;
 	int len;
-
-	str = test_string(*addr);
-	if (!str)
-		return 0;
 
 	len = strlen(str) + 1;	/* including tailing '\0' */
 	cmp = pred->regex.match(str, &pred->regex, len);
@@ -727,6 +725,31 @@ static int filter_pred_pchar(struct filter_pred *pred, void *event)
 	match = cmp ^ pred->not;
 
 	return match;
+}
+/* Filter predicate for char * pointers */
+static int filter_pred_pchar(struct filter_pred *pred, void *event)
+{
+	char **addr = (char **)(event + pred->offset);
+	char *str;
+
+	str = test_string(*addr);
+	if (!str)
+		return 0;
+
+	return filter_pchar(pred, str);
+}
+
+/* Filter predicate for char * pointers in user space*/
+static int filter_pred_pchar_user(struct filter_pred *pred, void *event)
+{
+	char **addr = (char **)(event + pred->offset);
+	char *str;
+
+	str = test_ustring(*addr);
+	if (!str)
+		return 0;
+
+	return filter_pchar(pred, str);
 }
 
 /*
@@ -1206,6 +1229,7 @@ static int parse_pred(const char *str, void *data,
 	struct filter_pred *pred = NULL;
 	char num_buf[24];	/* Big enough to hold an address */
 	char *field_name;
+	bool ustring = false;
 	char q;
 	u64 val;
 	int len;
@@ -1238,6 +1262,12 @@ static int parse_pred(const char *str, void *data,
 	if (!field) {
 		parse_error(pe, FILT_ERR_FIELD_NOT_FOUND, pos + i);
 		return -EINVAL;
+	}
+
+	/* See if the field is a user space string */
+	if ((len = str_has_prefix(str + i, ".ustring"))) {
+		ustring = true;
+		i += len;
 	}
 
 	while (isspace(str[i]))
@@ -1377,7 +1407,10 @@ static int parse_pred(const char *str, void *data,
 					goto err_mem;
 			}
 
-			pred->fn = filter_pred_pchar;
+			if (ustring)
+				pred->fn = filter_pred_pchar_user;
+			else
+				pred->fn = filter_pred_pchar;
 		}
 		/* go past the last quote */
 		i++;
