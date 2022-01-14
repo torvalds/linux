@@ -425,7 +425,6 @@ int i915_vma_pin_fence(struct i915_vma *vma)
 	 * must keep the device awake whilst using the fence.
 	 */
 	assert_rpm_wakelock_held(vma->vm->gt->uncore->rpm);
-	GEM_BUG_ON(!i915_vma_is_pinned(vma));
 	GEM_BUG_ON(!i915_vma_is_ggtt(vma));
 
 	err = mutex_lock_interruptible(&vma->vm->mutex);
