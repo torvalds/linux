@@ -24,7 +24,7 @@
 #define __AMDGPU_HDP_H__
 #include "amdgpu_ras.h"
 
-struct amdgpu_hdp_ras{
+struct amdgpu_hdp_ras {
 	struct amdgpu_ras_block_object ras_block;
 };
 
@@ -40,7 +40,7 @@ struct amdgpu_hdp_funcs {
 struct amdgpu_hdp {
 	struct ras_common_if			*ras_if;
 	const struct amdgpu_hdp_funcs		*funcs;
-	struct amdgpu_hdp_ras 	*ras;
+	struct amdgpu_hdp_ras	*ras;
 };
 
 int amdgpu_hdp_ras_late_init(struct amdgpu_device *adev, void *ras_info);

@@ -47,12 +47,13 @@ static void mca_v3_0_mp0_ras_fini(struct amdgpu_device *adev)
 	amdgpu_mca_ras_fini(adev, &adev->mca.mp0);
 }
 
-static int mca_v3_0_ras_block_match(struct amdgpu_ras_block_object* block_obj, enum amdgpu_ras_block block, uint32_t sub_block_index)
+static int mca_v3_0_ras_block_match(struct amdgpu_ras_block_object *block_obj,
+				enum amdgpu_ras_block block, uint32_t sub_block_index)
 {
-	if(!block_obj)
+	if (!block_obj)
 		return -EINVAL;
 
-	if( (block_obj->block == block) &&
+	if ((block_obj->block == block) &&
 		(block_obj->sub_block_index == sub_block_index)) {
 		return 0;
 	}

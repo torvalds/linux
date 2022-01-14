@@ -950,7 +950,8 @@ static void amdgpu_xgmi_query_ras_error_count(struct amdgpu_device *adev,
 static int amdgpu_ras_error_inject_xgmi(struct amdgpu_device *adev,  void *inject_if)
 {
 	int ret = 0;
-	struct ta_ras_trigger_error_input *block_info =  (struct ta_ras_trigger_error_input *)inject_if;
+	struct ta_ras_trigger_error_input *block_info =
+				(struct ta_ras_trigger_error_input *)inject_if;
 
 	if (amdgpu_dpm_set_df_cstate(adev, DF_CSTATE_DISALLOW))
 		dev_warn(adev->dev, "Failed to disallow df cstate");
