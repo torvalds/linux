@@ -838,7 +838,6 @@ i915_vma_detach(struct i915_vma *vma)
 static bool try_qad_pin(struct i915_vma *vma, unsigned int flags)
 {
 	unsigned int bound;
-	bool pinned = true;
 
 	bound = atomic_read(&vma->flags);
 	do {
@@ -848,34 +847,10 @@ static bool try_qad_pin(struct i915_vma *vma, unsigned int flags)
 		if (unlikely(bound & (I915_VMA_OVERFLOW | I915_VMA_ERROR)))
 			return false;
 
-		if (!(bound & I915_VMA_PIN_MASK))
-			goto unpinned;
-
 		GEM_BUG_ON(((bound + 1) & I915_VMA_PIN_MASK) == 0);
 	} while (!atomic_try_cmpxchg(&vma->flags, &bound, bound + 1));
 
 	return true;
-
-unpinned:
-	/*
-	 * If pin_count==0, but we are bound, check under the lock to avoid
-	 * racing with a concurrent i915_vma_unbind().
-	 */
-	mutex_lock(&vma->vm->mutex);
-	do {
-		if (unlikely(bound & (I915_VMA_OVERFLOW | I915_VMA_ERROR))) {
-			pinned = false;
-			break;
-		}
-
-		if (unlikely(flags & ~bound)) {
-			pinned = false;
-			break;
-		}
-	} while (!atomic_try_cmpxchg(&vma->flags, &bound, bound + 1));
-	mutex_unlock(&vma->vm->mutex);
-
-	return pinned;
 }
 
 static struct scatterlist *
@@ -1159,7 +1134,6 @@ static int
 __i915_vma_get_pages(struct i915_vma *vma)
 {
 	struct sg_table *pages;
-	int ret;
 
 	/*
 	 * The vma->pages are only valid within the lifespan of the borrowed
@@ -1192,18 +1166,16 @@ __i915_vma_get_pages(struct i915_vma *vma)
 		break;
 	}
 
-	ret = 0;
 	if (IS_ERR(pages)) {
-		ret = PTR_ERR(pages);
-		pages = NULL;
 		drm_err(&vma->vm->i915->drm,
-			"Failed to get pages for VMA view type %u (%d)!\n",
-			vma->ggtt_view.type, ret);
+			"Failed to get pages for VMA view type %u (%ld)!\n",
+			vma->ggtt_view.type, PTR_ERR(pages));
+		return PTR_ERR(pages);
 	}
 
 	vma->pages = pages;
 
-	return ret;
+	return 0;
 }
 
 I915_SELFTEST_EXPORT int i915_vma_get_pages(struct i915_vma *vma)
@@ -1235,25 +1207,14 @@ err_unpin:
 static void __vma_put_pages(struct i915_vma *vma, unsigned int count)
 {
 	/* We allocate under vma_get_pages, so beware the shrinker */
-	struct sg_table *pages = READ_ONCE(vma->pages);
-
 	GEM_BUG_ON(atomic_read(&vma->pages_count) < count);
 
 	if (atomic_sub_return(count, &vma->pages_count) == 0) {
-		/*
-		 * The atomic_sub_return is a read barrier for the READ_ONCE of
-		 * vma->pages above.
-		 *
-		 * READ_ONCE is safe because this is either called from the same
-		 * function (i915_vma_pin_ww), or guarded by vma->vm->mutex.
-		 *
-		 * TODO: We're leaving vma->pages dangling, until vma->obj->resv
-		 * lock is required.
-		 */
-		if (pages != vma->obj->mm.pages) {
-			sg_free_table(pages);
-			kfree(pages);
+		if (vma->pages != vma->obj->mm.pages) {
+			sg_free_table(vma->pages);
+			kfree(vma->pages);
 		}
+		vma->pages = NULL;
 
 		i915_gem_object_unpin_pages(vma->obj);
 	}
