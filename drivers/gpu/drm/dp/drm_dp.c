@@ -29,10 +29,10 @@
 #include <linux/sched.h>
 #include <linux/seq_file.h>
 
-#include <drm/drm_dp_helper.h>
+#include <drm/dp/drm_dp_helper.h>
 #include <drm/drm_print.h>
 #include <drm/drm_vblank.h>
-#include <drm/drm_dp_mst_helper.h>
+#include <drm/dp/drm_dp_mst_helper.h>
 #include <drm/drm_panel.h>
 
 #include "drm_dp_helper_internal.h"

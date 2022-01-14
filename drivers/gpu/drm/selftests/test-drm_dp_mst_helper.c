@@ -7,7 +7,7 @@
 
 #include <linux/random.h>
 
-#include <drm/drm_dp_mst_helper.h>
+#include <drm/dp/drm_dp_mst_helper.h>
 #include <drm/drm_print.h>
 
 #include "../dp/drm_dp_mst_topology_internal.h"

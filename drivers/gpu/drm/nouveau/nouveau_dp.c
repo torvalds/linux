@@ -22,7 +22,7 @@
  * Authors: Ben Skeggs
  */
 
-#include <drm/drm_dp_helper.h>
+#include <drm/dp/drm_dp_helper.h>
 
 #include "nouveau_drv.h"
 #include "nouveau_connector.h"

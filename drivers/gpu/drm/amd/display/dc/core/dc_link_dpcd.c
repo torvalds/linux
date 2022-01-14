@@ -27,7 +27,7 @@
 #include <dc_link.h>
 #include <inc/link_hwss.h>
 #include <inc/link_dpcd.h>
-#include "drm/drm_dp_helper.h"
+#include <drm/dp/drm_dp_helper.h>
 #include <dc_dp_types.h>
 #include "dm_helpers.h"
 

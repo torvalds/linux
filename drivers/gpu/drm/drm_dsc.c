@@ -12,7 +12,7 @@
 #include <linux/errno.h>
 #include <linux/byteorder/generic.h>
 #include <drm/drm_print.h>
-#include <drm/drm_dp_helper.h>
+#include <drm/dp/drm_dp_helper.h>
 #include <drm/drm_dsc.h>
 
 /**
