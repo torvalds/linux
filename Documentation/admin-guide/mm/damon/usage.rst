@@ -223,12 +223,13 @@ is activated.
 Statistics
 ~~~~~~~~~~
 
-It also counts the total number and bytes of regions that each scheme is
-applied.  This statistics can be used for online analysis or tuning of the
-schemes.
+It also counts the total number and bytes of regions that each scheme is tried
+to be applied, the two numbers for the regions that each scheme is successfully
+applied, and the total number of the quota limit exceeds.  This statistics can
+be used for online analysis or tuning of the schemes.
 
 The statistics can be shown by reading the ``schemes`` file.  Reading the file
-will show each scheme you entered in each line, and the two numbers for the
+will show each scheme you entered in each line, and the five numbers for the
 statistics will be added at the end of each line.
 
 Example
