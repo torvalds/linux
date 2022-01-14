@@ -704,7 +704,7 @@ dma_addr_t rga_mm_lookup_iova(struct rga_internal_buffer *buffer, int core)
 		if (buffer->dma_buffer[i].core == core)
 			return buffer->dma_buffer[i].iova;
 
-	return -EFAULT;
+	return 0;
 }
 
 struct sg_table *rga_mm_lookup_sgt(struct rga_internal_buffer *buffer, int core)
@@ -886,17 +886,32 @@ static int rga_mm_get_channel_handle_info(struct rga_mm *mm,
 	switch (internal_buffer->type) {
 	case RGA_DMA_BUFFER:
 		if (job->core == RGA3_SCHEDULER_CORE0 ||
-		    job->core == RGA3_SCHEDULER_CORE1)
+		    job->core == RGA3_SCHEDULER_CORE1) {
 			img->yrgb_addr = rga_mm_lookup_iova(internal_buffer, job->core);
-		else
+			if (img->yrgb_addr == 0) {
+				pr_err("lookup dma_buf iova error!\n");
+
+				ret = -EINVAL;
+				goto unlock_mm_and_return;
+			}
+		} else {
 			img->yrgb_addr = 0;
+		}
+
 		break;
 	case RGA_VIRTUAL_ADDRESS:
 		if (job->core == RGA3_SCHEDULER_CORE0 ||
-		    job->core == RGA3_SCHEDULER_CORE1)
+		    job->core == RGA3_SCHEDULER_CORE1) {
 			img->yrgb_addr = rga_mm_lookup_iova(internal_buffer, job->core);
-		else
+			if (img->yrgb_addr == 0) {
+				pr_err("lookup virt_addr iova error!\n");
+
+				ret = -EINVAL;
+				goto unlock_mm_and_return;
+			}
+		} else {
 			img->yrgb_addr = internal_buffer->virt_addr->addr;
+		}
 
 		/*
 		 * Some userspace virtual addresses do not have an
