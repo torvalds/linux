@@ -2217,6 +2217,7 @@
 		assigned-clock-rates = <594000000>;
 		resets = <&cru SRST_A_VPU>, <&cru SRST_H_VPU>;
 		reset-names = "video_a", "video_h";
+		rockchip,skip-pmu-idle-request;
 		iommus = <&vdpu_mmu>;
 		rockchip,srv = <&mpp_srv>;
 		rockchip,taskqueue-node = <0>;
@@ -2307,6 +2308,7 @@
 		assigned-clock-rates = <600000000>;
 		resets = <&cru SRST_A_JPEG_DECODER>, <&cru SRST_H_JPEG_DECODER>;
 		reset-names = "video_a", "video_h";
+		rockchip,skip-pmu-idle-request;
 		iommus = <&jpegd_mmu>;
 		rockchip,srv = <&mpp_srv>;
 		rockchip,taskqueue-node = <1>;
@@ -2338,6 +2340,7 @@
 		assigned-clock-rates = <594000000>;
 		resets = <&cru SRST_A_JPEG_ENCODER0>, <&cru SRST_H_JPEG_ENCODER0>;
 		reset-names = "video_a", "video_h";
+		rockchip,skip-pmu-idle-request;
 		iommus = <&jpege0_mmu>;
 		rockchip,srv = <&mpp_srv>;
 		rockchip,taskqueue-node = <2>;
@@ -2370,6 +2373,7 @@
 		assigned-clock-rates = <594000000>;
 		resets = <&cru SRST_A_JPEG_ENCODER1>, <&cru SRST_H_JPEG_ENCODER1>;
 		reset-names = "video_a", "video_h";
+		rockchip,skip-pmu-idle-request;
 		iommus = <&jpege1_mmu>;
 		rockchip,srv = <&mpp_srv>;
 		rockchip,taskqueue-node = <3>;
@@ -2402,6 +2406,7 @@
 		assigned-clock-rates = <594000000>;
 		resets = <&cru SRST_A_JPEG_ENCODER2>, <&cru SRST_H_JPEG_ENCODER2>;
 		reset-names = "video_a", "video_h";
+		rockchip,skip-pmu-idle-request;
 		iommus = <&jpege2_mmu>;
 		rockchip,srv = <&mpp_srv>;
 		rockchip,taskqueue-node = <4>;
@@ -2434,6 +2439,7 @@
 		assigned-clock-rates = <594000000>;
 		resets = <&cru SRST_A_JPEG_ENCODER3>, <&cru SRST_H_JPEG_ENCODER3>;
 		reset-names = "video_a", "video_h";
+		rockchip,skip-pmu-idle-request;
 		iommus = <&jpege3_mmu>;
 		rockchip,srv = <&mpp_srv>;
 		rockchip,taskqueue-node = <5>;
@@ -2463,6 +2469,7 @@
 		clock-names = "aclk", "hclk", "sclk";
 		resets = <&cru SRST_A_IEP2P0>, <&cru SRST_H_IEP2P0>, <&cru SRST_IEP2P0_CORE>;
 		reset-names = "rst_a", "rst_h", "rst_s";
+		rockchip,skip-pmu-idle-request;
 		power-domains = <&power RK3588_PD_VDPU>;
 		rockchip,srv = <&mpp_srv>;
 		rockchip,taskqueue-node = <6>;
@@ -2494,6 +2501,7 @@
 		assigned-clock-rates = <600000000>, <800000000>;
 		resets = <&cru SRST_A_RKVENC0>, <&cru SRST_H_RKVENC0>, <&cru SRST_RKVENC0_CORE>;
 		reset-names = "video_a", "video_h", "video_core";
+		rockchip,skip-pmu-idle-request;
 		iommus = <&rkvenc0_mmu>;
 		rockchip,srv = <&mpp_srv>;
 		rockchip,ccu = <&rkvenc_ccu>;
@@ -2531,6 +2539,7 @@
 		assigned-clock-rates = <600000000>, <800000000>;
 		resets = <&cru SRST_A_RKVENC1>, <&cru SRST_H_RKVENC1>, <&cru SRST_RKVENC1_CORE>;
 		reset-names = "video_a", "video_h", "video_core";
+		rockchip,skip-pmu-idle-request;
 		iommus = <&rkvenc1_mmu>;
 		rockchip,srv = <&mpp_srv>;
 		rockchip,ccu = <&rkvenc_ccu>;
@@ -2566,6 +2575,7 @@
 		assigned-clock-rates = <600000000>;
 		resets = <&cru SRST_A_RKVDEC_CCU>;
 		reset-names = "video_ccu";
+		rockchip,skip-pmu-idle-request;
 		power-domains = <&power RK3588_PD_RKVDEC0>;
 		status = "disabled";
 	};
@@ -2590,6 +2600,7 @@
 			 <&cru SRST_RKVDEC0_CA>, <&cru SRST_RKVDEC0_HEVC_CA>;
 		reset-names = "video_a", "video_h", "video_core",
 			      "video_cabac", "video_hevc_cabac";
+		rockchip,skip-pmu-idle-request;
 		iommus = <&rkvdec0_mmu>;
 		rockchip,srv = <&mpp_srv>;
 		rockchip,ccu = <&rkvdec_ccu>;
@@ -2638,6 +2649,7 @@
 			 <&cru SRST_RKVDEC1_CA>, <&cru SRST_RKVDEC1_HEVC_CA>;
 		reset-names = "video_a", "video_h", "video_core",
 			      "video_cabac", "video_hevc_cabac";
+		rockchip,skip-pmu-idle-request;
 		iommus = <&rkvdec1_mmu>;
 		rockchip,srv = <&mpp_srv>;
 		rockchip,ccu = <&rkvdec_ccu>;
