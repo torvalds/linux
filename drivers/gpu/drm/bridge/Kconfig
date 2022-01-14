@@ -75,6 +75,14 @@ config DRM_DISPLAY_CONNECTOR
 	  on ARM-based platforms. Saying Y here when this driver is not needed
 	  will not cause any issue.
 
+config DRM_ITE_IT6505
+        tristate "ITE IT6505 DisplayPort bridge"
+        depends on OF
+        select DRM_KMS_HELPER
+        select EXTCON
+        help
+          ITE IT6505 DisplayPort bridge chip driver.
+
 config DRM_LONTIUM_LT8912B
 	tristate "Lontium LT8912B DSI/HDMI bridge"
 	depends on OF
