@@ -362,11 +362,11 @@
  * To allow fractional bits to be tracked, the entropy_count field is
  * denominated in units of 1/8th bits.
  *
- * 2*(ENTROPY_SHIFT + poolbitshift) must <= 31, or the multiply in
+ * 2*(POOL_ENTROPY_SHIFT + poolbitshift) must <= 31, or the multiply in
  * credit_entropy_bits() needs to be 64 bits wide.
  */
-#define ENTROPY_SHIFT 3
-#define ENTROPY_BITS() (input_pool.entropy_count >> ENTROPY_SHIFT)
+#define POOL_ENTROPY_SHIFT 3
+#define POOL_ENTROPY_BITS() (input_pool.entropy_count >> POOL_ENTROPY_SHIFT)
 
 /*
  * If the entropy count falls under this number of bits, then we
@@ -426,7 +426,7 @@ enum poolinfo {
 	POOL_BYTES = POOL_WORDS * sizeof(u32),
 	POOL_BITS = POOL_BYTES * 8,
 	POOL_BITSHIFT = ilog2(POOL_WORDS) + 5,
-	POOL_FRACBITS = POOL_WORDS << (ENTROPY_SHIFT + 5),
+	POOL_FRACBITS = POOL_WORDS << (POOL_ENTROPY_SHIFT + 5),
 
 	/* x^128 + x^104 + x^76 + x^51 +x^25 + x + 1 */
 	POOL_TAP1 = 104,
@@ -650,7 +650,7 @@ static void process_random_ready_list(void)
 static void credit_entropy_bits(int nbits)
 {
 	int entropy_count, entropy_bits, orig;
-	int nfrac = nbits << ENTROPY_SHIFT;
+	int nfrac = nbits << POOL_ENTROPY_SHIFT;
 
 	if (!nbits)
 		return;
@@ -683,7 +683,7 @@ retry:
 		 * turns no matter how large nbits is.
 		 */
 		int pnfrac = nfrac;
-		const int s = POOL_BITSHIFT + ENTROPY_SHIFT + 2;
+		const int s = POOL_BITSHIFT + POOL_ENTROPY_SHIFT + 2;
 		/* The +2 corresponds to the /4 in the denominator */
 
 		do {
@@ -704,9 +704,9 @@ retry:
 	if (cmpxchg(&input_pool.entropy_count, orig, entropy_count) != orig)
 		goto retry;
 
-	trace_credit_entropy_bits(nbits, entropy_count >> ENTROPY_SHIFT, _RET_IP_);
+	trace_credit_entropy_bits(nbits, entropy_count >> POOL_ENTROPY_SHIFT, _RET_IP_);
 
-	entropy_bits = entropy_count >> ENTROPY_SHIFT;
+	entropy_bits = entropy_count >> POOL_ENTROPY_SHIFT;
 	if (crng_init < 2 && entropy_bits >= 128)
 		crng_reseed(&primary_crng, true);
 }
@@ -1187,7 +1187,7 @@ void add_input_randomness(unsigned int type, unsigned int code,
 	last_value = value;
 	add_timer_randomness(&input_timer_state,
 			     (type << 4) ^ code ^ (code >> 4) ^ value);
-	trace_add_input_randomness(ENTROPY_BITS());
+	trace_add_input_randomness(POOL_ENTROPY_BITS());
 }
 EXPORT_SYMBOL_GPL(add_input_randomness);
 
@@ -1286,7 +1286,7 @@ void add_disk_randomness(struct gendisk *disk)
 		return;
 	/* first major is 1, so we get >= 0x200 here */
 	add_timer_randomness(disk->random, 0x100 + disk_devt(disk));
-	trace_add_disk_randomness(disk_devt(disk), ENTROPY_BITS());
+	trace_add_disk_randomness(disk_devt(disk), POOL_ENTROPY_BITS());
 }
 EXPORT_SYMBOL_GPL(add_disk_randomness);
 #endif
@@ -1313,7 +1313,7 @@ retry:
 	entropy_count = orig = READ_ONCE(input_pool.entropy_count);
 	ibytes = nbytes;
 	/* never pull more than available */
-	have_bytes = entropy_count >> (ENTROPY_SHIFT + 3);
+	have_bytes = entropy_count >> (POOL_ENTROPY_SHIFT + 3);
 
 	if (have_bytes < 0)
 		have_bytes = 0;
@@ -1325,7 +1325,7 @@ retry:
 		pr_warn("negative entropy count: count %d\n", entropy_count);
 		entropy_count = 0;
 	}
-	nfrac = ibytes << (ENTROPY_SHIFT + 3);
+	nfrac = ibytes << (POOL_ENTROPY_SHIFT + 3);
 	if ((size_t) entropy_count > nfrac)
 		entropy_count -= nfrac;
 	else
@@ -1335,7 +1335,7 @@ retry:
 		goto retry;
 
 	trace_debit_entropy(8 * ibytes);
-	if (ibytes && ENTROPY_BITS() < random_write_wakeup_bits) {
+	if (ibytes && POOL_ENTROPY_BITS() < random_write_wakeup_bits) {
 		wake_up_interruptible(&random_write_wait);
 		kill_fasync(&fasync, SIGIO, POLL_OUT);
 	}
@@ -1423,7 +1423,7 @@ static ssize_t _extract_entropy(void *buf, size_t nbytes)
  */
 static ssize_t extract_entropy(void *buf, size_t nbytes, int min)
 {
-	trace_extract_entropy(nbytes, ENTROPY_BITS(), _RET_IP_);
+	trace_extract_entropy(nbytes, POOL_ENTROPY_BITS(), _RET_IP_);
 	nbytes = account(nbytes, min);
 	return _extract_entropy(buf, nbytes);
 }
@@ -1749,9 +1749,9 @@ urandom_read_nowarn(struct file *file, char __user *buf, size_t nbytes,
 {
 	int ret;
 
-	nbytes = min_t(size_t, nbytes, INT_MAX >> (ENTROPY_SHIFT + 3));
+	nbytes = min_t(size_t, nbytes, INT_MAX >> (POOL_ENTROPY_SHIFT + 3));
 	ret = extract_crng_user(buf, nbytes);
-	trace_urandom_read(8 * nbytes, 0, ENTROPY_BITS());
+	trace_urandom_read(8 * nbytes, 0, POOL_ENTROPY_BITS());
 	return ret;
 }
 
@@ -1791,7 +1791,7 @@ random_poll(struct file *file, poll_table * wait)
 	mask = 0;
 	if (crng_ready())
 		mask |= EPOLLIN | EPOLLRDNORM;
-	if (ENTROPY_BITS() < random_write_wakeup_bits)
+	if (POOL_ENTROPY_BITS() < random_write_wakeup_bits)
 		mask |= EPOLLOUT | EPOLLWRNORM;
 	return mask;
 }
@@ -1847,7 +1847,7 @@ static long random_ioctl(struct file *f, unsigned int cmd, unsigned long arg)
 	switch (cmd) {
 	case RNDGETENTCNT:
 		/* inherently racy, no point locking */
-		ent_count = ENTROPY_BITS();
+		ent_count = POOL_ENTROPY_BITS();
 		if (put_user(ent_count, p))
 			return -EFAULT;
 		return 0;
@@ -2008,7 +2008,7 @@ static int proc_do_entropy(struct ctl_table *table, int write,
 	struct ctl_table fake_table;
 	int entropy_count;
 
-	entropy_count = *(int *)table->data >> ENTROPY_SHIFT;
+	entropy_count = *(int *)table->data >> POOL_ENTROPY_SHIFT;
 
 	fake_table.data = &entropy_count;
 	fake_table.maxlen = sizeof(entropy_count);
@@ -2227,7 +2227,7 @@ void add_hwgenerator_randomness(const char *buffer, size_t count,
 	 */
 	wait_event_interruptible(random_write_wait,
 			!system_wq || kthread_should_stop() ||
-			ENTROPY_BITS() <= random_write_wakeup_bits);
+			POOL_ENTROPY_BITS() <= random_write_wakeup_bits);
 	mix_pool_bytes(buffer, count);
 	credit_entropy_bits(entropy);
 }
