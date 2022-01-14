@@ -108,6 +108,9 @@ struct pi433_device {
 struct pi433_instance {
 	struct pi433_device	*device;
 	struct pi433_tx_cfg	tx_cfg;
+
+	/* control flags */
+	bool			tx_cfg_initialized;
 };
 
 /*-------------------------------------------------------------------------*/
@@ -824,6 +827,16 @@ pi433_write(struct file *filp, const char __user *buf,
 		return -EMSGSIZE;
 
 	/*
+	 * check if tx_cfg has been initialized otherwise we won't be able to
+	 * config the RF trasmitter correctly due to invalid settings
+	 */
+	if (!instance->tx_cfg_initialized) {
+		dev_notice_once(device->dev,
+				"write: failed due to unconfigured tx_cfg (see PI433_IOC_WR_TX_CFG)");
+		return -EINVAL;
+	}
+
+	/*
 	 * write the following sequence into fifo:
 	 * - tx_cfg
 	 * - size of message
@@ -897,6 +910,7 @@ pi433_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			return -EFAULT;
 		mutex_lock(&device->tx_fifo_lock);
 		memcpy(&instance->tx_cfg, &tx_cfg, sizeof(struct pi433_tx_cfg));
+		instance->tx_cfg_initialized = true;
 		mutex_unlock(&device->tx_fifo_lock);
 		break;
 	case PI433_IOC_RD_RX_CFG:
@@ -949,8 +963,6 @@ static int pi433_open(struct inode *inode, struct file *filp)
 
 	/* setup instance data*/
 	instance->device = device;
-	instance->tx_cfg.bit_rate = 4711;
-	// TODO: fill instance->tx_cfg;
 
 	/* instance data as context */
 	filp->private_data = instance;
