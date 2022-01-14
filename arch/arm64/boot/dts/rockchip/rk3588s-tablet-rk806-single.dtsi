@@ -110,6 +110,7 @@
 		simple-audio-card,format = "i2s";
 		simple-audio-card,mclk-fs = <256>;
 		simple-audio-card,name = "rockchip,es8388-codec";
+		simple-audio-card,aux-devs = <&aw87xxx_pa1 &aw87xxx_pa2>;
 		simple-audio-card,dai-link@0 {
 			format = "i2s";
 			cpu {
@@ -1148,15 +1149,17 @@
 		pinctrl-0 = <&i2s0_mclk>;
 	};
 
-	aw87xxx_pa1@58 {
+	aw87xxx_pa1: aw87xxx_pa1@58 {
 		compatible = "awinic,aw87xxx_pa";
+		#sound-dai-cells = <0>;
 		reg = <0x58>;
 		dev_index = < 0 >;
 		status = "okay";
 	};
 
-	aw87xxx_pa2@59 {
+	aw87xxx_pa2: aw87xxx_pa2@59 {
 		compatible = "awinic,aw87xxx_pa";
+		#sound-dai-cells = <0>;
 		reg = <0x59>;
 		dev_index = < 1 >;
 		status = "okay";
