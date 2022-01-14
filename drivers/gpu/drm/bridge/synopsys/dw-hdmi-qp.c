@@ -1920,7 +1920,6 @@ static void dw_hdmi_qp_bridge_atomic_disable(struct drm_bridge *bridge,
 	mutex_lock(&hdmi->mutex);
 	hdmi->disabled = true;
 	hdmi->curr_conn = NULL;
-	hdmi_writel(hdmi, 0, PKTSCHED_PKT_EN);
 	if (hdmi->phy.ops->disable)
 		hdmi->phy.ops->disable(hdmi, hdmi->phy.data);
 	mutex_unlock(&hdmi->mutex);
