@@ -18,7 +18,7 @@
 #include <asm/firmware.h>
 #include <asm/machdep.h>
 
-static void opal_to_tm(u32 y_m_d, u64 h_m_s_ms, struct rtc_time *tm)
+static void __init opal_to_tm(u32 y_m_d, u64 h_m_s_ms, struct rtc_time *tm)
 {
 	tm->tm_year	= ((bcd2bin(y_m_d >> 24) * 100) +
 			   bcd2bin((y_m_d >> 16) & 0xff)) - 1900;

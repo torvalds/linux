@@ -1106,7 +1106,7 @@ static const struct of_device_id pci_ids[] = {
 
 struct device_node *fsl_pci_primary;
 
-void fsl_pci_assign_primary(void)
+void __init fsl_pci_assign_primary(void)
 {
 	struct device_node *np;
 

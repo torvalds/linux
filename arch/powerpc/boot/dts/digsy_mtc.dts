@@ -25,14 +25,6 @@
 			status = "disabled";
 		};
 
-		spi@f00 {
-			msp430@0 {
-				compatible = "spidev";
-				spi-max-frequency = <32000>;
-				reg = <0>;
-			};
-		};
-
 		psc@2000 {		// PSC1
 			status = "disabled";
 		};

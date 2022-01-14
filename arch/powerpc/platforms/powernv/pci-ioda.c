@@ -2265,7 +2265,7 @@ static const struct irq_domain_ops pnv_irq_domain_ops = {
 	.free   = pnv_irq_domain_free,
 };
 
-static int pnv_msi_allocate_domains(struct pci_controller *hose, unsigned int count)
+static int __init pnv_msi_allocate_domains(struct pci_controller *hose, unsigned int count)
 {
 	struct pnv_phb *phb = hose->private_data;
 	struct irq_domain *parent = irq_get_default_host();
@@ -2298,7 +2298,7 @@ static int pnv_msi_allocate_domains(struct pci_controller *hose, unsigned int co
 	return 0;
 }
 
-static void pnv_pci_init_ioda_msis(struct pnv_phb *phb)
+static void __init pnv_pci_init_ioda_msis(struct pnv_phb *phb)
 {
 	unsigned int count;
 	const __be32 *prop = of_get_property(phb->hose->dn,
