@@ -917,7 +917,7 @@ static inline void path_it_deinit(struct path_it *it)
 {
 	struct list_head *skip, *tmp;
 	/*
-	 * The skip_list is used only for the MIN_INFLIGHT policy.
+	 * The skip_list is used only for the MIN_INFLIGHT and MIN_LATENCY policies.
 	 * We need to remove paths from it, so that next IO can insert
 	 * paths (->mp_skip_entry) into a skip_list again.
 	 */
