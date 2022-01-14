@@ -38,9 +38,9 @@ DAMON provides below three interfaces for different users.
 debugfs Interface
 =================
 
-DAMON exports five files, ``attrs``, ``target_ids``, ``init_regions``,
-``schemes`` and ``monitor_on`` under its debugfs directory,
-``<debugfs>/damon/``.
+DAMON exports eight files, ``attrs``, ``target_ids``, ``init_regions``,
+``schemes``, ``monitor_on``, ``kdamond_pid``, ``mk_contexts`` and
+``rm_contexts`` under its debugfs directory, ``<debugfs>/damon/``.
 
 
 Attributes
@@ -271,6 +271,52 @@ status of DAMON::
 Please note that you cannot write to the above-mentioned debugfs files while
 the monitoring is turned on.  If you write to the files while DAMON is running,
 an error code such as ``-EBUSY`` will be returned.
+
+
+Monitoring Thread PID
+---------------------
+
+DAMON does requested monitoring with a kernel thread called ``kdamond``.  You
+can get the pid of the thread by reading the ``kdamond_pid`` file.  When the
+monitoring is turned off, reading the file returns ``none``. ::
+
+    # cd <debugfs>/damon
+    # cat monitor_on
+    off
+    # cat kdamond_pid
+    none
+    # echo on > monitor_on
+    # cat kdamond_pid
+    18594
+
+
+Using Multiple Monitoring Threads
+---------------------------------
+
+One ``kdamond`` thread is created for each monitoring context.  You can create
+and remove monitoring contexts for multiple ``kdamond`` required use case using
+the ``mk_contexts`` and ``rm_contexts`` files.
+
+Writing the name of the new context to the ``mk_contexts`` file creates a
+directory of the name on the DAMON debugfs directory.  The directory will have
+DAMON debugfs files for the context. ::
+
+    # cd <debugfs>/damon
+    # ls foo
+    # ls: cannot access 'foo': No such file or directory
+    # echo foo > mk_contexts
+    # ls foo
+    # attrs  init_regions  kdamond_pid  schemes  target_ids
+
+If the context is not needed anymore, you can remove it and the corresponding
+directory by putting the name of the context to the ``rm_contexts`` file. ::
+
+    # echo foo > rm_contexts
+    # ls foo
+    # ls: cannot access 'foo': No such file or directory
+
+Note that ``mk_contexts``, ``rm_contexts``, and ``monitor_on`` files are in the
+root directory only.
 
 
 .. _tracepoint:
