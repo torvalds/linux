@@ -3374,6 +3374,11 @@ static int is_path_remote(struct mount_ctx *mnt_ctx)
 
 	rc = server->ops->is_path_accessible(xid, tcon, cifs_sb,
 					     full_path);
+#ifdef CONFIG_CIFS_DFS_UPCALL
+	if (rc == -ENOENT && is_tcon_dfs(tcon))
+		rc = cifs_dfs_query_info_nonascii_quirk(xid, tcon, cifs_sb,
+							full_path);
+#endif
 	if (rc != 0 && rc != -EREMOTE) {
 		kfree(full_path);
 		return rc;
