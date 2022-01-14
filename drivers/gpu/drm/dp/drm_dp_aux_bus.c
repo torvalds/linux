@@ -19,7 +19,7 @@
 #include <linux/pm_domain.h>
 #include <linux/pm_runtime.h>
 
-#include <drm/drm_dp_aux_bus.h>
+#include <drm/dp/drm_dp_aux_bus.h>
 #include <drm/dp/drm_dp_helper.h>
 
 /**
