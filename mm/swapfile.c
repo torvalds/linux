@@ -1619,7 +1619,7 @@ static int page_trans_huge_map_swapcount(struct page *page,
 			swapcount = page_swapcount(page);
 		if (total_swapcount)
 			*total_swapcount = swapcount;
-		return swapcount + page_trans_huge_mapcount(page, NULL);
+		return swapcount + page_trans_huge_mapcount(page);
 	}
 
 	page = compound_head(page);
