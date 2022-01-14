@@ -254,17 +254,6 @@ period (in this case 2603), the grace-period sequence number (7075), and
 an estimate of the total number of RCU callbacks queued across all CPUs
 (625 in this case).
 
-In kernels with CONFIG_RCU_FAST_NO_HZ, more information is printed
-for each CPU::
-
-	0: (64628 ticks this GP) idle=dd5/3fffffffffffffff/0 softirq=82/543 last_accelerate: a345/d342 dyntick_enabled: 1
-
-The "last_accelerate:" prints the low-order 16 bits (in hex) of the
-jiffies counter when this CPU last invoked rcu_try_advance_all_cbs()
-from rcu_needs_cpu() or last invoked rcu_accelerate_cbs() from
-rcu_prepare_for_idle(). "dyntick_enabled: 1" indicates that dyntick-idle
-processing is enabled.
-
 If the grace period ends just as the stall warning starts printing,
 there will be a spurious stall-warning message, which will include
 the following::

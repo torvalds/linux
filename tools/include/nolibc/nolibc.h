@@ -265,12 +265,17 @@ struct stat {
  *   - arguments are in rdi, rsi, rdx, r10, r8, r9 respectively
  *   - the system call is performed by calling the syscall instruction
  *   - syscall return comes in rax
- *   - rcx and r8..r11 may be clobbered, others are preserved.
+ *   - rcx and r11 are clobbered, others are preserved.
  *   - the arguments are cast to long and assigned into the target registers
  *     which are then simply passed as registers to the asm code, so that we
  *     don't have to experience issues with register constraints.
  *   - the syscall number is always specified last in order to allow to force
  *     some registers before (gcc refuses a %-register at the last position).
+ *   - see also x86-64 ABI section A.2 AMD64 Linux Kernel Conventions, A.2.1
+ *     Calling Conventions.
+ *
+ * Link x86-64 ABI: https://gitlab.com/x86-psABIs/x86-64-ABI/-/wikis/x86-64-psABI
+ *
  */
 
 #define my_syscall0(num)                                                      \
@@ -280,9 +285,9 @@ struct stat {
 									      \
 	asm volatile (                                                        \
 		"syscall\n"                                                   \
-		: "=a" (_ret)                                                 \
+		: "=a"(_ret)                                                  \
 		: "0"(_num)                                                   \
-		: "rcx", "r8", "r9", "r10", "r11", "memory", "cc"             \
+		: "rcx", "r11", "memory", "cc"                                \
 	);                                                                    \
 	_ret;                                                                 \
 })
@@ -295,10 +300,10 @@ struct stat {
 									      \
 	asm volatile (                                                        \
 		"syscall\n"                                                   \
-		: "=a" (_ret)                                                 \
+		: "=a"(_ret)                                                  \
 		: "r"(_arg1),                                                 \
 		  "0"(_num)                                                   \
-		: "rcx", "r8", "r9", "r10", "r11", "memory", "cc"             \
+		: "rcx", "r11", "memory", "cc"                                \
 	);                                                                    \
 	_ret;                                                                 \
 })
@@ -312,10 +317,10 @@ struct stat {
 									      \
 	asm volatile (                                                        \
 		"syscall\n"                                                   \
-		: "=a" (_ret)                                                 \
+		: "=a"(_ret)                                                  \
 		: "r"(_arg1), "r"(_arg2),                                     \
 		  "0"(_num)                                                   \
-		: "rcx", "r8", "r9", "r10", "r11", "memory", "cc"             \
+		: "rcx", "r11", "memory", "cc"                                \
 	);                                                                    \
 	_ret;                                                                 \
 })
@@ -330,10 +335,10 @@ struct stat {
 									      \
 	asm volatile (                                                        \
 		"syscall\n"                                                   \
-		: "=a" (_ret)                                                 \
+		: "=a"(_ret)                                                  \
 		: "r"(_arg1), "r"(_arg2), "r"(_arg3),                         \
 		  "0"(_num)                                                   \
-		: "rcx", "r8", "r9", "r10", "r11", "memory", "cc"             \
+		: "rcx", "r11", "memory", "cc"                                \
 	);                                                                    \
 	_ret;                                                                 \
 })
@@ -349,10 +354,10 @@ struct stat {
 									      \
 	asm volatile (                                                        \
 		"syscall\n"                                                   \
-		: "=a" (_ret), "=r"(_arg4)                                    \
+		: "=a"(_ret)                                                  \
 		: "r"(_arg1), "r"(_arg2), "r"(_arg3), "r"(_arg4),             \
 		  "0"(_num)                                                   \
-		: "rcx", "r8", "r9", "r11", "memory", "cc"                    \
+		: "rcx", "r11", "memory", "cc"                                \
 	);                                                                    \
 	_ret;                                                                 \
 })
@@ -369,10 +374,10 @@ struct stat {
 									      \
 	asm volatile (                                                        \
 		"syscall\n"                                                   \
-		: "=a" (_ret), "=r"(_arg4), "=r"(_arg5)                       \
+		: "=a"(_ret)                                                  \
 		: "r"(_arg1), "r"(_arg2), "r"(_arg3), "r"(_arg4), "r"(_arg5), \
 		  "0"(_num)                                                   \
-		: "rcx", "r9", "r11", "memory", "cc"                          \
+		: "rcx", "r11", "memory", "cc"                                \
 	);                                                                    \
 	_ret;                                                                 \
 })
@@ -390,7 +395,7 @@ struct stat {
 									      \
 	asm volatile (                                                        \
 		"syscall\n"                                                   \
-		: "=a" (_ret), "=r"(_arg4), "=r"(_arg5)                       \
+		: "=a"(_ret)                                                  \
 		: "r"(_arg1), "r"(_arg2), "r"(_arg3), "r"(_arg4), "r"(_arg5), \
 		  "r"(_arg6), "0"(_num)                                       \
 		: "rcx", "r11", "memory", "cc"                                \
@@ -399,17 +404,23 @@ struct stat {
 })
 
 /* startup code */
+/*
+ * x86-64 System V ABI mandates:
+ * 1) %rsp must be 16-byte aligned right before the function call.
+ * 2) The deepest stack frame should be zero (the %rbp).
+ *
+ */
 asm(".section .text\n"
     ".global _start\n"
     "_start:\n"
     "pop %rdi\n"                // argc   (first arg, %rdi)
     "mov %rsp, %rsi\n"          // argv[] (second arg, %rsi)
     "lea 8(%rsi,%rdi,8),%rdx\n" // then a NULL then envp (third arg, %rdx)
-    "and $-16, %rsp\n"          // x86 ABI : esp must be 16-byte aligned when
-    "sub $8, %rsp\n"            // entering the callee
+    "xor %ebp, %ebp\n"          // zero the stack frame
+    "and $-16, %rsp\n"          // x86 ABI : esp must be 16-byte aligned before call
     "call main\n"               // main() returns the status code, we'll exit with it.
-    "movzb %al, %rdi\n"         // retrieve exit code from 8 lower bits
-    "mov $60, %rax\n"           // NR_exit == 60
+    "mov %eax, %edi\n"          // retrieve exit code (32 bit)
+    "mov $60, %eax\n"           // NR_exit == 60
     "syscall\n"                 // really exit
     "hlt\n"                     // ensure it does not return
     "");
@@ -577,20 +588,28 @@ struct sys_stat_struct {
 })
 
 /* startup code */
+/*
+ * i386 System V ABI mandates:
+ * 1) last pushed argument must be 16-byte aligned.
+ * 2) The deepest stack frame should be set to zero
+ *
+ */
 asm(".section .text\n"
     ".global _start\n"
     "_start:\n"
     "pop %eax\n"                // argc   (first arg, %eax)
     "mov %esp, %ebx\n"          // argv[] (second arg, %ebx)
     "lea 4(%ebx,%eax,4),%ecx\n" // then a NULL then envp (third arg, %ecx)
-    "and $-16, %esp\n"          // x86 ABI : esp must be 16-byte aligned when
+    "xor %ebp, %ebp\n"          // zero the stack frame
+    "and $-16, %esp\n"          // x86 ABI : esp must be 16-byte aligned before
+    "sub $4, %esp\n"            // the call instruction (args are aligned)
     "push %ecx\n"               // push all registers on the stack so that we
     "push %ebx\n"               // support both regparm and plain stack modes
     "push %eax\n"
     "call main\n"               // main() returns the status code in %eax
-    "movzbl %al, %ebx\n"        // retrieve exit code from lower 8 bits
-    "movl   $1, %eax\n"         // NR_exit == 1
-    "int    $0x80\n"            // exit now
+    "mov %eax, %ebx\n"          // retrieve exit code (32-bit int)
+    "movl $1, %eax\n"           // NR_exit == 1
+    "int $0x80\n"               // exit now
     "hlt\n"                     // ensure it does not
     "");
 
@@ -774,7 +793,6 @@ asm(".section .text\n"
     "and %r3, %r1, $-8\n"         // AAPCS : sp must be 8-byte aligned in the
     "mov %sp, %r3\n"              //         callee, an bl doesn't push (lr=pc)
     "bl main\n"                   // main() returns the status code, we'll exit with it.
-    "and %r0, %r0, $0xff\n"       // limit exit code to 8 bits
     "movs r7, $1\n"               // NR_exit == 1
     "svc $0x00\n"
     "");
@@ -971,7 +989,6 @@ asm(".section .text\n"
     "add x2, x2, x1\n"            //           + argv
     "and sp, x1, -16\n"           // sp must be 16-byte aligned in the callee
     "bl main\n"                   // main() returns the status code, we'll exit with it.
-    "and x0, x0, 0xff\n"          // limit exit code to 8 bits
     "mov x8, 93\n"                // NR_exit == 93
     "svc #0\n"
     "");
@@ -1176,7 +1193,7 @@ asm(".section .text\n"
     "addiu $sp,$sp,-16\n"         // the callee expects to save a0..a3 there!
     "jal main\n"                  // main() returns the status code, we'll exit with it.
     "nop\n"                       // delayed slot
-    "and $a0, $v0, 0xff\n"        // limit exit code to 8 bits
+    "move $a0, $v0\n"             // retrieve 32-bit exit code from v0
     "li $v0, 4001\n"              // NR_exit == 4001
     "syscall\n"
     ".end __start\n"
@@ -1374,7 +1391,6 @@ asm(".section .text\n"
     "add   a2,a2,a1\n"           //             + argv
     "andi  sp,a1,-16\n"          // sp must be 16-byte aligned
     "call  main\n"               // main() returns the status code, we'll exit with it.
-    "andi  a0, a0, 0xff\n"       // limit exit code to 8 bits
     "li a7, 93\n"                // NR_exit == 93
     "ecall\n"
     "");
@@ -1553,6 +1569,12 @@ static __attribute__((unused))
 pid_t sys_getpid(void)
 {
 	return my_syscall0(__NR_getpid);
+}
+
+static __attribute__((unused))
+pid_t sys_gettid(void)
+{
+	return my_syscall0(__NR_gettid);
 }
 
 static __attribute__((unused))
@@ -2005,6 +2027,18 @@ static __attribute__((unused))
 pid_t getpid(void)
 {
 	pid_t ret = sys_getpid();
+
+	if (ret < 0) {
+		SET_ERRNO(-ret);
+		ret = -1;
+	}
+	return ret;
+}
+
+static __attribute__((unused))
+pid_t gettid(void)
+{
+	pid_t ret = sys_gettid();
 
 	if (ret < 0) {
 		SET_ERRNO(-ret);
