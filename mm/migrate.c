@@ -1206,6 +1206,14 @@ int next_demotion_node(int node)
 		/*
 		 * If there are multiple target nodes, just select one
 		 * target node randomly.
+		 *
+		 * In addition, we can also use round-robin to select
+		 * target node, but we should introduce another variable
+		 * for node_demotion[] to record last selected target node,
+		 * that may cause cache ping-pong due to the changing of
+		 * last target node. Or introducing per-cpu data to avoid
+		 * caching issue, which seems more complicated. So selecting
+		 * target node randomly seems better until now.
 		 */
 		index = get_random_int() % target_nr;
 		break;
