@@ -244,6 +244,23 @@ void kfd_smi_event_update_vmfault(struct kfd_dev *dev, uint16_t pasid)
 			  task_info.pid, task_info.task_name);
 }
 
+void kfd_smi_event_page_fault_start(struct kfd_dev *dev, pid_t pid,
+				    unsigned long address, bool write_fault,
+				    ktime_t ts)
+{
+	kfd_smi_event_add(pid, dev, KFD_SMI_EVENT_PAGE_FAULT_START,
+			  "%lld -%d @%lx(%x) %c\n", ktime_to_ns(ts), pid,
+			  address, dev->id, write_fault ? 'W' : 'R');
+}
+
+void kfd_smi_event_page_fault_end(struct kfd_dev *dev, pid_t pid,
+				  unsigned long address, bool migration)
+{
+	kfd_smi_event_add(pid, dev, KFD_SMI_EVENT_PAGE_FAULT_END,
+			  "%lld -%d @%lx(%x) %c\n", ktime_get_boottime_ns(),
+			  pid, address, dev->id, migration ? 'M' : 'U');
+}
+
 int kfd_smi_event_open(struct kfd_dev *dev, uint32_t *fd)
 {
 	struct kfd_smi_client *client;
