@@ -84,7 +84,7 @@ static void uhid_device_add_worker(struct work_struct *work)
 		 * However, we do have to clear the ->running flag and do a
 		 * wakeup to make sure userspace knows that the device is gone.
 		 */
-		uhid->running = false;
+		WRITE_ONCE(uhid->running, false);
 		wake_up_interruptible(&uhid->report_wait);
 	}
 }
@@ -194,9 +194,9 @@ static int __uhid_report_queue_and_wait(struct uhid_device *uhid,
 	spin_unlock_irqrestore(&uhid->qlock, flags);
 
 	ret = wait_event_interruptible_timeout(uhid->report_wait,
-				!uhid->report_running || !uhid->running,
+				!uhid->report_running || !READ_ONCE(uhid->running),
 				5 * HZ);
-	if (!ret || !uhid->running || uhid->report_running)
+	if (!ret || !READ_ONCE(uhid->running) || uhid->report_running)
 		ret = -EIO;
 	else if (ret < 0)
 		ret = -ERESTARTSYS;
@@ -237,7 +237,7 @@ static int uhid_hid_get_report(struct hid_device *hid, unsigned char rnum,
 	struct uhid_event *ev;
 	int ret;
 
-	if (!uhid->running)
+	if (!READ_ONCE(uhid->running))
 		return -EIO;
 
 	ev = kzalloc(sizeof(*ev), GFP_KERNEL);
@@ -279,7 +279,7 @@ static int uhid_hid_set_report(struct hid_device *hid, unsigned char rnum,
 	struct uhid_event *ev;
 	int ret;
 
-	if (!uhid->running || count > UHID_DATA_MAX)
+	if (!READ_ONCE(uhid->running) || count > UHID_DATA_MAX)
 		return -EIO;
 
 	ev = kzalloc(sizeof(*ev), GFP_KERNEL);
@@ -579,7 +579,7 @@ static int uhid_dev_destroy(struct uhid_device *uhid)
 	if (!uhid->hid)
 		return -EINVAL;
 
-	uhid->running = false;
+	WRITE_ONCE(uhid->running, false);
 	wake_up_interruptible(&uhid->report_wait);
 
 	cancel_work_sync(&uhid->worker);
@@ -593,7 +593,7 @@ static int uhid_dev_destroy(struct uhid_device *uhid)
 
 static int uhid_dev_input(struct uhid_device *uhid, struct uhid_event *ev)
 {
-	if (!uhid->running)
+	if (!READ_ONCE(uhid->running))
 		return -EINVAL;
 
 	hid_input_report(uhid->hid, HID_INPUT_REPORT, ev->u.input.data,
@@ -604,7 +604,7 @@ static int uhid_dev_input(struct uhid_device *uhid, struct uhid_event *ev)
 
 static int uhid_dev_input2(struct uhid_device *uhid, struct uhid_event *ev)
 {
-	if (!uhid->running)
+	if (!READ_ONCE(uhid->running))
 		return -EINVAL;
 
 	hid_input_report(uhid->hid, HID_INPUT_REPORT, ev->u.input2.data,
@@ -616,7 +616,7 @@ static int uhid_dev_input2(struct uhid_device *uhid, struct uhid_event *ev)
 static int uhid_dev_get_report_reply(struct uhid_device *uhid,
 				     struct uhid_event *ev)
 {
-	if (!uhid->running)
+	if (!READ_ONCE(uhid->running))
 		return -EINVAL;
 
 	uhid_report_wake_up(uhid, ev->u.get_report_reply.id, ev);
@@ -626,7 +626,7 @@ static int uhid_dev_get_report_reply(struct uhid_device *uhid,
 static int uhid_dev_set_report_reply(struct uhid_device *uhid,
 				     struct uhid_event *ev)
 {
-	if (!uhid->running)
+	if (!READ_ONCE(uhid->running))
 		return -EINVAL;
 
 	uhid_report_wake_up(uhid, ev->u.set_report_reply.id, ev);
