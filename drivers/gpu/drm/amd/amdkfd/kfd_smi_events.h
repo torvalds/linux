@@ -34,4 +34,12 @@ void kfd_smi_event_page_fault_start(struct kfd_dev *dev, pid_t pid,
 				    ktime_t ts);
 void kfd_smi_event_page_fault_end(struct kfd_dev *dev, pid_t pid,
 				  unsigned long address, bool migration);
+void kfd_smi_event_migration_start(struct kfd_dev *dev, pid_t pid,
+			     unsigned long start, unsigned long end,
+			     uint32_t from, uint32_t to,
+			     uint32_t prefetch_loc, uint32_t preferred_loc,
+			     uint32_t trigger);
+void kfd_smi_event_migration_end(struct kfd_dev *dev, pid_t pid,
+			     unsigned long start, unsigned long end,
+			     uint32_t from, uint32_t to, uint32_t trigger);
 #endif

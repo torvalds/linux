@@ -261,6 +261,28 @@ void kfd_smi_event_page_fault_end(struct kfd_dev *dev, pid_t pid,
 			  pid, address, dev->id, migration ? 'M' : 'U');
 }
 
+void kfd_smi_event_migration_start(struct kfd_dev *dev, pid_t pid,
+				   unsigned long start, unsigned long end,
+				   uint32_t from, uint32_t to,
+				   uint32_t prefetch_loc, uint32_t preferred_loc,
+				   uint32_t trigger)
+{
+	kfd_smi_event_add(pid, dev, KFD_SMI_EVENT_MIGRATE_START,
+			  "%lld -%d @%lx(%lx) %x->%x %x:%x %d\n",
+			  ktime_get_boottime_ns(), pid, start, end - start,
+			  from, to, prefetch_loc, preferred_loc, trigger);
+}
+
+void kfd_smi_event_migration_end(struct kfd_dev *dev, pid_t pid,
+				 unsigned long start, unsigned long end,
+				 uint32_t from, uint32_t to, uint32_t trigger)
+{
+	kfd_smi_event_add(pid, dev, KFD_SMI_EVENT_MIGRATE_END,
+			  "%lld -%d @%lx(%lx) %x->%x %d\n",
+			  ktime_get_boottime_ns(), pid, start, end - start,
+			  from, to, trigger);
+}
+
 int kfd_smi_event_open(struct kfd_dev *dev, uint32_t *fd)
 {
 	struct kfd_smi_client *client;
