@@ -11,7 +11,6 @@
 #include <linux/delay.h>
 #include <linux/kthread.h>
 #include <linux/mm.h>
-#include <linux/random.h>
 #include <linux/slab.h>
 #include <linux/string.h>
 
@@ -22,9 +21,6 @@
 #undef DAMON_MIN_REGION
 #define DAMON_MIN_REGION 1
 #endif
-
-/* Get a random number in [l, r) */
-#define damon_rand(l, r) (l + prandom_u32_max(r - l))
 
 static DEFINE_MUTEX(damon_lock);
 static int nr_running_ctxs;
