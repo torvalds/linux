@@ -9,6 +9,7 @@
 #include <linux/i2c.h>
 #include <linux/power_supply.h>
 #include <linux/regmap.h>
+#include <linux/regulator/driver.h>
 #include <linux/types.h>
 #include <linux/gpio/consumer.h>
 #include <linux/interrupt.h>
@@ -109,6 +110,8 @@ struct bq25890_device {
 	struct work_struct usb_work;
 	unsigned long usb_event;
 
+	struct gpio_desc *otg_mode_en_io;
+	struct regulator_dev *otg_vbus_reg;
 	struct regmap *rmap;
 	struct regmap_field *rmap_fields[F_MAX_FIELDS];
 
@@ -926,6 +929,11 @@ static int bq25890_fw_probe(struct bq25890_device *bq)
 	init->boostf = device_property_read_bool(bq->dev, "ti,boost-low-freq");
 	bq->notify_node = of_parse_phandle(bq->dev->of_node,
 					   "ti,usb-charger-detection", 0);
+	bq->otg_mode_en_io =  devm_gpiod_get_optional(bq->dev,
+						      "otg-mode-en",
+						      GPIOD_IN);
+	if (!IS_ERR_OR_NULL(bq->otg_mode_en_io))
+		gpiod_direction_output(bq->otg_mode_en_io, 0);
 
 	return 0;
 }
@@ -1074,6 +1082,109 @@ static int bq25890_register_pd_psy(struct bq25890_device *bq)
 	return 0;
 }
 
+static void bq25890_set_otg_vbus(struct bq25890_device *bq, bool enable)
+{
+	if (!IS_ERR_OR_NULL(bq->otg_mode_en_io))
+		gpiod_direction_output(bq->otg_mode_en_io, enable);
+	bq25890_field_write(bq, F_OTG_CFG, enable);
+}
+
+static int bq25890_otg_vbus_enable(struct regulator_dev *dev)
+{
+	struct bq25890_device *bq = rdev_get_drvdata(dev);
+
+	bq25890_set_otg_vbus(bq, true);
+
+	return 0;
+}
+
+static int bq25890_otg_vbus_disable(struct regulator_dev *dev)
+{
+	struct bq25890_device *bq = rdev_get_drvdata(dev);
+
+	bq25890_set_otg_vbus(bq, false);
+
+	return 0;
+}
+
+static int bq25890_otg_vbus_is_enabled(struct regulator_dev *dev)
+{
+	struct bq25890_device *bq = rdev_get_drvdata(dev);
+	u8 val;
+	int gpio_status = 1;
+
+	val = bq25890_field_read(bq, F_OTG_CFG);
+	if (!IS_ERR_OR_NULL(bq->otg_mode_en_io))
+		gpio_status = gpiod_get_value(bq->otg_mode_en_io);
+
+	return val && gpio_status ? 1 : 0;
+}
+
+static const struct regulator_ops bq25890_otg_vbus_ops = {
+	.enable = bq25890_otg_vbus_enable,
+	.disable = bq25890_otg_vbus_disable,
+	.is_enabled = bq25890_otg_vbus_is_enabled,
+};
+
+static const struct regulator_desc bq25890_otg_vbus_desc = {
+	.name = "otg-vbus",
+	.of_match = "otg-vbus",
+	.regulators_node = of_match_ptr("regulators"),
+	.owner = THIS_MODULE,
+	.ops = &bq25890_otg_vbus_ops,
+	.type = REGULATOR_VOLTAGE,
+	.fixed_uV = 5000000,
+	.n_voltages = 1,
+};
+
+static int bq25890_register_otg_vbus_regulator(struct bq25890_device *bq)
+{
+	struct device_node *np;
+	struct regulator_config config = { };
+
+	np = of_get_child_by_name(bq->dev->of_node, "regulators");
+	if (!np) {
+		dev_warn(bq->dev, "cannot find regulators node\n");
+		return -ENXIO;
+	}
+
+	config.dev = bq->dev;
+	config.driver_data = bq;
+
+	bq->otg_vbus_reg = devm_regulator_register(bq->dev,
+						   &bq25890_otg_vbus_desc,
+						   &config);
+	if (IS_ERR(bq->otg_vbus_reg))
+		return PTR_ERR(bq->otg_vbus_reg);
+
+	return 0;
+}
+
+static int bq25890_otg_register(struct bq25890_device *bq)
+{
+	int ret;
+
+	/* OTG reporting */
+	bq->usb_phy = devm_usb_get_phy(bq->dev, USB_PHY_TYPE_USB2);
+	if (!IS_ERR_OR_NULL(bq->usb_phy)) {
+		INIT_WORK(&bq->usb_work, bq25890_usb_work);
+		bq->usb_nb.notifier_call = bq25890_usb_notifier;
+		usb_register_notifier(bq->usb_phy, &bq->usb_nb);
+		return 0;
+	}
+
+	ret = bq25890_register_otg_vbus_regulator(bq);
+	if (ret < 0) {
+		dev_warn(bq->dev,
+			 "Cannot register otg vbus regulator\n");
+		bq->otg_vbus_reg = NULL;
+
+		return ret;
+	}
+
+	return 0;
+}
+
 static int bq25890_probe(struct i2c_client *client,
 			 const struct i2c_device_id *id)
 {
@@ -1140,13 +1251,7 @@ static int bq25890_probe(struct i2c_client *client,
 		return client->irq;
 	}
 
-	/* OTG reporting */
-	bq->usb_phy = devm_usb_get_phy(dev, USB_PHY_TYPE_USB2);
-	if (!IS_ERR_OR_NULL(bq->usb_phy)) {
-		INIT_WORK(&bq->usb_work, bq25890_usb_work);
-		bq->usb_nb.notifier_call = bq25890_usb_notifier;
-		usb_register_notifier(bq->usb_phy, &bq->usb_nb);
-	}
+	bq25890_otg_register(bq);
 
 	ret = devm_request_threaded_irq(dev, client->irq, NULL,
 					bq25890_irq_handler_thread,
