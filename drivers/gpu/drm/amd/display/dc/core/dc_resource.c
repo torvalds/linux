@@ -3270,3 +3270,36 @@ void check_syncd_pipes_for_disabled_master_pipe(struct dc *dc,
 				i, disabled_master_pipe_idx);
 	}
 }
+
+uint8_t resource_transmitter_to_phy_idx(const struct dc *dc, enum transmitter transmitter)
+{
+	/* TODO - get transmitter to phy idx mapping from DMUB */
+	uint8_t phy_idx = transmitter - TRANSMITTER_UNIPHY_A;
+
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+	if (dc->ctx->dce_version == DCN_VERSION_3_1 &&
+			dc->ctx->asic_id.hw_internal_rev == YELLOW_CARP_B0) {
+		switch (transmitter) {
+		case TRANSMITTER_UNIPHY_A:
+			phy_idx = 0;
+			break;
+		case TRANSMITTER_UNIPHY_B:
+			phy_idx = 1;
+			break;
+		case TRANSMITTER_UNIPHY_C:
+			phy_idx = 5;
+			break;
+		case TRANSMITTER_UNIPHY_D:
+			phy_idx = 6;
+			break;
+		case TRANSMITTER_UNIPHY_E:
+			phy_idx = 4;
+			break;
+		default:
+			phy_idx = 0;
+			break;
+		}
+	}
+#endif
+	return phy_idx;
+}

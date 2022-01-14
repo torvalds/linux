@@ -107,7 +107,7 @@ static void svm_range_add_to_svms(struct svm_range *prange)
 	pr_debug("svms 0x%p prange 0x%p [0x%lx 0x%lx]\n", prange->svms,
 		 prange, prange->start, prange->last);
 
-	list_add_tail(&prange->list, &prange->svms->list);
+	list_move_tail(&prange->list, &prange->svms->list);
 	prange->it_node.start = prange->start;
 	prange->it_node.last = prange->last;
 	interval_tree_insert(&prange->it_node, &prange->svms->objects);
@@ -295,8 +295,6 @@ svm_range *svm_range_new(struct svm_range_list *svms, uint64_t start,
 	prange->last = last;
 	INIT_LIST_HEAD(&prange->list);
 	INIT_LIST_HEAD(&prange->update_list);
-	INIT_LIST_HEAD(&prange->remove_list);
-	INIT_LIST_HEAD(&prange->insert_list);
 	INIT_LIST_HEAD(&prange->svm_bo_list);
 	INIT_LIST_HEAD(&prange->deferred_list);
 	INIT_LIST_HEAD(&prange->child_list);
@@ -1018,7 +1016,7 @@ svm_range_split_tail(struct svm_range *prange,
 	int r = svm_range_split(prange, prange->start, new_last, &tail);
 
 	if (!r)
-		list_add(&tail->insert_list, insert_list);
+		list_add(&tail->list, insert_list);
 	return r;
 }
 
@@ -1030,7 +1028,7 @@ svm_range_split_head(struct svm_range *prange,
 	int r = svm_range_split(prange, new_start, prange->last, &head);
 
 	if (!r)
-		list_add(&head->insert_list, insert_list);
+		list_add(&head->list, insert_list);
 	return r;
 }
 
@@ -1898,8 +1896,8 @@ svm_range_add(struct kfd_process *p, uint64_t start, uint64_t size,
 				goto out;
 			}
 
-			list_add(&old->remove_list, remove_list);
-			list_add(&prange->insert_list, insert_list);
+			list_add(&old->update_list, remove_list);
+			list_add(&prange->list, insert_list);
 			list_add(&prange->update_list, update_list);
 
 			if (node->start < start) {
@@ -1931,7 +1929,7 @@ svm_range_add(struct kfd_process *p, uint64_t start, uint64_t size,
 				goto out;
 			}
 
-			list_add(&prange->insert_list, insert_list);
+			list_add(&prange->list, insert_list);
 			list_add(&prange->update_list, update_list);
 		}
 
@@ -1946,13 +1944,13 @@ svm_range_add(struct kfd_process *p, uint64_t start, uint64_t size,
 			r = -ENOMEM;
 			goto out;
 		}
-		list_add(&prange->insert_list, insert_list);
+		list_add(&prange->list, insert_list);
 		list_add(&prange->update_list, update_list);
 	}
 
 out:
 	if (r)
-		list_for_each_entry_safe(prange, tmp, insert_list, insert_list)
+		list_for_each_entry_safe(prange, tmp, insert_list, list)
 			svm_range_free(prange);
 
 	return r;
@@ -3236,7 +3234,7 @@ svm_range_set_attr(struct kfd_process *p, uint64_t start, uint64_t size,
 		goto out;
 	}
 	/* Apply changes as a transaction */
-	list_for_each_entry_safe(prange, next, &insert_list, insert_list) {
+	list_for_each_entry_safe(prange, next, &insert_list, list) {
 		svm_range_add_to_svms(prange);
 		svm_range_add_notifier_locked(mm, prange);
 	}
@@ -3244,8 +3242,7 @@ svm_range_set_attr(struct kfd_process *p, uint64_t start, uint64_t size,
 		svm_range_apply_attrs(p, prange, nattr, attrs);
 		/* TODO: unmap ranges from GPU that lost access */
 	}
-	list_for_each_entry_safe(prange, next, &remove_list,
-				remove_list) {
+	list_for_each_entry_safe(prange, next, &remove_list, update_list) {
 		pr_debug("unlink old 0x%p prange 0x%p [0x%lx 0x%lx]\n",
 			 prange->svms, prange, prange->start,
 			 prange->last);
