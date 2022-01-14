@@ -424,8 +424,13 @@ static struct attribute *scsi_sysfs_shost_attrs[] = {
 	NULL
 };
 
-const struct attribute_group scsi_shost_attr_group = {
+static const struct attribute_group scsi_shost_attr_group = {
 	.attrs =	scsi_sysfs_shost_attrs,
+};
+
+const struct attribute_group *scsi_shost_groups[] = {
+	&scsi_shost_attr_group,
+	NULL
 };
 
 static void scsi_device_cls_release(struct device *class_dev)

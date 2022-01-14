@@ -445,7 +445,7 @@ sli_cmd_rq_create_v2(struct sli4 *sli4, u32 num_rqs,
 
 	dma->size = payload_size;
 	dma->virt = dma_alloc_coherent(&sli4->pci->dev, dma->size,
-				       &dma->phys, GFP_DMA);
+				       &dma->phys, GFP_KERNEL);
 	if (!dma->virt)
 		return -EIO;
 
@@ -508,7 +508,7 @@ __sli_queue_init(struct sli4 *sli4, struct sli4_queue *q, u32 qtype,
 
 	q->dma.size = size * n_entries;
 	q->dma.virt = dma_alloc_coherent(&sli4->pci->dev, q->dma.size,
-					 &q->dma.phys, GFP_DMA);
+					 &q->dma.phys, GFP_KERNEL);
 	if (!q->dma.virt) {
 		memset(&q->dma, 0, sizeof(struct efc_dma));
 		efc_log_err(sli4, "%s allocation failed\n", SLI4_QNAME[qtype]);
@@ -849,7 +849,7 @@ static int sli_cmd_cq_set_create(struct sli4 *sli4,
 
 	dma->size = payload_size;
 	dma->virt = dma_alloc_coherent(&sli4->pci->dev, dma->size,
-				       &dma->phys, GFP_DMA);
+				       &dma->phys, GFP_KERNEL);
 	if (!dma->virt)
 		return -EIO;
 
@@ -4413,7 +4413,7 @@ sli_get_ctrl_attributes(struct sli4 *sli4)
 	psize = sizeof(struct sli4_rsp_cmn_get_cntl_addl_attributes);
 	data.size = psize;
 	data.virt = dma_alloc_coherent(&sli4->pci->dev, data.size,
-				       &data.phys, GFP_DMA);
+				       &data.phys, GFP_KERNEL);
 	if (!data.virt) {
 		memset(&data, 0, sizeof(struct efc_dma));
 		efc_log_err(sli4, "Failed to allocate memory for GET_CNTL_ADDL_ATTR\n");
@@ -4653,7 +4653,7 @@ sli_setup(struct sli4 *sli4, void *os, struct pci_dev  *pdev,
 	 */
 	sli4->bmbx.size = SLI4_BMBX_SIZE + sizeof(struct sli4_mcqe);
 	sli4->bmbx.virt = dma_alloc_coherent(&pdev->dev, sli4->bmbx.size,
-					     &sli4->bmbx.phys, GFP_DMA);
+					     &sli4->bmbx.phys, GFP_KERNEL);
 	if (!sli4->bmbx.virt) {
 		memset(&sli4->bmbx, 0, sizeof(struct efc_dma));
 		efc_log_err(sli4, "bootstrap mailbox allocation failed\n");
@@ -4674,7 +4674,7 @@ sli_setup(struct sli4 *sli4, void *os, struct pci_dev  *pdev,
 	sli4->vpd_data.virt = dma_alloc_coherent(&pdev->dev,
 						 sli4->vpd_data.size,
 						 &sli4->vpd_data.phys,
-						 GFP_DMA);
+						 GFP_KERNEL);
 	if (!sli4->vpd_data.virt) {
 		memset(&sli4->vpd_data, 0, sizeof(struct efc_dma));
 		/* Note that failure isn't fatal in this specific case */
@@ -5070,7 +5070,7 @@ sli_cmd_post_hdr_templates(struct sli4 *sli4, void *buf, struct efc_dma *dma,
 		payload_dma->size = payload_size;
 		payload_dma->virt = dma_alloc_coherent(&sli4->pci->dev,
 						       payload_dma->size,
-					     &payload_dma->phys, GFP_DMA);
+					     &payload_dma->phys, GFP_KERNEL);
 		if (!payload_dma->virt) {
 			memset(payload_dma, 0, sizeof(struct efc_dma));
 			efc_log_err(sli4, "mbox payload memory allocation fail\n");
