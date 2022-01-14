@@ -56,7 +56,7 @@ void __init setup_cmdline(char **cmdline_p)
 		/* called from hpux boot loader */
 		boot_command_line[0] = '\0';
 	} else {
-		strlcpy(boot_command_line, (char *)__va(boot_args[1]),
+		strscpy(boot_command_line, (char *)__va(boot_args[1]),
 			COMMAND_LINE_SIZE);
 
 #ifdef CONFIG_BLK_DEV_INITRD
@@ -68,7 +68,7 @@ void __init setup_cmdline(char **cmdline_p)
 #endif
 	}
 
-	strcpy(command_line, boot_command_line);
+	strscpy(command_line, boot_command_line, COMMAND_LINE_SIZE);
 	*cmdline_p = command_line;
 }
 
