@@ -233,25 +233,48 @@ TRACE_EVENT(cachefiles_ref,
 
 TRACE_EVENT(cachefiles_lookup,
 	    TP_PROTO(struct cachefiles_object *obj,
+		     struct dentry *dir,
 		     struct dentry *de),
 
-	    TP_ARGS(obj, de),
+	    TP_ARGS(obj, dir, de),
 
 	    TP_STRUCT__entry(
 		    __field(unsigned int,		obj	)
 		    __field(short,			error	)
+		    __field(unsigned long,		dino	)
 		    __field(unsigned long,		ino	)
 			     ),
 
 	    TP_fast_assign(
-		    __entry->obj	= obj->debug_id;
+		    __entry->obj	= obj ? obj->debug_id : 0;
+		    __entry->dino	= d_backing_inode(dir)->i_ino;
 		    __entry->ino	= (!IS_ERR(de) && d_backing_inode(de) ?
 					   d_backing_inode(de)->i_ino : 0);
 		    __entry->error	= IS_ERR(de) ? PTR_ERR(de) : 0;
 			   ),
 
-	    TP_printk("o=%08x i=%lx e=%d",
-		      __entry->obj, __entry->ino, __entry->error)
+	    TP_printk("o=%08x dB=%lx B=%lx e=%d",
+		      __entry->obj, __entry->dino, __entry->ino, __entry->error)
+	    );
+
+TRACE_EVENT(cachefiles_mkdir,
+	    TP_PROTO(struct dentry *dir, struct dentry *subdir),
+
+	    TP_ARGS(dir, subdir),
+
+	    TP_STRUCT__entry(
+		    __field(unsigned int,			dir	)
+		    __field(unsigned int,			subdir	)
+			     ),
+
+	    TP_fast_assign(
+		    __entry->dir	= d_backing_inode(dir)->i_ino;
+		    __entry->subdir	= d_backing_inode(subdir)->i_ino;
+			   ),
+
+	    TP_printk("dB=%x sB=%x",
+		      __entry->dir,
+		      __entry->subdir)
 	    );
 
 TRACE_EVENT(cachefiles_tmpfile,
@@ -269,7 +292,7 @@ TRACE_EVENT(cachefiles_tmpfile,
 		    __entry->backer	= backer->i_ino;
 			   ),
 
-	    TP_printk("o=%08x b=%08x",
+	    TP_printk("o=%08x B=%x",
 		      __entry->obj,
 		      __entry->backer)
 	    );
@@ -289,61 +312,58 @@ TRACE_EVENT(cachefiles_link,
 		    __entry->backer	= backer->i_ino;
 			   ),
 
-	    TP_printk("o=%08x b=%08x",
+	    TP_printk("o=%08x B=%x",
 		      __entry->obj,
 		      __entry->backer)
 	    );
 
 TRACE_EVENT(cachefiles_unlink,
 	    TP_PROTO(struct cachefiles_object *obj,
-		     struct dentry *de,
+		     ino_t ino,
 		     enum fscache_why_object_killed why),
 
-	    TP_ARGS(obj, de, why),
+	    TP_ARGS(obj, ino, why),
 
 	    /* Note that obj may be NULL */
 	    TP_STRUCT__entry(
 		    __field(unsigned int,		obj		)
-		    __field(struct dentry *,		de		)
+		    __field(unsigned int,		ino		)
 		    __field(enum fscache_why_object_killed, why		)
 			     ),
 
 	    TP_fast_assign(
 		    __entry->obj	= obj ? obj->debug_id : UINT_MAX;
-		    __entry->de		= de;
+		    __entry->ino	= ino;
 		    __entry->why	= why;
 			   ),
 
-	    TP_printk("o=%08x d=%p w=%s",
-		      __entry->obj, __entry->de,
+	    TP_printk("o=%08x B=%x w=%s",
+		      __entry->obj, __entry->ino,
 		      __print_symbolic(__entry->why, cachefiles_obj_kill_traces))
 	    );
 
 TRACE_EVENT(cachefiles_rename,
 	    TP_PROTO(struct cachefiles_object *obj,
-		     struct dentry *de,
-		     struct dentry *to,
+		     ino_t ino,
 		     enum fscache_why_object_killed why),
 
-	    TP_ARGS(obj, de, to, why),
+	    TP_ARGS(obj, ino, why),
 
 	    /* Note that obj may be NULL */
 	    TP_STRUCT__entry(
 		    __field(unsigned int,		obj		)
-		    __field(struct dentry *,		de		)
-		    __field(struct dentry *,		to		)
+		    __field(unsigned int,		ino		)
 		    __field(enum fscache_why_object_killed, why		)
 			     ),
 
 	    TP_fast_assign(
 		    __entry->obj	= obj ? obj->debug_id : UINT_MAX;
-		    __entry->de		= de;
-		    __entry->to		= to;
+		    __entry->ino	= ino;
 		    __entry->why	= why;
 			   ),
 
-	    TP_printk("o=%08x d=%p t=%p w=%s",
-		      __entry->obj, __entry->de, __entry->to,
+	    TP_printk("o=%08x B=%x w=%s",
+		      __entry->obj, __entry->ino,
 		      __print_symbolic(__entry->why, cachefiles_obj_kill_traces))
 	    );
 
@@ -370,7 +390,7 @@ TRACE_EVENT(cachefiles_coherency,
 		    __entry->ino	= ino;
 			   ),
 
-	    TP_printk("o=%08x %s i=%llx c=%u",
+	    TP_printk("o=%08x %s B=%llx c=%u",
 		      __entry->obj,
 		      __print_symbolic(__entry->why, cachefiles_coherency_traces),
 		      __entry->ino,
@@ -397,7 +417,7 @@ TRACE_EVENT(cachefiles_vol_coherency,
 		    __entry->ino	= ino;
 			   ),
 
-	    TP_printk("V=%08x %s i=%llx",
+	    TP_printk("V=%08x %s B=%llx",
 		      __entry->vol,
 		      __print_symbolic(__entry->why, cachefiles_coherency_traces),
 		      __entry->ino)
@@ -435,7 +455,7 @@ TRACE_EVENT(cachefiles_prep_read,
 		    __entry->cache_inode = cache_inode;
 			   ),
 
-	    TP_printk("R=%08x[%u] %s %s f=%02x s=%llx %zx ni=%x b=%x",
+	    TP_printk("R=%08x[%u] %s %s f=%02x s=%llx %zx ni=%x B=%x",
 		      __entry->rreq, __entry->index,
 		      __print_symbolic(__entry->source, netfs_sreq_sources),
 		      __print_symbolic(__entry->why, cachefiles_prepare_read_traces),
@@ -466,7 +486,7 @@ TRACE_EVENT(cachefiles_read,
 		    __entry->len	= len;
 			   ),
 
-	    TP_printk("o=%08x b=%08x s=%llx l=%zx",
+	    TP_printk("o=%08x B=%x s=%llx l=%zx",
 		      __entry->obj,
 		      __entry->backer,
 		      __entry->start,
@@ -495,7 +515,7 @@ TRACE_EVENT(cachefiles_write,
 		    __entry->len	= len;
 			   ),
 
-	    TP_printk("o=%08x b=%08x s=%llx l=%zx",
+	    TP_printk("o=%08x B=%x s=%llx l=%zx",
 		      __entry->obj,
 		      __entry->backer,
 		      __entry->start,
@@ -524,7 +544,7 @@ TRACE_EVENT(cachefiles_trunc,
 		    __entry->why	= why;
 			   ),
 
-	    TP_printk("o=%08x b=%08x %s l=%llx->%llx",
+	    TP_printk("o=%08x B=%x %s l=%llx->%llx",
 		      __entry->obj,
 		      __entry->backer,
 		      __print_symbolic(__entry->why, cachefiles_trunc_traces),
@@ -549,7 +569,7 @@ TRACE_EVENT(cachefiles_mark_active,
 		    __entry->inode	= inode->i_ino;
 			   ),
 
-	    TP_printk("o=%08x i=%lx",
+	    TP_printk("o=%08x B=%lx",
 		      __entry->obj, __entry->inode)
 	    );
 
@@ -570,7 +590,7 @@ TRACE_EVENT(cachefiles_mark_inactive,
 		    __entry->inode	= inode->i_ino;
 			   ),
 
-	    TP_printk("o=%08x i=%lx",
+	    TP_printk("o=%08x B=%lx",
 		      __entry->obj, __entry->inode)
 	    );
 
@@ -594,7 +614,7 @@ TRACE_EVENT(cachefiles_vfs_error,
 		    __entry->where	= where;
 			   ),
 
-	    TP_printk("o=%08x b=%08x %s e=%d",
+	    TP_printk("o=%08x B=%x %s e=%d",
 		      __entry->obj,
 		      __entry->backer,
 		      __print_symbolic(__entry->where, cachefiles_error_traces),
@@ -621,7 +641,7 @@ TRACE_EVENT(cachefiles_io_error,
 		    __entry->where	= where;
 			   ),
 
-	    TP_printk("o=%08x b=%08x %s e=%d",
+	    TP_printk("o=%08x B=%x %s e=%d",
 		      __entry->obj,
 		      __entry->backer,
 		      __print_symbolic(__entry->where, cachefiles_error_traces),

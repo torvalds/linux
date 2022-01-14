@@ -101,6 +101,7 @@ retry:
 		subdir = lookup_one_len(dirname, dir, strlen(dirname));
 	else
 		subdir = ERR_PTR(ret);
+	trace_cachefiles_lookup(NULL, dir, subdir);
 	if (IS_ERR(subdir)) {
 		trace_cachefiles_vfs_error(NULL, d_backing_inode(dir),
 					   PTR_ERR(subdir),
@@ -135,6 +136,7 @@ retry:
 						   cachefiles_trace_mkdir_error);
 			goto mkdir_error;
 		}
+		trace_cachefiles_mkdir(dir, subdir);
 
 		if (unlikely(d_unhashed(subdir))) {
 			cachefiles_put_directory(subdir);
@@ -233,7 +235,7 @@ static int cachefiles_unlink(struct cachefiles_cache *cache,
 	};
 	int ret;
 
-	trace_cachefiles_unlink(object, dentry, why);
+	trace_cachefiles_unlink(object, d_inode(dentry)->i_ino, why);
 	ret = security_path_unlink(&path, dentry);
 	if (ret < 0) {
 		cachefiles_io_error(cache, "Unlink security error");
@@ -386,7 +388,7 @@ try_again:
 			.new_dir	= d_inode(cache->graveyard),
 			.new_dentry	= grave,
 		};
-		trace_cachefiles_rename(object, rep, grave, why);
+		trace_cachefiles_rename(object, d_inode(rep)->i_ino, why);
 		ret = cachefiles_inject_read_error();
 		if (ret == 0)
 			ret = vfs_rename(&rd);
@@ -617,7 +619,7 @@ bool cachefiles_look_up_object(struct cachefiles_object *object)
 						  object->d_name_len);
 	else
 		dentry = ERR_PTR(ret);
-	trace_cachefiles_lookup(object, dentry);
+	trace_cachefiles_lookup(object, fan, dentry);
 	if (IS_ERR(dentry)) {
 		if (dentry == ERR_PTR(-ENOENT))
 			goto new_file;
