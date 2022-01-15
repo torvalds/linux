@@ -3,6 +3,7 @@
 #include <linux/kernel.h>
 #include <linux/mmdebug.h>
 #include <linux/mm_types.h>
+#include <linux/mm_inline.h>
 #include <linux/pagemap.h>
 #include <linux/rcupdate.h>
 #include <linux/smp.h>

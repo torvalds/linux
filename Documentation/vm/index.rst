@@ -31,10 +31,12 @@ algorithms.  If you are looking for advice on simply allocating memory, see the
    page_migration
    page_frags
    page_owner
+   page_table_check
    remap_file_pages
    slub
    split_page_table_lock
    transhuge
    unevictable-lru
+   vmalloced-kernel-stacks
    z3fold
    zsmalloc

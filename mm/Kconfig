@@ -900,6 +900,20 @@ config IO_MAPPING
 config SECRETMEM
 	def_bool ARCH_HAS_SET_DIRECT_MAP && !EMBEDDED
 
+config ANON_VMA_NAME
+	bool "Anonymous VMA name support"
+	depends on PROC_FS && ADVISE_SYSCALLS && MMU
+
+	help
+	  Allow naming anonymous virtual memory areas.
+
+	  This feature allows assigning names to virtual memory areas. Assigned
+	  names can be later retrieved from /proc/pid/maps and /proc/pid/smaps
+	  and help identifying individual anonymous memory areas.
+	  Assigning a name to anonymous virtual memory area might prevent that
+	  area from being merged with adjacent virtual memory areas due to the
+	  difference in their name.
+
 source "mm/damon/Kconfig"
 
 endmenu
