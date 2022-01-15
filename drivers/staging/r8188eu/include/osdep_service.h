@@ -56,7 +56,7 @@ static inline struct list_head *get_list_head(struct __queue *queue)
 
 static inline void _set_timer(struct timer_list *ptimer,u32 delay_time)
 {
-	mod_timer(ptimer , (jiffies+(delay_time*HZ/1000)));
+	mod_timer(ptimer, jiffies + msecs_to_jiffies(delay_time));
 }
 
 static inline int rtw_netif_queue_stopped(struct net_device *pnetdev)
