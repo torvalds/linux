@@ -216,6 +216,7 @@ isp_dpcc_config(struct rkisp_isp_params_vdev *params_vdev,
 				arg->sw_mindis2_g, arg->sw_mindis2_rb);
 	isp3_param_write(params_vdev, value, ISP3X_DPCC0_LINE_THRESH_2, id);
 	isp3_param_write(params_vdev, value, ISP3X_DPCC1_LINE_THRESH_2, id);
+	isp3_param_write(params_vdev, value, ISP3X_DPCC2_LINE_THRESH_2, id);
 
 	value = ISP_PACK_4BYTE(arg->line_mad_fac_2_g, arg->line_mad_fac_2_rb,
 				arg->sw_dis_scale_max2, arg->sw_dis_scale_min2);
@@ -2693,7 +2694,7 @@ isp_hdrdrc_enable(struct rkisp_isp_params_vdev *params_vdev, bool en, u32 id)
 				    ISP3X_ADRC_FST_FRAME, id);
 	} else {
 		value = 0;
-		isp_param_clear_bits(params_vdev, ISP3X_GAIN_CTRL, BIT(12));
+		isp3_param_clear_bits(params_vdev, ISP3X_GAIN_CTRL, BIT(12), id);
 	}
 	isp3_param_write(params_vdev, value, ISP3X_DRC_CTRL0, id);
 }
@@ -2887,7 +2888,7 @@ isp_dhaz_enable(struct rkisp_isp_params_vdev *params_vdev, bool en, u32 id)
 				    ISP3X_DHAZ_FST_FRAME, id);
 	} else {
 		value &= ~ISP3X_DHAZ_ENMUX;
-		isp_param_clear_bits(params_vdev, ISP3X_GAIN_CTRL, BIT(16));
+		isp3_param_clear_bits(params_vdev, ISP3X_GAIN_CTRL, BIT(16), id);
 	}
 	isp3_param_write(params_vdev, value, ISP3X_DHAZ_CTRL, id);
 }
@@ -4082,17 +4083,6 @@ rkisp_alloc_internal_buf(struct rkisp_isp_params_vdev *params_vdev,
 				goto err_3dlut;
 			}
 		}
-
-		priv_val->buf_lsclut_idx[id] = 0;
-		for (i = 0; i < ISP3X_LSC_LUT_BUF_NUM; i++) {
-			priv_val->buf_lsclut[id][i].is_need_vaddr = true;
-			priv_val->buf_lsclut[id][i].size = ISP3X_LSC_LUT_BUF_SIZE;
-			ret = rkisp_alloc_buffer(ispdev, &priv_val->buf_lsclut[id][i]);
-			if (ret) {
-				dev_err(ispdev->dev, "alloc lsclut buf fail:%d\n", ret);
-				goto err_lsclut;
-			}
-		}
 	}
 
 	if ((module_en_update & ISP3X_MODULE_BAY3D) &&
@@ -4137,14 +4127,6 @@ err_3dnr:
 		rkisp_free_buffer(ispdev, &priv_val->buf_3dnr_iir[id]);
 		rkisp_free_buffer(ispdev, &priv_val->buf_3dnr_cur[id]);
 		rkisp_free_buffer(ispdev, &priv_val->buf_3dnr_ds[id]);
-	}
-	id = ispdev->hw_dev->is_unite ? 1 : 0;
-	i = ISP3X_LSC_LUT_BUF_NUM;
-err_lsclut:
-	for (; id >= 0; id--) {
-		for (i -= 1; i >= 0; i--)
-			rkisp_free_buffer(ispdev, &priv_val->buf_lsclut[id][i]);
-		i = ISP3X_LSC_LUT_BUF_NUM;
 	}
 	id = ispdev->hw_dev->is_unite ? 1 : 0;
 	i = ISP3X_3DLUT_BUF_NUM;
@@ -4407,8 +4389,6 @@ rkisp_params_stream_stop_v3x(struct rkisp_isp_params_vdev *params_vdev)
 		rkisp_free_buffer(ispdev, &priv_val->buf_3dnr_ds[id]);
 		for (i = 0; i < ISP3X_3DLUT_BUF_NUM; i++)
 			rkisp_free_buffer(ispdev, &priv_val->buf_3dlut[id][i]);
-		for (i = 0; i < ISP3X_LSC_LUT_BUF_NUM; i++)
-			rkisp_free_buffer(ispdev, &priv_val->buf_lsclut[id][i]);
 	}
 	for (i = 0; i < RKISP_STATS_DDR_BUF_NUM; i++)
 		rkisp_free_buffer(ispdev, &ispdev->stats_vdev.stats_buf[i]);
