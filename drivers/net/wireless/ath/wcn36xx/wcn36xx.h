@@ -194,7 +194,14 @@ struct wcn36xx_sta {
 	enum wcn36xx_ampdu_state ampdu_state[16];
 	int non_agg_frame_ct;
 };
+
 struct wcn36xx_dxe_ch;
+
+struct wcn36xx_chan_survey {
+	s8	rssi;
+	u8	snr;
+};
+
 struct wcn36xx {
 	struct ieee80211_hw	*hw;
 	struct device		*dev;
@@ -284,6 +291,9 @@ struct wcn36xx {
 
 	struct ieee80211_supported_band *band;
 	struct ieee80211_channel *channel;
+
+	spinlock_t survey_lock;		/* protects chan_survey */
+	struct wcn36xx_chan_survey	*chan_survey;
 };
 
 static inline bool wcn36xx_is_fw_version(struct wcn36xx *wcn,

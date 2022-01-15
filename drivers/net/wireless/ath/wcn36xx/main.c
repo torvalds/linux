@@ -331,6 +331,7 @@ static int wcn36xx_start(struct ieee80211_hw *hw)
 
 	INIT_LIST_HEAD(&wcn->vif_list);
 	spin_lock_init(&wcn->dxe_lock);
+	spin_lock_init(&wcn->survey_lock);
 
 	return 0;
 
@@ -394,6 +395,7 @@ static void wcn36xx_change_opchannel(struct wcn36xx *wcn, int ch)
 	struct wcn36xx_vif *tmp;
 	struct ieee80211_supported_band *band;
 	struct ieee80211_channel *channel;
+	unsigned long flags;
 	int i, j;
 
 	for (i = 0; i < ARRAY_SIZE(wcn->hw->wiphy->bands); i++) {
@@ -415,8 +417,10 @@ static void wcn36xx_change_opchannel(struct wcn36xx *wcn, int ch)
 		return;
 	}
 
+	spin_lock_irqsave(&wcn->survey_lock, flags);
 	wcn->band = band;
 	wcn->channel = channel;
+	spin_unlock_irqrestore(&wcn->survey_lock, flags);
 
 	list_for_each_entry(tmp, &wcn->vif_list, list) {
 		vif = wcn36xx_priv_to_vif(tmp);
@@ -1557,6 +1561,7 @@ static int wcn36xx_probe(struct platform_device *pdev)
 	void *wcnss;
 	int ret;
 	const u8 *addr;
+	int n_channels;
 
 	wcn36xx_dbg(WCN36XX_DBG_MAC, "platform probe\n");
 
@@ -1580,6 +1585,13 @@ static int wcn36xx_probe(struct platform_device *pdev)
 
 	wcn->hal_buf = devm_kmalloc(wcn->dev, WCN36XX_HAL_BUF_SIZE, GFP_KERNEL);
 	if (!wcn->hal_buf) {
+		ret = -ENOMEM;
+		goto out_wq;
+	}
+
+	n_channels = wcn_band_2ghz.n_channels + wcn_band_5ghz.n_channels;
+	wcn->chan_survey = devm_kmalloc(wcn->dev, n_channels, GFP_KERNEL);
+	if (!wcn->chan_survey) {
 		ret = -ENOMEM;
 		goto out_wq;
 	}
