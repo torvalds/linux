@@ -314,7 +314,7 @@ static int setup_metric_events(struct hashmap *ids,
 		 */
 		metric_id = evsel__metric_id(ev);
 		evlist__for_each_entry_continue(metric_evlist, ev) {
-			if (!strcmp(evsel__metric_id(metric_events[i]), metric_id))
+			if (!strcmp(evsel__metric_id(ev), metric_id))
 				ev->metric_leader = metric_events[i];
 		}
 	}
