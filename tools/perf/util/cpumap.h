@@ -2,6 +2,7 @@
 #ifndef __PERF_CPUMAP_H
 #define __PERF_CPUMAP_H
 
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdbool.h>
 #include <internal/cpumap.h>
@@ -50,6 +51,15 @@ int cpu__setup_cpunode_map(void);
 int cpu__max_node(void);
 struct perf_cpu cpu__max_cpu(void);
 struct perf_cpu cpu__max_present_cpu(void);
+
+/**
+ * cpu_map__is_dummy - Events associated with a pid, rather than a CPU, use a single dummy map with an entry of -1.
+ */
+static inline bool cpu_map__is_dummy(struct perf_cpu_map *cpus)
+{
+	return cpus->nr == 1 && cpus->map[0].cpu == -1;
+}
+
 /**
  * cpu__get_node - Returns the numa node X as read from
  * /sys/devices/system/node/nodeX for the given CPU.
