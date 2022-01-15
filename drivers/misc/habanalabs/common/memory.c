@@ -2607,11 +2607,12 @@ int hl_vm_ctx_init(struct hl_ctx *ctx)
  */
 void hl_vm_ctx_fini(struct hl_ctx *ctx)
 {
-	struct hl_device *hdev = ctx->hdev;
-	struct hl_vm *vm = &hdev->vm;
 	struct hl_vm_phys_pg_pack *phys_pg_list;
+	struct hl_device *hdev = ctx->hdev;
 	struct hl_vm_hash_node *hnode;
+	struct hl_vm *vm = &hdev->vm;
 	struct hlist_node *tmp_node;
+	struct list_head free_list;
 	struct hl_mem_in args;
 	int i;
 
@@ -2644,18 +2645,23 @@ void hl_vm_ctx_fini(struct hl_ctx *ctx)
 
 	mutex_unlock(&ctx->mmu_lock);
 
+	INIT_LIST_HEAD(&free_list);
+
 	spin_lock(&vm->idr_lock);
 	idr_for_each_entry(&vm->phys_pg_pack_handles, phys_pg_list, i)
 		if (phys_pg_list->asid == ctx->asid) {
 			dev_dbg(hdev->dev,
 				"page list 0x%px of asid %d is still alive\n",
 				phys_pg_list, ctx->asid);
-			atomic64_sub(phys_pg_list->total_size,
-					&hdev->dram_used_mem);
-			free_phys_pg_pack(hdev, phys_pg_list);
+
+			atomic64_sub(phys_pg_list->total_size, &hdev->dram_used_mem);
 			idr_remove(&vm->phys_pg_pack_handles, i);
+			list_add(&phys_pg_list->node, &free_list);
 		}
 	spin_unlock(&vm->idr_lock);
+
+	list_for_each_entry(phys_pg_list, &free_list, node)
+		free_phys_pg_pack(hdev, phys_pg_list);
 
 	va_range_fini(hdev, ctx->va_range[HL_VA_RANGE_TYPE_DRAM]);
 	va_range_fini(hdev, ctx->va_range[HL_VA_RANGE_TYPE_HOST]);
