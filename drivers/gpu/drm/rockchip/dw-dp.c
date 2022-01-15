@@ -486,17 +486,20 @@ static int dw_dp_connector_get_modes(struct drm_connector *connector)
 	struct dw_dp *dp = connector_to_dp(connector);
 	struct drm_display_info *di = &connector->display_info;
 	struct edid *edid;
-	int num_modes;
+	int num_modes = 0;
 
 	edid = drm_bridge_get_edid(&dp->bridge, connector);
-	if (!edid) {
-		DRM_DEV_ERROR(dp->dev, "failed to get edid\n");
-		return 0;
+	if (edid) {
+		drm_connector_update_edid_property(connector, edid);
+		num_modes = drm_add_edid_modes(connector, edid);
+		kfree(edid);
 	}
 
-	drm_connector_update_edid_property(connector, edid);
-	num_modes = drm_add_edid_modes(connector, edid);
-	kfree(edid);
+	if (!di->color_formats)
+		di->color_formats = DRM_COLOR_FORMAT_RGB444;
+
+	if (!di->bpc)
+		di->bpc = 8;
 
 	if (num_modes > 0 && dp->split_mode) {
 		struct drm_display_mode *mode;
