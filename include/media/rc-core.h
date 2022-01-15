@@ -298,7 +298,7 @@ struct ir_raw_event {
 	u8                      duty_cycle;
 
 	unsigned                pulse:1;
-	unsigned                reset:1;
+	unsigned                overflow:1;
 	unsigned                timeout:1;
 	unsigned                carrier_report:1;
 };
@@ -321,9 +321,9 @@ int ir_raw_encode_scancode(enum rc_proto protocol, u32 scancode,
 			   struct ir_raw_event *events, unsigned int max);
 int ir_raw_encode_carrier(enum rc_proto protocol);
 
-static inline void ir_raw_event_reset(struct rc_dev *dev)
+static inline void ir_raw_event_overflow(struct rc_dev *dev)
 {
-	ir_raw_event_store(dev, &((struct ir_raw_event) { .reset = true }));
+	ir_raw_event_store(dev, &((struct ir_raw_event) { .overflow = true }));
 	dev->idle = true;
 	ir_raw_event_handle(dev);
 }

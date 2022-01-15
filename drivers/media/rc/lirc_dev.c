@@ -41,17 +41,17 @@ void lirc_raw_event(struct rc_dev *dev, struct ir_raw_event ev)
 	struct lirc_fh *fh;
 	int sample;
 
-	/* Packet start */
-	if (ev.reset) {
+	/* Receiver overflow, data missing */
+	if (ev.overflow) {
 		/*
 		 * Userspace expects a long space event before the start of
 		 * the signal to use as a sync.  This may be done with repeat
-		 * packets and normal samples.  But if a reset has been sent
+		 * packets and normal samples.  But if an overflow has been sent
 		 * then we assume that a long time has passed, so we send a
 		 * space with the maximum time value.
 		 */
 		sample = LIRC_SPACE(LIRC_VALUE_MASK);
-		dev_dbg(&dev->dev, "delivering reset sync space to lirc_dev\n");
+		dev_dbg(&dev->dev, "delivering overflow space to lirc_dev\n");
 
 	/* Carrier reports */
 	} else if (ev.carrier_report) {

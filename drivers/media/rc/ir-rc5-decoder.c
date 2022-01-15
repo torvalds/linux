@@ -45,7 +45,7 @@ static int ir_rc5_decode(struct rc_dev *dev, struct ir_raw_event ev)
 	enum rc_proto protocol;
 
 	if (!is_timing_event(ev)) {
-		if (ev.reset)
+		if (ev.overflow)
 			data->state = STATE_INACTIVE;
 		return 0;
 	}
