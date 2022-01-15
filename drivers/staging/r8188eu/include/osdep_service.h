@@ -163,15 +163,6 @@ static inline u32 _RND512(u32 sz)
 	return val;
 }
 
-static inline u32 bitshift(u32 bitmask)
-{
-	u32 i;
-
-	for (i = 0; i <= 31; i++)
-		if (((bitmask>>i) &  0x1) == 1) break;
-	return i;
-}
-
 /*  limitation of path length */
 #define PATH_LENGTH_MAX PATH_MAX
 
